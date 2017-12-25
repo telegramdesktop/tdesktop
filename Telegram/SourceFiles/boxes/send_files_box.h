@@ -72,7 +72,6 @@ protected:
 
 private:
 	class AlbumPreview;
-	struct AlbumThumb;
 
 	void initSendWay();
 	void initPreview(rpl::producer<int> desiredPreviewHeight);
@@ -86,6 +85,7 @@ private:
 
 	void prepareSingleFilePreview();
 	void prepareAlbumPreview();
+	void applyAlbumOrder();
 
 	void send(bool ctrlShiftEnter = false);
 	void captionResized();

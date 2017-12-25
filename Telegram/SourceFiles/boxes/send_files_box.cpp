@@ -40,6 +40,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace {
 
 constexpr auto kMinPreviewWidth = 20;
+constexpr auto kShrinkDuration = TimeMs(150);
+constexpr auto kDragDuration = TimeMs(200);
 
 class SingleMediaPreview : public Ui::RpWidget {
 public:
@@ -105,6 +107,456 @@ private:
 	int _statusWidth = 0;
 
 };
+
+class AlbumThumb {
+public:
+	AlbumThumb(
+		const Storage::PreparedFile &file,
+		const Ui::GroupMediaLayout &layout);
+
+	void moveToLayout(const Ui::GroupMediaLayout &layout);
+
+	int photoHeight() const;
+
+	void paintInAlbum(
+		Painter &p,
+		int left,
+		int top,
+		float64 shrinkProgress,
+		float64 moveProgress,
+		TimeMs ms);
+	void paintPhoto(Painter &p, int left, int top, int outerWidth);
+	void paintFile(Painter &p, int left, int top, int outerWidth);
+
+	bool containsPoint(QPoint position) const;
+	int distanceTo(QPoint position) const;
+	bool isPointAfter(QPoint position) const;
+	void moveInAlbum(QPoint to);
+	QPoint center() const;
+	void suggestMove(float64 delta, base::lambda<void()> callback);
+	void finishAnimations();
+
+private:
+	QRect countRealGeometry() const;
+	QRect countCurrentGeometry(float64 progress) const;
+	void prepareCache(QSize size, int shrink);
+	void drawSimpleFrame(Painter &p, QRect to, QSize size) const;
+
+	Ui::GroupMediaLayout _layout;
+	QRect _fromGeometry;
+	const QImage _fullPreview;
+	const int _shrinkSize = 0;
+	QPixmap _albumImage;
+	QImage _albumCache;
+	QPoint _albumPosition;
+	RectParts _albumCorners = RectPart::None;
+	QPixmap _photo;
+	QPixmap _fileThumb;
+	QString _name;
+	QString _status;
+	int _nameWidth = 0;
+	int _statusWidth = 0;
+	bool _isVideo = false;
+	float64 _suggestedMove = 0.;
+	Animation _suggestedMoveAnimation;
+	int _lastShrinkValue = 0;
+
+};
+
+AlbumThumb::AlbumThumb(
+	const Storage::PreparedFile &file,
+	const Ui::GroupMediaLayout &layout)
+: _layout(layout)
+, _fullPreview(file.preview)
+, _shrinkSize(int(std::ceil(st::historyMessageRadius / 1.4)))
+, _isVideo(file.type == Storage::PreparedFile::AlbumType::Video) {
+	Expects(!_fullPreview.isNull());
+
+	moveToLayout(layout);
+
+	using Option = Images::Option;
+	const auto previewWidth = _fullPreview.width();
+	const auto previewHeight = _fullPreview.height();
+	const auto imageWidth = std::max(
+		previewWidth / cIntRetinaFactor(),
+		st::minPhotoSize);
+	const auto imageHeight = std::max(
+		previewHeight / cIntRetinaFactor(),
+		st::minPhotoSize);
+	_photo = App::pixmapFromImageInPlace(Images::prepare(
+		_fullPreview,
+		previewWidth,
+		previewHeight,
+		Option::RoundedLarge | Option::RoundedAll,
+		imageWidth,
+		imageHeight));
+
+	const auto idealSize = st::sendMediaFileThumbSize * cIntRetinaFactor();
+	const auto fileThumbSize = (previewWidth > previewHeight)
+		? QSize(previewWidth * idealSize / previewHeight, idealSize)
+		: QSize(idealSize, previewHeight * idealSize / previewWidth);
+	_fileThumb = App::pixmapFromImageInPlace(Images::prepare(
+		_fullPreview,
+		fileThumbSize.width(),
+		fileThumbSize.height(),
+		Option::RoundedSmall | Option::RoundedAll,
+		st::sendMediaFileThumbSize,
+		st::sendMediaFileThumbSize
+	));
+
+	const auto availableFileWidth = st::sendMediaPreviewSize
+		- st::sendMediaFileThumbSkip
+		- st::sendMediaFileThumbSize;
+	const auto filepath = file.path;
+	if (filepath.isEmpty()) {
+		_name = filedialogDefaultName(
+			qsl("image"),
+			qsl(".png"),
+			QString(),
+			true);
+		_status = qsl("%1x%2").arg(
+			_fullPreview.width()
+		).arg(
+			_fullPreview.height()
+		);
+	} else {
+		auto fileinfo = QFileInfo(filepath);
+		_name = fileinfo.fileName();
+		_status = formatSizeText(fileinfo.size());
+	}
+	_nameWidth = st::semiboldFont->width(_name);
+	if (_nameWidth > availableFileWidth) {
+		_name = st::semiboldFont->elided(
+			_name,
+			Qt::ElideMiddle);
+		_nameWidth = st::semiboldFont->width(_name);
+	}
+	_statusWidth = st::normalFont->width(_status);
+}
+
+void AlbumThumb::moveToLayout(const Ui::GroupMediaLayout &layout) {
+	_fromGeometry = countRealGeometry();
+	_layout = layout;
+	_suggestedMove = 0.;
+	_albumPosition = QPoint(0, 0);
+
+	const auto width = _layout.geometry.width();
+	const auto height = _layout.geometry.height();
+	_albumCorners = Ui::GetCornersFromSides(_layout.sides);
+	using Option = Images::Option;
+	const auto options = Option::Smooth
+		| Option::RoundedLarge
+		| ((_albumCorners & RectPart::TopLeft)
+			? Option::RoundedTopLeft
+			: Option::None)
+		| ((_albumCorners & RectPart::TopRight)
+			? Option::RoundedTopRight
+			: Option::None)
+		| ((_albumCorners & RectPart::BottomLeft)
+			? Option::RoundedBottomLeft
+			: Option::None)
+		| ((_albumCorners & RectPart::BottomRight)
+			? Option::RoundedBottomRight
+			: Option::None);
+	const auto pixSize = Ui::GetImageScaleSizeForGeometry(
+		{ _fullPreview.width(), _fullPreview.height() },
+		{ width, height });
+	const auto pixWidth = pixSize.width() * cIntRetinaFactor();
+	const auto pixHeight = pixSize.height() * cIntRetinaFactor();
+
+	_albumImage = App::pixmapFromImageInPlace(Images::prepare(
+		_fullPreview,
+		pixWidth,
+		pixHeight,
+		options,
+		width,
+		height));
+}
+
+int AlbumThumb::photoHeight() const {
+	return _photo.height() / cIntRetinaFactor();
+}
+
+void AlbumThumb::paintInAlbum(
+		Painter &p,
+		int left,
+		int top,
+		float64 shrinkProgress,
+		float64 moveProgress,
+		TimeMs ms) {
+	const auto shrink = anim::interpolate(0, _shrinkSize, shrinkProgress);
+	_suggestedMoveAnimation.step(ms);
+	_lastShrinkValue = shrink;
+	const auto geometry = countCurrentGeometry(moveProgress);
+	const auto x = left + geometry.x();
+	const auto y = top + geometry.y();
+	if (shrink > 0 || moveProgress < 1.) {
+		const auto size = geometry.size();
+		if (shrinkProgress < 1 && _albumCorners != RectPart::None) {
+			prepareCache(size, shrink);
+			p.drawImage(x, y, _albumCache);
+		} else {
+			const auto to = QRect({ x, y }, size).marginsRemoved(
+				{ shrink, shrink, shrink, shrink }
+			);
+			drawSimpleFrame(p, to, size);
+		}
+	} else {
+		p.drawPixmap(x, y, _albumImage);
+	}
+	if (_isVideo) {
+		const auto inner = QRect(
+			x + (geometry.width() - st::msgFileSize) / 2,
+			y + (geometry.height() - st::msgFileSize) / 2,
+			st::msgFileSize,
+			st::msgFileSize);
+		{
+			PainterHighQualityEnabler hq(p);
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::msgDateImgBg);
+			p.drawEllipse(inner);
+		}
+		st::historyFileThumbPlay.paintInCenter(p, inner);
+	}
+}
+
+void AlbumThumb::prepareCache(QSize size, int shrink) {
+	const auto width = std::max(
+		_layout.geometry.width(),
+		_fromGeometry.width());
+	const auto height = std::max(
+		_layout.geometry.height(),
+		_fromGeometry.height());
+	const auto cacheSize = QSize(width, height) * cIntRetinaFactor();
+	const auto initial = QRect(QPoint(), size);
+
+	if (_albumCache.width() < cacheSize.width()
+		|| _albumCache.height() < cacheSize.height()) {
+		_albumCache = QImage(cacheSize, QImage::Format_ARGB32_Premultiplied);
+	}
+	_albumCache.fill(Qt::transparent);
+	{
+		Painter p(&_albumCache);
+		const auto to = initial.marginsRemoved(
+			{ shrink, shrink, shrink, shrink }
+		);
+		drawSimpleFrame(p, to, size);
+	}
+	Images::prepareRound(
+		_albumCache,
+		ImageRoundRadius::Large,
+		_albumCorners,
+		initial);
+}
+
+void AlbumThumb::drawSimpleFrame(Painter &p, QRect to, QSize size) const {
+	const auto fullWidth = _fullPreview.width();
+	const auto fullHeight = _fullPreview.height();
+	const auto previewSize = Ui::GetImageScaleSizeForGeometry(
+		{ fullWidth, fullHeight },
+		{ size.width(), size.height() });
+	const auto previewWidth = previewSize.width() * cIntRetinaFactor();
+	const auto previewHeight = previewSize.height() * cIntRetinaFactor();
+	const auto width = size.width() * cIntRetinaFactor();
+	const auto height = size.height() * cIntRetinaFactor();
+	const auto scaleWidth = to.width() / float64(width);
+	const auto scaleHeight = to.height() / float64(height);
+	const auto Round = [](float64 value) {
+		return int(std::round(value));
+	};
+	const auto [from, fillBlack] = [&] {
+		if (previewWidth < width && previewHeight < height) {
+			const auto toWidth = Round(previewWidth * scaleWidth);
+			const auto toHeight = Round(previewHeight * scaleHeight);
+			return std::make_pair(
+				QRect(0, 0, fullWidth, fullHeight),
+				QMargins(
+					(to.width() - toWidth) / 2,
+					(to.height() - toHeight) / 2,
+					to.width() - toWidth - (to.width() - toWidth) / 2,
+					to.height() - toHeight - (to.height() - toHeight) / 2));
+		} else if (previewWidth * height > previewHeight * width) {
+			if (previewHeight >= height) {
+				const auto takeWidth = previewWidth * height / previewHeight;
+				const auto useWidth = fullWidth * width / takeWidth;
+				return std::make_pair(
+					QRect(
+						(fullWidth - useWidth) / 2,
+						0,
+						useWidth,
+						fullHeight),
+					QMargins(0, 0, 0, 0));
+			} else {
+				const auto takeWidth = previewWidth;
+				const auto useWidth = fullWidth * width / takeWidth;
+				const auto toHeight = Round(previewHeight * scaleHeight);
+				const auto toSkip = (to.height() - toHeight) / 2;
+				return std::make_pair(
+					QRect(
+						(fullWidth - useWidth) / 2,
+						0,
+						useWidth,
+						fullHeight),
+					QMargins(
+						0,
+						toSkip,
+						0,
+						to.height() - toHeight - toSkip));
+			}
+		} else {
+			if (previewWidth >= width) {
+				const auto takeHeight = previewHeight * width / previewWidth;
+				const auto useHeight = fullHeight * height / takeHeight;
+				return std::make_pair(
+					QRect(
+						0,
+						(fullHeight - useHeight) / 2,
+						fullWidth,
+						useHeight),
+					QMargins(0, 0, 0, 0));
+			} else {
+				const auto takeHeight = previewHeight;
+				const auto useHeight = fullHeight * height / takeHeight;
+				const auto toWidth = Round(previewWidth * scaleWidth);
+				const auto toSkip = (to.width() - toWidth) / 2;
+				return std::make_pair(
+					QRect(
+						0,
+						(fullHeight - useHeight) / 2,
+						fullWidth,
+						useHeight),
+					QMargins(
+						toSkip,
+						0,
+						to.width() - toWidth - toSkip,
+						0));
+			}
+		}
+	}();
+
+	p.drawImage(to.marginsRemoved(fillBlack), _fullPreview, from);
+	if (fillBlack.top() > 0) {
+		p.fillRect(to.x(), to.y(), to.width(), fillBlack.top(), st::imageBg);
+	}
+	if (fillBlack.bottom() > 0) {
+		p.fillRect(
+			to.x(),
+			to.y() + to.height() - fillBlack.bottom(),
+			to.width(),
+			fillBlack.bottom(),
+			st::imageBg);
+	}
+	if (fillBlack.left() > 0) {
+		p.fillRect(
+			to.x(),
+			to.y() + fillBlack.top(),
+			fillBlack.left(),
+			to.height() - fillBlack.top() - fillBlack.bottom(),
+			st::imageBg);
+	}
+	if (fillBlack.right() > 0) {
+		p.fillRect(
+			to.x() + to.width() - fillBlack.right(),
+			to.y() + fillBlack.top(),
+			fillBlack.right(),
+			to.height() - fillBlack.top() - fillBlack.bottom(),
+			st::imageBg);
+	}
+}
+
+void AlbumThumb::paintPhoto(Painter &p, int left, int top, int outerWidth) {
+	const auto width = _photo.width() / cIntRetinaFactor();
+	p.drawPixmapLeft(
+		left + (st::sendMediaPreviewSize - width) / 2,
+		top,
+		outerWidth,
+		_photo);
+}
+
+void AlbumThumb::paintFile(Painter &p, int left, int top, int outerWidth) {
+	const auto textLeft = left
+		+ st::sendMediaFileThumbSize
+		+ st::sendMediaFileThumbSkip;
+
+	p.drawPixmap(left, top, _fileThumb);
+	p.setFont(st::semiboldFont);
+	p.setPen(st::historyFileNameInFg);
+	p.drawTextLeft(
+		textLeft,
+		top + st::sendMediaFileNameTop,
+		outerWidth,
+		_name,
+		_nameWidth);
+	p.setFont(st::normalFont);
+	p.setPen(st::mediaInFg);
+	p.drawTextLeft(
+		textLeft,
+		top + st::sendMediaFileStatusTop,
+		outerWidth,
+		_status,
+		_statusWidth);
+}
+
+bool AlbumThumb::containsPoint(QPoint position) const {
+	return _layout.geometry.contains(position);
+}
+
+int AlbumThumb::distanceTo(QPoint position) const {
+	const auto delta = (_layout.geometry.center() - position);
+	return QPoint::dotProduct(delta, delta);
+}
+
+bool AlbumThumb::isPointAfter(QPoint position) const {
+	return position.x() > _layout.geometry.center().x();
+}
+
+void AlbumThumb::moveInAlbum(QPoint to) {
+	_albumPosition = to;
+}
+
+QPoint AlbumThumb::center() const {
+	auto realGeometry = _layout.geometry;
+	realGeometry.moveTopLeft(realGeometry.topLeft() + _albumPosition);
+	return realGeometry.center();
+}
+
+void AlbumThumb::suggestMove(float64 delta, base::lambda<void()> callback) {
+	if (_suggestedMove != delta) {
+		_suggestedMoveAnimation.start(
+			std::move(callback),
+			_suggestedMove,
+			delta,
+			kShrinkDuration);
+		_suggestedMove = delta;
+	}
+}
+
+QRect AlbumThumb::countRealGeometry() const {
+	const auto addLeft = int(std::round(
+		_suggestedMoveAnimation.current(_suggestedMove) * _lastShrinkValue));
+	const auto current = _layout.geometry;
+	const auto realTopLeft = current.topLeft()
+		+ _albumPosition
+		+ QPoint(addLeft, 0);
+	return { realTopLeft, current.size() };
+}
+
+QRect AlbumThumb::countCurrentGeometry(float64 progress) const {
+	const auto now = countRealGeometry();
+	if (progress < 1.) {
+		return {
+			anim::interpolate(_fromGeometry.x(), now.x(), progress),
+			anim::interpolate(_fromGeometry.y(), now.y(), progress),
+			anim::interpolate(_fromGeometry.width(), now.width(), progress),
+			anim::interpolate(_fromGeometry.height(), now.height(), progress)
+		};
+	}
+	return now;
+}
+
+void AlbumThumb::finishAnimations() {
+	_suggestedMoveAnimation.finish();
+}
 
 SingleMediaPreview *SingleMediaPreview::Create(
 		QWidget *parent,
@@ -438,18 +890,6 @@ base::lambda<QString()> FieldPlaceholder(const Storage::PreparedList &list) {
 
 } // namespace
 
-struct SendFilesBox::AlbumThumb {
-	Ui::GroupMediaLayout layout;
-	QPixmap albumImage;
-	QPixmap photo;
-	QPixmap fileThumb;
-	QString name;
-	QString status;
-	int nameWidth = 0;
-	int statusWidth = 0;
-	bool video = false;
-};
-
 class SendFilesBox::AlbumPreview : public Ui::RpWidget {
 public:
 	AlbumPreview(
@@ -458,27 +898,52 @@ public:
 		SendFilesWay way);
 
 	void setSendWay(SendFilesWay way);
+	std::vector<int> takeOrder();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
 
 private:
+	int countLayoutHeight(
+		const std::vector<Ui::GroupMediaLayout> &layout) const;
+	std::vector<Ui::GroupMediaLayout> generateOrderedLayout() const;
+	std::vector<int> defaultOrder() const;
 	void prepareThumbs();
+	void updateSizeAnimated(const std::vector<Ui::GroupMediaLayout> &layout);
 	void updateSize();
-	AlbumThumb prepareThumb(
-		const Storage::PreparedFile &file,
-		const Ui::GroupMediaLayout &layout) const;
 
 	void paintAlbum(Painter &p) const;
 	void paintPhotos(Painter &p, QRect clip) const;
 	void paintFiles(Painter &p, QRect clip) const;
 
+	int contentLeft() const;
+	int contentTop() const;
+	AlbumThumb *findThumb(QPoint position) const;
+	not_null<AlbumThumb*> findClosestThumb(QPoint position) const;
+	void updateSuggestedDrag(QPoint position);
+	int orderIndex(not_null<AlbumThumb*> thumb) const;
+	void cancelDrag();
+	void finishDrag();
+
 	const Storage::PreparedList &_list;
 	SendFilesWay _sendWay = SendFilesWay::Files;
-	std::vector<AlbumThumb> _thumbs;
+	std::vector<int> _order;
+	std::vector<std::unique_ptr<AlbumThumb>> _thumbs;
 	int _thumbsHeight = 0;
 	int _photosHeight = 0;
 	int _filesHeight = 0;
+
+	AlbumThumb *_draggedThumb = nullptr;
+	AlbumThumb *_suggestedThumb = nullptr;
+	AlbumThumb *_paintedAbove = nullptr;
+	QPoint _draggedStartPosition;
+
+	mutable Animation _thumbsHeightAnimation;
+	mutable Animation _shrinkAnimation;
+	mutable Animation _finishDragAnimation;
 
 };
 
@@ -489,139 +954,202 @@ SendFilesBox::AlbumPreview::AlbumPreview(
 : RpWidget(parent)
 , _list(list)
 , _sendWay(way) {
+	setMouseTracking(true);
 	prepareThumbs();
 	updateSize();
 }
 
 void SendFilesBox::AlbumPreview::setSendWay(SendFilesWay way) {
-	_sendWay = way;
+	if (_sendWay != way) {
+		cancelDrag();
+		_sendWay = way;
+	}
 	updateSize();
 	update();
 }
 
-void SendFilesBox::AlbumPreview::prepareThumbs() {
+std::vector<int> SendFilesBox::AlbumPreview::takeOrder() {
+	auto reordered = std::vector<std::unique_ptr<AlbumThumb>>();
+	reordered.reserve(_thumbs.size());
+	for (auto index : _order) {
+		reordered.push_back(std::move(_thumbs[index]));
+	}
+	_thumbs = std::move(reordered);
+	return std::exchange(_order, defaultOrder());
+}
+
+auto SendFilesBox::AlbumPreview::generateOrderedLayout() const
+-> std::vector<Ui::GroupMediaLayout> {
 	auto sizes = ranges::view::all(
-		_list.files
-	) | ranges::view::transform([](const Storage::PreparedFile &file) {
-		return file.preview.size() / cIntRetinaFactor();
+		_order
+	) | ranges::view::transform([&](int index) {
+		return _list.files[index].preview.size() / cIntRetinaFactor();
 	}) | ranges::to_vector;
 
-	const auto count = int(sizes.size());
-	const auto layout = Ui::LayoutMediaGroup(
+	auto layout = Ui::LayoutMediaGroup(
 		sizes,
 		st::sendMediaPreviewSize,
 		st::historyGroupWidthMin / 2,
 		st::historyGroupSkip / 2);
-	Assert(layout.size() == count);
+	Assert(layout.size() == _order.size());
+	return layout;
+}
 
+std::vector<int> SendFilesBox::AlbumPreview::defaultOrder() const {
+	const auto count = int(_list.files.size());
+	return ranges::view::ints(0, count) | ranges::to_vector;
+}
+
+void SendFilesBox::AlbumPreview::prepareThumbs() {
+	_order = defaultOrder();
+
+	const auto count = int(_list.files.size());
+	const auto layout = generateOrderedLayout();
 	_thumbs.reserve(count);
 	for (auto i = 0; i != count; ++i) {
-		_thumbs.push_back(prepareThumb(_list.files[i], layout[i]));
-		const auto &geometry = layout[i].geometry;
-		accumulate_max(_thumbsHeight, geometry.y() + geometry.height());
+		_thumbs.push_back(std::make_unique<AlbumThumb>(
+			_list.files[i],
+			layout[i]));
 	}
+	_thumbsHeight = countLayoutHeight(layout);
 	_photosHeight = ranges::accumulate(ranges::view::all(
 		_thumbs
-	) | ranges::view::transform([](const AlbumThumb &thumb) {
-		return thumb.photo.height() / cIntRetinaFactor();
+	) | ranges::view::transform([](const auto &thumb) {
+		return thumb->photoHeight();
 	}), 0) + (count - 1) * st::sendMediaPreviewPhotoSkip;
 
 	_filesHeight = count * st::sendMediaFileThumbSize
 		+ (count - 1) * st::sendMediaFileThumbSkip;
 }
 
-SendFilesBox::AlbumThumb SendFilesBox::AlbumPreview::prepareThumb(
-		const Storage::PreparedFile &file,
-		const Ui::GroupMediaLayout &layout) const {
-	Expects(!file.preview.isNull());
+int SendFilesBox::AlbumPreview::contentLeft() const {
+	return (st::boxWideWidth - st::sendMediaPreviewSize) / 2;
+}
 
-	const auto &preview = file.preview;
-	auto result = AlbumThumb();
-	result.layout = layout;
-	result.video = (file.type == Storage::PreparedFile::AlbumType::Video);
+int SendFilesBox::AlbumPreview::contentTop() const {
+	return 0;
+}
 
-	const auto width = layout.geometry.width();
-	const auto height = layout.geometry.height();
-	const auto corners = Ui::GetCornersFromSides(layout.sides);
-	using Option = Images::Option;
-	const auto options = Option::Smooth
-		| Option::RoundedLarge
-		| ((corners & RectPart::TopLeft) ? Option::RoundedTopLeft : Option::None)
-		| ((corners & RectPart::TopRight) ? Option::RoundedTopRight : Option::None)
-		| ((corners & RectPart::BottomLeft) ? Option::RoundedBottomLeft : Option::None)
-		| ((corners & RectPart::BottomRight) ? Option::RoundedBottomRight : Option::None);
-	const auto pixSize = Ui::GetImageScaleSizeForGeometry(
-		{ preview.width(), preview.height() },
-		{ width, height });
-	const auto pixWidth = pixSize.width() * cIntRetinaFactor();
-	const auto pixHeight = pixSize.height() * cIntRetinaFactor();
+AlbumThumb *SendFilesBox::AlbumPreview::findThumb(QPoint position) const {
+	position -= QPoint(contentLeft(), contentTop());
+	const auto i = ranges::find_if(_thumbs, [&](const auto &thumb) {
+		return thumb->containsPoint(position);
+	});
+	return (i == _thumbs.end()) ? nullptr : i->get();
+}
 
-	result.albumImage = App::pixmapFromImageInPlace(Images::prepare(
-		preview,
-		pixWidth,
-		pixHeight,
-		options,
-		width,
-		height));
-	result.photo = App::pixmapFromImageInPlace(Images::prepare(
-		preview,
-		preview.width(),
-		preview.height(),
-		Option::RoundedLarge | Option::RoundedAll,
-		preview.width() / cIntRetinaFactor(),
-		preview.height() / cIntRetinaFactor()));
+not_null<AlbumThumb*> SendFilesBox::AlbumPreview::findClosestThumb(
+		QPoint position) const {
+	Expects(_draggedThumb != nullptr);
 
-	const auto idealSize = st::sendMediaFileThumbSize * cIntRetinaFactor();
-	const auto fileThumbSize = (preview.width() > preview.height())
-		? QSize(preview.width() * idealSize / preview.height(), idealSize)
-		: QSize(idealSize, preview.height() * idealSize / preview.width());
-	result.fileThumb = App::pixmapFromImageInPlace(Images::prepare(
-		preview,
-		fileThumbSize.width(),
-		fileThumbSize.height(),
-		Option::RoundedSmall | Option::RoundedAll,
-		st::sendMediaFileThumbSize,
-		st::sendMediaFileThumbSize
-	));
-
-	const auto availableFileWidth = st::sendMediaPreviewSize
-		- st::sendMediaFileThumbSkip
-		- st::sendMediaFileThumbSize;
-	const auto filepath = file.path;
-	if (filepath.isEmpty()) {
-		result.name = filedialogDefaultName(
-			qsl("image"),
-			qsl(".png"),
-			QString(),
-			true);
-		result.status = qsl("%1x%2").arg(preview.width()).arg(preview.height());
-	} else {
-		auto fileinfo = QFileInfo(filepath);
-		result.name = fileinfo.fileName();
-		result.status = formatSizeText(fileinfo.size());
+	if (const auto exact = findThumb(position)) {
+		return exact;
 	}
-	result.nameWidth = st::semiboldFont->width(result.name);
-	if (result.nameWidth > availableFileWidth) {
-		result.name = st::semiboldFont->elided(
-			result.name,
-			Qt::ElideMiddle);
-		result.nameWidth = st::semiboldFont->width(result.name);
+	auto result = _draggedThumb;
+	auto distance = _draggedThumb->distanceTo(position);
+	for (const auto &thumb : _thumbs) {
+		const auto check = thumb->distanceTo(position);
+		if (check < distance) {
+			distance = check;
+			result = thumb.get();
+		}
 	}
-	result.statusWidth = st::normalFont->width(result.status);
-
 	return result;
 }
 
+int SendFilesBox::AlbumPreview::orderIndex(
+		not_null<AlbumThumb*> thumb) const {
+	const auto i = ranges::find_if(_order, [&](int index) {
+		return (_thumbs[index].get() == thumb);
+	});
+	Assert(i != _order.end());
+	return int(i - _order.begin());
+}
+
+void SendFilesBox::AlbumPreview::cancelDrag() {
+	_thumbsHeightAnimation.finish();
+	_finishDragAnimation.finish();
+	_shrinkAnimation.finish();
+	if (_draggedThumb) {
+		_draggedThumb->moveInAlbum({ 0, 0 });
+		_draggedThumb = nullptr;
+	}
+	if (_suggestedThumb) {
+		const auto suggestedIndex = orderIndex(_suggestedThumb);
+		if (suggestedIndex > 0) {
+			_thumbs[_order[suggestedIndex - 1]]->suggestMove(0., [] {});
+		}
+		if (suggestedIndex < int(_order.size() - 1)) {
+			_thumbs[_order[suggestedIndex + 1]]->suggestMove(0., [] {});
+		}
+		_suggestedThumb->suggestMove(0., [] {});
+		_suggestedThumb->finishAnimations();
+		_suggestedThumb = nullptr;
+	}
+	_paintedAbove = nullptr;
+	update();
+}
+
+void SendFilesBox::AlbumPreview::finishDrag() {
+	Expects(_draggedThumb != nullptr);
+	Expects(_suggestedThumb != nullptr);
+
+	if (_suggestedThumb != _draggedThumb) {
+		const auto currentIndex = orderIndex(_draggedThumb);
+		const auto newIndex = orderIndex(_suggestedThumb);
+		const auto delta = (currentIndex < newIndex) ? 1 : -1;
+		const auto realIndex = _order[currentIndex];
+		for (auto i = currentIndex; i != newIndex; i += delta) {
+			_order[i] = _order[i + delta];
+		}
+		_order[newIndex] = realIndex;
+		const auto layout = generateOrderedLayout();
+		for (auto i = 0, count = int(_order.size()); i != count; ++i) {
+			_thumbs[_order[i]]->moveToLayout(layout[i]);
+		}
+		_finishDragAnimation.start([=] { update(); }, 0., 1., kDragDuration);
+
+		updateSizeAnimated(layout);
+	} else {
+		_draggedThumb->moveInAlbum(QPoint());
+	}
+}
+
+int SendFilesBox::AlbumPreview::countLayoutHeight(
+		const std::vector<Ui::GroupMediaLayout> &layout) const {
+	const auto accumulator = [](int current, const auto &item) {
+		return std::max(current, item.geometry.y() + item.geometry.height());
+	};
+	return ranges::accumulate(layout, 0, accumulator);
+}
+
+void SendFilesBox::AlbumPreview::updateSizeAnimated(
+		const std::vector<Ui::GroupMediaLayout> &layout) {
+	const auto newHeight = countLayoutHeight(layout);
+	if (newHeight != _thumbsHeight) {
+		_thumbsHeightAnimation.start(
+			[=] { updateSize(); },
+			_thumbsHeight,
+			newHeight,
+			kDragDuration);
+		_thumbsHeight = newHeight;
+	}
+}
+
 void SendFilesBox::AlbumPreview::updateSize() {
-	const auto height = [&] {
+	const auto newHeight = [&] {
 		switch (_sendWay) {
-		case SendFilesWay::Album: return _thumbsHeight;
+		case SendFilesWay::Album:
+			return int(std::round(_thumbsHeightAnimation.current(
+				_thumbsHeight)));
 		case SendFilesWay::Photos: return _photosHeight;
 		case SendFilesWay::Files: return _filesHeight;
 		}
 		Unexpected("Send way in SendFilesBox::AlbumPreview::updateSize");
 	}();
-	resize(st::boxWideWidth, height);
+	if (height() != newHeight) {
+		resize(st::boxWideWidth, newHeight);
+	}
 }
 
 void SendFilesBox::AlbumPreview::paintEvent(QPaintEvent *e) {
@@ -635,36 +1163,29 @@ void SendFilesBox::AlbumPreview::paintEvent(QPaintEvent *e) {
 }
 
 void SendFilesBox::AlbumPreview::paintAlbum(Painter &p) const {
-	const auto left = (st::boxWideWidth - st::sendMediaPreviewSize) / 2;
-	const auto top = 0;
+	const auto ms = getms();
+	const auto shrink = _shrinkAnimation.current(
+		ms,
+		_draggedThumb ? 1. : 0.);
+	const auto moveProgress = _finishDragAnimation.current(ms, 1.);
+	const auto left = contentLeft();
+	const auto top = contentTop();
 	for (const auto &thumb : _thumbs) {
-		const auto geometry = thumb.layout.geometry;
-		const auto x = left + geometry.x();
-		const auto y = top + geometry.y();
-		p.drawPixmap(x, y, thumb.albumImage);
-
-		if (thumb.video) {
-			const auto inner = QRect(
-				x + (geometry.width() - st::msgFileSize) / 2,
-				y + (geometry.height() - st::msgFileSize) / 2,
-				st::msgFileSize,
-				st::msgFileSize);
-			{
-				PainterHighQualityEnabler hq(p);
-				p.setPen(Qt::NoPen);
-				p.setBrush(st::msgDateImgBg);
-				p.drawEllipse(inner);
-			}
-			st::historyFileThumbPlay.paintInCenter(p, inner);
+		if (thumb.get() != _paintedAbove) {
+			thumb->paintInAlbum(p, left, top, shrink, moveProgress, ms);
 		}
+	}
+	if (_paintedAbove) {
+		_paintedAbove->paintInAlbum(p, left, top, shrink, moveProgress, ms);
 	}
 }
 
 void SendFilesBox::AlbumPreview::paintPhotos(Painter &p, QRect clip) const {
 	const auto left = (st::boxWideWidth - st::sendMediaPreviewSize) / 2;
 	auto top = 0;
+	const auto outerWidth = width();
 	for (const auto &thumb : _thumbs) {
-		const auto bottom = top + thumb.photo.height() / cIntRetinaFactor();
+		const auto bottom = top + thumb->photoHeight();
 		const auto guard = gsl::finally([&] {
 			top = bottom + st::sendMediaPreviewPhotoSkip;
 		});
@@ -673,10 +1194,7 @@ void SendFilesBox::AlbumPreview::paintPhotos(Painter &p, QRect clip) const {
 		} else if (bottom <= clip.y()) {
 			continue;
 		}
-		p.drawPixmap(
-			left,
-			top,
-			thumb.photo);
+		thumb->paintPhoto(p, left, top, outerWidth);
 	}
 }
 
@@ -687,31 +1205,92 @@ void SendFilesBox::AlbumPreview::paintFiles(Painter &p, QRect clip) const {
 	const auto from = floorclamp(clip.y(), fileHeight, 0, _thumbs.size());
 	const auto till = ceilclamp(bottom, fileHeight, 0, _thumbs.size());
 	const auto left = (st::boxWideWidth - st::sendMediaPreviewSize) / 2;
-	const auto textLeft = left
-		+ st::sendMediaFileThumbSize
-		+ st::sendMediaFileThumbSkip;
+	const auto outerWidth = width();
 
 	auto top = from * fileHeight;
 	for (auto i = from; i != till; ++i) {
-		const auto &thumb = _thumbs[i];
-		p.drawPixmap(left, top, thumb.fileThumb);
-		p.setFont(st::semiboldFont);
-		p.setPen(st::historyFileNameInFg);
-		p.drawTextLeft(
-			textLeft,
-			top + st::sendMediaFileNameTop,
-			width(),
-			thumb.name,
-			thumb.nameWidth);
-		p.setFont(st::normalFont);
-		p.setPen(st::mediaInFg);
-		p.drawTextLeft(
-			textLeft,
-			top + st::sendMediaFileStatusTop,
-			width(),
-			thumb.status,
-			thumb.statusWidth);
+		_thumbs[i]->paintFile(p, left, top, outerWidth);
 		top += fileHeight;
+	}
+}
+
+void SendFilesBox::AlbumPreview::mousePressEvent(QMouseEvent *e) {
+	if (_finishDragAnimation.animating()) {
+		return;
+	}
+	const auto position = e->pos();
+	cancelDrag();
+	if (const auto thumb = findThumb(position)) {
+		_paintedAbove = _suggestedThumb = _draggedThumb = thumb;
+		_draggedStartPosition = position;
+		_shrinkAnimation.start([=] { update(); }, 0., 1., kShrinkDuration);
+	}
+}
+
+void SendFilesBox::AlbumPreview::mouseMoveEvent(QMouseEvent *e) {
+	if (_draggedThumb) {
+		const auto position = e->pos();
+		_draggedThumb->moveInAlbum(position - _draggedStartPosition);
+		updateSuggestedDrag(_draggedThumb->center());
+		update();
+	} else {
+		const auto cursor = findThumb(e->pos())
+			? style::cur_sizeall
+			: style::cur_default;
+		setCursor(cursor);
+	}
+}
+
+void SendFilesBox::AlbumPreview::updateSuggestedDrag(QPoint position) {
+	auto closest = findClosestThumb(position);
+	auto closestIndex = orderIndex(closest);
+
+	const auto draggedIndex = orderIndex(_draggedThumb);
+	const auto closestIsBeforePoint = closest->isPointAfter(position);
+	if (closestIndex < draggedIndex && closestIsBeforePoint) {
+		closest = _thumbs[_order[++closestIndex]].get();
+	} else if (closestIndex > draggedIndex && !closestIsBeforePoint) {
+		closest = _thumbs[_order[--closestIndex]].get();
+	}
+
+	if (_suggestedThumb == closest) {
+		return;
+	}
+
+	const auto last = int(_order.size()) - 1;
+	if (_suggestedThumb) {
+		const auto suggestedIndex = orderIndex(_suggestedThumb);
+		if (suggestedIndex < draggedIndex && suggestedIndex > 0) {
+			const auto previous = _thumbs[_order[suggestedIndex - 1]].get();
+			previous->suggestMove(0., [=] { update(); });
+		} else if (suggestedIndex > draggedIndex && suggestedIndex < last) {
+			const auto next = _thumbs[_order[suggestedIndex + 1]].get();
+			next->suggestMove(0., [=] { update(); });
+		}
+		_suggestedThumb->suggestMove(0., [=] { update(); });
+	}
+	_suggestedThumb = closest;
+	const auto suggestedIndex = closestIndex;
+	if (_suggestedThumb != _draggedThumb) {
+		const auto delta = (suggestedIndex < draggedIndex) ? 1. : -1.;
+		if (delta > 0. && suggestedIndex > 0) {
+			const auto previous = _thumbs[_order[suggestedIndex - 1]].get();
+			previous->suggestMove(-delta, [=] { update(); });
+		} else if (delta < 0. && suggestedIndex < last) {
+			const auto next = _thumbs[_order[suggestedIndex + 1]].get();
+			next->suggestMove(-delta, [=] { update(); });
+		}
+		_suggestedThumb->suggestMove(delta, [=] { update(); });
+	}
+}
+
+void SendFilesBox::AlbumPreview::mouseReleaseEvent(QMouseEvent *e) {
+	if (_draggedThumb) {
+		finishDrag();
+		_shrinkAnimation.start([=] { update(); }, 1., 0., kShrinkDuration);
+		_draggedThumb = nullptr;
+		_suggestedThumb = nullptr;
+		update();
 	}
 }
 
@@ -900,10 +1479,30 @@ void SendFilesBox::setupSendWayControls() {
 		: lng_send_files(lt_count, _list.files.size()));
 	_sendWay->setChangedCallback([this](SendFilesWay value) {
 		if (_albumPreview) {
+			applyAlbumOrder();
 			_albumPreview->setSendWay(value);
 		}
 		setInnerFocus();
 	});
+}
+
+void SendFilesBox::applyAlbumOrder() {
+	Expects(_albumPreview != nullptr);
+
+	const auto order = _albumPreview->takeOrder();
+	const auto isDefault = [&] {
+		for (auto i = 0, count = int(order.size()); i != count; ++i) {
+			if (order[i] != i) {
+				return false;
+			}
+		}
+		return true;
+	}();
+	if (isDefault) {
+		return;
+	}
+
+	_list = Storage::PreparedList::Reordered(std::move(_list), order);
 }
 
 void SendFilesBox::setupCaption() {
@@ -1050,6 +1649,10 @@ void SendFilesBox::send(bool ctrlShiftEnter) {
 				Auth().saveDataDelayed();
 			}
 		}
+	}
+
+	if (_albumPreview) {
+		applyAlbumOrder();
 	}
 	_confirmed = true;
 	if (_confirmedCallback) {

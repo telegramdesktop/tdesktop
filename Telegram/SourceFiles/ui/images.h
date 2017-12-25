@@ -195,8 +195,7 @@ inline bool operator!=(const WebFileImageLocation &a, const WebFileImageLocation
 namespace Images {
 
 QImage prepareBlur(QImage image);
-void prepareRound(QImage &image, ImageRoundRadius radius, RectParts corners = RectPart::AllCorners);
-void prepareRound(QImage &image, QImage *cornerMasks, RectParts corners = RectPart::AllCorners);
+void prepareRound(QImage &image, ImageRoundRadius radius, RectParts corners = RectPart::AllCorners, QRect target = QRect());
 void prepareCircle(QImage &image);
 QImage prepareColored(style::color add, QImage image);
 QImage prepareOpaque(QImage image);

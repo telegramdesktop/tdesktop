@@ -191,24 +191,16 @@ void prepareCircle(QImage &img) {
 	p.drawPixmap(0, 0, mask);
 }
 
-void prepareRound(QImage &image, ImageRoundRadius radius, RectParts corners) {
-	if (!static_cast<int>(corners)) {
-		return;
-	} else if (radius == ImageRoundRadius::Ellipse) {
-		Assert((corners & RectPart::AllCorners) == RectPart::AllCorners);
-		prepareCircle(image);
+void prepareRound(
+		QImage &image,
+		QImage *cornerMasks,
+		RectParts corners,
+		QRect target) {
+	if (target.isNull()) {
+		target = QRect(QPoint(), image.size());
+	} else {
+		Assert(QRect(QPoint(), image.size()).contains(target));
 	}
-	Assert(!image.isNull());
-
-	image.setDevicePixelRatio(cRetinaFactor());
-	image = std::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
-	Assert(!image.isNull());
-
-	auto masks = App::cornersMask(radius);
-	prepareRound(image, masks, corners);
-}
-
-void prepareRound(QImage &image, QImage *cornerMasks, RectParts corners) {
 	auto cornerWidth = cornerMasks[0].width();
 	auto cornerHeight = cornerMasks[0].height();
 	auto imageWidth = image.width();
@@ -222,10 +214,10 @@ void prepareRound(QImage &image, QImage *cornerMasks, RectParts corners) {
 	Assert(image.bytesPerLine() == (imageIntsPerLine << 2));
 
 	auto ints = reinterpret_cast<uint32*>(image.bits());
-	auto intsTopLeft = ints;
-	auto intsTopRight = ints + imageWidth - cornerWidth;
-	auto intsBottomLeft = ints + (imageHeight - cornerHeight) * imageWidth;
-	auto intsBottomRight = ints + (imageHeight - cornerHeight + 1) * imageWidth - cornerWidth;
+	auto intsTopLeft = ints + target.x() + target.y() * imageWidth;
+	auto intsTopRight = ints + target.x() + target.width() - cornerWidth + target.y() * imageWidth;
+	auto intsBottomLeft = ints + target.x() + (target.y() + target.height() - cornerHeight) * imageWidth;
+	auto intsBottomRight = ints + target.x() + target.width() - cornerWidth + (target.y() + target.height() - cornerHeight) * imageWidth;
 	auto maskCorner = [imageWidth, imageHeight, imageIntsPerPixel, imageIntsPerLine](uint32 *imageInts, const QImage &mask) {
 		auto maskWidth = mask.width();
 		auto maskHeight = mask.height();
@@ -252,6 +244,28 @@ void prepareRound(QImage &image, QImage *cornerMasks, RectParts corners) {
 	if (corners & RectPart::TopRight) maskCorner(intsTopRight, cornerMasks[1]);
 	if (corners & RectPart::BottomLeft) maskCorner(intsBottomLeft, cornerMasks[2]);
 	if (corners & RectPart::BottomRight) maskCorner(intsBottomRight, cornerMasks[3]);
+}
+
+void prepareRound(
+		QImage &image,
+		ImageRoundRadius radius,
+		RectParts corners,
+		QRect target) {
+	if (!static_cast<int>(corners)) {
+		return;
+	} else if (radius == ImageRoundRadius::Ellipse) {
+		Assert((corners & RectPart::AllCorners) == RectPart::AllCorners);
+		Assert(target.isNull());
+		prepareCircle(image);
+	}
+	Assert(!image.isNull());
+
+	image.setDevicePixelRatio(cRetinaFactor());
+	image = std::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
+	Assert(!image.isNull());
+
+	auto masks = App::cornersMask(radius);
+	prepareRound(image, masks, corners, target);
 }
 
 QImage prepareColored(style::color add, QImage image) {

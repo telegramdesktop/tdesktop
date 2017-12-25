@@ -554,7 +554,7 @@ ListWidget::ListWidget(
 , _migrated(_controller->migrated())
 , _type(_controller->section().mediaType())
 , _slice(sliceKey(_universalAroundId)) {
-	setAttribute(Qt::WA_MouseTracking);
+	setMouseTracking(true);
 	start();
 }
 

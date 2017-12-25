@@ -120,11 +120,13 @@ void PrepareAlbum(PreparedList &result, int previewWidth) {
 	}
 	if (waiting > 0) {
 		semaphore.acquire(waiting);
-		const auto badIt = ranges::find(
-			result.files,
-			PreparedFile::AlbumType::None,
-			[](const PreparedFile &file) { return file.type; });
-		result.albumIsPossible = (badIt == result.files.end());
+		if (result.albumIsPossible) {
+			const auto badIt = ranges::find(
+				result.files,
+				PreparedFile::AlbumType::None,
+				[](const PreparedFile &file) { return file.type; });
+			result.albumIsPossible = (badIt == result.files.end());
+		}
 	}
 }
 
@@ -266,6 +268,22 @@ PreparedList PrepareMediaFromImage(
 	}
 	result.files.push_back(std::move(file));
 	PrepareAlbum(result, previewWidth);
+	return result;
+}
+
+PreparedList PreparedList::Reordered(
+		PreparedList &&list,
+		std::vector<int> order) {
+	Expects(list.error == PreparedList::Error::None);
+	Expects(list.files.size() == order.size());
+
+	auto result = PreparedList(list.error, list.errorData);
+	result.albumIsPossible = list.albumIsPossible;
+	result.allFilesForCompress = list.allFilesForCompress;
+	result.files.reserve(list.files.size());
+	for (auto index : order) {
+		result.files.push_back(std::move(list.files[index]));
+	}
 	return result;
 }
 

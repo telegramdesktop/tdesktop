@@ -68,6 +68,9 @@ struct PreparedList {
 	: error(error)
 	, errorData(errorData) {
 	}
+	static PreparedList Reordered(
+		PreparedList &&list,
+		std::vector<int> order);
 
 	Error error = Error::None;
 	QString errorData;

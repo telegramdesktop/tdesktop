@@ -454,9 +454,11 @@ std::vector<float64> ComplexLayouter::CropRatios(
 	return ranges::view::all(
 		ratios
 	) | ranges::view::transform([&](float64 ratio) {
+		constexpr auto kMaxRatio = 2.75;
+		constexpr auto kMinRatio = 0.6667;
 		return (averageRatio > 1.1)
-			? snap(ratio, 1., 1.7)
-			: snap(ratio, 0.66667, 1.);
+			? snap(ratio, 1., kMaxRatio)
+			: snap(ratio, kMinRatio, 1.);
 	}) | ranges::to_vector;
 }
 
