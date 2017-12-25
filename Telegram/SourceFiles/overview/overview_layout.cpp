@@ -524,8 +524,8 @@ void Video::updateStatusText() {
 	int statusSize = 0;
 	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
 		statusSize = FileStatusSizeFailed;
-	} else if (_data->status == FileUploading) {
-		statusSize = _data->uploadOffset;
+	} else if (_data->uploading()) {
+		statusSize = _data->uploadingData->offset;
 	} else if (_data->loading()) {
 		statusSize = _data->loadOffset();
 	} else if (_data->loaded()) {
@@ -695,7 +695,7 @@ HistoryTextState Voice::getState(
 	if (inner.contains(point)) {
 		const auto link = loaded
 			? _openl
-			: (_data->loading() || _data->status == FileUploading)
+			: (_data->loading() || _data->uploading())
 			? _cancell
 			: _openl;
 		return { parent(), link };
@@ -1023,7 +1023,7 @@ HistoryTextState Document::getState(
 		if (inner.contains(point)) {
 			const auto link = loaded
 				? _openl
-				: (_data->loading() || _data->status == FileUploading)
+				: (_data->loading() || _data->uploading())
 				? _cancell
 				: _openl;
 			return { parent(), link };
@@ -1057,7 +1057,7 @@ HistoryTextState Document::getState(
 		if (rthumb.contains(point)) {
 			const auto link = loaded
 				? _openl
-				: (_data->loading() || _data->status == FileUploading)
+				: (_data->loading() || _data->uploading())
 				? _cancell
 				: _savel;
 			return { parent(), link };
@@ -1133,8 +1133,8 @@ bool Document::updateStatusText() {
 	int32 statusSize = 0, realDuration = 0;
 	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
 		statusSize = FileStatusSizeFailed;
-	} else if (_data->status == FileUploading) {
-		statusSize = _data->uploadOffset;
+	} else if (_data->uploading()) {
+		statusSize = _data->uploadingData->offset;
 	} else if (_data->loading()) {
 		statusSize = _data->loadOffset();
 	} else if (_data->loaded()) {

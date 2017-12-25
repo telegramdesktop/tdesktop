@@ -20,6 +20,18 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+namespace Data {
+
+struct UploadState {
+	UploadState(int size) : size(size) {
+	}
+	int offset = 0;
+	int size = 0;
+	bool waitingForAlbum = false;
+};
+
+} // namespace Data
+
 class PeerData;
 class UserData;
 class ChatData;
@@ -241,7 +253,6 @@ enum LocationType {
 enum FileStatus {
 	FileDownloadFailed = -2,
 	FileUploadFailed = -1,
-	FileUploading = 0,
 	FileReady = 1,
 };
 
@@ -403,6 +414,9 @@ public:
 	FullMsgId context() const {
 		return _context;
 	}
+
+protected:
+	HistoryItem *getActionItem() const;
 
 private:
 	FullMsgId _context;

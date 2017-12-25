@@ -2743,6 +2743,9 @@ void ApiWrap::sendFiles(
 	}
 
 	const auto to = FileLoadTaskOptions(options);
+	if (album) {
+		album->silent = to.silent;
+	}
 	auto tasks = std::vector<std::unique_ptr<Task>>();
 	tasks.reserve(list.files.size());
 	for (auto &file : list.files) {
@@ -2806,7 +2809,7 @@ void ApiWrap::sendUploadedPhoto(
 			MTPVector<MTPInputDocument>(),
 			MTP_int(0));
 		if (const auto groupId = item->groupId()) {
-			uploadAlbumMedia(item, groupId, media, silent);
+			uploadAlbumMedia(item, groupId, media);
 		} else {
 			sendMedia(item, media, silent);
 		}
@@ -2840,7 +2843,7 @@ void ApiWrap::sendUploadedDocument(
 				MTPVector<MTPInputDocument>(),
 				MTP_int(0));
 			if (groupId) {
-				uploadAlbumMedia(item, groupId, media, silent);
+				uploadAlbumMedia(item, groupId, media);
 			} else {
 				sendMedia(item, media, silent);
 			}
@@ -2848,11 +2851,18 @@ void ApiWrap::sendUploadedDocument(
 	}
 }
 
+void ApiWrap::cancelLocalItem(not_null<HistoryItem*> item) {
+	Expects(!IsServerMsgId(item->id));
+
+	if (const auto groupId = item->groupId()) {
+		sendAlbumWithCancelled(item, groupId);
+	}
+}
+
 void ApiWrap::uploadAlbumMedia(
 		not_null<HistoryItem*> item,
 		const MessageGroupId &groupId,
-		const MTPInputMedia &media,
-		bool silent) {
+		const MTPInputMedia &media) {
 	const auto localId = item->fullId();
 	const auto failed = [this] {
 
@@ -2864,6 +2874,13 @@ void ApiWrap::uploadAlbumMedia(
 		const auto item = App::histItemById(localId);
 		if (!item) {
 			failed();
+		}
+		if (const auto media = item->getMedia()) {
+			if (const auto photo = media->getPhoto()) {
+				photo->setWaitingForAlbum();
+			} else if (const auto document = media->getDocument()) {
+				document->setWaitingForAlbum();
+			}
 		}
 
 		switch (result.type()) {
@@ -2883,7 +2900,7 @@ void ApiWrap::uploadAlbumMedia(
 				MTP_inputPhoto(photo.vid, photo.vaccess_hash),
 				data.has_caption() ? data.vcaption : MTP_string(QString()),
 				data.has_ttl_seconds() ? data.vttl_seconds : MTPint());
-			trySendAlbum(item, groupId, media, silent);
+			sendAlbumWithUploaded(item, groupId, media);
 		} break;
 
 		case mtpc_messageMediaDocument: {
@@ -2902,46 +2919,12 @@ void ApiWrap::uploadAlbumMedia(
 				MTP_inputDocument(document.vid, document.vaccess_hash),
 				data.has_caption() ? data.vcaption : MTP_string(QString()),
 				data.has_ttl_seconds() ? data.vttl_seconds : MTPint());
-			trySendAlbum(item, groupId, media, silent);
+			sendAlbumWithUploaded(item, groupId, media);
 		} break;
 		}
 	}).fail([=](const RPCError &error) {
 		failed();
 	}).send();
-}
-
-void ApiWrap::trySendAlbum(
-		not_null<HistoryItem*> item,
-		const MessageGroupId &groupId,
-		const MTPInputMedia &media,
-		bool silent) {
-	const auto localId = item->fullId();
-	const auto randomId = rand_value<uint64>();
-	App::historyRegRandom(randomId, localId);
-
-	const auto medias = completeAlbum(localId, groupId, media, randomId);
-	if (medias.empty()) {
-		return;
-	}
-
-	const auto history = item->history();
-	const auto replyTo = item->replyToId();
-	const auto flags = MTPmessages_SendMultiMedia::Flags(0)
-		| (replyTo
-			? MTPmessages_SendMultiMedia::Flag::f_reply_to_msg_id
-			: MTPmessages_SendMultiMedia::Flag(0))
-		| (IsSilentPost(item, silent)
-			? MTPmessages_SendMultiMedia::Flag::f_silent
-			: MTPmessages_SendMultiMedia::Flag(0));
-	history->sendRequestId = request(MTPmessages_SendMultiMedia(
-		MTP_flags(flags),
-		history->peer->input,
-		MTP_int(replyTo),
-		MTP_vector<MTPInputSingleMedia>(medias)
-	)).done([=](const MTPUpdates &result) { applyUpdates(result);
-	}).fail([=](const RPCError &error) { sendMessageFail(error);
-	}).afterRequest(history->sendRequestId
-	).send();
 }
 
 void ApiWrap::sendMedia(
@@ -2951,6 +2934,14 @@ void ApiWrap::sendMedia(
 	const auto randomId = rand_value<uint64>();
 	App::historyRegRandom(randomId, item->fullId());
 
+	sendMediaWithRandomId(item, media, silent, randomId);
+}
+
+void ApiWrap::sendMediaWithRandomId(
+		not_null<HistoryItem*> item,
+		const MTPInputMedia &media,
+		bool silent,
+		uint64 randomId) {
 	const auto history = item->history();
 	const auto replyTo = item->replyToId();
 	const auto flags = MTPmessages_SendMedia::Flags(0)
@@ -2973,11 +2964,14 @@ void ApiWrap::sendMedia(
 	).send();
 }
 
-QVector<MTPInputSingleMedia> ApiWrap::completeAlbum(
-		FullMsgId localId,
+void ApiWrap::sendAlbumWithUploaded(
+		not_null<HistoryItem*> item,
 		const MessageGroupId &groupId,
-		const MTPInputMedia &media,
-		uint64 randomId) {
+		const MTPInputMedia &media) {
+	const auto localId = item->fullId();
+	const auto randomId = rand_value<uint64>();
+	App::historyRegRandom(randomId, localId);
+
 	const auto albumIt = _sendingAlbums.find(groupId.raw());
 	Assert(albumIt != _sendingAlbums.end());
 	const auto &album = albumIt->second;
@@ -2990,15 +2984,79 @@ QVector<MTPInputSingleMedia> ApiWrap::completeAlbum(
 	Assert(!itemIt->media);
 	itemIt->media = MTP_inputSingleMedia(media, MTP_long(randomId));
 
-	auto result = QVector<MTPInputSingleMedia>();
-	result.reserve(album->items.size());
+	sendAlbumIfReady(album.get());
+}
+
+void ApiWrap::sendAlbumWithCancelled(
+		not_null<HistoryItem*> item,
+		const MessageGroupId &groupId) {
+	const auto localId = item->fullId();
+	const auto albumIt = _sendingAlbums.find(groupId.raw());
+	Assert(albumIt != _sendingAlbums.end());
+	const auto &album = albumIt->second;
+
+	const auto proj = [](const SendingAlbum::Item &item) {
+		return item.msgId;
+	};
+	const auto itemIt = ranges::find(album->items, localId, proj);
+	Assert(itemIt != album->items.end());
+	album->items.erase(itemIt);
+
+	sendAlbumIfReady(album.get());
+}
+
+void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
+	const auto groupId = album->groupId;
+	if (album->items.empty()) {
+		_sendingAlbums.remove(groupId);
+		return;
+	}
+	auto sample = (HistoryItem*)nullptr;
+	auto medias = QVector<MTPInputSingleMedia>();
+	medias.reserve(album->items.size());
 	for (const auto &item : album->items) {
 		if (!item.media) {
-			return {};
+			return;
+		} else if (!sample) {
+			sample = App::histItemById(item.msgId);
 		}
-		result.push_back(*item.media);
+		medias.push_back(*item.media);
 	}
-	return result;
+	if (!sample) {
+		_sendingAlbums.remove(groupId);
+		return;
+	} else if (medias.size() < 2) {
+		const auto &single = medias.front().c_inputSingleMedia();
+		sendMediaWithRandomId(
+			sample,
+			single.vmedia,
+			album->silent,
+			single.vrandom_id.v);
+		_sendingAlbums.remove(groupId);
+		return;
+	}
+	const auto history = sample->history();
+	const auto replyTo = sample->replyToId();
+	const auto flags = MTPmessages_SendMultiMedia::Flags(0)
+		| (replyTo
+			? MTPmessages_SendMultiMedia::Flag::f_reply_to_msg_id
+			: MTPmessages_SendMultiMedia::Flag(0))
+		| (IsSilentPost(sample, album->silent)
+			? MTPmessages_SendMultiMedia::Flag::f_silent
+			: MTPmessages_SendMultiMedia::Flag(0));
+	history->sendRequestId = request(MTPmessages_SendMultiMedia(
+		MTP_flags(flags),
+		history->peer->input,
+		MTP_int(replyTo),
+		MTP_vector<MTPInputSingleMedia>(medias)
+	)).done([=](const MTPUpdates &result) {
+		_sendingAlbums.remove(groupId);
+		applyUpdates(result);
+	}).fail([=](const RPCError &error) {
+		_sendingAlbums.remove(groupId);
+		sendMessageFail(error);
+	}).afterRequest(history->sendRequestId
+	).send();
 }
 
 void ApiWrap::readServerHistory(not_null<History*> history) {

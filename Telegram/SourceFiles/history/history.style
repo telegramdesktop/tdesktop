@@ -123,6 +123,8 @@ historyFileThumbCancel: icon {{ "history_file_cancel", historyFileThumbIconFg }}
 historyFileThumbCancelSelected: icon {{ "history_file_cancel", historyFileThumbIconFgSelected }};
 historyFileThumbPlay: icon {{ "history_file_play", historyFileThumbIconFg }};
 historyFileThumbPlaySelected: icon {{ "history_file_play", historyFileThumbIconFgSelected }};
+historyFileThumbWaiting: icon {{ "mediaview_save_check", historyFileThumbIconFg }};
+historyFileThumbWaitingSelected: icon {{ "mediaview_save_check", historyFileThumbIconFgSelected }};
 
 historySendStateSpace: 24px;
 historySendStatePosition: point(-17px, -19px);

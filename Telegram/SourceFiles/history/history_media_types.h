@@ -263,15 +263,9 @@ public:
 	}
 
 protected:
-	float64 dataProgress() const override {
-		return _data->progress();
-	}
-	bool dataFinished() const override {
-		return !_data->loading() && !_data->uploading();
-	}
-	bool dataLoaded() const override {
-		return _data->loaded();
-	}
+	float64 dataProgress() const override;
+	bool dataFinished() const override;
+	bool dataLoaded() const override;
 
 private:
 	void validateGroupedCache(
@@ -383,15 +377,9 @@ public:
 	}
 
 protected:
-	float64 dataProgress() const override {
-		return _data->progress();
-	}
-	bool dataFinished() const override {
-		return !_data->loading() && !_data->uploading();
-	}
-	bool dataLoaded() const override {
-		return _data->loaded();
-	}
+	float64 dataProgress() const override;
+	bool dataFinished() const override;
+	bool dataLoaded() const override;
 
 private:
 	void validateGroupedCache(
@@ -493,15 +481,9 @@ public:
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
 protected:
-	float64 dataProgress() const override {
-		return _data->progress();
-	}
-	bool dataFinished() const override {
-		return !_data->loading() && !_data->uploading();
-	}
-	bool dataLoaded() const override {
-		return _data->loaded();
-	}
+	float64 dataProgress() const override;
+	bool dataFinished() const override;
+	bool dataLoaded() const override;
 
 private:
 	void createComponents(bool caption);

@@ -180,8 +180,9 @@ struct SendingAlbum {
 
 	SendingAlbum();
 
-	uint64 groupId;
+	uint64 groupId = 0;
 	std::vector<Item> items;
+	bool silent = false;
 
 };
 

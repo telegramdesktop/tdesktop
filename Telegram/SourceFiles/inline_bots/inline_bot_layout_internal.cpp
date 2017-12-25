@@ -850,8 +850,8 @@ bool File::updateStatusText() const {
 	DocumentData *document = getShownDocument();
 	if (document->status == FileDownloadFailed || document->status == FileUploadFailed) {
 		statusSize = FileStatusSizeFailed;
-	} else if (document->status == FileUploading) {
-		statusSize = document->uploadOffset;
+	} else if (document->uploading()) {
+		statusSize = document->uploadingData->offset;
 	} else if (document->loading()) {
 		statusSize = document->loadOffset();
 	} else if (document->loaded()) {

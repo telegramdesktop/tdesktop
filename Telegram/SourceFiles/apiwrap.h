@@ -215,6 +215,7 @@ public:
 		const MTPInputFile &file,
 		const base::optional<MTPInputFile> &thumb,
 		bool silent);
+	void cancelLocalItem(not_null<HistoryItem*> item);
 
 	~ApiWrap();
 
@@ -317,22 +318,24 @@ private:
 	void uploadAlbumMedia(
 		not_null<HistoryItem*> item,
 		const MessageGroupId &groupId,
-		const MTPInputMedia &media,
-		bool silent);
-	void trySendAlbum(
+		const MTPInputMedia &media);
+	void sendAlbumWithUploaded(
 		not_null<HistoryItem*> item,
 		const MessageGroupId &groupId,
-		const MTPInputMedia &media,
-		bool silent);
-	QVector<MTPInputSingleMedia> completeAlbum(
-		FullMsgId localId,
-		const MessageGroupId &groupId,
-		const MTPInputMedia &media,
-		uint64 randomId);
+		const MTPInputMedia &media);
+	void sendAlbumWithCancelled(
+		not_null<HistoryItem*> item,
+		const MessageGroupId &groupId);
+	void sendAlbumIfReady(not_null<SendingAlbum*> album);
 	void sendMedia(
 		not_null<HistoryItem*> item,
 		const MTPInputMedia &media,
 		bool silent);
+	void sendMediaWithRandomId(
+		not_null<HistoryItem*> item,
+		const MTPInputMedia &media,
+		bool silent,
+		uint64 randomId);
 
 	not_null<AuthSession*> _session;
 	mtpRequestId _changelogSubscription = 0;

@@ -35,6 +35,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "auth_session.h"
+#include "apiwrap.h"
 #include "media/media_audio.h"
 #include "messenger.h"
 #include "mainwindow.h"
@@ -294,18 +295,20 @@ void HistoryItem::destroy() {
 		// All this must be done for all items manually in History::clear(false)!
 		eraseFromUnreadMentions();
 		if (IsServerMsgId(id)) {
-			if (auto types = sharedMediaTypes()) {
+			if (const auto types = sharedMediaTypes()) {
 				Auth().storage().remove(Storage::SharedMediaRemoveOne(
 					history()->peer->id,
 					types,
 					id));
 			}
+		} else {
+			Auth().api().cancelLocalItem(this);
 		}
 
 		auto wasAtBottom = history()->loadedAtBottom();
 		_history->removeNotification(this);
 		detach();
-		if (auto channel = history()->peer->asChannel()) {
+		if (const auto channel = history()->peer->asChannel()) {
 			if (channel->pinnedMessageId() == id) {
 				channel->clearPinnedMessage();
 			}

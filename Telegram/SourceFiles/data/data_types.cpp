@@ -53,3 +53,13 @@ void MessageCursor::applyTo(QTextEdit *edit) {
 		scrollbar->setValue(scroll);
 	}
 }
+
+HistoryItem *FileClickHandler::getActionItem() const {
+	return context()
+		? App::histItemById(context())
+		: App::hoveredLinkItem()
+		? App::hoveredLinkItem()
+		: App::contextItem()
+		? App::contextItem()
+		: nullptr;
+}

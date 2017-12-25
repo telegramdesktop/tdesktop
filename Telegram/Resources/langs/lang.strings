@@ -1098,10 +1098,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_send_images_selected#other" = "{count} images selected";
 "lng_send_photos#one" = "Send {count} photo";
 "lng_send_photos#other" = "Send {count} photos";
-"lng_send_photos_videos#one" = "Send {count} photo and video file";
-"lng_send_photos_videos#other" = "Send {count} photos and video files";
+"lng_send_photos_videos#one" = "Send {count} photo and video";
+"lng_send_photos_videos#other" = "Send {count} photos and videos";
 "lng_send_separate_photos" = "Send separate photos";
-"lng_send_separate_photos_videos" = "Send separate photos and video files";
+"lng_send_separate_photos_videos" = "Send separate photos and videos";
 "lng_send_files_selected#one" = "{count} file selected";
 "lng_send_files_selected#other" = "{count} files selected";
 "lng_send_files#one" = "Send {count} file";

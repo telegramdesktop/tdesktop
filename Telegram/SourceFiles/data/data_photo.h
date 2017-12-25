@@ -44,6 +44,9 @@ public:
 	int32 loadOffset() const;
 	bool uploading() const;
 
+	void setWaitingForAlbum();
+	bool waitingForAlbum() const;
+
 	void forget();
 	ImagePtr makeReplyPreview();
 
@@ -57,13 +60,7 @@ public:
 	PeerData *peer = nullptr; // for chat and channel photos connection
 	// geo, caption
 
-	struct UploadingData {
-		UploadingData(int size) : size(size) {
-		}
-		int offset = 0;
-		int size = 0;
-	};
-	std::unique_ptr<UploadingData> uploadingData;
+	std::unique_ptr<Data::UploadState> uploadingData;
 
 private:
 	void notifyLayoutChanged() const;

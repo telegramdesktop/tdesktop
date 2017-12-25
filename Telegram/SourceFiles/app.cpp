@@ -1375,17 +1375,24 @@ namespace {
 	}
 
 	PhotoData *photo(const PhotoId &photo) {
-		PhotosData::const_iterator i = ::photosData.constFind(photo);
+		auto i = ::photosData.constFind(photo);
 		if (i == ::photosData.cend()) {
 			i = ::photosData.insert(photo, new PhotoData(photo));
 		}
 		return i.value();
 	}
 
-	PhotoData *photoSet(const PhotoId &photo, PhotoData *convert, const uint64 &access, int32 date, const ImagePtr &thumb, const ImagePtr &medium, const ImagePtr &full) {
+	PhotoData *photoSet(
+			const PhotoId &photo,
+			PhotoData *convert,
+			const uint64 &access,
+			int32 date,
+			const ImagePtr &thumb,
+			const ImagePtr &medium,
+			const ImagePtr &full) {
 		if (convert) {
 			if (convert->id != photo) {
-				PhotosData::iterator i = ::photosData.find(convert->id);
+				const auto i = ::photosData.find(convert->id);
 				if (i != ::photosData.cend() && i.value() == convert) {
 					::photosData.erase(i);
 				}
@@ -1400,9 +1407,9 @@ namespace {
 				updateImage(convert->full, full);
 			}
 		}
-		PhotosData::const_iterator i = ::photosData.constFind(photo);
+		const auto i = ::photosData.constFind(photo);
 		PhotoData *result;
-		LastPhotosMap::iterator inLastIter = lastPhotosMap.end();
+		auto inLastIter = lastPhotosMap.end();
 		if (i == ::photosData.cend()) {
 			if (convert) {
 				result = convert;
@@ -1436,27 +1443,39 @@ namespace {
 	}
 
 	DocumentData *document(const DocumentId &document) {
-		DocumentsData::const_iterator i = ::documentsData.constFind(document);
+		auto i = ::documentsData.constFind(document);
 		if (i == ::documentsData.cend()) {
 			i = ::documentsData.insert(document, DocumentData::create(document));
 		}
 		return i.value();
 	}
 
-	DocumentData *documentSet(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 version, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size, const StorageImageLocation &thumbLocation) {
+	DocumentData *documentSet(
+			const DocumentId &document,
+			DocumentData *convert,
+			const uint64 &access,
+			int32 version,
+			int32 date,
+			const QVector<MTPDocumentAttribute> &attributes,
+			const QString &mime,
+			const ImagePtr &thumb,
+			int32 dc,
+			int32 size,
+			const StorageImageLocation &thumbLocation) {
 		bool versionChanged = false;
 		bool sentSticker = false;
 		if (convert) {
-			MediaKey oldKey = convert->mediaKey();
-			bool idChanged = (convert->id != document);
+			const auto oldKey = convert->mediaKey();
+			const auto idChanged = (convert->id != document);
 			if (idChanged) {
-				DocumentsData::iterator i = ::documentsData.find(convert->id);
+				const auto i = ::documentsData.find(convert->id);
 				if (i != ::documentsData.cend() && i.value() == convert) {
 					::documentsData.erase(i);
 				}
 
 				convert->id = document;
 				convert->status = FileReady;
+				convert->uploadingData = nullptr;
 				sentSticker = (convert->sticker() != 0);
 			}
 			if (date) {
@@ -1474,7 +1493,7 @@ namespace {
 					convert->sticker()->loc = thumbLocation;
 				}
 
-				MediaKey newKey = convert->mediaKey();
+				const auto newKey = convert->mediaKey();
 				if (idChanged) {
 					if (convert->isVoiceMessage()) {
 						Local::copyAudio(oldKey, newKey);
@@ -1488,7 +1507,7 @@ namespace {
 				Local::writeSavedGifs();
 			}
 		}
-		DocumentsData::const_iterator i = ::documentsData.constFind(document);
+		const auto i = ::documentsData.constFind(document);
 		DocumentData *result;
 		if (i == ::documentsData.cend()) {
 			if (convert) {
@@ -1565,10 +1584,23 @@ namespace {
 		return i.value();
 	}
 
-	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const TextWithEntities &description, PhotoData *photo, DocumentData *document, int32 duration, const QString &author, int32 pendingTill) {
+	WebPageData *webPageSet(
+			const WebPageId &webPage,
+			WebPageData *convert,
+			const QString &type,
+			const QString &url,
+			const QString &displayUrl,
+			const QString &siteName,
+			const QString &title,
+			const TextWithEntities &description,
+			PhotoData *photo,
+			DocumentData *document,
+			int32 duration,
+			const QString &author,
+			int32 pendingTill) {
 		if (convert) {
 			if (convert->id != webPage) {
-				auto i = webPagesData.find(convert->id);
+				const auto i = webPagesData.find(convert->id);
 				if (i != webPagesData.cend() && i.value() == convert) {
 					webPagesData.erase(i);
 				}
@@ -1592,7 +1624,7 @@ namespace {
 				if (App::main()) App::main()->webPageUpdated(convert);
 			}
 		}
-		auto i = webPagesData.constFind(webPage);
+		const auto i = webPagesData.constFind(webPage);
 		WebPageData *result;
 		if (i == webPagesData.cend()) {
 			if (convert) {

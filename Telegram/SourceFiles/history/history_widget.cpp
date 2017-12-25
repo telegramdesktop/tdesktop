@@ -4347,10 +4347,13 @@ void HistoryWidget::onDocumentProgress(const FullMsgId &newId) {
 		const auto sendAction = (document && document->isVoiceMessage())
 			? SendAction::Type::UploadVoice
 			: SendAction::Type::UploadFile;
+		const auto progress = (document && document->uploading())
+			? document->uploadingData->offset
+			: 0;
 		updateSendAction(
 			item->history(),
 			sendAction,
-			document ? document->uploadOffset : 0);
+			progress);
 		Auth().data().requestItemRepaint(item);
 	}
 }

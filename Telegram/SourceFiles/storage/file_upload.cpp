@@ -137,7 +137,6 @@ void Uploader::uploadMedia(const FullMsgId &msgId, const SendMediaReady &media) 
 		} else {
 			document = App::feedDocument(media.document, media.photoThumbs.begin().value());
 		}
-		document->status = FileUploading;
 		if (!media.data.isEmpty()) {
 			document->setData(media.data);
 		}
@@ -154,10 +153,10 @@ void Uploader::upload(
 		const std::shared_ptr<FileLoadResult> &file) {
 	if (file->type == SendMediaType::Photo) {
 		auto photo = App::feedPhoto(file->photo, file->photoThumbs);
-		photo->uploadingData = std::make_unique<PhotoData::UploadingData>(file->partssize);
+		photo->uploadingData = std::make_unique<Data::UploadState>(file->partssize);
 	} else if (file->type == SendMediaType::File || file->type == SendMediaType::Audio) {
 		auto document = file->thumb.isNull() ? App::feedDocument(file->document) : App::feedDocument(file->document, file->thumb);
-		document->status = FileUploading;
+		document->uploadingData = std::make_unique<Data::UploadState>(document->size);
 		if (!file->content.isEmpty()) {
 			document->setData(file->content);
 		}
@@ -176,7 +175,7 @@ void Uploader::currentFailed() {
 			emit photoFailed(j->first);
 		} else if (j->second.type() == SendMediaType::File) {
 			const auto document = App::document(j->second.id());
-			if (document->status == FileUploading) {
+			if (document->uploading()) {
 				document->status = FileUploadFailed;
 			}
 			emit documentFailed(j->first);
@@ -477,10 +476,9 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 				if (document->uploading()) {
 					const auto doneParts = file.docSentParts
 						- int(docRequestsSent.size());
-					document->uploadOffset = doneParts * file.docPartSize;
-					if (document->uploadOffset > document->size) {
-						document->uploadOffset = document->size;
-					}
+					document->uploadingData->offset = std::max(
+						document->uploadingData->size,
+						doneParts * file.docPartSize);
 				}
 				emit documentProgress(fullId);
 			}

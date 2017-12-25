@@ -332,28 +332,15 @@ void DocumentOpenClickHandler::doOpen(
 }
 
 void DocumentOpenClickHandler::onClickImpl() const {
-	const auto item = context()
-		? App::histItemById(context())
-		: App::hoveredLinkItem()
-		? App::hoveredLinkItem()
-		: App::contextItem()
-		? App::contextItem()
-		: nullptr;
-	const auto action = document()->isVoiceMessage()
+	const auto data = document();
+	const auto action = data->isVoiceMessage()
 		? ActionOnLoadNone
 		: ActionOnLoadOpen;
-	doOpen(document(), item, action);
+	doOpen(data, getActionItem(), action);
 }
 
 void GifOpenClickHandler::onClickImpl() const {
-	const auto item = context()
-		? App::histItemById(context())
-		: App::hoveredLinkItem()
-		? App::hoveredLinkItem()
-		: App::contextItem()
-		? App::contextItem()
-		: nullptr;
-	doOpen(document(), item, ActionOnLoadPlayInline);
+	doOpen(document(), getActionItem(), ActionOnLoadPlayInline);
 }
 
 void DocumentSaveClickHandler::doSave(
@@ -382,17 +369,13 @@ void DocumentSaveClickHandler::onClickImpl() const {
 }
 
 void DocumentCancelClickHandler::onClickImpl() const {
-	auto data = document();
+	const auto data = document();
 	if (!data->date) return;
 
 	if (data->uploading()) {
-		if (auto item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : nullptr)) {
-			if (auto media = item->getMedia()) {
-				if (media->getDocument() == data) {
-					App::contextItem(item);
-					App::main()->cancelUploadLayer();
-				}
-			}
+		if (const auto item = App::histItemById(context())) {
+			App::contextItem(item);
+			App::main()->cancelUploadLayer();
 		}
 	} else {
 		data->cancel();
@@ -685,12 +668,19 @@ QString DocumentData::loadingFilePath() const {
 }
 
 bool DocumentData::displayLoading() const {
-	return loading() ? (!_loader->loadingLocal() || !_loader->autoLoading()) : uploading();
+	return loading()
+		? (!_loader->loadingLocal() || !_loader->autoLoading())
+		: (uploading() && !waitingForAlbum());
 }
 
 float64 DocumentData::progress() const {
 	if (uploading()) {
-		return snap((size > 0) ? float64(uploadOffset) / size : 0., 0., 1.);
+		if (uploadingData->size > 0) {
+			const auto result = float64(uploadingData->offset)
+				/ uploadingData->size;
+			return snap(result, 0., 1.);
+		}
+		return 0.;
 	}
 	return loading() ? _loader->currentProgress() : (loaded() ? 1. : 0.);
 }
@@ -700,7 +690,17 @@ int32 DocumentData::loadOffset() const {
 }
 
 bool DocumentData::uploading() const {
-	return status == FileUploading;
+	return (uploadingData != nullptr);
+}
+
+void DocumentData::setWaitingForAlbum() {
+	if (uploading()) {
+		uploadingData->waitingForAlbum = true;
+	}
+}
+
+bool DocumentData::waitingForAlbum() const {
+	return uploading() && uploadingData->waitingForAlbum;
 }
 
 void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMsgId &actionMsgId, LoadFromCloudSetting fromCloud, bool autoLoading) {

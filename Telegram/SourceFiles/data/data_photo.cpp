@@ -63,7 +63,9 @@ bool PhotoData::loading() const {
 }
 
 bool PhotoData::displayLoading() const {
-	return full->loading() ? full->displayLoading() : uploading();
+	return full->loading()
+		? full->displayLoading()
+		: (uploading() && !waitingForAlbum());
 }
 
 void PhotoData::cancel() {
@@ -91,12 +93,22 @@ float64 PhotoData::progress() const {
 	return full->progress();
 }
 
+void PhotoData::setWaitingForAlbum() {
+	if (uploading()) {
+		uploadingData->waitingForAlbum = true;
+	}
+}
+
+bool PhotoData::waitingForAlbum() const {
+	return uploading() && uploadingData->waitingForAlbum;
+}
+
 int32 PhotoData::loadOffset() const {
 	return full->loadOffset();
 }
 
 bool PhotoData::uploading() const {
-	return !!uploadingData;
+	return (uploadingData != nullptr);
 }
 
 void PhotoData::forget() {

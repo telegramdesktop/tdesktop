@@ -125,6 +125,9 @@ public:
 	int32 loadOffset() const;
 	bool uploading() const;
 
+	void setWaitingForAlbum();
+	bool waitingForAlbum() const;
+
 	QByteArray data() const;
 	const FileLocation &location(bool check = false) const;
 	void setLocation(const FileLocation &loc);
@@ -241,7 +244,8 @@ public:
 	int32 size = 0;
 
 	FileStatus status = FileReady;
-	int32 uploadOffset = 0;
+
+	std::unique_ptr<Data::UploadState> uploadingData;
 
 	int32 md5[8];
 
