@@ -113,7 +113,7 @@ Layouter::Layouter(
 , _maxHeight(maxWidth)
 , _minWidth(minWidth)
 , _spacing(spacing)
-, _averageRatio(ranges::accumulate(_ratios, 0.) / _count)
+, _averageRatio(ranges::accumulate(_ratios, 1.) / _count)
 , _maxSizeRatio(_maxWidth / float64(_maxHeight)) {
 }
 
