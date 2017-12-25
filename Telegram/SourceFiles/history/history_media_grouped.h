@@ -108,6 +108,7 @@ public:
 	bool customInfoLayout() const override {
 		return _caption.isEmpty();
 	}
+	bool canEditCaption() const override;
 	bool allowsFastShare() const override {
 		return true;
 	}

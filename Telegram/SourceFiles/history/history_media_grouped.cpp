@@ -449,6 +449,10 @@ bool HistoryGroupedMedia::needsBubble() const {
 	return _needBubble;
 }
 
+bool HistoryGroupedMedia::canEditCaption() const {
+	return main()->canEditCaption();
+}
+
 bool HistoryGroupedMedia::computeNeedBubble() const {
 	if (!_caption.isEmpty()) {
 		return true;
