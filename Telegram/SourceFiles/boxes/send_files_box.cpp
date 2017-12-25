@@ -455,9 +455,9 @@ public:
 	AlbumPreview(
 		QWidget *parent,
 		const Storage::PreparedList &list,
-		SendWay way);
+		SendFilesWay way);
 
-	void setSendWay(SendWay way);
+	void setSendWay(SendFilesWay way);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -474,7 +474,7 @@ private:
 	void paintFiles(Painter &p, QRect clip) const;
 
 	const Storage::PreparedList &_list;
-	SendWay _sendWay = SendWay::Files;
+	SendFilesWay _sendWay = SendFilesWay::Files;
 	std::vector<AlbumThumb> _thumbs;
 	int _thumbsHeight = 0;
 	int _photosHeight = 0;
@@ -485,7 +485,7 @@ private:
 SendFilesBox::AlbumPreview::AlbumPreview(
 	QWidget *parent,
 	const Storage::PreparedList &list,
-	SendWay way)
+	SendFilesWay way)
 : RpWidget(parent)
 , _list(list)
 , _sendWay(way) {
@@ -493,7 +493,7 @@ SendFilesBox::AlbumPreview::AlbumPreview(
 	updateSize();
 }
 
-void SendFilesBox::AlbumPreview::setSendWay(SendWay way) {
+void SendFilesBox::AlbumPreview::setSendWay(SendFilesWay way) {
 	_sendWay = way;
 	updateSize();
 	update();
@@ -615,9 +615,9 @@ SendFilesBox::AlbumThumb SendFilesBox::AlbumPreview::prepareThumb(
 void SendFilesBox::AlbumPreview::updateSize() {
 	const auto height = [&] {
 		switch (_sendWay) {
-		case SendWay::Album: return _thumbsHeight;
-		case SendWay::Photos: return _photosHeight;
-		case SendWay::Files: return _filesHeight;
+		case SendFilesWay::Album: return _thumbsHeight;
+		case SendFilesWay::Photos: return _photosHeight;
+		case SendFilesWay::Files: return _filesHeight;
 		}
 		Unexpected("Send way in SendFilesBox::AlbumPreview::updateSize");
 	}();
@@ -628,9 +628,9 @@ void SendFilesBox::AlbumPreview::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	switch (_sendWay) {
-	case SendWay::Album: paintAlbum(p); break;
-	case SendWay::Photos: paintPhotos(p, e->rect()); break;
-	case SendWay::Files: paintFiles(p, e->rect()); break;
+	case SendFilesWay::Album: paintAlbum(p); break;
+	case SendFilesWay::Photos: paintPhotos(p, e->rect()); break;
+	case SendFilesWay::Files: paintFiles(p, e->rect()); break;
 	}
 }
 
@@ -832,26 +832,39 @@ void SendFilesBox::prepare() {
 }
 
 void SendFilesBox::initSendWay() {
-	const auto value = (_compressConfirm == CompressConfirm::None)
-		? SendWay::Files
-		: (_compressConfirm == CompressConfirm::Auto)
-		? (cCompressPastedImage()
-			? (_list.albumIsPossible ? SendWay::Album : SendWay::Photos)
-			: SendWay::Files)
-		: (_compressConfirm == CompressConfirm::Yes
-			? (_list.albumIsPossible ? SendWay::Album : SendWay::Photos)
-			: SendWay::Files);
-	_sendWay = std::make_shared<Ui::RadioenumGroup<SendWay>>(value);
-}
-
-void SendFilesBox::setupControls() {
-	_albumVideosCount = ranges::v3::count(
+	_albumVideosCount = ranges::count(
 		_list.files,
 		Storage::PreparedFile::AlbumType::Video,
 		[](const Storage::PreparedFile &file) { return file.type; });
 	_albumPhotosCount = _list.albumIsPossible
 		? (_list.files.size() - _albumVideosCount)
 		: 0;
+	const auto value = [&] {
+		if (_compressConfirm == CompressConfirm::None) {
+			return SendFilesWay::Files;
+		} else if (_compressConfirm == CompressConfirm::No) {
+			return SendFilesWay::Files;
+		} else if (_compressConfirm == CompressConfirm::Yes) {
+			return _list.albumIsPossible
+				? SendFilesWay::Album
+				: SendFilesWay::Photos;
+		}
+		const auto currentWay = Auth().data().sendFilesWay();
+		if (currentWay == SendFilesWay::Files) {
+			return currentWay;
+		} else if (currentWay == SendFilesWay::Album) {
+			return _list.albumIsPossible
+				? SendFilesWay::Album
+				: SendFilesWay::Photos;
+		}
+		return (_list.albumIsPossible && !_albumPhotosCount)
+			? SendFilesWay::Album
+			: SendFilesWay::Photos;
+	}();
+	_sendWay = std::make_shared<Ui::RadioenumGroup<SendFilesWay>>(value);
+}
+
+void SendFilesBox::setupControls() {
 	setupTitleText();
 	setupSendWayControls();
 	setupCaption();
@@ -862,17 +875,17 @@ void SendFilesBox::setupSendWayControls() {
 		return;
 	}
 	const auto addRadio = [&](
-		object_ptr<Ui::Radioenum<SendWay>> &button,
-		SendWay value,
+		object_ptr<Ui::Radioenum<SendFilesWay>> &button,
+		SendFilesWay value,
 		const QString &text) {
 		const auto &style = st::defaultBoxCheckbox;
 		button.create(this, _sendWay, value, text, style);
 	};
 	if (_list.albumIsPossible) {
-		addRadio(_sendAlbum, SendWay::Album, lang(lng_send_album));
+		addRadio(_sendAlbum, SendFilesWay::Album, lang(lng_send_album));
 	}
 	if (!_list.albumIsPossible || _albumPhotosCount > 0) {
-		addRadio(_sendPhotos, SendWay::Photos, (_list.files.size() == 1)
+		addRadio(_sendPhotos, SendFilesWay::Photos, (_list.files.size() == 1)
 			? lang(lng_send_photo)
 			: (_albumVideosCount > 0)
 			? (_list.albumIsPossible
@@ -882,10 +895,10 @@ void SendFilesBox::setupSendWayControls() {
 				? lang(lng_send_separate_photos)
 				: lng_send_photos(lt_count, _list.files.size())));
 	}
-	addRadio(_sendFiles, SendWay::Files, (_list.files.size() == 1)
+	addRadio(_sendFiles, SendFilesWay::Files, (_list.files.size() == 1)
 		? lang(lng_send_file)
 		: lng_send_files(lt_count, _list.files.size()));
-	_sendWay->setChangedCallback([this](SendWay value) {
+	_sendWay->setChangedCallback([this](SendFilesWay value) {
 		if (_albumPreview) {
 			_albumPreview->setSendWay(value);
 		}
@@ -1021,14 +1034,25 @@ void SendFilesBox::setInnerFocus() {
 }
 
 void SendFilesBox::send(bool ctrlShiftEnter) {
-	// TODO settings
-	//if (_compressed && _compressConfirm == CompressConfirm::Auto && _compressed->checked() != cCompressPastedImage()) {
-	//	cSetCompressPastedImage(_compressed->checked());
-	//	Local::writeUserSettings();
-	//}
+	using Way = SendFilesWay;
+	const auto way = _sendWay ? _sendWay->value() : Way::Files;
+
+	if (_compressConfirm == CompressConfirm::Auto) {
+		const auto oldWay = Auth().data().sendFilesWay();
+		if (way != oldWay) {
+			// Check if the user _could_ use the old value, but didn't.
+			if ((oldWay == Way::Album && _sendAlbum)
+				|| (oldWay == Way::Photos && _sendPhotos)
+				|| (oldWay == Way::Files && _sendFiles)
+				|| (way == Way::Files && (_sendAlbum || _sendPhotos))) {
+				// And in that case save it to settings.
+				Auth().data().setSendFilesWay(way);
+				Auth().saveDataDelayed();
+			}
+		}
+	}
 	_confirmed = true;
 	if (_confirmedCallback) {
-		const auto way = _sendWay ? _sendWay->value() : SendWay::Files;
 		auto caption = _caption
 			? TextUtilities::PrepareForSending(
 				_caption->getLastText(),

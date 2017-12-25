@@ -26,6 +26,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/timer.h"
 #include "chat_helpers/stickers.h"
 
+class ApiWrap;
+enum class SendFilesWay;
+
 namespace Storage {
 class Downloader;
 class Uploader;
@@ -46,8 +49,6 @@ class Instance;
 namespace ChatHelpers {
 enum class SelectorTab;
 } // namespace ChatHelpers
-
-class ApiWrap;
 
 class AuthSessionData final {
 public:
@@ -107,6 +108,12 @@ public:
 	}
 	void setLastSeenWarningSeen(bool lastSeenWarningSeen) {
 		_variables.lastSeenWarningSeen = lastSeenWarningSeen;
+	}
+	void setSendFilesWay(SendFilesWay way) {
+		_variables.sendFilesWay = way;
+	}
+	SendFilesWay sendFilesWay() const {
+		return _variables.sendFilesWay;
 	}
 	ChatHelpers::SelectorTab selectorTab() const {
 		return _variables.selectorTab;
@@ -273,6 +280,7 @@ private:
 		static constexpr auto kDefaultThirdColumnWidth = 0;
 
 		bool lastSeenWarningSeen = false;
+		SendFilesWay sendFilesWay;
 		ChatHelpers::SelectorTab selectorTab; // per-window
 		bool tabbedSelectorSectionEnabled = false; // per-window
 		int tabbedSelectorSectionTooltipShown = 0;

@@ -35,14 +35,14 @@ class InputArea;
 struct GroupMediaLayout;
 } // namespace Ui
 
+enum class SendFilesWay {
+	Album,
+	Photos,
+	Files,
+};
+
 class SendFilesBox : public BoxContent {
 public:
-	enum class SendWay {
-		Album,
-		Photos,
-		Files,
-	};
-
 	SendFilesBox(
 		QWidget*,
 		Storage::PreparedList &&list,
@@ -51,7 +51,7 @@ public:
 	void setConfirmedCallback(
 		base::lambda<void(
 			Storage::PreparedList &&list,
-			SendWay way,
+			SendFilesWay way,
 			const QString &caption,
 			bool ctrlShiftEnter)> callback) {
 		_confirmedCallback = std::move(callback);
@@ -103,17 +103,17 @@ private:
 
 	base::lambda<void(
 		Storage::PreparedList &&list,
-		SendWay way,
+		SendFilesWay way,
 		const QString &caption,
 		bool ctrlShiftEnter)> _confirmedCallback;
 	base::lambda<void()> _cancelledCallback;
 	bool _confirmed = false;
 
 	object_ptr<Ui::InputArea> _caption = { nullptr };
-	object_ptr<Ui::Radioenum<SendWay>> _sendAlbum = { nullptr };
-	object_ptr<Ui::Radioenum<SendWay>> _sendPhotos = { nullptr };
-	object_ptr<Ui::Radioenum<SendWay>> _sendFiles = { nullptr };
-	std::shared_ptr<Ui::RadioenumGroup<SendWay>> _sendWay;
+	object_ptr<Ui::Radioenum<SendFilesWay>> _sendAlbum = { nullptr };
+	object_ptr<Ui::Radioenum<SendFilesWay>> _sendPhotos = { nullptr };
+	object_ptr<Ui::Radioenum<SendFilesWay>> _sendFiles = { nullptr };
+	std::shared_ptr<Ui::RadioenumGroup<SendFilesWay>> _sendWay;
 
 	rpl::variable<int> _footerHeight = 0;
 

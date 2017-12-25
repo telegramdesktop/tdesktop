@@ -3133,7 +3133,7 @@ void HistoryWidget::chooseAttach() {
 			auto list = Storage::PrepareMediaList(
 				result.paths,
 				st::sendMediaPreviewSize);
-			if (list.allFilesForCompress) {
+			if (list.allFilesForCompress || list.albumIsPossible) {
 				confirmSendingFiles(std::move(list), CompressConfirm::Auto);
 			} else if (!showSendingFilesError(list)) {
 				uploadFiles(std::move(list), SendMediaType::File);
@@ -3979,6 +3979,7 @@ bool HistoryWidget::showSendingFilesError(
 	if (text.isEmpty()) {
 		return false;
 	}
+
 	Ui::show(Box<InformBox>(text));
 	return true;
 }
@@ -4029,16 +4030,16 @@ bool HistoryWidget::confirmSendingFiles(
 	auto box = Box<SendFilesBox>(std::move(list), boxCompressConfirm);
 	box->setConfirmedCallback(base::lambda_guarded(this, [=](
 			Storage::PreparedList &&list,
-			SendFilesBox::SendWay way,
+			SendFilesWay way,
 			const QString &caption,
 			bool ctrlShiftEnter) {
 		if (showSendingFilesError(list)) {
 			return;
 		}
-		const auto type = (way == SendFilesBox::SendWay::Files)
+		const auto type = (way == SendFilesWay::Files)
 			? SendMediaType::File
 			: SendMediaType::Photo;
-		const auto album = (way == SendFilesBox::SendWay::Album)
+		const auto album = (way == SendFilesWay::Album)
 			? std::make_shared<SendingAlbum>()
 			: nullptr;
 		uploadFilesAfterConfirmation(

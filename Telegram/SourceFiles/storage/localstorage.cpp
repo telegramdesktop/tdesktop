@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/serialize_common.h"
 #include "chat_helpers/stickers.h"
 #include "data/data_drafts.h"
+#include "boxes/send_files_box.h"
 #include "window/themes/window_theme.h"
 #include "observer_peer.h"
 #include "mainwidget.h"
@@ -1422,7 +1423,9 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		cSetCompressPastedImage(v == 1);
+		GetStoredAuthSessionCache().setSendFilesWay((v == 1)
+			? SendFilesWay::Album
+			: SendFilesWay::Files);
 	} break;
 
 	case dbiEmojiTabOld: {
@@ -1804,7 +1807,6 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiNotificationsCorner) << qint32(Global::NotificationsCorner());
 	data.stream << quint32(dbiAskDownloadPath) << qint32(Global::AskDownloadPath());
 	data.stream << quint32(dbiDownloadPath) << (Global::AskDownloadPath() ? QString() : Global::DownloadPath()) << (Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
-	data.stream << quint32(dbiCompressPastedImage) << qint32(cCompressPastedImage());
 	data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
 	data.stream << quint32(dbiSongVolume) << qint32(qRound(Global::SongVolume() * 1e6));
 	data.stream << quint32(dbiVideoVolume) << qint32(qRound(Global::VideoVolume() * 1e6));

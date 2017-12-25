@@ -64,7 +64,6 @@ QByteArray gLocalSalt;
 DBIScale gRealScale = dbisAuto;
 DBIScale gScreenScale = dbisOne;
 DBIScale gConfigScale = dbisAuto;
-bool gCompressPastedImage = true;
 
 QString gTimeFormat = qsl("hh:mm");
 

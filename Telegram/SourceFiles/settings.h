@@ -120,7 +120,6 @@ DeclareSetting(QByteArray, LocalSalt);
 DeclareSetting(DBIScale, RealScale);
 DeclareSetting(DBIScale, ScreenScale);
 DeclareSetting(DBIScale, ConfigScale);
-DeclareSetting(bool, CompressPastedImage);
 DeclareSetting(QString, TimeFormat);
 
 inline void cChangeTimeFormat(const QString &newFormat) {
