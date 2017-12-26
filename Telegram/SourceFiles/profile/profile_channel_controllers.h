@@ -130,6 +130,8 @@ private:
 	void removeKicked(not_null<PeerListRow*> row, not_null<UserData*> user);
 	void kickMember(not_null<UserData*> user);
 	void kickMemberSure(not_null<UserData*> user);
+	void removeAdmin(not_null<UserData*> user);
+	void removeAdminSure(not_null<UserData*> user);
 	bool appendRow(not_null<UserData*> user);
 	bool prependRow(not_null<UserData*> user);
 	bool removeRow(not_null<UserData*> user);

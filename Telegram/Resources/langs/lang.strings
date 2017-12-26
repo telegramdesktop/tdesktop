@@ -577,6 +577,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_kick" = "Remove";
 "lng_profile_sure_kick" = "Remove {user} from the group?";
 "lng_profile_sure_kick_channel" = "Remove {user} from the channel?";
+"lng_profile_sure_remove_admin" = "Remove {user} from group admins?";
+"lng_profile_sure_remove_admin_channel" = "Remove {user} from channel admins?";
 "lng_profile_loading" = "Loading...";
 "lng_profile_photos#one" = "{count} photo";
 "lng_profile_photos#other" = "{count} photos";
@@ -697,6 +699,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_channel_banned_status_restricted_by" = "Restricted by {user}";
 
 "lng_group_blocked_list_about" = "Banned users are removed from the group and can only come back if invited by an admin.\nInvite links don't work for them.";
+"lng_channel_blocked_list_about" = "Banned users are removed from the channel.\nInvite links don't work for them.";
 
 "lng_chat_all_members_admins" = "All Members Are Admins";
 "lng_chat_about_all_admins" = "Group members can add new members, edit name and photo of the group.";
