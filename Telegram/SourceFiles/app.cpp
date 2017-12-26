@@ -519,26 +519,34 @@ namespace {
 			}
 		} break;
 		case mtpc_channel: {
-			auto &d = chat.c_channel();
+			const auto &d = chat.c_channel();
 
-			auto peerId = peerFromChannel(d.vid.v);
+			const auto peerId = peerFromChannel(d.vid.v);
 			minimal = d.is_min();
 			if (minimal) {
 				data = App::channelLoaded(peerId);
 				if (!data) {
-					return nullptr; // minimal is not loaded, need to make getDifference
+					// Can't apply minimal to a not loaded channel.
+					// Need to make getDifference.
+					return nullptr;
 				}
 			} else {
 				data = App::channel(peerId);
-				data->input = MTP_inputPeerChannel(d.vid, d.has_access_hash() ? d.vaccess_hash : MTP_long(0));
+				const auto accessHash = d.has_access_hash()
+					? d.vaccess_hash
+					: MTP_long(0);
+				data->input = MTP_inputPeerChannel(d.vid, accessHash);
 			}
 
-			auto cdata = data->asChannel();
-			auto wasInChannel = cdata->amIn();
-			auto canViewAdmins = cdata->canViewAdmins();
-			auto canViewMembers = cdata->canViewMembers();
-			auto canAddMembers = cdata->canAddMembers();
+			const auto cdata = data->asChannel();
+			const auto wasInChannel = cdata->amIn();
+			const auto canViewAdmins = cdata->canViewAdmins();
+			const auto canViewMembers = cdata->canViewMembers();
+			const auto canAddMembers = cdata->canAddMembers();
 
+			if (d.has_participants_count()) {
+				cdata->setMembersCount(d.vparticipants_count.v);
+			}
 			if (minimal) {
 				auto mask = 0
 					| MTPDchannel::Flag::f_broadcast

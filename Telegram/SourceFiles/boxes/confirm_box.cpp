@@ -327,7 +327,7 @@ void ConvertToSupergroupBox::convertDone(const MTPUpdates &updates) {
 	auto handleChats = [](auto &mtpChats) {
 		for_const (auto &mtpChat, mtpChats.v) {
 			if (mtpChat.type() == mtpc_channel) {
-				auto channel = App::channel(mtpChat.c_channel().vid.v);
+				const auto channel = App::channel(mtpChat.c_channel().vid.v);
 				Ui::showPeerHistory(channel, ShowAtUnreadMsgId);
 				Auth().api().requestParticipantsCountDelayed(channel);
 			}
