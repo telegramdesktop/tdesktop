@@ -919,6 +919,7 @@ private:
 	void paintPhotos(Painter &p, QRect clip) const;
 	void paintFiles(Painter &p, QRect clip) const;
 
+	void applyCursor(style::cursor cursor);
 	int contentLeft() const;
 	int contentTop() const;
 	AlbumThumb *findThumb(QPoint position) const;
@@ -930,6 +931,7 @@ private:
 
 	const Storage::PreparedList &_list;
 	SendFilesWay _sendWay = SendFilesWay::Files;
+	style::cursor _cursor = style::cur_default;
 	std::vector<int> _order;
 	std::vector<std::unique_ptr<AlbumThumb>> _thumbs;
 	int _thumbsHeight = 0;
@@ -1228,6 +1230,10 @@ void SendFilesBox::AlbumPreview::mousePressEvent(QMouseEvent *e) {
 }
 
 void SendFilesBox::AlbumPreview::mouseMoveEvent(QMouseEvent *e) {
+	if (_sendWay != SendFilesWay::Album) {
+		applyCursor(style::cur_default);
+		return;
+	}
 	if (_draggedThumb) {
 		const auto position = e->pos();
 		_draggedThumb->moveInAlbum(position - _draggedStartPosition);
@@ -1237,7 +1243,14 @@ void SendFilesBox::AlbumPreview::mouseMoveEvent(QMouseEvent *e) {
 		const auto cursor = findThumb(e->pos())
 			? style::cur_sizeall
 			: style::cur_default;
-		setCursor(cursor);
+		applyCursor(cursor);
+	}
+}
+
+void SendFilesBox::AlbumPreview::applyCursor(style::cursor cursor) {
+	if (_cursor != cursor) {
+		_cursor = cursor;
+		setCursor(_cursor);
 	}
 }
 
@@ -1411,10 +1424,12 @@ void SendFilesBox::prepare() {
 }
 
 void SendFilesBox::initSendWay() {
-	_albumVideosCount = ranges::count(
-		_list.files,
-		Storage::PreparedFile::AlbumType::Video,
-		[](const Storage::PreparedFile &file) { return file.type; });
+	_albumVideosCount = _list.albumIsPossible
+		? ranges::count(
+			_list.files,
+			Storage::PreparedFile::AlbumType::Video,
+			[](const Storage::PreparedFile &file) { return file.type; })
+		: 0;
 	_albumPhotosCount = _list.albumIsPossible
 		? (_list.files.size() - _albumVideosCount)
 		: 0;
@@ -1467,9 +1482,7 @@ void SendFilesBox::setupSendWayControls() {
 		addRadio(_sendPhotos, SendFilesWay::Photos, (_list.files.size() == 1)
 			? lang(lng_send_photo)
 			: (_albumVideosCount > 0)
-			? (_list.albumIsPossible
-				? lang(lng_send_separate_photos_videos)
-				: lng_send_photos_videos(lt_count, _list.files.size()))
+			? lang(lng_send_separate_photos_videos)
 			: (_list.albumIsPossible
 				? lang(lng_send_separate_photos)
 				: lng_send_photos(lt_count, _list.files.size())));

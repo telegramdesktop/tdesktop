@@ -27,7 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_menu_about" = "About";
 "lng_menu_update" = "Update";
 "lng_menu_back" = "Back";
-"lng_menu_night_mode" = "Night mode";
+"lng_menu_night_mode" = "Night Mode";
 
 "lng_disable_notifications_from_tray" = "Disable notifications";
 "lng_enable_notifications_from_tray" = "Enable notifications";
@@ -125,9 +125,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_flood_error" = "Too many tries. Please try again later.";
 "lng_gif_error" = "An error has occurred while reading GIF animation :(";
 "lng_edit_error" = "You cannot edit this message";
-"lng_join_channel_error" = "Sorry, you have joined too many channels and supergroups. Please leave some before joining.";
+"lng_join_channel_error" = "Sorry, you have joined too many channels and supergroups. Please leave some before joining this one.";
 "lng_error_phone_flood" = "Sorry, you have deleted and re-created your account too many times recently. Please wait for a few days before signing up again.";
-"lng_error_start_minimized_passcoded" = "You have set a local passcode, so the app can't be launched minimized. App will ask you to enter the passcode before it can start working.";
+"lng_error_start_minimized_passcoded" = "You have set a local passcode, so Telegram Desktop can't be launched minimised; it will ask you to enter your passcode before it can start working.";
 "lng_error_pinned_max#one" = "Sorry, you can pin no more than {count} chat to the top.";
 "lng_error_pinned_max#other" = "Sorry, you can pin no more than {count} chats to the top.";
 "lng_error_public_groups_denied" = "Unfortunately, you were banned from participating in public groups.\n{more_info}";
@@ -166,8 +166,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_photo_caption" = "Caption";
 "lng_photos_comment" = "Comment";
 
-"lng_phone_title" = "Your Phone";
-"lng_phone_desc" = "Please confirm your country code and\nenter your phone number.";
+"lng_phone_title" = "Your Phone Number";
+"lng_phone_desc" = "Please confirm your country code and\nenter your mobile phone number.";
 "lng_phone_notreg" = "If you don't have a Telegram account yet,\nplease [b]sign up[/b] with {link_start}Android / iPhone{link_end} or {signup_start}here{signup_end}";
 "lng_country_code" = "Country Code";
 "lng_bad_country_code" = "Invalid Country Code";
@@ -179,7 +179,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_code_desc" = "We have sent you a message with activation\ncode to your phone. Please enter it below.";
 "lng_code_telegram" = "Please enter the code you've just received\nin your previous [b]Telegram[/b] app.";
 "lng_code_no_telegram" = "Send code via SMS";
-"lng_code_call" = "Telegram will dial your number in {minutes}:{seconds}";
+"lng_code_call" = "Telegram will call you in {minutes}:{seconds}";
 "lng_code_calling" = "Requesting a call from Telegram...";
 "lng_code_called" = "Telegram dialed your number";
 
@@ -187,7 +187,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_bad_phone_noreg" = "Phone number not registered.";
 "lng_bad_code" = "You have entered an invalid code.";
 "lng_bad_name" = "Please enter your first and last name.";
-"lng_bad_photo" = "Bad image selected.";
+"lng_bad_photo" = "Sorry, Telegram can't process that type of image.";
 
 "lng_signin_title" = "Cloud password check";
 "lng_signin_desc" = "Please enter your cloud password.";
@@ -201,8 +201,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_signin_bad_password" = "You have entered a wrong password.";
 "lng_signin_wrong_code" = "You have entered an invalid code.";
 "lng_signin_try_password" = "Having trouble accessing your e-mail?";
-"lng_signin_password_removed" = "Your cloud password was disabled.\nYou can set a new one in Settings.";
-"lng_signin_no_email_forgot" = "Since you haven't provided a recovery\ne-mail when setting up your password, your remaining options are either to remember your password or to reset your account.";
+"lng_signin_password_removed" = "Your cloud password was disabled.\nYou can set up a new one in Settings.";
+"lng_signin_no_email_forgot" = "Since you didn't provide a recovery e-mail when setting up your password, your remaining options are either to remember your password or to reset your account.";
 "lng_signin_cant_email_forgot" = "If you can't restore access to the e-mail, your remaining options are either to remember your password or to reset your account.";
 "lng_signin_reset_account" = "Reset your account";
 "lng_signin_sure_reset" = "Warning!\n\nYou will lose all your chats and messages, along with any media and files you shared!\n\nDo you want to reset your account?";
@@ -251,10 +251,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_username_invalid" = "This username is invalid.";
 "lng_username_occupied" = "This username is already occupied.";
 "lng_username_too_short" = "This username is too short.";
-"lng_username_bad_symbols" = "This username has bad symbols.";
+"lng_username_bad_symbols" = "Only a-z, 0-9, and underscores allowed.";
 "lng_username_available" = "This username is available.";
 "lng_username_not_found" = "User @{user} not found.";
-"lng_username_link_willbe" = "Such link will open a chat with you:";
+"lng_username_link_willbe" = "This link will open a chat with you:";
 "lng_username_link" = "This link opens a chat with you:";
 "lng_username_copied" = "Link copied to clipboard.";
 
@@ -322,9 +322,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_adaptive_wide" = "Adaptive layout for wide screens";
 
 "lng_backgrounds_header" = "Choose your new chat background";
-"lng_theme_sure_keep" = "Keep this color theme?";
-"lng_theme_reverting#one" = "Reverting to the old color theme in {count} second.";
-"lng_theme_reverting#other" = "Reverting to the old color theme in {count} seconds.";
+"lng_theme_sure_keep" = "Keep this theme?";
+"lng_theme_reverting#one" = "Reverting to the old theme in {count} second.";
+"lng_theme_reverting#other" = "Reverting to the old theme in {count} seconds.";
 "lng_theme_keep_changes" = "Keep changes";
 "lng_theme_revert" = "Revert";
 
@@ -339,7 +339,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_download_path_dir_radio" = "Custom folder, cleared only manually";
 "lng_download_path_choose" = "Choose download path";
 "lng_sure_clear_downloads" = "Do you want to remove all downloaded files from temp folder? It is done automatically on logout or program uninstall.";
-"lng_download_path_failed" = "File download could not be started. It could happen because of a bad download location.\n\nYou can change download path in Settings.";
+"lng_download_path_failed" = "File download could not be started.\n\nThis might be because the download location you've selected is invalid. Try changing the \"Download path\" in Settings.";
 "lng_download_path_settings" = "Settings";
 "lng_download_finish_failed" = "File download could not be finished.\n\nWould you like to try again?";
 "lng_download_path_clearing" = "Clearing...";
@@ -404,7 +404,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_cloud_password_bad" = "Password and hint cannot be the same.";
 "lng_cloud_password_email" = "Enter recovery e-mail";
 "lng_cloud_password_bad_email" = "Incorrect e-mail, please try other.";
-"lng_cloud_password_about" = "This password will be asked when you log in on a new device in addition to the pin code.";
+"lng_cloud_password_about" = "This password will be asked when you log in on a new device in addition to the SMS code.";
 "lng_cloud_password_about_recover" = "Warning! Are you sure you don't want to\nadd a password recovery e-mail?\n\nIf you forget your password, you will\nlose access to your Telegram account.";
 "lng_cloud_password_skip_email" = "Skip e-mail";
 "lng_cloud_password_almost" = "A confirmation link was sent to the\ne-mail you provided. Two-step verification will be enabled as soon as you follow that link.";
@@ -445,9 +445,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_reset_button" = "Terminate";
 "lng_settings_manage_local_storage" = "Manage local storage";
 "lng_settings_ask_question" = "Ask a Question";
-"lng_settings_ask_sure" = "Please note that Telegram Support is done by volunteers. We try to respond as quickly as possible, but it may take a while.\n\nPlease take a look at the Telegram FAQ: it has important troubleshooting tips and answers to most questions.";
+"lng_settings_ask_sure" = "Please note that Telegram Support is run by volunteers. We try to respond as quickly as possible, but it may take a while.\n\nPlease take a look at the Telegram FAQ: it has important troubleshooting tips and answers to most questions.";
 "lng_settings_faq_button" = "Go to FAQ";
-"lng_settings_ask_ok" = "Ask";
+"lng_settings_ask_ok" = "Ask a Volunteer";
 "lng_settings_faq" = "Telegram FAQ";
 "lng_settings_logout" = "Log Out";
 "lng_sure_logout" = "Are you sure you want to log out?";
@@ -461,7 +461,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_sessions_terminate_all" = "Terminate all other sessions";
 
 "lng_blocked_list_title" = "Blocked users";
-"lng_blocked_list_unknown_phone" = "unknown phone";
+"lng_blocked_list_unknown_phone" = "unknown phone number";
 "lng_blocked_list_unblock" = "Unblock";
 "lng_blocked_list_add" = "Block user";
 "lng_blocked_list_add_title" = "Select user to block";
@@ -499,7 +499,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_privacy_groups_always_title" = "Always allow";
 "lng_edit_privacy_groups_never_title" = "Never allow";
 
-"lng_edit_privacy_calls_title" = "Phone calls privacy";
+"lng_edit_privacy_calls_title" = "Telegram call privacy";
 "lng_edit_privacy_calls_description" = "You can restrict who can call you:";
 "lng_edit_privacy_calls_always_empty" = "Always allow";
 "lng_edit_privacy_calls_always#one" = "Always allow {count} user";
@@ -727,7 +727,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_create_channel_link_invalid" = "This link is invalid";
 "lng_create_channel_link_occupied" = "Sorry, this link is already occupied";
 "lng_create_channel_link_too_short" = "Sorry, this link is too short";
-"lng_create_channel_link_bad_symbols" = "Sorry, this link has bad symbols";
+"lng_create_channel_link_bad_symbols" = "Only 0-9, a-z, and underscores allowed.";
 "lng_create_channel_link_available" = "This link is available";
 "lng_create_channel_link_copied" = "Link copied to clipboard";
 
@@ -740,16 +740,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_sure_delete_contact" = "Are you sure you want to delete {contact} from your contact list?";
 "lng_sure_delete_history" = "Are you sure you want to delete all message history with {contact}?\n\nThis action cannot be undone.";
-"lng_sure_delete_group_history" = "Are you sure you want to delete all message history in «{group}»?\n\nThis action cannot be undone.";
-"lng_sure_delete_and_exit" = "Are you sure you want to delete all message history and leave «{group}»?\n\nThis action cannot be undone.";
+"lng_sure_delete_group_history" = "Are you sure, you want to delete all message history in «{group}»?\n\nThis action cannot be undone.";
+"lng_sure_delete_and_exit" = "Are you sure, you want to delete all message history and leave «{group}»?\n\nThis action cannot be undone.";
 "lng_sure_leave_channel" = "Are you sure you want to leave\nthis channel?";
 "lng_sure_delete_channel" = "Are you sure you want to delete this channel? All members will be removed and all messages will be lost.";
-"lng_sure_leave_group" = "Are you sure you want to leave\nthis group?";
-"lng_sure_delete_group" = "Are you sure you want to delete this group? All members will be removed and all messages will be lost.";
-"lng_sure_delete_saved_messages" = "Are you sure you want to delete all your saved messages?\n\nThis action cannot be undone.";
+"lng_sure_leave_group" = "Are you sure you want to leave this group?";
+"lng_sure_delete_group" = "Are you sure, you want to delete this group? All members will be removed and all messages will be lost.";
+"lng_sure_delete_saved_messages" = "Are you sure, you want to delete all your saved messages?\n\nThis action cannot be undone.";
 
 "lng_message_empty" = "Empty Message";
-"lng_message_unsupported" = "This message is not supported by your version of Telegram Desktop. Please update to the last version in Settings or install it from {link}";
+"lng_message_unsupported" = "This message is not supported by your version of Telegram Desktop. Please update to the latest version in Settings, or install it from {link}";
 
 "lng_duration_seconds#one" = "{count} second";
 "lng_duration_seconds#other" = "{count} seconds";
@@ -816,7 +816,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_profile_migrate_reached#one" = "{count} member limit reached";
 "lng_profile_migrate_reached#other" = "{count} members limit reached";
-"lng_profile_migrate_body" = "To get over this limit, you can upgrade your group to a supergroup.";
+"lng_profile_migrate_body" = "To add more members, you can upgrade your group to a supergroup.";
 "lng_profile_migrate_learn_more" = "Learn more »";
 "lng_profile_migrate_button" = "Upgrade to supergroup";
 "lng_profile_convert_title" = "Convert to supergroup";
@@ -867,8 +867,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_cancel_edit_post_yes" = "Yes";
 "lng_cancel_edit_post_no" = "No";
 
-"lng_bot_share_location_unavailable" = "Sorry, the location sharing is currently unavailable in Telegram Desktop.";
-"lng_bot_share_phone" = "Share Phone Number?";
+"lng_bot_share_location_unavailable" = "Sorry, location sharing is currently unavailable in Telegram Desktop.";
+"lng_bot_share_phone" = "Do you want to share your phone number with this bot?";
 "lng_bot_share_phone_confirm" = "Share";
 
 "lng_attach_failed" = "Failed";
@@ -903,7 +903,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_faved_stickers_add" = "Add to Favorites";
 "lng_faved_stickers_remove" = "Remove from Favorites";
 "lng_group_stickers" = "Group stickers";
-"lng_group_stickers_description" = "You can choose sticker set which will be available for every member while in the group chat.";
+"lng_group_stickers_description" = "You can choose a sticker set which will be available for every member while in the group chat.";
 "lng_group_stickers_add" = "Choose sticker set";
 
 "lng_switch_stickers" = "Stickers";
@@ -993,7 +993,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_open_this_link" = "Open this link?";
 "lng_open_link" = "Open";
-"lng_allow_bot_pass" = "Do you allow {bot_name} to pass your Telegram name and id to the web pages you open via this bot?";
+"lng_allow_bot_pass" = "Allow {bot_name} to pass your Telegram name and ID to the web pages you open via this bot?";
 "lng_allow_bot" = "Allow";
 
 "lng_bot_start" = "Start";
@@ -1002,7 +1002,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_bot_groups_not_found" = "No groups found";
 "lng_bot_sure_invite" = "Add the bot to «{group}»?";
 "lng_bot_already_in_group" = "The bot is already a member of the group.";
-"lng_bot_choose_chat" = "Select a Chat";
+"lng_bot_choose_chat" = "Select a chat";
 "lng_bot_no_chats" = "You have no chats";
 "lng_bot_chats_not_found" = "No chats found";
 "lng_bot_sure_share_game" = "Share the game with {user}?";
@@ -1101,17 +1101,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_send_images_selected#other" = "{count} images selected";
 "lng_send_photos#one" = "Send {count} photo";
 "lng_send_photos#other" = "Send {count} photos";
-"lng_send_photos_videos#one" = "Send {count} photo and video";
-"lng_send_photos_videos#other" = "Send {count} photos and videos";
-"lng_send_separate_photos" = "Send separate photos";
-"lng_send_separate_photos_videos" = "Send separate photos and videos";
+"lng_send_separate_photos" = "Send as separate photos";
+"lng_send_separate_photos_videos" = "Send as separate media";
 "lng_send_files_selected#one" = "{count} file selected";
 "lng_send_files_selected#other" = "{count} files selected";
 "lng_send_files#one" = "Send {count} file";
 "lng_send_files#other" = "Send {count} files";
-"lng_send_album" = "Send an album";
-"lng_send_photo" = "Send a photo";
-"lng_send_file" = "Send a file";
+"lng_send_album" = "Send as an album";
+"lng_send_photo" = "Send as a photo";
+"lng_send_file" = "Send as a file";
 
 "lng_forward_choose" = "Choose recipient...";
 "lng_forward_cant" = "Sorry, no way to forward here :(";
@@ -1131,7 +1129,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_share_cant" = "Sorry, no way to share here :(";
 "lng_reply_cant" = "Sorry, no way to reply to an old message in supergroup :(";
-"lng_reply_cant_forward" = "Sorry, no way to reply to an old message in supergroup :( Do you wish to forward it and add your comment?";
+"lng_reply_cant_forward" = "Sorry, you can't reply to a message that was sent before the group was upgraded to a supergroup. Do you wish to forward it and add your comment?";
 
 "lng_share_title" = "Share to";
 "lng_share_copy_link" = "Copy share link";
@@ -1140,7 +1138,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_share_game_link_copied" = "Game link copied to clipboard.";
 "lng_share_done" = "Done!";
 
-"lng_contact_phone" = "Phone number";
+"lng_contact_phone" = "Phone Number";
 "lng_enter_contact_data" = "New Contact";
 "lng_edit_contact_title" = "Edit contact name";
 "lng_edit_channel_title" = "Edit channel";
@@ -1154,8 +1152,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_add_contact" = "Create";
 "lng_add_contact_button" = "New contact";
 "lng_contacts_header" = "Contacts";
-"lng_contact_not_joined" = "Unfortunately {name} did not join Telegram yet, but you can send your friend an invitation.\n\nWe will notify you about any of your contacts who is joining Telegram.";
-"lng_try_other_contact" = "Try other";
+"lng_contact_not_joined" = "Unfortunately {name} has not joined Telegram yet, but you can send them an invitation.\n\nWe will notify you about any of your contacts who join Telegram.";
+"lng_try_other_contact" = "Try someone else";
 "lng_create_group_link" = "Link";
 "lng_create_group_invite_link" = "Invite link";
 "lng_create_group_description" = "Description (optional)";
@@ -1242,7 +1240,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_confirm_phone_enter_code" = "Please enter the code.";
 
 "lng_theme_editor_no_keys" = "No keys in the palette yet";
-"lng_theme_editor_cant_change_theme" = "You can not apply new themes while you're editing the color palette. Please close the theme editor first.";
+"lng_theme_editor_cant_change_theme" = "You can't apply a new theme while you're editing the colour palette. Please close the theme editor first.";
 "lng_theme_editor_new_keys" = "Not in the palette yet";
 "lng_theme_editor_background_image" = "Background image";
 "lng_theme_editor_saved_to_jpg" = "Saved to JPEG, {size}";
@@ -1283,7 +1281,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_call_bar_hangup" = "End call";
 
 "lng_call_box_title" = "Calls";
-"lng_call_box_about" = "You didn't make any calls yet.";
+"lng_call_box_about" = "You haven't made any Telegram calls yet.";
 "lng_call_box_status_today" = "{time}";
 "lng_call_box_status_yesterday" = "Yesterday at {time}";
 "lng_call_box_status_date" = "{date} at {time}";
@@ -1304,7 +1302,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_player_message_yesterday" = "Yesterday at {time}";
 "lng_player_message_date" = "{date} at {time}";
 
-"lng_rights_edit_admin" = "Edit administrator";
+"lng_rights_edit_admin" = "Manage permissions";
 "lng_rights_edit_admin_header" = "What can this admin do?";
 "lng_rights_about_add_admins_yes" = "This admin will be able to add new admins with the same (or more limited) permissions.";
 "lng_rights_about_add_admins_no" = "This admin will not be able to add new admins.";
@@ -1408,9 +1406,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_banned" = "banned {user}";
 "lng_admin_log_restricted" = "changed restrictions for {user} {until}";
 "lng_admin_log_promoted" = "changed privileges for {user}";
-"lng_admin_log_changed_stickers_group" = "{from} changed group {sticker_set}";
+"lng_admin_log_changed_stickers_group" = "{from} changed the group's {sticker_set}";
 "lng_admin_log_changed_stickers_set" = "sticker set";
-"lng_admin_log_removed_stickers_group" = "{from} removed group sticker set";
+"lng_admin_log_removed_stickers_group" = "{from} removed the group's sticker set";
 "lng_admin_log_user_with_username" = "{name} ({mention})";
 "lng_admin_log_restricted_forever" = "indefinitely";
 "lng_admin_log_restricted_until" = "until {date}";
