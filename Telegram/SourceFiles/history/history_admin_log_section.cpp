@@ -294,7 +294,7 @@ not_null<ChannelData*> Widget::channel() const {
 
 QPixmap Widget::grabForShowAnimation(const Window::SectionSlideParams &params) {
 	if (params.withTopBarShadow) _fixedBarShadow->hide();
-	auto result = myGrab(this);
+	auto result = Ui::GrabWidget(this);
 	if (params.withTopBarShadow) _fixedBarShadow->show();
 	return result;
 }
@@ -319,7 +319,7 @@ bool Widget::showInternal(
 
 void Widget::setInternalState(const QRect &geometry, not_null<SectionMemento*> memento) {
 	setGeometry(geometry);
-	myEnsureResized(this);
+	Ui::SendPendingMoveResizeEvents(this);
 	restoreState(memento);
 }
 

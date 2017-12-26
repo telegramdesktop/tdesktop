@@ -1634,7 +1634,7 @@ void MediaView::setClipControllerGeometry() {
 		controllerBottom - _clipController->height() - st::mediaviewCaptionPadding.bottom() - st::mediaviewCaptionMargin.height(),
 		st::mediaviewControllerSize.width(),
 		st::mediaviewControllerSize.height());
-	myEnsureResized(_clipController);
+	Ui::SendPendingMoveResizeEvents(_clipController);
 }
 
 void MediaView::onVideoPauseResume() {

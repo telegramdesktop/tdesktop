@@ -640,7 +640,12 @@ void FlatLabel::clickHandlerPressedChanged(const ClickHandlerPtr &action, bool a
 	update();
 }
 
-std::unique_ptr<CrossFadeAnimation> FlatLabel::CrossFade(FlatLabel *from, FlatLabel *to, style::color bg, QPoint fromPosition, QPoint toPosition) {
+std::unique_ptr<CrossFadeAnimation> FlatLabel::CrossFade(
+		not_null<FlatLabel*> from,
+		not_null<FlatLabel*> to,
+		style::color bg,
+		QPoint fromPosition,
+		QPoint toPosition) {
 	auto result = std::make_unique<CrossFadeAnimation>(bg);
 
 	struct Data {
@@ -649,9 +654,9 @@ std::unique_ptr<CrossFadeAnimation> FlatLabel::CrossFade(FlatLabel *from, FlatLa
 		int lineHeight = 0;
 		int lineAddTop = 0;
 	};
-	auto prepareData = [&bg](FlatLabel *label) {
+	auto prepareData = [&bg](not_null<FlatLabel*> label) {
 		auto result = Data();
-		result.full = myGrabImage(label, QRect(), bg->c);
+		result.full = GrabWidgetToImage(label, QRect(), bg->c);
 		auto textWidth = label->width() - label->_st.margin.left() - label->_st.margin.right();
 		label->_text.countLineWidths(textWidth, &result.lineWidths);
 		result.lineHeight = label->_st.style.font->height;

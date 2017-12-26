@@ -105,7 +105,7 @@ public:
 	// This can be used to grab with or without top bar shadow.
 	// This will be protected when animation preparation will be done inside.
 	virtual QPixmap grabForShowAnimation(const SectionSlideParams &params) {
-		return myGrab(this);
+		return Ui::GrabWidget(this);
 	}
 
 	// Attempt to show the required section inside the existing one.

@@ -84,7 +84,7 @@ void Widget::setInternalState(
 		const QRect &geometry,
 		not_null<Memento*> memento) {
 	setGeometry(geometry);
-	myEnsureResized(this);
+	Ui::SendPendingMoveResizeEvents(this);
 	restoreState(memento);
 }
 

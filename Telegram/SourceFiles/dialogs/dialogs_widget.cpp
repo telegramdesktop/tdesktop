@@ -229,7 +229,7 @@ void DialogsWidget::startWidthAnimation() {
 		st::columnMinimalWidthLeft,
 		scrollGeometry.height());
 	_scroll->setGeometry(grabGeometry);
-	myEnsureResized(_scroll);
+	Ui::SendPendingMoveResizeEvents(_scroll);
 	auto image = QImage(
 		grabGeometry.size() * cIntRetinaFactor(),
 		QImage::Format_ARGB32_Premultiplied);

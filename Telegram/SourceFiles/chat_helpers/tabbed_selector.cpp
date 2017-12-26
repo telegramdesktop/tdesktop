@@ -489,7 +489,7 @@ QImage TabbedSelector::grabForAnimation() {
 	showAll();
 	_topShadow->hide();
 	_tabsSlider->hide();
-	myEnsureResized(this);
+	Ui::SendPendingMoveResizeEvents(this);
 
 	auto result = QImage(size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(cRetinaFactor());

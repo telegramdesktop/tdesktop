@@ -74,7 +74,7 @@ void FadeAnimation::refreshCache() {
 }
 
 QPixmap FadeAnimation::grabContent() {
-	myEnsureResized(_widget);
+	SendPendingMoveResizeEvents(_widget);
 	_size = _widget->size();
 	if (_size.isEmpty()) {
 		auto image = QImage(
@@ -84,7 +84,7 @@ QPixmap FadeAnimation::grabContent() {
 		image.fill(Qt::transparent);
 		return App::pixmapFromImageInPlace(std::move(image));
 	}
-	auto widgetContent = myGrab(_widget);
+	auto widgetContent = GrabWidget(_widget);
 	if (_scale < 1.) {
 		auto result = QImage(kWideScale * _size * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 		result.setDevicePixelRatio(cRetinaFactor());

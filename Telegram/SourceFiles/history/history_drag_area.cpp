@@ -143,7 +143,9 @@ void DragArea::hideStart() {
 		return;
 	}
 	if (_cache.isNull()) {
-		_cache = myGrab(this, innerRect().marginsAdded(st::boxRoundShadow.extend));
+		_cache = Ui::GrabWidget(
+			this,
+			innerRect().marginsAdded(st::boxRoundShadow.extend));
 	}
 	_hiding = true;
 	setIn(false);
@@ -162,7 +164,9 @@ void DragArea::showStart() {
 	}
 	_hiding = false;
 	if (_cache.isNull()) {
-		_cache = myGrab(this, innerRect().marginsAdded(st::boxRoundShadow.extend));
+		_cache = Ui::GrabWidget(
+			this,
+			innerRect().marginsAdded(st::boxRoundShadow.extend));
 	}
 	show();
 	_a_opacity.start([this] { opacityAnimationCallback(); }, 0., 1., st::boxDuration);

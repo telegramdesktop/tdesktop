@@ -136,8 +136,8 @@ void WarningWidget::startAnimation(bool hiding) {
 	_hiding = hiding;
 	if (_cache.isNull()) {
 		showChildren();
-		myEnsureResized(this);
-		_cache = myGrab(this, _outer);
+		Ui::SendPendingMoveResizeEvents(this);
+		_cache = Ui::GrabWidget(this, _outer);
 	}
 	hideChildren();
 	_animation.start([this] {

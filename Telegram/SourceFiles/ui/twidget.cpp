@@ -118,6 +118,7 @@ QString GetOverride(const QString &familyName) {
 
 } // Fonts
 
+namespace Ui {
 namespace {
 
 class WidgetCreator : public QWidget {
@@ -182,47 +183,60 @@ void SendPendingEventsRecursive(QWidget *target, bool parentHiddenFlag) {
 
 } // namespace
 
-void myEnsureResized(QWidget *target) {
-	if (!target) {
-		return;
-	}
+void SendPendingMoveResizeEvents(not_null<QWidget*> target) {
 	CreateWidgetStateRecursive(target);
 	SendPendingEventsRecursive(target, !target->isVisible());
 }
 
-QPixmap myGrab(TWidget *target, QRect rect, QColor bg) {
-	myEnsureResized(target);
-	if (rect.isNull()) rect = target->rect();
-
-    auto result = QPixmap(rect.size() * cIntRetinaFactor());
-    result.setDevicePixelRatio(cRetinaFactor());
-	if (!target->testAttribute(Qt::WA_OpaquePaintEvent)) {
-		result.fill(bg);
+QPixmap GrabWidget(not_null<TWidget*> target, QRect rect, QColor bg) {
+	SendPendingMoveResizeEvents(target);
+	if (rect.isNull()) {
+		rect = target->rect();
 	}
 
-	target->grabStart();
-	target->render(&result, QPoint(0, 0), rect, QWidget::DrawChildren | QWidget::IgnoreMask);
-	target->grabFinish();
-
-	return result;
-}
-
-QImage myGrabImage(TWidget *target, QRect rect, QColor bg) {
-	myEnsureResized(target);
-	if (rect.isNull()) rect = target->rect();
-
-	auto result = QImage(rect.size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	auto result = QPixmap(rect.size() * cIntRetinaFactor());
 	result.setDevicePixelRatio(cRetinaFactor());
 	if (!target->testAttribute(Qt::WA_OpaquePaintEvent)) {
 		result.fill(bg);
 	}
 
 	target->grabStart();
-	target->render(&result, QPoint(0, 0), rect, QWidget::DrawChildren | QWidget::IgnoreMask);
+	target->render(
+		&result,
+		QPoint(0, 0),
+		rect,
+		QWidget::DrawChildren | QWidget::IgnoreMask);
 	target->grabFinish();
 
 	return result;
 }
+
+QImage GrabWidgetToImage(not_null<TWidget*> target, QRect rect, QColor bg) {
+	Ui::SendPendingMoveResizeEvents(target);
+	if (rect.isNull()) {
+		rect = target->rect();
+	}
+
+	auto result = QImage(
+		rect.size() * cIntRetinaFactor(),
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(cRetinaFactor());
+	if (!target->testAttribute(Qt::WA_OpaquePaintEvent)) {
+		result.fill(bg);
+	}
+
+	target->grabStart();
+	target->render(
+		&result,
+		QPoint(0, 0),
+		rect,
+		QWidget::DrawChildren | QWidget::IgnoreMask);
+	target->grabFinish();
+
+	return result;
+}
+
+} // namespace Ui
 
 void sendSynteticMouseEvent(QWidget *widget, QEvent::Type type, Qt::MouseButton button, const QPoint &globalPoint) {
 	if (auto windowHandle = widget->window()->windowHandle()) {

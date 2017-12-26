@@ -244,7 +244,7 @@ bool FlatTextarea::heightAutoupdated() {
 	if (_minHeight < 0 || _maxHeight < 0 || _inHeightCheck) return false;
 	_inHeightCheck = true;
 
-	myEnsureResized(this);
+	SendPendingMoveResizeEvents(this);
 
 	int newh = ceil(document()->size().height()) + 2 * fakeMargin();
 	if (newh > _maxHeight) {
@@ -1824,7 +1824,7 @@ bool InputArea::heightAutoupdated() {
 	if (_st.heightMin < 0 || _st.heightMax < 0 || _inHeightCheck) return false;
 	_inHeightCheck = true;
 
-	myEnsureResized(this);
+	SendPendingMoveResizeEvents(this);
 
 	int newh = qCeil(_inner->document()->size().height()) + _st.textMargins.top() + _st.textMargins.bottom();
 	if (newh > _st.heightMax) {

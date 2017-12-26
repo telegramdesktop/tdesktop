@@ -169,7 +169,7 @@ QPixmap BoxContent::grabInnerCache() {
 	auto isBottomShadowVisible = !_bottomShadow->isHidden();
 	if (isTopShadowVisible) _topShadow->setVisible(false);
 	if (isBottomShadowVisible) _bottomShadow->setVisible(false);
-	auto result = myGrab(this, _scroll->geometry());
+	auto result = Ui::GrabWidget(this, _scroll->geometry());
 	if (isTopShadowVisible) _topShadow->setVisible(true);
 	if (isBottomShadowVisible) _bottomShadow->setVisible(true);
 	return result;

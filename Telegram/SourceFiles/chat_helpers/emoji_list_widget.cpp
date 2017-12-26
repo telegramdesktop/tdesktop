@@ -250,7 +250,7 @@ void EmojiColorPicker::hideFast() {
 
 void EmojiColorPicker::hideAnimated() {
 	if (_cache.isNull()) {
-		_cache = myGrab(this);
+		_cache = Ui::GrabWidget(this);
 		clearSelection();
 	}
 	_hiding = true;
@@ -265,7 +265,7 @@ void EmojiColorPicker::showAnimated() {
 	}
 	_hiding = false;
 	if (_cache.isNull()) {
-		_cache = myGrab(this);
+		_cache = Ui::GrabWidget(this);
 		clearSelection();
 	}
 	show();

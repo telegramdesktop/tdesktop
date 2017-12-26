@@ -336,7 +336,7 @@ void Widget::showAnimated(const QPixmap &bgAnimCache, bool back) {
 
 	_a_show.finish();
 	showControls();
-	(_showBack ? _cacheUnder : _cacheOver) = myGrab(this);
+	(_showBack ? _cacheUnder : _cacheOver) = Ui::GrabWidget(this);
 	hideControls();
 
 	_a_show.start([this] { animationCallback(); }, 0., 1., st::slideDuration, Window::SlideAnimation::transition());
@@ -491,7 +491,7 @@ void Widget::Step::resizeEvent(QResizeEvent *e) {
 }
 
 void Widget::Step::updateLabelsPosition() {
-	myEnsureResized(_description->entity());
+	Ui::SendPendingMoveResizeEvents(_description->entity());
 	if (hasCover()) {
 		_title->moveToLeft((width() - _title->width()) / 2, contentTop() + st::introCoverTitleTop);
 		_description->moveToLeft((width() - _description->width()) / 2, contentTop() + st::introCoverDescriptionTop);
@@ -503,7 +503,7 @@ void Widget::Step::updateLabelsPosition() {
 		if (_errorCentered) {
 			_error->entity()->resizeToWidth(width());
 		}
-		myEnsureResized(_error->entity());
+		Ui::SendPendingMoveResizeEvents(_error->entity());
 		auto errorLeft = _errorCentered ? 0 : (contentLeft() + st::buttonRadius);
 		auto errorTop = contentTop() + (_errorBelowLink ? st::introErrorBelowLinkTop : st::introErrorTop);
 		_error->moveToLeft(errorLeft, errorTop);
@@ -773,8 +773,16 @@ void Widget::Step::prepareShowAnimated(Step *after) {
 
 Widget::Step::CoverAnimation Widget::Step::prepareCoverAnimation(Step *after) {
 	auto result = CoverAnimation();
-	result.title = Ui::FlatLabel::CrossFade(after->_title, _title, st::introBg);
-	result.description = Ui::FlatLabel::CrossFade(after->_description->entity(), _description->entity(), st::introBg, after->_description->pos(), _description->pos());
+	result.title = Ui::FlatLabel::CrossFade(
+		after->_title,
+		_title,
+		st::introBg);
+	result.description = Ui::FlatLabel::CrossFade(
+		after->_description->entity(),
+		_description->entity(),
+		st::introBg,
+		after->_description->pos(),
+		_description->pos());
 	result.contentSnapshotWas = after->prepareContentSnapshot();
 	result.contentSnapshotNow = prepareContentSnapshot();
 	return result;
@@ -783,13 +791,15 @@ Widget::Step::CoverAnimation Widget::Step::prepareCoverAnimation(Step *after) {
 QPixmap Widget::Step::prepareContentSnapshot() {
 	auto otherTop = _description->y() + _description->height();
 	auto otherRect = myrtlrect(contentLeft(), otherTop, st::introStepWidth, height() - otherTop);
-	return myGrab(this, otherRect);
+	return Ui::GrabWidget(this, otherRect);
 }
 
 QPixmap Widget::Step::prepareSlideAnimation() {
 	auto grabLeft = (width() - st::introStepWidth) / 2;
 	auto grabTop = contentTop();
-	return myGrab(this, QRect(grabLeft, grabTop, st::introStepWidth, st::introStepHeight));
+	return Ui::GrabWidget(
+		this,
+		QRect(grabLeft, grabTop, st::introStepWidth, st::introStepHeight));
 }
 
 void Widget::Step::showAnimated(Direction direction) {

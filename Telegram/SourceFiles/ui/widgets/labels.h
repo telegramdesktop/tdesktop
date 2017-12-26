@@ -128,7 +128,12 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) override;
 
-	static std::unique_ptr<CrossFadeAnimation> CrossFade(FlatLabel *from, FlatLabel *to, style::color bg, QPoint fromPosition = QPoint(), QPoint toPosition = QPoint());
+	static std::unique_ptr<CrossFadeAnimation> CrossFade(
+		not_null<FlatLabel*> from,
+		not_null<FlatLabel*> to,
+		style::color bg,
+		QPoint fromPosition = QPoint(),
+		QPoint toPosition = QPoint());
 
 protected:
 	void paintEvent(QPaintEvent *e) override;

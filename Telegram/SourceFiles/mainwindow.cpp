@@ -194,11 +194,11 @@ void MainWindow::clearWidgetsHook() {
 QPixmap MainWindow::grabInner() {
 	QPixmap result;
 	if (_intro) {
-		result = myGrab(_intro);
+		result = Ui::GrabWidget(_intro);
 	} else if (_passcode) {
-		result = myGrab(_passcode);
+		result = Ui::GrabWidget(_passcode);
 	} else if (_main) {
-		result = myGrab(_main);
+		result = Ui::GrabWidget(_main);
 	}
 	return result;
 }

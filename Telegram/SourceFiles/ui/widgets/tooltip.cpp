@@ -311,7 +311,7 @@ void ImportantTooltip::refreshAnimationCache() {
 		auto animation = base::take(_visibleAnimation);
 		auto visible = std::exchange(_visible, true);
 		showChildren();
-		_cache = myGrab(this);
+		_cache = GrabWidget(this);
 		_visible = base::take(visible);
 		_visibleAnimation = base::take(animation);
 	}

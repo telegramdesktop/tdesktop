@@ -255,7 +255,7 @@ void TabbedPanel::prepareCache() {
 	auto showAnimation = base::take(_a_show);
 	auto showAnimationData = base::take(_showAnimation);
 	showChildren();
-	_cache = myGrab(this);
+	_cache = Ui::GrabWidget(this);
 	_showAnimation = base::take(showAnimationData);
 	_a_show = base::take(showAnimation);
 	if (_a_show.animating()) {
@@ -296,7 +296,7 @@ QImage TabbedPanel::grabForAnimation() {
 	auto showAnimation = base::take(_a_show);
 
 	showChildren();
-	myEnsureResized(this);
+	Ui::SendPendingMoveResizeEvents(this);
 
 	auto result = QImage(size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(cRetinaFactor());

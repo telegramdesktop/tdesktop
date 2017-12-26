@@ -652,7 +652,7 @@ QPixmap WrapWidget::grabForShowAnimation(
 	//if (params.withTabs && _topTabs) {
 	//	_topTabs->hide();
 	//}
-	auto result = myGrab(this);
+	auto result = Ui::GrabWidget(this);
 	if (params.withTopBarShadow) {
 		_topShadow->setVisible(true);
 	}

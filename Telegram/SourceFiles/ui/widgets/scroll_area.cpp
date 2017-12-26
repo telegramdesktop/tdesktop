@@ -359,7 +359,9 @@ void ScrollArea::touchDeaccelerate(int32 elapsed) {
 }
 
 void ScrollArea::onScrolled() {
-	myEnsureResized(widget());
+	if (const auto inner = widget()) {
+		SendPendingMoveResizeEvents(inner);
+	}
 
 	bool em = false;
 	int horizontalValue = horizontalScrollBar()->value();
@@ -703,8 +705,10 @@ void ScrollArea::scrollToWidget(not_null<QWidget*> widget) {
 }
 
 void ScrollArea::scrollToY(int toTop, int toBottom) {
-	myEnsureResized(widget());
-	myEnsureResized(this);
+	if (const auto inner = widget()) {
+		SendPendingMoveResizeEvents(inner);
+	}
+	SendPendingMoveResizeEvents(this);
 
 	int toMin = 0, toMax = scrollTopMax();
 	if (toTop < toMin) {

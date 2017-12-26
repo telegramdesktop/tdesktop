@@ -426,7 +426,7 @@ void Panel::startAnimation() {
 	auto to = _hiding ? 0. : 1.;
 	if (_cache.isNull()) {
 		showChildren();
-		_cache = myGrab(this);
+		_cache = Ui::GrabWidget(this);
 	}
 	hideChildren();
 	_a_appearance.start([this] { appearanceCallback(); }, from, to, st::defaultInnerDropdown.duration);

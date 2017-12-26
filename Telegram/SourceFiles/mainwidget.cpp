@@ -2554,7 +2554,7 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 
 	auto sectionTop = getMainSectionTop();
 	if (selectingPeer() && Adaptive::OneColumn()) {
-		result.oldContentCache = myGrab(this, QRect(
+		result.oldContentCache = Ui::GrabWidget(this, QRect(
 			0,
 			sectionTop,
 			_dialogsWidth,
@@ -2568,7 +2568,7 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 			_history->grabStart();
 		}
 		if (Adaptive::OneColumn()) {
-			result.oldContentCache = myGrab(this, QRect(
+			result.oldContentCache = Ui::GrabWidget(this, QRect(
 				0,
 				sectionTop,
 				_dialogsWidth,
@@ -2578,7 +2578,7 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 			if (_thirdShadow) {
 				_thirdShadow->hide();
 			}
-			result.oldContentCache = myGrab(this, QRect(
+			result.oldContentCache = Ui::GrabWidget(this, QRect(
 				_dialogsWidth,
 				sectionTop,
 				width() - _dialogsWidth,
@@ -2890,7 +2890,7 @@ QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 
 	auto sectionTop = getMainSectionTop();
 	if (Adaptive::OneColumn()) {
-		result = myGrab(this, QRect(
+		result = Ui::GrabWidget(this, QRect(
 			0,
 			sectionTop,
 			_dialogsWidth,
@@ -2900,7 +2900,7 @@ QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 		if (_thirdShadow) {
 			_thirdShadow->hide();
 		}
-		result = myGrab(this, QRect(
+		result = Ui::GrabWidget(this, QRect(
 			_dialogsWidth,
 			sectionTop,
 			width() - _dialogsWidth,
@@ -3001,10 +3001,15 @@ void MainWidget::showAnimated(const QPixmap &bgAnimCache, bool back) {
 	_a_show.finish();
 
 	showAll();
-	(_showBack ? _cacheUnder : _cacheOver) = myGrab(this);
+	(_showBack ? _cacheUnder : _cacheOver) = Ui::GrabWidget(this);
 	hideAll();
 
-	_a_show.start([this] { animationCallback(); }, 0., 1., st::slideDuration, Window::SlideAnimation::transition());
+	_a_show.start(
+		[this] { animationCallback(); },
+		0.,
+		1.,
+		st::slideDuration,
+		Window::SlideAnimation::transition());
 
 	show();
 }

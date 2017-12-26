@@ -122,7 +122,7 @@ void SlideWrap<RpWidget>::animationStep() {
 	if (shouldBeHidden != isHidden()) {
 		setVisible(!shouldBeHidden);
 		if (shouldBeHidden) {
-			myEnsureResized(this);
+			SendPendingMoveResizeEvents(this);
 		}
 	}
 }

@@ -29,6 +29,8 @@ QString GetOverride(const QString &familyName);
 
 } // namespace
 
+class TWidget;
+
 template <typename Object>
 class object_ptr;
 
@@ -56,6 +58,17 @@ inline ChildWidget *AttachParentChild(
 	}
 	return nullptr;
 }
+
+void SendPendingMoveResizeEvents(not_null<QWidget*> target);
+
+QPixmap GrabWidget(
+	not_null<TWidget*> target,
+	QRect rect = QRect(),
+	QColor bg = QColor(255, 255, 255, 0));
+QImage GrabWidgetToImage(
+	not_null<TWidget*> target,
+	QRect rect = QRect(),
+	QColor bg = QColor(255, 255, 255, 0));
 
 } // namespace Ui
 
@@ -208,8 +221,6 @@ private:
 	QPainter::RenderHints _hints = 0;
 
 };
-
-class TWidget;
 
 template <typename Base>
 class TWidgetHelper : public Base {
@@ -443,10 +454,6 @@ template <typename Widget>
 QPointer<const Widget> make_weak(const Widget *object) {
 	return QPointer<const Widget>(object);
 }
-
-void myEnsureResized(QWidget *target);
-QPixmap myGrab(TWidget *target, QRect rect = QRect(), QColor bg = QColor(255, 255, 255, 0));
-QImage myGrabImage(TWidget *target, QRect rect = QRect(), QColor bg = QColor(255, 255, 255, 0));
 
 class SingleQueuedInvokation : public QObject {
 public:

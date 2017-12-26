@@ -42,14 +42,26 @@ private:
 
 class Shadow : public TWidget {
 public:
-	Shadow(QWidget *parent, const style::Shadow &st, RectParts sides = RectPart::Left | RectPart::Top | RectPart::Right | RectPart::Bottom) : TWidget(parent)
+	Shadow(
+		QWidget *parent,
+		const style::Shadow &st,
+		RectParts sides = RectPart::AllSides)
+	: TWidget(parent)
 	, _st(st)
 	, _sides(sides) {
 	}
 
-	static void paint(Painter &p, const QRect &box, int outerWidth, const style::Shadow &st, RectParts sides = RectPart::Left | RectPart::Top | RectPart::Right | RectPart::Bottom);
+	static void paint(
+		Painter &p,
+		const QRect &box,
+		int outerWidth,
+		const style::Shadow &st,
+		RectParts sides = RectPart::AllSides);
 
-	static QPixmap grab(TWidget *target, const style::Shadow &shadow, RectParts sides = RectPart::Left | RectPart::Top | RectPart::Right | RectPart::Bottom);
+	static QPixmap grab(
+		not_null<TWidget*> target,
+		const style::Shadow &shadow,
+		RectParts sides = RectPart::AllSides);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;

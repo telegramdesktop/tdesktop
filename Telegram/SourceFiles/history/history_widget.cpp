@@ -280,7 +280,7 @@ void HistoryHider::startHide() {
 	if (Adaptive::OneColumn()) {
 		QTimer::singleShot(0, this, SLOT(deleteLater()));
 	} else {
-		if (_offered) _cacheForAnim = myGrab(this, _box);
+		if (_offered) _cacheForAnim = Ui::GrabWidget(this, _box);
 		if (_forwardRequest) MTP::cancel(_forwardRequest);
 		_send->hide();
 		_cancel->hide();

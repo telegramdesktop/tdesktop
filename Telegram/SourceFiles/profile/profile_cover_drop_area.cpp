@@ -91,10 +91,14 @@ void CoverDropArea::paintEvent(QPaintEvent *e) {
 
 void CoverDropArea::setupAnimation() {
 	if (_cache.isNull()) {
-		_cache = myGrab(this);
+		_cache = Ui::GrabWidget(this);
 	}
 	auto from = _hiding ? 1. : 0., to = _hiding ? 0. : 1.;
-	_a_appearance.start([this]() { update(); }, from, to, st::profileDropAreaDuration);
+	_a_appearance.start(
+		[this] { update(); },
+		from,
+		to,
+		st::profileDropAreaDuration);
 }
 
 } // namespace Profile

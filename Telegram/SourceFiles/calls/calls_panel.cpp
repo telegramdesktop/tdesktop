@@ -388,10 +388,15 @@ void Panel::toggleOpacityAnimation(bool visible) {
 	if (_useTransparency) {
 		if (_animationCache.isNull()) {
 			showControls();
-			_animationCache = myGrab(this);
+			_animationCache = Ui::GrabWidget(this);
 			hideChildren();
 		}
-		_opacityAnimation.start([this] { update(); }, _visible ? 0. : 1., _visible ? 1. : 0., st::callPanelDuration, _visible ? anim::easeOutCirc : anim::easeInCirc);
+		_opacityAnimation.start(
+			[this] { update(); },
+			_visible ? 0. : 1.,
+			_visible ? 1. : 0.,
+			st::callPanelDuration,
+			_visible ? anim::easeOutCirc : anim::easeInCirc);
 	}
 	if (isHidden() && _visible) {
 		show();

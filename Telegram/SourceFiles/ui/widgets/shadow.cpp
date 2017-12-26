@@ -89,8 +89,11 @@ void Shadow::paint(Painter &p, const QRect &box, int outerWidth, const style::Sh
 	}
 }
 
-QPixmap Shadow::grab(TWidget *target, const style::Shadow &shadow, RectParts sides) {
-	myEnsureResized(target);
+QPixmap Shadow::grab(
+		not_null<TWidget*> target,
+		const style::Shadow &shadow,
+		RectParts sides) {
+	SendPendingMoveResizeEvents(target);
 	auto rect = target->rect();
 	auto extend = QMargins(
 		(sides & RectPart::Left) ? shadow.extend.left() : 0,

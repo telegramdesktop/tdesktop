@@ -539,7 +539,7 @@ void Notification::refreshLang() {
 }
 
 void Notification::prepareActionsCache() {
-	auto replyCache = myGrab(_reply);
+	auto replyCache = Ui::GrabWidget(_reply);
 	auto fadeWidth = st::notifyFadeRight.width();
 	auto actionsTop = st::notifyTextTop + st::msgNameFont->height;
 	auto replyRight = _replyPadding - st::notifyBorderWidth;

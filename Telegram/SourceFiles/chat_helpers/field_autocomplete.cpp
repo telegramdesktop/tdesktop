@@ -408,7 +408,7 @@ void FieldAutocomplete::hideAnimated() {
 
 	if (_cache.isNull()) {
 		_scroll->show();
-		_cache = myGrab(this);
+		_cache = Ui::GrabWidget(this);
 	}
 	_scroll->hide();
 	_hiding = true;
@@ -429,7 +429,7 @@ void FieldAutocomplete::showAnimated() {
 	}
 	if (_cache.isNull()) {
 		_scroll->show();
-		_cache = myGrab(this);
+		_cache = Ui::GrabWidget(this);
 	}
 	_scroll->hide();
 	_hiding = false;

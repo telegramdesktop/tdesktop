@@ -52,7 +52,7 @@ ShareBox::ShareBox(QWidget*, CopyCallback &&copyCallback, SubmitCallback &&submi
 
 void ShareBox::prepare() {
 	_select->resizeToWidth(st::boxWideWidth);
-	myEnsureResized(_select);
+	Ui::SendPendingMoveResizeEvents(_select);
 
 	setTitle(langFactory(lng_share_title));
 

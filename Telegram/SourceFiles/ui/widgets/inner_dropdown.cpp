@@ -247,7 +247,7 @@ void InnerDropdown::prepareCache() {
 	auto showAnimation = base::take(_a_show);
 	auto showAnimationData = base::take(_showAnimation);
 	showChildren();
-	_cache = myGrab(this);
+	_cache = GrabWidget(this);
 	_showAnimation = base::take(showAnimationData);
 	_a_show = base::take(showAnimation);
 	if (_a_show.animating()) {
@@ -305,7 +305,7 @@ void InnerDropdown::startShowAnimation() {
 }
 
 QImage InnerDropdown::grabForPanelAnimation() {
-	myEnsureResized(this);
+	SendPendingMoveResizeEvents(this);
 	auto result = QImage(size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(cRetinaFactor());
 	result.fill(Qt::transparent);
