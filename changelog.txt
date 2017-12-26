@@ -1,3 +1,8 @@
+1.2.4 alpha (26.12.17)
+
+- Group media into an album when sharing multiple photos and videos.
+- Bug fixes and other minor improvements.
+
 1.2.3 alpha (17.12.17)
 
 - Several crash fixes.
