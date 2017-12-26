@@ -61,7 +61,6 @@ private:
 	object_ptr<Ui::InputArea> _field = { nullptr };
 
 	int _thumbx = 0;
-	int _thumby = 0;
 	int _thumbw = 0;
 	int _thumbh = 0;
 	Text _name;

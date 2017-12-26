@@ -196,8 +196,8 @@ FileLoadResult::FileLoadResult(
 : taskId(taskId)
 , id(id)
 , to(to)
-, caption(caption)
-, album(std::move(album)) {
+, album(std::move(album))
+, caption(caption) {
 }
 
 FileLoadTask::FileLoadTask(
