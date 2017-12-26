@@ -611,8 +611,10 @@ void ParticipantsBoxController::rowActionClicked(not_null<PeerListRow*> row) {
 
 bool ParticipantsBoxController::canEditAdminByRights(
 		not_null<UserData*> user) const {
-	if (_additional.adminCanEdit.find(user) != _additional.adminCanEdit.cend()) {
-		return true;
+	if (_additional.adminRights.find(user)
+		!= _additional.adminRights.cend()) {
+		return (_additional.adminCanEdit.find(user)
+			!= _additional.adminCanEdit.cend());
 	}
 	return (user != _additional.creator);
 }
