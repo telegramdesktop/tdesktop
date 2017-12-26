@@ -2645,11 +2645,12 @@ void MainWidget::showNewSection(
 		: nullptr;
 	if (newThirdSection) {
 		saveInStack = false;
-	} else {
-		if (auto layer = memento.createLayer(_controller, rect())) {
-			_controller->showSpecialLayer(std::move(layer));
-			return;
+	} else if (auto layer = memento.createLayer(_controller, rect())) {
+		if (params.activation != anim::activation::background) {
+			Ui::hideLayer(anim::type::instant);
 		}
+		_controller->showSpecialLayer(std::move(layer));
+		return;
 	}
 
 	if (params.activation != anim::activation::background) {
