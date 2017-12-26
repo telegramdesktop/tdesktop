@@ -31,6 +31,14 @@
     ],
     'defines': [
     ],
+    'conditions': [[ 'build_macold', {
+      'xcode_settings': {
+        'OTHER_CPLUSPLUSFLAGS': [ '-nostdinc++' ],
+      },
+      'include_dirs': [
+        '/usr/local/macold/include/c++/v1',
+      ],
+    }]],
     'variables': {
       'crl_src_loc': '../ThirdParty/crl/src/crl',
       'official_build_target%': '',
