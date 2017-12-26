@@ -66,6 +66,7 @@ ContentWidget::ContentWidget(
 			_controller->wrapValue(),
 			_controller->searchEnabledByContent(),
 			(_1 == Wrap::Layer) && _2
+		) | rpl::distinct_until_changed(
 		) | rpl::start_with_next([this](bool shown) {
 			refreshSearchField(shown);
 		}, lifetime());
@@ -257,7 +258,9 @@ void ContentWidget::refreshSearchField(bool shown) {
 		_searchField->setFocus();
 		setScrollTopSkip(view->heightNoMargins() - st::lineWidth);
 	} else {
-		setFocus();
+		if (Ui::InFocusChain(this)) {
+			setFocus();
+		}
 		_searchWrap = nullptr;
 		setScrollTopSkip(0);
 	}
