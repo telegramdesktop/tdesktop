@@ -309,7 +309,8 @@ void ChatMembersController::removeMember(not_null<UserData*> user) {
 	auto text = lng_profile_sure_kick(lt_user, user->firstName);
 	Ui::show(Box<ConfirmBox>(text, lang(lng_box_remove), [user, chat = _chat] {
 		Ui::hideLayer();
-		if (App::main()) App::main()->kickParticipant(chat, user);
+		Auth().api().kickParticipant(chat, user);
+		Ui::showPeerHistory(chat->id, ShowAtTheEndMsgId);
 	}));
 }
 

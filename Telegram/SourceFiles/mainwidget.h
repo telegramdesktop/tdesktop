@@ -224,9 +224,6 @@ public:
 		not_null<ChannelData*> channel,
 		const RPCError &e); // for multi invite in channels
 
-	void kickParticipant(ChatData *chat, UserData *user);
-	bool kickParticipantFail(ChatData *chat, const RPCError &e);
-
 	void checkPeerHistory(PeerData *peer);
 	void checkedHistory(PeerData *peer, const MTPmessages_Messages &result);
 

@@ -860,7 +860,9 @@ void ParticipantsBoxController::kickMemberSure(not_null<UserData*> user) {
 		_editBox->closeBox();
 	}
 	auto alreadyIt = _additional.restrictedRights.find(user);
-	auto currentRights = (alreadyIt == _additional.restrictedRights.cend()) ? MTP_channelBannedRights(MTP_flags(0), MTP_int(0)) : alreadyIt->second;
+	auto currentRights = (alreadyIt == _additional.restrictedRights.cend())
+		? MTP_channelBannedRights(MTP_flags(0), MTP_int(0))
+		: alreadyIt->second;
 
 	if (auto row = delegate()->peerListFindRow(user->id)) {
 		delegate()->peerListRemoveRow(row);
@@ -899,7 +901,9 @@ void ParticipantsBoxController::removeAdminSure(not_null<UserData*> user) {
 	});
 }
 
-void ParticipantsBoxController::removeKicked(not_null<PeerListRow*> row, not_null<UserData*> user) {
+void ParticipantsBoxController::removeKicked(
+		not_null<PeerListRow*> row,
+		not_null<UserData*> user) {
 	delegate()->peerListRemoveRow(row);
 	delegate()->peerListRefreshRows();
 

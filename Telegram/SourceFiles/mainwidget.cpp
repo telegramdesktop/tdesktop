@@ -1268,21 +1268,6 @@ bool MainWidget::addParticipantsFail(
 	return false;
 }
 
-void MainWidget::kickParticipant(ChatData *chat, UserData *user) {
-	MTP::send(
-		MTPmessages_DeleteChatUser(chat->inputChat, user->inputUser),
-		rpcDone(&MainWidget::sentUpdatesReceived),
-		rpcFail(&MainWidget::kickParticipantFail, chat));
-	Ui::showPeerHistory(chat->id, ShowAtTheEndMsgId);
-}
-
-bool MainWidget::kickParticipantFail(ChatData *chat, const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	error.type();
-	return false;
-}
-
 void MainWidget::checkPeerHistory(PeerData *peer) {
 	auto offsetId = 0;
 	auto offsetDate = 0;

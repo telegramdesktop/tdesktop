@@ -124,9 +124,13 @@ private:
 	void sortByOnlineDelayed();
 	void sortByOnline();
 	void showAdmin(not_null<UserData*> user);
-	void editAdminDone(not_null<UserData*> user, const MTPChannelAdminRights &rights);
+	void editAdminDone(
+		not_null<UserData*> user,
+		const MTPChannelAdminRights &rights);
 	void showRestricted(not_null<UserData*> user);
-	void editRestrictedDone(not_null<UserData*> user, const MTPChannelBannedRights &rights);
+	void editRestrictedDone(
+		not_null<UserData*> user,
+		const MTPChannelBannedRights &rights);
 	void removeKicked(not_null<PeerListRow*> row, not_null<UserData*> user);
 	void kickMember(not_null<UserData*> user);
 	void kickMemberSure(not_null<UserData*> user);

@@ -937,47 +937,65 @@ void ApiWrap::requestSelfParticipant(ChannelData *channel) {
 	_selfParticipantRequests.insert(channel, requestId);
 }
 
-void ApiWrap::kickParticipant(PeerData *peer, UserData *user, const MTPChannelBannedRights &currentRights) {
-	auto kick = KickRequest(peer, user);
-	if (_kickRequests.contains(kick)) return;
-
-	if (auto channel = peer->asChannel()) {
-		auto rights = ChannelData::KickedRestrictedRights();
-		auto requestId = request(MTPchannels_EditBanned(channel->inputChannel, user->inputUser, rights)).done([this, channel, user, currentRights, rights](const MTPUpdates &result) {
-			applyUpdates(result);
-
-			_kickRequests.remove(KickRequest(channel, user));
-			channel->applyEditBanned(user, currentRights, rights);
-		}).fail([this, kick](const RPCError &error) {
-			_kickRequests.remove(kick);
-		}).send();
-
-		_kickRequests.insert(kick, requestId);
-	}
+void ApiWrap::kickParticipant(
+		not_null<ChatData*> chat,
+		not_null<UserData*> user) {
+	request(MTPmessages_DeleteChatUser(
+		chat->inputChat,
+		user->inputUser
+	)).done([=](const MTPUpdates &result) {
+		applyUpdates(result);
+	}).send();
 }
 
-void ApiWrap::unblockParticipant(PeerData *peer, UserData *user) {
-	auto kick = KickRequest(peer, user);
+void ApiWrap::kickParticipant(
+		not_null<ChannelData*> channel,
+		not_null<UserData*> user,
+		const MTPChannelBannedRights &currentRights) {
+	const auto kick = KickRequest(channel, user);
 	if (_kickRequests.contains(kick)) return;
 
-	if (auto channel = peer->asChannel()) {
-		auto requestId = request(MTPchannels_EditBanned(channel->inputChannel, user->inputUser, MTP_channelBannedRights(MTP_flags(0), MTP_int(0)))).done([this, peer, user](const MTPUpdates &result) {
-			applyUpdates(result);
+	const auto rights = ChannelData::KickedRestrictedRights();
+	const auto requestId = request(MTPchannels_EditBanned(
+		channel->inputChannel,
+		user->inputUser,
+		rights
+	)).done([=](const MTPUpdates &result) {
+		applyUpdates(result);
 
-			_kickRequests.remove(KickRequest(peer, user));
-			if (auto channel = peer->asMegagroup()) {
-				if (channel->kickedCount() > 0) {
-					channel->setKickedCount(channel->kickedCount() - 1);
-				} else {
-					channel->updateFullForced();
-				}
-			}
-		}).fail([this, kick](const RPCError &error) {
-			_kickRequests.remove(kick);
-		}).send();
+		_kickRequests.remove(KickRequest(channel, user));
+		channel->applyEditBanned(user, currentRights, rights);
+	}).fail([this, kick](const RPCError &error) {
+		_kickRequests.remove(kick);
+	}).send();
 
-		_kickRequests.insert(kick, requestId);
-	}
+	_kickRequests.emplace(kick, requestId);
+}
+
+void ApiWrap::unblockParticipant(
+		not_null<ChannelData*> channel,
+		not_null<UserData*> user) {
+	const auto kick = KickRequest(channel, user);
+	if (_kickRequests.contains(kick)) return;
+
+	const auto requestId = request(MTPchannels_EditBanned(
+		channel->inputChannel,
+		user->inputUser,
+		MTP_channelBannedRights(MTP_flags(0), MTP_int(0))
+	)).done([=](const MTPUpdates &result) {
+		applyUpdates(result);
+
+		_kickRequests.remove(KickRequest(channel, user));
+		if (channel->kickedCount() > 0) {
+			channel->setKickedCount(channel->kickedCount() - 1);
+		} else {
+			channel->updateFullForced();
+		}
+	}).fail([this, kick](const RPCError &error) {
+		_kickRequests.remove(kick);
+	}).send();
+
+	_kickRequests.emplace(kick, requestId);
 }
 
 void ApiWrap::requestChannelMembersForAdd(

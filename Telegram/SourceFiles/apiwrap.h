@@ -77,8 +77,14 @@ public:
 	void processFullPeer(UserData *user, const MTPUserFull &result);
 
 	void requestSelfParticipant(ChannelData *channel);
-	void kickParticipant(PeerData *peer, UserData *user, const MTPChannelBannedRights &currentRights);
-	void unblockParticipant(PeerData *peer, UserData *user);
+	void kickParticipant(not_null<ChatData*> chat, not_null<UserData*> user);
+	void kickParticipant(
+		not_null<ChannelData*> channel,
+		not_null<UserData*> user,
+		const MTPChannelBannedRights &currentRights);
+	void unblockParticipant(
+		not_null<ChannelData*> channel,
+		not_null<UserData*> user);
 
 	void requestWebPageDelayed(WebPageData *page);
 	void clearWebPageRequest(WebPageData *page);
@@ -357,9 +363,10 @@ private:
 	mtpRequestId _channelMembersForAddRequestId = 0;
 	base::lambda<void(const MTPchannels_ChannelParticipants&)> _channelMembersForAddCallback;
 
-	typedef QPair<PeerData*, UserData*> KickRequest;
-	typedef QMap<KickRequest, mtpRequestId> KickRequests;
-	KickRequests _kickRequests;
+	using KickRequest = std::pair<
+		not_null<ChannelData*>,
+		not_null<UserData*>>;
+	base::flat_map<KickRequest, mtpRequestId> _kickRequests;
 
 	QMap<ChannelData*, mtpRequestId> _selfParticipantRequests;
 

@@ -794,9 +794,12 @@ void ChannelData::applyEditBanned(not_null<UserData*> user, const MTPChannelBann
 		}
 		Data::ChannelAdminChanges(this).feed(peerToUser(user->id), false);
 	} else {
-		if (isKicked && membersCount() > 1) {
-			setMembersCount(membersCount() - 1);
-			flags |= Notify::PeerUpdate::Flag::MembersChanged;
+		if (isKicked) {
+			if (membersCount() > 1) {
+				setMembersCount(membersCount() - 1);
+				flags |= Notify::PeerUpdate::Flag::MembersChanged;
+			}
+			setKickedCount(kickedCount() + 1);
 		}
 	}
 	Notify::peerUpdatedDelayed(this, flags);

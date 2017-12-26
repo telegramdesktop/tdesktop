@@ -116,6 +116,7 @@ void GroupMembersWidget::restrictUser(not_null<UserData*> user) {
 void GroupMembersWidget::removePeer(PeerData *selectedPeer) {
 	auto user = selectedPeer->asUser();
 	Assert(user != nullptr);
+
 	auto text = lng_profile_sure_kick(lt_user, user->firstName);
 	auto currentRestrictedRights = [&]() -> MTPChannelBannedRights {
 		if (auto channel = peer()->asMegagroup()) {
@@ -128,10 +129,14 @@ void GroupMembersWidget::removePeer(PeerData *selectedPeer) {
 	}();
 	Ui::show(Box<ConfirmBox>(text, lang(lng_box_remove), [user, currentRestrictedRights, peer = peer()] {
 		Ui::hideLayer();
-		if (auto chat = peer->asChat()) {
-			if (App::main()) App::main()->kickParticipant(chat, user);
-		} else if (auto channel = peer->asChannel()) {
-			Auth().api().kickParticipant(channel, user, currentRestrictedRights);
+		if (const auto chat = peer->asChat()) {
+			Auth().api().kickParticipant(chat, user);
+			Ui::showPeerHistory(chat->id, ShowAtTheEndMsgId);
+		} else if (const auto channel = peer->asChannel()) {
+			Auth().api().kickParticipant(
+				channel,
+				user,
+				currentRestrictedRights);
 		}
 	}));
 }
