@@ -115,6 +115,8 @@ public:
 		const Ui::GroupMediaLayout &layout);
 
 	void moveToLayout(const Ui::GroupMediaLayout &layout);
+	void animateLayoutToInitial();
+	void resetLayoutAnimation();
 
 	int photoHeight() const;
 
@@ -143,7 +145,7 @@ private:
 	void drawSimpleFrame(Painter &p, QRect to, QSize size) const;
 
 	Ui::GroupMediaLayout _layout;
-	QRect _fromGeometry;
+	base::optional<QRect> _animateFromGeometry;
 	const QImage _fullPreview;
 	const int _shrinkSize = 0;
 	QPixmap _albumImage;
@@ -234,11 +236,19 @@ AlbumThumb::AlbumThumb(
 	_statusWidth = st::normalFont->width(_status);
 }
 
-void AlbumThumb::moveToLayout(const Ui::GroupMediaLayout &layout) {
-	_fromGeometry = countRealGeometry();
-	_layout = layout;
+void AlbumThumb::resetLayoutAnimation() {
+	_animateFromGeometry = base::none;
+}
+
+void AlbumThumb::animateLayoutToInitial() {
+	_animateFromGeometry = countRealGeometry();
 	_suggestedMove = 0.;
 	_albumPosition = QPoint(0, 0);
+}
+
+void AlbumThumb::moveToLayout(const Ui::GroupMediaLayout &layout) {
+	animateLayoutToInitial();
+	_layout = layout;
 
 	const auto width = _layout.geometry.width();
 	const auto height = _layout.geometry.height();
@@ -323,10 +333,10 @@ void AlbumThumb::paintInAlbum(
 void AlbumThumb::prepareCache(QSize size, int shrink) {
 	const auto width = std::max(
 		_layout.geometry.width(),
-		_fromGeometry.width());
+		_animateFromGeometry ? _animateFromGeometry->width() : 0);
 	const auto height = std::max(
 		_layout.geometry.height(),
-		_fromGeometry.height());
+		_animateFromGeometry ? _animateFromGeometry->height() : 0);
 	const auto cacheSize = QSize(width, height) * cIntRetinaFactor();
 
 	if (_albumCache.width() < cacheSize.width()
@@ -542,12 +552,12 @@ QRect AlbumThumb::countRealGeometry() const {
 
 QRect AlbumThumb::countCurrentGeometry(float64 progress) const {
 	const auto now = countRealGeometry();
-	if (progress < 1.) {
+	if (_animateFromGeometry && progress < 1.) {
 		return {
-			anim::interpolate(_fromGeometry.x(), now.x(), progress),
-			anim::interpolate(_fromGeometry.y(), now.y(), progress),
-			anim::interpolate(_fromGeometry.width(), now.width(), progress),
-			anim::interpolate(_fromGeometry.height(), now.height(), progress)
+			anim::interpolate(_animateFromGeometry->x(), now.x(), progress),
+			anim::interpolate(_animateFromGeometry->y(), now.y(), progress),
+			anim::interpolate(_animateFromGeometry->width(), now.width(), progress),
+			anim::interpolate(_animateFromGeometry->height(), now.height(), progress)
 		};
 	}
 	return now;
@@ -1112,7 +1122,11 @@ void SendFilesBox::AlbumPreview::finishDrag() {
 
 		updateSizeAnimated(layout);
 	} else {
-		_draggedThumb->moveInAlbum(QPoint());
+		for (const auto &thumb : _thumbs) {
+			thumb->resetLayoutAnimation();
+		}
+		_draggedThumb->animateLayoutToInitial();
+		_finishDragAnimation.start([=] { update(); }, 0., 1., kDragDuration);
 	}
 }
 
