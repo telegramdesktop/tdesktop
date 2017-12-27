@@ -1744,7 +1744,7 @@ void MainWidget::createPlayer() {
 			_player->shownValue()
 		) | rpl::start_with_next(
 			[this] { playerHeightUpdated(); },
-			lifetime());
+			_player->lifetime());
 		_player->entity()->setCloseCallback([this] { closeBothPlayers(); });
 		_playerVolume.create(this);
 		_player->entity()->volumeWidgetCreated(_playerVolume);
@@ -1768,6 +1768,10 @@ void MainWidget::createPlayer() {
 }
 
 void MainWidget::playerHeightUpdated() {
+	if (!_player) {
+		// Player could be already "destroyDelayed", but still handle events.
+		return;
+	}
 	auto playerHeight = _player->contentHeight();
 	if (playerHeight != _playerHeight) {
 		_contentScrollAddToY += playerHeight - _playerHeight;
