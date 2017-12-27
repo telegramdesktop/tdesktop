@@ -476,7 +476,7 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 				if (document->uploading()) {
 					const auto doneParts = file.docSentParts
 						- int(docRequestsSent.size());
-					document->uploadingData->offset = std::max(
+					document->uploadingData->offset = std::min(
 						document->uploadingData->size,
 						doneParts * file.docPartSize);
 				}
