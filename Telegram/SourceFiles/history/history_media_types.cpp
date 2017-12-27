@@ -1264,8 +1264,8 @@ void HistoryVideo::validateGroupedCache(
 	const auto pixSize = Ui::GetImageScaleSizeForGeometry(
 		{ originalWidth, originalHeight },
 		{ width, height });
-	const auto pixWidth = pixSize.width();
-	const auto pixHeight = pixSize.height();
+	const auto pixWidth = pixSize.width() * cIntRetinaFactor();
+	const auto pixHeight = pixSize.height() * cIntRetinaFactor();
 	const auto &image = _data->thumb;
 
 	*cacheKey = key;
