@@ -328,7 +328,6 @@ void AlbumThumb::prepareCache(QSize size, int shrink) {
 		_layout.geometry.height(),
 		_fromGeometry.height());
 	const auto cacheSize = QSize(width, height) * cIntRetinaFactor();
-	const auto initial = QRect(QPoint(), size);
 
 	if (_albumCache.width() < cacheSize.width()
 		|| _albumCache.height() < cacheSize.height()) {
@@ -337,7 +336,7 @@ void AlbumThumb::prepareCache(QSize size, int shrink) {
 	_albumCache.fill(Qt::transparent);
 	{
 		Painter p(&_albumCache);
-		const auto to = initial.marginsRemoved(
+		const auto to = QRect(QPoint(), size).marginsRemoved(
 			{ shrink, shrink, shrink, shrink }
 		);
 		drawSimpleFrame(p, to, size);
@@ -346,7 +345,7 @@ void AlbumThumb::prepareCache(QSize size, int shrink) {
 		_albumCache,
 		ImageRoundRadius::Large,
 		_albumCorners,
-		initial);
+		QRect(QPoint(), size * cIntRetinaFactor()));
 }
 
 void AlbumThumb::drawSimpleFrame(Painter &p, QRect to, QSize size) const {
