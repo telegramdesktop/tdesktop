@@ -137,8 +137,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_error_cant_add_admin_unban" = "Sorry, you can't add this user as an admin because they are in the blacklist and you can't unban them.";
 "lng_error_cant_ban_admin" = "Sorry, you can't ban this user because they are an admin in this group and you are not allowed to demote them.";
 "lng_sure_add_admin_invite" = "This user is not a member of this group. Add them to the group and promote them to admin?";
-"lng_sure_add_admin_unban" = "This user is currently restricted or banned in this group. Are you sure you want to unban and promote them?";
-"lng_sure_ban_admin" = "This user is an admin in this group. Are you sure you want to go ahead and restrict them?";
+"lng_sure_add_admin_invite_channel" = "This user is not a subscriber of this channel. Add them to the channel and promote them to admin?";
+"lng_sure_add_admin_unban" = "This user is currently restricted or banned. Are you sure you want to unban and promote them?";
+"lng_sure_ban_admin" = "This user is an admin. Are you sure you want to go ahead and restrict them?";
 "lng_sure_ban_user_group" = "Ban {user} in the group?";
 "lng_sure_enable_socks" = "Are you sure you want to enable this proxy?\n\nServer: {server}\nPort: {port}\n\nYou can change your proxy server later in the Settings (Connection Type).";
 "lng_sure_enable" = "Enable";
@@ -577,8 +578,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_kick" = "Remove";
 "lng_profile_sure_kick" = "Remove {user} from the group?";
 "lng_profile_sure_kick_channel" = "Remove {user} from the channel?";
-"lng_profile_sure_remove_admin" = "Remove {user} from group admins?";
-"lng_profile_sure_remove_admin_channel" = "Remove {user} from channel admins?";
+"lng_profile_sure_remove_admin" = "Remove {user} from admins?";
 "lng_profile_loading" = "Loading...";
 "lng_profile_photos#one" = "{count} photo";
 "lng_profile_photos#other" = "{count} photos";

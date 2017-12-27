@@ -168,18 +168,20 @@ void FillManageBox(
 			st::infoIconAdministrators);
 	}
 	if (channel->canViewBanned()) {
-		AddButtonWithCount(
-			content,
-			Lang::Viewer(lng_manage_peer_restricted_users),
-			Info::Profile::RestrictedCountValue(channel)
-				| ToPositiveNumberString(),
-			[=] {
-				ParticipantsBoxController::Start(
-					controller,
-					channel,
-					ParticipantsBoxController::Role::Restricted);
-			},
-			st::infoIconRestrictedUsers);
+		if (channel->isMegagroup()) {
+			AddButtonWithCount(
+				content,
+				Lang::Viewer(lng_manage_peer_restricted_users),
+				Info::Profile::RestrictedCountValue(channel)
+					| ToPositiveNumberString(),
+				[=] {
+					ParticipantsBoxController::Start(
+						controller,
+						channel,
+						ParticipantsBoxController::Role::Restricted);
+				},
+				st::infoIconRestrictedUsers);
+		}
 		AddButtonWithCount(
 			content,
 			Lang::Viewer(lng_manage_peer_banned_users),

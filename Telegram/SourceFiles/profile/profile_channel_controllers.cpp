@@ -872,10 +872,7 @@ void ParticipantsBoxController::kickMemberSure(not_null<UserData*> user) {
 }
 
 void ParticipantsBoxController::removeAdmin(not_null<UserData*> user) {
-	const auto phrase = _channel->isMegagroup()
-		? lng_profile_sure_remove_admin
-		: lng_profile_sure_remove_admin_channel;
-	const auto text = phrase(lt_user, user->firstName);
+	const auto text = lng_profile_sure_remove_admin(lt_user, user->firstName);
 	const auto weak = base::make_weak(this);
 	_editBox = Ui::show(Box<ConfirmBox>(text, lang(lng_box_remove), [=] {
 		if (const auto strong = weak.get()) {
@@ -1379,7 +1376,10 @@ void AddParticipantBoxController::showAdmin(not_null<UserData*> user, bool sure)
 		// The user is not in the group yet.
 		if (_channel->canAddMembers()) {
 			if (!sure) {
-				_editBox = Ui::show(Box<ConfirmBox>(lang(lng_sure_add_admin_invite), [weak, user] {
+				const auto text = lang(_channel->isMegagroup()
+					? lng_sure_add_admin_invite
+					: lng_sure_add_admin_invite_channel);
+				_editBox = Ui::show(Box<ConfirmBox>(text, [weak, user] {
 					if (weak) {
 						weak->showAdmin(user, true);
 					}
