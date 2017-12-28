@@ -211,12 +211,22 @@ bool MediaView::fileBubbleShown() const {
 bool MediaView::gifShown() const {
 	if (_gif && _gif->ready()) {
 		if (!_gif->started()) {
-			if (_doc && (_doc->isVideoFile() || _doc->isVideoMessage()) && _autoplayVideoDocument != _doc && !_gif->videoPaused()) {
-				_gif->pauseResumeVideo();
-				const_cast<MediaView*>(this)->_videoPaused = _gif->videoPaused();
+			const auto streamVideo = _doc
+				&& (_doc->isVideoFile() || _doc->isVideoMessage());
+			const auto pauseOnStart = (_autoplayVideoDocument != _doc);
+			if (streamVideo && pauseOnStart && !_gif->videoPaused()) {
+				const_cast<MediaView*>(this)->toggleVideoPaused();
 			}
-			auto rounding = (_doc && _doc->isVideoMessage()) ? ImageRoundRadius::Ellipse : ImageRoundRadius::None;
-			_gif->start(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), rounding, RectPart::AllCorners);
+			const auto rounding = (_doc && _doc->isVideoMessage())
+				? ImageRoundRadius::Ellipse
+				: ImageRoundRadius::None;
+			_gif->start(
+				_gif->width() / cIntRetinaFactor(),
+				_gif->height() / cIntRetinaFactor(),
+				_gif->width() / cIntRetinaFactor(),
+				_gif->height() / cIntRetinaFactor(),
+				rounding,
+				RectPart::AllCorners);
 			const_cast<MediaView*>(this)->_current = QPixmap();
 			updateMixerVideoVolume();
 			Global::RefVideoVolumeChanged().notify();
@@ -413,11 +423,25 @@ void MediaView::updateActions() {
 	}
 	_actions.push_back({ lang(lng_mediaview_save_as), SLOT(onSaveAs()) });
 
-	if (auto overviewType =
-		sharedMediaType()
-		| SharedMediaOverviewType) {
+	if (const auto overviewType = computeOverviewType()) {
 		_actions.push_back({ lang(_doc ? lng_mediaview_files_all : lng_mediaview_photos_all), SLOT(onOverview()) });
 	}
+}
+
+auto MediaView::computeOverviewType() const
+-> base::optional<SharedMediaType> {
+	if (const auto mediaType = sharedMediaType()) {
+		if (const auto overviewType = SharedMediaOverviewType(*mediaType)) {
+			return overviewType;
+		} else if (mediaType == SharedMediaType::PhotoVideo) {
+			if (_photo) {
+				return SharedMediaOverviewType(SharedMediaType::Photo);
+			} else if (_doc) {
+				return SharedMediaOverviewType(SharedMediaType::Video);
+			}
+		}
+	}
+	return base::none;
 }
 
 void MediaView::step_state(TimeMs ms, bool timer) {
@@ -512,21 +536,26 @@ void MediaView::step_radial(TimeMs ms, bool timer) {
 		_radial.stop();
 		return;
 	}
-	auto wasAnimating = _radial.animating();
+	const auto wasAnimating = _radial.animating();
 	_radial.update(radialProgress(), !radialLoading(), ms + radialTimeShift());
 	if (timer && (wasAnimating || _radial.animating())) {
 		update(radialRect());
 	}
-	if (_doc && _doc->loaded() && _doc->size < App::kImageSizeLimit && (!_radial.animating() || _doc->isAnimation() || _doc->isVideoFile())) {
+	const auto ready = _doc && _doc->loaded();
+	const auto streamVideo = _doc->isAnimation() || _doc->isVideoFile();
+	const auto tryOpenImage = (_doc->size < App::kImageSizeLimit);
+	if (ready && ((tryOpenImage && !_radial.animating()) || streamVideo)) {
 		if (_doc->isVideoFile() || _doc->isVideoMessage()) {
 			_autoplayVideoDocument = _doc;
 		}
-		if (!_doc->data().isEmpty() && (_doc->isAnimation() || _doc->isVideoFile())) {
+		if (!_doc->data().isEmpty() && streamVideo) {
 			displayDocument(_doc, App::histItemById(_msgid));
 		} else {
 			auto &location = _doc->location(true);
 			if (location.accessEnable()) {
-				if (_doc->isAnimation() || _doc->isVideoFile() || _doc->isTheme() || QImageReader(location.name()).canRead()) {
+				if (streamVideo
+					|| _doc->isTheme()
+					|| QImageReader(location.name()).canRead()) {
 					displayDocument(_doc, App::histItemById(_msgid));
 				}
 				location.accessDisable();
@@ -963,9 +992,7 @@ void MediaView::onDelete() {
 void MediaView::onOverview() {
 	if (_menu) _menu->hideMenu(true);
 	update();
-	if (auto overviewType =
-		sharedMediaType()
-		| SharedMediaOverviewType) {
+	if (const auto overviewType = computeOverviewType()) {
 		close();
 		SharedMediaShowOverview(*overviewType, _history);
 	}
@@ -991,14 +1018,14 @@ base::optional<MediaView::SharedMediaType> MediaView::sharedMediaType() const {
 	if (auto item = App::histItemById(_msgid)) {
 		if (_photo) {
 			if (item->toHistoryMessage()) {
-				return Type::Photo;
+				return Type::PhotoVideo;
 			}
 			return Type::ChatPhoto;
 		} else if (_doc) {
 			if (_doc->isGifv()) {
 				return Type::GIF;
 			} else if (_doc->isVideoFile()) {
-				return Type::Video;
+				return Type::PhotoVideo;
 			}
 			return Type::File;
 		}
@@ -1254,7 +1281,7 @@ void MediaView::showDocument(not_null<DocumentData*> document, HistoryItem *cont
 void MediaView::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
 	stopGif();
 	destroyThemePreview();
-	_doc = nullptr;
+	_doc = _autoplayVideoDocument = nullptr;
 	_fullScreenVideo = false;
 	_photo = photo;
 	_radial.stop();
@@ -1646,16 +1673,20 @@ void MediaView::onVideoPauseResume() {
 		} else if (_gif->state() == Media::Clip::State::Finished) {
 			restartVideoAtSeekPosition(0);
 		} else {
-			_gif->pauseResumeVideo();
-			_videoPaused = _gif->videoPaused();
-			if (_videoIsSilent) {
-				updateSilentVideoPlaybackState();
-			}
+			toggleVideoPaused();
 		}
 	} else {
 		stopGif();
 		updateControls();
 		update();
+	}
+}
+
+void MediaView::toggleVideoPaused() {
+	_gif->pauseResumeVideo();
+	_videoPaused = _gif->videoPaused();
+	if (_videoIsSilent) {
+		updateSilentVideoPlaybackState();
 	}
 }
 
@@ -2857,9 +2888,7 @@ void MediaView::updateHeader() {
 			_headerText = lang(lng_mediaview_single_photo);
 		}
 	}
-	_headerHasLink = (
-		sharedMediaType()
-		| SharedMediaOverviewType) != base::none;
+	_headerHasLink = computeOverviewType() != base::none;
 	auto hwidth = st::mediaviewThickFont->width(_headerText);
 	if (hwidth > width() / 3) {
 		hwidth = width() / 3;

@@ -171,6 +171,7 @@ private:
 	using SharedMediaKey = SharedMediaWithLastSlice::Key;
 	base::optional<SharedMediaType> sharedMediaType() const;
 	base::optional<SharedMediaKey> sharedMediaKey() const;
+	base::optional<SharedMediaType> computeOverviewType() const;
 	bool validSharedMedia() const;
 	void validateSharedMedia();
 	void handleSharedMediaUpdate(SharedMediaWithLastSlice &&update);
@@ -201,6 +202,7 @@ private:
 	void updateVideoPlaybackState(const Media::Player::TrackState &state);
 	void updateSilentVideoPlaybackState();
 	void restartVideoAtSeekPosition(TimeMs positionMs);
+	void toggleVideoPaused();
 
 	void createClipController();
 	void setClipControllerGeometry();

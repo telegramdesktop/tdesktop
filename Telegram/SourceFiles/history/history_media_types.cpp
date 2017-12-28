@@ -839,10 +839,13 @@ bool HistoryPhoto::needsBubble() const {
 }
 
 Storage::SharedMediaTypesMask HistoryPhoto::sharedMediaTypes() const {
+	using Type = Storage::SharedMediaType;
 	if (_parent->toHistoryMessage()) {
-		return Storage::SharedMediaType::Photo;
+		return Storage::SharedMediaTypesMask{}
+			.added(Type::Photo)
+			.added(Type::PhotoVideo);
 	}
-	return Storage::SharedMediaType::ChatPhoto;
+	return Type::ChatPhoto;
 }
 
 ImagePtr HistoryPhoto::replyPreview() {
@@ -1305,7 +1308,10 @@ bool HistoryVideo::needsBubble() const {
 }
 
 Storage::SharedMediaTypesMask HistoryVideo::sharedMediaTypes() const {
-	return Storage::SharedMediaType::Video;
+	using Type = Storage::SharedMediaType;
+	return Storage::SharedMediaTypesMask{}
+		.added(Type::Video)
+		.added(Type::PhotoVideo);
 }
 
 void HistoryVideo::updateStatusText() const {

@@ -28,18 +28,19 @@ namespace Storage {
 
 // Allow forward declarations.
 enum class SharedMediaType : char {
-	Photo = 0,
-	Video = 1,
-	MusicFile = 2,
-	File = 3,
-	VoiceFile = 4,
-	Link = 5,
-	ChatPhoto = 6,
-	RoundVoiceFile = 7,
-	GIF = 8,
-	RoundFile = 9,
+	Photo,
+	Video,
+	PhotoVideo,
+	MusicFile,
+	File,
+	VoiceFile,
+	Link,
+	ChatPhoto,
+	RoundVoiceFile,
+	GIF,
+	RoundFile,
 
-	kCount = 10,
+	kCount,
 };
 constexpr auto kSharedMediaTypeCount = static_cast<int>(SharedMediaType::kCount);
 constexpr bool IsValidSharedMediaType(SharedMediaType type) {
