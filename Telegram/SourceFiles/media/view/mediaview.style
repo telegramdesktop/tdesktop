@@ -196,6 +196,13 @@ mediaviewCaptionPadding: margins(18px, 10px, 18px, 10px);
 mediaviewCaptionMargin: size(11px, 11px);
 mediaviewCaptionRadius: 2px;
 
+mediaviewGroupPadding: margins(0px, 14px, 0px, 14px);
+mediaviewGroupHeight: 80px;
+mediaviewGroupWidth: 56px;
+mediaviewGroupWidthMax: 160px;
+mediaviewGroupSkip: 3px;
+mediaviewGroupSkipCurrent: 12px;
+
 themePreviewSize: size(903px, 584px);
 themePreviewBg: windowBg;
 themePreviewOverlayOpacity: 0.8;

@@ -369,45 +369,54 @@ void MediaView::updateControls() {
 void MediaView::resizeCenteredControls() {
 	const auto bottomSkip = std::max(
 		_dateNav.left() + _dateNav.width(),
-		_headerNav.left() + _headerNav.width());
-	const auto bottomWidth = std::max(
-		width() - 2 * bottomSkip - 2 * st::mediaviewCaptionMargin.width(),
+		_headerNav.left() + _headerNav.width())
+		+ st::mediaviewCaptionMargin.width();
+	_groupThumbsAvailableWidth = std::max(
+		width() - 2 * bottomSkip,
 		st::msgMinWidth
 		+ st::mediaviewCaptionPadding.left()
 		+ st::mediaviewCaptionPadding.right());
-	if (_groupThumbs) {
-		_groupThumbs->resizeToWidth(bottomWidth);
-		_groupThumbsTop = height() - _groupThumbs->height();
+	_groupThumbsLeft = (width() - _groupThumbsAvailableWidth) / 2;
+	refreshGroupThumbs();
+	_groupThumbsTop = _groupThumbs ? (height() - _groupThumbs->height()) : 0;
+
+	refreshClipControllerGeometry();
+	refreshCaptionGeometry();
+}
+
+void MediaView::refreshCaptionGeometry() {
+	if (_caption.isEmpty()) {
+		_captionRect = QRect();
+		return;
 	}
 
-	if (!_caption.isEmpty()) {
-		const auto captionBottom = groupThumbsDisplayed()
-			? _groupThumbsTop
-			: height() - st::mediaviewCaptionMargin.height();
-		const auto captionWidth = std::min(
-			bottomWidth
-			- st::mediaviewCaptionPadding.left()
-			- st::mediaviewCaptionPadding.right(),
-			_caption.maxWidth());
-		const auto captionHeight = std::min(
-			_caption.countHeight(captionWidth),
-			height() / 4
-			- st::mediaviewCaptionPadding.top()
-			- st::mediaviewCaptionPadding.bottom()
-			- 2 * st::mediaviewCaptionMargin.height());
-		_captionRect = QRect(
-			(width() - captionWidth) / 2,
-			captionBottom
-			- captionHeight
-			- st::mediaviewCaptionPadding.bottom(),
-			captionWidth,
-			captionHeight);
-	} else {
-		_captionRect = QRect();
+	if (_groupThumbs && _groupThumbs->hiding()) {
+		_groupThumbs = nullptr;
+		_groupThumbsRect = QRect();
 	}
-	if (_clipController) {
-		setClipControllerGeometry();
-	}
+	const auto captionBottom = _clipController
+		? (_clipController->y() - st::mediaviewCaptionMargin.height())
+		: _groupThumbs
+		? _groupThumbsTop
+		: height() - st::mediaviewCaptionMargin.height();
+	const auto captionWidth = std::min(
+		_groupThumbsAvailableWidth
+		- st::mediaviewCaptionPadding.left()
+		- st::mediaviewCaptionPadding.right(),
+		_caption.maxWidth());
+	const auto captionHeight = std::min(
+		_caption.countHeight(captionWidth),
+		height() / 4
+		- st::mediaviewCaptionPadding.top()
+		- st::mediaviewCaptionPadding.bottom()
+		- 2 * st::mediaviewCaptionMargin.height());
+	_captionRect = QRect(
+		(width() - captionWidth) / 2,
+		captionBottom
+		- captionHeight
+		- st::mediaviewCaptionPadding.bottom(),
+		captionWidth,
+		captionHeight);
 }
 
 void MediaView::updateActions() {
@@ -502,7 +511,17 @@ void MediaView::step_state(TimeMs ms, bool timer) {
 		} else {
 			a_cOpacity.update(dt, anim::linear);
 		}
-		QRegion toUpdate = QRegion() + (_over == OverLeftNav ? _leftNav : _leftNavIcon) + (_over == OverRightNav ? _rightNav : _rightNavIcon) + (_over == OverClose ? _closeNav : _closeNavIcon) + _saveNavIcon + _moreNavIcon + _headerNav + _nameNav + _dateNav + _captionRect.marginsAdded(st::mediaviewCaptionPadding);
+		const auto toUpdate = QRegion()
+			+ (_over == OverLeftNav ? _leftNav : _leftNavIcon)
+			+ (_over == OverRightNav ? _rightNav : _rightNavIcon)
+			+ (_over == OverClose ? _closeNav : _closeNavIcon)
+			+ _saveNavIcon
+			+ _moreNavIcon
+			+ _headerNav
+			+ _nameNav
+			+ _dateNav
+			+ _captionRect.marginsAdded(st::mediaviewCaptionPadding)
+			+ _groupThumbsRect;
 		update(toUpdate);
 		if (dt < 1) result = true;
 	}
@@ -512,7 +531,9 @@ void MediaView::step_state(TimeMs ms, bool timer) {
 }
 
 void MediaView::updateCursor() {
-	setCursor(_controlsState == ControlsHidden ? Qt::BlankCursor : (_over == OverNone ? style::cur_default : style::cur_pointer));
+	setCursor(_controlsState == ControlsHidden
+		? Qt::BlankCursor
+		: (_over == OverNone ? style::cur_default : style::cur_pointer));
 }
 
 float64 MediaView::radialProgress() const {
@@ -566,8 +587,8 @@ void MediaView::step_radial(TimeMs ms, bool timer) {
 		update(radialRect());
 	}
 	const auto ready = _doc && _doc->loaded();
-	const auto streamVideo = _doc->isAnimation() || _doc->isVideoFile();
-	const auto tryOpenImage = (_doc->size < App::kImageSizeLimit);
+	const auto streamVideo = ready && (_doc->isAnimation() || _doc->isVideoFile());
+	const auto tryOpenImage = ready && (_doc->size < App::kImageSizeLimit);
 	if (ready && ((tryOpenImage && !_radial.animating()) || streamVideo)) {
 		if (_doc->isVideoFile() || _doc->isVideoMessage()) {
 			_autoplayVideoDocument = _doc;
@@ -737,6 +758,7 @@ void MediaView::onHideControls(bool force) {
 	}
 	if (_controlsState == ControlsHiding || _controlsState == ControlsHidden) return;
 
+	_lastMouseMovePos = mapFromGlobal(QCursor::pos());
 	_controlsState = ControlsHiding;
 	_controlsAnimStarted = getms();
 	a_cOpacity.start(0);
@@ -1247,6 +1269,43 @@ void MediaView::refreshCaption(HistoryItem *item) {
 		Ui::ItemTextOptions(item));
 }
 
+void MediaView::refreshGroupThumbs() {
+	const auto existed = (_groupThumbs != nullptr);
+	if (_index && _sharedMediaData) {
+		Media::View::GroupThumbs::Refresh(
+			_groupThumbs,
+			*_sharedMediaData,
+			*_index,
+			_groupThumbsAvailableWidth);
+	} else if (_index && _userPhotosData) {
+		Media::View::GroupThumbs::Refresh(
+			_groupThumbs,
+			*_userPhotosData,
+			*_index,
+			_groupThumbsAvailableWidth);
+	} else if (_groupThumbs) {
+		_groupThumbs->clear();
+		_groupThumbs->resizeToWidth(_groupThumbsAvailableWidth);
+	}
+	if (_groupThumbs && !existed) {
+		_groupThumbs->updateRequests(
+		) | rpl::start_with_next([this](QRect rect) {
+			const auto shift = (width() / 2);
+			_groupThumbsRect = QRect(
+				shift + rect.x(),
+				_groupThumbsTop,
+				rect.width(),
+				_groupThumbs->height());
+			update(_groupThumbsRect);
+		}, _groupThumbs->lifetime());
+		_groupThumbsRect = QRect(
+			_groupThumbsLeft,
+			_groupThumbsTop,
+			width() - 2 * _groupThumbsLeft,
+			height() - _groupThumbsTop);
+	}
+}
+
 void MediaView::showPhoto(not_null<PhotoData*> photo, HistoryItem *context) {
 	if (context) {
 		setContext(context);
@@ -1403,7 +1462,9 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 		_autoplayVideoDocument = nullptr;
 	}
 
-	_caption = Text();
+	if (documentChanged) {
+		refreshCaption(item);
+	}
 	if (_doc) {
 		if (_doc->sticker()) {
 			_doc->checkSticker();
@@ -1673,7 +1734,7 @@ void MediaView::createClipController() {
 	if (!_doc->isVideoFile() && !_doc->isVideoMessage()) return;
 
 	_clipController.create(this);
-	setClipControllerGeometry();
+	refreshClipControllerGeometry();
 	_clipController->show();
 
 	connect(_clipController, SIGNAL(playPressed()), this, SLOT(onVideoPauseResume()));
@@ -1687,10 +1748,18 @@ void MediaView::createClipController() {
 	connect(Media::Player::mixer(), SIGNAL(updated(const AudioMsgId&)), this, SLOT(onVideoPlayProgress(const AudioMsgId&)));
 }
 
-void MediaView::setClipControllerGeometry() {
-	Assert(_clipController != nullptr);
+void MediaView::refreshClipControllerGeometry() {
+	if (!_clipController) {
+		return;
+	}
 
-	int controllerBottom = _captionRect.isEmpty() ? height() : _captionRect.y();
+	if (_groupThumbs && _groupThumbs->hiding()) {
+		_groupThumbs = nullptr;
+		_groupThumbsRect = QRect();
+	}
+	const auto controllerBottom = _groupThumbs
+		? _groupThumbsTop
+		: height();
 	_clipController->setGeometry(
 		(width() - _clipController->width()) / 2,
 		controllerBottom - _clipController->height() - st::mediaviewCaptionPadding.bottom() - st::mediaviewCaptionMargin.height(),
@@ -2111,6 +2180,27 @@ void MediaView::paintEvent(QPaintEvent *e) {
 				}
 			}
 		}
+
+		if (_groupThumbs && _groupThumbsRect.intersects(r)) {
+			p.setOpacity(co);
+			_groupThumbs->paint(
+				p,
+				_groupThumbsLeft,
+				_groupThumbsTop,
+				width(),
+				ms);
+			if (_groupThumbs->hidden()) {
+				_groupThumbs = nullptr;
+				_groupThumbsRect = QRect();
+			}
+		}
+	}
+	checkGroupThumbsAnimation();
+}
+
+void MediaView::checkGroupThumbsAnimation() {
+	if (_groupThumbs && (!_gif || _gif->started())) {
+		_groupThumbs->checkForAnimationStart();
 	}
 }
 
@@ -2223,8 +2313,14 @@ void MediaView::keyPressEvent(QKeyEvent *e) {
 			onVideoPauseResume();
 		}
 	} else if (e->key() == Qt::Key_Left) {
+		if (_controlsHideTimer.isActive()) {
+			activateControls();
+		}
 		moveToNext(-1);
 	} else if (e->key() == Qt::Key_Right) {
+		if (_controlsHideTimer.isActive()) {
+			activateControls();
+		}
 		moveToNext(1);
 	} else if (e->modifiers().testFlag(Qt::ControlModifier) && (e->key() == Qt::Key_Plus || e->key() == Qt::Key_Equal || e->key() == ']' || e->key() == Qt::Key_Asterisk || e->key() == Qt::Key_Minus || e->key() == Qt::Key_Underscore || e->key() == Qt::Key_0)) {
 		if (e->key() == Qt::Key_Plus || e->key() == Qt::Key_Equal || e->key() == Qt::Key_Asterisk || e->key() == ']') {
@@ -2695,7 +2791,9 @@ void MediaView::mouseReleaseEvent(QMouseEvent *e) {
 		_pressed = false;
 	}
 	_down = OverNone;
-	activateControls();
+	if (!isHidden()) {
+		activateControls();
+	}
 }
 
 void MediaView::contextMenuEvent(QContextMenuEvent *e) {
@@ -2804,10 +2902,13 @@ bool MediaView::eventFilter(QObject *obj, QEvent *e) {
 	auto type = e->type();
 	if ((type == QEvent::MouseMove || type == QEvent::MouseButtonPress || type == QEvent::MouseButtonRelease) && obj->isWidgetType()) {
 		if (isAncestorOf(static_cast<QWidget*>(obj))) {
-			auto mouseEvent = static_cast<QMouseEvent*>(e);
-			auto mousePosition = mapFromGlobal(mouseEvent->globalPos());
-			bool activate = (mousePosition != _lastMouseMovePos);
-			_lastMouseMovePos = mousePosition;
+			const auto mouseEvent = static_cast<QMouseEvent*>(e);
+			const auto mousePosition = mapFromGlobal(mouseEvent->globalPos());
+			const auto delta = (mousePosition - _lastMouseMovePos);
+			auto activate = delta.manhattanLength() >= st::mediaviewDeltaFromLastAction;
+			if (activate) {
+				_lastMouseMovePos = mousePosition;
+			}
 			if (type == QEvent::MouseButtonPress) {
 				_mousePressed = true;
 				activate = true;
@@ -2815,7 +2916,12 @@ bool MediaView::eventFilter(QObject *obj, QEvent *e) {
 				_mousePressed = false;
 				activate = true;
 			}
-			if (activate) activateControls();
+			if (activate) {
+				if (_controlsState == ControlsHiding || _controlsState == ControlsHidden) {
+					int a = 0;
+				}
+				activateControls();
+			}
 		}
 	}
 	return TWidget::eventFilter(obj, e);
@@ -2832,6 +2938,8 @@ void MediaView::setVisible(bool visible) {
 		_controlsHideTimer.stop();
 		_controlsState = ControlsShown;
 		a_cOpacity = anim::value(1, 1);
+		_groupThumbs = nullptr;
+		_groupThumbsRect = QRect();
 	}
 	TWidget::setVisible(visible);
 	if (visible) {
@@ -2935,21 +3043,4 @@ void MediaView::updateHeader() {
 float64 MediaView::overLevel(OverState control) const {
 	auto i = _animOpacities.constFind(control);
 	return (i == _animOpacities.cend()) ? (_over == control ? 1 : 0) : i->current();
-}
-
-bool MediaView::groupThumbsDisplayed() const {
-	return _groupThumbs != nullptr;
-}
-
-QRect MediaView::groupThumbsRect() const {
-	Expects(_groupThumbs != nullptr);
-
-	auto result = _groupThumbs->paintedRect();
-	result.moveTopLeft(result.topLeft()
-		+ QPoint(_groupThumbsLeft, _groupThumbsTop));
-	return result;
-}
-
-QRect MediaView::groupThumbsFullRect() const {
-	return QRect(0, width(), _groupThumbsTop, height() - _groupThumbsTop);
 }

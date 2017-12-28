@@ -20,19 +20,88 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "history/history_item_components.h"
+
+class SharedMediaWithLastSlice;
+class UserPhotosSlice;
+
 namespace Media {
 namespace View {
 
 class GroupThumbs {
 public:
-	GroupThumbs();
+	static void Refresh(
+		std::unique_ptr<GroupThumbs> &instance,
+		const SharedMediaWithLastSlice &slice,
+		int index,
+		int availableWidth);
+	static void Refresh(
+		std::unique_ptr<GroupThumbs> &instance,
+		const UserPhotosSlice &slice,
+		int index,
+		int availableWidth);
+	void clear();
 
 	void resizeToWidth(int newWidth);
 	int height() const;
+	bool hiding() const;
+	bool hidden() const;
+	void checkForAnimationStart();
 
-	QRect paintedRect() const;
+	void paint(Painter &p, int x, int y, int outerWidth, TimeMs ms);
+
+	rpl::producer<QRect> updateRequests() const {
+		return _updateRequests.events();
+	}
+
+	rpl::lifetime &lifetime() {
+		return _lifetime;
+	}
+
+	using Context = base::optional_variant<PeerId, MessageGroupId>;
+	using Key = base::variant<PhotoId, FullMsgId>;
+
+	GroupThumbs(Context context);
+	~GroupThumbs();
 
 private:
+	class Thumb;
+
+	template <typename Slice>
+	static void RefreshFromSlice(
+		std::unique_ptr<GroupThumbs> &instance,
+		const Slice &slice,
+		int index,
+		int availableWidth);
+	template <typename Slice>
+	void fillItems(const Slice &slice, int from, int index, int till);
+	void updateContext(Context context);
+	void markCacheStale();
+	not_null<Thumb*> validateCacheEntry(Key key);
+	std::unique_ptr<Thumb> createThumb(Key key);
+	std::unique_ptr<Thumb> createThumb(Key key, ImagePtr image);
+
+	void update();
+	void countUpdatedRect();
+	void animateAliveItems(int current);
+	void fillDyingItems(const std::vector<not_null<Thumb*>> &old);
+	void markAsDying(not_null<Thumb*> thumb);
+	void markRestAsDying();
+	void animatePreviouslyAlive(const std::vector<not_null<Thumb*>> &old);
+	void startDelayedAnimation();
+
+	Context _context;
+	bool _waitingForAnimationStart = true;
+	Animation _animation;
+	std::vector<not_null<Thumb*>> _items;
+	std::vector<not_null<Thumb*>> _dying;
+	base::flat_map<Key, std::unique_ptr<Thumb>> _cache;
+	int _width = 0;
+	int _limit = 0;
+	rpl::event_stream<QRect> _updateRequests;
+	rpl::lifetime _lifetime;
+
+	QRect _updatedRect;
 
 };
 

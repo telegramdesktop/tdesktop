@@ -189,6 +189,7 @@ private:
 	void refreshCaption(HistoryItem *item);
 	void refreshMediaViewer();
 	void refreshNavVisibility();
+	void refreshGroupThumbs();
 
 	void dropdownHidden();
 	void updateDocSize();
@@ -210,7 +211,8 @@ private:
 	void toggleVideoPaused();
 
 	void createClipController();
-	void setClipControllerGeometry();
+	void refreshClipControllerGeometry();
+	void refreshCaptionGeometry();
 
 	void initAnimation();
 	void createClipReader();
@@ -248,9 +250,8 @@ private:
 	bool updateOverState(OverState newState);
 	float64 overLevel(OverState control) const;
 
-	bool groupThumbsDisplayed() const;
-	QRect groupThumbsRect() const;
 	QRect groupThumbsFullRect() const;
+	void checkGroupThumbsAnimation();
 
 	QBrush _transparentBrush;
 
@@ -279,6 +280,8 @@ private:
 	int _fullScreenZoomCache = 0;
 
 	std::unique_ptr<Media::View::GroupThumbs> _groupThumbs;
+	QRect _groupThumbsRect;
+	int _groupThumbsAvailableWidth = 0;
 	int _groupThumbsLeft = 0;
 	int _groupThumbsTop = 0;
 	Text _caption;
