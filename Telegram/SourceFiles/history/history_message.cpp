@@ -33,6 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/share_box.h"
 #include "boxes/confirm_box.h"
 #include "ui/toast/toast.h"
+#include "ui/text_options.h"
 #include "messenger.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
@@ -136,11 +137,6 @@ int KeyboardStyle::minButtonWidth(
 		result = std::max(result, 2 * iconWidth + 4 * int(st::msgBotKbIconPadding));
 	}
 	return result;
-}
-
-inline void initTextOptions() {
-	_historySrvOptions.dir = _textNameOptions.dir = _textDlgOptions.dir = cLangDir();
-	_textDlgOptions.maxw = st::columnMaximalWidthLeft * 2;
 }
 
 QString AdminBadgeText() {
@@ -407,10 +403,6 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		std::move(copyLinkCallback),
 		std::move(submitCallback),
 		std::move(filterCallback)));
-}
-
-void HistoryInitMessages() {
-	initTextOptions();
 }
 
 base::lambda<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
@@ -1501,9 +1493,18 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 	} else {
 		auto mediaOnBottom = (_media && _media->isDisplayed() && _media->isBubbleBottom()) || Has<HistoryMessageLogEntryOriginal>();
 		if (mediaOnBottom) {
-			_text.setMarkedText(st::messageTextStyle, textWithEntities, itemTextOptions(this));
+			_text.setMarkedText(
+				st::messageTextStyle,
+				textWithEntities,
+				Ui::ItemTextOptions(this));
 		} else {
-			_text.setMarkedText(st::messageTextStyle, { textWithEntities.text + skipBlock(), textWithEntities.entities }, itemTextOptions(this));
+			_text.setMarkedText(
+				st::messageTextStyle,
+				{
+					textWithEntities.text + skipBlock(),
+					textWithEntities.entities
+				},
+				Ui::ItemTextOptions(this));
 		}
 		_textWidth = -1;
 		_textHeight = 0;
@@ -1511,7 +1512,10 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 }
 
 void HistoryMessage::setEmptyText() {
-	_text.setMarkedText(st::messageTextStyle, { QString(), EntitiesInText() }, itemTextOptions(this));
+	_text.setMarkedText(
+		st::messageTextStyle,
+		{ QString(), EntitiesInText() },
+		Ui::ItemTextOptions(this));
 
 	_textWidth = -1;
 	_textHeight = 0;

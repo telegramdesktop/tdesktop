@@ -36,6 +36,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "window/window_controller.h"
 #include "ui/empty_userpic.h"
+#include "ui/text_options.h"
 
 namespace {
 
@@ -100,7 +101,7 @@ void PeerClickHandler::onClick(Qt::MouseButton button) const {
 PeerData::PeerData(const PeerId &id)
 : id(id)
 , _userpicEmpty(createEmptyUserpic()) {
-	nameText.setText(st::msgNameStyle, QString(), _textNameOptions);
+	nameText.setText(st::msgNameStyle, QString(), Ui::NameTextOptions());
 }
 
 void PeerData::updateNameDelayed(
@@ -124,7 +125,7 @@ void PeerData::updateNameDelayed(
 
 	++nameVersion;
 	name = newName;
-	nameText.setText(st::msgNameStyle, name, _textNameOptions);
+	nameText.setText(st::msgNameStyle, name, Ui::NameTextOptions());
 	refreshEmptyUserpic();
 
 	Notify::PeerUpdate update(this);
@@ -351,7 +352,10 @@ PeerData::~PeerData() = default;
 
 const Text &BotCommand::descriptionText() const {
 	if (_descriptionText.isEmpty() && !_description.isEmpty()) {
-		_descriptionText.setText(st::defaultTextStyle, _description, _textNameOptions);
+		_descriptionText.setText(
+			st::defaultTextStyle,
+			_description,
+			Ui::NameTextOptions());
 	}
 	return _descriptionText;
 }
@@ -491,7 +495,10 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 void UserData::setNameOrPhone(const QString &newNameOrPhone) {
 	if (nameOrPhone != newNameOrPhone) {
 		nameOrPhone = newNameOrPhone;
-		phoneText.setText(st::msgNameStyle, nameOrPhone, _textNameOptions);
+		phoneText.setText(
+			st::msgNameStyle,
+			nameOrPhone,
+			Ui::NameTextOptions());
 	}
 }
 

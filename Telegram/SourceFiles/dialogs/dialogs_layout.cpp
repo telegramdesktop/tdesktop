@@ -26,6 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_dialogs.h"
 #include "storage/localstorage.h"
 #include "ui/empty_userpic.h"
+#include "ui/text_options.h"
 #include "lang/lang_keys.h"
 
 namespace Dialogs {
@@ -156,7 +157,7 @@ void paintRow(
 			if (history->cloudDraftTextCache.isEmpty()) {
 				auto draftWrapped = textcmdLink(1, lng_dialogs_text_from_wrapped(lt_from, lang(lng_from_draft)));
 				auto draftText = lng_dialogs_text_with_from(lt_from_part, draftWrapped, lt_message, TextUtilities::Clean(draft->textWithTags.text));
-				history->cloudDraftTextCache.setText(st::dialogsTextStyle, draftText, _textDlgOptions);
+				history->cloudDraftTextCache.setText(st::dialogsTextStyle, draftText, Ui::DialogTextOptions());
 			}
 			p.setPen(active ? st::dialogsTextFgActive : (selected ? st::dialogsTextFgOver : st::dialogsTextFg));
 			p.setTextPalette(active ? st::dialogsTextPaletteDraftActive : (selected ? st::dialogsTextPaletteDraftOver : st::dialogsTextPaletteDraft));

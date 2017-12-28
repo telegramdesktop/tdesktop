@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/edit_caption_box.h"
 
 #include "ui/widgets/input_fields.h"
+#include "ui/text_options.h"
 #include "media/media_clip_reader.h"
 #include "history/history_media_types.h"
 #include "lang/lang_keys.h"
@@ -106,7 +107,7 @@ EditCaptionBox::EditCaptionBox(
 			_name.setText(
 				st::semiboldTextStyle,
 				nameString,
-				_textNameOptions);
+				Ui::NameTextOptions());
 			_status = formatSizeText(doc->size);
 			_statusw = qMax(
 				_name.maxWidth(),

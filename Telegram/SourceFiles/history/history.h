@@ -30,8 +30,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/flat_set.h"
 #include "base/flags.h"
 
-void HistoryInit();
-
 class HistoryItem;
 using HistoryItemsList = std::vector<not_null<HistoryItem*>>;
 

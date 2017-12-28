@@ -37,6 +37,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_media_types.h"
 #include "history/history_item_components.h"
 #include "ui/effects/round_checkbox.h"
+#include "ui/text_options.h"
 
 namespace Overview {
 namespace Layout {
@@ -754,12 +755,12 @@ void Voice::updateName() {
 	auto version = 0;
 	if (const auto forwarded = parent()->Get<HistoryMessageForwarded>()) {
 		if (parent()->fromOriginal()->isChannel()) {
-			_name.setText(st::semiboldTextStyle, lng_forwarded_channel(lt_channel, App::peerName(parent()->fromOriginal())), _textNameOptions);
+			_name.setText(st::semiboldTextStyle, lng_forwarded_channel(lt_channel, App::peerName(parent()->fromOriginal())), Ui::NameTextOptions());
 		} else {
-			_name.setText(st::semiboldTextStyle, lng_forwarded(lt_user, App::peerName(parent()->fromOriginal())), _textNameOptions);
+			_name.setText(st::semiboldTextStyle, lng_forwarded(lt_user, App::peerName(parent()->fromOriginal())), Ui::NameTextOptions());
 		}
 	} else {
-		_name.setText(st::semiboldTextStyle, App::peerName(parent()->from()), _textNameOptions);
+		_name.setText(st::semiboldTextStyle, App::peerName(parent()->from()), Ui::NameTextOptions());
 	}
 	version = parent()->fromOriginal()->nameVersion;
 	_nameVersion = version;

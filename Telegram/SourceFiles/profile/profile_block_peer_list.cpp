@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "ui/effects/ripple_animation.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/text_options.h"
 #include "styles/style_profile.h"
 #include "styles/style_widgets.h"
 #include "auth_session.h"
@@ -100,7 +101,10 @@ void PeerListWidget::paintItem(Painter &p, int x, int y, Item *item, bool select
 	item->peer->paintUserpicLeft(p, x + _st.photoPosition.x(), y + _st.photoPosition.y(), width(), _st.photoSize);
 
 	if (item->name.isEmpty()) {
-		item->name.setText(st::msgNameStyle, App::peerName(item->peer), _textNameOptions);
+		item->name.setText(
+			st::msgNameStyle,
+			App::peerName(item->peer),
+			Ui::NameTextOptions());
 	}
 	int nameLeft = x + _st.namePosition.x();
 	int nameTop = y + _st.namePosition.y();

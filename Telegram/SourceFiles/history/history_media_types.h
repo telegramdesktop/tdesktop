@@ -43,7 +43,6 @@ namespace Ui {
 class EmptyUserpic;
 } // namespace Ui
 
-void HistoryInitMedia();
 TextWithEntities WithCaptionSelectedText(
 	const QString &attachType,
 	const Text &caption,

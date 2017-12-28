@@ -27,10 +27,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/file_utilities.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
+#include "ui/text_options.h"
 #include "media/media_clip_reader.h"
 #include "media/view/media_clip_controller.h"
-#include "styles/style_mediaview.h"
-#include "styles/style_history.h"
+#include "media/view/media_view_group_thumbs.h"
 #include "media/media_audio.h"
 #include "history/history_message.h"
 #include "history/history_media_types.h"
@@ -42,26 +42,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "messenger.h"
 #include "storage/file_download.h"
 #include "calls/calls_instance.h"
+#include "styles/style_mediaview.h"
+#include "styles/style_history.h"
 
 namespace {
 
 constexpr auto kPreloadCount = 4;
 
-TextParseOptions _captionTextOptions = {
-	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText, // flags
-	0, // maxw
-	0, // maxh
-	Qt::LayoutDirectionAuto, // dir
-};
-TextParseOptions _captionBotOptions = {
-	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText | TextParseBotCommands, // flags
-	0, // maxw
-	0, // maxh
-	Qt::LayoutDirectionAuto, // dir
-};
-
 // Preload X message ids before and after current.
-constexpr auto kIdsLimit = 32;
+constexpr auto kIdsLimit = 48;
 
 // Preload next messages if we went further from current than that.
 constexpr auto kIdsPreloadAfter = 28;
@@ -84,7 +73,8 @@ struct MediaView::UserPhotos {
 	rpl::lifetime lifetime;
 };
 
-MediaView::MediaView() : TWidget(nullptr)
+MediaView::MediaView()
+: TWidget(nullptr)
 , _transparentBrush(style::transparentPlaceholderBrush())
 , _animStarted(getms())
 , _docDownload(this, lang(lng_media_download), st::mediaviewFileLink)
@@ -99,7 +89,7 @@ MediaView::MediaView() : TWidget(nullptr)
 
 	TextCustomTagsMap custom;
 	custom.insert(QChar('c'), qMakePair(textcmdStartLink(1), textcmdStopLink()));
-	_saveMsgText.setRichText(st::mediaviewSaveMsgStyle, lang(lng_mediaview_saved), _textDlgOptions, custom);
+	_saveMsgText.setRichText(st::mediaviewSaveMsgStyle, lang(lng_mediaview_saved), Ui::DialogTextOptions(), custom);
 	_saveMsg = QRect(0, 0, _saveMsgText.maxWidth() + st::mediaviewSaveMsgPadding.left() + st::mediaviewSaveMsgPadding.right(), st::mediaviewSaveMsgStyle.font->height + st::mediaviewSaveMsgPadding.top() + st::mediaviewSaveMsgPadding.bottom());
 	_saveMsgText.setLink(1, std::make_shared<LambdaClickHandler>([this] { showSaveMsgFile(); }));
 
@@ -361,7 +351,7 @@ void MediaView::updateControls() {
 		_dateText = lng_mediaview_date_time(lt_date, d.date().toString(qsl("dd.MM.yy")), lt_time, d.time().toString(cTimeFormat()));
 	}
 	if (_from) {
-		_fromName.setText(st::mediaviewTextStyle, (_from->migrateTo() ? _from->migrateTo() : _from)->name, _textNameOptions);
+		_fromName.setText(st::mediaviewTextStyle, (_from->migrateTo() ? _from->migrateTo() : _from)->name, Ui::NameTextOptions());
 		_nameNav = myrtlrect(st::mediaviewTextLeft, height() - st::mediaviewTextTop, qMin(_fromName.maxWidth(), width() / 3), st::mediaviewFont->height);
 		_dateNav = myrtlrect(st::mediaviewTextLeft + _nameNav.width() + st::mediaviewTextSkip, height() - st::mediaviewTextTop, st::mediaviewFont->width(_dateText), st::mediaviewFont->height);
 	} else {
@@ -370,20 +360,54 @@ void MediaView::updateControls() {
 	}
 	updateHeader();
 	refreshNavVisibility();
+	resizeCenteredControls();
+
+	updateOver(mapFromGlobal(QCursor::pos()));
+	update();
+}
+
+void MediaView::resizeCenteredControls() {
+	const auto bottomSkip = std::max(
+		_dateNav.left() + _dateNav.width(),
+		_headerNav.left() + _headerNav.width());
+	const auto bottomWidth = std::max(
+		width() - 2 * bottomSkip - 2 * st::mediaviewCaptionMargin.width(),
+		st::msgMinWidth
+		+ st::mediaviewCaptionPadding.left()
+		+ st::mediaviewCaptionPadding.right());
+	if (_groupThumbs) {
+		_groupThumbs->resizeToWidth(bottomWidth);
+		_groupThumbsTop = height() - _groupThumbs->height();
+	}
 
 	if (!_caption.isEmpty()) {
-		int32 skipw = qMax(_dateNav.left() + _dateNav.width(), _headerNav.left() + _headerNav.width());
-		int32 maxw = qMin(qMax(width() - 2 * skipw - st::mediaviewCaptionPadding.left() - st::mediaviewCaptionPadding.right() - 2 * st::mediaviewCaptionMargin.width(), int(st::msgMinWidth)), _caption.maxWidth());
-		int32 maxh = qMin(_caption.countHeight(maxw), int(height() / 4 - st::mediaviewCaptionPadding.top() - st::mediaviewCaptionPadding.bottom() - 2 * st::mediaviewCaptionMargin.height()));
-		_captionRect = QRect((width() - maxw) / 2, height() - maxh - st::mediaviewCaptionPadding.bottom() - st::mediaviewCaptionMargin.height(), maxw, maxh);
+		const auto captionBottom = groupThumbsDisplayed()
+			? _groupThumbsTop
+			: height() - st::mediaviewCaptionMargin.height();
+		const auto captionWidth = std::min(
+			bottomWidth
+			- st::mediaviewCaptionPadding.left()
+			- st::mediaviewCaptionPadding.right(),
+			_caption.maxWidth());
+		const auto captionHeight = std::min(
+			_caption.countHeight(captionWidth),
+			height() / 4
+			- st::mediaviewCaptionPadding.top()
+			- st::mediaviewCaptionPadding.bottom()
+			- 2 * st::mediaviewCaptionMargin.height());
+		_captionRect = QRect(
+			(width() - captionWidth) / 2,
+			captionBottom
+			- captionHeight
+			- st::mediaviewCaptionPadding.bottom(),
+			captionWidth,
+			captionHeight);
 	} else {
 		_captionRect = QRect();
 	}
 	if (_clipController) {
 		setClipControllerGeometry();
 	}
-	updateOver(mapFromGlobal(QCursor::pos()));
-	update();
 }
 
 void MediaView::updateActions() {
@@ -1198,6 +1222,31 @@ void MediaView::refreshMediaViewer() {
 	preloadData(0);
 }
 
+void MediaView::refreshCaption(HistoryItem *item) {
+	_caption = Text();
+
+	const auto media = item ? item->getMedia() : nullptr;
+	if (!media) {
+		return;
+	}
+
+	const auto caption = media->getCaption();
+	if (caption.text.isEmpty()) {
+		return;
+	}
+	const auto asBot = [&] {
+		if (const auto author = item->author()->asUser()) {
+			return author->botInfo != nullptr;
+		}
+		return false;
+	}();
+	_caption = Text(st::msgMinWidth);
+	_caption.setMarkedText(
+		st::mediaviewCaptionStyle,
+		caption,
+		Ui::ItemTextOptions(item));
+}
+
 void MediaView::showPhoto(not_null<PhotoData*> photo, HistoryItem *context) {
 	if (context) {
 		setContext(context);
@@ -1292,21 +1341,7 @@ void MediaView::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
 
 	_zoom = 0;
 
-	_caption = Text();
-	if (const auto media = item ? item->getMedia() : nullptr) {
-		const auto caption = media->getCaption();
-		if (!caption.text.isEmpty()) {
-			auto asBot = (item->author()->isUser()
-				&& item->author()->asUser()->botInfo);
-			auto skipw = qMax(_dateNav.left() + _dateNav.width(), _headerNav.left() + _headerNav.width());
-			auto maxw = qMin(qMax(width() - 2 * skipw - st::mediaviewCaptionPadding.left() - st::mediaviewCaptionPadding.right() - 2 * st::mediaviewCaptionMargin.width(), int(st::msgMinWidth)), _caption.maxWidth());
-			_caption = Text(maxw);
-			_caption.setMarkedText(
-				st::mediaviewCaptionStyle,
-				caption,
-				itemTextOptions(item));
-		}
-	}
+	refreshCaption(item);
 
 	_zoomToScreen = 0;
 	Auth().downloader().clearPriorities();
@@ -2900,4 +2935,21 @@ void MediaView::updateHeader() {
 float64 MediaView::overLevel(OverState control) const {
 	auto i = _animOpacities.constFind(control);
 	return (i == _animOpacities.cend()) ? (_over == control ? 1 : 0) : i->current();
+}
+
+bool MediaView::groupThumbsDisplayed() const {
+	return _groupThumbs != nullptr;
+}
+
+QRect MediaView::groupThumbsRect() const {
+	Expects(_groupThumbs != nullptr);
+
+	auto result = _groupThumbs->paintedRect();
+	result.moveTopLeft(result.topLeft()
+		+ QPoint(_groupThumbsLeft, _groupThumbsTop));
+	return result;
+}
+
+QRect MediaView::groupThumbsFullRect() const {
+	return QRect(0, width(), _groupThumbsTop, height() - _groupThumbsTop);
 }

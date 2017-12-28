@@ -343,6 +343,8 @@
 <(src_loc)/media/view/media_clip_playback.h
 <(src_loc)/media/view/media_clip_volume_controller.cpp
 <(src_loc)/media/view/media_clip_volume_controller.h
+<(src_loc)/media/view/media_view_group_thumbs.cpp
+<(src_loc)/media/view/media_view_group_thumbs.h
 <(src_loc)/media/media_audio.cpp
 <(src_loc)/media/media_audio.h
 <(src_loc)/media/media_audio_capture.cpp
@@ -628,6 +630,8 @@
 <(src_loc)/ui/search_field_controller.h
 <(src_loc)/ui/special_buttons.cpp
 <(src_loc)/ui/special_buttons.h
+<(src_loc)/ui/text_options.cpp
+<(src_loc)/ui/text_options.h
 <(src_loc)/ui/twidget.cpp
 <(src_loc)/ui/twidget.h
 <(src_loc)/ui/unread_badge.cpp

@@ -47,6 +47,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/themes/window_theme.h"
 #include "history/history_location_manager.h"
 #include "ui/widgets/tooltip.h"
+#include "ui/text_options.h"
 #include "storage/serialize_common.h"
 #include "window/window_controller.h"
 #include "base/qthelp_regex.h"
@@ -115,7 +116,7 @@ Messenger::Messenger(not_null<Core::Launcher*> launcher)
 
 	style::startManager();
 	anim::startManager();
-	HistoryInit();
+	Ui::InitTextOptions();
 	Media::Player::start();
 
 	DEBUG_LOG(("Application Info: inited..."));
@@ -986,7 +987,6 @@ void Messenger::checkMediaViewActivation() {
 void Messenger::loggedOut() {
 	if (_mediaView) {
 		hideMediaView();
-		_mediaView->rpcClear();
 		_mediaView->clearData();
 	}
 }

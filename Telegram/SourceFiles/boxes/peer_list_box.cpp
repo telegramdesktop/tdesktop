@@ -34,6 +34,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/ripple_animation.h"
 #include "ui/empty_userpic.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/text_options.h"
 #include "lang/lang_keys.h"
 #include "observer_peer.h"
 #include "storage/file_download.h"
@@ -391,7 +392,7 @@ void PeerListRow::refreshName(const style::PeerListItem &st) {
 	const auto text = _isSavedMessagesChat
 		? lang(lng_saved_messages)
 		: peer()->name;
-	_name.setText(st.nameStyle, text, _textNameOptions);
+	_name.setText(st.nameStyle, text, Ui::NameTextOptions());
 }
 
 PeerListRow::~PeerListRow() = default;
@@ -516,7 +517,7 @@ void PeerListRow::paintDisabledCheckUserpic(
 }
 
 void PeerListRow::setStatusText(const QString &text) {
-	_status.setText(st::defaultTextStyle, text, _textNameOptions);
+	_status.setText(st::defaultTextStyle, text, Ui::NameTextOptions());
 }
 
 float64 PeerListRow::checkedRatio() {

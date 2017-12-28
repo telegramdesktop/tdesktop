@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_service_layout.h"
 #include "history/history_media_types.h"
 #include "history/history_item_components.h"
+#include "ui/text_options.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
 #include "window/window_peer_menu.h"
@@ -1836,7 +1837,10 @@ void HistoryInner::updateBotInfo(bool recount) {
 	int newh = 0;
 	if (_botAbout && !_botAbout->info->description.isEmpty()) {
 		if (_botAbout->info->text.isEmpty()) {
-			_botAbout->info->text.setText(st::messageTextStyle, _botAbout->info->description, _historyBotNoMonoOptions);
+			_botAbout->info->text.setText(
+				st::messageTextStyle,
+				_botAbout->info->description,
+				Ui::ItemTextBotNoMonoOptions());
 			if (recount) {
 				int32 tw = _scroll->width() - st::msgMargin.left() - st::msgMargin.right();
 				if (tw > st::msgMaxWidth) tw = st::msgMaxWidth;

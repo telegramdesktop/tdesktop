@@ -32,65 +32,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/media_audio.h"
 #include "storage/localstorage.h"
 
-TextParseOptions _textNameOptions = {
-	0, // flags
-	4096, // maxw
-	1, // maxh
-	Qt::LayoutDirectionAuto, // lang-dependent
-};
-TextParseOptions _textDlgOptions = {
-	TextParseRichText, // flags
-	0, // maxw is style-dependent
-	1, // maxh
-	Qt::LayoutDirectionAuto, // lang-dependent
-};
-TextParseOptions _historyTextOptions = {
-	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText | TextParseMarkdown, // flags
-	0, // maxw
-	0, // maxh
-	Qt::LayoutDirectionAuto, // dir
-};
-TextParseOptions _historyBotOptions = {
-	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands | TextParseMultiline | TextParseRichText | TextParseMarkdown, // flags
-	0, // maxw
-	0, // maxh
-	Qt::LayoutDirectionAuto, // dir
-};
-TextParseOptions _historyTextNoMonoOptions = {
-	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText, // flags
-	0, // maxw
-	0, // maxh
-	Qt::LayoutDirectionAuto, // dir
-};
-TextParseOptions _historyBotNoMonoOptions = {
-	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands | TextParseMultiline | TextParseRichText, // flags
-	0, // maxw
-	0, // maxh
-	Qt::LayoutDirectionAuto, // dir
-};
-
-const TextParseOptions &itemTextOptions(History *h, PeerData *f) {
-	if ((h->peer->isUser() && h->peer->asUser()->botInfo) || (f->isUser() && f->asUser()->botInfo) || (h->peer->isChat() && h->peer->asChat()->botStatus >= 0) || (h->peer->isMegagroup() && h->peer->asChannel()->mgInfo->botStatus >= 0)) {
-		return _historyBotOptions;
-	}
-	return _historyTextOptions;
-}
-
-const TextParseOptions &itemTextOptions(const HistoryItem *item) {
-	return itemTextOptions(item->history(), item->author());
-}
-
-const TextParseOptions &itemTextNoMonoOptions(History *h, PeerData *f) {
-	if ((h->peer->isUser() && h->peer->asUser()->botInfo) || (f->isUser() && f->asUser()->botInfo) || (h->peer->isChat() && h->peer->asChat()->botStatus >= 0) || (h->peer->isMegagroup() && h->peer->asChannel()->mgInfo->botStatus >= 0)) {
-		return _historyBotNoMonoOptions;
-	}
-	return _historyTextNoMonoOptions;
-}
-
-const TextParseOptions &itemTextNoMonoOptions(const HistoryItem *item) {
-	return itemTextNoMonoOptions(item->history(), item->author());
-}
-
 QString formatSizeText(qint64 size) {
 	if (size >= 1024 * 1024) { // more than 1 mb
 		qint64 sizeTenthMb = (size * 10 / (1024 * 1024));

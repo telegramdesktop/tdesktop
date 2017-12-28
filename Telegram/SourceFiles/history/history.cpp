@@ -39,6 +39,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "data/data_channel_admins.h"
+#include "ui/text_options.h"
 #include "core/crash_reports.h"
 
 namespace {
@@ -62,18 +63,13 @@ auto GlobalPinnedIndex = 0;
 
 HistoryItem *createUnsupportedMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from) {
 	auto text = TextWithEntities { lng_message_unsupported(lt_link, qsl("https://desktop.telegram.org")) };
-	TextUtilities::ParseEntities(text, _historyTextNoMonoOptions.flags);
+	TextUtilities::ParseEntities(text, Ui::ItemTextNoMonoOptions().flags);
 	text.entities.push_front(EntityInText(EntityInTextItalic, 0, text.text.size()));
 	flags &= ~MTPDmessage::Flag::f_post_author;
 	return HistoryMessage::create(history, msgId, flags, replyTo, viaBotId, date, from, QString(), text);
 }
 
 } // namespace
-
-void HistoryInit() {
-	HistoryInitMessages();
-	HistoryInitMedia();
-}
 
 History::History(const PeerId &peerId)
 : peer(App::peer(peerId))
@@ -364,7 +360,10 @@ bool History::updateSendActionNeedsAnimating(TimeMs ms, bool force) {
 		}
 		if (_sendActionString != newTypingString) {
 			_sendActionString = newTypingString;
-			_sendActionText.setText(st::dialogsTextStyle, _sendActionString, _textNameOptions);
+			_sendActionText.setText(
+				st::dialogsTextStyle,
+				_sendActionString,
+				Ui::NameTextOptions());
 		}
 	}
 	auto result = (!_typing.isEmpty() || !_sendActions.isEmpty());

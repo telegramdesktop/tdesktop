@@ -182,5 +182,3 @@ private:
 	static PreparedText GenerateText(not_null<History*> history, not_null<UserData*> inviter);
 
 };
-
-extern TextParseOptions _historySrvOptions;

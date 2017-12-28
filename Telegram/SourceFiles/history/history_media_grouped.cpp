@@ -26,6 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/storage_shared_media.h"
 #include "lang/lang_keys.h"
 #include "ui/grouped_layout.h"
+#include "ui/text_options.h"
 #include "styles/style_history.h"
 
 HistoryGroupedMedia::Element::Element(not_null<HistoryItem*> item)
@@ -441,7 +442,7 @@ void HistoryGroupedMedia::updateNeedBubbleState() {
 	_caption.setText(
 		st::messageTextStyle,
 		captionText.text + _parent->skipBlock(),
-		itemTextNoMonoOptions(_parent));
+		Ui::ItemTextNoMonoOptions(_parent));
 	_needBubble = computeNeedBubble();
 }
 

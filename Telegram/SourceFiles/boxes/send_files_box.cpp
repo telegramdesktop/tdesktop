@@ -32,6 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/grouped_layout.h"
+#include "ui/text_options.h"
 #include "media/media_clip_reader.h"
 #include "window/window_controller.h"
 #include "styles/style_history.h"
@@ -796,7 +797,10 @@ void SingleFilePreview::preparePreview(const Storage::PreparedFile &file) {
 	const auto filepath = file.path;
 	if (filepath.isEmpty()) {
 		auto filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
-		_nameText.setText(st::semiboldTextStyle, filename, _textNameOptions);
+		_nameText.setText(
+			st::semiboldTextStyle,
+			filename,
+			Ui::NameTextOptions());
 		_statusText = qsl("%1x%2").arg(preview.width()).arg(preview.height());
 		_statusWidth = qMax(_nameText.maxWidth(), st::normalFont->width(_statusText));
 		_fileIsImage = true;
@@ -823,7 +827,7 @@ void SingleFilePreview::preparePreview(const Storage::PreparedFile &file) {
 		_nameText.setText(
 			st::semiboldTextStyle,
 			nameString,
-			_textNameOptions);
+			Ui::NameTextOptions());
 		_statusText = formatSizeText(fileinfo.size());
 		_statusWidth = qMax(
 			_nameText.maxWidth(),

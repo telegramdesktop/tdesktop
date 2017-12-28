@@ -36,6 +36,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/labels.h"
 #include "ui/toast/toast.h"
 #include "ui/special_buttons.h"
+#include "ui/text_options.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
@@ -1378,8 +1379,15 @@ RevokePublicLinkBox::Inner::Inner(QWidget *parent, base::lambda<void()> revokeCa
 
 					auto row = ChatRow(peer);
 					row.peer = peer;
-					row.name.setText(st::contactsNameStyle, peer->name, _textNameOptions);
-					row.status.setText(st::defaultTextStyle, Messenger::Instance().createInternalLink(textcmdLink(1, peer->userName())), _textDlgOptions);
+					row.name.setText(
+						st::contactsNameStyle,
+						peer->name,
+						Ui::NameTextOptions());
+					row.status.setText(
+						st::defaultTextStyle,
+						Messenger::Instance().createInternalLink(
+							textcmdLink(1, peer->userName())),
+						Ui::DialogTextOptions());
 					_rows.push_back(std::move(row));
 				}
 			}

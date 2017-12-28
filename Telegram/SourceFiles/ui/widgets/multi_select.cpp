@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/effects/cross_animation.h"
+#include "ui/text_options.h"
 #include "lang/lang_keys.h"
 
 namespace Ui {
@@ -43,7 +44,7 @@ MultiSelect::Item::Item(const style::MultiSelectItem &st, uint64 id, const QStri
 }
 
 void MultiSelect::Item::setText(const QString &text) {
-	_text.setText(_st.style, text, _textNameOptions);
+	_text.setText(_st.style, text, NameTextOptions());
 	_width = _st.height + _st.padding.left() + _text.maxWidth() + _st.padding.right();
 	accumulate_min(_width, _st.maxWidth);
 }

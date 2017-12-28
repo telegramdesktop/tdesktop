@@ -39,6 +39,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/focus_persister.h"
 #include "ui/resize_area.h"
+#include "ui/text_options.h"
 #include "ui/toast/toast.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers.h"
@@ -1456,7 +1457,7 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 
 	auto sending = TextWithEntities();
 	auto left = TextWithEntities { textWithTags.text, ConvertTextTagsToEntities(textWithTags.tags) };
-	auto prepareFlags = itemTextOptions(history, App::self()).flags;
+	auto prepareFlags = Ui::ItemTextOptions(history, App::self()).flags;
 	TextUtilities::PrepareForSending(left, prepareFlags);
 
 	HistoryItem *lastMessage = nullptr;

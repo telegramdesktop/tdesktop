@@ -28,6 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_window.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/text_options.h"
 #include "data/data_drafts.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -1799,7 +1800,7 @@ void DialogsInner::searchInPeer(PeerData *peer, UserData *from) {
 			_searchInSavedText.setText(
 				st::msgNameStyle,
 				lang(lng_saved_messages),
-				_textDlgOptions);
+				Ui::DialogTextOptions());
 		}
 	} else {
 		_cancelSearchInPeer->hide();
@@ -1811,7 +1812,7 @@ void DialogsInner::searchInPeer(PeerData *peer, UserData *from) {
 		_searchFromUserText.setText(
 			st::dialogsSearchFromStyle,
 			fromUserText,
-			_textDlgOptions);
+			Ui::DialogTextOptions());
 		_cancelSearchFromUser->show();
 	} else {
 		_cancelSearchFromUser->hide();

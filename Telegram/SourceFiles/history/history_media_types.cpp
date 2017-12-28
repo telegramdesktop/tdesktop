@@ -41,43 +41,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "calls/calls_instance.h"
 #include "ui/empty_userpic.h"
 #include "ui/grouped_layout.h"
+#include "ui/text_options.h"
 
 namespace {
 
 constexpr auto kMaxGifForwardedBarLines = 4;
 constexpr auto kMaxOriginalEntryLines = 8192;
-
-TextParseOptions _webpageTitleOptions = {
-	TextParseMultiline | TextParseRichText, // flags
-	0, // maxw
-	0, // maxh
-	Qt::LayoutDirectionAuto, // dir
-};
-TextParseOptions _webpageDescriptionOptions = {
-	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText | TextParseMarkdown, // flags
-	0, // maxw
-	0, // maxh
-	Qt::LayoutDirectionAuto, // dir
-};
-TextParseOptions _twitterDescriptionOptions = {
-	TextParseLinks | TextParseMentions | TextTwitterMentions | TextParseHashtags | TextTwitterHashtags | TextParseMultiline | TextParseRichText, // flags
-	0, // maxw
-	0, // maxh
-	Qt::LayoutDirectionAuto, // dir
-};
-TextParseOptions _instagramDescriptionOptions = {
-	TextParseLinks | TextParseMentions | TextInstagramMentions | TextParseHashtags | TextInstagramHashtags | TextParseMultiline | TextParseRichText, // flags
-	0, // maxw
-	0, // maxh
-	Qt::LayoutDirectionAuto, // dir
-};
-
-inline void initTextOptions() {
-	_webpageTitleOptions.maxw = st::msgMaxWidth - st::msgPadding.left() - st::msgPadding.right() - st::webPageLeft;
-	_webpageTitleOptions.maxh = st::webPageTitleFont->height * 2;
-	_webpageDescriptionOptions.maxw = st::msgMaxWidth - st::msgPadding.left() - st::msgPadding.right() - st::webPageLeft;
-	_webpageDescriptionOptions.maxh = st::webPageDescriptionFont->height * 3;
-}
 
 bool needReSetInlineResultDocument(const MTPMessageMedia &media, DocumentData *existing) {
 	if (media.type() == mtpc_messageMediaDocument) {
@@ -120,10 +89,6 @@ int32 gifMaxStatusWidth(DocumentData *document) {
 }
 
 } // namespace
-
-void HistoryInitMedia() {
-	initTextOptions();
-}
 
 TextWithEntities WithCaptionSelectedText(
 		const QString &attachType,
@@ -263,7 +228,7 @@ HistoryPhoto::HistoryPhoto(
 		_caption.setText(
 			st::messageTextStyle,
 			caption + _parent->skipBlock(),
-			itemTextNoMonoOptions(_parent));
+			Ui::ItemTextNoMonoOptions(_parent));
 	}
 	init();
 }
@@ -864,7 +829,7 @@ HistoryVideo::HistoryVideo(
 		_caption.setText(
 			st::messageTextStyle,
 			caption + _parent->skipBlock(),
-			itemTextNoMonoOptions(_parent));
+			Ui::ItemTextNoMonoOptions(_parent));
 	}
 
 	setDocumentLinks(_data, parent);
@@ -1386,7 +1351,10 @@ HistoryDocument::HistoryDocument(
 	setStatusSize(FileStatusSizeReady);
 
 	if (auto captioned = Get<HistoryDocumentCaptioned>()) {
-		captioned->_caption.setText(st::messageTextStyle, caption + _parent->skipBlock(), itemTextNoMonoOptions(_parent));
+		captioned->_caption.setText(
+			st::messageTextStyle,
+			caption + _parent->skipBlock(),
+			Ui::ItemTextNoMonoOptions(_parent));
 	}
 }
 
@@ -2174,7 +2142,10 @@ HistoryGif::HistoryGif(
 	setStatusSize(FileStatusSizeReady);
 
 	if (!caption.isEmpty() && !_data->isVideoMessage()) {
-		_caption.setText(st::messageTextStyle, caption + _parent->skipBlock(), itemTextNoMonoOptions(_parent));
+		_caption.setText(
+			st::messageTextStyle,
+			caption + _parent->skipBlock(),
+			Ui::ItemTextNoMonoOptions(_parent));
 	}
 
 	_data->thumb->load();
@@ -3310,7 +3281,10 @@ HistoryContact::HistoryContact(not_null<HistoryItem*> parent, int32 userId, cons
 , _fname(first)
 , _lname(last)
 , _phone(App::formatPhone(phone)) {
-	_name.setText(st::semiboldTextStyle, lng_full_name(lt_first_name, first, lt_last_name, last).trimmed(), _textNameOptions);
+	_name.setText(
+		st::semiboldTextStyle,
+		lng_full_name(lt_first_name, first, lt_last_name, last).trimmed(),
+		Ui::NameTextOptions());
 	_phonew = st::normalFont->width(_phone);
 }
 
@@ -3701,12 +3675,6 @@ void HistoryWebPage::initDimensions() {
 		if (textFloatsAroundInfo) {
 			text.text += _parent->skipBlock();
 		}
-		auto opts = &_webpageDescriptionOptions;
-		if (_data->siteName == qstr("Twitter")) {
-			opts = &_twitterDescriptionOptions;
-		} else if (_data->siteName == qstr("Instagram")) {
-			opts = &_instagramDescriptionOptions;
-		}
 		if (isLogEntryOriginal()) {
 			// Fix layout for small bubbles (narrow media caption edit log entries).
 			_description = Text(st::minPhotoSize
@@ -3714,13 +3682,19 @@ void HistoryWebPage::initDimensions() {
 				- st::msgPadding.right()
 				- st::webPageLeft);
 		}
-		_description.setMarkedText(st::webPageDescriptionStyle, text, *opts);
+		_description.setMarkedText(
+			st::webPageDescriptionStyle,
+			text,
+			Ui::WebpageTextDescriptionOptions(_data->siteName));
 	}
 	if (_title.isEmpty() && !title.isEmpty()) {
 		if (textFloatsAroundInfo && _description.isEmpty()) {
 			title += _parent->skipBlock();
 		}
-		_title.setText(st::webPageTitleStyle, title, _webpageTitleOptions);
+		_title.setText(
+			st::webPageTitleStyle,
+			title,
+			Ui::WebpageTextTitleOptions());
 	}
 	if (!_siteNameWidth && !_data->siteName.isEmpty()) {
 		_siteNameWidth = st::webPageTitleFont->width(_data->siteName);
@@ -4263,11 +4237,17 @@ void HistoryGame::initDimensions() {
 			auto marked = TextWithEntities { text };
 			auto parseFlags = TextParseLinks | TextParseMultiline | TextParseRichText;
 			TextUtilities::ParseEntities(marked, parseFlags);
-			_description.setMarkedText(st::webPageDescriptionStyle, marked, _webpageDescriptionOptions);
+			_description.setMarkedText(
+				st::webPageDescriptionStyle,
+				marked,
+				Ui::WebpageTextDescriptionOptions());
 		}
 	}
 	if (_title.isEmpty() && !title.isEmpty()) {
-		_title.setText(st::webPageTitleStyle, title, _webpageTitleOptions);
+		_title.setText(
+			st::webPageTitleStyle,
+			title,
+			Ui::WebpageTextTitleOptions());
 	}
 
 	// init dimensions
@@ -4529,7 +4509,10 @@ TextSelection HistoryGame::adjustSelection(TextSelection selection, TextSelectTy
 }
 
 bool HistoryGame::consumeMessageText(const TextWithEntities &textWithEntities) {
-	_description.setMarkedText(st::webPageDescriptionStyle, textWithEntities, itemTextOptions(_parent));
+	_description.setMarkedText(
+		st::webPageDescriptionStyle,
+		textWithEntities,
+		Ui::ItemTextOptions(_parent));
 	return true;
 }
 
@@ -4702,7 +4685,10 @@ void HistoryInvoice::fillFromData(const MTPDmessageMediaInvoice &data) {
 	};
 	statusText.entities.push_back(EntityInText(EntityInTextBold, 0, statusText.text.size()));
 	statusText.text += ' ' + labelText().toUpper();
-	_status.setMarkedText(st::defaultTextStyle, statusText, itemTextOptions(_parent));
+	_status.setMarkedText(
+		st::defaultTextStyle,
+		statusText,
+		Ui::ItemTextOptions(_parent));
 
 	_receiptMsgId = data.has_receipt_msg_id() ? data.vreceipt_msg_id.v : 0;
 
@@ -4712,11 +4698,17 @@ void HistoryInvoice::fillFromData(const MTPDmessageMediaInvoice &data) {
 		auto marked = TextWithEntities { description };
 		auto parseFlags = TextParseLinks | TextParseMultiline | TextParseRichText;
 		TextUtilities::ParseEntities(marked, parseFlags);
-		_description.setMarkedText(st::webPageDescriptionStyle, marked, _webpageDescriptionOptions);
+		_description.setMarkedText(
+			st::webPageDescriptionStyle,
+			marked,
+			Ui::WebpageTextDescriptionOptions());
 	}
 	auto title = TextUtilities::SingleLine(qs(data.vtitle));
 	if (!title.isEmpty()) {
-		_title.setText(st::webPageTitleStyle, title, _webpageTitleOptions);
+		_title.setText(
+			st::webPageTitleStyle,
+			title,
+			Ui::WebpageTextTitleOptions());
 	}
 }
 
@@ -5031,13 +5023,19 @@ HistoryLocation::HistoryLocation(not_null<HistoryItem*> parent, const LocationCo
 , _description(st::msgMinWidth)
 , _link(std::make_shared<LocationClickHandler>(coords)) {
 	if (!title.isEmpty()) {
-		_title.setText(st::webPageTitleStyle, TextUtilities::Clean(title), _webpageTitleOptions);
+		_title.setText(
+			st::webPageTitleStyle,
+			TextUtilities::Clean(title),
+			Ui::WebpageTextTitleOptions());
 	}
 	if (!description.isEmpty()) {
 		auto marked = TextWithEntities { TextUtilities::Clean(description) };
 		auto parseFlags = TextParseLinks | TextParseMultiline | TextParseRichText;
 		TextUtilities::ParseEntities(marked, parseFlags);
-		_description.setMarkedText(st::webPageDescriptionStyle, marked, _webpageDescriptionOptions);
+		_description.setMarkedText(
+			st::webPageDescriptionStyle,
+			marked,
+			Ui::WebpageTextDescriptionOptions());
 	}
 }
 

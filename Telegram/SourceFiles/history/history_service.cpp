@@ -30,19 +30,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "auth_session.h"
 #include "window/notifications_manager.h"
 #include "storage/storage_shared_media.h"
+#include "ui/text_options.h"
 
 namespace {
 
 constexpr auto kPinnedMessageTextLimit = 16;
 
 } // namespace
-
-TextParseOptions _historySrvOptions = {
-	TextParseLinks | TextParseMentions | TextParseHashtags/* | TextParseMultiline*/ | TextParseRichText, // flags
-	0, // maxw
-	0, // maxh
-	Qt::LayoutDirectionAuto, // lang-dependent
-};
 
 void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	auto prepareChatAddUserText = [this](const MTPDmessageActionChatAddUser &action) {
@@ -495,7 +489,10 @@ QString HistoryService::inReplyText() const {
 }
 
 void HistoryService::setServiceText(const PreparedText &prepared) {
-	_text.setText(st::serviceTextStyle, prepared.text, _historySrvOptions);
+	_text.setText(
+		st::serviceTextStyle,
+		prepared.text,
+		Ui::ItemTextServiceOptions());
 	auto linkIndex = 0;
 	for_const (auto &link, prepared.links) {
 		// Link indices start with 1.

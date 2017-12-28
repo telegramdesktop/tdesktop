@@ -32,6 +32,9 @@ struct TrackState;
 namespace Clip {
 class Controller;
 } // namespace Clip
+namespace View {
+class GroupThumbs;
+} // namespace View
 } // namespace Media
 
 namespace Ui {
@@ -50,7 +53,7 @@ namespace Notify {
 struct PeerUpdate;
 } // namespace Notify
 
-class MediaView : public TWidget, private base::Subscriber, public RPCSender, public ClickHandlerHost {
+class MediaView : public TWidget, private base::Subscriber, public ClickHandlerHost {
 	Q_OBJECT
 
 public:
@@ -183,6 +186,7 @@ private:
 	void validateUserPhotos();
 	void handleUserPhotosUpdate(UserPhotosSlice &&update);
 
+	void refreshCaption(HistoryItem *item);
 	void refreshMediaViewer();
 	void refreshNavVisibility();
 
@@ -190,6 +194,7 @@ private:
 	void updateDocSize();
 	void updateControls();
 	void updateActions();
+	void resizeCenteredControls();
 
 	void displayPhoto(not_null<PhotoData*> photo, HistoryItem *item);
 	void displayDocument(DocumentData *document, HistoryItem *item);
@@ -225,9 +230,6 @@ private:
 	void radialStart();
 	TimeMs radialTimeShift() const;
 
-	void deletePhotosDone(const MTPVector<MTPlong> &result);
-	bool deletePhotosFail(const RPCError &error);
-
 	void updateHeader();
 	void snapXY();
 
@@ -245,6 +247,10 @@ private:
 	void updateOverRect(OverState state);
 	bool updateOverState(OverState newState);
 	float64 overLevel(OverState control) const;
+
+	bool groupThumbsDisplayed() const;
+	QRect groupThumbsRect() const;
+	QRect groupThumbsFullRect() const;
 
 	QBrush _transparentBrush;
 
@@ -272,6 +278,9 @@ private:
 	bool _fullScreenVideo = false;
 	int _fullScreenZoomCache = 0;
 
+	std::unique_ptr<Media::View::GroupThumbs> _groupThumbs;
+	int _groupThumbsLeft = 0;
+	int _groupThumbsTop = 0;
 	Text _caption;
 	QRect _captionRect;
 

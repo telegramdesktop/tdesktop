@@ -33,10 +33,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/multi_select.h"
-#include "history/history_media_types.h"
-#include "history/history_message.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/text_options.h"
+#include "history/history_media_types.h"
+#include "history/history_message.h"
 #include "window/themes/window_theme.h"
 #include "boxes/peer_list_box.h"
 #include "auth_session.h"
@@ -377,7 +378,7 @@ void ShareBox::Inner::updateChatName(
 		not_null<Chat*> chat,
 		not_null<PeerData*> peer) {
 	const auto text = peer->isSelf() ? lang(lng_saved_messages) : peer->name;
-	chat->name.setText(st::shareNameStyle, text, _textNameOptions);
+	chat->name.setText(st::shareNameStyle, text, Ui::NameTextOptions());
 }
 
 void ShareBox::Inner::repaintChatAtIndex(int index) {

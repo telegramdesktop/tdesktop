@@ -31,6 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/text_options.h"
 #include "storage/file_upload.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
@@ -1032,7 +1033,7 @@ void HistoryItem::drawInDialog(
 		Text &cache) const {
 	if (cacheFor != this) {
 		cacheFor = this;
-		cache.setText(st::dialogsTextStyle, inDialogsText(way), _textDlgOptions);
+		cache.setText(st::dialogsTextStyle, inDialogsText(way), Ui::DialogTextOptions());
 	}
 	if (r.width()) {
 		p.setTextPalette(active ? st::dialogsTextPaletteActive : (selected ? st::dialogsTextPaletteOver : st::dialogsTextPalette));

@@ -24,7 +24,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 struct HistoryMessageEdited;
 
-void HistoryInitMessages();
 base::lambda<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
 	const FullMsgId &msgId);
 MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer);

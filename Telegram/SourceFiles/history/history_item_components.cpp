@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/text_options.h"
 #include "history/history_service_layout.h"
 #include "history/history_message.h"
 #include "history/history_media.h"
@@ -63,7 +64,10 @@ void HistoryMessageSigned::refresh(const QString &date) {
 	if (timew + namew > st::maxSignatureSize) {
 		name = st::msgDateFont->elided(author, st::maxSignatureSize - timew);
 	}
-	signature.setText(st::msgDateTextStyle, name + time, _textNameOptions);
+	signature.setText(
+		st::msgDateTextStyle,
+		name + time,
+		Ui::NameTextOptions());
 }
 
 int HistoryMessageSigned::maxWidth() const {
@@ -72,7 +76,7 @@ int HistoryMessageSigned::maxWidth() const {
 
 void HistoryMessageEdited::refresh(const QString &date, bool displayed) {
 	const auto prefix = displayed ? (lang(lng_edited) + ' ') : QString();
-	text.setText(st::msgDateTextStyle, prefix + date, _textNameOptions);
+	text.setText(st::msgDateTextStyle, prefix + date, Ui::NameTextOptions());
 }
 
 int HistoryMessageEdited::maxWidth() const {
@@ -151,7 +155,10 @@ bool HistoryMessageReply::updateData(HistoryMessage *holder, bool force) {
 	}
 
 	if (replyToMsg) {
-		replyToText.setText(st::messageTextStyle, TextUtilities::Clean(replyToMsg->inReplyText()), _textDlgOptions);
+		replyToText.setText(
+			st::messageTextStyle,
+			TextUtilities::Clean(replyToMsg->inReplyText()),
+			Ui::DialogTextOptions());
 
 		updateName();
 
@@ -193,7 +200,7 @@ void HistoryMessageReply::updateName() const {
 		QString name = (replyToVia && replyToMsg->author()->isUser())
 			? replyToMsg->author()->asUser()->firstName
 			: App::peerName(replyToMsg->author());
-		replyToName.setText(st::fwdTextStyle, name, _textNameOptions);
+		replyToName.setText(st::fwdTextStyle, name, Ui::NameTextOptions());
 		replyToVersion = replyToMsg->author()->nameVersion;
 		bool hasPreview = replyToMsg->getMedia() ? replyToMsg->getMedia()->hasReplyPreview() : false;
 		int32 previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;
