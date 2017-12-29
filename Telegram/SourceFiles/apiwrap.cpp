@@ -38,7 +38,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/localstorage.h"
 #include "auth_session.h"
 #include "boxes/confirm_box.h"
-#include "window/themes/window_theme.h"
 #include "window/notifications_manager.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers.h"
@@ -144,64 +143,14 @@ ApiWrap::ApiWrap(not_null<AuthSession*> session)
 , _fileLoader(std::make_unique<TaskQueue>(kFileLoaderQueueStopTimeout)) {
 }
 
-void ApiWrap::start() {
-	Window::Theme::Background()->start();
-	requestAppChangelogs();
-}
-
-void ApiWrap::requestAppChangelogs() {
-	auto oldAppVersion = Local::oldMapVersion();
-	if (oldAppVersion > 0 && oldAppVersion < AppVersion) {
-		_changelogSubscription = subscribe(_session->data().moreChatsLoaded(), [this, oldAppVersion] {
-			auto oldVersionString = qsl("%1.%2.%3").arg(oldAppVersion / 1000000).arg((oldAppVersion % 1000000) / 1000).arg(oldAppVersion % 1000);
-			request(MTPhelp_GetAppChangelog(MTP_string(oldVersionString))).done([this, oldAppVersion](const MTPUpdates &result) {
-				applyUpdates(result);
-
-				auto resultEmpty = true;
-				switch (result.type()) {
-				case mtpc_updateShortMessage:
-				case mtpc_updateShortChatMessage:
-				case mtpc_updateShort: resultEmpty = false; break;
-				case mtpc_updatesCombined: resultEmpty = result.c_updatesCombined().vupdates.v.isEmpty(); break;
-				case mtpc_updates: resultEmpty = result.c_updates().vupdates.v.isEmpty(); break;
-				case mtpc_updatesTooLong:
-				case mtpc_updateShortSentMessage: LOG(("API Error: Bad updates type in app changelog.")); break;
-				}
-				if (resultEmpty) {
-					addLocalChangelogs(oldAppVersion);
-				}
-			}).send();
-			unsubscribe(base::take(_changelogSubscription));
-		});
-	}
-}
-
-void ApiWrap::addLocalChangelogs(int oldAppVersion) {
-	auto addedSome = false;
-	auto addLocalChangelog = [this, &addedSome](const QString &text) {
-		auto textWithEntities = TextWithEntities { text };
-		TextUtilities::ParseEntities(textWithEntities, TextParseLinks);
-		App::wnd()->serviceNotification(textWithEntities, MTP_messageMediaEmpty(), unixtime());
-		addedSome = true;
-	};
-	if (cAlphaVersion() || cBetaVersion()) {
-		auto addLocalAlphaChangelog = [this, oldAppVersion, addLocalChangelog](int changeVersion, const char *changes) {
-			if (oldAppVersion < changeVersion) {
-				auto changeVersionString = QString::number(changeVersion / 1000000) + '.' + QString::number((changeVersion % 1000000) / 1000) + ((changeVersion % 1000) ? ('.' + QString::number(changeVersion % 1000)) : QString());
-				auto text = qsl("New in version %1:\n\n").arg(changeVersionString) + QString::fromUtf8(changes).trimmed();
-				addLocalChangelog(text);
-			}
-		};
-		addLocalAlphaChangelog(1001024, "\xE2\x80\x94 Radically improved navigation. New side panel on the right with quick access to shared media and group members.\n\xE2\x80\x94 Pinned Messages. If you are a channel admin, pin messages to focus your subscribers\xE2\x80\x99 attention on important announcements.\n\xE2\x80\x94 Also supported clearing history in supergroups and added a host of minor improvements.");
-		addLocalAlphaChangelog(1001026, "\xE2\x80\x94 Admin badges in supergroup messages.\n\xE2\x80\x94 Fix crashing on launch in OS X 10.6.\n\xE2\x80\x94 Bug fixes and other minor improvements.");
-		addLocalAlphaChangelog(1001027, "\xE2\x80\x94 Saved Messages. Bookmark messages by forwarding them to \xE2\x80\x9C""Saved Messages\xE2\x80\x9D. Access them from the Chats list or from the side menu.");
-		addLocalAlphaChangelog(1002002, "\xE2\x80\x94 Grouped photos and videos are displayed as albums.");
-		addLocalAlphaChangelog(1002004, "\xE2\x80\x94 Group media into an album when sharing multiple photos and videos.\n\xE2\x80\x94 Bug fixes and other minor improvements.");
-	}
-	if (!addedSome) {
-		auto text = lng_new_version_wrap(lt_version, str_const_toString(AppVersionStr), lt_changes, lang(lng_new_version_minor), lt_link, qsl("https://desktop.telegram.org/changelog")).trimmed();
-		addLocalChangelog(text);
-	}
+void ApiWrap::requestChangelog(
+		const QString &sinceVersion,
+		base::lambda<void(const MTPUpdates &result)> callback) {
+	request(MTPhelp_GetAppChangelog(
+		MTP_string(sinceVersion)
+	)).done(
+		callback
+	).send();
 }
 
 void ApiWrap::applyUpdates(

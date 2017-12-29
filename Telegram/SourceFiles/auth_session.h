@@ -50,6 +50,10 @@ namespace ChatHelpers {
 enum class SelectorTab;
 } // namespace ChatHelpers
 
+namespace Core {
+class Changelogs;
+} // namespace Core
+
 class AuthSessionData final {
 public:
 	base::Variable<bool> &contactsLoaded() {
@@ -414,5 +418,6 @@ private:
 	const std::unique_ptr<Storage::Uploader> _uploader;
 	const std::unique_ptr<Storage::Facade> _storage;
 	const std::unique_ptr<Window::Notifications::System> _notifications;
+	const std::unique_ptr<Core::Changelogs> _changelogs;
 
 };

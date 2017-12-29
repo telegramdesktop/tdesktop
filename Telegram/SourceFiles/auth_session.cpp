@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "apiwrap.h"
 #include "messenger.h"
+#include "core/changelogs.h"
 #include "storage/file_download.h"
 #include "storage/file_upload.h"
 #include "storage/localstorage.h"
@@ -29,6 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/serialize_common.h"
 #include "history/history_item_components.h"
 #include "window/notifications_manager.h"
+#include "window/themes/window_theme.h"
 #include "platform/platform_specific.h"
 #include "calls/calls_instance.h"
 #include "window/section_widget.h"
@@ -408,8 +410,10 @@ AuthSession::AuthSession(UserId userId)
 , _downloader(std::make_unique<Storage::Downloader>())
 , _uploader(std::make_unique<Storage::Uploader>())
 , _storage(std::make_unique<Storage::Facade>())
-, _notifications(std::make_unique<Window::Notifications::System>(this)) {
+, _notifications(std::make_unique<Window::Notifications::System>(this))
+, _changelogs(Core::Changelogs::Create(this)) {
 	Expects(_userId != 0);
+
 	_saveDataTimer.setCallback([this] {
 		Local::writeUserSettings();
 	});
@@ -417,7 +421,7 @@ AuthSession::AuthSession(UserId userId)
 		_shouldLockAt = 0;
 		notifications().updateAll();
 	});
-	_api->start();
+	Window::Theme::Background()->start();
 }
 
 bool AuthSession::Exists() {

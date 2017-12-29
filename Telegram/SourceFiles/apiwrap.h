@@ -56,7 +56,6 @@ class ApiWrap : private MTP::Sender, private base::Subscriber {
 public:
 	ApiWrap(not_null<AuthSession*> session);
 
-	void start();
 	void applyUpdates(const MTPUpdates &updates, uint64 sentMessageRandomId = 0);
 
 	using RequestMessageDataCallback = base::lambda<void(ChannelData*, MsgId)>;
@@ -69,6 +68,10 @@ public:
 	void requestBots(not_null<ChannelData*> channel);
 	void requestAdmins(not_null<ChannelData*> channel);
 	void requestParticipantsCountDelayed(not_null<ChannelData*> channel);
+
+	void requestChangelog(
+		const QString &sinceVersion,
+		base::lambda<void(const MTPUpdates &result)> callback);
 
 	void requestChannelMembersForAdd(
 		not_null<ChannelData*> channel,
@@ -234,8 +237,6 @@ private:
 	using MessageDataRequests = QMap<MsgId, MessageDataRequest>;
 	using SharedMediaType = Storage::SharedMediaType;
 
-	void requestAppChangelogs();
-	void addLocalChangelogs(int oldAppVersion);
 	void updatesReceived(const MTPUpdates &updates);
 	void checkQuitPreventFinished();
 
@@ -344,7 +345,6 @@ private:
 		uint64 randomId);
 
 	not_null<AuthSession*> _session;
-	mtpRequestId _changelogSubscription = 0;
 
 	MessageDataRequests _messageDataRequests;
 	QMap<ChannelData*, MessageDataRequests> _channelMessageDataRequests;
