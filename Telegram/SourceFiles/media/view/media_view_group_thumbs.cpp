@@ -443,7 +443,8 @@ void GroupThumbs::fillDyingItems(const std::vector<not_null<Thumb*>> &old) {
 
 void GroupThumbs::markRestAsDying() {
 	_dying.reserve(_cache.size() - _items.size());
-	for (const auto &[key, thumb] : _cache) {
+	for (const auto &cacheItem : _cache) {
+		const auto &thumb = cacheItem.second;
 		const auto state = thumb->state();
 		if (state == Thumb::State::Unknown) {
 			markAsDying(thumb.get());
@@ -518,7 +519,8 @@ void GroupThumbs::markCacheStale() {
 	while (!_dying.empty()) {
 		_dying.pop_back();
 	}
-	for (const auto &[key, thumb] : _cache) {
+	for (const auto &cacheItem : _cache) {
+		const auto &thumb = cacheItem.second;
 		thumb->setState(Thumb::State::Unknown);
 	}
 }
@@ -617,7 +619,8 @@ void GroupThumbs::paint(
 
 ClickHandlerPtr GroupThumbs::getState(QPoint point) const {
 	point -= QPoint((_width / 2), st::mediaviewGroupPadding.top());
-	for (const auto &[key, thumb] : _cache) {
+	for (const auto &cacheItem : _cache) {
+		const auto &thumb = cacheItem.second;
 		if (auto link = thumb->getState(point)) {
 			return link;
 		}
