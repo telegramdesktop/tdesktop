@@ -1288,22 +1288,39 @@ void MediaView::refreshGroupThumbs() {
 		_groupThumbs->resizeToWidth(_groupThumbsAvailableWidth);
 	}
 	if (_groupThumbs && !existed) {
-		_groupThumbs->updateRequests(
-		) | rpl::start_with_next([this](QRect rect) {
-			const auto shift = (width() / 2);
-			_groupThumbsRect = QRect(
-				shift + rect.x(),
-				_groupThumbsTop,
-				rect.width(),
-				_groupThumbs->height());
-			update(_groupThumbsRect);
-		}, _groupThumbs->lifetime());
-		_groupThumbsRect = QRect(
-			_groupThumbsLeft,
-			_groupThumbsTop,
-			width() - 2 * _groupThumbsLeft,
-			height() - _groupThumbsTop);
+		initGroupThumbs();
 	}
+}
+
+void MediaView::initGroupThumbs() {
+	Expects(_groupThumbs != nullptr);
+
+	_groupThumbs->updateRequests(
+	) | rpl::start_with_next([this](QRect rect) {
+		const auto shift = (width() / 2);
+		_groupThumbsRect = QRect(
+			shift + rect.x(),
+			_groupThumbsTop,
+			rect.width(),
+			_groupThumbs->height());
+		update(_groupThumbsRect);
+	}, _groupThumbs->lifetime());
+
+	_groupThumbs->activateRequests(
+	) | rpl::start_with_next([this](Media::View::GroupThumbs::Key key) {
+		if (const auto photoId = base::get_if<PhotoId>(&key)) {
+			const auto photo = App::photo(*photoId);
+			moveToEntity({ photo, nullptr });
+		} else if (const auto itemId = base::get_if<FullMsgId>(&key)) {
+			moveToEntity(entityForItemId(*itemId));
+		}
+	}, _groupThumbs->lifetime());
+
+	_groupThumbsRect = QRect(
+		_groupThumbsLeft,
+		_groupThumbsTop,
+		width() - 2 * _groupThumbsLeft,
+		height() - _groupThumbsTop);
 }
 
 void MediaView::showPhoto(not_null<PhotoData*> photo, HistoryItem *context) {
@@ -2421,16 +2438,21 @@ MediaView::Entity MediaView::entityForSharedMedia(int index) const {
 		// Last peer photo.
 		return { *photo, nullptr };
 	} else if (const auto itemId = base::get_if<FullMsgId>(&value)) {
-		if (const auto item = App::histItemById(*itemId)) {
-			if (const auto media = item->getMedia()) {
-				if (const auto photo = media->getPhoto()) {
-					return { photo, item };
-				} else if (const auto document = media->getDocument()) {
-					return { document, item };
-				}
+		return entityForItemId(*itemId);
+	}
+	return { base::none, nullptr };
+}
+
+MediaView::Entity MediaView::entityForItemId(const FullMsgId &itemId) const {
+	if (const auto item = App::histItemById(itemId)) {
+		if (const auto media = item->getMedia()) {
+			if (const auto photo = media->getPhoto()) {
+				return { photo, item };
+			} else if (const auto document = media->getDocument()) {
+				return { document, item };
 			}
-			return { base::none, item };
 		}
+		return { base::none, item };
 	}
 	return { base::none, nullptr };
 }
@@ -2481,12 +2503,14 @@ bool MediaView::moveToNext(int delta) {
 		return false;
 	}
 	auto newIndex = *_index + delta;
-	auto entity = entityByIndex(newIndex);
+	return moveToEntity(entityByIndex(newIndex));
+}
+
+bool MediaView::moveToEntity(const Entity &entity, int preloadDelta) {
 	if (!entity.data && !entity.item) {
 		return false;
 	}
-	_index = newIndex;
-	if (auto item = entity.item) {
+	if (const auto item = entity.item) {
 		setContext(item);
 	} else if (_peer) {
 		setContext(_peer);
@@ -2501,7 +2525,7 @@ bool MediaView::moveToNext(int delta) {
 	} else {
 		displayDocument(nullptr, entity.item);
 	}
-	preloadData(delta);
+	preloadData(preloadDelta);
 	return true;
 }
 
@@ -2695,7 +2719,12 @@ void MediaView::updateOver(QPoint pos) {
 		auto textState = _caption.getState(pos - _captionRect.topLeft(), _captionRect.width());
 		lnk = textState.link;
 		lnkhost = this;
+	} else if (_groupThumbs && _groupThumbsRect.contains(pos)) {
+		const auto point = pos - QPoint(_groupThumbsLeft, _groupThumbsTop);
+		lnk = _groupThumbs->getState(point);
+		lnkhost = this;
 	}
+
 
 	// retina
 	if (pos.x() == width()) {

@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "history/history_item_components.h"
+#include "base/weak_ptr.h"
 
 class SharedMediaWithLastSlice;
 class UserPhotosSlice;
@@ -28,8 +29,10 @@ class UserPhotosSlice;
 namespace Media {
 namespace View {
 
-class GroupThumbs {
+class GroupThumbs : public base::has_weak_ptr {
 public:
+	using Key = base::variant<PhotoId, FullMsgId>;
+
 	static void Refresh(
 		std::unique_ptr<GroupThumbs> &instance,
 		const SharedMediaWithLastSlice &slice,
@@ -49,9 +52,14 @@ public:
 	void checkForAnimationStart();
 
 	void paint(Painter &p, int x, int y, int outerWidth, TimeMs ms);
+	ClickHandlerPtr getState(QPoint point) const;
 
 	rpl::producer<QRect> updateRequests() const {
 		return _updateRequests.events();
+	}
+
+	rpl::producer<Key> activateRequests() const {
+		return _activateStream.events();
 	}
 
 	rpl::lifetime &lifetime() {
@@ -59,7 +67,6 @@ public:
 	}
 
 	using Context = base::optional_variant<PeerId, MessageGroupId>;
-	using Key = base::variant<PhotoId, FullMsgId>;
 
 	GroupThumbs(Context context);
 	~GroupThumbs();
@@ -98,10 +105,11 @@ private:
 	base::flat_map<Key, std::unique_ptr<Thumb>> _cache;
 	int _width = 0;
 	int _limit = 0;
-	rpl::event_stream<QRect> _updateRequests;
-	rpl::lifetime _lifetime;
-
 	QRect _updatedRect;
+
+	rpl::event_stream<QRect> _updateRequests;
+	rpl::event_stream<Key> _activateStream;
+	rpl::lifetime _lifetime;
 
 };
 

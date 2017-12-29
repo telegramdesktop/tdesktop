@@ -105,7 +105,7 @@ public:
 		Dying,
 	};
 
-	Thumb(Key key, ImagePtr image);
+	Thumb(Key key, ImagePtr image, base::lambda<void()> handler);
 
 	int leftToUpdate() const;
 	int rightToUpdate() const;
@@ -118,6 +118,7 @@ public:
 	bool removed() const;
 
 	void paint(Painter &p, int x, int y, int outerWidth, float64 progress);
+	ClickHandlerPtr getState(QPoint point) const;
 
 private:
 	QSize wantedPixSize() const;
@@ -126,30 +127,33 @@ private:
 	int currentWidth() const;
 	int finalLeft() const;
 	int finalWidth() const;
-	void toggle(bool visible);
 	void animateTo(int left, int width);
 
+	ClickHandlerPtr _link;
 	const Key _key;
 	ImagePtr _image;
 	State _state = State::Alive;
 	QPixmap _full;
 	int _fullWidth = 0;
-	bool _hiding = true;
+	bool _hiding = false;
 
 	anim::value _left = { 0. };
 	anim::value _width = { 0. };
-	anim::value _opacity = { 0. };
+	anim::value _opacity = { 0., 1. };
 
 };
 
-GroupThumbs::Thumb::Thumb(Key key, ImagePtr image)
+GroupThumbs::Thumb::Thumb(
+	Key key,
+	ImagePtr image,
+	base::lambda<void()> handler)
 : _key(key)
 , _image(image) {
+	_link = std::make_shared<LambdaClickHandler>(std::move(handler));
 	_fullWidth = std::min(
 		wantedPixSize().width(),
 		st::mediaviewGroupWidthMax);
 	validateImage();
-	toggle(true);
 }
 
 QSize GroupThumbs::Thumb::wantedPixSize() const {
@@ -229,21 +233,19 @@ void GroupThumbs::Thumb::setState(State state) {
 			_left = anim::value(-_fullWidth / 2);
 			_width = anim::value(_fullWidth);
 		} else {
-			toggle(true);
+			_opacity.start(1.);
 		}
+		_hiding = false;
 		animateTo(-_fullWidth / 2, _fullWidth);
 	} else if (_state == State::Alive) {
-		toggle(true);
+		_opacity.start(0.7);
+		_hiding = false;
 	} else if (_state == State::Dying) {
-		toggle(false);
+		_opacity.start(0.);
+		_hiding = true;
 		_left.restart();
 		_width.restart();
 	}
-}
-
-void GroupThumbs::Thumb::toggle(bool visible) {
-	_hiding = !visible;
-	_opacity.start(_hiding ? 0. : 1.);
 }
 
 void GroupThumbs::Thumb::animateTo(int left, int width) {
@@ -322,6 +324,17 @@ void GroupThumbs::Thumb::paint(
 		p.drawPixmap(to, _full, from);
 	}
 	p.setOpacity(opacity);
+}
+
+ClickHandlerPtr GroupThumbs::Thumb::getState(QPoint point) const {
+	if (_state != State::Alive) {
+		return nullptr;
+	}
+	const auto left = finalLeft();
+	const auto width = finalWidth();
+	return QRect(left, 0, width, st::mediaviewGroupHeight).contains(point)
+		? _link
+		: nullptr;
 }
 
 GroupThumbs::GroupThumbs(Context context)
@@ -486,7 +499,12 @@ auto GroupThumbs::createThumb(Key key) -> std::unique_ptr<Thumb> {
 
 auto GroupThumbs::createThumb(Key key, ImagePtr image)
 -> std::unique_ptr<Thumb> {
-	return std::make_unique<Thumb>(key, image);
+	const auto weak = base::make_weak(this);
+	return std::make_unique<Thumb>(key, image, [=] {
+		if (const auto strong = weak.get()) {
+			strong->_activateStream.fire_copy(key);
+		}
+	});
 }
 
 auto GroupThumbs::validateCacheEntry(Key key) -> not_null<Thumb*> {
@@ -595,6 +613,16 @@ void GroupThumbs::paint(
 			++i;
 		}
 	}
+}
+
+ClickHandlerPtr GroupThumbs::getState(QPoint point) const {
+	point -= QPoint((_width / 2), st::mediaviewGroupPadding.top());
+	for (const auto &[key, thumb] : _cache) {
+		if (auto link = thumb->getState(point)) {
+			return link;
+		}
+	}
+	return nullptr;
 }
 
 void GroupThumbs::countUpdatedRect() {

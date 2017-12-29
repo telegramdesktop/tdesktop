@@ -161,6 +161,8 @@ private:
 	Entity entityForUserPhotos(int index) const;
 	Entity entityForSharedMedia(int index) const;
 	Entity entityByIndex(int index) const;
+	Entity entityForItemId(const FullMsgId &itemId) const;
+	bool moveToEntity(const Entity &entity, int preloadDelta = 0);
 	void setContext(base::optional_variant<
 		not_null<HistoryItem*>,
 		not_null<PeerData*>> context);
@@ -250,8 +252,8 @@ private:
 	bool updateOverState(OverState newState);
 	float64 overLevel(OverState control) const;
 
-	QRect groupThumbsFullRect() const;
 	void checkGroupThumbsAnimation();
+	void initGroupThumbs();
 
 	QBrush _transparentBrush;
 
