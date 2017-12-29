@@ -2467,6 +2467,24 @@ void InputArea::Inner::contextMenuEvent(QContextMenuEvent *e) {
 	}
 }
 
+bool InputArea::Inner::canInsertFromMimeData(const QMimeData *source) const {
+	if (source
+		&& f()->_mimeDataHook
+		&& f()->_mimeDataHook(source, MimeAction::Check)) {
+		return true;
+	}
+	return QTextEdit::canInsertFromMimeData(source);
+}
+
+void InputArea::Inner::insertFromMimeData(const QMimeData *source) {
+	if (source
+		&& f()->_mimeDataHook
+		&& f()->_mimeDataHook(source, MimeAction::Insert)) {
+		return;
+	}
+	return QTextEdit::insertFromMimeData(source);
+}
+
 void InputArea::resizeEvent(QResizeEvent *e) {
 	refreshPlaceholder();
 	_inner->setGeometry(rect().marginsRemoved(_st.textMargins));

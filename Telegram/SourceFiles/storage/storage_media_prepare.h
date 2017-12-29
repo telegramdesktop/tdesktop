@@ -71,6 +71,7 @@ struct PreparedList {
 	static PreparedList Reordered(
 		PreparedList &&list,
 		std::vector<int> order);
+	void mergeToEnd(PreparedList &&other);
 
 	Error error = Error::None;
 	QString errorData;
@@ -87,5 +88,6 @@ PreparedList PrepareMediaFromImage(
 	QImage &&image,
 	QByteArray &&content,
 	int previewWidth);
+int MaxAlbumItems();
 
 } // namespace Storage

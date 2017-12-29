@@ -104,7 +104,6 @@ private:
 	std::vector<not_null<Thumb*>> _dying;
 	base::flat_map<Key, std::unique_ptr<Thumb>> _cache;
 	int _width = 0;
-	int _limit = 0;
 	QRect _updatedRect;
 
 	rpl::event_stream<QRect> _updateRequests;

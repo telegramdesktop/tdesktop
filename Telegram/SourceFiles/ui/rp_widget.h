@@ -59,6 +59,10 @@ inline Widget *CreateChild(
 	return new Widget(parent, std::forward<Args>(args)...);
 }
 
+inline void DestroyChild(QWidget *child) {
+	delete child;
+}
+
 template <typename Value>
 inline void AttachAsChild(not_null<QObject*> parent, Value &&value) {
 	using PlainValue = std::decay_t<Value>;

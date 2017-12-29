@@ -287,5 +287,34 @@ PreparedList PreparedList::Reordered(
 	return result;
 }
 
+void PreparedList::mergeToEnd(PreparedList &&other) {
+	if (error != Error::None) {
+		return;
+	}
+	if (other.error != Error::None) {
+		error = other.error;
+		errorData = other.errorData;
+		return;
+	}
+	allFilesForCompress = allFilesForCompress && other.allFilesForCompress;
+	files.reserve(files.size() + other.files.size());
+	for (auto &file : other.files) {
+		files.push_back(std::move(file));
+	}
+	if (files.size() > 1 && files.size() <= kMaxAlbumCount) {
+		const auto badIt = ranges::find(
+			files,
+			PreparedFile::AlbumType::None,
+			[](const PreparedFile &file) { return file.type; });
+		albumIsPossible = (badIt == files.end());
+	} else {
+		albumIsPossible = false;
+	}
+}
+
+int MaxAlbumItems() {
+	return kMaxAlbumCount;
+}
+
 } // namespace Storage
 

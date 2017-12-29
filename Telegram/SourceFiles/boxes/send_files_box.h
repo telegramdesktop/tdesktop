@@ -83,6 +83,7 @@ private:
 		not_null<Ui::ScrollArea*> wrap,
 		not_null<AlbumPreview*> content);
 
+	void preparePreview();
 	void prepareSingleFilePreview();
 	void prepareAlbumPreview();
 	void applyAlbumOrder();
@@ -93,6 +94,9 @@ private:
 	void setupTitleText();
 	void updateBoxSize();
 	void updateControlsGeometry();
+
+	bool canAddFiles(not_null<const QMimeData*> data) const;
+	bool addFiles(not_null<const QMimeData*> data);
 
 	QString _titleText;
 	int _titleHeight = 0;

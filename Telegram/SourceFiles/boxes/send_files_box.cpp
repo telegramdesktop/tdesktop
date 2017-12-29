@@ -1329,8 +1329,7 @@ SendFilesBox::SendFilesBox(
 	Storage::PreparedList &&list,
 	CompressConfirm compressed)
 : _list(std::move(list))
-, _compressConfirm(compressed)
-, _caption(this, st::confirmCaptionArea, FieldPlaceholder(_list)) {
+, _compressConfirm(compressed) {
 }
 
 void SendFilesBox::initPreview(rpl::producer<int> desiredPreviewHeight) {
@@ -1398,7 +1397,7 @@ void SendFilesBox::setupShadows(
 	const auto topShadow = Ui::CreateChild<Ui::FadeShadow>(this);
 	const auto bottomShadow = Ui::CreateChild<Ui::FadeShadow>(this);
 	wrap->geometryValue(
-	) | rpl::start_with_next([=](const QRect &geometry) {
+	) | rpl::start_with_next_done([=](const QRect &geometry) {
 		topShadow->resizeToWidth(geometry.width());
 		topShadow->move(
 			geometry.x(),
@@ -1407,7 +1406,11 @@ void SendFilesBox::setupShadows(
 		bottomShadow->move(
 			geometry.x(),
 			geometry.y() + geometry.height() - st::lineWidth);
+	}, [t = make_weak(topShadow), b = make_weak(bottomShadow)] {
+		Ui::DestroyChild(t.data());
+		Ui::DestroyChild(b.data());
 	}, topShadow->lifetime());
+
 	topShadow->toggleOn(wrap->scrollTopValue() | rpl::map(_1 > 0));
 	bottomShadow->toggleOn(rpl::combine(
 		wrap->scrollTopValue(),
@@ -1422,17 +1425,7 @@ void SendFilesBox::prepare() {
 	_send = addButton(langFactory(lng_send_button), [this] { send(); });
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 	initSendWay();
-	if (_list.files.size() == 1) {
-		prepareSingleFilePreview();
-	} else {
-		if (_list.albumIsPossible) {
-			prepareAlbumPreview();
-		} else {
-			auto desiredPreviewHeight = rpl::single(0);
-			initPreview(std::move(desiredPreviewHeight));
-		}
-	}
-
+	preparePreview();
 	subscribe(boxClosing, [this] {
 		if (!_confirmed && _cancelledCallback) {
 			_cancelledCallback();
@@ -1473,6 +1466,26 @@ void SendFilesBox::initSendWay() {
 			: SendFilesWay::Photos;
 	}();
 	_sendWay = std::make_shared<Ui::RadioenumGroup<SendFilesWay>>(value);
+	_sendWay->setChangedCallback([this](SendFilesWay value) {
+		applyAlbumOrder();
+		if (_albumPreview) {
+			_albumPreview->setSendWay(value);
+		}
+		setInnerFocus();
+	});
+}
+
+void SendFilesBox::preparePreview() {
+	if (_list.files.size() == 1) {
+		prepareSingleFilePreview();
+	} else {
+		if (_list.albumIsPossible) {
+			prepareAlbumPreview();
+		} else {
+			auto desiredPreviewHeight = rpl::single(0);
+			initPreview(std::move(desiredPreviewHeight));
+		}
+	}
 }
 
 void SendFilesBox::setupControls() {
@@ -1482,15 +1495,19 @@ void SendFilesBox::setupControls() {
 }
 
 void SendFilesBox::setupSendWayControls() {
+	_sendAlbum.destroy();
+	_sendPhotos.destroy();
+	_sendFiles.destroy();
 	if (_compressConfirm == CompressConfirm::None) {
 		return;
 	}
 	const auto addRadio = [&](
-		object_ptr<Ui::Radioenum<SendFilesWay>> &button,
-		SendFilesWay value,
-		const QString &text) {
+			object_ptr<Ui::Radioenum<SendFilesWay>> &button,
+			SendFilesWay value,
+			const QString &text) {
 		const auto &style = st::defaultBoxCheckbox;
 		button.create(this, _sendWay, value, text, style);
+		button->show();
 	};
 	if (_list.albumIsPossible) {
 		addRadio(_sendAlbum, SendFilesWay::Album, lang(lng_send_album));
@@ -1507,17 +1524,12 @@ void SendFilesBox::setupSendWayControls() {
 	addRadio(_sendFiles, SendFilesWay::Files, (_list.files.size() == 1)
 		? lang(lng_send_file)
 		: lng_send_files(lt_count, _list.files.size()));
-	_sendWay->setChangedCallback([this](SendFilesWay value) {
-		if (_albumPreview) {
-			applyAlbumOrder();
-			_albumPreview->setSendWay(value);
-		}
-		setInnerFocus();
-	});
 }
 
 void SendFilesBox::applyAlbumOrder() {
-	Expects(_albumPreview != nullptr);
+	if (!_albumPreview) {
+		return;
+	}
 
 	const auto order = _albumPreview->takeOrder();
 	const auto isDefault = [&] {
@@ -1536,10 +1548,12 @@ void SendFilesBox::applyAlbumOrder() {
 }
 
 void SendFilesBox::setupCaption() {
-	if (!_caption) {
+	if (_caption) {
+		_caption->setPlaceholder(FieldPlaceholder(_list));
 		return;
 	}
 
+	_caption.create(this, st::confirmCaptionArea, FieldPlaceholder(_list));
 	_caption->setMaxLength(MaxPhotoCaption);
 	_caption->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
 	connect(_caption, &Ui::InputArea::resized, this, [this] {
@@ -1552,12 +1566,89 @@ void SendFilesBox::setupCaption() {
 	connect(_caption, &Ui::InputArea::cancelled, this, [this] {
 		closeBox();
 	});
+	_caption->setMimeDataHook([this](
+			not_null<const QMimeData*> data,
+			Ui::InputArea::MimeAction action) {
+		if (action == Ui::InputArea::MimeAction::Check) {
+			return canAddFiles(data);
+		} else if (action == Ui::InputArea::MimeAction::Insert) {
+			return addFiles(data);
+		}
+		Unexpected("action in MimeData hook.");
+	});
 }
 
 void SendFilesBox::captionResized() {
 	updateBoxSize();
 	updateControlsGeometry();
 	update();
+}
+
+bool SendFilesBox::canAddFiles(not_null<const QMimeData*> data) const {
+	auto files = 0;
+	if (data->hasUrls()) {
+		for (const auto &url : data->urls()) {
+			if (url.isLocalFile()) {
+				++files;
+			}
+		}
+	} else if (data->hasImage()) {
+		++files;
+	}
+	if (_list.files.size() + files > Storage::MaxAlbumItems()) {
+		return false;
+	} else if (_list.files.size() > 1 && !_albumPreview) {
+		return false;
+	} else if (_list.files.front().type
+		== Storage::PreparedFile::AlbumType::None) {
+		return false;
+	}
+	return true;
+}
+
+bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {
+	auto list = [&] {
+		if (data->hasUrls()) {
+			return Storage::PrepareMediaList(
+				data->urls(),
+				st::sendMediaPreviewSize);
+		} else if (data->hasImage()) {
+			auto image = qvariant_cast<QImage>(data->imageData());
+			if (!image.isNull()) {
+				return Storage::PrepareMediaFromImage(
+					std::move(image),
+					QByteArray(),
+					st::sendMediaPreviewSize);
+			}
+		}
+		return Storage::PreparedList(
+			Storage::PreparedList::Error::EmptyFile,
+			QString());
+	}();
+	if (_list.files.size() + list.files.size() > Storage::MaxAlbumItems()) {
+		return false;
+	} else if (list.error != Storage::PreparedList::Error::None) {
+		return false;
+	} else if (list.files.size() != 1 && !list.albumIsPossible) {
+		return false;
+	} else if (list.files.front().type
+		== Storage::PreparedFile::AlbumType::None) {
+		return false;
+	} else if (_list.files.size() > 1 && !_albumPreview) {
+		return false;
+	}
+	applyAlbumOrder();
+	delete base::take(_preview);
+	_albumPreview = nullptr;
+
+	if (_list.files.size() == 1
+		&& _sendWay->value() == SendFilesWay::Photos) {
+		_sendWay->setValue(SendFilesWay::Album);
+	}
+	_list.mergeToEnd(std::move(list));
+	preparePreview();
+	updateControlsGeometry();
+	return true;
 }
 
 void SendFilesBox::setupTitleText() {
@@ -1681,9 +1772,7 @@ void SendFilesBox::send(bool ctrlShiftEnter) {
 		}
 	}
 
-	if (_albumPreview) {
-		applyAlbumOrder();
-	}
+	applyAlbumOrder();
 	_confirmed = true;
 	if (_confirmedCallback) {
 		auto caption = _caption

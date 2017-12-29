@@ -387,6 +387,17 @@ public:
 		_inner->clearFocus();
 	}
 
+	enum class MimeAction {
+		Check,
+		Insert,
+	};
+	using MimeDataHook = base::lambda<bool(
+		not_null<const QMimeData*> data,
+		MimeAction action)>;
+	void setMimeDataHook(MimeDataHook hook) {
+		_mimeDataHook = std::move(hook);
+	}
+
 private slots:
 	void onTouchTimer();
 
@@ -441,6 +452,8 @@ private:
 		void keyPressEvent(QKeyEvent *e) override;
 		void contextMenuEvent(QContextMenuEvent *e) override;
 
+		bool canInsertFromMimeData(const QMimeData *source) const override;
+		void insertFromMimeData(const QMimeData *source) override;
 		QMimeData *createMimeDataFromSelection() const override;
 
 	private:
@@ -504,6 +517,7 @@ private:
 	QPoint _touchStart;
 
 	bool _correcting = false;
+	MimeDataHook _mimeDataHook;
 
 };
 
