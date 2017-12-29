@@ -83,6 +83,7 @@ private:
 		not_null<Ui::ScrollArea*> wrap,
 		not_null<AlbumPreview*> content);
 
+	void refreshAlbumMediaCount();
 	void preparePreview();
 	void prepareSingleFilePreview();
 	void prepareAlbumPreview();
@@ -103,6 +104,7 @@ private:
 
 	Storage::PreparedList _list;
 
+	CompressConfirm _compressConfirmInitial = CompressConfirm::None;
 	CompressConfirm _compressConfirm = CompressConfirm::None;
 
 	base::lambda<void(

@@ -109,6 +109,9 @@
               'OptimizeReferences': '2',
               'LinkTimeCodeGeneration': '1',       # /LTCG
             },
+            'VCLibrarianTool': {
+              'LinkTimeCodeGeneration': 'true',    # /LTCG
+            },
           },
         },
       },
