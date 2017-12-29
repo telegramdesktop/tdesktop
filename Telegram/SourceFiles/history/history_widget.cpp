@@ -4097,7 +4097,9 @@ bool HistoryWidget::confirmSendingFiles(
 	const auto urls = data->urls();
 	for (const auto &url : urls) {
 		if (url.isLocalFile()) {
-			confirmSendingFiles(urls, compressed, insertTextOnCancel);
+			// Don't insert list of filenames on cancel.
+			const auto emptyTextOnCancel = QString();
+			confirmSendingFiles(urls, compressed, emptyTextOnCancel);
 			return true;
 		}
 	}
