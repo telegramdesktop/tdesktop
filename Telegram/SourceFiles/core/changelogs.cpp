@@ -65,7 +65,18 @@ std::map<int, const char*> AlphaLogs() {
 		"when sharing multiple photos and videos.\n"
 
 		"\xE2\x80\x94 Bug fixes and other minor improvements."
-	}
+	},
+	{
+		1002005,
+		"\xE2\x80\x94 When viewing a photo from an album, "
+		"you'll see other pictures from the same group "
+		"as thumbnails in the lower part of the screen.\n"
+
+		"\xE2\x80\x94 When composing an album paste "
+		"additional media from the clipboard.\n"
+
+		"\xE2\x80\x94 Bug fixes and other minor improvements."
+	},
 	};
 }
 
