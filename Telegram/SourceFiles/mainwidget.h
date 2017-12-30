@@ -191,6 +191,7 @@ public:
 		not_null<PeerData*> peer,
 		const QString &url,
 		const QString &text);
+	void replyToItem(not_null<HistoryItem*> item);
 	bool onInlineSwitchChosen(const PeerId &peer, const QString &botAndQuery);
 	bool onSendPaths(const PeerId &peer);
 	void onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data);

@@ -169,6 +169,8 @@ public:
 		if (isAttachedToPrevious()) return false;
 		return true;
 	}
+	bool hasFastReply() const;
+	bool displayFastReply() const;
 	bool displayForwardedFrom() const;
 	bool uploading() const;
 	bool displayRightAction() const override;
@@ -360,17 +362,19 @@ private:
 	bool displayFastShare() const;
 	bool displayGoToOriginal() const;
 
-	QString _timeText;
-	int _timeWidth = 0;
-
-	mutable ClickHandlerPtr _rightActionLink;
-	mutable int32 _fromNameVersion = 0;
-
 	struct CreateConfig;
 	void createComponentsHelper(MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, const QString &postAuthor, const MTPReplyMarkup &markup);
 	void createComponents(const CreateConfig &config);
 
 	void updateMediaInBubbleState();
 	void updateAdminBadgeState();
+	ClickHandlerPtr fastReplyLink() const;
+
+	QString _timeText;
+	int _timeWidth = 0;
+
+	mutable ClickHandlerPtr _rightActionLink;
+	mutable ClickHandlerPtr _fastReplyLink;
+	mutable int32 _fromNameVersion = 0;
 
 };

@@ -683,6 +683,14 @@ bool MainWidget::shareUrl(
 	return true;
 }
 
+void MainWidget::replyToItem(not_null<HistoryItem*> item) {
+	if (_history->peer() == item->history()->peer
+		|| _history->peer() == item->history()->peer->migrateTo()) {
+		App::contextItem(item);
+		_history->onReplyToMessage();
+	}
+}
+
 bool MainWidget::onInlineSwitchChosen(const PeerId &peer, const QString &botAndQuery) {
 	PeerData *p = App::peer(peer);
 	if (!peer || !p->canWrite()) {
