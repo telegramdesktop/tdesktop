@@ -204,7 +204,7 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 		if (radial) {
 			p.setOpacity(1);
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-			_animation->radial.draw(p, rinner, st::msgFileRadialLine, st::msgInBg);
+			_animation->radial.draw(p, rinner, st::msgFileRadialLine, st::historyFileThumbRadialFg);
 		}
 	}
 
@@ -745,7 +745,7 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 
 	if (radial) {
 		auto radialCircle = inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine));
-		_animation->radial.draw(p, radialCircle, st::msgFileRadialLine, st::msgInBg);
+		_animation->radial.draw(p, radialCircle, st::msgFileRadialLine, st::historyFileInRadialFg);
 	}
 
 	auto icon = ([showPause, radial, document] {
@@ -1253,7 +1253,7 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 		if (radial) {
 			p.setOpacity(1);
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-			_radial->draw(p, rinner, st::msgFileRadialLine, st::msgInBg);
+			_radial->draw(p, rinner, st::msgFileRadialLine, st::historyFileThumbRadialFg);
 		}
 	}
 

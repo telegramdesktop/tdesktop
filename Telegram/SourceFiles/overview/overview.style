@@ -79,14 +79,14 @@ overviewFileExtTop: 24px;
 overviewFileExtFg: windowFgActive;
 overviewFileExtFont: font(18px semibold);
 
-overviewSongPause: icon {{ "playlist_pause", msgInBg }};
-overviewSongPauseSelected: icon {{ "playlist_pause", msgInBgSelected }};
-overviewSongPlay: icon {{ "playlist_play", msgInBg }};
-overviewSongPlaySelected: icon {{ "playlist_play", msgInBgSelected }};
-overviewSongCancel: icon {{ "playlist_cancel", msgInBg }};
-overviewSongCancelSelected: icon {{ "playlist_cancel", msgInBgSelected }};
-overviewSongDownload: icon {{ "playlist_download", msgInBg }};
-overviewSongDownloadSelected: icon {{ "playlist_download", msgInBgSelected }};
+overviewSongPause: icon {{ "playlist_pause", historyFileInIconFg }};
+overviewSongPauseSelected: icon {{ "playlist_pause", historyFileInIconFgSelected }};
+overviewSongPlay: icon {{ "playlist_play", historyFileInIconFg }};
+overviewSongPlaySelected: icon {{ "playlist_play", historyFileInIconFgSelected }};
+overviewSongCancel: icon {{ "playlist_cancel", historyFileInIconFg }};
+overviewSongCancelSelected: icon {{ "playlist_cancel", historyFileInIconFgSelected }};
+overviewSongDownload: icon {{ "playlist_download", historyFileInIconFg }};
+overviewSongDownloadSelected: icon {{ "playlist_download", historyFileInIconFgSelected }};
 overviewFileLayout: OverviewFileLayout {
 	maxWidth: 520px;
 	songPadding: margins(17px, 7px, 10px, 6px);

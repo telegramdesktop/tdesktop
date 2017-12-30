@@ -620,7 +620,7 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 
 		if (radial) {
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-			auto &bg = selected ? st::msgInBgSelected : st::msgInBg;
+			auto &bg = selected ? st::historyFileInRadialFgSelected : st::historyFileInRadialFg;
 			_radial->draw(p, rinner, st::msgFileRadialLine, bg);
 		}
 
@@ -879,7 +879,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 
 			if (radial) {
 				auto rinner = inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine));
-				auto &bg = selected ? st::msgInBgSelected : st::msgInBg;
+				auto &bg = selected ? st::historyFileInRadialFgSelected : st::historyFileInRadialFg;
 				_radial->draw(p, rinner, st::msgFileRadialLine, bg);
 			}
 
