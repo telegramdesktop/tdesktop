@@ -23,7 +23,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "storage/localstorage.h"
 #include "platform/platform_file_utilities.h"
-#include "base/task_queue.h"
 #include "messenger.h"
 
 bool filedialogGetSaveFile(
@@ -99,13 +98,13 @@ QString filedialogNextFilename(
 namespace File {
 
 void OpenEmailLink(const QString &email) {
-	base::TaskQueue::Main().Put([email] {
+	crl::on_main([=] {
 		Platform::File::UnsafeOpenEmailLink(email);
 	});
 }
 
 void OpenWith(const QString &filepath, QPoint menuPosition) {
-	base::TaskQueue::Main().Put([filepath, menuPosition] {
+	crl::on_main([=] {
 		if (!Platform::File::UnsafeShowOpenWithDropdown(filepath, menuPosition)) {
 			if (!Platform::File::UnsafeShowOpenWith(filepath)) {
 				Platform::File::UnsafeLaunch(filepath);
@@ -115,13 +114,13 @@ void OpenWith(const QString &filepath, QPoint menuPosition) {
 }
 
 void Launch(const QString &filepath) {
-	base::TaskQueue::Main().Put([filepath] {
+	crl::on_main([=] {
 		Platform::File::UnsafeLaunch(filepath);
 	});
 }
 
 void ShowInFolder(const QString &filepath) {
-	base::TaskQueue::Main().Put([filepath] {
+	crl::on_main([=] {
 		Platform::File::UnsafeShowInFolder(filepath);
 	});
 }
@@ -147,7 +146,7 @@ void GetOpenPath(
 		const QString &filter,
 		base::lambda<void(OpenResult &&result)> callback,
 		base::lambda<void()> failed) {
-	base::TaskQueue::Main().Put([=] {
+	crl::on_main([=] {
 		auto files = QStringList();
 		auto remoteContent = QByteArray();
 		const auto success = Platform::FileDialog::Get(
@@ -178,7 +177,7 @@ void GetOpenPaths(
 		const QString &filter,
 		base::lambda<void(OpenResult &&result)> callback,
 		base::lambda<void()> failed) {
-	base::TaskQueue::Main().Put([=] {
+	crl::on_main([=] {
 		auto files = QStringList();
 		auto remoteContent = QByteArray();
 		const auto success = Platform::FileDialog::Get(
@@ -206,7 +205,7 @@ void GetWritePath(
 		const QString &initialPath,
 		base::lambda<void(QString &&result)> callback,
 		base::lambda<void()> failed) {
-	base::TaskQueue::Main().Put([=] {
+	crl::on_main([=] {
 		auto file = QString();
 		if (filedialogGetSaveFile(file, caption, filter, initialPath)) {
 			if (callback) {
@@ -223,7 +222,7 @@ void GetFolder(
 		const QString &initialPath,
 		base::lambda<void(QString &&result)> callback,
 		base::lambda<void()> failed) {
-	base::TaskQueue::Main().Put([=] {
+	crl::on_main([=] {
 		auto files = QStringList();
 		auto remoteContent = QByteArray();
 		const auto success = Platform::FileDialog::Get(

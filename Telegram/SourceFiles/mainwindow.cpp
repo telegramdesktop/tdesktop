@@ -51,7 +51,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_warning.h"
 #include "window/window_main_menu.h"
-#include "base/task_queue.h"
 #include "auth_session.h"
 #include "window/window_controller.h"
 
@@ -535,24 +534,23 @@ void MainWindow::themeUpdated(const Window::Theme::BackgroundUpdate &data) {
 			_testingThemeWarning->setGeometry(rect());
 			_testingThemeWarning->setHiddenCallback([this] { _testingThemeWarning.destroyDelayed(); });
 		}
-
-		base::TaskQueue::Main().Put(base::lambda_guarded(this, [this] {
+		crl::on_main(this, [=] {
 			if (_testingThemeWarning) {
 				_testingThemeWarning->showAnimated();
 			}
-		}));
+		});
 	} else if (data.type == Type::RevertingTheme || data.type == Type::ApplyingTheme) {
 		if (_testingThemeWarning) {
 			if (_testingThemeWarning->isHidden()) {
 				_testingThemeWarning.destroy();
 			} else {
-				base::TaskQueue::Main().Put(base::lambda_guarded(this, [this] {
+				crl::on_main(this, [=] {
 					if (_testingThemeWarning) {
 						_testingThemeWarning->hideAnimated();
 						_testingThemeWarning = nullptr;
 					}
 					setInnerFocus();
-				}));
+				});
 			}
 		}
 	}

@@ -37,7 +37,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "observer_peer.h"
 #include "platform/platform_specific.h"
-#include "base/task_queue.h"
 #include "window/main_window.h"
 
 namespace Calls {
@@ -425,10 +424,8 @@ void Panel::showControls() {
 
 void Panel::destroyDelayed() {
 	hide();
-	base::TaskQueue::Main().Put([weak = QPointer<Panel>(this)] {
-		if (weak) {
-			delete weak.data();
-		}
+	crl::on_main(this, [=] {
+		delete this;
 	});
 }
 

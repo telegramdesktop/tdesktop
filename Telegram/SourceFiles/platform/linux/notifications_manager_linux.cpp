@@ -24,7 +24,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "platform/linux/linux_libnotify.h"
 #include "platform/linux/linux_libs.h"
 #include "lang/lang_keys.h"
-#include "base/task_queue.h"
 
 namespace Platform {
 namespace Notifications {
@@ -203,10 +202,9 @@ private:
 		MsgId msgId = 0;
 	};
 	static void performOnMainQueue(NotificationDataStruct *data, base::lambda_once<void(Manager *manager)> task) {
-		base::TaskQueue::Main().Put([weak = data->weak, task = std::move(task)]() mutable {
-			if (auto strong = weak.lock()) {
-				task(*strong);
-			}
+		const auto weak = data->weak;
+		crl::on_main(weak, [=, task = std::move(task)]() mutable {
+			task(*weak.lock());
 		});
 	}
 	static void notificationDataFree(gpointer data) {

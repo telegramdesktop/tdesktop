@@ -36,7 +36,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_media_types.h"
 #include "window/themes/window_theme_preview.h"
 #include "window/window_peer_menu.h"
-#include "base/task_queue.h"
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "messenger.h"
@@ -1708,38 +1707,43 @@ void MediaView::initThemePreview() {
 	auto &location = _doc->location();
 	if (!location.isEmpty() && location.accessEnable()) {
 		_themePreviewShown = true;
-		auto path = _doc->location().name();
-		auto id = _themePreviewId = rand_value<uint64>();
-		auto ready = base::lambda_guarded(this, [this, id](std::unique_ptr<Window::Theme::Preview> result) {
-			if (id != _themePreviewId) {
-				return;
-			}
-			_themePreviewId = 0;
-			_themePreview = std::move(result);
-			if (_themePreview) {
-				_themeApply.create(this, langFactory(lng_theme_preview_apply), st::themePreviewApplyButton);
-				_themeApply->show();
-				_themeApply->setClickedCallback([this] {
-					auto preview = std::move(_themePreview);
-					close();
-					Window::Theme::Apply(std::move(preview));
-				});
-				_themeCancel.create(this, langFactory(lng_cancel), st::themePreviewCancelButton);
-				_themeCancel->show();
-				_themeCancel->setClickedCallback([this] { close(); });
-				updateControls();
-			}
-			update();
-		});
 
 		Window::Theme::CurrentData current;
 		current.backgroundId = Window::Theme::Background()->id();
 		current.backgroundImage = Window::Theme::Background()->pixmap();
 		current.backgroundTiled = Window::Theme::Background()->tile();
+
+		const auto path = _doc->location().name();
+		const auto id = _themePreviewId = rand_value<uint64>();
+		const auto weak = make_weak(this);
 		crl::async([=] {
 			auto preview = Window::Theme::GeneratePreview(path, current);
-			crl::on_main([ready, result = std::move(preview)]() mutable {
-				ready(std::move(result));
+			crl::on_main(weak, [=, result = std::move(preview)]() mutable {
+				if (id != _themePreviewId) {
+					return;
+				}
+				_themePreviewId = 0;
+				_themePreview = std::move(result);
+				if (_themePreview) {
+					_themeApply.create(
+						this,
+						langFactory(lng_theme_preview_apply),
+						st::themePreviewApplyButton);
+					_themeApply->show();
+					_themeApply->setClickedCallback([this] {
+						auto preview = std::move(_themePreview);
+						close();
+						Window::Theme::Apply(std::move(preview));
+					});
+					_themeCancel.create(
+						this,
+						langFactory(lng_cancel),
+						st::themePreviewCancelButton);
+					_themeCancel->show();
+					_themeCancel->setClickedCallback([this] { close(); });
+					updateControls();
+				}
+				update();
 			});
 		});
 		location.accessDisable();

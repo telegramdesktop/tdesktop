@@ -25,7 +25,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "platform/win/windows_event_filter.h"
 #include "platform/win/windows_dlls.h"
 #include "mainwindow.h"
-#include "base/task_queue.h"
 
 #include <Shobjidl.h>
 #include <shellapi.h>
@@ -226,10 +225,9 @@ public:
 	~ToastEventHandler() = default;
 
 	void performOnMainQueue(base::lambda_once<void(Manager *manager)> task) {
-		base::TaskQueue::Main().Put([weak = _weak, task = std::move(task)]() mutable {
-			if (auto strong = weak.lock()) {
-				task(*strong);
-			}
+		const auto weak = _weak;
+		crl::on_main(weak, [=, task = std::move(task)]() mutable {
+			task(*weak.lock());
 		});
 	}
 

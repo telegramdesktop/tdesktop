@@ -35,7 +35,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/multi_select.h"
 #include "base/parse_helper.h"
-#include "base/task_queue.h"
 #include "base/zlib_help.h"
 #include "ui/toast/toast.h"
 #include "core/file_utilities.h"
@@ -718,7 +717,9 @@ Editor::Editor(QWidget*, const QString &path)
 
 		// This could be from inner->_context observable notification.
 		// We should not destroy it while iterating in subscribers.
-		base::TaskQueue::Main().Put(base::lambda_guarded(this, [this] { closeEditor(); }));
+		crl::on_main(this, [=] {
+			closeEditor();
+		});
 	});
 	_inner->setFocusCallback([this] {
 		App::CallDelayed(2 * st::boxDuration, this, [this] { _select->setInnerFocus(); });

@@ -31,7 +31,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_location_manager.h"
 #include "storage/localstorage.h"
 #include "passcodewidget.h"
-#include "base/task_queue.h"
 #include "core/crash_reports.h"
 
 #include <Shobjidl.h>

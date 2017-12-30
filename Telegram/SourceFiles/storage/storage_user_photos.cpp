@@ -20,8 +20,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "storage/storage_user_photos.h"
 
-#include "base/task_queue.h"
-
 namespace Storage {
 
 void UserPhotos::List::addNew(PhotoId photoId) {

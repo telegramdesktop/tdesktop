@@ -111,10 +111,8 @@ void ActivateWindowDelayed(not_null<Window::Controller*> controller) {
 	const auto window = controller->window();
 	const auto weak = make_weak(window.get());
 	window->activateWindow();
-	crl::on_main([=] {
-		if (weak) {
-			weak->activateWindow();
-		}
+	crl::on_main(window, [=] {
+		window->activateWindow();
 	});
 }
 

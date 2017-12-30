@@ -21,7 +21,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/storage_shared_media.h"
 
 #include <rpl/map.h>
-#include "base/task_queue.h"
 
 namespace Storage {
 

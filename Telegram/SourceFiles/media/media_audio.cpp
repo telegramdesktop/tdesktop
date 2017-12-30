@@ -26,7 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/media_audio_loaders.h"
 #include "media/media_audio_track.h"
 #include "platform/platform_audio.h"
-#include "base/task_queue.h"
+#include "messenger.h"
 
 #include <AL/al.h>
 #include <AL/alc.h>
@@ -230,27 +230,35 @@ bool AttachToDevice() {
 		emit m->faderOnTimer();
 	}
 
-	base::TaskQueue::Main().Put([] {
-		Current().reattachTracks();
+	crl::on_main([] {
+		if (Messenger::InstancePointer()) {
+			Current().reattachTracks();
+		}
 	});
 	return true;
 }
 
 void ScheduleDetachFromDeviceSafe() {
-	base::TaskQueue::Main().Put([] {
-		Current().scheduleDetachFromDevice();
+	crl::on_main([] {
+		if (Messenger::InstancePointer()) {
+			Current().scheduleDetachFromDevice();
+		}
 	});
 }
 
 void ScheduleDetachIfNotUsedSafe() {
-	base::TaskQueue::Main().Put([] {
-		Current().scheduleDetachIfNotUsed();
+	crl::on_main([] {
+		if (Messenger::InstancePointer()) {
+			Current().scheduleDetachIfNotUsed();
+		}
 	});
 }
 
 void StopDetachIfNotUsedSafe() {
-	base::TaskQueue::Main().Put([] {
-		Current().stopDetachIfNotUsed();
+	crl::on_main([] {
+		if (Messenger::InstancePointer()) {
+			Current().stopDetachIfNotUsed();
+		}
 	});
 }
 

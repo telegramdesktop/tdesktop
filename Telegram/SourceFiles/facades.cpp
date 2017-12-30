@@ -35,7 +35,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/layer_widget.h"
 #include "lang/lang_keys.h"
 #include "base/observer.h"
-#include "base/task_queue.h"
 #include "history/history_media.h"
 #include "styles/style_history.h"
 
@@ -508,20 +507,7 @@ void WorkingDirReady() {
 	}
 }
 
-object_ptr<SingleQueuedInvokation> MainThreadTaskHandler = { nullptr };
-
-void MainThreadTaskAdded() {
-	if (!started()) {
-		return;
-	}
-
-	MainThreadTaskHandler->call();
-}
-
 void start() {
-	MainThreadTaskHandler.create([] {
-		base::TaskQueue::ProcessMainTasks();
-	});
 	SandboxData = std::make_unique<internal::Data>();
 }
 
@@ -531,7 +517,6 @@ bool started() {
 
 void finish() {
 	SandboxData.reset();
-	MainThreadTaskHandler.destroy();
 }
 
 uint64 UserTag() {

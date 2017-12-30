@@ -280,6 +280,55 @@ weak_ptr<T> make_weak(const std::weak_ptr<T> &value) {
 
 } // namespace base
 
+namespace crl {
+
+template <typename T, typename Enable>
+struct guard_traits;
+
+template <typename T>
+struct guard_traits<base::weak_ptr<T>, void> {
+	static base::weak_ptr<T> create(const base::weak_ptr<T> &value) {
+		return value;
+	}
+	static base::weak_ptr<T> create(base::weak_ptr<T> &&value) {
+		return std::move(value);
+	}
+	static bool check(const base::weak_ptr<T> &guard) {
+		return guard.get() != nullptr;
+	}
+
+};
+
+template <typename T>
+struct guard_traits<
+	T*,
+	std::enable_if_t<
+		std::is_base_of_v<base::has_weak_ptr, std::remove_cv_t<T>>>> {
+	static base::weak_ptr<T> create(T *value) {
+		return value;
+	}
+	static bool check(const base::weak_ptr<T> &guard) {
+		return guard.get() != nullptr;
+	}
+
+};
+
+template <typename T>
+struct guard_traits<
+	gsl::not_null<T*>,
+	std::enable_if_t<
+		std::is_base_of_v<base::has_weak_ptr, std::remove_cv_t<T>>>> {
+	static base::weak_ptr<T> create(gsl::not_null<T*> value) {
+		return value.get();
+	}
+	static bool check(const base::weak_ptr<T> &guard) {
+		return guard.get() != nullptr;
+	}
+
+};
+
+} // namespace crl
+
 #ifdef QT_VERSION
 template <typename Lambda>
 inline void InvokeQueued(const base::has_weak_ptr *context, Lambda &&lambda) {

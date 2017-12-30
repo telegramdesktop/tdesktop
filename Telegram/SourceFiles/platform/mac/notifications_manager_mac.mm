@@ -24,7 +24,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "platform/mac/mac_utilities.h"
 #include "styles/style_window.h"
 #include "mainwindow.h"
-#include "base/task_queue.h"
 #include "base/variant.h"
 
 #include <thread>
@@ -87,7 +86,7 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 	auto notificationManagerId = managerIdObject ? [managerIdObject unsignedLongLongValue] : 0ULL;
 	DEBUG_LOG(("Received notification with instance %1, mine: %2").arg(notificationManagerId).arg(_managerId));
 	if (notificationManagerId != _managerId) { // other app instance notification
-		base::TaskQueue::Main().Put([] {
+		crl::on_main([] {
 			// Usually we show and activate main window when the application
 			// is activated (receives applicationDidBecomeActive: notification).
 			//
@@ -112,17 +111,15 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 	NSNumber *msgObject = [notificationUserInfo objectForKey:@"msgid"];
 	auto notificationMsgId = msgObject ? [msgObject intValue] : 0;
 	if (notification.activationType == NSUserNotificationActivationTypeReplied) {
-		auto notificationReply = QString::fromUtf8([[[notification response] string] UTF8String]);
-		base::TaskQueue::Main().Put([manager = _manager, notificationPeerId, notificationMsgId, notificationReply] {
-			if (manager) {
-				manager->notificationReplied(notificationPeerId, notificationMsgId, notificationReply);
-			}
+		const auto notificationReply = QString::fromUtf8([[[notification response] string] UTF8String]);
+		const auto manager = _manager;
+		crl::on_main(manager, [=] {
+			manager->notificationReplied(notificationPeerId, notificationMsgId, notificationReply);
 		});
 	} else if (notification.activationType == NSUserNotificationActivationTypeContentsClicked) {
-		base::TaskQueue::Main().Put([manager = _manager, notificationPeerId, notificationMsgId] {
-			if (manager) {
-				manager->notificationActivated(notificationPeerId, notificationMsgId);
-			}
+		const auto manager = _manager;
+		crl::on_main(manager, [=] {
+			manager->notificationActivated(notificationPeerId, notificationMsgId);
 		});
 	}
 
@@ -214,9 +211,9 @@ Manager::Private::Private(Manager *manager)
 	subscribe(Global::RefWorkMode(), [this](DBIWorkMode mode) {
 		// We need to update the delegate _after_ the tray icon change was done in Qt.
 		// Because Qt resets the delegate.
-		base::TaskQueue::Main().Put(base::lambda_guarded(this, [this] {
+		crl::on_main(this, [=] {
 			updateDelegate();
-		}));
+		});
 	});
 }
 

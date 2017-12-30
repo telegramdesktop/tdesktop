@@ -52,6 +52,7 @@
       '<(crl_src_loc)/common/crl_common_list.h',
       '<(crl_src_loc)/common/crl_common_on_main.cpp',
       '<(crl_src_loc)/common/crl_common_on_main.h',
+      '<(crl_src_loc)/common/crl_common_on_main_guarded.h',
       '<(crl_src_loc)/common/crl_common_queue.cpp',
       '<(crl_src_loc)/common/crl_common_queue.h',
       '<(crl_src_loc)/common/crl_common_sync.h',
