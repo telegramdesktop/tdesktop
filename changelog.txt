@@ -1,3 +1,7 @@
+1.2.6 (30.12.17)
+
+- Grouped Photos. Group media into an album when sharing multiple photos and videos. Choose the exact order of media you send.
+
 1.2.5 alpha (29.12.17)
 
 - When viewing a photo from an album, you'll see other pictures from the same group as thumbnails in the lower part of the screen.
