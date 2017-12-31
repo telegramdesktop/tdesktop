@@ -140,7 +140,7 @@ void HistoryFileMedia::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool 
 		if (active && !dataLoaded()) {
 			ensureAnimation();
 			_animation->a_thumbOver.start([this] { thumbAnimationCallback(); }, 0., 1., st::msgFileOverDuration);
-		} else if (!active && _animation) {
+		} else if (!active && _animation && !dataLoaded()) {
 			_animation->a_thumbOver.start([this] { thumbAnimationCallback(); }, 1., 0., st::msgFileOverDuration);
 		}
 	}
