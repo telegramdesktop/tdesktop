@@ -50,9 +50,9 @@ struct WebPageData {
 		const TextWithEntities &description,
 		DocumentData *document,
 		PhotoData *photo,
-		int32 duration,
+		int duration,
 		const QString &author,
-		int32 pendingTill)
+		int pendingTill)
 	: id(id)
 	, type(type)
 	, url(url)
@@ -72,6 +72,19 @@ struct WebPageData {
 		if (photo) photo->forget();
 	}
 
+	bool applyChanges(
+		const QString &newType,
+		const QString &newUrl,
+		const QString &newDisplayUrl,
+		const QString &newSiteName,
+		const QString &newTitle,
+		const TextWithEntities &newDescription,
+		PhotoData *newPhoto,
+		DocumentData *newDocument,
+		int newDuration,
+		const QString &newAuthor,
+		int newPendingTill);
+
 	WebPageId id = 0;
 	WebPageType type = WebPageArticle;
 	QString url;
@@ -79,10 +92,11 @@ struct WebPageData {
 	QString siteName;
 	QString title;
 	TextWithEntities description;
-	int32 duration = 0;
+	int duration = 0;
 	QString author;
 	PhotoData *photo = nullptr;
 	DocumentData *document = nullptr;
-	int32 pendingTill = 0;
+	int pendingTill = 0;
+	int version = 0;
 
 };

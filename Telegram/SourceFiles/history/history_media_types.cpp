@@ -3567,21 +3567,6 @@ TextWithEntities HistoryCall::selectedText(TextSelection selection) const {
 
 namespace {
 
-QString siteNameFromUrl(const QString &url) {
-	QUrl u(url);
-	QString pretty = u.isValid() ? u.toDisplayString() : url;
-	QRegularExpressionMatch m = QRegularExpression(qsl("^[a-zA-Z0-9]+://")).match(pretty);
-	if (m.hasMatch()) pretty = pretty.mid(m.capturedLength());
-	int32 slash = pretty.indexOf('/');
-	if (slash > 0) pretty = pretty.mid(0, slash);
-	QStringList components = pretty.split('.', QString::SkipEmptyParts);
-	if (components.size() >= 2) {
-		components = components.mid(components.size() - 2);
-		return components.at(0).at(0).toUpper() + components.at(0).mid(1) + '.' + components.at(1);
-	}
-	return QString();
-}
-
 int32 articleThumbWidth(PhotoData *thumb, int32 height) {
 	int32 w = thumb->medium->width(), h = thumb->medium->height();
 	return qMax(qMin(height * w / h, height), 1);
@@ -3623,6 +3608,18 @@ void HistoryWebPage::initDimensions() {
 		_maxw = _minh = _height = 0;
 		return;
 	}
+	const auto versionChanged = (_dataVersion != _data->version);
+	if (versionChanged) {
+		_dataVersion = _data->version;
+		_openl = nullptr;
+		if (_attach) {
+			_attach->detachFromParent();
+			_attach = nullptr;
+		}
+		_title = Text(st::msgMinWidth - st::webPageLeft);
+		_description = Text(st::msgMinWidth - st::webPageLeft);
+		_siteNameWidth = 0;
+	}
 	auto lineHeight = unitedLineHeight();
 
 	if (!_openl && !_data->url.isEmpty()) {
@@ -3631,9 +3628,6 @@ void HistoryWebPage::initDimensions() {
 
 	// init layout
 	auto title = TextUtilities::SingleLine(_data->title.isEmpty() ? _data->author : _data->title);
-	if (!_data->description.text.isEmpty() && title.isEmpty() && _data->siteName.isEmpty() && !_data->url.isEmpty()) {
-		_data->siteName = siteNameFromUrl(_data->url);
-	}
 	if (!_data->document && _data->photo && _data->type != WebPagePhoto && _data->type != WebPageVideo) {
 		if (_data->type == WebPageProfile) {
 			_asArticle = true;
@@ -3650,7 +3644,7 @@ void HistoryWebPage::initDimensions() {
 	}
 
 	// init attach
-	if (!_asArticle && !_attach) {
+	if (!_attach && !_asArticle) {
 		if (_data->document) {
 			if (_data->document->sticker()) {
 				_attach = std::make_unique<HistorySticker>(_parent, _data->document);
@@ -3663,6 +3657,9 @@ void HistoryWebPage::initDimensions() {
 			}
 		} else if (_data->photo) {
 			_attach = std::make_unique<HistoryPhoto>(_parent, _data->photo, QString());
+		}
+		if (_attach) {
+			_attach->attachToParent();
 		}
 	}
 

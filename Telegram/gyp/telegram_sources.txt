@@ -187,6 +187,7 @@
 <(src_loc)/data/data_types.h
 <(src_loc)/data/data_user_photos.cpp
 <(src_loc)/data/data_user_photos.h
+<(src_loc)/data/data_web_page.cpp
 <(src_loc)/data/data_web_page.h
 <(src_loc)/dialogs/dialogs_common.h
 <(src_loc)/dialogs/dialogs_indexed_list.cpp

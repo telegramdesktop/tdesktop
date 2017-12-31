@@ -133,13 +133,52 @@ namespace App {
 	PeerData *peerByName(const QString &username);
 	QString peerName(const PeerData *peer, bool forDialogs = false);
 	PhotoData *photo(const PhotoId &photo);
-	PhotoData *photoSet(const PhotoId &photo, PhotoData *convert, const uint64 &access, int32 date, const ImagePtr &thumb, const ImagePtr &medium, const ImagePtr &full);
+	PhotoData *photoSet(
+		const PhotoId &photo,
+		PhotoData *convert,
+		const uint64 &access,
+		int32 date,
+		const ImagePtr &thumb,
+		const ImagePtr &medium,
+		const ImagePtr &full);
 	DocumentData *document(const DocumentId &document);
-	DocumentData *documentSet(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 version, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size, const StorageImageLocation &thumbLocation);
+	DocumentData *documentSet(
+		const DocumentId &document,
+		DocumentData *convert,
+		const uint64 &access,
+		int32 version,
+		int32 date,
+		const QVector<MTPDocumentAttribute> &attributes,
+		const QString &mime,
+		const ImagePtr &thumb,
+		int32 dc,
+		int32 size,
+		const StorageImageLocation &thumbLocation);
 	WebPageData *webPage(const WebPageId &webPage);
-	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const TextWithEntities &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill);
+	WebPageData *webPageSet(
+		const WebPageId &webPage,
+		WebPageData *convert,
+		const QString &type,
+		const QString &url,
+		const QString &displayUrl,
+		const QString &siteName,
+		const QString &title,
+		const TextWithEntities &description,
+		PhotoData *photo,
+		DocumentData *document,
+		int duration,
+		const QString &author,
+		int pendingTill);
 	GameData *game(const GameId &game);
-	GameData *gameSet(const GameId &game, GameData *convert, const uint64 &accessHash, const QString &shortName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc);
+	GameData *gameSet(
+		const GameId &game,
+		GameData *convert,
+		const uint64 &accessHash,
+		const QString &shortName,
+		const QString &title,
+		const QString &description,
+		PhotoData *photo,
+		DocumentData *document);
 	LocationData *location(const LocationCoords &coords);
 	void forgetMedia();
 

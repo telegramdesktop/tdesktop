@@ -1290,7 +1290,23 @@ namespace {
 	}
 
 	WebPageData *feedWebPage(const MTPDwebPagePending &webpage, WebPageData *convert) {
-		return App::webPageSet(webpage.vid.v, convert, QString(), QString(), QString(), QString(), QString(), TextWithEntities(), nullptr, nullptr, 0, QString(), webpage.vdate.v);
+		constexpr auto kDefaultPendingTimeout = 60;
+		return App::webPageSet(
+			webpage.vid.v,
+			convert,
+			QString(),
+			QString(),
+			QString(),
+			QString(),
+			QString(),
+			TextWithEntities(),
+			nullptr,
+			nullptr,
+			0,
+			QString(),
+			webpage.vdate.v
+				? webpage.vdate.v
+				: (unixtime() + kDefaultPendingTimeout));
 	}
 
 	WebPageData *feedWebPage(const MTPWebPage &webpage) {
@@ -1603,9 +1619,9 @@ namespace {
 			const TextWithEntities &description,
 			PhotoData *photo,
 			DocumentData *document,
-			int32 duration,
+			int duration,
 			const QString &author,
-			int32 pendingTill) {
+			int pendingTill) {
 		if (convert) {
 			if (convert->id != webPage) {
 				const auto i = webPagesData.find(convert->id);
@@ -1614,23 +1630,18 @@ namespace {
 				}
 				convert->id = webPage;
 			}
-			if ((convert->url.isEmpty() && !url.isEmpty()) || (convert->pendingTill && convert->pendingTill != pendingTill && pendingTill >= -1)) {
-				convert->type = toWebPageType(type);
-				convert->url = TextUtilities::Clean(url);
-				convert->displayUrl = TextUtilities::Clean(displayUrl);
-				convert->siteName = TextUtilities::Clean(siteName);
-				convert->title = TextUtilities::SingleLine(title);
-				convert->description = description;
-				convert->photo = photo;
-				convert->document = document;
-				convert->duration = duration;
-				convert->author = TextUtilities::Clean(author);
-				if (convert->pendingTill > 0 && pendingTill <= 0) {
-					Auth().api().clearWebPageRequest(convert);
-				}
-				convert->pendingTill = pendingTill;
-				if (App::main()) App::main()->webPageUpdated(convert);
-			}
+			convert->applyChanges(
+				type,
+				url,
+				displayUrl,
+				siteName,
+				title,
+				description,
+				photo,
+				document,
+				duration,
+				author,
+				pendingTill);
 		}
 		const auto i = webPagesData.constFind(webPage);
 		WebPageData *result;
@@ -1638,7 +1649,19 @@ namespace {
 			if (convert) {
 				result = convert;
 			} else {
-				result = new WebPageData(webPage, toWebPageType(type), url, displayUrl, siteName, title, description, document, photo, duration, author, (pendingTill >= -1) ? pendingTill : -1);
+				result = new WebPageData(
+					webPage,
+					toWebPageType(type),
+					url,
+					displayUrl,
+					siteName,
+					title,
+					description,
+					document,
+					photo,
+					duration,
+					author,
+					(pendingTill >= -1) ? pendingTill : -1);
 				if (pendingTill > 0) {
 					Auth().api().requestWebPageDelayed(result);
 				}
@@ -1647,23 +1670,18 @@ namespace {
 		} else {
 			result = i.value();
 			if (result != convert) {
-				if ((result->url.isEmpty() && !url.isEmpty()) || (result->pendingTill && result->pendingTill != pendingTill && pendingTill >= -1)) {
-					result->type = toWebPageType(type);
-					result->url = TextUtilities::Clean(url);
-					result->displayUrl = TextUtilities::Clean(displayUrl);
-					result->siteName = TextUtilities::Clean(siteName);
-					result->title = TextUtilities::SingleLine(title);
-					result->description = description;
-					result->photo = photo;
-					result->document = document;
-					result->duration = duration;
-					result->author = TextUtilities::Clean(author);
-					if (result->pendingTill > 0 && pendingTill <= 0) {
-						Auth().api().clearWebPageRequest(result);
-					}
-					result->pendingTill = pendingTill;
-					if (App::main()) App::main()->webPageUpdated(result);
-				}
+				result->applyChanges(
+					type,
+					url,
+					displayUrl,
+					siteName,
+					title,
+					description,
+					photo,
+					document,
+					duration,
+					author,
+					pendingTill);
 			}
 		}
 		return result;

@@ -942,13 +942,15 @@ private:
 	std::unique_ptr<HistoryMedia> _attach;
 
 	bool _asArticle = false;
-	int32 _titleLines, _descriptionLines;
+	int _dataVersion = -1;
+	int _titleLines = 0;
+	int _descriptionLines = 0;
 
 	Text _title, _description;
-	int32 _siteNameWidth = 0;
+	int _siteNameWidth = 0;
 
 	QString _duration;
-	int32 _durationWidth = 0;
+	int _durationWidth = 0;
 
 	int16 _pixw = 0;
 	int16 _pixh = 0;
