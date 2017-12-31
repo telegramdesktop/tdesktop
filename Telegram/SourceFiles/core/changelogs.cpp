@@ -77,6 +77,13 @@ std::map<int, const char*> AlphaLogs() {
 
 		"\xE2\x80\x94 Bug fixes and other minor improvements."
 	},
+	{
+		1002007,
+		"\xE2\x80\x94 Use fast reply button in group chats.\n"
+
+		"\xE2\x80\x94 Select a message you want to reply to by "
+		"pressing Ctrl+Up and Ctrl+Down."
+	},
 	};
 }
 
