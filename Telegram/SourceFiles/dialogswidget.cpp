@@ -608,7 +608,8 @@ void DialogsInner::setSearchedPressed(int pressed) {
 
 void DialogsInner::resizeEvent(QResizeEvent *e) {
 	_addContactLnk->move((width() - _addContactLnk->width()) / 2, (st::noContactsHeight + st::noContactsFont->height) / 2);
-	_cancelSearchInPeer->moveToRight(st::dialogsFilterSkip + st::dialogsFilterPadding.x() - otherWidth(), (st::dialogsRowHeight - st::dialogsCancelSearchInPeer.height) / 2);
+	auto widthForCancelButton = qMax(width() + otherWidth(), st::dialogsWidthMin);
+	_cancelSearchInPeer->moveToLeft(widthForCancelButton - st::dialogsFilterSkip - st::dialogsFilterPadding.x() - _cancelSearchInPeer->width(), (st::dialogsRowHeight - st::dialogsCancelSearchInPeer.height) / 2);
 }
 
 void DialogsInner::onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow) {
@@ -1349,6 +1350,7 @@ void DialogsInner::refresh(bool toTop) {
 		emit mustScrollTo(0, 0);
 		loadPeerPhotos(0);
 	}
+	Global::RefDialogsListDisplayForced().set(_searchInPeer || !_filter.isEmpty(), true);
 	update();
 }
 
@@ -1396,6 +1398,7 @@ void DialogsInner::searchInPeer(PeerData *peer) {
 	} else {
 		_cancelSearchInPeer->hide();
 	}
+	Global::RefDialogsListDisplayForced().set(_searchInPeer || !_filter.isEmpty(), true);
 }
 
 void DialogsInner::clearFilter() {
@@ -1889,6 +1892,52 @@ MsgId DialogsInner::lastSearchMigratedId() const {
 	return _lastSearchMigratedId;
 }
 
+class DialogsWidget::UpdateButton : public Ui::RippleButton {
+public:
+	UpdateButton(QWidget *parent);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+	void onStateChanged(State was, StateChangeSource source) override;
+
+private:
+	QString _text;
+	const style::FlatButton &_st;
+
+};
+
+DialogsWidget::UpdateButton::UpdateButton(QWidget *parent) : RippleButton(parent, st::dialogsUpdateButton.ripple)
+, _text(lang(lng_update_telegram).toUpper())
+, _st(st::dialogsUpdateButton) {
+	resize(st::dialogsWidthMin, _st.height);
+}
+
+void DialogsWidget::UpdateButton::onStateChanged(State was, StateChangeSource source) {
+	RippleButton::onStateChanged(was, source);
+	update();
+}
+
+void DialogsWidget::UpdateButton::paintEvent(QPaintEvent *e) {
+	QPainter p(this);
+
+	QRect r(0, height() - _st.height, width(), _st.height);
+	p.fillRect(r, isOver() ? _st.overBgColor : _st.bgColor);
+
+	paintRipple(p, 0, 0, getms());
+
+	p.setFont(isOver() ? _st.overFont : _st.font);
+	p.setRenderHint(QPainter::TextAntialiasing);
+	p.setPen(isOver() ? _st.overColor : _st.color);
+
+	if (width() >= st::dialogsWidthMin) {
+		r.setTop(_st.textTop);
+		p.drawText(r, _text, style::al_top);
+	} else {
+		(isOver() ? st::dialogsInstallUpdateOver : st::dialogsInstallUpdate).paintInCenter(p, r);
+	}
+}
+
 DialogsWidget::DialogsWidget(QWidget *parent) : TWidget(parent)
 , _mainMenuToggle(this, st::dialogsMenuToggle)
 , _filter(this, st::dialogsFilter, lang(lng_dlg_filter))
@@ -1952,7 +2001,7 @@ DialogsWidget::DialogsWidget(QWidget *parent) : TWidget(parent)
 void DialogsWidget::onCheckUpdateStatus() {
 	if (Sandbox::updatingState() == Application::UpdatingReady) {
 		if (_updateTelegram) return;
-		_updateTelegram.create(this, lang(lng_update_telegram).toUpper(), st::dialogsUpdateButton);
+		_updateTelegram.create(this);
 		_updateTelegram->show();
 		_updateTelegram->setClickedCallback([] {
 			checkReadyUpdate();
@@ -1995,6 +2044,30 @@ void DialogsWidget::dialogsToUp() {
 	if (_filter->getLastText().trimmed().isEmpty()) {
 		_scroll->scrollToY(0);
 	}
+}
+
+void DialogsWidget::startWidthAnimation() {
+	if (!_widthAnimationCache.isNull()) {
+		return;
+	}
+	auto scrollGeometry = _scroll->geometry();
+	auto grabGeometry = QRect(scrollGeometry.x(), scrollGeometry.y(), st::dialogsWidthMin, scrollGeometry.height());
+	_scroll->setGeometry(grabGeometry);
+	myEnsureResized(_scroll);
+	_widthAnimationCache = QPixmap(grabGeometry.size() * cIntRetinaFactor());
+	_widthAnimationCache.setDevicePixelRatio(cRetinaFactor());
+	_widthAnimationCache.fill(Qt::transparent);
+	_scroll->render(&_widthAnimationCache, QPoint(0, 0), QRect(QPoint(0, 0), grabGeometry.size()), QWidget::DrawChildren | QWidget::IgnoreMask);
+	_scroll->setGeometry(scrollGeometry);
+	_scroll->hide();
+}
+
+void DialogsWidget::stopWidthAnimation() {
+	_widthAnimationCache = QPixmap();
+	if (!_a_show.animating()) {
+		_scroll->show();
+	}
+	update();
 }
 
 void DialogsWidget::showFast() {
@@ -2619,14 +2692,18 @@ void DialogsWidget::updateControlsGeometry() {
 		_forwardCancel->moveToLeft(0, filterAreaTop);
 		filterAreaTop += st::dialogsForwardHeight;
 	}
+	auto smallLayoutWidth = (st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPadding.x());
+	auto smallLayoutRatio = (width() < st::dialogsWidthMin) ? (st::dialogsWidthMin - width()) / float64(st::dialogsWidthMin - smallLayoutWidth) : 0.;
 	auto filterLeft = st::dialogsFilterPadding.x() + _mainMenuToggle->width() + st::dialogsFilterPadding.x();
 	auto filterRight = (Global::LocalPasscode() ? (st::dialogsFilterPadding.x() + _lockUnlock->width()) : st::dialogsFilterSkip) + st::dialogsFilterPadding.x();
-	auto filterWidth = width() - filterLeft - filterRight;
+	auto filterWidth = qMax(width(), st::dialogsWidthMin) - filterLeft - filterRight;
 	auto filterAreaHeight = st::dialogsFilterPadding.y() + _mainMenuToggle->height() + st::dialogsFilterPadding.y();
 	auto filterTop = filterAreaTop + (filterAreaHeight - _filter->height()) / 2;
+	filterLeft = anim::interpolate(filterLeft, smallLayoutWidth, smallLayoutRatio);
 	_filter->setGeometryToLeft(filterLeft, filterTop, filterWidth, _filter->height());
-	_mainMenuToggle->moveToLeft(st::dialogsFilterPadding.x(), filterAreaTop + st::dialogsFilterPadding.y());
-	_lockUnlock->moveToRight(st::dialogsFilterPadding.x(), filterAreaTop + st::dialogsFilterPadding.y());
+	auto mainMenuLeft = anim::interpolate(st::dialogsFilterPadding.x(), (smallLayoutWidth - _mainMenuToggle->width()) / 2, smallLayoutRatio);
+	_mainMenuToggle->moveToLeft(mainMenuLeft, filterAreaTop + st::dialogsFilterPadding.y());
+	_lockUnlock->moveToLeft(filterLeft + filterWidth + st::dialogsFilterPadding.x(), filterAreaTop + st::dialogsFilterPadding.y());
 	_cancelSearch->moveToLeft(filterLeft + filterWidth - _cancelSearch->width(), _filter->y());
 
 	auto scrollTop = filterAreaTop + filterAreaHeight;
@@ -2728,11 +2805,18 @@ void DialogsWidget::paintEvent(QPaintEvent *e) {
 		p.drawTextLeft(st::dialogsForwardTextLeft, st::dialogsForwardTextTop, width(), lang(lng_forward_choose));
 		aboveTop += st::dialogsForwardHeight;
 	}
-	auto above = QRect(0, aboveTop, width(), _scroll->y());
+	auto above = QRect(0, aboveTop, width(), _scroll->y() - aboveTop);
 	if (above.intersects(r)) {
 		p.fillRect(above.intersected(r), st::dialogsBg);
 	}
-	auto below = QRect(0, _scroll->y() + qMin(_scroll->height(), _inner->height()), width(), height());
+
+	auto belowTop = _scroll->y() + qMin(_scroll->height(), _inner->height());
+	if (!_widthAnimationCache.isNull()) {
+		p.drawPixmapLeft(0, _scroll->y(), width(), _widthAnimationCache);
+		belowTop = _scroll->y() + (_widthAnimationCache.height() / cIntRetinaFactor());
+	}
+
+	auto below = QRect(0, belowTop, width(), height() - belowTop);
 	if (below.intersects(r)) {
 		p.fillRect(below.intersected(r), st::dialogsBg);
 	}

@@ -366,8 +366,6 @@ private:
 
 };
 
-static const uint64 UserNoAccess = 0xFFFFFFFFFFFFFFFFULL;
-
 class BotCommand {
 public:
 	BotCommand(const QString &command, const QString &description) : command(command), _description(description) {
@@ -407,7 +405,6 @@ struct BotInfo {
 class PhotoData;
 class UserData : public PeerData {
 public:
-
 	UserData(const PeerId &id) : PeerData(id) {
 	}
 	void setPhoto(const MTPUserProfilePhoto &photo);
@@ -432,8 +429,14 @@ public:
 	bool isBotInlineGeo() const {
 		return flags & MTPDuser::Flag::f_bot_inline_geo;
 	}
+	bool isInaccessible() const {
+		return (access == NoAccess);
+	}
+	void setIsInaccessible() {
+		access = NoAccess;
+	}
 	bool canWrite() const {
-		return access != UserNoAccess;
+		return !isInaccessible();
 	}
 	bool isContact() const {
 		return (contact > 0);
@@ -506,6 +509,8 @@ private:
 	QString _phone;
 	BlockStatus _blockStatus = BlockStatus::Unknown;
 	int _commonChatsCount = 0;
+
+	static constexpr const uint64 NoAccess = 0xFFFFFFFFFFFFFFFFULL;
 
 };
 

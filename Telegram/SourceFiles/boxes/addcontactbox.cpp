@@ -426,7 +426,7 @@ SetupChannelBox::SetupChannelBox(QWidget*, ChannelData *channel, bool existing)
 , _existing(existing)
 , _public(this, qsl("channel_privacy"), 0, lang(channel->isMegagroup() ? lng_create_public_group_title : lng_create_public_channel_title), true, st::defaultBoxCheckbox)
 , _private(this, qsl("channel_privacy"), 1, lang(channel->isMegagroup() ? lng_create_private_group_title : lng_create_private_channel_title), false, st::defaultBoxCheckbox)
-, _aboutPublicWidth(width() - st::boxPadding.left() - st::boxButtonPadding.right() - st::newGroupPadding.left() - st::defaultBoxCheckbox.textPosition.x())
+, _aboutPublicWidth(st::boxWideWidth - st::boxPadding.left() - st::boxButtonPadding.right() - st::newGroupPadding.left() - st::defaultBoxCheckbox.textPosition.x())
 , _aboutPublic(st::defaultTextStyle, lang(channel->isMegagroup() ? lng_create_public_group_about : lng_create_public_channel_about), _defaultOptions, _aboutPublicWidth)
 , _aboutPrivate(st::defaultTextStyle, lang(channel->isMegagroup() ? lng_create_private_group_about : lng_create_private_channel_about), _defaultOptions, _aboutPublicWidth)
 , _link(this, st::setupChannelLink, QString(), channel->username, true) {
@@ -923,7 +923,7 @@ void EditNameTitleBox::onSaveChatDone(const MTPUpdates &updates) {
 
 EditChannelBox::EditChannelBox(QWidget*, ChannelData *channel)
 : _channel(channel)
-, _title(this, st::defaultInputField, lang(lng_dlg_new_channel_name), _channel->name)
+, _title(this, st::defaultInputField, lang(channel->isMegagroup() ? lng_dlg_new_group_name : lng_dlg_new_channel_name), _channel->name)
 , _description(this, st::newGroupDescription, lang(lng_create_group_description), _channel->about())
 , _sign(this, lang(lng_edit_sign_messages), channel->addsSignature(), st::defaultBoxCheckbox)
 , _publicLink(this, lang(channel->isPublic() ? lng_profile_edit_public_link : lng_profile_create_public_link), st::boxLinkButton) {

@@ -76,7 +76,7 @@ BackgroundBox::Inner::Inner(QWidget *parent) : TWidget(parent)
 void BackgroundBox::Inner::gotWallpapers(const MTPVector<MTPWallPaper> &result) {
 	App::WallPapers wallpapers;
 
-	auto oldBackground = ImagePtr(qsl(":/gui/art/bg_initial.png"));
+	auto oldBackground = ImagePtr(qsl(":/gui/art/bg_initial.jpg"));
 	wallpapers.push_back(App::WallPaper(Window::Theme::kInitialBackground, oldBackground, oldBackground));
 	auto &v = result.c_vector().v;
 	for_const (auto &w, v) {

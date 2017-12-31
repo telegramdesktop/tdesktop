@@ -30,6 +30,10 @@ class SectionMemento;
 struct SectionSlideParams {
 	QPixmap oldContentCache;
 	bool withTopBarShadow = false;
+
+	explicit operator bool() const {
+		return !oldContentCache.isNull();
+	}
 };
 
 class SectionWidget : public TWidget, protected base::Subscriber {
@@ -52,6 +56,7 @@ public:
 		return false;
 	}
 	void showAnimated(SlideDirection direction, const SectionSlideParams &params);
+	void showFast();
 
 	// This can be used to grab with or without top bar shadow.
 	// This will be protected when animation preparation will be done inside.
@@ -67,8 +72,8 @@ public:
 	// Create a memento of that section to store it in the history stack.
 	virtual std_::unique_ptr<SectionMemento> createMemento() const = 0;
 
-	virtual void setInnerFocus() {
-		setFocus();
+	void setInnerFocus() {
+		doSetInnerFocus();
 	}
 
 protected:
@@ -86,6 +91,10 @@ protected:
 
 	// Called after the showChildren() call in showFinished().
 	virtual void showFinishedHook() {
+	}
+
+	virtual void doSetInnerFocus() {
+		setFocus();
 	}
 
 private:

@@ -330,6 +330,10 @@ TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResi
 		}
 
 		QString part = str.mid(_from, length);
+
+		// Attempt to catch a crash in text processing
+		SignalHandlers::setCrashAnnotationRef("CrashString", &part);
+
 		QStackTextEngine engine(part, blockFont->f);
 		engine.itemize();
 
@@ -340,6 +344,8 @@ TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResi
 		BlockParser parser(&engine, this, minResizeWidth, _from, part);
 
 		layout.endLayout();
+
+		SignalHandlers::clearCrashAnnotationRef("CrashString");
 	}
 }
 

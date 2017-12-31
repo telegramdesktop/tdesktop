@@ -814,7 +814,7 @@ void HistoryMessage::countPositionAndSize(int32 &left, int32 &width) const {
 		maxwidth = qMax(_media->currentWidth(), qMin(maxwidth, plainMaxWidth()));
 	}
 
-	left = (!isPost() && out() && !Adaptive::Wide()) ? st::msgMargin.right() : st::msgMargin.left();
+	left = (!isPost() && out() && !Adaptive::ChatWide()) ? st::msgMargin.right() : st::msgMargin.left();
 	if (hasFromPhoto()) {
 		left += st::msgPhotoSkip;
 		//	} else if (!Adaptive::Wide() && !out() && !fromChannel() && st::msgPhotoSkip - (hmaxwidth - hwidth) > 0) {
@@ -823,7 +823,7 @@ void HistoryMessage::countPositionAndSize(int32 &left, int32 &width) const {
 
 	width = hwidth - st::msgMargin.left() - st::msgMargin.right();
 	if (width > maxwidth) {
-		if (!isPost() && out() && !Adaptive::Wide()) {
+		if (!isPost() && out() && !Adaptive::ChatWide()) {
 			left += width - maxwidth;
 		}
 		width = maxwidth;
@@ -1272,7 +1272,8 @@ void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, T
 
 	p.setTextPalette(outbg ? st::outTextPalette : st::inTextPalette);
 
-	if (auto keyboard = inlineReplyKeyboard()) {
+	auto keyboard = inlineReplyKeyboard();
+	if (keyboard) {
 		int h = st::msgBotKbButton.margin + keyboard->naturalHeight();
 		height -= h;
 		int top = height + st::msgBotKbButton.margin - marginBottom();
@@ -1290,8 +1291,8 @@ void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, T
 		auto top = marginTop();
 		auto r = QRect(left, top, width, height - top - marginBottom());
 
-		auto skipTail = isAttachedToNext() || (_media && _media->skipBubbleTail());
-		auto displayTail = skipTail ? HistoryLayout::BubbleTail::None : (outbg && !Adaptive::Wide()) ? HistoryLayout::BubbleTail::Right : HistoryLayout::BubbleTail::Left;
+		auto skipTail = isAttachedToNext() || (_media && _media->skipBubbleTail()) || (keyboard != nullptr);
+		auto displayTail = skipTail ? HistoryLayout::BubbleTail::None : (outbg && !Adaptive::ChatWide()) ? HistoryLayout::BubbleTail::Right : HistoryLayout::BubbleTail::Left;
 		HistoryLayout::paintBubble(p, r, _history->width, selected, outbg, displayTail);
 
 		QRect trect(r.marginsAdded(-st::msgPadding));
@@ -1739,7 +1740,7 @@ bool HistoryMessage::displayFromPhoto() const {
 }
 
 bool HistoryMessage::hasFromPhoto() const {
-	return (Adaptive::Wide() || (!out() && !history()->peer->isUser())) && !isPost() && !isEmpty();
+	return (Adaptive::ChatWide() || (!out() && !history()->peer->isUser())) && !isPost() && !isEmpty();
 }
 
 HistoryMessage::~HistoryMessage() {
@@ -2089,7 +2090,7 @@ bool HistoryService::updateDependencyItem() {
 void HistoryService::countPositionAndSize(int32 &left, int32 &width) const {
 	left = st::msgServiceMargin.left();
 	int32 maxwidth = _history->width;
-	if (Adaptive::Wide()) {
+	if (Adaptive::ChatWide()) {
 		maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
 	}
 	width = maxwidth - st::msgServiceMargin.left() - st::msgServiceMargin.left();
@@ -2161,7 +2162,7 @@ int32 HistoryService::resizeGetHeight_(int32 width) {
 		_textHeight = 0;
 	} else {
 		int32 maxwidth = _history->width;
-		if (Adaptive::Wide()) {
+		if (Adaptive::ChatWide()) {
 			maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
 		}
 		if (width > maxwidth) width = maxwidth;

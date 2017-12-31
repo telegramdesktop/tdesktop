@@ -140,7 +140,9 @@ void InnerWidget::restoreState(const SectionMemento *memento) {
 
 void InnerWidget::showInitial(const QList<PeerData*> &list) {
 	for_const (auto group, list) {
-		_items.push_back(computeItem(group));
+		if (auto item = computeItem(group)) {
+			_items.push_back(item);
+		}
 		_preloadGroupId = group->bareId();
 	}
 	updateSize();
@@ -171,7 +173,9 @@ void InnerWidget::preloadMore() {
 							}
 						}
 						if (!found) {
-							_items.push_back(computeItem(chat));
+							if (auto item = computeItem(chat)) {
+								_items.push_back(item);
+							}
 						}
 						_preloadGroupId = chat->bareId();
 						_allLoaded = false;
@@ -369,7 +373,7 @@ QPixmap Widget::grabForShowAnimation(const Window::SectionSlideParams &params) {
 	return result;
 }
 
-void Widget::setInnerFocus() {
+void Widget::doSetInnerFocus() {
 	_inner->setFocus();
 }
 

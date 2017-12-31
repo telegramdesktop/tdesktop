@@ -902,7 +902,7 @@ int DefaultPreviewTitleHeight() {
 void DefaultPreviewWindowTitle(Painter &p, const style::palette &palette, QRect body, int outerWidth) {
 	auto titleRect = QRect(body.x(), body.y() - st::titleHeight, body.width(), st::titleHeight);
 	p.fillRect(titleRect, QColor(0, 0, 0));
-	p.fillRect(titleRect, st::titleBg[palette]);
+	p.fillRect(titleRect, st::titleBgActive[palette]);
 	auto right = st::titleButtonClose.width;
 	st::titleButtonClose.icon[palette].paint(p, titleRect.x() + titleRect.width() - right + st::titleButtonClose.iconPosition.x(), titleRect.y() + st::titleButtonClose.iconPosition.y(), outerWidth);
 	right += st::titleButtonMaximize.width;

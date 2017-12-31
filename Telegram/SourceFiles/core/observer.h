@@ -32,11 +32,8 @@ void UnregisterActiveObservable(ObservableCallHandlers *handlers);
 void UnregisterObservable(ObservableCallHandlers *handlers);
 
 template <typename EventType>
-using EventParamType = typename base::type_traits<EventType>::parameter_type;
-
-template <typename EventType>
 struct SubscriptionHandlerHelper {
-	using type = base::lambda<void(EventParamType<EventType>)>;
+	using type = base::lambda<void(parameter_type<EventType>)>;
 };
 
 template <>
@@ -355,6 +352,52 @@ public:
 
 template <typename EventType, typename Handler = internal::SubscriptionHandler<EventType>>
 class Observable : public internal::BaseObservable<EventType, Handler, base::type_traits<EventType>::is_fast_copy_type::value> {
+public:
+	Observable() = default;
+	Observable(const Observable &other) = delete;
+	Observable(Observable &&other) = default;
+	Observable &operator=(const Observable &other) = delete;
+	Observable &operator=(Observable &&other) = default;
+
+};
+
+template <typename Type>
+class Variable {
+public:
+	Variable(parameter_type<Type> startValue = Type()) : _value(startValue) {
+	}
+	Variable(Variable &&other) = default;
+	Variable &operator=(Variable &&other) = default;
+
+	parameter_type<Type> value() const {
+		return _value;
+	}
+
+	void setForced(parameter_type<Type> newValue, bool sync = false) {
+		_value = newValue;
+		_observable.notify(_value, sync);
+	}
+
+	void set(parameter_type<Type> newValue, bool sync = false) {
+		if (_value != newValue) {
+			setForced(newValue, sync);
+		}
+	}
+
+	template <typename Callback>
+	void process(Callback callback, bool sync = false) {
+		callback(_value);
+		_observable.notify(_value, sync);
+	}
+
+	Observable<Type> &observable() {
+		return _observable;
+	}
+
+private:
+	Type _value;
+	Observable<Type> _observable;
+
 };
 
 class Subscriber {
@@ -368,6 +411,16 @@ protected:
 	template <typename EventType, typename Handler, typename Lambda>
 	int subscribe(base::Observable<EventType, Handler> *observable, Lambda &&handler) {
 		return subscribe(*observable, std_::forward<Lambda>(handler));
+	}
+
+	template <typename Type, typename Lambda>
+	int subscribe(base::Variable<Type> &variable, Lambda &&handler) {
+		return subscribe(variable.observable(), std_::forward<Lambda>(handler));
+	}
+
+	template <typename Type, typename Lambda>
+	int subscribe(base::Variable<Type> *variable, Lambda &&handler) {
+		return subscribe(variable->observable(), std_::forward<Lambda>(handler));
 	}
 
 	void unsubscribe(int index) {

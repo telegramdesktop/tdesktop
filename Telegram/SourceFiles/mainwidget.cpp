@@ -71,6 +71,7 @@ StackItemSection::~StackItemSection() {
 MainWidget::MainWidget(QWidget *parent) : TWidget(parent)
 , _dialogsWidth(st::dialogsWidthMin)
 , _sideShadow(this, st::shadowFg)
+, _sideResizeArea(this)
 , _dialogs(this)
 , _history(this)
 , _topBar(this)
@@ -107,11 +108,22 @@ MainWidget::MainWidget(QWidget *parent) : TWidget(parent)
 		});
 	}
 
+	subscribe(Global::RefDialogsListFocused(), [this](bool) {
+		updateDialogsWidthAnimated();
+	});
+	subscribe(Global::RefDialogsListDisplayForced(), [this](bool) {
+		updateDialogsWidthAnimated();
+	});
+
+	Sandbox::installEventFilter(this);
+
 	connect(&_updateMutedTimer, SIGNAL(timeout()), this, SLOT(onUpdateMuted()));
 	connect(&_viewsIncrementTimer, SIGNAL(timeout()), this, SLOT(onViewsIncrement()));
 
 	_webPageOrGameUpdater.setSingleShot(true);
 	connect(&_webPageOrGameUpdater, SIGNAL(timeout()), this, SLOT(webPagesOrGamesUpdate()));
+
+	_sideResizeArea->setCursor(style::cur_sizehor);
 
 	using Update = Window::Theme::BackgroundUpdate;
 	subscribe(Window::Theme::Background(), [this](const Update &update) {
@@ -146,7 +158,7 @@ MainWidget::MainWidget(QWidget *parent) : TWidget(parent)
 		});
 	}
 
-	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
+	subscribe(Adaptive::Changed(), [this]() { handleAdaptiveLayoutUpdate(); });
 
 	auto observeEvents = Notify::PeerUpdate::Flag::SharedMediaChanged;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
@@ -168,9 +180,7 @@ MainWidget::MainWidget(QWidget *parent) : TWidget(parent)
 	_mediaType->hide();
 	_mediaType->setOrigin(Ui::PanelAnimation::Origin::TopRight);
 	_topBar->mediaTypeButton()->installEventFilter(_mediaType);
-
-	show();
-	setFocus();
+	_sideResizeArea->installEventFilter(this);
 
 	_api->init();
 
@@ -181,7 +191,7 @@ MainWidget::MainWidget(QWidget *parent) : TWidget(parent)
 
 bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
 	PeerData *p = App::peer(peer);
-	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->canWrite()) || (p->isUser() && p->asUser()->access == UserNoAccess)) {
+	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->canWrite()) || (p->isUser() && p->asUser()->isInaccessible())) {
 		Ui::show(Box<InformBox>(lang(lng_forward_cant)));
 		return false;
 	}
@@ -216,7 +226,7 @@ bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
 
 bool MainWidget::onShareUrl(const PeerId &peer, const QString &url, const QString &text) {
 	PeerData *p = App::peer(peer);
-	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->canWrite()) || (p->isUser() && p->asUser()->access == UserNoAccess)) {
+	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->canWrite()) || (p->isUser() && p->asUser()->isInaccessible())) {
 		Ui::show(Box<InformBox>(lang(lng_share_cant)));
 		return false;
 	}
@@ -236,7 +246,7 @@ bool MainWidget::onShareUrl(const PeerId &peer, const QString &url, const QStrin
 
 bool MainWidget::onInlineSwitchChosen(const PeerId &peer, const QString &botAndQuery) {
 	PeerData *p = App::peer(peer);
-	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->canWrite()) || (p->isUser() && p->asUser()->access == UserNoAccess)) {
+	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->canWrite()) || (p->isUser() && p->asUser()->isInaccessible())) {
 		Ui::show(Box<InformBox>(lang(lng_inline_switch_cant)));
 		return false;
 	}
@@ -601,14 +611,14 @@ void MainWidget::noHider(HistoryHider *destroyed) {
 			}
 			onHistoryShown(_history->history(), _history->msgId());
 			if (_wideSection || _overview || (_history->peer() && _history->peer()->id)) {
-				Window::SectionSlideParams animationParams;
-				if (_overview) {
-					animationParams = prepareOverviewAnimation();
-				} else if (_wideSection) {
-					animationParams = prepareWideSectionAnimation(_wideSection);
-				} else {
-					animationParams = prepareHistoryAnimation(_history->peer() ? _history->peer()->id : 0);
-				}
+				auto animationParams = ([this] {
+					if (_overview) {
+						return prepareOverviewAnimation();
+					} else if (_wideSection) {
+						return prepareWideSectionAnimation(_wideSection);
+					}
+					return prepareHistoryAnimation(_history->peer() ? _history->peer()->id : 0);
+				})();
 				_dialogs->hide();
 				if (_overview) {
 					_overview->showAnimated(Window::SlideDirection::FromRight, animationParams);
@@ -2052,7 +2062,7 @@ void MainWidget::fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QStrin
 	if (auto user = peer->asUser()) {
 		callback(lang(lng_profile_delete_conversation), std_::move(deleteAndLeaveHandler));
 		callback(lang(lng_profile_clear_history), std_::move(clearHistoryHandler));
-		if (user->access != UserNoAccess && user != App::self()) {
+		if (!user->isInaccessible() && user != App::self()) {
 			auto blockSubscription = MakeShared<base::Subscription>();
 			auto blockAction = callback(lang(user->isBlocked() ? (user->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user) : (user->botInfo ? lng_profile_block_bot : lng_profile_block_user)), [user, blockSubscription] {
 				auto willBeBlocked = !user->isBlocked();
@@ -2176,7 +2186,7 @@ void MainWidget::ctrlEnterSubmitUpdated() {
 }
 
 void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::ShowWay way) {
-	if (PeerData *peer = App::peerLoaded(peerId)) {
+	if (auto peer = App::peerLoaded(peerId)) {
 		if (peer->migrateTo()) {
 			peer = peer->migrateTo();
 			peerId = peer->id;
@@ -2189,6 +2199,9 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 			return;
 		}
 	}
+
+	Global::RefDialogsListFocused().set(false, true);
+	_a_dialogsWidth.finish();
 
 	bool back = (way == Ui::ShowWay::Backward || !peerId);
 	bool foundInStack = !peerId;
@@ -2228,7 +2241,7 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 	}
 	dlgUpdated();
 
-	PeerData *wasActivePeer = activePeer();
+	auto wasActivePeer = activePeer();
 
 	Ui::hideSettingsAndLayer();
 	if (_hider) {
@@ -2236,16 +2249,34 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 		_hider = nullptr;
 	}
 
-	Window::SectionSlideParams animationParams;
-	if (!_a_show.animating() && !App::passcoded() && ((_history->isHidden() && (_wideSection || _overview)) || (Adaptive::OneColumn() && (_history->isHidden() || !peerId)) || back || (way == Ui::ShowWay::Forward))) {
-		animationParams = prepareHistoryAnimation(peerId);
-	}
+	auto animatedShow = [this, peerId, back, way] {
+		if (_a_show.animating() || App::passcoded()) {
+			return false;
+		}
+		if (!peerId) {
+			if (Adaptive::OneColumn()) {
+				return true;
+			} else {
+				return false;
+			}
+		}
+		if (back || way == Ui::ShowWay::Forward) {
+			return true;
+		}
+		if (_history->isHidden() && (_wideSection || _overview || Adaptive::OneColumn())) {
+			return true;
+		}
+		return false;
+	};
+	auto animationParams = animatedShow() ? prepareHistoryAnimation(peerId) : Window::SectionSlideParams();
+
 	if (_history->peer() && _history->peer()->id != peerId && way != Ui::ShowWay::Forward) {
 		clearBotStartToken(_history->peer());
 	}
 	_history->showHistory(peerId, showAtMsgId);
 
-	bool noPeer = (!_history->peer() || !_history->peer()->id), onlyDialogs = noPeer && Adaptive::OneColumn();
+	auto noPeer = !_history->peer();
+	auto onlyDialogs = noPeer && Adaptive::OneColumn();
 	if (_wideSection || _overview) {
 		if (_wideSection) {
 			_wideSection->hide();
@@ -2264,8 +2295,9 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 		_topBar->hide();
 		_history->hide();
 		if (!_a_show.animating()) {
-			if (!animationParams.oldContentCache.isNull()) {
-				_dialogs->showAnimated(back ? Window::SlideDirection::FromLeft : Window::SlideDirection::FromRight, animationParams);
+			if (animationParams) {
+				auto direction = back ? Window::SlideDirection::FromLeft : Window::SlideDirection::FromRight;
+				_dialogs->showAnimated(direction, animationParams);
 			} else {
 				_dialogs->showFast();
 			}
@@ -2385,10 +2417,19 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 		return;
 	}
 
-	Window::SectionSlideParams animationParams;
-	if (!_a_show.animating() && (Adaptive::OneColumn() || _wideSection || _overview || _history->peer())) {
-		animationParams = prepareOverviewAnimation();
-	}
+	Global::RefDialogsListFocused().set(false, true);
+	_a_dialogsWidth.finish();
+
+	auto animatedShow = [this] {
+		if (_a_show.animating() || App::passcoded()) {
+			return false;
+		}
+		if (Adaptive::OneColumn() || isSectionShown()) {
+			return true;
+		}
+		return false;
+	};
+	auto animationParams = animatedShow() ? prepareOverviewAnimation() : Window::SectionSlideParams();
 	if (!back) {
 		saveSectionInStack();
 	}
@@ -2436,7 +2477,7 @@ void MainWidget::showWideSection(const Window::SectionMemento &memento) {
 	if (_wideSection && _wideSection->showInternal(&memento)) {
 		return;
 	}
-	showWideSectionAnimated(&memento, false, true);
+	showNewWideSection(&memento, false, true);
 }
 
 Window::SectionSlideParams MainWidget::prepareShowAnimation(bool willHaveTopBarShadow) {
@@ -2523,12 +2564,24 @@ Window::SectionSlideParams MainWidget::prepareDialogsAnimation() {
 	return prepareShowAnimation(false);
 }
 
-void MainWidget::showWideSectionAnimated(const Window::SectionMemento *memento, bool back, bool saveInStack) {
+void MainWidget::showNewWideSection(const Window::SectionMemento *memento, bool back, bool saveInStack) {
 	QPixmap animCache;
+
+	Global::RefDialogsListFocused().set(false, true);
+	_a_dialogsWidth.finish();
 
 	auto newWideGeometry = QRect(_history->x(), _playerHeight, _history->width(), height() - _playerHeight);
 	auto newWideSection = memento->createWidget(this, newWideGeometry);
-	Window::SectionSlideParams animationParams = prepareWideSectionAnimation(newWideSection);
+	auto animatedShow = [this] {
+		if (_a_show.animating() || App::passcoded()) {
+			return false;
+		}
+		if (Adaptive::OneColumn() || isSectionShown()) {
+			return true;
+		}
+		return false;
+	};
+	auto animationParams = animatedShow() ? prepareWideSectionAnimation(newWideSection) : Window::SectionSlideParams();
 
 	if (saveInStack) {
 		saveSectionInStack();
@@ -2553,10 +2606,18 @@ void MainWidget::showWideSectionAnimated(const Window::SectionMemento *memento, 
 	_history->hide();
 	if (Adaptive::OneColumn()) _dialogs->hide();
 
-	auto direction = back ? Window::SlideDirection::FromLeft : Window::SlideDirection::FromRight;
-	_wideSection->showAnimated(direction, animationParams);
+	if (animationParams) {
+		auto direction = back ? Window::SlideDirection::FromLeft : Window::SlideDirection::FromRight;
+		_wideSection->showAnimated(direction, animationParams);
+	} else {
+		_wideSection->showFast();
+	}
 
 	orderWidgets();
+}
+
+bool MainWidget::isSectionShown() const {
+	return _wideSection || _overview || _history->peer();
 }
 
 bool MainWidget::stackIsEmpty() const {
@@ -2579,23 +2640,24 @@ void MainWidget::showBackFromStack() {
 		dlgUpdated();
 		_peerInStack = nullptr;
 		_msgIdInStack = 0;
-		for (int32 i = _stack.size(); i > 0;) {
-			if (_stack.at(--i)->type() == HistoryStackItem) {
-				_peerInStack = static_cast<StackItemHistory*>(_stack.at(i).get())->peer;
-				_msgIdInStack = static_cast<StackItemHistory*>(_stack.at(i).get())->msgId;
+		for (auto i = _stack.size(); i > 0;) {
+			if (_stack[--i]->type() == HistoryStackItem) {
+				auto historyItem = static_cast<StackItemHistory*>(_stack[i].get());
+				_peerInStack = historyItem->peer;
+				_msgIdInStack = historyItem->msgId;
 				dlgUpdated();
 				break;
 			}
 		}
-		StackItemHistory *histItem = static_cast<StackItemHistory*>(item.get());
-		Ui::showPeerHistory(histItem->peer->id, ShowAtUnreadMsgId, Ui::ShowWay::Backward);
-		_history->setReplyReturns(histItem->peer->id, histItem->replyReturns);
+		auto historyItem = static_cast<StackItemHistory*>(item.get());
+		Ui::showPeerHistory(historyItem->peer->id, ShowAtUnreadMsgId, Ui::ShowWay::Backward);
+		_history->setReplyReturns(historyItem->peer->id, historyItem->replyReturns);
 	} else if (item->type() == SectionStackItem) {
-		StackItemSection *sectionItem = static_cast<StackItemSection*>(item.get());
-		showWideSectionAnimated(sectionItem->memento(), true, false);
+		auto sectionItem = static_cast<StackItemSection*>(item.get());
+		showNewWideSection(sectionItem->memento(), true, false);
 	} else if (item->type() == OverviewStackItem) {
-		StackItemOverview *overItem = static_cast<StackItemOverview*>(item.get());
-		showMediaOverview(overItem->peer, overItem->mediaType, true, overItem->lastScrollTop);
+		auto overviewItem = static_cast<StackItemOverview*>(item.get());
+		showMediaOverview(overviewItem->peer, overviewItem->mediaType, true, overviewItem->lastScrollTop);
 	}
 }
 
@@ -2610,6 +2672,7 @@ void MainWidget::orderWidgets() {
 	}
 	_mediaType->raise();
 	_sideShadow->raise();
+	_sideResizeArea->raise();
 	_playerPlaylist->raise();
 	_playerPanel->raise();
 	if (_hider) _hider->raise();
@@ -2837,7 +2900,7 @@ void MainWidget::showAll() {
 			if (_wideSection) {
 				_topBar->hide();
 				_dialogs->hide();
-			} else if (_overview || _history->peer()) {
+			} else if (isSectionShown()) {
 				_topBar->show();
 				_dialogs->hide();
 			}
@@ -2865,7 +2928,7 @@ void MainWidget::showAll() {
 		}
 		if (_wideSection) {
 			_topBar->hide();
-		} else if (_overview || _history->peer()) {
+		} else if (isSectionShown()) {
 			_topBar->show();
 		}
 	}
@@ -2878,46 +2941,56 @@ void MainWidget::showAll() {
 	App::wnd()->checkHistoryActivation();
 }
 
-namespace {
-
-inline int chatsListWidth(int windowWidth) {
-	return snap<int>((windowWidth * 5) / 14, st::dialogsWidthMin, st::dialogsWidthMax);
-}
-
-} // namespace
-
 void MainWidget::resizeEvent(QResizeEvent *e) {
 	updateControlsGeometry();
 }
 
 void MainWidget::updateControlsGeometry() {
-	auto tbh = _topBar->isHidden() ? 0 : st::topBarHeight;
+	updateWindowAdaptiveLayout();
+	auto topBarHeight = _topBar->isHidden() ? 0 : st::topBarHeight;
+	if (!Adaptive::SmallColumn()) {
+		_a_dialogsWidth.finish();
+	}
+	if (!_a_dialogsWidth.animating()) {
+		_dialogs->stopWidthAnimation();
+	}
+	auto dialogsWidth = qRound(_a_dialogsWidth.current(_dialogsWidth));
 	if (Adaptive::OneColumn()) {
-		_dialogsWidth = width();
 		if (_player) {
-			_player->resizeToWidth(_dialogsWidth);
+			_player->resizeToWidth(dialogsWidth);
 			_player->moveToLeft(0, 0);
 		}
-		_dialogs->setGeometry(0, _playerHeight, _dialogsWidth, height() - _playerHeight);
-		_topBar->setGeometry(0, _playerHeight, _dialogsWidth, st::topBarHeight);
-		_history->setGeometry(0, _playerHeight + tbh, _dialogsWidth, height() - _playerHeight - tbh);
-		if (_hider) _hider->setGeometry(0, 0, _dialogsWidth, height());
+		_dialogs->setGeometry(0, _playerHeight, dialogsWidth, height() - _playerHeight);
+		_topBar->setGeometry(0, _playerHeight, dialogsWidth, st::topBarHeight);
+		_history->setGeometry(0, _playerHeight + topBarHeight, dialogsWidth, height() - _playerHeight - topBarHeight);
+		if (_hider) _hider->setGeometry(0, 0, dialogsWidth, height());
 	} else {
-		_dialogsWidth = chatsListWidth(width());
-		auto sectionWidth = width() - _dialogsWidth;
+		accumulate_min(dialogsWidth, width() - st::windowMinWidth);
+		auto sectionWidth = width() - dialogsWidth;
 
-		_dialogs->setGeometryToLeft(0, 0, _dialogsWidth, height());
-		_sideShadow->setGeometryToLeft(_dialogsWidth, 0, st::lineWidth, height());
+		_dialogs->setGeometryToLeft(0, 0, dialogsWidth, height());
+		_sideShadow->setGeometryToLeft(dialogsWidth, 0, st::lineWidth, height());
 		if (_player) {
 			_player->resizeToWidth(sectionWidth);
-			_player->moveToLeft(_dialogsWidth, 0);
+			_player->moveToLeft(dialogsWidth, 0);
 		}
-		_topBar->setGeometryToLeft(_dialogsWidth, _playerHeight, sectionWidth, st::topBarHeight);
-		_history->setGeometryToLeft(_dialogsWidth, _playerHeight + tbh, sectionWidth, height() - _playerHeight - tbh);
+		_topBar->setGeometryToLeft(dialogsWidth, _playerHeight, sectionWidth, st::topBarHeight);
+		_history->setGeometryToLeft(dialogsWidth, _playerHeight + topBarHeight, sectionWidth, height() - _playerHeight - topBarHeight);
 		if (_hider) {
-			_hider->setGeometryToLeft(_dialogsWidth, 0, sectionWidth, height());
+			_hider->setGeometryToLeft(dialogsWidth, 0, sectionWidth, height());
 		}
 	}
+	_sideResizeArea->setGeometryToLeft(_history->x(), 0, st::historyResizeWidth, height());
+	auto isSideResizeAreaVisible = [this] {
+		if (width() < st::windowMinWidth + st::dialogsWidthMin) {
+			return false;
+		}
+		if (Adaptive::OneColumn() && !isSectionShown()) {
+			return false;
+		}
+		return true;
+	};
+	_sideResizeArea->setVisible(isSideResizeAreaVisible());
 	_mediaType->moveToLeft(width() - _mediaType->width(), _playerHeight + st::topBarHeight);
 	if (_wideSection) {
 		QRect wideSectionGeometry(_history->x(), _playerHeight, _history->width(), height() - _playerHeight);
@@ -2927,6 +3000,19 @@ void MainWidget::updateControlsGeometry() {
 	updateMediaPlayerPosition();
 	updateMediaPlaylistPosition(_playerPlaylist->x());
 	_contentScrollAddToY = 0;
+}
+
+void MainWidget::updateDialogsWidthAnimated() {
+	if (!Adaptive::SmallColumn()) {
+		return;
+	}
+	auto dialogsWidth = _dialogsWidth;
+	updateWindowAdaptiveLayout();
+	if (Adaptive::SmallColumn() && (_dialogsWidth != dialogsWidth || _a_dialogsWidth.animating())) {
+		_dialogs->startWidthAnimation();
+		_a_dialogsWidth.start([this] { updateControlsGeometry(); }, dialogsWidth, _dialogsWidth, st::dialogsWidthDuration, anim::easeOutCirc);
+		updateControlsGeometry();
+	}
 }
 
 void MainWidget::updateMediaPlayerPosition() {
@@ -2960,7 +3046,40 @@ int MainWidget::contentScrollAddToY() const {
 void MainWidget::keyPressEvent(QKeyEvent *e) {
 }
 
-void MainWidget::updateAdaptiveLayout() {
+bool MainWidget::eventFilter(QObject *o, QEvent *e) {
+	if (o == _sideResizeArea) {
+		auto mouseLeft = [this, e] {
+			return mapFromGlobal(static_cast<QMouseEvent*>(e)->globalPos()).x();
+		};
+		if (e->type() == QEvent::MouseButtonPress && static_cast<QMouseEvent*>(e)->button() == Qt::LeftButton) {
+			_resizingSide = true;
+			_resizingSideShift = mouseLeft() - (Adaptive::OneColumn() ? 0 : _dialogsWidth);
+		} else if (e->type() == QEvent::MouseButtonRelease) {
+			_resizingSide = false;
+			if (!Adaptive::OneColumn()) {
+				Global::SetDialogsWidthRatio(float64(_dialogsWidth) / width());
+			}
+			Local::writeUserSettings();
+		} else if (e->type() == QEvent::MouseMove && _resizingSide) {
+			auto newWidth = mouseLeft() - _resizingSideShift;
+			Global::SetDialogsWidthRatio(float64(newWidth) / width());
+			updateControlsGeometry();
+		}
+	} else if (e->type() == QEvent::FocusIn) {
+		if (auto widget = qobject_cast<QWidget*>(o)) {
+			if (_history == widget || _history->isAncestorOf(widget)
+				|| (_overview && (_overview == widget || _overview->isAncestorOf(widget)))
+				|| (_wideSection && (_wideSection == widget || _wideSection->isAncestorOf(widget)))) {
+				Global::RefDialogsListFocused().set(false, false);
+			} else if (_dialogs == widget || _dialogs->isAncestorOf(widget)) {
+				Global::RefDialogsListFocused().set(true, false);
+			}
+		}
+	}
+	return TWidget::eventFilter(o, e);
+}
+
+void MainWidget::handleAdaptiveLayoutUpdate() {
 	showAll();
 	_sideShadow->setVisible(!Adaptive::OneColumn());
 	if (_player) {
@@ -2968,8 +3087,61 @@ void MainWidget::updateAdaptiveLayout() {
 	}
 }
 
+void MainWidget::updateWindowAdaptiveLayout() {
+	auto layout = Adaptive::WindowLayout::OneColumn;
+
+	auto dialogsWidth = qRound(width() * Global::DialogsWidthRatio());
+	auto historyWidth = width() - dialogsWidth;
+	accumulate_max(historyWidth, st::windowMinWidth);
+	dialogsWidth = width() - historyWidth;
+
+	auto useOneColumnLayout = [this, dialogsWidth] {
+		auto someSectionShown = !selectingPeer() && isSectionShown();
+		if (dialogsWidth < st::dialogsPadding.x() && (Adaptive::OneColumn() || someSectionShown)) {
+			return true;
+		}
+		if (width() < st::windowMinWidth + st::dialogsWidthMin) {
+			return true;
+		}
+		return false;
+	};
+	auto useSmallColumnLayout = [this, dialogsWidth] {
+		// used if useOneColumnLayout() == false.
+		if (dialogsWidth < st::dialogsWidthMin / 2) {
+			return true;
+		}
+		return false;
+	};
+	if (useOneColumnLayout()) {
+		dialogsWidth = width();
+	} else if (useSmallColumnLayout()) {
+		layout = Adaptive::WindowLayout::SmallColumn;
+		auto forceWideDialogs = [this] {
+			if (Global::DialogsListDisplayForced().value()) {
+				return true;
+			} else if (Global::DialogsListFocused().value()) {
+				return true;
+			}
+			return !isSectionShown();
+		};
+		if (forceWideDialogs()) {
+			dialogsWidth = st::dialogsWidthMin;
+		} else {
+			dialogsWidth = st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPadding.x();
+		}
+	} else {
+		layout = Adaptive::WindowLayout::Normal;
+		accumulate_max(dialogsWidth, st::dialogsWidthMin);
+	}
+	_dialogsWidth = dialogsWidth;
+	if (layout != Global::AdaptiveWindowLayout()) {
+		Global::SetAdaptiveWindowLayout(layout);
+		Adaptive::Changed().notify(true);
+	}
+}
+
 bool MainWidget::needBackButton() {
-	return _overview || _wideSection || _history->peer();
+	return isSectionShown();
 }
 
 bool MainWidget::paintTopBar(Painter &p, int decreaseWidth, TimeMs ms) {

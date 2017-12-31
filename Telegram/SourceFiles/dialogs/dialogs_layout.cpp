@@ -58,8 +58,8 @@ void paintRowDate(Painter &p, const QDateTime &date, QRect &rectForName, bool ac
 	p.drawText(rectForName.left() + rectForName.width() + st::dialogsDateSkip, rectForName.top() + st::msgNameFont->height - st::msgDateFont->descent, dt);
 }
 
-template <typename PaintItemCallback>
-void paintRow(Painter &p, const RippleRow *row, History *history, HistoryItem *item, Data::Draft *draft, QDateTime date, int fullWidth, bool active, bool selected, bool onlyBackground, TimeMs ms, PaintItemCallback paintItemCallback) {
+template <typename PaintItemCallback, typename PaintCounterCallback>
+void paintRow(Painter &p, const RippleRow *row, History *history, HistoryItem *item, Data::Draft *draft, QDateTime date, int fullWidth, bool active, bool selected, bool onlyBackground, TimeMs ms, PaintItemCallback paintItemCallback, PaintCounterCallback paintCounterCallback) {
 	QRect fullRect(0, 0, fullWidth, st::dialogsRowHeight);
 	p.fillRect(fullRect, active ? st::dialogsBgActive : (selected ? st::dialogsBgOver : st::dialogsBg));
 	row->paintRipple(p, 0, 0, fullWidth, ms, &(active ? st::dialogsRippleBgActive : st::dialogsRippleBg)->c);
@@ -69,6 +69,13 @@ void paintRow(Painter &p, const RippleRow *row, History *history, HistoryItem *i
 	userpicPeer->paintUserpicLeft(p, st::dialogsPadding.x(), st::dialogsPadding.y(), fullWidth, st::dialogsPhotoSize);
 
 	auto nameleft = st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPhotoPadding;
+	if (fullWidth <= nameleft) {
+		if (!draft && item && !item->isEmpty()) {
+			paintCounterCallback();
+		}
+		return;
+	}
+
 	auto namewidth = fullWidth - nameleft - st::dialogsPadding.x();
 	QRect rectForName(nameleft, st::dialogsPadding.y() + st::dialogsNameTop, namewidth, st::msgNameFont->height);
 
@@ -105,8 +112,7 @@ void paintRow(Painter &p, const RippleRow *row, History *history, HistoryItem *i
 		auto &color = active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService);
 		p.setFont(st::dialogsTextFont);
 		if (!history->paintSendAction(p, nameleft, texttop, namewidth, fullWidth, color, ms)) {
-			p.setPen(color);
-			p.drawText(nameleft, texttop + st::msgNameFont->ascent, lang(lng_empty_history));
+			// Empty history
 		}
 	} else if (!item->isEmpty()) {
 		paintRowDate(p, date, rectForName, active, selected);
@@ -299,6 +305,22 @@ void RowPainter::paint(Painter &p, const Row *row, int fullWidth, bool active, b
 		if (!history->paintSendAction(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
 			item->drawInDialog(p, QRect(nameleft, texttop, availableWidth, st::dialogsTextFont->height), active, selected, history->textCachedFor, history->lastItemTextCache);
 		}
+	}, [&p, fullWidth, active, selected, ms, history, unreadCount] {
+		if (unreadCount) {
+			auto counter = QString::number(unreadCount);
+			if (counter.size() > 4) {
+				counter = qsl("..") + counter.mid(counter.size() - 3);
+			}
+			auto mutedCounter = history->mute();
+			auto unreadRight = st::dialogsPadding.x() + st::dialogsPhotoSize;
+			auto unreadTop = st::dialogsPadding.y() + st::dialogsPhotoSize - st::dialogsUnreadHeight;
+			auto unreadWidth = 0;
+
+			UnreadBadgeStyle st;
+			st.active = active;
+			st.muted = history->mute();
+			paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
+		}
 	});
 }
 
@@ -308,6 +330,7 @@ void RowPainter::paint(Painter &p, const FakeRow *row, int fullWidth, bool activ
 	paintRow(p, row, history, item, nullptr, item->date, fullWidth, active, selected, onlyBackground, ms, [&p, row, active, selected](int nameleft, int namewidth, HistoryItem *item) {
 		int lastWidth = namewidth, texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
 		item->drawInDialog(p, QRect(nameleft, texttop, lastWidth, st::dialogsTextFont->height), active, selected, row->_cacheFor, row->_cache);
+	}, [] {
 	});
 }
 

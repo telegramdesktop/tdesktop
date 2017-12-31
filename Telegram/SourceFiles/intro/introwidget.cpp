@@ -119,6 +119,7 @@ void Widget::changeLanguage(int32 languageId) {
 }
 
 void Widget::setInnerFocus() {
+	Global::RefDialogsListFocused().set(false, true);
 	if (getStep()->animating()) {
 		setFocus();
 	} else {

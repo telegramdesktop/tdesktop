@@ -517,7 +517,7 @@ void HistoryMessageUnreadBar::paint(Painter &p, int y, int w) const {
 
 	int left = st::msgServiceMargin.left();
 	int maxwidth = w;
-	if (Adaptive::Wide()) {
+	if (Adaptive::ChatWide()) {
 		maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
 	}
 	w = maxwidth;

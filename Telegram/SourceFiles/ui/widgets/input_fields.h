@@ -191,6 +191,7 @@ private:
 
 	QString _ph, _phelided;
 	int _phAfter = 0;
+	bool _focused = false;
 	bool _placeholderVisible = true;
 	Animation _a_placeholderFocused;
 	Animation _a_placeholderVisible;
@@ -313,6 +314,7 @@ private:
 
 	bool _customUpDown = false;
 
+	bool _focused = false;
 	bool _placeholderVisible = true;
 	Animation _a_placeholderFocused;
 	Animation _a_placeholderVisible;

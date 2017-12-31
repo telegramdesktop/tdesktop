@@ -407,7 +407,7 @@ namespace {
 			data->inputUser = MTP_inputUser(d.vid, MTP_long(0));
 			data->setName(lang(lng_deleted), QString(), QString(), QString());
 			data->setPhoto(MTP_userProfilePhotoEmpty());
-			data->access = UserNoAccess;
+			data->setIsInaccessible();
 			data->flags = 0;
 			data->setBotInfoVersion(-1);
 			status = &emptyStatus;
@@ -430,8 +430,8 @@ namespace {
 					data->input = MTP_inputPeerSelf();
 					data->inputUser = MTP_inputUserSelf();
 				} else if (!d.has_access_hash()) {
-					data->input = MTP_inputPeerUser(d.vid, MTP_long((data->access == UserNoAccess) ? 0 : data->access));
-					data->inputUser = MTP_inputUser(d.vid, MTP_long((data->access == UserNoAccess) ? 0 : data->access));
+					data->input = MTP_inputPeerUser(d.vid, MTP_long(data->isInaccessible() ? 0 : data->access));
+					data->inputUser = MTP_inputUser(d.vid, MTP_long(data->isInaccessible() ? 0 : data->access));
 				} else {
 					data->input = MTP_inputPeerUser(d.vid, d.vaccess_hash);
 					data->inputUser = MTP_inputUser(d.vid, d.vaccess_hash);
@@ -449,7 +449,7 @@ namespace {
 				}
 				data->setName(lang(lng_deleted), QString(), QString(), QString());
 				data->setPhoto(MTP_userProfilePhotoEmpty());
-				data->access = UserNoAccess;
+				data->setIsInaccessible();
 				status = &emptyStatus;
 			} else {
 				// apply first_name and last_name from minimal user only if we don't have

@@ -26,6 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_dialogs.h"
 #include "data/data_drafts.h"
 #include "lang.h"
+#include "apiwrap.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "localstorage.h"
@@ -92,7 +93,7 @@ void History::clearLastKeyboard() {
 }
 
 bool History::canHaveFromPhotos() const {
-	if (peer->isUser() && !Adaptive::Wide()) {
+	if (peer->isUser() && !Adaptive::ChatWide()) {
 		return false;
 	} else if (isChannel() && !peer->isMegagroup()) {
 		return false;
@@ -119,6 +120,7 @@ void History::takeLocalDraft(History *from) {
 			_localDraft->msgId = 0;
 		}
 		from->clearLocalDraft();
+		App::api()->saveDraftToCloudDelayed(from);
 	}
 }
 

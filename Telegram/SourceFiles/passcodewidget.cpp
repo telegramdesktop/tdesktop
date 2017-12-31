@@ -187,5 +187,6 @@ void PasscodeWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void PasscodeWidget::setInnerFocus() {
+	Global::RefDialogsListFocused().set(false, true);
 	_passcode->setFocusFast();
 }

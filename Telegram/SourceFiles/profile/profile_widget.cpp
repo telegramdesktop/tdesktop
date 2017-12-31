@@ -73,7 +73,7 @@ QPixmap Widget::grabForShowAnimation(const Window::SectionSlideParams &params) {
 	return result;
 }
 
-void Widget::setInnerFocus() {
+void Widget::doSetInnerFocus() {
 	_inner->setFocus();
 }
 

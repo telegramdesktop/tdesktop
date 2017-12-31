@@ -59,6 +59,11 @@ void SectionWidget::showAnimated(SlideDirection direction, const SectionSlidePar
 	show();
 }
 
+void SectionWidget::showFast() {
+	show();
+	showFinished();
+}
+
 void SectionWidget::paintEvent(QPaintEvent *e) {
 	if (Ui::skipPaintEvent(this, e)) return;
 

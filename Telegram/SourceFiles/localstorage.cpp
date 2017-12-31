@@ -558,6 +558,7 @@ enum {
 	dbiNotificationsCount  = 0x45,
 	dbiNotificationsCorner = 0x46,
 	dbiTheme = 0x47,
+	dbiDialogsWidthRatio = 0x48,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -1030,6 +1031,14 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 		if (!_checkStreamStatus(stream)) return false;
 
 		Global::SetNotificationsCorner(static_cast<Notify::ScreenCorner>((v >= 0 && v < 4) ? v : 2));
+	} break;
+
+	case dbiDialogsWidthRatio: {
+		qint32 v;
+		stream >> v;
+		if (!_checkStreamStatus(stream)) return false;
+
+		Global::SetDialogsWidthRatio(v / 1000000.);
 	} break;
 
 	case dbiWorkMode: {
@@ -1608,7 +1617,7 @@ void _writeUserSettings() {
 		_writeMap(WriteMapFast);
 	}
 
-	uint32 size = 20 * (sizeof(quint32) + sizeof(qint32));
+	uint32 size = 21 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::stringSize(Global::AskDownloadPath() ? QString() : Global::DownloadPath()) + Serialize::bytearraySize(Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
 	size += sizeof(quint32) + sizeof(qint32) + (cRecentEmojisPreload().isEmpty() ? cGetRecentEmojis().size() : cRecentEmojisPreload().size()) * (sizeof(uint64) + sizeof(ushort));
 	size += sizeof(quint32) + sizeof(qint32) + cEmojiVariants().size() * (sizeof(uint32) + sizeof(uint64));
@@ -1644,6 +1653,7 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiDialogsMode) << qint32(Global::DialogsModeEnabled() ? 1 : 0) << static_cast<qint32>(Global::DialogsMode());
 	data.stream << quint32(dbiModerateMode) << qint32(Global::ModerateModeEnabled() ? 1 : 0);
 	data.stream << quint32(dbiAutoPlay) << qint32(cAutoPlayGif() ? 1 : 0);
+	data.stream << quint32(dbiDialogsWidthRatio) << qint32(snap(qRound(Global::DialogsWidthRatio() * 1000000), 0, 1000000));
 
 	{
 		RecentEmojisPreload v(cRecentEmojisPreload());
@@ -3616,6 +3626,11 @@ void readSavedGifs() {
 void writeBackground(int32 id, const QImage &img) {
 	if (!_working() || !_backgroundCanWrite) return;
 
+	if (!_localKey.created()) {
+		LOG(("App Error: localkey not created in writeBackground()"));
+		return;
+	}
+
 	QByteArray bmp;
 	if (!img.isNull()) {
 		QBuffer buf(&bmp);
@@ -3875,8 +3890,8 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 				user->input = MTP_inputPeerSelf();
 				user->inputUser = MTP_inputUserSelf();
 			} else {
-				user->input = MTP_inputPeerUser(MTP_int(peerToUser(user->id)), MTP_long((user->access == UserNoAccess) ? 0 : user->access));
-				user->inputUser = MTP_inputUser(MTP_int(peerToUser(user->id)), MTP_long((user->access == UserNoAccess) ? 0 : user->access));
+				user->input = MTP_inputPeerUser(MTP_int(peerToUser(user->id)), MTP_long(user->isInaccessible() ? 0 : user->access));
+				user->inputUser = MTP_inputUser(MTP_int(peerToUser(user->id)), MTP_long(user->isInaccessible() ? 0 : user->access));
 			}
 
 			user->setUserpic(photoLoc.isNull() ? ImagePtr() : ImagePtr(photoLoc));

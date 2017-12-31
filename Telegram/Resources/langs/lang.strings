@@ -771,7 +771,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_record_cancel" = "Release outside this field to cancel";
 "lng_will_be_notified" = "Members will be notified when you post";
 "lng_wont_be_notified" = "Members will not be notified when you post";
-"lng_empty_history" = "";
 "lng_willbe_history" = "Please select a chat to start messaging";
 "lng_from_you" = "You";
 "lng_from_draft" = "Draft";

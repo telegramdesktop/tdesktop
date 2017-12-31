@@ -39,11 +39,13 @@ historyScroll: ScrollArea(defaultScrollArea) {
 	bottomsh: -1px;
 }
 
+historyResizeWidth: 6px;
+
 historyPaddingBottom: 8px;
 
 historyToDownPosition: point(12px, 10px);
-historyToDownAbove: icon {{ "history_down_arrow", menuIconFg, point(17px, 23px) }};
-historyToDownAboveOver: icon {{ "history_down_arrow", menuIconFgOver, point(17px, 23px) }};
+historyToDownAbove: icon {{ "history_down_arrow", historyToDownFg, point(17px, 23px) }};
+historyToDownAboveOver: icon {{ "history_down_arrow", historyToDownFgOver, point(17px, 23px) }};
 historyToDownPaddingTop: 10px;
 historyToDown: TwoIconButton {
 	width: 52px;
@@ -58,7 +60,7 @@ historyToDown: TwoIconButton {
 	rippleAreaPosition: point(5px, 15px);
 	rippleAreaSize: 42px;
 	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgRipple;
+		color: historyToDownBgRipple;
 	}
 }
 historyToDownBadgeFont: semiboldFont;
