@@ -356,7 +356,9 @@ Storage::SharedMediaTypesMask HistoryItem::sharedMediaTypes() const {
 
 void HistoryItem::indexAsNewItem() {
 	if (IsServerMsgId(id)) {
+		CrashReports::SetAnnotation("addToUnreadMentions", QString::number(id));
 		addToUnreadMentions(UnreadMentionType::New);
+		CrashReports::ClearAnnotation("addToUnreadMentions");
 		if (const auto types = sharedMediaTypes()) {
 			Auth().storage().add(Storage::SharedMediaAddNew(
 				history()->peer->id,

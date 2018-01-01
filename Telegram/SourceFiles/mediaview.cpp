@@ -3028,12 +3028,18 @@ void MediaView::findCurrent() {
 			? (_index | func::add(*_sharedMediaData->skippedBefore()))
 			: base::none;
 		_fullCount = _sharedMediaData->fullCount();
+		if (_index) {
+			Assert(*_index >= 0 && *_index < _sharedMediaData->size());
+		}
 	} else if (_userPhotosData) {
 		_index = _photo ? _userPhotosData->indexOf(_photo->id) : base::none;
 		_fullIndex = _userPhotosData->skippedBefore()
 			? (_index | func::add(*_userPhotosData->skippedBefore()))
 			: base::none;
 		_fullCount = _userPhotosData->fullCount();
+		if (_index) {
+			Assert(*_index >= 0 && *_index < _userPhotosData->size());
+		}
 	} else {
 		_index = _fullIndex = _fullCount = base::none;
 	}
