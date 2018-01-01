@@ -92,12 +92,12 @@ private slots:
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 	void onEnableTrayIcon();
+	void onStartInTray();
 	void onEnableTaskbarIcon();
 
 #ifndef OS_WIN_STORE
 	void onAutoStart();
 	void onStartMinimized();
-	void onStartInTray();
 	void onAddInSendTo();
 #endif // !OS_WIN_STORE
 
