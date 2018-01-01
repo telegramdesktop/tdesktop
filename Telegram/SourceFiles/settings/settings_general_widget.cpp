@@ -253,7 +253,7 @@ void GeneralWidget::onEnableTrayIcon() {
 	} else {
 		updateWorkmode();
 	}
-	
+
 	const bool trayIconEnabled = _enableTrayIcon->checked();
 	_startInTray->setEnabled(trayIconEnabled);
 	if (!trayIconEnabled && _startInTray->checked()) {
