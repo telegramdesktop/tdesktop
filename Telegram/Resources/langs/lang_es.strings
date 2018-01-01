@@ -315,7 +315,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_workmode_tray" = "Mostrar el icono";
 "lng_settings_workmode_window" = "Mostrar icono de la barra de tareas";
 "lng_settings_auto_start" = "Abrir Telegram cuando el sistema inicie";
-"lng_settings_start_min" = "Abrir minimizada";
+"lng_settings_start_min" = "Iniciar minimizado";
 "lng_settings_start_in_tray" = "Iniciar en la bandeja de sistema";
 "lng_settings_add_sendto" = "Poner Telegram en el menú «Enviar a»";
 "lng_settings_section_scale" = "Escala de la interfaz";
