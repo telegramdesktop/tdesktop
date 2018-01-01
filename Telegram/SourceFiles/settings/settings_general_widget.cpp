@@ -186,7 +186,9 @@ void GeneralWidget::refreshControls() {
 
 	if (cPlatform() == dbipWindows || cSupportTray()) {
 		auto workMode = Global::WorkMode().value();
-		createChildRow(_enableTrayIcon, marginSmall, lang(lng_settings_workmode_tray), [this](bool) { onEnableTrayIcon(); }, (workMode == dbiwmTrayOnly || workMode == dbiwmWindowAndTray));
+		const bool trayIconEnabled = (workMode == dbiwmTrayOnly || workMode == dbiwmWindowAndTray);
+		createChildRow(_enableTrayIcon, marginSmall, lang(lng_settings_workmode_tray), [this](bool) { onEnableTrayIcon(); }, trayIconEnabled);
+		createChildRow(_startInTray, marginSmall, lang(lng_settings_start_in_tray), [this](bool) { onStartInTray(); }, trayIconEnabled && cStartInTray());
 		if (cPlatform() == dbipWindows) {
 			createChildRow(_enableTaskbarIcon, marginLarge, lang(lng_settings_workmode_window), [this](bool) { onEnableTaskbarIcon(); }, (workMode == dbiwmWindowOnly || workMode == dbiwmWindowAndTray));
 
@@ -250,6 +252,20 @@ void GeneralWidget::onEnableTrayIcon() {
 		_enableTaskbarIcon->setChecked(true);
 	} else {
 		updateWorkmode();
+	}
+	
+	const bool trayIconEnabled = _enableTrayIcon->checked();
+	_startInTray->setEnabled(trayIconEnabled);
+	if (!trayIconEnabled && _startInTray->checked()) {
+		_startInTray->setChecked(false);
+	}
+}
+
+void GeneralWidget::onStartInTray(){
+	auto checked = _startInTray->checked();
+	if (cStartInTray() != checked) {
+		cSetStartInTray(checked);
+		Local::writeSettings();
 	}
 }
 

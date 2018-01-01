@@ -97,6 +97,7 @@ private slots:
 #ifndef OS_WIN_STORE
 	void onAutoStart();
 	void onStartMinimized();
+	void onStartInTray();
 	void onAddInSendTo();
 #endif // !OS_WIN_STORE
 
@@ -115,6 +116,7 @@ private:
 	Ui::Checkbox *_enableTaskbarIcon = nullptr;
 	Ui::Checkbox *_autoStart = nullptr;
 	Ui::SlideWrap<Ui::Checkbox> *_startMinimized = nullptr;
+	Ui::Checkbox *_startInTray = nullptr;
 	Ui::Checkbox *_addInSendTo = nullptr;
 
 	int _languagesLoadedSubscription = 0;
