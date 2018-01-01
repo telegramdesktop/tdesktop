@@ -1728,7 +1728,7 @@ void MainWidget::closeBothPlayers() {
 	if (_playerUsingPanel) {
 		_playerUsingPanel = false;
 		_player.destroyDelayed();
-	} else {
+	} else if (_player) {
 		_player->hide(anim::type::normal);
 	}
 	_playerVolume.destroyDelayed();
