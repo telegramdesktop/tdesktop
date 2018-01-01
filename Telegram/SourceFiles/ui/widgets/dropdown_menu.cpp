@@ -15,24 +15,23 @@ GNU General Public License for more details.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/widgets/dropdown_menu.h"
 
 #include "application.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 
 namespace Ui {
 
 DropdownMenu::DropdownMenu(QWidget *parent, const style::DropdownMenu &st) : InnerDropdown(parent, st.wrap)
-, _st(st)
-, _menu(this, _st.menu) {
+, _st(st) {
+	_menu = setOwnedWidget(object_ptr<Ui::Menu>(this, _st.menu));
 	init();
 }
 
 // Not ready with submenus yet.
 //DropdownMenu::DropdownMenu(QWidget *parent, QMenu *menu, const style::DropdownMenu &st) : InnerDropdown(parent, st.wrap)
-//, _st(st)
-//, _menu(this, menu, _st.menu) {
+//, _st(st) {
+//	_menu = setOwnedWidget(object_ptr<Ui::Menu>(this, menu, _st.menu));
 //	init();
 //
 //	for (auto action : actions()) {
@@ -45,8 +44,6 @@ DropdownMenu::DropdownMenu(QWidget *parent, const style::DropdownMenu &st) : Inn
 
 void DropdownMenu::init() {
 	InnerDropdown::setHiddenCallback([this] { hideFinish(); });
-
-	setOwnedWidget(_menu);
 
 	_menu->setResizedCallback([this] { resizeToContent(); });
 	_menu->setActivatedCallback([this](QAction *action, int actionTop, TriggeredSource source) {
@@ -69,8 +66,8 @@ QAction *DropdownMenu::addAction(const QString &text, const QObject *receiver, c
 	return _menu->addAction(text, receiver, member, icon, iconOver);
 }
 
-QAction *DropdownMenu::addAction(const QString &text, base::lambda<void()> &&callback, const style::icon *icon, const style::icon *iconOver) {
-	return _menu->addAction(text, std_::move(callback), icon, iconOver);
+QAction *DropdownMenu::addAction(const QString &text, base::lambda<void()> callback, const style::icon *icon, const style::icon *iconOver) {
+	return _menu->addAction(text, std::move(callback), icon, iconOver);
 }
 
 QAction *DropdownMenu::addSeparator() {

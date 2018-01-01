@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "app.h"
 
 #ifdef OS_MAC_OLD
@@ -27,24 +26,31 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "styles/style_overview.h"
 #include "styles/style_mediaview.h"
-#include "styles/style_stickers.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "data/data_abstract_structure.h"
 #include "history/history_service_layout.h"
 #include "history/history_location_manager.h"
 #include "history/history_media_types.h"
+#include "history/history_item_components.h"
 #include "media/media_audio.h"
 #include "inline_bots/inline_bot_layout_item.h"
+#include "messenger.h"
 #include "application.h"
-#include "fileuploader.h"
+#include "storage/file_upload.h"
+#include "mainwindow.h"
 #include "mainwidget.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "apiwrap.h"
 #include "numbers.h"
 #include "observer_peer.h"
-#include "window/window_theme.h"
+#include "auth_session.h"
+#include "core/crash_reports.h"
+#include "storage/storage_facade.h"
+#include "storage/storage_shared_media.h"
+#include "window/themes/window_theme.h"
 #include "window/notifications_manager.h"
 #include "platform/platform_notifications_manager.h"
 
@@ -56,11 +62,8 @@ namespace {
 	using PeersData = QHash<PeerId, PeerData*>;
 	PeersData peersData;
 
-	using MutedPeers = QMap<PeerData*, bool>;
+	using MutedPeers = QMap<not_null<PeerData*>, bool>;
 	MutedPeers mutedPeers;
-
-	using UpdatedPeers = QMap<PeerData*, bool>;
-	UpdatedPeers updatedPeers;
 
 	PhotosData photosData;
 	DocumentsData documentsData;
@@ -109,19 +112,16 @@ namespace {
 	style::font monofont;
 
 	struct CornersPixmaps {
-		CornersPixmaps() {
-			memset(p, 0, sizeof(p));
-		}
-		QPixmap *p[4];
+		QPixmap p[4];
 	};
-	CornersPixmaps corners[RoundCornersCount];
+	QVector<CornersPixmaps> corners;
 	using CornersMap = QMap<uint32, CornersPixmaps>;
 	CornersMap cornersMap;
-	QImage *cornersMaskLarge[4] = { nullptr }, *cornersMaskSmall[4] = { nullptr };
+	QImage cornersMaskLarge[4], cornersMaskSmall[4];
 
-	using EmojiMap = QMap<uint64, QPixmap>;
-	EmojiMap mainEmojiMap;
-	QMap<int32, EmojiMap> otherEmojiMap;
+	using EmojiImagesMap = QMap<int, QPixmap>;
+	EmojiImagesMap MainEmojiMap;
+	QMap<int, EmojiImagesMap> OtherEmojiMap;
 
 	int32 serviceImageCacheSize = 0;
 
@@ -129,7 +129,8 @@ namespace {
 	LastPhotosList lastPhotos;
 	using LastPhotosMap = QHash<PhotoData*, LastPhotosList::iterator>;
 	LastPhotosMap lastPhotosMap;
-}
+
+} // namespace
 
 namespace App {
 
@@ -159,34 +160,25 @@ namespace App {
 		return result;
 	}
 
-	AppClass *app() {
-		return AppClass::app();
-	}
-
 	MainWindow *wnd() {
-		return AppClass::wnd();
+		if (auto instance = Messenger::InstancePointer()) {
+			return instance->getActiveWindow();
+		}
+		return nullptr;
 	}
 
 	MainWidget *main() {
-		if (auto w = wnd()) {
-			return w->mainWidget();
+		if (auto window = wnd()) {
+			return window->mainWidget();
 		}
 		return nullptr;
 	}
 
 	bool passcoded() {
-		if (auto w = wnd()) {
-			return w->passcodeWidget();
+		if (auto window = wnd()) {
+			return window->passcodeWidget();
 		}
 		return false;
-	}
-
-	FileUploader *uploader() {
-		return app() ? app()->uploader() : 0;
-	}
-
-	ApiWrap *api() {
-		return main() ? main()->api() : 0;
 	}
 
 namespace {
@@ -195,24 +187,17 @@ namespace {
 			Global::SetLocalPasscode(false);
 			Global::RefLocalPasscodeChanged().notify();
 		}
-		if (audioPlayer()) {
-			audioPlayer()->stopAndClear();
-		}
+		Media::Player::mixer()->stopAndClear();
 		if (auto w = wnd()) {
 			w->tempDirDelete(Local::ClearManagerAll);
-			w->notifyClearFast();
 			w->setupIntro();
 		}
-		MTP::setAuthedId(0);
+		histories().clear();
+		Messenger::Instance().authSessionDestroy();
 		Local::reset();
 		Window::Theme::Background()->reset();
 
 		cSetOtherOnline(0);
-		histories().clear();
-		globalNotifyAllPtr = UnknownNotifySettings;
-		globalNotifyUsersPtr = UnknownNotifySettings;
-		globalNotifyChatsPtr = UnknownNotifySettings;
-		if (App::uploader()) App::uploader()->clear();
 		clearStorageImages();
 		if (auto w = wnd()) {
 			w->updateConnectingStatus();
@@ -222,123 +207,18 @@ namespace {
 } // namespace
 
 	void logOut() {
-		if (MTP::started()) {
-			MTP::logoutKeys(rpcDone(&loggedOut), rpcFail(&loggedOut));
+		if (auto mtproto = Messenger::Instance().mtp()) {
+			mtproto->logout(rpcDone([] {
+				return loggedOut();
+			}), rpcFail([] {
+				return loggedOut();
+			}));
 		} else {
+			// We log out because we've forgotten passcode.
+			// So we just start mtproto from scratch.
+			Messenger::Instance().startMtp();
 			loggedOut();
-			MTP::start();
 		}
-	}
-
-	TimeId onlineForSort(UserData *user, TimeId now) {
-		if (isServiceUser(user->id) || user->botInfo) {
-			return -1;
-		}
-		TimeId online = user->onlineTill;
-		if (online <= 0) {
-			switch (online) {
-			case 0:
-			case -1: return online;
-
-			case -2: {
-				QDate yesterday(date(now).date());
-				return int32(QDateTime(yesterday.addDays(-3)).toTime_t()) + (unixtime() - myunixtime());
-			} break;
-
-			case -3: {
-				QDate weekago(date(now).date());
-				return int32(QDateTime(weekago.addDays(-7)).toTime_t()) + (unixtime() - myunixtime());
-			} break;
-
-			case -4: {
-				QDate monthago(date(now).date());
-				return int32(QDateTime(monthago.addDays(-30)).toTime_t()) + (unixtime() - myunixtime());
-			} break;
-			}
-			return -online;
-		}
-		return online;
-	}
-
-	int32 onlineWillChangeIn(UserData *user, TimeId now) {
-		if (isServiceUser(user->id) || user->botInfo) {
-			return 86400;
-		}
-		return onlineWillChangeIn(user->onlineTill, now);
-	}
-
-	int32 onlineWillChangeIn(TimeId online, TimeId now) {
-		if (online <= 0) {
-            if (-online > now) return -online - now;
-            return 86400;
-        }
-		if (online > now) {
-			return online - now;
-		}
-		int32 minutes = (now - online) / 60;
-		if (minutes < 60) {
-			return (minutes + 1) * 60 - (now - online);
-		}
-		int32 hours = (now - online) / 3600;
-		if (hours < 12) {
-			return (hours + 1) * 3600 - (now - online);
-		}
-		QDateTime dNow(date(now)), dTomorrow(dNow.date().addDays(1));
-		return dNow.secsTo(dTomorrow);
-	}
-
-	QString onlineText(UserData *user, TimeId now, bool precise) {
-		if (isNotificationsUser(user->id)) {
-			return lang(lng_status_service_notifications);
-		} else if (user->botInfo) {
-			return lang(lng_status_bot);
-		} else if (isServiceUser(user->id)) {
-			return lang(lng_status_support);
-		}
-		return onlineText(user->onlineTill, now, precise);
-	}
-
-	QString onlineText(TimeId online, TimeId now, bool precise) {
-		if (online <= 0) {
-			switch (online) {
-			case 0: return lang(lng_status_offline);
-            case -1: return lang(lng_status_invisible);
-			case -2: return lang(lng_status_recently);
-			case -3: return lang(lng_status_last_week);
-			case -4: return lang(lng_status_last_month);
-			}
-            return (-online > now) ? lang(lng_status_online) : lang(lng_status_recently);
-		}
-		if (online > now) {
-			return lang(lng_status_online);
-		}
-		QString when;
-		if (precise) {
-			QDateTime dOnline(date(online)), dNow(date(now));
-			if (dOnline.date() == dNow.date()) {
-				return lng_status_lastseen_today(lt_time, dOnline.time().toString(cTimeFormat()));
-			} else if (dOnline.date().addDays(1) == dNow.date()) {
-				return lng_status_lastseen_yesterday(lt_time, dOnline.time().toString(cTimeFormat()));
-			}
-			return lng_status_lastseen_date_time(lt_date, dOnline.date().toString(qsl("dd.MM.yy")), lt_time, dOnline.time().toString(cTimeFormat()));
-		}
-		int32 minutes = (now - online) / 60;
-		if (!minutes) {
-			return lang(lng_status_lastseen_now);
-		} else if (minutes < 60) {
-			return lng_status_lastseen_minutes(lt_count, minutes);
-		}
-		int32 hours = (now - online) / 3600;
-		if (hours < 12) {
-			return lng_status_lastseen_hours(lt_count, hours);
-		}
-		QDateTime dOnline(date(online)), dNow(date(now));
-		if (dOnline.date() == dNow.date()) {
-			return lng_status_lastseen_today(lt_time, dOnline.time().toString(cTimeFormat()));
-		} else if (dOnline.date().addDays(1) == dNow.date()) {
-			return lng_status_lastseen_yesterday(lt_time, dOnline.time().toString(cTimeFormat()));
-		}
-		return lng_status_lastseen_date(lt_date, dOnline.date().toString(qsl("dd.MM.yy")));
 	}
 
 	namespace {
@@ -365,27 +245,6 @@ namespace {
 		}
 	}
 
-	bool onlineColorUse(UserData *user, TimeId now) {
-		if (isServiceUser(user->id) || user->botInfo) {
-			return false;
-		}
-		return onlineColorUse(user->onlineTill, now);
-	}
-
-	bool onlineColorUse(TimeId online, TimeId now) {
-		if (online <= 0) {
-			switch (online) {
-			case 0:
-			case -1:
-			case -2:
-			case -3:
-			case -4: return false;
-			}
-			return (-online > now);
-		}
-		return (online > now);
-	}
-
 	UserData *feedUser(const MTPUser &user) {
 		UserData *data = nullptr;
 		bool wasContact = false, minimal = false;
@@ -407,8 +266,8 @@ namespace {
 			data->inputUser = MTP_inputUser(d.vid, MTP_long(0));
 			data->setName(lang(lng_deleted), QString(), QString(), QString());
 			data->setPhoto(MTP_userProfilePhotoEmpty());
-			data->setIsInaccessible();
-			data->flags = 0;
+			//data->setFlags(MTPDuser_ClientFlag::f_inaccessible | 0);
+			data->setFlags(MTPDuser::Flag::f_deleted);
 			data->setBotInfoVersion(-1);
 			status = &emptyStatus;
 			data->contact = -1;
@@ -424,14 +283,19 @@ namespace {
 			data = App::user(peer);
 			auto canShareThisContact = data->canShareThisContactFast();
 			wasContact = data->isContact();
-			if (!minimal) {
-				data->flags = d.vflags.v;
+			if (minimal) {
+				auto mask = 0
+					//| MTPDuser_ClientFlag::f_inaccessible
+					| MTPDuser::Flag::f_deleted;
+				data->setFlags((data->flags() & ~mask) | (d.vflags.v & mask));
+			} else {
+				data->setFlags(d.vflags.v);
 				if (d.is_self()) {
 					data->input = MTP_inputPeerSelf();
 					data->inputUser = MTP_inputUserSelf();
 				} else if (!d.has_access_hash()) {
-					data->input = MTP_inputPeerUser(d.vid, MTP_long(data->isInaccessible() ? 0 : data->access));
-					data->inputUser = MTP_inputUser(d.vid, MTP_long(data->isInaccessible() ? 0 : data->access));
+					data->input = MTP_inputPeerUser(d.vid, MTP_long(data->accessHash()));
+					data->inputUser = MTP_inputUser(d.vid, MTP_long(data->accessHash()));
 				} else {
 					data->input = MTP_inputPeerUser(d.vid, d.vaccess_hash);
 					data->inputUser = MTP_inputUser(d.vid, d.vaccess_hash);
@@ -449,17 +313,16 @@ namespace {
 				}
 				data->setName(lang(lng_deleted), QString(), QString(), QString());
 				data->setPhoto(MTP_userProfilePhotoEmpty());
-				data->setIsInaccessible();
 				status = &emptyStatus;
 			} else {
 				// apply first_name and last_name from minimal user only if we don't have
 				// local values for first name and last name already, otherwise skip
 				bool noLocalName = data->firstName.isEmpty() && data->lastName.isEmpty();
-				QString fname = (!minimal || noLocalName) ? (d.has_first_name() ? textOneLine(qs(d.vfirst_name)) : QString()) : data->firstName;
-				QString lname = (!minimal || noLocalName) ? (d.has_last_name() ? textOneLine(qs(d.vlast_name)) : QString()) : data->lastName;
+				QString fname = (!minimal || noLocalName) ? (d.has_first_name() ? TextUtilities::SingleLine(qs(d.vfirst_name)) : QString()) : data->firstName;
+				QString lname = (!minimal || noLocalName) ? (d.has_last_name() ? TextUtilities::SingleLine(qs(d.vlast_name)) : QString()) : data->lastName;
 
 				QString phone = minimal ? data->phone() : (d.has_phone() ? qs(d.vphone) : QString());
-				QString uname = minimal ? data->username : (d.has_username() ? textOneLine(qs(d.vusername)) : QString());
+				QString uname = minimal ? data->username : (d.has_username() ? TextUtilities::SingleLine(qs(d.vusername)) : QString());
 
 				bool phoneChanged = (data->phone() != phone);
 				if (phoneChanged) {
@@ -472,7 +335,7 @@ namespace {
 				bool showPhoneChanged = !isServiceUser(data->id) && !d.is_self() && ((showPhone && data->contact) || (!showPhone && !data->contact));
 				if (minimal) {
 					showPhoneChanged = false;
-					showPhone = !isServiceUser(data->id) && (data->id != peerFromUser(MTP::authedId())) && !data->contact;
+					showPhone = !isServiceUser(data->id) && (data->id != Auth().userPeerId()) && !data->contact;
 				}
 
 				// see also Local::readPeer
@@ -480,7 +343,7 @@ namespace {
 				QString pname = (showPhoneChanged || phoneChanged || nameChanged) ? ((showPhone && !phone.isEmpty()) ? formatPhone(phone) : QString()) : data->nameOrPhone;
 
 				if (!minimal && d.is_self() && uname != data->username) {
-					SignalHandlers::setCrashAnnotation("Username", uname);
+					CrashReports::SetAnnotation("Username", uname);
 				}
 				data->setName(fname, lname, pname, uname);
 				if (d.has_photo()) {
@@ -488,7 +351,9 @@ namespace {
 				} else {
 					data->setPhoto(MTP_userProfilePhotoEmpty());
 				}
-				if (d.has_access_hash()) data->access = d.vaccess_hash.v;
+				if (d.has_access_hash()) {
+					data->setAccessHash(d.vaccess_hash.v);
+				}
 				status = d.has_status() ? &d.vstatus : &emptyStatus;
 			}
 			if (!minimal) {
@@ -531,32 +396,22 @@ namespace {
 			data->loadedStatus = PeerData::FullLoaded;
 		}
 
-		auto oldOnlineTill = data->onlineTill;
-		if (status && !minimal) switch (status->type()) {
-		case mtpc_userStatusEmpty: data->onlineTill = 0; break;
-		case mtpc_userStatusRecently:
-		if (data->onlineTill > -10) { // don't modify pseudo-online
-			data->onlineTill = -2;
-		}
-		break;
-		case mtpc_userStatusLastWeek: data->onlineTill = -3; break;
-		case mtpc_userStatusLastMonth: data->onlineTill = -4; break;
-		case mtpc_userStatusOffline: data->onlineTill = status->c_userStatusOffline().vwas_online.v; break;
-		case mtpc_userStatusOnline: data->onlineTill = status->c_userStatusOnline().vexpires.v; break;
-		}
-		if (oldOnlineTill != data->onlineTill) {
-			update.flags |= UpdateFlag::UserOnlineChanged;
+		if (status && !minimal) {
+			auto oldOnlineTill = data->onlineTill;
+			auto newOnlineTill = Auth().api().onlineTillFromStatus(*status, oldOnlineTill);
+			if (oldOnlineTill != newOnlineTill) {
+				data->onlineTill = newOnlineTill;
+				update.flags |= UpdateFlag::UserOnlineChanged;
+			}
 		}
 
-		if (data->contact < 0 && !data->phone().isEmpty() && peerToUser(data->id) != MTP::authedId()) {
+		if (data->contact < 0 && !data->phone().isEmpty() && data->id != Auth().userPeerId()) {
 			data->contact = 0;
 		}
 		if (App::main()) {
 			if ((data->contact > 0 && !wasContact) || (wasContact && data->contact < 1)) {
 				Notify::userIsContactChanged(data);
 			}
-
-			markPeerUpdated(data);
 			if (update.flags) {
 				update.peer = data;
 				Notify::peerUpdatedDelayed(update);
@@ -567,7 +422,7 @@ namespace {
 
 	UserData *feedUsers(const MTPVector<MTPUser> &users) {
         UserData *result = nullptr;
-		for_const (auto &user, users.c_vector().v) {
+		for_const (auto &user, users.v) {
 			if (auto feededUser = feedUser(user)) {
 				result = feededUser;
 			}
@@ -602,12 +457,9 @@ namespace {
 			cdata->date = d.vdate.v;
 
 			if (d.has_migrated_to() && d.vmigrated_to.type() == mtpc_inputChannel) {
-				const auto &c(d.vmigrated_to.c_inputChannel());
-				ChannelData *channel = App::channel(peerFromChannel(c.vchannel_id));
-				if (!channel->mgInfo) {
-					channel->flags |= MTPDchannel::Flag::f_megagroup;
-					channel->flagsUpdated();
-				}
+				auto &c = d.vmigrated_to.c_inputChannel();
+				auto channel = App::channel(peerFromChannel(c.vchannel_id));
+				channel->addFlags(MTPDchannel::Flag::f_megagroup);
 				if (!channel->access) {
 					channel->input = MTP_inputPeerChannel(c.vchannel_id, c.vaccess_hash);
 					channel->inputChannel = d.vmigrated_to;
@@ -619,8 +471,8 @@ namespace {
 				}
 				if (updatedFrom) {
 					channel->mgInfo->migrateFromPtr = cdata;
-					if (History *h = App::historyLoaded(cdata->id)) {
-						if (History *hto = App::historyLoaded(channel->id)) {
+					if (auto h = App::historyLoaded(cdata->id)) {
+						if (auto hto = App::historyLoaded(channel->id)) {
 							if (!h->isEmpty()) {
 								h->clear(true);
 							}
@@ -638,13 +490,12 @@ namespace {
 				}
 			}
 
-			if (!(cdata->flags & MTPDchat::Flag::f_admins_enabled) && (d.vflags.v & MTPDchat::Flag::f_admins_enabled)) {
+			if (!(cdata->flags() & MTPDchat::Flag::f_admins_enabled) && (d.vflags.v & MTPDchat::Flag::f_admins_enabled)) {
 				cdata->invalidateParticipants();
 			}
-			cdata->flags = d.vflags.v;
+			cdata->setFlags(d.vflags.v);
 
 			cdata->count = d.vparticipants_count.v;
-			cdata->isForbidden = false;
 			if (canEdit != cdata->canEdit()) {
 				update.flags |= UpdateFlag::ChatCanEdit;
 			}
@@ -662,39 +513,59 @@ namespace {
 			cdata->date = 0;
 			cdata->count = -1;
 			cdata->invalidateParticipants();
-			cdata->flags = 0;
-			cdata->isForbidden = true;
+			cdata->setFlags(MTPDchat_ClientFlag::f_forbidden | 0);
 			if (canEdit != cdata->canEdit()) {
 				update.flags |= UpdateFlag::ChatCanEdit;
 			}
 		} break;
 		case mtpc_channel: {
-			auto &d(chat.c_channel());
+			const auto &d = chat.c_channel();
 
-			auto peerId = peerFromChannel(d.vid.v);
+			const auto peerId = peerFromChannel(d.vid.v);
 			minimal = d.is_min();
 			if (minimal) {
 				data = App::channelLoaded(peerId);
 				if (!data) {
-					return nullptr; // minimal is not loaded, need to make getDifference
+					// Can't apply minimal to a not loaded channel.
+					// Need to make getDifference.
+					return nullptr;
 				}
 			} else {
 				data = App::channel(peerId);
-				data->input = MTP_inputPeerChannel(d.vid, d.has_access_hash() ? d.vaccess_hash : MTP_long(0));
+				const auto accessHash = d.has_access_hash()
+					? d.vaccess_hash
+					: MTP_long(0);
+				data->input = MTP_inputPeerChannel(d.vid, accessHash);
 			}
 
-			auto cdata = data->asChannel();
-			auto wasInChannel = cdata->amIn();
-			auto canEditPhoto = cdata->canEditPhoto();
-			auto canViewAdmins = cdata->canViewAdmins();
-			auto canViewMembers = cdata->canViewMembers();
-			auto canAddMembers = cdata->canAddMembers();
-			auto wasEditor = cdata->amEditor();
+			const auto cdata = data->asChannel();
+			const auto wasInChannel = cdata->amIn();
+			const auto canViewAdmins = cdata->canViewAdmins();
+			const auto canViewMembers = cdata->canViewMembers();
+			const auto canAddMembers = cdata->canAddMembers();
 
+			if (d.has_participants_count()) {
+				cdata->setMembersCount(d.vparticipants_count.v);
+			}
 			if (minimal) {
-				auto mask = MTPDchannel::Flag::f_broadcast | MTPDchannel::Flag::f_verified | MTPDchannel::Flag::f_megagroup | MTPDchannel::Flag::f_democracy;
-				cdata->flags = (cdata->flags & ~mask) | (d.vflags.v & mask);
+				auto mask = 0
+					| MTPDchannel::Flag::f_broadcast
+					| MTPDchannel::Flag::f_verified
+					| MTPDchannel::Flag::f_megagroup
+					| MTPDchannel::Flag::f_democracy
+					| MTPDchannel_ClientFlag::f_forbidden;
+				cdata->setFlags((cdata->flags() & ~mask) | (d.vflags.v & mask));
 			} else {
+				if (d.has_admin_rights()) {
+					cdata->setAdminRights(d.vadmin_rights);
+				} else if (cdata->hasAdminRights()) {
+					cdata->setAdminRights(MTP_channelAdminRights(MTP_flags(0)));
+				}
+				if (d.has_banned_rights()) {
+					cdata->setRestrictedRights(d.vbanned_rights);
+				} else if (cdata->hasRestrictions()) {
+					cdata->setRestrictedRights(MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
+				}
 				cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
 				cdata->access = d.vaccess_hash.v;
 				cdata->date = d.vdate.v;
@@ -706,25 +577,18 @@ namespace {
 				} else {
 					cdata->setRestrictionReason(QString());
 				}
-				cdata->flags = d.vflags.v;
+				cdata->setFlags(d.vflags.v);
 			}
-			cdata->flagsUpdated();
 
-			QString uname = d.has_username() ? textOneLine(qs(d.vusername)) : QString();
+			QString uname = d.has_username() ? TextUtilities::SingleLine(qs(d.vusername)) : QString();
 			cdata->setName(qs(d.vtitle), uname);
 
-			cdata->isForbidden = false;
 			cdata->setPhoto(d.vphoto);
 
 			if (wasInChannel != cdata->amIn()) update.flags |= UpdateFlag::ChannelAmIn;
-			if (canEditPhoto != cdata->canEditPhoto()) update.flags |= UpdateFlag::ChannelCanEditPhoto;
-			if (canViewAdmins != cdata->canViewAdmins()) update.flags |= UpdateFlag::ChannelCanViewAdmins;
-			if (canViewMembers != cdata->canViewMembers()) update.flags |= UpdateFlag::ChannelCanViewMembers;
-			if (canAddMembers != cdata->canAddMembers()) update.flags |= UpdateFlag::ChannelCanAddMembers;
-			if (wasEditor != cdata->amEditor()) {
-				cdata->selfAdminUpdated();
-				update.flags |= (UpdateFlag::ChannelAmEditor | UpdateFlag::AdminsChanged);
-			}
+			if (canViewAdmins != cdata->canViewAdmins()
+				|| canViewMembers != cdata->canViewMembers()
+				|| canAddMembers != cdata->canAddMembers()) update.flags |= UpdateFlag::ChannelRightsChanged;
 		} break;
 		case mtpc_channelForbidden: {
 			auto &d(chat.c_channelForbidden());
@@ -735,17 +599,21 @@ namespace {
 
 			auto cdata = data->asChannel();
 			auto wasInChannel = cdata->amIn();
-			auto canEditPhoto = cdata->canEditPhoto();
 			auto canViewAdmins = cdata->canViewAdmins();
 			auto canViewMembers = cdata->canViewMembers();
 			auto canAddMembers = cdata->canAddMembers();
-			auto wasEditor = cdata->amEditor();
 
 			cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
 
 			auto mask = mtpCastFlags(MTPDchannelForbidden::Flag::f_broadcast | MTPDchannelForbidden::Flag::f_megagroup);
-			cdata->flags = (cdata->flags & ~mask) | (mtpCastFlags(d.vflags) & mask);
-			cdata->flagsUpdated();
+			cdata->setFlags((cdata->flags() & ~mask) | (mtpCastFlags(d.vflags) & mask) | MTPDchannel_ClientFlag::f_forbidden);
+
+			if (cdata->hasAdminRights()) {
+				cdata->setAdminRights(MTP_channelAdminRights(MTP_flags(0)));
+			}
+			if (cdata->hasRestrictions()) {
+				cdata->setRestrictedRights(MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
+			}
 
 			cdata->setName(qs(d.vtitle), QString());
 
@@ -753,17 +621,11 @@ namespace {
 			cdata->setPhoto(MTP_chatPhotoEmpty());
 			cdata->date = 0;
 			cdata->setMembersCount(0);
-			cdata->isForbidden = true;
 
 			if (wasInChannel != cdata->amIn()) update.flags |= UpdateFlag::ChannelAmIn;
-			if (canEditPhoto != cdata->canEditPhoto()) update.flags |= UpdateFlag::ChannelCanEditPhoto;
-			if (canViewAdmins != cdata->canViewAdmins()) update.flags |= UpdateFlag::ChannelCanViewAdmins;
-			if (canViewMembers != cdata->canViewMembers()) update.flags |= UpdateFlag::ChannelCanViewMembers;
-			if (canAddMembers != cdata->canAddMembers()) update.flags |= UpdateFlag::ChannelCanAddMembers;
-			if (wasEditor != cdata->amEditor()) {
-				cdata->selfAdminUpdated();
-				update.flags |= (UpdateFlag::ChannelAmEditor | UpdateFlag::AdminsChanged);
-			}
+			if (canViewAdmins != cdata->canViewAdmins()
+				|| canViewMembers != cdata->canViewMembers()
+				|| canAddMembers != cdata->canAddMembers()) update.flags |= UpdateFlag::ChannelRightsChanged;
 		} break;
 		}
 		if (!data) {
@@ -777,19 +639,16 @@ namespace {
 		} else if (data->loadedStatus != PeerData::FullLoaded) {
 			data->loadedStatus = PeerData::FullLoaded;
 		}
-		if (App::main()) {
-			markPeerUpdated(data);
-			if (update.flags) {
-				update.peer = data;
-				Notify::peerUpdatedDelayed(update);
-			}
+		if (update.flags) {
+			update.peer = data;
+			Notify::peerUpdatedDelayed(update);
 		}
 		return data;
 	}
 
 	PeerData *feedChats(const MTPVector<MTPChat> &chats) {
 		PeerData *result = nullptr;
-		for_const (auto &chat, chats.c_vector().v) {
+		for_const (auto &chat, chats.v) {
 			if (auto feededChat = feedChat(chat)) {
 				result = feededChat;
 			}
@@ -797,7 +656,7 @@ namespace {
 		return result;
 	}
 
-	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos, bool emitPeerUpdated) {
+	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos) {
 		ChatData *chat = 0;
 		switch (p.type()) {
 		case mtpc_chatParticipantsForbidden: {
@@ -813,13 +672,15 @@ namespace {
 			auto canEdit = chat->canEdit();
 			if (!requestBotInfos || chat->version <= d.vversion.v) { // !requestBotInfos is true on getFullChat result
 				chat->version = d.vversion.v;
-				const auto &v(d.vparticipants.c_vector().v);
+				auto &v = d.vparticipants.v;
 				chat->count = v.size();
-				int32 pversion = chat->participants.isEmpty() ? 1 : (chat->participants.begin().value() + 1);
-				chat->invitedByMe = ChatData::InvitedByMe();
-				chat->admins = ChatData::Admins();
-				chat->flags &= ~MTPDchat::Flag::f_admin;
-				for (QVector<MTPChatParticipant>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
+				int32 pversion = chat->participants.empty()
+					? 1
+					: (chat->participants.begin()->second + 1);
+				chat->invitedByMe.clear();
+				chat->admins.clear();
+				chat->removeFlags(MTPDchat::Flag::f_admin);
+				for (auto i = v.cbegin(), e = v.cend(); i != e; ++i) {
 					int32 uid = 0, inviter = 0;
 					switch (i->type()) {
 					case mtpc_chatParticipantCreator: {
@@ -843,13 +704,13 @@ namespace {
 					UserData *user = App::userLoaded(uid);
 					if (user) {
 						chat->participants[user] = pversion;
-						if (inviter == MTP::authedId()) {
+						if (inviter == Auth().userId()) {
 							chat->invitedByMe.insert(user);
 						}
 						if (i->type() == mtpc_chatParticipantAdmin) {
 							chat->admins.insert(user);
 							if (user->isSelf()) {
-								chat->flags |= MTPDchat::Flag::f_admin;
+								chat->addFlags(MTPDchat::Flag::f_admin);
 							}
 						}
 					} else {
@@ -857,19 +718,22 @@ namespace {
 						break;
 					}
 				}
-				if (!chat->participants.isEmpty()) {
-					History *h = App::historyLoaded(chat->id);
+				if (!chat->participants.empty()) {
+					auto h = App::historyLoaded(chat->id);
 					bool found = !h || !h->lastKeyboardFrom;
-					int32 botStatus = -1;
-					for (ChatData::Participants::iterator i = chat->participants.begin(), e = chat->participants.end(); i != e;) {
-						if (i.value() < pversion) {
+					auto botStatus = -1;
+					for (auto i = chat->participants.begin(), e = chat->participants.end(); i != e;) {
+						auto [user, version] = *i;
+						if (version < pversion) {
 							i = chat->participants.erase(i);
 						} else {
-							if (i.key()->botInfo) {
-								botStatus = 2;// (botStatus > 0/* || !i.key()->botInfo->readsAllHistory*/) ? 2 : 1;
-								if (requestBotInfos && !i.key()->botInfo->inited && App::api()) App::api()->requestFullPeer(i.key());
+							if (user->botInfo) {
+								botStatus = 2;// (botStatus > 0/* || !user->botInfo->readsAllHistory*/) ? 2 : 1;
+								if (requestBotInfos && !user->botInfo->inited) {
+									Auth().api().requestFullPeer(user);
+								}
 							}
-							if (!found && i.key()->id == h->lastKeyboardFrom) {
+							if (!found && user->id == h->lastKeyboardFrom) {
 								found = true;
 							}
 							++i;
@@ -887,38 +751,24 @@ namespace {
 		} break;
 		}
 		Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::MembersChanged | Notify::PeerUpdate::Flag::AdminsChanged);
-		if (chat && App::main()) {
-			if (emitPeerUpdated) {
-				App::main()->peerUpdated(chat);
-			} else {
-				markPeerUpdated(chat);
-			}
-		}
 	}
 
-	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d, bool emitPeerUpdated) {
+	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d) {
 		ChatData *chat = App::chat(d.vchat_id.v);
 		if (chat->version + 1 < d.vversion.v) {
 			chat->version = d.vversion.v;
 			chat->invalidateParticipants();
-			App::api()->requestPeer(chat);
-			if (App::main()) {
-				if (emitPeerUpdated) {
-					App::main()->peerUpdated(chat);
-				} else {
-					markPeerUpdated(chat);
-				}
-			}
+			Auth().api().requestPeer(chat);
 		} else if (chat->version <= d.vversion.v && chat->count >= 0) {
 			chat->version = d.vversion.v;
 			UserData *user = App::userLoaded(d.vuser_id.v);
 			if (user) {
-				if (chat->participants.isEmpty() && chat->count) {
+				if (chat->participants.empty() && chat->count) {
 					chat->count++;
 					chat->botStatus = 0;
 				} else if (chat->participants.find(user) == chat->participants.end()) {
-					chat->participants[user] = (chat->participants.isEmpty() ? 1 : chat->participants.begin().value());
-					if (d.vinviter_id.v == MTP::authedId()) {
+					chat->participants[user] = (chat->participants.empty() ? 1 : chat->participants.begin()->second);
+					if (d.vinviter_id.v == Auth().userId()) {
 						chat->invitedByMe.insert(user);
 					} else {
 						chat->invitedByMe.remove(user);
@@ -926,7 +776,9 @@ namespace {
 					chat->count++;
 					if (user->botInfo) {
 						chat->botStatus = 2;// (chat->botStatus > 0/* || !user->botInfo->readsAllHistory*/) ? 2 : 1;
-						if (!user->botInfo->inited && App::api()) App::api()->requestFullPeer(user);
+						if (!user->botInfo->inited) {
+							Auth().api().requestFullPeer(user);
+						}
 					}
 				}
 			} else {
@@ -934,47 +786,33 @@ namespace {
 				chat->count++;
 			}
 			Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::MembersChanged);
-			if (App::main()) {
-				if (emitPeerUpdated) {
-					App::main()->peerUpdated(chat);
-				} else {
-					markPeerUpdated(chat);
-				}
-			}
 		}
 	}
 
-	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d, bool emitPeerUpdated) {
+	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d) {
 		ChatData *chat = App::chat(d.vchat_id.v);
 		if (chat->version + 1 < d.vversion.v) {
 			chat->version = d.vversion.v;
 			chat->invalidateParticipants();
-			App::api()->requestPeer(chat);
-			if (App::main()) {
-				if (emitPeerUpdated) {
-					App::main()->peerUpdated(chat);
-				} else {
-					markPeerUpdated(chat);
-				}
-			}
+			Auth().api().requestPeer(chat);
 		} else if (chat->version <= d.vversion.v && chat->count > 0) {
 			chat->version = d.vversion.v;
 			auto canEdit = chat->canEdit();
 			UserData *user = App::userLoaded(d.vuser_id.v);
 			if (user) {
-				if (chat->participants.isEmpty()) {
+				if (chat->participants.empty()) {
 					if (chat->count > 0) {
 						chat->count--;
 					}
 				} else {
-					ChatData::Participants::iterator i = chat->participants.find(user);
+					auto i = chat->participants.find(user);
 					if (i != chat->participants.end()) {
 						chat->participants.erase(i);
 						chat->count--;
 						chat->invitedByMe.remove(user);
 						chat->admins.remove(user);
 						if (user->isSelf()) {
-							chat->flags &= ~MTPDchat::Flag::f_admin;
+							chat->removeFlags(MTPDchat::Flag::f_admin);
 						}
 
 						History *h = App::historyLoaded(chat->id);
@@ -984,9 +822,9 @@ namespace {
 					}
 					if (chat->botStatus > 0 && user->botInfo) {
 						int32 botStatus = -1;
-						for (ChatData::Participants::const_iterator j = chat->participants.cbegin(), e = chat->participants.cend(); j != e; ++j) {
-							if (j.key()->botInfo) {
-								if (true || botStatus > 0/* || !j.key()->botInfo->readsAllHistory*/) {
+						for (auto [participant, v] : chat->participants) {
+							if (participant->botInfo) {
+								if (true || botStatus > 0/* || !participant->botInfo->readsAllHistory*/) {
 									botStatus = 2;
 									break;
 								}
@@ -1004,55 +842,41 @@ namespace {
 				Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::ChatCanEdit);
 			}
 			Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::MembersChanged);
-			if (App::main()) {
-				if (emitPeerUpdated) {
-					App::main()->peerUpdated(chat);
-				} else {
-					markPeerUpdated(chat);
-				}
-			}
 		}
 	}
 
-	void feedChatAdmins(const MTPDupdateChatAdmins &d, bool emitPeerUpdated) {
-		ChatData *chat = App::chat(d.vchat_id.v);
+	void feedChatAdmins(const MTPDupdateChatAdmins &d) {
+		auto chat = App::chat(d.vchat_id.v);
 		if (chat->version <= d.vversion.v) {
-			bool badVersion = (chat->version + 1 < d.vversion.v);
-			if (badVersion) {
-				chat->invalidateParticipants();
-				App::api()->requestPeer(chat);
-			}
+			auto wasCanEdit = chat->canEdit();
+			auto badVersion = (chat->version + 1 < d.vversion.v);
 			chat->version = d.vversion.v;
 			if (mtpIsTrue(d.venabled)) {
-				if (!badVersion) {
-					chat->invalidateParticipants();
-				}
-				chat->flags |= MTPDchat::Flag::f_admins_enabled;
+				chat->addFlags(MTPDchat::Flag::f_admins_enabled);
 			} else {
-				chat->flags &= ~MTPDchat::Flag::f_admins_enabled;
+				chat->removeFlags(MTPDchat::Flag::f_admins_enabled);
 			}
-			Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::AdminsChanged);
-			if (emitPeerUpdated) {
-				App::main()->peerUpdated(chat);
-			} else {
-				markPeerUpdated(chat);
+			if (badVersion || mtpIsTrue(d.venabled)) {
+				chat->invalidateParticipants();
+				Auth().api().requestPeer(chat);
 			}
+			if (wasCanEdit != chat->canEdit()) {
+				Notify::peerUpdatedDelayed(
+					chat,
+					Notify::PeerUpdate::Flag::ChatCanEdit);
+			}
+			Notify::peerUpdatedDelayed(
+				chat,
+				Notify::PeerUpdate::Flag::AdminsChanged);
 		}
 	}
 
-	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d, bool emitPeerUpdated) {
+	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d) {
 		ChatData *chat = App::chat(d.vchat_id.v);
 		if (chat->version + 1 < d.vversion.v) {
 			chat->version = d.vversion.v;
 			chat->invalidateParticipants();
-			App::api()->requestPeer(chat);
-			if (App::main()) {
-				if (emitPeerUpdated) {
-					App::main()->peerUpdated(chat);
-				} else {
-					markPeerUpdated(chat);
-				}
-			}
+			Auth().api().requestPeer(chat);
 		} else if (chat->version <= d.vversion.v && chat->count > 0) {
 			chat->version = d.vversion.v;
 			auto canEdit = chat->canEdit();
@@ -1060,16 +884,16 @@ namespace {
 			if (user) {
 				if (mtpIsTrue(d.vis_admin)) {
 					if (user->isSelf()) {
-						chat->flags |= MTPDchat::Flag::f_admin;
+						chat->addFlags(MTPDchat::Flag::f_admin);
 					}
 					if (chat->noParticipantInfo()) {
-						App::api()->requestFullPeer(chat);
+						Auth().api().requestFullPeer(chat);
 					} else {
 						chat->admins.insert(user);
 					}
 				} else {
 					if (user->isSelf()) {
-						chat->flags &= ~MTPDchat::Flag::f_admin;
+						chat->removeFlags(MTPDchat::Flag::f_admin);
 					}
 					chat->admins.remove(user);
 				}
@@ -1080,61 +904,55 @@ namespace {
 				Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::ChatCanEdit);
 			}
 			Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::AdminsChanged);
-			if (App::main()) {
-				if (emitPeerUpdated) {
-					App::main()->peerUpdated(chat);
-				} else {
-					markPeerUpdated(chat);
-				}
-			}
 		}
 	}
 
 	bool checkEntitiesAndViewsUpdate(const MTPDmessage &m) {
 		auto peerId = peerFromMTP(m.vto_id);
-		if (m.has_from_id() && peerToUser(peerId) == MTP::authedId()) {
+		if (m.has_from_id() && peerId == Auth().userPeerId()) {
 			peerId = peerFromUser(m.vfrom_id);
 		}
-		if (auto existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
+		if (const auto existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
 			auto text = qs(m.vmessage);
-			auto entities = m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText();
+			auto entities = m.has_entities()
+				? TextUtilities::EntitiesFromMTP(m.ventities.v)
+				: EntitiesInText();
 			existing->setText({ text, entities });
 			existing->updateMedia(m.has_media() ? (&m.vmedia) : nullptr);
-			existing->updateReplyMarkup(m.has_reply_markup() ? (&m.vreply_markup) : nullptr);
+			existing->updateReplyMarkup(m.has_reply_markup()
+				? (&m.vreply_markup)
+				: nullptr);
 			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
-			existing->addToOverview(AddToOverviewNew);
-
+			existing->indexAsNewItem();
 			if (!existing->detached()) {
 				App::checkSavedGif(existing);
 				return true;
 			}
-
 			return false;
 		}
 		return false;
 	}
 
-	template <typename TMTPDclass>
-	void updateEditedMessage(const TMTPDclass &m) {
-		auto peerId = peerFromMTP(m.vto_id);
-		if (m.has_from_id() && peerToUser(peerId) == MTP::authedId()) {
-			peerId = peerFromUser(m.vfrom_id);
-		}
-		if (auto existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
-			existing->applyEdition(m);
-		}
-	}
-
 	void updateEditedMessage(const MTPMessage &m) {
+		auto apply = [](const auto &data) {
+			auto peerId = peerFromMTP(data.vto_id);
+			if (data.has_from_id() && peerId == Auth().userPeerId()) {
+				peerId = peerFromUser(data.vfrom_id);
+			}
+			if (auto existing = App::histItemById(peerToChannel(peerId), data.vid.v)) {
+				existing->applyEdition(data);
+			}
+		};
+
 		if (m.type() == mtpc_message) { // apply message edit
-			App::updateEditedMessage(m.c_message());
+			apply(m.c_message());
 		} else if (m.type() == mtpc_messageService) {
-			App::updateEditedMessage(m.c_messageService());
+			apply(m.c_messageService());
 		}
 	}
 
 	void addSavedGif(DocumentData *doc) {
-		SavedGifs &saved(cRefSavedGifs());
+		auto &saved = Auth().data().savedGifsRef();
 		int32 index = saved.indexOf(doc);
 		if (index) {
 			if (index > 0) saved.remove(index);
@@ -1142,16 +960,16 @@ namespace {
 			if (saved.size() > Global::SavedGifsLimit()) saved.pop_back();
 			Local::writeSavedGifs();
 
-			if (App::main()) emit App::main()->savedGifsUpdated();
-			cSetLastSavedGifsUpdate(0);
-			App::main()->updateStickers();
+			Auth().data().markSavedGifsUpdated();
+			Auth().data().setLastSavedGifsUpdate(0);
+			Auth().api().updateStickers();
 		}
 	}
 
 	void checkSavedGif(HistoryItem *item) {
 		if (!item->Has<HistoryMessageForwarded>() && (item->out() || item->history()->peer == App::self())) {
-			if (HistoryMedia *media = item->getMedia()) {
-				if (DocumentData *doc = media->getDocument()) {
+			if (auto media = item->getMedia()) {
+				if (auto doc = media->getDocument()) {
 					if (doc->isGifv()) {
 						addSavedGif(doc);
 					}
@@ -1161,34 +979,28 @@ namespace {
 	}
 
 	void feedMsgs(const QVector<MTPMessage> &msgs, NewMessageType type) {
-		QMap<uint64, int32> msgsIds;
-		for (int32 i = 0, l = msgs.size(); i < l; ++i) {
-			const auto &msg(msgs.at(i));
-			switch (msg.type()) {
-			case mtpc_message: {
-				const auto &d(msg.c_message());
-				bool needToAdd = true;
+		auto indices = base::flat_map<uint64, int>();
+		for (int i = 0, l = msgs.size(); i != l; ++i) {
+			const auto &msg = msgs[i];
+			if (msg.type() == mtpc_message) {
+				const auto &data = msg.c_message();
 				if (type == NewMessageUnread) { // new message, index my forwarded messages to links overview
-					if (checkEntitiesAndViewsUpdate(d)) { // already in blocks
+					if (checkEntitiesAndViewsUpdate(data)) { // already in blocks
 						LOG(("Skipping message, because it is already in blocks!"));
-						needToAdd = false;
+						continue;
 					}
 				}
-				if (needToAdd) {
-					msgsIds.insert((uint64(uint32(d.vid.v)) << 32) | uint64(i), i);
-				}
-			} break;
-			case mtpc_messageEmpty: msgsIds.insert((uint64(uint32(msg.c_messageEmpty().vid.v)) << 32) | uint64(i), i); break;
-			case mtpc_messageService: msgsIds.insert((uint64(uint32(msg.c_messageService().vid.v)) << 32) | uint64(i), i); break;
 			}
+			const auto msgId = idFromMessage(msg);
+			indices.emplace((uint64(uint32(msgId)) << 32) | uint64(i), i);
 		}
-		for (QMap<uint64, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
-			histories().addNewMessage(msgs.at(i.value()), type);
+		for (const auto [position, index] : indices) {
+			histories().addNewMessage(msgs[index], type);
 		}
 	}
 
 	void feedMsgs(const MTPVector<MTPMessage> &msgs, NewMessageType type) {
-		return feedMsgs(msgs.c_vector().v, type);
+		return feedMsgs(msgs.v, type);
 	}
 
 	ImagePtr image(const MTPPhotoSize &size) {
@@ -1213,28 +1025,6 @@ namespace {
 		} break;
 		}
 		return ImagePtr();
-	}
-
-	StorageImageLocation imageLocation(int32 w, int32 h, const MTPFileLocation &loc) {
-		if (loc.type() == mtpc_fileLocation) {
-			const auto &l(loc.c_fileLocation());
-			return StorageImageLocation(w, h, l.vdc_id.v, l.vvolume_id.v, l.vlocal_id.v, l.vsecret.v);
-		}
-		return StorageImageLocation(w, h, 0, 0, 0, 0);
-	}
-
-	StorageImageLocation imageLocation(const MTPPhotoSize &size) {
-		switch (size.type()) {
-		case mtpc_photoSize: {
-			const auto &d(size.c_photoSize());
-			return imageLocation(d.vw.v, d.vh.v, d.vlocation);
-		} break;
-		case mtpc_photoCachedSize: {
-			const auto &d(size.c_photoCachedSize());
-			return imageLocation(d.vw.v, d.vh.v, d.vlocation);
-		} break;
-		}
-		return StorageImageLocation();
 	}
 
 	void feedInboxRead(const PeerId &peer, MsgId upTo) {
@@ -1320,7 +1110,7 @@ namespace {
 			break;
 			}
 			if (user->contact < 1) {
-				if (user->contact < 0 && !user->phone().isEmpty() && peerToUser(user->id) != MTP::authedId()) {
+				if (user->contact < 0 && !user->phone().isEmpty() && user->id != Auth().userPeerId()) {
 					user->contact = 0;
 				}
 			}
@@ -1335,27 +1125,7 @@ namespace {
 			bool showPhone = !isServiceUser(user->id) && !user->isSelf() && !user->contact;
 			bool showPhoneChanged = !isServiceUser(user->id) && !user->isSelf() && ((showPhone && !wasShowPhone) || (!showPhone && wasShowPhone));
 			if (showPhoneChanged) {
-				user->setName(textOneLine(user->firstName), textOneLine(user->lastName), showPhone ? App::formatPhone(user->phone()) : QString(), textOneLine(user->username));
-			}
-			markPeerUpdated(user);
-		}
-	}
-
-	void markPeerUpdated(PeerData *data) {
-		updatedPeers.insert(data, true);
-	}
-
-	void clearPeerUpdated(PeerData *data) {
-		updatedPeers.remove(data);
-	}
-
-	void emitPeerUpdated() {
-		if (!updatedPeers.isEmpty() && App::main()) {
-			UpdatedPeers upd = updatedPeers;
-			updatedPeers.clear();
-
-			for (UpdatedPeers::const_iterator i = upd.cbegin(), e = upd.cend(); i != e; ++i) {
-				App::main()->peerUpdated(i.key());
+				user->setName(TextUtilities::SingleLine(user->firstName), TextUtilities::SingleLine(user->lastName), showPhone ? App::formatPhone(user->phone()) : QString(), TextUtilities::SingleLine(user->username));
 			}
 		}
 	}
@@ -1418,19 +1188,19 @@ namespace {
 	}
 
 	PhotoData *feedPhoto(const MTPDphoto &photo, PhotoData *convert) {
-		const auto &sizes(photo.vsizes.c_vector().v);
+		auto &sizes = photo.vsizes.v;
 		const MTPPhotoSize *thumb = 0, *medium = 0, *full = 0;
 		int32 thumbLevel = -1, mediumLevel = -1, fullLevel = -1;
 		for (QVector<MTPPhotoSize>::const_iterator i = sizes.cbegin(), e = sizes.cend(); i != e; ++i) {
 			char size = 0;
 			switch (i->type()) {
 			case mtpc_photoSize: {
-				auto &s = i->c_photoSize().vtype.c_string().v;
+				auto &s = i->c_photoSize().vtype.v;
 				if (s.size()) size = s[0];
 			} break;
 
 			case mtpc_photoCachedSize: {
-				auto &s = i->c_photoCachedSize().vtype.c_string().v;
+				auto &s = i->c_photoCachedSize().vtype.v;
 				if (s.size()) size = s[0];
 			} break;
 			}
@@ -1474,7 +1244,7 @@ namespace {
 		switch (document.type()) {
 		case mtpc_document: {
 			auto &d = document.c_document();
-			return App::documentSet(d.vid.v, 0, d.vaccess_hash.v, d.vversion.v, d.vdate.v, d.vattributes.c_vector().v, qs(d.vmime_type), ImagePtr(thumb, "JPG"), d.vdc_id.v, d.vsize.v, StorageImageLocation());
+			return App::documentSet(d.vid.v, 0, d.vaccess_hash.v, d.vversion.v, d.vdate.v, d.vattributes.v, qs(d.vmime_type), ImagePtr(thumb, "JPG"), d.vdc_id.v, d.vsize.v, StorageImageLocation());
 		} break;
 		case mtpc_documentEmpty: return App::document(document.c_documentEmpty().vid.v);
 		}
@@ -1494,15 +1264,49 @@ namespace {
 	}
 
 	DocumentData *feedDocument(const MTPDdocument &document, DocumentData *convert) {
-		return App::documentSet(document.vid.v, convert, document.vaccess_hash.v, document.vversion.v, document.vdate.v, document.vattributes.c_vector().v, qs(document.vmime_type), App::image(document.vthumb), document.vdc_id.v, document.vsize.v, App::imageLocation(document.vthumb));
+		return App::documentSet(
+			document.vid.v,
+			convert,
+			document.vaccess_hash.v,
+			document.vversion.v,
+			document.vdate.v,
+			document.vattributes.v,
+			qs(document.vmime_type),
+			App::image(document.vthumb),
+			document.vdc_id.v,
+			document.vsize.v,
+			StorageImageLocation::FromMTP(document.vthumb));
 	}
 
 	WebPageData *feedWebPage(const MTPDwebPage &webpage, WebPageData *convert) {
-		return App::webPageSet(webpage.vid.v, convert, webpage.has_type() ? qs(webpage.vtype) : qsl("article"), qs(webpage.vurl), qs(webpage.vdisplay_url), webpage.has_site_name() ? qs(webpage.vsite_name) : QString(), webpage.has_title() ? qs(webpage.vtitle) : QString(), webpage.has_description() ? qs(webpage.vdescription) : QString(), webpage.has_photo() ? App::feedPhoto(webpage.vphoto) : 0, webpage.has_document() ? App::feedDocument(webpage.vdocument) : 0, webpage.has_duration() ? webpage.vduration.v : 0, webpage.has_author() ? qs(webpage.vauthor) : QString(), 0);
+		auto description = TextWithEntities { webpage.has_description() ? TextUtilities::Clean(qs(webpage.vdescription)) : QString() };
+		auto siteName = webpage.has_site_name() ? qs(webpage.vsite_name) : QString();
+		auto parseFlags = TextParseLinks | TextParseMultiline | TextParseRichText;
+		if (siteName == qstr("Twitter") || siteName == qstr("Instagram")) {
+			parseFlags |= TextParseHashtags | TextParseMentions;
+		}
+		TextUtilities::ParseEntities(description, parseFlags);
+		return App::webPageSet(webpage.vid.v, convert, webpage.has_type() ? qs(webpage.vtype) : qsl("article"), qs(webpage.vurl), qs(webpage.vdisplay_url), siteName, webpage.has_title() ? qs(webpage.vtitle) : QString(), description, webpage.has_photo() ? App::feedPhoto(webpage.vphoto) : nullptr, webpage.has_document() ? App::feedDocument(webpage.vdocument) : nullptr, webpage.has_duration() ? webpage.vduration.v : 0, webpage.has_author() ? qs(webpage.vauthor) : QString(), 0);
 	}
 
 	WebPageData *feedWebPage(const MTPDwebPagePending &webpage, WebPageData *convert) {
-		return App::webPageSet(webpage.vid.v, convert, QString(), QString(), QString(), QString(), QString(), QString(), 0, 0, 0, QString(), webpage.vdate.v);
+		constexpr auto kDefaultPendingTimeout = 60;
+		return App::webPageSet(
+			webpage.vid.v,
+			convert,
+			QString(),
+			QString(),
+			QString(),
+			QString(),
+			QString(),
+			TextWithEntities(),
+			nullptr,
+			nullptr,
+			0,
+			QString(),
+			webpage.vdate.v
+				? webpage.vdate.v
+				: (unixtime() + kDefaultPendingTimeout));
 	}
 
 	WebPageData *feedWebPage(const MTPWebPage &webpage) {
@@ -1519,12 +1323,12 @@ namespace {
 		return nullptr;
 	}
 
-	GameData *feedGame(const MTPDgame &game, GameData *convert) {
-		return App::gameSet(game.vid.v, convert, game.vaccess_hash.v, qs(game.vshort_name), qs(game.vtitle), qs(game.vdescription), App::feedPhoto(game.vphoto), game.has_document() ? App::feedDocument(game.vdocument) : nullptr);
+	WebPageData *feedWebPage(WebPageId webPageId, const QString &siteName, const TextWithEntities &content) {
+		return App::webPageSet(webPageId, nullptr, qsl("article"), QString(), QString(), siteName, QString(), content, nullptr, nullptr, 0, QString(), 0);
 	}
 
-	UserData *curUser() {
-		return user(MTP::authedId());
+	GameData *feedGame(const MTPDgame &game, GameData *convert) {
+		return App::gameSet(game.vid.v, convert, game.vaccess_hash.v, qs(game.vshort_name), qs(game.vtitle), qs(game.vdescription), App::feedPhoto(game.vphoto), game.has_document() ? App::feedDocument(game.vdocument) : nullptr);
 	}
 
 	PeerData *peer(const PeerId &id, PeerData::LoadedStatus restriction) {
@@ -1540,7 +1344,7 @@ namespace {
 			} else if (peerIsChannel(id)) {
 				newData = new ChannelData(id);
 			}
-			t_assert(newData != nullptr);
+			Assert(newData != nullptr);
 
 			newData->input = MTPinputPeer(MTP_inputPeerEmpty());
 			i = peersData.insert(id, newData);
@@ -1558,6 +1362,14 @@ namespace {
 		} break;
 		}
 		return i.value();
+	}
+
+	void enumerateUsers(base::lambda<void(UserData*)> action) {
+		for_const (auto peer, peersData) {
+			if (auto user = peer->asUser()) {
+				action(user);
+			}
+		}
 	}
 
 	UserData *self() {
@@ -1587,23 +1399,29 @@ namespace {
 	}
 
 	PhotoData *photo(const PhotoId &photo) {
-		PhotosData::const_iterator i = ::photosData.constFind(photo);
+		auto i = ::photosData.constFind(photo);
 		if (i == ::photosData.cend()) {
 			i = ::photosData.insert(photo, new PhotoData(photo));
 		}
 		return i.value();
 	}
 
-	PhotoData *photoSet(const PhotoId &photo, PhotoData *convert, const uint64 &access, int32 date, const ImagePtr &thumb, const ImagePtr &medium, const ImagePtr &full) {
+	PhotoData *photoSet(
+			const PhotoId &photo,
+			PhotoData *convert,
+			const uint64 &access,
+			int32 date,
+			const ImagePtr &thumb,
+			const ImagePtr &medium,
+			const ImagePtr &full) {
 		if (convert) {
 			if (convert->id != photo) {
-				PhotosData::iterator i = ::photosData.find(convert->id);
+				const auto i = ::photosData.find(convert->id);
 				if (i != ::photosData.cend() && i.value() == convert) {
 					::photosData.erase(i);
 				}
 				convert->id = photo;
-				delete convert->uploadingData;
-				convert->uploadingData = 0;
+				convert->uploadingData = nullptr;
 			}
 			if (date) {
 				convert->access = access;
@@ -1613,9 +1431,9 @@ namespace {
 				updateImage(convert->full, full);
 			}
 		}
-		PhotosData::const_iterator i = ::photosData.constFind(photo);
+		const auto i = ::photosData.constFind(photo);
 		PhotoData *result;
-		LastPhotosMap::iterator inLastIter = lastPhotosMap.end();
+		auto inLastIter = lastPhotosMap.end();
 		if (i == ::photosData.cend()) {
 			if (convert) {
 				result = convert;
@@ -1649,27 +1467,39 @@ namespace {
 	}
 
 	DocumentData *document(const DocumentId &document) {
-		DocumentsData::const_iterator i = ::documentsData.constFind(document);
+		auto i = ::documentsData.constFind(document);
 		if (i == ::documentsData.cend()) {
 			i = ::documentsData.insert(document, DocumentData::create(document));
 		}
 		return i.value();
 	}
 
-	DocumentData *documentSet(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 version, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size, const StorageImageLocation &thumbLocation) {
+	DocumentData *documentSet(
+			const DocumentId &document,
+			DocumentData *convert,
+			const uint64 &access,
+			int32 version,
+			int32 date,
+			const QVector<MTPDocumentAttribute> &attributes,
+			const QString &mime,
+			const ImagePtr &thumb,
+			int32 dc,
+			int32 size,
+			const StorageImageLocation &thumbLocation) {
 		bool versionChanged = false;
 		bool sentSticker = false;
 		if (convert) {
-			MediaKey oldKey = convert->mediaKey();
-			bool idChanged = (convert->id != document);
+			const auto oldKey = convert->mediaKey();
+			const auto idChanged = (convert->id != document);
 			if (idChanged) {
-				DocumentsData::iterator i = ::documentsData.find(convert->id);
+				const auto i = ::documentsData.find(convert->id);
 				if (i != ::documentsData.cend() && i.value() == convert) {
 					::documentsData.erase(i);
 				}
 
 				convert->id = document;
 				convert->status = FileReady;
+				convert->uploadingData = nullptr;
 				sentSticker = (convert->sticker() != 0);
 			}
 			if (date) {
@@ -1677,7 +1507,7 @@ namespace {
 				versionChanged = convert->setRemoteVersion(version);
 				convert->setRemoteLocation(dc, access);
 				convert->date = date;
-				convert->mime = mime;
+				convert->setMimeString(mime);
 				if (!thumb->isNull() && (convert->thumb->isNull() || convert->thumb->width() < thumb->width() || convert->thumb->height() < thumb->height() || versionChanged)) {
 					updateImage(convert->thumb, thumb);
 				}
@@ -1687,9 +1517,9 @@ namespace {
 					convert->sticker()->loc = thumbLocation;
 				}
 
-				MediaKey newKey = convert->mediaKey();
+				const auto newKey = convert->mediaKey();
 				if (idChanged) {
-					if (convert->voice()) {
+					if (convert->isVoiceMessage()) {
 						Local::copyAudio(oldKey, newKey);
 					} else if (convert->sticker() || convert->isAnimation()) {
 						Local::copyStickerImage(oldKey, newKey);
@@ -1697,11 +1527,11 @@ namespace {
 				}
 			}
 
-			if (cSavedGifs().indexOf(convert) >= 0) { // id changed
+			if (Auth().data().savedGifs().indexOf(convert) >= 0) { // id changed
 				Local::writeSavedGifs();
 			}
 		}
-		DocumentsData::const_iterator i = ::documentsData.constFind(document);
+		const auto i = ::documentsData.constFind(document);
 		DocumentData *result;
 		if (i == ::documentsData.cend()) {
 			if (convert) {
@@ -1709,7 +1539,7 @@ namespace {
 			} else {
 				result = DocumentData::create(document, dc, access, version, attributes);
 				result->date = date;
-				result->mime = mime;
+				result->setMimeString(mime);
 				result->thumb = thumb;
 				result->size = size;
 				result->recountIsImage();
@@ -1727,7 +1557,7 @@ namespace {
 					result->setRemoteLocation(dc, access);
 				}
 				result->date = date;
-				result->mime = mime;
+				result->setMimeString(mime);
 				if (!thumb->isNull() && (result->thumb->isNull() || result->thumb->width() < thumb->width() || result->thumb->height() < thumb->height() || versionChanged)) {
 					result->thumb = thumb;
 				}
@@ -1743,10 +1573,12 @@ namespace {
 		}
 		if (versionChanged) {
 			if (result->sticker() && result->sticker()->set.type() == mtpc_inputStickerSetID) {
-				auto it = Global::StickerSets().constFind(result->sticker()->set.c_inputStickerSetID().vid.v);
-				if (it != Global::StickerSets().cend()) {
+				auto it = Auth().data().stickerSets().constFind(result->sticker()->set.c_inputStickerSetID().vid.v);
+				if (it != Auth().data().stickerSets().cend()) {
 					if (it->id == Stickers::CloudRecentSetId) {
 						Local::writeRecentStickers();
+					} else if (it->id == Stickers::FavedSetId) {
+						Local::writeFavedStickers();
 					} else if (it->flags & MTPDstickerSet::Flag::f_archived) {
 						Local::writeArchivedStickers();
 					} else if (it->flags & MTPDstickerSet::Flag::f_installed) {
@@ -1776,61 +1608,80 @@ namespace {
 		return i.value();
 	}
 
-	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *document, int32 duration, const QString &author, int32 pendingTill) {
+	WebPageData *webPageSet(
+			const WebPageId &webPage,
+			WebPageData *convert,
+			const QString &type,
+			const QString &url,
+			const QString &displayUrl,
+			const QString &siteName,
+			const QString &title,
+			const TextWithEntities &description,
+			PhotoData *photo,
+			DocumentData *document,
+			int duration,
+			const QString &author,
+			int pendingTill) {
 		if (convert) {
 			if (convert->id != webPage) {
-				auto i = webPagesData.find(convert->id);
+				const auto i = webPagesData.find(convert->id);
 				if (i != webPagesData.cend() && i.value() == convert) {
 					webPagesData.erase(i);
 				}
 				convert->id = webPage;
 			}
-			if ((convert->url.isEmpty() && !url.isEmpty()) || (convert->pendingTill && convert->pendingTill != pendingTill && pendingTill >= -1)) {
-				convert->type = toWebPageType(type);
-				convert->url = textClean(url);
-				convert->displayUrl = textClean(displayUrl);
-				convert->siteName = textClean(siteName);
-				convert->title = textOneLine(textClean(title));
-				convert->description = textClean(description);
-				convert->photo = photo;
-				convert->document = document;
-				convert->duration = duration;
-				convert->author = textClean(author);
-				if (convert->pendingTill > 0 && pendingTill <= 0 && api()) api()->clearWebPageRequest(convert);
-				convert->pendingTill = pendingTill;
-				if (App::main()) App::main()->webPageUpdated(convert);
-			}
+			convert->applyChanges(
+				type,
+				url,
+				displayUrl,
+				siteName,
+				title,
+				description,
+				photo,
+				document,
+				duration,
+				author,
+				pendingTill);
 		}
-		auto i = webPagesData.constFind(webPage);
+		const auto i = webPagesData.constFind(webPage);
 		WebPageData *result;
 		if (i == webPagesData.cend()) {
 			if (convert) {
 				result = convert;
 			} else {
-				result = new WebPageData(webPage, toWebPageType(type), url, displayUrl, siteName, title, description, document, photo, duration, author, (pendingTill >= -1) ? pendingTill : -1);
-				if (pendingTill > 0 && api()) {
-					api()->requestWebPageDelayed(result);
+				result = new WebPageData(
+					webPage,
+					toWebPageType(type),
+					url,
+					displayUrl,
+					siteName,
+					title,
+					description,
+					document,
+					photo,
+					duration,
+					author,
+					(pendingTill >= -1) ? pendingTill : -1);
+				if (pendingTill > 0) {
+					Auth().api().requestWebPageDelayed(result);
 				}
 			}
 			webPagesData.insert(webPage, result);
 		} else {
 			result = i.value();
 			if (result != convert) {
-				if ((result->url.isEmpty() && !url.isEmpty()) || (result->pendingTill && result->pendingTill != pendingTill && pendingTill >= -1)) {
-					result->type = toWebPageType(type);
-					result->url = textClean(url);
-					result->displayUrl = textClean(displayUrl);
-					result->siteName = textClean(siteName);
-					result->title = textOneLine(textClean(title));
-					result->description = textClean(description);
-					result->photo = photo;
-					result->document = document;
-					result->duration = duration;
-					result->author = textClean(author);
-					if (result->pendingTill > 0 && pendingTill <= 0 && api()) api()->clearWebPageRequest(result);
-					result->pendingTill = pendingTill;
-					if (App::main()) App::main()->webPageUpdated(result);
-				}
+				result->applyChanges(
+					type,
+					url,
+					displayUrl,
+					siteName,
+					title,
+					description,
+					photo,
+					document,
+					duration,
+					author,
+					pendingTill);
 			}
 		}
 		return result;
@@ -1856,9 +1707,9 @@ namespace {
 			}
 			if (!convert->accessHash && accessHash) {
 				convert->accessHash = accessHash;
-				convert->shortName = textClean(shortName);
-				convert->title = textOneLine(textClean(title));
-				convert->description = textClean(description);
+				convert->shortName = TextUtilities::Clean(shortName);
+				convert->title = TextUtilities::SingleLine(title);
+				convert->description = TextUtilities::Clean(description);
 				convert->photo = photo;
 				convert->document = document;
 				if (App::main()) App::main()->gameUpdated(convert);
@@ -1878,9 +1729,9 @@ namespace {
 			if (result != convert) {
 				if (!result->accessHash && accessHash) {
 					result->accessHash = accessHash;
-					result->shortName = textClean(shortName);
-					result->title = textOneLine(textClean(title));
-					result->description = textClean(description);
+					result->shortName = TextUtilities::Clean(shortName);
+					result->title = TextUtilities::SingleLine(title);
+					result->description = TextUtilities::Clean(description);
 					result->photo = photo;
 					result->document = document;
 					if (App::main()) App::main()->gameUpdated(result);
@@ -1920,8 +1771,7 @@ namespace {
 			photoSizes.push_back(MTP_photoSize(MTP_string("a"), uphoto.vphoto_small, MTP_int(160), MTP_int(160), MTP_int(0)));
 			photoSizes.push_back(MTP_photoSize(MTP_string("c"), uphoto.vphoto_big, MTP_int(640), MTP_int(640), MTP_int(0)));
 
-			MTPDphoto::Flags photoFlags = 0;
-			return MTP_photo(MTP_flags(photoFlags), uphoto.vphoto_id, MTP_long(0), date, MTP_vector<MTPPhotoSize>(photoSizes));
+			return MTP_photo(MTP_flags(0), uphoto.vphoto_id, MTP_long(0), date, MTP_vector<MTPPhotoSize>(photoSizes));
 		}
 		return MTP_photoEmpty(MTP_long(0));
 	}
@@ -1934,7 +1784,7 @@ namespace {
 		return ::histories;
 	}
 
-	History *history(const PeerId &peer) {
+	not_null<History*> history(const PeerId &peer) {
 		return ::histories.findOrInsert(peer);
 	}
 
@@ -2013,11 +1863,11 @@ namespace {
 				dependent->dependencyItemRemoved(item);
 			}
 		}
-		if (auto manager = Window::Notifications::manager()) {
-			manager->clearFromItem(item);
-		}
-		if (Global::started() && !App::quitting()) {
-			Global::RefItemRemoved().notify(item, true);
+		Auth().notifications().clearFromItem(item);
+		if (Global::started()
+			&& !App::quitting()
+			&& AuthSession::Exists()) {
+			Auth().data().markItemRemoved(item);
 		}
 	}
 
@@ -2037,13 +1887,13 @@ namespace {
 		::dependentItems.clear();
 
 		QVector<HistoryItem*> toDelete;
-		for_const (HistoryItem *item, msgsData) {
+		for_const (auto item, msgsData) {
 			if (item->detached()) {
 				toDelete.push_back(item);
 			}
 		}
-		for_const (const MsgsData &chMsgsData, channelMsgsData) {
-			for_const (HistoryItem *item, chMsgsData) {
+		for_const (auto &chMsgsData, channelMsgsData) {
+			for_const (auto item, chMsgsData) {
 				if (item->detached()) {
 					toDelete.push_back(item);
 				}
@@ -2051,8 +1901,8 @@ namespace {
 		}
 		msgsData.clear();
 		channelMsgsData.clear();
-		for (int32 i = 0, l = toDelete.size(); i < l; ++i) {
-			delete toDelete[i];
+		for_const (auto item, toDelete) {
+			delete item;
 		}
 
 		clearMousedItems();
@@ -2062,7 +1912,6 @@ namespace {
 		randomData.clear();
 		sentData.clear();
 		mutedPeers.clear();
-		updatedPeers.clear();
 		cSetSavedPeers(SavedPeers());
 		cSetSavedPeersByTime(SavedPeersByTime());
 		cSetRecentInlineBots(RecentInlineBots());
@@ -2088,21 +1937,10 @@ namespace {
 		}
 		::documentsData.clear();
 
-		if (api()) api()->clearWebPageRequests();
-		cSetRecentStickers(RecentStickerPack());
-		Global::SetStickerSets(Stickers::Sets());
-		Global::SetStickerSetsOrder(Stickers::Order());
-		Global::SetLastStickersUpdate(0);
-		Global::SetLastRecentStickersUpdate(0);
-		Global::SetFeaturedStickerSetsOrder(Stickers::Order());
-		if (Global::FeaturedStickerSetsUnreadCount() != 0) {
-			Global::SetFeaturedStickerSetsUnreadCount(0);
-			Global::RefFeaturedStickerSetsUnreadCountChanged().notify();
+		if (AuthSession::Exists()) {
+			Auth().api().clearWebPageRequests();
 		}
-		Global::SetLastFeaturedStickersUpdate(0);
-		Global::SetArchivedStickerSetsOrder(Stickers::Order());
-		cSetSavedGifs(SavedGifs());
-		cSetLastSavedGifsUpdate(0);
+		cSetRecentStickers(RecentStickerPack());
 		cSetReportSpamStatuses(ReportSpamStatuses());
 		cSetAutoDownloadPhoto(0);
 		cSetAutoDownloadAudio(0);
@@ -2164,6 +2002,7 @@ namespace {
 	}
 
 	void prepareCorners(RoundCorners index, int32 radius, const QBrush &brush, const style::color *shadow = nullptr, QImage *cors = nullptr) {
+		Expects(::corners.size() > index);
 		int32 r = radius * cIntRetinaFactor(), s = st::msgShadow * cIntRetinaFactor();
 		QImage rect(r * 3, r * 3 + (shadow ? s : 0), QImage::Format_ARGB32_Premultiplied), localCors[4];
 		{
@@ -2188,8 +2027,8 @@ namespace {
 		cors[3] = rect.copy(r * 2, r * 2, r, r + (shadow ? s : 0));
 		if (index != SmallMaskCorners && index != LargeMaskCorners) {
 			for (int i = 0; i < 4; ++i) {
-				::corners[index].p[i] = new QPixmap(pixmapFromImageInPlace(std_::move(cors[i])));
-				::corners[index].p[i]->setDevicePixelRatio(cRetinaFactor());
+				::corners[index].p[i] = pixmapFromImageInPlace(std::move(cors[i]));
+				::corners[index].p[i].setDevicePixelRatio(cRetinaFactor());
 			}
 		}
 	}
@@ -2202,45 +2041,37 @@ namespace {
 		}
 	}
 
-	int msgRadius() {
-		static int MsgRadius = ([]() {
-			return st::historyMessageRadius;
-			auto minMsgHeight = (st::msgPadding.top() + st::msgFont->height + st::msgPadding.bottom());
-			return minMsgHeight / 2;
-		})();
-		return MsgRadius;
-	}
-
-	void createCorners() {
+	void createMaskCorners() {
 		QImage mask[4];
-		prepareCorners(LargeMaskCorners, msgRadius(), QColor(255, 255, 255), nullptr, mask);
-		for (int i = 0; i < 4; ++i) {
-			::cornersMaskLarge[i] = new QImage(mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied));
-			::cornersMaskLarge[i]->setDevicePixelRatio(cRetinaFactor());
-		}
 		prepareCorners(SmallMaskCorners, st::buttonRadius, QColor(255, 255, 255), nullptr, mask);
 		for (int i = 0; i < 4; ++i) {
-			::cornersMaskSmall[i] = new QImage(mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied));
-			::cornersMaskSmall[i]->setDevicePixelRatio(cRetinaFactor());
+			::cornersMaskSmall[i] = mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied);
+			::cornersMaskSmall[i].setDevicePixelRatio(cRetinaFactor());
 		}
+		prepareCorners(LargeMaskCorners, st::historyMessageRadius, QColor(255, 255, 255), nullptr, mask);
+		for (int i = 0; i < 4; ++i) {
+			::cornersMaskLarge[i] = mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied);
+			::cornersMaskLarge[i].setDevicePixelRatio(cRetinaFactor());
+		}
+	}
+
+	void createPaletteCorners() {
 		prepareCorners(MenuCorners, st::buttonRadius, st::menuBg);
 		prepareCorners(BoxCorners, st::boxRadius, st::boxBg);
 		prepareCorners(BotKbOverCorners, st::dateRadius, st::msgBotKbOverBgAdd);
 		prepareCorners(StickerCorners, st::dateRadius, st::msgServiceBg);
 		prepareCorners(StickerSelectedCorners, st::dateRadius, st::msgServiceBgSelected);
 		prepareCorners(SelectedOverlaySmallCorners, st::buttonRadius, st::msgSelectOverlay);
-		prepareCorners(SelectedOverlayLargeCorners, msgRadius(), st::msgSelectOverlay);
+		prepareCorners(SelectedOverlayLargeCorners, st::historyMessageRadius, st::msgSelectOverlay);
 		prepareCorners(DateCorners, st::dateRadius, st::msgDateImgBg);
 		prepareCorners(DateSelectedCorners, st::dateRadius, st::msgDateImgBgSelected);
-		prepareCorners(InShadowCorners, msgRadius(), st::msgInShadow);
-		prepareCorners(InSelectedShadowCorners, msgRadius(), st::msgInShadowSelected);
-		prepareCorners(ForwardCorners, msgRadius(), st::historyForwardChooseBg);
+		prepareCorners(InShadowCorners, st::historyMessageRadius, st::msgInShadow);
+		prepareCorners(InSelectedShadowCorners, st::historyMessageRadius, st::msgInShadowSelected);
+		prepareCorners(ForwardCorners, st::historyMessageRadius, st::historyForwardChooseBg);
 		prepareCorners(MediaviewSaveCorners, st::mediaviewControllerRadius, st::mediaviewSaveMsgBg);
 		prepareCorners(EmojiHoverCorners, st::buttonRadius, st::emojiPanHover);
 		prepareCorners(StickerHoverCorners, st::buttonRadius, st::emojiPanHover);
 		prepareCorners(BotKeyboardCorners, st::buttonRadius, st::botKbBg);
-		prepareCorners(BotKeyboardOverCorners, st::buttonRadius, st::botKbOverBg);
-		prepareCorners(BotKeyboardDownCorners, st::buttonRadius, st::botKbDownBg);
 		prepareCorners(PhotoSelectOverlayCorners, st::buttonRadius, st::overviewPhotoSelectOverlay);
 
 		prepareCorners(Doc1Corners, st::buttonRadius, st::msgFile1Bg);
@@ -2248,25 +2079,20 @@ namespace {
 		prepareCorners(Doc3Corners, st::buttonRadius, st::msgFile3Bg);
 		prepareCorners(Doc4Corners, st::buttonRadius, st::msgFile4Bg);
 
-		prepareCorners(MessageInCorners, msgRadius(), st::msgInBg, &st::msgInShadow);
-		prepareCorners(MessageInSelectedCorners, msgRadius(), st::msgInBgSelected, &st::msgInShadowSelected);
-		prepareCorners(MessageOutCorners, msgRadius(), st::msgOutBg, &st::msgOutShadow);
-		prepareCorners(MessageOutSelectedCorners, msgRadius(), st::msgOutBgSelected, &st::msgOutShadowSelected);
+		prepareCorners(MessageInCorners, st::historyMessageRadius, st::msgInBg, &st::msgInShadow);
+		prepareCorners(MessageInSelectedCorners, st::historyMessageRadius, st::msgInBgSelected, &st::msgInShadowSelected);
+		prepareCorners(MessageOutCorners, st::historyMessageRadius, st::msgOutBg, &st::msgOutShadow);
+		prepareCorners(MessageOutSelectedCorners, st::historyMessageRadius, st::msgOutBgSelected, &st::msgOutShadowSelected);
+	}
+
+	void createCorners() {
+		::corners.resize(RoundCornersCount);
+		createMaskCorners();
+		createPaletteCorners();
 	}
 
 	void clearCorners() {
-		for (int j = 0; j < 4; ++j) {
-			for (int i = 0; i < RoundCornersCount; ++i) {
-				delete ::corners[i].p[j]; ::corners[i].p[j] = nullptr;
-			}
-			delete ::cornersMaskSmall[j]; ::cornersMaskSmall[j] = nullptr;
-			delete ::cornersMaskLarge[j]; ::cornersMaskLarge[j] = nullptr;
-		}
-		for (auto i = ::cornersMap.cbegin(), e = ::cornersMap.cend(); i != e; ++i) {
-			for (int j = 0; j < 4; ++j) {
-				delete i->p[j];
-			}
-		}
+		::corners.clear();
 		::cornersMap.clear();
 	}
 
@@ -2280,13 +2106,13 @@ namespace {
 			if (family.isEmpty()) family = QFontDatabase::systemFont(QFontDatabase::FixedFont).family();
 			::monofont = style::font(st::normalFont->f.pixelSize(), 0, family);
 		}
-		emojiInit();
+		Ui::Emoji::Init();
 		if (!::emoji) {
-			::emoji = new QPixmap(QLatin1String(EName));
+			::emoji = new QPixmap(Ui::Emoji::Filename(Ui::Emoji::Index()));
             if (cRetina()) ::emoji->setDevicePixelRatio(cRetinaFactor());
 		}
 		if (!::emojiLarge) {
-			::emojiLarge = new QPixmap(QLatin1String(EmojiNames[EIndex + 1]));
+			::emojiLarge = new QPixmap(Ui::Emoji::Filename(Ui::Emoji::Index() + 1));
 			if (cRetina()) ::emojiLarge->setDevicePixelRatio(cRetinaFactor());
 		}
 
@@ -2295,18 +2121,13 @@ namespace {
 		using Update = Window::Theme::BackgroundUpdate;
 		static auto subscription = Window::Theme::Background()->add_subscription([](const Update &update) {
 			if (update.paletteChanged()) {
-				clearCorners();
-				createCorners();
+				createPaletteCorners();
 
 				if (App::main()) {
 					App::main()->updateScrollColors();
 				}
 				HistoryLayout::serviceColorsUpdated();
 			} else if (update.type == Update::Type::New) {
-				for (int i = 0; i < 4; ++i) {
-					delete ::corners[StickerCorners].p[i]; ::corners[StickerCorners].p[i] = nullptr;
-					delete ::corners[StickerSelectedCorners].p[i]; ::corners[StickerSelectedCorners].p[i] = nullptr;
-				}
 				prepareCorners(StickerCorners, st::dateRadius, st::msgServiceBg);
 				prepareCorners(StickerSelectedCorners, st::dateRadius, st::msgServiceBgSelected);
 
@@ -2321,6 +2142,11 @@ namespace {
 	void clearHistories() {
 		ClickHandler::clearActive();
 		ClickHandler::unpressed();
+
+		if (AuthSession::Exists()) {
+			// Clear notifications to prevent any showNotification() calls while destroying items.
+			Auth().notifications().clearAllFast();
+		}
 
 		histories().clear();
 
@@ -2338,8 +2164,8 @@ namespace {
 
 		clearCorners();
 
-		mainEmojiMap.clear();
-		otherEmojiMap.clear();
+		MainEmojiMap.clear();
+		OtherEmojiMap.clear();
 
 		Data::clearGlobalStructures();
 
@@ -2416,28 +2242,19 @@ namespace {
 	}
 
 	const QPixmap &emojiSingle(EmojiPtr emoji, int32 fontHeight) {
-		EmojiMap *map = &(fontHeight == st::msgFont->height ? mainEmojiMap : otherEmojiMap[fontHeight]);
-		EmojiMap::const_iterator i = map->constFind(emojiKey(emoji));
-		if (i == map->cend()) {
-			QImage img(ESize + st::emojiPadding * cIntRetinaFactor() * 2, fontHeight * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-            if (cRetina()) img.setDevicePixelRatio(cRetinaFactor());
+		auto &map = (fontHeight == st::msgFont->height) ? MainEmojiMap : OtherEmojiMap[fontHeight];
+		auto i = map.constFind(emoji->index());
+		if (i == map.cend()) {
+			auto image = QImage(Ui::Emoji::Size() + st::emojiPadding * cIntRetinaFactor() * 2, fontHeight * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+            if (cRetina()) image.setDevicePixelRatio(cRetinaFactor());
+			image.fill(Qt::transparent);
 			{
-				QPainter p(&img);
-				QPainter::CompositionMode m = p.compositionMode();
-				p.setCompositionMode(QPainter::CompositionMode_Source);
-				p.fillRect(0, 0, img.width(), img.height(), Qt::transparent);
-				p.setCompositionMode(m);
-				emojiDraw(p, emoji, st::emojiPadding * cIntRetinaFactor(), (fontHeight * cIntRetinaFactor() - ESize) / 2);
+				QPainter p(&image);
+				emojiDraw(p, emoji, st::emojiPadding * cIntRetinaFactor(), (fontHeight * cIntRetinaFactor() - Ui::Emoji::Size()) / 2);
 			}
-			i = map->insert(emojiKey(emoji), App::pixmapFromImageInPlace(std_::move(img)));
+			i = map.insert(emoji->index(), App::pixmapFromImageInPlace(std::move(image)));
 		}
 		return i.value();
-	}
-
-	void playSound() {
-		if (Global::SoundNotify() && !Platform::Notifications::skipAudio()) {
-			audioPlayNotify();
-		}
 	}
 
 	void checkImageCacheSize() {
@@ -2465,24 +2282,11 @@ namespace {
 		if (auto mainwidget = main()) {
 			mainwidget->saveDraftToCloud();
 		}
-		if (auto apiwrap = api()) {
-			if (apiwrap->hasUnsavedDrafts()) {
-				apiwrap->saveDraftsToCloud();
-				QTimer::singleShot(SaveDraftBeforeQuitTimeout, Application::instance(), SLOT(quit()));
-				return;
-			}
-		}
-		Application::quit();
+		Messenger::QuitAttempt();
 	}
 
 	bool quitting() {
 		return _launchState != Launched;
-	}
-
-	void allDraftsSaved() {
-		if (quitting()) {
-			Application::quit();
-		}
 	}
 
 	LaunchState launchState() {
@@ -2555,7 +2359,7 @@ namespace {
 			}
 #endif // OS_MAC_OLD
 		} else if (opaque) {
-			result = Images::prepareOpaque(std_::move(result));
+			result = Images::prepareOpaque(std::move(result));
 		}
 		return result;
 	}
@@ -2575,7 +2379,7 @@ namespace {
 	}
 
 	QPixmap pixmapFromImageInPlace(QImage &&image) {
-		return QPixmap::fromImage(std_::move(image), Qt::ColorOnly);
+		return QPixmap::fromImage(std::move(image), Qt::ColorOnly);
 	}
 
 	void regPhotoItem(PhotoData *data, HistoryItem *item) {
@@ -2666,10 +2470,12 @@ namespace {
 
 	void stopGifItems() {
 		if (!::gifItems.isEmpty()) {
-			GifItems gifs = ::gifItems;
-			for (GifItems::const_iterator i = gifs.cbegin(), e = gifs.cend(); i != e; ++i) {
-				if (HistoryMedia *media = i.value()->getMedia()) {
-					media->stopInline();
+			auto gifs = ::gifItems;
+			for_const (auto item, gifs) {
+				if (auto media = item->getMedia()) {
+					if (!media->isRoundVideoPlaying()) {
+						media->stopInline();
+					}
 				}
 			}
 		}
@@ -2687,28 +2493,32 @@ namespace {
 		return QString();
 	}
 
-	void regMuted(PeerData *peer, int32 changeIn) {
+	void regMuted(not_null<PeerData*> peer, TimeMs changeIn) {
 		::mutedPeers.insert(peer, true);
-		if (App::main()) App::main()->updateMutedIn(changeIn);
+		App::main()->updateMutedIn(changeIn);
 	}
 
-	void unregMuted(PeerData *peer) {
+	void unregMuted(not_null<PeerData*> peer) {
 		::mutedPeers.remove(peer);
 	}
 
 	void updateMuted() {
-		int32 changeInMin = 0;
-		for (MutedPeers::iterator i = ::mutedPeers.begin(); i != ::mutedPeers.end();) {
-			int32 changeIn = 0;
-			History *h = App::history(i.key()->id);
-			if (isNotifyMuted(i.key()->notify, &changeIn)) {
-				h->setMute(true);
-				if (changeIn && (!changeInMin || changeIn < changeInMin)) {
-					changeInMin = changeIn;
+		auto changeInMin = TimeMs(0);
+		for (auto i = ::mutedPeers.begin(); i != ::mutedPeers.end();) {
+			const auto history = App::historyLoaded(i.key()->id);
+			const auto muteFinishesIn = i.key()->notifyMuteFinishesIn();
+			if (muteFinishesIn > 0) {
+				if (history) {
+					history->changeMute(true);
+				}
+				if (!changeInMin || muteFinishesIn < changeInMin) {
+					changeInMin = muteFinishesIn;
 				}
 				++i;
 			} else {
-				h->setMute(false);
+				if (history) {
+					history->changeMute(false);
+				}
 				i = ::mutedPeers.erase(i);
 			}
 		}
@@ -2747,38 +2557,49 @@ namespace {
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	}
 
-	void complexAdjustRect(ImageRoundCorners corners, QRect &rect, RectParts &parts) {
-		if (corners & ImageRoundCorner::TopLeft) {
-			if (!(corners & ImageRoundCorner::BottomLeft)) {
-				parts = RectPart::NoTopBottom | RectPart::TopFull;
-				rect.setHeight(rect.height() + msgRadius());
+	void rectWithCorners(Painter &p, QRect rect, const style::color &bg, RoundCorners index, RectParts corners) {
+		auto parts = RectPart::Top
+			| RectPart::NoTopBottom
+			| RectPart::Bottom
+			| corners;
+		roundRect(p, rect, bg, index, nullptr, parts);
+		if ((corners & RectPart::AllCorners) != RectPart::AllCorners) {
+			const auto size = ::corners[index].p[0].width() / cIntRetinaFactor();
+			if (!(corners & RectPart::TopLeft)) {
+				p.fillRect(rect.x(), rect.y(), size, size, bg);
 			}
-		} else if (corners & ImageRoundCorner::BottomLeft) {
-			parts = RectPart::NoTopBottom | RectPart::BottomFull;
-			rect.setTop(rect.y() - msgRadius());
+			if (!(corners & RectPart::TopRight)) {
+				p.fillRect(rect.x() + rect.width() - size, rect.y(), size, size, bg);
+			}
+			if (!(corners & RectPart::BottomLeft)) {
+				p.fillRect(rect.x(), rect.y() + rect.height() - size, size, size, bg);
+			}
+			if (!(corners & RectPart::BottomRight)) {
+				p.fillRect(rect.x() + rect.width() - size, rect.y() + rect.height() - size, size, size, bg);
+			}
+		}
+	}
+
+	void complexOverlayRect(Painter &p, QRect rect, ImageRoundRadius radius, RectParts corners) {
+		if (radius == ImageRoundRadius::Ellipse) {
+			PainterHighQualityEnabler hq(p);
+			p.setPen(Qt::NoPen);
+			p.setBrush(p.textPalette().selectOverlay);
+			p.drawEllipse(rect);
 		} else {
-			parts = RectPart::NoTopBottom;
-			rect.setTop(rect.y() - msgRadius());
-			rect.setHeight(rect.height() + msgRadius());
+			auto overlayCorners = (radius == ImageRoundRadius::Small)
+				? SelectedOverlaySmallCorners
+				: SelectedOverlayLargeCorners;
+			const auto bg = p.textPalette().selectOverlay;
+			rectWithCorners(p, rect, bg, overlayCorners, corners);
 		}
 	}
 
-	void complexOverlayRect(Painter &p, QRect rect, ImageRoundRadius radius, ImageRoundCorners corners) {
-		auto overlayCorners = (radius == ImageRoundRadius::Small) ? SelectedOverlaySmallCorners : SelectedOverlayLargeCorners;
-		auto overlayParts = RectPart::Full | RectPart::None;
-		if (radius == ImageRoundRadius::Large) {
-			complexAdjustRect(corners, rect, overlayParts);
-		}
-		roundRect(p, rect, p.textPalette().selectOverlay, overlayCorners, nullptr, overlayParts);
+	void complexLocationRect(Painter &p, QRect rect, ImageRoundRadius radius, RectParts corners) {
+		rectWithCorners(p, rect, st::msgInBg, MessageInCorners, corners);
 	}
 
-	void complexLocationRect(Painter &p, QRect rect, ImageRoundRadius radius, ImageRoundCorners corners) {
-		auto parts = RectPart::Full | RectPart::None;
-		complexAdjustRect(corners, rect, parts);
-		roundRect(p, rect, st::msgInBg, MessageInCorners, nullptr, parts);
-	}
-
-	QImage **cornersMask(ImageRoundRadius radius) {
+	QImage *cornersMask(ImageRoundRadius radius) {
 		switch (radius) {
 		case ImageRoundRadius::Large: return ::cornersMaskLarge;
 		case ImageRoundRadius::Small:
@@ -2788,8 +2609,8 @@ namespace {
 	}
 
 	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, const CornersPixmaps &corner, const style::color *shadow, RectParts parts) {
-		auto cornerWidth = corner.p[0]->width() / cIntRetinaFactor();
-		auto cornerHeight = corner.p[0]->height() / cIntRetinaFactor();
+		auto cornerWidth = corner.p[0].width() / cIntRetinaFactor();
+		auto cornerHeight = corner.p[0].height() / cIntRetinaFactor();
 		if (w < 2 * cornerWidth || h < 2 * cornerHeight) return;
 		if (w > 2 * cornerWidth) {
 			if (parts & RectPart::Top) {
@@ -2803,7 +2624,7 @@ namespace {
 			}
 		}
 		if (h > 2 * cornerHeight) {
-			if ((parts & RectPart::NoTopBottom) == qFlags(RectPart::NoTopBottom)) {
+			if ((parts & RectPart::NoTopBottom) == RectPart::NoTopBottom) {
 				p.fillRect(x, y + cornerHeight, w, h - 2 * cornerHeight, bg);
 			} else {
 				if (parts & RectPart::Left) {
@@ -2818,16 +2639,16 @@ namespace {
 			}
 		}
 		if (parts & RectPart::TopLeft) {
-			p.drawPixmap(x, y, *corner.p[0]);
+			p.drawPixmap(x, y, corner.p[0]);
 		}
 		if (parts & RectPart::TopRight) {
-			p.drawPixmap(x + w - cornerWidth, y, *corner.p[1]);
+			p.drawPixmap(x + w - cornerWidth, y, corner.p[1]);
 		}
 		if (parts & RectPart::BottomLeft) {
-			p.drawPixmap(x, y + h - cornerHeight, *corner.p[2]);
+			p.drawPixmap(x, y + h - cornerHeight, corner.p[2]);
 		}
 		if (parts & RectPart::BottomRight) {
-			p.drawPixmap(x + w - cornerWidth, y + h - cornerHeight, *corner.p[3]);
+			p.drawPixmap(x + w - cornerWidth, y + h - cornerHeight, corner.p[3]);
 		}
 	}
 
@@ -2837,18 +2658,18 @@ namespace {
 
 	void roundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, RoundCorners index, RectParts parts) {
 		auto &corner = ::corners[index];
-		auto cornerWidth = corner.p[0]->width() / cIntRetinaFactor();
-		auto cornerHeight = corner.p[0]->height() / cIntRetinaFactor();
+		auto cornerWidth = corner.p[0].width() / cIntRetinaFactor();
+		auto cornerHeight = corner.p[0].height() / cIntRetinaFactor();
 		if (parts & RectPart::Bottom) {
 			p.fillRect(x + cornerWidth, y + h, w - 2 * cornerWidth, st::msgShadow, shadow);
 		}
 		if (parts & RectPart::BottomLeft) {
 			p.fillRect(x, y + h - cornerHeight, cornerWidth, st::msgShadow, shadow);
-			p.drawPixmap(x, y + h - cornerHeight + st::msgShadow, *corner.p[2]);
+			p.drawPixmap(x, y + h - cornerHeight + st::msgShadow, corner.p[2]);
 		}
 		if (parts & RectPart::BottomRight) {
 			p.fillRect(x + w - cornerWidth, y + h - cornerHeight, cornerWidth, st::msgShadow, shadow);
-			p.drawPixmap(x + w - cornerWidth, y + h - cornerHeight + st::msgShadow, *corner.p[3]);
+			p.drawPixmap(x + w - cornerWidth, y + h - cornerHeight + st::msgShadow, corner.p[3]);
 		}
 	}
 
@@ -2859,14 +2680,14 @@ namespace {
 			QImage images[4];
 			switch (radius) {
 			case ImageRoundRadius::Small: prepareCorners(SmallMaskCorners, st::buttonRadius, bg, nullptr, images); break;
-			case ImageRoundRadius::Large: prepareCorners(LargeMaskCorners, msgRadius(), bg, nullptr, images); break;
+			case ImageRoundRadius::Large: prepareCorners(LargeMaskCorners, st::historyMessageRadius, bg, nullptr, images); break;
 			default: p.fillRect(x, y, w, h, bg); return;
 			}
 
 			CornersPixmaps pixmaps;
 			for (int j = 0; j < 4; ++j) {
-				pixmaps.p[j] = new QPixmap(pixmapFromImageInPlace(std_::move(images[j])));
-				pixmaps.p[j]->setDevicePixelRatio(cRetinaFactor());
+				pixmaps.p[j] = pixmapFromImageInPlace(std::move(images[j]));
+				pixmaps.p[j].setDevicePixelRatio(cRetinaFactor());
 			}
 			i = cornersMap.insert(colorKey, pixmaps);
 		}

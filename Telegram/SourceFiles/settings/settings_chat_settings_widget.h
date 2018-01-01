@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "settings/settings_block_widget.h"
+#include "ui/rp_widget.h"
 
 namespace Ui {
 class FlatLabel;
@@ -28,15 +29,13 @@ class FlatLabel;
 
 namespace Settings {
 
-class LabeledLink : public TWidget {
+class LabeledLink : public Ui::RpWidget {
 public:
 	enum class Type {
 		Primary,
 		Secondary,
 	};
 	LabeledLink(QWidget *parent, const QString &label, const QString &text, Type type, const char *slot);
-
-	void setLink(const QString &text);
 
 	Ui::LinkButton *link() const;
 
@@ -51,7 +50,8 @@ private:
 
 };
 
-class DownloadPathState : public TWidget, private base::Subscriber {
+#ifndef OS_WIN_STORE
+class DownloadPathState : public Ui::RpWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -85,6 +85,7 @@ private:
 	object_ptr<Ui::LinkButton> _clear;
 
 };
+#endif // OS_WIN_STORE
 
 class ChatSettingsWidget : public BlockWidget {
 	Q_OBJECT
@@ -94,24 +95,29 @@ public:
 
 private slots:
 	void onReplaceEmoji();
-	void onViewList();
 	void onDontAskDownloadPath();
-	void onSendByEnter();
-	void onSendByCtrlEnter();
 	void onAutomaticMediaDownloadSettings();
 	void onManageStickerSets();
 
 private:
+	enum class SendByType {
+		Enter,
+		CtrlEnter,
+	};
+	void sendByChanged(SendByType value);
 	void createControls();
 
-	object_ptr<Ui::Checkbox> _replaceEmoji = { nullptr };
-	object_ptr<Ui::WidgetSlideWrap<Ui::LinkButton>> _viewList = { nullptr };
-	object_ptr<Ui::Checkbox> _dontAskDownloadPath = { nullptr };
-	object_ptr<Ui::WidgetSlideWrap<DownloadPathState>> _downloadPath = { nullptr };
-	object_ptr<Ui::Radiobutton> _sendByEnter = { nullptr };
-	object_ptr<Ui::Radiobutton> _sendByCtrlEnter = { nullptr };
-	object_ptr<Ui::LinkButton> _automaticMediaDownloadSettings = { nullptr };
-	object_ptr<Ui::LinkButton> _manageStickerSets = { nullptr };
+	Ui::Checkbox *_replaceEmoji = nullptr;
+	Ui::Checkbox *_dontAskDownloadPath = nullptr;
+
+#ifndef OS_WIN_STORE
+	Ui::SlideWrap<DownloadPathState> *_downloadPath = nullptr;
+#endif // OS_WIN_STORE
+
+	Ui::Radioenum<SendByType> *_sendByEnter = nullptr;
+	Ui::Radioenum<SendByType> *_sendByCtrlEnter = nullptr;
+	Ui::LinkButton *_automaticMediaDownloadSettings = nullptr;
+	Ui::LinkButton *_manageStickerSets = nullptr;
 
 };
 

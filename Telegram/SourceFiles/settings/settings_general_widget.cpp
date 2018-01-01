@@ -18,29 +18,30 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "settings/settings_general_widget.h"
 
 #include "styles/style_settings.h"
-#include "lang.h"
-#include "ui/effects/widget_slide_wrap.h"
+#include "lang/lang_keys.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
-#include "localstorage.h"
-#include "pspecific.h"
+#include "storage/localstorage.h"
+#include "platform/platform_specific.h"
 #include "mainwindow.h"
 #include "application.h"
-#include "boxes/languagebox.h"
-#include "boxes/confirmbox.h"
-#include "boxes/aboutbox.h"
-#include "ui/filedialog.h"
-#include "langloaderplain.h"
+#include "boxes/language_box.h"
+#include "boxes/confirm_box.h"
+#include "boxes/about_box.h"
+#include "core/file_utilities.h"
+#include "lang/lang_file_parser.h"
+#include "lang/lang_cloud_manager.h"
+#include "messenger.h"
 #include "autoupdater.h"
 
 namespace Settings {
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-UpdateStateRow::UpdateStateRow(QWidget *parent) : TWidget(parent)
+UpdateStateRow::UpdateStateRow(QWidget *parent) : RpWidget(parent)
 , _check(this, lang(lng_settings_check_now))
 , _restart(this, lang(lng_settings_update_now)) {
 	connect(_check, SIGNAL(clicked()), this, SLOT(onCheck()));
@@ -159,15 +160,11 @@ void UpdateStateRow::onFailed() {
 GeneralWidget::GeneralWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_general))
 , _changeLanguage(this, lang(lng_settings_change_lang), st::boxLinkButton) {
 	connect(_changeLanguage, SIGNAL(clicked()), this, SLOT(onChangeLanguage()));
-	subscribe(Global::RefChooseCustomLang(), [this]() { chooseCustomLang(); });
-	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
-		notifyFileQueryUpdated(update);
-	});
 	refreshControls();
 }
 
 int GeneralWidget::resizeGetHeight(int newWidth) {
-	_changeLanguage->moveToRight(contentLeft(), st::settingsBlockMarginTop + st::settingsBlockTitleTop + st::settingsBlockTitleFont->ascent - st::defaultLinkButton.font->ascent, newWidth);
+	_changeLanguage->moveToRight(0, st::settingsBlockMarginTop + st::settingsBlockTitleTop + st::settingsBlockTitleFont->ascent - st::defaultLinkButton.font->ascent, newWidth);
 	return BlockWidget::resizeGetHeight(newWidth);
 }
 
@@ -178,74 +175,52 @@ void GeneralWidget::refreshControls() {
 	style::margins slidedPadding(0, marginSmall.bottom() / 2, 0, marginSmall.bottom() - (marginSmall.bottom() / 2));
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	addChildRow(_updateAutomatically, marginSub, lang(lng_settings_update_automatically), SLOT(onUpdateAutomatically()), cAutoUpdate());
-	style::margins marginLink(st::defaultBoxCheckbox.textPosition.x(), 0, 0, st::settingsSkip);
-	addChildRow(_updateRow, marginLink, slidedPadding);
+	createChildRow(_updateAutomatically, marginSub, lang(lng_settings_update_automatically), [this](bool) { onUpdateAutomatically(); }, cAutoUpdate());
+	style::margins marginLink(st::defaultCheck.diameter + st::defaultBoxCheckbox.textPosition.x(), 0, 0, st::settingsSkip);
+	createChildRow(_updateRow, marginLink, slidedPadding);
 	connect(_updateRow->entity(), SIGNAL(restart()), this, SLOT(onRestart()));
 	if (!cAutoUpdate()) {
-		_updateRow->hideFast();
+		_updateRow->hide(anim::type::instant);
 	}
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 	if (cPlatform() == dbipWindows || cSupportTray()) {
-		addChildRow(_enableTrayIcon, marginSmall, lang(lng_settings_workmode_tray), SLOT(onEnableTrayIcon()), (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray));
+		auto workMode = Global::WorkMode().value();
+		createChildRow(_enableTrayIcon, marginSmall, lang(lng_settings_workmode_tray), [this](bool) { onEnableTrayIcon(); }, (workMode == dbiwmTrayOnly || workMode == dbiwmWindowAndTray));
 		if (cPlatform() == dbipWindows) {
-			addChildRow(_enableTaskbarIcon, marginLarge, lang(lng_settings_workmode_window), SLOT(onEnableTaskbarIcon()), (cWorkMode() == dbiwmWindowOnly || cWorkMode() == dbiwmWindowAndTray));
+			createChildRow(_enableTaskbarIcon, marginLarge, lang(lng_settings_workmode_window), [this](bool) { onEnableTaskbarIcon(); }, (workMode == dbiwmWindowOnly || workMode == dbiwmWindowAndTray));
 
-			addChildRow(_autoStart, marginSmall, lang(lng_settings_auto_start), SLOT(onAutoStart()), cAutoStart());
-			addChildRow(_startMinimized, marginLarge, slidedPadding, lang(lng_settings_start_min), SLOT(onStartMinimized()), (cStartMinimized() && !Global::LocalPasscode()));
+#ifndef OS_WIN_STORE
+			createChildRow(_autoStart, marginSmall, lang(lng_settings_auto_start), [this](bool) { onAutoStart(); }, cAutoStart());
+			createChildRow(_startMinimized, marginLarge, slidedPadding, lang(lng_settings_start_min), [this](bool) { onStartMinimized(); }, (cStartMinimized() && !Global::LocalPasscode()));
 			subscribe(Global::RefLocalPasscodeChanged(), [this] {
 				_startMinimized->entity()->setChecked(cStartMinimized() && !Global::LocalPasscode());
 			});
 			if (!cAutoStart()) {
-				_startMinimized->hideFast();
+				_startMinimized->hide(anim::type::instant);
 			}
-			addChildRow(_addInSendTo, marginSmall, lang(lng_settings_add_sendto), SLOT(onAddInSendTo()), cSendToMenu());
+			createChildRow(_addInSendTo, marginSmall, lang(lng_settings_add_sendto), [this](bool) { onAddInSendTo(); }, cSendToMenu());
+#endif // OS_WIN_STORE
 		}
-	}
-}
-
-void GeneralWidget::chooseCustomLang() {
-	auto filter = qsl("Language files (*.strings)");
-	auto title = qsl("Choose language .strings file");
-
-	_chooseLangFileQueryId = FileDialog::queryReadFile(title, filter);
-}
-
-void GeneralWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) {
-	if (_chooseLangFileQueryId != update.queryId) {
-		return;
-	}
-	_chooseLangFileQueryId = 0;
-
-	if (update.filePaths.isEmpty()) {
-		return;
-	}
-
-	_testLanguage = QFileInfo(update.filePaths.front()).absoluteFilePath();
-	LangLoaderPlain loader(_testLanguage, langLoaderRequest(lng_sure_save_language, lng_cancel, lng_box_ok));
-	if (loader.errors().isEmpty()) {
-		LangLoaderResult result = loader.found();
-		auto text = result.value(lng_sure_save_language, langOriginal(lng_sure_save_language)),
-			save = result.value(lng_box_ok, langOriginal(lng_box_ok)),
-			cancel = result.value(lng_cancel, langOriginal(lng_cancel));
-		Ui::show(Box<ConfirmBox>(text, save, cancel, base::lambda_guarded(this, [this] {
-			cSetLangFile(_testLanguage);
-			cSetLang(languageTest);
-			Local::writeSettings();
-			onRestart();
-		})));
-	} else {
-		Ui::show(Box<InformBox>("Custom lang failed :(\n\nError: " + loader.errors()));
 	}
 }
 
 void GeneralWidget::onChangeLanguage() {
 	if ((_changeLanguage->clickModifiers() & Qt::ShiftModifier) && (_changeLanguage->clickModifiers() & Qt::AltModifier)) {
-		chooseCustomLang();
+		Lang::CurrentCloudManager().switchToLanguage(qsl("custom"));
+		return;
+	}
+	auto manager = Messenger::Instance().langCloudManager();
+	if (manager->languageList().isEmpty()) {
+		_languagesLoadedSubscription = subscribe(manager->languageListChanged(), [this] {
+			unsubscribe(base::take(_languagesLoadedSubscription));
+			Ui::show(Box<LanguageBox>());
+		});
 	} else {
+		unsubscribe(base::take(_languagesLoadedSubscription));
 		Ui::show(Box<LanguageBox>());
 	}
+	manager->requestLanguageList();
 }
 
 void GeneralWidget::onRestart() {
@@ -259,11 +234,12 @@ void GeneralWidget::onRestart() {
 void GeneralWidget::onUpdateAutomatically() {
 	cSetAutoUpdate(_updateAutomatically->checked());
 	Local::writeSettings();
+	_updateRow->toggle(
+		cAutoUpdate(),
+		anim::type::normal);
 	if (cAutoUpdate()) {
-		_updateRow->slideDown();
 		Sandbox::startUpdateCheck();
 	} else {
-		_updateRow->slideUp();
 		Sandbox::stopUpdate();
 	}
 }
@@ -286,20 +262,19 @@ void GeneralWidget::onEnableTaskbarIcon() {
 }
 
 void GeneralWidget::updateWorkmode() {
-	DBIWorkMode newMode = (_enableTrayIcon->checked() && (!_enableTaskbarIcon || _enableTaskbarIcon->checked())) ? dbiwmWindowAndTray : (_enableTrayIcon->checked() ? dbiwmTrayOnly : dbiwmWindowOnly);
-	if (cWorkMode() != newMode && (newMode == dbiwmWindowAndTray || newMode == dbiwmTrayOnly)) {
+	auto newMode = (_enableTrayIcon->checked() && (!_enableTaskbarIcon || _enableTaskbarIcon->checked())) ? dbiwmWindowAndTray : (_enableTrayIcon->checked() ? dbiwmTrayOnly : dbiwmWindowOnly);
+	if (Global::WorkMode().value() != newMode && (newMode == dbiwmWindowAndTray || newMode == dbiwmTrayOnly)) {
 		cSetSeenTrayTooltip(false);
 	}
-	cSetWorkMode(newMode);
-	App::wnd()->psUpdateWorkmode();
+	Global::RefWorkMode().set(newMode);
 	Local::writeSettings();
 }
 
+#if !defined OS_WIN_STORE
 void GeneralWidget::onAutoStart() {
 	cSetAutoStart(_autoStart->checked());
 	if (cAutoStart()) {
 		psAutoStart(true);
-		_startMinimized->slideDown();
 		Local::writeSettings();
 	} else {
 		psAutoStart(false);
@@ -308,8 +283,8 @@ void GeneralWidget::onAutoStart() {
 		} else {
 			Local::writeSettings();
 		}
-		_startMinimized->slideUp();
 	}
+	_startMinimized->toggle(cAutoStart(), anim::type::normal);
 }
 
 void GeneralWidget::onStartMinimized() {
@@ -332,5 +307,6 @@ void GeneralWidget::onAddInSendTo() {
 	psSendToMenu(_addInSendTo->checked());
 	Local::writeSettings();
 }
+#endif // !OS_WIN_STORE
 
 } // namespace Settings

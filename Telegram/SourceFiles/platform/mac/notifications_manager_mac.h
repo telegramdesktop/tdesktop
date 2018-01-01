@@ -20,25 +20,18 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "window/notifications_manager.h"
+#include "platform/platform_notifications_manager.h"
+#include "base/weak_ptr.h"
 
 namespace Platform {
 namespace Notifications {
 
-inline bool skipAudio() {
-	return false;
-}
+bool SkipAudio();
+bool SkipToast();
 
-inline bool skipToast() {
-	return false;
-}
-
-class Manager : public Window::Notifications::NativeManager {
+class Manager : public Window::Notifications::NativeManager, public base::has_weak_ptr {
 public:
-	Manager();
-
-	void updateDelegate();
-
+	Manager(Window::Notifications::System *system);
 	~Manager();
 
 protected:
@@ -47,8 +40,8 @@ protected:
 	void doClearFromHistory(History *history) override;
 
 private:
-	class Impl;
-	std_::unique_ptr<Impl> _impl;
+	class Private;
+	const std::unique_ptr<Private> _private;
 
 };
 

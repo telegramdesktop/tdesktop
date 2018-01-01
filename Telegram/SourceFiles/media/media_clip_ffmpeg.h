@@ -35,7 +35,7 @@ namespace internal {
 
 class FFMpegReaderImplementation : public ReaderImplementation {
 public:
-	FFMpegReaderImplementation(FileLocation *location, QByteArray *data, uint64 playId);
+	FFMpegReaderImplementation(FileLocation *location, QByteArray *data, const AudioMsgId &audio);
 
 	ReadResult readFramesTill(TimeMs frameMs, TimeMs systemMs) override;
 
@@ -48,12 +48,13 @@ public:
 	bool hasAudio() const override {
 		return (_audioStreamId >= 0);
 	}
-	void pauseAudio() override;
-	void resumeAudio() override;
 
-	bool start(Mode mode, int64 &positionMs) override;
+	bool start(Mode mode, TimeMs &positionMs) override;
+	bool inspectAt(TimeMs &positionMs);
 
 	QString logData() const;
+
+	bool isGifv() const;
 
 	~FFMpegReaderImplementation();
 
@@ -105,8 +106,9 @@ private:
 	bool _frameRead = false;
 	int _skippedInvalidDataPackets = 0;
 
+	bool _hasAudioStream = false;
 	int _audioStreamId = -1;
-	uint64 _playId = 0;
+	AudioMsgId _audioMsgId;
 	TimeMs _lastReadVideoMs = 0;
 	TimeMs _lastReadAudioMs = 0;
 

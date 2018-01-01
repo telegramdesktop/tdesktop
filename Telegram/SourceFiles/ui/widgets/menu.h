@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 
+class ToggleView;
 class RippleAnimation;
 
 class Menu : public TWidget {
@@ -34,9 +35,10 @@ public:
 	Menu(QWidget *parent, QMenu *menu, const style::Menu &st = st::defaultMenu);
 
 	QAction *addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
-	QAction *addAction(const QString &text, base::lambda<void()> &&callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
+	QAction *addAction(const QString &text, base::lambda<void()> callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
 	QAction *addSeparator();
 	void clearActions();
+	void finishAnimating();
 
 	void clearSelection();
 
@@ -48,38 +50,39 @@ public:
 		_childShown = shown;
 	}
 	void setShowSource(TriggeredSource source);
+	void setForceWidth(int forceWidth);
 
 	using Actions = QList<QAction*>;
 	Actions &actions();
 
-	void setResizedCallback(base::lambda<void()> &&callback) {
-		_resizedCallback = std_::move(callback);
+	void setResizedCallback(base::lambda<void()> callback) {
+		_resizedCallback = std::move(callback);
 	}
 
-	void setActivatedCallback(base::lambda<void(QAction *action, int actionTop, TriggeredSource source)> &&callback) {
-		_activatedCallback = std_::move(callback);
+	void setActivatedCallback(base::lambda<void(QAction *action, int actionTop, TriggeredSource source)> callback) {
+		_activatedCallback = std::move(callback);
 	}
-	void setTriggeredCallback(base::lambda<void(QAction *action, int actionTop, TriggeredSource source)> &&callback) {
-		_triggeredCallback = std_::move(callback);
+	void setTriggeredCallback(base::lambda<void(QAction *action, int actionTop, TriggeredSource source)> callback) {
+		_triggeredCallback = std::move(callback);
 	}
 
-	void setKeyPressDelegate(base::lambda<bool(int key)> &&delegate) {
-		_keyPressDelegate = std_::move(delegate);
+	void setKeyPressDelegate(base::lambda<bool(int key)> delegate) {
+		_keyPressDelegate = std::move(delegate);
 	}
 	void handleKeyPress(int key);
 
-	void setMouseMoveDelegate(base::lambda<void(QPoint globalPosition)> &&delegate) {
-		_mouseMoveDelegate = std_::move(delegate);
+	void setMouseMoveDelegate(base::lambda<void(QPoint globalPosition)> delegate) {
+		_mouseMoveDelegate = std::move(delegate);
 	}
 	void handleMouseMove(QPoint globalPosition);
 
-	void setMousePressDelegate(base::lambda<void(QPoint globalPosition)> &&delegate) {
-		_mousePressDelegate = std_::move(delegate);
+	void setMousePressDelegate(base::lambda<void(QPoint globalPosition)> delegate) {
+		_mousePressDelegate = std::move(delegate);
 	}
 	void handleMousePress(QPoint globalPosition);
 
-	void setMouseReleaseDelegate(base::lambda<void(QPoint globalPosition)> &&delegate) {
-		_mouseReleaseDelegate = std_::move(delegate);
+	void setMouseReleaseDelegate(base::lambda<void(QPoint globalPosition)> delegate) {
+		_mouseReleaseDelegate = std::move(delegate);
 	}
 	void handleMouseRelease(QPoint globalPosition);
 
@@ -89,13 +92,30 @@ protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 
 private slots:
 	void actionChanged();
 
 private:
+	struct ActionData {
+		ActionData() = default;
+		ActionData(const ActionData &other) = delete;
+		ActionData &operator=(const ActionData &other) = delete;
+		ActionData(ActionData &&other) = default;
+		ActionData &operator=(ActionData &&other) = default;
+		~ActionData();
+
+		bool hasSubmenu = false;
+		QString text;
+		QString shortcut;
+		const style::icon *icon = nullptr;
+		const style::icon *iconOver = nullptr;
+		std::unique_ptr<RippleAnimation> ripple;
+		std::unique_ptr<ToggleView> toggle;
+	};
+
 	void updateSelected(QPoint globalPosition);
 	void init();
 
@@ -104,6 +124,7 @@ private:
 	QAction *addAction(QAction *a, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
 
 	void setSelected(int selected);
+	void setPressed(int pressed);
 	void clearMouseSelection();
 
 	int itemTop(int index);
@@ -122,20 +143,11 @@ private:
 	base::lambda<void(QPoint globalPosition)> _mousePressDelegate;
 	base::lambda<void(QPoint globalPosition)> _mouseReleaseDelegate;
 
-	struct ActionData {
-		bool hasSubmenu = false;
-		QString text;
-		QString shortcut;
-		const style::icon *icon = nullptr;
-		const style::icon *iconOver = nullptr;
-		QSharedPointer<RippleAnimation> ripple;
-	};
-	using ActionsData = QList<ActionData>;
-
 	QMenu *_wappedMenu = nullptr;
 	Actions _actions;
-	ActionsData _actionsData;
+	std::vector<ActionData> _actionsData;
 
+	int _forceWidth = 0;
 	int _itemHeight, _separatorHeight;
 
 	bool _mouseSelection = false;

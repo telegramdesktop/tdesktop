@@ -24,6 +24,9 @@ TextPalette {
 	linkFg: color;
 	monoFg: color;
 	selectBg: color;
+	selectFg: color;
+	selectLinkFg: color;
+	selectMonoFg: color;
 	selectOverlay: color;
 }
 
@@ -52,6 +55,9 @@ defaultTextPalette: TextPalette {
 	linkFg: windowActiveTextFg;
 	monoFg: windowSubTextFg;
 	selectBg: msgInBgSelected;
+	selectFg: transparent; // use painter current pen instead
+	selectLinkFg: historyLinkInFgSelected;
+	selectMonoFg: msgInMonoFgSelected;
 	selectOverlay: msgSelectOverlay;
 }
 defaultTextStyle: TextStyle {
@@ -71,6 +77,9 @@ shadowToggleDuration: 200;
 slideDuration: 240;
 slideShift: 100px;
 slideShadow: icon {{ "slide_shadow", slideFadeOutShadowFg }};
+
+slideWrapDuration: 150;
+fadeWrapDuration: 200;
 
 linkCropLimit: 360px;
 linkFont: normalFont;
@@ -110,7 +119,7 @@ msgReplyBarPos: point(1px, 0px);
 msgReplyBarSize: size(2px, 36px);
 msgReplyBarSkip: 10px;
 msgServicePadding: margins(12px, 3px, 12px, 4px);
-msgServiceMargin: margins(10px, 10px, 80px, 2px);
+msgServiceMargin: margins(10px, 10px, 10px, 2px);
 
 msgDateSpace: 12px;
 msgDateDelta: point(2px, 5px);
@@ -125,6 +134,9 @@ serviceTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: msgServiceFg;
 	monoFg: msgServiceFg;
 	selectBg: msgServiceBgSelected;
+	selectFg: msgServiceFg;
+	selectLinkFg: msgServiceFg;
+	selectMonoFg: msgServiceFg;
 	selectOverlay: msgServiceBgSelected;
 }
 serviceTextStyle: TextStyle(defaultTextStyle) {
@@ -133,14 +145,30 @@ serviceTextStyle: TextStyle(defaultTextStyle) {
 	linkFontOver: font(fsize semibold underline);
 }
 inTextPalette: TextPalette(defaultTextPalette) {
+	linkFg: historyLinkInFg;
 	monoFg: msgInMonoFg;
 	selectBg: msgInBgSelected;
+	selectFg: historyTextInFgSelected;
+	selectLinkFg: historyLinkInFgSelected;
+	selectMonoFg: msgInMonoFgSelected;
 	selectOverlay: msgSelectOverlay;
 }
+inTextPaletteSelected: TextPalette(inTextPalette) {
+	linkFg: historyLinkInFgSelected;
+	monoFg: msgInMonoFgSelected;
+}
 outTextPalette: TextPalette(defaultTextPalette) {
+	linkFg: historyLinkOutFg;
 	monoFg: msgOutMonoFg;
 	selectBg: msgOutBgSelected;
+	selectFg: historyTextOutFgSelected;
+	selectLinkFg: historyLinkOutFgSelected;
+	selectMonoFg: msgOutMonoFgSelected;
 	selectOverlay: msgSelectOverlay;
+}
+outTextPaletteSelected: TextPalette(outTextPalette) {
+	linkFg: historyLinkOutFgSelected;
+	monoFg: msgOutMonoFgSelected;
 }
 fwdTextStyle: TextStyle(semiboldTextStyle) {
 	linkFontOver: semiboldFont;
@@ -157,8 +185,17 @@ inFwdTextPaletteSelected: TextPalette(defaultTextPalette) {
 outFwdTextPaletteSelected: TextPalette(defaultTextPalette) {
 	linkFg: msgOutServiceFgSelected;
 }
+inSemiboldPalette: TextPalette(inTextPalette) {
+	linkFg: msgInServiceFg;
+	selectFg: msgInServiceFgSelected;
+	selectLinkFg: msgInServiceFgSelected;
+}
+outSemiboldPalette: TextPalette(outTextPalette) {
+	linkFg: msgOutServiceFg;
+	selectFg: msgOutServiceFgSelected;
+	selectLinkFg: msgOutServiceFgSelected;
+}
 
-mediaPadding: margins(0px, 0px, 0px, 0px);
 mediaCaptionSkip: 5px;
 mediaInBubbleSkip: 5px;
 mediaThumbSize: 48px;
@@ -204,7 +241,7 @@ dragPadding: margins(20px, 10px, 20px, 10px);
 dragHeight: 72px;
 
 minPhotoSize: 100px;
-maxMediaSize: 420px;
+maxMediaSize: 430px;
 maxStickerSize: 256px;
 maxGifSize: 320px;
 maxSignatureSize: 144px;
@@ -241,9 +278,6 @@ mediaPlayerSuppressDuration: 150;
 
 botDescSkip: 8px;
 
-suppressAll: 0.2;
-suppressSong: 0.05;
-
 inlineResultsLeft: 11px;
 inlineResultsSkip: 3px;
 inlineMediaHeight: 96px;
@@ -256,7 +290,7 @@ inlineRowBorder: 1px;
 inlineRowBorderFg: shadowFg;
 inlineRowFileNameTop: 2px;
 inlineRowFileDescriptionTop: 23px;
-inlineResultsMinWidth: 64px;
+inlineResultsMinWidth: 48px;
 inlineDurationMargin: 3px;
 
 toastTextStyle: defaultTextStyle;
@@ -268,8 +302,6 @@ toastFadeOutDuration: 1000;
 
 historyReplyCancelIcon: icon {{ "box_button_close", historyReplyCancelFg }};
 historyReplyCancelIconOver: icon {{ "box_button_close", historyReplyCancelFgOver }};
-boxSearchCancelIcon: icon {{ "box_button_close", boxSearchCancelIconFg }};
-boxSearchCancelIconOver: icon {{ "box_button_close", boxSearchCancelIconFgOver }};
 boxTitleCloseIcon: icon {{ "box_button_close", boxTitleCloseFg }};
 boxTitleCloseIconOver: icon {{ "box_button_close", boxTitleCloseFgOver }};
 
@@ -277,3 +309,5 @@ notifyFadeRight: icon {{ "fade_horizontal", notificationBg }};
 
 stickerIconLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanCategories }};
 stickerIconRight: icon {{ "fade_horizontal", emojiPanCategories }};
+
+transparentPlaceholderSize: 4px;

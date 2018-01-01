@@ -39,13 +39,13 @@ public:
 	RippleRow();
 	~RippleRow();
 
-	void addRipple(QPoint origin, QSize size, base::lambda_copy<void()> &&updateCallback);
+	void addRipple(QPoint origin, QSize size, base::lambda<void()> updateCallback);
 	void stopLastRipple();
 
 	void paintRipple(Painter &p, int x, int y, int outerWidth, TimeMs ms, const QColor *colorOverride = nullptr) const;
 
 private:
-	mutable std_::unique_ptr<Ui::RippleAnimation> _ripple;
+	mutable std::unique_ptr<Ui::RippleAnimation> _ripple;
 
 };
 
@@ -78,16 +78,20 @@ private:
 
 class FakeRow : public RippleRow {
 public:
-	FakeRow(HistoryItem *item);
+	FakeRow(PeerData *searchInPeer, not_null<HistoryItem*> item);
 
-	HistoryItem *item() const {
+	PeerData *searchInPeer() const {
+		return _searchInPeer;
+	}
+	not_null<HistoryItem*> item() const {
 		return _item;
 	}
 
 private:
 	friend class Layout::RowPainter;
 
-	HistoryItem *_item;
+	PeerData *_searchInPeer = nullptr;
+	not_null<HistoryItem*> _item;
 	mutable const HistoryItem *_cacheFor = nullptr;
 	mutable Text _cache;
 

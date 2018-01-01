@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "storage/localimageloader.h"
+
 class FileLocation;
 
 namespace Media {
@@ -41,7 +43,7 @@ struct FrameRequest {
 	int outerw = 0;
 	int outerh = 0;
 	ImageRoundRadius radius = ImageRoundRadius::None;
-	ImageRoundCorners corners = ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight | ImageRoundCorner::BottomLeft | ImageRoundCorner::BottomRight;
+	RectParts corners = RectPart::AllCorners;
 };
 
 enum ReaderSteps {
@@ -59,7 +61,9 @@ public:
 		Video,
 	};
 
-	Reader(const FileLocation &location, const QByteArray &data, Callback &&callback, Mode mode = Mode::Gif, TimeMs seekMs = 0);
+	Reader(const QString &filepath, Callback &&callback, Mode mode = Mode::Gif, TimeMs seekMs = 0);
+	Reader(not_null<DocumentData*> document, FullMsgId msgId, Callback &&callback, Mode mode = Mode::Gif, TimeMs seekMs = 0);
+
 	static void callback(Reader *reader, int threadIndex, Notification notification); // reader can be deleted
 
 	void setAutoplay() {
@@ -69,15 +73,16 @@ public:
 		return _autoplay;
 	}
 
-	uint64 playId() const {
-		return _playId;
+	AudioMsgId audioMsgId() const {
+		return _audioMsgId;
 	}
 	TimeMs seekPositionMs() const {
 		return _seekPositionMs;
 	}
 
-	void start(int framew, int frameh, int outerw, int outerh, ImageRoundRadius radius, ImageRoundCorners corners);
-	QPixmap current(int framew, int frameh, int outerw, int outerh, ImageRoundRadius radius, ImageRoundCorners corners, TimeMs ms);
+	void start(int framew, int frameh, int outerw, int outerh, ImageRoundRadius radius, RectParts corners);
+	QPixmap current(int framew, int frameh, int outerw, int outerh, ImageRoundRadius radius, RectParts corners, TimeMs ms);
+	QPixmap current();
 	QPixmap frameOriginal() const {
 		if (auto frame = frameToShow()) {
 			auto result = QPixmap::fromImage(frame->original);
@@ -87,7 +92,7 @@ public:
 		return QPixmap();
 	}
 	bool currentDisplayed() const {
-		Frame *frame = frameToShow();
+		auto frame = frameToShow();
 		return frame ? (frame->displayed.loadAcquire() != 0) : true;
 	}
 	bool autoPausedGif() const {
@@ -103,7 +108,7 @@ public:
 
 	State state() const;
 	bool started() const {
-		int step = _step.loadAcquire();
+		auto step = _step.loadAcquire();
 		return (step == WaitingForFirstFrameStep) || (step >= 0);
 	}
 	bool ready() const;
@@ -124,13 +129,14 @@ public:
 	~Reader();
 
 private:
+	void init(const FileLocation &location, const QByteArray &data);
 
 	Callback _callback;
 	Mode _mode;
 
 	State _state = State::Reading;
 
-	uint64 _playId;
+	AudioMsgId _audioMsgId;
 	bool _hasAudio = false;
 	TimeMs _durationMs = 0;
 	TimeMs _seekPositionMs = 0;
@@ -155,9 +161,9 @@ private:
 		TimeMs positionMs = 0;
 	};
 	mutable Frame _frames[3];
-	Frame *frameToShow(int *index = 0) const; // 0 means not ready
-	Frame *frameToWrite(int *index = 0) const; // 0 means not ready
-	Frame *frameToWriteNext(bool check, int *index = 0) const;
+	Frame *frameToShow(int *index = nullptr) const; // 0 means not ready
+	Frame *frameToWrite(int *index = nullptr) const; // 0 means not ready
+	Frame *frameToWriteNext(bool check, int *index = nullptr) const;
 	void moveToNextShow() const;
 	void moveToNextWrite() const;
 
@@ -175,7 +181,7 @@ private:
 
 template <typename ...Args>
 inline ReaderPointer MakeReader(Args&&... args) {
-	return ReaderPointer(new Reader(std_::forward<Args>(args)...));
+	return ReaderPointer(new Reader(std::forward<Args>(args)...));
 }
 
 enum class ProcessResult {
@@ -243,7 +249,7 @@ private:
 
 };
 
-MTPDocumentAttribute readAttributes(const QString &fname, const QByteArray &data, QImage &cover);
+FileMediaInformation::Video PrepareForSending(const QString &fname, const QByteArray &data);
 
 void Finish();
 

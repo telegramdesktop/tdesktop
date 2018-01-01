@@ -19,25 +19,5 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include <QtCore/QtPlugin>
 
-#ifdef Q_OS_WINRT
-//Q_IMPORT_PLUGIN(QWinRTIntegrationPlugin)
-//Q_IMPORT_PLUGIN(QWbmpPlugin)
-#elif defined Q_OS_WIN // Q_OS_WINRT
-Q_IMPORT_PLUGIN(QWebpPlugin)
-Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
-#elif defined Q_OS_MAC // Q_OS_WIN
-Q_IMPORT_PLUGIN(QWebpPlugin)
-Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin)
-Q_IMPORT_PLUGIN(QGenericEnginePlugin)
-#elif defined Q_OS_LINUX // Q_OS_LINUX
-Q_IMPORT_PLUGIN(QWebpPlugin)
-Q_IMPORT_PLUGIN(QXcbIntegrationPlugin)
-Q_IMPORT_PLUGIN(QConnmanEnginePlugin)
-Q_IMPORT_PLUGIN(QGenericEnginePlugin)
-Q_IMPORT_PLUGIN(QNetworkManagerEnginePlugin)
-Q_IMPORT_PLUGIN(QComposePlatformInputContextPlugin)
-Q_IMPORT_PLUGIN(QIbusPlatformInputContextPlugin)
-Q_IMPORT_PLUGIN(QFcitxPlatformInputContextPlugin)
-#endif
+// Precompiled header helper.

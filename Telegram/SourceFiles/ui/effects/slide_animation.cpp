@@ -18,16 +18,15 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/effects/slide_animation.h"
 
 namespace Ui {
 
 void SlideAnimation::setSnapshots(QPixmap leftSnapshot, QPixmap rightSnapshot) {
-	_leftSnapshot = std_::move(leftSnapshot);
-	_rightSnapshot = std_::move(rightSnapshot);
-	t_assert(!_leftSnapshot.isNull());
-	t_assert(!_rightSnapshot.isNull());
+	_leftSnapshot = std::move(leftSnapshot);
+	_rightSnapshot = std::move(rightSnapshot);
+	Assert(!_leftSnapshot.isNull());
+	Assert(!_rightSnapshot.isNull());
 	_leftSnapshot.setDevicePixelRatio(cRetinaFactor());
 	_rightSnapshot.setDevicePixelRatio(cRetinaFactor());
 }

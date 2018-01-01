@@ -21,17 +21,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "core/basic_types.h"
-#include "history.h"
+#include "history/history.h"
 #include "history/history_item.h"
-#include "history/history_media.h"
-#include "history/history_message.h"
 #include "layout.h"
 
-class AppClass;
+class Messenger;
 class MainWindow;
 class MainWidget;
-class ApiWrap;
-class FileUploader;
 
 using HistoryItemsMap = OrderedSet<HistoryItem*>;
 using PhotoItems = QHash<PhotoData*, HistoryItemsMap>;
@@ -44,39 +40,28 @@ using GifItems = QHash<Media::Clip::Reader*, HistoryItem*>;
 using PhotosData = QHash<PhotoId, PhotoData*>;
 using DocumentsData = QHash<DocumentId, DocumentData*>;
 
-struct LocationCoords;
+class LocationCoords;
 struct LocationData;
 
 namespace App {
-	AppClass *app();
 	MainWindow *wnd();
 	MainWidget *main();
 	bool passcoded();
-	FileUploader *uploader();
-	ApiWrap *api();
 
 	void logOut();
 
 	QString formatPhone(QString phone);
-
-	TimeId onlineForSort(UserData *user, TimeId now);
-	int32 onlineWillChangeIn(UserData *user, TimeId now);
-	int32 onlineWillChangeIn(TimeId online, TimeId now);
-	QString onlineText(UserData *user, TimeId now, bool precise = false);
-	QString onlineText(TimeId online, TimeId now, bool precise = false);
-	bool onlineColorUse(UserData *user, TimeId now);
-	bool onlineColorUse(TimeId online, TimeId now);
 
 	UserData *feedUser(const MTPUser &user);
 	UserData *feedUsers(const MTPVector<MTPUser> &users); // returns last user
 	PeerData *feedChat(const MTPChat &chat);
 	PeerData *feedChats(const MTPVector<MTPChat> &chats); // returns last chat
 
-	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos, bool emitPeerUpdated = true);
-	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d, bool emitPeerUpdated = true);
-	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d, bool emitPeerUpdated = true);
-	void feedChatAdmins(const MTPDupdateChatAdmins &d, bool emitPeerUpdated = true);
-	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d, bool emitPeerUpdated = true);
+	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos);
+	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d);
+	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d);
+	void feedChatAdmins(const MTPDupdateChatAdmins &d);
+	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d);
 	bool checkEntitiesAndViewsUpdate(const MTPDmessage &m); // returns true if item found and it is not detached
 	void updateEditedMessage(const MTPMessage &m);
 	void addSavedGif(DocumentData *doc);
@@ -88,12 +73,7 @@ namespace App {
 	void feedWereDeleted(ChannelId channelId, const QVector<MTPint> &msgsIds);
 	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink);
 
-	void markPeerUpdated(PeerData *data);
-	void clearPeerUpdated(PeerData *data);
-
 	ImagePtr image(const MTPPhotoSize &size);
-	StorageImageLocation imageLocation(int32 w, int32 h, const MTPFileLocation &loc);
-	StorageImageLocation imageLocation(const MTPPhotoSize &size);
 
 	PhotoData *feedPhoto(const MTPPhoto &photo, const PreparedPhotoThumbs &thumbs);
 	PhotoData *feedPhoto(const MTPPhoto &photo, PhotoData *convert = nullptr);
@@ -104,6 +84,7 @@ namespace App {
 	WebPageData *feedWebPage(const MTPDwebPage &webpage, WebPageData *convert = nullptr);
 	WebPageData *feedWebPage(const MTPDwebPagePending &webpage, WebPageData *convert = nullptr);
 	WebPageData *feedWebPage(const MTPWebPage &webpage);
+	WebPageData *feedWebPage(WebPageId webPageId, const QString &siteName, const TextWithEntities &content);
 	GameData *feedGame(const MTPDgame &game, GameData *convert = nullptr);
 
 	PeerData *peer(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded);
@@ -146,30 +127,70 @@ namespace App {
 	inline ChannelData *channelLoaded(ChannelId channelId) {
 		return channel(channelId, PeerData::FullLoaded);
 	}
+	void enumerateUsers(base::lambda<void(UserData*)> action);
 
 	UserData *self();
 	PeerData *peerByName(const QString &username);
 	QString peerName(const PeerData *peer, bool forDialogs = false);
 	PhotoData *photo(const PhotoId &photo);
-	PhotoData *photoSet(const PhotoId &photo, PhotoData *convert, const uint64 &access, int32 date, const ImagePtr &thumb, const ImagePtr &medium, const ImagePtr &full);
+	PhotoData *photoSet(
+		const PhotoId &photo,
+		PhotoData *convert,
+		const uint64 &access,
+		int32 date,
+		const ImagePtr &thumb,
+		const ImagePtr &medium,
+		const ImagePtr &full);
 	DocumentData *document(const DocumentId &document);
-	DocumentData *documentSet(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 version, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size, const StorageImageLocation &thumbLocation);
+	DocumentData *documentSet(
+		const DocumentId &document,
+		DocumentData *convert,
+		const uint64 &access,
+		int32 version,
+		int32 date,
+		const QVector<MTPDocumentAttribute> &attributes,
+		const QString &mime,
+		const ImagePtr &thumb,
+		int32 dc,
+		int32 size,
+		const StorageImageLocation &thumbLocation);
 	WebPageData *webPage(const WebPageId &webPage);
-	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill);
+	WebPageData *webPageSet(
+		const WebPageId &webPage,
+		WebPageData *convert,
+		const QString &type,
+		const QString &url,
+		const QString &displayUrl,
+		const QString &siteName,
+		const QString &title,
+		const TextWithEntities &description,
+		PhotoData *photo,
+		DocumentData *document,
+		int duration,
+		const QString &author,
+		int pendingTill);
 	GameData *game(const GameId &game);
-	GameData *gameSet(const GameId &game, GameData *convert, const uint64 &accessHash, const QString &shortName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc);
+	GameData *gameSet(
+		const GameId &game,
+		GameData *convert,
+		const uint64 &accessHash,
+		const QString &shortName,
+		const QString &title,
+		const QString &description,
+		PhotoData *photo,
+		DocumentData *document);
 	LocationData *location(const LocationCoords &coords);
 	void forgetMedia();
 
 	MTPPhoto photoFromUserPhoto(MTPint userId, MTPint date, const MTPUserProfilePhoto &photo);
 
 	Histories &histories();
-	History *history(const PeerId &peer);
+	not_null<History*> history(const PeerId &peer);
 	History *historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead, int32 maxOutboxRead);
 	History *historyLoaded(const PeerId &peer);
 	HistoryItem *histItemById(ChannelId channelId, MsgId itemId);
-	inline History *history(const PeerData *peer) {
-		t_assert(peer != nullptr);
+	inline not_null<History*> history(const PeerData *peer) {
+		Assert(peer != nullptr);
 		return history(peer->id);
 	}
 	inline History *historyLoaded(const PeerData *peer) {
@@ -220,7 +241,6 @@ namespace App {
 
 	void initMedia();
 	void deinitMedia();
-	void playSound();
 
 	void checkImageCacheSize();
 
@@ -233,7 +253,6 @@ namespace App {
 	};
 	void quit();
 	bool quitting();
-	void allDraftsSaved();
 	LaunchState launchState();
 	void setLaunchState(LaunchState state);
 	void restart();
@@ -269,10 +288,11 @@ namespace App {
 
 	void regGifItem(Media::Clip::Reader *reader, HistoryItem *item);
 	void unregGifItem(Media::Clip::Reader *reader);
+	void stopRoundVideoPlayback();
 	void stopGifItems();
 
-	void regMuted(PeerData *peer, int32 changeIn);
-	void unregMuted(PeerData *peer);
+	void regMuted(not_null<PeerData*> peer, TimeMs changeIn);
+	void unregMuted(not_null<PeerData*> peer);
 	void updateMuted();
 
 	void setProxySettings(QNetworkAccessManager &manager);
@@ -281,32 +301,10 @@ namespace App {
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	void setProxySettings(QTcpSocket &socket);
 
-	enum class RectPart {
-		None        = 0x000,
-		TopLeft     = 0x001,
-		Top         = 0x002,
-		TopRight    = 0x004,
-		Left        = 0x008,
-		Center      = 0x010,
-		Right       = 0x020,
-		BottomLeft  = 0x040,
-		Bottom      = 0x080,
-		BottomRight = 0x100,
-		TopFull     = 0x007,
-		LeftFull    = 0x049,
-		RightFull   = 0x124,
-		BottomFull  = 0x1c0,
-		NoTopBottom = 0x038,
-		NoLeftRight = 0x092,
-		Full        = 0x1ff,
-	};
-	Q_DECLARE_FLAGS(RectParts, RectPart);
-	Q_DECLARE_OPERATORS_FOR_FLAGS(RectParts);
+	void complexOverlayRect(Painter &p, QRect rect, ImageRoundRadius radius, RectParts corners);
+	void complexLocationRect(Painter &p, QRect rect, ImageRoundRadius radius, RectParts corners);
 
-	void complexOverlayRect(Painter &p, QRect rect, ImageRoundRadius radius, ImageRoundCorners corners);
-	void complexLocationRect(Painter &p, QRect rect, ImageRoundRadius radius, ImageRoundCorners corners);
-
-	QImage **cornersMask(ImageRoundRadius radius);
+	QImage *cornersMask(ImageRoundRadius radius);
 	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, RoundCorners index, const style::color *shadow = nullptr, RectParts parts = RectPart::Full);
 	inline void roundRect(Painter &p, const QRect &rect, style::color bg, RoundCorners index, const style::color *shadow = nullptr, RectParts parts = RectPart::Full) {
 		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, index, shadow, parts);

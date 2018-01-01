@@ -18,22 +18,23 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "passcodewidget.h"
 
-#include "lang.h"
-#include "localstorage.h"
+#include "lang/lang_keys.h"
+#include "storage/localstorage.h"
 #include "mainwindow.h"
-#include "application.h"
+#include "messenger.h"
 #include "ui/text/text.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "styles/style_boxes.h"
 #include "window/window_slide_animation.h"
+#include "window/window_controller.h"
+#include "auth_session.h"
 
 PasscodeWidget::PasscodeWidget(QWidget *parent) : TWidget(parent)
-, _passcode(this, st::passcodeInput, lang(lng_passcode_ph))
-, _submit(this, lang(lng_passcode_submit), st::passcodeSubmit)
+, _passcode(this, st::passcodeInput, langFactory(lng_passcode_ph))
+, _submit(this, langFactory(lng_passcode_submit), st::passcodeSubmit)
 , _logout(this, lang(lng_passcode_logout)) {
 	connect(_passcode, SIGNAL(changed()), this, SLOT(onChanged()));
 	connect(_passcode, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
@@ -58,8 +59,7 @@ void PasscodeWidget::onSubmit() {
 
 	if (App::main()) {
 		if (Local::checkPasscode(_passcode->text().toUtf8())) {
-			cSetPasscodeBadTries(0);
-			App::wnd()->clearPasscode(); // Destroys this widget.
+			Messenger::Instance().clearPasscode(); // Destroys this widget.
 			return;
 		} else {
 			cSetPasscodeBadTries(cPasscodeBadTries() + 1);
@@ -71,14 +71,12 @@ void PasscodeWidget::onSubmit() {
 		if (Local::readMap(_passcode->text().toUtf8()) != Local::ReadMapPassNeeded) {
 			cSetPasscodeBadTries(0);
 
-			MTP::start();
-			if (MTP::authedId()) {
+			Messenger::Instance().startMtp();
+			if (AuthSession::Exists()) {
 				App::wnd()->setupMain();
 			} else {
 				App::wnd()->setupIntro();
 			}
-
-			App::app()->checkMapVersion();
 		} else {
 			cSetPasscodeBadTries(cPasscodeBadTries() + 1);
 			cSetPasscodeLastTry(getms(true));
@@ -110,11 +108,16 @@ void PasscodeWidget::showAnimated(const QPixmap &bgAnimCache, bool back) {
 
 	showAll();
 	setInnerFocus();
-	_passcode->finishAnimations();
-	(_showBack ? _cacheUnder : _cacheOver) = myGrab(this);
+	_passcode->finishAnimating();
+	(_showBack ? _cacheUnder : _cacheOver) = Ui::GrabWidget(this);
 	hideAll();
 
-	_a_show.start([this] { animationCallback(); }, 0., 1., st::slideDuration, Window::SlideAnimation::transition());
+	_a_show.start(
+		[this] { animationCallback(); },
+		0.,
+		1.,
+		st::slideDuration,
+		Window::SlideAnimation::transition());
 	show();
 }
 
@@ -187,6 +190,8 @@ void PasscodeWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void PasscodeWidget::setInnerFocus() {
-	Global::RefDialogsListFocused().set(false, true);
+	if (auto controller = App::wnd()->controller()) {
+		controller->dialogsListFocused().set(false, true);
+	}
 	_passcode->setFocusFast();
 }

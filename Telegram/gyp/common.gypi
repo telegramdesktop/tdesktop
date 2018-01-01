@@ -59,7 +59,7 @@
       'build_mac%': '<(build_mac)',
       'build_linux%': '<(build_linux)',
 
-      'official_build_target%': '<!(python <(DEPTH)/official.py --read-target)',
+      'official_build_target%': '',
     },
     'build_os%': '<(build_os)',
     'build_win%': '<(build_win)',
@@ -91,6 +91,11 @@
         'build_macstore': 1,
       }, {
         'build_macstore': 0,
+      }],
+      [ '"<(official_build_target)" == "uwp"', {
+        'build_uwp': 1,
+      }, {
+        'build_uwp': 0,
       }],
     ],
     'ld_lib_prefix': '<(ld_lib_prefix)',

@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include <rpl/event_stream.h>
+#include "ui/rp_widget.h"
 #include "styles/style_widgets.h"
 
 namespace Ui {
@@ -32,26 +34,34 @@ enum class TouchScrollState {
 
 class ScrollArea;
 
+struct ScrollToRequest {
+	ScrollToRequest(int ymin, int ymax)
+	: ymin(ymin)
+	, ymax(ymax) {
+	}
+
+	int ymin = 0;
+	int ymax = 0;
+
+};
+
 class ScrollShadow : public QWidget {
 	Q_OBJECT
 
 public:
-
 	ScrollShadow(ScrollArea *parent, const style::ScrollArea *st);
 
 	void paintEvent(QPaintEvent *e);
 
 public slots:
-
 	void changeVisibility(bool shown);
 
 private:
-
 	const style::ScrollArea *_st;
 
 };
 
-class ScrollBar : public QWidget {
+class ScrollBar : public TWidget {
 	Q_OBJECT
 
 public:
@@ -73,8 +83,8 @@ signals:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
@@ -112,11 +122,11 @@ private:
 	QRect _bar;
 };
 
-class SplittedWidget : public TWidget {
+class SplittedWidget : public Ui::RpWidget {
 	Q_OBJECT
 
 public:
-	SplittedWidget(QWidget *parent) : TWidget(parent) {
+	SplittedWidget(QWidget *parent) : RpWidget(parent) {
 		setAttribute(Qt::WA_OpaquePaintEvent);
 	}
 	void setHeight(int32 newHeight) {
@@ -170,9 +180,8 @@ private:
 };
 
 class SplittedWidgetOther;
-class ScrollArea : public QScrollArea {
+class ScrollArea : public Ui::RpWidgetWrap<QScrollArea> {
 	Q_OBJECT
-	T_WIDGET
 
 public:
 	ScrollArea(QWidget *parent, const style::ScrollArea &st = st::defaultScrollArea, bool handleTouch = true);
@@ -187,7 +196,7 @@ public:
 	template <typename Widget>
 	QPointer<Widget> setOwnedWidget(object_ptr<Widget> widget) {
 		auto result = QPointer<Widget>(widget);
-		doSetOwnedWidget(std_::move(widget));
+		doSetOwnedWidget(std::move(widget));
 		return result;
 	}
 	template <typename Widget>
@@ -205,9 +214,12 @@ public:
 	bool viewportEvent(QEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 
-	QMargins getMargins() const {
-		return QMargins();
+	auto scrollTopValue() const {
+		return _scrollTopUpdated.events_starting_with(scrollTop());
 	}
+
+	void scrollTo(ScrollToRequest request);
+	void scrollToWidget(not_null<QWidget*> widget);
 
 protected:
 	bool eventFilter(QObject *obj, QEvent *e) override;
@@ -216,8 +228,8 @@ protected:
 	void moveEvent(QMoveEvent *e) override;
 	void touchEvent(QTouchEvent *e);
 
-	void enterEventHook(QEvent *e);
-	void leaveEventHook(QEvent *e);
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 
 public slots:
 	void scrollToY(int toTop, int toBottom = -1);
@@ -287,6 +299,8 @@ private:
 	object_ptr<SplittedWidgetOther> _other = { nullptr };
 
 	object_ptr<TWidget> _widget = { nullptr };
+
+	rpl::event_stream<int> _scrollTopUpdated;
 
 };
 

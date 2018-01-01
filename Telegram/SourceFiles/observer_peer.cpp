@@ -18,15 +18,9 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "observer_peer.h"
 
-#include "core/observer.h"
-
-namespace App {
-// Temp forward declaration (while all peer updates are not done through observers).
-void emitPeerUpdated();
-} // namespace App
+#include "base/observer.h"
 
 namespace Notify {
 namespace {
@@ -52,12 +46,8 @@ base::Observable<PeerUpdate, PeerUpdatedHandler> PeerUpdatedObservable;
 void mergePeerUpdate(PeerUpdate &mergeTo, const PeerUpdate &mergeFrom) {
 	if (!(mergeTo.flags & PeerUpdate::Flag::NameChanged)) {
 		if (mergeFrom.flags & PeerUpdate::Flag::NameChanged) {
-			mergeTo.oldNames = mergeFrom.oldNames;
 			mergeTo.oldNameFirstChars = mergeFrom.oldNameFirstChars;
 		}
-	}
-	if (mergeFrom.flags & PeerUpdate::Flag::SharedMediaChanged) {
-		mergeTo.mediaTypesMask |= mergeFrom.mediaTypesMask;
 	}
 	mergeTo.flags |= mergeFrom.flags;
 }
@@ -94,17 +84,15 @@ void peerUpdatedDelayed(const PeerUpdate &update) {
 }
 
 void peerUpdatedSendDelayed() {
-	App::emitPeerUpdated();
-
 	if (!SmallUpdates || !AllUpdates || SmallUpdates->empty()) return;
 
 	auto smallList = base::take(*SmallUpdates);
 	auto allList = base::take(*AllUpdates);
 	for (auto &update : smallList) {
-		PeerUpdated().notify(std_::move(update), true);
+		PeerUpdated().notify(std::move(update), true);
 	}
 	for (auto &update : allList) {
-		PeerUpdated().notify(std_::move(update), true);
+		PeerUpdated().notify(std::move(update), true);
 	}
 
 	if (SmallUpdates->isEmpty()) {
@@ -115,6 +103,39 @@ void peerUpdatedSendDelayed() {
 
 base::Observable<PeerUpdate, PeerUpdatedHandler> &PeerUpdated() {
 	return PeerUpdatedObservable;
+}
+
+rpl::producer<PeerUpdate> PeerUpdateViewer(
+		PeerUpdate::Flags flags) {
+	return [=](const auto &consumer) {
+		auto lifetime = rpl::lifetime();
+		lifetime.make_state<base::Subscription>(
+			PeerUpdated().add_subscription({ flags, [=](
+					const PeerUpdate &update) {
+				consumer.put_next_copy(update);
+			}}));
+		return lifetime;
+	};
+}
+
+rpl::producer<PeerUpdate> PeerUpdateViewer(
+		not_null<PeerData*> peer,
+		PeerUpdate::Flags flags) {
+	return PeerUpdateViewer(
+		flags
+	) | rpl::filter([=](const PeerUpdate &update) {
+		return (update.peer == peer);
+	});
+}
+
+rpl::producer<PeerUpdate> PeerUpdateValue(
+		not_null<PeerData*> peer,
+		PeerUpdate::Flags flags) {
+	auto initial = PeerUpdate(peer);
+	initial.flags = flags;
+	return rpl::single(
+		initial
+	) | rpl::then(PeerUpdateViewer(peer, flags));
 }
 
 } // namespace Notify

@@ -46,6 +46,7 @@
           '-pipe',
           '-g',
           '-Wall',
+          '-Werror',
           '-W',
           '-fPIE',
           '-Wno-unused-variable',
@@ -54,6 +55,7 @@
           '-Wno-switch',
           '-Wno-comment',
           '-Wno-missing-field-initializers',
+          '-Wno-sign-compare',
         ],
       },
       'xcode_settings': {
@@ -70,7 +72,7 @@
         'MACOSX_DEPLOYMENT_TARGET': '<(mac_target)',
         'COMBINE_HIDPI_IMAGES': 'YES',
         'COPY_PHASE_STRIP': 'NO',
-        'CLANG_CXX_LANGUAGE_STANDARD': 'c++14',
+        'CLANG_CXX_LANGUAGE_STANDARD': 'c++1z',
       },
       'configurations': {
         'Debug': {
@@ -88,16 +90,17 @@
     }],
     [ 'build_macold', {
       'xcode_settings': {
-        'OTHER_CFLAGS': [
-          '-Wno-inconsistent-missing-override',
-        ],
         'OTHER_CPLUSPLUSFLAGS': [
           '-Wno-inconsistent-missing-override',
+        ],
+        'OTHER_LDFLAGS': [
+          '-w', # Suppress 'libstdc++ is deprecated' warning.
         ],
       },
     }, {
       'xcode_settings': {
         'CLANG_CXX_LIBRARY': 'libc++',
+        'CLANG_ENABLE_OBJC_WEAK': 'YES',
         'OTHER_LDFLAGS': [
           '-framework', 'VideoToolbox',
           '-framework', 'VideoDecodeAcceleration',

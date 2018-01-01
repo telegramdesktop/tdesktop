@@ -26,9 +26,9 @@ dialogsUnreadFont: font(12px bold);
 dialogsUnreadHeight: 19px;
 dialogsUnreadPadding: 5px;
 
-dialogsRipple: defaultRippleAnimation;
-dialogsRippleBg: windowBgRipple;
-dialogsRippleBgActive: activeButtonBgRipple;
+dialogsRipple: RippleAnimation(defaultRippleAnimation) {
+	color: dialogsRippleBg;
+}
 
 dialogsTextFont: font(fsize);
 dialogsTextStyle: TextStyle(defaultTextStyle) {
@@ -51,8 +51,6 @@ dialogsImportantBarHeight: 37px;
 
 dialogsSkip: 8px;
 
-dialogsWidthMin: 260px;
-dialogsWidthMax: 540px;
 dialogsWidthDuration: 120;
 dialogsTextWidthMin: 150px;
 dialogsScroll: ScrollArea(defaultScrollArea) {
@@ -99,11 +97,23 @@ dialogsLock: IconButton(dialogsMenuToggle) {
 }
 dialogsUnlockIcon: icon {{ "dialogs_unlock", dialogsMenuIconFg }};
 dialogsUnlockIconOver: icon {{ "dialogs_unlock", dialogsMenuIconFgOver }};
+dialogsCalendar: IconButton {
+	width: 29px;
+	height: 32px;
+
+	icon: icon {{ "dialogs_calendar", dialogsMenuIconFg }};
+	iconOver: icon {{ "dialogs_calendar", dialogsMenuIconFgOver }};
+	iconPosition: point(0px, 5px);
+}
+dialogsSearchFrom: IconButton(dialogsCalendar) {
+	width: 26px;
+	icon: icon {{ "dialogs_search_from", dialogsMenuIconFg }};
+	iconOver: icon {{ "dialogs_search_from", dialogsMenuIconFgOver }};
+}
+dialogsSearchFromPadding: margins(10px, 10px, 10px, 10px);
 
 dialogsFilter: FlatInput(defaultFlatInput) {
 	font: font(fsize);
-	phColor: placeholderFg;
-	phFocusColor: placeholderFgActive;
 
 	width: 240px;
 	height: 32px;
@@ -113,6 +123,8 @@ dialogsCancelSearchInPeer: IconButton(dialogsMenuToggle) {
 	icon: icon {{ "dialogs_cancel_search", dialogsMenuIconFg }};
 	iconOver: icon {{ "dialogs_cancel_search", dialogsMenuIconFgOver }};
 	iconPosition: point(11px, 11px);
+	rippleAreaPosition: point(3px, 3px);
+	rippleAreaSize: 34px;
 }
 dialogsCancelSearch: CrossButton {
 	width: 32px;
@@ -129,6 +141,7 @@ dialogsCancelSearch: CrossButton {
 	crossPosition: point(0px, 0px);
 
 	duration: 150;
+	loadingPeriod: 1000;
 	ripple: emptyRippleAnimation;
 }
 
@@ -207,3 +220,16 @@ dialogsForwardCancel: IconButton {
 	iconPosition: point(12px, 11px);
 }
 dialogsForwardFont: semiboldFont;
+
+dialogsSearchInHeight: 52px;
+dialogsSearchInPhotoSize: 36px;
+dialogsSearchInPhotoPadding: 10px;
+dialogsSearchInSkip: 7px;
+dialogsSearchFromStyle: TextStyle(defaultTextStyle) {
+	font: normalFont;
+	linkFont: semiboldFont;
+	linkFontOver: semiboldFont;
+}
+dialogsSearchFromPalette: TextPalette(defaultTextPalette) {
+	linkFg: dialogsNameFg;
+}

@@ -18,13 +18,13 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "profile/profile_back_button.h"
 
-#include "window/top_bar_widget.h"
+//#include "history/history_top_bar_widget.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 #include "styles/style_profile.h"
+#include "styles/style_info.h"
 
 namespace Profile {
 
@@ -34,6 +34,11 @@ BackButton::BackButton(QWidget *parent, const QString &text) : Ui::AbstractButto
 
 	subscribe(Adaptive::Changed(), [this] { updateAdaptiveLayout(); });
 	updateAdaptiveLayout();
+}
+
+void BackButton::setText(const QString &text) {
+	_text = text.toUpper();
+	update();
 }
 
 int BackButton::resizeGetHeight(int newWidth) {
@@ -50,7 +55,7 @@ void BackButton::paintEvent(QPaintEvent *e) {
 	p.setPen(st::topBarButton.textFg);
 	p.drawTextLeft(st::topBarArrowPadding.left(), st::topBarButton.padding.top() + st::topBarButton.textTop, width(), _text);
 
-	Window::TopBarWidget::paintUnreadCounter(p, width());
+//	HistoryTopBarWidget::paintUnreadCounter(p, width());
 }
 
 void BackButton::onStateChanged(State was, StateChangeSource source) {

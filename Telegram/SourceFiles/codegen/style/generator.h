@@ -21,6 +21,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include <memory>
+#include <map>
+#include <functional>
 #include <QtCore/QString>
 #include <QtCore/QSet>
 #include "codegen/common/cpp_file.h"
@@ -40,7 +42,6 @@ public:
 
 	bool writeHeader();
 	bool writeSource();
-	bool writeSampleTheme(const QString &filepath);
 
 private:
 	QString typeToString(structure::Type type) const;
@@ -74,10 +75,10 @@ private:
 	QMap<int, bool> pxValues_;
 	QMap<std::string, int> fontFamilies_;
 	QMap<QString, int> iconMasks_; // icon file -> index
-	QMap<QString, int> paletteIndices_;
+	std::map<QString, int, std::greater<QString>> paletteIndices_;
 
-	std::vector<int> scales = { 4, 5, 6, 8 }; // scale / 4 gives our 1.00, 1.25, 1.50, 2.00
-	std::vector<const char *>scaleNames = { "dbisOne", "dbisOneAndQuarter", "dbisOneAndHalf", "dbisTwo" };
+	std::vector<int> _scales = { 4, 5, 6, 8 }; // scale / 4 gives our 1.00, 1.25, 1.50, 2.00
+	std::vector<const char *> _scaleNames = { "dbisOne", "dbisOneAndQuarter", "dbisOneAndHalf", "dbisTwo" };
 
 };
 

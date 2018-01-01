@@ -1,0 +1,204 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+*/
+using "basic.style";
+
+using "ui/widgets/widgets.style";
+using "window/window.style";
+
+callWidth: 300px;
+callHeight: 470px;
+callShadow: Shadow {
+	left: icon {{ "call_shadow_left", windowShadowFg }};
+	topLeft: icon {{ "call_shadow_top_left", windowShadowFg }};
+	top: icon {{ "call_shadow_top", windowShadowFg }};
+	topRight: icon {{ "call_shadow_top_left-flip_horizontal", windowShadowFg }};
+	right: icon {{ "call_shadow_left-flip_horizontal", windowShadowFg }};
+	bottomRight: icon {{ "call_shadow_top_left-flip_vertical-flip_horizontal", windowShadowFg }};
+	bottom: icon {{ "call_shadow_top-flip_vertical", windowShadowFg }};
+	bottomLeft: icon {{ "call_shadow_top_left-flip_vertical", windowShadowFg }};
+	extend: margins(9px, 8px, 9px, 10px);
+	fallback: windowShadowFgFallback;
+}
+
+callButton: IconButton {
+	width: 72px;
+	height: 72px;
+
+	iconPosition: point(-1px, -1px);
+
+	rippleAreaPosition: point(12px, 12px);
+	rippleAreaSize: 48px;
+	ripple: defaultRippleAnimation;
+}
+
+callAnswer: CallButton {
+	button: IconButton(callButton) {
+		icon: icon {{ "call_answer", callIconFg }};
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: callAnswerRipple;
+		}
+	}
+	bg: callAnswerBg;
+	angle: 135.;
+	outerRadius: 12px;
+	outerBg: callAnswerBgOuter;
+}
+callHangup: CallButton {
+	button: IconButton(callButton) {
+		icon: icon {{ "call_discard", callIconFg }};
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: callHangupRipple;
+		}
+	}
+	bg: callHangupBg;
+	outerBg: callHangupBg;
+}
+callCancel: CallButton {
+	button: IconButton(callButton) {
+		icon: icon {{ "box_button_close", callCancelFg }};
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: callCancelRipple;
+		}
+	}
+	bg: callCancelBg;
+	outerBg: callCancelBg;
+}
+callMuteToggle: IconButton(callButton) {
+	icon: icon {{ "call_record_active", callIconFg }};
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: callMuteRipple;
+	}
+}
+callUnmuteIcon: icon {{ "call_record_muted", callIconFg }};
+
+callControlsTop: 80px;
+callControlsSkip: 0px;
+callMuteRight: 8px;
+
+callNameTop: 15px;
+callName: FlatLabel(defaultFlatLabel) {
+	minWidth: 260px;
+	maxHeight: 30px;
+	textFg: callNameFg;
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(21px semibold);
+		linkFont: font(21px semibold);
+		linkFontOver: font(21px semibold underline);
+	}
+}
+callStatusTop: 46px;
+callStatus: FlatLabel(defaultFlatLabel) {
+	minWidth: 260px;
+	maxHeight: 20px;
+	textFg: callStatusFg;
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px);
+		linkFont: font(14px);
+		linkFontOver: font(14px underline);
+	}
+}
+
+callFingerprintPadding: margins(9px, 4px, 9px, 5px);
+callFingerprintSkip: 3px;
+callFingerprintBottom: 8px;
+
+callBarHeight: 38px;
+callBarMuteToggle: IconButton {
+	width: 41px;
+	height: 38px;
+
+	icon: icon {{ "call_record_active", callBarFg }};
+	iconPosition: point(9px, 8px);
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: callBarMuteRipple;
+	}
+	rippleAreaPosition: point(5px, 3px);
+	rippleAreaSize: 32px;
+}
+callBarUnmuteIcon: icon {{ "call_record_muted", callBarFg }};
+callBarRightSkip: 12px;
+callBarSkip: 10px;
+callBarHangup: IconButton(callBarMuteToggle) {
+	icon: icon {{ "call_discard", callBarFg }};
+	iconPosition: point(9px, 11px);
+}
+callBarLabel: LabelSimple(defaultLabelSimple) {
+	font: semiboldFont;
+	textFg: callBarFg;
+}
+callBarInfoLabel: FlatLabel(defaultFlatLabel) {
+	maxHeight: 28px;
+	align: align(top);
+	textFg: callBarFg;
+	style: TextStyle(defaultTextStyle) {
+		font: semiboldFont;
+	}
+}
+callBarLabelTop: 10px;
+
+callArrowPosition: point(-2px, 1px);
+callArrowIn: icon {{ "call_arrow_in", callArrowFg }};
+callArrowOut: icon {{ "call_arrow_out", callArrowFg }};
+callArrowMissed: icon {{ "call_arrow_in", callArrowMissedFg }};
+callArrowSkip: 4px;
+callReDial: IconButton {
+	width: 40px;
+	height: 56px;
+
+	icon: mainMenuCalls;
+	iconOver: mainMenuCallsOver;
+	iconPosition: point(-1px, -1px);
+
+	ripple: defaultRippleAnimation;
+	rippleAreaPosition: point(0px, 8px);
+	rippleAreaSize: 40px;
+}
+
+callRatingPadding: margins(24px, 12px, 24px, 0px);
+callRatingStar: IconButton {
+	width: 36px;
+	height: 36px;
+
+	icon: icon {{ "call_rating", windowSubTextFg }};
+	iconPosition: point(-1px, -1px);
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 36px;
+}
+callRatingStarFilled: icon {{ "call_rating_filled", lightButtonFg }};
+callRatingStarTop: 4px;
+callRatingComment: InputField(defaultInputField) {
+	textMargins: margins(1px, 26px, 1px, 4px);
+	heightMax: 135px;
+}
+callRatingCommentTop: 8px;
+
+callDebugPadding: margins(24px, 0px, 24px, 0px);
+callDebugLabel: FlatLabel(defaultFlatLabel) {
+	margin: callDebugPadding;
+}
+callPanelDuration: 150;

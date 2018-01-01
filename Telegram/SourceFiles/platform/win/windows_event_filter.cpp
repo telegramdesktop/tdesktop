@@ -18,10 +18,10 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "platform/win/windows_event_filter.h"
 
 #include "mainwindow.h"
+#include "auth_session.h"
 
 namespace Platform {
 namespace {
@@ -74,7 +74,9 @@ bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 	switch (msg) {
 
 	case WM_TIMECHANGE: {
-		App::wnd()->checkAutoLockIn(100);
+		if (AuthSession::Exists()) {
+			Auth().checkAutoLockIn(100);
+		}
 	} return false;
 
 	case WM_WTSSESSION_CHANGE: {
@@ -91,7 +93,7 @@ bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 
 	case WM_ACTIVATE: {
 		if (LOWORD(wParam) == WA_CLICKACTIVE) {
-			App::wnd()->inactivePress(true);
+			App::wnd()->setInactivePress(true);
 		}
 		if (LOWORD(wParam) != WA_INACTIVE) {
 			App::wnd()->shadowsActivate();
@@ -206,7 +208,7 @@ bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 	case WM_SYSCOMMAND: {
 		if (wParam == SC_MOUSEMENU) {
 			POINTS p = MAKEPOINTS(lParam);
-			App::wnd()->psUpdateSysMenu(App::wnd()->windowHandle()->windowState());
+			App::wnd()->updateSystemMenu(App::wnd()->windowHandle()->windowState());
 			TrackPopupMenu(App::wnd()->psMenu(), TPM_LEFTALIGN | TPM_TOPALIGN | TPM_LEFTBUTTON, p.x, p.y, 0, hWnd, 0);
 		}
 	} return false;

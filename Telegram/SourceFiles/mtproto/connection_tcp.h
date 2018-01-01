@@ -20,7 +20,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "mtproto/core_types.h"
 #include "mtproto/auth_key.h"
 #include "mtproto/connection_abstract.h"
 
@@ -75,8 +74,8 @@ public:
 
 	void sendData(mtpBuffer &buffer) override;
 	void disconnectFromServer() override;
-	void connectTcp(const QString &addr, int32 port, MTPDdcOption::Flags flags) override;
-	void connectHttp(const QString &addr, int32 port, MTPDdcOption::Flags flags) override { // not supported
+	void connectTcp(const DcOptions::Endpoint &endpoint) override;
+	void connectHttp(const DcOptions::Endpoint &endpoint) override { // not supported
 	}
 	bool isConnected() const override;
 

@@ -28,6 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Ui {
 
 class RippleAnimation;
+class NumbersAnimation;
 
 class LinkButton : public AbstractButton {
 public:
@@ -53,15 +54,18 @@ class RippleButton : public AbstractButton {
 public:
 	RippleButton(QWidget *parent, const style::RippleAnimation &st);
 
-	// Displays full ripple circle constantly.
-	enum class SetForceRippledWay {
-		Default,
-		SkipAnimation,
-	};
-	void setForceRippled(bool rippled, SetForceRippledWay way = SetForceRippledWay::Default);
+	void setForceRippled(
+		bool rippled,
+		anim::type animated = anim::type::normal);
 	bool forceRippled() const {
 		return _forceRippled;
 	}
+
+	static QPoint DisabledRippleStartPosition() {
+		return QPoint(-0x3FFFFFFF, -0x3FFFFFFF);
+	}
+
+	void clearState() override;
 
 	~RippleButton();
 
@@ -72,17 +76,13 @@ protected:
 
 	virtual QImage prepareRippleMask() const;
 	virtual QPoint prepareRippleStartPosition() const;
-	QPoint disabledRippleStartPosition() const {
-		return QPoint(-0x3FFFFFFF, -0x3FFFFFFF);
-	}
-	void resetRipples();
 
 private:
 	void ensureRipple();
 	void handleRipples(bool wasDown, bool wasPress);
 
 	const style::RippleAnimation &_st;
-	std_::unique_ptr<RippleAnimation> _ripple;
+	std::unique_ptr<RippleAnimation> _ripple;
 	bool _forceRippled = false;
 
 };
@@ -109,11 +109,11 @@ private:
 
 };
 
-class RoundButton : public RippleButton {
+class RoundButton : public RippleButton, private base::Subscriber {
 public:
-	RoundButton(QWidget *parent, const QString &text, const style::RoundButton &st);
+	RoundButton(QWidget *parent, base::lambda<QString()> textFactory, const style::RoundButton &st);
 
-	void setText(const QString &text);
+	void setText(base::lambda<QString()> textFactory);
 
 	void setNumbersText(const QString &numbersText) {
 		setNumbersText(numbersText, numbersText.toInt());
@@ -121,7 +121,7 @@ public:
 	void setNumbersText(int numbers) {
 		setNumbersText(QString::number(numbers), numbers);
 	}
-	void setWidthChangedCallback(base::lambda<void()> &&callback);
+	void setWidthChangedCallback(base::lambda<void()> callback);
 	void stepNumbersAnimation(TimeMs ms);
 	void finishNumbersAnimation();
 
@@ -144,16 +144,17 @@ protected:
 	QPoint prepareRippleStartPosition() const override;
 
 private:
+	void refreshText();
+	QString computeFullText() const;
 	void setNumbersText(const QString &numbersText, int numbers);
 	void numbersAnimationCallback();
-	void updateText();
 	void resizeToText();
 
-	QString _text, _fullText;
+	QString _text;
+	base::lambda<QString()> _textFactory;
 	int _textWidth;
 
-	class Numbers;
-	std_::unique_ptr<Numbers> _numbers;
+	std::unique_ptr<NumbersAnimation> _numbers;
 
 	int _fullWidthOverride = 0;
 
@@ -212,13 +213,22 @@ class CrossButton : public RippleButton {
 public:
 	CrossButton(QWidget *parent, const style::CrossButton &st);
 
-	void showAnimated();
-	void hideAnimated();
-	void hideFast();
+	void toggle(bool shown, anim::type animated);
+	void show(anim::type animated) {
+		return toggle(true, animated);
+	}
+	void hide(anim::type animated) {
+		return toggle(false, animated);
+	}
+	void finishAnimating() {
+		_a_show.finish();
+		animationCallback();
+	}
 
-	bool isShown() const {
+	bool toggled() const {
 		return _shown;
 	}
+	void setLoadingAnimation(bool enabled);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -229,13 +239,18 @@ protected:
 	QPoint prepareRippleStartPosition() const override;
 
 private:
-	void startAnimation(bool shown);
+	void step_loading(TimeMs ms, bool timer);
+	bool stopLoadingAnimation(TimeMs ms);
 	void animationCallback();
 
 	const style::CrossButton &_st;
 
 	bool _shown = false;
 	Animation _a_show;
+
+	TimeMs _loadingStartMs = 0;
+	TimeMs _loadingStopMs = 0;
+	BasicAnimation _a_loading;
 
 };
 

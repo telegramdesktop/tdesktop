@@ -53,34 +53,34 @@ inline bool rtl() {
 	return cRtl();
 }
 
-DeclareReadSetting(QString, Arguments);
-
 DeclareSetting(bool, AlphaVersion);
 DeclareSetting(uint64, BetaVersion);
 DeclareSetting(uint64, RealBetaVersion);
 DeclareSetting(QByteArray, BetaPrivateKey);
 
 DeclareSetting(bool, TestMode);
-inline QString cInlineGifBotUsername() {
-	return cTestMode() ? qstr("contextbot") : qstr("gif");
-}
 DeclareSetting(QString, LoggedPhoneNumber);
 DeclareSetting(bool, AutoStart);
 DeclareSetting(bool, StartMinimized);
 DeclareSetting(bool, StartInTray);
 DeclareSetting(bool, SendToMenu);
+DeclareSetting(bool, UseExternalVideoPlayer);
 enum LaunchMode {
 	LaunchModeNormal = 0,
 	LaunchModeAutoStart,
 	LaunchModeFixPrevious,
 	LaunchModeCleanup,
-	LaunchModeShowCrash,
 };
 DeclareReadSetting(LaunchMode, LaunchMode);
 DeclareSetting(QString, WorkingDir);
 inline void cForceWorkingDir(const QString &newDir) {
 	cSetWorkingDir(newDir);
-	if (!gWorkingDir.isEmpty()) QDir().mkpath(gWorkingDir);
+	if (!gWorkingDir.isEmpty()) {
+		QDir().mkpath(gWorkingDir);
+		QFile::setPermissions(gWorkingDir,
+			QFileDevice::ReadUser | QFileDevice::WriteUser | QFileDevice::ExeUser);
+	}
+
 }
 DeclareReadSetting(QString, ExeName);
 DeclareReadSetting(QString, ExeDir);
@@ -94,14 +94,17 @@ DeclareSetting(bool, CtrlEnter);
 DeclareSetting(bool, AutoUpdate);
 
 struct TWindowPos {
-	TWindowPos() : moncrc(0), maximized(0), x(0), y(0), w(0), h(0) {
-	}
-	int32 moncrc, maximized;
-	int32 x, y, w, h;
+	TWindowPos() = default;
+
+	int32 moncrc = 0;
+	int maximized = 0;
+	int x = 0;
+	int y = 0;
+	int w = 0;
+	int h = 0;
 };
 DeclareSetting(TWindowPos, WindowPos);
 DeclareSetting(bool, SupportTray);
-DeclareSetting(DBIWorkMode, WorkMode);
 DeclareSetting(bool, SeenTrayTooltip);
 DeclareSetting(bool, RestartingUpdate);
 DeclareSetting(bool, Restarting);
@@ -117,11 +120,7 @@ DeclareSetting(QByteArray, LocalSalt);
 DeclareSetting(DBIScale, RealScale);
 DeclareSetting(DBIScale, ScreenScale);
 DeclareSetting(DBIScale, ConfigScale);
-DeclareSetting(bool, CompressPastedImage);
 DeclareSetting(QString, TimeFormat);
-
-DeclareSetting(bool, HasAudioPlayer);
-DeclareSetting(bool, HasAudioCapture);
 
 inline void cChangeTimeFormat(const QString &newFormat) {
 	if (!newFormat.isEmpty()) cSetTimeFormat(newFormat);
@@ -144,49 +143,34 @@ T convertScale(T v) {
 	return v;
 }
 
-struct EmojiData {
-	EmojiData(uint16 x, uint16 y, uint32 code, uint32 code2, uint16 len, uint16 postfix, uint32 color) : x(x), y(y), code(code), code2(code2), len(len), postfix(postfix), color(color) {
-	}
-	uint16 x, y;
-	uint32 code, code2;
-	uint16 len;
-	uint16 postfix;
-	uint32 color;
-};
+namespace Ui {
+namespace Emoji {
+class One;
+} // namespace Emoji
+} // namespace Ui
 
-typedef const EmojiData *EmojiPtr;
-static EmojiPtr TwoSymbolEmoji = EmojiPtr(0x01);
+using EmojiPtr = const Ui::Emoji::One*;
 
-typedef QVector<EmojiPtr> EmojiPack;
-typedef QVector<QPair<uint32, ushort> > RecentEmojisPreloadOld;
-typedef QVector<QPair<uint64, ushort> > RecentEmojisPreload;
-typedef QVector<QPair<EmojiPtr, ushort> > RecentEmojiPack;
-typedef QMap<uint32, uint64> EmojiColorVariants;
-DeclareRefSetting(RecentEmojiPack, RecentEmojis);
-DeclareSetting(RecentEmojisPreload, RecentEmojisPreload);
+using EmojiPack = QVector<EmojiPtr>;
+using RecentEmojiPreloadOldOld = QVector<QPair<uint32, ushort>>;
+using RecentEmojiPreloadOld = QVector<QPair<uint64, ushort>>;
+using RecentEmojiPreload = QVector<QPair<QString, ushort>>;
+using RecentEmojiPack = QVector<QPair<EmojiPtr, ushort>>;
+using EmojiColorVariantsOld = QMap<uint32, uint64>;
+using EmojiColorVariants = QMap<QString, int>;
+DeclareRefSetting(RecentEmojiPack, RecentEmoji);
+DeclareSetting(RecentEmojiPreload, RecentEmojiPreload);
 DeclareRefSetting(EmojiColorVariants, EmojiVariants);
 
-RecentEmojiPack &cGetRecentEmojis();
-
 class DocumentData;
-typedef QVector<DocumentData*> StickerPack;
 
-typedef QList<QPair<DocumentData*, int16> > RecentStickerPackOld;
-typedef QVector<QPair<uint64, ushort> > RecentStickerPreload;
-typedef QVector<QPair<DocumentData*, ushort> > RecentStickerPack;
+typedef QList<QPair<DocumentData*, int16>> RecentStickerPackOld;
+typedef QVector<QPair<uint64, ushort>> RecentStickerPreload;
+typedef QVector<QPair<DocumentData*, ushort>> RecentStickerPack;
 DeclareSetting(RecentStickerPreload, RecentStickersPreload);
 DeclareRefSetting(RecentStickerPack, RecentStickers);
 
-RecentStickerPack &cGetRecentStickers();
-
-typedef QMap<EmojiPtr, StickerPack> StickersByEmojiMap;
-
-typedef QVector<DocumentData*> SavedGifs;
-DeclareRefSetting(SavedGifs, SavedGifs);
-DeclareSetting(TimeMs, LastSavedGifsUpdate);
-DeclareSetting(bool, ShowingSavedGifs);
-
-typedef QList<QPair<QString, ushort> > RecentHashtagPack;
+typedef QList<QPair<QString, ushort>> RecentHashtagPack;
 DeclareRefSetting(RecentHashtagPack, RecentWriteHashtags);
 DeclareSetting(RecentHashtagPack, RecentSearchHashtags);
 
@@ -212,48 +196,8 @@ inline bool passcodeCanTry() {
 	return dt >= 30000;
 }
 
-inline void incrementRecentHashtag(RecentHashtagPack &recent, const QString &tag) {
-	RecentHashtagPack::iterator i = recent.begin(), e = recent.end();
-	for (; i != e; ++i) {
-		if (i->first == tag) {
-			++i->second;
-		if (qAbs(i->second) > 0x4000) {
-			for (RecentHashtagPack::iterator j = recent.begin(); j != e; ++j) {
-				if (j->second > 1) {
-					j->second /= 2;
-				} else if (j->second > 0) {
-					j->second = 1;
-				}
-			}
-		}
-			for (; i != recent.begin(); --i) {
-				if (qAbs((i - 1)->second) > qAbs(i->second)) {
-					break;
-				}
-				qSwap(*i, *(i - 1));
-			}
-			break;
-		}
-	}
-	if (i == e) {
-		while (recent.size() >= 64) recent.pop_back();
-		recent.push_back(qMakePair(tag, 1));
-		for (i = recent.end() - 1; i != recent.begin(); --i) {
-			if ((i - 1)->second > i->second) {
-				break;
-			}
-			qSwap(*i, *(i - 1));
-		}
-	}
-}
-
-DeclareSetting(int32, Lang);
-DeclareSetting(QString, LangFile);
-
 DeclareSetting(QStringList, SendPaths);
 DeclareSetting(QString, StartUrl);
-
-DeclareSetting(QString, LangErrors);
 
 DeclareSetting(bool, Retina);
 DeclareSetting(float64, RetinaFactor);
@@ -262,10 +206,8 @@ DeclareSetting(int32, IntRetinaFactor);
 DeclareReadSetting(DBIPlatform, Platform);
 DeclareReadSetting(QString, PlatformString);
 DeclareReadSetting(bool, IsElCapitan);
+DeclareReadSetting(bool, IsSnowLeopard);
 DeclareReadSetting(QUrl, UpdateURL);
-
-DeclareSetting(bool, ContactsReceived);
-DeclareSetting(bool, DialogsReceived);
 
 DeclareSetting(int, OtherOnline);
 
@@ -287,5 +229,3 @@ DeclareSetting(int32, AutoDownloadPhoto);
 DeclareSetting(int32, AutoDownloadAudio);
 DeclareSetting(int32, AutoDownloadGif);
 DeclareSetting(bool, AutoPlayGif);
-
-void settingsParseArgs(int argc, char *argv[]);

@@ -18,14 +18,16 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "inline_bots/inline_bot_layout_item.h"
 
+#include "data/data_photo.h"
+#include "data/data_document.h"
 #include "core/click_handler_types.h"
 #include "inline_bots/inline_bot_result.h"
 #include "inline_bots/inline_bot_layout_internal.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "mainwidget.h"
+#include "ui/empty_userpic.h"
 
 namespace InlineBots {
 namespace Layout {
@@ -96,31 +98,37 @@ void ItemBase::preload() const {
 
 void ItemBase::update() {
 	if (_position >= 0) {
-		Ui::repaintInlineItem(this);
+		context()->inlineItemRepaint(this);
 	}
 }
 
-std_::unique_ptr<ItemBase> ItemBase::createLayout(Result *result, bool forceThumb) {
+void ItemBase::layoutChanged() {
+	if (_position >= 0) {
+		context()->inlineItemLayoutChanged(this);
+	}
+}
+
+std::unique_ptr<ItemBase> ItemBase::createLayout(not_null<Context*> context, Result *result, bool forceThumb) {
 	using Type = Result::Type;
 
 	switch (result->_type) {
-	case Type::Photo: return std_::make_unique<internal::Photo>(result); break;
+	case Type::Photo: return std::make_unique<internal::Photo>(context, result); break;
 	case Type::Audio:
-	case Type::File: return std_::make_unique<internal::File>(result); break;
-	case Type::Video: return std_::make_unique<internal::Video>(result); break;
-	case Type::Sticker: return std_::make_unique<internal::Sticker>(result); break;
-	case Type::Gif: return std_::make_unique<internal::Gif>(result); break;
+	case Type::File: return std::make_unique<internal::File>(context, result); break;
+	case Type::Video: return std::make_unique<internal::Video>(context, result); break;
+	case Type::Sticker: return std::make_unique<internal::Sticker>(context, result); break;
+	case Type::Gif: return std::make_unique<internal::Gif>(context, result); break;
 	case Type::Article:
 	case Type::Geo:
-	case Type::Venue: return std_::make_unique<internal::Article>(result, forceThumb); break;
-	case Type::Game: return std_::make_unique<internal::Game>(result); break;
-	case Type::Contact: return std_::make_unique<internal::Contact>(result); break;
+	case Type::Venue: return std::make_unique<internal::Article>(context, result, forceThumb); break;
+	case Type::Game: return std::make_unique<internal::Game>(context, result); break;
+	case Type::Contact: return std::make_unique<internal::Contact>(context, result); break;
 	}
-	return std_::unique_ptr<ItemBase>();
+	return nullptr;
 }
 
-std_::unique_ptr<ItemBase> ItemBase::createLayoutGif(DocumentData *document) {
-	return std_::make_unique<internal::Gif>(document, true);
+std::unique_ptr<ItemBase> ItemBase::createLayoutGif(not_null<Context*> context, DocumentData *document) {
+	return std::make_unique<internal::Gif>(context, document, true);
 }
 
 DocumentData *ItemBase::getResultDocument() const {
@@ -146,11 +154,14 @@ ImagePtr ItemBase::getResultThumb() const {
 
 QPixmap ItemBase::getResultContactAvatar(int width, int height) const {
 	if (_result->_type == Result::Type::Contact) {
-		auto result = EmptyUserpic(qHash(_result->_id) % kUserColorsCount, _result->getLayoutTitle()).generate(width);
+		auto result = Ui::EmptyUserpic(
+			Data::PeerUserpicColor(qHash(_result->_id)),
+			_result->getLayoutTitle()
+		).generate(width);
 		if (result.height() != height * cIntRetinaFactor()) {
 			result = result.scaled(QSize(width, height) * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 		}
-		return std_::move(result);
+		return result;
 	}
 	return QPixmap();
 }
@@ -165,14 +176,14 @@ QString ItemBase::getResultUrl() const {
 
 ClickHandlerPtr ItemBase::getResultUrlHandler() const {
 	if (!_result->_url.isEmpty()) {
-		return MakeShared<UrlClickHandler>(_result->_url);
+		return std::make_shared<UrlClickHandler>(_result->_url);
 	}
 	return ClickHandlerPtr();
 }
 
 ClickHandlerPtr ItemBase::getResultContentUrlHandler() const {
 	if (!_result->_content_url.isEmpty()) {
-		return MakeShared<UrlClickHandler>(_result->_content_url);
+		return std::make_shared<UrlClickHandler>(_result->_content_url);
 	}
 	return ClickHandlerPtr();
 }

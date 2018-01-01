@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "mtproto/core_types.h"
+#include "mtproto/dc_options.h"
 
 namespace MTP {
 namespace internal {
@@ -29,7 +29,6 @@ class AbstractConnection : public QObject {
 	Q_OBJECT
 
 public:
-
 	AbstractConnection(QThread *thread) : _sentEncrypted(false) {
 		moveToThread(thread);
 	}
@@ -38,7 +37,7 @@ public:
 	virtual ~AbstractConnection() = 0;
 
 	// virtual constructor
-	static AbstractConnection *create(QThread *thread);
+	static AbstractConnection *create(DcType type, QThread *thread);
 
 	void setSentEncrypted() {
 		_sentEncrypted = true;
@@ -46,8 +45,8 @@ public:
 
 	virtual void sendData(mtpBuffer &buffer) = 0; // has size + 3, buffer[0] = len, buffer[1] = packetnum, buffer[last] = crc32
 	virtual void disconnectFromServer() = 0;
-	virtual void connectTcp(const QString &addr, int32 port, MTPDdcOption::Flags flags) = 0;
-	virtual void connectHttp(const QString &addr, int32 port, MTPDdcOption::Flags flags) = 0;
+	virtual void connectTcp(const DcOptions::Endpoint &endpoint) = 0;
+	virtual void connectHttp(const DcOptions::Endpoint &endpoint) = 0;
 	virtual bool isConnected() const = 0;
 	virtual bool usingHttpWait() {
 		return false;
@@ -60,24 +59,25 @@ public:
 
 	virtual QString transport() const = 0;
 
-	typedef QList<mtpBuffer> BuffersQueue;
+	using BuffersQueue = std::deque<mtpBuffer>;
 	BuffersQueue &received() {
-		return receivedQueue;
+		return _receivedQueue;
 	}
 
-signals:
+	// Used to emit error(...) with no real code from the server.
+	static constexpr auto kErrorCodeOther = -499;
 
+signals:
 	void receivedData();
 	void receivedSome(); // to stop restart timer
 
-	void error(bool mayBeBadKey = false);
+	void error(qint32 errorCodebool);
 
 	void connected();
 	void disconnected();
 
 protected:
-
-	BuffersQueue receivedQueue; // list of received packets, not processed yet
+	BuffersQueue _receivedQueue; // list of received packets, not processed yet
 	bool _sentEncrypted;
 
 	// first we always send fake MTPReq_pq to see if connection works at all

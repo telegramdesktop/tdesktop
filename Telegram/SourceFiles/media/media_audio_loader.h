@@ -20,16 +20,20 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+namespace FFMpeg {
+struct AVPacketDataWrap;
+} // namespace FFMpeg
+
 class AudioPlayerLoader {
 public:
-	AudioPlayerLoader(const FileLocation &file, const QByteArray &data);
+	AudioPlayerLoader(const FileLocation &file, const QByteArray &data, base::byte_vector &&bytes);
 	virtual ~AudioPlayerLoader();
 
 	virtual bool check(const FileLocation &file, const QByteArray &data);
 
-	virtual bool open(qint64 &position) = 0;
-	virtual TimeMs duration() = 0;
-	virtual int32 frequency() = 0;
+	virtual bool open(TimeMs positionMs) = 0;
+	virtual int64 samplesCount() = 0;
+	virtual int32 samplesFrequency() = 0;
 	virtual int32 format() = 0;
 
 	enum class ReadResult {
@@ -40,18 +44,22 @@ public:
 		EndOfFile,
 	};
 	virtual ReadResult readMore(QByteArray &samples, int64 &samplesCount) = 0;
+	virtual void enqueuePackets(QQueue<FFMpeg::AVPacketDataWrap> &packets) {
+		Unexpected("enqueuePackets() call on not ChildFFMpegLoader.");
+	}
 
 	void saveDecodedSamples(QByteArray *samples, int64 *samplesCount);
 	void takeSavedDecodedSamples(QByteArray *samples, int64 *samplesCount);
 	bool holdsSavedDecodedSamples() const;
 
 protected:
-	FileLocation file;
-	bool access = false;
-	QByteArray data;
+	FileLocation _file;
+	bool _access = false;
+	QByteArray _data;
+	base::byte_vector _bytes;
 
-	QFile f;
-	int32 dataPos = 0;
+	QFile _f;
+	int _dataPos = 0;
 
 	bool openFile();
 

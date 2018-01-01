@@ -18,21 +18,33 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/abstract_button.h"
+
+#include <rpl/filter.h>
+#include <rpl/mappers.h>
+#include "messenger.h"
 
 namespace Ui {
 
-void AbstractButton::leaveEvent(QEvent *e) {
+AbstractButton::AbstractButton(QWidget *parent) : RpWidget(parent) {
+	setMouseTracking(true);
+
+	using namespace rpl::mappers;
+	shownValue()
+		| rpl::filter(_1 == false)
+		| rpl::start_with_next([this] { clearState(); }, lifetime());
+}
+
+void AbstractButton::leaveEventHook(QEvent *e) {
 	if (_state & StateFlag::Down) return;
 
 	setOver(false, StateChangeSource::ByHover);
-	return TWidget::leaveEvent(e);
+	return TWidget::leaveEventHook(e);
 }
 
-void AbstractButton::enterEvent(QEvent *e) {
+void AbstractButton::enterEventHook(QEvent *e) {
 	checkIfOver(mapFromGlobal(QCursor::pos()));
-	return TWidget::enterEvent(e);
+	return TWidget::enterEventHook(e);
 }
 
 void AbstractButton::setAcceptBoth(bool acceptBoth) {
@@ -72,10 +84,14 @@ void AbstractButton::mouseReleaseEvent(QMouseEvent *e) {
 		onStateChanged(was, StateChangeSource::ByPress);
 		if (was & StateFlag::Over) {
 			_modifiers = e->modifiers();
+			auto weak = make_weak(this);
 			if (_clickedCallback) {
 				_clickedCallback();
 			} else {
 				emit clicked();
+			}
+			if (weak) {
+				_clicks.fire({});
 			}
 		} else {
 			setOver(false, StateChangeSource::ByHover);
@@ -94,10 +110,12 @@ void AbstractButton::setOver(bool over, StateChangeSource source) {
 	if (over && !(_state & StateFlag::Over)) {
 		auto was = _state;
 		_state |= StateFlag::Over;
+		Messenger::Instance().registerLeaveSubscription(this);
 		onStateChanged(was, source);
 	} else if (!over && (_state & StateFlag::Over)) {
 		auto was = _state;
 		_state &= ~State(StateFlag::Over);
+		Messenger::Instance().unregisterLeaveSubscription(this);
 		onStateChanged(was, source);
 	}
 	updateCursor();

@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "media/view/media_clip_controller.h"
 
 #include "media/view/media_clip_playback.h"
@@ -26,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_mediaview.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/continuous_sliders.h"
-#include "ui/effects/widget_fade_wrap.h"
+#include "ui/effects/fade_animation.h"
 #include "ui/widgets/buttons.h"
 #include "media/media_audio.h"
 
@@ -35,12 +34,13 @@ namespace Clip {
 
 Controller::Controller(QWidget *parent) : TWidget(parent)
 , _playPauseResume(this, st::mediaviewPlayButton)
-, _playback(std_::make_unique<Playback>(new Ui::MediaSlider(this, st::mediaviewPlayback)))
+, _playbackSlider(this, st::mediaviewPlayback)
+, _playback(std::make_unique<Playback>())
 , _volumeController(this)
 , _fullScreenToggle(this, st::mediaviewFullScreenButton)
 , _playedAlready(this, st::mediaviewPlayProgressLabel)
 , _toPlayLeft(this, st::mediaviewPlayProgressLabel)
-, _fadeAnimation(std_::make_unique<Ui::FadeAnimation>(this)) {
+, _fadeAnimation(std::make_unique<Ui::FadeAnimation>(this)) {
 	_fadeAnimation->show();
 	_fadeAnimation->setFinishedCallback([this] { fadeFinished(); });
 	_fadeAnimation->setUpdatedCallback([this](float64 opacity) { fadeUpdated(opacity); });
@@ -51,10 +51,18 @@ Controller::Controller(QWidget *parent) : TWidget(parent)
 	connect(_fullScreenToggle, SIGNAL(clicked()), this, SIGNAL(toFullScreenPressed()));
 	connect(_volumeController, SIGNAL(volumeChanged(float64)), this, SIGNAL(volumeChanged(float64)));
 
-	_playback->setChangeProgressCallback([this](float64 value) {
-		handleSeekProgress(value);
+	_playback->setInLoadingStateChangedCallback([this](bool loading) {
+		_playbackSlider->setDisabled(loading);
 	});
-	_playback->setChangeFinishedCallback([this](float64 value) {
+	_playback->setValueChangedCallback([this](float64 value) {
+		_playbackSlider->setValue(value);
+	});
+	_playbackSlider->setChangeProgressCallback([this](float64 value) {
+		_playback->setValue(value, false);
+		handleSeekProgress(value); // This may destroy Controller.
+	});
+	_playbackSlider->setChangeFinishedCallback([this](float64 value) {
+		_playback->setValue(value, false);
 		handleSeekFinished(value);
 	});
 }
@@ -94,7 +102,7 @@ void Controller::hideAnimated() {
 template <typename Callback>
 void Controller::startFading(Callback start) {
 	start();
-	_playback->show();
+	_playbackSlider->show();
 }
 
 void Controller::fadeFinished() {
@@ -102,17 +110,17 @@ void Controller::fadeFinished() {
 }
 
 void Controller::fadeUpdated(float64 opacity) {
-	_playback->setFadeOpacity(opacity);
+	_playbackSlider->setFadeOpacity(opacity);
 }
 
-void Controller::updatePlayback(const AudioPlaybackState &playbackState) {
-	updatePlayPauseResumeState(playbackState);
-	_playback->updateState(playbackState);
-	updateTimeTexts(playbackState);
+void Controller::updatePlayback(const Player::TrackState &state) {
+	updatePlayPauseResumeState(state);
+	_playback->updateState(state);
+	updateTimeTexts(state);
 }
 
-void Controller::updatePlayPauseResumeState(const AudioPlaybackState &playbackState) {
-	bool showPause = (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming || _seekPositionMs >= 0);
+void Controller::updatePlayPauseResumeState(const Player::TrackState &state) {
+	auto showPause = (state.state == Player::State::Playing || state.state == Player::State::Resuming || _seekPositionMs >= 0);
 	if (showPause != _showPause) {
 		disconnect(_playPauseResume, SIGNAL(clicked()), this, _showPause ? SIGNAL(pausePressed()) : SIGNAL(playPressed()));
 		_showPause = showPause;
@@ -122,21 +130,21 @@ void Controller::updatePlayPauseResumeState(const AudioPlaybackState &playbackSt
 	}
 }
 
-void Controller::updateTimeTexts(const AudioPlaybackState &playbackState) {
-	qint64 position = 0, duration = playbackState.duration;
+void Controller::updateTimeTexts(const Player::TrackState &state) {
+	qint64 position = 0, length = state.length;
 
-	if (!(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
-		position = playbackState.position;
-	} else if (playbackState.state == AudioPlayerStoppedAtEnd) {
-		position = playbackState.duration;
+	if (Player::IsStoppedAtEnd(state.state)) {
+		position = state.length;
+	} else if (!Player::IsStoppedOrStopping(state.state)) {
+		position = state.position;
 	} else {
 		position = 0;
 	}
-	auto playFrequency = (playbackState.frequency ? playbackState.frequency : AudioVoiceMsgFrequency);
+	auto playFrequency = state.frequency;
 	auto playAlready = position / playFrequency;
-	auto playLeft = (playbackState.duration / playFrequency) - playAlready;
+	auto playLeft = (state.length / playFrequency) - playAlready;
 
-	_lastDurationMs = (playbackState.duration * 1000LL) / playFrequency;
+	_lastDurationMs = (state.length * 1000LL) / playFrequency;
 
 	_timeAlready = formatDurationText(playAlready);
 	auto minus = QChar(8722);
@@ -179,12 +187,12 @@ void Controller::setInFullScreen(bool inFullScreen) {
 
 void Controller::grabStart() {
 	showChildren();
-	_playback->hide();
+	_playbackSlider->hide();
 }
 
 void Controller::grabFinish() {
 	hideChildren();
-	_playback->show();
+	_playbackSlider->show();
 }
 
 void Controller::resizeEvent(QResizeEvent *e) {
@@ -196,9 +204,9 @@ void Controller::resizeEvent(QResizeEvent *e) {
 
 	_volumeController->moveToRight(st::mediaviewFullScreenLeft + _fullScreenToggle->width() + st::mediaviewVolumeLeft, (height() - _volumeController->height()) / 2);
 
-	int playbackWidth = width() - st::mediaviewPlayPauseLeft - _playPauseResume->width() - playTop - fullScreenTop - _volumeController->width() - st::mediaviewVolumeLeft - _fullScreenToggle->width() - st::mediaviewFullScreenLeft;
-	_playback->resize(playbackWidth, st::mediaviewPlayback.seekSize.height());
-	_playback->moveToLeft(st::mediaviewPlayPauseLeft + _playPauseResume->width() + playTop, st::mediaviewPlaybackTop);
+	auto playbackWidth = width() - st::mediaviewPlayPauseLeft - _playPauseResume->width() - playTop - fullScreenTop - _volumeController->width() - st::mediaviewVolumeLeft - _fullScreenToggle->width() - st::mediaviewFullScreenLeft;
+	_playbackSlider->resize(playbackWidth, st::mediaviewPlayback.seekSize.height());
+	_playbackSlider->moveToLeft(st::mediaviewPlayPauseLeft + _playPauseResume->width() + playTop, st::mediaviewPlaybackTop);
 
 	_playedAlready->moveToLeft(st::mediaviewPlayPauseLeft + _playPauseResume->width() + playTop, st::mediaviewPlayProgressTop);
 	_toPlayLeft->moveToRight(width() - (st::mediaviewPlayPauseLeft + _playPauseResume->width() + playTop) - playbackWidth, st::mediaviewPlayProgressTop);

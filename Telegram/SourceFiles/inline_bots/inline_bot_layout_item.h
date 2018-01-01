@@ -21,7 +21,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "layout.h"
-#include "structs.h"
 #include "ui/text/text.h"
 
 namespace InlineBots {
@@ -47,15 +46,21 @@ public:
 	}
 };
 
+class Context {
+public:
+	virtual void inlineItemLayoutChanged(const ItemBase *layout) = 0;
+	virtual bool inlineItemVisible(const ItemBase *item) = 0;
+	virtual void inlineItemRepaint(const ItemBase *item) = 0;
+};
+
 class ItemBase : public LayoutItemBase {
 public:
-
-	ItemBase(Result *result) : _result(result) {
+	ItemBase(not_null<Context*> context, Result *result) : _result(result), _context(context) {
 	}
-	ItemBase(DocumentData *doc) : _doc(doc) {
+	ItemBase(not_null<Context*> context, DocumentData *doc) : _doc(doc), _context(context) {
 	}
 	// Not used anywhere currently.
-	//ItemBase(PhotoData *photo) : _photo(photo) {
+	//ItemBase(not_null<Context*> context, PhotoData *photo) : _photo(photo), _context(context) {
 	//}
 
 	virtual void paint(Painter &p, const QRect &clip, const PaintContext *context) const = 0;
@@ -82,6 +87,7 @@ public:
 	virtual void preload() const;
 
 	void update();
+	void layoutChanged();
 
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override {
@@ -91,8 +97,8 @@ public:
 		update();
 	}
 
-	static std_::unique_ptr<ItemBase> createLayout(Result *result, bool forceThumb);
-	static std_::unique_ptr<ItemBase> createLayoutGif(DocumentData *document);
+	static std::unique_ptr<ItemBase> createLayout(not_null<Context*> context, Result *result, bool forceThumb);
+	static std::unique_ptr<ItemBase> createLayoutGif(not_null<Context*> context, DocumentData *document);
 
 protected:
 	DocumentData *getResultDocument() const;
@@ -105,6 +111,10 @@ protected:
 	ClickHandlerPtr getResultContentUrlHandler() const;
 	QString getResultThumbLetter() const;
 
+	not_null<Context*> context() const {
+		return _context;
+	}
+
 	Result *_result = nullptr;
 	DocumentData *_doc = nullptr;
 	PhotoData *_photo = nullptr;
@@ -112,6 +122,9 @@ protected:
 	ClickHandlerPtr _send = ClickHandlerPtr{ new SendClickHandler() };
 
 	int _position = 0; // < 0 means removed from layout
+
+private:
+	not_null<Context*> _context;
 
 };
 

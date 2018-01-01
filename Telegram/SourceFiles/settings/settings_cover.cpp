@@ -18,54 +18,73 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "settings/settings_cover.h"
 
+#include "data/data_photo.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
+#include "ui/special_buttons.h"
 #include "observer_peer.h"
-#include "lang.h"
-#include "application.h"
+#include "lang/lang_keys.h"
+#include "messenger.h"
+#include "mainwindow.h"
 #include "apiwrap.h"
-#include "profile/profile_userpic_button.h"
+#include "auth_session.h"
 #include "profile/profile_cover_drop_area.h"
-#include "boxes/confirmbox.h"
-#include "boxes/photocropbox.h"
-#include "boxes/addcontactbox.h"
+#include "boxes/confirm_box.h"
+#include "boxes/photo_crop_box.h"
+#include "boxes/add_contact_box.h"
 #include "styles/style_settings.h"
 #include "styles/style_profile.h" // for divider
-#include "platform/platform_file_dialog.h"
+#include "platform/platform_file_utilities.h"
 
 namespace Settings {
 
-CoverWidget::CoverWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, QString())
+CoverWidget::CoverWidget(QWidget *parent, UserData *self)
+: BlockWidget(parent, self, QString())
 , _self(App::self())
-, _userpicButton(this, _self)
+, _userpicButton(
+	this,
+	App::wnd()->controller(),
+	_self,
+	Ui::UserpicButton::Role::OpenPhoto,
+	st::settingsPhoto)
 , _name(this, st::settingsNameLabel)
 , _editNameInline(this, st::settingsEditButton)
-, _setPhoto(this, lang(lng_settings_upload), st::settingsPrimaryButton)
-, _editName(this, lang(lng_settings_edit), st::settingsSecondaryButton) {
+, _setPhoto(this, langFactory(lng_settings_upload), st::settingsPrimaryButton)
+, _editName(this, langFactory(lng_settings_edit), st::settingsSecondaryButton) {
+	if (_self) {
+		_self->updateFull();
+	}
 	setAcceptDrops(true);
 
 	_name->setSelectable(true);
 	_name->setContextCopyText(lang(lng_profile_copy_fullname));
 
-	_setPhoto->setClickedCallback(App::LambdaDelayed(st::settingsPrimaryButton.ripple.hideDuration, this, [this] { onSetPhoto(); }));
-	connect(_editName, SIGNAL(clicked()), this, SLOT(onEditName()));
-	connect(_editNameInline, SIGNAL(clicked()), this, SLOT(onEditName()));
+	_setPhoto->setClickedCallback(App::LambdaDelayed(
+		st::settingsPrimaryButton.ripple.hideDuration,
+		this,
+		[this] { chooseNewPhoto(); }));
+	_editName->addClickHandler([this] { editName(); });
+	_editNameInline->addClickHandler([this] { editName(); });
 
 	auto observeEvents = Notify::PeerUpdate::Flag::NameChanged | Notify::PeerUpdate::Flag::PhotoChanged;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
 		notifyPeerUpdated(update);
 	}));
-	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
-		notifyFileQueryUpdated(update);
-	});
 
-	connect(App::app(), SIGNAL(peerPhotoDone(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
-	connect(App::app(), SIGNAL(peerPhotoFail(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
+	connect(
+		&Messenger::Instance(),
+		&Messenger::peerPhotoDone,
+		this,
+		&CoverWidget::onPhotoUploadStatusChanged);
+	connect(
+		&Messenger::Instance(),
+		&Messenger::peerPhotoFail,
+		this,
+		&CoverWidget::onPhotoUploadStatusChanged);
 
-	connect(_userpicButton, SIGNAL(clicked()), this, SLOT(onPhotoShow()));
+	_userpicButton->addClickHandler([this] { showPhoto(); });
 	validatePhoto();
 
 	refreshNameText();
@@ -75,26 +94,28 @@ CoverWidget::CoverWidget(QWidget *parent, UserData *self) : BlockWidget(parent, 
 }
 
 PhotoData *CoverWidget::validatePhoto() const {
-	auto photo = (_self->photoId && _self->photoId != UnknownPeerPhotoId) ? App::photo(_self->photoId) : nullptr;
+	Expects(_self != nullptr);
+
+	const auto photo = _self->userpicPhotoId()
+		? App::photo(_self->userpicPhotoId())
+		: nullptr;
 	_userpicButton->setPointerCursor(photo != nullptr && photo->date != 0);
-	if ((_self->photoId == UnknownPeerPhotoId) || (_self->photoId && (!photo || !photo->date))) {
-		App::api()->requestFullPeer(_self);
+	if (_self->userpicPhotoUnknown() || (photo && !photo->date)) {
+		Auth().api().requestFullPeer(_self);
 		return nullptr;
 	}
 	return photo;
 }
 
-void CoverWidget::onPhotoShow() {
-	if (auto photo = validatePhoto()) {
-		App::wnd()->showPhoto(photo, _self);
+void CoverWidget::showPhoto() {
+	if (const auto photo = validatePhoto()) {
+		Messenger::Instance().showPhoto(photo, _self);
 	}
 }
 
-void CoverWidget::onCancelPhotoUpload() {
-	if (auto app = App::app()) {
-		app->cancelPhotoUpdate(_self->id);
-		refreshStatusText();
-	}
+void CoverWidget::cancelPhotoUpload() {
+	Messenger::Instance().cancelPhotoUpdate(_self->id);
+	refreshStatusText();
 }
 
 int CoverWidget::resizeGetHeight(int newWidth) {
@@ -102,25 +123,28 @@ int CoverWidget::resizeGetHeight(int newWidth) {
 
 	newHeight += st::settingsMarginTop;
 
-	_userpicButton->moveToLeft(contentLeft() + st::settingsPhotoLeft, newHeight, newWidth);
+	auto margins = getMargins();
+	_userpicButton->moveToLeft(
+		margins.left() + contentLeft() + st::settingsPhotoLeft,
+		margins.top() + newHeight,
+		newWidth);
 
 	int infoLeft = _userpicButton->x() + _userpicButton->width();
 	_statusPosition = QPoint(infoLeft + st::settingsStatusLeft, _userpicButton->y() + st::settingsStatusTop);
 	if (_cancelPhotoUpload) {
-		_cancelPhotoUpload->moveToLeft(_statusPosition.x() + st::settingsStatusFont->width(_statusText) + st::settingsStatusFont->spacew, _statusPosition.y(), newWidth);
+		_cancelPhotoUpload->moveToLeft(
+			margins.left()
+				+ _statusPosition.x()
+				+ st::settingsStatusFont->width(_statusText)
+				+ st::settingsStatusFont->spacew,
+			margins.top() + _statusPosition.y(),
+			newWidth);
 	}
 
-	int buttonLeft = _userpicButton->x() + _userpicButton->width() + st::settingsButtonLeft;
-	int buttonsRight = newWidth - st::settingsButtonSkip;
-	_setPhoto->moveToLeft(buttonLeft, _userpicButton->y() + st::settingsButtonTop, newWidth);
-	buttonLeft += _setPhoto->width() + st::settingsButtonSkip;
-	_editName->moveToLeft(buttonLeft, _setPhoto->y(), newWidth);
-	_editNameVisible = (buttonLeft + _editName->width() + st::settingsButtonSkip <= newWidth);
-	_editName->setVisible(_editNameVisible);
-
+	refreshButtonsGeometry(newWidth);
 	refreshNameGeometry(newWidth);
 
-	newHeight += st::settingsPhotoSize;
+	newHeight += st::settingsPhoto.size.height();
 	newHeight += st::settingsMarginBottom;
 
 	_dividerTop = newHeight;
@@ -132,26 +156,44 @@ int CoverWidget::resizeGetHeight(int newWidth) {
 	return newHeight;
 }
 
+void CoverWidget::refreshButtonsGeometry(int newWidth) {
+	auto margins = getMargins();
+	auto buttonLeft = margins.left() + _userpicButton->x() + _userpicButton->width() + st::settingsButtonLeft;
+	_setPhoto->moveToLeft(
+		buttonLeft,
+		margins.top() + _userpicButton->y() + st::settingsButtonTop,
+		newWidth);
+	buttonLeft += _setPhoto->width() + st::settingsButtonSkip;
+	_editName->moveToLeft(
+		buttonLeft,
+		margins.top() + _setPhoto->y(),
+		newWidth);
+	_editNameVisible = (buttonLeft + _editName->width() + st::settingsButtonSkip <= newWidth);
+	_editName->setVisible(_editNameVisible);
+}
+
 void CoverWidget::refreshNameGeometry(int newWidth) {
-	int infoLeft = _userpicButton->x() + _userpicButton->width();
-	int nameLeft = infoLeft + st::settingsNameLeft - st::settingsNameLabel.margin.left();
-	int nameTop = _userpicButton->y() + st::settingsNameTop - st::settingsNameLabel.margin.top();
-	int nameWidth = newWidth - infoLeft - st::settingsNameLeft;
+	auto margins = getMargins();
+	auto infoLeft = _userpicButton->x() + _userpicButton->width();
+	auto nameLeft = infoLeft + st::settingsNameLeft;
+	auto nameTop = _userpicButton->y() + st::settingsNameTop;
+	auto nameWidth = newWidth - infoLeft - st::settingsNameLeft;
 	auto editNameInlineVisible = !_editNameVisible;
 	if (editNameInlineVisible) {
 		nameWidth -= _editNameInline->width();
 	}
-	int marginsAdd = st::settingsNameLabel.margin.left() + st::settingsNameLabel.margin.right();
 
-	_name->resizeToWidth(qMin(nameWidth - marginsAdd, _name->naturalWidth()) + marginsAdd);
-	_name->moveToLeft(nameLeft, nameTop, newWidth);
+	_name->resizeToNaturalWidth(nameWidth);
+	_name->moveToLeft(
+		margins.left() + nameLeft,
+		margins.top() + nameTop,
+		newWidth);
 
-	_editNameInline->moveToLeft(nameLeft + _name->width(), nameTop, newWidth);
+	_editNameInline->moveToLeft(
+		margins.left() + nameLeft + _name->widthNoMargins() + st::settingsNameLabel.margin.right(),
+		margins.top() + nameTop - st::settingsNameLabel.margin.top(),
+		newWidth);
 	_editNameInline->setVisible(editNameInlineVisible);
-}
-
-void CoverWidget::showFinished() {
-	_userpicButton->showFinished();
 }
 
 void CoverWidget::paintContents(Painter &p) {
@@ -188,7 +230,7 @@ bool CoverWidget::mimeDataHasImage(const QMimeData *mimeData) const {
 	auto &url = urls.at(0);
 	if (!url.isLocalFile()) return false;
 
-	auto file = Platform::FileDialog::UrlToLocal(url);
+	auto file = Platform::File::UrlToLocal(url);
 
 	QFileInfo info(file);
 	if (info.isDir()) return false;
@@ -236,7 +278,7 @@ void CoverWidget::dropEvent(QDropEvent *e) {
 		if (urls.size() == 1) {
 			auto &url = urls.at(0);
 			if (url.isLocalFile()) {
-				img = App::readImage(Platform::FileDialog::UrlToLocal(url));
+				img = App::readImage(Platform::File::UrlToLocal(url));
 			}
 		}
 	}
@@ -247,6 +289,8 @@ void CoverWidget::dropEvent(QDropEvent *e) {
 	e->acceptProposedAction();
 
 	showSetPhotoBox(img);
+
+	App::wnd()->activateWindow();
 }
 
 void CoverWidget::paintDivider(Painter &p) {
@@ -277,19 +321,23 @@ void CoverWidget::refreshNameText() {
 }
 
 void CoverWidget::refreshStatusText() {
-	if (auto app = App::app()) {
-		if (app->isPhotoUpdating(_self->id)) {
-			_statusText = lang(lng_settings_uploading_photo);
-			_statusTextIsOnline = false;
-			if (!_cancelPhotoUpload) {
-				_cancelPhotoUpload.create(this, lang(lng_cancel), st::defaultLinkButton);
-				connect(_cancelPhotoUpload, SIGNAL(clicked()), this, SLOT(onCancelPhotoUpload()));
-				_cancelPhotoUpload->show();
-				_cancelPhotoUpload->moveToLeft(_statusPosition.x() + st::settingsStatusFont->width(_statusText) + st::settingsStatusFont->spacew, _statusPosition.y());
-			}
-			update();
-			return;
+	if (Messenger::Instance().isPhotoUpdating(_self->id)) {
+		_statusText = lang(lng_settings_uploading_photo);
+		_statusTextIsOnline = false;
+		if (!_cancelPhotoUpload) {
+			auto margins = getMargins();
+			_cancelPhotoUpload.create(this, lang(lng_cancel), st::defaultLinkButton);
+			_cancelPhotoUpload->addClickHandler([this] { cancelPhotoUpload(); });
+			_cancelPhotoUpload->show();
+			_cancelPhotoUpload->moveToLeft(
+				margins.left()
+					+ _statusPosition.x()
+					+ st::settingsStatusFont->width(_statusText)
+					+ st::settingsStatusFont->spacew,
+				margins.top() + _statusPosition.y());
 		}
+		update();
+		return;
 	}
 
 	_cancelPhotoUpload.destroy();
@@ -304,35 +352,27 @@ void CoverWidget::refreshStatusText() {
 	update();
 }
 
-void CoverWidget::onSetPhoto() {
+void CoverWidget::chooseNewPhoto() {
 	auto imageExtensions = cImgExtensions();
-	auto filter = qsl("Image files (*") + imageExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter();
+	auto filter = qsl("Image files (*") + imageExtensions.join(qsl(" *")) + qsl(");;") + FileDialog::AllFilesFilter();
+	FileDialog::GetOpenPath(lang(lng_choose_image), filter, base::lambda_guarded(this, [this](const FileDialog::OpenResult &result) {
+		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
+			return;
+		}
 
-	_setPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filter);
+		QImage img;
+		if (!result.remoteContent.isEmpty()) {
+			img = App::readImage(result.remoteContent);
+		} else {
+			img = App::readImage(result.paths.front());
+		}
+
+		showSetPhotoBox(img);
+	}));
 }
 
-void CoverWidget::onEditName() {
-	Ui::show(Box<EditNameTitleBox>(self()));
-}
-
-void CoverWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) {
-	if (_setPhotoFileQueryId != update.queryId) {
-		return;
-	}
-	_setPhotoFileQueryId = 0;
-
-	if (update.filePaths.isEmpty() && update.remoteContent.isEmpty()) {
-		return;
-	}
-
-	QImage img;
-	if (!update.remoteContent.isEmpty()) {
-		img = App::readImage(update.remoteContent);
-	} else {
-		img = App::readImage(update.filePaths.front());
-	}
-
-	showSetPhotoBox(img);
+void CoverWidget::editName() {
+	Ui::show(Box<EditNameBox>(self()));
 }
 
 void CoverWidget::showSetPhotoBox(const QImage &img) {
@@ -341,8 +381,15 @@ void CoverWidget::showSetPhotoBox(const QImage &img) {
 		return;
 	}
 
-	auto box = Ui::show(Box<PhotoCropBox>(img, _self));
-	connect(box, SIGNAL(closed()), this, SLOT(onPhotoUploadStatusChanged()));
+	auto peer = _self;
+	auto box = Ui::show(Box<PhotoCropBox>(img, peer));
+	box->ready(
+	) | rpl::start_with_next([=](QImage &&image) {
+		Messenger::Instance().uploadProfilePhoto(
+			std::move(image),
+			peer->id);
+	}, box->lifetime());
+	subscribe(box->boxClosing, [this] { onPhotoUploadStatusChanged(); });
 }
 
 void CoverWidget::onPhotoUploadStatusChanged(PeerId peerId) {

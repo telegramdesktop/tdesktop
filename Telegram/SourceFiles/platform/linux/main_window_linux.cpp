@@ -18,16 +18,17 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "platform/linux/main_window_linux.h"
 
 #include "styles/style_window.h"
 #include "platform/linux/linux_libs.h"
+#include "platform/linux/linux_desktop_environment.h"
 #include "platform/platform_notifications_manager.h"
 #include "mainwindow.h"
+#include "messenger.h"
 #include "application.h"
-#include "lang.h"
-#include "localstorage.h"
+#include "lang/lang_keys.h"
+#include "storage/localstorage.h"
 
 namespace Platform {
 namespace {
@@ -35,18 +36,21 @@ namespace {
 bool noQtTrayIcon = false, tryAppIndicator = false;
 bool useGtkBase = false, useAppIndicator = false, useStatusIcon = false, trayIconChecked = false, useUnityCount = false;
 
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 AppIndicator *_trayIndicator = 0;
 GtkStatusIcon *_trayIcon = 0;
 GtkWidget *_trayMenu = 0;
 GdkPixbuf *_trayPixbuf = 0;
 QByteArray _trayPixbufData;
 QList<QPair<GtkWidget*, QObject*> > _trayItems;
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 int32 _trayIconSize = 22;
 bool _trayIconMuted = true;
 int32 _trayIconCount = 0;
 QImage _trayIconImageBack, _trayIconImage;
 
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 void _trayIconPopup(GtkStatusIcon *status_icon, guint button, guint32 activate_time, gpointer popup_menu) {
 	Libs::gtk_menu_popup(Libs::gtk_menu_cast(popup_menu), NULL, NULL, Libs::gtk_status_icon_position_menu, status_icon, button, activate_time);
 }
@@ -64,23 +68,26 @@ gboolean _trayIconResized(GtkStatusIcon *status_icon, gint size, gpointer popup_
 	if (Global::started()) Notify::unreadCounterUpdated();
 	return FALSE;
 }
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 #define QT_RED 0
 #define QT_GREEN 1
 #define QT_BLUE 2
 #define QT_ALPHA 3
 
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 #define GTK_RED 2
 #define GTK_GREEN 1
 #define GTK_BLUE 0
 #define GTK_ALPHA 3
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 QImage _trayIconImageGen() {
 	int32 counter = App::histories().unreadBadge(), counterSlice = (counter >= 1000) ? (1000 + (counter % 100)) : counter;
 	bool muted = App::histories().unreadOnlyMuted();
 	if (_trayIconImage.isNull() || _trayIconImage.width() != _trayIconSize || muted != _trayIconMuted || counterSlice != _trayIconCount) {
 		if (_trayIconImageBack.isNull() || _trayIconImageBack.width() != _trayIconSize) {
-			_trayIconImageBack = App::wnd()->iconLarge().scaled(_trayIconSize, _trayIconSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+			_trayIconImageBack = Messenger::Instance().logo().scaled(_trayIconSize, _trayIconSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 			_trayIconImageBack = _trayIconImageBack.convertToFormat(QImage::Format_ARGB32);
 			int w = _trayIconImageBack.width(), h = _trayIconImageBack.height(), perline = _trayIconImageBack.bytesPerLine();
 			uchar *bytes = _trayIconImageBack.bits();
@@ -132,6 +139,7 @@ QString _trayIconImageFile() {
 
 	return QString();
 }
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 
 void loadPixbuf(QImage image) {
 	int w = image.width(), h = image.height(), perline = image.bytesPerLine(), s = image.byteCount();
@@ -164,8 +172,10 @@ static gboolean _trayIconCheck(gpointer/* pIn*/) {
 		if (Libs::gtk_status_icon_is_embedded(_trayIcon)) {
 			trayIconChecked = true;
 			cSetSupportTray(true);
+			if (Global::started()) {
+				Global::RefWorkMode().setForced(Global::WorkMode().value(), true);
+			}
 			if (App::wnd()) {
-				App::wnd()->psUpdateWorkmode();
 				Notify::unreadCounterUpdated();
 				App::wnd()->updateTrayMenu();
 			}
@@ -177,13 +187,11 @@ static gboolean _trayIconCheck(gpointer/* pIn*/) {
 #ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
 UnityLauncherEntry *_psUnityLauncherEntry = nullptr;
 #endif // !TDESKTOP_DISABLE_UNITY_INTEGRATION
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 } // namespace
 
-MainWindow::MainWindow()
-: icon256(qsl(":/gui/art/icon256.png"))
-, iconbig256(icon256)
-, wndIcon(QIcon::fromTheme("telegram", QIcon(QPixmap::fromImage(icon256, Qt::ColorOnly)))) {
+MainWindow::MainWindow() {
 	connect(&_psCheckStatusIconTimer, SIGNAL(timeout()), this, SLOT(psStatusIconCheck()));
 	_psCheckStatusIconTimer.setSingleShot(false);
 
@@ -191,16 +199,18 @@ MainWindow::MainWindow()
 	_psUpdateIndicatorTimer.setSingleShot(true);
 }
 
-void MainWindow::initHook() {
-	setWindowIcon(wndIcon);
-}
-
 bool MainWindow::hasTrayIcon() const {
-	return trayIcon || ((useAppIndicator || (useStatusIcon && trayIconChecked)) && (cWorkMode() != dbiwmWindowOnly));
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+	return trayIcon || ((useAppIndicator || (useStatusIcon && trayIconChecked)) && (Global::WorkMode().value() != dbiwmWindowOnly));
+#else
+	return trayIcon;
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 }
 
 void MainWindow::psStatusIconCheck() {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 	_trayIconCheck(0);
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 	if (cSupportTray() || !--_psCheckStatusIconLeft) {
 		_psCheckStatusIconTimer.stop();
 		return;
@@ -211,6 +221,7 @@ void MainWindow::psShowTrayMenu() {
 }
 
 void MainWindow::psTrayMenuUpdated() {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 	if (noQtTrayIcon && (useAppIndicator || useStatusIcon)) {
 		const QList<QAction*> &actions = trayIconMenu->actions();
 		if (_trayItems.isEmpty()) {
@@ -234,6 +245,7 @@ void MainWindow::psTrayMenuUpdated() {
 			}
 		}
 	}
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 }
 
 void MainWindow::psSetupTrayIcon() {
@@ -250,7 +262,7 @@ void MainWindow::psSetupTrayIcon() {
 				QByteArray path = QFile::encodeName(iconFile.absoluteFilePath());
 				icon = QIcon(path.constData());
 			} else {
-				icon = QIcon(QPixmap::fromImage(App::wnd()->iconLarge(), Qt::ColorOnly));
+				icon = Window::CreateIcon();
 			}
 			trayIcon->setIcon(icon);
 
@@ -272,16 +284,18 @@ void MainWindow::psSetupTrayIcon() {
 	}
 }
 
-void MainWindow::psUpdateWorkmode() {
+void MainWindow::workmodeUpdated(DBIWorkMode mode) {
 	if (!cSupportTray()) return;
 
-	if (cWorkMode() == dbiwmWindowOnly) {
+	if (mode == dbiwmWindowOnly) {
 		if (noQtTrayIcon) {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 			if (useAppIndicator) {
 				Libs::app_indicator_set_status(_trayIndicator, APP_INDICATOR_STATUS_PASSIVE);
 			} else if (useStatusIcon) {
 				Libs::gtk_status_icon_set_visible(_trayIcon, false);
 			}
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 		} else {
 			if (trayIcon) {
 				trayIcon->setContextMenu(0);
@@ -291,11 +305,13 @@ void MainWindow::psUpdateWorkmode() {
 		}
 	} else {
 		if (noQtTrayIcon) {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 			if (useAppIndicator) {
 				Libs::app_indicator_set_status(_trayIndicator, APP_INDICATOR_STATUS_ACTIVE);
 			} else if (useStatusIcon) {
 				Libs::gtk_status_icon_set_visible(_trayIcon, true);
 			}
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 		} else {
 			psSetupTrayIcon();
 		}
@@ -303,6 +319,7 @@ void MainWindow::psUpdateWorkmode() {
 }
 
 void MainWindow::psUpdateIndicator() {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 	_psUpdateIndicatorTimer.stop();
 	_psLastIndicatorUpdate = getms();
 	QFileInfo iconFile(_trayIconImageFile());
@@ -313,6 +330,7 @@ void MainWindow::psUpdateIndicator() {
 	} else {
 		useAppIndicator = false;
 	}
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 }
 
 void MainWindow::unreadCounterChangedHook() {
@@ -321,11 +339,11 @@ void MainWindow::unreadCounterChangedHook() {
 }
 
 void MainWindow::updateIconCounters() {
-	setWindowIcon(wndIcon);
+	updateWindowIcon();
 
-	int32 counter = App::histories().unreadBadge();
+	auto counter = App::histories().unreadBadge();
 
-#ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
+#if !defined(TDESKTOP_DISABLE_GTK_INTEGRATION) && !defined(TDESKTOP_DISABLE_UNITY_INTEGRATION)
 	if (_psUnityLauncherEntry) {
 		if (counter > 0) {
 			Libs::unity_launcher_entry_set_count(_psUnityLauncherEntry, (counter > 9999) ? 9999 : counter);
@@ -334,9 +352,10 @@ void MainWindow::updateIconCounters() {
 			Libs::unity_launcher_entry_set_count_visible(_psUnityLauncherEntry, FALSE);
 		}
 	}
-#endif // !TDESKTOP_DISABLE_UNITY_INTEGRATION
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION && !TDESKTOP_DISABLE_UNITY_INTEGRATION
 
 	if (noQtTrayIcon) {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 		if (useAppIndicator) {
 			if (getms() > _psLastIndicatorUpdate + 1000) {
 				psUpdateIndicator();
@@ -353,6 +372,7 @@ void MainWindow::updateIconCounters() {
 				Libs::gtk_status_icon_set_from_pixbuf(_trayIcon, _trayPixbuf);
 			}
 		}
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 	} else if (trayIcon) {
 		QIcon icon;
 		QFileInfo iconFile(_trayIconImageFile());
@@ -372,17 +392,17 @@ void MainWindow::updateIconCounters() {
 	}
 }
 
-bool MainWindow::psHasNativeNotifications() {
-	return Notifications::supported();
-}
-
 void MainWindow::LibsLoaded() {
-	QStringList cdesktop = QString(getenv("XDG_CURRENT_DESKTOP")).toLower().split(':');
-	noQtTrayIcon = (cdesktop.contains(qstr("pantheon"))) || (cdesktop.contains(qstr("gnome")));
-	tryAppIndicator = cdesktop.contains(qstr("xfce"));
+	noQtTrayIcon = !DesktopEnvironment::TryQtTrayIcon();
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+	tryAppIndicator = DesktopEnvironment::PreferAppIndicatorTrayIcon();
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
+
+	LOG(("Tray Icon: Try Qt = %1, Prefer appindicator = %2").arg(Logs::b(!noQtTrayIcon)).arg(Logs::b(tryAppIndicator)));
 
 	if (noQtTrayIcon) cSetSupportTray(false);
 
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 	useGtkBase = (Libs::gtk_init_check != nullptr)
 			&& (Libs::gtk_menu_new != nullptr)
 			&& (Libs::gtk_menu_get_type != nullptr)
@@ -437,14 +457,17 @@ void MainWindow::LibsLoaded() {
 		DEBUG_LOG(("Unity count api loaded!"));
 	}
 #endif // !TDESKTOP_DISABLE_UNITY_INTEGRATION
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 }
 
 void MainWindow::psCreateTrayIcon() {
 	if (!noQtTrayIcon) {
+		LOG(("Tray Icon: Using Qt tray icon, available: %1").arg(Logs::b(QSystemTrayIcon::isSystemTrayAvailable())));
 		cSetSupportTray(QSystemTrayIcon::isSystemTrayAvailable());
 		return;
 	}
 
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 	if (useAppIndicator) {
 		DEBUG_LOG(("Trying to create AppIndicator"));
 		_trayMenu = Libs::gtk_menu_new();
@@ -455,7 +478,7 @@ void MainWindow::psCreateTrayIcon() {
 				QByteArray path = QFile::encodeName(iconFile.absoluteFilePath());
 				_trayIndicator = Libs::app_indicator_new("Telegram Desktop", path.constData(), APP_INDICATOR_CATEGORY_APPLICATION_STATUS);
 				if (_trayIndicator) {
-					LOG(("Using appindicator tray icon."));
+					LOG(("Tray Icon: Using appindicator tray icon."));
 				} else {
 					DEBUG_LOG(("Failed to app_indicator_new()!"));
 				}
@@ -488,7 +511,7 @@ void MainWindow::psCreateTrayIcon() {
 					_trayIcon = Libs::gtk_status_icon_new_from_pixbuf(_trayPixbuf);
 				}
 				if (_trayIcon) {
-					LOG(("Using GTK status tray icon."));
+					LOG(("Tray Icon: Using GTK status tray icon."));
 
 					Libs::g_signal_connect_helper(_trayIcon, "popup-menu", GCallback(_trayIconPopup), _trayMenu);
 					Libs::g_signal_connect_helper(_trayIcon, "activate", GCallback(_trayIconActivate), _trayMenu);
@@ -508,10 +531,11 @@ void MainWindow::psCreateTrayIcon() {
 		}
 	}
 	if (!useStatusIcon && !useAppIndicator) {
+		LOG(("Tray Icon: Not able to use any tray icon :("));
 		if (_trayMenu) {
 			Libs::g_object_ref_sink(_trayMenu);
 			Libs::g_object_unref(_trayMenu);
-			_trayMenu = 0;
+			_trayMenu = nullptr;
 		}
 	}
 	cSetSupportTray(useAppIndicator);
@@ -519,14 +543,15 @@ void MainWindow::psCreateTrayIcon() {
 		Libs::g_idle_add((GSourceFunc)_trayIconCheck, 0);
 		_psCheckStatusIconTimer.start(100);
 	} else {
-		psUpdateWorkmode();
+		workmodeUpdated(Global::WorkMode().value());
 	}
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 }
 
 void MainWindow::psFirstShow() {
 	psCreateTrayIcon();
 
-#ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
+#if !defined(TDESKTOP_DISABLE_GTK_INTEGRATION) && !defined(TDESKTOP_DISABLE_UNITY_INTEGRATION)
 	if (useUnityCount) {
 		_psUnityLauncherEntry = Libs::unity_launcher_entry_get_for_desktop_id("telegramdesktop.desktop");
 		if (_psUnityLauncherEntry) {
@@ -542,7 +567,7 @@ void MainWindow::psFirstShow() {
 	} else {
 		LOG(("Not using Unity Launcher count."));
 	}
-#endif // !TDESKTOP_DISABLE_UNITY_INTEGRATION
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION && !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 	psUpdateMargins();
 
@@ -551,12 +576,13 @@ void MainWindow::psFirstShow() {
 	show();
 	//_private.enableShadow(winId());
 	if (cWindowPos().maximized) {
+		DEBUG_LOG(("Window Pos: First show, setting maximized."));
 		setWindowState(Qt::WindowMaximized);
 	}
 
 	if ((cLaunchMode() == LaunchModeAutoStart && cStartMinimized()) || cStartInTray()) {
 		setWindowState(Qt::WindowMinimized);
-		if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
+		if (Global::WorkMode().value() == dbiwmTrayOnly || Global::WorkMode().value() == dbiwmWindowAndTray) {
 			hide();
 		} else {
 			show();
@@ -572,16 +598,11 @@ void MainWindow::psFirstShow() {
 void MainWindow::psInitSysMenu() {
 }
 
-void MainWindow::psUpdateSysMenu(Qt::WindowState state) {
-}
-
 void MainWindow::psUpdateMargins() {
 }
 
-void MainWindow::psFlash() {
-}
-
 MainWindow::~MainWindow() {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 	if (_trayIcon) {
 		Libs::g_object_unref(_trayIcon);
 		_trayIcon = nullptr;
@@ -595,6 +616,17 @@ MainWindow::~MainWindow() {
 		Libs::g_object_unref(_trayMenu);
 		_trayMenu = nullptr;
 	}
+	if (_trayIndicator) {
+		Libs::g_object_unref(_trayIndicator);
+		_trayIndicator = nullptr;
+	}
+#ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
+	if (_psUnityLauncherEntry) {
+		Libs::g_object_unref(_psUnityLauncherEntry);
+		_psUnityLauncherEntry = nullptr;
+	}
+#endif // ! TDESKTOP_DISABLE_UNITY_INTEGRATION
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 }
 
 } // namespace Platform

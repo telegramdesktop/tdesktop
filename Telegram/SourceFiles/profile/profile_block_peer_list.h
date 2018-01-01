@@ -36,9 +36,7 @@ namespace Profile {
 
 class PeerListWidget : public BlockWidget {
 public:
-	PeerListWidget(QWidget *parent, PeerData *peer, const QString &title, const style::ProfilePeerListItem &st = st::profileMemberItem, const QString &removeText = QString());
-
-	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
+	PeerListWidget(QWidget *parent, PeerData *peer, const QString &title, const style::PeerListItem &st = st::profileMemberItem, const QString &removeText = QString());
 
 	struct Item {
 		explicit Item(PeerData *peer);
@@ -48,9 +46,14 @@ public:
 		Text name;
 		QString statusText;
 		bool statusHasOnlineColor = false;
-		bool hasAdminStar = false;
+		enum class AdminState {
+			None,
+			Admin,
+			Creator,
+		};
+		AdminState adminState = AdminState::None;
 		bool hasRemoveLink = false;
-		std_::unique_ptr<Ui::RippleAnimation> ripple;
+		std::unique_ptr<Ui::RippleAnimation> ripple;
 	};
 	virtual int getListTop() const {
 		return contentTop();
@@ -78,28 +81,30 @@ public:
 	}
 	template <typename Predicate>
 	void sortItems(Predicate predicate) {
-		qSort(_items.begin(), _items.end(), std_::move(predicate));
+		qSort(_items.begin(), _items.end(), std::move(predicate));
 	}
 
-	void setPreloadMoreCallback(base::lambda<void()> &&callback) {
-		_preloadMoreCallback = std_::move(callback);
+	void setPreloadMoreCallback(base::lambda<void()> callback) {
+		_preloadMoreCallback = std::move(callback);
 	}
-	void setSelectedCallback(base::lambda<void(PeerData*)> &&callback) {
-		_selectedCallback = std_::move(callback);
+	void setSelectedCallback(base::lambda<void(PeerData*)> callback) {
+		_selectedCallback = std::move(callback);
 	}
-	void setRemovedCallback(base::lambda<void(PeerData*)> &&callback) {
-		_removedCallback = std_::move(callback);
+	void setRemovedCallback(base::lambda<void(PeerData*)> callback) {
+		_removedCallback = std::move(callback);
 	}
-	void setUpdateItemCallback(base::lambda<void(Item*)> &&callback) {
-		_updateItemCallback = std_::move(callback);
+	void setUpdateItemCallback(base::lambda<void(Item*)> callback) {
+		_updateItemCallback = std::move(callback);
 	}
 
 protected:
+	int resizeGetHeight(int newWidth) override;
+	void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) override;
+
 	void paintOutlinedRect(Painter &p, int x, int y, int w, int h) const;
 	void refreshVisibility();
-
-	// Resizes content and counts natural widget height for the desired width.
-	int resizeGetHeight(int newWidth) override;
 
 	void paintContents(Painter &p) override;
 
@@ -107,13 +112,13 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
-	void enterEvent(QEvent *e) override;
+	void enterEventHook(QEvent *e) override;
 	void enterFromChildEvent(QEvent *e, QWidget *child) override {
-		enterEvent(e);
+		enterEventHook(e);
 	}
-	void leaveEvent(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void leaveToChildEvent(QEvent *e, QWidget *child) override {
-		leaveEvent(e);
+		leaveEventHook(e);
 	}
 
 	virtual Ui::PopupMenu *fillPeerMenu(PeerData *peer) {
@@ -131,7 +136,7 @@ private:
 
 	void paintItem(Painter &p, int x, int y, Item *item, bool selected, bool selectedRemove, TimeMs ms);
 
-	const style::ProfilePeerListItem &_st;
+	const style::PeerListItem &_st;
 
 	base::lambda<void()> _preloadMoreCallback;
 	base::lambda<void(PeerData*)> _selectedCallback;

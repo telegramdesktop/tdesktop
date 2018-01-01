@@ -45,13 +45,8 @@ enum {
 	MTPConnectionOldTimeout = 192000, // 192 seconds
 	MTPTcpConnectionWaitTimeout = 2000, // 2 seconds waiting for tcp, until we accept http
 	MTPIPv4ConnectionWaitTimeout = 1000, // 1 seconds waiting for ipv4, until we accept ipv6
-	MTPMillerRabinIterCount = 30, // 30 Miller-Rabin iterations for dh_prime primality check
 
-	MTPUploadSessionsCount = 2, // max 2 upload sessions is created
-	MTPDownloadSessionsCount = 2, // max 2 download sessions is created
 	MTPKillFileSessionTimeout = 5000, // how much time without upload / download causes additional session kill
-
-	MTPEnumDCTimeout = 8000, // 8 seconds timeout for help_getConfig to work (then move to other dc)
 
 	MTPDebugBufferSize = 1024 * 1024, // 1 mb start size
 
@@ -76,18 +71,15 @@ enum {
 	LocalEncryptIterCount = 4000, // key derivation iteration count
 	LocalEncryptNoPwdIterCount = 4, // key derivation iteration count without pwd (not secure anyway)
 	LocalEncryptSaltSize = 32, // 256 bit
-	LocalEncryptKeySize = 256, // 2048 bit
 
 	AnimationTimerDelta = 7,
 	ClipThreadsCount = 8,
 	AverageGifSize = 320 * 240,
 	WaitBeforeGifPause = 200, // wait 200ms for gif draw before pausing it
-	InlineBotRequestDelay = 400, // wait 400ms before context bot realtime request
 	RecentInlineBotsLimit = 10,
 
 	AVBlockSize = 4096, // 4Kb for ffmpeg blocksize
 
-	SaveRecentEmojisTimeout = 3000, // 3 secs
 	SaveWindowPositionTimeout = 1000, // 1 sec
 
 	AutoSearchTimeout = 900, // 0.9 secs
@@ -95,30 +87,13 @@ enum {
 	SearchManyPerPage = 100,
 	LinksOverviewPerPage = 12,
 	MediaOverviewStartPerPage = 5,
-	MediaOverviewPreloadCount = 4,
 
-	AudioSimultaneousLimit = 4,
-	AudioCheckPositionTimeout = 100, // 100ms per check audio pos
-	AudioCheckPositionDelta = 2400, // update position called each 2400 samples
-	AudioFadeTimeout = 7, // 7ms
-	AudioFadeDuration = 500,
-	AudioVoiceMsgSkip = 400, // 200ms
-	AudioVoiceMsgFade = 300, // 300ms
-	AudioPreloadSamples = 2 * 48000, // preload next part if less than 5 seconds remains
-	AudioVoiceMsgFrequency = 48000, // 48 kHz
 	AudioVoiceMsgMaxLength = 100 * 60, // 100 minutes
 	AudioVoiceMsgUpdateView = 100, // 100ms
 	AudioVoiceMsgChannels = 2, // stereo
 	AudioVoiceMsgBufferSize = 256 * 1024, // 256 Kb buffers (1.3 - 3.0 secs)
-	AudioVoiceMsgInMemory = 2 * 1024 * 1024, // 2 Mb audio is hold in memory and auto loaded
-	AudioPauseDeviceTimeout = 3000, // pause in 3 secs after playing is over
 
-	WaveformSamplesCount = 100,
-
-	StickerInMemory = 2 * 1024 * 1024, // 2 Mb stickers hold in memory, auto loaded and displayed inline
 	StickerMaxSize = 2048, // 2048x2048 is a max image size for sticker
-
-	AnimationInMemory = 10 * 1024 * 1024, // 10 Mb gif and mp4 animations held in memory while playing
 
 	MaxZoomLevel = 7, // x8
 	ZoomToScreenLevel = 1024, // just constant
@@ -126,30 +101,20 @@ enum {
 	ShortcutsCountLimit = 256, // how many shortcuts can be in json file
 
 	PreloadHeightsCount = 3, // when 3 screens to scroll left make a preload request
-	EmojiPanPerRow = 7,
-	EmojiPanRowsPerPage = 6,
-	StickerPanPerRow = 5,
-	StickerPanRowsPerPage = 4,
-	StickersUpdateTimeout = 3600000, // update not more than once in an hour
 
 	SearchPeopleLimit = 5,
 	MinUsernameLength = 5,
 	MaxUsernameLength = 32,
 	UsernameCheckTimeout = 200,
 
-	MaxChannelDescription = 255,
-	MaxGroupChannelTitle = 255,
 	MaxPhotoCaption = 200,
 
 	MaxMessageSize = 4096,
-	MaxHttpRedirects = 5, // when getting external data/images
 
 	WriteMapTimeout = 1000,
 	SaveDraftTimeout = 1000, // save draft after 1 secs of not changing text
 	SaveDraftAnywayTimeout = 5000, // or save anyway each 5 secs
 	SaveCloudDraftIdleTimeout = 14000, // save draft to the cloud after 14 more seconds
-	SaveCloudDraftTimeout = 1000, // save draft to the cloud with 1 sec extra delay
-	SaveDraftBeforeQuitTimeout = 1500, // give the app 1.5 secs to save drafts to cloud when quitting
 
 	SetOnlineAfterActivity = 30, // user with hidden last seen stays online for such amount of seconds in the interface
 
@@ -166,7 +131,6 @@ enum {
 	SessionsShortPollTimeout = 60000,
 
 	ChoosePeerByDragTimeout = 1000, // 1 second mouse not moved to choose dialog when dragging a file
-	ReloadChannelMembersTimeout = 1000, // 1 second wait before reload members in channel after adding
 };
 
 inline bool isNotificationsUser(uint64 id) {
@@ -197,20 +161,6 @@ inline const char *cGUIDStr() {
 #endif // OS_MAC_STORE
 
 	return gGuidStr;
-}
-
-inline const char **cPublicRSAKeys(int &keysCount) {
-	static const char *(keys[]) = {"\
------BEGIN RSA PUBLIC KEY-----\n\
-MIIBCgKCAQEAwVACPi9w23mF3tBkdZz+zwrzKOaaQdr01vAbU4E1pvkfj4sqDsm6\n\
-lyDONS789sVoD/xCS9Y0hkkC3gtL1tSfTlgCMOOul9lcixlEKzwKENj1Yz/s7daS\n\
-an9tqw3bfUV/nqgbhGX81v/+7RFAEd+RwFnK7a+XYl9sluzHRyVVaTTveB2GazTw\n\
-Efzk2DWgkBluml8OREmvfraX3bkHZJTKX4EQSjBbbdJ2ZXIsRrYOXfaA+xayEGB+\n\
-8hdlLmAjbCVfaigxX0CDqWeR1yFL9kwd9P0NsZRPsmoqVwMbMu7mStFai6aIhc3n\n\
-Slv8kg9qv1m6XHVQY3PnEw+QQtqSIXklHwIDAQAB\n\
------END RSA PUBLIC KEY-----"};
-	keysCount = base::array_size(keys);
-	return keys;
 }
 
 struct BuiltInDc {
@@ -318,19 +268,6 @@ inline const char *cApiSystemVersion() {
 	return "Linux";
 #endif
 }
-inline QString cApiAppVersion() {
-	return QString::number(AppVersion);
-}
-
-constexpr str_const AppLinksDomain = "t.me";
-
-inline QString CreateInternalLink(const QString &query) {
-	return str_const_toString(AppLinksDomain) + '/' + query;
-}
-
-inline QString CreateInternalLinkHttps(const QString &query) {
-	return qsl("https://") + CreateInternalLink(query);
-}
 
 extern QString gKeyFile;
 inline const QString &cDataFile() {
@@ -344,23 +281,11 @@ inline const QString &cTempDir() {
 	return res;
 }
 
-static const char *DefaultCountry = "US";
-static const char *DefaultLanguage = "en";
-
 enum {
 	DialogsFirstLoad = 20, // first dialogs part size requested
 	DialogsPerPage = 500, // next dialogs part size
 
-	MessagesFirstLoad = 30, // first history part size requested
-	MessagesPerPage = 50, // next history part size
-
-	FileLoaderQueueStopTimeout = 5000,
-
-	DownloadPartSize = 64 * 1024, // 64kb for photo
-	DocumentDownloadPartSize = 128 * 1024, // 128kb for document
     UseBigFilesFrom = 10 * 1024 * 1024, // mtp big files methods used for files greater than 10mb
-	MaxFileQueries = 16, // max 16 file parts downloaded at the same time
-	MaxWebFileQueries = 8, // max 8 http[s] files downloaded at the same time
 
 	UploadPartSize = 32 * 1024, // 32kb for photo
     DocumentMaxPartsCount = 3000, // no more than 3000 parts
@@ -369,7 +294,6 @@ enum {
     DocumentUploadPartSize2 = 128 * 1024, // 128kb for small document ( <= 375mb )
     DocumentUploadPartSize3 = 256 * 1024, // 256kb for medium document ( <= 750mb )
     DocumentUploadPartSize4 = 512 * 1024, // 512kb for large document ( <= 1500mb )
-    MaxUploadFileParallelSize = MTPUploadSessionsCount * 512 * 1024, // max 512kb uploaded at the same time in each session
     UploadRequestInterval = 500, // one part each half second, if not uploaded faster
 
 	MaxPhotosInMemory = 50, // try to clear some memory after 50 photos are created
@@ -383,16 +307,10 @@ enum {
 	UpdateChunk = 100 * 1024, // 100kb parts when downloading the update
 	IdleMsecs = 60 * 1000, // after 60secs without user input we think we are idle
 
-	UpdateFullChannelTimeout = 5000, // not more than once in 5 seconds
 	SendViewsTimeout = 1000, // send views each second
 
 	ForwardOnAdd = 100, // how many messages from chat history server should forward to user, that was added to this chat
 };
-
-inline const QRegularExpression &cWordSplit() {
-	static QRegularExpression regexp(qsl("[\\@\\s\\-\\+\\(\\)\\[\\]\\{\\}\\<\\>\\,\\.\\:\\!\\_\\;\\\"\\'\\x0]"));
-	return regexp;
-}
 
 inline const QRegularExpression &cRussianLetters() {
 	static QRegularExpression regexp(QString::fromUtf8("[а-яА-ЯёЁ]"));

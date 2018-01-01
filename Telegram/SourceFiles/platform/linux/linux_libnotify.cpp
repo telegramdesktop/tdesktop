@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "platform/linux/linux_libnotify.h"
 
 #include "platform/linux/linux_libs.h"
@@ -45,6 +44,7 @@ bool loadLibrary(QLibrary &lib, const char *name, int version) {
 
 } // namespace
 
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 f_notify_init notify_init = nullptr;
 f_notify_uninit notify_uninit = nullptr;
 f_notify_is_initted notify_is_initted = nullptr;
@@ -117,6 +117,7 @@ void startLibNotify() {
 	load(lib_notify, "notify_notification_close", notify_notification_close);
 	load(lib_notify, "notify_notification_get_closed_reason", notify_notification_get_closed_reason);
 }
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 } // namespace Libs
 } // namespace Platform

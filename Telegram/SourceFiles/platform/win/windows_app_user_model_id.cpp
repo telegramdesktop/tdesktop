@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "platform/win/windows_app_user_model_id.h"
 
 #include "platform/win/windows_dlls.h"
@@ -39,7 +38,11 @@ namespace {
 const PROPERTYKEY pkey_AppUserModel_ID = { { 0x9F4C2855, 0x9F79, 0x4B39, { 0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3 } }, 5 };
 const PROPERTYKEY pkey_AppUserModel_StartPinOption = { { 0x9F4C2855, 0x9F79, 0x4B39, { 0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3 } }, 12 };
 
+#ifdef OS_WIN_STORE
+const WCHAR AppUserModelIdRelease[] = L"Telegram.TelegramDesktop.Store";
+#else // OS_WIN_STORE
 const WCHAR AppUserModelIdRelease[] = L"Telegram.TelegramDesktop";
+#endif // OS_WIN_STORE
 const WCHAR AppUserModelIdBeta[] = L"Telegram.TelegramDesktop.Beta";
 
 } // namespace
@@ -260,7 +263,7 @@ bool validateShortcutAt(const QString &path) {
 
 bool validateShortcut() {
 	QString path = systemShortcutPath();
-	if (path.isEmpty()) return false;
+	if (path.isEmpty() || cExeName().isEmpty()) return false;
 
 	if (cBetaVersion()) {
 		path += qsl("TelegramBeta.lnk");

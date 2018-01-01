@@ -18,38 +18,38 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "media/media_audio_loader.h"
 
-AudioPlayerLoader::AudioPlayerLoader(const FileLocation &file, const QByteArray &data)
-: file(file)
-, data(data) {
+AudioPlayerLoader::AudioPlayerLoader(const FileLocation &file, const QByteArray &data, base::byte_vector &&bytes)
+: _file(file)
+, _data(data)
+, _bytes(std::move(bytes)) {
 }
 
 AudioPlayerLoader::~AudioPlayerLoader() {
-	if (access) {
-		file.accessDisable();
-		access = false;
+	if (_access) {
+		_file.accessDisable();
+		_access = false;
 	}
 }
 
 bool AudioPlayerLoader::check(const FileLocation &file, const QByteArray &data) {
-	return this->file == file && this->data.size() == data.size();
+	return this->_file == file && this->_data.size() == data.size();
 }
 
 void AudioPlayerLoader::saveDecodedSamples(QByteArray *samples, int64 *samplesCount) {
-	t_assert(_savedSamplesCount == 0);
-	t_assert(_savedSamples.isEmpty());
-	t_assert(!_holdsSavedSamples);
+	Assert(_savedSamplesCount == 0);
+	Assert(_savedSamples.isEmpty());
+	Assert(!_holdsSavedSamples);
 	samples->swap(_savedSamples);
 	std::swap(*samplesCount, _savedSamplesCount);
 	_holdsSavedSamples = true;
 }
 
 void AudioPlayerLoader::takeSavedDecodedSamples(QByteArray *samples, int64 *samplesCount) {
-	t_assert(*samplesCount == 0);
-	t_assert(samples->isEmpty());
-	t_assert(_holdsSavedSamples);
+	Assert(*samplesCount == 0);
+	Assert(samples->isEmpty());
+	Assert(_holdsSavedSamples);
 	samples->swap(_savedSamples);
 	std::swap(*samplesCount, _savedSamplesCount);
 	_holdsSavedSamples = false;
@@ -60,21 +60,21 @@ bool AudioPlayerLoader::holdsSavedDecodedSamples() const {
 }
 
 bool AudioPlayerLoader::openFile() {
-	if (data.isEmpty()) {
-		if (f.isOpen()) f.close();
-		if (!access) {
-			if (!file.accessEnable()) {
-				LOG(("Audio Error: could not open file access '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(f.error()).arg(f.errorString()));
+	if (_data.isEmpty() && _bytes.empty()) {
+		if (_f.isOpen()) _f.close();
+		if (!_access) {
+			if (!_file.accessEnable()) {
+				LOG(("Audio Error: could not open file access '%1', data size '%2', error %3, %4").arg(_file.name()).arg(_data.size()).arg(_f.error()).arg(_f.errorString()));
 				return false;
 			}
-			access = true;
+			_access = true;
 		}
-		f.setFileName(file.name());
-		if (!f.open(QIODevice::ReadOnly)) {
-			LOG(("Audio Error: could not open file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(f.error()).arg(f.errorString()));
+		_f.setFileName(_file.name());
+		if (!_f.open(QIODevice::ReadOnly)) {
+			LOG(("Audio Error: could not open file '%1', data size '%2', error %3, %4").arg(_file.name()).arg(_data.size()).arg(_f.error()).arg(_f.errorString()));
 			return false;
 		}
 	}
-	dataPos = 0;
+	_dataPos = 0;
 	return true;
 }

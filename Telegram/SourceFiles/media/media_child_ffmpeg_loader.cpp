@@ -18,12 +18,26 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "media/media_child_ffmpeg_loader.h"
+
+#include "core/crash_reports.h"
+
+namespace {
 
 constexpr AVSampleFormat AudioToFormat = AV_SAMPLE_FMT_S16;
 constexpr int64_t AudioToChannelLayout = AV_CH_LAYOUT_STEREO;
 constexpr int32 AudioToChannels = 2;
+
+bool IsPlanarFormat(int format) {
+	return (format == AV_SAMPLE_FMT_U8P)
+		|| (format == AV_SAMPLE_FMT_S16P)
+		|| (format == AV_SAMPLE_FMT_S32P)
+		|| (format == AV_SAMPLE_FMT_FLTP)
+		|| (format == AV_SAMPLE_FMT_DBLP)
+		|| (format == AV_SAMPLE_FMT_S64P);
+}
+
+} // namespace
 
 VideoSoundData::~VideoSoundData() {
 	if (context) {
@@ -33,17 +47,24 @@ VideoSoundData::~VideoSoundData() {
 	}
 }
 
-ChildFFMpegLoader::ChildFFMpegLoader(uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data) : AudioPlayerLoader(FileLocation(), QByteArray())
-, _videoPlayId(videoPlayId)
-, _parentData(std_::move(data)) {
+ChildFFMpegLoader::ChildFFMpegLoader(std::unique_ptr<VideoSoundData> &&data) : AudioPlayerLoader(FileLocation(), QByteArray(), base::byte_vector())
+, _parentData(std::move(data)) {
 	_frame = av_frame_alloc();
 }
 
-bool ChildFFMpegLoader::open(qint64 &position) {
+bool ChildFFMpegLoader::open(TimeMs positionMs) {
 	int res = 0;
 	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 
-	uint64_t layout = _parentData->context->channel_layout;
+	auto layout = _parentData->context->channel_layout;
+	if (!layout) {
+		auto channelsCount = _parentData->context->channels;
+		switch (channelsCount) {
+		case 1: layout = AV_CH_LAYOUT_MONO; break;
+		case 2: layout = AV_CH_LAYOUT_STEREO; break;
+		default: LOG(("Audio Error: Unknown channel layout for %1 channels.").arg(channelsCount)); break;
+		}
+	}
 	_inputFormat = _parentData->context->sample_fmt;
 	switch (layout) {
 	case AV_CH_LAYOUT_MONO:
@@ -70,20 +91,20 @@ bool ChildFFMpegLoader::open(qint64 &position) {
 		_sampleSize = -1; // convert needed
 	break;
 	}
-	if (_parentData->frequency != 44100 && _parentData->frequency != 48000) {
+	if (_parentData->frequency != Media::Player::kDefaultFrequency) {
 		_sampleSize = -1; // convert needed
 	}
 
 	if (_sampleSize < 0) {
 		_swrContext = swr_alloc();
 		if (!_swrContext) {
-			LOG(("Audio Error: Unable to swr_alloc for file '%1', data size '%2'").arg(file.name()).arg(data.size()));
+			LOG(("Audio Error: Unable to swr_alloc for file '%1', data size '%2'").arg(_file.name()).arg(_data.size()));
 			return false;
 		}
 		int64_t src_ch_layout = layout, dst_ch_layout = AudioToChannelLayout;
 		_srcRate = _parentData->frequency;
 		AVSampleFormat src_sample_fmt = _inputFormat, dst_sample_fmt = AudioToFormat;
-		_dstRate = (_parentData->frequency != 44100 && _parentData->frequency != 48000) ? AudioVoiceMsgFrequency : _parentData->frequency;
+		_dstRate = Media::Player::kDefaultFrequency;
 
 		av_opt_set_int(_swrContext, "in_channel_layout", src_ch_layout, 0);
 		av_opt_set_int(_swrContext, "in_sample_rate", _srcRate, 0);
@@ -93,19 +114,18 @@ bool ChildFFMpegLoader::open(qint64 &position) {
 		av_opt_set_sample_fmt(_swrContext, "out_sample_fmt", dst_sample_fmt, 0);
 
 		if ((res = swr_init(_swrContext)) < 0) {
-			LOG(("Audio Error: Unable to swr_init for file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+			LOG(("Audio Error: Unable to swr_init for file '%1', data size '%2', error %3, %4").arg(_file.name()).arg(_data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 			return false;
 		}
 
 		_sampleSize = AudioToChannels * sizeof(short);
 		_parentData->frequency = _dstRate;
 		_parentData->length = av_rescale_rnd(_parentData->length, _dstRate, _srcRate, AV_ROUND_UP);
-		position = av_rescale_rnd(position, _dstRate, _srcRate, AV_ROUND_DOWN);
 		_format = AL_FORMAT_STEREO16;
 
 		_maxResampleSamples = av_rescale_rnd(AVBlockSize / _sampleSize, _dstRate, _srcRate, AV_ROUND_UP);
 		if ((res = av_samples_alloc_array_and_samples(&_dstSamplesData, 0, AudioToChannels, _maxResampleSamples, AudioToFormat, 0)) < 0) {
-			LOG(("Audio Error: Unable to av_samples_alloc for file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+			LOG(("Audio Error: Unable to av_samples_alloc for file '%1', data size '%2', error %3, %4").arg(_file.name()).arg(_data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 			return false;
 		}
 	}
@@ -126,7 +146,7 @@ AudioPlayerLoader::ReadResult ChildFFMpegLoader::readMore(QByteArray &result, in
 		return ReadResult::EndOfFile;
 	} else if (res != AVERROR(EAGAIN)) {
 		char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
-		LOG(("Audio Error: Unable to avcodec_receive_frame() file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+		LOG(("Audio Error: Unable to avcodec_receive_frame() file '%1', data size '%2', error %3, %4").arg(_file.name()).arg(_data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 		return ReadResult::Error;
 	}
 
@@ -148,12 +168,12 @@ AudioPlayerLoader::ReadResult ChildFFMpegLoader::readMore(QByteArray &result, in
 		FFMpeg::freePacket(&packet);
 
 		char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
-		LOG(("Audio Error: Unable to avcodec_send_packet() file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+		LOG(("Audio Error: Unable to avcodec_send_packet() file '%1', data size '%2', error %3, %4").arg(_file.name()).arg(_data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 		// There is a sample voice message where skipping such packet
 		// results in a crash (read_access to nullptr) in swr_convert().
-		//if (res == AVERROR_INVALIDDATA) {
-		//	return ReadResult::NotYet; // try to skip bad packet
-		//}
+		if (res == AVERROR_INVALIDDATA) {
+			return ReadResult::NotYet; // try to skip bad packet
+		}
 		return ReadResult::Error;
 	}
 	FFMpeg::freePacket(&packet);
@@ -170,15 +190,52 @@ AudioPlayerLoader::ReadResult ChildFFMpegLoader::readFromReadyFrame(QByteArray &
 			av_freep(&_dstSamplesData[0]);
 			if ((res = av_samples_alloc(_dstSamplesData, 0, AudioToChannels, _maxResampleSamples, AudioToFormat, 1)) < 0) {
 				char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
-				LOG(("Audio Error: Unable to av_samples_alloc for file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+				LOG(("Audio Error: Unable to av_samples_alloc for file '%1', data size '%2', error %3, %4").arg(_file.name()).arg(_data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 				return ReadResult::Error;
 			}
 		}
+
+		// See the same check in media_audio_ffmpeg_loader.cpp.
+		if (_frame->extended_data[1] == nullptr) {
+			const auto params = _parentData->context;
+			if (IsPlanarFormat(params->sample_fmt) && params->channels > 1) {
+				LOG(("Audio Error: Inconsistent frame layout/channels in file, codec: (%1;%2;%3), frame: (%4;%5;%6)."
+					).arg(params->channel_layout
+					).arg(params->channels
+					).arg(params->sample_fmt
+					).arg(_frame->channel_layout
+					).arg(_frame->channels
+					).arg(_frame->format
+					));
+				return ReadResult::Error;
+			} else {
+				const auto key = "ffmpeg_" + std::to_string(ptrdiff_t(this));
+				const auto value = QString("codec: (%1;%2;%3), frame: (%4;%5;%6), ptrs: (%7;%8;%9)"
+				).arg(params->channel_layout
+				).arg(params->channels
+				).arg(params->sample_fmt
+				).arg(_frame->channel_layout
+				).arg(_frame->channels
+				).arg(_frame->format
+				).arg(ptrdiff_t(_frame->data[0])
+				).arg(ptrdiff_t(_frame->extended_data[0])
+				).arg(ptrdiff_t(_frame->data[1])
+				);
+				CrashReports::SetAnnotation(key, value);
+			}
+		}
+
 		if ((res = swr_convert(_swrContext, _dstSamplesData, dstSamples, (const uint8_t**)_frame->extended_data, _frame->nb_samples)) < 0) {
 			char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
-			LOG(("Audio Error: Unable to swr_convert for file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+			LOG(("Audio Error: Unable to swr_convert for file '%1', data size '%2', error %3, %4").arg(_file.name()).arg(_data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 			return ReadResult::Error;
 		}
+
+		if (_frame->extended_data[1] == nullptr) {
+			const auto key = "ffmpeg_" + std::to_string(ptrdiff_t(this));
+			CrashReports::ClearAnnotation(key);
+		}
+
 		int32 resultLen = av_samples_get_buffer_size(0, AudioToChannels, res, AudioToFormat, 1);
 		result.append((const char*)_dstSamplesData[0], resultLen);
 		samplesAdded += resultLen / _sampleSize;
@@ -190,7 +247,7 @@ AudioPlayerLoader::ReadResult ChildFFMpegLoader::readFromReadyFrame(QByteArray &
 }
 
 void ChildFFMpegLoader::enqueuePackets(QQueue<FFMpeg::AVPacketDataWrap> &packets) {
-	_queue += std_::move(packets);
+	_queue += std::move(packets);
 	packets.clear();
 }
 

@@ -36,6 +36,8 @@ struct Config {
 	QMargins padding;
 };
 void Show(QWidget *parent, const Config &config);
+void Show(const Config &config);
+void Show(const QString &text);
 
 class Instance {
 	struct Private {
@@ -61,7 +63,7 @@ private:
 	// ToastManager should reset _widget pointer if _widget is destroyed.
 	friend class internal::Manager;
 	friend void Show(QWidget *parent, const Config &config);
-	std_::unique_ptr<internal::Widget> _widget;
+	std::unique_ptr<internal::Widget> _widget;
 
 };
 

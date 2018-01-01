@@ -18,21 +18,32 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "window/section_widget.h"
 
+#include <rpl/range.h>
 #include "application.h"
+#include "window/section_memento.h"
+#include "window/window_slide_animation.h"
 
 namespace Window {
 
-SectionWidget::SectionWidget(QWidget *parent) : TWidget(parent) {
+SectionWidget::SectionWidget(
+	QWidget *parent,
+	not_null<Window::Controller*> controller)
+: AbstractSectionWidget(parent, controller) {
 }
 
-void SectionWidget::setGeometryWithTopMoved(const QRect &newGeometry, int topDelta) {
+void SectionWidget::setGeometryWithTopMoved(
+		const QRect &newGeometry,
+		int topDelta) {
 	_topDelta = topDelta;
 	bool willBeResized = (size() != newGeometry.size());
 	if (geometry() != newGeometry) {
+		auto weak = make_weak(this);
 		setGeometry(newGeometry);
+		if (!weak) {
+			return;
+		}
 	}
 	if (!willBeResized) {
 		resizeEvent(nullptr);
@@ -40,23 +51,32 @@ void SectionWidget::setGeometryWithTopMoved(const QRect &newGeometry, int topDel
 	_topDelta = 0;
 }
 
-void SectionWidget::showAnimated(SlideDirection direction, const SectionSlideParams &params) {
+void SectionWidget::showAnimated(
+		SlideDirection direction,
+		const SectionSlideParams &params) {
 	if (_showAnimation) return;
 
 	showChildren();
 	auto myContentCache = grabForShowAnimation(params);
 	hideChildren();
-	showAnimatedHook();
+	showAnimatedHook(params);
 
-	_showAnimation = std_::make_unique<SlideAnimation>();
+	_showAnimation = std::make_unique<SlideAnimation>();
 	_showAnimation->setDirection(direction);
 	_showAnimation->setRepaintCallback([this] { update(); });
 	_showAnimation->setFinishedCallback([this] { showFinished(); });
-	_showAnimation->setPixmaps(params.oldContentCache, myContentCache);
+	_showAnimation->setPixmaps(
+		params.oldContentCache,
+		myContentCache);
 	_showAnimation->setTopBarShadow(params.withTopBarShadow);
+	_showAnimation->setWithFade(params.withFade);
 	_showAnimation->start();
 
 	show();
+}
+
+std::unique_ptr<SectionMemento> SectionWidget::createMemento() {
+	return nullptr;
 }
 
 void SectionWidget::showFast() {
@@ -65,8 +85,6 @@ void SectionWidget::showFast() {
 }
 
 void SectionWidget::paintEvent(QPaintEvent *e) {
-	if (Ui::skipPaintEvent(this, e)) return;
-
 	if (_showAnimation) {
 		Painter p(this);
 		_showAnimation->paintContents(p, e->rect());
@@ -82,5 +100,11 @@ void SectionWidget::showFinished() {
 
 	setInnerFocus();
 }
+
+rpl::producer<int> SectionWidget::desiredHeight() const {
+	return rpl::single(height());
+}
+
+SectionWidget::~SectionWidget() = default;
 
 } // namespace Window

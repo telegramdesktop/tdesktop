@@ -42,10 +42,6 @@ public:
 	bool hasAudio() const override {
 		return false;
 	}
-	void pauseAudio() override {
-	}
-	void resumeAudio() override {
-	}
 
 	bool start(Mode mode, TimeMs &positionMs) override;
 
@@ -57,7 +53,7 @@ private:
 
 	Mode _mode = Mode::Normal;
 
-	QImageReader *_reader = nullptr;
+	std::unique_ptr<QImageReader> _reader;
 	int _framesLeft = 0;
 	TimeMs _frameRealTime = 0;
 	TimeMs _frameTime = 0;

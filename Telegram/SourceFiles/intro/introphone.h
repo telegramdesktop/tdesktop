@@ -32,7 +32,7 @@ class FlatLabel;
 
 namespace Intro {
 
-class PhoneWidget : public Widget::Step, private base::Subscriber {
+class PhoneWidget : public Widget::Step {
 	Q_OBJECT
 
 public:
@@ -70,7 +70,7 @@ private:
 	QString fullNumber() const;
 	void stopCheck();
 
-	void showPhoneError(const QString &text);
+	void showPhoneError(base::lambda<QString()> textFactory);
 	void hidePhoneError();
 	void showSignup();
 
@@ -80,7 +80,7 @@ private:
 	object_ptr<Ui::CountryCodeInput> _code;
 	object_ptr<Ui::PhonePartInput> _phone;
 
-	object_ptr<Ui::WidgetFadeWrap<Ui::FlatLabel>> _signup = { nullptr };
+	object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _signup = { nullptr };
 
 	QString _sentPhone;
 	mtpRequestId _sentRequest = 0;

@@ -30,7 +30,7 @@ namespace Clip {
 class Reader;
 class ReaderPointer {
 public:
-	ReaderPointer(std_::nullptr_t = nullptr) {
+	ReaderPointer(std::nullptr_t = nullptr) {
 	}
 	explicit ReaderPointer(Reader *pointer) : _pointer(pointer) {
 	}
@@ -68,6 +68,11 @@ public:
 	explicit operator bool() const {
 		return valid();
 	}
+	static inline ReaderPointer Bad() {
+		ReaderPointer result;
+		result.setBad();
+		return result;
+	}
 	~ReaderPointer();
 
 private:
@@ -88,7 +93,17 @@ enum Notification {
 
 namespace anim {
 
-using transition = base::lambda_copy<float64(float64 delta, float64 dt)>;
+enum class type {
+	normal,
+	instant,
+};
+
+enum class activation {
+	normal,
+	background,
+};
+
+using transition = base::lambda<float64(float64 delta, float64 dt)>;
 
 extern transition linear;
 extern transition sineInOut;
@@ -141,7 +156,7 @@ public:
 		_from += delta;
 		_cur += delta;
 	}
-	value &update(float64 dt, const transition &func) {
+	value &update(float64 dt, transition func) {
 		_cur = _from + func(_delta, dt);
 		return *this;
 	}
@@ -381,6 +396,40 @@ FORCE_INLINE QBrush brush(style::color a, style::color b, float64 b_ratio) {
 	return (b_ratio > 0) ? ((b_ratio < 1) ? brush(a->c, b->c, b_ratio) : b) : a;
 }
 
+template <int N>
+QPainterPath interpolate(QPointF (&from)[N], QPointF (&to)[N], float64 k) {
+	static_assert(N > 1, "Wrong points count in path!");
+
+	auto from_coef = 1. - k, to_coef = k;
+	QPainterPath result;
+	auto x = from[0].x() * from_coef + to[0].x() * to_coef;
+	auto y = from[0].y() * from_coef + to[0].y() * to_coef;
+	result.moveTo(x, y);
+	for (int i = 1; i != N; ++i) {
+		result.lineTo(from[i].x() * from_coef + to[i].x() * to_coef, from[i].y() * from_coef + to[i].y() * to_coef);
+	}
+	result.lineTo(x, y);
+	return result;
+}
+
+template <int N>
+QPainterPath path(QPointF (&from)[N]) {
+	static_assert(N > 1, "Wrong points count in path!");
+
+	QPainterPath result;
+	auto x = from[0].x();
+	auto y = from[0].y();
+	result.moveTo(x, y);
+	for (int i = 1; i != N; ++i) {
+		result.lineTo(from[i].x(), from[i].y());
+	}
+	result.lineTo(x, y);
+	return result;
+}
+
+bool Disabled();
+void SetDisabled(bool disabled);
+
 };
 
 class BasicAnimation;
@@ -418,7 +467,7 @@ private:
 class BasicAnimation {
 public:
 	BasicAnimation(AnimationCallbacks &&callbacks)
-		: _callbacks(std_::move(callbacks))
+		: _callbacks(std::move(callbacks))
 		, _animating(false) {
 	}
 
@@ -577,7 +626,7 @@ public:
 	}
 
 	float64 current() const {
-		t_assert(_data != nullptr);
+		Assert(_data != nullptr);
 		return _data->value.current();
 	}
 	float64 current(float64 def) const {
@@ -590,14 +639,14 @@ public:
 	static constexpr auto kLongAnimationDuration = 1000;
 
 	template <typename Lambda>
-	void start(Lambda &&updateCallback, float64 from, float64 to, float64 duration, const anim::transition &transition = anim::linear) {
+	void start(Lambda &&updateCallback, float64 from, float64 to, float64 duration, anim::transition transition = anim::linear) {
 		auto isLong = (duration >= kLongAnimationDuration);
 		if (_data) {
 			if (!isLong) {
 				_data->pause.restart();
 			}
 		} else {
-			_data = std_::make_unique<Data>(from, std_::forward<Lambda>(updateCallback));
+			_data = std::make_unique<Data>(from, std::forward<Lambda>(updateCallback));
 		}
 		if (isLong) {
 			_data->pause.release();
@@ -616,21 +665,23 @@ public:
 		}
 	}
 
+	template <typename Lambda>
+	void setUpdateCallback(Lambda &&updateCallback) {
+		if (_data) {
+			_data->updateCallback = std::forward<Lambda>(updateCallback);
+		}
+	}
+
 private:
 	struct Data {
-		template <typename Lambda, typename = std_::enable_if_t<std_::is_rvalue_reference<Lambda&&>::value>>
-		Data(float64 from, Lambda &&updateCallback)
+		template <typename Lambda>
+		Data(float64 from, Lambda updateCallback)
 			: value(from, from)
 			, a_animation(animation(this, &Data::step))
-			, updateCallback(std_::move(updateCallback)) {
-		}
-		Data(float64 from, const base::lambda_copy<void()> &updateCallback)
-			: value(from, from)
-			, a_animation(animation(this, &Data::step))
-			, updateCallback(base::lambda_copy<void()>(updateCallback)) {
+			, updateCallback(std::move(updateCallback)) {
 		}
 		void step(float64 ms, bool timer) {
-			auto dt = (ms >= duration) ? 1. : (ms / duration);
+			auto dt = (ms >= duration || anim::Disabled()) ? 1. : (ms / duration);
 			if (dt >= 1) {
 				value.finish();
 				a_animation.stop();
@@ -648,7 +699,7 @@ private:
 		anim::transition transition = anim::linear;
 		MTP::PauseHolder pause;
 	};
-	mutable std_::unique_ptr<Data> _data;
+	mutable std::unique_ptr<Data> _data;
 
 };
 

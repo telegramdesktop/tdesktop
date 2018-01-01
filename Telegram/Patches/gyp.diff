@@ -27,7 +27,7 @@ index a2b9629..68d7020 100644
    UnsetVariable(output, 'TARGET')
  
 diff --git a/pylib/gyp/generator/xcode.py b/pylib/gyp/generator/xcode.py
-index db99d6a..f8398cc 100644
+index db99d6a..8d56baf 100644
 --- a/pylib/gyp/generator/xcode.py
 +++ b/pylib/gyp/generator/xcode.py
 @@ -72,6 +72,10 @@ generator_additional_non_configuration_keys = [
@@ -68,3 +68,13 @@ index db99d6a..f8398cc 100644
      spec_actions = spec.get('actions', [])
      spec_rules = spec.get('rules', [])
  
+@@ -1141,7 +1165,8 @@ exit 1
+         groups = [x for x in groups if not x.endswith('_excluded')]
+       for group in groups:
+         for item in rule.get(group, []):
+-          pbxp.AddOrGetFileInRootGroup(item)
++          concrete_item = ExpandXcodeVariables(item, rule_input_dict)
++          pbxp.AddOrGetFileInRootGroup(concrete_item)
+ 
+     # Add "sources".
+     for source in spec.get('sources', []):

@@ -18,8 +18,14 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "media/media_clip_reader.h"
+
+#include "data/data_document.h"
+#include "storage/file_download.h"
+#include "media/media_clip_ffmpeg.h"
+#include "media/media_clip_qtgif.h"
+#include "mainwidget.h"
+#include "mainwindow.h"
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -28,11 +34,6 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
-#include "media/media_clip_ffmpeg.h"
-#include "media/media_clip_qtgif.h"
-#include "mainwidget.h"
-#include "mainwindow.h"
-
 namespace Media {
 namespace Clip {
 namespace {
@@ -40,56 +41,74 @@ namespace {
 QVector<QThread*> threads;
 QVector<Manager*> managers;
 
-QPixmap _prepareFrame(const FrameRequest &request, const QImage &original, bool hasAlpha, QImage &cache) {
-	bool badSize = (original.width() != request.framew) || (original.height() != request.frameh);
-	bool needOuter = (request.outerw != request.framew) || (request.outerh != request.frameh);
-	if (badSize || needOuter || hasAlpha || request.radius != ImageRoundRadius::None) {
-		int32 factor(request.factor);
-		bool newcache = (cache.width() != request.outerw || cache.height() != request.outerh);
-		if (newcache) {
-			cache = QImage(request.outerw, request.outerh, QImage::Format_ARGB32_Premultiplied);
-			cache.setDevicePixelRatio(factor);
-		}
-		{
-			Painter p(&cache);
-			if (newcache) {
-				if (request.framew < request.outerw) {
-					p.fillRect(0, 0, (request.outerw - request.framew) / (2 * factor), cache.height() / factor, st::imageBg);
-					p.fillRect((request.outerw - request.framew) / (2 * factor) + (request.framew / factor), 0, (cache.width() / factor) - ((request.outerw - request.framew) / (2 * factor) + (request.framew / factor)), cache.height() / factor, st::imageBg);
-				}
-				if (request.frameh < request.outerh) {
-					p.fillRect(qMax(0, (request.outerw - request.framew) / (2 * factor)), 0, qMin(cache.width(), request.framew) / factor, (request.outerh - request.frameh) / (2 * factor), st::imageBg);
-					p.fillRect(qMax(0, (request.outerw - request.framew) / (2 * factor)), (request.outerh - request.frameh) / (2 * factor) + (request.frameh / factor), qMin(cache.width(), request.framew) / factor, (cache.height() / factor) - ((request.outerh - request.frameh) / (2 * factor) + (request.frameh / factor)), st::imageBg);
-				}
-			}
-			if (hasAlpha) {
-				p.fillRect(qMax(0, (request.outerw - request.framew) / (2 * factor)), qMax(0, (request.outerh - request.frameh) / (2 * factor)), qMin(cache.width(), request.framew) / factor, qMin(cache.height(), request.frameh) / factor, st::imageBgTransparent);
-			}
-			QPoint position((request.outerw - request.framew) / (2 * factor), (request.outerh - request.frameh) / (2 * factor));
-			if (badSize) {
-				p.setRenderHint(QPainter::SmoothPixmapTransform);
-				QRect to(position, QSize(request.framew / factor, request.frameh / factor));
-				QRect from(0, 0, original.width(), original.height());
-				p.drawImage(to, original, from, Qt::ColorOnly);
-			} else {
-				p.drawImage(position, original);
-			}
-		}
-		if (request.radius != ImageRoundRadius::None) {
-			Images::prepareRound(cache, request.radius, request.corners);
-		}
-		return QPixmap::fromImage(cache, Qt::ColorOnly);
+QImage PrepareFrameImage(const FrameRequest &request, const QImage &original, bool hasAlpha, QImage &cache) {
+	auto needResize = (original.width() != request.framew) || (original.height() != request.frameh);
+	auto needOuterFill = (request.outerw != request.framew) || (request.outerh != request.frameh);
+	auto needRounding = (request.radius != ImageRoundRadius::None);
+	if (!needResize && !needOuterFill && !hasAlpha && !needRounding) {
+		return original;
 	}
-	return QPixmap::fromImage(original, Qt::ColorOnly);
+
+	auto factor = request.factor;
+	auto needNewCache = (cache.width() != request.outerw || cache.height() != request.outerh);
+	if (needNewCache) {
+		cache = QImage(request.outerw, request.outerh, QImage::Format_ARGB32_Premultiplied);
+		cache.setDevicePixelRatio(factor);
+	}
+	{
+		Painter p(&cache);
+		if (needNewCache) {
+			if (request.framew < request.outerw) {
+				p.fillRect(0, 0, (request.outerw - request.framew) / (2 * factor), cache.height() / factor, st::imageBg);
+				p.fillRect((request.outerw - request.framew) / (2 * factor) + (request.framew / factor), 0, (cache.width() / factor) - ((request.outerw - request.framew) / (2 * factor) + (request.framew / factor)), cache.height() / factor, st::imageBg);
+			}
+			if (request.frameh < request.outerh) {
+				p.fillRect(qMax(0, (request.outerw - request.framew) / (2 * factor)), 0, qMin(cache.width(), request.framew) / factor, (request.outerh - request.frameh) / (2 * factor), st::imageBg);
+				p.fillRect(qMax(0, (request.outerw - request.framew) / (2 * factor)), (request.outerh - request.frameh) / (2 * factor) + (request.frameh / factor), qMin(cache.width(), request.framew) / factor, (cache.height() / factor) - ((request.outerh - request.frameh) / (2 * factor) + (request.frameh / factor)), st::imageBg);
+			}
+		}
+		if (hasAlpha) {
+			p.fillRect(qMax(0, (request.outerw - request.framew) / (2 * factor)), qMax(0, (request.outerh - request.frameh) / (2 * factor)), qMin(cache.width(), request.framew) / factor, qMin(cache.height(), request.frameh) / factor, st::imageBgTransparent);
+		}
+		auto position = QPoint((request.outerw - request.framew) / (2 * factor), (request.outerh - request.frameh) / (2 * factor));
+		if (needResize) {
+			PainterHighQualityEnabler hq(p);
+
+			auto dst = QRect(position, QSize(request.framew / factor, request.frameh / factor));
+			auto src = QRect(0, 0, original.width(), original.height());
+			p.drawImage(dst, original, src, Qt::ColorOnly);
+		} else {
+			p.drawImage(position, original);
+		}
+	}
+	if (needRounding) {
+		Images::prepareRound(cache, request.radius, request.corners);
+	}
+	return cache;
+}
+
+QPixmap PrepareFrame(const FrameRequest &request, const QImage &original, bool hasAlpha, QImage &cache) {
+	return QPixmap::fromImage(PrepareFrameImage(request, original, hasAlpha, cache), Qt::ColorOnly);
 }
 
 } // namespace
 
-Reader::Reader(const FileLocation &location, const QByteArray &data, Callback &&callback, Mode mode, int64 seekMs)
-: _callback(std_::move(callback))
+Reader::Reader(const QString &filepath, Callback &&callback, Mode mode, int64 seekMs)
+: _callback(std::move(callback))
 , _mode(mode)
-, _playId(rand_value<uint64>())
 , _seekPositionMs(seekMs) {
+	init(FileLocation(filepath), QByteArray());
+}
+
+Reader::Reader(not_null<DocumentData*> document, FullMsgId msgId, Callback &&callback, Mode mode, int64 seekMs)
+: _callback(std::move(callback))
+, _mode(mode)
+, _audioMsgId(document, msgId, (mode == Mode::Video) ? rand_value<uint32>() : 0)
+, _seekPositionMs(seekMs) {
+	init(document->location(), document->data());
+}
+
+void Reader::init(const FileLocation &location, const QByteArray &data) {
 	if (threads.size() < ClipThreadsCount) {
 		_threadIndex = threads.size();
 		threads.push_back(new QThread());
@@ -185,7 +204,7 @@ void Reader::callback(Reader *reader, int32 threadIndex, Notification notificati
 	}
 }
 
-void Reader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, ImageRoundRadius radius, ImageRoundCorners corners) {
+void Reader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, ImageRoundRadius radius, RectParts corners) {
 	if (managers.size() <= _threadIndex) error();
 	if (_state == State::Error) return;
 
@@ -205,9 +224,12 @@ void Reader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, Image
 	}
 }
 
-QPixmap Reader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, ImageRoundRadius radius, ImageRoundCorners corners, TimeMs ms) {
+QPixmap Reader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, ImageRoundRadius radius, RectParts corners, TimeMs ms) {
+	Expects(outerw > 0);
+	Expects(outerh > 0);
+
 	auto frame = frameToShow();
-	t_assert(frame != nullptr);
+	Assert(frame != nullptr);
 
 	auto shouldBePaused = !ms;
 	if (!shouldBePaused) {
@@ -240,7 +262,7 @@ QPixmap Reader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, 
 	QImage cacheForResize;
 	frame->original.setDevicePixelRatio(factor);
 	frame->pix = QPixmap();
-	frame->pix = _prepareFrame(frame->request, frame->original, true, cacheForResize);
+	frame->pix = PrepareFrame(frame->request, frame->original, true, cacheForResize);
 
 	auto other = frameToWriteNext(true);
 	if (other) other->request = frame->request;
@@ -252,6 +274,17 @@ QPixmap Reader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, 
 		managers.at(_threadIndex)->update(this);
 	}
 
+	return frame->pix;
+}
+
+QPixmap Reader::current() {
+	Expects(_mode == Mode::Video);
+
+	auto frame = frameToShow();
+	Assert(frame != nullptr);
+
+	frame->displayed.storeRelease(1);
+	moveToNextShow();
 	return frame->pix;
 }
 
@@ -332,11 +365,11 @@ class ReaderPrivate {
 public:
 	ReaderPrivate(Reader *reader, const FileLocation &location, const QByteArray &data) : _interface(reader)
 	, _mode(reader->mode())
-	, _playId(reader->playId())
+	, _audioMsgId(reader->audioMsgId())
 	, _seekPositionMs(reader->seekPositionMs())
 	, _data(data) {
 		if (_data.isEmpty()) {
-			_location = std_::make_unique<FileLocation>(location);
+			_location = std::make_unique<FileLocation>(location);
 			if (!_location->accessEnable()) {
 				error();
 				return;
@@ -355,9 +388,8 @@ public:
 				// If seek was done to the end: try to read the first frame,
 				// get the frame size and return a black frame with that size.
 
-				auto firstFramePlayId = 0LL;
-				auto firstFramePositionMs = 0LL;
-				auto reader = std_::make_unique<internal::FFMpegReaderImplementation>(_location.get(), &_data, firstFramePlayId);
+				auto firstFramePositionMs = TimeMs(0);
+				auto reader = std::make_unique<internal::FFMpegReaderImplementation>(_location.get(), &_data, AudioMsgId());
 				if (reader->start(internal::ReaderImplementation::Mode::Normal, firstFramePositionMs)) {
 					auto firstFrameReadResult = reader->readFramesTill(-1, ms);
 					if (firstFrameReadResult == internal::ReaderImplementation::ReadResult::Success) {
@@ -405,8 +437,8 @@ public:
 		}
 		if (!_started) {
 			_started = true;
-			if (!_videoPausedAtMs) {
-				_implementation->resumeAudio();
+			if (!_videoPausedAtMs && _hasAudio) {
+				Player::mixer()->resume(_audioMsgId, true);
 			}
 		}
 
@@ -420,7 +452,7 @@ public:
 		auto frameMs = _seekPositionMs + ms - _animationStarted;
 		auto readResult = _implementation->readFramesTill(frameMs, ms);
 		if (readResult == internal::ReaderImplementation::ReadResult::EndOfFile) {
-			stop();
+			stop(Player::State::StoppedAtEnd);
 			_state = State::Finished;
 			return ProcessResult::Finished;
 		} else if (readResult == internal::ReaderImplementation::ReadResult::Error) {
@@ -441,20 +473,20 @@ public:
 	}
 
 	bool renderFrame() {
-		t_assert(frame() != 0 && _request.valid());
+		Assert(frame() != 0 && _request.valid());
 		if (!_implementation->renderFrame(frame()->original, frame()->alpha, QSize(_request.framew, _request.frameh))) {
 			return false;
 		}
 		frame()->original.setDevicePixelRatio(_request.factor);
 		frame()->pix = QPixmap();
-		frame()->pix = _prepareFrame(_request, frame()->original, frame()->alpha, frame()->cache);
+		frame()->pix = PrepareFrame(_request, frame()->original, frame()->alpha, frame()->cache);
 		frame()->when = _nextFrameWhen;
 		frame()->positionMs = _nextFramePositionMs;
 		return true;
 	}
 
 	bool init() {
-		if (_data.isEmpty() && QFileInfo(_location->name()).size() <= AnimationInMemory) {
+		if (_data.isEmpty() && QFileInfo(_location->name()).size() <= Storage::kMaxAnimationInMemory) {
 			QFile f(_location->name());
 			if (f.open(QIODevice::ReadOnly)) {
 				_data = f.readAll();
@@ -464,7 +496,7 @@ public:
 			}
 		}
 
-		_implementation = std_::make_unique<internal::FFMpegReaderImplementation>(_location.get(), &_data, _playId);
+		_implementation = std::make_unique<internal::FFMpegReaderImplementation>(_location.get(), &_data, _audioMsgId);
 //		_implementation = new QtGifReaderImplementation(_location, &_data);
 
 		auto implementationMode = [this]() {
@@ -485,7 +517,9 @@ public:
 		if (_videoPausedAtMs) return; // Paused already.
 
 		_videoPausedAtMs = ms;
-		_implementation->pauseAudio();
+		if (_hasAudio) {
+			Player::mixer()->pause(_audioMsgId, true);
+		}
 	}
 
 	void resumeVideo(TimeMs ms) {
@@ -496,17 +530,22 @@ public:
 		_nextFrameWhen += delta;
 
 		_videoPausedAtMs = 0;
-		_implementation->resumeAudio();
+		if (_hasAudio) {
+			Player::mixer()->resume(_audioMsgId, true);
+		}
 	}
 
 	ProcessResult error() {
-		stop();
+		stop(Player::State::StoppedAtError);
 		_state = State::Error;
 		return ProcessResult::Error;
 	}
 
-	void stop() {
+	void stop(Player::State audioState) {
 		_implementation = nullptr;
+		if (_hasAudio) {
+			Player::mixer()->stop(_audioMsgId, audioState);
+		}
 
 		if (_location) {
 			if (_accessed) {
@@ -518,7 +557,7 @@ public:
 	}
 
 	~ReaderPrivate() {
-		stop();
+		stop(Player::State::Stopped);
 		_data.clear();
 	}
 
@@ -526,15 +565,15 @@ private:
 	Reader *_interface;
 	State _state = State::Reading;
 	Reader::Mode _mode;
-	uint64 _playId;
+	AudioMsgId _audioMsgId;
 	TimeMs _seekPositionMs = 0;
 
 	QByteArray _data;
-	std_::unique_ptr<FileLocation> _location;
+	std::unique_ptr<FileLocation> _location;
 	bool _accessed = false;
 
 	QBuffer _buffer;
-	std_::unique_ptr<internal::ReaderImplementation> _implementation;
+	std::unique_ptr<internal::ReaderImplementation> _implementation;
 
 	FrameRequest _request;
 	struct Frame {
@@ -660,7 +699,7 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, T
 	if (!reader->_autoPausedGif && reader->_mode == Reader::Mode::Gif && result == ProcessResult::Repaint) {
 		int32 ishowing, iprevious;
 		auto showing = it.key()->frameToShow(&ishowing), previous = it.key()->frameToWriteNext(false, &iprevious);
-		t_assert(previous != nullptr && showing != nullptr && ishowing >= 0 && iprevious >= 0);
+		Assert(previous != nullptr && showing != nullptr && ishowing >= 0 && iprevious >= 0);
 		if (reader->_frames[ishowing].when > 0 && showing->displayed.loadAcquire() <= 0) { // current frame was not shown
 			if (reader->_frames[ishowing].when + WaitBeforeGifPause < ms || (reader->_frames[iprevious].when && previous->displayed.loadAcquire() <= 0)) {
 				reader->_autoPausedGif = true;
@@ -670,7 +709,7 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, T
 		}
 	}
 	if (result == ProcessResult::Started || result == ProcessResult::CopyFrame) {
-		t_assert(reader->_frame >= 0);
+		Assert(reader->_frame >= 0);
 		auto frame = it.key()->_frames + reader->_frame;
 		frame->clear();
 		frame->pix = reader->frame()->pix;
@@ -715,7 +754,7 @@ Manager::ResultHandleState Manager::handleResult(ReaderPrivate *reader, ProcessR
 				if (frame) {
 					frame->clear();
 				} else {
-					t_assert(!reader->_request.valid());
+					Assert(!reader->_request.valid());
 				}
 				reader->_frame = index;
 			}
@@ -833,33 +872,40 @@ Manager::~Manager() {
 	clear();
 }
 
-MTPDocumentAttribute readAttributes(const QString &fname, const QByteArray &data, QImage &cover) {
-	FileLocation localloc(StorageFilePartial, fname);
-	QByteArray localdata(data);
+FileMediaInformation::Video PrepareForSending(const QString &fname, const QByteArray &data) {
+	auto result = FileMediaInformation::Video();
+	auto localLocation = FileLocation(fname);
+	auto localData = QByteArray(data);
 
-	auto playId = 0ULL;
 	auto seekPositionMs = 0LL;
-	auto reader = std_::make_unique<internal::FFMpegReaderImplementation>(&localloc, &localdata, playId);
-	if (reader->start(internal::ReaderImplementation::Mode::OnlyGifv, seekPositionMs)) {
-		bool hasAlpha = false;
-		auto readResult = reader->readFramesTill(-1, getms());
-		auto readFrame = (readResult == internal::ReaderImplementation::ReadResult::Success);
-		if (readFrame && reader->renderFrame(cover, hasAlpha, QSize())) {
-			if (cover.width() > 0 && cover.height() > 0 && cover.width() < cover.height() * 10 && cover.height() < cover.width() * 10) {
-				if (hasAlpha) {
-					QImage cacheForResize;
-					FrameRequest request;
-					request.framew = request.outerw = cover.width();
-					request.frameh = request.outerh = cover.height();
-					request.factor = 1;
-					cover = _prepareFrame(request, cover, hasAlpha, cacheForResize).toImage();
+	auto reader = std::make_unique<internal::FFMpegReaderImplementation>(&localLocation, &localData, AudioMsgId());
+	if (reader->start(internal::ReaderImplementation::Mode::Inspecting, seekPositionMs)) {
+		auto durationMs = reader->durationMs();
+		if (durationMs > 0) {
+			result.isGifv = reader->isGifv();
+			if (!result.isGifv) {
+				auto middleMs = durationMs / 2;
+				if (!reader->inspectAt(middleMs)) {
+					return result;
 				}
-				int duration = reader->durationMs() / 1000;
-				return MTP_documentAttributeVideo(MTP_int(duration), MTP_int(cover.width()), MTP_int(cover.height()));
+			}
+			auto hasAlpha = false;
+			auto readResult = reader->readFramesTill(-1, getms());
+			auto readFrame = (readResult == internal::ReaderImplementation::ReadResult::Success);
+			if (readFrame && reader->renderFrame(result.thumbnail, hasAlpha, QSize())) {
+				if (hasAlpha) {
+					auto cacheForResize = QImage();
+					auto request = FrameRequest();
+					request.framew = request.outerw = result.thumbnail.width();
+					request.frameh = request.outerh = result.thumbnail.height();
+					request.factor = 1;
+					result.thumbnail = PrepareFrameImage(request, result.thumbnail, hasAlpha, cacheForResize);
+				}
+				result.duration = static_cast<int>(durationMs / 1000);
 			}
 		}
 	}
-	return MTP_documentAttributeFilename(MTP_string(fname));
+	return result;
 }
 
 void Finish() {

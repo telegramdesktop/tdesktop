@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "platform/mac/window_title_mac.h"
 
 #include "mainwindow.h"
@@ -115,7 +114,7 @@ QImage PreviewWindowSystemButton(QColor inner, QColor border) {
 		p.drawEllipse(QRectF(0.5, 0.5, fullSize - 1., fullSize - 1.));
 	}
 	result.setDevicePixelRatio(cRetinaFactor());
-	return std_::move(result);
+	return result;
 }
 
 void PreviewWindowTitle(Painter &p, const style::palette &palette, QRect body, int titleHeight, int outerWidth) {
@@ -195,9 +194,8 @@ void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRe
 	corners[1] = roundMask.copy(retinaRadius, 0, retinaRadius, retinaRadius);
 	corners[2] = roundMask.copy(0, retinaRadius, retinaRadius, retinaRadius);
 	corners[3] = roundMask.copy(retinaRadius, retinaRadius, retinaRadius, retinaRadius);
-	QImage *cornersPointers[] = { &corners[0], &corners[1], &corners[2], &corners[3] };
 	auto rounded = preview.copy(inner.x() * retina, inner.y() * retina, inner.width() * retina, inner.height() * retina);
-	Images::prepareRound(rounded, cornersPointers);
+	Images::prepareRound(rounded, corners);
 	preview.fill(st::themePreviewBg->c);
 
 	auto topLeft = st::macWindowShadowTopLeft.instance(QColor(0, 0, 0), dbisOne);

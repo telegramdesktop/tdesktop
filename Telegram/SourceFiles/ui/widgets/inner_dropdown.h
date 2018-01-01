@@ -33,7 +33,11 @@ class InnerDropdown : public TWidget {
 public:
 	InnerDropdown(QWidget *parent, const style::InnerDropdown &st = st::defaultInnerDropdown);
 
-	void setOwnedWidget(TWidget *widget);
+	template <typename Widget>
+	QPointer<Widget> setOwnedWidget(object_ptr<Widget> widget) {
+		auto result = doSetOwnedWidget(std::move(widget));
+		return QPointer<Widget>(static_cast<Widget*>(result.data()));
+	}
 
 	bool overlaps(const QRect &globalRect) {
 		if (isHidden() || _a_show.animating() || _a_opacity.animating()) return false;
@@ -41,40 +45,46 @@ public:
 		return rect().marginsRemoved(_st.padding).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
 
+	void setAutoHiding(bool autoHiding) {
+		_autoHiding = autoHiding;
+	}
 	void setMaxHeight(int newMaxHeight);
 	void resizeToContent();
 
 	void otherEnter();
 	void otherLeave();
-	void hideFast();
 
-	void setShowStartCallback(base::lambda<void()> &&callback) {
-		_showStartCallback = std_::move(callback);
+	void setShowStartCallback(base::lambda<void()> callback) {
+		_showStartCallback = std::move(callback);
 	}
-	void setHideStartCallback(base::lambda<void()> &&callback) {
-		_hideStartCallback = std_::move(callback);
+	void setHideStartCallback(base::lambda<void()> callback) {
+		_hideStartCallback = std::move(callback);
 	}
-	void setHiddenCallback(base::lambda<void()> &&callback) {
-		_hiddenCallback = std_::move(callback);
+	void setHiddenCallback(base::lambda<void()> callback) {
+		_hiddenCallback = std::move(callback);
 	}
 
 	bool isHiding() const {
 		return _hiding && _a_opacity.animating();
 	}
 
-	void setOrigin(PanelAnimation::Origin origin);
-	void showAnimated(PanelAnimation::Origin origin);
 	enum class HideOption {
 		Default,
 		IgnoreShow,
 	};
+	void showAnimated();
+	void setOrigin(PanelAnimation::Origin origin);
+	void showAnimated(PanelAnimation::Origin origin);
 	void hideAnimated(HideOption option = HideOption::Default);
+	void finishAnimating();
+	void showFast();
+	void hideFast();
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
 	int resizeGetHeight(int newWidth) override;
@@ -90,6 +100,7 @@ private slots:
 	}
 
 private:
+	QPointer<TWidget> doSetOwnedWidget(object_ptr<TWidget> widget);
 	QImage grabForPanelAnimation();
 	void startShowAnimation();
 	void startOpacityAnimation(bool hiding);
@@ -107,9 +118,10 @@ private:
 	const style::InnerDropdown &_st;
 
 	PanelAnimation::Origin _origin = PanelAnimation::Origin::TopLeft;
-	std_::unique_ptr<PanelAnimation> _showAnimation;
+	std::unique_ptr<PanelAnimation> _showAnimation;
 	Animation _a_show;
 
+	bool _autoHiding = true;
 	bool _hiding = false;
 	QPixmap _cache;
 	Animation _a_opacity;
@@ -128,15 +140,18 @@ private:
 
 class InnerDropdown::Container : public TWidget {
 public:
-	Container(QWidget *parent, TWidget *child, const style::InnerDropdown &st);
-	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
+	Container(QWidget *parent, object_ptr<TWidget> child, const style::InnerDropdown &st);
 
 	void resizeToContent();
 
 protected:
 	int resizeGetHeight(int newWidth) override;
+	void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) override;
 
 private:
+	object_ptr<TWidget> _child;
 	const style::InnerDropdown &_st;
 
 };

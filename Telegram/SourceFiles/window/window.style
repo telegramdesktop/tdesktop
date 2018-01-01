@@ -30,7 +30,14 @@ windowDefaultHeight: 600px;
 windowShadow: icon {{ "window_shadow", windowShadowFg }};
 windowShadowShift: 1px;
 
-adaptiveChatWideWidth: 860px;
+columnMinimalWidthLeft: 260px;
+columnMaximalWidthLeft: 540px;
+columnMinimalWidthMain: 380px;
+columnDesiredWidthMain: 512px;
+columnMinimalWidthThird: 292px;
+columnMaximalWidthThird: 392px;
+
+adaptiveChatWideWidth: 880px;
 
 notifyBorder: windowShadowFgFallback;
 notifyBorderWidth: 1px;
@@ -94,20 +101,40 @@ titleUnreadCounterTop: 5px;
 titleUnreadCounterRight: 35px;
 
 mainMenuWidth: 274px;
-mainMenuCoverHeight: 140px;
+mainMenuCoverHeight: 134px;
 mainMenuUserpicLeft: 24px;
-mainMenuUserpicTop: 22px;
-mainMenuUserpicSize: 48px;
+mainMenuUserpicTop: 20px;
+mainMenuUserpic: UserpicButton(defaultUserpicButton) {
+	size: size(48px, 48px);
+	photoSize: 48px;
+}
+mainMenuCloudButton: IconButton {
+	width: 64px;
+	height: 64px;
+
+	icon: icon {
+//		{ "menu_cloud", mainMenuCloudFg },
+	};
+	iconPosition: point(22px, 22px);
+}
+mainMenuCloudSize: 32px;
 mainMenuCoverTextLeft: 30px;
-mainMenuCoverNameTop: 88px;
-mainMenuCoverStatusTop: 106px;
+mainMenuCoverNameTop: 84px;
+mainMenuCoverStatusTop: 102px;
 mainMenuSkip: 13px;
 mainMenu: Menu(defaultMenu) {
 	itemFg: windowBoldFg;
 	itemFgOver: windowBoldFgOver;
 	itemFont: semiboldFont;
-	itemIconPosition: point(28px, 11px);
-	itemPadding: margins(76px, 14px, 28px, 14px);
+	itemIconPosition: point(28px, 10px);
+	itemPadding: margins(76px, 13px, 28px, 13px);
+	itemToggle: Toggle(defaultMenuToggle) {
+		toggledFg: mainMenuCoverBg;
+	}
+	itemToggleOver: Toggle(defaultMenuToggleOver) {
+		toggledFg: mainMenuCoverBg;
+	}
+	itemToggleShift: 11px;
 }
 mainMenuNewGroup: icon {{ "menu_new_group", menuIconFg }};
 mainMenuNewGroupOver: icon {{ "menu_new_group", menuIconFgOver }};
@@ -115,10 +142,12 @@ mainMenuNewChannel: icon {{ "menu_new_channel", menuIconFg }};
 mainMenuNewChannelOver: icon {{ "menu_new_channel", menuIconFgOver }};
 mainMenuContacts: icon {{ "menu_contacts", menuIconFg }};
 mainMenuContactsOver: icon {{ "menu_contacts", menuIconFgOver }};
+mainMenuCalls: icon {{ "menu_calls", menuIconFg }};
+mainMenuCallsOver: icon {{ "menu_calls", menuIconFgOver }};
 mainMenuSettings: icon {{ "menu_settings", menuIconFg }};
 mainMenuSettingsOver: icon {{ "menu_settings", menuIconFgOver }};
-mainMenuHelp: icon {{ "menu_help", menuIconFg }};
-mainMenuHelpOver: icon {{ "menu_help", menuIconFgOver }};
+mainMenuNightMode: icon {{ "menu_night_mode", menuIconFg }};
+mainMenuNightModeOver: icon {{ "menu_night_mode", menuIconFgOver }};
 mainMenuFooterLeft: 30px;
 mainMenuTelegramLabel: FlatLabel(defaultFlatLabel) {
 	align: align(left);
@@ -218,54 +247,18 @@ titleButtonCloseIconActiveOver: icon {
 	{ "title_button_close", titleButtonCloseFgActiveOver, point(5px, 4px) },
 };
 
-// Legacy top bar.
-topBarHeight: 54px;
-topBarMenuPosition: point(-2px, 35px);
-topBarDuration: 200;
-topBarBackward: icon {{ "title_back", menuIconFg }};
-topBarForwardAlpha: 0.6;
-topBarBack: icon {{ "title_back", lightButtonFg }};
-topBarArrowPadding: margins(39px, 8px, 17px, 8px);
-topBarMinPadding: 5px;
-topBarButton: RoundButton(defaultLightButton) {
-	width: -18px;
-	padding: margins(0px, 10px, 12px, 10px);
-}
-topBarClearButton: RoundButton(defaultLightButton) {
-	width: -18px;
-}
-topBarSearch: IconButton {
-	width: 45px;
-	height: topBarHeight;
+themeEditorSampleSize: size(90px, 51px);
+themeEditorMargin: margins(17px, 10px, 17px, 10px);
+themeEditorDescriptionSkip: 10px;
+themeEditorNameFont: font(15px semibold);
+themeEditorCopyNameFont: font(fsize semibold);
 
-	icon: icon {{ "title_search", menuIconFg }};
-	iconOver: icon {{ "title_search", menuIconFgOver }};
-	iconPosition: point(15px, 18px);
-
-	rippleAreaPosition: point(4px, 7px);
-	rippleAreaSize: 40px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
+windowEmojiSuggestionsPopup: PopupMenu(defaultPopupMenu) {
+	menu: Menu(defaultMenu) {
+		itemPadding: margins(48px, 8px, 17px, 7px);
+		widthMax: 512px;
 	}
 }
-topBarMenuToggle: IconButton(topBarSearch) {
-	icon: icon {{ "title_menu_dots", menuIconFg }};
-	iconOver: icon {{ "title_menu_dots", menuIconFgOver }};
-	iconPosition: point(16px, 17px);
-
-	rippleAreaPosition: point(0px, 7px);
-}
-topBarActionSkip: 10px;
-
-PeerAvatarButton {
-	size: pixels;
-	photoSize: pixels;
-}
-topBarInfoButton: PeerAvatarButton {
-	size: topBarHeight;
-	photoSize: 42px;
-}
-topBarSlideDuration: 200;
 
 // Mac specific
 

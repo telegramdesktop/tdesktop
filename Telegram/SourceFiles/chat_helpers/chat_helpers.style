@@ -1,0 +1,269 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+*/
+using "basic.style";
+
+using "boxes/boxes.style";
+using "ui/widgets/widgets.style";
+
+switchPmButton: RoundButton(defaultBoxButton) {
+	width: 320px;
+	height: 34px;
+	textTop: 7px;
+}
+stickersRestrictedLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 200px;
+	align: align(center);
+	textFg: noContactsColor;
+}
+
+stickersTrendingHeader: 45px;
+stickersTrendingSkip: 15px;
+
+stickersTrendingHeaderFont: semiboldFont;
+stickersTrendingHeaderFg: windowFg;
+stickersTrendingHeaderTop: 0px;
+stickersTrendingSubheaderFont: normalFont;
+stickersTrendingSubheaderFg: windowSubTextFg;
+stickersTrendingSubheaderTop: 20px;
+
+stickersTrendingAddTop: 3px;
+stickersTrendingAdd: RoundButton(defaultActiveButton) {
+	width: -16px;
+	height: 26px;
+	textTop: 4px;
+}
+stickersRemove: IconButton(defaultIconButton) {
+	width: 40px;
+	height: 40px;
+
+	icon: icon {{ "stickers_remove", menuIconFg }};
+	iconOver: icon {{ "stickers_remove", menuIconFgOver }};
+
+	rippleAreaSize: 40px;
+	rippleAreaPosition: point(0px, 0px);
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+stickersUndoRemove: RoundButton(defaultLightButton) {
+	width: -16px;
+	height: 26px;
+	textTop: 4px;
+}
+stickersRemoveSkip: 4px;
+stickersReorderIcon: icon {{ "stickers_reorder", menuIconFg }};
+stickersReorderSkip: 13px;
+
+stickersTabs: defaultTabsSlider;
+
+stickerEmojiSkip: 5px;
+
+stickersFeaturedBadgeFont: font(12px bold);
+stickersFeaturedBadgeSize: 15px;
+stickersFeaturedBadgeTextTop: -1px;
+stickersFeaturedBadgePadding: 4px;
+stickersFeaturedBadgeSkip: 4px;
+stickersFeaturedBadgeTop: 9px;
+stickersFeaturedPen: lightButtonFg;
+stickersFeaturedUnreadBg: msgFileInBg;
+stickersFeaturedUnreadSize: 5px;
+stickersFeaturedUnreadSkip: 5px;
+stickersFeaturedUnreadTop: 7px;
+stickersFeaturedInstalled: icon {{ "send_control_save", lightButtonFg }};
+
+stickersMaxHeight: 320px;
+stickersPadding: margins(19px, 13px, 19px, 13px);
+stickersSize: size(64px, 64px);
+stickersScroll: ScrollArea(boxLayerScroll) {
+	deltat: 19px;
+	deltab: 9px;
+}
+stickersReorderPadding: margins(0px, 12px, 0px, 12px);
+stickersReorderFg: windowSubTextFg;
+stickersRowDisabledOpacity: 0.4;
+stickersRowDuration: 200;
+
+stickersSettings: icon {{ "emoji_settings", emojiIconFg }};
+stickersTrending: icon {{ "emoji_trending", emojiIconFg }};
+stickersFaved: icon {{ "emoji_faved", emojiIconFg }};
+
+stickersSettingsUnreadSize: 17px;
+stickersSettingsUnreadPosition: point(4px, 5px);
+
+emojiPanMargins: margins(10px, 10px, 10px, 10px);
+
+emojiTabs: SettingsSlider(defaultTabsSlider) {
+	height: 55px;
+	barTop: 52px;
+	labelTop: 19px;
+}
+emojiScroll: defaultSolidScroll;
+emojiRecent: icon {{ "emoji_recent", emojiIconFg }};
+emojiRecentActive: icon {{ "emoji_recent", emojiIconFgActive }};
+emojiPeople: icon {{ "emoji_people", emojiIconFg }};
+emojiPeopleActive: icon {{ "emoji_people", emojiIconFgActive }};
+emojiNature: icon {{ "emoji_nature", emojiIconFg }};
+emojiNatureActive: icon {{ "emoji_nature", emojiIconFgActive }};
+emojiFood: icon {{ "emoji_food", emojiIconFg }};
+emojiFoodActive: icon {{ "emoji_food", emojiIconFgActive }};
+emojiActivity: icon {{ "emoji_activity", emojiIconFg }};
+emojiActivityActive: icon {{ "emoji_activity", emojiIconFgActive }};
+emojiTravel: icon {{ "emoji_travel", emojiIconFg }};
+emojiTravelActive: icon {{ "emoji_travel", emojiIconFgActive }};
+emojiObjects: icon {{ "emoji_objects", emojiIconFg }};
+emojiObjectsActive: icon {{ "emoji_objects", emojiIconFgActive }};
+emojiSymbols: icon {{ "emoji_symbols", emojiIconFg }};
+emojiSymbolsActive: icon {{ "emoji_symbols", emojiIconFgActive }};
+
+emojiFooterHeight: 46px;
+emojiCategorySkip: 4px;
+emojiCategory: IconButton {
+	width: 42px;
+	height: emojiFooterHeight;
+
+	iconPosition: point(-1px, 9px);
+}
+emojiCategoryRecent: IconButton(emojiCategory) { icon: emojiRecent; }
+emojiCategoryPeople: IconButton(emojiCategory) { icon: emojiPeople; }
+emojiCategoryNature: IconButton(emojiCategory) { icon: emojiNature; }
+emojiCategoryFood: IconButton(emojiCategory) { icon: emojiFood; }
+emojiCategoryActivity: IconButton(emojiCategory) { icon: emojiActivity; }
+emojiCategoryTravel: IconButton(emojiCategory) { icon: emojiTravel; }
+emojiCategoryObjects: IconButton(emojiCategory) { icon: emojiObjects; }
+emojiCategorySymbols: IconButton(emojiCategory) { icon: emojiSymbols; }
+
+emojiPanAnimation: PanelAnimation(defaultPanelAnimation) {
+	fadeBg: emojiPanBg;
+}
+emojiPanPadding: 12px;
+emojiPanWidth: 345px;
+emojiPanMinHeight: 278px;
+emojiPanMaxHeight: 640px;
+emojiPanHeightRatio: 0.75;
+emojiPanShowDuration: 200;
+emojiPanDuration: 200;
+emojiPanHover: windowBgOver;
+emojiPanSlideDuration: 200;
+emojiPanDesiredSize: 45px;
+
+emojiPanHeader: 42px;
+emojiPanHeaderFont: semiboldFont;
+emojiPanHeaderLeft: 22px;
+emojiPanHeaderTop: 12px;
+
+emojiColorsPadding: 5px;
+emojiColorsSep: 1px;
+emojiColorsSepColor: shadowFg;
+
+emojiSwitchSkip: 27px;
+emojiSwitchImgSkip: 21px;
+emojiSwitchColor: windowActiveTextFg;
+emojiSwitchStickers: icon {{ "emoji_switch", emojiSwitchColor }};
+emojiSwitchEmoji: icon {{ "emoji_switch-flip_horizontal", emojiSwitchColor }};
+
+hashtagClose: IconButton {
+	width: 30px;
+	height: 30px;
+
+	icon: smallCloseIcon;
+	iconOver: smallCloseIconOver;
+	iconPosition: point(10px, 10px);
+
+	rippleAreaPosition: point(5px, 5px);
+	rippleAreaSize: 20px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+
+stickerPanWidthMin: 64px;
+stickerPanSize: size(stickerPanWidthMin, stickerPanWidthMin);
+stickerPanPadding: 11px;
+stickerPanDeleteIconBg: icon {{ "emoji_delete_bg", stickerPanDeleteBg }};
+stickerPanDeleteIconFg: icon {{ "emoji_delete", stickerPanDeleteFg }};
+stickerPanDeleteOpacityBg: 0.3;
+stickerPanDeleteOpacityBgOver: 0.5;
+stickerPanDeleteOpacityFg: 0.8;
+stickerPanDeleteOpacityFgOver: 1.;
+stickerPanRemoveSet: hashtagClose;
+stickerIconWidth: 42px;
+stickerIconHeight: emojiFooterHeight;
+stickerIconPadding: 5px;
+stickerIconOpacity: 0.7;
+stickerIconSel: 2px;
+stickerIconSelColor: emojiIconFgActive;
+stickerIconMove: 400;
+stickerPreviewDuration: 150;
+stickerPreviewMin: 0.1;
+
+stickerGroupCategorySize: 28px;
+stickerGroupCategoryAbout: defaultTextStyle;
+stickerGroupCategoryAddMargin: margins(0px, 10px, 0px, 5px);
+stickerGroupCategoryAdd: stickersTrendingAdd;
+
+stickersToastMaxWidth: 340px;
+stickersToastPadding: margins(16px, 13px, 16px, 12px);
+
+inlineBotsScroll: ScrollArea(defaultSolidScroll) {
+	deltat: stickerPanPadding;
+	deltab: stickerPanPadding;
+}
+
+gifsSearchField: contactsSearchField;
+gifsSearchFieldPosition: point(42px, 7px);
+gifsSearchCancel: contactsSearchCancel;
+gifsSearchCancelPosition: point(1px, 1px);
+gifsSearchIcon: boxFieldSearchIcon;
+gifsSearchIconPosition: point(6px, 7px);
+
+emojiSuggestionsDropdown: InnerDropdown(defaultInnerDropdown) {
+	scroll: ScrollArea(defaultSolidScroll) {
+		deltat: 0px;
+		deltab: 0px;
+		round: 1px;
+		width: 8px;
+		deltax: 3px;
+	}
+	scrollMargin: margins(0px, 5px, 0px, 5px);
+	scrollPadding: margins(0px, 3px, 0px, 3px);
+}
+emojiSuggestionsMenu: Menu(defaultMenu) {
+	itemPadding: margins(48px, 8px, 17px, 7px);
+	widthMax: 512px;
+}
+
+mentionHeight: 40px;
+mentionScroll: ScrollArea(defaultScrollArea) {
+	topsh: 0px;
+	bottomsh: 0px;
+}
+mentionPadding: margins(8px, 5px, 8px, 5px);
+mentionTop: 11px;
+mentionFont: linkFont;
+mentionNameFg: windowFg;
+mentionNameFgOver: windowFgOver;
+mentionPhotoSize: msgPhotoSize;
+mentionBg: windowBg;
+mentionBgOver: windowBgOver;
+mentionFg: windowSubTextFg;
+mentionFgOver: windowSubTextFgOver;
+mentionFgActive: windowActiveTextFg;
+mentionFgOverActive: windowActiveTextFg;

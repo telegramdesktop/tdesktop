@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "codegen/style/generator.h"
 
+#include <set>
 #include <memory>
 #include <functional>
 #include <QtCore/QDir>
@@ -106,12 +107,13 @@ char hexFirstChar(char ch) {
 	return hexChar((*reinterpret_cast<uchar*>(&ch)) >> 4);
 }
 
-QString stringToEncodedString(const std::string &str) {
+QString stringToEncodedString(const QString &str) {
 	QString result, lineBreak = "\\\n";
 	result.reserve(str.size() * 8);
 	bool writingHexEscapedCharacters = false, startOnNewLine = false;
 	int lastCutSize = 0;
-	for (uchar ch : str) {
+	auto utf = str.toUtf8();
+	for (auto ch : utf) {
 		if (result.size() - lastCutSize > 80) {
 			startOnNewLine = true;
 			result.append(lineBreak);
@@ -126,7 +128,7 @@ QString stringToEncodedString(const std::string &str) {
 		} else if (ch == '"' || ch == '\\') {
 			writingHexEscapedCharacters = false;
 			result.append('\\').append(ch);
-		} else if (ch < 32 || ch > 127) {
+		} else if (ch < 32 || static_cast<uchar>(ch) > 127) {
 			writingHexEscapedCharacters = true;
 			result.append("\\x").append(hexFirstChar(ch)).append(hexSecondChar(ch));
 		} else {
@@ -138,6 +140,10 @@ QString stringToEncodedString(const std::string &str) {
 		}
 	}
 	return '"' + (startOnNewLine ? lineBreak : QString()) + result + '"';
+}
+
+QString stringToEncodedString(const std::string &str) {
+	return stringToEncodedString(QString::fromStdString(str));
 }
 
 QString stringToBinaryArray(const std::string &str) {
@@ -334,7 +340,7 @@ QString Generator::valueAssignmentCode(structure::Value value) const {
 	case Tag::Int: return QString("%1").arg(value.Int());
 	case Tag::Double: return QString("%1").arg(value.Double());
 	case Tag::Pixels: return pxValueName(value.Int());
-	case Tag::String: return QString("qsl(%1)").arg(stringToEncodedString(value.String()));
+	case Tag::String: return QString("QString::fromUtf8(%1)").arg(stringToEncodedString(value.String()));
 	case Tag::Color: {
 		auto v(value.Color());
 		if (v.red == v.green && v.red == v.blue && v.red == 0 && v.alpha == 255) {
@@ -441,8 +447,15 @@ public:\n\
 \n\
 	QByteArray save() const;\n\
 	bool load(const QByteArray &cache);\n\
-	bool setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a);\n\
-	bool setColor(QLatin1String name, QLatin1String from);\n\
+\n\
+	enum class SetResult {\n\
+		Ok,\n\
+		KeyNotFound,\n\
+		ValueNotFound,\n\
+		Duplicate,\n\
+	};\n\
+	SetResult setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a);\n\
+	SetResult setColor(QLatin1String name, QLatin1String from);\n\
 	void reset() {\n\
 		clear();\n\
 		finalize();\n\
@@ -564,11 +577,19 @@ namespace main_palette {\n\
 \n\
 QByteArray save();\n\
 bool load(const QByteArray &cache);\n\
-bool setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a);\n\
-bool setColor(QLatin1String name, QLatin1String from);\n\
+palette::SetResult setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a);\n\
+palette::SetResult setColor(QLatin1String name, QLatin1String from);\n\
 void apply(const palette &other);\n\
 void reset();\n\
 int indexOfColor(color c);\n\
+\n\
+struct row {\n\
+\tQLatin1String name;\n\
+\tQLatin1String value;\n\
+\tQLatin1String fallback;\n\
+\tQLatin1String description;\n\
+};\n\
+QList<row> data();\n\
 \n\
 } // namespace main_palette\n";
 
@@ -589,10 +610,14 @@ bool Generator::writeStructsForwardDeclarations() {
 	}
 
 	header_->newline();
-	bool result = module_.enumVariables([this](const Variable &value) -> bool {
+	std::set<QString> alreadyDeclaredTypes;
+	bool result = module_.enumVariables([this, &alreadyDeclaredTypes](const Variable &value) -> bool {
 		if (value.value.type().tag == structure::TypeTag::Struct) {
 			if (!module_.findStructInModule(value.value.type().name, module_)) {
-				header_->stream() << "struct " << value.value.type().name.back() << ";\n";
+				if (alreadyDeclaredTypes.find(value.value.type().name.back()) == alreadyDeclaredTypes.end()) {
+					header_->stream() << "struct " << value.value.type().name.back() << ";\n";
+					alreadyDeclaredTypes.emplace(value.value.type().name.back());
+				}
 			}
 		}
 		return true;
@@ -728,8 +753,8 @@ int palette::indexOfColor(style::color c) const {\n\
 }\n\
 \n\
 color palette::colorAtIndex(int index) const {\n\
-	t_assert(_ready);\n\
-	t_assert(index >= 0 && index < kCount);\n\
+	Assert(_ready);\n\
+	Assert(index >= 0 && index < kCount);\n\
 	return _colors[index];\n\
 }\n\
 \n\
@@ -739,23 +764,50 @@ void palette::finalize() {\n\
 \n\
 	compute(0, -1, { 255, 255, 255, 0}); // special color\n";
 
+	QList<structure::FullName> names;
+	module_.enumVariables([this, &names](const Variable &variable) -> bool {
+		names.push_back(variable.name);
+		return true;
+	});
+
+	QString dataRows;
 	int indexInPalette = 1;
 	QByteArray checksumString;
 	checksumString.append("&transparent:{ 255, 255, 255, 0 }");
-	bool result = module_.enumVariables([this, &indexInPalette, &checksumString](const Variable &variable) -> bool {
+	auto result = module_.enumVariables([this, &indexInPalette, &checksumString, &dataRows, &names](const Variable &variable) -> bool {
 		auto name = variable.name.back();
 		auto index = indexInPalette++;
-		paletteIndices_[name] = index;
+		paletteIndices_.emplace(name, index);
 		if (variable.value.type().tag != structure::TypeTag::Color) {
 			return false;
 		}
 		auto color = variable.value.Color();
-		auto fallbackIndex = paletteIndices_.value(colorFallbackName(variable.value), -1);
+		auto fallbackIterator = paletteIndices_.find(colorFallbackName(variable.value));
+		auto fallbackIndex = (fallbackIterator == paletteIndices_.end()) ? -1 : fallbackIterator->second;
 		auto assignment = QString("{ %1, %2, %3, %4 }").arg(color.red).arg(color.green).arg(color.blue).arg(color.alpha);
 		source_->stream() << "\tcompute(" << index << ", " << fallbackIndex << ", " << assignment << ");\n";
 		checksumString.append('&' + name + ':' + assignment);
+
+		auto isCopy = !variable.value.copyOf().isEmpty();
+		auto colorString = paletteColorValue(color);
+		auto fallbackName = QString();
+		if (fallbackIndex > 0) {
+			auto fallbackVariable = module_.findVariableInModule(names[fallbackIndex - 1], module_);
+			if (fallbackVariable && fallbackVariable->value.type().tag == structure::TypeTag::Color) {
+				fallbackName = fallbackVariable->name.back();
+			}
+		}
+		auto value = isCopy ? fallbackName : '#' + colorString;
+		if (value.isEmpty()) {
+			return false;
+		}
+
+		dataRows.append("\tresult.push_back({ qstr(\"" + name + "\"), qstr(\"" + value + "\"), qstr(\"" + (isCopy ? QString() : fallbackName) + "\"), qstr(" + stringToEncodedString(variable.description.toStdString()) + ") });\n");
 		return true;
 	});
+	if (!result) {
+		return false;
+	}
 	auto count = indexInPalette;
 	auto checksum = hashCrc32(checksumString.constData(), checksumString.size());
 
@@ -772,57 +824,132 @@ int getPaletteIndex(QLatin1String name) {\n\
 	auto size = name.size();\n\
 	auto data = name.data();\n";
 
-	int already = 0;
-	QString prefix;
-	QString tabs;
-	for (auto i = paletteIndices_.end(), b = paletteIndices_.begin(); i != b;) {
-		--i;
-		auto name = i.key();
-		auto index = i.value();
-		auto prev = i;
-		auto next = (i == b) ? QString() : (--prev).key();
-		while ((prefix.size() > name.size()) || (!prefix.isEmpty() && prefix.mid(0, already - 1) != name.mid(0, already - 1))) {
-			source_->stream() << "\n" << tabs << "};";
-			prefix.chop(1);
-			tabs.chop(1);
-			--already;
-		}
-		if (!prefix.isEmpty() && prefix[already - 1] != name[already - 1]) {
-			source_->stream() << "\n" << tabs << "case '" << name[already - 1] << "':";
-			prefix[already - 1] = name[already - 1];
-		}
-		while (name.size() > already) {
-			if (name.mid(0, already) != next.mid(0, already)) {
-				break;
-			} else if (next.size() <= already) {
-				source_->stream() << "\n" << tabs << "\tif (size == " << name.size() << ")";
-				break;
+	auto tabs = [](int size) {
+		return QString(size, '\t');
+	};
+
+	enum class UsedCheckType {
+		Switch,
+		If,
+		UpcomingIf,
+	};
+	auto checkTypes = QVector<UsedCheckType>();
+	auto checkLengthHistory = QVector<int>(1, 0);
+	auto chars = QString();
+	auto tabsUsed = 1;
+
+	// Returns true if at least one check was finished.
+	auto finishChecksTillKey = [this, &chars, &checkTypes, &checkLengthHistory, &tabsUsed, tabs](const QString &key) {
+		auto result = false;
+		while (!chars.isEmpty() && key.midRef(0, chars.size()) != chars) {
+			result = true;
+
+			auto wasType = checkTypes.back();
+			chars.resize(chars.size() - 1);
+			checkTypes.pop_back();
+			checkLengthHistory.pop_back();
+			if (wasType == UsedCheckType::Switch || wasType == UsedCheckType::If) {
+				--tabsUsed;
+				if (wasType == UsedCheckType::Switch) {
+					source_->stream() << tabs(tabsUsed) << "break;\n";
+				}
+				if ((!chars.isEmpty() && key.midRef(0, chars.size()) != chars) || key == chars) {
+					source_->stream() << tabs(tabsUsed) << "}\n";
+				}
 			}
-			source_->stream() << "\n" << tabs << "\tif (size > " << already << ") switch (data[" << already << "]) {\n";
-			prefix.append(name[already]);
-			tabs.append('\t');
-			++already;
-			source_->stream() << tabs << "case '" << name[already - 1] << "':";
 		}
-		if (name.size() == already || name.mid(0, already) != next.mid(0, already)) {
-			source_->stream() << " return (size == " << name.size();
-			if (name.size() != already) {
-				source_->stream() << " && ";
+		return result;
+	};
+
+	// Check if we can use "if" for a check on "charIndex" in "it" (otherwise only "switch")
+	auto canUseIfForCheck = [](auto it, auto end, int charIndex) {
+		auto key = it->first;
+		auto i = it;
+		auto keyStart = key.mid(0, charIndex);
+		for (++i; i != end; ++i) {
+			auto nextKey = i->first;
+			if (nextKey.mid(0, charIndex) != keyStart) {
+				return true;
+			} else if (nextKey.size() > charIndex && nextKey[charIndex] != key[charIndex]) {
+				return false;
 			}
-		} else {
-			source_->stream() << " return (";
 		}
-		if (already != name.size()) {
-			source_->stream() << "!memcmp(data + " << already << ", \"" << name.mid(already) << "\", " << (name.size() - already) << ")";
+		return true;
+	};
+
+	auto countMinimalLength = [](auto it, auto end, int charIndex) {
+		auto key = it->first;
+		auto i = it;
+		auto keyStart = key.mid(0, charIndex);
+		auto result = key.size();
+		for (++i; i != end; ++i) {
+			auto nextKey = i->first;
+			if (nextKey.mid(0, charIndex) != keyStart) {
+				break;
+			} else if (nextKey.size() > charIndex && result > nextKey.size()) {
+				result = nextKey.size();
+			}
 		}
-		source_->stream() << ") ? " << index << " : -1;";
+		return result;
+	};
+
+	for (auto i = paletteIndices_.begin(), e = paletteIndices_.end(); i != e; ++i) {
+		auto name = i->first;
+		auto index = i->second;
+
+		auto weContinueOldSwitch = finishChecksTillKey(name);
+		while (chars.size() != name.size()) {
+			auto checking = chars.size();
+			auto partialKey = name.mid(0, checking);
+
+			auto keyChar = name[checking];
+			auto usedIfForCheckCount = 0;
+			auto minimalLengthCheck = countMinimalLength(i, e, checking);
+			for (; checking + usedIfForCheckCount != name.size(); ++usedIfForCheckCount) {
+				if (!canUseIfForCheck(i, e, checking + usedIfForCheckCount)
+					|| countMinimalLength(i, e, checking + usedIfForCheckCount) != minimalLengthCheck) {
+					break;
+				}
+			}
+			auto usedIfForCheck = !weContinueOldSwitch && (usedIfForCheckCount > 0);
+			auto checkLengthCondition = QString();
+			if (weContinueOldSwitch) {
+				weContinueOldSwitch = false;
+			} else {
+				checkLengthCondition = (minimalLengthCheck > checkLengthHistory.back()) ? ("size >= " + QString::number(minimalLengthCheck)) : QString();
+				if (!usedIfForCheck) {
+					source_->stream() << tabs(tabsUsed) << (checkLengthCondition.isEmpty() ? QString() : ("if (" + checkLengthCondition + ") ")) << "switch (data[" << checking << "]) {\n";
+				}
+			}
+			if (usedIfForCheck) {
+				auto conditions = QStringList();
+				if (usedIfForCheckCount > 1) {
+					conditions.push_back("!memcmp(data + " + QString::number(checking) + ", \"" + name.mid(checking, usedIfForCheckCount) + "\", " + QString::number(usedIfForCheckCount) + ")");
+				} else {
+					conditions.push_back("data[" + QString::number(checking) + "] == '" + keyChar + "'");
+				}
+				if (!checkLengthCondition.isEmpty()) {
+					conditions.push_front(checkLengthCondition);
+				}
+				source_->stream() << tabs(tabsUsed) << "if (" << conditions.join(" && ") << ") {\n";
+				checkTypes.push_back(UsedCheckType::If);
+				for (auto i = 1; i != usedIfForCheckCount; ++i) {
+					checkTypes.push_back(UsedCheckType::UpcomingIf);
+					chars.push_back(keyChar);
+					checkLengthHistory.push_back(qMax(minimalLengthCheck, checkLengthHistory.back()));
+					keyChar = name[checking + i];
+				}
+			} else {
+				source_->stream() << tabs(tabsUsed) << "case '" << keyChar << "':\n";
+				checkTypes.push_back(UsedCheckType::Switch);
+			}
+			++tabsUsed;
+			chars.push_back(keyChar);
+			checkLengthHistory.push_back(qMax(minimalLengthCheck, checkLengthHistory.back()));
+		}
+		source_->stream() << tabs(tabsUsed) << "return (size == " << chars.size() << ") ? " << index << " : -1;\n";
 	}
-	while (!prefix.isEmpty()) {
-		source_->stream() << "\n" << tabs << "};";
-		prefix.chop(1);
-		tabs.chop(1);
-		--already;
-	}
+	finishChecksTillKey(QString());
 
 	source_->stream() << "\
 \n\
@@ -854,23 +981,25 @@ bool palette::load(const QByteArray &cache) {\n\
 	return true;\n\
 }\n\
 \n\
-bool palette::setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a) {\n\
-	auto index = getPaletteIndex(name);\n\
-	if (index >= 0) {\n\
-		setData(index, { r, g, b, a });\n\
-		return true;\n\
-	}\n\
-	return false;\n\
+palette::SetResult palette::setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a) {\n\
+	auto nameIndex = getPaletteIndex(name);\n\
+	if (nameIndex < 0) return SetResult::KeyNotFound;\n\
+	auto duplicate = (_status[nameIndex] != Status::Initial);\n\
+\n\
+	setData(nameIndex, { r, g, b, a });\n\
+	return duplicate ? SetResult::Duplicate : SetResult::Ok;\n\
 }\n\
 \n\
-bool palette::setColor(QLatin1String name, QLatin1String from) {\n\
+palette::SetResult palette::setColor(QLatin1String name, QLatin1String from) {\n\
 	auto nameIndex = getPaletteIndex(name);\n\
+	if (nameIndex < 0) return SetResult::KeyNotFound;\n\
+	auto duplicate = (_status[nameIndex] != Status::Initial);\n\
+\n\
 	auto fromIndex = getPaletteIndex(from);\n\
-	if (nameIndex >= 0 && fromIndex >= 0 && _status[fromIndex] == Status::Loaded) {\n\
-		setData(nameIndex, *data(fromIndex));\n\
-		return true;\n\
-	}\n\
-	return false;\n\
+	if (fromIndex < 0 || _status[fromIndex] != Status::Loaded) return SetResult::ValueNotFound;\n\
+\n\
+	setData(nameIndex, *data(fromIndex));\n\
+	return duplicate ? SetResult::Duplicate : SetResult::Ok;\n\
 }\n\
 \n\
 namespace main_palette {\n\
@@ -887,11 +1016,11 @@ bool load(const QByteArray &cache) {\n\
 	return false;\n\
 }\n\
 \n\
-bool setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a) {\n\
+palette::SetResult setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a) {\n\
 	return _palette.setColor(name, r, g, b, a);\n\
 }\n\
 \n\
-bool setColor(QLatin1String name, QLatin1String from) {\n\
+palette::SetResult setColor(QLatin1String name, QLatin1String from) {\n\
 	return _palette.setColor(name, from);\n\
 }\n\
 \n\
@@ -907,6 +1036,14 @@ void reset() {\n\
 \n\
 int indexOfColor(color c) {\n\
 	return _palette.indexOfColor(c);\n\
+}\n\
+\n\
+QList<row> data() {\n\
+	auto result = QList<row>();\n\
+	result.reserve(" << count << ");\n\
+\n\
+" << dataRows << "\n\
+	return result;\n\
 }\n\
 \n\
 } // namespace main_palette\n\
@@ -1001,11 +1138,11 @@ void initPxValues() {\n\
 	if (cRetina()) return;\n\
 \n\
 	switch (cScale()) {\n";
-	for (int i = 1, scalesCount = scales.size(); i < scalesCount; ++i) {
-		source_->stream() << "\tcase " << scaleNames.at(i) << ":\n";
+	for (int i = 1, scalesCount = _scales.size(); i < scalesCount; ++i) {
+		source_->stream() << "\tcase " << _scaleNames.at(i) << ":\n";
 		for (auto it = pxValues_.cbegin(), e = pxValues_.cend(); it != e; ++it) {
 			auto value = it.key();
-			int adjusted = structure::data::pxAdjust(value, scales.at(i));
+			int adjusted = structure::data::pxAdjust(value, _scales.at(i));
 			if (adjusted != value) {
 				source_->stream() << "\t\t" << pxValueName(value) << " = " << adjusted << ";\n";
 			}
@@ -1044,10 +1181,7 @@ QByteArray iconMaskValueSize(int width, int height) {
 	QLatin1String sizeTag("SIZE:");
 	result.append(sizeTag.data(), sizeTag.size());
 	{
-		QBuffer buffer(&result);
-		buffer.open(QIODevice::Append);
-
-		QDataStream stream(&buffer);
+		QDataStream stream(&result, QIODevice::Append);
 		stream.setVersion(QDataStream::Qt_5_1);
 		stream << qint32(width) << qint32(height);
 	}
@@ -1057,9 +1191,11 @@ QByteArray iconMaskValueSize(int width, int height) {
 QByteArray iconMaskValuePng(QString filepath) {
 	QByteArray result;
 
-	auto pathAndModifiers = filepath.split('-');
-	filepath = pathAndModifiers[0];
-	auto modifiers = pathAndModifiers.mid(1);
+	QFileInfo fileInfo(filepath);
+	auto directory = fileInfo.dir();
+	auto nameAndModifiers = fileInfo.fileName().split('-');
+	filepath = directory.filePath(nameAndModifiers[0]);
+	auto modifiers = nameAndModifiers.mid(1);
 
 	QImage png100x(filepath + ".png");
 	QImage png200x(filepath + "@2x.png");
@@ -1206,92 +1342,6 @@ bool Generator::collectUniqueValues() {
 		return true;
 	};
 	return module_.enumVariables(collector);
-}
-
-bool Generator::writeSampleTheme(const QString &filepath) {
-	QByteArray content;
-	QTextStream stream(&content);
-
-	stream << "\
-//\n\
-// This is a sample Telegram Desktop theme file.\n\
-// It was generated from the 'colors.palette' style file.\n\
-//\n\
-// To create a theme with a background image included you should\n\
-// put two files in a .zip archive:\n\
-//\n\
-// First one is the color scheme like the one you're viewing\n\
-// right now, this file should be named 'colors.tdesktop-theme'.\n\
-//\n\
-// Second one should be the background image and it can be named\n\
-// 'background.jpg', 'background.png', 'tiled.jpg' or 'tiled.png'.\n\
-// You should name it 'background' (if you'd like it not to be tiled),\n\
-// or it can be named 'tiled' (if you'd like it to be tiled).\n\
-//\n\
-// After that you need to change the extension of your .zip archive\n\
-// to 'tdesktop-theme', so you'll have:\n\
-//\n\
-// mytheme.tdesktop-theme\n\
-// |-colors.tdesktop-theme\n\
-// |-background.jpg (or tiled.jpg, background.png, tiled.png)\n\
-//\n\n";
-
-	QList<structure::FullName> names;
-	module_.enumVariables([this, &names](const Variable &variable) -> bool {
-		names.push_back(variable.name);
-		return true;
-	});
-	bool result = module_.enumVariables([this, &names, &stream](const Variable &variable) -> bool {
-		auto name = variable.name.back();
-		if (variable.value.type().tag != structure::TypeTag::Color) {
-			return false;
-		}
-		auto color = variable.value.Color();
-		//color.red = uchar(rand() % 256);
-		//color.green = uchar(rand() % 256);
-		//color.blue = uchar(rand() % 256);
-		//auto fallbackIndex = -1;
-		auto fallbackIndex = paletteIndices_.value(colorFallbackName(variable.value), -1);
-		auto colorString = paletteColorValue(color);
-		if (fallbackIndex >= 0) {
-			auto fallbackVariable = module_.findVariableInModule(names[fallbackIndex - 1], module_);
-			if (!fallbackVariable || fallbackVariable->value.type().tag != structure::TypeTag::Color) {
-				return false;
-			}
-			auto fallbackName = fallbackVariable->name.back();
-			auto fallbackColor = fallbackVariable->value.Color();
-			if (colorString == paletteColorValue(fallbackColor)) {
-				stream << name << ": " << fallbackName << ";\n";
-			} else {
-				stream << name << ": #" << colorString << "; // " << fallbackName << ";\n";
-			}
-		} else {
-			stream << name << ": #" << colorString << ";\n";
-		}
-		return true;
-	});
-	if (!result) {
-		return result;
-	}
-
-	stream.flush();
-
-	QFile file(filepath);
-	if (file.open(QIODevice::ReadOnly)) {
-		if (file.readAll() == content) {
-			file.close();
-			return true;
-		}
-		file.close();
-	}
-
-	if (!file.open(QIODevice::WriteOnly)) {
-		return false;
-	}
-	if (file.write(content) != content.size()) {
-		return false;
-	}
-	return true;
 }
 
 } // namespace style

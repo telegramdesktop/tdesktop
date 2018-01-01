@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/effects/send_action_animations.h"
 
 #include "styles/style_widgets.h"
@@ -39,8 +38,8 @@ public:
 	}
 
 	static const MetaData kMeta;
-	static std_::unique_ptr<Impl> create() {
-		return std_::make_unique<TypingAnimation>();
+	static std::unique_ptr<Impl> create() {
+		return std::make_unique<TypingAnimation>();
 	}
 	const MetaData *metaData() const override {
 		return &kMeta;
@@ -84,8 +83,8 @@ public:
 	}
 
 	static const MetaData kMeta;
-	static std_::unique_ptr<Impl> create() {
-		return std_::make_unique<RecordAnimation>();
+	static std::unique_ptr<Impl> create() {
+		return std::make_unique<RecordAnimation>();
 	}
 	const MetaData *metaData() const override {
 		return &kMeta;
@@ -128,8 +127,8 @@ public:
 	}
 
 	static const MetaData kMeta;
-	static std_::unique_ptr<Impl> create() {
-		return std_::make_unique<UploadAnimation>();
+	static std::unique_ptr<Impl> create() {
+		return std::make_unique<UploadAnimation>();
 	}
 	const MetaData *metaData() const override {
 		return &kMeta;
@@ -180,6 +179,7 @@ void CreateImplementationsMap() {
 	Type recordTypes[] = {
 		Type::RecordVideo,
 		Type::RecordVoice,
+		Type::RecordRound,
 	};
 	for_const (auto type, recordTypes) {
 		Implementations->insert(type, &RecordAnimation::kMeta);
@@ -189,6 +189,7 @@ void CreateImplementationsMap() {
 		Type::UploadPhoto,
 		Type::UploadVideo,
 		Type::UploadVoice,
+		Type::UploadRound,
 	};
 	for_const (auto type, uploadTypes) {
 		Implementations->insert(type, &UploadAnimation::kMeta);
@@ -212,7 +213,7 @@ void SendActionAnimation::stop() {
 	_impl.reset();
 }
 
-std_::unique_ptr<SendActionAnimation::Impl> SendActionAnimation::createByType(Type type) {
+std::unique_ptr<SendActionAnimation::Impl> SendActionAnimation::createByType(Type type) {
 	CreateImplementationsMap();
 	return Implementations->value(type, &TypingAnimation::kMeta)->creator();
 }

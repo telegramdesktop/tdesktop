@@ -20,7 +20,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+class HistoryService;
+
 namespace HistoryLayout {
+
+int WideChatWidth();
 
 struct PaintContext {
 	PaintContext(TimeMs ms, const QRect &clip, TextSelection selection)
@@ -35,7 +39,11 @@ struct PaintContext {
 
 class ServiceMessagePainter {
 public:
-	static void paint(Painter &p, const HistoryService *message, const PaintContext &context, int height);
+	static void paint(
+		Painter &p,
+		not_null<const HistoryService*> message,
+		const PaintContext &context,
+		int height);
 
 	static void paintDate(Painter &p, const QDateTime &date, int y, int w);
 	static void paintDate(Painter &p, const QString &dateText, int dateTextWidth, int y, int w);
@@ -52,11 +60,6 @@ void paintEmpty(Painter &p, int width, int height);
 
 void serviceColorsUpdated();
 
-enum class BubbleTail {
-	None,
-	Left,
-	Right,
-};
-void paintBubble(Painter &p, QRect rect, int outerWidth, bool selected, bool outbg, BubbleTail tail);
+void paintBubble(Painter &p, QRect rect, int outerWidth, bool selected, bool outbg, RectPart tailSide);
 
 } // namespace HistoryLayout

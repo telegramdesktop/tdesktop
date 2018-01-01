@@ -20,52 +20,40 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "settings/settings_layer.h"
+#include "ui/wrap/vertical_layout.h"
+
 namespace Settings {
 
 class CoverWidget;
 class BlockWidget;
 
-class InnerWidget : public TWidget, private base::Subscriber {
-	Q_OBJECT
-
+class InnerWidget : public LayerInner, private base::Subscriber {
 public:
 	InnerWidget(QWidget *parent);
 
 	// Count new height for width=newWidth and resize to it.
-	void resizeToWidth(int newWidth, int contentLeft) {
+	void resizeToWidth(int newWidth, int contentLeft) override {
 		_contentLeft = contentLeft;
 		return TWidget::resizeToWidth(newWidth);
 	}
 
-	// Updates the area that is visible inside the scroll container.
-	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
-
-	void showFinished();
-
-private slots:
-	void onBlockHeightUpdated();
-
 protected:
-	// Resizes content and counts natural widget height for the desired width.
 	int resizeGetHeight(int newWidth) override;
+	void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) override;
 
 private:
-	void selfUpdated();
+	void fullRebuild();
 	void refreshBlocks();
 
-	// Returns the new height value.
-	int refreshBlocksPositions(int newWidth);
-
 	object_ptr<CoverWidget> _cover = { nullptr };
-	QList<BlockWidget*> _blocks;
+	object_ptr<Ui::VerticalLayout> _blocks;
 
 	UserData *_self = nullptr;
 
 	int _contentLeft = 0;
-	bool _showFinished = false;
-
-	int _visibleTop = 0;
-	int _visibleBottom = 0;
 
 };
 

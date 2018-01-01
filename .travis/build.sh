@@ -9,33 +9,38 @@ UPSTREAM="$REPO/upstream"
 EXTERNAL="$REPO/external"
 CACHE="$HOME/travisCacheDir"
 
+QT_WAS_BUILT="0"
+
 QT_VERSION=5.6.2
 
 XKB_PATH="$BUILD/libxkbcommon"
-XKB_CACHE_VERSION="2"
+XKB_CACHE_VERSION="3"
 
 QT_PATH="$BUILD/qt"
-QT_CACHE_VERSION="2"
+QT_CACHE_VERSION="3"
 QT_PATCH="$UPSTREAM/Telegram/Patches/qtbase_${QT_VERSION//\./_}.diff"
 
 BREAKPAD_PATH="$BUILD/breakpad"
-BREAKPAD_CACHE_VERSION="2"
+BREAKPAD_CACHE_VERSION="3"
 
 GYP_PATH="$BUILD/gyp"
-GYP_CACHE_VERSION="2"
+GYP_CACHE_VERSION="3"
 GYP_PATCH="$UPSTREAM/Telegram/Patches/gyp.diff"
 
+RANGE_PATH="$BUILD/range-v3"
+RANGE_CACHE_VERSION="3"
+
 VA_PATH="$BUILD/libva"
-VA_CACHE_VERSION="2"
+VA_CACHE_VERSION="3"
 
 VDPAU_PATH="$BUILD/libvdpau"
-VDPAU_CACHE_VERSION="1"
+VDPAU_CACHE_VERSION="3"
 
 FFMPEG_PATH="$BUILD/ffmpeg"
-FFMPEG_CACHE_VERSION="2"
+FFMPEG_CACHE_VERSION="3"
 
 OPENAL_PATH="$BUILD/openal-soft"
-OPENAL_CACHE_VERSION="2"
+OPENAL_CACHE_VERSION="3"
 
 GYP_DEFINES=""
 
@@ -56,6 +61,8 @@ run() {
 
 build() {
   mkdir -p "$EXTERNAL"
+
+  BUILD_VERSION_DATA=$(echo $BUILD_VERSION | cut -d'-' -f 1)
 
   # libxkbcommon
   getXkbCommon
@@ -81,6 +88,17 @@ build() {
   # Patched GYP (supports cmake precompiled headers)
   getGYP
 
+  # Range v3
+  getRange
+
+  # Guideline Support Library
+  getGSL
+
+  if [ "$QT_WAS_BUILT" == "1" ]; then
+    error_msg "Qt was built, please restart the job :("
+    exit 1
+  fi
+
   # Configure the build
   if [[ $BUILD_VERSION == *"disable_autoupdate"* ]]; then
     GYP_DEFINES+=",TDESKTOP_DISABLE_AUTOUPDATE"
@@ -104,6 +122,10 @@ build() {
 
   if [[ $BUILD_VERSION == *"disable_unity_integration"* ]]; then
     GYP_DEFINES+=",TDESKTOP_DISABLE_UNITY_INTEGRATION"
+  fi
+
+  if [[ $BUILD_VERSION == *"disable_gtk_integration"* ]]; then
+    GYP_DEFINES+=",TDESKTOP_DISABLE_GTK_INTEGRATION"
   fi
 
   info_msg "Build defines: ${GYP_DEFINES}"
@@ -162,6 +184,52 @@ buildXkbCommon() {
   sudo ldconfig
 }
 
+getRange() {
+  travisStartFold "Getting range-v3"
+
+  local RANGE_CACHE="$CACHE/range-v3"
+  local RANGE_CACHE_FILE="$RANGE_CACHE/.cache.txt"
+  local RANGE_CACHE_KEY="${RANGE_CACHE_VERSION}"
+  local RANGE_CACHE_OUTDATED="1"
+
+  if [ ! -d "$RANGE_CACHE" ]; then
+    mkdir -p "$RANGE_CACHE"
+  fi
+
+  ln -sf "$RANGE_CACHE" "$RANGE_PATH"
+
+  if [ -f "$RANGE_CACHE_FILE" ]; then
+    local RANGE_CACHE_KEY_FOUND=`tail -n 1 $RANGE_CACHE_FILE`
+    if [ "$RANGE_CACHE_KEY" == "$RANGE_CACHE_KEY_FOUND" ]; then
+      RANGE_CACHE_OUTDATED="0"
+    else
+      info_msg "Cache key '$RANGE_CACHE_KEY_FOUND' does not match '$RANGE_CACHE_KEY', getting range-v3"
+    fi
+  fi
+  if [ "$RANGE_CACHE_OUTDATED" == "1" ]; then
+    buildRange
+    sudo echo $RANGE_CACHE_KEY > "$RANGE_CACHE_FILE"
+  else
+    info_msg "Using cached range-v3"
+  fi
+}
+
+buildRange() {
+  info_msg "Downloading range-v3"
+
+  if [ -d "$EXTERNAL/range-v3" ]; then
+    rm -rf "$EXTERNAL/range-v3"
+  fi
+  cd $RANGE_PATH
+  rm -rf *
+
+  cd "$EXTERNAL"
+  git clone --depth=1 https://github.com/ericniebler/range-v3
+
+  cd "$EXTERNAL/range-v3"
+  cp -r * "$RANGE_PATH/"
+}
+
 getVa() {
   travisStartFold "Getting libva"
 
@@ -202,7 +270,7 @@ buildVa() {
   rm -rf *
 
   cd "$EXTERNAL"
-  git clone git://anongit.freedesktop.org/git/libva
+  git clone https://github.com/01org/libva
 
   cd "$EXTERNAL/libva"
   ./autogen.sh --prefix=$VA_PATH --enable-static
@@ -303,6 +371,8 @@ buildFFmpeg() {
   git clone https://git.ffmpeg.org/ffmpeg.git
 
   cd "$EXTERNAL/ffmpeg"
+  git checkout release/3.4
+
   ./configure \
       --prefix=$FFMPEG_PATH \
       --disable-debug \
@@ -508,6 +578,7 @@ getCustomQt() {
 }
 
 buildCustomQt() {
+  QT_WAS_BUILT="1"
   info_msg "Downloading and building patched qt"
 
   if [ -d "$EXTERNAL/qt${QT_VERSION}" ]; then
@@ -520,8 +591,7 @@ buildCustomQt() {
   git clone git://code.qt.io/qt/qt5.git qt${QT_VERSION}
 
   cd "$EXTERNAL/qt${QT_VERSION}"
-  git checkout "$(echo ${QT_VERSION} | sed -e s/\..$//)"
-  perl init-repository --module-subset=qtbase,qtimageformats
+  perl init-repository --branch --module-subset=qtbase,qtimageformats
   git checkout v${QT_VERSION}
   cd qtbase && git checkout v${QT_VERSION} && cd ..
   cd qtimageformats && git checkout v${QT_VERSION} && cd ..
@@ -530,6 +600,11 @@ buildCustomQt() {
   git apply "$QT_PATCH"
   cd ..
 
+  cd "$EXTERNAL/qt${QT_VERSION}/qtbase/src/plugins/platforminputcontexts"
+  git clone https://github.com/telegramdesktop/fcitx.git
+  git clone https://github.com/telegramdesktop/hime.git
+  cd ../../../..
+
   ./configure -prefix $QT_PATH -release -opensource -confirm-license -qt-zlib \
               -qt-libpng -qt-libjpeg -qt-freetype -qt-harfbuzz -qt-pcre -qt-xcb \
               -qt-xkbcommon-x11 -no-opengl -no-gtkstyle -static \
@@ -537,6 +612,12 @@ buildCustomQt() {
               -dbus-runtime -no-gstreamer -no-mtdev # <- Not sure about these
   make $MAKE_ARGS
   sudo make install
+}
+
+getGSL() {
+  cd "$UPSTREAM"
+  git submodule init
+  git submodule update
 }
 
 getGYP() {
@@ -583,7 +664,7 @@ buildGYP() {
   git clone https://chromium.googlesource.com/external/gyp
 
   cd "$EXTERNAL/gyp"
-  git checkout 702ac58e4772
+  git checkout 702ac58e47
   git apply "$GYP_PATCH"
   cp -r * "$GYP_PATH/"
 }
@@ -593,19 +674,21 @@ buildTelegram() {
 
   cd "$UPSTREAM/Telegram/gyp"
   "$GYP_PATH/gyp" \
-      -Dtravis_defines=${GYP_DEFINES:1} \
+      -Dbuild_defines=${GYP_DEFINES:1} \
       -Dlinux_path_xkbcommon=$XKB_PATH \
       -Dlinux_path_va=$VA_PATH \
       -Dlinux_path_vdpau=$VDPAU_PATH \
       -Dlinux_path_ffmpeg=$FFMPEG_PATH \
       -Dlinux_path_openal=$OPENAL_PATH \
+      -Dlinux_path_range=$RANGE_PATH \
       -Dlinux_path_qt=$QT_PATH \
       -Dlinux_path_breakpad=$BREAKPAD_PATH \
       -Dlinux_path_libexif_lib=/usr/local/lib \
+      -Dlinux_path_opus_include=/usr/include/opus \
       -Dlinux_lib_ssl=-lssl \
       -Dlinux_lib_crypto=-lcrypto \
       -Dlinux_lib_icu=-licuuc\ -licutu\ -licui18n \
-      --depth=. --generator-output=../.. --format=cmake -Goutput_dir=out \
+      --depth=. --generator-output=.. --format=cmake -Goutput_dir=../out \
       Telegram.gyp
   cd "$UPSTREAM/out/Debug"
 
@@ -617,7 +700,7 @@ buildTelegram() {
 check() {
   local filePath="$UPSTREAM/out/Debug/Telegram"
   if test -f "$filePath"; then
-    success_msg "Build successful done! :)"
+    success_msg "Build successfully done! :)"
 
     local size;
     size=$(stat -c %s "$filePath")

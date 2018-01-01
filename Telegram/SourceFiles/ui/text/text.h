@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/click_handler.h"
 #include "ui/text/text_entity.h"
 #include "ui/emoji_config.h"
+#include "base/flags.h"
 
 static const QChar TextCommand(0x0010);
 enum TextCommands {
@@ -83,7 +84,6 @@ typedef QMap<QChar, TextCustomTag> TextCustomTagsMap;
 class ITextBlock;
 class Text {
 public:
-
 	Text(int32 minResizeWidth = QFIXED_MAX);
 	Text(const style::TextStyle &st, const QString &text, const TextParseOptions &options = _defaultOptions, int32 minResizeWidth = QFIXED_MAX, bool richText = false);
 	Text(const Text &other);
@@ -129,11 +129,12 @@ public:
 
 	struct StateRequest {
 		enum class Flag {
-			BreakEverywhere = 0x01,
-			LookupSymbol    = 0x02,
-			LookupLink      = 0x04,
+			BreakEverywhere = (1 << 0),
+			LookupSymbol    = (1 << 1),
+			LookupLink      = (1 << 2),
 		};
-		Q_DECLARE_FLAGS(Flags, Flag);
+		using Flags = base::flags<Flag>;
+		friend inline constexpr auto is_flag_type(Flag) { return true; };
 
 		StateRequest() {
 		}
@@ -147,9 +148,9 @@ public:
 		bool afterSymbol = false;
 		uint16 symbol = 0;
 	};
-	StateResult getState(int x, int y, int width, StateRequest request = StateRequest()) const;
-	StateResult getStateLeft(int x, int y, int width, int outerw, StateRequest request = StateRequest()) const {
-		return getState(rtl() ? (outerw - x - width) : x, y, width, request);
+	StateResult getState(QPoint point, int width, StateRequest request = StateRequest()) const;
+	StateResult getStateLeft(QPoint point, int width, int outerw, StateRequest request = StateRequest()) const {
+		return getState(rtlpoint(point, outerw), width, request);
 	}
 	struct StateRequestElided : public StateRequest {
 		StateRequestElided() {
@@ -159,12 +160,12 @@ public:
 		int lines = 1;
 		int removeFromEnd = 0;
     };
-	StateResult getStateElided(int x, int y, int width, StateRequestElided request = StateRequestElided()) const;
-	StateResult getStateElidedLeft(int x, int y, int width, int outerw, StateRequestElided request = StateRequestElided()) const {
-		return getStateElided(rtl() ? (outerw - x - width) : x, y, width, request);
+	StateResult getStateElided(QPoint point, int width, StateRequestElided request = StateRequestElided()) const;
+	StateResult getStateElidedLeft(QPoint point, int width, int outerw, StateRequestElided request = StateRequestElided()) const {
+		return getStateElided(rtlpoint(point, outerw), width, request);
 	}
 
-	TextSelection adjustSelection(TextSelection selection, TextSelectType selectType) const;
+	[[nodiscard]] TextSelection adjustSelection(TextSelection selection, TextSelectType selectType) const;
 	bool isFullSelection(TextSelection selection) const {
 		return (selection.from == 0) && (selection.to >= _text.size());
 	}
@@ -200,11 +201,14 @@ public:
 	}
 
 	void clear();
-	~Text() {
-		clear();
-	}
+	~Text();
 
 private:
+	using TextBlocks = std::vector<std::unique_ptr<ITextBlock>>;
+	using TextLinks = QVector<ClickHandlerPtr>;
+
+	uint16 countBlockEnd(const TextBlocks::const_iterator &i, const TextBlocks::const_iterator &e) const;
+	uint16 countBlockLength(const Text::TextBlocks::const_iterator &i, const Text::TextBlocks::const_iterator &e) const;
 
 	// Template method for originalText(), originalTextWithEntities().
 	template <typename AppendPartCallback, typename ClickHandlerStartCallback, typename ClickHandlerFinishCallback, typename FlagsChangeCallback>
@@ -229,10 +233,7 @@ private:
 	QString _text;
 	const style::TextStyle *_st = nullptr;
 
-	typedef QVector<ITextBlock*> TextBlocks;
 	TextBlocks _blocks;
-
-	typedef QVector<ClickHandlerPtr> TextLinks;
 	TextLinks _links;
 
 	Qt::LayoutDirection _startDir = Qt::LayoutDirectionAuto;
@@ -244,23 +245,18 @@ private:
 inline TextSelection snapSelection(int from, int to) {
 	return { static_cast<uint16>(snap(from, 0, 0xFFFF)), static_cast<uint16>(snap(to, 0, 0xFFFF)) };
 }
+inline TextSelection shiftSelection(TextSelection selection, uint16 byLength) {
+	return snapSelection(int(selection.from) + byLength, int(selection.to) + byLength);
+}
+inline TextSelection unshiftSelection(TextSelection selection, uint16 byLength) {
+	return snapSelection(int(selection.from) - int(byLength), int(selection.to) - int(byLength));
+}
 inline TextSelection shiftSelection(TextSelection selection, const Text &byText) {
-	int len = byText.length();
-	return snapSelection(int(selection.from) + len, int(selection.to) + len);
+	return shiftSelection(selection, byText.length());
 }
 inline TextSelection unshiftSelection(TextSelection selection, const Text &byText) {
-	int len = byText.length();
-	return snapSelection(int(selection.from) - len, int(selection.to) - len);
+	return unshiftSelection(selection, byText.length());
 }
-
-void initLinkSets();
-const QSet<int32> &validProtocols();
-const QSet<int32> &validTopDomains();
-const QRegularExpression &reDomain();
-const QRegularExpression &reMailName();
-const QRegularExpression &reMailStart();
-const QRegularExpression &reHashtag();
-const QRegularExpression &reBotCommand();
 
 // textcmd
 QString textcmdSkipBlock(ushort w, ushort h);
@@ -279,9 +275,9 @@ inline bool chIsSpace(QChar ch, bool rich = false) {
 inline bool chIsDiac(QChar ch) { // diac and variation selectors
 	return (ch.category() == QChar::Mark_NonSpacing) || (ch == 1652) || (ch >= 64606 && ch <= 64611);
 }
-inline bool chIsBad(QChar ch) {
-	return (ch == 0) || (ch >= 8232 && ch < 8237) || (ch >= 65024 && ch < 65040 && ch != 65039) || (ch >= 127 && ch < 160 && ch != 156) || (cPlatform() == dbipMac && ch >= 0x0B00 && ch <= 0x0B7F && chIsDiac(ch) && cIsElCapitan()); // tmp hack see https://bugreports.qt.io/browse/QTBUG-48910
-}
+
+bool chIsBad(QChar ch);
+
 inline bool chIsTrimmed(QChar ch, bool rich = false) {
 	return (!rich || ch != TextCommand) && (chIsSpace(ch) || chIsBad(ch));
 }

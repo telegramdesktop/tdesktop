@@ -18,13 +18,14 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "history/history_service_layout.h"
 
+#include "history/history_service.h"
+#include "history/history_media.h"
 #include "data/data_abstract_structure.h"
 #include "styles/style_history.h"
 #include "mainwidget.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 
 namespace HistoryLayout {
 namespace {
@@ -104,7 +105,7 @@ QPixmap circleCorner(int corner) {
 		auto part = QRect(xoffset, yoffset, size, size);
 		auto result = style::colorizeImage(serviceMessageStyle->circle[maskType], st::msgServiceBg, part);
 		result.setDevicePixelRatio(cRetinaFactor());
-		serviceMessageStyle->corners[corner] = App::pixmapFromImageInPlace(std_::move(result));
+		serviceMessageStyle->corners[corner] = App::pixmapFromImageInPlace(std::move(result));
 	}
 	return serviceMessageStyle->corners[corner];
 }
@@ -168,7 +169,7 @@ void paintPreparedDate(Painter &p, const QString &dateText, int dateTextWidth, i
 	int left = st::msgServiceMargin.left();
 	int maxwidth = w;
 	if (Adaptive::ChatWide()) {
-		maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
+		maxwidth = qMin(maxwidth, WideChatWidth());
 	}
 	w = maxwidth - st::msgServiceMargin.left() - st::msgServiceMargin.left();
 
@@ -183,23 +184,32 @@ void paintPreparedDate(Painter &p, const QString &dateText, int dateTextWidth, i
 
 } // namepsace
 
-void ServiceMessagePainter::paint(Painter &p, const HistoryService *message, const PaintContext &context, int height) {
-	int left = 0, width = 0;
-	message->countPositionAndSize(left, width);
-	if (width < 1) return;
+int WideChatWidth() {
+	return st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left();
+}
 
-	auto fullAnimMs = App::main() ? App::main()->animActiveTimeStart(message) : 0LL;
+void ServiceMessagePainter::paint(
+		Painter &p,
+		not_null<const HistoryService*> message,
+		const PaintContext &context,
+		int height) {
+	auto g = message->countGeometry();
+	if (g.width() < 1) return;
+
+	auto fullAnimMs = App::main() ? App::main()->highlightStartTime(message) : 0LL;
 	if (fullAnimMs > 0 && fullAnimMs <= context.ms) {
-		int animms = context.ms - fullAnimMs;
-		if (animms > st::activeFadeInDuration + st::activeFadeOutDuration) {
-			App::main()->stopAnimActive();
-		} else {
-			int skiph = st::msgServiceMargin.top() - st::msgServiceMargin.bottom();
+		auto animms = context.ms - fullAnimMs;
+		if (animms < st::activeFadeInDuration + st::activeFadeOutDuration) {
+			auto top = st::msgServiceMargin.top();
+			auto bottom = st::msgServiceMargin.bottom();
+			auto fill = qMin(top, bottom);
+			auto skiptop = top - fill;
+			auto fillheight = fill + height + fill;
 
-			float64 dt = (animms > st::activeFadeInDuration) ? (1 - (animms - st::activeFadeInDuration) / float64(st::activeFadeOutDuration)) : (animms / float64(st::activeFadeInDuration));
-			float64 o = p.opacity();
+			auto dt = (animms > st::activeFadeInDuration) ? (1. - (animms - st::activeFadeInDuration) / float64(st::activeFadeOutDuration)) : (animms / float64(st::activeFadeInDuration));
+			auto o = p.opacity();
 			p.setOpacity(o * dt);
-			p.fillRect(0, skiph, message->history()->width, message->height() - skiph, st::defaultTextPalette.selectOverlay);
+			p.fillRect(0, skiptop, message->history()->width, fillheight, st::defaultTextPalette.selectOverlay);
 			p.setOpacity(o);
 		}
 	}
@@ -208,20 +218,15 @@ void ServiceMessagePainter::paint(Painter &p, const HistoryService *message, con
 
 	if (auto media = message->getMedia()) {
 		height -= st::msgServiceMargin.top() + media->height();
-		int32 left = st::msgServiceMargin.left() + (width - media->maxWidth()) / 2, top = st::msgServiceMargin.top() + height + st::msgServiceMargin.top();
+		auto left = st::msgServiceMargin.left() + (g.width() - media->maxWidth()) / 2, top = st::msgServiceMargin.top() + height + st::msgServiceMargin.top();
 		p.translate(left, top);
-		media->draw(p, context.clip.translated(-left, -top), message->toMediaSelection(context.selection), context.ms);
+		media->draw(p, context.clip.translated(-left, -top), message->skipTextSelection(context.selection), context.ms);
 		p.translate(-left, -top);
 	}
 
-	QRect trect(QRect(left, st::msgServiceMargin.top(), width, height).marginsAdded(-st::msgServicePadding));
+	auto trect = QRect(g.left(), st::msgServiceMargin.top(), g.width(), height).marginsAdded(-st::msgServicePadding);
 
-	paintComplexBubble(p, left, width, message->_text, trect);
-
-	if (width > message->maxWidth()) {
-		left += (width - message->maxWidth()) / 2;
-		width = message->maxWidth();
-	}
+	paintComplexBubble(p, g.left(), g.width(), message->_text, trect);
 
 	p.setBrush(Qt::NoBrush);
 	p.setPen(st::msgServiceFg);
@@ -344,25 +349,25 @@ void serviceColorsUpdated() {
 	}
 }
 
-void paintBubble(Painter &p, QRect rect, int outerWidth, bool selected, bool outbg, BubbleTail tail) {
+void paintBubble(Painter &p, QRect rect, int outerWidth, bool selected, bool outbg, RectPart tailSide) {
 	auto &bg = selected ? (outbg ? st::msgOutBgSelected : st::msgInBgSelected) : (outbg ? st::msgOutBg : st::msgInBg);
 	auto &sh = selected ? (outbg ? st::msgOutShadowSelected : st::msgInShadowSelected) : (outbg ? st::msgOutShadow : st::msgInShadow);
 	auto cors = selected ? (outbg ? MessageOutSelectedCorners : MessageInSelectedCorners) : (outbg ? MessageOutCorners : MessageInCorners);
-	auto parts = App::RectPart::TopFull | App::RectPart::NoTopBottom | App::RectPart::Bottom;
-	if (tail == BubbleTail::Right) {
-		parts |= App::RectPart::BottomLeft;
+	auto parts = RectPart::FullTop | RectPart::NoTopBottom | RectPart::Bottom;
+	if (tailSide == RectPart::Right) {
+		parts |= RectPart::BottomLeft;
 		p.fillRect(rect.x() + rect.width() - st::historyMessageRadius, rect.y() + rect.height() - st::historyMessageRadius, st::historyMessageRadius, st::historyMessageRadius, bg);
 		auto &tail = selected ? st::historyBubbleTailOutRightSelected : st::historyBubbleTailOutRight;
 		tail.paint(p, rect.x() + rect.width(), rect.y() + rect.height() - tail.height(), outerWidth);
 		p.fillRect(rect.x() + rect.width() - st::historyMessageRadius, rect.y() + rect.height(), st::historyMessageRadius + tail.width(), st::msgShadow, sh);
-	} else if (tail == BubbleTail::Left) {
-		parts |= App::RectPart::BottomRight;
+	} else if (tailSide == RectPart::Left) {
+		parts |= RectPart::BottomRight;
 		p.fillRect(rect.x(), rect.y() + rect.height() - st::historyMessageRadius, st::historyMessageRadius, st::historyMessageRadius, bg);
 		auto &tail = selected ? (outbg ? st::historyBubbleTailOutLeftSelected : st::historyBubbleTailInLeftSelected) : (outbg ? st::historyBubbleTailOutLeft : st::historyBubbleTailInLeft);
 		tail.paint(p, rect.x() - tail.width(), rect.y() + rect.height() - tail.height(), outerWidth);
 		p.fillRect(rect.x() - tail.width(), rect.y() + rect.height(), st::historyMessageRadius + tail.width(), st::msgShadow, sh);
 	} else {
-		parts |= App::RectPart::BottomFull;
+		parts |= RectPart::FullBottom;
 	}
 	App::roundRect(p, rect, bg, cors, &sh, parts);
 }

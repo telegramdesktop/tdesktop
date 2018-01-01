@@ -18,22 +18,22 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "history/history_drag_area.h"
 
-#include "styles/style_stickers.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_boxes.h"
-#include "boxes/confirmbox.h"
-#include "boxes/stickersetbox.h"
+#include "boxes/confirm_box.h"
+#include "boxes/sticker_set_box.h"
 #include "inline_bots/inline_bot_result.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "dialogs/dialogs_layout.h"
-#include "historywidget.h"
-#include "localstorage.h"
-#include "lang.h"
+#include "history/history_widget.h"
+#include "storage/localstorage.h"
+#include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
+#include "ui/widgets/shadow.h"
 
 DragArea::DragArea(QWidget *parent) : TWidget(parent) {
 	setMouseTracking(true);
@@ -143,7 +143,9 @@ void DragArea::hideStart() {
 		return;
 	}
 	if (_cache.isNull()) {
-		_cache = myGrab(this, innerRect().marginsAdded(st::boxRoundShadow.extend));
+		_cache = Ui::GrabWidget(
+			this,
+			innerRect().marginsAdded(st::boxRoundShadow.extend));
 	}
 	_hiding = true;
 	setIn(false);
@@ -162,7 +164,9 @@ void DragArea::showStart() {
 	}
 	_hiding = false;
 	if (_cache.isNull()) {
-		_cache = myGrab(this, innerRect().marginsAdded(st::boxRoundShadow.extend));
+		_cache = Ui::GrabWidget(
+			this,
+			innerRect().marginsAdded(st::boxRoundShadow.extend));
 	}
 	show();
 	_a_opacity.start([this] { opacityAnimationCallback(); }, 0., 1., st::boxDuration);

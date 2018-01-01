@@ -18,27 +18,27 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "window/player_wrap_widget.h"
 
 #include "ui/widgets/shadow.h"
 
 namespace Window {
 
-PlayerWrapWidget::PlayerWrapWidget(QWidget *parent, base::lambda<void()> &&updateCallback) : Parent(parent
-	, object_ptr<Media::Player::Widget>(parent)
-	, style::margins(0, 0, 0, 0)
-	, std_::move(updateCallback)) {
+PlayerWrapWidget::PlayerWrapWidget(QWidget *parent)
+: Parent(parent, object_ptr<Media::Player::Widget>(parent)) {
+	sizeValue(
+	) | rpl::start_with_next([this](const QSize &size) {
+		updateShadowGeometry(size);
+	}, lifetime());
 }
 
-void PlayerWrapWidget::resizeEvent(QResizeEvent *e) {
-	updateShadowGeometry();
-	Parent::resizeEvent(e);
-}
-
-void PlayerWrapWidget::updateShadowGeometry() {
+void PlayerWrapWidget::updateShadowGeometry(const QSize &size) {
 	auto skip = Adaptive::OneColumn() ? 0 : st::lineWidth;
-	entity()->setShadowGeometryToLeft(skip, height() - st::lineWidth, width() - skip, st::lineWidth);
+	entity()->setShadowGeometryToLeft(
+		skip,
+		size.height() - st::lineWidth,
+		size.width() - skip,
+		st::lineWidth);
 }
 
 } // namespace Window

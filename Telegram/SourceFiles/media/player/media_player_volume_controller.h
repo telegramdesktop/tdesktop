@@ -38,7 +38,7 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	void setVolume(float64 volume, bool animated = true);
+	void setVolume(float64 volume);
 	void applyVolumeChange(float64 volume);
 
 	object_ptr<Ui::MediaSlider> _slider;
@@ -58,8 +58,8 @@ public:
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 
 	bool eventFilter(QObject *obj, QEvent *e) override;
 

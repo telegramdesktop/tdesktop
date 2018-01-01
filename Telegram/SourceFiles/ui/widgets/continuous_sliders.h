@@ -38,7 +38,7 @@ public:
 	}
 
 	float64 value() const;
-	void setValue(float64 value, bool animated);
+	void setValue(float64 value);
 	void setFadeOpacity(float64 opacity);
 	void setDisabled(bool disabled);
 	bool isDisabled() const {
@@ -47,10 +47,10 @@ public:
 
 	using Callback = base::lambda<void(float64)>;
 	void setChangeProgressCallback(Callback &&callback) {
-		_changeProgressCallback = std_::move(callback);
+		_changeProgressCallback = std::move(callback);
 	}
 	void setChangeFinishedCallback(Callback &&callback) {
-		_changeFinishedCallback = std_::move(callback);
+		_changeFinishedCallback = std::move(callback);
 	}
 	bool isChanging() const {
 		return _mouseDown;
@@ -63,15 +63,14 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void wheelEvent(QWheelEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 
 	float64 fadeOpacity() const {
 		return _fadeOpacity;
 	}
-	float64 getCurrentValue(TimeMs ms) {
-		_a_value.step(ms);
-		return _mouseDown ? _downValue : a_value.current();
+	float64 getCurrentValue() {
+		return _mouseDown ? _downValue : _value;
 	}
 	float64 getCurrentOverFactor(TimeMs ms) {
 		return _disabled ? 0. : _a_over.current(ms, _over ? 1. : 0.);
@@ -91,7 +90,6 @@ private:
 		return _byWheelFinished != nullptr;
 	}
 
-	void step_value(float64 ms, bool timer);
 	void setOver(bool over);
 	float64 computeValue(const QPoint &pos) const;
 	void updateDownValueFromPos(const QPoint &pos);
@@ -99,7 +97,7 @@ private:
 	Direction _direction = Direction::Horizontal;
 	bool _disabled = false;
 
-	std_::unique_ptr<SingleTimer> _byWheelFinished;
+	std::unique_ptr<SingleTimer> _byWheelFinished;
 
 	Callback _changeProgressCallback;
 	Callback _changeFinishedCallback;
@@ -107,10 +105,7 @@ private:
 	bool _over = false;
 	Animation _a_over;
 
-	// This can animate for a very long time (like in music playing),
-	// so it should be a BasicAnimation, not an Animation.
-	anim::value a_value;
-	BasicAnimation _a_value;
+	float64 _value = 0.;
 
 	bool _mouseDown = false;
 	float64 _downValue = 0.;

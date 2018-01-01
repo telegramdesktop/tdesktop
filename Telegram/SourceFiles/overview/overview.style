@@ -22,6 +22,7 @@ using "basic.style";
 using "history/history.style";
 using "ui/widgets/widgets.style";
 using "media/view/mediaview.style";
+using "boxes/boxes.style";
 
 OverviewFileLayout {
 	maxWidth: pixels;
@@ -53,33 +54,39 @@ overviewLeftMax: 42px;
 overviewCheckPressedSize: 0.8;
 overviewCheck: RoundCheckbox(defaultRoundCheckbox) {
 	bgInactive: overviewCheckBg;
+	bgActive: overviewCheckBgActive;
+	border: overviewCheckBorder;
 	size: 29px;
 	sizeSmall: 0.3;
 	check: icon {{ "overview_photo_check", overviewCheckFgActive, point(4px, 8px) }};
 }
+overviewSmallCheck: RoundCheckbox(contactsPhotoCheck) {
+	bgInactive: overviewCheckBg;
+	bgActive: overviewCheckBgActive;
+	border: overviewCheckBorder;
+}
 overviewCheckSkip: 5px;
 
-overviewPhotoSkip: 10px;
 overviewPhotoBg: windowBgOver;
-overviewPhotoMinSize: minPhotoSize;
+overviewPhotoMinSize: 90px;
 overviewVideoBg: imageBg;
 
 overviewFileThumbBg: imageBg;
-overviewFileChecked: windowBgActive;
+overviewFileChecked: overviewCheckBgActive;
 overviewFileCheck: overviewCheckBg;
 overviewFileExtPadding: 5px;
 overviewFileExtTop: 24px;
 overviewFileExtFg: windowFgActive;
 overviewFileExtFont: font(18px semibold);
 
-overviewSongPause: icon {{ "playlist_pause", msgInBg }};
-overviewSongPauseSelected: icon {{ "playlist_pause", msgInBgSelected }};
-overviewSongPlay: icon {{ "playlist_play", msgInBg }};
-overviewSongPlaySelected: icon {{ "playlist_play", msgInBgSelected }};
-overviewSongCancel: icon {{ "playlist_cancel", msgInBg }};
-overviewSongCancelSelected: icon {{ "playlist_cancel", msgInBgSelected }};
-overviewSongDownload: icon {{ "playlist_download", msgInBg }};
-overviewSongDownloadSelected: icon {{ "playlist_download", msgInBgSelected }};
+overviewSongPause: icon {{ "playlist_pause", historyFileInIconFg }};
+overviewSongPauseSelected: icon {{ "playlist_pause", historyFileInIconFgSelected }};
+overviewSongPlay: icon {{ "playlist_play", historyFileInIconFg }};
+overviewSongPlaySelected: icon {{ "playlist_play", historyFileInIconFgSelected }};
+overviewSongCancel: icon {{ "playlist_cancel", historyFileInIconFg }};
+overviewSongCancelSelected: icon {{ "playlist_cancel", historyFileInIconFgSelected }};
+overviewSongDownload: icon {{ "playlist_download", historyFileInIconFg }};
+overviewSongDownloadSelected: icon {{ "playlist_download", historyFileInIconFgSelected }};
 overviewFileLayout: OverviewFileLayout {
 	maxWidth: 520px;
 	songPadding: margins(17px, 7px, 10px, 6px);
@@ -124,19 +131,9 @@ linksDateColor: windowSubTextFg;
 linksDateMargin: margins(0px, 15px, 0px, 2px);
 linksPhotoSize: 46px;
 linksPhotoPadding: 12px;
-overviewLinksCheck: icon {
-	{ "overview_links_check_bg", overviewCheckBg },
-	{ "overview_links_check", overviewCheckFg, point(4px, 5px) },
-};
-overviewLinksChecked: icon {
-	{ "overview_links_check_bg", windowBgActive },
-	{ "overview_links_check", overviewCheckFgActive, point(4px, 5px) },
-};
 
 overviewFilter: FlatInput(defaultFlatInput) {
 	font: font(fsize);
-	phColor: placeholderFg;
-	phFocusColor: placeholderFgActive;
 	icon: fieldSearchIcon;
 
 	width: 240px;

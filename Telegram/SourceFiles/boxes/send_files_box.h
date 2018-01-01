@@ -20,31 +20,47 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "boxes/abstractbox.h"
-#include "localimageloader.h"
+#include <rpl/variable.h>
+#include "boxes/abstract_box.h"
+#include "storage/localimageloader.h"
+#include "storage/storage_media_prepare.h"
 
 namespace Ui {
-class Checkbox;
+template <typename Enum>
+class Radioenum;
+template <typename Enum>
+class RadioenumGroup;
 class RoundButton;
 class InputArea;
+struct GroupMediaLayout;
 } // namespace Ui
 
+enum class SendFilesWay {
+	Album,
+	Photos,
+	Files,
+};
+
 class SendFilesBox : public BoxContent {
-	Q_OBJECT
-
 public:
-	SendFilesBox(QWidget*, const QString &filepath, QImage image, CompressConfirm compressed, bool animated = false);
-	SendFilesBox(QWidget*, const QStringList &files, CompressConfirm compressed);
-	SendFilesBox(QWidget*, const QString &phone, const QString &firstname, const QString &lastname);
+	SendFilesBox(
+		QWidget*,
+		Storage::PreparedList &&list,
+		CompressConfirm compressed);
 
-	void setConfirmedCallback(base::lambda<void(const QStringList &files, bool compressed, const QString &caption, bool ctrlShiftEnter)> &&callback) {
-		_confirmedCallback = std_::move(callback);
+	void setConfirmedCallback(
+		base::lambda<void(
+			Storage::PreparedList &&list,
+			SendFilesWay way,
+			const QString &caption,
+			bool ctrlShiftEnter)> callback) {
+		_confirmedCallback = std::move(callback);
 	}
-	void setCancelledCallback(base::lambda<void()> &&callback) {
-		_cancelledCallback = std_::move(callback);
+	void setCancelledCallback(base::lambda<void()> callback) {
+		_cancelledCallback = std::move(callback);
 	}
 
-	void closeHook() override;
+	~SendFilesBox();
 
 protected:
 	void prepare() override;
@@ -54,102 +70,64 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-private slots:
-	void onCompressedChange();
-	void onSend(bool ctrlShiftEnter = false);
-	void onCaptionResized();
-	void onClose() {
-		closeBox();
-	}
-
 private:
-	void updateTitleText();
+	class AlbumPreview;
+
+	void initSendWay();
+	void initPreview(rpl::producer<int> desiredPreviewHeight);
+
+	void setupControls();
+	void setupSendWayControls();
+	void setupCaption();
+	void setupShadows(
+		not_null<Ui::ScrollArea*> wrap,
+		not_null<AlbumPreview*> content);
+
+	void refreshAlbumMediaCount();
+	void preparePreview();
+	void prepareSingleFilePreview();
+	void prepareAlbumPreview();
+	void applyAlbumOrder();
+
+	void send(bool ctrlShiftEnter = false);
+	void captionResized();
+
+	void setupTitleText();
 	void updateBoxSize();
 	void updateControlsGeometry();
-	QString getSendButtonText() const;
+
+	bool canAddFiles(not_null<const QMimeData*> data) const;
+	bool addFiles(not_null<const QMimeData*> data);
 
 	QString _titleText;
-	QStringList _files;
-	const QImage _image;
+	int _titleHeight = 0;
 
+	Storage::PreparedList _list;
+
+	CompressConfirm _compressConfirmInitial = CompressConfirm::None;
 	CompressConfirm _compressConfirm = CompressConfirm::None;
-	bool _animated = false;
 
-	QPixmap _preview;
-	int _previewLeft = 0;
-	int _previewWidth = 0;
-	int _previewHeight = 0;
-
-	QPixmap _fileThumb;
-	Text _nameText;
-	bool _fileIsImage = false;
-	QString _statusText;
-	int _statusWidth = 0;
-
-	QString _contactPhone;
-	QString _contactFirstName;
-	QString _contactLastName;
-	EmptyUserpic _contactPhotoEmpty;
-
-	base::lambda<void(const QStringList &files, bool compressed, const QString &caption, bool ctrlShiftEnter)> _confirmedCallback;
+	base::lambda<void(
+		Storage::PreparedList &&list,
+		SendFilesWay way,
+		const QString &caption,
+		bool ctrlShiftEnter)> _confirmedCallback;
 	base::lambda<void()> _cancelledCallback;
 	bool _confirmed = false;
 
 	object_ptr<Ui::InputArea> _caption = { nullptr };
-	object_ptr<Ui::Checkbox> _compressed = { nullptr };
+	object_ptr<Ui::Radioenum<SendFilesWay>> _sendAlbum = { nullptr };
+	object_ptr<Ui::Radioenum<SendFilesWay>> _sendPhotos = { nullptr };
+	object_ptr<Ui::Radioenum<SendFilesWay>> _sendFiles = { nullptr };
+	std::shared_ptr<Ui::RadioenumGroup<SendFilesWay>> _sendWay;
+
+	rpl::variable<int> _footerHeight = 0;
+
+	QWidget *_preview = nullptr;
+	AlbumPreview *_albumPreview = nullptr;
+	int _albumVideosCount = 0;
+	int _albumPhotosCount = 0;
 
 	QPointer<Ui::RoundButton> _send;
-
-};
-
-class EditCaptionBox : public BoxContent, public RPCSender {
-	Q_OBJECT
-
-public:
-	EditCaptionBox(QWidget*, HistoryItem *msg);
-	static bool canEdit(HistoryItem *message);
-
-public slots:
-	void onCaptionResized();
-	void onSave(bool ctrlShiftEnter = false);
-	void onClose() {
-		closeBox();
-	}
-
-protected:
-	void prepare() override;
-	void setInnerFocus() override;
-
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-private:
-	void updateBoxSize();
-
-	void saveDone(const MTPUpdates &updates);
-	bool saveFail(const RPCError &error);
-
-	FullMsgId _msgId;
-	bool _animated = false;
-	bool _photo = false;
-	bool _doc = false;
-
-	QPixmap _thumb;
-
-	object_ptr<Ui::InputArea> _field = { nullptr };
-
-	int _thumbx = 0;
-	int _thumby = 0;
-	int _thumbw = 0;
-	int _thumbh = 0;
-	Text _name;
-	QString _status;
-	int _statusw = 0;
-	bool _isImage = false;
-
-	bool _previewCancelled = false;
-	mtpRequestId _saveRequestId = 0;
-
-	QString _error;
 
 };

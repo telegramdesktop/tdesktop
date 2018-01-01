@@ -18,8 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
-
 #include "mtproto/connection_tcp.h"
 
 #include <openssl/aes.h>
@@ -55,7 +53,7 @@ AbstractTCPConnection::~AbstractTCPConnection() {
 void AbstractTCPConnection::socketRead() {
 	if (sock.state() != QAbstractSocket::ConnectedState) {
 		LOG(("MTP error: socket not connected in socketRead(), state: %1").arg(sock.state()));
-		emit error();
+		emit error(kErrorCodeOther);
 		return;
 	}
 
@@ -99,7 +97,7 @@ void AbstractTCPConnection::socketRead() {
 					uint32 packetSize = tcpPacketSize(currentPos - packetRead);
 					if (packetSize < 5 || packetSize > MTPPacketSizeMax) {
 						LOG(("TCP Error: packet size = %1").arg(packetSize));
-						emit error();
+						emit error(kErrorCodeOther);
 						return;
 					}
 					if (packetRead >= packetSize) {
@@ -129,7 +127,7 @@ void AbstractTCPConnection::socketRead() {
 			}
 		} else if (bytes < 0) {
 			LOG(("TCP Error: socket read return -1"));
-			emit error();
+			emit error(kErrorCodeOther);
 			return;
 		} else {
 			TCP_LOG(("TCP Info: no bytes read, but bytes available was true..."));
@@ -157,11 +155,7 @@ mtpBuffer AbstractTCPConnection::handleResponse(const char *packet, uint32 lengt
 	const mtpPrime *packetdata = reinterpret_cast<const mtpPrime*>(packet + (length - len));
 	TCP_LOG(("TCP Info: packet received, size = %1").arg(size * sizeof(mtpPrime)));
 	if (size == 1) {
-		if (*packetdata == -429) {
-			LOG(("Protocol Error: -429 flood code returned!"));
-		} else {
-			LOG(("TCP Error: error packet received, code = %1").arg(*packetdata));
-		}
+		LOG(("TCP Error: error packet received, code = %1").arg(*packetdata));
 		return mtpBuffer(1, *packetdata);
 	}
 
@@ -272,7 +266,7 @@ void TCPConnection::sendData(mtpBuffer &buffer) {
 	if (buffer.size() < 3) {
 		LOG(("TCP Error: writing bad packet, len = %1").arg(buffer.size() * sizeof(mtpPrime)));
 		TCP_LOG(("TCP Error: bad packet %1").arg(Logs::mb(&buffer[0], buffer.size() * sizeof(mtpPrime)).str()));
-		emit error();
+		emit error(kErrorCodeOther);
 		return;
 	}
 
@@ -339,10 +333,10 @@ void TCPConnection::disconnectFromServer() {
 	sock.close();
 }
 
-void TCPConnection::connectTcp(const QString &addr, int32 port, MTPDdcOption::Flags flags) {
-	_addr = addr;
-	_port = port;
-	_flags = flags;
+void TCPConnection::connectTcp(const DcOptions::Endpoint &endpoint) {
+	_addr = QString::fromStdString(endpoint.ip);
+	_port = endpoint.port;
+	_flags = endpoint.flags;
 
 	connect(&sock, SIGNAL(readyRead()), this, SLOT(socketRead()));
 	sock.connectToHost(QHostAddress(_addr), _port);
@@ -353,10 +347,9 @@ void TCPConnection::socketPacket(const char *packet, uint32 length) {
 
 	mtpBuffer data = handleResponse(packet, length);
 	if (data.size() == 1) {
-		bool mayBeBadKey = (data[0] == -410) && _sentEncrypted;
-		emit error(mayBeBadKey);
+		emit error(data[0]);
 	} else if (status == UsingTcp) {
-		receivedQueue.push_back(data);
+		_receivedQueue.push_back(data);
 		emit receivedData();
 	} else if (status == WaitingTcp) {
 		tcpTimeoutTimer.stop();
@@ -370,7 +363,7 @@ void TCPConnection::socketPacket(const char *packet, uint32 length) {
 			}
 		} catch (Exception &e) {
 			DEBUG_LOG(("Connection Error: exception in parsing TCP fake pq-responce, %1").arg(e.what()));
-			emit error();
+			emit error(kErrorCodeOther);
 		}
 	}
 }
@@ -391,7 +384,7 @@ void TCPConnection::socketError(QAbstractSocket::SocketError e) {
 	if (status == FinishedWork) return;
 
 	handleError(e, sock);
-	emit error();
+	emit error(kErrorCodeOther);
 }
 
 } // namespace internal

@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "media/media_audio_loader.h"
+#include "media/media_audio.h"
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -33,14 +34,15 @@ extern "C" {
 
 struct VideoSoundData {
 	AVCodecContext *context = nullptr;
-	int32 frequency = AudioVoiceMsgFrequency;
-	TimeMs length = 0;
+	int32 frequency = Media::Player::kDefaultFrequency;
+	int64 length = 0;
 	~VideoSoundData();
 };
 
 struct VideoSoundPart {
 	AVPacket *packet = nullptr;
-	uint64 videoPlayId = 0;
+	AudioMsgId audio;
+	uint32 playId = 0;
 };
 
 namespace FFMpeg {
@@ -81,9 +83,9 @@ inline void freePacket(AVPacket *packet) {
 
 class ChildFFMpegLoader : public AudioPlayerLoader {
 public:
-	ChildFFMpegLoader(uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data);
+	ChildFFMpegLoader(std::unique_ptr<VideoSoundData> &&data);
 
-	bool open(qint64 &position) override;
+	bool open(TimeMs positionMs) override;
 
 	bool check(const FileLocation &file, const QByteArray &data) override {
 		return true;
@@ -93,20 +95,17 @@ public:
 		return _format;
 	}
 
-	TimeMs duration() override {
+	int64 samplesCount() override {
 		return _parentData->length;
 	}
 
-	int32 frequency() override {
+	int32 samplesFrequency() override {
 		return _parentData->frequency;
 	}
 
 	ReadResult readMore(QByteArray &result, int64 &samplesAdded) override;
-	void enqueuePackets(QQueue<FFMpeg::AVPacketDataWrap> &packets);
+	void enqueuePackets(QQueue<FFMpeg::AVPacketDataWrap> &packets) override;
 
-	uint64 playId() const {
-		return _videoPlayId;
-	}
 	bool eofReached() const {
 		return _eofReached;
 	}
@@ -120,13 +119,12 @@ private:
 
 	int32 _sampleSize = 2 * sizeof(uint16);
 	int32 _format = AL_FORMAT_STEREO16;
-	int32 _srcRate = AudioVoiceMsgFrequency;
-	int32 _dstRate = AudioVoiceMsgFrequency;
+	int32 _srcRate = Media::Player::kDefaultFrequency;
+	int32 _dstRate = Media::Player::kDefaultFrequency;
 	int32 _maxResampleSamples = 1024;
 	uint8_t **_dstSamplesData = nullptr;
 
-	uint64 _videoPlayId = 0;
-	std_::unique_ptr<VideoSoundData> _parentData;
+	std::unique_ptr<VideoSoundData> _parentData;
 	AVSampleFormat _inputFormat;
 	AVFrame *_frame = nullptr;
 

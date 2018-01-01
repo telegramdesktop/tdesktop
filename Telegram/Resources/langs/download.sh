@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 set -e
 FullExecPath=$PWD
 pushd `dirname $0` > /dev/null
@@ -29,6 +30,5 @@ for file in *.strings; do
   awk '{ if (NR==1) sub(/^\xef\xbb\xbf/,""); sub(//,""); print }' "../../tdesktop/Telegram/Resources/langs/lang_$file.tmp" > "../../tdesktop/Telegram/Resources/langs/lang_$file"
   rm "../../tdesktop/Telegram/Resources/langs/lang_$file.tmp"
 done
-touch $FullScriptPath/../telegram.qrc
 
 cd $FullExecPath

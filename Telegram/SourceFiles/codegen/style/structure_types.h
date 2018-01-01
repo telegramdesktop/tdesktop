@@ -198,6 +198,7 @@ private:
 struct Variable {
 	FullName name;
 	Value value;
+	QString description;
 
 	explicit operator bool() const {
 		return !name.isEmpty();

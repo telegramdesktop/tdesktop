@@ -20,10 +20,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "boxes/abstractbox.h"
+#include "boxes/abstract_box.h"
 
 namespace Ui {
-class Radiobutton;
+template <typename Enum>
+class RadioenumGroup;
+template <typename Enum>
+class Radioenum;
 class InputArea;
 } // namespace Ui
 
@@ -35,8 +38,7 @@ public:
 
 private slots:
 	void onReport();
-	void onChange();
-	void onDescriptionResized();
+	void onReasonResized();
 	void onClose() {
 		closeBox();
 	}
@@ -48,6 +50,13 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	enum class Reason {
+		Spam,
+		Violence,
+		Pornography,
+		Other,
+	};
+	void reasonChanged(Reason reason);
 	void updateMaxHeight();
 
 	void reportDone(const MTPBool &result);
@@ -55,18 +64,13 @@ private:
 
 	PeerData *_peer;
 
-	object_ptr<Ui::Radiobutton> _reasonSpam;
-	object_ptr<Ui::Radiobutton> _reasonViolence;
-	object_ptr<Ui::Radiobutton> _reasonPornography;
-	object_ptr<Ui::Radiobutton> _reasonOther;
+	std::shared_ptr<Ui::RadioenumGroup<Reason>> _reasonGroup;
+	object_ptr<Ui::Radioenum<Reason>> _reasonSpam;
+	object_ptr<Ui::Radioenum<Reason>> _reasonViolence;
+	object_ptr<Ui::Radioenum<Reason>> _reasonPornography;
+	object_ptr<Ui::Radioenum<Reason>> _reasonOther;
 	object_ptr<Ui::InputArea> _reasonOtherText = { nullptr };
 
-	enum Reason {
-		ReasonSpam,
-		ReasonViolence,
-		ReasonPornography,
-		ReasonOther,
-	};
 	mtpRequestId _requestId = 0;
 
 };

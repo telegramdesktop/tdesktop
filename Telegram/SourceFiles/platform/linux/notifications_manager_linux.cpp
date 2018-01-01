@@ -18,19 +18,17 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "platform/linux/notifications_manager_linux.h"
 
 #include "window/notifications_utilities.h"
 #include "platform/linux/linux_libnotify.h"
 #include "platform/linux/linux_libs.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 
 namespace Platform {
 namespace Notifications {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 namespace {
-
-NeverFreedPointer<Manager> ManagerInstance;
 
 bool LibNotifyLoaded() {
 	return (Libs::notify_init != nullptr)
@@ -101,10 +99,10 @@ QString escapeHtml(const QString &text) {
 
 class NotificationData {
 public:
-	NotificationData(const QString &title, const QString &body, const QStringList &capabilities, PeerId peerId, MsgId msgId)
+	NotificationData(const std::shared_ptr<Manager*> &guarded, const QString &title, const QString &body, const QStringList &capabilities, PeerId peerId, MsgId msgId)
 	: _data(Libs::notify_notification_new(title.toUtf8().constData(), body.toUtf8().constData(), nullptr)) {
 		if (valid()) {
-			init(capabilities, peerId, msgId);
+			init(guarded, capabilities, peerId, msgId);
 		}
 	}
 	bool valid() const {
@@ -159,7 +157,7 @@ public:
 	}
 
 private:
-	void init(const QStringList &capabilities, PeerId peerId, MsgId msgId) {
+	void init(const std::shared_ptr<Manager*> &guarded, const QStringList &capabilities, PeerId peerId, MsgId msgId) {
 		if (capabilities.contains(qsl("append"))) {
 			Libs::notify_notification_set_hint_string(_data, "append", "true");
 		} else if (capabilities.contains(qsl("x-canonical-append"))) {
@@ -170,22 +168,20 @@ private:
 		auto signalHandler = G_CALLBACK(NotificationData::notificationClosed);
 		auto signalName = "closed";
 		auto signalDataFreeMethod = &NotificationData::notificationDataFreeClosure;
-		auto signalData = new NotificationDataStruct(peerId, msgId);
+		auto signalData = new NotificationDataStruct(guarded, peerId, msgId);
 		_handlerId = Libs::g_signal_connect_helper(signalReceiver, signalName, signalHandler, signalData, signalDataFreeMethod);
 
 		Libs::notify_notification_set_timeout(_data, Libs::NOTIFY_EXPIRES_DEFAULT);
 
-		if (auto manager = ManagerInstance.data()) {
-			if (manager->hasActionsSupport()) {
-				auto label = lang(lng_notification_reply).toUtf8();
-				auto actionReceiver = _data;
-				auto actionHandler = &NotificationData::notificationClicked;
-				auto actionLabel = label.constData();
-				auto actionName = "default";
-				auto actionDataFreeMethod = &NotificationData::notificationDataFree;
-				auto actionData = new NotificationDataStruct(peerId, msgId);
-				Libs::notify_notification_add_action(actionReceiver, actionName, actionLabel, actionHandler, actionData, actionDataFreeMethod);
-			}
+		if ((*guarded)->hasActionsSupport()) {
+			auto label = lang(lng_notification_reply).toUtf8();
+			auto actionReceiver = _data;
+			auto actionHandler = &NotificationData::notificationClicked;
+			auto actionLabel = label.constData();
+			auto actionName = "default";
+			auto actionDataFreeMethod = &NotificationData::notificationDataFree;
+			auto actionData = new NotificationDataStruct(guarded, peerId, msgId);
+			Libs::notify_notification_add_action(actionReceiver, actionName, actionLabel, actionHandler, actionData, actionDataFreeMethod);
 		}
 	}
 
@@ -195,12 +191,22 @@ private:
 	}
 
 	struct NotificationDataStruct {
-		NotificationDataStruct(PeerId peerId, MsgId msgId) : peerId(peerId), msgId(msgId) {
+		NotificationDataStruct(const std::shared_ptr<Manager*> &guarded, PeerId peerId, MsgId msgId)
+		: weak(guarded)
+		, peerId(peerId)
+		, msgId(msgId) {
 		}
 
+		std::weak_ptr<Manager*> weak;
 		PeerId peerId = 0;
 		MsgId msgId = 0;
 	};
+	static void performOnMainQueue(NotificationDataStruct *data, base::lambda_once<void(Manager *manager)> task) {
+		const auto weak = data->weak;
+		crl::on_main(weak, [=, task = std::move(task)]() mutable {
+			task(*weak.lock());
+		});
+	}
 	static void notificationDataFree(gpointer data) {
 		auto notificationData = static_cast<NotificationDataStruct*>(data);
 		delete notificationData;
@@ -212,15 +218,15 @@ private:
 	static void notificationClosed(Libs::NotifyNotification *notification, gpointer data) {
 		auto closedReason = Libs::notify_notification_get_closed_reason(notification);
 		auto notificationData = static_cast<NotificationDataStruct*>(data);
-		if (auto manager = ManagerInstance.data()) {
-			manager->clearNotification(notificationData->peerId, notificationData->msgId);
-		}
+		performOnMainQueue(notificationData, [peerId = notificationData->peerId, msgId = notificationData->msgId](Manager *manager) {
+			manager->clearNotification(peerId, msgId);
+		});
 	}
 	static void notificationClicked(Libs::NotifyNotification *notification, char *action, gpointer data) {
 		auto notificationData = static_cast<NotificationDataStruct*>(data);
-		if (auto manager = ManagerInstance.data()) {
-			manager->notificationActivated(notificationData->peerId, notificationData->msgId);
-		}
+		performOnMainQueue(notificationData, [peerId = notificationData->peerId, msgId = notificationData->msgId](Manager *manager) {
+			manager->notificationActivated(peerId, msgId);
+		});
 	}
 
 	Libs::NotifyNotification *_data = nullptr;
@@ -228,49 +234,84 @@ private:
 
 };
 
-using Notification = QSharedPointer<NotificationData>;
+using Notification = std::shared_ptr<NotificationData>;
 
-} // namespace
-
-void start() {
-	if (LibNotifyLoaded()) {
-		if (Libs::notify_is_initted() || Libs::notify_init("Telegram Desktop")) {
-			ManagerInstance.createIfNull();
-			if (!ManagerInstance->init()) {
-				ManagerInstance.clear();
-				LOG(("LibNotify Error: manager failed to init!"));
-			}
-		} else {
-			LOG(("LibNotify Error: failed to init!"));
-		}
+QString GetServerName() {
+	if (!LibNotifyLoaded()) {
+		return QString();
 	}
+	if (!Libs::notify_is_initted() && !Libs::notify_init("Telegram Desktop")) {
+		LOG(("LibNotify Error: failed to init!"));
+		return QString();
+	}
+
+	gchar *name = nullptr;
+	auto guard = gsl::finally([&name] {
+		if (name) Libs::g_free(name);
+	});
+
+	if (!Libs::notify_get_server_info(&name, nullptr, nullptr, nullptr)) {
+		LOG(("LibNotify Error: could not get server name!"));
+		return QString();
+	}
+	if (!name) {
+		LOG(("LibNotify Error: successfully got empty server name!"));
+		return QString();
+	}
+
+	auto result = QString::fromUtf8(static_cast<const char*>(name));
+	LOG(("Notifications Server: %1").arg(result));
+
+	return result;
 }
 
-Manager *manager() {
-	if (Global::started() && Global::NativeNotifications()) {
-		return ManagerInstance.data();
+auto LibNotifyServerName = QString();
+
+} // namespace
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
+
+bool Supported() {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+	static auto Checked = false;
+	if (!Checked) {
+		Checked = true;
+		LibNotifyServerName = GetServerName();
 	}
+
+	return !LibNotifyServerName.isEmpty();
+#else
+	return false;
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
+}
+
+std::unique_ptr<Window::Notifications::Manager> Create(Window::Notifications::System *system) {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+	if (Global::NativeNotifications() && Supported()) {
+		return std::make_unique<Manager>(system);
+	}
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 	return nullptr;
 }
 
-bool supported() {
-	return ManagerInstance.data() != nullptr;
-}
-
-void finish() {
-	if (manager()) {
-		ManagerInstance.reset();
-		Libs::notify_uninit();
+void Finish() {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+	if (Libs::notify_is_initted && Libs::notify_uninit) {
+		if (Libs::notify_is_initted()) {
+			Libs::notify_uninit();
+		}
 	}
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 }
 
-class Manager::Impl {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+class Manager::Private {
 public:
 	using Type = Window::Notifications::CachedUserpics::Type;
-	Impl(Type type) : _cachedUserpics(type) {
+	explicit Private(Type type)
+	: _cachedUserpics(type) {
 	}
 
-	bool init();
+	void init(Manager *manager);
 
 	void showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton);
 	void clearAll();
@@ -283,6 +324,8 @@ public:
 	bool hasActionsSupport() const {
 		return _actionsSupported;
 	}
+
+	~Private();
 
 private:
 	QString escapeNotificationText(const QString &text) const;
@@ -310,9 +353,15 @@ private:
 	bool _markupSupported = false;
 	bool _poorSupported = false;
 
-};
+	std::shared_ptr<Manager*> _guarded;
 
-bool Manager::Impl::init() {
+};
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
+
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+void Manager::Private::init(Manager *manager) {
+	_guarded = std::make_shared<Manager*>(manager);
+
 	if (auto capabilities = Libs::notify_get_server_caps()) {
 		for (auto capability = capabilities; capability; capability = capability->next) {
 			auto capabilityText = QString::fromUtf8(static_cast<const char*>(capability->data));
@@ -332,32 +381,19 @@ bool Manager::Impl::init() {
 
 	// Unity and other Notify OSD users handle desktop notifications
 	// extremely poor, even without the ability to close() them.
-	gchar *name = nullptr;
-	if (Libs::notify_get_server_info(&name, nullptr, nullptr, nullptr)) {
-		if (name) {
-			_serverName = QString::fromUtf8(static_cast<const char*>(name));
-			Libs::g_free(name);
-
-			LOG(("Notifications Server: %1").arg(_serverName));
-			if (_serverName == qstr("notify-osd")) {
-//				_poorSupported = true;
-				_actionsSupported = false;
-			}
-		} else {
-			LOG(("LibNotify Error: successfully got empty server name!"));
-		}
-	} else {
-		LOG(("LibNotify Error: could not get server name!"));
+	_serverName = LibNotifyServerName;
+	Assert(!_serverName.isEmpty());
+	if (_serverName == qstr("notify-osd")) {
+//		_poorSupported = true;
+		_actionsSupported = false;
 	}
-
-	return !_serverName.isEmpty();
 }
 
-QString Manager::Impl::escapeNotificationText(const QString &text) const {
+QString Manager::Private::escapeNotificationText(const QString &text) const {
 	return _markupSupported ? escapeHtml(text) : text;
 }
 
-void Manager::Impl::showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) {
+void Manager::Private::showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) {
 	auto titleText = escapeNotificationText(title);
 	auto subtitleText = escapeNotificationText(subtitle);
 	auto msgText = escapeNotificationText(msg);
@@ -377,7 +413,7 @@ void Manager::Impl::showNotification(PeerData *peer, MsgId msgId, const QString 
 	showNextNotification();
 }
 
-void Manager::Impl::showNextNotification() {
+void Manager::Private::showNextNotification() {
 	// Show only one notification at a time in Unity / Notify OSD.
 	if (_poorSupported) {
 		for (auto b = _notifications.begin(); !_notifications.isEmpty() && b->isEmpty();) {
@@ -402,7 +438,13 @@ void Manager::Impl::showNextNotification() {
 
 	auto peerId = data.peer->id;
 	auto msgId = data.msgId;
-	auto notification = MakeShared<NotificationData>(data.title, data.body, _capabilities, peerId, msgId);
+	auto notification = std::make_shared<NotificationData>(
+		_guarded,
+		data.title,
+		data.body,
+		_capabilities,
+		peerId,
+		msgId);
 	if (!notification->valid()) {
 		return;
 	}
@@ -439,7 +481,7 @@ void Manager::Impl::showNextNotification() {
 	}
 }
 
-void Manager::Impl::clearAll() {
+void Manager::Private::clearAll() {
 	_queuedNotifications.clear();
 
 	auto temp = base::take(_notifications);
@@ -450,7 +492,7 @@ void Manager::Impl::clearAll() {
 	}
 }
 
-void Manager::Impl::clearFromHistory(History *history) {
+void Manager::Private::clearFromHistory(History *history) {
 	for (auto i = _queuedNotifications.begin(); i != _queuedNotifications.end();) {
 		if (i->peer == history->peer) {
 			i = _queuedNotifications.erase(i);
@@ -472,7 +514,7 @@ void Manager::Impl::clearFromHistory(History *history) {
 	showNextNotification();
 }
 
-void Manager::Impl::clearNotification(PeerId peerId, MsgId msgId) {
+void Manager::Private::clearNotification(PeerId peerId, MsgId msgId) {
 	auto i = _notifications.find(peerId);
 	if (i != _notifications.cend()) {
 		i.value().remove(msgId);
@@ -484,38 +526,41 @@ void Manager::Impl::clearNotification(PeerId peerId, MsgId msgId) {
 	showNextNotification();
 }
 
-Manager::Manager() : _impl(std_::make_unique<Impl>(Impl::Type::Rounded)) {
+Manager::Private::~Private() {
+	clearAll();
 }
 
-bool Manager::init() {
-	return _impl->init();
+Manager::Manager(Window::Notifications::System *system) : NativeManager(system)
+, _private(std::make_unique<Private>(Private::Type::Rounded)) {
+	_private->init(this);
 }
 
 void Manager::clearNotification(PeerId peerId, MsgId msgId) {
-	_impl->clearNotification(peerId, msgId);
+	_private->clearNotification(peerId, msgId);
 }
 
 bool Manager::hasPoorSupport() const {
-	return _impl->hasPoorSupport();
+	return _private->hasPoorSupport();
 }
 
 bool Manager::hasActionsSupport() const {
-	return _impl->hasActionsSupport();
+	return _private->hasActionsSupport();
 }
 
 Manager::~Manager() = default;
 
 void Manager::doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) {
-	_impl->showNotification(peer, msgId, title, subtitle, msg, hideNameAndPhoto, hideReplyButton);
+	_private->showNotification(peer, msgId, title, subtitle, msg, hideNameAndPhoto, hideReplyButton);
 }
 
 void Manager::doClearAllFast() {
-	_impl->clearAll();
+	_private->clearAll();
 }
 
 void Manager::doClearFromHistory(History *history) {
-	_impl->clearFromHistory(history);
+	_private->clearFromHistory(history);
 }
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 } // namespace Notifications
 } // namespace Platform

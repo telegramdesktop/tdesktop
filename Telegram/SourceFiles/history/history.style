@@ -22,6 +22,8 @@ using "basic.style";
 using "dialogs/dialogs.style";
 using "ui/widgets/widgets.style";
 
+historyMinimalWidth: 380px;
+
 historyScroll: ScrollArea(defaultScrollArea) {
 	bg: historyScrollBg;
 	bgOver: historyScrollBgOver;
@@ -69,6 +71,12 @@ historyToDownBadgeSize: 22px;
 historyToDownShownAfter: 480px;
 historyToDownDuration: 150;
 
+historyUnreadMentions: TwoIconButton(historyToDown) {
+	iconAbove: icon {{ "history_unread_mention", historyToDownFg, point(16px, 16px) }};
+	iconAboveOver: icon {{ "history_unread_mention", historyToDownFgOver, point(16px, 16px) }};
+}
+historyUnreadMentionsSkip: 4px;
+
 membersInnerWidth: 310px;
 membersInnerHeightMax: 360px;
 membersInnerDropdown: InnerDropdown(defaultInnerDropdown) {
@@ -82,27 +90,7 @@ membersInnerDropdown: InnerDropdown(defaultInnerDropdown) {
 	scrollMargin: margins(0px, 5px, 0px, 5px);
 	scrollPadding: margins(0px, 3px, 0px, 3px);
 }
-membersInnerItem: ProfilePeerListItem {
-	left: 0px;
-	bottom: 0px;
-	button: OutlineButton {
-		outlineWidth: 0px;
-
-		textBg: windowBg;
-		textBgOver: windowBgOver;
-
-		textFg: windowSubTextFg;
-		textFgOver: windowSubTextFgOver;
-
-		font: normalFont;
-		padding: margins(11px, 5px, 11px, 5px);
-
-		ripple: defaultRippleAnimation;
-	}
-	statusFg: windowSubTextFg;
-	statusFgOver: windowSubTextFgOver;
-	statusFgActive: windowActiveTextFg;
-}
+membersInnerItem: defaultPeerListItem;
 
 historyFileOutImage: icon {{ "history_file_image", historyFileOutIconFg }};
 historyFileOutImageSelected: icon {{ "history_file_image", historyFileOutIconFgSelected }};
@@ -135,6 +123,8 @@ historyFileThumbCancel: icon {{ "history_file_cancel", historyFileThumbIconFg }}
 historyFileThumbCancelSelected: icon {{ "history_file_cancel", historyFileThumbIconFgSelected }};
 historyFileThumbPlay: icon {{ "history_file_play", historyFileThumbIconFg }};
 historyFileThumbPlaySelected: icon {{ "history_file_play", historyFileThumbIconFgSelected }};
+historyFileThumbWaiting: icon {{ "mediaview_save_check", historyFileThumbIconFg }};
+historyFileThumbWaitingSelected: icon {{ "mediaview_save_check", historyFileThumbIconFgSelected }};
 
 historySendStateSpace: 24px;
 historySendStatePosition: point(-17px, -19px);
@@ -225,6 +215,9 @@ historyAttachEmoji: IconButton(historyAttach) {
 	iconOver: icon {{ "send_control_emoji", historyComposeIconFgOver }};
 	iconPosition: point(15px, 15px);
 }
+historyAttachEmojiFgActive: windowActiveTextFg;
+historyAttachEmojiActive: icon {{ "send_control_emoji", historyAttachEmojiFgActive }};
+historyAttachEmojiTooltipDelta: 4px;
 historyEmojiCircle: size(20px, 20px);
 historyEmojiCirclePeriod: 1500;
 historyEmojiCircleDuration: 500;
@@ -327,10 +320,6 @@ msgBotKbButton: BotKeyboardButton {
 }
 
 botKbDuration: 200;
-botKbBg: menuBgOver;
-botKbOverBg: menuBgOver;
-botKbDownBg: menuBgRipple;
-botKbColor: windowBoldFgOver;
 botKbStyle: TextStyle(defaultTextStyle) {
 	font: font(15px semibold);
 	linkFont: font(15px semibold);
@@ -341,7 +330,9 @@ botKbButton: BotKeyboardButton {
 	padding: 10px;
 	height: 38px;
 	textTop: 9px;
-	ripple: defaultRippleAnimation;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: botKbDownBg;
+	}
 }
 botKbTinyButton: BotKeyboardButton {
 	margin: 4px;
@@ -351,24 +342,6 @@ botKbTinyButton: BotKeyboardButton {
 	ripple: defaultRippleAnimation;
 }
 botKbScroll: defaultSolidScroll;
-
-mentionHeight: 40px;
-mentionScroll: ScrollArea(defaultScrollArea) {
-	topsh: 0px;
-	bottomsh: 0px;
-}
-mentionPadding: margins(8px, 5px, 8px, 5px);
-mentionTop: 11px;
-mentionFont: linkFont;
-mentionNameFg: windowFg;
-mentionNameFgOver: windowFgOver;
-mentionPhotoSize: msgPhotoSize;
-mentionBg: windowBg;
-mentionBgOver: windowBgOver;
-mentionFg: windowSubTextFg;
-mentionFgOver: windowSubTextFgOver;
-mentionFgActive: windowActiveTextFg;
-mentionFgOverActive: windowActiveTextFg;
 
 historyDateFadeDuration: 200;
 
@@ -396,6 +369,25 @@ historyUnreadBarFont: semiboldFont;
 historyForwardChooseMargins: margins(30px, 10px, 30px, 10px);
 historyForwardChooseFont: font(16px);
 
+historyCallArrowIn: icon {{ "call_arrow_in", historyCallArrowInFg }};
+historyCallArrowInSelected: icon {{ "call_arrow_in", historyCallArrowInFgSelected }};
+historyCallArrowMissedIn: icon {{ "call_arrow_in", historyCallArrowMissedInFg }};
+historyCallArrowMissedInSelected: icon {{ "call_arrow_in", historyCallArrowMissedInFgSelected }};
+historyCallArrowOut: icon {{ "call_arrow_out", historyCallArrowOutFg }};
+historyCallArrowOutSelected: icon {{ "call_arrow_out", historyCallArrowOutFgSelected }};
+historyCallWidth: 240px;
+historyCallHeight: 56px;
+historyCallInIcon: icon {{ "menu_calls", msgFileInBg }};
+historyCallInIconSelected: icon {{ "menu_calls", msgFileInBgSelected }};
+historyCallOutIcon: icon {{ "menu_calls", msgFileOutBg }};
+historyCallOutIconSelected: icon {{ "menu_calls", msgFileOutBgSelected }};
+historyCallIconPosition: point(17px, 18px);
+historyCallLeft: 16px;
+historyCallTop: 9px;
+historyCallStatusTop: 29px;
+historyCallStatusSkip: 4px;
+historyCallArrowPosition: point(-1px, 1px);
+
 msgFileMenuSize: size(36px, 36px);
 msgFileSize: 44px;
 msgFilePadding: margins(14px, 12px, 11px, 12px);
@@ -406,7 +398,7 @@ msgFileThumbStatusTop: 32px;
 msgFileThumbLinkTop: 60px;
 msgFileNameTop: 16px;
 msgFileStatusTop: 37px;
-msgFileMinWidth: 294px;
+msgFileMinWidth: 268px;
 msgFileTopMinus: 6px;
 
 msgFileOverDuration: 200;
@@ -418,3 +410,62 @@ msgWaveformBar: 2px;
 msgWaveformSkip: 1px;
 msgWaveformMin: 2px;
 msgWaveformMax: 20px;
+
+historyVideoMessageMute: icon {{ "volume_mute", historyFileThumbIconFg }};
+historyVideoMessageMuteSelected: icon {{ "volume_mute", historyFileThumbIconFgSelected }};
+historyVideoMessageMuteSize: 25px;
+historyVideoMessageProgressOpacity: 0.72;
+
+historyAdminLogEmptyWidth: 260px;
+historyAdminLogEmptyPadding: margins(10px, 12px, 10px, 12px);
+historyAdminLogSearchField: FlatInput(defaultFlatInput) {
+	textColor: windowFg;
+	bgColor: topBarBg;
+	bgActive: topBarBg;
+
+	font: font(fsize);
+
+	borderWidth: 0px;
+	borderColor: topBarBg;
+	borderActive: topBarBg;
+
+	width: 100px;
+	height: 32px;
+	textMrg: margins(0px, 0px, 0px, 0px);
+}
+historyAdminLogCancelSearch: CrossButton {
+	width: 40px;
+	height: 54px;
+
+	cross: CrossAnimation {
+		size: 32px;
+		skip: 10px;
+		stroke: 2px;
+		minScale: 0.3;
+	}
+	crossFg: menuIconFg;
+	crossFgOver: menuIconFgOver;
+	crossPosition: point(6px, 11px);
+
+	duration: 150;
+	loadingPeriod: 1000;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+historyAdminLogSearchTop: 11px;
+historyAdminLogSearchSlideDuration: 150;
+
+historyFastShareSize: 31px;
+historyFastShareLeft: 13px;
+historyFastShareBottom: 5px;
+historyFastShareIcon: icon {{ "fast_share", msgServiceFg, point(4px, 3px)}};
+historyGoToOriginalIcon: icon {{ "title_back-flip_horizontal", msgServiceFg, point(8px, 7px) }};
+
+historySavedFont: font(semibold 14px);
+
+historyGroupWidthMax: maxMediaSize;
+historyGroupWidthMin: minPhotoSize;
+historyGroupSkip: 4px;
+historyGroupRadialSize: 44px;
+historyGroupRadialLine: 3px;

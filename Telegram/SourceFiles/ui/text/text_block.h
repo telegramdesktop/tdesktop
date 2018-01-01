@@ -41,15 +41,7 @@ enum TextBlockFlags {
 
 class ITextBlock {
 public:
-	ITextBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex) : _from(from), _flags((flags & 0xFF) | ((lnkIndex & 0xFFFF) << 12)), _lpadding(0) {
-		if (length) {
-			if (str.at(_from + length - 1).unicode() == QChar::Space) {
-				_rpadding = font->spacew;
-			}
-			if (length > 1 && str.at(0).unicode() == QChar::Space) {
-				_lpadding = font->spacew;
-			}
-		}
+	ITextBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex) : _from(from), _flags((flags & 0xFF) | ((lnkIndex & 0xFFFF) << 12)) {
 	}
 
 	uint16 from() const {
@@ -58,17 +50,11 @@ public:
 	int32 width() const {
 		return _width.toInt();
 	}
-	int32 lpadding() const {
-		return _lpadding.toInt();
-	}
 	int32 rpadding() const {
 		return _rpadding.toInt();
 	}
 	QFixed f_width() const {
 		return _width;
-	}
-	QFixed f_lpadding() const {
-		return _lpadding;
 	}
 	QFixed f_rpadding() const {
 		return _rpadding;
@@ -91,35 +77,41 @@ public:
 		return (_flags & 0xFF);
 	}
 
-	virtual ITextBlock *clone() const = 0;
+	virtual std::unique_ptr<ITextBlock> clone() const = 0;
 	virtual ~ITextBlock() {
 	}
 
 protected:
+	uint16 _from = 0;
 
-	uint16 _from;
+	uint32 _flags = 0; // 4 bits empty, 16 bits lnkIndex, 4 bits type, 8 bits flags
 
-	uint32 _flags; // 4 bits empty, 16 bits lnkIndex, 4 bits type, 8 bits flags
+	QFixed _width = 0;
 
-	QFixed _width, _lpadding, _rpadding;
+	// Right padding: spaces after the last content of the block (like a word).
+	// This holds spaces after the end of the block, for example a text ending
+	// with a space before a link has started. If text block has a leading spaces
+	// (for example a text block after a link block) it is prepended with an empty
+	// word that holds those spaces as a right padding.
+	QFixed _rpadding = 0;
 
 };
 
 class NewlineBlock : public ITextBlock {
 public:
+	NewlineBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex) : ITextBlock(font, str, from, length, flags, lnkIndex), _nextDir(Qt::LayoutDirectionAuto) {
+		_flags |= ((TextBlockTNewline & 0x0F) << 8);
+	}
+
 	Qt::LayoutDirection nextDirection() const {
 		return _nextDir;
 	}
 
-	ITextBlock *clone() const {
-		return new NewlineBlock(*this);
+	std::unique_ptr<ITextBlock> clone() const override {
+		return std::make_unique<NewlineBlock>(*this);
 	}
 
 private:
-	NewlineBlock(const style::font &font, const QString &str, uint16 from, uint16 length) : ITextBlock(font, str, from, length, 0, 0), _nextDir(Qt::LayoutDirectionAuto) {
-		_flags |= ((TextBlockTNewline & 0x0F) << 8);
-	}
-
 	Qt::LayoutDirection _nextDir;
 
 	friend class Text;
@@ -163,15 +155,13 @@ private:
 
 class TextBlock : public ITextBlock {
 public:
+	TextBlock(const style::font &font, const QString &str, QFixed minResizeWidth, uint16 from, uint16 length, uchar flags, uint16 lnkIndex);
 
-	ITextBlock *clone() const {
-		return new TextBlock(*this);
+	std::unique_ptr<ITextBlock> clone() const override {
+		return std::make_unique<TextBlock>(*this);
 	}
 
 private:
-
-	TextBlock(const style::font &font, const QString &str, QFixed minResizeWidth, uint16 from, uint16 length, uchar flags, uint16 lnkIndex);
-
 	friend class ITextBlock;
 	QFixed real_f_rbearing() const {
 		return _words.isEmpty() ? 0 : _words.back().f_rbearing();
@@ -185,46 +175,45 @@ private:
 
 	friend class BlockParser;
 	friend class TextPainter;
+
 };
 
 class EmojiBlock : public ITextBlock {
 public:
+	EmojiBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex, EmojiPtr emoji);
 
-	ITextBlock *clone() const {
-		return new EmojiBlock(*this);
+	std::unique_ptr<ITextBlock> clone() const {
+		return std::make_unique<EmojiBlock>(*this);
 	}
 
 private:
-
-	EmojiBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex, const EmojiData *emoji);
-
-	const EmojiData *emoji;
+	EmojiPtr emoji = nullptr;
 
 	friend class Text;
 	friend class TextParser;
 
 	friend class TextPainter;
+
 };
 
 class SkipBlock : public ITextBlock {
 public:
+	SkipBlock(const style::font &font, const QString &str, uint16 from, int32 w, int32 h, uint16 lnkIndex);
 
 	int32 height() const {
 		return _height;
 	}
 
-	ITextBlock *clone() const {
-		return new SkipBlock(*this);
+	std::unique_ptr<ITextBlock> clone() const override {
+		return std::make_unique<SkipBlock>(*this);
 	}
 
 private:
-
-	SkipBlock(const style::font &font, const QString &str, uint16 from, int32 w, int32 h, uint16 lnkIndex);
-
 	int32 _height;
 
 	friend class Text;
 	friend class TextParser;
 
 	friend class TextPainter;
+
 };

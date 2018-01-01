@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/style/style_core_font.h"
 
 namespace style {
@@ -57,7 +56,12 @@ int registerFontFamily(const QString &family) {
 	return result;
 }
 
-FontData::FontData(int size, uint32 flags, int family, Font *other) : f(fontFamilies[family]), m(f), _size(size), _flags(flags), _family(family) {
+FontData::FontData(int size, uint32 flags, int family, Font *other)
+: f(Fonts::GetOverride(fontFamilies[family]))
+, m(f)
+, _size(size)
+, _flags(flags)
+, _family(family) {
 	if (other) {
 		memcpy(modified, other, sizeof(modified));
 	} else {
@@ -76,7 +80,7 @@ FontData::FontData(int size, uint32 flags, int family, Font *other) : f(fontFami
 	ascent = m.ascent();
 	descent = m.descent();
 	spacew = width(QLatin1Char(' '));
-	elidew = width(QLatin1Char('.')) * 3;
+	elidew = width(qsl("..."));
 }
 
 Font FontData::bold(bool set) const {

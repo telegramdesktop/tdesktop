@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/toast/toast_widget.h"
 
 namespace Ui {
@@ -40,7 +39,7 @@ Widget::Widget(QWidget *parent, const Config &config) : TWidget(parent)
 	if (_multiline) {
 		toastOptions.maxh *= kToastMaxLines;
 	}
-	_text.setText(st::toastTextStyle, _multiline ? config.text : textOneLine(config.text), toastOptions);
+	_text.setText(st::toastTextStyle, _multiline ? config.text : TextUtilities::SingleLine(config.text), toastOptions);
 
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 

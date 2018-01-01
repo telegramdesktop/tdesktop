@@ -80,8 +80,6 @@ elif [ "$BuildTarget" == "macstore" ]; then
   echo "Building version $AppVersionStrFull for Mac App Store.."
   ReleasePath="$HomePath/../out/Release"
   BinaryName="Telegram Desktop"
-  DropboxPath="/Volumes/Storage/Dropbox/Telegram/deploy/$AppVersionStrMajor"
-  DropboxDeployPath="$DropboxPath/$AppVersionStrFull"
 else
   Error "Invalid target!"
 fi
@@ -133,12 +131,52 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
     Error "$BinaryName not found!"
   fi
 
+  BadCount=`objdump -T $ReleasePath/$BinaryName | grep GLIBC_2\.1[6-9] | wc -l`
+  if [ "$BadCount" != "0" ]; then
+    Error "Bad GLIBC usages found: $BadCount"
+  fi
+
+  BadCount=`objdump -T $ReleasePath/$BinaryName | grep GLIBC_2\.2[0-9] | wc -l`
+  if [ "$BadCount" != "0" ]; then
+    Error "Bad GLIBC usages found: $BadCount"
+  fi
+
+  BadCount=`objdump -T $ReleasePath/$BinaryName | grep GCC_4\.[3-9] | wc -l`
+  if [ "$BadCount" != "0" ]; then
+    Error "Bad GCC usages found: $BadCount"
+  fi
+
+  BadCount=`objdump -T $ReleasePath/$BinaryName | grep GCC_[5-9]\. | wc -l`
+  if [ "$BadCount" != "0" ]; then
+    Error "Bad GCC usages found: $BadCount"
+  fi
+
   if [ ! -f "$ReleasePath/Updater" ]; then
     Error "Updater not found!"
   fi
 
+  BadCount=`objdump -T $ReleasePath/Updater | grep GLIBC_2\.1[6-9] | wc -l`
+  if [ "$BadCount" != "0" ]; then
+    Error "Bad GLIBC usages found: $BadCount"
+  fi
+
+  BadCount=`objdump -T $ReleasePath/Updater | grep GLIBC_2\.2[0-9] | wc -l`
+  if [ "$BadCount" != "0" ]; then
+    Error "Bad GLIBC usages found: $BadCount"
+  fi
+
+  BadCount=`objdump -T $ReleasePath/Updater | grep GCC_4\.[3-9] | wc -l`
+  if [ "$BadCount" != "0" ]; then
+    Error "Bad GCC usages found: $BadCount"
+  fi
+
+  BadCount=`objdump -T $ReleasePath/Updater | grep GCC_[5-9]\. | wc -l`
+  if [ "$BadCount" != "0" ]; then
+    Error "Bad GCC usages found: $BadCount"
+  fi
+
   echo "Dumping debug symbols.."
-  "$HomePath/../../Libraries/breakpad/src/tools/linux/dump_syms/dump_syms" "$ReleasePath/$BinaryName" > "$ReleasePath/$BinaryName.sym"
+  "$HomePath/../../Libraries/breakpad/out/Default/dump_syms" "$ReleasePath/$BinaryName" > "$ReleasePath/$BinaryName.sym"
   echo "Done!"
 
   echo "Stripping the executable.."
@@ -192,13 +230,12 @@ fi
 
 if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarget" == "macstore" ]; then
 
-  DropboxSymbolsPath="/Volumes/Storage/Dropbox/Telegram/symbols"
+  DropboxSymbolsPath="$HOME/Dropbox/Telegram/symbols"
   if [ ! -d "$DropboxSymbolsPath" ]; then
     Error "Dropbox path not found!"
   fi
 
   gyp/refresh.sh
-  cd ../
   xcodebuild -project Telegram.xcodeproj -alltargets -configuration Release build
 
   if [ ! -d "$ReleasePath/$BinaryName.app" ]; then
@@ -332,7 +369,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     mv "$ReleasePath/$SetupFile" "$DeployPath/"
 
     if [ "$BuildTarget" == "mac32" ]; then
-      ReleaseToPath="$HomePath/../../tother/tmac32"
+      ReleaseToPath="$HomePath/../../deploy_temp/tmac32"
       DeployToPath="$ReleaseToPath/$AppVersionStrMajor/$AppVersionStrFull"
       if [ ! -d "$ReleaseToPath/$AppVersionStrMajor" ]; then
         mkdir "$ReleaseToPath/$AppVersionStrMajor"
@@ -344,7 +381,6 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
 
       cp -v "$DeployPath/$UpdateFile" "$DeployToPath/"
       cp -v "$DeployPath/$SetupFile" "$DeployToPath/"
-      cp -rv "$DeployPath/$BinaryName.app.dSYM" "$DeployToPath/"
       if [ "$BetaVersion" != "0" ]; then
         cp -v "$DeployPath/$BetaKeyFile" "$DeployToPath/"
       fi
@@ -358,11 +394,12 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     rm "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
     rm "$ReleasePath/$BinaryName.app/Contents/Info.plist"
     rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
-
-    mkdir -p "$DropboxDeployPath"
-    cp -rv "$DeployPath/$BinaryName.app" "$DropboxDeployPath/"
-    cp -rv "$DeployPath/$BinaryName.app.dSYM" "$DropboxDeployPath/"
   fi
 fi
 
 echo "Version $AppVersionStrFull is ready!";
+echo -en "\007";
+sleep 1;
+echo -en "\007";
+sleep 1;
+echo -en "\007";

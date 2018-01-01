@@ -18,8 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
-
 #include "mtproto/connection_abstract.h"
 
 #include "mtproto/connection_tcp.h"
@@ -77,11 +75,11 @@ MTPResPQ AbstractConnection::readPQFakeReply(const mtpBuffer &buffer) {
 	return response;
 }
 
-AbstractConnection *AbstractConnection::create(QThread *thread) {
-	if (Global::ConnectionType() == dbictHttpProxy) {
-		return new HTTPConnection(thread);
-	} else if (Global::ConnectionType() == dbictTcpProxy) {
+AbstractConnection *AbstractConnection::create(DcType type, QThread *thread) {
+	if ((type == DcType::Temporary) || (Global::ConnectionType() == dbictTcpProxy)) {
 		return new TCPConnection(thread);
+	} else if (Global::ConnectionType() == dbictHttpProxy) {
+		return new HTTPConnection(thread);
 	}
 	return new AutoConnection(thread);
 }

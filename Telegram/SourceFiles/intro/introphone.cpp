@@ -18,20 +18,50 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "intro/introphone.h"
 
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "application.h"
 #include "intro/introcode.h"
 #include "styles/style_intro.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
-#include "ui/effects/widget_fade_wrap.h"
+#include "ui/wrap/fade_wrap.h"
 #include "core/click_handler_types.h"
-#include "boxes/confirmbox.h"
+#include "boxes/confirm_box.h"
+#include "base/qthelp_url.h"
+#include "platform/platform_specific.h"
+#include "messenger.h"
 
 namespace Intro {
+namespace {
+
+void SendToBannedHelp(const QString &phone) {
+	const auto version = QString::fromLatin1(AppVersionStr.c_str())
+		+ (cAlphaVersion() ? " alpha" : "")
+		+ (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString());
+
+	const auto subject = qsl("Banned phone number: ") + phone;
+
+	const auto body = qsl("\
+I'm trying to use my mobile phone number: ") + phone + qsl("\n\
+But Telegram says it's banned. Please help.\n\
+\n\
+App version: ") + version + qsl("\n\
+OS version: ") + cPlatformString() + qsl("\n\
+Locale: ") + Platform::SystemLanguage();
+
+	const auto url = "mailto:?to="
+		+ qthelp::url_encode("login@stel.com")
+		+ "&subject="
+		+ qthelp::url_encode(subject)
+		+ "&body="
+		+ qthelp::url_encode(body);
+
+	UrlClickHandler::doOpen(url);
+}
+
+} // namespace
 
 PhoneWidget::PhoneWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
 , _country(this, st::introCountry)
@@ -48,8 +78,8 @@ PhoneWidget::PhoneWidget(QWidget *parent, Widget::Data *data) : Step(parent, dat
 	connect(_code, SIGNAL(changed()), this, SLOT(onInputChange()));
 	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
 
-	setTitleText(lang(lng_phone_title));
-	setDescriptionText(lang(lng_phone_desc));
+	setTitleText(langFactory(lng_phone_title));
+	setDescriptionText(langFactory(lng_phone_desc));
 	subscribe(getData()->updated, [this] { countryChanged(); });
 	setErrorCentered(true);
 
@@ -57,6 +87,8 @@ PhoneWidget::PhoneWidget(QWidget *parent, Widget::Data *data) : Step(parent, dat
 		_country->onChooseCountry(qsl("US"));
 	}
 	_changed = false;
+
+	Messenger::Instance().destroyStaleAuthorizationKeys();
 }
 
 void PhoneWidget::resizeEvent(QResizeEvent *e) {
@@ -74,33 +106,33 @@ void PhoneWidget::updateSignupGeometry() {
 	}
 }
 
-void PhoneWidget::showPhoneError(const QString &text) {
+void PhoneWidget::showPhoneError(base::lambda<QString()> textFactory) {
 	_phone->showError();
-	showError(text);
+	showError(std::move(textFactory));
 }
 
 void PhoneWidget::hidePhoneError() {
 	hideError();
 	if (_signup) {
-		_signup->hideAnimated();
+		_signup->hide(anim::type::instant);
 		showDescription();
 	}
 }
 
 void PhoneWidget::showSignup() {
-	showPhoneError(lang(lng_bad_phone_noreg));
+	showPhoneError(langFactory(lng_bad_phone_noreg));
 	if (!_signup) {
 		auto signupText = lng_phone_notreg(lt_link_start, textcmdStartLink(1), lt_link_end, textcmdStopLink(), lt_signup_start, textcmdStartLink(2), lt_signup_end, textcmdStopLink());
 		auto inner = object_ptr<Ui::FlatLabel>(this, signupText, Ui::FlatLabel::InitType::Rich, st::introDescription);
-		_signup.create(this, std_::move(inner), st::introErrorDuration);
-		_signup->entity()->setLink(1, MakeShared<UrlClickHandler>(qsl("https://telegram.org"), false));
-		_signup->entity()->setLink(2, MakeShared<LambdaClickHandler>([this] {
+		_signup.create(this, std::move(inner));
+		_signup->entity()->setLink(1, std::make_shared<UrlClickHandler>(qsl("https://telegram.org"), false));
+		_signup->entity()->setLink(2, std::make_shared<LambdaClickHandler>([this] {
 			toSignUp();
 		}));
-		_signup->hideFast();
+		_signup->hide(anim::type::instant);
 		updateSignupGeometry();
 	}
-	_signup->showAnimated();
+	_signup->show(anim::type::normal);
 	hideDescription();
 }
 
@@ -119,7 +151,7 @@ void PhoneWidget::submit() {
 	if (_sentRequest || isHidden()) return;
 
 	if (!App::isValidPhone(fullNumber())) {
-		showPhoneError(lang(lng_bad_phone));
+		showPhoneError(langFactory(lng_bad_phone));
 		_phone->setFocus();
 		return;
 	}
@@ -158,8 +190,7 @@ void PhoneWidget::phoneCheckDone(const MTPauth_CheckedPhone &result) {
 
 		_checkRequest->start(1000);
 
-		MTPauth_SendCode::Flags flags = 0;
-		_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(flags), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&PhoneWidget::phoneSubmitDone), rpcFail(&PhoneWidget::phoneSubmitFail));
+		_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(0), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&PhoneWidget::phoneSubmitDone), rpcFail(&PhoneWidget::phoneSubmitFail));
 	} else {
 		showSignup();
 		_sentRequest = 0;
@@ -171,14 +202,14 @@ void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 	_sentRequest = 0;
 
 	if (result.type() != mtpc_auth_sentCode) {
-		showPhoneError(lang(lng_server_error));
+		showPhoneError(&Lang::Hard::ServerError);
 		return;
 	}
 
 	auto &d = result.c_auth_sentCode();
 	fillSentCodeData(d.vtype);
 	getData()->phone = _sentPhone;
-	getData()->phoneHash = d.vphone_code_hash.c_string().v.c_str();
+	getData()->phoneHash = qba(d.vphone_code_hash);
 	getData()->phoneIsRegistered = d.is_phone_registered();
 	if (d.has_next_type() && d.vnext_type.type() == mtpc_auth_codeTypeCall) {
 		getData()->callStatus = Widget::Data::CallStatus::Waiting;
@@ -195,15 +226,14 @@ void PhoneWidget::toSignUp() {
 
 	_checkRequest->start(1000);
 
-	MTPauth_SendCode::Flags flags = 0;
-	_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(flags), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&PhoneWidget::phoneSubmitDone), rpcFail(&PhoneWidget::phoneSubmitFail));
+	_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(0), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&PhoneWidget::phoneSubmitDone), rpcFail(&PhoneWidget::phoneSubmitFail));
 }
 
 bool PhoneWidget::phoneSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
 		stopCheck();
 		_sentRequest = 0;
-		showPhoneError(lang(lng_flood_error));
+		showPhoneError(langFactory(lng_flood_error));
 		return true;
 	}
 	if (MTP::isDefaultHandledError(error)) return false;
@@ -215,13 +245,23 @@ bool PhoneWidget::phoneSubmitFail(const RPCError &error) {
 		Ui::show(Box<InformBox>(lang(lng_error_phone_flood)));
 		return true;
 	} else if (err == qstr("PHONE_NUMBER_INVALID")) { // show error
-		showPhoneError(lang(lng_bad_phone));
+		showPhoneError(langFactory(lng_bad_phone));
+		return true;
+	} else if (err == qstr("PHONE_NUMBER_BANNED")) {
+		const auto phone = _sentPhone;
+		Ui::show(Box<ConfirmBox>(
+			lang(lng_signin_banned_text),
+			lang(lng_box_ok),
+			lang(lng_signin_banned_help),
+			[] { Ui::hideLayer(); },
+			[phone] { SendToBannedHelp(phone); Ui::hideLayer(); }));
 		return true;
 	}
 	if (cDebug()) { // internal server error
-		showPhoneError(err + ": " + error.description());
+		auto text = err + ": " + error.description();
+		showPhoneError([text] { return text; });
 	} else {
-		showPhoneError(lang(lng_server_error));
+		showPhoneError(&Lang::Hard::ServerError);
 	}
 	return false;
 }
@@ -249,7 +289,7 @@ void PhoneWidget::activate() {
 void PhoneWidget::finished() {
 	Step::finished();
 	_checkRequest->stop();
-	rpcClear();
+	rpcInvalidate();
 
 	cancelled();
 }

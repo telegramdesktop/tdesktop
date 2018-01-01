@@ -18,11 +18,11 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "platform/linux/linux_libs.h"
 
 #include "platform/linux/linux_gdk_helper.h"
 #include "platform/linux/linux_libnotify.h"
+#include "platform/linux/linux_desktop_environment.h"
 
 namespace Platform {
 namespace Libs {
@@ -44,6 +44,7 @@ bool loadLibrary(QLibrary &lib, const char *name, int version) {
     return false;
 }
 
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 bool setupGtkBase(QLibrary &lib_gtk) {
 	if (!load(lib_gtk, "gtk_init_check", gtk_init_check)) return false;
 	if (!load(lib_gtk, "gtk_menu_new", gtk_menu_new)) return false;
@@ -66,6 +67,7 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 	if (!load(lib_gtk, "gtk_clipboard_store", gtk_clipboard_store)) return false;
 	if (!load(lib_gtk, "gtk_file_chooser_dialog_new", gtk_file_chooser_dialog_new)) return false;
 	if (!load(lib_gtk, "gtk_file_chooser_get_type", gtk_file_chooser_get_type)) return false;
+	if (!load(lib_gtk, "gtk_image_get_type", gtk_image_get_type)) return false;
 	if (!load(lib_gtk, "gtk_file_chooser_set_current_folder", gtk_file_chooser_set_current_folder)) return false;
 	if (!load(lib_gtk, "gtk_file_chooser_get_current_folder", gtk_file_chooser_get_current_folder)) return false;
 	if (!load(lib_gtk, "gtk_file_chooser_set_current_name", gtk_file_chooser_set_current_name)) return false;
@@ -83,7 +85,12 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 	if (!load(lib_gtk, "gtk_file_filter_set_name", gtk_file_filter_set_name)) return false;
 	if (!load(lib_gtk, "gtk_file_filter_add_pattern", gtk_file_filter_add_pattern)) return false;
 	if (!load(lib_gtk, "gtk_file_chooser_add_filter", gtk_file_chooser_add_filter)) return false;
+	if (!load(lib_gtk, "gtk_file_chooser_set_preview_widget", gtk_file_chooser_set_preview_widget)) return false;
+	if (!load(lib_gtk, "gtk_file_chooser_get_preview_filename", gtk_file_chooser_get_preview_filename)) return false;
+	if (!load(lib_gtk, "gtk_file_chooser_set_preview_widget_active", gtk_file_chooser_set_preview_widget_active)) return false;
 	if (!load(lib_gtk, "gtk_file_filter_new", gtk_file_filter_new)) return false;
+	if (!load(lib_gtk, "gtk_image_new", gtk_image_new)) return false;
+	if (!load(lib_gtk, "gtk_image_set_from_pixbuf", gtk_image_set_from_pixbuf)) return false;
 
 	if (!load(lib_gtk, "gdk_window_set_modal_hint", gdk_window_set_modal_hint)) return false;
 	if (!load(lib_gtk, "gdk_window_focus", gdk_window_focus)) return false;
@@ -106,6 +113,17 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 	if (!load(lib_gtk, "g_slist_free", g_slist_free)) return false;
 
 	DEBUG_LOG(("Library gtk functions loaded!"));
+
+	if (load(lib_gtk, "gdk_set_allowed_backends", gdk_set_allowed_backends)) {
+		// We work only with X11 GDK backend.
+		// Otherwise we get segfault in Ubuntu 17.04 in gtk_init_check() call.
+		// See https://github.com/telegramdesktop/tdesktop/issues/3176
+		// See https://github.com/telegramdesktop/tdesktop/issues/3162
+		DEBUG_LOG(("Limit allowed GDK backends to x11"));
+		gdk_set_allowed_backends("x11");
+	}
+
+	DEBUG_LOG(("Library gtk functions loaded!"));
 	if (!gtk_init_check(0, 0)) {
 		gtk_init_check = nullptr;
 		DEBUG_LOG(("Failed to gtk_init_check(0, 0)!"));
@@ -125,9 +143,11 @@ bool setupAppIndicator(QLibrary &lib_indicator) {
 	DEBUG_LOG(("Library appindicator functions loaded!"));
 	return true;
 }
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 } // namespace
 
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 f_gtk_init_check gtk_init_check = nullptr;
 f_gtk_menu_new gtk_menu_new = nullptr;
 f_gtk_menu_get_type gtk_menu_get_type = nullptr;
@@ -148,6 +168,7 @@ f_gtk_clipboard_get gtk_clipboard_get = nullptr;
 f_gtk_clipboard_store gtk_clipboard_store = nullptr;
 f_gtk_file_chooser_dialog_new gtk_file_chooser_dialog_new = nullptr;
 f_gtk_file_chooser_get_type gtk_file_chooser_get_type = nullptr;
+f_gtk_image_get_type gtk_image_get_type = nullptr;
 f_gtk_file_chooser_set_current_folder gtk_file_chooser_set_current_folder = nullptr;
 f_gtk_file_chooser_get_current_folder gtk_file_chooser_get_current_folder = nullptr;
 f_gtk_file_chooser_set_current_name gtk_file_chooser_set_current_name = nullptr;
@@ -165,10 +186,16 @@ f_gtk_file_chooser_remove_filter gtk_file_chooser_remove_filter = nullptr;
 f_gtk_file_filter_set_name gtk_file_filter_set_name = nullptr;
 f_gtk_file_filter_add_pattern gtk_file_filter_add_pattern = nullptr;
 f_gtk_file_chooser_add_filter gtk_file_chooser_add_filter = nullptr;
+f_gtk_file_chooser_set_preview_widget gtk_file_chooser_set_preview_widget = nullptr;
+f_gtk_file_chooser_get_preview_filename gtk_file_chooser_get_preview_filename = nullptr;
+f_gtk_file_chooser_set_preview_widget_active gtk_file_chooser_set_preview_widget_active = nullptr;
 f_gtk_file_filter_new gtk_file_filter_new = nullptr;
+f_gtk_image_new gtk_image_new = nullptr;
+f_gtk_image_set_from_pixbuf gtk_image_set_from_pixbuf = nullptr;
 f_gtk_dialog_get_widget_for_response gtk_dialog_get_widget_for_response = nullptr;
 f_gtk_button_set_label gtk_button_set_label = nullptr;
 f_gtk_button_get_type gtk_button_get_type = nullptr;
+f_gdk_set_allowed_backends gdk_set_allowed_backends = nullptr;
 f_gdk_window_set_modal_hint gdk_window_set_modal_hint = nullptr;
 f_gdk_window_focus gdk_window_focus = nullptr;
 f_gtk_dialog_get_type gtk_dialog_get_type = nullptr;
@@ -184,6 +211,7 @@ f_app_indicator_set_icon_full app_indicator_set_icon_full = nullptr;
 f_gdk_init_check gdk_init_check = nullptr;
 f_gdk_pixbuf_new_from_data gdk_pixbuf_new_from_data = nullptr;
 f_gdk_pixbuf_new_from_file gdk_pixbuf_new_from_file = nullptr;
+f_gdk_pixbuf_new_from_file_at_size gdk_pixbuf_new_from_file_at_size = nullptr;
 f_gtk_status_icon_new_from_pixbuf gtk_status_icon_new_from_pixbuf = nullptr;
 f_gtk_status_icon_set_from_pixbuf gtk_status_icon_set_from_pixbuf = nullptr;
 f_gtk_status_icon_new_from_file gtk_status_icon_new_from_file = nullptr;
@@ -210,9 +238,11 @@ f_unity_launcher_entry_set_count unity_launcher_entry_set_count = nullptr;
 f_unity_launcher_entry_set_count_visible unity_launcher_entry_set_count_visible = nullptr;
 f_unity_launcher_entry_get_for_desktop_id unity_launcher_entry_get_for_desktop_id = nullptr;
 #endif // !TDESKTOP_DISABLE_UNITY_INTEGRATION
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 void start() {
 	DEBUG_LOG(("Loading libraries"));
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 
 	bool gtkLoaded = false;
 	bool indicatorLoaded = false;
@@ -247,6 +277,7 @@ void start() {
 		load(lib_gtk, "gdk_init_check", gdk_init_check);
 		load(lib_gtk, "gdk_pixbuf_new_from_data", gdk_pixbuf_new_from_data);
 		load(lib_gtk, "gdk_pixbuf_new_from_file", gdk_pixbuf_new_from_file);
+		load(lib_gtk, "gdk_pixbuf_new_from_file_at_size", gdk_pixbuf_new_from_file_at_size);
 		load(lib_gtk, "gtk_status_icon_new_from_pixbuf", gtk_status_icon_new_from_pixbuf);
 		load(lib_gtk, "gtk_status_icon_set_from_pixbuf", gtk_status_icon_set_from_pixbuf);
 		load(lib_gtk, "gtk_status_icon_new_from_file", gtk_status_icon_new_from_file);
@@ -271,7 +302,7 @@ void start() {
 	}
 
 #ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
-	if (QString(getenv("XDG_CURRENT_DESKTOP")).toLower().split(':').contains(qstr("unity"))) {
+	if (DesktopEnvironment::TryUnityCounter()) {
 		QLibrary lib_unity(qstr("unity"), 9, 0);
 		loadLibrary(lib_unity, "unity", 9);
 
@@ -284,6 +315,7 @@ void start() {
 	if (gtkLoaded) {
 		startLibNotify();
 	}
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 }
 
 } // namespace Libs

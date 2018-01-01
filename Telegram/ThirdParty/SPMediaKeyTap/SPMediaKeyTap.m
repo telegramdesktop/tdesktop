@@ -57,6 +57,10 @@ static CGEventRef tapEventCallback(CGEventTapProxy proxy, CGEventType type, CGEv
 	if(!_app_switching_ref) return;
 	RemoveEventHandler(_app_switching_ref);
 	_app_switching_ref = NULL;
+
+	if(!_app_terminating_ref) return;
+	RemoveEventHandler(_app_terminating_ref);
+	_app_terminating_ref = NULL;
 }
 
 -(void)startWatchingMediaKeys

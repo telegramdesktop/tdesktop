@@ -20,70 +20,141 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "core/basic_types.h"
-
-void audioInit();
-bool audioWorks();
-void audioPlayNotify();
-void audioFinish();
-
-enum AudioPlayerState {
-	AudioPlayerStopped = 0x01,
-	AudioPlayerStoppedAtEnd = 0x02,
-	AudioPlayerStoppedAtError = 0x03,
-	AudioPlayerStoppedAtStart = 0x04,
-	AudioPlayerStoppedMask = 0x07,
-
-	AudioPlayerStarting = 0x08,
-	AudioPlayerPlaying = 0x10,
-	AudioPlayerFinishing = 0x18,
-	AudioPlayerPausing = 0x20,
-	AudioPlayerPaused = 0x28,
-	AudioPlayerPausedAtEnd = 0x30,
-	AudioPlayerResuming = 0x38,
-};
-
-class AudioPlayerFader;
-class AudioPlayerLoaders;
+#include "storage/localimageloader.h"
 
 struct VideoSoundData;
 struct VideoSoundPart;
-struct AudioPlaybackState {
-	AudioPlayerState state = AudioPlayerStopped;
-	int64 position = 0;
-	TimeMs duration = 0;
-	int32 frequency = 0;
+
+namespace Media {
+namespace Audio {
+
+// Thread: Main.
+void Start();
+void Finish();
+
+// Thread: Main. Locks: AudioMutex.
+bool IsAttachedToDevice();
+
+// Thread: Any. Must be locked: AudioMutex.
+bool AttachToDevice();
+
+// Thread: Any.
+void ScheduleDetachFromDeviceSafe();
+void ScheduleDetachIfNotUsedSafe();
+void StopDetachIfNotUsedSafe();
+
+template <typename Callback>
+void IterateSamples();
+
+} // namespace Audio
+
+namespace Player {
+
+constexpr auto kDefaultFrequency = 48000; // 48 kHz
+constexpr auto kTogetherLimit = 4;
+constexpr auto kWaveformSamplesCount = 100;
+
+class Fader;
+class Loaders;
+
+base::Observable<AudioMsgId> &Updated();
+
+float64 ComputeVolume(AudioMsgId::Type type);
+
+enum class State {
+	Stopped = 0x01,
+	StoppedAtEnd = 0x02,
+	StoppedAtError = 0x03,
+	StoppedAtStart = 0x04,
+
+	Starting = 0x08,
+	Playing = 0x10,
+	Stopping = 0x18,
+	Pausing = 0x20,
+	Paused = 0x28,
+	PausedAtEnd = 0x30,
+	Resuming = 0x38,
 };
 
-class AudioPlayer : public QObject, public base::Observable<AudioMsgId>, private base::Subscriber {
+inline bool IsStopped(State state) {
+	return (state == State::Stopped)
+		|| (state == State::StoppedAtEnd)
+		|| (state == State::StoppedAtError)
+		|| (state == State::StoppedAtStart);
+}
+
+inline bool IsStoppedOrStopping(State state) {
+	return IsStopped(state) || (state == State::Stopping);
+}
+
+inline bool IsStoppedAtEnd(State state) {
+	return (state == State::StoppedAtEnd);
+}
+
+inline bool IsPaused(State state) {
+	return (state == State::Paused)
+		|| (state == State::PausedAtEnd);
+}
+
+inline bool IsFading(State state) {
+	return (state == State::Starting)
+		|| (state == State::Stopping)
+		|| (state == State::Pausing)
+		|| (state == State::Resuming);
+}
+
+inline bool IsActive(State state) {
+	return !IsStopped(state) && !IsPaused(state);
+}
+
+struct TrackState {
+	AudioMsgId id;
+	State state = State::Stopped;
+	int64 position = 0;
+	int64 length = 0;
+	int frequency = kDefaultFrequency;
+};
+
+class Mixer : public QObject, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	AudioPlayer();
+	Mixer();
 
-	void play(const AudioMsgId &audio, int64 position = 0);
-	void pauseresume(AudioMsgId::Type type, bool fast = false);
-	void seek(int64 position); // type == AudioMsgId::Type::Song
-	void stop(AudioMsgId::Type type);
+	void play(const AudioMsgId &audio, TimeMs positionMs = 0);
+	void play(const AudioMsgId &audio, std::unique_ptr<VideoSoundData> videoData, TimeMs positionMs = 0);
+	void pause(const AudioMsgId &audio, bool fast = false);
+	void resume(const AudioMsgId &audio, bool fast = false);
+	void seek(AudioMsgId::Type type, TimeMs positionMs); // type == AudioMsgId::Type::Song
+	void stop(const AudioMsgId &audio);
+	void stop(const AudioMsgId &audio, State state);
 
 	// Video player audio stream interface.
-	void initFromVideo(uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data, int64 position);
 	void feedFromVideo(VideoSoundPart &&part);
-	int64 getVideoCorrectedTime(uint64 playId, TimeMs frameMs, TimeMs systemMs);
-	AudioPlaybackState currentVideoState(uint64 videoPlayId);
-	void stopFromVideo(uint64 videoPlayId);
-	void pauseFromVideo(uint64 videoPlayId);
-	void resumeFromVideo(uint64 videoPlayId);
+	int64 getVideoCorrectedTime(const AudioMsgId &id, TimeMs frameMs, TimeMs systemMs);
 
 	void stopAndClear();
 
-	AudioPlaybackState currentState(AudioMsgId *audio, AudioMsgId::Type type);
+	TrackState currentState(AudioMsgId::Type type);
 
 	void clearStoppedAtStart(const AudioMsgId &audio);
 
-	void resumeDevice();
+	// Thread: Main. Must be locked: AudioMutex.
+	void detachTracks();
 
-	~AudioPlayer();
+	// Thread: Main. Must be locked: AudioMutex.
+	void reattachIfNeeded();
+
+	// Thread: Any. Must be locked: AudioMutex.
+	void reattachTracks();
+
+	// Thread: Any.
+	void setSongVolume(float64 volume);
+	float64 getSongVolume() const;
+	void setVideoVolume(float64 volume);
+	float64 getVideoVolume() const;
+
+	~Mixer();
 
 private slots:
 	void onError(const AudioMsgId &audio);
@@ -94,128 +165,107 @@ private slots:
 signals:
 	void updated(const AudioMsgId &audio);
 	void stoppedOnError(const AudioMsgId &audio);
-	void loaderOnStart(const AudioMsgId &audio, qint64 position);
+	void loaderOnStart(const AudioMsgId &audio, qint64 positionMs);
 	void loaderOnCancel(const AudioMsgId &audio);
 
 	void faderOnTimer();
 
 	void suppressSong();
 	void unsuppressSong();
-	void suppressAll();
+	void suppressAll(qint64 duration);
 
 private:
 	bool fadedStop(AudioMsgId::Type type, bool *fadedStart = 0);
-	bool updateCurrentStarted(AudioMsgId::Type type, int32 pos = -1);
+	void resetFadeStartPosition(AudioMsgId::Type type, int positionInBuffered = -1);
 	bool checkCurrentALError(AudioMsgId::Type type);
 
 	void videoSoundProgress(const AudioMsgId &audio);
 
-	struct AudioMsg {
-		void clear();
+	class Track {
+	public:
+		static constexpr int kBuffersCount = 3;
 
-		AudioMsgId audio;
+		// Thread: Any. Must be locked: AudioMutex.
+		void reattach(AudioMsgId::Type type);
+
+		void detach();
+		void clear();
+		void started();
+
+		bool isStreamCreated() const;
+		void ensureStreamCreated();
+
+		int getNotQueuedBufferIndex();
+
+		~Track();
+
+		TrackState state;
 
 		FileLocation file;
 		QByteArray data;
-		AudioPlaybackState playbackState = defaultState();
-		int64 skipStart = 0;
-		int64 skipEnd = 0;
+		int64 bufferedPosition = 0;
+		int64 bufferedLength = 0;
 		bool loading = false;
-		int64 started = 0;
+		bool loaded = false;
+		int64 fadeStartPosition = 0;
 
-		uint32 source = 0;
-		int32 nextBuffer = 0;
-		uint32 buffers[3] = { 0 };
-		int64 samplesCount[3] = { 0 };
+		int32 format = 0;
+		int32 frequency = kDefaultFrequency;
+		int samplesCount[kBuffersCount] = { 0 };
+		QByteArray bufferSamples[kBuffersCount];
 
-		uint64 videoPlayId = 0;
-		std_::unique_ptr<VideoSoundData> videoData;
+		struct Stream {
+			uint32 source = 0;
+			uint32 buffers[kBuffersCount] = { 0 };
+		};
+		Stream stream;
+		std::unique_ptr<VideoSoundData> videoData;
+
+		TimeMs lastUpdateWhen = 0;
+		TimeMs lastUpdateCorrectedMs = 0;
 
 	private:
-		static AudioPlaybackState defaultState() {
-			AudioPlaybackState result;
-			result.frequency = AudioVoiceMsgFrequency;
-			return result;
-		}
+		void createStream();
+		void destroyStream();
+		void resetStream();
 
 	};
 
-	void setStoppedState(AudioMsg *current, AudioPlayerState state = AudioPlayerStopped);
+	// Thread: Any. Must be locked: AudioMutex.
+	void setStoppedState(Track *current, State state = State::Stopped);
 
-	AudioMsg *dataForType(AudioMsgId::Type type, int index = -1); // -1 uses currentIndex(type)
-	const AudioMsg *dataForType(AudioMsgId::Type type, int index = -1) const;
+	Track *trackForType(AudioMsgId::Type type, int index = -1); // -1 uses currentIndex(type)
+	const Track *trackForType(AudioMsgId::Type type, int index = -1) const;
 	int *currentIndex(AudioMsgId::Type type);
 	const int *currentIndex(AudioMsgId::Type type) const;
 
 	int _audioCurrent = 0;
-	AudioMsg _audioData[AudioSimultaneousLimit];
+	Track _audioTracks[kTogetherLimit];
 
 	int _songCurrent = 0;
-	AudioMsg _songData[AudioSimultaneousLimit];
+	Track _songTracks[kTogetherLimit];
 
-	AudioMsg _videoData;
-	uint64 _lastVideoPlayId = 0;
-	TimeMs _lastVideoPlaybackWhen = 0;
-	TimeMs _lastVideoPlaybackCorrectedMs = 0;
-	QMutex _lastVideoMutex;
+	Track _videoTrack;
 
-	QMutex _mutex;
+	QAtomicInt _volumeVideo;
+	QAtomicInt _volumeSong;
 
-	friend class AudioPlayerFader;
-	friend class AudioPlayerLoaders;
+	friend class Fader;
+	friend class Loaders;
 
 	QThread _faderThread, _loaderThread;
-	AudioPlayerFader *_fader;
-	AudioPlayerLoaders *_loader;
+	Fader *_fader;
+	Loaders *_loader;
 
 };
 
-namespace internal {
+Mixer *mixer();
 
-QMutex *audioPlayerMutex();
-float64 audioSuppressGain();
-float64 audioSuppressSongGain();
-bool audioCheckError();
-
-} // namespace internal
-
-class AudioCaptureInner;
-
-class AudioCapture : public QObject {
+class Fader : public QObject {
 	Q_OBJECT
 
 public:
-	AudioCapture();
-
-	bool check();
-
-	~AudioCapture();
-
-signals:
-	void start();
-	void stop(bool needResult);
-
-	void done(QByteArray data, VoiceWaveform waveform, qint32 samples);
-	void updated(quint16 level, qint32 samples);
-	void error();
-
-private:
-	friend class AudioCaptureInner;
-
-	QThread _captureThread;
-	AudioCaptureInner *_capture;
-
-};
-
-AudioPlayer *audioPlayer();
-AudioCapture *audioCapture();
-
-class AudioPlayerFader : public QObject {
-	Q_OBJECT
-
-public:
-	AudioPlayerFader(QThread *thread);
-	void resumeDevice();
+	Fader(QThread *thread);
 
 signals:
 	void error(const AudioMsgId &audio);
@@ -223,17 +273,13 @@ signals:
 	void audioStopped(const AudioMsgId &audio);
 	void needToPreload(const AudioMsgId &audio);
 
-	void stopPauseDevice();
-
 public slots:
 	void onInit();
 	void onTimer();
-	void onPauseTimer();
-	void onPauseTimerStop();
 
 	void onSuppressSong();
 	void onUnsuppressSong();
-	void onSuppressAll();
+	void onSuppressAll(qint64 duration);
 	void onSongVolumeChanged();
 	void onVideoVolumeChanged();
 
@@ -244,61 +290,69 @@ private:
 		EmitPositionUpdated = 0x04,
 		EmitNeedToPreload = 0x08,
 	};
-	int32 updateOnePlayback(AudioPlayer::AudioMsg *m, bool &hasPlaying, bool &hasFading, float64 suppressGain, bool suppressGainChanged);
-	void setStoppedState(AudioPlayer::AudioMsg *m, AudioPlayerState state = AudioPlayerStopped);
+	int32 updateOnePlayback(Mixer::Track *track, bool &hasPlaying, bool &hasFading, float64 volumeMultiplier, bool volumeChanged);
+	void setStoppedState(Mixer::Track *track, State state = State::Stopped);
 
-	QTimer _timer, _pauseTimer;
-	QMutex _pauseMutex;
-	bool _pauseFlag = false;
-	bool _paused = true;
+	QTimer _timer;
+
+	bool _volumeChangedSong = false;
+	bool _volumeChangedVideo = false;
 
 	bool _suppressAll = false;
 	bool _suppressAllAnim = false;
 	bool _suppressSong = false;
 	bool _suppressSongAnim = false;
-	bool _songVolumeChanged, _videoVolumeChanged;
-	anim::value _suppressAllGain, _suppressSongGain;
+	anim::value _suppressVolumeAll;
+	anim::value _suppressVolumeSong;
 	TimeMs _suppressAllStart = 0;
+	TimeMs _suppressAllEnd = 0;
 	TimeMs _suppressSongStart = 0;
 
 };
 
-struct AudioCapturePrivate;
-struct AVFrame;
+FileMediaInformation::Song PrepareForSending(const QString &fname, const QByteArray &data);
 
-class AudioCaptureInner : public QObject {
-	Q_OBJECT
+namespace internal {
 
-public:
-	AudioCaptureInner(QThread *thread);
-	~AudioCaptureInner();
+// Thread: Any. Must be locked: AudioMutex.
+bool CheckAudioDeviceConnected();
 
-signals:
-	void error();
-	void updated(quint16 level, qint32 samples);
-	void done(QByteArray data, VoiceWaveform waveform, qint32 samples);
+// Thread: Main. Locks: AudioMutex.
+void DetachFromDevice();
 
-public slots:
-	void onInit();
-	void onStart();
-	void onStop(bool needResult);
+// Thread: Any.
+QMutex *audioPlayerMutex();
 
-	void onTimeout();
+// Thread: Any.
+bool audioCheckError();
 
-private:
-	void processFrame(int32 offset, int32 framesize);
+} // namespace internal
 
-	void writeFrame(AVFrame *frame);
+} // namespace Player
+} // namespace Media
 
-	// Writes the packets till EAGAIN is got from av_receive_packet()
-	// Returns number of packets written or -1 on error
-	int writePackets();
-
-	AudioCapturePrivate *d;
-	QTimer _timer;
-	QByteArray _captured;
-
-};
-
-MTPDocumentAttribute audioReadSongAttributes(const QString &fname, const QByteArray &data, QImage &cover, QByteArray &coverBytes, QByteArray &coverFormat);
 VoiceWaveform audioCountWaveform(const FileLocation &file, const QByteArray &data);
+
+namespace Media {
+namespace Audio {
+
+FORCE_INLINE uint16 ReadOneSample(uchar data) {
+	return qAbs((static_cast<int16>(data) - 0x80) * 0x100);
+}
+
+FORCE_INLINE uint16 ReadOneSample(int16 data) {
+	return qAbs(data);
+}
+
+template <typename SampleType, typename Callback>
+void IterateSamples(base::const_byte_span bytes, Callback &&callback) {
+	auto samplesPointer = reinterpret_cast<const SampleType*>(bytes.data());
+	auto samplesCount = bytes.size() / sizeof(SampleType);
+	auto samplesData = gsl::make_span(samplesPointer, samplesCount);
+	for (auto sampleData : samplesData) {
+		callback(ReadOneSample(sampleData));
+	}
+}
+
+} // namespace Audio
+} // namespace Media

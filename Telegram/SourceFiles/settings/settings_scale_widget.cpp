@@ -18,16 +18,15 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "settings/settings_scale_widget.h"
 
 #include "styles/style_boxes.h"
 #include "styles/style_settings.h"
 #include "ui/widgets/checkbox.h"
-#include "lang.h"
-#include "localstorage.h"
+#include "lang/lang_keys.h"
+#include "storage/localstorage.h"
 #include "mainwindow.h"
-#include "boxes/confirmbox.h"
+#include "boxes/confirm_box.h"
 #include "application.h"
 #include "ui/widgets/discrete_sliders.h"
 
@@ -53,15 +52,18 @@ ScaleWidget::ScaleWidget(QWidget *parent, UserData *self) : BlockWidget(parent, 
 void ScaleWidget::createControls() {
 	style::margins margin(0, 0, 0, st::settingsSmallSkip);
 
-	addChildRow(_auto, margin, lng_settings_scale_auto(lt_cur, scaleLabel(cScreenScale())), SLOT(onAutoChanged()), (cConfigScale() == dbisAuto));
-	addChildRow(_scale, style::margins(0, 0, 0, 0));
+	createChildRow(_auto, margin, lng_settings_scale_auto(lt_cur, scaleLabel(cScreenScale())), [this](bool) { onAutoChanged(); }, (cConfigScale() == dbisAuto));
+	createChildRow(_scale, style::margins(0, 0, 0, 0));
 
 	_scale->addSection(scaleLabel(dbisOne));
 	_scale->addSection(scaleLabel(dbisOneAndQuarter));
 	_scale->addSection(scaleLabel(dbisOneAndHalf));
 	_scale->addSection(scaleLabel(dbisTwo));
 	_scale->setActiveSectionFast(cEvalScale(cConfigScale()) - 1);
-	_scale->setSectionActivatedCallback([this] { scaleChanged(); });
+	_scale->sectionActivated(
+	) | rpl::start_with_next(
+		[this] { scaleChanged(); },
+		lifetime());
 }
 
 void ScaleWidget::onAutoChanged() {
@@ -84,7 +86,7 @@ void ScaleWidget::onAutoChanged() {
 void ScaleWidget::setScale(DBIScale newScale) {
 	if (_inSetScale) return;
 	_inSetScale = true;
-	auto guard = base::scope_guard([this] { _inSetScale = false; });
+	auto guard = gsl::finally([this] { _inSetScale = false; });
 
 	if (newScale == cScreenScale()) newScale = dbisAuto;
 	if (newScale == dbisAuto && !_auto->checked()) {

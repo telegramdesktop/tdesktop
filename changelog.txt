@@ -1,0 +1,1714 @@
+1.2.7 alpha (31.12.17)
+
+- Use fast reply button in group chats.
+- Select a message you want to reply to by pressing Ctrl+Up and Ctrl+Down.
+
+1.2.6 (30.12.17)
+
+- Grouped Photos. Group media into an album when sharing multiple photos and videos. Choose the exact order of media you send.
+
+1.2.5 alpha (29.12.17)
+
+- When viewing a photo from an album, you'll see other pictures from the same group as thumbnails in the lower part of the screen.
+- When composing an album paste additional media from the clipboard.
+- Bug fixes and other minor improvements.
+
+1.2.4 alpha (26.12.17)
+
+- Group media into an album when sharing multiple photos and videos.
+- Bug fixes and other minor improvements.
+
+1.2.3 alpha (17.12.17)
+
+- Several crash fixes.
+
+1.2.2 alpha (16.12.17)
+
+- Grouped photos and videos are displayed as albums.
+
+1.2.1 (12.12.17)
+
+- Bug fixes and other minor improvements.
+
+1.2.0 (10.12.17)
+
+- Radically improved navigation. New side panel on the right with quick access to shared media and group members.
+- Saved Messages. Bookmark messages by forwarding them to "Saved Messages". Access them from the Chats list or from the side menu.
+- Pinned Messages. If you are a channel admin, pin messages to focus your subscribers' attention on important announcements.
+- Easily recognize messages from group admins by the new 'admin' badge.
+- Also supported clearing history in supergroups and added a host of minor improvements.
+
+1.1.29 alpha (09.12.17)
+
+- Bug fixes and other minor improvements.
+
+1.1.28 alpha (09.12.17)
+
+- Bug fixes and other minor improvements.
+
+1.1.27 alpha (06.12.17)
+
+- Bookmark messages by forwarding them to "Saved Messages". Access them from the Chats list or from the side menu.
+
+1.1.26 alpha (02.12.17)
+
+- Admin badges in supergroup messages.
+- Fix crashing on launch in OS X 10.6.
+- Bug fixes and other minor improvements.
+
+1.1.25 alpha (30.11.17)
+
+- Bug fixes and other minor improvements.
+
+1.1.24 alpha (29.11.17)
+
+- Radically improved navigation. New side panel on the right with quick access to shared media and group members.
+- Pinned Messages. If you are a channel admin, pin messages to focus your subscribers' attention on important announcements.
+- Also supported clearing history in supergroups and added a host of minor improvements.
+
+1.1.23 (05.09.17)
+
+- See the message author photo and name while searching specific chat messages.
+- Fix "Send To" menu action on Windows.
+
+1.1.22 (04.09.17)
+
+- Bug fixes and other minor improvements.
+
+1.1.21 (03.09.17)
+
+- Bug fixes and other minor improvements.
+
+1.1.20 (03.09.17)
+
+- Groups with unread mentions and replies are now marked with an '@' badge in the chats list.
+- Navigate new mentions and replies in a group using the new '@' button.
+- Mark your stickers as “favorite” to quickly access them from the redesigned sticker panel.
+- Add an official sticker set for your group which all members will be able to use while chatting in your group (100+ member groups only).
+
+1.1.19 (01.08.17)
+
+- Search by messages of specific group members.
+- Bug fixes and other minor improvements.
+
+1.1.18 (27.07.17)
+
+- Bug fixes and other minor improvements.
+
+1.1.17 (26.07.17)
+
+- Bug fixes and other minor improvements.
+
+1.1.16 (26.07.17)
+
+- Autocompletion for emoji. Start typing :e to get suggestions.
+- Fixed a bug with forwarding messages.
+
+1.1.15 (23.07.17)
+
+- Send **bold** and __italic__ text in your messages.
+- Get a share link for posts in public supergroups.
+- Quickly share posts from channels and media messages from bots.
+- Search large supergroup members by name.
+- Search channel members by name for admins.
+- Use search in the service actions log.
+- Ban supergroup members via the right click menu in the service actions log.
+
+1.1.14 alpha (19.07.17)
+
+- Bug fixes and other minor improvements.
+
+1.1.13 alpha (14.07.17)
+
+- Various bug fixes.
+
+1.1.12 alpha (11.07.17)
+
+- Click on forwarded messages bar to change the recipient chat in case you chose a wrong one first.
+- Quickly share posts from channels and media messages from bots.
+- Search in large supergroup members by name.
+- Search in channel members by name if you're a channel admin.
+- Copy links to messages in public supergroups.
+
+1.1.11 alpha (06.07.17)
+
+- Send **bold** and __italic__ text in your messages (in addition to already supported `monospace` and ```multiline monospace```).
+- Search in channel and supergroup admin event log.
+- Ban members from right click menu in supergroup admin event log.
+
+1.1.10 (04.07.17)
+
+- Add event log filter for channel or supergroup event log.
+- Fix search by username in privacy exceptions editor.
+- Fix adding admins in channels.
+
+1.1.9 (30.06.17)
+
+- Supergroups can now have up to 10.000 members.
+- Appoint supergroup admins with granular rights. Choose who can add users, manage messages, block members, edit group info & username, add new admins, etc.
+- Restrict and ban supergroup members with granular precision. Read-only bans, GIF & sticker bans, media bans, temporary bans and restrictions.
+- Check the new event log to see all service actions taken by members and admins of a channel or supergroup in the last 48 hours.
+- Toggle night mode in the main menu.
+
+1.1.8 alpha (30.06.17)
+
+- Toggle night mode in the main menu.
+
+1.1.7 (30.05.17)
+
+- Improved video messages: radial playback progress, Picture-in-Picture support, duration countdown.
+- Voice and video messages now automatically play one after another.
+
+1.1.6 alpha (26.05.17)
+
+- Bug fixes and other minor improvements.
+
+1.1.5 alpha (26.05.17)
+
+- Bug fixes and other minor improvements.
+
+1.1.4 (24.05.17)
+
+- Fix a crash in animated history scrolling.
+- Fix a bug with pinned chat to supergroup upgrade.
+
+1.1.3 (24.05.17)
+
+- Improved video messages playback.
+- Video and audio messages play one after another.
+
+1.1.2 (17.05.17)
+
+- Emoji icon tooltip about hiding the sidebar.
+- Fix possible calls deadlock in Linux.
+- Preserve Emoji/Stickers/GIFs panel state between activations.
+
+1.1.1 alpha (17.05.17)
+
+- Emoji icon tooltip about hiding the sidebar.
+- Fix possible calls deadlock in Linux.
+
+1.1.0 (14.05.17)
+
+- Telegram Calls are now available on desktops: secure, crystal-clear, constantly improved by artificial intelligence.
+- The new Emoji, Stickers, and Saved GIFs panel becomes a separate space on the right when Telegram is running in a wide enough window.
+- Manage blocked users list in your supergroups.
+- Chat admins can delete messages by other members.
+
+1.0.38 alpha (13.05.17)
+
+- Fix crashes in Windows XP.
+- Fix calls in Linux without SSE4.1 support.
+- PulseAudio support in calls.
+- Bug fixes and other minor improvements.
+
+1.0.37 alpha (10.05.17)
+
+- Multiple crash fixes.
+
+1.0.36 alpha (09.05.17)
+
+- Telegram Calls are now available on desktops: secure, crystal-clear, constantly improved by artificial intelligence.
+- Bug fixes and other minor improvements.
+
+1.0.35 alpha (30.04.17)
+
+- Chat admins can delete other participants' messages.
+- Bug fixes and other minor improvements.
+
+1.0.34 alpha (21.04.17)
+
+- Bug fixes and other minor improvements.
+
+1.0.33 alpha (16.04.17)
+
+- Bug fixes and other minor improvements.
+
+1.0.32 alpha (12.04.17)
+
+- Testing a build with the latest API layer.
+- Bug fixes and other minor improvements.
+
+1.0.31 alpha (11.04.17)
+
+- Bug fixes and other minor improvements.
+
+1.0.30 alpha (11.04.17)
+
+- The new Emoji, Stickers, and Saved GIFs panel becomes a separate space on the right when Telegram is running in a wide enough window.
+- Manage blocked users list in your supergroups.
+
+1.0.29 (05.04.17)
+
+- Improved Emoji, Stickers, and Saved GIFs panel.
+- Bug fixes and other minor improvements.
+
+1.0.28 alpha (03.04.17)
+
+- Better Emoji & Stickers & Saved GIFs panel.
+- Linux: Tray icon should work better in GNOME based Desktop Environments.
+- Bug fixes and other minor improvements.
+
+1.0.27 (31.03.17)
+
+- Fix launch in Ubuntu 17.04.
+- Update API scheme.
+
+1.0.26 (30.03.17)
+
+— Send MP4/MOV files as videos that will play right inside Telegram.
+— Click on the date in any chat to quickly jump to messages from a specific day.
+— Change your phone number in Settings.
+— Edit who can see your last seen time and who can add you to groups in Settings.
+— Edit your list of blocked users in Settings.
+— App now respects the "Do Not Disturb" setting for macOS notifications.
+— Bug fixes and other minor improvements.
+
+1.0.25 alpha (21.03.17)
+
+- Edit your account phone number in Settings.
+
+1.0.24 alpha (19.03.17)
+
+- Added Last Seen and Group Invite privacy settings.
+
+1.0.23 alpha (15.03.17)
+
+- Edit list of blocked users in Settings.
+
+1.0.22 alpha (13.03.17)
+
+- Bug fixes and other minor improvements.
+
+1.0.21 alpha (11.03.17)
+
+- Send MP4/MOV files as videos that will play right inside Telegram.
+- Bug fixes and other minor improvements.
+
+1.0.20 alpha (08.03.17)
+
+- Bug fixes and other minor improvements.
+
+1.0.19 alpha (08.03.17)
+
+- Go to date. Click on the date in a chat to jump to a specific day.
+- Respect macOS "Do not disturb" settings for sound notifications.
+- Bug fixes and other minor improvements.
+
+1.0.18 alpha (01.03.17)
+
+- Bug fixes and other minor improvements.
+
+1.0.17 alpha (28.02.17)
+
+- Bug fixes and other minor improvements.
+
+1.0.16 alpha (27.02.17)
+
+- Bug fixes and other minor improvements.
+
+1.0.15 alpha (27.02.17)
+
+- Wrong supergroup members display fix.
+- RTL text layout fix.
+- Linux GTK file choose dialog should show image previews.
+- Bug fixes and other minor improvements.
+
+1.0.14 (20.02.17)
+
+- Bug fixes and other minor improvements.
+
+1.0.13 (20.02.17)
+
+- Bug fixes and other minor improvements.
+
+1.0.12 (19.02.17)
+
+- Support for more emoji.
+- Click and drag on waveform to play audio from a chosen moment.
+- Added Theme editor to Settings.
+- Bug fixes and other minor improvements.
+
+1.0.11 alpha (17.02.17)
+
+- Bug fixes and other minor improvements.
+
+1.0.10 alpha (17.02.17)
+
+- Support for more emoji.
+- Bug fixes and other minor improvements.
+
+1.0.9 alpha (11.02.17)
+
+- Bug fixes and other minor improvements.
+
+1.0.8 alpha (11.02.17)
+
+- Click and drag on waveform to play audio from a chosen moment.
+
+1.0.7 alpha (07.02.17)
+
+- Added Theme editor to Settings.
+
+1.0.6 (01.02.17)
+
+- Bug fixes and other minor improvements.
+
+1.0.5 (31.01.17)
+
+- Click and drag to reorder pinned chats.
+- Bug fixes and other minor improvements.
+
+1.0.4 alpha (30.01.17)
+
+- Click and drag to reorder pinned chats.
+
+1.0.3 alpha (27.01.17)
+
+- Audio device is opened only when some sound is played.
+- On Windows Vista and later audio device should switch after the system default changes.
+
+1.0.2 (19.01.17)
+
+- New option to minimize the chat list into a column of profile pictures.  Resize the list by clicking and dragging.
+- Fixed drag-n-drop images from Firefox on Windows.
+- Bug fixes and other minor improvements.
+
+1.0.1 alpha (16.01.17)
+
+- Resize chats list with mouse press-and-drag.
+- Drag-n-drop images from Firefox fixed in Windows.
+- Bug fixes and other minor improvements.
+
+1.0.0 (11.01.17)
+
+- Fabulous new material-style design and animations.
+- Support for custom themes! Check out some themes here: @TelegramThemes.
+- Convenient tools for building your own themes coming soon.
+- Delete messages for everyone. When you delete your messages in groups and one-on-one chats, you can now choose to delete them for everyone in the chat, not just yourself. This works only for recently sent messages (same as editing).
+- Pin important chats to the top of the list so that you never miss a new message (right click on a chat, then choose 'Pin to top').
+- Groups in common. A new option in your contacts' profiles that shows a list of all groups you share with that person.
+
+0.10.27 alpha (11.01.17)
+
+- Appoint admins in your supergroups from members list context menu.
+- Bug fixes and other minor improvements.
+
+0.10.26 alpha (07.01.17)
+
+- You can use t.me instead of telegram.me.
+- OpenAL updated to the latest version.
+- Bug fixes and other minor improvements.
+
+0.10.25 alpha (05.01.17)
+
+- Bug fixes and other minor improvements.
+
+0.10.24 alpha (05.01.17)
+
+- Bug fixes and other minor improvements.
+
+0.10.23 alpha (01.01.17)
+
+- Bug fixes and other minor improvements.
+
+0.10.22 alpha (31.12.16)
+
+- Bug fixes and other minor improvements.
+
+0.10.21 alpha (30.12.16)
+
+- Fabulous new material-style design and animations.
+- This version already supports custom themes that are coming soon.
+- Pin important chats to the top of the list so that you never miss a new message (right click on a chat, then choose 'Pin to top').
+- Groups in common. A new option in your contacts' profiles that shows a list of all groups you share with that person.
+
+0.10.20 (18.12.16)
+
+- Bug fixes and other minor improvements.
+
+0.10.19 (25.10.16)
+
+- Bug fixes and other minor improvements.
+
+0.10.18 (24.10.16)
+
+- New cute design for adding members to your groups.
+
+0.10.17 alpha (23.10.16)
+
+- New cute control for adding members to your groups.
+
+0.10.16 (19.10.16)
+
+- New audio player design.
+- Quick reply from notifications.
+- Hide all notifications button added.
+- Change notifications location and maximum count.
+- Respecting quiet hours for the notifications.
+- You can enable native notifications in Settings.
+
+0.10.15 alpha (18.10.16)
+
+- Bug fixes and other minor improvements.
+
+0.10.14 alpha (18.10.16)
+
+- New audio player design.
+- Moved to Qt library version 5.6.2.
+- Windows 10: Respecting quite hours for the notifications.
+
+0.10.13 alpha (07.10.16)
+
+- Bug fixes and other minor improvements.
+
+0.10.12 alpha (07.10.16)
+
+- Quick reply from notifications.
+- Hide all notifications button added.
+- Change notifications location and maximum count.
+- Linux: You can enable native notifications in Settings.
+
+0.10.11 (03.10.16)
+
+- Bug fixes and other minor improvements.
+
+0.10.10 (03.10.16)
+
+- Bug fixes and other minor improvements.
+
+0.10.9 (03.10.16)
+
+- Bug fixes and other minor improvements.
+
+0.10.8 (23.09.16)
+
+- Bug fixes and other minor improvements.
+
+0.10.7 (20.09.16)
+
+- Bug fixes and other minor improvements.
+
+0.10.6 (13.09.16)
+
+- Bug fixes and other minor improvements.
+
+0.10.5 (12.09.16)
+
+- New cute design for the Settings page.
+- Bug fixes and other minor improvements.
+
+0.10.4 alpha (03.09.16)
+
+- Bug fixes and other minor improvements.
+
+0.10.3 alpha (02.09.16)
+
+- New cute design for the Settings page.
+
+0.10.2 alpha (14.08.16)
+
+- Bug fixes and other minor improvements.
+
+0.10.1 (05.08.16)
+
+- Bug fixes and other minor improvements.
+
+0.10.0 (03.08.16)
+
+- Trending stickers. Check out and install noteworthy sticker packs from the new tab in Settings.
+- Archived stickers. Unused stickers are now archived automatically when you go over the 200 limit.
+- Group previews. Preview groups before joining them via invite link – see who else is in the group before joining.
+- New internal video player.
+- Improved design for chats.
+
+0.9.60 alpha (24.07.16)
+
+- Bug fixes and other minor improvements.
+
+0.9.59 alpha (23.07.16)
+
+- Bug fixes and other minor improvements.
+
+0.9.58 alpha (22.07.16)
+
+- Alpha version of an embedded video player.
+
+0.9.57 alpha (07.07.16)
+
+- Design improvements.
+- Linux: trying to use GTK file chooser when it is available.
+
+0.9.56 stable (26.06.16)
+
+- Fixed photo viewer to handle screen resolution change correctly.
+- Fixed forwarding photos via drag-n-drop.
+- Various design improvements and other bug fixes.
+
+0.9.55 alpha (24.06.16)
+
+- Main window position and size are saved between the launches in Windows.
+- Dock and top bar hiding fixed in OS X.
+- Various design improvements and other bug fixes.
+
+0.9.54 alpha (22.06.16)
+
+- Photo viewer handles screen resolution change.
+- Forward photo by drag-n-drop fixed.
+- Some design improvements and bug fixes.
+
+0.9.53 alpha (21.06.16)
+
+- Put your cursor over the members count in a group chat to see the members list.
+- Bug fixes and other minor improvements.
+
+0.9.52 alpha (17.06.16)
+
+- Bug fixes and other minor improvements.
+
+0.9.51 stable (15.06.16)
+
+- Bug fixes and other minor improvements.
+
+0.9.50 stable (14.06.16)
+
+- Introducing Drafts: Seamless syncing for unsent messages on all your devices. Drafts are now visible in your chats list.
+- Completely redesigned group and user profiles.
+- Unread messages counter on the 'Scroll to bottom' button.
+
+0.9.49 stable (16.05.16)
+
+- Edit your messages everywhere within 2 days after posting (press the up arrow button to edit your last message).
+- Mention people in groups by typing @ and selecting them from the list — even if they don't have a username.
+
+0.9.48 stable (10.05.16)
+
+- Bug fixes and other minor improvements.
+
+0.9.47 alpha (02.05.16)
+
+- Bug fixes and other minor improvements.
+
+0.9.46 alpha (27.04.16)
+
+- Alpha versions instead of dev.
+- Bug fixes and other minor improvements.
+
+0.9.45 dev (22.04.16)
+
+- Bug fixes and other minor improvements.
+
+0.9.44 stable (20.04.16)
+
+- Bug fixes and other minor improvements.
+
+0.9.43 dev (14.04.16)
+
+- Select and copy text in photo / video captions and web page previews.
+- Media player shortcuts are enabled only when player is opened.
+
+0.9.42 stable (12.04.16)
+
+- Bug fixes and other minor improvements.
+
+0.9.41 stable (11.04.16)
+
+- Introducing Bot API 2.0, the biggest update to our bot platform since June 2015.
+- Bots can now update existing messages on the fly as you interact with them.
+- New Inline keyboards with callback, 'open URL' or 'switch to inline mode' buttons help create seamless interfaces.
+- Inline bots can now send all attachments supported by Telegram (videos, music, stickers, locations, etc.).
+
+0.9.40 stable (05.04.16)
+
+- Visual improvements.
+
+0.9.39 dev (01.04.16)
+
+- Bug fixes and other minor improvements.
+
+0.9.38 dev (01.04.16)
+
+- Bug fixes and other minor improvements.
+
+0.9.37 dev (31.03.16)
+
+- Bug fixes and other minor improvements.
+
+0.9.36 dev (26.03.16)
+
+- Bug fixes and other minor improvements.
+
+0.9.35 dev (25.03.16)
+
+- Design improvements.
+
+0.9.34 dev (17.03.16)
+
+- Bug fixes and other minor improvements.
+
+0.9.33 stable (16.03.16)
+
+- Linux version critical bug fixed.
+
+0.9.32 stable (14.03.16)
+
+- Bug fixes and other minor improvements.
+
+0.9.31 stable (14.03.16)
+
+- Supergroups can now have 5,000 members (up from 1,000).
+- Groups of any size may be converted to supergroups.
+- Make your supergroup public by setting up a public link – anyone will be able to view the chat and join it.
+- Pin messages to keep important updates visible and notify all members.
+    'Select messages to delete, report as spam, block users, or remove all messages from a user'
+
+0.9.30 dev (03.03.16)
+
+- Bug fixes and other minor improvements.
+
+0.9.29 dev (01.03.16)
+
+- Ctrl+W or Ctrl+F4 for close window (Cmd in OS X).
+- Ctrl+L to lock Telegram if you use a local passcode (Cmd in OS X).
+
+0.9.28 stable (26.02.16)
+
+- Edit your messages in channels and supergroups.
+- Share links to specific posts in channels via the post context menu.
+- Add admin signatures to messages in channels.
+- Send silent messages in channels that will not notify members, useful for non-urgent or late night posting.
+
+0.9.27 dev (25.02.16)
+
+- Edit your messages in channels and supergroups.
+- Share links to specific posts in channels via the post context menu.
+- Add admin signatures to messages in channels.
+- Send silent messages in channels that will not notify members, useful for non-urgent or late night posting.
+
+0.9.26 stable (22.02.16)
+
+- Adaptive layout for wide screens switch added to Settings.
+- Linux version crash fix.
+
+0.9.25 dev (21.02.16)
+
+- Adaptive layout for wide screens switch added to Settings.
+- Linux version crash fix.
+
+0.9.24 stable (16.02.16)
+
+- New waveform visualizations for voice messages.
+- Sticker suggestions when you type an emoji.
+
+0.9.23 dev (15.02.16)
+
+- Bug fixes and other minor improvements.
+
+0.9.22 dev (14.02.16)
+
+- Voice messages waveform visualizations.
+
+0.9.21 dev (09.02.16)
+
+- Bug fixes and other minor improvements.
+
+0.9.20 dev (08.02.16)
+
+- Testing new crash reporting system.
+- Conversation history is centered in wide windows.
+- New cute link and timestamp tooltips design.
+- Ctrl+W or Ctrl+F4 closes Telegram window.
+
+0.9.19 dev (09.01.16)
+
+- Choose an emoticon and see the suggested stickers.
+
+0.9.18 stable (05.01.16)
+
+- Bug fixes and minor improvements.
+
+0.9.17 stable (04.01.16)
+
+- Crash fixed.
+
+0.9.16 stable (04.01.16)
+
+- GIFs autoplay and automatic download.
+- Inline bots support.
+- Automatic download settings added.
+- All media redesigned.
+
+0.9.15 stable (09.12.15)
+
+- Sticker management: manually rearrange your sticker packs, pack order is now synced across all your devices.
+- Click and hold on a sticker to preview it before sending.
+- New context menu for chats in chats list.
+- Support for all existing emoji.
+
+0.9.14 dev (09.12.15)
+
+- Sticker management: manually rearrange your sticker packs, pack order is now synced across all your devices.
+- Click and hold on a sticker to preview it before sending.
+- New context menu for chats in chats list.
+- Support for all existing emoji.
+
+0.9.13 stable (25.11.15)
+
+- Groups can now have multiple administrators with the ability to edit the name and logo, and add and remove members.
+- Groups that have reached their capacity of 200 users can be upgraded to supergroups of up to 1,000 members.
+
+0.9.12 dev (22.11.15)
+
+- Bug fixes and other minor improvements.
+
+0.9.11 dev (22.11.15)
+
+- Groups can now have multiple administrators with the ability to edit the name and logo, and add and remove members.
+- Groups that have reached their capacity of 200 users can be upgraded to supergroups of up to 1,000 members.
+
+0.9.10 stable (04.11.15)
+
+- New shared audio files section.
+- New design for popup menus.
+- Add captions to any photos you send.
+- Surround text with `single backticks` for inline monowidth code and ```triple backticks``` for blocks of code.
+- The Tilde symbol is now displayed correctly.
+
+0.9.9 dev (02.11.15)
+
+- New popup menus in text input fields.
+- Error is displayed when trying to paste or drop a folder instead of a file.
+- Some bugfixes and improvements.
+
+0.9.8 dev (28.10.15)
+
+- Tilde symbol fixed in message input field.
+- Add a caption to any photo you send.
+- Bad sound quality bug fixed.
+- Some bugfixes and improvements.
+
+0.9.7 dev (23.10.15)
+
+- Tilde symbol display fixed.
+- Bold and Italic text display from bots supported.
+- Send code without text and emoji replaces using `such syntax` for inline parts and ```such syntax``` for blocks of code.
+- Some bugfixes and improvements.
+
+0.9.6 stable (14.10.15)
+
+- Bug fixes and other minor improvements.
+  ),
+ ),
+0.9.5 stable (14.10.15)
+
+- Improved speed.
+- First steps towards a new design.
+  ),
+ ),
+0.9.4 dev (12.10.15)
+
+- New design for all modal windows.
+- Toggle notifications from tray menu.
+
+0.9.3 dev (01.10.15)
+
+- Dialogs and emoji render made much faster.
+
+0.9.2 stable (25.09.15)
+
+- Bug fixes and other minor improvements.
+
+0.9.1 stable (24.09.15)
+
+- Bug fixes and other minor improvements.
+
+0.9 stable (24.09.15)
+
+- Introducing Channels — a great new way to broadcast your messages to unlimited audiences.
+- Other fixes and improvements.
+
+0.8.59 dev (23.09.15)
+
+- Channels members and admins management added.
+
+0.8.58 dev (22.09.15)
+
+- Limited Channels support added.
+
+0.8.57 stable (13.09.15)
+
+- Bug fixes and other minor improvements.
+
+0.8.56 stable (10.09.15)
+
+- Spam report buttons in new chats.
+- Other fixes and improvements.
+- OS X 10.8 notifications fixed.
+
+0.8.55 stable (02.09.15)
+
+- Include muted chats in unread count in Settings.
+- Shared links overview and search in shared media.
+- Preview when sending links to GIF animations and PDF files.
+
+0.8.54 dev (31.08.15)
+
+- Preview when sending links to GIF animations and PDF files.
+- Full date and time shown when mouse over message timestamp.
+
+0.8.53 dev (28.08.15)
+
+- Include muted chats in unread count in Settings.
+- Shared links overview and search in shared media.
+
+0.8.52 stable (19.08.15)
+
+- Bug fixes and other minor improvements.
+
+0.8.51 stable (17.08.15)
+
+- Block users from their profile page.
+- Added support for Windows toast notifications.
+- Fixed input methods on Linux (Fcitx and IBus).
+
+0.8.50 dev (14.08.15)
+
+- Bug fixes in Windows notifications.
+- Fixed input methods on Linux (Fcitx and IBus).
+
+0.8.49 dev (12.08.15)
+
+- Block users from user profile.
+- Ask support team a question from Settings.
+- Windows toast notifications support added.
+
+0.8.48 stable (08.08.15)
+
+- Search for messages in conversation.
+- Clear messages history in groups.
+- Contacts without messages are hidden from the conversations list.
+
+0.8.47 dev (07.08.15)
+
+- Search for messages in conversation.
+- Clear messages history in groups.
+- Contacts without messages are hidden from the conversations list.
+
+0.8.46 stable (05.08.15)
+
+- Crash fix on sending .webp files.
+
+0.8.45 stable (03.08.15)
+
+- Bug fixes and other minor improvements.
+
+0.8.44 dev (01.08.15)
+
+- Sending media and recording audio status display.
+
+0.8.43 stable (31.07.15)
+
+- Bug fixes and other minor improvements.
+
+0.8.42 dev (31.07.15)
+
+- Dev version will now get updated to stable as well.
+
+0.8.41 dev (21.07.15)
+
+- Pretty phone number formatting.
+- Fixed shared contacts display.
+- Fix KDE crash, use Qt tray icon in all Linux systems.
+
+0.8.40 dev (17.07.15)
+
+- Fixed critical Qt bug in image scale.
+- Huge amount of unread messages are loaded much faster.
+- Some bugfixes and optimizations.
+
+0.8.39 dev (14.07.15)
+
+- Moved to Qt 5.5 and Xcode 6.4.
+- Some bugfixes and optimizations.
+- In OS X 10.10.3 location marks sent from mobile should be displayed now.
+
+0.8.38 stable (03.07.15)
+
+- Improved in-app media playback.
+
+0.8.37 dev (03.07.15)
+
+- Improved in-app media playback.
+
+0.8.36 stable (01.07.15)
+
+- Forward photos, media and stickers with drag-n-drop.
+- Drag-n-drop text messages by timestamp to forward them.
+- Larger stickers panel.
+- IPv6 checkbox added to Connection Type in Settings.
+
+0.8.35 dev (30.06.15)
+
+- Bug fixes and minor improvements.
+
+0.8.34 dev (28.06.15)
+
+- Forward photos, media and stickers with drag-n-drop.
+- Drag-n-drop text messages by timestamp to forward them.
+- Larger stickers panel.
+
+0.8.33 dev (25.06.15)
+
+- IPv6 connection checkbox added to Connection Type box in Settings.
+
+0.8.32 stable (25.06.15)
+
+- Critical bug fixed.
+- IPv6 connection temporarily disabled.
+
+0.8.31 dev (24.06.15)
+
+- Bots support using the new bot API.
+- Drag-n-drop selected text and links from messages.
+- Forward selected messages by drag-n-drop.
+
+0.8.30 stable (24.06.15)
+
+- Bots support using the new bot API.
+
+0.8.29 dev (22.06.15)
+
+- Bug fixes and minor improvements.
+
+0.8.28 dev (18.06.15)
+
+- Bug fixes and minor improvements.
+
+0.8.27 dev (17.06.15)
+
+- Bug fixes and minor improvements.
+
+0.8.26 dev (17.06.15)
+
+- Bug fixes and minor improvements.
+
+0.8.25 dev (15.06.15)
+
+- IPv6 connections support.
+
+0.8.24 stable (08.06.15)
+
+- Improved sticker panel.
+
+0.8.23 dev (05.06.15)
+
+- Improved sticker panel.
+- New autoupdate check.
+
+0.8.22 dev (04.06.15)
+
+- OpenAL updated to a new version.
+- Autoupdating improved.
+- Bugfixes.
+
+0.8.21 stable (02.06.15)
+
+- Added sending voice messages.
+- Fixed disappearing stickers.
+
+0.8.20 dev (02.06.15)
+
+- Minor bug fixes.
+- Translations improved.
+
+0.8.19 dev (02.06.15)
+
+- Fixed disappearing stickers.
+
+0.8.18 dev (01.06.15)
+
+- Voice messages recording and sending.
+
+0.8.17 stable (21.05.15)
+
+- Crash fix.
+
+0.8.16 stable (20.05.15)
+
+- Added support for sticker packs.
+- New emoji and sticker panel.
+
+0.8.15 dev (20.05.15)
+
+- Video captions are displayed.
+- Photo captions are displayed in photo viewer.
+- Round corners for messages.
+
+0.8.14 dev (19.05.15)
+
+- Added support for sticker packs.
+- New emoji and sticker panel.
+
+0.8.13 stable (12.05.15)
+
+- Added support for new emoji.
+- Improved emoji and stickers panel.
+
+0.8.12 dev (08.05.15)
+
+- New emojis support added.
+- Emojis and stickers panel improved.
+
+0.8.11 stable (01.05.15)
+
+- Invite links for group chats.
+- Gray unread badge for muted conversations.
+
+0.8.10 dev (01.05.15)
+
+- Critical bug fixes for messages history loading.
+
+0.8.9 dev (30.04.15)
+
+- Fix for invite links.
+
+0.8.8 dev (30.04.15)
+
+- Invite links for group chats.
+- Gray unread badge for muted conversations.
+
+0.8.7 stable (24.04.15)
+
+- New photo viewer design.
+- Switch between files in the photo viewer.
+- Grouped notifications when several messages are forwarded.
+- New default chat background image (you can change it in Settings).
+
+0.8.6 dev (24.04.15)
+
+- Old default chat background image placed first in background Gallery.
+- Forwarded files, videos, audios and contacts original sender name is displayed.
+- Grouped notifications when several messages are forwarded.
+
+0.8.5 dev (22.04.15)
+
+- New photoviewer design.
+- Switch through files overview in photoviewer.
+- New default chat background image.
+
+0.8.4 stable (13.04.15)
+
+- Link preview layout bug fix.
+
+0.8.3 stable (08.04.15)
+
+- Link previews for Twitter, YouTube, Instagram and certain other links.
+- Two-step verification.
+- View all your Telegram sessions, terminate specific sessions.
+
+0.8.2 dev (07.04.15)
+
+- Link previews bugfixes.
+- Links in preview descriptions are now clickable.
+- Twitter and Instagram mentions and hashtags in previews are clickable.
+- Fixed file uploading.
+- Fixed photo, document and sticker forwarding.
+
+0.8.1 dev (05.04.15)
+
+- Link previews for Twitter, YouTube, Instagram and certain other links.
+- Two-step verification.
+- View all your Telegram sessions, terminate specific sessions.
+- Text is pasted from clipboard when clipboard has both text and image and image sending was cancelled.
+
+0.8 stable (26.03.15)
+
+- Add a comment before forwarded messages.
+- Hashtags suggestions in new message and search fields (based on recent searches).
+- Button to jump back to a reply after viewing the original message.
+- Add people to groups by username.
+
+0.7.26 dev (26.03.15)
+
+- Some bugfixes.
+
+0.7.25 dev (25.03.15)
+
+- Add people to groups by username.
+- Copy @username from profile context menu.
+
+0.7.24 dev (24.03.15)
+
+- Forward messages with comment or sticker before them.
+- Recent hashtags autocomplete in message and search fields.
+- Move from reply to original message and back.
+
+0.7.23 stable (20.03.15)
+
+- Reply to specific messages in groups.
+- Mention @usernames in groups to notify multiple users.
+
+0.7.22 dev (20.03.15)
+
+- Critical bug in messages delivery fixed.
+
+0.7.21 dev (19.03.15)
+
+- Reply to specific messages in groups.
+- Mention @usernames in groups to notify multiple users.
+
+0.7.20 stable (13.03.15)
+
+- Lock your app with a passcode.
+
+0.7.19 dev (03.03.15)
+
+- Passcode lock option added to Settings.
+
+0.7.18 dev (20.02.15)
+
+- Windows: crash on start fixed for some Intel cards.
+- Linux: tray icon returned in Pantheon and Gnome.
+
+0.7.17 stable (19.02.15)
+
+- Some minor improvements.
+- Windows: crash on app launch fixed for some Intel graphic cards.
+
+0.7.16 stable (17.02.15)
+
+- Some translations improvements.
+- Linux: tray icon should work better in non-Unity environments.
+
+0.7.15 dev (16.02.15)
+
+- Some translation keys added.
+- Linux: fixed semibold font.
+- Linux: tray icon should work better in non-Unity environments.
+
+0.7.14 dev (12.02.15)
+
+- Moved to Qt 5.4.0 version, please check everything.
+- Time values should be displayed like in your system.
+- Linux: fixed keyboard shortcuts when not english keyboard layout.
+
+0.7.13 stable (10.02.15)
+
+- You can now change the chat background.
+
+0.7.12 dev (06.02.15)
+
+- Chat background settings translated.
+- Mac OS X and Linux autoupdate for dev-version fixed.
+
+0.7.11 dev (05.02.15)
+
+- Chat background can be changed.
+- First dev-channel version.
+
+0.7.10 (29.01.15)
+
+- Online updated only while current window is active.
+
+0.7.9 (23.01.15)
+
+- Added Korean language.
+- Quick «open with» menu on Windows and OSX.
+
+0.7.8 (19.01.15)
+
+- Some graphics changed.
+- Windows: when activating window by click selection is not cleared.
+- Linux: tray icon and unity launcher counter support improved.
+
+0.7.7 (16.01.15)
+
+- Windows: system sleep / hibernation fixed when app is running.
+- Mac OS X: crashes on OS X 10.7 and 10.8 fixed.
+- Linux: tray icon support and unity launcher counter for unread messages added in Ubuntu.
+
+0.7.6 (06.01.15)
+
+- Some improvements for stickers.
+- Some translation improvements.
+
+0.7.5 (03.01.15)
+
+- Stickers support.
+- Local caching for voice messages.
+- Added Portuguese language.
+
+0.7.4 (23.12.14)
+
+- German and Dutch languages added.
+
+0.7.3 (21.12.14)
+
+- Italian and Spanish languages added.
+
+0.7.2 (16.12.14)
+
+- Title buttons bug fixed in single column layout.
+
+0.7.1 (16.12.14)
+
+- Linux: font for Korean characters added.
+- Various bugs fixed.
+
+0.7 (16.12.14)
+
+- Improved single column navigation.
+- Improved image viewer for large documents.
+
+0.6.21 (13.12.14)
+
+- Crash fixed for contacts without names.
+
+0.6.20 (13.12.14)
+
+- Crash fixed in single column layout.
+
+0.6.19 (13.12.14)
+
+- Some bugs fixed.
+
+0.6.18 (12.12.14)
+
+- Single-column layout support added for small chat window.
+- Photos are sent up to 1280x1280 size.
+- New device login notification added.
+- New version notification added.
+
+0.6.17 (08.12.14)
+
+- Filter in contacts lists (contacts, new group, add member) now is case-insensitive.
+- Win: telegram.me/username links handling fixed.
+
+0.6.16 (05.12.14)
+
+- telegram.me/username links supported.
+- Downloaded documents local cache added.
+- Some network improvements.
+
+0.6.15 (26.11.14)
+
+- Intro and login were slightly redesigned.
+- Some various bug fixes.
+
+0.6.14 (24.11.14)
+
+- Work over HTTP crashing fixed.
+
+0.6.13 (24.11.14)
+
+- Application icon changed.
+- Vimeo video links shown with preview.
+- Some iOS emojis display fixed.
+- Windows version crash when notification clicked fixed.
+
+0.6.12 (22.11.14)
+
+- Message drafts are saved.
+- Local photos cache added.
+- Shared contacts display and youtube links preview fixed.
+
+0.6.11 (18.11.14)
+
+- Some minor fixes.
+
+0.6.10 (18.11.14)
+
+- Portrait oriented photos display fixed.
+- Photo thumbs size decreased in conversations.
+- OS X: tray icon fixed in dark status bar theme.
+- OS X: main menu added.
+
+0.6.9 (15.11.14)
+
+- Some network problems fixed.
+
+0.6.8 (13.11.14)
+
+- YouTube and Instagram links are displayed with preview.
+- Location messages are displayed as a map with a link.
+- OS X: .dmg setup image now has a design.
+- OS X: updating after notebook wakeup fixed.
+
+0.6.7 (05.11.14)
+
+- Long texts are now split to several messages.
+- Some network improvements.
+
+0.6.6 (29.10.14)
+
+- Some network improvements.
+- Upload and download speed increased.
+
+0.6.5 (22.10.14)
+
+- Username support added.
+
+0.6.4 (17.10.14)
+
+- Photoviewer redesigned.
+- Default recent emojis filled.
+- Linux photo and document save from photoviewer fixed.
+
+0.6.3 (10.10.14)
+
+- Inline animated GIF documents view.
+- Crash in forward from search results fixed.
+
+0.6.2 (07.10.14)
+
+- Some documents (PNG and JPG) are opened in app photo viewer.
+- Photo and document viewer supports Ctrl + / Ctrl - / Ctrl 0 zoom hotkeys and image dragging.
+
+0.6.1 (30.09.14)
+
+- Windows only: fixed context menus.
+- OS X only: fixed crash with disabled tray icon.
+
+0.6 (30.09.14)
+
+- Photo loading indicator added.
+- Custom context menus added, including tray menu in Windows.
+- Default download folder to "Downloads/Telegram Desktop".
+- Improved OS X tray icon view and behaviour.
+
+0.5.21 (21.09.14)
+
+- Loading photos blurred in photos overview.
+- Full voice message duration displayed when playing.
+- Multimonitor photo view fixed.
+
+0.5.20 (20.09.14)
+
+- Loading photos blurred.
+- Default emoji images used.
+- OS X tray icon support added.
+- Windows version is now digitally signed.
+
+0.5.19 (05.09.14)
+
+- Long voice message playing fix.
+
+0.5.18 (05.09.14)
+
+- Voice messages auto download and in-app playing support.
+- Audio now is working through OpenAL library.
+- Linux version now is not dependent on libpulse.
+
+0.5.17 (21.08.14)
+
+- Multi selection added to media overview.
+- Photos in overview are displayed in right order now.
+- Some crashes fixed.
+
+0.5.16 (15.08.14)
+
+- Navigate through photos fixed.
+- Media overview in profiles (photos, video files, documents, voice messages).
+- Going to current message in history from media overview context menu.
+- Some protocol+network bugs fixed.
+- OS X application signed by Developer ID certificate.
+
+0.5.15 (12.08.14)
+
+- Fixes in new photo viewer.
+
+0.5.14 (11.08.14)
+
+- New photo viewer, fullscreen, with controls and moving through conversation photos.
+- Checkbox for sending images from clipboard without compression as documents.
+
+0.5.13 (02.08.14)
+
+- Some network and protocol issues fixed.
+
+0.5.12 (30.07.14)
+
+- Fixed diacritics input in Linux.
+- Fixed saving files with incorrect server-side filenames in Windows.
+
+0.5.11 (26.07.14)
+
+- High definition graphics added (2x interface scale and OS X retina displays).
+- Some invalid links highlighting removed.
+
+0.5.10 (24.07.14)
+
+- Escape key closes photo view.
+- On OS X now Ctrl+Tab and Ctrl+Shift+Tab are working for dialogs switching.
+- On Linux fixed notifies (they don't grab focus and aren't seen in windows switcher), fixed keyboard layout change.
+- On Linux all application data is now stored in ~/.TelegramDesktop directory.
+
+0.5.9 (18.07.14)
+
+- Choose between notification with preview, with only sender's name (message preview hidden) or without any information.
+- Sending documents from "Send to" explorer context menu added, see a checkbox in Settings (only Windows version).
+- Little features: Ctrl+Tab / Ctrl+Shift+Tab switch to near dialogs, links without top-level domain highlight, version in About dialog now leads to version history.
+- Some bugs fixed: maximize button in Ubuntu, running different copies of app under different users at the same time in Windows, Surface touchscreen support fixed.
+- Added 32 bit Ubuntu version.
+
+0.5.8 (16.07.14)
+
+- Fixed crash at contact message history clear.
+- Ubuntu 12.04 is supported now.
+- Added hashtag highlight and messages search by hashtags.
+
+0.5.7 (15.07.14)
+
+- All platforms are updated up to one version and code (Windows, OS X, Ubuntu).
+- Fixed crash at document open on OS X.
+- Message search results shown below the filtered dialogs when searching.
+
+0.5.6 (04.07.14)
+
+- Windows test version (no autoupdate) with server-side messages search.
+- First version of Ubuntu tdesktop build released.
+
+0.5.5 (25.06.14)
+
+- First version of OS X tdesktop build released.
+
+0.5.4 (17.06.14)
+
+- Font changed to Open Sans.
+
+0.5.3 (13.06.14)
+
+- Taskbar icon hide fixed (once again!), sorry :(.
+
+0.5.2 (12.06.14)
+
+- Two crashes fixed.
+- Ellipsis text overflow display fixed in dialogs list.
+
+0.5.1 (01.06.14)
+
+- Fixed audio notifications.
+- Fixed taskbar icon hiding.
+- source code: ./_qt_5_3_0_patch/ updated, Qt 5.3 rebuild required.
+
+0.5.0 (30.05.14)
+
+- Application source code is published on GitHub under GPL v3
+
+0.4.18 (28.05.14)
+
+- Crash in other users profile fixed.
+
+0.4.17 (28.05.14)
+
+- Desktop notifications bug fixed.
+
+0.4.16 (28.05.14)
+
+- Desktop and sound notifications one second delay added.
+- Chat and contact notifications settings cloud-stored and synced, loaded from server.
+- Mobile sign up skip added, you can join from desktop now.
+
+0.4.15 (29.04.14)
+
+- Default tcp and http connection types merged to one.
+- Using tcp connection by default, using http-transport if plain tcp is unavailable.
+- Files less than 10mb are md5-signed now.
+
+0.4.14 (19.04.14)
+
+- Documents and files up to 1500 Mb can be sent now.
+- Some lang phrases are fixed.
+- Memory leak fixed in file upload.
+
+0.4.13 (16.04.14)
+
+- Critical auth-storing bug fixed (auto-logout on app relaunch in some cases).
+
+0.4.12 (16.04.14)
+
+- Window shadow and resize area now scale with the rest of the interface.
+- Multiple delete and forward buttons and scale select design improved.
+- Portable version (the same Telegram.exe, actually) .zip archive added here.
+
+0.4.11 (09.04.14)
+
+- Emoji smiles support in message field added.
+- Hover-button for emoji tab showing added to the left from Send button.
+
+0.4.10 (31.03.14)
+
+- Some texts fixes and autoupdate check.
+
+0.4.9 (31.03.14)
+
+- High dpi support added, in settings: 1x, 1.25x, 1.5x, 2x interface scale.
+
+0.4.8 (25.03.14)
+
+- No changes, just autoupdate testing version.
+
+0.4.7 (25.03.14)
+
+- One more critical autoupdate bug fixed, users with not latin symbols in their Windows login names will have to install this version manually by setup executable.
+- Autoupdate behind authentication-requiring proxy network settings fixed.
+
+0.4.6 (22.03.14)
+
+- Critical autoupdate bug fixed, users with not latin (utf) symbols in their Windows login names will have to install this version manually by setup executable.
+- Voice messages extension changed from .mp3 to .ogg, because they are in OGG container, with Opus audio codec.
+
+0.4.5 (22.03.14)
+
+- Connection bug fixed.
+
+0.4.4 (22.03.14)
+
+- Fixed voice mail attach download, it works like video and documents now.
+- After video, audio or document download Download button becomes Open With instead of Save As.
+
+0.4.3 (16.03.14)
+
+- Default download path introduced, no folder select for each video, audio or other file.
+- You can choose old approach (choose download path for each file) in Settings.
+- In downloaded video, audio and file context menu (right-click) added "Show in Folder" option.
+
+0.4.2 (14.03.14)
+
+- Network bug fixed, file upload on weak connections should be better now.
+- Selected items clear after message forward fixed.
+- Suggested filename fixed in save file dialog box.
+
+0.4.1 (11.03.14)
+
+- Auto-update critical WinXP bug fixed.
+- You should install this version manually, if app was broken on WinXP.
+
+0.4 (10.03.14)
+
+- Better touch-screen support (tested on Surface Pro 2).
+- Moved to new versions of ide+compiler and of some libs.
+
+0.3.13 (07.03.14)
+
+- Crash on right mouse button press fixed.
+
+0.3.12 (07.03.14)
+
+- Text and messages selection.
+- Copy selected to clipboard (Ctrl+C and from context menu).
+- Multiple message forward and delete support.
+
+0.3.11 (04.03.14)
+
+- Long phone numbers enabled (12 digits after country code).
+
+0.3.10 (02.03.14)
+
+- Bad reconnect delay bug fixed.
+
+0.3.9 (27.02.14)
+
+- Some scroll bugs fixed.
+- Message forward confirm by Enter added.
+
+0.3.8 (26.02.14)
+
+- Dropdown with two attach types added, File (document) or Photo.
+- Different drag-n-drop zones done for photo and document sending.
+- File dialog open speed increased in some cases.
+
+0.3.7 (24.02.14)
+
+- New text layout used in messages, rtl/bidi support done.
+- Emoji auto replace in message text added (replace list in settings).
+- Clickable user links added to service messages (smbd invited smbd to group, etc).
+
+0.3.6 (23.02.14)
+
+- New text layout testing.
+- Email highlight in messages and click response fixed.
+
+0.3.5 (20.02.14)
+
+- Reconnect timeout added, must work better after sleep mode.
+- Minor design improvements and layout fixes.
+
+0.3.4 (13.02.14)
+
+- New design fully implemented.
+
+0.3.3 (12.02.14)
+
+- Test version of new design implementation.
+
+0.3.2 (11.02.14)
+
+- First (private) version of new design implementation.
+
+0.3.1 (26.01.14)
+
+- Rare protocol bug (with incorrect system time handle) fixed.
+
+0.3.0 (26.01.14)
+
+- Long links tooltips added.
+- Intro and settings animation improved.
+- Bug fixes (protocol, group creation, etc).
+
+0.2.9 (12.01.14)
+
+- Minor bug fixes.
+
+0.2.8 (12.01.14)
+
+- Differenct connection type supported (http-transport support added).
+- Connecting with system and custom proxy settings supported (http and socks5 proxy support added).
+
+0.2.7 (07.01.14)
+
+- Window resize areas are now positioned outside the window area, so they are wider and do not conflict with message history scrollbar.
+- Some bugs fixed, one connection problem solved.
+
+0.2.6 (06.01.14)
+
+- Document sharing supported, downloading and uploading up to 100 mb files.
+- Download videos, that were sent from mobile apps, as documents.
+
+0.2.5 (30.12.13)
+
+- Group photo upload fixed for some photo sizes.
+
+0.2.4 (30.12.13)
+
+- Delete history and Delete contact buttons in contacts, Delete and exit button in groups.
+- Adding and removing group participants supported.
+- New group creation supported.
+
+0.2.3 (20.12.13)
+
+- Couple of crashing bugs fixed.
+
+0.2.2 (20.12.13)
+
+- User and group profile pages now available, click photo or name in window title area.
+- Group name and photo change support from group profile page.
+- Group participants list with last activity time and online status displayed on group profile page.
+- Adding users to your contact list and editing their contact names from user profile page.
+- Contact sharing supported from user profile page.
+
+0.2.1 (16.12.13)
+
+- User name and profile photo update in settings.
+
+0.2 (11.12.13)
+
+- Auto-update support.
+- Setup no longer requires admin rights (except first installation over a previous version, that was installed using admin rights).
+- Application window retains screen position upon relaunch.
+
+0.1.16 (29.11.13)
+
+- Added «Delete Message» and «Forward Message» items to context menus.
+- No PUSH-notifications are sent to your mobile phone from the currently active Telegram Win conversation.
+- Fixed issue with broken long links in messages copied to clipboard.

@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "profile/profile_block_widget.h"
 
 #include "styles/style_profile.h"
@@ -26,7 +25,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Profile {
 
-BlockWidget::BlockWidget(QWidget *parent, PeerData *peer, const QString &title) : TWidget(parent)
+BlockWidget::BlockWidget(
+	QWidget *parent,
+	PeerData *peer,
+	const QString &title) : RpWidget(parent)
 , _peer(peer)
 , _title(title) {
 }

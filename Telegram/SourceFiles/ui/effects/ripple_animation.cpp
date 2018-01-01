@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/effects/ripple_animation.h"
 
 namespace Ui {
@@ -111,7 +110,7 @@ void RippleAnimation::Ripple::paint(QPainter &p, const QPixmap &mask, TimeMs ms,
 			p.drawPixmap(0, 0, mask);
 		}
 		if (radius == _radiusTo && colorOverride == nullptr) {
-			_cache = App::pixmapFromImageInPlace(std_::move(_frame));
+			_cache = App::pixmapFromImageInPlace(std::move(_frame));
 		}
 	}
 	auto saved = p.opacity();
@@ -148,7 +147,7 @@ void RippleAnimation::Ripple::finish() {
 
 RippleAnimation::RippleAnimation(const style::RippleAnimation &st, QImage mask, const UpdateCallback &callback)
 : _st(st)
-, _mask(App::pixmapFromImageInPlace(std_::move(mask)))
+, _mask(App::pixmapFromImageInPlace(std::move(mask)))
 , _update(callback) {
 }
 
@@ -195,7 +194,7 @@ void RippleAnimation::paint(QPainter &p, int x, int y, int outerWidth, TimeMs ms
 	clearFinished();
 }
 
-QImage RippleAnimation::maskByDrawer(QSize size, bool filled, base::lambda<void(QPainter &p)> &&drawer) {
+QImage RippleAnimation::maskByDrawer(QSize size, bool filled, base::lambda<void(QPainter &p)> drawer) {
 	auto result = QImage(size * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(cRetinaFactor());
 	result.fill(filled ? QColor(255, 255, 255) : Qt::transparent);
@@ -207,7 +206,7 @@ QImage RippleAnimation::maskByDrawer(QSize size, bool filled, base::lambda<void(
 		p.setBrush(QColor(255, 255, 255));
 		drawer(p);
 	}
-	return std_::move(result);
+	return result;
 }
 
 QImage RippleAnimation::rectMask(QSize size) {

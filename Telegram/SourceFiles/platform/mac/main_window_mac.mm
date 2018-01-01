@@ -15,20 +15,21 @@ GNU General Public License for more details.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "platform/mac/main_window_mac.h"
 
 #include "styles/style_window.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "application.h"
-#include "historywidget.h"
-#include "localstorage.h"
+#include "history/history_widget.h"
+#include "history/history_inner_widget.h"
+#include "storage/localstorage.h"
 #include "window/notifications_manager_default.h"
+#include "window/themes/window_theme.h"
 #include "platform/platform_notifications_manager.h"
-#include "boxes/contactsbox.h"
-#include "boxes/aboutbox.h"
-#include "lang.h"
+#include "boxes/peer_list_controllers.h"
+#include "boxes/about_box.h"
+#include "lang/lang_keys.h"
 #include "platform/mac/mac_utilities.h"
 
 #include <Cocoa/Cocoa.h>
@@ -48,16 +49,63 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 - (void) windowWillEnterFullScreen:(NSNotification *)aNotification;
 - (void) windowWillExitFullScreen:(NSNotification *)aNotification;
 
-@end
+@end // @interface MainWindowObserver
 
 namespace Platform {
+namespace {
+
+// When we close a window that is fullscreen we first leave the fullscreen
+// mode and after that hide the window. This is a timeout for elaving the
+// fullscreen mode, after that we'll hide the window no matter what.
+constexpr auto kHideAfterFullscreenTimeoutMs = 3000;
+
+id FindClassInSubviews(NSView *parent, NSString *className) {
+	for (NSView *child in [parent subviews]) {
+		if ([child isKindOfClass:NSClassFromString(className)]) {
+			return child;
+		} else if (id inchild = FindClassInSubviews(child, className)) {
+			return inchild;
+		}
+	}
+	return nil;
+}
+
+#ifndef OS_MAC_OLD
+
+class LayerCreationChecker : public QObject {
+public:
+	LayerCreationChecker(NSView * __weak view, base::lambda<void()> callback)
+	: _weakView(view)
+	, _callback(std::move(callback)) {
+		QCoreApplication::instance()->installEventFilter(this);
+	}
+
+protected:
+	bool eventFilter(QObject *object, QEvent *event) override {
+		if (!_weakView || [_weakView layer] != nullptr) {
+			_callback();
+		}
+		return QObject::eventFilter(object, event);
+	}
+
+private:
+	NSView * __weak _weakView = nil;
+	base::lambda<void()> _callback;
+
+};
+
+#endif // OS_MAC_OLD
+
+} // namespace
 
 class MainWindow::Private {
 public:
 	Private(MainWindow *window);
 
+	void setNativeWindow(NSWindow *window, NSView *view);
 	void setWindowBadge(const QString &str);
-	void startBounce();
+	void setWindowTitle(const QString &str);
+	void updateNativeTitle();
 
 	void enableShadow(WId winId);
 
@@ -66,23 +114,41 @@ public:
 	void willEnterFullScreen();
 	void willExitFullScreen();
 
-	void initCustomTitle(NSWindow *window, NSView *view);
+	bool clipboardHasText();
 
 	~Private();
 
 private:
+	void initCustomTitle();
+	void refreshWeakTitleReferences();
+
 	MainWindow *_public;
 	friend class MainWindow;
 
+#ifdef OS_MAC_OLD
+	NSWindow *_nativeWindow = nil;
+	NSView *_nativeView = nil;
+#else // OS_MAC_OLD
+	NSWindow * __weak _nativeWindow = nil;
+	NSView * __weak _nativeView = nil;
+	id __weak _nativeTitleWrapWeak = nil;
+	id __weak _nativeTitleWeak = nil;
+	std::unique_ptr<LayerCreationChecker> _layerCreationChecker;
+#endif // !OS_MAC_OLD
+	bool _useNativeTitle = false;
+	bool _inFullScreen = false;
+
 	MainWindowObserver *_observer;
+	NSPasteboard *_generalPasteboard = nullptr;
+	int _generalPasteboardChangeCount = -1;
+	bool _generalPasteboardHasText = false;
 
 };
 
 } // namespace Platform
 
 @implementation MainWindowObserver {
-
-MainWindow::Private *_private;
+	MainWindow::Private *_private;
 
 }
 
@@ -94,11 +160,6 @@ MainWindow::Private *_private;
 }
 
 - (void) activeSpaceDidChange:(NSNotification *)aNotification {
-	if (auto manager = Window::Notifications::Default::manager()) {
-		manager->enumerateNotifications([](QWidget *widget) {
-			objc_activateWnd(widget->winId());
-		});
-	}
 }
 
 - (void) darkModeChanged:(NSNotification *)aNotification {
@@ -121,13 +182,15 @@ MainWindow::Private *_private;
 	_private->willExitFullScreen();
 }
 
-@end
+@end // @implementation MainWindowObserver
 
 namespace Platform {
 
 MainWindow::Private::Private(MainWindow *window)
 : _public(window)
 , _observer([[MainWindowObserver alloc] init:this]) {
+	_generalPasteboard = [NSPasteboard generalPasteboard];
+
 	@autoreleasepool {
 
 	[[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:_observer selector:@selector(activeSpaceDidChange:) name:NSWorkspaceActiveSpaceDidChangeNotification object:nil];
@@ -151,28 +214,145 @@ void MainWindow::Private::setWindowBadge(const QString &str) {
 	}
 }
 
-void MainWindow::Private::startBounce() {
-	[NSApp requestUserAttention:NSInformationalRequest];
+void MainWindow::Private::setWindowTitle(const QString &str) {
+	_public->setWindowTitle(str);
+	updateNativeTitle();
 }
 
-void MainWindow::Private::initCustomTitle(NSWindow *window, NSView *view) {
-	[window setStyleMask:[window styleMask] | NSFullSizeContentViewWindowMask];
-	[window setTitlebarAppearsTransparent:YES];
-	auto inner = [window contentLayoutRect];
-	auto full = [view frame];
+void MainWindow::Private::setNativeWindow(NSWindow *window, NSView *view) {
+	_nativeWindow = window;
+	_nativeView = view;
+	initCustomTitle();
+}
+
+void MainWindow::Private::initCustomTitle() {
+#ifndef OS_MAC_OLD
+	if (![_nativeWindow respondsToSelector:@selector(contentLayoutRect)]
+		|| ![_nativeWindow respondsToSelector:@selector(setTitlebarAppearsTransparent:)]) {
+		return;
+	}
+	[_nativeWindow setTitlebarAppearsTransparent:YES];
+
+	[[NSNotificationCenter defaultCenter] addObserver:_observer selector:@selector(windowWillEnterFullScreen:) name:NSWindowWillEnterFullScreenNotification object:_nativeWindow];
+	[[NSNotificationCenter defaultCenter] addObserver:_observer selector:@selector(windowWillExitFullScreen:) name:NSWindowWillExitFullScreenNotification object:_nativeWindow];
+
+	// Qt has bug with layer-backed widgets containing QOpenGLWidgets.
+	// See https://bugreports.qt.io/browse/QTBUG-64494
+	// Emulate custom title instead (code below).
+	//
+	// Tried to backport a fix, testing.
+	[_nativeWindow setStyleMask:[_nativeWindow styleMask] | NSFullSizeContentViewWindowMask];
+	auto inner = [_nativeWindow contentLayoutRect];
+	auto full = [_nativeView frame];
 	_public->_customTitleHeight = qMax(qRound(full.size.height - inner.size.height), 0);
 
-#ifndef OS_MAC_OLD
-	[[NSNotificationCenter defaultCenter] addObserver:_observer selector:@selector(windowWillEnterFullScreen:) name:NSWindowWillEnterFullScreenNotification object:window];
-	[[NSNotificationCenter defaultCenter] addObserver:_observer selector:@selector(windowWillExitFullScreen:) name:NSWindowWillExitFullScreenNotification object:window];
+	// Qt still has some bug with layer-backed widgets containing QOpenGLWidgets.
+	// See https://github.com/telegramdesktop/tdesktop/issues/4150
+	// Tried to workaround it by catching the first moment we have CALayer created
+	// and explicitly setting contentsScale to window->backingScaleFactor there.
+	_layerCreationChecker = std::make_unique<LayerCreationChecker>(_nativeView, [=] {
+		if (_nativeView && _nativeWindow) {
+			if (CALayer *layer = [_nativeView layer]) {
+				LOG(("Window Info: Setting layer scale factor to: %1").arg([_nativeWindow backingScaleFactor]));
+				[layer setContentsScale: [_nativeWindow backingScaleFactor]];
+				_layerCreationChecker = nullptr;
+			}
+		} else {
+			_layerCreationChecker = nullptr;
+		}
+	});
+
+	// Disabled for now.
+	//_useNativeTitle = true;
+	//setWindowTitle(qsl("Telegram"));
 #endif // !OS_MAC_OLD
 }
 
+void MainWindow::Private::refreshWeakTitleReferences() {
+	if (!_nativeWindow) {
+		return;
+	}
+
+#ifndef OS_MAC_OLD
+	@autoreleasepool {
+
+	if (NSView *parent = [[_nativeWindow contentView] superview]) {
+		if (id titleWrap = FindClassInSubviews(parent, Q2NSString(strTitleWrapClass()))) {
+			if ([titleWrap respondsToSelector:@selector(setBackgroundColor:)]) {
+				if (id title = FindClassInSubviews(titleWrap, Q2NSString(strTitleClass()))) {
+					if ([title respondsToSelector:@selector(setAttributedStringValue:)]) {
+						_nativeTitleWrapWeak = titleWrap;
+						_nativeTitleWeak = title;
+					}
+				}
+			}
+		}
+	}
+
+	}
+#endif // !OS_MAC_OLD
+}
+
+void MainWindow::Private::updateNativeTitle() {
+	if (!_useNativeTitle) {
+		return;
+	}
+#ifndef OS_MAC_OLD
+	if (!_nativeTitleWrapWeak || !_nativeTitleWeak) {
+		refreshWeakTitleReferences();
+	}
+	if (_nativeTitleWrapWeak && _nativeTitleWeak) {
+		@autoreleasepool {
+
+		auto convertColor = [](QColor color) {
+			return [NSColor colorWithDeviceRed:color.redF() green:color.greenF() blue:color.blueF() alpha:color.alphaF()];
+		};
+		auto adjustFg = [](const style::color &st) {
+			// Weird thing with NSTextField taking NSAttributedString with
+			// NSForegroundColorAttributeName set to colorWithDeviceRed:green:blue
+			// with components all equal to 128 - it ignores it and prints black text!
+			auto color = st->c;
+			return (color.red() == 128 && color.green() == 128 && color.blue() == 128)
+				? QColor(129, 129, 129, color.alpha())
+				: color;
+		};
+
+		auto active = _public->isActiveWindow();
+		auto bgColor = (active ? st::titleBgActive : st::titleBg)->c;
+		auto fgColor = adjustFg(active ? st::titleFgActive : st::titleFg);
+
+		auto bgConverted = convertColor(bgColor);
+		auto fgConverted = convertColor(fgColor);
+		[_nativeTitleWrapWeak setBackgroundColor:bgConverted];
+
+		auto title = Q2NSString(_public->windowTitle());
+		NSDictionary *attributes = _inFullScreen
+			? nil
+			: [NSDictionary dictionaryWithObjectsAndKeys: fgConverted, NSForegroundColorAttributeName, bgConverted, NSBackgroundColorAttributeName, nil];
+		NSAttributedString *string = [[NSAttributedString alloc] initWithString:title attributes:attributes];
+		[_nativeTitleWeak setAttributedStringValue:string];
+
+		}
+	}
+#endif // !OS_MAC_OLD
+}
+
+bool MainWindow::Private::clipboardHasText() {
+	auto currentChangeCount = static_cast<int>([_generalPasteboard changeCount]);
+	if (_generalPasteboardChangeCount != currentChangeCount) {
+		_generalPasteboardChangeCount = currentChangeCount;
+		_generalPasteboardHasText = !Application::clipboard()->text().isEmpty();
+	}
+	return _generalPasteboardHasText;
+}
+
 void MainWindow::Private::willEnterFullScreen() {
+	_inFullScreen = true;
 	_public->setTitleVisible(false);
 }
 
 void MainWindow::Private::willExitFullScreen() {
+	_inFullScreen = false;
 	_public->setTitleVisible(true);
 }
 
@@ -201,52 +381,62 @@ MainWindow::Private::~Private() {
 }
 
 MainWindow::MainWindow()
-: icon256(qsl(":/gui/art/icon256.png"))
-, iconbig256(qsl(":/gui/art/iconbig256.png"))
-, wndIcon(QPixmap::fromImage(iconbig256, Qt::ColorOnly))
-, _private(std_::make_unique<Private>(this)) {
+: _private(std::make_unique<Private>(this)) {
+#ifndef OS_MAC_OLD
+	auto forceOpenGL = std::make_unique<QOpenGLWidget>(this);
+#endif // !OS_MAC_OLD
+
 	trayImg = st::macTrayIcon.instance(QColor(0, 0, 0, 180), dbisOne);
 	trayImgSel = st::macTrayIcon.instance(QColor(255, 255, 255), dbisOne);
 
-	_hideAfterFullScreenTimer.setSingleShot(true);
-	connect(&_hideAfterFullScreenTimer, SIGNAL(timeout()), this, SLOT(onHideAfterFullScreen()));
+	_hideAfterFullScreenTimer.setCallback([this] { hideAndDeactivate(); });
+
+	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &data) {
+		if (data.paletteChanged()) {
+			_private->updateNativeTitle();
+		}
+	});
 }
 
 void MainWindow::closeWithoutDestroy() {
 	NSWindow *nsWindow = [reinterpret_cast<NSView*>(winId()) window];
-	bool isFullScreen = (([nsWindow styleMask] & NSFullScreenWindowMask) == NSFullScreenWindowMask);
+
+	auto isFullScreen = (([nsWindow styleMask] & NSFullScreenWindowMask) == NSFullScreenWindowMask);
 	if (isFullScreen) {
-		_hideAfterFullScreenTimer.start(3000);
+		_hideAfterFullScreenTimer.callOnce(kHideAfterFullscreenTimeoutMs);
 		[nsWindow toggleFullScreen:nsWindow];
 	} else {
-		hide();
+		hideAndDeactivate();
 	}
 }
 
 void MainWindow::stateChangedHook(Qt::WindowState state) {
 	if (_hideAfterFullScreenTimer.isActive()) {
-		_hideAfterFullScreenTimer.stop();
-		QTimer::singleShot(0, this, SLOT(onHideAfterFullScreen()));
+		_hideAfterFullScreenTimer.callOnce(0);
 	}
+}
+
+void MainWindow::handleActiveChangedHook() {
+	InvokeQueued(this, [this] { _private->updateNativeTitle(); });
 }
 
 void MainWindow::initHook() {
 	_customTitleHeight = 0;
 	if (auto view = reinterpret_cast<NSView*>(winId())) {
 		if (auto window = [view window]) {
-			if ([window respondsToSelector:@selector(contentLayoutRect)]
-				&& [window respondsToSelector:@selector(setTitlebarAppearsTransparent:)]) {
-				_private->initCustomTitle(window, view);
-			}
+			_private->setNativeWindow(window, view);
 		}
 	}
+}
+
+void MainWindow::updateWindowIcon() {
 }
 
 void MainWindow::titleVisibilityChangedHook() {
 	updateTitleCounter();
 }
 
-void MainWindow::onHideAfterFullScreen() {
+void MainWindow::hideAndDeactivate() {
 	hide();
 }
 
@@ -277,17 +467,14 @@ void MainWindow::psSetupTrayIcon() {
 	trayIcon->show();
 }
 
-void MainWindow::psUpdateWorkmode() {
+void MainWindow::workmodeUpdated(DBIWorkMode mode) {
 	psSetupTrayIcon();
-	if (cWorkMode() == dbiwmWindowOnly) {
+	if (mode == dbiwmWindowOnly) {
 		if (trayIcon) {
 			trayIcon->setContextMenu(0);
 			delete trayIcon;
 			trayIcon = nullptr;
 		}
-	}
-	if (auto manager = Platform::Notifications::manager()) {
-		manager->updateDelegate();
 	}
 }
 
@@ -333,7 +520,7 @@ void _placeCounter(QImage &img, int size, int count, style::color bg, style::col
 }
 
 void MainWindow::updateTitleCounter() {
-	setWindowTitle(titleVisible() ? QString() : titleText());
+	_private->setWindowTitle(titleVisible() ? QString() : titleText());
 }
 
 void MainWindow::unreadCounterChangedHook() {
@@ -359,8 +546,8 @@ void MainWindow::updateIconCounters() {
 		int32 size = cRetina() ? 44 : 22;
 		_placeCounter(img, size, counter, bg, (dm && muted) ? st::trayCounterFgMacInvert : st::trayCounterFg);
 		_placeCounter(imgsel, size, counter, st::trayCounterBgMacInvert, st::trayCounterFgMacInvert);
-		icon.addPixmap(App::pixmapFromImageInPlace(std_::move(img)));
-		icon.addPixmap(App::pixmapFromImageInPlace(std_::move(imgsel)), QIcon::Selected);
+		icon.addPixmap(App::pixmapFromImageInPlace(std::move(img)));
+		icon.addPixmap(App::pixmapFromImageInPlace(std::move(imgsel)), QIcon::Selected);
 		trayIcon->setIcon(icon);
 	}
 }
@@ -373,12 +560,13 @@ void MainWindow::psFirstShow() {
 	show();
 	_private->enableShadow(winId());
 	if (cWindowPos().maximized) {
+		DEBUG_LOG(("Window Pos: First show, setting maximized."));
 		setWindowState(Qt::WindowMaximized);
 	}
 
 	if ((cLaunchMode() == LaunchModeAutoStart && cStartMinimized()) || cStartInTray()) {
 		setWindowState(Qt::WindowMinimized);
-		if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
+		if (Global::WorkMode().value() == dbiwmTrayOnly || Global::WorkMode().value() == dbiwmWindowAndTray) {
 			hide();
 		} else {
 			show();
@@ -396,10 +584,10 @@ void MainWindow::psFirstShow() {
 void MainWindow::createGlobalMenu() {
 	auto main = psMainMenu.addMenu(qsl("Telegram"));
 	auto about = main->addAction(lng_mac_menu_about_telegram(lt_telegram, qsl("Telegram")));
-	connect(about, SIGNAL(triggered()), base::lambda_slot(about, [] {
+	connect(about, &QAction::triggered, about, [] {
 		if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
 		Ui::show(Box<AboutBox>());
-	}), SLOT(action()));
+	});
 	about->setMenuRole(QAction::AboutQtRole);
 
 	main->addSeparator();
@@ -422,12 +610,15 @@ void MainWindow::createGlobalMenu() {
 
 	QMenu *window = psMainMenu.addMenu(lang(lng_mac_menu_window));
 	psContacts = window->addAction(lang(lng_mac_menu_contacts));
-	connect(psContacts, SIGNAL(triggered()), base::lambda_slot(psContacts, [] {
+	connect(psContacts, &QAction::triggered, psContacts, [] {
 		if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
 
 		if (!App::self()) return;
-		Ui::show(Box<ContactsBox>());
-	}), SLOT(action()));
+		Ui::show(Box<PeerListBox>(std::make_unique<ContactsBoxController>(), [](not_null<PeerListBox*> box) {
+			box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
+			box->addLeftButton(langFactory(lng_profile_add_contact), [] { App::wnd()->onShowAddContact(); });
+		}));
+	});
 	psAddContact = window->addAction(lang(lng_mac_menu_add_contact), App::wnd(), SLOT(onShowAddContact()));
 	window->addSeparator();
 	psNewGroup = window->addAction(lang(lng_mac_menu_new_group), App::wnd(), SLOT(onShowNewGroup()));
@@ -486,9 +677,6 @@ void MainWindow::psMacSelectAll() {
 void MainWindow::psInitSysMenu() {
 }
 
-void MainWindow::psUpdateSysMenu(Qt::WindowState state) {
-}
-
 void MainWindow::psUpdateMargins() {
 }
 
@@ -497,18 +685,19 @@ void MainWindow::updateGlobalMenuHook() {
 
 	auto focused = QApplication::focusWidget();
 	bool isLogged = !!App::self(), canUndo = false, canRedo = false, canCut = false, canCopy = false, canPaste = false, canDelete = false, canSelectAll = false;
+	auto clipboardHasText = _private->clipboardHasText();
 	if (auto edit = qobject_cast<QLineEdit*>(focused)) {
 		canCut = canCopy = canDelete = edit->hasSelectedText();
 		canSelectAll = !edit->text().isEmpty();
 		canUndo = edit->isUndoAvailable();
 		canRedo = edit->isRedoAvailable();
-		canPaste = !Application::clipboard()->text().isEmpty();
+		canPaste = clipboardHasText;
 	} else if (auto edit = qobject_cast<QTextEdit*>(focused)) {
 		canCut = canCopy = canDelete = edit->textCursor().hasSelection();
 		canSelectAll = !edit->document()->isEmpty();
 		canUndo = edit->document()->isUndoAvailable();
 		canRedo = edit->document()->isRedoAvailable();
-		canPaste = !Application::clipboard()->text().isEmpty();
+		canPaste = clipboardHasText;
 	} else if (auto list = qobject_cast<HistoryInner*>(focused)) {
 		canCopy = list->canCopySelected();
 		canDelete = list->canDeleteSelected();
@@ -527,10 +716,6 @@ void MainWindow::updateGlobalMenuHook() {
 	_forceDisabled(psNewGroup, !isLogged || App::passcoded());
 	_forceDisabled(psNewChannel, !isLogged || App::passcoded());
 	_forceDisabled(psShowTelegram, App::wnd()->isActive());
-}
-
-void MainWindow::psFlash() {
-	return _private->startBounce();
 }
 
 bool MainWindow::psFilterNativeEvent(void *event) {

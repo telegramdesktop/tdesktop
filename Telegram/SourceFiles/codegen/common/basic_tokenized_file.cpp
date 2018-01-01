@@ -52,8 +52,6 @@ Token invalidToken() {
 	return { Type::Invalid, QString(), ConstUtf8String(nullptr, 0), false };
 }
 
-
-
 } // namespace
 
 BasicTokenizedFile::BasicTokenizedFile(const QString &filepath) : reader_(filepath) {
@@ -152,6 +150,22 @@ Type BasicTokenizedFile::uniteLastTokens(Type type) {
 	return type;
 }
 
+QString BasicTokenizedFile::getCurrentLineComment() {
+	if (lineNumber_ > singleLineComments_.size()) {
+		reader_.logError(kErrorInternal, lineNumber_) << "internal tokenizer error (line number larger than comments list size).";
+		failed_ = true;
+		return QString();
+	}
+	auto commentBytes = singleLineComments_[lineNumber_ - 1].mid(2); // Skip "//"
+	CheckedUtf8String comment(commentBytes);
+	if (!comment.isValid()) {
+		reader_.logError(kErrorIncorrectUtf8String, lineNumber_) << "incorrect UTF-8 string in the comment.";
+		failed_ = true;
+		return QString();
+	}
+	return comment.toString().trimmed();
+}
+
 Type BasicTokenizedFile::readNameOrNumber() {
 	while (!reader_.atEnd()) {
 		if (!isDigitChar(reader_.currentChar())) {
@@ -178,6 +192,9 @@ Type BasicTokenizedFile::readString() {
 	while (!reader_.atEnd()) {
 		auto ch = reader_.currentChar();
 		if (ch == '"') {
+			if (reader_.currentPtr() > offset) {
+				value.append(offset, reader_.currentPtr() - offset);
+			}
 			break;
 		}
 		if (ch == '\n') {
@@ -186,15 +203,15 @@ Type BasicTokenizedFile::readString() {
 			return Type::Invalid;
 		}
 		if (ch == '\\') {
+			if (reader_.currentPtr() > offset) {
+				value.append(offset, reader_.currentPtr() - offset);
+			}
 			reader_.skipChar();
 			ch = reader_.currentChar();
 			if (reader_.atEnd() || ch == '\n') {
 				reader_.logError(kErrorUnterminatedStringLiteral, lineNumber_) << "unterminated string literal.";
 				failed_ = true;
 				return Type::Invalid;
-			}
-			if (reader_.currentPtr() > offset + 1) {
-				value.append(offset, reader_.currentPtr() - offset - 1);
 			}
 			offset = reader_.currentPtr() + 1;
 			if (ch == 'n') {
@@ -206,8 +223,6 @@ Type BasicTokenizedFile::readString() {
 			} else if (ch == '\\') {
 				value.append('\\');
 			}
-		} else {
-			value.append(ch);
 		}
 		reader_.skipChar();
 	}

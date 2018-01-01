@@ -20,10 +20,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "core/type_traits.h"
-#include "core/observer.h"
+#include "base/type_traits.h"
+#include "base/observer.h"
 
-class LayerWidget;
 class BoxContent;
 
 namespace InlineBots {
@@ -35,38 +34,118 @@ class ItemBase;
 namespace App {
 namespace internal {
 
-void CallDelayed(int duration, base::lambda<void()> &&lambda);
+void CallDelayed(int duration, base::lambda_once<void()> &&lambda);
 
 } // namespace internal
 
-template <int N, typename Lambda>
-inline void CallDelayed(int duration, base::internal::lambda_guard<N, Lambda> &&guarded) {
-	return internal::CallDelayed(duration, [guarded = std_::move(guarded)] { guarded(); });
+template <typename Lambda>
+inline void CallDelayed(
+		int duration,
+		base::lambda_internal::guard_with_QObject<Lambda> &&guarded) {
+	return internal::CallDelayed(
+		duration,
+		std::move(guarded));
 }
 
-template <typename Pointer, typename ...PointersAndLambda>
-inline void CallDelayed(int duration, Pointer &&qobject, PointersAndLambda&&... qobjectsAndLambda) {
-	auto guarded = base::lambda_guarded(std_::forward<Pointer>(qobject), std_::forward<PointersAndLambda>(qobjectsAndLambda)...);
-	return CallDelayed(duration, std_::move(guarded));
+template <typename Lambda>
+inline void CallDelayed(
+		int duration,
+		base::lambda_internal::guard_with_weak<Lambda> &&guarded) {
+	return internal::CallDelayed(
+		duration,
+		std::move(guarded));
 }
 
-template <typename ...PointersAndLambda>
-inline base::lambda<void()> LambdaDelayed(int duration, PointersAndLambda&&... qobjectsAndLambda) {
-	auto guarded = base::lambda_guarded(std_::forward<PointersAndLambda>(qobjectsAndLambda)...);
-	return [guarded = std_::move(guarded), duration] {
-		CallDelayed(duration, guarded.clone());
+template <typename Lambda>
+inline void CallDelayed(
+		int duration,
+		const QObject *object,
+		Lambda &&lambda) {
+	return internal::CallDelayed(
+		duration,
+		base::lambda_guarded(object, std::forward<Lambda>(lambda)));
+}
+
+template <typename Lambda>
+inline void CallDelayed(
+		int duration,
+		const base::has_weak_ptr *object,
+		Lambda &&lambda) {
+	return internal::CallDelayed(
+		duration,
+		base::lambda_guarded(object, std::forward<Lambda>(lambda)));
+}
+
+template <typename Lambda>
+inline auto LambdaDelayed(
+		int duration,
+		const QObject *object,
+		Lambda &&lambda) {
+	auto guarded = base::lambda_guarded(
+		object,
+		std::forward<Lambda>(lambda));
+	return [saved = std::move(guarded), duration] {
+		auto copy = saved;
+		internal::CallDelayed(duration, std::move(copy));
 	};
 }
 
-void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo = 0);
-bool insertBotCommand(const QString &cmd, bool specialGif = false);
-void activateBotCommand(const HistoryItem *msg, int row, int col);
+template <typename Lambda>
+inline auto LambdaDelayed(
+		int duration,
+		const base::has_weak_ptr *object,
+		Lambda &&lambda) {
+	auto guarded = base::lambda_guarded(
+		object,
+		std::forward<Lambda>(lambda));
+	return [saved = std::move(guarded), duration] {
+		auto copy = saved;
+		internal::CallDelayed(duration, std::move(copy));
+	};
+}
+
+template <typename Lambda>
+inline auto LambdaDelayedOnce(
+		int duration,
+		const QObject *object,
+		Lambda &&lambda) {
+	auto guarded = base::lambda_guarded(
+		object,
+		std::forward<Lambda>(lambda));
+	return [saved = std::move(guarded), duration]() mutable {
+		internal::CallDelayed(duration, std::move(saved));
+	};
+}
+
+template <typename Lambda>
+inline auto LambdaDelayedOnce(
+		int duration,
+		const base::has_weak_ptr *object,
+		Lambda &&lambda) {
+	auto guarded = base::lambda_guarded(
+		object,
+		std::forward<Lambda>(lambda));
+	return [saved = std::move(guarded), duration]() mutable {
+		internal::CallDelayed(duration, std::move(saved));
+	};
+}
+
+void sendBotCommand(
+	PeerData *peer,
+	UserData *bot,
+	const QString &cmd,
+	MsgId replyTo = 0);
+bool insertBotCommand(const QString &cmd);
+void activateBotCommand(
+	not_null<const HistoryItem*> msg,
+	int row,
+	int column);
 void searchByHashtag(const QString &tag, PeerData *inPeer);
-void openPeerByName(const QString &username, MsgId msgId = ShowAtUnreadMsgId, const QString &startToken = QString());
+void openPeerByName(
+	const QString &username,
+	MsgId msgId = ShowAtUnreadMsgId,
+	const QString &startToken = QString());
 void joinGroupByHash(const QString &hash);
-void stickersBox(const QString &name);
-void openLocalUrl(const QString &url);
-bool forward(const PeerId &peer, ForwardWhatMessages what);
 void removeDialog(History *history);
 void showSettings();
 
@@ -76,10 +155,22 @@ void logOutDelayed();
 
 } // namespace App
 
+
+enum class LayerOption {
+	CloseOther = (1 << 0),
+	KeepOther = (1 << 1),
+	ShowAfterOther = (1 << 2),
+};
+using LayerOptions = base::flags<LayerOption>;
+inline constexpr auto is_flag_type(LayerOption) { return true; };
+
 namespace Ui {
 namespace internal {
 
-void showBox(object_ptr<BoxContent> content, ShowLayerOptions options);
+void showBox(
+	object_ptr<BoxContent> content,
+	LayerOptions options,
+	anim::type animated);
 
 } // namespace internal
 
@@ -88,21 +179,19 @@ void showMediaPreview(PhotoData *photo);
 void hideMediaPreview();
 
 template <typename BoxType>
-QPointer<BoxType> show(object_ptr<BoxType> content, ShowLayerOptions options = CloseOtherLayers) {
+QPointer<BoxType> show(
+		object_ptr<BoxType> content,
+		LayerOptions options = LayerOption::CloseOther,
+		anim::type animated = anim::type::normal) {
 	auto result = QPointer<BoxType>(content.data());
-	internal::showBox(std_::move(content), options);
+	internal::showBox(std::move(content), options, animated);
 	return result;
 }
 
-void hideLayer(bool fast = false);
-void hideSettingsAndLayer(bool fast = false);
+void hideLayer(anim::type animated = anim::type::normal);
+void hideSettingsAndLayer(anim::type animated = anim::type::normal);
 bool isLayerShown();
-bool isMediaViewShown();
-bool isInlineItemBeingChosen();
 
-void repaintHistoryItem(const HistoryItem *item);
-void repaintInlineItem(const InlineBots::Layout::ItemBase *layout);
-bool isInlineItemVisible(const InlineBots::Layout::ItemBase *reader);
 void autoplayMediaInlineAsync(const FullMsgId &msgId);
 
 void showPeerProfile(const PeerId &peer);
@@ -113,39 +202,23 @@ inline void showPeerProfile(const History *history) {
 	showPeerProfile(history->peer->id);
 }
 
-void showPeerOverview(const PeerId &peer, MediaOverviewType type);
-inline void showPeerOverview(const PeerData *peer, MediaOverviewType type) {
-	showPeerOverview(peer->id, type);
-}
-inline void showPeerOverview(const History *history, MediaOverviewType type) {
-	showPeerOverview(history->peer->id, type);
-}
+void showPeerHistory(const PeerId &peer, MsgId msgId);
 
-enum class ShowWay {
-	ClearStack,
-	Forward,
-	Backward,
-};
-void showPeerHistory(const PeerId &peer, MsgId msgId, ShowWay way = ShowWay::ClearStack);
-inline void showPeerHistory(const PeerData *peer, MsgId msgId, ShowWay way = ShowWay::ClearStack) {
-	showPeerHistory(peer->id, msgId, way);
+inline void showPeerHistory(const PeerData *peer, MsgId msgId) {
+	showPeerHistory(peer->id, msgId);
 }
-inline void showPeerHistory(const History *history, MsgId msgId, ShowWay way = ShowWay::ClearStack) {
-	showPeerHistory(history->peer->id, msgId, way);
+inline void showPeerHistory(
+		const History *history,
+		MsgId msgId) {
+	showPeerHistory(history->peer->id, msgId);
 }
-inline void showPeerHistoryAtItem(const HistoryItem *item, ShowWay way = ShowWay::ClearStack) {
-	showPeerHistory(item->history()->peer->id, item->id, way);
+inline void showPeerHistoryAtItem(const HistoryItem *item) {
+	showPeerHistory(item->history()->peer->id, item->id);
 }
-void showPeerHistoryAsync(const PeerId &peer, MsgId msgId, ShowWay way = ShowWay::ClearStack);
 inline void showChatsList() {
-	showPeerHistory(PeerId(0), 0, ShowWay::ClearStack);
-}
-inline void showChatsListAsync() {
-	showPeerHistoryAsync(PeerId(0), 0, ShowWay::ClearStack);
+	showPeerHistory(PeerId(0), 0);
 }
 PeerData *getPeerForMouseAction();
-
-bool hideWindowNoQuit();
 
 bool skipPaintEvent(QWidget *widget, QPaintEvent *event);
 
@@ -169,25 +242,12 @@ bool switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot =
 
 void migrateUpdated(PeerData *peer);
 
-void clipStopperHidden(ClipStopperType type);
-
-void historyItemLayoutChanged(const HistoryItem *item);
-void inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout);
 void historyMuteUpdated(History *history);
 
 // handle pending resize() / paint() on history items
 void handlePendingHistoryUpdate();
 void unreadCounterUpdated();
 
-enum class ChangeType {
-	SoundEnabled,
-	IncludeMuted,
-	DesktopEnabled,
-	ViewParams,
-	MaxCount,
-	Corner,
-	DemoIsShown,
-};
 
 enum class ScreenCorner {
 	TopLeft     = 0,
@@ -205,14 +265,6 @@ inline bool IsTopCorner(ScreenCorner corner) {
 }
 
 } // namespace Notify
-
-namespace base {
-
-template <>
-struct custom_is_fast_copy_type<Notify::ChangeType> : public std_::true_type {
-};
-
-} // namespace base
 
 #define DeclareReadOnlyVar(Type, Name) const Type &Name();
 #define DeclareRefVar(Type, Name) DeclareReadOnlyVar(Type, Name) \
@@ -233,8 +285,6 @@ void finish();
 
 uint64 UserTag();
 
-DeclareReadOnlyVar(QString, LangSystemISO);
-DeclareReadOnlyVar(int32, LangSystem);
 DeclareVar(QByteArray, LastCrashDump);
 DeclareVar(ProxyData, PreLaunchProxy);
 
@@ -244,8 +294,8 @@ namespace Adaptive {
 
 enum class WindowLayout {
 	OneColumn,
-	SmallColumn,
 	Normal,
+	ThreeColumn,
 };
 
 enum class ChatLayout {
@@ -261,57 +311,16 @@ enum Flags {
 };
 } // namespace DebugLogging
 
-namespace Stickers {
-
-constexpr uint64 DefaultSetId = 0; // for backward compatibility
-constexpr uint64 CustomSetId = 0xFFFFFFFFFFFFFFFFULL;
-constexpr uint64 RecentSetId = 0xFFFFFFFFFFFFFFFEULL; // for emoji/stickers panel, should not appear in Sets
-constexpr uint64 NoneSetId = 0xFFFFFFFFFFFFFFFDULL; // for emoji/stickers panel, should not appear in Sets
-constexpr uint64 CloudRecentSetId = 0xFFFFFFFFFFFFFFFCULL; // for cloud-stored recent stickers
-constexpr uint64 FeaturedSetId = 0xFFFFFFFFFFFFFFFBULL; // for emoji/stickers panel, should not appear in Sets
-struct Set {
-	Set(uint64 id, uint64 access, const QString &title, const QString &shortName, int32 count, int32 hash, MTPDstickerSet::Flags flags)
-		: id(id)
-		, access(access)
-		, title(title)
-		, shortName(shortName)
-		, count(count)
-		, hash(hash)
-		, flags(flags) {
-	}
-	uint64 id, access;
-	QString title, shortName;
-	int32 count, hash;
-	MTPDstickerSet::Flags flags;
-	StickerPack stickers;
-	StickersByEmojiMap emoji;
-};
-using Sets = QMap<uint64, Set>;
-using Order = QList<uint64>;
-
-inline MTPInputStickerSet inputSetId(const Set &set) {
-	if (set.id && set.access) {
-		return MTP_inputStickerSetID(MTP_long(set.id), MTP_long(set.access));
-	}
-	return MTP_inputStickerSetShortName(MTP_string(set.shortName));
-}
-
-Set *feedSet(const MTPDstickerSet &set);
-
-} // namespace Stickers
-
 namespace Global {
 
 bool started();
 void start();
 void finish();
 
-DeclareReadOnlyVar(uint64, LaunchId);
-DeclareRefVar(SingleDelayedCall, HandleHistoryUpdate);
-DeclareRefVar(SingleDelayedCall, HandleUnreadCounterUpdate);
-DeclareRefVar(SingleDelayedCall, HandleFileDialogQueue);
-DeclareRefVar(SingleDelayedCall, HandleDelayedPeerUpdates);
-DeclareRefVar(SingleDelayedCall, HandleObservables);
+DeclareRefVar(SingleQueuedInvokation, HandleHistoryUpdate);
+DeclareRefVar(SingleQueuedInvokation, HandleUnreadCounterUpdate);
+DeclareRefVar(SingleQueuedInvokation, HandleDelayedPeerUpdates);
+DeclareRefVar(SingleQueuedInvokation, HandleObservables);
 
 DeclareVar(Adaptive::WindowLayout, AdaptiveWindowLayout);
 DeclareVar(Adaptive::ChatLayout, AdaptiveChatLayout);
@@ -351,25 +360,22 @@ DeclareVar(int32, PushChatLimit);
 DeclareVar(int32, SavedGifsLimit);
 DeclareVar(int32, EditTimeLimit);
 DeclareVar(int32, StickersRecentLimit);
+DeclareVar(int32, StickersFavedLimit);
 DeclareVar(int32, PinnedDialogsCountMax);
+DeclareVar(QString, InternalLinksDomain);
+DeclareVar(int32, ChannelsReadMediaPeriod);
+DeclareVar(int32, CallReceiveTimeoutMs);
+DeclareVar(int32, CallRingTimeoutMs);
+DeclareVar(int32, CallConnectTimeoutMs);
+DeclareVar(int32, CallPacketTimeoutMs);
+DeclareVar(bool, PhoneCallsEnabled);
+DeclareRefVar(base::Observable<void>, PhoneCallsEnabledChanged);
 
 typedef QMap<PeerId, MsgId> HiddenPinnedMessagesMap;
 DeclareVar(HiddenPinnedMessagesMap, HiddenPinnedMessages);
 
 typedef OrderedSet<HistoryItem*> PendingItemsMap;
 DeclareRefVar(PendingItemsMap, PendingRepaintItems);
-
-DeclareVar(Stickers::Sets, StickerSets);
-DeclareVar(Stickers::Order, StickerSetsOrder);
-DeclareVar(TimeMs, LastStickersUpdate);
-DeclareVar(TimeMs, LastRecentStickersUpdate);
-DeclareVar(Stickers::Order, FeaturedStickerSetsOrder);
-DeclareVar(int, FeaturedStickerSetsUnreadCount);
-DeclareRefVar(base::Observable<void>, FeaturedStickerSetsUnreadCountChanged);
-DeclareVar(TimeMs, LastFeaturedStickersUpdate);
-DeclareVar(Stickers::Order, ArchivedStickerSetsOrder);
-
-DeclareVar(MTP::DcOptions, DcOptions);
 
 typedef QMap<uint64, QPixmap> CircleMasksMap;
 DeclareRefVar(CircleMasksMap, CircleMasks);
@@ -390,26 +396,21 @@ DeclareVar(bool, NativeNotifications);
 DeclareVar(int, NotificationsCount);
 DeclareVar(Notify::ScreenCorner, NotificationsCorner);
 DeclareVar(bool, NotificationsDemoIsShown);
-DeclareRefVar(base::Observable<Notify::ChangeType>, NotifySettingsChanged);
 
 DeclareVar(DBIConnectionType, ConnectionType);
+DeclareVar(DBIConnectionType, LastProxyType);
 DeclareVar(bool, TryIPv6);
 DeclareVar(ProxyData, ConnectionProxy);
 DeclareRefVar(base::Observable<void>, ConnectionTypeChanged);
-
-DeclareRefVar(base::Observable<void>, ChooseCustomLang);
 
 DeclareVar(int, AutoLock);
 DeclareVar(bool, LocalPasscode);
 DeclareRefVar(base::Observable<void>, LocalPasscodeChanged);
 
-DeclareRefVar(base::Observable<HistoryItem*>, ItemRemoved);
+DeclareRefVar(base::Variable<DBIWorkMode>, WorkMode);
+
 DeclareRefVar(base::Observable<void>, UnreadCounterUpdate);
 DeclareRefVar(base::Observable<void>, PeerChooseCancel);
-
-DeclareVar(float64, DialogsWidthRatio);
-DeclareRefVar(base::Variable<bool>, DialogsListFocused);
-DeclareRefVar(base::Variable<bool>, DialogsListDisplayForced);
 
 } // namespace Global
 
@@ -423,16 +424,17 @@ inline bool OneColumn() {
 	return Global::AdaptiveWindowLayout() == WindowLayout::OneColumn;
 }
 
-inline bool SmallColumn() {
-	return Global::AdaptiveWindowLayout() == WindowLayout::SmallColumn;
-}
-
 inline bool Normal() {
 	return Global::AdaptiveWindowLayout() == WindowLayout::Normal;
 }
 
+inline bool ThreeColumn() {
+	return Global::AdaptiveWindowLayout() == WindowLayout::ThreeColumn;
+}
+
 inline bool ChatNormal() {
-	return !Global::AdaptiveForWide() || (Global::AdaptiveChatLayout() == ChatLayout::Normal);
+	return !Global::AdaptiveForWide()
+		|| (Global::AdaptiveChatLayout() == ChatLayout::Normal);
 }
 
 inline bool ChatWide() {

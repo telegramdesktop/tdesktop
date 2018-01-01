@@ -20,14 +20,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "ui/rp_widget.h"
+
 class AudioMsgId;
-struct AudioPlaybackState;
 
 namespace Ui {
 class FlatLabel;
 class LabelSimple;
 class IconButton;
 class PlainShadow;
+class FilledSlider;
 } // namespace Ui
 
 namespace Media {
@@ -39,15 +41,14 @@ namespace Player {
 
 class PlayButton;
 class VolumeWidget;
-struct UpdatedEvent;
+struct TrackState;
 
-class Widget : public TWidget, private base::Subscriber {
+class Widget : public Ui::RpWidget, private base::Subscriber {
 public:
 	Widget(QWidget *parent);
 
-	using CloseCallback = base::lambda<void()>;
-	void setCloseCallback(CloseCallback &&callback);
-
+	void setCloseCallback(base::lambda<void()> callback);
+	void stopAndClose();
 	void setShadowGeometryToLeft(int x, int y, int w, int h);
 	void showShadow();
 	void hideShadow();
@@ -61,8 +62,10 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
-	void leaveEvent(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
 
 private:
 	void handleSeekProgress(float64 progress);
@@ -81,16 +84,29 @@ private:
 
 	void updateVolumeToggleIcon();
 
-	void handleSongUpdate(const UpdatedEvent &e);
+	void checkForTypeChange();
+	void setType(AudioMsgId::Type type);
+	void handleSongUpdate(const TrackState &state);
 	void handleSongChange();
 	void handlePlaylistUpdate();
 
-	void updateTimeText(const AudioMsgId &audioId, const AudioPlaybackState &playbackState);
+	void updateTimeText(const TrackState &state);
 	void updateTimeLabel();
 
 	TimeMs _seekPositionMs = -1;
 	TimeMs _lastDurationMs = 0;
 	QString _time;
+
+	// We display all the controls according to _type.
+	// We switch to Type::Voice if a voice/video message is played.
+	// We switch to Type::Song only if _voiceIsActive == false.
+	// We change _voiceIsActive to false only manually or from tracksFinished().
+	AudioMsgId::Type _type = AudioMsgId::Type::Unknown;
+	bool _voiceIsActive = false;
+	base::lambda<void()> _closeCallback;
+
+	bool _labelsOver = false;
+	bool _labelsDown = false;
 
 	class PlayButton;
 	object_ptr<Ui::FlatLabel> _nameLabel;
@@ -102,7 +118,10 @@ private:
 	object_ptr<Ui::IconButton> _repeatTrack;
 	object_ptr<Ui::IconButton> _close;
 	object_ptr<Ui::PlainShadow> _shadow = { nullptr };
-	std_::unique_ptr<Clip::Playback> _playback;
+	object_ptr<Ui::FilledSlider> _playbackSlider;
+	std::unique_ptr<Clip::Playback> _playback;
+
+	rpl::lifetime _playlistChangesLifetime;
 
 };
 

@@ -20,15 +20,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "core/observer.h"
-#include "ui/filedialog.h"
-
+#include "base/observer.h"
 #include "settings/settings_block_widget.h"
 
 namespace Ui {
 class FlatLabel;
 class RoundButton;
 class IconButton;
+class UserpicButton;
 } // namespace Ui
 
 namespace Notify {
@@ -36,27 +35,14 @@ struct PeerUpdate;
 } // namespace Notify
 
 namespace Profile {
-class UserpicButton;
 class CoverDropArea;
 } // namespace Profile
 
 namespace Settings {
 
 class CoverWidget : public BlockWidget {
-	Q_OBJECT
-
 public:
 	CoverWidget(QWidget *parent, UserData *self);
-
-	void showFinished();
-
-private slots:
-	void onPhotoShow();
-	void onPhotoUploadStatusChanged(PeerId peerId = 0);
-	void onCancelPhotoUpload();
-
-	void onSetPhoto();
-	void onEditName();
 
 protected:
 	void dragEnterEvent(QDragEnterEvent *e) override;
@@ -71,10 +57,17 @@ protected:
 private:
 	// Observed notifications.
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
-	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
+
+	void showPhoto();
+	void cancelPhotoUpload();
+	void chooseNewPhoto();
+	void editName();
+
+	void onPhotoUploadStatusChanged(PeerId peerId = 0);
 
 	PhotoData *validatePhoto() const;
 
+	void refreshButtonsGeometry(int newWidth);
 	void refreshNameGeometry(int newWidth);
 	void refreshNameText();
 	void refreshStatusText();
@@ -88,7 +81,7 @@ private:
 
 	UserData *_self;
 
-	object_ptr<Profile::UserpicButton> _userpicButton;
+	object_ptr<Ui::UserpicButton> _userpicButton;
 	object_ptr<Profile::CoverDropArea> _dropArea = { nullptr };
 
 	object_ptr<Ui::FlatLabel> _name;
@@ -104,8 +97,6 @@ private:
 	bool _editNameVisible = true;
 
 	int _dividerTop = 0;
-
-	FileDialog::QueryId _setPhotoFileQueryId = 0;
 
 };
 

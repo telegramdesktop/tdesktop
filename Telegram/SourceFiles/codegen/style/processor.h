@@ -50,10 +50,6 @@ private:
 	std::unique_ptr<ParsedFile> parser_;
 	const Options &options_;
 
-	// List of files we need to generate with other instance of Generator.
-	// It is not empty only if rebuild_ flag is true.
-	QStringList dependenciesToGenerate_;
-
 };
 
 } // namespace style

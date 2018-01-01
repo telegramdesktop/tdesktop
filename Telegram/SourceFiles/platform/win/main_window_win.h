@@ -20,7 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "window/main_window.h"
+#include "platform/platform_main_window.h"
+#include "base/flags.h"
 #include <windows.h>
 
 namespace Ui {
@@ -40,17 +41,10 @@ public:
 
 	void psFirstShow();
 	void psInitSysMenu();
-	void psUpdateSysMenu(Qt::WindowState state);
+	void updateSystemMenu(Qt::WindowState state);
 	void psUpdateMargins();
 
-	void psFlash();
-	void psNotifySettingGot();
-
-	void psUpdateWorkmode();
-
 	void psRefreshTaskbarIcon();
-
-	bool psHasNativeNotifications();
 
 	virtual QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) = 0;
 
@@ -61,13 +55,14 @@ public:
 
 	// Custom shadows.
 	enum class ShadowsChange {
-		Moved    = 0x01,
-		Resized  = 0x02,
-		Shown    = 0x04,
-		Hidden   = 0x08,
-		Activate = 0x10,
+		Moved    = (1 << 0),
+		Resized  = (1 << 1),
+		Shown    = (1 << 2),
+		Hidden   = (1 << 3),
+		Activate = (1 << 4),
 	};
-	Q_DECLARE_FLAGS(ShadowsChanges, ShadowsChange);
+	using ShadowsChanges = base::flags<ShadowsChange>;
+	friend inline constexpr auto is_flag_type(ShadowsChange) { return true; };
 
 	bool shadowsWorking() const {
 		return _shadowsWorking;
@@ -93,20 +88,22 @@ protected:
 	int32 screenNameChecksum(const QString &name) const override;
 	void unreadCounterChangedHook() override;
 
+	void stateChangedHook(Qt::WindowState state) override;
+
 	bool hasTrayIcon() const override {
 		return trayIcon;
 	}
 
 	QSystemTrayIcon *trayIcon = nullptr;
 	Ui::PopupMenu *trayIconMenu = nullptr;
-	QImage icon256, iconbig256;
-	QIcon wndIcon;
 
 	void psTrayMenuUpdated();
 	void psSetupTrayIcon();
 	virtual void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) = 0;
 
 	void showTrayTooltip() override;
+
+	void workmodeUpdated(DBIWorkMode mode) override;
 
 	QTimer psUpdatedPositionTimer;
 
@@ -131,7 +128,5 @@ private:
 	int _deltaTop = 0;
 
 };
-
-Q_DECLARE_OPERATORS_FOR_FLAGS(MainWindow::ShadowsChanges);
 
 } // namespace Platform

@@ -26,7 +26,7 @@ namespace Ui {
 
 class RoundCheckbox {
 public:
-	RoundCheckbox(const style::RoundCheckbox &st, const base::lambda_copy<void()> &updateCallback);
+	RoundCheckbox(const style::RoundCheckbox &st, base::lambda<void()> updateCallback);
 
 	void paint(Painter &p, TimeMs ms, int x, int y, int outerWidth, float64 masterScale = 1.);
 
@@ -43,34 +43,23 @@ public:
 	void invalidateCache();
 
 private:
-	struct Icon {
-		Animation fadeIn;
-		Animation fadeOut;
-		QPixmap wideCheckCache;
-	};
-	void removeFadeOutedIcons();
-	void prepareWideCheckIconCache(Icon *icon);
 	void prepareInactiveCache();
-	QRect cacheDestRect(int x, int y, float64 scale) const;
 
 	const style::RoundCheckbox &_st;
-	base::lambda_copy<void()> _updateCallback;
+	base::lambda<void()> _updateCallback;
 
 	bool _checked = false;
-	std_::vector_of_moveable<Icon> _icons;
+	Animation _checkedProgress;
 
 	bool _displayInactive = false;
 	QPixmap _inactiveCacheBg, _inactiveCacheFg;
-
-	// Those pixmaps are shared among all checkboxes that have the same style.
-	QPixmap _wideCheckBgCache, _wideCheckFullCache;
 
 };
 
 class RoundImageCheckbox {
 public:
 	using PaintRoundImage = base::lambda<void(Painter &p, int x, int y, int outerWidth, int size)>;
-	RoundImageCheckbox(const style::RoundImageCheckbox &st, const base::lambda_copy<void()> &updateCallback, PaintRoundImage &&paintRoundImage);
+	RoundImageCheckbox(const style::RoundImageCheckbox &st, base::lambda<void()> updateCallback, PaintRoundImage &&paintRoundImage);
 
 	void paint(Painter &p, TimeMs ms, int x, int y, int outerWidth);
 	float64 checkedAnimationRatio() const;
@@ -89,7 +78,7 @@ private:
 	void prepareWideCache();
 
 	const style::RoundImageCheckbox &_st;
-	base::lambda_copy<void()> _updateCallback;
+	base::lambda<void()> _updateCallback;
 	PaintRoundImage _paintRoundImage;
 
 	QPixmap _wideCache;

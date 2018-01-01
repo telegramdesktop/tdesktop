@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/toast/toast_manager.h"
 
 #include "application.h"
@@ -36,10 +35,24 @@ NeverFreedPointer<QMap<QObject*, Manager*>> _managers;
 
 Manager::Manager(QWidget *parent) : QObject(parent) {
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(onHideTimeout()));
-	connect(parent, SIGNAL(resized()), this, SLOT(onParentResized()));
+}
+
+bool Manager::eventFilter(QObject *o, QEvent *e) {
+	if (e->type() == QEvent::Resize) {
+		for (auto i = _toastByWidget.cbegin(), e = _toastByWidget.cend(); i != e; ++i) {
+			if (i.key()->parentWidget() == o) {
+				i.key()->onParentResized();
+			}
+		}
+	}
+	return QObject::eventFilter(o, e);
 }
 
 Manager *Manager::instance(QWidget *parent) {
+	if (!parent) {
+		return nullptr;
+	}
+
 	_managers.createIfNull();
 	auto i = _managers->constFind(parent);
 	if (i == _managers->cend()) {
@@ -48,14 +61,30 @@ Manager *Manager::instance(QWidget *parent) {
 	return i.value();
 }
 
-void Manager::addToast(std_::unique_ptr<Instance> &&toast) {
+void Manager::addToast(std::unique_ptr<Instance> &&toast) {
 	_toasts.push_back(toast.release());
 	Instance *t = _toasts.back();
 	Widget *widget = t->_widget.get();
 
 	_toastByWidget.insert(widget, t);
 	connect(widget, SIGNAL(destroyed(QObject*)), this, SLOT(onToastWidgetDestroyed(QObject*)));
-	connect(widget->parentWidget(), SIGNAL(resized(QSize)), this, SLOT(onToastWidgetParentResized()), Qt::UniqueConnection);
+	if (auto parent = widget->parentWidget()) {
+		auto found = false;
+		for (auto i = _toastParents.begin(); i != _toastParents.cend();) {
+			if (*i == parent) {
+				found = true;
+				break;
+			} else if (!*i) {
+				i = _toastParents.erase(i);
+			} else {
+				++i;
+			}
+		}
+		if (!found) {
+			_toastParents.insert(parent);
+			parent->installEventFilter(this);
+		}
+	}
 
 	auto oldHideNearestMs = _toastByHideTime.isEmpty() ? 0LL : _toastByHideTime.firstKey();
 	_toastByHideTime.insert(t->_hideAtMs, t);
@@ -89,17 +118,6 @@ void Manager::onToastWidgetDestroyed(QObject *widget) {
 		if (index >= 0) {
 			_toasts.removeAt(index);
 			delete toast;
-		}
-	}
-}
-
-void Manager::onToastWidgetParentResized() {
-	auto resizedWidget = QObject::sender();
-	if (!resizedWidget) return;
-
-	for (auto i = _toastByWidget.cbegin(), e = _toastByWidget.cend(); i != e; ++i) {
-		if (i.key()->parentWidget() == resizedWidget) {
-			i.key()->onParentResized();
 		}
 	}
 }

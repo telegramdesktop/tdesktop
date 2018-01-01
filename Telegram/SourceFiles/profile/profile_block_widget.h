@@ -20,13 +20,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "core/observer.h"
+#include "base/observer.h"
+#include "ui/rp_widget.h"
 
 namespace Profile {
 
 class SectionMemento;
 
-class BlockWidget : public TWidget, protected base::Subscriber {
+class BlockWidget : public Ui::RpWidget, protected base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -35,9 +36,9 @@ public:
 	virtual void showFinished() {
 	}
 
-	virtual void saveState(SectionMemento *memento) const {
+	virtual void saveState(not_null<SectionMemento*> memento) {
 	}
-	virtual void restoreState(const SectionMemento *memento) {
+	virtual void restoreState(not_null<SectionMemento*> memento) {
 	}
 
 protected:

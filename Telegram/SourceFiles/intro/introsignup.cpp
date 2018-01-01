@@ -18,77 +18,64 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "intro/introsignup.h"
 
 #include "styles/style_intro.h"
 #include "styles/style_boxes.h"
-#include "ui/filedialog.h"
-#include "boxes/photocropbox.h"
-#include "boxes/confirmbox.h"
-#include "lang.h"
+#include "core/file_utilities.h"
+#include "boxes/photo_crop_box.h"
+#include "boxes/confirm_box.h"
+#include "lang/lang_keys.h"
 #include "application.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
-#include "ui/buttons/peer_avatar_button.h"
+#include "ui/special_buttons.h"
 
 namespace Intro {
 
 SignupWidget::SignupWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
-, _photo(this, st::introPhotoSize, st::introPhotoIconPosition)
-, _first(this, st::introName, lang(lng_signup_firstname))
-, _last(this, st::introName, lang(lng_signup_lastname))
+, _photo(
+	this,
+	peerFromUser(0),
+	Ui::UserpicButton::Role::ChangePhoto,
+	st::defaultUserpicButton)
+, _first(this, st::introName, langFactory(lng_signup_firstname))
+, _last(this, st::introName, langFactory(lng_signup_lastname))
 , _invertOrder(langFirstNameGoesSecond())
 , _checkRequest(this) {
-	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
-
-	_photo->setClickedCallback(App::LambdaDelayed(st::defaultActiveButton.ripple.hideDuration, this, [this] {
-		auto imgExtensions = cImgExtensions();
-		auto filter = qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter();
-		_readPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filter);
-	}));
-	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
-		notifyFileQueryUpdated(update);
-	});
-
+	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 	if (_invertOrder) {
 		setTabOrder(_last, _first);
+	} else {
+		setTabOrder(_first, _last);
 	}
+
+	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
+
 	setErrorCentered(true);
 
-	setTitleText(lang(lng_signup_title));
-	setDescriptionText(lang(lng_signup_desc));
+	setTitleText(langFactory(lng_signup_title));
+	setDescriptionText(langFactory(lng_signup_desc));
 	setMouseTracking(true);
 }
 
-void SignupWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) {
-	if (_readPhotoFileQueryId != update.queryId) {
-		return;
-	}
-	_readPhotoFileQueryId = 0;
-	if (update.remoteContent.isEmpty() && update.filePaths.isEmpty()) {
-		return;
-	}
-
-	QImage img;
-	if (!update.remoteContent.isEmpty()) {
-		img = App::readImage(update.remoteContent);
+void SignupWidget::refreshLang() {
+	_invertOrder = langFirstNameGoesSecond();
+	if (_invertOrder) {
+		setTabOrder(_last, _first);
 	} else {
-		img = App::readImage(update.filePaths.front());
+		setTabOrder(_first, _last);
 	}
-
-	if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
-		showError(lang(lng_bad_photo));
-		return;
-	}
-	auto box = Ui::show(Box<PhotoCropBox>(img, PeerId(0)));
-	connect(box, SIGNAL(ready(const QImage&)), this, SLOT(onPhotoReady(const QImage&)));
+	updateControlsGeometry();
 }
 
 void SignupWidget::resizeEvent(QResizeEvent *e) {
 	Step::resizeEvent(e);
+	updateControlsGeometry();
+}
 
+void SignupWidget::updateControlsGeometry() {
 	auto photoRight = contentLeft() + st::introNextButton.width;
 	auto photoTop = contentTop() + st::introPhotoTop;
 	_photo->moveToLeft(photoRight - _photo->width(), photoTop);
@@ -141,25 +128,20 @@ void SignupWidget::onCheckRequest() {
 	}
 }
 
-void SignupWidget::onPhotoReady(const QImage &img) {
-	_photoImage = img;
-	_photo->setImage(_photoImage);
-}
-
 void SignupWidget::nameSubmitDone(const MTPauth_Authorization &result) {
 	stopCheck();
 	auto &d = result.c_auth_authorization();
 	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
-		showError(lang(lng_server_error));
+		showError(&Lang::Hard::ServerError);
 		return;
 	}
-	finish(d.vuser, _photoImage);
+	finish(d.vuser, _photo->takeResultImage());
 }
 
 bool SignupWidget::nameSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
 		stopCheck();
-		showError(lang(lng_flood_error));
+		showError(langFactory(lng_flood_error));
 		if (_invertOrder) {
 			_first->setFocus();
 		} else {
@@ -180,18 +162,19 @@ bool SignupWidget::nameSubmitFail(const RPCError &error) {
 		goBack();
 		return true;
 	} else if (err == "FIRSTNAME_INVALID") {
-		showError(lang(lng_bad_name));
+		showError(langFactory(lng_bad_name));
 		_first->setFocus();
 		return true;
 	} else if (err == "LASTNAME_INVALID") {
-		showError(lang(lng_bad_name));
+		showError(langFactory(lng_bad_name));
 		_last->setFocus();
 		return true;
 	}
 	if (cDebug()) { // internal server error
-		showError(err + ": " + error.description());
+		auto text = err + ": " + error.description();
+		showError([text] { return text; });
 	} else {
-		showError(lang(lng_server_error));
+		showError(&Lang::Hard::ServerError);
 	}
 	if (_invertOrder) {
 		_last->setFocus();
@@ -202,7 +185,7 @@ bool SignupWidget::nameSubmitFail(const RPCError &error) {
 }
 
 void SignupWidget::onInputChange() {
-	showError(QString());
+	hideError();
 }
 
 void SignupWidget::submit() {
@@ -225,11 +208,11 @@ void SignupWidget::submit() {
 		}
 	}
 
-	showError(QString());
+	hideError();
 
 	_firstName = _first->getLastText().trimmed();
 	_lastName = _last->getLastText().trimmed();
-	_sentRequest = MTP::send(MTPauth_SignUp(MTP_string(getData()->phone), MTP_string(getData()->phoneHash), MTP_string(getData()->code), MTP_string(_firstName), MTP_string(_lastName)), rpcDone(&SignupWidget::nameSubmitDone), rpcFail(&SignupWidget::nameSubmitFail));
+	_sentRequest = MTP::send(MTPauth_SignUp(MTP_string(getData()->phone), MTP_bytes(getData()->phoneHash), MTP_string(getData()->code), MTP_string(_firstName), MTP_string(_lastName)), rpcDone(&SignupWidget::nameSubmitDone), rpcFail(&SignupWidget::nameSubmitFail));
 }
 
 QString SignupWidget::nextButtonText() const {

@@ -55,7 +55,7 @@ attentionBoxButton: RoundButton(defaultBoxButton) {
 
 defaultBoxCheckbox: Checkbox(defaultCheckbox) {
 	width: -46px;
-	textPosition: point(34px, 1px);
+	textPosition: point(12px, 1px);
 	style: boxTextStyle;
 }
 
@@ -73,13 +73,21 @@ boxRoundShadow: Shadow {
 }
 
 boxTitleFont: font(17px semibold);
+boxTitle: FlatLabel(defaultFlatLabel) {
+	textFg: boxTitleFg;
+	maxHeight: 24px;
+	style: TextStyle(defaultTextStyle) {
+		font: boxTitleFont;
+		linkFont: boxTitleFont;
+		linkFontOver: font(17px semibold underline);
+	}
+}
 boxTitlePosition: point(23px, 20px);
 boxTitleHeight: 56px;
 boxLayerTitlePosition: point(23px, 16px);
 boxLayerTitleHeight: 56px;
 boxLayerTitleAdditionalSkip: 9px;
 boxLayerTitleAdditionalFont: normalFont;
-boxLayerTitleShadow: shadowFg;
 boxLayerScroll: defaultSolidScroll;
 
 boxTopMargin: 6px;
@@ -118,7 +126,7 @@ boxMediumSkip: 20px;
 boxButtonPadding: margins(8px, 12px, 13px, 12px);
 boxLayerButtonPadding: margins(8px, 8px, 8px, 8px);
 boxLabel: FlatLabel(defaultFlatLabel) {
-	width: 285px;
+	minWidth: 285px;
 	align: align(topleft);
 	style: boxLabelStyle;
 }
@@ -151,7 +159,7 @@ cropMinSize: 20px;
 
 confirmInviteTitle: FlatLabel(defaultFlatLabel) {
 	align: align(center);
-	width: 320px;
+	minWidth: 320px;
 	maxHeight: 24px;
 	textFg: windowBoldFg;
 	style: TextStyle(defaultTextStyle) {
@@ -162,7 +170,7 @@ confirmInviteTitle: FlatLabel(defaultFlatLabel) {
 }
 confirmInviteStatus: FlatLabel(boxLabel) {
 	align: align(center);
-	width: 320px;
+	minWidth: 320px;
 	maxHeight: 20px;
 	textFg: windowSubTextFg;
 }
@@ -175,13 +183,13 @@ confirmInviteUserPhotoSize: 56px;
 confirmInviteUserPhotoTop: 166px;
 confirmInviteUserName: FlatLabel(defaultFlatLabel) {
 	align: align(center);
-	width: 66px;
+	minWidth: 66px;
 	maxHeight: 20px;
 }
 confirmInviteUserNameTop: 227px;
 
 confirmPhoneAboutLabel: FlatLabel(defaultFlatLabel) {
-	width: 282px;
+	minWidth: 282px;
 }
 confirmPhoneCodeField: InputField(defaultInputField) {
 }
@@ -191,7 +199,11 @@ revokePublicLinkStatusPalette: TextPalette(defaultTextPalette) {
 }
 aboutRevokePublicLabel: FlatLabel(defaultFlatLabel) {
 	align: align(topleft);
-	width: 320px;
+	minWidth: 320px;
+}
+editBioCountdownLabel: FlatLabel(defaultFlatLabel) {
+	style: boxTextStyle;
+	textFg: windowSubTextFg;
 }
 
 contactUserIcon: icon {{ "add_contact_user", menuIconFg }};
@@ -237,6 +249,44 @@ contactsAboutFg: windowSubTextFgOver;
 contactsAboutTop: 60px;
 contactsAboutBottom: 19px;
 
+contactsSearchField: InputField(defaultInputField) {
+	textBg: transparent;
+	textMargins: margins(2px, 7px, 2px, 0px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+
+	border: 0px;
+	borderActive: 0px;
+
+	heightMin: 32px;
+
+	font: normalFont;
+}
+contactsSearchCancel: CrossButton {
+	width: 44px;
+	height: 44px;
+
+	cross: CrossAnimation {
+		size: 36px;
+		skip: 12px;
+		stroke: 2px;
+		minScale: 0.3;
+	}
+	crossFg: boxTitleCloseFg;
+	crossFgOver: boxTitleCloseFgOver;
+	crossPosition: point(4px, 4px);
+
+	duration: 150;
+	loadingPeriod: 1000;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
 contactsMultiSelect: MultiSelect {
 	bg: boxSearchBg;
 	padding: margins(8px, 6px, 8px, 6px);
@@ -250,69 +300,26 @@ contactsMultiSelect: MultiSelect {
 		hiding: 1000;
 	}
 
-	item: MultiSelectItem {
-		padding: margins(6px, 7px, 12px, 0px);
-		maxWidth: 128px;
-		height: 32px;
-		style: defaultTextStyle;
-		textBg: contactsBgOver;
-		textFg: windowFg;
-		textActiveBg: activeButtonBg;
-		textActiveFg: activeButtonFg;
-		deleteFg: activeButtonFg;
-		deleteCross: CrossAnimation {
-			size: 32px;
-			skip: 10px;
-			stroke: 2px;
-			minScale: 0.3;
-		}
-		duration: 150;
-		minScale: 0.3;
-	}
+	item: defaultMultiSelectItem;
 	itemSkip: 8px;
 
-	field: InputField(defaultInputField) {
-		textBg: transparent;
-		textMargins: margins(2px, 7px, 2px, 0px);
-
-		placeholderFg: placeholderFg;
-		placeholderFgActive: placeholderFgActive;
-		placeholderFgError: placeholderFgActive;
-		placeholderMargins: margins(2px, 0px, 2px, 0px);
-		placeholderScale: 0.;
-		placeholderFont: normalFont;
-
-		border: 0px;
-		borderActive: 0px;
-
-		heightMin: 32px;
-
-		font: normalFont;
-	}
+	field: contactsSearchField;
 	fieldMinWidth: 42px;
 	fieldIcon: boxFieldSearchIcon;
 	fieldIconSkip: 36px;
 
-	fieldCancel: CrossButton {
-		width: 44px;
-		height: 44px;
-
-		cross: CrossAnimation {
-			size: 36px;
-			skip: 12px;
-			stroke: 2px;
-			minScale: 0.3;
-		}
-		crossFg: boxTitleCloseFg;
-		crossFgOver: boxTitleCloseFgOver;
-		crossPosition: point(4px, 4px);
-
-		duration: 150;
-		ripple: RippleAnimation(defaultRippleAnimation) {
-			color: windowBgOver;
-		}
-	}
+	fieldCancel: contactsSearchCancel;
 	fieldCancelSkip: 40px;
+}
+contactsPhotoCheckIcon: icon {{
+	"default_checkbox_check",
+	windowFgActive,
+	point(3px, 6px)
+}};
+contactsPhotoCheck: RoundCheckbox(defaultRoundCheckbox) {
+	size: 20px;
+	sizeSmall: 0.3;
+	check: contactsPhotoCheckIcon;
 }
 contactsPhotoCheckbox: RoundImageCheckbox {
 	imageRadius: 21px;
@@ -320,11 +327,7 @@ contactsPhotoCheckbox: RoundImageCheckbox {
 	selectWidth: 2px;
 	selectFg: windowBgActive;
 	selectDuration: 150;
-	check: RoundCheckbox(defaultRoundCheckbox) {
-		size: 20px;
-		sizeSmall: 0.3;
-		check: icon {{ "default_checkbox_check", windowFgActive, point(3px, 6px) }};
-	}
+	check: contactsPhotoCheck;
 }
 contactsPhotoDisabledCheckFg: menuIconFg;
 contactsNameCheckedFg: windowActiveTextFg;
@@ -334,6 +337,29 @@ contactsMarginTop: 4px;
 contactsMarginBottom: 4px;
 membersMarginTop: 10px;
 membersMarginBottom: 10px;
+
+peerListBox: PeerList(defaultPeerList) {
+	padding: margins(
+		0px,
+		membersMarginTop,
+		0px,
+		membersMarginBottom);
+	item: PeerListItem(defaultPeerListItem) {
+		height: 56px;
+		photoSize: contactsPhotoSize;
+		photoPosition: point(16px, 7px);
+		namePosition: point(74px, 9px);
+		statusPosition: point(74px, 30px);
+		button: OutlineButton(defaultPeerListButton) {
+			textBg: contactsBg;
+			textBgOver: contactsBgOver;
+			ripple: contactsRipple;
+		}
+		statusFg: contactsStatusFg;
+		statusFgOver: contactsStatusFgOver;
+		statusFgActive: contactsStatusFgOnline;
+	}
+}
 
 localStorageBoxSkip: 10px;
 
@@ -373,6 +399,12 @@ notificationSampleOpacity: 0.5;
 notificationSampleSize: size(64px, 16px);
 
 membersAboutLimitPadding: margins(0px, 12px, 0px, 12px);
+membersAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 240px;
+	textFg: membersAboutLimitFg;
+	align: align(top);
+	style: boxLabelStyle;
+}
 
 sessionsScroll: boxLayerScroll;
 sessionsHeight: 350px;
@@ -431,17 +463,12 @@ newGroupLinkPadding: margins(4px, 27px, 4px, 21px);
 newGroupLinkTop: 3px;
 newGroupLinkFont: font(16px);
 
-newGroupPhotoSize: 76px;
-newGroupPhotoIcon: icon {{ "new_chat_photo", activeButtonFg }};
-newGroupPhotoIconPosition: point(23px, 25px);
-newGroupPhotoDuration: 150;
-
 newGroupNamePosition: point(27px, 5px);
 
 newGroupDescriptionPadding: margins(0px, 13px, 0px, 4px);
 newGroupDescription: InputField(defaultInputField) {
 	textMargins: margins(1px, 26px, 1px, 4px);
-	heightMax: 135px;
+	heightMax: 116px;
 }
 
 setupChannelLink: InputField(defaultInputField) {
@@ -464,7 +491,7 @@ aboutVersionLink: LinkButton(defaultLinkButton) {
 aboutTextTop: 34px;
 aboutSkip: 14px;
 aboutLabel: FlatLabel(defaultFlatLabel) {
-	width: 330px;
+	minWidth: 330px;
 	align: align(topleft);
 	style: TextStyle(defaultTextStyle) {
 		lineHeight: 22px;
@@ -474,11 +501,6 @@ aboutLabel: FlatLabel(defaultFlatLabel) {
 autoDownloadTopDelta: 10px;
 autoDownloadTitlePosition: point(23px, 18px);
 autoDownloadTitleFont: font(15px semibold);
-
-editTextArea: InputField(defaultInputField) {
-	textMargins: margins(1px, 26px, 1px, 4px);
-	heightMax: 276px;
-}
 
 confirmCaptionArea: InputField(defaultInputField) {
 	textMargins: margins(1px, 26px, 1px, 4px);
@@ -516,17 +538,189 @@ backgroundScroll: ScrollArea(boxLayerScroll) {
 	deltab: 10px;
 }
 
+calendarTitleHeight: boxTitleHeight;
+calendarPrevious: IconButton {
+	width: calendarTitleHeight;
+	height: calendarTitleHeight;
+
+	icon: icon {{ "title_back", boxTitleFg }};
+	iconPosition: point(20px, 20px);
+
+	rippleAreaPosition: point(6px, 6px);
+	rippleAreaSize: 44px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+calendarPreviousDisabled: icon {{ "title_back", menuIconFg }};
+calendarNext: IconButton(calendarPrevious) {
+	icon: icon {{ "title_back-flip_horizontal", boxTitleFg }};
+}
+calendarNextDisabled: icon {{ "title_back-flip_horizontal", menuIconFg }};
+calendarTitleFont: boxTitleFont;
+calendarDaysFont: normalFont;
+calendarDaysFg: boxTitleAdditionalFg;
+calendarDaysHeight: 32px;
+calendarCellSize: size(48px, 40px);
+calendarCellInner: 34px;
+calendarPadding: margins(14px, 15px, 14px, 10px);
+calendarScroll: backgroundScroll;
+
 passcodeTextStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 20px;
 }
 
 usernamePadding: margins(23px, 6px, 21px, 12px);
 usernameSkip: 49px;
-usernameTextStyle: TextStyle(passcodeTextStyle) {
-	font: boxTextFont;
-	linkFont: boxTextFont;
-	linkFontOver: font(boxFontSize underline);
+usernameTextStyle: TextStyle(boxTextStyle, passcodeTextStyle) {
 }
 usernameDefaultFg: windowSubTextFg;
 
 downloadPathSkip: 10px;
+
+colorEditWidth: 390px;
+colorEditSkip: 10px;
+colorPickerSize: 256px;
+colorPickerMarkRadius: 6px;
+colorPickerMarkLine: 1px;
+colorSliderSkip: 8px;
+colorSliderArrowLeft: icon {{ "color_slider_arrow", sliderBgActive }};
+colorSliderArrowRight: icon {{ "color_slider_arrow-flip_horizontal", sliderBgActive }};
+colorSliderArrowTop: icon {{ "color_slider_arrow_vertical", sliderBgActive }};
+colorSliderArrowBottom: icon {{ "color_slider_arrow_vertical-flip_vertical", sliderBgActive }};
+colorSliderWidth: 19px;
+colorSampleSize: size(60px, 34px);
+colorFieldSkip: 13px;
+colorValueInput: InputField(defaultInputField) {
+	textMargins: margins(16px, 3px, 0px, 2px);
+	heightMin: 27px;
+}
+colorResultInput: InputField(colorValueInput) {
+}
+
+editPrivacyOptionMargin: margins(23px, 14px, 21px, 0px);
+editPrivacyPadding: margins(23px, 0px, 21px, 0px);
+editPrivacyWarningPadding: margins(23px, 14px, 21px, 0px);
+editPrivacyTitle: FlatLabel(defaultFlatLabel) {
+	minWidth: 320px;
+	textFg: boxTitleFg;
+	maxHeight: 56px;
+	style: TextStyle(defaultTextStyle) {
+		font: boxTitleFont;
+		linkFont: boxTitleFont;
+		linkFontOver: boxTitleFont;
+	}
+}
+editPrivacyTitlePadding: margins(23px, 20px, 21px, 13px);
+editPrivacyLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 320px;
+	textFg: membersAboutLimitFg;
+	style: defaultTextStyle;
+}
+editPrivacyLinkMargin: margins(0px, 0px, 0px, 8px);
+
+changePhoneIcon: icon {
+	{ "phone_simcard_from", changePhoneSimcardFrom },
+	{ "phone_simcard_migrate", changePhoneSimcardTo, point(30px, 11px) },
+	{ "phone_simcard_to", changePhoneSimcardTo, point(78px, 0px) }
+};
+changePhoneDescription: FlatLabel(boxLabel) {
+	minWidth: 332px;
+	align: align(top);
+}
+changePhoneIconTop: 20px;
+changePhoneDescriptionTop: 96px;
+changePhoneLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 275px;
+	textFg: windowSubTextFg;
+}
+changePhoneError: FlatLabel(changePhoneLabel) {
+	textFg: boxTextFgError;
+}
+
+adminLogFilterUserpicLeft: 15px;
+adminLogFilterLittleSkip: 16px;
+adminLogFilterCheckbox: Checkbox(defaultBoxCheckbox) {
+	style: TextStyle(boxTextStyle) {
+		font: font(boxFontSize semibold);
+		linkFont: font(boxFontSize semibold);
+		linkFontOver: font(boxFontSize semibold underline);
+	}
+}
+adminLogFilterSkip: 32px;
+adminLogFilterUserCheckbox: Checkbox(defaultBoxCheckbox) {
+	margin: margins(8px, 6px, 8px, 6px);
+	checkPosition: point(8px, 6px);
+}
+
+rightsCheckbox: Checkbox(defaultBoxCheckbox) {
+	rippleBg: attentionButtonBgOver;
+}
+rightsToggle: Toggle(defaultToggle) {
+	toggledFg: windowBgActive;
+	untoggledFg: attentionButtonFg;
+	xsize: 8px;
+	vsize: 5px;
+	vshift: 1px;
+	stroke: 2px;
+	duration: 120;
+}
+rightsDividerHeight: 10px;
+rightsHeaderMargin: margins(23px, 20px, 23px, 8px);
+rightsToggleMargin: margins(23px, 8px, 23px, 8px);
+rightsAboutMargin: margins(23px, 8px, 23px, 8px);
+rightsPhotoButton: UserpicButton(defaultUserpicButton) {
+	size: size(60px, 60px);
+	photoSize: 60px;
+}
+rightsPhotoMargin: margins(20px, 0px, 15px, 18px);
+rightsNameStyle: TextStyle(semiboldTextStyle) {
+	font: font(15px semibold);
+	linkFont: font(15px semibold);
+	linkFontOver: font(15px semibold underline);
+}
+rightsNameTop: 8px;
+rightsStatusTop: 32px;
+rightsHeaderLabel: FlatLabel(boxLabel) {
+	style: TextStyle(semiboldTextStyle) {
+		font: font(boxFontSize semibold);
+		linkFont: font(boxFontSize semibold);
+		linkFontOver: font(boxFontSize semibold underline);
+	}
+	textFg: windowActiveTextFg;
+}
+rightsUntilMargin: margins(0px, 8px, 0px, 0px);
+
+mutePhotoButton: UserpicButton(defaultUserpicButton) {
+	size: size(40px, 40px);
+	photoSize: 40px;
+}
+muteChatTitle: FlatLabel(boxLabel) {
+	minWidth: 235px;
+	maxHeight: 20px;  // block word wrap
+	style: TextStyle(boxTextStyle) {
+		font: font(boxFontSize semibold);
+	}
+}
+muteChatTitleLeft: 50px;
+
+groupStickersRemove: contactsSearchCancel;
+groupStickersRemovePosition: point(6px, 6px);
+groupStickersFieldPadding: margins(8px, 6px, 8px, 6px);
+groupStickersField: InputField(contactsSearchField) {
+	placeholderFont: boxTextFont;
+	font: boxTextFont;
+	placeholderMargins: margins(0px, 0px, 0px, 0px);
+	textMargins: margins(0px, 7px, 0px, 0px);
+	textBg: boxBg;
+	heightMin: 32px;
+}
+groupStickersSubTitleHeight: 36px;
+
+sendMediaPreviewSize: 308px;
+sendMediaPreviewHeightMax: 1280;
+sendMediaPreviewPhotoSkip: 10px;
+sendMediaFileThumbSize: 64px;
+sendMediaFileThumbSkip: 10px;
+sendMediaFileNameTop: 7px;
+sendMediaFileStatusTop: 37px;

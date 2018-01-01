@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "animation.h"
 
 #include "media/media_clip_reader.h"
@@ -41,6 +40,7 @@ ReaderPointer::~ReaderPointer() {
 namespace {
 
 AnimationManager *_manager = nullptr;
+bool AnimationsDisabled = false;
 
 } // namespace
 
@@ -108,6 +108,17 @@ void stopManager() {
 
 void registerClipManager(Media::Clip::Manager *manager) {
 	manager->connect(manager, SIGNAL(callback(Media::Clip::Reader*,qint32,qint32)), _manager, SLOT(clipCallback(Media::Clip::Reader*,qint32,qint32)));
+}
+
+bool Disabled() {
+	return AnimationsDisabled;
+}
+
+void SetDisabled(bool disabled) {
+	AnimationsDisabled = disabled;
+	if (disabled && _manager) {
+		_manager->timeout();
+	}
 }
 
 } // anim

@@ -18,38 +18,62 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "mainwindow.h"
 
+#include "data/data_document.h"
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"
 #include "styles/style_boxes.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
-#include "core/zlib_help.h"
-#include "lang.h"
+#include "ui/widgets/shadow.h"
+#include "lang/lang_cloud_manager.h"
+#include "lang/lang_instance.h"
+#include "lang/lang_keys.h"
 #include "shortcuts.h"
+#include "messenger.h"
 #include "application.h"
-#include "pspecific.h"
 #include "passcodewidget.h"
 #include "intro/introwidget.h"
 #include "mainwidget.h"
-#include "layerwidget.h"
-#include "boxes/confirmbox.h"
-#include "boxes/contactsbox.h"
-#include "boxes/addcontactbox.h"
+#include "boxes/confirm_box.h"
+#include "boxes/add_contact_box.h"
+#include "boxes/connection_box.h"
 #include "observer_peer.h"
-#include "autoupdater.h"
 #include "mediaview.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "apiwrap.h"
 #include "settings/settings_widget.h"
 #include "platform/platform_notifications_manager.h"
+#include "window/layer_widget.h"
 #include "window/notifications_manager.h"
-#include "window/window_theme.h"
-#include "window/window_theme_warning.h"
+#include "window/themes/window_theme.h"
+#include "window/themes/window_theme_warning.h"
 #include "window/window_main_menu.h"
+#include "auth_session.h"
+#include "window/window_controller.h"
+
+namespace {
+
+// Code for testing languages is F7-F6-F7-F8
+void FeedLangTestingKey(int key) {
+	static auto codeState = 0;
+	if ((codeState == 0 && key == Qt::Key_F7)
+		|| (codeState == 1 && key == Qt::Key_F6)
+		|| (codeState == 2 && key == Qt::Key_F7)
+		|| (codeState == 3 && key == Qt::Key_F8)) {
+		++codeState;
+	} else {
+		codeState = 0;
+	}
+	if (codeState == 4) {
+		codeState = 0;
+		Lang::CurrentCloudManager().switchToTestLanguage();
+	}
+}
+
+} // namespace
 
 ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : TWidget(parent)
 , _reconnect(this, QString()) {
@@ -76,9 +100,9 @@ void ConnectingWidget::set(const QString &text, const QString &reconnect) {
 void ConnectingWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto sides = Ui::Shadow::Side::Top | Ui::Shadow::Side::Right;
+	auto sides = RectPart::Top | RectPart::Right;
 	Ui::Shadow::paint(p, QRect(0, st::boxRoundShadow.extend.top(), width() - st::boxRoundShadow.extend.right(), height() - st::boxRoundShadow.extend.top()), width(), st::boxRoundShadow, sides);
-	auto parts = App::RectPart::Top | App::RectPart::TopRight | App::RectPart::Center | App::RectPart::Right;
+	auto parts = RectPart::Top | RectPart::TopRight | RectPart::Center | RectPart::Right;
 	App::roundRect(p, QRect(-st::boxRadius, st::boxRoundShadow.extend.top(), width() - st::boxRoundShadow.extend.right() + st::boxRadius, height() - st::boxRoundShadow.extend.top() + st::boxRadius), st::boxBg, BoxCorners, nullptr, parts);
 
 	p.setFont(st::normalFont);
@@ -87,92 +111,44 @@ void ConnectingWidget::paintEvent(QPaintEvent *e) {
 }
 
 void ConnectingWidget::onReconnect() {
-	MTP::restart();
+	auto throughProxy = (Global::ConnectionType() != dbictAuto);
+	if (throughProxy) {
+		Ui::show(Box<ConnectionBox>());
+	} else {
+		MTP::restart();
+	}
 }
 
 MainWindow::MainWindow() {
-	icon16 = icon256.scaledToWidth(16, Qt::SmoothTransformation);
-	icon32 = icon256.scaledToWidth(32, Qt::SmoothTransformation);
-	icon64 = icon256.scaledToWidth(64, Qt::SmoothTransformation);
-	iconbig16 = iconbig256.scaledToWidth(16, Qt::SmoothTransformation);
-	iconbig32 = iconbig256.scaledToWidth(32, Qt::SmoothTransformation);
-	iconbig64 = iconbig256.scaledToWidth(64, Qt::SmoothTransformation);
+	auto logo = Messenger::Instance().logo();
+	icon16 = logo.scaledToWidth(16, Qt::SmoothTransformation);
+	icon32 = logo.scaledToWidth(32, Qt::SmoothTransformation);
+	icon64 = logo.scaledToWidth(64, Qt::SmoothTransformation);
 
-	subscribe(Global::RefNotifySettingsChanged(), [this](Notify::ChangeType type) {
-		if (type == Notify::ChangeType::DesktopEnabled) {
-			updateTrayMenu();
-			notifyClear();
-		} else if (type == Notify::ChangeType::ViewParams) {
-			notifyUpdateAll();
-		} else if (type == Notify::ChangeType::IncludeMuted) {
-			Notify::unreadCounterUpdated();
-		}
-	});
+	auto logoNoMargin = Messenger::Instance().logoNoMargin();
+	iconbig16 = logoNoMargin.scaledToWidth(16, Qt::SmoothTransformation);
+	iconbig32 = logoNoMargin.scaledToWidth(32, Qt::SmoothTransformation);
+	iconbig64 = logoNoMargin.scaledToWidth(64, Qt::SmoothTransformation);
 
 	resize(st::windowDefaultWidth, st::windowDefaultHeight);
 
 	setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
 
-	_inactiveTimer.setSingleShot(true);
-	connect(&_inactiveTimer, SIGNAL(timeout()), this, SLOT(onInactiveTimer()));
-
-	connect(&_notifyWaitTimer, SIGNAL(timeout()), this, SLOT(notifyShowNext()));
-
-	connect(&_autoLockTimer, SIGNAL(timeout()), this, SLOT(checkAutoLock()));
-
-	subscribe(Global::RefSelfChanged(), [this]() { updateGlobalMenu(); });
+	subscribe(Global::RefSelfChanged(), [this] { updateGlobalMenu(); });
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &data) {
 		themeUpdated(data);
 	});
+	subscribe(Messenger::Instance().passcodedChanged(), [this] { updateGlobalMenu(); });
 
 	setAttribute(Qt::WA_NoSystemBackground);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 }
 
-void MainWindow::inactivePress(bool inactive) {
-	_inactivePress = inactive;
-	if (_inactivePress) {
-		_inactiveTimer.start(200);
-	} else {
-		_inactiveTimer.stop();
-	}
-}
-
-bool MainWindow::inactivePress() const {
-	return _inactivePress;
-}
-
-void MainWindow::onInactiveTimer() {
-	inactivePress(false);
-}
-
-void MainWindow::onStateChanged(Qt::WindowState state) {
-	stateChangedHook(state);
-
-	psUserActionDone();
-
-	updateIsActive((state == Qt::WindowMinimized) ? Global::OfflineBlurTimeout() : Global::OnlineFocusTimeout());
-
-	psUpdateSysMenu(state);
-	if (state == Qt::WindowMinimized && cWorkMode() == dbiwmTrayOnly) {
-		App::wnd()->minimizeToTray();
-	}
-	savePosition(state);
-}
-
 void MainWindow::initHook() {
 	Platform::MainWindow::initHook();
 
-	Application::instance()->installEventFilter(this);
-	connect(windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(onStateChanged(Qt::WindowState)));
-	connect(windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWindowActiveChanged()), Qt::QueuedConnection);
-}
-
-void MainWindow::onWindowActiveChanged() {
-	checkHistoryActivation();
-	QTimer::singleShot(1, base::lambda_slot_once(this, [this] {
-		updateTrayMenu();
-	}), SLOT(action()));
+	QCoreApplication::instance()->installEventFilter(this);
+	connect(windowHandle(), &QWindow::activeChanged, this, [this] { checkHistoryActivation(); }, Qt::QueuedConnection);
 }
 
 void MainWindow::firstShow() {
@@ -198,12 +174,10 @@ void MainWindow::firstShow() {
 		trayIconMenu->addAction(notificationActionText, this, SLOT(toggleDisplayNotifyFromTray()))->setEnabled(true);
 		trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
 	}
-	psUpdateWorkmode();
+	Global::RefWorkMode().setForced(Global::WorkMode().value(), true);
 
 	psFirstShow();
 	updateTrayMenu();
-
-	createMediaView();
 }
 
 void MainWindow::clearWidgetsHook() {
@@ -219,11 +193,11 @@ void MainWindow::clearWidgetsHook() {
 QPixmap MainWindow::grabInner() {
 	QPixmap result;
 	if (_intro) {
-		result = myGrab(_intro);
+		result = Ui::GrabWidget(_intro);
 	} else if (_passcode) {
-		result = myGrab(_passcode);
+		result = Ui::GrabWidget(_passcode);
 	} else if (_main) {
-		result = myGrab(_main);
+		result = Ui::GrabWidget(_main);
 	}
 	return result;
 }
@@ -237,13 +211,9 @@ void MainWindow::clearPasscode() {
 	if (_intro) {
 		_intro->showAnimated(bg, true);
 	} else {
+		Assert(_main != nullptr);
 		_main->showAnimated(bg, true);
-	}
-	notifyUpdateAll();
-	updateGlobalMenu();
-
-	if (_main) {
-		_main->checkStartUrl();
+		Messenger::Instance().checkStartUrl();
 	}
 }
 
@@ -254,46 +224,20 @@ void MainWindow::setupPasscode() {
 	updateControlsGeometry();
 
 	if (_main) _main->hide();
-	hideMediaview();
-	Ui::hideSettingsAndLayer(true);
+	Messenger::Instance().hideMediaView();
+	Ui::hideSettingsAndLayer(anim::type::instant);
 	if (_intro) _intro->hide();
 	if (animated) {
 		_passcode->showAnimated(bg);
 	} else {
 		setInnerFocus();
 	}
-	_shouldLockAt = 0;
-	notifyUpdateAll();
-	updateGlobalMenu();
-}
-
-void MainWindow::checkAutoLockIn(int msec) {
-	if (_autoLockTimer.isActive()) {
-		int remain = _autoLockTimer.remainingTime();
-		if (remain > 0 && remain <= msec) return;
-	}
-	_autoLockTimer.start(msec);
-}
-
-void MainWindow::checkAutoLock() {
-	if (!Global::LocalPasscode() || App::passcoded()) return;
-
-	App::app()->checkLocalTime();
-	auto ms = getms(true), idle = psIdleTime(), should = Global::AutoLock() * 1000LL;
-	if (idle >= should || (_shouldLockAt > 0 && ms > _shouldLockAt + 3000LL)) {
-		setupPasscode();
-	} else {
-		_shouldLockAt = ms + (should - idle);
-		_autoLockTimer.start(should - idle);
-	}
 }
 
 void MainWindow::setupIntro() {
-	cSetContactsReceived(false);
-	cSetDialogsReceived(false);
 	if (_intro && !_intro->isHidden() && !_main) return;
 
-	Ui::hideSettingsAndLayer(true);
+	Ui::hideSettingsAndLayer(anim::type::instant);
 
 	auto animated = (_main || _passcode);
 	auto bg = animated ? grabInner() : QPixmap();
@@ -321,19 +265,13 @@ void MainWindow::setupIntro() {
 
 void MainWindow::serviceNotification(const TextWithEntities &message, const MTPMessageMedia &media, int32 date, bool force) {
 	if (date <= 0) date = unixtime();
-	auto h = (_main && App::userLoaded(ServiceUserId)) ? App::history(ServiceUserId) : nullptr;
+	auto h = (_main && App::userLoaded(ServiceUserId)) ? App::history(ServiceUserId).get() : nullptr;
 	if (!h || (!force && h->isEmpty())) {
 		_delayedServiceMsgs.push_back(DelayedServiceMsg(message, media, date));
 		return sendServiceHistoryRequest();
 	}
 
-	_main->serviceNotification(message, media, date);
-}
-
-void MainWindow::serviceNotificationLocal(QString text) {
-	EntitiesInText entities;
-	textParseEntities(text, _historyTextNoMonoOptions.flags, &entities);
-	serviceNotification({ text, entities });
+	_main->insertCheckedServiceNotification(message, media, date);
 }
 
 void MainWindow::showDelayedServiceMsgs() {
@@ -345,12 +283,43 @@ void MainWindow::showDelayedServiceMsgs() {
 void MainWindow::sendServiceHistoryRequest() {
 	if (!_main || !_main->started() || _delayedServiceMsgs.isEmpty() || _serviceHistoryRequest) return;
 
-	UserData *user = App::userLoaded(ServiceUserId);
+	auto user = App::userLoaded(ServiceUserId);
 	if (!user) {
-		MTPDuser::Flags userFlags = MTPDuser::Flag::f_first_name | MTPDuser::Flag::f_phone | MTPDuser::Flag::f_status | MTPDuser::Flag::f_verified;
-		user = App::feedUsers(MTP_vector<MTPUser>(1, MTP_user(MTP_flags(userFlags), MTP_int(ServiceUserId), MTPlong(), MTP_string("Telegram"), MTPstring(), MTPstring(), MTP_string("42777"), MTP_userProfilePhotoEmpty(), MTP_userStatusRecently(), MTPint(), MTPstring(), MTPstring())));
+		auto userFlags = MTPDuser::Flag::f_first_name | MTPDuser::Flag::f_phone | MTPDuser::Flag::f_status | MTPDuser::Flag::f_verified;
+		user = App::feedUsers(MTP_vector<MTPUser>(1, MTP_user(
+			MTP_flags(userFlags),
+			MTP_int(ServiceUserId),
+			MTPlong(),
+			MTP_string("Telegram"),
+			MTPstring(),
+			MTPstring(),
+			MTP_string("42777"),
+			MTP_userProfilePhotoEmpty(),
+			MTP_userStatusRecently(),
+			MTPint(),
+			MTPstring(),
+			MTPstring(),
+			MTPstring())));
 	}
-	_serviceHistoryRequest = MTP::send(MTPmessages_GetHistory(user->input, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(1), MTP_int(0), MTP_int(0)), _main->rpcDone(&MainWidget::serviceHistoryDone), _main->rpcFail(&MainWidget::serviceHistoryFail));
+	auto offsetId = 0;
+	auto offsetDate = 0;
+	auto addOffset = 0;
+	auto limit = 1;
+	auto maxId = 0;
+	auto minId = 0;
+	auto historyHash = 0;
+	_serviceHistoryRequest = MTP::send(
+		MTPmessages_GetHistory(
+			user->input,
+			MTP_int(offsetId),
+			MTP_int(offsetDate),
+			MTP_int(addOffset),
+			MTP_int(limit),
+			MTP_int(maxId),
+			MTP_int(minId),
+			MTP_int(historyHash)),
+		_main->rpcDone(&MainWidget::serviceHistoryDone),
+		_main->rpcFail(&MainWidget::serviceHistoryFail));
 }
 
 void MainWindow::setupMain(const MTPUser *self) {
@@ -358,7 +327,10 @@ void MainWindow::setupMain(const MTPUser *self) {
 	auto bg = animated ? grabInner() : QPixmap();
 
 	clearWidgets();
-	_main.create(bodyWidget());
+
+	Assert(AuthSession::Exists());
+
+	_main.create(bodyWidget(), controller());
 	_main->show();
 	updateControlsGeometry();
 
@@ -367,11 +339,7 @@ void MainWindow::setupMain(const MTPUser *self) {
 	} else {
 		_main->activate();
 	}
-	if (self) {
-		_main->start(*self);
-	} else {
-		MTP::send(MTPusers_GetUsers(MTP_vector<MTPInputUser>(1, MTP_inputUserSelf())), _main->rpcDone(&MainWidget::startFull));
-	}
+	_main->start(self);
 
 	fixOrder();
 
@@ -379,14 +347,31 @@ void MainWindow::setupMain(const MTPUser *self) {
 }
 
 void MainWindow::showSettings() {
-	if (_passcode) return;
-
 	if (isHidden()) showFromTray();
 
-	if (!_layerBg) {
-		_layerBg.create(bodyWidget());
+	controller()->showSpecialLayer(Box<Settings::Widget>());
+}
+
+void MainWindow::showSpecialLayer(
+		object_ptr<Window::LayerWidget> layer,
+		anim::type animated) {
+	if (_passcode) return;
+
+	if (layer) {
+		ensureLayerCreated();
+		_layerBg->showSpecialLayer(std::move(layer), animated);
+	} else if (_layerBg) {
+		_layerBg->hideSpecialLayer(animated);
 	}
-	_layerBg->showSpecialLayer(Box<Settings::Widget>());
+}
+
+bool MainWindow::showSectionInExistingLayer(
+		not_null<Window::SectionMemento*> memento,
+		const Window::SectionShow &params) {
+	if (_layerBg) {
+		return _layerBg->showSectionInternal(memento, params);
+	}
+	return false;
 }
 
 void MainWindow::showMainMenu() {
@@ -394,17 +379,33 @@ void MainWindow::showMainMenu() {
 
 	if (isHidden()) showFromTray();
 
-	if (!_layerBg) {
-		_layerBg.create(bodyWidget());
-	}
-	_layerBg->showMainMenu();
+	ensureLayerCreated();
+	_layerBg->showMainMenu(anim::type::normal);
 }
 
-void MainWindow::ui_hideSettingsAndLayer(ShowLayerOptions options) {
+void MainWindow::ensureLayerCreated() {
+	if (!_layerBg) {
+		_layerBg.create(bodyWidget(), controller());
+		if (controller()) {
+			controller()->enableGifPauseReason(Window::GifPauseReason::Layer);
+		}
+	}
+}
+
+void MainWindow::destroyLayerDelayed() {
 	if (_layerBg) {
-		_layerBg->hideAll();
-		if (options.testFlag(ForceFastShowLayer)) {
-			_layerBg.destroyDelayed();
+		_layerBg.destroyDelayed();
+		if (controller()) {
+			controller()->disableGifPauseReason(Window::GifPauseReason::Layer);
+		}
+	}
+}
+
+void MainWindow::ui_hideSettingsAndLayer(anim::type animated) {
+	if (_layerBg) {
+		_layerBg->hideAll(animated);
+		if (animated == anim::type::instant) {
+			destroyLayerDelayed();
 		}
 	}
 }
@@ -417,13 +418,14 @@ void MainWindow::mtpStateChanged(int32 dc, int32 state) {
 }
 
 void MainWindow::updateConnectingStatus() {
-	int32 state = MTP::dcstate();
+	auto state = MTP::dcstate();
+	auto throughProxy = (Global::ConnectionType() != dbictAuto);
 	if (state == MTP::ConnectingState || state == MTP::DisconnectedState || (state < 0 && state > -600)) {
 		if (_main || getms() > 5000 || _connecting) {
-			showConnecting(lang(lng_connecting));
+			showConnecting(lang(throughProxy ? lng_connecting_to_proxy : lng_connecting), throughProxy ? lang(lng_connecting_settings) : QString());
 		}
 	} else if (state < 0) {
-		showConnecting(lng_reconnecting(lt_count, ((-state) / 1000) + 1), lang(lng_reconnecting_try_now));
+		showConnecting(lng_reconnecting(lt_count, ((-state) / 1000) + 1), lang(throughProxy ? lng_connecting_settings : lng_reconnecting_try_now));
 		QTimer::singleShot((-state) % 1000, this, SLOT(updateConnectingStatus()));
 	} else {
 		hideConnecting();
@@ -438,31 +440,31 @@ PasscodeWidget *MainWindow::passcodeWidget() {
 	return _passcode;
 }
 
-void MainWindow::ui_showBox(object_ptr<BoxContent> box, ShowLayerOptions options) {
+void MainWindow::ui_showBox(
+		object_ptr<BoxContent> box,
+		LayerOptions options,
+		anim::type animated) {
 	if (box) {
-		if (!_layerBg) {
-			_layerBg.create(bodyWidget());
-		}
-		if (options.testFlag(KeepOtherLayers)) {
-			if (options.testFlag(ShowAfterOtherLayers)) {
-				_layerBg->prependBox(std_::move(box));
+		ensureLayerCreated();
+		if (options & LayerOption::KeepOther) {
+			if (options & LayerOption::ShowAfterOther) {
+				_layerBg->prependBox(std::move(box), animated);
 			} else {
-				_layerBg->appendBox(std_::move(box));
+				_layerBg->appendBox(std::move(box), animated);
 			}
 		} else {
-			_layerBg->showBox(std_::move(box));
-		}
-		if (options.testFlag(ForceFastShowLayer)) {
-			_layerBg->finishAnimation();
+			_layerBg->showBox(std::move(box), animated);
 		}
 	} else {
 		if (_layerBg) {
-			_layerBg->hideTopLayer();
-			if (options.testFlag(ForceFastShowLayer) && !_layerBg->layerShown()) {
-				_layerBg.destroyDelayed();
+			_layerBg->hideTopLayer(animated);
+			if ((animated == anim::type::instant)
+				&& _layerBg
+				&& !_layerBg->layerShown()) {
+				destroyLayerDelayed();
 			}
 		}
-		hideMediaview();
+		Messenger::Instance().hideMediaView();
 	}
 }
 
@@ -471,9 +473,11 @@ bool MainWindow::ui_isLayerShown() {
 }
 
 void MainWindow::ui_showMediaPreview(DocumentData *document) {
-	if (!document || ((!document->isAnimation() || !document->loaded()) && !document->sticker())) return;
+	if (!document || ((!document->isAnimation() || !document->loaded()) && !document->sticker())) {
+		return;
+	}
 	if (!_mediaPreview) {
-		_mediaPreview.create(bodyWidget());
+		_mediaPreview.create(bodyWidget(), controller());
 		updateControlsGeometry();
 	}
 	if (_mediaPreview->isHidden()) {
@@ -485,7 +489,7 @@ void MainWindow::ui_showMediaPreview(DocumentData *document) {
 void MainWindow::ui_showMediaPreview(PhotoData *photo) {
 	if (!photo) return;
 	if (!_mediaPreview) {
-		_mediaPreview.create(bodyWidget());
+		_mediaPreview.create(bodyWidget(), controller());
 		updateControlsGeometry();
 	}
 	if (_mediaPreview->isHidden()) {
@@ -499,18 +503,10 @@ void MainWindow::ui_hideMediaPreview() {
 	_mediaPreview->hidePreview();
 }
 
-PeerData *MainWindow::ui_getPeerForMouseAction() {
-	if (Ui::isMediaViewShown()) {
-		return Platform::MainWindow::ui_getPeerForMouseAction();
-	} else if (_main) {
-		return _main->ui_getPeerForMouseAction();
-	}
-	return nullptr;
-}
-
 void MainWindow::showConnecting(const QString &text, const QString &reconnect) {
 	if (_connecting) {
 		_connecting->set(text, reconnect);
+		_connecting->show();
 	} else {
 		_connecting.create(bodyWidget(), text, reconnect);
 		_connecting->show();
@@ -521,23 +517,42 @@ void MainWindow::showConnecting(const QString &text, const QString &reconnect) {
 
 void MainWindow::hideConnecting() {
 	if (_connecting) {
-		_connecting.destroyDelayed();
+		_connecting->hide();
 	}
 }
 
 void MainWindow::themeUpdated(const Window::Theme::BackgroundUpdate &data) {
 	using Type = Window::Theme::BackgroundUpdate::Type;
+
+	// We delay animating theme warning because we want all other
+	// subscribers to receive paltte changed notification before any
+	// animations (that include pixmap caches with old palette values).
 	if (data.type == Type::TestingTheme) {
 		if (!_testingThemeWarning) {
 			_testingThemeWarning.create(bodyWidget());
+			_testingThemeWarning->hide();
 			_testingThemeWarning->setGeometry(rect());
 			_testingThemeWarning->setHiddenCallback([this] { _testingThemeWarning.destroyDelayed(); });
 		}
-		_testingThemeWarning->showAnimated();
+		crl::on_main(this, [=] {
+			if (_testingThemeWarning) {
+				_testingThemeWarning->showAnimated();
+			}
+		});
 	} else if (data.type == Type::RevertingTheme || data.type == Type::ApplyingTheme) {
-		_testingThemeWarning->hideAnimated();
-		_testingThemeWarning = nullptr;
-		setInnerFocus();
+		if (_testingThemeWarning) {
+			if (_testingThemeWarning->isHidden()) {
+				_testingThemeWarning.destroy();
+			} else {
+				crl::on_main(this, [=] {
+					if (_testingThemeWarning) {
+						_testingThemeWarning->hideAnimated();
+						_testingThemeWarning = nullptr;
+					}
+					setInnerFocus();
+				});
+			}
+		}
 	}
 }
 
@@ -546,17 +561,15 @@ bool MainWindow::doWeReadServerHistory() {
 	return isActive() && _main && !Ui::isLayerShown() && _main->doWeReadServerHistory();
 }
 
-void MainWindow::checkHistoryActivation() {
-	if (_main && MTP::authedId() && doWeReadServerHistory()) {
-		_main->markActiveHistoryAsRead();
-	}
+bool MainWindow::doWeReadMentions() {
+	updateIsActive(0);
+	return isActive() && _main && !Ui::isLayerShown() && _main->doWeReadMentions();
 }
 
-void MainWindow::layerHidden() {
-	_layerBg.destroyDelayed();
-	hideMediaview();
-	setInnerFocus();
-	checkHistoryActivation();
+void MainWindow::checkHistoryActivation() {
+	if (_main && doWeReadServerHistory()) {
+		_main->markActiveHistoryAsRead();
+	}
 }
 
 bool MainWindow::contentOverlapped(const QRect &globalRect) {
@@ -579,72 +592,52 @@ void MainWindow::setInnerFocus() {
 	}
 }
 
-bool MainWindow::eventFilter(QObject *obj, QEvent *e) {
+bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 	switch (e->type()) {
-	case QEvent::MouseButtonPress:
-	case QEvent::KeyPress:
-	case QEvent::TouchBegin:
-	case QEvent::Wheel:
-		psUserActionDone();
-		break;
+	case QEvent::KeyPress: {
+		if (cDebug() && e->type() == QEvent::KeyPress && object == windowHandle()) {
+			auto key = static_cast<QKeyEvent*>(e)->key();
+			FeedLangTestingKey(key);
+		}
+	} break;
 
-	case QEvent::MouseMove:
+	case QEvent::MouseMove: {
 		if (_main && _main->isIdle()) {
 			psUserActionDone();
 			_main->checkIdleFinish();
 		}
-		break;
+	} break;
 
-	case QEvent::MouseButtonRelease:
+	case QEvent::MouseButtonRelease: {
 		Ui::hideMediaPreview();
-		break;
+	} break;
 
-	case QEvent::ShortcutOverride: // handle shortcuts ourselves
-		return true;
-
-	case QEvent::Shortcut:
-		DEBUG_LOG(("Shortcut event catched: %1").arg(static_cast<QShortcutEvent*>(e)->key().toString()));
-		if (Shortcuts::launch(static_cast<QShortcutEvent*>(e)->shortcutId())) {
-			return true;
+	case QEvent::ApplicationActivate: {
+		if (object == QCoreApplication::instance()) {
+			InvokeQueued(this, [this] {
+				handleActiveChanged();
+			});
 		}
-		break;
+	} break;
 
-	case QEvent::ApplicationActivate:
-		if (obj == Application::instance()) {
-			psUserActionDone();
-			QTimer::singleShot(1, this, SLOT(onWindowActiveChanged()));
+	case QEvent::WindowStateChange: {
+		if (object == this) {
+			auto state = (windowState() & Qt::WindowMinimized) ? Qt::WindowMinimized :
+				((windowState() & Qt::WindowMaximized) ? Qt::WindowMaximized :
+				((windowState() & Qt::WindowFullScreen) ? Qt::WindowFullScreen : Qt::WindowNoState));
+			handleStateChanged(state);
 		}
-		break;
-
-	case QEvent::FileOpen:
-		if (obj == Application::instance()) {
-			QString url = static_cast<QFileOpenEvent*>(e)->url().toEncoded().trimmed();
-			if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
-				cSetStartUrl(url.mid(0, 8192));
-				if (_main) {
-					_main->checkStartUrl();
-				}
-			}
-			activate();
-		}
-		break;
-
-	case QEvent::WindowStateChange:
-		if (obj == this) {
-			Qt::WindowState state = (windowState() & Qt::WindowMinimized) ? Qt::WindowMinimized : ((windowState() & Qt::WindowMaximized) ? Qt::WindowMaximized : ((windowState() & Qt::WindowFullScreen) ? Qt::WindowFullScreen : Qt::WindowNoState));
-			onStateChanged(state);
-		}
-		break;
+	} break;
 
 	case QEvent::Move:
-	case QEvent::Resize:
-		if (obj == this) {
+	case QEvent::Resize: {
+		if (object == this) {
 			positionUpdated();
 		}
-		break;
+	} break;
 	}
 
-	return Platform::MainWindow::eventFilter(obj, e);
+	return Platform::MainWindow::eventFilter(object, e);
 }
 
 void MainWindow::updateTrayMenu(bool force) {
@@ -690,7 +683,7 @@ void MainWindow::onShowAddContact() {
 	if (isHidden()) showFromTray();
 
 	if (App::self()) {
-		Ui::show(Box<AddContactBox>(), KeepOtherLayers);
+		Ui::show(Box<AddContactBox>(), LayerOption::KeepOther);
 	}
 }
 
@@ -698,14 +691,20 @@ void MainWindow::onShowNewGroup() {
 	if (isHidden()) showFromTray();
 
 	if (App::self()) {
-		Ui::show(Box<GroupInfoBox>(CreatingGroupGroup, false), KeepOtherLayers);
+		Ui::show(
+			Box<GroupInfoBox>(CreatingGroupGroup, false),
+			LayerOption::KeepOther);
 	}
 }
 
 void MainWindow::onShowNewChannel() {
 	if (isHidden()) showFromTray();
 
-	if (_main) Ui::show(Box<GroupInfoBox>(CreatingGroupChannel, false), KeepOtherLayers);
+	if (_main) {
+		Ui::show(
+			Box<GroupInfoBox>(CreatingGroupChannel, false),
+			LayerOption::KeepOther);
+	}
 }
 
 void MainWindow::onLogout() {
@@ -740,22 +739,30 @@ void MainWindow::noIntro(Intro::Widget *was) {
 	}
 }
 
-void MainWindow::noMain(MainWidget *was) {
-	if (was == _main) {
-		_main = nullptr;
-	}
-}
-
-void MainWindow::noLayerStack(LayerStackWidget *was) {
+void MainWindow::noLayerStack(Window::LayerStackWidget *was) {
 	if (was == _layerBg) {
 		_layerBg = nullptr;
+		if (controller()) {
+			controller()->disableGifPauseReason(
+				Window::GifPauseReason::Layer);
+		}
 	}
 }
 
-void MainWindow::layerFinishedHide(LayerStackWidget *was) {
+void MainWindow::layerFinishedHide(Window::LayerStackWidget *was) {
 	if (was == _layerBg) {
-		QTimer::singleShot(0, this, SLOT(layerHidden()));
+		auto resetFocus = Ui::InFocusChain(was);
+		if (resetFocus) setFocus();
+		destroyLayerDelayed();
+		if (resetFocus) setInnerFocus();
+		InvokeQueued(this, [this] {
+			checkHistoryActivation();
+		});
 	}
+}
+
+bool MainWindow::takeThirdSectionFromLayer() {
+	return _layerBg ? _layerBg->takeToThirdSection() : false;
 }
 
 void MainWindow::fixOrder() {
@@ -767,10 +774,10 @@ void MainWindow::fixOrder() {
 
 void MainWindow::showFromTray(QSystemTrayIcon::ActivationReason reason) {
 	if (reason != QSystemTrayIcon::Context) {
-		QTimer::singleShot(1, base::lambda_slot_once(this, [this] {
+		App::CallDelayed(1, this, [this] {
 			updateTrayMenu();
 			updateGlobalMenu();
-		}), SLOT(action()));
+		});
         activate();
 		Notify::unreadCounterUpdated();
 	}
@@ -797,6 +804,9 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 		Ui::show(Box<InformBox>(lang(lng_passcode_need_unblock)));
 		return;
 	}
+	if (!AuthSession::Exists()) {
+		return;
+	}
 
 	bool soundNotifyChanged = false;
 	Global::SetDesktopNotify(!Global::DesktopNotify());
@@ -816,9 +826,9 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 		}
 	}
 	Local::writeUserSettings();
-	Global::RefNotifySettingsChanged().notify(Notify::ChangeType::DesktopEnabled);
+	Auth().notifications().settingsChanged().notify(Window::Notifications::ChangeType::DesktopEnabled);
 	if (soundNotifyChanged) {
-		Global::RefNotifySettingsChanged().notify(Notify::ChangeType::SoundEnabled);
+		Auth().notifications().settingsChanged().notify(Window::Notifications::ChangeType::SoundEnabled);
 	}
 }
 
@@ -828,18 +838,15 @@ void MainWindow::closeEvent(QCloseEvent *e) {
 		App::quit();
 	} else {
 		e->ignore();
-		if (!MTP::authedId() || !Ui::hideWindowNoQuit()) {
+		if (!AuthSession::Exists() || !hideNoQuit()) {
 			App::quit();
 		}
 	}
 }
 
-void MainWindow::resizeEvent(QResizeEvent *e) {
-	Platform::MainWindow::resizeEvent(e);
-	updateControlsGeometry();
-}
-
 void MainWindow::updateControlsGeometry() {
+	Platform::MainWindow::updateControlsGeometry();
+
 	auto body = bodyWidget()->rect();
 	if (_passcode) _passcode->setGeometry(body);
 	if (_main) _main->setGeometry(body);
@@ -848,6 +855,8 @@ void MainWindow::updateControlsGeometry() {
 	if (_mediaPreview) _mediaPreview->setGeometry(body);
 	if (_connecting) _connecting->moveToLeft(0, body.height() - _connecting->height());
 	if (_testingThemeWarning) _testingThemeWarning->setGeometry(body);
+
+	if (_main) _main->checkMainSectionToLayer();
 }
 
 MainWindow::TempDirState MainWindow::tempDirState() {
@@ -896,307 +905,8 @@ void MainWindow::onClearFailed(int task, void *manager) {
 	emit tempDirClearFailed(task);
 }
 
-void MainWindow::notifySchedule(History *history, HistoryItem *item) {
-	if (App::quitting() || !history->currentNotification() || !App::api()) return;
-
-	PeerData *notifyByFrom = (!history->peer->isUser() && item->mentionsMe()) ? item->from() : 0;
-
-	if (item->isSilent()) {
-		history->popNotification(item);
-		return;
-	}
-
-	bool haveSetting = (history->peer->notify != UnknownNotifySettings);
-	if (haveSetting) {
-		if (history->peer->notify != EmptyNotifySettings && history->peer->notify->mute > unixtime()) {
-			if (notifyByFrom) {
-				haveSetting = (item->from()->notify != UnknownNotifySettings);
-				if (haveSetting) {
-					if (notifyByFrom->notify != EmptyNotifySettings && notifyByFrom->notify->mute > unixtime()) {
-						history->popNotification(item);
-						return;
-					}
-				} else {
-					App::api()->requestNotifySetting(notifyByFrom);
-				}
-			} else {
-				history->popNotification(item);
-				return;
-			}
-		}
-	} else {
-		if (notifyByFrom && notifyByFrom->notify == UnknownNotifySettings) {
-			App::api()->requestNotifySetting(notifyByFrom);
-		}
-		App::api()->requestNotifySetting(history->peer);
-	}
-	if (!item->notificationReady()) {
-		haveSetting = false;
-	}
-
-	int delay = item->Has<HistoryMessageForwarded>() ? 500 : 100, t = unixtime();
-	auto ms = getms(true);
-	bool isOnline = _main->lastWasOnline(), otherNotOld = ((cOtherOnline() * 1000LL) + Global::OnlineCloudTimeout() > t * 1000LL);
-	bool otherLaterThanMe = (cOtherOnline() * 1000LL + (ms - _main->lastSetOnline()) > t * 1000LL);
-	if (!isOnline && otherNotOld && otherLaterThanMe) {
-		delay = Global::NotifyCloudDelay();
-	} else if (cOtherOnline() >= t) {
-		delay = Global::NotifyDefaultDelay();
-	}
-
-	auto when = ms + delay;
-	_notifyWhenAlerts[history].insert(when, notifyByFrom);
-	if (Global::DesktopNotify() && !Platform::Notifications::skipToast()) {
-		NotifyWhenMaps::iterator i = _notifyWhenMaps.find(history);
-		if (i == _notifyWhenMaps.end()) {
-			i = _notifyWhenMaps.insert(history, NotifyWhenMap());
-		}
-		if (i.value().constFind(item->id) == i.value().cend()) {
-			i.value().insert(item->id, when);
-		}
-		NotifyWaiters *addTo = haveSetting ? &_notifyWaiters : &_notifySettingWaiters;
-		NotifyWaiters::const_iterator it = addTo->constFind(history);
-		if (it == addTo->cend() || it->when > when) {
-			addTo->insert(history, NotifyWaiter(item->id, when, notifyByFrom));
-		}
-	}
-	if (haveSetting) {
-		if (!_notifyWaitTimer.isActive() || _notifyWaitTimer.remainingTime() > delay) {
-			_notifyWaitTimer.start(delay);
-		}
-	}
-}
-
-void MainWindow::notifyClear(History *history) {
-	if (!history) {
-		Window::Notifications::manager()->clearAll();
-
-		for (auto i = _notifyWhenMaps.cbegin(), e = _notifyWhenMaps.cend(); i != e; ++i) {
-			i.key()->clearNotifications();
-		}
-		_notifyWhenMaps.clear();
-		_notifyWhenAlerts.clear();
-		_notifyWaiters.clear();
-		_notifySettingWaiters.clear();
-		return;
-	}
-
-	Window::Notifications::manager()->clearFromHistory(history);
-
-	history->clearNotifications();
-	_notifyWhenMaps.remove(history);
-	_notifyWhenAlerts.remove(history);
-	_notifyWaiters.remove(history);
-	_notifySettingWaiters.remove(history);
-
-	_notifyWaitTimer.stop();
-	notifyShowNext();
-}
-
-void MainWindow::notifyClearFast() {
-	Window::Notifications::manager()->clearAllFast();
-
-	_notifyWhenMaps.clear();
-	_notifyWhenAlerts.clear();
-	_notifyWaiters.clear();
-	_notifySettingWaiters.clear();
-}
-
-void MainWindow::notifySettingGot() {
-	int32 t = unixtime();
-	for (NotifyWaiters::iterator i = _notifySettingWaiters.begin(); i != _notifySettingWaiters.end();) {
-		History *history = i.key();
-		bool loaded = false, muted = false;
-		if (history->peer->notify != UnknownNotifySettings) {
-			if (history->peer->notify == EmptyNotifySettings || history->peer->notify->mute <= t) {
-				loaded = true;
-			} else if (PeerData *from = i.value().notifyByFrom) {
-				if (from->notify != UnknownNotifySettings) {
-					if (from->notify == EmptyNotifySettings || from->notify->mute <= t) {
-						loaded = true;
-					} else {
-						loaded = muted = true;
-					}
-				}
-			} else {
-				loaded = muted = true;
-			}
-		}
-		if (loaded) {
-			if (HistoryItem *item = App::histItemById(history->channelId(), i.value().msg)) {
-				if (!item->notificationReady()) {
-					loaded = false;
-				}
-			} else {
-				muted = true;
-			}
-		}
-		if (loaded) {
-			if (!muted) {
-				_notifyWaiters.insert(i.key(), i.value());
-			}
-			i = _notifySettingWaiters.erase(i);
-		} else {
-			++i;
-		}
-	}
-	_notifyWaitTimer.stop();
-	notifyShowNext();
-}
-
-void MainWindow::notifyShowNext() {
-	if (App::quitting()) return;
-
-	auto ms = getms(true), nextAlert = 0LL;
-	bool alert = false;
-	int32 now = unixtime();
-	for (NotifyWhenAlerts::iterator i = _notifyWhenAlerts.begin(); i != _notifyWhenAlerts.end();) {
-		while (!i.value().isEmpty() && i.value().begin().key() <= ms) {
-			NotifySettingsPtr n = i.key()->peer->notify, f = i.value().begin().value() ? i.value().begin().value()->notify : UnknownNotifySettings;
-			while (!i.value().isEmpty() && i.value().begin().key() <= ms + 500) { // not more than one sound in 500ms from one peer - grouping
-				i.value().erase(i.value().begin());
-			}
-			if (n == EmptyNotifySettings || (n != UnknownNotifySettings && n->mute <= now)) {
-				alert = true;
-			} else if (f == EmptyNotifySettings || (f != UnknownNotifySettings && f->mute <= now)) { // notify by from()
-				alert = true;
-			}
-		}
-		if (i.value().isEmpty()) {
-			i = _notifyWhenAlerts.erase(i);
-		} else {
-			if (!nextAlert || nextAlert > i.value().begin().key()) {
-				nextAlert = i.value().begin().key();
-			}
-			++i;
-		}
-	}
-	if (alert) {
-		psFlash();
-		App::playSound();
-	}
-
-	if (_notifyWaiters.isEmpty() || !Global::DesktopNotify() || Platform::Notifications::skipToast()) {
-		if (nextAlert) {
-			_notifyWaitTimer.start(nextAlert - ms);
-		}
-		return;
-	}
-
-	while (true) {
-		auto next = 0LL;
-		HistoryItem *notifyItem = 0;
-		History *notifyHistory = 0;
-		for (NotifyWaiters::iterator i = _notifyWaiters.begin(); i != _notifyWaiters.end();) {
-			History *history = i.key();
-			if (history->currentNotification() && history->currentNotification()->id != i.value().msg) {
-				NotifyWhenMaps::iterator j = _notifyWhenMaps.find(history);
-				if (j == _notifyWhenMaps.end()) {
-					history->clearNotifications();
-					i = _notifyWaiters.erase(i);
-					continue;
-				}
-				do {
-					NotifyWhenMap::const_iterator k = j.value().constFind(history->currentNotification()->id);
-					if (k != j.value().cend()) {
-						i.value().msg = k.key();
-						i.value().when = k.value();
-						break;
-					}
-					history->skipNotification();
-				} while (history->currentNotification());
-			}
-			if (!history->currentNotification()) {
-				_notifyWhenMaps.remove(history);
-				i = _notifyWaiters.erase(i);
-				continue;
-			}
-			auto when = i.value().when;
-			if (!notifyItem || next > when) {
-				next = when;
-				notifyItem = history->currentNotification();
-				notifyHistory = history;
-			}
-			++i;
-		}
-		if (notifyItem) {
-			if (next > ms) {
-				if (nextAlert && nextAlert < next) {
-					next = nextAlert;
-					nextAlert = 0;
-				}
-				_notifyWaitTimer.start(next - ms);
-				break;
-			} else {
-				HistoryItem *fwd = notifyItem->Has<HistoryMessageForwarded>() ? notifyItem : nullptr; // forwarded notify grouping
-				int32 fwdCount = 1;
-
-				auto ms = getms(true);
-				History *history = notifyItem->history();
-				NotifyWhenMaps::iterator j = _notifyWhenMaps.find(history);
-				if (j == _notifyWhenMaps.cend()) {
-					history->clearNotifications();
-				} else {
-					HistoryItem *nextNotify = 0;
-					do {
-						history->skipNotification();
-						if (!history->hasNotification()) {
-							break;
-						}
-
-						j.value().remove((fwd ? fwd : notifyItem)->id);
-						do {
-							NotifyWhenMap::const_iterator k = j.value().constFind(history->currentNotification()->id);
-							if (k != j.value().cend()) {
-								nextNotify = history->currentNotification();
-								_notifyWaiters.insert(notifyHistory, NotifyWaiter(k.key(), k.value(), 0));
-								break;
-							}
-							history->skipNotification();
-						} while (history->hasNotification());
-						if (nextNotify) {
-							if (fwd) {
-								HistoryItem *nextFwd = nextNotify->Has<HistoryMessageForwarded>() ? nextNotify : nullptr;
-								if (nextFwd && fwd->author() == nextFwd->author() && qAbs(int64(nextFwd->date.toTime_t()) - int64(fwd->date.toTime_t())) < 2) {
-									fwd = nextFwd;
-									++fwdCount;
-								} else {
-									nextNotify = 0;
-								}
-							} else {
-								nextNotify = 0;
-							}
-						}
-					} while (nextNotify);
-				}
-
-				Window::Notifications::manager()->showNotification(notifyItem, fwdCount);
-
-				if (!history->hasNotification()) {
-					_notifyWaiters.remove(history);
-					_notifyWhenMaps.remove(history);
-					continue;
-				}
-			}
-		} else {
-			break;
-		}
-	}
-	if (nextAlert) {
-		_notifyWaitTimer.start(nextAlert - ms);
-	}
-}
-
 void MainWindow::app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
 	handler->onClick(button);
-}
-
-void MainWindow::notifyUpdateAll() {
-	Window::Notifications::manager()->updateAll();
-}
-
-QImage MainWindow::iconLarge() const {
-	return iconbig256;
 }
 
 void MainWindow::placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) {
@@ -1306,16 +1016,11 @@ QImage MainWindow::iconWithCounter(int size, int count, style::color bg, style::
 
 void MainWindow::sendPaths() {
 	if (App::passcoded()) return;
-	hideMediaview();
-	Ui::hideSettingsAndLayer(true);
+	Messenger::Instance().hideMediaView();
+	Ui::hideSettingsAndLayer(anim::type::instant);
 	if (_main) {
 		_main->activate();
 	}
-}
-
-void MainWindow::changingMsgId(HistoryItem *row, MsgId newId) {
-	if (_main) _main->changingMsgId(row, newId);
-	Platform::MainWindow::changingMsgId(row, newId);
 }
 
 void MainWindow::updateIsActiveHook() {
@@ -1323,7 +1028,6 @@ void MainWindow::updateIsActiveHook() {
 }
 
 MainWindow::~MainWindow() {
-    notifyClearFast();
 	if (_clearManager) {
 		_clearManager->stop();
 		_clearManager = nullptr;
@@ -1331,1102 +1035,3 @@ MainWindow::~MainWindow() {
 	delete trayIcon;
 	delete trayIconMenu;
 }
-
-PreLaunchWindow *PreLaunchWindowInstance = 0;
-
-PreLaunchWindow::PreLaunchWindow(QString title) : TWidget(0) {
-	Fonts::start();
-
-	QIcon icon(App::pixmapFromImageInPlace(QImage(cPlatform() == dbipMac ? qsl(":/gui/art/iconbig256.png") : qsl(":/gui/art/icon256.png"))));
-	if (cPlatform() == dbipLinux32 || cPlatform() == dbipLinux64) {
-		icon = QIcon::fromTheme("telegram", icon);
-	}
-	setWindowIcon(icon);
-	setWindowFlags(Qt::Dialog | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowCloseButtonHint);
-
-	setWindowTitle(title.isEmpty() ? qsl("Telegram") : title);
-
-	QPalette p(palette());
-	p.setColor(QPalette::Background, QColor(255, 255, 255));
-	setPalette(p);
-
-	QLabel tmp(this);
-	tmp.setText(qsl("Tmp"));
-	_size = tmp.sizeHint().height();
-
-	int paddingVertical = (_size / 2);
-	int paddingHorizontal = _size;
-	int borderRadius = (_size / 5);
-	setStyleSheet(qsl("QPushButton { padding: %1px %2px; background-color: #ffffff; border-radius: %3px; }\nQPushButton#confirm:hover, QPushButton#cancel:hover { background-color: #e3f1fa; color: #2f9fea; }\nQPushButton#confirm { color: #2f9fea; }\nQPushButton#cancel { color: #aeaeae; }\nQLineEdit { border: 1px solid #e0e0e0; padding: 5px; }\nQLineEdit:focus { border: 2px solid #37a1de; padding: 4px; }").arg(paddingVertical).arg(paddingHorizontal).arg(borderRadius));
-	if (!PreLaunchWindowInstance) {
-		PreLaunchWindowInstance = this;
-	}
-}
-
-void PreLaunchWindow::activate() {
-	setWindowState(windowState() & ~Qt::WindowMinimized);
-	setVisible(true);
-	psActivateProcess();
-	activateWindow();
-}
-
-PreLaunchWindow *PreLaunchWindow::instance() {
-	return PreLaunchWindowInstance;
-}
-
-PreLaunchWindow::~PreLaunchWindow() {
-	if (PreLaunchWindowInstance == this) {
-		PreLaunchWindowInstance = 0;
-	}
-}
-
-PreLaunchLabel::PreLaunchLabel(QWidget *parent) : QLabel(parent) {
-	QFont labelFont(font());
-	labelFont.setFamily(qsl("Open Sans Semibold"));
-	labelFont.setPixelSize(static_cast<PreLaunchWindow*>(parent)->basicSize());
-	setFont(labelFont);
-
-	QPalette p(palette());
-	p.setColor(QPalette::Foreground, QColor(0, 0, 0));
-	setPalette(p);
-	show();
-};
-
-void PreLaunchLabel::setText(const QString &text) {
-	QLabel::setText(text);
-	updateGeometry();
-	resize(sizeHint());
-}
-
-PreLaunchInput::PreLaunchInput(QWidget *parent, bool password) : QLineEdit(parent) {
-	QFont logFont(font());
-	logFont.setFamily(qsl("Open Sans"));
-	logFont.setPixelSize(static_cast<PreLaunchWindow*>(parent)->basicSize());
-	setFont(logFont);
-
-	QPalette p(palette());
-	p.setColor(QPalette::Foreground, QColor(0, 0, 0));
-	setPalette(p);
-
-	QLineEdit::setTextMargins(0, 0, 0, 0);
-	setContentsMargins(0, 0, 0, 0);
-	if (password) {
-		setEchoMode(QLineEdit::Password);
-	}
-	show();
-};
-
-PreLaunchLog::PreLaunchLog(QWidget *parent) : QTextEdit(parent) {
-	QFont logFont(font());
-	logFont.setFamily(qsl("Open Sans"));
-	logFont.setPixelSize(static_cast<PreLaunchWindow*>(parent)->basicSize());
-	setFont(logFont);
-
-	QPalette p(palette());
-	p.setColor(QPalette::Foreground, QColor(96, 96, 96));
-	setPalette(p);
-
-	setReadOnly(true);
-	setFrameStyle(QFrame::NoFrame | QFrame::Plain);
-	viewport()->setAutoFillBackground(false);
-	setContentsMargins(0, 0, 0, 0);
-	document()->setDocumentMargin(0);
-	show();
-};
-
-PreLaunchButton::PreLaunchButton(QWidget *parent, bool confirm) : QPushButton(parent) {
-	setFlat(true);
-
-	setObjectName(confirm ? "confirm" : "cancel");
-
-	QFont closeFont(font());
-	closeFont.setFamily(qsl("Open Sans Semibold"));
-	closeFont.setPixelSize(static_cast<PreLaunchWindow*>(parent)->basicSize());
-	setFont(closeFont);
-
-	setCursor(Qt::PointingHandCursor);
-	show();
-};
-
-void PreLaunchButton::setText(const QString &text) {
-	QPushButton::setText(text);
-	updateGeometry();
-	resize(sizeHint());
-}
-
-PreLaunchCheckbox::PreLaunchCheckbox(QWidget *parent) : QCheckBox(parent) {
-	setTristate(false);
-	setCheckState(Qt::Checked);
-
-	QFont closeFont(font());
-	closeFont.setFamily(qsl("Open Sans Semibold"));
-	closeFont.setPixelSize(static_cast<PreLaunchWindow*>(parent)->basicSize());
-	setFont(closeFont);
-
-	setCursor(Qt::PointingHandCursor);
-	show();
-};
-
-void PreLaunchCheckbox::setText(const QString &text) {
-	QCheckBox::setText(text);
-	updateGeometry();
-	resize(sizeHint());
-}
-
-NotStartedWindow::NotStartedWindow()
-: _label(this)
-, _log(this)
-, _close(this) {
-	_label.setText(qsl("Could not start Telegram Desktop!\nYou can see complete log below:"));
-
-	_log.setPlainText(Logs::full());
-
-	connect(&_close, SIGNAL(clicked()), this, SLOT(close()));
-	_close.setText(qsl("CLOSE"));
-
-	QRect scr(QApplication::primaryScreen()->availableGeometry());
-	move(scr.x() + (scr.width() / 6), scr.y() + (scr.height() / 6));
-	updateControls();
-	show();
-}
-
-void NotStartedWindow::updateControls() {
-	_label.show();
-	_log.show();
-	_close.show();
-
-	QRect scr(QApplication::primaryScreen()->availableGeometry());
-	QSize s(scr.width() / 2, scr.height() / 2);
-	if (s == size()) {
-		resizeEvent(0);
-	} else {
-		resize(s);
-	}
-}
-
-void NotStartedWindow::closeEvent(QCloseEvent *e) {
-	deleteLater();
-}
-
-void NotStartedWindow::resizeEvent(QResizeEvent *e) {
-	int padding = _size;
-	_label.setGeometry(padding, padding, width() - 2 * padding, _label.sizeHint().height());
-	_log.setGeometry(padding, padding * 2 + _label.sizeHint().height(), width() - 2 * padding, height() - 4 * padding - _label.height() - _close.height());
-	_close.setGeometry(width() - padding - _close.width(), height() - padding - _close.height(), _close.width(), _close.height());
-}
-
-LastCrashedWindow::LastCrashedWindow()
-: _port(80)
-, _label(this)
-, _pleaseSendReport(this)
-, _yourReportName(this)
-, _minidump(this)
-, _report(this)
-, _send(this)
-, _sendSkip(this, false)
-, _networkSettings(this)
-, _continue(this)
-, _showReport(this)
-, _saveReport(this)
-, _getApp(this)
-, _includeUsername(this)
-, _reportText(QString::fromUtf8(Sandbox::LastCrashDump()))
-, _reportShown(false)
-, _reportSaved(false)
-, _sendingState(Sandbox::LastCrashDump().isEmpty() ? SendingNoReport : SendingUpdateCheck)
-, _updating(this)
-, _sendingProgress(0)
-, _sendingTotal(0)
-, _checkReply(0)
-, _sendReply(0)
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-, _updatingCheck(this)
-, _updatingSkip(this, false)
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
-{
-	excludeReportUsername();
-
-	if (!cAlphaVersion() && !cBetaVersion()) { // currently accept crash reports only from testers
-		_sendingState = SendingNoReport;
-	}
-	if (_sendingState != SendingNoReport) {
-		qint64 dumpsize = 0;
-		QString dumpspath = cWorkingDir() + qsl("tdata/dumps");
-#if defined Q_OS_MAC && !defined MAC_USE_BREAKPAD
-		dumpspath += qsl("/completed");
-#endif
-		QString possibleDump = getReportField(qstr("minidump"), qstr("Minidump:"));
-		if (!possibleDump.isEmpty()) {
-			if (!possibleDump.startsWith('/')) {
-				possibleDump = dumpspath + '/' + possibleDump;
-			}
-			if (!possibleDump.endsWith(qstr(".dmp"))) {
-				possibleDump += qsl(".dmp");
-			}
-			QFileInfo possibleInfo(possibleDump);
-			if (possibleInfo.exists()) {
-				_minidumpName = possibleInfo.fileName();
-				_minidumpFull = possibleInfo.absoluteFilePath();
-				dumpsize = possibleInfo.size();
-			}
-		}
-		if (_minidumpFull.isEmpty()) {
-			QString maxDump, maxDumpFull;
-            QDateTime maxDumpModified, workingModified = QFileInfo(cWorkingDir() + qsl("tdata/working")).lastModified();
-			QFileInfoList list = QDir(dumpspath).entryInfoList();
-            for (int32 i = 0, l = list.size(); i < l; ++i) {
-                QString name = list.at(i).fileName();
-                if (name.endsWith(qstr(".dmp"))) {
-                    QDateTime modified = list.at(i).lastModified();
-                    if (maxDump.isEmpty() || qAbs(workingModified.secsTo(modified)) < qAbs(workingModified.secsTo(maxDumpModified))) {
-                        maxDump = name;
-                        maxDumpModified = modified;
-                        maxDumpFull = list.at(i).absoluteFilePath();
-                        dumpsize = list.at(i).size();
-                    }
-                }
-            }
-            if (!maxDump.isEmpty() && qAbs(workingModified.secsTo(maxDumpModified)) < 10) {
-                _minidumpName = maxDump;
-                _minidumpFull = maxDumpFull;
-            }
-        }
-		if (_minidumpName.isEmpty()) { // currently don't accept crash reports without dumps from google libraries
-			_sendingState = SendingNoReport;
-		} else {
-			_minidump.setText(qsl("+ %1 (%2 KB)").arg(_minidumpName).arg(dumpsize / 1024));
-		}
-	}
-	if (_sendingState != SendingNoReport) {
-		QString version = getReportField(qstr("version"), qstr("Version:"));
-		QString current = cBetaVersion() ? qsl("-%1").arg(cBetaVersion()) : QString::number(AppVersion);
-		if (version != current) { // currently don't accept crash reports from not current app version
-			_sendingState = SendingNoReport;
-		}
-	}
-
-	_networkSettings.setText(qsl("NETWORK SETTINGS"));
-	connect(&_networkSettings, SIGNAL(clicked()), this, SLOT(onNetworkSettings()));
-
-	if (_sendingState == SendingNoReport) {
-		_label.setText(qsl("Last time Telegram Desktop was not closed properly."));
-	} else {
-		_label.setText(qsl("Last time Telegram Desktop crashed :("));
-	}
-
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	_updatingCheck.setText(qsl("TRY AGAIN"));
-	connect(&_updatingCheck, SIGNAL(clicked()), this, SLOT(onUpdateRetry()));
-	_updatingSkip.setText(qsl("SKIP"));
-	connect(&_updatingSkip, SIGNAL(clicked()), this, SLOT(onUpdateSkip()));
-
-	Sandbox::connect(SIGNAL(updateChecking()), this, SLOT(onUpdateChecking()));
-	Sandbox::connect(SIGNAL(updateLatest()), this, SLOT(onUpdateLatest()));
-	Sandbox::connect(SIGNAL(updateProgress(qint64,qint64)), this, SLOT(onUpdateDownloading(qint64,qint64)));
-	Sandbox::connect(SIGNAL(updateFailed()), this, SLOT(onUpdateFailed()));
-	Sandbox::connect(SIGNAL(updateReady()), this, SLOT(onUpdateReady()));
-
-	switch (Sandbox::updatingState()) {
-	case Application::UpdatingDownload:
-		setUpdatingState(UpdatingDownload, true);
-		setDownloadProgress(Sandbox::updatingReady(), Sandbox::updatingSize());
-	break;
-	case Application::UpdatingReady: setUpdatingState(UpdatingReady, true); break;
-	default: setUpdatingState(UpdatingCheck, true); break;
-	}
-
-	cSetLastUpdateCheck(0);
-	Sandbox::startUpdateCheck();
-#else // !TDESKTOP_DISABLE_AUTOUPDATE
-	_updating.setText(qsl("Please check if there is a new version available."));
-	if (_sendingState != SendingNoReport) {
-		_sendingState = SendingNone;
-	}
-#endif // else for !TDESKTOP_DISABLE_AUTOUPDATE
-
-	_pleaseSendReport.setText(qsl("Please send us a crash report."));
-	_yourReportName.setText(qsl("Your Report Tag: %1\nYour User Tag: %2").arg(QString(_minidumpName).replace(".dmp", "")).arg(Sandbox::UserTag(), 0, 16));
-	_yourReportName.setCursor(style::cur_text);
-	_yourReportName.setTextInteractionFlags(Qt::TextSelectableByMouse);
-
-	_includeUsername.setText(qsl("Include username @%1 as your contact info").arg(_reportUsername));
-
-	_report.setPlainText(_reportTextNoUsername);
-
-	_showReport.setText(qsl("VIEW REPORT"));
-	connect(&_showReport, SIGNAL(clicked()), this, SLOT(onViewReport()));
-	_saveReport.setText(qsl("SAVE TO FILE"));
-	connect(&_saveReport, SIGNAL(clicked()), this, SLOT(onSaveReport()));
-	_getApp.setText(qsl("GET THE LATEST OFFICIAL VERSION OF TELEGRAM DESKTOP"));
-	connect(&_getApp, SIGNAL(clicked()), this, SLOT(onGetApp()));
-
-	_send.setText(qsl("SEND CRASH REPORT"));
-	connect(&_send, SIGNAL(clicked()), this, SLOT(onSendReport()));
-
-	_sendSkip.setText(qsl("SKIP"));
-	connect(&_sendSkip, SIGNAL(clicked()), this, SLOT(onContinue()));
-	_continue.setText(qsl("CONTINUE"));
-	connect(&_continue, SIGNAL(clicked()), this, SLOT(onContinue()));
-
-	QRect scr(QApplication::primaryScreen()->availableGeometry());
-	move(scr.x() + (scr.width() / 6), scr.y() + (scr.height() / 6));
-	updateControls();
-	show();
-}
-
-void LastCrashedWindow::onViewReport() {
-	_reportShown = !_reportShown;
-	updateControls();
-}
-
-void LastCrashedWindow::onSaveReport() {
-	QString to = QFileDialog::getSaveFileName(0, qsl("Telegram Crash Report"), QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + qsl("/report.telegramcrash"), qsl("Telegram crash report (*.telegramcrash)"));
-	if (!to.isEmpty()) {
-		QFile file(to);
-		if (file.open(QIODevice::WriteOnly)) {
-			file.write(getCrashReportRaw());
-			_reportSaved = true;
-			updateControls();
-		}
-	}
-}
-
-QByteArray LastCrashedWindow::getCrashReportRaw() const {
-	QByteArray result(Sandbox::LastCrashDump());
-	if (!_reportUsername.isEmpty() && _includeUsername.checkState() != Qt::Checked) {
-		result.replace((qsl("Username: ") + _reportUsername).toUtf8(), "Username: _not_included_");
-	}
-	return result;
-}
-
-void LastCrashedWindow::onGetApp() {
-	QDesktopServices::openUrl(qsl("https://desktop.telegram.org"));
-}
-
-void LastCrashedWindow::excludeReportUsername() {
-	QString prefix = qstr("Username:");
-	QStringList lines = _reportText.split('\n');
-	for (int32 i = 0, l = lines.size(); i < l; ++i) {
-		if (lines.at(i).trimmed().startsWith(prefix)) {
-			_reportUsername = lines.at(i).trimmed().mid(prefix.size()).trimmed();
-			lines.removeAt(i);
-			break;
-		}
-	}
-	_reportTextNoUsername = _reportUsername.isEmpty() ? _reportText : lines.join('\n');
-}
-
-QString LastCrashedWindow::getReportField(const QLatin1String &name, const QLatin1String &prefix) {
-	QStringList lines = _reportText.split('\n');
-	for (int32 i = 0, l = lines.size(); i < l; ++i) {
-		if (lines.at(i).trimmed().startsWith(prefix)) {
-			QString data = lines.at(i).trimmed().mid(prefix.size()).trimmed();
-
-			if (name == qstr("version")) {
-				if (data.endsWith(qstr(" beta"))) {
-					data = QString::number(-data.replace(QRegularExpression(qsl("[^\\d]")), "").toLongLong());
-				} else {
-					data = QString::number(data.replace(QRegularExpression(qsl("[^\\d]")), "").toLongLong());
-				}
-			}
-
-			return data;
-		}
-	}
-	return QString();
-}
-
-void LastCrashedWindow::addReportFieldPart(const QLatin1String &name, const QLatin1String &prefix, QHttpMultiPart *multipart) {
-	QString data = getReportField(name, prefix);
-	if (!data.isEmpty()) {
-		QHttpPart reportPart;
-		reportPart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant(qsl("form-data; name=\"%1\"").arg(name)));
-		reportPart.setBody(data.toUtf8());
-		multipart->append(reportPart);
-	}
-}
-
-void LastCrashedWindow::onSendReport() {
-	if (_checkReply) {
-		_checkReply->deleteLater();
-		_checkReply = nullptr;
-	}
-	if (_sendReply) {
-		_sendReply->deleteLater();
-		_sendReply = nullptr;
-	}
-	App::setProxySettings(_sendManager);
-
-	QString apiid = getReportField(qstr("apiid"), qstr("ApiId:")), version = getReportField(qstr("version"), qstr("Version:"));
-	_checkReply = _sendManager.get(QNetworkRequest(qsl("https://tdesktop.com/crash.php?act=query_report&apiid=%1&version=%2&dmp=%3&platform=%4").arg(apiid).arg(version).arg(minidumpFileName().isEmpty() ? 0 : 1).arg(cPlatformString())));
-
-	connect(_checkReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onSendingError(QNetworkReply::NetworkError)));
-	connect(_checkReply, SIGNAL(finished()), this, SLOT(onCheckingFinished()));
-
-	_pleaseSendReport.setText(qsl("Sending crash report..."));
-	_sendingState = SendingProgress;
-	_reportShown = false;
-	updateControls();
-}
-
-QString LastCrashedWindow::minidumpFileName() {
-	QFileInfo dmpFile(_minidumpFull);
-	if (dmpFile.exists() && dmpFile.size() > 0 && dmpFile.size() < 20 * 1024 * 1024 &&
-		QRegularExpression(qsl("^[a-zA-Z0-9\\-]{1,64}\\.dmp$")).match(dmpFile.fileName()).hasMatch()) {
-		return dmpFile.fileName();
-	}
-	return QString();
-}
-
-void LastCrashedWindow::onCheckingFinished() {
-	if (!_checkReply || _sendReply) return;
-
-	QByteArray result = _checkReply->readAll().trimmed();
-	_checkReply->deleteLater();
-	_checkReply = nullptr;
-
-	LOG(("Crash report check for sending done, result: %1").arg(QString::fromUtf8(result)));
-
-	if (result == "Old") {
-		_pleaseSendReport.setText(qsl("This report is about some old version of Telegram Desktop."));
-		_sendingState = SendingTooOld;
-		updateControls();
-		return;
-	} else if (result == "Unofficial") {
-		_pleaseSendReport.setText(qsl("You use some custom version of Telegram Desktop."));
-		_sendingState = SendingUnofficial;
-		updateControls();
-		return;
-	} else if (result != "Report") {
-		_pleaseSendReport.setText(qsl("Thank you for your report!"));
-		_sendingState = SendingDone;
-		updateControls();
-
-		SignalHandlers::restart();
-		return;
-	}
-
-	auto multipart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
-
-	addReportFieldPart(qstr("platform"), qstr("Platform:"), multipart);
-	addReportFieldPart(qstr("version"), qstr("Version:"), multipart);
-
-	QHttpPart reportPart;
-	reportPart.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("application/octet-stream"));
-	reportPart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant("form-data; name=\"report\"; filename=\"report.telegramcrash\""));
-	reportPart.setBody(getCrashReportRaw());
-	multipart->append(reportPart);
-
-	QString dmpName = minidumpFileName();
-	if (!dmpName.isEmpty()) {
-		QFile file(_minidumpFull);
-		if (file.open(QIODevice::ReadOnly)) {
-			QByteArray minidump = file.readAll();
-			file.close();
-
-			QString zipName = QString(dmpName).replace(qstr(".dmp"), qstr(".zip"));
-
-			zlib::FileToWrite minidumpZip;
-
-			zip_fileinfo zfi = { { 0, 0, 0, 0, 0, 0 }, 0, 0, 0 };
-			QByteArray dmpNameUtf = dmpName.toUtf8();
-			minidumpZip.openNewFile(dmpNameUtf.constData(), &zfi, nullptr, 0, nullptr, 0, nullptr, Z_DEFLATED, Z_DEFAULT_COMPRESSION);
-			minidumpZip.writeInFile(minidump.constData(), minidump.size());
-			minidumpZip.closeFile();
-			minidumpZip.close();
-
-			if (minidumpZip.error() == ZIP_OK) {
-				QHttpPart dumpPart;
-				dumpPart.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("application/octet-stream"));
-				dumpPart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant(qsl("form-data; name=\"dump\"; filename=\"%1\"").arg(zipName)));
-				dumpPart.setBody(minidumpZip.result());
-				multipart->append(dumpPart);
-
-				_minidump.setText(qsl("+ %1 (%2 KB)").arg(zipName).arg(minidumpZip.result().size() / 1024));
-			}
-		}
-	}
-
-	_sendReply = _sendManager.post(QNetworkRequest(qsl("https://tdesktop.com/crash.php?act=report")), multipart);
-	multipart->setParent(_sendReply);
-
-	connect(_sendReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onSendingError(QNetworkReply::NetworkError)));
-	connect(_sendReply, SIGNAL(finished()), this, SLOT(onSendingFinished()));
-	connect(_sendReply, SIGNAL(uploadProgress(qint64,qint64)), this, SLOT(onSendingProgress(qint64,qint64)));
-
-	updateControls();
-}
-
-void LastCrashedWindow::updateControls() {
-	int padding = _size, h = padding + _networkSettings.height() + padding;
-
-	_label.show();
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	h += _networkSettings.height() + padding;
-	if (_updatingState == UpdatingFail && (_sendingState == SendingNoReport || _sendingState == SendingUpdateCheck)) {
-		_networkSettings.show();
-		_updatingCheck.show();
-		_updatingSkip.show();
-		_send.hide();
-		_sendSkip.hide();
-		_continue.hide();
-		_pleaseSendReport.hide();
-		_yourReportName.hide();
-		_includeUsername.hide();
-		_getApp.hide();
-		_showReport.hide();
-		_report.hide();
-		_minidump.hide();
-		_saveReport.hide();
-		h += padding + _updatingCheck.height() + padding;
-	} else {
-		if (_updatingState == UpdatingCheck || _sendingState == SendingFail || _sendingState == SendingProgress) {
-			_networkSettings.show();
-		} else {
-			_networkSettings.hide();
-		}
-		if (_updatingState == UpdatingNone || _updatingState == UpdatingLatest || _updatingState == UpdatingFail) {
-			h += padding + _updatingCheck.height() + padding;
-			if (_sendingState == SendingNoReport) {
-				_pleaseSendReport.hide();
-				_yourReportName.hide();
-				_includeUsername.hide();
-				_getApp.hide();
-				_showReport.hide();
-				_report.hide();
-				_minidump.hide();
-				_saveReport.hide();
-				_send.hide();
-				_sendSkip.hide();
-				_continue.show();
-			} else {
-				h += _showReport.height() + padding + _yourReportName.height() + padding;
-				_pleaseSendReport.show();
-				_yourReportName.show();
-				if (_reportUsername.isEmpty()) {
-					_includeUsername.hide();
-				} else {
-					h += _includeUsername.height() + padding;
-					_includeUsername.show();
-				}
-				if (_sendingState == SendingTooOld || _sendingState == SendingUnofficial) {
-					QString verStr = getReportField(qstr("version"), qstr("Version:"));
-					qint64 ver = verStr.isEmpty() ? 0 : verStr.toLongLong();
-					if (!ver || (ver == AppVersion) || (ver < 0 && (-ver / 1000) == AppVersion)) {
-						h += _getApp.height() + padding;
-						_getApp.show();
-						h -= _yourReportName.height() + padding; // hide report name
-						_yourReportName.hide();
-						if (!_reportUsername.isEmpty()) {
-							h -= _includeUsername.height() + padding;
-							_includeUsername.hide();
-						}
-					} else {
-						_getApp.hide();
-					}
-					_showReport.hide();
-					_report.hide();
-					_minidump.hide();
-					_saveReport.hide();
-					_send.hide();
-					_sendSkip.hide();
-					_continue.show();
-				} else {
-					_getApp.hide();
-					if (_reportShown) {
-						h += (_pleaseSendReport.height() * 12.5) + padding + (_minidumpName.isEmpty() ? 0 : (_minidump.height() + padding));
-						_report.show();
-						if (_minidumpName.isEmpty()) {
-							_minidump.hide();
-						} else {
-							_minidump.show();
-						}
-						if (_reportSaved || _sendingState == SendingFail || _sendingState == SendingProgress || _sendingState == SendingUploading) {
-							_saveReport.hide();
-						} else {
-							_saveReport.show();
-						}
-						_showReport.hide();
-					} else {
-						_report.hide();
-						_minidump.hide();
-						_saveReport.hide();
-						if (_sendingState == SendingFail || _sendingState == SendingProgress || _sendingState == SendingUploading) {
-							_showReport.hide();
-						} else {
-							_showReport.show();
-						}
-					}
-					if (_sendingState == SendingTooMany || _sendingState == SendingDone) {
-						_send.hide();
-						_sendSkip.hide();
-						_continue.show();
-					} else {
-						if (_sendingState == SendingProgress || _sendingState == SendingUploading) {
-							_send.hide();
-						} else {
-							_send.show();
-						}
-						_sendSkip.show();
-						_continue.hide();
-					}
-				}
-			}
-		} else {
-			_getApp.hide();
-			_pleaseSendReport.hide();
-			_yourReportName.hide();
-			_includeUsername.hide();
-			_showReport.hide();
-			_report.hide();
-			_minidump.hide();
-			_saveReport.hide();
-			_send.hide();
-			_sendSkip.hide();
-			_continue.hide();
-		}
-		_updatingCheck.hide();
-		if (_updatingState == UpdatingCheck || _updatingState == UpdatingDownload) {
-			h += padding + _updatingSkip.height() + padding;
-			_updatingSkip.show();
-		} else {
-			_updatingSkip.hide();
-		}
-	}
-#else // !TDESKTOP_DISABLE_AUTOUPDATE
-	h += _networkSettings.height() + padding;
-	h += padding + _send.height() + padding;
-	if (_sendingState == SendingNoReport) {
-		_pleaseSendReport.hide();
-		_yourReportName.hide();
-		_includeUsername.hide();
-		_showReport.hide();
-		_report.hide();
-		_minidump.hide();
-		_saveReport.hide();
-		_send.hide();
-		_sendSkip.hide();
-		_continue.show();
-		_networkSettings.hide();
-	} else {
-		h += _showReport.height() + padding + _yourReportName.height() + padding;
-		_pleaseSendReport.show();
-		_yourReportName.show();
-		if (_reportUsername.isEmpty()) {
-			_includeUsername.hide();
-		} else {
-			h += _includeUsername.height() + padding;
-			_includeUsername.show();
-		}
-		if (_reportShown) {
-			h += (_pleaseSendReport.height() * 12.5) + padding + (_minidumpName.isEmpty() ? 0 : (_minidump.height() + padding));
-			_report.show();
-			if (_minidumpName.isEmpty()) {
-				_minidump.hide();
-			} else {
-				_minidump.show();
-			}
-			_showReport.hide();
-			if (_reportSaved || _sendingState == SendingFail || _sendingState == SendingProgress || _sendingState == SendingUploading) {
-				_saveReport.hide();
-			} else {
-				_saveReport.show();
-			}
-		} else {
-			_report.hide();
-			_minidump.hide();
-			_saveReport.hide();
-			if (_sendingState == SendingFail || _sendingState == SendingProgress || _sendingState == SendingUploading) {
-				_showReport.hide();
-			} else {
-				_showReport.show();
-			}
-		}
-		if (_sendingState == SendingDone) {
-			_send.hide();
-			_sendSkip.hide();
-			_continue.show();
-			_networkSettings.hide();
-		} else {
-			if (_sendingState == SendingProgress || _sendingState == SendingUploading) {
-				_send.hide();
-			} else {
-				_send.show();
-			}
-			_sendSkip.show();
-			if (_sendingState == SendingFail) {
-				_networkSettings.show();
-			} else {
-				_networkSettings.hide();
-			}
-			_continue.hide();
-		}
-	}
-
-	_getApp.show();
-	h += _networkSettings.height() + padding;
-#endif // else for !TDESKTOP_DISABLE_AUTOUPDATE
-
-	QRect scr(QApplication::primaryScreen()->availableGeometry());
-	QSize s(2 * padding + QFontMetrics(_label.font()).width(qsl("Last time Telegram Desktop was not closed properly.")) + padding + _networkSettings.width(), h);
-	if (s == size()) {
-		resizeEvent(0);
-	} else {
-		resize(s);
-	}
-}
-
-void LastCrashedWindow::onNetworkSettings() {
-	auto &p = Sandbox::PreLaunchProxy();
-	NetworkSettingsWindow *box = new NetworkSettingsWindow(this, p.host, p.port ? p.port : 80, p.user, p.password);
-	connect(box, SIGNAL(saved(QString, quint32, QString, QString)), this, SLOT(onNetworkSettingsSaved(QString, quint32, QString, QString)));
-	box->show();
-}
-
-void LastCrashedWindow::onNetworkSettingsSaved(QString host, quint32 port, QString username, QString password) {
-	Sandbox::RefPreLaunchProxy().host = host;
-	Sandbox::RefPreLaunchProxy().port = port ? port : 80;
-	Sandbox::RefPreLaunchProxy().user = username;
-	Sandbox::RefPreLaunchProxy().password = password;
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	if ((_updatingState == UpdatingFail && (_sendingState == SendingNoReport || _sendingState == SendingUpdateCheck)) || (_updatingState == UpdatingCheck)) {
-		Sandbox::stopUpdate();
-		cSetLastUpdateCheck(0);
-		Sandbox::startUpdateCheck();
-	} else
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
-	if (_sendingState == SendingFail || _sendingState == SendingProgress) {
-		onSendReport();
-	}
-	activate();
-}
-
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-void LastCrashedWindow::setUpdatingState(UpdatingState state, bool force) {
-	if (_updatingState != state || force) {
-		_updatingState = state;
-		switch (state) {
-		case UpdatingLatest:
-			_updating.setText(qsl("Latest version is installed."));
-			if (_sendingState == SendingNoReport) {
-				QTimer::singleShot(0, this, SLOT(onContinue()));
-			} else {
-				_sendingState = SendingNone;
-			}
-		break;
-		case UpdatingReady:
-			if (checkReadyUpdate()) {
-				cSetRestartingUpdate(true);
-				App::quit();
-				return;
-			} else {
-				setUpdatingState(UpdatingFail);
-				return;
-			}
-		break;
-		case UpdatingCheck:
-			_updating.setText(qsl("Checking for updates..."));
-		break;
-		case UpdatingFail:
-			_updating.setText(qsl("Update check failed :("));
-		break;
-		}
-		updateControls();
-	}
-}
-
-void LastCrashedWindow::setDownloadProgress(qint64 ready, qint64 total) {
-	qint64 readyTenthMb = (ready * 10 / (1024 * 1024)), totalTenthMb = (total * 10 / (1024 * 1024));
-	QString readyStr = QString::number(readyTenthMb / 10) + '.' + QString::number(readyTenthMb % 10);
-	QString totalStr = QString::number(totalTenthMb / 10) + '.' + QString::number(totalTenthMb % 10);
-	QString res = qsl("Downloading update {ready} / {total} MB..").replace(qstr("{ready}"), readyStr).replace(qstr("{total}"), totalStr);
-	if (_newVersionDownload != res) {
-		_newVersionDownload = res;
-		_updating.setText(_newVersionDownload);
-		updateControls();
-	}
-}
-
-void LastCrashedWindow::onUpdateRetry() {
-	cSetLastUpdateCheck(0);
-	Sandbox::startUpdateCheck();
-}
-
-void LastCrashedWindow::onUpdateSkip() {
-	if (_sendingState == SendingNoReport) {
-		onContinue();
-	} else {
-		if (_updatingState == UpdatingCheck || _updatingState == UpdatingDownload) {
-			Sandbox::stopUpdate();
-			setUpdatingState(UpdatingFail);
-		}
-		_sendingState = SendingNone;
-		updateControls();
-	}
-}
-
-void LastCrashedWindow::onUpdateChecking() {
-	setUpdatingState(UpdatingCheck);
-}
-
-void LastCrashedWindow::onUpdateLatest() {
-	setUpdatingState(UpdatingLatest);
-}
-
-void LastCrashedWindow::onUpdateDownloading(qint64 ready, qint64 total) {
-	setUpdatingState(UpdatingDownload);
-	setDownloadProgress(ready, total);
-}
-
-void LastCrashedWindow::onUpdateReady() {
-	setUpdatingState(UpdatingReady);
-}
-
-void LastCrashedWindow::onUpdateFailed() {
-	setUpdatingState(UpdatingFail);
-}
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
-
-void LastCrashedWindow::onContinue() {
-	if (SignalHandlers::restart() == SignalHandlers::CantOpen) {
-		new NotStartedWindow();
-	} else if (!Global::started()) {
-		Sandbox::launch();
-	}
-	close();
-}
-
-void LastCrashedWindow::onSendingError(QNetworkReply::NetworkError e) {
-	LOG(("Crash report sending error: %1").arg(e));
-
-	_pleaseSendReport.setText(qsl("Sending crash report failed :("));
-	_sendingState = SendingFail;
-	if (_checkReply) {
-		_checkReply->deleteLater();
-		_checkReply = nullptr;
-	}
-	if (_sendReply) {
-		_sendReply->deleteLater();
-		_sendReply = nullptr;
-	}
-	updateControls();
-}
-
-void LastCrashedWindow::onSendingFinished() {
-	if (_sendReply) {
-		QByteArray result = _sendReply->readAll();
-		LOG(("Crash report sending done, result: %1").arg(QString::fromUtf8(result)));
-
-		_sendReply->deleteLater();
-		_sendReply = nullptr;
-		_pleaseSendReport.setText(qsl("Thank you for your report!"));
-		_sendingState = SendingDone;
-		updateControls();
-
-		SignalHandlers::restart();
-	}
-}
-
-void LastCrashedWindow::onSendingProgress(qint64 uploaded, qint64 total) {
-	if (_sendingState != SendingProgress && _sendingState != SendingUploading) return;
-	_sendingState = SendingUploading;
-
-	if (total < 0) {
-		_pleaseSendReport.setText(qsl("Sending crash report %1 KB...").arg(uploaded / 1024));
-	} else {
-		_pleaseSendReport.setText(qsl("Sending crash report %1 / %2 KB...").arg(uploaded / 1024).arg(total / 1024));
-	}
-	updateControls();
-}
-
-void LastCrashedWindow::closeEvent(QCloseEvent *e) {
-	deleteLater();
-}
-
-void LastCrashedWindow::resizeEvent(QResizeEvent *e) {
-	int padding = _size;
-	_label.move(padding, padding + (_networkSettings.height() - _label.height()) / 2);
-
-	_send.move(width() - padding - _send.width(), height() - padding - _send.height());
-	if (_sendingState == SendingProgress || _sendingState == SendingUploading) {
-		_sendSkip.move(width() - padding - _sendSkip.width(), height() - padding - _sendSkip.height());
-	} else {
-		_sendSkip.move(width() - padding - _send.width() - padding - _sendSkip.width(), height() - padding - _sendSkip.height());
-	}
-
-	_updating.move(padding, padding * 2 + _networkSettings.height() + (_networkSettings.height() - _updating.height()) / 2);
-
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	_pleaseSendReport.move(padding, padding * 2 + _networkSettings.height() + _networkSettings.height() + padding + (_showReport.height() - _pleaseSendReport.height()) / 2);
-	_showReport.move(padding * 2 + _pleaseSendReport.width(), padding * 2 + _networkSettings.height() + _networkSettings.height() + padding);
-	_yourReportName.move(padding, _showReport.y() + _showReport.height() + padding);
-	_includeUsername.move(padding, _yourReportName.y() + _yourReportName.height() + padding);
-	_getApp.move((width() - _getApp.width()) / 2, _showReport.y() + _showReport.height() + padding);
-
-	if (_sendingState == SendingFail || _sendingState == SendingProgress) {
-		_networkSettings.move(padding * 2 + _pleaseSendReport.width(), padding * 2 + _networkSettings.height() + _networkSettings.height() + padding);
-	} else {
-		_networkSettings.move(padding * 2 + _updating.width(), padding * 2 + _networkSettings.height());
-	}
-
-	if (_updatingState == UpdatingCheck || _updatingState == UpdatingDownload) {
-		_updatingCheck.move(width() - padding - _updatingCheck.width(), height() - padding - _updatingCheck.height());
-		_updatingSkip.move(width() - padding - _updatingSkip.width(), height() - padding - _updatingSkip.height());
-	} else {
-		_updatingCheck.move(width() - padding - _updatingCheck.width(), height() - padding - _updatingCheck.height());
-		_updatingSkip.move(width() - padding - _updatingCheck.width() - padding - _updatingSkip.width(), height() - padding - _updatingSkip.height());
-	}
-#else // !TDESKTOP_DISABLE_AUTOUPDATE
-	_getApp.move((width() - _getApp.width()) / 2, _updating.y() + _updating.height() + padding);
-
-	_pleaseSendReport.move(padding, padding * 2 + _networkSettings.height() + _networkSettings.height() + padding + _getApp.height() + padding + (_showReport.height() - _pleaseSendReport.height()) / 2);
-	_showReport.move(padding * 2 + _pleaseSendReport.width(), padding * 2 + _networkSettings.height() + _networkSettings.height() + padding + _getApp.height() + padding);
-	_yourReportName.move(padding, _showReport.y() + _showReport.height() + padding);
-	_includeUsername.move(padding, _yourReportName.y() + _yourReportName.height() + padding);
-
-	_networkSettings.move(padding * 2 + _pleaseSendReport.width(), padding * 2 + _networkSettings.height() + _networkSettings.height() + padding + _getApp.height() + padding);
-#endif // else for !TDESKTOP_DISABLE_AUTOUPDATE
-	if (_reportUsername.isEmpty()) {
-		_report.setGeometry(padding, _yourReportName.y() + _yourReportName.height() + padding, width() - 2 * padding, _pleaseSendReport.height() * 12.5);
-	} else {
-		_report.setGeometry(padding, _includeUsername.y() + _includeUsername.height() + padding, width() - 2 * padding, _pleaseSendReport.height() * 12.5);
-	}
-	_minidump.move(padding, _report.y() + _report.height() + padding);
-	_saveReport.move(_showReport.x(), _showReport.y());
-
-	_continue.move(width() - padding - _continue.width(), height() - padding - _continue.height());
-}
-
-NetworkSettingsWindow::NetworkSettingsWindow(QWidget *parent, QString host, quint32 port, QString username, QString password)
-: PreLaunchWindow(qsl("HTTP Proxy Settings"))
-, _hostLabel(this)
-, _portLabel(this)
-, _usernameLabel(this)
-, _passwordLabel(this)
-, _hostInput(this)
-, _portInput(this)
-, _usernameInput(this)
-, _passwordInput(this, true)
-, _save(this)
-, _cancel(this, false)
-, _parent(parent) {
-	setWindowModality(Qt::ApplicationModal);
-
-	_hostLabel.setText(qsl("Hostname"));
-	_portLabel.setText(qsl("Port"));
-	_usernameLabel.setText(qsl("Username"));
-	_passwordLabel.setText(qsl("Password"));
-
-	_save.setText(qsl("SAVE"));
-	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
-	_cancel.setText(qsl("CANCEL"));
-	connect(&_cancel, SIGNAL(clicked()), this, SLOT(close()));
-
-	_hostInput.setText(host);
-	_portInput.setText(QString::number(port));
-	_usernameInput.setText(username);
-	_passwordInput.setText(password);
-
-	QRect scr(QApplication::primaryScreen()->availableGeometry());
-	move(scr.x() + (scr.width() / 6), scr.y() + (scr.height() / 6));
-	updateControls();
-	show();
-
-	_hostInput.setFocus();
-	_hostInput.setCursorPosition(_hostInput.text().size());
-}
-
-void NetworkSettingsWindow::resizeEvent(QResizeEvent *e) {
-	int padding = _size;
-	_hostLabel.move(padding, padding);
-	_hostInput.setGeometry(_hostLabel.x(), _hostLabel.y() + _hostLabel.height(), 2 * _hostLabel.width(), _hostInput.height());
-	_portLabel.move(padding + _hostInput.width() + padding, padding);
-	_portInput.setGeometry(_portLabel.x(), _portLabel.y() + _portLabel.height(), width() - padding - _portLabel.x(), _portInput.height());
-	_usernameLabel.move(padding, _hostInput.y() + _hostInput.height() + padding);
-	_usernameInput.setGeometry(_usernameLabel.x(), _usernameLabel.y() + _usernameLabel.height(), (width() - 3 * padding) / 2, _usernameInput.height());
-	_passwordLabel.move(padding + _usernameInput.width() + padding, _usernameLabel.y());
-	_passwordInput.setGeometry(_passwordLabel.x(), _passwordLabel.y() + _passwordLabel.height(), width() - padding - _passwordLabel.x(), _passwordInput.height());
-
-	_save.move(width() - padding - _save.width(), height() - padding - _save.height());
-	_cancel.move(_save.x() - padding - _cancel.width(), _save.y());
-}
-
-void NetworkSettingsWindow::onSave() {
-	QString host = _hostInput.text().trimmed(), port = _portInput.text().trimmed(), username = _usernameInput.text().trimmed(), password = _passwordInput.text().trimmed();
-	if (!port.isEmpty() && !port.toUInt()) {
-		_portInput.setFocus();
-		return;
-	} else if (!host.isEmpty() && port.isEmpty()) {
-		_portInput.setFocus();
-		return;
-	}
-	emit saved(host, port.toUInt(), username, password);
-	close();
-}
-
-void NetworkSettingsWindow::closeEvent(QCloseEvent *e) {
-}
-
-void NetworkSettingsWindow::updateControls() {
-	_hostInput.updateGeometry();
-	_hostInput.resize(_hostInput.sizeHint());
-	_portInput.updateGeometry();
-	_portInput.resize(_portInput.sizeHint());
-	_usernameInput.updateGeometry();
-	_usernameInput.resize(_usernameInput.sizeHint());
-	_passwordInput.updateGeometry();
-	_passwordInput.resize(_passwordInput.sizeHint());
-
-	int padding = _size;
-	int w = 2 * padding + _hostLabel.width() * 2 + padding + _portLabel.width() * 2 + padding;
-	int h = padding + _hostLabel.height() + _hostInput.height() + padding + _usernameLabel.height() + _usernameInput.height() + padding + _save.height() + padding;
-	if (w == width() && h == height()) {
-		resizeEvent(0);
-	} else {
-		setGeometry(_parent->x() + (_parent->width() - w) / 2, _parent->y() + (_parent->height() - h) / 2, w, h);
-	}
-}
-
-ShowCrashReportWindow::ShowCrashReportWindow(const QString &text)
-: _log(this) {
-	_log.setPlainText(text);
-
-	QRect scr(QApplication::primaryScreen()->availableGeometry());
-	setGeometry(scr.x() + (scr.width() / 6), scr.y() + (scr.height() / 6), scr.width() / 2, scr.height() / 2);
-	show();
-}
-
-void ShowCrashReportWindow::resizeEvent(QResizeEvent *e) {
-	_log.setGeometry(rect().marginsRemoved(QMargins(basicSize(), basicSize(), basicSize(), basicSize())));
-}
-
-void ShowCrashReportWindow::closeEvent(QCloseEvent *e) {
-    deleteLater();
-}
-
-#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
-int showCrashReportWindow(const QString &crashdump) {
-	QString text;
-
-	QFile dump(crashdump);
-	if (dump.open(QIODevice::ReadOnly)) {
-		text = qsl("Crash dump file '%1':\n\n").arg(QFileInfo(crashdump).absoluteFilePath());
-		text += psPrepareCrashDump(dump.readAll(), crashdump);
-	} else {
-		text = qsl("ERROR: could not read crash dump file '%1'").arg(QFileInfo(crashdump).absoluteFilePath());
-	}
-
-	if (Global::started()) {
-		ShowCrashReportWindow *wnd = new ShowCrashReportWindow(text);
-		return 0;
-	}
-
-	QByteArray args[] = { QFile::encodeName(QDir::toNativeSeparators(cExeDir() + cExeName())) };
-	int a_argc = 1;
-	char *a_argv[1] = { args[0].data() };
-	QApplication app(a_argc, a_argv);
-
-	ShowCrashReportWindow *wnd = new ShowCrashReportWindow(text);
-	return app.exec();
-}
-#endif // !TDESKTOP_DISABLE_CRASH_REPORTS

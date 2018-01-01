@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/style/style_core_icon.h"
 
 namespace style {
@@ -46,7 +45,7 @@ inline int pxAdjust(int value, int scale) {
 QImage createIconMask(const IconMask *mask, DBIScale scale) {
 	auto maskImage = QImage::fromData(mask->data(), mask->size(), "PNG");
 	maskImage.setDevicePixelRatio(cRetinaFactor());
-	t_assert(!maskImage.isNull());
+	Assert(!maskImage.isNull());
 
 	// images are layouted like this:
 	// 200x 100x
@@ -85,15 +84,12 @@ QSize readGeneratedSize(const IconMask *mask, DBIScale scale) {
 			size -= sizeTag.size();
 			data += sizeTag.size();
 			auto baForStream = QByteArray::fromRawData(reinterpret_cast<const char*>(data), size);
-			QBuffer buffer(&baForStream);
-			buffer.open(QIODevice::ReadOnly);
-
-			QDataStream stream(&buffer);
+			QDataStream stream(baForStream);
 			stream.setVersion(QDataStream::Qt_5_1);
 
 			qint32 width = 0, height = 0;
 			stream >> width >> height;
-			t_assert(stream.status() == QDataStream::Ok);
+			Assert(stream.status() == QDataStream::Ok);
 
 			switch (scale) {
 			case dbisOne: return QSize(width, height);
@@ -102,7 +98,7 @@ QSize readGeneratedSize(const IconMask *mask, DBIScale scale) {
 			case dbisTwo: return QSize(width * 2, height * 2);
 			}
 		} else {
-			t_assert(!"Bad data in generated icon!");
+			Unexpected("Bad data in generated icon!");
 		}
 	}
 	return QSize();
@@ -112,7 +108,7 @@ QSize readGeneratedSize(const IconMask *mask, DBIScale scale) {
 
 MonoIcon::MonoIcon(const IconMask *mask, Color color, QPoint offset)
 : _mask(mask)
-, _color(std_::move(color))
+, _color(std::move(color))
 , _offset(offset) {
 }
 
@@ -223,20 +219,20 @@ QImage MonoIcon::instance(QColor colorOverride, DBIScale scale) const {
 		} else {
 			colorizeImage(_maskImage, colorOverride, &result);
 		}
-		return std_::move(result);
+		return result;
 	}
 	auto size = readGeneratedSize(_mask, scale);
 	if (!size.isEmpty()) {
 		auto result = QImage(size * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 		result.setDevicePixelRatio(cRetinaFactor());
 		result.fill(colorOverride);
-		return std_::move(result);
+		return result;
 	}
 	auto mask = createIconMask(_mask, scale);
 	auto result = QImage(mask.size(), QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(cRetinaFactor());
 	colorizeImage(mask, colorOverride, &result);
-	return std_::move(result);
+	return result;
 }
 
 void MonoIcon::ensureLoaded() const {
@@ -272,7 +268,7 @@ void MonoIcon::createCachedPixmap() const {
 	auto j = iconPixmaps->constFind(key);
 	if (j == iconPixmaps->cend()) {
 		auto image = colorizeImage(_maskImage, _color);
-		j = iconPixmaps->insert(key, App::pixmapFromImageInPlace(std_::move(image)));
+		j = iconPixmaps->insert(key, App::pixmapFromImageInPlace(std::move(image)));
 	}
 	_pixmap = j.value();
 	_size = _pixmap.size() / cIntRetinaFactor();
@@ -284,31 +280,31 @@ void IconData::created() {
 }
 
 void IconData::fill(QPainter &p, const QRect &rect) const {
-	if (_parts.isEmpty()) return;
+	if (_parts.empty()) return;
 
 	auto partSize = _parts[0].size();
 	for_const (auto &part, _parts) {
-		t_assert(part.offset() == QPoint(0, 0));
-		t_assert(part.size() == partSize);
+		Assert(part.offset() == QPoint(0, 0));
+		Assert(part.size() == partSize);
 		part.fill(p, rect);
 	}
 }
 
 void IconData::fill(QPainter &p, const QRect &rect, QColor colorOverride) const {
-	if (_parts.isEmpty()) return;
+	if (_parts.empty()) return;
 
 	auto partSize = _parts[0].size();
 	for_const (auto &part, _parts) {
-		t_assert(part.offset() == QPoint(0, 0));
-		t_assert(part.size() == partSize);
+		Assert(part.offset() == QPoint(0, 0));
+		Assert(part.size() == partSize);
 		part.fill(p, rect, colorOverride);
 	}
 }
 
 QImage IconData::instance(QColor colorOverride, DBIScale scale) const {
-	t_assert(_parts.size() == 1);
+	Assert(_parts.size() == 1);
 	auto &part = _parts[0];
-	t_assert(part.offset() == QPoint(0, 0));
+	Assert(part.offset() == QPoint(0, 0));
 	return part.instance(colorOverride, scale);
 }
 

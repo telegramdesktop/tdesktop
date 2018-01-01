@@ -37,14 +37,16 @@ public:
 
 	static Manager *instance(QWidget *parent);
 
-	void addToast(std_::unique_ptr<Instance> &&toast);
+	void addToast(std::unique_ptr<Instance> &&toast);
 
 	~Manager();
+
+protected:
+	bool eventFilter(QObject *o, QEvent *e);
 
 private slots:
 	void onHideTimeout();
 	void onToastWidgetDestroyed(QObject *widget);
-	void onToastWidgetParentResized();
 
 private:
 	Manager(QWidget *parent);
@@ -56,6 +58,7 @@ private:
 	QMultiMap<TimeMs, Instance*> _toastByHideTime;
 	QMap<Widget*, Instance*> _toastByWidget;
 	QList<Instance*> _toasts;
+	OrderedSet<QPointer<QWidget>> _toastParents;
 
 };
 

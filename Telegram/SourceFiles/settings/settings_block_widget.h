@@ -20,26 +20,33 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "core/observer.h"
+#include "base/observer.h"
+#include "ui/rp_widget.h"
 #include "styles/style_boxes.h"
 
 namespace Ui {
 class Checkbox;
+class RadiobuttonGroup;
 class Radiobutton;
 class LinkButton;
+template <typename Enum>
+class RadioenumGroup;
+template <typename Enum>
+class Radioenum;
 template <typename Widget>
-class WidgetSlideWrap;
+class SlideWrap;
+class VerticalLayout;
 } // namespace Ui
 
 namespace Settings {
 
-class BlockWidget : public TWidget, protected base::Subscriber {
-	Q_OBJECT
-
+class BlockWidget : public Ui::RpWidget, protected base::Subscriber {
 public:
 	BlockWidget(QWidget *parent, UserData *self, const QString &title);
 
 	void setContentLeft(int contentLeft);
+
+	QMargins getMargins() const override;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -55,11 +62,6 @@ protected:
 	// Resizes content and counts natural widget height for the desired width.
 	int resizeGetHeight(int newWidth) override;
 
-	void contentSizeUpdated() {
-		resizeToWidth(width());
-		emit heightUpdated();
-	}
-
 	UserData *self() const {
 		return _self;
 	}
@@ -69,58 +71,90 @@ protected:
 	}
 
 	template <typename Widget, typename ...Args>
-	Widget *addChildRow(object_ptr<Widget> &child, style::margins margin, Args&&... args) {
-		createChildRow(child, margin, std_::forward<Args>(args)...);
-		addCreatedRow(child, margin);
-		return child;
+	void createChildRow(
+			Widget *&child,
+			style::margins margin,
+			Args&&... args) {
+		auto row = object_ptr<Widget>{ nullptr };
+		createChildWidget(row, margin, std::forward<Args>(args)...);
+		child = static_cast<Widget*>(addCreatedRow(
+			std::move(row),
+			margin));
 	}
 
 private:
 	template <typename Widget, typename ...Args>
-	void createChildRow(object_ptr<Ui::WidgetSlideWrap<Widget>> &child, style::margins &margin, const style::margins &padding, Args&&... args) {
+	void createChildWidget(
+			object_ptr<Ui::SlideWrap<Widget>> &child,
+			style::margins &margin,
+			const style::margins &padding,
+			Args&&... args) {
 		object_ptr<Widget> entity = { nullptr };
-		createChildRow(entity, margin, std_::forward<Args>(args)...);
-		child.create(this, std_::move(entity), padding, [this] { rowHeightUpdated(); });
+		createChildWidget(entity, margin, std::forward<Args>(args)...);
+		child.create(this, std::move(entity), padding);
 		margin.setLeft(margin.left() - padding.left());
 		margin.setTop(margin.top() - padding.top());
 		margin.setRight(margin.right() - padding.right());
 		margin.setBottom(margin.bottom() - padding.bottom());
 	}
-	void createChildRow(object_ptr<Ui::Checkbox> &child, style::margins &margin, const QString &text, const char *slot, bool checked);
-	void createChildRow(object_ptr<Ui::Radiobutton> &child, style::margins &margin, const QString &group, int value, const QString &text, const char *slot, bool checked);
-	void createChildRow(object_ptr<Ui::LinkButton> &child, style::margins &margin, const QString &text, const char *slot, const style::LinkButton &st = st::boxLinkButton);
+	void createChildWidget(
+		object_ptr<Ui::Checkbox> &child,
+		style::margins &margin,
+		const QString &text, base::lambda<void(bool checked)> callback, bool checked);
+	void createChildWidget(
+		object_ptr<Ui::LinkButton> &child,
+		style::margins &margin,
+		const QString &text,
+		const char *slot,
+		const style::LinkButton &st = st::boxLinkButton);
 
-	void addCreatedRow(TWidget *child, const style::margins &margin);
-	void rowHeightUpdated();
+	template <typename Enum>
+	void createChildWidget(
+			object_ptr<Ui::Radioenum<Enum>> &child,
+			style::margins &margin,
+			const std::shared_ptr<Ui::RadioenumGroup<Enum>> &group,
+			Enum value,
+			const QString &text) {
+		child.create(
+			this,
+			group,
+			value,
+			text,
+			st::defaultBoxCheckbox);
+	}
+
+	RpWidget *addCreatedRow(
+		object_ptr<RpWidget> row,
+		const style::margins &margin);
 
 	template <typename Widget>
-	struct IsWidgetSlideWrap {
-		static constexpr bool value = false;
+	struct IsSlideWrap : std::false_type {
 	};
 	template <typename Widget>
-	struct IsWidgetSlideWrap<Ui::WidgetSlideWrap<Widget>> {
-		static constexpr bool value = true;
+	struct IsSlideWrap<Ui::SlideWrap<Widget>> : std::true_type {
+	};
+	template <typename Widget>
+	struct IsRadioenum : std::false_type {
+	};
+	template <typename Enum>
+	struct IsRadioenum<Ui::Radioenum<Enum>> : std::true_type {
 	};
 
 	template <typename Widget>
-	using NotImplementedYet = std_::enable_if_t<
-		!IsWidgetSlideWrap<Widget>::value &&
-		!std_::is_same<Widget, Ui::Checkbox>::value &&
-		!std_::is_same<Widget, Ui::Radiobutton>::value &&
-		!std_::is_same<Widget, Ui::LinkButton>::value>;
+	using NotImplementedYet = std::enable_if_t<
+		!IsSlideWrap<Widget>::value &&
+		!IsRadioenum<Widget>::value &&
+		!std::is_same<Ui::Checkbox, Widget>::value &&
+		!std::is_same<Ui::LinkButton, Widget>::value>;
 
 	template <typename Widget, typename... Args, typename = NotImplementedYet<Widget>>
-	void createChildRow(object_ptr<Widget> &child, style::margins &margin, Args&&... args) {
-		child.create(this, std_::forward<Args>(args)...);
+	void createChildWidget(object_ptr<Widget> &child, style::margins &margin, Args&&... args) {
+		child.create(this, std::forward<Args>(args)...);
 	}
 
 	void paintTitle(Painter &p);
 
-	struct ChildRow {
-		TWidget *child;
-		style::margins margin;
-	};
-	QVector<ChildRow> _rows;
+	object_ptr<Ui::VerticalLayout> _content;
 
 	int _contentLeft = 0;
 	UserData *_self;

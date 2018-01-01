@@ -26,45 +26,45 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 class AudioPlayerLoader;
 class ChildFFMpegLoader;
-class AudioPlayerLoaders : public QObject {
+
+namespace Media {
+namespace Player {
+
+class Loaders : public QObject {
 	Q_OBJECT
 
 public:
-	AudioPlayerLoaders(QThread *thread);
-	void startFromVideo(uint64 videoPlayId);
-	void stopFromVideo();
+	Loaders(QThread *thread);
 	void feedFromVideo(VideoSoundPart &&part);
-	~AudioPlayerLoaders();
+	~Loaders();
 
 signals:
 	void error(const AudioMsgId &audio);
 	void needToCheck();
 
-public slots:
+	public slots:
 	void onInit();
 
-	void onStart(const AudioMsgId &audio, qint64 position);
+	void onStart(const AudioMsgId &audio, qint64 positionMs);
 	void onLoad(const AudioMsgId &audio);
 	void onCancel(const AudioMsgId &audio);
 
-	void onVideoSoundAdded();
-
 private:
+	void videoSoundAdded();
 	void clearFromVideoQueue();
 
 	AudioMsgId _audio, _song, _video;
-	std_::unique_ptr<AudioPlayerLoader> _audioLoader;
-	std_::unique_ptr<AudioPlayerLoader> _songLoader;
-	std_::unique_ptr<ChildFFMpegLoader> _videoLoader;
+	std::unique_ptr<AudioPlayerLoader> _audioLoader;
+	std::unique_ptr<AudioPlayerLoader> _songLoader;
+	std::unique_ptr<AudioPlayerLoader> _videoLoader;
 
 	QMutex _fromVideoMutex;
-	uint64 _fromVideoPlayId;
-	QQueue<FFMpeg::AVPacketDataWrap> _fromVideoQueue;
-	SingleDelayedCall _fromVideoNotify;
+	QMap<AudioMsgId, QQueue<FFMpeg::AVPacketDataWrap>> _fromVideoQueues;
+	SingleQueuedInvokation _fromVideoNotify;
 
 	void emitError(AudioMsgId::Type type);
 	AudioMsgId clear(AudioMsgId::Type type);
-	void setStoppedState(AudioPlayer::AudioMsg *m, AudioPlayerState state = AudioPlayerStopped);
+	void setStoppedState(Mixer::Track *m, State state = State::Stopped);
 
 	enum SetupError {
 		SetupErrorAtStart = 0,
@@ -72,8 +72,14 @@ private:
 		SetupErrorLoadedFull = 2,
 		SetupNoErrorStarted = 3,
 	};
-	void loadData(AudioMsgId audio, qint64 position);
-	AudioPlayerLoader *setupLoader(const AudioMsgId &audio, SetupError &err, qint64 &position);
-	AudioPlayer::AudioMsg *checkLoader(AudioMsgId::Type type);
+	void loadData(AudioMsgId audio, TimeMs positionMs);
+	AudioPlayerLoader *setupLoader(
+		const AudioMsgId &audio,
+		SetupError &err,
+		TimeMs positionMs);
+	Mixer::Track *checkLoader(AudioMsgId::Type type);
 
 };
+
+} // namespace Player
+} // namespace Media

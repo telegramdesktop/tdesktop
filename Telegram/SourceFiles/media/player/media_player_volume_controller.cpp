@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "media/player/media_player_volume_controller.h"
 
 #include "media/media_audio.h"
@@ -46,12 +45,10 @@ VolumeController::VolumeController(QWidget *parent) : TWidget(parent)
 	});
 	subscribe(Global::RefSongVolumeChanged(), [this] {
 		if (!_slider->isChanging()) {
-			_slider->setValue(Global::SongVolume(), true);
+			_slider->setValue(Global::SongVolume());
 		}
 	});
-
-	auto animated = false;
-	setVolume(Global::SongVolume(), animated);
+	setVolume(Global::SongVolume());
 
 	resize(st::mediaPlayerPanelVolumeWidth, 2 * st::mediaPlayerPanelPlaybackPadding + st::mediaPlayerPanelPlayback.width);
 }
@@ -66,8 +63,8 @@ void VolumeController::resizeEvent(QResizeEvent *e) {
 	_slider->setGeometry(rect());
 }
 
-void VolumeController::setVolume(float64 volume, bool animated) {
-	_slider->setValue(volume, animated);
+void VolumeController::setVolume(float64 volume) {
+	_slider->setValue(volume);
 	if (volume > 0) {
 		Global::SetRememberedSongVolume(volume);
 	}
@@ -77,6 +74,7 @@ void VolumeController::setVolume(float64 volume, bool animated) {
 void VolumeController::applyVolumeChange(float64 volume) {
 	if (volume != Global::SongVolume()) {
 		Global::SetSongVolume(volume);
+		mixer()->setSongVolume(Global::SongVolume());
 		Global::RefSongVolumeChanged().notify();
 	}
 }
@@ -143,31 +141,30 @@ void VolumeWidget::paintEvent(QPaintEvent *e) {
 
 	// draw shadow
 	auto shadowedRect = rect().marginsRemoved(getMargin());
-	using ShadowSide = Ui::Shadow::Side;
-	auto shadowedSides = ShadowSide::Left | ShadowSide::Right | ShadowSide::Bottom;
+	auto shadowedSides = RectPart::Left | RectPart::Right | RectPart::Bottom;
 	Ui::Shadow::paint(p, shadowedRect, width(), st::defaultRoundShadow, shadowedSides);
-	auto parts = App::RectPart::NoTopBottom | App::RectPart::BottomFull;
+	auto parts = RectPart::NoTopBottom | RectPart::FullBottom;
 	App::roundRect(p, QRect(shadowedRect.x(), -st::buttonRadius, shadowedRect.width(), shadowedRect.y() + shadowedRect.height() + st::buttonRadius), st::menuBg, MenuCorners, nullptr, parts);
 }
 
-void VolumeWidget::enterEvent(QEvent *e) {
+void VolumeWidget::enterEventHook(QEvent *e) {
 	_hideTimer.stop();
 	if (_a_appearance.animating(getms())) {
 		onShowStart();
 	} else {
 		_showTimer.start(0);
 	}
-	return TWidget::enterEvent(e);
+	return TWidget::enterEventHook(e);
 }
 
-void VolumeWidget::leaveEvent(QEvent *e) {
+void VolumeWidget::leaveEventHook(QEvent *e) {
 	_showTimer.stop();
 	if (_a_appearance.animating(getms())) {
 		onHideStart();
 	} else {
 		_hideTimer.start(300);
 	}
-	return TWidget::leaveEvent(e);
+	return TWidget::leaveEventHook(e);
 }
 
 void VolumeWidget::otherEnter() {
@@ -210,7 +207,7 @@ void VolumeWidget::startAnimation() {
 	auto to = _hiding ? 0. : 1.;
 	if (_cache.isNull()) {
 		showChildren();
-		_cache = myGrab(this);
+		_cache = Ui::GrabWidget(this);
 	}
 	hideChildren();
 	_a_appearance.start([this] { appearanceCallback(); }, from, to, st::defaultInnerDropdown.duration);

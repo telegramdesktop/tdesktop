@@ -20,13 +20,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "ui/rp_widget.h"
+
 class AudioMsgId;
-struct AudioPlaybackState;
 
 namespace Ui {
 class FlatLabel;
 class LabelSimple;
 class IconButton;
+class MediaSlider;
 } // namespace Ui
 
 namespace Media {
@@ -37,9 +39,9 @@ class Playback;
 namespace Player {
 
 class VolumeController;
-struct UpdatedEvent;
+struct TrackState;
 
-class CoverWidget : public TWidget, private base::Subscriber {
+class CoverWidget : public Ui::RpWidget, private base::Subscriber {
 public:
 	CoverWidget(QWidget *parent);
 
@@ -51,7 +53,7 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 
 private:
 	void setCloseVisible(bool visible);
@@ -66,11 +68,11 @@ private:
 
 	void updateVolumeToggleIcon();
 
-	void handleSongUpdate(const UpdatedEvent &e);
+	void handleSongUpdate(const TrackState &state);
 	void handleSongChange();
 	void handlePlaylistUpdate();
 
-	void updateTimeText(const AudioMsgId &audioId, const AudioPlaybackState &playbackState);
+	void updateTimeText(const TrackState &state);
 	void updateTimeLabel();
 
 	TimeMs _seekPositionMs = -1;
@@ -81,7 +83,8 @@ private:
 	object_ptr<Ui::FlatLabel> _nameLabel;
 	object_ptr<Ui::LabelSimple> _timeLabel;
 	object_ptr<Ui::IconButton> _close;
-	std_::unique_ptr<Clip::Playback> _playback;
+	object_ptr<Ui::MediaSlider> _playbackSlider;
+	std::unique_ptr<Clip::Playback> _playback;
 	object_ptr<Ui::IconButton> _previousTrack = { nullptr };
 	object_ptr<PlayButton> _playPause;
 	object_ptr<Ui::IconButton> _nextTrack = { nullptr };

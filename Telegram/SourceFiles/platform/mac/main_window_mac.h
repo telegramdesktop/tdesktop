@@ -20,8 +20,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "window/main_window.h"
-#include "pspecific_mac_p.h"
+#include "platform/platform_main_window.h"
+#include "platform/mac/specific_mac_p.h"
+#include "base/timer.h"
 
 namespace Platform {
 
@@ -33,21 +34,12 @@ public:
 
 	void psFirstShow();
 	void psInitSysMenu();
-	void psUpdateSysMenu(Qt::WindowState state);
 	void psUpdateMargins();
-
-	void psFlash();
-
-	void psUpdateWorkmode();
 
 	void psRefreshTaskbarIcon() {
 	}
 
 	bool psFilterNativeEvent(void *event);
-
-	bool psHasNativeNotifications() {
-		return !(QSysInfo::macVersion() < QSysInfo::MV_10_8);
-	}
 
 	virtual QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) = 0;
 
@@ -70,14 +62,13 @@ public slots:
 	void psMacDelete();
 	void psMacSelectAll();
 
-private slots:
-	void onHideAfterFullScreen();
-
 protected:
 	bool eventFilter(QObject *obj, QEvent *evt) override;
 
+	void handleActiveChangedHook() override;
 	void stateChangedHook(Qt::WindowState state) override;
 	void initHook() override;
+	void updateWindowIcon() override;
 	void titleVisibilityChangedHook() override;
 	void unreadCounterChangedHook() override;
 
@@ -88,10 +79,10 @@ protected:
 
 	void updateGlobalMenuHook() override;
 
+	void workmodeUpdated(DBIWorkMode mode) override;
+
 	QSystemTrayIcon *trayIcon = nullptr;
 	QMenu *trayIconMenu = nullptr;
-	QImage icon256, iconbig256;
-	QIcon wndIcon;
 
 	QImage trayImg, trayImgSel;
 
@@ -104,17 +95,18 @@ protected:
 	void closeWithoutDestroy() override;
 
 private:
+	void hideAndDeactivate();
 	void createGlobalMenu();
 	void updateTitleCounter();
 	void updateIconCounters();
 
 	friend class Private;
-	std_::unique_ptr<Private> _private;
+	std::unique_ptr<Private> _private;
 
 	mutable bool psIdle;
 	mutable QTimer psIdleTimer;
 
-	QTimer _hideAfterFullScreenTimer;
+	base::Timer _hideAfterFullScreenTimer;
 
 	QMenuBar psMainMenu;
 	QAction *psLogout = nullptr;

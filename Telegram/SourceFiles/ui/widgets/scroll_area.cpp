@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/widgets/scroll_area.h"
 
 namespace Ui {
@@ -27,8 +26,8 @@ namespace Ui {
 
 ScrollShadow::ScrollShadow(ScrollArea *parent, const style::ScrollArea *st) : QWidget(parent), _st(st) {
 	setVisible(false);
-	t_assert(_st != nullptr);
-	t_assert(_st->shColor.v() != nullptr);
+	Assert(_st != nullptr);
+	Assert(_st->shColor.v() != nullptr);
 }
 
 void ScrollShadow::paintEvent(QPaintEvent *e) {
@@ -40,7 +39,7 @@ void ScrollShadow::changeVisibility(bool shown) {
 	setVisible(shown);
 }
 
-ScrollBar::ScrollBar(ScrollArea *parent, bool vert, const style::ScrollArea *st) : QWidget(parent)
+ScrollBar::ScrollBar(ScrollArea *parent, bool vert, const style::ScrollArea *st) : TWidget(parent)
 , _st(st)
 , _vertical(vert)
 , _hiding(_st->hiding != 0)
@@ -214,13 +213,13 @@ void ScrollBar::hideTimeout(TimeMs dt) {
 	}
 }
 
-void ScrollBar::enterEvent(QEvent *e) {
+void ScrollBar::enterEventHook(QEvent *e) {
 	_hideTimer.stop();
 	setMouseTracking(true);
 	setOver(true);
 }
 
-void ScrollBar::leaveEvent(QEvent *e) {
+void ScrollBar::leaveEventHook(QEvent *e) {
 	if (!_moving) {
 		setMouseTracking(false);
 	}
@@ -320,7 +319,8 @@ void SplittedWidgetOther::paintEvent(QPaintEvent *e) {
 	}
 }
 
-ScrollArea::ScrollArea(QWidget *parent, const style::ScrollArea &st, bool handleTouch) : QScrollArea(parent)
+ScrollArea::ScrollArea(QWidget *parent, const style::ScrollArea &st, bool handleTouch)
+: RpWidgetWrap<QScrollArea>(parent)
 , _st(st)
 , _horizontalBar(this, false, &_st)
 , _verticalBar(this, true, &_st)
@@ -359,7 +359,9 @@ void ScrollArea::touchDeaccelerate(int32 elapsed) {
 }
 
 void ScrollArea::onScrolled() {
-	myEnsureResized(widget());
+	if (const auto inner = widget()) {
+		SendPendingMoveResizeEvents(inner);
+	}
 
 	bool em = false;
 	int horizontalValue = horizontalScrollBar()->value();
@@ -384,6 +386,7 @@ void ScrollArea::onScrolled() {
 				_verticalBar->hideTimeout(_st.hiding);
 			}
 			em = true;
+			_scrollTopUpdated.fire_copy(_verticalValue);
 		}
 	}
 	if (em) {
@@ -525,7 +528,7 @@ void ScrollArea::touchEvent(QTouchEvent *e) {
 	}
 
 	switch (e->type()) {
-	case QEvent::TouchBegin:
+	case QEvent::TouchBegin: {
 		if (_touchPress || e->touchPoints().isEmpty()) return;
 		_touchPress = true;
 		if (_touchScrollState == TouchScrollState::Auto) {
@@ -540,9 +543,9 @@ void ScrollArea::touchEvent(QTouchEvent *e) {
 		}
 		_touchStart = _touchPrevPos = _touchPos;
 		_touchRightButton = false;
-		break;
+	} break;
 
-	case QEvent::TouchUpdate:
+	case QEvent::TouchUpdate: {
 		if (!_touchPress) return;
 		if (!_touchScroll && (_touchPos - _touchStart).manhattanLength() >= QApplication::startDragDistance()) {
 			_touchTimer.stop();
@@ -560,11 +563,12 @@ void ScrollArea::touchEvent(QTouchEvent *e) {
 				}
 			}
 		}
-		break;
+	} break;
 
-	case QEvent::TouchEnd:
+	case QEvent::TouchEnd: {
 		if (!_touchPress) return;
 		_touchPress = false;
+		auto weak = make_weak(this);
 		if (_touchScroll) {
 			if (_touchScrollState == TouchScrollState::Manual) {
 				_touchScrollState = TouchScrollState::Auto;
@@ -583,11 +587,11 @@ void ScrollArea::touchEvent(QTouchEvent *e) {
 		} else if (window()) { // one short tap -- like left mouse click, one long tap -- like right mouse click
 			Qt::MouseButton btn(_touchRightButton ? Qt::RightButton : Qt::LeftButton);
 
-			sendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton, _touchStart);
-			sendSynteticMouseEvent(this, QEvent::MouseButtonPress, btn, _touchStart);
-			sendSynteticMouseEvent(this, QEvent::MouseButtonRelease, btn, _touchStart);
+			if (weak) sendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton, _touchStart);
+			if (weak) sendSynteticMouseEvent(this, QEvent::MouseButtonPress, btn, _touchStart);
+			if (weak) sendSynteticMouseEvent(this, QEvent::MouseButtonRelease, btn, _touchStart);
 
-			if (_touchRightButton) {
+			if (weak && _touchRightButton) {
 				auto windowHandle = window()->windowHandle();
 				auto localPoint = windowHandle->mapFromGlobal(_touchStart);
 				QContextMenuEvent ev(QContextMenuEvent::Mouse, localPoint, _touchStart, QGuiApplication::keyboardModifiers());
@@ -595,16 +599,18 @@ void ScrollArea::touchEvent(QTouchEvent *e) {
 				QGuiApplication::sendEvent(windowHandle, &ev);
 			}
 		}
-		_touchTimer.stop();
-		_touchRightButton = false;
-		break;
+		if (weak) {
+			_touchTimer.stop();
+			_touchRightButton = false;
+		}
+	} break;
 
-	case QEvent::TouchCancel:
+	case QEvent::TouchCancel: {
 		_touchPress = false;
 		_touchScroll = false;
 		_touchScrollState = TouchScrollState::Manual;
 		_touchTimer.stop();
-		break;
+	} break;
 	}
 }
 
@@ -684,9 +690,25 @@ void ScrollArea::leaveEventHook(QEvent *e) {
 	return QScrollArea::leaveEvent(e);
 }
 
+void ScrollArea::scrollTo(ScrollToRequest request) {
+	scrollToY(request.ymin, request.ymax);
+}
+
+void ScrollArea::scrollToWidget(not_null<QWidget*> widget) {
+	if (auto local = this->widget()) {
+		auto globalPosition = widget->mapToGlobal(QPoint(0, 0));
+		auto localPosition = local->mapFromGlobal(globalPosition);
+		auto localTop = localPosition.y();
+		auto localBottom = localTop + widget->height();
+		scrollToY(localTop, localBottom);
+	}
+}
+
 void ScrollArea::scrollToY(int toTop, int toBottom) {
-	myEnsureResized(widget());
-	myEnsureResized(this);
+	if (const auto inner = widget()) {
+		SendPendingMoveResizeEvents(inner);
+	}
+	SendPendingMoveResizeEvents(this);
 
 	int toMin = 0, toMax = scrollTopMax();
 	if (toTop < toMin) {
@@ -726,7 +748,7 @@ void ScrollArea::doSetOwnedWidget(object_ptr<TWidget> w) {
 		_horizontalBar->raise();
 		_verticalBar->raise();
 	}
-	_widget = std_::move(w);
+	_widget = std::move(w);
 	QScrollArea::setWidget(_widget);
 	if (_widget) {
 		_widget->setAutoFillBackground(false);
@@ -753,7 +775,7 @@ object_ptr<TWidget> ScrollArea::doTakeWidget() {
 		disconnect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onVerticalScroll()));
 	}
 	QScrollArea::takeWidget();
-	return std_::move(_widget);
+	return std::move(_widget);
 }
 
 void ScrollArea::onResizeOther() {

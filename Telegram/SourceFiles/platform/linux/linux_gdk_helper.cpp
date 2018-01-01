@@ -18,7 +18,7 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 #include "platform/linux/linux_gdk_helper.h"
 
 #include "platform/linux/linux_libs.h"
@@ -112,3 +112,4 @@ void XSetTransientForHint(GdkWindow *window, quintptr winId) {
 
 } // namespace internal
 } // namespace Platform
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION

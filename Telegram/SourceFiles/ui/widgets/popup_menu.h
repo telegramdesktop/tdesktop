@@ -23,13 +23,13 @@
 
 namespace Ui {
 
-class PopupMenu : public TWidget {
+class PopupMenu : public TWidget, private base::Subscriber {
 public:
 	PopupMenu(QWidget*, const style::PopupMenu &st = st::defaultPopupMenu);
 	PopupMenu(QWidget*, QMenu *menu, const style::PopupMenu &st = st::defaultPopupMenu);
 
 	QAction *addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
-	QAction *addAction(const QString &text, base::lambda<void()> &&callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
+	QAction *addAction(const QString &text, base::lambda<void()> callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
 	QAction *addSeparator();
 	void clearActions();
 
@@ -40,8 +40,8 @@ public:
 	void popup(const QPoint &p);
 	void hideMenu(bool fast = false);
 
-	void setDestroyedCallback(base::lambda<void()> &&callback) {
-		_destroyedCallback = std_::move(callback);
+	void setDestroyedCallback(base::lambda<void()> callback) {
+		_destroyedCallback = std::move(callback);
 	}
 
 	~PopupMenu();
@@ -122,7 +122,7 @@ private:
 	SubmenuPointer _activeSubmenu;
 
 	PanelAnimation::Origin _origin = PanelAnimation::Origin::TopLeft;
-	std_::unique_ptr<PanelAnimation> _showAnimation;
+	std::unique_ptr<PanelAnimation> _showAnimation;
 	Animation _a_show;
 
 	bool _useTransparency = true;

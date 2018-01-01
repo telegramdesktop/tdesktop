@@ -20,20 +20,23 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "core/single_timer.h"
-
 namespace MTP {
+
+class Instance;
+class AuthKey;
+using AuthKeyPtr = std::shared_ptr<AuthKey>;
+
 namespace internal {
 
 class Dcenter : public QObject {
 	Q_OBJECT
 
 public:
-	Dcenter(int32 id, const AuthKeyPtr &key);
+	Dcenter(not_null<Instance*> instance, DcId dcId, AuthKeyPtr &&key);
 
 	QReadWriteLock *keyMutex() const;
 	const AuthKeyPtr &getKey() const;
-	void setKey(const AuthKeyPtr &key);
+	void setKey(AuthKeyPtr &&key);
 	void destroyKey();
 
 	bool connectionInited() const {
@@ -56,53 +59,12 @@ private slots:
 private:
 	mutable QReadWriteLock keyLock;
 	mutable QMutex initLock;
-	int32 _id;
+	not_null<Instance*> _instance;
+	DcId _id = 0;
 	AuthKeyPtr _key;
-	bool _connectionInited;
+	bool _connectionInited = false;
 
 };
-
-typedef QSharedPointer<Dcenter> DcenterPtr;
-typedef QMap<uint32, DcenterPtr> DcenterMap;
-
-class ConfigLoader : public QObject {
-	Q_OBJECT
-
-public:
-	ConfigLoader();
-	void load();
-	void done();
-
-public slots:
-	void enumDC();
-
-signals:
-	void loaded();
-
-private:
-	SingleTimer _enumDCTimer;
-	int32 _enumCurrent;
-	mtpRequestId _enumRequest;
-
-};
-
-ConfigLoader *configLoader();
-void destroyConfigLoader();
-
-DcenterMap &DCMap();
-bool configNeeded();
-int32 mainDC();
-void logoutOtherDCs();
-void setDC(int32 dc, bool firstOnly = false);
-
-int32 authed();
-void authed(int32 uid);
-
-AuthKeysMap getAuthKeys();
-void setAuthKey(int32 dc, AuthKeyPtr key);
-
-void updateDcOptions(const QVector<MTPDcOption> &options);
-QReadWriteLock *dcOptionsMutex();
 
 } // namespace internal
 } // namespace MTP

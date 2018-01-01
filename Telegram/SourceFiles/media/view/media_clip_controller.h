@@ -24,11 +24,14 @@ namespace Ui {
 class LabelSimple;
 class FadeAnimation;
 class IconButton;
+class MediaSlider;
 } // namespace Ui
 
-struct AudioPlaybackState;
-
 namespace Media {
+namespace Player {
+struct TrackState;
+} // namespace Player
+
 namespace Clip {
 
 class Playback;
@@ -43,7 +46,7 @@ public:
 	void showAnimated();
 	void hideAnimated();
 
-	void updatePlayback(const AudioPlaybackState &playbackState);
+	void updatePlayback(const Player::TrackState &state);
 	void setInFullScreen(bool inFullScreen);
 
 	void grabStart() override;
@@ -74,8 +77,8 @@ private:
 	void fadeFinished();
 	void fadeUpdated(float64 opacity);
 
-	void updatePlayPauseResumeState(const AudioPlaybackState &playbackState);
-	void updateTimeTexts(const AudioPlaybackState &playbackState);
+	void updatePlayPauseResumeState(const Player::TrackState &state);
+	void updateTimeTexts(const Player::TrackState &state);
 	void refreshTimeTexts();
 
 	bool _showPause = false;
@@ -84,13 +87,14 @@ private:
 	TimeMs _lastDurationMs = 0;
 
 	object_ptr<Ui::IconButton> _playPauseResume;
-	std_::unique_ptr<Playback> _playback;
+	object_ptr<Ui::MediaSlider> _playbackSlider;
+	std::unique_ptr<Playback> _playback;
 	object_ptr<VolumeController> _volumeController;
 	object_ptr<Ui::IconButton> _fullScreenToggle;
 	object_ptr<Ui::LabelSimple> _playedAlready;
 	object_ptr<Ui::LabelSimple> _toPlayLeft;
 
-	std_::unique_ptr<Ui::FadeAnimation> _fadeAnimation;
+	std::unique_ptr<Ui::FadeAnimation> _fadeAnimation;
 
 };
 

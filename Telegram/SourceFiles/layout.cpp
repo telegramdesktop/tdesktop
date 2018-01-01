@@ -18,78 +18,19 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "layout.h"
 
-#include "lang.h"
+#include "data/data_document.h"
+#include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "application.h"
-#include "fileuploader.h"
+#include "storage/file_upload.h"
 #include "mainwindow.h"
-#include "ui/filedialog.h"
-#include "boxes/addcontactbox.h"
-#include "boxes/confirmbox.h"
+#include "core/file_utilities.h"
+#include "boxes/add_contact_box.h"
+#include "boxes/confirm_box.h"
 #include "media/media_audio.h"
-#include "localstorage.h"
-
-TextParseOptions _textNameOptions = {
-	0, // flags
-	4096, // maxw
-	1, // maxh
-	Qt::LayoutDirectionAuto, // lang-dependent
-};
-TextParseOptions _textDlgOptions = {
-	TextParseRichText, // flags
-	0, // maxw is style-dependent
-	1, // maxh
-	Qt::LayoutDirectionAuto, // lang-dependent
-};
-TextParseOptions _historyTextOptions = {
-	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText | TextParseMono, // flags
-	0, // maxw
-	0, // maxh
-	Qt::LayoutDirectionAuto, // dir
-};
-TextParseOptions _historyBotOptions = {
-	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands | TextParseMultiline | TextParseRichText | TextParseMono, // flags
-	0, // maxw
-	0, // maxh
-	Qt::LayoutDirectionAuto, // dir
-};
-TextParseOptions _historyTextNoMonoOptions = {
-	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText, // flags
-	0, // maxw
-	0, // maxh
-	Qt::LayoutDirectionAuto, // dir
-};
-TextParseOptions _historyBotNoMonoOptions = {
-	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands | TextParseMultiline | TextParseRichText, // flags
-	0, // maxw
-	0, // maxh
-	Qt::LayoutDirectionAuto, // dir
-};
-
-const TextParseOptions &itemTextOptions(History *h, PeerData *f) {
-	if ((h->peer->isUser() && h->peer->asUser()->botInfo) || (f->isUser() && f->asUser()->botInfo) || (h->peer->isChat() && h->peer->asChat()->botStatus >= 0) || (h->peer->isMegagroup() && h->peer->asChannel()->mgInfo->botStatus >= 0)) {
-		return _historyBotOptions;
-	}
-	return _historyTextOptions;
-}
-
-const TextParseOptions &itemTextOptions(const HistoryItem *item) {
-	return itemTextOptions(item->history(), item->author());
-}
-
-const TextParseOptions &itemTextNoMonoOptions(History *h, PeerData *f) {
-	if ((h->peer->isUser() && h->peer->asUser()->botInfo) || (f->isUser() && f->asUser()->botInfo) || (h->peer->isChat() && h->peer->asChat()->botStatus >= 0) || (h->peer->isMegagroup() && h->peer->asChannel()->mgInfo->botStatus >= 0)) {
-		return _historyBotNoMonoOptions;
-	}
-	return _historyTextNoMonoOptions;
-}
-
-const TextParseOptions &itemTextNoMonoOptions(const HistoryItem *item) {
-	return itemTextNoMonoOptions(item->history(), item->author());
-}
+#include "storage/localstorage.h"
 
 QString formatSizeText(qint64 size) {
 	if (size >= 1024 * 1024) { // more than 1 mb
@@ -128,6 +69,17 @@ QString formatDurationText(qint64 duration) {
 	return (hours ? QString::number(hours) + ':' : QString()) + (minutes >= 10 ? QString() : QString('0')) + QString::number(minutes) + ':' + (seconds >= 10 ? QString() : QString('0')) + QString::number(seconds);
 }
 
+QString formatDurationWords(qint64 duration) {
+	if (duration > 59) {
+		auto minutes = (duration / 60);
+		auto minutesCount = lng_duration_minsec_minutes(lt_count, minutes);
+		auto seconds = (duration % 60);
+		auto secondsCount = lng_duration_minsec_seconds(lt_count, seconds);
+		return lng_duration_minutes_seconds(lt_minutes_count, minutesCount, lt_seconds_count, secondsCount);
+	}
+	return lng_duration_seconds(lt_count, duration);
+}
+
 QString formatDurationAndSizeText(qint64 duration, qint64 size) {
 	return lng_duration_and_size(lt_duration, formatDurationText(duration), lt_size, formatSizeText(size));
 }
@@ -140,56 +92,34 @@ QString formatPlayedText(qint64 played, qint64 duration) {
 	return lng_duration_played(lt_played, formatDurationText(played), lt_duration, formatDurationText(duration));
 }
 
-QString documentName(DocumentData *document) {
-	SongData *song = document->song();
-	if (!song || (song->title.isEmpty() && song->performer.isEmpty())) {
-		return document->name.isEmpty() ? qsl("Unknown File") : document->name;
-	}
-
-	if (song->performer.isEmpty()) return song->title;
-
-	return song->performer + QString::fromUtf8(" \xe2\x80\x93 ") + (song->title.isEmpty() ? qsl("Unknown Track") : song->title);
-}
-
-TextWithEntities documentNameWithEntities(DocumentData *document) {
-	TextWithEntities result;
-	auto song = document->song();
-	if (!song || (song->title.isEmpty() && song->performer.isEmpty())) {
-		result.text = document->name.isEmpty() ? qsl("Unknown File") : document->name;
-		result.entities.push_back({ EntityInTextBold, 0, result.text.size() });
-	} else if (song->performer.isEmpty()) {
-		result.text = song->title;
-		result.entities.push_back({ EntityInTextBold, 0, result.text.size() });
-	} else {
-		result.text = song->performer + QString::fromUtf8(" \xe2\x80\x93 ") + (song->title.isEmpty() ? qsl("Unknown Track") : song->title);
-		result.entities.push_back({ EntityInTextBold, 0, song->performer.size() });
-	}
-	return result;
-}
-
 int32 documentColorIndex(DocumentData *document, QString &ext) {
-	int32 colorIndex = 0;
+	auto colorIndex = 0;
 
-	QString name = document ? (document->name.isEmpty() ? (document->sticker() ? lang(lng_in_dlg_sticker) : qsl("Unknown File")) : document->name) : lang(lng_message_empty);
+	auto name = document
+		? (document->filename().isEmpty()
+			? (document->sticker()
+				? lang(lng_in_dlg_sticker)
+				: qsl("Unknown File"))
+			: document->filename())
+		: lang(lng_message_empty);
 	name = name.toLower();
-	int32 lastDot = name.lastIndexOf('.');
-	QString mime = document ? document->mime.toLower() : QString();
+	auto lastDot = name.lastIndexOf('.');
+	auto mime = document
+		? document->mimeString().toLower()
+		: QString();
 	if (name.endsWith(qstr(".doc")) ||
 		name.endsWith(qstr(".txt")) ||
 		name.endsWith(qstr(".psd")) ||
-		mime.startsWith(qstr("text/"))
-		) {
+		mime.startsWith(qstr("text/"))) {
 		colorIndex = 0;
 	} else if (
 		name.endsWith(qstr(".xls")) ||
-		name.endsWith(qstr(".csv"))
-		) {
+		name.endsWith(qstr(".csv"))) {
 		colorIndex = 1;
 	} else if (
 		name.endsWith(qstr(".pdf")) ||
 		name.endsWith(qstr(".ppt")) ||
-		name.endsWith(qstr(".key"))
-		) {
+		name.endsWith(qstr(".key"))) {
 		colorIndex = 2;
 	} else if (
 		name.endsWith(qstr(".zip")) ||
@@ -197,15 +127,22 @@ int32 documentColorIndex(DocumentData *document, QString &ext) {
 		name.endsWith(qstr(".ai")) ||
 		name.endsWith(qstr(".mp3")) ||
 		name.endsWith(qstr(".mov")) ||
-		name.endsWith(qstr(".avi"))
-		) {
+		name.endsWith(qstr(".avi"))) {
 		colorIndex = 3;
 	} else {
-		QChar ch = (lastDot >= 0 && lastDot + 1 < name.size()) ? name.at(lastDot + 1) : (name.isEmpty() ? (mime.isEmpty() ? '0' : mime.at(0)) : name.at(0));
+		auto ch = (lastDot >= 0 && lastDot + 1 < name.size())
+			? name.at(lastDot + 1)
+			: (name.isEmpty()
+				? (mime.isEmpty() ? '0' : mime.at(0))
+				: name.at(0));
 		colorIndex = (ch.unicode() % 4);
 	}
 
-	ext = document ? ((lastDot < 0 || lastDot + 2 > name.size()) ? name : name.mid(lastDot + 1)) : QString();
+	ext = document
+		? ((lastDot < 0 || lastDot + 2 > name.size())
+			? name
+			: name.mid(lastDot + 1))
+		: QString();
 
 	return colorIndex;
 }
@@ -256,7 +193,7 @@ RoundCorners documentCorners(int32 colorIndex) {
 
 bool documentIsValidMediaFile(const QString &filepath) {
 	static StaticNeverFreedPointer<QList<QString>> validMediaTypes(([] {
-		std_::unique_ptr<QList<QString>> result = std_::make_unique<QList<QString>>();
+		std::unique_ptr<QList<QString>> result = std::make_unique<QList<QString>>();
 		*result = qsl("\
 webm mkv flv vob ogv ogg drc gif gifv mng avi mov qt wmv yuv rm rmvb asf amv mp4 m4p \
 m4v mpg mp2 mpeg mpe mpv m2v svi 3gp 3g2 mxf roq nsv f4v f4p f4a f4b wma divx evo mk3d \
@@ -264,7 +201,7 @@ mka mks mcf m2p ps ts m2ts ifo aaf avchd cam dat dsh dvr-ms m1v fla flr sol wrap
 wtv 8svx 16svx iff aiff aif aifc au bwf cdda raw wav flac la pac m4a ape ofr ofs off rka \
 shn tak tta wv brstm dts dtshd dtsma ast amr mp3 spx gsm aac mpc vqf ra ots swa vox voc \
 dwd smp aup cust mid mus sib sid ly gym vgm psf nsf mod ptb s3m xm it mt2 minipsf psflib \
-2sf dsf gsf psf2 qsf ssf usf rmj spc niff mxl xml txm ym jam mp1 mscz \
+2sf dsf gsf psf2 qsf ssf usf rmj spc niff mxl xml txm ym jam mp1 mscz\
 ").split(' ');
 		return result.release();
 	})());
@@ -272,4 +209,28 @@ dwd smp aup cust mid mus sib sid ly gym vgm psf nsf mod ptb s3m xm it mt2 minips
 	QFileInfo info(filepath);
 	auto parts = info.fileName().split('.', QString::SkipEmptyParts);
 	return !parts.isEmpty() && (validMediaTypes->indexOf(parts.back().toLower()) >= 0);
+}
+
+bool documentIsExecutableName(const QString &filename) {
+	static StaticNeverFreedPointer<QList<QString>> executableTypes(([] {
+		std::unique_ptr<QList<QString>> result = std::make_unique<QList<QString>>();
+#ifdef Q_OS_MAC
+		*result = qsl("\
+action app bin command csh osx workflow\
+").split(' ');
+#elif defined Q_OS_LINUX // Q_OS_MAC
+		*result = qsl("\
+bin csh ksh out run\
+").split(' ');
+#else // Q_OS_MAC || Q_OS_LINUX
+		*result = qsl("\
+bat bin cmd com cpl exe gadget inf ins inx isu job jse lnk msc msi \
+msp mst paf pif ps1 reg rgs sct shb shs u3p vb vbe vbs vbscript ws wsf\
+").split(' ');
+#endif // !Q_OS_MAC && !Q_OS_LINUX
+		return result.release();
+	})());
+
+	auto lastDotIndex = filename.lastIndexOf('.');
+	return (lastDotIndex >= 0) && (executableTypes->indexOf(filename.mid(lastDotIndex + 1).toLower()) >= 0);
 }

@@ -21,8 +21,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "core/basic_types.h"
-#include "structs.h"
-#include "mtproto/core_types.h"
 
 class FileLoader;
 
@@ -43,10 +41,10 @@ private:
 
 public:
 
-	// Constructor is public only for std_::make_unique<>() to work.
+	// Constructor is public only for std::make_unique<>() to work.
 	// You should use create() static method instead.
 	explicit Result(const Creator &creator);
-	static std_::unique_ptr<Result> create(uint64 queryId, const MTPBotInlineResult &mtpData);
+	static std::unique_ptr<Result> create(uint64 queryId, const MTPBotInlineResult &mtpData);
 	Result(const Result &other) = delete;
 	Result &operator=(const Result &other) = delete;
 
@@ -67,7 +65,8 @@ public:
 
 	bool hasThumbDisplay() const;
 
-	void addToHistory(History *history, MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate, UserId viaBotId, MsgId replyToId) const;
+	void addToHistory(History *history, MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate, UserId viaBotId, MsgId replyToId, const QString &postAuthor) const;
+	QString getErrorOnSend(History *history) const;
 
 	// interface for Layout:: usage
 	bool getLocationCoords(LocationCoords *outLocation) const;
@@ -116,11 +115,11 @@ private:
 	PhotoData *_photo = nullptr;
 	GameData *_game = nullptr;
 
-	std_::unique_ptr<MTPReplyMarkup> _mtpKeyboard;
+	std::unique_ptr<MTPReplyMarkup> _mtpKeyboard;
 
 	ImagePtr _thumb, _locationThumb;
 
-	std_::unique_ptr<internal::SendData> sendData;
+	std::unique_ptr<internal::SendData> sendData;
 
 };
 

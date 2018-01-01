@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "media/view/media_clip_volume_controller.h"
 
 #include "styles/style_mediaview.h"
@@ -93,11 +92,11 @@ void VolumeController::mouseReleaseEvent(QMouseEvent *e) {
 	_downCoord = -1;
 }
 
-void VolumeController::enterEvent(QEvent *e) {
+void VolumeController::enterEventHook(QEvent *e) {
 	setOver(true);
 }
 
-void VolumeController::leaveEvent(QEvent *e) {
+void VolumeController::leaveEventHook(QEvent *e) {
 	setOver(false);
 }
 

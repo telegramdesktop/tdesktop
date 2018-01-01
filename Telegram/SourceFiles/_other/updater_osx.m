@@ -23,7 +23,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 NSString *appName = @"Telegram.app";
 NSString *appDir = nil;
 NSString *workDir = nil;
-NSString *crashReportArg = nil;
 
 #ifdef _DEBUG
 BOOL _debug = YES;
@@ -90,6 +89,7 @@ int main(int argc, const char * argv[]) {
 	openLog();
 	pid_t procId = 0;
 	BOOL update = YES, toSettings = NO, autoStart = NO, startInTray = NO, testMode = NO;
+	BOOL customWorkingDir = NO;
 	NSString *key = nil;
 	for (int i = 0; i < argc; ++i) {
 		if ([@"-workpath" isEqualToString:[NSString stringWithUTF8String:argv[i]]]) {
@@ -101,10 +101,6 @@ int main(int argc, const char * argv[]) {
 				NSNumberFormatter *formatter = [[NSNumberFormatter alloc] init];
 				[formatter setNumberStyle:NSNumberFormatterDecimalStyle];
 				procId = [[formatter numberFromString:[NSString stringWithUTF8String:argv[i]]] intValue];
-			}
-		} else if ([@"-crashreport" isEqualToString:[NSString stringWithUTF8String:argv[i]]]) {
-			if (++i < argc) {
-				crashReportArg = [NSString stringWithUTF8String:argv[i]];
 			}
 		} else if ([@"-noupdate" isEqualToString:[NSString stringWithUTF8String:argv[i]]]) {
 			update = NO;
@@ -118,11 +114,16 @@ int main(int argc, const char * argv[]) {
 			startInTray = YES;
 		} else if ([@"-testmode" isEqualToString:[NSString stringWithUTF8String:argv[i]]]) {
 			testMode = YES;
+		} else if ([@"-workdir_custom" isEqualToString:[NSString stringWithUTF8String:argv[i]]]) {
+			customWorkingDir = YES;
 		} else if ([@"-key" isEqualToString:[NSString stringWithUTF8String:argv[i]]]) {
 			if (++i < argc) key = [NSString stringWithUTF8String:argv[i]];
 		}
 	}
-	if (!workDir) workDir = appDir;
+	if (!workDir) {
+		workDir = appDir;
+		customWorkingDir = NO;
+	}
 	openLog();
 	NSMutableArray *argsArr = [[NSMutableArray alloc] initWithCapacity:argc];
 	for (int i = 0; i < argc; ++i) {
@@ -242,17 +243,19 @@ int main(int argc, const char * argv[]) {
 	}
 
 	NSString *appPath = [[NSArray arrayWithObjects:appDir, appRealName, nil] componentsJoinedByString:@""];
-	NSMutableArray *args = [[NSMutableArray alloc] initWithObjects: crashReportArg ? crashReportArg : @"-noupdate", nil];
-	if (!crashReportArg) {
-		if (toSettings) [args addObject:@"-tosettings"];
-		if (_debug) [args addObject:@"-debug"];
-		if (startInTray) [args addObject:@"-startintray"];
-		if (testMode) [args addObject:@"-testmode"];
-		if (autoStart) [args addObject:@"-autostart"];
-		if (key) {
-			[args addObject:@"-key"];
-			[args addObject:key];
-		}
+	NSMutableArray *args = [[NSMutableArray alloc] initWithObjects: @"-noupdate", nil];
+	if (toSettings) [args addObject:@"-tosettings"];
+	if (_debug) [args addObject:@"-debug"];
+	if (startInTray) [args addObject:@"-startintray"];
+	if (testMode) [args addObject:@"-testmode"];
+	if (autoStart) [args addObject:@"-autostart"];
+	if (key) {
+		[args addObject:@"-key"];
+		[args addObject:key];
+	}
+	if (customWorkingDir) {
+		[args addObject:@"-workdir"];
+		[args addObject:workDir];
 	}
 	writeLog([[NSArray arrayWithObjects:@"Running application '", appPath, @"' with args '", [args componentsJoinedByString:@"' '"], @"'..", nil] componentsJoinedByString:@""]);
 	NSError *error = nil;

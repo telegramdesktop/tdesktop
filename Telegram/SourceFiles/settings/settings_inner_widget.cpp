@@ -18,9 +18,9 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "settings/settings_inner_widget.h"
 
+#include "lang/lang_instance.h"
 #include "styles/style_settings.h"
 #include "settings/settings_cover.h"
 #include "settings/settings_block_widget.h"
@@ -35,71 +35,54 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Settings {
 
-InnerWidget::InnerWidget(QWidget *parent) : TWidget(parent)
+InnerWidget::InnerWidget(QWidget *parent) : LayerInner(parent)
+, _blocks(this)
 , _self(App::self()) {
 	refreshBlocks();
-	subscribe(Global::RefSelfChanged(), [this]() { selfUpdated(); });
+	subscribe(Global::RefSelfChanged(), [this] { fullRebuild(); });
+	subscribe(Lang::Current().updated(), [this] { fullRebuild(); });
 }
 
-void InnerWidget::selfUpdated() {
+void InnerWidget::fullRebuild() {
 	_self = App::self();
 	refreshBlocks();
-
-	if (_cover) {
-		_cover->setContentLeft(_contentLeft);
-		_cover->resizeToWidth(width());
-	}
-	for_const (auto block, _blocks) {
-		block->setContentLeft(_contentLeft);
-		block->resizeToWidth(width());
-	}
-	onBlockHeightUpdated();
 }
 
 void InnerWidget::refreshBlocks() {
-	_cover.destroyDelayed();
-	for_const (auto block, _blocks) {
-		block->hide();
-		block->deleteLater();
-	}
-	_blocks.clear();
-
 	if (App::quitting()) {
+		_cover.destroy();
+		_blocks.destroy();
 		return;
 	}
+	_cover = _self
+		? object_ptr<CoverWidget>(this, _self)
+		: nullptr;
+	_blocks = object_ptr<Ui::VerticalLayout>(this);
+	resizeToWidth(width(), _contentLeft);
+
 	if (_self) {
-		_cover.create(this, _self);
-		_blocks.push_back(new InfoWidget(this, _self));
-		_blocks.push_back(new NotificationsWidget(this, _self));
+		_blocks->add(object_ptr<InfoWidget>(this, _self));
+		_blocks->add(object_ptr<NotificationsWidget>(this, _self));
 	}
-	_blocks.push_back(new GeneralWidget(this, _self));
+	_blocks->add(object_ptr<GeneralWidget>(this, _self));
 	if (!cRetina()) {
-		_blocks.push_back(new ScaleWidget(this, _self));
+		_blocks->add(object_ptr<ScaleWidget>(this, _self));
 	}
 	if (_self) {
-		_blocks.push_back(new ChatSettingsWidget(this, _self));
-		_blocks.push_back(new BackgroundWidget(this, _self));
-		_blocks.push_back(new PrivacyWidget(this, _self));
+		_blocks->add(object_ptr<ChatSettingsWidget>(this, _self));
+		_blocks->add(object_ptr<BackgroundWidget>(this, _self));
+		_blocks->add(object_ptr<PrivacyWidget>(this, _self));
 	}
-	_blocks.push_back(new AdvancedWidget(this, _self));
+	_blocks->add(object_ptr<AdvancedWidget>(this, _self));
 
 	if (_cover) {
 		_cover->show();
-		if (_showFinished) {
-			_cover->showFinished();
-		}
 	}
-	for_const (auto block, _blocks) {
-		block->show();
-		connect(block, SIGNAL(heightUpdated()), this, SLOT(onBlockHeightUpdated()));
-	}
-}
-
-void InnerWidget::showFinished() {
-	_showFinished = true;
-	if (_cover) {
-		_cover->showFinished();
-	}
+	_blocks->show();
+	_blocks->heightValue(
+	) | rpl::start_with_next([this](int blocksHeight) {
+		resize(width(), _blocks->y() + blocksHeight);
+	}, lifetime());
 }
 
 int InnerWidget::resizeGetHeight(int newWidth) {
@@ -107,44 +90,25 @@ int InnerWidget::resizeGetHeight(int newWidth) {
 		_cover->setContentLeft(_contentLeft);
 		_cover->resizeToWidth(newWidth);
 	}
-	for_const (auto block, _blocks) {
-		block->setContentLeft(_contentLeft);
-		block->resizeToWidth(newWidth);
-	}
-
-	int result = refreshBlocksPositions(newWidth);
-	return result;
+	_blocks->resizeToWidth(newWidth - 2 * _contentLeft);
+	_blocks->moveToLeft(
+		_contentLeft,
+		(_cover ? (_cover->y() + _cover->height()) : 0)
+			+ st::settingsBlocksTop);
+	return height();
 }
 
-int InnerWidget::refreshBlocksPositions(int newWidth) {
-	int result = (_cover ? _cover->height() : 0) + st::settingsBlocksTop;
-	for_const (auto block, _blocks) {
-		if (block->isHidden()) {
-			continue;
-		}
-
-		block->moveToLeft(0, result, newWidth);
-		result += block->height();
-	}
-	return result;
-}
-
-void InnerWidget::onBlockHeightUpdated() {
-	int newHeight = refreshBlocksPositions(width());
-	if (newHeight != height()) {
-		resize(width(), newHeight);
-		emit heightUpdated();
-	}
-}
-
-void InnerWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
-	_visibleTop = visibleTop;
-	_visibleBottom = visibleBottom;
-
-	for_const (auto block, _blocks) {
-		int blockY = block->y();
-		block->setVisibleTopBottom(visibleTop - blockY, visibleBottom - blockY);
-	}
+void InnerWidget::visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) {
+	setChildVisibleTopBottom(
+		_cover,
+		visibleTop,
+		visibleBottom);
+	setChildVisibleTopBottom(
+		_blocks,
+		visibleTop,
+		visibleBottom);
 }
 
 } // namespace Settings

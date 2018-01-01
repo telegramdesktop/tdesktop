@@ -18,41 +18,20 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "application.h"
 
-#include "shortcuts.h"
-#include "pspecific.h"
-#include "fileuploader.h"
+#include "platform/platform_specific.h"
 #include "mainwidget.h"
-#include "lang.h"
-#include "boxes/confirmbox.h"
-#include "ui/filedialog.h"
-#include "ui/widgets/tooltip.h"
-#include "langloaderplain.h"
-#include "localstorage.h"
+#include "mainwindow.h"
+#include "storage/localstorage.h"
 #include "autoupdater.h"
-#include "core/observer.h"
-#include "observer_peer.h"
-#include "window/window_theme.h"
-#include "media/player/media_player_instance.h"
 #include "window/notifications_manager.h"
-#include "history/history_location_manager.h"
-#include "core/task_queue.h"
+#include "core/crash_reports.h"
+#include "messenger.h"
+#include "base/timer.h"
+#include "core/crash_report_window.h"
 
 namespace {
-
-void mtpStateChanged(int32 dc, int32 state) {
-	if (App::wnd()) {
-		App::wnd()->mtpStateChanged(dc, state);
-	}
-}
-
-void mtpSessionReset(int32 dc) {
-	if (App::main() && dc == MTP::maindc()) {
-		App::main()->getDifference();
-	}
-}
 
 QChar _toHex(ushort v) {
 	v = v & 0x000F;
@@ -94,10 +73,13 @@ QString _escapeFrom7bit(const QString &str) {
 
 } // namespace
 
-AppClass *AppObject = nullptr;
-
-Application::Application(int &argc, char **argv) : QApplication(argc, argv) {
-	QByteArray d(QFile::encodeName(QDir(cWorkingDir()).absolutePath()));
+Application::Application(
+		not_null<Core::Launcher*> launcher,
+		int &argc,
+		char **argv)
+: QApplication(argc, argv)
+, _launcher(launcher) {
+	const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
 	char h[33] = { 0 };
 	hashMd5Hex(d.constData(), d.size(), h);
 #ifndef OS_MAC_STORE
@@ -118,7 +100,8 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv) {
 	connect(this, SIGNAL(aboutToQuit()), this, SLOT(closeApplication()));
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	connect(&_updateCheckTimer, SIGNAL(timeout()), this, SLOT(updateCheck()));
+	_updateCheckTimer.create(this);
+	connect(_updateCheckTimer, SIGNAL(timeout()), this, SLOT(updateCheck()));
 	connect(this, SIGNAL(updateFailed()), this, SLOT(onUpdateFailed()));
 	connect(this, SIGNAL(updateReady()), this, SLOT(onUpdateReady()));
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
@@ -131,6 +114,8 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv) {
 		_localSocket.connectToServer(_localServerName);
 	}
 }
+
+Application::~Application() = default;
 
 bool Application::event(QEvent *e) {
 	if (e->type() == QEvent::Close) {
@@ -228,12 +213,12 @@ void Application::singleInstanceChecked() {
 	if (!Logs::started() || (!cManyInstance() && !Logs::instanceChecked())) {
 		new NotStartedWindow();
 	} else {
-		SignalHandlers::Status status = SignalHandlers::start();
-		if (status == SignalHandlers::CantOpen) {
+		const auto status = CrashReports::Start();
+		if (status == CrashReports::CantOpen) {
 			new NotStartedWindow();
-		} else if (status == SignalHandlers::LastCrashed) {
+		} else if (status == CrashReports::LastCrashed) {
 			if (Sandbox::LastCrashDump().isEmpty()) { // don't handle bad closing for now
-				if (SignalHandlers::restart() == SignalHandlers::CantOpen) {
+				if (CrashReports::Restart() == CrashReports::CantOpen) {
 					new NotStartedWindow();
 				} else {
 					Sandbox::launch();
@@ -264,6 +249,7 @@ void Application::newInstanceConnected() {
 }
 
 void Application::readClients() {
+	// This method can be called before Messenger is constructed.
 	QString startUrl;
 	QStringList toSend;
 	for (LocalClients::iterator i = _localClients.begin(), e = _localClients.end(); i != e; ++i) {
@@ -308,8 +294,8 @@ void Application::readClients() {
 	if (!startUrl.isEmpty()) {
 		cSetStartUrl(startUrl);
 	}
-	if (auto main = App::main()) {
-		main->checkStartUrl();
+	if (auto messenger = Messenger::InstancePointer()) {
+		messenger->checkStartUrl();
 	}
 }
 
@@ -332,15 +318,16 @@ void Application::startApplication() {
 	}
 }
 
+void Application::createMessenger() {
+	Expects(!App::quitting());
+	_messengerInstance = std::make_unique<Messenger>(_launcher);
+}
+
 void Application::closeApplication() {
 	if (App::launchState() == App::QuitProcessed) return;
 	App::setLaunchState(App::QuitProcessed);
 
-	if (auto manager = Window::Notifications::manager()) {
-		manager->clearAllFast();
-	}
-
-	delete base::take(AppObject);
+	_messengerInstance.reset();
 
 	Sandbox::finish();
 
@@ -363,10 +350,6 @@ void Application::closeApplication() {
 	}
 	_updateThread = 0;
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
-}
-
-void Application::onMainThreadTask() {
-	base::TaskQueue::ProcessMainTasks();
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -424,9 +407,9 @@ void Application::updateFailedCurrent(QNetworkReply::NetworkError e) {
 void Application::onUpdateReady() {
 	if (_updateChecker) {
 		_updateChecker->deleteLater();
-		_updateChecker = 0;
+		_updateChecker = nullptr;
 	}
-	_updateCheckTimer.stop();
+	_updateCheckTimer->stop();
 
 	cSetLastUpdateCheck(unixtime());
 	Local::writeSettings();
@@ -477,8 +460,8 @@ void Application::stopUpdate() {
 void Application::startUpdateCheck(bool forceWait) {
 	if (!Sandbox::started()) return;
 
-	_updateCheckTimer.stop();
-	if (_updateThread || _updateReply || !cAutoUpdate()) return;
+	_updateCheckTimer->stop();
+	if (_updateThread || _updateReply || !cAutoUpdate() || cExeName().isEmpty()) return;
 
 	int32 constDelay = cBetaVersion() ? 600 : UpdateDelayConstPart, randDelay = cBetaVersion() ? 300 : UpdateDelayRandPart;
 	int32 updateInSecs = cLastUpdateCheck() + constDelay + int32(rand() % randDelay) - unixtime();
@@ -515,7 +498,7 @@ void Application::startUpdateCheck(bool forceWait) {
 		connect(_updateReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(updateFailedCurrent(QNetworkReply::NetworkError)));
 		emit updateChecking();
 	} else {
-		_updateCheckTimer.start((updateInSecs + 5) * 1000);
+		_updateCheckTimer->start((updateInSecs + 5) * 1000);
 	}
 }
 
@@ -527,601 +510,155 @@ inline Application *application() {
 
 namespace Sandbox {
 
-	QRect availableGeometry() {
-		if (Application *a = application()) {
-			return a->desktop()->availableGeometry();
-		}
-		return QDesktopWidget().availableGeometry();
+QRect availableGeometry() {
+	if (auto a = application()) {
+		return a->desktop()->availableGeometry();
 	}
-
-	QRect screenGeometry(const QPoint &p) {
-		if (Application *a = application()) {
-			return a->desktop()->screenGeometry(p);
-		}
-		return QDesktopWidget().screenGeometry(p);
-	}
-
-	void setActiveWindow(QWidget *window) {
-		if (Application *a = application()) {
-			a->setActiveWindow(window);
-		}
-	}
-
-	bool isSavingSession() {
-		if (Application *a = application()) {
-			return a->isSavingSession();
-		}
-		return false;
-	}
-
-	void installEventFilter(QObject *filter) {
-		if (Application *a = application()) {
-			a->installEventFilter(filter);
-		}
-	}
-
-	void removeEventFilter(QObject *filter) {
-		if (Application *a = application()) {
-			a->removeEventFilter(filter);
-		}
-	}
-
-	void execExternal(const QString &cmd) {
-		DEBUG_LOG(("Application Info: executing external command '%1'").arg(cmd));
-		if (cmd == "show") {
-			if (App::wnd()) {
-				App::wnd()->activate();
-			} else if (PreLaunchWindow::instance()) {
-				PreLaunchWindow::instance()->activate();
-			}
-		}
-	}
-
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-
-	void startUpdateCheck() {
-		if (Application *a = application()) {
-			return a->startUpdateCheck(false);
-		}
-	}
-
-	void stopUpdate() {
-		if (Application *a = application()) {
-			return a->stopUpdate();
-		}
-	}
-
-	Application::UpdatingState updatingState() {
-		if (Application *a = application()) {
-			return a->updatingState();
-		}
-		return Application::UpdatingNone;
-	}
-
-	int32 updatingSize() {
-		if (Application *a = application()) {
-			return a->updatingSize();
-		}
-		return 0;
-	}
-
-	int32 updatingReady() {
-		if (Application *a = application()) {
-			return a->updatingReady();
-		}
-		return 0;
-	}
-
-	void updateChecking() {
-		if (Application *a = application()) {
-			emit a->updateChecking();
-		}
-	}
-
-	void updateLatest() {
-		if (Application *a = application()) {
-			emit a->updateLatest();
-		}
-	}
-
-	void updateProgress(qint64 ready, qint64 total) {
-		if (Application *a = application()) {
-			emit a->updateProgress(ready, total);
-		}
-	}
-
-	void updateFailed() {
-		if (Application *a = application()) {
-			emit a->updateFailed();
-		}
-	}
-
-	void updateReady() {
-		if (Application *a = application()) {
-			emit a->updateReady();
-		}
-	}
-
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
-
-	void connect(const char *signal, QObject *object, const char *method) {
-		if (Application *a = application()) {
-			a->connect(a, signal, object, method);
-		}
-	}
-
-	void launch() {
-		t_assert(application() != 0);
-
-		float64 dpi = Application::primaryScreen()->logicalDotsPerInch();
-		if (dpi <= 108) { // 0-96-108
-			cSetScreenScale(dbisOne);
-		} else if (dpi <= 132) { // 108-120-132
-			cSetScreenScale(dbisOneAndQuarter);
-		} else if (dpi <= 168) { // 132-144-168
-			cSetScreenScale(dbisOneAndHalf);
-		} else { // 168-192-inf
-			cSetScreenScale(dbisTwo);
-		}
-
-		auto devicePixelRatio = application()->devicePixelRatio();
-		if (devicePixelRatio > 1.) {
-			if ((cPlatform() != dbipMac && cPlatform() != dbipMacOld) || (devicePixelRatio != 2.)) {
-				LOG(("Found non-trivial Device Pixel Ratio: %1").arg(devicePixelRatio));
-				LOG(("Environmental variables: QT_DEVICE_PIXEL_RATIO='%1'").arg(QString::fromLatin1(qgetenv("QT_DEVICE_PIXEL_RATIO"))));
-				LOG(("Environmental variables: QT_SCALE_FACTOR='%1'").arg(QString::fromLatin1(qgetenv("QT_SCALE_FACTOR"))));
-				LOG(("Environmental variables: QT_AUTO_SCREEN_SCALE_FACTOR='%1'").arg(QString::fromLatin1(qgetenv("QT_AUTO_SCREEN_SCALE_FACTOR"))));
-				LOG(("Environmental variables: QT_SCREEN_SCALE_FACTORS='%1'").arg(QString::fromLatin1(qgetenv("QT_SCREEN_SCALE_FACTORS"))));
-			}
-			cSetRetina(true);
-			cSetRetinaFactor(devicePixelRatio);
-			cSetIntRetinaFactor(int32(cRetinaFactor()));
-			cSetConfigScale(dbisOne);
-			cSetRealScale(dbisOne);
-		}
-
-		new AppClass();
-	}
-
+	return QDesktopWidget().availableGeometry();
 }
 
-AppClass::AppClass() : QObject() {
-	AppObject = this;
-
-	Fonts::start();
-
-	ThirdParty::start();
-	Global::start();
-	Local::start();
-	if (Local::oldSettingsVersion() < AppVersion) {
-		psNewVersion();
+QRect screenGeometry(const QPoint &p) {
+	if (auto a = application()) {
+		return a->desktop()->screenGeometry(p);
 	}
+	return QDesktopWidget().screenGeometry(p);
+}
 
-	if (cLaunchMode() == LaunchModeAutoStart && !cAutoStart()) {
-		psAutoStart(false, true);
-		application()->quit();
-		return;
-	}
-
-	if (cRetina()) {
-		cSetConfigScale(dbisOne);
-		cSetRealScale(dbisOne);
-	}
-	loadLanguage();
-	style::startManager();
-	anim::startManager();
-	historyInit();
-	Media::Player::start();
-	Window::Notifications::start();
-
-	DEBUG_LOG(("Application Info: inited..."));
-
-	application()->installNativeEventFilter(psNativeEventFilter());
-
-	cChangeTimeFormat(QLocale::system().timeFormat(QLocale::ShortFormat));
-
-	connect(&killDownloadSessionsTimer, SIGNAL(timeout()), this, SLOT(killDownloadSessions()));
-
-	DEBUG_LOG(("Application Info: starting app..."));
-
-	// Create mime database, so it won't be slow later.
-	QMimeDatabase().mimeTypeForName(qsl("text/plain"));
-
-	_window = new MainWindow();
-	_window->createWinId();
-	_window->init();
-
-	Sandbox::connect(SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onAppStateChanged(Qt::ApplicationState)));
-
-	DEBUG_LOG(("Application Info: window created..."));
-
-	Shortcuts::start();
-
-	initLocationManager();
-	App::initMedia();
-
-	Local::ReadMapState state = Local::readMap(QByteArray());
-	if (state == Local::ReadMapPassNeeded) {
-		Global::SetLocalPasscode(true);
-		Global::RefLocalPasscodeChanged().notify();
-		DEBUG_LOG(("Application Info: passcode needed..."));
-	} else {
-		DEBUG_LOG(("Application Info: local map read..."));
-		MTP::start();
-	}
-
-	MTP::setStateChangedHandler(mtpStateChanged);
-	MTP::setSessionResetHandler(mtpSessionReset);
-
-	DEBUG_LOG(("Application Info: MTP started..."));
-
-	DEBUG_LOG(("Application Info: showing."));
-	if (state == Local::ReadMapPassNeeded) {
-		_window->setupPasscode();
-	} else {
-		if (MTP::authedId()) {
-			_window->setupMain();
-		} else {
-			_window->setupIntro();
-		}
-	}
-	_window->firstShow();
-
-	if (cStartToSettings()) {
-		_window->showSettings();
-	}
-
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-	QNetworkProxyFactory::setUseSystemConfiguration(true);
-#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
-
-	if (state != Local::ReadMapPassNeeded) {
-		checkMapVersion();
-	}
-
-	_window->updateIsActive(Global::OnlineFocusTimeout());
-
-	if (!Shortcuts::errors().isEmpty()) {
-		const QStringList &errors(Shortcuts::errors());
-		for (QStringList::const_iterator i = errors.cbegin(), e = errors.cend(); i != e; ++i) {
-			LOG(("Shortcuts Error: %1").arg(*i));
-		}
+void setActiveWindow(QWidget *window) {
+	if (auto a = application()) {
+		a->setActiveWindow(window);
 	}
 }
 
-void AppClass::loadLanguage() {
-	if (cLang() < languageTest) {
-		cSetLang(Sandbox::LangSystem());
-	}
-	if (cLang() == languageTest) {
-		if (QFileInfo(cLangFile()).exists()) {
-			LangLoaderPlain loader(cLangFile());
-			cSetLangErrors(loader.errors());
-			if (!cLangErrors().isEmpty()) {
-				LOG(("Lang load errors: %1").arg(cLangErrors()));
-			} else if (!loader.warnings().isEmpty()) {
-				LOG(("Lang load warnings: %1").arg(loader.warnings()));
-			}
-		} else {
-			cSetLang(languageDefault);
-		}
-	} else if (cLang() > languageDefault && cLang() < languageCount) {
-		LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[cLang()].c_str() + qsl(".strings"));
-		if (!loader.errors().isEmpty()) {
-			LOG(("Lang load errors: %1").arg(loader.errors()));
-		} else if (!loader.warnings().isEmpty()) {
-			LOG(("Lang load warnings: %1").arg(loader.warnings()));
-		}
-	}
-	application()->installTranslator(_translator = new Translator());
-}
-
-void AppClass::regPhotoUpdate(const PeerId &peer, const FullMsgId &msgId) {
-	photoUpdates.insert(msgId, peer);
-}
-
-bool AppClass::isPhotoUpdating(const PeerId &peer) {
-	for (QMap<FullMsgId, PeerId>::iterator i = photoUpdates.begin(), e = photoUpdates.end(); i != e; ++i) {
-		if (i.value() == peer) {
-			return true;
-		}
+bool isSavingSession() {
+	if (auto a = application()) {
+		return a->isSavingSession();
 	}
 	return false;
 }
 
-void AppClass::cancelPhotoUpdate(const PeerId &peer) {
-	for (QMap<FullMsgId, PeerId>::iterator i = photoUpdates.begin(), e = photoUpdates.end(); i != e;) {
-		if (i.value() == peer) {
-			i = photoUpdates.erase(i);
-		} else {
-			++i;
+void execExternal(const QString &cmd) {
+	DEBUG_LOG(("Application Info: executing external command '%1'").arg(cmd));
+	if (cmd == "show") {
+		if (App::wnd()) {
+			App::wnd()->activate();
+		} else if (PreLaunchWindow::instance()) {
+			PreLaunchWindow::instance()->activate();
 		}
 	}
 }
 
-void AppClass::selfPhotoCleared(const MTPUserProfilePhoto &result) {
-	if (!App::self()) return;
-	App::self()->setPhoto(result);
-	emit peerPhotoDone(App::self()->id);
-}
-
-void AppClass::chatPhotoCleared(PeerId peer, const MTPUpdates &updates) {
-	if (App::main()) {
-		App::main()->sentUpdatesReceived(updates);
+void adjustSingleTimers() {
+	if (auto a = application()) {
+		a->adjustSingleTimers();
 	}
-	cancelPhotoUpdate(peer);
-	emit peerPhotoDone(peer);
+	base::Timer::Adjust();
 }
 
-void AppClass::selfPhotoDone(const MTPphotos_Photo &result) {
-	if (!App::self()) return;
-	const auto &photo(result.c_photos_photo());
-	App::feedPhoto(photo.vphoto);
-	App::feedUsers(photo.vusers);
-	cancelPhotoUpdate(App::self()->id);
-	emit peerPhotoDone(App::self()->id);
-}
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 
-void AppClass::chatPhotoDone(PeerId peer, const MTPUpdates &updates) {
-	if (App::main()) {
-		App::main()->sentUpdatesReceived(updates);
+void startUpdateCheck() {
+	if (auto a = application()) {
+		return a->startUpdateCheck(false);
 	}
-	cancelPhotoUpdate(peer);
-	emit peerPhotoDone(peer);
 }
 
-bool AppClass::peerPhotoFail(PeerId peer, const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	LOG(("Application Error: update photo failed %1: %2").arg(error.type()).arg(error.description()));
-	cancelPhotoUpdate(peer);
-	emit peerPhotoFail(peer);
-	return true;
+void stopUpdate() {
+	if (auto a = application()) {
+		return a->stopUpdate();
+	}
 }
 
-void AppClass::peerClearPhoto(PeerId id) {
-	if (MTP::authedId() && peerToUser(id) == MTP::authedId()) {
-		MTP::send(MTPphotos_UpdateProfilePhoto(MTP_inputPhotoEmpty()), rpcDone(&AppClass::selfPhotoCleared), rpcFail(&AppClass::peerPhotoFail, id));
-	} else if (peerIsChat(id)) {
-		MTP::send(MTPmessages_EditChatPhoto(peerToBareMTPInt(id), MTP_inputChatPhotoEmpty()), rpcDone(&AppClass::chatPhotoCleared, id), rpcFail(&AppClass::peerPhotoFail, id));
-	} else if (peerIsChannel(id)) {
-		if (ChannelData *channel = App::channelLoaded(id)) {
-			MTP::send(MTPchannels_EditPhoto(channel->inputChannel, MTP_inputChatPhotoEmpty()), rpcDone(&AppClass::chatPhotoCleared, id), rpcFail(&AppClass::peerPhotoFail, id));
+Application::UpdatingState updatingState() {
+	if (auto a = application()) {
+		return a->updatingState();
+	}
+	return Application::UpdatingNone;
+}
+
+int32 updatingSize() {
+	if (auto a = application()) {
+		return a->updatingSize();
+	}
+	return 0;
+}
+
+int32 updatingReady() {
+	if (auto a = application()) {
+		return a->updatingReady();
+	}
+	return 0;
+}
+
+void updateChecking() {
+	if (auto a = application()) {
+		emit a->updateChecking();
+	}
+}
+
+void updateLatest() {
+	if (auto a = application()) {
+		emit a->updateLatest();
+	}
+}
+
+void updateProgress(qint64 ready, qint64 total) {
+	if (auto a = application()) {
+		emit a->updateProgress(ready, total);
+	}
+}
+
+void updateFailed() {
+	if (auto a = application()) {
+		emit a->updateFailed();
+	}
+}
+
+void updateReady() {
+	if (auto a = application()) {
+		emit a->updateReady();
+	}
+}
+
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
+
+void connect(const char *signal, QObject *object, const char *method) {
+	if (auto a = application()) {
+		a->connect(a, signal, object, method);
+	}
+}
+
+void launch() {
+	Assert(application() != 0);
+
+	float64 dpi = Application::primaryScreen()->logicalDotsPerInch();
+	if (dpi <= 108) { // 0-96-108
+		cSetScreenScale(dbisOne);
+	} else if (dpi <= 132) { // 108-120-132
+		cSetScreenScale(dbisOneAndQuarter);
+	} else if (dpi <= 168) { // 132-144-168
+		cSetScreenScale(dbisOneAndHalf);
+	} else { // 168-192-inf
+		cSetScreenScale(dbisTwo);
+	}
+
+	auto devicePixelRatio = application()->devicePixelRatio();
+	if (devicePixelRatio > 1.) {
+		if ((cPlatform() != dbipMac && cPlatform() != dbipMacOld) || (devicePixelRatio != 2.)) {
+			LOG(("Found non-trivial Device Pixel Ratio: %1").arg(devicePixelRatio));
+			LOG(("Environmental variables: QT_DEVICE_PIXEL_RATIO='%1'").arg(QString::fromLatin1(qgetenv("QT_DEVICE_PIXEL_RATIO"))));
+			LOG(("Environmental variables: QT_SCALE_FACTOR='%1'").arg(QString::fromLatin1(qgetenv("QT_SCALE_FACTOR"))));
+			LOG(("Environmental variables: QT_AUTO_SCREEN_SCALE_FACTOR='%1'").arg(QString::fromLatin1(qgetenv("QT_AUTO_SCREEN_SCALE_FACTOR"))));
+			LOG(("Environmental variables: QT_SCREEN_SCALE_FACTORS='%1'").arg(QString::fromLatin1(qgetenv("QT_SCREEN_SCALE_FACTORS"))));
 		}
+		cSetRetina(true);
+		cSetRetinaFactor(devicePixelRatio);
+		cSetIntRetinaFactor(int32(cRetinaFactor()));
+		cSetConfigScale(dbisOne);
+		cSetRealScale(dbisOne);
 	}
+
+	application()->createMessenger();
 }
 
-void AppClass::killDownloadSessionsStart(int32 dc) {
-	if (killDownloadSessionTimes.constFind(dc) == killDownloadSessionTimes.cend()) {
-		killDownloadSessionTimes.insert(dc, getms() + MTPAckSendWaiting + MTPKillFileSessionTimeout);
-	}
-	if (!killDownloadSessionsTimer.isActive()) {
-		killDownloadSessionsTimer.start(MTPAckSendWaiting + MTPKillFileSessionTimeout + 5);
-	}
-}
-
-void AppClass::killDownloadSessionsStop(int32 dc) {
-	killDownloadSessionTimes.remove(dc);
-	if (killDownloadSessionTimes.isEmpty() && killDownloadSessionsTimer.isActive()) {
-		killDownloadSessionsTimer.stop();
-	}
-}
-
-void AppClass::checkLocalTime() {
-	if (App::main()) App::main()->checkLastUpdate(checkms());
-}
-
-void AppClass::onAppStateChanged(Qt::ApplicationState state) {
-	checkLocalTime();
-	if (_window) {
-		_window->updateIsActive((state == Qt::ApplicationActive) ? Global::OnlineFocusTimeout() : Global::OfflineBlurTimeout());
-	}
-	if (state != Qt::ApplicationActive) {
-		Ui::Tooltip::Hide();
-	}
-}
-
-void AppClass::call_handleHistoryUpdate() {
-	Notify::handlePendingHistoryUpdate();
-}
-
-void AppClass::call_handleUnreadCounterUpdate() {
-	Global::RefUnreadCounterUpdate().notify(true);
-}
-
-void AppClass::call_handleFileDialogQueue() {
-	while (true) {
-		if (!FileDialog::processQuery()) {
-			return;
-		}
-	}
-}
-
-void AppClass::call_handleDelayedPeerUpdates() {
-	Notify::peerUpdatedSendDelayed();
-}
-
-void AppClass::call_handleObservables() {
-	base::HandleObservables();
-}
-
-void AppClass::killDownloadSessions() {
-	auto ms = getms(), left = static_cast<TimeMs>(MTPAckSendWaiting) + MTPKillFileSessionTimeout;
-	for (auto i = killDownloadSessionTimes.begin(); i != killDownloadSessionTimes.end(); ) {
-		if (i.value() <= ms) {
-			for (int j = 0; j < MTPDownloadSessionsCount; ++j) {
-				MTP::stopSession(MTP::dldDcId(i.key(), j));
-			}
-			i = killDownloadSessionTimes.erase(i);
-		} else {
-			if (i.value() - ms < left) {
-				left = i.value() - ms;
-			}
-			++i;
-		}
-	}
-	if (!killDownloadSessionTimes.isEmpty()) {
-		killDownloadSessionsTimer.start(left);
-	}
-}
-
-void AppClass::photoUpdated(const FullMsgId &msgId, bool silent, const MTPInputFile &file) {
-	if (!App::self()) return;
-
-	auto i = photoUpdates.find(msgId);
-	if (i != photoUpdates.end()) {
-		auto id = i.value();
-		if (MTP::authedId() && peerToUser(id) == MTP::authedId()) {
-			MTP::send(MTPphotos_UploadProfilePhoto(file), rpcDone(&AppClass::selfPhotoDone), rpcFail(&AppClass::peerPhotoFail, id));
-		} else if (peerIsChat(id)) {
-			auto history = App::history(id);
-			history->sendRequestId = MTP::send(MTPmessages_EditChatPhoto(history->peer->asChat()->inputChat, MTP_inputChatUploadedPhoto(file)), rpcDone(&AppClass::chatPhotoDone, id), rpcFail(&AppClass::peerPhotoFail, id), 0, 0, history->sendRequestId);
-		} else if (peerIsChannel(id)) {
-			auto history = App::history(id);
-			history->sendRequestId = MTP::send(MTPchannels_EditPhoto(history->peer->asChannel()->inputChannel, MTP_inputChatUploadedPhoto(file)), rpcDone(&AppClass::chatPhotoDone, id), rpcFail(&AppClass::peerPhotoFail, id), 0, 0, history->sendRequestId);
-		}
-	}
-}
-
-void AppClass::onSwitchDebugMode() {
-	if (cDebug()) {
-		QFile(cWorkingDir() + qsl("tdata/withdebug")).remove();
-		cSetDebug(false);
-		App::restart();
-	} else {
-		cSetDebug(true);
-		DEBUG_LOG(("Debug logs started."));
-		QFile f(cWorkingDir() + qsl("tdata/withdebug"));
-		if (f.open(QIODevice::WriteOnly)) {
-			f.write("1");
-			f.close();
-		}
-		Ui::hideLayer();
-	}
-}
-
-void AppClass::onSwitchWorkMode() {
-	Global::SetDialogsModeEnabled(!Global::DialogsModeEnabled());
-	Global::SetDialogsMode(Dialogs::Mode::All);
-	Local::writeUserSettings();
-	App::restart();
-}
-
-void AppClass::onSwitchTestMode() {
-	if (cTestMode()) {
-		QFile(cWorkingDir() + qsl("tdata/withtestmode")).remove();
-		cSetTestMode(false);
-	} else {
-		QFile f(cWorkingDir() + qsl("tdata/withtestmode"));
-		if (f.open(QIODevice::WriteOnly)) {
-			f.write("1");
-			f.close();
-		}
-		cSetTestMode(true);
-	}
-	App::restart();
-}
-
-FileUploader *AppClass::uploader() {
-	if (!_uploader && !App::quitting()) _uploader = new FileUploader();
-	return _uploader;
-}
-
-void AppClass::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId) {
-	PreparedPhotoThumbs photoThumbs;
-	QVector<MTPPhotoSize> photoSizes;
-
-	auto thumb = App::pixmapFromImageInPlace(tosend.scaled(160, 160, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-	photoThumbs.insert('a', thumb);
-	photoSizes.push_back(MTP_photoSize(MTP_string("a"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0)));
-
-	auto medium = App::pixmapFromImageInPlace(tosend.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-	photoThumbs.insert('b', medium);
-	photoSizes.push_back(MTP_photoSize(MTP_string("b"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(medium.width()), MTP_int(medium.height()), MTP_int(0)));
-
-	auto full = QPixmap::fromImage(tosend, Qt::ColorOnly);
-	photoThumbs.insert('c', full);
-	photoSizes.push_back(MTP_photoSize(MTP_string("c"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0)));
-
-	QByteArray jpeg;
-	QBuffer jpegBuffer(&jpeg);
-	full.save(&jpegBuffer, "JPG", 87);
-
-	PhotoId id = rand_value<PhotoId>();
-
-	MTPDphoto::Flags photoFlags = 0;
-	auto photo = MTP_photo(MTP_flags(photoFlags), MTP_long(id), MTP_long(0), MTP_int(unixtime()), MTP_vector<MTPPhotoSize>(photoSizes));
-
-	QString file, filename;
-	int32 filesize = 0;
-	QByteArray data;
-
-	SendMediaReady ready(SendMediaType::Photo, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, 0);
-
-	connect(App::uploader(), SIGNAL(photoReady(const FullMsgId&,bool,const MTPInputFile&)), App::app(), SLOT(photoUpdated(const FullMsgId&,bool,const MTPInputFile&)), Qt::UniqueConnection);
-
-	FullMsgId newId(peerToChannel(peerId), clientMsgId());
-	App::app()->regPhotoUpdate(peerId, newId);
-	App::uploader()->uploadMedia(newId, ready);
-}
-
-void AppClass::checkMapVersion() {
-    if (Local::oldMapVersion() < AppVersion) {
-		if (Local::oldMapVersion()) {
-			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000001) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Resize chats list with mouse press-and-drag\n\xe2\x80\x94 Drag-n-drop images from Firefox fixed in Windows\n\xe2\x80\x94 Bug fixes and other minor improvements");
-			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000000) {
-				versionFeatures = langNewVersionText();
-			} else {
-				versionFeatures = lang(lng_new_version_minor).trimmed();
-			}
-			if (!versionFeatures.isEmpty()) {
-				versionFeatures = lng_new_version_wrap(lt_version, QString::fromLatin1(AppVersionStr.c_str()), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/changelog"));
-				_window->serviceNotificationLocal(versionFeatures);
-			}
-		}
-	}
-}
-
-AppClass::~AppClass() {
-	Shortcuts::finish();
-
-	delete base::take(_window);
-	App::clearHistories();
-
-	Window::Notifications::finish();
-
-	anim::stopManager();
-
-	stopWebLoadManager();
-	App::deinitMedia();
-	deinitLocationManager();
-
-	MTP::finish();
-
-	AppObject = nullptr;
-	delete base::take(_uploader);
-	delete base::take(_translator);
-
-	Window::Theme::Unload();
-
-	Media::Player::finish();
-	style::stopManager();
-
-	Local::finish();
-	Global::finish();
-	ThirdParty::finish();
-}
-
-AppClass *AppClass::app() {
-	return AppObject;
-}
-
-MainWindow *AppClass::wnd() {
-	return AppObject ? AppObject->_window : nullptr;
-}
-
-MainWidget *AppClass::main() {
-	return (AppObject && AppObject->_window) ? AppObject->_window->mainWidget() : nullptr;
-}
+} // namespace Sandbox

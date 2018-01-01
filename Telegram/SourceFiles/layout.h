@@ -20,17 +20,43 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "core/runtime_composer.h"
+#include "base/runtime_composer.h"
 
-static constexpr TextSelection FullSelection = { 0xFFFF, 0xFFFF };
+constexpr auto FullSelection = TextSelection { 0xFFFF, 0xFFFF };
 
-extern TextParseOptions _textNameOptions, _textDlgOptions;
-extern TextParseOptions _historyTextOptions, _historyBotOptions, _historyTextNoMonoOptions, _historyBotNoMonoOptions;
+inline bool IsSubGroupSelection(TextSelection selection) {
+	return (selection.from == 0xFFFF) && (selection.to != 0xFFFF);
+}
 
-const TextParseOptions &itemTextOptions(History *h, PeerData *f);
-const TextParseOptions &itemTextOptions(const HistoryItem *item);
-const TextParseOptions &itemTextNoMonoOptions(History *h, PeerData *f);
-const TextParseOptions &itemTextNoMonoOptions(const HistoryItem *item);
+inline bool IsGroupItemSelection(
+		TextSelection selection,
+		int index) {
+	Expects(index >= 0 && index < 0x0F);
+
+	return IsSubGroupSelection(selection) && (selection.to & (1 << index));
+}
+
+[[nodiscard]] inline TextSelection AddGroupItemSelection(
+		TextSelection selection,
+		int index) {
+	Expects(index >= 0 && index < 0x0F);
+
+	const auto bit = uint16(1U << index);
+	return TextSelection(
+		0xFFFF,
+		IsSubGroupSelection(selection) ? (selection.to | bit) : bit);
+}
+
+[[nodiscard]] inline TextSelection RemoveGroupItemSelection(
+		TextSelection selection,
+		int index) {
+	Expects(index >= 0 && index < 0x0F);
+
+	const auto bit = uint16(1U << index);
+	return IsSubGroupSelection(selection)
+		? TextSelection(0xFFFF, selection.to & ~bit)
+		: selection;
+}
 
 enum RoundCorners {
 	SmallMaskCorners = 0x00, // for images
@@ -50,8 +76,6 @@ enum RoundCorners {
 	EmojiHoverCorners,
 	StickerHoverCorners,
 	BotKeyboardCorners,
-	BotKeyboardOverCorners,
-	BotKeyboardDownCorners,
 	PhotoSelectOverlayCorners,
 
 	Doc1Corners,
@@ -77,12 +101,11 @@ static const int32 FileStatusSizeFailed = 0x7FFFFFF2;
 QString formatSizeText(qint64 size);
 QString formatDownloadText(qint64 ready, qint64 total);
 QString formatDurationText(qint64 duration);
+QString formatDurationWords(qint64 duration);
 QString formatDurationAndSizeText(qint64 duration, qint64 size);
 QString formatGifAndSizeText(qint64 size);
 QString formatPlayedText(qint64 played, qint64 duration);
 
-QString documentName(DocumentData *document);
-TextWithEntities documentNameWithEntities(DocumentData *document);
 int32 documentColorIndex(DocumentData *document, QString &ext);
 style::color documentColor(int colorIndex);
 style::color documentDarkColor(int colorIndex);
@@ -90,6 +113,7 @@ style::color documentOverColor(int colorIndex);
 style::color documentSelectedColor(int colorIndex);
 RoundCorners documentCorners(int colorIndex);
 bool documentIsValidMediaFile(const QString &filepath);
+bool documentIsExecutableName(const QString &filename);
 
 class PaintContextBase {
 public:
@@ -108,38 +132,39 @@ public:
 	LayoutItemBase(const LayoutItemBase &other) = delete;
 	LayoutItemBase &operator=(const LayoutItemBase &other) = delete;
 
-	int32 maxWidth() const {
+	int maxWidth() const {
 		return _maxw;
 	}
-	int32 minHeight() const {
+	int minHeight() const {
 		return _minh;
 	}
 	virtual void initDimensions() = 0;
-	virtual int32 resizeGetHeight(int32 width) {
+	virtual int resizeGetHeight(int width) {
 		_width = qMin(width, _maxw);
 		_height = _minh;
 		return _height;
 	}
 
-	virtual void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
-		link.clear();
-		cursor = HistoryDefaultCursorState;
+	[[nodiscard]] virtual HistoryTextState getState(
+			QPoint point,
+			HistoryStateRequest request) const {
+		return {};
 	}
-	virtual void getSymbol(uint16 &symbol, bool &after, bool &upon, int x, int y) const { // from text
-		upon = hasPoint(x, y);
-		symbol = upon ? 0xFFFF : 0;
-		after = false;
+	[[nodiscard]] virtual TextSelection adjustSelection(
+			TextSelection selection,
+			TextSelectType type) const {
+		return selection;
 	}
 
-	int32 width() const {
+	int width() const {
 		return _width;
 	}
-	int32 height() const {
+	int height() const {
 		return _height;
 	}
 
-	bool hasPoint(int x, int y) const {
-		return (x >= 0 && y >= 0 && x < width() && y < height());
+	bool hasPoint(QPoint point) const {
+		return QRect(0, 0, width(), height()).contains(point);
 	}
 
 	virtual ~LayoutItemBase() {

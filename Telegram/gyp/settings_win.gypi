@@ -35,9 +35,13 @@
         'VCCLCompilerTool': {
           'ProgramDataBaseFileName': '$(OutDir)\\$(ProjectName).pdb',
           'DebugInformationFormat': '3',          # Program Database (/Zi)
+          'WarnAsError': 'true',
           'AdditionalOptions': [
-            '/MP',   # Enable multi process build.
-            '/EHsc', # Catch C++ exceptions only, extern C functions never throw a C++ exception.
+            '/std:c++latest',
+            '/permissive-',
+            '/MP',     # Enable multi process build.
+            '/EHsc',   # Catch C++ exceptions only, extern C functions never throw a C++ exception.
+            '/w14834', # [[nodiscard]]
           ],
           'TreatWChar_tAsBuiltInType': 'false',
         },
@@ -54,25 +58,25 @@
         '$(ProjectName)',
       ],
       'libraries': [
-        'winmm',
-        'imm32',
-        'ws2_32',
-        'kernel32',
-        'user32',
-        'gdi32',
-        'winspool',
-        'comdlg32',
-        'advapi32',
-        'shell32',
-        'ole32',
-        'oleaut32',
-        'uuid',
-        'odbc32',
-        'odbccp32',
-        'Shlwapi',
-        'Iphlpapi',
-        'Gdiplus',
-        'Strmiids',
+        '-lwinmm',
+        '-limm32',
+        '-lws2_32',
+        '-lkernel32',
+        '-luser32',
+        '-lgdi32',
+        '-lwinspool',
+        '-lcomdlg32',
+        '-ladvapi32',
+        '-lshell32',
+        '-lole32',
+        '-loleaut32',
+        '-luuid',
+        '-lodbc32',
+        '-lodbccp32',
+        '-lShlwapi',
+        '-lIphlpapi',
+        '-lGdiplus',
+        '-lStrmiids',
       ],
 
       'configurations': {
@@ -105,11 +109,14 @@
               'OptimizeReferences': '2',
               'LinkTimeCodeGeneration': '1',       # /LTCG
             },
+            'VCLibrarianTool': {
+              'LinkTimeCodeGeneration': 'true',    # /LTCG
+            },
           },
         },
       },
       'conditions': [
-        [ '"<(official_build_target)" != "" and "<(official_build_target)" != "win"', {
+        [ '"<(official_build_target)" != "" and "<(official_build_target)" != "win" and "<(official_build_target)" != "uwp"', {
           'sources': [ '__Wrong_Official_Build_Target__' ],
         }],
       ],

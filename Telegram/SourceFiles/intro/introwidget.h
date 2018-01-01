@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "mtproto/sender.h"
+
 namespace Ui {
 class IconButton;
 class RoundButton;
@@ -28,12 +30,12 @@ class SlideAnimation;
 class CrossFadeAnimation;
 class FlatLabel;
 template <typename Widget>
-class WidgetFadeWrap;
+class FadeWrap;
 } // namespace Ui
 
 namespace Intro {
 
-class Widget : public TWidget, public RPCSender {
+class Widget : public TWidget, private MTP::Sender, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -63,7 +65,7 @@ public:
 	struct Data {
 		QString country;
 		QString phone;
-		QString phoneHash;
+		QByteArray phoneHash;
 		bool phoneIsRegistered = false;
 
 		enum class CallStatus {
@@ -92,7 +94,7 @@ public:
 		Forward,
 		Replace,
 	};
-	class Step : public TWidget, public RPCSender {
+	class Step : public TWidget, public RPCSender, protected base::Subscriber {
 	public:
 		Step(QWidget *parent, Data *data, bool hasCover = false);
 
@@ -100,8 +102,8 @@ public:
 			setFocus();
 		}
 
-		void setGoCallback(base::lambda<void(Step *step, Direction direction)> &&callback);
-		void setShowResetCallback(base::lambda<void()> &&callback);
+		void setGoCallback(base::lambda<void(Step *step, Direction direction)> callback);
+		void setShowResetCallback(base::lambda<void()> callback);
 
 		void prepareShowAnimated(Step *after);
 		void showAnimated(Direction direction);
@@ -122,9 +124,9 @@ public:
 
 		void setErrorCentered(bool centered);
 		void setErrorBelowLink(bool below);
-		void showError(const QString &text);
+		void showError(base::lambda<QString()> textFactory);
 		void hideError() {
-			showError(QString());
+			showError(base::lambda<QString()>());
 		}
 
 		~Step();
@@ -133,8 +135,8 @@ public:
 		void paintEvent(QPaintEvent *e) override;
 		void resizeEvent(QResizeEvent *e) override;
 
-		void setTitleText(QString richText);
-		void setDescriptionText(QString richText);
+		void setTitleText(base::lambda<QString()> richTitleTextFactory);
+		void setDescriptionText(base::lambda<QString()> richDescriptionTextFactory);
 		bool paintAnimated(Painter &p, QRect clip);
 
 		void fillSentCodeData(const MTPauth_SentCodeType &type);
@@ -145,7 +147,7 @@ public:
 		Data *getData() const {
 			return _data;
 		}
-		void finish(const MTPUser &user, QImage photo = QImage());
+		void finish(const MTPUser &user, QImage &&photo = QImage());
 
 		void goBack() {
 			if (_goCallback) _goCallback(nullptr, Direction::Back);
@@ -167,8 +169,8 @@ public:
 			CoverAnimation &operator=(CoverAnimation &&other) = default;
 			~CoverAnimation();
 
-			std_::unique_ptr<Ui::CrossFadeAnimation> title;
-			std_::unique_ptr<Ui::CrossFadeAnimation> description;
+			std::unique_ptr<Ui::CrossFadeAnimation> title;
+			std::unique_ptr<Ui::CrossFadeAnimation> description;
 
 			// From content top till the next button top.
 			QPixmap contentSnapshotWas;
@@ -176,6 +178,10 @@ public:
 		};
 		void updateLabelsPosition();
 		void paintContentSnapshot(Painter &p, const QPixmap &snapshot, float64 alpha, float64 howMuchHidden);
+		void refreshError();
+		void refreshTitle();
+		void refreshDescription();
+		void refreshLang();
 
 		CoverAnimation prepareCoverAnimation(Step *step);
 		QPixmap prepareContentSnapshot();
@@ -191,24 +197,27 @@ public:
 		base::lambda<void()> _showResetCallback;
 
 		object_ptr<Ui::FlatLabel> _title;
-		object_ptr<Ui::WidgetFadeWrap<Ui::FlatLabel>> _description;
+		base::lambda<QString()> _titleTextFactory;
+		object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _description;
+		base::lambda<QString()> _descriptionTextFactory;
 
 		bool _errorCentered = false;
 		bool _errorBelowLink = false;
-		QString _errorText;
-		object_ptr<Ui::WidgetFadeWrap<Ui::FlatLabel>> _error = { nullptr };
+		base::lambda<QString()> _errorTextFactory;
+		object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _error = { nullptr };
 
 		Animation _a_show;
 		CoverAnimation _coverAnimation;
-		std_::unique_ptr<Ui::SlideAnimation> _slideAnimation;
+		std::unique_ptr<Ui::SlideAnimation> _slideAnimation;
 		QPixmap _coverMask;
 
 	};
 
 private:
+	void refreshLang();
 	void animationCallback();
+	void createLanguageLink();
 
-	void changeLanguage(int32 languageId);
 	void updateControlsGeometry();
 	Data *getData() {
 		return &_data;
@@ -217,28 +226,26 @@ private:
 	void fixOrder();
 	void showControls();
 	void hideControls();
-	void moveControls();
 	QRect calculateStepRect() const;
 
 	void showResetButton();
 	void resetAccount();
-	void resetDone(const MTPBool &result);
-	bool resetFail(const RPCError &error);
 
-	Animation _a_show;
-	bool _showBack = false;
-	QPixmap _cacheUnder, _cacheOver;
-
-	QVector<Step*> _stepHistory;
 	Step *getStep(int skip = 0) {
-		t_assert(_stepHistory.size() + skip > 0);
+		Assert(_stepHistory.size() + skip > 0);
 		return _stepHistory.at(_stepHistory.size() - skip - 1);
 	}
 	void historyMove(Direction direction);
 	void moveToStep(Step *step, Direction direction);
 	void appendStep(Step *step);
 
-	void gotNearestDC(const MTPNearestDc &dc);
+	void getNearestDC();
+
+	Animation _a_show;
+	bool _showBack = false;
+	QPixmap _cacheUnder, _cacheOver;
+
+	QVector<Step*> _stepHistory;
 
 	Data _data;
 
@@ -246,13 +253,13 @@ private:
 	int _nextTopFrom = 0;
 	int _controlsTopFrom = 0;
 
-	object_ptr<Ui::WidgetFadeWrap<Ui::IconButton>> _back;
-	object_ptr<Ui::WidgetFadeWrap<Ui::RoundButton>> _update = { nullptr };
-	object_ptr<Ui::WidgetFadeWrap<Ui::RoundButton>> _settings;
+	object_ptr<Ui::FadeWrap<Ui::IconButton>> _back;
+	object_ptr<Ui::FadeWrap<Ui::RoundButton>> _update = { nullptr };
+	object_ptr<Ui::FadeWrap<Ui::RoundButton>> _settings;
 
 	object_ptr<Ui::RoundButton> _next;
-	object_ptr<Ui::WidgetFadeWrap<Ui::LinkButton>> _changeLanguage = { nullptr };
-	object_ptr<Ui::WidgetFadeWrap<Ui::RoundButton>> _resetAccount = { nullptr };
+	object_ptr<Ui::FadeWrap<Ui::LinkButton>> _changeLanguage = { nullptr };
+	object_ptr<Ui::FadeWrap<Ui::RoundButton>> _resetAccount = { nullptr };
 
 	mtpRequestId _resetRequest = 0;
 

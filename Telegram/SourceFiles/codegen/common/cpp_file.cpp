@@ -67,9 +67,6 @@ CppFile::CppFile(const QString &path, const ProjectInfo &project)
 
 	writeLicense(stream_, project);
 	if (cpp) {
-		if (!project.precompiledHeader.isEmpty()) {
-			include(project.precompiledHeader);
-		}
 		include(info.baseName() + ".h").newline();
 	} else {
 		stream() << "#pragma once";

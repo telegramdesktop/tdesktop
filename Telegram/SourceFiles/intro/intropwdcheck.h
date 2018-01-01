@@ -54,6 +54,8 @@ private slots:
 
 private:
 	void showReset();
+	void refreshLang();
+	void updateControlsGeometry();
 
 	void pwdSubmitDone(bool recover, const MTPauth_Authorization &result);
 	bool pwdSubmitFail(const RPCError &error);

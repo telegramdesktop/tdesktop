@@ -29,7 +29,7 @@ LabelSimple {
 
 FlatLabel {
 	margin: margins;
-	width: pixels;
+	minWidth: pixels;
 	align: align;
 	textFg: color;
 	maxHeight: pixels;
@@ -77,7 +77,6 @@ RoundButton {
 	numbersTextFg: color;
 	numbersTextFgOver: color;
 	numbersSkip: pixels;
-	numbersDuration: int;
 
 	width: pixels;
 	height: pixels;
@@ -92,31 +91,62 @@ RoundButton {
 	ripple: RippleAnimation;
 }
 
+Toggle {
+	toggledBg: color;
+	toggledFg: color;
+	untoggledBg: color;
+	untoggledFg: color;
+	duration: int;
+	border: pixels;
+	shift: pixels;
+	diameter: pixels;
+	width: pixels;
+	xsize: pixels;
+	vsize: pixels;
+	vshift: pixels;
+	stroke: pixels;
+	rippleAreaPadding: pixels;
+}
+
+Check {
+	bg: color;
+	untoggledFg: color;
+	toggledFg: color;
+	diameter: pixels;
+	thickness: pixels;
+	icon: icon;
+	duration: int;
+	rippleAreaPadding: pixels;
+}
+
+Radio {
+	bg: color;
+	untoggledFg: color;
+	toggledFg: color;
+	diameter: pixels;
+	thickness: pixels;
+	skip: pixels;
+	duration: int;
+	rippleAreaPadding: pixels;
+}
+
 Checkbox {
 	textFg: color;
 
-	checkBg: color;
-	checkFg: color;
-	checkFgActive: color;
-
 	width: pixels;
-	height: pixels;
 	margin: margins;
 
 	textPosition: point;
-	diameter: pixels;
-	thickness: pixels;
-	radioSkip: pixels;
-	checkIcon: icon;
+	checkPosition: point;
 
 	style: TextStyle;
-	duration: int;
 
 	rippleAreaPosition: point;
-	rippleAreaSize: pixels;
 	rippleBg: color;
 	rippleBgActive: color;
 	ripple: RippleAnimation;
+
+	disabledOpacity: double;
 }
 
 ScrollArea {
@@ -286,6 +316,8 @@ RoundCheckbox {
 	size: pixels;
 	sizeSmall: double;
 	duration: int;
+	bgDuration: double;
+	fgDuration: double;
 	check: icon;
 }
 
@@ -315,6 +347,7 @@ CrossButton {
 	crossFgOver:color;
 	crossPosition: point;
 	duration: int;
+	loadingPeriod: int;
 
 	ripple: RippleAnimation;
 }
@@ -351,6 +384,14 @@ MultiSelect {
 	fieldCancelSkip: pixels;
 }
 
+CallButton {
+	button: IconButton;
+	bg: color;
+	angle: double;
+	outerRadius: pixels;
+	outerBg: color;
+}
+
 Menu {
 	skip: pixels;
 
@@ -365,6 +406,9 @@ Menu {
 	itemPadding: margins;
 	itemIconPosition: point;
 	itemFont: font;
+	itemToggle: Toggle;
+	itemToggleOver: Toggle;
+	itemToggleShift: pixels;
 
 	separatorPadding: margins;
 	separatorWidth: pixels;
@@ -437,6 +481,50 @@ Tooltip {
 	linesMax: int;
 }
 
+ImportantTooltip {
+	bg: color;
+	margin: margins;
+	padding: margins;
+	radius: pixels;
+	arrow: pixels;
+	arrowSkipMin: pixels;
+	arrowSkip: pixels;
+	shift: pixels;
+	duration: int;
+}
+
+UserpicButton {
+	size: size;
+	photoSize: pixels;
+	photoPosition: point;
+	changeButton: RoundButton;
+	changeIcon: icon;
+	changeIconPosition: point;
+	duration: int;
+	uploadHeight: pixels;
+	uploadBg: color;
+	uploadIcon: icon;
+	uploadIconPosition: point;
+}
+
+InfoProfileButton {
+	textFg: color;
+	textFgOver: color;
+	textBg: color;
+	textBgOver: color;
+
+	font: font;
+
+	height: pixels;
+	padding: margins;
+
+	toggle: Toggle;
+	toggleOver: Toggle;
+	toggleSkip: pixels;
+
+	ripple: RippleAnimation;
+}
+
 defaultLabelSimple: LabelSimple {
 	font: normalFont;
 	maxWidth: 0px;
@@ -444,7 +532,7 @@ defaultLabelSimple: LabelSimple {
 }
 
 defaultFlatLabel: FlatLabel {
-	width: 0px;
+	minWidth: 0px;
 	maxHeight: 0px;
 	align: align(left);
 	textFg: windowFg;
@@ -477,7 +565,6 @@ defaultActiveButton: RoundButton {
 	textBgOver: activeButtonBgOver;
 
 	numbersSkip: 7px;
-	numbersDuration: 200;
 
 	width: -34px;
 	height: 34px;
@@ -543,7 +630,7 @@ defaultInputFont: font(17px);
 defaultFlatInput: FlatInput {
 	textColor: windowFg;
 	bgColor: filterInputInactiveBg;
-	bgActive: windowBg;
+	bgActive: filterInputActiveBg;
 	width: 210px;
 	height: 40px;
 	align: align(left);
@@ -586,7 +673,7 @@ attentionLeftOutlineButton: OutlineButton(defaultLeftOutlineButton) {
 	textBgOver: attentionButtonBgOver;
 
 	textFg: attentionButtonFg;
-	textFgOver: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
 
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: attentionButtonBgRipple;
@@ -624,35 +711,83 @@ defaultInputField: InputField {
 
 defaultCheckboxIcon: icon {{ "default_checkbox_check", windowFgActive, point(4px, 7px) }};
 
+defaultCheck: Check {
+	bg: transparent;
+	untoggledFg: checkboxFg;
+	toggledFg: windowBgActive;
+	diameter: 22px;
+	thickness: 2px;
+	icon: defaultCheckboxIcon;
+	duration: 120;
+	rippleAreaPadding: 8px;
+}
+defaultRadio: Radio {
+	bg: transparent;
+	untoggledFg: checkboxFg;
+	toggledFg: windowBgActive;
+	diameter: 22px;
+	thickness: 2px;
+	skip: 65px; // * 0.1
+	duration: 120;
+	rippleAreaPadding: 8px;
+}
+defaultToggle: Toggle {
+	toggledBg: windowBg;
+	toggledFg: windowBgActive;
+	untoggledBg: windowBg;
+	untoggledFg: checkboxFg;
+	duration: 120;
+	border: 2px;
+	shift: 1px;
+	diameter: 20px;
+	width: 16px;
+	xsize: 0px;
+	vsize: 0px;
+	vshift: 0px;
+	stroke: 0px;
+	rippleAreaPadding: 8px;
+}
 defaultCheckbox: Checkbox {
 	textFg: windowFg;
 
-	checkBg: transparent;
-	checkFg: checkboxFg;
-	checkFgActive: windowBgActive;
-
 	width: -44px;
-	height: 22px;
 	margin: margins(8px, 8px, 8px, 8px);
 
-	textPosition: point(32px, 2px);
-	diameter: 22px;
-	thickness: 2px;
-	checkIcon: defaultCheckboxIcon;
-	radioSkip: 65px; // * 0.1
+	textPosition: point(10px, 2px);
+	checkPosition: point(8px, 8px);
 
 	style: defaultTextStyle;
-	duration: 120;
 
-	rippleAreaSize: 38px;
-	rippleAreaPosition: point(0px, 0px);
+	rippleAreaPosition: point(-8px, -8px);
 	rippleBg: windowBgOver;
 	rippleBgActive: lightButtonBgOver;
 	ripple: defaultRippleAnimation;
+
+	disabledOpacity: 0.5;
 }
 
 defaultIconButton: IconButton {
 	iconPosition: point(-1px, -1px);
+}
+
+defaultMultiSelectItem: MultiSelectItem {
+	padding: margins(6px, 7px, 12px, 0px);
+	maxWidth: 128px;
+	height: 32px;
+	style: defaultTextStyle;
+	textBg: contactsBgOver;
+	textFg: windowFg;
+	textActiveBg: activeButtonBg;
+	textActiveFg: activeButtonFg;
+	deleteFg: activeButtonFg;
+	deleteCross: CrossAnimation {
+		size: 32px;
+		skip: 10px;
+		stroke: 2px;
+		minScale: 0.3;
+	}
+	duration: 150;
+	minScale: 0.3;
 }
 
 widgetSlideDuration: 200;
@@ -674,7 +809,6 @@ SettingsSlider {
 	labelFgActive: color;
 	duration: int;
 	rippleBottomSkip: pixels;
-	rippleRoundRadius: pixels;
 	rippleBg: color;
 	rippleBgActive: color;
 	ripple: RippleAnimation;
@@ -743,10 +877,18 @@ defaultRoundCheckbox: RoundCheckbox {
 	border: windowBg;
 	bgActive: windowBgActive;
 	width: 2px;
-	duration: 150;
+	duration: 160;
+	bgDuration: 0.75;
+	fgDuration: 1.;
 }
 
 defaultMenuArrow: icon {{ "dropdown_submenu_arrow", menuSubmenuArrowFg }};
+defaultMenuToggle: Toggle(defaultToggle) {
+	untoggledFg: menuIconFg;
+}
+defaultMenuToggleOver: Toggle(defaultToggle) {
+	untoggledFg: menuIconFgOver;
+}
 defaultMenu: Menu {
 	skip: 0px;
 
@@ -761,6 +903,9 @@ defaultMenu: Menu {
 	itemIconPosition: point(0px, 0px);
 	itemPadding: margins(17px, 8px, 17px, 7px);
 	itemFont: normalFont;
+	itemToggle: defaultMenuToggle;
+	itemToggleOver: defaultMenuToggleOver;
+	itemToggleShift: 0px;
 
 	separatorPadding: margins(0px, 5px, 0px, 5px);
 	separatorWidth: 1px;
@@ -814,6 +959,47 @@ defaultTooltip: Tooltip {
 
 	widthMax: 800px;
 	linesMax: 12;
+}
+
+defaultImportantTooltip: ImportantTooltip {
+	bg: importantTooltipBg;
+	margin: margins(4px, 4px, 4px, 4px);
+	padding: margins(13px, 9px, 13px, 10px);
+	radius: 6px;
+	arrow: 9px;
+	arrowSkipMin: 24px;
+	arrowSkip: 66px;
+	shift: 12px;
+	duration: 200;
+}
+
+defaultImportantTooltipLabel: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px);
+		linkFont: font(14px);
+		linkFontOver: font(14px underline);
+	}
+	textFg: importantTooltipFg;
+	palette: TextPalette(defaultTextPalette) {
+		linkFg: importantTooltipFgLink;
+		selectLinkFg: importantTooltipFgLink;
+	}
+}
+
+defaultChangeUserpicIcon: icon {{ "new_chat_photo", activeButtonFg }};
+defaultUploadUserpicIcon: icon {{ "upload_chat_photo", msgDateImgFg }};
+defaultUserpicButton: UserpicButton {
+	size: size(76px, 76px);
+	photoSize: 76px;
+	photoPosition: point(-1px, -1px);
+	changeButton: defaultActiveButton;
+	changeIcon: defaultChangeUserpicIcon;
+	changeIconPosition: point(23px, 25px);
+	duration: 500;
+	uploadHeight: 24px;
+	uploadBg: msgDateImgBgOver;
+	uploadIcon: defaultUploadUserpicIcon;
+	uploadIconPosition: point(-1px, 1px);
 }
 
 historyToDownBelow: icon {
@@ -893,12 +1079,87 @@ MediaPlayerButton {
 	ripple: RippleAnimation;
 }
 
-ProfilePeerListItem {
+PeerListItem {
 	left: pixels;
 	bottom: pixels;
+	height: pixels;
+	photoPosition: point;
+	namePosition: point;
+	nameStyle: TextStyle;
+	statusPosition: point;
+	photoSize: pixels;
+	maximalWidth: pixels;
 
 	button: OutlineButton;
 	statusFg: color;
 	statusFgOver: color;
 	statusFgActive: color;
+}
+
+PeerList {
+	padding: margins;
+	item: PeerListItem;
+}
+
+defaultPeerListButton: OutlineButton {
+	outlineWidth: 0px;
+
+	textBg: windowBg;
+	textBgOver: windowBgOver;
+
+	textFg: windowSubTextFg;
+	textFgOver: windowSubTextFgOver;
+
+	font: normalFont;
+	padding: margins(11px, 5px, 11px, 5px);
+
+	ripple: defaultRippleAnimation;
+}
+
+defaultPeerListItem: PeerListItem {
+	height: 58px;
+	photoPosition: point(12px, 6px);
+	namePosition: point(68px, 11px);
+	nameStyle: TextStyle(defaultTextStyle) {
+		font: semiboldFont;
+		linkFont: semiboldFont;
+		linkFontOver: semiboldFont;
+	}
+	statusPosition: point(68px, 31px);
+	photoSize: 46px;
+	button: defaultPeerListButton;
+	statusFg: windowSubTextFg;
+	statusFgOver: windowSubTextFgOver;
+	statusFgActive: windowActiveTextFg;
+}
+
+defaultPeerList: PeerList {
+	padding: margins(0px, 0px, 0px, 0px);
+	item: defaultPeerListItem;
+}
+
+SearchFieldRow {
+	height: pixels;
+	padding: margins;
+	field: InputField;
+	fieldIcon: icon;
+	fieldIconSkip: pixels;
+	fieldCancel: CrossButton;
+	fieldCancelSkip: pixels;
+}
+
+InfoTopBar {
+	height: pixels;
+	back: IconButton;
+	title: FlatLabel;
+	titlePosition: point;
+	bg: color;
+	mediaCancel: IconButton;
+	mediaActionsSkip: pixels;
+	mediaForward: IconButton;
+	mediaDelete: IconButton;
+	search: IconButton;
+	searchRow: SearchFieldRow;
+	highlightBg: color;
+	highlightDuration: int;
 }

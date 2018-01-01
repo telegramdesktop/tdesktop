@@ -18,11 +18,10 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "window/notifications_utilities.h"
 
-#include "pspecific.h"
-#include "mainwindow.h"
+#include "platform/platform_specific.h"
+#include "messenger.h"
 #include "styles/style_window.h"
 
 namespace Window {
@@ -63,7 +62,7 @@ QString CachedUserpics::get(const StorageKey &key, PeerData *peer) {
 				peer->saveUserpic(v.path, st::notifyMacPhotoSize);
 			}
 		} else {
-			App::wnd()->iconLarge().save(v.path, "PNG");
+			Messenger::Instance().logoNoMargin().save(v.path, "PNG");
 		}
 		i = _images.insert(key, v);
 		_someSavedFlag = true;
@@ -113,7 +112,13 @@ void CachedUserpics::onClear() {
 
 CachedUserpics::~CachedUserpics() {
 	if (_someSavedFlag) {
-		psDeleteDir(cWorkingDir() + qsl("tdata/temp"));
+		TimeMs result = 0;
+		for_const (auto &item, _images) {
+			QFile(item.path).remove();
+		}
+
+// This works about 1200ms on Windows for a folder with one image O_o
+//		psDeleteDir(cWorkingDir() + qsl("tdata/temp"));
 	}
 }
 

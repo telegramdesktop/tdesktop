@@ -20,31 +20,31 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/twidget.h"
+#include <rpl/event_stream.h>
+#include "ui/rp_widget.h"
+#include "base/flags.h"
 
 namespace Ui {
 
-class AbstractButton : public TWidget {
+class AbstractButton : public RpWidget {
 	Q_OBJECT
 
 public:
-	AbstractButton(QWidget *parent) : TWidget(parent) {
-		setMouseTracking(true);
-	}
+	AbstractButton(QWidget *parent);
 
 	Qt::KeyboardModifiers clickModifiers() const {
 		return _modifiers;
 	}
 
 	void setDisabled(bool disabled = true);
-	void clearState();
+	virtual void clearState();
 	bool isOver() const {
 		return _state & StateFlag::Over;
 	}
 	bool isDown() const {
 		return _state & StateFlag::Down;
 	}
-	bool isDisabled() {
+	bool isDisabled() const {
 		return _state & StateFlag::Disabled;
 	}
 
@@ -52,20 +52,24 @@ public:
 
 	void setAcceptBoth(bool acceptBoth = true);
 
-	void setClickedCallback(base::lambda<void()> &&callback) {
-		_clickedCallback = std_::move(callback);
+	void setClickedCallback(base::lambda<void()> callback) {
+		_clickedCallback = std::move(callback);
 	}
 
-	void setVisible(bool visible) override {
-		TWidget::setVisible(visible);
-		if (!visible) {
-			clearState();
-		}
+	auto clicks() const {
+		return _clicks.events();
+	}
+	template <typename Handler>
+	void addClickHandler(Handler &&handler) {
+		clicks(
+		) | rpl::start_with_next(
+			std::forward<Handler>(handler),
+			lifetime());
 	}
 
 protected:
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
@@ -75,13 +79,13 @@ signals:
 
 protected:
 	enum class StateFlag {
-		None = 0x00,
-		Over = 0x01,
-		Down = 0x02,
-		Disabled = 0x04,
+		None     = 0,
+		Over     = (1 << 0),
+		Down     = (1 << 1),
+		Disabled = (1 << 2),
 	};
-	Q_DECLARE_FLAGS(State, StateFlag);
-	Q_DECLARE_FRIEND_OPERATORS_FOR_FLAGS(State);
+	friend constexpr bool is_flag_type(StateFlag) { return true; };
+	using State = base::flags<StateFlag>;
 
 	State state() const {
 		return _state;
@@ -109,8 +113,8 @@ private:
 
 	base::lambda<void()> _clickedCallback;
 
-};
+	rpl::event_stream<> _clicks;
 
-Q_DECLARE_OPERATORS_FOR_FLAGS(AbstractButton::State);
+};
 
 } // namespace Ui

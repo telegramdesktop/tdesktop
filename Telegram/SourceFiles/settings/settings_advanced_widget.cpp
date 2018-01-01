@@ -18,20 +18,19 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "settings/settings_advanced_widget.h"
 
 #include "styles/style_settings.h"
-#include "lang.h"
-#include "boxes/connectionbox.h"
-#include "boxes/confirmbox.h"
-#include "boxes/aboutbox.h"
-#include "boxes/localstoragebox.h"
+#include "lang/lang_keys.h"
+#include "boxes/connection_box.h"
+#include "boxes/confirm_box.h"
+#include "boxes/about_box.h"
+#include "boxes/local_storage_box.h"
 #include "mainwindow.h"
 #include "ui/widgets/buttons.h"
-#include "ui/effects/widget_slide_wrap.h"
-#include "localstorage.h"
-#include "window/window_theme.h"
+#include "ui/wrap/slide_wrap.h"
+#include "storage/localstorage.h"
+#include "window/themes/window_theme.h"
 
 namespace Settings {
 
@@ -63,37 +62,43 @@ void AdvancedWidget::createControls() {
 #endif // TDESKTOP_DISABLE_NETWORK_PROXY
 	})();
 	if (self()) {
-		addChildRow(_manageLocalStorage, marginLocalStorage, lang(lng_settings_manage_local_storage), SLOT(onManageLocalStorage()));
+		createChildRow(_manageLocalStorage, marginLocalStorage, lang(lng_settings_manage_local_storage), SLOT(onManageLocalStorage()));
 	}
 
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-	addChildRow(_connectionType, marginLarge, lang(lng_connection_type), lang(lng_connection_auto_connecting), LabeledLink::Type::Primary, SLOT(onConnectionType()));
+	createChildRow(_connectionType, marginLarge, lang(lng_connection_type), lang(lng_connection_auto_connecting), LabeledLink::Type::Primary, SLOT(onConnectionType()));
 	connectionTypeUpdated();
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 
 	if (self()) {
-		addChildRow(_askQuestion, marginSmall, lang(lng_settings_ask_question), SLOT(onAskQuestion()));
+		createChildRow(_askQuestion, marginSmall, lang(lng_settings_ask_question), SLOT(onAskQuestion()));
 	} else {
 		style::margins slidedPadding(0, marginLarge.bottom() / 2, 0, marginLarge.bottom() - (marginLarge.bottom() / 2));
-		addChildRow(_useDefaultTheme, marginLarge, slidedPadding, lang(lng_settings_bg_use_default), SLOT(onUseDefaultTheme()));
-		if (!Local::hasTheme()) {
-			_useDefaultTheme->hideFast();
+		createChildRow(_useDefaultTheme, marginLarge, slidedPadding, lang(lng_settings_bg_use_default), SLOT(onUseDefaultTheme()));
+		if (!Window::Theme::IsNonDefaultUsed()) {
+			_useDefaultTheme->hide(anim::type::instant);
+		}
+		createChildRow(_toggleNightTheme, marginLarge, slidedPadding, getNightThemeToggleText(), SLOT(onToggleNightTheme()));
+		if (Window::Theme::IsNonDefaultUsed()) {
+			_toggleNightTheme->hide(anim::type::instant);
 		}
 	}
-	addChildRow(_telegramFAQ, marginLarge, lang(lng_settings_faq), SLOT(onTelegramFAQ()));
+	createChildRow(_telegramFAQ, marginLarge, lang(lng_settings_faq), SLOT(onTelegramFAQ()));
 	if (self()) {
 		style::margins marginLogout(0, 0, 0, 2 * st::settingsLargeSkip);
-		addChildRow(_logOut, marginLogout, lang(lng_settings_logout), SLOT(onLogOut()));
+		createChildRow(_logOut, marginLogout, lang(lng_settings_logout), SLOT(onLogOut()));
 	}
 }
 
 void AdvancedWidget::checkNonDefaultTheme() {
 	if (self()) return;
-	if (Local::hasTheme()) {
-		_useDefaultTheme->slideDown();
-	} else {
-		_useDefaultTheme->slideUp();
-	}
+	_useDefaultTheme->toggle(
+		Window::Theme::IsNonDefaultUsed(),
+		anim::type::normal);
+	_toggleNightTheme->entity()->setText(getNightThemeToggleText());
+	_toggleNightTheme->toggle(
+		!Window::Theme::IsNonDefaultUsed(),
+		anim::type::normal);
 }
 
 void AdvancedWidget::onManageLocalStorage() {
@@ -129,6 +134,10 @@ void AdvancedWidget::onUseDefaultTheme() {
 	Window::Theme::ApplyDefault();
 }
 
+void AdvancedWidget::onToggleNightTheme() {
+	Window::Theme::SwitchNightTheme(!Window::Theme::IsNightTheme());
+}
+
 void AdvancedWidget::onAskQuestion() {
 	auto box = Box<ConfirmBox>(lang(lng_settings_ask_sure), lang(lng_settings_ask_ok), lang(lng_settings_faq_button), base::lambda_guarded(this, [this] {
 		onAskQuestionSure();
@@ -136,7 +145,7 @@ void AdvancedWidget::onAskQuestion() {
 		onTelegramFAQ();
 	}));
 	box->setStrictCancel(true);
-	Ui::show(std_::move(box));
+	Ui::show(std::move(box));
 }
 
 void AdvancedWidget::onAskQuestionSure() {
@@ -152,6 +161,10 @@ void AdvancedWidget::supportGot(const MTPhelp_Support &support) {
 			Ui::showPeerHistory(user, ShowAtUnreadMsgId);
 		}
 	}
+}
+
+QString AdvancedWidget::getNightThemeToggleText() const {
+	return lang(Window::Theme::IsNightTheme() ? lng_settings_disable_night_theme : lng_settings_enable_night_theme);
 }
 
 void AdvancedWidget::onTelegramFAQ() {

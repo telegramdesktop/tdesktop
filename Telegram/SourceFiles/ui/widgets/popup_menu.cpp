@@ -15,13 +15,14 @@
  Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
  Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
  */
-#include "stdafx.h"
 #include "ui/widgets/popup_menu.h"
 
 #include "ui/widgets/shadow.h"
-#include "pspecific.h"
+#include "platform/platform_specific.h"
 #include "application.h"
-#include "lang.h"
+#include "mainwindow.h"
+#include "messenger.h"
+#include "lang/lang_keys.h"
 
 namespace Ui {
 
@@ -38,13 +39,19 @@ PopupMenu::PopupMenu(QWidget*, QMenu *menu, const style::PopupMenu &st) : TWidge
 
 	for (auto action : actions()) {
 		if (auto submenu = action->menu()) {
-			auto it = _submenus.insert(action, new PopupMenu(submenu, st));
+			auto it = _submenus.insert(action, new PopupMenu(nullptr, submenu, st));
 			it.value()->deleteOnHide(false);
 		}
 	}
 }
 
 void PopupMenu::init() {
+	subscribe(Messenger::Instance().passcodedChanged(), [this] {
+		if (App::passcoded()) {
+			hideMenu(true);
+		}
+	});
+
 	_menu->setResizedCallback([this] { handleMenuResize(); });
 	_menu->setActivatedCallback([this](QAction *action, int actionTop, TriggeredSource source) {
 		handleActivated(action, actionTop, source);
@@ -85,8 +92,8 @@ QAction *PopupMenu::addAction(const QString &text, const QObject *receiver, cons
 	return _menu->addAction(text, receiver, member, icon, iconOver);
 }
 
-QAction *PopupMenu::addAction(const QString &text, base::lambda<void()> &&callback, const style::icon *icon, const style::icon *iconOver) {
-	return _menu->addAction(text, std_::move(callback), icon, iconOver);
+QAction *PopupMenu::addAction(const QString &text, base::lambda<void()> callback, const style::icon *icon, const style::icon *iconOver) {
+	return _menu->addAction(text, std::move(callback), icon, iconOver);
 }
 
 QAction *PopupMenu::addSeparator() {
@@ -107,11 +114,9 @@ PopupMenu::Actions &PopupMenu::actions() {
 void PopupMenu::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-#ifdef OS_MAC_OLD
-	p.setCompositionMode(QPainter::CompositionMode_Source);
-	p.fillRect(e->rect(), Qt::transparent);
-	p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-#endif // OS_MAC_OLD
+	if (_useTransparency) {
+		Platform::StartTranslucentPaint(p, e);
+	}
 
 	auto ms = getms();
 	if (_a_show.animating(ms)) {
@@ -315,7 +320,7 @@ void PopupMenu::prepareCache() {
 	auto showAnimation = base::take(_a_show);
 	auto showAnimationData = base::take(_showAnimation);
 	showChildren();
-	_cache = myGrab(this);
+	_cache = GrabWidget(this);
 	_showAnimation = base::take(showAnimationData);
 	_a_show = base::take(showAnimation);
 }
@@ -360,11 +365,11 @@ void PopupMenu::startShowAnimation() {
 		auto cache = grabForPanelAnimation();
 		_a_opacity = base::take(opacityAnimation);
 
-		_showAnimation = std_::make_unique<PanelAnimation>(_st.animation, _origin);
-		_showAnimation->setFinalImage(std_::move(cache), QRect(_inner.topLeft() * cIntRetinaFactor(), _inner.size() * cIntRetinaFactor()));
+		_showAnimation = std::make_unique<PanelAnimation>(_st.animation, _origin);
+		_showAnimation->setFinalImage(std::move(cache), QRect(_inner.topLeft() * cIntRetinaFactor(), _inner.size() * cIntRetinaFactor()));
 		if (_useTransparency) {
 			auto corners = App::cornersMask(ImageRoundRadius::Small);
-			_showAnimation->setCornerMasks(QImage(*corners[0]), QImage(*corners[1]), QImage(*corners[2]), QImage(*corners[3]));
+			_showAnimation->setCornerMasks(corners[0], corners[1], corners[2], corners[3]);
 		} else {
 			_showAnimation->setSkipShadow(true);
 		}
@@ -391,7 +396,7 @@ void PopupMenu::showAnimationCallback() {
 }
 
 QImage PopupMenu::grabForPanelAnimation() {
-	myEnsureResized(this);
+	SendPendingMoveResizeEvents(this);
 	auto result = QImage(size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(cRetinaFactor());
 	result.fill(Qt::transparent);
@@ -408,7 +413,7 @@ QImage PopupMenu::grabForPanelAnimation() {
 			}
 		}
 	}
-	return std_::move(result);
+	return result;
 }
 
 void PopupMenu::deleteOnHide(bool del) {
@@ -425,7 +430,8 @@ void PopupMenu::showMenu(const QPoint &p, PopupMenu *parent, TriggeredSource sou
 	auto origin = PanelAnimation::Origin::TopLeft;
 	auto w = p - QPoint(0, _padding.top());
 	auto r = Sandbox::screenGeometry(p);
-	_useTransparency = Platform::TransparentWindowsSupported(p);
+	_useTransparency = Platform::TranslucentWindowsSupported(p);
+	setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
 	handleCompositingUpdate();
 	if (rtl()) {
 		if (w.x() - width() < r.x() - _padding.left()) {
@@ -479,11 +485,9 @@ PopupMenu::~PopupMenu() {
 	for (auto submenu : base::take(_submenus)) {
 		delete submenu;
 	}
-#if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
 	if (auto w = App::wnd()) {
 		w->reActivateWindow();
 	}
-#endif
 	if (_destroyedCallback) {
 		_destroyedCallback();
 	}

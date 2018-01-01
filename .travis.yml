@@ -8,9 +8,6 @@ cache:
     - $HOME/travisCacheDir
 
 env:
-  global:
-    # GitHub auth token (GH_AUTH_TOKEN)
-    - secure: "QBbD9VXAx3Mn0vFmHZtm6/sq+twMyR7ilQh7TQm8gBy2TrjhHKDKQ4wRQ5sa2MUFUbzrUOvPlPGq1WuY1mAUt8UE6jZDJNyyDWb6iIlcEmNRsd39XAhYHvJ+uI9JsD+U3OctZ+7Bo4fno0RLv1D5lzh5bpohmjgWxx9TiSZItbsRU+m0XM0Tahx335aXF8NFoVjheGXCOcLAXDt6OmaKPmlrXreuta5nOoRKeOg5vHlt/KNU1pYb8MFvWJc14DKxq3jNqrYlo9vHFv5tVhR1aqvVFWTD/4Z88OSxx3POzyVWdMso0lFov9uxs8qHoqLsGhDMElggyz/jnqZIHpwQMaYIGQ0LLYDv21jGgOuCOWKYlfjDY+tuESXmVPzerTlYBWLZDPrpE8BnXVYo8B/sF4WN6oCuBRjawlqYhqTH+tDDORc9Uc9pamhcuh6OsLMx3PHoyg8joN3t8yUnwhySXyfQ36hqlZ+Y4bBDRZBH/SB/EPmedyLGwdhzQFsUnOBotYeOym7LUdnGraGcj1iTPLdo5TMlBYlAiB12J5mHTNuzUKXh+PBV4REg4Mm2xYX+Pue5Qo1JcOWJteIX4BdPv526DXB3yaNWS1pZgGvYqtBwQlCeOfwOYupS0PksvmV7aX7c4qJSyW3dmEd03cxmebD0b2SbqyPxGFuUajJ7B60="
   matrix:
    - BUILD_VERSION=""
    - BUILD_VERSION="disable_autoupdate"
@@ -19,6 +16,7 @@ env:
    - BUILD_VERSION="disable_network_proxy"
    - BUILD_VERSION="disable_desktop_file_generation"
    - BUILD_VERSION="disable_unity_integration"
+   - BUILD_VERSION="disable_gtk_integration"
 
 matrix:
   fast_finish: true
@@ -35,8 +33,8 @@ addons:
       - dpatch
       - equivs
       - fakeroot
-      - g++-4.9
-      - gcc-4.9
+      - g++-7
+      - gcc-7
       - git
       - gnome-common
       - gobject-introspection
@@ -60,10 +58,8 @@ addons:
       - yasm
 
 before_install:
-  - "export TRAVIS_COMMIT_MSG=\"$(git log --format=%B --no-merges -n 1)\""
-  - .travis/check.sh
-  - export CXX="g++-4.9" CC="gcc-4.9"
-  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.9 60 --slave /usr/bin/g++ g++ /usr/bin/g++-4.9
+  - export CXX="g++-7" CC="gcc-7"
+  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 60 --slave /usr/bin/g++ g++ /usr/bin/g++-7
   - sudo update-alternatives --config gcc
   - g++ --version
 

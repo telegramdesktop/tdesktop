@@ -1,0 +1,681 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+*/
+using "basic.style";
+
+using "boxes/boxes.style";
+using "ui/widgets/widgets.style";
+
+InfoToggle {
+	color: color;
+	duration: int;
+	size: pixels;
+	skip: pixels;
+	stroke: pixels;
+	rippleAreaPadding: pixels;
+}
+
+infoMediaHeaderFg: windowFg;
+
+infoToggleCheckbox: Checkbox(defaultCheckbox) {
+	margin: margins(0px, 0px, 0px, 0px);
+	rippleBgActive: windowBgOver;
+	checkPosition: point(16px, 8px);
+	rippleAreaPosition: point(-8px, -8px);
+}
+infoToggle: InfoToggle {
+	color: menuIconFg;
+	duration: slideWrapDuration;
+	size: 24px;
+	skip: 5px;
+	stroke: 2px;
+	rippleAreaPadding: 8px;
+}
+
+infoScroll: ScrollArea(defaultScrollArea) {
+	bottomsh: 0px;
+	topsh: 0px;
+}
+
+infoMediaSearch: SearchFieldRow {
+	height: 44px;
+	padding: margins(8px, 6px, 8px, 6px);
+	field: contactsSearchField;
+	fieldIcon: icon {{
+		"box_search-flip_horizontal",
+		menuIconFg,
+		point(6px, 8px)
+	}};
+	fieldIconSkip: 36px;
+	fieldCancel: contactsSearchCancel;
+	fieldCancelSkip: 40px;
+}
+infoLayerMediaSearch: SearchFieldRow(infoMediaSearch) {
+	height: 46px;
+	fieldIcon: icon {{
+		"box_search-flip_horizontal",
+		menuIconFg,
+		point(9px, 9px)
+	}};
+	fieldIconSkip: 34px;
+	fieldCancel: CrossButton(contactsSearchCancel) {
+		width: 50px;
+		cross: CrossAnimation {
+			size: 38px;
+			skip: 12px;
+			stroke: 2px;
+			minScale: 0.3;
+		}
+		crossPosition: point(3px, 4px);
+	}
+	fieldCancelSkip: 46px;
+}
+infoTopBarSearchRow: SearchFieldRow(infoLayerMediaSearch) {
+	height: 52px;
+	padding: margins(0px, 12px, 8px, 10px);
+	fieldCancel: CrossButton(contactsSearchCancel) {
+		width: 51px;
+		height: 52px;
+		cross: CrossAnimation {
+			size: 42px;
+			skip: 14px;
+			stroke: 2px;
+			minScale: 0.3;
+		}
+		crossPosition: point(1px, 6px);
+	}
+}
+
+infoSlideDuration: 0;
+
+infoTopBarBackIcon: icon {{ "info_back", boxTitleCloseFg }};
+infoTopBarBackIconOver: icon {{ "info_back", boxTitleCloseFgOver }};
+infoTopBarHeight: 54px;
+infoTopBarBack: IconButton(defaultIconButton) {
+	width: 70px;
+	height: infoTopBarHeight;
+
+	icon: infoTopBarBackIcon;
+	iconOver: infoTopBarBackIconOver;
+	iconPosition: point(11px, -1px);
+
+	rippleAreaPosition: point(6px, 6px);
+	rippleAreaSize: 42px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+infoTopBarTitle: FlatLabel(defaultFlatLabel) {
+	textFg: windowBoldFg;
+	maxHeight: 20px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+		linkFont: font(14px semibold);
+		linkFontOver: font(14px semibold);
+	}
+}
+infoTopBarMediaCancel: IconButton(infoTopBarBack) {
+	width: infoTopBarHeight;
+	icon: icon {{ "info_close", boxTitleCloseFg }};
+	iconOver: icon {{ "info_close", boxTitleCloseFgOver }};
+}
+infoTopBarClose: IconButton(infoTopBarMediaCancel) {
+	width: 48px;
+	iconPosition: point(5px, -1px);
+	rippleAreaPosition: point(0px, 6px);
+}
+infoTopBarSearch: IconButton(infoTopBarBack) {
+	width: 56px;
+	icon: icon {{ "top_bar_search", boxTitleCloseFg }};
+	iconOver: icon {{ "top_bar_search", boxTitleCloseFgOver }};
+}
+infoTopBarMenu: IconButton(infoTopBarBack) {
+	width: 48px;
+	icon: icon {{ "title_menu_dots", boxTitleCloseFg }};
+	iconOver: icon {{ "title_menu_dots", boxTitleCloseFgOver }};
+	iconPosition: point(18px, -1px);
+	rippleAreaPosition: point(1px, 6px);
+}
+infoTopBarNotifications: IconButton(infoTopBarMenu) {
+	width: 42px;
+	icon: icon {{ "info_notifications", boxTitleCloseFg }};
+	iconOver: icon {{ "info_notifications", boxTitleCloseFgOver }};
+	iconPosition: point(5px, 10px);
+	rippleAreaPosition: point(0px, 6px);
+}
+infoNotificationsActive: icon {{
+	"info_notifications",
+	windowBgActive
+}};
+infoTopBarCall: IconButton(infoTopBarNotifications) {
+	icon: icon {{ "top_bar_call", boxTitleCloseFg }};
+	iconOver: icon {{ "top_bar_call", boxTitleCloseFgOver }};
+}
+infoTopBarForward: IconButton(infoTopBarBack) {
+	width: 46px;
+	icon: icon {{ "info_media_forward", boxTitleCloseFg }};
+	iconOver: icon {{ "info_media_forward", boxTitleCloseFgOver }};
+	iconPosition: point(6px, -1px);
+	rippleAreaPosition: point(1px, 6px);
+}
+infoTopBarDelete: IconButton(infoTopBarForward) {
+	icon: icon {{ "info_media_delete", boxTitleCloseFg }};
+	iconOver: icon {{ "info_media_delete", boxTitleCloseFgOver }};
+}
+infoTopBar: InfoTopBar {
+	height: infoTopBarHeight;
+	back: infoTopBarBack;
+	title: infoTopBarTitle;
+	titlePosition: point(23px, 18px);
+	bg: windowBg;
+	mediaCancel: infoTopBarMediaCancel;
+	mediaActionsSkip: 4px;
+	mediaForward: infoTopBarForward;
+	mediaDelete: infoTopBarDelete;
+	search: infoTopBarSearch;
+	searchRow: infoTopBarSearchRow;
+	highlightBg: windowBgOver;
+	highlightDuration: 240;
+}
+infoTopBarScale: 0.7;
+infoTopBarDuration: 150;
+
+infoLayerTopMinimal: 20px;
+infoLayerTopMaximal: 40px;
+infoLayerTopBarHeight: boxLayerTitleHeight;
+infoLayerTopBarBackIcon: icon {{ "info_back", boxTitleCloseFg }};
+infoLayerTopBarBackIconOver: icon {{ "info_back", boxTitleCloseFgOver }};
+infoLayerTopBarBack: IconButton(infoTopBarBack) {
+	width: infoLayerTopBarHeight;
+	height: infoLayerTopBarHeight;
+
+	iconPosition: point(12px, -1px);
+	icon: infoLayerTopBarBackIcon;
+	iconOver: infoLayerTopBarBackIconOver;
+	rippleAreaSize: 44px;
+}
+infoLayerTopBarMediaCancel: IconButton(infoLayerTopBarBack) {
+	icon: icon {{ "info_close", boxTitleCloseFg }};
+	iconOver: icon {{ "info_close", boxTitleCloseFgOver }};
+}
+infoLayerTopBarClose: IconButton(infoLayerTopBarMediaCancel) {
+	width: 50px;
+	iconPosition: point(6px, -1px);
+	rippleAreaPosition: point(0px, 6px);
+}
+infoLayerTopBarMenu: IconButton(infoLayerTopBarClose) {
+	width: 44px;
+	icon: icon {{ "title_menu_dots", boxTitleCloseFg }};
+	iconOver: icon {{ "title_menu_dots", boxTitleCloseFgOver }};
+	iconPosition: point(18px, -1px);
+}
+infoLayerTopBarNotifications: IconButton(infoLayerTopBarMenu) {
+	icon: icon {{ "info_notifications", boxTitleCloseFg }};
+	iconOver: icon {{ "info_notifications", boxTitleCloseFgOver }};
+	iconPosition: point(5px, 11px);
+}
+infoLayerTopBarCall: IconButton(infoLayerTopBarNotifications) {
+	icon: icon {{ "top_bar_call", boxTitleCloseFg }};
+	iconOver: icon {{ "top_bar_call", boxTitleCloseFgOver }};
+}
+infoLayerTopBarForward: IconButton(infoLayerTopBarBack) {
+	width: 45px;
+	icon: icon {{ "info_media_forward", boxTitleCloseFg }};
+	iconOver: icon {{ "info_media_forward", boxTitleCloseFgOver }};
+	iconPosition: point(6px, -1px);
+	rippleAreaPosition: point(1px, 6px);
+}
+infoLayerTopBarDelete: IconButton(infoLayerTopBarForward) {
+	icon: icon {{ "info_media_delete", boxTitleCloseFg }};
+	iconOver: icon {{ "info_media_delete", boxTitleCloseFgOver }};
+}
+infoLayerTopBar: InfoTopBar(infoTopBar) {
+	height: infoLayerTopBarHeight;
+	back: infoLayerTopBarBack;
+	title: boxTitle;
+	titlePosition: boxLayerTitlePosition;
+	bg: boxBg;
+	mediaCancel: infoLayerTopBarMediaCancel;
+	mediaActionsSkip: 6px;
+	mediaForward: infoLayerTopBarForward;
+	mediaDelete: infoLayerTopBarDelete;
+	search: infoTopBarSearch;
+	searchRow: infoTopBarSearchRow;
+}
+
+infoTopBarMenuPosition: point(-2px, 35px);
+infoLayerTopBarMenuPosition: point(40px, 37px);
+
+infoMinimalWidth: 324px;
+infoDesiredWidth: 392px;
+infoMinimalLayerMargin: 48px;
+
+infoTabs: SettingsSlider(defaultTabsSlider) {
+	height: 55px;
+	barTop: 52px;
+	labelTop: 19px;
+}
+
+infoProfilePhoto: UserpicButton(defaultUserpicButton) {
+	size: size(72px, 72px);
+	photoSize: 72px;
+}
+infoProfilePhotoLeft: 19px;
+infoProfilePhotoTop: 18px;
+infoProfilePhotoBottom: 18px;
+
+infoProfileStatusLeft: 109px;
+infoProfileStatusRight: 20px;
+infoProfileStatusTop: 58px;
+infoProfileStatusLabel: FlatLabel(defaultFlatLabel) {
+	maxHeight: 18px;
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: normalFont;
+		linkFont: normalFont;
+		linkFontOver: normalFont;
+	}
+}
+infoProfileMegagroupStatusLabel: FlatLabel(infoProfileStatusLabel) {
+	style: defaultTextStyle;
+	palette: TextPalette(defaultTextPalette) {
+		linkFg: windowSubTextFg;
+	}
+}
+
+infoProfileNameLeft: infoProfileStatusLeft;
+infoProfileNameRight: infoProfileStatusRight;
+infoProfileNameTop: 32px;
+infoProfileNameLabel: FlatLabel(infoProfileStatusLabel) {
+	maxHeight: 24px;
+	textFg: windowBoldFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(16px semibold);
+		linkFont: font(16px semibold);
+		linkFontOver: font(16px semibold underline);
+	}
+}
+infoVerifiedCheckPosition: point(10px, 2px);
+infoVerifiedCheck: icon {
+	{ "profile_verified_star", profileVerifiedCheckBg, point(0px, 0px) },
+	{ "profile_verified_check", profileVerifiedCheckFg, point(4px, 4px) }
+};
+
+infoProfileSkip: 12px;
+
+infoProfileLabeledPadding: margins(79px, 9px, 30px, 7px);
+infoProfileSeparatorPadding: margins(
+	77px,
+	infoProfileSkip,
+	0px,
+	infoProfileSkip);
+
+infoIconFg: menuIconFg;
+infoIconInformation: icon {{ "info_information", infoIconFg }};
+infoIconMembers: icon {{ "info_members", infoIconFg }};
+infoIconNotifications: icon {{ "info_notifications", infoIconFg }};
+infoIconActions: icon {{ "info_actions", infoIconFg }};
+infoIconMediaPhoto: icon {{ "info_media_photo", infoIconFg }};
+infoIconMediaVideo: icon {{ "info_media_video", infoIconFg }};
+infoIconMediaFile: icon {{ "info_media_file", infoIconFg }};
+infoIconMediaAudio: icon {{ "info_media_audio", infoIconFg }};
+infoIconMediaLink: icon {{ "info_media_link", infoIconFg }};
+infoIconMediaGroup: icon {{ "info_common_groups", infoIconFg }};
+infoIconMediaVoice: icon {{ "info_media_voice", infoIconFg }};
+infoIconMediaRound: icon {{ "info_media_round", infoIconFg }};
+infoIconRecentActions: icon {{ "info_recent_actions", infoIconFg }};
+infoIconAdministrators: icon {{ "info_administrators", infoIconFg }};
+infoIconBlacklist: icon {{ "info_blacklist", infoIconFg }};
+infoIconRestrictedUsers: icon {{ "info_restricted_users", infoIconFg }};
+infoInformationIconPosition: point(25px, 12px);
+infoNotificationsIconPosition: point(20px, 5px);
+infoSharedMediaIconPosition: point(20px, 24px);
+infoSharedMediaButtonIconPosition: point(20px, 3px);
+infoIconPosition: point(20px, 15px);
+infoChannelMembersIconPosition: point(20px, 24px);
+infoLabeledOneLine: FlatLabel(defaultFlatLabel) {
+	maxHeight: 20px;
+	style: TextStyle(defaultTextStyle) {
+		lineHeight: 19px;
+	}
+}
+infoLabelSkip: 2px;
+infoLabel: FlatLabel(infoLabeledOneLine) {
+	textFg: windowSubTextFg;
+}
+infoLabeled: FlatLabel(infoLabeledOneLine) {
+	minWidth: 180px;
+	maxHeight: 0px;
+	margin: margins(5px, 5px, 5px, 5px);
+}
+
+infoBlockHeaderLabel: FlatLabel(infoProfileStatusLabel) {
+	textFg: windowBoldFg;
+	style: TextStyle(defaultTextStyle) {
+		font: semiboldFont;
+		linkFont: semiboldFont;
+		linkFontOver: semiboldFont;
+	}
+}
+infoBlockHeaderPosition: point(79px, 22px);
+
+infoProfileToggle: Toggle(defaultToggle) {
+	diameter: 16px;
+	width: 14px;
+	untoggledFg: menuIconFg;
+}
+infoProfileToggleOver: Toggle(infoProfileToggle) {
+	untoggledFg: menuIconFgOver;
+}
+infoProfileButton: InfoProfileButton {
+	textFg: windowBoldFg;
+	textFgOver: windowBoldFgOver;
+	textBg: windowBg;
+	textBgOver: windowBgOver;
+
+	font: normalFont;
+
+	height: 20px;
+	padding: margins(79px, 10px, 8px, 8px);
+
+	toggle: infoProfileToggle;
+	toggleOver: infoProfileToggleOver;
+	toggleSkip: 23px;
+
+	ripple: defaultRippleAnimation;
+}
+infoNotificationsButton: InfoProfileButton(infoProfileButton) {
+	padding: margins(79px, 13px, 8px, 9px);
+}
+infoMainButton: InfoProfileButton(infoProfileButton) {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
+	font: semiboldFont;
+}
+infoSharedMediaCoverHeight: 62px;
+infoSharedMediaButton: infoProfileButton;
+infoSharedMediaBottomSkip: 12px;
+
+infoBlockButton: InfoProfileButton(infoProfileButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+}
+infoBlockButtonSkip: 8px;
+
+infoMembersHeader: 56px;
+infoMembersHeaderPaddingBottom: 6px;
+infoMembersList: PeerList(defaultPeerList) {
+	item: PeerListItem(defaultPeerListItem) {
+		photoPosition: point(18px, 6px);
+		namePosition: point(79px, 11px);
+		statusPosition: point(79px, 31px);
+	}
+}
+infoMembersButtonPosition: point(12px, 0px);
+infoMembersButtonIconPosition: point(3px, 3px);
+infoMembersButton: IconButton(defaultIconButton) {
+	width: 38px;
+	height: 38px;
+	iconPosition: infoMembersButtonIconPosition;
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 38px;
+	ripple: defaultRippleAnimation;
+}
+infoMembersAddMember: IconButton(infoMembersButton) {
+	icon: icon {{ "info_add_member", menuIconFg }};
+	iconOver: icon {{ "info_add_member", menuIconFgOver }};
+}
+infoMembersSearch: IconButton(infoMembersButton) {
+	icon: icon {{
+		"top_bar_search",
+		menuIconFg,
+		infoMembersButtonIconPosition
+	}};
+	iconOver: icon {{
+		"top_bar_search",
+		menuIconFgOver,
+		infoMembersButtonIconPosition
+	}};
+	iconPosition: point(0px, 0px);
+}
+infoMembersSearchActive: icon {
+	{ size(44px, 44px), windowBg },
+	{
+		"top_bar_search",
+		menuIconFgOver,
+		infoMembersButtonIconPosition
+	}
+};
+infoMembersSearchActiveLayer: icon {
+	{ size(44px, 44px), boxBg },
+	{
+		"top_bar_search",
+		menuIconFgOver,
+		infoMembersButtonIconPosition
+	}
+};
+infoMembersSearchField: InputField(contactsSearchField) {
+}
+infoMembersCancelSearch: CrossButton {
+	width: 44px;
+	height: 44px;
+
+	cross: CrossAnimation {
+		size: 44px;
+		skip: 16px;
+		stroke: 2px;
+		minScale: 0.3;
+	}
+	crossFg: menuIconFg;
+	crossFgOver: menuIconFgOver;
+	crossPosition: point(0px, 0px);
+
+	duration: 150;
+	loadingPeriod: 1000;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+infoMembersSearchTop: 15px;
+
+infoMembersCreatorIcon: icon {{
+	"profile_admin_star",
+	profileAdminStartFg,
+	point(4px, 3px)
+}};
+infoMembersCreatorIconOver: icon {{
+	"profile_admin_star",
+	profileAdminStarFgOver,
+	point(4px, 3px)
+}};
+infoMembersAdminIcon: icon {{
+	"profile_admin_star",
+	profileOtherAdminStarFg,
+	point(4px, 3px)
+}};
+infoMembersAdminIconOver: icon {{
+	"profile_admin_star",
+	profileOtherAdminStarFgOver,
+	point(4px, 3px)
+}};
+infoMembersRemoveIcon: icon {{
+	"simple_close",
+	menuIconFg
+}};
+infoMembersRemoveIconOver: icon {{
+	"simple_close",
+	menuIconFgOver
+}};
+infoMembersAdminIconMarigns: margins(10px, 18px, 10px, 10px);
+infoMembersRemoveIconMargins: margins(10px, 12px, 12px, 10px);
+
+infoMediaHeaderStyle: TextStyle(semiboldTextStyle) {
+}
+infoMediaHeaderHeight: 28px;
+infoMediaHeaderPosition: point(14px, 6px);
+infoMediaSkip: 5px;
+infoMediaMargin: margins(0px, 6px, 0px, 2px);
+infoMediaMinGridSize: 90px;
+
+infoCommonGroupsMargin: margins(0px, 13px, 0px, 2px);
+infoCommonGroupsList: PeerList(infoMembersList) {
+	item: PeerListItem(defaultPeerListItem) {
+		height: 52px;
+		photoSize: 40px;
+		photoPosition: point(16px, 6px);
+		namePosition: point(71px, 15px);
+		nameStyle: TextStyle(defaultTextStyle) {
+			font: font(14px semibold);
+			linkFont: font(14px semibold);
+			linkFontOver: font(14px semibold);
+		}
+		statusPosition: point(79px, 31px);
+	}
+}
+
+managePeerButton: InfoProfileButton(infoProfileButton) {
+	padding: margins(76px, 12px, 76px, 10px);
+}
+managePeerButtonIconPosition: point(20px, 5px);
+managePeerButtonLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowActiveTextFg;
+	style: semiboldTextStyle;
+}
+managePeerButtonLabelPosition: point(25px, 10px);
+
+infoEmptyFg: windowSubTextFg;
+infoEmptyPhoto: icon {{ "info_media_photo_empty", infoEmptyFg }};
+infoEmptyVideo: icon {{ "info_media_video_empty", infoEmptyFg }};
+infoEmptyAudio: icon {{ "info_media_audio_empty", infoEmptyFg }};
+infoEmptyFile: icon {{ "info_media_file_empty", infoEmptyFg }};
+infoEmptyVoice: icon {{ "info_media_voice_empty", infoEmptyFg }};
+infoEmptyLink: icon {{ "info_media_link_empty", infoEmptyFg }};
+infoEmptyIconTop: 120px;
+infoEmptyLabelTop: 40px;
+infoEmptyLabelSkip: 20px;
+infoEmptyLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 220px;
+	textFg: windowSubTextFg;
+}
+
+editPeerDeleteButtonMargins: margins(23px, 16px, 23px, 16px);
+editPeerDeleteButton: sessionTerminateAllButton;
+editPeerPhotoMargins: margins(23px, 16px, 23px, 8px);
+editPeerTitle: defaultInputField;
+editPeerTitleMargins: margins(27px, 21px, 23px, 8px);
+editPeerDescription: newGroupDescription;
+editPeerDescriptionMargins: margins(23px, 5px, 23px, 16px);
+editPeerPrivaciesMargins: margins(23px, 10px, 23px, 0px);
+editPeerPrivacyTopSkip: 10px;
+editPeerPrivacyBottomSkip: 16px;
+editPeerPrivacyLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 263px;
+	textFg: windowSubTextFg;
+}
+editPeerPrivacyLabelMargins: margins(34px, 0px, 0px, 0px);
+editPeerSectionLabel: FlatLabel(boxTitle) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(15px semibold);
+		linkFont: font(15px semibold);
+		linkFontOver: font(15px semibold underline);
+	}
+}
+editPeerUsername: setupChannelLink;
+editPeerUsernameSkip: 8px;
+editPeerInviteLink: FlatLabel(defaultFlatLabel) {
+	minWidth: 1px; // for break everywhere
+	style: boxTextStyle;
+}
+editPeerInviteLinkButton: boxLinkButton;
+editPeerUsernameMargins: margins(0px, 10px, 0px, 13px);
+editPeerUsernameGood: FlatLabel(defaultFlatLabel) {
+	textFg: boxTextFgGood;
+	style: boxTextStyle;
+}
+editPeerUsernameError: FlatLabel(editPeerUsernameGood) {
+	textFg: boxTextFgError;
+}
+editPeerUsernamePosition: point(0px, 10px);
+editPeerInviteLinkSkip: 10px;
+editPeerInviteLinkMargins: margins(23px, 10px, 14px, 16px);
+editPeerSignaturesMargins: margins(23px, 10px, 23px, 16px);
+editPeerInvitesMargins: margins(23px, 10px, 23px, 16px);
+editPeerInvitesTopSkip: 10px;
+editPeerInvitesSkip: 10px;
+
+historyTopBarBack: IconButton(infoTopBarBack) {
+	width: 52px;
+}
+topBarHeight: 54px;
+topBarMenuPosition: point(-2px, 35px);
+topBarDuration: 200;
+topBarBackward: icon {{ "title_back", menuIconFg }};
+topBarForwardAlpha: 0.6;
+topBarBack: icon {{ "title_back", lightButtonFg }};
+topBarArrowPadding: margins(39px, 8px, 17px, 8px);
+topBarMinPadding: 5px;
+topBarButton: RoundButton(defaultLightButton) {
+	width: -18px;
+	padding: margins(0px, 10px, 12px, 10px);
+}
+topBarClearButton: RoundButton(defaultLightButton) {
+	width: -18px;
+}
+topBarSearch: IconButton {
+	width: 40px;
+	height: topBarHeight;
+
+	icon: icon {{ "top_bar_search", menuIconFg }};
+	iconOver: icon {{ "top_bar_search", menuIconFgOver }};
+	iconPosition: point(4px, 11px);
+
+	rippleAreaPosition: point(0px, 7px);
+	rippleAreaSize: 40px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+topBarSkip: -2px;
+topBarCallSkip: -1px;
+topBarMenuToggle: IconButton(topBarSearch) {
+	width: 44px;
+
+	icon: icon {{ "title_menu_dots", menuIconFg }};
+	iconOver: icon {{ "title_menu_dots", menuIconFgOver }};
+	iconPosition: point(16px, 17px);
+
+	rippleAreaPosition: point(0px, 7px);
+}
+topBarCall: IconButton(topBarSearch) {
+	icon: icon {{ "top_bar_call", menuIconFg }};
+	iconOver: icon {{ "top_bar_call", menuIconFgOver }};
+}
+topBarInfo: IconButton(topBarSearch) {
+	icon: icon {{ "top_bar_profile", menuIconFg }};
+	iconOver: icon {{ "top_bar_profile", menuIconFgOver }};
+}
+topBarInfoActive: icon {{ "top_bar_profile", windowActiveTextFg }};
+topBarActionSkip: 10px;
+
+topBarInfoButton: UserpicButton(defaultUserpicButton) {
+	size: size(52px, topBarHeight);
+	photoSize: 42px;
+	photoPosition: point(2px, -1px);
+}

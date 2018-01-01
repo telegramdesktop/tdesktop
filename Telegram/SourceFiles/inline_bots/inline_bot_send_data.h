@@ -21,8 +21,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "core/basic_types.h"
-#include "structs.h"
-#include "mtproto/core_types.h"
 #include "history/history_location_manager.h"
 
 namespace InlineBots {
@@ -43,9 +41,20 @@ public:
 
 	virtual bool isValid() const = 0;
 
-	virtual void addToHistory(const Result *owner, History *history,
-		MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
-		UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const = 0;
+	virtual void addToHistory(
+		const Result *owner,
+		not_null<History*> history,
+		MTPDmessage::Flags flags,
+		MsgId msgId,
+		UserId fromId,
+		MTPint mtpDate,
+		UserId viaBotId,
+		MsgId replyToId,
+		const QString &postAuthor,
+		const MTPReplyMarkup &markup) const = 0;
+	virtual QString getErrorOnSend(
+		const Result *owner,
+		not_null<History*> history) const = 0;
 
 	virtual bool hasLocationCoords() const {
 		return false;
@@ -70,9 +79,21 @@ public:
 	};
 	virtual SentMTPMessageFields getSentMessageFields() const = 0;
 
-	void addToHistory(const Result *owner, History *history,
-		MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
-		UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const override;
+	void addToHistory(
+		const Result *owner,
+		not_null<History*> history,
+		MTPDmessage::Flags flags,
+		MsgId msgId,
+		UserId fromId,
+		MTPint mtpDate,
+		UserId viaBotId,
+		MsgId replyToId,
+		const QString &postAuthor,
+		const MTPReplyMarkup &markup) const override;
+
+	QString getErrorOnSend(
+		const Result *owner,
+		not_null<History*> history) const override;
 
 };
 
@@ -112,7 +133,7 @@ public:
 		return true;
 	}
 	bool getLocationCoords(LocationCoords *outLocation) const override {
-		t_assert(outLocation != nullptr);
+		Assert(outLocation != nullptr);
 		*outLocation = _location;
 		return true;
 	}
@@ -144,7 +165,7 @@ public:
 		return true;
 	}
 	bool getLocationCoords(LocationCoords *outLocation) const override {
-		t_assert(outLocation != nullptr);
+		Assert(outLocation != nullptr);
 		*outLocation = _location;
 		return true;
 	}
@@ -189,9 +210,21 @@ public:
 		return _photo != nullptr;
 	}
 
-	void addToHistory(const Result *owner, History *history,
-		MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
-		UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const override;
+	void addToHistory(
+		const Result *owner,
+		not_null<History*> history,
+		MTPDmessage::Flags flags,
+		MsgId msgId,
+		UserId fromId,
+		MTPint mtpDate,
+		UserId viaBotId,
+		MsgId replyToId,
+		const QString &postAuthor,
+		const MTPReplyMarkup &markup) const override;
+
+	QString getErrorOnSend(
+		const Result *owner,
+		not_null<History*> history) const override;
 
 private:
 	PhotoData *_photo;
@@ -211,9 +244,21 @@ public:
 		return _document != nullptr;
 	}
 
-	void addToHistory(const Result *owner, History *history,
-		MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
-		UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const override;
+	void addToHistory(
+		const Result *owner,
+		not_null<History*> history,
+		MTPDmessage::Flags flags,
+		MsgId msgId,
+		UserId fromId,
+		MTPint mtpDate,
+		UserId viaBotId,
+		MsgId replyToId,
+		const QString &postAuthor,
+		const MTPReplyMarkup &markup) const override;
+
+	QString getErrorOnSend(
+		const Result *owner,
+		not_null<History*> history) const override;
 
 private:
 	DocumentData *_document;
@@ -232,9 +277,21 @@ public:
 		return _game != nullptr;
 	}
 
-	void addToHistory(const Result *owner, History *history,
-		MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
-		UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const override;
+	void addToHistory(
+		const Result *owner,
+		not_null<History*> history,
+		MTPDmessage::Flags flags,
+		MsgId msgId,
+		UserId fromId,
+		MTPint mtpDate,
+		UserId viaBotId,
+		MsgId replyToId,
+		const QString &postAuthor,
+		const MTPReplyMarkup &markup) const override;
+
+	QString getErrorOnSend(
+		const Result *owner,
+		not_null<History*> history) const override;
 
 private:
 	GameData *_game;

@@ -20,17 +20,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "window/notifications_manager.h"
+#include "platform/platform_notifications_manager.h"
 
 namespace Platform {
 namespace Notifications {
 
-inline void defaultNotificationShown(QWidget *widget) {
-}
-
 class Manager : public Window::Notifications::NativeManager {
 public:
-	Manager();
+	Manager(Window::Notifications::System *system);
+
+	bool init();
 
 	void clearNotification(PeerId peerId, MsgId msgId);
 
@@ -44,8 +43,8 @@ protected:
 	void onAfterNotificationActivated(PeerId peerId, MsgId msgId) override;
 
 private:
-	class Impl;
-	std_::unique_ptr<Impl> _impl;
+	class Private;
+	const std::unique_ptr<Private> _private;
 
 };
 

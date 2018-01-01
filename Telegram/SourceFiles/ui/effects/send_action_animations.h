@@ -51,7 +51,7 @@ public:
 
 		struct MetaData {
 			int index;
-			std_::unique_ptr<Impl> (*creator)();
+			std::unique_ptr<Impl> (*creator)();
 		};
 		virtual const MetaData *metaData() const = 0;
 		bool supports(Type type) const;
@@ -74,9 +74,9 @@ public:
 	~SendActionAnimation();
 
 private:
-	std_::unique_ptr<Impl> createByType(Type type);
+	std::unique_ptr<Impl> createByType(Type type);
 
-	std_::unique_ptr<Impl> _impl;
+	std::unique_ptr<Impl> _impl;
 
 };
 

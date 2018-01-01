@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 class ClickHandler;
-using ClickHandlerPtr = QSharedPointer<ClickHandler>;
+using ClickHandlerPtr = std::shared_ptr<ClickHandler>;
 
 enum ExpandLinksMode {
 	ExpandLinksNone,
@@ -32,7 +32,6 @@ enum ExpandLinksMode {
 
 class ClickHandlerHost {
 protected:
-
 	virtual void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) {
 	}
 	virtual void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) {
@@ -104,9 +103,8 @@ public:
 	// The activated click handler (if any) is returned.
 	static ClickHandlerPtr unpressed() {
 		if (_pressed && *_pressed) {
-			bool activated = (_active && *_active == *_pressed);
-			ClickHandlerPtr waspressed = *_pressed;
-			(*_pressed).clear();
+			const auto activated = (_active && *_active == *_pressed);
+			const auto waspressed = base::take(*_pressed);
 			if (_pressedHost) {
 				_pressedHost->clickHandlerPressedChanged(waspressed, false);
 				_pressedHost = nullptr;
@@ -145,11 +143,15 @@ public:
 	}
 	static void hostDestroyed(ClickHandlerHost *host) {
 		if (_activeHost == host) {
-			if (_active) (*_active).clear();
+			if (_active) {
+				*_active = nullptr;
+			}
 			_activeHost = nullptr;
 		}
 		if (_pressedHost == host) {
-			if (_pressed) (*_pressed).clear();
+			if (_pressed) {
+				*_pressed = nullptr;
+			}
 			_pressedHost = nullptr;
 		}
 	}
@@ -181,7 +183,7 @@ protected:
 
 class LambdaClickHandler : public ClickHandler {
 public:
-	LambdaClickHandler(base::lambda<void()> &&handler) : _handler(std_::move(handler)) {
+	LambdaClickHandler(base::lambda<void()> handler) : _handler(std::move(handler)) {
 	}
 	void onClick(Qt::MouseButton button) const override final {
 		if (button == Qt::LeftButton && _handler) {

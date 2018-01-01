@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "boxes/abstractbox.h"
+#include "boxes/abstract_box.h"
 #include "styles/style_widgets.h"
 
 QString findValidCode(QString fullCode);
@@ -46,8 +46,8 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 
 private:
 	void setText(const QString &newText);
@@ -112,8 +112,8 @@ signals:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
@@ -134,6 +134,6 @@ private:
 	QString _filter;
 	bool _mouseSelection = false;
 
-	std_::vector_of_moveable<std_::unique_ptr<Ui::RippleAnimation>> _ripples;
+	std::vector<std::unique_ptr<Ui::RippleAnimation>> _ripples;
 
 };

@@ -18,35 +18,32 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "boxes/report_box.h"
 
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "styles/style_boxes.h"
 #include "styles/style_profile.h"
-#include "boxes/confirmbox.h"
+#include "boxes/confirm_box.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "mainwindow.h"
 
 ReportBox::ReportBox(QWidget*, PeerData *peer) : _peer(peer)
-, _reasonSpam(this, qsl("report_reason"), ReasonSpam, lang(lng_report_reason_spam), true, st::defaultBoxCheckbox)
-, _reasonViolence(this, qsl("report_reason"), ReasonViolence, lang(lng_report_reason_violence), false, st::defaultBoxCheckbox)
-, _reasonPornography(this, qsl("report_reason"), ReasonPornography, lang(lng_report_reason_pornography), false, st::defaultBoxCheckbox)
-, _reasonOther(this, qsl("report_reason"), ReasonOther, lang(lng_report_reason_other), false, st::defaultBoxCheckbox) {
+, _reasonGroup(std::make_shared<Ui::RadioenumGroup<Reason>>(Reason::Spam))
+, _reasonSpam(this, _reasonGroup, Reason::Spam, lang(lng_report_reason_spam), st::defaultBoxCheckbox)
+, _reasonViolence(this, _reasonGroup, Reason::Violence, lang(lng_report_reason_violence), st::defaultBoxCheckbox)
+, _reasonPornography(this, _reasonGroup, Reason::Pornography, lang(lng_report_reason_pornography), st::defaultBoxCheckbox)
+, _reasonOther(this, _reasonGroup, Reason::Other, lang(lng_report_reason_other), st::defaultBoxCheckbox) {
 }
 
 void ReportBox::prepare() {
-	setTitle(lang(_peer->isUser() ? lng_report_bot_title : (_peer->isMegagroup() ? lng_report_group_title : lng_report_title)));
+	setTitle(langFactory(_peer->isUser() ? lng_report_bot_title : (_peer->isMegagroup() ? lng_report_group_title : lng_report_title)));
 
-	addButton(lang(lng_report_button), [this] { onReport(); });
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_report_button), [this] { onReport(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
-	connect(_reasonSpam, SIGNAL(changed()), this, SLOT(onChange()));
-	connect(_reasonViolence, SIGNAL(changed()), this, SLOT(onChange()));
-	connect(_reasonPornography, SIGNAL(changed()), this, SLOT(onChange()));
-	connect(_reasonOther, SIGNAL(changed()), this, SLOT(onChange()));
+	_reasonGroup->setChangedCallback([this](Reason value) { reasonChanged(value); });
 
 	updateMaxHeight();
 }
@@ -54,7 +51,7 @@ void ReportBox::prepare() {
 void ReportBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
-	_reasonSpam->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxOptionListPadding.top());
+	_reasonSpam->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxOptionListPadding.top() + _reasonSpam->getMargins().top());
 	_reasonViolence->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonSpam->bottomNoMargins() + st::boxOptionListSkip);
 	_reasonPornography->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonViolence->bottomNoMargins() + st::boxOptionListSkip);
 	_reasonOther->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonPornography->bottomNoMargins() + st::boxOptionListSkip);
@@ -64,17 +61,17 @@ void ReportBox::resizeEvent(QResizeEvent *e) {
 	}
 }
 
-void ReportBox::onChange() {
-	if (_reasonOther->checked()) {
+void ReportBox::reasonChanged(Reason reason) {
+	if (reason == Reason::Other) {
 		if (!_reasonOtherText) {
-			_reasonOtherText.create(this, st::profileReportReasonOther, lang(lng_report_reason_description));
+			_reasonOtherText.create(this, st::profileReportReasonOther, langFactory(lng_report_reason_description));
 			_reasonOtherText->show();
 			_reasonOtherText->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
 			_reasonOtherText->setMaxLength(MaxPhotoCaption);
 			_reasonOtherText->resize(width() - (st::boxPadding.left() + st::boxOptionListPadding.left() + st::boxPadding.right()), _reasonOtherText->height());
 
 			updateMaxHeight();
-			connect(_reasonOtherText, SIGNAL(resized()), this, SLOT(onDescriptionResized()));
+			connect(_reasonOtherText, SIGNAL(resized()), this, SLOT(onReasonResized()));
 			connect(_reasonOtherText, SIGNAL(submitted(bool)), this, SLOT(onReport()));
 			connect(_reasonOtherText, SIGNAL(cancelled()), this, SLOT(onClose()));
 		}
@@ -93,7 +90,7 @@ void ReportBox::setInnerFocus() {
 	}
 }
 
-void ReportBox::onDescriptionResized() {
+void ReportBox::onReasonResized() {
 	updateMaxHeight();
 	update();
 }
@@ -107,15 +104,13 @@ void ReportBox::onReport() {
 	}
 
 	auto getReason = [this]() {
-		if (_reasonViolence->checked()) {
-			return MTP_inputReportReasonViolence();
-		} else if (_reasonPornography->checked()) {
-			return MTP_inputReportReasonPornography();
-		} else if (_reasonOtherText) {
-			return MTP_inputReportReasonOther(MTP_string(_reasonOtherText->getLastText()));
-		} else {
-			return MTP_inputReportReasonSpam();
+		switch (_reasonGroup->value()) {
+		case Reason::Spam: return MTP_inputReportReasonSpam();
+		case Reason::Violence: return MTP_inputReportReasonViolence();
+		case Reason::Pornography: return MTP_inputReportReasonPornography();
+		case Reason::Other: return MTP_inputReportReasonOther(MTP_string(_reasonOtherText->getLastText()));
 		}
+		Unexpected("Bad reason group value.");
 	};
 	_requestId = MTP::send(MTPaccount_ReportPeer(_peer->input, getReason()), rpcDone(&ReportBox::reportDone), rpcFail(&ReportBox::reportFail));
 }
@@ -136,7 +131,7 @@ bool ReportBox::reportFail(const RPCError &error) {
 }
 
 void ReportBox::updateMaxHeight() {
-	auto newHeight = st::boxOptionListPadding.top() + 4 * _reasonSpam->heightNoMargins() + 3 * st::boxOptionListSkip + st::boxOptionListPadding.bottom();
+	auto newHeight = st::boxOptionListPadding.top() + _reasonSpam->getMargins().top() + 4 * _reasonSpam->heightNoMargins() + 3 * st::boxOptionListSkip + _reasonSpam->getMargins().bottom() + st::boxOptionListPadding.bottom();
 	if (_reasonOtherText) {
 		newHeight += st::newGroupDescriptionPadding.top() + _reasonOtherText->height() + st::newGroupDescriptionPadding.bottom();
 	}

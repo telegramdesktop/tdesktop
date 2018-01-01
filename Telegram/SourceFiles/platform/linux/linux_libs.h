@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 extern "C" {
 #undef signals
 #include <libappindicator/app-indicator.h>
@@ -31,6 +32,7 @@ extern "C" {
 #ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
 #include <unity/unity/unity.h>
 #endif // !TDESKTOP_DISABLE_UNITY_INTEGRATION
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 namespace Platform {
 namespace Libs {
@@ -44,14 +46,15 @@ bool load(QLibrary &lib, const char *name, Function &func) {
 		return false;
 	}
 
-    func = reinterpret_cast<Function>(lib.resolve(name));
-    if (func) {
-        return true;
-    }
+	func = reinterpret_cast<Function>(lib.resolve(name));
+	if (func) {
+		return true;
+	}
 	LOG(("Error: failed to load '%1' function!").arg(name));
-    return false;
+	return false;
 }
 
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 typedef gboolean (*f_gtk_init_check)(int *argc, char ***argv);
 extern f_gtk_init_check gtk_init_check;
 
@@ -112,13 +115,13 @@ extern f_gtk_file_chooser_dialog_new gtk_file_chooser_dialog_new;
 typedef gboolean (*f_gtk_file_chooser_set_current_folder)(GtkFileChooser *chooser, const gchar *filename);
 extern f_gtk_file_chooser_set_current_folder gtk_file_chooser_set_current_folder;
 
-typedef gchar *(*f_gtk_file_chooser_get_current_folder)(GtkFileChooser *chooser);
+typedef gchar* (*f_gtk_file_chooser_get_current_folder)(GtkFileChooser *chooser);
 extern f_gtk_file_chooser_get_current_folder gtk_file_chooser_get_current_folder;
 
 typedef void (*f_gtk_file_chooser_set_current_name)(GtkFileChooser *chooser, const gchar *name);
 extern f_gtk_file_chooser_set_current_name gtk_file_chooser_set_current_name;
 
-typedef gboolean (*f_gtk_file_chooser_select_filename)(GtkFileChooser *chooser, const char *filename);
+typedef gboolean (*f_gtk_file_chooser_select_filename)(GtkFileChooser *chooser, const gchar *filename);
 extern f_gtk_file_chooser_select_filename gtk_file_chooser_select_filename;
 
 typedef GSList* (*f_gtk_file_chooser_get_filenames)(GtkFileChooser *chooser);
@@ -163,8 +166,26 @@ extern f_gtk_file_filter_add_pattern gtk_file_filter_add_pattern;
 typedef void (*f_gtk_file_chooser_add_filter)(GtkFileChooser *chooser, GtkFileFilter *filter);
 extern f_gtk_file_chooser_add_filter gtk_file_chooser_add_filter;
 
+typedef void (*f_gtk_file_chooser_set_preview_widget)(GtkFileChooser *chooser, GtkWidget *preview_widget);
+extern f_gtk_file_chooser_set_preview_widget gtk_file_chooser_set_preview_widget;
+
+typedef gchar* (*f_gtk_file_chooser_get_preview_filename)(GtkFileChooser *chooser);
+extern f_gtk_file_chooser_get_preview_filename gtk_file_chooser_get_preview_filename;
+
+typedef void (*f_gtk_file_chooser_set_preview_widget_active)(GtkFileChooser *chooser, gboolean active);
+extern f_gtk_file_chooser_set_preview_widget_active gtk_file_chooser_set_preview_widget_active;
+
 typedef GtkFileFilter* (*f_gtk_file_filter_new)(void);
 extern f_gtk_file_filter_new gtk_file_filter_new;
+
+typedef GtkWidget* (*f_gtk_image_new)(void);
+extern f_gtk_image_new gtk_image_new;
+
+typedef void (*f_gtk_image_set_from_pixbuf)(GtkImage *image, GdkPixbuf *pixbuf);
+extern f_gtk_image_set_from_pixbuf gtk_image_set_from_pixbuf;
+
+typedef void (*f_gdk_set_allowed_backends)(const gchar *backends);
+extern f_gdk_set_allowed_backends gdk_set_allowed_backends;
 
 typedef void (*f_gdk_window_set_modal_hint)(GdkWindow *window, gboolean modal);
 extern f_gdk_window_set_modal_hint gdk_window_set_modal_hint;
@@ -209,6 +230,14 @@ extern f_gtk_file_chooser_get_type gtk_file_chooser_get_type;
 template <typename Object>
 inline GtkFileChooser *gtk_file_chooser_cast(Object *obj) {
 	return g_type_cic_helper<GtkFileChooser, Object>(obj, gtk_file_chooser_get_type());
+}
+
+typedef GType (*f_gtk_image_get_type)(void) G_GNUC_CONST;
+extern f_gtk_image_get_type gtk_image_get_type;
+
+template <typename Object>
+inline GtkImage *gtk_image_cast(Object *obj) {
+	return g_type_cic_helper<GtkImage, Object>(obj, gtk_image_get_type());
 }
 
 typedef GType (*f_gtk_button_get_type)(void) G_GNUC_CONST;
@@ -278,6 +307,9 @@ extern f_gdk_pixbuf_new_from_data gdk_pixbuf_new_from_data;
 
 typedef GdkPixbuf* (*f_gdk_pixbuf_new_from_file)(const gchar *filename, GError **error);
 extern f_gdk_pixbuf_new_from_file gdk_pixbuf_new_from_file;
+
+typedef GdkPixbuf* (*f_gdk_pixbuf_new_from_file_at_size)(const gchar *filename, int width, int height, GError **error);
+extern f_gdk_pixbuf_new_from_file_at_size gdk_pixbuf_new_from_file_at_size;
 
 typedef GtkStatusIcon* (*f_gtk_status_icon_new_from_pixbuf)(GdkPixbuf *pixbuf);
 extern f_gtk_status_icon_new_from_pixbuf gtk_status_icon_new_from_pixbuf;
@@ -352,6 +384,7 @@ extern f_unity_launcher_entry_set_count_visible unity_launcher_entry_set_count_v
 typedef UnityLauncherEntry* (*f_unity_launcher_entry_get_for_desktop_id)(const gchar* desktop_id);
 extern f_unity_launcher_entry_get_for_desktop_id unity_launcher_entry_get_for_desktop_id;
 #endif // !TDESKTOP_DISABLE_UNITY_INTEGRATION
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 } // namespace Libs
 } // namespace Platform

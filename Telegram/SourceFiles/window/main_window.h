@@ -20,13 +20,20 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include <rpl/event_stream.h>
 #include "window/window_title.h"
+#include "base/timer.h"
 
 class MediaView;
 
 namespace Window {
 
+class Controller;
 class TitleWidget;
+
+QImage LoadLogo();
+QImage LoadLogoNoMargin();
+QIcon CreateIcon();
 
 class MainWindow : public QWidget, protected base::Subscriber {
 	Q_OBJECT
@@ -34,8 +41,15 @@ class MainWindow : public QWidget, protected base::Subscriber {
 public:
 	MainWindow();
 
+	Window::Controller *controller() const {
+		return _controller.get();
+	}
+	void setInactivePress(bool inactive);
+	bool wasInactivePress() const {
+		return _wasInactivePress;
+	}
+
 	bool hideNoQuit();
-	void hideMediaview();
 
 	void init();
 	HitTestResult hitTest(const QPoint &p) const;
@@ -56,31 +70,34 @@ public:
 	}
 
 	void reActivateWindow() {
+#if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
 		onReActivate();
 		QTimer::singleShot(200, this, SLOT(onReActivate()));
+#endif // Q_OS_LINUX32 || Q_OS_LINUX64
 	}
 
-	void showPhoto(const PhotoOpenClickHandler *lnk, HistoryItem *item = 0);
-	void showPhoto(PhotoData *photo, HistoryItem *item);
-	void showPhoto(PhotoData *photo, PeerData *item);
-	void showDocument(DocumentData *doc, HistoryItem *item);
-	bool ui_isMediaViewShown();
+	void showRightColumn(object_ptr<TWidget> widget);
+	int maximalExtendBy() const;
+	bool canExtendNoMove(int extendBy) const;
 
-	QWidget *filedialogParent();
+	// Returns how much could the window get extended.
+	int tryToExtendWidthBy(int addToWidth);
 
 	virtual void updateTrayMenu(bool force = false) {
 	}
-
-	// TODO: rewrite using base::Observable
-	void documentUpdated(DocumentData *doc);
-	virtual void changingMsgId(HistoryItem *row, MsgId newId);
 
 	virtual ~MainWindow();
 
 	TWidget *bodyWidget() {
 		return _body.data();
 	}
-	virtual PeerData *ui_getPeerForMouseAction();
+
+	void launchDrag(std::unique_ptr<QMimeData> data);
+	base::Observable<void> &dragFinished() {
+		return _dragFinished;
+	}
+
+	rpl::producer<> leaveEvents() const;
 
 public slots:
 	bool minimizeToTray();
@@ -90,8 +107,11 @@ public slots:
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
+	void leaveEvent(QEvent *e) override;
 
 	void savePosition(Qt::WindowState state = Qt::WindowActive);
+	void handleStateChanged(Qt::WindowState state);
+	void handleActiveChanged();
 
 	virtual void initHook() {
 	}
@@ -99,9 +119,14 @@ protected:
 	virtual void updateIsActiveHook() {
 	}
 
+	virtual void handleActiveChangedHook() {
+	}
+
 	void clearWidgets();
 	virtual void clearWidgetsHook() {
 	}
+
+	virtual void updateWindowIcon();
 
 	virtual void stateChangedHook(Qt::WindowState state) {
 	}
@@ -125,25 +150,25 @@ protected:
 	virtual void showTrayTooltip() {
 	}
 
+	virtual void workmodeUpdated(DBIWorkMode mode) {
+	}
+
+	virtual void updateControlsGeometry();
+
 	// This one is overriden in Windows for historical reasons.
 	virtual int32 screenNameChecksum(const QString &name) const;
 
 	void setPositionInited();
-
-	void createMediaView();
 
 private slots:
 	void savePositionByTimer() {
 		savePosition();
 	}
 	void onReActivate();
-	void updateIsActiveByTimer() {
-		updateIsActive(0);
-	}
 
 private:
+	void checkAuthSession();
 	void updatePalette();
-	void updateControlsGeometry();
 	void updateUnreadCounter();
 	void initSize();
 
@@ -152,15 +177,21 @@ private:
 	object_ptr<QTimer> _positionUpdatedTimer;
 	bool _positionInited = false;
 
+	std::unique_ptr<Window::Controller> _controller;
 	object_ptr<TitleWidget> _title = { nullptr };
 	object_ptr<TWidget> _body;
+	object_ptr<TWidget> _rightColumn = { nullptr };
 
+	QIcon _icon;
 	QString _titleText;
 
-	object_ptr<QTimer> _isActiveTimer;
 	bool _isActive = false;
+	base::Timer _isActiveTimer;
+	bool _wasInactivePress = false;
+	base::Timer _inactivePressTimer;
 
-	object_ptr<MediaView> _mediaView = { nullptr };
+	base::Observable<void> _dragFinished;
+	rpl::event_stream<> _leaveEvents;
 
 };
 

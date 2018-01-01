@@ -21,17 +21,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "intro/introwidget.h"
-#include "ui/filedialog.h"
 
 namespace Ui {
 class RoundButton;
 class InputField;
-class NewAvatarButton;
+class UserpicButton;
 } // namespace Ui
 
 namespace Intro {
 
-class SignupWidget : public Widget::Step, private base::Subscriber {
+class SignupWidget : public Widget::Step {
 	Q_OBJECT
 
 public:
@@ -49,25 +48,21 @@ protected:
 private slots:
 	void onInputChange();
 	void onCheckRequest();
-	void onPhotoReady(const QImage &img);
 
 private:
-	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
+	void refreshLang();
+	void updateControlsGeometry();
 
 	void nameSubmitDone(const MTPauth_Authorization &result);
 	bool nameSubmitFail(const RPCError &error);
 
 	void stopCheck();
 
-	QImage _photoImage;
-
-	object_ptr<Ui::NewAvatarButton> _photo;
+	object_ptr<Ui::UserpicButton> _photo;
 	object_ptr<Ui::InputField> _first;
 	object_ptr<Ui::InputField> _last;
 	QString _firstName, _lastName;
 	mtpRequestId _sentRequest = 0;
-
-	FileDialog::QueryId _readPhotoFileQueryId = 0;
 
 	bool _invertOrder = false;
 

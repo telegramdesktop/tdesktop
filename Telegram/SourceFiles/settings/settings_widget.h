@@ -20,51 +20,27 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "layerwidget.h"
-
-class BoxLayerTitleShadow;
-
-namespace Ui {
-class ScrollArea;
-class IconButton;
-template <typename Widget>
-class WidgetFadeWrap;
-} // namespace Ui
+#include "settings/settings_layer.h"
 
 namespace Settings {
 
 class InnerWidget;
-class FixedBar;
 
-class Widget : public LayerWidget {
-	Q_OBJECT
-
+class Widget : public Layer, private base::Subscriber {
 public:
-	Widget(QWidget *parent);
+	Widget(QWidget*);
+
+	void refreshLang();
 
 	void parentResized() override;
-	void showFinished() override;
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 
-private slots:
-	void onInnerHeightUpdated();
-	void onScroll();
-
 private:
-	void resizeUsingInnerHeight(int newWidth, int newContentLeft);
+	void resizeUsingInnerHeight(int newWidth, int innerHeight) override;
 
-	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<InnerWidget> _inner;
-	object_ptr<FixedBar> _fixedBar;
-	object_ptr<Ui::IconButton> _fixedBarClose;
-	object_ptr<Ui::WidgetFadeWrap<BoxLayerTitleShadow>> _fixedBarShadow;
-
-	int _contentLeft = 0;
-	bool _roundedCorners = false;
 
 };
 

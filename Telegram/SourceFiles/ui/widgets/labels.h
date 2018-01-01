@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include <rpl/producer.h>
+#include "ui/rp_widget.h"
 #include "styles/style_widgets.h"
 
 namespace Ui {
@@ -45,7 +47,7 @@ public:
 
 private:
 	struct Line {
-		Line(Part was, Part now) : was(std_::move(was)), now(std_::move(now)) {
+		Line(Part was, Part now) : was(std::move(was)), now(std::move(now)) {
 		}
 		Part was;
 		Part now;
@@ -78,7 +80,7 @@ private:
 
 };
 
-class FlatLabel : public TWidget, public ClickHandlerHost {
+class FlatLabel : public RpWidget, public ClickHandlerHost {
 	Q_OBJECT
 
 public:
@@ -88,7 +90,20 @@ public:
 		Simple,
 		Rich,
 	};
-	FlatLabel(QWidget *parent, const QString &text, InitType initType, const style::FlatLabel &st = st::defaultFlatLabel);
+	FlatLabel(
+		QWidget *parent,
+		const QString &text,
+		InitType initType,
+		const style::FlatLabel &st = st::defaultFlatLabel);
+
+	FlatLabel(
+		QWidget *parent,
+		rpl::producer<QString> &&text,
+		const style::FlatLabel &st = st::defaultFlatLabel);
+	FlatLabel(
+		QWidget *parent,
+		rpl::producer<TextWithEntities> &&text,
+		const style::FlatLabel &st = st::defaultFlatLabel);
 
 	void setOpacity(float64 o);
 
@@ -102,6 +117,7 @@ public:
 	void setBreakEverywhere(bool breakEverywhere);
 
 	int naturalWidth() const override;
+	QMargins getMargins() const override;
 
 	void setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk);
 
@@ -112,7 +128,12 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) override;
 
-	static std_::unique_ptr<CrossFadeAnimation> CrossFade(FlatLabel *from, FlatLabel *to, style::color bg, QPoint fromPosition = QPoint(), QPoint toPosition = QPoint());
+	static std::unique_ptr<CrossFadeAnimation> CrossFade(
+		not_null<FlatLabel*> from,
+		not_null<FlatLabel*> to,
+		style::color bg,
+		QPoint fromPosition = QPoint(),
+		QPoint toPosition = QPoint());
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -120,13 +141,13 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseDoubleClickEvent(QMouseEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void focusOutEvent(QFocusEvent *e) override;
 	void focusInEvent(QFocusEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
-	bool event(QEvent *e) override; // calls touchEvent when necessary
+	bool eventHook(QEvent *e) override; // calls touchEvent when necessary
 	void touchEvent(QTouchEvent *e);
 
 	int resizeGetHeight(int newWidth) override;
