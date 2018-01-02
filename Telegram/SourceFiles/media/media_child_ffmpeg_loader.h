@@ -20,17 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "media/media_audio_loader.h"
-#include "media/media_audio.h"
-
-extern "C" {
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libavutil/opt.h>
-#include <libswresample/swresample.h>
-} // extern "C"
-
-#include <AL/al.h>
+#include "media/media_audio_ffmpeg_loader.h"
 
 struct VideoSoundData {
 	AVCodecContext *context = nullptr;
@@ -81,7 +71,7 @@ inline void freePacket(AVPacket *packet) {
 
 } // namespace FFMpeg
 
-class ChildFFMpegLoader : public AudioPlayerLoader {
+class ChildFFMpegLoader : public AbstractAudioFFMpegLoader {
 public:
 	ChildFFMpegLoader(std::unique_ptr<VideoSoundData> &&data);
 
@@ -89,18 +79,6 @@ public:
 
 	bool check(const FileLocation &file, const QByteArray &data) override {
 		return true;
-	}
-
-	int format() override {
-		return _format;
-	}
-
-	int64 samplesCount() override {
-		return _parentData->length;
-	}
-
-	int32 samplesFrequency() override {
-		return _parentData->frequency;
 	}
 
 	ReadResult readMore(QByteArray &result, int64 &samplesAdded) override;
@@ -113,22 +91,8 @@ public:
 	~ChildFFMpegLoader();
 
 private:
-	ReadResult readFromReadyFrame(QByteArray &result, int64 &samplesAdded);
-
-	bool _eofReached = false;
-
-	int32 _sampleSize = 2 * sizeof(uint16);
-	int _format = AL_FORMAT_STEREO16;
-	int32 _srcRate = Media::Player::kDefaultFrequency;
-	int32 _dstRate = Media::Player::kDefaultFrequency;
-	int32 _maxResampleSamples = 1024;
-	uint8_t **_dstSamplesData = nullptr;
-
 	std::unique_ptr<VideoSoundData> _parentData;
-	AVSampleFormat _inputFormat;
-	AVFrame *_frame = nullptr;
-
-	SwrContext *_swrContext = nullptr;
 	QQueue<FFMpeg::AVPacketDataWrap> _queue;
+	bool _eofReached = false;
 
 };

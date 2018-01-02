@@ -1542,7 +1542,9 @@ public:
 
 		QByteArray buffer;
 		buffer.reserve(AudioVoiceMsgBufferSize);
-		int64 countbytes = sampleSize * samplesCount(), processed = 0, sumbytes = 0;
+		int64 countbytes = sampleSize() * samplesCount();
+		int64 processed = 0;
+		int64 sumbytes = 0;
 		if (samplesCount() < Media::Player::kWaveformSamplesCount) {
 			return false;
 		}
@@ -1552,7 +1554,7 @@ public:
 
 		auto fmt = format();
 		auto peak = uint16(0);
-		auto callback = [&peak, &sumbytes, &peaks, countbytes](uint16 sample) {
+		auto callback = [&](uint16 sample) {
 			accumulate_max(peak, sample);
 			sumbytes += Media::Player::kWaveformSamplesCount;
 			if (sumbytes >= countbytes) {
@@ -1579,7 +1581,7 @@ public:
 			} else if (fmt == AL_FORMAT_MONO16 || fmt == AL_FORMAT_STEREO16) {
 				Media::Audio::IterateSamples<int16>(sampleBytes, callback);
 			}
-			processed += sampleSize * samples;
+			processed += sampleSize() * samples;
 		}
 		if (sumbytes > 0 && peaks.size() < Media::Player::kWaveformSamplesCount) {
 			peaks.push_back(peak);

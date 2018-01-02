@@ -81,17 +81,15 @@ private:
 
 };
 
-class FFMpegLoader : public AbstractFFMpegLoader {
+class AbstractAudioFFMpegLoader : public AbstractFFMpegLoader {
 public:
-	FFMpegLoader(
+	AbstractAudioFFMpegLoader(
 		const FileLocation &file,
 		const QByteArray &data,
 		base::byte_vector &&bytes);
 
-	bool open(TimeMs positionMs) override;
-
 	int64 samplesCount() override {
-		return _swrDstSamplesCount;
+		return _outputSamplesCount;
 	}
 
 	int samplesFrequency() override {
@@ -99,15 +97,24 @@ public:
 	}
 
 	int format() override {
-		return _format;
+		return _outputFormat;
 	}
 
-	ReadResult readMore(QByteArray &result, int64 &samplesAdded) override;
-
-	~FFMpegLoader();
+	~AbstractAudioFFMpegLoader();
 
 protected:
-	int sampleSize = 2 * sizeof(uint16);
+	bool initUsingContext(
+		not_null<AVCodecContext*> context,
+		int64 initialCount,
+		int initialFrequency);
+	ReadResult readFromReadyContext(
+		not_null<AVCodecContext*> context,
+		QByteArray &result,
+		int64 &samplesAdded);
+
+	int sampleSize() const {
+		return _outputSampleSize;
+	}
 
 private:
 	ReadResult readFromReadyFrame(QByteArray &result, int64 &samplesAdded);
@@ -116,24 +123,50 @@ private:
 	bool initResampleUsingFormat();
 	bool ensureResampleSpaceAvailable(int samples);
 
-	AVCodecContext *_codecContext = nullptr;
-	AVPacket _packet;
-	int _format = AL_FORMAT_STEREO16;
+	void appendSamples(
+		QByteArray &result,
+		int64 &samplesAdded,
+		uint8_t **data,
+		int count) const;
+
 	AVFrame *_frame = nullptr;
+	int _outputFormat = AL_FORMAT_STEREO16;
+	int _outputChannels = 2;
+	int _outputSampleSize = 2 * sizeof(uint16);
+	int64 _outputSamplesCount = 0;
 
 	SwrContext *_swrContext = nullptr;
 
 	int _swrSrcRate = 0;
-	AVSampleFormat _swrSrcFormat = AV_SAMPLE_FMT_NONE;
+	AVSampleFormat _swrSrcSampleFormat = AV_SAMPLE_FMT_NONE;
 	uint64_t _swrSrcChannelLayout = 0;
 
 	const int _swrDstRate = Media::Player::kDefaultFrequency;
-	AVSampleFormat _swrDstFormat = AV_SAMPLE_FMT_S16;
+	AVSampleFormat _swrDstSampleFormat = AV_SAMPLE_FMT_S16;
 	uint64_t _swrDstChannelLayout = AV_CH_LAYOUT_STEREO;
-	int _swrDstChannels = 2;
-
-	int64 _swrDstSamplesCount = 0;
 	uint8_t **_swrDstData = nullptr;
 	int _swrDstDataCapacity = 0;
+
+};
+
+class FFMpegLoader : public AbstractAudioFFMpegLoader {
+public:
+	FFMpegLoader(
+		const FileLocation &file,
+		const QByteArray &data,
+		base::byte_vector &&bytes);
+
+	bool open(TimeMs positionMs) override;
+
+	ReadResult readMore(QByteArray &result, int64 &samplesAdded) override;
+
+	~FFMpegLoader();
+
+private:
+	bool openCodecContext();
+	bool seekTo(TimeMs positionMs);
+
+	AVCodecContext *_codecContext = nullptr;
+	AVPacket _packet;
 
 };
