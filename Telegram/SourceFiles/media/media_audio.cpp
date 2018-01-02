@@ -1405,8 +1405,8 @@ void DetachFromDevice() {
 
 class FFMpegAttributesReader : public AbstractFFMpegLoader {
 public:
-
-	FFMpegAttributesReader(const FileLocation &file, const QByteArray &data) : AbstractFFMpegLoader(file, data, base::byte_vector()) {
+	FFMpegAttributesReader(const FileLocation &file, const QByteArray &data)
+	: AbstractFFMpegLoader(file, data, base::byte_vector()) {
 	}
 
 	bool open(TimeMs positionMs) override {
@@ -1424,15 +1424,22 @@ public:
 		}
 
 		for (int32 i = 0, l = fmtContext->nb_streams; i < l; ++i) {
-			AVStream *stream = fmtContext->streams[i];
+			const auto stream = fmtContext->streams[i];
 			if (stream->disposition & AV_DISPOSITION_ATTACHED_PIC) {
-				const AVPacket &packet(stream->attached_pic);
+				const auto &packet = stream->attached_pic;
 				if (packet.size) {
-					bool animated = false;
-					QByteArray cover((const char*)packet.data, packet.size), format;
-					_cover = App::readImage(cover, &format, true, &animated);
+					const auto coverBytes = QByteArray(
+						(const char*)packet.data,
+						packet.size);
+					auto format = QByteArray();
+					auto animated = false;
+					_cover = App::readImage(
+						coverBytes,
+						&format,
+						true,
+						&animated);
 					if (!_cover.isNull()) {
-						_coverBytes = cover;
+						_coverBytes = coverBytes;
 						_coverFormat = format;
 						break;
 					}
@@ -1464,7 +1471,7 @@ public:
 		//}
 	}
 
-	int32 format() override {
+	int format() override {
 		return 0;
 	}
 

@@ -34,7 +34,11 @@ extern "C" {
 
 class AbstractFFMpegLoader : public AudioPlayerLoader {
 public:
-	AbstractFFMpegLoader(const FileLocation &file, const QByteArray &data, base::byte_vector &&bytes) : AudioPlayerLoader(file, data, std::move(bytes)) {
+	AbstractFFMpegLoader(
+		const FileLocation &file,
+		const QByteArray &data,
+		base::byte_vector &&bytes)
+	: AudioPlayerLoader(file, data, std::move(bytes)) {
 	}
 
 	bool open(TimeMs positionMs) override;
@@ -43,14 +47,20 @@ public:
 		return _samplesCount;
 	}
 
-	int32 samplesFrequency() override {
+	int samplesFrequency() override {
 		return _samplesFrequency;
 	}
+
+	static uint64_t ComputeChannelLayout(
+		uint64_t channel_layout,
+		int channels);
 
 	~AbstractFFMpegLoader();
 
 protected:
-	int32 _samplesFrequency = Media::Player::kDefaultFrequency;
+	static int64 Mul(int64 value, AVRational rational);
+
+	int _samplesFrequency = Media::Player::kDefaultFrequency;
 	int64 _samplesCount = 0;
 
 	uchar *ioBuffer = nullptr;
@@ -73,12 +83,23 @@ private:
 
 class FFMpegLoader : public AbstractFFMpegLoader {
 public:
-	FFMpegLoader(const FileLocation &file, const QByteArray &data, base::byte_vector &&bytes);
+	FFMpegLoader(
+		const FileLocation &file,
+		const QByteArray &data,
+		base::byte_vector &&bytes);
 
 	bool open(TimeMs positionMs) override;
 
-	int32 format() override {
-		return fmt;
+	int64 samplesCount() override {
+		return _swrDstSamplesCount;
+	}
+
+	int samplesFrequency() override {
+		return _swrDstRate;
+	}
+
+	int format() override {
+		return _format;
 	}
 
 	ReadResult readMore(QByteArray &result, int64 &samplesAdded) override;
@@ -86,22 +107,33 @@ public:
 	~FFMpegLoader();
 
 protected:
-	int32 sampleSize = 2 * sizeof(uint16);
+	int sampleSize = 2 * sizeof(uint16);
 
 private:
 	ReadResult readFromReadyFrame(QByteArray &result, int64 &samplesAdded);
+	bool frameHasDesiredFormat() const;
+	bool initResampleForFrame();
+	bool initResampleUsingFormat();
+	bool ensureResampleSpaceAvailable(int samples);
 
-	int32 fmt = AL_FORMAT_STEREO16;
-	int32 srcRate = Media::Player::kDefaultFrequency;
-	int32 dstRate = Media::Player::kDefaultFrequency;
-	int32 maxResampleSamples = 1024;
-	uint8_t **dstSamplesData = nullptr;
+	AVCodecContext *_codecContext = nullptr;
+	AVPacket _packet;
+	int _format = AL_FORMAT_STEREO16;
+	AVFrame *_frame = nullptr;
 
-	AVCodecContext *codecContext = nullptr;
-	AVPacket avpkt;
-	AVSampleFormat inputFormat;
-	AVFrame *frame = nullptr;
+	SwrContext *_swrContext = nullptr;
 
-	SwrContext *swrContext = nullptr;
+	int _swrSrcRate = 0;
+	AVSampleFormat _swrSrcFormat = AV_SAMPLE_FMT_NONE;
+	uint64_t _swrSrcChannelLayout = 0;
+
+	const int _swrDstRate = Media::Player::kDefaultFrequency;
+	AVSampleFormat _swrDstFormat = AV_SAMPLE_FMT_S16;
+	uint64_t _swrDstChannelLayout = AV_CH_LAYOUT_STEREO;
+	int _swrDstChannels = 2;
+
+	int64 _swrDstSamplesCount = 0;
+	uint8_t **_swrDstData = nullptr;
+	int _swrDstDataCapacity = 0;
 
 };

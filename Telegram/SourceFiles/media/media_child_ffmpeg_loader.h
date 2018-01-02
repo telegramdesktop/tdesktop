@@ -91,7 +91,7 @@ public:
 		return true;
 	}
 
-	int32 format() override {
+	int format() override {
 		return _format;
 	}
 
@@ -118,7 +118,7 @@ private:
 	bool _eofReached = false;
 
 	int32 _sampleSize = 2 * sizeof(uint16);
-	int32 _format = AL_FORMAT_STEREO16;
+	int _format = AL_FORMAT_STEREO16;
 	int32 _srcRate = Media::Player::kDefaultFrequency;
 	int32 _dstRate = Media::Player::kDefaultFrequency;
 	int32 _maxResampleSamples = 1024;

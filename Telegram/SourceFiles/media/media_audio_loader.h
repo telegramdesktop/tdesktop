@@ -33,8 +33,8 @@ public:
 
 	virtual bool open(TimeMs positionMs) = 0;
 	virtual int64 samplesCount() = 0;
-	virtual int32 samplesFrequency() = 0;
-	virtual int32 format() = 0;
+	virtual int samplesFrequency() = 0;
+	virtual int format() = 0;
 
 	enum class ReadResult {
 		Error,
