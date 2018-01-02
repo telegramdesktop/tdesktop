@@ -184,28 +184,53 @@ void MonoIcon::fill(QPainter &p, const QRect &rect, QColor colorOverride) const 
 	}
 }
 
-void MonoIcon::paint(QPainter &p, const QPoint &pos, int outerw, const style::palette &paletteOverride) const {
-	int w = width(), h = height();
-	QPoint fullOffset = pos + offset();
-	int partPosX = rtl() ? (outerw - fullOffset.x() - w) : fullOffset.x();
-	int partPosY = fullOffset.y();
+void MonoIcon::paint(
+		QPainter &p,
+		const QPoint &pos,
+		int outerw,
+		const style::palette &paletteOverride) const {
+	auto size = readGeneratedSize(_mask, cScale());
+	auto maskImage = QImage();
+	if (size.isEmpty()) {
+		maskImage = createIconMask(_mask, cScale());
+		size = maskImage.size() / cIntRetinaFactor();
+	}
 
-	ensureLoaded();
-	if (_pixmap.isNull()) {
-		p.fillRect(partPosX, partPosY, w, h, _color[paletteOverride]);
+	const auto w = size.width();
+	const auto h = size.height();
+	const auto fullOffset = pos + offset();
+	const auto partPosX = rtl() ? (outerw - fullOffset.x() - w) : fullOffset.x();
+	const auto partPosY = fullOffset.y();
+
+	if (!maskImage.isNull()) {
+		auto colorizedImage = QImage(
+			maskImage.size(),
+			QImage::Format_ARGB32_Premultiplied);
+		colorizeImage(maskImage, _color[paletteOverride]->c, &colorizedImage);
+		p.drawImage(partPosX, partPosY, colorizedImage);
 	} else {
-		ensureColorizedImage(_color[paletteOverride]->c);
-		p.drawImage(partPosX, partPosY, _colorizedImage);
+		p.fillRect(partPosX, partPosY, w, h, _color[paletteOverride]);
 	}
 }
 
-void MonoIcon::fill(QPainter &p, const QRect &rect, const style::palette &paletteOverride) const {
-	ensureLoaded();
-	if (_pixmap.isNull()) {
-		p.fillRect(rect, _color[paletteOverride]);
+void MonoIcon::fill(
+		QPainter &p,
+		const QRect &rect,
+		const style::palette &paletteOverride) const {
+	auto size = readGeneratedSize(_mask, cScale());
+	auto maskImage = QImage();
+	if (size.isEmpty()) {
+		maskImage = createIconMask(_mask, cScale());
+		size = maskImage.size() / cIntRetinaFactor();
+	}
+	if (!maskImage.isNull()) {
+		auto colorizedImage = QImage(
+			maskImage.size(),
+			QImage::Format_ARGB32_Premultiplied);
+		colorizeImage(maskImage, _color[paletteOverride]->c, &colorizedImage);
+		p.drawImage(rect, colorizedImage, colorizedImage.rect());
 	} else {
-		ensureColorizedImage(_color[paletteOverride]->c);
-		p.drawImage(rect, _colorizedImage, _colorizedImage.rect());
+		p.fillRect(rect, _color[paletteOverride]);
 	}
 }
 
