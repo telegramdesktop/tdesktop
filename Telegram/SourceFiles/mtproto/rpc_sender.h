@@ -270,15 +270,15 @@ private:
 };
 
 struct RPCCallbackClear {
-	RPCCallbackClear(mtpRequestId id = 0, int32 code = RPCError::NoError) : requestId(id), errorCode(code) {
+	RPCCallbackClear(mtpRequestId id , int32 code = RPCError::NoError)
+	: requestId(id)
+	, errorCode(code) {
 	}
 
 	mtpRequestId requestId;
 	int32 errorCode;
 
 };
-
-using RPCCallbackClears = QVector<RPCCallbackClear> ;
 
 template <typename TReturn>
 inline RPCDoneHandlerPtr rpcDone(TReturn (*onDone)(const mtpPrime *, const mtpPrime *)) { // done(from, end)

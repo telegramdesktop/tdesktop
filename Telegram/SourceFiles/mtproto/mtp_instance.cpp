@@ -76,15 +76,13 @@ public:
 		std::unique_ptr<internal::Connection> &&connection);
 	void connectionFinished(internal::Connection *connection);
 
-	void registerRequest(mtpRequestId requestId, int32 dcWithShift);
+	void registerRequest(mtpRequestId requestId, ShiftedDcId dcWithShift);
 	void unregisterRequest(mtpRequestId requestId);
 	mtpRequestId storeRequest(
 		mtpRequest &request,
 		RPCResponseHandler &&callbacks);
 	mtpRequest getRequest(mtpRequestId requestId);
-	void clearCallbacks(mtpRequestId requestId, int32 errorCode = RPCError::NoError); // 0 - do not toggle onError callback
-	void clearCallbacksDelayed(const RPCCallbackClears &requestIds);
-	void performDelayedClear();
+	void clearCallbacksDelayed(std::vector<RPCCallbackClear> &&ids);
 	void execCallback(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end);
 	bool hasCallbacks(mtpRequestId requestId);
 	void globalCallback(const mtpPrime *from, const mtpPrime *end);
@@ -140,6 +138,12 @@ private:
 	void cdnConfigLoadDone(const MTPCdnConfig &result);
 	bool cdnConfigLoadFail(const RPCError &error);
 
+	// RPCError::NoError means do not toggle onError callback.
+	void clearCallbacks(
+		mtpRequestId requestId,
+		int32 errorCode = RPCError::NoError);
+	void clearCallbacks(const std::vector<RPCCallbackClear> &ids);
+
 	void checkDelayedRequests();
 
 	not_null<Instance*> _instance;
@@ -184,9 +188,6 @@ private:
 	std::set<mtpRequestId> _badGuestDcRequests;
 
 	std::map<DcId, std::vector<mtpRequestId>> _authWaiters;
-
-	QMutex _toClearLock;
-	RPCCallbackClears _toClear;
 
 	RPCResponseHandler _globalHandler;
 	base::lambda<void(ShiftedDcId shiftedDcId, int32 state)> _stateChangedHandler;
@@ -681,12 +682,11 @@ void Instance::Private::checkDelayedRequests() {
 	}
 }
 
-void Instance::Private::registerRequest(mtpRequestId requestId, int32 dcWithShift) {
-	{
-		QMutexLocker locker(&_requestByDcLock);
-		_requestsByDc.emplace(requestId, dcWithShift);
-	}
-	performDelayedClear(); // need to do it somewhere...
+void Instance::Private::registerRequest(
+		mtpRequestId requestId,
+		ShiftedDcId dcWithShift) {
+	QMutexLocker locker(&_requestByDcLock);
+	_requestsByDc.emplace(requestId, dcWithShift);
 }
 
 void Instance::Private::unregisterRequest(mtpRequestId requestId) {
@@ -748,46 +748,50 @@ void Instance::Private::clearCallbacks(mtpRequestId requestId, int32 errorCode) 
 	}
 }
 
-void Instance::Private::clearCallbacksDelayed(const RPCCallbackClears &requestIds) {
-	uint32 idsCount = requestIds.size();
-	if (!idsCount) return;
+void Instance::Private::clearCallbacksDelayed(
+		std::vector<RPCCallbackClear> &&ids) {
+	if (ids.empty()) {
+		return;
+	}
 
 	if (cDebug()) {
-		QString idsStr = QString("%1").arg(requestIds[0].requestId);
-		for (uint32 i = 1; i < idsCount; ++i) {
-			idsStr += QString(", %1").arg(requestIds[i].requestId);
+		auto idsString = QStringList();
+		idsString.reserve(ids.size());
+		for (auto &value : ids) {
+			idsString.push_back(QString::number(value.requestId));
 		}
-		DEBUG_LOG(("RPC Info: clear callbacks delayed, msgIds: %1").arg(idsStr));
+		DEBUG_LOG(("RPC Info: clear callbacks delayed, msgIds: %1"
+			).arg(idsString.join(", ")));
 	}
 
-	QMutexLocker lock(&_toClearLock);
-	uint32 toClearNow = _toClear.size();
-	if (toClearNow) {
-		_toClear.resize(toClearNow + idsCount);
-		memcpy(_toClear.data() + toClearNow, requestIds.constData(), idsCount * sizeof(RPCCallbackClear));
-	} else {
-		_toClear = requestIds;
-	}
+	crl::on_main(_instance, [this, list = std::move(ids)] {
+		clearCallbacks(list);
+	});
 }
 
-void Instance::Private::performDelayedClear() {
-	QMutexLocker lock(&_toClearLock);
-	if (!_toClear.isEmpty()) {
-		for (auto &clearRequest : _toClear) {
-			if (cDebug()) {
-				QMutexLocker locker(&_parserMapLock);
-				if (_parserMap.find(clearRequest.requestId) != _parserMap.end()) {
-					DEBUG_LOG(("RPC Info: clearing delayed callback %1, error code %2").arg(clearRequest.requestId).arg(clearRequest.errorCode));
-				}
+void Instance::Private::clearCallbacks(
+		const std::vector<RPCCallbackClear> &ids) {
+	Expects(!ids.empty());
+
+	for (const auto &clearRequest : ids) {
+		if (cDebug()) {
+			QMutexLocker locker(&_parserMapLock);
+			if (_parserMap.find(clearRequest.requestId) != _parserMap.end()) {
+				DEBUG_LOG(("RPC Info: "
+					"clearing delayed callback %1, error code %2"
+					).arg(clearRequest.requestId
+					).arg(clearRequest.errorCode));
 			}
-			clearCallbacks(clearRequest.requestId, clearRequest.errorCode);
-			unregisterRequest(clearRequest.requestId);
 		}
-		_toClear.clear();
+		clearCallbacks(clearRequest.requestId, clearRequest.errorCode);
+		unregisterRequest(clearRequest.requestId);
 	}
 }
 
-void Instance::Private::execCallback(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) {
+void Instance::Private::execCallback(
+		mtpRequestId requestId,
+		const mtpPrime *from,
+		const mtpPrime *end) {
 	RPCResponseHandler h;
 	{
 		QMutexLocker locker(&_parserMapLock);
@@ -1023,7 +1027,9 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 			request = it->second;
 		}
 		if (auto session = getSession(newdcWithShift)) {
-			registerRequest(requestId, (dcWithShift < 0) ? -newdcWithShift : newdcWithShift);
+			registerRequest(
+				requestId,
+				(dcWithShift < 0) ? -newdcWithShift : newdcWithShift);
 			session->sendPrepared(request);
 		}
 		return true;
@@ -1424,7 +1430,9 @@ void Instance::onSessionReset(ShiftedDcId dcWithShift) {
 	_private->onSessionReset(dcWithShift);
 }
 
-void Instance::registerRequest(mtpRequestId requestId, ShiftedDcId dcWithShift) {
+void Instance::registerRequest(
+		mtpRequestId requestId,
+		ShiftedDcId dcWithShift) {
 	_private->registerRequest(requestId, dcWithShift);
 }
 
@@ -1438,8 +1446,8 @@ mtpRequest Instance::getRequest(mtpRequestId requestId) {
 	return _private->getRequest(requestId);
 }
 
-void Instance::clearCallbacksDelayed(const RPCCallbackClears &requestIds) {
-	_private->clearCallbacksDelayed(requestIds);
+void Instance::clearCallbacksDelayed(std::vector<RPCCallbackClear> &&ids) {
+	_private->clearCallbacksDelayed(std::move(ids));
 }
 
 void Instance::execCallback(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) {

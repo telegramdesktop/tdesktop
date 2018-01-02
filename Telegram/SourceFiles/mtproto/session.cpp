@@ -56,7 +56,7 @@ void SessionData::setKey(const AuthKeyPtr &key) {
 }
 
 void SessionData::clear(Instance *instance) {
-	RPCCallbackClears clearCallbacks;
+	auto clearCallbacks = std::vector<RPCCallbackClear>();
 	{
 		QReadLocker locker1(haveSentMutex()), locker2(toResendMutex()), locker3(haveReceivedMutex()), locker4(wereAckedMutex());
 		auto receivedResponsesEnd = _receivedResponses.cend();
@@ -96,7 +96,7 @@ void SessionData::clear(Instance *instance) {
 		QWriteLocker locker(receivedIdsMutex());
 		_receivedIds.clear();
 	}
-	instance->clearCallbacksDelayed(clearCallbacks);
+	instance->clearCallbacksDelayed(std::move(clearCallbacks));
 }
 
 Session::Session(not_null<Instance*> instance, ShiftedDcId shiftedDcId) : QObject()
@@ -305,12 +305,12 @@ void Session::checkRequestsByTimer() {
 		}
 	}
 	if (!removingIds.isEmpty()) {
-		RPCCallbackClears clearCallbacks;
+		auto clearCallbacks = std::vector<RPCCallbackClear>();
 		{
 			QWriteLocker locker(data.haveSentMutex());
-			mtpRequestMap &haveSent(data.haveSentMap());
+			auto &haveSent = data.haveSentMap();
 			for (uint32 i = 0, l = removingIds.size(); i < l; ++i) {
-				mtpRequestMap::iterator j = haveSent.find(removingIds[i]);
+				auto j = haveSent.find(removingIds[i]);
 				if (j != haveSent.cend()) {
 					if (j.value()->requestId) {
 						clearCallbacks.push_back(j.value()->requestId);
@@ -319,7 +319,7 @@ void Session::checkRequestsByTimer() {
 				}
 			}
 		}
-		_instance->clearCallbacksDelayed(clearCallbacks);
+		_instance->clearCallbacksDelayed(std::move(clearCallbacks));
 	}
 }
 

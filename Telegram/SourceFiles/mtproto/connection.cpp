@@ -1580,10 +1580,17 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 			_pingId = 0;
 		}
 		int32 errorCode = data.verror_code.v;
-		if (errorCode == 16 || errorCode == 17 || errorCode == 32 || errorCode == 33 || errorCode == 64) { // can handle
-			bool needResend = (errorCode == 16 || errorCode == 17); // bad msg_id
+		if (false
+			|| errorCode == 16
+			|| errorCode == 17
+			|| errorCode == 32
+			|| errorCode == 33
+			|| errorCode == 64) { // can handle
+			const auto needResend = false
+				|| (errorCode == 16) // bad msg_id
+				|| (errorCode == 17) // bad msg_id
+				|| (errorCode == 64); // bad container
 			if (errorCode == 64) { // bad container!
-				needResend = true;
 				if (cDebug()) {
 					mtpRequest request;
 					{
@@ -1600,7 +1607,7 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 					if (request) {
 						if (mtpRequestData::isSentContainer(request)) {
 							QStringList lst;
-							const mtpMsgId *ids = (const mtpMsgId *)(request->constData() + 8);
+							const auto ids = (const mtpMsgId *)(request->constData() + 8);
 							for (uint32 i = 0, l = (request->size() - 8) >> 1; i < l; ++i) {
 								lst.push_back(QString::number(ids[i]));
 							}
@@ -1613,11 +1620,14 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 			}
 
 			if (!wasSent(resendId)) {
-				DEBUG_LOG(("Message Error: such message was not sent recently %1").arg(resendId));
-				return (badTime ? HandleResult::Ignored : HandleResult::Success);
+				DEBUG_LOG(("Message Error: "
+					"such message was not sent recently %1").arg(resendId));
+				return badTime
+					? HandleResult::Ignored
+					: HandleResult::Success;
 			}
 
-			if (needResend) { // bad msg_id
+			if (needResend) { // bad msg_id or bad container
 				if (serverSalt) sessionData->setSalt(serverSalt);
 				unixtimeSet(serverTime, true);
 
@@ -1634,17 +1644,25 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 				return HandleResult::ResetSession;
 			}
 		} else { // fatal (except 48, but it must not get here)
-			mtpMsgId resendId = data.vbad_msg_id.v;
-			mtpRequestId requestId = wasSent(resendId);
+			const auto badMsgId = mtpMsgId(data.vbad_msg_id.v);
+			const auto requestId = wasSent(resendId);
 			if (requestId) {
-				LOG(("Message Error: bad message notification received, msgId %1, error_code %2, fatal: clearing callbacks").arg(data.vbad_msg_id.v).arg(errorCode));
-				_instance->clearCallbacksDelayed(RPCCallbackClears(
-					1,
-					RPCCallbackClear(requestId, -errorCode)));
+				LOG(("Message Error: "
+					"bad message notification received, "
+					"msgId %1, error_code %2, fatal: clearing callbacks"
+					).arg(badMsgId
+					).arg(errorCode
+					));
+				_instance->clearCallbacksDelayed({ 1, RPCCallbackClear(
+					requestId,
+					-errorCode) });
 			} else {
-				DEBUG_LOG(("Message Error: such message was not sent recently %1").arg(resendId));
+				DEBUG_LOG(("Message Error: "
+					"such message was not sent recently %1").arg(badMsgId));
 			}
-			return (badTime ? HandleResult::Ignored : HandleResult::Success);
+			return badTime
+				? HandleResult::Ignored
+				: HandleResult::Success;
 		}
 	} return HandleResult::Success;
 
@@ -2101,7 +2119,7 @@ void ConnectionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool byRespon
 
 	DEBUG_LOG(("Message Info: requests acked, ids %1").arg(LogIdsVector(ids)));
 
-	RPCCallbackClears clearedAcked;
+	auto clearedBecauseTooOld = std::vector<RPCCallbackClear>();
 	QVector<MTPlong> toAckMore;
 	{
 		QWriteLocker locker1(sessionData->wereAckedMutex());
@@ -2177,10 +2195,10 @@ void ConnectionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool byRespon
 		uint32 ackedCount = wereAcked.size();
 		if (ackedCount > MTPIdsBufferSize) {
 			DEBUG_LOG(("Message Info: removing some old acked sent msgIds %1").arg(ackedCount - MTPIdsBufferSize));
-			clearedAcked.reserve(ackedCount - MTPIdsBufferSize);
+			clearedBecauseTooOld.reserve(ackedCount - MTPIdsBufferSize);
 			while (ackedCount-- > MTPIdsBufferSize) {
-				mtpRequestIdsMap::iterator i(wereAcked.begin());
-				clearedAcked.push_back(RPCCallbackClear(
+				auto i = wereAcked.begin();
+				clearedBecauseTooOld.push_back(RPCCallbackClear(
 					i.key(),
 					RPCError::TimeoutError));
 				wereAcked.erase(i);
@@ -2188,8 +2206,8 @@ void ConnectionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool byRespon
 		}
 	}
 
-	if (clearedAcked.size()) {
-		_instance->clearCallbacksDelayed(clearedAcked);
+	if (!clearedBecauseTooOld.empty()) {
+		_instance->clearCallbacksDelayed(std::move(clearedBecauseTooOld));
 	}
 
 	if (toAckMore.size()) {

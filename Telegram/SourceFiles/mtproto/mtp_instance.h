@@ -135,7 +135,7 @@ public:
 		mtpRequest &request,
 		RPCResponseHandler &&callbacks);
 	mtpRequest getRequest(mtpRequestId requestId);
-	void clearCallbacksDelayed(const RPCCallbackClears &requestIds);
+	void clearCallbacksDelayed(std::vector<RPCCallbackClear> &&ids);
 
 	void execCallback(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end);
 	bool hasCallbacks(mtpRequestId requestId);
