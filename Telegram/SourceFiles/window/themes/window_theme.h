@@ -57,7 +57,7 @@ struct Preview {
 	QString path;
 	Instance instance;
 	QByteArray content;
-	QPixmap preview;
+	QImage preview;
 };
 
 bool Apply(const QString &filepath);

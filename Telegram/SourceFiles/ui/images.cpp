@@ -59,6 +59,13 @@ const QPixmap &circleMask(int width, int height) {
 
 } // namespace
 
+QPixmap PixmapFast(QImage &&image) {
+	Expects(image.format() == QImage::Format_ARGB32_Premultiplied
+		|| image.format() == QImage::Format_RGB32);
+
+	return QPixmap::fromImage(std::move(image), Qt::NoFormatConversion);
+}
+
 QImage prepareBlur(QImage img) {
 	auto ratio = img.devicePixelRatio();
 	auto fmt = img.format();

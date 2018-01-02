@@ -1710,14 +1710,16 @@ void MediaView::initThemePreview() {
 
 		Window::Theme::CurrentData current;
 		current.backgroundId = Window::Theme::Background()->id();
-		current.backgroundImage = Window::Theme::Background()->pixmap();
+		current.backgroundImage = Window::Theme::Background()->pixmap().toImage();
 		current.backgroundTiled = Window::Theme::Background()->tile();
 
 		const auto path = _doc->location().name();
 		const auto id = _themePreviewId = rand_value<uint64>();
 		const auto weak = make_weak(this);
-		crl::async([=] {
-			auto preview = Window::Theme::GeneratePreview(path, current);
+		crl::async([=, data = std::move(current)]() mutable {
+			auto preview = Window::Theme::GeneratePreview(
+				path,
+				std::move(data));
 			crl::on_main(weak, [=, result = std::move(preview)]() mutable {
 				if (id != _themePreviewId) {
 					return;
@@ -2261,12 +2263,19 @@ void MediaView::paintThemePreview(Painter &p, QRect clip) {
 	auto fill = _themePreviewRect.intersected(clip);
 	if (!fill.isEmpty()) {
 		if (_themePreview) {
-			p.drawPixmapLeft(_themePreviewRect.x(), _themePreviewRect.y(), width(), _themePreview->preview);
+			p.drawImage(
+				myrtlrect(_themePreviewRect).topLeft(),
+				_themePreview->preview);
 		} else {
 			p.fillRect(fill, st::themePreviewBg);
 			p.setFont(st::themePreviewLoadingFont);
 			p.setPen(st::themePreviewLoadingFg);
-			p.drawText(_themePreviewRect, lang(_themePreviewId ? lng_theme_preview_generating : lng_theme_preview_invalid), QTextOption(style::al_center));
+			p.drawText(
+				_themePreviewRect,
+				lang(_themePreviewId
+					? lng_theme_preview_generating
+					: lng_theme_preview_invalid),
+				QTextOption(style::al_center));
 		}
 	}
 

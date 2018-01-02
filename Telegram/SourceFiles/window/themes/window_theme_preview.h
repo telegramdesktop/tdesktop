@@ -27,14 +27,20 @@ namespace Theme {
 
 struct CurrentData {
 	int32 backgroundId = 0;
-	QPixmap backgroundImage;
+	QImage backgroundImage;
 	bool backgroundTiled = false;
 };
 
-std::unique_ptr<Preview> GeneratePreview(const QString &filepath, const CurrentData &data);
+std::unique_ptr<Preview> GeneratePreview(
+	const QString &filepath,
+	CurrentData &&data);
 
 int DefaultPreviewTitleHeight();
-void DefaultPreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRect body, int outerWidth);
+void DefaultPreviewWindowFramePaint(
+	QImage &preview,
+	const style::palette &palette,
+	QRect body,
+	int outerWidth);
 
 } // namespace Theme
 } // namespace Window

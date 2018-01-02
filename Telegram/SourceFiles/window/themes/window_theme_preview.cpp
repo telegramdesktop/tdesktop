@@ -94,9 +94,9 @@ QString fillLetters(const QString &name) {
 
 class Generator {
 public:
-	Generator(const Instance &theme, const CurrentData &current);
+	Generator(const Instance &theme, CurrentData &&current);
 
-	QPixmap generate();
+	QImage generate();
 
 private:
 	enum class Status {
@@ -173,7 +173,7 @@ private:
 
 	const Instance &_theme;
 	const style::palette &_palette;
-	const CurrentData &_current;
+	CurrentData _current;
 	Painter *_p = nullptr;
 
 	QRect _rect;
@@ -350,16 +350,18 @@ void Generator::generateData() {
 	_bubbles.back().replyText.setText(st::messageTextStyle, "Mark Twain said that " + QString() + QChar(9757) + QChar(55356) + QChar(57339), Ui::DialogTextOptions());
 }
 
-Generator::Generator(const Instance &theme, const CurrentData &current)
+Generator::Generator(const Instance &theme, CurrentData &&current)
 : _theme(theme)
 , _palette(_theme.palette)
-, _current(current) {
+, _current(std::move(current)) {
 }
 
-QPixmap Generator::generate() {
+QImage Generator::generate() {
 	prepare();
 
-	auto result = QImage(_rect.size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	auto result = QImage(
+		_rect.size() * cIntRetinaFactor(),
+		QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(cRetinaFactor());
 	result.fill(st::themePreviewBg->c);
 
@@ -379,7 +381,7 @@ QPixmap Generator::generate() {
 	}
 	Platform::PreviewWindowFramePaint(result, _palette, _body, _rect.width());
 
-	return App::pixmapFromImageInPlace(std::move(result));
+	return result;
 }
 
 void Generator::paintHistoryList() {
@@ -408,11 +410,12 @@ void Generator::paintHistoryBackground() {
 			background.load(qsl(":/gui/art/bg.jpg"));
 			tiled = false;
 		} else {
-			background = _current.backgroundImage.toImage();
+			background = std::move(_current.backgroundImage);
 			tiled = _current.backgroundTiled;
 		}
 	}
-	background = std::move(background).convertToFormat(QImage::Format_ARGB32_Premultiplied);
+	background = std::move(background).convertToFormat(
+		QImage::Format_ARGB32_Premultiplied);
 	background.setDevicePixelRatio(cRetinaFactor());
 	_p->setClipRect(_history);
 	if (tiled) {
@@ -420,7 +423,10 @@ void Generator::paintHistoryBackground() {
 		auto height = background.height();
 		auto repeatTimesX = qCeil(_history.width() * cIntRetinaFactor() / float64(width));
 		auto repeatTimesY = qCeil((_history.height() - fromy) * cIntRetinaFactor() / float64(height));
-		auto imageForTiled = QImage(width * repeatTimesX, height * repeatTimesY, QImage::Format_ARGB32_Premultiplied);
+		auto imageForTiled = QImage(
+			width * repeatTimesX,
+			height * repeatTimesY,
+			QImage::Format_ARGB32_Premultiplied);
 		imageForTiled.setDevicePixelRatio(background.devicePixelRatio());
 		auto imageForTiledBytes = imageForTiled.bits();
 		auto bytesInLine = width * sizeof(uint32);
@@ -432,7 +438,8 @@ void Generator::paintHistoryBackground() {
 					imageForTiledBytes += bytesInLine;
 				}
 				imageBytes += background.bytesPerLine();
-				imageForTiledBytes += imageForTiled.bytesPerLine() - (repeatTimesX * bytesInLine);
+				imageForTiledBytes += imageForTiled.bytesPerLine()
+					- (repeatTimesX * bytesInLine);
 			}
 		}
 		_p->drawImage(_history.x(), _history.y() + fromy, imageForTiled);
@@ -891,13 +898,18 @@ void Generator::restoreTextPalette() {
 
 } // namespace
 
-std::unique_ptr<Preview> GeneratePreview(const QString &filepath, const CurrentData &data) {
+std::unique_ptr<Preview> GeneratePreview(
+		const QString &filepath,
+		CurrentData &&data) {
 	auto result = std::make_unique<Preview>();
 	result->path = filepath;
 	if (!LoadFromFile(filepath, &result->instance, &result->content)) {
 		return nullptr;
 	}
-	result->preview = Generator(result->instance, data).generate();
+	result->preview = Generator(
+		result->instance,
+		std::move(data)
+	).generate();
 	return result;
 }
 
