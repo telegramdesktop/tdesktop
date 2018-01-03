@@ -44,7 +44,7 @@ BEGIN
             VALUE "CompanyName", "Telegram Messenger LLP"
             VALUE "FileDescription", "Telegram Desktop Updater"
             VALUE "FileVersion", "1.2.7.0"
-            VALUE "LegalCopyright", "Copyright (C) 2014-2017"
+            VALUE "LegalCopyright", "Copyright (C) 2014-2018"
             VALUE "ProductName", "Telegram Desktop"
             VALUE "ProductVersion", "1.2.7.0"
         END
