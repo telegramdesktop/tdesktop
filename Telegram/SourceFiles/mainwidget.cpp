@@ -4925,24 +4925,29 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateMessageID: {
-		auto &d = update.c_updateMessageID();
-		auto msg = App::histItemByRandom(d.vrandom_id.v);
-		if (msg.msg) {
-			if (auto msgRow = App::histItemById(msg)) {
-				if (App::histItemById(msg.channel, d.vid.v)) {
-					auto history = msgRow->history();
-					auto wasLast = (history->lastMsg == msgRow);
-					msgRow->destroy();
+		const auto &d = update.c_updateMessageID();
+		if (const auto fullId = App::histItemByRandom(d.vrandom_id.v)) {
+			const auto channel = fullId.channel;
+			const auto newId = d.vid.v;
+			if (const auto local = App::histItemById(fullId)) {
+				const auto existing = App::histItemById(channel, newId);
+				if (existing && local->detached()) {
+					const auto history = local->history();
+					const auto wasLast = (history->lastMsg == local);
+					local->destroy();
 					if (wasLast && !history->lastMsg) {
 						checkPeerHistory(history->peer);
 					}
 					_history->peerMessagesUpdated();
 				} else {
-					App::historyUnregItem(msgRow);
-					Auth().messageIdChanging.notify({ msgRow, d.vid.v }, true);
-					msgRow->setId(d.vid.v);
-					App::historyRegItem(msgRow);
-					Auth().data().requestItemRepaint(msgRow);
+					if (existing) {
+						existing->destroy();
+					}
+					App::historyUnregItem(local);
+					Auth().messageIdChanging.notify({ local, newId }, true);
+					local->setId(d.vid.v);
+					App::historyRegItem(local);
+					Auth().data().requestItemRepaint(local);
 				}
 			}
 			App::historyUnregRandom(d.vrandom_id.v);

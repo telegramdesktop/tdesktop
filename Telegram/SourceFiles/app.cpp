@@ -1061,29 +1061,35 @@ namespace {
 	}
 
 	void feedWereDeleted(ChannelId channelId, const QVector<MTPint> &msgsIds) {
-		MsgsData *data = fetchMsgsData(channelId, false);
+		const auto data = fetchMsgsData(channelId, false);
 		if (!data) return;
 
-		ChannelHistory *channelHistory = (channelId == NoChannel) ? 0 : App::historyLoaded(peerFromChannel(channelId))->asChannelHistory();
+		const auto channelHistory = (channelId != NoChannel)
+			? App::history(peerFromChannel(channelId))->asChannelHistory()
+			: nullptr;
 
-		QMap<History*, bool> historiesToCheck;
-		for (QVector<MTPint>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
-			MsgsData::const_iterator j = data->constFind(i->v);
+		base::flat_set<not_null<History*>> historiesToCheck;
+		for (const auto msgId : msgsIds) {
+			auto j = data->constFind(msgId.v);
 			if (j != data->cend()) {
-				History *h = (*j)->history();
+				const auto h = (*j)->history();
 				(*j)->destroy();
-				if (!h->lastMsg) historiesToCheck.insert(h, true);
+				if (!h->lastMsg) {
+					historiesToCheck.emplace(h);
+				}
 			} else {
 				if (channelHistory) {
-					if (channelHistory->unreadCount() > 0 && i->v >= channelHistory->inboxReadBefore) {
-						channelHistory->setUnreadCount(channelHistory->unreadCount() - 1);
+					if (channelHistory->unreadCount() > 0
+						&& msgId.v >= channelHistory->inboxReadBefore) {
+						channelHistory->setUnreadCount(
+							channelHistory->unreadCount() - 1);
 					}
 				}
 			}
 		}
 		if (main()) {
-			for (QMap<History*, bool>::const_iterator i = historiesToCheck.cbegin(), e = historiesToCheck.cend(); i != e; ++i) {
-				main()->checkPeerHistory(i.key()->peer);
+			for (const auto history : historiesToCheck) {
+				main()->checkPeerHistory(history->peer);
 			}
 		}
 	}

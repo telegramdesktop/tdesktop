@@ -2960,7 +2960,15 @@ void ApiWrap::sendAlbumWithCancelled(
 		const MessageGroupId &groupId) {
 	const auto localId = item->fullId();
 	const auto albumIt = _sendingAlbums.find(groupId.raw());
-	Assert(albumIt != _sendingAlbums.end());
+	if (albumIt != _sendingAlbums.end()) {
+		// Sometimes we destroy item being sent already after the album
+		// was sent successfully. For example the message could be loaded
+		// from server (by messages.getHistory or updateNewMessage) and
+		// added to history and after that updateMessageID was received with
+		// the same message id, in this case we destroy a detached local
+		// item and sendAlbumWithCancelled is called for already sent album.
+		return;
+	}
 	const auto &album = albumIt->second;
 
 	const auto proj = [](const SendingAlbum::Item &item) {
