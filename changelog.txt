@@ -1,3 +1,7 @@
+1.2.8 alpha (03.01.18)
+
+- Bug fixes and other minor improvements.
+
 1.2.7 alpha (31.12.17)
 
 - Use fast reply button in group chats.
