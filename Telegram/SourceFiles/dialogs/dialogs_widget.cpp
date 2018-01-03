@@ -352,9 +352,9 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpReque
 				continue;
 			}
 
-			auto &dialogData = dialog.c_dialog();
-			if (auto peer = peerFromMTP(dialogData.vpeer)) {
-				auto history = App::history(peer);
+			const auto &dialogData = dialog.c_dialog();
+			if (const auto peer = peerFromMTP(dialogData.vpeer)) {
+				const auto history = App::history(peer);
 				history->setPinnedDialog(dialogData.is_pinned());
 
 				if (!lastDate) {
@@ -417,9 +417,9 @@ void DialogsWidget::pinnedDialogsReceived(const MTPmessages_PeerDialogs &dialogs
 				continue;
 			}
 
-			auto &dialogData = dialog.c_dialog();
-			if (auto peer = peerFromMTP(dialogData.vpeer)) {
-				auto history = App::history(peer);
+			const auto &dialogData = dialog.c_dialog();
+			if (const auto peer = peerFromMTP(dialogData.vpeer)) {
+				const auto history = App::history(peer);
 				history->setPinnedDialog(dialogData.is_pinned());
 			}
 		}
@@ -575,10 +575,22 @@ void DialogsWidget::loadDialogs() {
 		return;
 	}
 
-	auto firstLoad = !_dialogsOffsetDate;
-	auto loadCount = firstLoad ? DialogsFirstLoad : DialogsPerPage;
-	auto flags = MTPmessages_GetDialogs::Flag::f_exclude_pinned;
-	_dialogsRequestId = MTP::send(MTPmessages_GetDialogs(MTP_flags(flags), MTP_int(_dialogsOffsetDate), MTP_int(_dialogsOffsetId), _dialogsOffsetPeer ? _dialogsOffsetPeer->input : MTP_inputPeerEmpty(), MTP_int(loadCount)), rpcDone(&DialogsWidget::dialogsReceived), rpcFail(&DialogsWidget::dialogsFailed));
+	const auto firstLoad = !_dialogsOffsetDate;
+	const auto loadCount = firstLoad ? DialogsFirstLoad : DialogsPerPage;
+	const auto flags = MTPmessages_GetDialogs::Flag::f_exclude_pinned;
+	const auto feedId = 0;
+	_dialogsRequestId = MTP::send(
+		MTPmessages_GetDialogs(
+			MTP_flags(flags),
+			MTP_int(feedId),
+			MTP_int(_dialogsOffsetDate),
+			MTP_int(_dialogsOffsetId),
+			_dialogsOffsetPeer
+				? _dialogsOffsetPeer->input
+				: MTP_inputPeerEmpty(),
+			MTP_int(loadCount)),
+		rpcDone(&DialogsWidget::dialogsReceived),
+		rpcFail(&DialogsWidget::dialogsFailed));
 	if (!_pinnedDialogsReceived) {
 		loadPinnedDialogs();
 	}

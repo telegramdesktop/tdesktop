@@ -137,7 +137,10 @@ void Filler::addPinToggle() {
 		if (isPinned) {
 			flags |= MTPmessages_ToggleDialogPin::Flag::f_pinned;
 		}
-		MTP::send(MTPmessages_ToggleDialogPin(MTP_flags(flags), peer->input));
+		MTP::send(
+			MTPmessages_ToggleDialogPin(
+				MTP_flags(flags),
+				MTP_inputDialogPeer(peer->input)));
 		if (isPinned) {
 			if (auto main = App::main()) {
 				main->dialogsToUp();

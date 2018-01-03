@@ -322,10 +322,14 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 	auto &d = result.c_messages_chatFull();
 	auto &vc = d.vchats.v;
 	auto badVersion = false;
-	if (peer->isChat()) {
-		badVersion = (!vc.isEmpty() && vc[0].type() == mtpc_chat && vc[0].c_chat().vversion.v < peer->asChat()->version);
-	} else if (peer->isChannel()) {
-		badVersion = (!vc.isEmpty() && vc[0].type() == mtpc_channel && vc[0].c_channel().vversion.v < peer->asChannel()->version);
+	if (const auto chat = peer->asChat()) {
+		badVersion = !vc.isEmpty()
+			&& (vc[0].type() == mtpc_chat)
+			&& (vc[0].c_chat().vversion.v < chat->version);
+	} else if (const auto channel = peer->asChannel()) {
+		badVersion = !vc.isEmpty()
+			&& (vc[0].type() == mtpc_channel)
+			&& (vc[0].c_channel().vversion.v < channel->version);
 	}
 
 	App::feedUsers(d.vusers);
@@ -455,9 +459,9 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		}
 	}
 	if (badVersion) {
-		if (auto chat = peer->asChat()) {
+		if (const auto chat = peer->asChat()) {
 			chat->version = vc[0].c_chat().vversion.v;
-		} else if (auto channel = peer->asChannel()) {
+		} else if (const auto channel = peer->asChannel()) {
 			channel->version = vc[0].c_channel().vversion.v;
 		}
 		requestPeer(peer);
@@ -510,10 +514,14 @@ void ApiWrap::requestPeer(PeerData *peer) {
 			if (auto chats = Api::getChatsFromMessagesChats(result)) {
 				auto &v = chats->v;
 				bool badVersion = false;
-				if (auto chat = peer->asChat()) {
-					badVersion = (!v.isEmpty() && v[0].type() == mtpc_chat && v[0].c_chat().vversion.v < chat->version);
-				} else if (auto channel = peer->asChannel()) {
-					badVersion = (!v.isEmpty() && v[0].type() == mtpc_channel && v[0].c_channel().vversion.v < channel->version);
+				if (const auto chat = peer->asChat()) {
+					badVersion = !v.isEmpty()
+						&& (v[0].type() == mtpc_chat)
+						&& (v[0].c_chat().vversion.v < chat->version);
+				} else if (const auto channel = peer->asChannel()) {
+					badVersion = !v.isEmpty()
+						&& (v[0].type() == mtpc_channel)
+						&& (v[0].c_channel().vversion.v < channel->version);
 				}
 				auto chat = App::feedChats(*chats);
 				if (chat == peer) {

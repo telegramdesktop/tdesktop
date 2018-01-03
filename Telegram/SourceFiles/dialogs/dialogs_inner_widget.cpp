@@ -1492,13 +1492,13 @@ void DialogsInner::itemRemoved(not_null<const HistoryItem*> item) {
 }
 
 void DialogsInner::dialogsReceived(const QVector<MTPDialog> &added) {
-	for_const (auto &dialog, added) {
+	for (const auto &dialog : added) {
 		if (dialog.type() != mtpc_dialog) {
 			continue;
 		}
 
-		auto &d = dialog.c_dialog();
-		auto peerId = peerFromMTP(d.vpeer);
+		const auto &d = dialog.c_dialog();
+		const auto peerId = peerFromMTP(d.vpeer);
 		if (!peerId) {
 			continue;
 		}

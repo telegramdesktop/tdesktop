@@ -4275,8 +4275,8 @@ void MainWidget::inviteImportDone(const MTPUpdates &updates) {
 	default: LOG(("API Error: unexpected update cons %1 (MainWidget::inviteImportDone)").arg(updates.type())); break;
 	}
 	if (v && !v->isEmpty()) {
-		auto &mtpChat = v->front();
-		auto peerId = [&] {
+		const auto &mtpChat = v->front();
+		const auto peerId = [&] {
 			if (mtpChat.type() == mtpc_chat) {
 				return peerFromChat(mtpChat.c_chat().vid.v);
 			} else if (mtpChat.type() == mtpc_channel) {
@@ -4284,7 +4284,7 @@ void MainWidget::inviteImportDone(const MTPUpdates &updates) {
 			}
 			return PeerId(0);
 		}();
-		if (auto peer = App::peerLoaded(peerId)) {
+		if (const auto peer = App::peerLoaded(peerId)) {
 			_controller->showPeerHistory(
 				peer,
 				SectionShow::Way::Forward);
@@ -5023,6 +5023,12 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+	case mtpc_updateReadFeed: {
+		const auto &d = update.c_updateReadFeed();
+		const auto feedId = d.vfeed_id.v;
+		// #TODO feeds
+	} break;
+
 	// Deleted messages.
 	case mtpc_updateDeleteMessages: {
 		auto &d = update.c_updateDeleteMessages();
@@ -5277,24 +5283,50 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updatePinnedDialogs: {
-		auto &d = update.c_updatePinnedDialogs();
+		const auto &d = update.c_updatePinnedDialogs();
 		if (d.has_order()) {
-			auto allLoaded = true;
-			auto &order = d.vorder.v;
-			for_const (auto &peer, order) {
-				auto peerId = peerFromMTP(peer);
-				if (!App::historyLoaded(peerId)) {
-					allLoaded = false;
-					DEBUG_LOG(("API Error: pinned chat not loaded for peer %1").arg(peerId));
-					break;
+			const auto &order = d.vorder.v;
+			const auto allLoaded = [&] {
+				for (const auto &dialogPeer : order) {
+					switch (dialogPeer.type()) {
+					case mtpc_dialogPeer: {
+						const auto &peer = dialogPeer.c_dialogPeer();
+						const auto peerId = peerFromMTP(peer.vpeer);
+						if (!App::historyLoaded(peerId)) {
+							DEBUG_LOG(("API Error: "
+								"pinned chat not loaded for peer %1"
+								).arg(peerId
+								));
+							return false;
+						}
+					} break;
+					case mtpc_dialogPeerFeed: {
+						const auto &feed = dialogPeer.c_dialogPeerFeed();
+						const auto feedId = feed.vfeed_id.v;
+						// #TODO feeds
+					} break;
+					}
 				}
-			}
+				return true;
+			}();
 			if (allLoaded) {
 				App::histories().clearPinned();
 				for (auto i = order.size(); i != 0;) {
-					auto history = App::historyLoaded(peerFromMTP(order[--i]));
-					Assert(history != nullptr);
-					history->setPinnedDialog(true);
+					const auto &dialogPeer = order[--i];
+					switch (dialogPeer.type()) {
+					case mtpc_dialogPeer: {
+						const auto &peer = dialogPeer.c_dialogPeer();
+						const auto peerId = peerFromMTP(peer.vpeer);
+						const auto history = App::historyLoaded(peerId);
+						Assert(history != nullptr);
+						history->setPinnedDialog(true);
+					} break;
+					case mtpc_dialogPeerFeed: {
+						const auto &feed = dialogPeer.c_dialogPeerFeed();
+						const auto feedId = feed.vfeed_id.v;
+						// #TODO feeds
+					} break;
+					}
 				}
 			} else {
 				_dialogs->loadPinnedDialogs();
@@ -5305,13 +5337,24 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateDialogPinned: {
-		auto &d = update.c_updateDialogPinned();
-		auto peerId = peerFromMTP(d.vpeer);
-		if (auto history = App::historyLoaded(peerId)) {
-			history->setPinnedDialog(d.is_pinned());
-		} else {
-			DEBUG_LOG(("API Error: pinned chat not loaded for peer %1").arg(peerId));
-			_dialogs->loadPinnedDialogs();
+		const auto &d = update.c_updateDialogPinned();
+		switch (d.vpeer.type()) {
+		case mtpc_dialogPeer: {
+			const auto peerId = peerFromMTP(d.vpeer.c_dialogPeer().vpeer);
+			if (const auto history = App::historyLoaded(peerId)) {
+				history->setPinnedDialog(d.is_pinned());
+			} else {
+				DEBUG_LOG(("API Error: "
+					"pinned chat not loaded for peer %1"
+					).arg(peerId
+					));
+				_dialogs->loadPinnedDialogs();
+			}
+		} break;
+		case mtpc_dialogPeerFeed: {
+			const auto feedId = d.vpeer.c_dialogPeerFeed().vfeed_id.v;
+			// #TODO feeds
+		} break;
 		}
 	} break;
 

@@ -720,14 +720,17 @@ QList<History*> Histories::getPinnedOrder() const {
 }
 
 void Histories::savePinnedToServer() const {
-	auto order = getPinnedOrder();
-	auto peers = QVector<MTPInputPeer>();
+	const auto order = getPinnedOrder();
+	auto peers = QVector<MTPInputDialogPeer>();
 	peers.reserve(order.size());
-	for_const (auto history, order) {
-		peers.push_back(history->peer->input);
+	for (const auto history : order) {
+		peers.push_back(MTP_inputDialogPeer(history->peer->input));
 	}
 	auto flags = MTPmessages_ReorderPinnedDialogs::Flag::f_force;
-	MTP::send(MTPmessages_ReorderPinnedDialogs(MTP_flags(flags), MTP_vector(peers)));
+	MTP::send(
+		MTPmessages_ReorderPinnedDialogs(
+			MTP_flags(flags),
+			MTP_vector(peers)));
 }
 
 void Histories::selfDestructIn(not_null<HistoryItem*> item, TimeMs delay) {
