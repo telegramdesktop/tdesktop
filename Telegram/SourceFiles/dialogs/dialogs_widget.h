@@ -133,7 +133,6 @@ private:
 	void animationCallback();
 	void dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpRequestId requestId);
 	void pinnedDialogsReceived(const MTPmessages_PeerDialogs &dialogs, mtpRequestId requestId);
-	void contactsReceived(const MTPcontacts_Contacts &result);
 	void searchReceived(DialogsSearchRequestType type, const MTPmessages_Messages &result, mtpRequestId requestId);
 	void peerSearchReceived(const MTPcontacts_Found &result, mtpRequestId requestId);
 
@@ -149,7 +148,6 @@ private:
 
 	void unreadCountsReceived(const QVector<MTPDialog> &dialogs);
 	bool dialogsFailed(const RPCError &error, mtpRequestId req);
-	bool contactsFailed(const RPCError &error);
 	bool searchFailed(DialogsSearchRequestType type, const RPCError &error, mtpRequestId req);
 	bool peopleFailed(const RPCError &error, mtpRequestId req);
 
@@ -163,7 +161,6 @@ private:
 	PeerData *_dialogsOffsetPeer = nullptr;
 	mtpRequestId _dialogsRequestId = 0;
 	mtpRequestId _pinnedDialogsRequestId = 0;
-	mtpRequestId _contactsRequestId = 0;
 	bool _pinnedDialogsReceived = false;
 
 	object_ptr<Ui::IconButton> _forwardCancel = { nullptr };

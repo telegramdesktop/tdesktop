@@ -283,6 +283,37 @@ void ApiWrap::finalizeMessageDataRequest(
 	}
 }
 
+void ApiWrap::requestContacts() {
+	if (_session->data().contactsLoaded().value() || _contactsRequestId) {
+		return;
+	}
+	_contactsRequestId = request(MTPcontacts_GetContacts(
+		MTP_int(0)
+	)).done([=](const MTPcontacts_Contacts &result) {
+		_contactsRequestId = 0;
+		if (result.type() == mtpc_contacts_contactsNotModified) {
+			return;
+		}
+		Assert(result.type() == mtpc_contacts_contacts);
+		const auto &d = result.c_contacts_contacts();
+		App::feedUsers(d.vusers);
+		for (const auto &contact : d.vcontacts.v) {
+			if (contact.type() != mtpc_contact) continue;
+
+			const auto userId = contact.c_contact().vuser_id.v;
+			if (userId == Auth().userId() && App::self()) {
+				if (App::self()->contact < 1) {
+					App::self()->contact = 1;
+					Notify::userIsContactChanged(App::self());
+				}
+			}
+		}
+		_session->data().contactsLoaded().set(true);
+	}).fail([=](const RPCError &error) {
+		_contactsRequestId = 0;
+	}).send();
+}
+
 void ApiWrap::requestFullPeer(PeerData *peer) {
 	if (!peer || _fullPeerRequests.contains(peer)) return;
 
@@ -1002,7 +1033,7 @@ void ApiWrap::saveStickerSets(const Stickers::Order &localOrder, const Stickers:
 
 	auto writeInstalled = true, writeRecent = false, writeCloudRecent = false, writeFaved = false, writeArchived = false;
 	auto &recent = Stickers::GetRecentPack();
-	auto &sets = Auth().data().stickerSetsRef();
+	auto &sets = _session->data().stickerSetsRef();
 
 	_stickersOrder = localOrder;
 	for_const (auto removedSetId, localRemoved) {
@@ -1047,8 +1078,8 @@ void ApiWrap::saveStickerSets(const Stickers::Order &localOrder, const Stickers:
 
 				_stickerSetDisenableRequests.insert(requestId);
 
-				int removeIndex = Auth().data().stickerSetsOrder().indexOf(it->id);
-				if (removeIndex >= 0) Auth().data().stickerSetsOrderRef().removeAt(removeIndex);
+				int removeIndex = _session->data().stickerSetsOrder().indexOf(it->id);
+				if (removeIndex >= 0) _session->data().stickerSetsOrderRef().removeAt(removeIndex);
 				if (!(it->flags & MTPDstickerSet_ClientFlag::f_featured) && !(it->flags & MTPDstickerSet_ClientFlag::f_special)) {
 					sets.erase(it);
 				} else {
@@ -1068,7 +1099,7 @@ void ApiWrap::saveStickerSets(const Stickers::Order &localOrder, const Stickers:
 		}
 	}
 
-	auto &order = Auth().data().stickerSetsOrderRef();
+	auto &order = _session->data().stickerSetsOrderRef();
 	order.clear();
 	for_const (auto setId, _stickersOrder) {
 		auto it = sets.find(setId);
@@ -1107,7 +1138,7 @@ void ApiWrap::saveStickerSets(const Stickers::Order &localOrder, const Stickers:
 	if (writeArchived) Local::writeArchivedStickers();
 	if (writeCloudRecent) Local::writeRecentStickers();
 	if (writeFaved) Local::writeFavedStickers();
-	Auth().data().markStickersUpdated();
+	_session->data().markStickersUpdated();
 
 	if (_stickerSetDisenableRequests.empty()) {
 		stickersSaveOrder();
@@ -1239,7 +1270,7 @@ void ApiWrap::savePrivacy(const MTPInputPrivacyKey &key, QVector<MTPInputPrivacy
 	auto keyTypeId = key.type();
 	auto it = _privacySaveRequests.find(keyTypeId);
 	if (it != _privacySaveRequests.cend()) {
-		request(it.value()).cancel();
+		request(it->second).cancel();
 		_privacySaveRequests.erase(it);
 	}
 
@@ -1253,7 +1284,7 @@ void ApiWrap::savePrivacy(const MTPInputPrivacyKey &key, QVector<MTPInputPrivacy
 		_privacySaveRequests.remove(keyTypeId);
 	}).send();
 
-	_privacySaveRequests.insert(keyTypeId, requestId);
+	_privacySaveRequests.emplace(keyTypeId, requestId);
 }
 
 void ApiWrap::handlePrivacyChange(mtpTypeId keyTypeId, const MTPVector<MTPPrivacyRule> &rules) {
@@ -1710,7 +1741,7 @@ void ApiWrap::stickersSaveOrder() {
 			_stickersReorderRequestId = 0;
 		}).fail([this](const RPCError &error) {
 			_stickersReorderRequestId = 0;
-			Auth().data().setLastStickersUpdate(0);
+			_session->data().setLastStickersUpdate(0);
 			updateStickers();
 		}).send();
 	}
@@ -1729,16 +1760,16 @@ void ApiWrap::setGroupStickerSet(not_null<ChannelData*> megagroup, const MTPInpu
 	Expects(megagroup->mgInfo != nullptr);
 	megagroup->mgInfo->stickerSet = set;
 	request(MTPchannels_SetStickers(megagroup->inputChannel, set)).send();
-	Auth().data().markStickersUpdated();
+	_session->data().markStickersUpdated();
 }
 
 void ApiWrap::requestStickers(TimeId now) {
-	if (!Auth().data().stickersUpdateNeeded(now)
+	if (!_session->data().stickersUpdateNeeded(now)
 		|| _stickersUpdateRequest) {
 		return;
 	}
 	auto onDone = [this](const MTPmessages_AllStickers &result) {
-		Auth().data().setLastStickersUpdate(getms(true));
+		_session->data().setLastStickersUpdate(getms(true));
 		_stickersUpdateRequest = 0;
 
 		switch (result.type()) {
@@ -1757,12 +1788,12 @@ void ApiWrap::requestStickers(TimeId now) {
 }
 
 void ApiWrap::requestRecentStickers(TimeId now) {
-	if (!Auth().data().recentStickersUpdateNeeded(now)
+	if (!_session->data().recentStickersUpdateNeeded(now)
 		|| _recentStickersUpdateRequest) {
 		return;
 	}
 	auto onDone = [this](const MTPmessages_RecentStickers &result) {
-		Auth().data().setLastRecentStickersUpdate(getms(true));
+		_session->data().setLastRecentStickersUpdate(getms(true));
 		_recentStickersUpdateRequest = 0;
 
 		switch (result.type()) {
@@ -1781,12 +1812,12 @@ void ApiWrap::requestRecentStickers(TimeId now) {
 }
 
 void ApiWrap::requestFavedStickers(TimeId now) {
-	if (!Auth().data().favedStickersUpdateNeeded(now)
+	if (!_session->data().favedStickersUpdateNeeded(now)
 		|| _favedStickersUpdateRequest) {
 		return;
 	}
 	auto onDone = [this](const MTPmessages_FavedStickers &result) {
-		Auth().data().setLastFavedStickersUpdate(getms(true));
+		_session->data().setLastFavedStickersUpdate(getms(true));
 		_favedStickersUpdateRequest = 0;
 
 		switch (result.type()) {
@@ -1805,12 +1836,12 @@ void ApiWrap::requestFavedStickers(TimeId now) {
 }
 
 void ApiWrap::requestFeaturedStickers(TimeId now) {
-	if (!Auth().data().featuredStickersUpdateNeeded(now)
+	if (!_session->data().featuredStickersUpdateNeeded(now)
 		|| _featuredStickersUpdateRequest) {
 		return;
 	}
 	auto onDone = [this](const MTPmessages_FeaturedStickers &result) {
-		Auth().data().setLastFeaturedStickersUpdate(getms(true));
+		_session->data().setLastFeaturedStickersUpdate(getms(true));
 		_featuredStickersUpdateRequest = 0;
 
 		switch (result.type()) {
@@ -1829,12 +1860,12 @@ void ApiWrap::requestFeaturedStickers(TimeId now) {
 }
 
 void ApiWrap::requestSavedGifs(TimeId now) {
-	if (!Auth().data().savedGifsUpdateNeeded(now)
+	if (!_session->data().savedGifsUpdateNeeded(now)
 		|| _savedGifsUpdateRequest) {
 		return;
 	}
 	auto onDone = [this](const MTPmessages_SavedGifs &result) {
-		Auth().data().setLastSavedGifsUpdate(getms(true));
+		_session->data().setLastSavedGifsUpdate(getms(true));
 		_savedGifsUpdateRequest = 0;
 
 		switch (result.type()) {
@@ -1860,8 +1891,8 @@ void ApiWrap::readFeaturedSetDelayed(uint64 setId) {
 }
 
 void ApiWrap::readFeaturedSets() {
-	auto &sets = Auth().data().stickerSetsRef();
-	auto count = Auth().data().featuredStickerSetsUnreadCount();
+	auto &sets = _session->data().stickerSetsRef();
+	auto count = _session->data().featuredStickerSetsUnreadCount();
 	QVector<MTPlong> wrappedIds;
 	wrappedIds.reserve(_featuredSetsRead.size());
 	for (auto setId : _featuredSetsRead) {
@@ -1879,12 +1910,12 @@ void ApiWrap::readFeaturedSets() {
 	if (!wrappedIds.empty()) {
 		auto requestData = MTPmessages_ReadFeaturedStickers(
 			MTP_vector<MTPlong>(wrappedIds));
-		request(std::move(requestData)).done([](const MTPBool &result) {
+		request(std::move(requestData)).done([=](const MTPBool &result) {
 			Local::writeFeaturedStickers();
-			Auth().data().markStickersUpdated();
+			_session->data().markStickersUpdated();
 		}).send();
 
-		Auth().data().setFeaturedStickerSetsUnreadCount(count);
+		_session->data().setFeaturedStickerSetsUnreadCount(count);
 	}
 }
 
@@ -1952,12 +1983,15 @@ void ApiWrap::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 	case mtpc_updateShortMessage: {
 		auto &d = updates.c_updateShortMessage();
 		auto flags = mtpCastFlags(d.vflags.v) | MTPDmessage::Flag::f_from_id;
+		const auto peerUserId = d.is_out()
+			? d.vuser_id
+			: MTP_int(_session->userId());
 		App::histories().addNewMessage(
 			MTP_message(
 				MTP_flags(flags),
 				d.vid,
-				d.is_out() ? MTP_int(Auth().userId()) : d.vuser_id,
-				MTP_peerUser(d.is_out() ? d.vuser_id : MTP_int(Auth().userId())),
+				d.is_out() ? MTP_int(_session->userId()) : d.vuser_id,
+				MTP_peerUser(peerUserId),
 				d.vfwd_from,
 				d.vvia_bot_id,
 				d.vreply_to_msg_id,
@@ -2029,7 +2063,7 @@ void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 			if (auto item = App::histItemById(NoChannel, msgId.v)) {
 				if (item->isMediaUnread()) {
 					item->markMediaRead();
-					Auth().data().requestItemRepaint(item);
+					_session->data().requestItemRepaint(item);
 
 					if (item->out() && item->history()->peer->isUser()) {
 						auto when = App::main()->requestingDifference() ? 0 : unixtime();
@@ -2395,7 +2429,7 @@ void ApiWrap::sharedMediaDone(
 		messageId,
 		slice,
 		result);
-	Auth().storage().add(Storage::SharedMediaAddSlice(
+	_session->storage().add(Storage::SharedMediaAddSlice(
 		peer->id,
 		type,
 		std::move(parsed.messageIds),
@@ -2458,7 +2492,7 @@ void ApiWrap::userPhotosDone(
 			photoIds.push_back(photoData->id);
 		}
 	}
-	Auth().storage().add(Storage::UserPhotosAddSlice(
+	_session->storage().add(Storage::UserPhotosAddSlice(
 		user->id,
 		std::move(photoIds),
 		fullCount
@@ -2555,7 +2589,7 @@ void ApiWrap::forwardMessages(
 				const auto newId = FullMsgId(
 					peerToChannel(peer->id),
 					clientMsgId());
-				const auto self = Auth().user();
+				const auto self = _session->user();
 				const auto messageFromId = channelPost
 					? UserId(0)
 					: peerToUser(self->id);
@@ -2640,9 +2674,9 @@ void ApiWrap::sendSharedContact(
 	} else {
 		flags |= MTPDmessage::Flag::f_from_id;
 	}
-	const auto messageFromId = channelPost ? 0 : Auth().userId();
+	const auto messageFromId = channelPost ? 0 : _session->userId();
 	const auto messagePostAuthor = channelPost
-		? (Auth().user()->firstName + ' ' + Auth().user()->lastName)
+		? (_session->user()->firstName + ' ' + _session->user()->lastName)
 		: QString();
 	const auto item = history->addNewMessage(
 		MTP_message(

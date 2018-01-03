@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "autoupdater.h"
 #include "auth_session.h"
+#include "apiwrap.h"
 #include "messenger.h"
 #include "boxes/peer_list_box.h"
 #include "window/window_controller.h"
@@ -315,7 +316,9 @@ void DialogsWidget::notify_historyMuteUpdated(History *history) {
 void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {
 }
 
-void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpRequestId requestId) {
+void DialogsWidget::dialogsReceived(
+		const MTPmessages_Dialogs &dialogs,
+		mtpRequestId requestId) {
 	if (_dialogsRequestId != requestId) return;
 
 	const QVector<MTPDialog> *dialogsList = 0;
@@ -338,9 +341,7 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpReque
 	} break;
 	}
 
-	if (!Auth().data().contactsLoaded().value() && !_contactsRequestId) {
-		_contactsRequestId = MTP::send(MTPcontacts_GetContacts(MTP_int(0)), rpcDone(&DialogsWidget::contactsReceived), rpcFail(&DialogsWidget::contactsFailed));
-	}
+	Auth().api().requestContacts();
 
 	if (dialogsList) {
 		TimeId lastDate = 0;
@@ -601,22 +602,6 @@ void DialogsWidget::loadPinnedDialogs() {
 
 	_pinnedDialogsReceived = false;
 	_pinnedDialogsRequestId = MTP::send(MTPmessages_GetPinnedDialogs(), rpcDone(&DialogsWidget::pinnedDialogsReceived), rpcFail(&DialogsWidget::dialogsFailed));
-}
-
-void DialogsWidget::contactsReceived(const MTPcontacts_Contacts &result) {
-	_contactsRequestId = 0;
-	if (result.type() == mtpc_contacts_contacts) {
-		auto &d = result.c_contacts_contacts();
-		App::feedUsers(d.vusers);
-		_inner->contactsReceived(d.vcontacts.v);
-	}
-	Auth().data().contactsLoaded().set(true);
-}
-
-bool DialogsWidget::contactsFailed(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-	_contactsRequestId = 0;
-	return true;
 }
 
 void DialogsWidget::searchReceived(DialogsSearchRequestType type, const MTPmessages_Messages &result, mtpRequestId req) {

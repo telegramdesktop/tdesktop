@@ -48,6 +48,8 @@ public:
 	using RequestMessageDataCallback = base::lambda<void(ChannelData*, MsgId)>;
 	void requestMessageData(ChannelData *channel, MsgId msgId, RequestMessageDataCallback callback);
 
+	void requestContacts();
+
 	void requestFullPeer(PeerData *peer);
 	void requestPeer(PeerData *peer);
 	void requestPeers(const QList<PeerData*> &peers);
@@ -385,8 +387,9 @@ private:
 	base::Timer _featuredSetsReadTimer;
 	base::flat_set<uint64> _featuredSetsRead;
 
-	QMap<mtpTypeId, mtpRequestId> _privacySaveRequests;
+	base::flat_map<mtpTypeId, mtpRequestId> _privacySaveRequests;
 
+	mtpRequestId _contactsRequestId = 0;
 	mtpRequestId _contactsStatusesRequestId = 0;
 
 	base::flat_map<not_null<History*>, mtpRequestId> _unreadMentionsRequests;

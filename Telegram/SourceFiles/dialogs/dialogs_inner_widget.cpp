@@ -84,6 +84,7 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 	_cancelSearchFromUser->hide();
 
 	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
+	subscribe(Auth().data().contactsLoaded(), [this](bool) { refresh(); });
 	Auth().data().itemRemoved(
 	) | rpl::start_with_next(
 		[this](auto item) { itemRemoved(item); },
@@ -1616,21 +1617,6 @@ void DialogsInner::peerSearchReceived(const QString &query, const QVector<MTPPee
 			_peerSearchResults.push_back(std::make_unique<PeerSearchResult>(App::peer(peerId)));
 		} else {
 			LOG(("API Error: user %1 was not loaded in DialogsInner::peopleReceived()").arg(peerId));
-		}
-	}
-	refresh();
-}
-
-void DialogsInner::contactsReceived(const QVector<MTPContact> &result) {
-	for_const (auto contact, result) {
-		if (contact.type() != mtpc_contact) continue;
-
-		auto userId = contact.c_contact().vuser_id.v;
-		if (userId == Auth().userId() && App::self()) {
-			if (App::self()->contact < 1) {
-				App::self()->contact = 1;
-				Notify::userIsContactChanged(App::self());
-			}
 		}
 	}
 	refresh();
