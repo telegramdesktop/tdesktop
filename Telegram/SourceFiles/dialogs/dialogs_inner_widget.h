@@ -152,12 +152,27 @@ private:
 	void setPeerSearchPressed(int pressed);
 	void setSearchedPressed(int pressed);
 	bool isPressed() const {
-		return _importantSwitchPressed || _pressed || (_hashtagPressed >= 0) || (_filteredPressed >= 0) || (_peerSearchPressed >= 0) || (_searchedPressed >= 0);
+		return _importantSwitchPressed
+			|| _pressed
+			|| (_hashtagPressed >= 0)
+			|| (_filteredPressed >= 0)
+			|| (_peerSearchPressed >= 0)
+			|| (_searchedPressed >= 0);
 	}
 	bool isSelected() const {
-		return _importantSwitchSelected || _selected || (_hashtagSelected >= 0) || (_filteredSelected >= 0) || (_peerSearchSelected >= 0) || (_searchedSelected >= 0);
+		return _importantSwitchSelected
+			|| _selected
+			|| (_hashtagSelected >= 0)
+			|| (_filteredSelected >= 0)
+			|| (_peerSearchSelected >= 0)
+			|| (_searchedSelected >= 0);
 	}
-	void handlePeerNameChange(not_null<PeerData*> peer, const PeerData::NameFirstChars &oldChars);
+	void handlePeerNameChange(
+		not_null<PeerData*> peer,
+		const PeerData::NameFirstChars &oldChars);
+
+	void applyDialog(const MTPDdialog &dialog);
+	void applyFeedDialog(const MTPDdialogFeed &dialog);
 
 	void itemRemoved(not_null<const HistoryItem*> item);
 	enum class UpdateRowSection {
@@ -170,7 +185,11 @@ private:
 	using UpdateRowSections = base::flags<UpdateRowSection>;
 	friend inline constexpr auto is_flag_type(UpdateRowSection) { return true; };
 
-	void updateDialogRow(PeerData *peer, MsgId msgId, QRect updateRect, UpdateRowSections sections = UpdateRowSection::All);
+	void updateDialogRow(
+		PeerData *peer,
+		MsgId msgId,
+		QRect updateRect,
+		UpdateRowSections sections = UpdateRowSection::All);
 
 	int dialogsOffset() const;
 	int filteredOffset() const;

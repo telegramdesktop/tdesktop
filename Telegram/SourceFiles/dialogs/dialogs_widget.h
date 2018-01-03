@@ -131,10 +131,20 @@ protected:
 
 private:
 	void animationCallback();
-	void dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpRequestId requestId);
-	void pinnedDialogsReceived(const MTPmessages_PeerDialogs &dialogs, mtpRequestId requestId);
+	void dialogsReceived(
+		const MTPmessages_Dialogs &result,
+		mtpRequestId requestId);
+	void pinnedDialogsReceived(
+		const MTPmessages_PeerDialogs &result,
+		mtpRequestId requestId);
 	void searchReceived(DialogsSearchRequestType type, const MTPmessages_Messages &result, mtpRequestId requestId);
 	void peerSearchReceived(const MTPcontacts_Found &result, mtpRequestId requestId);
+	void updateDialogsOffset(
+		const QVector<MTPDialog> &dialogs,
+		const QVector<MTPMessage> &messages);
+	void applyReceivedDialogs(
+		const QVector<MTPDialog> &dialogs,
+		const QVector<MTPMessage> &messages);
 
 	void setSearchInPeer(PeerData *peer, UserData *from = nullptr);
 	void showSearchFrom();
@@ -146,7 +156,6 @@ private:
 	void updateControlsGeometry();
 	void updateForwardBar();
 
-	void unreadCountsReceived(const QVector<MTPDialog> &dialogs);
 	bool dialogsFailed(const RPCError &error, mtpRequestId req);
 	bool searchFailed(DialogsSearchRequestType type, const RPCError &error, mtpRequestId req);
 	bool peopleFailed(const RPCError &error, mtpRequestId req);

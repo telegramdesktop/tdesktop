@@ -313,127 +313,122 @@ void DialogsWidget::notify_historyMuteUpdated(History *history) {
 	_inner->notify_historyMuteUpdated(history);
 }
 
-void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {
-}
-
 void DialogsWidget::dialogsReceived(
 		const MTPmessages_Dialogs &dialogs,
 		mtpRequestId requestId) {
 	if (_dialogsRequestId != requestId) return;
 
-	const QVector<MTPDialog> *dialogsList = 0;
-	const QVector<MTPMessage> *messagesList = 0;
-	switch (dialogs.type()) {
-	case mtpc_messages_dialogs: {
-		auto &data = dialogs.c_messages_dialogs();
-		App::feedUsers(data.vusers);
-		App::feedChats(data.vchats);
-		messagesList = &data.vmessages.v;
-		dialogsList = &data.vdialogs.v;
-		_dialogsFull = true;
-	} break;
-	case mtpc_messages_dialogsSlice: {
-		auto &data = dialogs.c_messages_dialogsSlice();
-		App::feedUsers(data.vusers);
-		App::feedChats(data.vchats);
-		messagesList = &data.vmessages.v;
-		dialogsList = &data.vdialogs.v;
-	} break;
-	}
-
-	Auth().api().requestContacts();
-
-	if (dialogsList) {
-		TimeId lastDate = 0;
-		PeerId lastPeer = 0;
-		MsgId lastMsgId = 0;
-		for (int i = dialogsList->size(); i > 0;) {
-			auto &dialog = dialogsList->at(--i);
-			if (dialog.type() != mtpc_dialog) {
-				continue;
-			}
-
-			const auto &dialogData = dialog.c_dialog();
-			if (const auto peer = peerFromMTP(dialogData.vpeer)) {
-				const auto history = App::history(peer);
-				history->setPinnedDialog(dialogData.is_pinned());
-
-				if (!lastDate) {
-					if (!lastPeer) lastPeer = peer;
-					if (auto msgId = dialogData.vtop_message.v) {
-						if (!lastMsgId) lastMsgId = msgId;
-						for (int j = messagesList->size(); j > 0;) {
-							auto &message = messagesList->at(--j);
-							if (idFromMessage(message) == msgId && peerFromMessage(message) == peer) {
-								if (auto date = dateFromMessage(message)) {
-									lastDate = date;
-								}
-								break;
-							}
-						}
-					}
-				}
-			}
-		}
-		if (lastDate) {
-			_dialogsOffsetDate = lastDate;
-			_dialogsOffsetId = lastMsgId;
-			_dialogsOffsetPeer = App::peer(lastPeer);
-		} else {
+	const auto [dialogsList, messagesList] = [&] {
+		const auto process = [&](const auto &data) {
+			App::feedUsers(data.vusers);
+			App::feedChats(data.vchats);
+			return std::make_tuple(&data.vdialogs.v, &data.vmessages.v);
+		};
+		switch (dialogs.type()) {
+		case mtpc_messages_dialogs:
 			_dialogsFull = true;
+			return process(dialogs.c_messages_dialogs());
+
+		case mtpc_messages_dialogsSlice:
+			return process(dialogs.c_messages_dialogsSlice());
 		}
+		Unexpected("Type in DialogsWidget::dialogsReceived");
+	}();
 
-		Assert(messagesList != nullptr);
-		App::feedMsgs(*messagesList, NewMessageLast);
+	updateDialogsOffset(*dialogsList, *messagesList);
 
-		unreadCountsReceived(*dialogsList);
-		_inner->dialogsReceived(*dialogsList);
-		onListScroll();
-	} else {
-		_dialogsFull = true;
-	}
+	applyReceivedDialogs(*dialogsList, *messagesList);
 
 	_dialogsRequestId = 0;
 	loadDialogs();
 
 	Auth().data().moreChatsLoaded().notify();
-	if (_dialogsFull) {
+	if (_dialogsFull && _pinnedDialogsReceived) {
 		Auth().data().allChatsLoaded().set(true);
+	}
+	Auth().api().requestContacts();
+}
+
+void DialogsWidget::updateDialogsOffset(
+		const QVector<MTPDialog> &dialogs,
+		const QVector<MTPMessage> &messages) {
+	auto lastDate = TimeId(0);
+	auto lastPeer = PeerId(0);
+	auto lastMsgId = MsgId(0);
+	const auto fillFromDialog = [&](const auto &dialog) {
+		const auto peer = peerFromMTP(dialog.vpeer);
+		const auto msgId = dialog.vtop_message.v;
+		if (!peer || !msgId) {
+			return;
+		}
+		if (!lastPeer) {
+			lastPeer = peer;
+		}
+		if (!lastMsgId) {
+			lastMsgId = msgId;
+		}
+		for (auto j = messages.size(); j != 0;) {
+			const auto &message = messages[--j];
+			if (idFromMessage(message) == msgId
+				&& peerFromMessage(message) == peer) {
+				if (const auto date = dateFromMessage(message)) {
+					lastDate = date;
+				}
+				return;
+			}
+		}
+	};
+	for (auto i = dialogs.size(); i != 0;) {
+		const auto &dialog = dialogs[--i];
+		switch (dialog.type()) {
+		case mtpc_dialog: fillFromDialog(dialog.c_dialog()); break;
+		case mtpc_dialogFeed: fillFromDialog(dialog.c_dialogFeed()); break;
+		default: Unexpected("Type in DialogsWidget::updateDialogsOffset");
+		}
+		if (lastDate) {
+			break;
+		}
+	}
+	if (lastDate) {
+		_dialogsOffsetDate = lastDate;
+		_dialogsOffsetId = lastMsgId;
+		_dialogsOffsetPeer = App::peer(lastPeer);
+	} else {
+		_dialogsFull = true;
 	}
 }
 
-void DialogsWidget::pinnedDialogsReceived(const MTPmessages_PeerDialogs &dialogs, mtpRequestId requestId) {
+void DialogsWidget::pinnedDialogsReceived(
+		const MTPmessages_PeerDialogs &result,
+		mtpRequestId requestId) {
+	Expects(result.type() == mtpc_messages_peerDialogs);
+
 	if (_pinnedDialogsRequestId != requestId) return;
 
-	if (dialogs.type() == mtpc_messages_peerDialogs) {
-		App::histories().clearPinned();
+	App::histories().clearPinned();
 
-		auto &dialogsData = dialogs.c_messages_peerDialogs();
-		App::feedUsers(dialogsData.vusers);
-		App::feedChats(dialogsData.vchats);
-		auto &list = dialogsData.vdialogs.v;
-		for (auto i = list.size(); i > 0;) {
-			auto &dialog = list[--i];
-			if (dialog.type() != mtpc_dialog) {
-				continue;
-			}
+	auto &data = result.c_messages_peerDialogs();
+	App::feedUsers(data.vusers);
+	App::feedChats(data.vchats);
 
-			const auto &dialogData = dialog.c_dialog();
-			if (const auto peer = peerFromMTP(dialogData.vpeer)) {
-				const auto history = App::history(peer);
-				history->setPinnedDialog(dialogData.is_pinned());
-			}
-		}
-		App::feedMsgs(dialogsData.vmessages, NewMessageLast);
-		unreadCountsReceived(list);
-		_inner->dialogsReceived(list);
-		onListScroll();
-	}
+	applyReceivedDialogs(data.vdialogs.v, data.vmessages.v);
 
 	_pinnedDialogsRequestId = 0;
 	_pinnedDialogsReceived = true;
 
 	Auth().data().moreChatsLoaded().notify();
+	if (_dialogsFull && _pinnedDialogsReceived) {
+		Auth().data().allChatsLoaded().set(true);
+	}
+}
+
+void DialogsWidget::applyReceivedDialogs(
+		const QVector<MTPDialog> &dialogs,
+		const QVector<MTPMessage> &messages) {
+	Auth().api().applyDialogsPinned(dialogs);
+	App::feedMsgs(messages, NewMessageLast);
+	_inner->dialogsReceived(dialogs);
+	onListScroll();
 }
 
 bool DialogsWidget::dialogsFailed(const RPCError &error, mtpRequestId requestId) {

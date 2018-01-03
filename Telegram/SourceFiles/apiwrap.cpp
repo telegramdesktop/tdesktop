@@ -146,6 +146,29 @@ void ApiWrap::applyUpdates(
 	App::main()->feedUpdates(updates, sentMessageRandomId);
 }
 
+void ApiWrap::applyDialogsPinned(const QVector<MTPDialog> &list) {
+	for (auto i = list.size(); i != 0;) {
+		const auto &dialog = list[--i];
+		switch (dialog.type()) {
+		case mtpc_dialog: {
+			const auto &dialogData = dialog.c_dialog();
+			if (const auto peer = peerFromMTP(dialogData.vpeer)) {
+				const auto history = App::history(peer);
+				history->setPinnedDialog(dialogData.is_pinned());
+			}
+		} break;
+
+		case mtpc_dialogFeed: {
+			const auto &feedData = dialog.c_dialogFeed();
+			const auto feedId = feedData.vfeed_id.v;
+			// #TODO feeds
+		} break;
+
+		default: Unexpected("Type in ApiWrap::applyDialogsPinned.");
+		}
+	}
+}
+
 void ApiWrap::sendMessageFail(const RPCError &error) {
 	if (error.type() == qstr("PEER_FLOOD")) {
 		Ui::show(Box<InformBox>(

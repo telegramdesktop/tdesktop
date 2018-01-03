@@ -1494,59 +1494,73 @@ void DialogsInner::itemRemoved(not_null<const HistoryItem*> item) {
 
 void DialogsInner::dialogsReceived(const QVector<MTPDialog> &added) {
 	for (const auto &dialog : added) {
-		if (dialog.type() != mtpc_dialog) {
-			continue;
-		}
-
-		const auto &d = dialog.c_dialog();
-		const auto peerId = peerFromMTP(d.vpeer);
-		if (!peerId) {
-			continue;
-		}
-
-		auto history = App::historyFromDialog(peerId, d.vunread_count.v, d.vread_inbox_max_id.v, d.vread_outbox_max_id.v);
-		history->setUnreadMentionsCount(d.vunread_mentions_count.v);
-		auto peer = history->peer;
-		if (auto channel = peer->asChannel()) {
-			if (d.has_pts()) {
-				channel->ptsReceived(d.vpts.v);
-			}
-			if (!channel->amCreator()) {
-				if (auto topMsg = App::histItemById(channel, d.vtop_message.v)) {
-					if (topMsg->date <= date(channel->date)) {
-						Auth().api().requestSelfParticipant(channel);
-					}
-				}
-			}
-		}
-		App::main()->applyNotifySetting(
-			MTP_notifyPeer(d.vpeer),
-			d.vnotify_settings,
-			history);
-
-		if (!history->isPinnedDialog() && !history->lastMsgDate.isNull()) {
-			addSavedPeersAfter(history->lastMsgDate);
-		}
-		_contactsNoDialogs->del(peer);
-		if (peer->migrateFrom()) {
-			removeDialog(App::historyLoaded(peer->migrateFrom()->id));
-		} else if (peer->migrateTo() && peer->migrateTo()->amIn()) {
-			removeDialog(history);
-		}
-
-		if (d.has_draft() && d.vdraft.type() == mtpc_draftMessage) {
-			auto &draft = d.vdraft.c_draftMessage();
-			Data::applyPeerCloudDraft(peerId, draft);
+		switch (dialog.type()) {
+		case mtpc_dialog: applyDialog(dialog.c_dialog()); break;
+		case mtpc_dialogFeed: applyFeedDialog(dialog.c_dialogFeed()); break;
+		default: Unexpected("Type in DialogsInner::dialogsReceived");
 		}
 	}
 	Notify::unreadCounterUpdated();
 	refresh();
 }
 
+void DialogsInner::applyDialog(const MTPDdialog &dialog) {
+	const auto peerId = peerFromMTP(dialog.vpeer);
+	if (!peerId) {
+		return;
+	}
+
+	const auto history = App::historyFromDialog(
+		peerId,
+		dialog.vunread_count.v,
+		dialog.vread_inbox_max_id.v,
+		dialog.vread_outbox_max_id.v);
+	history->setUnreadMentionsCount(dialog.vunread_mentions_count.v);
+	const auto peer = history->peer;
+	if (const auto channel = peer->asChannel()) {
+		if (dialog.has_pts()) {
+			channel->ptsReceived(dialog.vpts.v);
+		}
+		if (!channel->amCreator()) {
+			const auto topMsgId = FullMsgId(
+				peerToChannel(channel->id),
+				dialog.vtop_message.v);
+			if (const auto topMsg = App::histItemById(topMsgId)) {
+				if (topMsg->date <= date(channel->date)) {
+					Auth().api().requestSelfParticipant(channel);
+				}
+			}
+		}
+	}
+	App::main()->applyNotifySetting(
+		MTP_notifyPeer(dialog.vpeer),
+		dialog.vnotify_settings,
+		history);
+
+	if (!history->isPinnedDialog() && !history->lastMsgDate.isNull()) {
+		addSavedPeersAfter(history->lastMsgDate);
+	}
+	_contactsNoDialogs->del(peer);
+	if (peer->migrateFrom()) {
+		removeDialog(App::historyLoaded(peer->migrateFrom()->id));
+	} else if (peer->migrateTo() && peer->migrateTo()->amIn()) {
+		removeDialog(history);
+	}
+
+	if (dialog.has_draft() && dialog.vdraft.type() == mtpc_draftMessage) {
+		const auto &draft = dialog.vdraft.c_draftMessage();
+		Data::applyPeerCloudDraft(peerId, draft);
+	}
+}
+
+void DialogsInner::applyFeedDialog(const MTPDdialogFeed &dialog) {
+	// #TODO feeds
+}
+
 void DialogsInner::addSavedPeersAfter(const QDateTime &date) {
-	SavedPeersByTime &saved(cRefSavedPeersByTime());
+	auto &saved = cRefSavedPeersByTime();
 	while (!saved.isEmpty() && (date.isNull() || date < saved.lastKey())) {
-		History *history = App::history(saved.last()->id);
+		const auto history = App::history(saved.last()->id);
 		history->setChatsListDate(saved.lastKey());
 		_contactsNoDialogs->del(history->peer);
 		saved.remove(saved.lastKey(), saved.last());

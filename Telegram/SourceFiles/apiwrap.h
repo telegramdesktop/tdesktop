@@ -45,8 +45,13 @@ public:
 
 	void applyUpdates(const MTPUpdates &updates, uint64 sentMessageRandomId = 0);
 
+	void applyDialogsPinned(const QVector<MTPDialog> &list);
+
 	using RequestMessageDataCallback = base::lambda<void(ChannelData*, MsgId)>;
-	void requestMessageData(ChannelData *channel, MsgId msgId, RequestMessageDataCallback callback);
+	void requestMessageData(
+		ChannelData *channel,
+		MsgId msgId,
+		RequestMessageDataCallback callback);
 
 	void requestContacts();
 
