@@ -302,10 +302,6 @@ void userIsBotChanged(UserData *user) {
 	if (MainWidget *m = App::main()) m->notify_userIsBotChanged(user);
 }
 
-void userIsContactChanged(UserData *user, bool fromThisApp) {
-	if (MainWidget *m = App::main()) m->notify_userIsContactChanged(user, fromThisApp);
-}
-
 void botCommandsChanged(UserData *user) {
 	if (MainWidget *m = App::main()) {
 		m->notify_botCommandsChanged(user);

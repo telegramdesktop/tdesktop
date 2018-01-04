@@ -4007,20 +4007,52 @@ void _writePeer(QDataStream &stream, PeerData *peer) {
 	stream << quint64(peer->id) << quint64(peer->userpicPhotoId());
 	Serialize::writeStorageImageLocation(stream, peer->userpicLocation());
 	if (const auto user = peer->asUser()) {
-		stream << user->firstName << user->lastName << user->phone() << user->username << quint64(user->accessHash());
+		stream
+			<< user->firstName
+			<< user->lastName
+			<< user->phone()
+			<< user->username
+			<< quint64(user->accessHash());
 		if (AppVersion >= 9012) {
 			stream << qint32(user->flags());
 		}
 		if (AppVersion >= 9016) {
-			stream << (user->botInfo ? user->botInfo->inlinePlaceholder : QString());
+			const auto botInlinePlaceholder = user->botInfo
+				? user->botInfo->inlinePlaceholder
+				: QString();
+			stream << botInlinePlaceholder;
 		}
-		stream << qint32(user->onlineTill) << qint32(user->contact) << qint32(user->botInfo ? user->botInfo->version : -1);
+		const auto contactSerialized = [&] {
+			switch (user->contactStatus()) {
+			case UserData::ContactStatus::Contact: return 1;
+			case UserData::ContactStatus::CanAdd: return 0;
+			case UserData::ContactStatus::PhoneUnknown: return -1;
+			}
+			Unexpected("contactStatus in _writePeer()");
+		}();
+		stream
+			<< qint32(user->onlineTill)
+			<< qint32(contactSerialized)
+			<< qint32(user->botInfo ? user->botInfo->version : -1);
 	} else if (const auto chat = peer->asChat()) {
-		stream << chat->name << qint32(chat->count) << qint32(chat->date) << qint32(chat->version) << qint32(chat->creator);
-		stream << qint32(0) << quint32(chat->flags()) << chat->inviteLink();
-	} else if (auto channel = peer->asChannel()) {
-		stream << channel->name << quint64(channel->access) << qint32(channel->date) << qint32(channel->version);
-		stream << qint32(0) << quint32(channel->flags()) << channel->inviteLink();
+		stream
+			<< chat->name
+			<< qint32(chat->count)
+			<< qint32(chat->date)
+			<< qint32(chat->version)
+			<< qint32(chat->creator)
+			<< qint32(0)
+			<< quint32(chat->flags())
+			<< chat->inviteLink();
+	} else if (const auto channel = peer->asChannel()) {
+		stream
+			<< channel->name
+			<< quint64(channel->access)
+			<< qint32(channel->date)
+			<< qint32(channel->version)
+			<< qint32(0)
+			<< quint32(channel->flags())
+			<< channel->inviteLink();
 	}
 }
 
@@ -4049,8 +4081,12 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 		}
 		from.stream >> onlineTill >> contact >> botInfoVersion;
 
-		bool showPhone = !isServiceUser(user->id) && (user->id != Auth().userPeerId()) && (contact <= 0);
-		QString pname = (showPhone && !phone.isEmpty()) ? App::formatPhone(phone) : QString();
+		const auto showPhone = !isServiceUser(user->id)
+			&& (user->id != Auth().userPeerId())
+			&& (contact <= 0);
+		const auto pname = (showPhone && !phone.isEmpty())
+			? App::formatPhone(phone)
+			: QString();
 
 		if (!wasLoaded) {
 			user->setPhone(phone);
@@ -4059,7 +4095,11 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 			user->setFlags(MTPDuser::Flags::from_raw(flags));
 			user->setAccessHash(access);
 			user->onlineTill = onlineTill;
-			user->contact = contact;
+			user->setContactStatus((contact > 0)
+				? UserData::ContactStatus::Contact
+				: (contact == 0)
+				? UserData::ContactStatus::CanAdd
+				: UserData::ContactStatus::PhoneUnknown);
 			user->setBotInfoVersion(botInfoVersion);
 			if (!inlinePlaceholder.isEmpty() && user->botInfo) {
 				user->botInfo->inlinePlaceholder = inlinePlaceholder;

@@ -330,7 +330,6 @@ public:
 	void notify_inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
 	bool notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo);
 	void notify_userIsBotChanged(UserData *bot);
-	void notify_userIsContactChanged(UserData *user, bool fromThisApp);
 	void notify_migrateUpdated(PeerData *peer);
 	void notify_historyMuteUpdated(History *history);
 
@@ -431,6 +430,7 @@ private:
 	[[nodiscard]] bool saveThirdSectionToStackBack() const;
 	[[nodiscard]] auto thirdSectionForCurrentMainSection(
 		not_null<PeerData*> peer) -> std::unique_ptr<Window::SectionMemento>;
+	void userIsContactUpdated(not_null<UserData*> user);
 
 	void createPlayer();
 	void switchToPanelPlayer();

@@ -219,7 +219,6 @@ enum ClipStopperType {
 namespace Notify {
 
 void userIsBotChanged(UserData *user);
-void userIsContactChanged(UserData *user, bool fromThisApp = false);
 void botCommandsChanged(UserData *user);
 
 void inlineBotRequesting(bool requesting);

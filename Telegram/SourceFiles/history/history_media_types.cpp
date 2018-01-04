@@ -3286,7 +3286,8 @@ void HistoryContact::initDimensions() {
 			Data::PeerUserpicColor(_userId ? _userId : _parent->id),
 			_name.originalText());
 	}
-	if (_contact && _contact->contact > 0) {
+	if (_contact
+		&& _contact->contactStatus() == UserData::ContactStatus::Contact) {
 		_linkl = sendMessageClickHandler(_contact);
 		_link = lang(lng_profile_send_message).toUpper();
 	} else if (_userId) {

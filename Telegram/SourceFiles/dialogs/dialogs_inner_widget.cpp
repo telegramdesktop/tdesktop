@@ -109,7 +109,8 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 	using UpdateFlag = Notify::PeerUpdate::Flag;
 	auto changes = UpdateFlag::PinnedChanged
 		| UpdateFlag::NameChanged
-		| UpdateFlag::PhotoChanged;
+		| UpdateFlag::PhotoChanged
+		| UpdateFlag::UserIsContact;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(changes, [this](const Notify::PeerUpdate &update) {
 		if (update.flags & UpdateFlag::PinnedChanged) {
 			stopReorderPinned();
@@ -120,6 +121,11 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 		if (update.flags & UpdateFlag::PhotoChanged) {
 			this->update();
 			emit App::main()->dialogsUpdated();
+		}
+		if (update.flags & UpdateFlag::UserIsContact) {
+			if (const auto user = update.peer->asUser()) {
+				userIsContactUpdated(user);
+			}
 		}
 	}));
 
@@ -1073,6 +1079,7 @@ void DialogsInner::createDialog(History *history) {
 
 void DialogsInner::removeDialog(History *history) {
 	if (!history) return;
+
 	if (history->peer == _menuPeer && _menu) {
 		InvokeQueued(this, [this] { _menu = nullptr; });
 	}
@@ -1636,20 +1643,17 @@ void DialogsInner::peerSearchReceived(const QString &query, const QVector<MTPPee
 	refresh();
 }
 
-void DialogsInner::notify_userIsContactChanged(UserData *user, bool fromThisApp) {
+void DialogsInner::userIsContactUpdated(not_null<UserData*> user) {
 	if (user->loadedStatus != PeerData::FullLoaded) {
-		LOG(("API Error: notify_userIsContactChanged() called for a not loaded user!"));
+		LOG(("API Error: "
+			"notify_userIsContactChanged() called for a not loaded user!"));
 		return;
 	}
-	if (user->contact > 0) {
-		auto history = App::history(user->id);
+	if (user->contactStatus() == UserData::ContactStatus::Contact) {
+		const auto history = App::history(user->id);
 		_contacts->addByName(history);
-		if (auto row = shownDialogs()->getRow(user->id)) {
-			if (fromThisApp) {
-				_selected = row;
-				_importantSwitchSelected = false;
-			}
-		} else if (!_dialogs->contains(user->id)) {
+		if (!shownDialogs()->getRow(user->id)
+			&& !_dialogs->contains(user->id)) {
 			_contactsNoDialogs->addByName(history);
 		}
 	} else {

@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "messenger.h"
 #include "mainwindow.h"
 #include "window/window_controller.h"
+#include "storage/localstorage.h"
 #include "ui/empty_userpic.h"
 #include "ui/text_options.h"
 
@@ -348,7 +349,26 @@ const Text &BotCommand::descriptionText() const {
 }
 
 bool UserData::canShareThisContact() const {
-	return canShareThisContactFast() || !App::phoneFromSharedContact(peerToUser(id)).isEmpty();
+	return canShareThisContactFast()
+		|| !App::phoneFromSharedContact(peerToUser(id)).isEmpty();
+}
+
+void UserData::setContactStatus(ContactStatus status) {
+	if (_contactStatus != status) {
+		const auto changed = (_contactStatus == ContactStatus::Contact)
+			!= (status == ContactStatus::Contact);
+		_contactStatus = status;
+		if (changed) {
+			Notify::peerUpdatedDelayed(
+				this,
+				Notify::PeerUpdate::Flag::UserIsContact);
+		}
+	}
+	if (_contactStatus == ContactStatus::Contact
+		&& cReportSpamStatuses().value(id, dbiprsHidden) != dbiprsHidden) {
+		cRefReportSpamStatuses().insert(id, dbiprsHidden);
+		Local::writeReportSpamStatuses();
+	}
 }
 
 // see Local::readPeer as well

@@ -300,15 +300,6 @@ void DialogsWidget::onCancel() {
 	}
 }
 
-void DialogsWidget::notify_userIsContactChanged(UserData *user, bool fromThisApp) {
-	if (fromThisApp) {
-		_filter->setText(QString());
-		_filter->updatePlaceholder();
-		onFilterUpdate();
-	}
-	_inner->notify_userIsContactChanged(user, fromThisApp);
-}
-
 void DialogsWidget::notify_historyMuteUpdated(History *history) {
 	_inner->notify_historyMuteUpdated(history);
 }

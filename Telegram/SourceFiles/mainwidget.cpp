@@ -829,24 +829,6 @@ void MainWidget::notify_userIsBotChanged(UserData *bot) {
 	_history->notify_userIsBotChanged(bot);
 }
 
-void MainWidget::notify_userIsContactChanged(UserData *user, bool fromThisApp) {
-	if (!user) return;
-
-	_dialogs->notify_userIsContactChanged(user, fromThisApp);
-
-	const SharedContactItems &items(App::sharedContactItems());
-	SharedContactItems::const_iterator i = items.constFind(peerToUser(user->id));
-	if (i != items.cend()) {
-		for_const (auto item, i.value()) {
-			item->setPendingInitDimensions();
-		}
-	}
-
-	if (user->contact > 0 && fromThisApp) {
-		Ui::showPeerHistory(user->id, ShowAtTheEndMsgId);
-	}
-}
-
 void MainWidget::notify_migrateUpdated(PeerData *peer) {
 	_history->notify_migrateUpdated(peer);
 }
@@ -4528,7 +4510,9 @@ void MainWidget::updateOnline(bool gotOtherOffline) {
 
 		if (App::self()) {
 			App::self()->onlineTill = unixtime() + (isOnline ? (Global::OnlineUpdatePeriod() / 1000) : -1);
-			Notify::peerUpdatedDelayed(App::self(), Notify::PeerUpdate::Flag::UserOnlineChanged);
+			Notify::peerUpdatedDelayed(
+				App::self(),
+				Notify::PeerUpdate::Flag::UserOnlineChanged);
 		}
 		if (!isOnline) { // Went offline, so we need to save message draft to the cloud.
 			saveDraftToCloud();
@@ -5157,7 +5141,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			case mtpc_userStatusOffline: user->onlineTill = d.vstatus.c_userStatusOffline().vwas_online.v; break;
 			case mtpc_userStatusOnline: user->onlineTill = d.vstatus.c_userStatusOnline().vexpires.v; break;
 			}
-			Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserOnlineChanged);
+			Notify::peerUpdatedDelayed(
+				user,
+				Notify::PeerUpdate::Flag::UserOnlineChanged);
 		}
 		if (d.vuser_id.v == Auth().userId()) {
 			if (d.vstatus.type() == mtpc_userStatusOffline || d.vstatus.type() == mtpc_userStatusEmpty) {
@@ -5174,10 +5160,18 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateUserName: {
 		auto &d = update.c_updateUserName();
 		if (auto user = App::userLoaded(d.vuser_id.v)) {
-			if (user->contact <= 0) {
-				user->setName(TextUtilities::SingleLine(qs(d.vfirst_name)), TextUtilities::SingleLine(qs(d.vlast_name)), user->nameOrPhone, TextUtilities::SingleLine(qs(d.vusername)));
+			if (user->contactStatus() != UserData::ContactStatus::Contact) {
+				user->setName(
+					TextUtilities::SingleLine(qs(d.vfirst_name)),
+					TextUtilities::SingleLine(qs(d.vlast_name)),
+					user->nameOrPhone,
+					TextUtilities::SingleLine(qs(d.vusername)));
 			} else {
-				user->setName(TextUtilities::SingleLine(user->firstName), TextUtilities::SingleLine(user->lastName), user->nameOrPhone, TextUtilities::SingleLine(qs(d.vusername)));
+				user->setName(
+					TextUtilities::SingleLine(user->firstName),
+					TextUtilities::SingleLine(user->lastName),
+					user->nameOrPhone,
+					TextUtilities::SingleLine(qs(d.vusername)));
 			}
 		}
 	} break;
@@ -5233,9 +5227,20 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			auto newPhone = qs(d.vphone);
 			if (newPhone != user->phone()) {
 				user->setPhone(newPhone);
-				user->setName(user->firstName, user->lastName, (user->contact || isServiceUser(user->id) || user->isSelf() || user->phone().isEmpty()) ? QString() : App::formatPhone(user->phone()), user->username);
+				user->setName(
+					user->firstName,
+					user->lastName,
+					((user->contactStatus() == UserData::ContactStatus::Contact
+						|| isServiceUser(user->id)
+						|| user->isSelf()
+						|| user->phone().isEmpty())
+						? QString()
+						: App::formatPhone(user->phone())),
+					user->username);
 
-				Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserPhoneChanged);
+				Notify::peerUpdatedDelayed(
+					user,
+					Notify::PeerUpdate::Flag::UserPhoneChanged);
 			}
 		}
 	} break;

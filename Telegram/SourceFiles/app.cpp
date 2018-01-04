@@ -234,7 +234,7 @@ namespace {
 
 	UserData *feedUser(const MTPUser &user) {
 		UserData *data = nullptr;
-		bool wasContact = false, minimal = false;
+		bool minimal = false;
 		const MTPUserStatus *status = 0, emptyStatus = MTP_userStatusEmpty();
 
 		Notify::PeerUpdate update;
@@ -247,7 +247,6 @@ namespace {
 			auto peer = peerFromUser(d.vid.v);
 			data = App::user(peer);
 			auto canShareThisContact = data->canShareThisContactFast();
-			wasContact = data->isContact();
 
 			data->input = MTP_inputPeerUser(d.vid, MTP_long(0));
 			data->inputUser = MTP_inputUser(d.vid, MTP_long(0));
@@ -255,12 +254,17 @@ namespace {
 			data->setPhoto(MTP_userProfilePhotoEmpty());
 			//data->setFlags(MTPDuser_ClientFlag::f_inaccessible | 0);
 			data->setFlags(MTPDuser::Flag::f_deleted);
+			if (!data->phone().isEmpty()) {
+				data->setPhone(QString());
+				update.flags |= UpdateFlag::UserPhoneChanged;
+			}
 			data->setBotInfoVersion(-1);
 			status = &emptyStatus;
-			data->contact = -1;
+			data->setContactStatus(UserData::ContactStatus::PhoneUnknown);
 
-			if (canShareThisContact != data->canShareThisContactFast()) update.flags |= UpdateFlag::UserCanShareContact;
-			if (wasContact != data->isContact()) update.flags |= UpdateFlag::UserIsContact;
+			if (canShareThisContact != data->canShareThisContactFast()) {
+				update.flags |= UpdateFlag::UserCanShareContact;
+			}
 		} break;
 		case mtpc_user: {
 			auto &d = user.c_user();
@@ -269,7 +273,6 @@ namespace {
 			auto peer = peerFromUser(d.vid.v);
 			data = App::user(peer);
 			auto canShareThisContact = data->canShareThisContactFast();
-			wasContact = data->isContact();
 			if (minimal) {
 				auto mask = 0
 					//| MTPDuser_ClientFlag::f_inaccessible
@@ -318,16 +321,30 @@ namespace {
 				}
 				bool nameChanged = (data->firstName != fname) || (data->lastName != lname);
 
-				bool showPhone = !isServiceUser(data->id) && !d.is_self() && !d.is_contact() && !d.is_mutual_contact();
-				bool showPhoneChanged = !isServiceUser(data->id) && !d.is_self() && ((showPhone && data->contact) || (!showPhone && !data->contact));
+				bool showPhone = !isServiceUser(data->id)
+					&& !d.is_self()
+					&& !d.is_contact()
+					&& !d.is_mutual_contact();
+				bool showPhoneChanged = !isServiceUser(data->id)
+					&& !d.is_self()
+					&& ((showPhone
+						&& data->contactStatus() == UserData::ContactStatus::Contact)
+						|| (!showPhone
+							&& data->contactStatus() == UserData::ContactStatus::CanAdd));
 				if (minimal) {
 					showPhoneChanged = false;
-					showPhone = !isServiceUser(data->id) && (data->id != Auth().userPeerId()) && !data->contact;
+					showPhone = !isServiceUser(data->id)
+						&& (data->id != Auth().userPeerId())
+						&& (data->contactStatus() == UserData::ContactStatus::CanAdd);
 				}
 
 				// see also Local::readPeer
 
-				QString pname = (showPhoneChanged || phoneChanged || nameChanged) ? ((showPhone && !phone.isEmpty()) ? formatPhone(phone) : QString()) : data->nameOrPhone;
+				const auto pname = (showPhoneChanged || phoneChanged || nameChanged)
+					? ((showPhone && !phone.isEmpty())
+						? formatPhone(phone)
+						: QString())
+					: data->nameOrPhone;
 
 				if (!minimal && d.is_self() && uname != data->username) {
 					CrashReports::SetAnnotation("Username", uname);
@@ -355,19 +372,20 @@ namespace {
 				} else {
 					data->setBotInfoVersion(-1);
 				}
-				data->contact = (d.is_contact() || d.is_mutual_contact()) ? 1 : (data->phone().isEmpty() ? -1 : 0);
-				if (data->contact == 1 && cReportSpamStatuses().value(data->id, dbiprsHidden) != dbiprsHidden) {
-					cRefReportSpamStatuses().insert(data->id, dbiprsHidden);
-					Local::writeReportSpamStatuses();
-				}
+				data->setContactStatus((d.is_contact() || d.is_mutual_contact())
+					? UserData::ContactStatus::Contact
+					: data->phone().isEmpty()
+					? UserData::ContactStatus::PhoneUnknown
+					: UserData::ContactStatus::CanAdd);
 				if (d.is_self() && ::self != data) {
 					::self = data;
 					Global::RefSelfChanged().notify();
 				}
 			}
 
-			if (canShareThisContact != data->canShareThisContactFast()) update.flags |= UpdateFlag::UserCanShareContact;
-			if (wasContact != data->isContact()) update.flags |= UpdateFlag::UserIsContact;
+			if (canShareThisContact != data->canShareThisContactFast()) {
+				update.flags |= UpdateFlag::UserCanShareContact;
+			}
 		} break;
 		}
 
@@ -392,13 +410,12 @@ namespace {
 			}
 		}
 
-		if (data->contact < 0 && !data->phone().isEmpty() && data->id != Auth().userPeerId()) {
-			data->contact = 0;
+		if (data->contactStatus() == UserData::ContactStatus::PhoneUnknown
+			&& !data->phone().isEmpty()
+			&& data->id != Auth().userPeerId()) {
+			data->setContactStatus(UserData::ContactStatus::CanAdd);
 		}
 		if (App::main()) {
-			if ((data->contact > 0 && !wasContact) || (wasContact && data->contact < 1)) {
-				Notify::userIsContactChanged(data);
-			}
 			if (update.flags) {
 				update.peer = data;
 				Notify::peerUpdatedDelayed(update);
@@ -1082,43 +1099,40 @@ namespace {
 	}
 
 	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink) {
-		UserData *user = userLoaded(userId.v);
-		if (user) {
-			auto wasContact = user->isContact();
-			bool wasShowPhone = !user->contact;
+		if (const auto user = userLoaded(userId.v)) {
+			const auto wasShowPhone = (user->contactStatus() == UserData::ContactStatus::CanAdd);
 			switch (myLink.type()) {
 			case mtpc_contactLinkContact:
-				user->contact = 1;
-				if (user->contact == 1 && cReportSpamStatuses().value(user->id, dbiprsHidden) != dbiprsHidden) {
-					cRefReportSpamStatuses().insert(user->id, dbiprsHidden);
-					Local::writeReportSpamStatuses();
-				}
+				user->setContactStatus(UserData::ContactStatus::Contact);
 			break;
 			case mtpc_contactLinkHasPhone:
-				user->contact = 0;
+				user->setContactStatus(UserData::ContactStatus::CanAdd);
 			break;
 			case mtpc_contactLinkNone:
 			case mtpc_contactLinkUnknown:
-				user->contact = -1;
+				user->setContactStatus(UserData::ContactStatus::PhoneUnknown);
 			break;
 			}
-			if (user->contact < 1) {
-				if (user->contact < 0 && !user->phone().isEmpty() && user->id != Auth().userPeerId()) {
-					user->contact = 0;
-				}
+			if (user->contactStatus() == UserData::ContactStatus::PhoneUnknown
+				&& !user->phone().isEmpty()
+				&& user->id != Auth().userPeerId()) {
+				user->setContactStatus(UserData::ContactStatus::CanAdd);
 			}
 
-			if (wasContact != user->isContact()) {
-				Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserIsContact);
-			}
-			if ((user->contact > 0 && !wasContact) || (wasContact && user->contact < 1)) {
-				Notify::userIsContactChanged(user);
-			}
-
-			bool showPhone = !isServiceUser(user->id) && !user->isSelf() && !user->contact;
-			bool showPhoneChanged = !isServiceUser(user->id) && !user->isSelf() && ((showPhone && !wasShowPhone) || (!showPhone && wasShowPhone));
+			const auto showPhone = !isServiceUser(user->id)
+				&& !user->isSelf()
+				&& user->contactStatus() == UserData::ContactStatus::CanAdd;
+			const auto showPhoneChanged = !isServiceUser(user->id)
+				&& !user->isSelf()
+				&& (showPhone != wasShowPhone);
 			if (showPhoneChanged) {
-				user->setName(TextUtilities::SingleLine(user->firstName), TextUtilities::SingleLine(user->lastName), showPhone ? App::formatPhone(user->phone()) : QString(), TextUtilities::SingleLine(user->username));
+				user->setName(
+					TextUtilities::SingleLine(user->firstName),
+					TextUtilities::SingleLine(user->lastName),
+					showPhone
+						? App::formatPhone(user->phone())
+						: QString(),
+					TextUtilities::SingleLine(user->username));
 			}
 		}
 	}

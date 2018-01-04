@@ -241,19 +241,23 @@ bool AddContactBox::onSaveUserFail(const RPCError &error) {
 void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 	if (!isBoxShown() || !App::main()) return;
 
-	auto &d = res.c_contacts_importedContacts();
+	const auto &d = res.c_contacts_importedContacts();
 	App::feedUsers(d.vusers);
 
-	auto &v = d.vimported.v;
-	UserData *user = nullptr;
-	if (!v.isEmpty()) {
-		auto &c = v.front().c_importedContact();
-		if (c.vclient_id.v != _contactId) return;
-
-		user = App::userLoaded(c.vuser_id.v);
-	}
+	const auto &v = d.vimported.v;
+	const auto user = [&]() -> UserData* {
+		if (!v.isEmpty()) {
+			auto &c = v.front().c_importedContact();
+			if (c.vclient_id.v == _contactId) {
+				return App::userLoaded(c.vuser_id.v);
+			}
+		}
+		return nullptr;
+	}();
 	if (user) {
-		Notify::userIsContactChanged(user, true);
+		if (user->contactStatus() == UserData::ContactStatus::Contact) {
+			Ui::showPeerHistory(user, ShowAtTheEndMsgId);
+		}
 		Ui::hideLayer();
 	} else {
 		hideChildren();

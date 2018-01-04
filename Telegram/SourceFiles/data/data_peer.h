@@ -384,7 +384,7 @@ public:
 		return !isInaccessible();
 	}
 	bool isContact() const {
-		return (contact > 0);
+		return (_contactStatus == ContactStatus::Contact);
 	}
 
 	bool canShareThisContact() const;
@@ -410,9 +410,18 @@ public:
 	QString nameOrPhone;
 	Text phoneText;
 	TimeId onlineTill = 0;
-	int32 contact = -1; // -1 - not contact, cant add (self, empty, deleted, foreign), 0 - not contact, can add (request), 1 - contact
 
-	enum class BlockStatus {
+	enum class ContactStatus : char {
+		PhoneUnknown,
+		CanAdd,
+		Contact,
+	};
+	ContactStatus contactStatus() const {
+		return _contactStatus;
+	}
+	void setContactStatus(ContactStatus status);
+
+	enum class BlockStatus : char {
 		Unknown,
 		Blocked,
 		NotBlocked,
@@ -425,7 +434,7 @@ public:
 	}
 	void setBlockStatus(BlockStatus blockStatus);
 
-	enum class CallsStatus {
+	enum class CallsStatus : char {
 		Unknown,
 		Enabled,
 		Disabled,
@@ -461,6 +470,7 @@ private:
 	QString _restrictionReason;
 	QString _about;
 	QString _phone;
+	ContactStatus _contactStatus = ContactStatus::PhoneUnknown;
 	BlockStatus _blockStatus = BlockStatus::Unknown;
 	CallsStatus _callsStatus = CallsStatus::Unknown;
 	int _commonChatsCount = 0;

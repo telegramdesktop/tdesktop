@@ -325,10 +325,8 @@ void ApiWrap::requestContacts() {
 
 			const auto userId = contact.c_contact().vuser_id.v;
 			if (userId == Auth().userId() && App::self()) {
-				if (App::self()->contact < 1) {
-					App::self()->contact = 1;
-					Notify::userIsContactChanged(App::self());
-				}
+				App::self()->setContactStatus(
+					UserData::ContactStatus::Contact);
 			}
 		}
 		_session->data().contactsLoaded().set(true);

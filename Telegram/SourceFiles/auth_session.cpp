@@ -23,12 +23,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_widget.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "boxes/send_files_box.h"
+#include "observer_peer.h"
 
 namespace {
 
 constexpr auto kAutoLockTimeoutLateMs = TimeMs(3000);
 
 } // namespace
+
+AuthSessionData::AuthSessionData() {
+	Notify::PeerUpdateViewer(
+		Notify::PeerUpdate::Flag::UserIsContact
+	) | rpl::map([](const Notify::PeerUpdate &update) {
+		return update.peer->asUser();
+	}) | rpl::filter([](UserData *user) {
+		return user != nullptr;
+	}) | rpl::start_with_next([=](not_null<UserData*> user) {
+		userIsContactUpdated(user);
+	}, _lifetime);
+}
+
+AuthSessionData::~AuthSessionData() = default;
 
 AuthSessionData::Variables::Variables()
 : sendFilesWay(SendFilesWay::Album)
@@ -352,6 +367,16 @@ void AuthSessionData::markSavedGifsUpdated() {
 
 rpl::producer<> AuthSessionData::savedGifsUpdated() const {
 	return _savedGifsUpdated.events();
+}
+
+void AuthSessionData::userIsContactUpdated(not_null<UserData*> user) {
+	const auto &items = App::sharedContactItems();
+	const auto i = items.constFind(peerToUser(user->id));
+	if (i != items.cend()) {
+		for (const auto item : std::as_const(i.value())) {
+			item->setPendingInitDimensions();
+		}
+	}
 }
 
 HistoryItemsList AuthSessionData::idsToItems(

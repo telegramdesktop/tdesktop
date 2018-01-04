@@ -95,7 +95,6 @@ public:
 
 	base::Observable<UserData*> searchFromUserChanged;
 
-	void notify_userIsContactChanged(UserData *user, bool fromThisApp);
 	void notify_historyMuteUpdated(History *history);
 
 	~DialogsInner();
@@ -138,6 +137,7 @@ private:
 	struct PeerSearchResult;
 	using PeerSearchResults = std::vector<std::unique_ptr<PeerSearchResult>>;
 
+	void userIsContactUpdated(not_null<UserData*> user);
 	void mousePressReleased(Qt::MouseButton button);
 	void clearIrrelevantState();
 	void updateSelected() {

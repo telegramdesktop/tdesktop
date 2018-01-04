@@ -43,6 +43,9 @@ class Changelogs;
 
 class AuthSessionData final {
 public:
+	AuthSessionData();
+	~AuthSessionData();
+
 	base::Variable<bool> &contactsLoaded() {
 		return _contactsLoaded;
 	}
@@ -293,6 +296,7 @@ private:
 		return (lastUpdate == 0)
 			|| (now >= lastUpdate + kStickersUpdateTimeout);
 	}
+	void userIsContactUpdated(not_null<UserData*> user);
 
 	base::Variable<bool> _contactsLoaded = { false };
 	base::Variable<bool> _allChatsLoaded = { false };
@@ -327,6 +331,8 @@ private:
 
 	Variables _variables;
 	TimeMs _lastTimeVideoPlayedAt = 0;
+
+	rpl::lifetime _lifetime;
 
 };
 
