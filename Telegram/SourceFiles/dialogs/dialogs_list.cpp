@@ -33,8 +33,8 @@ void List::adjustCurrent(int32 y, int32 h) const {
 	}
 }
 
-Row *List::addToEnd(History *history) {
-	Row *result = new Row(history, _end->_prev, _end, _end->_pos);
+Row *List::addToEnd(not_null<History*> history) {
+	const auto result = new Row(history, _end->_prev, _end, _end->_pos);
 	_end->_pos++;
 	if (_begin == _end) {
 		_begin = _current = result;
@@ -121,10 +121,13 @@ Row *List::adjustByName(const PeerData *peer) {
 	return row;
 }
 
-Row *List::addByName(History *history) {
-	if (_sortMode != SortMode::Name) return nullptr;
+Row *List::addByName(not_null<History*> history) {
+	if (_sortMode != SortMode::Name) {
+		return nullptr;
+	}
 
-	Row *row = addToEnd(history), *change = row;
+	const auto row = addToEnd(history);
+	auto change = row;
 	const QString &peerName(history->peer->name);
 	while (change->_prev && change->_prev->history()->peer->name.compare(peerName, Qt::CaseInsensitive) > 0) {
 		change = change->_prev;

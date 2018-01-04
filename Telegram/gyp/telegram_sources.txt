@@ -167,6 +167,8 @@
 <(src_loc)/data/data_document.h
 <(src_loc)/data/data_drafts.cpp
 <(src_loc)/data/data_drafts.h
+<(src_loc)/data/data_feed.cpp
+<(src_loc)/data/data_feed.h
 <(src_loc)/data/data_flags.h
 <(src_loc)/data/data_game.h
 <(src_loc)/data/data_notify_settings.cpp

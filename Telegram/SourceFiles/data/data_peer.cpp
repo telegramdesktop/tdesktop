@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_channel_admins.h"
 #include "data/data_photo.h"
+#include "data/data_feed.h"
 #include "lang/lang_keys.h"
 #include "observer_peer.h"
 #include "mainwidget.h"
@@ -846,6 +847,26 @@ void ChannelData::setPinnedMessageId(MsgId messageId) {
 	if (_pinnedMessageId != messageId) {
 		_pinnedMessageId = messageId;
 		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::ChannelPinnedChanged);
+	}
+}
+
+void ChannelData::setFeed(not_null<Data::Feed*> feed) {
+	setFeedPointer(feed);
+}
+
+void ChannelData::clearFeed() {
+	setFeedPointer(nullptr);
+}
+
+void ChannelData::setFeedPointer(Data::Feed *feed) {
+	if (_feed != feed) {
+		if (_feed) {
+			_feed->unregisterOne(this);
+		}
+		_feed = feed;
+		if (_feed) {
+			_feed->registerOne(this);
+		}
 	}
 }
 

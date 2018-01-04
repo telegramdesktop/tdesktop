@@ -22,6 +22,8 @@ class ChannelData;
 
 namespace Data {
 
+class Feed;
+
 int PeerColorIndex(PeerId peerId);
 int PeerColorIndex(int32 bareId);
 style::color PeerUserpicColor(PeerId peerId);
@@ -103,6 +105,7 @@ public:
 
 	ChatData *migrateFrom() const;
 	ChannelData *migrateTo() const;
+	Data::Feed *feed() const;
 
 	void updateFull();
 	void updateFullForced();
@@ -1009,11 +1012,19 @@ public:
 		setPinnedMessageId(0);
 	}
 
+	void setFeed(not_null<Data::Feed*> feed);
+	void clearFeed();
+
+	Data::Feed *feed() const {
+		return _feed;
+	}
+
 private:
 	void flagsUpdated(MTPDchannel::Flags diff);
 	void fullFlagsUpdated(MTPDchannelFull::Flags diff);
 
 	bool canEditLastAdmin(not_null<UserData*> user) const;
+	void setFeedPointer(Data::Feed *feed);
 
 	Flags _flags = Flags(MTPDchannel_ClientFlag::f_forbidden | 0);
 	FullFlags _fullFlags;
@@ -1035,6 +1046,7 @@ private:
 	QString _about;
 
 	QString _inviteLink;
+	Data::Feed *_feed = nullptr;
 
 	rpl::lifetime _lifetime;
 
@@ -1105,16 +1117,26 @@ inline bool isMegagroup(const PeerData *peer) {
 	return peer ? peer->isMegagroup() : false;
 }
 inline ChatData *PeerData::migrateFrom() const {
-	return (isMegagroup() && asChannel()->amIn())
-		? asChannel()->mgInfo->migrateFromPtr
-		: nullptr;
+	if (const auto megagroup = asMegagroup()) {
+		return megagroup->amIn()
+			? megagroup->mgInfo->migrateFromPtr
+			: nullptr;
+	}
+	return nullptr;
 }
 inline ChannelData *PeerData::migrateTo() const {
-	return (isChat()
-		&& asChat()->migrateToPtr
-		&& asChat()->migrateToPtr->amIn())
-		? asChat()->migrateToPtr
-		: nullptr;
+	if (const auto chat = asChat()) {
+		if (const auto migrateTo = chat->migrateToPtr) {
+			return migrateTo->amIn() ? migrateTo : nullptr;
+		}
+	}
+	return nullptr;
+}
+inline Data::Feed *PeerData::feed() const {
+	if (const auto channel = asChannel()) {
+		return channel->feed();
+	}
+	return nullptr;
 }
 inline const Text &PeerData::dialogName() const {
 	return migrateTo()

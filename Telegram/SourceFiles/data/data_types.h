@@ -27,6 +27,7 @@ class ChannelData;
 using UserId = int32;
 using ChatId = int32;
 using ChannelId = int32;
+using FeedId = int32;
 
 constexpr auto NoChannel = ChannelId(0);
 

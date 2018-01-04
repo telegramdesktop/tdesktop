@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/text_options.h"
 #include "data/data_drafts.h"
+#include "data/data_feed.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -1561,7 +1562,27 @@ void DialogsInner::applyDialog(const MTPDdialog &dialog) {
 }
 
 void DialogsInner::applyFeedDialog(const MTPDdialogFeed &dialog) {
-	// #TODO feeds
+	const auto peerId = peerFromMTP(dialog.vpeer);
+	const auto feedId = dialog.vfeed_id.v;
+	const auto feed = Auth().data().feed(feedId);
+	const auto addChannel = [&](ChannelId channelId) {
+		if (const auto channel = App::channelLoaded(channelId)) {
+			channel->setFeed(feed);
+		}
+	};
+	if (peerId && peerIsChannel(peerId)) {
+		addChannel(peerToChannel(peerId));
+	}
+	for (const auto &channelId : dialog.vfeed_other_channels.v) {
+		addChannel(channelId.v);
+	}
+	feed->setUnreadCounts(
+		dialog.vunread_count.v,
+		dialog.vunread_muted_count.v);
+	if (dialog.has_read_max_position()) {
+		// #TODO feeds
+//		feed->set
+	}
 }
 
 void DialogsInner::addSavedPeersAfter(const QDateTime &date) {

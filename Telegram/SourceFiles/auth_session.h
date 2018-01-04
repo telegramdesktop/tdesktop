@@ -16,6 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class ApiWrap;
 enum class SendFilesWay;
 
+namespace Data {
+class Feed;
+} // namespace Data
+
 namespace Storage {
 class Downloader;
 class Uploader;
@@ -266,6 +270,9 @@ public:
 	MessageIdsList itemsToIds(const HistoryItemsList &items) const;
 	MessageIdsList groupToIds(not_null<HistoryMessageGroup*> group) const;
 
+	not_null<Data::Feed*> feed(FeedId id);
+	Data::Feed *feedLoaded(FeedId id);
+
 private:
 	struct Variables {
 		Variables();
@@ -324,6 +331,8 @@ private:
 	Stickers::Order _featuredStickerSetsOrder;
 	Stickers::Order _archivedStickerSetsOrder;
 	Stickers::SavedGifs _savedGifs;
+
+	base::flat_map<FeedId, std::unique_ptr<Data::Feed>> _feeds;
 
 	rpl::event_stream<bool> _thirdSectionInfoEnabledValue;
 	bool _tabbedReplacedWithInfo = false;

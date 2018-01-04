@@ -273,16 +273,18 @@ ShareBox::Inner::Inner(QWidget *parent, ShareBox::FilterCallback &&filterCallbac
 	_rowHeight = st::shareRowHeight;
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	auto dialogs = App::main()->dialogsList();
-	if (auto self = App::self()) {
+	const auto dialogs = App::main()->dialogsList();
+	if (const auto self = App::self()) {
 		if (_filterCallback(App::self())) {
 			_chatsIndexed->addToEnd(App::history(self));
 		}
 	}
-	for_const (auto row, dialogs->all()) {
-		auto history = row->history();
-		if (!history->peer->isSelf() && _filterCallback(history->peer)) {
-			_chatsIndexed->addToEnd(history);
+	for (const auto row : dialogs->all()) {
+		// #TODO dialogs
+		if (const auto history = row->history()) {
+			if (!history->peer->isSelf() && _filterCallback(history->peer)) {
+				_chatsIndexed->addToEnd(history);
+			}
 		}
 	}
 
@@ -640,8 +642,9 @@ void ShareBox::Inner::changeCheckState(Chat *chat) {
 	if (!_filter.isEmpty()) {
 		auto row = _chatsIndexed->getRow(chat->peer->id);
 		if (!row) {
-			auto rowsByLetter = _chatsIndexed->addToEnd(App::history(chat->peer));
-			auto it = rowsByLetter.find(0);
+			const auto rowsByLetter = _chatsIndexed->addToEnd(
+				App::history(chat->peer));
+			const auto it = rowsByLetter.find(0);
 			Assert(it != rowsByLetter.cend());
 			row = it->second;
 		}

@@ -15,7 +15,7 @@ IndexedList::IndexedList(SortMode sortMode)
 , _empty(sortMode) {
 }
 
-RowsByLetter IndexedList::addToEnd(History *history) {
+RowsByLetter IndexedList::addToEnd(not_null<History*> history) {
 	RowsByLetter result;
 	if (!_list.contains(history->peer->id)) {
 		result.emplace(0, _list.addToEnd(history));
@@ -32,8 +32,8 @@ RowsByLetter IndexedList::addToEnd(History *history) {
 	return result;
 }
 
-Row *IndexedList::addByName(History *history) {
-	if (auto row = _list.getRow(history->peer->id)) {
+Row *IndexedList::addByName(not_null<History*> history) {
+	if (const auto row = _list.getRow(history->peer->id)) {
 		return row;
 	}
 
@@ -105,11 +105,14 @@ void IndexedList::peerNameChanged(Mode list, not_null<PeerData*> peer, const Pee
 	adjustNames(list, peer, oldChars);
 }
 
-void IndexedList::adjustByName(not_null<PeerData*> peer, const PeerData::NameFirstChars &oldChars) {
-	Row *mainRow = _list.adjustByName(peer);
+void IndexedList::adjustByName(
+		not_null<PeerData*> peer,
+		const PeerData::NameFirstChars &oldChars) {
+	const auto mainRow = _list.adjustByName(peer);
 	if (!mainRow) return;
 
-	History *history = mainRow->history();
+	// #TODO dialogs
+	const auto history = mainRow->history();
 
 	PeerData::NameFirstChars toRemove = oldChars, toAdd;
 	for (auto ch : peer->nameFirstChars()) {
@@ -145,6 +148,7 @@ void IndexedList::adjustNames(Mode list, not_null<PeerData*> peer, const PeerDat
 	auto mainRow = _list.getRow(peer->id);
 	if (!mainRow) return;
 
+	// #TODO dialogs
 	auto history = mainRow->history();
 
 	PeerData::NameFirstChars toRemove = oldChars, toAdd;

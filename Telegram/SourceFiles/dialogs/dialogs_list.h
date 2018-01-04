@@ -38,9 +38,9 @@ public:
 		return *i;
 	}
 
-	Row *addToEnd(History *history);
+	Row *addToEnd(not_null<History*> history);
 	Row *adjustByName(const PeerData *peer);
-	Row *addByName(History *history);
+	Row *addByName(not_null<History*> history);
 	bool moveToTop(PeerId peerId);
 	void adjustByPos(Row *row);
 	bool del(PeerId peerId, Row *replacedBy = nullptr);

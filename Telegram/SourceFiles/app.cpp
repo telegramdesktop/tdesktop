@@ -582,6 +582,11 @@ namespace {
 					cdata->setRestrictionReason(QString());
 				}
 				cdata->setFlags(d.vflags.v);
+				if (d.has_feed_id()) {
+					cdata->setFeed(Auth().data().feed(d.vfeed_id.v));
+				} else {
+					cdata->clearFeed();
+				}
 			}
 
 			QString uname = d.has_username() ? TextUtilities::SingleLine(qs(d.vusername)) : QString();

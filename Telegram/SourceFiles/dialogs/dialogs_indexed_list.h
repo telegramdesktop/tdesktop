@@ -18,8 +18,8 @@ class IndexedList {
 public:
 	IndexedList(SortMode sortMode);
 
-	RowsByLetter addToEnd(History *history);
-	Row *addByName(History *history);
+	RowsByLetter addToEnd(not_null<History*> history);
+	Row *addByName(not_null<History*> history);
 	void adjustByPos(const RowsByLetter &links);
 	void moveToTop(not_null<PeerData*> peer);
 

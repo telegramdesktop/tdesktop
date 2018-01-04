@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "storage/storage_facade.h"
 #include "storage/serialize_common.h"
+#include "data/data_feed.h"
 #include "history/history_item_components.h"
 #include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
@@ -406,6 +407,21 @@ MessageIdsList AuthSessionData::groupToIds(
 	auto result = itemsToIds(group->others);
 	result.push_back(group->leader->fullId());
 	return result;
+}
+
+not_null<Data::Feed*> AuthSessionData::feed(FeedId id) {
+	if (const auto result = feedLoaded(id)) {
+		return result;
+	}
+	const auto [it, ok] = _feeds.emplace(
+		id,
+		std::make_unique<Data::Feed>(id));
+	return it->second.get();
+}
+
+Data::Feed *AuthSessionData::feedLoaded(FeedId id) {
+	const auto it = _feeds.find(id);
+	return (it == _feeds.end()) ? nullptr : it->second.get();
 }
 
 AuthSession &Auth() {
