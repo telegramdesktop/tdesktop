@@ -9,8 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_inner_widget.h"
 #include "dialogs/dialogs_search_from_controllers.h"
-#include "styles/style_dialogs.h"
-#include "styles/style_window.h"
+#include "dialogs/dialogs_row.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/fade_wrap.h"
@@ -28,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "profile/profile_channel_controllers.h"
 #include "storage/storage_media_prepare.h"
 #include "data/data_session.h"
+#include "styles/style_dialogs.h"
+#include "styles/style_window.h"
 
 namespace {
 
@@ -181,11 +182,11 @@ void DialogsWidget::activate() {
 	_inner->activate();
 }
 
-void DialogsWidget::createDialog(History *history) {
+void DialogsWidget::createDialog(not_null<History*> history) {
 	auto creating = !history->inChatList(Dialogs::Mode::All);
 	_inner->createDialog(history);
 	if (creating && history->peer->migrateFrom()) {
-		if (auto migrated = App::historyLoaded(history->peer->migrateFrom()->id)) {
+		if (const auto migrated = App::historyLoaded(history->peer->migrateFrom())) {
 			if (migrated->inChatList(Dialogs::Mode::All)) {
 				removeDialog(migrated);
 			}
@@ -193,12 +194,14 @@ void DialogsWidget::createDialog(History *history) {
 	}
 }
 
-void DialogsWidget::dlgUpdated(Dialogs::Mode list, Dialogs::Row *row) {
+void DialogsWidget::dlgUpdated(
+		Dialogs::Mode list,
+		not_null<Dialogs::Row*> row) {
 	_inner->dlgUpdated(list, row);
 }
 
-void DialogsWidget::dlgUpdated(PeerData *peer, MsgId msgId) {
-	_inner->dlgUpdated(peer, msgId);
+void DialogsWidget::dlgUpdated(not_null<History*> history, MsgId msgId) {
+	_inner->dlgUpdated(history, msgId);
 }
 
 void DialogsWidget::dialogsToUp() {
@@ -1103,19 +1106,21 @@ void DialogsWidget::destroyData() {
 	_inner->destroyData();
 }
 
-void DialogsWidget::peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const {
-	return _inner->peerBefore(inPeer, inMsg, outPeer, outMsg);
+Dialogs::RowDescriptor DialogsWidget::chatListEntryBefore(
+		const Dialogs::RowDescriptor &which) const {
+	return _inner->chatListEntryBefore(which);
 }
 
-void DialogsWidget::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const {
-	return _inner->peerAfter(inPeer, inMsg, outPeer, outMsg);
+Dialogs::RowDescriptor DialogsWidget::chatListEntryAfter(
+		const Dialogs::RowDescriptor &which) const {
+	return _inner->chatListEntryAfter(which);
 }
 
-void DialogsWidget::scrollToPeer(const PeerId &peer, MsgId msgId) {
-	_inner->scrollToPeer(peer, msgId);
+void DialogsWidget::scrollToPeer(not_null<History*> history, MsgId msgId) {
+	_inner->scrollToPeer(history, msgId);
 }
 
-void DialogsWidget::removeDialog(History *history) {
+void DialogsWidget::removeDialog(not_null<History*> history) {
 	_inner->removeDialog(history);
 	onFilterUpdate();
 }

@@ -18,21 +18,26 @@ class IndexedList {
 public:
 	IndexedList(SortMode sortMode);
 
-	RowsByLetter addToEnd(not_null<History*> history);
-	Row *addByName(not_null<History*> history);
+	RowsByLetter addToEnd(Key key);
+	Row *addByName(Key key);
 	void adjustByPos(const RowsByLetter &links);
-	void moveToTop(not_null<PeerData*> peer);
+	void moveToTop(Key key);
 
 	// row must belong to this indexed list all().
 	void movePinned(Row *row, int deltaSign);
 
 	// For sortMode != SortMode::Date
-	void peerNameChanged(not_null<PeerData*> peer, const PeerData::NameFirstChars &oldChars);
+	void peerNameChanged(
+		not_null<PeerData*> peer,
+		const PeerData::NameFirstChars &oldChars);
 
 	//For sortMode == SortMode::Date
-	void peerNameChanged(Mode list, not_null<PeerData*> peer, const PeerData::NameFirstChars &oldChars);
+	void peerNameChanged(
+		Mode list,
+		not_null<PeerData*> peer,
+		const PeerData::NameFirstChars &oldChars);
 
-	void del(not_null<const PeerData*> peer, Row *replacedBy = nullptr);
+	void del(Key key, Row *replacedBy = nullptr);
 	void clear();
 
 	const List &all() const {
@@ -50,8 +55,8 @@ public:
 	// Part of List interface is duplicated here for all() list.
 	int size() const { return all().size(); }
 	bool isEmpty() const { return all().isEmpty(); }
-	bool contains(PeerId peerId) const { return all().contains(peerId); }
-	Row *getRow(PeerId peerId) const { return all().getRow(peerId); }
+	bool contains(Key key) const { return all().contains(key); }
+	Row *getRow(Key key) const { return all().getRow(key); }
 	Row *rowAtY(int32 y, int32 h) const { return all().rowAtY(y, h); }
 
 	using iterator = List::iterator;
@@ -70,8 +75,13 @@ public:
 	iterator find(int y, int h) { return all().find(y, h); }
 
 private:
-	void adjustByName(not_null<PeerData*> peer, const PeerData::NameFirstChars &oldChars);
-	void adjustNames(Mode list, not_null<PeerData*> peer, const PeerData::NameFirstChars &oldChars);
+	void adjustByName(
+		Key key,
+		const PeerData::NameFirstChars &oldChars);
+	void adjustNames(
+		Mode list,
+		Key key,
+		const PeerData::NameFirstChars &oldChars);
 
 	SortMode _sortMode;
 	List _list, _empty;

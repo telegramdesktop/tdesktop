@@ -482,7 +482,7 @@ namespace {
 								h->clear(true);
 							}
 							if (hto->inChatList(Dialogs::Mode::All) && h->inChatList(Dialogs::Mode::All)) {
-								App::removeDialog(h);
+								App::main()->removeDialog(h);
 							}
 						}
 					}
@@ -1047,7 +1047,9 @@ namespace {
 		if (auto history = App::historyLoaded(peer)) {
 			history->outboxRead(upTo);
 			if (history->lastMsg && history->lastMsg->out() && history->lastMsg->id <= upTo) {
-				if (App::main()) App::main()->dlgUpdated(history->peer, history->lastMsg->id);
+				if (App::main()) {
+					App::main()->dlgUpdated(history, history->lastMsg->id);
+				}
 			}
 			history->updateChatListEntry();
 
@@ -1801,7 +1803,7 @@ namespace {
 		return ::histories.findOrInsert(peer);
 	}
 
-	History *historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead, int32 maxOutboxRead) {
+	not_null<History*> historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead, int32 maxOutboxRead) {
 		return ::histories.findOrInsert(peer, unreadCnt, maxInboxRead, maxOutboxRead);
 	}
 

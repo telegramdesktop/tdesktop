@@ -1935,6 +1935,7 @@ void AddParticipantBoxSearchController::addChatsContacts() {
 		}
 
 		for_const (auto row, *list) {
+			// #TODO feeds list
 			if (auto user = row->history()->peer->asUser()) {
 				if (allWordsAreFound(user->nameWords())) {
 					delegate()->peerListSearchAddRow(user);

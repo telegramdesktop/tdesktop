@@ -133,7 +133,6 @@ void openPeerByName(
 	MsgId msgId = ShowAtUnreadMsgId,
 	const QString &startToken = QString());
 void joinGroupByHash(const QString &hash);
-void removeDialog(History *history);
 void showSettings();
 
 void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button);

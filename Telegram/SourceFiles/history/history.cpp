@@ -2564,7 +2564,7 @@ Dialogs::Row *History::addToChatList(Dialogs::Mode list, Dialogs::IndexedList *i
 void History::removeFromChatList(Dialogs::Mode list, Dialogs::IndexedList *indexed) {
 	Assert(indexed != nullptr);
 	if (inChatList(list)) {
-		indexed->del(peer);
+		indexed->del(this);
 		chatListLinks(list).clear();
 		if (list == Dialogs::Mode::All && unreadCount()) {
 			App::histories().unreadIncrement(-unreadCount(), mute());
@@ -2590,9 +2590,13 @@ void History::addChatListEntryByLetter(Dialogs::Mode list, QChar letter, Dialogs
 void History::updateChatListEntry() const {
 	if (auto main = App::main()) {
 		if (inChatList(Dialogs::Mode::All)) {
-			main->dlgUpdated(Dialogs::Mode::All, mainChatListLink(Dialogs::Mode::All));
+			main->dlgUpdated(
+				Dialogs::Mode::All,
+				mainChatListLink(Dialogs::Mode::All));
 			if (inChatList(Dialogs::Mode::Important)) {
-				main->dlgUpdated(Dialogs::Mode::Important, mainChatListLink(Dialogs::Mode::Important));
+				main->dlgUpdated(
+					Dialogs::Mode::Important,
+					mainChatListLink(Dialogs::Mode::Important));
 			}
 		}
 	}

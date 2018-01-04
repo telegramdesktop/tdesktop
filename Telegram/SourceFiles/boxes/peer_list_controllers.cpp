@@ -238,6 +238,7 @@ void ChatsListBoxController::rebuildRows() {
 	auto appendList = [this](auto chats) {
 		auto count = 0;
 		for_const (auto row, chats->all()) {
+			// #TODO feeds list
 			if (appendRow(row->history())) {
 				++count;
 			}
@@ -322,6 +323,7 @@ void ContactsBoxController::rebuildRows() {
 	auto appendList = [this](auto chats) {
 		auto count = 0;
 		for_const (auto row, chats->all()) {
+			// #TODO feeds list
 			auto history = row->history();
 			if (auto user = history->peer->asUser()) {
 				if (appendRow(user)) {

@@ -775,7 +775,8 @@ void HistoryService::updateDependentText() {
 		history()->textCachedFor = nullptr;
 	}
 	if (App::main()) {
-		App::main()->dlgUpdated(history()->peer, id);
+		// #TODO feeds dialogs
+		App::main()->dlgUpdated(history(), id);
 	}
 	App::historyUpdateDependent(this);
 }

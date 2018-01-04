@@ -7,13 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_widget.h"
 
-#include "styles/style_history.h"
-#include "styles/style_dialogs.h"
-#include "styles/style_window.h"
-#include "styles/style_boxes.h"
-#include "styles/style_profile.h"
-#include "styles/style_chat_helpers.h"
-#include "styles/style_info.h"
 #include "boxes/confirm_box.h"
 #include "boxes/send_files_box.h"
 #include "boxes/share_box.h"
@@ -72,6 +65,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_results_widget.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "core/crash_reports.h"
+#include "dialogs/dialogs_row.h"
+#include "styles/style_history.h"
+#include "styles/style_dialogs.h"
+#include "styles/style_window.h"
+#include "styles/style_boxes.h"
+#include "styles/style_profile.h"
+#include "styles/style_chat_helpers.h"
+#include "styles/style_info.h"
 
 namespace {
 
@@ -1391,24 +1392,30 @@ bool HistoryWidget::cmd_search() {
 }
 
 bool HistoryWidget::cmd_next_chat() {
-	PeerData *p = 0;
-	MsgId m = 0;
-	App::main()->peerAfter(_peer, qMax(_showAtMsgId, 0), p, m);
-	if (p) {
-		Ui::showPeerHistory(p, m);
+	if (!_history) {
+		return false;
+	}
+	const auto next = App::main()->chatListEntryAfter(
+		Dialogs::RowDescriptor(_history, std::max(_showAtMsgId, 0)));
+	if (const auto history = next.key.history()) {
+		Ui::showPeerHistory(history, next.msgId);
 		return true;
 	}
+	// #TODO feeds show
 	return false;
 }
 
 bool HistoryWidget::cmd_previous_chat() {
-	PeerData *p = 0;
-	MsgId m = 0;
-	App::main()->peerBefore(_peer, qMax(_showAtMsgId, 0), p, m);
-	if (p) {
-		Ui::showPeerHistory(p, m);
+	if (!_history) {
+		return false;
+	}
+	const auto next = App::main()->chatListEntryBefore(
+		Dialogs::RowDescriptor(_history, std::max(_showAtMsgId, 0)));
+	if (const auto history = next.key.history()) {
+		Ui::showPeerHistory(history, next.msgId);
 		return true;
 	}
+	// #TODO feeds show
 	return false;
 }
 
@@ -1579,7 +1586,9 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 			if (!canShowNow) {
 				delayedShowAt(showAtMsgId);
 
-				App::main()->dlgUpdated(wasHistory ? wasHistory->peer : nullptr, wasMsgId);
+				if (wasHistory) {
+					App::main()->dlgUpdated(wasHistory, wasMsgId);
+				}
 				emit historyShown(_history, _showAtMsgId);
 			} else {
 				_history->forgetScrollState();
@@ -1780,7 +1789,9 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 	if (App::wnd()) QTimer::singleShot(0, App::wnd(), SLOT(setInnerFocus()));
 
-	App::main()->dlgUpdated(wasHistory ? wasHistory->peer : nullptr, wasMsgId);
+	if (wasHistory) {
+		App::main()->dlgUpdated(wasHistory, wasMsgId);
+	}
 	emit historyShown(_history, _showAtMsgId);
 
 	controller()->historyPeer = _peer;
@@ -2988,11 +2999,14 @@ PeerData *HistoryWidget::peer() const {
 	return _peer;
 }
 
-void HistoryWidget::setMsgId(MsgId showAtMsgId) { // sometimes _showAtMsgId is set directly
+// Sometimes _showAtMsgId is set directly.
+void HistoryWidget::setMsgId(MsgId showAtMsgId) {
 	if (_showAtMsgId != showAtMsgId) {
 		auto wasMsgId = _showAtMsgId;
 		_showAtMsgId = showAtMsgId;
-		App::main()->dlgUpdated(_history ? _history->peer : nullptr, wasMsgId);
+		if (_history) {
+			App::main()->dlgUpdated(_history, wasMsgId);
+		}
 		emit historyShown(_history, _showAtMsgId);
 	}
 }

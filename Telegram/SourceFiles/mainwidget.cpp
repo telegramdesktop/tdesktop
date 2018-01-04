@@ -15,15 +15,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "data/data_game.h"
 #include "data/data_peer_values.h"
-#include "styles/style_dialogs.h"
-#include "styles/style_history.h"
+#include "data/data_drafts.h"
+#include "data/data_session.h"
 #include "ui/special_buttons.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "window/section_memento.h"
 #include "window/section_widget.h"
-#include "data/data_drafts.h"
-#include "data/data_session.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/focus_persister.h"
 #include "ui/resize_area.h"
@@ -36,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "dialogs/dialogs_widget.h"
+#include "dialogs/dialogs_row.h"
 #include "history/history_widget.h"
 #include "history/history_message.h"
 #include "history/history_media.h"
@@ -69,16 +68,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_slide_animation.h"
 #include "window/window_controller.h"
 #include "window/themes/window_theme.h"
-#include "styles/style_boxes.h"
 #include "mtproto/dc_options.h"
 #include "core/file_utilities.h"
-#include "auth_session.h"
 #include "calls/calls_instance.h"
 #include "calls/calls_top_bar.h"
 #include "auth_session.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "storage/storage_user_photos.h"
+#include "styles/style_dialogs.h"
+#include "styles/style_history.h"
+#include "styles/style_boxes.h"
 
 enum StackItemType {
 	HistoryStackItem,
@@ -120,10 +120,11 @@ private:
 class StackItemHistory : public StackItem {
 public:
 	StackItemHistory(
-		PeerData *peer,
+		not_null<History*> history,
 		MsgId msgId,
 		QList<MsgId> replyReturns)
-	: StackItem(peer)
+	: StackItem(history->peer)
+	, history(history)
 	, msgId(msgId)
 	, replyReturns(replyReturns) {
 	}
@@ -132,6 +133,7 @@ public:
 		return HistoryStackItem;
 	}
 
+	not_null<History*> history;
 	MsgId msgId;
 	QList<MsgId> replyReturns;
 
@@ -902,7 +904,7 @@ void MainWidget::hiderLayer(object_ptr<HistoryHider> h) {
 		_hider->hide();
 		auto animationParams = prepareDialogsAnimation();
 
-		onHistoryShown(0, 0);
+		onHistoryShown(nullptr, 0);
 		if (_mainSection) {
 			_mainSection->hide();
 		} else {
@@ -1089,7 +1091,7 @@ void MainWidget::deletedContact(UserData *user, const MTPcontacts_Link &result) 
 	App::feedUserLink(MTP_int(peerToUser(user->id)), d.vmy_link, d.vforeign_link);
 }
 
-void MainWidget::removeDialog(History *history) {
+void MainWidget::removeDialog(not_null<History*> history) {
 	_dialogs->removeDialog(history);
 }
 
@@ -2198,7 +2200,7 @@ bool MainWidget::viewsIncrementFail(const RPCError &error, mtpRequestId req) {
 	return false;
 }
 
-void MainWidget::createDialog(History *history) {
+void MainWidget::createDialog(not_null<History*> history) {
 	_dialogs->createDialog(history);
 }
 
@@ -2307,15 +2309,12 @@ void MainWidget::ui_showPeerHistory(
 
 	auto animationParams = animatedShow() ? prepareHistoryAnimation(peerId) : Window::SectionSlideParams();
 
-	dlgUpdated();
 	if (back || (way == Way::ClearStack)) {
-		_peerInStack = nullptr;
-		_msgIdInStack = 0;
+		clearEntryInStack();
 	} else {
 		// This may modify the current section, for example remove its contents.
 		saveSectionInStack();
 	}
-	dlgUpdated();
 
 	if (_history->peer() && _history->peer()->id != peerId && way != Way::Forward) {
 		clearBotStartToken(_history->peer());
@@ -2371,7 +2370,9 @@ void MainWidget::ui_showPeerHistory(
 
 	if (!_dialogs->isHidden()) {
 		if (!back) {
-			_dialogs->scrollToPeer(peerId, showAtMsgId);
+			if (const auto history = _history->history()) {
+				_dialogs->scrollToPeer(history, showAtMsgId);
+			}
 		}
 		_dialogs->update();
 	}
@@ -2387,22 +2388,20 @@ PeerData *MainWidget::ui_getPeerForMouseAction() {
 	return _history->ui_getPeerForMouseAction();
 }
 
-void MainWidget::peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) {
+Dialogs::RowDescriptor MainWidget::chatListEntryBefore(
+		const Dialogs::RowDescriptor &which) const {
 	if (selectingPeer()) {
-		outPeer = 0;
-		outMsg = 0;
-		return;
+		return Dialogs::RowDescriptor();
 	}
-	_dialogs->peerBefore(inPeer, inMsg, outPeer, outMsg);
+	return _dialogs->chatListEntryBefore(which);
 }
 
-void MainWidget::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) {
+Dialogs::RowDescriptor MainWidget::chatListEntryAfter(
+		const Dialogs::RowDescriptor &which) const {
 	if (selectingPeer()) {
-		outPeer = 0;
-		outMsg = 0;
-		return;
+		return Dialogs::RowDescriptor();
 	}
-	_dialogs->peerAfter(inPeer, inMsg, outPeer, outMsg);
+	return _dialogs->chatListEntryAfter(which);
 }
 
 PeerData *MainWidget::peer() {
@@ -2410,11 +2409,31 @@ PeerData *MainWidget::peer() {
 }
 
 PeerData *MainWidget::activePeer() {
-	return _history->peer() ? _history->peer() : _peerInStack;
+	if (const auto history = _history->history()) {
+		return history->peer;
+	} else if (_historyInStack) {
+		return _historyInStack->peer;
+	}
+	return nullptr;
 }
 
 MsgId MainWidget::activeMsgId() {
 	return _history->peer() ? _history->msgId() : _msgIdInStack;
+}
+
+void MainWidget::setEntryInStack(not_null<History*> history, MsgId msgId) {
+	setEntryInStackValues(history, msgId);
+}
+
+void MainWidget::clearEntryInStack() {
+	setEntryInStackValues(nullptr, 0);
+}
+
+void MainWidget::setEntryInStackValues(History *history, MsgId msgId) {
+	updateCurrentChatListEntry();
+	_historyInStack = history;
+	_msgIdInStack = msgId;
+	updateCurrentChatListEntry();
 }
 
 void MainWidget::saveSectionInStack() {
@@ -2424,11 +2443,10 @@ void MainWidget::saveSectionInStack() {
 				std::move(memento)));
 			_stack.back()->setThirdSectionWeak(_thirdSection.data());
 		}
-	} else if (_history->peer()) {
-		_peerInStack = _history->peer();
-		_msgIdInStack = _history->msgId();
+	} else if (const auto history = _history->history()) {
+		setEntryInStack(history, _history->msgId());
 		_stack.push_back(std::make_unique<StackItemHistory>(
-			_peerInStack,
+			_historyInStack,
 			_msgIdInStack,
 			_history->replyReturns()));
 		_stack.back()->setThirdSectionWeak(_thirdSection.data());
@@ -2765,15 +2783,11 @@ void MainWidget::showBackFromStack(
 	}
 	_thirdSectionFromStack = item->takeThirdSectionMemento();
 	if (item->type() == HistoryStackItem) {
-		dlgUpdated();
-		_peerInStack = nullptr;
-		_msgIdInStack = 0;
+		clearEntryInStack();
 		for (auto i = _stack.size(); i > 0;) {
 			if (_stack[--i]->type() == HistoryStackItem) {
 				auto historyItem = static_cast<StackItemHistory*>(_stack[i].get());
-				_peerInStack = historyItem->peer();
-				_msgIdInStack = historyItem->msgId;
-				dlgUpdated();
+				setEntryInStack(historyItem->history, historyItem->msgId);
 				break;
 			}
 		}
@@ -2899,24 +2913,29 @@ QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 	return result;
 }
 
-void MainWidget::dlgUpdated() {
-	if (_peerInStack) {
-		_dialogs->dlgUpdated(_peerInStack, _msgIdInStack);
+void MainWidget::updateCurrentChatListEntry() {
+	if (_historyInStack) {
+		_dialogs->dlgUpdated(_historyInStack, _msgIdInStack);
 	}
 }
 
-void MainWidget::dlgUpdated(Dialogs::Mode list, Dialogs::Row *row) {
+void MainWidget::dlgUpdated(
+		Dialogs::Mode list,
+		not_null<Dialogs::Row*> row) {
 	if (row) {
 		_dialogs->dlgUpdated(list, row);
 	}
 }
 
-void MainWidget::dlgUpdated(PeerData *peer, MsgId msgId) {
-	if (!peer) return;
-	if (msgId < 0 && -msgId < ServerMaxMsgId && peer->migrateFrom()) {
-		_dialogs->dlgUpdated(peer->migrateFrom(), -msgId);
+void MainWidget::dlgUpdated(not_null<History*> history, MsgId msgId) {
+	if (msgId < 0 && -msgId < ServerMaxMsgId) {
+		if (const auto from = history->peer->migrateFrom()) {
+			if (const auto migrated = App::historyLoaded(from)) {
+				_dialogs->dlgUpdated(migrated, -msgId);
+			}
+		}
 	} else {
-		_dialogs->dlgUpdated(peer, msgId);
+		_dialogs->dlgUpdated(history, msgId);
 	}
 }
 
@@ -3539,7 +3558,9 @@ int MainWidget::backgroundFromY() const {
 
 void MainWidget::onHistoryShown(History *history, MsgId atMsgId) {
 //	updateControlsGeometry();
-	dlgUpdated(history ? history->peer : nullptr, atMsgId);
+	if (history) {
+		dlgUpdated(history, atMsgId);
+	}
 }
 
 void MainWidget::searchInPeer(PeerData *peer) {

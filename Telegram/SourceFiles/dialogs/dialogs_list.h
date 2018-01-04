@@ -24,11 +24,12 @@ public:
 	bool isEmpty() const {
 		return size() == 0;
 	}
-	bool contains(PeerId peerId) const {
-		return _rowByPeer.contains(peerId);
+	bool contains(Key key) const {
+		return _rowByKey.find(key) != _rowByKey.end();
 	}
-	Row *getRow(PeerId peerId) const {
-		return _rowByPeer.value(peerId);
+	Row *getRow(Key key) const {
+		const auto i = _rowByKey.find(key);
+		return (i == _rowByKey.end()) ? nullptr : i->second.get();
 	}
 	Row *rowAtY(int32 y, int32 h) const {
 		auto i = cfind(y, h);
@@ -38,12 +39,12 @@ public:
 		return *i;
 	}
 
-	Row *addToEnd(not_null<History*> history);
-	Row *adjustByName(const PeerData *peer);
-	Row *addByName(not_null<History*> history);
-	bool moveToTop(PeerId peerId);
+	Row *addToEnd(Key key);
+	Row *adjustByName(Key key);
+	Row *addByName(Key key);
+	bool moveToTop(Key key);
 	void adjustByPos(Row *row);
-	bool del(PeerId peerId, Row *replacedBy = nullptr);
+	bool del(Key key, Row *replacedBy = nullptr);
 	void remove(Row *row);
 	void clear();
 
@@ -114,10 +115,10 @@ private:
 	SortMode _sortMode;
 	int _count = 0;
 
-	typedef QHash<PeerId, Row*> RowByPeer;
-	RowByPeer _rowByPeer;
+	std::map<Key, not_null<Row*>> _rowByKey;
 
 	mutable Row *_current; // cache
+
 };
 
 } // namespace Dialogs

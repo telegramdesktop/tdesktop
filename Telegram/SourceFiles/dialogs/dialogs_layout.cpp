@@ -334,6 +334,7 @@ void RowPainter::paint(
 		bool selected,
 		bool onlyBackground,
 		TimeMs ms) {
+	// #TODO feeds show
 	auto history = row->history();
 	auto item = history->lastMsg;
 	auto cloudDraft = history->cloudDraft();

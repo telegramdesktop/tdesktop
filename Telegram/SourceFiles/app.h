@@ -173,7 +173,7 @@ namespace App {
 
 	Histories &histories();
 	not_null<History*> history(const PeerId &peer);
-	History *historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead, int32 maxOutboxRead);
+	not_null<History*> historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead, int32 maxOutboxRead);
 	History *historyLoaded(const PeerId &peer);
 	HistoryItem *histItemById(ChannelId channelId, MsgId itemId);
 	inline not_null<History*> history(const PeerData *peer) {

@@ -441,7 +441,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 							h->clear(true);
 						}
 						if (hto->inChatList(Dialogs::Mode::All) && h->inChatList(Dialogs::Mode::All)) {
-							App::removeDialog(h);
+							App::main()->removeDialog(h);
 						}
 					}
 				}

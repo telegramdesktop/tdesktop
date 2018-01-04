@@ -25,6 +25,7 @@ struct PeerUpdate;
 } // namespace Notify
 
 namespace Dialogs {
+struct RowDescriptor;
 class Row;
 } // namespace Dialogs
 
@@ -105,11 +106,10 @@ public:
 
 	void activate();
 
-	void createDialog(History *history);
-	void removeDialog(History *history);
-	void dlgUpdated();
-	void dlgUpdated(Dialogs::Mode list, Dialogs::Row *row);
-	void dlgUpdated(PeerData *peer, MsgId msgId);
+	void createDialog(not_null<History*> history);
+	void removeDialog(not_null<History*> history);
+	void dlgUpdated(Dialogs::Mode list, not_null<Dialogs::Row*> row);
+	void dlgUpdated(not_null<History*> history, MsgId msgId);
 
 	void windowShown();
 
@@ -126,10 +126,12 @@ public:
 	void newUnreadMsg(History *history, HistoryItem *item);
 	void markActiveHistoryAsRead();
 
-	void peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg);
-	void peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg);
-	PeerData *peer();
+	Dialogs::RowDescriptor chatListEntryBefore(
+		const Dialogs::RowDescriptor &which) const;
+	Dialogs::RowDescriptor chatListEntryAfter(
+		const Dialogs::RowDescriptor &which) const;
 
+	PeerData *peer();
 	PeerData *activePeer();
 	MsgId activeMsgId();
 
@@ -438,6 +440,11 @@ private:
 	void closeBothPlayers();
 	void playerHeightUpdated();
 
+	void updateCurrentChatListEntry();
+	void setEntryInStack(not_null<History*> history, MsgId msgId);
+	void clearEntryInStack();
+	void setEntryInStackValues(History *history, MsgId msgId);
+
 	void setCurrentCall(Calls::Call *call);
 	void createCallTopBar();
 	void destroyCallTopBar();
@@ -581,7 +588,7 @@ private:
 	QPointer<ConfirmBox> _forwardConfirm; // for single column layout
 	object_ptr<HistoryHider> _hider = { nullptr };
 	std::vector<std::unique_ptr<StackItem>> _stack;
-	PeerData *_peerInStack = nullptr;
+	History *_historyInStack = nullptr;
 	MsgId _msgIdInStack = 0;
 
 	int _playerHeight = 0;

@@ -168,12 +168,6 @@ void joinGroupByHash(const QString &hash) {
 	if (MainWidget *m = main()) m->joinGroupByHash(hash);
 }
 
-void removeDialog(History *history) {
-	if (MainWidget *m = main()) {
-		m->removeDialog(history);
-	}
-}
-
 void showSettings() {
 	if (auto w = wnd()) {
 		w->showSettings();

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class DialogsInner;
 
 namespace Dialogs {
+struct RowDescriptor;
 class Row;
 class FakeRow;
 class IndexedList;
@@ -54,9 +55,10 @@ public:
 
 	void loadDialogs();
 	void loadPinnedDialogs();
-	void createDialog(History *history);
-	void dlgUpdated(Dialogs::Mode list, Dialogs::Row *row);
-	void dlgUpdated(PeerData *peer, MsgId msgId);
+	void createDialog(not_null<History*> history);
+	void removeDialog(not_null<History*> history);
+	void dlgUpdated(Dialogs::Mode list, not_null<Dialogs::Row*> row);
+	void dlgUpdated(not_null<History*> history, MsgId msgId);
 
 	void dialogsToUp();
 
@@ -71,11 +73,12 @@ public:
 
 	void destroyData();
 
-	void peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const;
-	void peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const;
-	void scrollToPeer(const PeerId &peer, MsgId msgId);
+	Dialogs::RowDescriptor chatListEntryBefore(
+		const Dialogs::RowDescriptor &which) const;
+	Dialogs::RowDescriptor chatListEntryAfter(
+		const Dialogs::RowDescriptor &which) const;
 
-	void removeDialog(History *history);
+	void scrollToPeer(not_null<History*> history, MsgId msgId);
 
 	Dialogs::IndexedList *contactsList();
 	Dialogs::IndexedList *dialogsList();

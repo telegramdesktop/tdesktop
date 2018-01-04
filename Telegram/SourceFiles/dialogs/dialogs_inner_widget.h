@@ -44,10 +44,10 @@ public:
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);
 
-	void createDialog(History *history);
-	void dlgUpdated(Dialogs::Mode list, Dialogs::Row *row);
-	void dlgUpdated(PeerData *peer, MsgId msgId);
-	void removeDialog(History *history);
+	void createDialog(not_null<History*> history);
+	void dlgUpdated(Dialogs::Mode list, not_null<Dialogs::Row*> row);
+	void dlgUpdated(not_null<History*> history, MsgId msgId);
+	void removeDialog(not_null<History*> history);
 
 	void dragLeft();
 
@@ -59,9 +59,13 @@ public:
 
 	void destroyData();
 
-	void peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const;
-	void peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const;
-	void scrollToPeer(const PeerId &peer, MsgId msgId);
+
+	Dialogs::RowDescriptor chatListEntryBefore(
+		const Dialogs::RowDescriptor &which) const;
+	Dialogs::RowDescriptor chatListEntryAfter(
+		const Dialogs::RowDescriptor &which) const;
+
+	void scrollToPeer(not_null<History*> history, MsgId msgId);
 
 	Dialogs::IndexedList *contactsList();
 	Dialogs::IndexedList *dialogsList();
@@ -185,8 +189,9 @@ private:
 	using UpdateRowSections = base::flags<UpdateRowSection>;
 	friend inline constexpr auto is_flag_type(UpdateRowSection) { return true; };
 
+	void updateSearchResult(not_null<PeerData*> peer);
 	void updateDialogRow(
-		PeerData *peer,
+		not_null<History*> history,
 		MsgId msgId,
 		QRect updateRect,
 		UpdateRowSections sections = UpdateRowSection::All);
@@ -197,9 +202,27 @@ private:
 	int searchedOffset() const;
 	int searchInPeerSkip() const;
 
-	void paintDialog(Painter &p, Dialogs::Row *row, int fullWidth, PeerData *active, PeerData *selected, bool onlyBackground, TimeMs ms);
-	void paintPeerSearchResult(Painter &p, const PeerSearchResult *result, int fullWidth, bool active, bool selected, bool onlyBackground, TimeMs ms) const;
-	void paintSearchInPeer(Painter &p, int fullWidth, bool onlyBackground, TimeMs ms) const;
+	void paintDialog(
+		Painter &p,
+		not_null<Dialogs::Row*> row,
+		int fullWidth,
+		PeerData *active,
+		PeerData *selected,
+		bool onlyBackground,
+		TimeMs ms);
+	void paintPeerSearchResult(
+		Painter &p,
+		not_null<const PeerSearchResult*> result,
+		int fullWidth,
+		bool active,
+		bool selected,
+		bool onlyBackground,
+		TimeMs ms) const;
+	void paintSearchInPeer(
+		Painter &p,
+		int fullWidth,
+		bool onlyBackground,
+		TimeMs ms) const;
 	void paintSearchInFilter(
 		Painter &p,
 		PeerData *peer,
