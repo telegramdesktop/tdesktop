@@ -57,7 +57,7 @@ Messenger *Messenger::InstancePointer() {
 
 struct Messenger::Private {
 	UserId authSessionUserId = 0;
-	std::unique_ptr<AuthSessionData> storedAuthSession;
+	std::unique_ptr<AuthSessionSettings> storedAuthSession;
 	MTP::Instance::Config mtpConfig;
 	MTP::AuthKeysList mtpKeysToDestroy;
 	base::Timer quitTimer;
@@ -332,16 +332,18 @@ void Messenger::setAuthSessionUserId(UserId userId) {
 	_private->authSessionUserId = userId;
 }
 
-void Messenger::setAuthSessionFromStorage(std::unique_ptr<AuthSessionData> data) {
+void Messenger::setAuthSessionFromStorage(std::unique_ptr<AuthSessionSettings> data) {
 	Expects(!authSession());
 	_private->storedAuthSession = std::move(data);
 }
 
-AuthSessionData *Messenger::getAuthSessionData() {
+AuthSessionSettings *Messenger::getAuthSessionSettings() {
 	if (_private->authSessionUserId) {
-		return _private->storedAuthSession ? _private->storedAuthSession.get() : nullptr;
+		return _private->storedAuthSession
+			? _private->storedAuthSession.get()
+			: nullptr;
 	} else if (_authSession) {
-		return &_authSession->data();
+		return &_authSession->settings();
 	}
 	return nullptr;
 }
@@ -409,7 +411,7 @@ void Messenger::startMtp() {
 	}
 	if (_private->storedAuthSession) {
 		if (_authSession) {
-			_authSession->data().moveFrom(
+			_authSession->settings().moveFrom(
 				std::move(*_private->storedAuthSession));
 		}
 		_private->storedAuthSession.reset();

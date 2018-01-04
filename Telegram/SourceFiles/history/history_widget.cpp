@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "inline_bots/inline_bot_result.h"
 #include "data/data_drafts.h"
+#include "data/data_session.h"
 #include "history/history_message.h"
 #include "history/history_service_layout.h"
 #include "history/history_media_types.h"
@@ -624,7 +625,7 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 		}
 	}));
 	subscribe(Auth().data().pendingHistoryResize(), [this] { handlePendingHistoryUpdate(); });
-	subscribe(Auth().data().queryItemVisibility(), [this](const AuthSessionData::ItemVisibilityQuery &query) {
+	subscribe(Auth().data().queryItemVisibility(), [this](const Data::Session::ItemVisibilityQuery &query) {
 		if (_a_show.animating() || _history != query.item->history() || query.item->detached() || !isVisible()) {
 			return;
 		}
@@ -3736,11 +3737,11 @@ void HistoryWidget::pushTabbedSelectorToThirdSection(
 	if (!_history || !_tabbedPanel) {
 		return;
 	} else if (!_canSendMessages) {
-		Auth().data().setTabbedReplacedWithInfo(true);
+		Auth().settings().setTabbedReplacedWithInfo(true);
 		controller()->showPeerInfo(_peer, params.withThirdColumn());
 		return;
 	}
-	Auth().data().setTabbedReplacedWithInfo(false);
+	Auth().settings().setTabbedReplacedWithInfo(false);
 	_tabbedSelectorToggle->setColorOverrides(
 		&st::historyAttachEmojiActive,
 		&st::historyRecordVoiceFgActive,
@@ -3771,8 +3772,8 @@ void HistoryWidget::toggleTabbedSelectorMode() {
 	if (_tabbedPanel) {
 		if (controller()->canShowThirdSection()
 			&& !Adaptive::OneColumn()) {
-			Auth().data().setTabbedSelectorSectionEnabled(true);
-			Auth().saveDataDelayed();
+			Auth().settings().setTabbedSelectorSectionEnabled(true);
+			Auth().saveSettingsDelayed();
 			pushTabbedSelectorToThirdSection(
 				Window::SectionShow::Way::ClearStack);
 		} else {

@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_sparse_ids.h"
 #include "data/data_search_controller.h"
 #include "data/data_channel_admins.h"
+#include "data/data_session.h"
 
 namespace {
 

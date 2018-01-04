@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "dialogs/dialogs_indexed_list.h"
 #include "data/data_peer_values.h"
+#include "data/data_session.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
 

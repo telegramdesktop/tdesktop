@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "window/window_controller.h"
 #include "base/flags.h"
+#include "data/data_session.h"
 
 #include <openssl/evp.h>
 
@@ -564,7 +565,7 @@ enum {
 	dbiDcOptions = 0x4a,
 	dbiMtpAuthorization = 0x4b,
 	dbiLastSeenWarningSeenOld = 0x4c,
-	dbiAuthSessionData = 0x4d,
+	dbiAuthSessionSettings = 0x4d,
 	dbiLangPackKey = 0x4e,
 	dbiConnectionType = 0x4f,
 	dbiStickersFavedLimit = 0x50,
@@ -634,10 +635,10 @@ enum class WriteMapWhen {
 	Soon,
 };
 
-std::unique_ptr<AuthSessionData> StoredAuthSessionCache;
-AuthSessionData &GetStoredAuthSessionCache() {
+std::unique_ptr<AuthSessionSettings> StoredAuthSessionCache;
+AuthSessionSettings &GetStoredAuthSessionCache() {
 	if (!StoredAuthSessionCache) {
-		StoredAuthSessionCache = std::make_unique<AuthSessionData>();
+		StoredAuthSessionCache = std::make_unique<AuthSessionSettings>();
 	}
 	return *StoredAuthSessionCache;
 }
@@ -1106,7 +1107,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		GetStoredAuthSessionCache().setLastSeenWarningSeen(v == 1);
 	} break;
 
-	case dbiAuthSessionData: {
+	case dbiAuthSessionSettings: {
 		QByteArray v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
@@ -1756,8 +1757,12 @@ void _writeUserSettings() {
 			recentEmojiPreloadData.push_back(qMakePair(item.first->id(), item.second));
 		}
 	}
-	auto userDataInstance = StoredAuthSessionCache ? StoredAuthSessionCache.get() : Messenger::Instance().getAuthSessionData();
-	auto userData = userDataInstance ? userDataInstance->serialize() : QByteArray();
+	auto userDataInstance = StoredAuthSessionCache
+		? StoredAuthSessionCache.get()
+		: Messenger::Instance().getAuthSessionSettings();
+	auto userData = userDataInstance
+		? userDataInstance->serialize()
+		: QByteArray();
 
 	uint32 size = 21 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::stringSize(Global::AskDownloadPath() ? QString() : Global::DownloadPath()) + Serialize::bytearraySize(Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
@@ -1803,7 +1808,7 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiAutoPlay) << qint32(cAutoPlayGif() ? 1 : 0);
 	data.stream << quint32(dbiUseExternalVideoPlayer) << qint32(cUseExternalVideoPlayer());
 	if (!userData.isEmpty()) {
-		data.stream << quint32(dbiAuthSessionData) << userData;
+		data.stream << quint32(dbiAuthSessionSettings) << userData;
 	}
 
 	{

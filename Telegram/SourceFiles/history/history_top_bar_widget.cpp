@@ -112,8 +112,8 @@ HistoryTopBarWidget::HistoryTopBarWidget(
 	});
 
 	rpl::combine(
-		Auth().data().thirdSectionInfoEnabledValue(),
-		Auth().data().tabbedReplacedWithInfoValue()
+		Auth().settings().thirdSectionInfoEnabledValue(),
+		Auth().settings().tabbedReplacedWithInfoValue()
 	) | rpl::start_with_next(
 		[this] { updateInfoToggleActive(); },
 		lifetime());
@@ -186,13 +186,13 @@ void HistoryTopBarWidget::showMenu() {
 
 void HistoryTopBarWidget::toggleInfoSection() {
 	if (Adaptive::ThreeColumn()
-		&& (Auth().data().thirdSectionInfoEnabled()
-			|| Auth().data().tabbedReplacedWithInfo())) {
+		&& (Auth().settings().thirdSectionInfoEnabled()
+			|| Auth().settings().tabbedReplacedWithInfo())) {
 		_controller->closeThirdSection();
 	} else if (_historyPeer) {
 		if (_controller->canShowThirdSection()) {
-			Auth().data().setThirdSectionInfoEnabled(true);
-			Auth().saveDataDelayed();
+			Auth().settings().setThirdSectionInfoEnabled(true);
+			Auth().saveSettingsDelayed();
 			if (Adaptive::ThreeColumn()) {
 				_controller->showSection(
 					Info::Memento::Default(_historyPeer),
@@ -598,8 +598,8 @@ void HistoryTopBarWidget::updateUnreadBadge() {
 
 void HistoryTopBarWidget::updateInfoToggleActive() {
 	auto infoThirdActive = Adaptive::ThreeColumn()
-		&& (Auth().data().thirdSectionInfoEnabled()
-			|| Auth().data().tabbedReplacedWithInfo());
+		&& (Auth().settings().thirdSectionInfoEnabled()
+			|| Auth().settings().tabbedReplacedWithInfo());
 	auto iconOverride = infoThirdActive
 		? &st::topBarInfoActive
 		: nullptr;

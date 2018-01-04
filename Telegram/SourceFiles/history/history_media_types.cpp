@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/grouped_layout.h"
 #include "ui/text_options.h"
+#include "data/data_session.h"
 
 namespace {
 

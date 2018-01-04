@@ -84,8 +84,8 @@ Controller::ColumnLayout Controller::computeColumnLayout() const {
 		if (bodyWidth < minimalThreeColumnWidth()) {
 			return true;
 		}
-		if (!Auth().data().tabbedSelectorSectionEnabled()
-			&& !Auth().data().thirdSectionInfoEnabled()) {
+		if (!Auth().settings().tabbedSelectorSectionEnabled()
+			&& !Auth().settings().thirdSectionInfoEnabled()) {
 			return true;
 		}
 		return false;
@@ -115,14 +115,14 @@ Controller::ColumnLayout Controller::computeColumnLayout() const {
 }
 
 int Controller::countDialogsWidthFromRatio(int bodyWidth) const {
-	auto result = qRound(bodyWidth * Auth().data().dialogsWidthRatio());
+	auto result = qRound(bodyWidth * Auth().settings().dialogsWidthRatio());
 	accumulate_max(result, st::columnMinimalWidthLeft);
 //	accumulate_min(result, st::columnMaximalWidthLeft);
 	return result;
 }
 
 int Controller::countThirdColumnWidthFromRatio(int bodyWidth) const {
-	auto result = Auth().data().thirdColumnWidth();
+	auto result = Auth().settings().thirdColumnWidth();
 	accumulate_max(result, st::columnMinimalWidthThird);
 	accumulate_min(result, st::columnMaximalWidthThird);
 	return result;
@@ -175,11 +175,11 @@ void Controller::resizeForThirdSection() {
 
 	auto layout = computeColumnLayout();
 	auto tabbedSelectorSectionEnabled =
-		Auth().data().tabbedSelectorSectionEnabled();
+		Auth().settings().tabbedSelectorSectionEnabled();
 	auto thirdSectionInfoEnabled =
-		Auth().data().thirdSectionInfoEnabled();
-	Auth().data().setTabbedSelectorSectionEnabled(false);
-	Auth().data().setThirdSectionInfoEnabled(false);
+		Auth().settings().thirdSectionInfoEnabled();
+	Auth().settings().setTabbedSelectorSectionEnabled(false);
+	Auth().settings().setThirdSectionInfoEnabled(false);
 
 	auto wanted = countThirdColumnWidthFromRatio(layout.bodyWidth);
 	auto minimal = st::columnMinimalWidthThird;
@@ -200,20 +200,20 @@ void Controller::resizeForThirdSection() {
 		return window()->tryToExtendWidthBy(minimal);
 	}();
 	if (extendedBy) {
-		if (extendBy != Auth().data().thirdColumnWidth()) {
-			Auth().data().setThirdColumnWidth(extendBy);
+		if (extendBy != Auth().settings().thirdColumnWidth()) {
+			Auth().settings().setThirdColumnWidth(extendBy);
 		}
 		auto newBodyWidth = layout.bodyWidth + extendedBy;
-		auto currentRatio = Auth().data().dialogsWidthRatio();
-		Auth().data().setDialogsWidthRatio(
+		auto currentRatio = Auth().settings().dialogsWidthRatio();
+		Auth().settings().setDialogsWidthRatio(
 			(currentRatio * layout.bodyWidth) / newBodyWidth);
 	}
 	auto savedValue = (extendedBy == extendBy) ? -1 : extendedBy;
-	Auth().data().setThirdSectionExtendedBy(savedValue);
+	Auth().settings().setThirdSectionExtendedBy(savedValue);
 
-	Auth().data().setTabbedSelectorSectionEnabled(
+	Auth().settings().setTabbedSelectorSectionEnabled(
 		tabbedSelectorSectionEnabled);
-	Auth().data().setThirdSectionInfoEnabled(
+	Auth().settings().setThirdSectionInfoEnabled(
 		thirdSectionInfoEnabled);
 }
 
@@ -223,23 +223,23 @@ void Controller::closeThirdSection() {
 	if (layout.windowLayout == Adaptive::WindowLayout::ThreeColumn) {
 		auto noResize = window()->isFullScreen()
 			|| window()->isMaximized();
-		auto savedValue = Auth().data().thirdSectionExtendedBy();
+		auto savedValue = Auth().settings().thirdSectionExtendedBy();
 		auto extendedBy = (savedValue == -1)
 			? layout.thirdWidth
 			: savedValue;
 		auto newBodyWidth = noResize
 			? layout.bodyWidth
 			: (layout.bodyWidth - extendedBy);
-		auto currentRatio = Auth().data().dialogsWidthRatio();
-		Auth().data().setDialogsWidthRatio(
+		auto currentRatio = Auth().settings().dialogsWidthRatio();
+		Auth().settings().setDialogsWidthRatio(
 			(currentRatio * layout.bodyWidth) / newBodyWidth);
 		newWindowSize = QSize(
 			window()->width() + (newBodyWidth - layout.bodyWidth),
 			window()->height());
 	}
-	Auth().data().setTabbedSelectorSectionEnabled(false);
-	Auth().data().setThirdSectionInfoEnabled(false);
-	Auth().saveDataDelayed();
+	Auth().settings().setTabbedSelectorSectionEnabled(false);
+	Auth().settings().setThirdSectionInfoEnabled(false);
+	Auth().saveSettingsDelayed();
 	if (window()->size() != newWindowSize) {
 		window()->resize(newWindowSize);
 	} else {
@@ -358,9 +358,9 @@ void Navigation::showPeerInfo(
 		PeerId peerId,
 		const SectionShow &params) {
 	//if (Adaptive::ThreeColumn()
-	//	&& !Auth().data().thirdSectionInfoEnabled()) {
-	//	Auth().data().setThirdSectionInfoEnabled(true);
-	//	Auth().saveDataDelayed();
+	//	&& !Auth().settings().thirdSectionInfoEnabled()) {
+	//	Auth().settings().setThirdSectionInfoEnabled(true);
+	//	Auth().saveSettingsDelayed();
 	//}
 	showSection(Info::Memento(peerId), params);
 }

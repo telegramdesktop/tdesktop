@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_slide_animation.h"
 #include "profile/profile_channel_controllers.h"
 #include "storage/storage_media_prepare.h"
+#include "data/data_session.h"
 
 namespace {
 

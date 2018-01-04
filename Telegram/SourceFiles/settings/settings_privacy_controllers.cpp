@@ -256,14 +256,14 @@ QString LastSeenPrivacyController::exceptionsDescription() {
 }
 
 void LastSeenPrivacyController::confirmSave(bool someAreDisallowed, base::lambda_once<void()> saveCallback) {
-	if (someAreDisallowed && !Auth().data().lastSeenWarningSeen()) {
+	if (someAreDisallowed && !Auth().settings().lastSeenWarningSeen()) {
 		auto weakBox = std::make_shared<QPointer<ConfirmBox>>();
 		auto callback = [weakBox, saveCallback = std::move(saveCallback)]() mutable {
 			if (auto box = *weakBox) {
 				box->closeBox();
 			}
 			saveCallback();
-			Auth().data().setLastSeenWarningSeen(true);
+			Auth().settings().setLastSeenWarningSeen(true);
 			Local::writeUserSettings();
 		};
 		auto box = Box<ConfirmBox>(lang(lng_edit_privacy_lastseen_warning), lang(lng_continue), lang(lng_cancel), std::move(callback));

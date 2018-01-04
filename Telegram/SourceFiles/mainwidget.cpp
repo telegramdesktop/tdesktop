@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_memento.h"
 #include "window/section_widget.h"
 #include "data/data_drafts.h"
+#include "data/data_session.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/focus_persister.h"
 #include "ui/resize_area.h"
@@ -222,9 +223,9 @@ MainWidget::MainWidget(
 		updateDialogsWidthAnimated();
 	});
 	rpl::merge(
-		Auth().data().dialogsWidthRatioChanges()
+		Auth().settings().dialogsWidthRatioChanges()
 			| rpl::map([] { return rpl::empty_value(); }),
-		Auth().data().thirdColumnWidthChanges()
+		Auth().settings().thirdColumnWidthChanges()
 			| rpl::map([] { return rpl::empty_value(); })
 	) | rpl::start_with_next(
 		[this] { updateControlsGeometry(); },
@@ -331,8 +332,8 @@ void MainWidget::checkCurrentFloatPlayer() {
 						}, [this](not_null<Float*> instance, bool closed) {
 							finishFloatPlayerDrag(instance, closed);
 						}));
-						currentFloatPlayer()->column = Auth().data().floatPlayerColumn();
-						currentFloatPlayer()->corner = Auth().data().floatPlayerCorner();
+						currentFloatPlayer()->column = Auth().settings().floatPlayerColumn();
+						currentFloatPlayer()->corner = Auth().settings().floatPlayerCorner();
 						checkFloatPlayerVisibility();
 					}
 				}
@@ -498,8 +499,8 @@ void MainWidget::updateFloatPlayerColumnCorner(QPoint center) {
 	Expects(!_playerFloats.empty());
 	auto size = _playerFloats.back()->widget->size();
 	auto min = INT_MAX;
-	auto column = Auth().data().floatPlayerColumn();
-	auto corner = Auth().data().floatPlayerCorner();
+	auto column = Auth().settings().floatPlayerColumn();
+	auto corner = Auth().settings().floatPlayerCorner();
 	auto checkSection = [this, center, size, &min, &column, &corner](
 			Window::AbstractSectionWidget *widget,
 			Window::Column widgetColumn) {
@@ -550,13 +551,13 @@ void MainWidget::updateFloatPlayerColumnCorner(QPoint center) {
 			checkSection(_dialogs, Window::Column::First);
 		}
 	}
-	if (Auth().data().floatPlayerColumn() != column) {
-		Auth().data().setFloatPlayerColumn(column);
-		Auth().saveDataDelayed();
+	if (Auth().settings().floatPlayerColumn() != column) {
+		Auth().settings().setFloatPlayerColumn(column);
+		Auth().saveSettingsDelayed();
 	}
-	if (Auth().data().floatPlayerCorner() != corner) {
-		Auth().data().setFloatPlayerCorner(corner);
-		Auth().saveDataDelayed();
+	if (Auth().settings().floatPlayerCorner() != corner) {
+		Auth().settings().setFloatPlayerCorner(corner);
+		Auth().saveSettingsDelayed();
 	}
 }
 
@@ -568,8 +569,8 @@ void MainWidget::finishFloatPlayerDrag(not_null<Float*> instance, bool closed) {
 		instance->animationSide = getFloatPlayerSide(center);
 	}
 	updateFloatPlayerColumnCorner(center);
-	instance->column = Auth().data().floatPlayerColumn();
-	instance->corner = Auth().data().floatPlayerCorner();
+	instance->column = Auth().settings().floatPlayerColumn();
+	instance->corner = Auth().settings().floatPlayerCorner();
 
 	instance->draggedAnimation.finish();
 	instance->draggedAnimation.start([this, instance] { updateFloatPlayerPosition(instance); }, 0., 1., st::slideDuration, anim::sineInOut);
@@ -3129,7 +3130,7 @@ void MainWidget::resizeEvent(QResizeEvent *e) {
 
 void MainWidget::updateControlsGeometry() {
 	updateWindowAdaptiveLayout();
-	if (Auth().data().dialogsWidthRatio() > 0) {
+	if (Auth().settings().dialogsWidthRatio() > 0) {
 		_a_dialogsWidth.finish();
 	}
 	if (!_a_dialogsWidth.animating()) {
@@ -3142,9 +3143,9 @@ void MainWidget::updateControlsGeometry() {
 				Window::SectionShow::Way::ClearStack,
 				anim::type::instant,
 				anim::activation::background);
-			if (Auth().data().tabbedSelectorSectionEnabled()) {
+			if (Auth().settings().tabbedSelectorSectionEnabled()) {
 				_history->pushTabbedSelectorToThirdSection(params);
-			} else if (Auth().data().thirdSectionInfoEnabled()) {
+			} else if (Auth().settings().thirdSectionInfoEnabled()) {
 				_history->pushInfoToThirdSection(params);
 			}
 		}
@@ -3266,14 +3267,14 @@ void MainWidget::ensureFirstColumnResizeAreaCreated() {
 		auto newRatio = (newWidth < st::columnMinimalWidthLeft / 2)
 			? 0.
 			: float64(newWidth) / width();
-		Auth().data().setDialogsWidthRatio(newRatio);
+		Auth().settings().setDialogsWidthRatio(newRatio);
 	};
 	auto moveFinishedCallback = [=] {
 		if (Adaptive::OneColumn()) {
 			return;
 		}
-		if (Auth().data().dialogsWidthRatio() > 0) {
-			Auth().data().setDialogsWidthRatio(
+		if (Auth().settings().dialogsWidthRatio() > 0) {
+			Auth().settings().setDialogsWidthRatio(
 				float64(_dialogsWidth) / width());
 		}
 		Local::writeUserSettings();
@@ -3290,14 +3291,14 @@ void MainWidget::ensureThirdColumnResizeAreaCreated() {
 	}
 	auto moveLeftCallback = [=](int globalLeft) {
 		auto newWidth = mapToGlobal(QPoint(width(), 0)).x() - globalLeft;
-		Auth().data().setThirdColumnWidth(newWidth);
+		Auth().settings().setThirdColumnWidth(newWidth);
 	};
 	auto moveFinishedCallback = [=] {
 		if (!Adaptive::ThreeColumn() || !_thirdSection) {
 			return;
 		}
-		Auth().data().setThirdColumnWidth(snap(
-			Auth().data().thirdColumnWidth(),
+		Auth().settings().setThirdColumnWidth(snap(
+			Auth().settings().thirdColumnWidth(),
 			st::columnMinimalWidthThird,
 			st::columnMaximalWidthThird));
 		Local::writeUserSettings();
@@ -3309,12 +3310,12 @@ void MainWidget::ensureThirdColumnResizeAreaCreated() {
 }
 
 void MainWidget::updateDialogsWidthAnimated() {
-	if (Auth().data().dialogsWidthRatio() > 0) {
+	if (Auth().settings().dialogsWidthRatio() > 0) {
 		return;
 	}
 	auto dialogsWidth = _dialogsWidth;
 	updateWindowAdaptiveLayout();
-	if (!Auth().data().dialogsWidthRatio()
+	if (!Auth().settings().dialogsWidthRatio()
 		&& (_dialogsWidth != dialogsWidth
 			|| _a_dialogsWidth.animating())) {
 		_dialogs->startWidthAnimation();
@@ -3366,9 +3367,9 @@ void MainWidget::updateThirdColumnToCurrentPeer(
 		// Like in _controller->showPeerInfo()
 		//
 		if (Adaptive::ThreeColumn()
-			&& !Auth().data().thirdSectionInfoEnabled()) {
-			Auth().data().setThirdSectionInfoEnabled(true);
-			Auth().saveDataDelayed();
+			&& !Auth().settings().thirdSectionInfoEnabled()) {
+			Auth().settings().setThirdSectionInfoEnabled(true);
+			Auth().saveSettingsDelayed();
 		}
 
 		_controller->showSection(
@@ -3380,18 +3381,18 @@ void MainWidget::updateThirdColumnToCurrentPeer(
 		_history->pushTabbedSelectorToThirdSection(params);
 	};
 	if (Adaptive::ThreeColumn()
-		&& Auth().data().tabbedSelectorSectionEnabled()
+		&& Auth().settings().tabbedSelectorSectionEnabled()
 		&& peer) {
 		if (!canWrite) {
 			switchInfoFast();
-			Auth().data().setTabbedSelectorSectionEnabled(true);
-			Auth().data().setTabbedReplacedWithInfo(true);
-		} else if (Auth().data().tabbedReplacedWithInfo()) {
-			Auth().data().setTabbedReplacedWithInfo(false);
+			Auth().settings().setTabbedSelectorSectionEnabled(true);
+			Auth().settings().setTabbedReplacedWithInfo(true);
+		} else if (Auth().settings().tabbedReplacedWithInfo()) {
+			Auth().settings().setTabbedReplacedWithInfo(false);
 			switchTabbedFast();
 		}
 	} else {
-		Auth().data().setTabbedReplacedWithInfo(false);
+		Auth().settings().setTabbedReplacedWithInfo(false);
 		if (!peer) {
 			if (_thirdSection) {
 				_thirdSection.destroy();
@@ -3399,7 +3400,7 @@ void MainWidget::updateThirdColumnToCurrentPeer(
 				updateControlsGeometry();
 			}
 		} else if (Adaptive::ThreeColumn()
-			&& Auth().data().thirdSectionInfoEnabled()) {
+			&& Auth().settings().thirdSectionInfoEnabled()) {
 			switchInfoFast();
 		}
 	}
@@ -3474,13 +3475,13 @@ void MainWidget::handleAdaptiveLayoutUpdate() {
 
 void MainWidget::updateWindowAdaptiveLayout() {
 	auto layout = _controller->computeColumnLayout();
-	auto dialogsWidthRatio = Auth().data().dialogsWidthRatio();
+	auto dialogsWidthRatio = Auth().settings().dialogsWidthRatio();
 
 	// Check if we are in a single-column layout in a wide enough window
 	// for the normal layout. If so, switch to the normal layout.
 	if (layout.windowLayout == Adaptive::WindowLayout::OneColumn) {
 		auto chatWidth = layout.chatWidth;
-		//if (Auth().data().tabbedSelectorSectionEnabled()
+		//if (Auth().settings().tabbedSelectorSectionEnabled()
 		//	&& chatWidth >= _history->minimalWidthForTabbedSelectorSection()) {
 		//	chatWidth -= _history->tabbedSelectorSectionWidth();
 		//}
@@ -3517,7 +3518,7 @@ void MainWidget::updateWindowAdaptiveLayout() {
 		//}
 	}
 
-	Auth().data().setDialogsWidthRatio(dialogsWidthRatio);
+	Auth().settings().setDialogsWidthRatio(dialogsWidthRatio);
 
 	auto useSmallColumnWidth = !Adaptive::OneColumn()
 		&& !dialogsWidthRatio

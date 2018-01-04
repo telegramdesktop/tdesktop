@@ -181,6 +181,8 @@
 <(src_loc)/data/data_photo.h
 <(src_loc)/data/data_search_controller.cpp
 <(src_loc)/data/data_search_controller.h
+<(src_loc)/data/data_session.cpp
+<(src_loc)/data/data_session.h
 <(src_loc)/data/data_shared_media.cpp
 <(src_loc)/data/data_shared_media.h
 <(src_loc)/data/data_sparse_ids.cpp

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/localstorage.h"
 #include "lang/lang_keys.h"
+#include "data/data_session.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
 

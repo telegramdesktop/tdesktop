@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/overload.h"
 #include "lang/lang_keys.h"
 #include "boxes/edit_participant_box.h"
+#include "data/data_session.h"
 
 namespace AdminLog {
 namespace {
@@ -214,7 +215,7 @@ InnerWidget::InnerWidget(
 		}
 	}, lifetime());
 	subscribe(Auth().data().pendingHistoryResize(), [this] { handlePendingHistoryResize(); });
-	subscribe(Auth().data().queryItemVisibility(), [this](const AuthSessionData::ItemVisibilityQuery &query) {
+	subscribe(Auth().data().queryItemVisibility(), [this](const Data::Session::ItemVisibilityQuery &query) {
 		if (_history != query.item->history() || !query.item->isLogEntry() || !isVisible()) {
 			return;
 		}

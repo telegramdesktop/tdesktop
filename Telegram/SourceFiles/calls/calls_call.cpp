@@ -248,7 +248,10 @@ QString Call::getDebugLog() const {
 
 void Call::startWaitingTrack() {
 	_waitingTrack = Media::Audio::Current().createTrack();
-	auto trackFileName = Auth().data().getSoundPath((_type == Type::Outgoing) ? qsl("call_outgoing") : qsl("call_incoming"));
+	auto trackFileName = Auth().settings().getSoundPath(
+		(_type == Type::Outgoing)
+		? qsl("call_outgoing")
+		: qsl("call_incoming"));
 	_waitingTrack->samplePeakEach(kSoundSampleMs);
 	_waitingTrack->fillFromFile(trackFileName);
 	_waitingTrack->playInLoop();

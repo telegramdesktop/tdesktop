@@ -1870,7 +1870,7 @@ void MediaView::onVideoPlayProgress(const AudioMsgId &audioId) {
 		if (state.length) {
 			updateVideoPlaybackState(state);
 		}
-		Auth().data().setLastTimeVideoPlayedAt(getms(true));
+		Auth().settings().setLastTimeVideoPlayedAt(getms(true));
 	}
 }
 

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_list_widget.h"
 
 #include "data/data_document.h"
+#include "data/data_session.h"
 #include "ui/widgets/buttons.h"
 #include "ui/effects/ripple_animation.h"
 #include "boxes/stickers_box.h"
@@ -1393,17 +1394,17 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 	};
 	if (_megagroupSet->mgInfo->stickerSet.type() == mtpc_inputStickerSetEmpty) {
 		if (canEdit) {
-			auto hidden = Auth().data().isGroupStickersSectionHidden(_megagroupSet->id);
+			auto hidden = Auth().settings().isGroupStickersSectionHidden(_megagroupSet->id);
 			if (isShownHere(hidden)) {
 				_mySets.push_back(Set(Stickers::MegagroupSetId, MTPDstickerSet_ClientFlag::f_special | 0, lang(lng_group_stickers), 0));
 			}
 		}
 		return;
 	}
-	auto hidden = Auth().data().isGroupStickersSectionHidden(_megagroupSet->id);
+	auto hidden = Auth().settings().isGroupStickersSectionHidden(_megagroupSet->id);
 	auto removeHiddenForGroup = [this, &hidden] {
 		if (hidden) {
-			Auth().data().removeGroupStickersSectionHidden(_megagroupSet->id);
+			Auth().settings().removeGroupStickersSectionHidden(_megagroupSet->id);
 			Local::writeUserSettings();
 			hidden = false;
 		}
@@ -1753,7 +1754,7 @@ void StickersListWidget::installSet(uint64 setId) {
 
 void StickersListWidget::removeMegagroupSet(bool locally) {
 	if (locally) {
-		Auth().data().setGroupStickersSectionHidden(_megagroupSet->id);
+		Auth().settings().setGroupStickersSectionHidden(_megagroupSet->id);
 		Local::writeUserSettings();
 		refreshStickers();
 		return;

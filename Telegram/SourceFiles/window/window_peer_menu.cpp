@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "styles/style_boxes.h"
 #include "window/window_controller.h"
+#include "data/data_session.h"
 
 namespace Window {
 namespace {
@@ -94,8 +95,8 @@ bool Filler::showInfo() {
 	} else if (!Adaptive::ThreeColumn()) {
 		return true;
 	} else if (
-		!Auth().data().thirdSectionInfoEnabled() &&
-		!Auth().data().tabbedReplacedWithInfo()) {
+		!Auth().settings().thirdSectionInfoEnabled() &&
+		!Auth().settings().tabbedReplacedWithInfo()) {
 		return true;
 	}
 	return false;

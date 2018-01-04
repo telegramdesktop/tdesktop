@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "window/window_controller.h"
 #include "core/crash_reports.h"
+#include "data/data_session.h"
 
 namespace {
 

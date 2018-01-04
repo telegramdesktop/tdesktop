@@ -277,7 +277,7 @@ TabbedSelector::TabbedSelector(QWidget *parent, not_null<Window::Controller*> co
 	Tab { SelectorTab::Stickers, object_ptr<StickersListWidget>(this, controller) },
 	Tab { SelectorTab::Gifs, object_ptr<GifsListWidget>(this, controller) },
 } }
-, _currentTabType(Auth().data().selectorTab()) {
+, _currentTabType(Auth().settings().selectorTab()) {
 	resize(st::emojiPanWidth, st::emojiPanMaxHeight);
 
 	for (auto &tab : _tabs) {
@@ -685,8 +685,8 @@ void TabbedSelector::switchTab() {
 	_a_slide.start([this] { update(); }, 0., 1., st::emojiPanSlideDuration, anim::linear);
 	update();
 
-	Auth().data().setSelectorTab(_currentTabType);
-	Auth().saveDataDelayed();
+	Auth().settings().setSelectorTab(_currentTabType);
+	Auth().saveSettingsDelayed();
 }
 
 not_null<EmojiListWidget*> TabbedSelector::emoji() const {

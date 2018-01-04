@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "chat_helpers/tabbed_selector.h"
+#include "chat_helpers/stickers.h"
 #include "base/variant.h"
 
 namespace Window {

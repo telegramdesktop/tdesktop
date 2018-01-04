@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "messenger.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
+#include "data/data_session.h"
 
 namespace {
 

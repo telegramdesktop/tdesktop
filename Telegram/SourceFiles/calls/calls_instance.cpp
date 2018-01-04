@@ -60,7 +60,8 @@ void Instance::playSound(Sound sound) {
 	case Sound::Busy: {
 		if (!_callBusyTrack) {
 			_callBusyTrack = Media::Audio::Current().createTrack();
-			_callBusyTrack->fillFromFile(Auth().data().getSoundPath(qsl("call_busy")));
+			_callBusyTrack->fillFromFile(
+				Auth().settings().getSoundPath(qsl("call_busy")));
 		}
 		_callBusyTrack->playOnce();
 	} break;
@@ -68,7 +69,8 @@ void Instance::playSound(Sound sound) {
 	case Sound::Ended: {
 		if (!_callEndedTrack) {
 			_callEndedTrack = Media::Audio::Current().createTrack();
-			_callEndedTrack->fillFromFile(Auth().data().getSoundPath(qsl("call_end")));
+			_callEndedTrack->fillFromFile(
+				Auth().settings().getSoundPath(qsl("call_end")));
 		}
 		_callEndedTrack->playOnce();
 	} break;
@@ -76,7 +78,8 @@ void Instance::playSound(Sound sound) {
 	case Sound::Connecting: {
 		if (!_callConnectingTrack) {
 			_callConnectingTrack = Media::Audio::Current().createTrack();
-			_callConnectingTrack->fillFromFile(Auth().data().getSoundPath(qsl("call_connect")));
+			_callConnectingTrack->fillFromFile(
+				Auth().settings().getSoundPath(qsl("call_connect")));
 		}
 		_callConnectingTrack->playOnce();
 	} break;
