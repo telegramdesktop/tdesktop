@@ -34,7 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "dialogs/dialogs_widget.h"
-#include "dialogs/dialogs_row.h"
+#include "dialogs/dialogs_key.h"
 #include "history/history_widget.h"
 #include "history/history_message.h"
 #include "history/history_media.h"
@@ -1100,7 +1100,7 @@ void MainWidget::deleteConversation(PeerData *peer, bool deleteHistory) {
 		Ui::showChatsList();
 	}
 	if (auto history = App::historyLoaded(peer->id)) {
-		history->setPinnedDialog(false);
+		Auth().data().setPinnedDialog(history, false);
 		removeDialog(history);
 		if (peer->isMegagroup() && peer->asChannel()->mgInfo->migrateFromPtr) {
 			if (auto migrated = App::historyLoaded(peer->asChannel()->mgInfo->migrateFromPtr->id)) {
@@ -5330,31 +5330,20 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					case mtpc_dialogPeerFeed: {
 						const auto &feed = dialogPeer.c_dialogPeerFeed();
 						const auto feedId = feed.vfeed_id.v;
-						// #TODO feeds
+						if (!Auth().data().feedLoaded(feedId)) {
+							DEBUG_LOG(("API Error: "
+								"pinned feed not loaded for feedId %1"
+								).arg(feedId
+								));
+							return false;
+						}
 					} break;
 					}
 				}
 				return true;
 			}();
 			if (allLoaded) {
-				App::histories().clearPinned();
-				for (auto i = order.size(); i != 0;) {
-					const auto &dialogPeer = order[--i];
-					switch (dialogPeer.type()) {
-					case mtpc_dialogPeer: {
-						const auto &peer = dialogPeer.c_dialogPeer();
-						const auto peerId = peerFromMTP(peer.vpeer);
-						const auto history = App::historyLoaded(peerId);
-						Assert(history != nullptr);
-						history->setPinnedDialog(true);
-					} break;
-					case mtpc_dialogPeerFeed: {
-						const auto &feed = dialogPeer.c_dialogPeerFeed();
-						const auto feedId = feed.vfeed_id.v;
-						// #TODO feeds
-					} break;
-					}
-				}
+				Auth().data().applyPinnedDialogs(order);
 			} else {
 				_dialogs->loadPinnedDialogs();
 			}
@@ -5369,7 +5358,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		case mtpc_dialogPeer: {
 			const auto peerId = peerFromMTP(d.vpeer.c_dialogPeer().vpeer);
 			if (const auto history = App::historyLoaded(peerId)) {
-				history->setPinnedDialog(d.is_pinned());
+				Auth().data().setPinnedDialog(history, d.is_pinned());
 			} else {
 				DEBUG_LOG(("API Error: "
 					"pinned chat not loaded for peer %1"
@@ -5380,7 +5369,15 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		} break;
 		case mtpc_dialogPeerFeed: {
 			const auto feedId = d.vpeer.c_dialogPeerFeed().vfeed_id.v;
-			// #TODO feeds
+			if (const auto feed = Auth().data().feedLoaded(feedId)) {
+				Auth().data().setPinnedDialog(feed, d.is_pinned());
+			} else {
+				DEBUG_LOG(("API Error: "
+					"pinned feed not loaded for feedId %1"
+					).arg(feedId
+					));
+				_dialogs->loadPinnedDialogs();
+			}
 		} break;
 		}
 	} break;

@@ -7,6 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_indexed_list.h"
 
+#include "auth_session.h"
+#include "data/data_session.h"
+
 namespace Dialogs {
 
 IndexedList::IndexedList(SortMode sortMode)
@@ -81,15 +84,9 @@ void IndexedList::movePinned(Row *row, int deltaSign) {
 		Assert(swapPinnedIndexWith != cbegin());
 		--swapPinnedIndexWith;
 	}
-	// #TODO feeds pinned
-	auto history1 = row->history();
-	auto history2 = (*swapPinnedIndexWith)->history();
-	Assert(history1->isPinnedDialog());
-	Assert(history2->isPinnedDialog());
-	auto index1 = history1->getPinnedIndex();
-	auto index2 = history2->getPinnedIndex();
-	history1->setPinnedIndex(index2);
-	history2->setPinnedIndex(index1);
+	Auth().data().reorderTwoPinnedDialogs(
+		row->key(),
+		(*swapPinnedIndexWith)->key());
 }
 
 void IndexedList::peerNameChanged(

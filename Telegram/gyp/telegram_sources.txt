@@ -198,6 +198,8 @@
 <(src_loc)/dialogs/dialogs_indexed_list.h
 <(src_loc)/dialogs/dialogs_inner_widget.cpp
 <(src_loc)/dialogs/dialogs_inner_widget.h
+<(src_loc)/dialogs/dialogs_key.cpp
+<(src_loc)/dialogs/dialogs_key.h
 <(src_loc)/dialogs/dialogs_layout.cpp
 <(src_loc)/dialogs/dialogs_layout.h
 <(src_loc)/dialogs/dialogs_list.cpp

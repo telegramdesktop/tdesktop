@@ -208,9 +208,10 @@ void GifsListWidget::inlineResultsDone(const MTPmessages_BotResults &result) {
 
 	auto it = _inlineCache.find(_inlineQuery);
 	auto adding = (it != _inlineCache.cend());
-	// #TODO layer 72 feed users
 	if (result.type() == mtpc_messages_botResults) {
 		auto &d = result.c_messages_botResults();
+		App::feedUsers(d.vusers);
+
 		auto &v = d.vresults.v;
 		auto queryId = d.vquery_id.v;
 

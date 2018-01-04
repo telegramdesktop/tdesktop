@@ -164,6 +164,114 @@ MessageIdsList Session::groupToIds(
 	return result;
 }
 
+void Session::setPinnedDialog(const Dialogs::Key &key, bool pinned) {
+	setIsPinned(key, pinned);
+}
+
+void Session::applyPinnedDialogs(const QVector<MTPDialog> &list) {
+	clearPinnedDialogs();
+	for (auto i = list.size(); i != 0;) {
+		const auto &dialog = list[--i];
+		switch (dialog.type()) {
+		case mtpc_dialog: {
+			const auto &dialogData = dialog.c_dialog();
+			if (const auto peer = peerFromMTP(dialogData.vpeer)) {
+				setPinnedDialog(App::history(peer), true);
+			}
+		} break;
+
+		case mtpc_dialogFeed: {
+			const auto &feedData = dialog.c_dialogFeed();
+			const auto feedId = feedData.vfeed_id.v;
+			setPinnedDialog(feed(feedId), true);
+		} break;
+
+		default: Unexpected("Type in ApiWrap::applyDialogsPinned.");
+		}
+	}
+}
+
+void Session::applyPinnedDialogs(const QVector<MTPDialogPeer> &list) {
+	clearPinnedDialogs();
+	for (auto i = list.size(); i != 0;) {
+		const auto &dialogPeer = list[--i];
+		switch (dialogPeer.type()) {
+		case mtpc_dialogPeer: {
+			const auto &peerData = dialogPeer.c_dialogPeer();
+			if (const auto peerId = peerFromMTP(peerData.vpeer)) {
+				setPinnedDialog(App::history(peerId), true);
+			}
+		} break;
+		case mtpc_dialogPeerFeed: {
+			const auto &feedData = dialogPeer.c_dialogPeerFeed();
+			const auto feedId = feedData.vfeed_id.v;
+			setPinnedDialog(feed(feedId), true);
+		} break;
+		}
+	}
+}
+
+int Session::pinnedDialogsCount() const {
+	return _pinnedDialogs.size();
+}
+
+const std::deque<Dialogs::Key> &Session::pinnedDialogsOrder() const {
+	return _pinnedDialogs;
+}
+
+void Session::clearPinnedDialogs() {
+	while (!_pinnedDialogs.empty()) {
+		setPinnedDialog(_pinnedDialogs.back(), false);
+	}
+}
+
+void Session::reorderTwoPinnedDialogs(
+		const Dialogs::Key &key1,
+		const Dialogs::Key &key2) {
+	const auto &order = pinnedDialogsOrder();
+	const auto index1 = ranges::find(order, key1) - begin(order);
+	const auto index2 = ranges::find(order, key2) - begin(order);
+	Assert(index1 >= 0 && index1 < order.size());
+	Assert(index2 >= 0 && index2 < order.size());
+	Assert(index1 != index2);
+	std::swap(_pinnedDialogs[index1], _pinnedDialogs[index2]);
+	key1.cachePinnedIndex(index2 + 1);
+	key2.cachePinnedIndex(index1 + 1);
+}
+
+void Session::setIsPinned(const Dialogs::Key &key, bool pinned) {
+	const auto already = ranges::find(_pinnedDialogs, key);
+	if (pinned) {
+		if (already != end(_pinnedDialogs)) {
+			auto saved = std::move(*already);
+			const auto alreadyIndex = already - end(_pinnedDialogs);
+			const auto count = int(size(_pinnedDialogs));
+			Assert(alreadyIndex < count);
+			for (auto index = alreadyIndex + 1; index != count; ++index) {
+				_pinnedDialogs[index - 1] = std::move(_pinnedDialogs[index]);
+				_pinnedDialogs[index - 1].cachePinnedIndex(index);
+			}
+			_pinnedDialogs.back() = std::move(saved);
+			_pinnedDialogs.back().cachePinnedIndex(count);
+		} else {
+			_pinnedDialogs.push_back(key);
+			if (_pinnedDialogs.size() > Global::PinnedDialogsCountMax()) {
+				_pinnedDialogs.front().cachePinnedIndex(0);
+				_pinnedDialogs.pop_front();
+
+				auto index = 0;
+				for (const auto &pinned : _pinnedDialogs) {
+					pinned.cachePinnedIndex(++index);
+				}
+			} else {
+				key.cachePinnedIndex(_pinnedDialogs.size());
+			}
+		}
+	} else if (!pinned && already != _pinnedDialogs.end()) {
+		_pinnedDialogs.erase(already);
+	}
+}
+
 not_null<Data::Feed*> Session::feed(FeedId id) {
 	if (const auto result = feedLoaded(id)) {
 		return result;

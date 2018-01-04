@@ -75,12 +75,6 @@ public:
 		}
 	}
 
-	void setIsPinned(History *history, bool isPinned);
-	void clearPinned();
-	int pinnedCount() const;
-	QList<History*> getPinnedOrder() const;
-	void savePinnedToServer() const;
-
 	struct SendActionAnimationUpdate {
 		History *history;
 		int width;
@@ -98,7 +92,6 @@ private:
 	int _unreadFull = 0;
 	int _unreadMuted = 0;
 	base::Observable<SendActionAnimationUpdate> _sendActionAnimationUpdated;
-	OrderedSet<History*> _pinnedDialogs;
 
 	base::Timer _selfDestructTimer;
 	std::vector<FullMsgId> _selfDestructItems;
@@ -275,11 +268,7 @@ public:
 	bool isPinnedDialog() const {
 		return (_pinnedIndex > 0);
 	}
-	void setPinnedDialog(bool isPinned);
-	void setPinnedIndex(int newPinnedIndex);
-	int getPinnedIndex() const {
-		return _pinnedIndex;
-	}
+	void cachePinnedIndex(int newPinnedIndex);
 
 	MsgId minMsgId() const;
 	MsgId maxMsgId() const;

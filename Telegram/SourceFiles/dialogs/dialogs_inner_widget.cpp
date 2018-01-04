@@ -736,7 +736,7 @@ void DialogsInner::checkReorderPinnedStart(QPoint localPosition) {
 			if (updateReorderIndexGetCount() < 2) {
 				_dragging = nullptr;
 			} else {
-				_pinnedOrder = App::histories().getPinnedOrder();
+				_pinnedOrder = Auth().data().pinnedDialogsOrder();
 				_pinnedRows[_draggingIndex].yadd = anim::value(0, localPosition.y() - _dragStart.y());
 				_pinnedRows[_draggingIndex].animStartTime = getms();
 				_a_pinnedShifting.start();
@@ -748,8 +748,7 @@ void DialogsInner::checkReorderPinnedStart(QPoint localPosition) {
 int DialogsInner::shownPinnedCount() const {
 	auto result = 0;
 	for_const (auto row, *shownDialogs()) {
-		// #TODO feeds pinned
-		if (!row->history()->isPinnedDialog()) {
+		if (!row->entry()->isPinnedDialog()) {
 			break;
 		}
 		++result;
@@ -758,13 +757,12 @@ int DialogsInner::shownPinnedCount() const {
 }
 
 int DialogsInner::countPinnedIndex(Dialogs::Row *ofRow) {
-	// #TODO feeds pinned
-	if (!ofRow || !ofRow->history()->isPinnedDialog()) {
+	if (!ofRow || !ofRow->entry()->isPinnedDialog()) {
 		return -1;
 	}
 	auto result = 0;
 	for_const (auto row, *shownDialogs()) {
-		if (!row->history()->isPinnedDialog()) {
+		if (!row->entry()->isPinnedDialog()) {
 			break;
 		} else if (row == ofRow) {
 			return result;
@@ -775,16 +773,16 @@ int DialogsInner::countPinnedIndex(Dialogs::Row *ofRow) {
 }
 
 void DialogsInner::savePinnedOrder() {
-	auto newOrder = App::histories().getPinnedOrder();
+	const auto &newOrder = Auth().data().pinnedDialogsOrder();
 	if (newOrder.size() != _pinnedOrder.size()) {
 		return; // Something has changed in the set of pinned chats.
 	}
-	for_const (auto history, newOrder) {
-		if (_pinnedOrder.indexOf(history) < 0) {
+	for (const auto &pinned : newOrder) {
+		if (!base::contains(_pinnedOrder, pinned)) {
 			return; // Something has changed in the set of pinned chats.
 		}
 	}
-	App::histories().savePinnedToServer();
+	Auth().api().savePinnedOrder();
 }
 
 void DialogsInner::finishReorderPinned() {
@@ -2246,7 +2244,7 @@ void DialogsInner::destroyData() {
 
 Dialogs::RowDescriptor DialogsInner::chatListEntryBefore(
 		const Dialogs::RowDescriptor &which) const {
-	if (!which.key.value) {
+	if (!which.key) {
 		return Dialogs::RowDescriptor();
 	}
 	if (_state == DefaultState) {
@@ -2323,7 +2321,7 @@ Dialogs::RowDescriptor DialogsInner::chatListEntryBefore(
 
 Dialogs::RowDescriptor DialogsInner::chatListEntryAfter(
 		const Dialogs::RowDescriptor &which) const {
-	if (!which.key.value) {
+	if (!which.key) {
 		return Dialogs::RowDescriptor();
 	}
 	if (_state == DefaultState) {

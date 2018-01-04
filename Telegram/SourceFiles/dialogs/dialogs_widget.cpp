@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_inner_widget.h"
 #include "dialogs/dialogs_search_from_controllers.h"
-#include "dialogs/dialogs_row.h"
+#include "dialogs/dialogs_key.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/fade_wrap.h"
@@ -400,12 +400,11 @@ void DialogsWidget::pinnedDialogsReceived(
 
 	if (_pinnedDialogsRequestId != requestId) return;
 
-	App::histories().clearPinned();
-
 	auto &data = result.c_messages_peerDialogs();
 	App::feedUsers(data.vusers);
 	App::feedChats(data.vchats);
 
+	Auth().data().applyPinnedDialogs(data.vdialogs.v);
 	applyReceivedDialogs(data.vdialogs.v, data.vmessages.v);
 
 	_pinnedDialogsRequestId = 0;
@@ -420,7 +419,6 @@ void DialogsWidget::pinnedDialogsReceived(
 void DialogsWidget::applyReceivedDialogs(
 		const QVector<MTPDialog> &dialogs,
 		const QVector<MTPMessage> &messages) {
-	Auth().api().applyDialogsPinned(dialogs);
 	App::feedMsgs(messages, NewMessageLast);
 	_inner->dialogsReceived(dialogs);
 	onListScroll();

@@ -65,12 +65,14 @@ private:
 };
 
 History *FindWastedPin() {
-	auto order = App::histories().getPinnedOrder();
-	for_const (auto pinned, order) {
-		if (pinned->peer->isChat()
-			&& pinned->peer->asChat()->isDeactivated()
-			&& !pinned->inChatList(Dialogs::Mode::All)) {
-			return pinned;
+	const auto &order = Auth().data().pinnedDialogsOrder();
+	for (const auto pinned : order) {
+		if (const auto history = pinned.history()) {
+			if (history->peer->isChat()
+				&& history->peer->asChat()->isDeactivated()
+				&& !history->inChatList(Dialogs::Mode::All)) {
+				return history;
+			}
 		}
 	}
 	return nullptr;
@@ -116,14 +118,14 @@ void Filler::addPinToggle() {
 	auto pinToggle = [peer] {
 		auto history = App::history(peer);
 		auto isPinned = !history->isPinnedDialog();
-		auto pinnedCount = App::histories().pinnedCount();
-		auto pinnedMax = Global::PinnedDialogsCountMax();
+		const auto pinnedCount = Auth().data().pinnedDialogsCount();
+		const auto pinnedMax = Global::PinnedDialogsCountMax();
 		if (isPinned && pinnedCount >= pinnedMax) {
 			// Some old chat, that was converted to supergroup, maybe is still pinned.
 			if (auto wasted = FindWastedPin()) {
-				wasted->setPinnedDialog(false);
-				history->setPinnedDialog(isPinned);
-				App::histories().savePinnedToServer();
+				Auth().data().setPinnedDialog(wasted, false);
+				Auth().data().setPinnedDialog(history, true);
+				Auth().api().savePinnedOrder();
 			} else {
 				auto errorText = lng_error_pinned_max(
 					lt_count,
@@ -133,7 +135,7 @@ void Filler::addPinToggle() {
 			return;
 		}
 
-		history->setPinnedDialog(isPinned);
+		Auth().data().setPinnedDialog(history, isPinned);
 		auto flags = MTPmessages_ToggleDialogPin::Flags(0);
 		if (isPinned) {
 			flags |= MTPmessages_ToggleDialogPin::Flag::f_pinned;

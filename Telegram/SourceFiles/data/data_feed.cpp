@@ -25,4 +25,14 @@ void Feed::setUnreadCounts(int unreadCount, int unreadMutedCount) {
 	_unreadMutedCount = unreadMutedCount;
 }
 
+void Feed::cachePinnedIndex(int index) {
+	_pinnedIndex = index;
+}
+
+uint64 Feed::sortKeyInChatList() const {
+	return 0ULL;/* isPinnedDialog()
+		? pinnedDialogPos(_pinnedIndex)
+		: dialogPosFromDate(chatListDate());*/
+}
+
 } // namespace Data

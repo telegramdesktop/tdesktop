@@ -222,7 +222,9 @@ void MainWindow::setupPasscode() {
 }
 
 void MainWindow::setupIntro() {
-	if (_intro && !_intro->isHidden() && !_main) return;
+	if (_intro && !_intro->isHidden() && !_main) {
+		return;
+	}
 
 	Ui::hideSettingsAndLayer(anim::type::instant);
 

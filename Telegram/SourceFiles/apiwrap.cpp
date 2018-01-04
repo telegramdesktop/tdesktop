@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "data/data_photo.h"
 #include "data/data_web_page.h"
+#include "data/data_feed.h"
 #include "core/tl_help.h"
 #include "base/overload.h"
 #include "observer_peer.h"
@@ -147,27 +148,22 @@ void ApiWrap::applyUpdates(
 	App::main()->feedUpdates(updates, sentMessageRandomId);
 }
 
-void ApiWrap::applyDialogsPinned(const QVector<MTPDialog> &list) {
-	for (auto i = list.size(); i != 0;) {
-		const auto &dialog = list[--i];
-		switch (dialog.type()) {
-		case mtpc_dialog: {
-			const auto &dialogData = dialog.c_dialog();
-			if (const auto peer = peerFromMTP(dialogData.vpeer)) {
-				const auto history = App::history(peer);
-				history->setPinnedDialog(dialogData.is_pinned());
-			}
-		} break;
-
-		case mtpc_dialogFeed: {
-			const auto &feedData = dialog.c_dialogFeed();
-			const auto feedId = feedData.vfeed_id.v;
-			// #TODO feeds
-		} break;
-
-		default: Unexpected("Type in ApiWrap::applyDialogsPinned.");
+void ApiWrap::savePinnedOrder() {
+	const auto &order = _session->data().pinnedDialogsOrder();
+	auto peers = QVector<MTPInputDialogPeer>();
+	peers.reserve(order.size());
+	for (const auto pinned : base::reversed(order)) {
+		if (const auto history = pinned.history()) {
+			peers.push_back(MTP_inputDialogPeer(history->peer->input));
+		} else if (const auto feed = pinned.feed()) {
+			peers.push_back(MTP_inputDialogPeerFeed(MTP_int(feed->id())));
 		}
 	}
+	auto flags = MTPmessages_ReorderPinnedDialogs::Flag::f_force;
+	request(MTPmessages_ReorderPinnedDialogs(
+		MTP_flags(flags),
+		MTP_vector(peers)
+	)).send();
 }
 
 void ApiWrap::sendMessageFail(const RPCError &error) {

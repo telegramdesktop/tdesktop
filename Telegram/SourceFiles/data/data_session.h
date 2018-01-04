@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "chat_helpers/stickers.h"
+#include "dialogs/dialogs_key.h"
 
 namespace Data {
 
@@ -142,6 +143,15 @@ public:
 	MessageIdsList itemsToIds(const HistoryItemsList &items) const;
 	MessageIdsList groupToIds(not_null<HistoryMessageGroup*> group) const;
 
+	int pinnedDialogsCount() const;
+	const std::deque<Dialogs::Key> &pinnedDialogsOrder() const;
+	void setPinnedDialog(const Dialogs::Key &key, bool pinned);
+	void applyPinnedDialogs(const QVector<MTPDialog> &list);
+	void applyPinnedDialogs(const QVector<MTPDialogPeer> &list);
+	void reorderTwoPinnedDialogs(
+		const Dialogs::Key &key1,
+		const Dialogs::Key &key2);
+
 	not_null<Data::Feed*> feed(FeedId id);
 	Data::Feed *feedLoaded(FeedId id);
 
@@ -152,6 +162,9 @@ private:
 			|| (now >= lastUpdate + kStickersUpdateTimeout);
 	}
 	void userIsContactUpdated(not_null<UserData*> user);
+
+	void clearPinnedDialogs();
+	void setIsPinned(const Dialogs::Key &key, bool pinned);
 
 	base::Variable<bool> _contactsLoaded = { false };
 	base::Variable<bool> _allChatsLoaded = { false };
@@ -180,6 +193,7 @@ private:
 	Stickers::Order _archivedStickerSetsOrder;
 	Stickers::SavedGifs _savedGifs;
 
+	std::deque<Dialogs::Key> _pinnedDialogs;
 	base::flat_map<FeedId, std::unique_ptr<Data::Feed>> _feeds;
 
 	rpl::lifetime _lifetime;

@@ -47,8 +47,6 @@ constexpr auto kStatusShowClientsidePlayGame = 10000;
 constexpr auto kSetMyActionForMs = 10000;
 constexpr auto kNewBlockEachMessage = 50;
 
-auto GlobalPinnedIndex = 0;
-
 HistoryItem *createUnsupportedMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from) {
 	auto text = TextWithEntities { lng_message_unsupported(lt_link, qsl("https://desktop.telegram.org")) };
 	TextUtilities::ParseEntities(text, Ui::ItemTextNoMonoOptions().flags);
@@ -516,7 +514,8 @@ void ChannelHistory::checkMaxReadMessageDate() {
 			if (!item->unread()) {
 				_maxReadMessageDate = item->date;
 				if (item->isGroupMigrate() && isMegagroup() && peer->migrateFrom()) {
-					_maxReadMessageDate = date(MTP_int(peer->asChannel()->date + 1)); // no report spam panel
+					// No report spam panel.
+					_maxReadMessageDate = date(MTP_int(peer->asChannel()->date + 1));
 				}
 				return;
 			}
@@ -583,7 +582,6 @@ not_null<History*> Histories::findOrInsert(const PeerId &peerId, int32 unreadCou
 void Histories::clear() {
 	App::historyClearMsgs();
 
-	_pinnedDialogs.clear();
 	auto temp = base::take(map);
 	for_const (auto history, temp) {
 		delete history;
@@ -675,63 +673,6 @@ int Histories::unreadBadge() const {
 
 bool Histories::unreadOnlyMuted() const {
 	return Global::IncludeMuted() ? (_unreadMuted >= _unreadFull) : false;
-}
-
-void Histories::setIsPinned(History *history, bool isPinned) {
-	if (isPinned) {
-		_pinnedDialogs.insert(history);
-		if (_pinnedDialogs.size() > Global::PinnedDialogsCountMax()) {
-			auto minIndex = GlobalPinnedIndex + 1;
-			auto minIndexHistory = (History*)nullptr;
-			for_const (auto pinned, _pinnedDialogs) {
-				if (pinned->getPinnedIndex() < minIndex) {
-					minIndex = pinned->getPinnedIndex();
-					minIndexHistory = pinned;
-				}
-			}
-			Assert(minIndexHistory != nullptr);
-			minIndexHistory->setPinnedDialog(false);
-		}
-	} else {
-		_pinnedDialogs.remove(history);
-	}
-}
-
-void Histories::clearPinned() {
-	for (auto pinned : base::take(_pinnedDialogs)) {
-		pinned->setPinnedDialog(false);
-	}
-}
-
-int Histories::pinnedCount() const {
-	return _pinnedDialogs.size();
-}
-
-QList<History*> Histories::getPinnedOrder() const {
-	QMap<int, History*> sorter;
-	for_const (auto pinned, _pinnedDialogs) {
-		sorter.insert(pinned->getPinnedIndex(), pinned);
-	}
-	QList<History*> result;
-	for (auto i = sorter.cend(), e = sorter.cbegin(); i != e;) {
-		--i;
-		result.push_back(i.value());
-	}
-	return result;
-}
-
-void Histories::savePinnedToServer() const {
-	const auto order = getPinnedOrder();
-	auto peers = QVector<MTPInputDialogPeer>();
-	peers.reserve(order.size());
-	for (const auto history : order) {
-		peers.push_back(MTP_inputDialogPeer(history->peer->input));
-	}
-	auto flags = MTPmessages_ReorderPinnedDialogs::Flag::f_force;
-	MTP::send(
-		MTPmessages_ReorderPinnedDialogs(
-			MTP_flags(flags),
-			MTP_vector(peers)));
 }
 
 void Histories::selfDestructIn(not_null<HistoryItem*> item, TimeMs delay) {
@@ -2262,8 +2203,10 @@ void History::setNotLoadedAtBottom() {
 }
 
 namespace {
-	uint32 _dialogsPosToTopShift = 0x80000000UL;
-}
+
+uint32 _dialogsPosToTopShift = 0x80000000UL;
+
+} // namespace
 
 inline uint64 dialogPosFromDate(const QDateTime &date) {
 	if (date.isNull()) return 0;
@@ -2316,7 +2259,9 @@ void History::updateChatListSortPosition() {
 		return lastMsgDate;
 	};
 
-	_sortKeyInChatList = isPinnedDialog() ? pinnedDialogPos(_pinnedIndex) : dialogPosFromDate(chatListDate());
+	_sortKeyInChatList = isPinnedDialog()
+		? pinnedDialogPos(_pinnedIndex)
+		: dialogPosFromDate(chatListDate());
 	if (auto m = App::main()) {
 		if (needUpdateInChatList()) {
 			if (_sortKeyInChatList) {
@@ -2602,20 +2547,17 @@ void History::updateChatListEntry() const {
 	}
 }
 
-void History::setPinnedDialog(bool isPinned) {
-	setPinnedIndex(isPinned ? (++GlobalPinnedIndex) : 0);
-}
-
-void History::setPinnedIndex(int pinnedIndex) {
+void History::cachePinnedIndex(int pinnedIndex) {
 	if (_pinnedIndex != pinnedIndex) {
 		auto wasPinned = isPinnedDialog();
 		_pinnedIndex = pinnedIndex;
 		updateChatListSortPosition();
 		updateChatListEntry();
 		if (wasPinned != isPinnedDialog()) {
-			Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::PinnedChanged);
+			Notify::peerUpdatedDelayed(
+				peer,
+				Notify::PeerUpdate::Flag::PinnedChanged);
 		}
-		App::histories().setIsPinned(this, isPinnedDialog());
 	}
 }
 

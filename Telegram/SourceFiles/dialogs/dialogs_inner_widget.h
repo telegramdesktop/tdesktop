@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "dialogs/dialogs_widget.h"
+#include "dialogs/dialogs_key.h"
 #include "base/flags.h"
 
 namespace Dialogs {
@@ -276,7 +277,7 @@ private:
 	};
 	std::vector<PinnedRow> _pinnedRows;
 	BasicAnimation _a_pinnedShifting;
-	QList<History*> _pinnedOrder;
+	std::deque<Dialogs::Key> _pinnedOrder;
 
 	// Remember the last currently dragged row top shift for updating area.
 	int _aboveTopShift = -1;
