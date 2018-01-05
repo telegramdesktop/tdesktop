@@ -1091,8 +1091,8 @@ void MainWidget::deletedContact(UserData *user, const MTPcontacts_Link &result) 
 	App::feedUserLink(MTP_int(peerToUser(user->id)), d.vmy_link, d.vforeign_link);
 }
 
-void MainWidget::removeDialog(not_null<History*> history) {
-	_dialogs->removeDialog(history);
+void MainWidget::removeDialog(Dialogs::Key key) {
+	_dialogs->removeDialog(key);
 }
 
 void MainWidget::deleteConversation(PeerData *peer, bool deleteHistory) {
@@ -1306,31 +1306,36 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 
 	if (!v || v->isEmpty()) {
 		if (peer->isChat() && !peer->asChat()->haveLeft()) {
-			auto h = App::historyLoaded(peer->id);
-			if (h) Local::addSavedPeer(peer, h->lastMsgDate);
-		} else if (peer->isChannel()) {
-			if (peer->asChannel()->inviter > 0 && peer->asChannel()->amIn()) {
-				if (auto from = App::userLoaded(peer->asChannel()->inviter)) {
-					auto h = App::history(peer->id);
-					h->clear(true);
-					h->addNewerSlice(QVector<MTPMessage>());
-					h->asChannelHistory()->insertJoinedMessage(true);
-					_history->peerMessagesUpdated(h->peer->id);
+			if (const auto history = App::historyLoaded(peer->id)) {
+				Local::addSavedPeer(peer, history->chatsListDate());
+			}
+		} else if (const auto channel = peer->asChannel()) {
+			if (channel->inviter > 0 && channel->amIn()) {
+				if (const auto from = App::userLoaded(channel->inviter)) {
+					const auto history = App::history(peer->id);
+					history->clear(true);
+					history->addNewerSlice(QVector<MTPMessage>());
+					history->asChannelHistory()->insertJoinedMessage(true);
+					_history->peerMessagesUpdated(peer->id);
 				}
 			}
 		} else {
 			deleteConversation(peer, false);
 		}
 	} else {
-		auto h = App::history(peer->id);
-		if (!h->lastMsg) {
-			h->addNewMessage((*v)[0], NewMessageLast);
+		const auto history = App::history(peer->id);
+		if (!history->lastMsg) {
+			history->addNewMessage((*v)[0], NewMessageLast);
 		}
-		if (!h->lastMsgDate.isNull() && h->loadedAtBottom()) {
-			if (peer->isChannel() && peer->asChannel()->inviter > 0 && h->lastMsgDate <= peer->asChannel()->inviteDate && peer->asChannel()->amIn()) {
-				if (auto from = App::userLoaded(peer->asChannel()->inviter)) {
-					h->asChannelHistory()->insertJoinedMessage(true);
-					_history->peerMessagesUpdated(h->peer->id);
+		if (!history->chatsListDate().isNull() && history->loadedAtBottom()) {
+			if (const auto channel = peer->asChannel()) {
+				if (channel->inviter > 0
+					&& history->chatsListDate() <= channel->inviteDate
+					&& channel->amIn()) {
+					if (const auto from = App::userLoaded(channel->inviter)) {
+						history->asChannelHistory()->insertJoinedMessage(true);
+						_history->peerMessagesUpdated(peer->id);
+					}
 				}
 			}
 		}
@@ -2200,8 +2205,8 @@ bool MainWidget::viewsIncrementFail(const RPCError &error, mtpRequestId req) {
 	return false;
 }
 
-void MainWidget::createDialog(not_null<History*> history) {
-	_dialogs->createDialog(history);
+void MainWidget::createDialog(Dialogs::Key key) {
+	_dialogs->createDialog(key);
 }
 
 void MainWidget::choosePeer(PeerId peerId, MsgId showAtMsgId) {

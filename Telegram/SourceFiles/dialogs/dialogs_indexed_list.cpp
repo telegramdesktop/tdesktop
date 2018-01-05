@@ -152,13 +152,11 @@ void IndexedList::adjustByName(
 
 void IndexedList::adjustNames(
 		Mode list,
-		Key key,
+		not_null<History*> history,
 		const PeerData::NameFirstChars &oldChars) {
+	const auto key = Dialogs::Key(history);
 	auto mainRow = _list.getRow(key);
 	if (!mainRow) return;
-
-	// #TODO feeds dialogs
-	auto history = mainRow->history();
 
 	PeerData::NameFirstChars toRemove = oldChars, toAdd;
 	for (auto ch : key.nameFirstChars()) {

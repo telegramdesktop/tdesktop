@@ -182,11 +182,13 @@ void DialogsWidget::activate() {
 	_inner->activate();
 }
 
-void DialogsWidget::createDialog(not_null<History*> history) {
-	auto creating = !history->inChatList(Dialogs::Mode::All);
-	_inner->createDialog(history);
-	if (creating && history->peer->migrateFrom()) {
-		if (const auto migrated = App::historyLoaded(history->peer->migrateFrom())) {
+void DialogsWidget::createDialog(Dialogs::Key key) {
+	const auto creating = !key.entry()->inChatList(Dialogs::Mode::All);
+	_inner->createDialog(key);
+	const auto history = key.history();
+	if (creating && history && history->peer->migrateFrom()) {
+		if (const auto migrated = App::historyLoaded(
+				history->peer->migrateFrom())) {
 			if (migrated->inChatList(Dialogs::Mode::All)) {
 				removeDialog(migrated);
 			}
@@ -747,8 +749,7 @@ void DialogsWidget::dragMoveEvent(QDragMoveEvent *e) {
 		} else {
 			_chooseByDragTimer.start(ChoosePeerByDragTimeout);
 		}
-		PeerData *p = _inner->updateFromParentDrag(mapToGlobal(e->pos()));
-		if (p) {
+		if (_inner->updateFromParentDrag(mapToGlobal(e->pos()))) {
 			e->setDropAction(Qt::CopyAction);
 		} else {
 			e->setDropAction(Qt::IgnoreAction);
@@ -1118,8 +1119,8 @@ void DialogsWidget::scrollToPeer(not_null<History*> history, MsgId msgId) {
 	_inner->scrollToPeer(history, msgId);
 }
 
-void DialogsWidget::removeDialog(not_null<History*> history) {
-	_inner->removeDialog(history);
+void DialogsWidget::removeDialog(Dialogs::Key key) {
+	_inner->removeDialog(key);
 	onFilterUpdate();
 }
 

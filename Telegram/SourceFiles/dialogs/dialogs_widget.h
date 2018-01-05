@@ -55,8 +55,8 @@ public:
 
 	void loadDialogs();
 	void loadPinnedDialogs();
-	void createDialog(not_null<History*> history);
-	void removeDialog(not_null<History*> history);
+	void createDialog(Dialogs::Key key);
+	void removeDialog(Dialogs::Key key);
 	void dlgUpdated(Dialogs::Mode list, not_null<Dialogs::Row*> row);
 	void dlgUpdated(not_null<History*> history, MsgId msgId);
 

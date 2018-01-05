@@ -45,10 +45,10 @@ public:
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);
 
-	void createDialog(not_null<History*> history);
+	void createDialog(Dialogs::Key key);
+	void removeDialog(Dialogs::Key key);
 	void dlgUpdated(Dialogs::Mode list, not_null<Dialogs::Row*> row);
 	void dlgUpdated(not_null<History*> history, MsgId msgId);
-	void removeDialog(not_null<History*> history);
 
 	void dragLeft();
 
@@ -207,8 +207,8 @@ private:
 		Painter &p,
 		not_null<Dialogs::Row*> row,
 		int fullWidth,
-		PeerData *active,
-		PeerData *selected,
+		Dialogs::Key active,
+		Dialogs::Key selected,
 		bool onlyBackground,
 		TimeMs ms);
 	void paintPeerSearchResult(
@@ -233,7 +233,7 @@ private:
 
 	void clearSelection();
 	void clearSearchResults(bool clearPeerSearchResults = true);
-	void updateSelectedRow(PeerData *peer = 0);
+	void updateSelectedRow(Dialogs::Key key = Dialogs::Key());
 
 	Dialogs::IndexedList *shownDialogs() const {
 		return (Global::DialogsMode() == Dialogs::Mode::Important) ? _dialogsImportant.get() : _dialogs.get();
@@ -323,7 +323,7 @@ private:
 	UserData *_searchFromUser = nullptr;
 	Text _searchFromUserText;
 	Text _searchInSavedText;
-	PeerData *_menuPeer = nullptr;
+	Dialogs::Key _menuKey;
 
 	base::lambda<void()> _loadMoreCallback;
 

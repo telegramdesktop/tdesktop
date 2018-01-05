@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_types.h"
 #include "data/data_peer.h"
-#include "dialogs/dialogs_common.h"
+#include "dialogs/dialogs_entry.h"
 #include "ui/effects/send_action_animations.h"
 #include "base/observer.h"
 #include "base/timer.h"
@@ -162,7 +162,7 @@ class IndexedList;
 } // namespace Dialogs
 
 class ChannelHistory;
-class History {
+class History : public Dialogs::Entry {
 public:
 	History(const PeerId &peerId);
 	History(const History &) = delete;
@@ -243,32 +243,6 @@ public:
 
 	void setLastMessage(HistoryItem *msg);
 	void fixLastMessage(bool wasAtBottom);
-
-	bool needUpdateInChatList() const;
-	void updateChatListSortPosition();
-	void setChatsListDate(const QDateTime &date);
-	uint64 sortKeyInChatList() const {
-		return _sortKeyInChatList;
-	}
-	struct PositionInChatListChange {
-		int movedFrom;
-		int movedTo;
-	};
-	PositionInChatListChange adjustByPosInChatList(Dialogs::Mode list, Dialogs::IndexedList *indexed);
-	bool inChatList(Dialogs::Mode list) const {
-		return !chatListLinks(list).empty();
-	}
-	int posInChatList(Dialogs::Mode list) const;
-	Dialogs::Row *addToChatList(Dialogs::Mode list, Dialogs::IndexedList *indexed);
-	void removeFromChatList(Dialogs::Mode list, Dialogs::IndexedList *indexed);
-	void removeChatListEntryByLetter(Dialogs::Mode list, QChar letter);
-	void addChatListEntryByLetter(Dialogs::Mode list, QChar letter, Dialogs::Row *row);
-	void updateChatListEntry() const;
-
-	bool isPinnedDialog() const {
-		return (_pinnedIndex > 0);
-	}
-	void cachePinnedIndex(int newPinnedIndex);
 
 	MsgId minMsgId() const;
 	MsgId maxMsgId() const;
@@ -362,18 +336,17 @@ public:
 	bool newLoaded = true;
 	HistoryItem *lastMsg = nullptr;
 	HistoryItem *lastSentMsg = nullptr;
-	QDateTime lastMsgDate;
 
 	typedef QList<HistoryItem*> NotifyQueue;
 	NotifyQueue notifies;
 
-	Data::Draft *localDraft() {
+	Data::Draft *localDraft() const {
 		return _localDraft.get();
 	}
-	Data::Draft *cloudDraft() {
+	Data::Draft *cloudDraft() const {
 		return _cloudDraft.get();
 	}
-	Data::Draft *editDraft() {
+	Data::Draft *editDraft() const {
 		return _editDraft.get();
 	}
 	void setLocalDraft(std::unique_ptr<Data::Draft> &&draft);
@@ -396,6 +369,20 @@ public:
 	HistoryItemsList validateForwardDraft();
 	void setForwardDraft(MessageIdsList &&items);
 	void recountGroupingAround(not_null<HistoryItem*> item);
+
+	bool needUpdateInChatList() const override;
+	bool toImportant() const override {
+		return !mute();
+	}
+	int chatListUnreadCount() const override;
+	bool chatListMutedBadge() const override;
+	HistoryItem *chatsListItem() const override;
+	void loadUserpic() override;
+	void paintUserpic(
+		Painter &p,
+		int x,
+		int y,
+		int size) const override;
 
 	// some fields below are a property of a currently displayed instance of this
 	// conversation history not a property of the conversation history itself
@@ -435,9 +422,6 @@ public:
 	PeerId lastKeyboardFrom = 0;
 
 	mtpRequestId sendRequestId = 0;
-
-	mutable const HistoryItem *textCachedFor = nullptr; // cache
-	mutable Text lastItemTextCache;
 
 	void changeMsgId(MsgId oldId, MsgId newId);
 
@@ -482,6 +466,11 @@ protected:
 	}
 
 private:
+	QDateTime adjustChatListDate() const override;
+	void removeDialog() override;
+	void changedInChatListHook(Dialogs::Mode list, bool added) override;
+	void changedChatListPinHook() override;
+
 	// After adding a new history slice check the lastMsg and newLoaded.
 	void checkLastMsg();
 
@@ -519,20 +508,6 @@ private:
 
 	base::optional<int> _unreadMentionsCount;
 	base::flat_set<MsgId> _unreadMentions;
-
-	Dialogs::RowsByLetter _chatListLinks[2];
-	Dialogs::RowsByLetter &chatListLinks(Dialogs::Mode list) {
-		return _chatListLinks[static_cast<int>(list)];
-	}
-	const Dialogs::RowsByLetter &chatListLinks(Dialogs::Mode list) const {
-		return _chatListLinks[static_cast<int>(list)];
-	}
-	Dialogs::Row *mainChatListLink(Dialogs::Mode list) const {
-		auto it = chatListLinks(list).find(0);
-		Assert(it != chatListLinks(list).cend());
-		return it->second;
-	}
-	uint64 _sortKeyInChatList = 0; // like ((unixtime) << 32) | (incremented counter)
 
 	// A pointer to the block that is currently being built.
 	// We hold this pointer so we can destroy it while building

@@ -9,11 +9,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/value_ordering.h"
 
+class History;
+
 namespace Data {
 class Feed;
 } // namespace Data
 
 namespace Dialogs {
+
+class Entry;
 
 class Key {
 public:
@@ -30,13 +34,12 @@ public:
 	explicit operator bool() const {
 		return !!_value;
 	}
+	not_null<Entry*> entry() const;
 	History *history() const;
 	Data::Feed *feed() const;
 
 	const QString &name() const;
 	const PeerData::NameFirstChars &nameFirstChars() const;
-	uint64 sortKey() const;
-	void cachePinnedIndex(int index) const;
 
 	inline bool operator<(const Key &other) const {
 		return _value < other._value;

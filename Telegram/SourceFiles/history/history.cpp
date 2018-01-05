@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "data/data_channel_admins.h"
+#include "data/data_feed.h"
 #include "ui/text_options.h"
 #include "core/crash_reports.h"
 
@@ -58,8 +59,8 @@ HistoryItem *createUnsupportedMessage(History *history, MsgId msgId, MTPDmessage
 } // namespace
 
 History::History(const PeerId &peerId)
-: peer(App::peer(peerId))
-, lastItemTextCache(st::dialogsTextWidthMin)
+: Entry(this)
+, peer(App::peer(peerId))
 , cloudDraftTextCache(st::dialogsTextWidthMin)
 , _mute(peer->isMuted())
 , _sendActionText(st::dialogsTextWidthMin) {
@@ -450,9 +451,14 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 			}
 			if (item->date <= inviteDate) {
 				++itemIndex;
-				_joinedMessage = HistoryJoined::create(this, inviteDate, inviter, flags);
+				_joinedMessage = HistoryJoined::create(
+					this,
+					inviteDate,
+					inviter,
+					flags);
 				addNewInTheMiddle(_joinedMessage, blockIndex, itemIndex);
-				if (lastMsgDate.isNull() || inviteDate >= lastMsgDate) {
+				const auto lastDate = chatsListDate();
+				if (lastDate.isNull() || inviteDate >= lastDate) {
 					setLastMessage(_joinedMessage);
 					if (unread) {
 						newItemAdded(_joinedMessage);
@@ -1855,6 +1861,16 @@ void History::getNextShowFrom(HistoryBlock *block, int i) {
 	showFrom = nullptr;
 }
 
+QDateTime History::adjustChatListDate() const {
+	const auto result = chatsListDate();
+	if (const auto draft = cloudDraft()) {
+		if (!Data::draftIsNull(draft) && draft->date > result) {
+			return draft->date;
+		}
+	}
+	return result;
+}
+
 void History::countScrollState(int top) {
 	countScrollTopItem(top);
 	if (scrollTopItem) {
@@ -2039,6 +2055,36 @@ void History::recountGroupingAround(not_null<HistoryItem*> item) {
 	}
 }
 
+int History::chatListUnreadCount() const {
+	const auto result = unreadCount();
+	if (const auto from = peer->migrateFrom()) {
+		if (const auto migrated = App::historyLoaded(from)) {
+			return result + migrated->unreadCount();
+		}
+	}
+	return result;
+}
+
+bool History::chatListMutedBadge() const {
+	return mute();
+}
+
+HistoryItem *History::chatsListItem() const {
+	return lastMsg;
+}
+
+void History::loadUserpic() {
+	peer->loadUserpic();
+}
+
+void History::paintUserpic(
+		Painter &p,
+		int x,
+		int y,
+		int size) const {
+	peer->paintUserpic(p, x, y, size);
+}
+
 auto History::recountGroupingFromTill(not_null<HistoryItem*> item)
 -> std::pair<not_null<HistoryItem*>, not_null<HistoryItem*>> {
 	const auto recountFromItem = [&] {
@@ -2208,22 +2254,18 @@ uint32 _dialogsPosToTopShift = 0x80000000UL;
 
 } // namespace
 
-inline uint64 dialogPosFromDate(const QDateTime &date) {
-	if (date.isNull()) return 0;
-	return (uint64(date.toTime_t()) << 32) | (++_dialogsPosToTopShift);
-}
-
-inline uint64 pinnedDialogPos(int pinnedIndex) {
-	return 0xFFFFFFFF00000000ULL + pinnedIndex;
-}
-
 void History::setLastMessage(HistoryItem *msg) {
 	if (msg) {
-		if (!lastMsg) Local::removeSavedPeer(peer);
+		if (!lastMsg) {
+			Local::removeSavedPeer(peer);
+		}
 		lastMsg = msg;
+		if (const auto feed = peer->feed()) {
+			feed->updateLastMessage(msg);
+		}
 		setChatsListDate(msg->date);
-	} else {
-		lastMsg = 0;
+	} else if (lastMsg) {
+		lastMsg = nullptr;
 		updateChatListEntry();
 	}
 }
@@ -2235,43 +2277,10 @@ bool History::needUpdateInChatList() const {
 		return false;
 	} else if (isPinnedDialog()) {
 		return true;
+	} else if (const auto channel = peer->asChannel()) {
+		return !channel->feed() && channel->amIn();
 	}
-	return !peer->isChannel() || peer->asChannel()->amIn();
-}
-
-void History::setChatsListDate(const QDateTime &date) {
-	if (!lastMsgDate.isNull() && lastMsgDate >= date) {
-		if (!needUpdateInChatList() || !inChatList(Dialogs::Mode::All)) {
-			return;
-		}
-	}
-	lastMsgDate = date;
-	updateChatListSortPosition();
-}
-
-void History::updateChatListSortPosition() {
-	auto chatListDate = [this]() {
-		if (auto draft = cloudDraft()) {
-			if (!Data::draftIsNull(draft) && draft->date > lastMsgDate) {
-				return draft->date;
-			}
-		}
-		return lastMsgDate;
-	};
-
-	_sortKeyInChatList = isPinnedDialog()
-		? pinnedDialogPos(_pinnedIndex)
-		: dialogPosFromDate(chatListDate());
-	if (auto m = App::main()) {
-		if (needUpdateInChatList()) {
-			if (_sortKeyInChatList) {
-				m->createDialog(this);
-				updateChatListEntry();
-			} else {
-				m->deleteConversation(peer, false);
-			}
-		}
-	}
+	return true;
 }
 
 void History::fixLastMessage(bool wasAtBottom) {
@@ -2406,6 +2415,10 @@ void History::clear(bool leaveItems) {
 		setUnreadCount(0);
 		if (auto channel = peer->asChannel()) {
 			channel->clearPinnedMessage();
+			if (const auto feed = channel->feed()) {
+				// Should be after setLastMessage(nullptr);
+				feed->historyCleared(this);
+			}
 		}
 		clearLastKeyboard();
 	}
@@ -2481,84 +2494,24 @@ void History::clearOnDestroy() {
 	clearBlocks(false);
 }
 
-History::PositionInChatListChange History::adjustByPosInChatList(Dialogs::Mode list, Dialogs::IndexedList *indexed) {
-	Assert(indexed != nullptr);
-	Dialogs::Row *lnk = mainChatListLink(list);
-	int32 movedFrom = lnk->pos();
-	indexed->adjustByPos(chatListLinks(list));
-	int32 movedTo = lnk->pos();
-	return { movedFrom, movedTo };
-}
-
-int History::posInChatList(Dialogs::Mode list) const {
-	return mainChatListLink(list)->pos();
-}
-
-Dialogs::Row *History::addToChatList(Dialogs::Mode list, Dialogs::IndexedList *indexed) {
-	Assert(indexed != nullptr);
-	if (!inChatList(list)) {
-		chatListLinks(list) = indexed->addToEnd(this);
-		if (list == Dialogs::Mode::All && unreadCount()) {
-			App::histories().unreadIncrement(unreadCount(), mute());
-			Notify::unreadCounterUpdated();
-		}
-	}
-	return mainChatListLink(list);
-}
-
-void History::removeFromChatList(Dialogs::Mode list, Dialogs::IndexedList *indexed) {
-	Assert(indexed != nullptr);
-	if (inChatList(list)) {
-		indexed->del(this);
-		chatListLinks(list).clear();
-		if (list == Dialogs::Mode::All && unreadCount()) {
-			App::histories().unreadIncrement(-unreadCount(), mute());
-			Notify::unreadCounterUpdated();
-		}
+void History::removeDialog() {
+	if (const auto main = App::main()) {
+		main->deleteConversation(peer, false);
 	}
 }
 
-void History::removeChatListEntryByLetter(Dialogs::Mode list, QChar letter) {
-	Assert(letter != 0);
-	if (inChatList(list)) {
-		chatListLinks(list).remove(letter);
+void History::changedInChatListHook(Dialogs::Mode list, bool added) {
+	if (list == Dialogs::Mode::All && unreadCount()) {
+		const auto delta = added ? unreadCount() : -unreadCount();
+		App::histories().unreadIncrement(delta, mute());
+		Notify::unreadCounterUpdated();
 	}
 }
 
-void History::addChatListEntryByLetter(Dialogs::Mode list, QChar letter, Dialogs::Row *row) {
-	Assert(letter != 0);
-	if (inChatList(list)) {
-		chatListLinks(list).emplace(letter, row);
-	}
-}
-
-void History::updateChatListEntry() const {
-	if (auto main = App::main()) {
-		if (inChatList(Dialogs::Mode::All)) {
-			main->dlgUpdated(
-				Dialogs::Mode::All,
-				mainChatListLink(Dialogs::Mode::All));
-			if (inChatList(Dialogs::Mode::Important)) {
-				main->dlgUpdated(
-					Dialogs::Mode::Important,
-					mainChatListLink(Dialogs::Mode::Important));
-			}
-		}
-	}
-}
-
-void History::cachePinnedIndex(int pinnedIndex) {
-	if (_pinnedIndex != pinnedIndex) {
-		auto wasPinned = isPinnedDialog();
-		_pinnedIndex = pinnedIndex;
-		updateChatListSortPosition();
-		updateChatListEntry();
-		if (wasPinned != isPinnedDialog()) {
-			Notify::peerUpdatedDelayed(
-				peer,
-				Notify::PeerUpdate::Flag::PinnedChanged);
-		}
-	}
+void History::changedChatListPinHook() {
+	Notify::peerUpdatedDelayed(
+		peer,
+		Notify::PeerUpdate::Flag::PinnedChanged);
 }
 
 void History::changeMsgId(MsgId oldId, MsgId newId) {

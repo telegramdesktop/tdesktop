@@ -58,6 +58,9 @@ public:
 	Data::Feed *feed() const {
 		return _id.feed();
 	}
+	not_null<Entry*> entry() const {
+		return _id.entry();
+	}
 	QString name() const {
 		return _id.name();
 	}
@@ -65,7 +68,7 @@ public:
 		return _pos;
 	}
 	uint64 sortKey() const {
-		return _id.sortKey();
+		return _id.entry()->sortKeyInChatList();
 	}
 
 	// for any attached data, for example View in contacts list

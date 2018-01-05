@@ -235,8 +235,8 @@ void Session::reorderTwoPinnedDialogs(
 	Assert(index2 >= 0 && index2 < order.size());
 	Assert(index1 != index2);
 	std::swap(_pinnedDialogs[index1], _pinnedDialogs[index2]);
-	key1.cachePinnedIndex(index2 + 1);
-	key2.cachePinnedIndex(index1 + 1);
+	key1.entry()->cachePinnedIndex(index2 + 1);
+	key2.entry()->cachePinnedIndex(index1 + 1);
 }
 
 void Session::setIsPinned(const Dialogs::Key &key, bool pinned) {
@@ -249,26 +249,31 @@ void Session::setIsPinned(const Dialogs::Key &key, bool pinned) {
 			Assert(alreadyIndex < count);
 			for (auto index = alreadyIndex + 1; index != count; ++index) {
 				_pinnedDialogs[index - 1] = std::move(_pinnedDialogs[index]);
-				_pinnedDialogs[index - 1].cachePinnedIndex(index);
+				_pinnedDialogs[index - 1].entry()->cachePinnedIndex(index);
 			}
 			_pinnedDialogs.back() = std::move(saved);
-			_pinnedDialogs.back().cachePinnedIndex(count);
+			_pinnedDialogs.back().entry()->cachePinnedIndex(count);
 		} else {
 			_pinnedDialogs.push_back(key);
 			if (_pinnedDialogs.size() > Global::PinnedDialogsCountMax()) {
-				_pinnedDialogs.front().cachePinnedIndex(0);
+				_pinnedDialogs.front().entry()->cachePinnedIndex(0);
 				_pinnedDialogs.pop_front();
 
 				auto index = 0;
 				for (const auto &pinned : _pinnedDialogs) {
-					pinned.cachePinnedIndex(++index);
+					pinned.entry()->cachePinnedIndex(++index);
 				}
 			} else {
-				key.cachePinnedIndex(_pinnedDialogs.size());
+				key.entry()->cachePinnedIndex(_pinnedDialogs.size());
 			}
 		}
 	} else if (!pinned && already != _pinnedDialogs.end()) {
+		key.entry()->cachePinnedIndex(0);
 		_pinnedDialogs.erase(already);
+		auto index = 0;
+		for (const auto &pinned : _pinnedDialogs) {
+			pinned.entry()->cachePinnedIndex(++index);
+		}
 	}
 }
 

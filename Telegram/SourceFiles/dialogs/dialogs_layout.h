@@ -23,7 +23,7 @@ class RowPainter {
 public:
 	static void paint(
 		Painter &p,
-		const Row *row,
+		not_null<const Row*> row,
 		int fullWidth,
 		bool active,
 		bool selected,
@@ -31,7 +31,7 @@ public:
 		TimeMs ms);
 	static void paint(
 		Painter &p,
-		const FakeRow *row,
+		not_null<const FakeRow*> row,
 		int fullWidth,
 		bool active,
 		bool selected,

@@ -11,6 +11,10 @@ namespace Ui {
 class RpWidget;
 } // namespace Ui
 
+namespace Data {
+class Feed;
+} // namespace Data
+
 namespace Window {
 
 class Controller;
@@ -28,6 +32,11 @@ using PeerMenuCallback = base::lambda<QAction*(
 void FillPeerMenu(
 	not_null<Controller*> controller,
 	not_null<PeerData*> peer,
+	const PeerMenuCallback &addAction,
+	PeerMenuSource source);
+void FillFeedMenu(
+	not_null<Controller*> controller,
+	not_null<Data::Feed*> feed,
 	const PeerMenuCallback &addAction,
 	PeerMenuSource source);
 

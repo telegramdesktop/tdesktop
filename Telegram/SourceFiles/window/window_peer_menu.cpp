@@ -25,17 +25,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "window/window_controller.h"
 #include "data/data_session.h"
+#include "data/data_feed.h"
+#include "dialogs/dialogs_key.h"
 
 namespace Window {
 namespace {
-
-void AddChatMembers(not_null<ChatData*> chat) {
-	if (chat->count >= Global::ChatSizeMax() && chat->amCreator()) {
-		Ui::show(Box<ConvertToSupergroupBox>(chat));
-	} else {
-		AddParticipantsBoxController::Start(chat);
-	}
-}
 
 class Filler {
 public:
@@ -64,6 +58,25 @@ private:
 
 };
 
+class FeedFiller {
+public:
+	FeedFiller(
+		not_null<Controller*> controller,
+		not_null<Data::Feed*> feed,
+		const PeerMenuCallback &addAction,
+		PeerMenuSource source);
+	void fill();
+
+private:
+	void addPinToggle();
+
+	not_null<Controller*> _controller;
+	not_null<Data::Feed*> _feed;
+	const PeerMenuCallback &_addAction;
+	PeerMenuSource _source;
+
+};
+
 History *FindWastedPin() {
 	const auto &order = Auth().data().pinnedDialogsOrder();
 	for (const auto pinned : order) {
@@ -76,6 +89,58 @@ History *FindWastedPin() {
 		}
 	}
 	return nullptr;
+}
+
+void AddChatMembers(not_null<ChatData*> chat) {
+	if (chat->count >= Global::ChatSizeMax() && chat->amCreator()) {
+		Ui::show(Box<ConvertToSupergroupBox>(chat));
+	} else {
+		AddParticipantsBoxController::Start(chat);
+	}
+}
+
+bool PinnedLimitReached(Dialogs::Key key) {
+	const auto pinnedCount = Auth().data().pinnedDialogsCount();
+	const auto pinnedMax = Global::PinnedDialogsCountMax();
+	if (pinnedCount < pinnedMax) {
+		return false;
+	}
+	// Some old chat, that was converted, maybe is still pinned.
+	if (auto wasted = FindWastedPin()) {
+		Auth().data().setPinnedDialog(wasted, false);
+		Auth().data().setPinnedDialog(key, true);
+		Auth().api().savePinnedOrder();
+	} else {
+		auto errorText = lng_error_pinned_max(
+			lt_count,
+			pinnedMax);
+		Ui::show(Box<InformBox>(errorText));
+	}
+	return true;
+}
+
+void TogglePinnedDialog(Dialogs::Key key) {
+	const auto isPinned = !key.entry()->isPinnedDialog();
+	if (isPinned && PinnedLimitReached(key)) {
+		return;
+	}
+
+	Auth().data().setPinnedDialog(key, isPinned);
+	auto flags = MTPmessages_ToggleDialogPin::Flags(0);
+	if (isPinned) {
+		flags |= MTPmessages_ToggleDialogPin::Flag::f_pinned;
+	}
+	MTP::send(MTPmessages_ToggleDialogPin(
+		MTP_flags(flags),
+		key.history()
+			? MTP_inputDialogPeer(key.history()->peer->input)
+			: MTP_inputDialogPeerFeed(MTP_int(key.feed()->id()))));
+	if (isPinned) {
+		if (const auto main = App::main()) {
+			main->dialogsToUp();
+		}
+	}
+
 }
 
 Filler::Filler(
@@ -115,40 +180,8 @@ void Filler::addPinToggle() {
 			? lng_context_unpin_from_top
 			: lng_context_pin_to_top);
 	};
-	auto pinToggle = [peer] {
-		auto history = App::history(peer);
-		auto isPinned = !history->isPinnedDialog();
-		const auto pinnedCount = Auth().data().pinnedDialogsCount();
-		const auto pinnedMax = Global::PinnedDialogsCountMax();
-		if (isPinned && pinnedCount >= pinnedMax) {
-			// Some old chat, that was converted to supergroup, maybe is still pinned.
-			if (auto wasted = FindWastedPin()) {
-				Auth().data().setPinnedDialog(wasted, false);
-				Auth().data().setPinnedDialog(history, true);
-				Auth().api().savePinnedOrder();
-			} else {
-				auto errorText = lng_error_pinned_max(
-					lt_count,
-					pinnedMax);
-				Ui::show(Box<InformBox>(errorText));
-			}
-			return;
-		}
-
-		Auth().data().setPinnedDialog(history, isPinned);
-		auto flags = MTPmessages_ToggleDialogPin::Flags(0);
-		if (isPinned) {
-			flags |= MTPmessages_ToggleDialogPin::Flag::f_pinned;
-		}
-		MTP::send(
-			MTPmessages_ToggleDialogPin(
-				MTP_flags(flags),
-				MTP_inputDialogPeer(peer->input)));
-		if (isPinned) {
-			if (auto main = App::main()) {
-				main->dialogsToUp();
-			}
-		}
+	auto pinToggle = [=] {
+		TogglePinnedDialog(App::history(peer));
 	};
 	auto pinAction = _addAction(pinText(isPinned), pinToggle);
 
@@ -382,6 +415,37 @@ void Filler::fill() {
 	}
 }
 
+FeedFiller::FeedFiller(
+	not_null<Controller*> controller,
+	not_null<Data::Feed*> feed,
+	const PeerMenuCallback &addAction,
+	PeerMenuSource source)
+	: _controller(controller)
+	, _feed(feed)
+	, _addAction(addAction)
+	, _source(source) {
+}
+
+void FeedFiller::fill() {
+	if (_source == PeerMenuSource::ChatsList) {
+		addPinToggle();
+	}
+}
+
+void FeedFiller::addPinToggle() {
+	auto feed = _feed;
+	auto isPinned = feed->isPinnedDialog();
+	auto pinText = [](bool isPinned) {
+		return lang(isPinned
+			? lng_context_unpin_from_top
+			: lng_context_pin_to_top);
+	};
+	auto pinToggle = [=] {
+		TogglePinnedDialog(feed);
+	};
+	_addAction(pinText(isPinned), pinToggle);
+}
+
 } // namespace
 
 void PeerMenuDeleteContact(not_null<UserData*> user) {
@@ -596,6 +660,16 @@ void FillPeerMenu(
 		const PeerMenuCallback &callback,
 		PeerMenuSource source) {
 	Filler filler(controller, peer, callback, source);
+	filler.fill();
+}
+
+void FillFeedMenu(
+		not_null<Controller*> controller,
+		not_null<Data::Feed*> feed,
+		const PeerMenuCallback &callback,
+		PeerMenuSource source) {
+	// TODO feeds context menu
+	FeedFiller filler(controller, feed, callback, source);
 	filler.fill();
 }
 

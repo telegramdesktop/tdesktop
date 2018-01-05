@@ -29,24 +29,13 @@ const PeerData::NameFirstChars &Key::nameFirstChars() const {
 	return empty;
 }
 
-uint64 Key::sortKey() const {
-	if (const auto h = history()) {
-		return h->sortKeyInChatList();
-	} else if (const auto f = feed()) {
-		return f->sortKeyInChatList();
-	} else {
-		Unexpected("Key value in Key::sortKey");
+not_null<Entry*> Key::entry() const {
+	if (const auto p = base::get_if<not_null<History*>>(&_value)) {
+		return *p;
+	} else if (const auto p = base::get_if<not_null<Data::Feed*>>(&_value)) {
+		return *p;
 	}
-}
-
-void Key::cachePinnedIndex(int index) const {
-	if (const auto h = history()) {
-		h->cachePinnedIndex(index);
-	} else if (const auto f = feed()) {
-		f->cachePinnedIndex(index);
-	} else {
-		Unexpected("Key value in Key::setPinnedIndex");
-	}
+	Unexpected("Dialogs entry() call on empty Key.");
 }
 
 History *Key::history() const {

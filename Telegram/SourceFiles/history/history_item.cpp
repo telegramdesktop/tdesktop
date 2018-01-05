@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "core/crash_reports.h"
 #include "data/data_session.h"
+#include "data/data_feed.h"
 
 namespace {
 
@@ -164,13 +165,19 @@ ReplyKeyboard *HistoryItem::inlineReplyKeyboard() {
 
 void HistoryItem::invalidateChatsListEntry() {
 	if (App::main()) {
-		// #TODO feeds dialogs
+		// #TODO feeds search results
 		App::main()->dlgUpdated(history(), id);
 	}
 
 	// invalidate cache for drawInDialog
 	if (history()->textCachedFor == this) {
 		history()->textCachedFor = nullptr;
+	}
+	if (const auto feed = history()->peer->feed()) {
+		if (feed->textCachedFor == this) {
+			feed->textCachedFor = nullptr;
+			feed->updateChatListEntry();
+		}
 	}
 }
 
@@ -280,6 +287,7 @@ UserData *HistoryItem::viaBot() const {
 }
 
 void HistoryItem::destroy() {
+	const auto history = this->history();
 	if (isLogEntry()) {
 		Assert(detached());
 	} else {
@@ -288,7 +296,7 @@ void HistoryItem::destroy() {
 		if (IsServerMsgId(id)) {
 			if (const auto types = sharedMediaTypes()) {
 				Auth().storage().remove(Storage::SharedMediaRemoveOne(
-					history()->peer->id,
+					history->peer->id,
 					types,
 					id));
 			}
@@ -296,22 +304,30 @@ void HistoryItem::destroy() {
 			Auth().api().cancelLocalItem(this);
 		}
 
-		auto wasAtBottom = history()->loadedAtBottom();
-		_history->removeNotification(this);
+		const auto wasAtBottom = history->loadedAtBottom();
+		history->removeNotification(this);
+
 		detach();
-		if (const auto channel = history()->peer->asChannel()) {
+
+		if (history->lastMsg == this) {
+			history->fixLastMessage(wasAtBottom);
+		}
+		if (history->lastKeyboardId == id) {
+			history->clearLastKeyboard();
+		}
+		if ((!out() || isPost()) && unread() && history->unreadCount() > 0) {
+			history->setUnreadCount(history->unreadCount() - 1);
+		}
+		if (const auto channel = history->peer->asChannel()) {
 			if (channel->pinnedMessageId() == id) {
 				channel->clearPinnedMessage();
 			}
-		}
-		if (history()->lastMsg == this) {
-			history()->fixLastMessage(wasAtBottom);
-		}
-		if (history()->lastKeyboardId == id) {
-			history()->clearLastKeyboard();
-		}
-		if ((!out() || isPost()) && unread() && history()->unreadCount() > 0) {
-			history()->setUnreadCount(history()->unreadCount() - 1);
+			if (const auto feed = channel->feed()) {
+				// Must be after histroy->lastMsg is cleared.
+				// Otherwise feed last message will be this value again.
+				feed->messageRemoved(this);
+				// #TODO feeds unread
+			}
 		}
 	}
 	Global::RefPendingRepaintItems().remove(this);

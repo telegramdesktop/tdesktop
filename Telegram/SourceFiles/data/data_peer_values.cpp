@@ -176,8 +176,7 @@ TimeId SortByOnlineValue(not_null<UserData*> user, TimeId now) {
 	}
 	const auto online = user->onlineTill;
 	const auto fromDate = [](const QDate &date) {
-		const auto shift = (unixtime() - myunixtime());
-		return static_cast<TimeId>(QDateTime(date).toTime_t()) + shift;
+		return toServerTime(QDateTime(date).toTime_t()).v;
 	};
 	if (online <= 0) {
 		switch (online) {

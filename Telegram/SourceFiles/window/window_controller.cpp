@@ -261,8 +261,8 @@ void Controller::showJumpToDate(not_null<PeerData*> peer, QDate requestedDate) {
 						return history->blocks.front()->items.front()->date.date();
 					}
 				}
-			} else if (!history->lastMsgDate.isNull()) {
-				return history->lastMsgDate.date();
+			} else if (!history->chatsListDate().isNull()) {
+				return history->chatsListDate().date();
 			}
 		}
 		return QDate::currentDate();
@@ -272,8 +272,8 @@ void Controller::showJumpToDate(not_null<PeerData*> peer, QDate requestedDate) {
 			peer = channel;
 		}
 		if (auto history = App::historyLoaded(peer)) {
-			if (!history->lastMsgDate.isNull()) {
-				return history->lastMsgDate.date();
+			if (!history->chatsListDate().isNull()) {
+				return history->chatsListDate().date();
 			}
 		}
 		return QDate::currentDate();

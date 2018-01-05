@@ -193,7 +193,8 @@
 <(src_loc)/data/data_user_photos.h
 <(src_loc)/data/data_web_page.cpp
 <(src_loc)/data/data_web_page.h
-<(src_loc)/dialogs/dialogs_common.h
+<(src_loc)/dialogs/dialogs_entry.cpp
+<(src_loc)/dialogs/dialogs_entry.h
 <(src_loc)/dialogs/dialogs_indexed_list.cpp
 <(src_loc)/dialogs/dialogs_indexed_list.h
 <(src_loc)/dialogs/dialogs_inner_widget.cpp
