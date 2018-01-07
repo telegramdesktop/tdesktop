@@ -139,6 +139,11 @@ reversion_wrapper<Container> reversed(Container &&container) {
 	return { container };
 }
 
+template <typename Value, typename From, typename Till>
+inline bool in_range(Value &&value, From &&from, Till &&till) {
+	return (value >= from) && (value < till);
+}
+
 } // namespace base
 
 // using for_const instead of plain range-based for loop to ensure usage of const_iterator

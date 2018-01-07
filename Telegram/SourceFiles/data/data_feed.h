@@ -15,14 +15,23 @@ namespace Data {
 
 struct FeedPosition {
 	FeedPosition() = default;
-	FeedPosition(const MTPFeedPosition &position);
-	FeedPosition(not_null<HistoryItem*> item);
-
-	explicit operator bool() const {
-		return (msgId != 0);
+	explicit FeedPosition(const MTPFeedPosition &position);
+	explicit FeedPosition(not_null<HistoryItem*> item);
+	FeedPosition(TimeId date, FullMsgId msgId) : date(date), msgId(msgId) {
 	}
 
-	bool operator<(const FeedPosition &other) const;
+	explicit operator bool() const {
+		return (msgId.msg != 0);
+	}
+
+	inline bool operator<(const FeedPosition &other) const {
+		if (date < other.date) {
+			return true;
+		} else if (other.date < date) {
+			return false;
+		}
+		return (msgId < other.msgId);
+	}
 	inline bool operator>(const FeedPosition &other) const {
 		return other < *this;
 	}
@@ -34,7 +43,6 @@ struct FeedPosition {
 	}
 	inline bool operator==(const FeedPosition &other) const {
 		return (date == other.date)
-			&& (peerId == other.peerId)
 			&& (msgId == other.msgId);
 	}
 	inline bool operator!=(const FeedPosition &other) const {
@@ -42,8 +50,7 @@ struct FeedPosition {
 	}
 
 	TimeId date = 0;
-	PeerId peerId = 0;
-	MsgId msgId = 0;
+	FullMsgId msgId;
 
 };
 

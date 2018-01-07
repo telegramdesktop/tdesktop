@@ -55,7 +55,7 @@ public:
 	void clearFilter();
 	void refresh(bool toTop = false);
 
-	bool choosePeer();
+	bool chooseRow();
 	void saveRecentHashtags(const QString &text);
 
 	void destroyData();
@@ -78,13 +78,14 @@ public:
 
 	void setMouseSelection(bool mouseSelection, bool toTop = false);
 
-	enum State {
-		DefaultState = 0,
-		FilteredState = 1,
-		SearchedState = 2,
+	enum class State {
+		Default,
+		Filtered,
 	};
-	void setState(State newState);
 	State state() const;
+	bool waitingForSearch() const {
+		return _waitingForSearch;
+	}
 	bool hasFilteredResults() const;
 
 	void searchInPeer(PeerData *peer, UserData *from);
@@ -141,6 +142,14 @@ private:
 	using HashtagResults = std::vector<std::unique_ptr<HashtagResult>>;
 	struct PeerSearchResult;
 	using PeerSearchResults = std::vector<std::unique_ptr<PeerSearchResult>>;
+
+	struct ChosenRow {
+		Dialogs::Key key;
+		MsgId messageId = 0;
+	};
+	bool switchImportantChats();
+	bool chooseHashtag();
+	ChosenRow computeChosenRow() const;
 
 	void userIsContactUpdated(not_null<UserData*> user);
 	void mousePressReleased(Qt::MouseButton button);
@@ -296,6 +305,8 @@ private:
 	int _filteredSelected = -1;
 	int _filteredPressed = -1;
 
+	bool _waitingForSearch = false;
+
 	QString _peerSearchQuery;
 	PeerSearchResults _peerSearchResults;
 	int _peerSearchSelected = -1;
@@ -312,7 +323,7 @@ private:
 	MsgId _lastSearchId = 0;
 	MsgId _lastSearchMigratedId = 0;
 
-	State _state = DefaultState;
+	State _state = State::Default;
 
 	object_ptr<Ui::LinkButton> _addContactLnk;
 	object_ptr<Ui::IconButton> _cancelSearchInPeer;

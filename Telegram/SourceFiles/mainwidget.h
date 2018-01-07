@@ -285,7 +285,8 @@ public:
 	void gameUpdated(GameData *game);
 	void updateMutedIn(TimeMs delay);
 
-	void choosePeer(PeerId peerId, MsgId showAtMsgId); // does offerPeer or showPeerHistory
+	// Does offerPeer or showPeerHistory.
+	void choosePeer(PeerId peerId, MsgId showAtMsgId);
 	void clearBotStartToken(PeerData *peer);
 
 	void ptsWaiterStartTimerFor(ChannelData *channel, int32 ms); // ms <= 0 - stop timer

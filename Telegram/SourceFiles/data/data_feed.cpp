@@ -13,30 +13,14 @@ namespace Data {
 
 FeedPosition::FeedPosition(const MTPFeedPosition &position)
 : date(position.c_feedPosition().vdate.v)
-, peerId(peerFromMTP(position.c_feedPosition().vpeer))
-, msgId(position.c_feedPosition().vid.v) {
+, msgId(
+	peerToChannel(peerFromMTP(position.c_feedPosition().vpeer)),
+	position.c_feedPosition().vid.v) {
 }
 
 FeedPosition::FeedPosition(not_null<HistoryItem*> item)
 : date(toServerTime(item->date.toTime_t()).v)
-, peerId(item->history()->peer->id)
-, msgId(item->id) {
-}
-
-bool FeedPosition::operator<(const FeedPosition &other) const {
-	if (date < other.date) {
-		return true;
-	} else if (other.date < date) {
-		return false;
-	}
-	const auto peer = peerToBareInt(peerId);
-	const auto otherPeer = peerToBareInt(other.peerId);
-	if (peer < otherPeer) {
-		return true;
-	} else if (otherPeer < peer) {
-		return false;
-	}
-	return (msgId < other.msgId);
+, msgId(item->fullId()) {
 }
 
 Feed::Feed(FeedId id)

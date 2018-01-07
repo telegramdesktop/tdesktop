@@ -10,10 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Storage {
 
 SparseIdsList::Slice::Slice(
-		base::flat_set<MsgId> &&messages,
-		MsgRange range)
-	: messages(std::move(messages))
-	, range(range) {
+	base::flat_set<MsgId> &&messages,
+	MsgRange range)
+: messages(std::move(messages))
+, range(range) {
 }
 
 template <typename Range>

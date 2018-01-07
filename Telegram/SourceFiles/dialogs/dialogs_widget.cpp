@@ -145,7 +145,12 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 	connect(&_searchTimer, SIGNAL(timeout()), this, SLOT(onSearchMessages()));
 
 	_inner->setLoadMoreCallback([this] {
-		if (_inner->state() == DialogsInner::SearchedState || (_inner->state() == DialogsInner::FilteredState && _searchInMigrated && _searchFull && !_searchFullMigrated)) {
+		using State = DialogsInner::State;
+		const auto state = _inner->state();
+		if (state == State::Filtered && (!_inner->waitingForSearch()
+			|| (_searchInMigrated
+				&& _searchFull
+				&& !_searchFullMigrated))) {
 			onSearchMore();
 		} else {
 			loadDialogs();
@@ -513,7 +518,7 @@ void DialogsWidget::onNeedSearchMessages() {
 }
 
 void DialogsWidget::onChooseByDrag() {
-	_inner->choosePeer();
+	_inner->chooseRow();
 }
 
 void DialogsWidget::showMainMenu() {
@@ -595,7 +600,9 @@ void DialogsWidget::loadPinnedDialogs() {
 }
 
 void DialogsWidget::searchReceived(DialogsSearchRequestType type, const MTPmessages_Messages &result, mtpRequestId req) {
-	if (_inner->state() == DialogsInner::FilteredState || _inner->state() == DialogsInner::SearchedState) {
+	using State = DialogsInner::State;
+	const auto state = _inner->state();
+	if (state == State::Filtered) {
 		if (type == DialogsSearchFromStart || type == DialogsSearchPeerFromStart) {
 			auto i = _searchQueries.find(req);
 			if (i != _searchQueries.cend()) {
@@ -671,8 +678,10 @@ void DialogsWidget::searchReceived(DialogsSearchRequestType type, const MTPmessa
 }
 
 void DialogsWidget::peerSearchReceived(const MTPcontacts_Found &result, mtpRequestId req) {
+	using State = DialogsInner::State;
+	const auto state = _inner->state();
 	auto q = _peerSearchQuery;
-	if (_inner->state() == DialogsInner::FilteredState || _inner->state() == DialogsInner::SearchedState) {
+	if (state == State::Filtered) {
 		auto i = _peerSearchQueries.find(req);
 		if (i != _peerSearchQueries.cend()) {
 			q = i.value();
@@ -1025,10 +1034,14 @@ void DialogsWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		e->ignore();
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
-		if (!_inner->choosePeer()) {
-			if (_inner->state() == DialogsInner::DefaultState || _inner->state() == DialogsInner::SearchedState || (_inner->state() == DialogsInner::FilteredState && _inner->hasFilteredResults())) {
+		if (!_inner->chooseRow()) {
+			using State = DialogsInner::State;
+			const auto state = _inner->state();
+			if (state == State::Default
+				|| (state == State::Filtered
+					&& (!_inner->waitingForSearch() ||  _inner->hasFilteredResults()))) {
 				_inner->selectSkip(1);
-				_inner->choosePeer();
+				_inner->chooseRow();
 			} else {
 				onSearchMessages();
 			}

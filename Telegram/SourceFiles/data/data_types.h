@@ -149,9 +149,12 @@ inline bool operator!=(const FullMsgId &a, const FullMsgId &b) {
 	return !(a == b);
 }
 inline bool operator<(const FullMsgId &a, const FullMsgId &b) {
-	if (a.msg < b.msg) return true;
-	if (a.msg > b.msg) return false;
-	return a.channel < b.channel;
+	if (a.channel < b.channel) {
+		return true;
+	} else if (a.channel > b.channel) {
+		return false;
+	}
+	return a.msg < b.msg;
 }
 
 using MessageIdsList = std::vector<FullMsgId>;
