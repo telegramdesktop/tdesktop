@@ -2297,7 +2297,7 @@ void MainWidget::ui_showPeerHistory(
 		}
 		if (!peerId) {
 			if (Adaptive::OneColumn()) {
-				return true;
+				return _dialogs->isHidden();
 			} else {
 				return false;
 			}
