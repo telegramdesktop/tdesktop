@@ -364,7 +364,7 @@ void PinMessageBox::prepare() {
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	if (_channel->isMegagroup()) {
-		_notify.create(this, lang(lng_pinned_notify), true, st::defaultBoxCheckbox);
+		_notify.create(this, lang(lng_pinned_notify), false, st::defaultBoxCheckbox);
 	}
 
 	auto height = st::boxPadding.top() + _text->height() + st::boxPadding.bottom();
