@@ -37,6 +37,10 @@ struct BotKeyboardButton;
 struct RippleAnimation;
 } // namespace style
 
+namespace Data {
+struct MessagePosition;
+} // namespace Data
+
 class HistoryElement {
 public:
 	HistoryElement() = default;
@@ -434,6 +438,7 @@ public:
 	FullMsgId fullId() const {
 		return FullMsgId(channelId(), id);
 	}
+	Data::MessagePosition position() const;
 
 	HistoryMedia *getMedia() const {
 		return _media.get();

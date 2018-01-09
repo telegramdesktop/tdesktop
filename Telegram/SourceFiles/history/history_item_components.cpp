@@ -10,10 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text_options.h"
-#include "history/history_service_layout.h"
 #include "history/history_message.h"
 #include "history/history_media.h"
 #include "history/history_media_types.h"
+#include "history/view/history_view_service_message.h"
 #include "media/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "styles/style_widgets.h"
@@ -825,7 +825,7 @@ int HistoryMessageDate::height() const {
 }
 
 void HistoryMessageDate::paint(Painter &p, int y, int w) const {
-	HistoryLayout::ServiceMessagePainter::paintDate(p, _text, _width, y, w);
+	HistoryView::ServiceMessagePainter::paintDate(p, _text, _width, y, w);
 }
 
 HistoryMessageLogEntryOriginal::HistoryMessageLogEntryOriginal() = default;

@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "history/history_top_bar_widget.h"
+#include "history/view/history_view_top_bar_widget.h"
 
 #include <rpl/combine.h>
 #include <rpl/combine_previous.h>
@@ -34,7 +34,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "apiwrap.h"
 
-HistoryTopBarWidget::HistoryTopBarWidget(
+namespace HistoryView {
+
+TopBarWidget::TopBarWidget(
 	QWidget *parent,
 	not_null<Window::Controller*> controller)
 : RpWidget(parent)
@@ -122,35 +124,35 @@ HistoryTopBarWidget::HistoryTopBarWidget(
 	updateControlsVisibility();
 }
 
-void HistoryTopBarWidget::refreshLang() {
+void TopBarWidget::refreshLang() {
 	InvokeQueued(this, [this] { updateControlsGeometry(); });
 }
 
-void HistoryTopBarWidget::onForwardSelection() {
+void TopBarWidget::onForwardSelection() {
 	if (App::main()) App::main()->forwardSelectedItems();
 }
 
-void HistoryTopBarWidget::onDeleteSelection() {
+void TopBarWidget::onDeleteSelection() {
 	if (App::main()) App::main()->confirmDeleteSelectedItems();
 }
 
-void HistoryTopBarWidget::onClearSelection() {
+void TopBarWidget::onClearSelection() {
 	if (App::main()) App::main()->clearSelectedItems();
 }
 
-void HistoryTopBarWidget::onSearch() {
+void TopBarWidget::onSearch() {
 	if (_historyPeer) {
 		App::main()->searchInPeer(_historyPeer);
 	}
 }
 
-void HistoryTopBarWidget::onCall() {
+void TopBarWidget::onCall() {
 	if (auto user = _historyPeer->asUser()) {
 		Calls::Current().startOutgoingCall(user);
 	}
 }
 
-void HistoryTopBarWidget::showMenu() {
+void TopBarWidget::showMenu() {
 	if (!_historyPeer || _menu) {
 		return;
 	}
@@ -184,7 +186,7 @@ void HistoryTopBarWidget::showMenu() {
 	_menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
 }
 
-void HistoryTopBarWidget::toggleInfoSection() {
+void TopBarWidget::toggleInfoSection() {
 	if (Adaptive::ThreeColumn()
 		&& (Auth().settings().thirdSectionInfoEnabled()
 			|| Auth().settings().tabbedReplacedWithInfo())) {
@@ -209,7 +211,7 @@ void HistoryTopBarWidget::toggleInfoSection() {
 	}
 }
 
-bool HistoryTopBarWidget::eventFilter(QObject *obj, QEvent *e) {
+bool TopBarWidget::eventFilter(QObject *obj, QEvent *e) {
 	if (obj == _membersShowArea) {
 		switch (e->type()) {
 		case QEvent::MouseButtonPress:
@@ -228,8 +230,8 @@ bool HistoryTopBarWidget::eventFilter(QObject *obj, QEvent *e) {
 	return TWidget::eventFilter(obj, e);
 }
 
-void HistoryTopBarWidget::paintEvent(QPaintEvent *e) {
-	if (_animationMode) {
+void TopBarWidget::paintEvent(QPaintEvent *e) {
+	if (_animatingMode) {
 		return;
 	}
 	Painter p(this);
@@ -247,7 +249,7 @@ void HistoryTopBarWidget::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void HistoryTopBarWidget::paintTopBar(Painter &p, TimeMs ms) {
+void TopBarWidget::paintTopBar(Painter &p, TimeMs ms) {
 	auto history = App::historyLoaded(_historyPeer);
 	if (!history) return;
 
@@ -291,7 +293,7 @@ void HistoryTopBarWidget::paintTopBar(Painter &p, TimeMs ms) {
 	}
 }
 
-QRect HistoryTopBarWidget::getMembersShowAreaGeometry() const {
+QRect TopBarWidget::getMembersShowAreaGeometry() const {
 	int membersTextLeft = _leftTaken;
 	int membersTextTop = st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height;
 	int membersTextWidth = _titlePeerTextWidth;
@@ -300,12 +302,12 @@ QRect HistoryTopBarWidget::getMembersShowAreaGeometry() const {
 	return myrtlrect(membersTextLeft, membersTextTop, membersTextWidth, membersTextHeight);
 }
 
-void HistoryTopBarWidget::mousePressEvent(QMouseEvent *e) {
+void TopBarWidget::mousePressEvent(QMouseEvent *e) {
 	auto handleClick = (e->button() == Qt::LeftButton)
 		&& (e->pos().y() < st::topBarHeight)
 		&& (!_selectedCount);
 	if (handleClick) {
-		if (_animationMode && _back->rect().contains(e->pos())) {
+		if (_animatingMode && _back->rect().contains(e->pos())) {
 			backClicked();
 		} else if (_historyPeer) {
 			infoClicked();
@@ -313,7 +315,7 @@ void HistoryTopBarWidget::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
-void HistoryTopBarWidget::infoClicked() {
+void TopBarWidget::infoClicked() {
 	if (_historyPeer && _historyPeer->isSelf()) {
 		_controller->showSection(Info::Memento(
 			_historyPeer->id,
@@ -323,11 +325,11 @@ void HistoryTopBarWidget::infoClicked() {
 	}
 }
 
-void HistoryTopBarWidget::backClicked() {
+void TopBarWidget::backClicked() {
 	_controller->showBackFromStack();
 }
 
-void HistoryTopBarWidget::setHistoryPeer(PeerData *historyPeer) {
+void TopBarWidget::setHistoryPeer(PeerData *historyPeer) {
 	if (_historyPeer != historyPeer) {
 		_historyPeer = historyPeer;
 		_back->clearState();
@@ -353,15 +355,15 @@ void HistoryTopBarWidget::setHistoryPeer(PeerData *historyPeer) {
 	}
 }
 
-void HistoryTopBarWidget::resizeEvent(QResizeEvent *e) {
+void TopBarWidget::resizeEvent(QResizeEvent *e) {
 	updateControlsGeometry();
 }
 
-int HistoryTopBarWidget::countSelectedButtonsTop(float64 selectedShown) {
+int TopBarWidget::countSelectedButtonsTop(float64 selectedShown) {
 	return (1. - selectedShown) * (-st::topBarHeight);
 }
 
-void HistoryTopBarWidget::updateControlsGeometry() {
+void TopBarWidget::updateControlsGeometry() {
 	auto hasSelected = (_selectedCount > 0);
 	auto selectedButtonsTop = countSelectedButtonsTop(_selectedShown.current(hasSelected ? 1. : 0.));
 	auto otherButtonsTop = selectedButtonsTop + st::topBarHeight;
@@ -417,22 +419,22 @@ void HistoryTopBarWidget::updateControlsGeometry() {
 	updateMembersShowArea();
 }
 
-void HistoryTopBarWidget::finishAnimating() {
+void TopBarWidget::finishAnimating() {
 	_selectedShown.finish();
 	updateControlsVisibility();
 }
 
-void HistoryTopBarWidget::setAnimationMode(bool enabled) {
-	if (_animationMode != enabled) {
-		_animationMode = enabled;
-		setAttribute(Qt::WA_OpaquePaintEvent, !_animationMode);
+void TopBarWidget::setAnimatingMode(bool enabled) {
+	if (_animatingMode != enabled) {
+		_animatingMode = enabled;
+		setAttribute(Qt::WA_OpaquePaintEvent, !_animatingMode);
 		finishAnimating();
 		updateControlsVisibility();
 	}
 }
 
-void HistoryTopBarWidget::updateControlsVisibility() {
-	if (_animationMode) {
+void TopBarWidget::updateControlsVisibility() {
+	if (_animatingMode) {
 		hideChildren();
 		return;
 	}
@@ -465,7 +467,7 @@ void HistoryTopBarWidget::updateControlsVisibility() {
 	updateControlsGeometry();
 }
 
-void HistoryTopBarWidget::updateMembersShowArea() {
+void TopBarWidget::updateMembersShowArea() {
 	if (!App::main()) {
 		return;
 	}
@@ -496,7 +498,7 @@ void HistoryTopBarWidget::updateMembersShowArea() {
 	_membersShowArea->setGeometry(getMembersShowAreaGeometry());
 }
 
-void HistoryTopBarWidget::showSelected(SelectedState state) {
+void TopBarWidget::showSelected(SelectedState state) {
 	auto canDelete = (state.count > 0 && state.count == state.canDeleteCount);
 	auto canForward = (state.count > 0 && state.count == state.canForwardCount);
 	if (_selectedCount == state.count && _canDelete == canDelete && _canForward == canForward) {
@@ -539,12 +541,12 @@ void HistoryTopBarWidget::showSelected(SelectedState state) {
 	}
 }
 
-void HistoryTopBarWidget::selectedShowCallback() {
+void TopBarWidget::selectedShowCallback() {
 	updateControlsGeometry();
 	update();
 }
 
-void HistoryTopBarWidget::updateAdaptiveLayout() {
+void TopBarWidget::updateAdaptiveLayout() {
 	updateControlsVisibility();
 	if (Adaptive::OneColumn()) {
 		createUnreadBadge();
@@ -555,7 +557,7 @@ void HistoryTopBarWidget::updateAdaptiveLayout() {
 	updateInfoToggleActive();
 }
 
-void HistoryTopBarWidget::createUnreadBadge() {
+void TopBarWidget::createUnreadBadge() {
 	if (_unreadBadge) {
 		return;
 	}
@@ -569,7 +571,7 @@ void HistoryTopBarWidget::createUnreadBadge() {
 	updateUnreadBadge();
 }
 
-void HistoryTopBarWidget::updateUnreadBadge() {
+void TopBarWidget::updateUnreadBadge() {
 	if (!_unreadBadge) return;
 
 	auto mutedCount = App::histories().unreadMutedCount();
@@ -596,7 +598,7 @@ void HistoryTopBarWidget::updateUnreadBadge() {
 	}(), active);
 }
 
-void HistoryTopBarWidget::updateInfoToggleActive() {
+void TopBarWidget::updateInfoToggleActive() {
 	auto infoThirdActive = Adaptive::ThreeColumn()
 		&& (Auth().settings().thirdSectionInfoEnabled()
 			|| Auth().settings().tabbedReplacedWithInfo());
@@ -610,7 +612,7 @@ void HistoryTopBarWidget::updateInfoToggleActive() {
 	_infoToggle->setRippleColorOverride(rippleOverride);
 }
 
-void HistoryTopBarWidget::updateOnlineDisplay() {
+void TopBarWidget::updateOnlineDisplay() {
 	if (!_historyPeer) return;
 
 	QString text;
@@ -689,7 +691,7 @@ void HistoryTopBarWidget::updateOnlineDisplay() {
 	updateOnlineDisplayTimer();
 }
 
-void HistoryTopBarWidget::updateOnlineDisplayTimer() {
+void TopBarWidget::updateOnlineDisplayTimer() {
 	if (!_historyPeer) return;
 
 	const auto now = unixtime();
@@ -709,6 +711,8 @@ void HistoryTopBarWidget::updateOnlineDisplayTimer() {
 	updateOnlineDisplayIn(minTimeout);
 }
 
-void HistoryTopBarWidget::updateOnlineDisplayIn(TimeMs timeout) {
+void TopBarWidget::updateOnlineDisplayIn(TimeMs timeout) {
 	_onlineUpdater.callOnce(timeout);
 }
+
+} // namespace HistoryView

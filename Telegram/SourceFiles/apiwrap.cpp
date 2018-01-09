@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 #include "storage/storage_user_photos.h"
 #include "storage/storage_media_prepare.h"
+#include "storage/storage_feed_messages.h"
 #include "data/data_sparse_ids.h"
 #include "data/data_search_controller.h"
 #include "data/data_channel_admins.h"
@@ -49,6 +50,7 @@ constexpr auto kUnreadMentionsPreloadIfLess = 5;
 constexpr auto kUnreadMentionsFirstRequestLimit = 10;
 constexpr auto kUnreadMentionsNextRequestLimit = 100;
 constexpr auto kSharedMediaLimit = 100;
+constexpr auto kFeedMessagesLimit = 50;
 constexpr auto kReadFeaturedSetsTimeout = TimeMs(1000);
 constexpr auto kFileLoaderQueueStopTimeout = TimeMs(5000);
 
@@ -2515,6 +2517,125 @@ void ApiWrap::userPhotosDone(
 		std::move(photoIds),
 		fullCount
 	));
+}
+
+void ApiWrap::requestFeedMessages(
+		not_null<Data::Feed*> feed,
+		Data::MessagePosition messageId,
+		SliceType slice) {
+	const auto key = std::make_tuple(feed, messageId, slice);
+	if (_feedMessagesRequests.contains(key)) {
+		return;
+	}
+
+	const auto addOffset = 0;
+	const auto limit = kFeedMessagesLimit;
+	const auto sourcesHash = int32(0);
+	const auto hash = int32(0);
+	const auto flags = (messageId && messageId.fullId.channel)
+		? MTPchannels_GetFeed::Flag::f_offset_position
+		: MTPchannels_GetFeed::Flag::f_offset_to_max_read;
+	const auto requestId = request(MTPchannels_GetFeed(
+		MTP_flags(flags),
+		MTP_int(feed->id()),
+		MTP_feedPosition(
+			MTP_int(messageId.date),
+			MTP_peerChannel(MTP_int(messageId.fullId.channel)),
+			MTP_int(messageId.fullId.msg)),
+		MTP_int(addOffset),
+		MTP_int(limit),
+		MTPFeedPosition(),
+		MTPFeedPosition(),
+		MTP_int(sourcesHash),
+		MTP_int(hash)
+	)).done([=](const MTPmessages_FeedMessages &result) {
+		const auto key = std::make_tuple(feed, messageId, slice);
+		_feedMessagesRequests.remove(key);
+		feedMessagesDone(feed, messageId, slice, result);
+	}).fail([=](const RPCError &error) {
+		_feedMessagesRequests.remove(key);
+	}).send();
+	_feedMessagesRequests.emplace(key, requestId);
+}
+
+void ApiWrap::feedMessagesDone(
+		not_null<Data::Feed*> feed,
+		Data::MessagePosition messageId,
+		SliceType slice,
+		const MTPmessages_FeedMessages &result) {
+	if (result.type() == mtpc_messages_feedMessagesNotModified) {
+		LOG(("API Error: Unexpected messages.feedMessagesNotModified."));
+		_session->storage().add(Storage::FeedMessagesAddSlice(
+			feed->id(),
+			std::vector<Data::MessagePosition>(),
+			Data::FullMessagesRange));
+		return;
+	}
+	Assert(result.type() == mtpc_messages_feedMessages);
+	const auto &data = result.c_messages_feedMessages();
+	const auto &messages = data.vmessages.v;
+	const auto type = NewMessageExisting;
+
+	auto ids = std::vector<Data::MessagePosition>();
+	auto noSkipRange = Data::MessagesRange(messageId, messageId);
+	auto accumulateFrom = [](auto &from, const auto &candidate) {
+		if (!from || from > candidate) {
+			from = candidate;
+		}
+	};
+	auto accumulateTill = [](auto &till, const auto &candidate) {
+		if (!till || till < candidate) {
+			till = candidate;
+		}
+	};
+	App::feedUsers(data.vusers);
+	App::feedChats(data.vchats);
+	if (!messages.empty()) {
+		ids.reserve(messages.size());
+		for (const auto &msg : messages) {
+			if (const auto item = App::histories().addNewMessage(msg, type)) {
+				const auto position = item->position();
+				ids.push_back(position);
+				accumulateFrom(noSkipRange.from, position);
+				accumulateTill(noSkipRange.till, position);
+			}
+		}
+		ranges::reverse(ids);
+	}
+	if (data.has_min_position()) {
+		accumulateFrom(
+			noSkipRange.from,
+			Data::FeedPositionFromMTP(data.vmin_position));
+	} else {
+		noSkipRange.from = Data::MinMessagePosition;
+	}
+	if (data.has_max_position()) {
+		accumulateTill(
+			noSkipRange.till,
+			Data::FeedPositionFromMTP(data.vmax_position));
+	} else {
+		noSkipRange.till = Data::MaxMessagePosition;
+	}
+
+	const auto unreadPosition = [&] {
+		if (data.has_read_max_position()) {
+			return Data::FeedPositionFromMTP(data.vread_max_position);
+		} else if (!messageId) {
+			return ids.empty()
+				? noSkipRange.till
+				: ids.back();
+		}
+		return Data::MessagePosition();
+	}();
+
+	_session->storage().add(Storage::FeedMessagesAddSlice(
+		feed->id(),
+		std::move(ids),
+		noSkipRange));
+
+	if (unreadPosition) {
+		feed->setUnreadPosition(unreadPosition);
+	}
 }
 
 void ApiWrap::sendAction(const SendOptions &options) {

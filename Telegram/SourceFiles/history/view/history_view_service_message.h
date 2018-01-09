@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class HistoryService;
 
-namespace HistoryLayout {
+namespace HistoryView {
 
 int WideChatWidth();
 
@@ -49,4 +49,4 @@ void serviceColorsUpdated();
 
 void paintBubble(Painter &p, QRect rect, int outerWidth, bool selected, bool outbg, RectPart tailSide);
 
-} // namespace HistoryLayout
+} // namespace HistoryView

@@ -361,17 +361,17 @@ void SparseIdsSliceBuilder::requestMessages(
 		RequestDirection direction) {
 	auto requestAroundData = [&]() -> AroundData {
 		if (_ids.empty()) {
-			return { _key, SparseIdsLoadDirection::Around };
+			return { _key, Data::LoadDirection::Around };
 		} else if (direction == RequestDirection::Before) {
-			return { _ids.front(), SparseIdsLoadDirection::Before };
+			return { _ids.front(), Data::LoadDirection::Before };
 		}
-		return { _ids.back(), SparseIdsLoadDirection::After };
+		return { _ids.back(), Data::LoadDirection::After };
 	};
 	_insufficientAround.fire(requestAroundData());
 }
 
 void SparseIdsSliceBuilder::requestMessagesCount() {
-	_insufficientAround.fire({ 0, SparseIdsLoadDirection::Around });
+	_insufficientAround.fire({ 0, Data::LoadDirection::Around });
 }
 
 SparseIdsSlice SparseIdsSliceBuilder::snapshot() const {

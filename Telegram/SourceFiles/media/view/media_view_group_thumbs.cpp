@@ -503,9 +503,7 @@ auto GroupThumbs::validateCacheEntry(Key key) -> not_null<Thumb*> {
 }
 
 void GroupThumbs::markCacheStale() {
-	while (!_dying.empty()) {
-		_dying.pop_back();
-	}
+	_dying.clear();
 	for (const auto &cacheItem : _cache) {
 		const auto &thumb = cacheItem.second;
 		thumb->setState(Thumb::State::Unknown);

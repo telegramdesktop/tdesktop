@@ -10,10 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
-#include "history/history_service_layout.h"
 #include "history/history_media_types.h"
 #include "history/history_message.h"
 #include "history/history_item_components.h"
+#include "history/view/history_view_service_message.h"
 #include "data/data_feed.h"
 #include "auth_session.h"
 #include "window/notifications_manager.h"
@@ -512,8 +512,8 @@ void HistoryService::draw(Painter &p, QRect clip, TextSelection selection, TimeM
 		height -= unreadbarh;
 	}
 
-	HistoryLayout::PaintContext context(ms, clip, selection);
-	HistoryLayout::ServiceMessagePainter::paint(p, this, context, height);
+	HistoryView::PaintContext context(ms, clip, selection);
+	HistoryView::ServiceMessagePainter::paint(p, this, context, height);
 
 	if (auto skiph = dateh + unreadbarh) {
 		p.translate(0, -skiph);

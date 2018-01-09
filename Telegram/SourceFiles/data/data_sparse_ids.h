@@ -7,16 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_messages.h"
+
 namespace Storage {
 struct SparseIdsListResult;
 struct SparseIdsSliceUpdate;
 } // namespace Storage
-
-enum class SparseIdsLoadDirection {
-	Around,
-	Before,
-	After,
-};
 
 class SparseIdsSlice {
 public:
@@ -178,8 +174,7 @@ public:
 	void checkInsufficient();
 	struct AroundData {
 		MsgId aroundId = 0;
-		SparseIdsLoadDirection direction
-			= SparseIdsLoadDirection::Around;
+		Data::LoadDirection direction = Data::LoadDirection::Around;
 
 		inline bool operator<(const AroundData &other) const {
 			return (aroundId < other.aroundId)

@@ -65,12 +65,15 @@ enum class MimeDataState;
 struct PreparedList;
 } // namespace Storage
 
+namespace HistoryView {
+class TopBarWidget;
+} // namespace HistoryView
+
 class DragArea;
 class SendFilesBox;
 class BotKeyboard;
 class MessageField;
 class HistoryInner;
-class HistoryTopBarWidget;
 struct HistoryMessageMarkupButton;
 
 class ReportSpamPanel : public TWidget {
@@ -592,6 +595,7 @@ private:
 	void drawRecording(Painter &p, float64 recordActive);
 	void drawPinnedBar(Painter &p);
 	void drawRestrictedWrite(Painter &p);
+	bool paintShowAnimationFrame(TimeMs ms);
 
 	void updateMouseTracking();
 
@@ -740,7 +744,7 @@ private:
 	MsgId _delayedShowAtMsgId = -1; // wtf?
 	mtpRequestId _delayedShowAtRequest = 0;
 
-	object_ptr<HistoryTopBarWidget> _topBar;
+	object_ptr<HistoryView::TopBarWidget> _topBar;
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<HistoryInner> _list;
 	History *_migrated = nullptr;

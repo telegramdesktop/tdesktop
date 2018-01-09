@@ -11,16 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 
-FeedPosition::FeedPosition(const MTPFeedPosition &position)
-: date(position.c_feedPosition().vdate.v)
-, msgId(
-	peerToChannel(peerFromMTP(position.c_feedPosition().vpeer)),
-	position.c_feedPosition().vid.v) {
-}
+MessagePosition FeedPositionFromMTP(const MTPFeedPosition &position) {
+	Expects(position.type() == mtpc_feedPosition);
 
-FeedPosition::FeedPosition(not_null<HistoryItem*> item)
-: date(toServerTime(item->date.toTime_t()).v)
-, msgId(item->fullId()) {
+	const auto &data = position.c_feedPosition();
+	return MessagePosition(data.vdate.v, FullMsgId(
+		peerToChannel(peerFromMTP(data.vpeer)),
+		data.vid.v));
 }
 
 Feed::Feed(FeedId id)
@@ -82,7 +79,7 @@ void Feed::paintUserpic(
 }
 
 bool Feed::justSetLastMessage(not_null<HistoryItem*> item) {
-	if (_lastMessage && FeedPosition(item) <= FeedPosition(_lastMessage)) {
+	if (_lastMessage && item->position() <= _lastMessage->position()) {
 		return false;
 	}
 	_lastMessage = item;
@@ -116,10 +113,6 @@ void Feed::recountLastMessage() {
 void Feed::setUnreadCounts(int unreadCount, int unreadMutedCount) {
 	_unreadCount = unreadCount;
 	_unreadMutedCount = unreadMutedCount;
-}
-
-void Feed::setUnreadPosition(const FeedPosition &position) {
-	_unreadPosition = position;
 }
 
 } // namespace Data

@@ -38,7 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_widget.h"
 #include "history/history_message.h"
 #include "history/history_media.h"
-#include "history/history_service_layout.h"
+#include "history/view/history_view_service_message.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_cloud_manager.h"
 #include "boxes/add_contact_box.h"
@@ -3530,7 +3530,7 @@ void MainWidget::updateWindowAdaptiveLayout() {
 		//	auto thirdColumnWidth = _history->tabbedSelectorSectionWidth();
 		//	auto twoColumnsWidth = (layout.bodyWidth - thirdColumnWidth);
 		//	auto sameRatioChatWidth = twoColumnsWidth - qRound(dialogsWidthRatio * twoColumnsWidth);
-		//	auto desiredChatWidth = qMax(sameRatioChatWidth, HistoryLayout::WideChatWidth());
+		//	auto desiredChatWidth = qMax(sameRatioChatWidth, HistoryView::WideChatWidth());
 		//	chatWidth -= thirdColumnWidth;
 		//	auto extendChatBy = desiredChatWidth - chatWidth;
 		//	accumulate_min(extendChatBy, layout.dialogsWidth - st::columnMinimalWidthLeft);

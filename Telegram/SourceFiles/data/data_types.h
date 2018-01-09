@@ -133,29 +133,43 @@ inline bool operator!=(const MsgRange &a, const MsgRange &b) {
 }
 
 struct FullMsgId {
-	FullMsgId() = default;
-	FullMsgId(ChannelId channel, MsgId msg) : channel(channel), msg(msg) {
+	constexpr FullMsgId() = default;
+	constexpr FullMsgId(ChannelId channel, MsgId msg) : channel(channel), msg(msg) {
 	}
+
 	explicit operator bool() const {
 		return msg != 0;
 	}
+
+
+	inline constexpr bool operator<(const FullMsgId &other) const {
+		if (channel < other.channel) {
+			return true;
+		} else if (channel > other.channel) {
+			return false;
+		}
+		return msg < other.msg;
+	}
+	inline constexpr bool operator>(const FullMsgId &other) const {
+		return other < *this;
+	}
+	inline constexpr bool operator<=(const FullMsgId &other) const {
+		return !(other < *this);
+	}
+	inline constexpr bool operator>=(const FullMsgId &other) const {
+		return !(*this < other);
+	}
+	inline constexpr bool operator==(const FullMsgId &other) const {
+		return (channel == other.channel) && (msg == other.msg);
+	}
+	inline constexpr bool operator!=(const FullMsgId &other) const {
+		return !(*this == other);
+	}
+
 	ChannelId channel = NoChannel;
 	MsgId msg = 0;
+
 };
-inline bool operator==(const FullMsgId &a, const FullMsgId &b) {
-	return (a.channel == b.channel) && (a.msg == b.msg);
-}
-inline bool operator!=(const FullMsgId &a, const FullMsgId &b) {
-	return !(a == b);
-}
-inline bool operator<(const FullMsgId &a, const FullMsgId &b) {
-	if (a.channel < b.channel) {
-		return true;
-	} else if (a.channel > b.channel) {
-		return false;
-	}
-	return a.msg < b.msg;
-}
 
 using MessageIdsList = std::vector<FullMsgId>;
 

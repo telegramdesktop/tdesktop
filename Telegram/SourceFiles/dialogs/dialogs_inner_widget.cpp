@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/dialogs_layout.h"
 #include "dialogs/dialogs_search_from_controllers.h"
+#include "history/feed/history_feed_section.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
@@ -1739,8 +1740,8 @@ void DialogsInner::applyFeedDialog(const MTPDdialogFeed &dialog) {
 		addSavedPeersAfter(feed->chatsListDate());
 	}
 	if (dialog.has_read_max_position()) {
-		const auto position = Data::FeedPosition(dialog.vread_max_position);
-		feed->setUnreadPosition(position);
+		feed->setUnreadPosition(
+			Data::FeedPositionFromMTP(dialog.vread_max_position));
 	}
 }
 
@@ -2307,8 +2308,7 @@ bool DialogsInner::chooseRow() {
 		if (const auto history = chosen.key.history()) {
 			App::main()->choosePeer(history->peer->id, chosen.messageId);
 		} else if (const auto feed = chosen.key.feed()) {
-			// #TODO feeds open
-//			_controller->showSection(HistoryFeed::Memento(feed));
+			_controller->showSection(HistoryFeed::Memento(feed));
 		}
 		if (openSearchResult) {
 			emit searchResultChosen();

@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/scroll_area.h"
-#include "history/history_top_bar_widget.h"
+#include "history/view/history_view_top_bar_widget.h"
 
 namespace Window {
 class Controller;
@@ -50,7 +50,7 @@ public:
 	bool canCopySelected() const;
 	bool canDeleteSelected() const;
 
-	HistoryTopBarWidget::SelectedState getSelectionState() const;
+	HistoryView::TopBarWidget::SelectedState getSelectionState() const;
 	void clearSelectedItems(bool onlyTextSelection = false);
 	MessageIdsList getSelectedItems() const;
 	void selectItem(not_null<HistoryItem*> item);

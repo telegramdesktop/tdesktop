@@ -11,9 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_history.h"
 #include "core/file_utilities.h"
 #include "history/history_message.h"
-#include "history/history_service_layout.h"
 #include "history/history_media_types.h"
 #include "history/history_item_components.h"
+#include "history/view/history_view_service_message.h"
 #include "ui/text_options.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
@@ -475,7 +475,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			p.restoreTextPalette();
 		}
 	} else if (noHistoryDisplayed) {
-		HistoryLayout::paintEmpty(p, width(), height());
+		HistoryView::paintEmpty(p, width(), height());
 	}
 	if (!noHistoryDisplayed) {
 		auto readMentions = base::flat_set<not_null<HistoryItem*>>();
@@ -637,7 +637,11 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 						if (auto date = item->Get<HistoryMessageDate>()) {
 							date->paint(p, dateY, width);
 						} else {
-							HistoryLayout::ServiceMessagePainter::paintDate(p, item->date, dateY, width);
+							HistoryView::ServiceMessagePainter::paintDate(
+								p,
+								item->date,
+								dateY,
+								width);
 						}
 					}
 				}
@@ -2117,8 +2121,9 @@ bool HistoryInner::canDeleteSelected() const {
 	return (selectedState.count > 0) && (selectedState.count == selectedState.canDeleteCount);
 }
 
-HistoryTopBarWidget::SelectedState HistoryInner::getSelectionState() const {
-	auto result = HistoryTopBarWidget::SelectedState {};
+auto HistoryInner::getSelectionState() const
+-> HistoryView::TopBarWidget::SelectedState {
+	auto result = HistoryView::TopBarWidget::SelectedState {};
 	for (auto &selected : _selected) {
 		if (selected.second == FullSelection) {
 			++result.count;

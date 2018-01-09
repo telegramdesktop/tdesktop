@@ -8,51 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "dialogs/dialogs_entry.h"
+#include "data/data_messages.h"
 
 class ChannelData;
 
 namespace Data {
 
-struct FeedPosition {
-	FeedPosition() = default;
-	explicit FeedPosition(const MTPFeedPosition &position);
-	explicit FeedPosition(not_null<HistoryItem*> item);
-	FeedPosition(TimeId date, FullMsgId msgId) : date(date), msgId(msgId) {
-	}
-
-	explicit operator bool() const {
-		return (msgId.msg != 0);
-	}
-
-	inline bool operator<(const FeedPosition &other) const {
-		if (date < other.date) {
-			return true;
-		} else if (other.date < date) {
-			return false;
-		}
-		return (msgId < other.msgId);
-	}
-	inline bool operator>(const FeedPosition &other) const {
-		return other < *this;
-	}
-	inline bool operator<=(const FeedPosition &other) const {
-		return !(other < *this);
-	}
-	inline bool operator>=(const FeedPosition &other) const {
-		return !(*this < other);
-	}
-	inline bool operator==(const FeedPosition &other) const {
-		return (date == other.date)
-			&& (msgId == other.msgId);
-	}
-	inline bool operator!=(const FeedPosition &other) const {
-		return !(*this == other);
-	}
-
-	TimeId date = 0;
-	FullMsgId msgId;
-
-};
+MessagePosition FeedPositionFromMTP(const MTPFeedPosition &position);
 
 class Feed : public Dialogs::Entry {
 public:
@@ -69,7 +31,15 @@ public:
 	void historyCleared(not_null<History*> history);
 
 	void setUnreadCounts(int unreadCount, int unreadMutedCount);
-	void setUnreadPosition(const FeedPosition &position);
+	void setUnreadPosition(const MessagePosition &position) {
+		_unreadPosition = position;
+	}
+	MessagePosition unreadPosition() const {
+		return _unreadPosition.current();
+	}
+	rpl::producer<MessagePosition> unreadPositionChanges() const {
+		return _unreadPosition.changes();
+	}
 
 	bool toImportant() const override {
 		return false; // TODO feeds workmode
@@ -99,7 +69,7 @@ private:
 
 	HistoryItem *_lastMessage = nullptr;
 
-	FeedPosition _unreadPosition;
+	rpl::variable<MessagePosition> _unreadPosition;
 	int _unreadCount = 0;
 	int _unreadMutedCount = 0;
 	bool _complete = false;

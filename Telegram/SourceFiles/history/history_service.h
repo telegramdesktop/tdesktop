@@ -34,9 +34,9 @@ struct HistoryServiceSelfDestruct : public RuntimeComponent<HistoryServiceSelfDe
 	TimeMs destructAt = 0;
 };
 
-namespace HistoryLayout {
+namespace HistoryView {
 class ServiceMessagePainter;
-} // namespace HistoryLayout
+} // namespace HistoryView
 
 class HistoryService : public HistoryItem, private HistoryItemInstantiated<HistoryService> {
 public:
@@ -102,7 +102,7 @@ public:
 	~HistoryService();
 
 protected:
-	friend class HistoryLayout::ServiceMessagePainter;
+	friend class HistoryView::ServiceMessagePainter;
 
 	HistoryService(not_null<History*> history, const MTPDmessage &message);
 	HistoryService(not_null<History*> history, const MTPDmessageService &message);

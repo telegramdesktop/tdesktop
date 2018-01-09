@@ -24,11 +24,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "data/data_session.h"
 #include "history/history_message.h"
-#include "history/history_service_layout.h"
 #include "history/history_media_types.h"
 #include "history/history_drag_area.h"
 #include "history/history_inner_widget.h"
 #include "history/history_item_components.h"
+#include "history/view/history_view_service_message.h"
 #include "profile/profile_block_group_members.h"
 #include "info/info_memento.h"
 #include "core/click_handler_types.h"
@@ -51,7 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/media_audio_capture.h"
 #include "media/player/media_player_instance.h"
 #include "apiwrap.h"
-#include "history/history_top_bar_widget.h"
+#include "history/view/history_view_top_bar_widget.h"
 #include "observer_peer.h"
 #include "base/qthelp_regex.h"
 #include "ui/widgets/popup_menu.h"
@@ -1704,7 +1704,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 	noSelectingScroll();
 	_nonEmptySelection = false;
-	_topBar->showSelected(HistoryTopBarWidget::SelectedState {});
+	_topBar->showSelected(HistoryView::TopBarWidget::SelectedState {});
 
 	App::hoveredItem(nullptr);
 	App::pressedItem(nullptr);
@@ -3039,7 +3039,7 @@ void HistoryWidget::showAnimated(
 	_a_show.start([this] { animationCallback(); }, 0., 1., st::slideDuration, Window::SlideAnimation::transition());
 	if (_history) {
 		_topBar->show();
-		_topBar->setAnimationMode(true);
+		_topBar->setAnimatingMode(true);
 	}
 
 	activate();
@@ -3056,7 +3056,7 @@ void HistoryWidget::animationCallback() {
 }
 
 void HistoryWidget::doneShow() {
-	_topBar->setAnimationMode(false);
+	_topBar->setAnimatingMode(false);
 	updateReportSpamStatus();
 	updateBotKeyboard();
 	updateControlsVisibility();
@@ -6142,7 +6142,7 @@ MessageIdsList HistoryWidget::getSelectedItems() const {
 
 void HistoryWidget::updateTopBarSelection() {
 	if (!_list) {
-		_topBar->showSelected(HistoryTopBarWidget::SelectedState {});
+		_topBar->showSelected(HistoryView::TopBarWidget::SelectedState {});
 		return;
 	}
 
@@ -6489,81 +6489,52 @@ void HistoryWidget::drawPinnedBar(Painter &p) {
 	}
 }
 
+bool HistoryWidget::paintShowAnimationFrame(TimeMs ms) {
+	auto progress = _a_show.current(ms, 1.);
+	if (!_a_show.animating()) {
+		return false;
+	}
+
+	Painter p(this);
+	auto animationWidth = width();
+	auto retina = cIntRetinaFactor();
+	auto fromLeft = (_showDirection == Window::SlideDirection::FromLeft);
+	auto coordUnder = fromLeft ? anim::interpolate(-st::slideShift, 0, progress) : anim::interpolate(0, -st::slideShift, progress);
+	auto coordOver = fromLeft ? anim::interpolate(0, animationWidth, progress) : anim::interpolate(animationWidth, 0, progress);
+	auto shadow = fromLeft ? (1. - progress) : progress;
+	if (coordOver > 0) {
+		p.drawPixmap(QRect(0, 0, coordOver, height()), _cacheUnder, QRect(-coordUnder * retina, 0, coordOver * retina, height() * retina));
+		p.setOpacity(shadow);
+		p.fillRect(0, 0, coordOver, height(), st::slideFadeOutBg);
+		p.setOpacity(1);
+	}
+	p.drawPixmap(QRect(coordOver, 0, _cacheOver.width() / retina, height()), _cacheOver, QRect(0, 0, _cacheOver.width(), height() * retina));
+	p.setOpacity(shadow);
+	st::slideShadow.fill(p, QRect(coordOver - st::slideShadow.width(), 0, st::slideShadow.width(), height()));
+	return true;
+}
+
 void HistoryWidget::paintEvent(QPaintEvent *e) {
-	if (!App::main() || (App::wnd() && App::wnd()->contentOverlapped(this, e))) {
+	auto ms = getms();
+	_historyDownShown.step(ms);
+	_unreadMentionsShown.step(ms);
+	if (paintShowAnimationFrame(ms)) {
+		return;
+	}
+	if (Ui::skipPaintEvent(this, e)) {
 		return;
 	}
 	if (hasPendingResizedItems()) {
 		updateListSize();
 	}
 
+	Window::SectionWidget::PaintBackground(this, e);
+
 	Painter p(this);
-	QRect r(e->rect());
-	if (r != rect()) {
-		p.setClipRect(r);
-	}
-
-	auto ms = getms();
-	_historyDownShown.step(ms);
-	_unreadMentionsShown.step(ms);
-	auto progress = _a_show.current(ms, 1.);
-	if (_a_show.animating()) {
-		auto animationWidth = width();
-		auto retina = cIntRetinaFactor();
-		auto fromLeft = (_showDirection == Window::SlideDirection::FromLeft);
-		auto coordUnder = fromLeft ? anim::interpolate(-st::slideShift, 0, progress) : anim::interpolate(0, -st::slideShift, progress);
-		auto coordOver = fromLeft ? anim::interpolate(0, animationWidth, progress) : anim::interpolate(animationWidth, 0, progress);
-		auto shadow = fromLeft ? (1. - progress) : progress;
-		if (coordOver > 0) {
-			p.drawPixmap(QRect(0, 0, coordOver, height()), _cacheUnder, QRect(-coordUnder * retina, 0, coordOver * retina, height() * retina));
-			p.setOpacity(shadow);
-			p.fillRect(0, 0, coordOver, height(), st::slideFadeOutBg);
-			p.setOpacity(1);
-		}
-		p.drawPixmap(QRect(coordOver, 0, _cacheOver.width() / retina, height()), _cacheOver, QRect(0, 0, _cacheOver.width(), height() * retina));
-		p.setOpacity(shadow);
-		st::slideShadow.fill(p, QRect(coordOver - st::slideShadow.width(), 0, st::slideShadow.width(), height()));
-		return;
-	}
-
-	QRect fill(0, 0, width(), App::main()->height());
-	auto fromy = App::main()->backgroundFromY();
-	auto x = 0, y = 0;
-	QPixmap cached = App::main()->cachedBackground(fill, x, y);
-	if (cached.isNull()) {
-		if (Window::Theme::Background()->tile()) {
-			auto &pix = Window::Theme::Background()->pixmapForTiled();
-			auto left = r.left();
-			auto top = r.top();
-			auto right = r.left() + r.width();
-			auto bottom = r.top() + r.height();
-			auto w = pix.width() / cRetinaFactor();
-			auto h = pix.height() / cRetinaFactor();
-			auto sx = qFloor(left / w);
-			auto sy = qFloor((top - fromy) / h);
-			auto cx = qCeil(right / w);
-			auto cy = qCeil((bottom - fromy) / h);
-			for (auto i = sx; i < cx; ++i) {
-				for (auto j = sy; j < cy; ++j) {
-					p.drawPixmap(QPointF(i * w, fromy + j * h), pix);
-				}
-			}
-		} else {
-			PainterHighQualityEnabler hq(p);
-
-			auto &pix = Window::Theme::Background()->pixmap();
-			QRect to, from;
-			Window::Theme::ComputeBackgroundRects(fill, pix.size(), to, from);
-			to.moveTop(to.top() + fromy);
-			p.drawPixmap(to, pix, from);
-		}
-	} else {
-		p.drawPixmap(x, fromy + y, cached);
-	}
-
+	const auto clip = e->rect();
 	if (_list) {
 		if (!_field->isHidden() || _recording) {
-			drawField(p, r);
+			drawField(p, clip);
 			if (!_send->isHidden() && _recording) {
 				drawRecording(p, _send->recordActiveRatio());
 			}
@@ -6575,13 +6546,13 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		}
 		if (_scroll->isHidden()) {
 			p.setClipRect(_scroll->geometry());
-			HistoryLayout::paintEmpty(p, width(), height() - _field->height() - 2 * st::historySendPadding);
+			HistoryView::paintEmpty(p, width(), height() - _field->height() - 2 * st::historySendPadding);
 		}
 	} else {
 		style::font font(st::msgServiceFont);
 		int32 w = font->width(lang(lng_willbe_history)) + st::msgPadding.left() + st::msgPadding.right(), h = font->height + st::msgServicePadding.top() + st::msgServicePadding.bottom() + 2;
 		QRect tr((width() - w) / 2, (height() - _field->height() - 2 * st::historySendPadding - h) / 2, w, h);
-		HistoryLayout::ServiceMessagePainter::paintBubble(p, tr.x(), tr.y(), tr.width(), tr.height());
+		HistoryView::ServiceMessagePainter::paintBubble(p, tr.x(), tr.y(), tr.width(), tr.height());
 
 		p.setPen(st::msgServiceFg);
 		p.setFont(font->f);

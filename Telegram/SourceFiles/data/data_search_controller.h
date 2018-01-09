@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 #include "base/value_ordering.h"
 
+namespace Data {
+enum class LoadDirection : char;
+} // namespace Data
+
 namespace Api {
 
 struct SearchResult {
@@ -26,13 +30,13 @@ MTPmessages_Search PrepareSearchRequest(
 	Storage::SharedMediaType type,
 	const QString &query,
 	MsgId messageId,
-	SparseIdsLoadDirection direction);
+	Data::LoadDirection direction);
 
 SearchResult ParseSearchResult(
 	not_null<PeerData*> peer,
 	Storage::SharedMediaType type,
 	MsgId messageId,
-	SparseIdsLoadDirection direction,
+	Data::LoadDirection direction,
 	const MTPmessages_Messages &data);
 
 class SearchController : private MTP::Sender {

@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_info_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/labels.h"
-#include "history/history_admin_log_section.h"
+#include "history/admin_log/history_admin_log_section.h"
 #include "window/window_controller.h"
 #include "profile/profile_channel_controllers.h"
 #include "info/profile/info_profile_button.h"

@@ -13,9 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "history/history_item_components.h"
 #include "history/history_location_manager.h"
-#include "history/history_service_layout.h"
 #include "history/history_media_types.h"
 #include "history/history_service.h"
+#include "history/view/history_view_service_message.h"
 #include "auth_session.h"
 #include "boxes/share_box.h"
 #include "boxes/confirm_box.h"
@@ -1797,7 +1797,7 @@ void HistoryMessage::draw(Painter &p, QRect clip, TextSelection selection, TimeM
 			|| (_media && _media->skipBubbleTail())
 			|| (keyboard != nullptr);
 		auto displayTail = skipTail ? RectPart::None : (outbg && !Adaptive::ChatWide()) ? RectPart::Right : RectPart::Left;
-		HistoryLayout::paintBubble(p, g, width(), selected, outbg, displayTail);
+		HistoryView::paintBubble(p, g, width(), selected, outbg, displayTail);
 
 		// Entry page is always a bubble bottom.
 		auto mediaOnBottom = (mediaDisplayed && _media->isBubbleBottom()) || (entry/* && entry->_page->isBubbleBottom()*/);

@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "history/history_service_layout.h"
+#include "history/view/history_view_service_message.h"
 
 #include "history/history_service.h"
 #include "history/history_media.h"
@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
 
-namespace HistoryLayout {
+namespace HistoryView {
 namespace {
 
 enum CircleMask {
@@ -359,4 +359,4 @@ void paintBubble(Painter &p, QRect rect, int outerWidth, bool selected, bool out
 	App::roundRect(p, rect, bg, cors, &sh, parts);
 }
 
-} // namespace HistoryLayout
+} // namespace HistoryView

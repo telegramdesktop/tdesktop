@@ -9,15 +9,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <rpl/event_stream.h>
 #include "base/timer.h"
-#include "core/single_timer.h"
-#include "mtproto/sender.h"
 #include "base/flat_map.h"
 #include "base/flat_set.h"
+#include "core/single_timer.h"
+#include "mtproto/sender.h"
 #include "chat_helpers/stickers.h"
+#include "data/data_messages.h"
 
 class TaskQueue;
 class AuthSession;
-enum class SparseIdsLoadDirection;
 struct MessageGroupId;
 struct SendingAlbum;
 enum class SendMediaType;
@@ -129,7 +129,7 @@ public:
 		bool adminsEnabled,
 		base::flat_set<not_null<UserData*>> &&admins);
 
-	using SliceType = SparseIdsLoadDirection;
+	using SliceType = Data::LoadDirection;
 	void requestSharedMedia(
 		not_null<PeerData*> peer,
 		Storage::SharedMediaType type,
@@ -142,6 +142,11 @@ public:
 	void requestUserPhotos(
 		not_null<UserData*> user,
 		PhotoId afterId);
+
+	void requestFeedMessages(
+		not_null<Data::Feed*> feed,
+		Data::MessagePosition messageId,
+		SliceType slice);
 
 	void stickerSetInstalled(uint64 setId) {
 		_stickerSetInstalled.fire_copy(setId);
@@ -300,6 +305,12 @@ private:
 		PhotoId photoId,
 		const MTPphotos_Photos &result);
 
+	void feedMessagesDone(
+		not_null<Data::Feed*> feed,
+		Data::MessagePosition messageId,
+		SliceType slice,
+		const MTPmessages_FeedMessages &result);
+
 	void sendSharedContact(
 		const QString &phone,
 		const QString &firstName,
@@ -416,6 +427,11 @@ private:
 		SliceType>, mtpRequestId> _sharedMediaRequests;
 
 	base::flat_map<not_null<UserData*>, mtpRequestId> _userPhotosRequests;
+
+	base::flat_map<std::tuple<
+		not_null<Data::Feed*>,
+		Data::MessagePosition,
+		SliceType>, mtpRequestId> _feedMessagesRequests;
 
 	rpl::event_stream<SendOptions> _sendActions;
 

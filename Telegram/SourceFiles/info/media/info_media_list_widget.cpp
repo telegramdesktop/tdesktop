@@ -791,8 +791,7 @@ void ListWidget::refreshViewer() {
 		idForViewer,
 		_idsLimit,
 		_idsLimit
-	) | rpl::start_with_next([=](
-			SparseIdsMergedSlice &&slice) {
+	) | rpl::start_with_next([=](SparseIdsMergedSlice &&slice) {
 		if (!slice.fullCount()) {
 			// Don't display anything while full count is unknown.
 			return;

@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/producer.h>
 #include "base/enum_mask.h"
 
+namespace Data {
+struct MessagesResult;
+} // namespace Data
+
 namespace Storage {
 
 struct SparseIdsListResult;
@@ -30,6 +34,14 @@ struct UserPhotosRemoveAfter;
 struct UserPhotosQuery;
 struct UserPhotosResult;
 struct UserPhotosSliceUpdate;
+
+struct FeedMessagesAddNew;
+struct FeedMessagesAddSlice;
+struct FeedMessagesRemoveOne;
+struct FeedMessagesRemoveAll;
+struct FeedMessagesQuery;
+using FeedMessagesResult = Data::MessagesResult;
+struct FeedMessagesSliceUpdate;
 
 class Facade {
 public:
@@ -53,6 +65,17 @@ public:
 
 	rpl::producer<UserPhotosResult> query(UserPhotosQuery &&query) const;
 	rpl::producer<UserPhotosSliceUpdate> userPhotosSliceUpdated() const;
+
+	void add(FeedMessagesAddNew &&query);
+	void add(FeedMessagesAddSlice &&query);
+	void remove(FeedMessagesRemoveOne &&query);
+	void remove(FeedMessagesRemoveAll &&query);
+
+	rpl::producer<FeedMessagesResult> query(
+		FeedMessagesQuery &&query) const;
+	rpl::producer<FeedMessagesSliceUpdate> feedMessagesSliceUpdated() const;
+	rpl::producer<FeedMessagesRemoveOne> feedMessagesOneRemoved() const;
+	rpl::producer<FeedMessagesRemoveAll> feedMessagesAllRemoved() const;
 
 	~Facade();
 

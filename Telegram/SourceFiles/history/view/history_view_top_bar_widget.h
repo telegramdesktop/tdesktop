@@ -22,9 +22,11 @@ namespace Window {
 class Controller;
 } // namespace Window
 
-class HistoryTopBarWidget : public Ui::RpWidget, private base::Subscriber {
+namespace HistoryView {
+
+class TopBarWidget : public Ui::RpWidget, private base::Subscriber {
 public:
-	HistoryTopBarWidget(
+	TopBarWidget(
 		QWidget *parent,
 		not_null<Window::Controller*> controller);
 
@@ -41,14 +43,9 @@ public:
 	rpl::producer<bool> membersShowAreaActive() const {
 		return _membersShowAreaActive.events();
 	}
-	void setAnimationMode(bool enabled);
+	void setAnimatingMode(bool enabled);
 
 	void setHistoryPeer(PeerData *historyPeer);
-
-	static void paintUnreadCounter(
-		Painter &p,
-		int outerWidth,
-		PeerData *substractPeer = nullptr);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -116,9 +113,11 @@ private:
 	int _titlePeerTextWidth = 0;
 	int _leftTaken = 0;
 	int _rightTaken = 0;
-	bool _animationMode = false;
+	bool _animatingMode = false;
 
 	int _unreadCounterSubscription = 0;
 	base::Timer _onlineUpdater;
 
 };
+
+} // namespace HistoryView

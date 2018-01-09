@@ -10,10 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "history/history_item_components.h"
-#include "history/history_service_layout.h"
 #include "history/history_media_types.h"
 #include "history/history_media_grouped.h"
 #include "history/history_message.h"
+#include "history/view/history_view_service_message.h"
 #include "media/media_clip_reader.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "core/crash_reports.h"
 #include "data/data_session.h"
+#include "data/data_messages.h"
 #include "data/data_feed.h"
 
 namespace {
@@ -633,6 +634,10 @@ QString HistoryItem::directLink() const {
 		return Messenger::Instance().createInternalLinkFull(query);
 	}
 	return QString();
+}
+
+Data::MessagePosition HistoryItem::position() const {
+	return Data::MessagePosition(toServerTime(date.toTime_t()).v, fullId());
 }
 
 MsgId HistoryItem::replyToId() const {

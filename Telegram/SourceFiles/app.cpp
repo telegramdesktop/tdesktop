@@ -19,10 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/data_abstract_structure.h"
 #include "data/data_session.h"
-#include "history/history_service_layout.h"
 #include "history/history_location_manager.h"
 #include "history/history_media_types.h"
 #include "history/history_item_components.h"
+#include "history/view/history_view_service_message.h"
 #include "media/media_audio.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "messenger.h"
@@ -2141,7 +2141,7 @@ namespace {
 				if (App::main()) {
 					App::main()->updateScrollColors();
 				}
-				HistoryLayout::serviceColorsUpdated();
+				HistoryView::serviceColorsUpdated();
 			} else if (update.type == Update::Type::New) {
 				prepareCorners(StickerCorners, st::dateRadius, st::msgServiceBg);
 				prepareCorners(StickerSelectedCorners, st::dateRadius, st::msgServiceBgSelected);
@@ -2149,7 +2149,7 @@ namespace {
 				if (App::main()) {
 					App::main()->updateScrollColors();
 				}
-				HistoryLayout::serviceColorsUpdated();
+				HistoryView::serviceColorsUpdated();
 			}
 		});
 	}

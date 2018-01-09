@@ -126,6 +126,8 @@ public:
 		return false;
 	}
 
+	static void PaintBackground(QWidget *widget, QPaintEvent *event);
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 

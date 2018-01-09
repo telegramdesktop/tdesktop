@@ -56,6 +56,7 @@ void SharedMedia::add(SharedMediaAddExisting &&query) {
 
 void SharedMedia::add(SharedMediaAddSlice &&query) {
 	Expects(IsValidSharedMediaType(query.type));
+
 	auto peerIt = enforceLists(query.peerId);
 	auto index = static_cast<int>(query.type);
 	peerIt->second[index].addSlice(

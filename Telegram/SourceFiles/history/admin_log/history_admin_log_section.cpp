@@ -5,10 +5,10 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "history/history_admin_log_section.h"
+#include "history/admin_log/history_admin_log_section.h"
 
-#include "history/history_admin_log_inner.h"
-#include "history/history_admin_log_filter.h"
+#include "history/admin_log/history_admin_log_inner.h"
+#include "history/admin_log/history_admin_log_filter.h"
 #include "profile/profile_back_button.h"
 #include "styles/style_history.h"
 #include "styles/style_window.h"
@@ -379,45 +379,10 @@ void Widget::paintEvent(QPaintEvent *e) {
 	//	updateListSize();
 	//}
 
-	Painter p(this);
-	auto clip = e->rect();
-	auto ms = getms();
+	//auto ms = getms();
 	//_historyDownShown.step(ms);
 
-	auto fill = QRect(0, 0, width(), App::main()->height());
-	auto fromy = App::main()->backgroundFromY();
-	auto x = 0, y = 0;
-	auto cached = App::main()->cachedBackground(fill, x, y);
-	if (cached.isNull()) {
-		if (Window::Theme::Background()->tile()) {
-			auto &pix = Window::Theme::Background()->pixmapForTiled();
-			auto left = clip.left();
-			auto top = clip.top();
-			auto right = clip.left() + clip.width();
-			auto bottom = clip.top() + clip.height();
-			auto w = pix.width() / cRetinaFactor();
-			auto h = pix.height() / cRetinaFactor();
-			auto sx = qFloor(left / w);
-			auto sy = qFloor((top - fromy) / h);
-			auto cx = qCeil(right / w);
-			auto cy = qCeil((bottom - fromy) / h);
-			for (auto i = sx; i < cx; ++i) {
-				for (auto j = sy; j < cy; ++j) {
-					p.drawPixmap(QPointF(i * w, fromy + j * h), pix);
-				}
-			}
-		} else {
-			PainterHighQualityEnabler hq(p);
-
-			auto &pix = Window::Theme::Background()->pixmap();
-			QRect to, from;
-			Window::Theme::ComputeBackgroundRects(fill, pix.size(), to, from);
-			to.moveTop(to.top() + fromy);
-			p.drawPixmap(to, pix, from);
-		}
-	} else {
-		p.drawPixmap(x, fromy + y, cached);
-	}
+	SectionWidget::PaintBackground(this, e);
 }
 
 void Widget::onScroll() {
