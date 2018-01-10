@@ -123,6 +123,8 @@ private:
 
 class SectionMemento : public Window::SectionMemento {
 public:
+	using Message = HistoryView::Message;
+
 	SectionMemento(not_null<ChannelData*> channel) : _channel(channel) {
 	}
 
@@ -155,7 +157,11 @@ public:
 		return std::move(_adminsCanEdit);
 	}
 
-	void setItems(std::vector<HistoryItemOwned> &&items, std::map<uint64, HistoryItem*> &&itemsByIds, bool upLoaded, bool downLoaded) {
+	void setItems(
+			std::vector<OwnedItem> &&items,
+			std::map<uint64, not_null<Message*>> &&itemsByIds,
+			bool upLoaded,
+			bool downLoaded) {
 		_items = std::move(items);
 		_itemsByIds = std::move(itemsByIds);
 		_upLoaded = upLoaded;
@@ -170,10 +176,10 @@ public:
 	void setIdManager(LocalIdManager &&manager) {
 		_idManager = std::move(manager);
 	}
-	std::vector<HistoryItemOwned> takeItems() {
+	std::vector<OwnedItem> takeItems() {
 		return std::move(_items);
 	}
-	std::map<uint64, HistoryItem*> takeItemsByIds() {
+	std::map<uint64, not_null<Message*>> takeItemsByIds() {
 		return std::move(_itemsByIds);
 	}
 	LocalIdManager takeIdManager() {
@@ -197,8 +203,8 @@ private:
 	int _scrollTop = 0;
 	std::vector<not_null<UserData*>> _admins;
 	std::vector<not_null<UserData*>> _adminsCanEdit;
-	std::vector<HistoryItemOwned> _items;
-	std::map<uint64, HistoryItem*> _itemsByIds;
+	std::vector<OwnedItem> _items;
+	std::map<uint64, not_null<Message*>> _itemsByIds;
 	bool _upLoaded = false;
 	bool _downLoaded = true;
 	LocalIdManager _idManager;

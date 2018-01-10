@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/admin_log/history_admin_log_item.h"
 
+#include "history/admin_log/history_admin_log_inner.h"
+#include "history/view/history_view_message.h"
 #include "history/history_service.h"
 #include "history/history_message.h"
-#include "history/admin_log/history_admin_log_inner.h"
 #include "lang/lang_keys.h"
 #include "boxes/sticker_set_box.h"
 #include "core/tl_help.h"
@@ -281,7 +282,32 @@ TextWithEntities GenerateParticipantChangeText(not_null<ChannelData*> channel, c
 
 } // namespace
 
-void GenerateItems(not_null<History*> history, LocalIdManager &idManager, const MTPDchannelAdminLogEvent &event, base::lambda<void(HistoryItemOwned item)> callback) {
+OwnedItem::OwnedItem(not_null<HistoryItem*> data)
+: _data(data)
+, _view(std::make_unique<HistoryView::Message>(
+	data,
+	HistoryView::Context::AdminLog)) {
+}
+
+OwnedItem::OwnedItem(OwnedItem &&other)
+: _data(base::take(other._data))
+, _view(base::take(other._view)) {
+}
+
+OwnedItem &OwnedItem::operator=(OwnedItem &&other) {
+	_data = base::take(other._data);
+	_view = base::take(other._view);
+	return *this;
+}
+
+OwnedItem::~OwnedItem() {
+	_view = nullptr;
+	if (_data) {
+		_data->destroy();
+	}
+}
+
+void GenerateItems(not_null<History*> history, LocalIdManager &idManager, const MTPDchannelAdminLogEvent &event, base::lambda<void(OwnedItem item)> callback) {
 	Expects(history->peer->isChannel());
 
 	auto id = event.vid.v;
@@ -290,7 +316,7 @@ void GenerateItems(not_null<History*> history, LocalIdManager &idManager, const 
 	auto &action = event.vaction;
 	auto date = event.vdate;
 	auto addPart = [&callback](not_null<HistoryItem*> item) {
-		return callback(HistoryItemOwned(item));
+		return callback(OwnedItem(item));
 	};
 
 	using Flag = MTPDmessage::Flag;

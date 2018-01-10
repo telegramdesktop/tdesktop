@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_media_types.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_service_message.h"
+#include "history/view/history_view_message.h"
 #include "ui/text_options.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
@@ -210,16 +211,16 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 	auto blockIndex = BinarySearchBlocksOrItems<TopToBottom>(history->blocks, searchEdge - historytop);
 
 	// Binary search for itemIndex of the first item that is not completely below the visible area.
-	auto block = history->blocks.at(blockIndex);
+	auto block = history->blocks[blockIndex].get();
 	auto blocktop = historytop + block->y();
 	auto blockbottom = blocktop + block->height();
-	auto itemIndex = BinarySearchBlocksOrItems<TopToBottom>(block->items, searchEdge - blocktop);
+	auto itemIndex = BinarySearchBlocksOrItems<TopToBottom>(block->messages, searchEdge - blocktop);
 
 	while (true) {
 		while (true) {
-			auto item = block->items.at(itemIndex);
-			auto itemtop = blocktop + item->y();
-			auto itembottom = itemtop + item->height();
+			auto view = block->messages[itemIndex].get();
+			auto itemtop = blocktop + view->y();
+			auto itembottom = itemtop + view->data()->height();
 
 			// Binary search should've skipped all the items that are above / below the visible area.
 			if (TopToBottom) {
@@ -228,7 +229,7 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 				Assert(itemtop < _visibleAreaBottom);
 			}
 
-			if (!method(item, itemtop, itembottom)) {
+			if (!method(view, itemtop, itembottom)) {
 				return;
 			}
 
@@ -244,7 +245,7 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 			}
 
 			if (TopToBottom) {
-				if (++itemIndex >= block->items.size()) {
+				if (++itemIndex >= block->messages.size()) {
 					break;
 				}
 			} else {
@@ -274,13 +275,13 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 				return;
 			}
 		}
-		block = history->blocks[blockIndex];
+		block = history->blocks[blockIndex].get();
 		blocktop = historytop + block->y();
 		blockbottom = blocktop + block->height();
 		if (TopToBottom) {
 			itemIndex = 0;
 		} else {
-			itemIndex = block->items.size() - 1;
+			itemIndex = block->messages.size() - 1;
 		}
 	}
 }
@@ -295,9 +296,10 @@ void HistoryInner::enumerateUserpics(Method method) {
 	// -1 means we didn't find an attached to next message yet.
 	int lowestAttachedItemTop = -1;
 
-	auto userpicCallback = [this, &lowestAttachedItemTop, &method](not_null<HistoryItem*> item, int itemtop, int itembottom) {
+	auto userpicCallback = [&](not_null<Message*> view, int itemtop, int itembottom) {
 		// Skip all service messages.
-		auto message = item->toHistoryMessage();
+		const auto item = view->data();
+		const auto message = item->toHistoryMessage();
 		if (!message) return true;
 
 		if (lowestAttachedItemTop < 0 && message->isAttachedToNext()) {
@@ -343,7 +345,8 @@ void HistoryInner::enumerateDates(Method method) {
 	// -1 means we didn't find a same-day with previous message yet.
 	auto lowestInOneDayItemBottom = -1;
 
-	auto dateCallback = [this, &lowestInOneDayItemBottom, &method, drawtop](not_null<HistoryItem*> item, int itemtop, int itembottom) {
+	auto dateCallback = [&](not_null<Message*> view, int itemtop, int itembottom) {
+		const auto item = view->data();
 		if (lowestInOneDayItemBottom < 0 && item->isInOneDayWithPrevious()) {
 			lowestInOneDayItemBottom = itembottom - item->marginBottom();
 		}
@@ -356,8 +359,8 @@ void HistoryInner::enumerateDates(Method method) {
 				if (itemtop > _visibleAreaTop) {
 					// Previous item (from the _migrated history) is drawing date now.
 					return false;
-				} else if (item == _history->blocks.front()->items.front() && item->isGroupMigrate()
-					&& _migrated->blocks.back()->items.back()->isGroupMigrate()) {
+				} else if (item == _history->blocks.front()->messages.front()->data() && item->isGroupMigrate()
+					&& _migrated->blocks.back()->messages.back()->data()->isGroupMigrate()) {
 					// This item is completely invisible and should be completely ignored.
 					return false;
 				}
@@ -430,12 +433,11 @@ TextSelection HistoryInner::computeRenderSelection(
 }
 
 TextSelection HistoryInner::itemRenderSelection(
-		not_null<HistoryItem*> item,
+		not_null<Message*> view,
 		int selfromy,
 		int seltoy) const {
-	Expects(!item->detached());
-
-	const auto y = item->block()->y() + item->y();
+	const auto item = view->data();
+	const auto y = item->block()->y() + view->y();
 	if (y >= selfromy && y < seltoy) {
 		if (_dragSelecting && !item->serviceMsg() && item->id > 0) {
 			return FullSelection;
@@ -497,16 +499,17 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		auto hdrawtop = historyDrawTop();
 		if (mtop >= 0) {
 			auto iBlock = (_curHistory == _migrated ? _curBlock : (_migrated->blocks.size() - 1));
-			auto block = _migrated->blocks[iBlock];
-			auto iItem = (_curHistory == _migrated ? _curItem : (block->items.size() - 1));
-			auto item = block->items[iItem];
+			auto block = _migrated->blocks[iBlock].get();
+			auto iItem = (_curHistory == _migrated ? _curItem : (block->messages.size() - 1));
+			auto view = block->messages[iItem].get();
+			auto item = view->data();
 
-			auto y = mtop + block->y() + item->y();
+			auto y = mtop + block->y() + view->y();
 			p.save();
 			p.translate(0, y);
 			if (clip.y() < y + item->height()) while (y < drawToY) {
 				const auto selection = itemRenderSelection(
-					item,
+					view,
 					selfromy - mtop,
 					seltoy - mtop);
 				item->draw(p, clip.translated(0, -y), selection, ms);
@@ -524,33 +527,35 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				y += h;
 
 				++iItem;
-				if (iItem == block->items.size()) {
+				if (iItem == block->messages.size()) {
 					iItem = 0;
 					++iBlock;
 					if (iBlock == _migrated->blocks.size()) {
 						break;
 					}
-					block = _migrated->blocks[iBlock];
+					block = _migrated->blocks[iBlock].get();
 				}
-				item = block->items[iItem];
+				view = block->messages[iItem].get();
+				item = view->data();
 			}
 			p.restore();
 		}
 		if (htop >= 0) {
 			auto iBlock = (_curHistory == _history ? _curBlock : 0);
-			auto block = _history->blocks[iBlock];
+			auto block = _history->blocks[iBlock].get();
 			auto iItem = (_curHistory == _history ? _curItem : 0);
-			auto item = block->items[iItem];
+			auto view = block->messages[iItem].get();
+			auto item = view->data();
 
 			auto hclip = clip.intersected(QRect(0, hdrawtop, width(), clip.top() + clip.height()));
-			auto y = htop + block->y() + item->y();
+			auto y = htop + block->y() + view->y();
 			p.save();
 			p.translate(0, y);
 			while (y < drawToY) {
 				auto h = item->height();
 				if (hclip.y() < y + h && hdrawtop < y + h) {
 					const auto selection = itemRenderSelection(
-						item,
+						view,
 						selfromy - htop,
 						seltoy - htop);
 					item->draw(p, hclip.translated(0, -y), selection, ms);
@@ -567,15 +572,16 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				y += h;
 
 				++iItem;
-				if (iItem == block->items.size()) {
+				if (iItem == block->messages.size()) {
 					iItem = 0;
 					++iBlock;
 					if (iBlock == _history->blocks.size()) {
 						break;
 					}
-					block = _history->blocks[iBlock];
+					block = _history->blocks[iBlock].get();
 				}
-				item = block->items[iItem];
+				view = block->messages[iItem].get();
+				item = view->data();
 			}
 			p.restore();
 		}
@@ -601,7 +607,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			int dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
 			//QDate lastDate;
 			//if (!_history->isEmpty()) {
-			//	lastDate = _history->blocks.back()->items.back()->date.date();
+			//	lastDate = _history->blocks.back()->messages.back()->data()->date.date();
 			//}
 
 			//// if item top is before this value always show date as a floating date
@@ -1775,11 +1781,11 @@ void HistoryInner::recountHistoryGeometry() {
 	_historySkipHeight = 0;
 	if (_migrated) {
 		if (!_migrated->isEmpty() && !_history->isEmpty() && _migrated->loadedAtBottom() && _history->loadedAtTop()) {
-			if (_migrated->blocks.back()->items.back()->date.date() == _history->blocks.front()->items.front()->date.date()) {
-				if (_migrated->blocks.back()->items.back()->isGroupMigrate() && _history->blocks.front()->items.front()->isGroupMigrate()) {
-					_historySkipHeight += _history->blocks.front()->items.front()->height();
+			if (_migrated->blocks.back()->messages.back()->data()->date.date() == _history->blocks.front()->messages.front()->data()->date.date()) {
+				if (_migrated->blocks.back()->messages.back()->data()->isGroupMigrate() && _history->blocks.front()->messages.front()->data()->isGroupMigrate()) {
+					_historySkipHeight += _history->blocks.front()->messages.front()->data()->height();
 				} else {
-					_historySkipHeight += _history->blocks.front()->items.front()->displayedDateHeight();
+					_historySkipHeight += _history->blocks.front()->messages.front()->data()->displayedDateHeight();
 				}
 			}
 		}
@@ -1923,7 +1929,7 @@ void HistoryInner::onScrollDateCheck() {
 	auto newScrollDateItem = _history->scrollTopItem ? _history->scrollTopItem : (_migrated ? _migrated->scrollTopItem : nullptr);
 	auto newScrollDateItemTop = _history->scrollTopItem ? _history->scrollTopOffset : (_migrated ? _migrated->scrollTopOffset : 0);
 	//if (newScrollDateItem && !displayScrollDate()) {
-	//	if (!_history->isEmpty() && newScrollDateItem->date.date() == _history->blocks.back()->items.back()->date.date()) {
+	//	if (!_history->isEmpty() && newScrollDateItem->date.date() == _history->blocks.back()->messages.back()->data()->date.date()) {
 	//		newScrollDateItem = nullptr;
 	//	}
 	//}
@@ -2065,32 +2071,34 @@ void HistoryInner::adjustCurrent(int32 y, History *history) const {
 		++_curBlock;
 		_curItem = 0;
 	}
-	auto block = history->blocks[_curBlock];
-	if (_curItem >= block->items.size()) {
-		_curItem = block->items.size() - 1;
+	auto block = history->blocks[_curBlock].get();
+	if (_curItem >= block->messages.size()) {
+		_curItem = block->messages.size() - 1;
 	}
 	auto by = block->y();
-	while (block->items[_curItem]->y() + by > y && _curItem > 0) {
+	while (block->messages[_curItem]->y() + by > y && _curItem > 0) {
 		--_curItem;
 	}
-	while (block->items[_curItem]->y() + block->items[_curItem]->height() + by <= y && _curItem + 1 < block->items.size()) {
+	while (block->messages[_curItem]->y() + block->messages[_curItem]->data()->height() + by <= y && _curItem + 1 < block->messages.size()) {
 		++_curItem;
 	}
 }
 
 HistoryItem *HistoryInner::prevItem(HistoryItem *item) {
-	if (!item || item->detached()) return nullptr;
+	if (!item || item->detached()) {
+		return nullptr;
+	}
 
-	HistoryBlock *block = item->block();
+	const auto block = item->block();
 	int blockIndex = block->indexInHistory(), itemIndex = item->indexInBlock();
 	if (itemIndex > 0) {
-		return block->items.at(itemIndex - 1);
+		return block->messages[itemIndex - 1]->data();
 	}
 	if (blockIndex > 0) {
-		return item->history()->blocks.at(blockIndex - 1)->items.back();
+		return item->history()->blocks[blockIndex - 1]->messages.back()->data();
 	}
 	if (item->history() == _history && _migrated && _history->loadedAtTop() && !_migrated->isEmpty() && _migrated->loadedAtBottom()) {
-		return _migrated->blocks.back()->items.back();
+		return _migrated->blocks.back()->messages.back()->data();
 	}
 	return nullptr;
 }
@@ -2098,16 +2106,16 @@ HistoryItem *HistoryInner::prevItem(HistoryItem *item) {
 HistoryItem *HistoryInner::nextItem(HistoryItem *item) {
 	if (!item || item->detached()) return nullptr;
 
-	HistoryBlock *block = item->block();
+	const auto block = item->block();
 	int blockIndex = block->indexInHistory(), itemIndex = item->indexInBlock();
-	if (itemIndex + 1 < block->items.size()) {
-		return block->items.at(itemIndex + 1);
+	if (itemIndex + 1 < block->messages.size()) {
+		return block->messages[itemIndex + 1]->data();
 	}
 	if (blockIndex + 1 < item->history()->blocks.size()) {
-		return item->history()->blocks.at(blockIndex + 1)->items.front();
+		return item->history()->blocks[blockIndex + 1]->messages.front()->data();
 	}
 	if (item->history() == _migrated && _history && _migrated->loadedAtBottom() && _history->loadedAtTop() && !_history->isEmpty()) {
-		return _history->blocks.front()->items.front();
+		return _history->blocks.front()->messages.front()->data();
 	}
 	return nullptr;
 }
@@ -2202,8 +2210,8 @@ void HistoryInner::onUpdateSelected() {
 
 	adjustCurrent(point.y());
 	if (_curHistory && !_curHistory->isEmpty()) {
-		block = _curHistory->blocks[_curBlock];
-		item = block->items[_curItem];
+		block = _curHistory->blocks[_curBlock].get();
+		item = block->messages[_curItem]->data();
 
 		App::mousedItem(item);
 		m = mapPointToItem(point, item);
@@ -2476,12 +2484,10 @@ int HistoryInner::historyScrollTop() const {
 	auto htop = historyTop();
 	auto mtop = migratedTop();
 	if (htop >= 0 && _history->scrollTopItem) {
-		Assert(!_history->scrollTopItem->detached());
-		return htop + _history->scrollTopItem->block()->y() + _history->scrollTopItem->y() + _history->scrollTopOffset;
+		return htop + _history->scrollTopItem->data()->block()->y() + _history->scrollTopItem->y() + _history->scrollTopOffset;
 	}
 	if (mtop >= 0 && _migrated->scrollTopItem) {
-		Assert(!_migrated->scrollTopItem->detached());
-		return mtop + _migrated->scrollTopItem->block()->y() + _migrated->scrollTopItem->y() + _migrated->scrollTopOffset;
+		return mtop + _migrated->scrollTopItem->data()->block()->y() + _migrated->scrollTopItem->y() + _migrated->scrollTopOffset;
 	}
 	return ScrollMax;
 }
@@ -2505,7 +2511,7 @@ int HistoryInner::itemTop(const HistoryItem *item) const { // -1 if should not b
 	if (item->detached()) return -1;
 
 	auto top = (item->history() == _history) ? historyTop() : (item->history() == _migrated ? migratedTop() : -2);
-	return (top < 0) ? top : (top + item->y() + item->block()->y());
+	return (top < 0) ? top : (top + item->mainView()->y() + item->block()->y());
 }
 
 void HistoryInner::notifyIsBotChanged() {
@@ -2531,7 +2537,10 @@ void HistoryInner::notifyMigrateUpdated() {
 	_migrated = _history->migrateFrom();
 }
 
-int HistoryInner::moveScrollFollowingInlineKeyboard(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop) {
+int HistoryInner::moveScrollFollowingInlineKeyboard(
+		const HistoryItem *item,
+		int oldKeyboardTop,
+		int newKeyboardTop) {
 	if (item == App::mousedItem()) {
 		int top = itemTop(item);
 		if (top >= oldKeyboardTop) {
@@ -2706,9 +2715,9 @@ void HistoryInner::addSelectionRange(
 		int toitem) const {
 	if (fromblock >= 0 && fromitem >= 0 && toblock >= 0 && toitem >= 0) {
 		for (; fromblock <= toblock; ++fromblock) {
-			auto block = history->blocks[fromblock];
-			for (int cnt = (fromblock < toblock) ? block->items.size() : (toitem + 1); fromitem < cnt; ++fromitem) {
-				auto item = block->items[fromitem];
+			auto block = history->blocks[fromblock].get();
+			for (int cnt = (fromblock < toblock) ? block->messages.size() : (toitem + 1); fromitem < cnt; ++fromitem) {
+				auto item = block->messages[fromitem]->data();
 				changeSelectionAsGroup(toItems, item, SelectAction::Select);
 			}
 			if (toItems->size() >= MaxSelectedItems) break;
@@ -2743,7 +2752,7 @@ void HistoryInner::applyDragSelection(
 					toblock = -1;
 					toitem = -1;
 				} else {
-					addSelectionRange(toItems, _migrated, fromblock, fromitem, _migrated->blocks.size() - 1, _migrated->blocks.back()->items.size() - 1);
+					addSelectionRange(toItems, _migrated, fromblock, fromitem, _migrated->blocks.size() - 1, _migrated->blocks.back()->messages.size() - 1);
 				}
 				fromblock = 0;
 				fromitem = 0;

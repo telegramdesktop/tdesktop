@@ -59,6 +59,7 @@ public:
 	bool cmd_search() override;
 
 	// HistoryView::ListDelegate interface.
+	HistoryView::Context listContext() override;
 	void listScrollTo(int top) override;
 	void listCloseRequest() override;
 	rpl::producer<Data::MessagesSlice> listSource(

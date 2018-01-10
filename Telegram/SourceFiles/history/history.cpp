@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history.h"
 
+#include "history/view/history_view_message.h"
 #include "history/history_message.h"
 #include "history/history_media_types.h"
 #include "history/history_service.h"
@@ -141,7 +142,11 @@ void History::setCloudDraft(std::unique_ptr<Data::Draft> &&draft) {
 
 Data::Draft *History::createCloudDraft(Data::Draft *fromDraft) {
 	if (Data::draftIsNull(fromDraft)) {
-		setCloudDraft(std::make_unique<Data::Draft>(TextWithTags(), 0, MessageCursor(), false));
+		setCloudDraft(std::make_unique<Data::Draft>(
+			TextWithTags(),
+			0,
+			MessageCursor(),
+			false));
 		cloudDraft()->date = QDateTime();
 	} else {
 		auto existing = cloudDraft();
@@ -369,11 +374,11 @@ void ChannelHistory::getRangeDifference() {
 	auto fromId = MsgId(0);
 	auto toId = MsgId(0);
 	for (auto blockIndex = 0, blocksCount = int(blocks.size()); blockIndex < blocksCount; ++blockIndex) {
-		auto block = blocks[blockIndex];
-		for (auto itemIndex = 0, itemsCount = int(block->items.size()); itemIndex < itemsCount; ++itemIndex) {
-			auto item = block->items[itemIndex];
-			if (item->id > 0) {
-				fromId = item->id;
+		const auto &block = blocks[blockIndex];
+		for (auto itemIndex = 0, itemsCount = int(block->messages.size()); itemIndex < itemsCount; ++itemIndex) {
+			const auto &message = block->messages[itemIndex];
+			if (message->id() > 0) {
+				fromId = message->id();
 				break;
 			}
 		}
@@ -382,11 +387,11 @@ void ChannelHistory::getRangeDifference() {
 	if (!fromId) return;
 
 	for (auto blockIndex = blocks.size(); blockIndex > 0;) {
-		auto block = blocks[--blockIndex];
-		for (auto itemIndex = block->items.size(); itemIndex > 0;) {
-			auto item = block->items[--itemIndex];
-			if (item->id > 0) {
-				toId = item->id;
+		const auto &block = blocks[--blockIndex];
+		for (auto itemIndex = block->messages.size(); itemIndex > 0;) {
+			const auto &message = block->messages[--itemIndex];
+			if (message->id() > 0) {
+				toId = message->id();
 				break;
 			}
 		}
@@ -438,9 +443,9 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 	}
 
 	for (auto blockIndex = blocks.size(); blockIndex > 0;) {
-		auto block = blocks[--blockIndex];
-		for (auto itemIndex = block->items.size(); itemIndex > 0;) {
-			auto item = block->items[--itemIndex];
+		const auto &block = blocks[--blockIndex];
+		for (auto itemIndex = block->messages.size(); itemIndex > 0;) {
+			const auto item = block->messages[--itemIndex]->data();
 
 			// Due to a server bug sometimes inviteDate is less (before) than the
 			// first message in the megagroup (message about migration), let us
@@ -497,8 +502,8 @@ void ChannelHistory::checkJoinedMessage(bool createUnread) {
 	QDateTime inviteDate = peer->asChannel()->inviteDate;
 	QDateTime firstDate, lastDate;
 	if (!blocks.empty()) {
-		firstDate = blocks.front()->items.front()->date;
-		lastDate = blocks.back()->items.back()->date;
+		firstDate = blocks.front()->messages.front()->data()->date;
+		lastDate = blocks.back()->messages.back()->data()->date;
 	}
 	if (!firstDate.isNull() && !lastDate.isNull() && (firstDate <= inviteDate || loadedAtTop()) && (lastDate > inviteDate || loadedAtBottom())) {
 		bool willBeLastMsg = (inviteDate >= lastDate);
@@ -514,9 +519,9 @@ void ChannelHistory::checkMaxReadMessageDate() {
 	if (_maxReadMessageDate.isValid()) return;
 
 	for (auto blockIndex = blocks.size(); blockIndex > 0;) {
-		auto block = blocks[--blockIndex];
-		for (auto itemIndex = block->items.size(); itemIndex > 0;) {
-			auto item = block->items[--itemIndex];
+		const auto &block = blocks[--blockIndex];
+		for (auto itemIndex = block->messages.size(); itemIndex > 0;) {
+			const auto item = block->messages[--itemIndex]->data();
 			if (!item->unread()) {
 				_maxReadMessageDate = item->date;
 				if (item->isGroupMigrate() && isMegagroup() && peer->migrateFrom()) {
@@ -1339,29 +1344,26 @@ HistoryBlock *History::prepareBlockForAddingItem() {
 			return _buildingFrontBlock->block;
 		}
 
-		auto result = _buildingFrontBlock->block = new HistoryBlock(this);
-		if (_buildingFrontBlock->expectedItemsCount > 0) {
-			result->items.reserve(_buildingFrontBlock->expectedItemsCount + 1);
-		}
-		result->setIndexInHistory(0);
-		blocks.push_front(result);
-		for (int i = 1, l = blocks.size(); i < l; ++i) {
+		blocks.push_front(std::make_unique<HistoryBlock>(this));
+		for (auto i = 0, l = int(blocks.size()); i != l; ++i) {
 			blocks[i]->setIndexInHistory(i);
 		}
-		return result;
+		_buildingFrontBlock->block = blocks.front().get();
+		if (_buildingFrontBlock->expectedItemsCount > 0) {
+			_buildingFrontBlock->block->messages.reserve(
+				_buildingFrontBlock->expectedItemsCount + 1);
+		}
+		return _buildingFrontBlock->block;
 	}
 
-	auto addNewBlock = blocks.empty() || (blocks.back()->items.size() >= kNewBlockEachMessage);
-	if (!addNewBlock) {
-		return blocks.back();
+	const auto addNewBlock = blocks.empty()
+		|| (blocks.back()->messages.size() >= kNewBlockEachMessage);
+	if (addNewBlock) {
+		blocks.push_back(std::make_unique<HistoryBlock>(this));
+		blocks.back()->setIndexInHistory(blocks.size() - 1);
+		blocks.back()->messages.reserve(kNewBlockEachMessage);
 	}
-
-	auto result = new HistoryBlock(this);
-	result->setIndexInHistory(blocks.size());
-	blocks.push_back(result);
-
-	result->items.reserve(kNewBlockEachMessage);
-	return result;
+	return blocks.back().get();
 };
 
 void History::addItemToBlock(not_null<HistoryItem*> item) {
@@ -1369,8 +1371,10 @@ void History::addItemToBlock(not_null<HistoryItem*> item) {
 
 	auto block = prepareBlockForAddingItem();
 
-	item->attachToBlock(block, block->items.size());
-	block->items.push_back(item);
+	block->messages.push_back(std::make_unique<HistoryView::Message>(
+		item,
+		HistoryView::Context::History));
+	item->attachToBlock(block, block->messages.size() - 1);
 	item->previousItemChanged();
 
 	if (isBuildingFrontBlock() && _buildingFrontBlock->expectedItemsCount > 0) {
@@ -1379,62 +1383,11 @@ void History::addItemToBlock(not_null<HistoryItem*> item) {
 }
 
 template <int kSharedMediaTypeCount>
-void History::addToSharedMedia(std::vector<MsgId> (&medias)[kSharedMediaTypeCount], bool force) {
+void History::addToSharedMedia(
+		std::vector<MsgId> (&medias)[kSharedMediaTypeCount],
+		bool force) {
 	auto from = loadedAtTop() ? 0 : minMsgId();
 	auto till = loadedAtBottom() ? ServerMaxMsgId : maxMsgId();
-	if (from > till) {
-		// History is desync, nothing good can be added.
-		//// Logging
-		auto value = QStringList();
-		for (auto block : blocks) {
-			auto indices = QStringList();
-			auto &items = block->items;
-			auto count = int(items.size());
-			auto logItem = [&](auto &&item) {
-				indices.push_back(QString::number(item->id));
-			};
-			if (count < 4) {
-				for (auto item : items) {
-					logItem(item);
-				}
-			} else {
-				auto last = 0;
-				auto logLast = [&] {
-					logItem(items[last]);
-				};
-				auto logTill = [&](int till) {
-					if (last < till - 1) {
-						indices.push_back("...["
-							+ QString::number(till - 1 - last)
-							+ "]...");
-					}
-					last = till;
-					logLast();
-				};
-				auto badPair = [&](int index) {
-					auto prev = items[index - 1]->id;
-					auto next = items[index]->id;
-					return IsServerMsgId(prev)
-						&& IsServerMsgId(next)
-						&& (next < prev);
-				};
-
-				logLast();
-				for (auto i = 1; i != count - 1; ++i) {
-					if (badPair(i) || badPair(i + 1)) {
-						logTill(i);
-					}
-				}
-				logTill(count - 1);
-			}
-			value.push_back(indices.join(","));
-		}
-		CrashReports::SetAnnotation("full", value.join(";"));
-		Assert(!"History desync caught!");
-		//// Logging
-
-		return;
-	}
 	for (auto i = 0; i != Storage::kSharedMediaTypeCount; ++i) {
 		if (force || !medias[i].empty()) {
 			auto type = static_cast<Storage::SharedMediaType>(i);
@@ -1507,8 +1460,8 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 			// lastParticipants are displayed in Profile as members list.
 			markupSenders = &peer->asChannel()->mgInfo->markupSenders;
 		}
-		for (auto i = block->items.size(); i > 0; --i) {
-			auto item = block->items[i - 1];
+		for (auto i = block->messages.size(); i > 0; --i) {
+			const auto item = block->messages[i - 1]->data();
 			item->addToUnreadMentions(UnreadMentionType::Existing);
 			if (item->from()->id) {
 				if (lastAuthors) { // chats
@@ -1678,8 +1631,9 @@ void History::checkAddAllToUnreadMentions() {
 		return;
 	}
 
-	for (const auto block : blocks) {
-		for (const auto item : block->items) {
+	for (const auto &block : blocks) {
+		for (const auto &message : block->messages) {
+			const auto item = message->data();
 			item->addToUnreadMentions(UnreadMentionType::Existing);
 		}
 	}
@@ -1688,13 +1642,14 @@ void History::checkAddAllToUnreadMentions() {
 void History::addBlockToSharedMedia(HistoryBlock *block) {
 	std::vector<MsgId> medias[Storage::kSharedMediaTypeCount];
 	if (block) {
-		for (auto item : block->items) {
+		for (const auto &message : block->messages) {
+			const auto item = message->data();
 			if (auto types = item->sharedMediaTypes()) {
 				for (auto i = 0; i != Storage::kSharedMediaTypeCount; ++i) {
 					auto type = static_cast<Storage::SharedMediaType>(i);
 					if (types.test(type)) {
 						if (medias[i].empty()) {
-							medias[i].reserve(block->items.size());
+							medias[i].reserve(block->messages.size());
 						}
 						medias[i].push_back(item->id);
 					}
@@ -1709,11 +1664,13 @@ int History::countUnread(MsgId upTo) {
 	int result = 0;
 	for (auto i = blocks.cend(), e = blocks.cbegin(); i != e;) {
 		--i;
-		for (auto j = (*i)->items.cend(), en = (*i)->items.cbegin(); j != en;) {
+		const auto &messages = (*i)->messages;
+		for (auto j = messages.cend(), en = messages.cbegin(); j != en;) {
 			--j;
-			if ((*j)->id > 0 && (*j)->id <= upTo) {
+			const auto item = (*j)->data();
+			if (item->id > 0 && item->id <= upTo) {
 				break;
-			} else if (!(*j)->out() && (*j)->unread() && (*j)->id > upTo) {
+			} else if (!item->out() && item->unread() && item->id > upTo) {
 				++result;
 			}
 		}
@@ -1726,11 +1683,13 @@ void History::updateShowFrom() {
 
 	for (auto i = blocks.cend(); i != blocks.cbegin();) {
 		--i;
-		for (auto j = (*i)->items.cend(); j != (*i)->items.cbegin();) {
+		const auto &messages = (*i)->messages;
+		for (auto j = messages.cend(); j != messages.cbegin();) {
 			--j;
-			if ((*j)->id > 0 && (!(*j)->out() || !showFrom)) {
-				if ((*j)->id >= inboxReadBefore) {
-					showFrom = *j;
+			const auto item = (*j)->data();
+			if (item->id > 0 && (!item->out() || !showFrom)) {
+				if (item->id >= inboxReadBefore) {
+					showFrom = item;
 				} else {
 					return;
 				}
@@ -1779,7 +1738,7 @@ MsgId History::outboxRead(HistoryItem *wasRead) {
 }
 
 HistoryItem *History::lastAvailableMessage() const {
-	return isEmpty() ? nullptr : blocks.back()->items.back();
+	return isEmpty() ? nullptr : blocks.back()->messages.back()->data().get();
 }
 
 void History::setUnreadCount(int newUnreadCount) {
@@ -1839,21 +1798,28 @@ bool History::changeMute(bool newMute) {
 }
 
 void History::getNextShowFrom(HistoryBlock *block, int i) {
+	const auto setFromMessage = [&](const auto &message) {
+		const auto item = message->data();
+		if (item->id > 0) {
+			showFrom = item;
+			return true;
+		}
+		return false;
+	};
 	if (i >= 0) {
-		auto l = block->items.size();
+		auto l = block->messages.size();
 		for (++i; i < l; ++i) {
-			if (block->items[i]->id > 0) {
-				showFrom = block->items[i];
+			const auto &message = block->messages[i];
+			if (setFromMessage(block->messages[i])) {
 				return;
 			}
 		}
 	}
 
 	for (auto j = block->indexInHistory() + 1, s = int(blocks.size()); j < s; ++j) {
-		block = blocks[j];
-		for_const (auto item, block->items) {
-			if (item->id > 0) {
-				showFrom = item;
+		block = blocks[j].get();
+		for (const auto &message : block->messages) {
+			if (setFromMessage(message)) {
 				return;
 			}
 		}
@@ -1874,7 +1840,7 @@ QDateTime History::adjustChatListDate() const {
 void History::countScrollState(int top) {
 	countScrollTopItem(top);
 	if (scrollTopItem) {
-		scrollTopOffset = (top - scrollTopItem->block()->y() - scrollTopItem->y());
+		scrollTopOffset = (top - scrollTopItem->data()->block()->y() - scrollTopItem->y());
 	}
 }
 
@@ -1884,64 +1850,65 @@ void History::countScrollTopItem(int top) {
 		return;
 	}
 
-	int itemIndex = 0, blockIndex = 0, itemTop = 0;
-	if (scrollTopItem && !scrollTopItem->detached()) {
-		itemIndex = scrollTopItem->indexInBlock();
-		blockIndex = scrollTopItem->block()->indexInHistory();
+	auto itemIndex = 0;
+	auto blockIndex = 0;
+	auto itemTop = 0;
+	if (scrollTopItem) {
+		itemIndex = scrollTopItem->data()->indexInBlock();
+		blockIndex = scrollTopItem->data()->block()->indexInHistory();
 		itemTop = blocks[blockIndex]->y() + scrollTopItem->y();
 	}
 	if (itemTop > top) {
 		// go backward through history while we don't find an item that starts above
 		do {
-			auto block = blocks[blockIndex];
+			const auto &block = blocks[blockIndex];
 			for (--itemIndex; itemIndex >= 0; --itemIndex) {
-				auto item = block->items[itemIndex];
-				itemTop = block->y() + item->y();
+				const auto view = block->messages[itemIndex].get();
+				itemTop = block->y() + view->y();
 				if (itemTop <= top) {
-					scrollTopItem = item;
+					scrollTopItem = view;
 					return;
 				}
 			}
 			if (--blockIndex >= 0) {
-				itemIndex = blocks[blockIndex]->items.size();
+				itemIndex = blocks[blockIndex]->messages.size();
 			} else {
 				break;
 			}
 		} while (true);
 
-		scrollTopItem = blocks.front()->items.front();
+		scrollTopItem = blocks.front()->messages.front().get();
 	} else {
 		// go forward through history while we don't find the last item that starts above
-		for (int blocksCount = blocks.size(); blockIndex < blocksCount; ++blockIndex) {
-			auto block = blocks[blockIndex];
-			for (int itemsCount = block->items.size(); itemIndex < itemsCount; ++itemIndex) {
-				auto item = block->items[itemIndex];
-				itemTop = block->y() + item->y();
+		for (auto blocksCount = int(blocks.size()); blockIndex < blocksCount; ++blockIndex) {
+			const auto &block = blocks[blockIndex];
+			for (auto itemsCount = int(block->messages.size()); itemIndex < itemsCount; ++itemIndex) {
+				itemTop = block->y() + block->messages[itemIndex]->y();
 				if (itemTop > top) {
 					Assert(itemIndex > 0 || blockIndex > 0);
 					if (itemIndex > 0) {
-						scrollTopItem = block->items[itemIndex - 1];
+						scrollTopItem = block->messages[itemIndex - 1].get();
 					} else {
-						scrollTopItem = blocks[blockIndex - 1]->items.back();
+						scrollTopItem = blocks[blockIndex - 1]->messages.back().get();
 					}
 					return;
 				}
 			}
 			itemIndex = 0;
 		}
-		scrollTopItem = blocks.back()->items.back();
+		scrollTopItem = blocks.back()->messages.back().get();
 	}
 }
 
 void History::getNextScrollTopItem(HistoryBlock *block, int32 i) {
 	++i;
-	if (i > 0 && i < block->items.size()) {
-		scrollTopItem = block->items[i];
+	if (i > 0 && i < block->messages.size()) {
+		scrollTopItem = block->messages[i].get();
 		return;
 	}
 	int j = block->indexInHistory() + 1;
 	if (j > 0 && j < blocks.size()) {
-		scrollTopItem = blocks[j]->items.front();
+		scrollTopItem = blocks[j]->messages.front().get();
 		return;
 	}
 	scrollTopItem = nullptr;
@@ -1966,24 +1933,29 @@ void History::destroyUnreadBar() {
 	}
 }
 
-not_null<HistoryItem*> History::addNewInTheMiddle(not_null<HistoryItem*> newItem, int32 blockIndex, int32 itemIndex) {
+not_null<HistoryItem*> History::addNewInTheMiddle(
+		not_null<HistoryItem*> newItem,
+		int blockIndex,
+		int itemIndex) {
 	Expects(blockIndex >= 0);
 	Expects(blockIndex < blocks.size());
 	Expects(itemIndex >= 0);
-	Expects(itemIndex <= blocks[blockIndex]->items.size());
+	Expects(itemIndex <= blocks[blockIndex]->messages.size());
 
-	auto block = blocks[blockIndex];
+	const auto &block = blocks[blockIndex];
 
-	newItem->attachToBlock(block, itemIndex);
-	block->items.insert(block->items.begin() + itemIndex, newItem);
+	block->messages.insert(
+		block->messages.begin() + itemIndex,
+		std::make_unique<HistoryView::Message>(newItem, HistoryView::Context::History));
+	newItem->attachToBlock(block.get(), itemIndex);
 	newItem->previousItemChanged();
-	if (itemIndex + 1 < block->items.size()) {
-		for (int i = itemIndex + 1, l = block->items.size(); i < l; ++i) {
-			block->items[i]->setIndexInBlock(i);
+	if (itemIndex + 1 < block->messages.size()) {
+		for (auto i = itemIndex + 1, l = int(block->messages.size()); i != l; ++i) {
+			block->messages[i]->data()->setIndexInBlock(i);
 		}
-		block->items[itemIndex + 1]->previousItemChanged();
-	} else if (blockIndex + 1 < blocks.size() && !blocks[blockIndex + 1]->items.empty()) {
-		blocks[blockIndex + 1]->items.front()->previousItemChanged();
+		block->messages[itemIndex + 1]->data()->previousItemChanged();
+	} else if (blockIndex + 1 < blocks.size() && !blocks[blockIndex + 1]->messages.empty()) {
+		blocks[blockIndex + 1]->messages.front()->data()->previousItemChanged();
 	} else {
 		newItem->nextItemChanged();
 	}
@@ -2001,10 +1973,10 @@ HistoryItem *History::findNextItem(not_null<HistoryItem*> item) const {
 
 	const auto nextBlockIndex = item->block()->indexInHistory() + 1;
 	const auto nextItemIndex = item->indexInBlock() + 1;
-	if (nextItemIndex < int(item->block()->items.size())) {
-		return item->block()->items[nextItemIndex];
+	if (nextItemIndex < int(item->block()->messages.size())) {
+		return item->block()->messages[nextItemIndex]->data();
 	} else if (nextBlockIndex < int(blocks.size())) {
-		return blocks[nextBlockIndex]->items.front();
+		return blocks[nextBlockIndex]->messages.front()->data();
 	}
 	return nullptr;
 }
@@ -2015,9 +1987,9 @@ HistoryItem *History::findPreviousItem(not_null<HistoryItem*> item) const {
 	const auto blockIndex = item->block()->indexInHistory();
 	const auto itemIndex = item->indexInBlock();
 	if (itemIndex > 0) {
-		return item->block()->items[itemIndex - 1];
+		return item->block()->messages[itemIndex - 1]->data();
 	} else if (blockIndex > 0) {
-		return blocks[blockIndex - 1]->items.back();
+		return blocks[blockIndex - 1]->messages.back()->data();
 	}
 	return nullptr;
 }
@@ -2162,14 +2134,14 @@ HistoryBlock *History::finishBuildingFrontBlock() {
 	auto block = _buildingFrontBlock->block;
 	if (block) {
 		if (blocks.size() > 1) {
-			auto last = block->items.back(); // ... item, item, item, last ], [ first, item, item ...
-			auto first = blocks[1]->items.front();
+			const auto last = block->messages.back()->data(); // ... item, item, item, last ], [ first, item, item ...
+			const auto first = blocks[1]->messages.front()->data();
 
 			// we've added a new front block, so previous item for
 			// the old first item of a first block was changed
 			first->previousItemChanged();
 		} else {
-			block->items.back()->nextItemChanged();
+			block->messages.back()->data()->nextItemChanged();
 		}
 	}
 
@@ -2288,8 +2260,9 @@ void History::fixLastMessage(bool wasAtBottom) {
 }
 
 MsgId History::minMsgId() const {
-	for (auto block : std::as_const(blocks)) {
-		for (auto item : std::as_const(block->items)) {
+	for (const auto &block : blocks) {
+		for (const auto &message : block->messages) {
+			const auto item = message->data();
 			if (IsServerMsgId(item->id)) {
 				return item->id;
 			}
@@ -2299,8 +2272,9 @@ MsgId History::minMsgId() const {
 }
 
 MsgId History::maxMsgId() const {
-	for (auto block : base::reversed(std::as_const(blocks))) {
-		for (auto item : base::reversed(std::as_const(block->items))) {
+	for (const auto &block : base::reversed(blocks)) {
+		for (const auto &message : base::reversed(block->messages)) {
+			const auto item = message->data();
 			if (IsServerMsgId(item->id)) {
 				return item->id;
 			}
@@ -2325,7 +2299,7 @@ int History::resizeGetHeight(int newWidth) {
 
 	width = newWidth;
 	int y = 0;
-	for_const (auto block, blocks) {
+	for (const auto &block : blocks) {
 		block->setY(y);
 		y += block->resizeGetHeight(newWidth, resizeAllItems);
 	}
@@ -2357,7 +2331,9 @@ History *History::migrateFrom() const {
 }
 
 bool History::isDisplayedEmpty() const {
-	return isEmpty() || ((blocks.size() == 1) && blocks.front()->items.size() == 1 && blocks.front()->items.front()->isEmpty());
+	return isEmpty() || ((blocks.size() == 1)
+		&& blocks.front()->messages.size() == 1
+		&& blocks.front()->messages.front()->data()->isEmpty());
 }
 
 bool History::hasOrphanMediaGroupPart() const {
@@ -2365,10 +2341,10 @@ bool History::hasOrphanMediaGroupPart() const {
 		return false;
 	} else if (blocks.size() != 1) {
 		return false;
-	} else if (blocks.front()->items.size() != 1) {
+	} else if (blocks.front()->messages.size() != 1) {
 		return false;
 	}
-	return blocks.front()->items.front()->groupId() != MessageGroupId();
+	return blocks.front()->messages.front()->data()->groupId() != MessageGroupId();
 }
 
 bool History::removeOrphanMediaGroupPart() {
@@ -2444,8 +2420,8 @@ void History::clearUpTill(MsgId availableMinId) {
 		return;
 	}
 	do {
-		auto item = blocks.front()->items.front();
-		auto itemId = item->id;
+		const auto item = blocks.front()->messages.front()->data();
+		const auto itemId = item->id;
 		if (IsServerMsgId(itemId) && itemId >= availableMinId) {
 			if (itemId == availableMinId) {
 				auto fromId = 0;
@@ -2472,21 +2448,19 @@ void History::clearUpTill(MsgId availableMinId) {
 
 void History::applyGroupAdminChanges(
 		const base::flat_map<UserId, bool> &changes) {
-	for (auto block : blocks) {
-		for (auto item : block->items) {
-			item->applyGroupAdminChanges(changes);
+	for (const auto &block : blocks) {
+		for (const auto &message : block->messages) {
+			message->data()->applyGroupAdminChanges(changes);
 		}
 	}
 }
 
 void History::clearBlocks(bool leaveItems) {
-	Blocks lst;
-	std::swap(lst, blocks);
-	for_const (HistoryBlock *block, lst) {
+	const auto cleared = base::take(blocks);
+	for (const auto &block : cleared) {
 		if (leaveItems) {
 			block->clear(true);
 		}
-		delete block;
 	}
 }
 
@@ -2518,7 +2492,7 @@ void History::changeMsgId(MsgId oldId, MsgId newId) {
 }
 
 void History::removeBlock(not_null<HistoryBlock*> block) {
-	Expects(block->items.empty());
+	Expects(block->messages.empty());
 
 	if (_buildingFrontBlock && block == _buildingFrontBlock->block) {
 		_buildingFrontBlock->block = nullptr;
@@ -2530,9 +2504,9 @@ void History::removeBlock(not_null<HistoryBlock*> block) {
 		for (int i = index, l = blocks.size(); i < l; ++i) {
 			blocks[i]->setIndexInHistory(i);
 		}
-		blocks[index]->items.front()->previousItemChanged();
-	} else if (!blocks.empty() && !blocks.back()->items.empty()) {
-		blocks.back()->items.back()->nextItemChanged();
+		blocks[index]->messages.front()->data()->previousItemChanged();
+	} else if (!blocks.empty() && !blocks.back()->messages.empty()) {
+		blocks.back()->messages.back()->data()->nextItemChanged();
 	}
 }
 
@@ -2540,10 +2514,16 @@ History::~History() {
 	clearOnDestroy();
 }
 
+HistoryBlock::HistoryBlock(not_null<History*> history)
+: _history(history) {
+}
+
 int HistoryBlock::resizeGetHeight(int newWidth, bool resizeAllItems) {
 	auto y = 0;
-	for_const (auto item, items) {
-		item->setY(y);
+	for (const auto &message : messages) {
+		message->setY(y);
+
+		const auto item = message->data();
 		if (resizeAllItems || item->pendingResize()) {
 			y += item->resizeGetHeight(newWidth);
 		} else {
@@ -2555,17 +2535,14 @@ int HistoryBlock::resizeGetHeight(int newWidth, bool resizeAllItems) {
 }
 
 void HistoryBlock::clear(bool leaveItems) {
-	auto itemsList = base::take(items);
+	const auto list = base::take(messages);
 
 	if (leaveItems) {
-		for_const (auto item, itemsList) {
-			item->detachFast();
-		}
-	} else {
-		for_const (auto item, itemsList) {
-			delete item;
+		for (const auto &message : list) {
+			message->data()->detachFast();
 		}
 	}
+	// #TODO feeds delete all items in history
 }
 
 void HistoryBlock::removeItem(not_null<HistoryItem*> item) {
@@ -2594,30 +2571,31 @@ void HistoryBlock::removeItem(not_null<HistoryItem*> item) {
 	if (_history->unreadBar == item) {
 		_history->unreadBar = nullptr;
 	}
-	if (_history->scrollTopItem == item) {
+	if (_history->scrollTopItem && _history->scrollTopItem->data() == item) {
 		_history->getNextScrollTopItem(this, itemIndex);
 	}
 
 	item->detachFast();
-	items.erase(items.begin() + itemIndex);
-	for (auto i = itemIndex, l = int(items.size()); i < l; ++i) {
-		items[i]->setIndexInBlock(i);
+	messages.erase(messages.begin() + itemIndex);
+	for (auto i = itemIndex, l = int(messages.size()); i < l; ++i) {
+		messages[i]->data()->setIndexInBlock(i);
 	}
-	if (items.empty()) {
+	if (messages.empty()) {
+		// Deletes this.
 		_history->removeBlock(this);
-	} else if (itemIndex < items.size()) {
-		items[itemIndex]->previousItemChanged();
+	} else if (itemIndex < messages.size()) {
+		messages[itemIndex]->data()->previousItemChanged();
 	} else if (blockIndex + 1 < _history->blocks.size()) {
-		_history->blocks[blockIndex + 1]->items.front()->previousItemChanged();
-	} else if (!_history->blocks.empty() && !_history->blocks.back()->items.empty()) {
-		_history->blocks.back()->items.back()->nextItemChanged();
-	}
-
-	if (items.empty()) {
-		delete this;
+		_history->blocks[blockIndex + 1]->messages.front()->data()->previousItemChanged();
+	} else if (!_history->blocks.empty() && !_history->blocks.back()->messages.empty()) {
+		_history->blocks.back()->messages.back()->data()->nextItemChanged();
 	}
 
 	if (needGroupRecount) {
 		groupHistory->recountGrouping(groupFrom, groupTill);
 	}
+}
+
+HistoryBlock::~HistoryBlock() {
+	clear();
 }

@@ -13,18 +13,25 @@ struct HistoryServiceDependentData {
 	ClickHandlerPtr lnk;
 };
 
-struct HistoryServicePinned : public RuntimeComponent<HistoryServicePinned>, public HistoryServiceDependentData {
+struct HistoryServicePinned
+	: public RuntimeComponent<HistoryServicePinned>
+	, public HistoryServiceDependentData {
 };
 
-struct HistoryServiceGameScore : public RuntimeComponent<HistoryServiceGameScore>, public HistoryServiceDependentData {
+struct HistoryServiceGameScore
+	: public RuntimeComponent<HistoryServiceGameScore>
+	, public HistoryServiceDependentData {
 	int score = 0;
 };
 
-struct HistoryServicePayment : public RuntimeComponent<HistoryServicePayment>, public HistoryServiceDependentData {
+struct HistoryServicePayment
+	: public RuntimeComponent<HistoryServicePayment>
+	, public HistoryServiceDependentData {
 	QString amount;
 };
 
-struct HistoryServiceSelfDestruct : public RuntimeComponent<HistoryServiceSelfDestruct> {
+struct HistoryServiceSelfDestruct
+	: public RuntimeComponent<HistoryServiceSelfDestruct> {
 	enum class Type {
 		Photo,
 		Video,

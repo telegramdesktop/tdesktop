@@ -9,42 +9,34 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace AdminLog {
 
-class HistoryItemOwned;
+class OwnedItem;
 class LocalIdManager;
 
-void GenerateItems(not_null<History*> history, LocalIdManager &idManager, const MTPDchannelAdminLogEvent &event, base::lambda<void(HistoryItemOwned item)> callback);
+void GenerateItems(not_null<History*> history, LocalIdManager &idManager, const MTPDchannelAdminLogEvent &event, base::lambda<void(OwnedItem item)> callback);
 
 // Smart pointer wrapper for HistoryItem* that destroys the owned item.
-class HistoryItemOwned {
+class OwnedItem {
 public:
-	explicit HistoryItemOwned(not_null<HistoryItem*> data) : _data(data) {
-	}
-	HistoryItemOwned(const HistoryItemOwned &other) = delete;
-	HistoryItemOwned &operator=(const HistoryItemOwned &other) = delete;
-	HistoryItemOwned(HistoryItemOwned &&other) : _data(base::take(other._data)) {
-	}
-	HistoryItemOwned &operator=(HistoryItemOwned &&other) {
-		_data = base::take(other._data);
-		return *this;
-	}
-	~HistoryItemOwned() {
-		if (_data) {
-			_data->destroy();
-		}
-	}
+	explicit OwnedItem(not_null<HistoryItem*> data);
+	OwnedItem(const OwnedItem &other) = delete;
+	OwnedItem &operator=(const OwnedItem &other) = delete;
+	OwnedItem(OwnedItem &&other);
+	OwnedItem &operator=(OwnedItem &&other);
+	~OwnedItem();
 
-	HistoryItem *get() const {
-		return _data;
+	HistoryView::Message *get() const {
+		return _view.get();
 	}
-	HistoryItem *operator->() const {
+	HistoryView::Message *operator->() const {
 		return get();
 	}
-	operator HistoryItem*() const {
+	operator HistoryView::Message*() const {
 		return get();
 	}
 
 private:
 	HistoryItem *_data = nullptr;
+	std::unique_ptr<HistoryView::Message> _view;
 
 };
 

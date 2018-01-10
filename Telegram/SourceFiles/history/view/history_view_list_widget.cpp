@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_media_types.h"
 #include "history/history_message.h"
 #include "history/history_item_components.h"
+#include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
 #include "chat_helpers/message_field.h"
 #include "mainwindow.h"
@@ -59,29 +60,29 @@ void ListWidget::enumerateItems(Method method) {
 			ending,
 			_visibleTop,
 			[this](auto &elem, int top) {
-				return this->itemTop(elem) + elem->height() <= top;
+				return this->itemTop(elem) + elem->data()->height() <= top;
 			})
 		: std::upper_bound(
 			beginning,
 			ending,
 			_visibleBottom,
 			[this](int bottom, auto &elem) {
-				return this->itemTop(elem) + elem->height() >= bottom;
+				return this->itemTop(elem) + elem->data()->height() >= bottom;
 			});
 	auto wasEnd = (from == ending);
 	if (wasEnd) {
 		--from;
 	}
 	if (TopToBottom) {
-		Assert(itemTop(from->get()) + from->get()->height() > _visibleTop);
+		Assert(itemTop(from->get()) + from->get()->data()->height() > _visibleTop);
 	} else {
 		Assert(itemTop(from->get()) < _visibleBottom);
 	}
 
 	while (true) {
-		auto item = from->get();
-		auto itemtop = itemTop(item);
-		auto itembottom = itemtop + item->height();
+		auto view = from->get();
+		auto itemtop = itemTop(view);
+		auto itembottom = itemtop + view->data()->height();
 
 		// Binary search should've skipped all the items that are above / below the visible area.
 		if (TopToBottom) {
@@ -90,7 +91,7 @@ void ListWidget::enumerateItems(Method method) {
 			Assert(itemtop < _visibleBottom);
 		}
 
-		if (!method(item, itemtop, itembottom)) {
+		if (!method(view, itemtop, itembottom)) {
 			return;
 		}
 
@@ -124,9 +125,9 @@ void ListWidget::enumerateUserpics(Method method) {
 	// -1 means we didn't find an attached to next message yet.
 	int lowestAttachedItemTop = -1;
 
-	auto userpicCallback = [this, &lowestAttachedItemTop, &method](HistoryItem *item, int itemtop, int itembottom) {
+	auto userpicCallback = [this, &lowestAttachedItemTop, &method](Message *view, int itemtop, int itembottom) {
 		// Skip all service messages.
-		auto message = item->toHistoryMessage();
+		auto message = view->data()->toHistoryMessage();
 		if (!message) return true;
 
 		if (lowestAttachedItemTop < 0 && message->isAttachedToNext()) {
@@ -170,7 +171,8 @@ void ListWidget::enumerateDates(Method method) {
 	// -1 means we didn't find a same-day with previous message yet.
 	auto lowestInOneDayItemBottom = -1;
 
-	auto dateCallback = [this, &lowestInOneDayItemBottom, &method](HistoryItem *item, int itemtop, int itembottom) {
+	auto dateCallback = [this, &lowestInOneDayItemBottom, &method](Message *view, int itemtop, int itembottom) {
+		const auto item = view->data();
 		if (lowestInOneDayItemBottom < 0 && item->isInOneDayWithPrevious()) {
 			lowestInOneDayItemBottom = itembottom - item->marginBottom();
 		}
@@ -213,20 +215,23 @@ ListWidget::ListWidget(
 : RpWidget(parent)
 , _delegate(delegate)
 , _controller(controller)
+, _context(_delegate->listContext())
 , _scrollDateCheck([this] { scrollDateCheck(); }) {
 	setMouseTracking(true);
 	_scrollDateHideTimer.setCallback([this] { scrollDateHideByTimer(); });
 	Auth().data().itemRepaintRequest(
 	) | rpl::start_with_next([this](auto item) {
-		if (ranges::find(_items, item) != _items.end()) {
-			repaintItem(item);
+		if (const auto view = viewForItem(item)) {
+			repaintItem(view);
 		}
 	}, lifetime());
 	subscribe(Auth().data().pendingHistoryResize(), [this] { handlePendingHistoryResize(); });
 	subscribe(Auth().data().queryItemVisibility(), [this](const Data::Session::ItemVisibilityQuery &query) {
-		if (ranges::find(_items, query.item) != _items.end()) {
-			auto top = itemTop(query.item);
-			if (top >= 0 && top + query.item->height() > _visibleTop && top < _visibleBottom) {
+		if (const auto view = viewForItem(query.item)) {
+			const auto top = itemTop(view);
+			if (top >= 0
+				&& top + query.item->height() > _visibleTop
+				&& top < _visibleBottom) {
 				*query.isVisible = true;
 			}
 		}
@@ -252,7 +257,7 @@ void ListWidget::refreshRows() {
 	_items.reserve(_slice.ids.size());
 	for (const auto &fullId : _slice.ids) {
 		if (const auto item = App::histItemById(fullId)) {
-			_items.push_back(item);
+			_items.push_back(enforceViewForItem(item));
 		}
 	}
 	updateAroundPositionFromRows();
@@ -274,8 +279,8 @@ void ListWidget::restoreScrollState() {
 	}
 	const auto index = findNearestItem(_scrollTopState.item);
 	if (index >= 0) {
-		const auto item = _items[index];
-		auto newVisibleTop = itemTop(item) + _scrollTopState.shift;
+		const auto view = _items[index];
+		auto newVisibleTop = itemTop(view) + _scrollTopState.shift;
 		if (_visibleTop != newVisibleTop) {
 			_delegate->listScrollTo(newVisibleTop);
 		}
@@ -283,10 +288,30 @@ void ListWidget::restoreScrollState() {
 	_scrollTopState = ScrollTopState();
 }
 
+Message *ListWidget::viewForItem(const HistoryItem *item) const {
+	if (item) {
+		if (const auto i = _views.find(item); i != _views.end()) {
+			return i->second.get();
+		}
+	}
+	return nullptr;
+}
+
+not_null<Message*> ListWidget::enforceViewForItem(
+		not_null<HistoryItem*> item) {
+	if (const auto view = viewForItem(item)) {
+		return view;
+	}
+	const auto [i, ok] = _views.emplace(
+		item,
+		std::make_unique<Message>(item, _context));
+	return i->second.get();
+}
+
 void ListWidget::updateAroundPositionFromRows() {
 	_aroundIndex = findNearestItem(_aroundPosition);
 	if (_aroundIndex >= 0) {
-		_aroundPosition = _items[_aroundIndex]->position();
+		_aroundPosition = _items[_aroundIndex]->data()->position();
 	}
 }
 
@@ -296,8 +321,8 @@ int ListWidget::findNearestItem(Data::MessagePosition position) const {
 	}
 	const auto after = ranges::find_if(
 		_items,
-		[&](not_null<HistoryItem*> item) {
-			return (item->position() >= position);
+		[&](not_null<Message*> view) {
+			return (view->data()->position() >= position);
 		});
 	return (after == end(_items))
 		? int(_items.size() - 1)
@@ -410,10 +435,10 @@ void ListWidget::checkMoveToOtherViewer() {
 		- kPreloadIfLessThanScreens;
 	auto minUniversalIdDelta = (minScreenDelta * visibleHeight)
 		/ minItemHeight;
-	auto preloadAroundItem = [&](not_null<HistoryItem*> item) {
+	auto preloadAroundMessage = [&](not_null<Message*> view) {
 		auto preloadRequired = false;
-		auto itemPosition = item->position();
-		auto itemIndex = ranges::find(_items, item) - begin(_items);
+		auto itemPosition = view->data()->position();
+		auto itemIndex = ranges::find(_items, view) - begin(_items);
 		Assert(itemIndex < _items.size());
 
 		if (!preloadRequired) {
@@ -433,9 +458,9 @@ void ListWidget::checkMoveToOtherViewer() {
 	};
 
 	if (preloadTop && !topLoaded) {
-		preloadAroundItem(topItem);
+		preloadAroundMessage(topItem);
 	} else if (preloadBottom && !bottomLoaded) {
-		preloadAroundItem(bottomItem);
+		preloadAroundMessage(bottomItem);
 	}
 }
 
@@ -491,9 +516,10 @@ void ListWidget::itemsAdded(Direction direction, int addedCount) {
 		: (addedCount + 1);
 	for (auto i = checkFrom; i != checkTo; ++i) {
 		if (i > 0) {
-			auto item = _items[i - 1].get();
+			const auto item = _items[i - 1]->data();
 			if (i < _items.size()) {
-				auto previous = _items[i].get();
+				// #TODO feeds show
+				auto previous = _items[i]->data();
 				item->setLogEntryDisplayDate(item->date.date() != previous->date.date());
 				auto attachToPrevious = item->computeIsAttachToPrevious(previous);
 				item->setLogEntryAttachToPrevious(attachToPrevious);
@@ -518,7 +544,7 @@ int ListWidget::resizeGetHeight(int newWidth) {
 	auto newHeight = 0;
 	for (auto &item : _items) {
 		item->setY(newHeight);
-		newHeight += item->resizeGetHeight(newWidth);
+		newHeight += item->data()->resizeGetHeight(newWidth);
 	}
 	_itemsHeight = newHeight;
 	_itemsTop = (_minHeight > _itemsHeight + st::historyPaddingBottom) ? (_minHeight - _itemsHeight - st::historyPaddingBottom) : 0;
@@ -543,7 +569,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	auto clip = e->rect();
 
 	auto from = std::lower_bound(begin(_items), end(_items), clip.top(), [this](auto &elem, int top) {
-		return this->itemTop(elem) + elem->height() <= top;
+		return this->itemTop(elem) + elem->data()->height() <= top;
 	});
 	auto to = std::lower_bound(begin(_items), end(_items), clip.top() + clip.height(), [this](auto &elem, int bottom) {
 		return this->itemTop(elem) < bottom;
@@ -553,8 +579,8 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		p.translate(0, top);
 		for (auto i = from; i != to; ++i) {
 			auto selection = (*i == _selectedItem) ? _selectedText : TextSelection();
-			(*i)->draw(p, clip.translated(0, -top), selection, ms);
-			auto height = (*i)->height();
+			(*i)->data()->draw(p, clip.translated(0, -top), selection, ms);
+			auto height = (*i)->data()->height();
 			top += height;
 			p.translate(0, height);
 		}
@@ -616,27 +642,27 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 
 TextWithEntities ListWidget::getSelectedText() const {
 	return _selectedItem
-		? _selectedItem->selectedText(_selectedText)
+		? _selectedItem->data()->selectedText(_selectedText)
 		: TextWithEntities();
 }
 
-not_null<HistoryItem*> ListWidget::findItemByY(int y) const {
+not_null<Message*> ListWidget::findItemByY(int y) const {
 	Expects(!_items.empty());
 
 	if (y < _itemsTop) {
-		return _items.front().get();
+		return _items.front();
 	}
 	auto i = std::lower_bound(
 		begin(_items),
 		end(_items),
 		y,
 		[this](auto &elem, int top) {
-			return this->itemTop(elem) + elem->height() <= top;
+			return this->itemTop(elem) + elem->data()->height() <= top;
 		});
 	return (i != end(_items)) ? i->get() : _items.back().get();
 }
 
-HistoryItem *ListWidget::strictFindItemByY(int y) const {
+Message *ListWidget::strictFindItemByY(int y) const {
 	if (_items.empty()) {
 		return nullptr;
 	}
@@ -651,7 +677,7 @@ auto ListWidget::countScrollState() const -> ScrollTopState {
 	}
 	auto topItem = findItemByY(_visibleTop);
 	return {
-		topItem->position(),
+		topItem->data()->position(),
 		_visibleTop - itemTop(topItem)
 	};
 }
@@ -675,7 +701,7 @@ void ListWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 	if (((_mouseAction == MouseAction::Selecting && _selectedItem != nullptr) || (_mouseAction == MouseAction::None)) && _mouseSelectType == TextSelectType::Letters && _mouseActionItem) {
 		HistoryStateRequest request;
 		request.flags |= Text::StateRequest::Flag::LookupSymbol;
-		auto dragState = _mouseActionItem->getState(_dragStartPosition, request);
+		auto dragState = _mouseActionItem->data()->getState(_dragStartPosition, request);
 		if (dragState.cursor == HistoryInTextCursorState) {
 			_mouseTextSymbol = dragState.symbol;
 			_mouseSelectType = TextSelectType::Words;
@@ -716,7 +742,7 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		auto selTo = _selectedText.to;
 		hasSelected = (selTo > selFrom) ? 1 : 0;
 		if (App::mousedItem() && App::mousedItem() == App::hoveredItem()) {
-			auto mousePos = mapPointToItem(mapFromGlobal(_mousePosition), App::mousedItem());
+			auto mousePos = mapPointToItem(mapFromGlobal(_mousePosition), viewForItem(App::mousedItem()));
 			HistoryStateRequest request;
 			request.flags |= Text::StateRequest::Flag::LookupSymbol;
 			auto dragState = App::mousedItem()->getState(mousePos, request);
@@ -971,7 +997,7 @@ void ListWidget::enterEventHook(QEvent *e) {
 
 void ListWidget::leaveEventHook(QEvent *e) {
 	if (auto item = App::hoveredItem()) {
-		repaintItem(item);
+		repaintItem(viewForItem(item));
 		App::hoveredItem(nullptr);
 	}
 	ClickHandler::clearActive();
@@ -989,13 +1015,13 @@ void ListWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butto
 
 	ClickHandler::pressed();
 	if (App::pressedItem() != App::hoveredItem()) {
-		repaintItem(App::pressedItem());
+		repaintItem(viewForItem(App::pressedItem()));
 		App::pressedItem(App::hoveredItem());
-		repaintItem(App::pressedItem());
+		repaintItem(viewForItem(App::pressedItem()));
 	}
 
 	_mouseAction = MouseAction::None;
-	_mouseActionItem = App::mousedItem();
+	_mouseActionItem = viewForItem(App::mousedItem());
 	_dragStartPosition = mapPointToItem(mapFromGlobal(screenPos), _mouseActionItem);
 	_pressWasInactive = _controller->window()->wasInactivePress();
 	if (_pressWasInactive) _controller->window()->setInactivePress(false);
@@ -1008,7 +1034,7 @@ void ListWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butto
 		if (_trippleClickTimer.isActive() && (screenPos - _trippleClickPoint).manhattanLength() < QApplication::startDragDistance()) {
 			HistoryStateRequest request;
 			request.flags = Text::StateRequest::Flag::LookupSymbol;
-			dragState = _mouseActionItem->getState(_dragStartPosition, request);
+			dragState = _mouseActionItem->data()->getState(_dragStartPosition, request);
 			if (dragState.cursor == HistoryInTextCursorState) {
 				auto selection = TextSelection { dragState.symbol, dragState.symbol };
 				repaintItem(std::exchange(_selectedItem, _mouseActionItem));
@@ -1022,7 +1048,7 @@ void ListWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butto
 		} else if (App::pressedItem()) {
 			HistoryStateRequest request;
 			request.flags = Text::StateRequest::Flag::LookupSymbol;
-			dragState = _mouseActionItem->getState(_dragStartPosition, request);
+			dragState = _mouseActionItem->data()->getState(_dragStartPosition, request);
 		}
 		if (_mouseSelectType != TextSelectType::Paragraphs) {
 			if (App::pressedItem()) {
@@ -1077,7 +1103,7 @@ void ListWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton butt
 		activated = nullptr;
 	}
 	if (App::pressedItem()) {
-		repaintItem(App::pressedItem());
+		repaintItem(viewForItem(App::pressedItem()));
 		App::pressedItem(nullptr);
 	}
 
@@ -1115,27 +1141,28 @@ void ListWidget::updateSelected() {
 	auto point = QPoint(snap(mousePosition.x(), 0, width()), snap(mousePosition.y(), _visibleTop, _visibleBottom));
 
 	auto itemPoint = QPoint();
-	auto item = strictFindItemByY(point.y());
-	if (item) {
+	const auto view = strictFindItemByY(point.y());
+	const auto item = view ? view->data().get() : nullptr;
+	if (view) {
 		App::mousedItem(item);
-		itemPoint = mapPointToItem(point, item);
+		itemPoint = mapPointToItem(point, view);
 		if (item->hasPoint(itemPoint)) {
 			if (App::hoveredItem() != item) {
-				repaintItem(App::hoveredItem());
+				repaintItem(viewForItem(App::hoveredItem()));
 				App::hoveredItem(item);
-				repaintItem(App::hoveredItem());
+				repaintItem(view);
 			}
 		} else if (App::hoveredItem()) {
-			repaintItem(App::hoveredItem());
+			repaintItem(viewForItem(App::hoveredItem()));
 			App::hoveredItem(nullptr);
 		}
 	}
 
 	HistoryTextState dragState;
 	ClickHandlerHost *lnkhost = nullptr;
-	auto selectingText = (item == _mouseActionItem && item == App::hoveredItem() && _selectedItem);
-	if (item) {
-		if (item != _mouseActionItem || (itemPoint - _dragStartPosition).manhattanLength() >= QApplication::startDragDistance()) {
+	auto selectingText = (view == _mouseActionItem && item == App::hoveredItem() && _selectedItem);
+	if (view) {
+		if (view != _mouseActionItem || (itemPoint - _dragStartPosition).manhattanLength() >= QApplication::startDragDistance()) {
 			if (_mouseAction == MouseAction::PrepareDrag) {
 				_mouseAction = MouseAction::Dragging;
 				InvokeQueued(this, [this] { performDrag(); });
@@ -1188,7 +1215,7 @@ void ListWidget::updateSelected() {
 		} else if (_mouseCursorState == HistoryInDateCursorState) {
 //			cursor = style::cur_cross;
 		}
-	} else if (item) {
+	} else if (view) {
 		if (_mouseAction == MouseAction::Selecting) {
 			if (selectingText) {
 				auto second = dragState.symbol;
@@ -1197,7 +1224,7 @@ void ListWidget::updateSelected() {
 				}
 				auto selection = TextSelection { qMin(second, _mouseTextSymbol), qMax(second, _mouseTextSymbol) };
 				if (_mouseSelectType != TextSelectType::Letters) {
-					selection = _mouseActionItem->adjustSelection(selection, _mouseSelectType);
+					selection = _mouseActionItem->data()->adjustSelection(selection, _mouseSelectType);
 				}
 				if (_selectedText != selection) {
 					_selectedText = selection;
@@ -1331,24 +1358,24 @@ void ListWidget::performDrag() {
 	//} // #TODO drag
 }
 
-int ListWidget::itemTop(not_null<const HistoryItem*> item) const {
-	return _itemsTop + item->y();
+int ListWidget::itemTop(not_null<const Message*> view) const {
+	return _itemsTop + view->y();
 }
 
-void ListWidget::repaintItem(const HistoryItem *item) {
-	if (!item) {
+void ListWidget::repaintItem(const Message *view) {
+	if (!view) {
 		return;
 	}
-	update(0, itemTop(item), width(), item->height());
+	update(0, itemTop(view), width(), view->data()->height());
 }
 
 QPoint ListWidget::mapPointToItem(
 		QPoint point,
-		const HistoryItem *item) const {
-	if (!item) {
+		const Message *view) const {
+	if (!view) {
 		return QPoint();
 	}
-	return point - QPoint(0, itemTop(item));
+	return point - QPoint(0, itemTop(view));
 }
 
 void ListWidget::handlePendingHistoryResize() {

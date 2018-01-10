@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/view/history_view_list_widget.h"
+#include "history/view/history_view_message.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
@@ -133,6 +134,10 @@ bool Widget::cmd_search() {
 	}
 	// #TODO feeds search
 	return true;
+}
+
+HistoryView::Context Widget::listContext() {
+	return HistoryView::Context::Feed;
 }
 
 void Widget::listScrollTo(int top) {

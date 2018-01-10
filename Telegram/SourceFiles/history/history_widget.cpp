@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_inner_widget.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_service_message.h"
+#include "history/view/history_view_message.h"
 #include "profile/profile_block_group_members.h"
 #include "info/info_memento.h"
 #include "core/click_handler_types.h"
@@ -721,7 +722,7 @@ void HistoryWidget::animatedScrollToY(int scrollTo, HistoryItem *attachTo) {
 	auto itemTop = _list->itemTop(attachTo);
 	auto scrollTop = _scroll->scrollTop();
 	if (itemTop < 0 && !_history->isEmpty()) {
-		attachTo = _history->blocks.back()->items.back();
+		attachTo = _history->blocks.back()->messages.back()->data();
 		itemTop = _list->itemTop(attachTo);
 	}
 	if (itemTop < 0 || (scrollTop == scrollTo)) {
@@ -797,13 +798,13 @@ void HistoryWidget::adjustHighlightedMessageToMigrated() {
 		&& _migrated
 		&& !_migrated->isEmpty()
 		&& _migrated->loadedAtBottom()
-		&& _migrated->blocks.back()->items.back()->isGroupMigrate()
+		&& _migrated->blocks.back()->messages.back()->data()->isGroupMigrate()
 		&& _list->historyTop() != _list->historyDrawTop()) {
 		auto highlighted = App::histItemById(
 			_history->channelId(),
 			_highlightedMessageId);
 		if (highlighted && highlighted->isGroupMigrate()) {
-			_highlightedMessageId = -_migrated->blocks.back()->items.back()->id;
+			_highlightedMessageId = -_migrated->blocks.back()->messages.back()->id();
 		}
 	}
 }
@@ -2726,12 +2727,12 @@ void HistoryWidget::checkReplyReturns() {
 	auto scrollTopMax = _scroll->scrollTopMax();
 	auto scrollHeight = _scroll->height();
 	while (_replyReturn) {
-		auto below = (_replyReturn->detached() && _replyReturn->history() == _history && !_history->isEmpty() && _replyReturn->id < _history->blocks.back()->items.back()->id);
+		auto below = (_replyReturn->detached() && _replyReturn->history() == _history && !_history->isEmpty() && _replyReturn->id < _history->blocks.back()->messages.back()->id());
 		if (!below) {
 			below = (_replyReturn->detached() && _replyReturn->history() == _migrated && !_history->isEmpty());
 		}
 		if (!below) {
-			below = (_replyReturn->detached() && _migrated && _replyReturn->history() == _migrated && !_migrated->isEmpty() && _replyReturn->id < _migrated->blocks.back()->items.back()->id);
+			below = (_replyReturn->detached() && _migrated && _replyReturn->history() == _migrated && !_migrated->isEmpty() && _replyReturn->id < _migrated->blocks.back()->messages.back()->id());
 		}
 		if (!below && !_replyReturn->detached()) {
 			below = (scrollTop >= scrollTopMax) || (_list->itemTop(_replyReturn) < scrollTop + scrollHeight / 2);
@@ -5521,8 +5522,8 @@ void HistoryWidget::onReplyToMessage() {
 	if (!to || to->id <= 0 || !_canSendMessages) return;
 
 	if (to->history() == _migrated) {
-		if (to->isGroupMigrate() && !_history->isEmpty() && _history->blocks.front()->items.front()->isGroupMigrate() && _history != _migrated) {
-			App::contextItem(_history->blocks.front()->items.front());
+		if (to->isGroupMigrate() && !_history->isEmpty() && _history->blocks.front()->messages.front()->data()->isGroupMigrate() && _history != _migrated) {
+			App::contextItem(_history->blocks.front()->messages.front()->data());
 			onReplyToMessage();
 			App::contextItem(to);
 		} else {

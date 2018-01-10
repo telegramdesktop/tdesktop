@@ -232,23 +232,16 @@ public:
 	const HistoryBlock *block() const {
 		return _block;
 	}
+	HistoryView::Message *mainView() const {
+		return _mainView;
+	}
 	void destroy();
 	void detach();
 	void detachFast();
 	bool detached() const {
 		return !_block;
 	}
-	void attachToBlock(HistoryBlock *block, int index) {
-		Expects(!isLogEntry());
-		Expects(_block == nullptr);
-		Expects(_indexInBlock < 0);
-		Expects(block != nullptr);
-		Expects(index >= 0);
-
-		_block = block;
-		_indexInBlock = index;
-		setPendingResize();
-	}
+	void attachToBlock(not_null<HistoryBlock*> block, int index);
 	void setIndexInBlock(int index) {
 		Expects(_block != nullptr);
 		Expects(index >= 0);
@@ -257,7 +250,7 @@ public:
 	}
 	int indexInBlock() const {
 		Expects((_indexInBlock >= 0) == (_block != nullptr));
-		Expects((_block == nullptr) || (_block->items[_indexInBlock] == this));
+		//Expects((_block == nullptr) || (_block->messages[_indexInBlock]->data() == this));
 
 		return _indexInBlock;
 	}
@@ -423,12 +416,6 @@ public:
 	bool hasDirectLink() const;
 	QString directLink() const;
 
-	int y() const {
-		return _y;
-	}
-	void setY(int y) {
-		_y = y;
-	}
 	MsgId id;
 	QDateTime date;
 
@@ -569,30 +556,8 @@ public:
 		setAttachToNext(attachToNext);
 	}
 
-	HistoryItem *previousItem() const {
-		if (_block && _indexInBlock >= 0) {
-			if (_indexInBlock > 0) {
-				return _block->items.at(_indexInBlock - 1);
-			}
-			if (auto previous = _block->previousBlock()) {
-				Assert(!previous->items.empty());
-				return previous->items.back();
-			}
-		}
-		return nullptr;
-	}
-	HistoryItem *nextItem() const {
-		if (_block && _indexInBlock >= 0) {
-			if (_indexInBlock + 1 < _block->items.size()) {
-				return _block->items.at(_indexInBlock + 1);
-			}
-			if (auto next = _block->nextBlock()) {
-				Assert(!next->items.empty());
-				return next->items.front();
-			}
-		}
-		return nullptr;
-	}
+	HistoryItem *previousItem() const;
+	HistoryItem *nextItem() const;
 
 	~HistoryItem();
 
@@ -676,7 +641,7 @@ protected:
 private:
 	void resetGroupMedia(const std::vector<not_null<HistoryItem*>> &others);
 
-	int _y = 0;
+	HistoryView::Message *_mainView = nullptr;
 	int _width = 0;
 
 };

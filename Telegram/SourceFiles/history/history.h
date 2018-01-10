@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_set.h"
 #include "base/flags.h"
 
+class History;
 class HistoryItem;
 using HistoryItemsList = std::vector<not_null<HistoryItem*>>;
 
@@ -26,7 +27,10 @@ enum NewMessageType {
 	NewMessageExisting,
 };
 
-class History;
+namespace HistoryView {
+class Message;
+} // namespace HistoryView
+
 class Histories {
 public:
 	using Map = QHash<PeerId, History*>;
@@ -320,8 +324,7 @@ public:
 	void eraseFromUnreadMentions(MsgId msgId);
 	void addUnreadMentionsSlice(const MTPmessages_Messages &result);
 
-	using Blocks = std::deque<HistoryBlock*>;
-	Blocks blocks;
+	std::deque<std::unique_ptr<HistoryBlock>> blocks;
 
 	int width = 0;
 	int height = 0;
@@ -394,7 +397,7 @@ public:
 	// we save a pointer of the history item at the top of the displayed window
 	// together with an offset from the window top to the top of this message
 	// resulting scrollTop = top(scrollTopItem) + scrollTopOffset
-	HistoryItem *scrollTopItem = nullptr;
+	HistoryView::Message *scrollTopItem = nullptr;
 	int scrollTopOffset = 0;
 	void forgetScrollState() {
 		scrollTopItem = nullptr;
@@ -446,7 +449,10 @@ protected:
 	not_null<HistoryItem*> createItemGame(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, GameData *game, const MTPReplyMarkup &markup);
 
 	not_null<HistoryItem*> addNewItem(not_null<HistoryItem*> adding, bool newMsg);
-	not_null<HistoryItem*> addNewInTheMiddle(not_null<HistoryItem*> newItem, int32 blockIndex, int32 itemIndex);
+	not_null<HistoryItem*> addNewInTheMiddle(
+		not_null<HistoryItem*> newItem,
+		int blockIndex,
+		int itemIndex);
 
 	// All this methods add a new item to the first or last block
 	// depending on if we are in isBuildingFronBlock() state.
@@ -573,18 +579,14 @@ private:
 
 class HistoryBlock {
 public:
-	HistoryBlock(not_null<History*> history) : _history(history) {
-	}
-
+	HistoryBlock(not_null<History*> history);
 	HistoryBlock(const HistoryBlock &) = delete;
 	HistoryBlock &operator=(const HistoryBlock &) = delete;
+	~HistoryBlock();
 
-	std::vector<HistoryItem*> items;
+	std::vector<std::unique_ptr<HistoryView::Message>> messages;
 
 	void clear(bool leaveItems = false);
-	~HistoryBlock() {
-		clear();
-	}
 	void removeItem(not_null<HistoryItem*> item);
 
 	int resizeGetHeight(int newWidth, bool resizeAllItems);
@@ -604,12 +606,16 @@ public:
 	HistoryBlock *previousBlock() const {
 		Expects(_indexInHistory >= 0);
 
-		return (_indexInHistory > 0) ? _history->blocks.at(_indexInHistory - 1) : nullptr;
+		return (_indexInHistory > 0)
+			? _history->blocks[_indexInHistory - 1].get()
+			: nullptr;
 	}
 	HistoryBlock *nextBlock() const {
 		Expects(_indexInHistory >= 0);
 
-		return (_indexInHistory + 1 < _history->blocks.size()) ? _history->blocks.at(_indexInHistory + 1) : nullptr;
+		return (_indexInHistory + 1 < _history->blocks.size())
+			? _history->blocks[_indexInHistory + 1].get()
+			: nullptr;
 	}
 	void setIndexInHistory(int index) {
 		_indexInHistory = index;
@@ -617,7 +623,7 @@ public:
 	int indexInHistory() const {
 		Expects(_indexInHistory >= 0);
 		Expects(_indexInHistory < _history->blocks.size());
-		Expects(_history->blocks[_indexInHistory] == this);
+		Expects(_history->blocks[_indexInHistory].get() == this);
 
 		return _indexInHistory;
 	}

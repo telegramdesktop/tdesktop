@@ -227,6 +227,8 @@
 <(src_loc)/history/feed/history_feed_section.h
 <(src_loc)/history/view/history_view_list_widget.cpp
 <(src_loc)/history/view/history_view_list_widget.h
+<(src_loc)/history/view/history_view_message.cpp
+<(src_loc)/history/view/history_view_message.h
 <(src_loc)/history/view/history_view_service_message.cpp
 <(src_loc)/history/view/history_view_service_message.h
 <(src_loc)/history/view/history_view_top_bar_widget.cpp

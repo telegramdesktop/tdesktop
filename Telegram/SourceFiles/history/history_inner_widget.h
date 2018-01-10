@@ -122,7 +122,7 @@ private slots:
 private:
 	class BotAbout;
 	using SelectedItems = std::map<HistoryItem*, TextSelection, std::less<>>;
-
+	using Message = HistoryView::Message;
 	enum class MouseAction {
 		None,
 		PrepareDrag,
@@ -161,7 +161,7 @@ private:
 	HistoryItem *nextItem(HistoryItem *item);
 	void updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dragSelTo, bool dragSelecting);
 	TextSelection itemRenderSelection(
-		not_null<HistoryItem*> item,
+		not_null<Message*> view,
 		int selfromy,
 		int seltoy) const;
 	TextSelection computeRenderSelection(
@@ -291,7 +291,7 @@ private:
 	Animation _scrollDateOpacity;
 	SingleQueuedInvokation _scrollDateCheck;
 	SingleTimer _scrollDateHideTimer;
-	HistoryItem *_scrollDateLastItem = nullptr;
+	Message *_scrollDateLastItem = nullptr;
 	int _scrollDateLastItemTop = 0;
 	ClickHandlerPtr _scrollDateLink;
 
@@ -302,7 +302,7 @@ private:
 	// This function finds all history items that are displayed and calls template method
 	// for each found message (in given direction) in the passed history with passed top offset.
 	//
-	// Method has "bool (*Method)(not_null<HistoryItem*> item, int itemtop, int itembottom)" signature
+	// Method has "bool (*Method)(not_null<Message*> view, int itemtop, int itembottom)" signature
 	// if it returns false the enumeration stops immidiately.
 	template <bool TopToBottom, typename Method>
 	void enumerateItemsInHistory(History *history, int historytop, Method method);

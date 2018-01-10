@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 #include "history/history_media.h"
 #include "history/view/history_view_service_message.h"
+#include "history/view/history_view_message.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_cloud_manager.h"
 #include "boxes/add_contact_box.h"
@@ -1134,8 +1135,9 @@ void MainWidget::deleteAllFromUser(ChannelData *channel, UserData *from) {
 
 	QVector<MsgId> toDestroy;
 	if (auto history = App::historyLoaded(channel->id)) {
-		for_const (auto block, history->blocks) {
-			for_const (auto item, block->items) {
+		for (const auto &block : history->blocks) {
+			for (const auto &message : block->messages) {
+				const auto item = message->data();
 				if (item->from() == from && item->canDelete()) {
 					toDestroy.push_back(item->id);
 				}

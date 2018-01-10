@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/admin_log/history_admin_log_section.h"
 #include "history/admin_log/history_admin_log_filter.h"
 #include "history/view/history_view_service_message.h"
+#include "history/view/history_view_message.h"
 #include "chat_helpers/message_field.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -54,16 +55,16 @@ void InnerWidget::enumerateItems(Method method) {
 
 	auto begin = std::rbegin(_items), end = std::rend(_items);
 	auto from = TopToBottom ? std::lower_bound(begin, end, _visibleTop, [this](auto &elem, int top) {
-		return this->itemTop(elem) + elem->height() <= top;
+		return this->itemTop(elem) + elem->data()->height() <= top;
 	}) : std::upper_bound(begin, end, _visibleBottom, [this](int bottom, auto &elem) {
-		return this->itemTop(elem) + elem->height() >= bottom;
+		return this->itemTop(elem) + elem->data()->height() >= bottom;
 	});
 	auto wasEnd = (from == end);
 	if (wasEnd) {
 		--from;
 	}
 	if (TopToBottom) {
-		Assert(itemTop(from->get()) + from->get()->height() > _visibleTop);
+		Assert(itemTop(from->get()) + from->get()->data()->height() > _visibleTop);
 	} else {
 		Assert(itemTop(from->get()) < _visibleBottom);
 	}
@@ -71,7 +72,7 @@ void InnerWidget::enumerateItems(Method method) {
 	while (true) {
 		auto item = from->get();
 		auto itemtop = itemTop(item);
-		auto itembottom = itemtop + item->height();
+		auto itembottom = itemtop + item->data()->height();
 
 		// Binary search should've skipped all the items that are above / below the visible area.
 		if (TopToBottom) {
@@ -114,8 +115,9 @@ void InnerWidget::enumerateUserpics(Method method) {
 	// -1 means we didn't find an attached to next message yet.
 	int lowestAttachedItemTop = -1;
 
-	auto userpicCallback = [this, &lowestAttachedItemTop, &method](HistoryItem *item, int itemtop, int itembottom) {
+	auto userpicCallback = [&](Message *view, int itemtop, int itembottom) {
 		// Skip all service messages.
+		const auto item = view->data();
 		auto message = item->toHistoryMessage();
 		if (!message) return true;
 
@@ -160,7 +162,8 @@ void InnerWidget::enumerateDates(Method method) {
 	// -1 means we didn't find a same-day with previous message yet.
 	auto lowestInOneDayItemBottom = -1;
 
-	auto dateCallback = [this, &lowestInOneDayItemBottom, &method](HistoryItem *item, int itemtop, int itembottom) {
+	auto dateCallback = [&](Message *view, int itemtop, int itembottom) {
+		const auto item = view->data();
 		if (lowestInOneDayItemBottom < 0 && item->isInOneDayWithPrevious()) {
 			lowestInOneDayItemBottom = itembottom - item->marginBottom();
 		}
@@ -211,7 +214,7 @@ InnerWidget::InnerWidget(
 	Auth().data().itemRepaintRequest(
 	) | rpl::start_with_next([this](auto item) {
 		if (item->isLogEntry() && _history == item->history()) {
-			repaintItem(item);
+			repaintItem(viewForItem(item));
 		}
 	}, lifetime());
 	subscribe(Auth().data().pendingHistoryResize(), [this] { handlePendingHistoryResize(); });
@@ -219,9 +222,11 @@ InnerWidget::InnerWidget(
 		if (_history != query.item->history() || !query.item->isLogEntry() || !isVisible()) {
 			return;
 		}
-		auto top = itemTop(query.item);
-		if (top >= 0 && top + query.item->height() > _visibleTop && top < _visibleBottom) {
-			*query.isVisible = true;
+		if (const auto view = viewForItem(query.item)) {
+			auto top = itemTop(view);
+			if (top >= 0 && top + query.item->height() > _visibleTop && top < _visibleBottom) {
+				*query.isVisible = true;
+			}
 		}
 	});
 	updateEmptyText();
@@ -252,7 +257,7 @@ void InnerWidget::updateVisibleTopItem() {
 	} else {
 		auto begin = std::rbegin(_items), end = std::rend(_items);
 		auto from = std::lower_bound(begin, end, _visibleTop, [this](auto &&elem, int top) {
-			return this->itemTop(elem) + elem->height() <= top;
+			return this->itemTop(elem) + elem->data()->height() <= top;
 		});
 		if (from != end) {
 			_visibleTopItem = *from;
@@ -516,7 +521,7 @@ void InnerWidget::addEvents(Direction direction, const QVector<MTPChannelAdminLo
 
 	// When loading items up we just add them to the back of the _items vector.
 	// When loading items down we add them to a new vector and copy _items after them.
-	auto newItemsForDownDirection = std::vector<HistoryItemOwned>();
+	auto newItemsForDownDirection = std::vector<OwnedItem>();
 	auto oldItemsCount = _items.size();
 	auto &addToItems = (direction == Direction::Up) ? _items : newItemsForDownDirection;
 	addToItems.reserve(oldItemsCount + events.size() * 2);
@@ -528,8 +533,9 @@ void InnerWidget::addEvents(Direction direction, const QVector<MTPChannelAdminLo
 		}
 
 		auto count = 0;
-		GenerateItems(_history, _idManager, data, [this, id = data.vid.v, &addToItems, &count](HistoryItemOwned item) {
+		GenerateItems(_history, _idManager, data, [this, id = data.vid.v, &addToItems, &count](OwnedItem item) {
 			_itemsByIds.emplace(id, item.get());
+			_itemsByData.emplace(item->data(), item.get());
 			addToItems.push_back(std::move(item));
 			++count;
 		});
@@ -575,9 +581,9 @@ void InnerWidget::itemsAdded(Direction direction, int addedCount) {
 	auto checkTo = (direction == Direction::Up) ? (_items.size() + 1) : (addedCount + 1);
 	for (auto i = checkFrom; i != checkTo; ++i) {
 		if (i > 0) {
-			auto item = _items[i - 1].get();
+			const auto item = _items[i - 1]->data();
 			if (i < _items.size()) {
-				auto previous = _items[i].get();
+				const auto previous = _items[i]->data();
 				item->setLogEntryDisplayDate(item->date.date() != previous->date.date());
 				auto attachToPrevious = item->computeIsAttachToPrevious(previous);
 				item->setLogEntryAttachToPrevious(attachToPrevious);
@@ -603,7 +609,7 @@ int InnerWidget::resizeGetHeight(int newWidth) {
 	auto newHeight = 0;
 	for (auto &item : base::reversed(_items)) {
 		item->setY(newHeight);
-		newHeight += item->resizeGetHeight(newWidth);
+		newHeight += item->data()->resizeGetHeight(newWidth);
 	}
 	_itemsHeight = newHeight;
 	_itemsTop = (_minHeight > _itemsHeight + st::historyPaddingBottom) ? (_minHeight - _itemsHeight - st::historyPaddingBottom) : 0;
@@ -611,7 +617,9 @@ int InnerWidget::resizeGetHeight(int newWidth) {
 }
 
 void InnerWidget::restoreScrollPosition() {
-	auto newVisibleTop = _visibleTopItem ? (itemTop(_visibleTopItem) + _visibleTopFromItem) : ScrollMax;
+	auto newVisibleTop = _visibleTopItem
+		? (itemTop(_visibleTopItem) + _visibleTopFromItem)
+		: ScrollMax;
 	scrollToSignal.notify(newVisibleTop, true);
 }
 
@@ -630,7 +638,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	} else {
 		auto begin = std::rbegin(_items), end = std::rend(_items);
 		auto from = std::lower_bound(begin, end, clip.top(), [this](auto &elem, int top) {
-			return this->itemTop(elem) + elem->height() <= top;
+			return this->itemTop(elem) + elem->data()->height() <= top;
 		});
 		auto to = std::lower_bound(begin, end, clip.top() + clip.height(), [this](auto &elem, int bottom) {
 			return this->itemTop(elem) < bottom;
@@ -639,15 +647,19 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			auto top = itemTop(from->get());
 			p.translate(0, top);
 			for (auto i = from; i != to; ++i) {
-				auto selection = (*i == _selectedItem) ? _selectedText : TextSelection();
-				(*i)->draw(p, clip.translated(0, -top), selection, ms);
-				auto height = (*i)->height();
+				const auto view = i->get();
+				const auto selection = (view == _selectedItem)
+					? _selectedText
+					: TextSelection();
+				const auto item = view->data();
+				item->draw(p, clip.translated(0, -top), selection, ms);
+				auto height = item->height();
 				top += height;
 				p.translate(0, height);
 			}
 			p.translate(0, -top);
 
-			enumerateUserpics([&p, &clip](not_null<HistoryMessage*> message, int userpicTop) {
+			enumerateUserpics([&](not_null<HistoryMessage*> message, int userpicTop) {
 				// stop the enumeration if the userpic is below the painted rect
 				if (userpicTop >= clip.top() + clip.height()) {
 					return false;
@@ -662,7 +674,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 
 			auto dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
 			auto scrollDateOpacity = _scrollDateOpacity.current(ms, _scrollDateShown ? 1. : 0.);
-			enumerateDates([&p, &clip, scrollDateOpacity, dateHeight/*, lastDate, showFloatingBefore*/](not_null<HistoryItem*> item, int itemtop, int dateTop) {
+			enumerateDates([&](not_null<HistoryItem*> item, int itemtop, int dateTop) {
 				// stop the enumeration if the date is above the painted rect
 				if (dateTop + dateHeight <= clip.top()) {
 					return false;
@@ -721,6 +733,16 @@ void InnerWidget::clearAfterFilterChange() {
 	updateSize();
 }
 
+auto InnerWidget::viewForItem(const HistoryItem *item) -> Message* {
+	if (item) {
+		const auto i = _itemsByData.find(item);
+		if (i != _itemsByData.end()) {
+			return i->second;
+		}
+	}
+	return nullptr;
+}
+
 void InnerWidget::paintEmpty(Painter &p) {
 	style::font font(st::msgServiceFont);
 	auto rectWidth = st::historyAdminLogEmptyWidth;
@@ -739,7 +761,9 @@ void InnerWidget::paintEmpty(Painter &p) {
 }
 
 TextWithEntities InnerWidget::getSelectedText() const {
-	return _selectedItem ? _selectedItem->selectedText(_selectedText) : TextWithEntities();
+	return _selectedItem
+		? _selectedItem->data()->selectedText(_selectedText)
+		: TextWithEntities();
 }
 
 void InnerWidget::keyPressEvent(QKeyEvent *e) {
@@ -761,7 +785,7 @@ void InnerWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 	if (((_mouseAction == MouseAction::Selecting && _selectedItem != nullptr) || (_mouseAction == MouseAction::None)) && _mouseSelectType == TextSelectType::Letters && _mouseActionItem) {
 		HistoryStateRequest request;
 		request.flags |= Text::StateRequest::Flag::LookupSymbol;
-		auto dragState = _mouseActionItem->getState(_dragStartPosition, request);
+		auto dragState = _mouseActionItem->data()->getState(_dragStartPosition, request);
 		if (dragState.cursor == HistoryInTextCursorState) {
 			_mouseTextSymbol = dragState.symbol;
 			_mouseSelectType = TextSelectType::Words;
@@ -802,7 +826,9 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		auto selTo = _selectedText.to;
 		hasSelected = (selTo > selFrom) ? 1 : 0;
 		if (App::mousedItem() && App::mousedItem() == App::hoveredItem()) {
-			auto mousePos = mapPointToItem(mapFromGlobal(_mousePosition), App::mousedItem());
+			auto mousePos = mapPointToItem(
+				mapFromGlobal(_mousePosition),
+				viewForItem(App::mousedItem()));
 			HistoryStateRequest request;
 			request.flags |= Text::StateRequest::Flag::LookupSymbol;
 			auto dragState = App::mousedItem()->getState(mousePos, request);
@@ -1137,7 +1163,7 @@ void InnerWidget::enterEventHook(QEvent *e) {
 
 void InnerWidget::leaveEventHook(QEvent *e) {
 	if (auto item = App::hoveredItem()) {
-		repaintItem(item);
+		repaintItem(viewForItem(item));
 		App::hoveredItem(nullptr);
 	}
 	ClickHandler::clearActive();
@@ -1155,14 +1181,16 @@ void InnerWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butt
 
 	ClickHandler::pressed();
 	if (App::pressedItem() != App::hoveredItem()) {
-		repaintItem(App::pressedItem());
+		repaintItem(viewForItem(App::pressedItem()));
 		App::pressedItem(App::hoveredItem());
-		repaintItem(App::pressedItem());
+		repaintItem(viewForItem(App::pressedItem()));
 	}
 
 	_mouseAction = MouseAction::None;
-	_mouseActionItem = App::mousedItem();
-	_dragStartPosition = mapPointToItem(mapFromGlobal(screenPos), _mouseActionItem);
+	_mouseActionItem = viewForItem(App::mousedItem());
+	_dragStartPosition = mapPointToItem(
+		mapFromGlobal(screenPos),
+		_mouseActionItem);
 	_pressWasInactive = _controller->window()->wasInactivePress();
 	if (_pressWasInactive) _controller->window()->setInactivePress(false);
 
@@ -1174,7 +1202,7 @@ void InnerWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butt
 		if (_trippleClickTimer.isActive() && (screenPos - _trippleClickPoint).manhattanLength() < QApplication::startDragDistance()) {
 			HistoryStateRequest request;
 			request.flags = Text::StateRequest::Flag::LookupSymbol;
-			dragState = _mouseActionItem->getState(_dragStartPosition, request);
+			dragState = _mouseActionItem->data()->getState(_dragStartPosition, request);
 			if (dragState.cursor == HistoryInTextCursorState) {
 				auto selection = TextSelection { dragState.symbol, dragState.symbol };
 				repaintItem(std::exchange(_selectedItem, _mouseActionItem));
@@ -1188,7 +1216,7 @@ void InnerWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butt
 		} else if (App::pressedItem()) {
 			HistoryStateRequest request;
 			request.flags = Text::StateRequest::Flag::LookupSymbol;
-			dragState = _mouseActionItem->getState(_dragStartPosition, request);
+			dragState = _mouseActionItem->data()->getState(_dragStartPosition, request);
 		}
 		if (_mouseSelectType != TextSelectType::Paragraphs) {
 			if (App::pressedItem()) {
@@ -1243,7 +1271,7 @@ void InnerWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton but
 		activated = nullptr;
 	}
 	if (App::pressedItem()) {
-		repaintItem(App::pressedItem());
+		repaintItem(viewForItem(App::pressedItem()));
 		App::pressedItem(nullptr);
 	}
 
@@ -1284,30 +1312,31 @@ void InnerWidget::updateSelected() {
 	auto begin = std::rbegin(_items), end = std::rend(_items);
 	auto from = (point.y() >= _itemsTop && point.y() < _itemsTop + _itemsHeight)
 		? std::lower_bound(begin, end, point.y(), [this](auto &elem, int top) {
-			return this->itemTop(elem) + elem->height() <= top;
+			return this->itemTop(elem) + elem->data()->height() <= top;
 		})
 		: end;
-	auto item = (from != end) ? from->get() : nullptr;
+	const auto view = (from != end) ? from->get() : nullptr;
+	const auto item = view ? view->data().get() : nullptr;
 	if (item) {
 		App::mousedItem(item);
-		itemPoint = mapPointToItem(point, item);
+		itemPoint = mapPointToItem(point, view);
 		if (item->hasPoint(itemPoint)) {
 			if (App::hoveredItem() != item) {
-				repaintItem(App::hoveredItem());
+				repaintItem(viewForItem(App::hoveredItem()));
 				App::hoveredItem(item);
-				repaintItem(App::hoveredItem());
+				repaintItem(view);
 			}
 		} else if (App::hoveredItem()) {
-			repaintItem(App::hoveredItem());
+			repaintItem(viewForItem(App::hoveredItem()));
 			App::hoveredItem(nullptr);
 		}
 	}
 
 	HistoryTextState dragState;
 	ClickHandlerHost *lnkhost = nullptr;
-	auto selectingText = (item == _mouseActionItem && item == App::hoveredItem() && _selectedItem);
-	if (item) {
-		if (item != _mouseActionItem || (itemPoint - _dragStartPosition).manhattanLength() >= QApplication::startDragDistance()) {
+	auto selectingText = (view == _mouseActionItem && item == App::hoveredItem() && _selectedItem);
+	if (view) {
+		if (view != _mouseActionItem || (itemPoint - _dragStartPosition).manhattanLength() >= QApplication::startDragDistance()) {
 			if (_mouseAction == MouseAction::PrepareDrag) {
 				_mouseAction = MouseAction::Dragging;
 				InvokeQueued(this, [this] { performDrag(); });
@@ -1369,7 +1398,9 @@ void InnerWidget::updateSelected() {
 				}
 				auto selection = TextSelection { qMin(second, _mouseTextSymbol), qMax(second, _mouseTextSymbol) };
 				if (_mouseSelectType != TextSelectType::Letters) {
-					selection = _mouseActionItem->adjustSelection(selection, _mouseSelectType);
+					selection = _mouseActionItem->data()->adjustSelection(
+						selection,
+						_mouseSelectType);
 				}
 				if (_selectedText != selection) {
 					_selectedText = selection;
@@ -1394,7 +1425,7 @@ void InnerWidget::updateSelected() {
 	if (auto pressedItem = App::pressedLinkItem()) {
 		if (!pressedItem->detached()) {
 			if (pressedItem->history() == _history) {
-				auto adjustedPoint = mapPointToItem(point, pressedItem);
+				auto adjustedPoint = mapPointToItem(point, viewForItem(pressedItem));
 				pressedItem->updatePressed(adjustedPoint);
 			}
 		}
@@ -1502,22 +1533,22 @@ void InnerWidget::performDrag() {
 	//} // TODO
 }
 
-int InnerWidget::itemTop(not_null<const HistoryItem*> item) const {
+int InnerWidget::itemTop(not_null<const Message*> item) const {
 	return _itemsTop + item->y();
 }
 
-void InnerWidget::repaintItem(const HistoryItem *item) {
+void InnerWidget::repaintItem(const Message *item) {
 	if (!item) {
 		return;
 	}
-	update(0, itemTop(item), width(), item->height());
+	update(0, itemTop(item), width(), item->data()->height());
 }
 
-QPoint InnerWidget::mapPointToItem(QPoint point, const HistoryItem *item) const {
-	if (!item) {
+QPoint InnerWidget::mapPointToItem(QPoint point, const Message *view) const {
+	if (!view) {
 		return QPoint();
 	}
-	return point - QPoint(0, itemTop(item));
+	return point - QPoint(0, itemTop(view));
 }
 
 void InnerWidget::handlePendingHistoryResize() {

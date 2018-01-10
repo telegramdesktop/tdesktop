@@ -9,11 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
+#include "history/view/history_view_message.h"
+#include "history/view/history_view_service_message.h"
 #include "history/history_item_components.h"
 #include "history/history_media_types.h"
 #include "history/history_media_grouped.h"
 #include "history/history_message.h"
-#include "history/view/history_view_service_message.h"
 #include "media/media_clip_reader.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
@@ -347,9 +348,22 @@ void HistoryItem::detach() {
 	_history->setPendingResize();
 }
 
+void HistoryItem::attachToBlock(not_null<HistoryBlock*> block, int index) {
+	Expects(!isLogEntry());
+	Expects(_block == nullptr);
+	Expects(_indexInBlock < 0);
+	Expects(index >= 0);
+
+	_block = block;
+	_indexInBlock = index;
+	_mainView = block->messages[index].get();
+	setPendingResize();
+}
+
 void HistoryItem::detachFast() {
 	_block = nullptr;
 	_indexInBlock = -1;
+	_mainView = nullptr;
 
 	validateGroupId();
 	if (groupId()) {
@@ -968,6 +982,32 @@ void HistoryItem::audioTrackUpdated() {
 			reader->pauseResumeVideo();
 		}
 	}
+}
+
+HistoryItem *HistoryItem::previousItem() const {
+	if (_block && _indexInBlock >= 0) {
+		if (_indexInBlock > 0) {
+			return _block->messages[_indexInBlock - 1]->data();
+		}
+		if (auto previous = _block->previousBlock()) {
+			Assert(!previous->messages.empty());
+			return previous->messages.back()->data();
+		}
+	}
+	return nullptr;
+}
+
+HistoryItem *HistoryItem::nextItem() const {
+	if (_block && _indexInBlock >= 0) {
+		if (_indexInBlock + 1 < _block->messages.size()) {
+			return _block->messages[_indexInBlock + 1]->data();
+		}
+		if (auto next = _block->nextBlock()) {
+			Assert(!next->messages.empty());
+			return next->messages.front()->data();
+		}
+	}
+	return nullptr;
 }
 
 void HistoryItem::recountDisplayDate() {

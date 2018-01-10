@@ -23,8 +23,12 @@ class Controller;
 
 namespace HistoryView {
 
+enum class Context : char;
+class Message;
+
 class ListDelegate {
 public:
+	virtual Context listContext() = 0;
 	virtual void listScrollTo(int top) = 0;
 	virtual void listCloseRequest() = 0;
 	virtual rpl::producer<Data::MessagesSlice> listSource(
@@ -138,15 +142,18 @@ private:
 	void saveScrollState();
 	void restoreScrollState();
 
+	Message *viewForItem(const HistoryItem *item) const;
+	not_null<Message*> enforceViewForItem(not_null<HistoryItem*> item);
+
 	void mouseActionStart(const QPoint &screenPos, Qt::MouseButton button);
 	void mouseActionUpdate(const QPoint &screenPos);
 	void mouseActionFinish(const QPoint &screenPos, Qt::MouseButton button);
 	void mouseActionCancel();
 	void updateSelected();
 	void performDrag();
-	int itemTop(not_null<const HistoryItem*> item) const;
-	void repaintItem(const HistoryItem *item);
-	QPoint mapPointToItem(QPoint point, const HistoryItem *item) const;
+	int itemTop(not_null<const Message*> view) const;
+	void repaintItem(const Message *view);
+	QPoint mapPointToItem(QPoint point, const Message *view) const;
 	void handlePendingHistoryResize();
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
@@ -165,8 +172,8 @@ private:
 		const TextWithEntities &forClipboard,
 		QClipboard::Mode mode = QClipboard::Clipboard);
 
-	not_null<HistoryItem*> findItemByY(int y) const;
-	HistoryItem *strictFindItemByY(int y) const;
+	not_null<Message*> findItemByY(int y) const;
+	Message *strictFindItemByY(int y) const;
 	int findNearestItem(Data::MessagePosition position) const;
 
 	void checkMoveToOtherViewer();
@@ -184,7 +191,7 @@ private:
 	// This function finds all history items that are displayed and calls template method
 	// for each found message (in given direction) in the passed history with passed top offset.
 	//
-	// Method has "bool (*Method)(HistoryItem *item, int itemtop, int itembottom)" signature
+	// Method has "bool (*Method)(Message *view, int itemtop, int itembottom)" signature
 	// if it returns false the enumeration stops immediately.
 	template <EnumItemsDirection direction, typename Method>
 	void enumerateItems(Method method);
@@ -210,18 +217,19 @@ private:
 	not_null<ListDelegate*> _delegate;
 	not_null<Window::Controller*> _controller;
 	Data::MessagePosition _aroundPosition;
+	Context _context;
 	int _aroundIndex = -1;
 	int _idsLimit = kMinimalIdsLimit;
 	Data::MessagesSlice _slice;
-	std::vector<not_null<HistoryItem*>> _items;
-	std::map<uint64, HistoryItem*> _itemsByIds;
+	std::vector<not_null<Message*>> _items;
+	std::map<not_null<HistoryItem*>, std::unique_ptr<Message>, std::less<>> _views;
 	int _itemsTop = 0;
 	int _itemsHeight = 0;
 
 	int _minHeight = 0;
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
-	HistoryItem *_visibleTopItem = nullptr;
+	Message *_visibleTopItem = nullptr;
 	int _visibleTopFromItem = 0;
 	ScrollTopState _scrollTopState;
 
@@ -229,19 +237,19 @@ private:
 	Animation _scrollDateOpacity;
 	SingleQueuedInvokation _scrollDateCheck;
 	base::Timer _scrollDateHideTimer;
-	HistoryItem *_scrollDateLastItem = nullptr;
+	Message *_scrollDateLastItem = nullptr;
 	int _scrollDateLastItemTop = 0;
 
 	MouseAction _mouseAction = MouseAction::None;
 	TextSelectType _mouseSelectType = TextSelectType::Letters;
 	QPoint _dragStartPosition;
 	QPoint _mousePosition;
-	HistoryItem *_mouseActionItem = nullptr;
+	Message *_mouseActionItem = nullptr;
 	HistoryCursorState _mouseCursorState = HistoryDefaultCursorState;
 	uint16 _mouseTextSymbol = 0;
 	bool _pressWasInactive = false;
 
-	HistoryItem *_selectedItem = nullptr;
+	Message *_selectedItem = nullptr;
 	TextSelection _selectedText;
 	bool _wasSelectedText = false; // was some text selected in current drag action
 	Qt::CursorShape _cursor = style::cur_default;
