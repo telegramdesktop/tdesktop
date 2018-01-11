@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history.h"
 
-#include "history/view/history_view_message.h"
+#include "history/view/history_view_element.h"
 #include "history/history_message.h"
 #include "history/history_media_types.h"
 #include "history/history_service.h"
@@ -1388,8 +1388,8 @@ void History::addItemToBlock(not_null<HistoryItem*> item) {
 
 	auto block = prepareBlockForAddingItem();
 
-	block->messages.push_back(std::make_unique<HistoryView::Message>(
-		item,
+	block->messages.push_back(item->createView(
+		App::wnd()->controller(),
 		HistoryView::Context::History));
 	block->messages.back()->attachToBlock(block, block->messages.size() - 1);
 	item->previousItemChanged();
@@ -1965,8 +1965,8 @@ not_null<HistoryItem*> History::addNewInTheMiddle(
 
 	const auto it = block->messages.insert(
 		block->messages.begin() + itemIndex,
-		std::make_unique<HistoryView::Message>(
-			newItem,
+		newItem->createView(
+			App::wnd()->controller(),
 			HistoryView::Context::History));
 	(*it)->attachToBlock(block.get(), itemIndex);
 	newItem->previousItemChanged();
@@ -2566,7 +2566,7 @@ void HistoryBlock::clear(bool leaveItems) {
 	// #TODO feeds delete all items in history
 }
 
-void HistoryBlock::remove(not_null<Message*> view) {
+void HistoryBlock::remove(not_null<Element*> view) {
 	Expects(view->block() == this);
 
 	const auto item = view->data();

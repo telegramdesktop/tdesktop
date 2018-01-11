@@ -171,6 +171,14 @@ void paintPreparedDate(Painter &p, const QString &dateText, int dateTextWidth, i
 
 } // namepsace
 
+Service::Service(not_null<HistoryService*> data, Context context)
+: Element(data, context) {
+}
+
+not_null<HistoryService*> Service::message() const {
+	return static_cast<HistoryService*>(data().get());
+}
+
 int WideChatWidth() {
 	return st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left();
 }

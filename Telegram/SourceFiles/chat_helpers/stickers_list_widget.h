@@ -17,6 +17,7 @@ class Controller;
 
 namespace Ui {
 class LinkButton;
+class RippleAnimation;
 } // namespace Ui
 
 namespace ChatHelpers {

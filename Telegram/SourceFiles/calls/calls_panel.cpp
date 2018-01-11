@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "platform/platform_specific.h"
 #include "window/main_window.h"
+#include "layout.h"
 
 namespace Calls {
 namespace {

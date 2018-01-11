@@ -7,9 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "history/view/history_view_element.h"
+
 class HistoryService;
 
 namespace HistoryView {
+
+class Service : public Element {
+public:
+	Service(not_null<HistoryService*> data, Context context);
+
+private:
+	not_null<HistoryService*> message() const;
+
+};
 
 int WideChatWidth();
 

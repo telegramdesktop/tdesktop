@@ -168,8 +168,6 @@ public slots:
 	void onShowNewChannel();
 	void onLogout();
 
-	void app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button);
-
 signals:
 	void tempDirCleared(int task);
 	void tempDirClearFailed(int task);

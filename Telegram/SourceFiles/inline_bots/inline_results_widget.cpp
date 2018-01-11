@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/labels.h"
 #include "observer_peer.h"
+#include "history/view/history_view_cursor_state.h"
 
 namespace InlineBots {
 namespace Layout {

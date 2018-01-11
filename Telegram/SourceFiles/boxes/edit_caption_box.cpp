@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "window/window_controller.h"
 #include "mainwidget.h"
+#include "layout.h"
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
 

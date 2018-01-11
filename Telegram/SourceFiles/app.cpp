@@ -89,7 +89,7 @@ namespace {
 	using SentData = QMap<uint64, QPair<PeerId, QString>>;
 	SentData sentData;
 
-	HistoryView::Message *hoveredItem = nullptr,
+	HistoryView::Element *hoveredItem = nullptr,
 		*pressedItem = nullptr,
 		*hoveredLinkItem = nullptr,
 		*pressedLinkItem = nullptr,
@@ -1835,7 +1835,7 @@ namespace {
 		}
 	}
 
-	void messageViewDestroyed(not_null<HistoryView::Message*> view) {
+	void messageViewDestroyed(not_null<HistoryView::Element*> view) {
 		if (::hoveredItem == view) {
 			hoveredItem(nullptr);
 		}
@@ -2182,43 +2182,43 @@ namespace {
 		clearAllImages();
 	}
 
-	void hoveredItem(HistoryView::Message *item) {
+	void hoveredItem(HistoryView::Element *item) {
 		::hoveredItem = item;
 	}
 
-	HistoryView::Message *hoveredItem() {
+	HistoryView::Element *hoveredItem() {
 		return ::hoveredItem;
 	}
 
-	void pressedItem(HistoryView::Message *item) {
+	void pressedItem(HistoryView::Element *item) {
 		::pressedItem = item;
 	}
 
-	HistoryView::Message *pressedItem() {
+	HistoryView::Element *pressedItem() {
 		return ::pressedItem;
 	}
 
-	void hoveredLinkItem(HistoryView::Message *item) {
+	void hoveredLinkItem(HistoryView::Element *item) {
 		::hoveredLinkItem = item;
 	}
 
-	HistoryView::Message *hoveredLinkItem() {
+	HistoryView::Element *hoveredLinkItem() {
 		return ::hoveredLinkItem;
 	}
 
-	void pressedLinkItem(HistoryView::Message *item) {
+	void pressedLinkItem(HistoryView::Element *item) {
 		::pressedLinkItem = item;
 	}
 
-	HistoryView::Message *pressedLinkItem() {
+	HistoryView::Element *pressedLinkItem() {
 		return ::pressedLinkItem;
 	}
 
-	void mousedItem(HistoryView::Message *item) {
+	void mousedItem(HistoryView::Element *item) {
 		::mousedItem = item;
 	}
 
-	HistoryView::Message *mousedItem() {
+	HistoryView::Element *mousedItem() {
 		return ::mousedItem;
 	}
 
@@ -2484,7 +2484,7 @@ namespace {
 
 	QString phoneFromSharedContact(int32 userId) {
 		auto i = ::sharedContactItems.constFind(userId);
-		if (i != ::sharedContactItems.cend() && !i->isEmpty()) {
+		if (i != ::sharedContactItems.cend() && !i->empty()) {
 			if (auto media = (*i->cbegin())->getMedia()) {
 				if (media->type() == MediaTypeContact) {
 					return static_cast<HistoryContact*>(media)->phone();

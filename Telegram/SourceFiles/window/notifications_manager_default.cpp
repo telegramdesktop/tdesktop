@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "storage/file_download.h"
 #include "auth_session.h"
+#include "history/history_item.h"
 #include "platform/platform_specific.h"
 
 namespace Window {
@@ -61,6 +62,16 @@ Manager::Manager(System *system) : Notifications::Manager(system) {
 		settingsChanged(change);
 	});
 	_inputCheckTimer.setTimeoutHandler([this] { checkLastInput(); });
+}
+
+Manager::QueuedNotification::QueuedNotification(
+	not_null<HistoryItem*> item
+	, int forwardedCount)
+: history(item->history())
+, peer(history->peer)
+, author((!peer->isUser() && !item->isPost()) ? item->author() : nullptr)
+, item((forwardedCount < 2) ? item.get() : nullptr)
+, forwardedCount(forwardedCount) {
 }
 
 QPixmap Manager::hiddenUserpicPlaceholder() const {

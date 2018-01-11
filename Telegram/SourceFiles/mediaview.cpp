@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "messenger.h"
+#include "layout.h"
 #include "storage/file_download.h"
 #include "calls/calls_instance.h"
 #include "styles/style_mediaview.h"

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_indexed_list.h"
 #include "mainwidget.h"
 #include "styles/style_dialogs.h"
+#include "history/history_item.h"
 
 namespace Dialogs {
 namespace {

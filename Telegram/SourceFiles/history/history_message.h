@@ -228,6 +228,10 @@ public:
 	bool displayFromPhoto() const;
 	bool hasFromPhoto() const;
 
+	std::unique_ptr<HistoryView::Element> createView(
+		not_null<Window::Controller*> controller,
+		HistoryView::Context context) override;
+
 	~HistoryMessage();
 
 protected:
@@ -324,7 +328,7 @@ private:
 		QPoint point,
 		QRect &trect,
 		not_null<HistoryTextState*> outResult,
-		const HistoryStateRequest &request) const;
+		HistoryStateRequest request) const;
 	bool getStateReplyInfo(
 		QPoint point,
 		QRect &trect,
@@ -337,7 +341,7 @@ private:
 		QPoint point,
 		QRect &trect,
 		not_null<HistoryTextState*> outResult,
-		const HistoryStateRequest &request) const;
+		HistoryStateRequest request) const;
 
 	void setMedia(const MTPMessageMedia *media);
 	void setReplyMarkup(const MTPReplyMarkup *markup);

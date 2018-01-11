@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/scroll_area.h"
+#include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_top_bar_widget.h"
 
 namespace Window {
@@ -28,7 +29,7 @@ class HistoryInner
 	Q_OBJECT
 
 public:
-	using Message = HistoryView::Message;
+	using Element = HistoryView::Element;
 
 	HistoryInner(
 		not_null<HistoryWidget*> historyWidget,
@@ -47,7 +48,7 @@ public:
 	void updateSize();
 
 	void repaintItem(const HistoryItem *item);
-	void repaintItem(const Message *view);
+	void repaintItem(const Element *view);
 
 	bool canCopySelected() const;
 	bool canDeleteSelected() const;
@@ -73,7 +74,7 @@ public:
 
 	// -1 if should not be visible, -2 if bad history()
 	int itemTop(const HistoryItem *item) const;
-	int itemTop(const Message *view) const;
+	int itemTop(const Element *view) const;
 
 	void notifyIsBotChanged();
 	void notifyMigrateUpdated();
@@ -140,7 +141,7 @@ private:
 	// This function finds all history items that are displayed and calls template method
 	// for each found message (in given direction) in the passed history with passed top offset.
 	//
-	// Method has "bool (*Method)(not_null<Message*> view, int itemtop, int itembottom)" signature
+	// Method has "bool (*Method)(not_null<Element*> view, int itemtop, int itembottom)" signature
 	// if it returns false the enumeration stops immidiately.
 	template <bool TopToBottom, typename Method>
 	void enumerateItemsInHistory(History *history, int historytop, Method method);
@@ -160,7 +161,7 @@ private:
 	// This function finds all userpics on the left that are displayed and calls template method
 	// for each found userpic (from the top to the bottom) using enumerateItems() method.
 	//
-	// Method has "bool (*Method)(not_null<Message*> view, int userpicTop)" signature
+	// Method has "bool (*Method)(not_null<Element*> view, int userpicTop)" signature
 	// if it returns false the enumeration stops immidiately.
 	template <typename Method>
 	void enumerateUserpics(Method method);
@@ -168,7 +169,7 @@ private:
 	// This function finds all date elements that are displayed and calls template method
 	// for each found date element (from the bottom to the top) using enumerateItems() method.
 	//
-	// Method has "bool (*Method)(not_null<Message*> view, int itemtop, int dateTop)" signature
+	// Method has "bool (*Method)(not_null<Element*> view, int itemtop, int dateTop)" signature
 	// if it returns false the enumeration stops immidiately.
 	template <typename Method>
 	void enumerateDates(Method method);
@@ -179,7 +180,7 @@ private:
 	void mouseActionCancel();
 	void performDrag();
 
-	QPoint mapPointToItem(QPoint p, const Message *view);
+	QPoint mapPointToItem(QPoint p, const Element *view);
 	QPoint mapPointToItem(QPoint p, const HistoryItem *item);
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
@@ -202,11 +203,11 @@ private:
 
 	void adjustCurrent(int32 y) const;
 	void adjustCurrent(int32 y, History *history) const;
-	Message *prevItem(Message *item);
-	Message *nextItem(Message *item);
-	void updateDragSelection(Message *dragSelFrom, Message *dragSelTo, bool dragSelecting);
+	Element *prevItem(Element *item);
+	Element *nextItem(Element *item);
+	void updateDragSelection(Element *dragSelFrom, Element *dragSelTo, bool dragSelecting);
 	TextSelection itemRenderSelection(
-		not_null<Message*> view,
+		not_null<Element*> view,
 		int selfromy,
 		int seltoy) const;
 	TextSelection computeRenderSelection(
@@ -305,8 +306,8 @@ private:
 
 	ClickHandlerPtr _contextMenuLink;
 
-	Message *_dragSelFrom = nullptr;
-	Message *_dragSelTo = nullptr;
+	Element *_dragSelFrom = nullptr;
+	Element *_dragSelTo = nullptr;
 	bool _dragSelecting = false;
 	bool _wasSelectedText = false; // was some text selected in current drag action
 
@@ -336,7 +337,7 @@ private:
 	Animation _scrollDateOpacity;
 	SingleQueuedInvokation _scrollDateCheck;
 	SingleTimer _scrollDateHideTimer;
-	Message *_scrollDateLastItem = nullptr;
+	Element *_scrollDateLastItem = nullptr;
 	int _scrollDateLastItemTop = 0;
 	ClickHandlerPtr _scrollDateLink;
 

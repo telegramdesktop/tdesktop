@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_feed.h"
 
 #include "dialogs/dialogs_key.h"
+#include "history/history_item.h"
 
 namespace Data {
 

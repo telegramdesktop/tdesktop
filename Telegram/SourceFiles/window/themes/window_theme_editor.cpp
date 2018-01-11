@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor_block.h"
 #include "mainwindow.h"
+#include "layout.h"
 #include "storage/localstorage.h"
 #include "boxes/confirm_box.h"
 #include "styles/style_window.h"

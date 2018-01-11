@@ -10,12 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/history_media_types.h"
 #include "history/history_message.h"
-#include "history/view/history_view_message.h"
+#include "history/view/history_view_element.h"
 #include "storage/storage_shared_media.h"
 #include "lang/lang_keys.h"
 #include "ui/grouped_layout.h"
 #include "ui/text_options.h"
 #include "styles/style_history.h"
+#include "layout.h"
 
 HistoryGroupedMedia::Element::Element(not_null<HistoryItem*> item)
 : item(item) {

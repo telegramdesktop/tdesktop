@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_media_types.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_service_message.h"
-#include "history/view/history_view_message.h"
+#include "history/view/history_view_element.h"
 #include "ui/text_options.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_widget.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
+#include "layout.h"
 #include "auth_session.h"
 #include "messenger.h"
 #include "apiwrap.h"
@@ -193,7 +194,7 @@ void HistoryInner::repaintItem(const HistoryItem *item) {
 	}
 }
 
-void HistoryInner::repaintItem(const Message *view) {
+void HistoryInner::repaintItem(const Element *view) {
 	if (view) {
 		const auto top = itemTop(view);
 		if (top >= 0) {
@@ -303,7 +304,7 @@ void HistoryInner::enumerateUserpics(Method method) {
 	// -1 means we didn't find an attached to next message yet.
 	int lowestAttachedItemTop = -1;
 
-	auto userpicCallback = [&](not_null<Message*> view, int itemtop, int itembottom) {
+	auto userpicCallback = [&](not_null<Element*> view, int itemtop, int itembottom) {
 		// Skip all service messages.
 		const auto item = view->data();
 		const auto message = item->toHistoryMessage();
@@ -352,7 +353,7 @@ void HistoryInner::enumerateDates(Method method) {
 	// -1 means we didn't find a same-day with previous message yet.
 	auto lowestInOneDayItemBottom = -1;
 
-	auto dateCallback = [&](not_null<Message*> view, int itemtop, int itembottom) {
+	auto dateCallback = [&](not_null<Element*> view, int itemtop, int itembottom) {
 		const auto item = view->data();
 		if (lowestInOneDayItemBottom < 0 && item->isInOneDayWithPrevious()) {
 			lowestInOneDayItemBottom = itembottom - item->marginBottom();
@@ -440,7 +441,7 @@ TextSelection HistoryInner::computeRenderSelection(
 }
 
 TextSelection HistoryInner::itemRenderSelection(
-		not_null<Message*> view,
+		not_null<Element*> view,
 		int selfromy,
 		int seltoy) const {
 	const auto item = view->data();
@@ -598,7 +599,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		}
 
 		if (mtop >= 0 || htop >= 0) {
-			enumerateUserpics([&](not_null<Message*> view, int userpicTop) {
+			enumerateUserpics([&](not_null<Element*> view, int userpicTop) {
 				// stop the enumeration if the userpic is below the painted rect
 				if (userpicTop >= clip.top() + clip.height()) {
 					return false;
@@ -627,7 +628,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			//int showFloatingBefore = height() - 2 * (_visibleAreaBottom - _visibleAreaTop) - dateHeight;
 
 			auto scrollDateOpacity = _scrollDateOpacity.current(ms, _scrollDateShown ? 1. : 0.);
-			enumerateDates([&](not_null<Message*> view, int itemtop, int dateTop) {
+			enumerateDates([&](not_null<Element*> view, int itemtop, int dateTop) {
 				// stop the enumeration if the date is above the painted rect
 				if (dateTop + dateHeight <= clip.top()) {
 					return false;
@@ -883,7 +884,7 @@ void HistoryInner::touchScrollUpdated(const QPoint &screenPos) {
 	touchUpdateSpeed();
 }
 
-QPoint HistoryInner::mapPointToItem(QPoint p, const Message *view) {
+QPoint HistoryInner::mapPointToItem(QPoint p, const Element *view) {
 	if (view) {
 		const auto top = itemTop(view);
 		p.setY(p.y() - top);
@@ -2109,7 +2110,7 @@ void HistoryInner::adjustCurrent(int32 y, History *history) const {
 	}
 }
 
-HistoryView::Message *HistoryInner::prevItem(Message *view) {
+auto HistoryInner::prevItem(Element *view) -> Element* {
 	if (!view) {
 		return nullptr;
 	} else if (const auto result = view->previousInBlocks()) {
@@ -2124,7 +2125,7 @@ HistoryView::Message *HistoryInner::prevItem(Message *view) {
 	return nullptr;
 }
 
-HistoryView::Message *HistoryInner::nextItem(Message *view) {
+auto HistoryInner::nextItem(Element *view) -> Element* {
 	if (!view) {
 		return nullptr;
 	} else if (const auto result = view->nextInBlocks()) {
@@ -2225,7 +2226,7 @@ void HistoryInner::onUpdateSelected() {
 
 	auto block = (HistoryBlock*)nullptr;
 	auto item = (HistoryItem*)nullptr;
-	auto view = (Message*)nullptr;
+	auto view = (Element*)nullptr;
 	QPoint m;
 
 	adjustCurrent(point.y());
@@ -2277,7 +2278,7 @@ void HistoryInner::onUpdateSelected() {
 
 		auto dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
 		auto scrollDateOpacity = _scrollDateOpacity.current(_scrollDateShown ? 1. : 0.);
-		enumerateDates([&](not_null<Message*> view, int itemtop, int dateTop) {
+		enumerateDates([&](not_null<Element*> view, int itemtop, int dateTop) {
 			// stop enumeration if the date is above our point
 			if (dateTop + dateHeight <= point.y()) {
 				return false;
@@ -2341,7 +2342,7 @@ void HistoryInner::onUpdateSelected() {
 			if (!dragState.link && m.x() >= st::historyPhotoLeft && m.x() < st::historyPhotoLeft + st::msgPhotoSize) {
 				if (auto msg = item->toHistoryMessage()) {
 					if (msg->hasFromPhoto()) {
-						enumerateUserpics([&](not_null<Message*> view, int userpicTop) -> bool {
+						enumerateUserpics([&](not_null<Element*> view, int userpicTop) -> bool {
 							// stop enumeration if the userpic is below our point
 							if (userpicTop > point.y()) {
 								return false;
@@ -2490,7 +2491,7 @@ void HistoryInner::onUpdateSelected() {
 	}
 }
 
-void HistoryInner::updateDragSelection(Message *dragSelFrom, Message *dragSelTo, bool dragSelecting) {
+void HistoryInner::updateDragSelection(Element *dragSelFrom, Element *dragSelTo, bool dragSelecting) {
 	if (_dragSelFrom == dragSelFrom && _dragSelTo == dragSelTo && _dragSelecting == dragSelecting) {
 		return;
 	}
@@ -2552,7 +2553,7 @@ int HistoryInner::itemTop(const HistoryItem *item) const {
 	return itemTop(item->mainView());
 }
 
-int HistoryInner::itemTop(const Message *view) const {
+int HistoryInner::itemTop(const Element *view) const {
 	if (!view) {
 		return -1;
 	}

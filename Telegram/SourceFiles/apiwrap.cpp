@@ -1617,7 +1617,7 @@ void ApiWrap::resolveWebPages() {
 		if (i.value() > 0) continue;
 		if (i.key()->pendingTill <= t) {
 			auto j = items.constFind(i.key());
-			if (j != items.cend() && !j.value().isEmpty()) {
+			if (j != items.cend() && !j.value().empty()) {
 				for_const (auto item, j.value()) {
 					if (item->id > 0) {
 						if (item->channelId() == NoChannel) {

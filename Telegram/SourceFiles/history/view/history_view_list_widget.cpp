@@ -10,13 +10,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_media_types.h"
 #include "history/history_message.h"
 #include "history/history_item_components.h"
-#include "history/view/history_view_message.h"
+#include "history/view/history_view_element.h"
 #include "history/view/history_view_service_message.h"
 #include "chat_helpers/message_field.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "messenger.h"
 #include "apiwrap.h"
+#include "layout.h"
 #include "window/window_controller.h"
 #include "auth_session.h"
 #include "ui/widgets/popup_menu.h"
@@ -125,7 +126,7 @@ void ListWidget::enumerateUserpics(Method method) {
 	// -1 means we didn't find an attached to next message yet.
 	int lowestAttachedItemTop = -1;
 
-	auto userpicCallback = [&](not_null<Message*> view, int itemtop, int itembottom) {
+	auto userpicCallback = [&](not_null<Element*> view, int itemtop, int itembottom) {
 		// Skip all service messages.
 		auto message = view->data()->toHistoryMessage();
 		if (!message) return true;
@@ -171,7 +172,7 @@ void ListWidget::enumerateDates(Method method) {
 	// -1 means we didn't find a same-day with previous message yet.
 	auto lowestInOneDayItemBottom = -1;
 
-	auto dateCallback = [&](not_null<Message*> view, int itemtop, int itembottom) {
+	auto dateCallback = [&](not_null<Element*> view, int itemtop, int itembottom) {
 		const auto item = view->data();
 		if (lowestInOneDayItemBottom < 0 && item->isInOneDayWithPrevious()) {
 			lowestInOneDayItemBottom = itembottom - item->marginBottom();
@@ -288,7 +289,7 @@ void ListWidget::restoreScrollState() {
 	_scrollTopState = ScrollTopState();
 }
 
-Message *ListWidget::viewForItem(const HistoryItem *item) const {
+Element *ListWidget::viewForItem(const HistoryItem *item) const {
 	if (item) {
 		if (const auto i = _views.find(item); i != _views.end()) {
 			return i->second.get();
@@ -297,14 +298,14 @@ Message *ListWidget::viewForItem(const HistoryItem *item) const {
 	return nullptr;
 }
 
-not_null<Message*> ListWidget::enforceViewForItem(
+not_null<Element*> ListWidget::enforceViewForItem(
 		not_null<HistoryItem*> item) {
 	if (const auto view = viewForItem(item)) {
 		return view;
 	}
 	const auto [i, ok] = _views.emplace(
 		item,
-		std::make_unique<Message>(item, _context));
+		item->createView(_controller, _context));
 	return i->second.get();
 }
 
@@ -321,7 +322,7 @@ int ListWidget::findNearestItem(Data::MessagePosition position) const {
 	}
 	const auto after = ranges::find_if(
 		_items,
-		[&](not_null<Message*> view) {
+		[&](not_null<Element*> view) {
 			return (view->data()->position() >= position);
 		});
 	return (after == end(_items))
@@ -435,7 +436,7 @@ void ListWidget::checkMoveToOtherViewer() {
 		- kPreloadIfLessThanScreens;
 	auto minUniversalIdDelta = (minScreenDelta * visibleHeight)
 		/ minItemHeight;
-	auto preloadAroundMessage = [&](not_null<Message*> view) {
+	auto preloadAroundMessage = [&](not_null<Element*> view) {
 		auto preloadRequired = false;
 		auto itemPosition = view->data()->position();
 		auto itemIndex = ranges::find(_items, view) - begin(_items);
@@ -586,7 +587,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		}
 		p.translate(0, -top);
 
-		enumerateUserpics([&](not_null<Message*> view, int userpicTop) {
+		enumerateUserpics([&](not_null<Element*> view, int userpicTop) {
 			// stop the enumeration if the userpic is below the painted rect
 			if (userpicTop >= clip.top() + clip.height()) {
 				return false;
@@ -609,7 +610,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 
 		auto dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
 		auto scrollDateOpacity = _scrollDateOpacity.current(ms, _scrollDateShown ? 1. : 0.);
-		enumerateDates([&](not_null<Message*> view, int itemtop, int dateTop) {
+		enumerateDates([&](not_null<Element*> view, int itemtop, int dateTop) {
 			// stop the enumeration if the date is above the painted rect
 			if (dateTop + dateHeight <= clip.top()) {
 				return false;
@@ -655,7 +656,7 @@ TextWithEntities ListWidget::getSelectedText() const {
 		: TextWithEntities();
 }
 
-not_null<Message*> ListWidget::findItemByY(int y) const {
+not_null<Element*> ListWidget::findItemByY(int y) const {
 	Expects(!_items.empty());
 
 	if (y < _itemsTop) {
@@ -671,7 +672,7 @@ not_null<Message*> ListWidget::findItemByY(int y) const {
 	return (i != end(_items)) ? i->get() : _items.back().get();
 }
 
-Message *ListWidget::strictFindItemByY(int y) const {
+Element *ListWidget::strictFindItemByY(int y) const {
 	if (_items.empty()) {
 		return nullptr;
 	}
@@ -1191,7 +1192,7 @@ void ListWidget::updateSelected() {
 		if (!dragState.link && itemPoint.x() >= st::historyPhotoLeft && itemPoint.x() < st::historyPhotoLeft + st::msgPhotoSize) {
 			if (auto message = item->toHistoryMessage()) {
 				if (message->hasFromPhoto()) {
-					enumerateUserpics([&](not_null<Message*> view, int userpicTop) -> bool {
+					enumerateUserpics([&](not_null<Element*> view, int userpicTop) -> bool {
 						// stop enumeration if the userpic is below our point
 						if (userpicTop > point.y()) {
 							return false;
@@ -1371,11 +1372,11 @@ void ListWidget::performDrag() {
 	//} // #TODO drag
 }
 
-int ListWidget::itemTop(not_null<const Message*> view) const {
+int ListWidget::itemTop(not_null<const Element*> view) const {
 	return _itemsTop + view->y();
 }
 
-void ListWidget::repaintItem(const Message *view) {
+void ListWidget::repaintItem(const Element *view) {
 	if (!view) {
 		return;
 	}
@@ -1384,7 +1385,7 @@ void ListWidget::repaintItem(const Message *view) {
 
 QPoint ListWidget::mapPointToItem(
 		QPoint point,
-		const Message *view) const {
+		const Element *view) const {
 	if (!view) {
 		return QPoint();
 	}

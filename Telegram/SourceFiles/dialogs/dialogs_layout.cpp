@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/text_options.h"
 #include "lang/lang_keys.h"
+#include "history/history_item.h"
 
 namespace Dialogs {
 namespace Layout {

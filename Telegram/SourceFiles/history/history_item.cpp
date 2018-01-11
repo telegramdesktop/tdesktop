@@ -9,7 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
-#include "history/view/history_view_message.h"
+#include "layout.h"
+#include "history/view/history_view_element.h"
 #include "history/view/history_view_service_message.h"
 #include "history/history_item_components.h"
 #include "history/history_media_types.h"
@@ -40,57 +41,6 @@ namespace {
 constexpr int kAttachMessageToPreviousSecondsDelta = 900;
 
 } // namespace
-
-HistoryTextState::HistoryTextState(not_null<const HistoryItem*> item)
-: itemId(item->fullId()) {
-}
-
-HistoryTextState::HistoryTextState(
-	not_null<const HistoryItem*> item,
-	const Text::StateResult &state)
-: itemId(item->fullId())
-, cursor(state.uponSymbol
-	? HistoryInTextCursorState
-	: HistoryDefaultCursorState)
-, link(state.link)
-, afterSymbol(state.afterSymbol)
-, symbol(state.symbol) {
-}
-
-HistoryTextState::HistoryTextState(
-	not_null<const HistoryItem*> item,
-	ClickHandlerPtr link)
-: itemId(item->fullId())
-, link(link) {
-}
-
-HistoryMediaPtr::HistoryMediaPtr() = default;
-
-HistoryMediaPtr::HistoryMediaPtr(std::unique_ptr<HistoryMedia> pointer)
-: _pointer(std::move(pointer)) {
-	if (_pointer) {
-		_pointer->attachToParent();
-	}
-}
-
-void HistoryMediaPtr::reset(std::unique_ptr<HistoryMedia> pointer) {
-	*this = std::move(pointer);
-}
-
-HistoryMediaPtr &HistoryMediaPtr::operator=(std::unique_ptr<HistoryMedia> pointer) {
-	if (_pointer) {
-		_pointer->detachFromParent();
-	}
-	_pointer = std::move(pointer);
-	if (_pointer) {
-		_pointer->attachToParent();
-	}
-	return *this;
-}
-
-HistoryMediaPtr::~HistoryMediaPtr() {
-	reset();
-}
 
 namespace internal {
 

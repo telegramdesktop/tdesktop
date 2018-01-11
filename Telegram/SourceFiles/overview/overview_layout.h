@@ -12,6 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/radial_animation.h"
 #include "styles/style_overview.h"
 
+struct HistoryTextState;
+struct HistoryStateRequest;
+
 namespace style {
 struct RoundCheckbox;
 } // namespace style
@@ -47,10 +50,7 @@ public:
 	virtual DocumentData *getDocument() const {
 		return nullptr;
 	}
-	MsgId msgId() const {
-		auto item = getItem();
-		return item ? item->id : 0;
-	}
+	MsgId msgId() const;
 
 	virtual void invalidateCache() {
 	}

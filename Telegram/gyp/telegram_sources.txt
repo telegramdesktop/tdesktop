@@ -225,6 +225,10 @@
 <(src_loc)/history/admin_log/history_admin_log_section.h
 <(src_loc)/history/feed/history_feed_section.cpp
 <(src_loc)/history/feed/history_feed_section.h
+<(src_loc)/history/view/history_view_cursor_state.cpp
+<(src_loc)/history/view/history_view_cursor_state.h
+<(src_loc)/history/view/history_view_element.cpp
+<(src_loc)/history/view/history_view_element.h
 <(src_loc)/history/view/history_view_list_widget.cpp
 <(src_loc)/history/view/history_view_list_widget.h
 <(src_loc)/history/view/history_view_message.cpp
@@ -249,6 +253,8 @@
 <(src_loc)/history/history_media.cpp
 <(src_loc)/history/history_media_grouped.h
 <(src_loc)/history/history_media_grouped.cpp
+<(src_loc)/history/history_media_pointer.h
+<(src_loc)/history/history_media_pointer.cpp
 <(src_loc)/history/history_media_types.cpp
 <(src_loc)/history/history_media_types.h
 <(src_loc)/history/history_message.cpp

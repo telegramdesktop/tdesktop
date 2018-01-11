@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "base/timer.h"
 #include "data/data_messages.h"
+#include "history/view/history_view_cursor_state.h"
 
 namespace Ui {
 class PopupMenu;
@@ -24,7 +25,7 @@ class Controller;
 namespace HistoryView {
 
 enum class Context : char;
-class Message;
+class Element;
 
 class ListDelegate {
 public:
@@ -142,8 +143,8 @@ private:
 	void saveScrollState();
 	void restoreScrollState();
 
-	Message *viewForItem(const HistoryItem *item) const;
-	not_null<Message*> enforceViewForItem(not_null<HistoryItem*> item);
+	Element *viewForItem(const HistoryItem *item) const;
+	not_null<Element*> enforceViewForItem(not_null<HistoryItem*> item);
 
 	void mouseActionStart(const QPoint &screenPos, Qt::MouseButton button);
 	void mouseActionUpdate(const QPoint &screenPos);
@@ -151,9 +152,9 @@ private:
 	void mouseActionCancel();
 	void updateSelected();
 	void performDrag();
-	int itemTop(not_null<const Message*> view) const;
-	void repaintItem(const Message *view);
-	QPoint mapPointToItem(QPoint point, const Message *view) const;
+	int itemTop(not_null<const Element*> view) const;
+	void repaintItem(const Element *view);
+	QPoint mapPointToItem(QPoint point, const Element *view) const;
 	void handlePendingHistoryResize();
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
@@ -172,8 +173,8 @@ private:
 		const TextWithEntities &forClipboard,
 		QClipboard::Mode mode = QClipboard::Clipboard);
 
-	not_null<Message*> findItemByY(int y) const;
-	Message *strictFindItemByY(int y) const;
+	not_null<Element*> findItemByY(int y) const;
+	Element *strictFindItemByY(int y) const;
 	int findNearestItem(Data::MessagePosition position) const;
 
 	void checkMoveToOtherViewer();
@@ -191,7 +192,7 @@ private:
 	// This function finds all history items that are displayed and calls template method
 	// for each found message (in given direction) in the passed history with passed top offset.
 	//
-	// Method has "bool (*Method)(Message *view, int itemtop, int itembottom)" signature
+	// Method has "bool (*Method)(not_null<Element*> view, int itemtop, int itembottom)" signature
 	// if it returns false the enumeration stops immediately.
 	template <EnumItemsDirection direction, typename Method>
 	void enumerateItems(Method method);
@@ -199,7 +200,7 @@ private:
 	// This function finds all userpics on the left that are displayed and calls template method
 	// for each found userpic (from the top to the bottom) using enumerateItems() method.
 	//
-	// Method has "bool (*Method)(not_null<HistoryMessage*> message, int userpicTop)" signature
+	// Method has "bool (*Method)(not_null<Element*> view, int userpicTop)" signature
 	// if it returns false the enumeration stops immediately.
 	template <typename Method>
 	void enumerateUserpics(Method method);
@@ -221,15 +222,15 @@ private:
 	int _aroundIndex = -1;
 	int _idsLimit = kMinimalIdsLimit;
 	Data::MessagesSlice _slice;
-	std::vector<not_null<Message*>> _items;
-	std::map<not_null<HistoryItem*>, std::unique_ptr<Message>, std::less<>> _views;
+	std::vector<not_null<Element*>> _items;
+	std::map<not_null<HistoryItem*>, std::unique_ptr<Element>, std::less<>> _views;
 	int _itemsTop = 0;
 	int _itemsHeight = 0;
 
 	int _minHeight = 0;
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
-	Message *_visibleTopItem = nullptr;
+	Element *_visibleTopItem = nullptr;
 	int _visibleTopFromItem = 0;
 	ScrollTopState _scrollTopState;
 
@@ -237,19 +238,19 @@ private:
 	Animation _scrollDateOpacity;
 	SingleQueuedInvokation _scrollDateCheck;
 	base::Timer _scrollDateHideTimer;
-	Message *_scrollDateLastItem = nullptr;
+	Element *_scrollDateLastItem = nullptr;
 	int _scrollDateLastItemTop = 0;
 
 	MouseAction _mouseAction = MouseAction::None;
 	TextSelectType _mouseSelectType = TextSelectType::Letters;
 	QPoint _dragStartPosition;
 	QPoint _mousePosition;
-	Message *_mouseActionItem = nullptr;
+	Element *_mouseActionItem = nullptr;
 	HistoryCursorState _mouseCursorState = HistoryDefaultCursorState;
 	uint16 _mouseTextSymbol = 0;
 	bool _pressWasInactive = false;
 
-	Message *_selectedItem = nullptr;
+	Element *_selectedItem = nullptr;
 	TextSelection _selectedText;
 	bool _wasSelectedText = false; // was some text selected in current drag action
 	Qt::CursorShape _cursor = style::cur_default;

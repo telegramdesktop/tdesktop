@@ -14,6 +14,7 @@ QString findValidCode(QString fullCode);
 
 namespace Ui {
 class MultiSelect;
+class RippleAnimation;
 } // namespace Ui
 
 class CountryInput : public TWidget {

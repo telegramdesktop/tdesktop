@@ -9,14 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/tooltip.h"
 
+namespace style {
+struct BotKeyboardButton;
+} // namespace style
+
 class ReplyKeyboard;
 
 class BotKeyboard
 	: public TWidget
 	, public Ui::AbstractTooltipShower
 	, public ClickHandlerHost {
-	Q_OBJECT
-
 public:
 	BotKeyboard(QWidget *parent);
 

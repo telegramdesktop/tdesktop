@@ -17,6 +17,10 @@ template <typename Widget>
 class SlideWrap;
 } // namespace Ui
 
+namespace Storage {
+enum class SharedMediaType : char;
+} // namespace Storage
+
 namespace Info {
 namespace Profile {
 

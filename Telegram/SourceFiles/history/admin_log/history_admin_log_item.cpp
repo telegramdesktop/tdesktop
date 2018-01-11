@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/admin_log/history_admin_log_item.h"
 
 #include "history/admin_log/history_admin_log_inner.h"
-#include "history/view/history_view_message.h"
+#include "history/view/history_view_element.h"
 #include "history/history_service.h"
 #include "history/history_message.h"
 #include "lang/lang_keys.h"
@@ -282,11 +282,11 @@ TextWithEntities GenerateParticipantChangeText(not_null<ChannelData*> channel, c
 
 } // namespace
 
-OwnedItem::OwnedItem(not_null<HistoryItem*> data)
+OwnedItem::OwnedItem(
+	not_null<Window::Controller*> controller,
+	not_null<HistoryItem*> data)
 : _data(data)
-, _view(std::make_unique<HistoryView::Message>(
-	data,
-	HistoryView::Context::AdminLog)) {
+, _view(_data->createView(controller, HistoryView::Context::AdminLog)) {
 }
 
 OwnedItem::OwnedItem(OwnedItem &&other)
@@ -307,7 +307,12 @@ OwnedItem::~OwnedItem() {
 	}
 }
 
-void GenerateItems(not_null<History*> history, LocalIdManager &idManager, const MTPDchannelAdminLogEvent &event, base::lambda<void(OwnedItem item)> callback) {
+void GenerateItems(
+		not_null<Window::Controller*> controller,
+		not_null<History*> history,
+		LocalIdManager &idManager,
+		const MTPDchannelAdminLogEvent &event,
+		base::lambda<void(OwnedItem item)> callback) {
 	Expects(history->peer->isChannel());
 
 	auto id = event.vid.v;
@@ -315,8 +320,8 @@ void GenerateItems(not_null<History*> history, LocalIdManager &idManager, const 
 	auto channel = history->peer->asChannel();
 	auto &action = event.vaction;
 	auto date = event.vdate;
-	auto addPart = [&callback](not_null<HistoryItem*> item) {
-		return callback(OwnedItem(item));
+	auto addPart = [&](not_null<HistoryItem*> item) {
+		return callback(OwnedItem(controller, item));
 	};
 
 	using Flag = MTPDmessage::Flag;

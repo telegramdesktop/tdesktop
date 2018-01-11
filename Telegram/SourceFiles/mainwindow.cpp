@@ -894,10 +894,6 @@ void MainWindow::onClearFailed(int task, void *manager) {
 	emit tempDirClearFailed(task);
 }
 
-void MainWindow::app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
-	handler->onClick(button);
-}
-
 void MainWindow::placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) {
 	QPainter p(&img);
 

@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/event_stream.h>
 #include "window/section_widget.h"
 
+namespace Storage {
+enum class SharedMediaType : char;
+} // namespace Storage
+
 namespace Ui {
 class SettingsSlider;
 class FadeShadow;

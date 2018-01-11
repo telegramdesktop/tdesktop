@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "boxes/abstract_box.h"
 #include "base/timer.h"
+#include "layout.h"
 
 namespace Calls {
 namespace {

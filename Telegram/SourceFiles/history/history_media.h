@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "history/history_item.h"
+
 struct HistoryMessageEdited;
 
 namespace base {

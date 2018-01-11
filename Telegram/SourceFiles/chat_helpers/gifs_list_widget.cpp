@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "window/window_controller.h"
+#include "history/view/history_view_cursor_state.h"
 
 namespace ChatHelpers {
 namespace {

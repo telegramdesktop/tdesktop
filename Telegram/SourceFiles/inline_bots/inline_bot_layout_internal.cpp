@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/media_clip_reader.h"
 #include "media/player/media_player_instance.h"
 #include "history/history_location_manager.h"
+#include "history/view/history_view_cursor_state.h"
 #include "storage/localstorage.h"
 #include "auth_session.h"
 #include "lang/lang_keys.h"

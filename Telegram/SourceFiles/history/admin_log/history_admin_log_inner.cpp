@@ -14,12 +14,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/admin_log/history_admin_log_section.h"
 #include "history/admin_log/history_admin_log_filter.h"
 #include "history/view/history_view_service_message.h"
-#include "history/view/history_view_message.h"
+#include "history/view/history_view_element.h"
 #include "chat_helpers/message_field.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "messenger.h"
 #include "apiwrap.h"
+#include "layout.h"
 #include "window/window_controller.h"
 #include "auth_session.h"
 #include "ui/widgets/popup_menu.h"
@@ -115,7 +116,7 @@ void InnerWidget::enumerateUserpics(Method method) {
 	// -1 means we didn't find an attached to next message yet.
 	int lowestAttachedItemTop = -1;
 
-	auto userpicCallback = [&](not_null<Message*> view, int itemtop, int itembottom) {
+	auto userpicCallback = [&](not_null<Element*> view, int itemtop, int itembottom) {
 		// Skip all service messages.
 		const auto message = view->data()->toHistoryMessage();
 		if (!message) return true;
@@ -161,7 +162,7 @@ void InnerWidget::enumerateDates(Method method) {
 	// -1 means we didn't find a same-day with previous message yet.
 	auto lowestInOneDayItemBottom = -1;
 
-	auto dateCallback = [&](not_null<Message*> view, int itemtop, int itembottom) {
+	auto dateCallback = [&](not_null<Element*> view, int itemtop, int itembottom) {
 		const auto item = view->data();
 		if (lowestInOneDayItemBottom < 0 && item->isInOneDayWithPrevious()) {
 			lowestInOneDayItemBottom = itembottom - item->marginBottom();
@@ -527,18 +528,25 @@ void InnerWidget::addEvents(Direction direction, const QVector<MTPChannelAdminLo
 	addToItems.reserve(oldItemsCount + events.size() * 2);
 	for_const (auto &event, events) {
 		Assert(event.type() == mtpc_channelAdminLogEvent);
-		auto &data = event.c_channelAdminLogEvent();
-		if (_itemsByIds.find(data.vid.v) != _itemsByIds.cend()) {
+		const auto &data = event.c_channelAdminLogEvent();
+		const auto id = data.vid.v;
+		if (_itemsByIds.find(id) != _itemsByIds.cend()) {
 			continue;
 		}
 
 		auto count = 0;
-		GenerateItems(_history, _idManager, data, [this, id = data.vid.v, &addToItems, &count](OwnedItem item) {
+		const auto addOne = [&](OwnedItem item) {
 			_itemsByIds.emplace(id, item.get());
 			_itemsByData.emplace(item->data(), item.get());
 			addToItems.push_back(std::move(item));
 			++count;
-		});
+		};
+		GenerateItems(
+			_controller,
+			_history,
+			_idManager,
+			data,
+			addOne);
 		if (count > 1) {
 			// Reverse the inner order of the added messages, because we load events
 			// from bottom to top but inside one event they go from top to bottom.
@@ -659,7 +667,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			}
 			p.translate(0, -top);
 
-			enumerateUserpics([&](not_null<Message*> view, int userpicTop) {
+			enumerateUserpics([&](not_null<Element*> view, int userpicTop) {
 				// stop the enumeration if the userpic is below the painted rect
 				if (userpicTop >= clip.top() + clip.height()) {
 					return false;
@@ -677,7 +685,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 
 			auto dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
 			auto scrollDateOpacity = _scrollDateOpacity.current(ms, _scrollDateShown ? 1. : 0.);
-			enumerateDates([&](not_null<Message*> view, int itemtop, int dateTop) {
+			enumerateDates([&](not_null<Element*> view, int itemtop, int dateTop) {
 				// stop the enumeration if the date is above the painted rect
 				if (dateTop + dateHeight <= clip.top()) {
 					return false;
@@ -737,7 +745,7 @@ void InnerWidget::clearAfterFilterChange() {
 	updateSize();
 }
 
-auto InnerWidget::viewForItem(const HistoryItem *item) -> Message* {
+auto InnerWidget::viewForItem(const HistoryItem *item) -> Element* {
 	if (item) {
 		const auto i = _itemsByData.find(item);
 		if (i != _itemsByData.end()) {
@@ -1359,7 +1367,7 @@ void InnerWidget::updateSelected() {
 		if (!dragState.link && itemPoint.x() >= st::historyPhotoLeft && itemPoint.x() < st::historyPhotoLeft + st::msgPhotoSize) {
 			if (auto message = item->toHistoryMessage()) {
 				if (message->hasFromPhoto()) {
-					enumerateUserpics([&](not_null<Message*> view, int userpicTop) {
+					enumerateUserpics([&](not_null<Element*> view, int userpicTop) {
 						// stop enumeration if the userpic is below our point
 						if (userpicTop > point.y()) {
 							return false;
@@ -1541,18 +1549,18 @@ void InnerWidget::performDrag() {
 	//} // TODO
 }
 
-int InnerWidget::itemTop(not_null<const Message*> item) const {
-	return _itemsTop + item->y();
+int InnerWidget::itemTop(not_null<const Element*> view) const {
+	return _itemsTop + view->y();
 }
 
-void InnerWidget::repaintItem(const Message *item) {
-	if (!item) {
+void InnerWidget::repaintItem(const Element *view) {
+	if (!view) {
 		return;
 	}
-	update(0, itemTop(item), width(), item->data()->height());
+	update(0, itemTop(view), width(), view->data()->height());
 }
 
-QPoint InnerWidget::mapPointToItem(QPoint point, const Message *view) const {
+QPoint InnerWidget::mapPointToItem(QPoint point, const Element *view) const {
 	if (!view) {
 		return QPoint();
 	}

@@ -28,7 +28,7 @@ enum NewMessageType {
 };
 
 namespace HistoryView {
-class Message;
+class Element;
 } // namespace HistoryView
 
 class Histories {
@@ -397,7 +397,7 @@ public:
 	// we save a pointer of the history item at the top of the displayed window
 	// together with an offset from the window top to the top of this message
 	// resulting scrollTop = top(scrollTopItem) + scrollTopOffset
-	HistoryView::Message *scrollTopItem = nullptr;
+	HistoryView::Element *scrollTopItem = nullptr;
 	int scrollTopOffset = 0;
 	void forgetScrollState() {
 		scrollTopItem = nullptr;
@@ -579,17 +579,17 @@ private:
 
 class HistoryBlock {
 public:
-	using Message = HistoryView::Message;
+	using Element = HistoryView::Element;
 
 	HistoryBlock(not_null<History*> history);
 	HistoryBlock(const HistoryBlock &) = delete;
 	HistoryBlock &operator=(const HistoryBlock &) = delete;
 	~HistoryBlock();
 
-	std::vector<std::unique_ptr<Message>> messages;
+	std::vector<std::unique_ptr<Element>> messages;
 
 	void clear(bool leaveItems = false);
-	void remove(not_null<Message*> view);
+	void remove(not_null<Element*> view);
 
 	int resizeGetHeight(int newWidth, bool resizeAllItems);
 	int y() const {

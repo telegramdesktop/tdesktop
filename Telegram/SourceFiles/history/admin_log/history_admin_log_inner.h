@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "history/view/history_view_cursor_state.h"
 #include "history/admin_log/history_admin_log_item.h"
 #include "history/admin_log/history_admin_log_section.h"
 #include "ui/widgets/tooltip.h"
@@ -23,7 +24,7 @@ class Controller;
 } // namespace Window
 
 namespace HistoryView {
-class Message;
+class Element;
 } // namespace HistoryView
 
 namespace AdminLog {
@@ -90,7 +91,7 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
-	using Message = HistoryView::Message;
+	using Element = HistoryView::Element;
 	enum class Direction {
 		Up,
 		Down,
@@ -112,9 +113,9 @@ private:
 	void mouseActionCancel();
 	void updateSelected();
 	void performDrag();
-	int itemTop(not_null<const Message*> item) const;
-	void repaintItem(const Message *item);
-	QPoint mapPointToItem(QPoint point, const Message *item) const;
+	int itemTop(not_null<const Element*> view) const;
+	void repaintItem(const Element *view);
+	QPoint mapPointToItem(QPoint point, const Element *view) const;
 	void handlePendingHistoryResize();
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
@@ -146,7 +147,7 @@ private:
 	void clearAfterFilterChange();
 	void clearAndRequestLog();
 	void addEvents(Direction direction, const QVector<MTPChannelAdminLogEvent> &events);
-	Message *viewForItem(const HistoryItem *item);
+	Element *viewForItem(const HistoryItem *item);
 
 	void toggleScrollDateShown();
 	void repaintScrollDateCallback();
@@ -158,7 +159,7 @@ private:
 	// This function finds all history items that are displayed and calls template method
 	// for each found message (in given direction) in the passed history with passed top offset.
 	//
-	// Method has "bool (*Method)(Message *item, int itemtop, int itembottom)" signature
+	// Method has "bool (*Method)(not_null<Element*> view, int itemtop, int itembottom)" signature
 	// if it returns false the enumeration stops immidiately.
 	template <EnumItemsDirection direction, typename Method>
 	void enumerateItems(Method method);
@@ -166,7 +167,7 @@ private:
 	// This function finds all userpics on the left that are displayed and calls template method
 	// for each found userpic (from the top to the bottom) using enumerateItems() method.
 	//
-	// Method has "bool (*Method)(not_null<HistoryMessage*> message, int userpicTop)" signature
+	// Method has "bool (*Method)(not_null<Element*> view, int userpicTop)" signature
 	// if it returns false the enumeration stops immidiately.
 	template <typename Method>
 	void enumerateUserpics(Method method);
@@ -183,8 +184,8 @@ private:
 	not_null<ChannelData*> _channel;
 	not_null<History*> _history;
 	std::vector<OwnedItem> _items;
-	std::map<uint64, not_null<Message*>> _itemsByIds;
-	std::map<not_null<HistoryItem*>, not_null<Message*>, std::less<>> _itemsByData;
+	std::map<uint64, not_null<Element*>> _itemsByIds;
+	std::map<not_null<HistoryItem*>, not_null<Element*>, std::less<>> _itemsByData;
 	int _itemsTop = 0;
 	int _itemsHeight = 0;
 
@@ -192,14 +193,14 @@ private:
 	int _minHeight = 0;
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
-	Message *_visibleTopItem = nullptr;
+	Element *_visibleTopItem = nullptr;
 	int _visibleTopFromItem = 0;
 
 	bool _scrollDateShown = false;
 	Animation _scrollDateOpacity;
 	SingleQueuedInvokation _scrollDateCheck;
 	base::Timer _scrollDateHideTimer;
-	Message *_scrollDateLastItem = nullptr;
+	Element *_scrollDateLastItem = nullptr;
 	int _scrollDateLastItemTop = 0;
 
 	// Up - max, Down - min.
@@ -218,12 +219,12 @@ private:
 	TextSelectType _mouseSelectType = TextSelectType::Letters;
 	QPoint _dragStartPosition;
 	QPoint _mousePosition;
-	Message *_mouseActionItem = nullptr;
+	Element *_mouseActionItem = nullptr;
 	HistoryCursorState _mouseCursorState = HistoryDefaultCursorState;
 	uint16 _mouseTextSymbol = 0;
 	bool _pressWasInactive = false;
 
-	Message *_selectedItem = nullptr;
+	Element *_selectedItem = nullptr;
 	TextSelection _selectedText;
 	bool _wasSelectedText = false; // was some text selected in current drag action
 	Qt::CursorShape _cursor = style::cur_default;

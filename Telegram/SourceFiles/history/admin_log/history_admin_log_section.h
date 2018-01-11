@@ -123,7 +123,7 @@ private:
 
 class SectionMemento : public Window::SectionMemento {
 public:
-	using Message = HistoryView::Message;
+	using Element = HistoryView::Element;
 
 	SectionMemento(not_null<ChannelData*> channel) : _channel(channel) {
 	}
@@ -159,7 +159,7 @@ public:
 
 	void setItems(
 			std::vector<OwnedItem> &&items,
-			std::map<uint64, not_null<Message*>> &&itemsByIds,
+			std::map<uint64, not_null<Element*>> &&itemsByIds,
 			bool upLoaded,
 			bool downLoaded) {
 		_items = std::move(items);
@@ -179,7 +179,7 @@ public:
 	std::vector<OwnedItem> takeItems() {
 		return std::move(_items);
 	}
-	std::map<uint64, not_null<Message*>> takeItemsByIds() {
+	std::map<uint64, not_null<Element*>> takeItemsByIds() {
 		return std::move(_itemsByIds);
 	}
 	LocalIdManager takeIdManager() {
@@ -204,7 +204,7 @@ private:
 	std::vector<not_null<UserData*>> _admins;
 	std::vector<not_null<UserData*>> _adminsCanEdit;
 	std::vector<OwnedItem> _items;
-	std::map<uint64, not_null<Message*>> _itemsByIds;
+	std::map<uint64, not_null<Element*>> _itemsByIds;
 	bool _upLoaded = false;
 	bool _downLoaded = true;
 	LocalIdManager _idManager;

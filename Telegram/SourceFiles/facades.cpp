@@ -22,12 +22,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/layer_widget.h"
 #include "lang/lang_keys.h"
 #include "base/observer.h"
+#include "history/history_item.h"
 #include "history/history_media.h"
 #include "styles/style_history.h"
 #include "data/data_session.h"
-
-Q_DECLARE_METATYPE(ClickHandlerPtr);
-Q_DECLARE_METATYPE(Qt::MouseButton);
 
 namespace App {
 namespace internal {
@@ -175,11 +173,9 @@ void showSettings() {
 }
 
 void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
-	if (auto w = wnd()) {
-		qRegisterMetaType<ClickHandlerPtr>();
-		qRegisterMetaType<Qt::MouseButton>();
-		QMetaObject::invokeMethod(w, "app_activateClickHandler", Qt::QueuedConnection, Q_ARG(ClickHandlerPtr, handler), Q_ARG(Qt::MouseButton, button));
-	}
+	crl::on_main(wnd(), [handler, button] {
+		handler->onClick(button);
+	});
 }
 
 void logOutDelayed() {
@@ -266,14 +262,16 @@ void showPeerHistory(
 		const PeerId &peer,
 		MsgId msgId) {
 	auto ms = getms();
-	LOG(("Show Peer Start"));
 	if (auto m = App::main()) {
 		m->ui_showPeerHistory(
 			peer,
 			Window::SectionShow::Way::ClearStack,
 			msgId);
 	}
-	LOG(("Show Peer End: %1").arg(getms() - ms));
+}
+
+void showPeerHistoryAtItem(not_null<const HistoryItem*> item) {
+	showPeerHistory(item->history()->peer->id, item->id);
 }
 
 PeerData *getPeerForMouseAction() {

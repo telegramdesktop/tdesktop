@@ -9,6 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/runtime_composer.h"
 
+struct HistoryTextState;
+struct HistoryStateRequest;
+
 constexpr auto FullSelection = TextSelection { 0xFFFF, 0xFFFF };
 
 inline bool IsSubGroupSelection(TextSelection selection) {
@@ -44,42 +47,6 @@ inline bool IsGroupItemSelection(
 		? TextSelection(0xFFFF, selection.to & ~bit)
 		: selection;
 }
-
-enum RoundCorners {
-	SmallMaskCorners = 0x00, // for images
-	LargeMaskCorners,
-
-	BoxCorners,
-	MenuCorners,
-	BotKbOverCorners,
-	StickerCorners,
-	StickerSelectedCorners,
-	SelectedOverlaySmallCorners,
-	SelectedOverlayLargeCorners,
-	DateCorners,
-	DateSelectedCorners,
-	ForwardCorners,
-	MediaviewSaveCorners,
-	EmojiHoverCorners,
-	StickerHoverCorners,
-	BotKeyboardCorners,
-	PhotoSelectOverlayCorners,
-
-	Doc1Corners,
-	Doc2Corners,
-	Doc3Corners,
-	Doc4Corners,
-
-	InShadowCorners, // for photos without bg
-	InSelectedShadowCorners,
-
-	MessageInCorners, // with shadow
-	MessageInSelectedCorners,
-	MessageOutCorners,
-	MessageOutSelectedCorners,
-
-	RoundCornersCount
-};
 
 static const int32 FileStatusSizeReady = 0x7FFFFFF0;
 static const int32 FileStatusSizeLoaded = 0x7FFFFFF1;
@@ -133,15 +100,11 @@ public:
 	}
 
 	[[nodiscard]] virtual HistoryTextState getState(
-			QPoint point,
-			HistoryStateRequest request) const {
-		return {};
-	}
+		QPoint point,
+		HistoryStateRequest request) const;
 	[[nodiscard]] virtual TextSelection adjustSelection(
-			TextSelection selection,
-			TextSelectType type) const {
-		return selection;
-	}
+		TextSelection selection,
+		TextSelectType type) const;
 
 	int width() const {
 		return _width;

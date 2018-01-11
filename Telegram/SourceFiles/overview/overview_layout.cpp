@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "storage/localstorage.h"
+#include "history/history_item.h"
 #include "history/history_media_types.h"
 #include "history/history_item_components.h"
 #include "ui/effects/round_checkbox.h"
@@ -112,6 +113,11 @@ void Checkbox::setPressed(bool pressed) {
 void Checkbox::startAnimation() {
 	auto showPressed = (_pressed && _active);
 	_pression.start(_updateCallback, showPressed ? 0. : 1., showPressed ? 1. : 0., st::overviewCheck.duration);
+}
+
+MsgId AbstractItem::msgId() const {
+	auto item = getItem();
+	return item ? item->id : 0;
 }
 
 ItemBase::ItemBase(not_null<HistoryItem*> parent) : _parent(parent) {

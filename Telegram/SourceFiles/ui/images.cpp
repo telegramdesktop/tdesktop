@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "platform/platform_specific.h"
 #include "auth_session.h"
+#include "history/history_item.h"
 
 namespace Images {
 namespace {

@@ -189,6 +189,7 @@ inline void showPeerProfile(const History *history) {
 }
 
 void showPeerHistory(const PeerId &peer, MsgId msgId);
+void showPeerHistoryAtItem(not_null<const HistoryItem*> item);
 
 inline void showPeerHistory(const PeerData *peer, MsgId msgId) {
 	showPeerHistory(peer->id, msgId);
@@ -197,9 +198,6 @@ inline void showPeerHistory(
 		const History *history,
 		MsgId msgId) {
 	showPeerHistory(history->peer->id, msgId);
-}
-inline void showPeerHistoryAtItem(const HistoryItem *item) {
-	showPeerHistory(item->history()->peer->id, item->id);
 }
 inline void showChatsList() {
 	showPeerHistory(PeerId(0), 0);

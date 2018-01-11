@@ -11,6 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 
 class MainWidget;
+class HistoryMessage;
+class HistoryService;
+
+namespace HistoryView {
+enum class Context : char;
+} // namespace HistoryView
 
 namespace Window {
 
@@ -194,6 +200,13 @@ public:
 	not_null<Controller*> parentController() override {
 		return this;
 	}
+
+	std::unique_ptr<HistoryView::Element> createMessageView(
+		not_null<HistoryMessage*> message,
+		HistoryView::Context context);
+	std::unique_ptr<HistoryView::Element> createMessageView(
+		not_null<HistoryService*> message,
+		HistoryView::Context context);
 
 private:
 	int minimalThreeColumnWidth() const;

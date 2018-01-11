@@ -9,20 +9,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/basic_types.h"
 #include "history/history.h"
-#include "history/history_item.h"
-#include "layout.h"
 
 class Messenger;
 class MainWindow;
 class MainWidget;
 class LocationCoords;
 struct LocationData;
+class HistoryItem;
 
 namespace HistoryView {
 class Message;
 } // namespace HistoryView
 
-using HistoryItemsMap = OrderedSet<HistoryItem*>;
+using HistoryItemsMap = base::flat_set<not_null<HistoryItem*>>;
 using PhotoItems = QHash<PhotoData*, HistoryItemsMap>;
 using DocumentItems = QHash<DocumentData*, HistoryItemsMap>;
 using WebPageItems = QHash<WebPageData*, HistoryItemsMap>;
@@ -32,6 +31,42 @@ using GifItems = QHash<Media::Clip::Reader*, HistoryItem*>;
 
 using PhotosData = QHash<PhotoId, PhotoData*>;
 using DocumentsData = QHash<DocumentId, DocumentData*>;
+
+enum RoundCorners {
+	SmallMaskCorners = 0x00, // for images
+	LargeMaskCorners,
+
+	BoxCorners,
+	MenuCorners,
+	BotKbOverCorners,
+	StickerCorners,
+	StickerSelectedCorners,
+	SelectedOverlaySmallCorners,
+	SelectedOverlayLargeCorners,
+	DateCorners,
+	DateSelectedCorners,
+	ForwardCorners,
+	MediaviewSaveCorners,
+	EmojiHoverCorners,
+	StickerHoverCorners,
+	BotKeyboardCorners,
+	PhotoSelectOverlayCorners,
+
+	Doc1Corners,
+	Doc2Corners,
+	Doc3Corners,
+	Doc4Corners,
+
+	InShadowCorners, // for photos without bg
+	InSelectedShadowCorners,
+
+	MessageInCorners, // with shadow
+	MessageInSelectedCorners,
+	MessageOutCorners,
+	MessageOutSelectedCorners,
+
+	RoundCornersCount
+};
 
 namespace App {
 	MainWindow *wnd();
@@ -199,7 +234,7 @@ namespace App {
 	void historyClearItems();
 	void historyRegDependency(HistoryItem *dependent, HistoryItem *dependency);
 	void historyUnregDependency(HistoryItem *dependent, HistoryItem *dependency);
-	void messageViewDestroyed(not_null<HistoryView::Message*> view);
+	void messageViewDestroyed(not_null<HistoryView::Element*> view);
 
 	void historyRegRandom(uint64 randomId, const FullMsgId &itemId);
 	void historyUnregRandom(uint64 randomId);
@@ -208,16 +243,16 @@ namespace App {
 	void historyUnregSentData(uint64 randomId);
 	void histSentDataByItem(uint64 randomId, PeerId &peerId, QString &text);
 
-	void hoveredItem(HistoryView::Message *item);
-	HistoryView::Message *hoveredItem();
-	void pressedItem(HistoryView::Message *item);
-	HistoryView::Message *pressedItem();
-	void hoveredLinkItem(HistoryView::Message *item);
-	HistoryView::Message *hoveredLinkItem();
-	void pressedLinkItem(HistoryView::Message *item);
-	HistoryView::Message *pressedLinkItem();
-	void mousedItem(HistoryView::Message *item);
-	HistoryView::Message *mousedItem();
+	void hoveredItem(HistoryView::Element *item);
+	HistoryView::Element *hoveredItem();
+	void pressedItem(HistoryView::Element *item);
+	HistoryView::Element *pressedItem();
+	void hoveredLinkItem(HistoryView::Element *item);
+	HistoryView::Element *hoveredLinkItem();
+	void pressedLinkItem(HistoryView::Element *item);
+	HistoryView::Element *pressedLinkItem();
+	void mousedItem(HistoryView::Element *item);
+	HistoryView::Element *mousedItem();
 	void clearMousedItems();
 
 	const style::font &monofont();

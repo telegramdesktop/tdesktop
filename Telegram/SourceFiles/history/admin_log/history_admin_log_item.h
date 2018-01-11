@@ -7,36 +7,51 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Window {
+class Controller;
+} // namespace Window
+
+namespace HistoryView {
+class Element;
+} // namespace HistoryView
+
 namespace AdminLog {
 
 class OwnedItem;
 class LocalIdManager;
 
-void GenerateItems(not_null<History*> history, LocalIdManager &idManager, const MTPDchannelAdminLogEvent &event, base::lambda<void(OwnedItem item)> callback);
+void GenerateItems(
+	not_null<Window::Controller*> controller,
+	not_null<History*> history,
+	LocalIdManager &idManager,
+	const MTPDchannelAdminLogEvent &event,
+	base::lambda<void(OwnedItem item)> callback);
 
 // Smart pointer wrapper for HistoryItem* that destroys the owned item.
 class OwnedItem {
 public:
-	explicit OwnedItem(not_null<HistoryItem*> data);
+	OwnedItem(
+		not_null<Window::Controller*> controller,
+		not_null<HistoryItem*> data);
 	OwnedItem(const OwnedItem &other) = delete;
 	OwnedItem &operator=(const OwnedItem &other) = delete;
 	OwnedItem(OwnedItem &&other);
 	OwnedItem &operator=(OwnedItem &&other);
 	~OwnedItem();
 
-	HistoryView::Message *get() const {
+	HistoryView::Element *get() const {
 		return _view.get();
 	}
-	HistoryView::Message *operator->() const {
+	HistoryView::Element *operator->() const {
 		return get();
 	}
-	operator HistoryView::Message*() const {
+	operator HistoryView::Element*() const {
 		return get();
 	}
 
 private:
 	HistoryItem *_data = nullptr;
-	std::unique_ptr<HistoryView::Message> _view;
+	std::unique_ptr<HistoryView::Element> _view;
 
 };
 

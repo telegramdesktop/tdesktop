@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "info/media/info_media_widget.h"
 #include "data/data_shared_media.h"
+#include "history/view/history_view_cursor_state.h"
 
 namespace Ui {
 class PopupMenu;

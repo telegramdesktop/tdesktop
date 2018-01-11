@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "history/history_item.h"
+
 struct HistoryServiceDependentData {
 	MsgId msgId = 0;
 	HistoryItem *msg = nullptr;
@@ -102,6 +104,10 @@ public:
 	TextWithEntities selectedText(TextSelection selection) const override;
 	QString inDialogsText(DrawInDialog way) const override;
 	QString inReplyText() const override;
+
+	std::unique_ptr<HistoryView::Element> createView(
+		not_null<Window::Controller*> controller,
+		HistoryView::Context context) override;
 
 	~HistoryService();
 

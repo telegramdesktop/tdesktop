@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
+#include "layout.h"
 #include "history/history_media_types.h"
 #include "history/history_message.h"
 #include "history/history_item_components.h"
@@ -17,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_feed.h"
 #include "auth_session.h"
 #include "window/notifications_manager.h"
+#include "window/window_controller.h"
 #include "storage/storage_shared_media.h"
 #include "ui/text_options.h"
 
@@ -474,6 +476,12 @@ QString HistoryService::inDialogsText(DrawInDialog way) const {
 QString HistoryService::inReplyText() const {
 	QString result = HistoryService::notificationText();
 	return result.trimmed().startsWith(author()->name) ? result.trimmed().mid(author()->name.size()).trimmed() : result;
+}
+
+std::unique_ptr<HistoryView::Element> HistoryService::createView(
+		not_null<Window::Controller*> controller,
+		HistoryView::Context context) {
+	return controller->createMessageView(this, context);
 }
 
 void HistoryService::setServiceText(const PreparedText &prepared) {

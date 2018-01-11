@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/runtime_composer.h"
 #include "base/flags.h"
 #include "base/value_ordering.h"
+#include "history/history_media_pointer.h"
+#include "history/view/history_view_cursor_state.h"
 
 struct MessageGroupId;
 struct HistoryMessageGroup;
@@ -41,6 +43,14 @@ namespace Data {
 struct MessagePosition;
 } // namespace Data
 
+namespace Window {
+class Controller;
+} // namespace Window
+
+namespace HistoryView {
+enum class Context : char;
+} // namespace HistoryView
+
 class HistoryElement {
 public:
 	HistoryElement() = default;
@@ -67,94 +77,6 @@ protected:
 	mutable int _minh = 0;
 	mutable int _width = 0;
 	mutable int _height = 0;
-
-};
-
-enum HistoryCursorState {
-	HistoryDefaultCursorState,
-	HistoryInTextCursorState,
-	HistoryInDateCursorState,
-	HistoryInForwardedCursorState,
-};
-
-struct HistoryTextState {
-	HistoryTextState() = default;
-	HistoryTextState(not_null<const HistoryItem*> item);
-	HistoryTextState(
-		not_null<const HistoryItem*> item,
-		const Text::StateResult &state);
-	HistoryTextState(
-		not_null<const HistoryItem*> item,
-		ClickHandlerPtr link);
-	HistoryTextState(
-		std::nullptr_t,
-		const Text::StateResult &state)
-	: cursor(state.uponSymbol
-		? HistoryInTextCursorState
-		: HistoryDefaultCursorState)
-	, link(state.link)
-	, afterSymbol(state.afterSymbol)
-	, symbol(state.symbol) {
-	}
-	HistoryTextState(std::nullptr_t, ClickHandlerPtr link)
-	: link(link) {
-	}
-
-	FullMsgId itemId;
-	HistoryCursorState cursor = HistoryDefaultCursorState;
-	ClickHandlerPtr link;
-	bool afterSymbol = false;
-	uint16 symbol = 0;
-
-};
-
-struct HistoryStateRequest {
-	Text::StateRequest::Flags flags = Text::StateRequest::Flag::LookupLink;
-	Text::StateRequest forText() const {
-		Text::StateRequest result;
-		result.flags = flags;
-		return result;
-	}
-};
-
-enum InfoDisplayType {
-	InfoDisplayDefault,
-	InfoDisplayOverImage,
-	InfoDisplayOverBackground,
-};
-
-// HistoryMedia has a special owning smart pointer
-// which regs/unregs this media to the holding HistoryItem
-class HistoryMediaPtr {
-public:
-	HistoryMediaPtr();
-	HistoryMediaPtr(const HistoryMediaPtr &other) = delete;
-	HistoryMediaPtr &operator=(const HistoryMediaPtr &other) = delete;
-	HistoryMediaPtr(std::unique_ptr<HistoryMedia> other);
-	HistoryMediaPtr &operator=(std::unique_ptr<HistoryMedia> other);
-
-	HistoryMedia *get() const {
-		return _pointer.get();
-	}
-	void reset(std::unique_ptr<HistoryMedia> pointer = nullptr);
-	bool isNull() const {
-		return !_pointer;
-	}
-
-	HistoryMedia *operator->() const {
-		return get();
-	}
-	HistoryMedia &operator*() const {
-		Expects(!isNull());
-		return *get();
-	}
-	explicit operator bool() const {
-		return !isNull();
-	}
-	~HistoryMediaPtr();
-
-private:
-	std::unique_ptr<HistoryMedia> _pointer;
 
 };
 
@@ -229,10 +151,10 @@ public:
 	PeerData *from() const {
 		return _from;
 	}
-	HistoryView::Message *mainView() const {
+	HistoryView::Element *mainView() const {
 		return _mainView;
 	}
-	void setMainView(HistoryView::Message *view) {
+	void setMainView(HistoryView::Element *view) {
 		_mainView = view;
 	}
 	void clearMainView();
@@ -536,6 +458,10 @@ public:
 	HistoryItem *previousItem() const;
 	HistoryItem *nextItem() const;
 
+	virtual std::unique_ptr<HistoryView::Element> createView(
+		not_null<Window::Controller*> controller,
+		HistoryView::Context context) = 0;
+
 	~HistoryItem();
 
 protected:
@@ -616,7 +542,7 @@ protected:
 private:
 	void resetGroupMedia(const std::vector<not_null<HistoryItem*>> &others);
 
-	HistoryView::Message *_mainView = nullptr;
+	HistoryView::Element *_mainView = nullptr;
 
 };
 

@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/text_options.h"
 #include "messenger.h"
+#include "layout.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
@@ -2407,7 +2408,7 @@ bool HistoryMessage::getStateForwardedInfo(
 		QPoint point,
 		QRect &trect,
 		not_null<HistoryTextState*> outResult,
-		const HistoryStateRequest &request) const {
+		HistoryStateRequest request) const {
 	if (displayForwardedFrom()) {
 		auto forwarded = Get<HistoryMessageForwarded>();
 		auto fwdheight = ((forwarded->text.maxWidth() > trect.width()) ? 2 : 1) * st::semiboldFont->height;
@@ -2472,7 +2473,7 @@ bool HistoryMessage::getStateText(
 		QPoint point,
 		QRect &trect,
 		not_null<HistoryTextState*> outResult,
-		const HistoryStateRequest &request) const {
+		HistoryStateRequest request) const {
 	if (trect.contains(point)) {
 		*outResult = HistoryTextState(this, _text.getState(
 			point - trect.topLeft(),
@@ -2535,6 +2536,12 @@ bool HistoryMessage::hasFromPhoto() const {
 		return Has<HistoryMessageForwarded>();
 	}
 	return !out() && !history()->peer->isUser();
+}
+
+std::unique_ptr<HistoryView::Element> HistoryMessage::createView(
+		not_null<Window::Controller*> controller,
+		HistoryView::Context context) {
+	return controller->createMessageView(this, context);
 }
 
 HistoryMessage::~HistoryMessage() {
