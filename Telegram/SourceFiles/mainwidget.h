@@ -168,8 +168,9 @@ public:
 
 	void showForwardLayer(MessageIdsList &&items);
 	void showSendPathsLayer();
-	void deleteLayer(int selectedCount = 0); // 0 - context item
-	void cancelUploadLayer();
+	void deleteLayer(MessageIdsList &&items);
+	void deleteLayer(FullMsgId itemId);
+	void cancelUploadLayer(not_null<HistoryItem*> item);
 	void shareUrlLayer(const QString &url, const QString &text);
 	void inlineSwitchLayer(const QString &botAndQuery);
 	void hiderLayer(object_ptr<HistoryHider> h);
@@ -272,7 +273,7 @@ public:
 	void messageDataReceived(ChannelData *channel, MsgId msgId);
 	void updateBotKeyboard(History *h);
 
-	void pushReplyReturn(HistoryItem *item);
+	void pushReplyReturn(not_null<HistoryItem*> item);
 
 	void cancelForwarding(not_null<History*> history);
 	void finishForwarding(not_null<History*> history);

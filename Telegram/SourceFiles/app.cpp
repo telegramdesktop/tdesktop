@@ -89,11 +89,10 @@ namespace {
 	using SentData = QMap<uint64, QPair<PeerId, QString>>;
 	SentData sentData;
 
-	HistoryItem *hoveredItem = nullptr,
+	HistoryView::Message *hoveredItem = nullptr,
 		*pressedItem = nullptr,
 		*hoveredLinkItem = nullptr,
 		*pressedLinkItem = nullptr,
-		*contextItem = nullptr,
 		*mousedItem = nullptr;
 
 	QPixmap *emoji = nullptr, *emojiLarge = nullptr;
@@ -934,7 +933,7 @@ namespace {
 				: nullptr);
 			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
 			existing->indexAsNewItem();
-			if (!existing->detached()) {
+			if (existing->mainView()) {
 				App::checkSavedGif(existing);
 				return true;
 			}
@@ -1836,23 +1835,20 @@ namespace {
 		}
 	}
 
-	void historyItemDetached(HistoryItem *item) {
-		if (::hoveredItem == item) {
+	void messageViewDestroyed(not_null<HistoryView::Message*> view) {
+		if (::hoveredItem == view) {
 			hoveredItem(nullptr);
 		}
-		if (::pressedItem == item) {
+		if (::pressedItem == view) {
 			pressedItem(nullptr);
 		}
-		if (::hoveredLinkItem == item) {
+		if (::hoveredLinkItem == view) {
 			hoveredLinkItem(nullptr);
 		}
-		if (::pressedLinkItem == item) {
+		if (::pressedLinkItem == view) {
 			pressedLinkItem(nullptr);
 		}
-		if (::contextItem == item) {
-			contextItem(nullptr);
-		}
-		if (::mousedItem == item) {
+		if (::mousedItem == view) {
 			mousedItem(nullptr);
 		}
 	}
@@ -1867,7 +1863,6 @@ namespace {
 				data->erase(i);
 			}
 		}
-		historyItemDetached(item);
 		auto j = ::dependentItems.find(item);
 		if (j != ::dependentItems.cend()) {
 			DependentItemsSet items;
@@ -1903,13 +1898,13 @@ namespace {
 
 		QVector<HistoryItem*> toDelete;
 		for_const (auto item, msgsData) {
-			if (item->detached()) {
+			if (!item->mainView()) {
 				toDelete.push_back(item);
 			}
 		}
 		for_const (auto &chMsgsData, channelMsgsData) {
 			for_const (auto item, chMsgsData) {
-				if (item->detached()) {
+				if (!item->mainView()) {
 					toDelete.push_back(item);
 				}
 			}
@@ -2187,51 +2182,43 @@ namespace {
 		clearAllImages();
 	}
 
-	void hoveredItem(HistoryItem *item) {
+	void hoveredItem(HistoryView::Message *item) {
 		::hoveredItem = item;
 	}
 
-	HistoryItem *hoveredItem() {
+	HistoryView::Message *hoveredItem() {
 		return ::hoveredItem;
 	}
 
-	void pressedItem(HistoryItem *item) {
+	void pressedItem(HistoryView::Message *item) {
 		::pressedItem = item;
 	}
 
-	HistoryItem *pressedItem() {
+	HistoryView::Message *pressedItem() {
 		return ::pressedItem;
 	}
 
-	void hoveredLinkItem(HistoryItem *item) {
+	void hoveredLinkItem(HistoryView::Message *item) {
 		::hoveredLinkItem = item;
 	}
 
-	HistoryItem *hoveredLinkItem() {
+	HistoryView::Message *hoveredLinkItem() {
 		return ::hoveredLinkItem;
 	}
 
-	void pressedLinkItem(HistoryItem *item) {
+	void pressedLinkItem(HistoryView::Message *item) {
 		::pressedLinkItem = item;
 	}
 
-	HistoryItem *pressedLinkItem() {
+	HistoryView::Message *pressedLinkItem() {
 		return ::pressedLinkItem;
 	}
 
-	void contextItem(HistoryItem *item) {
-		::contextItem = item;
-	}
-
-	HistoryItem *contextItem() {
-		return ::contextItem;
-	}
-
-	void mousedItem(HistoryItem *item) {
+	void mousedItem(HistoryView::Message *item) {
 		::mousedItem = item;
 	}
 
-	HistoryItem *mousedItem() {
+	HistoryView::Message *mousedItem() {
 		return ::mousedItem;
 	}
 
@@ -2240,7 +2227,6 @@ namespace {
 		pressedItem(nullptr);
 		hoveredLinkItem(nullptr);
 		pressedLinkItem(nullptr);
-		contextItem(nullptr);
 		mousedItem(nullptr);
 	}
 

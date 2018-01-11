@@ -250,6 +250,14 @@ public:
 
 	void updateScrollColors();
 
+	void replyToMessage(FullMsgId itemId);
+	void replyToMessage(not_null<HistoryItem*> item);
+	void editMessage(FullMsgId itemId);
+	void editMessage(not_null<HistoryItem*> item);
+	void pinMessage(FullMsgId itemId);
+	void unpinMessage(FullMsgId itemId);
+	void copyPostLink(FullMsgId itemId);
+
 	MsgId replyToId() const;
 	void messageDataReceived(ChannelData *channel, MsgId msgId);
 	bool lastForceReplyReplied(const FullMsgId &replyTo) const;
@@ -260,7 +268,7 @@ public:
 	void updateForwardingTexts();
 
 	void clearReplyReturns();
-	void pushReplyReturn(HistoryItem *item);
+	void pushReplyReturn(not_null<HistoryItem*> item);
 	QList<MsgId> replyReturns();
 	void setReplyReturns(PeerId peer, const QList<MsgId> &replyReturns);
 	void calcNextReplyReturn();
@@ -361,12 +369,7 @@ signals:
 
 public slots:
 	void onCancel();
-	void onReplyToMessage();
-	void onEditMessage();
-	void onPinMessage();
-	void onUnpinMessage();
 	void onPinnedHide();
-	void onCopyPostLink();
 	void onFieldBarCancel();
 
 	void onPreviewParse();

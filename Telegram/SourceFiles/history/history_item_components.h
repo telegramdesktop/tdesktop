@@ -398,8 +398,9 @@ struct HistoryMessageLogEntryOriginal : public RuntimeComponent<HistoryMessageLo
 
 };
 
+class FileClickHandler;
 struct HistoryDocumentThumbed : public RuntimeComponent<HistoryDocumentThumbed> {
-	ClickHandlerPtr _linksavel, _linkcancell;
+	std::shared_ptr<FileClickHandler> _linksavel, _linkcancell;
 	int _thumbw = 0;
 
 	mutable int _linkw = 0;

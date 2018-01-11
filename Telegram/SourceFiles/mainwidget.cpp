@@ -596,17 +596,19 @@ bool MainWidget::setForwardDraft(PeerId peerId, ForwardWhatMessages what) {
 			return _history->getSelectedItems();
 		}
 		auto item = (HistoryItem*)nullptr;
-		if (what == ForwardContextMessage) {
-			item = App::contextItem();
-		} else if (what == ForwardPressedMessage) {
-			item = App::pressedItem();
+		if (what == ForwardPressedMessage) {
+			item = App::pressedItem()
+				? App::pressedItem()->data().get()
+				: nullptr;
 			if (const auto group = item ? item->getFullGroup() : nullptr) {
 				if (item->id > 0) {
 					return Auth().data().groupToIds(group);
 				}
 			}
 		} else if (what == ForwardPressedLinkMessage) {
-			item = App::pressedLinkItem();
+			item = App::pressedLinkItem()
+				? App::pressedLinkItem()->data().get()
+				: nullptr;
 		}
 		if (item && item->toHistoryMessage() && item->id > 0) {
 			return { 1, item->fullId() };
@@ -677,8 +679,7 @@ bool MainWidget::shareUrl(
 void MainWidget::replyToItem(not_null<HistoryItem*> item) {
 	if (_history->peer() == item->history()->peer
 		|| _history->peer() == item->history()->peer->migrateTo()) {
-		App::contextItem(item);
-		_history->onReplyToMessage();
+		_history->replyToMessage(item);
 	}
 }
 
@@ -932,24 +933,20 @@ void MainWidget::showSendPathsLayer() {
 	hiderLayer(object_ptr<HistoryHider>(this));
 }
 
-void MainWidget::deleteLayer(int selectedCount) {
-	if (selectedCount) {
-		auto selected = _history->getSelectedItems();
-		if (!selected.empty()) {
-			Ui::show(Box<DeleteMessagesBox>(std::move(selected)));
-		}
-	} else if (const auto item = App::contextItem()) {
+void MainWidget::deleteLayer(MessageIdsList &&items) {
+	if (!items.empty()) {
+		Ui::show(Box<DeleteMessagesBox>(std::move(items)));
+	}
+}
+
+void MainWidget::deleteLayer(FullMsgId itemId) {
+	if (const auto item = App::histItemById(itemId)) {
 		const auto suggestModerateActions = true;
 		Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
 	}
 }
 
-void MainWidget::cancelUploadLayer() {
-	auto item = App::contextItem();
-	if (!item) {
-		return;
-	}
-
+void MainWidget::cancelUploadLayer(not_null<HistoryItem*> item) {
 	const auto itemId = item->fullId();
 	Auth().uploader().pause(itemId);
 	Ui::show(Box<ConfirmBox>(lang(lng_selected_cancel_sure_this), lang(lng_selected_upload_stop), lang(lng_continue), base::lambda_guarded(this, [=] {
@@ -2111,7 +2108,7 @@ void MainWidget::updateBotKeyboard(History *h) {
 	_history->updateBotKeyboard(h);
 }
 
-void MainWidget::pushReplyReturn(HistoryItem *item) {
+void MainWidget::pushReplyReturn(not_null<HistoryItem*> item) {
 	_history->pushReplyReturn(item);
 }
 
@@ -4931,7 +4928,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			const auto newId = d.vid.v;
 			if (const auto local = App::histItemById(fullId)) {
 				const auto existing = App::histItemById(channel, newId);
-				if (existing && local->detached()) {
+				if (existing && !local->mainView()) {
 					const auto history = local->history();
 					const auto wasLast = (history->lastMsg == local);
 					local->destroy();

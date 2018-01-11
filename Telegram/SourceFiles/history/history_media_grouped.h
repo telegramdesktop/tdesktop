@@ -115,6 +115,7 @@ private:
 
 	};
 
+	bool needInfoDisplay() const;
 	bool computeNeedBubble() const;
 	not_null<HistoryMedia*> main() const;
 	bool validateGroupElements(

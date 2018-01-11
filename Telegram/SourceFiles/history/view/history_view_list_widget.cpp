@@ -466,13 +466,13 @@ void ListWidget::checkMoveToOtherViewer() {
 
 QString ListWidget::tooltipText() const {
 	if (_mouseCursorState == HistoryInDateCursorState && _mouseAction == MouseAction::None) {
-		if (const auto item = App::hoveredItem()) {
-			auto dateText = item->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat));
+		if (const auto view = App::hoveredItem()) {
+			auto dateText = view->data()->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat));
 			return dateText;
 		}
 	} else if (_mouseCursorState == HistoryInForwardedCursorState && _mouseAction == MouseAction::None) {
-		if (const auto item = App::hoveredItem()) {
-			if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+		if (const auto view = App::hoveredItem()) {
+			if (const auto forwarded = view->data()->Get<HistoryMessageForwarded>()) {
 				return forwarded->text.originalText(AllTextSelection, ExpandLinksNone);
 			}
 		}
@@ -724,10 +724,6 @@ void ListWidget::contextMenuEvent(QContextMenuEvent *e) {
 }
 
 void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
-	if (_menu) {
-		_menu->deleteLater();
-		_menu = 0;
-	}
 	if (e->reason() == QContextMenuEvent::Mouse) {
 		mouseActionUpdate(e->globalPos());
 	}
@@ -742,10 +738,12 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		auto selTo = _selectedText.to;
 		hasSelected = (selTo > selFrom) ? 1 : 0;
 		if (App::mousedItem() && App::mousedItem() == App::hoveredItem()) {
-			auto mousePos = mapPointToItem(mapFromGlobal(_mousePosition), viewForItem(App::mousedItem()));
+			auto mousePos = mapPointToItem(
+				mapFromGlobal(_mousePosition),
+				App::mousedItem());
 			HistoryStateRequest request;
 			request.flags |= Text::StateRequest::Flag::LookupSymbol;
-			auto dragState = App::mousedItem()->getState(mousePos, request);
+			auto dragState = App::mousedItem()->data()->getState(mousePos, request);
 			if (dragState.cursor == HistoryInTextCursorState && dragState.symbol >= selFrom && dragState.symbol < selTo) {
 				isUponSelected = 1;
 			}
@@ -755,10 +753,12 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		isUponSelected = hasSelected;
 	}
 
-	_menu = new Ui::PopupMenu(nullptr);
+	_menu = base::make_unique_q<Ui::PopupMenu>(nullptr);
 
 	_contextMenuLink = ClickHandler::getActive();
-	auto item = App::hoveredItem() ? App::hoveredItem() : App::hoveredLinkItem();
+	auto view = App::hoveredItem()
+		? App::hoveredItem()
+		: App::hoveredLinkItem();
 	auto lnkPhoto = dynamic_cast<PhotoClickHandler*>(_contextMenuLink.get());
 	auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.get());
 	auto lnkPeer = dynamic_cast<PeerClickHandler*>(_contextMenuLink.get());
@@ -767,39 +767,50 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	auto lnkIsAudio = lnkDocument ? lnkDocument->document()->isAudioFile() : false;
 	if (lnkPhoto || lnkDocument) {
 		if (isUponSelected > 0) {
-			_menu->addAction(lang(lng_context_copy_selected), [this] { copySelectedText(); })->setEnabled(true);
+			_menu->addAction(lang(lng_context_copy_selected), [=] {
+				copySelectedText();
+			})->setEnabled(true);
 		}
 		if (lnkPhoto) {
-			_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, photo = lnkPhoto->photo()] {
+			const auto photo = lnkPhoto->photo();
+			_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 				savePhotoToFile(photo);
 			}))->setEnabled(true);
-			_menu->addAction(lang(lng_context_copy_image), [this, photo = lnkPhoto->photo()] {
+			_menu->addAction(lang(lng_context_copy_image), [=] {
 				copyContextImage(photo);
 			})->setEnabled(true);
 		} else {
 			auto document = lnkDocument->document();
 			if (document->loading()) {
-				_menu->addAction(lang(lng_context_cancel_download), [this] { cancelContextDownload(); })->setEnabled(true);
+				_menu->addAction(lang(lng_context_cancel_download), [=] {
+					cancelContextDownload(document);
+				})->setEnabled(true);
 			} else {
 				if (document->loaded() && document->isGifv()) {
 					if (!cAutoPlayGif()) {
-						_menu->addAction(lang(lng_context_open_gif), [this] { openContextGif(); })->setEnabled(true);
+						const auto itemId = view
+							? view->data()->fullId()
+							: FullMsgId();
+						_menu->addAction(lang(lng_context_open_gif), [=] {
+							openContextGif(itemId);
+						})->setEnabled(true);
 					}
 				}
 				if (!document->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
-					_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), [this] { showContextInFolder(); })->setEnabled(true);
+					_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), [=] {
+						showContextInFolder(document);
+					})->setEnabled(true);
 				}
 				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsVoice ? lng_context_save_audio : (lnkIsAudio ? lng_context_save_audio_file : lng_context_save_file))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
 					saveDocumentToFile(document);
 				}))->setEnabled(true);
 			}
 		}
-		if (App::hoveredLinkItem()) {
-			App::contextItem(App::hoveredLinkItem());
-		}
 	} else if (lnkPeer) { // suggest to block
 		// #TODO suggest restrict peer
 	} else { // maybe cursor on some text history item?
+		const auto item = view ? view->data().get() : nullptr;
+		const auto itemId = item ? item->fullId() : FullMsgId();
 		bool canDelete = item && item->canDelete() && (item->id > 0 || !item->serviceMsg());
 		bool canForward = item && item->canForward();
 
@@ -817,7 +828,9 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					if (media->type() == MediaTypeSticker) {
 						if (auto document = media->getDocument()) {
 							if (document->sticker() && document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
-								_menu->addAction(lang(document->sticker()->setInstalled() ? lng_context_pack_info : lng_context_pack_add), [this] { showStickerPackInfo(); });
+								_menu->addAction(lang(document->sticker()->setInstalled() ? lng_context_pack_info : lng_context_pack_add), [=] {
+									showStickerPackInfo(document);
+								});
 							}
 							_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
 								saveDocumentToFile(document);
@@ -826,15 +839,21 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					} else if (media->type() == MediaTypeGif && !_contextMenuLink) {
 						if (auto document = media->getDocument()) {
 							if (document->loading()) {
-								_menu->addAction(lang(lng_context_cancel_download), [this] { cancelContextDownload(); })->setEnabled(true);
+								_menu->addAction(lang(lng_context_cancel_download), [=] {
+									cancelContextDownload(document);
+								})->setEnabled(true);
 							} else {
 								if (document->isGifv()) {
 									if (!cAutoPlayGif()) {
-										_menu->addAction(lang(lng_context_open_gif), [this] { openContextGif(); })->setEnabled(true);
+										_menu->addAction(lang(lng_context_open_gif), [=] {
+											openContextGif(itemId);
+										})->setEnabled(true);
 									}
 								}
 								if (!document->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
-									_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), [this] { showContextInFolder(); })->setEnabled(true);
+									_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), [=] {
+										showContextInFolder(document);
+									})->setEnabled(true);
 								}
 								_menu->addAction(lang(lng_context_save_file), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
 									saveDocumentToFile(document);
@@ -844,7 +863,9 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					}
 				}
 				if (msg && !_contextMenuLink && (!msg->emptyText() || mediaHasTextForCopy)) {
-					_menu->addAction(lang(lng_context_copy_text), [this] { copyContextText(); })->setEnabled(true);
+					_menu->addAction(lang(lng_context_copy_text), [=] {
+						copyContextText(itemId);
+					})->setEnabled(true);
 				}
 			}
 		}
@@ -853,17 +874,11 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		if (!linkCopyToClipboardText.isEmpty()) {
 			_menu->addAction(linkCopyToClipboardText, [this] { copyContextUrl(); })->setEnabled(true);
 		}
-		App::contextItem(item);
 	}
 
 	if (_menu->actions().isEmpty()) {
-		delete base::take(_menu);
+		_menu = nullptr;
 	} else {
-		connect(_menu, &QObject::destroyed, this, [this](QObject *object) {
-			if (_menu == object) {
-				_menu = nullptr;
-			}
-		});
 		_menu->popup(e->globalPos());
 		e->accept();
 	}
@@ -873,11 +888,15 @@ void ListWidget::savePhotoToFile(PhotoData *photo) {
 	if (!photo || !photo->date || !photo->loaded()) return;
 
 	auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
-	FileDialog::GetWritePath(lang(lng_save_photo), filter, filedialogDefaultName(qsl("photo"), qsl(".jpg")), base::lambda_guarded(this, [this, photo](const QString &result) {
-		if (!result.isEmpty()) {
-			photo->full->pix().toImage().save(result, "JPG");
-		}
-	}));
+	FileDialog::GetWritePath(
+		lang(lng_save_photo),
+		filter,
+		filedialogDefaultName(qsl("photo"), qsl(".jpg")),
+		base::lambda_guarded(this, [this, photo](const QString &result) {
+			if (!result.isEmpty()) {
+				photo->full->pix().toImage().save(result, "JPG");
+			}
+		}));
 }
 
 void ListWidget::saveDocumentToFile(DocumentData *document) {
@@ -900,50 +919,28 @@ void ListWidget::copyContextUrl() {
 	}
 }
 
-void ListWidget::showStickerPackInfo() {
-	if (!App::contextItem()) return;
-
-	if (auto media = App::contextItem()->getMedia()) {
-		if (auto doc = media->getDocument()) {
-			if (auto sticker = doc->sticker()) {
-				if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
-					App::main()->stickersBox(sticker->set);
-				}
-			}
+void ListWidget::showStickerPackInfo(not_null<DocumentData*> document) {
+	if (auto sticker = document->sticker()) {
+		if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
+			App::main()->stickersBox(sticker->set);
 		}
 	}
 }
 
-void ListWidget::cancelContextDownload() {
-	if (auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.get())) {
-		lnkDocument->document()->cancel();
-	} else if (auto item = App::contextItem()) {
-		if (auto media = item->getMedia()) {
-			if (auto doc = media->getDocument()) {
-				doc->cancel();
-			}
-		}
-	}
+void ListWidget::cancelContextDownload(not_null<DocumentData*> document) {
+	document->cancel();
 }
 
-void ListWidget::showContextInFolder() {
-	QString filepath;
-	if (auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.get())) {
-		filepath = lnkDocument->document()->filepath(DocumentData::FilePathResolveChecked);
-	} else if (auto item = App::contextItem()) {
-		if (auto media = item->getMedia()) {
-			if (auto doc = media->getDocument()) {
-				filepath = doc->filepath(DocumentData::FilePathResolveChecked);
-			}
-		}
-	}
+void ListWidget::showContextInFolder(not_null<DocumentData*> document) {
+	const auto filepath = document->filepath(
+		DocumentData::FilePathResolveChecked);
 	if (!filepath.isEmpty()) {
 		File::ShowInFolder(filepath);
 	}
 }
 
-void ListWidget::openContextGif() {
-	if (auto item = App::contextItem()) {
+void ListWidget::openContextGif(FullMsgId itemId) {
+	if (const auto item = App::histItemById(itemId)) {
 		if (auto media = item->getMedia()) {
 			if (auto document = media->getDocument()) {
 				Messenger::Instance().showDocument(document, item);
@@ -952,16 +949,20 @@ void ListWidget::openContextGif() {
 	}
 }
 
-void ListWidget::copyContextText() {
-	auto item = App::contextItem();
-	if (!item || (item->getMedia() && item->getMedia()->type() == MediaTypeSticker)) {
-		return;
+void ListWidget::copyContextText(FullMsgId itemId) {
+	if (const auto item = App::histItemById(itemId)) {
+		if (const auto media = item->getMedia()) {
+			if (media->type() == MediaTypeSticker) {
+				return;
+			}
+		}
+		setToClipboard(item->selectedText(FullSelection));
 	}
-
-	setToClipboard(item->selectedText(FullSelection));
 }
 
-void ListWidget::setToClipboard(const TextWithEntities &forClipboard, QClipboard::Mode mode) {
+void ListWidget::setToClipboard(
+		const TextWithEntities &forClipboard,
+		QClipboard::Mode mode) {
 	if (auto data = MimeDataFromTextWithEntities(forClipboard)) {
 		QApplication::clipboard()->setMimeData(data.release(), mode);
 	}
@@ -996,8 +997,8 @@ void ListWidget::enterEventHook(QEvent *e) {
 }
 
 void ListWidget::leaveEventHook(QEvent *e) {
-	if (auto item = App::hoveredItem()) {
-		repaintItem(viewForItem(item));
+	if (const auto view = App::hoveredItem()) {
+		repaintItem(view);
 		App::hoveredItem(nullptr);
 	}
 	ClickHandler::clearActive();
@@ -1015,13 +1016,13 @@ void ListWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butto
 
 	ClickHandler::pressed();
 	if (App::pressedItem() != App::hoveredItem()) {
-		repaintItem(viewForItem(App::pressedItem()));
+		repaintItem(App::pressedItem());
 		App::pressedItem(App::hoveredItem());
-		repaintItem(viewForItem(App::pressedItem()));
+		repaintItem(App::pressedItem());
 	}
 
 	_mouseAction = MouseAction::None;
-	_mouseActionItem = viewForItem(App::mousedItem());
+	_mouseActionItem = App::mousedItem();
 	_dragStartPosition = mapPointToItem(mapFromGlobal(screenPos), _mouseActionItem);
 	_pressWasInactive = _controller->window()->wasInactivePress();
 	if (_pressWasInactive) _controller->window()->setInactivePress(false);
@@ -1102,8 +1103,8 @@ void ListWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton butt
 	if (_mouseAction == MouseAction::Dragging) {
 		activated = nullptr;
 	}
-	if (App::pressedItem()) {
-		repaintItem(viewForItem(App::pressedItem()));
+	if (const auto view = App::pressedItem()) {
+		repaintItem(view);
 		App::pressedItem(nullptr);
 	}
 
@@ -1144,23 +1145,25 @@ void ListWidget::updateSelected() {
 	const auto view = strictFindItemByY(point.y());
 	const auto item = view ? view->data().get() : nullptr;
 	if (view) {
-		App::mousedItem(item);
+		App::mousedItem(view);
 		itemPoint = mapPointToItem(point, view);
 		if (item->hasPoint(itemPoint)) {
-			if (App::hoveredItem() != item) {
-				repaintItem(viewForItem(App::hoveredItem()));
-				App::hoveredItem(item);
+			if (App::hoveredItem() != view) {
+				repaintItem(App::hoveredItem());
+				App::hoveredItem(view);
 				repaintItem(view);
 			}
-		} else if (App::hoveredItem()) {
-			repaintItem(viewForItem(App::hoveredItem()));
+		} else if (const auto view = App::hoveredItem()) {
+			repaintItem(view);
 			App::hoveredItem(nullptr);
 		}
 	}
 
 	HistoryTextState dragState;
 	ClickHandlerHost *lnkhost = nullptr;
-	auto selectingText = (view == _mouseActionItem && item == App::hoveredItem() && _selectedItem);
+	auto selectingText = _selectedItem
+		&& (view == _mouseActionItem)
+		&& (view == App::hoveredItem());
 	if (view) {
 		if (view != _mouseActionItem || (itemPoint - _dragStartPosition).manhattanLength() >= QApplication::startDragDistance()) {
 			if (_mouseAction == MouseAction::PrepareDrag) {
@@ -1246,14 +1249,9 @@ void ListWidget::updateSelected() {
 	}
 
 	// Voice message seek support.
-	if (auto pressedItem = App::pressedLinkItem()) {
-		if (!pressedItem->detached()) {
-			// #TODO seek support
-			//if (pressedItem->history() == _history) {
-			//	auto adjustedPoint = mapPointToItem(point, pressedItem);
-			//	pressedItem->updatePressed(adjustedPoint);
-			//}
-		}
+	if (const auto pressedView = App::pressedLinkItem()) {
+		auto adjustedPoint = mapPointToItem(point, pressedView);
+		pressedView->data()->updatePressed(adjustedPoint);
 	}
 
 	//if (_mouseAction == MouseAction::Selecting) {

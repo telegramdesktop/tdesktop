@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "messenger.h"
 #include "platform/platform_specific.h"
+#include "history/view/history_view_message.h"
 #include "boxes/confirm_box.h"
 #include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
@@ -241,10 +242,11 @@ void BotCommandClickHandler::onClick(Qt::MouseButton button) const {
 		}
 
 		if (auto peer = Ui::getPeerForMouseAction()) { // old way
-			UserData *bot = peer->isUser() ? peer->asUser() : nullptr;
-			if (auto item = App::hoveredLinkItem()) {
-				if (!bot) {
-					bot = item->fromOriginal()->asUser(); // may return nullptr
+			auto bot = peer->isUser() ? peer->asUser() : nullptr;
+			if (!bot) {
+				if (const auto view = App::hoveredLinkItem()) {
+					// may return nullptr
+					bot = view->data()->fromOriginal()->asUser();
 				}
 			}
 			Ui::showPeerHistory(peer, ShowAtTheEndMsgId);

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/history_media_types.h"
 #include "history/history_message.h"
+#include "history/view/history_view_message.h"
 #include "storage/storage_shared_media.h"
 #include "lang/lang_keys.h"
 #include "ui/grouped_layout.h"
@@ -176,7 +177,7 @@ void HistoryGroupedMedia::draw(
 	} else if (_parent->getMedia() == this) {
 		auto fullRight = _width;
 		auto fullBottom = _height;
-		if (_parent->id < 0 || App::hoveredItem() == _parent) {
+		if (needInfoDisplay()) {
 			_parent->drawInfo(p, fullRight, fullBottom, _width, selected, InfoDisplayOverImage);
 		}
 		if (!_parent->hasBubble() && _parent->displayRightAction()) {
@@ -295,7 +296,8 @@ void HistoryGroupedMedia::clickHandlerPressedChanged(
 	for (const auto &element : _elements) {
 		element.content->clickHandlerPressedChanged(p, pressed);
 		if (pressed && element.content->dragItemByHandler(p)) {
-			App::pressedLinkItem(element.item);
+			// #TODO pressedLinkItem
+			//App::pressedLinkItem(element.item);
 		}
 	}
 }
@@ -454,4 +456,8 @@ bool HistoryGroupedMedia::computeNeedBubble() const {
 		}
 	}
 	return false;
+}
+
+bool HistoryGroupedMedia::needInfoDisplay() const {
+	return (_parent->id < 0 || _parent->isUnderCursor());
 }

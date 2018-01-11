@@ -120,7 +120,8 @@ ItemBase::ItemBase(not_null<HistoryItem*> parent) : _parent(parent) {
 void ItemBase::clickHandlerActiveChanged(
 		const ClickHandlerPtr &action,
 		bool active) {
-	App::hoveredLinkItem(active ? _parent.get() : nullptr);
+	// #TODO hoveredLinkItem
+//	App::hoveredLinkItem(active ? _parent.get() : nullptr);
 	Auth().data().requestItemRepaint(_parent);
 	if (_check) {
 		_check->setActive(active);
@@ -130,7 +131,8 @@ void ItemBase::clickHandlerActiveChanged(
 void ItemBase::clickHandlerPressedChanged(
 		const ClickHandlerPtr &action,
 		bool pressed) {
-	App::pressedLinkItem(pressed ? _parent.get() : nullptr);
+	// #TODO pressedLinkItem
+//	App::pressedLinkItem(pressed ? _parent.get() : nullptr);
 	Auth().data().requestItemRepaint(_parent);
 	if (_check) {
 		_check->setPressed(pressed);
@@ -172,18 +174,25 @@ ItemBase::~ItemBase() = default;
 
 void RadialProgressItem::setDocumentLinks(
 		not_null<DocumentData*> document) {
-	auto createSaveHandler = [](
-		not_null<DocumentData*> document
-	) -> ClickHandlerPtr {
+	const auto context = parent()->fullId();
+	const auto createSaveHandler = [&]() -> ClickHandlerPtr {
 		if (document->isVoiceMessage()) {
-			return std::make_shared<DocumentOpenClickHandler>(document);
+			return std::make_shared<DocumentOpenClickHandler>(
+				document,
+				context);
 		}
-		return std::make_shared<DocumentSaveClickHandler>(document);
+		return std::make_shared<DocumentSaveClickHandler>(
+			document,
+			context);
 	};
 	setLinks(
-		std::make_shared<DocumentOpenClickHandler>(document),
-		createSaveHandler(document),
-		std::make_shared<DocumentCancelClickHandler>(document));
+		std::make_shared<DocumentOpenClickHandler>(
+			document,
+			context),
+		createSaveHandler(),
+		std::make_shared<DocumentCancelClickHandler>(
+			document,
+			context));
 }
 
 void RadialProgressItem::clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) {
@@ -539,7 +548,7 @@ Voice::Voice(
 	const style::OverviewFileLayout &st)
 : RadialProgressItem(parent)
 , _data(voice)
-, _namel(std::make_shared<DocumentOpenClickHandler>(_data))
+, _namel(std::make_shared<DocumentOpenClickHandler>(_data, parent->fullId()))
 , _st(st) {
 	AddComponents(Info::Bit());
 
@@ -784,7 +793,7 @@ Document::Document(
 : RadialProgressItem(parent)
 , _data(document)
 , _msgl(goToMessageClickHandler(parent))
-, _namel(std::make_shared<DocumentOpenClickHandler>(_data))
+, _namel(std::make_shared<DocumentOpenClickHandler>(_data, parent->fullId()))
 , _st(st)
 , _date(langDateTime(date(_data->date)))
 , _datew(st::normalFont->width(_date))
@@ -1205,7 +1214,9 @@ Link::Link(
 	if (_page) {
 		mainUrl = _page->url;
 		if (_page->document) {
-			_photol = std::make_shared<DocumentOpenClickHandler>(_page->document);
+			_photol = std::make_shared<DocumentOpenClickHandler>(
+				_page->document,
+				parent->fullId());
 		} else if (_page->photo) {
 			if (_page->type == WebPageProfile || _page->type == WebPageVideo) {
 				_photol = std::make_shared<UrlClickHandler>(_page->url);

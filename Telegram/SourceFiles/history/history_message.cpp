@@ -1227,8 +1227,8 @@ bool HistoryMessage::displayFastReply() const {
 
 QRect HistoryMessage::countGeometry() const {
 	auto maxwidth = qMin(st::msgMaxWidth, _maxw);
-	if (_media && _media->currentWidth() < maxwidth) {
-		maxwidth = qMax(_media->currentWidth(), qMin(maxwidth, plainMaxWidth()));
+	if (_media && _media->width() < maxwidth) {
+		maxwidth = qMax(_media->width(), qMin(maxwidth, plainMaxWidth()));
 	}
 
 	const auto outLayout = hasOutLayout();
@@ -1904,7 +1904,7 @@ void HistoryMessage::paintFromName(
 			return 0;
 		}();
 		const auto replyWidth = [&] {
-			if (App::hoveredItem() == this && displayFastReply()) {
+			if (isUnderCursor() && displayFastReply()) {
 				return st::msgFont->width(FastReplyText());
 			}
 			return 0;
@@ -2364,7 +2364,7 @@ bool HistoryMessage::getStateFromName(
 		not_null<HistoryTextState*> outResult) const {
 	if (displayFromName()) {
 		const auto replyWidth = [&] {
-			if (App::hoveredItem() == this && displayFastReply()) {
+			if (isUnderCursor() && displayFastReply()) {
 				return st::msgFont->width(FastReplyText());
 			}
 			return 0;

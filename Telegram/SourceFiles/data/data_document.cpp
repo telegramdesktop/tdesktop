@@ -336,7 +336,9 @@ void DocumentSaveClickHandler::doSave(
 		bool forceSavingAs) {
 	if (!data->date) return;
 
-	auto filepath = data->filepath(DocumentData::FilePathResolveSaveFromDataSilent, forceSavingAs);
+	auto filepath = data->filepath(
+		DocumentData::FilePathResolveSaveFromDataSilent,
+		forceSavingAs);
 	if (!filepath.isEmpty() && !forceSavingAs) {
 		File::OpenWith(filepath, QCursor::pos());
 	} else {
@@ -345,9 +347,7 @@ void DocumentSaveClickHandler::doSave(
 		auto filename = filepath.isEmpty() ? QString() : fileinfo.fileName();
 		auto newfname = documentSaveFilename(data, forceSavingAs, filename, filedir);
 		if (!newfname.isEmpty()) {
-			auto action = (filename.isEmpty() || forceSavingAs) ? ActionOnLoadNone : ActionOnLoadOpenWith;
-			auto actionMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->fullId() : (App::contextItem() ? App::contextItem()->fullId() : FullMsgId());
-			data->save(newfname, action, actionMsgId);
+			data->save(newfname, ActionOnLoadNone, FullMsgId());
 		}
 	}
 }
@@ -362,8 +362,7 @@ void DocumentCancelClickHandler::onClickImpl() const {
 
 	if (data->uploading()) {
 		if (const auto item = App::histItemById(context())) {
-			App::contextItem(item);
-			App::main()->cancelUploadLayer();
+			App::main()->cancelUploadLayer(item);
 		}
 	} else {
 		data->cancel();

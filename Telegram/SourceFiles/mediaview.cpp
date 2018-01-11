@@ -1003,8 +1003,10 @@ void MediaView::onForward() {
 
 void MediaView::onDelete() {
 	close();
-	auto deletingPeerPhoto = [this]() {
-		if (!_msgid) return true;
+	const auto deletingPeerPhoto = [this] {
+		if (!_msgid) {
+			return true;
+		}
 		if (_photo && _history) {
 			if (_history->peer->userpicPhotoId() == _photo->id) {
 				return _firstOpenedPeerPhoto;
@@ -1015,9 +1017,8 @@ void MediaView::onDelete() {
 
 	if (deletingPeerPhoto()) {
 		App::main()->deletePhotoLayer(_photo);
-	} else if (auto item = App::histItemById(_msgid)) {
-		App::contextItem(item);
-		App::main()->deleteLayer();
+	} else {
+		App::main()->deleteLayer(_msgid);
 	}
 }
 

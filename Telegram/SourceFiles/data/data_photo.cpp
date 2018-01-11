@@ -137,8 +137,7 @@ void PhotoCancelClickHandler::onClickImpl() const {
 
 	if (data->uploading()) {
 		if (const auto item = App::histItemById(context())) {
-			App::contextItem(item);
-			App::main()->cancelUploadLayer();
+			App::main()->cancelUploadLayer(item);
 		}
 	} else {
 		data->cancel();

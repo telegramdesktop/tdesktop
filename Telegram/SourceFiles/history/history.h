@@ -550,7 +550,7 @@ class ChannelHistory : public History {
 public:
 	using History::History;
 
-	void messageDetached(HistoryItem *msg);
+	void messageDetached(not_null<HistoryItem*> message);
 
 	void getRangeDifference();
 	void getRangeDifferenceNext(int32 pts);
@@ -579,15 +579,17 @@ private:
 
 class HistoryBlock {
 public:
+	using Message = HistoryView::Message;
+
 	HistoryBlock(not_null<History*> history);
 	HistoryBlock(const HistoryBlock &) = delete;
 	HistoryBlock &operator=(const HistoryBlock &) = delete;
 	~HistoryBlock();
 
-	std::vector<std::unique_ptr<HistoryView::Message>> messages;
+	std::vector<std::unique_ptr<Message>> messages;
 
 	void clear(bool leaveItems = false);
-	void removeItem(not_null<HistoryItem*> item);
+	void remove(not_null<Message*> view);
 
 	int resizeGetHeight(int newWidth, bool resizeAllItems);
 	int y() const {

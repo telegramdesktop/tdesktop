@@ -259,7 +259,8 @@ void HistoryItem::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool activ
 			markup->inlineKeyboard->clickHandlerActiveChanged(p, active);
 		}
 	}
-	App::hoveredLinkItem(active ? this : nullptr);
+	// #TODO hoveredLinkItem
+	// App::hoveredLinkItem(active ? this : nullptr);
 	Auth().data().requestItemRepaint(this);
 }
 
@@ -269,7 +270,8 @@ void HistoryItem::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pres
 			markup->inlineKeyboard->clickHandlerPressedChanged(p, pressed);
 		}
 	}
-	App::pressedLinkItem(pressed ? this : nullptr);
+	// #TODO hoveredLinkItem
+	// App::pressedLinkItem(pressed ? this : nullptr);
 	Auth().data().requestItemRepaint(this);
 }
 
@@ -291,7 +293,7 @@ UserData *HistoryItem::viaBot() const {
 void HistoryItem::destroy() {
 	const auto history = this->history();
 	if (isLogEntry()) {
-		Assert(detached());
+		Assert(!mainView());
 	} else {
 		// All this must be done for all items manually in History::clear(false)!
 		eraseFromUnreadMentions();
@@ -309,7 +311,7 @@ void HistoryItem::destroy() {
 		const auto wasAtBottom = history->loadedAtBottom();
 		history->removeNotification(this);
 
-		detach();
+		removeMainView();
 
 		if (history->lastMsg == this) {
 			history->fixLastMessage(wasAtBottom);
@@ -336,33 +338,18 @@ void HistoryItem::destroy() {
 	delete this;
 }
 
-void HistoryItem::detach() {
-	if (detached()) return;
-
-	if (_history->isChannel()) {
-		_history->asChannelHistory()->messageDetached(this);
+void HistoryItem::removeMainView() {
+	if (const auto view = mainView()) {
+		if (const auto channelHistory = _history->asChannelHistory()) {
+			channelHistory->messageDetached(this);
+		}
+		_history->setPendingResize();
+		view->removeFromBlock();
+		_mainView = nullptr;
 	}
-	_block->removeItem(this);
-	App::historyItemDetached(this);
-
-	_history->setPendingResize();
 }
 
-void HistoryItem::attachToBlock(not_null<HistoryBlock*> block, int index) {
-	Expects(!isLogEntry());
-	Expects(_block == nullptr);
-	Expects(_indexInBlock < 0);
-	Expects(index >= 0);
-
-	_block = block;
-	_indexInBlock = index;
-	_mainView = block->messages[index].get();
-	setPendingResize();
-}
-
-void HistoryItem::detachFast() {
-	_block = nullptr;
-	_indexInBlock = -1;
+void HistoryItem::clearMainView() {
 	_mainView = nullptr;
 
 	validateGroupId();
@@ -391,6 +378,7 @@ void HistoryItem::indexAsNewItem() {
 
 void HistoryItem::previousItemChanged() {
 	Expects(!isLogEntry());
+
 	recountDisplayDate();
 	recountAttachToPrevious();
 }
@@ -398,6 +386,7 @@ void HistoryItem::previousItemChanged() {
 // Called only if there is no more next item! Not always when it changes!
 void HistoryItem::nextItemChanged() {
 	Expects(!isLogEntry());
+
 	setAttachToNext(false);
 }
 
@@ -421,6 +410,7 @@ bool HistoryItem::computeIsAttachToPrevious(not_null<HistoryItem*> previous) {
 
 void HistoryItem::recountAttachToPrevious() {
 	Expects(!isLogEntry());
+
 	auto attachToPrevious = false;
 	if (auto previous = previousItem()) {
 		attachToPrevious = computeIsAttachToPrevious(previous);
@@ -940,11 +930,6 @@ void HistoryItem::clipCallback(Media::Clip::Notification notification) {
 		}
 		if (!stopped) {
 			setPendingInitDimensions();
-			if (detached()) {
-				// We still want to handle our pending initDimensions and
-				// resize state even if we're detached in history.
-				_history->setHasPendingResizedItems();
-			}
 			Auth().data().markItemLayoutChanged(this);
 			Global::RefPendingRepaintItems().insert(this);
 		}
@@ -984,27 +969,26 @@ void HistoryItem::audioTrackUpdated() {
 	}
 }
 
+bool HistoryItem::isUnderCursor() const {
+	if (const auto view = App::hoveredItem()) {
+		return view->data() == this;
+	}
+	return false;
+}
+
 HistoryItem *HistoryItem::previousItem() const {
-	if (_block && _indexInBlock >= 0) {
-		if (_indexInBlock > 0) {
-			return _block->messages[_indexInBlock - 1]->data();
-		}
-		if (auto previous = _block->previousBlock()) {
-			Assert(!previous->messages.empty());
-			return previous->messages.back()->data();
+	if (const auto view = mainView()) {
+		if (const auto previous = view->previousInBlocks()) {
+			return previous->data();
 		}
 	}
 	return nullptr;
 }
 
 HistoryItem *HistoryItem::nextItem() const {
-	if (_block && _indexInBlock >= 0) {
-		if (_indexInBlock + 1 < _block->messages.size()) {
-			return _block->messages[_indexInBlock + 1]->data();
-		}
-		if (auto next = _block->nextBlock()) {
-			Assert(!next->messages.empty());
-			return next->messages.front()->data();
+	if (const auto view = mainView()) {
+		if (const auto next = view->nextInBlocks()) {
+			return next->data();
 		}
 	}
 	return nullptr;
@@ -1107,9 +1091,9 @@ HistoryItem::~HistoryItem() {
 ClickHandlerPtr goToMessageClickHandler(PeerData *peer, MsgId msgId) {
 	return std::make_shared<LambdaClickHandler>([peer, msgId] {
 		if (App::main()) {
-			auto current = App::mousedItem();
-			if (current && current->history()->peer == peer) {
-				App::main()->pushReplyReturn(current);
+			auto view = App::mousedItem();
+			if (view && view->data()->history()->peer == peer) {
+				App::main()->pushReplyReturn(view->data());
 			}
 			App::wnd()->controller()->showPeerHistory(
 				peer,

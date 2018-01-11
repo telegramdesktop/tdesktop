@@ -15,6 +15,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class Messenger;
 class MainWindow;
 class MainWidget;
+class LocationCoords;
+struct LocationData;
+
+namespace HistoryView {
+class Message;
+} // namespace HistoryView
 
 using HistoryItemsMap = OrderedSet<HistoryItem*>;
 using PhotoItems = QHash<PhotoData*, HistoryItemsMap>;
@@ -26,9 +32,6 @@ using GifItems = QHash<Media::Clip::Reader*, HistoryItem*>;
 
 using PhotosData = QHash<PhotoId, PhotoData*>;
 using DocumentsData = QHash<DocumentId, DocumentData*>;
-
-class LocationCoords;
-struct LocationData;
 
 namespace App {
 	MainWindow *wnd();
@@ -190,13 +193,13 @@ namespace App {
 		return histItemById(msgId.channel, msgId.msg);
 	}
 	void historyRegItem(HistoryItem *item);
-	void historyItemDetached(HistoryItem *item);
 	void historyUnregItem(HistoryItem *item);
 	void historyUpdateDependent(HistoryItem *item);
 	void historyClearMsgs();
 	void historyClearItems();
 	void historyRegDependency(HistoryItem *dependent, HistoryItem *dependency);
 	void historyUnregDependency(HistoryItem *dependent, HistoryItem *dependency);
+	void messageViewDestroyed(not_null<HistoryView::Message*> view);
 
 	void historyRegRandom(uint64 randomId, const FullMsgId &itemId);
 	void historyUnregRandom(uint64 randomId);
@@ -205,18 +208,16 @@ namespace App {
 	void historyUnregSentData(uint64 randomId);
 	void histSentDataByItem(uint64 randomId, PeerId &peerId, QString &text);
 
-	void hoveredItem(HistoryItem *item);
-	HistoryItem *hoveredItem();
-	void pressedItem(HistoryItem *item);
-	HistoryItem *pressedItem();
-	void hoveredLinkItem(HistoryItem *item);
-	HistoryItem *hoveredLinkItem();
-	void pressedLinkItem(HistoryItem *item);
-	HistoryItem *pressedLinkItem();
-	void contextItem(HistoryItem *item);
-	HistoryItem *contextItem();
-	void mousedItem(HistoryItem *item);
-	HistoryItem *mousedItem();
+	void hoveredItem(HistoryView::Message *item);
+	HistoryView::Message *hoveredItem();
+	void pressedItem(HistoryView::Message *item);
+	HistoryView::Message *pressedItem();
+	void hoveredLinkItem(HistoryView::Message *item);
+	HistoryView::Message *hoveredLinkItem();
+	void pressedLinkItem(HistoryView::Message *item);
+	HistoryView::Message *pressedLinkItem();
+	void mousedItem(HistoryView::Message *item);
+	HistoryView::Message *mousedItem();
 	void clearMousedItems();
 
 	const style::font &monofont();

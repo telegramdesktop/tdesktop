@@ -628,7 +628,7 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 	}));
 	subscribe(Auth().data().pendingHistoryResize(), [this] { handlePendingHistoryUpdate(); });
 	subscribe(Auth().data().queryItemVisibility(), [this](const Data::Session::ItemVisibilityQuery &query) {
-		if (_a_show.animating() || _history != query.item->history() || query.item->detached() || !isVisible()) {
+		if (_a_show.animating() || _history != query.item->history() || !query.item->mainView() || !isVisible()) {
 			return;
 		}
 		auto top = _list->itemTop(query.item);
@@ -642,9 +642,7 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 	Auth().data().itemLayoutChanged(
 	) | rpl::start_with_next([this](auto item) {
 		if (_peer && _list) {
-			if ((item == App::mousedItem())
-				|| (item == App::hoveredItem())
-				|| (item == App::hoveredLinkItem())) {
+			if (item->isUnderCursor()) {
 				_list->onUpdateSelected();
 			}
 		}
@@ -804,7 +802,7 @@ void HistoryWidget::adjustHighlightedMessageToMigrated() {
 			_history->channelId(),
 			_highlightedMessageId);
 		if (highlighted && highlighted->isGroupMigrate()) {
-			_highlightedMessageId = -_migrated->blocks.back()->messages.back()->id();
+			_highlightedMessageId = -_migrated->blocks.back()->messages.back()->data()->id;
 		}
 	}
 }
@@ -818,7 +816,7 @@ void HistoryWidget::checkNextHighlight() {
 			auto msgId = _highlightQueue.front();
 			_highlightQueue.pop_front();
 			auto item = getItemFromHistoryOrMigrated(msgId);
-			if (item && !item->detached()) {
+			if (item && item->mainView()) {
 				return msgId;
 			}
 		}
@@ -832,7 +830,7 @@ void HistoryWidget::checkNextHighlight() {
 
 void HistoryWidget::updateHighlightedMessage() {
 	auto item = getItemFromHistoryOrMigrated(_highlightedMessageId);
-	if (!item || item->detached()) {
+	if (!item || !item->mainView()) {
 		return stopMessageHighlight();
 	}
 	auto duration = st::activeFadeInDuration + st::activeFadeOutDuration;
@@ -1440,8 +1438,7 @@ void HistoryWidget::clearReplyReturns() {
 	_replyReturn = 0;
 }
 
-void HistoryWidget::pushReplyReturn(HistoryItem *item) {
-	if (!item) return;
+void HistoryWidget::pushReplyReturn(not_null<HistoryItem*> item) {
 	if (item->history() == _history) {
 		_replyReturns.push_back(item->id);
 	} else if (item->history() == _migrated) {
@@ -1706,13 +1703,6 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	noSelectingScroll();
 	_nonEmptySelection = false;
 	_topBar->showSelected(HistoryView::TopBarWidget::SelectedState {});
-
-	App::hoveredItem(nullptr);
-	App::pressedItem(nullptr);
-	App::hoveredLinkItem(nullptr);
-	App::pressedLinkItem(nullptr);
-	App::contextItem(nullptr);
-	App::mousedItem(nullptr);
 
 	if (_peer) {
 		App::forgetMedia();
@@ -2424,7 +2414,7 @@ bool HistoryWidget::doWeReadServerHistory() const {
 		if (scrollTop + 1 > _scroll->scrollTopMax()) return true;
 
 		auto showFrom = (_migrated && _migrated->showFrom) ? _migrated->showFrom : (_history ? _history->showFrom : nullptr);
-		if (showFrom && !showFrom->detached()) {
+		if (showFrom && showFrom->mainView()) {
 			int scrollBottom = scrollTop + _scroll->height();
 			if (scrollBottom > _list->itemTop(showFrom)) return true;
 		}
@@ -2445,7 +2435,7 @@ bool HistoryWidget::doWeReadMentions() const {
 }
 
 bool HistoryWidget::historyHasNotFreezedUnreadBar(History *history) const {
-	if (history && history->showFrom && !history->showFrom->detached() && history->unreadBar) {
+	if (history && history->showFrom && history->showFrom->mainView() && history->unreadBar) {
 		if (auto unreadBar = history->unreadBar->Get<HistoryMessageUnreadBar>()) {
 			return !unreadBar->_freezed;
 		}
@@ -2675,7 +2665,7 @@ void HistoryWidget::visibleAreaUpdated() {
 		_list->visibleAreaUpdated(scrollTop, scrollBottom);
 		if (_history->loadedAtBottom() && (_history->unreadCount() > 0 || (_migrated && _migrated->unreadCount() > 0))) {
 			auto showFrom = (_migrated && _migrated->showFrom) ? _migrated->showFrom : (_history ? _history->showFrom : nullptr);
-			auto showFromVisible = (showFrom && !showFrom->detached() && scrollBottom > _list->itemTop(showFrom));
+			auto showFromVisible = (showFrom && showFrom->mainView() && scrollBottom > _list->itemTop(showFrom));
 			auto atBottom = (scrollTop >= _scroll->scrollTopMax());
 			if ((showFromVisible || atBottom) && App::wnd()->doWeReadServerHistory()) {
 				Auth().api().readServerHistory(_history);
@@ -2727,14 +2717,14 @@ void HistoryWidget::checkReplyReturns() {
 	auto scrollTopMax = _scroll->scrollTopMax();
 	auto scrollHeight = _scroll->height();
 	while (_replyReturn) {
-		auto below = (_replyReturn->detached() && _replyReturn->history() == _history && !_history->isEmpty() && _replyReturn->id < _history->blocks.back()->messages.back()->id());
+		auto below = (!_replyReturn->mainView() && _replyReturn->history() == _history && !_history->isEmpty() && _replyReturn->id < _history->blocks.back()->messages.back()->data()->id);
 		if (!below) {
-			below = (_replyReturn->detached() && _replyReturn->history() == _migrated && !_history->isEmpty());
+			below = (!_replyReturn->mainView() && _replyReturn->history() == _migrated && !_history->isEmpty());
 		}
 		if (!below) {
-			below = (_replyReturn->detached() && _migrated && _replyReturn->history() == _migrated && !_migrated->isEmpty() && _replyReturn->id < _migrated->blocks.back()->messages.back()->id());
+			below = (!_replyReturn->mainView() && _migrated && _replyReturn->history() == _migrated && !_migrated->isEmpty() && _replyReturn->id < _migrated->blocks.back()->messages.back()->data()->id);
 		}
-		if (!below && !_replyReturn->detached()) {
+		if (!below && _replyReturn->mainView()) {
 			below = (scrollTop >= scrollTopMax) || (_list->itemTop(_replyReturn) < scrollTop + scrollHeight / 2);
 		}
 		if (below) {
@@ -3424,7 +3414,7 @@ bool HistoryWidget::insertBotCommand(const QString &cmd) {
 	auto insertingInlineBot = !cmd.isEmpty() && (cmd.at(0) == '@');
 	auto toInsert = cmd;
 	if (!toInsert.isEmpty() && !insertingInlineBot) {
-		auto bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? App::hoveredLinkItem()->fromOriginal() : nullptr);
+		auto bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? App::hoveredLinkItem()->data()->fromOriginal() : nullptr);
 		if (bot && (!bot->isUser() || !bot->asUser()->botInfo)) {
 			bot = nullptr;
 		}
@@ -4951,7 +4941,7 @@ void HistoryWidget::updateHistoryDownVisibility() {
 		if (!_list || !history || history->unreadCount() <= 0) {
 			return false;
 		}
-		if (!history->showFrom || history->showFrom->detached()) {
+		if (!history->showFrom || !history->showFrom->mainView()) {
 			return false;
 		}
 		return (_list->itemTop(history->showFrom) >= _scroll->scrollTop() + _scroll->height());
@@ -5052,41 +5042,34 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 			_scroll->keyPressEvent(e);
 		} else if ((e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier)) == Qt::ControlModifier) {
 			if (_history && _history->lastMsg && !_editMsgId) {
-				if (_replyToId) {
-					HistoryItem *item = App::histItemById(_history->channelId(), _replyToId)->nextItem();
-					if (item) App::contextItem(item);
-					else { cancelReply(); return; }
-				} else {
-					return;
+				if (const auto item = App::histItemById(_history->channelId(), _replyToId)) {
+					if (const auto next = item->nextItem()) {
+						Ui::showPeerHistory(_peer, next->id);
+						replyToMessage(next);
+					}
 				}
-				Ui::showPeerHistory(_peer, App::contextItem()->id);
-				onReplyToMessage();
-				return;
 			}
 		}
 	} else if (e->key() == Qt::Key_Up) {
 		if (!(e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier))) {
 			if (_history && _history->lastSentMsg && _history->lastSentMsg->canEdit(::date(unixtime()))) {
-				if (_field->isEmpty() && !_editMsgId && !_replyToId) {
-					App::contextItem(_history->lastSentMsg);
-					onEditMessage();
+				if (_field->isEmpty() && !_editMsgId && !_replyToId && _history->lastSentMsg) {
+					editMessage(_history->lastSentMsg);
 					return;
 				}
 			}
 			_scroll->keyPressEvent(e);
 		} else if ((e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier)) == Qt::ControlModifier) {
 			if (_history && _history->lastMsg && !_editMsgId) {
-				if (_replyToId) {
-					HistoryItem *item = App::histItemById(_history->channelId(), _replyToId);
-					App::contextItem(item->previousItem());
-				} else {
-					App::contextItem(_history->lastMsg);
+				if (const auto item = App::histItemById(_history->channelId(), _replyToId)) {
+					if (const auto previous = item->previousItem()) {
+						Ui::showPeerHistory(_peer, previous->id);
+						replyToMessage(previous);
+					}
+				} else if (const auto previous = _history->lastMsg) {
+					Ui::showPeerHistory(_peer, previous->id);
+					replyToMessage(previous);
 				}
-				if (App::contextItem()) {
-					Ui::showPeerHistory(_peer, App::contextItem()->id);
-					onReplyToMessage();
-				}
-				return;
 			}
 		}
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
@@ -5517,26 +5500,31 @@ void HistoryWidget::setFieldText(const TextWithTags &textWithTags, TextUpdateEve
 	_previewLinks.clear();
 }
 
-void HistoryWidget::onReplyToMessage() {
-	auto to = App::contextItem();
-	if (!to || to->id <= 0 || !_canSendMessages) return;
+void HistoryWidget::replyToMessage(FullMsgId itemId) {
+	if (const auto item = App::histItemById(itemId)) {
+		replyToMessage(item);
+	}
+}
 
-	if (to->history() == _migrated) {
-		if (to->isGroupMigrate() && !_history->isEmpty() && _history->blocks.front()->messages.front()->data()->isGroupMigrate() && _history != _migrated) {
-			App::contextItem(_history->blocks.front()->messages.front()->data());
-			onReplyToMessage();
-			App::contextItem(to);
+void HistoryWidget::replyToMessage(not_null<HistoryItem*> item) {
+	if (!IsServerMsgId(item->id) || !_canSendMessages) {
+		return;
+	}
+	if (item->history() == _migrated) {
+		if (item->isGroupMigrate()
+			&& !_history->isEmpty()
+			&& _history->blocks.front()->messages.front()->data()->isGroupMigrate()
+			&& _history != _migrated) {
+			replyToMessage(_history->blocks.front()->messages.front()->data());
 		} else {
-			if (to->id < 0 || to->serviceMsg()) {
+			if (item->serviceMsg()) {
 				Ui::show(Box<InformBox>(lang(lng_reply_cant)));
 			} else {
-				Ui::show(Box<ConfirmBox>(lang(lng_reply_cant_forward), lang(lng_selected_forward), base::lambda_guarded(this, [this] {
-					auto item = App::contextItem();
-					if (!item || item->id < 0 || item->serviceMsg()) return;
-
+				const auto itemId = item->fullId();
+				Ui::show(Box<ConfirmBox>(lang(lng_reply_cant_forward), lang(lng_selected_forward), base::lambda_guarded(this, [=] {
 					App::main()->setForwardDraft(
 						_peer->id,
-						{ 1, item->fullId() });
+						{ 1, itemId });
 				})));
 			}
 		}
@@ -5547,13 +5535,17 @@ void HistoryWidget::onReplyToMessage() {
 
 	if (_editMsgId) {
 		if (auto localDraft = _history->localDraft()) {
-			localDraft->msgId = to->id;
+			localDraft->msgId = item->id;
 		} else {
-			_history->setLocalDraft(std::make_unique<Data::Draft>(TextWithTags(), to->id, MessageCursor(), false));
+			_history->setLocalDraft(std::make_unique<Data::Draft>(
+				TextWithTags(),
+				item->id,
+				MessageCursor(),
+				false));
 		}
 	} else {
-		_replyEditMsg = to;
-		_replyToId = to->id;
+		_replyEditMsg = item;
+		_replyToId = item->id;
 		_replyEditMsgText.setText(
 			st::messageTextStyle,
 			TextUtilities::Clean(_replyEditMsg->inReplyText()),
@@ -5575,13 +5567,16 @@ void HistoryWidget::onReplyToMessage() {
 	_field->setFocus();
 }
 
-void HistoryWidget::onEditMessage() {
-	auto to = App::contextItem();
-	if (!to) return;
+void HistoryWidget::editMessage(FullMsgId itemId) {
+	if (const auto item = App::histItemById(itemId)) {
+		editMessage(item);
+	}
+}
 
-	if (auto media = to->getMedia()) {
+void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
+	if (const auto media = item->getMedia()) {
 		if (media->canEditCaption()) {
-			Ui::show(Box<EditCaptionBox>(media, to->fullId()));
+			Ui::show(Box<EditCaptionBox>(media, item->fullId()));
 			return;
 		}
 	}
@@ -5598,14 +5593,25 @@ void HistoryWidget::onEditMessage() {
 		}
 	}
 
-	auto original = to->originalText();
-	auto editData = TextWithTags { TextUtilities::ApplyEntities(original), ConvertEntitiesToTextTags(original.entities) };
-	auto cursor = MessageCursor { editData.text.size(), editData.text.size(), QFIXED_MAX };
-	_history->setEditDraft(std::make_unique<Data::Draft>(editData, to->id, cursor, false));
+	const auto original = item->originalText();
+	const auto editData = TextWithTags {
+		TextUtilities::ApplyEntities(original),
+		ConvertEntitiesToTextTags(original.entities)
+	};
+	const auto cursor = MessageCursor {
+		editData.text.size(),
+		editData.text.size(),
+		QFIXED_MAX
+	};
+	_history->setEditDraft(std::make_unique<Data::Draft>(
+		editData,
+		item->id,
+		cursor,
+		false));
 	applyDraft(false);
 
 	_previewData = nullptr;
-	if (auto media = to->getMedia()) {
+	if (const auto media = item->getMedia()) {
 		if (media->type() == MediaTypeWebPage) {
 			_previewData = static_cast<HistoryWebPage*>(media)->webpage();
 			updatePreview();
@@ -5631,22 +5637,23 @@ void HistoryWidget::onEditMessage() {
 	_field->setFocus();
 }
 
-void HistoryWidget::onPinMessage() {
-	auto to = App::contextItem();
-	if (!to || !to->canPin()) return;
-
-	Ui::show(Box<PinMessageBox>(
-		to->history()->peer->asChannel(),
-		to->id));
+void HistoryWidget::pinMessage(FullMsgId itemId) {
+	if (const auto item = App::histItemById(itemId)) {
+		if (item->canPin()) {
+			const auto channel = item->history()->peer->asChannel();
+			Assert(channel != nullptr);
+			Ui::show(Box<PinMessageBox>(channel, item->id));
+		}
+	}
 }
 
-void HistoryWidget::onUnpinMessage() {
-	if (!_peer || !_peer->isChannel()) return;
+void HistoryWidget::unpinMessage(FullMsgId itemId) {
+	const auto channel = _peer ? _peer->asChannel() : nullptr;
+	if (!channel) {
+		return;
+	}
 
-	Ui::show(Box<ConfirmBox>(lang(lng_pinned_unpin_sure), lang(lng_pinned_unpin), base::lambda_guarded(this, [this] {
-		auto channel = _peer ? _peer->asChannel() : nullptr;
-		if (!channel) return;
-
+	Ui::show(Box<ConfirmBox>(lang(lng_pinned_unpin_sure), lang(lng_pinned_unpin), base::lambda_guarded(this, [=] {
 		channel->clearPinnedMessage();
 
 		Ui::hideLayer();
@@ -5666,8 +5673,8 @@ void HistoryWidget::unpinDone(const MTPUpdates &updates) {
 }
 
 void HistoryWidget::onPinnedHide() {
-	auto channel = _peer ? _peer->asChannel() : nullptr;
-	auto pinnedId = channel->pinnedMessageId();
+	const auto channel = _peer ? _peer->asChannel() : nullptr;
+	const auto pinnedId = channel ? channel->pinnedMessageId() : MsgId(0);
 	if (!pinnedId) {
 		if (pinnedMsgVisibilityUpdated()) {
 			updateControlsGeometry();
@@ -5677,9 +5684,9 @@ void HistoryWidget::onPinnedHide() {
 	}
 
 	if (channel->canPinMessages()) {
-		onUnpinMessage();
+		unpinMessage(FullMsgId(peerToChannel(channel->id), pinnedId));
 	} else {
-		Global::RefHiddenPinnedMessages().insert(_peer->id, pinnedId);
+		Global::RefHiddenPinnedMessages().insert(channel->id, pinnedId);
 		Local::writeUserSettings();
 		if (pinnedMsgVisibilityUpdated()) {
 			updateControlsGeometry();
@@ -5688,11 +5695,12 @@ void HistoryWidget::onPinnedHide() {
 	}
 }
 
-void HistoryWidget::onCopyPostLink() {
-	auto item = App::contextItem();
-	if (!item || !item->hasDirectLink()) return;
-
-	QApplication::clipboard()->setText(item->directLink());
+void HistoryWidget::copyPostLink(FullMsgId itemId) {
+	if (const auto item = App::histItemById(itemId)) {
+		if (item->hasDirectLink()) {
+			QApplication::clipboard()->setText(item->directLink());
+		}
+	}
 }
 
 bool HistoryWidget::lastForceReplyReplied(const FullMsgId &replyTo) const {
@@ -6076,10 +6084,7 @@ void HistoryWidget::onForwardSelected() {
 void HistoryWidget::confirmDeleteSelectedItems() {
 	if (!_list) return;
 
-	auto selected = _list->getSelectedItems();
-	if (selected.empty()) return;
-
-	App::main()->deleteLayer(int(selected.size()));
+	App::main()->deleteLayer(_list->getSelectedItems());
 }
 
 void HistoryWidget::deleteSelectedItems(bool forEveryone) {

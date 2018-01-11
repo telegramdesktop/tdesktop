@@ -254,6 +254,7 @@ protected:
 	bool dataLoaded() const override;
 
 private:
+	bool needInfoDisplay() const;
 	void validateGroupedCache(
 		const QRect &geometry,
 		RectParts corners,
@@ -466,6 +467,8 @@ public:
 
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
+	void refreshParentId(not_null<HistoryItem*> realParent) override;
+
 protected:
 	float64 dataProgress() const override;
 	bool dataFinished() const override;
@@ -588,6 +591,7 @@ protected:
 	}
 
 private:
+	bool needInfoDisplay() const;
 	int additionalWidth(
 		const HistoryMessageVia *via,
 		const HistoryMessageReply *reply,

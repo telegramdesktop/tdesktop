@@ -121,12 +121,12 @@ private:
 	void savePhotoToFile(PhotoData *photo);
 	void saveDocumentToFile(DocumentData *document);
 	void copyContextImage(PhotoData *photo);
-	void showStickerPackInfo();
+	void showStickerPackInfo(not_null<DocumentData*> document);
 	void copyContextUrl();
-	void cancelContextDownload();
-	void showContextInFolder();
-	void openContextGif();
-	void copyContextText();
+	void cancelContextDownload(not_null<DocumentData*> document);
+	void showContextInFolder(not_null<DocumentData*> document);
+	void openContextGif(FullMsgId itemId);
+	void copyContextText(FullMsgId itemId);
 	void copySelectedText();
 	TextWithEntities getSelectedText() const;
 	void setToClipboard(const TextWithEntities &forClipboard, QClipboard::Mode mode = QClipboard::Clipboard);
@@ -228,8 +228,7 @@ private:
 	bool _wasSelectedText = false; // was some text selected in current drag action
 	Qt::CursorShape _cursor = style::cur_default;
 
-	// context menu
-	Ui::PopupMenu *_menu = nullptr;
+	base::unique_qptr<Ui::PopupMenu> _menu;
 
 	QPoint _trippleClickPoint;
 	base::Timer _trippleClickTimer;

@@ -53,6 +53,9 @@ public:
 	int minHeight() const {
 		return _minh;
 	}
+	int width() const {
+		return _width;
+	}
 	int height() const {
 		return _height;
 	}
@@ -62,6 +65,7 @@ public:
 protected:
 	mutable int _maxw = 0;
 	mutable int _minh = 0;
+	mutable int _width = 0;
 	mutable int _height = 0;
 
 };
@@ -226,34 +230,16 @@ public:
 	PeerData *from() const {
 		return _from;
 	}
-	HistoryBlock *block() {
-		return _block;
-	}
-	const HistoryBlock *block() const {
-		return _block;
-	}
 	HistoryView::Message *mainView() const {
 		return _mainView;
 	}
+	void setMainView(HistoryView::Message *view) {
+		_mainView = view;
+	}
+	void clearMainView();
+	void removeMainView();
+
 	void destroy();
-	void detach();
-	void detachFast();
-	bool detached() const {
-		return !_block;
-	}
-	void attachToBlock(not_null<HistoryBlock*> block, int index);
-	void setIndexInBlock(int index) {
-		Expects(_block != nullptr);
-		Expects(index >= 0);
-
-		_indexInBlock = index;
-	}
-	int indexInBlock() const {
-		Expects((_indexInBlock >= 0) == (_block != nullptr));
-		//Expects((_block == nullptr) || (_block->messages[_indexInBlock]->data() == this));
-
-		return _indexInBlock;
-	}
 	bool out() const {
 		return _flags & MTPDmessage::Flag::f_out;
 	}
@@ -493,9 +479,7 @@ public:
 	}
 	void setPendingResize() {
 		_flags |= MTPDmessage_ClientFlag::f_pending_resize;
-		if (!detached() || isLogEntry()) {
-			_history->setHasPendingResizedItems();
-		}
+		_history->setHasPendingResizedItems();
 	}
 	bool pendingInitDimensions() const {
 		return _flags & MTPDmessage_ClientFlag::f_pending_init_dimensions;
@@ -535,10 +519,6 @@ public:
 	void makeGroupLeader(std::vector<not_null<HistoryItem*>> &&others);
 	HistoryMessageGroup *getFullGroup();
 
-	int width() const {
-		return _width;
-	}
-
 	void clipCallback(Media::Clip::Notification notification);
 	void audioTrackUpdated();
 
@@ -555,6 +535,8 @@ public:
 		Expects(isLogEntry());
 		setAttachToNext(attachToNext);
 	}
+
+	bool isUnderCursor() const;
 
 	HistoryItem *previousItem() const;
 	HistoryItem *nextItem() const;
@@ -586,8 +568,6 @@ protected:
 
 	const not_null<History*> _history;
 	not_null<PeerData*> _from;
-	HistoryBlock *_block = nullptr;
-	int _indexInBlock = -1;
 	MTPDmessage::Flags _flags = 0;
 
 	// This should be called only from previousItemChanged()
@@ -642,7 +622,6 @@ private:
 	void resetGroupMedia(const std::vector<not_null<HistoryItem*>> &others);
 
 	HistoryView::Message *_mainView = nullptr;
-	int _width = 0;
 
 };
 

@@ -446,7 +446,7 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 	} else if (notChild) {
 		auto fullRight = skipx + width;
 		auto fullBottom = skipy + height;
-		if (_data->uploading() || App::hoveredItem() == _parent) {
+		if (needInfoDisplay()) {
 			_parent->drawInfo(p, fullRight, fullBottom, 2 * skipx + width, selected, InfoDisplayOverImage);
 		}
 		if (!bubble && _parent->displayRightAction()) {
@@ -644,6 +644,10 @@ bool HistoryPhoto::dataFinished() const {
 
 bool HistoryPhoto::dataLoaded() const {
 	return _data->loaded();
+}
+
+bool HistoryPhoto::needInfoDisplay() const {
+	return (_data->uploading() || _parent->isUnderCursor());
 }
 
 void HistoryPhoto::validateGroupedCache(
@@ -1402,11 +1406,17 @@ void HistoryDocument::createComponents(bool caption) {
 	}
 	UpdateComponents(mask);
 	if (auto thumbed = Get<HistoryDocumentThumbed>()) {
-		thumbed->_linksavel = std::make_shared<DocumentSaveClickHandler>(_data);
-		thumbed->_linkcancell = std::make_shared<DocumentCancelClickHandler>(_data);
+		thumbed->_linksavel = std::make_shared<DocumentSaveClickHandler>(
+			_data,
+			_parent->fullId());
+		thumbed->_linkcancell = std::make_shared<DocumentCancelClickHandler>(
+			_data,
+			_parent->fullId());
 	}
 	if (auto voice = Get<HistoryDocumentVoice>()) {
-		voice->_seekl = std::make_shared<VoiceSeekClickHandler>(_data);
+		voice->_seekl = std::make_shared<VoiceSeekClickHandler>(
+			_data,
+			_parent->fullId());
 	}
 }
 
@@ -2066,6 +2076,23 @@ void HistoryDocument::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool 
 	HistoryFileMedia::clickHandlerPressedChanged(p, pressed);
 }
 
+void HistoryDocument::refreshParentId(not_null<HistoryItem*> realParent) {
+	HistoryFileMedia::refreshParentId(realParent);
+
+	const auto contextId = realParent->fullId();
+	if (auto thumbed = Get<HistoryDocumentThumbed>()) {
+		if (thumbed->_linksavel) {
+			thumbed->_linksavel->setMessageId(contextId);
+			thumbed->_linkcancell->setMessageId(contextId);
+		}
+	}
+	if (auto voice = Get<HistoryDocumentVoice>()) {
+		if (voice->_seekl) {
+			voice->_seekl->setMessageId(contextId);
+		}
+	}
+}
+
 bool HistoryDocument::playInline(bool autoplay) {
 	if (_data->isVoiceMessage()) {
 		DocumentOpenClickHandler::doOpen(_data, _parent, ActionOnLoadPlayInline);
@@ -2157,7 +2184,9 @@ void HistoryGif::initDimensions() {
 		_caption.setSkipBlock(_parent->skipBlockWidth(), _parent->skipBlockHeight());
 	}
 	if (!_openInMediaviewLink) {
-		_openInMediaviewLink = std::make_shared<DocumentOpenClickHandler>(_data);
+		_openInMediaviewLink = std::make_shared<DocumentOpenClickHandler>(
+			_data,
+			_parent->fullId());
 	}
 
 	int32 tw = 0, th = 0;
@@ -2548,7 +2577,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 				fullRight = maxRight;
 			}
 		}
-		if (isRound || _data->uploading() || App::hoveredItem() == _parent) {
+		if (isRound || needInfoDisplay()) {
 			_parent->drawInfo(p, fullRight, fullBottom, 2 * skipx + width, selected, isRound ? InfoDisplayOverBackground : InfoDisplayOverImage);
 		}
 		if (!bubble && _parent->displayRightAction()) {
@@ -2953,6 +2982,10 @@ bool HistoryGif::dataFinished() const {
 
 bool HistoryGif::dataLoaded() const {
 	return (_parent->id > 0) ? _data->loaded() : false;
+}
+
+bool HistoryGif::needInfoDisplay() const {
+	return (_data->uploading() || _parent->isUnderCursor());
 }
 
 HistorySticker::HistorySticker(
@@ -3835,7 +3868,7 @@ int HistoryWebPage::resizeGetHeight(int width) {
 			_height += _attach->height() - bubble.top() - bubble.bottom();
 			if (!_attach->additionalInfoString().isEmpty()) {
 				_height += bottomInfoPadding();
-			} else if (isBubbleBottom() && _attach->customInfoLayout() && _attach->currentWidth() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
+			} else if (isBubbleBottom() && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
 				_height += bottomInfoPadding();
 			}
 		}
@@ -3873,7 +3906,7 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, T
 		bshift += bottomInfoPadding();
 	} else if (!attachAdditionalInfoText.isEmpty()) {
 		bshift += bottomInfoPadding();
-	} else if (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->currentWidth() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
+	} else if (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
 		bshift += bottomInfoPadding();
 	}
 
@@ -3939,13 +3972,13 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, T
 
 		auto attachLeft = padding.left() - bubble.left();
 		auto attachTop = tshift - bubble.top();
-		if (rtl()) attachLeft = _width - attachLeft - _attach->currentWidth();
+		if (rtl()) attachLeft = _width - attachLeft - _attach->width();
 
 		p.translate(attachLeft, attachTop);
 
 		auto attachSelection = selected ? FullSelection : TextSelection { 0, 0 };
 		_attach->draw(p, r.translated(-attachLeft, -attachTop), attachSelection, ms);
-		int32 pixwidth = _attach->currentWidth(), pixheight = _attach->height();
+		int32 pixwidth = _attach->width(), pixheight = _attach->height();
 
 		if (_data->type == WebPageVideo && _attach->type() == MediaTypePhoto) {
 			if (_attach->isReadyForOpen()) {
@@ -3991,7 +4024,7 @@ HistoryTextState HistoryWebPage::getState(QPoint point, HistoryStateRequest requ
 	auto padding = inBubblePadding();
 	auto tshift = padding.top();
 	auto bshift = padding.bottom();
-	if (_asArticle || (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->currentWidth() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right())) {
+	if (_asArticle || (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right())) {
 		bshift += bottomInfoPadding();
 	}
 	width -= padding.left() + padding.right();
@@ -4055,7 +4088,7 @@ HistoryTextState HistoryWebPage::getState(QPoint point, HistoryStateRequest requ
 		if (QRect(padding.left(), tshift, width, _height - tshift - bshift).contains(point)) {
 			auto attachLeft = padding.left() - bubble.left();
 			auto attachTop = tshift - bubble.top();
-			if (rtl()) attachLeft = _width - attachLeft - _attach->currentWidth();
+			if (rtl()) attachLeft = _width - attachLeft - _attach->width();
 			result = _attach->getState(point - QPoint(attachLeft, attachTop), request);
 
 			if (result.link && !_data->document && _data->photo && _attach->isReadyForOpen()) {
@@ -4325,7 +4358,7 @@ int HistoryGame::resizeGetHeight(int width) {
 
 		_attach->resizeGetHeight(width + bubble.left() + bubble.right());
 		_height += _attach->height() - bubble.top() - bubble.bottom();
-		if (isBubbleBottom() && _attach->customInfoLayout() && _attach->currentWidth() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
+		if (isBubbleBottom() && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
 			_height += bottomInfoPadding();
 		}
 	}
@@ -4351,7 +4384,7 @@ void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, Time
 	auto tshift = padding.top();
 	auto bshift = padding.bottom();
 	width -= padding.left() + padding.right();
-	if (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->currentWidth() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
+	if (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
 		bshift += bottomInfoPadding();
 	}
 
@@ -4383,13 +4416,13 @@ void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, Time
 
 		auto attachLeft = padding.left() - bubble.left();
 		auto attachTop = tshift - bubble.top();
-		if (rtl()) attachLeft = _width - attachLeft - _attach->currentWidth();
+		if (rtl()) attachLeft = _width - attachLeft - _attach->width();
 
 		auto attachSelection = selected ? FullSelection : TextSelection { 0, 0 };
 
 		p.translate(attachLeft, attachTop);
 		_attach->draw(p, r.translated(-attachLeft, -attachTop), attachSelection, ms);
-		auto pixwidth = _attach->currentWidth();
+		auto pixwidth = _attach->width();
 		auto pixheight = _attach->height();
 
 		auto gameW = _gameTagWidth + 2 * st::msgDateImgPadding.x();
@@ -4419,7 +4452,7 @@ HistoryTextState HistoryGame::getState(QPoint point, HistoryStateRequest request
 	auto padding = inBubblePadding();
 	auto tshift = padding.top();
 	auto bshift = padding.bottom();
-	if (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->currentWidth() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
+	if (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
 		bshift += bottomInfoPadding();
 	}
 	width -= padding.left() + padding.right();
@@ -4465,9 +4498,9 @@ HistoryTextState HistoryGame::getState(QPoint point, HistoryStateRequest request
 
 		auto attachLeft = padding.left() - bubble.left();
 		auto attachTop = tshift - bubble.top();
-		if (rtl()) attachLeft = _width - attachLeft - _attach->currentWidth();
+		if (rtl()) attachLeft = _width - attachLeft - _attach->width();
 
-		if (QRect(attachLeft, tshift, _attach->currentWidth(), _height - tshift - bshift).contains(point)) {
+		if (QRect(attachLeft, tshift, _attach->width(), _height - tshift - bshift).contains(point)) {
 			if (_attach->isReadyForOpen()) {
 				if (!_parent->isLogEntry()) {
 					result.link = _openl;
@@ -4782,7 +4815,7 @@ int HistoryInvoice::resizeGetHeight(int width) {
 
 		_attach->resizeGetHeight(width + bubble.left() + bubble.right());
 		_height += _attach->height() - bubble.top() - bubble.bottom();
-		if (isBubbleBottom() && _attach->customInfoLayout() && _attach->currentWidth() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
+		if (isBubbleBottom() && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
 			_height += bottomInfoPadding();
 		}
 	} else {
@@ -4816,7 +4849,7 @@ void HistoryInvoice::draw(Painter &p, const QRect &r, TextSelection selection, T
 	auto tshift = padding.top();
 	auto bshift = padding.bottom();
 	width -= padding.left() + padding.right();
-	if (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->currentWidth() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
+	if (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
 		bshift += bottomInfoPadding();
 	}
 
@@ -4845,13 +4878,13 @@ void HistoryInvoice::draw(Painter &p, const QRect &r, TextSelection selection, T
 
 		auto attachLeft = padding.left() - bubble.left();
 		auto attachTop = tshift - bubble.top();
-		if (rtl()) attachLeft = _width - attachLeft - _attach->currentWidth();
+		if (rtl()) attachLeft = _width - attachLeft - _attach->width();
 
 		auto attachSelection = selected ? FullSelection : TextSelection { 0, 0 };
 
 		p.translate(attachLeft, attachTop);
 		_attach->draw(p, r.translated(-attachLeft, -attachTop), attachSelection, ms);
-		auto pixwidth = _attach->currentWidth();
+		auto pixwidth = _attach->width();
 		auto pixheight = _attach->height();
 
 		auto available = _status.maxWidth();
@@ -4885,7 +4918,7 @@ HistoryTextState HistoryInvoice::getState(QPoint point, HistoryStateRequest requ
 	auto padding = inBubblePadding();
 	auto tshift = padding.top();
 	auto bshift = padding.bottom();
-	if (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->currentWidth() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
+	if (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
 		bshift += bottomInfoPadding();
 	}
 	width -= padding.left() + padding.right();
@@ -4924,9 +4957,9 @@ HistoryTextState HistoryInvoice::getState(QPoint point, HistoryStateRequest requ
 
 		auto attachLeft = padding.left() - bubble.left();
 		auto attachTop = tshift - bubble.top();
-		if (rtl()) attachLeft = _width - attachLeft - _attach->currentWidth();
+		if (rtl()) attachLeft = _width - attachLeft - _attach->width();
 
-		if (QRect(attachLeft, tshift, _attach->currentWidth(), _height - tshift - bshift).contains(point)) {
+		if (QRect(attachLeft, tshift, _attach->width(), _height - tshift - bshift).contains(point)) {
 			result = _attach->getState(point - QPoint(attachLeft, attachTop), request);
 		}
 	}

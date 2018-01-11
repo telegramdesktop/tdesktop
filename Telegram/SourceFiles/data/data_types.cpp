@@ -44,9 +44,5 @@ void MessageCursor::applyTo(QTextEdit *edit) {
 HistoryItem *FileClickHandler::getActionItem() const {
 	return context()
 		? App::histItemById(context())
-		: App::hoveredLinkItem()
-		? App::hoveredLinkItem()
-		: App::contextItem()
-		? App::contextItem()
 		: nullptr;
 }

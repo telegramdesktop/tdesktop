@@ -550,7 +550,7 @@ int HistoryService::resizeContentGetHeight() {
 		}
 		_height += st::msgServicePadding.top() + st::msgServicePadding.bottom() + st::msgServiceMargin.top() + st::msgServiceMargin.bottom();
 		if (_media) {
-			_height += st::msgServiceMargin.top() + _media->resizeGetHeight(_media->currentWidth());
+			_height += st::msgServiceMargin.top() + _media->resizeGetHeight(_media->width());
 		}
 	}
 

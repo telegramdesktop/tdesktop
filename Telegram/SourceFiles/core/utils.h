@@ -527,7 +527,6 @@ inline int ceilclamp(float64 value, int32 step, int32 lowest, int32 highest) {
 
 enum ForwardWhatMessages {
 	ForwardSelectedMessages,
-	ForwardContextMessage,
 	ForwardPressedMessage,
 	ForwardPressedLinkMessage
 };

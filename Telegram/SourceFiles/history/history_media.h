@@ -230,10 +230,6 @@ public:
 		return QString();
 	}
 
-	int currentWidth() const {
-		return _width;
-	}
-
 	void setInBubbleState(MediaInBubbleState state) {
 		_inBubbleState = state;
 	}
@@ -265,7 +261,6 @@ public:
 
 protected:
 	not_null<HistoryItem*> _parent;
-	int _width = 0;
 	MediaInBubbleState _inBubbleState = MediaInBubbleState::None;
 
 
