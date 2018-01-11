@@ -270,12 +270,9 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		MessageIdsList msgIds;
 		base::flat_set<mtpRequestId> requests;
 	};
-	const auto data = std::make_shared<ShareData>(item->history()->peer, [&] {
-		if (const auto group = item->getFullGroup()) {
-			return Auth().data().groupToIds(group);
-		}
-		return MessageIdsList(1, item->fullId());
-	}());
+	const auto data = std::make_shared<ShareData>(
+		item->history()->peer,
+		Auth().data().itemOrItsGroup(item));
 	const auto isGroup = (item->getFullGroup() != nullptr);
 	const auto isGame = item->getMessageBot()
 		&& item->getMedia()
@@ -2519,21 +2516,6 @@ TextSelection HistoryMessage::adjustSelection(TextSelection selection, TextSelec
 		}
 	}
 	return result;
-}
-
-void HistoryMessage::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
-	HistoryItem::clickHandlerActiveChanged(p, active);
-	if (_media) {
-		_media->clickHandlerActiveChanged(p, active);
-	}
-}
-
-void HistoryMessage::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
-	HistoryItem::clickHandlerPressedChanged(p, pressed);
-	if (_media) {
-		// HistoryGroupedMedia overrides HistoryItem App::pressedLinkItem().
-		_media->clickHandlerPressedChanged(p, pressed);
-	}
 }
 
 QString HistoryMessage::notificationHeader() const {

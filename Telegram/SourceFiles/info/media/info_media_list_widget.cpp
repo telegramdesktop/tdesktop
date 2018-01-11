@@ -1905,7 +1905,8 @@ void ListWidget::performDrag() {
 	//	if (uponSelected && !Adaptive::OneColumn()) {
 	//		auto selectedState = getSelectionState();
 	//		if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
-	//			mimeData->setData(qsl("application/x-td-forward-selected"), "1");
+	//			Auth().data().setMimeForwardIds(collectSelectedIds());
+	//			mimeData->setData(qsl("application/x-td-forward"), "1");
 	//		}
 	//	}
 	//	_controller->parentController()->window()->launchDrag(std::move(mimeData));
@@ -1916,13 +1917,15 @@ void ListWidget::performDrag() {
 	//	if (auto pressedItem = _pressState.layout) {
 	//		pressedMedia = pressedItem->getMedia();
 	//		if (_mouseCursorState == HistoryInDateCursorState || (pressedMedia && pressedMedia->dragItem())) {
-	//			forwardMimeType = qsl("application/x-td-forward-pressed");
+	//			Auth().data().setMimeForwardIds(Auth().data().itemOrItsGroup(pressedItem));
+	//			forwardMimeType = qsl("application/x-td-forward");
 	//		}
 	//	}
 	//	if (auto pressedLnkItem = App::pressedLinkItem()) {
 	//		if ((pressedMedia = pressedLnkItem->getMedia())) {
 	//			if (forwardMimeType.isEmpty() && pressedMedia->dragItemByHandler(pressedHandler)) {
-	//				forwardMimeType = qsl("application/x-td-forward-pressed-link");
+	//				Auth().data().setMimeForwardIds({ 1, pressedLnkItem->fullId() });
+	//				forwardMimeType = qsl("application/x-td-forward");
 	//			}
 	//		}
 	//	}

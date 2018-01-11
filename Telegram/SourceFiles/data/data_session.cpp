@@ -164,6 +164,13 @@ MessageIdsList Session::groupToIds(
 	return result;
 }
 
+MessageIdsList Session::itemOrItsGroup(not_null<HistoryItem*> item) const {
+	if (const auto group = item->getFullGroup()) {
+		return groupToIds(group);
+	}
+	return { 1, item->fullId() };
+}
+
 void Session::setPinnedDialog(const Dialogs::Key &key, bool pinned) {
 	setIsPinned(key, pinned);
 }
@@ -290,6 +297,14 @@ not_null<Data::Feed*> Session::feed(FeedId id) {
 Data::Feed *Session::feedLoaded(FeedId id) {
 	const auto it = _feeds.find(id);
 	return (it == _feeds.end()) ? nullptr : it->second.get();
+}
+
+void Session::setMimeForwardIds(MessageIdsList &&list) {
+	_mimeForwardIds = std::move(list);
+}
+
+MessageIdsList Session::takeMimeForwardIds() {
+	return std::move(_mimeForwardIds);
 }
 
 } // namespace Data

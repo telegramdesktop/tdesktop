@@ -115,10 +115,9 @@ void InnerWidget::enumerateUserpics(Method method) {
 	// -1 means we didn't find an attached to next message yet.
 	int lowestAttachedItemTop = -1;
 
-	auto userpicCallback = [&](Message *view, int itemtop, int itembottom) {
+	auto userpicCallback = [&](not_null<Message*> view, int itemtop, int itembottom) {
 		// Skip all service messages.
-		const auto item = view->data();
-		auto message = item->toHistoryMessage();
+		const auto message = view->data()->toHistoryMessage();
 		if (!message) return true;
 
 		if (lowestAttachedItemTop < 0 && message->isAttachedToNext()) {
@@ -140,7 +139,7 @@ void InnerWidget::enumerateUserpics(Method method) {
 
 			// Call the template callback function that was passed
 			// and return if it finished everything it needed.
-			if (!method(message, userpicBottom - st::msgPhotoSize)) {
+			if (!method(view, userpicBottom - st::msgPhotoSize)) {
 				return false;
 			}
 		}
@@ -162,7 +161,7 @@ void InnerWidget::enumerateDates(Method method) {
 	// -1 means we didn't find a same-day with previous message yet.
 	auto lowestInOneDayItemBottom = -1;
 
-	auto dateCallback = [&](Message *view, int itemtop, int itembottom) {
+	auto dateCallback = [&](not_null<Message*> view, int itemtop, int itembottom) {
 		const auto item = view->data();
 		if (lowestInOneDayItemBottom < 0 && item->isInOneDayWithPrevious()) {
 			lowestInOneDayItemBottom = itembottom - item->marginBottom();
@@ -183,7 +182,7 @@ void InnerWidget::enumerateDates(Method method) {
 
 			// Call the template callback function that was passed
 			// and return if it finished everything it needed.
-			if (!method(item, itemtop, dateTop)) {
+			if (!method(view, itemtop, dateTop)) {
 				return false;
 			}
 		}
@@ -660,7 +659,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			}
 			p.translate(0, -top);
 
-			enumerateUserpics([&](not_null<HistoryMessage*> message, int userpicTop) {
+			enumerateUserpics([&](not_null<Message*> view, int userpicTop) {
 				// stop the enumeration if the userpic is below the painted rect
 				if (userpicTop >= clip.top() + clip.height()) {
 					return false;
@@ -668,6 +667,9 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 
 				// paint the userpic if it intersects the painted rect
 				if (userpicTop + st::msgPhotoSize > clip.top()) {
+					const auto message = view->data()->toHistoryMessage();
+					Assert(message != nullptr);
+
 					message->from()->paintUserpicLeft(p, st::historyPhotoLeft, userpicTop, message->width(), st::msgPhotoSize);
 				}
 				return true;
@@ -675,16 +677,17 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 
 			auto dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
 			auto scrollDateOpacity = _scrollDateOpacity.current(ms, _scrollDateShown ? 1. : 0.);
-			enumerateDates([&](not_null<HistoryItem*> item, int itemtop, int dateTop) {
+			enumerateDates([&](not_null<Message*> view, int itemtop, int dateTop) {
 				// stop the enumeration if the date is above the painted rect
 				if (dateTop + dateHeight <= clip.top()) {
 					return false;
 				}
 
-				bool displayDate = item->displayDate();
-				bool dateInPlace = displayDate;
+				const auto item = view->data();
+				const auto displayDate = item->displayDate();
+				auto dateInPlace = displayDate;
 				if (dateInPlace) {
-					int correctDateTop = itemtop + st::msgServiceMargin.top();
+					const auto correctDateTop = itemtop + st::msgServiceMargin.top();
 					dateInPlace = (dateTop < correctDateTop + dateHeight);
 				}
 				//bool noFloatingDate = (item->date.date() == lastDate && displayDate);
@@ -1352,11 +1355,11 @@ void InnerWidget::updateSelected() {
 			selectingText = false;
 		}
 		dragState = item->getState(itemPoint, request);
-		lnkhost = item;
+		lnkhost = view;
 		if (!dragState.link && itemPoint.x() >= st::historyPhotoLeft && itemPoint.x() < st::historyPhotoLeft + st::msgPhotoSize) {
 			if (auto message = item->toHistoryMessage()) {
 				if (message->hasFromPhoto()) {
-					enumerateUserpics([&dragState, &lnkhost, &point](not_null<HistoryMessage*> message, int userpicTop) -> bool {
+					enumerateUserpics([&](not_null<Message*> view, int userpicTop) {
 						// stop enumeration if the userpic is below our point
 						if (userpicTop > point.y()) {
 							return false;
@@ -1364,8 +1367,11 @@ void InnerWidget::updateSelected() {
 
 						// stop enumeration if we've found a userpic under the cursor
 						if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
+							const auto message = view->data()->toHistoryMessage();
+							Assert(message != nullptr);
+
 							dragState.link = message->from()->openLink();
-							lnkhost = message;
+							lnkhost = view;
 							return false;
 						}
 						return true;
@@ -1492,7 +1498,8 @@ void InnerWidget::performDrag() {
 	//	if (uponSelected && !Adaptive::OneColumn()) {
 	//		auto selectedState = getSelectionState();
 	//		if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
-	//			mimeData->setData(qsl("application/x-td-forward-selected"), "1");
+	//			Auth().data().setMimeForwardIds(getSelectedItems());
+	//			mimeData->setData(qsl("application/x-td-forward"), "1");
 	//		}
 	//	}
 	//	_controller->window()->launchDrag(std::move(mimeData));
@@ -1503,13 +1510,15 @@ void InnerWidget::performDrag() {
 	//	if (auto pressedItem = App::pressedItem()) {
 	//		pressedMedia = pressedItem->getMedia();
 	//		if (_mouseCursorState == HistoryInDateCursorState || (pressedMedia && pressedMedia->dragItem())) {
-	//			forwardMimeType = qsl("application/x-td-forward-pressed");
+	//			forwardMimeType = qsl("application/x-td-forward");
+	//			Auth().data().setMimeForwardIds(Auth().data().itemOrItsGroup(pressedItem));
 	//		}
 	//	}
 	//	if (auto pressedLnkItem = App::pressedLinkItem()) {
 	//		if ((pressedMedia = pressedLnkItem->getMedia())) {
 	//			if (forwardMimeType.isEmpty() && pressedMedia->dragItemByHandler(pressedHandler)) {
-	//				forwardMimeType = qsl("application/x-td-forward-pressed-link");
+	//				forwardMimeType = qsl("application/x-td-forward");
+	//				Auth().data().setMimeForwardIds({ 1, pressedLnkItem->fullId() });
 	//			}
 	//		}
 	//	}

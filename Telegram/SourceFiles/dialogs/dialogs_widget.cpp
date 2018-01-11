@@ -737,9 +737,7 @@ void DialogsWidget::dragEnterEvent(QDragEnterEvent *e) {
 	_dragInScroll = false;
 	_dragForward = Adaptive::OneColumn()
 		? false
-		: (data->hasFormat(qsl("application/x-td-forward-selected"))
-			|| data->hasFormat(qsl("application/x-td-forward-pressed-link"))
-			|| data->hasFormat(qsl("application/x-td-forward-pressed")));
+		: data->hasFormat(qsl("application/x-td-forward"));
 	if (_dragForward) {
 		e->setDropAction(Qt::CopyAction);
 		e->accept();

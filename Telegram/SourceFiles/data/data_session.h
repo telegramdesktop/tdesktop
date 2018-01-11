@@ -142,6 +142,7 @@ public:
 	HistoryItemsList idsToItems(const MessageIdsList &ids) const;
 	MessageIdsList itemsToIds(const HistoryItemsList &items) const;
 	MessageIdsList groupToIds(not_null<HistoryMessageGroup*> group) const;
+	MessageIdsList itemOrItsGroup(not_null<HistoryItem*> item) const;
 
 	int pinnedDialogsCount() const;
 	const std::deque<Dialogs::Key> &pinnedDialogsOrder() const;
@@ -154,6 +155,9 @@ public:
 
 	not_null<Data::Feed*> feed(FeedId id);
 	Data::Feed *feedLoaded(FeedId id);
+
+	void setMimeForwardIds(MessageIdsList &&list);
+	MessageIdsList takeMimeForwardIds();
 
 private:
 	bool stickersUpdateNeeded(TimeMs lastUpdate, TimeMs now) const {
@@ -195,6 +199,8 @@ private:
 
 	std::deque<Dialogs::Key> _pinnedDialogs;
 	base::flat_map<FeedId, std::unique_ptr<Data::Feed>> _feeds;
+
+	MessageIdsList _mimeForwardIds;
 
 	rpl::lifetime _lifetime;
 

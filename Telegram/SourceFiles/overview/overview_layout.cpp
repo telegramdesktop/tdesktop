@@ -120,8 +120,6 @@ ItemBase::ItemBase(not_null<HistoryItem*> parent) : _parent(parent) {
 void ItemBase::clickHandlerActiveChanged(
 		const ClickHandlerPtr &action,
 		bool active) {
-	// #TODO hoveredLinkItem
-//	App::hoveredLinkItem(active ? _parent.get() : nullptr);
 	Auth().data().requestItemRepaint(_parent);
 	if (_check) {
 		_check->setActive(active);
@@ -131,8 +129,6 @@ void ItemBase::clickHandlerActiveChanged(
 void ItemBase::clickHandlerPressedChanged(
 		const ClickHandlerPtr &action,
 		bool pressed) {
-	// #TODO pressedLinkItem
-//	App::pressedLinkItem(pressed ? _parent.get() : nullptr);
 	Auth().data().requestItemRepaint(_parent);
 	if (_check) {
 		_check->setPressed(pressed);

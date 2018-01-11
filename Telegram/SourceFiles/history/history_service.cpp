@@ -717,16 +717,6 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 	setMessageByAction(message.vaction);
 }
 
-void HistoryService::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
-	if (_media) _media->clickHandlerActiveChanged(p, active);
-	HistoryItem::clickHandlerActiveChanged(p, active);
-}
-
-void HistoryService::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
-	if (_media) _media->clickHandlerPressedChanged(p, pressed);
-	HistoryItem::clickHandlerPressedChanged(p, pressed);
-}
-
 void HistoryService::applyEdition(const MTPDmessageService &message) {
 	clearDependency();
 	UpdateComponents(0);

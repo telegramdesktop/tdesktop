@@ -88,9 +88,6 @@ public:
 		return _text.adjustSelection(selection, type);
 	}
 
-	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
-	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
-
 	void applyEdition(const MTPDmessageService &message) override;
 	TimeMs getSelfDestructIn(TimeMs now) override;
 

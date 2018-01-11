@@ -525,12 +525,6 @@ inline int ceilclamp(float64 value, int32 step, int32 lowest, int32 highest) {
 	return qMax(qMin(static_cast<int>(std::ceil(value / step)), highest), lowest);
 }
 
-enum ForwardWhatMessages {
-	ForwardSelectedMessages,
-	ForwardPressedMessage,
-	ForwardPressedLinkMessage
-};
-
 static int32 FullArcLength = 360 * 16;
 static int32 QuarterArcLength = (FullArcLength / 4);
 static int32 MinArcLength = (FullArcLength / 360);

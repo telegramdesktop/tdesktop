@@ -590,44 +590,6 @@ void MainWidget::finishFloatPlayerDrag(not_null<Float*> instance, bool closed) {
 	}
 }
 
-bool MainWidget::setForwardDraft(PeerId peerId, ForwardWhatMessages what) {
-	const auto collect = [&]() -> MessageIdsList {
-		if (what == ForwardSelectedMessages) {
-			return _history->getSelectedItems();
-		}
-		auto item = (HistoryItem*)nullptr;
-		if (what == ForwardPressedMessage) {
-			item = App::pressedItem()
-				? App::pressedItem()->data().get()
-				: nullptr;
-			if (const auto group = item ? item->getFullGroup() : nullptr) {
-				if (item->id > 0) {
-					return Auth().data().groupToIds(group);
-				}
-			}
-		} else if (what == ForwardPressedLinkMessage) {
-			item = App::pressedLinkItem()
-				? App::pressedLinkItem()->data().get()
-				: nullptr;
-		}
-		if (item && item->toHistoryMessage() && item->id > 0) {
-			return { 1, item->fullId() };
-		}
-		return {};
-	};
-	const auto result = setForwardDraft(peerId, collect());
-	if (!result) {
-		if (what == ForwardPressedMessage || what == ForwardPressedLinkMessage) {
-			// We've already released the mouse button, so the forwarding is cancelled.
-			if (_hider) {
-				_hider->startHide();
-				noHider(_hider);
-			}
-		}
-	}
-	return result;
-}
-
 bool MainWidget::setForwardDraft(PeerId peerId, MessageIdsList &&items) {
 	Expects(peerId != 0);
 	const auto peer = App::peer(peerId);
@@ -791,14 +753,19 @@ bool MainWidget::onSendPaths(const PeerId &peerId) {
 	return _history->confirmSendingFiles(cSendPaths());
 }
 
-void MainWidget::onFilesOrForwardDrop(const PeerId &peerId, const QMimeData *data) {
+void MainWidget::onFilesOrForwardDrop(
+		const PeerId &peerId,
+		const QMimeData *data) {
 	Expects(peerId != 0);
-	if (data->hasFormat(qsl("application/x-td-forward-selected"))) {
-		setForwardDraft(peerId, ForwardSelectedMessages);
-	} else if (data->hasFormat(qsl("application/x-td-forward-pressed-link"))) {
-		setForwardDraft(peerId, ForwardPressedLinkMessage);
-	} else if (data->hasFormat(qsl("application/x-td-forward-pressed"))) {
-		setForwardDraft(peerId, ForwardPressedMessage);
+
+	if (data->hasFormat(qsl("application/x-td-forward"))) {
+		if (!setForwardDraft(peerId, Auth().data().takeMimeForwardIds())) {
+			// We've already released the mouse button, so the forwarding is cancelled.
+			if (_hider) {
+				_hider->startHide();
+				noHider(_hider);
+			}
+		}
 	} else {
 		auto peer = App::peer(peerId);
 		if (!peer->canWrite()) {

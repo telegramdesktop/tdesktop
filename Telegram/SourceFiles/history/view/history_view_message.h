@@ -55,6 +55,14 @@ public:
 	Message *previousInBlocks() const;
 	Message *nextInBlocks() const;
 
+	// ClickHandlerHost interface
+	void clickHandlerActiveChanged(
+		const ClickHandlerPtr &handler,
+		bool active) override;
+	void clickHandlerPressedChanged(
+		const ClickHandlerPtr &handler,
+		bool pressed) override;
+
 	~Message();
 
 private:

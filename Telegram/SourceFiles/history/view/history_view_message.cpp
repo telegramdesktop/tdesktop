@@ -7,6 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_message.h"
 
+#include "history/history_item_components.h"
+#include "history/history_media.h"
+#include "data/data_session.h"
+#include "auth_session.h"
+
 namespace HistoryView {
 
 Message::Message(not_null<HistoryItem*> data, Context context)
@@ -60,6 +65,36 @@ Message *Message::nextInBlocks() const {
 		}
 	}
 	return nullptr;
+}
+
+void Message::clickHandlerActiveChanged(
+		const ClickHandlerPtr &handler,
+		bool active) {
+	if (const auto markup = _data->Get<HistoryMessageReplyMarkup>()) {
+		if (const auto keyboard = markup->inlineKeyboard.get()) {
+			keyboard->clickHandlerActiveChanged(handler, active);
+		}
+	}
+	App::hoveredLinkItem(active ? this : nullptr);
+	Auth().data().requestItemRepaint(_data);
+	if (const auto media = _data->getMedia()) {
+		media->clickHandlerActiveChanged(handler, active);
+	}
+}
+
+void Message::clickHandlerPressedChanged(
+		const ClickHandlerPtr &handler,
+		bool pressed) {
+	if (const auto markup = _data->Get<HistoryMessageReplyMarkup>()) {
+		if (const auto keyboard = markup->inlineKeyboard.get()) {
+			keyboard->clickHandlerPressedChanged(handler, pressed);
+		}
+	}
+	App::pressedLinkItem(pressed ? this : nullptr);
+	Auth().data().requestItemRepaint(_data);
+	if (const auto media = _data->getMedia()) {
+		media->clickHandlerPressedChanged(handler, pressed);
+	}
 }
 
 Message::~Message() {

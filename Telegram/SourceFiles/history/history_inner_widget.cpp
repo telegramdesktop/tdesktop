@@ -328,7 +328,7 @@ void HistoryInner::enumerateUserpics(Method method) {
 
 			// Call the template callback function that was passed
 			// and return if it finished everything it needed.
-			if (!method(message, userpicBottom - st::msgPhotoSize)) {
+			if (!method(view, userpicBottom - st::msgPhotoSize)) {
 				return false;
 			}
 		}
@@ -385,7 +385,7 @@ void HistoryInner::enumerateDates(Method method) {
 
 			// Call the template callback function that was passed
 			// and return if it finished everything it needed.
-			if (!method(item, itemtop, dateTop)) {
+			if (!method(view, itemtop, dateTop)) {
 				return false;
 			}
 		}
@@ -598,7 +598,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		}
 
 		if (mtop >= 0 || htop >= 0) {
-			enumerateUserpics([&p, &clip](not_null<HistoryMessage*> message, int userpicTop) {
+			enumerateUserpics([&](not_null<Message*> view, int userpicTop) {
 				// stop the enumeration if the userpic is below the painted rect
 				if (userpicTop >= clip.top() + clip.height()) {
 					return false;
@@ -606,7 +606,13 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 
 				// paint the userpic if it intersects the painted rect
 				if (userpicTop + st::msgPhotoSize > clip.top()) {
-					message->displayFrom()->paintUserpicLeft(p, st::historyPhotoLeft, userpicTop, message->history()->width, st::msgPhotoSize);
+					const auto message = view->data()->toHistoryMessage();
+					message->displayFrom()->paintUserpicLeft(
+						p,
+						st::historyPhotoLeft,
+						userpicTop,
+						message->history()->width,
+						st::msgPhotoSize);
 				}
 				return true;
 			});
@@ -621,16 +627,17 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			//int showFloatingBefore = height() - 2 * (_visibleAreaBottom - _visibleAreaTop) - dateHeight;
 
 			auto scrollDateOpacity = _scrollDateOpacity.current(ms, _scrollDateShown ? 1. : 0.);
-			enumerateDates([&p, &clip, scrollDateOpacity, dateHeight/*, lastDate, showFloatingBefore*/](not_null<HistoryItem*> item, int itemtop, int dateTop) {
+			enumerateDates([&](not_null<Message*> view, int itemtop, int dateTop) {
 				// stop the enumeration if the date is above the painted rect
 				if (dateTop + dateHeight <= clip.top()) {
 					return false;
 				}
 
-				bool displayDate = item->displayDate();
-				bool dateInPlace = displayDate;
+				const auto item = view->data();
+				const auto displayDate = item->displayDate();
+				auto dateInPlace = displayDate;
 				if (dateInPlace) {
-					int correctDateTop = itemtop + st::msgServiceMargin.top();
+					const auto correctDateTop = itemtop + st::msgServiceMargin.top();
 					dateInPlace = (dateTop < correctDateTop + dateHeight);
 				}
 				//bool noFloatingDate = (item->date.date() == lastDate && displayDate);
@@ -647,7 +654,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 						p.setOpacity(opacity);
 						int dateY = /*noFloatingDate ? itemtop :*/ (dateTop - st::msgServiceMargin.top());
 						int width = item->history()->width;
-						if (auto date = item->Get<HistoryMessageDate>()) {
+						if (const auto date = item->Get<HistoryMessageDate>()) {
 							date->paint(p, dateY, width);
 						} else {
 							HistoryView::ServiceMessagePainter::paintDate(
@@ -1066,7 +1073,8 @@ void HistoryInner::performDrag() {
 		if (uponSelected && !Adaptive::OneColumn()) {
 			auto selectedState = getSelectionState();
 			if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
-				mimeData->setData(qsl("application/x-td-forward-selected"), "1");
+				Auth().data().setMimeForwardIds(getSelectedItems());
+				mimeData->setData(qsl("application/x-td-forward"), "1");
 			}
 		}
 		_controller->window()->launchDrag(std::move(mimeData));
@@ -1077,13 +1085,15 @@ void HistoryInner::performDrag() {
 		if (auto pressedItem = App::pressedItem()) {
 			pressedMedia = pressedItem->data()->getMedia();
 			if (_mouseCursorState == HistoryInDateCursorState || (pressedMedia && pressedMedia->dragItem())) {
-				forwardMimeType = qsl("application/x-td-forward-pressed");
+				Auth().data().setMimeForwardIds(Auth().data().itemOrItsGroup(pressedItem->data()));
+				forwardMimeType = qsl("application/x-td-forward");
 			}
 		}
 		if (const auto pressedLnkItem = _mouseActionItem) {
 			if ((pressedMedia = pressedLnkItem->getMedia())) {
 				if (forwardMimeType.isEmpty() && pressedMedia->dragItemByHandler(pressedHandler)) {
-					forwardMimeType = qsl("application/x-td-forward-pressed-link");
+					Auth().data().setMimeForwardIds({ 1, pressedLnkItem->fullId() });
+					forwardMimeType = qsl("application/x-td-forward");
 				}
 			}
 		}
@@ -2267,16 +2277,17 @@ void HistoryInner::onUpdateSelected() {
 
 		auto dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
 		auto scrollDateOpacity = _scrollDateOpacity.current(_scrollDateShown ? 1. : 0.);
-		enumerateDates([&](not_null<HistoryItem*> item, int itemtop, int dateTop) {
+		enumerateDates([&](not_null<Message*> view, int itemtop, int dateTop) {
 			// stop enumeration if the date is above our point
 			if (dateTop + dateHeight <= point.y()) {
 				return false;
 			}
 
-			bool displayDate = item->displayDate();
-			bool dateInPlace = displayDate;
+			const auto item = view->data();
+			const auto displayDate = item->displayDate();
+			auto dateInPlace = displayDate;
 			if (dateInPlace) {
-				int correctDateTop = itemtop + st::msgServiceMargin.top();
+				const auto correctDateTop = itemtop + st::msgServiceMargin.top();
 				dateInPlace = (dateTop < correctDateTop + dateHeight);
 			}
 
@@ -2310,7 +2321,7 @@ void HistoryInner::onUpdateSelected() {
 							nullptr,
 							_scrollDateLink);
 						_dragStateItem = App::histItemById(dragState.itemId);
-						lnkhost = item;
+						lnkhost = view;
 					}
 				}
 				return false;
@@ -2326,11 +2337,11 @@ void HistoryInner::onUpdateSelected() {
 			}
 			dragState = item->getState(m, request);
 			_dragStateItem = App::histItemById(dragState.itemId);
-			lnkhost = item;
+			lnkhost = view;
 			if (!dragState.link && m.x() >= st::historyPhotoLeft && m.x() < st::historyPhotoLeft + st::msgPhotoSize) {
 				if (auto msg = item->toHistoryMessage()) {
 					if (msg->hasFromPhoto()) {
-						enumerateUserpics([&](not_null<HistoryMessage*> message, int userpicTop) -> bool {
+						enumerateUserpics([&](not_null<Message*> view, int userpicTop) -> bool {
 							// stop enumeration if the userpic is below our point
 							if (userpicTop > point.y()) {
 								return false;
@@ -2338,11 +2349,14 @@ void HistoryInner::onUpdateSelected() {
 
 							// stop enumeration if we've found a userpic under the cursor
 							if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
+								const auto message = view->data()->toHistoryMessage();
+								Assert(message != nullptr);
+
 								dragState = HistoryTextState(
 									nullptr,
 									message->displayFrom()->openLink());
 								_dragStateItem = App::histItemById(dragState.itemId);
-								lnkhost = message;
+								lnkhost = view;
 								return false;
 							}
 							return true;

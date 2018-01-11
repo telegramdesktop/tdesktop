@@ -175,7 +175,6 @@ public:
 	void inlineSwitchLayer(const QString &botAndQuery);
 	void hiderLayer(object_ptr<HistoryHider> h);
 	void noHider(HistoryHider *destroyed);
-	bool setForwardDraft(PeerId peer, ForwardWhatMessages what);
 	bool setForwardDraft(PeerId peer, MessageIdsList &&items);
 	bool shareUrl(
 		not_null<PeerData*> peer,

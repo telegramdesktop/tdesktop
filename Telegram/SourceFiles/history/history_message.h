@@ -182,10 +182,6 @@ public:
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
 
-	// ClickHandlerHost interface
-	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
-	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
-
 	QString notificationHeader() const override;
 
 	void applyEdition(const MTPDmessage &message) override;

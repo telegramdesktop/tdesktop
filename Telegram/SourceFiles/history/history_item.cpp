@@ -253,28 +253,6 @@ MTPDreplyKeyboardMarkup::Flags HistoryItem::replyKeyboardFlags() const {
 	return MTPDreplyKeyboardMarkup_ClientFlag::f_zero | 0;
 }
 
-void HistoryItem::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
-	if (auto markup = Get<HistoryMessageReplyMarkup>()) {
-		if (markup->inlineKeyboard) {
-			markup->inlineKeyboard->clickHandlerActiveChanged(p, active);
-		}
-	}
-	// #TODO hoveredLinkItem
-	// App::hoveredLinkItem(active ? this : nullptr);
-	Auth().data().requestItemRepaint(this);
-}
-
-void HistoryItem::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
-	if (auto markup = Get<HistoryMessageReplyMarkup>()) {
-		if (markup->inlineKeyboard) {
-			markup->inlineKeyboard->clickHandlerPressedChanged(p, pressed);
-		}
-	}
-	// #TODO hoveredLinkItem
-	// App::pressedLinkItem(pressed ? this : nullptr);
-	Auth().data().requestItemRepaint(this);
-}
-
 void HistoryItem::addLogEntryOriginal(WebPageId localId, const QString &label, const TextWithEntities &content) {
 	Expects(isLogEntry());
 	AddComponents(HistoryMessageLogEntryOriginal::Bit());

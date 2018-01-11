@@ -138,7 +138,9 @@ void HistoryFileMedia::thumbAnimationCallback() {
 	Auth().data().requestItemRepaint(_parent);
 }
 
-void HistoryFileMedia::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
+void HistoryFileMedia::clickHandlerPressedChanged(
+		const ClickHandlerPtr &handler,
+		bool pressed) {
 	Auth().data().requestItemRepaint(_parent);
 }
 

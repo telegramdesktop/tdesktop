@@ -173,8 +173,7 @@ inline TextSelection shiftSelection(TextSelection selection, const Text &byText)
 
 class HistoryItem
 	: public HistoryElement
-	, public RuntimeComposer
-	, public ClickHandlerHost {
+	, public RuntimeComposer {
 public:
 	int resizeGetHeight(int newWidth) {
 		if (_flags & MTPDmessage_ClientFlag::f_pending_init_dimensions) {
@@ -299,10 +298,6 @@ public:
 			TextSelectType type) const {
 		return selection;
 	}
-
-	// ClickHandlerHost interface
-	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
-	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
 	virtual bool serviceMsg() const {
 		return false;
