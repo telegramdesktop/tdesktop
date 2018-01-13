@@ -7,9 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "history/history_item.h"
+#include "history/view/history_view_object.h"
 
 struct HistoryMessageEdited;
+struct HistoryTextState;
+struct HistoryStateRequest;
+struct TextSelection;
 
 namespace base {
 template <typename Enum>
@@ -28,7 +31,26 @@ enum class MediaInBubbleState {
 	Bottom,
 };
 
-class HistoryMedia : public HistoryElement {
+enum HistoryMediaType : char {
+	MediaTypePhoto,
+	MediaTypeVideo,
+	MediaTypeContact,
+	MediaTypeCall,
+	MediaTypeFile,
+	MediaTypeGif,
+	MediaTypeSticker,
+	MediaTypeLocation,
+	MediaTypeWebPage,
+	MediaTypeMusicFile,
+	MediaTypeVoiceFile,
+	MediaTypeGame,
+	MediaTypeInvoice,
+	MediaTypeGrouped,
+
+	MediaTypeCount
+};
+
+class HistoryMedia : public HistoryView::Object {
 public:
 	HistoryMedia(not_null<HistoryItem*> parent) : _parent(parent) {
 	}
@@ -48,12 +70,10 @@ public:
 	virtual TextWithEntities selectedText(TextSelection selection) const = 0;
 
 	bool hasPoint(QPoint point) const {
-		return QRect(0, 0, _width, _height).contains(point);
+		return QRect(0, 0, width(), height()).contains(point);
 	}
 
-	virtual bool isDisplayed() const {
-		return !_parent->isHiddenByGroup();
-	}
+	virtual bool isDisplayed() const;
 	virtual void updateNeedBubbleState() {
 	}
 	virtual bool isAboveMessage() const {
@@ -65,12 +85,7 @@ public:
 	virtual bool allowsFastShare() const {
 		return false;
 	}
-	virtual void initDimensions() = 0;
 	virtual void refreshParentId(not_null<HistoryItem*> realParent) {
-	}
-	virtual int resizeGetHeight(int width) {
-		_width = qMin(width, _maxw);
-		return _height;
 	}
 	virtual void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const = 0;
 	virtual HistoryTextState getState(QPoint point, HistoryStateRequest request) const = 0;
@@ -102,17 +117,9 @@ public:
 		return 0;
 	}
 	[[nodiscard]] TextSelection skipSelection(
-			TextSelection selection) const {
-		return internal::unshiftSelection(
-			selection,
-			fullSelectionLength());
-	}
+		TextSelection selection) const;
 	[[nodiscard]] TextSelection unskipSelection(
-			TextSelection selection) const {
-		return internal::shiftSelection(
-			selection,
-			fullSelectionLength());
-	}
+		TextSelection selection) const;
 
 	// if we press and drag this link should we drag the item
 	virtual bool dragItemByHandler(const ClickHandlerPtr &p) const = 0;
@@ -174,11 +181,9 @@ public:
 		Unexpected("Grouping method call.");
 	}
 	virtual HistoryTextState getStateGrouped(
-			const QRect &geometry,
-			QPoint point,
-			HistoryStateRequest request) const {
-		Unexpected("Grouping method call.");
-	}
+		const QRect &geometry,
+		QPoint point,
+		HistoryStateRequest request) const;
 	virtual std::unique_ptr<HistoryMedia> takeLastFromGroup() {
 		return nullptr;
 	}
@@ -252,18 +257,21 @@ public:
 		return false;
 	}
 
-	// Sometimes click on media in message is overloaded by the messsage:
+	// Sometimes click on media in message is overloaded by the message:
 	// (for example it can open a link or a game instead of opening media)
 	// But the overloading click handler should be used only when media
-	// is already loaded (not a photo or gif waiting for load with auto
+	// is already loaded (not a photo or GIF waiting for load with auto
 	// load being disabled - in such case media should handle the click).
 	virtual bool isReadyForOpen() const {
 		return true;
 	}
 
+	virtual ~HistoryMedia() = default;
+
 protected:
+	QSize countCurrentSize(int newWidth) override;
+
 	not_null<HistoryItem*> _parent;
 	MediaInBubbleState _inBubbleState = MediaInBubbleState::None;
-
 
 };

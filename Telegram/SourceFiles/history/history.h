@@ -18,10 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 
 class History;
-class HistoryItem;
-using HistoryItemsList = std::vector<not_null<HistoryItem*>>;
 
-enum NewMessageType {
+enum NewMessageType : char {
 	NewMessageUnread,
 	NewMessageLast,
 	NewMessageExisting,
@@ -103,50 +101,6 @@ private:
 };
 
 class HistoryBlock;
-
-enum HistoryMediaType {
-	MediaTypePhoto,
-	MediaTypeVideo,
-	MediaTypeContact,
-	MediaTypeCall,
-	MediaTypeFile,
-	MediaTypeGif,
-	MediaTypeSticker,
-	MediaTypeLocation,
-	MediaTypeWebPage,
-	MediaTypeMusicFile,
-	MediaTypeVoiceFile,
-	MediaTypeGame,
-	MediaTypeInvoice,
-	MediaTypeGrouped,
-
-	MediaTypeCount
-};
-
-struct TextWithTags {
-	struct Tag {
-		int offset, length;
-		QString id;
-	};
-	using Tags = QVector<Tag>;
-
-	QString text;
-	Tags tags;
-};
-
-inline bool operator==(const TextWithTags::Tag &a, const TextWithTags::Tag &b) {
-	return (a.offset == b.offset) && (a.length == b.length) && (a.id == b.id);
-}
-inline bool operator!=(const TextWithTags::Tag &a, const TextWithTags::Tag &b) {
-	return !(a == b);
-}
-
-inline bool operator==(const TextWithTags &a, const TextWithTags &b) {
-	return (a.text == b.text) && (a.tags == b.tags);
-}
-inline bool operator!=(const TextWithTags &a, const TextWithTags &b) {
-	return !(a == b);
-}
 
 namespace Data {
 struct Draft;
@@ -334,7 +288,7 @@ public:
 	HistoryItem *showFrom = nullptr;
 	HistoryItem *unreadBar = nullptr;
 
-	PeerData *peer;
+	not_null<PeerData*> peer;
 	bool oldLoaded = false;
 	bool newLoaded = true;
 	HistoryItem *lastMsg = nullptr;
@@ -425,8 +379,6 @@ public:
 	PeerId lastKeyboardFrom = 0;
 
 	mtpRequestId sendRequestId = 0;
-
-	void changeMsgId(MsgId oldId, MsgId newId);
 
 	Text cloudDraftTextCache;
 

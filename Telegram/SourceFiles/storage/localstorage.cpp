@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "base/flags.h"
 #include "data/data_session.h"
+#include "history/history.h"
 
 #include <openssl/evp.h>
 

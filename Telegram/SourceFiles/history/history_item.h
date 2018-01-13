@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_media_pointer.h"
 #include "history/view/history_view_cursor_state.h"
 
+enum class UnreadMentionType;
 struct MessageGroupId;
 struct HistoryMessageGroup;
 struct HistoryMessageReplyMarkup;
@@ -51,35 +52,6 @@ namespace HistoryView {
 enum class Context : char;
 } // namespace HistoryView
 
-class HistoryElement {
-public:
-	HistoryElement() = default;
-	HistoryElement(const HistoryElement &other) = delete;
-	HistoryElement &operator=(const HistoryElement &other) = delete;
-
-	int maxWidth() const {
-		return _maxw;
-	}
-	int minHeight() const {
-		return _minh;
-	}
-	int width() const {
-		return _width;
-	}
-	int height() const {
-		return _height;
-	}
-
-	virtual ~HistoryElement() = default;
-
-protected:
-	mutable int _maxw = 0;
-	mutable int _minh = 0;
-	mutable int _width = 0;
-	mutable int _height = 0;
-
-};
-
 namespace internal {
 
 TextSelection unshiftSelection(TextSelection selection, uint16 byLength);
@@ -93,23 +65,8 @@ inline TextSelection shiftSelection(TextSelection selection, const Text &byText)
 
 } // namespace internal
 
-class HistoryItem
-	: public HistoryElement
-	, public RuntimeComposer {
+class HistoryItem : public RuntimeComposer {
 public:
-	int resizeGetHeight(int newWidth) {
-		if (_flags & MTPDmessage_ClientFlag::f_pending_init_dimensions) {
-			_flags &= ~MTPDmessage_ClientFlag::f_pending_init_dimensions;
-			initDimensions();
-		}
-		if (_flags & MTPDmessage_ClientFlag::f_pending_resize) {
-			_flags &= ~MTPDmessage_ClientFlag::f_pending_resize;
-		}
-		_width = newWidth;
-		return resizeContentGetHeight();
-	}
-	virtual void draw(Painter &p, QRect clip, TextSelection selection, TimeMs ms) const = 0;
-
 	virtual void dependencyItemRemoved(HistoryItem *dependency) {
 	}
 	virtual bool updateDependencyItem() {
@@ -126,16 +83,7 @@ public:
 	}
 
 	UserData *viaBot() const;
-	UserData *getMessageBot() const {
-		if (auto bot = viaBot()) {
-			return bot;
-		}
-		auto bot = from()->asUser();
-		if (!bot) {
-			bot = history()->peer->asUser();
-		}
-		return (bot && bot->botInfo) ? bot : nullptr;
-	};
+	UserData *getMessageBot() const;
 
 	bool isLogEntry() const {
 		return (id > ServerMaxMsgId);
@@ -148,7 +96,7 @@ public:
 	not_null<History*> history() const {
 		return _history;
 	}
-	PeerData *from() const {
+	not_null<PeerData*> from() const {
 		return _from;
 	}
 	HistoryView::Element *mainView() const {
@@ -202,18 +150,7 @@ public:
 		return hasViews() ? 1 : -1;
 	}
 
-	virtual bool needCheck() const {
-		return out() || (id < 0 && history()->peer->isSelf());
-	}
-	virtual bool hasPoint(QPoint point) const {
-		return false;
-	}
-
-	[[nodiscard]] virtual HistoryTextState getState(
-		QPoint point,
-		HistoryStateRequest request) const = 0;
-	virtual void updatePressed(QPoint point) {
-	}
+	virtual bool needCheck() const;
 
 	[[nodiscard]] virtual TextSelection adjustSelection(
 			TextSelection selection,
@@ -233,8 +170,7 @@ public:
 	virtual void updateReplyMarkup(const MTPReplyMarkup *markup) {
 	}
 
-	virtual void addToUnreadMentions(UnreadMentionType type) {
-	}
+	virtual void addToUnreadMentions(UnreadMentionType type);
 	virtual void eraseFromUnreadMentions() {
 	}
 	virtual Storage::SharedMediaTypesMask sharedMediaTypes() const;
@@ -243,9 +179,6 @@ public:
 	virtual bool hasBubble() const {
 		return false;
 	}
-
-	void previousItemChanged();
-	void nextItemChanged();
 
 	virtual TextWithEntities selectedText(TextSelection selection) const {
 		return { qsl("[-]"), EntitiesInText() };
@@ -283,7 +216,7 @@ public:
 	}
 	virtual void setViewsCount(int32 count) {
 	}
-	virtual void setId(MsgId newId);
+	virtual void setRealId(MsgId newId);
 
 	virtual bool displayEditedBadge() const {
 		return false;
@@ -322,9 +255,7 @@ public:
 	MsgId id;
 	QDateTime date;
 
-	ChannelId channelId() const {
-		return _history->channelId();
-	}
+	ChannelId channelId() const;
 	FullMsgId fullId() const {
 		return FullMsgId(channelId(), id);
 	}
@@ -370,13 +301,11 @@ public:
 	}
 	MsgId replyToId() const;
 
-	PeerData *author() const {
-		return isPost() ? history()->peer : from();
-	}
+	not_null<PeerData*> author() const;
 
 	QDateTime dateOriginal() const;
-	PeerData *senderOriginal() const;
-	PeerData *fromOriginal() const;
+	not_null<PeerData*> senderOriginal() const;
+	not_null<PeerData*> fromOriginal() const;
 	QString authorOriginal() const;
 	MsgId idOriginal() const;
 
@@ -391,30 +320,7 @@ public:
 	// when the new messages arrive in this chat history
 	void setUnreadBarFreezed();
 
-	bool pendingResize() const {
-		return _flags & MTPDmessage_ClientFlag::f_pending_resize;
-	}
-	void setPendingResize() {
-		_flags |= MTPDmessage_ClientFlag::f_pending_resize;
-		_history->setHasPendingResizedItems();
-	}
-	bool pendingInitDimensions() const {
-		return _flags & MTPDmessage_ClientFlag::f_pending_init_dimensions;
-	}
-	void setPendingInitDimensions() {
-		_flags |= MTPDmessage_ClientFlag::f_pending_init_dimensions;
-		setPendingResize();
-	}
-
 	int displayedDateHeight() const;
-	int marginTop() const;
-	int marginBottom() const;
-	bool isAttachedToPrevious() const {
-		return _flags & MTPDmessage_ClientFlag::f_attach_to_previous;
-	}
-	bool isAttachedToNext() const {
-		return _flags & MTPDmessage_ClientFlag::f_attach_to_next;
-	}
 	bool displayDate() const;
 
 	bool isInOneDayWithPrevious() const {
@@ -439,20 +345,6 @@ public:
 	void clipCallback(Media::Clip::Notification notification);
 	void audioTrackUpdated();
 
-	bool computeIsAttachToPrevious(not_null<HistoryItem*> previous);
-	void setLogEntryDisplayDate(bool displayDate) {
-		Expects(isLogEntry());
-		setDisplayDate(displayDate);
-	}
-	void setLogEntryAttachToPrevious(bool attachToPrevious) {
-		Expects(isLogEntry());
-		setAttachToPrevious(attachToPrevious);
-	}
-	void setLogEntryAttachToNext(bool attachToNext) {
-		Expects(isLogEntry());
-		setAttachToNext(attachToNext);
-	}
-
 	bool isUnderCursor() const;
 
 	HistoryItem *previousItem() const;
@@ -462,7 +354,7 @@ public:
 		not_null<Window::Controller*> controller,
 		HistoryView::Context context) = 0;
 
-	~HistoryItem();
+	virtual ~HistoryItem();
 
 protected:
 	HistoryItem(
@@ -476,13 +368,8 @@ protected:
 	// a virtual method, it can not be done from constructor.
 	virtual void finishCreate();
 
-	// Called from resizeGetHeight() when MTPDmessage_ClientFlag::f_pending_init_dimensions is set.
-	virtual void initDimensions() = 0;
-
 	virtual void markMediaAsReadHook() {
 	}
-
-	virtual int resizeContentGetHeight() = 0;
 
 	void finishEdition(int oldKeyboardTop);
 	void finishEditionToEmpty();
@@ -490,29 +377,6 @@ protected:
 	const not_null<History*> _history;
 	not_null<PeerData*> _from;
 	MTPDmessage::Flags _flags = 0;
-
-	// This should be called only from previousItemChanged()
-	// to add required bits to the Composer mask
-	// after that always use Has<HistoryMessageDate>().
-	void recountDisplayDate();
-
-	// This should be called only from previousItemChanged() or when
-	// HistoryMessageDate or HistoryMessageUnreadBar bit is changed in the Composer mask
-	// then the result should be cached in a client side flag MTPDmessage_ClientFlag::f_attach_to_previous.
-	void recountAttachToPrevious();
-
-	// This should be called only from recountDisplayDate().
-	// Also this is called from setLogEntryDisplayDate() for channel log entries.
-	void setDisplayDate(bool displayDate);
-
-	// This should be called only from recountAttachToPrevious().
-	// Also this is called from setLogEntryAttachToPrevious() for channel log entries.
-	void setAttachToPrevious(bool attachToNext);
-
-	// This should be called only from recountAttachToPrevious() of the next item
-	// or when the next item is removed through nextItemChanged() call.
-	// Also this is called from setLogEntryAttachToNext() for channel log entries.
-	void setAttachToNext(bool attachToNext);
 
 	const HistoryMessageReplyMarkup *inlineReplyMarkup() const {
 		return const_cast<HistoryItem*>(this)->inlineReplyMarkup();
@@ -543,6 +407,7 @@ private:
 	void resetGroupMedia(const std::vector<not_null<HistoryItem*>> &others);
 
 	HistoryView::Element *_mainView = nullptr;
+	friend class HistoryView::Element;
 
 };
 
@@ -562,8 +427,7 @@ public:
 
 };
 
-ClickHandlerPtr goToMessageClickHandler(PeerData *peer, MsgId msgId);
-
-inline ClickHandlerPtr goToMessageClickHandler(HistoryItem *item) {
-	return goToMessageClickHandler(item->history()->peer, item->id);
-}
+ClickHandlerPtr goToMessageClickHandler(
+	not_null<PeerData*> peer,
+	MsgId msgId);
+ClickHandlerPtr goToMessageClickHandler(not_null<HistoryItem*> item);

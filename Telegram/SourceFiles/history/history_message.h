@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history_item.h"
 
+namespace HistoryView {
+class Message;
+} // namespace HistoryView
+
 struct HistoryMessageEdited;
 
 base::lambda<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
@@ -141,20 +145,12 @@ public:
 	void initTime();
 	void initMedia(const MTPMessageMedia *media);
 	void initMediaFromDocument(DocumentData *doc, const QString &caption);
-	void fromNameUpdated(int32 width) const;
 
 	int32 plainMaxWidth() const;
-	QRect countGeometry() const;
 
 	bool drawBubble() const;
 	bool hasBubble() const override {
 		return drawBubble();
-	}
-	bool hasFromName() const;
-	bool displayFromName() const {
-		if (!hasFromName()) return false;
-		if (isAttachedToPrevious()) return false;
-		return true;
 	}
 	bool hasFastReply() const;
 	bool displayFastReply() const;
@@ -168,17 +164,12 @@ public:
 	void drawInfo(Painter &p, int32 right, int32 bottom, int32 width, bool selected, InfoDisplayType type) const override;
 	void drawRightAction(Painter &p, int left, int top, int outerWidth) const override;
 	void setViewsCount(int32 count) override;
-	void setId(MsgId newId) override;
-	void draw(Painter &p, QRect clip, TextSelection selection, TimeMs ms) const override;
+	void setRealId(MsgId newId) override;
 	ClickHandlerPtr rightActionLink() const override;
 
 	void dependencyItemRemoved(HistoryItem *dependency) override;
 
-	bool hasPoint(QPoint point) const override;
 	bool pointInTime(int right, int bottom, QPoint point, InfoDisplayType type) const override;
-
-	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
-	void updatePressed(QPoint point) override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
 
@@ -222,11 +213,6 @@ public:
 	const HistoryMessage *toHistoryMessage() const override { // dynamic_cast optimize
 		return this;
 	}
-
-	// hasFromPhoto() returns true even if we don't display the photo
-	// but we need to skip a place at the left side for this photo
-	bool displayFromPhoto() const;
-	bool hasFromPhoto() const;
 
 	std::unique_ptr<HistoryView::Element> createView(
 		not_null<Window::Controller*> controller,
@@ -300,48 +286,18 @@ private:
 	friend class HistoryItemInstantiated<HistoryMessage>;
 
 	void setEmptyText();
+	bool hasAdminBadge() const {
+		return _flags & MTPDmessage_ClientFlag::f_has_admin_badge;
+	}
 
 	// For an invoice button we replace the button text with a "Receipt" key.
 	// It should show the receipt for the payed invoice. Still let mobile apps do that.
 	void replaceBuyWithReceiptInMarkup();
 
-	void initDimensions() override;
-	int resizeContentGetHeight() override;
-	int performResizeGetHeight();
 	void applyEditionToEmpty();
 	QDateTime displayedEditDate(bool hasViaBotOrInlineMarkup) const;
 	const HistoryMessageEdited *displayedEditBadge() const;
 	HistoryMessageEdited *displayedEditBadge();
-
-	void paintFromName(Painter &p, QRect &trect, bool selected) const;
-	void paintForwardedInfo(Painter &p, QRect &trect, bool selected) const;
-	void paintReplyInfo(Painter &p, QRect &trect, bool selected) const;
-	// this method draws "via @bot" if it is not painted in forwarded info or in from name
-	void paintViaBotIdInfo(Painter &p, QRect &trect, bool selected) const;
-	void paintText(Painter &p, QRect &trect, TextSelection selection) const;
-
-	bool getStateFromName(
-		QPoint point,
-		QRect &trect,
-		not_null<HistoryTextState*> outResult) const;
-	bool getStateForwardedInfo(
-		QPoint point,
-		QRect &trect,
-		not_null<HistoryTextState*> outResult,
-		HistoryStateRequest request) const;
-	bool getStateReplyInfo(
-		QPoint point,
-		QRect &trect,
-		not_null<HistoryTextState*> outResult) const;
-	bool getStateViaBotIdInfo(
-		QPoint point,
-		QRect &trect,
-		not_null<HistoryTextState*> outResult) const;
-	bool getStateText(
-		QPoint point,
-		QRect &trect,
-		not_null<HistoryTextState*> outResult,
-		HistoryStateRequest request) const;
 
 	void setMedia(const MTPMessageMedia *media);
 	void setReplyMarkup(const MTPReplyMarkup *markup);
@@ -353,7 +309,6 @@ private:
 	void createComponentsHelper(MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, const QString &postAuthor, const MTPReplyMarkup &markup);
 	void createComponents(const CreateConfig &config);
 
-	void updateMediaInBubbleState();
 	void updateAdminBadgeState();
 	ClickHandlerPtr fastReplyLink() const;
 
@@ -363,5 +318,8 @@ private:
 	mutable ClickHandlerPtr _rightActionLink;
 	mutable ClickHandlerPtr _fastReplyLink;
 	mutable int32 _fromNameVersion = 0;
+
+	friend class HistoryView::Element;
+	friend class HistoryView::Message;
 
 };

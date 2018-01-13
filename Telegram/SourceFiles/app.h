@@ -8,17 +8,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "core/basic_types.h"
-#include "history/history.h"
+#include "data/data_types.h"
+#include "data/data_peer.h"
 
+enum NewMessageType : char;
 class Messenger;
 class MainWindow;
 class MainWidget;
 class LocationCoords;
 struct LocationData;
 class HistoryItem;
-
+class History;
+class Histories;
 namespace HistoryView {
-class Message;
+class Element;
 } // namespace HistoryView
 
 using HistoryItemsMap = base::flat_set<not_null<HistoryItem*>>;

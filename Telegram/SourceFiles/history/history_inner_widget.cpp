@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/merge.h>
 #include "styles/style_history.h"
 #include "core/file_utilities.h"
+#include "history/history.h"
 #include "history/history_message.h"
 #include "history/history_media_types.h"
 #include "history/history_item_components.h"
@@ -198,7 +199,7 @@ void HistoryInner::repaintItem(const Element *view) {
 	if (view) {
 		const auto top = itemTop(view);
 		if (top >= 0) {
-			update(0, top, width(), view->data()->height());
+			update(0, top, width(), view->height());
 		}
 	}
 }
@@ -228,7 +229,7 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 		while (true) {
 			auto view = block->messages[itemIndex].get();
 			auto itemtop = blocktop + view->y();
-			auto itembottom = itemtop + view->data()->height();
+			auto itembottom = itemtop + view->height();
 
 			// Binary search should've skipped all the items that are above / below the visible area.
 			if (TopToBottom) {
@@ -310,19 +311,19 @@ void HistoryInner::enumerateUserpics(Method method) {
 		const auto message = item->toHistoryMessage();
 		if (!message) return true;
 
-		if (lowestAttachedItemTop < 0 && message->isAttachedToNext()) {
-			lowestAttachedItemTop = itemtop + message->marginTop();
+		if (lowestAttachedItemTop < 0 && view->isAttachedToNext()) {
+			lowestAttachedItemTop = itemtop + view->marginTop();
 		}
 
 		// Call method on a userpic for all messages that have it and for those who are not showing it
 		// because of their attachment to the next message if they are bottom-most visible.
-		if (message->displayFromPhoto() || (message->hasFromPhoto() && itembottom >= _visibleAreaBottom)) {
+		if (view->displayFromPhoto() || (view->hasFromPhoto() && itembottom >= _visibleAreaBottom)) {
 			if (lowestAttachedItemTop < 0) {
-				lowestAttachedItemTop = itemtop + message->marginTop();
+				lowestAttachedItemTop = itemtop + view->marginTop();
 			}
 			// Attach userpic to the bottom of the visible area with the same margin as the last message.
 			auto userpicMinBottomSkip = st::historyPaddingBottom + st::msgMargin.bottom();
-			auto userpicBottom = qMin(itembottom - message->marginBottom(), _visibleAreaBottom - userpicMinBottomSkip);
+			auto userpicBottom = qMin(itembottom - view->marginBottom(), _visibleAreaBottom - userpicMinBottomSkip);
 
 			// Do not let the userpic go above the attached messages pack top line.
 			userpicBottom = qMax(userpicBottom, lowestAttachedItemTop + st::msgPhotoSize);
@@ -335,7 +336,7 @@ void HistoryInner::enumerateUserpics(Method method) {
 		}
 
 		// Forget the found top of the pack, search for the next one from scratch.
-		if (!message->isAttachedToNext()) {
+		if (!view->isAttachedToNext()) {
 			lowestAttachedItemTop = -1;
 		}
 
@@ -356,7 +357,7 @@ void HistoryInner::enumerateDates(Method method) {
 	auto dateCallback = [&](not_null<Element*> view, int itemtop, int itembottom) {
 		const auto item = view->data();
 		if (lowestInOneDayItemBottom < 0 && item->isInOneDayWithPrevious()) {
-			lowestInOneDayItemBottom = itembottom - item->marginBottom();
+			lowestInOneDayItemBottom = itembottom - view->marginBottom();
 		}
 
 		// Call method on a date for all messages that have it and for those who are not showing it
@@ -375,7 +376,7 @@ void HistoryInner::enumerateDates(Method method) {
 			}
 
 			if (lowestInOneDayItemBottom < 0) {
-				lowestInOneDayItemBottom = itembottom - item->marginBottom();
+				lowestInOneDayItemBottom = itembottom - view->marginBottom();
 			}
 			// Attach date to the top of the visible area with the same margin as it has in service message.
 			int dateTop = qMax(itemtop, _visibleAreaTop) + st::msgServiceMargin.top();
@@ -499,7 +500,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		if (selfromy < 0 || seltoy < 0) {
 			selfromy = seltoy = -1;
 		} else {
-			seltoy += _dragSelTo->data()->height();
+			seltoy += _dragSelTo->height();
 		}
 
 		auto mtop = migratedTop();
@@ -515,12 +516,12 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			auto y = mtop + block->y() + view->y();
 			p.save();
 			p.translate(0, y);
-			if (clip.y() < y + item->height()) while (y < drawToY) {
+			if (clip.y() < y + view->height()) while (y < drawToY) {
 				const auto selection = itemRenderSelection(
 					view,
 					selfromy - mtop,
 					seltoy - mtop);
-				item->draw(p, clip.translated(0, -y), selection, ms);
+				view->draw(p, clip.translated(0, -y), selection, ms);
 
 				if (item->hasViews()) {
 					App::main()->scheduleViewIncrement(item);
@@ -530,7 +531,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 					_widget->enqueueMessageHighlight(item);
 				}
 
-				int32 h = item->height();
+				int32 h = view->height();
 				p.translate(0, h);
 				y += h;
 
@@ -560,13 +561,13 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			p.save();
 			p.translate(0, y);
 			while (y < drawToY) {
-				auto h = item->height();
+				auto h = view->height();
 				if (hclip.y() < y + h && hdrawtop < y + h) {
 					const auto selection = itemRenderSelection(
 						view,
 						selfromy - htop,
 						seltoy - htop);
-					item->draw(p, hclip.translated(0, -y), selection, ms);
+					view->draw(p, hclip.translated(0, -y), selection, ms);
 
 					if (item->hasViews()) {
 						App::main()->scheduleViewIncrement(item);
@@ -916,11 +917,12 @@ void HistoryInner::mouseActionStart(const QPoint &screenPos, Qt::MouseButton but
 		repaintItem(App::pressedItem());
 	}
 
+	const auto mouseActionView = App::mousedItem();
 	_mouseAction = MouseAction::None;
-	_mouseActionItem = App::mousedItem()
-		? App::mousedItem()->data().get()
+	_mouseActionItem = mouseActionView
+		? mouseActionView->data().get()
 		: nullptr;
-	_dragStartPosition = mapPointToItem(mapFromGlobal(screenPos), _mouseActionItem);
+	_dragStartPosition = mapPointToItem(mapFromGlobal(screenPos), mouseActionView);
 	_pressWasInactive = _controller->window()->wasInactivePress();
 	if (_pressWasInactive) _controller->window()->setInactivePress(false);
 
@@ -937,12 +939,12 @@ void HistoryInner::mouseActionStart(const QPoint &screenPos, Qt::MouseButton but
 			}
 		}
 	}
-	if (_mouseAction == MouseAction::None && _mouseActionItem) {
+	if (_mouseAction == MouseAction::None && mouseActionView) {
 		HistoryTextState dragState;
 		if (_trippleClickTimer.isActive() && (screenPos - _trippleClickPoint).manhattanLength() < QApplication::startDragDistance()) {
 			HistoryStateRequest request;
 			request.flags = Text::StateRequest::Flag::LookupSymbol;
-			dragState = _mouseActionItem->getState(_dragStartPosition, request);
+			dragState = mouseActionView->getState(_dragStartPosition, request);
 			if (dragState.cursor == HistoryInTextCursorState) {
 				TextSelection selStatus = { dragState.symbol, dragState.symbol };
 				if (selStatus != FullSelection && (_selected.empty() || _selected.cbegin()->second != FullSelection)) {
@@ -961,7 +963,7 @@ void HistoryInner::mouseActionStart(const QPoint &screenPos, Qt::MouseButton but
 		} else if (App::pressedItem()) {
 			HistoryStateRequest request;
 			request.flags = Text::StateRequest::Flag::LookupSymbol;
-			dragState = _mouseActionItem->getState(_dragStartPosition, request);
+			dragState = mouseActionView->getState(_dragStartPosition, request);
 		}
 		if (_mouseSelectType != TextSelectType::Paragraphs) {
 			if (App::pressedItem()) {
@@ -1026,15 +1028,18 @@ void HistoryInner::mouseActionCancel() {
 void HistoryInner::performDrag() {
 	if (_mouseAction != MouseAction::Dragging) return;
 
+	const auto mouseActionView = _mouseActionItem
+		? _mouseActionItem->mainView()
+		: nullptr;
 	bool uponSelected = false;
-	if (_mouseActionItem) {
+	if (mouseActionView) {
 		if (!_selected.empty() && _selected.cbegin()->second == FullSelection) {
 			uponSelected = _dragStateItem
 				&& (_selected.find(_dragStateItem) != _selected.cend());
 		} else {
 			HistoryStateRequest request;
 			request.flags |= Text::StateRequest::Flag::LookupSymbol;
-			auto dragState = _mouseActionItem->getState(_dragStartPosition, request);
+			auto dragState = mouseActionView->getState(_dragStartPosition, request);
 			uponSelected = (dragState.cursor == HistoryInTextCursorState);
 			if (uponSelected) {
 				if (_selected.empty()
@@ -1243,10 +1248,21 @@ void HistoryInner::mouseDoubleClickEvent(QMouseEvent *e) {
 	if (!_history) return;
 
 	mouseActionStart(e->globalPos(), e->button());
-	if (((_mouseAction == MouseAction::Selecting && !_selected.empty() && _selected.cbegin()->second != FullSelection) || (_mouseAction == MouseAction::None && (_selected.empty() || _selected.cbegin()->second != FullSelection))) && _mouseSelectType == TextSelectType::Letters && _mouseActionItem) {
+
+	const auto mouseActionView = _mouseActionItem
+		? _mouseActionItem->mainView()
+		: nullptr;
+	if (_mouseSelectType == TextSelectType::Letters
+		&& mouseActionView
+		&& ((_mouseAction == MouseAction::Selecting
+			&& !_selected.empty()
+			&& _selected.cbegin()->second != FullSelection)
+			|| (_mouseAction == MouseAction::None
+				&& (_selected.empty()
+					|| _selected.cbegin()->second != FullSelection)))) {
 		HistoryStateRequest request;
 		request.flags |= Text::StateRequest::Flag::LookupSymbol;
-		auto dragState = _mouseActionItem->getState(_dragStartPosition, request);
+		auto dragState = mouseActionView->getState(_dragStartPosition, request);
 		if (dragState.cursor == HistoryInTextCursorState) {
 			_mouseTextSymbol = dragState.symbol;
 			_mouseSelectType = TextSelectType::Words;
@@ -1298,7 +1314,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				auto mousePos = mapPointToItem(mapFromGlobal(_mousePosition), App::mousedItem());
 				HistoryStateRequest request;
 				request.flags |= Text::StateRequest::Flag::LookupSymbol;
-				auto dragState = App::mousedItem()->data()->getState(mousePos, request);
+				auto dragState = App::mousedItem()->getState(mousePos, request);
 				if (dragState.cursor == HistoryInTextCursorState && dragState.symbol >= selFrom && dragState.symbol < selTo) {
 					isUponSelected = 1;
 				}
@@ -1809,7 +1825,7 @@ void HistoryInner::recountHistoryGeometry() {
 		if (!_migrated->isEmpty() && !_history->isEmpty() && _migrated->loadedAtBottom() && _history->loadedAtTop()) {
 			if (_migrated->blocks.back()->messages.back()->data()->date.date() == _history->blocks.front()->messages.front()->data()->date.date()) {
 				if (_migrated->blocks.back()->messages.back()->data()->isGroupMigrate() && _history->blocks.front()->messages.front()->data()->isGroupMigrate()) {
-					_historySkipHeight += _history->blocks.front()->messages.front()->data()->height();
+					_historySkipHeight += _history->blocks.front()->messages.front()->height();
 				} else {
 					_historySkipHeight += _history->blocks.front()->messages.front()->data()->displayedDateHeight();
 				}
@@ -2105,7 +2121,7 @@ void HistoryInner::adjustCurrent(int32 y, History *history) const {
 	while (block->messages[_curItem]->y() + by > y && _curItem > 0) {
 		--_curItem;
 	}
-	while (block->messages[_curItem]->y() + block->messages[_curItem]->data()->height() + by <= y && _curItem + 1 < block->messages.size()) {
+	while (block->messages[_curItem]->y() + block->messages[_curItem]->height() + by <= y && _curItem + 1 < block->messages.size()) {
 		++_curItem;
 	}
 }
@@ -2237,7 +2253,7 @@ void HistoryInner::onUpdateSelected() {
 
 		App::mousedItem(view);
 		m = mapPointToItem(point, view);
-		if (item->hasPoint(m)) {
+		if (view->hasPoint(m)) {
 			if (App::hoveredItem() != view) {
 				repaintItem(App::hoveredItem());
 				App::hoveredItem(view);
@@ -2336,12 +2352,12 @@ void HistoryInner::onUpdateSelected() {
 			} else {
 				selectingText = false;
 			}
-			dragState = item->getState(m, request);
+			dragState = view->getState(m, request);
 			_dragStateItem = App::histItemById(dragState.itemId);
 			lnkhost = view;
 			if (!dragState.link && m.x() >= st::historyPhotoLeft && m.x() < st::historyPhotoLeft + st::msgPhotoSize) {
 				if (auto msg = item->toHistoryMessage()) {
-					if (msg->hasFromPhoto()) {
+					if (view->hasFromPhoto()) {
 						enumerateUserpics([&](not_null<Element*> view, int userpicTop) -> bool {
 							// stop enumeration if the userpic is below our point
 							if (userpicTop > point.y()) {
@@ -2410,15 +2426,15 @@ void HistoryInner::onUpdateSelected() {
 				auto selectingDown = (itemTop(_mouseActionItem) < itemTop(item)) || (_mouseActionItem == item && _dragStartPosition.y() < m.y());
 				auto dragSelFrom = _mouseActionItem->mainView();
 				auto dragSelTo = view;
-				if (!dragSelFrom->data()->hasPoint(_dragStartPosition)) { // maybe exclude dragSelFrom
+				if (!dragSelFrom->hasPoint(_dragStartPosition)) { // maybe exclude dragSelFrom
 					if (selectingDown) {
-						if (_dragStartPosition.y() >= dragSelFrom->data()->height() - dragSelFrom->data()->marginBottom() || ((view == dragSelFrom) && (m.y() < _dragStartPosition.y() + QApplication::startDragDistance() || m.y() < dragSelFrom->data()->marginTop()))) {
+						if (_dragStartPosition.y() >= dragSelFrom->height() - dragSelFrom->marginBottom() || ((view == dragSelFrom) && (m.y() < _dragStartPosition.y() + QApplication::startDragDistance() || m.y() < dragSelFrom->marginTop()))) {
 							dragSelFrom = (dragSelFrom != dragSelTo)
 								? nextItem(dragSelFrom)
 								: nullptr;
 						}
 					} else {
-						if (_dragStartPosition.y() < dragSelFrom->data()->marginTop() || ((view == dragSelFrom) && (m.y() >= _dragStartPosition.y() - QApplication::startDragDistance() || m.y() >= dragSelFrom->data()->height() - dragSelFrom->data()->marginBottom()))) {
+						if (_dragStartPosition.y() < dragSelFrom->marginTop() || ((view == dragSelFrom) && (m.y() >= _dragStartPosition.y() - QApplication::startDragDistance() || m.y() >= dragSelFrom->height() - dragSelFrom->marginBottom()))) {
 							dragSelFrom = (dragSelFrom != dragSelTo)
 								? prevItem(dragSelFrom)
 								: nullptr;
@@ -2427,13 +2443,13 @@ void HistoryInner::onUpdateSelected() {
 				}
 				if (_mouseActionItem != item) { // maybe exclude dragSelTo
 					if (selectingDown) {
-						if (m.y() < dragSelTo->data()->marginTop()) {
+						if (m.y() < dragSelTo->marginTop()) {
 							dragSelTo = (dragSelFrom != dragSelTo)
 								? prevItem(dragSelFrom)
 								: nullptr;
 						}
 					} else {
-						if (m.y() >= dragSelTo->data()->height() - dragSelTo->data()->marginBottom()) {
+						if (m.y() >= dragSelTo->height() - dragSelTo->marginBottom()) {
 							dragSelTo = (dragSelFrom != dragSelTo)
 								? nextItem(dragSelFrom)
 								: nullptr;
@@ -2471,10 +2487,10 @@ void HistoryInner::onUpdateSelected() {
 
 	// Voice message seek support.
 	if (const auto pressedItem = _dragStateItem) {
-		if (pressedItem->mainView()) {
+		if (const auto pressedView = pressedItem->mainView()) {
 			if (pressedItem->history() == _history || pressedItem->history() == _migrated) {
-				auto adjustedPoint = mapPointToItem(point, pressedItem);
-				pressedItem->updatePressed(adjustedPoint);
+				auto adjustedPoint = mapPointToItem(point, pressedView);
+				pressedView->updatePressed(adjustedPoint);
 			}
 		}
 	}
@@ -2756,6 +2772,11 @@ void HistoryInner::deleteItem(not_null<HistoryItem*> item) {
 	Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
 }
 
+bool HistoryInner::hasPendingResizedItems() const {
+	return (_history && _history->hasPendingResizedItems())
+		|| (_migrated && _migrated->hasPendingResizedItems());
+}
+
 void HistoryInner::deleteAsGroup(FullMsgId itemId) {
 	if (const auto item = App::histItemById(itemId)) {
 		const auto group = item->getFullGroup();
@@ -2793,7 +2814,7 @@ void HistoryInner::applyDragSelection(
 	const auto selfromy = itemTop(_dragSelFrom);
 	const auto seltoy = [&] {
 		auto result = itemTop(_dragSelTo);
-		return (result < 0) ? result : (result + _dragSelTo->data()->height());
+		return (result < 0) ? result : (result + _dragSelTo->height());
 	}();
 	if (selfromy < 0 || seltoy < 0) {
 		return;

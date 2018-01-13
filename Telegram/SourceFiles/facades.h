@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class BoxContent;
 
+namespace Dialogs {
+enum class Mode;
+} // namespace Dialogs
+
 namespace InlineBots {
 namespace Layout {
 class ItemBase;
@@ -184,9 +188,7 @@ void showPeerProfile(const PeerId &peer);
 inline void showPeerProfile(const PeerData *peer) {
 	showPeerProfile(peer->id);
 }
-inline void showPeerProfile(const History *history) {
-	showPeerProfile(history->peer->id);
-}
+void showPeerProfile(not_null<const History*> history);
 
 void showPeerHistory(const PeerId &peer, MsgId msgId);
 void showPeerHistoryAtItem(not_null<const HistoryItem*> item);
@@ -194,11 +196,7 @@ void showPeerHistoryAtItem(not_null<const HistoryItem*> item);
 inline void showPeerHistory(const PeerData *peer, MsgId msgId) {
 	showPeerHistory(peer->id, msgId);
 }
-inline void showPeerHistory(
-		const History *history,
-		MsgId msgId) {
-	showPeerHistory(history->peer->id, msgId);
-}
+void showPeerHistory(not_null<const History*> history, MsgId msgId);
 inline void showChatsList() {
 	showPeerHistory(PeerId(0), 0);
 }

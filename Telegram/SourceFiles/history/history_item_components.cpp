@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "media/media_audio.h"
 #include "media/player/media_player_instance.h"
+#include "auth_session.h"
+#include "data/data_session.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
 
@@ -160,7 +162,7 @@ bool HistoryMessageReply::updateData(HistoryMessage *holder, bool force) {
 		replyToMsgId = 0;
 	}
 	if (force) {
-		holder->setPendingInitDimensions();
+		Auth().data().requestItemViewResize(holder);
 	}
 	return (replyToMsg || !replyToMsgId);
 }
@@ -211,10 +213,12 @@ void HistoryMessageReply::resize(int width) const {
 	}
 }
 
-void HistoryMessageReply::itemRemoved(HistoryMessage *holder, HistoryItem *removed) {
+void HistoryMessageReply::itemRemoved(
+		HistoryMessage *holder,
+		HistoryItem *removed) {
 	if (replyToMsg == removed) {
 		clearData(holder);
-		holder->setPendingInitDimensions();
+		Auth().data().requestItemViewResize(holder);
 	}
 }
 

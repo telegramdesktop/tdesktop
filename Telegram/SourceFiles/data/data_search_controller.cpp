@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "data/data_session.h"
 #include "data/data_messages.h"
+#include "history/history.h"
 #include "history/history_item.h"
 
 namespace Api {

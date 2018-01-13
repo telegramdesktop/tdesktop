@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "platform/platform_specific.h"
 #include "mainwindow.h"
+#include "dialogs/dialogs_entry.h"
+#include "history/history.h"
 #include "application.h"
 #include "shortcuts.h"
 #include "auth_session.h"

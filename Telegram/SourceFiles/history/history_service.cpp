@@ -9,14 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
+#include "auth_session.h"
 #include "apiwrap.h"
 #include "layout.h"
+#include "history/history.h"
 #include "history/history_media_types.h"
 #include "history/history_message.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_service_message.h"
 #include "data/data_feed.h"
-#include "auth_session.h"
+#include "data/data_session.h"
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
 #include "storage/storage_shared_media.h"
@@ -442,27 +444,11 @@ HistoryService::HistoryService(not_null<History*> history, MsgId msgId, QDateTim
 	}
 }
 
-void HistoryService::initDimensions() {
-	_maxw = _text.maxWidth() + st::msgServicePadding.left() + st::msgServicePadding.right();
-	_minh = _text.minHeight();
-	if (_media) {
-		_media->initDimensions();
-	}
-}
-
 bool HistoryService::updateDependencyItem() {
 	if (GetDependentData()) {
 		return updateDependent(true);
 	}
 	return HistoryItem::updateDependencyItem();
-}
-
-QRect HistoryService::countGeometry() const {
-	auto result = QRect(0, 0, width(), _height);
-	if (Adaptive::ChatWide()) {
-		result.setWidth(qMin(result.width(), st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
-	}
-	return result.marginsRemoved(st::msgServiceMargin);
 }
 
 TextWithEntities HistoryService::selectedText(TextSelection selection) const {
@@ -494,75 +480,8 @@ void HistoryService::setServiceText(const PreparedText &prepared) {
 		// Link indices start with 1.
 		_text.setLink(++linkIndex, link);
 	}
-
-	setPendingInitDimensions();
 	_textWidth = -1;
 	_textHeight = 0;
-}
-
-void HistoryService::draw(Painter &p, QRect clip, TextSelection selection, TimeMs ms) const {
-	auto height = _height - st::msgServiceMargin.top() - st::msgServiceMargin.bottom();
-	auto dateh = 0;
-	auto unreadbarh = 0;
-	if (auto date = Get<HistoryMessageDate>()) {
-		dateh = date->height();
-		p.translate(0, dateh);
-		clip.translate(0, -dateh);
-		height -= dateh;
-	}
-	if (auto unreadbar = Get<HistoryMessageUnreadBar>()) {
-		unreadbarh = unreadbar->height();
-		if (clip.intersects(QRect(0, 0, width(), unreadbarh))) {
-			unreadbar->paint(p, 0, width());
-		}
-		p.translate(0, unreadbarh);
-		clip.translate(0, -unreadbarh);
-		height -= unreadbarh;
-	}
-
-	HistoryView::PaintContext context(ms, clip, selection);
-	HistoryView::ServiceMessagePainter::paint(p, this, context, height);
-
-	if (auto skiph = dateh + unreadbarh) {
-		p.translate(0, -skiph);
-	}
-}
-
-int HistoryService::resizeContentGetHeight() {
-	_height = displayedDateHeight();
-	if (auto unreadbar = Get<HistoryMessageUnreadBar>()) {
-		_height += unreadbar->height();
-	}
-
-	if (_text.isEmpty()) {
-		_textHeight = 0;
-	} else {
-		auto contentWidth = width();
-		if (Adaptive::ChatWide()) {
-			accumulate_min(contentWidth, st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left());
-		}
-		contentWidth -= st::msgServiceMargin.left() + st::msgServiceMargin.left(); // two small margins
-		if (contentWidth < st::msgServicePadding.left() + st::msgServicePadding.right() + 1) {
-			contentWidth = st::msgServicePadding.left() + st::msgServicePadding.right() + 1;
-		}
-
-		auto nwidth = qMax(contentWidth - st::msgServicePadding.left() - st::msgServicePadding.right(), 0);
-		if (nwidth != _textWidth) {
-			_textWidth = nwidth;
-			_textHeight = _text.countHeight(nwidth);
-		}
-		if (contentWidth >= _maxw) {
-			_height += _minh;
-		} else {
-			_height += _textHeight;
-		}
-		_height += st::msgServicePadding.top() + st::msgServicePadding.bottom() + st::msgServiceMargin.top() + st::msgServiceMargin.bottom();
-		if (_media) {
-			_height += st::msgServiceMargin.top() + _media->resizeGetHeight(_media->width());
-		}
-	}
-
-	return _height;
 }
 
 void HistoryService::markMediaAsReadHook() {
@@ -592,68 +511,6 @@ TimeMs HistoryService::getSelfDestructIn(TimeMs now) {
 		}
 	}
 	return 0;
-}
-
-bool HistoryService::hasPoint(QPoint point) const {
-	auto g = countGeometry();
-	if (g.width() < 1) {
-		return false;
-	}
-
-	if (auto dateh = displayedDateHeight()) {
-		g.setTop(g.top() + dateh);
-	}
-	if (auto unreadbar = Get<HistoryMessageUnreadBar>()) {
-		g.setTop(g.top() + unreadbar->height());
-	}
-	if (_media) {
-		g.setHeight(g.height() - (st::msgServiceMargin.top() + _media->height()));
-	}
-	return g.contains(point);
-}
-
-HistoryTextState HistoryService::getState(QPoint point, HistoryStateRequest request) const {
-	auto result = HistoryTextState(this);
-
-	auto g = countGeometry();
-	if (g.width() < 1) {
-		return result;
-	}
-
-	if (auto dateh = displayedDateHeight()) {
-		point.setY(point.y() - dateh);
-		g.setHeight(g.height() - dateh);
-	}
-	if (auto unreadbar = Get<HistoryMessageUnreadBar>()) {
-		auto unreadbarh = unreadbar->height();
-		point.setY(point.y() - unreadbarh);
-		g.setHeight(g.height() - unreadbarh);
-	}
-
-	if (_media) {
-		g.setHeight(g.height() - (st::msgServiceMargin.top() + _media->height()));
-	}
-	auto trect = g.marginsAdded(-st::msgServicePadding);
-	if (trect.contains(point)) {
-		auto textRequest = request.forText();
-		textRequest.align = style::al_center;
-		result = HistoryTextState(this, _text.getState(
-			point - trect.topLeft(),
-			trect.width(),
-			textRequest));
-		if (auto gamescore = Get<HistoryServiceGameScore>()) {
-			if (!result.link && result.cursor == HistoryInTextCursorState && g.contains(point)) {
-				result.link = gamescore->lnk;
-			}
-		} else if (auto payment = Get<HistoryServicePayment>()) {
-			if (!result.link && result.cursor == HistoryInTextCursorState && g.contains(point)) {
-				result.link = payment->lnk;
-			}
-		}
-	} else if (_media) {
-		result = _media->getState(point - QPoint(st::msgServiceMargin.left() + (g.width() - _media->maxWidth()) / 2, st::msgServiceMargin.top() + g.height() + st::msgServiceMargin.top()), request);
-	}
-	return result;
 }
 
 void HistoryService::createFromMtp(const MTPDmessage &message) {
@@ -770,6 +627,7 @@ void HistoryService::updateDependentText() {
 	}
 
 	setServiceText(text);
+	Auth().data().requestItemViewResize(this);
 	if (history()->textCachedFor == this) {
 		history()->textCachedFor = nullptr;
 	}

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/runtime_composer.h"
 #include "history/history_media.h"
 #include "ui/effects/radial_animation.h"
 #include "data/data_document.h"
@@ -72,39 +73,20 @@ protected:
 		FileClickHandlerPtr &&savel,
 		FileClickHandlerPtr &&cancell);
 	void setDocumentLinks(
-			not_null<DocumentData*> document,
-			not_null<HistoryItem*> realParent,
-			bool inlinegif = false) {
-		FileClickHandlerPtr open, save;
-		const auto context = realParent->fullId();
-		if (inlinegif) {
-			open = std::make_shared<GifOpenClickHandler>(document, context);
-		} else {
-			open = std::make_shared<DocumentOpenClickHandler>(document, context);
-		}
-		if (inlinegif) {
-			save = std::make_shared<GifOpenClickHandler>(document, context);
-		} else if (document->isVoiceMessage()) {
-			save = std::make_shared<DocumentOpenClickHandler>(document, context);
-		} else {
-			save = std::make_shared<DocumentSaveClickHandler>(document, context);
-		}
-		setLinks(
-			std::move(open),
-			std::move(save),
-			std::make_shared<DocumentCancelClickHandler>(document, context));
-	}
+		not_null<DocumentData*> document,
+		not_null<HistoryItem*> realParent,
+		bool inlinegif = false);
 
 	// >= 0 will contain download / upload string, _statusSize = loaded bytes
 	// < 0 will contain played string, _statusSize = -(seconds + 1) played
 	// 0x7FFFFFF0 will contain status for not yet downloaded file
 	// 0x7FFFFFF1 will contain status for already downloaded file
 	// 0x7FFFFFF2 will contain status for failed to download / upload file
-	mutable int32 _statusSize;
+	mutable int _statusSize;
 	mutable QString _statusText;
 
 	// duration = -1 - no duration, duration = -2 - "GIF" duration
-	void setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const;
+	void setStatusSize(int newSize, int fullSize, int duration, qint64 realDuration) const;
 
 	void step_radial(TimeMs ms, bool timer);
 	void thumbAnimationCallback();
@@ -173,9 +155,6 @@ public:
 			not_null<HistoryItem*> realParent) const override {
 		return std::make_unique<HistoryPhoto>(newParent, realParent, *this);
 	}
-
-	void initDimensions() override;
-	int resizeGetHeight(int width) override;
 
 	void draw(Painter &p, const QRect &clip, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
@@ -254,6 +233,9 @@ protected:
 	bool dataLoaded() const override;
 
 private:
+	QSize countOptimalSize() override;
+	QSize countCurrentSize(int newWidth) override;
+
 	bool needInfoDisplay() const;
 	void validateGroupedCache(
 		const QRect &geometry,
@@ -262,8 +244,9 @@ private:
 		not_null<QPixmap*> cache) const;
 
 	not_null<PhotoData*> _data;
-	int16 _pixw = 1;
-	int16 _pixh = 1;
+	int _serviceWidth = 0;
+	int _pixw = 1;
+	int _pixh = 1;
 	Text _caption;
 
 };
@@ -287,9 +270,6 @@ public:
 			not_null<HistoryItem*> realParent) const override {
 		return std::make_unique<HistoryVideo>(newParent, realParent, *this);
 	}
-
-	void initDimensions() override;
-	int resizeGetHeight(int width) override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
@@ -369,16 +349,19 @@ protected:
 	bool dataLoaded() const override;
 
 private:
+	QSize countOptimalSize() override;
+	QSize countCurrentSize(int newWidth) override;
+
 	void validateGroupedCache(
 		const QRect &geometry,
 		RectParts corners,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const;
-	void setStatusSize(int32 newSize) const;
+	void setStatusSize(int newSize) const;
 	void updateStatusText() const;
 
 	not_null<DocumentData*> _data;
-	int32 _thumbw;
+	int _thumbw;
 	Text _caption;
 
 };
@@ -407,9 +390,6 @@ public:
 
 		return std::make_unique<HistoryDocument>(newParent, *this);
 	}
-
-	void initDimensions() override;
-	int resizeGetHeight(int width) override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
@@ -475,10 +455,13 @@ protected:
 	bool dataLoaded() const override;
 
 private:
+	QSize countOptimalSize() override;
+	QSize countCurrentSize(int newWidth) override;
+
 	void createComponents(bool caption);
 	void fillNamedFromData(HistoryDocumentNamed *named);
 
-	void setStatusSize(int32 newSize, qint64 realDuration = 0) const;
+	void setStatusSize(int newSize, qint64 realDuration = 0) const;
 	bool updateStatusText() const; // returns showPause
 
 								   // Callback is a void(const QString &, const QString &, const Text &) functor.
@@ -508,9 +491,6 @@ public:
 
 		return std::make_unique<HistoryGif>(newParent, *this);
 	}
-
-	void initDimensions() override;
-	int resizeGetHeight(int width) override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
@@ -591,6 +571,9 @@ protected:
 	}
 
 private:
+	QSize countOptimalSize() override;
+	QSize countCurrentSize(int newWidth) override;
+
 	bool needInfoDisplay() const;
 	int additionalWidth(
 		const HistoryMessageVia *via,
@@ -602,14 +585,14 @@ private:
 
 	not_null<DocumentData*> _data;
 	ClickHandlerPtr _openInMediaviewLink;
-	int32 _thumbw = 1;
-	int32 _thumbh = 1;
+	int _thumbw = 1;
+	int _thumbh = 1;
 	Text _caption;
 
 	mutable std::unique_ptr<Media::Clip::Playback> _roundPlayback;
 	Media::Clip::ReaderPointer _gif;
 
-	void setStatusSize(int32 newSize) const;
+	void setStatusSize(int newSize) const;
 	void updateStatusText() const;
 
 };
@@ -630,9 +613,6 @@ public:
 
 		return std::make_unique<HistorySticker>(newParent, _data);
 	}
-
-	void initDimensions() override;
-	int resizeGetHeight(int width) override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
@@ -676,12 +656,15 @@ public:
 	}
 
 private:
+	QSize countOptimalSize() override;
+	QSize countCurrentSize(int newWidth) override;
+
 	int additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply) const;
 	int additionalWidth() const;
 	QString toString() const;
 
-	int16 _pixw = 1;
-	int16 _pixh = 1;
+	int _pixw = 1;
+	int _pixh = 1;
 	ClickHandlerPtr _packLink;
 	not_null<DocumentData*> _data;
 	QString _emoji;
@@ -712,8 +695,6 @@ public:
 			_lname,
 			_phone);
 	}
-
-	void initDimensions() override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
@@ -753,6 +734,8 @@ public:
 	~HistoryContact();
 
 private:
+	QSize countOptimalSize() override;
+
 	int32 _userId = 0;
 	UserData *_contact = nullptr;
 
@@ -781,8 +764,6 @@ public:
 			not_null<HistoryItem*> realParent) const override {
 		Unexpected("Clone HistoryCall.");
 	}
-
-	void initDimensions() override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
@@ -815,6 +796,8 @@ public:
 	}
 
 private:
+	QSize countOptimalSize() override;
+
 	static FinishReason GetReason(const MTPDmessageActionPhoneCall &call);
 
 	FinishReason _reason = FinishReason::Missed;
@@ -847,8 +830,6 @@ public:
 		return std::make_unique<HistoryWebPage>(newParent, *this);
 	}
 
-	void initDimensions() override;
-	int resizeGetHeight(int width) override;
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
@@ -918,12 +899,11 @@ public:
 	}
 
 private:
-	TextSelection toDescriptionSelection(TextSelection selection) const {
-		return internal::unshiftSelection(selection, _title);
-	}
-	TextSelection fromDescriptionSelection(TextSelection selection) const {
-		return internal::shiftSelection(selection, _title);
-	}
+	QSize countOptimalSize() override;
+	QSize countCurrentSize(int newWidth) override;
+
+	TextSelection toDescriptionSelection(TextSelection selection) const;
+	TextSelection fromDescriptionSelection(TextSelection selection) const;
 	QMargins inBubblePadding() const;
 	int bottomInfoPadding() const;
 	bool isLogEntryOriginal() const;
@@ -943,8 +923,8 @@ private:
 	QString _duration;
 	int _durationWidth = 0;
 
-	int16 _pixw = 0;
-	int16 _pixh = 0;
+	int _pixw = 0;
+	int _pixh = 0;
 
 };
 
@@ -964,8 +944,6 @@ public:
 		return std::make_unique<HistoryGame>(newParent, *this);
 	}
 
-	void initDimensions() override;
-	int resizeGetHeight(int width) override;
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
@@ -1044,12 +1022,11 @@ public:
 	}
 
 private:
-	TextSelection toDescriptionSelection(TextSelection selection) const {
-		return internal::unshiftSelection(selection, _title);
-	}
-	TextSelection fromDescriptionSelection(TextSelection selection) const {
-		return internal::shiftSelection(selection, _title);
-	}
+	QSize countOptimalSize() override;
+	QSize countCurrentSize(int newWidth) override;
+
+	TextSelection toDescriptionSelection(TextSelection selection) const;
+	TextSelection fromDescriptionSelection(TextSelection selection) const;
 	QMargins inBubblePadding() const;
 	int bottomInfoPadding() const;
 
@@ -1057,7 +1034,7 @@ private:
 	std::shared_ptr<ReplyMarkupClickHandler> _openl;
 	std::unique_ptr<HistoryMedia> _attach;
 
-	int32 _titleLines, _descriptionLines;
+	int _titleLines, _descriptionLines;
 
 	Text _title, _description;
 
@@ -1085,8 +1062,6 @@ public:
 		return std::make_unique<HistoryInvoice>(newParent, *this);
 	}
 
-	void initDimensions() override;
-	int resizeGetHeight(int width) override;
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
 	MsgId getReceiptMsgId() const {
@@ -1145,14 +1120,13 @@ public:
 	}
 
 private:
+	QSize countOptimalSize() override;
+	QSize countCurrentSize(int newWidth) override;
+
 	void fillFromData(const MTPDmessageMediaInvoice &data);
 
-	TextSelection toDescriptionSelection(TextSelection selection) const {
-		return internal::unshiftSelection(selection, _title);
-	}
-	TextSelection fromDescriptionSelection(TextSelection selection) const {
-		return internal::shiftSelection(selection, _title);
-	}
+	TextSelection toDescriptionSelection(TextSelection selection) const;
+	TextSelection fromDescriptionSelection(TextSelection selection) const;
 	QMargins inBubblePadding() const;
 	int bottomInfoPadding() const;
 
@@ -1193,9 +1167,6 @@ public:
 		return std::make_unique<HistoryLocation>(newParent, *this);
 	}
 
-	void initDimensions() override;
-	int resizeGetHeight(int32 width) override;
-
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
 
@@ -1230,18 +1201,17 @@ public:
 	}
 
 private:
-	TextSelection toDescriptionSelection(TextSelection selection) const {
-		return internal::unshiftSelection(selection, _title);
-	}
-	TextSelection fromDescriptionSelection(TextSelection selection) const {
-		return internal::shiftSelection(selection, _title);
-	}
+	QSize countOptimalSize() override;
+	QSize countCurrentSize(int newWidth) override;
+
+	TextSelection toDescriptionSelection(TextSelection selection) const;
+	TextSelection fromDescriptionSelection(TextSelection selection) const;
 
 	LocationData *_data;
 	Text _title, _description;
 	ClickHandlerPtr _link;
 
-	int32 fullWidth() const;
-	int32 fullHeight() const;
+	int fullWidth() const;
+	int fullHeight() const;
 
 };

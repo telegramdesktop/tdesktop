@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "auth_session.h"
 #include "storage/localstorage.h"
+#include "history/history.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/confirm_box.h"
 

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/data_abstract_structure.h"
 #include "data/data_session.h"
+#include "history/history.h"
 #include "history/history_location_manager.h"
 #include "history/history_media_types.h"
 #include "history/history_item_components.h"
@@ -1607,7 +1608,7 @@ namespace {
 			auto i = items.constFind(result);
 			if (i != items.cend()) {
 				for_const (auto item, i.value()) {
-					item->setPendingInitDimensions();
+					Auth().data().requestItemViewResize(item);
 				}
 			}
 		}

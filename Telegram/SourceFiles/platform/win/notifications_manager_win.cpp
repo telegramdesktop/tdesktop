@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/windows_app_user_model_id.h"
 #include "platform/win/windows_event_filter.h"
 #include "platform/win/windows_dlls.h"
+#include "history/history.h"
 #include "mainwindow.h"
 
 #include <Shobjidl.h>

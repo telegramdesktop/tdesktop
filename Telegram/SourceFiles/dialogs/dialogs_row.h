@@ -67,9 +67,7 @@ public:
 	int pos() const {
 		return _pos;
 	}
-	uint64 sortKey() const {
-		return _id.entry()->sortKeyInChatList();
-	}
+	uint64 sortKey() const;
 
 	// for any attached data, for example View in contacts list
 	void *attached = nullptr;

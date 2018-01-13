@@ -17,8 +17,24 @@ class Service : public Element {
 public:
 	Service(not_null<HistoryService*> data, Context context);
 
+	void draw(
+		Painter &p,
+		QRect clip,
+		TextSelection selection,
+		TimeMs ms) const override;
+	bool hasPoint(QPoint point) const override;
+	HistoryTextState getState(
+		QPoint point,
+		HistoryStateRequest request) const override;
+	void updatePressed(QPoint point) override;
+
 private:
 	not_null<HistoryService*> message() const;
+
+	QRect countGeometry() const;
+
+	QSize performCountOptimalSize() override;
+	QSize performCountCurrentSize(int newWidth) override;
 
 };
 
@@ -37,19 +53,14 @@ struct PaintContext {
 
 class ServiceMessagePainter {
 public:
-	static void paint(
-		Painter &p,
-		not_null<const HistoryService*> message,
-		const PaintContext &context,
-		int height);
-
 	static void paintDate(Painter &p, const QDateTime &date, int y, int w);
 	static void paintDate(Painter &p, const QString &dateText, int dateTextWidth, int y, int w);
 
 	static void paintBubble(Painter &p, int x, int y, int w, int h);
 
-private:
 	static void paintComplexBubble(Painter &p, int left, int width, const Text &text, const QRect &textRect);
+
+private:
 	static QVector<int> countLineWidths(const Text &text, const QRect &textRect);
 
 };
@@ -57,7 +68,5 @@ private:
 void paintEmpty(Painter &p, int width, int height);
 
 void serviceColorsUpdated();
-
-void paintBubble(Painter &p, QRect rect, int outerWidth, bool selected, bool outbg, RectPart tailSide);
 
 } // namespace HistoryView

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/bot_keyboard.h"
 
+#include "history/history.h"
 #include "history/history_item_components.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"

@@ -43,6 +43,22 @@ rpl::producer<not_null<const HistoryItem*>> Session::itemRepaintRequest() const 
 	return _itemRepaintRequest.events();
 }
 
+void Session::requestItemViewResize(not_null<const HistoryItem*> item) {
+	_itemViewResizeRequest.fire_copy(item);
+}
+
+rpl::producer<not_null<const HistoryItem*>> Session::itemViewResizeRequest() const {
+	return _itemViewResizeRequest.events();
+}
+
+void Session::requestItemViewRefresh(not_null<const HistoryItem*> item) {
+	_itemViewRefreshRequest.fire_copy(item);
+}
+
+rpl::producer<not_null<const HistoryItem*>> Session::itemViewRefreshRequest() const {
+	return _itemViewRefreshRequest.events();
+}
+
 void Session::markItemRemoved(not_null<const HistoryItem*> item) {
 	_itemRemoved.fire_copy(item);
 }
@@ -130,7 +146,7 @@ void Session::userIsContactUpdated(not_null<UserData*> user) {
 	const auto i = items.constFind(peerToUser(user->id));
 	if (i != items.cend()) {
 		for (const auto item : std::as_const(i.value())) {
-			item->setPendingInitDimensions();
+			requestItemViewResize(item);
 		}
 	}
 }

@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/layer_widget.h"
 #include "lang/lang_keys.h"
 #include "base/observer.h"
+#include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_media.h"
 #include "styles/style_history.h"
@@ -258,6 +259,10 @@ void showPeerProfile(const PeerId &peer) {
 	}
 }
 
+void showPeerProfile(not_null<const History*> history) {
+	showPeerProfile(history->peer->id);
+}
+
 void showPeerHistory(
 		const PeerId &peer,
 		MsgId msgId) {
@@ -272,6 +277,10 @@ void showPeerHistory(
 
 void showPeerHistoryAtItem(not_null<const HistoryItem*> item) {
 	showPeerHistory(item->history()->peer->id, item->id);
+}
+
+void showPeerHistory(not_null<const History*> history, MsgId msgId) {
+	showPeerHistory(history->peer->id, msgId);
 }
 
 PeerData *getPeerForMouseAction() {
@@ -343,25 +352,25 @@ void handlePendingHistoryUpdate() {
 		Auth().data().requestItemRepaint(item);
 
 		// Start the video if it is waiting for that.
-		if (item->pendingInitDimensions()) {
-			if (const auto media = item->getMedia()) {
-				if (const auto reader = media->getClipReader()) {
-					const auto startRequired = [&] {
-						if (reader->started()) {
-							return false;
-						}
-						using Mode = Media::Clip::Reader::Mode;
-						return (reader->mode() == Mode::Video);
-					};
-					if (startRequired()) {
-						const auto width = std::max(
-							item->width(),
-							st::historyMinimalWidth);
-						item->resizeGetHeight(width);
-					}
-				}
-			}
-		}
+		//if (item->pendingInitDimensions()) { // #TODO floating player video
+		//	if (const auto media = item->getMedia()) {
+		//		if (const auto reader = media->getClipReader()) {
+		//			const auto startRequired = [&] {
+		//				if (reader->started()) {
+		//					return false;
+		//				}
+		//				using Mode = Media::Clip::Reader::Mode;
+		//				return (reader->mode() == Mode::Video);
+		//			};
+		//			if (startRequired()) {
+		//				const auto width = std::max(
+		//					item->width(),
+		//					st::historyMinimalWidth);
+		//				item->resizeGetHeight(width);
+		//			}
+		//		}
+		//	}
+		//}
 	}
 }
 

@@ -24,8 +24,6 @@ public:
 		not_null<HistoryItem*> newParent,
 		not_null<HistoryItem*> realParent) const override;
 
-	void initDimensions() override;
-	int resizeGetHeight(int width) override;
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 	void updateSentMedia(const MTPMessageMedia &media) override;
 	bool needReSetInlineResultMedia(const MTPMessageMedia &media) override;
@@ -114,6 +112,9 @@ private:
 		mutable QPixmap cache;
 
 	};
+
+	QSize countOptimalSize() override;
+	QSize countCurrentSize(int newWidth) override;
 
 	bool needInfoDisplay() const;
 	bool computeNeedBubble() const;

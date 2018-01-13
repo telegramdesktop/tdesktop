@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
+#include "history/history.h"
 
 namespace Profile {
 namespace {

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/input_fields.h"
 #include "chat_helpers/message_field.h"
+#include "history/history.h"
 #include "history/history_widget.h"
 #include "mainwidget.h"
 #include "storage/localstorage.h"

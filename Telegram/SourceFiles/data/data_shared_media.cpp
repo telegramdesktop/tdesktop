@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "history/history_media_types.h"
 #include "data/data_sparse_ids.h"
 #include "info/info_memento.h"

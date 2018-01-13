@@ -65,8 +65,10 @@ History::History(const PeerId &peerId)
 , cloudDraftTextCache(st::dialogsTextWidthMin)
 , _mute(peer->isMuted())
 , _sendActionText(st::dialogsTextWidthMin) {
-	if (peer->isUser() && peer->asUser()->botInfo) {
-		outboxReadBefore = INT_MAX;
+	if (const auto user = peer->asUser()) {
+		if (user->botInfo) {
+			outboxReadBefore = INT_MAX;
+		}
 	}
 }
 
@@ -1391,8 +1393,9 @@ void History::addItemToBlock(not_null<HistoryItem*> item) {
 	block->messages.push_back(item->createView(
 		App::wnd()->controller(),
 		HistoryView::Context::History));
-	block->messages.back()->attachToBlock(block, block->messages.size() - 1);
-	item->previousItemChanged();
+	const auto view = block->messages.back().get();
+	view->attachToBlock(block, block->messages.size() - 1);
+	view->previousInBlocksChanged();
 
 	if (isBuildingFrontBlock() && _buildingFrontBlock->expectedItemsCount > 0) {
 		--_buildingFrontBlock->expectedItemsCount;
@@ -1969,16 +1972,16 @@ not_null<HistoryItem*> History::addNewInTheMiddle(
 			App::wnd()->controller(),
 			HistoryView::Context::History));
 	(*it)->attachToBlock(block.get(), itemIndex);
-	newItem->previousItemChanged();
+	(*it)->previousInBlocksChanged();
 	if (itemIndex + 1 < block->messages.size()) {
 		for (auto i = itemIndex + 1, l = int(block->messages.size()); i != l; ++i) {
 			block->messages[i]->setIndexInBlock(i);
 		}
-		block->messages[itemIndex + 1]->data()->previousItemChanged();
+		block->messages[itemIndex + 1]->previousInBlocksChanged();
 	} else if (blockIndex + 1 < blocks.size() && !blocks[blockIndex + 1]->messages.empty()) {
-		blocks[blockIndex + 1]->messages.front()->data()->previousItemChanged();
+		blocks[blockIndex + 1]->messages.front()->previousInBlocksChanged();
 	} else {
-		newItem->nextItemChanged();
+		(*it)->nextInBlocksChanged();
 	}
 
 	const auto [groupFrom, groupTill] = recountGroupingFromTill(newItem);
@@ -2155,14 +2158,15 @@ HistoryBlock *History::finishBuildingFrontBlock() {
 	auto block = _buildingFrontBlock->block;
 	if (block) {
 		if (blocks.size() > 1) {
-			const auto last = block->messages.back()->data(); // ... item, item, item, last ], [ first, item, item ...
-			const auto first = blocks[1]->messages.front()->data();
+			// ... item, item, item, last ], [ first, item, item ...
+			const auto last = block->messages.back().get();
+			const auto first = blocks[1]->messages.front().get();
 
 			// we've added a new front block, so previous item for
 			// the old first item of a first block was changed
-			first->previousItemChanged();
+			first->previousInBlocksChanged();
 		} else {
-			block->messages.back()->data()->nextItemChanged();
+			block->messages.back()->nextInBlocksChanged();
 		}
 	}
 
@@ -2509,9 +2513,6 @@ void History::changedChatListPinHook() {
 		Notify::PeerUpdate::Flag::PinnedChanged);
 }
 
-void History::changeMsgId(MsgId oldId, MsgId newId) {
-}
-
 void History::removeBlock(not_null<HistoryBlock*> block) {
 	Expects(block->messages.empty());
 
@@ -2525,9 +2526,9 @@ void History::removeBlock(not_null<HistoryBlock*> block) {
 		for (int i = index, l = blocks.size(); i < l; ++i) {
 			blocks[i]->setIndexInHistory(i);
 		}
-		blocks[index]->messages.front()->data()->previousItemChanged();
+		blocks[index]->messages.front()->previousInBlocksChanged();
 	} else if (!blocks.empty() && !blocks.back()->messages.empty()) {
-		blocks.back()->messages.back()->data()->nextItemChanged();
+		blocks.back()->messages.back()->nextInBlocksChanged();
 	}
 }
 
@@ -2543,12 +2544,10 @@ int HistoryBlock::resizeGetHeight(int newWidth, bool resizeAllItems) {
 	auto y = 0;
 	for (const auto &message : messages) {
 		message->setY(y);
-
-		const auto item = message->data();
-		if (resizeAllItems || item->pendingResize()) {
-			y += item->resizeGetHeight(newWidth);
+		if (resizeAllItems || message->pendingResize()) {
+			y += message->resizeGetHeight(newWidth);
 		} else {
-			y += item->height();
+			y += message->height();
 		}
 	}
 	_height = y;
@@ -2606,11 +2605,11 @@ void HistoryBlock::remove(not_null<Element*> view) {
 		// Deletes this.
 		_history->removeBlock(this);
 	} else if (itemIndex < messages.size()) {
-		messages[itemIndex]->data()->previousItemChanged();
+		messages[itemIndex]->previousInBlocksChanged();
 	} else if (blockIndex + 1 < _history->blocks.size()) {
-		_history->blocks[blockIndex + 1]->messages.front()->data()->previousItemChanged();
+		_history->blocks[blockIndex + 1]->messages.front()->previousInBlocksChanged();
 	} else if (!_history->blocks.empty() && !_history->blocks.back()->messages.empty()) {
-		_history->blocks.back()->messages.back()->data()->nextItemChanged();
+		_history->blocks.back()->messages.back()->nextInBlocksChanged();
 	}
 
 	if (needGroupRecount) {

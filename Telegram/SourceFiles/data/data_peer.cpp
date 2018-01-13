@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_feed.h"
 #include "data/data_session.h"
+#include "history/history.h"
 #include "lang/lang_keys.h"
 #include "observer_peer.h"
 #include "mainwidget.h"

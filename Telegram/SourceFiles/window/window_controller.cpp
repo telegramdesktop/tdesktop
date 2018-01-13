@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
+#include "history/history.h"
 #include "history/history_item.h"
 #include "mainwidget.h"
 #include "mainwindow.h"

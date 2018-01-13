@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_clip_controller.h"
 #include "media/view/media_view_group_thumbs.h"
 #include "media/media_audio.h"
+#include "history/history.h"
 #include "history/history_message.h"
 #include "history/history_media_types.h"
 #include "window/themes/window_theme_preview.h"
@@ -915,7 +916,7 @@ void MediaView::clipCallback(Media::Clip::Notification notification) {
 }
 
 PeerData *MediaView::ui_getPeerForMouseAction() {
-	return _history ? _history->peer : nullptr;
+	return _history ? _history->peer.get() : nullptr;
 }
 
 void MediaView::onDownload() {

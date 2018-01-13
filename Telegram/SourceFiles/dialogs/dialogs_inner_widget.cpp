@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_layout.h"
 #include "dialogs/dialogs_search_from_controllers.h"
 #include "history/feed/history_feed_section.h"
+#include "history/history.h"
 #include "history/history_item.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat_helpers.h"
@@ -323,7 +324,7 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 					const auto row = _filterResults[from];
 					const auto key = row->key();
 					const auto history = key.history();
-					const auto peer = history ? history->peer : nullptr;
+					const auto peer = history ? history->peer.get() : nullptr;
 					const auto active = !activeMsgId
 						&& peer
 						&& activePeer
@@ -1354,6 +1355,12 @@ void DialogsInner::updateSelectedRow(Dialogs::Key key) {
 			update(0, searchedOffset() + _searchedSelected * st::dialogsRowHeight, getFullWidth(), st::dialogsRowHeight);
 		}
 	}
+}
+
+Dialogs::IndexedList *DialogsInner::shownDialogs() const {
+	return (Global::DialogsMode() == Dialogs::Mode::Important)
+		? _dialogsImportant.get()
+		: _dialogs.get();
 }
 
 void DialogsInner::leaveEventHook(QEvent *e) {

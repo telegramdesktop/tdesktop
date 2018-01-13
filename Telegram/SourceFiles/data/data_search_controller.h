@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_sparse_ids_list.h"
 #include "storage/storage_shared_media.h"
 #include "base/value_ordering.h"
+#include "base/timer.h"
 
 namespace Data {
 enum class LoadDirection : char;

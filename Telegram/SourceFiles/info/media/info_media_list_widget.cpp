@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "overview/overview_layout.h"
 #include "history/history_media_types.h"
 #include "history/history_item.h"
+#include "history/history.h"
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
 #include "window/window_peer_menu.h"

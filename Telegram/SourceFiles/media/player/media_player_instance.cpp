@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "messenger.h"
 #include "auth_session.h"
 #include "calls/calls_instance.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "history/history_media.h"
 
 namespace Media {
@@ -97,7 +99,9 @@ void Instance::setCurrent(const AudioMsgId &audioId) {
 
 			auto history = data->history;
 			auto migrated = data->migrated;
-			auto item = data->current ? App::histItemById(data->current.contextId()) : nullptr;
+			auto item = data->current
+				? App::histItemById(data->current.contextId())
+				: nullptr;
 			if (item) {
 				data->history = item->history()->migrateToOrMe();
 				data->migrated = data->history->migrateFrom();

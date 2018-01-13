@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "messenger.h"
 #include "mainwidget.h"
 #include "boxes/add_contact_box.h"
+#include "history/history.h"
 #include "history/history_message.h"
 #include "history/history_media_types.h"
 #include "history/history_item_components.h"
@@ -1726,7 +1727,7 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 			v->at(index),
 			NewMessageExisting);
 		if (item) {
-			item->setPendingInitDimensions();
+			Auth().data().requestItemViewResize(item);
 		}
 	}
 
@@ -1738,7 +1739,7 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 				auto j = items.constFind(i.key());
 				if (j != items.cend()) {
 					for_const (auto item, j.value()) {
-						item->setPendingInitDimensions();
+						Auth().data().requestItemViewResize(item);
 					}
 				}
 			}

@@ -17,6 +17,7 @@ struct RowDescriptor;
 class Row;
 class FakeRow;
 class IndexedList;
+class Key;
 } // namespace Dialogs
 
 namespace Ui {

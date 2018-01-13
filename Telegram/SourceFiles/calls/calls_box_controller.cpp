@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "ui/effects/ripple_animation.h"
 #include "calls/calls_instance.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "history/history_media_types.h"
 #include "mainwidget.h"
 #include "auth_session.h"

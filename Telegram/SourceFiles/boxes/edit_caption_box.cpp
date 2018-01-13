@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/text_options.h"
 #include "media/media_clip_reader.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "history/history_media_types.h"
 #include "lang/lang_keys.h"
 #include "window/window_controller.h"

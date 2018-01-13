@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager_default.h"
 #include "media/media_audio_track.h"
 #include "media/media_audio.h"
+#include "history/history.h"
 #include "history/history_item_components.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -56,7 +57,9 @@ void System::createManager() {
 void System::schedule(History *history, HistoryItem *item) {
 	if (App::quitting() || !history->currentNotification() || !AuthSession::Exists()) return;
 
-	auto notifyByFrom = (!history->peer->isUser() && item->mentionsMe()) ? item->from() : nullptr;
+	auto notifyByFrom = (!history->peer->isUser() && item->mentionsMe())
+		? item->from().get()
+		: nullptr;
 
 	if (item->isSilent()) {
 		history->popNotification(item);

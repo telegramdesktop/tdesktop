@@ -7,6 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+class HistoryItem;
+using HistoryItemsList = std::vector<not_null<HistoryItem*>>;
+
 namespace Data {
 
 struct UploadState {

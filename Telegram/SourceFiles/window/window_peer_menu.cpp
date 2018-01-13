@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "observer_peer.h"
 #include "styles/style_boxes.h"
+#include "history/history.h"
 #include "window/window_controller.h"
 #include "data/data_session.h"
 #include "data/data_feed.h"

@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "dialogs/dialogs_widget.h"
 #include "dialogs/dialogs_key.h"
+#include "history/history.h"
 #include "history/history_widget.h"
 #include "history/history_message.h"
 #include "history/history_media.h"
@@ -705,7 +706,7 @@ void MainWidget::webPagesOrGamesUpdate() {
 			auto j = items.constFind(App::webPage(webPageId));
 			if (j != items.cend()) {
 				for_const (auto item, j.value()) {
-					item->setPendingInitDimensions();
+					Auth().data().requestItemViewResize(item);
 				}
 			}
 		}
@@ -717,7 +718,7 @@ void MainWidget::webPagesOrGamesUpdate() {
 			auto j = items.constFind(App::game(gameId));
 			if (j != items.cend()) {
 				for_const (auto item, j.value()) {
-					item->setPendingInitDimensions();
+					Auth().data().requestItemViewResize(item);
 				}
 			}
 		}
@@ -4909,7 +4910,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					}
 					App::historyUnregItem(local);
 					Auth().messageIdChanging.notify({ local, newId }, true);
-					local->setId(d.vid.v);
+					local->setRealId(d.vid.v);
 					App::historyRegItem(local);
 					Auth().data().requestItemRepaint(local);
 				}

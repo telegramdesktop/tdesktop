@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/history_service.h"
 #include "history/history_message.h"
+#include "history/history.h"
 #include "lang/lang_keys.h"
 #include "boxes/sticker_set_box.h"
 #include "core/tl_help.h"

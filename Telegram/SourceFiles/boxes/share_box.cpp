@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/text_options.h"
+#include "history/history.h"
 #include "history/history_media_types.h"
 #include "history/history_message.h"
 #include "window/themes/window_theme.h"

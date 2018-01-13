@@ -23,6 +23,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_result.h"
 #include "data/data_drafts.h"
 #include "data/data_session.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "history/history_message.h"
 #include "history/history_media_types.h"
 #include "history/history_drag_area.h"
@@ -628,14 +630,18 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 	}));
 	subscribe(Auth().data().pendingHistoryResize(), [this] { handlePendingHistoryUpdate(); });
 	subscribe(Auth().data().queryItemVisibility(), [this](const Data::Session::ItemVisibilityQuery &query) {
-		if (_a_show.animating() || _history != query.item->history() || !query.item->mainView() || !isVisible()) {
+		if (_a_show.animating()
+			|| _history != query.item->history()
+			|| !query.item->mainView() || !isVisible()) {
 			return;
 		}
-		auto top = _list->itemTop(query.item);
-		if (top >= 0) {
-			auto scrollTop = _scroll->scrollTop();
-			if (top + query.item->height() > scrollTop && top < scrollTop + _scroll->height()) {
-				*query.isVisible = true;
+		if (const auto view = query.item->mainView()) {
+			auto top = _list->itemTop(view);
+			if (top >= 0) {
+				auto scrollTop = _scroll->scrollTop();
+				if (top + view->height() > scrollTop && top < scrollTop + _scroll->height()) {
+					*query.isVisible = true;
+				}
 			}
 		}
 	});
@@ -684,13 +690,15 @@ void HistoryWidget::scrollToCurrentVoiceMessage(FullMsgId fromId, FullMsgId toId
 	// And the scrollTop will be reset back to scrollTopItem + scrollTopOffset.
 	handlePendingHistoryUpdate();
 
-	auto toTop = _list->itemTop(to);
-	if (toTop >= 0 && !isItemCompletelyHidden(from)) {
-		auto scrollTop = _scroll->scrollTop();
-		auto scrollBottom = scrollTop + _scroll->height();
-		auto toBottom = toTop + to->height();
-		if ((toTop < scrollTop && toBottom < scrollBottom) || (toTop > scrollTop && toBottom > scrollBottom)) {
-			animatedScrollToItem(to->id);
+	if (const auto toView = to->mainView()) {
+		auto toTop = _list->itemTop(toView);
+		if (toTop >= 0 && !isItemCompletelyHidden(from)) {
+			auto scrollTop = _scroll->scrollTop();
+			auto scrollBottom = scrollTop + _scroll->height();
+			auto toBottom = toTop + toView->height();
+			if ((toTop < scrollTop && toBottom < scrollBottom) || (toTop > scrollTop && toBottom > scrollBottom)) {
+				animatedScrollToItem(to->id);
+			}
 		}
 	}
 }
@@ -867,13 +875,16 @@ void HistoryWidget::clearHighlightMessages() {
 }
 
 int HistoryWidget::itemTopForHighlight(not_null<HistoryItem*> item) const {
+	const auto view = item->mainView();
+	Assert(view != nullptr);
+
 	if (const auto group = item->getFullGroup()) {
 		item = group->leader;
 	}
-	auto itemTop = _list->itemTop(item);
+	auto itemTop = _list->itemTop(view);
 	Assert(itemTop >= 0);
 
-	auto heightLeft = (_scroll->height() - item->height());
+	auto heightLeft = (_scroll->height() - view->height());
 	if (heightLeft <= 0) {
 		return itemTop;
 	}
@@ -1367,7 +1378,7 @@ void HistoryWidget::notify_migrateUpdated(PeerData *peer) {
 		if (_peer == peer) {
 			if (peer->migrateTo()) {
 				showHistory(peer->migrateTo()->id, (_showAtMsgId > 0) ? (-_showAtMsgId) : _showAtMsgId, true);
-			} else if ((_migrated ? _migrated->peer : 0) != peer->migrateFrom()) {
+			} else if ((_migrated ? _migrated->peer.get() : nullptr) != peer->migrateFrom()) {
 				auto migrated = _history->migrateFrom();
 				if (_migrated || (migrated && migrated->unreadCount() > 0)) {
 					showHistory(peer->id, peer->migrateFrom() ? _showAtMsgId : ((_showAtMsgId < 0 && -_showAtMsgId < ServerMaxMsgId) ? ShowAtUnreadMsgId : _showAtMsgId), true);
@@ -2537,7 +2548,7 @@ void HistoryWidget::loadMessages() {
 			MTP_int(maxId),
 			MTP_int(minId),
 			MTP_int(historyHash)),
-		rpcDone(&HistoryWidget::messagesReceived, from->peer),
+		rpcDone(&HistoryWidget::messagesReceived, from->peer.get()),
 		rpcFail(&HistoryWidget::messagesFailed));
 }
 
@@ -2581,7 +2592,7 @@ void HistoryWidget::loadMessagesDown() {
 			MTP_int(maxId),
 			MTP_int(minId),
 			MTP_int(historyHash)),
-		rpcDone(&HistoryWidget::messagesReceived, from->peer),
+		rpcDone(&HistoryWidget::messagesReceived, from->peer.get()),
 		rpcFail(&HistoryWidget::messagesFailed));
 }
 
@@ -2647,12 +2658,16 @@ void HistoryWidget::onScroll() {
 }
 
 bool HistoryWidget::isItemCompletelyHidden(HistoryItem *item) const {
+	const auto view = item ? item->mainView() : nullptr;
+	if (!view) {
+		return true;
+	}
 	auto top = _list ? _list->itemTop(item) : -2;
 	if (top < 0) {
 		return true;
 	}
 
-	auto bottom = top + item->height();
+	auto bottom = top + view->height();
 	auto scrollTop = _scroll->scrollTop();
 	auto scrollBottom = scrollTop + _scroll->height();
 	return (top >= scrollBottom || bottom <= scrollTop);
@@ -3414,7 +3429,11 @@ bool HistoryWidget::insertBotCommand(const QString &cmd) {
 	auto insertingInlineBot = !cmd.isEmpty() && (cmd.at(0) == '@');
 	auto toInsert = cmd;
 	if (!toInsert.isEmpty() && !insertingInlineBot) {
-		auto bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? App::hoveredLinkItem()->data()->fromOriginal() : nullptr);
+		auto bot = _peer->isUser()
+			? _peer
+			: (App::hoveredLinkItem()
+				? App::hoveredLinkItem()->data()->fromOriginal().get()
+				: nullptr);
 		if (bot && (!bot->isUser() || !bot->asUser()->botInfo)) {
 			bot = nullptr;
 		}
@@ -3940,7 +3959,7 @@ void HistoryWidget::updateFieldPlaceholder() {
 			auto text = _inlineBot->botInfo->inlinePlaceholder.mid(1);
 			_field->setPlaceholder([text] { return text; }, _inlineBot->username.size() + 2);
 		} else {
-			const auto peer = _history ? _history->peer : nullptr;
+			const auto peer = _history ? _history->peer.get() : nullptr;
 			_field->setPlaceholder(langFactory(
 				(peer && peer->isChannel() && !peer->isMegagroup())
 				? (peer->notifySilentPosts()
@@ -4788,6 +4807,11 @@ void HistoryWidget::updateListSize() {
 		_scroll->hide();
 	}
 	_updateHistoryGeometryRequired = true;
+}
+
+bool HistoryWidget::hasPendingResizedItems() const {
+	return (_history && _history->hasPendingResizedItems())
+		|| (_migrated && _migrated->hasPendingResizedItems());
 }
 
 int HistoryWidget::unreadBarTop() const {

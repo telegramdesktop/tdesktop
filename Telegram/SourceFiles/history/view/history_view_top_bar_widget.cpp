@@ -9,10 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <rpl/combine.h>
 #include <rpl/combine_previous.h>
-#include "styles/style_window.h"
-#include "styles/style_dialogs.h"
-#include "styles/style_history.h"
-#include "styles/style_info.h"
+#include "history/history.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
 #include "info/info_memento.h"
@@ -33,6 +30,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
+#include "styles/style_window.h"
+#include "styles/style_dialogs.h"
+#include "styles/style_history.h"
+#include "styles/style_info.h"
 
 namespace HistoryView {
 

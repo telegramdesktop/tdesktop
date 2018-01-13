@@ -244,9 +244,7 @@ private:
 	void clearSearchResults(bool clearPeerSearchResults = true);
 	void updateSelectedRow(Dialogs::Key key = Dialogs::Key());
 
-	Dialogs::IndexedList *shownDialogs() const {
-		return (Global::DialogsMode() == Dialogs::Mode::Important) ? _dialogsImportant.get() : _dialogs.get();
-	}
+	Dialogs::IndexedList *shownDialogs() const;
 
 	void checkReorderPinnedStart(QPoint localPosition);
 	int shownPinnedCount() const;

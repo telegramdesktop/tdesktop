@@ -7,9 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "history/view/history_view_object.h"
 #include "base/runtime_composer.h"
+#include "base/flags.h"
 
+class HistoryBlock;
 class HistoryItem;
+struct HistoryTextState;
+struct HistoryStateRequest;
 
 namespace HistoryView {
 
@@ -20,44 +25,58 @@ enum class Context : char {
 };
 
 class Element
-	: public RuntimeComposer
+	: public Object
+//	, public RuntimeComposer
 	, public ClickHandlerHost {
 public:
 	Element(not_null<HistoryItem*> data, Context context);
 
+	enum class Flag : uchar {
+		NeedsResize        = 0x01,
+		AttachedToPrevious = 0x02,
+		AttachedToNext     = 0x04,
+	};
+	using Flags = base::flags<Flag>;
+	friend inline constexpr auto is_flag_type(Flag) { return true; }
+
 	not_null<HistoryItem*> data() const;
+	Context context() const;
 
-	int y() const {
-		return _y;
-	}
-	void setY(int y) {
-		_y = y;
-	}
+	int y() const;
+	void setY(int y);
 
-	HistoryBlock *block() {
-		return _block;
-	}
-	const HistoryBlock *block() const {
-		return _block;
-	}
-	void attachToBlock(not_null<HistoryBlock*> block, int index);
-	void removeFromBlock();
-	void setIndexInBlock(int index) {
-		Expects(_block != nullptr);
-		Expects(index >= 0);
+	int marginTop() const;
+	int marginBottom() const;
+	void setPendingResize();
+	bool pendingResize() const;
 
-		_indexInBlock = index;
-	}
-	int indexInBlock() const {
-		Expects((_indexInBlock >= 0) == (_block != nullptr));
-		Expects((_block == nullptr) || (_block->messages[_indexInBlock].get() == this));
+	bool isAttachedToPrevious() const;
+	bool isAttachedToNext() const;
 
-		return _indexInBlock;
-	}
-	Element *previousInBlocks() const;
-	Element *nextInBlocks() const;
+	// For blocks context this should be called only from recountAttachToPreviousInBlocks().
+	void setAttachToPrevious(bool attachToNext);
 
-	// ClickHandlerHost interface
+	// For blocks context this should be called only from recountAttachToPreviousInBlocks()
+	// of the next item or when the next item is removed through nextInBlocksChanged() call.
+	void setAttachToNext(bool attachToNext);
+
+	// For blocks context this should be called only from recountDisplayDate().
+	void setDisplayDate(bool displayDate);
+
+	bool computeIsAttachToPrevious(not_null<Element*> previous);
+
+	virtual void draw(
+		Painter &p,
+		QRect clip,
+		TextSelection selection,
+		TimeMs ms) const = 0;
+	[[nodiscard]] virtual bool hasPoint(QPoint point) const = 0;
+	[[nodiscard]] virtual HistoryTextState getState(
+		QPoint point,
+		HistoryStateRequest request) const = 0;
+	virtual void updatePressed(QPoint point) = 0;
+
+	// ClickHandlerHost interface.
 	void clickHandlerActiveChanged(
 		const ClickHandlerPtr &handler,
 		bool active) override;
@@ -65,12 +84,53 @@ public:
 		const ClickHandlerPtr &handler,
 		bool pressed) override;
 
+	// hasFromPhoto() returns true even if we don't display the photo
+	// but we need to skip a place at the left side for this photo
+	virtual bool displayFromPhoto() const;
+	virtual bool hasFromPhoto() const;
+	virtual bool hasFromName() const;
+	virtual bool displayFromName() const;
+
+	// Legacy blocks structure.
+	HistoryBlock *block();
+	const HistoryBlock *block() const;
+	void attachToBlock(not_null<HistoryBlock*> block, int index);
+	void removeFromBlock();
+	void setIndexInBlock(int index);
+	int indexInBlock() const;
+	Element *previousInBlocks() const;
+	Element *nextInBlocks() const;
+	void previousInBlocksChanged();
+	void nextInBlocksChanged();
+
 	virtual ~Element();
 
+protected:
+	void setInitialSize(int maxWidth, int minHeight);
+	void setCurrentSize(int width, int height);
+
 private:
+	// This should be called only from previousInBlocksChanged()
+	// to add required bits to the Composer mask
+	// after that always use Has<HistoryMessageDate>().
+	void recountDisplayDateInBlocks();
+
+	// This should be called only from previousInBlocksChanged() or when
+	// HistoryMessageDate or HistoryMessageUnreadBar bit is changed in the Composer mask
+	// then the result should be cached in a client side flag MTPDmessage_ClientFlag::f_attach_to_previous.
+	void recountAttachToPreviousInBlocks();
+
+	QSize countOptimalSize() final override;
+	QSize countCurrentSize(int newWidth) final override;
+
+	virtual QSize performCountOptimalSize() = 0;
+	virtual QSize performCountCurrentSize(int newWidth) = 0;
+
 	const not_null<HistoryItem*> _data;
 	int _y = 0;
 	Context _context;
+
+	Flags _flags = Flag::NeedsResize;
 
 	HistoryBlock *_block = nullptr;
 	int _indexInBlock = -1;

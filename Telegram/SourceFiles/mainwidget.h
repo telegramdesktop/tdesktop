@@ -27,6 +27,8 @@ struct PeerUpdate;
 namespace Dialogs {
 struct RowDescriptor;
 class Row;
+class Key;
+class IndexedList;
 } // namespace Dialogs
 
 namespace Media {

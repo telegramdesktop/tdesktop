@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
+class HistoryMedia;
+
 namespace Ui {
 class InputArea;
 } // namespace Ui

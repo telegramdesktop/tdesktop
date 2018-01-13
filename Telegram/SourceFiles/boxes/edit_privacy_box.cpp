@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/slide_wrap.h"
+#include "history/history.h"
 #include "boxes/peer_list_controllers.h"
 #include "apiwrap.h"
 #include "auth_session.h"

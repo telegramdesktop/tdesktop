@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_channel_admins.h"
 
+#include "history/history.h"
+
 namespace Data {
 
 ChannelAdminChanges::ChannelAdminChanges(not_null<ChannelData*> channel)

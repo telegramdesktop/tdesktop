@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "storage/file_download.h"
 #include "auth_session.h"
+#include "history/history.h"
 #include "history/history_item.h"
 #include "platform/platform_specific.h"
 
@@ -69,7 +70,7 @@ Manager::QueuedNotification::QueuedNotification(
 	, int forwardedCount)
 : history(item->history())
 , peer(history->peer)
-, author((!peer->isUser() && !item->isPost()) ? item->author() : nullptr)
+, author((!peer->isUser() && !item->isPost()) ? item->author().get() : nullptr)
 , item((forwardedCount < 2) ? item.get() : nullptr)
 , forwardedCount(forwardedCount) {
 }

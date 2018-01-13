@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_cover.h"
 #include "media/player/media_player_instance.h"
 #include "info/media/info_media_list_widget.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "history/history_media.h"
 #include "data/data_document.h"
 #include "ui/widgets/shadow.h"

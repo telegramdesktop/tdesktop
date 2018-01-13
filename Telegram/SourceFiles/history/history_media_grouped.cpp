@@ -38,7 +38,7 @@ std::unique_ptr<HistoryMedia> HistoryGroupedMedia::clone(
 	return main()->clone(newParent, realParent);
 }
 
-void HistoryGroupedMedia::initDimensions() {
+QSize HistoryGroupedMedia::countOptimalSize() {
 	if (_caption.hasSkipBlock()) {
 		_caption.setSkipBlock(
 			_parent->skipBlockWidth(),
@@ -60,33 +60,35 @@ void HistoryGroupedMedia::initDimensions() {
 		st::historyGroupSkip);
 	Assert(layout.size() == _elements.size());
 
-	_maxw = _minh = 0;
+	auto maxWidth = 0;
+	auto minHeight = 0;
 	for (auto i = 0, count = int(layout.size()); i != count; ++i) {
 		const auto &item = layout[i];
-		accumulate_max(_maxw, item.geometry.x() + item.geometry.width());
-		accumulate_max(_minh, item.geometry.y() + item.geometry.height());
+		accumulate_max(maxWidth, item.geometry.x() + item.geometry.width());
+		accumulate_max(minHeight, item.geometry.y() + item.geometry.height());
 		_elements[i].initialGeometry = item.geometry;
 		_elements[i].sides = item.sides;
 	}
 
 	if (!_caption.isEmpty()) {
-		auto captionw = _maxw - st::msgPadding.left() - st::msgPadding.right();
-		_minh += st::mediaCaptionSkip + _caption.countHeight(captionw);
+		auto captionw = maxWidth - st::msgPadding.left() - st::msgPadding.right();
+		minHeight += st::mediaCaptionSkip + _caption.countHeight(captionw);
 		if (isBubbleBottom()) {
-			_minh += st::msgPadding.bottom();
+			minHeight += st::msgPadding.bottom();
 		}
 	}
+	return { maxWidth, minHeight };
 }
 
-int HistoryGroupedMedia::resizeGetHeight(int width) {
-	_width = std::min(width, _maxw);
-	_height = 0;
-	if (_width < st::historyGroupWidthMin) {
-		return _height;
+QSize HistoryGroupedMedia::countCurrentSize(int newWidth) {
+	accumulate_min(newWidth, maxWidth());
+	auto newHeight = 0;
+	if (newWidth < st::historyGroupWidthMin) {
+		return { newWidth, newHeight };
 	}
 
 	const auto initialSpacing = st::historyGroupSkip;
-	const auto factor = _width / float64(_maxw);
+	const auto factor = newWidth / float64(maxWidth());
 	const auto scale = [&](int value) {
 		return int(std::round(value * factor));
 	};
@@ -114,18 +116,18 @@ int HistoryGroupedMedia::resizeGetHeight(int width) {
 			- (needBottomSkip ? spacing : 0);
 		element.geometry = QRect(left, top, width, height);
 
-		accumulate_max(_height, top + height);
+		accumulate_max(newHeight, top + height);
 	}
 
 	if (!_caption.isEmpty()) {
-		const auto captionw = _width - st::msgPadding.left() - st::msgPadding.right();
-		_height += st::mediaCaptionSkip + _caption.countHeight(captionw);
+		const auto captionw = newWidth - st::msgPadding.left() - st::msgPadding.right();
+		newHeight += st::mediaCaptionSkip + _caption.countHeight(captionw);
 		if (isBubbleBottom()) {
-			_height += st::msgPadding.bottom();
+			newHeight += st::msgPadding.bottom();
 		}
 	}
 
-	return _height;
+	return { newWidth, newHeight };
 }
 
 void HistoryGroupedMedia::refreshParentId(
@@ -168,23 +170,23 @@ void HistoryGroupedMedia::draw(
 	// date
 	const auto selected = (selection == FullSelection);
 	if (!_caption.isEmpty()) {
-		const auto captionw = _width - st::msgPadding.left() - st::msgPadding.right();
+		const auto captionw = width() - st::msgPadding.left() - st::msgPadding.right();
 		const auto outbg = _parent->hasOutLayout();
-		const auto captiony = _height
+		const auto captiony = height()
 			- (isBubbleBottom() ? st::msgPadding.bottom() : 0)
 			- _caption.countHeight(captionw);
 		p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
 		_caption.draw(p, st::msgPadding.left(), captiony, captionw, style::al_left, 0, -1, selection);
 	} else if (_parent->getMedia() == this) {
-		auto fullRight = _width;
-		auto fullBottom = _height;
+		auto fullRight = width();
+		auto fullBottom = height();
 		if (needInfoDisplay()) {
-			_parent->drawInfo(p, fullRight, fullBottom, _width, selected, InfoDisplayOverImage);
+			_parent->drawInfo(p, fullRight, fullBottom, width(), selected, InfoDisplayOverImage);
 		}
 		if (!_parent->hasBubble() && _parent->displayRightAction()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
 			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
-			_parent->drawRightAction(p, fastShareLeft, fastShareTop, _width);
+			_parent->drawRightAction(p, fastShareLeft, fastShareTop, width());
 		}
 	}
 }
@@ -210,19 +212,19 @@ HistoryTextState HistoryGroupedMedia::getState(
 		HistoryStateRequest request) const {
 	auto result = getElementState(point, request);
 	if (!result.link && !_caption.isEmpty()) {
-		const auto captionw = _width - st::msgPadding.left() - st::msgPadding.right();
-		const auto captiony = _height
+		const auto captionw = width() - st::msgPadding.left() - st::msgPadding.right();
+		const auto captiony = height()
 			- (isBubbleBottom() ? st::msgPadding.bottom() : 0)
 			- _caption.countHeight(captionw);
-		if (QRect(st::msgPadding.left(), captiony, captionw, _height - captiony).contains(point)) {
+		if (QRect(st::msgPadding.left(), captiony, captionw, height() - captiony).contains(point)) {
 			return HistoryTextState(_parent, _caption.getState(
 				point - QPoint(st::msgPadding.left(), captiony),
 				captionw,
 				request.forText()));
 		}
 	} else if (_parent->getMedia() == this) {
-		auto fullRight = _width;
-		auto fullBottom = _height;
+		auto fullRight = width();
+		auto fullBottom = height();
 		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayOverImage)) {
 			result.cursor = HistoryInDateCursorState;
 		}
@@ -347,7 +349,7 @@ bool HistoryGroupedMedia::applyGroup(
 		pushElement(item);
 	}
 	_elements.push_back(std::move(mainElement));
-	_parent->setPendingInitDimensions();
+	//_parent->setPendingInitDimensions(); // #TODO group view
 	return true;
 }
 
@@ -452,7 +454,8 @@ bool HistoryGroupedMedia::computeNeedBubble() const {
 		if (message->viaBot()
 			|| message->Has<HistoryMessageReply>()
 			|| message->displayForwardedFrom()
-			|| message->displayFromName()) {
+//			|| message->displayFromName() // #TODO media views
+			) {
 			return true;
 		}
 	}

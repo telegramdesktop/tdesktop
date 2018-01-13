@@ -31,6 +31,10 @@ class Widget;
 class Result;
 } // namespace InlineBots
 
+namespace Data {
+struct Draft;
+} // namespace Data
+
 namespace Ui {
 class AbstractButton;
 class InnerDropdown;
@@ -664,9 +668,7 @@ private:
 	void updateListSize();
 
 	// Does any of the shown histories has this flag set.
-	bool hasPendingResizedItems() const {
-		return (_history && _history->hasPendingResizedItems()) || (_migrated && _migrated->hasPendingResizedItems());
-	}
+	bool hasPendingResizedItems() const;
 
 	// Counts scrollTop for placing the scroll right at the unread
 	// messages bar, choosing from _history and _migrated unreadBar.

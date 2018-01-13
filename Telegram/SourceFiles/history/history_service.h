@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history_item.h"
 
+namespace HistoryView {
+class Service;
+} // namespace HistoryView
+
 struct HistoryServiceDependentData {
 	MsgId msgId = 0;
 	HistoryItem *msg = nullptr;
@@ -78,12 +82,6 @@ public:
 		return true;
 	}
 
-	QRect countGeometry() const;
-
-	void draw(Painter &p, QRect clip, TextSelection selection, TimeMs ms) const override;
-	bool hasPoint(QPoint point) const override;
-	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
-
 	[[nodiscard]] TextSelection adjustSelection(
 			TextSelection selection,
 			TextSelectType type) const override {
@@ -118,9 +116,6 @@ protected:
 	HistoryService(not_null<History*> history, const MTPDmessageService &message);
 	HistoryService(not_null<History*> history, MsgId msgId, QDateTime date, const PreparedText &message, MTPDmessage::Flags flags = 0, UserId from = 0, PhotoData *photo = 0);
 	friend class HistoryItemInstantiated<HistoryService>;
-
-	void initDimensions() override;
-	int resizeContentGetHeight() override;
 
 	void markMediaAsReadHook() override;
 
@@ -161,6 +156,8 @@ private:
 	PreparedText preparePinnedText();
 	PreparedText prepareGameScoreText();
 	PreparedText preparePaymentSentText();
+
+	friend class HistoryView::Service;
 
 };
 

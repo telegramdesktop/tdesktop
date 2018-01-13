@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct HistoryTextState;
 struct HistoryStateRequest;
+class HistoryMedia;
 
 namespace style {
 struct RoundCheckbox;

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text_options.h"
 #include "lang/lang_keys.h"
 #include "history/history_item.h"
+#include "history/history.h"
 
 namespace Dialogs {
 namespace Layout {
@@ -355,7 +356,7 @@ void RowPainter::paint(
 		TimeMs ms) {
 	const auto entry = row->entry();
 	const auto history = row->history();
-	const auto peer = history ? history->peer : nullptr;
+	const auto peer = history ? history->peer.get() : nullptr;
 	const auto unreadCount = entry->chatListUnreadCount();
 	const auto unreadMuted = entry->chatListMutedBadge();
 	const auto item = entry->chatsListItem();
@@ -385,7 +386,7 @@ void RowPainter::paint(
 	const auto from = history
 		? (history->peer->migrateTo()
 			? history->peer->migrateTo()
-			: history->peer)
+			: history->peer.get())
 		: nullptr;
 	const auto flags = (active ? Flag::Active : Flag(0))
 		| (selected ? Flag::Selected : Flag(0))
@@ -520,12 +521,14 @@ void RowPainter::paint(
 	const auto from = [&] {
 		if (auto searchPeer = row->searchInPeer()) {
 			if (searchPeer->isSelf()) {
-				return item->senderOriginal();
+				return item->senderOriginal().get();
 			} else if (!searchPeer->isChannel() || searchPeer->isMegagroup()) {
-				return item->from();
+				return item->from().get();
 			}
 		}
-		return (history->peer->migrateTo() ? history->peer->migrateTo() : history->peer);
+		return history->peer->migrateTo()
+			? history->peer->migrateTo()
+			: history->peer.get();
 	}();
 	const auto drawInDialogWay = [&] {
 		if (auto searchPeer = row->searchInPeer()) {

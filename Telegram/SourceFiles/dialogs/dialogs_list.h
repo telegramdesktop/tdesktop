@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class PeerData;
 namespace Dialogs {
 
+enum class SortMode;
+
 class List {
 public:
 	List(SortMode sortMode);

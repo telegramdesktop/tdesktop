@@ -44,6 +44,10 @@ public:
 	rpl::producer<not_null<const HistoryItem*>> itemLayoutChanged() const;
 	void requestItemRepaint(not_null<const HistoryItem*> item);
 	rpl::producer<not_null<const HistoryItem*>> itemRepaintRequest() const;
+	void requestItemViewResize(not_null<const HistoryItem*> item);
+	rpl::producer<not_null<const HistoryItem*>> itemViewResizeRequest() const;
+	void requestItemViewRefresh(not_null<const HistoryItem*> item);
+	rpl::producer<not_null<const HistoryItem*>> itemViewRefreshRequest() const;
 	void markItemRemoved(not_null<const HistoryItem*> item);
 	rpl::producer<not_null<const HistoryItem*>> itemRemoved() const;
 	void markHistoryUnloaded(not_null<const History*> history);
@@ -179,6 +183,8 @@ private:
 	base::Observable<ItemVisibilityQuery> _queryItemVisibility;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemLayoutChanged;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemRepaintRequest;
+	rpl::event_stream<not_null<const HistoryItem*>> _itemViewResizeRequest;
+	rpl::event_stream<not_null<const HistoryItem*>> _itemViewRefreshRequest;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemRemoved;
 	rpl::event_stream<not_null<const History*>> _historyUnloaded;
 	rpl::event_stream<not_null<const History*>> _historyCleared;

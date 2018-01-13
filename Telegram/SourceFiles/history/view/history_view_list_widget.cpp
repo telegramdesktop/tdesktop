@@ -61,21 +61,21 @@ void ListWidget::enumerateItems(Method method) {
 			ending,
 			_visibleTop,
 			[this](auto &elem, int top) {
-				return this->itemTop(elem) + elem->data()->height() <= top;
+				return this->itemTop(elem) + elem->height() <= top;
 			})
 		: std::upper_bound(
 			beginning,
 			ending,
 			_visibleBottom,
 			[this](int bottom, auto &elem) {
-				return this->itemTop(elem) + elem->data()->height() >= bottom;
+				return this->itemTop(elem) + elem->height() >= bottom;
 			});
 	auto wasEnd = (from == ending);
 	if (wasEnd) {
 		--from;
 	}
 	if (TopToBottom) {
-		Assert(itemTop(from->get()) + from->get()->data()->height() > _visibleTop);
+		Assert(itemTop(from->get()) + from->get()->height() > _visibleTop);
 	} else {
 		Assert(itemTop(from->get()) < _visibleBottom);
 	}
@@ -83,7 +83,7 @@ void ListWidget::enumerateItems(Method method) {
 	while (true) {
 		auto view = from->get();
 		auto itemtop = itemTop(view);
-		auto itembottom = itemtop + view->data()->height();
+		auto itembottom = itemtop + view->height();
 
 		// Binary search should've skipped all the items that are above / below the visible area.
 		if (TopToBottom) {
@@ -131,19 +131,19 @@ void ListWidget::enumerateUserpics(Method method) {
 		auto message = view->data()->toHistoryMessage();
 		if (!message) return true;
 
-		if (lowestAttachedItemTop < 0 && message->isAttachedToNext()) {
-			lowestAttachedItemTop = itemtop + message->marginTop();
+		if (lowestAttachedItemTop < 0 && view->isAttachedToNext()) {
+			lowestAttachedItemTop = itemtop + view->marginTop();
 		}
 
 		// Call method on a userpic for all messages that have it and for those who are not showing it
 		// because of their attachment to the next message if they are bottom-most visible.
-		if (message->displayFromPhoto() || (message->hasFromPhoto() && itembottom >= _visibleBottom)) {
+		if (view->displayFromPhoto() || (view->hasFromPhoto() && itembottom >= _visibleBottom)) {
 			if (lowestAttachedItemTop < 0) {
-				lowestAttachedItemTop = itemtop + message->marginTop();
+				lowestAttachedItemTop = itemtop + view->marginTop();
 			}
 			// Attach userpic to the bottom of the visible area with the same margin as the last message.
 			auto userpicMinBottomSkip = st::historyPaddingBottom + st::msgMargin.bottom();
-			auto userpicBottom = qMin(itembottom - message->marginBottom(), _visibleBottom - userpicMinBottomSkip);
+			auto userpicBottom = qMin(itembottom - view->marginBottom(), _visibleBottom - userpicMinBottomSkip);
 
 			// Do not let the userpic go above the attached messages pack top line.
 			userpicBottom = qMax(userpicBottom, lowestAttachedItemTop + st::msgPhotoSize);
@@ -156,7 +156,7 @@ void ListWidget::enumerateUserpics(Method method) {
 		}
 
 		// Forget the found top of the pack, search for the next one from scratch.
-		if (!message->isAttachedToNext()) {
+		if (!view->isAttachedToNext()) {
 			lowestAttachedItemTop = -1;
 		}
 
@@ -175,14 +175,14 @@ void ListWidget::enumerateDates(Method method) {
 	auto dateCallback = [&](not_null<Element*> view, int itemtop, int itembottom) {
 		const auto item = view->data();
 		if (lowestInOneDayItemBottom < 0 && item->isInOneDayWithPrevious()) {
-			lowestInOneDayItemBottom = itembottom - item->marginBottom();
+			lowestInOneDayItemBottom = itembottom - view->marginBottom();
 		}
 
 		// Call method on a date for all messages that have it and for those who are not showing it
 		// because they are in a one day together with the previous message if they are top-most visible.
 		if (item->displayDate() || (!item->isEmpty() && itemtop <= _visibleTop)) {
 			if (lowestInOneDayItemBottom < 0) {
-				lowestInOneDayItemBottom = itembottom - item->marginBottom();
+				lowestInOneDayItemBottom = itembottom - view->marginBottom();
 			}
 			// Attach date to the top of the visible area with the same margin as it has in service message.
 			auto dateTop = qMax(itemtop, _visibleTop) + st::msgServiceMargin.top();
@@ -231,7 +231,7 @@ ListWidget::ListWidget(
 		if (const auto view = viewForItem(query.item)) {
 			const auto top = itemTop(view);
 			if (top >= 0
-				&& top + query.item->height() > _visibleTop
+				&& top + view->height() > _visibleTop
 				&& top < _visibleBottom) {
 				*query.isVisible = true;
 			}
@@ -517,16 +517,16 @@ void ListWidget::itemsAdded(Direction direction, int addedCount) {
 		: (addedCount + 1);
 	for (auto i = checkFrom; i != checkTo; ++i) {
 		if (i > 0) {
-			const auto item = _items[i - 1]->data();
+			const auto view = _items[i - 1].get();
 			if (i < _items.size()) {
 				// #TODO feeds show
-				auto previous = _items[i]->data();
-				item->setLogEntryDisplayDate(item->date.date() != previous->date.date());
-				auto attachToPrevious = item->computeIsAttachToPrevious(previous);
-				item->setLogEntryAttachToPrevious(attachToPrevious);
-				previous->setLogEntryAttachToNext(attachToPrevious);
+				auto previous = _items[i].get();
+				view->setDisplayDate(view->data()->date.date() != previous->data()->date.date());
+				auto attachToPrevious = view->computeIsAttachToPrevious(previous);
+				view->setAttachToPrevious(attachToPrevious);
+				previous->setAttachToNext(attachToPrevious);
 			} else {
-				item->setLogEntryDisplayDate(true);
+				view->setDisplayDate(true);
 			}
 		}
 	}
@@ -543,9 +543,9 @@ int ListWidget::resizeGetHeight(int newWidth) {
 	update();
 
 	auto newHeight = 0;
-	for (auto &item : _items) {
-		item->setY(newHeight);
-		newHeight += item->data()->resizeGetHeight(newWidth);
+	for (auto &view : _items) {
+		view->setY(newHeight);
+		newHeight += view->resizeGetHeight(newWidth);
 	}
 	_itemsHeight = newHeight;
 	_itemsTop = (_minHeight > _itemsHeight + st::historyPaddingBottom) ? (_minHeight - _itemsHeight - st::historyPaddingBottom) : 0;
@@ -570,7 +570,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	auto clip = e->rect();
 
 	auto from = std::lower_bound(begin(_items), end(_items), clip.top(), [this](auto &elem, int top) {
-		return this->itemTop(elem) + elem->data()->height() <= top;
+		return this->itemTop(elem) + elem->height() <= top;
 	});
 	auto to = std::lower_bound(begin(_items), end(_items), clip.top() + clip.height(), [this](auto &elem, int bottom) {
 		return this->itemTop(elem) < bottom;
@@ -579,9 +579,12 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		auto top = itemTop(from->get());
 		p.translate(0, top);
 		for (auto i = from; i != to; ++i) {
-			auto selection = (*i == _selectedItem) ? _selectedText : TextSelection();
-			(*i)->data()->draw(p, clip.translated(0, -top), selection, ms);
-			auto height = (*i)->data()->height();
+			const auto view = *i;
+			const auto selection = (view == _selectedItem)
+				? _selectedText
+				: TextSelection();
+			view->draw(p, clip.translated(0, -top), selection, ms);
+			const auto height = view->height();
 			top += height;
 			p.translate(0, height);
 		}
@@ -602,7 +605,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 					p,
 					st::historyPhotoLeft,
 					userpicTop,
-					message->width(),
+					view->width(),
 					st::msgPhotoSize);
 			}
 			return true;
@@ -636,7 +639,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 				if (opacity > 0.) {
 					p.setOpacity(opacity);
 					int dateY = /*noFloatingDate ? itemtop :*/ (dateTop - st::msgServiceMargin.top());
-					int width = item->width();
+					int width = view->width();
 					if (const auto date = item->Get<HistoryMessageDate>()) {
 						date->paint(p, dateY, width);
 					} else {
@@ -667,7 +670,7 @@ not_null<Element*> ListWidget::findItemByY(int y) const {
 		end(_items),
 		y,
 		[this](auto &elem, int top) {
-			return this->itemTop(elem) + elem->data()->height() <= top;
+			return this->itemTop(elem) + elem->height() <= top;
 		});
 	return (i != end(_items)) ? i->get() : _items.back().get();
 }
@@ -711,7 +714,7 @@ void ListWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 	if (((_mouseAction == MouseAction::Selecting && _selectedItem != nullptr) || (_mouseAction == MouseAction::None)) && _mouseSelectType == TextSelectType::Letters && _mouseActionItem) {
 		HistoryStateRequest request;
 		request.flags |= Text::StateRequest::Flag::LookupSymbol;
-		auto dragState = _mouseActionItem->data()->getState(_dragStartPosition, request);
+		auto dragState = _mouseActionItem->getState(_dragStartPosition, request);
 		if (dragState.cursor == HistoryInTextCursorState) {
 			_mouseTextSymbol = dragState.symbol;
 			_mouseSelectType = TextSelectType::Words;
@@ -753,7 +756,7 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				App::mousedItem());
 			HistoryStateRequest request;
 			request.flags |= Text::StateRequest::Flag::LookupSymbol;
-			auto dragState = App::mousedItem()->data()->getState(mousePos, request);
+			auto dragState = App::mousedItem()->getState(mousePos, request);
 			if (dragState.cursor == HistoryInTextCursorState && dragState.symbol >= selFrom && dragState.symbol < selTo) {
 				isUponSelected = 1;
 			}
@@ -1045,7 +1048,7 @@ void ListWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butto
 		if (_trippleClickTimer.isActive() && (screenPos - _trippleClickPoint).manhattanLength() < QApplication::startDragDistance()) {
 			HistoryStateRequest request;
 			request.flags = Text::StateRequest::Flag::LookupSymbol;
-			dragState = _mouseActionItem->data()->getState(_dragStartPosition, request);
+			dragState = _mouseActionItem->getState(_dragStartPosition, request);
 			if (dragState.cursor == HistoryInTextCursorState) {
 				auto selection = TextSelection { dragState.symbol, dragState.symbol };
 				repaintItem(std::exchange(_selectedItem, _mouseActionItem));
@@ -1059,7 +1062,7 @@ void ListWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butto
 		} else if (App::pressedItem()) {
 			HistoryStateRequest request;
 			request.flags = Text::StateRequest::Flag::LookupSymbol;
-			dragState = _mouseActionItem->data()->getState(_dragStartPosition, request);
+			dragState = _mouseActionItem->getState(_dragStartPosition, request);
 		}
 		if (_mouseSelectType != TextSelectType::Paragraphs) {
 			if (App::pressedItem()) {
@@ -1157,7 +1160,7 @@ void ListWidget::updateSelected() {
 	if (view) {
 		App::mousedItem(view);
 		itemPoint = mapPointToItem(point, view);
-		if (item->hasPoint(itemPoint)) {
+		if (view->hasPoint(itemPoint)) {
 			if (App::hoveredItem() != view) {
 				repaintItem(App::hoveredItem());
 				App::hoveredItem(view);
@@ -1187,11 +1190,11 @@ void ListWidget::updateSelected() {
 		} else {
 			selectingText = false;
 		}
-		dragState = item->getState(itemPoint, request);
+		dragState = view->getState(itemPoint, request);
 		lnkhost = view;
 		if (!dragState.link && itemPoint.x() >= st::historyPhotoLeft && itemPoint.x() < st::historyPhotoLeft + st::msgPhotoSize) {
 			if (auto message = item->toHistoryMessage()) {
-				if (message->hasFromPhoto()) {
+				if (view->hasFromPhoto()) {
 					enumerateUserpics([&](not_null<Element*> view, int userpicTop) -> bool {
 						// stop enumeration if the userpic is below our point
 						if (userpicTop > point.y()) {
@@ -1264,7 +1267,7 @@ void ListWidget::updateSelected() {
 	// Voice message seek support.
 	if (const auto pressedView = App::pressedLinkItem()) {
 		auto adjustedPoint = mapPointToItem(point, pressedView);
-		pressedView->data()->updatePressed(adjustedPoint);
+		pressedView->updatePressed(adjustedPoint);
 	}
 
 	//if (_mouseAction == MouseAction::Selecting) {
@@ -1380,7 +1383,7 @@ void ListWidget::repaintItem(const Element *view) {
 	if (!view) {
 		return;
 	}
-	update(0, itemTop(view), width(), view->data()->height());
+	update(0, itemTop(view), width(), view->height());
 }
 
 QPoint ListWidget::mapPointToItem(

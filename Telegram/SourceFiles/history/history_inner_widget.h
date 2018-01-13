@@ -262,9 +262,7 @@ private:
 	void deleteAsGroup(FullMsgId itemId);
 
 	// Does any of the shown histories has this flag set.
-	bool hasPendingResizedItems() const {
-		return (_history && _history->hasPendingResizedItems()) || (_migrated && _migrated->hasPendingResizedItems());
-	}
+	bool hasPendingResizedItems() const;
 
 	not_null<Window::Controller*> _controller;
 

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_media_types.h"
 #include "history/history_media_grouped.h"
 #include "history/history_message.h"
+#include "history/history.h"
 #include "media/media_clip_reader.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
@@ -34,13 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_messages.h"
 #include "data/data_feed.h"
-
-namespace {
-
-// a new message from the same sender is attached to previous within 15 minutes
-constexpr int kAttachMessageToPreviousSecondsDelta = 900;
-
-} // namespace
 
 namespace internal {
 
@@ -65,12 +59,12 @@ HistoryItem::HistoryItem(
 	MsgId id,
 	MTPDmessage::Flags flags,
 	QDateTime date,
-	UserId from) : HistoryElement()
-, id(id)
+	UserId from)
+: id(id)
 , date(date)
 , _history(history)
 , _from(from ? App::user(from) : history->peer)
-, _flags(flags | MTPDmessage_ClientFlag::f_pending_init_dimensions | MTPDmessage_ClientFlag::f_pending_resize) {
+, _flags(flags) {
 }
 
 void HistoryItem::finishCreate() {
@@ -78,23 +72,23 @@ void HistoryItem::finishCreate() {
 }
 
 void HistoryItem::finishEdition(int oldKeyboardTop) {
-	setPendingInitDimensions();
+	Auth().data().requestItemViewRefresh(this);
 	invalidateChatsListEntry();
 	//if (groupId()) {
 	//	history()->fixGroupAfterEdition(this);
 	//}
-	if (isHiddenByGroup()) {
-		// Perhaps caption was changed, we should refresh the group.
-		const auto group = Get<HistoryMessageGroup>();
-		group->leader->setPendingInitDimensions();
-		group->leader->invalidateChatsListEntry();
-	}
+	//if (isHiddenByGroup()) { // #TODO group views
+	//	// Perhaps caption was changed, we should refresh the group.
+	//	const auto group = Get<HistoryMessageGroup>();
+	//	group->leader->setPendingInitDimensions();
+	//	group->leader->invalidateChatsListEntry();
+	//}
 
-	if (oldKeyboardTop >= 0) {
-		if (auto keyboard = Get<HistoryMessageReplyMarkup>()) {
-			keyboard->oldTop = oldKeyboardTop;
-		}
-	}
+	//if (oldKeyboardTop >= 0) { // #TODO edit bot message
+	//	if (auto keyboard = Get<HistoryMessageReplyMarkup>()) {
+	//		keyboard->oldTop = oldKeyboardTop;
+	//	}
+	//}
 
 	App::historyUpdateDependent(this);
 }
@@ -134,7 +128,6 @@ void HistoryItem::invalidateChatsListEntry() {
 }
 
 void HistoryItem::finishEditionToEmpty() {
-	recountDisplayDate();
 	finishEdition(-1);
 
 	_history->removeNotification(this);
@@ -148,13 +141,6 @@ void HistoryItem::finishEditionToEmpty() {
 	}
 	if ((!out() || isPost()) && unread() && history()->unreadCount() > 0) {
 		history()->setUnreadCount(history()->unreadCount() - 1);
-	}
-
-	if (auto next = nextItem()) {
-		next->previousItemChanged();
-	}
-	if (auto previous = previousItem()) {
-		previous->nextItemChanged();
 	}
 }
 
@@ -217,6 +203,17 @@ UserData *HistoryItem::viaBot() const {
 	}
 	return nullptr;
 }
+
+UserData *HistoryItem::getMessageBot() const {
+	if (const auto bot = viaBot()) {
+		return bot;
+	}
+	auto bot = from()->asUser();
+	if (!bot) {
+		bot = history()->peer->asUser();
+	}
+	return (bot && bot->botInfo) ? bot : nullptr;
+};
 
 void HistoryItem::destroy() {
 	const auto history = this->history();
@@ -286,6 +283,9 @@ void HistoryItem::clearMainView() {
 	}
 }
 
+void HistoryItem::addToUnreadMentions(UnreadMentionType type) {
+}
+
 Storage::SharedMediaTypesMask HistoryItem::sharedMediaTypes() const {
 	return {};
 }
@@ -304,71 +304,9 @@ void HistoryItem::indexAsNewItem() {
 	}
 }
 
-void HistoryItem::previousItemChanged() {
-	Expects(!isLogEntry());
+void HistoryItem::setRealId(MsgId newId) {
+	Expects(!IsServerMsgId(id));
 
-	recountDisplayDate();
-	recountAttachToPrevious();
-}
-
-// Called only if there is no more next item! Not always when it changes!
-void HistoryItem::nextItemChanged() {
-	Expects(!isLogEntry());
-
-	setAttachToNext(false);
-}
-
-bool HistoryItem::computeIsAttachToPrevious(not_null<HistoryItem*> previous) {
-	if (!Has<HistoryMessageDate>() && !Has<HistoryMessageUnreadBar>()) {
-		const auto possible = !isPost() && !previous->isPost()
-			&& !serviceMsg() && !previous->serviceMsg()
-			&& !isEmpty() && !previous->isEmpty()
-			&& (qAbs(previous->date.secsTo(date)) < kAttachMessageToPreviousSecondsDelta);
-		if (possible) {
-			if (history()->peer->isSelf()) {
-				return previous->senderOriginal() == senderOriginal()
-					&& (previous->Has<HistoryMessageForwarded>() == Has<HistoryMessageForwarded>());
-			} else {
-				return previous->from() == from();
-			}
-		}
-	}
-	return false;
-}
-
-void HistoryItem::recountAttachToPrevious() {
-	Expects(!isLogEntry());
-
-	auto attachToPrevious = false;
-	if (auto previous = previousItem()) {
-		attachToPrevious = computeIsAttachToPrevious(previous);
-		previous->setAttachToNext(attachToPrevious);
-	}
-	setAttachToPrevious(attachToPrevious);
-}
-
-void HistoryItem::setAttachToNext(bool attachToNext) {
-	if (attachToNext && !(_flags & MTPDmessage_ClientFlag::f_attach_to_next)) {
-		_flags |= MTPDmessage_ClientFlag::f_attach_to_next;
-		Global::RefPendingRepaintItems().insert(this);
-	} else if (!attachToNext && (_flags & MTPDmessage_ClientFlag::f_attach_to_next)) {
-		_flags &= ~MTPDmessage_ClientFlag::f_attach_to_next;
-		Global::RefPendingRepaintItems().insert(this);
-	}
-}
-
-void HistoryItem::setAttachToPrevious(bool attachToPrevious) {
-	if (attachToPrevious && !(_flags & MTPDmessage_ClientFlag::f_attach_to_previous)) {
-		_flags |= MTPDmessage_ClientFlag::f_attach_to_previous;
-		setPendingInitDimensions();
-	} else if (!attachToPrevious && (_flags & MTPDmessage_ClientFlag::f_attach_to_previous)) {
-		_flags &= ~MTPDmessage_ClientFlag::f_attach_to_previous;
-		setPendingInitDimensions();
-	}
-}
-
-void HistoryItem::setId(MsgId newId) {
-	history()->changeMsgId(id, newId);
 	id = newId;
 
 	// We don't need to call Notify::replyMarkupUpdated(this) and update keyboard
@@ -568,6 +506,10 @@ QString HistoryItem::directLink() const {
 	return QString();
 }
 
+ChannelId HistoryItem::channelId() const {
+	return _history->channelId();
+}
+
 Data::MessagePosition HistoryItem::position() const {
 	return Data::MessagePosition(toServerTime(date.toTime_t()).v, fullId());
 }
@@ -579,6 +521,10 @@ MsgId HistoryItem::replyToId() const {
 	return 0;
 }
 
+not_null<PeerData*> HistoryItem::author() const {
+	return isPost() ? history()->peer : from();
+}
+
 QDateTime HistoryItem::dateOriginal() const {
 	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
 		return forwarded->originalDate;
@@ -586,7 +532,7 @@ QDateTime HistoryItem::dateOriginal() const {
 	return date;
 }
 
-PeerData *HistoryItem::senderOriginal() const {
+not_null<PeerData*> HistoryItem::senderOriginal() const {
 	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
 		return forwarded->originalSender;
 	}
@@ -594,7 +540,7 @@ PeerData *HistoryItem::senderOriginal() const {
 	return (peer->isChannel() && !peer->isMegagroup()) ? peer : from();
 }
 
-PeerData *HistoryItem::fromOriginal() const {
+not_null<PeerData*> HistoryItem::fromOriginal() const {
 	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
 		if (const auto user = forwarded->originalSender->asUser()) {
 			return user;
@@ -624,6 +570,10 @@ bool HistoryItem::hasOutLayout() const {
 		return !Has<HistoryMessageForwarded>();
 	}
 	return out() && !isPost();
+}
+
+bool HistoryItem::needCheck() const {
+	return out() || (id < 0 && history()->peer->isSelf());
 }
 
 bool HistoryItem::unread() const {
@@ -667,24 +617,23 @@ void HistoryItem::destroyUnreadBar() {
 		Assert(!isLogEntry());
 
 		RemoveComponents(HistoryMessageUnreadBar::Bit());
-		setPendingInitDimensions();
+		Auth().data().requestItemViewResize(this);
 		if (_history->unreadBar == this) {
 			_history->unreadBar = nullptr;
 		}
-
-		recountAttachToPrevious();
+		// #TODO recount attach to previous
 	}
 }
 
 void HistoryItem::setUnreadBarCount(int count) {
 	Expects(!isLogEntry());
+
 	if (count > 0) {
 		HistoryMessageUnreadBar *bar;
 		if (!Has<HistoryMessageUnreadBar>()) {
 			AddComponents(HistoryMessageUnreadBar::Bit());
-			setPendingInitDimensions();
-
-			recountAttachToPrevious();
+			Auth().data().requestItemViewResize(this);
+			// #TODO recount attach to previous
 
 			bar = Get<HistoryMessageUnreadBar>();
 		} else {
@@ -721,7 +670,7 @@ bool HistoryItem::groupIdValidityChanged() {
 			return false;
 		}
 		RemoveComponents(HistoryMessageGroup::Bit());
-		setPendingInitDimensions();
+		Auth().data().requestItemViewResize(this);
 		return true;
 	}
 	return false;
@@ -737,7 +686,7 @@ void HistoryItem::makeGroupMember(not_null<HistoryItem*> leader) {
 			_media = std::move(single);
 		}
 		_flags |= MTPDmessage_ClientFlag::f_hidden_by_group;
-		setPendingInitDimensions();
+		Auth().data().requestItemViewResize(this);
 
 		group->leader = leader;
 		base::take(group->others);
@@ -758,7 +707,7 @@ void HistoryItem::makeGroupLeader(
 	if (leaderChanged) {
 		group->leader = this;
 		_flags &= ~MTPDmessage_ClientFlag::f_hidden_by_group;
-		setPendingInitDimensions();
+		Auth().data().requestItemViewResize(this);
 	}
 	group->others = std::move(others);
 	if (!_media || !_media->applyGroup(group->others)) {
@@ -786,7 +735,7 @@ void HistoryItem::resetGroupMedia(
 	} else if (_media) {
 		_media = _media->takeLastFromGroup();
 	}
-	setPendingInitDimensions();
+	Auth().data().requestItemViewResize(this);
 }
 
 int HistoryItem::displayedDateHeight() const {
@@ -794,22 +743,6 @@ int HistoryItem::displayedDateHeight() const {
 		return date->height();
 	}
 	return 0;
-}
-
-int HistoryItem::marginTop() const {
-	auto result = 0;
-	if (!isHiddenByGroup()) {
-		if (isAttachedToPrevious()) {
-			result += st::msgMarginTopAttached;
-		} else {
-			result += st::msgMargin.top();
-		}
-	}
-	result += displayedDateHeight();
-	if (const auto unreadbar = Get<HistoryMessageUnreadBar>()) {
-		result += unreadbar->height();
-	}
-	return result;
 }
 
 bool HistoryItem::displayDate() const {
@@ -820,10 +753,6 @@ bool HistoryItem::isEmpty() const {
 	return _text.isEmpty()
 		&& !_media
 		&& !Has<HistoryMessageLogEntryOriginal>();
-}
-
-int HistoryItem::marginBottom() const {
-	return isHiddenByGroup() ? 0 : st::msgMargin.bottom();
 }
 
 void HistoryItem::clipCallback(Media::Clip::Notification notification) {
@@ -857,7 +786,7 @@ void HistoryItem::clipCallback(Media::Clip::Notification notification) {
 			media->stopInline();
 		}
 		if (!stopped) {
-			setPendingInitDimensions();
+			Auth().data().requestItemViewResize(this);
 			Auth().data().markItemLayoutChanged(this);
 			Global::RefPendingRepaintItems().insert(this);
 		}
@@ -920,31 +849,6 @@ HistoryItem *HistoryItem::nextItem() const {
 		}
 	}
 	return nullptr;
-}
-
-void HistoryItem::recountDisplayDate() {
-	Expects(!isLogEntry());
-	setDisplayDate([&] {
-		if (isEmpty()) {
-			return false;
-		}
-
-		if (auto previous = previousItem()) {
-			return previous->isEmpty() || (previous->date.date() != date.date());
-		}
-		return true;
-	}());
-}
-
-void HistoryItem::setDisplayDate(bool displayDate) {
-	if (displayDate && !Has<HistoryMessageDate>()) {
-		AddComponents(HistoryMessageDate::Bit());
-		Get<HistoryMessageDate>()->init(date);
-		setPendingInitDimensions();
-	} else if (!displayDate && Has<HistoryMessageDate>()) {
-		RemoveComponents(HistoryMessageDate::Bit());
-		setPendingInitDimensions();
-	}
 }
 
 QString HistoryItem::notificationText() const {
@@ -1016,8 +920,10 @@ HistoryItem::~HistoryItem() {
 	}
 }
 
-ClickHandlerPtr goToMessageClickHandler(PeerData *peer, MsgId msgId) {
-	return std::make_shared<LambdaClickHandler>([peer, msgId] {
+ClickHandlerPtr goToMessageClickHandler(
+		not_null<PeerData*> peer,
+		MsgId msgId) {
+	return std::make_shared<LambdaClickHandler>([=] {
 		if (App::main()) {
 			auto view = App::mousedItem();
 			if (view && view->data()->history()->peer == peer) {
@@ -1029,4 +935,8 @@ ClickHandlerPtr goToMessageClickHandler(PeerData *peer, MsgId msgId) {
 				msgId);
 		}
 	});
+}
+
+ClickHandlerPtr goToMessageClickHandler(not_null<HistoryItem*> item) {
+	return goToMessageClickHandler(item->history()->peer, item->id);
 }

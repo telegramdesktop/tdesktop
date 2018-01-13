@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
+#include "history/history.h"
 #include "dialogs/dialogs_indexed_list.h"
 
 namespace {
@@ -206,6 +207,11 @@ void PeerListGlobalSearchController::searchDone(const MTPcontacts_Found &result,
 
 bool PeerListGlobalSearchController::isLoading() {
 	return _timer.isActive() || _requestId;
+}
+
+ChatsListBoxController::Row::Row(not_null<History*> history)
+: PeerListRow(history->peer)
+, _history(history) {
 }
 
 ChatsListBoxController::ChatsListBoxController(
