@@ -49,14 +49,6 @@ constexpr auto kStatusShowClientsidePlayGame = 10000;
 constexpr auto kSetMyActionForMs = 10000;
 constexpr auto kNewBlockEachMessage = 50;
 
-HistoryItem *createUnsupportedMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from) {
-	auto text = TextWithEntities { lng_message_unsupported(lt_link, qsl("https://desktop.telegram.org")) };
-	TextUtilities::ParseEntities(text, Ui::ItemTextNoMonoOptions().flags);
-	text.entities.push_front(EntityInText(EntityInTextItalic, 0, text.text.size()));
-	flags &= ~MTPDmessage::Flag::f_post_author;
-	return HistoryMessage::create(history, msgId, flags, replyTo, viaBotId, date, from, QString(), text);
-}
-
 } // namespace
 
 History::History(const PeerId &peerId)
@@ -729,324 +721,128 @@ void Histories::checkSelfDestructItems() {
 }
 
 HistoryItem *History::createItem(
-		const MTPMessage &msg,
-		bool applyServiceAction,
+		const MTPMessage &message,
 		bool detachExistingItem) {
-	const auto msgId = idFromMessage(msg);
-	if (!msgId) return nullptr;
+	const auto messageId = idFromMessage(message);
+	if (!messageId) {
+		return nullptr;
+	}
 
-	auto result = App::histItemById(channelId(), msgId);
-	if (result) {
+	if (const auto result = App::histItemById(channelId(), messageId)) {
 		if (detachExistingItem) {
 			result->removeMainView();
 		}
-		if (msg.type() == mtpc_message) {
-			const auto media = msg.c_message().has_media()
-				? &msg.c_message().vmedia
+		if (message.type() == mtpc_message) {
+			const auto media = message.c_message().has_media()
+				? &message.c_message().vmedia
 				: nullptr;
 			result->updateMedia(media);
-			if (applyServiceAction) {
-				App::checkSavedGif(result);
-			}
 		}
 		return result;
 	}
-
-	switch (msg.type()) {
-	case mtpc_messageEmpty: {
-		auto message = HistoryService::PreparedText { lang(lng_message_empty) };
-		result = HistoryService::create(this, msg.c_messageEmpty().vid.v, date(), message);
-	} break;
-
-	case mtpc_message: {
-		auto &m = msg.c_message();
-		enum class MediaCheckResult {
-			Good,
-			Unsupported,
-			Empty,
-			HasTimeToLive,
-		};
-		auto badMedia = MediaCheckResult::Good;
-		if (m.has_media()) switch (m.vmedia.type()) {
-		case mtpc_messageMediaEmpty:
-		case mtpc_messageMediaContact: break;
-		case mtpc_messageMediaGeo:
-			switch (m.vmedia.c_messageMediaGeo().vgeo.type()) {
-			case mtpc_geoPoint: break;
-			case mtpc_geoPointEmpty: badMedia = MediaCheckResult::Empty; break;
-			default: badMedia = MediaCheckResult::Unsupported; break;
-			}
-			break;
-		case mtpc_messageMediaVenue:
-			switch (m.vmedia.c_messageMediaVenue().vgeo.type()) {
-			case mtpc_geoPoint: break;
-			case mtpc_geoPointEmpty: badMedia = MediaCheckResult::Empty; break;
-			default: badMedia = MediaCheckResult::Unsupported; break;
-			}
-			break;
-		case mtpc_messageMediaGeoLive:
-			switch (m.vmedia.c_messageMediaGeoLive().vgeo.type()) {
-			case mtpc_geoPoint: break;
-			case mtpc_geoPointEmpty: badMedia = MediaCheckResult::Empty; break;
-			default: badMedia = MediaCheckResult::Unsupported; break;
-			}
-			break;
-		case mtpc_messageMediaPhoto: {
-			auto &photo = m.vmedia.c_messageMediaPhoto();
-			if (photo.has_ttl_seconds()) {
-				badMedia = MediaCheckResult::HasTimeToLive;
-			} else if (!photo.has_photo()) {
-				badMedia = MediaCheckResult::Empty;
-			} else {
-				switch (photo.vphoto.type()) {
-				case mtpc_photo: break;
-				case mtpc_photoEmpty: badMedia = MediaCheckResult::Empty; break;
-				default: badMedia = MediaCheckResult::Unsupported; break;
-				}
-			}
-		} break;
-		case mtpc_messageMediaDocument: {
-			auto &document = m.vmedia.c_messageMediaDocument();
-			if (document.has_ttl_seconds()) {
-				badMedia = MediaCheckResult::HasTimeToLive;
-			} else if (!document.has_document()) {
-				badMedia = MediaCheckResult::Empty;
-			} else {
-				switch (document.vdocument.type()) {
-				case mtpc_document: break;
-				case mtpc_documentEmpty: badMedia = MediaCheckResult::Empty; break;
-				default: badMedia = MediaCheckResult::Unsupported; break;
-				}
-			}
-		} break;
-		case mtpc_messageMediaWebPage:
-			switch (m.vmedia.c_messageMediaWebPage().vwebpage.type()) {
-			case mtpc_webPage:
-			case mtpc_webPageEmpty:
-			case mtpc_webPagePending: break;
-			case mtpc_webPageNotModified:
-			default: badMedia = MediaCheckResult::Unsupported; break;
-			}
-			break;
-		case mtpc_messageMediaGame:
-		switch (m.vmedia.c_messageMediaGame().vgame.type()) {
-			case mtpc_game: break;
-			default: badMedia = MediaCheckResult::Unsupported; break;
-			}
-			break;
-		case mtpc_messageMediaInvoice:
-			break;
-		case mtpc_messageMediaUnsupported:
-		default: badMedia = MediaCheckResult::Unsupported; break;
-		}
-		if (badMedia == MediaCheckResult::Unsupported) {
-			result = createUnsupportedMessage(this, m.vid.v, m.vflags.v, m.vreply_to_msg_id.v, m.vvia_bot_id.v, date(m.vdate), m.vfrom_id.v);
-		} else if (badMedia == MediaCheckResult::Empty) {
-			auto message = HistoryService::PreparedText { lang(lng_message_empty) };
-			result = HistoryService::create(this, m.vid.v, date(m.vdate), message, m.vflags.v, m.has_from_id() ? m.vfrom_id.v : 0);
-		} else if (badMedia == MediaCheckResult::HasTimeToLive) {
-			result = HistoryService::create(this, m);
-		} else {
-			result = HistoryMessage::create(this, m);
-		}
-	} break;
-
-	case mtpc_messageService: {
-		auto &m = msg.c_messageService();
-		if (m.vaction.type() == mtpc_messageActionPhoneCall) {
-			result = HistoryMessage::create(this, m);
-		} else {
-			result = HistoryService::create(this, m);
-		}
-
-		if (applyServiceAction) {
-			auto &action = m.vaction;
-			switch (action.type()) {
-			case mtpc_messageActionChatAddUser: {
-				auto &d = action.c_messageActionChatAddUser();
-				if (auto megagroup = peer->asMegagroup()) {
-					auto mgInfo = megagroup->mgInfo.get();
-					Assert(mgInfo != nullptr);
-					auto &v = d.vusers.v;
-					for (auto i = 0, l = v.size(); i != l; ++i) {
-						if (auto user = App::userLoaded(peerFromUser(v[i]))) {
-							if (!base::contains(mgInfo->lastParticipants, user)) {
-								mgInfo->lastParticipants.push_front(user);
-								Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
-								Auth().data().addNewMegagroupParticipant(megagroup, user);
-							}
-							if (user->botInfo) {
-								peer->asChannel()->mgInfo->bots.insert(user);
-								if (peer->asChannel()->mgInfo->botStatus != 0 && peer->asChannel()->mgInfo->botStatus < 2) {
-									peer->asChannel()->mgInfo->botStatus = 2;
-								}
-							}
-						}
-					}
-				}
-			} break;
-
-			case mtpc_messageActionChatJoinedByLink: {
-				auto &d = action.c_messageActionChatJoinedByLink();
-				if (auto megagroup = peer->asMegagroup()) {
-					auto mgInfo = megagroup->mgInfo.get();
-					Assert(mgInfo != nullptr);
-					if (auto user = result->from()->asUser()) {
-						if (!base::contains(mgInfo->lastParticipants, user)) {
-							mgInfo->lastParticipants.push_front(user);
-							Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
-							Auth().data().addNewMegagroupParticipant(megagroup, user);
-						}
-						if (user->botInfo) {
-							mgInfo->bots.insert(user);
-							if (mgInfo->botStatus != 0 && mgInfo->botStatus < 2) {
-								mgInfo->botStatus = 2;
-							}
-						}
-					}
-				}
-			} break;
-
-			case mtpc_messageActionChatDeletePhoto: {
-				if (const auto chat = peer->asChat()) {
-					chat->setPhoto(MTP_chatPhotoEmpty());
-				}
-			} break;
-
-			case mtpc_messageActionChatDeleteUser: {
-				auto &d = action.c_messageActionChatDeleteUser();
-				auto uid = peerFromUser(d.vuser_id);
-				if (lastKeyboardFrom == uid) {
-					clearLastKeyboard();
-				}
-				if (auto megagroup = peer->asMegagroup()) {
-					if (auto user = App::userLoaded(uid)) {
-						auto mgInfo = megagroup->mgInfo.get();
-						Assert(mgInfo != nullptr);
-						auto i = ranges::find(
-							mgInfo->lastParticipants,
-							user,
-							[](not_null<UserData*> user) { return user.get(); });
-						if (i != mgInfo->lastParticipants.end()) {
-							mgInfo->lastParticipants.erase(i);
-							Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
-						}
-						Auth().data().removeMegagroupParticipant(megagroup, user);
-						if (megagroup->membersCount() > 1) {
-							megagroup->setMembersCount(megagroup->membersCount() - 1);
-						} else {
-							mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
-							mgInfo->lastParticipantsCount = 0;
-						}
-						if (mgInfo->lastAdmins.contains(user)) {
-							mgInfo->lastAdmins.remove(user);
-							if (megagroup->adminsCount() > 1) {
-								megagroup->setAdminsCount(megagroup->adminsCount() - 1);
-							}
-							Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::AdminsChanged);
-						}
-						mgInfo->bots.remove(user);
-						if (mgInfo->bots.empty() && mgInfo->botStatus > 0) {
-							mgInfo->botStatus = -1;
-						}
-					}
-					Data::ChannelAdminChanges(megagroup).feed(uid, false);
-				}
-			} break;
-
-			case mtpc_messageActionChatEditPhoto: {
-				auto &d = action.c_messageActionChatEditPhoto();
-				if (d.vphoto.type() == mtpc_photo) {
-					auto &sizes = d.vphoto.c_photo().vsizes.v;
-					if (!sizes.isEmpty()) {
-						auto photo = App::feedPhoto(d.vphoto.c_photo());
-						if (photo) photo->peer = peer;
-						auto &smallSize = sizes.front();
-						auto &bigSize = sizes.back();
-						const MTPFileLocation *smallLoc = 0, *bigLoc = 0;
-						switch (smallSize.type()) {
-						case mtpc_photoSize: smallLoc = &smallSize.c_photoSize().vlocation; break;
-						case mtpc_photoCachedSize: smallLoc = &smallSize.c_photoCachedSize().vlocation; break;
-						}
-						switch (bigSize.type()) {
-						case mtpc_photoSize: bigLoc = &bigSize.c_photoSize().vlocation; break;
-						case mtpc_photoCachedSize: bigLoc = &bigSize.c_photoCachedSize().vlocation; break;
-						}
-						if (smallLoc && bigLoc) {
-							const auto newPhotoId = photo ? photo->id : 0;
-							if (const auto chat = peer->asChat()) {
-								chat->setPhoto(newPhotoId, MTP_chatPhoto(*smallLoc, *bigLoc));
-							} else if (const auto channel = peer->asChannel()) {
-								channel->setPhoto(newPhotoId, MTP_chatPhoto(*smallLoc, *bigLoc));
-							}
-							peer->loadUserpic();
-						}
-					}
-				}
-			} break;
-
-			case mtpc_messageActionChatEditTitle: {
-				auto &d = action.c_messageActionChatEditTitle();
-				if (auto chat = peer->asChat()) {
-					chat->setName(qs(d.vtitle));
-				}
-			} break;
-
-			case mtpc_messageActionChatMigrateTo: {
-				if (auto chat = peer->asChat()) {
-					chat->addFlags(MTPDchat::Flag::f_deactivated);
-				}
-				//auto &d = action.c_messageActionChatMigrateTo();
-				//auto channel = App::channelLoaded(d.vchannel_id.v);
-			} break;
-
-			case mtpc_messageActionChannelMigrateFrom: {
-				//auto &d = action.c_messageActionChannelMigrateFrom();
-				//auto chat = App::chatLoaded(d.vchat_id.v);
-			} break;
-
-			case mtpc_messageActionPinMessage: {
-				if (m.has_reply_to_msg_id() && result) {
-					if (auto channel = result->history()->peer->asChannel()) {
-						channel->setPinnedMessageId(m.vreply_to_msg_id.v);
-					}
-				}
-			} break;
-
-			case mtpc_messageActionPhoneCall: {
-				Calls::Current().newServiceMessage().notify(result->fullId());
-			} break;
-			}
-		}
-	} break;
-	}
-
-	if (applyServiceAction) {
-		App::checkSavedGif(result);
-	}
-
-	return result;
+	return HistoryItem::Create(this, message);
 }
 
-not_null<HistoryItem*> History::createItemForwarded(MsgId id, MTPDmessage::Flags flags, QDateTime date, UserId from, const QString &postAuthor, HistoryMessage *msg) {
-	return HistoryMessage::create(this, id, flags, date, from, postAuthor, msg);
+not_null<HistoryItem*> History::createItemForwarded(
+		MsgId id,
+		MTPDmessage::Flags flags,
+		QDateTime date,
+		UserId from,
+		const QString &postAuthor,
+		HistoryMessage *original) {
+	return HistoryMessage::create(
+		this,
+		id,
+		flags,
+		date,
+		from,
+		postAuthor,
+		original);
 }
 
-not_null<HistoryItem*> History::createItemDocument(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup) {
-	return HistoryMessage::create(this, id, flags, replyTo, viaBotId, date, from, postAuthor, doc, caption, markup);
+not_null<HistoryItem*> History::createItemDocument(
+		MsgId id,
+		MTPDmessage::Flags flags,
+		UserId viaBotId,
+		MsgId replyTo,
+		QDateTime date,
+		UserId from,
+		const QString &postAuthor,
+		DocumentData *document,
+		const QString &caption,
+		const MTPReplyMarkup &markup) {
+	return HistoryMessage::create(
+		this,
+		id,
+		flags,
+		replyTo,
+		viaBotId,
+		date,
+		from,
+		postAuthor,
+		document,
+		caption,
+		markup);
 }
 
-not_null<HistoryItem*> History::createItemPhoto(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup) {
-	return HistoryMessage::create(this, id, flags, replyTo, viaBotId, date, from, postAuthor, photo, caption, markup);
+not_null<HistoryItem*> History::createItemPhoto(
+		MsgId id,
+		MTPDmessage::Flags flags,
+		UserId viaBotId,
+		MsgId replyTo,
+		QDateTime date,
+		UserId from,
+		const QString &postAuthor,
+		PhotoData *photo,
+		const QString &caption,
+		const MTPReplyMarkup &markup) {
+	return HistoryMessage::create(
+		this,
+		id,
+		flags,
+		replyTo,
+		viaBotId,
+		date,
+		from,
+		postAuthor,
+		photo,
+		caption,
+		markup);
 }
 
-not_null<HistoryItem*> History::createItemGame(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, GameData *game, const MTPReplyMarkup &markup) {
-	return HistoryMessage::create(this, id, flags, replyTo, viaBotId, date, from, postAuthor, game, markup);
+not_null<HistoryItem*> History::createItemGame(
+		MsgId id,
+		MTPDmessage::Flags flags,
+		UserId viaBotId,
+		MsgId replyTo,
+		QDateTime date,
+		UserId from,
+		const QString &postAuthor,
+		GameData *game,
+		const MTPReplyMarkup &markup) {
+	return HistoryMessage::create(
+		this,
+		id,
+		flags,
+		replyTo,
+		viaBotId,
+		date,
+		from,
+		postAuthor,
+		game,
+		markup);
 }
 
-not_null<HistoryItem*> History::addNewService(MsgId msgId, QDateTime date, const QString &text, MTPDmessage::Flags flags, bool newMsg) {
+not_null<HistoryItem*> History::addNewService(
+		MsgId msgId,
+		QDateTime date,
+		const QString &text,
+		MTPDmessage::Flags flags,
+		bool unread) {
 	auto message = HistoryService::PreparedText { text };
-	return addNewItem(HistoryService::create(this, msgId, date, message, flags), newMsg);
+	return addNewItem(
+		HistoryService::create(this, msgId, date, message, flags),
+		unread);
 }
 
 HistoryItem *History::addNewMessage(const MTPMessage &msg, NewMessageType type) {
@@ -1072,16 +868,16 @@ HistoryItem *History::addNewToLastBlock(
 		NewMessageType type) {
 	Expects(type != NewMessageExisting);
 
-	const auto applyServiceAction = (type == NewMessageUnread);
 	const auto detachExistingItem = (type != NewMessageLast);
-	const auto item = createItem(
-		msg,
-		applyServiceAction,
-		detachExistingItem);
+	const auto item = createItem(msg, detachExistingItem);
 	if (!item || item->mainView()) {
 		return item;
 	}
-	const auto result = addNewItem(item, (type == NewMessageUnread));
+	const auto newUnreadMessage = (type == NewMessageUnread);
+	if (newUnreadMessage) {
+		applyMessageChanges(item, msg);
+	}
+	const auto result = addNewItem(item, newUnreadMessage);
 	if (type == NewMessageLast) {
 		// When we add just one last item, like we do while loading dialogs,
 		// we want to remove a single added grouped media, otherwise it will
@@ -1096,23 +892,96 @@ HistoryItem *History::addNewToLastBlock(
 }
 
 HistoryItem *History::addToHistory(const MTPMessage &msg) {
-	return createItem(msg, false, false);
+	const auto detachExistingItem = false;
+	return createItem(msg, detachExistingItem);
 }
 
-not_null<HistoryItem*> History::addNewForwarded(MsgId id, MTPDmessage::Flags flags, QDateTime date, UserId from, const QString &postAuthor, HistoryMessage *item) {
-	return addNewItem(createItemForwarded(id, flags, date, from, postAuthor, item), true);
+not_null<HistoryItem*> History::addNewForwarded(
+		MsgId id,
+		MTPDmessage::Flags flags,
+		QDateTime date,
+		UserId from,
+		const QString &postAuthor,
+		HistoryMessage *original) {
+	return addNewItem(
+		createItemForwarded(id, flags, date, from, postAuthor, original),
+		true);
 }
 
-not_null<HistoryItem*> History::addNewDocument(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup) {
-	return addNewItem(createItemDocument(id, flags, viaBotId, replyTo, date, from, postAuthor, doc, caption, markup), true);
+not_null<HistoryItem*> History::addNewDocument(
+		MsgId id,
+		MTPDmessage::Flags flags,
+		UserId viaBotId,
+		MsgId replyTo,
+		QDateTime date,
+		UserId from,
+		const QString &postAuthor,
+		DocumentData *document,
+		const QString &caption,
+		const MTPReplyMarkup &markup) {
+	return addNewItem(
+		createItemDocument(
+			id,
+			flags,
+			viaBotId,
+			replyTo,
+			date,
+			from,
+			postAuthor,
+			document,
+			caption,
+			markup),
+		true);
 }
 
-not_null<HistoryItem*> History::addNewPhoto(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup) {
-	return addNewItem(createItemPhoto(id, flags, viaBotId, replyTo, date, from, postAuthor, photo, caption, markup), true);
+not_null<HistoryItem*> History::addNewPhoto(
+		MsgId id,
+		MTPDmessage::Flags flags,
+		UserId viaBotId,
+		MsgId replyTo,
+		QDateTime date,
+		UserId from,
+		const QString &postAuthor,
+		PhotoData *photo,
+		const QString &caption,
+		const MTPReplyMarkup &markup) {
+	return addNewItem(
+		createItemPhoto(
+			id,
+			flags,
+			viaBotId,
+			replyTo,
+			date,
+			from,
+			postAuthor,
+			photo,
+			caption,
+			markup),
+		true);
 }
 
-not_null<HistoryItem*> History::addNewGame(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, GameData *game, const MTPReplyMarkup &markup) {
-	return addNewItem(createItemGame(id, flags, viaBotId, replyTo, date, from, postAuthor, game, markup), true);
+not_null<HistoryItem*> History::addNewGame(
+		MsgId id,
+		MTPDmessage::Flags flags,
+		UserId viaBotId,
+		MsgId replyTo,
+		QDateTime date,
+		UserId from,
+		const QString &postAuthor,
+		GameData *game,
+		const MTPReplyMarkup &markup) {
+	return addNewItem(
+		createItemGame(
+			id,
+			flags,
+			viaBotId,
+			replyTo,
+			date,
+			from,
+			postAuthor,
+			game,
+			markup),
+		true);
 }
 
 void History::setUnreadMentionsCount(int count) {
@@ -1205,28 +1074,30 @@ void History::addUnreadMentionsSlice(const MTPmessages_Messages &result) {
 	Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::UnreadMentionsChanged);
 }
 
-not_null<HistoryItem*> History::addNewItem(not_null<HistoryItem*> adding, bool newMsg) {
+not_null<HistoryItem*> History::addNewItem(
+		not_null<HistoryItem*> item,
+		bool unread) {
 	Expects(!isBuildingFrontBlock());
 
-	addItemToBlock(adding);
+	addItemToBlock(item);
 
-	const auto [groupFrom, groupTill] = recountGroupingFromTill(adding);
-	if (groupFrom != groupTill || groupFrom->groupId()) {
+	const auto [groupFrom, groupTill] = recountGroupingFromTill(item->mainView());
+	if (groupFrom != groupTill || groupFrom->data()->groupId()) {
 		recountGrouping(groupFrom, groupTill);
 	}
-	if (!newMsg && IsServerMsgId(adding->id)) {
-		if (const auto sharedMediaTypes = adding->sharedMediaTypes()) {
+	if (!unread && IsServerMsgId(item->id)) {
+		if (const auto sharedMediaTypes = item->sharedMediaTypes()) {
 			auto from = loadedAtTop() ? 0 : minMsgId();
 			auto till = loadedAtBottom() ? ServerMaxMsgId : maxMsgId();
 			Auth().storage().add(Storage::SharedMediaAddExisting(
 				peer->id,
 				sharedMediaTypes,
-				adding->id,
+				item->id,
 				{ from, till }));
 		}
 	}
-	if (adding->from()->id) {
-		if (auto user = adding->from()->asUser()) {
+	if (item->from()->id) {
+		if (auto user = item->from()->asUser()) {
 			auto getLastAuthors = [this]() -> std::deque<not_null<UserData*>>* {
 				if (auto chat = peer->asChat()) {
 					return &chat->lastAuthors;
@@ -1267,9 +1138,10 @@ not_null<HistoryItem*> History::addNewItem(not_null<HistoryItem*> adding, bool n
 				}
 			}
 		}
-		if (adding->definesReplyKeyboard()) {
-			auto markupFlags = adding->replyKeyboardFlags();
-			if (!(markupFlags & MTPDreplyKeyboardMarkup::Flag::f_selective) || adding->mentionsMe()) {
+		if (item->definesReplyKeyboard()) {
+			auto markupFlags = item->replyKeyboardFlags();
+			if (!(markupFlags & MTPDreplyKeyboardMarkup::Flag::f_selective)
+				|| item->mentionsMe()) {
 				auto getMarkupSenders = [this]() -> base::flat_set<not_null<PeerData*>>* {
 					if (auto chat = peer->asChat()) {
 						return &chat->markupSenders;
@@ -1279,25 +1151,37 @@ not_null<HistoryItem*> History::addNewItem(not_null<HistoryItem*> adding, bool n
 					return nullptr;
 				};
 				if (auto markupSenders = getMarkupSenders()) {
-					markupSenders->insert(adding->from());
+					markupSenders->insert(item->from());
 				}
 				if (markupFlags & MTPDreplyKeyboardMarkup_ClientFlag::f_zero) { // zero markup means replyKeyboardHide
-					if (lastKeyboardFrom == adding->from()->id || (!lastKeyboardInited && !peer->isChat() && !peer->isMegagroup() && !adding->out())) {
+					if (lastKeyboardFrom == item->from()->id
+						|| (!lastKeyboardInited
+							&& !peer->isChat()
+							&& !peer->isMegagroup()
+							&& !item->out())) {
 						clearLastKeyboard();
 					}
 				} else {
 					bool botNotInChat = false;
 					if (peer->isChat()) {
-						botNotInChat = adding->from()->isUser() && (!peer->canWrite() || !peer->asChat()->participants.empty()) && !peer->asChat()->participants.contains(adding->from()->asUser());
+						botNotInChat = item->from()->isUser()
+							&& (!peer->asChat()->participants.empty()
+								|| !peer->canWrite())
+							&& !peer->asChat()->participants.contains(
+								item->from()->asUser());
 					} else if (peer->isMegagroup()) {
-						botNotInChat = adding->from()->isUser() && (!peer->canWrite() || peer->asChannel()->mgInfo->botStatus != 0) && !peer->asChannel()->mgInfo->bots.contains(adding->from()->asUser());
+						botNotInChat = item->from()->isUser()
+							&& (peer->asChannel()->mgInfo->botStatus != 0
+								|| !peer->canWrite())
+							&& !peer->asChannel()->mgInfo->bots.contains(
+								item->from()->asUser());
 					}
 					if (botNotInChat) {
 						clearLastKeyboard();
 					} else {
 						lastKeyboardInited = true;
-						lastKeyboardId = adding->id;
-						lastKeyboardFrom = adding->from()->id;
+						lastKeyboardId = item->id;
+						lastKeyboardFrom = item->from()->id;
 						lastKeyboardUsed = false;
 					}
 				}
@@ -1305,12 +1189,183 @@ not_null<HistoryItem*> History::addNewItem(not_null<HistoryItem*> adding, bool n
 		}
 	}
 
-	setLastMessage(adding);
-	if (newMsg) {
-		newItemAdded(adding);
+	setLastMessage(item);
+	if (unread) {
+		newItemAdded(item);
 	}
 
-	return adding;
+	return item;
+}
+
+void History::applyMessageChanges(
+		not_null<HistoryItem*> item,
+		const MTPMessage &data) {
+	if (data.type() == mtpc_messageService) {
+		applyServiceChanges(item, data.c_messageService());
+	}
+	App::checkSavedGif(item);
+}
+
+void History::applyServiceChanges(
+		not_null<HistoryItem*> item,
+		const MTPDmessageService &data) {
+	auto &action = data.vaction;
+	switch (action.type()) {
+	case mtpc_messageActionChatAddUser: {
+		auto &d = action.c_messageActionChatAddUser();
+		if (auto megagroup = peer->asMegagroup()) {
+			auto mgInfo = megagroup->mgInfo.get();
+			Assert(mgInfo != nullptr);
+			auto &v = d.vusers.v;
+			for (auto i = 0, l = v.size(); i != l; ++i) {
+				if (auto user = App::userLoaded(peerFromUser(v[i]))) {
+					if (!base::contains(mgInfo->lastParticipants, user)) {
+						mgInfo->lastParticipants.push_front(user);
+						Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
+						Auth().data().addNewMegagroupParticipant(megagroup, user);
+					}
+					if (user->botInfo) {
+						peer->asChannel()->mgInfo->bots.insert(user);
+						if (peer->asChannel()->mgInfo->botStatus != 0 && peer->asChannel()->mgInfo->botStatus < 2) {
+							peer->asChannel()->mgInfo->botStatus = 2;
+						}
+					}
+				}
+			}
+		}
+	} break;
+
+	case mtpc_messageActionChatJoinedByLink: {
+		auto &d = action.c_messageActionChatJoinedByLink();
+		if (auto megagroup = peer->asMegagroup()) {
+			auto mgInfo = megagroup->mgInfo.get();
+			Assert(mgInfo != nullptr);
+			if (auto user = item->from()->asUser()) {
+				if (!base::contains(mgInfo->lastParticipants, user)) {
+					mgInfo->lastParticipants.push_front(user);
+					Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
+					Auth().data().addNewMegagroupParticipant(megagroup, user);
+				}
+				if (user->botInfo) {
+					mgInfo->bots.insert(user);
+					if (mgInfo->botStatus != 0 && mgInfo->botStatus < 2) {
+						mgInfo->botStatus = 2;
+					}
+				}
+			}
+		}
+	} break;
+
+	case mtpc_messageActionChatDeletePhoto: {
+		if (const auto chat = peer->asChat()) {
+			chat->setPhoto(MTP_chatPhotoEmpty());
+		}
+	} break;
+
+	case mtpc_messageActionChatDeleteUser: {
+		auto &d = action.c_messageActionChatDeleteUser();
+		auto uid = peerFromUser(d.vuser_id);
+		if (lastKeyboardFrom == uid) {
+			clearLastKeyboard();
+		}
+		if (auto megagroup = peer->asMegagroup()) {
+			if (auto user = App::userLoaded(uid)) {
+				auto mgInfo = megagroup->mgInfo.get();
+				Assert(mgInfo != nullptr);
+				auto i = ranges::find(
+					mgInfo->lastParticipants,
+					user,
+					[](not_null<UserData*> user) { return user.get(); });
+				if (i != mgInfo->lastParticipants.end()) {
+					mgInfo->lastParticipants.erase(i);
+					Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
+				}
+				Auth().data().removeMegagroupParticipant(megagroup, user);
+				if (megagroup->membersCount() > 1) {
+					megagroup->setMembersCount(megagroup->membersCount() - 1);
+				} else {
+					mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
+					mgInfo->lastParticipantsCount = 0;
+				}
+				if (mgInfo->lastAdmins.contains(user)) {
+					mgInfo->lastAdmins.remove(user);
+					if (megagroup->adminsCount() > 1) {
+						megagroup->setAdminsCount(megagroup->adminsCount() - 1);
+					}
+					Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::AdminsChanged);
+				}
+				mgInfo->bots.remove(user);
+				if (mgInfo->bots.empty() && mgInfo->botStatus > 0) {
+					mgInfo->botStatus = -1;
+				}
+			}
+			Data::ChannelAdminChanges(megagroup).feed(uid, false);
+		}
+	} break;
+
+	case mtpc_messageActionChatEditPhoto: {
+		auto &d = action.c_messageActionChatEditPhoto();
+		if (d.vphoto.type() == mtpc_photo) {
+			auto &sizes = d.vphoto.c_photo().vsizes.v;
+			if (!sizes.isEmpty()) {
+				auto photo = App::feedPhoto(d.vphoto.c_photo());
+				if (photo) photo->peer = peer;
+				auto &smallSize = sizes.front();
+				auto &bigSize = sizes.back();
+				const MTPFileLocation *smallLoc = 0, *bigLoc = 0;
+				switch (smallSize.type()) {
+				case mtpc_photoSize: smallLoc = &smallSize.c_photoSize().vlocation; break;
+				case mtpc_photoCachedSize: smallLoc = &smallSize.c_photoCachedSize().vlocation; break;
+				}
+				switch (bigSize.type()) {
+				case mtpc_photoSize: bigLoc = &bigSize.c_photoSize().vlocation; break;
+				case mtpc_photoCachedSize: bigLoc = &bigSize.c_photoCachedSize().vlocation; break;
+				}
+				if (smallLoc && bigLoc) {
+					const auto newPhotoId = photo ? photo->id : 0;
+					if (const auto chat = peer->asChat()) {
+						chat->setPhoto(newPhotoId, MTP_chatPhoto(*smallLoc, *bigLoc));
+					} else if (const auto channel = peer->asChannel()) {
+						channel->setPhoto(newPhotoId, MTP_chatPhoto(*smallLoc, *bigLoc));
+					}
+					peer->loadUserpic();
+				}
+			}
+		}
+	} break;
+
+	case mtpc_messageActionChatEditTitle: {
+		auto &d = action.c_messageActionChatEditTitle();
+		if (auto chat = peer->asChat()) {
+			chat->setName(qs(d.vtitle));
+		}
+	} break;
+
+	case mtpc_messageActionChatMigrateTo: {
+		if (auto chat = peer->asChat()) {
+			chat->addFlags(MTPDchat::Flag::f_deactivated);
+		}
+		//auto &d = action.c_messageActionChatMigrateTo();
+		//auto channel = App::channelLoaded(d.vchannel_id.v);
+	} break;
+
+	case mtpc_messageActionChannelMigrateFrom: {
+		//auto &d = action.c_messageActionChannelMigrateFrom();
+		//auto chat = App::chatLoaded(d.vchat_id.v);
+	} break;
+
+	case mtpc_messageActionPinMessage: {
+		if (data.has_reply_to_msg_id() && item) {
+			if (auto channel = item->history()->peer->asChannel()) {
+				channel->setPinnedMessageId(data.vreply_to_msg_id.v);
+			}
+		}
+	} break;
+
+	case mtpc_messageActionPhoneCall: {
+		Calls::Current().newServiceMessage().notify(item->fullId());
+	} break;
+	}
 }
 
 void History::clearSendAction(not_null<UserData*> from) {
@@ -1444,7 +1499,8 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 
 	for (auto i = slice.cend(), e = slice.cbegin(); i != e;) {
 		--i;
-		const auto adding = createItem(*i, false, true);
+		const auto detachExistingItem = true;
+		const auto adding = createItem(*i, detachExistingItem);
 		if (!adding) continue;
 
 		if (!firstAdded) firstAdded = adding;
@@ -1547,8 +1603,8 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 	CrashReports::ClearAnnotation("old_minmaxwas_minmaxadd");
 
 	if (lastAdded) {
-		const auto [from, till] = recountGroupingFromTill(lastAdded);
-		recountGrouping(firstAdded, till);
+		const auto [from, till] = recountGroupingFromTill(lastAdded->mainView());
+		recountGrouping(firstAdded->mainView(), till);
 	}
 
 	if (isChannel()) {
@@ -1583,7 +1639,8 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 		std::vector<MsgId> medias[Storage::kSharedMediaTypeCount];
 		for (auto i = slice.cend(), e = slice.cbegin(); i != e;) {
 			--i;
-			const auto adding = createItem(*i, false, true);
+			const auto detachExistingItem = true;
+			const auto adding = createItem(*i, detachExistingItem);
 			if (!adding) continue;
 
 			if (!firstAdded) firstAdded = adding;
@@ -1627,8 +1684,8 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 	}
 
 	if (firstAdded) {
-		const auto [from, till] = recountGroupingFromTill(firstAdded);
-		recountGrouping(from, lastAdded);
+		const auto [from, till] = recountGroupingFromTill(firstAdded->mainView());
+		recountGrouping(from, lastAdded->mainView());
 	}
 
 	if (isChannel()) asChannelHistory()->checkJoinedMessage();
@@ -1956,7 +2013,7 @@ void History::destroyUnreadBar() {
 }
 
 not_null<HistoryItem*> History::addNewInTheMiddle(
-		not_null<HistoryItem*> newItem,
+		not_null<HistoryItem*> item,
 		int blockIndex,
 		int itemIndex) {
 	Expects(blockIndex >= 0);
@@ -1968,7 +2025,7 @@ not_null<HistoryItem*> History::addNewInTheMiddle(
 
 	const auto it = block->messages.insert(
 		block->messages.begin() + itemIndex,
-		newItem->createView(
+		item->createView(
 			App::wnd()->controller(),
 			HistoryView::Context::History));
 	(*it)->attachToBlock(block.get(), itemIndex);
@@ -1984,49 +2041,47 @@ not_null<HistoryItem*> History::addNewInTheMiddle(
 		(*it)->nextInBlocksChanged();
 	}
 
-	const auto [groupFrom, groupTill] = recountGroupingFromTill(newItem);
-	if (groupFrom != groupTill || groupFrom->groupId()) {
+	const auto [groupFrom, groupTill] = recountGroupingFromTill(item->mainView());
+	if (groupFrom != groupTill || groupFrom->data()->groupId()) {
 		recountGrouping(groupFrom, groupTill);
 	}
 
-	return newItem;
+	return item;
 }
 
-HistoryItem *History::findNextItem(not_null<HistoryItem*> item) const {
-	Expects(item->mainView());
-
-	const auto nextBlockIndex = item->mainView()->block()->indexInHistory() + 1;
-	const auto nextItemIndex = item->mainView()->indexInBlock() + 1;
-	if (nextItemIndex < int(item->mainView()->block()->messages.size())) {
-		return item->mainView()->block()->messages[nextItemIndex]->data();
+HistoryView::Element *History::findNextItem(
+		not_null<HistoryView::Element*> view) const {
+	const auto nextBlockIndex = view->block()->indexInHistory() + 1;
+	const auto nextItemIndex = view->indexInBlock() + 1;
+	if (nextItemIndex < int(view->block()->messages.size())) {
+		return view->block()->messages[nextItemIndex].get();
 	} else if (nextBlockIndex < int(blocks.size())) {
-		return blocks[nextBlockIndex]->messages.front()->data();
+		return blocks[nextBlockIndex]->messages.front().get();
 	}
 	return nullptr;
 }
 
-HistoryItem *History::findPreviousItem(not_null<HistoryItem*> item) const {
-	Expects(item->mainView());
-
-	const auto blockIndex = item->mainView()->block()->indexInHistory();
-	const auto itemIndex = item->mainView()->indexInBlock();
+HistoryView::Element *History::findPreviousItem(
+		not_null<HistoryView::Element*> view) const {
+	const auto blockIndex = view->block()->indexInHistory();
+	const auto itemIndex = view->indexInBlock();
 	if (itemIndex > 0) {
-		return item->mainView()->block()->messages[itemIndex - 1]->data();
+		return view->block()->messages[itemIndex - 1].get();
 	} else if (blockIndex > 0) {
-		return blocks[blockIndex - 1]->messages.back()->data();
+		return blocks[blockIndex - 1]->messages.back().get();
 	}
 	return nullptr;
 }
 
-not_null<HistoryItem*> History::findGroupFirst(
-		not_null<HistoryItem*> item) const {
-	const auto group = item->Get<HistoryMessageGroup>();
+not_null<HistoryView::Element*> History::findGroupFirst(
+		not_null<HistoryView::Element*> view) const {
+	const auto group = view->Get<HistoryView::Group>();
 	Assert(group != nullptr);
 	Assert(group->leader != nullptr);
 
-	const auto leaderGroup = (group->leader == item)
+	const auto leaderGroup = (group->leader == view)
 		? group
-		: group->leader->Get<HistoryMessageGroup>();
+		: group->leader->Get<HistoryView::Group>();
 	Assert(leaderGroup != nullptr);
 
 	return leaderGroup->others.empty()
@@ -2034,9 +2089,9 @@ not_null<HistoryItem*> History::findGroupFirst(
 		: leaderGroup->others.front().get();
 }
 
-not_null<HistoryItem*> History::findGroupLast(
-		not_null<HistoryItem*> item) const {
-	const auto group = item->Get<HistoryMessageGroup>();
+not_null<HistoryView::Element*> History::findGroupLast(
+		not_null<HistoryView::Element*> view) const {
+	const auto group = view->Get<HistoryView::Group>();
 	Assert(group != nullptr);
 
 	return group->leader;
@@ -2046,7 +2101,7 @@ void History::recountGroupingAround(not_null<HistoryItem*> item) {
 	Expects(item->history() == this);
 
 	if (item->mainView() && item->groupId()) {
-		const auto [groupFrom, groupTill] = recountGroupingFromTill(item);
+		const auto [groupFrom, groupTill] = recountGroupingFromTill(item->mainView());
 		recountGrouping(groupFrom, groupTill);
 	}
 }
@@ -2081,44 +2136,41 @@ void History::paintUserpic(
 	peer->paintUserpic(p, x, y, size);
 }
 
-auto History::recountGroupingFromTill(not_null<HistoryItem*> item)
--> std::pair<not_null<HistoryItem*>, not_null<HistoryItem*>> {
+auto History::recountGroupingFromTill(not_null<HistoryView::Element*> view)
+-> std::pair<not_null<HistoryView::Element*>, not_null<HistoryView::Element*>> {
 	const auto recountFromItem = [&] {
-		if (const auto prev = findPreviousItem(item)) {
-			if (prev->groupId()) {
+		if (const auto prev = findPreviousItem(view)) {
+			if (prev->data()->groupId()) {
 				return findGroupFirst(prev);
 			}
 		}
-		return item;
+		return view;
 	}();
-	if (recountFromItem == item && !item->groupId()) {
-		return { item, item };
+	if (recountFromItem == view && !view->data()->groupId()) {
+		return { view, view };
 	}
 	const auto recountTillItem = [&] {
-		if (const auto next = findNextItem(item)) {
-			if (next->groupId()) {
+		if (const auto next = findNextItem(view)) {
+			if (next->data()->groupId()) {
 				return findGroupLast(next);
 			}
 		}
-		return item;
+		return view;
 	}();
 	return { recountFromItem, recountTillItem };
 }
 
 void History::recountGrouping(
-		not_null<HistoryItem*> from,
-		not_null<HistoryItem*> till) {
-	Expects(from->mainView());
-	Expects(till->mainView());
-
+		not_null<HistoryView::Element*> from,
+		not_null<HistoryView::Element*> till) {
 	from->validateGroupId();
-	auto others = std::vector<not_null<HistoryItem*>>();
-	auto currentGroupId = from->groupId();
+	auto others = std::vector<not_null<HistoryView::Element*>>();
+	auto currentGroupId = from->data()->groupId();
 	auto prev = from;
 	while (prev != till) {
 		auto item = findNextItem(prev);
 		item->validateGroupId();
-		const auto groupId = item->groupId();
+		const auto groupId = item->data()->groupId();
 		if (currentGroupId) {
 			if (groupId == currentGroupId) {
 				others.push_back(prev);
@@ -2369,7 +2421,8 @@ bool History::hasOrphanMediaGroupPart() const {
 	} else if (blocks.front()->messages.size() != 1) {
 		return false;
 	}
-	return blocks.front()->messages.front()->data()->groupId() != MessageGroupId();
+	const auto last = blocks.front()->messages.front()->data();
+	return last->groupId() != MessageGroupId();
 }
 
 bool History::removeOrphanMediaGroupPart() {
@@ -2568,19 +2621,19 @@ void HistoryBlock::clear(bool leaveItems) {
 void HistoryBlock::remove(not_null<Element*> view) {
 	Expects(view->block() == this);
 
-	const auto item = view->data();
-	auto [groupFrom, groupTill] = _history->recountGroupingFromTill(item);
+	auto [groupFrom, groupTill] = _history->recountGroupingFromTill(view);
 	const auto groupHistory = _history;
 	const auto needGroupRecount = (groupFrom != groupTill);
 	if (needGroupRecount) {
-		if (groupFrom == item) {
+		if (groupFrom == view) {
 			groupFrom = groupHistory->findNextItem(groupFrom);
 		}
-		if (groupTill == item) {
+		if (groupTill == view) {
 			groupTill = groupHistory->findPreviousItem(groupTill);
 		}
 	}
 
+	const auto item = view->data();
 	auto blockIndex = indexInHistory();
 	auto itemIndex = view->indexInBlock();
 	if (_history->showFrom == item) {

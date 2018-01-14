@@ -9,9 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "observer_peer.h"
 #include "history/history_item_components.h"
+#include "history/view/history_view_element.h"
 #include "data/data_feed.h"
 
 namespace Data {
+
+using ViewElement = HistoryView::Element;
 
 Session::Session() {
 	Notify::PeerUpdateViewer(
@@ -27,12 +30,61 @@ Session::Session() {
 
 Session::~Session() = default;
 
-void Session::markItemLayoutChanged(not_null<const HistoryItem*> item) {
-	_itemLayoutChanged.fire_copy(item);
+void Session::registerItemView(not_null<ViewElement*> view) {
+	_views[view->data()].push_back(view);
+}
+
+void Session::unregisterItemView(not_null<ViewElement*> view) {
+	const auto i = _views.find(view->data());
+	if (i != _views.end()) {
+		auto &list = i->second;
+		list.erase(ranges::remove(list, view), end(list));
+		if (list.empty()) {
+			_views.erase(i);
+		}
+	}
+	if (App::hoveredItem() == view) {
+		App::hoveredItem(nullptr);
+	}
+	if (App::pressedItem() == view) {
+		App::pressedItem(nullptr);
+	}
+	if (App::hoveredLinkItem() == view) {
+		App::hoveredLinkItem(nullptr);
+	}
+	if (App::pressedLinkItem() == view) {
+		App::pressedLinkItem(nullptr);
+	}
+	if (App::mousedItem() == view) {
+		App::mousedItem(nullptr);
+	}
+}
+
+void Session::markItemLayoutChange(not_null<const HistoryItem*> item) {
+	_itemLayoutChanges.fire_copy(item);
 }
 
 rpl::producer<not_null<const HistoryItem*>> Session::itemLayoutChanged() const {
-	return _itemLayoutChanged.events();
+	return _itemLayoutChanges.events();
+}
+
+void Session::markViewLayoutChange(not_null<const HistoryView::Element*> view) {
+	_viewLayoutChanges.fire_copy(view);
+}
+
+rpl::producer<not_null<const HistoryView::Element*>> Session::viewLayoutChanged() const {
+	return _viewLayoutChanges.events();
+}
+
+void Session::markItemIdChange(IdChange event) {
+	_itemIdChanges.fire_copy(event);
+	enumerateItemViews(event.item, [](not_null<HistoryView::Element*> view) {
+		view->refreshDataId();
+	});
+}
+
+rpl::producer<Session::IdChange> Session::itemIdChanged() const {
+	return _itemIdChanges.events();
 }
 
 void Session::requestItemRepaint(not_null<const HistoryItem*> item) {
@@ -43,6 +95,14 @@ rpl::producer<not_null<const HistoryItem*>> Session::itemRepaintRequest() const 
 	return _itemRepaintRequest.events();
 }
 
+void Session::requestViewRepaint(not_null<const ViewElement*> view) {
+	_viewRepaintRequest.fire_copy(view);
+}
+
+rpl::producer<not_null<const ViewElement*>> Session::viewRepaintRequest() const {
+	return _viewRepaintRequest.events();
+}
+
 void Session::requestItemViewResize(not_null<const HistoryItem*> item) {
 	_itemViewResizeRequest.fire_copy(item);
 }
@@ -51,12 +111,28 @@ rpl::producer<not_null<const HistoryItem*>> Session::itemViewResizeRequest() con
 	return _itemViewResizeRequest.events();
 }
 
+void Session::requestViewResize(not_null<const ViewElement*> view) {
+	_viewResizeRequest.fire_copy(view);
+}
+
+rpl::producer<not_null<const ViewElement*>> Session::viewResizeRequest() const {
+	return _viewResizeRequest.events();
+}
+
 void Session::requestItemViewRefresh(not_null<const HistoryItem*> item) {
 	_itemViewRefreshRequest.fire_copy(item);
 }
 
 rpl::producer<not_null<const HistoryItem*>> Session::itemViewRefreshRequest() const {
 	return _itemViewRefreshRequest.events();
+}
+
+void Session::requestItemPlayInline(not_null<const HistoryItem*> item) {
+	_itemPlayInlineRequest.fire_copy(item);
+}
+
+rpl::producer<not_null<const HistoryItem*>> Session::itemPlayInlineRequest() const {
+	return _itemPlayInlineRequest.events();
 }
 
 void Session::markItemRemoved(not_null<const HistoryItem*> item) {
@@ -173,16 +249,9 @@ MessageIdsList Session::itemsToIds(
 	}) | ranges::to_vector;
 }
 
-MessageIdsList Session::groupToIds(
-		not_null<HistoryMessageGroup*> group) const {
-	auto result = itemsToIds(group->others);
-	result.push_back(group->leader->fullId());
-	return result;
-}
-
 MessageIdsList Session::itemOrItsGroup(not_null<HistoryItem*> item) const {
-	if (const auto group = item->getFullGroup()) {
-		return groupToIds(group);
+	if (const auto group = groups().find(item)) {
+		return itemsToIds(group->items);
 	}
 	return { 1, item->fullId() };
 }

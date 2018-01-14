@@ -20,24 +20,24 @@ struct HistoryServiceDependentData {
 };
 
 struct HistoryServicePinned
-	: public RuntimeComponent<HistoryServicePinned>
+	: public RuntimeComponent<HistoryServicePinned, HistoryItem>
 	, public HistoryServiceDependentData {
 };
 
 struct HistoryServiceGameScore
-	: public RuntimeComponent<HistoryServiceGameScore>
+	: public RuntimeComponent<HistoryServiceGameScore, HistoryItem>
 	, public HistoryServiceDependentData {
 	int score = 0;
 };
 
 struct HistoryServicePayment
-	: public RuntimeComponent<HistoryServicePayment>
+	: public RuntimeComponent<HistoryServicePayment, HistoryItem>
 	, public HistoryServiceDependentData {
 	QString amount;
 };
 
 struct HistoryServiceSelfDestruct
-	: public RuntimeComponent<HistoryServiceSelfDestruct> {
+	: public RuntimeComponent<HistoryServiceSelfDestruct, HistoryItem> {
 	enum class Type {
 		Photo,
 		Video,
@@ -82,12 +82,6 @@ public:
 		return true;
 	}
 
-	[[nodiscard]] TextSelection adjustSelection(
-			TextSelection selection,
-			TextSelectType type) const override {
-		return _text.adjustSelection(selection, type);
-	}
-
 	void applyEdition(const MTPDmessageService &message) override;
 	TimeMs getSelfDestructIn(TimeMs now) override;
 
@@ -99,7 +93,6 @@ public:
 	bool serviceMsg() const override {
 		return true;
 	}
-	TextWithEntities selectedText(TextSelection selection) const override;
 	QString inDialogsText(DrawInDialog way) const override;
 	QString inReplyText() const override;
 

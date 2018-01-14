@@ -66,7 +66,7 @@ void PhotoData::notifyLayoutChanged() const {
 	auto i = items.constFind(const_cast<PhotoData*>(this));
 	if (i != items.cend()) {
 		for_const (auto item, i.value()) {
-			Auth().data().markItemLayoutChanged(item);
+			Auth().data().markItemLayoutChange(item);
 		}
 	}
 }

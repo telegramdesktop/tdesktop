@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_drafts.h"
 #include "data/data_session.h"
+#include "data/data_media_types.h"
 #include "ui/special_buttons.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
@@ -327,8 +328,8 @@ void MainWidget::checkCurrentFloatPlayer() {
 			last->widget->detach();
 		}
 		if (auto item = App::histItemById(fullId)) {
-			if (auto media = item->getMedia()) {
-				if (auto document = media->getDocument()) {
+			if (auto media = item->media()) {
+				if (auto document = media->document()) {
 					if (document->isVideoMessage()) {
 						_playerFloats.push_back(std::make_unique<Float>(this, item, [this](not_null<Float*> instance, bool visible) {
 							instance->hiddenByWidget = !visible;
@@ -4908,11 +4909,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					if (existing) {
 						existing->destroy();
 					}
-					App::historyUnregItem(local);
-					Auth().messageIdChanging.notify({ local, newId }, true);
 					local->setRealId(d.vid.v);
-					App::historyRegItem(local);
-					Auth().data().requestItemRepaint(local);
 				}
 			}
 			App::historyUnregRandom(d.vrandom_id.v);

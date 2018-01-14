@@ -8,38 +8,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/history_item.h"
-#include "base/value_ordering.h"
 
 class HistoryDocument;
-class HistoryWebPage;
+class WebPageData;
 
-struct MessageGroupId {
-	using Underlying = uint64;
+namespace HistoryView {
+class Element;
+} // namespace HistoryView
 
-	enum Type : Underlying {
-		None = 0,
-	} value;
-
-	MessageGroupId(Type value = None) : value(value) {
-	}
-	static MessageGroupId FromRaw(Underlying value) {
-		return static_cast<Type>(value);
-	}
-
-	explicit operator bool() const {
-		return value != None;
-	}
-	Underlying raw() const {
-		return static_cast<Underlying>(value);
-	}
-
-	friend inline Type value_ordering_helper(MessageGroupId value) {
-		return value.value;
-	}
-
-};
-
-struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia> {
+struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia, HistoryItem> {
 	void create(UserId userId);
 	void resize(int32 availw) const;
 
@@ -50,13 +27,13 @@ struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia> {
 	ClickHandlerPtr link;
 };
 
-struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews> {
+struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews, HistoryItem> {
 	QString _viewsText;
 	int _views = 0;
 	int _viewsWidth = 0;
 };
 
-struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned> {
+struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned, HistoryItem> {
 	void refresh(const QString &date);
 	int maxWidth() const;
 
@@ -64,7 +41,7 @@ struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned> {
 	Text signature;
 };
 
-struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited> {
+struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited, HistoryItem> {
 	void refresh(const QString &date, bool displayed);
 	int maxWidth() const;
 
@@ -72,7 +49,7 @@ struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited> {
 	Text text;
 };
 
-struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded> {
+struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded, HistoryItem> {
 	void create(const HistoryMessageVia *via) const;
 
 	QDateTime originalDate;
@@ -85,7 +62,7 @@ struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded
 	MsgId savedFromMsgId = 0;
 };
 
-struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply> {
+struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, HistoryItem> {
 	HistoryMessageReply() = default;
 	HistoryMessageReply(const HistoryMessageReply &other) = delete;
 	HistoryMessageReply(HistoryMessageReply &&other) = delete;
@@ -125,7 +102,7 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply> {
 	friend inline constexpr auto is_flag_type(PaintFlag) { return true; };
 	void paint(
 		Painter &p,
-		const HistoryItem *holder,
+		not_null<const HistoryView::Element*> holder,
 		int x,
 		int y,
 		int w,
@@ -171,7 +148,7 @@ struct HistoryMessageMarkupButton {
 
 };
 
-struct HistoryMessageReplyMarkup : public RuntimeComponent<HistoryMessageReplyMarkup> {
+struct HistoryMessageReplyMarkup : public RuntimeComponent<HistoryMessageReplyMarkup, HistoryItem> {
 	using Button = HistoryMessageMarkupButton;
 
 	HistoryMessageReplyMarkup() = default;
@@ -348,7 +325,7 @@ private:
 
 // Any HistoryItem can have this Component for
 // displaying the day mark above the message.
-struct HistoryMessageDate : public RuntimeComponent<HistoryMessageDate> {
+struct HistoryMessageDate : public RuntimeComponent<HistoryMessageDate, HistoryItem> {
 	void init(const QDateTime &date);
 
 	int height() const;
@@ -360,7 +337,7 @@ struct HistoryMessageDate : public RuntimeComponent<HistoryMessageDate> {
 
 // Any HistoryItem can have this Component for
 // displaying the unread messages bar above the message.
-struct HistoryMessageUnreadBar : public RuntimeComponent<HistoryMessageUnreadBar> {
+struct HistoryMessageUnreadBar : public RuntimeComponent<HistoryMessageUnreadBar, HistoryItem> {
 	void init(int count);
 
 	static int height();
@@ -381,25 +358,20 @@ struct HistoryMessageUnreadBar : public RuntimeComponent<HistoryMessageUnreadBar
 
 };
 
-struct HistoryMessageGroup : public RuntimeComponent<HistoryMessageGroup> {
-	MessageGroupId groupId = MessageGroupId::None;
-	HistoryItem *leader = nullptr;
-	std::vector<not_null<HistoryItem*>> others;
-};
-
 // Special type of Component for the channel actions log.
-struct HistoryMessageLogEntryOriginal : public RuntimeComponent<HistoryMessageLogEntryOriginal> {
+struct HistoryMessageLogEntryOriginal
+	: public RuntimeComponent<HistoryMessageLogEntryOriginal, HistoryItem> {
 	HistoryMessageLogEntryOriginal();
 	HistoryMessageLogEntryOriginal(HistoryMessageLogEntryOriginal &&other);
 	HistoryMessageLogEntryOriginal &operator=(HistoryMessageLogEntryOriginal &&other);
 	~HistoryMessageLogEntryOriginal();
 
-	std::unique_ptr<HistoryWebPage> _page;
+	WebPageData *page = nullptr;
 
 };
 
 class FileClickHandler;
-struct HistoryDocumentThumbed : public RuntimeComponent<HistoryDocumentThumbed> {
+struct HistoryDocumentThumbed : public RuntimeComponent<HistoryDocumentThumbed, HistoryDocument> {
 	std::shared_ptr<FileClickHandler> _linksavel, _linkcancell;
 	int _thumbw = 0;
 
@@ -407,13 +379,13 @@ struct HistoryDocumentThumbed : public RuntimeComponent<HistoryDocumentThumbed> 
 	mutable QString _link;
 };
 
-struct HistoryDocumentCaptioned : public RuntimeComponent<HistoryDocumentCaptioned> {
+struct HistoryDocumentCaptioned : public RuntimeComponent<HistoryDocumentCaptioned, HistoryDocument> {
 	HistoryDocumentCaptioned();
 
 	Text _caption;
 };
 
-struct HistoryDocumentNamed : public RuntimeComponent<HistoryDocumentNamed> {
+struct HistoryDocumentNamed : public RuntimeComponent<HistoryDocumentNamed, HistoryDocument> {
 	QString _name;
 	int _namew = 0;
 };
@@ -426,7 +398,7 @@ struct HistoryDocumentVoicePlayback {
 	BasicAnimation _a_progress;
 };
 
-class HistoryDocumentVoice : public RuntimeComponent<HistoryDocumentVoice> {
+class HistoryDocumentVoice : public RuntimeComponent<HistoryDocumentVoice, HistoryDocument> {
 	// We don't use float64 because components should align to pointer even on 32bit systems.
 	static constexpr float64 kFloatToIntMultiplier = 65536.;
 

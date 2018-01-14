@@ -285,15 +285,15 @@ void DocumentOpenClickHandler::doOpen(
 			if (App::main()) App::main()->mediaMarkRead(data);
 		} else if (data->size < App::kImageSizeLimit) {
 			if (!data->data().isEmpty() && playAnimation) {
-				if (action == ActionOnLoadPlayInline && context && context->getMedia()) {
-					context->getMedia()->playInline();
+				if (action == ActionOnLoadPlayInline && context) {
+					Auth().data().requestItemPlayInline(context);
 				} else {
 					Messenger::Instance().showDocument(data, context);
 				}
 			} else if (location.accessEnable()) {
 				if (data->isAnimation() || QImageReader(location.name()).canRead()) {
-					if (action == ActionOnLoadPlayInline && context && context->getMedia()) {
-						context->getMedia()->playInline();
+					if (action == ActionOnLoadPlayInline && context) {
+						Auth().data().requestItemPlayInline(context);
 					} else {
 						Messenger::Instance().showDocument(data, context);
 					}
@@ -548,7 +548,10 @@ void DocumentData::performActionOnLoad() {
 	auto showImage = !isVideoFile() && (size < App::kImageSizeLimit);
 	auto playVoice = isVoiceMessage() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen);
 	auto playMusic = isAudioFile() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen);
-	auto playAnimation = isAnimation() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen) && showImage && item && item->getMedia();
+	auto playAnimation = isAnimation()
+		&& (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen)
+		&& showImage
+		&& item;
 	if (auto applyTheme = isTheme()) {
 		if (!loc.isEmpty() && loc.accessEnable()) {
 			Messenger::Instance().showDocument(this, item);
@@ -588,8 +591,8 @@ void DocumentData::performActionOnLoad() {
 		}
 	} else if (playAnimation) {
 		if (loaded()) {
-			if (_actionOnLoad == ActionOnLoadPlayInline && item->getMedia()) {
-				item->getMedia()->playInline();
+			if (_actionOnLoad == ActionOnLoadPlayInline && item) {
+				Auth().data().requestItemPlayInline(item);
 			} else {
 				Messenger::Instance().showDocument(this, item);
 			}
@@ -607,8 +610,8 @@ void DocumentData::performActionOnLoad() {
 				if (App::main()) App::main()->mediaMarkRead(this);
 			} else if (loc.accessEnable()) {
 				if (showImage && QImageReader(loc.name()).canRead()) {
-					if (_actionOnLoad == ActionOnLoadPlayInline && item && item->getMedia()) {
-						item->getMedia()->playInline();
+					if (_actionOnLoad == ActionOnLoadPlayInline && item) {
+						Auth().data().requestItemPlayInline(item);
 					} else {
 						Messenger::Instance().showDocument(this, item);
 					}
@@ -764,7 +767,7 @@ void DocumentData::cancel() {
 void DocumentData::notifyLayoutChanged() const {
 	auto &items = App::documentItems();
 	for (auto item : items.value(const_cast<DocumentData*>(this))) {
-		Auth().data().markItemLayoutChanged(item);
+		Auth().data().markItemLayoutChange(item);
 	}
 
 	if (auto items = InlineBots::Layout::documentItems()) {

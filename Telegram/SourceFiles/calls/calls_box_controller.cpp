@@ -15,10 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/history_media_types.h"
 #include "mainwidget.h"
 #include "auth_session.h"
 #include "data/data_session.h"
+#include "data/data_media_types.h"
 
 namespace Calls {
 namespace {
@@ -178,10 +178,11 @@ BoxController::Row::Type BoxController::Row::ComputeType(
 		not_null<const HistoryItem*> item) {
 	if (item->out()) {
 		return Type::Out;
-	} else if (auto media = item->getMedia()) {
-		if (media->type() == MediaTypeCall) {
-			auto reason = static_cast<HistoryCall*>(media)->reason();
-			if (reason == HistoryCall::FinishReason::Busy || reason == HistoryCall::FinishReason::Missed) {
+	} else if (auto media = item->media()) {
+		if (const auto call = media->call()) {
+			const auto reason = call->finishReason;
+			if (reason == Data::Call::FinishReason::Busy
+				|| reason == Data::Call::FinishReason::Missed) {
 				return Type::Missed;
 			}
 		}

@@ -52,21 +52,18 @@ enum HistoryMediaType : char {
 
 class HistoryMedia : public HistoryView::Object {
 public:
-	HistoryMedia(not_null<HistoryItem*> parent) : _parent(parent) {
+	using Element = HistoryView::Element;
+
+	HistoryMedia(not_null<Element*> parent) : _parent(parent) {
 	}
 
 	virtual HistoryMediaType type() const = 0;
-
-	virtual QString notificationText() const {
-		return QString();
+	virtual std::unique_ptr<HistoryMedia> clone(
+			not_null<Element*> newParent,
+			not_null<Element*> realParent) const {
+		Unexpected("Attempt to clone a media that can't be grouped.");
 	}
 
-	// Returns text with link-start and link-end commands for service-color highlighting.
-	// Example: "[link1-start]You:[link1-end] [link1-start]Photo,[link1-end] caption text"
-	virtual QString inDialogsText() const {
-		auto result = notificationText();
-		return result.isEmpty() ? QString() : textcmdLink(1, TextUtilities::Clean(result));
-	}
 	virtual TextWithEntities selectedText(TextSelection selection) const = 0;
 
 	bool hasPoint(QPoint point) const {
@@ -85,7 +82,7 @@ public:
 	virtual bool allowsFastShare() const {
 		return false;
 	}
-	virtual void refreshParentId(not_null<HistoryItem*> realParent) {
+	virtual void refreshParentId(not_null<Element*> realParent) {
 	}
 	virtual void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const = 0;
 	virtual HistoryTextState getState(QPoint point, HistoryStateRequest request) const = 0;
@@ -109,10 +106,6 @@ public:
 			TextSelectType type) const {
 		return selection;
 	}
-	[[nodiscard]] virtual bool consumeMessageText(
-			const TextWithEntities &textWithEntities) {
-		return false;
-	}
 	[[nodiscard]] virtual uint16 fullSelectionLength() const {
 		return 0;
 	}
@@ -132,9 +125,6 @@ public:
 	virtual bool uploading() const {
 		return false;
 	}
-	virtual std::unique_ptr<HistoryMedia> clone(
-		not_null<HistoryItem*> newParent,
-		not_null<HistoryItem*> realParent) const = 0;
 
 	virtual PhotoData *getPhoto() const {
 		return nullptr;
@@ -187,18 +177,8 @@ public:
 	virtual std::unique_ptr<HistoryMedia> takeLastFromGroup() {
 		return nullptr;
 	}
-	virtual bool applyGroup(
-			const std::vector<not_null<HistoryItem*>> &others) {
+	virtual bool applyGroup(const std::vector<not_null<Element*>> &others) {
 		return others.empty();
-	}
-
-	virtual void updateSentMedia(const MTPMessageMedia &media) {
-	}
-
-	// After sending an inline result we may want to completely recreate
-	// the media (all media that was generated on client side, for example)
-	virtual bool needReSetInlineResultMedia(const MTPMessageMedia &media) {
-		return true;
 	}
 
 	virtual bool animating() const {
@@ -253,10 +233,6 @@ public:
 		return false;
 	}
 
-	virtual bool canEditCaption() const {
-		return false;
-	}
-
 	// Sometimes click on media in message is overloaded by the message:
 	// (for example it can open a link or a game instead of opening media)
 	// But the overloading click handler should be used only when media
@@ -271,7 +247,7 @@ public:
 protected:
 	QSize countCurrentSize(int newWidth) override;
 
-	not_null<HistoryItem*> _parent;
+	not_null<Element*> _parent;
 	MediaInBubbleState _inBubbleState = MediaInBubbleState::None;
 
 };

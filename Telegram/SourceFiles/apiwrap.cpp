@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_web_page.h"
 #include "data/data_feed.h"
+#include "data/data_media_types.h"
 #include "core/tl_help.h"
 #include "base/overload.h"
 #include "observer_peer.h"
@@ -2936,13 +2937,13 @@ void ApiWrap::sendUploadedPhoto(
 		const MTPInputFile &file,
 		bool silent) {
 	if (const auto item = App::histItemById(localId)) {
-		const auto caption = item->getMedia()
-			? item->getMedia()->getCaption()
-			: TextWithEntities();
+		const auto caption = item->media()
+			? item->media()->caption()
+			: QString();
 		const auto media = MTP_inputMediaUploadedPhoto(
 			MTP_flags(0),
 			file,
-			MTP_string(caption.text),
+			MTP_string(caption),
 			MTPVector<MTPInputDocument>(),
 			MTP_int(0));
 		if (const auto groupId = item->groupId()) {
@@ -2959,9 +2960,9 @@ void ApiWrap::sendUploadedDocument(
 		const base::optional<MTPInputFile> &thumb,
 		bool silent) {
 	if (const auto item = App::histItemById(localId)) {
-		auto media = item->getMedia();
-		if (auto document = media ? media->getDocument() : nullptr) {
-			const auto caption = media->getCaption();
+		auto media = item->media();
+		if (auto document = media ? media->document() : nullptr) {
+			const auto caption = media->caption();
 			const auto groupId = item->groupId();
 			const auto flags = MTPDinputMediaUploadedDocument::Flags(0)
 				| (thumb
@@ -2976,7 +2977,7 @@ void ApiWrap::sendUploadedDocument(
 				thumb ? *thumb : MTPInputFile(),
 				MTP_string(document->mimeString()),
 				ComposeSendingDocumentAttributes(document),
-				MTP_string(caption.text),
+				MTP_string(caption),
 				MTPVector<MTPInputDocument>(),
 				MTP_int(0));
 			if (groupId) {
@@ -3012,10 +3013,10 @@ void ApiWrap::uploadAlbumMedia(
 		if (!item) {
 			failed();
 		}
-		if (const auto media = item->getMedia()) {
-			if (const auto photo = media->getPhoto()) {
+		if (const auto media = item->media()) {
+			if (const auto photo = media->photo()) {
 				photo->setWaitingForAlbum();
-			} else if (const auto document = media->getDocument()) {
+			} else if (const auto document = media->document()) {
 				document->setWaitingForAlbum();
 			}
 		}

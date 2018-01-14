@@ -22,6 +22,7 @@ QString GetErrorTextForForward(
 	not_null<PeerData*> peer,
 	const HistoryItemsList &items);
 void FastShareMessage(not_null<HistoryItem*> item);
+QString FormatViewsCount(int views);
 
 class HistoryMessage
 	: public HistoryItem
@@ -142,36 +143,21 @@ public:
 			markup);
 	}
 
-	void initTime();
 	void initMedia(const MTPMessageMedia *media);
-	void initMediaFromDocument(DocumentData *doc, const QString &caption);
 
 	int32 plainMaxWidth() const;
 
-	bool drawBubble() const;
-	bool hasBubble() const override {
-		return drawBubble();
-	}
-	bool hasFastReply() const;
-	bool displayFastReply() const;
-	bool displayForwardedFrom() const;
+	bool allowsForward() const override;
+	bool allowsEdit(const QDateTime &now) const override;
 	bool uploading() const;
-	bool displayRightAction() const override;
 
 	void applyGroupAdminChanges(
 		const base::flat_map<UserId, bool> &changes) override;
 
-	void drawInfo(Painter &p, int32 right, int32 bottom, int32 width, bool selected, InfoDisplayType type) const override;
-	void drawRightAction(Painter &p, int left, int top, int outerWidth) const override;
 	void setViewsCount(int32 count) override;
 	void setRealId(MsgId newId) override;
-	ClickHandlerPtr rightActionLink() const override;
 
 	void dependencyItemRemoved(HistoryItem *dependency) override;
-
-	bool pointInTime(int right, int bottom, QPoint point, InfoDisplayType type) const override;
-
-	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
 
 	QString notificationHeader() const override;
 
@@ -186,19 +172,9 @@ public:
 	void eraseFromUnreadMentions() override;
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
-	TextWithEntities selectedText(TextSelection selection) const override;
 	void setText(const TextWithEntities &textWithEntities) override;
 	TextWithEntities originalText() const override;
 	bool textHasLinks() const override;
-
-	bool displayEditedBadge() const override;
-	QDateTime displayedEditDate() const override;
-
-	int infoWidth() const override;
-	int timeLeft() const override;
-	int timeWidth() const override {
-		return _timeWidth;
-	}
 
 	int viewsCount() const override;
 	not_null<PeerData*> displayFrom() const;
@@ -219,9 +195,6 @@ public:
 		HistoryView::Context context) override;
 
 	~HistoryMessage();
-
-protected:
-	void refreshEditedBadge() override;
 
 private:
 	HistoryMessage(
@@ -295,15 +268,8 @@ private:
 	void replaceBuyWithReceiptInMarkup();
 
 	void applyEditionToEmpty();
-	QDateTime displayedEditDate(bool hasViaBotOrInlineMarkup) const;
-	const HistoryMessageEdited *displayedEditBadge() const;
-	HistoryMessageEdited *displayedEditBadge();
 
-	void setMedia(const MTPMessageMedia *media);
 	void setReplyMarkup(const MTPReplyMarkup *markup);
-
-	bool displayFastShare() const;
-	bool displayGoToOriginal() const;
 
 	struct CreateConfig;
 	void createComponentsHelper(MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, const QString &postAuthor, const MTPReplyMarkup &markup);
@@ -315,8 +281,6 @@ private:
 	QString _timeText;
 	int _timeWidth = 0;
 
-	mutable ClickHandlerPtr _rightActionLink;
-	mutable ClickHandlerPtr _fastReplyLink;
 	mutable int32 _fromNameVersion = 0;
 
 	friend class HistoryView::Element;

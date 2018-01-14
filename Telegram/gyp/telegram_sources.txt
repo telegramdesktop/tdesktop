@@ -173,6 +173,10 @@
 <(src_loc)/data/data_feed_messages.h
 <(src_loc)/data/data_flags.h
 <(src_loc)/data/data_game.h
+<(src_loc)/data/data_groups.cpp
+<(src_loc)/data/data_groups.h
+<(src_loc)/data/data_media_types.cpp
+<(src_loc)/data/data_media_types.h
 <(src_loc)/data/data_messages.cpp
 <(src_loc)/data/data_messages.h
 <(src_loc)/data/data_notify_settings.cpp

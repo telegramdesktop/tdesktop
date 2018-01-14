@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "lang/lang_keys.h"
 #include "data/data_abstract_structure.h"
+#include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "history/history.h"
 #include "history/history_location_manager.h"
@@ -978,10 +979,10 @@ namespace {
 
 	void checkSavedGif(HistoryItem *item) {
 		if (!item->Has<HistoryMessageForwarded>() && (item->out() || item->history()->peer == App::self())) {
-			if (auto media = item->getMedia()) {
-				if (auto doc = media->getDocument()) {
-					if (doc->isGifv()) {
-						addSavedGif(doc);
+			if (const auto media = item->media()) {
+				if (const auto document = media->document()) {
+					if (document->isGifv()) {
+						addSavedGif(document);
 					}
 				}
 			}
@@ -1836,24 +1837,6 @@ namespace {
 		}
 	}
 
-	void messageViewDestroyed(not_null<HistoryView::Element*> view) {
-		if (::hoveredItem == view) {
-			hoveredItem(nullptr);
-		}
-		if (::pressedItem == view) {
-			pressedItem(nullptr);
-		}
-		if (::hoveredLinkItem == view) {
-			hoveredLinkItem(nullptr);
-		}
-		if (::pressedLinkItem == view) {
-			pressedLinkItem(nullptr);
-		}
-		if (::mousedItem == view) {
-			mousedItem(nullptr);
-		}
-	}
-
 	void historyUnregItem(HistoryItem *item) {
 		auto data = fetchMsgsData(item->channelId(), false);
 		if (!data) return;
@@ -2474,11 +2457,12 @@ namespace {
 		if (!::gifItems.isEmpty()) {
 			auto gifs = ::gifItems;
 			for_const (auto item, gifs) {
-				if (auto media = item->getMedia()) {
-					if (!media->isRoundVideoPlaying()) {
-						media->stopInline();
-					}
-				}
+				// #TODO GIFs
+				//if (auto media = item->getMedia()) {
+				//	if (!media->isRoundVideoPlaying()) {
+				//		media->stopInline();
+				//	}
+				//}
 			}
 		}
 	}
@@ -2486,9 +2470,9 @@ namespace {
 	QString phoneFromSharedContact(int32 userId) {
 		auto i = ::sharedContactItems.constFind(userId);
 		if (i != ::sharedContactItems.cend() && !i->empty()) {
-			if (auto media = (*i->cbegin())->getMedia()) {
-				if (media->type() == MediaTypeContact) {
-					return static_cast<HistoryContact*>(media)->phone();
+			if (const auto media = (*i->cbegin())->media()) {
+				if (const auto contact = media->sharedContact()) {
+					return contact->phoneNumber;
 				}
 			}
 		}

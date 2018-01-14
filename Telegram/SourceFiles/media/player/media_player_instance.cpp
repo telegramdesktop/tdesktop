@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/history_media.h"
+#include "data/data_media_types.h"
 
 namespace Media {
 namespace Player {
@@ -222,8 +222,8 @@ bool Instance::moveInPlaylist(
 	}
 	const auto newIndex = *data->playlistIndex + delta;
 	if (const auto item = itemByIndex(data, newIndex)) {
-		if (const auto media = item->getMedia()) {
-			if (const auto document = media->getDocument()) {
+		if (const auto media = item->media()) {
+			if (const auto document = media->document()) {
 				if (autonext) {
 					_switchToNextNotifier.notify({
 						data->current,
@@ -300,11 +300,12 @@ void Instance::play(const AudioMsgId &audioId) {
 			documentLoadProgress(document);
 		}
 	} else if (document->isVideoMessage()) {
-		if (const auto item = App::histItemById(audioId.contextId())) {
-			if (const auto media = item->getMedia()) {
-				media->playInline();
-			}
-		}
+		// #TODO float player
+		//if (const auto item = App::histItemById(audioId.contextId())) {
+		//	if (const auto media = item->getMedia()) {
+		//		media->playInline();
+		//	}
+		//}
 	}
 }
 
@@ -429,8 +430,8 @@ void Instance::preloadNext(not_null<Data*> data) {
 	}
 	const auto nextIndex = *data->playlistIndex + 1;
 	if (const auto item = itemByIndex(data, nextIndex)) {
-		if (const auto media = item->getMedia()) {
-			if (const auto document = media->getDocument()) {
+		if (const auto media = item->media()) {
+			if (const auto document = media->document()) {
 				const auto isLoaded = document->loaded(
 					DocumentData::FilePathResolveSaveFromDataSilent);
 				if (!isLoaded) {

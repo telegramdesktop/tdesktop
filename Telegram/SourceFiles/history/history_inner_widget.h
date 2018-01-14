@@ -212,7 +212,7 @@ private:
 		int seltoy) const;
 	TextSelection computeRenderSelection(
 		not_null<const SelectedItems*> selected,
-		not_null<HistoryItem*> item) const;
+		not_null<Element*> view) const;
 
 	void setToClipboard(const TextWithEntities &forClipboard, QClipboard::Mode mode = QClipboard::Clipboard);
 

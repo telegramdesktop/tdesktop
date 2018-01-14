@@ -8,10 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 
 #include "history/history_item_components.h"
+#include "history/history_item.h"
 #include "history/history_media.h"
+#include "history/history_media_grouped.h"
 #include "history/history.h"
 #include "data/data_session.h"
+#include "data/data_media_types.h"
 #include "auth_session.h"
+#include "layout.h"
 
 namespace HistoryView {
 namespace {
@@ -20,13 +24,49 @@ namespace {
 constexpr int kAttachMessageToPreviousSecondsDelta = 900;
 
 } // namespace
+
+TextSelection UnshiftItemSelection(
+		TextSelection selection,
+		uint16 byLength) {
+	return (selection == FullSelection)
+		? selection
+		: ::unshiftSelection(selection, byLength);
+}
+
+TextSelection ShiftItemSelection(
+		TextSelection selection,
+		uint16 byLength) {
+	return (selection == FullSelection)
+		? selection
+		: ::shiftSelection(selection, byLength);
+}
+
+TextSelection UnshiftItemSelection(
+		TextSelection selection,
+		const Text &byText) {
+	return UnshiftItemSelection(selection, byText.length());
+}
+
+TextSelection ShiftItemSelection(
+		TextSelection selection,
+		const Text &byText) {
+	return ShiftItemSelection(selection, byText.length());
+}
+
 Element::Element(not_null<HistoryItem*> data, Context context)
 : _data(data)
+, _media(_data->media() ? _data->media()->createView(this) : nullptr)
 , _context(context) {
+	Auth().data().registerItemView(this);
+	initGroup();
 }
 
 not_null<HistoryItem*> Element::data() const {
 	return _data;
+}
+
+HistoryMedia *Element::media() const {
+	return _media.get();
 }
 
 Context Element::context() const {
@@ -44,7 +84,7 @@ void Element::setY(int y) {
 int Element::marginTop() const {
 	const auto item = data();
 	auto result = 0;
-	if (!item->isHiddenByGroup()) {
+	if (!isHiddenByGroup()) {
 		if (isAttachedToPrevious()) {
 			result += st::msgMarginTopAttached;
 		} else {
@@ -60,7 +100,11 @@ int Element::marginTop() const {
 
 int Element::marginBottom() const {
 	const auto item = data();
-	return item->isHiddenByGroup() ? 0 : st::msgMargin.bottom();
+	return isHiddenByGroup() ? 0 : st::msgMargin.bottom();
+}
+
+bool Element::isUnderCursor() const {
+	return (App::hoveredItem() == this);
 }
 
 void Element::setPendingResize() {
@@ -82,6 +126,113 @@ bool Element::isAttachedToNext() const {
 	return _flags & Flag::AttachedToNext;
 }
 
+int Element::skipBlockWidth() const {
+	return st::msgDateSpace + infoWidth() - st::msgDateDelta.x();
+}
+
+int Element::skipBlockHeight() const {
+	return st::msgDateFont->height - st::msgDateDelta.y();
+}
+
+QString Element::skipBlock() const {
+	return textcmdSkipBlock(skipBlockWidth(), skipBlockHeight());
+}
+
+int Element::infoWidth() const {
+	return 0;
+}
+
+bool Element::isHiddenByGroup() const {
+	return _flags & Flag::HiddenByGroup;
+}
+
+void Element::makeGroupMember(not_null<Element*> leader) {
+	Expects(leader != this);
+
+	const auto group = Get<Group>();
+	Assert(group != nullptr);
+	if (group->leader == this) {
+		if (auto single = _media ? _media->takeLastFromGroup() : nullptr) {
+			_media = std::move(single);
+		}
+		_flags |= Flag::HiddenByGroup;
+		Auth().data().requestViewResize(this);
+
+		group->leader = leader;
+		base::take(group->others);
+	} else if (group->leader != leader) {
+		group->leader = leader;
+	}
+
+	Ensures(isHiddenByGroup());
+	Ensures(group->others.empty());
+}
+
+void Element::makeGroupLeader(std::vector<not_null<Element*>> &&others) {
+	const auto group = Get<Group>();
+	Assert(group != nullptr);
+
+	const auto leaderChanged = (group->leader != this);
+	if (leaderChanged) {
+		group->leader = this;
+		_flags &= ~Flag::HiddenByGroup;
+		Auth().data().requestViewResize(this);
+	}
+	group->others = std::move(others);
+	if (!_media || !_media->applyGroup(group->others)) {
+		resetGroupMedia(group->others);
+		data()->invalidateChatsListEntry();
+	}
+
+	Ensures(!isHiddenByGroup());
+}
+
+bool Element::groupIdValidityChanged() {
+	if (Has<Group>()) {
+		if (_media && _media->canBeGrouped()) {
+			return false;
+		}
+		RemoveComponents(Group::Bit());
+		Auth().data().requestViewResize(this);
+		return true;
+	}
+	return false;
+}
+
+void Element::validateGroupId() {
+	// Just ignore the result.
+	groupIdValidityChanged();
+}
+
+Group *Element::getFullGroup() {
+	if (const auto group = Get<Group>()) {
+		if (group->leader == this) {
+			return group;
+		}
+		return group->leader->Get<Group>();
+	}
+	return nullptr;
+}
+
+void Element::initGroup() {
+	if (const auto groupId = _data->groupId()) {
+		AddComponents(Group::Bit());
+		const auto group = Get<Group>();
+		group->groupId = groupId;
+		group->leader = this;
+	}
+}
+
+void Element::resetGroupMedia(
+		const std::vector<not_null<Element*>> &others) {
+	if (!others.empty()) {
+		_media = std::make_unique<HistoryGroupedMedia>(this, others);
+	} else if (_media) {
+		_media = _media->takeLastFromGroup();
+	}
+	Auth().data().requestViewResize(this);
+}
+
 void Element::previousInBlocksChanged() {
 	recountDisplayDateInBlocks();
 	recountAttachToPreviousInBlocks();
@@ -90,6 +241,17 @@ void Element::previousInBlocksChanged() {
 // Called only if there is no more next item! Not always when it changes!
 void Element::nextInBlocksChanged() {
 	setAttachToNext(false);
+}
+
+void Element::refreshDataId() {
+	if (const auto media = this->media()) {
+		media->refreshParentId(this);
+		if (const auto group = Get<Group>()) {
+			if (group->leader != this) {
+				group->leader->refreshDataId();
+			}
+		}
+	}
 }
 
 bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
@@ -196,6 +358,53 @@ bool Element::displayFromName() const {
 	return false;
 }
 
+bool Element::displayForwardedFrom() const {
+	return false;
+}
+
+bool Element::hasOutLayout() const {
+	return false;
+}
+
+bool Element::drawBubble() const {
+	return false;
+}
+
+bool Element::hasBubble() const {
+	return false;
+}
+
+bool Element::hasFastReply() const {
+	return false;
+}
+
+bool Element::displayFastReply() const {
+	return false;
+}
+
+bool Element::displayRightAction() const {
+	return false;
+}
+
+void Element::drawRightAction(
+	Painter &p,
+	int left,
+	int top,
+	int outerWidth) const {
+}
+
+ClickHandlerPtr Element::rightActionLink() const {
+	return ClickHandlerPtr();
+}
+
+bool Element::displayEditedBadge() const {
+	return false;
+}
+
+QDateTime Element::displayedEditDate() const {
+	return QDateTime();
+}
+
 HistoryBlock *Element::block() {
 	return _block;
 }
@@ -261,6 +470,29 @@ Element *Element::nextInBlocks() const {
 	return nullptr;
 }
 
+void Element::drawInfo(
+	Painter &p,
+	int right,
+	int bottom,
+	int width,
+	bool selected,
+	InfoDisplayType type) const {
+}
+
+bool Element::pointInTime(
+		int right,
+		int bottom,
+		QPoint point,
+		InfoDisplayType type) const {
+	return false;
+}
+
+TextSelection Element::adjustSelection(
+		TextSelection selection,
+		TextSelectType type) const {
+	return selection;
+}
+
 void Element::clickHandlerActiveChanged(
 		const ClickHandlerPtr &handler,
 		bool active) {
@@ -271,7 +503,7 @@ void Element::clickHandlerActiveChanged(
 	}
 	App::hoveredLinkItem(active ? this : nullptr);
 	Auth().data().requestItemRepaint(_data);
-	if (const auto media = _data->getMedia()) {
+	if (const auto media = this->media()) {
 		media->clickHandlerActiveChanged(handler, active);
 	}
 }
@@ -286,13 +518,13 @@ void Element::clickHandlerPressedChanged(
 	}
 	App::pressedLinkItem(pressed ? this : nullptr);
 	Auth().data().requestItemRepaint(_data);
-	if (const auto media = _data->getMedia()) {
+	if (const auto media = this->media()) {
 		media->clickHandlerPressedChanged(handler, pressed);
 	}
 }
 
 Element::~Element() {
-	App::messageViewDestroyed(this);
+	Auth().data().unregisterItemView(this);
 }
 
 } // namespace HistoryView

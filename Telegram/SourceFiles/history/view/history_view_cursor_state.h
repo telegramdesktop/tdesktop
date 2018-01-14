@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace HistoryView {
+class Element;
+} // namespace HistoryView
+
 class HistoryItem;
 
 enum HistoryCursorState {
@@ -24,6 +28,13 @@ struct HistoryTextState {
 		const Text::StateResult &state);
 	HistoryTextState(
 		not_null<const HistoryItem*> item,
+		ClickHandlerPtr link);
+	HistoryTextState(not_null<const HistoryView::Element*> view);
+	HistoryTextState(
+		not_null<const HistoryView::Element*> view,
+		const Text::StateResult &state);
+	HistoryTextState(
+		not_null<const HistoryView::Element*> view,
 		ClickHandlerPtr link);
 	HistoryTextState(
 		std::nullptr_t,
@@ -56,7 +67,7 @@ struct HistoryStateRequest {
 	}
 };
 
-enum InfoDisplayType {
+enum InfoDisplayType : char {
 	InfoDisplayDefault,
 	InfoDisplayOverImage,
 	InfoDisplayOverBackground,

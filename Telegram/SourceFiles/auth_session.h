@@ -259,4 +259,6 @@ private:
 	const std::unique_ptr<Window::Notifications::System> _notifications;
 	const std::unique_ptr<Core::Changelogs> _changelogs;
 
+	rpl::lifetime _lifetime;
+
 };

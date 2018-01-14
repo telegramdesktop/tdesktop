@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "auth_session.h"
+#include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
@@ -191,7 +192,7 @@ void HistoryMessageReply::updateName() const {
 			: App::peerName(replyToMsg->author());
 		replyToName.setText(st::fwdTextStyle, name, Ui::NameTextOptions());
 		replyToVersion = replyToMsg->author()->nameVersion;
-		bool hasPreview = replyToMsg->getMedia() ? replyToMsg->getMedia()->hasReplyPreview() : false;
+		bool hasPreview = replyToMsg->media() ? replyToMsg->media()->hasReplyPreview() : false;
 		int32 previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;
 		int32 w = replyToName.maxWidth();
 		if (replyToVia) {
@@ -207,7 +208,7 @@ void HistoryMessageReply::updateName() const {
 
 void HistoryMessageReply::resize(int width) const {
 	if (replyToVia) {
-		bool hasPreview = replyToMsg->getMedia() ? replyToMsg->getMedia()->hasReplyPreview() : false;
+		bool hasPreview = replyToMsg->media() ? replyToMsg->media()->hasReplyPreview() : false;
 		int previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;
 		replyToVia->resize(width - st::msgReplyBarSkip - previewSkip - replyToName.maxWidth() - st::msgServiceFont->spacew);
 	}
@@ -222,7 +223,13 @@ void HistoryMessageReply::itemRemoved(
 	}
 }
 
-void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, int y, int w, PaintFlags flags) const {
+void HistoryMessageReply::paint(
+		Painter &p,
+		not_null<const HistoryView::Element*> holder,
+		int x,
+		int y,
+		int w,
+		PaintFlags flags) const {
 	bool selected = (flags & PaintFlag::Selected), outbg = holder->hasOutLayout();
 
 	style::color bar = st::msgImgReplyBarColor;
@@ -234,14 +241,14 @@ void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, in
 
 	if (w > st::msgReplyBarSkip) {
 		if (replyToMsg) {
-			auto hasPreview = replyToMsg->getMedia() ? replyToMsg->getMedia()->hasReplyPreview() : false;
+			auto hasPreview = replyToMsg->media() ? replyToMsg->media()->hasReplyPreview() : false;
 			if (hasPreview && w < st::msgReplyBarSkip + st::msgReplyBarSize.height()) {
 				hasPreview = false;
 			}
 			auto previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;
 
 			if (hasPreview) {
-				ImagePtr replyPreview = replyToMsg->getMedia()->replyPreview();
+				const auto replyPreview = replyToMsg->media()->replyPreview();
 				if (!replyPreview->isNull()) {
 					auto to = rtlrect(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height(), w + 2 * x);
 					auto previewWidth = replyPreview->width() / cIntRetinaFactor();
@@ -834,11 +841,14 @@ void HistoryMessageDate::paint(Painter &p, int y, int w) const {
 
 HistoryMessageLogEntryOriginal::HistoryMessageLogEntryOriginal() = default;
 
-HistoryMessageLogEntryOriginal::HistoryMessageLogEntryOriginal(HistoryMessageLogEntryOriginal &&other) : _page(std::move(other._page)) {
+HistoryMessageLogEntryOriginal::HistoryMessageLogEntryOriginal(
+	HistoryMessageLogEntryOriginal &&other)
+: page(std::move(other.page)) {
 }
 
-HistoryMessageLogEntryOriginal &HistoryMessageLogEntryOriginal::operator=(HistoryMessageLogEntryOriginal &&other) {
-	_page = std::move(other._page);
+HistoryMessageLogEntryOriginal &HistoryMessageLogEntryOriginal::operator=(
+		HistoryMessageLogEntryOriginal &&other) {
+	page = std::move(other.page);
 	return *this;
 }
 

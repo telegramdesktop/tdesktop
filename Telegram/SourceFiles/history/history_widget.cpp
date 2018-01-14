@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_result.h"
 #include "data/data_drafts.h"
 #include "data/data_session.h"
+#include "data/data_media_types.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_message.h"
@@ -648,8 +649,10 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 	Auth().data().itemLayoutChanged(
 	) | rpl::start_with_next([this](auto item) {
 		if (_peer && _list) {
-			if (item->isUnderCursor()) {
-				_list->onUpdateSelected();
+			if (const auto view = item->mainView()) {
+				if (view->isUnderCursor()) {
+					_list->onUpdateSelected();
+				}
 			}
 		}
 	}, lifetime());
@@ -714,7 +717,10 @@ void HistoryWidget::animatedScrollToItem(MsgId msgId) {
 		return;
 	}
 
-	auto scrollTo = snap(itemTopForHighlight(to), 0, _scroll->scrollTopMax());
+	auto scrollTo = snap(
+		itemTopForHighlight(to->mainView()),
+		0,
+		_scroll->scrollTopMax());
 	animatedScrollToY(scrollTo, to);
 }
 
@@ -769,9 +775,10 @@ void HistoryWidget::scrollToAnimationCallback(FullMsgId attachToId) {
 	}
 }
 
-void HistoryWidget::enqueueMessageHighlight(not_null<HistoryItem*> item) {
-	if (const auto group = item->getFullGroup()) {
-		item = group->leader;
+void HistoryWidget::enqueueMessageHighlight(
+		not_null<HistoryView::Element*> view) {
+	if (const auto group = view->getFullGroup()) {
+		view = group->leader;
 	}
 	auto enqueueMessageId = [this](MsgId universalId) {
 		if (_highlightQueue.empty() && !_highlightTimer.isActive()) {
@@ -782,6 +789,7 @@ void HistoryWidget::enqueueMessageHighlight(not_null<HistoryItem*> item) {
 			checkNextHighlight();
 		}
 	};
+	const auto item = view->data();
 	if (item->history() == _history) {
 		enqueueMessageId(item->id);
 	} else if (item->history() == _migrated) {
@@ -874,12 +882,10 @@ void HistoryWidget::clearHighlightMessages() {
 	stopMessageHighlight();
 }
 
-int HistoryWidget::itemTopForHighlight(not_null<HistoryItem*> item) const {
-	const auto view = item->mainView();
-	Assert(view != nullptr);
-
-	if (const auto group = item->getFullGroup()) {
-		item = group->leader;
+int HistoryWidget::itemTopForHighlight(
+		not_null<HistoryView::Element*> view) const {
+	if (const auto group = view->getFullGroup()) {
+		view = group->leader;
 	}
 	auto itemTop = _list->itemTop(view);
 	Assert(itemTop >= 0);
@@ -4354,8 +4360,8 @@ void HistoryWidget::onThumbDocumentUploaded(
 
 void HistoryWidget::onPhotoProgress(const FullMsgId &newId) {
 	if (const auto item = App::histItemById(newId)) {
-		const auto photo = item->getMedia()
-			? item->getMedia()->getPhoto()
+		const auto photo = item->media()
+			? item->media()->photo()
 			: nullptr;
 		updateSendAction(item->history(), SendAction::Type::UploadPhoto, 0);
 		Auth().data().requestItemRepaint(item);
@@ -4364,8 +4370,8 @@ void HistoryWidget::onPhotoProgress(const FullMsgId &newId) {
 
 void HistoryWidget::onDocumentProgress(const FullMsgId &newId) {
 	if (const auto item = App::histItemById(newId)) {
-		const auto media = item->getMedia();
-		const auto document = media ? media->getDocument() : nullptr;
+		const auto media = item->media();
+		const auto document = media ? media->document() : nullptr;
 		const auto sendAction = (document && document->isVoiceMessage())
 			? SendAction::Type::UploadVoice
 			: SendAction::Type::UploadFile;
@@ -4389,8 +4395,8 @@ void HistoryWidget::onPhotoFailed(const FullMsgId &newId) {
 
 void HistoryWidget::onDocumentFailed(const FullMsgId &newId) {
 	if (const auto item = App::histItemById(newId)) {
-		const auto media = item->getMedia();
-		const auto document = media ? media->getDocument() : nullptr;
+		const auto media = item->media();
+		const auto document = media ? media->document() : nullptr;
 		const auto sendAction = (document && document->isVoiceMessage())
 			? SendAction::Type::UploadVoice
 			: SendAction::Type::UploadFile;
@@ -4666,8 +4672,11 @@ int HistoryWidget::countInitialScrollTop() {
 			setMsgId(0);
 			return countInitialScrollTop();
 		} else {
-			result = itemTopForHighlight(item);
-			enqueueMessageHighlight(item);
+			const auto view = item->mainView();
+			Assert(view != nullptr);
+
+			result = itemTopForHighlight(view);
+			enqueueMessageHighlight(view);
 		}
 	} else if (_history->unreadBar || (_migrated && _migrated->unreadBar)) {
 		result = unreadBarTop();
@@ -5076,7 +5085,7 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 		}
 	} else if (e->key() == Qt::Key_Up) {
 		if (!(e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier))) {
-			if (_history && _history->lastSentMsg && _history->lastSentMsg->canEdit(::date(unixtime()))) {
+			if (_history && _history->lastSentMsg && _history->lastSentMsg->allowsEdit(::date(unixtime()))) {
 				if (_field->isEmpty() && !_editMsgId && !_replyToId && _history->lastSentMsg) {
 					editMessage(_history->lastSentMsg);
 					return;
@@ -5598,8 +5607,8 @@ void HistoryWidget::editMessage(FullMsgId itemId) {
 }
 
 void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
-	if (const auto media = item->getMedia()) {
-		if (media->canEditCaption()) {
+	if (const auto media = item->media()) {
+		if (media->allowsEditCaption()) {
 			Ui::show(Box<EditCaptionBox>(media, item->fullId()));
 			return;
 		}
@@ -5635,9 +5644,9 @@ void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
 	applyDraft(false);
 
 	_previewData = nullptr;
-	if (const auto media = item->getMedia()) {
-		if (media->type() == MediaTypeWebPage) {
-			_previewData = static_cast<HistoryWebPage*>(media)->webpage();
+	if (const auto media = item->media()) {
+		if (const auto page = media->webpage()) {
+			_previewData = page;
 			updatePreview();
 		}
 	}
@@ -6335,8 +6344,8 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 		(_editMsgId ? st::historyEditIcon : st::historyReplyIcon).paint(p, st::historyReplyIconPosition + QPoint(0, backy), width());
 		if (!drawWebPagePreview) {
 			if (drawMsgText) {
-				if (drawMsgText->getMedia() && drawMsgText->getMedia()->hasReplyPreview()) {
-					auto replyPreview = drawMsgText->getMedia()->replyPreview();
+				if (drawMsgText->media() && drawMsgText->media()->hasReplyPreview()) {
+					auto replyPreview = drawMsgText->media()->replyPreview();
 					if (!replyPreview->isNull()) {
 						auto to = QRect(replyLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
 						p.drawPixmap(to.x(), to.y(), replyPreview->pixSingle(replyPreview->width() / cIntRetinaFactor(), replyPreview->height() / cIntRetinaFactor(), to.width(), to.height(), ImageRoundRadius::Small));
@@ -6362,7 +6371,7 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 		st::historyForwardIcon.paint(p, st::historyReplyIconPosition + QPoint(0, backy), width());
 		if (!drawWebPagePreview) {
 			const auto firstItem = _toForward.front();
-			const auto firstMedia = firstItem->getMedia();
+			const auto firstMedia = firstItem->media();
 			const auto serviceColor = (_toForward.size() > 1)
 				|| (firstMedia != nullptr)
 				|| firstItem->serviceMsg();
@@ -6498,8 +6507,8 @@ void HistoryWidget::drawPinnedBar(Painter &p) {
 
 	int32 left = st::msgReplyBarSkip + st::msgReplyBarSkip;
 	if (_pinnedBar->msg) {
-		if (_pinnedBar->msg->getMedia() && _pinnedBar->msg->getMedia()->hasReplyPreview()) {
-			ImagePtr replyPreview = _pinnedBar->msg->getMedia()->replyPreview();
+		if (_pinnedBar->msg->media() && _pinnedBar->msg->media()->hasReplyPreview()) {
+			ImagePtr replyPreview = _pinnedBar->msg->media()->replyPreview();
 			if (!replyPreview->isNull()) {
 				QRect to(left, top, st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
 				p.drawPixmap(to.x(), to.y(), replyPreview->pixSingle(replyPreview->width() / cIntRetinaFactor(), replyPreview->height() / cIntRetinaFactor(), to.width(), to.height(), ImageRoundRadius::Small));

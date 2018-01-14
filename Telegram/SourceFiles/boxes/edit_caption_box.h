@@ -9,7 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
-class HistoryMedia;
+namespace Data {
+class Media;
+} // namespace Data
 
 namespace Ui {
 class InputArea;
@@ -17,7 +19,7 @@ class InputArea;
 
 class EditCaptionBox : public BoxContent, public RPCSender {
 public:
-	EditCaptionBox(QWidget*, not_null<HistoryMedia*> media, FullMsgId msgId);
+	EditCaptionBox(QWidget*, not_null<Data::Media*> media, FullMsgId msgId);
 
 protected:
 	void prepare() override;

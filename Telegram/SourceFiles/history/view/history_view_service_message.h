@@ -27,6 +27,10 @@ public:
 		QPoint point,
 		HistoryStateRequest request) const override;
 	void updatePressed(QPoint point) override;
+	TextWithEntities selectedText(TextSelection selection) const override;
+	TextSelection adjustSelection(
+		TextSelection selection,
+		TextSelectType type) const override;
 
 private:
 	not_null<HistoryService*> message() const;

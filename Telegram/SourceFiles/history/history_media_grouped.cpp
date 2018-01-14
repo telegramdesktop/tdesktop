@@ -18,13 +18,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_history.h"
 #include "layout.h"
 
-HistoryGroupedMedia::Element::Element(not_null<HistoryItem*> item)
-: item(item) {
+HistoryGroupedMedia::Part::Part(not_null<Element*> view)
+: view(view) {
 }
 
 HistoryGroupedMedia::HistoryGroupedMedia(
-	not_null<HistoryItem*> parent,
-	const std::vector<not_null<HistoryItem*>> &others)
+	not_null<Element*> parent,
+	const std::vector<not_null<Element*>> &others)
 : HistoryMedia(parent)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
 	const auto result = applyGroup(others);
@@ -32,23 +32,17 @@ HistoryGroupedMedia::HistoryGroupedMedia(
 	Ensures(result);
 }
 
-std::unique_ptr<HistoryMedia> HistoryGroupedMedia::clone(
-		not_null<HistoryItem*> newParent,
-		not_null<HistoryItem*> realParent) const {
-	return main()->clone(newParent, realParent);
-}
-
 QSize HistoryGroupedMedia::countOptimalSize() {
 	if (_caption.hasSkipBlock()) {
-		_caption.setSkipBlock(
+		_caption.updateSkipBlock(
 			_parent->skipBlockWidth(),
 			_parent->skipBlockHeight());
 	}
 
 	std::vector<QSize> sizes;
-	sizes.reserve(_elements.size());
-	for (const auto &element : _elements) {
-		const auto &media = element.content;
+	sizes.reserve(_parts.size());
+	for (const auto &part : _parts) {
+		const auto &media = part.content;
 		media->initDimensions();
 		sizes.push_back(media->sizeForGrouping());
 	}
@@ -58,7 +52,7 @@ QSize HistoryGroupedMedia::countOptimalSize() {
 		st::historyGroupWidthMax,
 		st::historyGroupWidthMin,
 		st::historyGroupSkip);
-	Assert(layout.size() == _elements.size());
+	Assert(layout.size() == _parts.size());
 
 	auto maxWidth = 0;
 	auto minHeight = 0;
@@ -66,8 +60,8 @@ QSize HistoryGroupedMedia::countOptimalSize() {
 		const auto &item = layout[i];
 		accumulate_max(maxWidth, item.geometry.x() + item.geometry.width());
 		accumulate_max(minHeight, item.geometry.y() + item.geometry.height());
-		_elements[i].initialGeometry = item.geometry;
-		_elements[i].sides = item.sides;
+		_parts[i].initialGeometry = item.geometry;
+		_parts[i].sides = item.sides;
 	}
 
 	if (!_caption.isEmpty()) {
@@ -93,9 +87,9 @@ QSize HistoryGroupedMedia::countCurrentSize(int newWidth) {
 		return int(std::round(value * factor));
 	};
 	const auto spacing = scale(initialSpacing);
-	for (auto &element : _elements) {
-		const auto sides = element.sides;
-		const auto initialGeometry = element.initialGeometry;
+	for (auto &part : _parts) {
+		const auto sides = part.sides;
+		const auto initialGeometry = part.initialGeometry;
 		const auto needRightSkip = !(sides & RectPart::Right);
 		const auto needBottomSkip = !(sides & RectPart::Bottom);
 		const auto initialLeft = initialGeometry.x();
@@ -114,7 +108,7 @@ QSize HistoryGroupedMedia::countCurrentSize(int newWidth) {
 		const auto height = scale(initialBottom)
 			- top
 			- (needBottomSkip ? spacing : 0);
-		element.geometry = QRect(left, top, width, height);
+		part.geometry = QRect(left, top, width, height);
 
 		accumulate_max(newHeight, top + height);
 	}
@@ -130,10 +124,9 @@ QSize HistoryGroupedMedia::countCurrentSize(int newWidth) {
 	return { newWidth, newHeight };
 }
 
-void HistoryGroupedMedia::refreshParentId(
-		not_null<HistoryItem*> realParent) {
-	for (const auto &element : _elements) {
-		element.content->refreshParentId(element.item);
+void HistoryGroupedMedia::refreshParentId(not_null<Element*> realParent) {
+	for (const auto &part : _parts) {
+		part.content->refreshParentId(part.view);
 	}
 }
 
@@ -142,29 +135,29 @@ void HistoryGroupedMedia::draw(
 		const QRect &clip,
 		TextSelection selection,
 		TimeMs ms) const {
-	for (auto i = 0, count = int(_elements.size()); i != count; ++i) {
-		const auto &element = _elements[i];
-		const auto elementSelection = (selection == FullSelection)
+	for (auto i = 0, count = int(_parts.size()); i != count; ++i) {
+		const auto &part = _parts[i];
+		const auto partSelection = (selection == FullSelection)
 			? FullSelection
 			: IsGroupItemSelection(selection, i)
 			? FullSelection
 			: TextSelection();
-		auto corners = Ui::GetCornersFromSides(element.sides);
+		auto corners = Ui::GetCornersFromSides(part.sides);
 		if (!isBubbleTop()) {
 			corners &= ~(RectPart::TopLeft | RectPart::TopRight);
 		}
 		if (!isBubbleBottom() || !_caption.isEmpty()) {
 			corners &= ~(RectPart::BottomLeft | RectPart::BottomRight);
 		}
-		element.content->drawGrouped(
+		part.content->drawGrouped(
 			p,
 			clip,
-			elementSelection,
+			partSelection,
 			ms,
-			element.geometry,
+			part.geometry,
 			corners,
-			&element.cacheKey,
-			&element.cache);
+			&part.cacheKey,
+			&part.cache);
 	}
 
 	// date
@@ -177,7 +170,7 @@ void HistoryGroupedMedia::draw(
 			- _caption.countHeight(captionw);
 		p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
 		_caption.draw(p, st::msgPadding.left(), captiony, captionw, style::al_left, 0, -1, selection);
-	} else if (_parent->getMedia() == this) {
+	} else if (_parent->media() == this) {
 		auto fullRight = width();
 		auto fullBottom = height();
 		if (needInfoDisplay()) {
@@ -191,38 +184,38 @@ void HistoryGroupedMedia::draw(
 	}
 }
 
-HistoryTextState HistoryGroupedMedia::getElementState(
+HistoryTextState HistoryGroupedMedia::getPartState(
 		QPoint point,
 		HistoryStateRequest request) const {
-	for (const auto &element : _elements) {
-		if (element.geometry.contains(point)) {
-			auto result = element.content->getStateGrouped(
-				element.geometry,
+	for (const auto &part : _parts) {
+		if (part.geometry.contains(point)) {
+			auto result = part.content->getStateGrouped(
+				part.geometry,
 				point,
 				request);
-			result.itemId = element.item->fullId();
+			result.itemId = part.view->data()->fullId();
 			return result;
 		}
 	}
-	return HistoryTextState(_parent);
+	return HistoryTextState(_parent->data());
 }
 
 HistoryTextState HistoryGroupedMedia::getState(
 		QPoint point,
 		HistoryStateRequest request) const {
-	auto result = getElementState(point, request);
+	auto result = getPartState(point, request);
 	if (!result.link && !_caption.isEmpty()) {
 		const auto captionw = width() - st::msgPadding.left() - st::msgPadding.right();
 		const auto captiony = height()
 			- (isBubbleBottom() ? st::msgPadding.bottom() : 0)
 			- _caption.countHeight(captionw);
 		if (QRect(st::msgPadding.left(), captiony, captionw, height() - captiony).contains(point)) {
-			return HistoryTextState(_parent, _caption.getState(
+			return HistoryTextState(_parent->data(), _caption.getState(
 				point - QPoint(st::msgPadding.left(), captiony),
 				captionw,
 				request.forText()));
 		}
-	} else if (_parent->getMedia() == this) {
+	} else if (_parent->media() == this) {
 		auto fullRight = width();
 		auto fullBottom = height();
 		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayOverImage)) {
@@ -241,8 +234,8 @@ HistoryTextState HistoryGroupedMedia::getState(
 
 bool HistoryGroupedMedia::toggleSelectionByHandlerClick(
 		const ClickHandlerPtr &p) const {
-	for (const auto &element : _elements) {
-		if (element.content->toggleSelectionByHandlerClick(p)) {
+	for (const auto &part : _parts) {
+		if (part.content->toggleSelectionByHandlerClick(p)) {
 			return true;
 		}
 	}
@@ -250,8 +243,8 @@ bool HistoryGroupedMedia::toggleSelectionByHandlerClick(
 }
 
 bool HistoryGroupedMedia::dragItemByHandler(const ClickHandlerPtr &p) const {
-	for (const auto &element : _elements) {
-		if (element.content->dragItemByHandler(p)) {
+	for (const auto &part : _parts) {
+		if (part.content->dragItemByHandler(p)) {
 			return true;
 		}
 	}
@@ -264,14 +257,6 @@ TextSelection HistoryGroupedMedia::adjustSelection(
 	return _caption.adjustSelection(selection, type);
 }
 
-QString HistoryGroupedMedia::notificationText() const {
-	return WithCaptionNotificationText(lang(lng_in_dlg_photo), _caption);
-}
-
-QString HistoryGroupedMedia::inDialogsText() const {
-	return WithCaptionDialogsText(lang(lng_in_dlg_album), _caption);
-}
-
 TextWithEntities HistoryGroupedMedia::selectedText(
 		TextSelection selection) const {
 	if (!IsSubGroupSelection(selection)) {
@@ -279,7 +264,7 @@ TextWithEntities HistoryGroupedMedia::selectedText(
 			lang(lng_in_dlg_album),
 			_caption,
 			selection);
-	} else if (IsGroupItemSelection(selection, int(_elements.size()) - 1)) {
+	} else if (IsGroupItemSelection(selection, int(_parts.size()) - 1)) {
 		return main()->selectedText(FullSelection);
 	}
 	return TextWithEntities();
@@ -288,78 +273,77 @@ TextWithEntities HistoryGroupedMedia::selectedText(
 void HistoryGroupedMedia::clickHandlerActiveChanged(
 		const ClickHandlerPtr &p,
 		bool active) {
-	for (const auto &element : _elements) {
-		element.content->clickHandlerActiveChanged(p, active);
+	for (const auto &part : _parts) {
+		part.content->clickHandlerActiveChanged(p, active);
 	}
 }
 
 void HistoryGroupedMedia::clickHandlerPressedChanged(
 		const ClickHandlerPtr &p,
 		bool pressed) {
-	for (const auto &element : _elements) {
-		element.content->clickHandlerPressedChanged(p, pressed);
-		if (pressed && element.content->dragItemByHandler(p)) {
-			// #TODO pressedLinkItem
-			//App::pressedLinkItem(element.item);
+	for (const auto &part : _parts) {
+		part.content->clickHandlerPressedChanged(p, pressed);
+		if (pressed && part.content->dragItemByHandler(p)) {
+			App::pressedLinkItem(part.view);
 		}
 	}
 }
 
 void HistoryGroupedMedia::attachToParent() {
-	for (const auto &element : _elements) {
-		element.content->attachToParent();
+	for (const auto &part : _parts) {
+		part.content->attachToParent();
 	}
 }
 
 void HistoryGroupedMedia::detachFromParent() {
-	for (const auto &element : _elements) {
-		if (element.content) {
-			element.content->detachFromParent();
+	for (const auto &part : _parts) {
+		if (part.content) {
+			part.content->detachFromParent();
 		}
 	}
 }
 
 std::unique_ptr<HistoryMedia> HistoryGroupedMedia::takeLastFromGroup() {
-	return std::move(_elements.back().content);
+	return std::move(_parts.back().content);
 }
 
 bool HistoryGroupedMedia::applyGroup(
-		const std::vector<not_null<HistoryItem*>> &others) {
+		const std::vector<not_null<Element*>> &others) {
 	if (others.empty()) {
 		return false;
 	}
-	const auto pushElement = [&](not_null<HistoryItem*> item) {
-		const auto media = item->getMedia();
+	const auto pushElement = [&](not_null<Element*> view) {
+		const auto media = view->media();
 		Assert(media != nullptr && media->canBeGrouped());
 
-		_elements.push_back(Element(item));
-		_elements.back().content = item->getMedia()->clone(_parent, item);
+		_parts.push_back(Part(view));
+		_parts.back().content = media->clone(_parent, view);
 	};
-	if (_elements.empty()) {
+	if (_parts.empty()) {
 		pushElement(_parent);
-	} else if (validateGroupElements(others)) {
+	} else if (validateGroupParts(others)) {
 		return true;
 	}
 
 	// We're updating other elements, so we just need to preserve the main.
-	auto mainElement = std::move(_elements.back());
-	_elements.erase(_elements.begin(), _elements.end());
-	_elements.reserve(others.size() + 1);
-	for (const auto item : others) {
-		pushElement(item);
+	auto mainPart = std::move(_parts.back());
+	_parts.erase(_parts.begin(), _parts.end());
+	_parts.reserve(others.size() + 1);
+	for (const auto view : others) {
+		pushElement(view);
 	}
-	_elements.push_back(std::move(mainElement));
+	_parts.push_back(std::move(mainPart));
 	//_parent->setPendingInitDimensions(); // #TODO group view
 	return true;
 }
 
-bool HistoryGroupedMedia::validateGroupElements(
-		const std::vector<not_null<HistoryItem*>> &others) const {
-	if (_elements.size() != others.size() + 1) {
+bool HistoryGroupedMedia::validateGroupParts(
+		const std::vector<not_null<Element*>> &others) const {
+	if (_parts.size() != others.size() + 1) {
 		return false;
 	}
 	for (auto i = 0, count = int(others.size()); i != count; ++i) {
-		if (_elements[i].item != others[i]) {
+		if (_parts[i].view != others[i]) {
 			return false;
 		}
 	}
@@ -367,9 +351,9 @@ bool HistoryGroupedMedia::validateGroupElements(
 }
 
 not_null<HistoryMedia*> HistoryGroupedMedia::main() const {
-	Expects(!_elements.empty());
+	Expects(!_parts.empty());
 
-	return _elements.back().content.get();
+	return _parts.back().content.get();
 }
 
 bool HistoryGroupedMedia::hasReplyPreview() const {
@@ -388,15 +372,6 @@ Storage::SharedMediaTypesMask HistoryGroupedMedia::sharedMediaTypes() const {
 	return main()->sharedMediaTypes();
 }
 
-void HistoryGroupedMedia::updateSentMedia(const MTPMessageMedia &media) {
-	return main()->updateSentMedia(media);
-}
-
-bool HistoryGroupedMedia::needReSetInlineResultMedia(
-		const MTPMessageMedia &media) {
-	return main()->needReSetInlineResultMedia(media);
-}
-
 PhotoData *HistoryGroupedMedia::getPhoto() const {
 	return main()->getPhoto();
 }
@@ -407,25 +382,25 @@ DocumentData *HistoryGroupedMedia::getDocument() const {
 
 HistoryMessageEdited *HistoryGroupedMedia::displayedEditBadge() const {
 	if (!_caption.isEmpty()) {
-		return _elements.front().item->Get<HistoryMessageEdited>();
+		return _parts.front().view->data()->Get<HistoryMessageEdited>();
 	}
 	return nullptr;
 }
 
 void HistoryGroupedMedia::updateNeedBubbleState() {
-	const auto getItemCaption = [](const Element &element) {
-		if (const auto media = element.item->getMedia()) {
+	const auto getItemCaption = [](const Part &part) {
+		if (const auto media = part.view->media()) {
 			return media->getCaption();
 		}
-		return element.content->getCaption();
+		return part.content->getCaption();
 	};
 	const auto captionText = [&] {
-		auto result = getItemCaption(_elements.front());
+		auto result = getItemCaption(_parts.front());
 		if (result.text.isEmpty()) {
 			return result;
 		}
-		for (auto i = 1, count = int(_elements.size()); i != count; ++i) {
-			if (!getItemCaption(_elements[i]).text.isEmpty()) {
+		for (auto i = 1, count = int(_parts.size()); i != count; ++i) {
+			if (!getItemCaption(_parts[i]).text.isEmpty()) {
 				return TextWithEntities();
 			}
 		}
@@ -434,7 +409,7 @@ void HistoryGroupedMedia::updateNeedBubbleState() {
 	_caption.setText(
 		st::messageTextStyle,
 		captionText.text + _parent->skipBlock(),
-		Ui::ItemTextNoMonoOptions(_parent));
+		Ui::ItemTextNoMonoOptions(_parent->data()));
 	_needBubble = computeNeedBubble();
 }
 
@@ -442,19 +417,15 @@ bool HistoryGroupedMedia::needsBubble() const {
 	return _needBubble;
 }
 
-bool HistoryGroupedMedia::canEditCaption() const {
-	return main()->canEditCaption();
-}
-
 bool HistoryGroupedMedia::computeNeedBubble() const {
 	if (!_caption.isEmpty()) {
 		return true;
 	}
-	if (const auto message = _parent->toHistoryMessage()) {
-		if (message->viaBot()
-			|| message->Has<HistoryMessageReply>()
-			|| message->displayForwardedFrom()
-//			|| message->displayFromName() // #TODO media views
+	if (const auto item = _parent->data()) {
+		if (item->viaBot()
+			|| item->Has<HistoryMessageReply>()
+			|| _parent->displayForwardedFrom()
+			|| _parent->displayFromName()
 			) {
 			return true;
 		}
@@ -463,5 +434,5 @@ bool HistoryGroupedMedia::computeNeedBubble() const {
 }
 
 bool HistoryGroupedMedia::needInfoDisplay() const {
-	return (_parent->id < 0 || _parent->isUnderCursor());
+	return (_parent->data()->id < 0 || _parent->isUnderCursor());
 }

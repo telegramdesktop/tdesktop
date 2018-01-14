@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "data/data_feed.h"
 #include "data/data_session.h"
+#include "data/data_media_types.h"
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
 #include "storage/storage_shared_media.h"
@@ -204,7 +205,10 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	case mtpc_messageActionChatEditPhoto: {
 		auto &photo = action.c_messageActionChatEditPhoto().vphoto;
 		if (photo.type() == mtpc_photo) {
-			_media = std::make_unique<HistoryPhoto>(this, history()->peer, photo.c_photo(), st::msgServicePhotoWidth);
+			_media = std::make_unique<Data::MediaPhoto>(
+				this,
+				history()->peer,
+				App::feedPhoto(photo.c_photo()));
 		}
 	} break;
 
@@ -268,42 +272,12 @@ HistoryService::PreparedText HistoryService::preparePinnedText() {
 	auto result = PreparedText {};
 	auto pinned = Get<HistoryServicePinned>();
 	if (pinned && pinned->msg) {
-		auto mediaText = ([pinned]() -> QString {
-			auto media = pinned->msg->getMedia();
-			switch (media ? media->type() : MediaTypeCount) {
-			case MediaTypePhoto: return lang(lng_action_pinned_media_photo);
-			case MediaTypeVideo: return lang(lng_action_pinned_media_video);
-			case MediaTypeGrouped: return lang(media->getPhoto()
-				? lng_action_pinned_media_photo
-				: lng_action_pinned_media_video);
-			case MediaTypeContact: return lang(lng_action_pinned_media_contact);
-			case MediaTypeFile: return lang(lng_action_pinned_media_file);
-			case MediaTypeGif: {
-				if (auto document = media->getDocument()) {
-					if (document->isVideoMessage()) {
-						return lang(lng_action_pinned_media_video_message);
-					}
-				}
-				return lang(lng_action_pinned_media_gif);
-			} break;
-			case MediaTypeSticker: {
-				auto emoji = static_cast<HistorySticker*>(media)->emoji();
-				if (emoji.isEmpty()) {
-					return lang(lng_action_pinned_media_sticker);
-				}
-				return lng_action_pinned_media_emoji_sticker(lt_emoji, emoji);
-			} break;
-			case MediaTypeLocation: return lang(lng_action_pinned_media_location);
-			case MediaTypeMusicFile: return lang(lng_action_pinned_media_audio);
-			case MediaTypeVoiceFile: return lang(lng_action_pinned_media_voice);
-			case MediaTypeGame: {
-				auto title = static_cast<HistoryGame*>(media)->game()->title;
-				return lng_action_pinned_media_game(lt_game, title);
-			} break;
+		const auto mediaText = [&] {
+			if (const auto media = pinned->msg->media()) {
+				return media->pinnedTextSubstring();
 			}
 			return QString();
-		})();
-
+		}();
 		result.links.push_back(fromLink());
 		result.links.push_back(pinned->lnk);
 		if (mediaText.isEmpty()) {
@@ -344,8 +318,8 @@ HistoryService::PreparedText HistoryService::prepareGameScoreText() {
 
 	auto computeGameTitle = [gamescore, &result]() -> QString {
 		if (gamescore && gamescore->msg) {
-			if (const auto media = gamescore->msg->getMedia()) {
-				if (media->type() == MediaTypeGame) {
+			if (const auto media = gamescore->msg->media()) {
+				if (const auto game = media->game()) {
 					const auto row = 0;
 					const auto column = 0;
 					result.links.push_back(
@@ -353,7 +327,7 @@ HistoryService::PreparedText HistoryService::prepareGameScoreText() {
 							row,
 							column,
 							gamescore->msg->fullId()));
-					auto titleText = static_cast<HistoryGame*>(media)->game()->title;
+					auto titleText = game->title;
 					return textcmdLink(result.links.size(), titleText);
 				}
 			}
@@ -404,11 +378,11 @@ HistoryService::PreparedText HistoryService::preparePaymentSentText() {
 	auto result = PreparedText {};
 	auto payment = Get<HistoryServicePayment>();
 
-	auto invoiceTitle = ([payment]() -> QString {
+	auto invoiceTitle = [&] {
 		if (payment && payment->msg) {
-			if (auto media = payment->msg->getMedia()) {
-				if (media->type() == MediaTypeInvoice) {
-					return static_cast<HistoryInvoice*>(media)->getTitle();
+			if (const auto media = payment->msg->media()) {
+				if (const auto invoice = media->invoice()) {
+					return invoice->title;
 				}
 			}
 			return lang(lng_deleted_message);
@@ -416,7 +390,7 @@ HistoryService::PreparedText HistoryService::preparePaymentSentText() {
 			return lang(lng_contacts_loading);
 		}
 		return QString();
-	})();
+	}();
 
 	if (invoiceTitle.isEmpty()) {
 		result.text = lng_action_payment_done(lt_amount, payment->amount, lt_user, history()->peer->name);
@@ -431,16 +405,33 @@ HistoryService::HistoryService(not_null<History*> history, const MTPDmessage &me
 	createFromMtp(message);
 }
 
-HistoryService::HistoryService(not_null<History*> history, const MTPDmessageService &message) :
-	HistoryItem(history, message.vid.v, mtpCastFlags(message.vflags.v), ::date(message.vdate), message.has_from_id() ? message.vfrom_id.v : 0) {
+HistoryService::HistoryService(
+	not_null<History*> history,
+	const MTPDmessageService &message)
+: HistoryItem(
+		history,
+		message.vid.v,
+		mtpCastFlags(message.vflags.v),
+		::date(message.vdate),
+		message.has_from_id() ? message.vfrom_id.v : 0) {
 	createFromMtp(message);
 }
 
-HistoryService::HistoryService(not_null<History*> history, MsgId msgId, QDateTime date, const PreparedText &message, MTPDmessage::Flags flags, int32 from, PhotoData *photo) :
-	HistoryItem(history, msgId, flags, date, from) {
+HistoryService::HistoryService(
+	not_null<History*> history,
+	MsgId msgId,
+	QDateTime date,
+	const PreparedText &message,
+	MTPDmessage::Flags flags,
+	UserId from,
+	PhotoData *photo)
+: HistoryItem(history, msgId, flags, date, from) {
 	setServiceText(message);
 	if (photo) {
-		_media = std::make_unique<HistoryPhoto>(this, history->peer, photo, st::msgServicePhotoWidth);
+		_media = std::make_unique<Data::MediaPhoto>(
+			this,
+			history->peer,
+			photo);
 	}
 }
 
@@ -449,10 +440,6 @@ bool HistoryService::updateDependencyItem() {
 		return updateDependent(true);
 	}
 	return HistoryItem::updateDependencyItem();
-}
-
-TextWithEntities HistoryService::selectedText(TextSelection selection) const {
-	return _text.originalTextWithEntities((selection == FullSelection) ? AllTextSelection : selection);
 }
 
 QString HistoryService::inDialogsText(DrawInDialog way) const {
@@ -599,16 +586,14 @@ void HistoryService::applyEdition(const MTPDmessageService &message) {
 void HistoryService::removeMedia() {
 	if (!_media) return;
 
-	bool mediaWasDisplayed = _media->isDisplayed();
 	_media.reset();
-	if (mediaWasDisplayed) {
-		_textWidth = -1;
-		_textHeight = 0;
-	}
+	_textWidth = -1;
+	_textHeight = 0;
+	Auth().data().requestItemViewResize(this);
 }
 
 Storage::SharedMediaTypesMask HistoryService::sharedMediaTypes() const {
-	if (auto media = getMedia()) {
+	if (auto media = this->media()) {
 		return media->sharedMediaTypes();
 	}
 	return {};

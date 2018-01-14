@@ -12,7 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/media_clip_reader.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/history_media_types.h"
+#include "data/data_media_types.h"
+#include "data/data_photo.h"
+#include "data/data_document.h"
 #include "lang/lang_keys.h"
 #include "window/window_controller.h"
 #include "mainwidget.h"
@@ -22,59 +24,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 EditCaptionBox::EditCaptionBox(
 	QWidget*,
-	not_null<HistoryMedia*> media,
+	not_null<Data::Media*> media,
 	FullMsgId msgId)
 : _msgId(msgId) {
-	Expects(media->canEditCaption());
+	Expects(media->allowsEditCaption());
 
 	QSize dimensions;
 	ImagePtr image;
-	QString caption;
 	DocumentData *doc = nullptr;
 
-	switch (media->type()) {
-	case MediaTypeGif: {
-		_animated = true;
-		doc = static_cast<HistoryGif*>(media.get())->getDocument();
-		dimensions = doc->dimensions;
-		image = doc->thumb;
-	} break;
-
-	case MediaTypePhoto: {
+	if (const auto photo = media->photo()) {
 		_photo = true;
-		auto photo = static_cast<HistoryPhoto*>(media.get())->getPhoto();
 		dimensions = QSize(photo->full->width(), photo->full->height());
 		image = photo->full;
-	} break;
-
-	case MediaTypeVideo: {
-		_animated = true;
-		doc = static_cast<HistoryVideo*>(media.get())->getDocument();
-		dimensions = doc->dimensions;
-		image = doc->thumb;
-	} break;
-
-	case MediaTypeGrouped: {
-		if (const auto photo = media->getPhoto()) {
-			dimensions = QSize(photo->full->width(), photo->full->height());
-			image = photo->full;
-			_photo = true;
-		} else if (const auto doc = media->getDocument()) {
-			dimensions = doc->dimensions;
-			image = doc->thumb;
+	} else if (const auto document = media->document()) {
+		dimensions = document->dimensions;
+		image = document->thumb;
+		if (document->isAnimation()) {
 			_animated = true;
+		} else if (document->isVideoFile()) {
+			_animated = true;
+		} else {
+			_doc = true;
 		}
-	} break;
-
-	case MediaTypeFile:
-	case MediaTypeMusicFile:
-	case MediaTypeVoiceFile: {
-		_doc = true;
-		doc = static_cast<HistoryDocument*>(media.get())->getDocument();
-		image = doc->thumb;
-	} break;
+		doc = document;
 	}
-	caption = media->getCaption().text;
+	auto caption = media->caption();
 
 	if (!_animated && (dimensions.isEmpty() || doc || image->isNull())) {
 		if (image->isNull()) {

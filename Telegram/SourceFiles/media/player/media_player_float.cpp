@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/merge.h>
 #include "data/data_document.h"
 #include "data/data_session.h"
+#include "data/data_media_types.h"
 #include "history/history_media.h"
 #include "history/history_item.h"
 #include "media/media_clip_reader.h"
@@ -31,10 +32,10 @@ Float::Float(
 , _item(item)
 , _toggleCallback(std::move(toggleCallback))
 , _draggedCallback(std::move(draggedCallback)) {
-	auto media = _item->getMedia();
+	auto media = _item->media();
 	Assert(media != nullptr);
 
-	auto document = media->getDocument();
+	auto document = media->document();
 	Assert(document != nullptr);
 	Assert(document->isVideoMessage());
 
@@ -100,9 +101,10 @@ float64 Float::outRatio() const {
 void Float::mouseReleaseEvent(QMouseEvent *e) {
 	if (_down) {
 		_down = false;
-		if (auto media = _item ? _item->getMedia() : nullptr) {
-			media->playInline();
-		}
+		// #TODO float player
+		//if (auto media = _item ? _item->getMedia() : nullptr) {
+		//	media->playInline();
+		//}
 	}
 	if (_drag) {
 		finishDrag(outRatio() < 0.5);
@@ -119,9 +121,10 @@ void Float::finishDrag(bool closed) {
 void Float::mouseDoubleClickEvent(QMouseEvent *e) {
 	if (_item) {
 		// Handle second click.
-		if (auto media = _item->getMedia()) {
-			media->playInline();
-		}
+		// #TODO float player
+		//if (auto media = _item->getMedia()) {
+		//	media->playInline();
+		//}
 		Ui::showPeerHistoryAtItem(_item);
 	}
 }
@@ -191,13 +194,14 @@ void Float::paintEvent(QPaintEvent *e) {
 }
 
 Clip::Reader *Float::getReader() const {
-	if (auto media = _item ? _item->getMedia() : nullptr) {
-		if (auto reader = media->getClipReader()) {
-			if (reader->started() && reader->mode() == Clip::Reader::Mode::Video) {
-				return reader;
-			}
-		}
-	}
+	// #TODO float player
+	//if (auto media = _item ? _item->getMedia() : nullptr) {
+	//	if (auto reader = media->getClipReader()) {
+	//		if (reader->started() && reader->mode() == Clip::Reader::Mode::Video) {
+	//			return reader;
+	//		}
+	//	}
+	//}
 	return nullptr;
 }
 

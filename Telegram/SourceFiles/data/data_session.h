@@ -9,8 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "chat_helpers/stickers.h"
 #include "dialogs/dialogs_key.h"
+#include "data/data_groups.h"
 
-struct HistoryMessageGroup;
+class HistoryItem;
+
+namespace HistoryView {
+struct Group;
+class Element;
+} // namespace HistoryView
 
 namespace Data {
 
@@ -18,6 +24,8 @@ class Feed;
 
 class Session final {
 public:
+	using ViewElement = HistoryView::Element;
+
 	Session();
 	~Session();
 
@@ -30,6 +38,7 @@ public:
 	base::Observable<void> &moreChatsLoaded() {
 		return _moreChatsLoaded;
 	}
+
 	base::Observable<void> &pendingHistoryResize() {
 		return _pendingHistoryResize;
 	}
@@ -40,18 +49,45 @@ public:
 	base::Observable<ItemVisibilityQuery> &queryItemVisibility() {
 		return _queryItemVisibility;
 	}
-	void markItemLayoutChanged(not_null<const HistoryItem*> item);
+	struct IdChange {
+		not_null<HistoryItem*> item;
+		MsgId oldId = 0;
+	};
+
+	void registerItemView(not_null<ViewElement*> view);
+	void unregisterItemView(not_null<ViewElement*> view);
+	template <typename Method>
+	void enumerateItemViews(not_null<HistoryItem*> item, Method method) {
+		if (const auto i = _views.find(item); i != _views.end()) {
+			for (const auto view : i->second) {
+				method(view);
+			}
+		}
+	}
+
+	void markItemIdChange(IdChange event);
+	rpl::producer<IdChange> itemIdChanged() const;
+	void markItemLayoutChange(not_null<const HistoryItem*> item);
 	rpl::producer<not_null<const HistoryItem*>> itemLayoutChanged() const;
+	void markViewLayoutChange(not_null<const ViewElement*> view);
+	rpl::producer<not_null<const ViewElement*>> viewLayoutChanged() const;
 	void requestItemRepaint(not_null<const HistoryItem*> item);
 	rpl::producer<not_null<const HistoryItem*>> itemRepaintRequest() const;
+	void requestViewRepaint(not_null<const ViewElement*> view);
+	rpl::producer<not_null<const ViewElement*>> viewRepaintRequest() const;
 	void requestItemViewResize(not_null<const HistoryItem*> item);
 	rpl::producer<not_null<const HistoryItem*>> itemViewResizeRequest() const;
+	void requestViewResize(not_null<const ViewElement*> view);
+	rpl::producer<not_null<const ViewElement*>> viewResizeRequest() const;
 	void requestItemViewRefresh(not_null<const HistoryItem*> item);
 	rpl::producer<not_null<const HistoryItem*>> itemViewRefreshRequest() const;
+	void requestItemPlayInline(not_null<const HistoryItem*> item);
+	rpl::producer<not_null<const HistoryItem*>> itemPlayInlineRequest() const;
 	void markItemRemoved(not_null<const HistoryItem*> item);
 	rpl::producer<not_null<const HistoryItem*>> itemRemoved() const;
 	void markHistoryUnloaded(not_null<const History*> history);
 	rpl::producer<not_null<const History*>> historyUnloaded() const;
+
 	void markHistoryCleared(not_null<const History*> history);
 	rpl::producer<not_null<const History*>> historyCleared() const;
 	using MegagroupParticipant = std::tuple<
@@ -147,7 +183,6 @@ public:
 
 	HistoryItemsList idsToItems(const MessageIdsList &ids) const;
 	MessageIdsList itemsToIds(const HistoryItemsList &items) const;
-	MessageIdsList groupToIds(not_null<HistoryMessageGroup*> group) const;
 	MessageIdsList itemOrItsGroup(not_null<HistoryItem*> item) const;
 
 	int pinnedDialogsCount() const;
@@ -165,6 +200,13 @@ public:
 	void setMimeForwardIds(MessageIdsList &&list);
 	MessageIdsList takeMimeForwardIds();
 
+	Groups &groups() {
+		return _groups;
+	}
+	const Groups &groups() const {
+		return _groups;
+	}
+
 private:
 	bool stickersUpdateNeeded(TimeMs lastUpdate, TimeMs now) const {
 		constexpr auto kStickersUpdateTimeout = TimeMs(3600'000);
@@ -181,10 +223,15 @@ private:
 	base::Observable<void> _moreChatsLoaded;
 	base::Observable<void> _pendingHistoryResize;
 	base::Observable<ItemVisibilityQuery> _queryItemVisibility;
-	rpl::event_stream<not_null<const HistoryItem*>> _itemLayoutChanged;
+	rpl::event_stream<IdChange> _itemIdChanges;
+	rpl::event_stream<not_null<const HistoryItem*>> _itemLayoutChanges;
+	rpl::event_stream<not_null<const ViewElement*>> _viewLayoutChanges;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemRepaintRequest;
+	rpl::event_stream<not_null<const ViewElement*>> _viewRepaintRequest;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemViewResizeRequest;
+	rpl::event_stream<not_null<const ViewElement*>> _viewResizeRequest;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemViewRefreshRequest;
+	rpl::event_stream<not_null<const HistoryItem*>> _itemPlayInlineRequest;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemRemoved;
 	rpl::event_stream<not_null<const History*>> _historyUnloaded;
 	rpl::event_stream<not_null<const History*>> _historyCleared;
@@ -207,6 +254,10 @@ private:
 
 	std::deque<Dialogs::Key> _pinnedDialogs;
 	base::flat_map<FeedId, std::unique_ptr<Data::Feed>> _feeds;
+	Groups _groups;
+	std::map<
+		not_null<HistoryItem*>,
+		std::vector<not_null<HistoryView::Element*>>> _views;
 
 	MessageIdsList _mimeForwardIds;
 

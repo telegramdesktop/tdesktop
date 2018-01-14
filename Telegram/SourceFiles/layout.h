@@ -78,7 +78,9 @@ public:
 
 };
 
-class LayoutItemBase : public RuntimeComposer, public ClickHandlerHost {
+class LayoutItemBase
+	: public RuntimeComposer<LayoutItemBase>
+	, public ClickHandlerHost {
 public:
 	LayoutItemBase() {
 	}

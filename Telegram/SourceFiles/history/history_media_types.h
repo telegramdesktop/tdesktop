@@ -21,6 +21,12 @@ struct HistoryMessageVia;
 struct HistoryMessageReply;
 struct HistoryMessageForwarded;
 
+namespace Data {
+enum class CallFinishReason : char;
+struct Invoice;
+struct Call;
+} // namespace Data
+
 namespace Media {
 namespace Clip {
 class Playback;
@@ -35,12 +41,6 @@ TextWithEntities WithCaptionSelectedText(
 	const QString &attachType,
 	const Text &caption,
 	TextSelection selection);
-QString WithCaptionNotificationText(
-	const QString &attachType,
-	const Text &caption);
-QString WithCaptionDialogsText(
-	const QString &attachType,
-	const Text &caption);
 
 class HistoryFileMedia : public HistoryMedia {
 public:
@@ -56,7 +56,7 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
-	void refreshParentId(not_null<HistoryItem*> realParent) override;
+	void refreshParentId(not_null<Element*> realParent) override;
 
 	bool allowsFastShare() const override {
 		return true;
@@ -128,22 +128,22 @@ protected:
 class HistoryPhoto : public HistoryFileMedia {
 public:
 	HistoryPhoto(
-		not_null<HistoryItem*> parent,
+		not_null<Element*> parent,
 		not_null<PhotoData*> photo,
 		const QString &caption);
 	HistoryPhoto(
-		not_null<HistoryItem*> parent,
+		not_null<Element*> parent,
 		not_null<PeerData*> chat,
 		not_null<PhotoData*> photo,
 		int width);
 	HistoryPhoto(
-		not_null<HistoryItem*> parent,
+		not_null<Element*> parent,
 		not_null<PeerData*> chat,
 		const MTPDphoto &photo,
 		int width);
 	HistoryPhoto(
-		not_null<HistoryItem*> parent,
-		not_null<HistoryItem*> realParent,
+		not_null<Element*> parent,
+		not_null<Element*> realParent,
 		const HistoryPhoto &other);
 
 	void init();
@@ -151,8 +151,8 @@ public:
 		return MediaTypePhoto;
 	}
 	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent,
-			not_null<HistoryItem*> realParent) const override {
+			not_null<Element*> newParent,
+			not_null<Element*> realParent) const override {
 		return std::make_unique<HistoryPhoto>(newParent, realParent, *this);
 	}
 
@@ -171,11 +171,7 @@ public:
 		return !_caption.isEmpty();
 	}
 
-	QString notificationText() const override;
-	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
-
-	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
 	PhotoData *getPhoto() const override {
 		return _data;
@@ -199,12 +195,6 @@ public:
 		QPoint point,
 		HistoryStateRequest request) const override;
 
-	void updateSentMedia(const MTPMessageMedia &media) override;
-	bool needReSetInlineResultMedia(const MTPMessageMedia &media) override;
-
-	void attachToParent() override;
-	void detachFromParent() override;
-
 	bool hasReplyPreview() const override {
 		return !_data->thumb->isNull();
 	}
@@ -219,9 +209,6 @@ public:
 	}
 	bool skipBubbleTail() const override {
 		return isBubbleBottom() && _caption.isEmpty();
-	}
-	bool canEditCaption() const override {
-		return true;
 	}
 	bool isReadyForOpen() const override {
 		return _data->loaded();
@@ -254,20 +241,20 @@ private:
 class HistoryVideo : public HistoryFileMedia {
 public:
 	HistoryVideo(
-		not_null<HistoryItem*> parent,
+		not_null<Element*> parent,
 		not_null<DocumentData*> document,
 		const QString &caption);
 	HistoryVideo(
-		not_null<HistoryItem*> parent,
-		not_null<HistoryItem*> realParent,
+		not_null<Element*> parent,
+		not_null<Element*> realParent,
 		const HistoryVideo &other);
 
 	HistoryMediaType type() const override {
 		return MediaTypeVideo;
 	}
 	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent,
-			not_null<HistoryItem*> realParent) const override {
+			not_null<Element*> newParent,
+			not_null<Element*> realParent) const override {
 		return std::make_unique<HistoryVideo>(newParent, realParent, *this);
 	}
 
@@ -286,11 +273,7 @@ public:
 		return !_caption.isEmpty();
 	}
 
-	QString notificationText() const override;
-	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
-
-	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
 	DocumentData *getDocument() const override {
 		return _data;
@@ -318,12 +301,6 @@ public:
 		return _data->uploading();
 	}
 
-	void attachToParent() override;
-	void detachFromParent() override;
-
-	void updateSentMedia(const MTPMessageMedia &media) override;
-	bool needReSetInlineResultMedia(const MTPMessageMedia &media) override;
-
 	bool hasReplyPreview() const override {
 		return !_data->thumb->isNull();
 	}
@@ -338,9 +315,6 @@ public:
 	}
 	bool skipBubbleTail() const override {
 		return isBubbleBottom() && _caption.isEmpty();
-	}
-	bool canEditCaption() const override {
-		return true;
 	}
 
 protected:
@@ -366,15 +340,14 @@ private:
 
 };
 
-class HistoryDocument : public HistoryFileMedia, public RuntimeComposer {
+class HistoryDocument
+	: public HistoryFileMedia
+	, public RuntimeComposer<HistoryDocument> {
 public:
 	HistoryDocument(
-		not_null<HistoryItem*> parent,
+		not_null<Element*> parent,
 		not_null<DocumentData*> document,
 		const QString &caption);
-	HistoryDocument(
-		not_null<HistoryItem*> parent,
-		const HistoryDocument &other);
 
 	HistoryMediaType type() const override {
 		return _data->isVoiceMessage()
@@ -382,13 +355,6 @@ public:
 			: (_data->isSong()
 				? MediaTypeMusicFile
 				: MediaTypeFile);
-	}
-	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent,
-			not_null<HistoryItem*> realParent) const override {
-		Expects(newParent == realParent);
-
-		return std::make_unique<HistoryDocument>(newParent, *this);
 	}
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
@@ -401,11 +367,7 @@ public:
 	uint16 fullSelectionLength() const override;
 	bool hasTextForCopy() const override;
 
-	QString notificationText() const override;
-	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
-
-	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
 	bool uploading() const override {
 		return _data->uploading();
@@ -416,12 +378,6 @@ public:
 	}
 
 	bool playInline(bool autoplay) override;
-
-	void attachToParent() override;
-	void detachFromParent() override;
-
-	void updateSentMedia(const MTPMessageMedia &media) override;
-	bool needReSetInlineResultMedia(const MTPMessageMedia &media) override;
 
 	bool hasReplyPreview() const override {
 		return !_data->thumb->isNull();
@@ -439,15 +395,12 @@ public:
 	bool hideForwardedFrom() const override {
 		return _data->isSong();
 	}
-	bool canEditCaption() const override {
-		return true;
-	}
 
 	void step_voiceProgress(float64 ms, bool timer);
 
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
-	void refreshParentId(not_null<HistoryItem*> realParent) override;
+	void refreshParentId(not_null<Element*> realParent) override;
 
 protected:
 	float64 dataProgress() const override;
@@ -476,20 +429,12 @@ private:
 class HistoryGif : public HistoryFileMedia {
 public:
 	HistoryGif(
-		not_null<HistoryItem*> parent,
+		not_null<Element*> parent,
 		not_null<DocumentData*> document,
 		const QString &caption);
-	HistoryGif(not_null<HistoryItem*> parent, const HistoryGif &other);
 
 	HistoryMediaType type() const override {
 		return MediaTypeGif;
-	}
-	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent,
-			not_null<HistoryItem*> realParent) const override {
-		Expects(newParent == realParent);
-
-		return std::make_unique<HistoryGif>(newParent, *this);
 	}
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
@@ -507,11 +452,7 @@ public:
 		return !_caption.isEmpty();
 	}
 
-	QString notificationText() const override;
-	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
-
-	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
 	bool uploading() const override {
 		return _data->uploading();
@@ -527,12 +468,6 @@ public:
 	bool playInline(bool autoplay) override;
 	void stopInline() override;
 	bool isRoundVideoPlaying() const override;
-
-	void attachToParent() override;
-	void detachFromParent() override;
-
-	void updateSentMedia(const MTPMessageMedia &media) override;
-	bool needReSetInlineResultMedia(const MTPMessageMedia &media) override;
 
 	bool hasReplyPreview() const override {
 		return !_data->thumb->isNull();
@@ -550,9 +485,6 @@ public:
 
 	bool skipBubbleTail() const override {
 		return isBubbleBottom() && _caption.isEmpty();
-	}
-	bool canEditCaption() const override {
-		return !_data->isVideoMessage();
 	}
 	bool isReadyForOpen() const override {
 		return _data->loaded();
@@ -600,18 +532,11 @@ private:
 class HistorySticker : public HistoryMedia {
 public:
 	HistorySticker(
-		not_null<HistoryItem*> parent,
+		not_null<Element*> parent,
 		not_null<DocumentData*> document);
 
 	HistoryMediaType type() const override {
 		return MediaTypeSticker;
-	}
-	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent,
-			not_null<HistoryItem*> realParent) const override {
-		Expects(newParent == realParent);
-
-		return std::make_unique<HistorySticker>(newParent, _data);
 	}
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
@@ -627,18 +552,11 @@ public:
 		return true;
 	}
 
-	QString notificationText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
 	DocumentData *getDocument() const override {
 		return _data;
 	}
-
-	void attachToParent() override;
-	void detachFromParent() override;
-
-	void updateSentMedia(const MTPMessageMedia &media) override;
-	bool needReSetInlineResultMedia(const MTPMessageMedia &media) override;
 
 	bool hasReplyPreview() const override {
 		return !_data->thumb->isNull();
@@ -674,26 +592,14 @@ private:
 class HistoryContact : public HistoryMedia {
 public:
 	HistoryContact(
-		not_null<HistoryItem*> parent,
-		int32 userId,
+		not_null<Element*> parent,
+		UserId userId,
 		const QString &first,
 		const QString &last,
 		const QString &phone);
 
 	HistoryMediaType type() const override {
 		return MediaTypeContact;
-	}
-	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent,
-			not_null<HistoryItem*> realParent) const override {
-		Expects(newParent == realParent);
-
-		return std::make_unique<HistoryContact>(
-			newParent,
-			_userId,
-			_fname,
-			_lname,
-			_phone);
 	}
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
@@ -706,13 +612,10 @@ public:
 		return true;
 	}
 
-	QString notificationText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
 	void attachToParent() override;
 	void detachFromParent() override;
-
-	void updateSentMedia(const MTPMessageMedia &media) override;
 
 	bool needsBubble() const override {
 		return true;
@@ -736,7 +639,7 @@ public:
 private:
 	QSize countOptimalSize() override;
 
-	int32 _userId = 0;
+	UserId _userId = 0;
 	UserData *_contact = nullptr;
 
 	int _phonew = 0;
@@ -753,16 +656,11 @@ private:
 class HistoryCall : public HistoryMedia {
 public:
 	HistoryCall(
-		not_null<HistoryItem*> parent,
-		const MTPDmessageActionPhoneCall &call);
+		not_null<Element*> parent,
+		not_null<Data::Call*> call);
 
 	HistoryMediaType type() const override {
 		return MediaTypeCall;
-	}
-	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent,
-			not_null<HistoryItem*> realParent) const override {
-		Unexpected("Clone HistoryCall.");
 	}
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
@@ -775,7 +673,6 @@ public:
 		return false;
 	}
 
-	QString notificationText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
 	bool needsBubble() const override {
@@ -785,22 +682,14 @@ public:
 		return true;
 	}
 
-	enum class FinishReason {
-		Missed,
-		Busy,
-		Disconnected,
-		Hangup,
-	};
-	FinishReason reason() const {
-		return _reason;
-	}
+	Data::CallFinishReason reason() const;
 
 private:
+	using FinishReason = Data::CallFinishReason;
+
 	QSize countOptimalSize() override;
 
-	static FinishReason GetReason(const MTPDmessageActionPhoneCall &call);
-
-	FinishReason _reason = FinishReason::Missed;
+	FinishReason _reason;
 	int _duration = 0;
 
 	QString _text;
@@ -813,24 +702,14 @@ private:
 class HistoryWebPage : public HistoryMedia {
 public:
 	HistoryWebPage(
-		not_null<HistoryItem*> parent,
+		not_null<Element*> parent,
 		not_null<WebPageData*> data);
-	HistoryWebPage(
-		not_null<HistoryItem*> parent,
-		const HistoryWebPage &other);
 
 	HistoryMediaType type() const override {
 		return MediaTypeWebPage;
 	}
-	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent,
-			not_null<HistoryItem*> realParent) const override {
-		Expects(newParent == realParent);
 
-		return std::make_unique<HistoryWebPage>(newParent, *this);
-	}
-
-	void refreshParentId(not_null<HistoryItem*> realParent) override;
+	void refreshParentId(not_null<Element*> realParent) override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
@@ -930,21 +809,16 @@ private:
 
 class HistoryGame : public HistoryMedia {
 public:
-	HistoryGame(not_null<HistoryItem*> parent, not_null<GameData*> data);
-	HistoryGame(not_null<HistoryItem*> parent, const HistoryGame &other);
+	HistoryGame(
+		not_null<Element*> parent,
+		not_null<GameData*> data,
+		const TextWithEntities &consumed);
 
 	HistoryMediaType type() const override {
 		return MediaTypeGame;
 	}
-	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent,
-			not_null<HistoryItem*> realParent) const override {
-		Expects(newParent == realParent);
 
-		return std::make_unique<HistoryGame>(newParent, *this);
-	}
-
-	void refreshParentId(not_null<HistoryItem*> realParent) override;
+	void refreshParentId(not_null<Element*> realParent) override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
@@ -961,7 +835,6 @@ public:
 	bool hasTextForCopy() const override {
 		return false; // we do not add _title and _description in FullSelection text copy.
 	}
-	bool consumeMessageText(const TextWithEntities &textWithEntities) override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return _attach && _attach->toggleSelectionByHandlerClick(p);
@@ -970,7 +843,6 @@ public:
 		return _attach && _attach->dragItemByHandler(p);
 	}
 
-	QString notificationText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
@@ -1003,9 +875,6 @@ public:
 	not_null<GameData*> game() {
 		return _data;
 	}
-
-	void updateSentMedia(const MTPMessageMedia &media) override;
-	bool needReSetInlineResultMedia(const MTPMessageMedia &media) override;
 
 	bool needsBubble() const override {
 		return true;
@@ -1045,24 +914,14 @@ private:
 class HistoryInvoice : public HistoryMedia {
 public:
 	HistoryInvoice(
-		not_null<HistoryItem*> parent,
-		const MTPDmessageMediaInvoice &data);
-	HistoryInvoice(
-		not_null<HistoryItem*> parent,
-		const HistoryInvoice &other);
+		not_null<Element*> parent,
+		not_null<Data::Invoice*> invoice);
 
 	HistoryMediaType type() const override {
 		return MediaTypeInvoice;
 	}
-	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent,
-			not_null<HistoryItem*> realParent) const override {
-		Expects(newParent == realParent);
 
-		return std::make_unique<HistoryInvoice>(newParent, *this);
-	}
-
-	void refreshParentId(not_null<HistoryItem*> realParent) override;
+	void refreshParentId(not_null<Element*> realParent) override;
 
 	MsgId getReceiptMsgId() const {
 		return _receiptMsgId;
@@ -1092,7 +951,6 @@ public:
 		return _attach && _attach->dragItemByHandler(p);
 	}
 
-	QString notificationText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
@@ -1123,7 +981,7 @@ private:
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 
-	void fillFromData(const MTPDmessageMediaInvoice &data);
+	void fillFromData(not_null<Data::Invoice*> invoice);
 
 	TextSelection toDescriptionSelection(TextSelection selection) const;
 	TextSelection fromDescriptionSelection(TextSelection selection) const;
@@ -1148,23 +1006,13 @@ struct LocationData;
 class HistoryLocation : public HistoryMedia {
 public:
 	HistoryLocation(
-		not_null<HistoryItem*> parent,
-		const LocationCoords &coords,
+		not_null<Element*> parent,
+		not_null<LocationData*> location,
 		const QString &title = QString(),
 		const QString &description = QString());
-	HistoryLocation(
-		not_null<HistoryItem*> parent,
-		const HistoryLocation &other);
 
 	HistoryMediaType type() const override {
 		return MediaTypeLocation;
-	}
-	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent,
-			not_null<HistoryItem*> realParent) const override {
-		Expects(newParent == realParent);
-
-		return std::make_unique<HistoryLocation>(newParent, *this);
 	}
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
@@ -1187,8 +1035,6 @@ public:
 		return p == _link;
 	}
 
-	QString notificationText() const override;
-	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
 	bool needsBubble() const override;

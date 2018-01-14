@@ -9,7 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "info/info_controller.h"
 #include "overview/overview_layout.h"
-#include "history/history_media_types.h"
+#include "data/data_media_types.h"
+#include "data/data_photo.h"
+#include "data/data_document.h"
+#include "data/data_session.h"
 #include "history/history_item.h"
 #include "history/history.h"
 #include "window/themes/window_theme.h"
@@ -27,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/confirm_box.h"
 #include "core/file_utilities.h"
-#include "data/data_session.h"
 
 namespace Layout = Overview::Layout;
 
@@ -837,14 +839,14 @@ std::unique_ptr<BaseLayout> ListWidget::createLayout(
 		return nullptr;
 	}
 	auto getPhoto = [&]() -> PhotoData* {
-		if (const auto media = item->getMedia()) {
-			return media->getPhoto();
+		if (const auto media = item->media()) {
+			return media->photo();
 		}
 		return nullptr;
 	};
 	auto getFile = [&]() -> DocumentData* {
-		if (auto media = item->getMedia()) {
-			return media->getDocument();
+		if (auto media = item->media()) {
+			return media->document();
 		}
 		return nullptr;
 	};
@@ -878,7 +880,7 @@ std::unique_ptr<BaseLayout> ListWidget::createLayout(
 		}
 		return nullptr;
 	case Type::Link:
-		return std::make_unique<Link>(item, item->getMedia());
+		return std::make_unique<Link>(item, item->media());
 	case Type::RoundFile:
 		return nullptr;
 	}
@@ -1313,7 +1315,7 @@ void ListWidget::showContextMenu(
 			}));
 	} else {
 		if (overSelected != SelectionState::NotOverSelectedItems) {
-			if (item->canForward()) {
+			if (item->allowsForward()) {
 				_contextMenu->addAction(
 					lang(lng_context_forward_msg),
 					base::lambda_guarded(this, [this, universalId] {
@@ -1497,7 +1499,7 @@ bool ListWidget::changeItemSelection(
 				return false;
 			}
 			iterator->second.canDelete = item->canDelete();
-			iterator->second.canForward = item->canForward();
+			iterator->second.canForward = item->allowsForward();
 			return true;
 		}
 		return changeExisting(iterator);

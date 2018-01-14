@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_abstract_structure.h"
 #include "styles/style_history.h"
 #include "mainwidget.h"
+#include "layout.h"
 #include "lang/lang_keys.h"
 
 namespace HistoryView {
@@ -309,7 +310,7 @@ QRect Service::countGeometry() const {
 
 QSize Service::performCountCurrentSize(int newWidth) {
 	const auto item = message();
-	const auto media = item->getMedia();
+	const auto media = this->media();
 
 	auto newHeight = item->displayedDateHeight();
 	if (auto unreadbar = item->Get<HistoryMessageUnreadBar>()) {
@@ -349,7 +350,7 @@ QSize Service::performCountCurrentSize(int newWidth) {
 
 QSize Service::performCountOptimalSize() {
 	const auto item = message();
-	const auto media = item->getMedia();
+	const auto media = this->media();
 
 	auto maxWidth = item->_text.maxWidth() + st::msgServicePadding.left() + st::msgServicePadding.right();
 	auto minHeight = item->_text.minHeight();
@@ -409,11 +410,11 @@ void Service::draw(
 
 	p.setTextPalette(st::serviceTextPalette);
 
-	if (auto media = item->getMedia()) {
+	if (auto media = this->media()) {
 		height -= st::msgServiceMargin.top() + media->height();
 		auto left = st::msgServiceMargin.left() + (g.width() - media->maxWidth()) / 2, top = st::msgServiceMargin.top() + height + st::msgServiceMargin.top();
 		p.translate(left, top);
-		media->draw(p, clip.translated(-left, -top), item->skipTextSelection(selection), ms);
+		media->draw(p, clip.translated(-left, -top), TextSelection(), ms);
 		p.translate(-left, -top);
 	}
 
@@ -435,7 +436,7 @@ void Service::draw(
 
 bool Service::hasPoint(QPoint point) const {
 	const auto item = message();
-	const auto media = item->getMedia();
+	const auto media = this->media();
 
 	auto g = countGeometry();
 	if (g.width() < 1) {
@@ -456,7 +457,7 @@ bool Service::hasPoint(QPoint point) const {
 
 HistoryTextState Service::getState(QPoint point, HistoryStateRequest request) const {
 	const auto item = message();
-	const auto media = item->getMedia();
+	const auto media = this->media();
 
 	auto result = HistoryTextState(item);
 
@@ -502,6 +503,17 @@ HistoryTextState Service::getState(QPoint point, HistoryStateRequest request) co
 }
 
 void Service::updatePressed(QPoint point) {
+}
+
+TextWithEntities Service::selectedText(TextSelection selection) const {
+	return message()->_text.originalTextWithEntities(
+		(selection == FullSelection) ? AllTextSelection : selection);
+}
+
+TextSelection Service::adjustSelection(
+		TextSelection selection,
+		TextSelectType type) const {
+	return message()->_text.adjustSelection(selection, type);
 }
 
 } // namespace HistoryView

@@ -422,9 +422,13 @@ void GenerateItems(
 			auto text = lng_admin_log_pinned_message(lt_from, fromLinkText);
 			addSimpleServiceMessage(text);
 
-			auto applyServiceAction = false;
 			auto detachExistingItem = false;
-			addPart(history->createItem(PrepareLogMessage(action.vmessage, idManager.next(), date.v), applyServiceAction, detachExistingItem));
+			addPart(history->createItem(
+				PrepareLogMessage(
+					action.vmessage,
+					idManager.next(),
+					date.v),
+				detachExistingItem));
 		}
 	};
 
@@ -438,9 +442,13 @@ void GenerateItems(
 		addSimpleServiceMessage(text);
 
 		auto oldValue = ExtractEditedText(action.vprev_message);
-		auto applyServiceAction = false;
 		auto detachExistingItem = false;
-		auto body = history->createItem(PrepareLogMessage(action.vnew_message, idManager.next(), date.v), applyServiceAction, detachExistingItem);
+		auto body = history->createItem(
+			PrepareLogMessage(
+				action.vnew_message,
+				idManager.next(),
+				date.v),
+			detachExistingItem);
 		if (oldValue.text.isEmpty()) {
 			oldValue = PrepareText(QString(), lang(lng_admin_log_empty_text));
 		}
@@ -452,9 +460,10 @@ void GenerateItems(
 		auto text = lng_admin_log_deleted_message(lt_from, fromLinkText);
 		addSimpleServiceMessage(text);
 
-		auto applyServiceAction = false;
 		auto detachExistingItem = false;
-		addPart(history->createItem(PrepareLogMessage(action.vmessage, idManager.next(), date.v), applyServiceAction, detachExistingItem));
+		addPart(history->createItem(
+			PrepareLogMessage(action.vmessage, idManager.next(), date.v),
+			detachExistingItem));
 	};
 
 	auto createParticipantJoin = [&]() {

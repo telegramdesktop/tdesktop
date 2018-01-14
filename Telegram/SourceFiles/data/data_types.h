@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/value_ordering.h"
+
 class HistoryItem;
 using HistoryItemsList = std::vector<not_null<HistoryItem*>>;
 
@@ -21,6 +23,32 @@ struct UploadState {
 };
 
 } // namespace Data
+
+struct MessageGroupId {
+	using Underlying = uint64;
+
+	enum Type : Underlying {
+		None = 0,
+	} value;
+
+	MessageGroupId(Type value = None) : value(value) {
+	}
+	static MessageGroupId FromRaw(Underlying value) {
+		return static_cast<Type>(value);
+	}
+
+	explicit operator bool() const {
+		return value != None;
+	}
+	Underlying raw() const {
+		return static_cast<Underlying>(value);
+	}
+
+	friend inline Type value_ordering_helper(MessageGroupId value) {
+		return value.value;
+	}
+
+};
 
 class PeerData;
 class UserData;

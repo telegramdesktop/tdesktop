@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "boxes/edit_participant_box.h"
 #include "data/data_session.h"
+#include "data/data_media_types.h"
 
 namespace AdminLog {
 namespace {
@@ -775,7 +776,7 @@ void InnerWidget::paintEmpty(Painter &p) {
 
 TextWithEntities InnerWidget::getSelectedText() const {
 	return _selectedItem
-		? _selectedItem->data()->selectedText(_selectedText)
+		? _selectedItem->selectedText(_selectedText)
 		: TextWithEntities();
 }
 
@@ -911,7 +912,7 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto item = view ? view->data().get() : nullptr;
 		const auto itemId = item ? item->fullId() : FullMsgId();
 		bool canDelete = item && item->canDelete() && (item->id > 0 || !item->serviceMsg());
-		bool canForward = item && item->canForward();
+		bool canForward = item && item->allowsForward();
 
 		auto msg = dynamic_cast<HistoryMessage*>(item);
 		if (isUponSelected > 0) {
@@ -919,7 +920,7 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		} else {
 			if (item && !isUponSelected) {
 				auto mediaHasTextForCopy = false;
-				if (auto media = (msg ? msg->getMedia() : nullptr)) {
+				if (auto media = view->media()) {
 					mediaHasTextForCopy = media->hasTextForCopy();
 					if (media->type() == MediaTypeWebPage && static_cast<HistoryWebPage*>(media)->attach()) {
 						media = static_cast<HistoryWebPage*>(media)->attach();
@@ -1040,8 +1041,8 @@ void InnerWidget::showContextInFolder(not_null<DocumentData*> document) {
 
 void InnerWidget::openContextGif(FullMsgId itemId) {
 	if (const auto item = App::histItemById(itemId)) {
-		if (auto media = item->getMedia()) {
-			if (auto document = media->getDocument()) {
+		if (auto media = item->media()) {
+			if (auto document = media->document()) {
 				Messenger::Instance().showDocument(document, item);
 			}
 		}
@@ -1050,12 +1051,9 @@ void InnerWidget::openContextGif(FullMsgId itemId) {
 
 void InnerWidget::copyContextText(FullMsgId itemId) {
 	if (const auto item = App::histItemById(itemId)) {
-		if (const auto media = item->getMedia()) {
-			if (media->type() == MediaTypeSticker) {
-				return;
-			}
+		if (const auto view = viewForItem(item)) {
+			setToClipboard(view->selectedText(FullSelection));
 		}
-		setToClipboard(item->selectedText(FullSelection));
 	}
 }
 
@@ -1416,7 +1414,7 @@ void InnerWidget::updateSelected() {
 				}
 				auto selection = TextSelection { qMin(second, _mouseTextSymbol), qMax(second, _mouseTextSymbol) };
 				if (_mouseSelectType != TextSelectType::Letters) {
-					selection = _mouseActionItem->data()->adjustSelection(
+					selection = _mouseActionItem->adjustSelection(
 						selection,
 						_mouseSelectType);
 				}
@@ -1517,17 +1515,21 @@ void InnerWidget::performDrag() {
 	//	auto forwardMimeType = QString();
 	//	auto pressedMedia = static_cast<HistoryMedia*>(nullptr);
 	//	if (auto pressedItem = App::pressedItem()) {
-	//		pressedMedia = pressedItem->getMedia();
-	//		if (_mouseCursorState == HistoryInDateCursorState || (pressedMedia && pressedMedia->dragItem())) {
+	//		pressedMedia = pressedItem->media();
+	//		if (_mouseCursorState == HistoryInDateCursorState
+	//			|| (pressedMedia && pressedMedia->dragItem())) {
 	//			forwardMimeType = qsl("application/x-td-forward");
-	//			Auth().data().setMimeForwardIds(Auth().data().itemOrItsGroup(pressedItem));
+	//			Auth().data().setMimeForwardIds(
+	//				Auth().data().itemOrItsGroup(pressedItem->data()));
 	//		}
 	//	}
 	//	if (auto pressedLnkItem = App::pressedLinkItem()) {
-	//		if ((pressedMedia = pressedLnkItem->getMedia())) {
-	//			if (forwardMimeType.isEmpty() && pressedMedia->dragItemByHandler(pressedHandler)) {
+	//		if ((pressedMedia = pressedLnkItem->media())) {
+	//			if (forwardMimeType.isEmpty()
+	//				&& pressedMedia->dragItemByHandler(pressedHandler)) {
 	//				forwardMimeType = qsl("application/x-td-forward");
-	//				Auth().data().setMimeForwardIds({ 1, pressedLnkItem->fullId() });
+	//				Auth().data().setMimeForwardIds(
+	//					{ 1, pressedLnkItem->fullId() });
 	//			}
 	//		}
 	//	}

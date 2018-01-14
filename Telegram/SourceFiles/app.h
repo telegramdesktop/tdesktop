@@ -237,7 +237,6 @@ namespace App {
 	void historyClearItems();
 	void historyRegDependency(HistoryItem *dependent, HistoryItem *dependency);
 	void historyUnregDependency(HistoryItem *dependent, HistoryItem *dependency);
-	void messageViewDestroyed(not_null<HistoryView::Element*> view);
 
 	void historyRegRandom(uint64 randomId, const FullMsgId &itemId);
 	void historyUnregRandom(uint64 randomId);

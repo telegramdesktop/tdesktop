@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_media_types.h"
+#include "data/data_media_types.h"
 #include "data/data_sparse_ids.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
@@ -322,10 +323,8 @@ base::optional<bool> SharedMediaWithLastSlice::IsLastIsolated(
 	}
 	return LastFullMsgId(ending ? *ending : slice)
 		| [](FullMsgId msgId) {	return App::histItemById(msgId); }
-		| [](HistoryItem *item) { return item ? item->getMedia() : nullptr; }
-		| [](HistoryMedia *media) {
-			return media ? media->getPhoto() : nullptr;
-		}
+		| [](HistoryItem *item) { return item ? item->media() : nullptr; }
+		| [](Data::Media *media) { return media ? media->photo() : nullptr; }
 		| [](PhotoData *photo) { return photo ? photo->id : 0; }
 		| [&](PhotoId photoId) { return *lastPeerPhotoId != photoId; };
 }

@@ -2698,24 +2698,35 @@ bool Text::hasSkipBlock() const {
 	return _blocks.empty() ? false : _blocks.back()->type() == TextBlockTSkip;
 }
 
-void Text::setSkipBlock(int32 width, int32 height) {
+bool Text::updateSkipBlock(int width, int height) {
 	if (!_blocks.empty() && _blocks.back()->type() == TextBlockTSkip) {
-		auto block = static_cast<SkipBlock*>(_blocks.back().get());
-		if (block->width() == width && block->height() == height) return;
+		const auto block = static_cast<SkipBlock*>(_blocks.back().get());
+		if (block->width() == width && block->height() == height) {
+			return false;
+		}
 		_text.resize(block->from());
 		_blocks.pop_back();
 	}
 	_text.push_back('_');
-	_blocks.push_back(std::make_unique<SkipBlock>(_st->font, _text, _text.size() - 1, width, height, 0));
+	_blocks.push_back(std::make_unique<SkipBlock>(
+		_st->font,
+		_text,
+		_text.size() - 1,
+		width,
+		height,
+		0));
 	recountNaturalSize(false);
+	return true;
 }
 
-void Text::removeSkipBlock() {
-	if (!_blocks.empty() && _blocks.back()->type() == TextBlockTSkip) {
-		_text.resize(_blocks.back()->from());
-		_blocks.pop_back();
-		recountNaturalSize(false);
+bool Text::removeSkipBlock() {
+	if (_blocks.empty() || _blocks.back()->type() != TextBlockTSkip) {
+		return false;
 	}
+	_text.resize(_blocks.back()->from());
+	_blocks.pop_back();
+	recountNaturalSize(false);
+	return true;
 }
 
 int Text::countWidth(int width) const {

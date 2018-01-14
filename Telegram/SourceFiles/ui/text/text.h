@@ -89,8 +89,8 @@ public:
 	bool hasLinks() const;
 
 	bool hasSkipBlock() const;
-	void setSkipBlock(int32 width, int32 height);
-	void removeSkipBlock();
+	bool updateSkipBlock(int width, int height);
+	bool removeSkipBlock();
 
 	int32 maxWidth() const {
 		return _maxWidth.ceil().toInt();

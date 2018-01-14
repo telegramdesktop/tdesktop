@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_media.h"
 
 #include "history/history_item.h"
+#include "history/view/history_view_element.h"
 #include "storage/storage_shared_media.h"
 
 Storage::SharedMediaTypesMask HistoryMedia::sharedMediaTypes() const {
@@ -23,11 +24,15 @@ QSize HistoryMedia::countCurrentSize(int newWidth) {
 }
 
 TextSelection HistoryMedia::skipSelection(TextSelection selection) const {
-	return internal::unshiftSelection(selection, fullSelectionLength());
+	return HistoryView::UnshiftItemSelection(
+		selection,
+		fullSelectionLength());
 }
 
 TextSelection HistoryMedia::unskipSelection(TextSelection selection) const {
-	return internal::shiftSelection(selection, fullSelectionLength());
+	return HistoryView::ShiftItemSelection(
+		selection,
+		fullSelectionLength());
 }
 
 HistoryTextState HistoryMedia::getStateGrouped(

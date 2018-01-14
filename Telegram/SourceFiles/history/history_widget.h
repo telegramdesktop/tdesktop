@@ -246,7 +246,7 @@ public:
 
 	bool touchScroll(const QPoint &delta);
 
-	void enqueueMessageHighlight(not_null<HistoryItem*> item);
+	void enqueueMessageHighlight(not_null<HistoryView::Element*> view);
 	TimeMs highlightStartTime(not_null<const HistoryItem*> item) const;
 
 	MessageIdsList getSelectedItems() const;
@@ -673,7 +673,7 @@ private:
 	// Counts scrollTop for placing the scroll right at the unread
 	// messages bar, choosing from _history and _migrated unreadBar.
 	int unreadBarTop() const;
-	int itemTopForHighlight(not_null<HistoryItem*> item) const;
+	int itemTopForHighlight(not_null<HistoryView::Element*> view) const;
 	void scrollToCurrentVoiceMessage(FullMsgId fromId, FullMsgId toId);
 
 	// Scroll to current y without updating the _lastUserScrolled time.

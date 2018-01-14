@@ -20,6 +20,10 @@ namespace style {
 struct RoundCheckbox;
 } // namespace style
 
+namespace Data {
+class Media;
+} // namespace Data
+
 namespace Overview {
 namespace Layout {
 
@@ -172,7 +176,7 @@ private:
 
 };
 
-struct Info : public RuntimeComponent<Info> {
+struct Info : public RuntimeComponent<Info, LayoutItemBase> {
 	int top = 0;
 };
 
@@ -325,7 +329,7 @@ class Link : public ItemBase {
 public:
 	Link(
 		not_null<HistoryItem*> parent,
-		HistoryMedia *media);
+		Data::Media *media);
 
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;

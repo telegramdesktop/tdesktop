@@ -243,9 +243,10 @@ void autoplayMediaInlineAsync(const FullMsgId &msgId) {
 	if (auto main = App::main()) {
 		InvokeQueued(main, [msgId] {
 			if (auto item = App::histItemById(msgId)) {
-				if (auto media = item->getMedia()) {
-					media->playInline(true);
-				}
+				// #TODO GIFs
+				//if (auto media = item->getMedia()) {
+				//	media->playInline(true);
+				//}
 			}
 		});
 	}

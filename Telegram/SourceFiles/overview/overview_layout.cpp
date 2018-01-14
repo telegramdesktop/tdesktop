@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_web_page.h"
+#include "data/data_media_types.h"
 #include "styles/style_overview.h"
 #include "styles/style_history.h"
 #include "core/file_utilities.h"
@@ -24,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "storage/localstorage.h"
 #include "history/history_item.h"
-#include "history/history_media_types.h"
 #include "history/history_item_components.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/text_options.h"
@@ -1165,7 +1165,7 @@ bool Document::updateStatusText() {
 
 Link::Link(
 	not_null<HistoryItem*> parent,
-	HistoryMedia *media)
+	Data::Media *media)
 : ItemBase(parent) {
 	AddComponents(Info::Bit());
 
@@ -1211,9 +1211,10 @@ Link::Link(
 		}
 	}
 
-	_page = (media && media->type() == MediaTypeWebPage)
-		? static_cast<HistoryWebPage*>(media)->webpage().get()
-		: nullptr;
+	// #TODO webpage
+	//_page = (media && media->type() == MediaTypeWebPage)
+	//	? static_cast<HistoryWebPage*>(media)->webpage().get()
+	//	: nullptr;
 	if (_page) {
 		mainUrl = _page->url;
 		if (_page->document) {

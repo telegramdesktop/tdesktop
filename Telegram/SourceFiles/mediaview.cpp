@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_message.h"
 #include "history/history_media_types.h"
+#include "data/data_media_types.h"
 #include "window/themes/window_theme_preview.h"
 #include "window/window_peer_menu.h"
 #include "observer_peer.h"
@@ -1236,13 +1237,13 @@ void MediaView::refreshMediaViewer() {
 void MediaView::refreshCaption(HistoryItem *item) {
 	_caption = Text();
 
-	const auto media = item ? item->getMedia() : nullptr;
+	const auto media = item ? item->media() : nullptr;
 	if (!media) {
 		return;
 	}
 
-	const auto caption = media->getCaption();
-	if (caption.text.isEmpty()) {
+	const auto caption = media->caption();
+	if (caption.isEmpty()) {
 		return;
 	}
 	const auto asBot = [&] {
@@ -1254,7 +1255,7 @@ void MediaView::refreshCaption(HistoryItem *item) {
 	_caption = Text(st::msgMinWidth);
 	_caption.setMarkedText(
 		st::mediaviewCaptionStyle,
-		caption,
+		{ caption, EntitiesInText() }, // #TODO caption entities parse
 		Ui::ItemTextOptions(item));
 }
 
@@ -2448,10 +2449,10 @@ MediaView::Entity MediaView::entityForSharedMedia(int index) const {
 
 MediaView::Entity MediaView::entityForItemId(const FullMsgId &itemId) const {
 	if (const auto item = App::histItemById(itemId)) {
-		if (const auto media = item->getMedia()) {
-			if (const auto photo = media->getPhoto()) {
+		if (const auto media = item->media()) {
+			if (const auto photo = media->photo()) {
 				return { photo, item };
-			} else if (const auto document = media->getDocument()) {
+			} else if (const auto document = media->document()) {
 				return { document, item };
 			}
 		}
@@ -2474,7 +2475,7 @@ void MediaView::setContext(base::optional_variant<
 		not_null<PeerData*>> context) {
 	if (auto item = base::get_if<not_null<HistoryItem*>>(&context)) {
 		_msgid = (*item)->fullId();
-		_canForwardItem = (*item)->canForward();
+		_canForwardItem = (*item)->allowsForward();
 		_canDeleteItem = (*item)->canDelete();
 		_history = (*item)->history();
 		_peer = _history->peer;

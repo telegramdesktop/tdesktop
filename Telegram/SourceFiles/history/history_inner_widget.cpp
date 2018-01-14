@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
+#include "data/data_media_types.h"
 
 namespace {
 
@@ -405,7 +406,7 @@ void HistoryInner::enumerateDates(Method method) {
 
 TextSelection HistoryInner::computeRenderSelection(
 		not_null<const SelectedItems*> selected,
-		not_null<HistoryItem*> item) const {
+		not_null<Element*> view) const {
 	const auto itemSelection = [&](not_null<HistoryItem*> item) {
 		auto i = selected->find(item);
 		if (i != selected->end()) {
@@ -413,22 +414,22 @@ TextSelection HistoryInner::computeRenderSelection(
 		}
 		return TextSelection();
 	};
-	const auto group = item->Get<HistoryMessageGroup>();
+	const auto group = view->Get<HistoryView::Group>();
 	if (group) {
-		if (group->leader != item) {
+		if (group->leader != view) {
 			return TextSelection();
 		}
 		auto result = TextSelection();
 		auto allFullSelected = true;
 		const auto count = int(group->others.size());
 		for (auto i = 0; i != count; ++i) {
-			if (itemSelection(group->others[i]) == FullSelection) {
+			if (itemSelection(group->others[i]->data()) == FullSelection) {
 				result = AddGroupItemSelection(result, i);
 			} else {
 				allFullSelected = false;
 			}
 		}
-		const auto leaderSelection = itemSelection(item);
+		const auto leaderSelection = itemSelection(view->data());
 		if (leaderSelection == FullSelection) {
 			return allFullSelected
 				? FullSelection
@@ -438,7 +439,7 @@ TextSelection HistoryInner::computeRenderSelection(
 		}
 		return result;
 	}
-	return itemSelection(item);
+	return itemSelection(view->data());
 }
 
 TextSelection HistoryInner::itemRenderSelection(
@@ -452,7 +453,7 @@ TextSelection HistoryInner::itemRenderSelection(
 			return FullSelection;
 		}
 	} else if (!_selected.empty()) {
-		return computeRenderSelection(&_selected, item);
+		return computeRenderSelection(&_selected, view);
 	}
 	return TextSelection();
 }
@@ -528,7 +529,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				}
 				if (item->mentionsMe() && item->isMediaUnread()) {
 					readMentions.insert(item);
-					_widget->enqueueMessageHighlight(item);
+					_widget->enqueueMessageHighlight(view);
 				}
 
 				int32 h = view->height();
@@ -574,7 +575,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 					}
 					if (item->mentionsMe() && item->isMediaUnread()) {
 						readMentions.insert(item);
-						_widget->enqueueMessageHighlight(item);
+						_widget->enqueueMessageHighlight(view);
 					}
 				}
 				p.translate(0, h);
@@ -984,7 +985,7 @@ void HistoryInner::mouseActionStart(const QPoint &screenPos, Qt::MouseButton but
 				if (uponSelected) {
 					_mouseAction = MouseAction::PrepareDrag; // start text drag
 				} else if (!_pressWasInactive) {
-					if (dynamic_cast<HistorySticker*>(App::pressedItem()->data()->getMedia()) || _mouseCursorState == HistoryInDateCursorState) {
+					if (dynamic_cast<HistorySticker*>(App::pressedItem()->media()) || _mouseCursorState == HistoryInDateCursorState) {
 						_mouseAction = MouseAction::PrepareDrag; // start sticker drag or by-date drag
 					} else {
 						if (dragState.afterSymbol) ++_mouseTextSymbol;
@@ -1089,17 +1090,23 @@ void HistoryInner::performDrag() {
 		auto forwardMimeType = QString();
 		auto pressedMedia = static_cast<HistoryMedia*>(nullptr);
 		if (auto pressedItem = App::pressedItem()) {
-			pressedMedia = pressedItem->data()->getMedia();
-			if (_mouseCursorState == HistoryInDateCursorState || (pressedMedia && pressedMedia->dragItem())) {
-				Auth().data().setMimeForwardIds(Auth().data().itemOrItsGroup(pressedItem->data()));
+			pressedMedia = pressedItem->media();
+			if (_mouseCursorState == HistoryInDateCursorState
+				|| (pressedMedia && pressedMedia->dragItem())) {
+				Auth().data().setMimeForwardIds(
+					Auth().data().itemOrItsGroup(pressedItem->data()));
 				forwardMimeType = qsl("application/x-td-forward");
 			}
 		}
 		if (const auto pressedLnkItem = _mouseActionItem) {
-			if ((pressedMedia = pressedLnkItem->getMedia())) {
-				if (forwardMimeType.isEmpty() && pressedMedia->dragItemByHandler(pressedHandler)) {
-					Auth().data().setMimeForwardIds({ 1, pressedLnkItem->fullId() });
-					forwardMimeType = qsl("application/x-td-forward");
+			if (const auto view = pressedLnkItem->mainView()) {
+				if ((pressedMedia = view->media())) {
+					if (forwardMimeType.isEmpty()
+						&& pressedMedia->dragItemByHandler(pressedHandler)) {
+						Auth().data().setMimeForwardIds(
+							{ 1, pressedLnkItem->fullId() });
+						forwardMimeType = qsl("application/x-td-forward");
+					}
 				}
 			}
 		}
@@ -1162,9 +1169,11 @@ void HistoryInner::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 		// if we are in selecting items mode perhaps we want to
 		// toggle selection instead of activating the pressed link
 		if (_mouseAction == MouseAction::PrepareDrag && !_pressWasInactive && !_selected.empty() && _selected.cbegin()->second == FullSelection && button != Qt::RightButton) {
-			if (auto media = _mouseActionItem->getMedia()) {
-				if (media->toggleSelectionByHandlerClick(activated)) {
-					activated = nullptr;
+			if (const auto view = _mouseActionItem->mainView()) {
+				if (const auto media = view->media()) {
+					if (media->toggleSelectionByHandlerClick(activated)) {
+						activated = nullptr;
+					}
 				}
 			}
 		}
@@ -1232,7 +1241,11 @@ void HistoryInner::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 #if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
 	if (!_selected.empty() && _selected.cbegin()->second != FullSelection) {
 		const auto [item, selection] = *_selected.cbegin();
-		setToClipboard(item->selectedText(selection), QClipboard::Selection);
+		if (const auto view = item->mainView()) {
+			setToClipboard(
+				view->selectedText(selection),
+				QClipboard::Selection);
+		}
 	}
 #endif // Q_OS_LINUX32 || Q_OS_LINUX64
 }
@@ -1340,7 +1353,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				_widget->replyToMessage(itemId);
 			});
 		}
-		if (item->canEdit(::date(unixtime()))) {
+		if (item->allowsEdit(::date(unixtime()))) {
 			_menu->addAction(lang(lng_context_edit_msg), [=] {
 				_widget->editMessage(itemId);
 			});
@@ -1423,7 +1436,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		} else if (item) {
 			const auto itemId = item->fullId();
 			if (isUponSelected != -2) {
-				if (item->canForward()) {
+				if (item->allowsForward()) {
 					_menu->addAction(lang(lng_context_forward_msg), [=] {
 						forwardItem(itemId);
 					})->setEnabled(true);
@@ -1453,10 +1466,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				: App::hoveredLinkItem()
 				? App::hoveredLinkItem()->data().get()
 				: nullptr) {
-				if (const auto group = result->getFullGroup()) {
-					return group->others.empty()
-						? group->leader
-						: group->others.front().get();
+				if (const auto group = Auth().data().groups().find(result)) {
+					return group->items.front();
 				}
 				return result;
 			}
@@ -1466,8 +1477,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto canDelete = item
 			&& item->canDelete()
 			&& (item->id > 0 || !item->serviceMsg());
-		const auto canForward = item
-			&& item->canForward();
+		const auto canForward = item && item->allowsForward();
+		const auto view = item ? item->mainView() : nullptr;
 
 		const auto msg = dynamic_cast<HistoryMessage*>(item);
 		if (isUponSelected > 0) {
@@ -1477,7 +1488,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			addItemActions(item);
 			if (item && !isUponSelected) {
 				auto mediaHasTextForCopy = false;
-				if (auto media = (msg ? msg->getMedia() : nullptr)) {
+				if (auto media = (view ? view->media() : nullptr)) {
 					mediaHasTextForCopy = media->hasTextForCopy();
 					if (media->type() == MediaTypeWebPage && static_cast<HistoryWebPage*>(media)->attach()) {
 						media = static_cast<HistoryWebPage*>(media)->attach();
@@ -1665,8 +1676,8 @@ void HistoryInner::saveDocumentToFile(not_null<DocumentData*> document) {
 
 void HistoryInner::openContextGif(FullMsgId itemId) {
 	if (const auto item = App::histItemById(itemId)) {
-		if (const auto media = item->getMedia()) {
-			if (const auto document = media->getDocument()) {
+		if (const auto media = item->media()) {
+			if (const auto document = media->document()) {
 				Messenger::Instance().showDocument(document, item);
 			}
 		}
@@ -1675,8 +1686,8 @@ void HistoryInner::openContextGif(FullMsgId itemId) {
 
 void HistoryInner::saveContextGif(FullMsgId itemId) {
 	if (const auto item = App::histItemById(itemId)) {
-		if (const auto media = item->getMedia()) {
-			if (const auto document = media->getDocument()) {
+		if (const auto media = item->media()) {
+			if (const auto document = media->document()) {
 				_widget->saveGif(document);
 			}
 		}
@@ -1685,14 +1696,11 @@ void HistoryInner::saveContextGif(FullMsgId itemId) {
 
 void HistoryInner::copyContextText(FullMsgId itemId) {
 	if (const auto item = App::histItemById(itemId)) {
-		if (const auto media = item->getMedia()) {
-			if (media->type() == MediaTypeSticker) {
-				return;
-			}
+		if (const auto view = item->mainView()) {
+			const auto group = view->getFullGroup();
+			const auto leader = group ? group->leader : view;
+			setToClipboard(leader->selectedText(FullSelection));
 		}
-		const auto group = item->getFullGroup();
-		const auto leader = group ? group->leader : item;
-		setToClipboard(leader->selectedText(FullSelection));
 	}
 }
 
@@ -1718,26 +1726,30 @@ TextWithEntities HistoryInner::getSelectedText() const {
 	}
 	if (selected.cbegin()->second != FullSelection) {
 		const auto [item, selection] = *selected.cbegin();
-		return item->selectedText(selection);
+		if (const auto view = item->mainView()) {
+			return view->selectedText(selection);
+		}
+		return TextWithEntities();
 	}
 
 	const auto timeFormat = qsl(", [dd.MM.yy hh:mm]\n");
-	auto groupLeadersAdded = base::flat_set<not_null<HistoryItem*>>();
+	auto groupLeadersAdded = base::flat_set<not_null<Element*>>();
 	auto fullSize = 0;
 	auto texts = base::flat_map<std::pair<int, MsgId>, TextWithEntities>();
 
 	const auto addItem = [&](
-			not_null<HistoryItem*> item,
+			not_null<HistoryView::Element*> view,
 			TextSelection selection) {
+		const auto item = view->data();
 		auto time = item->date.toString(timeFormat);
 		auto part = TextWithEntities();
-		auto unwrapped = item->selectedText(selection);
+		auto unwrapped = view->selectedText(selection);
 		auto size = item->author()->name.size()
 			+ time.size()
 			+ unwrapped.text.size();
 		part.text.reserve(size);
 
-		auto y = itemTop(item);
+		auto y = itemTop(view);
 		if (y >= 0) {
 			part.text.append(item->author()->name).append(time);
 			TextUtilities::Append(part, std::move(unwrapped));
@@ -1747,11 +1759,12 @@ TextWithEntities HistoryInner::getSelectedText() const {
 	};
 
 	for (const auto [item, selection] : selected) {
-		if (!item->mainView()) {
+		const auto view = item->mainView();
+		if (!view) {
 			continue;
 		}
 
-		if (const auto group = item->Get<HistoryMessageGroup>()) {
+		if (const auto group = view->getFullGroup()) {
 			if (groupLeadersAdded.contains(group->leader)) {
 				continue;
 			}
@@ -1761,16 +1774,16 @@ TextWithEntities HistoryInner::getSelectedText() const {
 			if (leaderSelection == FullSelection) {
 				groupLeadersAdded.emplace(group->leader);
 				addItem(group->leader, FullSelection);
-			} else if (item == group->leader) {
+			} else if (view == group->leader) {
 				const auto leaderFullSelection = AddGroupItemSelection(
 					TextSelection(),
 					int(group->others.size()));
-				addItem(item, leaderFullSelection);
+				addItem(view, leaderFullSelection);
 			} else {
-				addItem(item, FullSelection);
+				addItem(view, FullSelection);
 			}
 		} else {
-			addItem(item, FullSelection);
+			addItem(view, FullSelection);
 		}
 	}
 
@@ -2174,7 +2187,7 @@ auto HistoryInner::getSelectionState() const
 			if (selected.first->canDelete()) {
 				++result.canDeleteCount;
 			}
-			if (selected.first->canForward()) {
+			if (selected.first->allowsForward()) {
 				++result.canForwardCount;
 			}
 		} else {
@@ -2411,7 +2424,9 @@ void HistoryInner::onUpdateSelected() {
 				}
 				auto selState = TextSelection { qMin(second, _mouseTextSymbol), qMax(second, _mouseTextSymbol) };
 				if (_mouseSelectType != TextSelectType::Letters) {
-					selState = _mouseActionItem->adjustSelection(selState, _mouseSelectType);
+					if (const auto view = _mouseActionItem->mainView()) {
+						selState = view->adjustSelection(selState, _mouseSelectType);
+					}
 				}
 				if (_selected[_mouseActionItem] != selState) {
 					_selected[_mouseActionItem] = selState;
@@ -2570,7 +2585,7 @@ int HistoryInner::itemTop(const HistoryItem *item) const {
 }
 
 int HistoryInner::itemTop(const Element *view) const {
-	if (!view) {
+	if (!view || view->data()->mainView() != view) {
 		return -1;
 	}
 
@@ -2609,10 +2624,12 @@ int HistoryInner::moveScrollFollowingInlineKeyboard(
 		const HistoryItem *item,
 		int oldKeyboardTop,
 		int newKeyboardTop) {
-	if (item->isUnderCursor()) {
-		const auto top = itemTop(item);
-		if (top >= oldKeyboardTop) {
-			return newKeyboardTop - oldKeyboardTop;
+	if (const auto view = item ? item->mainView() : nullptr) {
+		if (view->isUnderCursor()) {
+			const auto top = itemTop(item);
+			if (top >= oldKeyboardTop) {
+				return newKeyboardTop - oldKeyboardTop;
+			}
 		}
 	}
 	return 0;
@@ -2632,11 +2649,8 @@ bool HistoryInner::isSelected(
 bool HistoryInner::isSelectedAsGroup(
 		not_null<SelectedItems*> toItems,
 		not_null<HistoryItem*> item) const {
-	if (const auto group = item->getFullGroup()) {
-		if (!isSelected(toItems, group->leader)) {
-			return false;
-		}
-		for (const auto other : group->others) {
+	if (const auto group = Auth().data().groups().find(item)) {
+		for (const auto other : group->items) {
 			if (!isSelected(toItems, other)) {
 				return false;
 			}
@@ -2703,7 +2717,7 @@ void HistoryInner::changeSelectionAsGroup(
 		not_null<SelectedItems*> toItems,
 		not_null<HistoryItem*> item,
 		SelectAction action) const {
-	const auto group = item->getFullGroup();
+	const auto group = Auth().data().groups().find(item);
 	if (!group) {
 		return changeSelection(toItems, item, action);
 	}
@@ -2716,10 +2730,7 @@ void HistoryInner::changeSelectionAsGroup(
 	const auto add = (action == SelectAction::Select);
 
 	const auto adding = [&] {
-		if (!add || !goodForSelection(toItems, group->leader, total)) {
-			return false;
-		}
-		for (const auto other : group->others) {
+		for (const auto other : group->items) {
 			if (!goodForSelection(toItems, other, total)) {
 				return false;
 			}
@@ -2727,13 +2738,11 @@ void HistoryInner::changeSelectionAsGroup(
 		return (total <= MaxSelectedItems);
 	}();
 	if (adding) {
-		addToSelection(toItems, group->leader);
-		for (const auto other : group->others) {
+		for (const auto other : group->items) {
 			addToSelection(toItems, other);
 		}
 	} else {
-		removeFromSelection(toItems, group->leader);
-		for (const auto other : group->others) {
+		for (const auto other : group->items) {
 			removeFromSelection(toItems, other);
 		}
 	}
@@ -2745,13 +2754,7 @@ void HistoryInner::forwardItem(FullMsgId itemId) {
 
 void HistoryInner::forwardAsGroup(FullMsgId itemId) {
 	if (const auto item = App::histItemById(itemId)) {
-		if (const auto group = item->getFullGroup()) {
-			auto items = Auth().data().itemsToIds(group->others);
-			items.push_back(group->leader->fullId());
-			Window::ShowForwardMessagesBox(std::move(items));
-		} else {
-			Window::ShowForwardMessagesBox({ 1, itemId });
-		}
+		Window::ShowForwardMessagesBox(Auth().data().itemOrItsGroup(item));
 	}
 }
 
@@ -2779,13 +2782,12 @@ bool HistoryInner::hasPendingResizedItems() const {
 
 void HistoryInner::deleteAsGroup(FullMsgId itemId) {
 	if (const auto item = App::histItemById(itemId)) {
-		const auto group = item->getFullGroup();
-		if (!group || group->others.empty()) {
+		const auto group = Auth().data().groups().find(item);
+		if (!group || group->items.size() < 2) {
 			return deleteItem(item);
 		}
-		auto items = Auth().data().itemsToIds(group->others);
-		items.push_back(group->leader->fullId());
-		Ui::show(Box<DeleteMessagesBox>(Auth().data().groupToIds(group)));
+		Ui::show(Box<DeleteMessagesBox>(
+			Auth().data().itemsToIds(group->items)));
 	}
 }
 
@@ -2866,7 +2868,7 @@ QString HistoryInner::tooltipText() const {
 		if (const auto view = App::hoveredItem()) {
 			auto dateText = view->data()->date.toString(
 				QLocale::system().dateTimeFormat(QLocale::LongFormat));
-			auto editedDate = view->data()->displayedEditDate();
+			auto editedDate = view->displayedEditDate();
 			if (!editedDate.isNull()) {
 				dateText += '\n' + lng_edited_date(lt_date, editedDate.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)));
 			}

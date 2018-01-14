@@ -14,8 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 
 enum class UnreadMentionType;
-struct MessageGroupId;
-struct HistoryMessageGroup;
 struct HistoryMessageReplyMarkup;
 class ReplyKeyboard;
 class HistoryMessage;
@@ -42,6 +40,7 @@ struct RippleAnimation;
 
 namespace Data {
 struct MessagePosition;
+class Media;
 } // namespace Data
 
 namespace Window {
@@ -52,21 +51,12 @@ namespace HistoryView {
 enum class Context : char;
 } // namespace HistoryView
 
-namespace internal {
-
-TextSelection unshiftSelection(TextSelection selection, uint16 byLength);
-TextSelection shiftSelection(TextSelection selection, uint16 byLength);
-inline TextSelection unshiftSelection(TextSelection selection, const Text &byText) {
-	return ::internal::unshiftSelection(selection, byText.length());
-}
-inline TextSelection shiftSelection(TextSelection selection, const Text &byText) {
-	return ::internal::shiftSelection(selection, byText.length());
-}
-
-} // namespace internal
-
-class HistoryItem : public RuntimeComposer {
+class HistoryItem : public RuntimeComposer<HistoryItem> {
 public:
+	static not_null<HistoryItem*> Create(
+		not_null<History*> history,
+		const MTPMessage &message);
+
 	virtual void dependencyItemRemoved(HistoryItem *dependency) {
 	}
 	virtual bool updateDependencyItem() {
@@ -145,18 +135,11 @@ public:
 	bool isSilent() const {
 		return _flags & MTPDmessage::Flag::f_silent;
 	}
-	bool hasOutLayout() const;
-	virtual int32 viewsCount() const {
+	virtual int viewsCount() const {
 		return hasViews() ? 1 : -1;
 	}
 
 	virtual bool needCheck() const;
-
-	[[nodiscard]] virtual TextSelection adjustSelection(
-			TextSelection selection,
-			TextSelectType type) const {
-		return selection;
-	}
 
 	virtual bool serviceMsg() const {
 		return false;
@@ -173,16 +156,9 @@ public:
 	virtual void addToUnreadMentions(UnreadMentionType type);
 	virtual void eraseFromUnreadMentions() {
 	}
-	virtual Storage::SharedMediaTypesMask sharedMediaTypes() const;
+	virtual Storage::SharedMediaTypesMask sharedMediaTypes() const = 0;
+
 	void indexAsNewItem();
-
-	virtual bool hasBubble() const {
-		return false;
-	}
-
-	virtual TextWithEntities selectedText(TextSelection selection) const {
-		return { qsl("[-]"), EntitiesInText() };
-	}
 
 	virtual QString notificationHeader() const {
 		return QString();
@@ -204,28 +180,9 @@ public:
 		return { QString(), EntitiesInText() };
 	}
 
-	virtual void drawInfo(Painter &p, int32 right, int32 bottom, int32 width, bool selected, InfoDisplayType type) const {
-	}
-	virtual ClickHandlerPtr rightActionLink() const {
-		return ClickHandlerPtr();
-	}
-	virtual bool displayRightAction() const {
-		return false;
-	}
-	virtual void drawRightAction(Painter &p, int left, int top, int outerWidth) const {
-	}
 	virtual void setViewsCount(int32 count) {
 	}
 	virtual void setRealId(MsgId newId);
-
-	virtual bool displayEditedBadge() const {
-		return false;
-	}
-	virtual QDateTime displayedEditDate() const {
-		return QDateTime();
-	}
-	virtual void refreshEditedBadge() {
-	}
 
 	void drawInDialog(
 		Painter &p,
@@ -242,8 +199,8 @@ public:
 
 	bool isPinned() const;
 	bool canPin() const;
-	bool canForward() const;
-	bool canEdit(const QDateTime &cur) const;
+	virtual bool allowsForward() const;
+	virtual bool allowsEdit(const QDateTime &now) const;
 	bool canDelete() const;
 	bool canDeleteForEveryone(const QDateTime &cur) const;
 	bool suggestBanReport() const;
@@ -261,36 +218,13 @@ public:
 	}
 	Data::MessagePosition position() const;
 
-	HistoryMedia *getMedia() const {
+	Data::Media *media() const {
 		return _media.get();
 	}
 	virtual void setText(const TextWithEntities &textWithEntities) {
 	}
 	virtual bool textHasLinks() const {
 		return false;
-	}
-
-	virtual int infoWidth() const {
-		return 0;
-	}
-	virtual int timeLeft() const {
-		return 0;
-	}
-	virtual int timeWidth() const {
-		return 0;
-	}
-	virtual bool pointInTime(int right, int bottom, QPoint point, InfoDisplayType type) const {
-		return false;
-	}
-
-	int skipBlockWidth() const {
-		return st::msgDateSpace + infoWidth() - st::msgDateDelta.x();
-	}
-	int skipBlockHeight() const {
-		return st::msgDateFont->height - st::msgDateDelta.y();
-	}
-	QString skipBlock() const {
-		return textcmdSkipBlock(skipBlockWidth(), skipBlockHeight());
 	}
 
 	virtual HistoryMessage *toHistoryMessage() { // dynamic_cast optimize
@@ -328,24 +262,11 @@ public:
 	}
 
 	bool isEmpty() const;
-	bool isHiddenByGroup() const {
-		return _flags & MTPDmessage_ClientFlag::f_hidden_by_group;
-	}
 
 	MessageGroupId groupId() const;
-	bool groupIdValidityChanged();
-	void validateGroupId() {
-		// Just ignore the result.
-		groupIdValidityChanged();
-	}
-	void makeGroupMember(not_null<HistoryItem*> leader);
-	void makeGroupLeader(std::vector<not_null<HistoryItem*>> &&others);
-	HistoryMessageGroup *getFullGroup();
 
 	void clipCallback(Media::Clip::Notification notification);
 	void audioTrackUpdated();
-
-	bool isUnderCursor() const;
 
 	HistoryItem *previousItem() const;
 	HistoryItem *nextItem() const;
@@ -388,26 +309,19 @@ protected:
 	ReplyKeyboard *inlineReplyKeyboard();
 	void invalidateChatsListEntry();
 
-	[[nodiscard]] TextSelection skipTextSelection(
-			TextSelection selection) const {
-		return internal::unshiftSelection(selection, _text);
-	}
-	[[nodiscard]] TextSelection unskipTextSelection(
-			TextSelection selection) const {
-		return internal::shiftSelection(selection, _text);
-	}
+	void setGroupId(MessageGroupId groupId);
 
 	Text _text = { int(st::msgMinWidth) };
 	int _textWidth = -1;
 	int _textHeight = 0;
 
-	HistoryMediaPtr _media;
+	std::unique_ptr<Data::Media> _media;
 
 private:
-	void resetGroupMedia(const std::vector<not_null<HistoryItem*>> &others);
-
 	HistoryView::Element *_mainView = nullptr;
 	friend class HistoryView::Element;
+
+	MessageGroupId _groupId = MessageGroupId::None;
 
 };
 

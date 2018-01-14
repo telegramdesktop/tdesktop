@@ -12,8 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_list_widget.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/history_media.h"
 #include "data/data_document.h"
+#include "data/data_media_types.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/scroll_area.h"
 #include "mainwindow.h"
@@ -258,8 +258,8 @@ void Panel::refreshList() {
 	const auto contextId = current.contextId();
 	const auto peer = [&]() -> PeerData* {
 		const auto item = contextId ? App::histItemById(contextId) : nullptr;
-		const auto media = item ? item->getMedia() : nullptr;
-		const auto document = media ? media->getDocument() : nullptr;
+		const auto media = item ? item->media() : nullptr;
+		const auto document = media ? media->document() : nullptr;
 		if (!document || !document->isSharedMediaMusic()) {
 			return nullptr;
 		}

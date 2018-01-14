@@ -14,19 +14,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class HistoryGroupedMedia : public HistoryMedia {
 public:
 	HistoryGroupedMedia(
-		not_null<HistoryItem*> parent,
-		const std::vector<not_null<HistoryItem*>> &others);
+		not_null<Element*> parent,
+		const std::vector<not_null<Element*>> &others);
 
 	HistoryMediaType type() const override {
 		return MediaTypeGrouped;
 	}
-	std::unique_ptr<HistoryMedia> clone(
-		not_null<HistoryItem*> newParent,
-		not_null<HistoryItem*> realParent) const override;
 
-	void refreshParentId(not_null<HistoryItem*> realParent) override;
-	void updateSentMedia(const MTPMessageMedia &media) override;
-	bool needReSetInlineResultMedia(const MTPMessageMedia &media) override;
+	void refreshParentId(not_null<Element*> realParent) override;
 
 	void draw(
 		Painter &p,
@@ -54,8 +49,6 @@ public:
 	PhotoData *getPhoto() const override;
 	DocumentData *getDocument() const override;
 
-	QString notificationText() const override;
-	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
 	void clickHandlerActiveChanged(
@@ -69,7 +62,7 @@ public:
 	void detachFromParent() override;
 	std::unique_ptr<HistoryMedia> takeLastFromGroup() override;
 	bool applyGroup(
-		const std::vector<not_null<HistoryItem*>> &others) override;
+		const std::vector<not_null<Element*>> &others) override;
 
 	bool hasReplyPreview() const override;
 	ImagePtr replyPreview() override;
@@ -93,16 +86,15 @@ public:
 	bool customInfoLayout() const override {
 		return _caption.isEmpty();
 	}
-	bool canEditCaption() const override;
 	bool allowsFastShare() const override {
 		return true;
 	}
 
 private:
-	struct Element {
-		Element(not_null<HistoryItem*> item);
+	struct Part {
+		Part(not_null<Element*> view);
 
-		not_null<HistoryItem*> item;
+		not_null<Element*> view;
 		std::unique_ptr<HistoryMedia> content;
 
 		RectParts sides = RectPart::None;
@@ -119,14 +111,14 @@ private:
 	bool needInfoDisplay() const;
 	bool computeNeedBubble() const;
 	not_null<HistoryMedia*> main() const;
-	bool validateGroupElements(
-		const std::vector<not_null<HistoryItem*>> &others) const;
-	HistoryTextState getElementState(
+	bool validateGroupParts(
+		const std::vector<not_null<Element*>> &others) const;
+	HistoryTextState getPartState(
 		QPoint point,
 		HistoryStateRequest request) const;
 
 	Text _caption;
-	std::vector<Element> _elements;
+	std::vector<Part> _parts;
 	bool _needBubble = false;
 
 };

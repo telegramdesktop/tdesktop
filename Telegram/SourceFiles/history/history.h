@@ -164,7 +164,9 @@ public:
 	not_null<HistoryItem*> addNewGame(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, GameData *game, const MTPReplyMarkup &markup);
 
 	// Used only internally and for channel admin log.
-	HistoryItem *createItem(const MTPMessage &msg, bool applyServiceAction, bool detachExistingItem);
+	HistoryItem *createItem(
+		const MTPMessage &message,
+		bool detachExistingItem);
 
 	void addOlderSlice(const QVector<MTPMessage> &slice);
 	void addNewerSlice(const QVector<MTPMessage> &slice);
@@ -400,9 +402,11 @@ protected:
 	not_null<HistoryItem*> createItemPhoto(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup);
 	not_null<HistoryItem*> createItemGame(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, GameData *game, const MTPReplyMarkup &markup);
 
-	not_null<HistoryItem*> addNewItem(not_null<HistoryItem*> adding, bool newMsg);
+	not_null<HistoryItem*> addNewItem(
+		not_null<HistoryItem*> item,
+		bool unread);
 	not_null<HistoryItem*> addNewInTheMiddle(
-		not_null<HistoryItem*> newItem,
+		not_null<HistoryItem*> item,
 		int blockIndex,
 		int itemIndex);
 
@@ -429,6 +433,13 @@ private:
 	void changedInChatListHook(Dialogs::Mode list, bool added) override;
 	void changedChatListPinHook() override;
 
+	void applyMessageChanges(
+		not_null<HistoryItem*> item,
+		const MTPMessage &original);
+	void applyServiceChanges(
+		not_null<HistoryItem*> item,
+		const MTPDmessageService &data);
+
 	// After adding a new history slice check the lastMsg and newLoaded.
 	void checkLastMsg();
 
@@ -441,17 +452,19 @@ private:
 
 	void clearSendAction(not_null<UserData*> from);
 
-	HistoryItem *findPreviousItem(not_null<HistoryItem*> item) const;
-	HistoryItem *findNextItem(not_null<HistoryItem*> item) const;
-	not_null<HistoryItem*> findGroupFirst(
-		not_null<HistoryItem*> item) const;
-	not_null<HistoryItem*> findGroupLast(
-		not_null<HistoryItem*> item) const;
-	auto recountGroupingFromTill(not_null<HistoryItem*> item)
-		-> std::pair<not_null<HistoryItem*>, not_null<HistoryItem*>>;
+	HistoryView::Element *findPreviousItem(
+		not_null<HistoryView::Element*> view) const;
+	HistoryView::Element *findNextItem(
+		not_null<HistoryView::Element*> view) const;
+	not_null<HistoryView::Element*> findGroupFirst(
+		not_null<HistoryView::Element*> view) const;
+	not_null<HistoryView::Element*> findGroupLast(
+		not_null<HistoryView::Element*> view) const;
+	auto recountGroupingFromTill(not_null<HistoryView::Element*> view)
+		-> std::pair<not_null<HistoryView::Element*>, not_null<HistoryView::Element*>>;
 	void recountGrouping(
-		not_null<HistoryItem*> from,
-		not_null<HistoryItem*> till);
+		not_null<HistoryView::Element*> from,
+		not_null<HistoryView::Element*> till);
 
 	enum class Flag {
 		f_has_pending_resized_items = (1 << 0),

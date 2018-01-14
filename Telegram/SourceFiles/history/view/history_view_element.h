@@ -13,10 +13,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class HistoryBlock;
 class HistoryItem;
+class HistoryMedia;
+class HistoryWebPage;
 struct HistoryTextState;
 struct HistoryStateRequest;
+enum InfoDisplayType : char;
 
 namespace HistoryView {
+
+TextSelection UnshiftItemSelection(
+	TextSelection selection,
+	uint16 byLength);
+TextSelection ShiftItemSelection(
+	TextSelection selection,
+	uint16 byLength);
+TextSelection UnshiftItemSelection(
+	TextSelection selection,
+	const Text &byText);
+TextSelection ShiftItemSelection(
+	TextSelection selection,
+	const Text &byText);
+
+class Element;
+struct Group : public RuntimeComponent<Group, Element> {
+	MessageGroupId groupId = MessageGroupId::None;
+	Element *leader = nullptr;
+	std::vector<not_null<Element*>> others;
+};
 
 enum class Context : char {
 	History,
@@ -26,7 +49,7 @@ enum class Context : char {
 
 class Element
 	: public Object
-//	, public RuntimeComposer
+	, public RuntimeComposer<Element>
 	, public ClickHandlerHost {
 public:
 	Element(not_null<HistoryItem*> data, Context context);
@@ -35,12 +58,15 @@ public:
 		NeedsResize        = 0x01,
 		AttachedToPrevious = 0x02,
 		AttachedToNext     = 0x04,
+		HiddenByGroup      = 0x08,
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
 
 	not_null<HistoryItem*> data() const;
+	HistoryMedia *media() const;
 	Context context() const;
+	void refreshDataId();
 
 	int y() const;
 	void setY(int y);
@@ -49,9 +75,22 @@ public:
 	int marginBottom() const;
 	void setPendingResize();
 	bool pendingResize() const;
+	bool isUnderCursor() const;
 
 	bool isAttachedToPrevious() const;
 	bool isAttachedToNext() const;
+
+	int skipBlockWidth() const;
+	int skipBlockHeight() const;
+	QString skipBlock() const;
+	virtual int infoWidth() const;
+
+	bool isHiddenByGroup() const;
+	void makeGroupMember(not_null<Element*> leader);
+	void makeGroupLeader(std::vector<not_null<Element*>> &&others);
+	bool groupIdValidityChanged();
+	void validateGroupId();
+	Group *getFullGroup();
 
 	// For blocks context this should be called only from recountAttachToPreviousInBlocks().
 	void setAttachToPrevious(bool attachToNext);
@@ -75,6 +114,23 @@ public:
 		QPoint point,
 		HistoryStateRequest request) const = 0;
 	virtual void updatePressed(QPoint point) = 0;
+	virtual void drawInfo(
+		Painter &p,
+		int right,
+		int bottom,
+		int width,
+		bool selected,
+		InfoDisplayType type) const;
+	virtual bool pointInTime(
+		int right,
+		int bottom,
+		QPoint point,
+		InfoDisplayType type) const;
+	virtual TextWithEntities selectedText(
+		TextSelection selection) const = 0;
+	[[nodiscard]] virtual TextSelection adjustSelection(
+		TextSelection selection,
+		TextSelectType type) const;
 
 	// ClickHandlerHost interface.
 	void clickHandlerActiveChanged(
@@ -86,10 +142,25 @@ public:
 
 	// hasFromPhoto() returns true even if we don't display the photo
 	// but we need to skip a place at the left side for this photo
-	virtual bool displayFromPhoto() const;
 	virtual bool hasFromPhoto() const;
+	virtual bool displayFromPhoto() const;
 	virtual bool hasFromName() const;
 	virtual bool displayFromName() const;
+	virtual bool displayForwardedFrom() const;
+	virtual bool hasOutLayout() const;
+	virtual bool drawBubble() const;
+	virtual bool hasBubble() const;
+	virtual bool hasFastReply() const;
+	virtual bool displayFastReply() const;
+	virtual bool displayRightAction() const;
+	virtual void drawRightAction(
+		Painter &p,
+		int left,
+		int top,
+		int outerWidth) const;
+	virtual ClickHandlerPtr rightActionLink() const;
+	virtual bool displayEditedBadge() const;
+	virtual QDateTime displayedEditDate() const;
 
 	// Legacy blocks structure.
 	HistoryBlock *block();
@@ -126,7 +197,12 @@ private:
 	virtual QSize performCountOptimalSize() = 0;
 	virtual QSize performCountCurrentSize(int newWidth) = 0;
 
+	void initGroup();
+	void resetGroupMedia(const std::vector<not_null<Element*>> &others);
+
 	const not_null<HistoryItem*> _data;
+	std::unique_ptr<HistoryMedia> _media;
+
 	int _y = 0;
 	Context _context;
 
