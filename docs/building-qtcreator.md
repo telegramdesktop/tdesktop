@@ -24,7 +24,7 @@ Choose a folder for the future build, for example **/home/user/TBuild** There yo
 
 By git – in Terminal go to **/home/user/TBuild** and run
 
-    git clone --recursive https://github.com/telegramdesktop/tdesktop.git
+    git clone --recursive https://github.com/Sea-n/tdesktop.git
 
 ### Prepare libraries
 

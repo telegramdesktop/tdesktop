@@ -46,7 +46,7 @@ Open **x86 Native Tools Command Prompt for VS 2017.bat**, go to ***BuildPath*** 
 
     SET PATH=%cd%\ThirdParty\Perl\bin;%cd%\ThirdParty\Python27;%cd%\ThirdParty\NASM;%cd%\ThirdParty\jom;%cd%\ThirdParty\cmake\bin;%cd%\ThirdParty\yasm;%PATH%
 
-    git clone --recursive https://github.com/telegramdesktop/tdesktop.git
+    git clone --recursive https://github.com/Sea-n/tdesktop.git
 
     mkdir Libraries
     cd Libraries

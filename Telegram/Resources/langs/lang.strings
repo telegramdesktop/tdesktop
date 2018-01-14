@@ -18,10 +18,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_disable_notifications_from_tray" = "Disable notifications";
 "lng_enable_notifications_from_tray" = "Enable notifications";
-"lng_open_from_tray" = "Open Telegram";
+"lng_open_from_tray" = "Open Telegreat";
 "lng_minimize_to_tray" = "Minimize to tray";
-"lng_quit_from_tray" = "Quit Telegram";
-"lng_tray_icon_text" = "Telegram is still running here,\nyou can change this from settings page.\nIf this icon disappears from tray menu,\nyou can drag it here from hidden icons.";
+"lng_quit_from_tray" = "Quit Telegreat";
+"lng_tray_icon_text" = "Telegreat is still running here,\nyou can change this from settings page.\nIf this icon disappears from tray menu,\nyou can drag it here from hidden icons.";
 
 "lng_month1" = "January";
 "lng_month2" = "February";
@@ -114,7 +114,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_error" = "You cannot edit this message";
 "lng_join_channel_error" = "Sorry, you have joined too many channels and supergroups. Please leave some before joining this one.";
 "lng_error_phone_flood" = "Sorry, you have deleted and re-created your account too many times recently. Please wait for a few days before signing up again.";
-"lng_error_start_minimized_passcoded" = "You have set a local passcode, so Telegram Desktop can't be launched minimised; it will ask you to enter your passcode before it can start working.";
+"lng_error_start_minimized_passcoded" = "You have set a local passcode, so Telegreat can't be launched minimised; it will ask you to enter your passcode before it can start working.";
 "lng_error_pinned_max#one" = "Sorry, you can pin no more than {count} chat to the top.";
 "lng_error_pinned_max#other" = "Sorry, you can pin no more than {count} chats to the top.";
 "lng_error_public_groups_denied" = "Unfortunately, you were banned from participating in public groups.\n{more_info}";
@@ -144,7 +144,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_pinned_unpin" = "Unpin";
 "lng_pinned_notify" = "Notify all members";
 
-"lng_intro_about" = "Welcome to the official Telegram Desktop app.\nIt's fast and secure.";
+"lng_intro_about" = "Welcome to the unofficial Telegreat app.\nIt's fast and secure.";
 "lng_start_msgs" = "START MESSAGING";
 
 "lng_intro_next" = "NEXT";
@@ -222,7 +222,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_contacts_loading" = "Loading...";
 "lng_contacts_not_found" = "No contacts found";
 "lng_dlg_search_for_messages" = "Search for messages";
-"lng_update_telegram" = "Update Telegram";
+"lng_update_telegram" = "Update Telegreat";
 "lng_dlg_search_in" = "Search messages in";
 "lng_dlg_search_from" = "From: {user}";
 
@@ -275,7 +275,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_section_general" = "General";
 "lng_settings_change_lang" = "Change language";
 "lng_languages" = "Languages";
-"lng_sure_save_language" = "Telegram will restart in order to change language";
+"lng_sure_save_language" = "Telegreat will restart in order to change language";
 "lng_settings_update_automatically" = "Update automatically";
 "lng_settings_current_version_label" = "Version {version}:";
 "lng_settings_current_version" = "Version {version}";
@@ -288,9 +288,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_update_fail" = "Update check failed :(";
 "lng_settings_workmode_tray" = "Show tray icon";
 "lng_settings_workmode_window" = "Show taskbar icon";
-"lng_settings_auto_start" = "Launch Telegram when system starts";
+"lng_settings_auto_start" = "Launch Telegreat when system starts";
 "lng_settings_start_min" = "Launch minimized";
-"lng_settings_add_sendto" = "Place Telegram in \"Send to\" menu";
+"lng_settings_add_sendto" = "Place Telegreat in \"Send to\" menu";
 "lng_settings_section_scale" = "Interface Scale";
 "lng_settings_scale_auto" = "Auto ({cur})";
 
@@ -322,7 +322,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_download_path_default" = "default folder";
 "lng_download_path_clear" = "Clear all";
 "lng_download_path_header" = "Choose download path";
-"lng_download_path_default_radio" = "Telegram folder in system «Downloads»";
+"lng_download_path_default_radio" = "Telegreat folder in system «Downloads»";
 "lng_download_path_temp_radio" = "Temp folder, cleared on logout or uninstall";
 "lng_download_path_dir_radio" = "Custom folder, cleared only manually";
 "lng_download_path_choose" = "Choose download path";
@@ -367,7 +367,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passcode_enter_first" = "Enter a passcode";
 "lng_passcode_enter_new" = "Enter new passcode";
 "lng_passcode_confirm_new" = "Re-enter new passcode";
-"lng_passcode_about" = "When a local passcode is set, a lock icon appears at the top of your chats list. Click it to lock the app.\n\nNote: if you forget your local passcode, you'll need to relogin in Telegram Desktop.";
+"lng_passcode_about" = "When a local passcode is set, a lock icon appears at the top of your chats list. Click it to lock the app.\n\nNote: if you forget your local passcode, you'll need to relogin in Telegreat.";
 "lng_passcode_differ" = "Passcodes are different";
 "lng_passcode_wrong" = "Wrong passcode";
 "lng_passcode_is_same" = "Passcode was not changed";
@@ -736,7 +736,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sure_delete_saved_messages" = "Are you sure, you want to delete all your saved messages?\n\nThis action cannot be undone.";
 
 "lng_message_empty" = "Empty Message";
-"lng_message_unsupported" = "This message is not supported by your version of Telegram Desktop. Please update to the latest version in Settings, or install it from {link}";
+"lng_message_unsupported" = "This message is not supported by your version of Telegreat. Please update to the latest version in Settings, or install it from {link}";
 
 "lng_duration_seconds#one" = "{count} second";
 "lng_duration_seconds#other" = "{count} seconds";
@@ -855,7 +855,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_cancel_edit_post_yes" = "Yes";
 "lng_cancel_edit_post_no" = "No";
 
-"lng_bot_share_location_unavailable" = "Sorry, location sharing is currently unavailable in Telegram Desktop.";
+"lng_bot_share_location_unavailable" = "Sorry, location sharing is currently unavailable in Telegreat.";
 "lng_bot_share_phone" = "Do you want to share your phone number with this bot?";
 "lng_bot_share_phone_confirm" = "Share";
 
@@ -1175,8 +1175,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_box_leave" = "Leave";
 
 "lng_about_version" = "version {version}";
-"lng_about_text_1" = "Official free messaging app based on [a href=\"https://core.telegram.org/api\"]Telegram API[/a]\nfor speed and security.";
-"lng_about_text_2" = "This software is licensed under [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] version 3.\nSource code is available on [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
+"lng_about_text_1" = "Unofficial free messaging app based on [a href=\"https://core.telegram.org/api\"]Telegram API[/a]\nfor speed and security.";
+"lng_about_text_2" = "This software is licensed under [a href=\"https://github.com/Sea-n/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] version 3.\nSource code is available on [a href=\"https://github.com/Sea-n/tdesktop\"]GitHub[/a].";
 "lng_about_text_3" = "Visit {faq_open}Telegram FAQ{faq_close} for more info.";
 "lng_about_done" = "Done";
 
@@ -1213,7 +1213,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_new_authorization" = "{name},\nWe detected a login into your account from a new device on {day}, {date} at {time}\n\nDevice: {device}\nLocation: {location}\n\nIf this wasn't you, you can go to Settings — Show all sessions and terminate that session.\n\nIf you think that somebody logged in to your account against your will, you can enable two-step verification in Settings.\n\nSincerely,\nThe Telegram Team";
 
-"lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
+"lng_new_version_wrap" = "Telegreat was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
@@ -1463,5 +1463,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mac_menu_new_group" = "New Group";
 "lng_mac_menu_new_channel" = "New Channel";
 "lng_mac_menu_show" = "Show Telegram";
+
+
+"lng_stickers_export" = "Export";
+"lng_stickers_export_copied" = "All Stickers links copied.";
 
 // Keys finished

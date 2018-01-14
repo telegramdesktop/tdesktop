@@ -19,10 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_disable_notifications_from_tray" = "알림 해제";
 "lng_enable_notifications_from_tray" = "알림 사용";
-"lng_open_from_tray" = "텔레그램 실행";
+"lng_open_from_tray" = "Open Telegreat";
 "lng_minimize_to_tray" = "창을 최소화";
-"lng_quit_from_tray" = "텔레그램 종료";
-"lng_tray_icon_text" = "텔레그램은 아직 실행중입니다. \n설정 화면에서 실행설정을 변경하실 수 있습니다. \n트레이메뉴에서 이 아이콘이 사라질 경우. \n숨겨진 아이콘 목록에서 다시 복원할 수 있습니다.";
+"lng_quit_from_tray" = "Quit Telegreat";
+"lng_tray_icon_text" = "Telegreat is still running here,\nyou can change this from settings page.\nIf this icon disappears from tray menu,\nyou can drag it here from hidden icons.";
 
 "lng_month1" = "1월";
 "lng_month2" = "2월";
@@ -1167,7 +1167,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_about_version" = "버전 {version}";
 "lng_about_text_1" = "[a href=\"https://core.telegram.org/api\"]Telegram API[/a]에 기반하고 있는 공식 무료 메시징 앱으로 빠르고 안전합니다.";
-"lng_about_text_2" = "이 소프트웨어는  [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] version 3 를 채택하고 있으며,\n소스코드는 [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a]에서 제공하고 있습니다.";
+"lng_about_text_2" = "이 소프트웨어는  [a href=\"https://github.com/Sea-n/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] version 3 를 채택하고 있으며,\n소스코드는 [a href=\"https://github.com/Sea-n/tdesktop\"]GitHub[/a]에서 제공하고 있습니다.";
 "lng_about_text_3" = "자세한 사항은 {faq_open}Telegram FAQ{faq_close} 에서 확인해주세요.";
 "lng_about_done" = "완료";
 

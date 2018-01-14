@@ -1,12 +1,12 @@
-# [Telegram Desktop][telegram_desktop] – Official Messenger
+# Unofficial [Telegreat][telegreat] Messenger
 
-This is the complete source code and the build instructions for the alpha version of the official desktop client for the [Telegram][telegram] messenger, based on the [Telegram API][telegram_api] and the [MTProto][telegram_proto] secure protocol.
+Make Telegram Great Again!
 
-[![Version](https://badge.fury.io/gh/telegramdesktop%2Ftdesktop.svg)](https://github.com/telegramdesktop/tdesktop/releases)
-[![Build Status](https://travis-ci.org/telegramdesktop/tdesktop.svg?branch=dev)](https://travis-ci.org/telegramdesktop/tdesktop)
-[![Build status](https://ci.appveyor.com/api/projects/status/uiw2y768iy4i5bu8/branch/dev?svg=true)](https://ci.appveyor.com/project/telegramdesktop/tdesktop)
+[![Version](https://badge.fury.io/gh/Sea-n%2Ftdesktop.svg)](https://github.com/Sea-n/tdesktop/releases)
+[![Build Status](https://travis-ci.org/Sea-n/tdesktop.svg?branch=dev)](https://travis-ci.org/Sea-n/tdesktop)
+[![Build status](https://ci.appveyor.com/api/projects/status/la7r9kwwumhcsu42/branch/dev?svg=true)](https://ci.appveyor.com/project/Sea-n/tdesktop)
 
-[![Preview of Telegram Desktop][preview_image]][preview_image_url]
+[![Preview of Telegreat][preview_image]][preview_image_url]
 
 The source code is published under GPLv3 with OpenSSL exception, the license is available [here][license].
 
@@ -46,15 +46,18 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 * [Xcode 9][xcode]
 * [GYP/CMake on GNU/Linux][cmake]
 
+## Links
+
+* [Official Channel](https://t.me/Telegreat)
+* [Main Developer](https://t.me/SeanChannel)
+* [Public Site][telegreat]
+
 [//]: # (LINKS)
-[telegram]: https://telegram.org
-[telegram_desktop]: https://desktop.telegram.org
-[telegram_api]: https://core.telegram.org
-[telegram_proto]: https://core.telegram.org/mtproto
+[telegreat]: https://telegre.at
 [license]: LICENSE
 [msvc]: docs/building-msvc.md
 [xcode]: docs/building-xcode.md
 [xcode_old]: docs/building-xcode-old.md
 [cmake]: docs/building-cmake.md
-[preview_image]: https://github.com/telegramdesktop/tdesktop/blob/dev/docs/assets/preview.png "Preview of Telegram Desktop"
-[preview_image_url]: https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/docs/assets/preview.png
+[preview_image]: https://img.sean.taipei/2018/01/telegreat-preview.png "Preview of Telegreat"
+[preview_image_url]: https://img.sean.taipei/2018/01/telegreat-preview.png

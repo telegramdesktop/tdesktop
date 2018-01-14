@@ -19,10 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_disable_notifications_from_tray" = "Benachrichtigungen aus";
 "lng_enable_notifications_from_tray" = "Benachrichtigungen ein";
-"lng_open_from_tray" = "Telegram öffnen";
+"lng_open_from_tray" = "Telegreat öffnen";
 "lng_minimize_to_tray" = "Minimieren";
-"lng_quit_from_tray" = "Telegram beenden";
-"lng_tray_icon_text" = "Telegram ist minimiert und läuft im Hintergrund,\ndu kannst das in den Einstellungen ändern.\nUm Telegram wieder anzuzeigen, klicke auf \ndas Symbol im Benachrichtigungsfeld.";
+"lng_quit_from_tray" = "Telegreat beenden";
+"lng_tray_icon_text" = "Telegreat ist minimiert und läuft im Hintergrund,\ndu kannst das in den Einstellungen ändern.\nUm Telegreat wieder anzuzeigen, klicke auf \ndas Symbol im Benachrichtigungsfeld.";
 
 "lng_month1" = "Januar";
 "lng_month2" = "Februar";
@@ -156,7 +156,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_pinned_unpin" = "Entfernen";
 "lng_pinned_notify" = "Alle benachrichtigen";
 
-"lng_intro_about" = "Willkommen in der offiziellen Telegram Desktop App.\nDie App ist schnell und sicher.";
+"lng_intro_about" = "Willkommen in der unoffiziellen Telegreat App.\nDie App ist schnell und sicher.";
 "lng_start_msgs" = "JETZT STARTEN";
 
 "lng_intro_next" = "WEITER";
@@ -1180,8 +1180,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_box_leave" = "Verlassen";
 
 "lng_about_version" = "Version {version}";
-"lng_about_text_1" = "Offizielle Messaging App basierend auf [a href=\"https://core.telegram.org/api\"]Telegram API[/a]\nfür Geschwindigkeit und Sicherheit.";
-"lng_about_text_2" = "Diese Software steht unter der [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] Version 3, der Quelltext ist bei [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a] verfügbar.";
+"lng_about_text_1" = "Unoffizielle Messaging App basierend auf [a href=\"https://core.telegram.org/api\"]Telegram API[/a]\nfür Geschwindigkeit und Sicherheit.";
+"lng_about_text_2" = "Diese Software steht unter der [a href=\"https://github.com/Sea-n/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] Version 3, der Quelltext ist bei [a href=\"https://github.com/Sea-n/tdesktop\"]GitHub[/a] verfügbar.";
 "lng_about_text_3" = "Fragen? Besuche doch {faq_open}unsere FAQ{faq_close} für mehr Infos.";
 "lng_about_done" = "Fertig";
 

@@ -16,7 +16,7 @@ Go to ***BuildPath*** and run
 
     MACOSX_DEPLOYMENT_TARGET=10.8
 
-    git clone --recursive https://github.com/telegramdesktop/tdesktop.git
+    git clone --recursive https://github.com/Sea-n/tdesktop.git
 
     cd Libraries
 
@@ -85,7 +85,7 @@ Go to ***BuildPath*** and run
     cmake -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.8 ..
     make -j4
     sudo make install
-    cd ..
+    cd ../..
 
     git clone https://chromium.googlesource.com/external/gyp
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
@@ -111,8 +111,8 @@ Go to ***BuildPath*** and run
     cd ../../..
 
     build/gyp_crashpad.py -Dmac_deployment_target=10.8
-    ninja -C out/Debug
-    ninja -C out/Release
+    ../depot_tools/ninja -C out/Debug
+    ../depot_tools/ninja -C out/Release
     cd ..
 
     git clone git://code.qt.io/qt/qt5.git qt5_6_2

@@ -19,10 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_disable_notifications_from_tray" = "Desactivar notificaciones";
 "lng_enable_notifications_from_tray" = "Activar notificaciones";
-"lng_open_from_tray" = "Abrir Telegram";
+"lng_open_from_tray" = "Abrir Telegreat";
 "lng_minimize_to_tray" = "Minimizar al icono";
-"lng_quit_from_tray" = "Salir de Telegram";
-"lng_tray_icon_text" = "Telegram aún está funcionando,\npuedes cambiar esto en los ajustes. \nSi este icono desaparece del menú, \npuedes arrastrarlo aquí desde los iconos ocultos.";
+"lng_quit_from_tray" = "Salir de Telegreat";
+"lng_tray_icon_text" = "Telegreat aún está funcionando,\npuedes cambiar esto en los ajustes. \nSi este icono desaparece del menú, \npuedes arrastrarlo aquí desde los iconos ocultos.";
 
 "lng_month1" = "enero";
 "lng_month2" = "febrero";
@@ -156,7 +156,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_pinned_unpin" = "Desanclar";
 "lng_pinned_notify" = "Notificar a todos los miembros";
 
-"lng_intro_about" = "Te damos la bienvenida a la app oficial para PC.\nEs rápida y segura.";
+"lng_intro_about" = "Te damos la bienvenida a la app unoficial para PC.\nEs rápida y segura.";
 "lng_start_msgs" = "EMPEZAR A CONVERSAR";
 
 "lng_intro_next" = "SIGUIENTE";
@@ -1180,8 +1180,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_box_leave" = "Salir";
 
 "lng_about_version" = "versión {version}";
-"lng_about_text_1" = "Aplicación oficial y gratuita basada en la [a href=\"https://core.telegram.org/api\"]API de Telegram[/a] para su velocidad y seguridad.";
-"lng_about_text_2" = "Este software está licenciado bajo [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versión 3.\nCódigo fuente disponible en [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
+"lng_about_text_1" = "Aplicación unoficial y gratuita basada en la [a href=\"https://core.telegram.org/api\"]API de Telegram[/a] para su velocidad y seguridad.";
+"lng_about_text_2" = "Este software está licenciado bajo [a href=\"https://github.com/Sea-n/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versión 3.\nCódigo fuente disponible en [a href=\"https://github.com/Sea-n/tdesktop\"]GitHub[/a].";
 "lng_about_text_3" = "Conoce más en las {faq_open}preguntas frecuentes de Telegram{faq_close}.";
 "lng_about_done" = "Hecho";
 

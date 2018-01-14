@@ -19,10 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_disable_notifications_from_tray" = "Meldingen uitschakelen";
 "lng_enable_notifications_from_tray" = "Meldingen inschakelen";
-"lng_open_from_tray" = "Telegram openen";
+"lng_open_from_tray" = "Telegreat openen";
 "lng_minimize_to_tray" = "Minimaliseer naar systeemvak";
-"lng_quit_from_tray" = "Telegram afsluiten";
-"lng_tray_icon_text" = "Telegram is nog steeds actief, \nje kunt dit wijzigen via instellingen.\nAls dit icoon verdwijnt van het systeemvak,\nkun je deze terugslepen vanaf de verborgen iconen.";
+"lng_quit_from_tray" = "Telegreat afsluiten";
+"lng_tray_icon_text" = "Telegreat is nog steeds actief, \nje kunt dit wijzigen via instellingen.\nAls dit icoon verdwijnt van het systeemvak,\nkun je deze terugslepen vanaf de verborgen iconen.";
 
 "lng_month1" = "januari";
 "lng_month2" = "februari";
@@ -156,7 +156,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_pinned_unpin" = "Losmaken";
 "lng_pinned_notify" = "Leden informeren";
 
-"lng_intro_about" = "Welkom bij de officiële Telegram desktop-app.\nSnel en veilig.";
+"lng_intro_about" = "Welkom bij de unofficiële Telegreat.\nSnel en veilig.";
 "lng_start_msgs" = "BEGIN MET CHATTEN";
 
 "lng_intro_next" = "VOLGENDE";
@@ -1180,8 +1180,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_box_leave" = "Verlaat";
 
 "lng_about_version" = "versie {version}";
-"lng_about_text_1" = "Officiële, gratis Telegram app gebaseerd op de [a href=\"https://core.telegram.org/api\"]Telegram API[/a] voor snelheid en veiligheid.";
-"lng_about_text_2" = "Deze software valt onder [a  href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versie 3.\nDe broncode is beschikbaar via [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
+"lng_about_text_1" = "Unofficiële, gratis Telegreat app gebaseerd op de [a href=\"https://core.telegram.org/api\"]Telegram API[/a] voor snelheid en veiligheid.";
+"lng_about_text_2" = "Deze software valt onder [a  href=\"https://github.com/Sea-n/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versie 3.\nDe broncode is beschikbaar via [a href=\"https://github.com/Sea-n/tdesktop\"]GitHub[/a].";
 "lng_about_text_3" = "Bezoek de {faq_open}Telegram FAQ{faq_close} voor meer informatie.";
 "lng_about_done" = "Gereed";
 

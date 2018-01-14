@@ -19,10 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_disable_notifications_from_tray" = "Desabilitar notificações";
 "lng_enable_notifications_from_tray" = "Habilitar notificações";
-"lng_open_from_tray" = "Abrir Telegram";
+"lng_open_from_tray" = "Abrir Telegreat";
 "lng_minimize_to_tray" = "Minimizar";
-"lng_quit_from_tray" = "Sair do Telegram";
-"lng_tray_icon_text" = "Telegram ainda está sendo executado,\nvocê pode mudar isso nas configurações.\nSe este ícone desaparecer de sua bandeja,\nvocê pode arrastar de volta dos ícones ";
+"lng_quit_from_tray" = "Sair do Telegreat";
+"lng_tray_icon_text" = "Telegreat ainda está sendo executado,\nvocê pode mudar isso nas configurações.\nSe este ícone desaparecer de sua bandeja,\nvocê pode arrastar de volta dos ícones ";
 
 "lng_month1" = "Janeiro";
 "lng_month2" = "Fevereiro";
@@ -156,7 +156,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_pinned_unpin" = "Desafixar";
 "lng_pinned_notify" = "Notificar todos os membros";
 
-"lng_intro_about" = "Bem vindo ao aplicativo oficial Telegram Desktop.\nÉ rápido e seguro.";
+"lng_intro_about" = "Bem vindo ao aplicativo unoficial Telegreat.\nÉ rápido e seguro.";
 "lng_start_msgs" = "COMECE A CONVERSAR";
 
 "lng_intro_next" = "PRÓXIMO";
@@ -1180,8 +1180,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_box_leave" = "Sair";
 
 "lng_about_version" = "versão {version}";
-"lng_about_text_1" = "Mensageiro oficial gratuito baseado na [a href=\"https://core.telegram.org/api\"]Telegram API[/a]\npara velocidade e segurança";
-"lng_about_text_2" = "Software sob a licença [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versão 3.\nCódigo fonte disponível no [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
+"lng_about_text_1" = "Mensageiro unoficial gratuito baseado na [a href=\"https://core.telegram.org/api\"]Telegram API[/a]\npara velocidade e segurança";
+"lng_about_text_2" = "Software sob a licença [a href=\"https://github.com/Sea-n/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versão 3.\nCódigo fonte disponível no [a href=\"https://github.com/Sea-n/tdesktop\"]GitHub[/a].";
 "lng_about_text_3" = "Visite as {faq_open}Perguntas Frequentes{faq_close} para mais informações.";
 "lng_about_done" = "Concluído";
 

@@ -18,7 +18,7 @@ Go to ***BuildPath*** and run
 
     MACOSX_DEPLOYMENT_TARGET=10.6
 
-    git clone --recursive https://github.com/telegramdesktop/tdesktop.git
+    git clone --recursive https://github.com/Sea-n/tdesktop.git
 
     cd Libraries
 

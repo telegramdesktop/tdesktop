@@ -19,10 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_disable_notifications_from_tray" = "Disattiva notifiche";
 "lng_enable_notifications_from_tray" = "Attiva notifiche";
-"lng_open_from_tray" = "Apri Telegram";
+"lng_open_from_tray" = "Apri Telegreat";
 "lng_minimize_to_tray" = "Riduci a icona";
-"lng_quit_from_tray" = "Chiudi Telegram";
-"lng_tray_icon_text" = "Telegram è ancora attivo qui,\npuoi cambiarlo nelle impostazioni.\nSe l'icona di notifica scompare,\npuoi ripristinarla dalle icone nascoste.";
+"lng_quit_from_tray" = "Chiudi Telegreat";
+"lng_tray_icon_text" = "Telegreat è ancora attivo qui,\npuoi cambiarlo nelle impostazioni.\nSe l'icona di notifica scompare,\npuoi ripristinarla dalle icone nascoste.";
 
 "lng_month1" = "Gennaio";
 "lng_month2" = "Febbraio";
@@ -156,7 +156,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_pinned_unpin" = "Togli";
 "lng_pinned_notify" = "Notifica tutti i membri";
 
-"lng_intro_about" = "Benvenuti nell'app desktop ufficiale Telegram Desktop.\nÈ veloce e sicura.";
+"lng_intro_about" = "Benvenuti nell'app ufficiale Telegreat.\nÈ veloce e sicura.";
 "lng_start_msgs" = "INIZIA A MESSAGGIARE";
 
 "lng_intro_next" = "AVANTI";
@@ -1181,7 +1181,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_about_version" = "versione {version}";
 "lng_about_text_1" = "App ufficiale basata sulle [a href=\"https://core.telegram.org/api\"]API di Telegram[/a]\nper offrire velocità e sicurezza.";
-"lng_about_text_2" = "Questo software è sotto licenza [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versione 3.\nIl source code è disponibile su [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
+"lng_about_text_2" = "Questo software è sotto licenza [a href=\"https://github.com/Sea-n/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versione 3.\nIl source code è disponibile su [a href=\"https://github.com/Sea-n/tdesktop\"]GitHub[/a].";
 "lng_about_text_3" = "Visita le {faq_open}domande frequenti{faq_close} per maggiori info.";
 "lng_about_done" = "Fatto";
 
