@@ -8,16 +8,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_groups.h"
 
 #include "history/history_item.h"
+#include "data/data_media_types.h"
+#include "data/data_session.h"
 
 namespace Data {
 
+Groups::Groups(not_null<Session*> data) : _data(data) {
+}
+
+bool Groups::isGrouped(not_null<HistoryItem*> item) const {
+	if (!item->groupId()) {
+		return false;
+	}
+	const auto media = item->media();
+	return media && media->canBeGrouped();
+}
+
 void Groups::registerMessage(not_null<HistoryItem*> item) {
-	const auto groupId = item->groupId();
-	if (!groupId) {
+	if (!isGrouped(item)) {
 		return;
 	}
-	const auto i = _data.emplace(groupId, Group()).first;
-	i->second.items.push_back(item);
+	const auto i = _groups.emplace(item->groupId(), Group()).first;
+	auto &items = i->second.items;
+	items.insert(findPositionForItem(items, item), item);
+	if (items.size() > 1) {
+		refreshViews(items);
+	}
 }
 
 void Groups::unregisterMessage(not_null<HistoryItem*> item) {
@@ -25,16 +41,73 @@ void Groups::unregisterMessage(not_null<HistoryItem*> item) {
 	if (!groupId) {
 		return;
 	}
-	const auto i = _data.find(groupId);
-	if (i != _data.end()) {
-		auto &group = i->second;
-		group.items.erase(
-			ranges::remove(group.items, item),
-			group.items.end());
-		if (group.items.empty()) {
-			_data.erase(i);
+	const auto i = _groups.find(groupId);
+	if (i != end(_groups)) {
+		auto &items = i->second.items;
+		const auto removed = ranges::remove(items, item);
+		const auto last = end(items);
+		if (removed != last) {
+			items.erase(removed, last);
+			if (!items.empty()) {
+				refreshViews(items);
+			} else {
+				_groups.erase(i);
+			}
 		}
 	}
+}
+
+void Groups::refreshMessage(not_null<HistoryItem*> item) {
+	if (!isGrouped(item)) {
+		unregisterMessage(item);
+		return;
+	}
+	if (!IsServerMsgId(item->id)) {
+		return;
+	}
+	const auto groupId = item->groupId();
+	const auto i = _groups.find(groupId);
+	if (i == end(_groups)) {
+		registerMessage(item);
+		return;
+	}
+	auto &items = i->second.items;
+	const auto position = findPositionForItem(items, item);
+	auto current = ranges::find(items, item);
+	if (current == end(items)) {
+		items.insert(position, item);
+	} else if (position == current + 1) {
+		return;
+	} else if (position > current + 1) {
+		for (++current; current != position; ++current) {
+			std::swap(*(current - 1), *current);
+		}
+	} else if (position < current) {
+		for (; current != position; --current) {
+			std::swap(*(current - 1), *current);
+		}
+	} else {
+		Unexpected("Position of item in Groups::refreshMessage().");
+	}
+	refreshViews(items);
+}
+
+HistoryItemsList::const_iterator Groups::findPositionForItem(
+		const HistoryItemsList &group,
+		not_null<HistoryItem*> item) {
+	const auto itemId = item->id;
+	const auto last = end(group);
+	if (!IsServerMsgId(itemId)) {
+		return last;
+	}
+	auto result = begin(group);
+	while (result != last) {
+		const auto alreadyId = (*result)->id;
+		if (IsServerMsgId(alreadyId) && alreadyId > itemId) {
+			return result;
+		}
+	}
+	return last;
 }
 
 const Group *Groups::find(not_null<HistoryItem*> item) const {
@@ -42,8 +115,14 @@ const Group *Groups::find(not_null<HistoryItem*> item) const {
 	if (!groupId) {
 		return nullptr;
 	}
-	const auto i = _data.find(groupId);
-	return (i != _data.end()) ? &i->second : nullptr;
+	const auto i = _groups.find(groupId);
+	return (i != _groups.end()) ? &i->second : nullptr;
+}
+
+void Groups::refreshViews(const HistoryItemsList &items) {
+	for (const auto item : items) {
+		_data->requestItemViewRefresh(item);
+	}
 }
 
 } // namespace Data

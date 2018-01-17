@@ -3146,13 +3146,7 @@ public:
 				voice->waveform[0] = -2;
 				voice->wavemax = 0;
 			}
-			auto &items = App::documentItems();
-			auto i = items.constFind(_doc);
-			if (i != items.cend()) {
-				for_const (auto item, i.value()) {
-					Auth().data().requestItemRepaint(item);
-				}
-			}
+			Auth().data().requestDocumentViewRepaint(_doc);
 		}
 	}
 	virtual ~CountWaveformTask() {
@@ -3411,8 +3405,8 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 				for (int32 k = 0; k < stickersCount; ++k) {
 					quint64 id;
 					stickers.stream >> id;
-					DocumentData *doc = App::document(id);
-					if (!doc || !doc->sticker()) continue;
+					const auto doc = Auth().data().document(id);
+					if (!doc->sticker()) continue;
 
 					pack.push_back(doc);
 				}
@@ -3562,7 +3556,17 @@ void importOldRecentStickers() {
 			attributes.push_back(MTP_documentAttributeImageSize(MTP_int(width), MTP_int(height)));
 		}
 
-		DocumentData *doc = App::documentSet(id, 0, access, 0, date, attributes, mime, ImagePtr(), dc, size, StorageImageLocation());
+		const auto doc = Auth().data().document(
+			id,
+			access,
+			int32(0),
+			date,
+			attributes,
+			mime,
+			ImagePtr(),
+			dc,
+			size,
+			StorageImageLocation());
 		if (!doc->sticker()) continue;
 
 		if (value > 0) {

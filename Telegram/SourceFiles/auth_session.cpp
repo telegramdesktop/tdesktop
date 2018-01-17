@@ -268,7 +268,7 @@ AuthSession &Auth() {
 AuthSession::AuthSession(UserId userId)
 : _userId(userId)
 , _autoLockTimer([this] { checkAutoLock(); })
-, _data(std::make_unique<Data::Session>())
+, _data(std::make_unique<Data::Session>(this))
 , _api(std::make_unique<ApiWrap>(this))
 , _calls(std::make_unique<Calls::Instance>())
 , _downloader(std::make_unique<Storage::Downloader>())

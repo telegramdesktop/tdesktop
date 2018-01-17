@@ -110,7 +110,8 @@ void HistoryItem::finishEdition(int oldKeyboardTop) {
 }
 
 void HistoryItem::setGroupId(MessageGroupId groupId) {
-	Auth().data().groups().unregisterMessage(this);
+	Expects(!_groupId);
+
 	_groupId = groupId;
 	Auth().data().groups().registerMessage(this);
 }
@@ -218,7 +219,7 @@ void HistoryItem::addLogEntryOriginal(
 	Expects(isLogEntry());
 
 	AddComponents(HistoryMessageLogEntryOriginal::Bit());
-	Get<HistoryMessageLogEntryOriginal>()->page = App::feedWebPage(
+	Get<HistoryMessageLogEntryOriginal>()->page = Auth().data().webpage(
 		localId,
 		label,
 		content);
@@ -286,7 +287,6 @@ void HistoryItem::destroy() {
 			}
 		}
 	}
-	Global::RefPendingRepaintItems().remove(this);
 	delete this;
 }
 
@@ -339,7 +339,7 @@ void HistoryItem::setRealId(MsgId newId) {
 	}
 
 	Auth().data().markItemIdChange({ this, oldId });
-	Auth().data().requestItemRepaint(this);
+	Auth().data().requestItemViewRepaint(this);
 }
 
 bool HistoryItem::isPinned() const {
@@ -585,21 +585,17 @@ void HistoryItem::setUnreadBarCount(int count) {
 	Expects(!isLogEntry());
 
 	if (count > 0) {
-		HistoryMessageUnreadBar *bar;
 		if (!Has<HistoryMessageUnreadBar>()) {
 			AddComponents(HistoryMessageUnreadBar::Bit());
 			Auth().data().requestItemViewResize(this);
 			// #TODO recount attach to previous
-
-			bar = Get<HistoryMessageUnreadBar>();
-		} else {
-			bar = Get<HistoryMessageUnreadBar>();
-			if (bar->_freezed) {
-				return;
-			}
-			Global::RefPendingRepaintItems().insert(this);
+		}
+		const auto bar = Get<HistoryMessageUnreadBar>();
+		if (bar->_freezed) {
+			return;
 		}
 		bar->init(count);
+		Auth().data().requestItemViewRepaint(this);
 	} else {
 		destroyUnreadBar();
 	}
@@ -668,13 +664,12 @@ void HistoryItem::clipCallback(Media::Clip::Notification notification) {
 	//	if (!stopped) {
 	//		Auth().data().requestItemViewResize(this);
 	//		Auth().data().markItemLayoutChange(this);
-	//		Global::RefPendingRepaintItems().insert(this);
 	//	}
 	//} break;
 
 	//case NotificationRepaint: {
 	//	if (!reader->currentDisplayed()) {
-	//		Auth().data().requestItemRepaint(this);
+	//		Auth().data().requestItemViewRepaint(this);
 	//	}
 	//} break;
 	//}

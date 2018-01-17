@@ -97,8 +97,7 @@ public:
 	QString inReplyText() const override;
 
 	std::unique_ptr<HistoryView::Element> createView(
-		not_null<Window::Controller*> controller,
-		HistoryView::Context context) override;
+		not_null<HistoryView::ElementDelegate*> delegate) override;
 
 	~HistoryService();
 

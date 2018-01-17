@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_media_types.h"
 #include "data/data_media_types.h"
 #include "data/data_sparse_ids.h"
+#include "data/data_session.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "window/window_controller.h"
@@ -284,7 +285,7 @@ SharedMediaWithLastSlice::Value SharedMediaWithLastSlice::operator[](int index) 
 	}
 	return (index < _slice.size())
 		? Value(_slice[index])
-		: Value(App::photo(*_lastPhotoId));
+		: Value(Auth().data().photo(*_lastPhotoId));
 }
 
 base::optional<int> SharedMediaWithLastSlice::distance(

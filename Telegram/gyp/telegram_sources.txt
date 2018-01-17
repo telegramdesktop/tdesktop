@@ -258,8 +258,6 @@
 <(src_loc)/history/history_media.cpp
 <(src_loc)/history/history_media_grouped.h
 <(src_loc)/history/history_media_grouped.cpp
-<(src_loc)/history/history_media_pointer.h
-<(src_loc)/history/history_media_pointer.cpp
 <(src_loc)/history/history_media_types.cpp
 <(src_loc)/history/history_media_types.h
 <(src_loc)/history/history_message.cpp

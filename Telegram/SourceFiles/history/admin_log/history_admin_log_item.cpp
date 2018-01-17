@@ -12,11 +12,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_service.h"
 #include "history/history_message.h"
 #include "history/history.h"
+#include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "boxes/sticker_set_box.h"
 #include "core/tl_help.h"
 #include "base/overload.h"
 #include "messenger.h"
+#include "auth_session.h"
 
 namespace AdminLog {
 namespace {
@@ -119,7 +121,12 @@ PhotoData *GenerateChatPhoto(ChannelId channelId, uint64 logEntryId, MTPint date
 	photoSizes.reserve(2);
 	photoSizes.push_back(MTP_photoSize(MTP_string("a"), photo.vphoto_small, MTP_int(160), MTP_int(160), MTP_int(0)));
 	photoSizes.push_back(MTP_photoSize(MTP_string("c"), photo.vphoto_big, MTP_int(640), MTP_int(640), MTP_int(0)));
-	return App::feedPhoto(MTP_photo(MTP_flags(0), MTP_long(photoId), MTP_long(0), date, MTP_vector<MTPPhotoSize>(photoSizes)));
+	return Auth().data().photo(MTP_photo(
+		MTP_flags(0),
+		MTP_long(photoId),
+		MTP_long(0),
+		date,
+		MTP_vector<MTPPhotoSize>(photoSizes)));
 }
 
 const auto CollectChanges = [](auto &phraseMap, auto plusFlags, auto minusFlags) {
@@ -284,10 +291,10 @@ TextWithEntities GenerateParticipantChangeText(not_null<ChannelData*> channel, c
 } // namespace
 
 OwnedItem::OwnedItem(
-	not_null<Window::Controller*> controller,
+	not_null<HistoryView::ElementDelegate*> delegate,
 	not_null<HistoryItem*> data)
 : _data(data)
-, _view(_data->createView(controller, HistoryView::Context::AdminLog)) {
+, _view(_data->createView(delegate)) {
 }
 
 OwnedItem::OwnedItem(OwnedItem &&other)
@@ -309,7 +316,7 @@ OwnedItem::~OwnedItem() {
 }
 
 void GenerateItems(
-		not_null<Window::Controller*> controller,
+		not_null<HistoryView::ElementDelegate*> delegate,
 		not_null<History*> history,
 		LocalIdManager &idManager,
 		const MTPDchannelAdminLogEvent &event,
@@ -322,7 +329,7 @@ void GenerateItems(
 	auto &action = event.vaction;
 	auto date = event.vdate;
 	auto addPart = [&](not_null<HistoryItem*> item) {
-		return callback(OwnedItem(controller, item));
+		return callback(OwnedItem(delegate, item));
 	};
 
 	using Flag = MTPDmessage::Flag;

@@ -279,12 +279,6 @@ public:
 	void cancelForwarding(not_null<History*> history);
 	void finishForwarding(not_null<History*> history);
 
-	void mediaMarkRead(not_null<DocumentData*> data);
-	void mediaMarkRead(const base::flat_set<not_null<HistoryItem*>> &items);
-	void mediaMarkRead(not_null<HistoryItem*> item);
-
-	void webPageUpdated(WebPageData *page);
-	void gameUpdated(GameData *game);
 	void updateMutedIn(TimeMs delay);
 
 	// Does offerPeer or showPeerHistory.
@@ -349,8 +343,6 @@ signals:
 	void dialogsUpdated();
 
 public slots:
-	void webPagesOrGamesUpdate();
-
 	void documentLoadProgress(FileLoader *loader);
 	void documentLoadFailed(FileLoader *loader, bool started);
 	void inlineResultLoadProgress(FileLoader *loader);
@@ -456,7 +448,6 @@ private:
 	void messagesAffected(
 		not_null<PeerData*> peer,
 		const MTPmessages_AffectedMessages &result);
-	void messagesContentsRead(const MTPmessages_AffectedMessages &result);
 
 	Window::SectionSlideParams prepareShowAnimation(
 		bool willHaveTopBarShadow);
@@ -551,10 +542,6 @@ private:
 
 	not_null<Window::Controller*> _controller;
 	bool _started = false;
-
-	OrderedSet<WebPageId> _webPagesUpdated;
-	OrderedSet<GameId> _gamesUpdated;
-	QTimer _webPageOrGameUpdater;
 
 	SingleTimer _updateMutedTimer;
 

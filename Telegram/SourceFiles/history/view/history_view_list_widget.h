@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "data/data_messages.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_element.h"
 
 namespace Ui {
 class PopupMenu;
@@ -25,9 +26,8 @@ class Controller;
 namespace HistoryView {
 
 enum class Context : char;
-class Element;
 
-class ListDelegate {
+class ListDelegate : public ElementDelegate {
 public:
 	virtual Context listContext() = 0;
 	virtual void listScrollTo(int top) = 0;
@@ -36,6 +36,7 @@ public:
 		Data::MessagePosition aroundId,
 		int limitBefore,
 		int limitAfter) = 0;
+
 };
 
 class ListMemento {

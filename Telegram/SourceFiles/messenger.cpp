@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/complete.h>
 #include "data/data_photo.h"
 #include "data/data_document.h"
+#include "data/data_session.h"
 #include "base/timer.h"
 #include "storage/localstorage.h"
 #include "platform/platform_specific.h"
@@ -530,8 +531,8 @@ void Messenger::chatPhotoCleared(PeerId peer, const MTPUpdates &updates) {
 
 void Messenger::selfPhotoDone(const MTPphotos_Photo &result) {
 	if (!App::self()) return;
-	const auto &photo(result.c_photos_photo());
-	App::feedPhoto(photo.vphoto);
+	const auto &photo = result.c_photos_photo();
+	Auth().data().photo(photo.vphoto);
 	App::feedUsers(photo.vusers);
 	cancelPhotoUpdate(App::self()->id);
 	emit peerPhotoDone(App::self()->id);

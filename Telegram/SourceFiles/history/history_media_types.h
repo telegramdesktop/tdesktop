@@ -56,7 +56,7 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
-	void refreshParentId(not_null<Element*> realParent) override;
+	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
 	bool allowsFastShare() const override {
 		return true;
@@ -129,6 +129,7 @@ class HistoryPhoto : public HistoryFileMedia {
 public:
 	HistoryPhoto(
 		not_null<Element*> parent,
+		not_null<HistoryItem*> realParent,
 		not_null<PhotoData*> photo,
 		const QString &caption);
 	HistoryPhoto(
@@ -136,24 +137,9 @@ public:
 		not_null<PeerData*> chat,
 		not_null<PhotoData*> photo,
 		int width);
-	HistoryPhoto(
-		not_null<Element*> parent,
-		not_null<PeerData*> chat,
-		const MTPDphoto &photo,
-		int width);
-	HistoryPhoto(
-		not_null<Element*> parent,
-		not_null<Element*> realParent,
-		const HistoryPhoto &other);
 
-	void init();
 	HistoryMediaType type() const override {
 		return MediaTypePhoto;
-	}
-	std::unique_ptr<HistoryMedia> clone(
-			not_null<Element*> newParent,
-			not_null<Element*> realParent) const override {
-		return std::make_unique<HistoryPhoto>(newParent, realParent, *this);
 	}
 
 	void draw(Painter &p, const QRect &clip, TextSelection selection, TimeMs ms) const override;
@@ -177,9 +163,6 @@ public:
 		return _data;
 	}
 
-	bool canBeGrouped() const override {
-		return true;
-	}
 	QSize sizeForGrouping() const override;
 	void drawGrouped(
 		Painter &p,
@@ -214,12 +197,16 @@ public:
 		return _data->loaded();
 	}
 
+	~HistoryPhoto();
+
 protected:
 	float64 dataProgress() const override;
 	bool dataFinished() const override;
 	bool dataLoaded() const override;
 
 private:
+	void create(FullMsgId contextId, PeerData *chat = nullptr);
+
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 
@@ -238,24 +225,29 @@ private:
 
 };
 
-class HistoryVideo : public HistoryFileMedia {
+class DocumentViewRegister {
+public:
+	DocumentViewRegister(
+		not_null<HistoryView::Element*> parent,
+		not_null<DocumentData*> document);
+	~DocumentViewRegister();
+
+private:
+	not_null<HistoryView::Element*> _savedParent;
+	not_null<DocumentData*> _savedDocument;
+
+};
+
+class HistoryVideo : public HistoryFileMedia, public DocumentViewRegister {
 public:
 	HistoryVideo(
 		not_null<Element*> parent,
+		not_null<HistoryItem*> realParent,
 		not_null<DocumentData*> document,
 		const QString &caption);
-	HistoryVideo(
-		not_null<Element*> parent,
-		not_null<Element*> realParent,
-		const HistoryVideo &other);
 
 	HistoryMediaType type() const override {
 		return MediaTypeVideo;
-	}
-	std::unique_ptr<HistoryMedia> clone(
-			not_null<Element*> newParent,
-			not_null<Element*> realParent) const override {
-		return std::make_unique<HistoryVideo>(newParent, realParent, *this);
 	}
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
@@ -279,9 +271,6 @@ public:
 		return _data;
 	}
 
-	bool canBeGrouped() const override {
-		return true;
-	}
 	QSize sizeForGrouping() const override;
 	void drawGrouped(
 		Painter &p,
@@ -342,6 +331,7 @@ private:
 
 class HistoryDocument
 	: public HistoryFileMedia
+	, public DocumentViewRegister
 	, public RuntimeComposer<HistoryDocument> {
 public:
 	HistoryDocument(
@@ -400,7 +390,7 @@ public:
 
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
-	void refreshParentId(not_null<Element*> realParent) override;
+	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
 protected:
 	float64 dataProgress() const override;
@@ -426,7 +416,7 @@ private:
 
 };
 
-class HistoryGif : public HistoryFileMedia {
+class HistoryGif : public HistoryFileMedia, public DocumentViewRegister {
 public:
 	HistoryGif(
 		not_null<Element*> parent,
@@ -529,7 +519,7 @@ private:
 
 };
 
-class HistorySticker : public HistoryMedia {
+class HistorySticker : public HistoryMedia, public DocumentViewRegister {
 public:
 	HistorySticker(
 		not_null<Element*> parent,
@@ -597,6 +587,7 @@ public:
 		const QString &first,
 		const QString &last,
 		const QString &phone);
+	~HistoryContact();
 
 	HistoryMediaType type() const override {
 		return MediaTypeContact;
@@ -613,9 +604,6 @@ public:
 	}
 
 	TextWithEntities selectedText(TextSelection selection) const override;
-
-	void attachToParent() override;
-	void detachFromParent() override;
 
 	bool needsBubble() const override {
 		return true;
@@ -634,7 +622,8 @@ public:
 		return _phone;
 	}
 
-	~HistoryContact();
+	// Should be called only by Data::Session.
+	void updateSharedContactUserId(UserId userId) override;
 
 private:
 	QSize countOptimalSize() override;
@@ -709,7 +698,7 @@ public:
 		return MediaTypeWebPage;
 	}
 
-	void refreshParentId(not_null<Element*> realParent) override;
+	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
@@ -753,9 +742,6 @@ public:
 		if (_attach) _attach->stopInline();
 	}
 
-	void attachToParent() override;
-	void detachFromParent() override;
-
 	bool hasReplyPreview() const override;
 	ImagePtr replyPreview() override;
 
@@ -776,6 +762,8 @@ public:
 	HistoryMedia *attach() const {
 		return _attach.get();
 	}
+
+	~HistoryWebPage();
 
 private:
 	QSize countOptimalSize() override;
@@ -818,7 +806,7 @@ public:
 		return MediaTypeGame;
 	}
 
-	void refreshParentId(not_null<Element*> realParent) override;
+	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
@@ -864,9 +852,6 @@ public:
 		if (_attach) _attach->stopInline();
 	}
 
-	void attachToParent() override;
-	void detachFromParent() override;
-
 	bool hasReplyPreview() const override {
 		return (_data->photo && !_data->photo->thumb->isNull()) || (_data->document && !_data->document->thumb->isNull());
 	}
@@ -889,6 +874,8 @@ public:
 	HistoryMedia *attach() const {
 		return _attach.get();
 	}
+
+	~HistoryGame();
 
 private:
 	QSize countOptimalSize() override;
@@ -921,7 +908,7 @@ public:
 		return MediaTypeInvoice;
 	}
 
-	void refreshParentId(not_null<Element*> realParent) override;
+	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
 	MsgId getReceiptMsgId() const {
 		return _receiptMsgId;
@@ -955,9 +942,6 @@ public:
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
-
-	void attachToParent() override;
-	void detachFromParent() override;
 
 	bool hasReplyPreview() const override {
 		return _attach && _attach->hasReplyPreview();

@@ -15,13 +15,13 @@ class HistoryGroupedMedia : public HistoryMedia {
 public:
 	HistoryGroupedMedia(
 		not_null<Element*> parent,
-		const std::vector<not_null<Element*>> &others);
+		const std::vector<not_null<HistoryItem*>> &items);
 
 	HistoryMediaType type() const override {
 		return MediaTypeGrouped;
 	}
 
-	void refreshParentId(not_null<Element*> realParent) override;
+	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
 	void draw(
 		Painter &p,
@@ -58,11 +58,9 @@ public:
 		const ClickHandlerPtr &p,
 		bool pressed) override;
 
-	void attachToParent() override;
-	void detachFromParent() override;
 	std::unique_ptr<HistoryMedia> takeLastFromGroup() override;
 	bool applyGroup(
-		const std::vector<not_null<Element*>> &others) override;
+		const std::vector<not_null<HistoryItem*>> &items) override;
 
 	bool hasReplyPreview() const override;
 	ImagePtr replyPreview() override;
@@ -73,10 +71,6 @@ public:
 		return true;
 	}
 	HistoryMessageEdited *displayedEditBadge() const override;
-
-	bool canBeGrouped() const override {
-		return true;
-	}
 
 	bool skipBubbleTail() const override {
 		return isBubbleBottom() && _caption.isEmpty();
@@ -92,9 +86,9 @@ public:
 
 private:
 	struct Part {
-		Part(not_null<Element*> view);
+		Part(not_null<HistoryItem*> item);
 
-		not_null<Element*> view;
+		not_null<HistoryItem*> item;
 		std::unique_ptr<HistoryMedia> content;
 
 		RectParts sides = RectPart::None;
@@ -112,7 +106,7 @@ private:
 	bool computeNeedBubble() const;
 	not_null<HistoryMedia*> main() const;
 	bool validateGroupParts(
-		const std::vector<not_null<Element*>> &others) const;
+		const std::vector<not_null<HistoryItem*>> &items) const;
 	HistoryTextState getPartState(
 		QPoint point,
 		HistoryStateRequest request) const;

@@ -355,9 +355,6 @@ DeclareRefVar(base::Observable<void>, PhoneCallsEnabledChanged);
 typedef QMap<PeerId, MsgId> HiddenPinnedMessagesMap;
 DeclareVar(HiddenPinnedMessagesMap, HiddenPinnedMessages);
 
-typedef OrderedSet<HistoryItem*> PendingItemsMap;
-DeclareRefVar(PendingItemsMap, PendingRepaintItems);
-
 typedef QMap<uint64, QPixmap> CircleMasksMap;
 DeclareRefVar(CircleMasksMap, CircleMasks);
 

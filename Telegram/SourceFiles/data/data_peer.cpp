@@ -171,7 +171,7 @@ void PeerData::setUserpic(
 
 void PeerData::setUserpicPhoto(const MTPPhoto &data) {
 	auto photoId = [&]() -> PhotoId {
-		if (auto photo = App::feedPhoto(data)) {
+		if (const auto photo = Auth().data().photo(data)) {
 			photo->peer = this;
 			return photo->id;
 		}
@@ -353,7 +353,7 @@ const Text &BotCommand::descriptionText() const {
 
 bool UserData::canShareThisContact() const {
 	return canShareThisContactFast()
-		|| !App::phoneFromSharedContact(peerToUser(id)).isEmpty();
+		|| !Auth().data().findContactPhone(peerToUser(id)).isEmpty();
 }
 
 void UserData::setContactStatus(ContactStatus status) {

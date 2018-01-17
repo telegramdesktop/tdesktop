@@ -16,7 +16,7 @@ Storage::SharedMediaTypesMask HistoryMedia::sharedMediaTypes() const {
 }
 
 bool HistoryMedia::isDisplayed() const {
-	return !_parent->isHiddenByGroup();
+	return true;
 }
 
 QSize HistoryMedia::countCurrentSize(int newWidth) {

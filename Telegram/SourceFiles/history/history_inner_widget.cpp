@@ -14,8 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 #include "history/history_media_types.h"
 #include "history/history_item_components.h"
+#include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
-#include "history/view/history_view_element.h"
 #include "ui/text_options.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
@@ -414,31 +414,31 @@ TextSelection HistoryInner::computeRenderSelection(
 		}
 		return TextSelection();
 	};
-	const auto group = view->Get<HistoryView::Group>();
-	if (group) {
-		if (group->leader != view) {
-			return TextSelection();
-		}
-		auto result = TextSelection();
-		auto allFullSelected = true;
-		const auto count = int(group->others.size());
-		for (auto i = 0; i != count; ++i) {
-			if (itemSelection(group->others[i]->data()) == FullSelection) {
-				result = AddGroupItemSelection(result, i);
-			} else {
-				allFullSelected = false;
-			}
-		}
-		const auto leaderSelection = itemSelection(view->data());
-		if (leaderSelection == FullSelection) {
-			return allFullSelected
-				? FullSelection
-				: AddGroupItemSelection(result, count);
-		} else if (leaderSelection != TextSelection()) {
-			return leaderSelection;
-		}
-		return result;
-	}
+	// #TODO group selection
+	//if (const auto group = view->Get<HistoryView::Group>()) {
+	//	if (group->leader != view) {
+	//		return TextSelection();
+	//	}
+	//	auto result = TextSelection();
+	//	auto allFullSelected = true;
+	//	const auto count = int(group->others.size());
+	//	for (auto i = 0; i != count; ++i) {
+	//		if (itemSelection(group->others[i]->data()) == FullSelection) {
+	//			result = AddGroupItemSelection(result, i);
+	//		} else {
+	//			allFullSelected = false;
+	//		}
+	//	}
+	//	const auto leaderSelection = itemSelection(view->data());
+	//	if (leaderSelection == FullSelection) {
+	//		return allFullSelected
+	//			? FullSelection
+	//			: AddGroupItemSelection(result, count);
+	//	} else if (leaderSelection != TextSelection()) {
+	//		return leaderSelection;
+	//	}
+	//	return result;
+	//}
 	return itemSelection(view->data());
 }
 
@@ -597,7 +597,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		}
 
 		if (!readMentions.empty() && App::wnd()->doWeReadMentions()) {
-			App::main()->mediaMarkRead(readMentions);
+			Auth().api().markMediaRead(readMentions);
 		}
 
 		if (mtop >= 0 || htop >= 0) {
@@ -1697,9 +1697,8 @@ void HistoryInner::saveContextGif(FullMsgId itemId) {
 void HistoryInner::copyContextText(FullMsgId itemId) {
 	if (const auto item = App::histItemById(itemId)) {
 		if (const auto view = item->mainView()) {
-			const auto group = view->getFullGroup();
-			const auto leader = group ? group->leader : view;
-			setToClipboard(leader->selectedText(FullSelection));
+			// #TODO check for a group
+			setToClipboard(view->selectedText(FullSelection));
 		}
 	}
 }
@@ -1764,24 +1763,25 @@ TextWithEntities HistoryInner::getSelectedText() const {
 			continue;
 		}
 
-		if (const auto group = view->getFullGroup()) {
-			if (groupLeadersAdded.contains(group->leader)) {
-				continue;
-			}
-			const auto leaderSelection = computeRenderSelection(
-				&selected,
-				group->leader);
-			if (leaderSelection == FullSelection) {
-				groupLeadersAdded.emplace(group->leader);
-				addItem(group->leader, FullSelection);
-			} else if (view == group->leader) {
-				const auto leaderFullSelection = AddGroupItemSelection(
-					TextSelection(),
-					int(group->others.size()));
-				addItem(view, leaderFullSelection);
-			} else {
-				addItem(view, FullSelection);
-			}
+		if (const auto group = Auth().data().groups().find(item)) {
+			// #TODO group copy
+			//if (groupLeadersAdded.contains(group->leader)) {
+			//	continue;
+			//}
+			//const auto leaderSelection = computeRenderSelection(
+			//	&selected,
+			//	group->leader);
+			//if (leaderSelection == FullSelection) {
+			//	groupLeadersAdded.emplace(group->leader);
+			//	addItem(group->leader, FullSelection);
+			//} else if (view == group->leader) {
+			//	const auto leaderFullSelection = AddGroupItemSelection(
+			//		TextSelection(),
+			//		int(group->others.size()));
+			//	addItem(view, leaderFullSelection);
+			//} else {
+			//	addItem(view, FullSelection);
+			//}
 		} else {
 			addItem(view, FullSelection);
 		}
@@ -2900,4 +2900,25 @@ void HistoryInner::onParentGeometryChanged() {
 	if (needToUpdate) {
 		mouseActionUpdate(mousePos);
 	}
+}
+
+not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
+	class Result : public HistoryView::ElementDelegate {
+	public:
+		std::unique_ptr<HistoryView::Element> elementCreate(
+				not_null<HistoryMessage*> message) override {
+			return std::make_unique<HistoryView::Message>(
+				message,
+				HistoryView::Context::History);
+		}
+		std::unique_ptr<HistoryView::Element> elementCreate(
+				not_null<HistoryService*> message) override {
+			return std::make_unique<HistoryView::Service>(
+				message,
+				HistoryView::Context::History);
+		}
+
+	};
+	static Result result;
+	return &result;
 }

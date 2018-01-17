@@ -18,6 +18,14 @@ struct Group;
 class Element;
 } // namespace HistoryView
 
+class AuthSession;
+
+namespace Media {
+namespace Clip {
+class Reader;
+} // namespace Clip
+} // namespace Media
+
 namespace Data {
 
 class Feed;
@@ -26,7 +34,7 @@ class Session final {
 public:
 	using ViewElement = HistoryView::Element;
 
-	Session();
+	explicit Session(not_null<AuthSession*> session);
 	~Session();
 
 	base::Variable<bool> &contactsLoaded() {
@@ -53,26 +61,14 @@ public:
 		not_null<HistoryItem*> item;
 		MsgId oldId = 0;
 	};
-
-	void registerItemView(not_null<ViewElement*> view);
-	void unregisterItemView(not_null<ViewElement*> view);
-	template <typename Method>
-	void enumerateItemViews(not_null<HistoryItem*> item, Method method) {
-		if (const auto i = _views.find(item); i != _views.end()) {
-			for (const auto view : i->second) {
-				method(view);
-			}
-		}
-	}
-
 	void markItemIdChange(IdChange event);
 	rpl::producer<IdChange> itemIdChanged() const;
 	void markItemLayoutChange(not_null<const HistoryItem*> item);
 	rpl::producer<not_null<const HistoryItem*>> itemLayoutChanged() const;
 	void markViewLayoutChange(not_null<const ViewElement*> view);
 	rpl::producer<not_null<const ViewElement*>> viewLayoutChanged() const;
-	void requestItemRepaint(not_null<const HistoryItem*> item);
-	rpl::producer<not_null<const HistoryItem*>> itemRepaintRequest() const;
+	void requestItemViewRepaint(not_null<const HistoryItem*> item);
+	rpl::producer<not_null<const HistoryItem*>> itemViewRepaintRequest() const;
 	void requestViewRepaint(not_null<const ViewElement*> view);
 	rpl::producer<not_null<const ViewElement*>> viewRepaintRequest() const;
 	void requestItemViewResize(not_null<const HistoryItem*> item);
@@ -194,8 +190,161 @@ public:
 		const Dialogs::Key &key1,
 		const Dialogs::Key &key2);
 
+	void photoLoadSettingsChanged();
+	void voiceLoadSettingsChanged();
+	void animationLoadSettingsChanged();
+
+	void notifyPhotoLayoutChanged(not_null<const PhotoData*> photo);
+	void notifyDocumentLayoutChanged(
+		not_null<const DocumentData*> document);
+	void requestDocumentViewRepaint(not_null<const DocumentData*> document);
+	void markMediaRead(not_null<const DocumentData*> document);
+
+	not_null<PhotoData*> photo(PhotoId id);
+	not_null<PhotoData*> photo(const MTPPhoto &data);
+	not_null<PhotoData*> photo(const MTPDphoto &data);
+	not_null<PhotoData*> photo(
+		const MTPPhoto &data,
+		const PreparedPhotoThumbs &thumbs);
+	not_null<PhotoData*> photo(
+		PhotoId id,
+		const uint64 &access,
+		TimeId date,
+		const ImagePtr &thumb,
+		const ImagePtr &medium,
+		const ImagePtr &full);
+	void photoConvert(
+		not_null<PhotoData*> original,
+		const MTPPhoto &data);
+
+	not_null<DocumentData*> document(DocumentId id);
+	not_null<DocumentData*> document(const MTPDocument &data);
+	not_null<DocumentData*> document(const MTPDdocument &data);
+	not_null<DocumentData*> document(
+		const MTPdocument &data,
+		const QPixmap &thumb);
+	not_null<DocumentData*> document(
+		DocumentId id,
+		const uint64 &access,
+		int32 version,
+		TimeId date,
+		const QVector<MTPDocumentAttribute> &attributes,
+		const QString &mime,
+		const ImagePtr &thumb,
+		int32 dc,
+		int32 size,
+		const StorageImageLocation &thumbLocation);
+	void documentConvert(
+		not_null<DocumentData*> original,
+		const MTPDocument &data);
+
+	not_null<WebPageData*> webpage(WebPageId id);
+	not_null<WebPageData*> webpage(const MTPWebPage &data);
+	not_null<WebPageData*> webpage(const MTPDwebPage &data);
+	not_null<WebPageData*> webpage(const MTPDwebPagePending &data);
+	not_null<WebPageData*> webpage(
+		WebPageId id,
+		const QString &siteName,
+		const TextWithEntities &content);
+	not_null<WebPageData*> webpage(
+		WebPageId id,
+		const QString &type,
+		const QString &url,
+		const QString &displayUrl,
+		const QString &siteName,
+		const QString &title,
+		const TextWithEntities &description,
+		PhotoData *photo,
+		DocumentData *document,
+		int duration,
+		const QString &author,
+		TimeId pendingTill);
+
+	not_null<GameData*> game(GameId id);
+	not_null<GameData*> game(const MTPDgame &data);
+	not_null<GameData*> game(
+		GameId id,
+		const uint64 &accessHash,
+		const QString &shortName,
+		const QString &title,
+		const QString &description,
+		PhotoData *photo,
+		DocumentData *document);
+	void gameConvert(
+		not_null<GameData*> original,
+		const MTPGame &data);
+
+	void registerPhotoView(
+		not_null<const PhotoData*> photo,
+		not_null<HistoryView::Element*> view);
+	void unregisterPhotoView(
+		not_null<const PhotoData*> photo,
+		not_null<HistoryView::Element*> view);
+	void registerDocumentView(
+		not_null<const DocumentData*> document,
+		not_null<HistoryView::Element*> view);
+	void unregisterDocumentView(
+		not_null<const DocumentData*> document,
+		not_null<HistoryView::Element*> view);
+	void registerDocumentItem(
+		not_null<const DocumentData*> document,
+		not_null<HistoryItem*> item);
+	void unregisterDocumentItem(
+		not_null<const DocumentData*> document,
+		not_null<HistoryItem*> item);
+	void registerWebPageView(
+		not_null<const WebPageData*> page,
+		not_null<HistoryView::Element*> view);
+	void unregisterWebPageView(
+		not_null<const WebPageData*> page,
+		not_null<HistoryView::Element*> view);
+	void registerWebPageItem(
+		not_null<const WebPageData*> page,
+		not_null<HistoryItem*> item);
+	void unregisterWebPageItem(
+		not_null<const WebPageData*> page,
+		not_null<HistoryItem*> item);
+	void registerGameView(
+		not_null<const GameData*> game,
+		not_null<HistoryView::Element*> view);
+	void unregisterGameView(
+		not_null<const GameData*> game,
+		not_null<HistoryView::Element*> view);
+	void registerContactView(
+		UserId contactId,
+		not_null<HistoryView::Element*> view);
+	void unregisterContactView(
+		UserId contactId,
+		not_null<HistoryView::Element*> view);
+	void registerContactItem(
+		UserId contactId,
+		not_null<HistoryItem*> item);
+	void unregisterContactItem(
+		UserId contactId,
+		not_null<HistoryItem*> item);
+	void registerAutoplayAnimation(
+		not_null<::Media::Clip::Reader*> reader,
+		not_null<HistoryView::Element*> view);
+	void unregisterAutoplayAnimation(
+		not_null<::Media::Clip::Reader*> reader);
+
+	HistoryItem *findWebPageItem(not_null<WebPageData*> page) const;
+	QString findContactPhone(not_null<UserData*> contact) const;
+	QString findContactPhone(UserId contactId) const;
+
+	void notifyWebPageUpdateDelayed(not_null<WebPageData*> page);
+	void notifyGameUpdateDelayed(not_null<GameData*> game);
+	void sendWebPageGameNotifications();
+
+	void stopAutoplayAnimations();
+
+	void registerItemView(not_null<ViewElement*> view);
+	void unregisterItemView(not_null<ViewElement*> view);
+
 	not_null<Data::Feed*> feed(FeedId id);
 	Data::Feed *feedLoaded(FeedId id);
+
+	void forgetMedia();
 
 	void setMimeForwardIds(MessageIdsList &&list);
 	MessageIdsList takeMimeForwardIds();
@@ -208,6 +357,67 @@ public:
 	}
 
 private:
+	void photoApplyFields(
+		not_null<PhotoData*> photo,
+		const MTPPhoto &data);
+	void photoApplyFields(
+		not_null<PhotoData*> photo,
+		const MTPDphoto &data);
+	void photoApplyFields(
+		not_null<PhotoData*> photo,
+		const uint64 &access,
+		TimeId date,
+		const ImagePtr &thumb,
+		const ImagePtr &medium,
+		const ImagePtr &full);
+
+	void documentApplyFields(
+		not_null<DocumentData*> document,
+		const MTPDocument &data);
+	void documentApplyFields(
+		not_null<DocumentData*> document,
+		const MTPDdocument &data);
+	void documentApplyFields(
+		not_null<DocumentData*> document,
+		const uint64 &access,
+		int32 version,
+		TimeId date,
+		const QVector<MTPDocumentAttribute> &attributes,
+		const QString &mime,
+		const ImagePtr &thumb,
+		int32 dc,
+		int32 size,
+		const StorageImageLocation &thumbLocation);
+
+	void webpageApplyFields(
+		not_null<WebPageData*> page,
+		const MTPDwebPage &data);
+	void webpageApplyFields(
+		not_null<WebPageData*> page,
+		const QString &type,
+		const QString &url,
+		const QString &displayUrl,
+		const QString &siteName,
+		const QString &title,
+		const TextWithEntities &description,
+		PhotoData *photo,
+		DocumentData *document,
+		int duration,
+		const QString &author,
+		TimeId pendingTill);
+
+	void gameApplyFields(
+		not_null<GameData*> game,
+		const MTPDgame &data);
+	void gameApplyFields(
+		not_null<GameData*> game,
+		const uint64 &accessHash,
+		const QString &shortName,
+		const QString &title,
+		const QString &description,
+		PhotoData *photo,
+		DocumentData *document);
+
 	bool stickersUpdateNeeded(TimeMs lastUpdate, TimeMs now) const {
 		constexpr auto kStickersUpdateTimeout = TimeMs(3600'000);
 		return (lastUpdate == 0)
@@ -218,6 +428,11 @@ private:
 	void clearPinnedDialogs();
 	void setIsPinned(const Dialogs::Key &key, bool pinned);
 
+	template <typename Method>
+	void enumerateItemViews(not_null<HistoryItem*> item, Method method);
+
+	not_null<AuthSession*> _session;
+
 	base::Variable<bool> _contactsLoaded = { false };
 	base::Variable<bool> _allChatsLoaded = { false };
 	base::Observable<void> _moreChatsLoaded;
@@ -226,7 +441,7 @@ private:
 	rpl::event_stream<IdChange> _itemIdChanges;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemLayoutChanges;
 	rpl::event_stream<not_null<const ViewElement*>> _viewLayoutChanges;
-	rpl::event_stream<not_null<const HistoryItem*>> _itemRepaintRequest;
+	rpl::event_stream<not_null<const HistoryItem*>> _itemViewRepaintRequest;
 	rpl::event_stream<not_null<const ViewElement*>> _viewRepaintRequest;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemViewResizeRequest;
 	rpl::event_stream<not_null<const ViewElement*>> _viewResizeRequest;
@@ -251,6 +466,49 @@ private:
 	Stickers::Order _featuredStickerSetsOrder;
 	Stickers::Order _archivedStickerSetsOrder;
 	Stickers::SavedGifs _savedGifs;
+
+	std::unordered_map<
+		PhotoId,
+		std::unique_ptr<PhotoData>> _photos;
+	std::map<
+		not_null<const PhotoData*>,
+		base::flat_set<not_null<HistoryView::Element*>>> _photoViews;
+	std::unordered_map<
+		DocumentId,
+		std::unique_ptr<DocumentData>> _documents;
+	std::map<
+		not_null<const DocumentData*>,
+		base::flat_set<not_null<HistoryItem*>>> _documentItems;
+	std::map<
+		not_null<const DocumentData*>,
+		base::flat_set<not_null<HistoryView::Element*>>> _documentViews;
+	std::unordered_map<
+		WebPageId,
+		std::unique_ptr<WebPageData>> _webpages;
+	std::map<
+		not_null<const WebPageData*>,
+		base::flat_set<not_null<HistoryItem*>>> _webpageItems;
+	std::map<
+		not_null<const WebPageData*>,
+		base::flat_set<not_null<HistoryView::Element*>>> _webpageViews;
+	std::unordered_map<
+		GameId,
+		std::unique_ptr<GameData>> _games;
+	std::map<
+		not_null<const GameData*>,
+		base::flat_set<not_null<HistoryView::Element*>>> _gameViews;
+	std::map<
+		UserId,
+		base::flat_set<not_null<HistoryItem*>>> _contactItems;
+	std::map<
+		UserId,
+		base::flat_set<not_null<HistoryView::Element*>>> _contactViews;
+	base::flat_map<
+		not_null<::Media::Clip::Reader*>,
+		not_null<HistoryView::Element*>> _autoplayAnimations;
+
+	base::flat_set<not_null<WebPageData*>> _webpagesUpdated;
+	base::flat_set<not_null<GameData*>> _gamesUpdated;
 
 	std::deque<Dialogs::Key> _pinnedDialogs;
 	base::flat_map<FeedId, std::unique_ptr<Data::Feed>> _feeds;

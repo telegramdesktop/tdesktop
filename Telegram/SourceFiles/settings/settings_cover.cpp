@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_cover.h"
 
 #include "data/data_photo.h"
+#include "data/data_session.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/special_buttons.h"
@@ -84,7 +85,7 @@ PhotoData *CoverWidget::validatePhoto() const {
 	Expects(_self != nullptr);
 
 	const auto photo = _self->userpicPhotoId()
-		? App::photo(_self->userpicPhotoId())
+		? Auth().data().photo(_self->userpicPhotoId()).get()
 		: nullptr;
 	_userpicButton->setPointerCursor(photo != nullptr && photo->date != 0);
 	if (_self->userpicPhotoUnknown() || (photo && !photo->date)) {

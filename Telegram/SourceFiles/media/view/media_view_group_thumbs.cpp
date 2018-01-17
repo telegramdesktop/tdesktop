@@ -12,8 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"
+#include "data/data_session.h"
 #include "history/history.h"
 #include "history/history_media.h"
+#include "auth_session.h"
 #include "styles/style_mediaview.h"
 
 namespace Media {
@@ -470,7 +472,7 @@ void GroupThumbs::animatePreviouslyAlive(
 
 auto GroupThumbs::createThumb(Key key) -> std::unique_ptr<Thumb> {
 	if (const auto photoId = base::get_if<PhotoId>(&key)) {
-		const auto photo = App::photo(*photoId);
+		const auto photo = Auth().data().photo(*photoId);
 		return createThumb(key, photo->date ? photo->thumb : ImagePtr());
 	} else if (const auto msgId = base::get_if<FullMsgId>(&key)) {
 		if (const auto item = App::histItemById(*msgId)) {

@@ -81,6 +81,7 @@ public:
 
 	virtual bool uploading() const;
 	virtual Storage::SharedMediaTypesMask sharedMediaTypes() const;
+	virtual bool canBeGrouped() const;
 	virtual QString caption() const;
 	virtual bool hasReplyPreview() const;
 	virtual ImagePtr replyPreview() const;
@@ -105,7 +106,10 @@ public:
 	virtual bool updateInlineResultMedia(const MTPMessageMedia &media) = 0;
 	virtual bool updateSentMedia(const MTPMessageMedia &media) = 0;
 	virtual std::unique_ptr<HistoryMedia> createView(
-		not_null<HistoryView::Element*> message) = 0;
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) = 0;
+	std::unique_ptr<HistoryMedia> createView(
+		not_null<HistoryView::Element*> message);
 
 private:
 	const not_null<HistoryItem*> _parent;
@@ -130,6 +134,7 @@ public:
 
 	bool uploading() const override;
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
+	bool canBeGrouped() const override;
 	QString caption() const override;
 	QString chatsListText() const override;
 	QString notificationText() const override;
@@ -141,7 +146,8 @@ public:
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
 	std::unique_ptr<HistoryMedia> createView(
-		not_null<HistoryView::Element*> message) override;
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) override;
 
 private:
 	not_null<PhotoData*> _photo;
@@ -164,6 +170,7 @@ public:
 
 	bool uploading() const override;
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
+	bool canBeGrouped() const override;
 	QString chatsListText() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
@@ -175,7 +182,8 @@ public:
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
 	std::unique_ptr<HistoryMedia> createView(
-		not_null<HistoryView::Element*> message) override;
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) override;
 
 private:
 	not_null<DocumentData*> _document;
@@ -192,6 +200,7 @@ public:
 		const QString &firstName,
 		const QString &lastName,
 		const QString &phoneNumber);
+	~MediaContact();
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
@@ -202,7 +211,8 @@ public:
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
 	std::unique_ptr<HistoryMedia> createView(
-		not_null<HistoryView::Element*> message) override;
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) override;
 
 private:
 	SharedContact _contact;
@@ -230,7 +240,8 @@ public:
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
 	std::unique_ptr<HistoryMedia> createView(
-		not_null<HistoryView::Element*> message) override;
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) override;
 
 private:
 	not_null<LocationData*> _location;
@@ -256,7 +267,8 @@ public:
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
 	std::unique_ptr<HistoryMedia> createView(
-		not_null<HistoryView::Element*> message) override;
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) override;
 
 	static QString Text(
 		not_null<HistoryItem*> item,
@@ -272,6 +284,7 @@ public:
 	MediaWebPage(
 		not_null<HistoryItem*> parent,
 		not_null<WebPageData*> page);
+	~MediaWebPage();
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
@@ -283,7 +296,8 @@ public:
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
 	std::unique_ptr<HistoryMedia> createView(
-		not_null<HistoryView::Element*> message) override;
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) override;
 
 private:
 	not_null<WebPageData*> _page;
@@ -310,7 +324,8 @@ public:
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
 	std::unique_ptr<HistoryMedia> createView(
-		not_null<HistoryView::Element*> message) override;
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) override;
 
 private:
 	not_null<GameData*> _game;
@@ -337,7 +352,8 @@ public:
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
 	std::unique_ptr<HistoryMedia> createView(
-		not_null<HistoryView::Element*> message) override;
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) override;
 
 private:
 	Invoice _invoice;

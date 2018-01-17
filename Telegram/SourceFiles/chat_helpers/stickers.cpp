@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "storage/localstorage.h"
 #include "mainwidget.h"
+#include "auth_session.h"
 #include "mainwindow.h"
 #include "ui/toast/toast.h"
 #include "styles/style_chat_helpers.h"
@@ -389,7 +390,7 @@ void SetPackAndEmoji(Set &set, Pack &&pack, const QVector<MTPStickerPack> &packs
 			auto p = Pack();
 			p.reserve(stickers.size());
 			for (auto j = 0, c = stickers.size(); j != c; ++j) {
-				auto document = App::document(stickers[j].v);
+				auto document = Auth().data().document(stickers[j].v);
 				if (!document || !document->sticker()) continue;
 
 				p.push_back(document);
@@ -420,8 +421,8 @@ void SpecialSetReceived(uint64 setId, const QString &setTitle, const QVector<MTP
 		auto pack = Pack();
 		pack.reserve(d_docs.size());
 		for_const (auto &mtpDocument, d_docs) {
-			auto document = App::feedDocument(mtpDocument);
-			if (!document || !document->sticker()) continue;
+			auto document = Auth().data().document(mtpDocument);
+			if (!document->sticker()) continue;
 
 			pack.push_back(document);
 			if (custom != sets.cend()) {
@@ -583,8 +584,8 @@ void GifsReceived(const QVector<MTPDocument> &items, int32 hash) {
 
 	saved.reserve(items.size());
 	for_const (auto &gif, items) {
-		auto document = App::feedDocument(gif);
-		if (!document || !document->isGifv()) {
+		auto document = Auth().data().document(gif);
+		if (!document->isGifv()) {
 			LOG(("API Error: bad document returned in HistoryWidget::savedGifsGot!"));
 			continue;
 		}
@@ -719,8 +720,8 @@ Set *FeedSetFull(const MTPmessages_StickerSet &data) {
 	auto pack = Pack();
 	pack.reserve(d_docs.size());
 	for (auto i = 0, l = d_docs.size(); i != l; ++i) {
-		auto doc = App::feedDocument(d_docs.at(i));
-		if (!doc || !doc->sticker()) continue;
+		auto doc = Auth().data().document(d_docs.at(i));
+		if (!doc->sticker()) continue;
 
 		pack.push_back(doc);
 		if (custom != sets.cend()) {
@@ -766,7 +767,7 @@ Set *FeedSetFull(const MTPmessages_StickerSet &data) {
 				Pack p;
 				p.reserve(stickers.size());
 				for (auto j = 0, c = stickers.size(); j != c; ++j) {
-					auto doc = App::document(stickers[j].v);
+					auto doc = Auth().data().document(stickers[j].v);
 					if (!doc || !doc->sticker()) continue;
 
 					p.push_back(doc);
@@ -812,7 +813,7 @@ RecentStickerPack &GetRecentPack() {
 		auto &recent = cRefRecentStickers();
 		recent.reserve(p.size());
 		for (const auto &preloaded : p) {
-			const auto document = App::document(preloaded.first);
+			const auto document = Auth().data().document(preloaded.first);
 			if (!document || !document->sticker()) continue;
 
 			recent.push_back(qMakePair(document, preloaded.second));

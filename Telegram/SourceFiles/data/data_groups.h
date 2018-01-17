@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 
+class Session;
+
 struct Group {
 	HistoryItemsList items;
 
@@ -18,13 +20,23 @@ struct Group {
 
 class Groups {
 public:
+	Groups(not_null<Session*> data);
+
+	bool isGrouped(not_null<HistoryItem*> item) const;
 	void registerMessage(not_null<HistoryItem*> item);
 	void unregisterMessage(not_null<HistoryItem*> item);
+	void refreshMessage(not_null<HistoryItem*> item);
 
 	const Group *find(not_null<HistoryItem*> item) const;
 
 private:
-	std::map<MessageGroupId, Group> _data;
+	HistoryItemsList::const_iterator findPositionForItem(
+		const HistoryItemsList &group,
+		not_null<HistoryItem*> item);
+	void refreshViews(const HistoryItemsList &items);
+
+	not_null<Session*> _data;
+	std::map<MessageGroupId, Group> _groups;
 	std::map<MessageGroupId, MessageGroupId> _alias;
 
 };

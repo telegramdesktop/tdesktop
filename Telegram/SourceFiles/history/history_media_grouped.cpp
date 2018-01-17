@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_media_types.h"
 #include "history/history_message.h"
 #include "history/view/history_view_element.h"
+#include "data/data_media_types.h"
 #include "storage/storage_shared_media.h"
 #include "lang/lang_keys.h"
 #include "ui/grouped_layout.h"
@@ -18,16 +19,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_history.h"
 #include "layout.h"
 
-HistoryGroupedMedia::Part::Part(not_null<Element*> view)
-: view(view) {
+HistoryGroupedMedia::Part::Part(not_null<HistoryItem*> item)
+: item(item) {
 }
 
 HistoryGroupedMedia::HistoryGroupedMedia(
 	not_null<Element*> parent,
-	const std::vector<not_null<Element*>> &others)
+	const std::vector<not_null<HistoryItem*>> &items)
 : HistoryMedia(parent)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
-	const auto result = applyGroup(others);
+	const auto result = applyGroup(items);
 
 	Ensures(result);
 }
@@ -124,9 +125,10 @@ QSize HistoryGroupedMedia::countCurrentSize(int newWidth) {
 	return { newWidth, newHeight };
 }
 
-void HistoryGroupedMedia::refreshParentId(not_null<Element*> realParent) {
+void HistoryGroupedMedia::refreshParentId(
+		not_null<HistoryItem*> realParent) {
 	for (const auto &part : _parts) {
-		part.content->refreshParentId(part.view);
+		part.content->refreshParentId(part.item);
 	}
 }
 
@@ -193,7 +195,7 @@ HistoryTextState HistoryGroupedMedia::getPartState(
 				part.geometry,
 				point,
 				request);
-			result.itemId = part.view->data()->fullId();
+			result.itemId = part.item->fullId();
 			return result;
 		}
 	}
@@ -284,21 +286,8 @@ void HistoryGroupedMedia::clickHandlerPressedChanged(
 	for (const auto &part : _parts) {
 		part.content->clickHandlerPressedChanged(p, pressed);
 		if (pressed && part.content->dragItemByHandler(p)) {
-			App::pressedLinkItem(part.view);
-		}
-	}
-}
-
-void HistoryGroupedMedia::attachToParent() {
-	for (const auto &part : _parts) {
-		part.content->attachToParent();
-	}
-}
-
-void HistoryGroupedMedia::detachFromParent() {
-	for (const auto &part : _parts) {
-		if (part.content) {
-			part.content->detachFromParent();
+			// #TODO drag by item from album
+			// App::pressedLinkItem(part.view);
 		}
 	}
 }
@@ -308,42 +297,32 @@ std::unique_ptr<HistoryMedia> HistoryGroupedMedia::takeLastFromGroup() {
 }
 
 bool HistoryGroupedMedia::applyGroup(
-		const std::vector<not_null<Element*>> &others) {
-	if (others.empty()) {
+		const std::vector<not_null<HistoryItem*>> &items) {
+	if (items.empty()) {
 		return false;
 	}
-	const auto pushElement = [&](not_null<Element*> view) {
-		const auto media = view->media();
-		Assert(media != nullptr && media->canBeGrouped());
-
-		_parts.push_back(Part(view));
-		_parts.back().content = media->clone(_parent, view);
-	};
-	if (_parts.empty()) {
-		pushElement(_parent);
-	} else if (validateGroupParts(others)) {
+	if (validateGroupParts(items)) {
 		return true;
 	}
 
-	// We're updating other elements, so we just need to preserve the main.
-	auto mainPart = std::move(_parts.back());
-	_parts.erase(_parts.begin(), _parts.end());
-	_parts.reserve(others.size() + 1);
-	for (const auto view : others) {
-		pushElement(view);
-	}
-	_parts.push_back(std::move(mainPart));
-	//_parent->setPendingInitDimensions(); // #TODO group view
+	const auto pushElement = [&](not_null<HistoryItem*> item) {
+		const auto media = item->media();
+		Assert(media != nullptr && media->canBeGrouped());
+
+		_parts.push_back(Part(item));
+		_parts.back().content = media->createView(_parent, item);
+	};
+	ranges::for_each(items, pushElement);
 	return true;
 }
 
 bool HistoryGroupedMedia::validateGroupParts(
-		const std::vector<not_null<Element*>> &others) const {
-	if (_parts.size() != others.size() + 1) {
+		const std::vector<not_null<HistoryItem*>> &items) const {
+	if (_parts.size() != items.size()) {
 		return false;
 	}
-	for (auto i = 0, count = int(others.size()); i != count; ++i) {
-		if (_parts[i].view != others[i]) {
+	for (auto i = 0, count = int(items.size()); i != count; ++i) {
+		if (_parts[i].item != items[i]) {
 			return false;
 		}
 	}
@@ -382,15 +361,16 @@ DocumentData *HistoryGroupedMedia::getDocument() const {
 
 HistoryMessageEdited *HistoryGroupedMedia::displayedEditBadge() const {
 	if (!_caption.isEmpty()) {
-		return _parts.front().view->data()->Get<HistoryMessageEdited>();
+		return _parts.front().item->Get<HistoryMessageEdited>();
 	}
 	return nullptr;
 }
 
 void HistoryGroupedMedia::updateNeedBubbleState() {
 	const auto getItemCaption = [](const Part &part) {
-		if (const auto media = part.view->media()) {
-			return media->getCaption();
+		if (const auto media = part.item->media()) {
+			return TextWithEntities{ media->caption(), EntitiesInText() };
+			// #TODO group caption
 		}
 		return part.content->getCaption();
 	};

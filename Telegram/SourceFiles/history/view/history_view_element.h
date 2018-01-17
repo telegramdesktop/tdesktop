@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class HistoryBlock;
 class HistoryItem;
+class HistoryMessage;
+class HistoryService;
 class HistoryMedia;
 class HistoryWebPage;
 struct HistoryTextState;
@@ -20,6 +22,16 @@ struct HistoryStateRequest;
 enum InfoDisplayType : char;
 
 namespace HistoryView {
+
+class Element;
+class ElementDelegate {
+public:
+	virtual std::unique_ptr<Element> elementCreate(
+		not_null<HistoryMessage*> message) = 0;
+	virtual std::unique_ptr<Element> elementCreate(
+		not_null<HistoryService*> message) = 0;
+
+};
 
 TextSelection UnshiftItemSelection(
 	TextSelection selection,
@@ -35,11 +47,11 @@ TextSelection ShiftItemSelection(
 	const Text &byText);
 
 class Element;
-struct Group : public RuntimeComponent<Group, Element> {
-	MessageGroupId groupId = MessageGroupId::None;
-	Element *leader = nullptr;
-	std::vector<not_null<Element*>> others;
-};
+//struct Group : public RuntimeComponent<Group, Element> {
+//	MessageGroupId groupId = MessageGroupId::None;
+//	Element *leader = nullptr;
+//	std::vector<not_null<HistoryItem*>> others;
+//};
 
 enum class Context : char {
 	History,
@@ -86,11 +98,11 @@ public:
 	virtual int infoWidth() const;
 
 	bool isHiddenByGroup() const;
-	void makeGroupMember(not_null<Element*> leader);
-	void makeGroupLeader(std::vector<not_null<Element*>> &&others);
-	bool groupIdValidityChanged();
-	void validateGroupId();
-	Group *getFullGroup();
+	//void makeGroupMember(not_null<Element*> leader);
+	//void makeGroupLeader(std::vector<not_null<HistoryItem*>> &&others);
+	//bool groupIdValidityChanged();
+	//void validateGroupId();
+	//Group *getFullGroup();
 
 	// For blocks context this should be called only from recountAttachToPreviousInBlocks().
 	void setAttachToPrevious(bool attachToNext);
@@ -197,8 +209,8 @@ private:
 	virtual QSize performCountOptimalSize() = 0;
 	virtual QSize performCountCurrentSize(int newWidth) = 0;
 
-	void initGroup();
-	void resetGroupMedia(const std::vector<not_null<Element*>> &others);
+	void refreshMedia();
+	//void resetGroupMedia(const std::vector<not_null<HistoryItem*>> &others);
 
 	const not_null<HistoryItem*> _data;
 	std::unique_ptr<HistoryMedia> _media;

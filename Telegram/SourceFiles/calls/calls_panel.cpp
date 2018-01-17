@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_panel.h"
 
 #include "data/data_photo.h"
+#include "data/data_session.h"
 #include "calls/calls_emoji_fingerprint.h"
 #include "styles/style_calls.h"
 #include "styles/style_history.h"
@@ -430,7 +431,7 @@ void Panel::processUserPhoto() {
 		_user->loadUserpic(true);
 	}
 	const auto photo = _user->userpicPhotoId()
-		? App::photo(_user->userpicPhotoId())
+		? Auth().data().photo(_user->userpicPhotoId()).get()
 		: nullptr;
 	if (isGoodUserPhoto(photo)) {
 		photo->full->load(true);
@@ -442,7 +443,7 @@ void Panel::processUserPhoto() {
 
 void Panel::refreshUserPhoto() {
 	const auto photo = _user->userpicPhotoId()
-		? App::photo(_user->userpicPhotoId())
+		? Auth().data().photo(_user->userpicPhotoId()).get()
 		: nullptr;
 	const auto isNewPhoto = [&](not_null<PhotoData*> photo) {
 		return photo->full->loaded()

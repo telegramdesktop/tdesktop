@@ -122,8 +122,8 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 		_pack.reserve(v.size());
 		_packOvers.reserve(v.size());
 		for (int i = 0, l = v.size(); i < l; ++i) {
-			auto doc = App::feedDocument(v.at(i));
-			if (!doc || !doc->sticker()) continue;
+			auto doc = Auth().data().document(v.at(i));
+			if (!doc->sticker()) continue;
 
 			_pack.push_back(doc);
 			_packOvers.push_back(Animation());
@@ -139,7 +139,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 				Stickers::Pack p;
 				p.reserve(stickers.size());
 				for (auto j = 0, c = stickers.size(); j != c; ++j) {
-					auto doc = App::document(stickers[j].v);
+					auto doc = Auth().data().document(stickers[j].v);
 					if (!doc || !doc->sticker()) continue;
 
 					p.push_back(doc);

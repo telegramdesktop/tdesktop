@@ -221,7 +221,7 @@ ListWidget::ListWidget(
 , _scrollDateCheck([this] { scrollDateCheck(); }) {
 	setMouseTracking(true);
 	_scrollDateHideTimer.setCallback([this] { scrollDateHideByTimer(); });
-	Auth().data().itemRepaintRequest(
+	Auth().data().itemViewRepaintRequest(
 	) | rpl::start_with_next([this](auto item) {
 		if (const auto view = viewForItem(item)) {
 			repaintItem(view);
@@ -306,7 +306,7 @@ not_null<Element*> ListWidget::enforceViewForItem(
 	}
 	const auto [i, ok] = _views.emplace(
 		item,
-		item->createView(_controller, _context));
+		item->createView(_delegate));
 	return i->second.get();
 }
 

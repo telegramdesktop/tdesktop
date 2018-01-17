@@ -9,11 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/main_window.h"
 #include "info/info_memento.h"
-#include "history/view/history_view_element.h"
-#include "history/view/history_view_message.h"
-#include "history/view/history_view_service_message.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/view/history_view_element.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "styles/style_window.h"
@@ -405,18 +403,6 @@ void Controller::showSpecialLayer(
 
 not_null<MainWidget*> Controller::chats() const {
 	return App::wnd()->chatsWidget();
-}
-
-std::unique_ptr<HistoryView::Element> Controller::createMessageView(
-		not_null<HistoryMessage*> message,
-		HistoryView::Context context) {
-	return std::make_unique<HistoryView::Message>(message, context);
-}
-
-std::unique_ptr<HistoryView::Element> Controller::createMessageView(
-		not_null<HistoryService*> message,
-		HistoryView::Context context) {
-	return std::make_unique<HistoryView::Service>(message, context);
 }
 
 } // namespace Window

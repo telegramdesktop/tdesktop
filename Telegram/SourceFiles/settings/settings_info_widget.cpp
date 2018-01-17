@@ -14,8 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/username_box.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/change_phone_box.h"
+#include "data/data_session.h"
 #include "observer_peer.h"
 #include "messenger.h"
+#include "auth_session.h"
 
 namespace Settings {
 
@@ -47,12 +49,8 @@ void InfoWidget::refreshControls() {
 
 void InfoWidget::refreshMobileNumber() {
 	TextWithEntities phoneText;
-	if (auto user = self()->asUser()) {
-		if (!user->phone().isEmpty()) {
-			phoneText.text = App::formatPhone(user->phone());
-		} else {
-			phoneText.text = App::phoneFromSharedContact(peerToUser(user->id));
-		}
+	if (const auto user = self()->asUser()) {
+		phoneText.text = Auth().data().findContactPhone(user);
 	}
 	setLabeledText(
 		_mobileNumber,

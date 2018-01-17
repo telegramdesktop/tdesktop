@@ -349,8 +349,8 @@ void handlePendingHistoryUpdate() {
 	}
 	Auth().data().pendingHistoryResize().notify(true);
 
-	for (const auto item : base::take(Global::RefPendingRepaintItems())) {
-		Auth().data().requestItemRepaint(item);
+	//for (const auto item : base::take(Global::RefPendingRepaintItems())) {
+	//	Auth().data().requestItemViewRepaint(item);
 
 		// Start the video if it is waiting for that.
 		//if (item->pendingInitDimensions()) { // #TODO floating player video
@@ -372,7 +372,7 @@ void handlePendingHistoryUpdate() {
 		//		}
 		//	}
 		//}
-	}
+	//}
 }
 
 void unreadCounterUpdated() {
@@ -572,8 +572,6 @@ struct Data {
 
 	HiddenPinnedMessagesMap HiddenPinnedMessages;
 
-	PendingItemsMap PendingRepaintItems;
-
 	Stickers::Sets StickerSets;
 	Stickers::Order StickerSetsOrder;
 	TimeMs LastStickersUpdate = 0;
@@ -694,8 +692,6 @@ DefineVar(Global, bool, PhoneCallsEnabled);
 DefineRefVar(Global, base::Observable<void>, PhoneCallsEnabledChanged);
 
 DefineVar(Global, HiddenPinnedMessagesMap, HiddenPinnedMessages);
-
-DefineRefVar(Global, PendingItemsMap, PendingRepaintItems);
 
 DefineVar(Global, Stickers::Sets, StickerSets);
 DefineVar(Global, Stickers::Order, StickerSetsOrder);

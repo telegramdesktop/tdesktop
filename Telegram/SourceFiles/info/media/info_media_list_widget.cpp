@@ -569,7 +569,7 @@ void ListWidget::start() {
 	) | rpl::start_with_next([this](auto item) {
 		itemRemoved(item);
 	}, lifetime());
-	Auth().data().itemRepaintRequest(
+	Auth().data().itemViewRepaintRequest(
 	) | rpl::start_with_next([this](auto item) {
 		repaintItem(item);
 	}, lifetime());

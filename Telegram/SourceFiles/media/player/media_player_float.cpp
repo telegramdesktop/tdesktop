@@ -47,7 +47,7 @@ Float::Float(
 
 	rpl::merge(
 		Auth().data().itemLayoutChanged(),
-		Auth().data().itemRepaintRequest()
+		Auth().data().itemViewRepaintRequest()
 	) | rpl::start_with_next([this](auto item) {
 		if (_item == item) {
 			repaintItem();

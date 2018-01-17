@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 #include "history/history_media_types.h"
 #include "data/data_media_types.h"
+#include "data/data_session.h"
 #include "window/themes/window_theme_preview.h"
 #include "window/window_peer_menu.h"
 #include "observer_peer.h"
@@ -1299,7 +1300,7 @@ void MediaView::initGroupThumbs() {
 	_groupThumbs->activateRequests(
 	) | rpl::start_with_next([this](Media::View::GroupThumbs::Key key) {
 		if (const auto photoId = base::get_if<PhotoId>(&key)) {
-			const auto photo = App::photo(*photoId);
+			const auto photo = Auth().data().photo(*photoId);
 			moveToEntity({ photo, nullptr });
 		} else if (const auto itemId = base::get_if<FullMsgId>(&key)) {
 			moveToEntity(entityForItemId(*itemId));
@@ -2425,7 +2426,7 @@ MediaView::Entity MediaView::entityForUserPhotos(int index) const {
 	if (index < 0 || index >= _userPhotosData->size()) {
 		return { base::none, nullptr };
 	}
-	if (auto photo = App::photo((*_userPhotosData)[index])) {
+	if (auto photo = Auth().data().photo((*_userPhotosData)[index])) {
 		return { photo, nullptr };
 	}
 	return { base::none, nullptr };

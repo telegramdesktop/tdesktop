@@ -469,12 +469,10 @@ void PeerMenuDeleteContact(not_null<UserData*> user) {
 }
 
 void PeerMenuAddContact(not_null<UserData*> user) {
-	auto firstName = user->firstName;
-	auto lastName = user->lastName;
-	auto phone = user->phone().isEmpty()
-		? App::phoneFromSharedContact(user->bareId())
-		: user->phone();
-	Ui::show(Box<AddContactBox>(firstName, lastName, phone));
+	Ui::show(Box<AddContactBox>(
+		user->firstName,
+		user->lastName,
+		Auth().data().findContactPhone(user)));
 }
 
 void PeerMenuShareContactBox(not_null<UserData*> user) {

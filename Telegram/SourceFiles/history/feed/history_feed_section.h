@@ -67,6 +67,11 @@ public:
 		int limitBefore,
 		int limitAfter) override;
 
+	std::unique_ptr<HistoryView::Element> elementCreate(
+		not_null<HistoryMessage*> message) override;
+	std::unique_ptr<HistoryView::Element> elementCreate(
+		not_null<HistoryService*> message) override;
+
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;

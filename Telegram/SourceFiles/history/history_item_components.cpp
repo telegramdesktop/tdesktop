@@ -562,11 +562,13 @@ ReplyKeyboard::ButtonCoords ReplyKeyboard::findButtonCoordsByClickHandler(const 
 	return { -1, -1 };
 }
 
-void ReplyKeyboard::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
-	if (!p) return;
+void ReplyKeyboard::clickHandlerPressedChanged(
+		const ClickHandlerPtr &handler,
+		bool pressed) {
+	if (!handler) return;
 
-	_savedPressed = pressed ? p : ClickHandlerPtr();
-	auto coords = findButtonCoordsByClickHandler(p);
+	_savedPressed = pressed ? handler : ClickHandlerPtr();
+	auto coords = findButtonCoordsByClickHandler(handler);
 	if (coords.i >= 0) {
 		auto &button = _rows[coords.i][coords.j];
 		if (pressed) {
@@ -584,7 +586,7 @@ void ReplyKeyboard::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pr
 			if (button.ripple) {
 				button.ripple->lastStop();
 			}
-			if (_savedActive != p) {
+			if (_savedActive != handler) {
 				startAnimation(coords.i, coords.j, -1);
 			}
 		}

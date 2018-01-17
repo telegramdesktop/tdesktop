@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/view/history_view_list_widget.h"
 #include "history/view/history_view_element.h"
+#include "history/view/history_view_message.h"
+#include "history/view/history_view_service_message.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
@@ -160,6 +162,20 @@ rpl::producer<Data::MessagesSlice> Widget::listSource(
 		Storage::FeedMessagesKey(_feed->id(), aroundId),
 		limitBefore,
 		limitAfter);
+}
+
+std::unique_ptr<HistoryView::Element> Widget::elementCreate(
+		not_null<HistoryMessage*> message) {
+	return std::make_unique<HistoryView::Message>(
+		message,
+		HistoryView::Context::Feed);
+}
+
+std::unique_ptr<HistoryView::Element> Widget::elementCreate(
+		not_null<HistoryService*> message) {
+	return std::make_unique<HistoryView::Service>(
+		message,
+		HistoryView::Context::Feed);
 }
 
 std::unique_ptr<Window::SectionMemento> Widget::createMemento() {

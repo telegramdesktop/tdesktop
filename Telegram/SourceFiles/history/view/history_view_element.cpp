@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_media_grouped.h"
 #include "history/history.h"
 #include "data/data_session.h"
+#include "data/data_groups.h"
 #include "data/data_media_types.h"
 #include "auth_session.h"
 #include "layout.h"
@@ -55,10 +56,9 @@ TextSelection ShiftItemSelection(
 
 Element::Element(not_null<HistoryItem*> data, Context context)
 : _data(data)
-, _media(_data->media() ? _data->media()->createView(this) : nullptr)
 , _context(context) {
 	Auth().data().registerItemView(this);
-	initGroup();
+	refreshMedia();
 }
 
 not_null<HistoryItem*> Element::data() const {
@@ -145,93 +145,110 @@ int Element::infoWidth() const {
 bool Element::isHiddenByGroup() const {
 	return _flags & Flag::HiddenByGroup;
 }
+//
+//void Element::makeGroupMember(not_null<Element*> leader) {
+//	Expects(leader != this);
+//
+//	const auto group = Get<Group>();
+//	Assert(group != nullptr);
+//	if (group->leader == this) {
+//		if (auto single = _media ? _media->takeLastFromGroup() : nullptr) {
+//			_media = std::move(single);
+//		}
+//		_flags |= Flag::HiddenByGroup;
+//		Auth().data().requestViewResize(this);
+//
+//		group->leader = leader;
+//		base::take(group->others);
+//	} else if (group->leader != leader) {
+//		group->leader = leader;
+//	}
+//
+//	Ensures(isHiddenByGroup());
+//	Ensures(group->others.empty());
+//}
+//
+//void Element::makeGroupLeader(std::vector<not_null<HistoryItem*>> &&others) {
+//	const auto group = Get<Group>();
+//	Assert(group != nullptr);
+//
+//	const auto leaderChanged = (group->leader != this);
+//	if (leaderChanged) {
+//		group->leader = this;
+//		_flags &= ~Flag::HiddenByGroup;
+//		Auth().data().requestViewResize(this);
+//	}
+//	group->others = std::move(others);
+//	if (!_media || !_media->applyGroup(group->others)) {
+//		resetGroupMedia(group->others);
+//		data()->invalidateChatsListEntry();
+//	}
+//
+//	Ensures(!isHiddenByGroup());
+//}
+//
+//bool Element::groupIdValidityChanged() {
+//	if (Has<Group>()) {
+//		if (_media && _media->canBeGrouped()) {
+//			return false;
+//		}
+//		RemoveComponents(Group::Bit());
+//		Auth().data().requestViewResize(this);
+//		return true;
+//	}
+//	return false;
+//}
+//
+//void Element::validateGroupId() {
+//	// Just ignore the result.
+//	groupIdValidityChanged();
+//}
+//
+//Group *Element::getFullGroup() {
+//	if (const auto group = Get<Group>()) {
+//		if (group->leader == this) {
+//			return group;
+//		}
+//		return group->leader->Get<Group>();
+//	}
+//	return nullptr;
+//}
 
-void Element::makeGroupMember(not_null<Element*> leader) {
-	Expects(leader != this);
+void Element::refreshMedia() {
+	_flags &= ~Flag::HiddenByGroup;
 
-	const auto group = Get<Group>();
-	Assert(group != nullptr);
-	if (group->leader == this) {
-		if (auto single = _media ? _media->takeLastFromGroup() : nullptr) {
-			_media = std::move(single);
+	const auto item = data();
+	const auto media = item->media();
+	if (media && media->canBeGrouped()) {
+		if (const auto group = Auth().data().groups().find(item)) {
+			if (group->items.back() != item) {
+				_media = nullptr;
+				_flags |= Flag::HiddenByGroup;
+			} else {
+				_media = std::make_unique<HistoryGroupedMedia>(
+					this,
+					group->items);
+				Auth().data().requestViewResize(this);
+			}
+			return;
 		}
-		_flags |= Flag::HiddenByGroup;
-		Auth().data().requestViewResize(this);
-
-		group->leader = leader;
-		base::take(group->others);
-	} else if (group->leader != leader) {
-		group->leader = leader;
 	}
-
-	Ensures(isHiddenByGroup());
-	Ensures(group->others.empty());
-}
-
-void Element::makeGroupLeader(std::vector<not_null<Element*>> &&others) {
-	const auto group = Get<Group>();
-	Assert(group != nullptr);
-
-	const auto leaderChanged = (group->leader != this);
-	if (leaderChanged) {
-		group->leader = this;
-		_flags &= ~Flag::HiddenByGroup;
-		Auth().data().requestViewResize(this);
-	}
-	group->others = std::move(others);
-	if (!_media || !_media->applyGroup(group->others)) {
-		resetGroupMedia(group->others);
-		data()->invalidateChatsListEntry();
-	}
-
-	Ensures(!isHiddenByGroup());
-}
-
-bool Element::groupIdValidityChanged() {
-	if (Has<Group>()) {
-		if (_media && _media->canBeGrouped()) {
-			return false;
-		}
-		RemoveComponents(Group::Bit());
-		Auth().data().requestViewResize(this);
-		return true;
-	}
-	return false;
-}
-
-void Element::validateGroupId() {
-	// Just ignore the result.
-	groupIdValidityChanged();
-}
-
-Group *Element::getFullGroup() {
-	if (const auto group = Get<Group>()) {
-		if (group->leader == this) {
-			return group;
-		}
-		return group->leader->Get<Group>();
-	}
-	return nullptr;
-}
-
-void Element::initGroup() {
-	if (const auto groupId = _data->groupId()) {
-		AddComponents(Group::Bit());
-		const auto group = Get<Group>();
-		group->groupId = groupId;
-		group->leader = this;
+	if (_data->media()) {
+		_media = _data->media()->createView(this);
+	} else {
+		_media = nullptr;
 	}
 }
 
-void Element::resetGroupMedia(
-		const std::vector<not_null<Element*>> &others) {
-	if (!others.empty()) {
-		_media = std::make_unique<HistoryGroupedMedia>(this, others);
-	} else if (_media) {
-		_media = _media->takeLastFromGroup();
-	}
-	Auth().data().requestViewResize(this);
-}
+//void Element::resetGroupMedia(
+//		const std::vector<not_null<Element*>> &others) {
+//	if (!others.empty()) {
+//		_media = std::make_unique<HistoryGroupedMedia>(this, others);
+//	} else if (_media) {
+//		_media = _media->takeLastFromGroup();
+//	}
+//	Auth().data().requestViewResize(this);
+//}
 
 void Element::previousInBlocksChanged() {
 	recountDisplayDateInBlocks();
@@ -245,12 +262,13 @@ void Element::nextInBlocksChanged() {
 
 void Element::refreshDataId() {
 	if (const auto media = this->media()) {
-		media->refreshParentId(this);
-		if (const auto group = Get<Group>()) {
-			if (group->leader != this) {
-				group->leader->refreshDataId();
-			}
-		}
+		media->refreshParentId(data());
+		// #TODO refresh sent album items
+		//if (const auto group = Get<Group>()) {
+		//	if (group->leader != this) {
+		//		group->leader->refreshDataId();
+		//	}
+		//}
 	}
 }
 
@@ -325,20 +343,20 @@ void Element::setDisplayDate(bool displayDate) {
 void Element::setAttachToNext(bool attachToNext) {
 	if (attachToNext && !(_flags & Flag::AttachedToNext)) {
 		_flags |= Flag::AttachedToNext;
-		Auth().data().requestItemRepaint(data());
+		Auth().data().requestViewResize(this);
 	} else if (!attachToNext && (_flags & Flag::AttachedToNext)) {
 		_flags &= ~Flag::AttachedToNext;
-		Auth().data().requestItemRepaint(data());
+		Auth().data().requestViewResize(this);
 	}
 }
 
 void Element::setAttachToPrevious(bool attachToPrevious) {
 	if (attachToPrevious && !(_flags & Flag::AttachedToPrevious)) {
 		_flags |= Flag::AttachedToPrevious;
-		setPendingResize();
+		Auth().data().requestViewResize(this);
 	} else if (!attachToPrevious && (_flags & Flag::AttachedToPrevious)) {
 		_flags &= ~Flag::AttachedToPrevious;
-		setPendingResize();
+		Auth().data().requestViewResize(this);
 	}
 }
 
@@ -502,7 +520,7 @@ void Element::clickHandlerActiveChanged(
 		}
 	}
 	App::hoveredLinkItem(active ? this : nullptr);
-	Auth().data().requestItemRepaint(_data);
+	Auth().data().requestViewRepaint(this);
 	if (const auto media = this->media()) {
 		media->clickHandlerActiveChanged(handler, active);
 	}
@@ -517,7 +535,7 @@ void Element::clickHandlerPressedChanged(
 		}
 	}
 	App::pressedLinkItem(pressed ? this : nullptr);
-	Auth().data().requestItemRepaint(_data);
+	Auth().data().requestViewRepaint(this);
 	if (const auto media = this->media()) {
 		media->clickHandlerPressedChanged(handler, pressed);
 	}

@@ -182,7 +182,9 @@ private:
 class AuthSession;
 AuthSession &Auth();
 
-class AuthSession final : private base::Subscriber {
+class AuthSession final
+	: public base::has_weak_ptr
+	, private base::Subscriber {
 public:
 	AuthSession(UserId userId);
 

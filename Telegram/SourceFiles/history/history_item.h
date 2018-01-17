@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/runtime_composer.h"
 #include "base/flags.h"
 #include "base/value_ordering.h"
-#include "history/history_media_pointer.h"
 #include "history/view/history_view_cursor_state.h"
 
 enum class UnreadMentionType;
@@ -49,6 +48,7 @@ class Controller;
 
 namespace HistoryView {
 enum class Context : char;
+class ElementDelegate;
 } // namespace HistoryView
 
 class HistoryItem : public RuntimeComposer<HistoryItem> {
@@ -148,7 +148,7 @@ public:
 	}
 	virtual void applyEdition(const MTPDmessageService &message) {
 	}
-	virtual void updateMedia(const MTPMessageMedia *media) {
+	virtual void updateSentMedia(const MTPMessageMedia *media) {
 	}
 	virtual void updateReplyMarkup(const MTPReplyMarkup *markup) {
 	}
@@ -272,8 +272,7 @@ public:
 	HistoryItem *nextItem() const;
 
 	virtual std::unique_ptr<HistoryView::Element> createView(
-		not_null<Window::Controller*> controller,
-		HistoryView::Context context) = 0;
+		not_null<HistoryView::ElementDelegate*> delegate) = 0;
 
 	virtual ~HistoryItem();
 

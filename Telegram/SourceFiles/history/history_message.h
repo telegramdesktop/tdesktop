@@ -143,7 +143,11 @@ public:
 			markup);
 	}
 
-	void initMedia(const MTPMessageMedia *media);
+	void refreshMedia(const MTPMessageMedia *media);
+	void setMedia(const MTPMessageMedia &media);
+	static std::unique_ptr<Data::Media> CreateMedia(
+		not_null<HistoryMessage*> item,
+		const MTPMessageMedia &media);
 
 	int32 plainMaxWidth() const;
 
@@ -163,7 +167,7 @@ public:
 
 	void applyEdition(const MTPDmessage &message) override;
 	void applyEdition(const MTPDmessageService &message) override;
-	void updateMedia(const MTPMessageMedia *media) override;
+	void updateSentMedia(const MTPMessageMedia *media) override;
 	void updateReplyMarkup(const MTPReplyMarkup *markup) override {
 		setReplyMarkup(markup);
 	}
@@ -191,8 +195,7 @@ public:
 	}
 
 	std::unique_ptr<HistoryView::Element> createView(
-		not_null<Window::Controller*> controller,
-		HistoryView::Context context) override;
+		not_null<HistoryView::ElementDelegate*> delegate) override;
 
 	~HistoryMessage();
 

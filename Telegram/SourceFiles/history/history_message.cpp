@@ -314,7 +314,9 @@ HistoryMessage::HistoryMessage(
 
 	createComponents(config);
 
-	initMedia(msg.has_media() ? (&msg.vmedia) : nullptr);
+	if (msg.has_media()) {
+		setMedia(msg.vmedia);
+	}
 
 	auto text = TextUtilities::Clean(qs(msg.vmessage));
 	auto entities = msg.has_entities()
@@ -702,84 +704,136 @@ QString FormatViewsCount(int views) {
 	return qsl("1");
 }
 
-void HistoryMessage::initMedia(const MTPMessageMedia *media) {
+void HistoryMessage::refreshMedia(const MTPMessageMedia *media) {
+	const auto wasGrouped = Auth().data().groups().isGrouped(this);
 	_media = nullptr;
+	if (media) {
+		setMedia(*media);
+	}
+	if (wasGrouped) {
+		Auth().data().groups().refreshMessage(this);
+	}
+}
 
-	switch (media ? media->type() : mtpc_messageMediaEmpty) {
+void HistoryMessage::setMedia(const MTPMessageMedia &media) {
+	_media = CreateMedia(this, media);
+	if (const auto invoice = _media->invoice()) {
+		if (invoice->receiptMsgId) {
+			replaceBuyWithReceiptInMarkup();
+		}
+	}
+}
+
+std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
+		not_null<HistoryMessage*> item,
+		const MTPMessageMedia &media) {
+	switch (media.type()) {
 	case mtpc_messageMediaContact: {
-		auto &d = media->c_messageMediaContact();
-		_media = std::make_unique<Data::MediaContact>(this, d.vuser_id.v, qs(d.vfirst_name), qs(d.vlast_name), qs(d.vphone_number));
+		const auto &data = media.c_messageMediaContact();
+		return std::make_unique<Data::MediaContact>(
+			item,
+			data.vuser_id.v,
+			qs(data.vfirst_name),
+			qs(data.vlast_name),
+			qs(data.vphone_number));
 	} break;
 	case mtpc_messageMediaGeo: {
-		auto &point = media->c_messageMediaGeo().vgeo;
-		if (point.type() == mtpc_geoPoint) {
-			_media = std::make_unique<Data::MediaLocation>(this, LocationCoords(point.c_geoPoint()));
+		const auto &data = media.c_messageMediaGeo().vgeo;
+		if (data.type() == mtpc_geoPoint) {
+			return std::make_unique<Data::MediaLocation>(
+				item,
+				LocationCoords(data.c_geoPoint()));
 		}
 	} break;
 	case mtpc_messageMediaGeoLive: {
-		auto &point = media->c_messageMediaGeoLive().vgeo;
-		if (point.type() == mtpc_geoPoint) {
-			_media = std::make_unique<Data::MediaLocation>(this, LocationCoords(point.c_geoPoint()));
+		const auto &data = media.c_messageMediaGeoLive().vgeo;
+		if (data.type() == mtpc_geoPoint) {
+			return std::make_unique<Data::MediaLocation>(
+				item,
+				LocationCoords(data.c_geoPoint()));
 		}
 	} break;
 	case mtpc_messageMediaVenue: {
-		auto &d = media->c_messageMediaVenue();
-		if (d.vgeo.type() == mtpc_geoPoint) {
-			_media = std::make_unique<Data::MediaLocation>(this, LocationCoords(d.vgeo.c_geoPoint()), qs(d.vtitle), qs(d.vaddress));
+		const auto &data = media.c_messageMediaVenue();
+		if (data.vgeo.type() == mtpc_geoPoint) {
+			return std::make_unique<Data::MediaLocation>(
+				item,
+				LocationCoords(data.vgeo.c_geoPoint()),
+				qs(data.vtitle),
+				qs(data.vaddress));
 		}
 	} break;
 	case mtpc_messageMediaPhoto: {
-		auto &photo = media->c_messageMediaPhoto();
-		if (photo.has_ttl_seconds()) {
-			LOG(("App Error: Unexpected MTPMessageMediaPhoto with ttl_seconds in HistoryMessage."));
-		} else if (photo.has_photo() && photo.vphoto.type() == mtpc_photo) {
-			_media = std::make_unique<Data::MediaPhoto>(
-				this,
-				App::feedPhoto(photo.vphoto.c_photo()),
-				photo.has_caption() ? qs(photo.vcaption) : QString());
+		const auto &data = media.c_messageMediaPhoto();
+		if (data.has_ttl_seconds()) {
+			LOG(("App Error: "
+				"Unexpected MTPMessageMediaPhoto "
+				"with ttl_seconds in HistoryMessage."));
+		} else if (data.has_photo() && data.vphoto.type() == mtpc_photo) {
+			return std::make_unique<Data::MediaPhoto>(
+				item,
+				Auth().data().photo(data.vphoto.c_photo()),
+				data.has_caption() ? qs(data.vcaption) : QString());
 		} else {
-			LOG(("API Error: Got MTPMessageMediaPhoto without photo and without ttl_seconds."));
+			LOG(("API Error: "
+				"Got MTPMessageMediaPhoto "
+				"without photo and without ttl_seconds."));
 		}
 	} break;
 	case mtpc_messageMediaDocument: {
-		auto &document = media->c_messageMediaDocument();
-		if (document.has_ttl_seconds()) {
-			LOG(("App Error: Unexpected MTPMessageMediaDocument with ttl_seconds in HistoryMessage."));
-		} else if (document.has_document() && document.vdocument.type() == mtpc_document) {
-			_media = std::make_unique<Data::MediaFile>(
-				this,
-				App::feedDocument(document.vdocument.c_document()),
-				document.has_caption() ? qs(document.vcaption) : QString());
+		const auto &data = media.c_messageMediaDocument();
+		if (data.has_ttl_seconds()) {
+			LOG(("App Error: "
+				"Unexpected MTPMessageMediaDocument "
+				"with ttl_seconds in HistoryMessage."));
+		} else if (data.has_document()
+			&& data.vdocument.type() == mtpc_document) {
+			return std::make_unique<Data::MediaFile>(
+				item,
+				Auth().data().document(data.vdocument.c_document()),
+				data.has_caption() ? qs(data.vcaption) : QString());
 		} else {
-			LOG(("API Error: Got MTPMessageMediaDocument without document and without ttl_seconds."));
+			LOG(("API Error: "
+				"Got MTPMessageMediaDocument "
+				"without document and without ttl_seconds."));
 		}
 	} break;
 	case mtpc_messageMediaWebPage: {
-		auto &d = media->c_messageMediaWebPage().vwebpage;
-		switch (d.type()) {
+		const auto &data = media.c_messageMediaWebPage().vwebpage;
+		switch (data.type()) {
 		case mtpc_webPageEmpty: break;
-		case mtpc_webPagePending: {
-			_media = std::make_unique<Data::MediaWebPage>(this, App::feedWebPage(d.c_webPagePending()));
-		} break;
-		case mtpc_webPage: {
-			_media = std::make_unique<Data::MediaWebPage>(this, App::feedWebPage(d.c_webPage()));
-		} break;
-		case mtpc_webPageNotModified: LOG(("API Error: webPageNotModified is unexpected in message media.")); break;
+		case mtpc_webPagePending:
+			return std::make_unique<Data::MediaWebPage>(
+				item,
+				Auth().data().webpage(data.c_webPagePending()));
+			break;
+		case mtpc_webPage:
+			return std::make_unique<Data::MediaWebPage>(
+				item,
+				Auth().data().webpage(data.c_webPage()));
+			break;
+		case mtpc_webPageNotModified:
+			LOG(("API Error: "
+				"webPageNotModified is unexpected in message media."));
+			break;
 		}
 	} break;
 	case mtpc_messageMediaGame: {
-		auto &d = media->c_messageMediaGame().vgame;
-		if (d.type() == mtpc_game) {
-			_media = std::make_unique<Data::MediaGame>(this, App::feedGame(d.c_game()));
+		const auto &data = media.c_messageMediaGame().vgame;
+		if (data.type() == mtpc_game) {
+			return std::make_unique<Data::MediaGame>(
+				item,
+				Auth().data().game(data.c_game()));
 		}
 	} break;
 	case mtpc_messageMediaInvoice: {
-		_media = std::make_unique<Data::MediaInvoice>(this, media->c_messageMediaInvoice());
-		if (_media->invoice()->receiptMsgId) {
-			replaceBuyWithReceiptInMarkup();
-		}
+		return std::make_unique<Data::MediaInvoice>(
+			item,
+			media.c_messageMediaInvoice());
 	} break;
 	};
+
+	return nullptr;
 }
 
 void HistoryMessage::replaceBuyWithReceiptInMarkup() {
@@ -822,7 +876,7 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 	}
 	setText(textWithEntities);
 	setReplyMarkup(message.has_reply_markup() ? (&message.vreply_markup) : nullptr);
-	initMedia(message.has_media() ? (&message.vmedia) : nullptr);
+	refreshMedia(message.has_media() ? (&message.vmedia) : nullptr);
 	setViewsCount(message.has_views() ? message.vviews.v : -1);
 
 	finishEdition(keyboardTop);
@@ -836,22 +890,22 @@ void HistoryMessage::applyEdition(const MTPDmessageService &message) {
 
 void HistoryMessage::applyEditionToEmpty() {
 	setEmptyText();
-	initMedia(nullptr);
+	refreshMedia(nullptr);
 	setReplyMarkup(nullptr);
 	setViewsCount(-1);
 
 	finishEditionToEmpty();
 }
 
-void HistoryMessage::updateMedia(const MTPMessageMedia *media) {
+void HistoryMessage::updateSentMedia(const MTPMessageMedia *media) {
 	if (_flags & MTPDmessage_ClientFlag::f_from_inline_bot) {
 		if (!media || !_media || !_media->updateInlineResultMedia(*media)) {
-			initMedia(media);
+			refreshMedia(media);
 		}
 		_flags &= ~MTPDmessage_ClientFlag::f_from_inline_bot;
 	} else {
 		if (!media || !_media || !_media->updateSentMedia(*media)) {
-			initMedia(media);
+			refreshMedia(media);
 		}
 	}
 	Auth().data().requestItemViewResize(this);
@@ -897,7 +951,7 @@ Storage::SharedMediaTypesMask HistoryMessage::sharedMediaTypes() const {
 	//	mediaRemovedSkipBlock = _media->isDisplayed() && _media->isBubbleBottom();
 	//	_media.reset();
 	//}
-	//initMedia(media);
+	//refreshMedia(media);
 	//auto mediaDisplayed = _media && _media->isDisplayed();
 	//if (mediaDisplayed && _media->isBubbleBottom() && !mediaRemovedSkipBlock) {
 	//	_text.removeSkipBlock();
@@ -996,15 +1050,23 @@ bool HistoryMessage::textHasLinks() const {
 }
 
 void HistoryMessage::setViewsCount(int32 count) {
-	auto views = Get<HistoryMessageViews>();
-	if (!views || views->_views == count || (count >= 0 && views->_views > count)) return;
+	const auto views = Get<HistoryMessageViews>();
+	if (!views
+		|| views->_views == count
+		|| (count >= 0 && views->_views > count)) {
+		return;
+	}
 
-	int32 was = views->_viewsWidth;
+	const auto was = views->_viewsWidth;
 	views->_views = count;
-	views->_viewsText = (views->_views >= 0) ? FormatViewsCount(views->_views) : QString();
-	views->_viewsWidth = views->_viewsText.isEmpty() ? 0 : st::msgDateFont->width(views->_viewsText);
+	views->_viewsText = (views->_views >= 0)
+		? FormatViewsCount(views->_views)
+		: QString();
+	views->_viewsWidth = views->_viewsText.isEmpty()
+		? 0
+		: st::msgDateFont->width(views->_viewsText);
 	if (was == views->_viewsWidth) {
-		Auth().data().requestItemRepaint(this);
+		Auth().data().requestItemViewRepaint(this);
 	} else {
 		Auth().data().requestItemViewResize(this);
 	}
@@ -1012,6 +1074,7 @@ void HistoryMessage::setViewsCount(int32 count) {
 
 void HistoryMessage::setRealId(MsgId newId) {
 	HistoryItem::setRealId(newId);
+	Auth().data().groups().refreshMessage(this);
 	Auth().data().requestItemViewResize(this);
 }
 
@@ -1026,9 +1089,8 @@ QString HistoryMessage::notificationHeader() const {
 }
 
 std::unique_ptr<HistoryView::Element> HistoryMessage::createView(
-		not_null<Window::Controller*> controller,
-		HistoryView::Context context) {
-	return controller->createMessageView(this, context);
+		not_null<HistoryView::ElementDelegate*> delegate) {
+	return delegate->elementCreate(this);
 }
 
 HistoryMessage::~HistoryMessage() {

@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_top_bar_widget.h"
 
+namespace HistoryView {
+class ElementDelegate;
+} // namespace HistoryView
+
 namespace Window {
 class Controller;
 } // namespace Window
@@ -83,9 +87,12 @@ public:
 	// to move scroll position so that mouse points to the same button row.
 	int moveScrollFollowingInlineKeyboard(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
 
-	// AbstractTooltipShower interface
+	// Ui::AbstractTooltipShower interface.
 	QString tooltipText() const override;
 	QPoint tooltipPos() const override;
+
+	// HistoryView::ElementDelegate interface.
+	static not_null<HistoryView::ElementDelegate*> ElementDelegate();
 
 	~HistoryInner();
 

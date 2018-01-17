@@ -9,11 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_photo.h"
 #include "data/data_document.h"
+#include "data/data_session.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "inline_bots/inline_bot_send_data.h"
 #include "storage/file_download.h"
 #include "core/file_utilities.h"
 #include "mainwidget.h"
+#include "auth_session.h"
 
 namespace InlineBots {
 
@@ -78,10 +80,10 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 		if (r.has_title()) result->_title = qs(r.vtitle);
 		if (r.has_description()) result->_description = qs(r.vdescription);
 		if (r.has_photo()) {
-			result->_photo = App::feedPhoto(r.vphoto);
+			result->_photo = Auth().data().photo(r.vphoto);
 		}
 		if (r.has_document()) {
-			result->_document = App::feedDocument(r.vdocument);
+			result->_document = Auth().data().document(r.vdocument);
 		}
 		message = &r.vsend_message;
 	} break;
@@ -315,7 +317,13 @@ void Result::createPhoto() {
 
 	ImagePtr full = ImagePtr(_content_url, _width, _height);
 	auto photoId = rand_value<PhotoId>();
-	_photo = App::photoSet(photoId, 0, 0, unixtime(), _thumb, medium, full);
+	_photo = Auth().data().photo(
+		photoId,
+		uint64(0),
+		unixtime(),
+		_thumb,
+		medium,
+		full);
 	_photo->thumb = _thumb;
 }
 
@@ -354,15 +362,32 @@ void Result::createDocument() {
 	}
 
 	auto documentId = rand_value<DocumentId>();
-	_document = App::documentSet(documentId, nullptr, 0, 0, unixtime(), attributes, mime, _thumb, MTP::maindc(), 0, StorageImageLocation());
+	_document = Auth().data().document(
+		documentId,
+		uint64(0),
+		int32(0),
+		unixtime(),
+		attributes,
+		mime,
+		_thumb,
+		MTP::maindc(),
+		int32(0),
+		StorageImageLocation());
 	_document->setContentUrl(_content_url);
 }
 
 void Result::createGame() {
 	if (_game) return;
 
-	auto gameId = rand_value<GameId>();
-	_game = App::gameSet(gameId, nullptr, 0, QString(), _title, _description, _photo, _document);
+	const auto gameId = rand_value<GameId>();
+	_game = Auth().data().game(
+		gameId,
+		0,
+		QString(),
+		_title,
+		_description,
+		_photo,
+		_document);
 }
 
 } // namespace InlineBots

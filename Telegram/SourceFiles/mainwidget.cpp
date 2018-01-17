@@ -256,9 +256,6 @@ MainWidget::MainWidget(
 	connect(&_updateMutedTimer, SIGNAL(timeout()), this, SLOT(onUpdateMuted()));
 	connect(&_viewsIncrementTimer, SIGNAL(timeout()), this, SLOT(onViewsIncrement()));
 
-	_webPageOrGameUpdater.setSingleShot(true);
-	connect(&_webPageOrGameUpdater, SIGNAL(timeout()), this, SLOT(webPagesOrGamesUpdate()));
-
 	using Update = Window::Theme::BackgroundUpdate;
 	subscribe(Window::Theme::Background(), [this](const Update &update) {
 		if (update.type == Update::Type::New || update.type == Update::Type::Changed) {
@@ -687,44 +684,6 @@ void MainWidget::finishForwarding(not_null<History*> history) {
 	historyToDown(history);
 	dialogsToUp();
 	_history->peerMessagesUpdated(history->peer->id);
-}
-
-void MainWidget::webPageUpdated(WebPageData *data) {
-	_webPagesUpdated.insert(data->id);
-	_webPageOrGameUpdater.start(0);
-}
-
-void MainWidget::gameUpdated(GameData *data) {
-	_gamesUpdated.insert(data->id);
-	_webPageOrGameUpdater.start(0);
-}
-
-void MainWidget::webPagesOrGamesUpdate() {
-	_webPageOrGameUpdater.stop();
-	if (!_webPagesUpdated.isEmpty()) {
-		auto &items = App::webPageItems();
-		for_const (auto webPageId, _webPagesUpdated) {
-			auto j = items.constFind(App::webPage(webPageId));
-			if (j != items.cend()) {
-				for_const (auto item, j.value()) {
-					Auth().data().requestItemViewResize(item);
-				}
-			}
-		}
-		_webPagesUpdated.clear();
-	}
-	if (!_gamesUpdated.isEmpty()) {
-		auto &items = App::gameItems();
-		for_const (auto gameId, _gamesUpdated) {
-			auto j = items.constFind(App::game(gameId));
-			if (j != items.cend()) {
-				for_const (auto item, j.value()) {
-					Auth().data().requestItemViewResize(item);
-				}
-			}
-		}
-		_gamesUpdated.clear();
-	}
 }
 
 void MainWidget::updateMutedIn(TimeMs delay) {
@@ -1435,8 +1394,11 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 		if (message.webPageId == CancelledWebPageId) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_no_webpage;
 		} else if (message.webPageId) {
-			auto page = App::webPage(message.webPageId);
-			media = MTP_messageMediaWebPage(MTP_webPagePending(MTP_long(page->id), MTP_int(page->pendingTill)));
+			auto page = Auth().data().webpage(message.webPageId);
+			media = MTP_messageMediaWebPage(
+				MTP_webPagePending(
+					MTP_long(page->id),
+					MTP_int(page->pendingTill)));
 			flags |= MTPDmessage::Flag::f_media;
 		}
 		bool channelPost = peer->isChannel() && !peer->isMegagroup();
@@ -1600,20 +1562,14 @@ void MainWidget::messagesAffected(
 	}
 }
 
-void MainWidget::messagesContentsRead(
-		const MTPmessages_AffectedMessages &result) {
-	const auto &data = result.c_messages_affectedMessages();
-	ptsUpdateAndApply(data.vpts.v, data.vpts_count.v);
-}
-
 void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
 	using State = Media::Player::State;
+	const auto document = audioId.audio();
 	auto state = Media::Player::mixer()->currentState(audioId.type());
 	if (state.id == audioId && state.state == State::StoppedAtStart) {
 		state.state = State::Stopped;
 		Media::Player::mixer()->clearStoppedAtStart(audioId);
 
-		auto document = audioId.audio();
 		auto filepath = document->filepath(DocumentData::FilePathResolveSaveFromData);
 		if (!filepath.isEmpty()) {
 			if (documentIsValidMediaFile(filepath)) {
@@ -1628,13 +1584,15 @@ void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
 		}
 	}
 
-	if (auto item = App::histItemById(audioId.contextId())) {
-		Auth().data().requestItemRepaint(item);
+	if (const auto item = App::histItemById(audioId.contextId())) {
+		Auth().data().requestItemViewRepaint(item);
 		item->audioTrackUpdated();
 	}
-	if (auto items = InlineBots::Layout::documentItems()) {
-		for (auto item : items->value(audioId.audio())) {
-			item->update();
+	if (const auto items = InlineBots::Layout::documentItems()) {
+		if (const auto i = items->find(document); i != items->end()) {
+			for (const auto item : i->second) {
+				item->update();
+			}
 		}
 	}
 }
@@ -1795,7 +1753,7 @@ void MainWidget::callTopBarHeightUpdated(int callTopBarHeight) {
 
 void MainWidget::documentLoadProgress(FileLoader *loader) {
 	if (auto documentId = loader ? loader->objId() : 0) {
-		documentLoadProgress(App::document(documentId));
+		documentLoadProgress(Auth().data().document(documentId));
 	}
 }
 
@@ -1804,13 +1762,7 @@ void MainWidget::documentLoadProgress(DocumentData *document) {
 		document->performActionOnLoad();
 	}
 
-	auto &items = App::documentItems();
-	auto i = items.constFind(document);
-	if (i != items.cend()) {
-		for_const (auto item, i.value()) {
-			Auth().data().requestItemRepaint(item);
-		}
-	}
+	Auth().data().requestDocumentViewRepaint(document);
 	Auth().documentUpdated.notify(document, true);
 
 	if (!document->loaded() && document->isAudioFile()) {
@@ -1822,7 +1774,7 @@ void MainWidget::documentLoadFailed(FileLoader *loader, bool started) {
 	auto documentId = loader ? loader->objId() : 0;
 	if (!documentId) return;
 
-	auto document = App::document(documentId);
+	auto document = Auth().data().document(documentId);
 	if (started) {
 		auto failedFileName = loader->fileName();
 		Ui::show(Box<ConfirmBox>(lang(lng_download_finish_failed), base::lambda_guarded(this, [this, document, failedFileName] {
@@ -1860,63 +1812,6 @@ void MainWidget::inlineResultLoadFailed(FileLoader *loader, bool started) {
 	//result->loaded();
 
 	//Ui::repaintInlineItem();
-}
-
-void MainWidget::mediaMarkRead(not_null<DocumentData*> data) {
-	auto &items = App::documentItems();
-	auto i = items.constFind(data);
-	if (i != items.cend()) {
-		mediaMarkRead({ i.value().begin(), i.value().end() });
-	}
-}
-
-void MainWidget::mediaMarkRead(
-		const base::flat_set<not_null<HistoryItem*>> &items) {
-	QVector<MTPint> markedIds;
-	base::flat_map<not_null<ChannelData*>, QVector<MTPint>> channelMarkedIds;
-	markedIds.reserve(items.size());
-	for (const auto item : items) {
-		if (!item->isMediaUnread() || (item->out() && !item->mentionsMe())) {
-			continue;
-		}
-		item->markMediaRead();
-		if (item->id > 0) {
-			if (const auto channel = item->history()->peer->asChannel()) {
-				channelMarkedIds[channel].push_back(MTP_int(item->id));
-			} else {
-				markedIds.push_back(MTP_int(item->id));
-			}
-		}
-	}
-	if (!markedIds.isEmpty()) {
-		MTP::send(
-			MTPmessages_ReadMessageContents(MTP_vector<MTPint>(markedIds)),
-			rpcDone(&MainWidget::messagesContentsRead));
-	}
-	for (const auto &channelIds : channelMarkedIds) {
-		MTP::send(MTPchannels_ReadMessageContents(
-			channelIds.first->inputChannel,
-			MTP_vector<MTPint>(channelIds.second)));
-	}
-}
-
-void MainWidget::mediaMarkRead(not_null<HistoryItem*> item) {
-	if ((!item->out() || item->mentionsMe()) && item->isMediaUnread()) {
-		item->markMediaRead();
-		if (item->id > 0) {
-			const auto ids = MTP_vector<MTPint>(1, MTP_int(item->id));
-			if (const auto channel = item->history()->peer->asChannel()) {
-				MTP::send(
-					MTPchannels_ReadMessageContents(
-						channel->inputChannel,
-						ids));
-			} else {
-				MTP::send(
-					MTPmessages_ReadMessageContents(ids),
-					rpcDone(&MainWidget::messagesContentsRead));
-			}
-		}
-	}
 }
 
 void MainWidget::onSendFileConfirm(
@@ -4808,8 +4703,9 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 					const auto entities = d.has_entities()
 						? TextUtilities::EntitiesFromMTP(d.ventities.v)
 						: EntitiesInText();
+					const auto media = d.has_media() ? &d.vmedia : nullptr;
 					item->setText({ text, entities });
-					item->updateMedia(d.has_media() ? (&d.vmedia) : nullptr);
+					item->updateSentMedia(media);
 					if (!wasAlready) {
 						item->indexAsNewItem();
 					}
@@ -4927,7 +4823,8 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		auto &d = update.c_updateChannelReadMessagesContents();
 		auto channel = App::channelLoaded(d.vchannel_id.v);
 		if (!channel) {
-			if (!_byMinChannelTimer.isActive()) { // getDifference after timeout
+			if (!_byMinChannelTimer.isActive()) {
+				// getDifference after timeout.
 				_byMinChannelTimer.start(WaitForSkippedTimeout);
 			}
 			return;
@@ -4937,7 +4834,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			if (auto item = App::histItemById(channel, msgId.v)) {
 				if (item->isMediaUnread()) {
 					item->markMediaRead();
-					Auth().data().requestItemRepaint(item);
+					Auth().data().requestItemViewRepaint(item);
 				}
 			} else {
 				// Perhaps it was an unread mention!
@@ -5040,9 +4937,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		auto &d = update.c_updateWebPage();
 
 		// Update web page anyway.
-		App::feedWebPage(d.vwebpage);
+		Auth().data().webpage(d.vwebpage);
 		_history->updatePreview();
-		webPagesOrGamesUpdate();
+		Auth().data().sendWebPageGameNotifications();
 
 		ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update);
 	} break;
@@ -5051,9 +4948,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		auto &d = update.c_updateChannelWebPage();
 
 		// Update web page anyway.
-		App::feedWebPage(d.vwebpage);
+		Auth().data().webpage(d.vwebpage);
 		_history->updatePreview();
-		webPagesOrGamesUpdate();
+		Auth().data().sendWebPageGameNotifications();
 
 		auto channel = App::channelLoaded(d.vchannel_id.v);
 		if (channel && !_handlingChannelDifference) {
@@ -5419,8 +5316,8 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					it->stickers.clear();
 					it->stickers.reserve(v.size());
 					for (int i = 0, l = v.size(); i < l; ++i) {
-						auto doc = App::feedDocument(v.at(i));
-						if (!doc || !doc->sticker()) continue;
+						const auto doc = Auth().data().document(v.at(i));
+						if (!doc->sticker()) continue;
 
 						it->stickers.push_back(doc);
 						if (doc->sticker()->set.type() != mtpc_inputStickerSetID) {
@@ -5439,8 +5336,8 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 							Stickers::Pack p;
 							p.reserve(stickers.size());
 							for (auto j = 0, c = stickers.size(); j != c; ++j) {
-								auto doc = App::document(stickers[j].v);
-								if (!doc || !doc->sticker()) continue;
+								auto doc = Auth().data().document(stickers[j].v);
+								if (!doc->sticker()) continue;
 
 								p.push_back(doc);
 							}

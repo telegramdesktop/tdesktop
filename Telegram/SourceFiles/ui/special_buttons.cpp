@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/empty_userpic.h"
 #include "data/data_photo.h"
+#include "data/data_session.h"
 #include "core/file_utilities.h"
 #include "boxes/photo_crop_box.h"
 #include "boxes/confirm_box.h"
@@ -479,7 +480,7 @@ void UserpicButton::openPeerPhoto() {
 	if (!id) {
 		return;
 	}
-	const auto photo = App::photo(id);
+	const auto photo = Auth().data().photo(id);
 	if (photo->date) {
 		Messenger::Instance().showPhoto(photo, _peer);
 	}

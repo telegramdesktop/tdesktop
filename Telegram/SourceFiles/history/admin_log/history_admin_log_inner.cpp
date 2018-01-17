@@ -14,8 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/admin_log/history_admin_log_section.h"
 #include "history/admin_log/history_admin_log_filter.h"
+#include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
-#include "history/view/history_view_element.h"
 #include "chat_helpers/message_field.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -213,7 +213,7 @@ InnerWidget::InnerWidget(
 , _emptyText(st::historyAdminLogEmptyWidth - st::historyAdminLogEmptyPadding.left() - st::historyAdminLogEmptyPadding.left()) {
 	setMouseTracking(true);
 	_scrollDateHideTimer.setCallback([this] { scrollDateHideByTimer(); });
-	Auth().data().itemRepaintRequest(
+	Auth().data().itemViewRepaintRequest(
 	) | rpl::start_with_next([this](auto item) {
 		if (item->isLogEntry() && _history == item->history()) {
 			repaintItem(viewForItem(item));
@@ -441,6 +441,20 @@ QPoint InnerWidget::tooltipPos() const {
 	return _mousePosition;
 }
 
+std::unique_ptr<HistoryView::Element> InnerWidget::elementCreate(
+		not_null<HistoryMessage*> message) {
+	return std::make_unique<HistoryView::Message>(
+		message,
+		HistoryView::Context::AdminLog);
+}
+
+std::unique_ptr<HistoryView::Element> InnerWidget::elementCreate(
+		not_null<HistoryService*> message) {
+	return std::make_unique<HistoryView::Service>(
+		message,
+		HistoryView::Context::AdminLog);
+}
+
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 	memento->setFilter(std::move(_filter));
 	memento->setAdmins(std::move(_admins));
@@ -544,7 +558,7 @@ void InnerWidget::addEvents(Direction direction, const QVector<MTPChannelAdminLo
 			++count;
 		};
 		GenerateItems(
-			_controller,
+			this,
 			_history,
 			_idManager,
 			data,

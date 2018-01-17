@@ -115,13 +115,19 @@ private:
 
 };
 
-using DocumentItems = QMap<DocumentData*, OrderedSet<ItemBase*>>;
+using DocumentItems = std::map<
+	not_null<const DocumentData*>,
+	base::flat_set<not_null<ItemBase*>>>;
 const DocumentItems *documentItems();
 
 namespace internal {
 
-void regDocumentItem(DocumentData *document, ItemBase *item);
-void unregDocumentItem(DocumentData *document, ItemBase *item);
+void regDocumentItem(
+	not_null<const DocumentData*> document,
+	not_null<ItemBase*> item);
+void unregDocumentItem(
+	not_null<const DocumentData*> document,
+	not_null<ItemBase*> item);
 
 } // namespace internal
 } // namespace Layout

@@ -73,6 +73,9 @@ public:
 	void processFullPeer(PeerData *peer, const MTPmessages_ChatFull &result);
 	void processFullPeer(UserData *user, const MTPUserFull &result);
 
+	void markMediaRead(const base::flat_set<not_null<HistoryItem*>> &items);
+	void markMediaRead(not_null<HistoryItem*> item);
+
 	void requestSelfParticipant(ChannelData *channel);
 	void kickParticipant(not_null<ChatData*> chat, not_null<UserData*> user);
 	void kickParticipant(

@@ -127,7 +127,7 @@ ItemBase::ItemBase(not_null<HistoryItem*> parent) : _parent(parent) {
 void ItemBase::clickHandlerActiveChanged(
 		const ClickHandlerPtr &action,
 		bool active) {
-	Auth().data().requestItemRepaint(_parent);
+	Auth().data().requestItemViewRepaint(_parent);
 	if (_check) {
 		_check->setActive(active);
 	}
@@ -136,7 +136,7 @@ void ItemBase::clickHandlerActiveChanged(
 void ItemBase::clickHandlerPressedChanged(
 		const ClickHandlerPtr &action,
 		bool pressed) {
-	Auth().data().requestItemRepaint(_parent);
+	Auth().data().requestItemViewRepaint(_parent);
 	if (_check) {
 		_check->setPressed(pressed);
 	}
@@ -168,7 +168,7 @@ const style::RoundCheckbox &ItemBase::checkboxStyle() const {
 void ItemBase::ensureCheckboxCreated() {
 	if (!_check) {
 		_check = std::make_unique<Checkbox>(
-			[this] { Auth().data().requestItemRepaint(_parent); },
+			[=] { Auth().data().requestItemViewRepaint(_parent); },
 			checkboxStyle());
 	}
 }
@@ -203,7 +203,7 @@ void RadialProgressItem::clickHandlerActiveChanged(const ClickHandlerPtr &action
 	if (action == _openl || action == _savel || action == _cancell) {
 		if (iconAnimated()) {
 			_a_iconOver.start(
-				[this] { Auth().data().requestItemRepaint(parent()); },
+				[=] { Auth().data().requestItemViewRepaint(parent()); },
 				active ? 0. : 1.,
 				active ? 1. : 0.,
 				st::msgFileOverDuration);
@@ -219,7 +219,7 @@ void RadialProgressItem::setLinks(ClickHandlerPtr &&openl, ClickHandlerPtr &&sav
 
 void RadialProgressItem::step_radial(TimeMs ms, bool timer) {
 	if (timer) {
-		Auth().data().requestItemRepaint(parent());
+		Auth().data().requestItemViewRepaint(parent());
 	} else {
 		_radial->update(dataProgress(), dataFinished(), ms);
 		if (!_radial->animating()) {

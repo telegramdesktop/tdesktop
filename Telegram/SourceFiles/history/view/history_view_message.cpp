@@ -57,7 +57,7 @@ const style::TextStyle &KeyboardStyle::textStyle() const {
 }
 
 void KeyboardStyle::repaint(not_null<const HistoryItem*> item) const {
-	Auth().data().requestItemRepaint(item);
+	Auth().data().requestItemViewRepaint(item);
 }
 
 int KeyboardStyle::buttonRadius() const {

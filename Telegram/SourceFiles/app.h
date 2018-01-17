@@ -25,15 +25,7 @@ class Element;
 } // namespace HistoryView
 
 using HistoryItemsMap = base::flat_set<not_null<HistoryItem*>>;
-using PhotoItems = QHash<PhotoData*, HistoryItemsMap>;
-using DocumentItems = QHash<DocumentData*, HistoryItemsMap>;
-using WebPageItems = QHash<WebPageData*, HistoryItemsMap>;
-using GameItems = QHash<GameData*, HistoryItemsMap>;
-using SharedContactItems = QHash<int32, HistoryItemsMap>;
 using GifItems = QHash<Media::Clip::Reader*, HistoryItem*>;
-
-using PhotosData = QHash<PhotoId, PhotoData*>;
-using DocumentsData = QHash<DocumentId, DocumentData*>;
 
 enum RoundCorners {
 	SmallMaskCorners = 0x00, // for images
@@ -103,18 +95,6 @@ namespace App {
 
 	ImagePtr image(const MTPPhotoSize &size);
 
-	PhotoData *feedPhoto(const MTPPhoto &photo, const PreparedPhotoThumbs &thumbs);
-	PhotoData *feedPhoto(const MTPPhoto &photo, PhotoData *convert = nullptr);
-	PhotoData *feedPhoto(const MTPDphoto &photo, PhotoData *convert = nullptr);
-	DocumentData *feedDocument(const MTPdocument &document, const QPixmap &thumb);
-	DocumentData *feedDocument(const MTPdocument &document, DocumentData *convert = nullptr);
-	DocumentData *feedDocument(const MTPDdocument &document, DocumentData *convert = nullptr);
-	WebPageData *feedWebPage(const MTPDwebPage &webpage, WebPageData *convert = nullptr);
-	WebPageData *feedWebPage(const MTPDwebPagePending &webpage, WebPageData *convert = nullptr);
-	WebPageData *feedWebPage(const MTPWebPage &webpage);
-	WebPageData *feedWebPage(WebPageId webPageId, const QString &siteName, const TextWithEntities &content);
-	GameData *feedGame(const MTPDgame &game, GameData *convert = nullptr);
-
 	PeerData *peer(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded);
 	inline UserData *user(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
 		return asUser(peer(id, restriction));
@@ -160,53 +140,7 @@ namespace App {
 	UserData *self();
 	PeerData *peerByName(const QString &username);
 	QString peerName(const PeerData *peer, bool forDialogs = false);
-	PhotoData *photo(const PhotoId &photo);
-	PhotoData *photoSet(
-		const PhotoId &photo,
-		PhotoData *convert,
-		const uint64 &access,
-		int32 date,
-		const ImagePtr &thumb,
-		const ImagePtr &medium,
-		const ImagePtr &full);
-	DocumentData *document(const DocumentId &document);
-	DocumentData *documentSet(
-		const DocumentId &document,
-		DocumentData *convert,
-		const uint64 &access,
-		int32 version,
-		int32 date,
-		const QVector<MTPDocumentAttribute> &attributes,
-		const QString &mime,
-		const ImagePtr &thumb,
-		int32 dc,
-		int32 size,
-		const StorageImageLocation &thumbLocation);
-	WebPageData *webPage(const WebPageId &webPage);
-	WebPageData *webPageSet(
-		const WebPageId &webPage,
-		WebPageData *convert,
-		const QString &type,
-		const QString &url,
-		const QString &displayUrl,
-		const QString &siteName,
-		const QString &title,
-		const TextWithEntities &description,
-		PhotoData *photo,
-		DocumentData *document,
-		int duration,
-		const QString &author,
-		int pendingTill);
-	GameData *game(const GameId &game);
-	GameData *gameSet(
-		const GameId &game,
-		GameData *convert,
-		const uint64 &accessHash,
-		const QString &shortName,
-		const QString &title,
-		const QString &description,
-		PhotoData *photo,
-		DocumentData *document);
+
 	LocationData *location(const LocationCoords &coords);
 	void forgetMedia();
 
@@ -287,34 +221,6 @@ namespace App {
 	QImage readImage(QByteArray data, QByteArray *format = nullptr, bool opaque = true, bool *animated = nullptr);
 	QImage readImage(const QString &file, QByteArray *format = nullptr, bool opaque = true, bool *animated = nullptr, QByteArray *content = 0);
 	QPixmap pixmapFromImageInPlace(QImage &&image);
-
-	void regPhotoItem(PhotoData *data, HistoryItem *item);
-	void unregPhotoItem(PhotoData *data, HistoryItem *item);
-	const PhotoItems &photoItems();
-	const PhotosData &photosData();
-
-	void regDocumentItem(DocumentData *data, HistoryItem *item);
-	void unregDocumentItem(DocumentData *data, HistoryItem *item);
-	const DocumentItems &documentItems();
-	const DocumentsData &documentsData();
-
-	void regWebPageItem(WebPageData *data, HistoryItem *item);
-	void unregWebPageItem(WebPageData *data, HistoryItem *item);
-	const WebPageItems &webPageItems();
-
-	void regGameItem(GameData *data, HistoryItem *item);
-	void unregGameItem(GameData *data, HistoryItem *item);
-	const GameItems &gameItems();
-
-	void regSharedContactItem(int32 userId, HistoryItem *item);
-	void unregSharedContactItem(int32 userId, HistoryItem *item);
-	const SharedContactItems &sharedContactItems();
-	QString phoneFromSharedContact(int32 userId);
-
-	void regGifItem(Media::Clip::Reader *reader, HistoryItem *item);
-	void unregGifItem(Media::Clip::Reader *reader);
-	void stopRoundVideoPlayback();
-	void stopGifItems();
 
 	void regMuted(not_null<PeerData*> peer, TimeMs changeIn);
 	void unregMuted(not_null<PeerData*> peer);

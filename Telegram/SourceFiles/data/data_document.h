@@ -290,8 +290,6 @@ private:
 	FullMsgId _actionOnLoadMsgId;
 	mutable FileLoader *_loader = nullptr;
 
-	void notifyLayoutChanged() const;
-
 	void destroyLoaderDelayed(
 		mtpFileLoader *newValue = nullptr) const;
 

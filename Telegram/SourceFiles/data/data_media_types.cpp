@@ -10,9 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_media_types.h"
 #include "history/history_item.h"
 #include "history/history_location_manager.h"
+#include "history/view/history_view_element.h"
 #include "storage/storage_shared_media.h"
 #include "storage/localstorage.h"
+#include "data/data_session.h"
 #include "lang/lang_keys.h"
+#include "auth_session.h"
 #include "layout.h"
 
 namespace Data {
@@ -70,9 +73,22 @@ Invoice ComputeInvoiceData(const MTPDmessageMediaInvoice &data) {
 			// We don't use size from WebDocument, because it is not reliable.
 			// It can be > 0 and different from the real size that we get in upload.WebFile result.
 			auto filesize = 0; // doc.vsize.v;
-			auto full = ImagePtr(WebFileImageLocation(imageSize.width(), imageSize.height(), doc.vdc_id.v, doc.vurl.v, doc.vaccess_hash.v), filesize);
+			auto full = ImagePtr(
+				WebFileImageLocation(
+					imageSize.width(),
+					imageSize.height(),
+					doc.vdc_id.v,
+					doc.vurl.v,
+					doc.vaccess_hash.v),
+				filesize);
 			auto photoId = rand_value<PhotoId>();
-			result.photo = App::photoSet(photoId, 0, 0, unixtime(), thumb, medium, full);
+			result.photo = Auth().data().photo(
+				photoId,
+				uint64(0),
+				unixtime(),
+				thumb,
+				medium,
+				full);
 		}
 	}
 	return result;
@@ -162,6 +178,10 @@ Storage::SharedMediaTypesMask Media::sharedMediaTypes() const {
 	return {};
 }
 
+bool Media::canBeGrouped() const {
+	return false;
+}
+
 QString Media::caption() const {
 	return QString();
 }
@@ -209,6 +229,11 @@ bool Media::consumeMessageText(const TextWithEntities &text) {
 	return false;
 }
 
+std::unique_ptr<HistoryMedia> Media::createView(
+		not_null<HistoryView::Element*> message) {
+	return createView(message, message->data());
+}
+
 MediaPhoto::MediaPhoto(
 	not_null<HistoryItem*> parent,
 	not_null<PhotoData*> photo,
@@ -216,7 +241,6 @@ MediaPhoto::MediaPhoto(
 : Media(parent)
 , _photo(photo)
 , _caption(caption) {
-	App::regPhotoItem(_photo, parent);
 }
 
 MediaPhoto::MediaPhoto(
@@ -226,11 +250,9 @@ MediaPhoto::MediaPhoto(
 : Media(parent)
 , _photo(photo)
 , _chat(chat) {
-	App::regPhotoItem(_photo, parent);
 }
 
 MediaPhoto::~MediaPhoto() {
-	App::unregPhotoItem(_photo, parent());
 }
 
 std::unique_ptr<Media> MediaPhoto::clone(not_null<HistoryItem*> parent) {
@@ -255,6 +277,10 @@ Storage::SharedMediaTypesMask MediaPhoto::sharedMediaTypes() const {
 	return Storage::SharedMediaTypesMask{}
 		.added(Type::Photo)
 		.added(Type::PhotoVideo);
+}
+
+bool MediaPhoto::canBeGrouped() const {
+	return true;
 }
 
 QString MediaPhoto::caption() const {
@@ -293,7 +319,7 @@ bool MediaPhoto::updateInlineResultMedia(const MTPMessageMedia &media) {
 	}
 	auto &photo = media.c_messageMediaPhoto();
 	if (photo.has_photo() && !photo.has_ttl_seconds()) {
-		if (auto existing = App::feedPhoto(photo.vphoto)) {
+		if (auto existing = Auth().data().photo(photo.vphoto)) {
 			if (existing == _photo) {
 				return true;
 			} else {
@@ -321,7 +347,7 @@ bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
 		return false;
 	}
 	const auto &photo = mediaPhoto.vphoto;
-	App::feedPhoto(photo, _photo);
+	Auth().data().photoConvert(_photo, photo);
 
 	if (photo.type() != mtpc_photo) {
 		return false;
@@ -370,7 +396,8 @@ bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
 }
 
 std::unique_ptr<HistoryMedia> MediaPhoto::createView(
-		not_null<HistoryView::Element*> message) {
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) {
 	if (_chat) {
 		return std::make_unique<HistoryPhoto>(
 			message,
@@ -378,7 +405,11 @@ std::unique_ptr<HistoryMedia> MediaPhoto::createView(
 			_photo,
 			st::msgServicePhotoWidth);
 	}
-	return std::make_unique<HistoryPhoto>(message, _photo, _caption);
+	return std::make_unique<HistoryPhoto>(
+		message,
+		realParent,
+		_photo,
+		_caption);
 }
 
 MediaFile::MediaFile(
@@ -389,7 +420,7 @@ MediaFile::MediaFile(
 , _document(document)
 , _caption(caption)
 , _emoji(document->sticker() ? document->sticker()->alt : QString()) {
-	App::regDocumentItem(_document, parent);
+	Auth().data().registerDocumentItem(_document, parent);
 
 	if (!_emoji.isEmpty()) {
 		if (const auto emoji = Ui::Emoji::Find(_emoji)) {
@@ -399,7 +430,7 @@ MediaFile::MediaFile(
 }
 
 MediaFile::~MediaFile() {
-	App::unregDocumentItem(_document, parent());
+	Auth().data().unregisterDocumentItem(_document, parent());
 }
 
 std::unique_ptr<Media> MediaFile::clone(not_null<HistoryItem*> parent) {
@@ -436,6 +467,10 @@ Storage::SharedMediaTypesMask MediaFile::sharedMediaTypes() const {
 		return Type::MusicFile;
 	}
 	return Type::File;
+}
+
+bool MediaFile::canBeGrouped() const {
+	return _document->isVideoFile();
 }
 
 QString MediaFile::chatsListText() const {
@@ -545,12 +580,11 @@ bool MediaFile::updateInlineResultMedia(const MTPMessageMedia &media) {
 	}
 	auto &data = media.c_messageMediaDocument();
 	if (data.has_document() && !data.has_ttl_seconds()) {
-		if (const auto document = App::feedDocument(data.vdocument)) {
-			if (document == _document) {
-				return false;
-			} else {
-				document->collectLocalData(_document);
-			}
+		const auto document = Auth().data().document(data.vdocument);
+		if (document == _document) {
+			return false;
+		} else {
+			document->collectLocalData(_document);
 		}
 	} else {
 		LOG(("API Error: "
@@ -571,25 +605,30 @@ bool MediaFile::updateSentMedia(const MTPMessageMedia &media) {
 			"or with ttl_seconds in updateSentMedia()"));
 		return false;
 	}
-	const auto changed = App::feedDocument(data.vdocument, _document);
-	if (!changed->data().isEmpty()) {
-		if (changed->isVoiceMessage()) {
-			Local::writeAudio(changed->mediaKey(), changed->data());
+	Auth().data().documentConvert(_document, data.vdocument);
+	if (!_document->data().isEmpty()) {
+		if (_document->isVoiceMessage()) {
+			Local::writeAudio(_document->mediaKey(), _document->data());
 		} else {
-			Local::writeStickerImage(changed->mediaKey(), changed->data());
+			Local::writeStickerImage(_document->mediaKey(), _document->data());
 		}
 	}
 	return true;
 }
 
 std::unique_ptr<HistoryMedia> MediaFile::createView(
-		not_null<HistoryView::Element*> message) {
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) {
 	if (_document->sticker()) {
 		return std::make_unique<HistorySticker>(message, _document);
 	} else if (_document->isAnimation()) {
 		return std::make_unique<HistoryGif>(message, _document, _caption);
 	} else if (_document->isVideoFile()) {
-		return std::make_unique<HistoryVideo>(message, _document, _caption);
+		return std::make_unique<HistoryVideo>(
+			message,
+			realParent,
+			_document,
+			_caption);
 	}
 	return std::make_unique<HistoryDocument>(message, _document, _caption);
 }
@@ -601,10 +640,16 @@ MediaContact::MediaContact(
 	const QString &lastName,
 	const QString &phoneNumber)
 : Media(parent) {
+	Auth().data().registerContactItem(userId, parent);
+
 	_contact.userId = userId;
 	_contact.firstName = firstName;
 	_contact.lastName = lastName;
 	_contact.phoneNumber = phoneNumber;
+}
+
+MediaContact::~MediaContact() {
+	Auth().data().unregisterContactItem(_contact.userId, parent());
 }
 
 std::unique_ptr<Media> MediaContact::clone(not_null<HistoryItem*> parent) {
@@ -637,15 +682,16 @@ bool MediaContact::updateSentMedia(const MTPMessageMedia &media) {
 		return false;
 	}
 	if (_contact.userId != media.c_messageMediaContact().vuser_id.v) {
-		//detachFromParent(); // #TODO contacts
+		Auth().data().unregisterContactItem(_contact.userId, parent());
 		_contact.userId = media.c_messageMediaContact().vuser_id.v;
-		//attachToParent();
+		Auth().data().registerContactItem(_contact.userId, parent());
 	}
 	return true;
 }
 
 std::unique_ptr<HistoryMedia> MediaContact::createView(
-		not_null<HistoryView::Element*> message) {
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) {
 	return std::make_unique<HistoryContact>(
 		message,
 		_contact.userId,
@@ -704,7 +750,8 @@ bool MediaLocation::updateSentMedia(const MTPMessageMedia &media) {
 }
 
 std::unique_ptr<HistoryMedia> MediaLocation::createView(
-		not_null<HistoryView::Element*> message) {
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) {
 	return std::make_unique<HistoryLocation>(
 		message,
 		_location,
@@ -760,7 +807,8 @@ bool MediaCall::updateSentMedia(const MTPMessageMedia &media) {
 }
 
 std::unique_ptr<HistoryMedia> MediaCall::createView(
-		not_null<HistoryView::Element*> message) {
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) {
 	return std::make_unique<HistoryCall>(message, &_call);
 }
 
@@ -784,6 +832,11 @@ MediaWebPage::MediaWebPage(
 	not_null<WebPageData*> page)
 : Media(parent)
 , _page(page) {
+	Auth().data().registerWebPageItem(_page, parent);
+}
+
+MediaWebPage::~MediaWebPage() {
+	Auth().data().unregisterWebPageItem(_page, parent());
 }
 
 std::unique_ptr<Media> MediaWebPage::clone(not_null<HistoryItem*> parent) {
@@ -815,7 +868,8 @@ bool MediaWebPage::updateSentMedia(const MTPMessageMedia &media) {
 }
 
 std::unique_ptr<HistoryMedia> MediaWebPage::createView(
-		not_null<HistoryView::Element*> message) {
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) {
 	return std::make_unique<HistoryWebPage>(message, _page);
 }
 
@@ -874,15 +928,13 @@ bool MediaGame::updateSentMedia(const MTPMessageMedia &media) {
 	if (media.type() != mtpc_messageMediaGame) {
 		return false;
 	}
-	const auto &game = media.c_messageMediaGame().vgame;
-	if (game.type() == mtpc_game) {
-		App::feedGame(game.c_game(), _game);
-	}
+	Auth().data().gameConvert(_game, media.c_messageMediaGame().vgame);
 	return true;
 }
 
 std::unique_ptr<HistoryMedia> MediaGame::createView(
-		not_null<HistoryView::Element*> message) {
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) {
 	return std::make_unique<HistoryGame>(message, _game, _consumedText);
 }
 
@@ -925,7 +977,8 @@ bool MediaInvoice::updateSentMedia(const MTPMessageMedia &media) {
 }
 
 std::unique_ptr<HistoryMedia> MediaInvoice::createView(
-		not_null<HistoryView::Element*> message) {
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) {
 	return std::make_unique<HistoryInvoice>(message, &_invoice);
 }
 

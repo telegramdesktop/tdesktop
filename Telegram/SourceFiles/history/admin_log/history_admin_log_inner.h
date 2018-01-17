@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_element.h"
 #include "history/admin_log/history_admin_log_item.h"
 #include "history/admin_log/history_admin_log_section.h"
 #include "ui/widgets/tooltip.h"
@@ -23,10 +24,6 @@ namespace Window {
 class Controller;
 } // namespace Window
 
-namespace HistoryView {
-class Element;
-} // namespace HistoryView
-
 namespace AdminLog {
 
 class SectionMemento;
@@ -34,6 +31,7 @@ class SectionMemento;
 class InnerWidget final
 	: public Ui::RpWidget
 	, public Ui::AbstractTooltipShower
+	, public HistoryView::ElementDelegate
 	, private MTP::Sender
 	, private base::Subscriber {
 public:
@@ -66,9 +64,15 @@ public:
 	void applySearch(const QString &query);
 	void showFilter(base::lambda<void(FilterValue &&filter)> callback);
 
-	// AbstractTooltipShower interface
+	// Ui::AbstractTooltipShower interface.
 	QString tooltipText() const override;
 	QPoint tooltipPos() const override;
+
+	// HistoryView::ElementDelegate interface.
+	std::unique_ptr<HistoryView::Element> elementCreate(
+		not_null<HistoryMessage*> message) override;
+	std::unique_ptr<HistoryView::Element> elementCreate(
+		not_null<HistoryService*> message) override;
 
 	~InnerWidget();
 

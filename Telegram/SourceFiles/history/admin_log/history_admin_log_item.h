@@ -7,11 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Window {
-class Controller;
-} // namespace Window
-
 namespace HistoryView {
+class ElementDelegate;
 class Element;
 } // namespace HistoryView
 
@@ -21,7 +18,7 @@ class OwnedItem;
 class LocalIdManager;
 
 void GenerateItems(
-	not_null<Window::Controller*> controller,
+	not_null<HistoryView::ElementDelegate*> delegate,
 	not_null<History*> history,
 	LocalIdManager &idManager,
 	const MTPDchannelAdminLogEvent &event,
@@ -31,7 +28,7 @@ void GenerateItems(
 class OwnedItem {
 public:
 	OwnedItem(
-		not_null<Window::Controller*> controller,
+		not_null<HistoryView::ElementDelegate*> delegate,
 		not_null<HistoryItem*> data);
 	OwnedItem(const OwnedItem &other) = delete;
 	OwnedItem &operator=(const OwnedItem &other) = delete;

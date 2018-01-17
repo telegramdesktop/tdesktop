@@ -559,7 +559,7 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 	) | rpl::start_with_next(
 		[this](auto item) { itemRemoved(item); },
 		lifetime());
-	Auth().data().itemRepaintRequest(
+	Auth().data().itemViewRepaintRequest(
 	) | rpl::start_with_next(
 		[this](auto item) { repaintHistoryItem(item); },
 		lifetime());
@@ -777,8 +777,10 @@ void HistoryWidget::scrollToAnimationCallback(FullMsgId attachToId) {
 
 void HistoryWidget::enqueueMessageHighlight(
 		not_null<HistoryView::Element*> view) {
-	if (const auto group = view->getFullGroup()) {
-		view = group->leader;
+	if (const auto group = Auth().data().groups().find(view->data())) {
+		if (const auto leader = group->items.back()->mainView()) {
+			view = leader;
+		}
 	}
 	auto enqueueMessageId = [this](MsgId universalId) {
 		if (_highlightQueue.empty() && !_highlightTimer.isActive()) {
@@ -845,8 +847,9 @@ void HistoryWidget::checkNextHighlight() {
 }
 
 void HistoryWidget::updateHighlightedMessage() {
-	auto item = getItemFromHistoryOrMigrated(_highlightedMessageId);
-	if (!item || !item->mainView()) {
+	const auto item = getItemFromHistoryOrMigrated(_highlightedMessageId);
+	const auto view = item ? item->mainView() : nullptr;
+	if (!view) {
 		return stopMessageHighlight();
 	}
 	auto duration = st::activeFadeInDuration + st::activeFadeOutDuration;
@@ -854,7 +857,7 @@ void HistoryWidget::updateHighlightedMessage() {
 		return stopMessageHighlight();
 	}
 
-	Auth().data().requestItemRepaint(item);
+	Auth().data().requestViewRepaint(view);
 }
 
 TimeMs HistoryWidget::highlightStartTime(not_null<const HistoryItem*> item) const {
@@ -884,8 +887,10 @@ void HistoryWidget::clearHighlightMessages() {
 
 int HistoryWidget::itemTopForHighlight(
 		not_null<HistoryView::Element*> view) const {
-	if (const auto group = view->getFullGroup()) {
-		view = group->leader;
+	if (const auto group = Auth().data().groups().find(view->data())) {
+		if (const auto leader = group->items.back()->mainView()) {
+			view = leader;
+		}
 	}
 	auto itemTop = _list->itemTop(view);
 	Assert(itemTop >= 0);
@@ -1649,7 +1654,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	}
 
 	if (!cAutoPlayGif()) {
-		App::stopGifItems();
+		Auth().data().stopAutoplayAnimations();
 	}
 	clearReplyReturns();
 
@@ -2187,7 +2192,7 @@ void HistoryWidget::newUnreadMsg(History *history, HistoryItem *item) {
 		}
 		if (App::wnd()->doWeReadServerHistory()) {
 			if (item->mentionsMe() && item->isMediaUnread()) {
-				App::main()->mediaMarkRead(item);
+				Auth().api().markMediaRead(item);
 			}
 			Auth().api().readServerHistoryForce(history);
 			return;
@@ -3367,8 +3372,15 @@ void HistoryWidget::app_sendBotCallback(
 		flags |= MTPmessages_GetBotCallbackAnswer::Flag::f_data;
 		sendData = button->data;
 	}
-	button->requestId = MTP::send(MTPmessages_GetBotCallbackAnswer(MTP_flags(flags), _peer->input, MTP_int(msg->id), MTP_bytes(sendData)), rpcDone(&HistoryWidget::botCallbackDone, info), rpcFail(&HistoryWidget::botCallbackFail, info));
-	Auth().data().requestItemRepaint(msg);
+	button->requestId = MTP::send(
+		MTPmessages_GetBotCallbackAnswer(
+			MTP_flags(flags),
+			_peer->input,
+			MTP_int(msg->id),
+			MTP_bytes(sendData)),
+		rpcDone(&HistoryWidget::botCallbackDone, info),
+		rpcFail(&HistoryWidget::botCallbackFail, info));
+	Auth().data().requestItemViewRepaint(msg);
 
 	if (_replyToId == msg->id) {
 		cancelReply();
@@ -3379,14 +3391,18 @@ void HistoryWidget::app_sendBotCallback(
 	}
 }
 
-void HistoryWidget::botCallbackDone(BotCallbackInfo info, const MTPmessages_BotCallbackAnswer &answer, mtpRequestId req) {
+void HistoryWidget::botCallbackDone(
+		BotCallbackInfo info,
+		const MTPmessages_BotCallbackAnswer &answer,
+		mtpRequestId req) {
 	auto item = App::histItemById(info.msgId);
 	if (item) {
-		if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
-			if (info.row < markup->rows.size() && info.col < markup->rows.at(info.row).size()) {
-				if (markup->rows.at(info.row).at(info.col).requestId == req) {
-					markup->rows.at(info.row).at(info.col).requestId = 0;
-					Auth().data().requestItemRepaint(item);
+		if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
+			if (info.row < markup->rows.size()
+				&& info.col < markup->rows[info.row].size()) {
+				if (markup->rows[info.row][info.col].requestId == req) {
+					markup->rows[info.row][info.col].requestId = 0;
+					Auth().data().requestItemViewRepaint(item);
 				}
 			}
 		}
@@ -3414,14 +3430,18 @@ void HistoryWidget::botCallbackDone(BotCallbackInfo info, const MTPmessages_BotC
 	}
 }
 
-bool HistoryWidget::botCallbackFail(BotCallbackInfo info, const RPCError &error, mtpRequestId req) {
+bool HistoryWidget::botCallbackFail(
+		BotCallbackInfo info,
+		const RPCError &error,
+		mtpRequestId req) {
 	// show error?
-	if (auto item = App::histItemById(info.msgId)) {
-		if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
-			if (info.row < markup->rows.size() && info.col < markup->rows.at(info.row).size()) {
-				if (markup->rows.at(info.row).at(info.col).requestId == req) {
-					markup->rows.at(info.row).at(info.col).requestId = 0;
-					Auth().data().requestItemRepaint(item);
+	if (const auto item = App::histItemById(info.msgId)) {
+		if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
+			if (info.row < markup->rows.size()
+				&& info.col < markup->rows[info.row].size()) {
+				if (markup->rows[info.row][info.col].requestId == req) {
+					markup->rows[info.row][info.col].requestId = 0;
+					Auth().data().requestItemViewRepaint(item);
 				}
 			}
 		}
@@ -4364,7 +4384,7 @@ void HistoryWidget::onPhotoProgress(const FullMsgId &newId) {
 			? item->media()->photo()
 			: nullptr;
 		updateSendAction(item->history(), SendAction::Type::UploadPhoto, 0);
-		Auth().data().requestItemRepaint(item);
+		Auth().data().requestItemViewRepaint(item);
 	}
 }
 
@@ -4382,14 +4402,17 @@ void HistoryWidget::onDocumentProgress(const FullMsgId &newId) {
 			item->history(),
 			sendAction,
 			progress);
-		Auth().data().requestItemRepaint(item);
+		Auth().data().requestItemViewRepaint(item);
 	}
 }
 
 void HistoryWidget::onPhotoFailed(const FullMsgId &newId) {
 	if (const auto item = App::histItemById(newId)) {
-		updateSendAction(item->history(), SendAction::Type::UploadPhoto, -1);
-		Auth().data().requestItemRepaint(item);
+		updateSendAction(
+			item->history(),
+			SendAction::Type::UploadPhoto,
+			-1);
+		Auth().data().requestItemViewRepaint(item);
 	}
 }
 
@@ -4401,7 +4424,7 @@ void HistoryWidget::onDocumentFailed(const FullMsgId &newId) {
 			? SendAction::Type::UploadVoice
 			: SendAction::Type::UploadFile;
 		updateSendAction(item->history(), sendAction, -1);
-		Auth().data().requestItemRepaint(item);
+		Auth().data().requestItemViewRepaint(item);
 	}
 }
 
@@ -4510,7 +4533,7 @@ void HistoryWidget::repaintHistoryItem(
 	// It is possible that repaintHistoryItem() will be called from
 	// _scroll->setOwnedWidget() because it calls onScroll() that
 	// sendSynteticMouseEvent() and it could lead to some Info layout
-	// calling Auth().data().requestItemRepaint(), while we still are
+	// calling Auth().data().requestItemViewRepaint(), while we still are
 	// in progrss of showing the history. Just ignore them for now :/
 	if (!_list) {
 		return;
@@ -5909,7 +5932,7 @@ void HistoryWidget::onPreviewCheck() {
 			if (i == _previewCache.cend()) {
 				_previewRequest = MTP::send(MTPmessages_GetWebPagePreview(MTP_string(_previewLinks)), rpcDone(&HistoryWidget::gotPreview, _previewLinks));
 			} else if (i.value()) {
-				_previewData = App::webPage(i.value());
+				_previewData = Auth().data().webpage(i.value());
 				updatePreview();
 			} else {
 				if (_previewData && _previewData->pendingTill >= 0) previewCancel();
@@ -5929,16 +5952,19 @@ void HistoryWidget::gotPreview(QString links, const MTPMessageMedia &result, mtp
 		_previewRequest = 0;
 	}
 	if (result.type() == mtpc_messageMediaWebPage) {
-		auto data = App::feedWebPage(result.c_messageMediaWebPage().vwebpage);
-		_previewCache.insert(links, data->id);
-		if (data->pendingTill > 0 && data->pendingTill <= unixtime()) {
-			data->pendingTill = -1;
+		const auto &data = result.c_messageMediaWebPage().vwebpage;
+		const auto page = Auth().data().webpage(data);
+		_previewCache.insert(links, page->id);
+		if (page->pendingTill > 0 && page->pendingTill <= unixtime()) {
+			page->pendingTill = -1;
 		}
 		if (links == _previewLinks && !_previewCancelled) {
-			_previewData = (data->id && data->pendingTill >= 0) ? data : 0;
+			_previewData = (page->id && page->pendingTill >= 0)
+				? page.get()
+				: nullptr;
 			updatePreview();
 		}
-		if (App::main()) App::main()->webPagesOrGamesUpdate();
+		Auth().data().sendWebPageGameNotifications();
 	} else if (result.type() == mtpc_messageMediaEmpty) {
 		_previewCache.insert(links, 0);
 		if (links == _previewLinks && !_previewCancelled) {

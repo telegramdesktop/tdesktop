@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/serialize_common.h"
 #include "chat_helpers/stickers.h"
+#include "data/data_session.h"
+#include "auth_session.h"
 
 namespace {
 
@@ -119,7 +121,17 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 	if (!dc && !access) {
 		return nullptr;
 	}
-	return App::documentSet(id, nullptr, access, version, date, attributes, mime, thumb.isNull() ? ImagePtr() : ImagePtr(thumb), dc, size, thumb);
+	return Auth().data().document(
+		id,
+		access,
+		version,
+		date,
+		attributes,
+		mime,
+		thumb.isNull() ? ImagePtr() : ImagePtr(thumb),
+		dc,
+		size,
+		thumb);
 }
 
 DocumentData *Document::readStickerFromStream(int streamAppVersion, QDataStream &stream, const StickerSetInfo &info) {

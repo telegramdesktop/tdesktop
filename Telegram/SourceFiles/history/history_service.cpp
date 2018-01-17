@@ -208,7 +208,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 			_media = std::make_unique<Data::MediaPhoto>(
 				this,
 				history()->peer,
-				App::feedPhoto(photo.c_photo()));
+				Auth().data().photo(photo.c_photo()));
 		}
 	} break;
 
@@ -452,9 +452,8 @@ QString HistoryService::inReplyText() const {
 }
 
 std::unique_ptr<HistoryView::Element> HistoryService::createView(
-		not_null<Window::Controller*> controller,
-		HistoryView::Context context) {
-	return controller->createMessageView(this, context);
+		not_null<HistoryView::ElementDelegate*> delegate) {
+	return delegate->elementCreate(this);
 }
 
 void HistoryService::setServiceText(const PreparedText &prepared) {

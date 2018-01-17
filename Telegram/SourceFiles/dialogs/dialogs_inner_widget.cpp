@@ -94,7 +94,7 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 	) | rpl::start_with_next(
 		[this](auto item) { itemRemoved(item); },
 		lifetime());
-	Auth().data().itemRepaintRequest(
+	Auth().data().itemViewRepaintRequest(
 	) | rpl::start_with_next([this](auto item) {
 		const auto history = item->history();
 		if (history->textCachedFor == item) {
@@ -2316,7 +2316,9 @@ bool DialogsInner::chooseRow() {
 		if (const auto history = chosen.key.history()) {
 			App::main()->choosePeer(history->peer->id, chosen.messageId);
 		} else if (const auto feed = chosen.key.feed()) {
-			_controller->showSection(HistoryFeed::Memento(feed));
+			_controller->showSection(
+				HistoryFeed::Memento(feed),
+				Window::SectionShow::Way::ClearStack);
 		}
 		if (openSearchResult) {
 			emit searchResultChosen();

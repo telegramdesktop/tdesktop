@@ -58,11 +58,6 @@ public:
 	}
 
 	virtual HistoryMediaType type() const = 0;
-	virtual std::unique_ptr<HistoryMedia> clone(
-			not_null<Element*> newParent,
-			not_null<Element*> realParent) const {
-		Unexpected("Attempt to clone a media that can't be grouped.");
-	}
 
 	virtual TextWithEntities selectedText(TextSelection selection) const = 0;
 
@@ -82,7 +77,7 @@ public:
 	virtual bool allowsFastShare() const {
 		return false;
 	}
-	virtual void refreshParentId(not_null<Element*> realParent) {
+	virtual void refreshParentId(not_null<HistoryItem*> realParent) {
 	}
 	virtual void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const = 0;
 	virtual HistoryTextState getState(QPoint point, HistoryStateRequest request) const = 0;
@@ -148,14 +143,6 @@ public:
 		return false;
 	}
 
-	virtual void attachToParent() {
-	}
-	virtual void detachFromParent() {
-	}
-
-	virtual bool canBeGrouped() const {
-		return false;
-	}
 	virtual QSize sizeForGrouping() const {
 		Unexpected("Grouping method call.");
 	}
@@ -177,8 +164,9 @@ public:
 	virtual std::unique_ptr<HistoryMedia> takeLastFromGroup() {
 		return nullptr;
 	}
-	virtual bool applyGroup(const std::vector<not_null<Element*>> &others) {
-		return others.empty();
+	virtual bool applyGroup(
+			const std::vector<not_null<HistoryItem*>> &items) {
+		return false;
 	}
 
 	virtual bool animating() const {
@@ -240,6 +228,10 @@ public:
 	// load being disabled - in such case media should handle the click).
 	virtual bool isReadyForOpen() const {
 		return true;
+	}
+
+	// Should be called only by Data::Session.
+	virtual void updateSharedContactUserId(UserId userId) {
 	}
 
 	virtual ~HistoryMedia() = default;

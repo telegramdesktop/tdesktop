@@ -248,7 +248,7 @@ void DocumentOpenClickHandler::doOpen(
 				Media::Player::mixer()->play(audio);
 				Media::Player::Updated().notify(audio);
 				if (App::main()) {
-					App::main()->mediaMarkRead(data);
+					Auth().data().markMediaRead(data);
 				}
 			}
 		} else if (playMusic) {
@@ -276,13 +276,13 @@ void DocumentOpenClickHandler::doOpen(
 					File::Launch(filepath);
 				}
 			}
-			if (App::main()) App::main()->mediaMarkRead(data);
+			Auth().data().markMediaRead(data);
 		} else if (data->isVoiceMessage() || data->isAudioFile() || data->isVideoFile()) {
 			auto filepath = location.name();
 			if (documentIsValidMediaFile(filepath)) {
 				File::Launch(filepath);
 			}
-			if (App::main()) App::main()->mediaMarkRead(data);
+			Auth().data().markMediaRead(data);
 		} else if (data->size < App::kImageSizeLimit) {
 			if (!data->data().isEmpty() && playAnimation) {
 				if (action == ActionOnLoadPlayInline && context) {
@@ -571,7 +571,7 @@ void DocumentData::performActionOnLoad() {
 				}
 			} else if (Media::Player::IsStopped(state.state)) {
 				Media::Player::mixer()->play(AudioMsgId(this, _actionOnLoadMsgId));
-				if (App::main()) App::main()->mediaMarkRead(this);
+				Auth().data().markMediaRead(this);
 			}
 		}
 	} else if (playMusic) {
@@ -607,7 +607,7 @@ void DocumentData::performActionOnLoad() {
 				if (documentIsValidMediaFile(already)) {
 					File::Launch(already);
 				}
-				if (App::main()) App::main()->mediaMarkRead(this);
+				Auth().data().markMediaRead(this);
 			} else if (loc.accessEnable()) {
 				if (showImage && QImageReader(loc.name()).canRead()) {
 					if (_actionOnLoad == ActionOnLoadPlayInline && item) {
@@ -640,7 +640,7 @@ bool DocumentData::loaded(FilePathResolveType type) const {
 			}
 			destroyLoaderDelayed();
 		}
-		notifyLayoutChanged();
+		Auth().data().notifyDocumentLayoutChanged(this);
 	}
 	return !data().isEmpty() || !filepath(type).isEmpty();
 }
@@ -695,7 +695,12 @@ bool DocumentData::waitingForAlbum() const {
 	return uploading() && uploadingData->waitingForAlbum;
 }
 
-void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMsgId &actionMsgId, LoadFromCloudSetting fromCloud, bool autoLoading) {
+void DocumentData::save(
+		const QString &toFile,
+		ActionOnLoad action,
+		const FullMsgId &actionMsgId,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading) {
 	if (loaded(FilePathResolveChecked)) {
 		auto &l = location(true);
 		if (!toFile.isEmpty()) {
@@ -745,36 +750,25 @@ void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMs
 		_loader->connect(_loader, SIGNAL(failed(FileLoader*,bool)), App::main(), SLOT(documentLoadFailed(FileLoader*,bool)));
 		_loader->start();
 	}
-	notifyLayoutChanged();
+	Auth().data().notifyDocumentLayoutChanged(this);
 }
 
 void DocumentData::cancel() {
-	if (!loading()) return;
+	if (!loading()) {
+		return;
+	}
 
 	auto loader = std::unique_ptr<FileLoader>(std::exchange(_loader, CancelledMtpFileLoader));
 	loader->cancel();
 	loader->stop();
 	Auth().downloader().delayedDestroyLoader(std::move(loader));
 
-	notifyLayoutChanged();
+	Auth().data().notifyDocumentLayoutChanged(this);
 	if (auto main = App::main()) {
 		main->documentLoadProgress(this);
 	}
 
 	_actionOnLoad = ActionOnLoadNone;
-}
-
-void DocumentData::notifyLayoutChanged() const {
-	auto &items = App::documentItems();
-	for (auto item : items.value(const_cast<DocumentData*>(this))) {
-		Auth().data().markItemLayoutChange(item);
-	}
-
-	if (auto items = InlineBots::Layout::documentItems()) {
-		for (auto item : items->value(const_cast<DocumentData*>(this))) {
-			item->layoutChanged();
-		}
-	}
 }
 
 VoiceWaveform documentWaveformDecode(const QByteArray &encoded5bit) {

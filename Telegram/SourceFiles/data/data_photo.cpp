@@ -32,14 +32,14 @@ void PhotoData::automaticLoadSettingsChanged() {
 
 void PhotoData::download() {
 	full->loadEvenCancelled();
-	notifyLayoutChanged();
+	Auth().data().notifyPhotoLayoutChanged(this);
 }
 
 bool PhotoData::loaded() const {
 	bool wasLoading = loading();
 	if (full->loaded()) {
 		if (wasLoading) {
-			notifyLayoutChanged();
+			Auth().data().notifyPhotoLayoutChanged(this);
 		}
 		return true;
 	}
@@ -58,17 +58,7 @@ bool PhotoData::displayLoading() const {
 
 void PhotoData::cancel() {
 	full->cancel();
-	notifyLayoutChanged();
-}
-
-void PhotoData::notifyLayoutChanged() const {
-	auto &items = App::photoItems();
-	auto i = items.constFind(const_cast<PhotoData*>(this));
-	if (i != items.cend()) {
-		for_const (auto item, i.value()) {
-			Auth().data().markItemLayoutChange(item);
-		}
-	}
+	Auth().data().notifyPhotoLayoutChanged(this);
 }
 
 float64 PhotoData::progress() const {

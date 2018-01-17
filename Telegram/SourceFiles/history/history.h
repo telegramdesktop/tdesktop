@@ -167,6 +167,8 @@ public:
 	HistoryItem *createItem(
 		const MTPMessage &message,
 		bool detachExistingItem);
+	std::vector<not_null<HistoryItem*>> createItems(
+		const QVector<MTPMessage> &data);
 
 	void addOlderSlice(const QVector<MTPMessage> &slice);
 	void addNewerSlice(const QVector<MTPMessage> &slice);
@@ -448,8 +450,10 @@ private:
 
 	template <int kSharedMediaTypeCount>
 	void addToSharedMedia(std::vector<MsgId> (&medias)[kSharedMediaTypeCount], bool force);
-	void addBlockToSharedMedia(HistoryBlock *block);
+	void addToSharedMedia(const std::vector<not_null<HistoryItem*>> &items);
+	void addEdgesToSharedMedia();
 
+	void addItemsToLists(const std::vector<not_null<HistoryItem*>> &items);
 	void clearSendAction(not_null<UserData*> from);
 
 	HistoryView::Element *findPreviousItem(

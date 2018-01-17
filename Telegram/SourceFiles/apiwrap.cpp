@@ -325,7 +325,7 @@ void ApiWrap::requestContacts() {
 			if (contact.type() != mtpc_contact) continue;
 
 			const auto userId = contact.c_contact().vuser_id.v;
-			if (userId == Auth().userId() && App::self()) {
+			if (userId == _session->userId() && App::self()) {
 				App::self()->setContactStatus(
 					UserData::ContactStatus::Contact);
 			}
@@ -527,7 +527,7 @@ void ApiWrap::gotUserFull(UserData *user, const MTPUserFull &result, mtpRequestI
 
 	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser));
 	if (d.has_profile_photo()) {
-		App::feedPhoto(d.vprofile_photo);
+		_session->data().photo(d.vprofile_photo);
 	}
 	App::feedUserLink(MTP_int(peerToUser(user->id)), d.vlink.c_contacts_link().vmy_link, d.vlink.c_contacts_link().vforeign_link);
 	if (App::main()) {
@@ -603,6 +603,65 @@ void ApiWrap::requestPeer(PeerData *peer) {
 	};
 	if (auto requestId = sendRequest()) {
 		_peerRequests.insert(peer, requestId);
+	}
+}
+
+void ApiWrap::markMediaRead(
+		const base::flat_set<not_null<HistoryItem*>> &items) {
+	auto markedIds = QVector<MTPint>();
+	auto channelMarkedIds = base::flat_map<
+		not_null<ChannelData*>,
+		QVector<MTPint>>();
+	markedIds.reserve(items.size());
+	for (const auto item : items) {
+		if (!item->isMediaUnread() || (item->out() && !item->mentionsMe())) {
+			continue;
+		}
+		item->markMediaRead();
+		if (!IsServerMsgId(item->id)) {
+			continue;
+		}
+		if (const auto channel = item->history()->peer->asChannel()) {
+			channelMarkedIds[channel].push_back(MTP_int(item->id));
+		} else {
+			markedIds.push_back(MTP_int(item->id));
+		}
+	}
+	if (!markedIds.isEmpty()) {
+		request(MTPmessages_ReadMessageContents(
+			MTP_vector<MTPint>(markedIds)
+		)).done([=](const MTPmessages_AffectedMessages &result) {
+			applyAffectedMessages(result);
+		}).send();
+	}
+	for (const auto &channelIds : channelMarkedIds) {
+		request(MTPchannels_ReadMessageContents(
+			channelIds.first->inputChannel,
+			MTP_vector<MTPint>(channelIds.second)
+		)).send();
+	}
+}
+
+void ApiWrap::markMediaRead(not_null<HistoryItem*> item) {
+	if (!item->isMediaUnread() || (item->out() && !item->mentionsMe())) {
+		return;
+	}
+	item->markMediaRead();
+	if (!IsServerMsgId(item->id)) {
+		return;
+	}
+	const auto ids = MTP_vector<MTPint>(1, MTP_int(item->id));
+	if (const auto channel = item->history()->peer->asChannel()) {
+		request(MTPchannels_ReadMessageContents(
+			channel->inputChannel,
+			ids
+		)).send();
+	} else {
+		request(MTPmessages_ReadMessageContents(
+			ids
+		)).done([=](const MTPmessages_AffectedMessages &result) {
+			applyAffectedMessages(result);
+		}).send();
 	}
 }
 
@@ -1612,31 +1671,29 @@ void ApiWrap::resolveWebPages() {
 	using MessageIdsByChannel = QMap<ChannelData*, IndexAndMessageIds>;
 	MessageIdsByChannel idsByChannel; // temp_req_id = -index - 2
 
-	auto &items = App::webPageItems();
 	ids.reserve(_webPagesPending.size());
 	int32 t = unixtime(), m = INT_MAX;
 	for (auto i = _webPagesPending.begin(); i != _webPagesPending.cend(); ++i) {
 		if (i.value() > 0) continue;
 		if (i.key()->pendingTill <= t) {
-			auto j = items.constFind(i.key());
-			if (j != items.cend() && !j.value().empty()) {
-				for_const (auto item, j.value()) {
-					if (item->id > 0) {
-						if (item->channelId() == NoChannel) {
-							ids.push_back(MTP_int(item->id));
-							i.value() = -1;
-						} else {
-							auto channel = item->history()->peer->asChannel();
-							auto channelMap = idsByChannel.find(channel);
-							if (channelMap == idsByChannel.cend()) {
-								channelMap = idsByChannel.insert(channel, IndexAndMessageIds(idsByChannel.size(), QVector<MTPint>(1, MTP_int(item->id))));
-							} else {
-								channelMap.value().second.push_back(MTP_int(item->id));
-							}
-							i.value() = -channelMap.value().first - 2;
-						}
-						break;
+			const auto item = _session->data().findWebPageItem(i.key());
+			if (item) {
+				if (item->channelId() == NoChannel) {
+					ids.push_back(MTP_int(item->id));
+					i.value() = -1;
+				} else {
+					auto channel = item->history()->peer->asChannel();
+					auto channelMap = idsByChannel.find(channel);
+					if (channelMap == idsByChannel.cend()) {
+						channelMap = idsByChannel.insert(
+							channel,
+							IndexAndMessageIds(
+								idsByChannel.size(),
+								QVector<MTPint>(1, MTP_int(item->id))));
+					} else {
+						channelMap.value().second.push_back(MTP_int(item->id));
 					}
+					i.value() = -channelMap.value().first - 2;
 				}
 			}
 		} else {
@@ -1728,27 +1785,22 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 			v->at(index),
 			NewMessageExisting);
 		if (item) {
-			Auth().data().requestItemViewResize(item);
+			_session->data().requestItemViewResize(item);
 		}
 	}
 
-	auto &items = App::webPageItems();
 	for (auto i = _webPagesPending.begin(); i != _webPagesPending.cend();) {
 		if (i.value() == req) {
 			if (i.key()->pendingTill > 0) {
 				i.key()->pendingTill = -1;
-				auto j = items.constFind(i.key());
-				if (j != items.cend()) {
-					for_const (auto item, j.value()) {
-						Auth().data().requestItemViewResize(item);
-					}
-				}
+				_session->data().notifyWebPageUpdateDelayed(i.key());
 			}
 			i = _webPagesPending.erase(i);
 		} else {
 			++i;
 		}
 	}
+	_session->data().sendWebPageGameNotifications();
 }
 
 void ApiWrap::stickersSaveOrder() {
@@ -2081,11 +2133,11 @@ void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 	case mtpc_updateReadMessagesContents: {
 		auto &d = update.c_updateReadMessagesContents();
 		auto possiblyReadMentions = base::flat_set<MsgId>();
-		for_const (auto &msgId, d.vmessages.v) {
+		for (const auto &msgId : d.vmessages.v) {
 			if (auto item = App::histItemById(NoChannel, msgId.v)) {
 				if (item->isMediaUnread()) {
 					item->markMediaRead();
-					_session->data().requestItemRepaint(item);
+					_session->data().requestItemViewRepaint(item);
 
 					if (item->out() && item->history()->peer->isUser()) {
 						auto when = App::main()->requestingDifference() ? 0 : unixtime();
@@ -2276,7 +2328,9 @@ void ApiWrap::preloadEnoughUnreadMentions(not_null<History*> history) {
 	_unreadMentionsRequests.emplace(history, requestId);
 }
 
-void ApiWrap::checkForUnreadMentions(const base::flat_set<MsgId> &possiblyReadMentions, ChannelData *channel) {
+void ApiWrap::checkForUnreadMentions(
+		const base::flat_set<MsgId> &possiblyReadMentions,
+		ChannelData *channel) {
 	for (auto msgId : possiblyReadMentions) {
 		requestMessageData(channel, msgId, [](ChannelData *channel, MsgId msgId) {
 			if (auto item = App::histItemById(channel, msgId)) {
@@ -2510,7 +2564,7 @@ void ApiWrap::userPhotosDone(
 	auto photoIds = std::vector<PhotoId>();
 	photoIds.reserve(photos.size());
 	for (auto &photo : photos) {
-		if (auto photoData = App::feedPhoto(photo)) {
+		if (auto photoData = _session->data().photo(photo)) {
 			photoIds.push_back(photoData->id);
 		}
 	}
@@ -2774,9 +2828,7 @@ void ApiWrap::shareContact(
 		not_null<UserData*> user,
 		const SendOptions &options) {
 	const auto userId = peerToUser(user->id);
-	const auto phone = user->phone().isEmpty()
-		? App::phoneFromSharedContact(userId)
-		: user->phone();
+	const auto phone = Auth().data().findContactPhone(user);
 	if (phone.isEmpty()) {
 		return;
 	}
