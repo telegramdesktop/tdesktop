@@ -338,7 +338,7 @@ void HistoryItem::setRealId(MsgId newId) {
 		}
 	}
 
-	Auth().data().markItemIdChange({ this, oldId });
+	Auth().data().notifyItemIdChange({ this, oldId });
 	Auth().data().requestItemViewRepaint(this);
 }
 
@@ -628,51 +628,6 @@ bool HistoryItem::isEmpty() const {
 	return _text.isEmpty()
 		&& !_media
 		&& !Has<HistoryMessageLogEntryOriginal>();
-}
-
-void HistoryItem::clipCallback(Media::Clip::Notification notification) {
-	using namespace Media::Clip;
-
-	auto media = this->media();
-	if (!media) {
-		return;
-	}
-
-	// #TODO GIFs
-	//auto reader = media->getClipReader();
-	//if (!reader) {
-	//	return;
-	//}
-
-	//switch (notification) {
-	//case NotificationReinit: {
-	//	auto stopped = false;
-	//	if (reader->autoPausedGif()) {
-	//		auto amVisible = false;
-	//		Auth().data().queryItemVisibility().notify({ this, &amVisible }, true);
-	//		if (!amVisible) { // stop animation if it is not visible
-	//			media->stopInline();
-	//			if (auto document = media->getDocument()) { // forget data from memory
-	//				document->forget();
-	//			}
-	//			stopped = true;
-	//		}
-	//	} else if (reader->mode() == Media::Clip::Reader::Mode::Video && reader->state() == Media::Clip::State::Finished) {
-	//		// Stop finished video message.
-	//		media->stopInline();
-	//	}
-	//	if (!stopped) {
-	//		Auth().data().requestItemViewResize(this);
-	//		Auth().data().markItemLayoutChange(this);
-	//	}
-	//} break;
-
-	//case NotificationRepaint: {
-	//	if (!reader->currentDisplayed()) {
-	//		Auth().data().requestItemViewRepaint(this);
-	//	}
-	//} break;
-	//}
 }
 
 void HistoryItem::audioTrackUpdated() {

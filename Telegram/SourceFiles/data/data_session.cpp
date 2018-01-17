@@ -108,7 +108,7 @@ void Session::animationLoadSettingsChanged() {
 void Session::notifyPhotoLayoutChanged(not_null<const PhotoData*> photo) {
 	if (const auto i = _photoViews.find(photo); i != end(_photoViews)) {
 		for (const auto view : i->second) {
-			markViewLayoutChange(view);
+			notifyViewLayoutChange(view);
 		}
 	}
 }
@@ -118,7 +118,7 @@ void Session::notifyDocumentLayoutChanged(
 	const auto i = _documentViews.find(document);
 	if (i != end(_documentViews)) {
 		for (const auto view : i->second) {
-			markViewLayoutChange(view);
+			notifyViewLayoutChange(view);
 		}
 	}
 	if (const auto items = InlineBots::Layout::documentItems()) {
@@ -147,27 +147,19 @@ void Session::markMediaRead(not_null<const DocumentData*> document) {
 	}
 }
 
-void Session::markItemLayoutChange(not_null<const HistoryItem*> item) {
-	_itemLayoutChanges.fire_copy(item);
-}
-
-rpl::producer<not_null<const HistoryItem*>> Session::itemLayoutChanged() const {
-	return _itemLayoutChanges.events();
-}
-
-void Session::markViewLayoutChange(not_null<const HistoryView::Element*> view) {
+void Session::notifyViewLayoutChange(not_null<const ViewElement*> view) {
 	_viewLayoutChanges.fire_copy(view);
 }
 
-rpl::producer<not_null<const HistoryView::Element*>> Session::viewLayoutChanged() const {
+rpl::producer<not_null<const ViewElement*>> Session::viewLayoutChanged() const {
 	return _viewLayoutChanges.events();
 }
 
-void Session::markItemIdChange(IdChange event) {
+void Session::notifyItemIdChange(IdChange event) {
 	_itemIdChanges.fire_copy(event);
-	enumerateItemViews(event.item, [](not_null<HistoryView::Element*> view) {
-		view->refreshDataId();
-	});
+	enumerateItemViews(
+		event.item,
+		[](not_null<ViewElement*> view) { view->refreshDataId(); });
 }
 
 rpl::producer<Session::IdChange> Session::itemIdChanged() const {
@@ -222,7 +214,7 @@ rpl::producer<not_null<const HistoryItem*>> Session::itemPlayInlineRequest() con
 	return _itemPlayInlineRequest.events();
 }
 
-void Session::markItemRemoved(not_null<const HistoryItem*> item) {
+void Session::notifyItemRemoved(not_null<const HistoryItem*> item) {
 	_itemRemoved.fire_copy(item);
 }
 
@@ -230,7 +222,7 @@ rpl::producer<not_null<const HistoryItem*>> Session::itemRemoved() const {
 	return _itemRemoved.events();
 }
 
-void Session::markHistoryUnloaded(not_null<const History*> history) {
+void Session::notifyHistoryUnloaded(not_null<const History*> history) {
 	_historyUnloaded.fire_copy(history);
 }
 
@@ -238,7 +230,7 @@ rpl::producer<not_null<const History*>> Session::historyUnloaded() const {
 	return _historyUnloaded.events();
 }
 
-void Session::markHistoryCleared(not_null<const History*> history) {
+void Session::notifyHistoryCleared(not_null<const History*> history) {
 	_historyCleared.fire_copy(history);
 }
 
@@ -288,7 +280,7 @@ rpl::producer<not_null<UserData*>> Session::megagroupParticipantAdded(
 	});
 }
 
-void Session::markStickersUpdated() {
+void Session::notifyStickersUpdated() {
 	_stickersUpdated.fire({});
 }
 
@@ -296,7 +288,7 @@ rpl::producer<> Session::stickersUpdated() const {
 	return _stickersUpdated.events();
 }
 
-void Session::markSavedGifsUpdated() {
+void Session::notifySavedGifsUpdated() {
 	_savedGifsUpdated.fire({});
 }
 
@@ -1107,13 +1099,13 @@ void Session::gameApplyFields(
 
 void Session::registerPhotoView(
 		not_null<const PhotoData*> photo,
-		not_null<HistoryView::Element*> view) {
+		not_null<ViewElement*> view) {
 	_photoViews[photo].insert(view);
 }
 
 void Session::unregisterPhotoView(
 		not_null<const PhotoData*> photo,
-		not_null<HistoryView::Element*> view) {
+		not_null<ViewElement*> view) {
 	const auto i = _photoViews.find(photo);
 	if (i != _photoViews.end()) {
 		auto &items = i->second;
@@ -1125,13 +1117,13 @@ void Session::unregisterPhotoView(
 
 void Session::registerDocumentView(
 		not_null<const DocumentData*> document,
-		not_null<HistoryView::Element*> view) {
+		not_null<ViewElement*> view) {
 	_documentViews[document].insert(view);
 }
 
 void Session::unregisterDocumentView(
 		not_null<const DocumentData*> document,
-		not_null<HistoryView::Element*> view) {
+		not_null<ViewElement*> view) {
 	const auto i = _documentViews.find(document);
 	if (i != _documentViews.end()) {
 		auto &items = i->second;
@@ -1161,13 +1153,13 @@ void Session::unregisterDocumentItem(
 
 void Session::registerWebPageView(
 		not_null<const WebPageData*> page,
-		not_null<HistoryView::Element*> view) {
+		not_null<ViewElement*> view) {
 	_webpageViews[page].insert(view);
 }
 
 void Session::unregisterWebPageView(
 		not_null<const WebPageData*> page,
-		not_null<HistoryView::Element*> view) {
+		not_null<ViewElement*> view) {
 	const auto i = _webpageViews.find(page);
 	if (i != _webpageViews.end()) {
 		auto &items = i->second;
@@ -1197,13 +1189,13 @@ void Session::unregisterWebPageItem(
 
 void Session::registerGameView(
 		not_null<const GameData*> game,
-		not_null<HistoryView::Element*> view) {
+		not_null<ViewElement*> view) {
 	_gameViews[game].insert(view);
 }
 
 void Session::unregisterGameView(
 		not_null<const GameData*> game,
-		not_null<HistoryView::Element*> view) {
+		not_null<ViewElement*> view) {
 	const auto i = _gameViews.find(game);
 	if (i != _gameViews.end()) {
 		auto &items = i->second;
@@ -1215,7 +1207,7 @@ void Session::unregisterGameView(
 
 void Session::registerContactView(
 		UserId contactId,
-		not_null<HistoryView::Element*> view) {
+		not_null<ViewElement*> view) {
 	if (!contactId) {
 		return;
 	}
@@ -1224,7 +1216,7 @@ void Session::registerContactView(
 
 void Session::unregisterContactView(
 		UserId contactId,
-		not_null<HistoryView::Element*> view) {
+		not_null<ViewElement*> view) {
 	if (!contactId) {
 		return;
 	}
@@ -1289,7 +1281,7 @@ void Session::unregisterContactItem(
 
 void Session::registerAutoplayAnimation(
 		not_null<::Media::Clip::Reader*> reader,
-		not_null<HistoryView::Element*> view) {
+		not_null<ViewElement*> view) {
 	_autoplayAnimations.emplace(reader, view);
 }
 

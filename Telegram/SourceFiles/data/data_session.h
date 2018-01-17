@@ -61,11 +61,9 @@ public:
 		not_null<HistoryItem*> item;
 		MsgId oldId = 0;
 	};
-	void markItemIdChange(IdChange event);
+	void notifyItemIdChange(IdChange event);
 	rpl::producer<IdChange> itemIdChanged() const;
-	void markItemLayoutChange(not_null<const HistoryItem*> item);
-	rpl::producer<not_null<const HistoryItem*>> itemLayoutChanged() const;
-	void markViewLayoutChange(not_null<const ViewElement*> view);
+	void notifyViewLayoutChange(not_null<const ViewElement*> view);
 	rpl::producer<not_null<const ViewElement*>> viewLayoutChanged() const;
 	void requestItemViewRepaint(not_null<const HistoryItem*> item);
 	rpl::producer<not_null<const HistoryItem*>> itemViewRepaintRequest() const;
@@ -79,13 +77,14 @@ public:
 	rpl::producer<not_null<const HistoryItem*>> itemViewRefreshRequest() const;
 	void requestItemPlayInline(not_null<const HistoryItem*> item);
 	rpl::producer<not_null<const HistoryItem*>> itemPlayInlineRequest() const;
-	void markItemRemoved(not_null<const HistoryItem*> item);
-	rpl::producer<not_null<const HistoryItem*>> itemRemoved() const;
-	void markHistoryUnloaded(not_null<const History*> history);
+	void notifyHistoryUnloaded(not_null<const History*> history);
 	rpl::producer<not_null<const History*>> historyUnloaded() const;
 
-	void markHistoryCleared(not_null<const History*> history);
+	void notifyItemRemoved(not_null<const HistoryItem*> item);
+	rpl::producer<not_null<const HistoryItem*>> itemRemoved() const;
+	void notifyHistoryCleared(not_null<const History*> history);
 	rpl::producer<not_null<const History*>> historyCleared() const;
+
 	using MegagroupParticipant = std::tuple<
 		not_null<ChannelData*>,
 		not_null<UserData*>>;
@@ -102,9 +101,9 @@ public:
 	rpl::producer<not_null<UserData*>> megagroupParticipantAdded(
 		not_null<ChannelData*> channel) const;
 
-	void markStickersUpdated();
+	void notifyStickersUpdated();
 	rpl::producer<> stickersUpdated() const;
-	void markSavedGifsUpdated();
+	void notifySavedGifsUpdated();
 	rpl::producer<> savedGifsUpdated() const;
 
 	bool stickersUpdateNeeded(TimeMs now) const {
@@ -276,16 +275,16 @@ public:
 
 	void registerPhotoView(
 		not_null<const PhotoData*> photo,
-		not_null<HistoryView::Element*> view);
+		not_null<ViewElement*> view);
 	void unregisterPhotoView(
 		not_null<const PhotoData*> photo,
-		not_null<HistoryView::Element*> view);
+		not_null<ViewElement*> view);
 	void registerDocumentView(
 		not_null<const DocumentData*> document,
-		not_null<HistoryView::Element*> view);
+		not_null<ViewElement*> view);
 	void unregisterDocumentView(
 		not_null<const DocumentData*> document,
-		not_null<HistoryView::Element*> view);
+		not_null<ViewElement*> view);
 	void registerDocumentItem(
 		not_null<const DocumentData*> document,
 		not_null<HistoryItem*> item);
@@ -294,10 +293,10 @@ public:
 		not_null<HistoryItem*> item);
 	void registerWebPageView(
 		not_null<const WebPageData*> page,
-		not_null<HistoryView::Element*> view);
+		not_null<ViewElement*> view);
 	void unregisterWebPageView(
 		not_null<const WebPageData*> page,
-		not_null<HistoryView::Element*> view);
+		not_null<ViewElement*> view);
 	void registerWebPageItem(
 		not_null<const WebPageData*> page,
 		not_null<HistoryItem*> item);
@@ -306,16 +305,16 @@ public:
 		not_null<HistoryItem*> item);
 	void registerGameView(
 		not_null<const GameData*> game,
-		not_null<HistoryView::Element*> view);
+		not_null<ViewElement*> view);
 	void unregisterGameView(
 		not_null<const GameData*> game,
-		not_null<HistoryView::Element*> view);
+		not_null<ViewElement*> view);
 	void registerContactView(
 		UserId contactId,
-		not_null<HistoryView::Element*> view);
+		not_null<ViewElement*> view);
 	void unregisterContactView(
 		UserId contactId,
-		not_null<HistoryView::Element*> view);
+		not_null<ViewElement*> view);
 	void registerContactItem(
 		UserId contactId,
 		not_null<HistoryItem*> item);
@@ -324,7 +323,7 @@ public:
 		not_null<HistoryItem*> item);
 	void registerAutoplayAnimation(
 		not_null<::Media::Clip::Reader*> reader,
-		not_null<HistoryView::Element*> view);
+		not_null<ViewElement*> view);
 	void unregisterAutoplayAnimation(
 		not_null<::Media::Clip::Reader*> reader);
 
@@ -439,7 +438,6 @@ private:
 	base::Observable<void> _pendingHistoryResize;
 	base::Observable<ItemVisibilityQuery> _queryItemVisibility;
 	rpl::event_stream<IdChange> _itemIdChanges;
-	rpl::event_stream<not_null<const HistoryItem*>> _itemLayoutChanges;
 	rpl::event_stream<not_null<const ViewElement*>> _viewLayoutChanges;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemViewRepaintRequest;
 	rpl::event_stream<not_null<const ViewElement*>> _viewRepaintRequest;
@@ -472,7 +470,7 @@ private:
 		std::unique_ptr<PhotoData>> _photos;
 	std::map<
 		not_null<const PhotoData*>,
-		base::flat_set<not_null<HistoryView::Element*>>> _photoViews;
+		base::flat_set<not_null<ViewElement*>>> _photoViews;
 	std::unordered_map<
 		DocumentId,
 		std::unique_ptr<DocumentData>> _documents;
@@ -481,7 +479,7 @@ private:
 		base::flat_set<not_null<HistoryItem*>>> _documentItems;
 	std::map<
 		not_null<const DocumentData*>,
-		base::flat_set<not_null<HistoryView::Element*>>> _documentViews;
+		base::flat_set<not_null<ViewElement*>>> _documentViews;
 	std::unordered_map<
 		WebPageId,
 		std::unique_ptr<WebPageData>> _webpages;
@@ -490,22 +488,22 @@ private:
 		base::flat_set<not_null<HistoryItem*>>> _webpageItems;
 	std::map<
 		not_null<const WebPageData*>,
-		base::flat_set<not_null<HistoryView::Element*>>> _webpageViews;
+		base::flat_set<not_null<ViewElement*>>> _webpageViews;
 	std::unordered_map<
 		GameId,
 		std::unique_ptr<GameData>> _games;
 	std::map<
 		not_null<const GameData*>,
-		base::flat_set<not_null<HistoryView::Element*>>> _gameViews;
+		base::flat_set<not_null<ViewElement*>>> _gameViews;
 	std::map<
 		UserId,
 		base::flat_set<not_null<HistoryItem*>>> _contactItems;
 	std::map<
 		UserId,
-		base::flat_set<not_null<HistoryView::Element*>>> _contactViews;
+		base::flat_set<not_null<ViewElement*>>> _contactViews;
 	base::flat_map<
 		not_null<::Media::Clip::Reader*>,
-		not_null<HistoryView::Element*>> _autoplayAnimations;
+		not_null<ViewElement*>> _autoplayAnimations;
 
 	base::flat_set<not_null<WebPageData*>> _webpagesUpdated;
 	base::flat_set<not_null<GameData*>> _gamesUpdated;
@@ -515,7 +513,7 @@ private:
 	Groups _groups;
 	std::map<
 		not_null<HistoryItem*>,
-		std::vector<not_null<HistoryView::Element*>>> _views;
+		std::vector<not_null<ViewElement*>>> _views;
 
 	MessageIdsList _mimeForwardIds;
 

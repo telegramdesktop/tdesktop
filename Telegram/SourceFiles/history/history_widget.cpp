@@ -646,10 +646,10 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 			}
 		}
 	});
-	Auth().data().itemLayoutChanged(
-	) | rpl::start_with_next([this](auto item) {
+	Auth().data().viewLayoutChanged(
+	) | rpl::start_with_next([this](auto view) {
 		if (_peer && _list) {
-			if (const auto view = item->mainView()) {
+			if (view == view->data()->mainView()) {
 				if (view->isUnderCursor()) {
 					_list->onUpdateSelected();
 				}
@@ -909,7 +909,7 @@ void HistoryWidget::start() {
 		updateStickersByEmoji();
 	}, lifetime());
 	updateRecentStickers();
-	Auth().data().markSavedGifsUpdated();
+	Auth().data().notifySavedGifsUpdated();
 	subscribe(Auth().api().fullPeerUpdated(), [this](PeerData *peer) {
 		fullPeerUpdated(peer);
 	});

@@ -186,6 +186,8 @@ public:
 	void previousInBlocksChanged();
 	void nextInBlocksChanged();
 
+	void clipCallback(Media::Clip::Notification notification);
+
 	virtual ~Element();
 
 protected:

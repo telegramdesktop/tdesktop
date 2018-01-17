@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "history/history_media.h"
 #include "history/history_item.h"
+#include "history/view/history_view_element.h"
 #include "media/media_clip_reader.h"
 #include "media/view/media_clip_playback.h"
 #include "media/media_audio.h"
@@ -46,7 +47,10 @@ Float::Float(
 	prepareShadow();
 
 	rpl::merge(
-		Auth().data().itemLayoutChanged(),
+		//Auth().data().viewLayoutChanged(
+		//) | rpl::map(
+		//	[](auto view) { return view->data(); }
+		//),
 		Auth().data().itemViewRepaintRequest()
 	) | rpl::start_with_next([this](auto item) {
 		if (_item == item) {

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_element.h"
 
+#include "media/media_clip_reader.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "history/history_media.h"
@@ -259,6 +260,52 @@ void Element::previousInBlocksChanged() {
 void Element::nextInBlocksChanged() {
 	setAttachToNext(false);
 }
+
+void Element::clipCallback(Media::Clip::Notification notification) {
+	using namespace Media::Clip;
+
+	const auto media = this->media();
+	if (!media) {
+		return;
+	}
+
+	const auto reader = media->getClipReader();
+	if (!reader) {
+		return;
+	}
+
+	switch (notification) {
+	case NotificationReinit: {
+		auto stopped = false;
+		if (reader->autoPausedGif()) {
+			auto amVisible = false;
+			Auth().data().queryItemVisibility().notify({ data(), &amVisible }, true);
+			if (!amVisible) { // stop animation if it is not visible
+				media->stopInline();
+				if (const auto document = media->getDocument()) {
+					document->forget();
+				}
+				stopped = true;
+			}
+		} else if (reader->mode() == Reader::Mode::Video
+			&& reader->state() == State::Finished) {
+			// Stop finished video message.
+			media->stopInline();
+		}
+		if (!stopped) {
+			Auth().data().requestViewResize(this);
+			Auth().data().notifyViewLayoutChange(this);
+		}
+	} break;
+
+	case NotificationRepaint: {
+		if (!reader->currentDisplayed()) {
+			Auth().data().requestViewRepaint(this);
+		}
+	} break;
+	}
+}
+
 
 void Element::refreshDataId() {
 	if (const auto media = this->media()) {

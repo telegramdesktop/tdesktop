@@ -1219,7 +1219,7 @@ void ApiWrap::saveStickerSets(const Stickers::Order &localOrder, const Stickers:
 	if (writeArchived) Local::writeArchivedStickers();
 	if (writeCloudRecent) Local::writeRecentStickers();
 	if (writeFaved) Local::writeFavedStickers();
-	_session->data().markStickersUpdated();
+	_session->data().notifyStickersUpdated();
 
 	if (_stickerSetDisenableRequests.empty()) {
 		stickersSaveOrder();
@@ -1834,7 +1834,7 @@ void ApiWrap::setGroupStickerSet(not_null<ChannelData*> megagroup, const MTPInpu
 	Expects(megagroup->mgInfo != nullptr);
 	megagroup->mgInfo->stickerSet = set;
 	request(MTPchannels_SetStickers(megagroup->inputChannel, set)).send();
-	_session->data().markStickersUpdated();
+	_session->data().notifyStickersUpdated();
 }
 
 void ApiWrap::requestStickers(TimeId now) {
@@ -1986,7 +1986,7 @@ void ApiWrap::readFeaturedSets() {
 			MTP_vector<MTPlong>(wrappedIds));
 		request(std::move(requestData)).done([=](const MTPBool &result) {
 			Local::writeFeaturedStickers();
-			_session->data().markStickersUpdated();
+			_session->data().notifyStickersUpdated();
 		}).send();
 
 		_session->data().setFeaturedStickerSetsUnreadCount(count);

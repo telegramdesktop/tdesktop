@@ -120,7 +120,7 @@ void DeleteSavedGifClickHandler::onClickImpl() const {
 
 		MTP::send(MTPmessages_SaveGif(_data->mtpInput(), MTP_bool(true)));
 	}
-	Auth().data().markSavedGifsUpdated();
+	Auth().data().notifySavedGifsUpdated();
 }
 
 int Gif::resizeGetHeight(int width) {

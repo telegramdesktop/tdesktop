@@ -265,7 +265,6 @@ public:
 
 	MessageGroupId groupId() const;
 
-	void clipCallback(Media::Clip::Notification notification);
 	void audioTrackUpdated();
 
 	HistoryItem *previousItem() const;

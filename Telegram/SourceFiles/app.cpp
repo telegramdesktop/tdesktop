@@ -951,7 +951,7 @@ namespace {
 			if (saved.size() > Global::SavedGifsLimit()) saved.pop_back();
 			Local::writeSavedGifs();
 
-			Auth().data().markSavedGifsUpdated();
+			Auth().data().notifySavedGifsUpdated();
 			Auth().data().setLastSavedGifsUpdate(0);
 			Auth().api().updateStickers();
 		}
@@ -1277,7 +1277,7 @@ namespace {
 		if (Global::started()
 			&& !App::quitting()
 			&& AuthSession::Exists()) {
-			Auth().data().markItemRemoved(item);
+			Auth().data().notifyItemRemoved(item);
 		}
 	}
 

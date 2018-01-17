@@ -2424,12 +2424,12 @@ void History::clear(bool leaveItems) {
 		forgetScrollState();
 	}
 	if (leaveItems) {
-		Auth().data().markHistoryUnloaded(this);
+		Auth().data().notifyHistoryUnloaded(this);
 	} else {
 		setLastMessage(nullptr);
 		notifies.clear();
 		Auth().storage().remove(Storage::SharedMediaRemoveAll(peer->id));
-		Auth().data().markHistoryCleared(this);
+		Auth().data().notifyHistoryCleared(this);
 	}
 	clearBlocks(leaveItems);
 	if (leaveItems) {

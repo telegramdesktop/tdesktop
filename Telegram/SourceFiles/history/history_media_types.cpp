@@ -2687,7 +2687,7 @@ bool HistoryGif::playInline(bool autoplay) {
 			: Mode::Gif;
 		setClipReader(Media::Clip::MakeReader(_data, _parent->data()->fullId(), [this](Media::Clip::Notification notification) {
 			// #TODO GIFs
-			_parent->data()->clipCallback(notification);
+			_parent->clipCallback(notification);
 		}, mode));
 		if (mode == Mode::Video) {
 			_roundPlayback = std::make_unique<Media::Clip::Playback>();
@@ -2717,7 +2717,7 @@ void HistoryGif::stopInline() {
 	clearClipReader();
 
 	Auth().data().requestViewResize(_parent);
-	Auth().data().markViewLayoutChange(_parent);
+	Auth().data().notifyViewLayoutChange(_parent);
 }
 
 void HistoryGif::setClipReader(Media::Clip::ReaderPointer gif) {

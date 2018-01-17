@@ -239,7 +239,7 @@ void StickerSetBox::Inner::installDone(const MTPmessages_StickerSetInstallResult
 			Local::writeArchivedStickers();
 		}
 		Local::writeInstalledStickers();
-		Auth().data().markStickersUpdated();
+		Auth().data().notifyStickersUpdated();
 	}
 	_setInstalled.fire_copy(_setId);
 }

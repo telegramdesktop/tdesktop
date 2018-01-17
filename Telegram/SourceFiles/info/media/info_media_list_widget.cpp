@@ -561,10 +561,10 @@ void ListWidget::start() {
 	ObservableViewer(
 		Auth().downloader().taskFinished()
 	) | rpl::start_with_next([this] { update(); }, lifetime());
-	Auth().data().itemLayoutChanged(
-	) | rpl::start_with_next([this](auto item) {
-		itemLayoutChanged(item);
-	}, lifetime());
+	//Auth().data().itemLayoutChanged( // #TODO
+	//) | rpl::start_with_next([this](auto item) {
+	//	itemLayoutChanged(item);
+	//}, lifetime());
 	Auth().data().itemRemoved(
 	) | rpl::start_with_next([this](auto item) {
 		itemRemoved(item);
