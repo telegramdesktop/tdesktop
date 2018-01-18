@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <private/qharfbuzz_p.h>
 
 #include "core/click_handler_types.h"
+#include "core/crash_reports.h"
 #include "ui/text/text_block.h"
 #include "lang/lang_keys.h"
 #include "platform/platform_specific.h"
@@ -293,19 +294,15 @@ public:
 
 		++waitingEntity;
 		if (links.size() >= 0x7FFF) {
-			while (waitingEntity != entitiesEnd && (
-				waitingEntity->type() == EntityInTextUrl ||
-				waitingEntity->type() == EntityInTextCustomUrl ||
-				waitingEntity->type() == EntityInTextEmail ||
-				waitingEntity->type() == EntityInTextHashtag ||
-				waitingEntity->type() == EntityInTextMention ||
-				waitingEntity->type() == EntityInTextMentionName ||
-				waitingEntity->type() == EntityInTextBotCommand ||
-				waitingEntity->length() <= 0)) {
+			while (waitingEntity != entitiesEnd
+				&& (isLinkEntity(*waitingEntity)
+					|| isInvalidEntity(*waitingEntity))) {
 				++waitingEntity;
 			}
 		} else {
-			while (waitingEntity != entitiesEnd && waitingEntity->length() <= 0) ++waitingEntity;
+			while (waitingEntity != entitiesEnd && isInvalidEntity(*waitingEntity)) {
+				++waitingEntity;
+			}
 		}
 		return true;
 	}
@@ -479,9 +476,13 @@ public:
 		for (int l = len - emojiLookback - 1; l > 0; --l) {
 			_t->_text.push_back(*++ptr);
 		}
-		if (e->hasPostfix() && _t->_text.at(_t->_text.size() - 1).unicode() != Ui::Emoji::kPostfix) {
-			_t->_text.push_back(QChar(Ui::Emoji::kPostfix));
-			++len;
+		if (e->hasPostfix()) {
+			Assert(!_t->_text.isEmpty());
+			const auto last = _t->_text[_t->_text.size() - 1];
+			if (last.unicode() != Ui::Emoji::kPostfix) {
+				_t->_text.push_back(QChar(Ui::Emoji::kPostfix));
+				++len;
+			}
 		}
 
 		createBlock(-len);
@@ -530,6 +531,25 @@ public:
 		parse(options);
 	}
 
+	bool isInvalidEntity(const EntityInText &entity) const {
+		const auto length = entity.length();
+		return (start + entity.offset() + length > end) || (length <= 0);
+	}
+
+	bool isLinkEntity(const EntityInText &entity) const {
+		const auto type = entity.type();
+		const auto urls = {
+			EntityInTextUrl,
+			EntityInTextCustomUrl,
+			EntityInTextEmail,
+			EntityInTextHashtag,
+			EntityInTextMention,
+			EntityInTextMentionName,
+			EntityInTextBotCommand
+		};
+		return ranges::find(urls, type) != std::end(urls);
+	}
+
 	void parse(const TextParseOptions &options) {
 		if (options.maxw > 0 && options.maxh > 0) {
 			stopAfterWidth = ((options.maxh / _t->_st->font->height) + 1) * options.maxw;
@@ -540,7 +560,9 @@ public:
 
 		entitiesEnd = source.entities.cend();
 		waitingEntity = source.entities.cbegin();
-		while (waitingEntity != entitiesEnd && waitingEntity->length() <= 0) ++waitingEntity;
+		while (waitingEntity != entitiesEnd && isInvalidEntity(*waitingEntity)) {
+			++waitingEntity;
+		}
 		int firstMonospaceOffset = EntityInText::firstMonospaceOffset(source.entities, end - start);
 
 		ptr = start;

@@ -496,7 +496,9 @@ HistoryMessage::HistoryMessage(
 	initMedia(msg.has_media() ? (&msg.vmedia) : nullptr);
 
 	auto text = TextUtilities::Clean(qs(msg.vmessage));
-	auto entities = msg.has_entities() ? TextUtilities::EntitiesFromMTP(msg.ventities.v) : EntitiesInText();
+	auto entities = msg.has_entities()
+		? TextUtilities::EntitiesFromMTP(msg.ventities.v)
+		: EntitiesInText();
 	setText({ text, entities });
 }
 
