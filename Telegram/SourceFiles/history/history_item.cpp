@@ -339,7 +339,7 @@ void HistoryItem::setRealId(MsgId newId) {
 	}
 
 	Auth().data().notifyItemIdChange({ this, oldId });
-	Auth().data().requestItemViewRepaint(this);
+	Auth().data().requestItemRepaint(this);
 }
 
 bool HistoryItem::isPinned() const {
@@ -573,7 +573,7 @@ void HistoryItem::destroyUnreadBar() {
 		Assert(!isLogEntry());
 
 		RemoveComponents(HistoryMessageUnreadBar::Bit());
-		Auth().data().requestItemViewResize(this);
+		Auth().data().requestItemResize(this);
 		if (_history->unreadBar == this) {
 			_history->unreadBar = nullptr;
 		}
@@ -587,7 +587,7 @@ void HistoryItem::setUnreadBarCount(int count) {
 	if (count > 0) {
 		if (!Has<HistoryMessageUnreadBar>()) {
 			AddComponents(HistoryMessageUnreadBar::Bit());
-			Auth().data().requestItemViewResize(this);
+			Auth().data().requestItemResize(this);
 			// #TODO recount attach to previous
 		}
 		const auto bar = Get<HistoryMessageUnreadBar>();
@@ -595,7 +595,7 @@ void HistoryItem::setUnreadBarCount(int count) {
 			return;
 		}
 		bar->init(count);
-		Auth().data().requestItemViewRepaint(this);
+		Auth().data().requestItemRepaint(this);
 	} else {
 		destroyUnreadBar();
 	}

@@ -164,6 +164,10 @@ HistoryInner::HistoryInner(
 	}) | rpl::start_with_next([this] {
 		mouseActionCancel();
 	}, lifetime());
+	Auth().data().viewRepaintRequest(
+	) | rpl::start_with_next(
+		[this](auto view) { repaintItem(view); },
+		lifetime());
 }
 
 void HistoryInner::messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages) {
@@ -191,17 +195,19 @@ void HistoryInner::messagesReceivedDown(PeerData *peer, const QVector<MTPMessage
 }
 
 void HistoryInner::repaintItem(const HistoryItem *item) {
-	if (item) {
-		repaintItem(item->mainView());
+	if (!item) {
+		return;
 	}
+	repaintItem(item->mainView());
 }
 
 void HistoryInner::repaintItem(const Element *view) {
-	if (view) {
-		const auto top = itemTop(view);
-		if (top >= 0) {
-			update(0, top, width(), view->height());
-		}
+	if (_widget->skipItemRepaint()) {
+		return;
+	}
+	const auto top = itemTop(view);
+	if (top >= 0) {
+		update(0, top, width(), view->height());
 	}
 }
 

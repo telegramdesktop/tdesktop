@@ -51,7 +51,7 @@ Float::Float(
 		//) | rpl::map(
 		//	[](auto view) { return view->data(); }
 		//),
-		Auth().data().itemViewRepaintRequest()
+		Auth().data().itemRepaintRequest()
 	) | rpl::start_with_next([this](auto item) {
 		if (_item == item) {
 			repaintItem();

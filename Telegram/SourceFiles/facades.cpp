@@ -350,7 +350,7 @@ void handlePendingHistoryUpdate() {
 	Auth().data().pendingHistoryResize().notify(true);
 
 	//for (const auto item : base::take(Global::RefPendingRepaintItems())) {
-	//	Auth().data().requestItemViewRepaint(item);
+	//	Auth().data().requestItemRepaint(item);
 
 		// Start the video if it is waiting for that.
 		//if (item->pendingInitDimensions()) { // #TODO floating player video

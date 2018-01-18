@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "apiwrap.h"
+#include "history/history.h"
 #include "history/history_item_components.h"
 #include "history/history_media.h"
 #include "history/view/history_view_element.h"
@@ -74,7 +75,7 @@ Session::~Session() = default;
 
 template <typename Method>
 void Session::enumerateItemViews(
-		not_null<HistoryItem*> item,
+		not_null<const HistoryItem*> item,
 		Method method) {
 	if (const auto i = _views.find(item); i != _views.end()) {
 		for (const auto view : i->second) {
@@ -166,12 +167,15 @@ rpl::producer<Session::IdChange> Session::itemIdChanged() const {
 	return _itemIdChanges.events();
 }
 
-void Session::requestItemViewRepaint(not_null<const HistoryItem*> item) {
-	_itemViewRepaintRequest.fire_copy(item);
+void Session::requestItemRepaint(not_null<const HistoryItem*> item) {
+	_itemRepaintRequest.fire_copy(item);
+	enumerateItemViews(item, [&](not_null<const ViewElement*> view) {
+		requestViewRepaint(view);
+	});
 }
 
-rpl::producer<not_null<const HistoryItem*>> Session::itemViewRepaintRequest() const {
-	return _itemViewRepaintRequest.events();
+rpl::producer<not_null<const HistoryItem*>> Session::itemRepaintRequest() const {
+	return _itemRepaintRequest.events();
 }
 
 void Session::requestViewRepaint(not_null<const ViewElement*> view) {
@@ -182,23 +186,32 @@ rpl::producer<not_null<const ViewElement*>> Session::viewRepaintRequest() const 
 	return _viewRepaintRequest.events();
 }
 
-void Session::requestItemViewResize(not_null<const HistoryItem*> item) {
-	_itemViewResizeRequest.fire_copy(item);
+void Session::requestItemResize(not_null<const HistoryItem*> item) {
+	_itemResizeRequest.fire_copy(item);
+	enumerateItemViews(item, [&](not_null<ViewElement*> view) {
+		requestViewResize(view);
+	});
 }
 
-rpl::producer<not_null<const HistoryItem*>> Session::itemViewResizeRequest() const {
-	return _itemViewResizeRequest.events();
+rpl::producer<not_null<const HistoryItem*>> Session::itemResizeRequest() const {
+	return _itemResizeRequest.events();
 }
 
-void Session::requestViewResize(not_null<const ViewElement*> view) {
+void Session::requestViewResize(not_null<ViewElement*> view) {
+	if (view == view->data()->mainView()) {
+		view->setPendingResize();
+	}
 	_viewResizeRequest.fire_copy(view);
 }
 
-rpl::producer<not_null<const ViewElement*>> Session::viewResizeRequest() const {
+rpl::producer<not_null<ViewElement*>> Session::viewResizeRequest() const {
 	return _viewResizeRequest.events();
 }
 
 void Session::requestItemViewRefresh(not_null<const HistoryItem*> item) {
+	if (const auto view = item->mainView()) {
+		view->setPendingResize();
+	}
 	_itemViewRefreshRequest.fire_copy(item);
 }
 
@@ -238,11 +251,12 @@ rpl::producer<not_null<const History*>> Session::historyCleared() const {
 	return _historyCleared.events();
 }
 
-void Session::notifyHistoryChangeDelayed(not_null<const History*> history) {
+void Session::notifyHistoryChangeDelayed(not_null<History*> history) {
 	_historiesChanged.insert(history);
+	history->setPendingResize();
 }
 
-rpl::producer<not_null<const History*>> Session::historyChanged() const {
+rpl::producer<not_null<History*>> Session::historyChanged() const {
 	return _historyChanged.events();
 }
 

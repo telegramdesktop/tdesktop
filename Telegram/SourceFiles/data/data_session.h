@@ -65,14 +65,14 @@ public:
 	rpl::producer<IdChange> itemIdChanged() const;
 	void notifyViewLayoutChange(not_null<const ViewElement*> view);
 	rpl::producer<not_null<const ViewElement*>> viewLayoutChanged() const;
-	void requestItemViewRepaint(not_null<const HistoryItem*> item);
-	rpl::producer<not_null<const HistoryItem*>> itemViewRepaintRequest() const;
+	void requestItemRepaint(not_null<const HistoryItem*> item);
+	rpl::producer<not_null<const HistoryItem*>> itemRepaintRequest() const;
 	void requestViewRepaint(not_null<const ViewElement*> view);
 	rpl::producer<not_null<const ViewElement*>> viewRepaintRequest() const;
-	void requestItemViewResize(not_null<const HistoryItem*> item);
-	rpl::producer<not_null<const HistoryItem*>> itemViewResizeRequest() const;
-	void requestViewResize(not_null<const ViewElement*> view);
-	rpl::producer<not_null<const ViewElement*>> viewResizeRequest() const;
+	void requestItemResize(not_null<const HistoryItem*> item);
+	rpl::producer<not_null<const HistoryItem*>> itemResizeRequest() const;
+	void requestViewResize(not_null<ViewElement*> view);
+	rpl::producer<not_null<ViewElement*>> viewResizeRequest() const;
 	void requestItemViewRefresh(not_null<const HistoryItem*> item);
 	rpl::producer<not_null<const HistoryItem*>> itemViewRefreshRequest() const;
 	void requestItemPlayInline(not_null<const HistoryItem*> item);
@@ -84,8 +84,8 @@ public:
 	rpl::producer<not_null<const HistoryItem*>> itemRemoved() const;
 	void notifyHistoryCleared(not_null<const History*> history);
 	rpl::producer<not_null<const History*>> historyCleared() const;
-	void notifyHistoryChangeDelayed(not_null<const History*> history);
-	rpl::producer<not_null<const History*>> historyChanged() const;
+	void notifyHistoryChangeDelayed(not_null<History*> history);
+	rpl::producer<not_null<History*>> historyChanged() const;
 	void sendHistoryChangeNotifications();
 
 	using MegagroupParticipant = std::tuple<
@@ -431,7 +431,9 @@ private:
 	void setIsPinned(const Dialogs::Key &key, bool pinned);
 
 	template <typename Method>
-	void enumerateItemViews(not_null<HistoryItem*> item, Method method);
+	void enumerateItemViews(
+		not_null<const HistoryItem*> item,
+		Method method);
 
 	not_null<AuthSession*> _session;
 
@@ -442,17 +444,17 @@ private:
 	base::Observable<ItemVisibilityQuery> _queryItemVisibility;
 	rpl::event_stream<IdChange> _itemIdChanges;
 	rpl::event_stream<not_null<const ViewElement*>> _viewLayoutChanges;
-	rpl::event_stream<not_null<const HistoryItem*>> _itemViewRepaintRequest;
+	rpl::event_stream<not_null<const HistoryItem*>> _itemRepaintRequest;
 	rpl::event_stream<not_null<const ViewElement*>> _viewRepaintRequest;
-	rpl::event_stream<not_null<const HistoryItem*>> _itemViewResizeRequest;
-	rpl::event_stream<not_null<const ViewElement*>> _viewResizeRequest;
+	rpl::event_stream<not_null<const HistoryItem*>> _itemResizeRequest;
+	rpl::event_stream<not_null<ViewElement*>> _viewResizeRequest;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemViewRefreshRequest;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemPlayInlineRequest;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemRemoved;
 	rpl::event_stream<not_null<const History*>> _historyUnloaded;
 	rpl::event_stream<not_null<const History*>> _historyCleared;
-	base::flat_set<not_null<const History*>> _historiesChanged;
-	rpl::event_stream<not_null<const History*>> _historyChanged;
+	base::flat_set<not_null<History*>> _historiesChanged;
+	rpl::event_stream<not_null<History*>> _historyChanged;
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantRemoved;
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantAdded;
 
@@ -517,7 +519,7 @@ private:
 	base::flat_map<FeedId, std::unique_ptr<Data::Feed>> _feeds;
 	Groups _groups;
 	std::map<
-		not_null<HistoryItem*>,
+		not_null<const HistoryItem*>,
 		std::vector<not_null<ViewElement*>>> _views;
 
 	MessageIdsList _mimeForwardIds;

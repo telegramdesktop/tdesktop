@@ -552,7 +552,7 @@ void HistoryMessage::applyGroupAdminChanges(
 		} else {
 			_flags &= ~MTPDmessage_ClientFlag::f_has_admin_badge;
 		}
-		Auth().data().requestItemViewResize(this);
+		Auth().data().requestItemResize(this);
 	}
 }
 
@@ -908,7 +908,7 @@ void HistoryMessage::updateSentMedia(const MTPMessageMedia *media) {
 			refreshMedia(media);
 		}
 	}
-	Auth().data().requestItemViewResize(this);
+	Auth().data().requestItemResize(this);
 }
 
 void HistoryMessage::addToUnreadMentions(UnreadMentionType type) {
@@ -1003,7 +1003,7 @@ void HistoryMessage::setReplyMarkup(const MTPReplyMarkup *markup) {
 			if (Has<HistoryMessageReplyMarkup>()) {
 				RemoveComponents(HistoryMessageReplyMarkup::Bit());
 			}
-			Auth().data().requestItemViewResize(this);
+			Auth().data().requestItemResize(this);
 			Notify::replyMarkupUpdated(this);
 		}
 		return;
@@ -1022,7 +1022,7 @@ void HistoryMessage::setReplyMarkup(const MTPReplyMarkup *markup) {
 			changed = true;
 		}
 		if (changed) {
-			Auth().data().requestItemViewResize(this);
+			Auth().data().requestItemResize(this);
 			Notify::replyMarkupUpdated(this);
 		}
 	} else {
@@ -1033,7 +1033,7 @@ void HistoryMessage::setReplyMarkup(const MTPReplyMarkup *markup) {
 			AddComponents(HistoryMessageReplyMarkup::Bit());
 		}
 		Get<HistoryMessageReplyMarkup>()->create(*markup);
-		Auth().data().requestItemViewResize(this);
+		Auth().data().requestItemResize(this);
 		Notify::replyMarkupUpdated(this);
 	}
 }
@@ -1066,16 +1066,16 @@ void HistoryMessage::setViewsCount(int32 count) {
 		? 0
 		: st::msgDateFont->width(views->_viewsText);
 	if (was == views->_viewsWidth) {
-		Auth().data().requestItemViewRepaint(this);
+		Auth().data().requestItemRepaint(this);
 	} else {
-		Auth().data().requestItemViewResize(this);
+		Auth().data().requestItemResize(this);
 	}
 }
 
 void HistoryMessage::setRealId(MsgId newId) {
 	HistoryItem::setRealId(newId);
 	Auth().data().groups().refreshMessage(this);
-	Auth().data().requestItemViewResize(this);
+	Auth().data().requestItemResize(this);
 }
 
 void HistoryMessage::dependencyItemRemoved(HistoryItem *dependency) {

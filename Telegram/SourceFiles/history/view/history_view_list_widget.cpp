@@ -221,11 +221,9 @@ ListWidget::ListWidget(
 , _scrollDateCheck([this] { scrollDateCheck(); }) {
 	setMouseTracking(true);
 	_scrollDateHideTimer.setCallback([this] { scrollDateHideByTimer(); });
-	Auth().data().itemViewRepaintRequest(
-	) | rpl::start_with_next([this](auto item) {
-		if (const auto view = viewForItem(item)) {
-			repaintItem(view);
-		}
+	Auth().data().viewRepaintRequest(
+	) | rpl::start_with_next([this](auto view) {
+		repaintItem(view);
 	}, lifetime());
 	subscribe(Auth().data().pendingHistoryResize(), [this] { handlePendingHistoryResize(); });
 	subscribe(Auth().data().queryItemVisibility(), [this](const Data::Session::ItemVisibilityQuery &query) {

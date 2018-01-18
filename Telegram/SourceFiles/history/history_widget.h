@@ -186,6 +186,7 @@ public:
 	void windowShown();
 	bool doWeReadServerHistory() const;
 	bool doWeReadMentions() const;
+	bool skipItemRepaint();
 
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 	void dragEnterEvent(QDragEnterEvent *e) override;
@@ -452,7 +453,6 @@ private:
 	using TabbedSelector = ChatHelpers::TabbedSelector;
 	using DragState = Storage::MimeDataState;
 
-	void repaintHistoryItem(not_null<const HistoryItem*> item);
 	void handlePendingHistoryUpdate();
 	void fullPeerUpdated(PeerData *peer);
 	void toggleTabbedSelectorMode();

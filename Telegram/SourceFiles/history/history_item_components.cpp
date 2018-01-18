@@ -163,7 +163,7 @@ bool HistoryMessageReply::updateData(HistoryMessage *holder, bool force) {
 		replyToMsgId = 0;
 	}
 	if (force) {
-		Auth().data().requestItemViewResize(holder);
+		Auth().data().requestItemResize(holder);
 	}
 	return (replyToMsg || !replyToMsgId);
 }
@@ -219,7 +219,7 @@ void HistoryMessageReply::itemRemoved(
 		HistoryItem *removed) {
 	if (replyToMsg == removed) {
 		clearData(holder);
-		Auth().data().requestItemViewResize(holder);
+		Auth().data().requestItemResize(holder);
 	}
 }
 

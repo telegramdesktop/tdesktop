@@ -94,7 +94,7 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 	) | rpl::start_with_next(
 		[this](auto item) { itemRemoved(item); },
 		lifetime());
-	Auth().data().itemViewRepaintRequest(
+	Auth().data().itemRepaintRequest(
 	) | rpl::start_with_next([this](auto item) {
 		const auto history = item->history();
 		if (history->textCachedFor == item) {

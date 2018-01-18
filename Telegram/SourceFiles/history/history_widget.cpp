@@ -559,14 +559,22 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 	) | rpl::start_with_next(
 		[this](auto item) { itemRemoved(item); },
 		lifetime());
-	Auth().data().itemViewRepaintRequest(
-	) | rpl::start_with_next(
-		[this](auto item) { repaintHistoryItem(item); },
-		lifetime());
 	Auth().data().historyChanged(
 	) | rpl::start_with_next(
 		[=](auto history) { handleHistoryChange(history); },
 		lifetime());
+	Auth().data().viewResizeRequest(
+	) | rpl::start_with_next([this](auto view) {
+		if (view->data()->mainView() == view) {
+			updateHistoryGeometry();
+		}
+	}, lifetime());
+	Auth().data().itemViewRefreshRequest(
+	) | rpl::start_with_next([this](auto item) {
+		if (const auto view = item->mainView()) {
+			updateHistoryGeometry();
+		}
+	});
 	subscribe(Auth().data().contactsLoaded(), [this](bool) {
 		if (_peer) {
 			updateReportSpamStatus();
@@ -3384,7 +3392,7 @@ void HistoryWidget::app_sendBotCallback(
 			MTP_bytes(sendData)),
 		rpcDone(&HistoryWidget::botCallbackDone, info),
 		rpcFail(&HistoryWidget::botCallbackFail, info));
-	Auth().data().requestItemViewRepaint(msg);
+	Auth().data().requestItemRepaint(msg);
 
 	if (_replyToId == msg->id) {
 		cancelReply();
@@ -3406,7 +3414,7 @@ void HistoryWidget::botCallbackDone(
 				&& info.col < markup->rows[info.row].size()) {
 				if (markup->rows[info.row][info.col].requestId == req) {
 					markup->rows[info.row][info.col].requestId = 0;
-					Auth().data().requestItemViewRepaint(item);
+					Auth().data().requestItemRepaint(item);
 				}
 			}
 		}
@@ -3445,7 +3453,7 @@ bool HistoryWidget::botCallbackFail(
 				&& info.col < markup->rows[info.row].size()) {
 				if (markup->rows[info.row][info.col].requestId == req) {
 					markup->rows[info.row][info.col].requestId = 0;
-					Auth().data().requestItemViewRepaint(item);
+					Auth().data().requestItemRepaint(item);
 				}
 			}
 		}
@@ -4376,7 +4384,7 @@ void HistoryWidget::onPhotoProgress(const FullMsgId &newId) {
 			? item->media()->photo()
 			: nullptr;
 		updateSendAction(item->history(), SendAction::Type::UploadPhoto, 0);
-		Auth().data().requestItemViewRepaint(item);
+		Auth().data().requestItemRepaint(item);
 	}
 }
 
@@ -4394,7 +4402,7 @@ void HistoryWidget::onDocumentProgress(const FullMsgId &newId) {
 			item->history(),
 			sendAction,
 			progress);
-		Auth().data().requestItemViewRepaint(item);
+		Auth().data().requestItemRepaint(item);
 	}
 }
 
@@ -4404,7 +4412,7 @@ void HistoryWidget::onPhotoFailed(const FullMsgId &newId) {
 			item->history(),
 			SendAction::Type::UploadPhoto,
 			-1);
-		Auth().data().requestItemViewRepaint(item);
+		Auth().data().requestItemRepaint(item);
 	}
 }
 
@@ -4416,7 +4424,7 @@ void HistoryWidget::onDocumentFailed(const FullMsgId &newId) {
 			? SendAction::Type::UploadVoice
 			: SendAction::Type::UploadFile;
 		updateSendAction(item->history(), sendAction, -1);
-		Auth().data().requestItemViewRepaint(item);
+		Auth().data().requestItemRepaint(item);
 	}
 }
 
@@ -4525,27 +4533,14 @@ void HistoryWidget::grabFinish() {
 	_topShadow->show();
 }
 
-void HistoryWidget::repaintHistoryItem(
-		not_null<const HistoryItem*> item) {
-	// It is possible that repaintHistoryItem() will be called from
-	// _scroll->setOwnedWidget() because it calls onScroll() that
-	// sendSynteticMouseEvent() and it could lead to some Info layout
-	// calling Auth().data().requestItemViewRepaint(), while we still are
-	// in progrss of showing the history. Just ignore them for now :/
-	if (!_list) {
-		return;
+bool HistoryWidget::skipItemRepaint() {
+	auto ms = getms();
+	if (_lastScrolled + kSkipRepaintWhileScrollMs <= ms) {
+		return false;
 	}
-
-	auto itemHistory = item->history();
-	if (itemHistory == _history || itemHistory == _migrated) {
-		auto ms = getms();
-		if (_lastScrolled + kSkipRepaintWhileScrollMs <= ms) {
-			_list->repaintItem(item);
-		} else {
-			_updateHistoryItems.start(
-				_lastScrolled + kSkipRepaintWhileScrollMs - ms);
-		}
-	}
+	_updateHistoryItems.start(
+		_lastScrolled + kSkipRepaintWhileScrollMs - ms);
+	return true;
 }
 
 void HistoryWidget::onUpdateHistoryItems() {

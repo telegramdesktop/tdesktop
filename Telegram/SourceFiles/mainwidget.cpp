@@ -1579,7 +1579,7 @@ void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
 	}
 
 	if (const auto item = App::histItemById(audioId.contextId())) {
-		Auth().data().requestItemViewRepaint(item);
+		Auth().data().requestItemRepaint(item);
 		item->audioTrackUpdated();
 	}
 	if (const auto items = InlineBots::Layout::documentItems()) {
@@ -4826,7 +4826,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			if (auto item = App::histItemById(channel, msgId.v)) {
 				if (item->isMediaUnread()) {
 					item->markMediaRead();
-					Auth().data().requestItemViewRepaint(item);
+					Auth().data().requestItemRepaint(item);
 				}
 			} else {
 				// Perhaps it was an unread mention!

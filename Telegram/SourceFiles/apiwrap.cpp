@@ -1785,7 +1785,7 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 			v->at(index),
 			NewMessageExisting);
 		if (item) {
-			_session->data().requestItemViewResize(item);
+			_session->data().requestItemResize(item);
 		}
 	}
 
@@ -2137,7 +2137,7 @@ void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 			if (auto item = App::histItemById(NoChannel, msgId.v)) {
 				if (item->isMediaUnread()) {
 					item->markMediaRead();
-					_session->data().requestItemViewRepaint(item);
+					_session->data().requestItemRepaint(item);
 
 					if (item->out() && item->history()->peer->isUser()) {
 						auto when = App::main()->requestingDifference() ? 0 : unixtime();
@@ -3134,7 +3134,7 @@ void ApiWrap::sendMediaWithRandomId(
 		| (IsSilentPost(item, silent)
 			? MTPmessages_SendMedia::Flag::f_silent
 			: MTPmessages_SendMedia::Flag(0));
-	const auto message = QString(); // #TODO l76
+	const auto message = QString(); // #TODO l76 caption
 	history->sendRequestId = request(MTPmessages_SendMedia(
 		MTP_flags(flags),
 		history->peer->input,

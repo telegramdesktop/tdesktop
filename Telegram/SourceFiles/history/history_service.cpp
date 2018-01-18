@@ -588,7 +588,7 @@ void HistoryService::removeMedia() {
 	_media.reset();
 	_textWidth = -1;
 	_textHeight = 0;
-	Auth().data().requestItemViewResize(this);
+	Auth().data().requestItemResize(this);
 }
 
 Storage::SharedMediaTypesMask HistoryService::sharedMediaTypes() const {
@@ -611,7 +611,7 @@ void HistoryService::updateDependentText() {
 	}
 
 	setServiceText(text);
-	Auth().data().requestItemViewResize(this);
+	Auth().data().requestItemResize(this);
 	if (history()->textCachedFor == this) {
 		history()->textCachedFor = nullptr;
 	}
