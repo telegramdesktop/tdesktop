@@ -674,16 +674,11 @@ void MainWidget::finishForwarding(not_null<History*> history) {
 	if (!toForward.empty()) {
 		auto options = ApiWrap::SendOptions(history);
 		Auth().api().forwardMessages(std::move(toForward), options);
-
-		if (_history->peer() == history->peer) {
-			_history->peerMessagesUpdated();
-		}
 		cancelForwarding(history);
 	}
 
 	historyToDown(history);
 	dialogsToUp();
-	_history->peerMessagesUpdated(history->peer->id);
 }
 
 void MainWidget::updateMutedIn(TimeMs delay) {
@@ -1243,7 +1238,6 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 					history->clear(true);
 					history->addNewerSlice(QVector<MTPMessage>());
 					history->asChannelHistory()->insertJoinedMessage(true);
-					_history->peerMessagesUpdated(peer->id);
 				}
 			}
 		} else {
@@ -1261,12 +1255,12 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 					&& channel->amIn()) {
 					if (const auto from = App::userLoaded(channel->inviter)) {
 						history->asChannelHistory()->insertJoinedMessage(true);
-						_history->peerMessagesUpdated(peer->id);
 					}
 				}
 			}
 		}
 	}
+	Auth().data().sendHistoryChangeNotifications();
 }
 
 bool MainWidget::sendMessageFail(const RPCError &error) {
@@ -1857,9 +1851,7 @@ void MainWidget::insertCheckedServiceNotification(const TextWithEntities &messag
 				MTPlong()),
 			NewMessageUnread);
 	}
-	if (item) {
-		_history->peerMessagesUpdated(item->history()->peer->id);
-	}
+	Auth().data().sendHistoryChangeNotifications();
 }
 
 void MainWidget::serviceHistoryDone(const MTPmessages_Messages &msgs) {
@@ -3457,11 +3449,14 @@ void MainWidget::onUpdateNotifySettings() {
 	}
 }
 
-void MainWidget::feedUpdateVector(const MTPVector<MTPUpdate> &updates, bool skipMessageIds) {
+void MainWidget::feedUpdateVector(
+		const MTPVector<MTPUpdate> &updates,
+		bool skipMessageIds) {
 	for_const (auto &update, updates.v) {
 		if (skipMessageIds && update.type() == mtpc_updateMessageID) continue;
 		feedUpdate(update);
 	}
+	Auth().data().sendHistoryChangeNotifications();
 }
 
 void MainWidget::feedMessageIds(const MTPVector<MTPUpdate> &updates) {
@@ -3603,7 +3598,9 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 	}
 }
 
-void MainWidget::gotRangeDifference(ChannelData *channel, const MTPupdates_ChannelDifference &diff) {
+void MainWidget::gotRangeDifference(
+		ChannelData *channel,
+		const MTPupdates_ChannelDifference &diff) {
 	int32 nextRequestPts = 0;
 	bool isFinal = true;
 	switch (diff.type()) {
@@ -3641,9 +3638,13 @@ void MainWidget::gotRangeDifference(ChannelData *channel, const MTPupdates_Chann
 	}
 
 	if (!isFinal) {
-		if (History *h = App::historyLoaded(channel->id)) {
-			MTP_LOG(0, ("getChannelDifference { good - after not final channelDifference was received, validating history part }%1").arg(cTestMode() ? " TESTMODE" : ""));
-			h->asChannelHistory()->getRangeDifferenceNext(nextRequestPts);
+		if (const auto history = App::historyLoaded(channel->id)) {
+			MTP_LOG(0, ("getChannelDifference { "
+				"good - after not final channelDifference was received, "
+				"validating history part }%1"
+				).arg(cTestMode() ? " TESTMODE" : ""));
+			history->asChannelHistory()->getRangeDifferenceNext(
+				nextRequestPts);
 		}
 	}
 }
@@ -3787,14 +3788,17 @@ bool MainWidget::ptsUpdateAndApply(int32 pts, int32 ptsCount) {
 	return _ptsWaiter.updateAndApply(nullptr, pts, ptsCount);
 }
 
-void MainWidget::feedDifference(const MTPVector<MTPUser> &users, const MTPVector<MTPChat> &chats, const MTPVector<MTPMessage> &msgs, const MTPVector<MTPUpdate> &other) {
+void MainWidget::feedDifference(
+		const MTPVector<MTPUser> &users,
+		const MTPVector<MTPChat> &chats,
+		const MTPVector<MTPMessage> &msgs,
+		const MTPVector<MTPUpdate> &other) {
 	Auth().checkAutoLock();
 	App::feedUsers(users);
 	App::feedChats(chats);
 	feedMessageIds(other);
 	App::feedMsgs(msgs, NewMessageUnread);
 	feedUpdateVector(other, true);
-	_history->peerMessagesUpdated();
 }
 
 bool MainWidget::failDifference(const RPCError &error) {
@@ -4012,12 +4016,11 @@ void MainWidget::onSelfParticipantUpdated(ChannelData *channel) {
 			checkPeerHistory(channel);
 		} else {
 			history->asChannelHistory()->checkJoinedMessage(true);
-			_history->peerMessagesUpdated(channel->id);
 		}
 	} else if (history) {
 		history->asChannelHistory()->checkJoinedMessage();
-		_history->peerMessagesUpdated(channel->id);
 	}
+	Auth().data().sendHistoryChangeNotifications();
 }
 
 bool MainWidget::contentOverlapped(const QRect &globalRect) {
@@ -4599,7 +4602,9 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 	case mtpc_updates: {
 		auto &d = updates.c_updates();
 		if (d.vseq.v) {
-			if (d.vseq.v <= updSeq) return;
+			if (d.vseq.v <= updSeq) {
+				return;
+			}
 			if (d.vseq.v > updSeq + 1) {
 				_bySeqUpdates.insert(d.vseq.v, updates);
 				return _bySeqTimer.start(WaitForSkippedTimeout);
@@ -4616,7 +4621,9 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 	case mtpc_updatesCombined: {
 		auto &d = updates.c_updatesCombined();
 		if (d.vseq_start.v) {
-			if (d.vseq_start.v <= updSeq) return;
+			if (d.vseq_start.v <= updSeq) {
+				return;
+			}
 			if (d.vseq_start.v > updSeq + 1) {
 				_bySeqUpdates.insert(d.vseq_start.v, updates);
 				return _bySeqTimer.start(WaitForSkippedTimeout);
@@ -4647,10 +4654,6 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 			return getDifference();
 		}
 		if (ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, updates)) {
-			// We could've added an item.
-			// Better would be for history to be subscribed to new messages.
-			_history->peerMessagesUpdated();
-
 			// Update date as well.
 			updSetState(0, d.vdate.v, updQts, updSeq);
 		}
@@ -4671,10 +4674,6 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 			return getDifference();
 		}
 		if (ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, updates)) {
-			// We could've added an item.
-			// Better would be for history to be subscribed to new messages.
-			_history->peerMessagesUpdated();
-
 			// Update date as well.
 			updSetState(0, d.vdate.v, updQts, updSeq);
 		}
@@ -4724,6 +4723,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 		return getDifference();
 	} break;
 	}
+	Auth().data().sendHistoryChangeNotifications();
 }
 
 void MainWidget::feedUpdate(const MTPUpdate &update) {
@@ -4735,18 +4735,16 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 		DataIsLoadedResult isDataLoaded = allDataLoadedForMessage(d.vmessage);
 		if (!requestingDifference() && isDataLoaded != DataIsLoadedResult::Ok) {
-			MTP_LOG(0, ("getDifference { good - after not all data loaded in updateNewMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
+			MTP_LOG(0, ("getDifference { good - "
+				"after not all data loaded in updateNewMessage }%1"
+				).arg(cTestMode() ? " TESTMODE" : ""));
 
 			// This can be if this update was created by grouping
 			// some short message update into an updates vector.
 			return getDifference();
 		}
 
-		if (ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update)) {
-			// We could've added an item.
-			// Better would be for history to be subscribed to new messages.
-			_history->peerMessagesUpdated();
-		}
+		ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update);
 	} break;
 
 	case mtpc_updateNewChannelMessage: {
@@ -4754,7 +4752,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		auto channel = App::channelLoaded(peerToChannel(peerFromMessage(d.vmessage)));
 		auto isDataLoaded = allDataLoadedForMessage(d.vmessage);
 		if (!requestingDifference() && (!channel || isDataLoaded != DataIsLoadedResult::Ok)) {
-			MTP_LOG(0, ("getDifference { good - after not all data loaded in updateNewChannelMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
+			MTP_LOG(0, ("getDifference { good - "
+				"after not all data loaded in updateNewChannelMessage }%1"
+				).arg(cTestMode() ? " TESTMODE" : ""));
 
 			// Request last active supergroup participants if the 'from' user was not loaded yet.
 			// This will optimize similar getDifference() calls for almost all next messages.
@@ -4772,17 +4772,10 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		if (channel && !_handlingChannelDifference) {
 			if (channel->ptsRequesting()) { // skip global updates while getting channel difference
 				return;
-			} else if (channel->ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update)) {
-				// We could've added an item.
-				// Better would be for history to be subscribed to new messages.
-				_history->peerMessagesUpdated();
 			}
+			channel->ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update);
 		} else {
 			Auth().api().applyUpdateNoPtsCheck(update);
-
-			// We could've added an item.
-			// Better would be for history to be subscribed to new messages.
-			_history->peerMessagesUpdated();
 		}
 	} break;
 
@@ -4800,7 +4793,6 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					if (wasLast && !history->lastMsg) {
 						checkPeerHistory(history->peer);
 					}
-					_history->peerMessagesUpdated();
 				} else {
 					if (existing) {
 						existing->destroy();
@@ -4905,11 +4897,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateDeleteMessages: {
 		auto &d = update.c_updateDeleteMessages();
 
-		if (ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update)) {
-			// We could've removed some items.
-			// Better would be for history to be subscribed to removed messages.
-			_history->peerMessagesUpdated();
-		}
+		ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update);
 	} break;
 
 	case mtpc_updateDeleteChannelMessages: {
@@ -4919,16 +4907,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		if (channel && !_handlingChannelDifference) {
 			if (channel->ptsRequesting()) { // skip global updates while getting channel difference
 				return;
-			} else if (channel->ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update)) {
-				// We could've removed some items.
-				// Better would be for history to be subscribed to removed messages.
-				_history->peerMessagesUpdated();
 			}
+			channel->ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update);
 		} else {
-			// We could've removed some items.
-			// Better would be for history to be subscribed to removed messages.
-			_history->peerMessagesUpdated();
-
 			Auth().api().applyUpdateNoPtsCheck(update);
 		}
 	} break;

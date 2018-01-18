@@ -295,7 +295,7 @@ void HistoryItem::removeMainView() {
 		if (const auto channelHistory = _history->asChannelHistory()) {
 			channelHistory->messageDetached(this);
 		}
-		_history->setPendingResize();
+		Auth().data().notifyHistoryChangeDelayed(_history);
 		view->removeFromBlock();
 		_mainView = nullptr;
 	}

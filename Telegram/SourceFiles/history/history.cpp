@@ -671,7 +671,9 @@ void checkForSwitchInlineButton(HistoryItem *item) {
 
 } // namespace
 
-HistoryItem *Histories::addNewMessage(const MTPMessage &msg, NewMessageType type) {
+HistoryItem *Histories::addNewMessage(
+		const MTPMessage &msg,
+		NewMessageType type) {
 	auto peer = peerFromMessage(msg);
 	if (!peer) return nullptr;
 
@@ -1204,6 +1206,7 @@ not_null<HistoryItem*> History::addNewItem(
 		newItemAdded(item);
 	}
 
+	Auth().data().notifyHistoryChangeDelayed(this);
 	return item;
 }
 

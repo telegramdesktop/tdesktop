@@ -84,6 +84,9 @@ public:
 	rpl::producer<not_null<const HistoryItem*>> itemRemoved() const;
 	void notifyHistoryCleared(not_null<const History*> history);
 	rpl::producer<not_null<const History*>> historyCleared() const;
+	void notifyHistoryChangeDelayed(not_null<const History*> history);
+	rpl::producer<not_null<const History*>> historyChanged() const;
+	void sendHistoryChangeNotifications();
 
 	using MegagroupParticipant = std::tuple<
 		not_null<ChannelData*>,
@@ -448,6 +451,8 @@ private:
 	rpl::event_stream<not_null<const HistoryItem*>> _itemRemoved;
 	rpl::event_stream<not_null<const History*>> _historyUnloaded;
 	rpl::event_stream<not_null<const History*>> _historyCleared;
+	base::flat_set<not_null<const History*>> _historiesChanged;
+	rpl::event_stream<not_null<const History*>> _historyChanged;
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantRemoved;
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantAdded;
 

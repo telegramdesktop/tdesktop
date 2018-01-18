@@ -238,6 +238,20 @@ rpl::producer<not_null<const History*>> Session::historyCleared() const {
 	return _historyCleared.events();
 }
 
+void Session::notifyHistoryChangeDelayed(not_null<const History*> history) {
+	_historiesChanged.insert(history);
+}
+
+rpl::producer<not_null<const History*>> Session::historyChanged() const {
+	return _historyChanged.events();
+}
+
+void Session::sendHistoryChangeNotifications() {
+	for (const auto history : base::take(_historiesChanged)) {
+		_historyChanged.fire_copy(history);
+	}
+}
+
 void Session::removeMegagroupParticipant(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> user) {

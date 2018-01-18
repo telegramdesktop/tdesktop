@@ -2813,6 +2813,7 @@ void ApiWrap::forwardMessages(
 		randomIds.push_back(MTP_long(randomId));
 	}
 	sendAccumulated();
+	_session->data().sendHistoryChangeNotifications();
 }
 
 void ApiWrap::shareContact(
@@ -2828,7 +2829,7 @@ void ApiWrap::shareContact(
 		not_null<UserData*> user,
 		const SendOptions &options) {
 	const auto userId = peerToUser(user->id);
-	const auto phone = Auth().data().findContactPhone(user);
+	const auto phone = _session->data().findContactPhone(user);
 	if (phone.isEmpty()) {
 		return;
 	}

@@ -199,8 +199,6 @@ public:
 	void loadMessagesDown();
 	void firstLoadMessages();
 	void delayedShowAt(MsgId showAtMsgId);
-	void peerMessagesUpdated(PeerId peer);
-	void peerMessagesUpdated();
 
 	void newUnreadMsg(History *history, HistoryItem *item);
 	void historyToDown(History *history);
@@ -466,6 +464,7 @@ private:
 	void handlePeerUpdate();
 	void setMembersShowAreaActive(bool active);
 	void forwardItems(MessageIdsList &&items);
+	void handleHistoryChange(not_null<const History*> history);
 
 	void highlightMessage(MsgId universalMessageId);
 	void adjustHighlightedMessageToMigrated();
@@ -746,7 +745,7 @@ private:
 	int32 _debug_preloadDownLoadCount = 0;
 	PeerId _debug_preloadDownPeer = 0;
 
-	MsgId _delayedShowAtMsgId = -1; // wtf?
+	MsgId _delayedShowAtMsgId = -1;
 	mtpRequestId _delayedShowAtRequest = 0;
 
 	object_ptr<HistoryView::TopBarWidget> _topBar;
@@ -754,8 +753,10 @@ private:
 	QPointer<HistoryInner> _list;
 	History *_migrated = nullptr;
 	History *_history = nullptr;
-	bool _historyInited = false; // Initial updateHistoryGeometry() was called.
-	bool _updateHistoryGeometryRequired = false; // If updateListSize() was called without updateHistoryGeometry().
+	// Initial updateHistoryGeometry() was called.
+	bool _historyInited = false;
+	// If updateListSize() was called without updateHistoryGeometry().
+	bool _updateHistoryGeometryRequired = false;
 	int _addToScroll = 0;
 
 	int _lastScrollTop = 0; // gifs optimization

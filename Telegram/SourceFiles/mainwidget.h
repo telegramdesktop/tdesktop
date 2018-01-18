@@ -287,7 +287,6 @@ public:
 
 	void ptsWaiterStartTimerFor(ChannelData *channel, int32 ms); // ms <= 0 - stop timer
 	void feedUpdates(const MTPUpdates &updates, uint64 randomId = 0);
-	void feedUpdate(const MTPUpdate &update);
 
 	void ctrlEnterSubmitUpdated();
 	void setInnerFocus();
@@ -477,8 +476,13 @@ private:
 	bool failChannelDifference(ChannelData *channel, const RPCError &err);
 	void failDifferenceStartTimerFor(ChannelData *channel);
 
-	void feedUpdateVector(const MTPVector<MTPUpdate> &updates, bool skipMessageIds = false);
+	void feedUpdateVector(
+		const MTPVector<MTPUpdate> &updates,
+		bool skipMessageIds = false);
+	// Doesn't call sendHistoryChangeNotifications itself.
 	void feedMessageIds(const MTPVector<MTPUpdate> &updates);
+	// Doesn't call sendHistoryChangeNotifications itself.
+	void feedUpdate(const MTPUpdate &update);
 
 	void deleteHistoryPart(DeleteHistoryRequest request, const MTPmessages_AffectedHistory &result);
 	void deleteAllFromUserPart(DeleteAllFromUserParams params, const MTPmessages_AffectedHistory &result);

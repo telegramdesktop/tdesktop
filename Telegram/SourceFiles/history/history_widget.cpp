@@ -563,6 +563,10 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 	) | rpl::start_with_next(
 		[this](auto item) { repaintHistoryItem(item); },
 		lifetime());
+	Auth().data().historyChanged(
+	) | rpl::start_with_next(
+		[=](auto history) { handleHistoryChange(history); },
+		lifetime());
 	subscribe(Auth().data().contactsLoaded(), [this](bool) {
 		if (_peer) {
 			updateReportSpamStatus();
@@ -4353,7 +4357,7 @@ void HistoryWidget::sendFileConfirmed(
 		App::main()->historyToDown(_history);
 	}
 	App::main()->dialogsToUp();
-	peerMessagesUpdated(file->to.peer);
+	Auth().data().sendHistoryChangeNotifications();
 }
 
 void HistoryWidget::onPhotoUploaded(
@@ -4495,26 +4499,31 @@ void HistoryWidget::onReportSpamClear() {
 	controller()->showBackFromStack();
 }
 
-void HistoryWidget::peerMessagesUpdated(PeerId peer) {
-	if (_peer && _list && peer == _peer->id) {
+void HistoryWidget::handleHistoryChange(not_null<const History*> history) {
+	if (_list && (_history == history || _migrated == history)) {
 		updateHistoryGeometry();
 		updateBotKeyboard();
 		if (!_scroll->isHidden()) {
-			bool unblock = isBlocked(), botStart = isBotStart(), joinChannel = isJoinChannel(), muteUnmute = isMuteUnmute();
-			bool upd = (_unblock->isHidden() == unblock);
-			if (!upd && !unblock) upd = (_botStart->isHidden() == botStart);
-			if (!upd && !unblock && !botStart) upd = (_joinChannel->isHidden() == joinChannel);
-			if (!upd && !unblock && !botStart && !joinChannel) upd = (_muteUnmute->isHidden() == muteUnmute);
-			if (upd) {
+			const auto unblock = isBlocked();
+			const auto botStart = isBotStart();
+			const auto joinChannel = isJoinChannel();
+			const auto muteUnmute = isMuteUnmute();
+			const auto update = false
+				|| (_unblock->isHidden() == unblock)
+				|| (!unblock && _botStart->isHidden() == botStart)
+				|| (!unblock
+					&& !botStart
+					&& _joinChannel->isHidden() == joinChannel)
+				|| (!unblock
+					&& !botStart
+					&& !joinChannel
+					&& _muteUnmute->isHidden() == muteUnmute);
+			if (update) {
 				updateControlsVisibility();
 				updateControlsGeometry();
 			}
 		}
 	}
-}
-
-void HistoryWidget::peerMessagesUpdated() {
-	if (_list) peerMessagesUpdated(_peer->id);
 }
 
 void HistoryWidget::grapWithoutTopBarShadow() {
@@ -4856,8 +4865,9 @@ int HistoryWidget::unreadBarTop() const {
 		}
 		return nullptr;
 	};
-	if (HistoryItem *bar = getUnreadBar()) {
-		int result = _list->itemTop(bar) + HistoryMessageUnreadBar::marginTop();
+	if (const auto bar = getUnreadBar()) {
+		auto result = _list->itemTop(bar)
+			+ HistoryMessageUnreadBar::marginTop();
 		if (bar->Has<HistoryMessageDate>()) {
 			result += bar->Get<HistoryMessageDate>()->height();
 		}
