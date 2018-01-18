@@ -593,8 +593,8 @@ private:
 	void destroyPinnedBar();
 	void unpinDone(const MTPUpdates &updates);
 
-	bool sendExistingDocument(DocumentData *doc, const QString &caption);
-	void sendExistingPhoto(PhotoData *photo, const QString &caption);
+	bool sendExistingDocument(DocumentData *doc, TextWithEntities caption);
+	void sendExistingPhoto(PhotoData *photo, TextWithEntities caption);
 
 	void drawField(Painter &p, const QRect &rect);
 	void paintEditHeader(Painter &p, const QRect &rect, int left, int top) const;

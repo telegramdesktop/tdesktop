@@ -182,10 +182,6 @@ bool Media::canBeGrouped() const {
 	return false;
 }
 
-QString Media::caption() const {
-	return QString();
-}
-
 QString Media::chatsListText() const {
 	auto result = notificationText();
 	return result.isEmpty()
@@ -236,11 +232,9 @@ std::unique_ptr<HistoryMedia> Media::createView(
 
 MediaPhoto::MediaPhoto(
 	not_null<HistoryItem*> parent,
-	not_null<PhotoData*> photo,
-	const QString &caption)
+	not_null<PhotoData*> photo)
 : Media(parent)
-, _photo(photo)
-, _caption(caption) {
+, _photo(photo) {
 }
 
 MediaPhoto::MediaPhoto(
@@ -258,7 +252,7 @@ MediaPhoto::~MediaPhoto() {
 std::unique_ptr<Media> MediaPhoto::clone(not_null<HistoryItem*> parent) {
 	return _chat
 		? std::make_unique<MediaPhoto>(parent, _chat, _photo)
-		: std::make_unique<MediaPhoto>(parent, _photo, _caption);
+		: std::make_unique<MediaPhoto>(parent, _photo);
 }
 
 PhotoData *MediaPhoto::photo() const {
@@ -283,17 +277,17 @@ bool MediaPhoto::canBeGrouped() const {
 	return true;
 }
 
-QString MediaPhoto::caption() const {
-	return _caption;
-}
-
 QString MediaPhoto::notificationText() const {
-	return WithCaptionNotificationText(lang(lng_in_dlg_photo), _caption);
+	return WithCaptionNotificationText(
+		lang(lng_in_dlg_photo),
+		parent()->originalText().text);
 	//return WithCaptionNotificationText(lang(lng_in_dlg_album), _caption);
 }
 
 QString MediaPhoto::chatsListText() const {
-	return WithCaptionDialogsText(lang(lng_in_dlg_photo), _caption);
+	return WithCaptionDialogsText(
+		lang(lng_in_dlg_photo),
+		parent()->originalText().text);
 	//return WithCaptionDialogsText(lang(lng_in_dlg_album), _caption);
 }
 
@@ -408,17 +402,14 @@ std::unique_ptr<HistoryMedia> MediaPhoto::createView(
 	return std::make_unique<HistoryPhoto>(
 		message,
 		realParent,
-		_photo,
-		_caption);
+		_photo);
 }
 
 MediaFile::MediaFile(
 	not_null<HistoryItem*> parent,
-	not_null<DocumentData*> document,
-	const QString &caption)
+	not_null<DocumentData*> document)
 : Media(parent)
 , _document(document)
-, _caption(caption)
 , _emoji(document->sticker() ? document->sticker()->alt : QString()) {
 	Auth().data().registerDocumentItem(_document, parent);
 
@@ -434,7 +425,7 @@ MediaFile::~MediaFile() {
 }
 
 std::unique_ptr<Media> MediaFile::clone(not_null<HistoryItem*> parent) {
-	return std::make_unique<MediaFile>(parent, _document, _caption);
+	return std::make_unique<MediaFile>(parent, _document);
 }
 
 DocumentData *MediaFile::document() const {
@@ -493,7 +484,7 @@ QString MediaFile::chatsListText() const {
 		}
 		return lang(lng_in_dlg_file);
 	}();
-	return WithCaptionDialogsText(type, _caption);
+	return WithCaptionDialogsText(type, parent()->originalText().text);
 }
 
 QString MediaFile::notificationText() const {
@@ -518,7 +509,7 @@ QString MediaFile::notificationText() const {
 		}
 		return lang(lng_in_dlg_file);
 	}();
-	return WithCaptionNotificationText(type, _caption);
+	return WithCaptionNotificationText(type, parent()->originalText().text);
 }
 
 QString MediaFile::pinnedTextSubstring() const {
@@ -622,15 +613,14 @@ std::unique_ptr<HistoryMedia> MediaFile::createView(
 	if (_document->sticker()) {
 		return std::make_unique<HistorySticker>(message, _document);
 	} else if (_document->isAnimation()) {
-		return std::make_unique<HistoryGif>(message, _document, _caption);
+		return std::make_unique<HistoryGif>(message, _document);
 	} else if (_document->isVideoFile()) {
 		return std::make_unique<HistoryVideo>(
 			message,
 			realParent,
-			_document,
-			_caption);
+			_document);
 	}
-	return std::make_unique<HistoryDocument>(message, _document, _caption);
+	return std::make_unique<HistoryDocument>(message, _document);
 }
 
 MediaContact::MediaContact(
@@ -847,8 +837,12 @@ WebPageData *MediaWebPage::webpage() const {
 	return _page;
 }
 
+QString MediaWebPage::chatsListText() const {
+	return notificationText();
+}
+
 QString MediaWebPage::notificationText() const {
-	return QString();
+	return parent()->originalText().text;
 }
 
 QString MediaWebPage::pinnedTextSubstring() const {

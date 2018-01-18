@@ -308,9 +308,6 @@ HistoryMessage::HistoryMessage(
 	if (msg.has_reply_markup()) config.mtpMarkup = &msg.vreply_markup;
 	if (msg.has_edit_date()) config.editDate = ::date(msg.vedit_date);
 	if (msg.has_post_author()) config.author = qs(msg.vpost_author);
-	if (msg.has_grouped_id()) {
-		setGroupId(MessageGroupId::FromRaw(msg.vgrouped_id.v));
-	}
 
 	createComponents(config);
 
@@ -323,6 +320,10 @@ HistoryMessage::HistoryMessage(
 		? TextUtilities::EntitiesFromMTP(msg.ventities.v)
 		: EntitiesInText();
 	setText({ text, entities });
+
+	if (msg.has_grouped_id()) {
+		setGroupId(MessageGroupId::FromRaw(msg.vgrouped_id.v));
+	}
 }
 
 HistoryMessage::HistoryMessage(
@@ -444,13 +445,13 @@ HistoryMessage::HistoryMessage(
 	UserId from,
 	const QString &postAuthor,
 	not_null<DocumentData*> document,
-	const QString &caption,
+	const TextWithEntities &caption,
 	const MTPReplyMarkup &markup)
 : HistoryItem(history, msgId, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
 	createComponentsHelper(flags, replyTo, viaBotId, postAuthor, markup);
 
-	_media = std::make_unique<Data::MediaFile>(this, document, caption);
-	setText(TextWithEntities());
+	_media = std::make_unique<Data::MediaFile>(this, document);
+	setText(caption);
 }
 
 HistoryMessage::HistoryMessage(
@@ -463,13 +464,13 @@ HistoryMessage::HistoryMessage(
 	UserId from,
 	const QString &postAuthor,
 	not_null<PhotoData*> photo,
-	const QString &caption,
+	const TextWithEntities &caption,
 	const MTPReplyMarkup &markup)
 : HistoryItem(history, msgId, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
 	createComponentsHelper(flags, replyTo, viaBotId, postAuthor, markup);
 
-	_media = std::make_unique<Data::MediaPhoto>(this, photo, caption);
-	setText(TextWithEntities());
+	_media = std::make_unique<Data::MediaPhoto>(this, photo);
+	setText(caption);
 }
 
 HistoryMessage::HistoryMessage(
@@ -705,11 +706,15 @@ QString FormatViewsCount(int views) {
 }
 
 void HistoryMessage::refreshMedia(const MTPMessageMedia *media) {
-	const auto wasGrouped = Auth().data().groups().isGrouped(this);
 	_media = nullptr;
 	if (media) {
 		setMedia(*media);
 	}
+}
+
+void HistoryMessage::refreshSentMedia(const MTPMessageMedia *media) {
+	const auto wasGrouped = Auth().data().groups().isGrouped(this);
+	refreshMedia(media);
 	if (wasGrouped) {
 		Auth().data().groups().refreshMessage(this);
 	}
@@ -772,8 +777,7 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 		} else if (data.has_photo() && data.vphoto.type() == mtpc_photo) {
 			return std::make_unique<Data::MediaPhoto>(
 				item,
-				Auth().data().photo(data.vphoto.c_photo()),
-				/*data.has_caption() ? qs(data.vcaption) : */QString()); // #TODO l76 caption
+				Auth().data().photo(data.vphoto.c_photo()));
 		} else {
 			LOG(("API Error: "
 				"Got MTPMessageMediaPhoto "
@@ -790,8 +794,7 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 			&& data.vdocument.type() == mtpc_document) {
 			return std::make_unique<Data::MediaFile>(
 				item,
-				Auth().data().document(data.vdocument.c_document()),
-				/*data.has_caption() ? qs(data.vcaption) :*/ QString()); // #TODO l76 caption
+				Auth().data().document(data.vdocument.c_document()));
 		} else {
 			LOG(("API Error: "
 				"Got MTPMessageMediaDocument "
@@ -900,12 +903,12 @@ void HistoryMessage::applyEditionToEmpty() {
 void HistoryMessage::updateSentMedia(const MTPMessageMedia *media) {
 	if (_flags & MTPDmessage_ClientFlag::f_from_inline_bot) {
 		if (!media || !_media || !_media->updateInlineResultMedia(*media)) {
-			refreshMedia(media);
+			refreshSentMedia(media);
 		}
 		_flags &= ~MTPDmessage_ClientFlag::f_from_inline_bot;
 	} else {
 		if (!media || !_media || !_media->updateSentMedia(*media)) {
-			refreshMedia(media);
+			refreshSentMedia(media);
 		}
 	}
 	Auth().data().requestItemResize(this);

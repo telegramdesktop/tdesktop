@@ -367,29 +367,20 @@ HistoryMessageEdited *HistoryGroupedMedia::displayedEditBadge() const {
 }
 
 void HistoryGroupedMedia::updateNeedBubbleState() {
-	const auto getItemCaption = [](const Part &part) {
-		if (const auto media = part.item->media()) {
-			return TextWithEntities{ media->caption(), EntitiesInText() };
-			// #TODO group caption
-		}
-		return part.content->getCaption();
-	};
-	const auto captionText = [&] {
-		auto result = getItemCaption(_parts.front());
-		if (result.text.isEmpty()) {
-			return result;
+	const auto hasCaption = [&] {
+		if (_parts.front().item->emptyText()) {
+			return false;
 		}
 		for (auto i = 1, count = int(_parts.size()); i != count; ++i) {
-			if (!getItemCaption(_parts[i]).text.isEmpty()) {
-				return TextWithEntities();
+			if (!_parts[i].item->emptyText()) {
+				return false;
 			}
 		}
-		return result;
+		return true;
 	}();
-	_caption.setText(
-		st::messageTextStyle,
-		captionText.text + _parent->skipBlock(),
-		Ui::ItemTextNoMonoOptions(_parent->data()));
+	if (hasCaption) {
+		_caption = _parts.front().item->cloneText();
+	}
 	_needBubble = computeNeedBubble();
 }
 

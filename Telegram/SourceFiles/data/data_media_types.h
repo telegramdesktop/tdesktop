@@ -82,7 +82,6 @@ public:
 	virtual bool uploading() const;
 	virtual Storage::SharedMediaTypesMask sharedMediaTypes() const;
 	virtual bool canBeGrouped() const;
-	virtual QString caption() const;
 	virtual bool hasReplyPreview() const;
 	virtual ImagePtr replyPreview() const;
 	// Returns text with link-start and link-end commands for service-color highlighting.
@@ -120,8 +119,7 @@ class MediaPhoto : public Media {
 public:
 	MediaPhoto(
 		not_null<HistoryItem*> parent,
-		not_null<PhotoData*> photo,
-		const QString &caption);
+		not_null<PhotoData*> photo);
 	MediaPhoto(
 		not_null<HistoryItem*> parent,
 		not_null<PeerData*> chat,
@@ -135,7 +133,6 @@ public:
 	bool uploading() const override;
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 	bool canBeGrouped() const override;
-	QString caption() const override;
 	QString chatsListText() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
@@ -152,7 +149,6 @@ public:
 private:
 	not_null<PhotoData*> _photo;
 	PeerData *_chat = nullptr;
-	QString _caption;
 
 };
 
@@ -160,8 +156,7 @@ class MediaFile : public Media {
 public:
 	MediaFile(
 		not_null<HistoryItem*> parent,
-		not_null<DocumentData*> document,
-		const QString &caption);
+		not_null<DocumentData*> document);
 	~MediaFile();
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
@@ -187,7 +182,6 @@ public:
 
 private:
 	not_null<DocumentData*> _document;
-	QString _caption;
 	QString _emoji;
 
 };
@@ -289,6 +283,7 @@ public:
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
 	WebPageData *webpage() const override;
+	QString chatsListText() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
 	bool allowsEdit() const override;

@@ -1237,14 +1237,11 @@ void MediaView::refreshMediaViewer() {
 
 void MediaView::refreshCaption(HistoryItem *item) {
 	_caption = Text();
-
-	const auto media = item ? item->media() : nullptr;
-	if (!media) {
+	if (!item) {
 		return;
 	}
-
-	const auto caption = media->caption();
-	if (caption.isEmpty()) {
+	const auto caption = item->originalText();
+	if (caption.text.isEmpty()) {
 		return;
 	}
 	const auto asBot = [&] {
@@ -1256,7 +1253,7 @@ void MediaView::refreshCaption(HistoryItem *item) {
 	_caption = Text(st::msgMinWidth);
 	_caption.setMarkedText(
 		st::mediaviewCaptionStyle,
-		{ caption, EntitiesInText() }, // #TODO caption entities parse
+		caption,
 		Ui::ItemTextOptions(item));
 }
 

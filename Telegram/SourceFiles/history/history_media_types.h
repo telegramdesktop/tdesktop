@@ -130,8 +130,7 @@ public:
 	HistoryPhoto(
 		not_null<Element*> parent,
 		not_null<HistoryItem*> realParent,
-		not_null<PhotoData*> photo,
-		const QString &caption);
+		not_null<PhotoData*> photo);
 	HistoryPhoto(
 		not_null<Element*> parent,
 		not_null<PeerData*> chat,
@@ -243,8 +242,7 @@ public:
 	HistoryVideo(
 		not_null<Element*> parent,
 		not_null<HistoryItem*> realParent,
-		not_null<DocumentData*> document,
-		const QString &caption);
+		not_null<DocumentData*> document);
 
 	HistoryMediaType type() const override {
 		return MediaTypeVideo;
@@ -336,8 +334,7 @@ class HistoryDocument
 public:
 	HistoryDocument(
 		not_null<Element*> parent,
-		not_null<DocumentData*> document,
-		const QString &caption);
+		not_null<DocumentData*> document);
 
 	HistoryMediaType type() const override {
 		return _data->isVoiceMessage()
@@ -407,8 +404,8 @@ private:
 	void setStatusSize(int newSize, qint64 realDuration = 0) const;
 	bool updateStatusText() const; // returns showPause
 
-								   // Callback is a void(const QString &, const QString &, const Text &) functor.
-								   // It will be called as callback(attachType, attachFileName, attachCaption).
+	// Callback is a void(const QString &, const QString &, const Text &) functor.
+	// It will be called as callback(attachType, attachFileName, attachCaption).
 	template <typename Callback>
 	void buildStringRepresentation(Callback callback) const;
 
@@ -420,8 +417,7 @@ class HistoryGif : public HistoryFileMedia, public DocumentViewRegister {
 public:
 	HistoryGif(
 		not_null<Element*> parent,
-		not_null<DocumentData*> document,
-		const QString &caption);
+		not_null<DocumentData*> document);
 
 	HistoryMediaType type() const override {
 		return MediaTypeGif;
@@ -703,6 +699,10 @@ public:
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
 
+	bool hideMessageText() const override {
+		return false;
+	}
+
 	[[nodiscard]] TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const override;
@@ -917,6 +917,10 @@ public:
 		return _title.originalText();
 	}
 	static QString fillAmountAndCurrency(uint64 amount, const QString &currency);
+
+	bool hideMessageText() const override {
+		return false;
+	}
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;

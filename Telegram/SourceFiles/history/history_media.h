@@ -74,6 +74,9 @@ public:
 	virtual bool hasTextForCopy() const {
 		return false;
 	}
+	virtual bool hideMessageText() const {
+		return true;
+	}
 	virtual bool allowsFastShare() const {
 		return false;
 	}

@@ -258,7 +258,7 @@ QSize Message::performCountOptimalSize() {
 		}
 
 		maxWidth = item->plainMaxWidth();
-		minHeight = item->emptyText() ? 0 : item->_text.minHeight();
+		minHeight = hasVisibleText() ? item->_text.minHeight() : 0;
 		if (!mediaOnBottom) {
 			minHeight += st::msgPadding.bottom();
 			if (mediaDisplayed) minHeight += st::mediaInBubbleSkip;
@@ -333,7 +333,7 @@ QSize Message::performCountOptimalSize() {
 
 		// if we have a text bubble we can resize it to fit the keyboard
 		// but if we have only media we don't do that
-		if (!item->emptyText()) {
+		if (hasVisibleText()) {
 			accumulate_max(maxWidth, markup->inlineKeyboard->naturalWidth());
 		}
 	}
@@ -1278,7 +1278,7 @@ bool Message::drawBubble() const {
 	}
 	const auto media = this->media();
 	return media
-		? (!item->emptyText() || media->needsBubble())
+		? (hasVisibleText() || media->needsBubble())
 		: !item->isEmpty();
 }
 
@@ -1401,7 +1401,7 @@ void Message::updateMediaInBubbleState() {
 		mediaHasSomethingBelow = true;
 		mediaHasSomethingAbove = getMediaHasSomethingAbove();
 		auto entryState = (mediaHasSomethingAbove
-			|| !item->emptyText()
+			|| hasVisibleText()
 			|| (media && media->isDisplayed()))
 			? MediaInBubbleState::Bottom
 			: MediaInBubbleState::None;
@@ -1420,7 +1420,7 @@ void Message::updateMediaInBubbleState() {
 	if (!entry) {
 		mediaHasSomethingAbove = getMediaHasSomethingAbove();
 	}
-	if (!item->emptyText()) {
+	if (hasVisibleText()) {
 		if (media->isAboveMessage()) {
 			mediaHasSomethingBelow = true;
 		} else {
@@ -1554,15 +1554,15 @@ int Message::resizeContentGetHeight(int newWidth) {
 				entry->resizeGetHeight(countGeometry().width());
 			}
 		} else {
-			if (item->emptyText()) {
-				newHeight = 0;
-			} else {
+			if (hasVisibleText()) {
 				auto textWidth = qMax(contentWidth - st::msgPadding.left() - st::msgPadding.right(), 1);
 				if (textWidth != item->_textWidth) {
 					item->_textWidth = textWidth;
 					item->_textHeight = item->_text.countHeight(textWidth);
 				}
 				newHeight = item->_textHeight;
+			} else {
+				newHeight = 0;
 			}
 			if (!mediaOnBottom) {
 				newHeight += st::msgPadding.bottom();
@@ -1614,6 +1614,14 @@ int Message::resizeContentGetHeight(int newWidth) {
 
 	newHeight += marginTop() + marginBottom();
 	return newHeight;
+}
+
+bool Message::hasVisibleText() const {
+	if (message()->emptyText()) {
+		return false;
+	}
+	const auto media = this->media();
+	return !media || !media->hideMessageText();
 }
 
 QSize Message::performCountCurrentSize(int newWidth) {

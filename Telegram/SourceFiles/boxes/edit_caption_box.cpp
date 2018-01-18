@@ -24,15 +24,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 EditCaptionBox::EditCaptionBox(
 	QWidget*,
-	not_null<Data::Media*> media,
-	FullMsgId msgId)
-: _msgId(msgId) {
-	Expects(media->allowsEditCaption());
+	not_null<HistoryItem*> item)
+: _msgId(item->fullId()) {
+	Expects(item->media() != nullptr);
+	Expects(item->media()->allowsEditCaption());
 
 	QSize dimensions;
 	ImagePtr image;
 	DocumentData *doc = nullptr;
 
+	const auto media = item->media();
 	if (const auto photo = media->photo()) {
 		_photo = true;
 		dimensions = QSize(photo->full->width(), photo->full->height());
@@ -49,7 +50,7 @@ EditCaptionBox::EditCaptionBox(
 		}
 		doc = document;
 	}
-	auto caption = media->caption();
+	auto caption = item->originalText().text;
 
 	if (!_animated && (dimensions.isEmpty() || doc || image->isNull())) {
 		if (image->isNull()) {

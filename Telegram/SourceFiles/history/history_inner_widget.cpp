@@ -1542,7 +1542,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						}
 					}
 				}
-				if (msg && !_contextMenuLink && (!msg->emptyText() || mediaHasTextForCopy)) {
+				if (msg && view && !_contextMenuLink && (view->hasVisibleText() || mediaHasTextForCopy)) {
 					_menu->addAction(lang(lng_context_copy_text), [=] {
 						copyContextText(itemId);
 					})->setEnabled(true);

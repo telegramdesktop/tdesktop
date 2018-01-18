@@ -208,14 +208,14 @@ rpl::producer<not_null<ViewElement*>> Session::viewResizeRequest() const {
 	return _viewResizeRequest.events();
 }
 
-void Session::requestItemViewRefresh(not_null<const HistoryItem*> item) {
+void Session::requestItemViewRefresh(not_null<HistoryItem*> item) {
 	if (const auto view = item->mainView()) {
 		view->setPendingResize();
 	}
 	_itemViewRefreshRequest.fire_copy(item);
 }
 
-rpl::producer<not_null<const HistoryItem*>> Session::itemViewRefreshRequest() const {
+rpl::producer<not_null<HistoryItem*>> Session::itemViewRefreshRequest() const {
 	return _itemViewRefreshRequest.events();
 }
 

@@ -173,12 +173,14 @@ public:
 	virtual ClickHandlerPtr rightActionLink() const;
 	virtual bool displayEditedBadge() const;
 	virtual QDateTime displayedEditDate() const;
+	virtual bool hasVisibleText() const;
 
 	// Legacy blocks structure.
 	HistoryBlock *block();
 	const HistoryBlock *block() const;
 	void attachToBlock(not_null<HistoryBlock*> block, int index);
 	void removeFromBlock();
+	void refreshInBlock();
 	void setIndexInBlock(int index);
 	int indexInBlock() const;
 	Element *previousInBlocks() const;

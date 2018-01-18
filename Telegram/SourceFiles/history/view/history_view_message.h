@@ -128,6 +128,7 @@ private:
 	int resizeContentGetHeight(int newWidth);
 	QSize performCountOptimalSize() override;
 	QSize performCountCurrentSize(int newWidth) override;
+	bool hasVisibleText() const override;
 
 	bool displayFastShare() const;
 	bool displayGoToOriginal() const;

@@ -571,10 +571,8 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 	}, lifetime());
 	Auth().data().itemViewRefreshRequest(
 	) | rpl::start_with_next([this](auto item) {
-		if (const auto view = item->mainView()) {
-			updateHistoryGeometry();
-		}
-	});
+		item->refreshMainView();
+	}, lifetime());
 	subscribe(Auth().data().contactsLoaded(), [this](bool) {
 		if (_peer) {
 			updateReportSpamStatus();
@@ -4288,7 +4286,7 @@ void HistoryWidget::sendFileConfirmed(
 				MTP_string(file->caption),
 				photo,
 				MTPnullMarkup,
-				MTPnullEntities,// #TODO l76 entities
+				MTPnullEntities, // #TODO caption entities
 				MTP_int(1),
 				MTPint(),
 				MTP_string(messagePostAuthor),
@@ -4313,7 +4311,7 @@ void HistoryWidget::sendFileConfirmed(
 				MTP_string(file->caption),
 				document,
 				MTPnullMarkup,
-				MTPnullEntities, // #TODO l76 entities
+				MTPnullEntities, // #TODO caption entities
 				MTP_int(1),
 				MTPint(),
 				MTP_string(messagePostAuthor),
@@ -4341,7 +4339,7 @@ void HistoryWidget::sendFileConfirmed(
 				MTP_string(file->caption),
 				document,
 				MTPnullMarkup,
-				MTPnullEntities,// #TODO l76 entities
+				MTPnullEntities, // #TODO caption entities
 				MTP_int(1),
 				MTPint(),
 				MTP_string(messagePostAuthor),
@@ -5143,7 +5141,7 @@ bool HistoryWidget::onStickerSend(DocumentData *sticker) {
 			return false;
 		}
 	}
-	return sendExistingDocument(sticker, QString());
+	return sendExistingDocument(sticker, TextWithEntities());
 }
 
 void HistoryWidget::onPhotoSend(PhotoData *photo) {
@@ -5155,7 +5153,7 @@ void HistoryWidget::onPhotoSend(PhotoData *photo) {
 			return;
 		}
 	}
-	sendExistingPhoto(photo, QString());
+	sendExistingPhoto(photo, TextWithEntities());
 }
 
 void HistoryWidget::onInlineResultSend(
@@ -5368,7 +5366,7 @@ void HistoryWidget::destroyPinnedBar() {
 
 bool HistoryWidget::sendExistingDocument(
 		DocumentData *doc,
-		const QString &caption) {
+		TextWithEntities caption) {
 	if (!_peer || !_peer->canWrite() || !doc) {
 		return false;
 	}
@@ -5409,6 +5407,15 @@ bool HistoryWidget::sendExistingDocument(
 	}
 	auto messageFromId = channelPost ? 0 : Auth().userId();
 	auto messagePostAuthor = channelPost ? (Auth().user()->firstName + ' ' + Auth().user()->lastName) : QString();
+
+	TextUtilities::Trim(caption);
+	auto sentEntities = TextUtilities::EntitiesToMTP(
+		caption.entities,
+		TextUtilities::ConvertOption::SkipLocal);
+	if (!sentEntities.v.isEmpty()) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_entities;
+	}
+
 	_history->addNewDocument(
 		newId.msg,
 		flags,
@@ -5420,7 +5427,6 @@ bool HistoryWidget::sendExistingDocument(
 		doc,
 		caption,
 		MTPnullMarkup);
-
 	_history->sendRequestId = MTP::send(
 		MTPmessages_SendMedia(
 			MTP_flags(sendFlags),
@@ -5430,10 +5436,10 @@ bool HistoryWidget::sendExistingDocument(
 				MTP_flags(0),
 				mtpInput,
 				MTPint()),
-			MTP_string(caption),
+			MTP_string(caption.text),
 			MTP_long(randomId),
 			MTPnullMarkup,
-			MTPnullEntities), // #TODO l76 entities
+			sentEntities),
 		App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
 		App::main()->rpcFail(&MainWidget::sendMessageFail),
 		0,
@@ -5461,7 +5467,7 @@ bool HistoryWidget::sendExistingDocument(
 
 void HistoryWidget::sendExistingPhoto(
 		PhotoData *photo,
-		const QString &caption) {
+		TextWithEntities caption) {
 	if (!_peer || !_peer->canWrite() || !photo) {
 		return;
 	}
@@ -5497,6 +5503,15 @@ void HistoryWidget::sendExistingPhoto(
 	}
 	auto messageFromId = channelPost ? 0 : Auth().userId();
 	auto messagePostAuthor = channelPost ? (Auth().user()->firstName + ' ' + Auth().user()->lastName) : QString();
+
+	TextUtilities::Trim(caption);
+	auto sentEntities = TextUtilities::EntitiesToMTP(
+		caption.entities,
+		TextUtilities::ConvertOption::SkipLocal);
+	if (!sentEntities.v.isEmpty()) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_entities;
+	}
+
 	_history->addNewPhoto(
 		newId.msg,
 		flags,
@@ -5518,10 +5533,10 @@ void HistoryWidget::sendExistingPhoto(
 				MTP_flags(0),
 				MTP_inputPhoto(MTP_long(photo->id), MTP_long(photo->access)),
 				MTPint()),
-			MTP_string(caption),
+			MTP_string(caption.text),
 			MTP_long(randomId),
 			MTPnullMarkup,
-			MTPnullEntities), // #TODO l76 entities
+			sentEntities),
 		App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
 		App::main()->rpcFail(&MainWidget::sendMessageFail),
 		0,
@@ -5627,7 +5642,7 @@ void HistoryWidget::editMessage(FullMsgId itemId) {
 void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
 	if (const auto media = item->media()) {
 		if (media->allowsEditCaption()) {
-			Ui::show(Box<EditCaptionBox>(media, item->fullId()));
+			Ui::show(Box<EditCaptionBox>(item));
 			return;
 		}
 	}
@@ -6391,7 +6406,7 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 				} else {
 					_replyToName.drawElided(p, replyLeft, backy + st::msgReplyPadding.top(), width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
 				}
-				p.setPen(((drawMsgText->toHistoryMessage() && drawMsgText->toHistoryMessage()->emptyText()) || drawMsgText->serviceMsg()) ? st::historyComposeAreaFgService : st::historyComposeAreaFg);
+				p.setPen(!drawMsgText->toHistoryMessage() ? st::historyComposeAreaFgService : st::historyComposeAreaFg);
 				_replyEditMsgText.drawElided(p, replyLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
 			} else {
 				p.setFont(st::msgDateFont);
@@ -6552,7 +6567,7 @@ void HistoryWidget::drawPinnedBar(Painter &p) {
 		p.setFont(st::msgServiceNameFont);
 		p.drawText(left, top + st::msgServiceNameFont->ascent, lang(lng_pinned_message));
 
-		p.setPen(((_pinnedBar->msg->toHistoryMessage() && _pinnedBar->msg->toHistoryMessage()->emptyText()) || _pinnedBar->msg->serviceMsg()) ? st::historyComposeAreaFgService : st::historyComposeAreaFg);
+		p.setPen(!_pinnedBar->msg->toHistoryMessage() ? st::historyComposeAreaFgService : st::historyComposeAreaFg);
 		_pinnedBar->text.drawElided(p, left, top + st::msgServiceNameFont->height, width() - left - _pinnedBar->cancel->width() - st::msgReplyPadding.right());
 	} else {
 		p.setFont(st::msgDateFont);

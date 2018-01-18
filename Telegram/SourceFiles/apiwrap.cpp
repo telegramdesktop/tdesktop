@@ -3127,23 +3127,33 @@ void ApiWrap::sendMediaWithRandomId(
 		uint64 randomId) {
 	const auto history = item->history();
 	const auto replyTo = item->replyToId();
+
+	auto caption = item->originalText();
+	TextUtilities::Trim(caption);
+	auto sentEntities = TextUtilities::EntitiesToMTP(
+		caption.entities,
+		TextUtilities::ConvertOption::SkipLocal);
+
 	const auto flags = MTPmessages_SendMedia::Flags(0)
 		| (replyTo
 			? MTPmessages_SendMedia::Flag::f_reply_to_msg_id
 			: MTPmessages_SendMedia::Flag(0))
 		| (IsSilentPost(item, silent)
 			? MTPmessages_SendMedia::Flag::f_silent
+			: MTPmessages_SendMedia::Flag(0))
+		| (!sentEntities.v.isEmpty()
+			? MTPmessages_SendMedia::Flag::f_entities
 			: MTPmessages_SendMedia::Flag(0));
-	const auto message = QString(); // #TODO l76 caption
+
 	history->sendRequestId = request(MTPmessages_SendMedia(
 		MTP_flags(flags),
 		history->peer->input,
 		MTP_int(replyTo),
 		media,
-		MTP_string(message),
+		MTP_string(caption.text),
 		MTP_long(randomId),
 		MTPnullMarkup,
-		MTPnullEntities
+		sentEntities
 	)).done([=](const MTPUpdates &result) { applyUpdates(result);
 	}).fail([=](const RPCError &error) { sendMessageFail(error);
 	}).afterRequest(history->sendRequestId
@@ -3169,13 +3179,21 @@ void ApiWrap::sendAlbumWithUploaded(
 	Assert(itemIt != album->items.end());
 	Assert(!itemIt->media);
 
-	const auto original = item->originalText(); // #TODO l76 entities
+	auto caption = item->originalText();
+	TextUtilities::Trim(caption);
+	auto sentEntities = TextUtilities::EntitiesToMTP(
+		caption.entities,
+		TextUtilities::ConvertOption::SkipLocal);
+	const auto flags = !sentEntities.v.isEmpty()
+		? MTPDinputSingleMedia::Flag::f_entities
+		: MTPDinputSingleMedia::Flag(0);
+
 	itemIt->media = MTP_inputSingleMedia(
 		media,
-		MTP_flags(0),
+		MTP_flags(flags),
 		MTP_long(randomId),
-		MTP_string(original.text),
-		MTPnullEntities);
+		MTP_string(caption.text),
+		sentEntities);
 
 	sendAlbumIfReady(album.get());
 }

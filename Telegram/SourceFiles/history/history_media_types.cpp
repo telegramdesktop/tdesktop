@@ -72,25 +72,21 @@ std::unique_ptr<HistoryMedia> CreateAttach(
 		} else if (document->isAnimation()) {
 			return std::make_unique<HistoryGif>(
 				parent,
-				document,
-				QString());
+				document);
 		} else if (document->isVideoFile()) {
 			return std::make_unique<HistoryVideo>(
 				parent,
 				parent->data(),
-				document,
-				QString());
+				document);
 		}
 		return std::make_unique<HistoryDocument>(
 			parent,
-			document,
-			QString());
+			document);
 	} else if (photo) {
 		return std::make_unique<HistoryPhoto>(
 			parent,
 			parent->data(),
-			photo,
-			QString());
+			photo);
 	}
 	return nullptr;
 }
@@ -223,8 +219,7 @@ HistoryFileMedia::~HistoryFileMedia() = default;
 HistoryPhoto::HistoryPhoto(
 	not_null<Element*> parent,
 	not_null<HistoryItem*> realParent,
-	not_null<PhotoData*> photo,
-	const QString &caption)
+	not_null<PhotoData*> photo)
 : HistoryFileMedia(parent)
 , _data(photo)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
@@ -233,12 +228,7 @@ HistoryPhoto::HistoryPhoto(
 		std::make_shared<PhotoOpenClickHandler>(_data, fullId),
 		std::make_shared<PhotoSaveClickHandler>(_data, fullId),
 		std::make_shared<PhotoCancelClickHandler>(_data, fullId));
-	if (!caption.isEmpty()) {
-		_caption.setText(
-			st::messageTextStyle,
-			caption + _parent->skipBlock(),
-			Ui::ItemTextNoMonoOptions(_parent->data()));
-	}
+	_caption = realParent->cloneText();
 	create(realParent->fullId());
 }
 
@@ -263,7 +253,9 @@ void HistoryPhoto::create(FullMsgId contextId, PeerData *chat) {
 }
 
 QSize HistoryPhoto::countOptimalSize() {
-	if (_caption.hasSkipBlock()) {
+	if (_parent->media() != this) {
+		_caption = Text();
+	} else if (_caption.hasSkipBlock()) {
 		_caption.updateSkipBlock(
 			_parent->skipBlockWidth(),
 			_parent->skipBlockHeight());
@@ -733,19 +725,13 @@ DocumentViewRegister::~DocumentViewRegister() {
 HistoryVideo::HistoryVideo(
 	not_null<Element*> parent,
 	not_null<HistoryItem*> realParent,
-	not_null<DocumentData*> document,
-	const QString &caption)
+	not_null<DocumentData*> document)
 : HistoryFileMedia(parent)
 , DocumentViewRegister(parent, document)
 , _data(document)
 , _thumbw(1)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
-	if (!caption.isEmpty()) {
-		_caption.setText(
-			st::messageTextStyle,
-			caption + _parent->skipBlock(),
-			Ui::ItemTextNoMonoOptions(_parent->data()));
-	}
+	_caption = realParent->cloneText();
 
 	setDocumentLinks(_data, realParent);
 
@@ -755,7 +741,9 @@ HistoryVideo::HistoryVideo(
 }
 
 QSize HistoryVideo::countOptimalSize() {
-	if (_caption.hasSkipBlock()) {
+	if (_parent->media() != this) {
+		_caption = Text();
+	} else if (_caption.hasSkipBlock()) {
 		_caption.updateSkipBlock(
 			_parent->skipBlockWidth(),
 			_parent->skipBlockHeight());
@@ -1206,12 +1194,12 @@ ImagePtr HistoryVideo::replyPreview() {
 
 HistoryDocument::HistoryDocument(
 	not_null<Element*> parent,
-	not_null<DocumentData*> document,
-	const QString &caption)
+	not_null<DocumentData*> document)
 : HistoryFileMedia(parent)
 , DocumentViewRegister(parent, document)
 , _data(document) {
 	const auto item = parent->data();
+	auto caption = item->cloneText();
 
 	createComponents(!caption.isEmpty());
 	if (auto named = Get<HistoryDocumentNamed>()) {
@@ -1223,10 +1211,7 @@ HistoryDocument::HistoryDocument(
 	setStatusSize(FileStatusSizeReady);
 
 	if (auto captioned = Get<HistoryDocumentCaptioned>()) {
-		captioned->_caption.setText(
-			st::messageTextStyle,
-			caption + _parent->skipBlock(),
-			Ui::ItemTextNoMonoOptions(item));
+		captioned->_caption = std::move(caption);
 	}
 }
 
@@ -1284,12 +1269,16 @@ QSize HistoryDocument::countOptimalSize() {
 	const auto item = _parent->data();
 
 	auto captioned = Get<HistoryDocumentCaptioned>();
-	if (captioned && captioned->_caption.hasSkipBlock()) {
+	if (_parent->media() != this) {
+		if (captioned) {
+			RemoveComponents(HistoryDocumentCaptioned::Bit());
+			captioned = nullptr;
+		}
+	} else if (captioned && captioned->_caption.hasSkipBlock()) {
 		captioned->_caption.updateSkipBlock(
 			_parent->skipBlockWidth(),
 			_parent->skipBlockHeight());
 	}
-
 	auto thumbed = Get<HistoryDocumentThumbed>();
 	if (thumbed) {
 		_data->thumb->load();
@@ -1953,8 +1942,7 @@ ImagePtr HistoryDocument::replyPreview() {
 
 HistoryGif::HistoryGif(
 	not_null<Element*> parent,
-	not_null<DocumentData*> document,
-	const QString &caption)
+	not_null<DocumentData*> document)
 : HistoryFileMedia(parent)
 , DocumentViewRegister(parent, document)
 , _data(document)
@@ -1964,18 +1952,14 @@ HistoryGif::HistoryGif(
 
 	setStatusSize(FileStatusSizeReady);
 
-	if (!caption.isEmpty() && !_data->isVideoMessage()) {
-		_caption.setText(
-			st::messageTextStyle,
-			caption + _parent->skipBlock(),
-			Ui::ItemTextNoMonoOptions(item));
-	}
-
+	_caption = item->cloneText();
 	_data->thumb->load();
 }
 
 QSize HistoryGif::countOptimalSize() {
-	if (_caption.hasSkipBlock()) {
+	if (_parent->media() != this) {
+		_caption = Text();
+	} else if (_caption.hasSkipBlock()) {
 		_caption.updateSkipBlock(
 			_parent->skipBlockWidth(),
 			_parent->skipBlockHeight());

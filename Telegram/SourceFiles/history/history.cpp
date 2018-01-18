@@ -785,7 +785,7 @@ not_null<HistoryItem*> History::createItemDocument(
 		UserId from,
 		const QString &postAuthor,
 		DocumentData *document,
-		const QString &caption,
+		const TextWithEntities &caption,
 		const MTPReplyMarkup &markup) {
 	return HistoryMessage::create(
 		this,
@@ -810,7 +810,7 @@ not_null<HistoryItem*> History::createItemPhoto(
 		UserId from,
 		const QString &postAuthor,
 		PhotoData *photo,
-		const QString &caption,
+		const TextWithEntities &caption,
 		const MTPReplyMarkup &markup) {
 	return HistoryMessage::create(
 		this,
@@ -933,7 +933,7 @@ not_null<HistoryItem*> History::addNewDocument(
 		UserId from,
 		const QString &postAuthor,
 		DocumentData *document,
-		const QString &caption,
+		const TextWithEntities &caption,
 		const MTPReplyMarkup &markup) {
 	return addNewItem(
 		createItemDocument(
@@ -959,7 +959,7 @@ not_null<HistoryItem*> History::addNewPhoto(
 		UserId from,
 		const QString &postAuthor,
 		PhotoData *photo,
-		const QString &caption,
+		const TextWithEntities &caption,
 		const MTPReplyMarkup &markup) {
 	return addNewItem(
 		createItemPhoto(
@@ -2494,6 +2494,7 @@ void History::clearUpTill(MsgId availableMinId) {
 	if (!lastMsg) {
 		App::main()->checkPeerHistory(peer);
 	}
+	Auth().data().sendHistoryChangeNotifications();
 }
 
 void History::applyGroupAdminChanges(
@@ -2619,6 +2620,29 @@ void HistoryBlock::remove(not_null<Element*> view) {
 		_history->removeBlock(this);
 	} else if (itemIndex < messages.size()) {
 		messages[itemIndex]->previousInBlocksChanged();
+	} else if (blockIndex + 1 < _history->blocks.size()) {
+		_history->blocks[blockIndex + 1]->messages.front()->previousInBlocksChanged();
+	} else if (!_history->blocks.empty() && !_history->blocks.back()->messages.empty()) {
+		_history->blocks.back()->messages.back()->nextInBlocksChanged();
+	}
+}
+
+void HistoryBlock::refreshView(not_null<Element*> view) {
+	Expects(view->block() == this);
+
+	const auto item = view->data();
+	auto refreshed = item->createView(HistoryInner::ElementDelegate());
+
+	auto blockIndex = indexInHistory();
+	auto itemIndex = view->indexInBlock();
+	if (_history->scrollTopItem == view) {
+		_history->scrollTopItem = refreshed.get();
+	}
+
+	messages[itemIndex] = std::move(refreshed);
+	messages[itemIndex]->attachToBlock(this, itemIndex);
+	if (itemIndex + 1 < messages.size()) {
+		messages[itemIndex + 1]->previousInBlocksChanged();
 	} else if (blockIndex + 1 < _history->blocks.size()) {
 		_history->blocks[blockIndex + 1]->messages.front()->previousInBlocksChanged();
 	} else if (!_history->blocks.empty() && !_history->blocks.back()->messages.empty()) {

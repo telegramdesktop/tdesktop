@@ -79,7 +79,7 @@ public:
 			UserId from,
 			const QString &postAuthor,
 			not_null<DocumentData*> document,
-			const QString &caption,
+			const TextWithEntities &caption,
 			const MTPReplyMarkup &markup) {
 		return _create(
 			history,
@@ -104,7 +104,7 @@ public:
 			UserId from,
 			const QString &postAuthor,
 			not_null<PhotoData*> photo,
-			const QString &caption,
+			const TextWithEntities &caption,
 			const MTPReplyMarkup &markup) {
 		return _create(
 			history,
@@ -144,6 +144,7 @@ public:
 	}
 
 	void refreshMedia(const MTPMessageMedia *media);
+	void refreshSentMedia(const MTPMessageMedia *media);
 	void setMedia(const MTPMessageMedia &media);
 	static std::unique_ptr<Data::Media> CreateMedia(
 		not_null<HistoryMessage*> item,
@@ -234,7 +235,7 @@ private:
 		UserId from,
 		const QString &postAuthor,
 		not_null<DocumentData*> document,
-		const QString &caption,
+		const TextWithEntities &caption,
 		const MTPReplyMarkup &markup); // local document
 	HistoryMessage(
 		not_null<History*> history,
@@ -246,7 +247,7 @@ private:
 		UserId from,
 		const QString &postAuthor,
 		not_null<PhotoData*> photo,
-		const QString &caption,
+		const TextWithEntities &caption,
 		const MTPReplyMarkup &markup); // local photo
 	HistoryMessage(
 		not_null<History*> history,

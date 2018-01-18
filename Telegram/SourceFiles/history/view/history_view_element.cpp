@@ -470,6 +470,10 @@ QDateTime Element::displayedEditDate() const {
 	return QDateTime();
 }
 
+bool Element::hasVisibleText() const {
+	return false;
+}
+
 HistoryBlock *Element::block() {
 	return _block;
 }
@@ -493,6 +497,12 @@ void Element::removeFromBlock() {
 	Expects(_block != nullptr);
 
 	_block->remove(this);
+}
+
+void Element::refreshInBlock() {
+	Expects(_block != nullptr);
+
+	_block->refreshView(this);
 }
 
 void Element::setIndexInBlock(int index) {

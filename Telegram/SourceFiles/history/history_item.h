@@ -95,6 +95,7 @@ public:
 	void setMainView(HistoryView::Element *view) {
 		_mainView = view;
 	}
+	void refreshMainView();
 	void clearMainView();
 	void removeMainView();
 
@@ -195,6 +196,9 @@ public:
 
 	bool emptyText() const {
 		return _text.isEmpty();
+	}
+	Text cloneText() const {
+		return _text;
 	}
 
 	bool isPinned() const;

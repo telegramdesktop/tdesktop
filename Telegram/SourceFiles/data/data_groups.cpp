@@ -100,8 +100,7 @@ HistoryItemsList::const_iterator Groups::findPositionForItem(
 	if (!IsServerMsgId(itemId)) {
 		return last;
 	}
-	auto result = begin(group);
-	while (result != last) {
+	for (auto result = begin(group); result != last; ++result) {
 		const auto alreadyId = (*result)->id;
 		if (IsServerMsgId(alreadyId) && alreadyId > itemId) {
 			return result;

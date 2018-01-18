@@ -271,7 +271,7 @@ void HistoryMessageReply::paint(
 
 				auto replyToAsMsg = replyToMsg->toHistoryMessage();
 				if (!(flags & PaintFlag::InBubble)) {
-				} else if ((replyToAsMsg && replyToAsMsg->emptyText()) || replyToMsg->serviceMsg()) {
+				} else if (!replyToAsMsg) {
 					p.setPen(outbg ? (selected ? st::msgOutDateFgSelected : st::msgOutDateFg) : (selected ? st::msgInDateFgSelected : st::msgInDateFg));
 				} else {
 					p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));

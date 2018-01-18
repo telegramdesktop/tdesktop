@@ -90,15 +90,13 @@ void HistoryItem::finishCreate() {
 void HistoryItem::finishEdition(int oldKeyboardTop) {
 	Auth().data().requestItemViewRefresh(this);
 	invalidateChatsListEntry();
-	//if (groupId()) {
-	//	history()->fixGroupAfterEdition(this);
-	//}
-	//if (isHiddenByGroup()) { // #TODO group views
-	//	// Perhaps caption was changed, we should refresh the group.
-	//	const auto group = Get<HistoryMessageGroup>();
-	//	group->leader->setPendingInitDimensions();
-	//	group->leader->invalidateChatsListEntry();
-	//}
+	if (const auto group = Auth().data().groups().find(this)) {
+		const auto leader = group->items.back();
+		if (leader != this) {
+			Auth().data().requestItemViewRefresh(leader);
+			leader->invalidateChatsListEntry();
+		}
+	}
 
 	//if (oldKeyboardTop >= 0) { // #TODO edit bot message
 	//	if (auto keyboard = Get<HistoryMessageReplyMarkup>()) {
@@ -290,6 +288,13 @@ void HistoryItem::destroy() {
 	delete this;
 }
 
+void HistoryItem::refreshMainView() {
+	if (const auto view = mainView()) {
+		Auth().data().notifyHistoryChangeDelayed(_history);
+		view->refreshInBlock();
+	}
+}
+
 void HistoryItem::removeMainView() {
 	if (const auto view = mainView()) {
 		if (const auto channelHistory = _history->asChannelHistory()) {
@@ -297,7 +302,6 @@ void HistoryItem::removeMainView() {
 		}
 		Auth().data().notifyHistoryChangeDelayed(_history);
 		view->removeFromBlock();
-		_mainView = nullptr;
 	}
 }
 
@@ -677,10 +681,12 @@ HistoryItem *HistoryItem::nextItem() const {
 
 QString HistoryItem::notificationText() const {
 	auto getText = [this]() {
-		if (emptyText()) {
-			return _media ? _media->notificationText() : QString();
+		if (_media) {
+			return _media->notificationText();
+		} else if (!emptyText()) {
+			return _text.originalText();
 		}
-		return _text.originalText();
+		return QString();
 	};
 
 	auto result = getText();
@@ -692,10 +698,12 @@ QString HistoryItem::notificationText() const {
 
 QString HistoryItem::inDialogsText(DrawInDialog way) const {
 	auto getText = [this]() {
-		if (emptyText()) {
-			return _media ? _media->chatsListText() : QString();
+		if (_media) {
+			return _media->chatsListText();
+		} else if (!emptyText()) {
+			return TextUtilities::Clean(_text.originalText());
 		}
-		return TextUtilities::Clean(_text.originalText());
+		return QString();
 	};
 	const auto plainText = getText();
 	const auto sender = [&]() -> PeerData* {
