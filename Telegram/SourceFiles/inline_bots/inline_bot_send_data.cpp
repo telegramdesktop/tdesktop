@@ -135,7 +135,8 @@ void SendPhoto::addToHistory(
 		fromId,
 		postAuthor,
 		_photo,
-		_caption,
+		_message,
+		//_entities,
 		markup);
 }
 
@@ -170,7 +171,8 @@ void SendFile::addToHistory(
 		fromId,
 		postAuthor,
 		_document,
-		_caption,
+		_message,
+		//_entities,
 		markup);
 }
 

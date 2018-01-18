@@ -87,9 +87,12 @@ public:
 // Plain text message.
 class SendText : public SendDataCommon {
 public:
-	SendText(const QString &message, const EntitiesInText &entities, bool/* noWebPage*/)
-		: _message(message)
-		, _entities(entities) {
+	SendText(
+		const QString &message,
+		const EntitiesInText &entities,
+		bool/* noWebPage*/)
+	: _message(message)
+	, _entities(entities) {
 	}
 
 	bool isValid() const override {
@@ -188,9 +191,13 @@ private:
 // Message with photo.
 class SendPhoto : public SendData {
 public:
-	SendPhoto(PhotoData *photo, const QString &caption)
-		: _photo(photo)
-		, _caption(caption) {
+	SendPhoto(
+		PhotoData *photo,
+		const QString &message,
+		const EntitiesInText &entities)
+	: _photo(photo)
+	, _message(message)
+	, _entities(entities) {
 	}
 
 	bool isValid() const override {
@@ -215,16 +222,21 @@ public:
 
 private:
 	PhotoData *_photo;
-	QString _caption;
+	QString _message;
+	EntitiesInText _entities;
 
 };
 
 // Message with file.
 class SendFile : public SendData {
 public:
-	SendFile(DocumentData *document, const QString &caption)
-		: _document(document)
-		, _caption(caption) {
+	SendFile(
+		DocumentData *document,
+		const QString &message,
+		const EntitiesInText &entities)
+	: _document(document)
+	, _message(message)
+	, _entities(entities) {
 	}
 
 	bool isValid() const override {
@@ -249,7 +261,8 @@ public:
 
 private:
 	DocumentData *_document;
-	QString _caption;
+	QString _message;
+	EntitiesInText _entities;
 
 };
 
@@ -257,7 +270,7 @@ private:
 class SendGame : public SendData {
 public:
 	SendGame(GameData *game)
-		: _game(game) {
+	: _game(game) {
 	}
 
 	bool isValid() const override {

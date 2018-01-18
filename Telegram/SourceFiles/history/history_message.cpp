@@ -717,7 +717,7 @@ void HistoryMessage::refreshMedia(const MTPMessageMedia *media) {
 
 void HistoryMessage::setMedia(const MTPMessageMedia &media) {
 	_media = CreateMedia(this, media);
-	if (const auto invoice = _media->invoice()) {
+	if (const auto invoice = _media ? _media->invoice() : nullptr) {
 		if (invoice->receiptMsgId) {
 			replaceBuyWithReceiptInMarkup();
 		}
@@ -773,7 +773,7 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 			return std::make_unique<Data::MediaPhoto>(
 				item,
 				Auth().data().photo(data.vphoto.c_photo()),
-				data.has_caption() ? qs(data.vcaption) : QString());
+				/*data.has_caption() ? qs(data.vcaption) : */QString()); // #TODO l76 caption
 		} else {
 			LOG(("API Error: "
 				"Got MTPMessageMediaPhoto "
@@ -791,7 +791,7 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 			return std::make_unique<Data::MediaFile>(
 				item,
 				Auth().data().document(data.vdocument.c_document()),
-				data.has_caption() ? qs(data.vcaption) : QString());
+				/*data.has_caption() ? qs(data.vcaption) :*/ QString()); // #TODO l76 caption
 		} else {
 			LOG(("API Error: "
 				"Got MTPMessageMediaDocument "

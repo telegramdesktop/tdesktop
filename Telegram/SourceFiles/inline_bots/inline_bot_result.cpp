@@ -110,15 +110,18 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 	switch (message->type()) {
 	case mtpc_botInlineMessageMediaAuto: {
 		auto &r = message->c_botInlineMessageMediaAuto();
+		auto entities = r.has_entities()
+			? TextUtilities::EntitiesFromMTP(r.ventities.v)
+			: EntitiesInText();
 		if (result->_type == Type::Photo) {
 			result->createPhoto();
-			result->sendData = std::make_unique<internal::SendPhoto>(result->_photo, qs(r.vcaption));
+			result->sendData = std::make_unique<internal::SendPhoto>(result->_photo, qs(r.vmessage), entities);
 		} else if (result->_type == Type::Game) {
 			result->createGame();
 			result->sendData = std::make_unique<internal::SendGame>(result->_game);
 		} else {
 			result->createDocument();
-			result->sendData = std::make_unique<internal::SendFile>(result->_document, qs(r.vcaption));
+			result->sendData = std::make_unique<internal::SendFile>(result->_document, qs(r.vmessage), entities);
 		}
 		if (r.has_reply_markup()) {
 			result->_mtpKeyboard = std::make_unique<MTPReplyMarkup>(r.vreply_markup);
@@ -127,7 +130,9 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 
 	case mtpc_botInlineMessageText: {
 		auto &r = message->c_botInlineMessageText();
-		auto entities = r.has_entities() ? TextUtilities::EntitiesFromMTP(r.ventities.v) : EntitiesInText();
+		auto entities = r.has_entities()
+			? TextUtilities::EntitiesFromMTP(r.ventities.v)
+			: EntitiesInText();
 		result->sendData = std::make_unique<internal::SendText>(qs(r.vmessage), entities, r.is_no_webpage());
 		if (result->_type == Type::Photo) {
 			result->createPhoto();

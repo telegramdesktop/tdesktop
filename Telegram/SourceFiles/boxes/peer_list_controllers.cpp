@@ -757,8 +757,10 @@ void AddBotToGroupBoxController::shareBotGame(not_null<PeerData*> chat) {
 					MTP_inputGameShortName(
 						bot->inputUser,
 						MTP_string(bot->botInfo->shareGameShortName))),
+				MTP_string(""),
 				MTP_long(randomId),
-				MTPnullMarkup),
+				MTPnullMarkup,
+				MTPnullEntities),
 			App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
 			App::main()->rpcFail(&MainWidget::sendMessageFail),
 			0,

@@ -98,16 +98,10 @@ TextWithEntities ExtractEditedText(const MTPMessage &message) {
 		return TextWithEntities();
 	}
 	auto &data = message.c_message();
-	auto mediaType = data.has_media() ? data.vmedia.type() : mtpc_messageMediaEmpty;
-	if (mediaType == mtpc_messageMediaDocument) {
-		auto &document = data.vmedia.c_messageMediaDocument();
-		return PrepareText(document.has_caption() ? qs(document.vcaption) : QString(), QString());
-	} else if (mediaType == mtpc_messageMediaPhoto) {
-		auto &photo = data.vmedia.c_messageMediaPhoto();
-		return PrepareText(photo.has_caption() ? qs(photo.vcaption) : QString(), QString());
-	}
 	auto text = TextUtilities::Clean(qs(data.vmessage));
-	auto entities = data.has_entities() ? TextUtilities::EntitiesFromMTP(data.ventities.v) : EntitiesInText();
+	auto entities = data.has_entities()
+		? TextUtilities::EntitiesFromMTP(data.ventities.v)
+		: EntitiesInText();
 	return { text, entities };
 }
 

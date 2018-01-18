@@ -75,6 +75,7 @@ MTPmessages_Search PrepareSearchRequest(
 		}
 		Unexpected("Direction in PrepareSearchRequest");
 	}();
+	const auto hash = int32(0);
 
 	return MTPmessages_Search(
 		MTP_flags(0),
@@ -88,7 +89,8 @@ MTPmessages_Search PrepareSearchRequest(
 		MTP_int(addOffset),
 		MTP_int(limit),
 		MTP_int(maxId),
-		MTP_int(minId));
+		MTP_int(minId),
+		MTP_int(hash));
 }
 
 SearchResult ParseSearchResult(

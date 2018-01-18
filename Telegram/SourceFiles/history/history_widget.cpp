@@ -4263,13 +4263,9 @@ void HistoryWidget::sendFileConfirmed(
 	auto messagePostAuthor = channelPost ? (Auth().user()->firstName + ' ' + Auth().user()->lastName) : QString();
 	if (file->type == SendMediaType::Photo) {
 		auto photoFlags = MTPDmessageMediaPhoto::Flag::f_photo | 0;
-		if (!file->caption.isEmpty()) {
-			photoFlags |= MTPDmessageMediaPhoto::Flag::f_caption;
-		}
 		auto photo = MTP_messageMediaPhoto(
 			MTP_flags(photoFlags),
 			file->photo,
-			MTP_string(file->caption),
 			MTPint());
 		history->addNewMessage(
 			MTP_message(
@@ -4281,10 +4277,10 @@ void HistoryWidget::sendFileConfirmed(
 				MTPint(),
 				MTP_int(file->to.replyTo),
 				MTP_int(unixtime()),
-				MTP_string(""),
+				MTP_string(file->caption),
 				photo,
 				MTPnullMarkup,
-				MTPnullEntities,
+				MTPnullEntities,// #TODO l76 entities
 				MTP_int(1),
 				MTPint(),
 				MTP_string(messagePostAuthor),
@@ -4292,13 +4288,9 @@ void HistoryWidget::sendFileConfirmed(
 			NewMessageUnread);
 	} else if (file->type == SendMediaType::File) {
 		auto documentFlags = MTPDmessageMediaDocument::Flag::f_document | 0;
-		if (!file->caption.isEmpty()) {
-			documentFlags |= MTPDmessageMediaDocument::Flag::f_caption;
-		}
 		auto document = MTP_messageMediaDocument(
 			MTP_flags(documentFlags),
 			file->document,
-			MTP_string(file->caption),
 			MTPint());
 		history->addNewMessage(
 			MTP_message(
@@ -4310,10 +4302,10 @@ void HistoryWidget::sendFileConfirmed(
 				MTPint(),
 				MTP_int(file->to.replyTo),
 				MTP_int(unixtime()),
-				MTP_string(""),
+				MTP_string(file->caption),
 				document,
 				MTPnullMarkup,
-				MTPnullEntities,
+				MTPnullEntities, // #TODO l76 entities
 				MTP_int(1),
 				MTPint(),
 				MTP_string(messagePostAuthor),
@@ -4324,13 +4316,9 @@ void HistoryWidget::sendFileConfirmed(
 			flags |= MTPDmessage::Flag::f_media_unread;
 		}
 		auto documentFlags = MTPDmessageMediaDocument::Flag::f_document | 0;
-		if (!file->caption.isEmpty()) {
-			documentFlags |= MTPDmessageMediaDocument::Flag::f_caption;
-		}
 		auto document = MTP_messageMediaDocument(
 			MTP_flags(documentFlags),
 			file->document,
-			MTP_string(file->caption),
 			MTPint());
 		history->addNewMessage(
 			MTP_message(
@@ -4342,10 +4330,10 @@ void HistoryWidget::sendFileConfirmed(
 				MTPint(),
 				MTP_int(file->to.replyTo),
 				MTP_int(unixtime()),
-				MTP_string(""),
+				MTP_string(file->caption),
 				document,
 				MTPnullMarkup,
-				MTPnullEntities,
+				MTPnullEntities,// #TODO l76 entities
 				MTP_int(1),
 				MTPint(),
 				MTP_string(messagePostAuthor),
@@ -5446,10 +5434,11 @@ bool HistoryWidget::sendExistingDocument(
 			MTP_inputMediaDocument(
 				MTP_flags(0),
 				mtpInput,
-				MTP_string(caption),
 				MTPint()),
+			MTP_string(caption),
 			MTP_long(randomId),
-			MTPnullMarkup),
+			MTPnullMarkup,
+			MTPnullEntities), // #TODO l76 entities
 		App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
 		App::main()->rpcFail(&MainWidget::sendMessageFail),
 		0,
@@ -5533,10 +5522,11 @@ void HistoryWidget::sendExistingPhoto(
 			MTP_inputMediaPhoto(
 				MTP_flags(0),
 				MTP_inputPhoto(MTP_long(photo->id), MTP_long(photo->access)),
-				MTP_string(caption),
 				MTPint()),
+			MTP_string(caption),
 			MTP_long(randomId),
-			MTPnullMarkup),
+			MTPnullMarkup,
+			MTPnullEntities), // #TODO l76 entities
 		App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
 		App::main()->rpcFail(&MainWidget::sendMessageFail),
 		0,
@@ -5940,7 +5930,12 @@ void HistoryWidget::onPreviewCheck() {
 		} else {
 			PreviewCache::const_iterator i = _previewCache.constFind(_previewLinks);
 			if (i == _previewCache.cend()) {
-				_previewRequest = MTP::send(MTPmessages_GetWebPagePreview(MTP_string(_previewLinks)), rpcDone(&HistoryWidget::gotPreview, _previewLinks));
+				_previewRequest = MTP::send(
+					MTPmessages_GetWebPagePreview(
+						MTP_flags(0),
+						MTP_string(_previewLinks),
+						MTPnullEntities),
+					rpcDone(&HistoryWidget::gotPreview, _previewLinks));
 			} else if (i.value()) {
 				_previewData = Auth().data().webpage(i.value());
 				updatePreview();
@@ -5952,8 +5947,15 @@ void HistoryWidget::onPreviewCheck() {
 }
 
 void HistoryWidget::onPreviewTimeout() {
-	if (_previewData && _previewData->pendingTill > 0 && !_previewLinks.isEmpty()) {
-		_previewRequest = MTP::send(MTPmessages_GetWebPagePreview(MTP_string(_previewLinks)), rpcDone(&HistoryWidget::gotPreview, _previewLinks));
+	if (_previewData
+		&& (_previewData->pendingTill > 0)
+		&& !_previewLinks.isEmpty()) {
+		_previewRequest = MTP::send(
+			MTPmessages_GetWebPagePreview(
+				MTP_flags(0),
+				MTP_string(_previewLinks),
+				MTPnullEntities),
+			rpcDone(&HistoryWidget::gotPreview, _previewLinks));
 	}
 }
 

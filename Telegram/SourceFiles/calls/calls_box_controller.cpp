@@ -248,6 +248,7 @@ void BoxController::loadMoreRows() {
 		MTP_int(0),
 		MTP_int(_offsetId ? kFirstPageCount : kPerPageCount),
 		MTP_int(0),
+		MTP_int(0),
 		MTP_int(0)
 	)).done([this](const MTPmessages_Messages &result) {
 		_loadRequestId = 0;

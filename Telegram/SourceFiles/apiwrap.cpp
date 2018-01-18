@@ -2990,13 +2990,9 @@ void ApiWrap::sendUploadedPhoto(
 		const MTPInputFile &file,
 		bool silent) {
 	if (const auto item = App::histItemById(localId)) {
-		const auto caption = item->media()
-			? item->media()->caption()
-			: QString();
 		const auto media = MTP_inputMediaUploadedPhoto(
 			MTP_flags(0),
 			file,
-			MTP_string(caption),
 			MTPVector<MTPInputDocument>(),
 			MTP_int(0));
 		if (const auto groupId = item->groupId()) {
@@ -3015,7 +3011,6 @@ void ApiWrap::sendUploadedDocument(
 	if (const auto item = App::histItemById(localId)) {
 		auto media = item->media();
 		if (auto document = media ? media->document() : nullptr) {
-			const auto caption = media->caption();
 			const auto groupId = item->groupId();
 			const auto flags = MTPDinputMediaUploadedDocument::Flags(0)
 				| (thumb
@@ -3030,7 +3025,6 @@ void ApiWrap::sendUploadedDocument(
 				thumb ? *thumb : MTPInputFile(),
 				MTP_string(document->mimeString()),
 				ComposeSendingDocumentAttributes(document),
-				MTP_string(caption),
 				MTPVector<MTPInputDocument>(),
 				MTP_int(0));
 			if (groupId) {
@@ -3089,7 +3083,6 @@ void ApiWrap::uploadAlbumMedia(
 			const auto media = MTP_inputMediaPhoto(
 				MTP_flags(flags),
 				MTP_inputPhoto(photo.vid, photo.vaccess_hash),
-				data.has_caption() ? data.vcaption : MTP_string(QString()),
 				data.has_ttl_seconds() ? data.vttl_seconds : MTPint());
 			sendAlbumWithUploaded(item, groupId, media);
 		} break;
@@ -3108,7 +3101,6 @@ void ApiWrap::uploadAlbumMedia(
 			const auto media = MTP_inputMediaDocument(
 				MTP_flags(flags),
 				MTP_inputDocument(document.vid, document.vaccess_hash),
-				data.has_caption() ? data.vcaption : MTP_string(QString()),
 				data.has_ttl_seconds() ? data.vttl_seconds : MTPint());
 			sendAlbumWithUploaded(item, groupId, media);
 		} break;
@@ -3142,13 +3134,16 @@ void ApiWrap::sendMediaWithRandomId(
 		| (IsSilentPost(item, silent)
 			? MTPmessages_SendMedia::Flag::f_silent
 			: MTPmessages_SendMedia::Flag(0));
+	const auto message = QString(); // #TODO l76
 	history->sendRequestId = request(MTPmessages_SendMedia(
 		MTP_flags(flags),
 		history->peer->input,
 		MTP_int(replyTo),
 		media,
+		MTP_string(message),
 		MTP_long(randomId),
-		MTPnullMarkup
+		MTPnullMarkup,
+		MTPnullEntities
 	)).done([=](const MTPUpdates &result) { applyUpdates(result);
 	}).fail([=](const RPCError &error) { sendMessageFail(error);
 	}).afterRequest(history->sendRequestId
@@ -3173,7 +3168,14 @@ void ApiWrap::sendAlbumWithUploaded(
 	const auto itemIt = ranges::find(album->items, localId, proj);
 	Assert(itemIt != album->items.end());
 	Assert(!itemIt->media);
-	itemIt->media = MTP_inputSingleMedia(media, MTP_long(randomId));
+
+	const auto original = item->originalText(); // #TODO l76 entities
+	itemIt->media = MTP_inputSingleMedia(
+		media,
+		MTP_flags(0),
+		MTP_long(randomId),
+		MTP_string(original.text),
+		MTPnullEntities);
 
 	sendAlbumIfReady(album.get());
 }
