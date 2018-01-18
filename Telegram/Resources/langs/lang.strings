@@ -649,11 +649,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_media_file_empty_search" = "No files found";
 "lng_media_link_empty_search" = "No shared links found";
 
-"lng_manage_group_title" = "Manage Group";
-"lng_manage_channel_title" = "Manage Channel";
-"lng_manage_group_info" = "Group Info";
-"lng_manage_channel_info" = "Channel Info";
-"lng_manage_peer_recent_actions" = "Recent Actions";
+"lng_manage_group_title" = "Manage group";
+"lng_manage_channel_title" = "Manage channel";
+"lng_manage_group_info" = "Group info";
+"lng_manage_channel_info" = "Channel info";
+"lng_manage_peer_recent_actions" = "Recent actions";
 "lng_manage_peer_members" = "Members";
 "lng_manage_peer_administrators" = "Administrators";
 "lng_manage_peer_banned_users" = "Banned users";
