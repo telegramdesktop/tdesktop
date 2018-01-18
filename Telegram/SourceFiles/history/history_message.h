@@ -25,182 +25,8 @@ void FastShareMessage(not_null<HistoryItem*> item);
 QString FormatViewsCount(int views);
 
 class HistoryMessage
-	: public HistoryItem
-	, private HistoryItemInstantiated<HistoryMessage> {
+	: public HistoryItem {
 public:
-	static not_null<HistoryMessage*> create(
-			not_null<History*> history,
-			const MTPDmessage &msg) {
-		return _create(history, msg);
-	}
-	static not_null<HistoryMessage*> create(
-			not_null<History*> history,
-			const MTPDmessageService &msg) {
-		return _create(history, msg);
-	}
-	static not_null<HistoryMessage*> create(
-			not_null<History*> history,
-			MsgId msgId,
-			MTPDmessage::Flags flags,
-			QDateTime date,
-			UserId from,
-			const QString &postAuthor,
-			not_null<HistoryMessage*> fwd) {
-		return _create(history, msgId, flags, date, from, postAuthor, fwd);
-	}
-	static not_null<HistoryMessage*> create(
-			not_null<History*> history,
-			MsgId msgId,
-			MTPDmessage::Flags flags,
-			MsgId replyTo,
-			UserId viaBotId,
-			QDateTime date,
-			UserId from,
-			const QString &postAuthor,
-			const TextWithEntities &textWithEntities) {
-		return _create(
-			history,
-			msgId,
-			flags,
-			replyTo,
-			viaBotId,
-			date,
-			from,
-			postAuthor,
-			textWithEntities);
-	}
-	static not_null<HistoryMessage*> create(
-			not_null<History*> history,
-			MsgId msgId,
-			MTPDmessage::Flags flags,
-			MsgId replyTo,
-			UserId viaBotId,
-			QDateTime date,
-			UserId from,
-			const QString &postAuthor,
-			not_null<DocumentData*> document,
-			const TextWithEntities &caption,
-			const MTPReplyMarkup &markup) {
-		return _create(
-			history,
-			msgId,
-			flags,
-			replyTo,
-			viaBotId,
-			date,
-			from,
-			postAuthor,
-			document,
-			caption,
-			markup);
-	}
-	static not_null<HistoryMessage*> create(
-			not_null<History*> history,
-			MsgId msgId,
-			MTPDmessage::Flags flags,
-			MsgId replyTo,
-			UserId viaBotId,
-			QDateTime date,
-			UserId from,
-			const QString &postAuthor,
-			not_null<PhotoData*> photo,
-			const TextWithEntities &caption,
-			const MTPReplyMarkup &markup) {
-		return _create(
-			history,
-			msgId,
-			flags,
-			replyTo,
-			viaBotId,
-			date,
-			from,
-			postAuthor,
-			photo,
-			caption,
-			markup);
-	}
-	static not_null<HistoryMessage*> create(
-			not_null<History*> history,
-			MsgId msgId,
-			MTPDmessage::Flags flags,
-			MsgId replyTo,
-			UserId viaBotId,
-			QDateTime date,
-			UserId from,
-			const QString &postAuthor,
-			not_null<GameData*> game,
-			const MTPReplyMarkup &markup) {
-		return _create(
-			history,
-			msgId,
-			flags,
-			replyTo,
-			viaBotId,
-			date,
-			from,
-			postAuthor,
-			game,
-			markup);
-	}
-
-	void refreshMedia(const MTPMessageMedia *media);
-	void refreshSentMedia(const MTPMessageMedia *media);
-	void setMedia(const MTPMessageMedia &media);
-	static std::unique_ptr<Data::Media> CreateMedia(
-		not_null<HistoryMessage*> item,
-		const MTPMessageMedia &media);
-
-	int32 plainMaxWidth() const;
-
-	bool allowsForward() const override;
-	bool allowsEdit(const QDateTime &now) const override;
-	bool uploading() const;
-
-	void applyGroupAdminChanges(
-		const base::flat_map<UserId, bool> &changes) override;
-
-	void setViewsCount(int32 count) override;
-	void setRealId(MsgId newId) override;
-
-	void dependencyItemRemoved(HistoryItem *dependency) override;
-
-	QString notificationHeader() const override;
-
-	void applyEdition(const MTPDmessage &message) override;
-	void applyEdition(const MTPDmessageService &message) override;
-	void updateSentMedia(const MTPMessageMedia *media) override;
-	void updateReplyMarkup(const MTPReplyMarkup *markup) override {
-		setReplyMarkup(markup);
-	}
-
-	void addToUnreadMentions(UnreadMentionType type) override;
-	void eraseFromUnreadMentions() override;
-	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
-
-	void setText(const TextWithEntities &textWithEntities) override;
-	TextWithEntities originalText() const override;
-	bool textHasLinks() const override;
-
-	int viewsCount() const override;
-	not_null<PeerData*> displayFrom() const;
-	bool updateDependencyItem() override;
-	MsgId dependencyMsgId() const override {
-		return replyToId();
-	}
-
-	HistoryMessage *toHistoryMessage() override { // dynamic_cast optimize
-		return this;
-	}
-	const HistoryMessage *toHistoryMessage() const override { // dynamic_cast optimize
-		return this;
-	}
-
-	std::unique_ptr<HistoryView::Element> createView(
-		not_null<HistoryView::ElementDelegate*> delegate) override;
-
-	~HistoryMessage();
-
-private:
 	HistoryMessage(
 		not_null<History*> history,
 		const MTPDmessage &msg);
@@ -260,8 +86,65 @@ private:
 		const QString &postAuthor,
 		not_null<GameData*> game,
 		const MTPReplyMarkup &markup); // local game
-	friend class HistoryItemInstantiated<HistoryMessage>;
 
+	void refreshMedia(const MTPMessageMedia *media);
+	void refreshSentMedia(const MTPMessageMedia *media);
+	void setMedia(const MTPMessageMedia &media);
+	static std::unique_ptr<Data::Media> CreateMedia(
+		not_null<HistoryMessage*> item,
+		const MTPMessageMedia &media);
+
+	int32 plainMaxWidth() const;
+
+	bool allowsForward() const override;
+	bool allowsEdit(const QDateTime &now) const override;
+	bool uploading() const;
+
+	void applyGroupAdminChanges(
+		const base::flat_map<UserId, bool> &changes) override;
+
+	void setViewsCount(int32 count) override;
+	void setRealId(MsgId newId) override;
+
+	void dependencyItemRemoved(HistoryItem *dependency) override;
+
+	QString notificationHeader() const override;
+
+	void applyEdition(const MTPDmessage &message) override;
+	void applyEdition(const MTPDmessageService &message) override;
+	void updateSentMedia(const MTPMessageMedia *media) override;
+	void updateReplyMarkup(const MTPReplyMarkup *markup) override {
+		setReplyMarkup(markup);
+	}
+
+	void addToUnreadMentions(UnreadMentionType type) override;
+	void eraseFromUnreadMentions() override;
+	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
+
+	void setText(const TextWithEntities &textWithEntities) override;
+	TextWithEntities originalText() const override;
+	bool textHasLinks() const override;
+
+	int viewsCount() const override;
+	not_null<PeerData*> displayFrom() const;
+	bool updateDependencyItem() override;
+	MsgId dependencyMsgId() const override {
+		return replyToId();
+	}
+
+	HistoryMessage *toHistoryMessage() override { // dynamic_cast optimize
+		return this;
+	}
+	const HistoryMessage *toHistoryMessage() const override { // dynamic_cast optimize
+		return this;
+	}
+
+	std::unique_ptr<HistoryView::Element> createView(
+		not_null<HistoryView::ElementDelegate*> delegate) override;
+
+	~HistoryMessage();
+
+private:
 	void setEmptyText();
 	bool hasAdminBadge() const {
 		return _flags & MTPDmessage_ClientFlag::f_has_admin_badge;

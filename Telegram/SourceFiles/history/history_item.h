@@ -287,10 +287,6 @@ protected:
 		QDateTime date,
 		UserId from);
 
-	// To completely create history item we need to call
-	// a virtual method, it can not be done from constructor.
-	virtual void finishCreate();
-
 	virtual void markMediaAsReadHook() {
 	}
 
@@ -324,22 +320,6 @@ private:
 	friend class HistoryView::Element;
 
 	MessageGroupId _groupId = MessageGroupId::None;
-
-};
-
-// make all the constructors in HistoryItem children protected
-// and wrapped with a static create() call with the same args
-// so that history item can not be created directly, without
-// calling a virtual finishCreate() method
-template <typename T>
-class HistoryItemInstantiated {
-public:
-	template <typename ...Args>
-	static not_null<T*> _create(Args &&... args) {
-		auto result = new T(std::forward<Args>(args)...);
-		result->finishCreate();
-		return result;
-	}
 
 };
 

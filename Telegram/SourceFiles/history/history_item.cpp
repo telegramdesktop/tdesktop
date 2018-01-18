@@ -56,7 +56,7 @@ not_null<HistoryItem*> CreateUnsupportedMessage(
 	text.entities.push_front(
 		EntityInText(EntityInTextItalic, 0, text.text.size()));
 	flags &= ~MTPDmessage::Flag::f_post_author;
-	return HistoryMessage::create(
+	return new HistoryMessage(
 		history,
 		msgId,
 		flags,
@@ -81,9 +81,6 @@ HistoryItem::HistoryItem(
 , _history(history)
 , _from(from ? App::user(from) : history->peer)
 , _flags(flags) {
-}
-
-void HistoryItem::finishCreate() {
 	App::historyRegItem(this);
 }
 
@@ -783,7 +780,7 @@ not_null<HistoryItem*> HistoryItem::Create(
 		const auto text = HistoryService::PreparedText {
 			lang(lng_message_empty)
 		};
-		return HistoryService::create(history, data.vid.v, ::date(), text);
+		return new HistoryService(history, data.vid.v, ::date(), text);
 	} break;
 
 	case mtpc_message: {
@@ -881,7 +878,7 @@ not_null<HistoryItem*> HistoryItem::Create(
 			const auto text = HistoryService::PreparedText {
 				lang(lng_message_empty)
 			};
-			return HistoryService::create(
+			return new HistoryService(
 				history,
 				data.vid.v,
 				::date(data.vdate),
@@ -889,17 +886,17 @@ not_null<HistoryItem*> HistoryItem::Create(
 				data.vflags.v,
 				data.has_from_id() ? data.vfrom_id.v : UserId(0));
 		} else if (badMedia == MediaCheckResult::HasTimeToLive) {
-			return HistoryService::create(history, data);
+			return new HistoryService(history, data);
 		}
-		return HistoryMessage::create(history, data);
+		return new HistoryMessage(history, data);
 	} break;
 
 	case mtpc_messageService: {
 		auto &data = message.c_messageService();
 		if (data.vaction.type() == mtpc_messageActionPhoneCall) {
-			return  HistoryMessage::create(history, data);
+			return new HistoryMessage(history, data);
 		}
-		return HistoryService::create(history, data);
+		return new HistoryService(history, data);
 	} break;
 	}
 

@@ -437,7 +437,7 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 	auto inviteDate = peer->asChannel()->inviteDate;
 	if (unread) _maxReadMessageDate = inviteDate;
 	if (isEmpty()) {
-		_joinedMessage = HistoryJoined::create(this, inviteDate, inviter, flags);
+		_joinedMessage = new HistoryJoined(this, inviteDate, inviter, flags);
 		addNewItem(_joinedMessage, unread);
 		return _joinedMessage;
 	}
@@ -456,7 +456,7 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 			}
 			if (item->date <= inviteDate) {
 				++itemIndex;
-				_joinedMessage = HistoryJoined::create(
+				_joinedMessage = new HistoryJoined(
 					this,
 					inviteDate,
 					inviter,
@@ -476,7 +476,7 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 
 	startBuildingFrontBlock();
 
-	_joinedMessage = HistoryJoined::create(this, inviteDate, inviter, flags);
+	_joinedMessage = new HistoryJoined(this, inviteDate, inviter, flags);
 	addItemToBlock(_joinedMessage);
 
 	finishBuildingFrontBlock();
@@ -766,7 +766,7 @@ not_null<HistoryItem*> History::createItemForwarded(
 		UserId from,
 		const QString &postAuthor,
 		HistoryMessage *original) {
-	return HistoryMessage::create(
+	return new HistoryMessage(
 		this,
 		id,
 		flags,
@@ -787,7 +787,7 @@ not_null<HistoryItem*> History::createItemDocument(
 		DocumentData *document,
 		const TextWithEntities &caption,
 		const MTPReplyMarkup &markup) {
-	return HistoryMessage::create(
+	return new HistoryMessage(
 		this,
 		id,
 		flags,
@@ -812,7 +812,7 @@ not_null<HistoryItem*> History::createItemPhoto(
 		PhotoData *photo,
 		const TextWithEntities &caption,
 		const MTPReplyMarkup &markup) {
-	return HistoryMessage::create(
+	return new HistoryMessage(
 		this,
 		id,
 		flags,
@@ -836,7 +836,7 @@ not_null<HistoryItem*> History::createItemGame(
 		const QString &postAuthor,
 		GameData *game,
 		const MTPReplyMarkup &markup) {
-	return HistoryMessage::create(
+	return new HistoryMessage(
 		this,
 		id,
 		flags,
@@ -857,7 +857,7 @@ not_null<HistoryItem*> History::addNewService(
 		bool unread) {
 	auto message = HistoryService::PreparedText { text };
 	return addNewItem(
-		HistoryService::create(this, msgId, date, message, flags),
+		new HistoryService(this, msgId, date, message, flags),
 		unread);
 }
 
