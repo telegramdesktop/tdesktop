@@ -1462,7 +1462,6 @@ void History::addItemToBlock(not_null<HistoryItem*> item) {
 		HistoryInner::ElementDelegate()));
 	const auto view = block->messages.back().get();
 	view->attachToBlock(block, block->messages.size() - 1);
-	view->previousInBlocksChanged();
 
 	if (isBuildingFrontBlock() && _buildingFrontBlock->expectedItemsCount > 0) {
 		--_buildingFrontBlock->expectedItemsCount;
@@ -2014,7 +2013,6 @@ not_null<HistoryItem*> History::addNewInTheMiddle(
 		item->createView(
 			HistoryInner::ElementDelegate()));
 	(*it)->attachToBlock(block.get(), itemIndex);
-	(*it)->previousInBlocksChanged();
 	if (itemIndex + 1 < block->messages.size()) {
 		for (auto i = itemIndex + 1, l = int(block->messages.size()); i != l; ++i) {
 			block->messages[i]->setIndexInBlock(i);
@@ -2028,63 +2026,6 @@ not_null<HistoryItem*> History::addNewInTheMiddle(
 
 	return item;
 }
-//
-//HistoryView::Element *History::findNextItem(
-//		not_null<HistoryView::Element*> view) const {
-//	const auto nextBlockIndex = view->block()->indexInHistory() + 1;
-//	const auto nextItemIndex = view->indexInBlock() + 1;
-//	if (nextItemIndex < int(view->block()->messages.size())) {
-//		return view->block()->messages[nextItemIndex].get();
-//	} else if (nextBlockIndex < int(blocks.size())) {
-//		return blocks[nextBlockIndex]->messages.front().get();
-//	}
-//	return nullptr;
-//}
-//
-//HistoryView::Element *History::findPreviousItem(
-//		not_null<HistoryView::Element*> view) const {
-//	const auto blockIndex = view->block()->indexInHistory();
-//	const auto itemIndex = view->indexInBlock();
-//	if (itemIndex > 0) {
-//		return view->block()->messages[itemIndex - 1].get();
-//	} else if (blockIndex > 0) {
-//		return blocks[blockIndex - 1]->messages.back().get();
-//	}
-//	return nullptr;
-//}
-//
-//not_null<HistoryView::Element*> History::findGroupFirst(
-//		not_null<HistoryView::Element*> view) const {
-//	const auto group = view->Get<HistoryView::Group>();
-//	Assert(group != nullptr);
-//	Assert(group->leader != nullptr);
-//
-//	const auto leaderGroup = (group->leader == view)
-//		? group
-//		: group->leader->Get<HistoryView::Group>();
-//	Assert(leaderGroup != nullptr);
-//
-//	return leaderGroup->others.empty()
-//		? group->leader
-//		: leaderGroup->others.front().get();
-//}
-//
-//not_null<HistoryView::Element*> History::findGroupLast(
-//		not_null<HistoryView::Element*> view) const {
-//	const auto group = view->Get<HistoryView::Group>();
-//	Assert(group != nullptr);
-//
-//	return group->leader;
-//}
-//
-//void History::recountGroupingAround(not_null<HistoryItem*> item) {
-//	Expects(item->history() == this);
-//
-//	if (item->mainView() && item->groupId()) {
-//		const auto [groupFrom, groupTill] = recountGroupingFromTill(item->mainView());
-//		recountGrouping(groupFrom, groupTill);
-//	}
-//}
 
 int History::chatListUnreadCount() const {
 	const auto result = unreadCount();
@@ -2115,65 +2056,6 @@ void History::paintUserpic(
 		int size) const {
 	peer->paintUserpic(p, x, y, size);
 }
-//
-//auto History::recountGroupingFromTill(not_null<HistoryView::Element*> view)
-//-> std::pair<not_null<HistoryView::Element*>, not_null<HistoryView::Element*>> {
-//	const auto recountFromItem = [&] {
-//		if (const auto prev = findPreviousItem(view)) {
-//			if (prev->data()->groupId()) {
-//				return findGroupFirst(prev);
-//			}
-//		}
-//		return view;
-//	}();
-//	if (recountFromItem == view && !view->data()->groupId()) {
-//		return { view, view };
-//	}
-//	const auto recountTillItem = [&] {
-//		if (const auto next = findNextItem(view)) {
-//			if (next->data()->groupId()) {
-//				return findGroupLast(next);
-//			}
-//		}
-//		return view;
-//	}();
-//	return { recountFromItem, recountTillItem };
-//}
-//
-//void History::recountGrouping(
-//		not_null<HistoryView::Element*> from,
-//		not_null<HistoryView::Element*> till) {
-//	from->validateGroupId();
-//	auto others = std::vector<not_null<HistoryView::Element*>>();
-//	auto currentGroupId = from->data()->groupId();
-//	auto prev = from;
-//	while (prev != till) {
-//		auto item = findNextItem(prev);
-//		item->validateGroupId();
-//		const auto groupId = item->data()->groupId();
-//		if (currentGroupId) {
-//			if (groupId == currentGroupId) {
-//				others.push_back(prev);
-//			} else {
-//				for (const auto other : others) {
-//					other->makeGroupMember(prev);
-//				}
-//				prev->makeGroupLeader(base::take(others));
-//				currentGroupId = groupId;
-//			}
-//		} else if (groupId) {
-//			currentGroupId = groupId;
-//		}
-//		prev = item;
-//	}
-//
-//	if (currentGroupId) {
-//		for (const auto other : others) {
-//			other->makeGroupMember(prev);
-//		}
-//		till->makeGroupLeader(base::take(others));
-//	}
-//}
 
 void History::startBuildingFrontBlock(int expectedItemsCount) {
 	Assert(!isBuildingFrontBlock());

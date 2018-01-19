@@ -491,6 +491,7 @@ void Element::attachToBlock(not_null<HistoryBlock*> block, int index) {
 	_block = block;
 	_indexInBlock = index;
 	_data->setMainView(this);
+	previousInBlocksChanged();
 }
 
 void Element::removeFromBlock() {

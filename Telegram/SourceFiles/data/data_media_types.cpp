@@ -850,7 +850,7 @@ QString MediaWebPage::pinnedTextSubstring() const {
 }
 
 bool MediaWebPage::allowsEdit() const {
-	return false;
+	return true;
 }
 
 bool MediaWebPage::updateInlineResultMedia(const MTPMessageMedia &media) {

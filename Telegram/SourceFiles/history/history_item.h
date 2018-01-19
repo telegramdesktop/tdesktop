@@ -197,9 +197,6 @@ public:
 	bool emptyText() const {
 		return _text.isEmpty();
 	}
-	Text cloneText() const {
-		return _text;
-	}
 
 	bool isPinned() const;
 	bool canPin() const;

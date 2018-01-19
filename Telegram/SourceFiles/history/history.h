@@ -329,7 +329,6 @@ public:
 	}
 	HistoryItemsList validateForwardDraft();
 	void setForwardDraft(MessageIdsList &&items);
-	void recountGroupingAround(not_null<HistoryItem*> item);
 
 	bool needUpdateInChatList() const override;
 	bool toImportant() const override {
@@ -455,20 +454,6 @@ private:
 
 	void addItemsToLists(const std::vector<not_null<HistoryItem*>> &items);
 	void clearSendAction(not_null<UserData*> from);
-
-	HistoryView::Element *findPreviousItem(
-		not_null<HistoryView::Element*> view) const;
-	HistoryView::Element *findNextItem(
-		not_null<HistoryView::Element*> view) const;
-	not_null<HistoryView::Element*> findGroupFirst(
-		not_null<HistoryView::Element*> view) const;
-	not_null<HistoryView::Element*> findGroupLast(
-		not_null<HistoryView::Element*> view) const;
-	auto recountGroupingFromTill(not_null<HistoryView::Element*> view)
-		-> std::pair<not_null<HistoryView::Element*>, not_null<HistoryView::Element*>>;
-	void recountGrouping(
-		not_null<HistoryView::Element*> from,
-		not_null<HistoryView::Element*> till);
 
 	enum class Flag {
 		f_has_pending_resized_items = (1 << 0),

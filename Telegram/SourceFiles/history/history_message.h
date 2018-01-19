@@ -94,8 +94,6 @@ public:
 		not_null<HistoryMessage*> item,
 		const MTPMessageMedia &media);
 
-	int32 plainMaxWidth() const;
-
 	bool allowsForward() const override;
 	bool allowsEdit(const QDateTime &now) const override;
 	bool uploading() const;

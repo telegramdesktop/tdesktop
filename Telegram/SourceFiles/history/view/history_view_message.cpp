@@ -257,7 +257,7 @@ QSize Message::performCountOptimalSize() {
 			item->_textHeight = 0;
 		}
 
-		maxWidth = item->plainMaxWidth();
+		maxWidth = plainMaxWidth();
 		minHeight = hasVisibleText() ? item->_text.minHeight() : 0;
 		if (!mediaOnBottom) {
 			minHeight += st::msgPadding.bottom();
@@ -604,6 +604,9 @@ void Message::paintViaBotIdInfo(Painter &p, QRect &trect, bool selected) const {
 }
 
 void Message::paintText(Painter &p, QRect &trect, TextSelection selection) const {
+	if (!hasVisibleText()) {
+		return;
+	}
 	const auto item = message();
 
 	const auto outbg = hasOutLayout();
@@ -890,6 +893,9 @@ bool Message::getStateText(
 		QRect &trect,
 		not_null<HistoryTextState*> outResult,
 		HistoryStateRequest request) const {
+	if (!hasVisibleText()) {
+		return false;
+	}
 	const auto item = message();
 	if (trect.contains(point)) {
 		*outResult = HistoryTextState(item, item->_text.getState(
@@ -1209,6 +1215,12 @@ int Message::timeLeft() const {
 	return result;
 }
 
+int Message::plainMaxWidth() const {
+	return st::msgPadding.left()
+		+ (hasVisibleText() ? message()->_text.maxWidth() : 0)
+		+ st::msgPadding.right();
+}
+
 void Message::initLogEntryOriginal() {
 	if (const auto log = message()->Get<HistoryMessageLogEntryOriginal>()) {
 		AddComponents(LogEntryOriginal::Bit());
@@ -1478,7 +1490,7 @@ QRect Message::countGeometry() const {
 
 	auto maxwidth = qMin(st::msgMaxWidth, maxWidth());
 	if (media && media->width() < maxwidth) {
-		maxwidth = qMax(media->width(), qMin(maxwidth, item->plainMaxWidth()));
+		maxwidth = qMax(media->width(), qMin(maxwidth, plainMaxWidth()));
 	}
 
 	const auto outbg = hasOutLayout();

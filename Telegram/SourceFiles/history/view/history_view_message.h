@@ -138,6 +138,7 @@ private:
 	HistoryMessageEdited *displayedEditBadge();
 	void initTime();
 	int timeLeft() const;
+	int plainMaxWidth() const;
 
 	HistoryWebPage *logEntryOriginal() const;
 

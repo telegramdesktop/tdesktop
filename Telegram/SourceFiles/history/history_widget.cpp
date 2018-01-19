@@ -573,6 +573,14 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 	) | rpl::start_with_next([this](auto item) {
 		item->refreshMainView();
 	}, lifetime());
+	Auth().data().itemPlayInlineRequest(
+	) | rpl::start_with_next([this](auto item) {
+		if (const auto view = item->mainView()) {
+			if (const auto media = view->media()) {
+				media->playInline(true);
+			}
+		}
+	}, lifetime());
 	subscribe(Auth().data().contactsLoaded(), [this](bool) {
 		if (_peer) {
 			updateReportSpamStatus();

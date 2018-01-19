@@ -970,13 +970,15 @@ bool DocumentData::setRemoteVersion(int32 version) {
 }
 
 void DocumentData::setRemoteLocation(int32 dc, uint64 access) {
-	_dc = dc;
-	_access = access;
-	if (isValid()) {
-		if (_location.check()) {
-			Local::writeFileLocation(mediaKey(), _location);
-		} else {
-			_location = Local::readFileLocation(mediaKey());
+	if (_dc != dc || _access != access) {
+		_dc = dc;
+		_access = access;
+		if (isValid()) {
+			if (_location.check()) {
+				Local::writeFileLocation(mediaKey(), _location);
+			} else {
+				_location = Local::readFileLocation(mediaKey());
+			}
 		}
 	}
 }

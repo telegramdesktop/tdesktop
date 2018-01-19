@@ -379,7 +379,7 @@ void HistoryGroupedMedia::updateNeedBubbleState() {
 		return true;
 	}();
 	if (hasCaption) {
-		_caption = _parts.front().item->cloneText();
+		_caption = createCaption(_parts.front().item);
 	}
 	_needBubble = computeNeedBubble();
 }

@@ -851,10 +851,6 @@ void HistoryMessage::replaceBuyWithReceiptInMarkup() {
 	}
 }
 
-int32 HistoryMessage::plainMaxWidth() const {
-	return st::msgPadding.left() + _text.maxWidth() + st::msgPadding.right();
-}
-
 void HistoryMessage::applyEdition(const MTPDmessage &message) {
 	int keyboardTop = -1;
 	//if (!pendingResize()) {// #TODO edit bot message
@@ -940,33 +936,6 @@ Storage::SharedMediaTypesMask HistoryMessage::sharedMediaTypes() const {
 	}
 	return result;
 }
-
-//void HistoryMessage::setMedia(const MTPMessageMedia *media) {
-
-	// #TODO grouping and games
-	//bool mediaRemovedSkipBlock = false;
-	//if (_media) {
-	//	// Don't update Game media because we loose the consumed text of the message.
-	//	if (_media->type() == MediaTypeGame) {
-	//		return;
-	//	}
-
-	//	mediaRemovedSkipBlock = _media->isDisplayed() && _media->isBubbleBottom();
-	//	_media.reset();
-	//}
-	//refreshMedia(media);
-	//auto mediaDisplayed = _media && _media->isDisplayed();
-	//if (mediaDisplayed && _media->isBubbleBottom() && !mediaRemovedSkipBlock) {
-	//	_text.removeSkipBlock();
-	//	_textWidth = -1;
-	//	_textHeight = 0;
-	//} else if (mediaRemovedSkipBlock && (!mediaDisplayed || !_media->isBubbleBottom())) {
-	//	_text.updateSkipBlock(skipBlockWidth(), skipBlockHeight());
-	//	_textWidth = -1;
-	//	_textHeight = 0;
-	//}
-	//_history->recountGroupingAround(this);
-//}
 
 void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 	for_const (auto &entity, textWithEntities.entities) {

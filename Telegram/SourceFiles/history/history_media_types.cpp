@@ -228,7 +228,7 @@ HistoryPhoto::HistoryPhoto(
 		std::make_shared<PhotoOpenClickHandler>(_data, fullId),
 		std::make_shared<PhotoSaveClickHandler>(_data, fullId),
 		std::make_shared<PhotoCancelClickHandler>(_data, fullId));
-	_caption = realParent->cloneText();
+	_caption = createCaption(realParent);
 	create(realParent->fullId());
 }
 
@@ -731,7 +731,7 @@ HistoryVideo::HistoryVideo(
 , _data(document)
 , _thumbw(1)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
-	_caption = realParent->cloneText();
+	_caption = createCaption(realParent);
 
 	setDocumentLinks(_data, realParent);
 
@@ -1199,7 +1199,7 @@ HistoryDocument::HistoryDocument(
 , DocumentViewRegister(parent, document)
 , _data(document) {
 	const auto item = parent->data();
-	auto caption = item->cloneText();
+	auto caption = createCaption(item);
 
 	createComponents(!caption.isEmpty());
 	if (auto named = Get<HistoryDocumentNamed>()) {
@@ -1308,7 +1308,7 @@ QSize HistoryDocument::countOptimalSize() {
 
 	if (auto named = Get<HistoryDocumentNamed>()) {
 		accumulate_max(maxWidth, tleft + named->_namew + tright);
-		accumulate_max(maxWidth, st::msgMaxWidth);
+		accumulate_min(maxWidth, st::msgMaxWidth);
 	}
 
 	auto minHeight = 0;
@@ -1952,7 +1952,7 @@ HistoryGif::HistoryGif(
 
 	setStatusSize(FileStatusSizeReady);
 
-	_caption = item->cloneText();
+	_caption = createCaption(item);
 	_data->thumb->load();
 }
 
@@ -2117,7 +2117,9 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 	auto displayLoading = (item->id < 0) || _data->displayLoading();
 	auto selected = (selection == FullSelection);
 
-	auto videoFinished = _gif && (_gif->mode() == Media::Clip::Reader::Mode::Video) && (_gif->state() == Media::Clip::State::Finished);
+	auto videoFinished = _gif
+		&& (_gif->mode() == Media::Clip::Reader::Mode::Video)
+		&& (_gif->state() == Media::Clip::State::Finished);
 	if (loaded && cAutoPlayGif() && ((!_gif && !_gif.isBad()) || videoFinished)) {
 		Ui::autoplayMediaInlineAsync(item->fullId());
 	}
@@ -3087,7 +3089,7 @@ QSize HistoryContact::countOptimalSize() {
 	}
 
 	accumulate_max(maxWidth, tleft + _name.maxWidth() + tright);
-	accumulate_max(maxWidth, st::msgMaxWidth);
+	accumulate_min(maxWidth, st::msgMaxWidth);
 	auto minHeight = 0;
 	if (_userId) {
 		minHeight = st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom();

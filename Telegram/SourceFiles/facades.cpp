@@ -242,11 +242,8 @@ bool isLayerShown() {
 void autoplayMediaInlineAsync(const FullMsgId &msgId) {
 	if (auto main = App::main()) {
 		InvokeQueued(main, [msgId] {
-			if (auto item = App::histItemById(msgId)) {
-				// #TODO GIFs
-				//if (auto media = item->getMedia()) {
-				//	media->playInline(true);
-				//}
+			if (const auto item = App::histItemById(msgId)) {
+				Auth().data().requestItemPlayInline(item);
 			}
 		});
 	}

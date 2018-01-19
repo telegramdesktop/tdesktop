@@ -786,7 +786,6 @@ void Session::documentConvert(
 	}
 	documentApplyFields(original, data);
 	if (idChanged) {
-		// #TODO check audio, sticker, GIF animation, saved GIF?..
 		const auto newKey = original->mediaKey();
 		if (oldKey != newKey) {
 			if (original->isVoiceMessage()) {
@@ -842,7 +841,6 @@ void Session::documentApplyFields(
 	document->setattributes(attributes);
 	document->setRemoteVersion(version);
 	if (dc != 0 && access != 0) {
-		// #TODO was "!document->isValid()" - check if it is fine for convert
 		document->setRemoteLocation(dc, access);
 	}
 	document->date = date;

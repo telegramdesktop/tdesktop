@@ -241,6 +241,7 @@ public:
 
 protected:
 	QSize countCurrentSize(int newWidth) override;
+	Text createCaption(not_null<HistoryItem*> item) const;
 
 	not_null<Element*> _parent;
 	MediaInBubbleState _inBubbleState = MediaInBubbleState::None;
