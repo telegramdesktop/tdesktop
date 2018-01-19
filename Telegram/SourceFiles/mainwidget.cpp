@@ -881,6 +881,7 @@ void MainWidget::cancelUploadLayer(not_null<HistoryItem*> item) {
 			if (wasLast && !history->lastMsg) {
 				checkPeerHistory(history->peer);
 			}
+			Auth().data().sendHistoryChangeNotifications();
 		}
 		Auth().uploader().unpause();
 	}), base::lambda_guarded(this, [] {
@@ -1069,7 +1070,12 @@ void MainWidget::deleteAllFromUser(ChannelData *channel, UserData *from) {
 			}
 		}
 	}
-	MTP::send(MTPchannels_DeleteUserHistory(channel->inputChannel, from->inputUser), rpcDone(&MainWidget::deleteAllFromUserPart, { channel, from }));
+	MTP::send(
+		MTPchannels_DeleteUserHistory(
+			channel->inputChannel,
+			from->inputUser),
+		rpcDone(&MainWidget::deleteAllFromUserPart, { channel, from }));
+	Auth().data().sendHistoryChangeNotifications();
 }
 
 void MainWidget::deleteAllFromUserPart(DeleteAllFromUserParams params, const MTPmessages_AffectedHistory &result) {
@@ -1525,8 +1531,9 @@ void MainWidget::searchMessages(const QString &query, PeerData *inPeer) {
 	}
 }
 
-void MainWidget::itemEdited(HistoryItem *item) {
-	if (_history->peer() == item->history()->peer || (_history->peer() && _history->peer() == item->history()->peer->migrateTo())) {
+void MainWidget::itemEdited(not_null<HistoryItem*> item) {
+	if (_history->peer() == item->history()->peer
+		|| (_history->peer() && _history->peer() == item->history()->peer->migrateTo())) {
 		_history->itemEdited(item);
 	}
 }
@@ -2158,6 +2165,9 @@ void MainWidget::ui_showPeerHistory(
 			}
 		}
 		if (_history->isHidden()) {
+			if (!Adaptive::OneColumn() && way == Way::ClearStack) {
+				return false;
+			}
 			return (_mainSection != nullptr)
 				|| (Adaptive::OneColumn() && !_dialogs->isHidden());
 		}
@@ -2530,7 +2540,9 @@ void MainWidget::showNewSection(
 			|| memento.instant()) {
 			return false;
 		}
-		if (Adaptive::OneColumn()
+		if (!Adaptive::OneColumn() && params.way == SectionShow::Way::ClearStack) {
+			return false;
+		} else if (Adaptive::OneColumn()
 			|| (newThirdSection && _thirdSection)
 			|| (newMainSection && isMainSectionShown())) {
 			return true;

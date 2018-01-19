@@ -215,9 +215,30 @@ InnerWidget::InnerWidget(
 	_scrollDateHideTimer.setCallback([this] { scrollDateHideByTimer(); });
 	Auth().data().viewRepaintRequest(
 	) | rpl::start_with_next([this](auto view) {
-		repaintItem(view); // #TODO check my view
+		if (view->delegate() == this) {
+			repaintItem(view);
+		}
 	}, lifetime());
-	subscribe(Auth().data().pendingHistoryResize(), [this] { handlePendingHistoryResize(); });
+	Auth().data().viewResizeRequest(
+	) | rpl::start_with_next([this](auto view) {
+		if (view->delegate() == this) {
+			updateSize();
+		}
+	}, lifetime());
+	Auth().data().itemViewRefreshRequest(
+	) | rpl::start_with_next([this](auto item) {
+		if (const auto view = viewForItem(item)) {
+			refreshItem(view);
+		}
+	}, lifetime());
+	Auth().data().itemPlayInlineRequest(
+	) | rpl::start_with_next([this](auto item) {
+		if (const auto view = viewForItem(item)) {
+			if (const auto media = view->media()) {
+				media->playInline(true);
+			}
+		}
+	}, lifetime());
 	subscribe(Auth().data().queryItemVisibility(), [this](const Data::Session::ItemVisibilityQuery &query) {
 		if (_history != query.item->history() || !query.item->isLogEntry() || !isVisible()) {
 			return;
@@ -439,18 +460,18 @@ QPoint InnerWidget::tooltipPos() const {
 	return _mousePosition;
 }
 
+HistoryView::Context InnerWidget::elementContext() {
+	return HistoryView::Context::AdminLog;
+}
+
 std::unique_ptr<HistoryView::Element> InnerWidget::elementCreate(
 		not_null<HistoryMessage*> message) {
-	return std::make_unique<HistoryView::Message>(
-		message,
-		HistoryView::Context::AdminLog);
+	return std::make_unique<HistoryView::Message>(this, message);
 }
 
 std::unique_ptr<HistoryView::Element> InnerWidget::elementCreate(
 		not_null<HistoryService*> message) {
-	return std::make_unique<HistoryView::Service>(
-		message,
-		HistoryView::Context::AdminLog);
+	return std::make_unique<HistoryView::Service>(this, message);
 }
 
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {
@@ -599,7 +620,9 @@ void InnerWidget::updateMinMaxIds() {
 
 void InnerWidget::itemsAdded(Direction direction, int addedCount) {
 	Expects(addedCount >= 0);
-	auto checkFrom = (direction == Direction::Up) ? (_items.size() - addedCount) : 1; // Should be ": 0", but zero is skipped anyway.
+	auto checkFrom = (direction == Direction::Up)
+		? (_items.size() - addedCount)
+		: 1; // Should be ": 0", but zero is skipped anyway.
 	auto checkTo = (direction == Direction::Up) ? (_items.size() + 1) : (addedCount + 1);
 	for (auto i = checkFrom; i != checkTo; ++i) {
 		if (i > 0) {
@@ -628,11 +651,17 @@ void InnerWidget::updateSize() {
 int InnerWidget::resizeGetHeight(int newWidth) {
 	update();
 
+	const auto resizeAllItems = (_itemsWidth != newWidth);
 	auto newHeight = 0;
 	for (auto &item : base::reversed(_items)) {
 		item->setY(newHeight);
-		newHeight += item->resizeGetHeight(newWidth);
+		if (item->pendingResize() || resizeAllItems) {
+			newHeight += item->resizeGetHeight(newWidth);
+		} else {
+			newHeight += item->height();
+		}
 	}
+	_itemsWidth = newWidth;
 	_itemsHeight = newHeight;
 	_itemsTop = (_minHeight > _itemsHeight + st::historyPaddingBottom) ? (_minHeight - _itemsHeight - st::historyPaddingBottom) : 0;
 	return _itemsTop + _itemsHeight + st::historyPaddingBottom;
@@ -1575,18 +1604,15 @@ void InnerWidget::repaintItem(const Element *view) {
 	update(0, itemTop(view), width(), view->height());
 }
 
+void InnerWidget::refreshItem(not_null<const Element*> view) {
+	// No need to refresh views in admin log.
+}
+
 QPoint InnerWidget::mapPointToItem(QPoint point, const Element *view) const {
 	if (!view) {
 		return QPoint();
 	}
 	return point - QPoint(0, itemTop(view));
-}
-
-void InnerWidget::handlePendingHistoryResize() {
-	if (_history->hasPendingResizedItems()) {
-		_history->resizeGetHeight(width());
-		updateSize();
-	}
 }
 
 InnerWidget::~InnerWidget() = default;

@@ -2672,7 +2672,6 @@ bool HistoryGif::playInline(bool autoplay) {
 			? Mode::Video
 			: Mode::Gif;
 		setClipReader(Media::Clip::MakeReader(_data, _parent->data()->fullId(), [this](Media::Clip::Notification notification) {
-			// #TODO GIFs
 			_parent->clipCallback(notification);
 		}, mode));
 		if (mode == Mode::Video) {

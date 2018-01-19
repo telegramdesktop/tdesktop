@@ -192,8 +192,10 @@ LogEntryOriginal &LogEntryOriginal::operator=(LogEntryOriginal &&other) {
 
 LogEntryOriginal::~LogEntryOriginal() = default;
 
-Message::Message(not_null<HistoryMessage*> data, Context context)
-: Element(data, context) {
+Message::Message(
+	not_null<ElementDelegate*> delegate,
+	not_null<HistoryMessage*> data)
+: Element(delegate, data) {
 	initLogEntryOriginal();
 }
 
@@ -637,6 +639,9 @@ bool Message::displayFromPhoto() const {
 }
 
 bool Message::hasFromPhoto() const {
+	if (isHiddenByGroup()) {
+		return false;
+	}
 	switch (context()) {
 	case Context::AdminLog:
 	case Context::Feed:
@@ -1486,13 +1491,6 @@ TextSelection Message::unskipTextSelection(TextSelection selection) const {
 
 QRect Message::countGeometry() const {
 	const auto item = message();
-	const auto media = this->media();
-
-	auto maxwidth = qMin(st::msgMaxWidth, maxWidth());
-	if (media && media->width() < maxwidth) {
-		maxwidth = qMax(media->width(), qMin(maxwidth, plainMaxWidth()));
-	}
-
 	const auto outbg = hasOutLayout();
 	auto contentLeft = (outbg && !Adaptive::ChatWide())
 		? st::msgMargin.right()
@@ -1503,15 +1501,25 @@ QRect Message::countGeometry() const {
 	//	contentLeft += st::msgPhotoSkip - (hmaxwidth - hwidth);
 	}
 
-	auto contentWidth = width() - st::msgMargin.left() - st::msgMargin.right();
+	const auto media = this->media();
+	const auto mediaWidth = media ? media->width() : width();
+	const auto availableWidth = width() - st::msgMargin.left() - st::msgMargin.right();
+	auto contentWidth = availableWidth;
 	if (item->history()->peer->isSelf() && !outbg) {
 		contentWidth -= st::msgPhotoSkip;
 	}
-	if (contentWidth > maxwidth) {
-		if (outbg && !Adaptive::ChatWide()) {
-			contentLeft += contentWidth - maxwidth;
+	accumulate_min(contentWidth, maxWidth());
+	accumulate_min(contentWidth, st::msgMaxWidth);
+	if (mediaWidth < contentWidth) {
+		const auto textualWidth = plainMaxWidth();
+		if (mediaWidth < textualWidth) {
+			accumulate_min(contentWidth, textualWidth);
+		} else {
+			contentWidth = mediaWidth;
 		}
-		contentWidth = maxwidth;
+	}
+	if (contentWidth < availableWidth && outbg && !Adaptive::ChatWide()) {
+		contentLeft += availableWidth - contentWidth;
 	}
 
 	const auto contentTop = marginTop();
@@ -1523,47 +1531,59 @@ QRect Message::countGeometry() const {
 }
 
 int Message::resizeContentGetHeight(int newWidth) {
-	const auto item = message();
-	const auto media = this->media();
-
-	if (newWidth < st::msgMinWidth) {
+	if (isHiddenByGroup()) {
+		return 0;
+	} else if (newWidth < st::msgMinWidth) {
 		return height();
 	}
 
 	auto newHeight = minHeight();
+
+	const auto item = message();
+	const auto media = this->media();
+	const auto mediaDisplayed = media ? media->isDisplayed() : false;
+	const auto bubble = drawBubble();
+
+	// This code duplicates countGeometry() but also resizes media.
 	auto contentWidth = newWidth - (st::msgMargin.left() + st::msgMargin.right());
 	if (item->history()->peer->isSelf() && !hasOutLayout()) {
 		contentWidth -= st::msgPhotoSkip;
 	}
-	if (contentWidth < st::msgPadding.left() + st::msgPadding.right() + 1) {
-		contentWidth = st::msgPadding.left() + st::msgPadding.right() + 1;
-	} else if (contentWidth > st::msgMaxWidth) {
-		contentWidth = st::msgMaxWidth;
+	accumulate_min(contentWidth, maxWidth());
+	accumulate_min(contentWidth, st::msgMaxWidth);
+	if (mediaDisplayed) {
+		media->resizeGetHeight(bubble
+			? std::min(contentWidth, maxWidth())
+			: contentWidth);
+		if (media->width() < contentWidth) {
+			const auto textualWidth = plainMaxWidth();
+			if (media->width() < textualWidth) {
+				accumulate_min(contentWidth, textualWidth);
+			} else {
+				contentWidth = media->width();
+			}
+		}
 	}
-	if (drawBubble()) {
+
+	if (bubble) {
 		auto forwarded = item->Get<HistoryMessageForwarded>();
 		auto reply = item->Get<HistoryMessageReply>();
 		auto via = item->Get<HistoryMessageVia>();
 		auto entry = logEntryOriginal();
 
-		auto mediaDisplayed = false;
-		if (media) {
-			mediaDisplayed = media->isDisplayed();
-		}
-
 		// Entry page is always a bubble bottom.
 		auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || (entry/* && entry->isBubbleBottom()*/);
 		auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
 
-		if (contentWidth >= maxWidth()) {
+		if (contentWidth == maxWidth()) {
 			if (mediaDisplayed) {
-				media->resizeGetHeight(maxWidth());
+				media->resizeGetHeight(contentWidth);
 				if (entry) {
-					newHeight += entry->resizeGetHeight(countGeometry().width());
+					newHeight += entry->resizeGetHeight(contentWidth);
 				}
 			} else if (entry) {
 				// In case of text-only message it is counted in minHeight already.
-				entry->resizeGetHeight(countGeometry().width());
+				entry->resizeGetHeight(contentWidth);
 			}
 		} else {
 			if (hasVisibleText()) {
@@ -1588,7 +1608,7 @@ int Message::resizeContentGetHeight(int newWidth) {
 			if (mediaDisplayed) {
 				newHeight += media->resizeGetHeight(contentWidth);
 				if (entry) {
-					newHeight += entry->resizeGetHeight(countGeometry().width());
+					newHeight += entry->resizeGetHeight(contentWidth);
 				}
 			} else if (entry) {
 				newHeight += entry->resizeGetHeight(contentWidth);
@@ -1596,20 +1616,20 @@ int Message::resizeContentGetHeight(int newWidth) {
 		}
 
 		if (displayFromName()) {
-			fromNameUpdated(countGeometry().width());
+			fromNameUpdated(contentWidth);
 			newHeight += st::msgNameFont->height;
 		} else if (via && !forwarded) {
-			via->resize(countGeometry().width() - st::msgPadding.left() - st::msgPadding.right());
+			via->resize(contentWidth - st::msgPadding.left() - st::msgPadding.right());
 			newHeight += st::msgNameFont->height;
 		}
 
 		if (displayForwardedFrom()) {
-			auto fwdheight = ((forwarded->text.maxWidth() > (countGeometry().width() - st::msgPadding.left() - st::msgPadding.right())) ? 2 : 1) * st::semiboldFont->height;
+			auto fwdheight = ((forwarded->text.maxWidth() > (contentWidth - st::msgPadding.left() - st::msgPadding.right())) ? 2 : 1) * st::semiboldFont->height;
 			newHeight += fwdheight;
 		}
 
 		if (reply) {
-			reply->resize(countGeometry().width() - st::msgPadding.left() - st::msgPadding.right());
+			reply->resize(contentWidth - st::msgPadding.left() - st::msgPadding.right());
 			newHeight += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		}
 	} else if (media && media->isDisplayed()) {
@@ -1618,10 +1638,9 @@ int Message::resizeContentGetHeight(int newWidth) {
 		newHeight = 0;
 	}
 	if (const auto keyboard = item->inlineReplyKeyboard()) {
-		const auto g = countGeometry();
 		const auto keyboardHeight = st::msgBotKbButton.margin + keyboard->naturalHeight();
 		newHeight += keyboardHeight;
-		keyboard->resize(g.width(), keyboardHeight - st::msgBotKbButton.margin);
+		keyboard->resize(contentWidth, keyboardHeight - st::msgBotKbButton.margin);
 	}
 
 	newHeight += marginTop() + marginBottom();

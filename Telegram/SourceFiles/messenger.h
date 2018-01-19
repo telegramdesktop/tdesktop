@@ -178,7 +178,6 @@ public:
 	void handleAppActivated();
 	void handleAppDeactivated();
 
-	void call_handleHistoryUpdate();
 	void call_handleUnreadCounterUpdate();
 	void call_handleDelayedPeerUpdates();
 	void call_handleObservables();

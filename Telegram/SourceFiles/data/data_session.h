@@ -47,9 +47,6 @@ public:
 		return _moreChatsLoaded;
 	}
 
-	base::Observable<void> &pendingHistoryResize() {
-		return _pendingHistoryResize;
-	}
 	struct ItemVisibilityQuery {
 		not_null<HistoryItem*> item;
 		not_null<bool*> isVisible;
@@ -440,7 +437,6 @@ private:
 	base::Variable<bool> _contactsLoaded = { false };
 	base::Variable<bool> _allChatsLoaded = { false };
 	base::Observable<void> _moreChatsLoaded;
-	base::Observable<void> _pendingHistoryResize;
 	base::Observable<ItemVisibilityQuery> _queryItemVisibility;
 	rpl::event_stream<IdChange> _itemIdChanges;
 	rpl::event_stream<not_null<const ViewElement*>> _viewLayoutChanges;

@@ -55,11 +55,18 @@ TextSelection ShiftItemSelection(
 	return ShiftItemSelection(selection, byText.length());
 }
 
-Element::Element(not_null<HistoryItem*> data, Context context)
-: _data(data)
-, _context(context) {
+Element::Element(
+	not_null<ElementDelegate*> delegate,
+	not_null<HistoryItem*> data)
+: _delegate(delegate)
+, _data(data)
+, _context(delegate->elementContext()) {
 	Auth().data().registerItemView(this);
 	refreshMedia();
+}
+
+not_null<ElementDelegate*> Element::delegate() const {
+	return _delegate;
 }
 
 not_null<HistoryItem*> Element::data() const {
@@ -146,74 +153,6 @@ int Element::infoWidth() const {
 bool Element::isHiddenByGroup() const {
 	return _flags & Flag::HiddenByGroup;
 }
-//
-//void Element::makeGroupMember(not_null<Element*> leader) {
-//	Expects(leader != this);
-//
-//	const auto group = Get<Group>();
-//	Assert(group != nullptr);
-//	if (group->leader == this) {
-//		if (auto single = _media ? _media->takeLastFromGroup() : nullptr) {
-//			_media = std::move(single);
-//		}
-//		_flags |= Flag::HiddenByGroup;
-//		Auth().data().requestViewResize(this);
-//
-//		group->leader = leader;
-//		base::take(group->others);
-//	} else if (group->leader != leader) {
-//		group->leader = leader;
-//	}
-//
-//	Ensures(isHiddenByGroup());
-//	Ensures(group->others.empty());
-//}
-//
-//void Element::makeGroupLeader(std::vector<not_null<HistoryItem*>> &&others) {
-//	const auto group = Get<Group>();
-//	Assert(group != nullptr);
-//
-//	const auto leaderChanged = (group->leader != this);
-//	if (leaderChanged) {
-//		group->leader = this;
-//		_flags &= ~Flag::HiddenByGroup;
-//		Auth().data().requestViewResize(this);
-//	}
-//	group->others = std::move(others);
-//	if (!_media || !_media->applyGroup(group->others)) {
-//		resetGroupMedia(group->others);
-//		data()->invalidateChatsListEntry();
-//	}
-//
-//	Ensures(!isHiddenByGroup());
-//}
-//
-//bool Element::groupIdValidityChanged() {
-//	if (Has<Group>()) {
-//		if (_media && _media->canBeGrouped()) {
-//			return false;
-//		}
-//		RemoveComponents(Group::Bit());
-//		Auth().data().requestViewResize(this);
-//		return true;
-//	}
-//	return false;
-//}
-//
-//void Element::validateGroupId() {
-//	// Just ignore the result.
-//	groupIdValidityChanged();
-//}
-//
-//Group *Element::getFullGroup() {
-//	if (const auto group = Get<Group>()) {
-//		if (group->leader == this) {
-//			return group;
-//		}
-//		return group->leader->Get<Group>();
-//	}
-//	return nullptr;
-//}
 
 void Element::refreshMedia() {
 	_flags &= ~Flag::HiddenByGroup;
@@ -241,23 +180,12 @@ void Element::refreshMedia() {
 	}
 }
 
-//void Element::resetGroupMedia(
-//		const std::vector<not_null<Element*>> &others) {
-//	if (!others.empty()) {
-//		_media = std::make_unique<HistoryGroupedMedia>(this, others);
-//	} else if (_media) {
-//		_media = _media->takeLastFromGroup();
-//	}
-//	Auth().data().requestViewResize(this);
-//}
-
 void Element::previousInBlocksChanged() {
 	recountDisplayDateInBlocks();
 	recountAttachToPreviousInBlocks();
 }
 
-// Called only if there is no more next item! Not always when it changes!
-void Element::nextInBlocksChanged() {
+void Element::nextInBlocksRemoved() {
 	setAttachToNext(false);
 }
 
@@ -306,16 +234,9 @@ void Element::clipCallback(Media::Clip::Notification notification) {
 	}
 }
 
-
 void Element::refreshDataId() {
 	if (const auto media = this->media()) {
 		media->refreshParentId(data());
-		// #TODO refresh sent album items
-		//if (const auto group = Get<Group>()) {
-		//	if (group->leader != this) {
-		//		group->leader->refreshDataId();
-		//	}
-		//}
 	}
 }
 
@@ -323,10 +244,11 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 	const auto item = data();
 	if (!item->Has<HistoryMessageDate>() && !item->Has<HistoryMessageUnreadBar>()) {
 		const auto prev = previous->data();
-		const auto possible = !item->isPost() && !prev->isPost()
-			&& !item->serviceMsg() && !prev->serviceMsg()
+		const auto possible = !item->serviceMsg() && !prev->serviceMsg()
 			&& !item->isEmpty() && !prev->isEmpty()
-			&& (qAbs(prev->date.secsTo(item->date)) < kAttachMessageToPreviousSecondsDelta);
+			&& (qAbs(prev->date.secsTo(item->date)) < kAttachMessageToPreviousSecondsDelta)
+			&& (_context == Context::Feed
+				|| (!item->isPost() && !prev->isPost()));
 		if (possible) {
 			if (item->history()->peer->isSelf()) {
 				return prev->senderOriginal() == item->senderOriginal()
@@ -390,20 +312,20 @@ void Element::setDisplayDate(bool displayDate) {
 void Element::setAttachToNext(bool attachToNext) {
 	if (attachToNext && !(_flags & Flag::AttachedToNext)) {
 		_flags |= Flag::AttachedToNext;
-		Auth().data().requestViewResize(this);
+		setPendingResize();
 	} else if (!attachToNext && (_flags & Flag::AttachedToNext)) {
 		_flags &= ~Flag::AttachedToNext;
-		Auth().data().requestViewResize(this);
+		setPendingResize();
 	}
 }
 
 void Element::setAttachToPrevious(bool attachToPrevious) {
 	if (attachToPrevious && !(_flags & Flag::AttachedToPrevious)) {
 		_flags |= Flag::AttachedToPrevious;
-		Auth().data().requestViewResize(this);
+		setPendingResize();
 	} else if (!attachToPrevious && (_flags & Flag::AttachedToPrevious)) {
 		_flags &= ~Flag::AttachedToPrevious;
-		Auth().data().requestViewResize(this);
+		setPendingResize();
 	}
 }
 

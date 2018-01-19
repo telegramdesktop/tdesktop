@@ -340,12 +340,7 @@ void historyMuteUpdated(History *history) {
 	if (MainWidget *m = App::main()) m->notify_historyMuteUpdated(history);
 }
 
-void handlePendingHistoryUpdate() {
-	if (!AuthSession::Exists()) {
-		return;
-	}
-	Auth().data().pendingHistoryResize().notify(true);
-
+//void handlePendingHistoryUpdate() {
 	//for (const auto item : base::take(Global::RefPendingRepaintItems())) {
 	//	Auth().data().requestItemRepaint(item);
 
@@ -370,7 +365,7 @@ void handlePendingHistoryUpdate() {
 		//	}
 		//}
 	//}
-}
+//}
 
 void unreadCounterUpdated() {
 	Global::RefHandleUnreadCounterUpdate().call();
@@ -515,7 +510,6 @@ namespace Global {
 namespace internal {
 
 struct Data {
-	SingleQueuedInvokation HandleHistoryUpdate = { [] { Messenger::Instance().call_handleHistoryUpdate(); } };
 	SingleQueuedInvokation HandleUnreadCounterUpdate = { [] { Messenger::Instance().call_handleUnreadCounterUpdate(); } };
 	SingleQueuedInvokation HandleDelayedPeerUpdates = { [] { Messenger::Instance().call_handleDelayedPeerUpdates(); } };
 	SingleQueuedInvokation HandleObservables = { [] { Messenger::Instance().call_handleObservables(); } };
@@ -636,7 +630,6 @@ void finish() {
 	GlobalData = nullptr;
 }
 
-DefineRefVar(Global, SingleQueuedInvokation, HandleHistoryUpdate);
 DefineRefVar(Global, SingleQueuedInvokation, HandleUnreadCounterUpdate);
 DefineRefVar(Global, SingleQueuedInvokation, HandleDelayedPeerUpdates);
 DefineRefVar(Global, SingleQueuedInvokation, HandleObservables);

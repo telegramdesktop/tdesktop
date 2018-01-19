@@ -223,9 +223,30 @@ ListWidget::ListWidget(
 	_scrollDateHideTimer.setCallback([this] { scrollDateHideByTimer(); });
 	Auth().data().viewRepaintRequest(
 	) | rpl::start_with_next([this](auto view) {
-		repaintItem(view);
+		if (view->delegate() == _delegate) {
+			repaintItem(view);
+		}
 	}, lifetime());
-	subscribe(Auth().data().pendingHistoryResize(), [this] { handlePendingHistoryResize(); });
+	Auth().data().viewResizeRequest(
+	) | rpl::start_with_next([this](auto view) {
+		if (view->delegate() == _delegate) {
+			updateSize();
+		}
+	}, lifetime());
+	Auth().data().itemViewRefreshRequest(
+	) | rpl::start_with_next([this](auto item) {
+		if (const auto view = viewForItem(item)) {
+			refreshItem(view);
+		}
+	}, lifetime());
+	Auth().data().itemPlayInlineRequest(
+	) | rpl::start_with_next([this](auto item) {
+		if (const auto view = viewForItem(item)) {
+			if (const auto media = view->media()) {
+				media->playInline(true);
+			}
+		}
+	}, lifetime());
 	subscribe(Auth().data().queryItemVisibility(), [this](const Data::Session::ItemVisibilityQuery &query) {
 		if (const auto view = viewForItem(query.item)) {
 			const auto top = itemTop(view);
@@ -262,7 +283,7 @@ void ListWidget::refreshRows() {
 	}
 	updateAroundPositionFromRows();
 
-	RpWidget::resizeToWidth(width());
+	updateItemsGeometry();
 	restoreScrollState();
 	mouseActionUpdate(QCursor::pos());
 }
@@ -505,27 +526,34 @@ void ListWidget::restoreState(not_null<ListMemento*> memento) {
 	refreshViewer();
 }
 
-void ListWidget::itemsAdded(Direction direction, int addedCount) {
-	Expects(addedCount >= 0);
-
-	auto checkFrom = (direction == Direction::Up)
-		? (_items.size() - addedCount)
-		: 1; // Should be ": 0", but zero is skipped anyway.
-	auto checkTo = (direction == Direction::Up)
-		? (_items.size() + 1)
-		: (addedCount + 1);
-	for (auto i = checkFrom; i != checkTo; ++i) {
-		if (i > 0) {
-			const auto view = _items[i - 1].get();
-			if (i < _items.size()) {
-				// #TODO feeds show
-				auto previous = _items[i].get();
-				view->setDisplayDate(view->data()->date.date() != previous->data()->date.date());
-				auto attachToPrevious = view->computeIsAttachToPrevious(previous);
-				view->setAttachToPrevious(attachToPrevious);
-				previous->setAttachToNext(attachToPrevious);
+void ListWidget::updateItemsGeometry() {
+	const auto count = int(_items.size());
+	const auto first = [&] {
+		for (auto i = 0; i != count; ++i) {
+			const auto view = _items[i].get();
+			if (view->isHiddenByGroup()) {
+				view->setDisplayDate(false);
 			} else {
 				view->setDisplayDate(true);
+				return i;
+			}
+		}
+		return count;
+	}();
+	if (first < count) {
+		auto view = _items[first].get();
+		for (auto i = first + 1; i != count; ++i) {
+			const auto next = _items[i].get();
+			if (next->isHiddenByGroup()) {
+				next->setDisplayDate(false);
+			} else {
+				const auto viewDate = view->data()->date;
+				const auto nextDate = next->data()->date;
+				next->setDisplayDate(nextDate.date() != viewDate.date());
+				auto attached = next->computeIsAttachToPrevious(view);
+				next->setAttachToPrevious(attached);
+				view->setAttachToNext(attached);
+				view = next;
 			}
 		}
 	}
@@ -541,11 +569,17 @@ void ListWidget::updateSize() {
 int ListWidget::resizeGetHeight(int newWidth) {
 	update();
 
+	const auto resizeAllItems = (_itemsWidth != newWidth);
 	auto newHeight = 0;
 	for (auto &view : _items) {
 		view->setY(newHeight);
-		newHeight += view->resizeGetHeight(newWidth);
+		if (view->pendingResize() || resizeAllItems) {
+			newHeight += view->resizeGetHeight(newWidth);
+		} else {
+			newHeight += view->height();
+		}
 	}
+	_itemsWidth = newWidth;
 	_itemsHeight = newHeight;
 	_itemsTop = (_minHeight > _itemsHeight + st::historyPaddingBottom) ? (_minHeight - _itemsHeight - st::historyPaddingBottom) : 0;
 	return _itemsTop + _itemsHeight + st::historyPaddingBottom;
@@ -1386,6 +1420,10 @@ void ListWidget::repaintItem(const Element *view) {
 	update(0, itemTop(view), width(), view->height());
 }
 
+void ListWidget::refreshItem(not_null<const Element*> view) {
+	// #TODO
+}
+
 QPoint ListWidget::mapPointToItem(
 		QPoint point,
 		const Element *view) const {
@@ -1393,14 +1431,6 @@ QPoint ListWidget::mapPointToItem(
 		return QPoint();
 	}
 	return point - QPoint(0, itemTop(view));
-}
-
-void ListWidget::handlePendingHistoryResize() {
-	// #TODO resize
-	//if (_history->hasPendingResizedItems()) {
-	//	_history->resizeGetHeight(width());
-	//	updateSize();
-	//}
 }
 
 ListWidget::~ListWidget() = default;

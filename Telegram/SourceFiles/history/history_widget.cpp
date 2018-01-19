@@ -647,7 +647,6 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 			}
 		}
 	}));
-	subscribe(Auth().data().pendingHistoryResize(), [this] { handlePendingHistoryUpdate(); });
 	subscribe(Auth().data().queryItemVisibility(), [this](const Data::Session::ItemVisibilityQuery &query) {
 		if (_a_show.animating()
 			|| _history != query.item->history()
@@ -4503,7 +4502,7 @@ void HistoryWidget::onReportSpamClear() {
 
 void HistoryWidget::handleHistoryChange(not_null<const History*> history) {
 	if (_list && (_history == history || _migrated == history)) {
-		updateHistoryGeometry();
+		handlePendingHistoryUpdate();
 		updateBotKeyboard();
 		if (!_scroll->isHidden()) {
 			const auto unblock = isBlocked();
@@ -4566,12 +4565,8 @@ PeerData *HistoryWidget::ui_getPeerForMouseAction() {
 
 void HistoryWidget::handlePendingHistoryUpdate() {
 	if (hasPendingResizedItems() || _updateHistoryGeometryRequired) {
-		if (_list) {
-			updateHistoryGeometry();
-			_list->update();
-		} else {
-			_updateHistoryGeometryRequired = false;
-		}
+		updateHistoryGeometry();
+		_list->update();
 	}
 }
 
@@ -4742,7 +4737,9 @@ int HistoryWidget::countAutomaticScrollTop() {
 }
 
 void HistoryWidget::updateHistoryGeometry(bool initial, bool loadedDown, const ScrollChange &change) {
-	if (!_history || (initial && _historyInited) || (!initial && !_historyInited)) return;
+	if (!_history || (initial && _historyInited) || (!initial && !_historyInited)) {
+		return;
+	}
 	if (_firstLoadRequest || _a_show.animating()) {
 		return; // scrollTopMax etc are not working after recountHistoryGeometry()
 	}
@@ -6174,36 +6171,6 @@ void HistoryWidget::confirmDeleteSelectedItems() {
 	if (!_list) return;
 
 	App::main()->deleteLayer(_list->getSelectedItems());
-}
-
-void HistoryWidget::deleteSelectedItems(bool forEveryone) {
-	Ui::hideLayer();
-	if (!_list) return;
-
-	const auto items = _list->getSelectedItems();
-	const auto selected = ranges::view::all(
-		items
-	) | ranges::view::transform([](const FullMsgId &fullId) {
-		return App::histItemById(fullId);
-	}) | ranges::view::filter([](HistoryItem *item) {
-		return item != nullptr;
-	}) | ranges::to_vector;
-
-	if (selected.empty()) return;
-
-	QMap<PeerData*, QVector<MTPint>> idsByPeer;
-	for (const auto item : selected) {
-		idsByPeer[item->history()->peer].push_back(MTP_int(item->id));
-	}
-
-	onClearSelected();
-	for (const auto item : selected) {
-		item->destroy();
-	}
-
-	for (auto i = idsByPeer.cbegin(), e = idsByPeer.cend(); i != e; ++i) {
-		App::main()->deleteMessages(i.key(), i.value(), forEveryone);
-	}
 }
 
 void HistoryWidget::onListEscapePressed() {

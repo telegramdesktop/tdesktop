@@ -2911,20 +2911,20 @@ void HistoryInner::onParentGeometryChanged() {
 not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 	class Result : public HistoryView::ElementDelegate {
 	public:
+		HistoryView::Context elementContext() override {
+			return HistoryView::Context::History;
+		}
 		std::unique_ptr<HistoryView::Element> elementCreate(
 				not_null<HistoryMessage*> message) override {
-			return std::make_unique<HistoryView::Message>(
-				message,
-				HistoryView::Context::History);
+			return std::make_unique<HistoryView::Message>(this, message);
 		}
 		std::unique_ptr<HistoryView::Element> elementCreate(
 				not_null<HistoryService*> message) override {
-			return std::make_unique<HistoryView::Service>(
-				message,
-				HistoryView::Context::History);
+			return std::make_unique<HistoryView::Service>(this, message);
 		}
 
 	};
+
 	static Result result;
 	return &result;
 }

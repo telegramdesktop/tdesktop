@@ -367,6 +367,7 @@ Video::Video(
 , _duration(formatDurationText(_data->duration()))
 , _thumbLoaded(false) {
 	setDocumentLinks(_data);
+	_data->thumb->load();
 }
 
 void Video::initDimensions() {

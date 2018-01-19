@@ -1241,9 +1241,9 @@ namespace {
 		return nullptr;
 	}
 
-	void historyRegItem(HistoryItem *item) {
-		MsgsData *data = fetchMsgsData(item->channelId());
-		MsgsData::const_iterator i = data->constFind(item->id);
+	void historyRegItem(not_null<HistoryItem*> item) {
+		const auto data = fetchMsgsData(item->channelId());
+		const auto i = data->constFind(item->id);
 		if (i == data->cend()) {
 			data->insert(item->id, item);
 		} else if (i.value() != item) {
@@ -1253,17 +1253,17 @@ namespace {
 		}
 	}
 
-	void historyUnregItem(HistoryItem *item) {
-		auto data = fetchMsgsData(item->channelId(), false);
+	void historyUnregItem(not_null<HistoryItem*> item) {
+		const auto data = fetchMsgsData(item->channelId(), false);
 		if (!data) return;
 
-		auto i = data->find(item->id);
+		const auto i = data->find(item->id);
 		if (i != data->cend()) {
 			if (i.value() == item) {
 				data->erase(i);
 			}
 		}
-		auto j = ::dependentItems.find(item);
+		const auto j = ::dependentItems.find(item);
 		if (j != ::dependentItems.cend()) {
 			DependentItemsSet items;
 			std::swap(items, j.value());
@@ -1281,10 +1281,10 @@ namespace {
 		}
 	}
 
-	void historyUpdateDependent(HistoryItem *item) {
-		DependentItems::iterator j = ::dependentItems.find(item);
+	void historyUpdateDependent(not_null<HistoryItem*> item) {
+		const auto j = ::dependentItems.find(item);
 		if (j != ::dependentItems.cend()) {
-			for_const (HistoryItem *dependent, j.value()) {
+			for_const (const auto dependent, j.value()) {
 				dependent->updateDependencyItem();
 			}
 		}

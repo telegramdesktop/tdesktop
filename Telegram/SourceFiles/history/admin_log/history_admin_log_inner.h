@@ -69,6 +69,7 @@ public:
 	QPoint tooltipPos() const override;
 
 	// HistoryView::ElementDelegate interface.
+	HistoryView::Context elementContext() override;
 	std::unique_ptr<HistoryView::Element> elementCreate(
 		not_null<HistoryMessage*> message) override;
 	std::unique_ptr<HistoryView::Element> elementCreate(
@@ -119,8 +120,8 @@ private:
 	void performDrag();
 	int itemTop(not_null<const Element*> view) const;
 	void repaintItem(const Element *view);
+	void refreshItem(not_null<const Element*> view);
 	QPoint mapPointToItem(QPoint point, const Element *view) const;
-	void handlePendingHistoryResize();
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
 	void savePhotoToFile(PhotoData *photo);
@@ -191,6 +192,7 @@ private:
 	std::map<uint64, not_null<Element*>> _itemsByIds;
 	std::map<not_null<HistoryItem*>, not_null<Element*>, std::less<>> _itemsByData;
 	int _itemsTop = 0;
+	int _itemsWidth = 0;
 	int _itemsHeight = 0;
 
 	LocalIdManager _idManager;

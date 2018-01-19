@@ -611,10 +611,6 @@ void Messenger::handleAppDeactivated() {
 	Ui::Tooltip::Hide();
 }
 
-void Messenger::call_handleHistoryUpdate() {
-	Notify::handlePendingHistoryUpdate();
-}
-
 void Messenger::call_handleUnreadCounterUpdate() {
 	Global::RefUnreadCounterUpdate().notify(true);
 }

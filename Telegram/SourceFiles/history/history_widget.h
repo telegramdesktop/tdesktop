@@ -329,7 +329,6 @@ public:
 	bool isItemVisible(HistoryItem *item);
 
 	void confirmDeleteSelectedItems();
-	void deleteSelectedItems(bool forEveryone);
 
 	// Float player interface.
 	bool wheelEventFromFloatPlayer(QEvent *e) override;

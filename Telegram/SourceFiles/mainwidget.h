@@ -252,7 +252,7 @@ public:
 
 	void jumpToDate(not_null<PeerData*> peer, const QDate &date);
 	void searchMessages(const QString &query, PeerData *inPeer);
-	void itemEdited(HistoryItem *item);
+	void itemEdited(not_null<HistoryItem*> item);
 
 	void checkLastUpdate(bool afterSleep);
 

@@ -15,7 +15,9 @@ namespace HistoryView {
 
 class Service : public Element {
 public:
-	Service(not_null<HistoryService*> data, Context context);
+	Service(
+		not_null<ElementDelegate*> delegate,
+		not_null<HistoryService*> data);
 
 	void draw(
 		Painter &p,

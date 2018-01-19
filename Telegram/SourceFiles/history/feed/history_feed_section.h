@@ -67,6 +67,8 @@ public:
 		int limitBefore,
 		int limitAfter) override;
 
+	// HistoryView::ElementDelegate interface.
+	HistoryView::Context elementContext() override;
 	std::unique_ptr<HistoryView::Element> elementCreate(
 		not_null<HistoryMessage*> message) override;
 	std::unique_ptr<HistoryView::Element> elementCreate(

@@ -23,9 +23,16 @@ enum InfoDisplayType : char;
 
 namespace HistoryView {
 
+enum class Context : char {
+	History,
+	Feed,
+	AdminLog
+};
+
 class Element;
 class ElementDelegate {
 public:
+	virtual Context elementContext() = 0;
 	virtual std::unique_ptr<Element> elementCreate(
 		not_null<HistoryMessage*> message) = 0;
 	virtual std::unique_ptr<Element> elementCreate(
@@ -46,25 +53,14 @@ TextSelection ShiftItemSelection(
 	TextSelection selection,
 	const Text &byText);
 
-class Element;
-//struct Group : public RuntimeComponent<Group, Element> {
-//	MessageGroupId groupId = MessageGroupId::None;
-//	Element *leader = nullptr;
-//	std::vector<not_null<HistoryItem*>> others;
-//};
-
-enum class Context : char {
-	History,
-	Feed,
-	AdminLog
-};
-
 class Element
 	: public Object
 	, public RuntimeComposer<Element>
 	, public ClickHandlerHost {
 public:
-	Element(not_null<HistoryItem*> data, Context context);
+	Element(
+		not_null<ElementDelegate*> delegate,
+		not_null<HistoryItem*> data);
 
 	enum class Flag : uchar {
 		NeedsResize        = 0x01,
@@ -75,6 +71,7 @@ public:
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
 
+	not_null<ElementDelegate*> delegate() const;
 	not_null<HistoryItem*> data() const;
 	HistoryMedia *media() const;
 	Context context() const;
@@ -98,17 +95,12 @@ public:
 	virtual int infoWidth() const;
 
 	bool isHiddenByGroup() const;
-	//void makeGroupMember(not_null<Element*> leader);
-	//void makeGroupLeader(std::vector<not_null<HistoryItem*>> &&others);
-	//bool groupIdValidityChanged();
-	//void validateGroupId();
-	//Group *getFullGroup();
 
 	// For blocks context this should be called only from recountAttachToPreviousInBlocks().
 	void setAttachToPrevious(bool attachToNext);
 
 	// For blocks context this should be called only from recountAttachToPreviousInBlocks()
-	// of the next item or when the next item is removed through nextInBlocksChanged() call.
+	// of the next item or when the next item is removed through nextInBlocksRemoved() call.
 	void setAttachToNext(bool attachToNext);
 
 	// For blocks context this should be called only from recountDisplayDate().
@@ -186,7 +178,7 @@ public:
 	Element *previousInBlocks() const;
 	Element *nextInBlocks() const;
 	void previousInBlocksChanged();
-	void nextInBlocksChanged();
+	void nextInBlocksRemoved();
 
 	void clipCallback(Media::Clip::Notification notification);
 
@@ -214,8 +206,8 @@ private:
 	virtual QSize performCountCurrentSize(int newWidth) = 0;
 
 	void refreshMedia();
-	//void resetGroupMedia(const std::vector<not_null<HistoryItem*>> &others);
 
+	const not_null<ElementDelegate*> _delegate;
 	const not_null<HistoryItem*> _data;
 	std::unique_ptr<HistoryMedia> _media;
 

@@ -158,9 +158,17 @@ rpl::producer<not_null<const ViewElement*>> Session::viewLayoutChanged() const {
 
 void Session::notifyItemIdChange(IdChange event) {
 	_itemIdChanges.fire_copy(event);
-	enumerateItemViews(
-		event.item,
-		[](not_null<ViewElement*> view) { view->refreshDataId(); });
+
+	const auto refreshViewDataId = [](not_null<ViewElement*> view) {
+		view->refreshDataId();
+	};
+	enumerateItemViews(event.item, refreshViewDataId);
+	if (const auto group = Auth().data().groups().find(event.item)) {
+		const auto leader = group->items.back();
+		if (leader != event.item) {
+			enumerateItemViews(leader, refreshViewDataId);
+		}
+	}
 }
 
 rpl::producer<Session::IdChange> Session::itemIdChanged() const {
@@ -198,9 +206,7 @@ rpl::producer<not_null<const HistoryItem*>> Session::itemResizeRequest() const {
 }
 
 void Session::requestViewResize(not_null<ViewElement*> view) {
-	if (view == view->data()->mainView()) {
-		view->setPendingResize();
-	}
+	view->setPendingResize();
 	_viewResizeRequest.fire_copy(view);
 }
 
@@ -252,8 +258,8 @@ rpl::producer<not_null<const History*>> Session::historyCleared() const {
 }
 
 void Session::notifyHistoryChangeDelayed(not_null<History*> history) {
+	history->setHasPendingResizedItems();
 	_historiesChanged.insert(history);
-	history->setPendingResize();
 }
 
 rpl::producer<not_null<History*>> Session::historyChanged() const {

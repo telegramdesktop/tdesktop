@@ -2584,8 +2584,16 @@ void ApiWrap::requestFeedMessages(
 		return;
 	}
 
-	const auto addOffset = 0;
+	// We request messages with overlapping and skip overlapped in response.
 	const auto limit = kFeedMessagesLimit;
+	const auto addOffset = [&] {
+		switch (slice) {
+		case SliceType::Before: return -2;
+		case SliceType::Around: return -limit / 2;
+		case SliceType::After: return 1 - limit;
+		}
+		Unexpected("Direction in PrepareSearchRequest");
+	}();
 	const auto sourcesHash = int32(0);
 	const auto hash = int32(0);
 	const auto flags = (messageId && messageId.fullId.channel)
@@ -2634,15 +2642,23 @@ void ApiWrap::feedMessagesDone(
 
 	auto ids = std::vector<Data::MessagePosition>();
 	auto noSkipRange = Data::MessagesRange(messageId, messageId);
-	auto accumulateFrom = [](auto &from, const auto &candidate) {
+	const auto accumulateFrom = [](auto &from, const auto &candidate) {
 		if (!from || from > candidate) {
 			from = candidate;
 		}
 	};
-	auto accumulateTill = [](auto &till, const auto &candidate) {
+	const auto accumulateTill = [](auto &till, const auto &candidate) {
 		if (!till || till < candidate) {
 			till = candidate;
 		}
+	};
+	const auto checkPosition = [&](const auto &position) {
+		if (slice == SliceType::Before && !(position < messageId)) {
+			return false;
+		} else if (slice == SliceType::After && !(messageId < position)) {
+			return false;
+		}
+		return true;
 	};
 	App::feedUsers(data.vusers);
 	App::feedChats(data.vchats);
@@ -2651,6 +2667,9 @@ void ApiWrap::feedMessagesDone(
 		for (const auto &msg : messages) {
 			if (const auto item = App::histories().addNewMessage(msg, type)) {
 				const auto position = item->position();
+				if (!checkPosition(position)) {
+					continue;
+				}
 				ids.push_back(position);
 				accumulateFrom(noSkipRange.from, position);
 				accumulateTill(noSkipRange.till, position);
@@ -2658,14 +2677,14 @@ void ApiWrap::feedMessagesDone(
 		}
 		ranges::reverse(ids);
 	}
-	if (data.has_min_position()) {
+	if (data.has_min_position() && !ids.empty()) {
 		accumulateFrom(
 			noSkipRange.from,
 			Data::FeedPositionFromMTP(data.vmin_position));
 	} else {
 		noSkipRange.from = Data::MinMessagePosition;
 	}
-	if (data.has_max_position()) {
+	if (data.has_max_position() && !ids.empty()) {
 		accumulateTill(
 			noSkipRange.till,
 			Data::FeedPositionFromMTP(data.vmax_position));

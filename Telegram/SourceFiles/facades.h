@@ -224,11 +224,7 @@ bool switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot =
 void migrateUpdated(PeerData *peer);
 
 void historyMuteUpdated(History *history);
-
-// handle pending resize() / paint() on history items
-void handlePendingHistoryUpdate();
 void unreadCounterUpdated();
-
 
 enum class ScreenCorner {
 	TopLeft     = 0,
@@ -298,7 +294,6 @@ bool started();
 void start();
 void finish();
 
-DeclareRefVar(SingleQueuedInvokation, HandleHistoryUpdate);
 DeclareRefVar(SingleQueuedInvokation, HandleUnreadCounterUpdate);
 DeclareRefVar(SingleQueuedInvokation, HandleDelayedPeerUpdates);
 DeclareRefVar(SingleQueuedInvokation, HandleObservables);

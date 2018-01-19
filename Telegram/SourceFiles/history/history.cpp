@@ -90,7 +90,6 @@ bool History::canHaveFromPhotos() const {
 
 void History::setHasPendingResizedItems() {
 	_flags |= Flag::f_has_pending_resized_items;
-	Global::RefHandleHistoryUpdate().call();
 }
 
 void History::setLocalDraft(std::unique_ptr<Data::Draft> &&draft) {
@@ -2021,7 +2020,7 @@ not_null<HistoryItem*> History::addNewInTheMiddle(
 	} else if (blockIndex + 1 < blocks.size() && !blocks[blockIndex + 1]->messages.empty()) {
 		blocks[blockIndex + 1]->messages.front()->previousInBlocksChanged();
 	} else {
-		(*it)->nextInBlocksChanged();
+		(*it)->nextInBlocksRemoved();
 	}
 
 	return item;
@@ -2080,7 +2079,7 @@ HistoryBlock *History::finishBuildingFrontBlock() {
 			// the old first item of a first block was changed
 			first->previousInBlocksChanged();
 		} else {
-			block->messages.back()->nextInBlocksChanged();
+			block->messages.back()->nextInBlocksRemoved();
 		}
 	}
 
@@ -2229,12 +2228,12 @@ MsgId History::msgIdForRead() const {
 }
 
 int History::resizeGetHeight(int newWidth) {
-	bool resizeAllItems = (_flags & Flag::f_pending_resize) || (width != newWidth);
+	const auto resizeAllItems = (width != newWidth);
 
 	if (!resizeAllItems && !hasPendingResizedItems()) {
 		return height;
 	}
-	_flags &= ~(Flag::f_pending_resize | Flag::f_has_pending_resized_items);
+	_flags &= ~(Flag::f_has_pending_resized_items);
 
 	width = newWidth;
 	int y = 0;
@@ -2330,7 +2329,7 @@ void History::clear(bool leaveItems) {
 		}
 		clearLastKeyboard();
 	}
-	setPendingResize();
+	Auth().data().notifyHistoryChangeDelayed(this);
 
 	newLoaded = oldLoaded = false;
 	forgetScrollState();
@@ -2436,7 +2435,7 @@ void History::removeBlock(not_null<HistoryBlock*> block) {
 		}
 		blocks[index]->messages.front()->previousInBlocksChanged();
 	} else if (!blocks.empty() && !blocks.back()->messages.empty()) {
-		blocks.back()->messages.back()->nextInBlocksChanged();
+		blocks.back()->messages.back()->nextInBlocksRemoved();
 	}
 }
 
@@ -2505,7 +2504,7 @@ void HistoryBlock::remove(not_null<Element*> view) {
 	} else if (blockIndex + 1 < _history->blocks.size()) {
 		_history->blocks[blockIndex + 1]->messages.front()->previousInBlocksChanged();
 	} else if (!_history->blocks.empty() && !_history->blocks.back()->messages.empty()) {
-		_history->blocks.back()->messages.back()->nextInBlocksChanged();
+		_history->blocks.back()->messages.back()->nextInBlocksRemoved();
 	}
 }
 
@@ -2528,7 +2527,7 @@ void HistoryBlock::refreshView(not_null<Element*> view) {
 	} else if (blockIndex + 1 < _history->blocks.size()) {
 		_history->blocks[blockIndex + 1]->messages.front()->previousInBlocksChanged();
 	} else if (!_history->blocks.empty() && !_history->blocks.back()->messages.empty()) {
-		_history->blocks.back()->messages.back()->nextInBlocksChanged();
+		_history->blocks.back()->messages.back()->nextInBlocksRemoved();
 	}
 }
 

@@ -241,10 +241,6 @@ public:
 		return _flags & Flag::f_has_pending_resized_items;
 	}
 	void setHasPendingResizedItems();
-	void setPendingResize() {
-		_flags |= Flag::f_pending_resize;
-		setHasPendingResizedItems();
-	}
 
 	void paintDialog(Painter &p, int32 w, bool sel) const;
 	bool mySendActionUpdated(SendAction::Type type, bool doing);
@@ -457,7 +453,6 @@ private:
 
 	enum class Flag {
 		f_has_pending_resized_items = (1 << 0),
-		f_pending_resize            = (1 << 1),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; };

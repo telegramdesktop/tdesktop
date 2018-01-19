@@ -28,7 +28,9 @@ struct LogEntryOriginal
 
 class Message : public Element {
 public:
-	Message(not_null<HistoryMessage*> data, Context context);
+	Message(
+		not_null<ElementDelegate*> delegate,
+		not_null<HistoryMessage*> data);
 
 	void draw(
 		Painter &p,

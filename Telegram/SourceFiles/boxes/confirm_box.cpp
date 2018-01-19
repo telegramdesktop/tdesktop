@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "core/click_handler_types.h"
 #include "storage/localstorage.h"
+#include "data/data_session.h"
 #include "auth_session.h"
 #include "observer_peer.h"
 
@@ -598,6 +599,7 @@ void DeleteMessagesBox::deleteAndClear() {
 		App::main()->deleteMessages(i.key(), i.value(), forEveryone);
 	}
 	Ui::hideLayer();
+	Auth().data().sendHistoryChangeNotifications();
 }
 
 ConfirmInviteBox::ConfirmInviteBox(QWidget*, const QString &title, bool isChannel, const MTPChatPhoto &photo, int count, const QVector<UserData*> &participants)

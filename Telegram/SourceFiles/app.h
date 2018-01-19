@@ -164,9 +164,9 @@ namespace App {
 	inline HistoryItem *histItemById(const FullMsgId &msgId) {
 		return histItemById(msgId.channel, msgId.msg);
 	}
-	void historyRegItem(HistoryItem *item);
-	void historyUnregItem(HistoryItem *item);
-	void historyUpdateDependent(HistoryItem *item);
+	void historyRegItem(not_null<HistoryItem*> item);
+	void historyUnregItem(not_null<HistoryItem*> item);
+	void historyUpdateDependent(not_null<HistoryItem*> item);
 	void historyClearMsgs();
 	void historyClearItems();
 	void historyRegDependency(HistoryItem *dependent, HistoryItem *dependency);

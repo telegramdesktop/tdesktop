@@ -155,8 +155,8 @@ private:
 	void performDrag();
 	int itemTop(not_null<const Element*> view) const;
 	void repaintItem(const Element *view);
+	void refreshItem(not_null<const Element*> view);
 	QPoint mapPointToItem(QPoint point, const Element *view) const;
-	void handlePendingHistoryResize();
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
 	void savePhotoToFile(PhotoData *photo);
@@ -180,7 +180,7 @@ private:
 
 	void checkMoveToOtherViewer();
 	void updateVisibleTopItem();
-	void itemsAdded(Direction direction, int addedCount);
+	void updateItemsGeometry();
 	void updateSize();
 
 	void toggleScrollDateShown();
@@ -226,6 +226,7 @@ private:
 	std::vector<not_null<Element*>> _items;
 	std::map<not_null<HistoryItem*>, std::unique_ptr<Element>, std::less<>> _views;
 	int _itemsTop = 0;
+	int _itemsWidth = 0;
 	int _itemsHeight = 0;
 
 	int _minHeight = 0;
