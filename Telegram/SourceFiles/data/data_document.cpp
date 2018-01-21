@@ -18,7 +18,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_media_types.h"
+#include "window/window_controller.h"
 #include "auth_session.h"
+#include "mainwindow.h"
 #include "messenger.h"
 
 namespace {
@@ -286,14 +288,14 @@ void DocumentOpenClickHandler::doOpen(
 		} else if (data->size < App::kImageSizeLimit) {
 			if (!data->data().isEmpty() && playAnimation) {
 				if (action == ActionOnLoadPlayInline && context) {
-					Auth().data().requestItemPlayInline(context);
+					Auth().data().requestAnimationPlayInline(context);
 				} else {
 					Messenger::Instance().showDocument(data, context);
 				}
 			} else if (location.accessEnable()) {
-				if (data->isAnimation() || QImageReader(location.name()).canRead()) {
-					if (action == ActionOnLoadPlayInline && context) {
-						Auth().data().requestItemPlayInline(context);
+				if (playAnimation || QImageReader(location.name()).canRead()) {
+					if (playAnimation && action == ActionOnLoadPlayInline && context) {
+						Auth().data().requestAnimationPlayInline(context);
 					} else {
 						Messenger::Instance().showDocument(data, context);
 					}
@@ -592,7 +594,7 @@ void DocumentData::performActionOnLoad() {
 	} else if (playAnimation) {
 		if (loaded()) {
 			if (_actionOnLoad == ActionOnLoadPlayInline && item) {
-				Auth().data().requestItemPlayInline(item);
+				Auth().data().requestAnimationPlayInline(item);
 			} else {
 				Messenger::Instance().showDocument(this, item);
 			}
@@ -610,11 +612,7 @@ void DocumentData::performActionOnLoad() {
 				Auth().data().markMediaRead(this);
 			} else if (loc.accessEnable()) {
 				if (showImage && QImageReader(loc.name()).canRead()) {
-					if (_actionOnLoad == ActionOnLoadPlayInline && item) {
-						Auth().data().requestItemPlayInline(item);
-					} else {
-						Messenger::Instance().showDocument(this, item);
-					}
+					Messenger::Instance().showDocument(this, item);
 				} else {
 					File::Launch(already);
 				}

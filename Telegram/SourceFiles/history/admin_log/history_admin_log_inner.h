@@ -74,6 +74,8 @@ public:
 		not_null<HistoryMessage*> message) override;
 	std::unique_ptr<HistoryView::Element> elementCreate(
 		not_null<HistoryService*> message) override;
+	void elementAnimationAutoplayAsync(
+		not_null<const HistoryView::Element*> element) override;
 
 	~InnerWidget();
 

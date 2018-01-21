@@ -360,6 +360,8 @@
 <(src_loc)/media/player/media_player_instance.h
 <(src_loc)/media/player/media_player_panel.cpp
 <(src_loc)/media/player/media_player_panel.h
+<(src_loc)/media/player/media_player_round_controller.cpp
+<(src_loc)/media/player/media_player_round_controller.h
 <(src_loc)/media/player/media_player_volume_controller.cpp
 <(src_loc)/media/player/media_player_volume_controller.h
 <(src_loc)/media/player/media_player_widget.cpp

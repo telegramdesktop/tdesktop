@@ -130,20 +130,14 @@ public:
 	virtual DocumentData *getDocument() const {
 		return nullptr;
 	}
-	virtual Media::Clip::Reader *getClipReader() {
-		return nullptr;
-	}
 
-	bool playInline(/*bool autoplay = false*/) {
-		return playInline(false);
+	void playAnimation() {
+		playAnimation(false);
 	}
-	virtual bool playInline(bool autoplay) {
-		return false;
+	void autoplayAnimation() {
+		playAnimation(true);
 	}
-	virtual void stopInline() {
-	}
-	virtual bool isRoundVideoPlaying() const {
-		return false;
+	virtual void stopAnimation() {
 	}
 
 	virtual QSize sizeForGrouping() const {
@@ -242,6 +236,9 @@ public:
 protected:
 	QSize countCurrentSize(int newWidth) override;
 	Text createCaption(not_null<HistoryItem*> item) const;
+
+	virtual void playAnimation(bool autoplay) {
+	}
 
 	not_null<Element*> _parent;
 	MediaInBubbleState _inBubbleState = MediaInBubbleState::None;

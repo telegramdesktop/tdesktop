@@ -239,16 +239,6 @@ bool isLayerShown() {
 	return false;
 }
 
-void autoplayMediaInlineAsync(const FullMsgId &msgId) {
-	if (auto main = App::main()) {
-		InvokeQueued(main, [msgId] {
-			if (const auto item = App::histItemById(msgId)) {
-				Auth().data().requestItemPlayInline(item);
-			}
-		});
-	}
-}
-
 void showPeerProfile(const PeerId &peer) {
 	if (auto window = App::wnd()) {
 		if (auto controller = window->controller()) {
@@ -339,33 +329,6 @@ void migrateUpdated(PeerData *peer) {
 void historyMuteUpdated(History *history) {
 	if (MainWidget *m = App::main()) m->notify_historyMuteUpdated(history);
 }
-
-//void handlePendingHistoryUpdate() {
-	//for (const auto item : base::take(Global::RefPendingRepaintItems())) {
-	//	Auth().data().requestItemRepaint(item);
-
-		// Start the video if it is waiting for that.
-		//if (item->pendingInitDimensions()) { // #TODO floating player video
-		//	if (const auto media = item->getMedia()) {
-		//		if (const auto reader = media->getClipReader()) {
-		//			const auto startRequired = [&] {
-		//				if (reader->started()) {
-		//					return false;
-		//				}
-		//				using Mode = Media::Clip::Reader::Mode;
-		//				return (reader->mode() == Mode::Video);
-		//			};
-		//			if (startRequired()) {
-		//				const auto width = std::max(
-		//					item->width(),
-		//					st::historyMinimalWidth);
-		//				item->resizeGetHeight(width);
-		//			}
-		//		}
-		//	}
-		//}
-	//}
-//}
 
 void unreadCounterUpdated() {
 	Global::RefHandleUnreadCounterUpdate().call();

@@ -31,6 +31,10 @@ namespace Media {
 namespace Clip {
 class Playback;
 } // namespace Clip
+
+namespace Player {
+class RoundController;
+} // namespace Player
 } // namespace Media
 
 namespace Ui {
@@ -364,8 +368,6 @@ public:
 		return _data;
 	}
 
-	bool playInline(bool autoplay) override;
-
 	bool hasReplyPreview() const override {
 		return !_data->thumb->isNull();
 	}
@@ -447,13 +449,8 @@ public:
 	DocumentData *getDocument() const override {
 		return _data;
 	}
-	Media::Clip::Reader *getClipReader() override {
-		return _gif.get();
-	}
 
-	bool playInline(bool autoplay) override;
-	void stopInline() override;
-	bool isRoundVideoPlaying() const override;
+	void stopAnimation() override;
 
 	bool hasReplyPreview() const override {
 		return !_data->thumb->isNull();
@@ -489,8 +486,14 @@ protected:
 	}
 
 private:
+	void playAnimation(bool autoplay) override;
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
+	Media::Player::RoundController *activeRoundVideo() const;
+	Media::Clip::Reader *activeRoundPlayer() const;
+	Media::Clip::Reader *currentReader() const;
+	Media::Clip::Playback *videoPlayback() const;
+	void clipCallback(Media::Clip::Notification notification);
 
 	bool needInfoDisplay() const;
 	int additionalWidth(
@@ -506,8 +509,6 @@ private:
 	int _thumbw = 1;
 	int _thumbh = 1;
 	Text _caption;
-
-	mutable std::unique_ptr<Media::Clip::Playback> _roundPlayback;
 	Media::Clip::ReaderPointer _gif;
 
 	void setStatusSize(int newSize) const;
@@ -732,14 +733,8 @@ public:
 	DocumentData *getDocument() const override {
 		return _attach ? _attach->getDocument() : nullptr;
 	}
-	Media::Clip::Reader *getClipReader() override {
-		return _attach ? _attach->getClipReader() : nullptr;
-	}
-	bool playInline(bool autoplay) override {
-		return _attach ? _attach->playInline(autoplay) : false;
-	}
-	void stopInline() override {
-		if (_attach) _attach->stopInline();
+	void stopAnimation() override {
+		if (_attach) _attach->stopAnimation();
 	}
 
 	bool hasReplyPreview() const override;
@@ -766,6 +761,7 @@ public:
 	~HistoryWebPage();
 
 private:
+	void playAnimation(bool autoplay) override;
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 
@@ -842,14 +838,8 @@ public:
 	DocumentData *getDocument() const override {
 		return _attach ? _attach->getDocument() : nullptr;
 	}
-	Media::Clip::Reader *getClipReader() override {
-		return _attach ? _attach->getClipReader() : nullptr;
-	}
-	bool playInline(bool autoplay) override {
-		return _attach ? _attach->playInline(autoplay) : false;
-	}
-	void stopInline() override {
-		if (_attach) _attach->stopInline();
+	void stopAnimation() override {
+		if (_attach) _attach->stopAnimation();
 	}
 
 	bool hasReplyPreview() const override {
@@ -878,6 +868,7 @@ public:
 	~HistoryGame();
 
 private:
+	void playAnimation(bool autoplay) override;
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 

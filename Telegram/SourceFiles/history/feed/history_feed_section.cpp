@@ -164,20 +164,6 @@ rpl::producer<Data::MessagesSlice> Widget::listSource(
 		limitAfter);
 }
 
-HistoryView::Context Widget::elementContext() {
-	return HistoryView::Context::Feed;
-}
-
-std::unique_ptr<HistoryView::Element> Widget::elementCreate(
-		not_null<HistoryMessage*> message) {
-	return std::make_unique<HistoryView::Message>(this, message);
-}
-
-std::unique_ptr<HistoryView::Element> Widget::elementCreate(
-		not_null<HistoryService*> message) {
-	return std::make_unique<HistoryView::Service>(this, message);
-}
-
 std::unique_ptr<Window::SectionMemento> Widget::createMemento() {
 	auto result = std::make_unique<Memento>(_feed);
 	saveState(result.get());

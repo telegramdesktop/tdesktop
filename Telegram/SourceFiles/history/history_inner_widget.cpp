@@ -2922,6 +2922,18 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 				not_null<HistoryService*> message) override {
 			return std::make_unique<HistoryView::Service>(this, message);
 		}
+		void elementAnimationAutoplayAsync(
+				not_null<const HistoryView::Element*> view) override {
+			crl::on_main(&Auth(), [msgId = view->data()->fullId()] {
+				if (const auto item = App::histItemById(msgId)) {
+					if (const auto view = item->mainView()) {
+						if (const auto media = view->media()) {
+							media->autoplayAnimation();
+						}
+					}
+				}
+			});
+		}
 
 	};
 

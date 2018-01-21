@@ -266,8 +266,6 @@ public:
 
 	MessageGroupId groupId() const;
 
-	void audioTrackUpdated();
-
 	HistoryItem *previousItem() const;
 	HistoryItem *nextItem() const;
 

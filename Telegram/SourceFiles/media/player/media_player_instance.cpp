@@ -10,12 +10,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "media/media_audio.h"
 #include "media/media_audio_capture.h"
-#include "messenger.h"
-#include "auth_session.h"
 #include "calls/calls_instance.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "data/data_media_types.h"
+#include "window/window_controller.h"
+#include "messenger.h"
+#include "mainwindow.h"
+#include "auth_session.h"
 
 namespace Media {
 namespace Player {
@@ -230,13 +232,15 @@ bool Instance::moveInPlaylist(
 						item->fullId()
 					});
 				}
-				if (document->isAudioFile()) {
+				if (document->isAudioFile()
+					|| document->isVoiceMessage()
+					|| document->isVideoMessage()) {
 					play(AudioMsgId(document, item->fullId()));
 				} else {
-					DocumentOpenClickHandler::doOpen(
-						document,
-						item,
-						ActionOnLoadPlayInline);
+					//DocumentOpenClickHandler::doOpen(
+					//	document,
+					//	item,
+					//	ActionOnLoadPlayInline);
 				}
 				return true;
 			}
@@ -300,12 +304,9 @@ void Instance::play(const AudioMsgId &audioId) {
 			documentLoadProgress(document);
 		}
 	} else if (document->isVideoMessage()) {
-		// #TODO float player
-		//if (const auto item = App::histItemById(audioId.contextId())) {
-		//	if (const auto media = item->getMedia()) {
-		//		media->playInline();
-		//	}
-		//}
+		if (const auto item = App::histItemById(audioId.contextId())) {
+			App::wnd()->controller()->startRoundVideo(item);
+		}
 	}
 }
 

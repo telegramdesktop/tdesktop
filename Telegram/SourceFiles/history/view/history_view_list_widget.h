@@ -27,7 +27,7 @@ namespace HistoryView {
 
 enum class Context : char;
 
-class ListDelegate : public ElementDelegate {
+class ListDelegate {
 public:
 	virtual Context listContext() = 0;
 	virtual void listScrollTo(int top) = 0;
@@ -77,6 +77,7 @@ private:
 
 class ListWidget final
 	: public Ui::RpWidget
+	, public ElementDelegate
 	, public Ui::AbstractTooltipShower
 	, private base::Subscriber {
 public:
@@ -99,6 +100,15 @@ public:
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;
 	QPoint tooltipPos() const override;
+
+	// ElementDelegate interface.
+	Context elementContext() override;
+	std::unique_ptr<Element> elementCreate(
+		not_null<HistoryMessage*> message) override;
+	std::unique_ptr<Element> elementCreate(
+		not_null<HistoryService*> message) override;
+	void elementAnimationAutoplayAsync(
+		not_null<const Element*> view) override;
 
 	~ListWidget();
 

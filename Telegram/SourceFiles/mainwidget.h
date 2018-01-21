@@ -380,7 +380,12 @@ protected:
 private:
 	struct Float {
 		template <typename ToggleCallback, typename DraggedCallback>
-		Float(QWidget *parent, HistoryItem *item, ToggleCallback callback, DraggedCallback dragged);
+		Float(
+			QWidget *parent,
+			not_null<Window::Controller*> controller,
+			not_null<HistoryItem*> item,
+			ToggleCallback toggle,
+			DraggedCallback dragged);
 
 		bool hiddenByWidget = false;
 		bool hiddenByHistory = false;
@@ -506,6 +511,7 @@ private:
 
 	void clearCachedBackground();
 	void checkCurrentFloatPlayer();
+	void createFloatPlayer(not_null<HistoryItem*> item);
 	void toggleFloatPlayer(not_null<Float*> instance);
 	void checkFloatPlayerVisibility();
 	void updateFloatPlayerPosition(not_null<Float*> instance);

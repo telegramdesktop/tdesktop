@@ -14,6 +14,12 @@ class MainWidget;
 class HistoryMessage;
 class HistoryService;
 
+namespace Media {
+namespace Player {
+class RoundController;
+} // namespace Player
+} // namespace Media
+
 namespace Window {
 
 class LayerWidget;
@@ -89,12 +95,13 @@ public:
 		not_null<History*> history,
 		const SectionShow &params = SectionShow());
 
+	virtual ~Navigation() = default;
+
 };
 
 class Controller : public Navigation {
 public:
-	Controller(not_null<MainWindow*> window) : _window(window) {
-	}
+	Controller(not_null<MainWindow*> window);
 
 	not_null<MainWindow*> window() const {
 		return _window;
@@ -197,6 +204,19 @@ public:
 		return this;
 	}
 
+	using RoundController = Media::Player::RoundController;
+	bool startRoundVideo(not_null<HistoryItem*> context);
+	RoundController *currentRoundVideo() const;
+	RoundController *roundVideo(not_null<const HistoryItem*> context) const;
+	RoundController *roundVideo(FullMsgId contextId) const;
+	void roundVideoFinished(not_null<RoundController*> video);
+
+	rpl::lifetime &lifetime() {
+		return _lifetime;
+	}
+
+	~Controller();
+
 private:
 	int minimalThreeColumnWidth() const;
 	not_null<MainWidget*> chats() const;
@@ -219,6 +239,10 @@ private:
 
 	base::Variable<bool> _dialogsListFocused = { false };
 	base::Variable<bool> _dialogsListDisplayForced = { false };
+
+	std::unique_ptr<RoundController> _roundVideo;
+
+	rpl::lifetime _lifetime;
 
 };
 

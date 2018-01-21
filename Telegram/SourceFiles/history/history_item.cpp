@@ -639,33 +639,6 @@ bool HistoryItem::isEmpty() const {
 		&& !Has<HistoryMessageLogEntryOriginal>();
 }
 
-void HistoryItem::audioTrackUpdated() {
-	auto media = this->media();
-	if (!media) {
-		return;
-	}
-
-	// #TODO GIFs
-	//auto reader = media->getClipReader();
-	//if (!reader || reader->mode() != Media::Clip::Reader::Mode::Video) {
-	//	return;
-	//}
-
-	//auto audio = reader->audioMsgId();
-	//auto current = Media::Player::mixer()->currentState(audio.type());
-	//if (current.id != audio || Media::Player::IsStoppedOrStopping(current.state)) {
-	//	media->stopInline();
-	//} else if (Media::Player::IsPaused(current.state) || current.state == Media::Player::State::Pausing) {
-	//	if (!reader->videoPaused()) {
-	//		reader->pauseResumeVideo();
-	//	}
-	//} else {
-	//	if (reader->videoPaused()) {
-	//		reader->pauseResumeVideo();
-	//	}
-	//}
-}
-
 HistoryItem *HistoryItem::previousItem() const {
 	if (const auto view = mainView()) {
 		if (const auto previous = view->previousInBlocks()) {

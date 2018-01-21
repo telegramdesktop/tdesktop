@@ -37,6 +37,8 @@ public:
 		not_null<HistoryMessage*> message) = 0;
 	virtual std::unique_ptr<Element> elementCreate(
 		not_null<HistoryService*> message) = 0;
+	virtual void elementAnimationAutoplayAsync(
+		not_null<const Element*> element) = 0;
 
 };
 
@@ -179,8 +181,6 @@ public:
 	Element *nextInBlocks() const;
 	void previousInBlocksChanged();
 	void nextInBlocksRemoved();
-
-	void clipCallback(Media::Clip::Notification notification);
 
 	virtual ~Element();
 

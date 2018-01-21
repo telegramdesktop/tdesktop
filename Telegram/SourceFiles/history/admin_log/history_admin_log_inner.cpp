@@ -231,11 +231,11 @@ InnerWidget::InnerWidget(
 			refreshItem(view);
 		}
 	}, lifetime());
-	Auth().data().itemPlayInlineRequest(
+	Auth().data().animationPlayInlineRequest(
 	) | rpl::start_with_next([this](auto item) {
 		if (const auto view = viewForItem(item)) {
 			if (const auto media = view->media()) {
-				media->playInline(true);
+				media->playAnimation();
 			}
 		}
 	}, lifetime());
@@ -473,6 +473,20 @@ std::unique_ptr<HistoryView::Element> InnerWidget::elementCreate(
 		not_null<HistoryService*> message) {
 	return std::make_unique<HistoryView::Service>(this, message);
 }
+
+void InnerWidget::elementAnimationAutoplayAsync(
+		not_null<const HistoryView::Element*> view) {
+	crl::on_main(this, [this, msgId = view->data()->fullId()] {
+		if (const auto item = App::histItemById(msgId)) {
+			if (const auto view = viewForItem(item)) {
+				if (const auto media = view->media()) {
+					media->autoplayAnimation();
+				}
+			}
+		}
+	});
+}
+
 
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 	memento->setFilter(std::move(_filter));

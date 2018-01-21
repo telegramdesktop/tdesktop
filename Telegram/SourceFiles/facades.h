@@ -182,8 +182,6 @@ void hideLayer(anim::type animated = anim::type::normal);
 void hideSettingsAndLayer(anim::type animated = anim::type::normal);
 bool isLayerShown();
 
-void autoplayMediaInlineAsync(const FullMsgId &msgId);
-
 void showPeerProfile(const PeerId &peer);
 inline void showPeerProfile(const PeerData *peer) {
 	showPeerProfile(peer->id);

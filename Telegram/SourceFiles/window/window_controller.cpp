@@ -12,15 +12,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
+#include "media/player/media_player_round_controller.h"
+#include "data/data_session.h"
+#include "boxes/calendar_box.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "styles/style_window.h"
-#include "styles/style_dialogs.h"
-#include "boxes/calendar_box.h"
 #include "auth_session.h"
 #include "apiwrap.h"
+#include "styles/style_window.h"
+#include "styles/style_dialogs.h"
 
 namespace Window {
+
+Controller::Controller(not_null<MainWindow*> window)
+: _window(window) {
+	Auth().data().animationPlayInlineRequest(
+	) | rpl::start_with_next([this](auto item) {
+		if (const auto video = roundVideo(item)) {
+			video->pauseResume();
+		} else {
+			startRoundVideo(item);
+		}
+	}, lifetime());
+}
 
 void Controller::enableGifPauseReason(GifPauseReason reason) {
 	if (!(_gifPauseReasons & reason)) {
@@ -404,5 +418,41 @@ void Controller::showSpecialLayer(
 not_null<MainWidget*> Controller::chats() const {
 	return App::wnd()->chatsWidget();
 }
+
+bool Controller::startRoundVideo(not_null<HistoryItem*> context) {
+	if (auto video = RoundController::TryStart(this, context)) {
+		enableGifPauseReason(Window::GifPauseReason::RoundPlaying);
+		_roundVideo = std::move(video);
+		return true;
+	}
+	return false;
+}
+
+auto Controller::currentRoundVideo() const -> RoundController* {
+	return _roundVideo.get();
+}
+
+auto Controller::roundVideo(not_null<const HistoryItem*> context) const
+-> RoundController* {
+	return roundVideo(context->fullId());
+}
+
+auto Controller::roundVideo(FullMsgId contextId) const -> RoundController* {
+	if (const auto result = currentRoundVideo()) {
+		if (result->contextId() == contextId) {
+			return result;
+		}
+	}
+	return nullptr;
+}
+
+void Controller::roundVideoFinished(not_null<RoundController*> video) {
+	if (video == _roundVideo.get()) {
+		_roundVideo = nullptr;
+		disableGifPauseReason(Window::GifPauseReason::RoundPlaying);
+	}
+}
+
+Controller::~Controller() = default;
 
 } // namespace Window

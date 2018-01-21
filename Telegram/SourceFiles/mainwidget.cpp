@@ -171,15 +171,25 @@ StackItemSection::StackItemSection(
 }
 
 template <typename ToggleCallback, typename DraggedCallback>
-MainWidget::Float::Float(QWidget *parent, HistoryItem *item, ToggleCallback toggle, DraggedCallback dragged)
+MainWidget::Float::Float(
+	QWidget *parent,
+	not_null<Window::Controller*> controller,
+	not_null<HistoryItem*> item,
+	ToggleCallback toggle,
+	DraggedCallback dragged)
 : animationSide(RectPart::Right)
 , column(Window::Column::Second)
 , corner(RectPart::TopRight)
-, widget(parent, item, [this, toggle = std::move(toggle)](bool visible) {
-	toggle(this, visible);
-}, [this, dragged = std::move(dragged)](bool closed) {
-	dragged(this, closed);
-}) {
+, widget(
+	parent,
+	controller,
+	item,
+	[this, toggle = std::move(toggle)](bool visible) {
+		toggle(this, visible);
+	},
+	[this, dragged = std::move(dragged)](bool closed) {
+		dragged(this, closed);
+	}) {
 }
 
 MainWidget::MainWidget(
@@ -317,31 +327,43 @@ MainWidget::MainWidget(
 }
 
 void MainWidget::checkCurrentFloatPlayer() {
-	auto state = Media::Player::instance()->current(AudioMsgId::Type::Voice);
-	auto fullId = state.contextId();
-	auto last = currentFloatPlayer();
-	if (!last || last->widget->detached() || last->widget->item()->fullId() != fullId) {
-		if (last) {
-			last->widget->detach();
-		}
-		if (auto item = App::histItemById(fullId)) {
-			if (auto media = item->media()) {
-				if (auto document = media->document()) {
-					if (document->isVideoMessage()) {
-						_playerFloats.push_back(std::make_unique<Float>(this, item, [this](not_null<Float*> instance, bool visible) {
-							instance->hiddenByWidget = !visible;
-							toggleFloatPlayer(instance);
-						}, [this](not_null<Float*> instance, bool closed) {
-							finishFloatPlayerDrag(instance, closed);
-						}));
-						currentFloatPlayer()->column = Auth().settings().floatPlayerColumn();
-						currentFloatPlayer()->corner = Auth().settings().floatPlayerCorner();
-						checkFloatPlayerVisibility();
-					}
+	const auto state = Media::Player::instance()->current(AudioMsgId::Type::Voice);
+	const auto fullId = state.contextId();
+	const auto last = currentFloatPlayer();
+	if (last
+		&& !last->widget->detached()
+		&& last->widget->item()->fullId() == fullId) {
+		return;
+	}
+	if (last) {
+		last->widget->detach();
+	}
+	if (const auto item = App::histItemById(fullId)) {
+		if (const auto media = item->media()) {
+			if (const auto document = media->document()) {
+				if (document->isVideoMessage()) {
+					createFloatPlayer(item);
 				}
 			}
 		}
 	}
+}
+
+void MainWidget::createFloatPlayer(not_null<HistoryItem*> item) {
+	_playerFloats.push_back(std::make_unique<Float>(
+		this,
+		_controller,
+		item,
+		[this](not_null<Float*> instance, bool visible) {
+			instance->hiddenByWidget = !visible;
+			toggleFloatPlayer(instance);
+		},
+		[this](not_null<Float*> instance, bool closed) {
+			finishFloatPlayerDrag(instance, closed);
+		}));
+	currentFloatPlayer()->column = Auth().settings().floatPlayerColumn();
+	currentFloatPlayer()->corner = Auth().settings().floatPlayerCorner();
+	checkFloatPlayerVisibility();
 }
 
 void MainWidget::toggleFloatPlayer(not_null<Float*> instance) {
@@ -1579,7 +1601,7 @@ void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
 		}
 	}
 
-	if (state.id == audioId && (audioId.type() == AudioMsgId::Type::Song || audioId.type() == AudioMsgId::Type::Voice)) {
+	if (state.id == audioId) {
 		if (!Media::Player::IsStoppedOrStopping(state.state)) {
 			createPlayer();
 		}
@@ -1587,7 +1609,6 @@ void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
 
 	if (const auto item = App::histItemById(audioId.contextId())) {
 		Auth().data().requestItemRepaint(item);
-		item->audioTrackUpdated();
 	}
 	if (const auto items = InlineBots::Layout::documentItems()) {
 		if (const auto i = items->find(document); i != items->end()) {

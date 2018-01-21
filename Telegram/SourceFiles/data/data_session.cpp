@@ -208,6 +208,7 @@ rpl::producer<not_null<const HistoryItem*>> Session::itemResizeRequest() const {
 void Session::requestViewResize(not_null<ViewElement*> view) {
 	view->setPendingResize();
 	_viewResizeRequest.fire_copy(view);
+	notifyViewLayoutChange(view);
 }
 
 rpl::producer<not_null<ViewElement*>> Session::viewResizeRequest() const {
@@ -225,12 +226,12 @@ rpl::producer<not_null<HistoryItem*>> Session::itemViewRefreshRequest() const {
 	return _itemViewRefreshRequest.events();
 }
 
-void Session::requestItemPlayInline(not_null<const HistoryItem*> item) {
-	_itemPlayInlineRequest.fire_copy(item);
+void Session::requestAnimationPlayInline(not_null<HistoryItem*> item) {
+	_animationPlayInlineRequest.fire_copy(item);
 }
 
-rpl::producer<not_null<const HistoryItem*>> Session::itemPlayInlineRequest() const {
-	return _itemPlayInlineRequest.events();
+rpl::producer<not_null<HistoryItem*>> Session::animationPlayInlineRequest() const {
+	return _animationPlayInlineRequest.events();
 }
 
 void Session::notifyItemRemoved(not_null<const HistoryItem*> item) {
@@ -1326,9 +1327,7 @@ void Session::unregisterAutoplayAnimation(
 void Session::stopAutoplayAnimations() {
 	for (const auto [reader, view] : base::take(_autoplayAnimations)) {
 		if (const auto media = view->media()) {
-			if (!media->isRoundVideoPlaying()) {
-				media->stopInline();
-			}
+			media->stopAnimation();
 		}
 	}
 }

@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 namespace Media {
 namespace Clip {
 class Playback;
@@ -18,7 +22,12 @@ namespace Player {
 
 class Float : public Ui::RpWidget, private base::Subscriber {
 public:
-	Float(QWidget *parent, HistoryItem *item, base::lambda<void(bool visible)> toggleCallback, base::lambda<void(bool closed)> draggedCallback);
+	Float(
+		QWidget *parent,
+		not_null<Window::Controller*> controller,
+		not_null<HistoryItem*> item,
+		base::lambda<void(bool visible)> toggleCallback,
+		base::lambda<void(bool closed)> draggedCallback);
 
 	HistoryItem *item() const {
 		return _item;
@@ -59,14 +68,15 @@ protected:
 private:
 	float64 outRatio() const;
 	Clip::Reader *getReader() const;
+	Clip::Playback *getPlayback() const;
 	void repaintItem();
 	void prepareShadow();
 	bool hasFrame() const;
 	bool fillFrame();
 	QRect getInnerRect() const;
-	void updatePlayback();
 	void finishDrag(bool closed);
 
+	not_null<Window::Controller*> _controller;
 	HistoryItem *_item = nullptr;
 	base::lambda<void(bool visible)> _toggleCallback;
 
@@ -80,8 +90,6 @@ private:
 	bool _drag = false;
 	QPoint _dragLocalPoint;
 	base::lambda<void(bool closed)> _draggedCallback;
-
-	std::unique_ptr<Clip::Playback> _roundPlayback;
 
 };
 

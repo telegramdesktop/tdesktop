@@ -15,8 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "media/media_clip_reader.h"
-#include "media/view/media_clip_playback.h"
 #include "media/media_audio.h"
+#include "media/view/media_clip_playback.h"
+#include "media/player/media_player_round_controller.h"
+#include "window/window_controller.h"
 #include "auth_session.h"
 #include "styles/style_media_player.h"
 #include "styles/style_history.h"
@@ -26,10 +28,12 @@ namespace Player {
 
 Float::Float(
 	QWidget *parent,
-	HistoryItem *item,
+	not_null<Window::Controller*> controller,
+	not_null<HistoryItem*> item,
 	base::lambda<void(bool visible)> toggleCallback,
 	base::lambda<void(bool closed)> draggedCallback)
 : RpWidget(parent)
+, _controller(controller)
 , _item(item)
 , _toggleCallback(std::move(toggleCallback))
 , _draggedCallback(std::move(draggedCallback)) {
@@ -47,7 +51,7 @@ Float::Float(
 	prepareShadow();
 
 	rpl::merge(
-		//Auth().data().viewLayoutChanged(
+		//Auth().data().viewLayoutChanged( // #TODO not needed?
 		//) | rpl::map(
 		//	[](auto view) { return view->data(); }
 		//),
@@ -103,12 +107,10 @@ float64 Float::outRatio() const {
 }
 
 void Float::mouseReleaseEvent(QMouseEvent *e) {
-	if (_down) {
-		_down = false;
-		// #TODO float player
-		//if (auto media = _item ? _item->getMedia() : nullptr) {
-		//	media->playInline();
-		//}
+	if (base::take(_down) && _item) {
+		if (const auto controller = _controller->roundVideo(_item)) {
+			controller->pauseResume();
+		}
 	}
 	if (_drag) {
 		finishDrag(outRatio() < 0.5);
@@ -125,10 +127,9 @@ void Float::finishDrag(bool closed) {
 void Float::mouseDoubleClickEvent(QMouseEvent *e) {
 	if (_item) {
 		// Handle second click.
-		// #TODO float player
-		//if (auto media = _item->getMedia()) {
-		//	media->playInline();
-		//}
+		if (const auto controller = _controller->roundVideo(_item)) {
+			controller->pauseResume();
+		}
 		Ui::showPeerHistoryAtItem(_item);
 	}
 }
@@ -175,7 +176,8 @@ void Float::paintEvent(QPaintEvent *e) {
 	auto inner = getInnerRect();
 	p.drawImage(inner.topLeft(), _frame);
 
-	auto progress = _roundPlayback ? _roundPlayback->value(getms()) : 1.;
+	const auto playback = getPlayback();
+	const auto progress = playback ? playback->value(getms()) : 1.;
 	if (progress > 0.) {
 		auto pen = st::historyVideoMessageProgressFg->p;
 		auto was = p.pen();
@@ -198,19 +200,31 @@ void Float::paintEvent(QPaintEvent *e) {
 }
 
 Clip::Reader *Float::getReader() const {
-	// #TODO float player
-	//if (auto media = _item ? _item->getMedia() : nullptr) {
-	//	if (auto reader = media->getClipReader()) {
-	//		if (reader->started() && reader->mode() == Clip::Reader::Mode::Video) {
-	//			return reader;
-	//		}
-	//	}
-	//}
+	if (detached()) {
+		return nullptr;
+	}
+	if (const auto controller = _controller->roundVideo(_item)) {
+		if (const auto reader = controller->reader()) {
+			if (reader->started()) {
+				return reader;
+			}
+		}
+	}
+	return nullptr;
+}
+
+Clip::Playback *Float::getPlayback() const {
+	if (detached()) {
+		return nullptr;
+	}
+	if (const auto controller = _controller->roundVideo(_item)) {
+		return controller->playback();
+	}
 	return nullptr;
 }
 
 bool Float::hasFrame() const {
-	if (auto reader = getReader()) {
+	if (const auto reader = getReader()) {
 		return !reader->current().isNull();
 	}
 	return false;
@@ -219,14 +233,15 @@ bool Float::hasFrame() const {
 bool Float::fillFrame() {
 	auto creating = _frame.isNull();
 	if (creating) {
-		_frame = QImage(getInnerRect().size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+		_frame = QImage(
+			getInnerRect().size() * cIntRetinaFactor(),
+			QImage::Format_ARGB32_Premultiplied);
 		_frame.setDevicePixelRatio(cRetinaFactor());
 	}
-	auto frameInner = [this] {
-		return QRect(0, 0, _frame.width() / cIntRetinaFactor(), _frame.height() / cIntRetinaFactor());
+	auto frameInner = [&] {
+		return QRect(QPoint(), _frame.size() / cIntRetinaFactor());
 	};
-	if (auto reader = getReader()) {
-		updatePlayback();
+	if (const auto reader = getReader()) {
 		auto frame = reader->current();
 		if (!frame.isNull()) {
 			_frame.fill(Qt::transparent);
@@ -247,21 +262,6 @@ bool Float::fillFrame() {
 		p.drawEllipse(frameInner());
 	}
 	return false;
-}
-
-void Float::updatePlayback() {
-	if (_item) {
-		if (!_roundPlayback) {
-			_roundPlayback = std::make_unique<Media::Clip::Playback>();
-			_roundPlayback->setValueChangedCallback([this](float64 value) {
-				update();
-			});
-		}
-		auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
-		if (state.id.contextId() == _item->fullId()) {
-			_roundPlayback->updateState(state);
-		}
-	}
 }
 
 void Float::repaintItem() {

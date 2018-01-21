@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_element.h"
+#include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
 #include "chat_helpers/message_field.h"
 #include "mainwindow.h"
@@ -223,13 +224,13 @@ ListWidget::ListWidget(
 	_scrollDateHideTimer.setCallback([this] { scrollDateHideByTimer(); });
 	Auth().data().viewRepaintRequest(
 	) | rpl::start_with_next([this](auto view) {
-		if (view->delegate() == _delegate) {
+		if (view->delegate() == this) {
 			repaintItem(view);
 		}
 	}, lifetime());
 	Auth().data().viewResizeRequest(
 	) | rpl::start_with_next([this](auto view) {
-		if (view->delegate() == _delegate) {
+		if (view->delegate() == this) {
 			updateSize();
 		}
 	}, lifetime());
@@ -239,11 +240,11 @@ ListWidget::ListWidget(
 			refreshItem(view);
 		}
 	}, lifetime());
-	Auth().data().itemPlayInlineRequest(
+	Auth().data().animationPlayInlineRequest(
 	) | rpl::start_with_next([this](auto item) {
 		if (const auto view = viewForItem(item)) {
 			if (const auto media = view->media()) {
-				media->playInline(true);
+				media->playAnimation();
 			}
 		}
 	}, lifetime());
@@ -329,7 +330,7 @@ not_null<Element*> ListWidget::enforceViewForItem(
 	}
 	const auto [i, ok] = _views.emplace(
 		item,
-		item->createView(_delegate));
+		item->createView(this));
 	return i->second.get();
 }
 
@@ -509,6 +510,33 @@ QString ListWidget::tooltipText() const {
 
 QPoint ListWidget::tooltipPos() const {
 	return _mousePosition;
+}
+
+Context ListWidget::elementContext() {
+	return _delegate->listContext();
+}
+
+std::unique_ptr<Element> ListWidget::elementCreate(
+		not_null<HistoryMessage*> message) {
+	return std::make_unique<Message>(this, message);
+}
+
+std::unique_ptr<Element> ListWidget::elementCreate(
+		not_null<HistoryService*> message) {
+	return std::make_unique<Service>(this, message);
+}
+
+void ListWidget::elementAnimationAutoplayAsync(
+		not_null<const Element*> view) {
+	crl::on_main(this, [this, msgId = view->data()->fullId()]{
+		if (const auto item = App::histItemById(msgId)) {
+			if (const auto view = viewForItem(item)) {
+				if (const auto media = view->media()) {
+					media->autoplayAnimation();
+				}
+			}
+		}
+	});
 }
 
 void ListWidget::saveState(not_null<ListMemento*> memento) {
@@ -1432,7 +1460,7 @@ void ListWidget::refreshItem(not_null<const Element*> view) {
 		_views.erase(item);
 		const auto [i, ok] = _views.emplace(
 			item,
-			item->createView(_delegate));
+			item->createView(this));
 		const auto was = view;
 		const auto now = i->second.get();
 		_items[index] = now;
