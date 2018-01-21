@@ -335,29 +335,6 @@ struct HistoryMessageDate : public RuntimeComponent<HistoryMessageDate, HistoryI
 	int _width = 0;
 };
 
-// Any HistoryItem can have this Component for
-// displaying the unread messages bar above the message.
-struct HistoryMessageUnreadBar : public RuntimeComponent<HistoryMessageUnreadBar, HistoryItem> {
-	void init(int count);
-
-	static int height();
-	static int marginTop();
-
-	void paint(Painter &p, int y, int w) const;
-
-	QString _text;
-	int _width = 0;
-
-	// If unread bar is freezed the new messages do not
-	// increment the counter displayed by this bar.
-	//
-	// It happens when we've opened the conversation and
-	// we've seen the bar and new messages are marked as read
-	// as soon as they are added to the chat history.
-	bool _freezed = false;
-
-};
-
 // Special type of Component for the channel actions log.
 struct HistoryMessageLogEntryOriginal
 	: public RuntimeComponent<HistoryMessageLogEntryOriginal, HistoryItem> {

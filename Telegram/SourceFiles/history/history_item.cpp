@@ -577,47 +577,6 @@ bool HistoryItem::unread() const {
 	return (_flags & MTPDmessage_ClientFlag::f_clientside_unread);
 }
 
-void HistoryItem::destroyUnreadBar() {
-	if (Has<HistoryMessageUnreadBar>()) {
-		Assert(!isLogEntry());
-
-		RemoveComponents(HistoryMessageUnreadBar::Bit());
-		Auth().data().requestItemResize(this);
-		if (_history->unreadBar == this) {
-			_history->unreadBar = nullptr;
-		}
-		// #TODO recount attach to previous
-	}
-}
-
-void HistoryItem::setUnreadBarCount(int count) {
-	Expects(!isLogEntry());
-
-	if (count > 0) {
-		if (!Has<HistoryMessageUnreadBar>()) {
-			AddComponents(HistoryMessageUnreadBar::Bit());
-			Auth().data().requestItemResize(this);
-			// #TODO recount attach to previous
-		}
-		const auto bar = Get<HistoryMessageUnreadBar>();
-		if (bar->_freezed) {
-			return;
-		}
-		bar->init(count);
-		Auth().data().requestItemRepaint(this);
-	} else {
-		destroyUnreadBar();
-	}
-}
-
-void HistoryItem::setUnreadBarFreezed() {
-	Expects(!isLogEntry());
-
-	if (const auto bar = Get<HistoryMessageUnreadBar>()) {
-		bar->_freezed = true;
-	}
-}
-
 MessageGroupId HistoryItem::groupId() const {
 	return _groupId;
 }

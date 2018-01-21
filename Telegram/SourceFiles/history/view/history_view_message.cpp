@@ -360,14 +360,14 @@ void Message::draw(
 	}
 
 	auto dateh = 0;
-	if (auto date = item->Get<HistoryMessageDate>()) {
+	if (const auto date = item->Get<HistoryMessageDate>()) {
 		dateh = date->height();
 	}
-	if (auto unreadbar = item->Get<HistoryMessageUnreadBar>()) {
-		auto unreadbarh = unreadbar->height();
+	if (const auto bar = Get<UnreadBar>()) {
+		auto unreadbarh = bar->height();
 		if (clip.intersects(QRect(0, dateh, width(), unreadbarh))) {
 			p.translate(0, dateh);
-			unreadbar->paint(p, 0, width());
+			bar->paint(p, 0, width());
 			p.translate(0, -dateh);
 		}
 	}

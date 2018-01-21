@@ -1516,7 +1516,7 @@ void MainWidget::saveRecentHashtags(const QString &text) {
 	}
 }
 
-void MainWidget::unreadCountChanged(History *history) {
+void MainWidget::unreadCountChanged(not_null<History*> history) {
 	_history->unreadCountChanged(history);
 }
 

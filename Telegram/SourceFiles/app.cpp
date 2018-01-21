@@ -1225,6 +1225,9 @@ namespace {
 	}
 
 	History *historyLoaded(const PeerId &peer) {
+		if (!peer) {
+			return nullptr;
+		}
 		return ::histories.find(peer);
 	}
 

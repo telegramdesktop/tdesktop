@@ -181,6 +181,7 @@ private:
 	template <typename Method>
 	void enumerateDates(Method method);
 
+	bool canHaveFromUserpics() const;
 	void mouseActionStart(const QPoint &screenPos, Qt::MouseButton button);
 	void mouseActionUpdate(const QPoint &screenPos);
 	void mouseActionFinish(const QPoint &screenPos, Qt::MouseButton button);
@@ -276,6 +277,7 @@ private:
 	not_null<PeerData*> _peer;
 	not_null<History*> _history;
 	History *_migrated = nullptr;
+	int _contentWidth = 0;
 	int _historyPaddingTop = 0;
 
 	// with migrated history we perhaps do not need to display first _history message

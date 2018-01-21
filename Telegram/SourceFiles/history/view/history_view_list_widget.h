@@ -165,6 +165,7 @@ private:
 	void performDrag();
 	int itemTop(not_null<const Element*> view) const;
 	void repaintItem(const Element *view);
+	void resizeItem(not_null<Element*> view);
 	void refreshItem(not_null<const Element*> view);
 	void itemRemoved(not_null<const HistoryItem*> item);
 	QPoint mapPointToItem(QPoint point, const Element *view) const;
@@ -194,6 +195,8 @@ private:
 	void updateVisibleTopItem();
 	void updateItemsGeometry();
 	void updateSize();
+	void refreshAttachmentsFromTill(int from, int till);
+	void refreshAttachmentsAtIndex(int index);
 
 	void toggleScrollDateShown();
 	void repaintScrollDateCallback();

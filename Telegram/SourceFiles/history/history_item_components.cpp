@@ -798,36 +798,6 @@ void HistoryMessageReplyMarkup::create(
 	}
 }
 
-void HistoryMessageUnreadBar::init(int count) {
-	if (_freezed) return;
-	_text = lng_unread_bar(lt_count, count);
-	_width = st::semiboldFont->width(_text);
-}
-
-int HistoryMessageUnreadBar::height() {
-	return st::historyUnreadBarHeight + st::historyUnreadBarMargin;
-}
-
-int HistoryMessageUnreadBar::marginTop() {
-	return st::lineWidth + st::historyUnreadBarMargin;
-}
-
-void HistoryMessageUnreadBar::paint(Painter &p, int y, int w) const {
-	p.fillRect(0, y + marginTop(), w, height() - marginTop() - st::lineWidth, st::historyUnreadBarBg);
-	p.fillRect(0, y + height() - st::lineWidth, w, st::lineWidth, st::historyUnreadBarBorder);
-	p.setFont(st::historyUnreadBarFont);
-	p.setPen(st::historyUnreadBarFg);
-
-	int left = st::msgServiceMargin.left();
-	int maxwidth = w;
-	if (Adaptive::ChatWide()) {
-		maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
-	}
-	w = maxwidth;
-
-	p.drawText((w - _width) / 2, y + marginTop() + (st::historyUnreadBarHeight - 2 * st::lineWidth - st::historyUnreadBarFont->height) / 2 + st::historyUnreadBarFont->ascent, _text);
-}
-
 void HistoryMessageDate::init(const QDateTime &date) {
 	_text = langDayOfMonthFull(date.date());
 	_width = st::msgServiceFont->width(_text);

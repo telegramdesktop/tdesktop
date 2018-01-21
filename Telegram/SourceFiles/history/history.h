@@ -47,7 +47,11 @@ public:
 
 	History *find(const PeerId &peerId);
 	not_null<History*> findOrInsert(const PeerId &peerId);
-	not_null<History*> findOrInsert(const PeerId &peerId, int32 unreadCount, int32 maxInboxRead, int32 maxOutboxRead);
+	not_null<History*> findOrInsert(
+		const PeerId &peerId,
+		int unreadCount,
+		MsgId maxInboxRead,
+		MsgId maxOutboxRead);
 
 	void clear();
 	void remove(const PeerId &peer);
@@ -153,8 +157,6 @@ public:
 
 	void applyGroupAdminChanges(const base::flat_map<UserId, bool> &changes);
 
-	virtual ~History();
-
 	HistoryItem *addNewMessage(const MTPMessage &msg, NewMessageType type);
 	HistoryItem *addToHistory(const MTPMessage &msg);
 	not_null<HistoryItem*> addNewService(MsgId msgId, QDateTime date, const QString &text, MTPDmessage::Flags flags = 0, bool newMsg = true);
@@ -176,13 +178,10 @@ public:
 	void newItemAdded(not_null<HistoryItem*> item);
 
 	int countUnread(MsgId upTo);
-	void updateShowFrom();
 	MsgId inboxRead(MsgId upTo);
 	MsgId inboxRead(HistoryItem *wasRead);
 	MsgId outboxRead(MsgId upTo);
 	MsgId outboxRead(HistoryItem *wasRead);
-
-	HistoryItem *lastAvailableMessage() const;
 
 	int unreadCount() const {
 		return _unreadCount;
@@ -192,9 +191,13 @@ public:
 		return _mute;
 	}
 	bool changeMute(bool newMute);
-	void getNextShowFrom(HistoryBlock *block, int i);
 	void addUnreadBar();
 	void destroyUnreadBar();
+	bool hasNotFreezedUnreadBar() const;
+	HistoryView::Element *unreadBar() const;
+	void calculateFirstUnreadMessage();
+	void unsetFirstUnreadMessage();
+	HistoryView::Element *firstUnreadMessage() const;
 	void clearNotifications();
 
 	bool loadedAtBottom() const; // last message is in the list
@@ -210,7 +213,7 @@ public:
 	MsgId maxMsgId() const;
 	MsgId msgIdForRead() const;
 
-	int resizeGetHeight(int newWidth);
+	void resizeToWidth(int newWidth);
 
 	void removeNotification(HistoryItem *item) {
 		if (!notifies.isEmpty()) {
@@ -254,10 +257,6 @@ public:
 
 	void clearLastKeyboard();
 
-	// optimization for userpics displayed on the left
-	// if this returns false there is no need to even try to handle them
-	bool canHaveFromPhotos() const;
-
 	int getUnreadMentionsLoadedCount() const {
 		return _unreadMentions.size();
 	}
@@ -277,25 +276,6 @@ public:
 	bool addToUnreadMentions(MsgId msgId, UnreadMentionType type);
 	void eraseFromUnreadMentions(MsgId msgId);
 	void addUnreadMentionsSlice(const MTPmessages_Messages &result);
-
-	std::deque<std::unique_ptr<HistoryBlock>> blocks;
-
-	int width = 0;
-	int height = 0;
-	int32 msgCount = 0;
-	MsgId inboxReadBefore = 1;
-	MsgId outboxReadBefore = 1;
-	HistoryItem *showFrom = nullptr;
-	HistoryItem *unreadBar = nullptr;
-
-	not_null<PeerData*> peer;
-	bool oldLoaded = false;
-	bool newLoaded = true;
-	HistoryItem *lastMsg = nullptr;
-	HistoryItem *lastSentMsg = nullptr;
-
-	typedef QList<HistoryItem*> NotifyQueue;
-	NotifyQueue notifies;
 
 	Data::Draft *localDraft() const {
 		return _localDraft.get();
@@ -340,9 +320,33 @@ public:
 		int y,
 		int size) const override;
 
-	// some fields below are a property of a currently displayed instance of this
-	// conversation history not a property of the conversation history itself
-public:
+	void forgetScrollState() {
+		scrollTopItem = nullptr;
+	}
+
+	// find the correct scrollTopItem and scrollTopOffset using given top
+	// of the displayed window relative to the history start coordinate
+	void countScrollState(int top);
+
+	virtual ~History();
+
+	// Still public data.
+	std::deque<std::unique_ptr<HistoryBlock>> blocks;
+
+	int height() const;
+	int32 msgCount = 0;
+	MsgId inboxReadBefore = 1;
+	MsgId outboxReadBefore = 1;
+
+	not_null<PeerData*> peer;
+	bool oldLoaded = false;
+	bool newLoaded = true;
+	HistoryItem *lastMsg = nullptr;
+	HistoryItem *lastSentMsg = nullptr;
+
+	typedef QList<HistoryItem*> NotifyQueue;
+	NotifyQueue notifies;
+
 	// we save the last showAtMsgId to restore the state when switching
 	// between different conversation histories
 	MsgId showAtMsgId = ShowAtUnreadMsgId;
@@ -352,25 +356,7 @@ public:
 	// resulting scrollTop = top(scrollTopItem) + scrollTopOffset
 	HistoryView::Element *scrollTopItem = nullptr;
 	int scrollTopOffset = 0;
-	void forgetScrollState() {
-		scrollTopItem = nullptr;
-	}
 
-	// find the correct scrollTopItem and scrollTopOffset using given top
-	// of the displayed window relative to the history start coord
-	void countScrollState(int top);
-
-protected:
-	// when this item is destroyed scrollTopItem just points to the next one
-	// and scrollTopOffset remains the same
-	// if we are at the bottom of the window scrollTopItem == nullptr and
-	// scrollTopOffset is undefined
-	void getNextScrollTopItem(HistoryBlock *block, int32 i);
-
-	// helper method for countScrollState(int top)
-	void countScrollTopItem(int top);
-
-public:
 	bool lastKeyboardInited = false;
 	bool lastKeyboardUsed = false;
 	MsgId lastKeyboardId = 0;
@@ -382,10 +368,17 @@ public:
 	Text cloudDraftTextCache;
 
 protected:
+	// when this item is destroyed scrollTopItem just points to the next one
+	// and scrollTopOffset remains the same
+	// if we are at the bottom of the window scrollTopItem == nullptr and
+	// scrollTopOffset is undefined
+	void getNextScrollTopItem(HistoryBlock *block, int32 i);
+
+	// helper method for countScrollState(int top)
+	void countScrollTopItem(int top);
+
 	void clearOnDestroy();
 	HistoryItem *addNewToLastBlock(const MTPMessage &msg, NewMessageType type);
-
-	friend class HistoryBlock;
 
 	// this method just removes a block from the blocks list
 	// when the last item from this block was detached and
@@ -425,6 +418,20 @@ protected:
 	}
 
 private:
+	friend class HistoryBlock;
+
+	enum class Flag {
+		f_has_pending_resized_items = (1 << 0),
+	};
+	using Flags = base::flags<Flag>;
+	friend inline constexpr auto is_flag_type(Flag) {
+		return true;
+	};
+
+	void mainViewRemoved(
+		not_null<HistoryBlock*> block,
+		not_null<HistoryView::Element*> view);
+
 	QDateTime adjustChatListDate() const override;
 	void removeDialog() override;
 	void changedInChatListHook(Dialogs::Mode list, bool added) override;
@@ -451,15 +458,20 @@ private:
 	void addItemsToLists(const std::vector<not_null<HistoryItem*>> &items);
 	void clearSendAction(not_null<UserData*> from);
 
-	enum class Flag {
-		f_has_pending_resized_items = (1 << 0),
-	};
-	using Flags = base::flags<Flag>;
-	friend inline constexpr auto is_flag_type(Flag) { return true; };
+	HistoryItem *lastAvailableMessage() const;
+	void getNextFirstUnreadMessage();
+
+	// Creates if necessary a new block for adding item.
+	// Depending on isBuildingFrontBlock() gets front or back block.
+	HistoryBlock *prepareBlockForAddingItem();
 
 	Flags _flags = 0;
 	bool _mute = false;
 	int _unreadCount = 0;
+	int _width = 0;
+	int _height = 0;
+	HistoryView::Element *_unreadBarView = nullptr;
+	HistoryView::Element *_firstUnreadView = nullptr;
 
 	base::optional<int> _unreadMentionsCount;
 	base::flat_set<MsgId> _unreadMentions;
@@ -472,10 +484,6 @@ private:
 		HistoryBlock *block = nullptr;
 	};
 	std::unique_ptr<BuildingBlock> _buildingFrontBlock;
-
-	// Creates if necessary a new block for adding item.
-	// Depending on isBuildingFrontBlock() gets front or back block.
-	HistoryBlock *prepareBlockForAddingItem();
 
 	std::unique_ptr<Data::Draft> _localDraft, _cloudDraft;
 	std::unique_ptr<Data::Draft> _editDraft;

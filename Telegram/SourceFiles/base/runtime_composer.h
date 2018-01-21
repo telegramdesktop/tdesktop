@@ -190,27 +190,33 @@ public:
 	}
 
 protected:
-	void UpdateComponents(uint64 mask = 0) {
-		if (!_meta()->equals(mask)) {
-			RuntimeComposerBase tmp(mask);
-			tmp.swap(*this);
-			if (_data != zerodata() && tmp._data != zerodata()) {
-				auto meta = _meta(), wasmeta = tmp._meta();
-				for (int i = 0; i < meta->last; ++i) {
-					auto offset = meta->offsets[i];
-					auto wasoffset = wasmeta->offsets[i];
-					if (offset >= sizeof(_meta()) && wasoffset >= sizeof(_meta())) {
-						RuntimeComponentWraps[i].Move(_dataptrunsafe(offset), tmp._dataptrunsafe(wasoffset));
-					}
+	bool UpdateComponents(uint64 mask = 0) {
+		if (_meta()->equals(mask)) {
+			return false;
+		}
+		RuntimeComposerBase result(mask);
+		result.swap(*this);
+		if (_data != zerodata() && result._data != zerodata()) {
+			const auto meta = _meta();
+			const auto wasmeta = result._meta();
+			for (auto i = 0; i != meta->last; ++i) {
+				const auto offset = meta->offsets[i];
+				const auto wasoffset = wasmeta->offsets[i];
+				if (offset >= sizeof(_meta())
+					&& wasoffset >= sizeof(_meta())) {
+					RuntimeComponentWraps[i].Move(
+						_dataptrunsafe(offset),
+						result._dataptrunsafe(wasoffset));
 				}
 			}
 		}
+		return true;
 	}
-	void AddComponents(uint64 mask = 0) {
-		UpdateComponents(_meta()->maskadd(mask));
+	bool AddComponents(uint64 mask = 0) {
+		return UpdateComponents(_meta()->maskadd(mask));
 	}
-	void RemoveComponents(uint64 mask = 0) {
-		UpdateComponents(_meta()->maskremove(mask));
+	bool RemoveComponents(uint64 mask = 0) {
+		return UpdateComponents(_meta()->maskremove(mask));
 	}
 
 private:

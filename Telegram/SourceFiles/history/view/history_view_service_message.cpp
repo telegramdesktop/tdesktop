@@ -315,8 +315,8 @@ QSize Service::performCountCurrentSize(int newWidth) {
 	const auto media = this->media();
 
 	auto newHeight = item->displayedDateHeight();
-	if (auto unreadbar = item->Get<HistoryMessageUnreadBar>()) {
-		newHeight += unreadbar->height();
+	if (const auto bar = Get<UnreadBar>()) {
+		newHeight += bar->height();
 	}
 
 	if (item->_text.isEmpty()) {
@@ -382,10 +382,10 @@ void Service::draw(
 		clip.translate(0, -dateh);
 		height -= dateh;
 	}
-	if (auto unreadbar = item->Get<HistoryMessageUnreadBar>()) {
-		unreadbarh = unreadbar->height();
+	if (const auto bar = Get<UnreadBar>()) {
+		unreadbarh = bar->height();
 		if (clip.intersects(QRect(0, 0, width(), unreadbarh))) {
-			unreadbar->paint(p, 0, width());
+			bar->paint(p, 0, width());
 		}
 		p.translate(0, unreadbarh);
 		clip.translate(0, -unreadbarh);
@@ -405,7 +405,7 @@ void Service::draw(
 			auto dt = (animms > st::activeFadeInDuration) ? (1. - (animms - st::activeFadeInDuration) / float64(st::activeFadeOutDuration)) : (animms / float64(st::activeFadeInDuration));
 			auto o = p.opacity();
 			p.setOpacity(o * dt);
-			p.fillRect(0, skiptop, item->history()->width, fillheight, st::defaultTextPalette.selectOverlay);
+			p.fillRect(0, skiptop, width(), fillheight, st::defaultTextPalette.selectOverlay);
 			p.setOpacity(o);
 		}
 	}
@@ -448,8 +448,8 @@ bool Service::hasPoint(QPoint point) const {
 	if (auto dateh = item->displayedDateHeight()) {
 		g.setTop(g.top() + dateh);
 	}
-	if (auto unreadbar = item->Get<HistoryMessageUnreadBar>()) {
-		g.setTop(g.top() + unreadbar->height());
+	if (const auto bar = Get<UnreadBar>()) {
+		g.setTop(g.top() + bar->height());
 	}
 	if (media) {
 		g.setHeight(g.height() - (st::msgServiceMargin.top() + media->height()));
@@ -472,8 +472,8 @@ HistoryTextState Service::getState(QPoint point, HistoryStateRequest request) co
 		point.setY(point.y() - dateh);
 		g.setHeight(g.height() - dateh);
 	}
-	if (auto unreadbar = item->Get<HistoryMessageUnreadBar>()) {
-		auto unreadbarh = unreadbar->height();
+	if (const auto bar = Get<UnreadBar>()) {
+		auto unreadbarh = bar->height();
 		point.setY(point.y() - unreadbarh);
 		g.setHeight(g.height() - unreadbarh);
 	}

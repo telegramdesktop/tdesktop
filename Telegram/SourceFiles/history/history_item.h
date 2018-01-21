@@ -244,17 +244,6 @@ public:
 	QString authorOriginal() const;
 	MsgId idOriginal() const;
 
-	// count > 0 - creates the unread bar if necessary and
-	// sets unread messages count if bar is not freezed yet
-	// count <= 0 - destroys the unread bar
-	void setUnreadBarCount(int count);
-	void destroyUnreadBar();
-
-	// marks the unread bar as freezed so that unread
-	// messages count will not change for this bar
-	// when the new messages arrive in this chat history
-	void setUnreadBarFreezed();
-
 	int displayedDateHeight() const;
 	bool displayDate() const;
 

@@ -2363,9 +2363,8 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 	} else if (!inWebPage) {
 		auto fullRight = paintx + usex + usew;
 		auto fullBottom = painty + painth;
-		auto maxRight = item->history()->width - st::msgMargin.left();
-		// #TODO view media
-		if (item->history()->canHaveFromPhotos()) {
+		auto maxRight = _parent->width() - st::msgMargin.left();
+		if (_parent->hasFromPhoto()) {
 			maxRight -= st::msgMargin.right();
 		} else {
 			maxRight -= st::msgMargin.left();
@@ -2505,9 +2504,8 @@ HistoryTextState HistoryGif::getState(QPoint point, HistoryStateRequest request)
 	if (isRound || _caption.isEmpty()) {
 		auto fullRight = usex + paintx + usew;
 		auto fullBottom = painty + painth;
-		// #TODO view media
-		auto maxRight = _parent->data()->history()->width - st::msgMargin.left();
-		if (_parent->data()->history()->canHaveFromPhotos()) {
+		auto maxRight = _parent->width() - st::msgMargin.left();
+		if (_parent->hasFromPhoto()) {
 			maxRight -= st::msgMargin.right();
 		} else {
 			maxRight -= st::msgMargin.left();

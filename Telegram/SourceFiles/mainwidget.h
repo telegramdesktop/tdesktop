@@ -242,7 +242,7 @@ public:
 	void sendMessage(const MessageToSend &message);
 	void saveRecentHashtags(const QString &text);
 
-	void unreadCountChanged(History *history);
+	void unreadCountChanged(not_null<History*> history);
 
 	TimeMs highlightStartTime(not_null<const HistoryItem*> item) const;
 

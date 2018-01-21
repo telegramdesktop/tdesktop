@@ -217,7 +217,7 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 	if (historytop < 0 || history->isEmpty()) {
 		return;
 	}
-	if (_visibleAreaBottom <= historytop || historytop + history->height <= _visibleAreaTop) {
+	if (_visibleAreaBottom <= historytop || historytop + history->height() <= _visibleAreaTop) {
 		return;
 	}
 
@@ -302,9 +302,18 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 	}
 }
 
+bool HistoryInner::canHaveFromUserpics() const {
+	if (_peer->isUser() && !_peer->isSelf() && !Adaptive::ChatWide()) {
+		return false;
+	} else if (_peer->isChannel() && !_peer->isMegagroup()) {
+		return false;
+	}
+	return true;
+}
+
 template <typename Method>
 void HistoryInner::enumerateUserpics(Method method) {
-	if ((!_history || !_history->canHaveFromPhotos()) && (!_migrated || !_migrated->canHaveFromPhotos())) {
+	if (!canHaveFromUserpics()) {
 		return;
 	}
 
@@ -620,7 +629,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 						p,
 						st::historyPhotoLeft,
 						userpicTop,
-						message->history()->width,
+						width(),
 						st::msgPhotoSize);
 				}
 				return true;
@@ -634,6 +643,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 
 			//// if item top is before this value always show date as a floating date
 			//int showFloatingBefore = height() - 2 * (_visibleAreaBottom - _visibleAreaTop) - dateHeight;
+
 
 			auto scrollDateOpacity = _scrollDateOpacity.current(ms, _scrollDateShown ? 1. : 0.);
 			enumerateDates([&](not_null<Element*> view, int itemtop, int dateTop) {
@@ -661,16 +671,17 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 					auto opacity = (dateInPlace/* || noFloatingDate*/) ? 1. : scrollDateOpacity;
 					if (opacity > 0.) {
 						p.setOpacity(opacity);
-						int dateY = /*noFloatingDate ? itemtop :*/ (dateTop - st::msgServiceMargin.top());
-						int width = item->history()->width;
+						const auto dateY = false // noFloatingDate
+							? itemtop
+							: (dateTop - st::msgServiceMargin.top());
 						if (const auto date = item->Get<HistoryMessageDate>()) {
-							date->paint(p, dateY, width);
+							date->paint(p, dateY, _contentWidth);
 						} else {
 							HistoryView::ServiceMessagePainter::paintDate(
 								p,
 								item->date,
 								dateY,
-								width);
+								_contentWidth);
 						}
 					}
 				}
@@ -1825,15 +1836,17 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 }
 
 void HistoryInner::recountHistoryGeometry() {
-	int visibleHeight = _scroll->height();
+	_contentWidth = _scroll->width();
+
+	const auto visibleHeight = _scroll->height();
 	int oldHistoryPaddingTop = qMax(visibleHeight - historyHeight() - st::historyPaddingBottom, 0);
 	if (_botAbout && !_botAbout->info->text.isEmpty()) {
 		accumulate_max(oldHistoryPaddingTop, st::msgMargin.top() + st::msgMargin.bottom() + st::msgPadding.top() + st::msgPadding.bottom() + st::msgNameFont->height + st::botDescSkip + _botAbout->height);
 	}
 
-	_history->resizeGetHeight(_scroll->width());
+	_history->resizeToWidth(_contentWidth);
 	if (_migrated) {
-		_migrated->resizeGetHeight(_scroll->width());
+		_migrated->resizeToWidth(_contentWidth);
 	}
 
 	// with migrated history we perhaps do not need to display first _history message
@@ -2339,7 +2352,7 @@ void HistoryInner::onUpdateSelected() {
 					}
 					dateWidth += st::msgServicePadding.left() + st::msgServicePadding.right();
 					auto dateLeft = st::msgServiceMargin.left();
-					auto maxwidth = item->history()->width;
+					auto maxwidth = _contentWidth;
 					if (Adaptive::ChatWide()) {
 						maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
 					}
@@ -2549,9 +2562,9 @@ void HistoryInner::updateDragSelection(Element *dragSelFrom, Element *dragSelTo,
 int HistoryInner::historyHeight() const {
 	int result = 0;
 	if (!_history || _history->isEmpty()) {
-		result += _migrated ? _migrated->height : 0;
+		result += _migrated ? _migrated->height() : 0;
 	} else {
-		result += _history->height - _historySkipHeight + (_migrated ? _migrated->height : 0);
+		result += _history->height() - _historySkipHeight + (_migrated ? _migrated->height() : 0);
 	}
 	return result;
 }
@@ -2574,7 +2587,7 @@ int HistoryInner::migratedTop() const {
 
 int HistoryInner::historyTop() const {
 	int mig = migratedTop();
-	return (_history && !_history->isEmpty()) ? (mig >= 0 ? (mig + _migrated->height - _historySkipHeight) : _historyPaddingTop) : -1;
+	return (_history && !_history->isEmpty()) ? (mig >= 0 ? (mig + _migrated->height() - _historySkipHeight) : _historyPaddingTop) : -1;
 }
 
 int HistoryInner::historyDrawTop() const {

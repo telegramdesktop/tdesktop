@@ -79,13 +79,8 @@ void History::clearLastKeyboard() {
 	lastKeyboardFrom = 0;
 }
 
-bool History::canHaveFromPhotos() const {
-	if (peer->isUser() && !peer->isSelf() && !Adaptive::ChatWide()) {
-		return false;
-	} else if (isChannel() && !peer->isMegagroup()) {
-		return false;
-	}
-	return true;
+int History::height() const {
+	return _height;
 }
 
 void History::setHasPendingResizedItems() {
@@ -259,9 +254,22 @@ bool History::mySendActionUpdated(SendAction::Type type, bool doing) {
 	return true;
 }
 
-bool History::paintSendAction(Painter &p, int x, int y, int availableWidth, int outerWidth, style::color color, TimeMs ms) {
+bool History::paintSendAction(
+		Painter &p,
+		int x,
+		int y,
+		int availableWidth,
+		int outerWidth,
+		style::color color,
+		TimeMs ms) {
 	if (_sendActionAnimation) {
-		_sendActionAnimation.paint(p, color, x, y + st::normalFont->ascent, outerWidth, ms);
+		_sendActionAnimation.paint(
+			p,
+			color,
+			x,
+			y + st::normalFont->ascent,
+			outerWidth,
+			ms);
 		auto animationWidth = _sendActionAnimation.width();
 		x += animationWidth;
 		availableWidth -= animationWidth;
@@ -572,7 +580,11 @@ not_null<History*> Histories::findOrInsert(const PeerId &peerId) {
 	return i.value();
 }
 
-not_null<History*> Histories::findOrInsert(const PeerId &peerId, int32 unreadCount, int32 maxInboxRead, int32 maxOutboxRead) {
+not_null<History*> Histories::findOrInsert(
+		const PeerId &peerId,
+		int unreadCount,
+		MsgId maxInboxRead,
+		MsgId maxOutboxRead) {
 	auto i = map.constFind(peerId);
 	if (i == map.cend()) {
 		auto history = peerIsChannel(peerId)
@@ -1397,6 +1409,23 @@ void History::clearSendAction(not_null<UserData*> from) {
 	}
 }
 
+void History::mainViewRemoved(
+		not_null<HistoryBlock*> block,
+		not_null<HistoryView::Element*> view) {
+	if (lastSentMsg == view->data()) {
+		lastSentMsg = nullptr;
+	}
+	if (_firstUnreadView == view) {
+		getNextFirstUnreadMessage();
+	}
+	if (_unreadBarView == view) {
+		_unreadBarView = nullptr;
+	}
+	if (scrollTopItem == view) {
+		getNextScrollTopItem(block, view->indexInBlock());
+	}
+}
+
 void History::newItemAdded(not_null<HistoryItem*> item) {
 	App::checkImageCacheSize();
 	item->indexAsNewItem();
@@ -1408,9 +1437,7 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 		from->madeAction(itemServerTime.v);
 	}
 	if (item->out()) {
-		if (unreadBar) {
-			unreadBar->destroyUnreadBar();
-		}
+		destroyUnreadBar();
 		if (!item->unread()) {
 			outboxRead(item);
 		}
@@ -1739,18 +1766,23 @@ int History::countUnread(MsgId upTo) {
 	return result;
 }
 
-void History::updateShowFrom() {
-	if (showFrom) return;
+void History::calculateFirstUnreadMessage() {
+	if (_firstUnreadView) {
+		return;
+	}
 
 	for (auto i = blocks.cend(); i != blocks.cbegin();) {
 		--i;
 		const auto &messages = (*i)->messages;
 		for (auto j = messages.cend(); j != messages.cbegin();) {
 			--j;
-			const auto item = (*j)->data();
-			if (item->id > 0 && (!item->out() || !showFrom)) {
+			const auto view = j->get();
+			const auto item = view->data();
+			if (!IsServerMsgId(item->id)) {
+				continue;
+			} else if (!item->out() || !_firstUnreadView) {
 				if (item->id >= inboxReadBefore) {
-					showFrom = item;
+					_firstUnreadView = view;
 				} else {
 					return;
 				}
@@ -1776,7 +1808,7 @@ MsgId History::inboxRead(MsgId upTo) {
 		}
 	}
 
-	showFrom = nullptr;
+	_firstUnreadView = nullptr;
 	Auth().notifications().clearFromHistory(this);
 
 	return upTo;
@@ -1805,13 +1837,19 @@ HistoryItem *History::lastAvailableMessage() const {
 void History::setUnreadCount(int newUnreadCount) {
 	if (_unreadCount != newUnreadCount) {
 		if (newUnreadCount == 1) {
-			if (loadedAtBottom()) showFrom = lastAvailableMessage();
+			if (loadedAtBottom()) {
+				_firstUnreadView = !isEmpty()
+					? blocks.back()->messages.back().get()
+					: nullptr;
+			}
 			inboxReadBefore = qMax(inboxReadBefore, msgIdForRead());
 		} else if (!newUnreadCount) {
-			showFrom = nullptr;
+			_firstUnreadView = nullptr;
 			inboxReadBefore = qMax(inboxReadBefore, msgIdForRead() + 1);
 		} else {
-			if (!showFrom && !unreadBar && loadedAtBottom()) updateShowFrom();
+			if (!_firstUnreadView && !_unreadBarView && loadedAtBottom()) {
+				calculateFirstUnreadMessage();
+			}
 		}
 		if (inChatList(Dialogs::Mode::All)) {
 			App::histories().unreadIncrement(newUnreadCount - _unreadCount, mute());
@@ -1820,21 +1858,16 @@ void History::setUnreadCount(int newUnreadCount) {
 			}
 		}
 		_unreadCount = newUnreadCount;
-		if (auto main = App::main()) {
-			main->unreadCountChanged(this);
-		}
-		if (unreadBar) {
-			int32 count = _unreadCount;
-			if (peer->migrateTo()) {
-				if (History *h = App::historyLoaded(peer->migrateTo()->id)) {
-					count += h->unreadCount();
-				}
-			}
+		if (_unreadBarView) {
+			const auto count = chatListUnreadCount();
 			if (count > 0) {
-				unreadBar->setUnreadBarCount(count);
+				_unreadBarView->setUnreadBarCount(count);
 			} else {
-				unreadBar->setUnreadBarFreezed();
+				_unreadBarView->setUnreadBarFreezed();
 			}
+		}
+		if (const auto main = App::main()) {
+			main->unreadCountChanged(this);
 		}
 	}
 }
@@ -1858,18 +1891,21 @@ bool History::changeMute(bool newMute) {
 	return true;
 }
 
-void History::getNextShowFrom(HistoryBlock *block, int i) {
-	const auto setFromMessage = [&](const auto &message) {
-		const auto item = message->data();
-		if (item->id > 0) {
-			showFrom = item;
+void History::getNextFirstUnreadMessage() {
+	Expects(_firstUnreadView != nullptr);
+
+	const auto block = _firstUnreadView->block();
+	const auto index = _firstUnreadView->indexInBlock();
+	const auto setFromMessage = [&](const auto &view) {
+		if (IsServerMsgId(view->data()->id)) {
+			_firstUnreadView = view.get();
 			return true;
 		}
 		return false;
 	};
-	if (i >= 0) {
-		auto l = block->messages.size();
-		for (++i; i < l; ++i) {
+	if (index >= 0) {
+		const auto count = int(block->messages.size());
+		for (auto i = index + 1; i != count; ++i) {
 			const auto &message = block->messages[i];
 			if (setFromMessage(block->messages[i])) {
 				return;
@@ -1877,15 +1913,15 @@ void History::getNextShowFrom(HistoryBlock *block, int i) {
 		}
 	}
 
-	for (auto j = block->indexInHistory() + 1, s = int(blocks.size()); j < s; ++j) {
-		block = blocks[j].get();
-		for (const auto &message : block->messages) {
+	const auto count = int(blocks.size());
+	for (auto j = block->indexInHistory() + 1; j != count; ++j) {
+		for (const auto &message : blocks[j]->messages) {
 			if (setFromMessage(message)) {
 				return;
 			}
 		}
 	}
-	showFrom = nullptr;
+	_firstUnreadView = nullptr;
 }
 
 QDateTime History::adjustChatListDate() const {
@@ -1976,24 +2012,42 @@ void History::getNextScrollTopItem(HistoryBlock *block, int32 i) {
 }
 
 void History::addUnreadBar() {
-	if (unreadBar || !showFrom || !showFrom->mainView() || !unreadCount()) {
+	if (_unreadBarView || !_firstUnreadView || !unreadCount()) {
 		return;
 	}
-
-	int32 count = unreadCount();
-	if (peer->migrateTo()) {
-		if (History *h = App::historyLoaded(peer->migrateTo()->id)) {
-			count += h->unreadCount();
-		}
+	if (const auto count = chatListUnreadCount()) {
+		_unreadBarView = _firstUnreadView;
+		_unreadBarView->setUnreadBarCount(count);
 	}
-	showFrom->setUnreadBarCount(count);
-	unreadBar = showFrom;
 }
 
 void History::destroyUnreadBar() {
-	if (unreadBar) {
-		unreadBar->destroyUnreadBar();
+	if (const auto view = base::take(_unreadBarView)) {
+		view->destroyUnreadBar();
 	}
+}
+
+bool History::hasNotFreezedUnreadBar() const {
+	if (_firstUnreadView) {
+		if (const auto view = _unreadBarView) {
+			if (const auto bar = view->Get<HistoryView::UnreadBar>()) {
+				return !bar->freezed;
+			}
+		}
+	}
+	return false;
+}
+
+void History::unsetFirstUnreadMessage() {
+	_firstUnreadView = nullptr;
+}
+
+HistoryView::Element *History::unreadBar() const {
+	return _unreadBarView;
+}
+
+HistoryView::Element *History::firstUnreadMessage() const {
+	return _firstUnreadView;
 }
 
 not_null<HistoryItem*> History::addNewInTheMiddle(
@@ -2028,10 +2082,16 @@ not_null<HistoryItem*> History::addNewInTheMiddle(
 
 int History::chatListUnreadCount() const {
 	const auto result = unreadCount();
-	if (const auto from = peer->migrateFrom()) {
-		if (const auto migrated = App::historyLoaded(from)) {
-			return result + migrated->unreadCount();
+	const auto addFromId = [&] {
+		if (const auto from = peer->migrateFrom()) {
+			return from->id;
+		} else if (const auto to = peer->migrateTo()) {
+			return to->id;
 		}
+		return PeerId(0);
+	}();
+	if (const auto migrated = App::historyLoaded(addFromId)) {
+		return result + migrated->unreadCount();
 	}
 	return result;
 }
@@ -2108,10 +2168,10 @@ bool History::isReadyFor(MsgId msgId) {
 		return loadedAtBottom();
 	}
 	if (msgId == ShowAtUnreadMsgId) {
-		if (peer->migrateFrom()) { // old group history
-			if (History *h = App::historyLoaded(peer->migrateFrom()->id)) {
-				if (h->unreadCount()) {
-					return h->isReadyFor(msgId);
+		if (const auto migratePeer = peer->migrateFrom()) {
+			if (const auto migrated = App::historyLoaded(migratePeer)) {
+				if (migrated->unreadCount()) {
+					return migrated->isReadyFor(msgId);
 				}
 			}
 		}
@@ -2136,12 +2196,14 @@ void History::getReadyFor(MsgId msgId) {
 		}
 		return;
 	}
-	if (msgId == ShowAtUnreadMsgId && peer->migrateFrom()) {
-		if (auto h = App::historyLoaded(peer->migrateFrom()->id)) {
-			if (h->unreadCount()) {
-				clear(true);
-				h->getReadyFor(msgId);
-				return;
+	if (msgId == ShowAtUnreadMsgId) {
+		if (const auto migratePeer = peer->migrateFrom()) {
+			if (const auto migrated = App::historyLoaded(migratePeer)) {
+				if (migrated->unreadCount()) {
+					clear(true);
+					migrated->getReadyFor(msgId);
+					return;
+				}
 			}
 		}
 	}
@@ -2194,7 +2256,7 @@ bool History::needUpdateInChatList() const {
 }
 
 void History::fixLastMessage(bool wasAtBottom) {
-	setLastMessage(wasAtBottom ? lastAvailableMessage() : 0);
+	setLastMessage(wasAtBottom ? lastAvailableMessage() : nullptr);
 }
 
 MsgId History::minMsgId() const {
@@ -2227,22 +2289,21 @@ MsgId History::msgIdForRead() const {
 	return result;
 }
 
-int History::resizeGetHeight(int newWidth) {
-	const auto resizeAllItems = (width != newWidth);
+void History::resizeToWidth(int newWidth) {
+	const auto resizeAllItems = (_width != newWidth);
 
 	if (!resizeAllItems && !hasPendingResizedItems()) {
-		return height;
+		return;
 	}
 	_flags &= ~(Flag::f_has_pending_resized_items);
 
-	width = newWidth;
+	_width = newWidth;
 	int y = 0;
 	for (const auto &block : blocks) {
 		block->setY(y);
 		y += block->resizeGetHeight(newWidth, resizeAllItems);
 	}
-	height = y;
-	return height;
+	_height = y;
 }
 
 ChannelHistory *History::asChannelHistory() {
@@ -2295,11 +2356,11 @@ bool History::removeOrphanMediaGroupPart() {
 }
 
 void History::clear(bool leaveItems) {
-	if (unreadBar) {
-		unreadBar = nullptr;
+	if (_unreadBarView) {
+		_unreadBarView = nullptr;
 	}
-	if (showFrom) {
-		showFrom = nullptr;
+	if (_firstUnreadView) {
+		_firstUnreadView = nullptr;
 	}
 	if (lastSentMsg) {
 		lastSentMsg = nullptr;
@@ -2475,22 +2536,11 @@ void HistoryBlock::clear(bool leaveItems) {
 void HistoryBlock::remove(not_null<Element*> view) {
 	Expects(view->block() == this);
 
-	const auto item = view->data();
-	auto blockIndex = indexInHistory();
-	auto itemIndex = view->indexInBlock();
-	if (_history->showFrom == item) {
-		_history->getNextShowFrom(this, itemIndex);
-	}
-	if (_history->lastSentMsg == item) {
-		_history->lastSentMsg = nullptr;
-	}
-	if (_history->unreadBar == item) {
-		_history->unreadBar = nullptr;
-	}
-	if (_history->scrollTopItem && _history->scrollTopItem->data() == item) {
-		_history->getNextScrollTopItem(this, itemIndex);
-	}
+	_history->mainViewRemoved(this, view);
 
+	const auto blockIndex = indexInHistory();
+	const auto itemIndex = view->indexInBlock();
+	const auto item = view->data();
 	item->clearMainView();
 	messages.erase(messages.begin() + itemIndex);
 	for (auto i = itemIndex, l = int(messages.size()); i < l; ++i) {

@@ -15,8 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_groups.h"
 #include "data/data_media_types.h"
+#include "lang/lang_keys.h"
 #include "auth_session.h"
 #include "layout.h"
+#include "styles/style_history.h"
 
 namespace HistoryView {
 namespace {
@@ -52,6 +54,60 @@ TextSelection ShiftItemSelection(
 		TextSelection selection,
 		const Text &byText) {
 	return ShiftItemSelection(selection, byText.length());
+}
+
+void UnreadBar::init(int count) {
+	if (freezed) {
+		return;
+	}
+	text = lng_unread_bar(lt_count, count);
+	width = st::semiboldFont->width(text);
+}
+
+int UnreadBar::height() {
+	return st::historyUnreadBarHeight + st::historyUnreadBarMargin;
+}
+
+int UnreadBar::marginTop() {
+	return st::lineWidth + st::historyUnreadBarMargin;
+}
+
+void UnreadBar::paint(Painter &p, int y, int w) const {
+	const auto bottom = y + height();
+	y += marginTop();
+	p.fillRect(
+		0,
+		y,
+		w,
+		height() - marginTop() - st::lineWidth,
+		st::historyUnreadBarBg);
+	p.fillRect(
+		0,
+		bottom - st::lineWidth,
+		w,
+		st::lineWidth,
+		st::historyUnreadBarBorder);
+	p.setFont(st::historyUnreadBarFont);
+	p.setPen(st::historyUnreadBarFg);
+
+	int left = st::msgServiceMargin.left();
+	int maxwidth = w;
+	if (Adaptive::ChatWide()) {
+		maxwidth = qMin(
+			maxwidth,
+			st::msgMaxWidth
+				+ 2 * st::msgPhotoSkip
+				+ 2 * st::msgMargin.left());
+	}
+	w = maxwidth;
+
+	const auto skip = st::historyUnreadBarHeight
+		- 2 * st::lineWidth
+		- st::historyUnreadBarFont->height;
+	p.drawText(
+		(w - width) / 2,
+		y + (skip / 2) + st::historyUnreadBarFont->ascent,
+		text);
 }
 
 Element::Element(
@@ -99,8 +155,8 @@ int Element::marginTop() const {
 		}
 	}
 	result += item->displayedDateHeight();
-	if (const auto unreadbar = item->Get<HistoryMessageUnreadBar>()) {
-		result += unreadbar->height();
+	if (const auto bar = Get<UnreadBar>()) {
+		result += bar->height();
 	}
 	return result;
 }
@@ -198,7 +254,7 @@ void Element::refreshDataId() {
 
 bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 	const auto item = data();
-	if (!item->Has<HistoryMessageDate>() && !item->Has<HistoryMessageUnreadBar>()) {
+	if (!item->Has<HistoryMessageDate>() && !Has<UnreadBar>()) {
 		const auto prev = previous->data();
 		const auto possible = !item->serviceMsg() && !prev->serviceMsg()
 			&& !item->isEmpty() && !prev->isEmpty()
@@ -215,6 +271,42 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 		}
 	}
 	return false;
+}
+
+void Element::destroyUnreadBar() {
+	if (!Has<UnreadBar>()) {
+		return;
+	}
+	RemoveComponents(UnreadBar::Bit());
+	Auth().data().requestViewResize(this);
+	if (data()->mainView() == this) {
+		recountAttachToPreviousInBlocks();
+	}
+}
+
+void Element::setUnreadBarCount(int count) {
+	Expects(count > 0);
+
+	const auto changed = AddComponents(UnreadBar::Bit());
+	const auto bar = Get<UnreadBar>();
+	if (bar->freezed) {
+		return;
+	}
+	bar->init(count);
+	if (changed) {
+		if (data()->mainView() == this) {
+			recountAttachToPreviousInBlocks();
+		}
+		Auth().data().requestViewResize(this);
+	} else {
+		Auth().data().requestViewRepaint(this);
+	}
+}
+
+void Element::setUnreadBarFreezed() {
+	if (const auto bar = Get<UnreadBar>()) {
+		bar->freezed = true;
+	}
 }
 
 void Element::recountAttachToPreviousInBlocks() {

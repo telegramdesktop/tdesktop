@@ -55,6 +55,29 @@ TextSelection ShiftItemSelection(
 	TextSelection selection,
 	const Text &byText);
 
+// Any HistoryView::Element can have this Component for
+// displaying the unread messages bar above the message.
+struct UnreadBar : public RuntimeComponent<UnreadBar, Element> {
+	void init(int count);
+
+	static int height();
+	static int marginTop();
+
+	void paint(Painter &p, int y, int w) const;
+
+	QString text;
+	int width = 0;
+
+	// If unread bar is freezed the new messages do not
+	// increment the counter displayed by this bar.
+	//
+	// It happens when we've opened the conversation and
+	// we've seen the bar and new messages are marked as read
+	// as soon as they are added to the chat history.
+	bool freezed = false;
+
+};
+
 class Element
 	: public Object
 	, public RuntimeComposer<Element>
@@ -109,6 +132,16 @@ public:
 	void setDisplayDate(bool displayDate);
 
 	bool computeIsAttachToPrevious(not_null<Element*> previous);
+
+	// count > 0 - creates the unread bar if necessary and
+	// sets unread messages count if bar is not freezed yet
+	void setUnreadBarCount(int count);
+	void destroyUnreadBar();
+
+	// marks the unread bar as freezed so that unread
+	// messages count will not change for this bar
+	// when the new messages arrive in this chat history
+	void setUnreadBarFreezed();
 
 	virtual void draw(
 		Painter &p,
@@ -195,7 +228,7 @@ private:
 	void recountDisplayDateInBlocks();
 
 	// This should be called only from previousInBlocksChanged() or when
-	// HistoryMessageDate or HistoryMessageUnreadBar bit is changed in the Composer mask
+	// HistoryMessageDate or UnreadBar bit is changed in the Composer mask
 	// then the result should be cached in a client side flag MTPDmessage_ClientFlag::f_attach_to_previous.
 	void recountAttachToPreviousInBlocks();
 

@@ -231,7 +231,7 @@ ListWidget::ListWidget(
 	Auth().data().viewResizeRequest(
 	) | rpl::start_with_next([this](auto view) {
 		if (view->delegate() == this) {
-			updateSize();
+			resizeItem(view);
 		}
 	}, lifetime());
 	Auth().data().itemViewRefreshRequest(
@@ -572,24 +572,7 @@ void ListWidget::updateItemsGeometry() {
 		}
 		return count;
 	}();
-	if (first < count) {
-		auto view = _items[first].get();
-		for (auto i = first + 1; i != count; ++i) {
-			const auto next = _items[i].get();
-			if (next->isHiddenByGroup()) {
-				next->setDisplayDate(false);
-			} else {
-				const auto viewDate = view->data()->date;
-				const auto nextDate = next->data()->date;
-				next->setDisplayDate(nextDate.date() != viewDate.date());
-				auto attached = next->computeIsAttachToPrevious(view);
-				next->setAttachToPrevious(attached);
-				view->setAttachToNext(attached);
-				view = next;
-			}
-		}
-	}
-	updateSize();
+	refreshAttachmentsFromTill(first, count);
 }
 
 void ListWidget::updateSize() {
@@ -1452,6 +1435,61 @@ void ListWidget::repaintItem(const Element *view) {
 	update(0, itemTop(view), width(), view->height());
 }
 
+void ListWidget::resizeItem(not_null<Element*> view) {
+	const auto index = ranges::find(_items, view) - begin(_items);
+	if (index < int(_items.size())) {
+		refreshAttachmentsAtIndex(index);
+	}
+}
+
+void ListWidget::refreshAttachmentsAtIndex(int index) {
+	Expects(index >= 0 && index < _items.size());
+
+	const auto from = [&] {
+		if (index > 0) {
+			for (auto i = index - 1; i != 0; --i) {
+				if (!_items[i]->isHiddenByGroup()) {
+					return i;
+				}
+			}
+		}
+		return index;
+	}();
+	const auto till = [&] {
+		for (auto i = index + 1, count = int(_items.size()); i != count; ) {
+			if (!_items[i]->isHiddenByGroup()) {
+				return i + 1;
+			}
+		}
+		return index + 1;
+	}();
+	refreshAttachmentsFromTill(from, till);
+}
+
+void ListWidget::refreshAttachmentsFromTill(int from, int till) {
+	Expects(from >= 0 && from <= till && till <= int(_items.size()));
+
+	if (from == till) {
+		return;
+	}
+	auto view = _items[from].get();
+	for (auto i = from + 1; i != till; ++i) {
+		const auto next = _items[i].get();
+		if (next->isHiddenByGroup()) {
+			next->setDisplayDate(false);
+		} else {
+			const auto viewDate = view->data()->date;
+			const auto nextDate = next->data()->date;
+			next->setDisplayDate(nextDate.date() != viewDate.date());
+			auto attached = next->computeIsAttachToPrevious(view);
+			next->setAttachToPrevious(attached);
+			view->setAttachToNext(attached);
+			view = next;
+		}
+	}
+	updateSize();
+}
+
 void ListWidget::refreshItem(not_null<const Element*> view) {
 	const auto i = ranges::find(_items, view);
 	const auto index = i - begin(_items);
@@ -1467,7 +1505,7 @@ void ListWidget::refreshItem(not_null<const Element*> view) {
 
 		viewReplaced(view, i->second.get());
 
-		updateItemsGeometry();
+		refreshAttachmentsAtIndex(index);
 	}
 }
 

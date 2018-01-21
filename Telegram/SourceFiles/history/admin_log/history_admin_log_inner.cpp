@@ -222,7 +222,7 @@ InnerWidget::InnerWidget(
 	Auth().data().viewResizeRequest(
 	) | rpl::start_with_next([this](auto view) {
 		if (view->delegate() == this) {
-			updateSize();
+			resizeItem(view);
 		}
 	}, lifetime());
 	Auth().data().itemViewRefreshRequest(
@@ -1616,6 +1616,10 @@ void InnerWidget::repaintItem(const Element *view) {
 		return;
 	}
 	update(0, itemTop(view), width(), view->height());
+}
+
+void InnerWidget::resizeItem(not_null<Element*> view) {
+	updateSize();
 }
 
 void InnerWidget::refreshItem(not_null<const Element*> view) {

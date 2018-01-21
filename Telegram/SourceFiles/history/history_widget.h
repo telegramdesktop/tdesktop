@@ -203,7 +203,7 @@ public:
 
 	void newUnreadMsg(History *history, HistoryItem *item);
 	void historyToDown(History *history);
-	void unreadCountChanged(History *history);
+	void unreadCountChanged(not_null<History*> history);
 
 	QRect historyRect() const;
 	void pushTabbedSelectorToThirdSection(
@@ -534,7 +534,6 @@ private:
 	void updateTabbedSelectorToggleTooltipGeometry();
 	void checkTabbedSelectorToggleTooltip();
 
-	bool historyHasNotFreezedUnreadBar(History *history) const;
 	bool canWriteMessage() const;
 	bool isRestrictedWrite() const;
 	void orderWidgets();
@@ -670,9 +669,10 @@ private:
 
 	// Counts scrollTop for placing the scroll right at the unread
 	// messages bar, choosing from _history and _migrated unreadBar.
-	int unreadBarTop() const;
+	base::optional<int> unreadBarTop() const;
 	int itemTopForHighlight(not_null<HistoryView::Element*> view) const;
 	void scrollToCurrentVoiceMessage(FullMsgId fromId, FullMsgId toId);
+	HistoryView::Element *firstUnreadMessage() const;
 
 	// Scroll to current y without updating the _lastUserScrolled time.
 	// Used to distinguish between user scrolls and syntetic scrolls.
