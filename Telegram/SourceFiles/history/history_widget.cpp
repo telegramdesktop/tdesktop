@@ -665,11 +665,9 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 	});
 	Auth().data().viewLayoutChanged(
 	) | rpl::start_with_next([this](auto view) {
-		if (_peer && _list) {
-			if (view == view->data()->mainView()) {
-				if (view->isUnderCursor()) {
-					_list->onUpdateSelected();
-				}
+		if (view == view->data()->mainView()) {
+			if (view->isUnderCursor() && _list) {
+				_list->onUpdateSelected();
 			}
 		}
 	}, lifetime());

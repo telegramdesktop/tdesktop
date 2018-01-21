@@ -200,8 +200,6 @@ public:
 		return _data->loaded();
 	}
 
-	~HistoryPhoto();
-
 protected:
 	float64 dataProgress() const override;
 	bool dataFinished() const override;
@@ -228,20 +226,7 @@ private:
 
 };
 
-class DocumentViewRegister {
-public:
-	DocumentViewRegister(
-		not_null<HistoryView::Element*> parent,
-		not_null<DocumentData*> document);
-	~DocumentViewRegister();
-
-private:
-	not_null<HistoryView::Element*> _savedParent;
-	not_null<DocumentData*> _savedDocument;
-
-};
-
-class HistoryVideo : public HistoryFileMedia, public DocumentViewRegister {
+class HistoryVideo : public HistoryFileMedia {
 public:
 	HistoryVideo(
 		not_null<Element*> parent,
@@ -333,7 +318,6 @@ private:
 
 class HistoryDocument
 	: public HistoryFileMedia
-	, public DocumentViewRegister
 	, public RuntimeComposer<HistoryDocument> {
 public:
 	HistoryDocument(
@@ -415,7 +399,7 @@ private:
 
 };
 
-class HistoryGif : public HistoryFileMedia, public DocumentViewRegister {
+class HistoryGif : public HistoryFileMedia {
 public:
 	HistoryGif(
 		not_null<Element*> parent,
@@ -516,7 +500,7 @@ private:
 
 };
 
-class HistorySticker : public HistoryMedia, public DocumentViewRegister {
+class HistorySticker : public HistoryMedia {
 public:
 	HistorySticker(
 		not_null<Element*> parent,

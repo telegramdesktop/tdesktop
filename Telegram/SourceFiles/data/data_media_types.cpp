@@ -235,6 +235,7 @@ MediaPhoto::MediaPhoto(
 	not_null<PhotoData*> photo)
 : Media(parent)
 , _photo(photo) {
+	Auth().data().registerPhotoItem(_photo, parent);
 }
 
 MediaPhoto::MediaPhoto(
@@ -244,9 +245,11 @@ MediaPhoto::MediaPhoto(
 : Media(parent)
 , _photo(photo)
 , _chat(chat) {
+	Auth().data().registerPhotoItem(_photo, parent);
 }
 
 MediaPhoto::~MediaPhoto() {
+	Auth().data().unregisterPhotoItem(_photo, parent());
 }
 
 std::unique_ptr<Media> MediaPhoto::clone(not_null<HistoryItem*> parent) {

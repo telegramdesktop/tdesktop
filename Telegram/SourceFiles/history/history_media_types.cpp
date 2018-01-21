@@ -245,7 +245,6 @@ HistoryPhoto::HistoryPhoto(
 }
 
 void HistoryPhoto::create(FullMsgId contextId, PeerData *chat) {
-	Auth().data().registerPhotoView(_data, _parent);
 	setLinks(
 		std::make_shared<PhotoOpenClickHandler>(_data, contextId, chat),
 		std::make_shared<PhotoSaveClickHandler>(_data, contextId, chat),
@@ -707,28 +706,11 @@ ImagePtr HistoryPhoto::replyPreview() {
 	return _data->makeReplyPreview();
 }
 
-HistoryPhoto::~HistoryPhoto() {
-	Auth().data().unregisterPhotoView(_data, _parent);
-}
-
-DocumentViewRegister::DocumentViewRegister(
-	not_null<HistoryView::Element*> parent,
-	not_null<DocumentData*> document)
-: _savedParent(parent)
-, _savedDocument(document) {
-	Auth().data().registerDocumentView(_savedDocument, _savedParent);
-}
-
-DocumentViewRegister::~DocumentViewRegister() {
-	Auth().data().unregisterDocumentView(_savedDocument, _savedParent);
-}
-
 HistoryVideo::HistoryVideo(
 	not_null<Element*> parent,
 	not_null<HistoryItem*> realParent,
 	not_null<DocumentData*> document)
 : HistoryFileMedia(parent)
-, DocumentViewRegister(parent, document)
 , _data(document)
 , _thumbw(1)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
@@ -1197,7 +1179,6 @@ HistoryDocument::HistoryDocument(
 	not_null<Element*> parent,
 	not_null<DocumentData*> document)
 : HistoryFileMedia(parent)
-, DocumentViewRegister(parent, document)
 , _data(document) {
 	const auto item = parent->data();
 	auto caption = createCaption(item);
@@ -1934,7 +1915,6 @@ HistoryGif::HistoryGif(
 	not_null<Element*> parent,
 	not_null<DocumentData*> document)
 : HistoryFileMedia(parent)
-, DocumentViewRegister(parent, document)
 , _data(document)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
 	const auto item = parent->data();
@@ -2782,7 +2762,6 @@ HistorySticker::HistorySticker(
 	not_null<Element*> parent,
 	not_null<DocumentData*> document)
 : HistoryMedia(parent)
-, DocumentViewRegister(parent, document)
 , _data(document)
 , _emoji(_data->sticker()->alt) {
 	_data->thumb->load();

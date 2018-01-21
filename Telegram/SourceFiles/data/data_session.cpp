@@ -107,19 +107,19 @@ void Session::animationLoadSettingsChanged() {
 }
 
 void Session::notifyPhotoLayoutChanged(not_null<const PhotoData*> photo) {
-	if (const auto i = _photoViews.find(photo); i != end(_photoViews)) {
-		for (const auto view : i->second) {
-			notifyViewLayoutChange(view);
+	if (const auto i = _photoItems.find(photo); i != end(_photoItems)) {
+		for (const auto item : i->second) {
+			notifyItemLayoutChange(item);
 		}
 	}
 }
 
 void Session::notifyDocumentLayoutChanged(
 		not_null<const DocumentData*> document) {
-	const auto i = _documentViews.find(document);
-	if (i != end(_documentViews)) {
-		for (const auto view : i->second) {
-			notifyViewLayoutChange(view);
+	const auto i = _documentItems.find(document);
+	if (i != end(_documentItems)) {
+		for (const auto item : i->second) {
+			notifyItemLayoutChange(item);
 		}
 	}
 	if (const auto items = InlineBots::Layout::documentItems()) {
@@ -133,10 +133,10 @@ void Session::notifyDocumentLayoutChanged(
 
 void Session::requestDocumentViewRepaint(
 		not_null<const DocumentData*> document) {
-	const auto i = _documentViews.find(document);
-	if (i != end(_documentViews)) {
-		for (const auto view : i->second) {
-			requestViewRepaint(view);
+	const auto i = _documentItems.find(document);
+	if (i != end(_documentItems)) {
+		for (const auto item : i->second) {
+			requestItemRepaint(item);
 		}
 	}
 }
@@ -146,6 +146,17 @@ void Session::markMediaRead(not_null<const DocumentData*> document) {
 	if (i != end(_documentItems)) {
 		_session->api().markMediaRead({ begin(i->second), end(i->second) });
 	}
+}
+
+void Session::notifyItemLayoutChange(not_null<const HistoryItem*> item) {
+	_itemLayoutChanges.fire_copy(item);
+	enumerateItemViews(item, [&](not_null<ViewElement*> view) {
+		notifyViewLayoutChange(view);
+	});
+}
+
+rpl::producer<not_null<const HistoryItem*>> Session::itemLayoutChanged() const {
+	return _itemLayoutChanges.events();
 }
 
 void Session::notifyViewLayoutChange(not_null<const ViewElement*> view) {
@@ -1131,38 +1142,20 @@ void Session::gameApplyFields(
 	notifyGameUpdateDelayed(game);
 }
 
-void Session::registerPhotoView(
+void Session::registerPhotoItem(
 		not_null<const PhotoData*> photo,
-		not_null<ViewElement*> view) {
-	_photoViews[photo].insert(view);
+		not_null<HistoryItem*> item) {
+	_photoItems[photo].insert(item);
 }
 
-void Session::unregisterPhotoView(
+void Session::unregisterPhotoItem(
 		not_null<const PhotoData*> photo,
-		not_null<ViewElement*> view) {
-	const auto i = _photoViews.find(photo);
-	if (i != _photoViews.end()) {
+		not_null<HistoryItem*> item) {
+	const auto i = _photoItems.find(photo);
+	if (i != _photoItems.end()) {
 		auto &items = i->second;
-		if (items.remove(view) && items.empty()) {
-			_photoViews.erase(i);
-		}
-	}
-}
-
-void Session::registerDocumentView(
-		not_null<const DocumentData*> document,
-		not_null<ViewElement*> view) {
-	_documentViews[document].insert(view);
-}
-
-void Session::unregisterDocumentView(
-		not_null<const DocumentData*> document,
-		not_null<ViewElement*> view) {
-	const auto i = _documentViews.find(document);
-	if (i != _documentViews.end()) {
-		auto &items = i->second;
-		if (items.remove(view) && items.empty()) {
-			_documentViews.erase(i);
+		if (items.remove(item) && items.empty()) {
+			_photoItems.erase(i);
 		}
 	}
 }

@@ -50,12 +50,7 @@ Float::Float(
 
 	prepareShadow();
 
-	rpl::merge(
-		//Auth().data().viewLayoutChanged( // #TODO not needed?
-		//) | rpl::map(
-		//	[](auto view) { return view->data(); }
-		//),
-		Auth().data().itemRepaintRequest()
+	Auth().data().itemRepaintRequest(
 	) | rpl::start_with_next([this](auto item) {
 		if (_item == item) {
 			repaintItem();

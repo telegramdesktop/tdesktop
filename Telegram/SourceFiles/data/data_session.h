@@ -60,6 +60,8 @@ public:
 	};
 	void notifyItemIdChange(IdChange event);
 	rpl::producer<IdChange> itemIdChanged() const;
+	void notifyItemLayoutChange(not_null<const HistoryItem*> item);
+	rpl::producer<not_null<const HistoryItem*>> itemLayoutChanged() const;
 	void notifyViewLayoutChange(not_null<const ViewElement*> view);
 	rpl::producer<not_null<const ViewElement*>> viewLayoutChanged() const;
 	void requestItemRepaint(not_null<const HistoryItem*> item);
@@ -273,18 +275,12 @@ public:
 		not_null<GameData*> original,
 		const MTPGame &data);
 
-	void registerPhotoView(
+	void registerPhotoItem(
 		not_null<const PhotoData*> photo,
-		not_null<ViewElement*> view);
-	void unregisterPhotoView(
+		not_null<HistoryItem*> item);
+	void unregisterPhotoItem(
 		not_null<const PhotoData*> photo,
-		not_null<ViewElement*> view);
-	void registerDocumentView(
-		not_null<const DocumentData*> document,
-		not_null<ViewElement*> view);
-	void unregisterDocumentView(
-		not_null<const DocumentData*> document,
-		not_null<ViewElement*> view);
+		not_null<HistoryItem*> item);
 	void registerDocumentItem(
 		not_null<const DocumentData*> document,
 		not_null<HistoryItem*> item);
@@ -439,6 +435,7 @@ private:
 	base::Observable<void> _moreChatsLoaded;
 	base::Observable<ItemVisibilityQuery> _queryItemVisibility;
 	rpl::event_stream<IdChange> _itemIdChanges;
+	rpl::event_stream<not_null<const HistoryItem*>> _itemLayoutChanges;
 	rpl::event_stream<not_null<const ViewElement*>> _viewLayoutChanges;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemRepaintRequest;
 	rpl::event_stream<not_null<const ViewElement*>> _viewRepaintRequest;
@@ -473,16 +470,13 @@ private:
 		std::unique_ptr<PhotoData>> _photos;
 	std::map<
 		not_null<const PhotoData*>,
-		base::flat_set<not_null<ViewElement*>>> _photoViews;
+		base::flat_set<not_null<HistoryItem*>>> _photoItems;
 	std::unordered_map<
 		DocumentId,
 		std::unique_ptr<DocumentData>> _documents;
 	std::map<
 		not_null<const DocumentData*>,
 		base::flat_set<not_null<HistoryItem*>>> _documentItems;
-	std::map<
-		not_null<const DocumentData*>,
-		base::flat_set<not_null<ViewElement*>>> _documentViews;
 	std::unordered_map<
 		WebPageId,
 		std::unique_ptr<WebPageData>> _webpages;

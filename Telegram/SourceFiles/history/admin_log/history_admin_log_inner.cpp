@@ -231,6 +231,14 @@ InnerWidget::InnerWidget(
 			refreshItem(view);
 		}
 	}, lifetime());
+	Auth().data().viewLayoutChanged(
+	) | rpl::start_with_next([this](auto view) {
+		if (view->delegate() == this) {
+			if (view->isUnderCursor()) {
+				updateSelected();
+			}
+		}
+	}, lifetime());
 	Auth().data().animationPlayInlineRequest(
 	) | rpl::start_with_next([this](auto item) {
 		if (const auto view = viewForItem(item)) {
