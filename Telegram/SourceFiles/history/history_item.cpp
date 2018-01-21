@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_upload.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
+#include "storage/storage_feed_messages.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "media/media_audio.h"
@@ -319,6 +320,13 @@ void HistoryItem::indexAsNewItem() {
 				history()->peer->id,
 				types,
 				id));
+		}
+		if (const auto channel = history()->peer->asChannel()) {
+			if (const auto feed = channel->feed()) {
+				Auth().storage().add(Storage::FeedMessagesAddNew(
+					feed->id(),
+					position()));
+			}
 		}
 	}
 }
@@ -743,7 +751,7 @@ void HistoryItem::drawInDialog(
 }
 
 HistoryItem::~HistoryItem() {
-	Auth().data().groups().unregisterMessage(this);
+	Auth().data().notifyItemRemoved(this);
 	App::historyUnregItem(this);
 	if (id < 0 && !App::quitting()) {
 		Auth().uploader().cancel(fullId());

@@ -235,6 +235,7 @@ rpl::producer<not_null<const HistoryItem*>> Session::itemPlayInlineRequest() con
 
 void Session::notifyItemRemoved(not_null<const HistoryItem*> item) {
 	_itemRemoved.fire_copy(item);
+	groups().unregisterMessage(item);
 }
 
 rpl::producer<not_null<const HistoryItem*>> Session::itemRemoved() const {

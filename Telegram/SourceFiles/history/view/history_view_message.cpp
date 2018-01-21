@@ -1552,9 +1552,7 @@ int Message::resizeContentGetHeight(int newWidth) {
 	accumulate_min(contentWidth, maxWidth());
 	accumulate_min(contentWidth, st::msgMaxWidth);
 	if (mediaDisplayed) {
-		media->resizeGetHeight(bubble
-			? std::min(contentWidth, maxWidth())
-			: contentWidth);
+		media->resizeGetHeight(contentWidth);
 		if (media->width() < contentWidth) {
 			const auto textualWidth = plainMaxWidth();
 			if (media->width() < textualWidth) {
@@ -1577,7 +1575,6 @@ int Message::resizeContentGetHeight(int newWidth) {
 
 		if (contentWidth == maxWidth()) {
 			if (mediaDisplayed) {
-				media->resizeGetHeight(contentWidth);
 				if (entry) {
 					newHeight += entry->resizeGetHeight(contentWidth);
 				}
@@ -1606,7 +1603,7 @@ int Message::resizeContentGetHeight(int newWidth) {
 				if (entry) newHeight += st::mediaInBubbleSkip;
 			}
 			if (mediaDisplayed) {
-				newHeight += media->resizeGetHeight(contentWidth);
+				newHeight += media->height();
 				if (entry) {
 					newHeight += entry->resizeGetHeight(contentWidth);
 				}
@@ -1632,8 +1629,8 @@ int Message::resizeContentGetHeight(int newWidth) {
 			reply->resize(contentWidth - st::msgPadding.left() - st::msgPadding.right());
 			newHeight += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		}
-	} else if (media && media->isDisplayed()) {
-		newHeight = media->resizeGetHeight(contentWidth);
+	} else if (mediaDisplayed) {
+		newHeight = media->height();
 	} else {
 		newHeight = 0;
 	}

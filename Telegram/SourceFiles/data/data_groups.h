@@ -24,7 +24,7 @@ public:
 
 	bool isGrouped(not_null<HistoryItem*> item) const;
 	void registerMessage(not_null<HistoryItem*> item);
-	void unregisterMessage(not_null<HistoryItem*> item);
+	void unregisterMessage(not_null<const HistoryItem*> item);
 	void refreshMessage(not_null<HistoryItem*> item);
 
 	const Group *find(not_null<HistoryItem*> item) const;

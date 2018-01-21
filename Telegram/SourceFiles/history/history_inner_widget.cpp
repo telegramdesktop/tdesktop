@@ -2789,7 +2789,7 @@ bool HistoryInner::hasPendingResizedItems() const {
 void HistoryInner::deleteAsGroup(FullMsgId itemId) {
 	if (const auto item = App::histItemById(itemId)) {
 		const auto group = Auth().data().groups().find(item);
-		if (!group || group->items.size() < 2) {
+		if (!group) {
 			return deleteItem(item);
 		}
 		Ui::show(Box<DeleteMessagesBox>(

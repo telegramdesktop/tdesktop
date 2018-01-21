@@ -247,6 +247,10 @@ ListWidget::ListWidget(
 			}
 		}
 	}, lifetime());
+	Auth().data().itemRemoved(
+	) | rpl::start_with_next(
+		[this](auto item) { itemRemoved(item); },
+		lifetime());
 	subscribe(Auth().data().queryItemVisibility(), [this](const Data::Session::ItemVisibilityQuery &query) {
 		if (const auto view = viewForItem(query.item)) {
 			const auto top = itemTop(view);
@@ -1421,7 +1425,44 @@ void ListWidget::repaintItem(const Element *view) {
 }
 
 void ListWidget::refreshItem(not_null<const Element*> view) {
-	// #TODO
+	const auto i = ranges::find(_items, view);
+	const auto index = i - begin(_items);
+	if (index < int(_items.size())) {
+		const auto item = view->data();
+		_views.erase(item);
+		const auto [i, ok] = _views.emplace(
+			item,
+			item->createView(_delegate));
+		const auto was = view;
+		const auto now = i->second.get();
+		_items[index] = now;
+
+		viewReplaced(view, i->second.get());
+
+		updateItemsGeometry();
+	}
+}
+
+void ListWidget::viewReplaced(not_null<const Element*> was, Element *now) {
+	if (_visibleTopItem == was) _visibleTopItem = now;
+	if (_scrollDateLastItem == was) _scrollDateLastItem = now;
+	if (_mouseActionItem == was) _mouseActionItem = now;
+	if (_selectedItem == was) _selectedItem = now;
+}
+
+void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
+	const auto i = _views.find(item);
+	if (i == end(_views)) {
+		return;
+	}
+	const auto view = i->second.get();
+	_items.erase(
+		ranges::remove(_items, view, [](auto view) { return view.get(); }),
+		end(_items));
+	viewReplaced(view, nullptr);
+	_views.erase(i);
+
+	updateItemsGeometry();
 }
 
 QPoint ListWidget::mapPointToItem(

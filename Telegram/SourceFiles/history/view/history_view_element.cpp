@@ -168,7 +168,9 @@ void Element::refreshMedia() {
 				_media = std::make_unique<HistoryGroupedMedia>(
 					this,
 					group->items);
-				Auth().data().requestViewResize(this);
+				if (!pendingResize()) {
+					Auth().data().requestViewResize(this);
+				}
 			}
 			return;
 		}

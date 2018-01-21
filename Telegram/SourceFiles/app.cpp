@@ -1274,11 +1274,6 @@ namespace {
 			}
 		}
 		Auth().notifications().clearFromItem(item);
-		if (Global::started()
-			&& !App::quitting()
-			&& AuthSession::Exists()) {
-			Auth().data().notifyItemRemoved(item);
-		}
 	}
 
 	void historyUpdateDependent(not_null<HistoryItem*> item) {

@@ -156,6 +156,7 @@ private:
 	int itemTop(not_null<const Element*> view) const;
 	void repaintItem(const Element *view);
 	void refreshItem(not_null<const Element*> view);
+	void itemRemoved(not_null<const HistoryItem*> item);
 	QPoint mapPointToItem(QPoint point, const Element *view) const;
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
@@ -177,6 +178,7 @@ private:
 	not_null<Element*> findItemByY(int y) const;
 	Element *strictFindItemByY(int y) const;
 	int findNearestItem(Data::MessagePosition position) const;
+	void viewReplaced(not_null<const Element*> was, Element *now);
 
 	void checkMoveToOtherViewer();
 	void updateVisibleTopItem();

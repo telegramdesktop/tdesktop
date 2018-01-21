@@ -36,7 +36,7 @@ void Groups::registerMessage(not_null<HistoryItem*> item) {
 	}
 }
 
-void Groups::unregisterMessage(not_null<HistoryItem*> item) {
+void Groups::unregisterMessage(not_null<const HistoryItem*> item) {
 	const auto groupId = item->groupId();
 	if (!groupId) {
 		return;
@@ -115,7 +115,13 @@ const Group *Groups::find(not_null<HistoryItem*> item) const {
 		return nullptr;
 	}
 	const auto i = _groups.find(groupId);
-	return (i != _groups.end()) ? &i->second : nullptr;
+	if (i != _groups.end()) {
+		const auto &result = i->second;
+		if (result.items.size() > 1) {
+			return &result;
+		}
+	}
+	return nullptr;
 }
 
 void Groups::refreshViews(const HistoryItemsList &items) {
