@@ -210,7 +210,11 @@ InnerWidget::InnerWidget(
 , _channel(channel)
 , _history(App::history(channel))
 , _scrollDateCheck([this] { scrollDateCheck(); })
-, _emptyText(st::historyAdminLogEmptyWidth - st::historyAdminLogEmptyPadding.left() - st::historyAdminLogEmptyPadding.left()) {
+, _emptyText(
+	st::historyAdminLogEmptyWidth
+	- st::historyAdminLogEmptyPadding.left()
+	- st::historyAdminLogEmptyPadding.left())
+, _idManager(_history->adminLogIdManager()) {
 	setMouseTracking(true);
 	_scrollDateHideTimer.setCallback([this] { scrollDateHideByTimer(); });
 	Auth().data().viewRepaintRequest(
@@ -511,7 +515,9 @@ void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 void InnerWidget::restoreState(not_null<SectionMemento*> memento) {
 	_items = memento->takeItems();
 	_itemsByIds = memento->takeItemsByIds();
-	_idManager = memento->takeIdManager();
+	if (auto manager = memento->takeIdManager()) {
+		_idManager = std::move(manager);
+	}
 	_admins = memento->takeAdmins();
 	_adminsCanEdit = memento->takeAdminsCanEdit();
 	_filter = memento->takeFilter();
@@ -601,7 +607,7 @@ void InnerWidget::addEvents(Direction direction, const QVector<MTPChannelAdminLo
 		GenerateItems(
 			this,
 			_history,
-			_idManager,
+			_idManager.get(),
 			data,
 			addOne);
 		if (count > 1) {
@@ -805,7 +811,8 @@ void InnerWidget::clearAfterFilterChange() {
 	_filterChanged = false;
 	_items.clear();
 	_itemsByIds.clear();
-	_idManager = LocalIdManager();
+	_idManager = nullptr;
+	_idManager = _history->adminLogIdManager();
 	updateEmptyText();
 	updateSize();
 }

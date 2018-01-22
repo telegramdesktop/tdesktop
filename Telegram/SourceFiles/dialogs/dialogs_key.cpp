@@ -35,4 +35,11 @@ Data::Feed *Key::feed() const {
 	return nullptr;
 }
 
+PeerData *Key::peer() const {
+	if (const auto p = base::get_if<not_null<History*>>(&_value)) {
+		return (*p)->peer;
+	}
+	return nullptr;
+}
+
 } // namespace Dialogs

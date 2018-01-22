@@ -134,8 +134,6 @@ public:
 		const Dialogs::RowDescriptor &which) const;
 
 	PeerData *peer();
-	PeerData *activePeer();
-	MsgId activeMsgId();
 
 	int backgroundFromY() const;
 	void showSection(
@@ -200,7 +198,9 @@ public:
 		const QVector<MTPint> &ids,
 		bool forEveryone);
 	void deletedContact(UserData *user, const MTPcontacts_Link &result);
-	void deleteConversation(PeerData *peer, bool deleteHistory = true);
+	void deleteConversation(
+		not_null<PeerData*> peer,
+		bool deleteHistory = true);
 	void deleteAndExit(ChatData *chat);
 	void deleteAllFromUser(ChannelData *channel, UserData *from);
 
@@ -357,8 +357,6 @@ public slots:
 	void updateOnline(bool gotOtherOffline = false);
 	void checkIdleFinish();
 
-	void onHistoryShown(History *history, MsgId atMsgId);
-
 	void searchInPeer(PeerData *peer);
 
 	void onUpdateNotifySettings();
@@ -425,12 +423,12 @@ private:
 	void updateMediaPlaylistPosition(int x);
 	void updateControlsGeometry();
 	void updateDialogsWidthAnimated();
-	void updateThirdColumnToCurrentPeer(
-		PeerData *peer,
+	void updateThirdColumnToCurrentChat(
+		Dialogs::Key key,
 		bool canWrite);
 	[[nodiscard]] bool saveThirdSectionToStackBack() const;
-	[[nodiscard]] auto thirdSectionForCurrentMainSection(
-		not_null<PeerData*> peer) -> std::unique_ptr<Window::SectionMemento>;
+	[[nodiscard]] auto thirdSectionForCurrentMainSection(Dialogs::Key key)
+		-> std::unique_ptr<Window::SectionMemento>;
 	void userIsContactUpdated(not_null<UserData*> user);
 
 	void createPlayer();
@@ -438,11 +436,6 @@ private:
 	void switchToFixedPlayer();
 	void closeBothPlayers();
 	void playerHeightUpdated();
-
-	void updateCurrentChatListEntry();
-	void setEntryInStack(not_null<History*> history, MsgId msgId);
-	void clearEntryInStack();
-	void setEntryInStackValues(History *history, MsgId msgId);
 
 	void setCurrentCall(Calls::Call *call);
 	void createCallTopBar();
@@ -588,8 +581,6 @@ private:
 	QPointer<ConfirmBox> _forwardConfirm; // for single column layout
 	object_ptr<HistoryHider> _hider = { nullptr };
 	std::vector<std::unique_ptr<StackItem>> _stack;
-	History *_historyInStack = nullptr;
-	MsgId _msgIdInStack = 0;
 
 	int _playerHeight = 0;
 	int _callTopBarHeight = 0;

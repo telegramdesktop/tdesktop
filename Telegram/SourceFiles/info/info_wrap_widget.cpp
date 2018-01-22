@@ -104,15 +104,23 @@ void WrapWidget::startInjectingActivePeerProfiles() {
 	using namespace rpl::mappers;
 	rpl::combine(
 		_wrap.value(),
-		_controller->parentController()->activePeer.value()
+		_controller->parentController()->activeChatValue()
 	) | rpl::filter(
-		(_1 == Wrap::Side) && (_2 != nullptr)
+		(_1 == Wrap::Side) && _2
 	) | rpl::map(
 		_2
-	) | rpl::start_with_next([this](not_null<PeerData*> peer) {
-		injectActivePeerProfile(peer);
+	) | rpl::start_with_next([this](Dialogs::Key key) {
+		injectActiveProfile(key);
 	}, lifetime());
 
+}
+
+void WrapWidget::injectActiveProfile(Dialogs::Key key) {
+	if (const auto peer = key.peer()) {
+		injectActivePeerProfile(peer);
+	} else if (const auto feed = key.feed()) {
+		// #TODO feed profile
+	}
 }
 
 void WrapWidget::injectActivePeerProfile(not_null<PeerData*> peer) {
@@ -167,6 +175,10 @@ std::unique_ptr<Controller> WrapWidget::createController(
 
 not_null<PeerData*> WrapWidget::peer() const {
 	return _controller->peer();
+}
+
+Dialogs::RowDescriptor WrapWidget::activeChat() const {
+	return Dialogs::RowDescriptor(App::history(peer()), MsgId(0));
 }
 
 // This was done for tabs support.

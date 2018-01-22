@@ -20,7 +20,7 @@ class LocalIdManager;
 void GenerateItems(
 	not_null<HistoryView::ElementDelegate*> delegate,
 	not_null<History*> history,
-	LocalIdManager &idManager,
+	not_null<LocalIdManager*> idManager,
 	const MTPDchannelAdminLogEvent &event,
 	base::lambda<void(OwnedItem item)> callback);
 

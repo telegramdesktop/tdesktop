@@ -108,7 +108,10 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 	}, lifetime());
 	subscribe(App::histories().sendActionAnimationUpdated(), [this](const Histories::SendActionAnimationUpdate &update) {
 		auto updateRect = Dialogs::Layout::RowPainter::sendActionAnimationRect(update.width, update.height, getFullWidth(), update.textUpdated);
-		updateDialogRow(update.history, MsgId(0), updateRect, UpdateRowSection::Default | UpdateRowSection::Filtered);
+		updateDialogRow(
+			Dialogs::RowDescriptor(update.history, MsgId(0)),
+			updateRect,
+			UpdateRowSection::Default | UpdateRowSection::Filtered);
 	});
 
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &data) {
@@ -140,6 +143,15 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 		}
 	}));
 
+	_controller->activeChatEntryValue(
+	) | rpl::combine_previous(
+	) | rpl::start_with_next([=](
+			Dialogs::RowDescriptor previous,
+			Dialogs::RowDescriptor next) {
+		const auto rect = QRect(0, 0, getFullWidth(), st::dialogsRowHeight);
+		updateDialogRow(previous, rect);
+		updateDialogRow(next, rect);
+	}, lifetime());
 	refresh();
 }
 
@@ -181,6 +193,7 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 	if (!paintingOther) {
 		p.setClipRect(r);
 	}
+	const auto activeEntry = _controller->activeChatEntryCurrent();
 	auto fullWidth = getFullWidth();
 	auto ms = getms();
 	if (_state == State::Default) {
@@ -195,15 +208,7 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 			p.translate(0, st::dialogsImportantBarHeight);
 		}
 		auto otherStart = rows->size() * st::dialogsRowHeight;
-		// #TODO feeds show
-		const auto active = [&] {
-			if (const auto peer = App::main()->activePeer()) {
-				if (const auto history = App::historyLoaded(peer)) {
-					return Dialogs::Key(history);
-				}
-			}
-			return Dialogs::Key();
-		}();
+		const auto active = activeEntry.key;
 		const auto selected = _menuKey
 			? _menuKey
 			: (isPressed()
@@ -238,7 +243,14 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 
 					// Skip currently dragged chat to paint it above others after.
 					if (lastPaintedPos != _aboveIndex) {
-						paintDialog(p, row, fullWidth, active, selected, paintingOther, ms);
+						paintDialog(
+							p,
+							row,
+							fullWidth,
+							active,
+							selected,
+							paintingOther,
+							ms);
 					}
 
 					p.translate(0, st::dialogsRowHeight);
@@ -318,19 +330,11 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 			auto to = ceilclamp(r.y() + r.height() - skip, st::dialogsRowHeight, 0, _filterResults.size());
 			p.translate(0, from * st::dialogsRowHeight);
 			if (from < _filterResults.size()) {
-				// #TODO feeds show
-				const auto activePeer = App::main()->activePeer();
-				const auto activeMsgId = App::main()->activeMsgId();
 				for (; from < to; ++from) {
 					const auto row = _filterResults[from];
 					const auto key = row->key();
-					const auto history = key.history();
-					const auto peer = history ? history->peer.get() : nullptr;
-					const auto active = !activeMsgId
-						&& peer
-						&& activePeer
-						&& ((peer == activePeer)
-							|| (peer->migrateTo() == activePeer));
+					const auto active = (activeEntry.key == key)
+						&& !activeEntry.msgId;
 					const auto selected = _menuKey
 						? (key == _menuKey)
 						: (from == (isPressed()
@@ -363,12 +367,11 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 			auto to = ceilclamp(r.y() + r.height() - skip, st::dialogsRowHeight, 0, _peerSearchResults.size());
 			p.translate(0, from * st::dialogsRowHeight);
 			if (from < _peerSearchResults.size()) {
-				auto activePeer = App::main()->activePeer();
-				auto activeMsgId = App::main()->activeMsgId();
+				const auto activePeer = activeEntry.key.peer();
 				for (; from < to; ++from) {
 					const auto &result = _peerSearchResults[from];
 					const auto peer = result->peer;
-					const auto active = !activeMsgId
+					const auto active = !activeEntry.msgId
 						&& activePeer
 						&& ((peer == activePeer)
 							|| (peer->migrateTo() == activePeer));
@@ -414,21 +417,27 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 			auto to = ceilclamp(r.y() + r.height() - skip, st::dialogsRowHeight, 0, _searchResults.size());
 			p.translate(0, from * st::dialogsRowHeight);
 			if (from < _searchResults.size()) {
-				auto activePeer = App::main()->activePeer();
-				auto activeMsgId = App::main()->activeMsgId();
+				const auto activePeer = activeEntry.key.peer();
 				for (; from < to; ++from) {
 					const auto &result = _searchResults[from];
 					const auto item = result->item();
 					const auto peer = item->history()->peer;
 					const auto active = (peer == activePeer
-							&& item->id == activeMsgId)
+							&& item->id == activeEntry.msgId)
 						|| (peer->migrateTo()
 							&& peer->migrateTo() == activePeer
-							&& item->id == -activeMsgId);
+							&& item->id == -activeEntry.msgId);
 					const auto selected = (from == (isPressed()
 						? _searchedPressed
 						: _searchedSelected));
-					Dialogs::Layout::RowPainter::paint(p, result.get(), fullWidth, active, selected, paintingOther, ms);
+					Dialogs::Layout::RowPainter::paint(
+						p,
+						result.get(),
+						fullWidth,
+						active,
+						selected,
+						paintingOther,
+						ms);
 					p.translate(0, st::dialogsRowHeight);
 				}
 			}
@@ -1243,8 +1252,7 @@ void DialogsInner::dlgUpdated(
 
 void DialogsInner::dlgUpdated(not_null<History*> history, MsgId msgId) {
 	updateDialogRow(
-		history,
-		msgId,
+		Dialogs::RowDescriptor(history, msgId),
 		QRect(0, 0, getFullWidth(), st::dialogsRowHeight));
 }
 
@@ -1264,17 +1272,20 @@ void DialogsInner::updateSearchResult(not_null<PeerData*> peer) {
 }
 
 void DialogsInner::updateDialogRow(
-		not_null<History*> history,
-		MsgId msgId,
+		Dialogs::RowDescriptor row,
 		QRect updateRect,
 		UpdateRowSections sections) {
-	auto updateRow = [this, updateRect](int rowTop) {
-		rtlupdate(updateRect.x(), rowTop + updateRect.y(), updateRect.width(), updateRect.height());
+	auto updateRow = [&](int rowTop) {
+		rtlupdate(
+			updateRect.x(),
+			rowTop + updateRect.y(),
+			updateRect.width(),
+			updateRect.height());
 	};
 	if (_state == State::Default) {
 		if (sections & UpdateRowSection::Default) {
-			if (const auto row = shownDialogs()->getRow(history)) {
-				auto position = row->pos();
+			if (const auto dialog = shownDialogs()->getRow(row.key)) {
+				const auto position = dialog->pos();
 				auto top = dialogsOffset();
 				if (base::in_range(position, 0, _pinnedRows.size())) {
 					top += qRound(_pinnedRows[position].yadd.current());
@@ -1283,35 +1294,46 @@ void DialogsInner::updateDialogRow(
 			}
 		}
 	} else if (_state == State::Filtered) {
-		if ((sections & UpdateRowSection::Filtered) && !_filterResults.isEmpty()) {
-			auto index = 0, add = filteredOffset();
-			for_const (auto row, _filterResults) {
-				if (row->history() == history) {
+		if ((sections & UpdateRowSection::Filtered)
+			&& !_filterResults.isEmpty()) {
+			const auto add = filteredOffset();
+			auto index = 0;
+			for (const auto result : _filterResults) {
+				if (result->key() == row.key) {
 					updateRow(add + index * st::dialogsRowHeight);
 					break;
 				}
 				++index;
 			}
 		}
-		if ((sections & UpdateRowSection::PeerSearch) && !_peerSearchResults.empty()) {
-			auto index = 0, add = peerSearchOffset();
-			for_const (auto &result, _peerSearchResults) {
-				if (result->peer == history->peer) {
-					updateRow(add + index * st::dialogsRowHeight);
-					break;
+		if ((sections & UpdateRowSection::PeerSearch)
+			&& !_peerSearchResults.empty()) {
+			if (const auto peer = row.key.peer()) {
+				const auto add = peerSearchOffset();
+				auto index = 0;
+				for (const auto &result : _peerSearchResults) {
+					if (result->peer == peer) {
+						updateRow(add + index * st::dialogsRowHeight);
+						break;
+					}
+					++index;
 				}
-				++index;
 			}
 		}
-		if ((sections & UpdateRowSection::MessageSearch) && !_searchResults.empty()) {
-			auto index = 0, add = searchedOffset();
-			for_const (auto &result, _searchResults) {
-				auto item = result->item();
-				if (item->history() == history && item->id == msgId) {
-					updateRow(add + index * st::dialogsRowHeight);
-					break;
+		if ((sections & UpdateRowSection::MessageSearch)
+			&& !_searchResults.empty()) {
+			if (const auto history = row.key.history()) {
+				const auto add = searchedOffset();
+				auto index = 0;
+				for (const auto &result : _searchResults) {
+					auto item = result->item();
+					if (item->history() == history
+						&& item->id == row.msgId) {
+						updateRow(add + index * st::dialogsRowHeight);
+						break;
+					}
+					++index;
 				}
-				++index;
 			}
 		}
 	}

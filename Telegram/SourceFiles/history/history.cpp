@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 
 #include "history/view/history_view_element.h"
+#include "history/admin_log/history_admin_log_section.h"
 #include "history/history_message.h"
 #include "history/history_media_types.h"
 #include "history/history_service.h"
@@ -1922,6 +1923,15 @@ void History::getNextFirstUnreadMessage() {
 		}
 	}
 	_firstUnreadView = nullptr;
+}
+
+std::shared_ptr<AdminLog::LocalIdManager> History::adminLogIdManager() {
+	if (const auto strong = _adminLogIdManager.lock()) {
+		return strong;
+	}
+	auto result = std::make_shared<AdminLog::LocalIdManager>();
+	_adminLogIdManager = result;
+	return result;
 }
 
 QDateTime History::adjustChatListDate() const {

@@ -223,7 +223,6 @@ MainWidget::MainWidget(
 	connect(&_byPtsTimer, SIGNAL(timeout()), this, SLOT(onGetDifferenceTimeByPts()));
 	connect(&_byMinChannelTimer, SIGNAL(timeout()), this, SLOT(getDifference()));
 	connect(&_failDifferenceTimer, SIGNAL(timeout()), this, SLOT(onGetDifferenceTimeAfterFail()));
-	connect(_history, SIGNAL(historyShown(History*,MsgId)), this, SLOT(onHistoryShown(History*,MsgId)));
 	connect(&updateNotifySettingTimer, SIGNAL(timeout()), this, SLOT(onUpdateNotifySettings()));
 	subscribe(Media::Player::Updated(), [this](const AudioMsgId &audioId) {
 		if (audioId.type() != AudioMsgId::Type::Video) {
@@ -250,15 +249,16 @@ MainWidget::MainWidget(
 	});
 
 	using namespace rpl::mappers;
-	_controller->activePeer.value(
-	) | rpl::map([](PeerData *peer) {
+	_controller->activeChatValue(
+	) | rpl::map([](Dialogs::Key key) {
+		const auto peer = key.peer();
 		auto canWrite = peer
 			? Data::CanWriteValue(peer)
 			: rpl::single(false);
-		return std::move(canWrite) | rpl::map(tuple(peer, _1));
+		return std::move(canWrite) | rpl::map(tuple(key, _1));
 	}) | rpl::flatten_latest(
-	) | rpl::start_with_next([this](PeerData *peer, bool canWrite) {
-		updateThirdColumnToCurrentPeer(peer, canWrite);
+	) | rpl::start_with_next([this](Dialogs::Key key, bool canWrite) {
+		updateThirdColumnToCurrentChat(key, canWrite);
 	}, lifetime());
 
 	QCoreApplication::instance()->installEventFilter(this);
@@ -813,7 +813,6 @@ void MainWidget::noHider(HistoryHider *destroyed) {
 				_forwardConfirm->closeBox();
 				_forwardConfirm = nullptr;
 			}
-			onHistoryShown(_history->history(), _history->msgId());
 			if (_mainSection || (_history->peer() && _history->peer()->id)) {
 				auto animationParams = ([this] {
 					if (_mainSection) {
@@ -851,7 +850,6 @@ void MainWidget::hiderLayer(object_ptr<HistoryHider> h) {
 		_hider->hide();
 		auto animationParams = prepareDialogsAnimation();
 
-		onHistoryShown(nullptr, 0);
 		if (_mainSection) {
 			_mainSection->hide();
 		} else {
@@ -1039,11 +1037,13 @@ void MainWidget::removeDialog(Dialogs::Key key) {
 	_dialogs->removeDialog(key);
 }
 
-void MainWidget::deleteConversation(PeerData *peer, bool deleteHistory) {
-	if (activePeer() == peer) {
+void MainWidget::deleteConversation(
+		not_null<PeerData*> peer,
+		bool deleteHistory) {
+	if (_controller->activeChatCurrent().peer() == peer) {
 		Ui::showChatsList();
 	}
-	if (auto history = App::historyLoaded(peer->id)) {
+	if (const auto history = App::historyLoaded(peer->id)) {
 		Auth().data().setPinnedDialog(history, false);
 		removeDialog(history);
 		if (peer->isMegagroup() && peer->asChannel()->mgInfo->migrateFromPtr) {
@@ -2163,7 +2163,7 @@ void MainWidget::ui_showPeerHistory(
 		}
 	}
 
-	auto wasActivePeer = activePeer();
+	const auto wasActivePeer = _controller->activeChatCurrent().peer();
 	if (params.activation != anim::activation::background) {
 		Ui::hideSettingsAndLayer();
 	}
@@ -2200,9 +2200,7 @@ void MainWidget::ui_showPeerHistory(
 
 	auto animationParams = animatedShow() ? prepareHistoryAnimation(peerId) : Window::SectionSlideParams();
 
-	if (back || (way == Way::ClearStack)) {
-		clearEntryInStack();
-	} else {
+	if (!back && (way != Way::ClearStack)) {
 		// This may modify the current section, for example remove its contents.
 		saveSectionInStack();
 	}
@@ -2232,14 +2230,17 @@ void MainWidget::ui_showPeerHistory(
 			}
 		}
 	} else {
-		if (!noPeer && wasActivePeer != activePeer()) {
-			if (activePeer()->isChannel()) {
-				activePeer()->asChannel()->ptsWaitingForShortPoll(
+		const auto nowActivePeer = _controller->activeChatCurrent().peer();
+		if (nowActivePeer && nowActivePeer != wasActivePeer) {
+			if (const auto channel = nowActivePeer->asChannel()) {
+				channel->ptsWaitingForShortPoll(
 					WaitForChannelGetDifference);
 			}
-			_viewsIncremented.remove(activePeer());
+			_viewsIncremented.remove(nowActivePeer);
 		}
-		if (Adaptive::OneColumn() && !_dialogs->isHidden()) _dialogs->hide();
+		if (Adaptive::OneColumn() && !_dialogs->isHidden()) {
+			_dialogs->hide();
+		}
 		if (!_a_show.animating()) {
 			if (!animationParams.oldContentCache.isNull()) {
 				_history->showAnimated(
@@ -2255,9 +2256,6 @@ void MainWidget::ui_showPeerHistory(
 			}
 		}
 	}
-	//if (wasActivePeer && wasActivePeer->isChannel() && activePeer() != wasActivePeer) {
-	//	wasActivePeer->asChannel()->ptsWaitingForShortPoll(false);
-	//}
 
 	if (!_dialogs->isHidden()) {
 		if (!back) {
@@ -2268,8 +2266,8 @@ void MainWidget::ui_showPeerHistory(
 		_dialogs->update();
 	}
 
-	if (!peerId) {
-		_controller->activePeer = nullptr;
+	if (noPeer) {
+		_controller->setActiveChatEntry(Dialogs::Key());
 	}
 
 	checkFloatPlayerVisibility();
@@ -2299,34 +2297,6 @@ PeerData *MainWidget::peer() {
 	return _history->peer();
 }
 
-PeerData *MainWidget::activePeer() {
-	if (const auto history = _history->history()) {
-		return history->peer;
-	} else if (_historyInStack) {
-		return _historyInStack->peer;
-	}
-	return nullptr;
-}
-
-MsgId MainWidget::activeMsgId() {
-	return _history->peer() ? _history->msgId() : _msgIdInStack;
-}
-
-void MainWidget::setEntryInStack(not_null<History*> history, MsgId msgId) {
-	setEntryInStackValues(history, msgId);
-}
-
-void MainWidget::clearEntryInStack() {
-	setEntryInStackValues(nullptr, 0);
-}
-
-void MainWidget::setEntryInStackValues(History *history, MsgId msgId) {
-	updateCurrentChatListEntry();
-	_historyInStack = history;
-	_msgIdInStack = msgId;
-	updateCurrentChatListEntry();
-}
-
 void MainWidget::saveSectionInStack() {
 	if (_mainSection) {
 		if (auto memento = _mainSection->createMemento()) {
@@ -2335,10 +2305,9 @@ void MainWidget::saveSectionInStack() {
 			_stack.back()->setThirdSectionWeak(_thirdSection.data());
 		}
 	} else if (const auto history = _history->history()) {
-		setEntryInStack(history, _history->msgId());
 		_stack.push_back(std::make_unique<StackItemHistory>(
-			_historyInStack,
-			_msgIdInStack,
+			history,
+			_history->msgId(),
 			_history->replyReturns()));
 		_stack.back()->setThirdSectionWeak(_thirdSection.data());
 	}
@@ -2618,7 +2587,9 @@ void MainWidget::showNewSection(
 	}
 
 	if (settingSection.data() == _mainSection.data()) {
-		_controller->activePeer = _mainSection->activePeer();
+		if (const auto entry = _mainSection->activeChat(); entry.key) {
+			_controller->setActiveChatEntry(entry);
+		}
 	}
 
 	checkFloatPlayerVisibility();
@@ -2666,7 +2637,9 @@ void MainWidget::showBackFromStack(
 	if (selectingPeer()) return;
 	if (_stack.empty()) {
 		_controller->clearSectionStack(params);
-		if (App::wnd()) QTimer::singleShot(0, App::wnd(), SLOT(setInnerFocus()));
+		if (App::wnd()) {
+			QTimer::singleShot(0, App::wnd(), SLOT(setInnerFocus()));
+		}
 		return;
 	}
 	auto item = std::move(_stack.back());
@@ -2676,14 +2649,6 @@ void MainWidget::showBackFromStack(
 	}
 	_thirdSectionFromStack = item->takeThirdSectionMemento();
 	if (item->type() == HistoryStackItem) {
-		clearEntryInStack();
-		for (auto i = _stack.size(); i > 0;) {
-			if (_stack[--i]->type() == HistoryStackItem) {
-				auto historyItem = static_cast<StackItemHistory*>(_stack[i].get());
-				setEntryInStack(historyItem->history, historyItem->msgId);
-				break;
-			}
-		}
 		auto historyItem = static_cast<StackItemHistory*>(item.get());
 		_controller->showPeerHistory(
 			historyItem->peer()->id,
@@ -2804,12 +2769,6 @@ QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 		}
 	}
 	return result;
-}
-
-void MainWidget::updateCurrentChatListEntry() {
-	if (_historyInStack) {
-		_dialogs->dlgUpdated(_historyInStack, _msgIdInStack);
-	}
 }
 
 void MainWidget::dlgUpdated(
@@ -3248,18 +3207,23 @@ bool MainWidget::saveThirdSectionToStackBack() const {
 }
 
 auto MainWidget::thirdSectionForCurrentMainSection(
-	not_null<PeerData*> peer)
+	Dialogs::Key key)
 -> std::unique_ptr<Window::SectionMemento> {
 	if (_thirdSectionFromStack) {
 		return std::move(_thirdSectionFromStack);
+	} else if (const auto peer = key.peer()) {
+		return std::make_unique<Info::Memento>(
+			peer->id,
+			Info::Memento::DefaultSection(peer));
+	} else {
+		return std::make_unique<Info::Memento>(
+			App::self()->id,
+			Info::Memento::DefaultSection(App::self()));
 	}
-	return std::make_unique<Info::Memento>(
-		peer->id,
-		Info::Memento::DefaultSection(peer));
 }
 
-void MainWidget::updateThirdColumnToCurrentPeer(
-		PeerData *peer,
+void MainWidget::updateThirdColumnToCurrentChat(
+		Dialogs::Key key,
 		bool canWrite) {
 	auto saveOldThirdSection = [&] {
 		if (saveThirdSectionToStackBack()) {
@@ -3285,7 +3249,7 @@ void MainWidget::updateThirdColumnToCurrentPeer(
 		}
 
 		_controller->showSection(
-			std::move(*thirdSectionForCurrentMainSection(peer)),
+			std::move(*thirdSectionForCurrentMainSection(key)),
 			params.withThirdColumn());
 	};
 	auto switchTabbedFast = [&] {
@@ -3294,7 +3258,7 @@ void MainWidget::updateThirdColumnToCurrentPeer(
 	};
 	if (Adaptive::ThreeColumn()
 		&& Auth().settings().tabbedSelectorSectionEnabled()
-		&& peer) {
+		&& key) {
 		if (!canWrite) {
 			switchInfoFast();
 			Auth().settings().setTabbedSelectorSectionEnabled(true);
@@ -3305,7 +3269,7 @@ void MainWidget::updateThirdColumnToCurrentPeer(
 		}
 	} else {
 		Auth().settings().setTabbedReplacedWithInfo(false);
-		if (!peer) {
+		if (!key) {
 			if (_thirdSection) {
 				_thirdSection.destroy();
 				_thirdShadow.destroy();
@@ -3447,13 +3411,6 @@ void MainWidget::updateWindowAdaptiveLayout() {
 
 int MainWidget::backgroundFromY() const {
 	return -getMainSectionTop();
-}
-
-void MainWidget::onHistoryShown(History *history, MsgId atMsgId) {
-//	updateControlsGeometry();
-	if (history) {
-		dlgUpdated(history, atMsgId);
-	}
 }
 
 void MainWidget::searchInPeer(PeerData *peer) {
@@ -3626,7 +3583,7 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 	if (!isFinal) {
 		MTP_LOG(0, ("getChannelDifference { good - after not final channelDifference was received }%1").arg(cTestMode() ? " TESTMODE" : ""));
 		getChannelDifference(channel);
-	} else if (activePeer() == channel) {
+	} else if (_controller->activeChatCurrent().peer() == channel) {
 		channel->ptsWaitingForShortPoll(timeout ? (timeout * 1000) : WaitForChannelGetDifference);
 	}
 }

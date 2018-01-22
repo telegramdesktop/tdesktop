@@ -207,8 +207,7 @@ private:
 
 	void updateSearchResult(not_null<PeerData*> peer);
 	void updateDialogRow(
-		not_null<History*> history,
-		MsgId msgId,
+		Dialogs::RowDescriptor row,
 		QRect updateRect,
 		UpdateRowSections sections = UpdateRowSection::All);
 

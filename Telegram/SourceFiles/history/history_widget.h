@@ -367,7 +367,6 @@ protected:
 
 signals:
 	void cancelled();
-	void historyShown(History *history, MsgId atMsgId);
 
 public slots:
 	void onCancel();

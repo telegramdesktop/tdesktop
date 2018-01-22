@@ -401,6 +401,35 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 		REQUIRE(*sum == "0-11-22-3");
 	}
 
+	SECTION("combine_previous test") {
+		auto sum = std::make_shared<std::string>("");
+		{
+			rpl::lifetime lifetime;
+			event_stream<int> a;
+
+			a.events(
+			) | combine_previous(
+			) | start_with_next([=](int previous, int next) {
+				*sum += std::to_string(previous) + ' ';
+				*sum += std::to_string(next) + ' ';
+			}, lifetime);
+
+			a.events(
+			) | combine_previous(
+				5
+			) | start_with_next([=](int previous, int next) {
+				*sum += std::to_string(10 + previous) + ' ';
+				*sum += std::to_string(next) + ' ';
+			}, lifetime);
+
+			a.fire(1);
+			a.fire(2);
+			a.fire(3);
+			a.fire(4);
+		}
+		REQUIRE(*sum == "15 1 1 2 11 2 2 3 12 3 3 4 13 4 ");
+	}
+
 	SECTION("take test") {
 		auto sum = std::make_shared<std::string>("");
 		{

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <rpl/variable.h>
 #include "base/flags.h"
+#include "dialogs/dialogs_key.h"
 
 class MainWidget;
 class HistoryMessage;
@@ -118,8 +119,14 @@ public:
 	// Also used in the Info::Profile to toggle Send Message button.
 	rpl::variable<PeerData*> historyPeer;
 
-	// This is used for auto-switch in third column Info::Profile.
-	rpl::variable<PeerData*> activePeer;
+	void setActiveChatEntry(Dialogs::RowDescriptor row);
+	void setActiveChatEntry(Dialogs::Key key);
+	Dialogs::RowDescriptor activeChatEntryCurrent() const;
+	Dialogs::Key activeChatCurrent() const;
+	rpl::producer<Dialogs::RowDescriptor> activeChatEntryChanges() const;
+	rpl::producer<Dialogs::Key> activeChatChanges() const;
+	rpl::producer<Dialogs::RowDescriptor> activeChatEntryValue() const;
+	rpl::producer<Dialogs::Key> activeChatValue() const;
 
 	void enableGifPauseReason(GifPauseReason reason);
 	void disableGifPauseReason(GifPauseReason reason);
@@ -237,6 +244,7 @@ private:
 	base::Observable<void> _gifPauseLevelChanged;
 	base::Observable<void> _floatPlayerAreaUpdated;
 
+	rpl::variable<Dialogs::RowDescriptor> _activeChatEntry;
 	base::Variable<bool> _dialogsListFocused = { false };
 	base::Variable<bool> _dialogsListDisplayForced = { false };
 

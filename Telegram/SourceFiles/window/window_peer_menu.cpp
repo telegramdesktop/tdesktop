@@ -158,7 +158,7 @@ Filler::Filler(
 bool Filler::showInfo() {
 	if (_source == PeerMenuSource::Profile || _peer->isSelf()) {
 		return false;
-	} else if (_controller->activePeer.current() != _peer) {
+	} else if (_controller->activeChatCurrent().peer() != _peer) {
 		return true;
 	} else if (!Adaptive::ThreeColumn()) {
 		return true;
@@ -626,14 +626,15 @@ base::lambda<void()> DeleteAndLeaveHandler(not_null<PeerData*> peer) {
 			: st::attentionBoxButton;
 		auto callback = [peer] {
 			Ui::hideLayer();
-			if (App::wnd()->controller()->activePeer.current() == peer) {
+			const auto controller = App::wnd()->controller();
+			if (controller->activeChatCurrent().peer() == peer) {
 				Ui::showChatsList();
 			}
 			if (peer->isUser()) {
 				App::main()->deleteConversation(peer);
-			} else if (auto chat = peer->asChat()) {
+			} else if (const auto chat = peer->asChat()) {
 				App::main()->deleteAndExit(chat);
-			} else if (auto channel = peer->asChannel()) {
+			} else if (const auto channel = peer->asChannel()) {
 				// Don't delete old history by default,
 				// because Android app doesn't.
 				//

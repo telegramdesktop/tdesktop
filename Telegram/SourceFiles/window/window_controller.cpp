@@ -36,6 +36,46 @@ Controller::Controller(not_null<MainWindow*> window)
 	}, lifetime());
 }
 
+void Controller::setActiveChatEntry(Dialogs::RowDescriptor row) {
+	_activeChatEntry = row;
+}
+
+void Controller::setActiveChatEntry(Dialogs::Key key) {
+	setActiveChatEntry({ key, MsgId(0) });
+}
+
+Dialogs::RowDescriptor Controller::activeChatEntryCurrent() const {
+	return _activeChatEntry.current();
+}
+
+Dialogs::Key Controller::activeChatCurrent() const {
+	return activeChatEntryCurrent().key;
+}
+
+auto Controller::activeChatEntryChanges() const
+-> rpl::producer<Dialogs::RowDescriptor> {
+	return _activeChatEntry.changes();
+}
+
+rpl::producer<Dialogs::Key> Controller::activeChatChanges() const {
+	return activeChatEntryChanges(
+	) | rpl::map([](const Dialogs::RowDescriptor &value) {
+		return value.key;
+	}) | rpl::distinct_until_changed();
+}
+
+auto Controller::activeChatEntryValue() const
+-> rpl::producer<Dialogs::RowDescriptor> {
+	return _activeChatEntry.value();
+}
+
+rpl::producer<Dialogs::Key> Controller::activeChatValue() const {
+	return activeChatEntryValue(
+	) | rpl::map([](const Dialogs::RowDescriptor &value) {
+		return value.key;
+	}) | rpl::distinct_until_changed();
+}
+
 void Controller::enableGifPauseReason(GifPauseReason reason) {
 	if (!(_gifPauseReasons & reason)) {
 		auto notify = (static_cast<int>(_gifPauseReasons) < static_cast<int>(reason));

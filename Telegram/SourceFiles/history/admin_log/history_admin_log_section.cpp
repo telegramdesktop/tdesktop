@@ -279,6 +279,10 @@ not_null<ChannelData*> Widget::channel() const {
 	return _inner->channel();
 }
 
+Dialogs::RowDescriptor Widget::activeChat() const {
+	return { App::history(channel()), MsgId(0) };
+}
+
 QPixmap Widget::grabForShowAnimation(const Window::SectionSlideParams &params) {
 	if (params.withTopBarShadow) _fixedBarShadow->hide();
 	auto result = Ui::GrabWidget(this);

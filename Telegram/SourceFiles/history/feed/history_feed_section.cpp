@@ -93,6 +93,10 @@ Widget::Widget(
 	}, lifetime());
 }
 
+Dialogs::RowDescriptor Widget::activeChat() const {
+	return Dialogs::RowDescriptor(_feed, MsgId(0));
+}
+
 void Widget::updateAdaptiveLayout() {
 	_topBarShadow->moveToLeft(
 		Adaptive::OneColumn() ? 0 : st::lineWidth,

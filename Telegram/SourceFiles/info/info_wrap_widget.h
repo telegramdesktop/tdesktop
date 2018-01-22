@@ -78,9 +78,7 @@ public:
 		not_null<Memento*> memento);
 
 	not_null<PeerData*> peer() const;
-	PeerData *activePeer() const override {
-		return peer();
-	}
+	Dialogs::RowDescriptor activeChat() const override;
 	Wrap wrap() const {
 		return _wrap.current();
 	}
@@ -140,6 +138,7 @@ private:
 	struct StackItem;
 
 	void startInjectingActivePeerProfiles();
+	void injectActiveProfile(Dialogs::Key key);
 	void injectActivePeerProfile(not_null<PeerData*> peer);
 	void restoreHistoryStack(
 		std::vector<std::unique_ptr<ContentMemento>> stack);

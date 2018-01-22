@@ -37,6 +37,7 @@ public:
 	not_null<Entry*> entry() const;
 	History *history() const;
 	Data::Feed *feed() const;
+	PeerData *peer() const;
 
 	inline bool operator<(const Key &other) const {
 		return _value < other._value;
@@ -80,6 +81,36 @@ struct RowDescriptor {
 
 	Key key;
 	MsgId msgId = 0;
+
 };
+
+inline bool operator==(const RowDescriptor &a, const RowDescriptor &b) {
+	return (a.key == b.key) && (a.msgId == b.msgId);
+}
+
+inline bool operator!=(const RowDescriptor &a, const RowDescriptor &b) {
+	return !(a == b);
+}
+
+inline bool operator<(const RowDescriptor &a, const RowDescriptor &b) {
+	if (a.key < b.key) {
+		return true;
+	} else if (a.key > b.key) {
+		return false;
+	}
+	return a.msgId < b.msgId;
+}
+
+inline bool operator>(const RowDescriptor &a, const RowDescriptor &b) {
+	return (b < a);
+}
+
+inline bool operator<=(const RowDescriptor &a, const RowDescriptor &b) {
+	return !(b < a);
+}
+
+inline bool operator>=(const RowDescriptor &a, const RowDescriptor &b) {
+	return !(a < b);
+}
 
 } // namespace Dialogs

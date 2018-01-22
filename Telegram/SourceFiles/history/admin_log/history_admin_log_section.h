@@ -52,12 +52,6 @@ public:
 	LocalIdManager() = default;
 	LocalIdManager(const LocalIdManager &other) = delete;
 	LocalIdManager &operator=(const LocalIdManager &other) = delete;
-	LocalIdManager(LocalIdManager &&other) : _counter(std::exchange(other._counter, ServerMaxMsgId)) {
-	}
-	LocalIdManager &operator=(LocalIdManager &&other) {
-		_counter = std::exchange(other._counter, ServerMaxMsgId);
-		return *this;
-	}
 	MsgId next() {
 		return ++_counter;
 	}
@@ -72,9 +66,7 @@ public:
 	Widget(QWidget *parent, not_null<Window::Controller*> controller, not_null<ChannelData*> channel);
 
 	not_null<ChannelData*> channel() const;
-	PeerData *activePeer() const override {
-		return channel();
-	}
+	Dialogs::RowDescriptor activeChat() const override;
 
 	bool hasTopBarShadow() const override {
 		return true;
@@ -173,7 +165,7 @@ public:
 	void setSearchQuery(QString &&query) {
 		_searchQuery = std::move(query);
 	}
-	void setIdManager(LocalIdManager &&manager) {
+	void setIdManager(std::shared_ptr<LocalIdManager> &&manager) {
 		_idManager = std::move(manager);
 	}
 	std::vector<OwnedItem> takeItems() {
@@ -182,7 +174,7 @@ public:
 	std::map<uint64, not_null<Element*>> takeItemsByIds() {
 		return std::move(_itemsByIds);
 	}
-	LocalIdManager takeIdManager() {
+	std::shared_ptr<LocalIdManager> takeIdManager() {
 		return std::move(_idManager);
 	}
 	bool upLoaded() const {
@@ -207,7 +199,7 @@ private:
 	std::map<uint64, not_null<Element*>> _itemsByIds;
 	bool _upLoaded = false;
 	bool _downLoaded = true;
-	LocalIdManager _idManager;
+	std::shared_ptr<LocalIdManager> _idManager;
 	FilterValue _filter;
 	QString _searchQuery;
 

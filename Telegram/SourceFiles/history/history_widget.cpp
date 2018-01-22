@@ -1371,7 +1371,9 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, U
 			return true;
 		}
 	} else if (auto bot = _peer ? _peer->asUser() : nullptr) {
-		PeerId toPeerId = bot->botInfo ? bot->botInfo->inlineReturnPeerId : 0;
+		const auto toPeerId = bot->botInfo
+			? bot->botInfo->inlineReturnPeerId
+			: PeerId(0);
 		if (!toPeerId) {
 			return false;
 		}
@@ -1620,11 +1622,6 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 			bool canShowNow = _history->isReadyFor(showAtMsgId);
 			if (!canShowNow) {
 				delayedShowAt(showAtMsgId);
-
-				if (wasHistory) {
-					App::main()->dlgUpdated(wasHistory, wasMsgId);
-				}
-				emit historyShown(_history, _showAtMsgId);
 			} else {
 				_history->forgetScrollState();
 				if (_migrated) {
@@ -1655,12 +1652,18 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 			_topBar->update();
 			update();
 
-			if (startBot && _peer->isUser() && _peer->asUser()->botInfo) {
-				if (wasHistory) _peer->asUser()->botInfo->inlineReturnPeerId = wasHistory->peer->id;
-				onBotStart();
-				_history->clearLocalDraft();
-				applyDraft();
-				_send->finishAnimating();
+			if (const auto user = _peer->asUser()) {
+				if (const auto &info = user->botInfo) {
+					if (startBot) {
+						if (wasHistory) {
+							info->inlineReturnPeerId = wasHistory->peer->id;
+						}
+						onBotStart();
+						_history->clearLocalDraft();
+						applyDraft();
+						_send->finishAnimating();
+					}
+				}
 			}
 			return;
 		}
@@ -1802,9 +1805,15 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 		connect(_scroll, SIGNAL(geometryChanged()), _list, SLOT(onParentGeometryChanged()));
 
-		if (startBot && _peer->isUser() && _peer->asUser()->botInfo) {
-			if (wasHistory) _peer->asUser()->botInfo->inlineReturnPeerId = wasHistory->peer->id;
-			onBotStart();
+		if (const auto user = _peer->asUser()) {
+			if (const auto &info = user->botInfo) {
+				if (startBot) {
+					if (wasHistory) {
+						info->inlineReturnPeerId = wasHistory->peer->id;
+					}
+					onBotStart();
+				}
+			}
 		}
 		unreadCountChanged(_history); // set _historyDown badge.
 	} else {
@@ -1815,16 +1824,11 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	updateForwarding();
 	updateOverStates(mapFromGlobal(QCursor::pos()));
 
-	if (App::wnd()) QTimer::singleShot(0, App::wnd(), SLOT(setInnerFocus()));
-
-	if (wasHistory) {
-		App::main()->dlgUpdated(wasHistory, wasMsgId);
-	}
-	emit historyShown(_history, _showAtMsgId);
+	crl::on_main(App::wnd(), [] { App::wnd()->setInnerFocus(); });
 
 	controller()->historyPeer = _peer;
-	if (_peer) {
-		controller()->activePeer = _peer;
+	if (_history) {
+		controller()->setActiveChatEntry({ _history, _showAtMsgId });
 	}
 	update();
 }
@@ -3038,9 +3042,8 @@ void HistoryWidget::setMsgId(MsgId showAtMsgId) {
 		auto wasMsgId = _showAtMsgId;
 		_showAtMsgId = showAtMsgId;
 		if (_history) {
-			App::main()->dlgUpdated(_history, wasMsgId);
+			controller()->setActiveChatEntry({ _history, _showAtMsgId });
 		}
-		emit historyShown(_history, _showAtMsgId);
 	}
 }
 

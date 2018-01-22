@@ -198,7 +198,6 @@ private:
 	int _itemsWidth = 0;
 	int _itemsHeight = 0;
 
-	LocalIdManager _idManager;
 	int _minHeight = 0;
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
@@ -250,6 +249,8 @@ private:
 	std::vector<not_null<UserData*>> _admins;
 	std::vector<not_null<UserData*>> _adminsCanEdit;
 	base::lambda<void(FilterValue &&filter)> _showFilterCallback;
+
+	std::shared_ptr<LocalIdManager> _idManager;
 
 };
 

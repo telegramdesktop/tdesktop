@@ -26,7 +26,7 @@ public:
 			>();
 			return std::move(initial).start(
 				[consumer, previous](auto &&value) {
-					if (auto exists = *previous) {
+					if (auto &exists = *previous) {
 						auto &existing = *exists;
 						auto next = std::make_tuple(
 							std::move(existing),

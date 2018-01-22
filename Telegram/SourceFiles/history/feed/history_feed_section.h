@@ -36,6 +36,8 @@ public:
 		not_null<Window::Controller*> controller,
 		not_null<Data::Feed*> feed);
 
+	Dialogs::RowDescriptor activeChat() const override;
+
 	bool hasTopBarShadow() const override {
 		return true;
 	}

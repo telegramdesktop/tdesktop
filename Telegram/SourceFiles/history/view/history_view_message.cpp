@@ -1304,6 +1304,9 @@ bool Message::hasBubble() const {
 }
 
 bool Message::hasFastReply() const {
+	if (context() != Context::History) {
+		return false;
+	}
 	const auto peer = data()->history()->peer;
 	return !hasOutLayout() && (peer->isChat() || peer->isMegagroup());
 }
@@ -1491,22 +1494,23 @@ TextSelection Message::unskipTextSelection(TextSelection selection) const {
 
 QRect Message::countGeometry() const {
 	const auto item = message();
+	const auto media = this->media();
+	const auto mediaWidth = media ? media->width() : width();
 	const auto outbg = hasOutLayout();
+	const auto availableWidth = width()
+		- st::msgMargin.left()
+		- st::msgMargin.right();
 	auto contentLeft = (outbg && !Adaptive::ChatWide())
 		? st::msgMargin.right()
 		: st::msgMargin.left();
+	auto contentWidth = availableWidth;
 	if (hasFromPhoto()) {
 		contentLeft += st::msgPhotoSkip;
+		if (displayRightAction()) {
+			contentWidth -= st::msgPhotoSkip;
+		}
 	//} else if (!Adaptive::Wide() && !out() && !fromChannel() && st::msgPhotoSkip - (hmaxwidth - hwidth) > 0) {
 	//	contentLeft += st::msgPhotoSkip - (hmaxwidth - hwidth);
-	}
-
-	const auto media = this->media();
-	const auto mediaWidth = media ? media->width() : width();
-	const auto availableWidth = width() - st::msgMargin.left() - st::msgMargin.right();
-	auto contentWidth = availableWidth;
-	if (item->history()->peer->isSelf() && !outbg) {
-		contentWidth -= st::msgPhotoSkip;
 	}
 	accumulate_min(contentWidth, maxWidth());
 	accumulate_min(contentWidth, st::msgMaxWidth);
@@ -1546,7 +1550,7 @@ int Message::resizeContentGetHeight(int newWidth) {
 
 	// This code duplicates countGeometry() but also resizes media.
 	auto contentWidth = newWidth - (st::msgMargin.left() + st::msgMargin.right());
-	if (item->history()->peer->isSelf() && !hasOutLayout()) {
+	if (hasFromPhoto() && displayRightAction()) {
 		contentWidth -= st::msgPhotoSkip;
 	}
 	accumulate_min(contentWidth, maxWidth());

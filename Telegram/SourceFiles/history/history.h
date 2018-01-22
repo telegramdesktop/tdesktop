@@ -19,15 +19,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 
+namespace HistoryView {
+class Element;
+} // namespace HistoryView
+
+namespace AdminLog {
+class LocalIdManager;
+} // namespace AdminLog
+
 enum NewMessageType : char {
 	NewMessageUnread,
 	NewMessageLast,
 	NewMessageExisting,
 };
-
-namespace HistoryView {
-class Element;
-} // namespace HistoryView
 
 class Histories {
 public:
@@ -331,6 +335,8 @@ public:
 	// of the displayed window relative to the history start coordinate
 	void countScrollState(int top);
 
+	std::shared_ptr<AdminLog::LocalIdManager> adminLogIdManager();
+
 	virtual ~History();
 
 	// Still public data.
@@ -502,6 +508,8 @@ private:
 	QMap<SendAction::Type, TimeMs> _mySendActions;
 
 	int _pinnedIndex = 0; // > 0 for pinned dialogs
+
+	std::weak_ptr<AdminLog::LocalIdManager> _adminLogIdManager;
 
  };
 
