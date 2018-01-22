@@ -53,6 +53,16 @@ public:
 	HistoryItem *chatsListItem() const override {
 		return _lastMessage;
 	}
+	const QString &chatsListName() const override {
+		return _name;
+	}
+	const base::flat_set<QString> &chatsListNameWords() const override {
+		return _nameWords;
+	}
+	const base::flat_set<QChar> &chatsListFirstLetters() const override {
+		return _nameFirstLetters;
+	}
+
 	void loadUserpic() override;
 	void paintUserpic(
 		Painter &p,
@@ -61,12 +71,16 @@ public:
 		int size) const override;
 
 private:
+	void indexNameParts();
 	void recountLastMessage();
 	bool justSetLastMessage(not_null<HistoryItem*> item);
 
 	FeedId _id = 0;
 	std::vector<not_null<History*>> _channels;
 
+	QString _name;
+	base::flat_set<QString> _nameWords;
+	base::flat_set<QChar> _nameFirstLetters;
 	HistoryItem *_lastMessage = nullptr;
 
 	rpl::variable<MessagePosition> _unreadPosition;

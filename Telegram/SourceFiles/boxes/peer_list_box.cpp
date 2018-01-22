@@ -629,16 +629,16 @@ void PeerListContent::addToSearchIndex(not_null<PeerListRow*> row) {
 	}
 
 	removeFromSearchIndex(row);
-	row->setNameFirstChars(row->peer()->nameFirstChars());
-	for (auto ch : row->nameFirstChars()) {
+	row->setNameFirstLetters(row->peer()->nameFirstLetters());
+	for (auto ch : row->nameFirstLetters()) {
 		_searchIndex[ch].push_back(row);
 	}
 }
 
 void PeerListContent::removeFromSearchIndex(not_null<PeerListRow*> row) {
-	auto &nameFirstChars = row->nameFirstChars();
-	if (!nameFirstChars.empty()) {
-		for (auto ch : row->nameFirstChars()) {
+	const auto &nameFirstLetters = row->nameFirstLetters();
+	if (!nameFirstLetters.empty()) {
+		for (auto ch : row->nameFirstLetters()) {
 			auto it = _searchIndex.find(ch);
 			if (it != _searchIndex.cend()) {
 				auto &entry = it->second;
@@ -648,7 +648,7 @@ void PeerListContent::removeFromSearchIndex(not_null<PeerListRow*> row) {
 				}
 			}
 		}
-		row->setNameFirstChars({});
+		row->setNameFirstLetters({});
 	}
 }
 

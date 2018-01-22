@@ -183,7 +183,7 @@ private:
 	}
 	void handlePeerNameChange(
 		not_null<PeerData*> peer,
-		const PeerData::NameFirstChars &oldChars);
+		const base::flat_set<QChar> &oldLetters);
 
 	void applyDialog(const MTPDdialog &dialog);
 	void applyFeedDialog(const MTPDdialogFeed &dialog);

@@ -127,7 +127,7 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 			stopReorderPinned();
 		}
 		if (update.flags & UpdateFlag::NameChanged) {
-			handlePeerNameChange(update.peer, update.oldNameFirstChars);
+			handlePeerNameChange(update.peer, update.oldNameFirstLetters);
 		}
 		if (update.flags & UpdateFlag::PhotoChanged) {
 			this->update();
@@ -1457,13 +1457,18 @@ void DialogsInner::onParentGeometryChanged() {
 	}
 }
 
-void DialogsInner::handlePeerNameChange(not_null<PeerData*> peer, const PeerData::NameFirstChars &oldChars) {
-	_dialogs->peerNameChanged(Dialogs::Mode::All, peer, oldChars);
+void DialogsInner::handlePeerNameChange(
+		not_null<PeerData*> peer,
+		const base::flat_set<QChar> &oldLetters) {
+	_dialogs->peerNameChanged(Dialogs::Mode::All, peer, oldLetters);
 	if (_dialogsImportant) {
-		_dialogsImportant->peerNameChanged(Dialogs::Mode::Important, peer, oldChars);
+		_dialogsImportant->peerNameChanged(
+			Dialogs::Mode::Important,
+			peer,
+			oldLetters);
 	}
-	_contactsNoDialogs->peerNameChanged(peer, oldChars);
-	_contacts->peerNameChanged(peer, oldChars);
+	_contactsNoDialogs->peerNameChanged(peer, oldLetters);
+	_contacts->peerNameChanged(peer, oldLetters);
 	update();
 }
 
@@ -1513,10 +1518,8 @@ void DialogsInner::onFilterUpdate(QString newFilter, bool force) {
 				_filterResults.reserve((toFilter ? toFilter->size() : 0)
 					+ (toFilterContacts ? toFilterContacts->size() : 0));
 				if (toFilter) {
-					for_const (auto row, *toFilter) {
-						if (!row->history()) continue;
-						// #TODO feeds name
-						const auto &nameWords = row->history()->peer->nameWords();
+					for (const auto row : *toFilter) {
+						const auto &nameWords = row->entry()->chatsListNameWords();
 						auto nb = nameWords.cbegin(), ne = nameWords.cend(), ni = nb;
 						for (fi = fb; fi != fe; ++fi) {
 							auto filterWord = *fi;
@@ -1535,10 +1538,8 @@ void DialogsInner::onFilterUpdate(QString newFilter, bool force) {
 					}
 				}
 				if (toFilterContacts) {
-					for_const (auto row, *toFilterContacts) {
-						if (!row->history()) continue;
-						// #TODO feeds name
-						const auto &nameWords = row->history()->peer->nameWords();
+					for (const auto row : *toFilterContacts) {
+						const auto &nameWords = row->entry()->chatsListNameWords();
 						auto nb = nameWords.cbegin(), ne = nameWords.cend(), ni = nb;
 						for (fi = fb; fi != fe; ++fi) {
 							auto filterWord = *fi;

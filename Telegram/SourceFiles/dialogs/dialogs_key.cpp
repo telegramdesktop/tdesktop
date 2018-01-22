@@ -12,31 +12,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Dialogs {
 
-const QString &Key::name() const {
-	if (const auto h = history()) {
-		return h->peer->name;
-	}
-	// #TODO feeds name
-	static const auto empty = QString();
-	return empty;
-}
-
-const PeerData::NameFirstChars &Key::nameFirstChars() const {
-	if (const auto h = history()) {
-		return h->peer->nameFirstChars();
-	}
-	// #TODO feeds name
-	static const auto empty = PeerData::NameFirstChars();
-	return empty;
-}
-
 not_null<Entry*> Key::entry() const {
 	if (const auto p = base::get_if<not_null<History*>>(&_value)) {
 		return *p;
 	} else if (const auto p = base::get_if<not_null<Data::Feed*>>(&_value)) {
 		return *p;
 	}
-	Unexpected("Dialogs entry() call on empty Key.");
+	Unexpected("Empty Dialogs::Key in Key::entry().");
 }
 
 History *Key::history() const {

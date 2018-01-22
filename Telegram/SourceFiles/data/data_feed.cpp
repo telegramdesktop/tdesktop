@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "lang/lang_keys.h"
 
 namespace Data {
 
@@ -24,7 +25,35 @@ MessagePosition FeedPositionFromMTP(const MTPFeedPosition &position) {
 
 Feed::Feed(FeedId id)
 : Entry(this)
-, _id(id) {
+, _id(id)
+, _name(lang(lng_feed_name)) {
+	indexNameParts();
+}
+
+void Feed::indexNameParts() {
+	_nameWords.clear();
+	_nameFirstLetters.clear();
+	auto toIndexList = QStringList();
+	auto appendToIndex = [&](const QString &value) {
+		if (!value.isEmpty()) {
+			toIndexList.push_back(TextUtilities::RemoveAccents(value));
+		}
+	};
+
+	appendToIndex(_name);
+	const auto appendTranslit = !toIndexList.isEmpty()
+		&& cRussianLetters().match(toIndexList.front()).hasMatch();
+	if (appendTranslit) {
+		appendToIndex(translitRusEng(toIndexList.front()));
+	}
+	auto toIndex = toIndexList.join(' ');
+	toIndex += ' ' + rusKeyboardLayoutSwitch(toIndex);
+
+	const auto namesList = TextUtilities::PrepareSearchWords(toIndex);
+	for (const auto &name : namesList) {
+		_nameWords.insert(name);
+		_nameFirstLetters.insert(name[0]);
+	}
 }
 
 void Feed::registerOne(not_null<ChannelData*> channel) {

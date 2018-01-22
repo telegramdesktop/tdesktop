@@ -38,9 +38,6 @@ public:
 	History *history() const;
 	Data::Feed *feed() const;
 
-	const QString &name() const;
-	const PeerData::NameFirstChars &nameFirstChars() const;
-
 	inline bool operator<(const Key &other) const {
 		return _value < other._value;
 	}

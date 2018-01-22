@@ -29,13 +29,13 @@ public:
 	// For sortMode != SortMode::Date
 	void peerNameChanged(
 		not_null<PeerData*> peer,
-		const PeerData::NameFirstChars &oldChars);
+		const base::flat_set<QChar> &oldChars);
 
 	//For sortMode == SortMode::Date
 	void peerNameChanged(
 		Mode list,
 		not_null<PeerData*> peer,
-		const PeerData::NameFirstChars &oldChars);
+		const base::flat_set<QChar> &oldChars);
 
 	void del(Key key, Row *replacedBy = nullptr);
 	void clear();
@@ -77,11 +77,11 @@ public:
 private:
 	void adjustByName(
 		Key key,
-		const PeerData::NameFirstChars &oldChars);
+		const base::flat_set<QChar> &oldChars);
 	void adjustNames(
 		Mode list,
 		not_null<History*> history,
-		const PeerData::NameFirstChars &oldChars);
+		const base::flat_set<QChar> &oldChars);
 
 	SortMode _sortMode;
 	List _list, _empty;

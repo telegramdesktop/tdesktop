@@ -1935,11 +1935,12 @@ void AddParticipantBoxSearchController::addChatsContacts() {
 			return;
 		}
 
-		for_const (auto row, *list) {
-			// #TODO feeds list
-			if (auto user = row->history()->peer->asUser()) {
-				if (allWordsAreFound(user->nameWords())) {
-					delegate()->peerListSearchAddRow(user);
+		for (const auto row : *list) {
+			if (const auto history = row->history()) {
+				if (const auto user = history->peer->asUser()) {
+					if (allWordsAreFound(user->nameWords())) {
+						delegate()->peerListSearchAddRow(user);
+					}
 				}
 			}
 		}

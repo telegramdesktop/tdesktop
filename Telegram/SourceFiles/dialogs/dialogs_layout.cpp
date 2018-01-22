@@ -228,9 +228,8 @@ void paintRow(
 		}
 		from->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 	} else {
-		// TODO feeds name
 		p.setFont(st::msgNameFont);
-		auto text = QString("Feed");
+		auto text = entry->chatsListName(); // TODO feed name with emoji
 		auto textWidth = st::msgNameFont->width(text);
 		if (textWidth > rectForName.width()) {
 			text = st::msgNameFont->elided(text, rectForName.width());

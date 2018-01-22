@@ -73,6 +73,9 @@ public:
 	virtual int chatListUnreadCount() const = 0;
 	virtual bool chatListMutedBadge() const = 0;
 	virtual HistoryItem *chatsListItem() const = 0;
+	virtual const QString &chatsListName() const = 0;
+	virtual const base::flat_set<QString> &chatsListNameWords() const = 0;
+	virtual const base::flat_set<QChar> &chatsListFirstLetters() const = 0;
 
 	virtual void loadUserpic() = 0;
 	virtual void paintUserpic(

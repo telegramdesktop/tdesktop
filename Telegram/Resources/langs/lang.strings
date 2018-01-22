@@ -1415,6 +1415,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_admin_pin_messages" = "Pin messages";
 "lng_admin_log_admin_add_admins" = "Add new admins";
 
+"lng_feed_name" = "Feed";
 "lng_feed_show_next" = "Show Next";
 
 // Wnd specific

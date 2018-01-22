@@ -177,11 +177,11 @@ public:
 		int outerWidth);
 	float64 checkedRatio();
 
-	void setNameFirstChars(const base::flat_set<QChar> &nameFirstChars) {
-		_nameFirstChars = nameFirstChars;
+	void setNameFirstLetters(const base::flat_set<QChar> &firstLetters) {
+		_nameFirstLetters = firstLetters;
 	}
-	const base::flat_set<QChar> &nameFirstChars() const {
-		return _nameFirstChars;
+	const base::flat_set<QChar> &nameFirstLetters() const {
+		return _nameFirstLetters;
 	}
 
 	virtual void lazyInitialize(const style::PeerListItem &st);
@@ -218,7 +218,7 @@ private:
 	Text _status;
 	StatusType _statusType = StatusType::Online;
 	TimeMs _statusValidTill = 0;
-	base::flat_set<QChar> _nameFirstChars;
+	base::flat_set<QChar> _nameFirstLetters;
 	int _absoluteIndex = -1;
 	State _disabledState = State::Active;
 	bool _initialized : 1;

@@ -159,8 +159,8 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 			}
 			return true;
 		};
-		auto filterNotPassedByName = [this, &filterNotPassedByUsername](UserData *user) -> bool {
-			for (auto &nameWord : user->nameWords()) {
+		auto filterNotPassedByName = [&](UserData *user) -> bool {
+			for (const auto &nameWord : user->nameWords()) {
 				if (nameWord.startsWith(_filter, Qt::CaseInsensitive)) {
 					auto exactUsername = (user->username.compare(_filter, Qt::CaseInsensitive) == 0);
 					return exactUsername;

@@ -126,13 +126,11 @@ public:
 	QString name;
 	Text nameText;
 
-	using NameWords = base::flat_set<QString>;
-	using NameFirstChars = base::flat_set<QChar>;
-	const NameWords &nameWords() const {
+	const base::flat_set<QString> &nameWords() const {
 		return _nameWords;
 	}
-	const NameFirstChars &nameFirstChars() const {
-		return _nameFirstChars;
+	const base::flat_set<QChar> &nameFirstLetters() const {
+		return _nameFirstLetters;
 	}
 
 	enum LoadedStatus {
@@ -243,8 +241,8 @@ private:
 	Data::NotifySettings _notify;
 
 	ClickHandlerPtr _openLink;
-	NameWords _nameWords; // for filtering
-	NameFirstChars _nameFirstChars;
+	base::flat_set<QString> _nameWords; // for filtering
+	base::flat_set<QChar> _nameFirstLetters;
 
 	TimeMs _lastFullUpdate = 0;
 

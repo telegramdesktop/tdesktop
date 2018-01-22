@@ -121,7 +121,7 @@ void PeerData::updateNameDelayed(
 
 	Notify::PeerUpdate update(this);
 	update.flags |= UpdateFlag::NameChanged;
-	update.oldNameFirstChars = nameFirstChars();
+	update.oldNameFirstLetters = nameFirstLetters();
 
 	if (isUser()) {
 		if (asUser()->username != newUsername) {
@@ -304,7 +304,7 @@ void PeerData::setUserpicChecked(
 
 void PeerData::fillNames() {
 	_nameWords.clear();
-	_nameFirstChars.clear();
+	_nameFirstLetters.clear();
 	auto toIndexList = QStringList();
 	auto appendToIndex = [&](const QString &value) {
 		if (!value.isEmpty()) {
@@ -318,7 +318,7 @@ void PeerData::fillNames() {
 	if (appendTranslit) {
 		appendToIndex(translitRusEng(toIndexList.front()));
 	}
-	if (auto user = asUser()) {
+	if (const auto user = asUser()) {
 		if (user->nameOrPhone != name) {
 			appendToIndex(user->nameOrPhone);
 		}
@@ -326,7 +326,7 @@ void PeerData::fillNames() {
 		if (isSelf()) {
 			appendToIndex(lang(lng_saved_messages));
 		}
-	} else if (auto channel = asChannel()) {
+	} else if (const auto channel = asChannel()) {
 		appendToIndex(channel->username);
 	}
 	auto toIndex = toIndexList.join(' ');
@@ -335,7 +335,7 @@ void PeerData::fillNames() {
 	const auto namesList = TextUtilities::PrepareSearchWords(toIndex);
 	for (const auto &name : namesList) {
 		_nameWords.insert(name);
-		_nameFirstChars.insert(name[0]);
+		_nameFirstLetters.insert(name[0]);
 	}
 }
 

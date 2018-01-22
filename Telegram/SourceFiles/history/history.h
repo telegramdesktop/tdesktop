@@ -313,6 +313,9 @@ public:
 	int chatListUnreadCount() const override;
 	bool chatListMutedBadge() const override;
 	HistoryItem *chatsListItem() const override;
+	const QString &chatsListName() const override;
+	const base::flat_set<QString> &chatsListNameWords() const override;
+	const base::flat_set<QChar> &chatsListFirstLetters() const override;
 	void loadUserpic() override;
 	void paintUserpic(
 		Painter &p,

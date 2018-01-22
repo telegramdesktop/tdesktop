@@ -202,9 +202,7 @@ private:
 
 	bool _searching = false;
 	QString _lastQuery;
-	using ByUsernameRows = QVector<PeerData*>;
-	using ByUsernameDatas = QVector<Chat*>;
-	ByUsernameRows _byUsernameFiltered;
-	ByUsernameDatas d_byUsernameFiltered;
+	std::vector<PeerData*> _byUsernameFiltered;
+	std::vector<Chat*> d_byUsernameFiltered;
 
 };

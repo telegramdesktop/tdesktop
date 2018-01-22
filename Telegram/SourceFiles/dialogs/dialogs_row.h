@@ -61,9 +61,6 @@ public:
 	not_null<Entry*> entry() const {
 		return _id.entry();
 	}
-	QString name() const {
-		return _id.name();
-	}
 	int pos() const {
 		return _pos;
 	}

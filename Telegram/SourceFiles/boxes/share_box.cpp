@@ -281,9 +281,9 @@ ShareBox::Inner::Inner(QWidget *parent, ShareBox::FilterCallback &&filterCallbac
 		}
 	}
 	for (const auto row : dialogs->all()) {
-		// #TODO feeds list
 		if (const auto history = row->history()) {
-			if (!history->peer->isSelf() && _filterCallback(history->peer)) {
+			if (!history->peer->isSelf()
+				&& _filterCallback(history->peer)) {
 				_chatsIndexed->addToEnd(history);
 			}
 		}
@@ -352,7 +352,7 @@ void ShareBox::Inner::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 	if (update.flags & Notify::PeerUpdate::Flag::NameChanged) {
 		_chatsIndexed->peerNameChanged(
 			update.peer,
-			update.oldNameFirstChars);
+			update.oldNameFirstLetters);
 	}
 
 	updateChat(update.peer);
@@ -407,22 +407,24 @@ void ShareBox::Inner::repaintChat(not_null<PeerData*> peer) {
 int ShareBox::Inner::chatIndex(not_null<PeerData*> peer) const {
 	int index = 0;
 	if (_filter.isEmpty()) {
-		for_const (auto row, _chatsIndexed->all()) {
-			// #TODO feeds list
-			if (row->history()->peer == peer) {
-				return index;
+		for (const auto row : _chatsIndexed->all()) {
+			if (const auto history = row->history()) {
+				if (history->peer == peer) {
+					return index;
+				}
 			}
 			++index;
 		}
 	} else {
-		for_const (auto row, _filtered) {
-			// #TODO feeds list
-			if (row->history()->peer == peer) {
-				return index;
+		for (const auto row : _filtered) {
+			if (const auto history = row->history()) {
+				if (history->peer == peer) {
+					return index;
+				}
 			}
 			++index;
 		}
-		for_const (auto row, d_byUsernameFiltered) {
+		for (const auto row : d_byUsernameFiltered) {
 			if (row->peer == peer) {
 				return index;
 			}
@@ -455,8 +457,7 @@ void ShareBox::Inner::loadProfilePhotos(int yFrom) {
 				if (((*i)->pos() * _rowHeight) >= yTo) {
 					break;
 				}
-				// #TODO feeds list
-				(*i)->history()->peer->loadUserpic();
+				(*i)->entry()->loadUserpic();
 			}
 		}
 	} else if (!_filtered.isEmpty()) {
@@ -467,17 +468,17 @@ void ShareBox::Inner::loadProfilePhotos(int yFrom) {
 			if (to > _filtered.size()) to = _filtered.size();
 
 			for (; from < to; ++from) {
-				// #TODO feeds list
-				_filtered[from]->history()->peer->loadUserpic();
+				_filtered[from]->entry()->loadUserpic();
 			}
 		}
 	}
 }
 
 ShareBox::Inner::Chat *ShareBox::Inner::getChat(Dialogs::Row *row) {
+	Expects(row->history() != nullptr);
+
 	auto data = static_cast<Chat*>(row->attached);
 	if (!data) {
-		// #TODO feeds list
 		auto peer = row->history()->peer;
 		auto i = _dataMap.constFind(peer);
 		if (i == _dataMap.cend()) {
@@ -565,7 +566,7 @@ void ShareBox::Inner::paintEvent(QPaintEvent *e) {
 			p.setPen(st::noContactsColor);
 		}
 	} else {
-		if (_filtered.isEmpty() && _byUsernameFiltered.isEmpty()) {
+		if (_filtered.isEmpty() && _byUsernameFiltered.empty()) {
 			// empty
 			p.setFont(st::noContactsFont);
 			p.setPen(st::noContactsColor);
@@ -583,7 +584,7 @@ void ShareBox::Inner::paintEvent(QPaintEvent *e) {
 				indexFrom -= filteredSize;
 				indexTo -= filteredSize;
 			}
-			if (!_byUsernameFiltered.isEmpty()) {
+			if (!_byUsernameFiltered.empty()) {
 				if (indexFrom < 0) indexFrom = 0;
 				while (indexFrom < indexTo) {
 					if (indexFrom >= d_byUsernameFiltered.size()) {
@@ -732,9 +733,8 @@ void ShareBox::Inner::updateFilter(QString filter) {
 				}
 				if (toFilter) {
 					_filtered.reserve(toFilter->size());
-					for_const (auto row, *toFilter) {
-						// #TODO feeds list
-						auto &nameWords = row->history()->peer->nameWords();
+					for (const auto row : *toFilter) {
+						auto &nameWords = row->entry()->chatsListNameWords();
 						auto nb = nameWords.cbegin(), ne = nameWords.cend(), ni = nb;
 						for (fi = fb; fi != fe; ++fi) {
 							auto filterName = *fi;

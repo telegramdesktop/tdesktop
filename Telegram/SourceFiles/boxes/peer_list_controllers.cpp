@@ -243,10 +243,11 @@ void ChatsListBoxController::rebuildRows() {
 	auto wasEmpty = !delegate()->peerListFullRowsCount();
 	auto appendList = [this](auto chats) {
 		auto count = 0;
-		for_const (auto row, chats->all()) {
-			// #TODO feeds list
-			if (appendRow(row->history())) {
-				++count;
+		for (const auto row : chats->all()) {
+			if (const auto history = row->history()) {
+				if (appendRow(history)) {
+					++count;
+				}
 			}
 		}
 		return count;
@@ -328,12 +329,12 @@ void ContactsBoxController::prepare() {
 void ContactsBoxController::rebuildRows() {
 	auto appendList = [this](auto chats) {
 		auto count = 0;
-		for_const (auto row, chats->all()) {
-			// #TODO feeds list
-			auto history = row->history();
-			if (auto user = history->peer->asUser()) {
-				if (appendRow(user)) {
-					++count;
+		for (const auto row : chats->all()) {
+			if (const auto history = row->history()) {
+				if (const auto user = history->peer->asUser()) {
+					if (appendRow(user)) {
+						++count;
+					}
 				}
 			}
 		}

@@ -2104,6 +2104,18 @@ HistoryItem *History::chatsListItem() const {
 	return lastMsg;
 }
 
+const QString &History::chatsListName() const {
+	return peer->name;
+}
+
+const base::flat_set<QString> &History::chatsListNameWords() const {
+	return peer->nameWords();
+}
+
+const base::flat_set<QChar> &History::chatsListFirstLetters() const {
+	return peer->nameFirstLetters();
+}
+
 void History::loadUserpic() {
 	peer->loadUserpic();
 }
