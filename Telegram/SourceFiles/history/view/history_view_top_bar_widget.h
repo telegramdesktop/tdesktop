@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "base/timer.h"
+#include "dialogs/dialogs_key.h"
 
 namespace Ui {
 class UserpicButton;
@@ -45,13 +46,15 @@ public:
 	}
 	void setAnimatingMode(bool enabled);
 
-	void setHistoryPeer(PeerData *historyPeer);
+	void setActiveChat(Dialogs::Key chat);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	bool eventFilter(QObject *obj, QEvent *e) override;
+
+	int resizeGetHeight(int newWidth) override;
 
 private:
 	void refreshLang();
@@ -84,7 +87,7 @@ private:
 	void updateUnreadBadge();
 
 	not_null<Window::Controller*> _controller;
-	PeerData *_historyPeer = nullptr;
+	Dialogs::Key _activeChat;
 
 	int _selectedCount = 0;
 	bool _canDelete = false;

@@ -153,11 +153,11 @@ void Entry::addChatListEntryByLetter(
 void Entry::updateChatListEntry() const {
 	if (const auto main = App::main()) {
 		if (inChatList(Mode::All)) {
-			main->dlgUpdated(
+			main->repaintDialogRow(
 				Mode::All,
 				mainChatListLink(Mode::All));
 			if (inChatList(Mode::Important)) {
-				main->dlgUpdated(
+				main->repaintDialogRow(
 					Mode::Important,
 					mainChatListLink(Mode::Important));
 			}

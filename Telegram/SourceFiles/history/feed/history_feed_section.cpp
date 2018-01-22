@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
+#include "mainwidget.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
@@ -60,6 +61,8 @@ Widget::Widget(
 		this,
 		lang(lng_feed_show_next).toUpper(),
 		st::historyComposeButton) {
+	_topBar->setActiveChat(_feed);
+
 	_topBar->move(0, 0);
 	_topBar->resizeToWidth(width());
 	_topBar->show();
@@ -138,7 +141,8 @@ bool Widget::cmd_search() {
 	if (!inFocusChain()) {
 		return false;
 	}
-	// #TODO feeds search
+
+	App::main()->searchInChat(_feed);
 	return true;
 }
 

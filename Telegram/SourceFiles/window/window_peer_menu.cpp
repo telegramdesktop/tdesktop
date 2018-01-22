@@ -242,7 +242,7 @@ void Filler::addNotifications() {
 
 void Filler::addSearch() {
 	_addAction(lang(lng_profile_search_messages), [peer = _peer] {
-		App::main()->searchInPeer(peer);
+		App::main()->searchInChat(App::history(peer));
 	});
 }
 

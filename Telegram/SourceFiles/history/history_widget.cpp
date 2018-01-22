@@ -1423,9 +1423,9 @@ void HistoryWidget::notify_migrateUpdated(PeerData *peer) {
 }
 
 bool HistoryWidget::cmd_search() {
-	if (!inFocusChain() || !_peer) return false;
+	if (!inFocusChain() || !_history) return false;
 
-	App::main()->searchInPeer(_peer);
+	App::main()->searchInChat(_history);
 	return true;
 }
 
@@ -1724,8 +1724,6 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		_canSendMessages = _peer->canWrite();
 		_tabbedSelector->setCurrentPeer(_peer);
 	}
-	_topBar->setHistoryPeer(_peer);
-	updateTopBarSelection();
 
 	if (_peer && _peer->isChannel()) {
 		_peer->asChannel()->updateFull();
@@ -1742,7 +1740,6 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 	noSelectingScroll();
 	_nonEmptySelection = false;
-	_topBar->showSelected(HistoryView::TopBarWidget::SelectedState {});
 
 	if (_peer) {
 		App::forgetMedia();
@@ -1751,6 +1748,9 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 		_history = App::history(_peer);
 		_migrated = _history->migrateFrom();
+
+		_topBar->setActiveChat(_history);
+		updateTopBarSelection();
 
 		if (_channel) {
 			updateNotifySettings();
@@ -1817,6 +1817,9 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		}
 		unreadCountChanged(_history); // set _historyDown badge.
 	} else {
+		_topBar->setActiveChat(Dialogs::Key());
+		updateTopBarSelection();
+
 		clearFieldText();
 		_tabbedSelector->showMegagroupSet(nullptr);
 		doneShow();
@@ -4579,7 +4582,8 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void HistoryWidget::updateControlsGeometry() {
-	_topBar->setGeometryToLeft(0, 0, width(), st::topBarHeight);
+	_topBar->resizeToWidth(width());
+	_topBar->moveToLeft(0, 0);
 
 	moveFieldControls();
 

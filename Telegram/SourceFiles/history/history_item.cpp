@@ -129,9 +129,9 @@ ReplyKeyboard *HistoryItem::inlineReplyKeyboard() {
 }
 
 void HistoryItem::invalidateChatsListEntry() {
-	if (App::main()) {
+	if (const auto main = App::main()) {
 		// #TODO feeds search results
-		App::main()->dlgUpdated(history(), id);
+		main->repaintDialogRow(history(), id);
 	}
 
 	// invalidate cache for drawInDialog

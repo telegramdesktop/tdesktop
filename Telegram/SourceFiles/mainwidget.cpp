@@ -2771,24 +2771,16 @@ QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 	return result;
 }
 
-void MainWidget::dlgUpdated(
+void MainWidget::repaintDialogRow(
 		Dialogs::Mode list,
 		not_null<Dialogs::Row*> row) {
-	if (row) {
-		_dialogs->dlgUpdated(list, row);
-	}
+	_dialogs->repaintDialogRow(list, row);
 }
 
-void MainWidget::dlgUpdated(not_null<History*> history, MsgId msgId) {
-	if (msgId < 0 && -msgId < ServerMaxMsgId) {
-		if (const auto from = history->peer->migrateFrom()) {
-			if (const auto migrated = App::historyLoaded(from)) {
-				_dialogs->dlgUpdated(migrated, -msgId);
-			}
-		}
-	} else {
-		_dialogs->dlgUpdated(history, msgId);
-	}
+void MainWidget::repaintDialogRow(
+		not_null<History*> history,
+		MsgId messageId) {
+	_dialogs->repaintDialogRow(history, messageId);
 }
 
 void MainWidget::windowShown() {
@@ -3413,8 +3405,8 @@ int MainWidget::backgroundFromY() const {
 	return -getMainSectionTop();
 }
 
-void MainWidget::searchInPeer(PeerData *peer) {
-	_dialogs->searchInPeer(peer);
+void MainWidget::searchInChat(Dialogs::Key chat) {
+	_dialogs->searchInChat(chat);
 	if (Adaptive::OneColumn()) {
 		dialogsToUp();
 		Ui::showChatsList();

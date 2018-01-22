@@ -764,7 +764,7 @@ void DialogsInner::mousePressEvent(QMouseEvent *e) {
 		row->addRipple(
 			e->pos() - QPoint(0, filteredOffset() + _filteredPressed * st::dialogsRowHeight),
 			QSize(getFullWidth(), st::dialogsRowHeight),
-			[=] { dlgUpdated(list, row); });
+			[=] { repaintDialogRow(list, row); });
 	} else if (base::in_range(_peerSearchPressed, 0, _peerSearchResults.size())) {
 		auto &result = _peerSearchResults[_peerSearchPressed];
 		auto row = &result->row;
@@ -1222,7 +1222,7 @@ void DialogsInner::removeDialog(Dialogs::Key key) {
 	refresh();
 }
 
-void DialogsInner::dlgUpdated(
+void DialogsInner::repaintDialogRow(
 		Dialogs::Mode list,
 		not_null<Dialogs::Row*> row) {
 	if (_state == State::Default) {
@@ -1250,9 +1250,11 @@ void DialogsInner::dlgUpdated(
 	}
 }
 
-void DialogsInner::dlgUpdated(not_null<History*> history, MsgId msgId) {
+void DialogsInner::repaintDialogRow(
+		not_null<History*> history,
+		MsgId messageId) {
 	updateDialogRow(
-		Dialogs::RowDescriptor(history, msgId),
+		Dialogs::RowDescriptor(history, messageId),
 		QRect(0, 0, getFullWidth(), st::dialogsRowHeight));
 }
 
@@ -1275,7 +1277,17 @@ void DialogsInner::updateDialogRow(
 		Dialogs::RowDescriptor row,
 		QRect updateRect,
 		UpdateRowSections sections) {
-	auto updateRow = [&](int rowTop) {
+	if (IsServerMsgId(-row.msgId)) {
+		if (const auto peer = row.key.peer()) {
+			if (const auto from = peer->migrateFrom()) {
+				if (const auto migrated = App::historyLoaded(from)) {
+					row = Dialogs::RowDescriptor(migrated, -row.msgId);
+				}
+			}
+		}
+	}
+
+	const auto updateRow = [&](int rowTop) {
 		rtlupdate(
 			updateRect.x(),
 			rowTop + updateRect.y(),

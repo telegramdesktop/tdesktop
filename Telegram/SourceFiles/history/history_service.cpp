@@ -621,9 +621,9 @@ void HistoryService::updateDependentText() {
 			feed->updateChatListEntry();
 		}
 	}
-	if (App::main()) {
+	if (const auto main = App::main()) {
 		// #TODO feeds search results
-		App::main()->dlgUpdated(history(), id);
+		main->repaintDialogRow(history(), id);
 	}
 	App::historyUpdateDependent(this);
 }

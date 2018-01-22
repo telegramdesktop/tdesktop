@@ -53,8 +53,8 @@ public:
 
 	void createDialog(Dialogs::Key key);
 	void removeDialog(Dialogs::Key key);
-	void dlgUpdated(Dialogs::Mode list, not_null<Dialogs::Row*> row);
-	void dlgUpdated(not_null<History*> history, MsgId msgId);
+	void repaintDialogRow(Dialogs::Mode list, not_null<Dialogs::Row*> row);
+	void repaintDialogRow(not_null<History*> history, MsgId messageId);
 
 	void dragLeft();
 

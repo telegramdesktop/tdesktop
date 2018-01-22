@@ -1027,9 +1027,11 @@ namespace {
 	void feedOutboxRead(const PeerId &peer, MsgId upTo, TimeId when) {
 		if (auto history = App::historyLoaded(peer)) {
 			history->outboxRead(upTo);
-			if (history->lastMsg && history->lastMsg->out() && history->lastMsg->id <= upTo) {
-				if (App::main()) {
-					App::main()->dlgUpdated(history, history->lastMsg->id);
+			if (history->lastMsg
+				&& history->lastMsg->out()
+				&& history->lastMsg->id <= upTo) {
+				if (const auto main = App::main()) {
+					main->repaintDialogRow(history, history->lastMsg->id);
 				}
 			}
 			history->updateChatListEntry();

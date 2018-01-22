@@ -203,14 +203,16 @@ void DialogsWidget::createDialog(Dialogs::Key key) {
 	}
 }
 
-void DialogsWidget::dlgUpdated(
+void DialogsWidget::repaintDialogRow(
 		Dialogs::Mode list,
 		not_null<Dialogs::Row*> row) {
-	_inner->dlgUpdated(list, row);
+	_inner->repaintDialogRow(list, row);
 }
 
-void DialogsWidget::dlgUpdated(not_null<History*> history, MsgId msgId) {
-	_inner->dlgUpdated(history, msgId);
+void DialogsWidget::repaintDialogRow(
+		not_null<History*> history,
+		MsgId messageId) {
+	_inner->repaintDialogRow(history, messageId);
 }
 
 void DialogsWidget::dialogsToUp() {
@@ -928,9 +930,14 @@ void DialogsWidget::onFilterUpdate(bool force) {
 	_lastFilterText = filterText;
 }
 
-void DialogsWidget::searchInPeer(PeerData *peer) {
+void DialogsWidget::searchInChat(Dialogs::Key chat) {
 	onCancelSearch();
-	setSearchInPeer(peer);
+	if (const auto peer = chat.peer()) {
+		setSearchInPeer(peer);
+	} else {
+		// #TODO feeds search
+		setSearchInPeer(nullptr);
+	}
 	onFilterUpdate(true);
 }
 

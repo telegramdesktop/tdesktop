@@ -110,8 +110,8 @@ public:
 
 	void createDialog(Dialogs::Key key);
 	void removeDialog(Dialogs::Key key);
-	void dlgUpdated(Dialogs::Mode list, not_null<Dialogs::Row*> row);
-	void dlgUpdated(not_null<History*> history, MsgId msgId);
+	void repaintDialogRow(Dialogs::Mode list, not_null<Dialogs::Row*> row);
+	void repaintDialogRow(not_null<History*> history, MsgId messageId);
 
 	void windowShown();
 
@@ -310,6 +310,8 @@ public:
 
 	void documentLoadProgress(DocumentData *document);
 
+	void searchInChat(Dialogs::Key chat);
+
 	void app_sendBotCallback(
 		not_null<const HistoryMessageMarkupButton*> button,
 		not_null<const HistoryItem*> msg,
@@ -356,8 +358,6 @@ public slots:
 
 	void updateOnline(bool gotOtherOffline = false);
 	void checkIdleFinish();
-
-	void searchInPeer(PeerData *peer);
 
 	void onUpdateNotifySettings();
 
