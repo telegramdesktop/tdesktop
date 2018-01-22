@@ -472,13 +472,18 @@ bool DialogsWidget::onSearchMessages(bool searchCache) {
 		return true;
 	}
 	if (searchCache) {
-		SearchCache::const_iterator i = _searchCache.constFind(q);
+		const auto i = _searchCache.constFind(q);
 		if (i != _searchCache.cend()) {
 			_searchQuery = q;
 			_searchQueryFrom = _searchFromUser;
 			_searchFull = _searchFullMigrated = false;
 			MTP::cancel(base::take(_searchRequest));
-			searchReceived(_searchInPeer ? DialogsSearchPeerFromStart : DialogsSearchFromStart, i.value(), 0);
+			searchReceived(
+				_searchInPeer
+					? DialogsSearchPeerFromStart
+					: DialogsSearchFromStart,
+				i.value(),
+				0);
 			return true;
 		}
 	} else if (_searchQuery != q || _searchQueryFrom != _searchFromUser) {
@@ -487,7 +492,9 @@ bool DialogsWidget::onSearchMessages(bool searchCache) {
 		_searchFull = _searchFullMigrated = false;
 		MTP::cancel(base::take(_searchRequest));
 		if (_searchInPeer) {
-			auto flags = _searchQueryFrom ? MTP_flags(MTPmessages_Search::Flag::f_from_id) : MTP_flags(0);
+			const auto flags = _searchQueryFrom
+				? MTP_flags(MTPmessages_Search::Flag::f_from_id)
+				: MTP_flags(0);
 			_searchRequest = MTP::send(
 				MTPmessages_Search(
 					flags,
@@ -520,7 +527,7 @@ bool DialogsWidget::onSearchMessages(bool searchCache) {
 		}
 		_searchQueries.insert(_searchRequest, _searchQuery);
 	}
-	if (!_searchInPeer && q.size() >= MinUsernameLength) {
+	if (!_searchInPeer && !q.isEmpty()) {
 		if (searchCache) {
 			auto i = _peerSearchCache.constFind(q);
 			if (i != _peerSearchCache.cend()) {
@@ -532,7 +539,12 @@ bool DialogsWidget::onSearchMessages(bool searchCache) {
 		} else if (_peerSearchQuery != q) {
 			_peerSearchQuery = q;
 			_peerSearchFull = false;
-			_peerSearchRequest = MTP::send(MTPcontacts_Search(MTP_string(_peerSearchQuery), MTP_int(SearchPeopleLimit)), rpcDone(&DialogsWidget::peerSearchReceived), rpcFail(&DialogsWidget::peopleFailed));
+			_peerSearchRequest = MTP::send(
+				MTPcontacts_Search(
+					MTP_string(_peerSearchQuery),
+					MTP_int(SearchPeopleLimit)),
+				rpcDone(&DialogsWidget::peerSearchReceived),
+				rpcFail(&DialogsWidget::peopleFailed));
 			_peerSearchQueries.insert(_peerSearchRequest, _peerSearchQuery);
 		}
 	}
@@ -673,12 +685,15 @@ void DialogsWidget::loadPinnedDialogs() {
 	_pinnedDialogsRequestId = MTP::send(MTPmessages_GetPinnedDialogs(), rpcDone(&DialogsWidget::pinnedDialogsReceived), rpcFail(&DialogsWidget::dialogsFailed));
 }
 
-void DialogsWidget::searchReceived(DialogsSearchRequestType type, const MTPmessages_Messages &result, mtpRequestId req) {
+void DialogsWidget::searchReceived(
+		DialogsSearchRequestType type,
+		const MTPmessages_Messages &result,
+		mtpRequestId requestId) {
 	using State = DialogsInner::State;
 	const auto state = _inner->state();
 	if (state == State::Filtered) {
 		if (type == DialogsSearchFromStart || type == DialogsSearchPeerFromStart) {
-			auto i = _searchQueries.find(req);
+			auto i = _searchQueries.find(requestId);
 			if (i != _searchQueries.cend()) {
 				_searchCache[i.value()] = result;
 				_searchQueries.erase(i);
@@ -686,7 +701,7 @@ void DialogsWidget::searchReceived(DialogsSearchRequestType type, const MTPmessa
 		}
 	}
 
-	if (_searchRequest == req) {
+	if (_searchRequest == requestId) {
 		switch (result.type()) {
 		case mtpc_messages_messages: {
 			auto &d = result.c_messages_messages();
@@ -751,25 +766,27 @@ void DialogsWidget::searchReceived(DialogsSearchRequestType type, const MTPmessa
 	}
 }
 
-void DialogsWidget::peerSearchReceived(const MTPcontacts_Found &result, mtpRequestId req) {
+void DialogsWidget::peerSearchReceived(
+		const MTPcontacts_Found &result,
+		mtpRequestId requestId) {
 	using State = DialogsInner::State;
 	const auto state = _inner->state();
 	auto q = _peerSearchQuery;
 	if (state == State::Filtered) {
-		auto i = _peerSearchQueries.find(req);
+		auto i = _peerSearchQueries.find(requestId);
 		if (i != _peerSearchQueries.cend()) {
 			q = i.value();
 			_peerSearchCache[q] = result;
 			_peerSearchQueries.erase(i);
 		}
 	}
-	if (_peerSearchRequest == req) {
+	if (_peerSearchRequest == requestId) {
 		switch (result.type()) {
 		case mtpc_contacts_found: {
 			auto &d = result.c_contacts_found();
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
-			_inner->peerSearchReceived(q, d.vresults.v);
+			_inner->peerSearchReceived(q, d.vmy_results.v, d.vresults.v);
 		} break;
 		}
 
@@ -778,10 +795,13 @@ void DialogsWidget::peerSearchReceived(const MTPcontacts_Found &result, mtpReque
 	}
 }
 
-bool DialogsWidget::searchFailed(DialogsSearchRequestType type, const RPCError &error, mtpRequestId req) {
+bool DialogsWidget::searchFailed(
+		DialogsSearchRequestType type,
+		const RPCError &error,
+		mtpRequestId requestId) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
-	if (_searchRequest == req) {
+	if (_searchRequest == requestId) {
 		_searchRequest = 0;
 		if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {
 			_searchFullMigrated = true;
@@ -891,7 +911,7 @@ void DialogsWidget::onFilterUpdate(bool force) {
 	_cancelSearch->toggle(!filterText.isEmpty(), anim::type::normal);
 	updateJumpToDateVisibility();
 
-	if (filterText.size() < MinUsernameLength) {
+	if (filterText.isEmpty()) {
 		_peerSearchCache.clear();
 		_peerSearchQueries.clear();
 		_peerSearchQuery = QString();

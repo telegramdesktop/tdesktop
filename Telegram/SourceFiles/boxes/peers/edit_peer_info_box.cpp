@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kUsernameCheckTimeout = TimeMs(200);
+constexpr auto kMinUsernameLength = 5;
 
 class Controller
 	: private MTP::Sender
@@ -503,7 +504,7 @@ void Controller::checkUsernameAvailability() {
 	auto checking = initial
 		? qsl(".bad.")
 		: _controls.username->getLastText().trimmed();
-	if (checking.size() < MinUsernameLength) {
+	if (checking.size() < kMinUsernameLength) {
 		return;
 	}
 	if (_checkUsernameRequestId) {
@@ -580,7 +581,7 @@ void Controller::usernameChanged() {
 	if (bad) {
 		showUsernameError(
 			Lang::Viewer(lng_create_channel_link_bad_symbols));
-	} else if (username.size() < MinUsernameLength) {
+	} else if (username.size() < kMinUsernameLength) {
 		showUsernameError(
 			Lang::Viewer(lng_create_channel_link_too_short));
 	} else {

@@ -35,6 +35,7 @@ namespace {
 constexpr auto kMaxGroupChannelTitle = 255;
 constexpr auto kMaxChannelDescription = 255;
 constexpr auto kMaxBioLength = 70;
+constexpr auto kMinUsernameLength = 5;
 
 style::InputField CreateBioFieldStyle() {
 	auto result = st::newGroupDescription;
@@ -767,7 +768,7 @@ void SetupChannelBox::onChange() {
 				return;
 			}
 		}
-		if (name.size() < MinUsernameLength) {
+		if (name.size() < kMinUsernameLength) {
 			if (_errorText != lang(lng_create_channel_link_too_short)) {
 				_errorText = lang(lng_create_channel_link_too_short);
 				update();
@@ -788,9 +789,14 @@ void SetupChannelBox::onCheck() {
 		MTP::cancel(_checkRequestId);
 	}
 	QString link = _link->text().trimmed();
-	if (link.size() >= MinUsernameLength) {
+	if (link.size() >= kMinUsernameLength) {
 		_checkUsername = link;
-		_checkRequestId = MTP::send(MTPchannels_CheckUsername(_channel->inputChannel, MTP_string(link)), rpcDone(&SetupChannelBox::onCheckDone), rpcFail(&SetupChannelBox::onCheckFail));
+		_checkRequestId = MTP::send(
+			MTPchannels_CheckUsername(
+				_channel->inputChannel,
+				MTP_string(link)),
+			rpcDone(&SetupChannelBox::onCheckDone),
+			rpcFail(&SetupChannelBox::onCheckFail));
 	}
 }
 

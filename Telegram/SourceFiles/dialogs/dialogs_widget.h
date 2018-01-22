@@ -140,8 +140,13 @@ private:
 	void pinnedDialogsReceived(
 		const MTPmessages_PeerDialogs &result,
 		mtpRequestId requestId);
-	void searchReceived(DialogsSearchRequestType type, const MTPmessages_Messages &result, mtpRequestId requestId);
-	void peerSearchReceived(const MTPcontacts_Found &result, mtpRequestId requestId);
+	void searchReceived(
+		DialogsSearchRequestType type,
+		const MTPmessages_Messages &result,
+		mtpRequestId requestId);
+	void peerSearchReceived(
+		const MTPcontacts_Found &result,
+		mtpRequestId requestId);
 	void updateDialogsOffset(
 		const QVector<MTPDialog> &dialogs,
 		const QVector<MTPMessage> &messages);

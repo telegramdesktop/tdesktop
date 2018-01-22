@@ -149,7 +149,7 @@ void PeerListGlobalSearchController::searchQuery(const QString &query) {
 	if (_query != query) {
 		_query = query;
 		_requestId = 0;
-		if (_query.size() >= MinUsernameLength && !searchInCache()) {
+		if (!_query.isEmpty() && !searchInCache()) {
 			_timer.callOnce(AutoSearchTimeout);
 		} else {
 			_timer.cancel();
@@ -168,9 +168,12 @@ bool PeerListGlobalSearchController::searchInCache() {
 }
 
 void PeerListGlobalSearchController::searchOnServer() {
-	_requestId = request(MTPcontacts_Search(MTP_string(_query), MTP_int(SearchPeopleLimit))).done([this](const MTPcontacts_Found &result, mtpRequestId requestId) {
+	_requestId = request(MTPcontacts_Search(
+		MTP_string(_query),
+		MTP_int(SearchPeopleLimit)
+	)).done([=](const MTPcontacts_Found &result, mtpRequestId requestId) {
 		searchDone(result, requestId);
-	}).fail([this](const RPCError &error, mtpRequestId requestId) {
+	}).fail([=](const RPCError &error, mtpRequestId requestId) {
 		if (_requestId == requestId) {
 			_requestId = 0;
 			delegate()->peerListSearchRefreshRows();
@@ -179,7 +182,9 @@ void PeerListGlobalSearchController::searchOnServer() {
 	_queries.emplace(_requestId, _query);
 }
 
-void PeerListGlobalSearchController::searchDone(const MTPcontacts_Found &result, mtpRequestId requestId) {
+void PeerListGlobalSearchController::searchDone(
+		const MTPcontacts_Found &result,
+		mtpRequestId requestId) {
 	Expects(result.type() == mtpc_contacts_found);
 
 	auto &contacts = result.c_contacts_found();
@@ -194,13 +199,17 @@ void PeerListGlobalSearchController::searchDone(const MTPcontacts_Found &result,
 			_queries.erase(it);
 		}
 	}
-	if (_requestId == requestId) {
-		_requestId = 0;
-		for_const (auto &mtpPeer, contacts.vresults.v) {
-			if (auto peer = App::peerLoaded(peerFromMTP(mtpPeer))) {
+	const auto feedList = [&](const MTPVector<MTPPeer> &list) {
+		for (const auto &mtpPeer : list.v) {
+			if (const auto peer = App::peerLoaded(peerFromMTP(mtpPeer))) {
 				delegate()->peerListSearchAddRow(peer);
 			}
 		}
+	};
+	if (_requestId == requestId) {
+		_requestId = 0;
+		feedList(contacts.vmy_results);
+		feedList(contacts.vresults);
 		delegate()->peerListSearchRefreshRows();
 	}
 }

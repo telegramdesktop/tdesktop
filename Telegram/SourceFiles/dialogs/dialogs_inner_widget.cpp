@@ -318,6 +318,7 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 			auto to = ceilclamp(r.y() + r.height() - skip, st::dialogsRowHeight, 0, _filterResults.size());
 			p.translate(0, from * st::dialogsRowHeight);
 			if (from < _filterResults.size()) {
+				// #TODO feeds show
 				const auto activePeer = App::main()->activePeer();
 				const auto activeMsgId = App::main()->activeMsgId();
 				for (; from < to; ++from) {
@@ -1083,7 +1084,9 @@ void DialogsInner::resizeEvent(QResizeEvent *e) {
 	_cancelSearchFromUser->moveToLeft(widthForCancelButton - st::dialogsSearchInSkip - _cancelSearchFromUser->width(), st::searchedBarHeight + st::dialogsSearchInHeight + st::lineWidth + (st::dialogsSearchInHeight - st::dialogsCancelSearchInPeer.height) / 2);
 }
 
-void DialogsInner::onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow) {
+void DialogsInner::onDialogRowReplaced(
+		Dialogs::Row *oldRow,
+		Dialogs::Row *newRow) {
 	if (_state == State::Filtered) {
 		for (auto i = _filterResults.begin(); i != _filterResults.end();) {
 			if (*i == oldRow) { // this row is shown in filtered and maybe is in contacts!
@@ -1488,6 +1491,7 @@ void DialogsInner::onFilterUpdate(QString newFilter, bool force) {
 			_state = State::Filtered;
 			_waitingForSearch = true;
 			_filterResults.clear();
+			_filterResultsGlobal.clear();
 			if (!_searchInPeer && !words.isEmpty()) {
 				const Dialogs::List *toFilter = nullptr;
 				if (!_dialogs->isEmpty()) {
@@ -1771,7 +1775,7 @@ void DialogsInner::addAllSavedPeers() {
 bool DialogsInner::searchReceived(
 		const QVector<MTPMessage> &messages,
 		DialogsSearchRequestType type,
-		int32 fullCount) {
+		int fullCount) {
 	if (type == DialogsSearchFromStart || type == DialogsSearchPeerFromStart) {
 		clearSearchResults(false);
 	}
@@ -1820,21 +1824,54 @@ bool DialogsInner::searchReceived(
 	return lastDateFound != 0;
 }
 
-void DialogsInner::peerSearchReceived(const QString &query, const QVector<MTPPeer> &result) {
+void DialogsInner::peerSearchReceived(
+		const QString &query,
+		const QVector<MTPPeer> &my,
+		const QVector<MTPPeer> &result) {
+	if (_state != State::Filtered) {
+		return;
+	}
+
 	_peerSearchQuery = query.toLower().trimmed();
 	_peerSearchResults.clear();
 	_peerSearchResults.reserve(result.size());
-	for (auto i = result.cbegin(), e = result.cend(); i != e; ++i) {
-		auto peerId = peerFromMTP(*i);
-		if (auto history = App::historyLoaded(peerId)) {
-			if (history->inChatList(Dialogs::Mode::All)) {
-				continue; // skip existing chats
+	for (const auto &mtpPeer : my) {
+		if (const auto peer = App::peerLoaded(peerFromMTP(mtpPeer))) {
+			if (const auto history = App::historyLoaded(peer)) {
+				if (history->inChatList(Dialogs::Mode::All)) {
+					continue; // skip existing chats
+				}
 			}
-		}
-		if (auto peer = App::peerLoaded(peerId)) {
-			_peerSearchResults.push_back(std::make_unique<PeerSearchResult>(App::peer(peerId)));
+			const auto prev = nullptr, next = nullptr;
+			const auto position = 0;
+			auto row = std::make_unique<Dialogs::Row>(
+				App::history(peer),
+				prev,
+				next,
+				position);
+			const auto [i, ok] = _filterResultsGlobal.emplace(
+				peer,
+				std::move(row));
+			_filterResults.push_back(i->second.get());
 		} else {
-			LOG(("API Error: user %1 was not loaded in DialogsInner::peopleReceived()").arg(peerId));
+			LOG(("API Error: "
+				"user %1 was not loaded in DialogsInner::peopleReceived()"
+				).arg(peer->id));
+		}
+	}
+	for (const auto &mtpPeer : result) {
+		if (const auto peer = App::peerLoaded(peerFromMTP(mtpPeer))) {
+			if (const auto history = App::historyLoaded(peer)) {
+				if (history->inChatList(Dialogs::Mode::All)) {
+					continue; // skip existing chats
+				}
+			}
+			_peerSearchResults.push_back(std::make_unique<PeerSearchResult>(
+				peer));
+		} else {
+			LOG(("API Error: "
+				"user %1 was not loaded in DialogsInner::peopleReceived()"
+				).arg(peer->id));
 		}
 	}
 	refresh();
@@ -2007,6 +2044,7 @@ void DialogsInner::clearFilter() {
 		}
 		_hashtagResults.clear();
 		_filterResults.clear();
+		_filterResultsGlobal.clear();
 		_peerSearchResults.clear();
 		_searchResults.clear();
 		_lastSearchDate = 0;
@@ -2370,6 +2408,7 @@ void DialogsInner::destroyData() {
 	_hashtagResults.clear();
 	_filteredSelected = -1;
 	_filterResults.clear();
+	_filterResultsGlobal.clear();
 	_filter.clear();
 	_searchedSelected = _peerSearchSelected = -1;
 	clearSearchResults();

@@ -65,7 +65,9 @@ private:
 	void addPeerToMultiSelect(PeerData *peer, bool skipAnimation = false);
 	void onPeerSelectedChanged(PeerData *peer, bool checked);
 
-	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId requestId);
+	void peopleReceived(
+		const MTPcontacts_Found &result,
+		mtpRequestId requestId);
 	bool peopleFailed(const RPCError &error, mtpRequestId requestId);
 
 	CopyCallback _copyCallback;
@@ -107,7 +109,10 @@ public:
 	QVector<PeerData*> selected() const;
 	bool hasSelected() const;
 
-	void peopleReceived(const QString &query, const QVector<MTPPeer> &people);
+	void peopleReceived(
+		const QString &query,
+		const QVector<MTPPeer> &my,
+		const QVector<MTPPeer> &people);
 
 	void activateSkipRow(int direction);
 	void activateSkipColumn(int direction);

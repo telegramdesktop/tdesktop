@@ -36,8 +36,14 @@ public:
 	void dialogsReceived(const QVector<MTPDialog> &dialogs);
 	void addSavedPeersAfter(const QDateTime &date);
 	void addAllSavedPeers();
-	bool searchReceived(const QVector<MTPMessage> &result, DialogsSearchRequestType type, int32 fullCount);
-	void peerSearchReceived(const QString &query, const QVector<MTPPeer> &result);
+	bool searchReceived(
+		const QVector<MTPMessage> &result,
+		DialogsSearchRequestType type,
+		int fullCount);
+	void peerSearchReceived(
+		const QString &query,
+		const QVector<MTPPeer> &my,
+		const QVector<MTPPeer> &result);
 	void showMore(int32 pixels);
 
 	void activate();
@@ -300,6 +306,9 @@ private:
 	bool _hashtagDeletePressed = false;
 
 	FilteredDialogs _filterResults;
+	base::flat_map<
+		not_null<PeerData*>,
+		std::unique_ptr<Dialogs::Row>> _filterResultsGlobal;
 	int _filteredSelected = -1;
 	int _filteredPressed = -1;
 

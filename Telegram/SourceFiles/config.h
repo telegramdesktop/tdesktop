@@ -90,8 +90,6 @@ enum {
 	PreloadHeightsCount = 3, // when 3 screens to scroll left make a preload request
 
 	SearchPeopleLimit = 5,
-	MinUsernameLength = 5,
-	MaxUsernameLength = 32,
 	UsernameCheckTimeout = 200,
 
 	MaxPhotoCaption = 200,
