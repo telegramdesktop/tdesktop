@@ -355,8 +355,8 @@ void Panel::setCloseCallback(ButtonCallback &&callback) {
 	}
 }
 
-not_null<PeerData*> Panel::peer() const {
-	return _listPeer;
+Info::Key Panel::key() const {
+	return Info::Key(_listPeer);
 }
 
 PeerData *Panel::migrated() const {

@@ -3009,7 +3009,11 @@ void MainWidget::updateControlsGeometry() {
 			if (Auth().settings().tabbedSelectorSectionEnabled()) {
 				_history->pushTabbedSelectorToThirdSection(params);
 			} else if (Auth().settings().thirdSectionInfoEnabled()) {
-				_history->pushInfoToThirdSection(params);
+				if (const auto key = _controller->activeChatCurrent()) {
+					_controller->showSection(
+						Info::Memento::Default(key),
+						params.withThirdColumn());
+				}
 			}
 		}
 	} else {
@@ -3206,12 +3210,13 @@ auto MainWidget::thirdSectionForCurrentMainSection(
 	} else if (const auto peer = key.peer()) {
 		return std::make_unique<Info::Memento>(
 			peer->id,
-			Info::Memento::DefaultSection(peer));
-	} else {
+			Info::Memento::DefaultSection(key));
+	} else if (const auto feed = key.feed()) {
 		return std::make_unique<Info::Memento>(
-			App::self()->id,
-			Info::Memento::DefaultSection(App::self()));
+			feed,
+			Info::Memento::DefaultSection(key));
 	}
+	Unexpected("Key in MainWidget::thirdSectionForCurrentMainSection().");
 }
 
 void MainWidget::updateThirdColumnToCurrentChat(

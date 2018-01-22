@@ -5,24 +5,22 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "info/profile/info_profile_widget.h"
+#include "info/feed/info_feed_profile_widget.h"
 
-#include "info/profile/info_profile_inner_widget.h"
-#include "info/profile/info_profile_members.h"
+#include "info/feed/info_feed_profile_inner_widget.h"
+#include "info/feed/info_feed_channels.h"
 #include "ui/widgets/scroll_area.h"
 #include "info/info_controller.h"
 
 namespace Info {
-namespace Profile {
+namespace FeedProfile {
 
 Memento::Memento(not_null<Controller*> controller)
-: Memento(
-	controller->peerId(),
-	controller->migratedPeerId()) {
+: Memento(controller->feed()) {
 }
 
-Memento::Memento(PeerId peerId, PeerId migratedPeerId)
-: ContentMemento(peerId, migratedPeerId) {
+Memento::Memento(not_null<Data::Feed*> feed)
+: ContentMemento(feed) {
 }
 
 Section Memento::section() const {
@@ -40,12 +38,12 @@ object_ptr<ContentWidget> Memento::createWidget(
 	return std::move(result);
 }
 
-void Memento::setMembersState(std::unique_ptr<MembersState> state) {
-	_membersState = std::move(state);
+void Memento::setChannelsState(std::unique_ptr<ChannelsState> state) {
+	_channelsState = std::move(state);
 }
 
-std::unique_ptr<MembersState> Memento::membersState() {
-	return std::move(_membersState);
+std::unique_ptr<ChannelsState> Memento::channelsState() {
+	return std::move(_channelsState);
 }
 
 Memento::~Memento() = default;
@@ -114,5 +112,5 @@ void Widget::restoreState(not_null<Memento*> memento) {
 	scrollTopRestore(memento->scrollTop());
 }
 
-} // namespace Profile
+} // namespace FeedProfile
 } // namespace Info

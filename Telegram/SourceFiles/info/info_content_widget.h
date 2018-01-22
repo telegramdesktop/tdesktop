@@ -23,6 +23,10 @@ template <typename Widget>
 class PaddingWrap;
 } // namespace Ui
 
+namespace Data {
+class Feed;
+} // namespace Data
+
 namespace Info {
 
 class ContentMemento;
@@ -115,6 +119,9 @@ public:
 	: _peerId(peerId)
 	, _migratedPeerId(migratedPeerId) {
 	}
+	ContentMemento(not_null<Data::Feed*> feed)
+	: _feed(feed) {
+	}
 
 	virtual object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
@@ -126,6 +133,9 @@ public:
 	}
 	PeerId migratedPeerId() const {
 		return _migratedPeerId;
+	}
+	Data::Feed *feed() const {
+		return _feed;
 	}
 
 	virtual Section section() const = 0;
@@ -160,6 +170,7 @@ public:
 private:
 	const PeerId _peerId = 0;
 	const PeerId _migratedPeerId = 0;
+	Data::Feed * const _feed = nullptr;
 	int _scrollTop = 0;
 	QString _searchFieldQuery;
 	bool _searchEnabledByContent = false;

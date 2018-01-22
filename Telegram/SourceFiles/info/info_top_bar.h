@@ -26,11 +26,12 @@ class LabelWithNumbers;
 
 namespace Info {
 
+class Key;
 class Section;
 
 rpl::producer<QString> TitleValue(
 	const Section &section,
-	not_null<PeerData*> peer,
+	Key key,
 	bool isStackBottom);
 
 class TopBar : public Ui::RpWidget {

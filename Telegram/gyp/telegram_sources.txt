@@ -284,6 +284,14 @@
 <(src_loc)/info/common_groups/info_common_groups_inner_widget.h
 <(src_loc)/info/common_groups/info_common_groups_widget.cpp
 <(src_loc)/info/common_groups/info_common_groups_widget.h
+<(src_loc)/info/feed/info_feed_channels.cpp
+<(src_loc)/info/feed/info_feed_channels.h
+<(src_loc)/info/feed/info_feed_cover.cpp
+<(src_loc)/info/feed/info_feed_cover.h
+<(src_loc)/info/feed/info_feed_profile_inner_widget.cpp
+<(src_loc)/info/feed/info_feed_profile_inner_widget.h
+<(src_loc)/info/feed/info_feed_profile_widget.cpp
+<(src_loc)/info/feed/info_feed_profile_widget.h
 <(src_loc)/info/media/info_media_buttons.h
 <(src_loc)/info/media/info_media_empty_widget.cpp
 <(src_loc)/info/media/info_media_empty_widget.h

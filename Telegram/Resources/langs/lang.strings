@@ -1418,6 +1418,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_feed_name" = "Feed";
 "lng_feed_show_next" = "Show Next";
 
+"lng_info_feed_title" = "Feed Info";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";

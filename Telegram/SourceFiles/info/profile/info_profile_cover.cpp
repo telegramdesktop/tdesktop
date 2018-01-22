@@ -212,15 +212,14 @@ int SectionWithToggle::toggleSkip() const {
 
 Cover::Cover(
 	QWidget *parent,
-	not_null<Controller*> controller,
-	not_null<PeerData*> peer)
+	not_null<Controller*> controller)
 : SectionWithToggle(
 	parent,
 	st::infoProfilePhotoTop
 		+ st::infoProfilePhoto.size.height()
 		+ st::infoProfilePhotoBottom)
 , _controller(controller)
-, _peer(peer)
+, _peer(_controller->key().peer())
 , _userpic(
 	this,
 	controller->parentController(),

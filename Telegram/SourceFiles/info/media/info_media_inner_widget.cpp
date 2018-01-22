@@ -42,7 +42,7 @@ InnerWidget::InnerWidget(
 // Was done for top level tabs support.
 // Now used for shared media in Saved Messages.
 void InnerWidget::setupOtherTypes() {
-	if (_controller->peer()->isSelf() && _isStackBottom) {
+	if (_controller->key().peer()->isSelf() && _isStackBottom) {
 		createOtherTypes();
 	} else {
 		_otherTypes.destroy();
@@ -95,7 +95,7 @@ void InnerWidget::createTypeButtons() {
 		auto result = AddButton(
 			content,
 			_controller,
-			_controller->peer(),
+			_controller->key().peer(),
 			_controller->migrated(),
 			buttonType,
 			tracker);
@@ -123,7 +123,7 @@ void InnerWidget::createTypeButtons() {
 	addMediaButton(Type::File, st::infoIconMediaFile);
 	addMediaButton(Type::MusicFile, st::infoIconMediaAudio);
 	addMediaButton(Type::Link, st::infoIconMediaLink);
-	if (auto user = _controller->peer()->asUser()) {
+	if (auto user = _controller->key().peer()->asUser()) {
 //		addCommonGroupsButton(user, st::infoIconMediaGroup);
 	}
 	addMediaButton(Type::VoiceFile, st::infoIconMediaVoice);

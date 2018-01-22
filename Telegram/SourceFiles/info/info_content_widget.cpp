@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/search_field_controller.h"
 #include "lang/lang_keys.h"
 #include "info/profile/info_profile_widget.h"
-#include "info/profile/info_profile_members.h"
 #include "info/media/info_media_widget.h"
 #include "info/common_groups/info_common_groups_widget.h"
 #include "info/info_layer_widget.h"

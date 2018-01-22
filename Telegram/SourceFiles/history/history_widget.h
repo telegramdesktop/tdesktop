@@ -208,8 +208,6 @@ public:
 	QRect historyRect() const;
 	void pushTabbedSelectorToThirdSection(
 		const Window::SectionShow &params);
-	void pushInfoToThirdSection(
-		const Window::SectionShow &params);
 
 	void updateRecentStickers();
 

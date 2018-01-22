@@ -541,7 +541,7 @@ ListWidget::ListWidget(
 	not_null<AbstractController*> controller)
 : RpWidget(parent)
 , _controller(controller)
-, _peer(_controller->peer())
+, _peer(_controller->key().peer())
 , _migrated(_controller->migrated())
 , _type(_controller->section().mediaType())
 , _slice(sliceKey(_universalAroundId)) {

@@ -41,11 +41,10 @@ constexpr auto kEnableSearchMembersAfterCount = 20;
 
 Members::Members(
 	QWidget *parent,
-	not_null<Controller*> controller,
-	not_null<PeerData*> peer)
+	not_null<Controller*> controller)
 : RpWidget(parent)
 , _controller(controller)
-, _peer(peer)
+, _peer(_controller->key().peer())
 , _listController(CreateMembersController(controller, _peer)) {
 	setupHeader();
 	setupList();

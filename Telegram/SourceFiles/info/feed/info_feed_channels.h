@@ -19,39 +19,37 @@ struct ScrollToRequest;
 class AbstractButton;
 } // namespace Ui
 
-namespace Profile {
-class ParticipantsBoxController;
-} // namespace Profile
-
 namespace Info {
 
 class Controller;
 enum class Wrap;
 
 namespace Profile {
-
 class Button;
+} // namespace Profile
+
+namespace FeedProfile {
+
 class Memento;
-struct MembersState {
+struct ChannelsState {
 	std::unique_ptr<PeerListState> list;
 	base::optional<QString> search;
 };
 
-class Members
+class Channels
 	: public Ui::RpWidget
 	, private PeerListContentDelegate {
 public:
-	Members(
+	Channels(
 		QWidget *parent,
 		not_null<Controller*> controller);
 
 	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const;
 
-	std::unique_ptr<MembersState> saveState();
-	void restoreState(std::unique_ptr<MembersState> state);
+	std::unique_ptr<ChannelsState> saveState();
+	void restoreState(std::unique_ptr<ChannelsState> state);
 
 	int desiredHeight() const;
-	rpl::producer<int> onlineCountValue() const;
 
 protected:
 	void visibleTopBottomUpdated(
@@ -76,58 +74,30 @@ private:
 	void peerListSetDescription(
 		object_ptr<Ui::FlatLabel> description) override;
 
-	//void peerListAppendRow(
-	//	std::unique_ptr<PeerListRow> row) override {
-	//	PeerListContentDelegate::peerListAppendRow(std::move(row));
-	//	updateSearchEnabledByContent();
-	//}
-	//void peerListPrependRow(
-	//	std::unique_ptr<PeerListRow> row) override {
-	//	PeerListContentDelegate::peerListPrependRow(std::move(row));
-	//	updateSearchEnabledByContent();
-	//}
-	//void peerListRemoveRow(not_null<PeerListRow*> row) override {
-	//	PeerListContentDelegate::peerListRemoveRow(row);
-	//	updateSearchEnabledByContent();
-	//}
-
 	void setupHeader();
 	object_ptr<Ui::FlatLabel> setupTitle();
 	void setupList();
 
 	void setupButtons();
-	//void updateSearchOverrides();
-
-	void addMember();
-	void showMembersWithSearch(bool withSearch);
-	//void toggleSearch(anim::type animated = anim::type::normal);
-	//void cancelSearch();
-	//void searchAnimationCallback();
+	void addChannel();
+	void showChannelsWithSearch(bool withSearch);
 	void updateHeaderControlsGeometry(int newWidth);
-	//void updateSearchEnabledByContent();
 
-	//Wrap _wrap;
 	not_null<Controller*> _controller;
-	not_null<PeerData*> _peer;
+	not_null<Data::Feed*> _feed;
 	std::unique_ptr<PeerListController> _listController;
 	object_ptr<Ui::RpWidget> _header = { nullptr };
 	object_ptr<ListWidget> _list = { nullptr };
 
-	Button *_openMembers = nullptr;
+	Profile::Button *_openChannels = nullptr;
 	Ui::RpWidget *_titleWrap = nullptr;
 	Ui::FlatLabel *_title = nullptr;
-	Ui::IconButton *_addMember = nullptr;
-	//base::unique_qptr<Ui::InputField> _searchField;
+	Ui::IconButton *_addChannel = nullptr;
 	Ui::IconButton *_search = nullptr;
-	//Ui::CrossButton *_cancelSearch = nullptr;
-
-	//Animation _searchShownAnimation;
-	//bool _searchShown = false;
-	//base::Timer _searchTimer;
 
 	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
 
 };
 
-} // namespace Profile
+} // namespace FeedProfile
 } // namespace Info

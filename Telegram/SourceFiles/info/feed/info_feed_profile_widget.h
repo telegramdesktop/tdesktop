@@ -10,22 +10,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/producer.h>
 #include "info/info_content_widget.h"
 
-struct PeerListState;
-
 namespace Info {
-namespace Profile {
-class Members;
-struct MembersState;
-} // namespace Profile
+namespace FeedProfile {
 
-namespace Members {
-
-using SavedState = Profile::MembersState;
+class InnerWidget;
+struct ChannelsState;
 
 class Memento final : public ContentMemento {
 public:
 	Memento(not_null<Controller*> controller);
-	Memento(PeerId peerId, PeerId migratedPeerId);
+	Memento(not_null<Data::Feed*> feed);
 
 	object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
@@ -34,13 +28,13 @@ public:
 
 	Section section() const override;
 
-	void setState(std::unique_ptr<SavedState> state);
-	std::unique_ptr<SavedState> state();
+	void setChannelsState(std::unique_ptr<ChannelsState> state);
+	std::unique_ptr<ChannelsState> channelsState();
 
 	~Memento();
 
 private:
-	std::unique_ptr<SavedState> _state;
+	std::unique_ptr<ChannelsState> _channelsState;
 
 };
 
@@ -50,6 +44,8 @@ public:
 		QWidget *parent,
 		not_null<Controller*> controller);
 
+	void setIsStackBottom(bool isStackBottom) override;
+
 	bool showInternal(
 		not_null<ContentMemento*> memento) override;
 
@@ -57,16 +53,17 @@ public:
 		const QRect &geometry,
 		not_null<Memento*> memento);
 
+	void setInnerFocus() override;
+
 private:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
 
 	std::unique_ptr<ContentMemento> doCreateMemento() override;
 
-	Profile::Members *_inner = nullptr;
+	InnerWidget *_inner = nullptr;
 
 };
 
-} // namespace Members
+} // namespace FeedProfile
 } // namespace Info
-

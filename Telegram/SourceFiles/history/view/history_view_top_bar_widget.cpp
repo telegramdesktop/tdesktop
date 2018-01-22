@@ -198,21 +198,20 @@ void TopBarWidget::toggleInfoSection() {
 		&& (Auth().settings().thirdSectionInfoEnabled()
 			|| Auth().settings().tabbedReplacedWithInfo())) {
 		_controller->closeThirdSection();
-	} else if (_activeChat.peer()) {
-		// #TODO feeds profile
+	} else if (_activeChat) {
 		if (_controller->canShowThirdSection()) {
 			Auth().settings().setThirdSectionInfoEnabled(true);
 			Auth().saveSettingsDelayed();
 			if (Adaptive::ThreeColumn()) {
 				_controller->showSection(
-					Info::Memento::Default(_activeChat.peer()),
+					Info::Memento::Default(_activeChat),
 					Window::SectionShow().withThirdColumn());
 			} else {
 				_controller->resizeForThirdSection();
 				_controller->updateColumnLayout();
 			}
 		} else {
-			_controller->showSection(Info::Memento(_activeChat.peer()->id));
+			infoClicked();
 		}
 	} else {
 		updateControlsVisibility();
@@ -345,7 +344,9 @@ void TopBarWidget::infoClicked() {
 	if (!_activeChat) {
 		return;
 	} else if (const auto feed = _activeChat.feed()) {
-		// #TODO feeds profile
+		_controller->showSection(Info::Memento(
+			feed,
+			Info::Section(Info::Section::Type::Profile)));
 	} else if (_activeChat.peer()->isSelf()) {
 		_controller->showSection(Info::Memento(
 			_activeChat.peer()->id,

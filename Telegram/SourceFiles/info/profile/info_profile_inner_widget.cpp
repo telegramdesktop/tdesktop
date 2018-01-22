@@ -50,7 +50,7 @@ InnerWidget::InnerWidget(
 	not_null<Controller*> controller)
 : RpWidget(parent)
 , _controller(controller)
-, _peer(_controller->peer())
+, _peer(_controller->key().peer())
 , _migrated(_controller->migrated())
 , _content(setupContent(this)) {
 	_content->heightValue(
@@ -77,8 +77,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
 	_cover = result->add(object_ptr<Cover>(
 		result,
-		_controller,
-		_peer));
+		_controller));
 	_cover->setOnlineCount(rpl::single(0));
 	auto details = SetupDetails(_controller, parent, _peer);
 	if (canHideDetailsEver()) {
@@ -106,9 +105,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	if (_peer->isChat() || _peer->isMegagroup()) {
 		_members = result->add(object_ptr<Members>(
 			result,
-			_controller,
-			_peer)
-		);
+			_controller));
 		_members->scrollToRequests(
 		) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
 			auto min = (request.ymin < 0)

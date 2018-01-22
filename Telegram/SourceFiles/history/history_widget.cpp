@@ -3830,16 +3830,6 @@ void HistoryWidget::pushTabbedSelectorToThirdSection(
 	destroyingPanel.destroy();
 }
 
-void HistoryWidget::pushInfoToThirdSection(
-		const Window::SectionShow &params) {
-	if (!_peer) {
-		return;
-	}
-	controller()->showSection(
-		Info::Memento::Default(_peer),
-		params.withThirdColumn());
-}
-
 void HistoryWidget::toggleTabbedSelectorMode() {
 	if (_tabbedPanel) {
 		if (controller()->canShowThirdSection()

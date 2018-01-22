@@ -527,12 +527,16 @@ void TopBar::performDelete() {
 
 rpl::producer<QString> TitleValue(
 		const Section &section,
-		not_null<PeerData*> peer,
+		Key key,
 		bool isStackBottom) {
 	return Lang::Viewer([&] {
+		const auto peer = key.peer();
+
 		switch (section.type()) {
 		case Section::Type::Profile:
-			if (auto user = peer->asUser()) {
+			if (const auto feed = key.feed()) {
+				return lng_info_feed_title;
+			} else if (auto user = peer->asUser()) {
 				return user->botInfo
 					? lng_info_bot_title
 					: lng_info_user_title;
