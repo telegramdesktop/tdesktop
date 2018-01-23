@@ -314,7 +314,7 @@ QSize Service::performCountCurrentSize(int newWidth) {
 	const auto item = message();
 	const auto media = this->media();
 
-	auto newHeight = item->displayedDateHeight();
+	auto newHeight = displayedDateHeight();
 	if (const auto bar = Get<UnreadBar>()) {
 		newHeight += bar->height();
 	}
@@ -376,7 +376,7 @@ void Service::draw(
 	auto height = this->height() - st::msgServiceMargin.top() - st::msgServiceMargin.bottom();
 	auto dateh = 0;
 	auto unreadbarh = 0;
-	if (auto date = item->Get<HistoryMessageDate>()) {
+	if (auto date = Get<DateBadge>()) {
 		dateh = date->height();
 		p.translate(0, dateh);
 		clip.translate(0, -dateh);
@@ -445,7 +445,7 @@ bool Service::hasPoint(QPoint point) const {
 		return false;
 	}
 
-	if (auto dateh = item->displayedDateHeight()) {
+	if (const auto dateh = displayedDateHeight()) {
 		g.setTop(g.top() + dateh);
 	}
 	if (const auto bar = Get<UnreadBar>()) {
@@ -468,7 +468,7 @@ HistoryTextState Service::getState(QPoint point, HistoryStateRequest request) co
 		return result;
 	}
 
-	if (auto dateh = item->displayedDateHeight()) {
+	if (const auto dateh = displayedDateHeight()) {
 		point.setY(point.y() - dateh);
 		g.setHeight(g.height() - dateh);
 	}

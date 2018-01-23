@@ -78,6 +78,19 @@ struct UnreadBar : public RuntimeComponent<UnreadBar, Element> {
 
 };
 
+// Any HistoryView::Element can have this Component for
+// displaying the day mark above the message.
+struct DateBadge : public RuntimeComponent<DateBadge, Element> {
+	void init(const QDateTime &date);
+
+	int height() const;
+	void paint(Painter &p, int y, int w) const;
+
+	QString text;
+	int width = 0;
+
+};
+
 class Element
 	: public Object
 	, public RuntimeComposer<Element>
@@ -142,6 +155,10 @@ public:
 	// messages count will not change for this bar
 	// when the new messages arrive in this chat history
 	void setUnreadBarFreezed();
+
+	int displayedDateHeight() const;
+	bool displayDate() const;
+	bool isInOneDayWithPrevious() const;
 
 	virtual void draw(
 		Painter &p,
@@ -224,12 +241,13 @@ protected:
 private:
 	// This should be called only from previousInBlocksChanged()
 	// to add required bits to the Composer mask
-	// after that always use Has<HistoryMessageDate>().
+	// after that always use Has<DateBadge>().
 	void recountDisplayDateInBlocks();
 
 	// This should be called only from previousInBlocksChanged() or when
-	// HistoryMessageDate or UnreadBar bit is changed in the Composer mask
-	// then the result should be cached in a client side flag MTPDmessage_ClientFlag::f_attach_to_previous.
+	// DateBadge or UnreadBar bit is changed in the Composer mask
+	// then the result should be cached in a client side flag
+	// MTPDmessage_ClientFlag::f_attach_to_previous.
 	void recountAttachToPreviousInBlocks();
 
 	QSize countOptimalSize() final override;

@@ -798,19 +798,6 @@ void HistoryMessageReplyMarkup::create(
 	}
 }
 
-void HistoryMessageDate::init(const QDateTime &date) {
-	_text = langDayOfMonthFull(date.date());
-	_width = st::msgServiceFont->width(_text);
-}
-
-int HistoryMessageDate::height() const {
-	return st::msgServiceMargin.top() + st::msgServicePadding.top() + st::msgServiceFont->height + st::msgServicePadding.bottom() + st::msgServiceMargin.bottom();
-}
-
-void HistoryMessageDate::paint(Painter &p, int y, int w) const {
-	HistoryView::ServiceMessagePainter::paintDate(p, _text, _width, y, w);
-}
-
 HistoryMessageLogEntryOriginal::HistoryMessageLogEntryOriginal() = default;
 
 HistoryMessageLogEntryOriginal::HistoryMessageLogEntryOriginal(

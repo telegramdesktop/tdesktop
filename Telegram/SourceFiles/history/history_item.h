@@ -244,13 +244,6 @@ public:
 	QString authorOriginal() const;
 	MsgId idOriginal() const;
 
-	int displayedDateHeight() const;
-	bool displayDate() const;
-
-	bool isInOneDayWithPrevious() const {
-		return !isEmpty() && !displayDate();
-	}
-
 	bool isEmpty() const;
 
 	MessageGroupId groupId() const;

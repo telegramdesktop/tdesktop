@@ -176,13 +176,13 @@ void ListWidget::enumerateDates(Method method) {
 
 	auto dateCallback = [&](not_null<Element*> view, int itemtop, int itembottom) {
 		const auto item = view->data();
-		if (lowestInOneDayItemBottom < 0 && item->isInOneDayWithPrevious()) {
+		if (lowestInOneDayItemBottom < 0 && view->isInOneDayWithPrevious()) {
 			lowestInOneDayItemBottom = itembottom - view->marginBottom();
 		}
 
 		// Call method on a date for all messages that have it and for those who are not showing it
 		// because they are in a one day together with the previous message if they are top-most visible.
-		if (item->displayDate() || (!item->isEmpty() && itemtop <= _visibleTop)) {
+		if (view->displayDate() || (!item->isEmpty() && itemtop <= _visibleTop)) {
 			if (lowestInOneDayItemBottom < 0) {
 				lowestInOneDayItemBottom = itembottom - view->marginBottom();
 			}
@@ -201,7 +201,7 @@ void ListWidget::enumerateDates(Method method) {
 		}
 
 		// Forget the found bottom of the pack, search for the next one from scratch.
-		if (!item->isInOneDayWithPrevious()) {
+		if (!view->isInOneDayWithPrevious()) {
 			lowestInOneDayItemBottom = -1;
 		}
 
@@ -675,8 +675,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 				return false;
 			}
 
-			const auto item = view->data();
-			const auto displayDate = item->displayDate();
+			const auto displayDate = view->displayDate();
 			auto dateInPlace = displayDate;
 			if (dateInPlace) {
 				const auto correctDateTop = itemtop + st::msgServiceMargin.top();
@@ -696,11 +695,14 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 					p.setOpacity(opacity);
 					int dateY = /*noFloatingDate ? itemtop :*/ (dateTop - st::msgServiceMargin.top());
 					int width = view->width();
-					if (const auto date = item->Get<HistoryMessageDate>()) {
+					if (const auto date = view->Get<HistoryView::DateBadge>()) {
 						date->paint(p, dateY, width);
 					} else {
 						ServiceMessagePainter::paintDate(
-							p, item->date, dateY, width);
+							p,
+							view->data()->date,
+							dateY,
+							width);
 					}
 				}
 			}

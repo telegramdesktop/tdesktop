@@ -4857,8 +4857,8 @@ base::optional<int> HistoryWidget::unreadBarTop() const {
 	if (const auto bar = getUnreadBar()) {
 		const auto result = _list->itemTop(bar)
 			+ HistoryView::UnreadBar::marginTop();
-		if (bar->data()->Has<HistoryMessageDate>()) {
-			return result + bar->data()->Get<HistoryMessageDate>()->height();
+		if (bar->Has<HistoryView::DateBadge>()) {
+			return result + bar->Get<HistoryView::DateBadge>()->height();
 		}
 		return result;
 	}

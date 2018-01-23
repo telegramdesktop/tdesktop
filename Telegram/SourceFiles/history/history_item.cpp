@@ -581,17 +581,6 @@ MessageGroupId HistoryItem::groupId() const {
 	return _groupId;
 }
 
-int HistoryItem::displayedDateHeight() const {
-	if (auto date = Get<HistoryMessageDate>()) {
-		return date->height();
-	}
-	return 0;
-}
-
-bool HistoryItem::displayDate() const {
-	return Has<HistoryMessageDate>();
-}
-
 bool HistoryItem::isEmpty() const {
 	return _text.isEmpty()
 		&& !_media

@@ -372,13 +372,13 @@ void HistoryInner::enumerateDates(Method method) {
 
 	auto dateCallback = [&](not_null<Element*> view, int itemtop, int itembottom) {
 		const auto item = view->data();
-		if (lowestInOneDayItemBottom < 0 && item->isInOneDayWithPrevious()) {
+		if (lowestInOneDayItemBottom < 0 && view->isInOneDayWithPrevious()) {
 			lowestInOneDayItemBottom = itembottom - view->marginBottom();
 		}
 
 		// Call method on a date for all messages that have it and for those who are not showing it
 		// because they are in a one day together with the previous message if they are top-most visible.
-		if (item->displayDate() || (!item->isEmpty() && itemtop <= _visibleAreaTop)) {
+		if (view->displayDate() || (!item->isEmpty() && itemtop <= _visibleAreaTop)) {
 			// skip the date of history migrate item if it will be in migrated
 			if (itemtop < drawtop && item->history() == _history) {
 				if (itemtop > _visibleAreaTop) {
@@ -409,7 +409,7 @@ void HistoryInner::enumerateDates(Method method) {
 		}
 
 		// Forget the found bottom of the pack, search for the next one from scratch.
-		if (!item->isInOneDayWithPrevious()) {
+		if (!view->isInOneDayWithPrevious()) {
 			lowestInOneDayItemBottom = -1;
 		}
 
@@ -652,8 +652,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 					return false;
 				}
 
-				const auto item = view->data();
-				const auto displayDate = item->displayDate();
+				const auto displayDate = view->displayDate();
 				auto dateInPlace = displayDate;
 				if (dateInPlace) {
 					const auto correctDateTop = itemtop + st::msgServiceMargin.top();
@@ -674,12 +673,12 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 						const auto dateY = false // noFloatingDate
 							? itemtop
 							: (dateTop - st::msgServiceMargin.top());
-						if (const auto date = item->Get<HistoryMessageDate>()) {
+						if (const auto date = view->Get<HistoryView::DateBadge>()) {
 							date->paint(p, dateY, _contentWidth);
 						} else {
 							HistoryView::ServiceMessagePainter::paintDate(
 								p,
-								item->date,
+								view->data()->date,
 								dateY,
 								_contentWidth);
 						}
@@ -1859,7 +1858,7 @@ void HistoryInner::recountHistoryGeometry() {
 				if (_migrated->blocks.back()->messages.back()->data()->isGroupMigrate() && _history->blocks.front()->messages.front()->data()->isGroupMigrate()) {
 					_historySkipHeight += _history->blocks.front()->messages.front()->height();
 				} else {
-					_historySkipHeight += _history->blocks.front()->messages.front()->data()->displayedDateHeight();
+					_historySkipHeight += _history->blocks.front()->messages.front()->displayedDateHeight();
 				}
 			}
 		}
@@ -2332,8 +2331,7 @@ void HistoryInner::onUpdateSelected() {
 				return false;
 			}
 
-			const auto item = view->data();
-			const auto displayDate = item->displayDate();
+			const auto displayDate = view->displayDate();
 			auto dateInPlace = displayDate;
 			if (dateInPlace) {
 				const auto correctDateTop = itemtop + st::msgServiceMargin.top();
@@ -2344,9 +2342,10 @@ void HistoryInner::onUpdateSelected() {
 			if (dateTop <= point.y()) {
 				auto opacity = (dateInPlace/* || noFloatingDate*/) ? 1. : scrollDateOpacity;
 				if (opacity > 0.) {
+					const auto item = view->data();
 					auto dateWidth = 0;
-					if (auto date = item->Get<HistoryMessageDate>()) {
-						dateWidth = date->_width;
+					if (const auto date = view->Get<HistoryView::DateBadge>()) {
+						dateWidth = date->width;
 					} else {
 						dateWidth = st::msgServiceFont->width(langDayOfMonthFull(item->date.date()));
 					}

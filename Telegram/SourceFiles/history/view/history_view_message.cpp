@@ -360,7 +360,7 @@ void Message::draw(
 	}
 
 	auto dateh = 0;
-	if (const auto date = item->Get<HistoryMessageDate>()) {
+	if (const auto date = Get<DateBadge>()) {
 		dateh = date->height();
 	}
 	if (const auto bar = Get<UnreadBar>()) {

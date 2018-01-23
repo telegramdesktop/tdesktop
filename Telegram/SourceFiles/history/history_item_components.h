@@ -323,18 +323,6 @@ private:
 
 };
 
-// Any HistoryItem can have this Component for
-// displaying the day mark above the message.
-struct HistoryMessageDate : public RuntimeComponent<HistoryMessageDate, HistoryItem> {
-	void init(const QDateTime &date);
-
-	int height() const;
-	void paint(Painter &p, int y, int w) const;
-
-	QString _text;
-	int _width = 0;
-};
-
 // Special type of Component for the channel actions log.
 struct HistoryMessageLogEntryOriginal
 	: public RuntimeComponent<HistoryMessageLogEntryOriginal, HistoryItem> {

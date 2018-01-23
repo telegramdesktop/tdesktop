@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_element.h"
 
+#include "history/view/history_view_service_message.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "history/history_media.h"
@@ -110,6 +111,24 @@ void UnreadBar::paint(Painter &p, int y, int w) const {
 		text);
 }
 
+
+void DateBadge::init(const QDateTime &date) {
+	text = langDayOfMonthFull(date.date());
+	width = st::msgServiceFont->width(text);
+}
+
+int DateBadge::height() const {
+	return st::msgServiceMargin.top()
+		+ st::msgServicePadding.top()
+		+ st::msgServiceFont->height
+		+ st::msgServicePadding.bottom()
+		+ st::msgServiceMargin.bottom();
+}
+
+void DateBadge::paint(Painter &p, int y, int w) const {
+	ServiceMessagePainter::paintDate(p, text, width, y, w);
+}
+
 Element::Element(
 	not_null<ElementDelegate*> delegate,
 	not_null<HistoryItem*> data)
@@ -154,7 +173,7 @@ int Element::marginTop() const {
 			result += st::msgMargin.top();
 		}
 	}
-	result += item->displayedDateHeight();
+	result += displayedDateHeight();
 	if (const auto bar = Get<UnreadBar>()) {
 		result += bar->height();
 	}
@@ -254,7 +273,7 @@ void Element::refreshDataId() {
 
 bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 	const auto item = data();
-	if (!item->Has<HistoryMessageDate>() && !Has<UnreadBar>()) {
+	if (!Has<DateBadge>() && !Has<UnreadBar>()) {
 		const auto prev = previous->data();
 		const auto possible = !item->serviceMsg() && !prev->serviceMsg()
 			&& !item->isEmpty() && !prev->isEmpty()
@@ -309,6 +328,21 @@ void Element::setUnreadBarFreezed() {
 	}
 }
 
+int Element::displayedDateHeight() const {
+	if (auto date = Get<DateBadge>()) {
+		return date->height();
+	}
+	return 0;
+}
+
+bool Element::displayDate() const {
+	return Has<DateBadge>();
+}
+
+bool Element::isInOneDayWithPrevious() const {
+	return !data()->isEmpty() && !displayDate();
+}
+
 void Element::recountAttachToPreviousInBlocks() {
 	auto attachToPrevious = false;
 	if (const auto previous = previousInBlocks()) {
@@ -347,12 +381,12 @@ QSize Element::countCurrentSize(int newWidth) {
 
 void Element::setDisplayDate(bool displayDate) {
 	const auto item = data();
-	if (displayDate && !item->Has<HistoryMessageDate>()) {
-		item->AddComponents(HistoryMessageDate::Bit());
-		item->Get<HistoryMessageDate>()->init(item->date);
+	if (displayDate && !Has<DateBadge>()) {
+		AddComponents(DateBadge::Bit());
+		Get<DateBadge>()->init(item->date);
 		setPendingResize();
-	} else if (!displayDate && item->Has<HistoryMessageDate>()) {
-		item->RemoveComponents(HistoryMessageDate::Bit());
+	} else if (!displayDate && Has<DateBadge>()) {
+		RemoveComponents(DateBadge::Bit());
 		setPendingResize();
 	}
 }
