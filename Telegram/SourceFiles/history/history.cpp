@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
+#include "storage/storage_feed_messages.h"
 #include "data/data_channel_admins.h"
 #include "data/data_feed.h"
 #include "ui/text_options.h"
@@ -1478,7 +1479,13 @@ HistoryBlock *History::prepareBlockForAddingItem() {
 		blocks.back()->messages.reserve(kNewBlockEachMessage);
 	}
 	return blocks.back().get();
-};
+}
+
+void History::viewReplaced(not_null<const Element*> was, Element *now) {
+	if (scrollTopItem == was) scrollTopItem= now;
+	if (_firstUnreadView == was) _firstUnreadView= now;
+	if (_unreadBarView == was) _unreadBarView = now;
+}
 
 void History::addItemToBlock(not_null<HistoryItem*> item) {
 	Expects(!item->mainView());
@@ -1908,7 +1915,7 @@ void History::getNextFirstUnreadMessage() {
 		const auto count = int(block->messages.size());
 		for (auto i = index + 1; i != count; ++i) {
 			const auto &message = block->messages[i];
-			if (setFromMessage(block->messages[i])) {
+			if (setFromMessage(message)) {
 				return;
 			}
 		}
@@ -2264,15 +2271,17 @@ void History::setLastMessage(HistoryItem *msg) {
 	}
 }
 
-bool History::needUpdateInChatList() const {
-	if (inChatList(Dialogs::Mode::All)) {
-		return true;
-	} else if (peer->migrateTo()) {
+bool History::shouldBeInChatList() const {
+	if (peer->migrateTo()) {
 		return false;
 	} else if (isPinnedDialog()) {
 		return true;
 	} else if (const auto channel = peer->asChannel()) {
-		return !channel->feed() && channel->amIn();
+		if (!channel->amIn()) {
+			return false;
+		} else if (const auto feed = channel->feed()) {
+			return !feed->needUpdateInChatList();
+		}
 	}
 	return true;
 }
@@ -2396,6 +2405,13 @@ void History::clear(bool leaveItems) {
 		setLastMessage(nullptr);
 		notifies.clear();
 		Auth().storage().remove(Storage::SharedMediaRemoveAll(peer->id));
+		if (const auto channel = peer->asChannel()) {
+			if (const auto feed = channel->feed()) {
+				Auth().storage().remove(Storage::FeedMessagesRemoveAll(
+					feed->id(),
+					channel->bareId()));
+			}
+		}
 		Auth().data().notifyHistoryCleared(this);
 	}
 	clearBlocks(leaveItems);
@@ -2481,12 +2497,6 @@ void History::clearBlocks(bool leaveItems) {
 
 void History::clearOnDestroy() {
 	clearBlocks(false);
-}
-
-void History::removeDialog() {
-	if (const auto main = App::main()) {
-		main->deleteConversation(peer, false);
-	}
 }
 
 void History::changedInChatListHook(Dialogs::Mode list, bool added) {
@@ -2588,9 +2598,7 @@ void HistoryBlock::refreshView(not_null<Element*> view) {
 
 	auto blockIndex = indexInHistory();
 	auto itemIndex = view->indexInBlock();
-	if (_history->scrollTopItem == view) {
-		_history->scrollTopItem = refreshed.get();
-	}
+	_history->viewReplaced(view, refreshed.get());
 
 	messages[itemIndex] = std::move(refreshed);
 	messages[itemIndex]->attachToBlock(this, itemIndex);

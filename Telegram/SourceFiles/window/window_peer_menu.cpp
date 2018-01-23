@@ -349,6 +349,12 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 
 void Filler::addChannelActions(not_null<ChannelData*> channel) {
 	auto isGroup = channel->isMegagroup();
+	if (!isGroup) {
+		const auto grouped = (channel->feed() != nullptr);
+		_addAction(
+			lang(grouped ? lng_feed_ungroup : lng_feed_group),
+			[=] { ToggleChannelGrouping(channel, !grouped); });
+	}
 	if (_source != PeerMenuSource::ChatsList) {
 		if (ManagePeerBox::Available(channel)) {
 			auto text = lang(isGroup
@@ -581,6 +587,10 @@ void PeerMenuAddChannelMembers(not_null<ChannelData*> channel) {
 		});
 	};
 	Auth().api().requestChannelMembersForAdd(channel, callback);
+}
+
+void ToggleChannelGrouping(not_null<ChannelData*> channel, bool group) {
+	Auth().api().toggleChannelGrouping(channel, group);
 }
 
 base::lambda<void()> ClearHistoryHandler(not_null<PeerData*> peer) {

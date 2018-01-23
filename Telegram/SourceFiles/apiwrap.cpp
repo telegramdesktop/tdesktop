@@ -170,6 +170,32 @@ void ApiWrap::savePinnedOrder() {
 	)).send();
 }
 
+void ApiWrap::toggleChannelGrouping(
+		not_null<ChannelData*> channel,
+		bool group) {
+	if (const auto already = _channelGroupingRequests.take(channel)) {
+		request(*already).cancel();
+	}
+	const auto feedId = Data::Feed::kId;
+	const auto flags = group
+		? MTPchannels_ChangeFeedBroadcast::Flag::f_feed_id
+		: MTPchannels_ChangeFeedBroadcast::Flag(0);
+	const auto requestId = request(MTPchannels_ChangeFeedBroadcast(
+		MTP_flags(flags),
+		channel->inputChannel,
+		MTP_int(feedId)
+	)).done([=](const MTPBool &result) {
+		_channelGroupingRequests.remove(channel);
+		if (group) {
+			channel->setFeed(Auth().data().feed(feedId));
+		} else {
+			channel->clearFeed();
+		}
+	}).fail([=](const RPCError &error) {
+		_channelGroupingRequests.remove(channel);
+	}).send();
+}
+
 void ApiWrap::sendMessageFail(const RPCError &error) {
 	if (error.type() == qstr("PEER_FLOOD")) {
 		Ui::show(Box<InformBox>(

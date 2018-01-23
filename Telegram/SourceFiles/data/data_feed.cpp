@@ -7,10 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_feed.h"
 
+#include "data/data_session.h"
 #include "dialogs/dialogs_key.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
+#include "storage/storage_facade.h"
+#include "storage/storage_feed_messages.h"
+#include "auth_session.h"
 
 namespace Data {
 
@@ -23,11 +27,16 @@ MessagePosition FeedPositionFromMTP(const MTPFeedPosition &position) {
 		data.vid.v));
 }
 
-Feed::Feed(FeedId id)
+Feed::Feed(FeedId id, not_null<Data::Session*> parent)
 : Entry(this)
 , _id(id)
+, _parent(parent)
 , _name(lang(lng_feed_name)) {
 	indexNameParts();
+}
+
+FeedId Feed::id() const {
+	return _id;
 }
 
 void Feed::indexNameParts() {
@@ -59,18 +68,37 @@ void Feed::indexNameParts() {
 void Feed::registerOne(not_null<ChannelData*> channel) {
 	const auto history = App::history(channel);
 	if (!base::contains(_channels, history)) {
+		const auto invisible = (_channels.size() < 2);
 		_channels.push_back(history);
 		if (history->lastMsg) {
 			updateLastMessage(history->lastMsg);
+		}
+		_parent->session().storage().remove(
+			Storage::FeedMessagesInvalidate(_id));
+
+		history->updateChatListExistence();
+		if (invisible && _channels.size() > 1) {
+			updateChatListExistence();
 		}
 	}
 }
 
 void Feed::unregisterOne(not_null<ChannelData*> channel) {
 	const auto history = App::history(channel);
-	_channels.erase(ranges::remove(_channels, history), end(_channels));
-	if (_lastMessage->history() == history) {
-		messageRemoved(_lastMessage);
+	const auto i = ranges::remove(_channels, history);
+	if (i != end(_channels)) {
+		const auto visible = (_channels.size() > 1);
+		_channels.erase(i, end(_channels));
+		if (_lastMessage && _lastMessage->history() == history) {
+			messageRemoved(_lastMessage);
+		}
+		_parent->session().storage().remove(
+			Storage::FeedMessagesRemoveAll(_id, channel->bareId()));
+
+		history->updateChatListExistence();
+		if (visible && _channels.size() < 2) {
+			updateChatListExistence();
+		}
 	}
 }
 
@@ -105,6 +133,7 @@ void Feed::paintUserpic(
 		case 1:
 		case 3: x += delta; break;
 		case 2: x -= delta; y += delta; break;
+		case 4: return;
 		}
 	}
 }
@@ -144,6 +173,50 @@ void Feed::recountLastMessage() {
 void Feed::setUnreadCounts(int unreadCount, int unreadMutedCount) {
 	_unreadCount = unreadCount;
 	_unreadMutedCount = unreadMutedCount;
+}
+
+void Feed::setUnreadPosition(const MessagePosition &position) {
+	_unreadPosition = position;
+}
+
+MessagePosition Feed::unreadPosition() const {
+	return _unreadPosition.current();
+}
+
+rpl::producer<MessagePosition> Feed::unreadPositionChanges() const {
+	return _unreadPosition.changes();
+}
+
+bool Feed::toImportant() const {
+	return false; // TODO feeds workmode
+}
+
+bool Feed::shouldBeInChatList() const {
+	return _channels.size() > 1;
+}
+
+int Feed::chatListUnreadCount() const {
+	return _unreadCount;
+}
+
+bool Feed::chatListMutedBadge() const {
+	return _unreadCount <= _unreadMutedCount;
+}
+
+HistoryItem *Feed::chatsListItem() const {
+	return _lastMessage;
+}
+
+const QString &Feed::chatsListName() const {
+	return _name;
+}
+
+const base::flat_set<QString> &Feed::chatsListNameWords() const {
+	return _nameWords;
+}
+
+const base::flat_set<QChar> &Feed::chatsListFirstLetters() const {
+	return _nameFirstLetters;
 }
 
 } // namespace Data

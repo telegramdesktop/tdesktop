@@ -39,6 +39,7 @@ struct FeedMessagesAddNew;
 struct FeedMessagesAddSlice;
 struct FeedMessagesRemoveOne;
 struct FeedMessagesRemoveAll;
+struct FeedMessagesInvalidate;
 struct FeedMessagesQuery;
 using FeedMessagesResult = Data::MessagesResult;
 struct FeedMessagesSliceUpdate;
@@ -70,12 +71,14 @@ public:
 	void add(FeedMessagesAddSlice &&query);
 	void remove(FeedMessagesRemoveOne &&query);
 	void remove(FeedMessagesRemoveAll &&query);
+	void remove(FeedMessagesInvalidate &&query);
 
 	rpl::producer<FeedMessagesResult> query(
 		FeedMessagesQuery &&query) const;
 	rpl::producer<FeedMessagesSliceUpdate> feedMessagesSliceUpdated() const;
 	rpl::producer<FeedMessagesRemoveOne> feedMessagesOneRemoved() const;
 	rpl::producer<FeedMessagesRemoveAll> feedMessagesAllRemoved() const;
+	rpl::producer<FeedMessagesInvalidate> feedMessagesInvalidated() const;
 
 	~Facade();
 

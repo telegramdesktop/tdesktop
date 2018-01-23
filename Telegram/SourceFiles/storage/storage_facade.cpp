@@ -36,11 +36,13 @@ public:
 	void add(FeedMessagesAddSlice &&query);
 	void remove(FeedMessagesRemoveOne &&query);
 	void remove(FeedMessagesRemoveAll &&query);
+	void remove(FeedMessagesInvalidate &&query);
 	rpl::producer<FeedMessagesResult> query(
 		FeedMessagesQuery &&query) const;
 	rpl::producer<FeedMessagesSliceUpdate> feedMessagesSliceUpdated() const;
 	rpl::producer<FeedMessagesRemoveOne> feedMessagesOneRemoved() const;
 	rpl::producer<FeedMessagesRemoveAll> feedMessagesAllRemoved() const;
+	rpl::producer<FeedMessagesInvalidate> feedMessagesInvalidated() const;
 
 private:
 	SharedMedia _sharedMedia;
@@ -125,6 +127,10 @@ void Facade::Impl::remove(FeedMessagesRemoveAll &&query) {
 	return _feedMessages.remove(std::move(query));
 }
 
+void Facade::Impl::remove(FeedMessagesInvalidate &&query) {
+	return _feedMessages.remove(std::move(query));
+}
+
 rpl::producer<FeedMessagesResult> Facade::Impl::query(
 		FeedMessagesQuery &&query) const {
 	return _feedMessages.query(std::move(query));
@@ -140,6 +146,10 @@ rpl::producer<FeedMessagesRemoveOne> Facade::Impl::feedMessagesOneRemoved() cons
 
 rpl::producer<FeedMessagesRemoveAll> Facade::Impl::feedMessagesAllRemoved() const {
 	return _feedMessages.allRemoved();
+}
+
+rpl::producer<FeedMessagesInvalidate> Facade::Impl::feedMessagesInvalidated() const {
+	return _feedMessages.invalidated();
 }
 
 Facade::Facade() : _impl(std::make_unique<Impl>()) {
@@ -221,6 +231,10 @@ void Facade::remove(FeedMessagesRemoveAll &&query) {
 	return _impl->remove(std::move(query));
 }
 
+void Facade::remove(FeedMessagesInvalidate &&query) {
+	return _impl->remove(std::move(query));
+}
+
 rpl::producer<FeedMessagesResult> Facade::query(
 		FeedMessagesQuery &&query) const {
 	return _impl->query(std::move(query));
@@ -236,6 +250,10 @@ rpl::producer<FeedMessagesRemoveOne> Facade::feedMessagesOneRemoved() const {
 
 rpl::producer<FeedMessagesRemoveAll> Facade::feedMessagesAllRemoved() const {
 	return _impl->feedMessagesAllRemoved();
+}
+
+rpl::producer<FeedMessagesInvalidate> Facade::feedMessagesInvalidated() const {
+	return _impl->feedMessagesInvalidated();
 }
 
 Facade::~Facade() = default;

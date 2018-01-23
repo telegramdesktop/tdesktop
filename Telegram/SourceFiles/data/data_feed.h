@@ -14,15 +14,17 @@ class ChannelData;
 
 namespace Data {
 
+class Session;
+
 MessagePosition FeedPositionFromMTP(const MTPFeedPosition &position);
 
 class Feed : public Dialogs::Entry {
 public:
-	Feed(FeedId id);
+	static constexpr auto kId = 1;
 
-	FeedId id() const {
-		return _id;
-	}
+	Feed(FeedId id, not_null<Data::Session*> parent);
+
+	FeedId id() const;
 	void registerOne(not_null<ChannelData*> channel);
 	void unregisterOne(not_null<ChannelData*> channel);
 
@@ -31,37 +33,18 @@ public:
 	void historyCleared(not_null<History*> history);
 
 	void setUnreadCounts(int unreadCount, int unreadMutedCount);
-	void setUnreadPosition(const MessagePosition &position) {
-		_unreadPosition = position;
-	}
-	MessagePosition unreadPosition() const {
-		return _unreadPosition.current();
-	}
-	rpl::producer<MessagePosition> unreadPositionChanges() const {
-		return _unreadPosition.changes();
-	}
+	void setUnreadPosition(const MessagePosition &position);
+	MessagePosition unreadPosition() const;
+	rpl::producer<MessagePosition> unreadPositionChanges() const;
 
-	bool toImportant() const override {
-		return false; // TODO feeds workmode
-	}
-	int chatListUnreadCount() const override {
-		return _unreadCount;
-	}
-	bool chatListMutedBadge() const override {
-		return _unreadCount <= _unreadMutedCount;
-	}
-	HistoryItem *chatsListItem() const override {
-		return _lastMessage;
-	}
-	const QString &chatsListName() const override {
-		return _name;
-	}
-	const base::flat_set<QString> &chatsListNameWords() const override {
-		return _nameWords;
-	}
-	const base::flat_set<QChar> &chatsListFirstLetters() const override {
-		return _nameFirstLetters;
-	}
+	bool toImportant() const override;
+	bool shouldBeInChatList() const override;
+	int chatListUnreadCount() const override;
+	bool chatListMutedBadge() const override;
+	HistoryItem *chatsListItem() const override;
+	const QString &chatsListName() const override;
+	const base::flat_set<QString> &chatsListNameWords() const override;
+	const base::flat_set<QChar> &chatsListFirstLetters() const override;
 
 	void loadUserpic() override;
 	void paintUserpic(
@@ -76,6 +59,7 @@ private:
 	bool justSetLastMessage(not_null<HistoryItem*> item);
 
 	FeedId _id = 0;
+	not_null<Data::Session*> _parent;
 	std::vector<not_null<History*>> _channels;
 
 	QString _name;

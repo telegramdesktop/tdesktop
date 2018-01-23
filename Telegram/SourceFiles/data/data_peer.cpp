@@ -862,10 +862,11 @@ void ChannelData::clearFeed() {
 
 void ChannelData::setFeedPointer(Data::Feed *feed) {
 	if (_feed != feed) {
-		if (_feed) {
-			_feed->unregisterOne(this);
-		}
+		const auto was = _feed;
 		_feed = feed;
+		if (was) {
+			was->unregisterOne(this);
+		}
 		if (_feed) {
 			_feed->registerOne(this);
 		}

@@ -45,6 +45,7 @@ void PeerMenuShareContactBox(not_null<UserData*> user);
 void PeerMenuAddContact(not_null<UserData*> user);
 void PeerMenuAddChannelMembers(not_null<ChannelData*> channel);
 
+void ToggleChannelGrouping(not_null<ChannelData*> channel, bool group);
 base::lambda<void()> ClearHistoryHandler(not_null<PeerData*> peer);
 base::lambda<void()> DeleteAndLeaveHandler(not_null<PeerData*> peer);
 

@@ -46,6 +46,7 @@ public:
 	void applyUpdates(const MTPUpdates &updates, uint64 sentMessageRandomId = 0);
 
 	void savePinnedOrder();
+	void toggleChannelGrouping(not_null<ChannelData*> channel, bool group);
 
 	using RequestMessageDataCallback = base::lambda<void(ChannelData*, MsgId)>;
 	void requestMessageData(
@@ -92,9 +93,13 @@ public:
 
 	void scheduleStickerSetRequest(uint64 setId, uint64 access);
 	void requestStickerSets();
-	void saveStickerSets(const Stickers::Order &localOrder, const Stickers::Order &localRemoved);
+	void saveStickerSets(
+		const Stickers::Order &localOrder,
+		const Stickers::Order &localRemoved);
 	void updateStickers();
-	void setGroupStickerSet(not_null<ChannelData*> megagroup, const MTPInputStickerSet &set);
+	void setGroupStickerSet(
+		not_null<ChannelData*> megagroup,
+		const MTPInputStickerSet &set);
 
 	void joinChannel(ChannelData *channel);
 	void leaveChannel(ChannelData *channel);
@@ -369,7 +374,11 @@ private:
 
 	ChannelData *_channelMembersForAdd = nullptr;
 	mtpRequestId _channelMembersForAddRequestId = 0;
-	base::lambda<void(const MTPchannels_ChannelParticipants&)> _channelMembersForAddCallback;
+	base::lambda<void(
+		const MTPchannels_ChannelParticipants&)> _channelMembersForAddCallback;
+	base::flat_map<
+		not_null<ChannelData*>,
+		mtpRequestId> _channelGroupingRequests;
 
 	using KickRequest = std::pair<
 		not_null<ChannelData*>,

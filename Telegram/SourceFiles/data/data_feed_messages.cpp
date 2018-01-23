@@ -64,8 +64,16 @@ rpl::producer<MessagesSlice> FeedMessagesViewer(
 		Auth().storage().feedMessagesAllRemoved(
 		) | rpl::filter([=](const AllRemoved &update) {
 			return (update.feedId == key.feedId);
+		}) | rpl::filter([=](const AllRemoved &update) {
+			return builder->removeFromChannel(update.channelId);
+		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
+
+		using Invalidate = Storage::FeedMessagesInvalidate;
+		Auth().storage().feedMessagesInvalidated(
+		) | rpl::filter([=](const Invalidate &update) {
+			return (update.feedId == key.feedId);
 		}) | rpl::filter([=] {
-			return builder->removeAll();
+			return builder->invalidated();
 		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
 
 		using Result = Storage::FeedMessagesResult;

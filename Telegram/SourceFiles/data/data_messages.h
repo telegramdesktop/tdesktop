@@ -130,6 +130,7 @@ public:
 		base::optional<int> count);
 	void removeOne(MessagePosition messageId);
 	void removeAll(ChannelId channelId);
+	void invalidated();
 	rpl::producer<MessagesResult> query(MessagesQuery &&query) const;
 	rpl::producer<MessagesSliceUpdate> sliceUpdated() const;
 
@@ -194,6 +195,7 @@ public:
 	bool removeOne(MessagePosition messageId);
 	bool removeFromChannel(ChannelId channelId);
 	bool removeAll();
+	bool invalidated();
 
 	void checkInsufficient();
 	struct AroundData {

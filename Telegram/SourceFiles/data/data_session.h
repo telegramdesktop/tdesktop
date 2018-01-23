@@ -37,6 +37,10 @@ public:
 	explicit Session(not_null<AuthSession*> session);
 	~Session();
 
+	AuthSession &session() const {
+		return *_session;
+	}
+
 	base::Variable<bool> &contactsLoaded() {
 		return _contactsLoaded;
 	}

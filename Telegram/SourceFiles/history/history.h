@@ -130,6 +130,8 @@ class IndexedList;
 class ChannelHistory;
 class History : public Dialogs::Entry {
 public:
+	using Element = HistoryView::Element;
+
 	History(const PeerId &peerId);
 	History(const History &) = delete;
 	History &operator=(const History &) = delete;
@@ -198,10 +200,10 @@ public:
 	void addUnreadBar();
 	void destroyUnreadBar();
 	bool hasNotFreezedUnreadBar() const;
-	HistoryView::Element *unreadBar() const;
+	Element *unreadBar() const;
 	void calculateFirstUnreadMessage();
 	void unsetFirstUnreadMessage();
-	HistoryView::Element *firstUnreadMessage() const;
+	Element *firstUnreadMessage() const;
 	void clearNotifications();
 
 	bool loadedAtBottom() const; // last message is in the list
@@ -310,7 +312,7 @@ public:
 	HistoryItemsList validateForwardDraft();
 	void setForwardDraft(MessageIdsList &&items);
 
-	bool needUpdateInChatList() const override;
+	bool shouldBeInChatList() const override;
 	bool toImportant() const override {
 		return !mute();
 	}
@@ -363,7 +365,7 @@ public:
 	// we save a pointer of the history item at the top of the displayed window
 	// together with an offset from the window top to the top of this message
 	// resulting scrollTop = top(scrollTopItem) + scrollTopOffset
-	HistoryView::Element *scrollTopItem = nullptr;
+	Element *scrollTopItem = nullptr;
 	int scrollTopOffset = 0;
 
 	bool lastKeyboardInited = false;
@@ -439,10 +441,9 @@ private:
 
 	void mainViewRemoved(
 		not_null<HistoryBlock*> block,
-		not_null<HistoryView::Element*> view);
+		not_null<Element*> view);
 
 	QDateTime adjustChatListDate() const override;
-	void removeDialog() override;
 	void changedInChatListHook(Dialogs::Mode list, bool added) override;
 	void changedChatListPinHook() override;
 
@@ -474,13 +475,15 @@ private:
 	// Depending on isBuildingFrontBlock() gets front or back block.
 	HistoryBlock *prepareBlockForAddingItem();
 
+	void viewReplaced(not_null<const Element*> was, Element *now);
+
 	Flags _flags = 0;
 	bool _mute = false;
 	int _unreadCount = 0;
 	int _width = 0;
 	int _height = 0;
-	HistoryView::Element *_unreadBarView = nullptr;
-	HistoryView::Element *_firstUnreadView = nullptr;
+	Element *_unreadBarView = nullptr;
+	Element *_firstUnreadView = nullptr;
 
 	base::optional<int> _unreadMentionsCount;
 	base::flat_set<MsgId> _unreadMentions;

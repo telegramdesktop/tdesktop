@@ -65,26 +65,56 @@ void Entry::cachePinnedIndex(int index) {
 	}
 }
 
+bool Entry::needUpdateInChatList() const {
+	return inChatList(Dialogs::Mode::All) || shouldBeInChatList();
+}
+
 void Entry::updateChatListSortPosition() {
 	_sortKeyInChatList = isPinnedDialog()
 		? PinnedDialogPos(_pinnedIndex)
 		: DialogPosFromDate(adjustChatListDate());
-	if (auto m = App::main()) {
-		if (needUpdateInChatList()) {
-			if (_sortKeyInChatList) {
-				m->createDialog(_key);
-				updateChatListEntry();
-			} else {
-				removeDialog();
-			}
+	if (needUpdateInChatList()) {
+		setChatListExistence(true);
+	}
+}
+
+void Entry::updateChatListExistence() {
+	setChatListExistence(shouldBeInChatList());
+}
+
+void Entry::setChatListExistence(bool exists) {
+	if (const auto main = App::main()) {
+		if (exists && _sortKeyInChatList) {
+			main->createDialog(_key);
+			updateChatListEntry();
+		} else {
+			main->removeDialog(_key);
 		}
 	}
 }
 
-void Entry::removeDialog() {
-	if (const auto main = App::main()) {
-		main->removeDialog(_key);
-	}
+QDateTime Entry::adjustChatListDate() const {
+	return chatsListDate();
+}
+
+void Entry::changedInChatListHook(Dialogs::Mode list, bool added) {
+}
+
+void Entry::changedChatListPinHook() {
+}
+
+RowsByLetter &Entry::chatListLinks(Mode list) {
+	return _chatListLinks[static_cast<int>(list)];
+}
+
+const RowsByLetter &Entry::chatListLinks(Mode list) const {
+	return _chatListLinks[static_cast<int>(list)];
+}
+
+Row *Entry::mainChatListLink(Mode list) const {
+	auto it = chatListLinks(list).find(0);
+	Assert(it != chatListLinks(list).cend());
+	return it->second;
 }
 
 PositionChange Entry::adjustByPosInChatList(
@@ -99,7 +129,7 @@ PositionChange Entry::adjustByPosInChatList(
 
 void Entry::setChatsListDate(const QDateTime &date) {
 	if (!_lastMessageDate.isNull() && _lastMessageDate >= date) {
-		if (!needUpdateInChatList() || !inChatList(Dialogs::Mode::All)) {
+		if (!inChatList(Dialogs::Mode::All)) {
 			return;
 		}
 	}

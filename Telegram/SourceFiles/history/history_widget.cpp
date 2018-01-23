@@ -4349,11 +4349,11 @@ void HistoryWidget::sendFileConfirmed(
 			NewMessageUnread);
 	}
 
+	Auth().data().sendHistoryChangeNotifications();
 	if (_peer && file->to.peer == _peer->id) {
 		App::main()->historyToDown(_history);
 	}
 	App::main()->dialogsToUp();
-	Auth().data().sendHistoryChangeNotifications();
 }
 
 void HistoryWidget::onPhotoUploaded(

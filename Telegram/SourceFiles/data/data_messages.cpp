@@ -136,7 +136,7 @@ void MessagesList::removeOne(MessagePosition messageId) {
 		std::less<>(),
 		[](const Slice &slice) { return slice.range.till; });
 	if (slice != _slices.end() && slice->range.from <= messageId) {
-		_slices.modify(slice, [messageId](Slice &slice) {
+		_slices.modify(slice, [&](Slice &slice) {
 			return slice.messages.remove(messageId);
 		});
 	}
@@ -146,9 +146,28 @@ void MessagesList::removeOne(MessagePosition messageId) {
 }
 
 void MessagesList::removeAll(ChannelId channelId) {
-	// #TODO feeds show
-	//_slices.clear();
-	//_slices.emplace(base::flat_set<MessagePosition>{}, FullMessagesRange);
+	auto removed = 0;
+	for (auto i = begin(_slices); i != end(_slices); ++i) {
+		_slices.modify(i, [&](Slice &slice) {
+			auto &messages = slice.messages;
+			for (auto j = begin(messages); j != end(messages);) {
+				if (j->fullId.channel == channelId) {
+					j = messages.erase(j);
+					++removed;
+				} else {
+					++j;
+				}
+			}
+		});
+	}
+	if (removed && _count) {
+		*_count -= removed;
+	}
+}
+
+void MessagesList::invalidated() {
+	_slices.clear();
+	_count = base::none;
 }
 
 rpl::producer<MessagesResult> MessagesList::query(
@@ -300,6 +319,13 @@ bool MessagesSliceBuilder::removeFromChannel(ChannelId channelId) {
 	}
 	_skippedBefore = _skippedAfter = base::none;
 	return true;
+}
+
+bool MessagesSliceBuilder::invalidated() {
+	_fullCount = _skippedBefore = _skippedAfter = base::none;
+	_ids.clear();
+	checkInsufficient();
+	return false;
 }
 
 void MessagesSliceBuilder::checkInsufficient() {

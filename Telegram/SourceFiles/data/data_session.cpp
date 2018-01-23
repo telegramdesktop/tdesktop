@@ -1426,7 +1426,7 @@ not_null<Data::Feed*> Session::feed(FeedId id) {
 	}
 	const auto [it, ok] = _feeds.emplace(
 		id,
-		std::make_unique<Data::Feed>(id));
+		std::make_unique<Data::Feed>(id, this));
 	return it->second.get();
 }
 

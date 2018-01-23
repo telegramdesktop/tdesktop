@@ -699,6 +699,7 @@ void MainWidget::finishForwarding(not_null<History*> history) {
 		cancelForwarding(history);
 	}
 
+	Auth().data().sendHistoryChangeNotifications();
 	historyToDown(history);
 	dialogsToUp();
 }
@@ -1059,8 +1060,8 @@ void MainWidget::deleteConversation(
 		history->newLoaded = true;
 		history->oldLoaded = deleteHistory;
 	}
-	if (peer->isChannel()) {
-		peer->asChannel()->ptsWaitingForShortPoll(-1);
+	if (const auto channel = peer->asChannel()) {
+		channel->ptsWaitingForShortPoll(-1);
 	}
 	if (deleteHistory) {
 		DeleteHistoryRequest request = { peer, false };
@@ -1268,8 +1269,8 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 					history->asChannelHistory()->insertJoinedMessage(true);
 				}
 			}
-		} else {
-			deleteConversation(peer, false);
+		} else if (const auto history = App::historyLoaded(peer->id)) {
+			deleteConversation(history->peer, false);
 		}
 	} else {
 		const auto history = App::history(peer->id);
@@ -5221,8 +5222,10 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		if (auto channel = App::channelLoaded(d.vchannel_id.v)) {
 			channel->inviter = 0;
 			if (!channel->amIn()) {
-				deleteConversation(channel, false);
-			} else if (!channel->amCreator() && App::history(channel->id)) { // create history
+				if (const auto history = App::historyLoaded(channel->id)) {
+					history->updateChatListExistence();
+				}
+			} else if (!channel->amCreator() && App::history(channel->id)) {
 				_updatedChannels.insert(channel, true);
 				Auth().api().requestSelfParticipant(channel);
 			}

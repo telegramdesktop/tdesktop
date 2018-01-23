@@ -63,13 +63,11 @@ public:
 	}
 	void updateChatListSortPosition();
 	void setChatsListDate(const QDateTime &date);
+	void updateChatListExistence();
+	bool needUpdateInChatList() const;
 
 	virtual bool toImportant() const = 0;
-
-	virtual bool needUpdateInChatList() const {
-		return true;
-	}
-
+	virtual bool shouldBeInChatList() const = 0;
 	virtual int chatListUnreadCount() const = 0;
 	virtual bool chatListMutedBadge() const = 0;
 	virtual HistoryItem *chatsListItem() const = 0;
@@ -102,26 +100,14 @@ public:
 	mutable Text lastItemTextCache;
 
 private:
-	virtual QDateTime adjustChatListDate() const {
-		return chatsListDate();
-	}
-	virtual void removeDialog();
-	virtual void changedInChatListHook(Dialogs::Mode list, bool added) {
-	}
-	virtual void changedChatListPinHook() {
-	}
+	virtual QDateTime adjustChatListDate() const;
+	virtual void changedInChatListHook(Dialogs::Mode list, bool added);
+	virtual void changedChatListPinHook();
 
-	RowsByLetter &chatListLinks(Mode list) {
-		return _chatListLinks[static_cast<int>(list)];
-	}
-	const RowsByLetter &chatListLinks(Mode list) const {
-		return _chatListLinks[static_cast<int>(list)];
-	}
-	Row *mainChatListLink(Mode list) const {
-		auto it = chatListLinks(list).find(0);
-		Assert(it != chatListLinks(list).cend());
-		return it->second;
-	}
+	void setChatListExistence(bool exists);
+	RowsByLetter &chatListLinks(Mode list);
+	const RowsByLetter &chatListLinks(Mode list) const;
+	Row *mainChatListLink(Mode list) const;
 
 	Dialogs::Key _key;
 	RowsByLetter _chatListLinks[2];

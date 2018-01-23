@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "layout.h"
 #include "window/window_controller.h"
+#include "window/window_peer_menu.h"
 #include "auth_session.h"
 #include "ui/widgets/popup_menu.h"
 #include "core/file_utilities.h"
@@ -879,6 +880,12 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	} else if (lnkPeer) { // suggest to block
 		// #TODO suggest restrict peer
+		if (const auto channel = lnkPeer->peer()->asChannel()) {
+			const auto grouped = (channel->feed() != nullptr);
+			_menu->addAction(
+				lang(grouped ? lng_feed_ungroup : lng_feed_group),
+				[=] { Window::ToggleChannelGrouping(channel, !grouped); });
+		}
 	} else { // maybe cursor on some text history item?
 		const auto item = view ? view->data().get() : nullptr;
 		const auto itemId = item ? item->fullId() : FullMsgId();
