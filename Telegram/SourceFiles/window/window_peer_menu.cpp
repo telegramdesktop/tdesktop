@@ -349,7 +349,7 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 
 void Filler::addChannelActions(not_null<ChannelData*> channel) {
 	auto isGroup = channel->isMegagroup();
-	if (!isGroup) {
+	if (false && !isGroup) {
 		const auto grouped = (channel->feed() != nullptr);
 		_addAction(
 			lang(grouped ? lng_feed_ungroup : lng_feed_group),
