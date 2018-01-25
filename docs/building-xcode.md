@@ -132,7 +132,7 @@ Go to ***BuildPath*** and run
 
 ### Building the project
 
-Go to ***BuildPath*/tdesktop/Telegram/** and run
+Go to ***BuildPath*/tdesktop/Telegram** and run
 
     gyp/refresh.sh
 
