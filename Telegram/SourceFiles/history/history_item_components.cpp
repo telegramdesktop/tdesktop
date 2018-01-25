@@ -297,15 +297,13 @@ ReplyMarkupClickHandler::ReplyMarkupClickHandler(
 }
 
 // Copy to clipboard support.
-void ReplyMarkupClickHandler::copyToClipboard() const {
+QString ReplyMarkupClickHandler::copyToClipboardText() const {
 	if (auto button = getButton()) {
 		if (button->type == HistoryMessageMarkupButton::Type::Url) {
-			auto url = QString::fromUtf8(button->data);
-			if (!url.isEmpty()) {
-				QApplication::clipboard()->setText(url);
-			}
+			return QString::fromUtf8(button->data);
 		}
 	}
+	return QString();
 }
 
 QString ReplyMarkupClickHandler::copyToClipboardContextItemText() const {

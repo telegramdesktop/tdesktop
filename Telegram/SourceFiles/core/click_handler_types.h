@@ -15,11 +15,8 @@ public:
 	TextClickHandler(bool fullDisplayed = true) : _fullDisplayed(fullDisplayed) {
 	}
 
-	void copyToClipboard() const override {
-		auto u = url();
-		if (!u.isEmpty()) {
-			QApplication::clipboard()->setText(u);
-		}
+	QString copyToClipboardText() const override {
+		return url();
 	}
 
 	QString tooltip() const override {

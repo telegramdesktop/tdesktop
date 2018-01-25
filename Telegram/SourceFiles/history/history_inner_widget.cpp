@@ -1258,7 +1258,7 @@ void HistoryInner::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 	if (!_selected.empty() && _selected.cbegin()->second != FullSelection) {
 		const auto [item, selection] = *_selected.cbegin();
 		if (const auto view = item->mainView()) {
-			setToClipboard(
+			SetClipboardWithEntities(
 				view->selectedText(selection),
 				QClipboard::Selection);
 		}
@@ -1386,9 +1386,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	};
 
-	_contextMenuLink = ClickHandler::getActive();
-	auto lnkPhoto = dynamic_cast<PhotoClickHandler*>(_contextMenuLink.get());
-	auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.get());
+	const auto link = ClickHandler::getActive();
+	auto lnkPhoto = dynamic_cast<PhotoClickHandler*>(link.get());
+	auto lnkDocument = dynamic_cast<DocumentClickHandler*>(link.get());
 	auto lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideoFile() : false;
 	auto lnkIsVoice = lnkDocument ? lnkDocument->document()->isVoiceMessage() : false;
 	auto lnkIsAudio = lnkDocument ? lnkDocument->document()->isAudioFile() : false;
@@ -1396,42 +1396,42 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto item = _dragStateItem;
 		const auto itemId = item ? item->fullId() : FullMsgId();
 		if (isUponSelected > 0) {
-			_menu->addAction(lang((isUponSelected > 1) ? lng_context_copy_selected_items : lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
+			_menu->addAction(lang((isUponSelected > 1) ? lng_context_copy_selected_items : lng_context_copy_selected), this, SLOT(copySelectedText()));
 		}
 		addItemActions(item);
 		if (lnkPhoto) {
 			const auto photo = lnkPhoto->photo();
 			_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 				savePhotoToFile(photo);
-			}))->setEnabled(true);
+			}));
 			_menu->addAction(lang(lng_context_copy_image), [=] {
 				copyContextImage(photo);
-			})->setEnabled(true);
+			});
 		} else {
 			auto document = lnkDocument->document();
 			if (document->loading()) {
 				_menu->addAction(lang(lng_context_cancel_download), [=] {
 					cancelContextDownload(document);
-				})->setEnabled(true);
+				});
 			} else {
 				if (document->loaded() && document->isGifv()) {
 					if (!cAutoPlayGif()) {
 						_menu->addAction(lang(lng_context_open_gif), [=] {
 							openContextGif(itemId);
-						})->setEnabled(true);
+						});
 					}
 					_menu->addAction(lang(lng_context_save_gif), [=] {
 						saveContextGif(itemId);
-					})->setEnabled(true);
+					});
 				}
 				if (!document->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
 					_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), [=] {
 						showContextInFolder(document);
-					})->setEnabled(true);
+					});
 				}
 				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsVoice ? lng_context_save_audio : (lnkIsAudio ? lng_context_save_audio_file : lng_context_save_file))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 					saveDocumentToFile(document);
-				}))->setEnabled(true);
+				}));
 			}
 		}
 		if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
@@ -1455,7 +1455,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (item->allowsForward()) {
 					_menu->addAction(lang(lng_context_forward_msg), [=] {
 						forwardItem(itemId);
-					})->setEnabled(true);
+					});
 				}
 				if (item->canDelete()) {
 					_menu->addAction(lang(lng_context_delete_msg), [=] {
@@ -1472,7 +1472,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 							_widget->updateTopBarSelection();
 						}
 					}
-				})->setEnabled(true);
+				});
 			}
 		}
 	} else { // maybe cursor on some text history item?
@@ -1498,7 +1498,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 		const auto msg = dynamic_cast<HistoryMessage*>(item);
 		if (isUponSelected > 0) {
-			_menu->addAction(lang((isUponSelected > 1) ? lng_context_copy_selected_items : lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
+			_menu->addAction(lang((isUponSelected > 1) ? lng_context_copy_selected_items : lng_context_copy_selected), this, SLOT(copySelectedText()));
 			addItemActions(item);
 		} else {
 			addItemActions(item);
@@ -1521,55 +1521,58 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 							}
 							_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
 								saveDocumentToFile(document);
-							}))->setEnabled(true);
+							}));
 						}
-					} else if (media->type() == MediaTypeGif && !_contextMenuLink) {
+					} else if (media->type() == MediaTypeGif && !link) {
 						if (auto document = media->getDocument()) {
 							if (document->loading()) {
 								_menu->addAction(lang(lng_context_cancel_download), [=] {
 									cancelContextDownload(document);
-								})->setEnabled(true);
+								});
 							} else {
 								if (document->isGifv()) {
 									if (!cAutoPlayGif()) {
 										_menu->addAction(lang(lng_context_open_gif), [=] {
 											openContextGif(itemId);
-										})->setEnabled(true);
+										});
 									}
 									_menu->addAction(lang(lng_context_save_gif), [=] {
 										saveContextGif(itemId);
-									})->setEnabled(true);
+									});
 								}
 								if (!document->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
 									_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), [=] {
 										showContextInFolder(document);
-									})->setEnabled(true);
+									});
 								}
 								_menu->addAction(lang(lng_context_save_file), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
 									saveDocumentToFile(document);
-								}))->setEnabled(true);
+								}));
 							}
 						}
 					}
 				}
-				if (msg && view && !_contextMenuLink && (view->hasVisibleText() || mediaHasTextForCopy)) {
+				if (msg && view && !link && (view->hasVisibleText() || mediaHasTextForCopy)) {
 					_menu->addAction(lang(lng_context_copy_text), [=] {
 						copyContextText(itemId);
-					})->setEnabled(true);
+					});
 				}
 			}
 		}
 
-		auto linkCopyToClipboardText = _contextMenuLink ? _contextMenuLink->copyToClipboardContextItemText() : QString();
-		if (!linkCopyToClipboardText.isEmpty()) {
-			_menu->addAction(linkCopyToClipboardText, this, SLOT(copyContextUrl()))->setEnabled(true);
-		}
-		if (linkCopyToClipboardText.isEmpty()) {
-			if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
-				_menu->addAction(lang(item->history()->peer->isMegagroup() ? lng_context_copy_link : lng_context_copy_post_link), [=] {
-					_widget->copyPostLink(itemId);
+		const auto actionText = link
+			? link->copyToClipboardContextItemText()
+			: QString();
+		if (!actionText.isEmpty()) {
+			_menu->addAction(
+				actionText,
+				[text = link->copyToClipboardText()] {
+					QApplication::clipboard()->setText(text);
 				});
-			}
+		} else if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
+			_menu->addAction(lang(item->history()->peer->isMegagroup() ? lng_context_copy_link : lng_context_copy_post_link), [=] {
+				_widget->copyPostLink(itemId);
+			});
 		}
 		if (isUponSelected > 1) {
 			if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
@@ -1586,7 +1589,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (canForward) {
 					_menu->addAction(lang(lng_context_forward_msg), [=] {
 						forwardAsGroup(itemId);
-					})->setEnabled(true);
+					});
 				}
 
 				if (canDelete) {
@@ -1604,7 +1607,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 							_widget->updateTopBarSelection();
 						}
 					}
-				})->setEnabled(true);
+				});
 			}
 		} else {
 			if (App::mousedItem()
@@ -1619,7 +1622,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 							_widget->updateTopBarSelection();
 						}
 					}
-				})->setEnabled(true);
+				});
 			}
 		}
 	}
@@ -1633,13 +1636,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 }
 
 void HistoryInner::copySelectedText() {
-	setToClipboard(getSelectedText());
-}
-
-void HistoryInner::copyContextUrl() {
-	if (_contextMenuLink) {
-		_contextMenuLink->copyToClipboard();
-	}
+	SetClipboardWithEntities(getSelectedText());
 }
 
 void HistoryInner::savePhotoToFile(not_null<PhotoData*> photo) {
@@ -1714,14 +1711,8 @@ void HistoryInner::copyContextText(FullMsgId itemId) {
 	if (const auto item = App::histItemById(itemId)) {
 		if (const auto view = item->mainView()) {
 			// #TODO check for a group
-			setToClipboard(view->selectedText(FullSelection));
+			SetClipboardWithEntities(view->selectedText(FullSelection));
 		}
-	}
-}
-
-void HistoryInner::setToClipboard(const TextWithEntities &forClipboard, QClipboard::Mode mode) {
-	if (auto data = MimeDataFromTextWithEntities(forClipboard)) {
-		QApplication::clipboard()->setMimeData(data.release(), mode);
 	}
 }
 
@@ -1821,12 +1812,14 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 	} else if (e == QKeySequence::Copy && !_selected.empty()) {
 		copySelectedText();
 #ifdef Q_OS_MAC
-	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
-		setToClipboard(getSelectedText(), QClipboard::FindBuffer);
+	} else if (e->key() == Qt::Key_E
+		&& e->modifiers().testFlag(Qt::ControlModifier)) {
+		SetClipboardWithEntities(getSelectedText(), QClipboard::FindBuffer);
 #endif // Q_OS_MAC
 	} else if (e == QKeySequence::Delete) {
 		auto selectedState = getSelectionState();
-		if (selectedState.count > 0 && selectedState.canDeleteCount == selectedState.count) {
+		if (selectedState.count > 0
+			&& selectedState.canDeleteCount == selectedState.count) {
 			_widget->confirmDeleteSelectedItems();
 		}
 	} else {

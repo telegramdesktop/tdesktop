@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_media_types.h"
 #include "history/history_message.h"
 #include "history/history_item_components.h"
+#include "history/view/history_view_context_menu.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
@@ -23,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "auth_session.h"
 #include "ui/widgets/popup_menu.h"
-#include "core/file_utilities.h"
 #include "core/tl_help.h"
 #include "base/overload.h"
 #include "lang/lang_keys.h"
@@ -271,6 +271,10 @@ ListWidget::ListWidget(
 			}
 		}
 	});
+}
+
+not_null<ListDelegate*> ListWidget::delegate() const {
+	return _delegate;
 }
 
 void ListWidget::refreshViewer() {
@@ -758,10 +762,11 @@ void ListWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Back) {
 		_delegate->listCloseRequest();
 	} else if (e == QKeySequence::Copy && _selectedItem != nullptr) {
-		copySelectedText();
+		SetClipboardWithEntities(getSelectedText());
 #ifdef Q_OS_MAC
-	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
-		setToClipboard(getSelectedText(), QClipboard::FindBuffer);
+	} else if (e->key() == Qt::Key_E
+		&& e->modifiers().testFlag(Qt::ControlModifier)) {
+		SetClipboardWithEntities(getSelectedText(), QClipboard::FindBuffer);
 #endif // Q_OS_MAC
 	} else {
 		e->ignore();
@@ -800,247 +805,50 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		mouseActionUpdate(e->globalPos());
 	}
 
-	// -1 - has selection, but no over, 0 - no selection, 1 - over text
-	auto isUponSelected = 0;
-	auto hasSelected = 0;
-	if (_selectedItem) {
-		isUponSelected = -1;
-
-		auto selFrom = _selectedText.from;
-		auto selTo = _selectedText.to;
-		hasSelected = (selTo > selFrom) ? 1 : 0;
-		if (App::mousedItem() && App::mousedItem() == App::hoveredItem()) {
-			auto mousePos = mapPointToItem(
-				mapFromGlobal(_mousePosition),
-				App::mousedItem());
-			HistoryStateRequest request;
-			request.flags |= Text::StateRequest::Flag::LookupSymbol;
-			auto dragState = App::mousedItem()->getState(mousePos, request);
-			if (dragState.cursor == HistoryInTextCursorState && dragState.symbol >= selFrom && dragState.symbol < selTo) {
-				isUponSelected = 1;
-			}
+	ContextMenuRequest request;
+	request.link = ClickHandler::getActive();
+	request.view = App::mousedItem();
+	request.overView = (request.view == App::hoveredItem());
+	request.selectedText = getSelectedText();
+	if (_selectedItem
+		&& _selectedItem == request.view
+		&& request.overView) {
+		const auto mousePos = mapPointToItem(
+			mapFromGlobal(_mousePosition),
+			_selectedItem);
+		HistoryStateRequest stateRequest;
+		stateRequest.flags |= Text::StateRequest::Flag::LookupSymbol;
+		const auto dragState = _selectedItem->getState(
+			mousePos,
+			stateRequest);
+		if (dragState.cursor == HistoryInTextCursorState
+			&& base::in_range(
+				dragState.symbol,
+				_selectedText.from,
+				_selectedText.to)) {
+			request.overSelection = true;
 		}
 	}
-	if (showFromTouch && hasSelected && isUponSelected < hasSelected) {
-		isUponSelected = hasSelected;
+	if (showFromTouch) {
+		request.overSelection = true;
 	}
 
-	_menu = base::make_unique_q<Ui::PopupMenu>(nullptr);
-
-	_contextMenuLink = ClickHandler::getActive();
-	auto view = App::hoveredItem()
-		? App::hoveredItem()
-		: App::hoveredLinkItem();
-	auto lnkPhoto = dynamic_cast<PhotoClickHandler*>(_contextMenuLink.get());
-	auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.get());
-	auto lnkPeer = dynamic_cast<PeerClickHandler*>(_contextMenuLink.get());
-	auto lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideoFile() : false;
-	auto lnkIsVoice = lnkDocument ? lnkDocument->document()->isVoiceMessage() : false;
-	auto lnkIsAudio = lnkDocument ? lnkDocument->document()->isAudioFile() : false;
-	if (lnkPhoto || lnkDocument) {
-		if (isUponSelected > 0) {
-			_menu->addAction(lang(lng_context_copy_selected), [=] {
-				copySelectedText();
-			})->setEnabled(true);
-		}
-		if (lnkPhoto) {
-			const auto photo = lnkPhoto->photo();
-			_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
-				savePhotoToFile(photo);
-			}))->setEnabled(true);
-			_menu->addAction(lang(lng_context_copy_image), [=] {
-				copyContextImage(photo);
-			})->setEnabled(true);
-		} else {
-			auto document = lnkDocument->document();
-			if (document->loading()) {
-				_menu->addAction(lang(lng_context_cancel_download), [=] {
-					cancelContextDownload(document);
-				})->setEnabled(true);
-			} else {
-				if (document->loaded() && document->isGifv()) {
-					if (!cAutoPlayGif()) {
-						const auto itemId = view
-							? view->data()->fullId()
-							: FullMsgId();
-						_menu->addAction(lang(lng_context_open_gif), [=] {
-							openContextGif(itemId);
-						})->setEnabled(true);
-					}
-				}
-				if (!document->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
-					_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), [=] {
-						showContextInFolder(document);
-					})->setEnabled(true);
-				}
-				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsVoice ? lng_context_save_audio : (lnkIsAudio ? lng_context_save_audio_file : lng_context_save_file))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
-					saveDocumentToFile(document);
-				}))->setEnabled(true);
-			}
-		}
-	} else if (lnkPeer) { // suggest to block
-		// #TODO suggest restrict peer
-		if (const auto channel = lnkPeer->peer()->asChannel()) {
-			const auto grouped = (channel->feed() != nullptr);
-			_menu->addAction(
-				lang(grouped ? lng_feed_ungroup : lng_feed_group),
-				[=] { Window::ToggleChannelGrouping(channel, !grouped); });
-		}
-	} else { // maybe cursor on some text history item?
-		const auto item = view ? view->data().get() : nullptr;
-		const auto itemId = item ? item->fullId() : FullMsgId();
-		bool canDelete = item && item->canDelete() && (item->id > 0 || !item->serviceMsg());
-		bool canForward = item && item->allowsForward();
-
-		auto msg = dynamic_cast<HistoryMessage*>(item);
-		if (isUponSelected > 0) {
-			_menu->addAction(lang(lng_context_copy_selected), [this] { copySelectedText(); })->setEnabled(true);
-		} else {
-			if (item && !isUponSelected) {
-				auto mediaHasTextForCopy = false;
-				if (auto media = view->media()) {
-					mediaHasTextForCopy = media->hasTextForCopy();
-					if (media->type() == MediaTypeWebPage && static_cast<HistoryWebPage*>(media)->attach()) {
-						media = static_cast<HistoryWebPage*>(media)->attach();
-					}
-					if (media->type() == MediaTypeSticker) {
-						if (auto document = media->getDocument()) {
-							if (document->sticker() && document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
-								_menu->addAction(lang(document->sticker()->setInstalled() ? lng_context_pack_info : lng_context_pack_add), [=] {
-									showStickerPackInfo(document);
-								});
-							}
-							_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
-								saveDocumentToFile(document);
-							}))->setEnabled(true);
-						}
-					} else if (media->type() == MediaTypeGif && !_contextMenuLink) {
-						if (auto document = media->getDocument()) {
-							if (document->loading()) {
-								_menu->addAction(lang(lng_context_cancel_download), [=] {
-									cancelContextDownload(document);
-								})->setEnabled(true);
-							} else {
-								if (document->isGifv()) {
-									if (!cAutoPlayGif()) {
-										_menu->addAction(lang(lng_context_open_gif), [=] {
-											openContextGif(itemId);
-										})->setEnabled(true);
-									}
-								}
-								if (!document->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
-									_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), [=] {
-										showContextInFolder(document);
-									})->setEnabled(true);
-								}
-								_menu->addAction(lang(lng_context_save_file), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
-									saveDocumentToFile(document);
-								}))->setEnabled(true);
-							}
-						}
-					}
-				}
-				if (!_contextMenuLink && (view->hasVisibleText() || mediaHasTextForCopy)) {
-					_menu->addAction(lang(lng_context_copy_text), [=] {
-						copyContextText(itemId);
-					})->setEnabled(true);
-				}
-			}
-		}
-
-		auto linkCopyToClipboardText = _contextMenuLink ? _contextMenuLink->copyToClipboardContextItemText() : QString();
-		if (!linkCopyToClipboardText.isEmpty()) {
-			_menu->addAction(linkCopyToClipboardText, [this] { copyContextUrl(); })->setEnabled(true);
-		}
-	}
-
-	if (_menu->actions().isEmpty()) {
-		_menu = nullptr;
-	} else {
+	_menu = FillContextMenu(this, request);
+	if (_menu && !_menu->actions().isEmpty()) {
 		_menu->popup(e->globalPos());
 		e->accept();
+	} else if (_menu) {
+		_menu = nullptr;
 	}
 }
 
-void ListWidget::savePhotoToFile(PhotoData *photo) {
-	if (!photo || !photo->date || !photo->loaded()) return;
-
-	auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
-	FileDialog::GetWritePath(
-		lang(lng_save_photo),
-		filter,
-		filedialogDefaultName(qsl("photo"), qsl(".jpg")),
-		base::lambda_guarded(this, [this, photo](const QString &result) {
-			if (!result.isEmpty()) {
-				photo->full->pix().toImage().save(result, "JPG");
-			}
-		}));
-}
-
-void ListWidget::saveDocumentToFile(DocumentData *document) {
-	DocumentSaveClickHandler::doSave(document, true);
-}
-
-void ListWidget::copyContextImage(PhotoData *photo) {
-	if (!photo || !photo->date || !photo->loaded()) return;
-
-	QApplication::clipboard()->setPixmap(photo->full->pix());
-}
-
-void ListWidget::copySelectedText() {
-	setToClipboard(getSelectedText());
-}
-
-void ListWidget::copyContextUrl() {
-	if (_contextMenuLink) {
-		_contextMenuLink->copyToClipboard();
-	}
-}
-
-void ListWidget::showStickerPackInfo(not_null<DocumentData*> document) {
-	if (auto sticker = document->sticker()) {
-		if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
-			App::main()->stickersBox(sticker->set);
-		}
-	}
-}
-
-void ListWidget::cancelContextDownload(not_null<DocumentData*> document) {
-	document->cancel();
-}
-
-void ListWidget::showContextInFolder(not_null<DocumentData*> document) {
-	const auto filepath = document->filepath(
-		DocumentData::FilePathResolveChecked);
-	if (!filepath.isEmpty()) {
-		File::ShowInFolder(filepath);
-	}
-}
-
-void ListWidget::openContextGif(FullMsgId itemId) {
-	if (const auto item = App::histItemById(itemId)) {
-		if (auto media = item->media()) {
-			if (auto document = media->document()) {
-				Messenger::Instance().showDocument(document, item);
-			}
-		}
-	}
-}
-
-void ListWidget::copyContextText(FullMsgId itemId) {
+TextWithEntities ListWidget::getItemText(FullMsgId itemId) const {
 	if (const auto item = App::histItemById(itemId)) {
 		if (const auto view = viewForItem(item)) {
-			setToClipboard(view->selectedText(FullSelection));
+			return view->selectedText(FullSelection);
 		}
 	}
-}
-
-void ListWidget::setToClipboard(
-		const TextWithEntities &forClipboard,
-		QClipboard::Mode mode) {
-	if (auto data = MimeDataFromTextWithEntities(forClipboard)) {
-		QApplication::clipboard()->setMimeData(data.release(), mode);
-	}
+	return TextWithEntities();
 }
 
 void ListWidget::mousePressEvent(QMouseEvent *e) {
@@ -1207,7 +1015,9 @@ void ListWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton butt
 
 #if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
 	if (_selectedItem && _selectedText.from != _selectedText.to) {
-		setToClipboard(_selectedItem->selectedText(_selectedText), QClipboard::Selection);
+		SetClipboardWithEntities(
+			_selectedItem->selectedText(_selectedText),
+			QClipboard::Selection);
 	}
 #endif // Q_OS_LINUX32 || Q_OS_LINUX64
 }

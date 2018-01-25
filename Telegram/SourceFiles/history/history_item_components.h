@@ -184,7 +184,7 @@ public:
 	}
 
 	// Copy to clipboard support.
-	void copyToClipboard() const override;
+	QString copyToClipboardText() const override;
 	QString copyToClipboardContextItemText() const override;
 
 	// Finds the corresponding button in the items markup struct.

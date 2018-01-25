@@ -116,7 +116,6 @@ public slots:
 	void onUpdateSelected();
 	void onParentGeometryChanged();
 
-	void copyContextUrl();
 	void copySelectedText();
 
 	void onTouchSelect();
@@ -222,8 +221,6 @@ private:
 		not_null<const SelectedItems*> selected,
 		not_null<Element*> view) const;
 
-	void setToClipboard(const TextWithEntities &forClipboard, QClipboard::Mode mode = QClipboard::Clipboard);
-
 	void toggleScrollDateShown();
 	void repaintScrollDateCallback();
 	bool displayScrollDate() const;
@@ -310,8 +307,6 @@ private:
 
 	QPoint _trippleClickPoint;
 	QTimer _trippleClickTimer;
-
-	ClickHandlerPtr _contextMenuLink;
 
 	Element *_dragSelFrom = nullptr;
 	Element *_dragSelTo = nullptr;

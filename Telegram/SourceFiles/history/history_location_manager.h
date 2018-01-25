@@ -85,11 +85,7 @@ public:
 		return _text;
 	}
 
-	void copyToClipboard() const override {
-		if (!_text.isEmpty()) {
-			QApplication::clipboard()->setText(_text);
-		}
-	}
+	QString copyToClipboardText() const override;
 	QString copyToClipboardContextItemText() const override;
 
 private:

@@ -2836,7 +2836,7 @@ void MediaView::contextMenuEvent(QContextMenuEvent *e) {
 		_menu = new Ui::PopupMenu(nullptr, st::mediaviewPopupMenu);
 		updateActions();
 		for_const (auto &action, _actions) {
-			_menu->addAction(action.text, this, action.member)->setEnabled(true);
+			_menu->addAction(action.text, this, action.member);
 		}
 		connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
 		_menu->popup(e->globalPos());

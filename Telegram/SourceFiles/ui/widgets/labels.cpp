@@ -536,19 +536,23 @@ void FlatLabel::showContextMenu(QContextMenuEvent *e, ContextMenuReason reason) 
 
 	_contextMenu = new Ui::PopupMenu(nullptr);
 
-	_contextMenuClickHandler = ClickHandler::getActive();
-
 	if (fullSelection && !_contextCopyText.isEmpty()) {
-		_contextMenu->addAction(_contextCopyText, this, SLOT(onCopyContextText()))->setEnabled(true);
+		_contextMenu->addAction(_contextCopyText, this, SLOT(onCopyContextText()));
 	} else if (uponSelection && !fullSelection) {
-		_contextMenu->addAction(lang(lng_context_copy_selected), this, SLOT(onCopySelectedText()))->setEnabled(true);
+		_contextMenu->addAction(lang(lng_context_copy_selected), this, SLOT(onCopySelectedText()));
 	} else if (!hasSelection && !_contextCopyText.isEmpty()) {
-		_contextMenu->addAction(_contextCopyText, this, SLOT(onCopyContextText()))->setEnabled(true);
+		_contextMenu->addAction(_contextCopyText, this, SLOT(onCopyContextText()));
 	}
 
-	QString linkCopyToClipboardText = _contextMenuClickHandler ? _contextMenuClickHandler->copyToClipboardContextItemText() : QString();
-	if (!linkCopyToClipboardText.isEmpty()) {
-		_contextMenu->addAction(linkCopyToClipboardText, this, SLOT(onCopyContextUrl()))->setEnabled(true);
+	if (const auto link = ClickHandler::getActive()) {
+		const auto actionText = link->copyToClipboardContextItemText();
+		if (!actionText.isEmpty()) {
+			_contextMenu->addAction(
+				actionText,
+				[text = link->copyToClipboardText()] {
+					QApplication::clipboard()->setText(text);
+				});
+		}
 	}
 
 	if (_contextMenu->actions().isEmpty()) {
@@ -570,12 +574,6 @@ void FlatLabel::onCopySelectedText() {
 
 void FlatLabel::onCopyContextText() {
 	QApplication::clipboard()->setText(_text.originalText({ 0, 0xFFFF }, _contextExpandLinksMode));
-}
-
-void FlatLabel::onCopyContextUrl() {
-	if (_contextMenuClickHandler) {
-		_contextMenuClickHandler->copyToClipboard();
-	}
 }
 
 void FlatLabel::onTouchSelect() {

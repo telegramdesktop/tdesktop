@@ -153,14 +153,14 @@ void MainWindow::firstShow() {
 		: lng_enable_notifications_from_tray);
 
 	if (isLinux) {
-		trayIconMenu->addAction(lang(lng_open_from_tray), this, SLOT(showFromTray()))->setEnabled(true);
-		trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()))->setEnabled(true);
-		trayIconMenu->addAction(notificationActionText, this, SLOT(toggleDisplayNotifyFromTray()))->setEnabled(true);
-		trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
+		trayIconMenu->addAction(lang(lng_open_from_tray), this, SLOT(showFromTray()));
+		trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()));
+		trayIconMenu->addAction(notificationActionText, this, SLOT(toggleDisplayNotifyFromTray()));
+		trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()));
 	} else {
-		trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()))->setEnabled(true);
-		trayIconMenu->addAction(notificationActionText, this, SLOT(toggleDisplayNotifyFromTray()))->setEnabled(true);
-		trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
+		trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()));
+		trayIconMenu->addAction(notificationActionText, this, SLOT(toggleDisplayNotifyFromTray()));
+		trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()));
 	}
 	Global::RefWorkMode().setForced(Global::WorkMode().value(), true);
 

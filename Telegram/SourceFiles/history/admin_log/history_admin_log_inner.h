@@ -131,14 +131,12 @@ private:
 	void saveDocumentToFile(DocumentData *document);
 	void copyContextImage(PhotoData *photo);
 	void showStickerPackInfo(not_null<DocumentData*> document);
-	void copyContextUrl();
 	void cancelContextDownload(not_null<DocumentData*> document);
 	void showContextInFolder(not_null<DocumentData*> document);
 	void openContextGif(FullMsgId itemId);
 	void copyContextText(FullMsgId itemId);
 	void copySelectedText();
 	TextWithEntities getSelectedText() const;
-	void setToClipboard(const TextWithEntities &forClipboard, QClipboard::Mode mode = QClipboard::Clipboard);
 	void suggestRestrictUser(not_null<UserData*> user);
 	void restrictUser(not_null<UserData*> user, const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights);
 	void restrictUserDone(not_null<UserData*> user, const MTPChannelBannedRights &rights);
@@ -241,8 +239,6 @@ private:
 
 	QPoint _trippleClickPoint;
 	base::Timer _trippleClickTimer;
-
-	ClickHandlerPtr _contextMenuLink;
 
 	FilterValue _filter;
 	QString _searchQuery;

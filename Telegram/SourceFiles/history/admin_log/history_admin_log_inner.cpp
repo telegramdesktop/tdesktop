@@ -856,7 +856,7 @@ void InnerWidget::keyPressEvent(QKeyEvent *e) {
 		copySelectedText();
 #ifdef Q_OS_MAC
 	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
-		setToClipboard(getSelectedText(), QClipboard::FindBuffer);
+		SetClipboardWithEntities(getSelectedText(), QClipboard::FindBuffer);
 #endif // Q_OS_MAC
 	} else {
 		e->ignore();
@@ -911,7 +911,8 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			HistoryStateRequest request;
 			request.flags |= Text::StateRequest::Flag::LookupSymbol;
 			auto dragState = App::mousedItem()->getState(mousePos, request);
-			if (dragState.cursor == HistoryInTextCursorState && dragState.symbol >= selFrom && dragState.symbol < selTo) {
+			if (dragState.cursor == HistoryInTextCursorState
+				&& base::in_range(dragState.symbol, selFrom, selTo)) {
 				isUponSelected = 1;
 			}
 		}
@@ -922,13 +923,13 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 	_menu = base::make_unique_q<Ui::PopupMenu>(nullptr);
 
-	_contextMenuLink = ClickHandler::getActive();
+	const auto link = ClickHandler::getActive();
 	auto view = App::hoveredItem()
 		? App::hoveredItem()
 		: App::hoveredLinkItem();
-	auto lnkPhoto = dynamic_cast<PhotoClickHandler*>(_contextMenuLink.get());
-	auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.get());
-	auto lnkPeer = dynamic_cast<PeerClickHandler*>(_contextMenuLink.get());
+	auto lnkPhoto = dynamic_cast<PhotoClickHandler*>(link.get());
+	auto lnkDocument = dynamic_cast<DocumentClickHandler*>(link.get());
+	auto lnkPeer = dynamic_cast<PeerClickHandler*>(link.get());
 	auto lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideoFile() : false;
 	auto lnkIsVoice = lnkDocument ? lnkDocument->document()->isVoiceMessage() : false;
 	auto lnkIsAudio = lnkDocument ? lnkDocument->document()->isAudioFile() : false;
@@ -936,22 +937,22 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		if (isUponSelected > 0) {
 			_menu->addAction(lang(lng_context_copy_selected), [=] {
 				copySelectedText();
-			})->setEnabled(true);
+			});
 		}
 		if (lnkPhoto) {
 			const auto photo = lnkPhoto->photo();
 			_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 				savePhotoToFile(photo);
-			}))->setEnabled(true);
+			}));
 			_menu->addAction(lang(lng_context_copy_image), [=] {
 				copyContextImage(photo);
-			})->setEnabled(true);
+			});
 		} else {
 			auto document = lnkDocument->document();
 			if (document->loading()) {
 				_menu->addAction(lang(lng_context_cancel_download), [=] {
 					cancelContextDownload(document);
-				})->setEnabled(true);
+				});
 			} else {
 				if (document->loaded() && document->isGifv()) {
 					if (!cAutoPlayGif()) {
@@ -960,17 +961,17 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 							: FullMsgId();
 						_menu->addAction(lang(lng_context_open_gif), [=] {
 							openContextGif(itemId);
-						})->setEnabled(true);
+						});
 					}
 				}
 				if (!document->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
 					_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), [=] {
 						showContextInFolder(document);
-					})->setEnabled(true);
+					});
 				}
 				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsVoice ? lng_context_save_audio : (lnkIsAudio ? lng_context_save_audio_file : lng_context_save_file))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
 					saveDocumentToFile(document);
-				}))->setEnabled(true);
+				}));
 			}
 		}
 	} else if (lnkPeer) { // suggest to block
@@ -985,7 +986,7 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 		auto msg = dynamic_cast<HistoryMessage*>(item);
 		if (isUponSelected > 0) {
-			_menu->addAction(lang(lng_context_copy_selected), [this] { copySelectedText(); })->setEnabled(true);
+			_menu->addAction(lang(lng_context_copy_selected), [this] { copySelectedText(); });
 		} else {
 			if (item && !isUponSelected) {
 				auto mediaHasTextForCopy = false;
@@ -1003,45 +1004,51 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 							}
 							_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
 								saveDocumentToFile(document);
-							}))->setEnabled(true);
+							}));
 						}
-					} else if (media->type() == MediaTypeGif && !_contextMenuLink) {
+					} else if (media->type() == MediaTypeGif && !link) {
 						if (auto document = media->getDocument()) {
 							if (document->loading()) {
 								_menu->addAction(lang(lng_context_cancel_download), [=] {
 									cancelContextDownload(document);
-								})->setEnabled(true);
+								});
 							} else {
 								if (document->isGifv()) {
 									if (!cAutoPlayGif()) {
 										_menu->addAction(lang(lng_context_open_gif), [=] {
 											openContextGif(itemId);
-										})->setEnabled(true);
+										});
 									}
 								}
 								if (!document->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
 									_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), [=] {
 										showContextInFolder(document);
-									})->setEnabled(true);
+									});
 								}
 								_menu->addAction(lang(lng_context_save_file), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
 									saveDocumentToFile(document);
-								}))->setEnabled(true);
+								}));
 							}
 						}
 					}
 				}
-				if (msg && !_contextMenuLink && (view->hasVisibleText() || mediaHasTextForCopy)) {
+				if (msg && !link && (view->hasVisibleText() || mediaHasTextForCopy)) {
 					_menu->addAction(lang(lng_context_copy_text), [=] {
 						copyContextText(itemId);
-					})->setEnabled(true);
+					});
 				}
 			}
 		}
 
-		auto linkCopyToClipboardText = _contextMenuLink ? _contextMenuLink->copyToClipboardContextItemText() : QString();
-		if (!linkCopyToClipboardText.isEmpty()) {
-			_menu->addAction(linkCopyToClipboardText, [this] { copyContextUrl(); })->setEnabled(true);
+		const auto actionText = link
+			? link->copyToClipboardContextItemText()
+			: QString();
+		if (!actionText.isEmpty()) {
+			_menu->addAction(
+				actionText,
+				[text = link->copyToClipboardText()] {
+					QApplication::clipboard()->setText(text);
+				});
 		}
 	}
 
@@ -1079,13 +1086,7 @@ void InnerWidget::copyContextImage(PhotoData *photo) {
 }
 
 void InnerWidget::copySelectedText() {
-	setToClipboard(getSelectedText());
-}
-
-void InnerWidget::copyContextUrl() {
-	if (_contextMenuLink) {
-		_contextMenuLink->copyToClipboard();
-	}
+	SetClipboardWithEntities(getSelectedText());
 }
 
 void InnerWidget::showStickerPackInfo(not_null<DocumentData*> document) {
@@ -1121,16 +1122,8 @@ void InnerWidget::openContextGif(FullMsgId itemId) {
 void InnerWidget::copyContextText(FullMsgId itemId) {
 	if (const auto item = App::histItemById(itemId)) {
 		if (const auto view = viewForItem(item)) {
-			setToClipboard(view->selectedText(FullSelection));
+			SetClipboardWithEntities(view->selectedText(FullSelection));
 		}
-	}
-}
-
-void InnerWidget::setToClipboard(
-		const TextWithEntities &forClipboard,
-		QClipboard::Mode mode) {
-	if (auto data = MimeDataFromTextWithEntities(forClipboard)) {
-		QApplication::clipboard()->setMimeData(data.release(), mode);
 	}
 }
 
@@ -1379,7 +1372,9 @@ void InnerWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton but
 
 #if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
 	if (_selectedItem && _selectedText.from != _selectedText.to) {
-		setToClipboard(_selectedItem->selectedText(_selectedText), QClipboard::Selection);
+		SetClipboardWithEntities(
+			_selectedItem->selectedText(_selectedText),
+			QClipboard::Selection);
 	}
 #endif // Q_OS_LINUX32 || Q_OS_LINUX64
 }

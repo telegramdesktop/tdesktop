@@ -86,6 +86,8 @@ public:
 		not_null<Window::Controller*> controller,
 		not_null<ListDelegate*> delegate);
 
+	not_null<ListDelegate*> delegate() const;
+
 	// Set the correct scroll position after being resized.
 	void restoreScrollPosition();
 
@@ -96,6 +98,9 @@ public:
 
 	void saveState(not_null<ListMemento*> memento);
 	void restoreState(not_null<ListMemento*> memento);
+
+	TextWithEntities getSelectedText() const;
+	TextWithEntities getItemText(FullMsgId itemId) const;
 
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;
@@ -171,20 +176,7 @@ private:
 	QPoint mapPointToItem(QPoint point, const Element *view) const;
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
-	void savePhotoToFile(PhotoData *photo);
-	void saveDocumentToFile(DocumentData *document);
-	void copyContextImage(PhotoData *photo);
 	void showStickerPackInfo(not_null<DocumentData*> document);
-	void copyContextUrl();
-	void cancelContextDownload(not_null<DocumentData*> document);
-	void showContextInFolder(not_null<DocumentData*> document);
-	void openContextGif(FullMsgId itemId);
-	void copyContextText(FullMsgId itemId);
-	void copySelectedText();
-	TextWithEntities getSelectedText() const;
-	void setToClipboard(
-		const TextWithEntities &forClipboard,
-		QClipboard::Mode mode = QClipboard::Clipboard);
 
 	not_null<Element*> findItemByY(int y) const;
 	Element *strictFindItemByY(int y) const;
@@ -276,8 +268,6 @@ private:
 
 	QPoint _trippleClickPoint;
 	base::Timer _trippleClickTimer;
-
-	ClickHandlerPtr _contextMenuLink;
 
 	rpl::lifetime _viewerLifetime;
 

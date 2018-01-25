@@ -142,7 +142,6 @@ protected:
 private slots:
 	void onCopySelectedText();
 	void onCopyContextText();
-	void onCopyContextUrl();
 
 	void onTouchSelect();
 	void onContextMenuDestroy(QObject *obj);
@@ -201,7 +200,6 @@ private:
 	QTimer _trippleClickTimer;
 
 	Ui::PopupMenu *_contextMenu = nullptr;
-	ClickHandlerPtr _contextMenuClickHandler;
 	QString _contextCopyText;
 	ExpandLinksMode _contextExpandLinksMode = ExpandLinksAll;
 

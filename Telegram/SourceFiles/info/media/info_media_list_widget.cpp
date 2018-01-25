@@ -1283,13 +1283,12 @@ void ListWidget::showContextMenu(
 			}
 		}
 	} else if (link) {
-		auto linkCopyToClipboardText
-			= link->copyToClipboardContextItemText();
-		if (!linkCopyToClipboardText.isEmpty()) {
+		const auto actionText = link->copyToClipboardContextItemText();
+		if (!actionText.isEmpty()) {
 			_contextMenu->addAction(
-				linkCopyToClipboardText,
-				[link] {
-					link->copyToClipboard();
+				actionText,
+				[text = link->copyToClipboardText()] {
+					QApplication::clipboard()->setText(text);
 				});
 		}
 	}
@@ -2006,7 +2005,7 @@ void ListWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton butt
 
 #if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
 	//if (hasSelectedText()) { // #TODO linux clipboard
-	//	setToClipboard(_selected.cbegin()->first->selectedText(_selected.cbegin()->second), QClipboard::Selection);
+	//	SetClipboardWithEntities(_selected.cbegin()->first->selectedText(_selected.cbegin()->second), QClipboard::Selection);
 	//}
 #endif // Q_OS_LINUX32 || Q_OS_LINUX64
 }
