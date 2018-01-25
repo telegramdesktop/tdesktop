@@ -132,8 +132,8 @@ Go to ***BuildPath*** and run
 
 ### Building the project
 
-Go to ***BuildPath*/tdesktop/Telegram/gyp** and run
+Go to ***BuildPath*/tdesktop/Telegram/** and run
 
-    ./refresh.sh
+    gyp/refresh.sh
 
 Then launch Xcode, open ***BuildPath*/tdesktop/Telegram/Telegram.xcodeproj** and build for Debug / Release.
