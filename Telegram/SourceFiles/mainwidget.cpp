@@ -4241,7 +4241,15 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	auto it = sets.find(Stickers::CloudRecentSetId);
 	if (it == sets.cend()) {
 		if (it == sets.cend()) {
-			it = sets.insert(Stickers::CloudRecentSetId, Stickers::Set(Stickers::CloudRecentSetId, 0, lang(lng_recent_stickers), QString(), 0, 0, MTPDstickerSet_ClientFlag::f_special | 0));
+			it = sets.insert(Stickers::CloudRecentSetId, Stickers::Set(
+				Stickers::CloudRecentSetId,
+				uint64(0),
+				lang(lng_recent_stickers),
+				QString(),
+				0, // count
+				0, // hash
+				MTPDstickerSet_ClientFlag::f_special | 0,
+				TimeId(0)));
 		} else {
 			it->title = lang(lng_recent_stickers);
 		}
@@ -5270,13 +5278,28 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			auto &set = d.vstickerset.c_messages_stickerSet();
 			if (set.vset.type() == mtpc_stickerSet) {
 				auto &s = set.vset.c_stickerSet();
+				if (!s.has_installed_date()) {
+					LOG(("API Error: "
+						"updateNewStickerSet without install_date flag."));
+				}
 				if (!s.is_masks()) {
 					auto &sets = Auth().data().stickerSetsRef();
 					auto it = sets.find(s.vid.v);
 					if (it == sets.cend()) {
-						it = sets.insert(s.vid.v, Stickers::Set(s.vid.v, s.vaccess_hash.v, Stickers::GetSetTitle(s), qs(s.vshort_name), s.vcount.v, s.vhash.v, s.vflags.v | MTPDstickerSet::Flag::f_installed));
+						it = sets.insert(s.vid.v, Stickers::Set(
+							s.vid.v,
+							s.vaccess_hash.v,
+							Stickers::GetSetTitle(s),
+							qs(s.vshort_name),
+							s.vcount.v,
+							s.vhash.v,
+							s.vflags.v | MTPDstickerSet::Flag::f_installed_date,
+							s.has_installed_date() ? s.vinstalled_date.v : unixtime()));
 					} else {
-						it->flags |= MTPDstickerSet::Flag::f_installed;
+						it->flags |= MTPDstickerSet::Flag::f_installed_date;
+						if (!it->installDate) {
+							it->installDate = unixtime();
+						}
 						if (it->flags & MTPDstickerSet::Flag::f_archived) {
 							it->flags &= ~MTPDstickerSet::Flag::f_archived;
 							writeArchived = true;

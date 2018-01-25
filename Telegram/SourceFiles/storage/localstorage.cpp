@@ -36,6 +36,7 @@ namespace {
 
 constexpr auto kThemeFileSizeLimit = 5 * 1024 * 1024;
 constexpr auto kFileLoaderQueueStopTimeout = TimeMs(5000);
+constexpr auto kDefaultStickerInstallDate = TimeId(1);
 
 using FileKey = quint64;
 
@@ -3185,13 +3186,33 @@ void cancelTask(TaskId id) {
 void _writeStickerSet(QDataStream &stream, const Stickers::Set &set) {
 	bool notLoaded = (set.flags & MTPDstickerSet_ClientFlag::f_not_loaded);
 	if (notLoaded) {
-		stream << quint64(set.id) << quint64(set.access) << set.title << set.shortName << qint32(-set.count) << qint32(set.hash) << qint32(set.flags);
+		stream
+			<< quint64(set.id)
+			<< quint64(set.access)
+			<< set.title
+			<< set.shortName
+			<< qint32(-set.count)
+			<< qint32(set.hash)
+			<< qint32(set.flags);
+		if (AppVersion > 1002008) {
+			stream << qint32(set.installDate);
+		}
 		return;
 	} else {
 		if (set.stickers.isEmpty()) return;
 	}
 
-	stream << quint64(set.id) << quint64(set.access) << set.title << set.shortName << qint32(set.stickers.size()) << qint32(set.hash) << qint32(set.flags);
+	stream
+		<< quint64(set.id)
+		<< quint64(set.access)
+		<< set.title
+		<< set.shortName
+		<< qint32(set.stickers.size())
+		<< qint32(set.hash)
+		<< qint32(set.flags);
+	if (AppVersion > 1002008) {
+		stream << qint32(set.installDate);
+	}
 	for (auto j = set.stickers.cbegin(), e = set.stickers.cend(); j != e; ++j) {
 		Serialize::Document::writeToStream(stream, *j);
 	}
@@ -3241,8 +3262,8 @@ void _writeStickerSets(FileKey &stickersKey, CheckSet checkSet, const Stickers::
 			continue;
 		}
 
-		// id + access + title + shortName + stickersCount + hash + flags
-		size += sizeof(quint64) * 2 + Serialize::stringSize(set.title) + Serialize::stringSize(set.shortName) + sizeof(quint32) + sizeof(qint32) * 2;
+		// id + access + title + shortName + stickersCount + hash + flags + installDate
+		size += sizeof(quint64) * 2 + Serialize::stringSize(set.title) + Serialize::stringSize(set.shortName) + sizeof(quint32) + sizeof(qint32) * 3;
 		for_const (auto &sticker, set.stickers) {
 			size += Serialize::Document::sizeInStream(sticker);
 		}
@@ -3296,7 +3317,7 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 		return;
 	}
 
-	bool readingInstalled = (readingFlags == MTPDstickerSet::Flag::f_installed);
+	bool readingInstalled = (readingFlags == MTPDstickerSet::Flag::f_installed_date);
 
 	auto &sets = Auth().data().stickerSetsRef();
 	if (outOrder) outOrder->clear();
@@ -3311,7 +3332,14 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 		quint64 setId = 0, setAccess = 0;
 		QString setTitle, setShortName;
 		qint32 scnt = 0;
-		stickers.stream >> setId >> setAccess >> setTitle >> setShortName >> scnt;
+		auto setInstallDate = qint32(0);
+
+		stickers.stream
+			>> setId
+			>> setAccess
+			>> setTitle
+			>> setShortName
+			>> scnt;
 
 		qint32 setHash = 0;
 		MTPDstickerSet::Flags setFlags = 0;
@@ -3324,8 +3352,11 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 				setFlags |= MTPDstickerSet_ClientFlag::f_not_loaded;
 			}
 		}
+		if (stickers.version > 1002008) {
+			stickers.stream >> setInstallDate;
+		}
 		if (readingInstalled && stickers.version < 9061) {
-			setFlags |= MTPDstickerSet::Flag::f_installed;
+			setFlags |= MTPDstickerSet::Flag::f_installed_date;
 		}
 
 		if (setId == Stickers::DefaultSetId) {
@@ -3354,8 +3385,16 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 		auto it = sets.find(setId);
 		if (it == sets.cend()) {
 			// We will set this flags from order lists when reading those stickers.
-			setFlags &= ~(MTPDstickerSet::Flag::f_installed | MTPDstickerSet_ClientFlag::f_featured);
-			it = sets.insert(setId, Stickers::Set(setId, setAccess, setTitle, setShortName, 0, setHash, MTPDstickerSet::Flags(setFlags)));
+			setFlags &= ~(MTPDstickerSet::Flag::f_installed_date | MTPDstickerSet_ClientFlag::f_featured);
+			it = sets.insert(setId, Stickers::Set(
+				setId,
+				setAccess,
+				setTitle,
+				setShortName,
+				0,
+				setHash,
+				MTPDstickerSet::Flags(setFlags),
+				setInstallDate));
 		}
 		auto &set = it.value();
 		auto inputSet = MTP_inputStickerSetID(MTP_long(set.id), MTP_long(set.access));
@@ -3431,6 +3470,9 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 			auto it = sets.find(setId);
 			if (it != sets.cend()) {
 				it->flags |= readingFlags;
+				if (readingInstalled && !it->installDate) {
+					it->installDate = kDefaultStickerInstallDate;
+				}
 			}
 		}
 	}
@@ -3446,7 +3488,7 @@ void writeInstalledStickers() {
 			if (set.stickers.isEmpty()) { // all other special are "installed"
 				return StickerSetCheckResult::Skip;
 			}
-		} else if (!(set.flags & MTPDstickerSet::Flag::f_installed) || (set.flags & MTPDstickerSet::Flag::f_archived)) {
+		} else if (!(set.flags & MTPDstickerSet::Flag::f_installed_date) || (set.flags & MTPDstickerSet::Flag::f_archived)) {
 			return StickerSetCheckResult::Skip;
 		} else if (set.flags & MTPDstickerSet_ClientFlag::f_not_loaded) { // waiting to receive
 			return StickerSetCheckResult::Abort;
@@ -3529,8 +3571,27 @@ void importOldRecentStickers() {
 	auto &recent = cRefRecentStickers();
 	recent.clear();
 
-	auto &def = sets.insert(Stickers::DefaultSetId, Stickers::Set(Stickers::DefaultSetId, 0, lang(lng_stickers_default_set), QString(), 0, 0, MTPDstickerSet::Flag::f_official | MTPDstickerSet::Flag::f_installed | MTPDstickerSet_ClientFlag::f_special)).value();
-	auto &custom = sets.insert(Stickers::CustomSetId, Stickers::Set(Stickers::CustomSetId, 0, qsl("Custom stickers"), QString(), 0, 0, MTPDstickerSet::Flag::f_installed | MTPDstickerSet_ClientFlag::f_special)).value();
+	auto &def = sets.insert(Stickers::DefaultSetId, Stickers::Set(
+		Stickers::DefaultSetId,
+		uint64(0),
+		lang(lng_stickers_default_set),
+		QString(),
+		0, // count
+		0, // hash
+		(MTPDstickerSet::Flag::f_official
+			| MTPDstickerSet::Flag::f_installed_date
+			| MTPDstickerSet_ClientFlag::f_special),
+		kDefaultStickerInstallDate)).value();
+	auto &custom = sets.insert(Stickers::CustomSetId, Stickers::Set(
+		Stickers::CustomSetId,
+		uint64(0),
+		qsl("Custom stickers"),
+		QString(),
+		0, // count
+		0, // hash
+		(MTPDstickerSet::Flag::f_installed_date
+			| MTPDstickerSet_ClientFlag::f_special),
+		kDefaultStickerInstallDate)).value();
 
 	QMap<uint64, bool> read;
 	while (!stickers.stream.atEnd()) {
@@ -3601,11 +3662,17 @@ void readInstalledStickers() {
 	}
 
 	Auth().data().stickerSetsRef().clear();
-	_readStickerSets(_installedStickersKey, &Auth().data().stickerSetsOrderRef(), MTPDstickerSet::Flag::f_installed);
+	_readStickerSets(
+		_installedStickersKey,
+		&Auth().data().stickerSetsOrderRef(),
+		MTPDstickerSet::Flag::f_installed_date);
 }
 
 void readFeaturedStickers() {
-	_readStickerSets(_featuredStickersKey, &Auth().data().featuredStickerSetsOrderRef(), MTPDstickerSet::Flags() | MTPDstickerSet_ClientFlag::f_featured);
+	_readStickerSets(
+		_featuredStickersKey,
+		&Auth().data().featuredStickerSetsOrderRef(),
+		MTPDstickerSet::Flags() | MTPDstickerSet_ClientFlag::f_featured);
 
 	auto &sets = Auth().data().stickerSets();
 	int unreadCount = 0;

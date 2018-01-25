@@ -156,12 +156,16 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 			_setCount = s.vcount.v;
 			_setHash = s.vhash.v;
 			_setFlags = s.vflags.v;
+			_setInstallDate = s.has_installed_date()
+				? s.vinstalled_date.v
+				: TimeId(0);
 			auto &sets = Auth().data().stickerSetsRef();
 			auto it = sets.find(_setId);
 			if (it != sets.cend()) {
 				auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_not_loaded | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_special);
 				_setFlags |= clientFlags;
 				it->flags = _setFlags;
+				it->installDate = _setInstallDate;
 				it->stickers = _pack;
 				it->emoji = _emoji;
 			}
@@ -201,13 +205,25 @@ void StickerSetBox::Inner::installDone(const MTPmessages_StickerSetInstallResult
 			Auth().data().archivedStickerSetsOrderRef().removeAt(index);
 		}
 	}
+	_setInstallDate = unixtime();
 	_setFlags &= ~MTPDstickerSet::Flag::f_archived;
-	_setFlags |= MTPDstickerSet::Flag::f_installed;
+	_setFlags |= MTPDstickerSet::Flag::f_installed_date;
 	auto it = sets.find(_setId);
 	if (it == sets.cend()) {
-		it = sets.insert(_setId, Stickers::Set(_setId, _setAccess, _setTitle, _setShortName, _setCount, _setHash, _setFlags));
+		it = sets.insert(
+			_setId,
+			Stickers::Set(
+				_setId,
+				_setAccess,
+				_setTitle,
+				_setShortName,
+				_setCount,
+				_setHash,
+				_setFlags,
+				_setInstallDate));
 	} else {
 		it->flags = _setFlags;
+		it->installDate = _setInstallDate;
 	}
 	it->stickers = _pack;
 	it->emoji = _emoji;
@@ -396,11 +412,17 @@ bool StickerSetBox::Inner::loaded() const {
 	return _loaded && !_pack.isEmpty();
 }
 
-int32 StickerSetBox::Inner::notInstalled() const {
-	if (!_loaded) return 0;
-	auto it = Auth().data().stickerSets().constFind(_setId);
-	if (it == Auth().data().stickerSets().cend() || !(it->flags & MTPDstickerSet::Flag::f_installed) || (it->flags & MTPDstickerSet::Flag::f_archived)) return _pack.size();
-	return 0;
+bool StickerSetBox::Inner::notInstalled() const {
+	if (!_loaded) {
+		return false;
+	}
+	const auto it = Auth().data().stickerSets().constFind(_setId);
+	if ((it == Auth().data().stickerSets().cend())
+		|| !(it->flags & MTPDstickerSet::Flag::f_installed_date)
+		|| (it->flags & MTPDstickerSet::Flag::f_archived)) {
+		return _pack.size() > 0;
+	}
+	return false;
 }
 
 bool StickerSetBox::Inner::official() const {

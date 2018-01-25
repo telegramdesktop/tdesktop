@@ -914,7 +914,8 @@ bool StickersListWidget::featuredHasAddButton(int index) const {
 		return false;
 	}
 	auto flags = _featuredSets[index].flags;
-	return !(flags & MTPDstickerSet::Flag::f_installed) || (flags & MTPDstickerSet::Flag::f_archived);
+	return !(flags & MTPDstickerSet::Flag::f_installed_date)
+		|| (flags & MTPDstickerSet::Flag::f_archived);
 }
 
 QRect StickersListWidget::featuredAddRect(int index) const {
@@ -1295,15 +1296,27 @@ void StickersListWidget::appendSet(
 		AppendSkip skip) {
 	auto &sets = Auth().data().stickerSets();
 	auto it = sets.constFind(setId);
-	if (it == sets.cend() || it->stickers.isEmpty()) return;
-	if ((skip == AppendSkip::Archived) && (it->flags & MTPDstickerSet::Flag::f_archived)) return;
-	if ((skip == AppendSkip::Installed) && (it->flags & MTPDstickerSet::Flag::f_installed) && !(it->flags & MTPDstickerSet::Flag::f_archived)) {
+	if (it == sets.cend() || it->stickers.isEmpty()) {
+		return;
+	}
+	if ((skip == AppendSkip::Archived)
+		&& (it->flags & MTPDstickerSet::Flag::f_archived)) {
+		return;
+	}
+	if ((skip == AppendSkip::Installed)
+		&& (it->flags & MTPDstickerSet::Flag::f_installed_date)
+		&& !(it->flags & MTPDstickerSet::Flag::f_archived)) {
 		if (!_installedLocallySets.contains(setId)) {
 			return;
 		}
 	}
 
-	to.push_back(Set(it->id, it->flags, it->title, it->stickers.size() + 1, it->stickers));
+	to.push_back(Set(
+		it->id,
+		it->flags,
+		it->title,
+		it->stickers.size() + 1,
+		it->stickers));
 }
 
 void StickersListWidget::refreshRecent() {
@@ -1417,7 +1430,7 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 		auto &sets = Auth().data().stickerSets();
 		auto it = sets.constFind(set.vid.v);
 		if (it != sets.cend()) {
-			auto isInstalled = (it->flags & MTPDstickerSet::Flag::f_installed)
+			auto isInstalled = (it->flags & MTPDstickerSet::Flag::f_installed_date)
 				&& !(it->flags & MTPDstickerSet::Flag::f_archived);
 			if (isInstalled && !canEdit) {
 				removeHiddenForGroup();
@@ -1800,8 +1813,10 @@ void StickersListWidget::removeSet(uint64 setId) {
 						++i;
 					}
 				}
-				it->flags &= ~MTPDstickerSet::Flag::f_installed;
-				if (!(it->flags & MTPDstickerSet_ClientFlag::f_featured) && !(it->flags & MTPDstickerSet_ClientFlag::f_special)) {
+				it->flags &= ~MTPDstickerSet::Flag::f_installed_date;
+				it->installDate = TimeId(0);
+				if (!(it->flags & MTPDstickerSet_ClientFlag::f_featured)
+					&& !(it->flags & MTPDstickerSet_ClientFlag::f_special)) {
 					sets.erase(it);
 				}
 				int removeIndex = Auth().data().stickerSetsOrder().indexOf(_removingSetId);

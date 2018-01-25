@@ -446,8 +446,14 @@ void StickersBox::installSet(uint64 setId) {
 		if (_featured.widget()) _featured.widget()->setRemovedSets(_localRemoved);
 		_archived.widget()->setRemovedSets(_localRemoved);
 	}
-	if (!(it->flags & MTPDstickerSet::Flag::f_installed) || (it->flags & MTPDstickerSet::Flag::f_archived)) {
-		MTP::send(MTPmessages_InstallStickerSet(Stickers::inputSetId(*it), MTP_boolFalse()), rpcDone(&StickersBox::installDone), rpcFail(&StickersBox::installFail, setId));
+	if (!(it->flags & MTPDstickerSet::Flag::f_installed_date)
+		|| (it->flags & MTPDstickerSet::Flag::f_archived)) {
+		MTP::send(
+			MTPmessages_InstallStickerSet(
+				Stickers::inputSetId(*it),
+				MTP_boolFalse()),
+			rpcDone(&StickersBox::installDone),
+			rpcFail(&StickersBox::installFail, setId));
 
 		Stickers::InstallLocally(setId);
 	}
@@ -455,7 +461,8 @@ void StickersBox::installSet(uint64 setId) {
 
 void StickersBox::installDone(const MTPmessages_StickerSetInstallResult &result) {
 	if (result.type() == mtpc_messages_stickerSetInstallResultArchive) {
-		Stickers::ApplyArchivedResult(result.c_messages_stickerSetInstallResultArchive());
+		Stickers::ApplyArchivedResult(
+			result.c_messages_stickerSetInstallResultArchive());
 	}
 }
 
@@ -1564,8 +1571,13 @@ QString StickersBox::Inner::fillSetTitle(const Stickers::Set &set, int maxNameWi
 	return result;
 }
 
-void StickersBox::Inner::fillSetFlags(const Stickers::Set &set, bool *outInstalled, bool *outOfficial, bool *outUnread, bool *outArchived) {
-	*outInstalled = (set.flags & MTPDstickerSet::Flag::f_installed);
+void StickersBox::Inner::fillSetFlags(
+		const Stickers::Set &set,
+		bool *outInstalled,
+		bool *outOfficial,
+		bool *outUnread,
+		bool *outArchived) {
+	*outInstalled = (set.flags & MTPDstickerSet::Flag::f_installed_date);
 	*outOfficial = (set.flags & MTPDstickerSet::Flag::f_official);
 	*outArchived = (set.flags & MTPDstickerSet::Flag::f_archived);
 	if (_section == Section::Featured) {
