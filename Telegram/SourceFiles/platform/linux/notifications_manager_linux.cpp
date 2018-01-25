@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_utilities.h"
 #include "platform/linux/linux_libnotify.h"
 #include "platform/linux/linux_libs.h"
+#include "history/history.h"
 #include "lang/lang_keys.h"
 
 namespace Platform {

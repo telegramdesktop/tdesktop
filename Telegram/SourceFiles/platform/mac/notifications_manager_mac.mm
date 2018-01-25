@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_specific.h"
 #include "platform/mac/mac_utilities.h"
-#include "styles/style_window.h"
+#include "history/history.h"
 #include "mainwindow.h"
-#include "base/variant.h"
+#include "styles/style_window.h"
 
 #include <thread>
 #include <Cocoa/Cocoa.h>

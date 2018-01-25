@@ -70,7 +70,6 @@ private:
 	rpl::variable<MessagePosition> _unreadPosition;
 	int _unreadCount = 0;
 	int _unreadMutedCount = 0;
-	bool _complete = false;
 
 };
 

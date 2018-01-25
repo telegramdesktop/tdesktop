@@ -1166,8 +1166,8 @@ void HistoryInner::itemRemoved(not_null<const HistoryItem*> item) {
 		_dragStateItem = nullptr;
 	}
 
-	if (_dragSelFrom && _dragSelFrom->data() == item
-		|| _dragSelTo && _dragSelTo->data() == item) {
+	if ((_dragSelFrom && _dragSelFrom->data() == item)
+		|| (_dragSelTo && _dragSelTo->data() == item)) {
 		_dragSelFrom = nullptr;
 		_dragSelTo = nullptr;
 		update();

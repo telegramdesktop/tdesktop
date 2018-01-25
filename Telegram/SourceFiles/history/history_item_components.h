@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 
 class HistoryDocument;
-class WebPageData;
+struct WebPageData;
 
 namespace HistoryView {
 class Element;
