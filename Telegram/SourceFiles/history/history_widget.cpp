@@ -4051,16 +4051,6 @@ bool HistoryWidget::confirmSendingFiles(const QMimeData *data) {
 }
 
 bool HistoryWidget::confirmSendingFiles(
-		const QList<QUrl> &files,
-		CompressConfirm compressed,
-		const QString &insertTextOnCancel) {
-	return confirmSendingFiles(
-		Storage::PrepareMediaList(files, st::sendMediaPreviewSize),
-		compressed,
-		insertTextOnCancel);
-}
-
-bool HistoryWidget::confirmSendingFiles(
 		const QStringList &files,
 		CompressConfirm compressed,
 		const QString &insertTextOnCancel) {
@@ -4145,17 +4135,26 @@ bool HistoryWidget::confirmSendingFiles(
 		return false;
 	}
 
-	const auto urls = data->urls();
-	for (const auto &url : urls) {
-		if (url.isLocalFile()) {
-			// Don't insert list of filenames on cancel.
-			const auto emptyTextOnCancel = QString();
-			confirmSendingFiles(urls, compressed, emptyTextOnCancel);
-			return true;
+	const auto hasImage = data->hasImage();
+
+	if (const auto urls = data->urls(); !urls.empty()) {
+		auto list = Storage::PrepareMediaList(
+			urls,
+			st::sendMediaPreviewSize);
+		if (list.error != Storage::PreparedList::Error::NonLocalUrl) {
+			if (list.error == Storage::PreparedList::Error::None
+				|| !hasImage) {
+				const auto emptyTextOnCancel = QString();
+				confirmSendingFiles(
+					std::move(list),
+					compressed,
+					emptyTextOnCancel);
+				return true;
+			}
 		}
 	}
 
-	if (data->hasImage()) {
+	if (hasImage) {
 		auto image = qvariant_cast<QImage>(data->imageData());
 		if (!image.isNull()) {
 			confirmSendingFiles(

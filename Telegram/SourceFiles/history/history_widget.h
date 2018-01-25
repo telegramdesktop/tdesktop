@@ -490,10 +490,6 @@ private:
 	void sendButtonClicked();
 
 	bool confirmSendingFiles(
-		const QList<QUrl> &files,
-		CompressConfirm compressed,
-		const QString &insertTextOnCancel = QString());
-	bool confirmSendingFiles(
 		const QStringList &files,
 		CompressConfirm compressed,
 		const QString &insertTextOnCancel = QString());
