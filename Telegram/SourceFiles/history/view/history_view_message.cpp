@@ -970,13 +970,8 @@ TextWithEntities Message::selectedText(TextSelection selection) const {
 	const auto media = this->media();
 
 	TextWithEntities logEntryOriginalResult;
-	const auto textSelection = (selection == FullSelection)
-		? AllTextSelection
-		: IsSubGroupSelection(selection)
-		? TextSelection(0, 0)
-		: selection;
 	auto textResult = item->_text.originalTextWithEntities(
-		textSelection,
+		selection,
 		ExpandLinksAll);
 	auto skipped = skipTextSelection(selection);
 	auto mediaDisplayed = (media && media->isDisplayed());
@@ -1001,28 +996,6 @@ TextWithEntities Message::selectedText(TextSelection selection) const {
 	} else if (!logEntryOriginalResult.text.isEmpty()) {
 		result.text += qstr("\n\n");
 		TextUtilities::Append(result, std::move(logEntryOriginalResult));
-	}
-	if (auto reply = item->Get<HistoryMessageReply>()) {
-		if (selection == FullSelection && reply->replyToMsg) {
-			TextWithEntities wrapped;
-			wrapped.text.reserve(lang(lng_in_reply_to).size() + reply->replyToMsg->author()->name.size() + 4 + result.text.size());
-			wrapped.text.append('[').append(lang(lng_in_reply_to)).append(' ').append(reply->replyToMsg->author()->name).append(qsl("]\n"));
-			TextUtilities::Append(wrapped, std::move(result));
-			result = wrapped;
-		}
-	}
-	if (auto forwarded = item->Get<HistoryMessageForwarded>()) {
-		if (selection == FullSelection) {
-			auto fwdinfo = forwarded->text.originalTextWithEntities(AllTextSelection, ExpandLinksAll);
-			auto wrapped = TextWithEntities();
-			wrapped.text.reserve(fwdinfo.text.size() + 4 + result.text.size());
-			wrapped.entities.reserve(fwdinfo.entities.size() + result.entities.size());
-			wrapped.text.append('[');
-			TextUtilities::Append(wrapped, std::move(fwdinfo));
-			wrapped.text.append(qsl("]\n"));
-			TextUtilities::Append(wrapped, std::move(result));
-			result = wrapped;
-		}
 	}
 	return result;
 }

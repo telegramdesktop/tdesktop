@@ -84,10 +84,10 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 		Expects(replyToVia == nullptr);
 	}
 
-	bool updateData(HistoryMessage *holder, bool force = false);
+	bool updateData(not_null<HistoryMessage*> holder, bool force = false);
 
 	// Must be called before destructor.
-	void clearData(HistoryMessage *holder);
+	void clearData(not_null<HistoryMessage*> holder);
 
 	bool isNameUpdated() const;
 	void updateName() const;

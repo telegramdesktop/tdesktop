@@ -400,7 +400,10 @@ HistoryHider::~HistoryHider() {
 	parent()->noHider(this);
 }
 
-HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> controller) : Window::AbstractSectionWidget(parent, controller)
+HistoryWidget::HistoryWidget(
+	QWidget *parent,
+	not_null<Window::Controller*> controller)
+: Window::AbstractSectionWidget(parent, controller)
 , _fieldBarCancel(this, st::historyReplyCancel)
 , _topBar(this, controller)
 , _scroll(this, st::historyScroll, false)
@@ -672,8 +675,20 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 		}
 	}, lifetime());
 	_topBar->membersShowAreaActive(
-	) | rpl::start_with_next([this](bool active) {
+	) | rpl::start_with_next([=](bool active) {
 		setMembersShowAreaActive(active);
+	}, _topBar->lifetime());
+	_topBar->forwardSelectionRequest(
+	) | rpl::start_with_next([=] {
+		forwardSelected();
+	}, _topBar->lifetime());
+	_topBar->deleteSelectionRequest(
+	) | rpl::start_with_next([=] {
+		confirmDeleteSelected();
+	}, _topBar->lifetime());
+	_topBar->clearSelectionRequest(
+	) | rpl::start_with_next([=] {
+		clearSelected();
 	}, _topBar->lifetime());
 
 	Auth().api().sendActions(
@@ -1675,11 +1690,16 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		Auth().data().stopAutoplayAnimations();
 	}
 	clearReplyReturns();
-
 	clearAllLoadRequests();
 
 	if (_history) {
-		if (App::main()) App::main()->saveDraftToCloud();
+		if (Ui::InFocusChain(_list)) {
+			// Removing focus from list clears selected and updates top bar.
+			setFocus();
+		}
+		if (App::main()) {
+			App::main()->saveDraftToCloud();
+		}
 		if (_migrated) {
 			_migrated->clearLocalDraft(); // use migrated draft only once
 			_migrated->clearEditDraft();
@@ -1710,7 +1730,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	_fieldBarCancel->hide();
 
 	_membersDropdownShowTimer.stop();
-	_scroll->takeWidget<HistoryInner>().destroyDelayed();
+	_scroll->takeWidget<HistoryInner>().destroy();
 	_list = nullptr;
 
 	clearInlineBot();
@@ -3972,7 +3992,9 @@ void HistoryWidget::onFieldResize() {
 }
 
 void HistoryWidget::onFieldFocused() {
-	if (_list) _list->clearSelectedItems(true);
+	if (_list) {
+		_list->clearSelected(true);
+	}
 }
 
 void HistoryWidget::onCheckFieldAutocomplete() {
@@ -6178,25 +6200,37 @@ void HistoryWidget::handlePeerUpdate() {
 	}
 }
 
-void HistoryWidget::onForwardSelected() {
-	if (!_list) return;
-	auto weak = make_weak(this);
+void HistoryWidget::forwardSelected() {
+	if (!_list) {
+		return;
+	}
+	const auto weak = make_weak(this);
 	Window::ShowForwardMessagesBox(getSelectedItems(), [=] {
-		if (weak) {
-			weak->onClearSelected();
+		if (const auto strong = weak.data()) {
+			strong->clearSelected();
 		}
 	});
 }
 
-void HistoryWidget::confirmDeleteSelectedItems() {
+void HistoryWidget::confirmDeleteSelected() {
 	if (!_list) return;
 
-	App::main()->deleteLayer(_list->getSelectedItems());
+	auto items = _list->getSelectedItems();
+	if (items.empty()) {
+		return;
+	}
+	const auto weak = make_weak(this);
+	const auto box = Ui::show(Box<DeleteMessagesBox>(std::move(items)));
+	box->setDeleteConfirmedCallback([=] {
+		if (const auto strong = weak.data()) {
+			strong->clearSelected();
+		}
+	});
 }
 
 void HistoryWidget::onListEscapePressed() {
 	if (_nonEmptySelection && _list) {
-		onClearSelected();
+		clearSelected();
 	} else {
 		onCancel();
 	}
@@ -6208,8 +6242,10 @@ void HistoryWidget::onListEnterPressed() {
 	}
 }
 
-void HistoryWidget::onClearSelected() {
-	if (_list) _list->clearSelectedItems();
+void HistoryWidget::clearSelected() {
+	if (_list) {
+		_list->clearSelected();
+	}
 }
 
 HistoryItem *HistoryWidget::getItemFromHistoryOrMigrated(MsgId genericMsgId) const {

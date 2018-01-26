@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 #include "history/history_media_types.h"
 #include "history/history_item_components.h"
+#include "history/history_item_text.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
 #include "ui/text_options.h"
@@ -1326,7 +1327,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 	// -2 - has full selected items, but not over, -1 - has selection, but no over, 0 - no selection, 1 - over text, 2 - over full selected items
 	auto isUponSelected = 0;
-	auto hasSelected = 0;;
+	auto hasSelected = 0;
 	if (!_selected.empty()) {
 		isUponSelected = -1;
 		if (_selected.cbegin()->second == FullSelection) {
@@ -1441,14 +1442,18 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		if (isUponSelected > 1) {
 			if (selectedState.count > 0 && selectedState.canForwardCount == selectedState.count) {
-				_menu->addAction(lang(lng_context_forward_selected), _widget, SLOT(onForwardSelected()));
+				_menu->addAction(lang(lng_context_forward_selected), [=] {
+					_widget->forwardSelected();
+				});
 			}
 			if (selectedState.count > 0 && selectedState.canDeleteCount == selectedState.count) {
 				_menu->addAction(lang(lng_context_delete_selected), [=] {
-					_widget->confirmDeleteSelectedItems();
+					_widget->confirmDeleteSelected();
 				});
 			}
-			_menu->addAction(lang(lng_context_clear_selection), _widget, SLOT(onClearSelected()));
+			_menu->addAction(lang(lng_context_clear_selection), [=] {
+				_widget->clearSelected();
+			});
 		} else if (item) {
 			const auto itemId = item->fullId();
 			if (isUponSelected != -2) {
@@ -1576,14 +1581,18 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		if (isUponSelected > 1) {
 			if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
-				_menu->addAction(lang(lng_context_forward_selected), _widget, SLOT(onForwardSelected()));
+				_menu->addAction(lang(lng_context_forward_selected), [=] {
+					_widget->forwardSelected();
+				});
 			}
 			if (selectedState.count > 0 && selectedState.count == selectedState.canDeleteCount) {
 				_menu->addAction(lang(lng_context_delete_selected), [=] {
-					_widget->confirmDeleteSelectedItems();
+					_widget->confirmDeleteSelected();
 				});
 			}
-			_menu->addAction(lang(lng_context_clear_selection), _widget, SLOT(onClearSelected()));
+			_menu->addAction(lang(lng_context_clear_selection), [=] {
+				_widget->clearSelected();
+			});
 		} else if (item && ((isUponSelected != -2 && (canForward || canDelete)) || item->id > 0)) {
 			if (isUponSelected != -2) {
 				if (canForward) {
@@ -1709,10 +1718,8 @@ void HistoryInner::saveContextGif(FullMsgId itemId) {
 
 void HistoryInner::copyContextText(FullMsgId itemId) {
 	if (const auto item = App::histItemById(itemId)) {
-		if (const auto view = item->mainView()) {
-			// #TODO check for a group
-			SetClipboardWithEntities(view->selectedText(FullSelection));
-		}
+		// #TODO check for a group
+		SetClipboardWithEntities(HistoryItemText(item));
 	}
 }
 
@@ -1743,13 +1750,11 @@ TextWithEntities HistoryInner::getSelectedText() const {
 	auto fullSize = 0;
 	auto texts = base::flat_map<std::pair<int, MsgId>, TextWithEntities>();
 
-	const auto addItem = [&](
-			not_null<HistoryView::Element*> view,
-			TextSelection selection) {
+	const auto addItem = [&](not_null<HistoryView::Element*> view) {
 		const auto item = view->data();
 		auto time = item->date.toString(timeFormat);
 		auto part = TextWithEntities();
-		auto unwrapped = view->selectedText(selection);
+		auto unwrapped = HistoryItemText(item);
 		auto size = item->author()->name.size()
 			+ time.size()
 			+ unwrapped.text.size();
@@ -1780,17 +1785,17 @@ TextWithEntities HistoryInner::getSelectedText() const {
 			//	group->leader);
 			//if (leaderSelection == FullSelection) {
 			//	groupLeadersAdded.emplace(group->leader);
-			//	addItem(group->leader, FullSelection);
+			//	addItem(group->leader);
 			//} else if (view == group->leader) {
 			//	const auto leaderFullSelection = AddGroupItemSelection(
 			//		TextSelection(),
 			//		int(group->others.size()));
 			//	addItem(view, leaderFullSelection);
 			//} else {
-			//	addItem(view, FullSelection);
+			//	addItem(view);
 			//}
 		} else {
-			addItem(view, FullSelection);
+			addItem(view);
 		}
 	}
 
@@ -1820,7 +1825,7 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 		auto selectedState = getSelectionState();
 		if (selectedState.count > 0
 			&& selectedState.canDeleteCount == selectedState.count) {
-			_widget->confirmDeleteSelectedItems();
+			_widget->confirmDeleteSelected();
 		}
 	} else {
 		e->ignore();
@@ -2106,7 +2111,7 @@ bool HistoryInner::focusNextPrevChild(bool next) {
 	if (_selected.empty()) {
 		return TWidget::focusNextPrevChild(next);
 	} else {
-		clearSelectedItems();
+		clearSelected();
 		return true;
 	}
 }
@@ -2208,7 +2213,7 @@ auto HistoryInner::getSelectionState() const
 	return result;
 }
 
-void HistoryInner::clearSelectedItems(bool onlyTextSelection) {
+void HistoryInner::clearSelected(bool onlyTextSelection) {
 	if (!_selected.empty() && (!onlyTextSelection || _selected.cbegin()->second != FullSelection)) {
 		_selected.clear();
 		_widget->updateTopBarSelection();
@@ -2926,6 +2931,10 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 		std::unique_ptr<HistoryView::Element> elementCreate(
 				not_null<HistoryService*> message) override {
 			return std::make_unique<HistoryView::Service>(this, message);
+		}
+		bool elementUnderCursor(
+				not_null<const HistoryView::Element*> view) override {
+			return (App::hoveredItem() == view);
 		}
 		void elementAnimationAutoplayAsync(
 				not_null<const HistoryView::Element*> view) override {

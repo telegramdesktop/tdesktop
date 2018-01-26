@@ -574,20 +574,20 @@ void DeleteMessagesBox::deleteAndClear() {
 		}
 	}
 
-	if (!_singleItem) {
-		App::main()->clearSelectedItems();
+	if (_deleteConfirmedCallback) {
+		_deleteConfirmedCallback();
 	}
 
 	QMap<PeerData*, QVector<MTPint>> idsByPeer;
-	for_const (auto fullId, _ids) {
-		if (auto item = App::histItemById(fullId)) {
+	for (const auto itemId : _ids) {
+		if (auto item = App::histItemById(itemId)) {
 			auto history = item->history();
 			auto wasOnServer = (item->id > 0);
 			auto wasLast = (history->lastMsg == item);
 			item->destroy();
 
 			if (wasOnServer) {
-				idsByPeer[history->peer].push_back(MTP_int(fullId.msg));
+				idsByPeer[history->peer].push_back(MTP_int(itemId.msg));
 			} else if (wasLast) {
 				App::main()->checkPeerHistory(history->peer);
 			}

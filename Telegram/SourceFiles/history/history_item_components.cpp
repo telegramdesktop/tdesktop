@@ -125,7 +125,9 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 	}
 }
 
-bool HistoryMessageReply::updateData(HistoryMessage *holder, bool force) {
+bool HistoryMessageReply::updateData(
+		not_null<HistoryMessage*> holder,
+		bool force) {
 	if (!force) {
 		if (replyToMsg || !replyToMsgId) {
 			return true;
@@ -152,7 +154,7 @@ bool HistoryMessageReply::updateData(HistoryMessage *holder, bool force) {
 
 		updateName();
 
-		replyToLnk = goToMessageClickHandler(replyToMsg);
+		replyToLnk = goToMessageClickHandler(replyToMsg, holder->fullId());
 		if (!replyToMsg->Has<HistoryMessageForwarded>()) {
 			if (auto bot = replyToMsg->viaBot()) {
 				replyToVia = std::make_unique<HistoryMessageVia>();
@@ -168,7 +170,7 @@ bool HistoryMessageReply::updateData(HistoryMessage *holder, bool force) {
 	return (replyToMsg || !replyToMsgId);
 }
 
-void HistoryMessageReply::clearData(HistoryMessage *holder) {
+void HistoryMessageReply::clearData(not_null<HistoryMessage*> holder) {
 	replyToVia = nullptr;
 	if (replyToMsg) {
 		App::historyUnregDependency(holder, replyToMsg);

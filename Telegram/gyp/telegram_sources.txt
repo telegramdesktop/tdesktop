@@ -252,6 +252,8 @@
 <(src_loc)/history/history_item.h
 <(src_loc)/history/history_item_components.cpp
 <(src_loc)/history/history_item_components.h
+<(src_loc)/history/history_item_text.cpp
+<(src_loc)/history/history_item_text.h
 <(src_loc)/history/history_inner_widget.cpp
 <(src_loc)/history/history_inner_widget.h
 <(src_loc)/history/history_location_manager.cpp

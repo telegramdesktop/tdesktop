@@ -59,7 +59,9 @@ public:
 
 	virtual HistoryMediaType type() const = 0;
 
-	virtual TextWithEntities selectedText(TextSelection selection) const = 0;
+	virtual TextWithEntities selectedText(TextSelection selection) const {
+		return TextWithEntities();
+	}
 
 	bool hasPoint(QPoint point) const {
 		return QRect(0, 0, width(), height()).contains(point);

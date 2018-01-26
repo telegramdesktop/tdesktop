@@ -41,11 +41,6 @@ namespace Ui {
 class EmptyUserpic;
 } // namespace Ui
 
-TextWithEntities WithCaptionSelectedText(
-	const QString &attachType,
-	const Text &caption,
-	TextSelection selection);
-
 class HistoryFileMedia : public HistoryMedia {
 public:
 	using HistoryMedia::HistoryMedia;
@@ -390,11 +385,6 @@ private:
 	void setStatusSize(int newSize, qint64 realDuration = 0) const;
 	bool updateStatusText() const; // returns showPause
 
-	// Callback is a void(const QString &, const QString &, const Text &) functor.
-	// It will be called as callback(attachType, attachFileName, attachCaption).
-	template <typename Callback>
-	void buildStringRepresentation(Callback callback) const;
-
 	not_null<DocumentData*> _data;
 
 };
@@ -523,8 +513,6 @@ public:
 		return true;
 	}
 
-	TextWithEntities selectedText(TextSelection selection) const override;
-
 	DocumentData *getDocument() const override {
 		return _data;
 	}
@@ -550,7 +538,6 @@ private:
 
 	int additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply) const;
 	int additionalWidth() const;
-	QString toString() const;
 
 	int _pixw = 1;
 	int _pixh = 1;
@@ -583,8 +570,6 @@ public:
 	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
 		return true;
 	}
-
-	TextWithEntities selectedText(TextSelection selection) const override;
 
 	bool needsBubble() const override {
 		return true;
@@ -642,8 +627,6 @@ public:
 	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
 		return false;
 	}
-
-	TextWithEntities selectedText(TextSelection selection) const override;
 
 	bool needsBubble() const override {
 		return true;

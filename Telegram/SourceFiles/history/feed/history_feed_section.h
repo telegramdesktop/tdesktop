@@ -68,6 +68,12 @@ public:
 		Data::MessagePosition aroundId,
 		int limitBefore,
 		int limitAfter) override;
+	bool listAllowsMultiSelect() override;
+	bool listIsLessInOrder(
+		not_null<HistoryItem*> first,
+		not_null<HistoryItem*> second) override;
+	void listSelectionChanged(
+		HistoryView::SelectedItems &&items) override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -85,6 +91,10 @@ private:
 	void updateAdaptiveLayout();
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
+
+	void forwardSelected();
+	void confirmDeleteSelected();
+	void clearSelected();
 
 	not_null<Data::Feed*> _feed;
 	object_ptr<Ui::ScrollArea> _scroll;

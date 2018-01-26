@@ -121,6 +121,7 @@ public:
 
 	void setText(const TextWithEntities &textWithEntities) override;
 	TextWithEntities originalText() const override;
+	TextWithEntities clipboardText() const override;
 	bool textHasLinks() const override;
 
 	int viewsCount() const override;

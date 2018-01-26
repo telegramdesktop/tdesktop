@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/history_view_list_widget.h"
 #include "history/history_item.h"
+#include "history/history_item_text.h"
 #include "history/history_media_types.h"
 #include "ui/widgets/popup_menu.h"
 #include "chat_helpers/message_field.h"
@@ -218,7 +219,9 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 				}
 				if (!link && (view->hasVisibleText() || mediaHasTextForCopy)) {
 					result->addAction(lang(lng_context_copy_text), [=] {
-						SetClipboardWithEntities(list->getItemText(itemId));
+						if (const auto item = App::histItemById(itemId)) {
+							SetClipboardWithEntities(HistoryItemText(item));
+						}
 					});
 				}
 			}

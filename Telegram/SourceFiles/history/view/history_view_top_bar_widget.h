@@ -48,6 +48,16 @@ public:
 
 	void setActiveChat(Dialogs::Key chat);
 
+	rpl::producer<> forwardSelectionRequest() const {
+		return _forwardSelection.events();
+	}
+	rpl::producer<> deleteSelectionRequest() const {
+		return _deleteSelection.events();
+	}
+	rpl::producer<> clearSelectionRequest() const {
+		return _clearSelection.events();
+	}
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
@@ -62,9 +72,6 @@ private:
 	void selectedShowCallback();
 	void updateInfoToggleActive();
 
-	void onForwardSelection();
-	void onDeleteSelection();
-	void onClearSelection();
 	void onCall();
 	void onSearch();
 	void showMenu();
@@ -95,7 +102,7 @@ private:
 
 	Animation _selectedShown;
 
-	object_ptr<Ui::RoundButton> _clearSelection;
+	object_ptr<Ui::RoundButton> _clear;
 	object_ptr<Ui::RoundButton> _forward, _delete;
 
 	object_ptr<Ui::IconButton> _back;
@@ -120,6 +127,10 @@ private:
 
 	int _unreadCounterSubscription = 0;
 	base::Timer _onlineUpdater;
+
+	rpl::event_stream<> _forwardSelection;
+	rpl::event_stream<> _deleteSelection;
+	rpl::event_stream<> _clearSelection;
 
 };
 

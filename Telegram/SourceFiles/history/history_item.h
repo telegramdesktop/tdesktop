@@ -180,6 +180,9 @@ public:
 	virtual TextWithEntities originalText() const {
 		return { QString(), EntitiesInText() };
 	}
+	virtual TextWithEntities clipboardText() const {
+		return { QString(), EntitiesInText() };
+	}
 
 	virtual void setViewsCount(int32 count) {
 	}
@@ -302,5 +305,8 @@ private:
 
 ClickHandlerPtr goToMessageClickHandler(
 	not_null<PeerData*> peer,
-	MsgId msgId);
-ClickHandlerPtr goToMessageClickHandler(not_null<HistoryItem*> item);
+	MsgId msgId,
+	FullMsgId returnToId = FullMsgId());
+ClickHandlerPtr goToMessageClickHandler(
+	not_null<HistoryItem*> item,
+	FullMsgId returnToId = FullMsgId());

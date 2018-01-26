@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
+#include "history/history_item.h"
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
@@ -20,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "boxes/confirm_box.h"
 #include "window/window_controller.h"
+#include "window/window_peer_menu.h"
 #include "data/data_feed_messages.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
@@ -69,6 +71,18 @@ Widget::Widget(
 	_topBar->move(0, 0);
 	_topBar->resizeToWidth(width());
 	_topBar->show();
+	_topBar->forwardSelectionRequest(
+	) | rpl::start_with_next([=] {
+		forwardSelected();
+	}, _topBar->lifetime());
+	_topBar->deleteSelectionRequest(
+	) | rpl::start_with_next([=] {
+		confirmDeleteSelected();
+	}, _topBar->lifetime());
+	_topBar->clearSelectionRequest(
+	) | rpl::start_with_next([=] {
+		clearSelected();
+	}, _topBar->lifetime());
 
 	_topBarShadow->raise();
 	updateAdaptiveLayout();
@@ -175,6 +189,30 @@ rpl::producer<Data::MessagesSlice> Widget::listSource(
 		limitAfter);
 }
 
+bool Widget::listAllowsMultiSelect() {
+	return true;
+}
+
+bool Widget::listIsLessInOrder(
+		not_null<HistoryItem*> first,
+		not_null<HistoryItem*> second) {
+	return first->position() < second->position();
+}
+
+void Widget::listSelectionChanged(HistoryView::SelectedItems &&items) {
+	HistoryView::TopBarWidget::SelectedState state;
+	state.count = items.size();
+	for (const auto item : items) {
+		if (item.canForward) {
+			++state.canForwardCount;
+		}
+		if (item.canDelete) {
+			++state.canDeleteCount;
+		}
+	}
+	_topBar->showSelected(state);
+}
+
 std::unique_ptr<Window::SectionMemento> Widget::createMemento() {
 	auto result = std::make_unique<Memento>(_feed);
 	saveState(result.get());
@@ -278,6 +316,37 @@ bool Widget::wheelEventFromFloatPlayer(QEvent *e) {
 
 QRect Widget::rectForFloatPlayer() const {
 	return mapToGlobal(_scroll->geometry());
+}
+
+void Widget::forwardSelected() {
+	auto items = _inner->getSelectedItems();
+	if (items.empty()) {
+		return;
+	}
+	const auto weak = make_weak(this);
+	Window::ShowForwardMessagesBox(std::move(items), [=] {
+		if (const auto strong = weak.data()) {
+			strong->clearSelected();
+		}
+	});
+}
+
+void Widget::confirmDeleteSelected() {
+	auto items = _inner->getSelectedItems();
+	if (items.empty()) {
+		return;
+	}
+	const auto weak = make_weak(this);
+	const auto box = Ui::show(Box<DeleteMessagesBox>(std::move(items)));
+	box->setDeleteConfirmedCallback([=] {
+		if (const auto strong = weak.data()) {
+			strong->clearSelected();
+		}
+	});
+}
+
+void Widget::clearSelected() {
+	_inner->cancelSelection();
 }
 
 } // namespace HistoryFeed

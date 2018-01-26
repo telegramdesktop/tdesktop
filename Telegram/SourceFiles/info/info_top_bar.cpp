@@ -509,11 +509,13 @@ void TopBar::performForward() {
 		_cancelSelectionClicks.fire({});
 		return;
 	}
-	Window::ShowForwardMessagesBox(std::move(items), [weak = make_weak(this)]{
-		if (weak) {
-			weak->_cancelSelectionClicks.fire({});
-		}
-	});
+	Window::ShowForwardMessagesBox(
+		std::move(items),
+		[weak = make_weak(this)] {
+			if (weak) {
+				weak->_cancelSelectionClicks.fire({});
+			}
+		});
 }
 
 void TopBar::performDelete() {
@@ -521,7 +523,12 @@ void TopBar::performDelete() {
 	if (items.empty()) {
 		_cancelSelectionClicks.fire({});
 	} else {
-		Ui::show(Box<DeleteMessagesBox>(std::move(items)));
+		const auto box = Ui::show(Box<DeleteMessagesBox>(std::move(items)));
+		box->setDeleteConfirmedCallback([weak = make_weak(this)] {
+			if (weak) {
+				weak->_cancelSelectionClicks.fire({});
+			}
+		});
 	}
 }
 

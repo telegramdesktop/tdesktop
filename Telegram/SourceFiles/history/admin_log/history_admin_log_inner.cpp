@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_media_types.h"
 #include "history/history_message.h"
 #include "history/history_item_components.h"
+#include "history/history_item_text.h"
 #include "history/admin_log/history_admin_log_section.h"
 #include "history/admin_log/history_admin_log_filter.h"
 #include "history/view/history_view_message.h"
@@ -484,6 +485,11 @@ std::unique_ptr<HistoryView::Element> InnerWidget::elementCreate(
 std::unique_ptr<HistoryView::Element> InnerWidget::elementCreate(
 		not_null<HistoryService*> message) {
 	return std::make_unique<HistoryView::Service>(this, message);
+}
+
+bool InnerWidget::elementUnderCursor(
+		not_null<const HistoryView::Element*> view) {
+	return (App::hoveredItem() == view);
 }
 
 void InnerWidget::elementAnimationAutoplayAsync(
@@ -1121,9 +1127,7 @@ void InnerWidget::openContextGif(FullMsgId itemId) {
 
 void InnerWidget::copyContextText(FullMsgId itemId) {
 	if (const auto item = App::histItemById(itemId)) {
-		if (const auto view = viewForItem(item)) {
-			SetClipboardWithEntities(view->selectedText(FullSelection));
-		}
+		SetClipboardWithEntities(HistoryItemText(item));
 	}
 }
 

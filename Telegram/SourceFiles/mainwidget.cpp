@@ -877,12 +877,6 @@ void MainWidget::showSendPathsLayer() {
 	hiderLayer(object_ptr<HistoryHider>(this));
 }
 
-void MainWidget::deleteLayer(MessageIdsList &&items) {
-	if (!items.empty()) {
-		Ui::show(Box<DeleteMessagesBox>(std::move(items)));
-	}
-}
-
 void MainWidget::deleteLayer(FullMsgId itemId) {
 	if (const auto item = App::histItemById(itemId)) {
 		const auto suggestModerateActions = true;
@@ -1347,18 +1341,6 @@ void MainWidget::onCacheBackground() {
 		_cachedBackground.setDevicePixelRatio(cRetinaFactor());
 	}
 	_cachedFor = _willCacheFor;
-}
-
-void MainWidget::forwardSelectedItems() {
-	_history->onForwardSelected();
-}
-
-void MainWidget::confirmDeleteSelectedItems() {
-	_history->confirmDeleteSelectedItems();
-}
-
-void MainWidget::clearSelectedItems() {
-	_history->onClearSelected();
 }
 
 Dialogs::IndexedList *MainWidget::contactsList() {

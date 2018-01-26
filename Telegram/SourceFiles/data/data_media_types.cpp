@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_location_manager.h"
 #include "history/view/history_view_element.h"
+#include "ui/text_options.h"
 #include "storage/storage_shared_media.h"
 #include "storage/localstorage.h"
 #include "data/data_session.h"
@@ -127,6 +128,19 @@ QString WithCaptionNotificationText(
 		attachTypeWrapped,
 		lt_caption,
 		caption);
+}
+
+TextWithEntities WithCaptionClipboardText(
+		const QString &attachType,
+		TextWithEntities &&caption) {
+	TextWithEntities result;
+	result.text.reserve(5 + attachType.size() + caption.text.size());
+	result.text.append(qstr("[ ")).append(attachType).append(qstr(" ]"));
+	if (!caption.text.isEmpty()) {
+		result.text.append(qstr("\n"));
+		TextUtilities::Append(result, std::move(caption));
+	}
+	return result;
 }
 
 } // namespace
@@ -296,6 +310,12 @@ QString MediaPhoto::chatsListText() const {
 
 QString MediaPhoto::pinnedTextSubstring() const {
 	return lang(lng_action_pinned_media_photo);
+}
+
+TextWithEntities MediaPhoto::clipboardText() const {
+	return WithCaptionClipboardText(
+		lang(lng_in_dlg_photo),
+		parent()->clipboardText());
 }
 
 bool MediaPhoto::allowsEditCaption() const {
@@ -536,6 +556,36 @@ QString MediaFile::pinnedTextSubstring() const {
 	return lang(lng_action_pinned_media_file);
 }
 
+TextWithEntities MediaFile::clipboardText() const {
+	const auto attachType = [&] {
+		const auto name = _document->composeNameString();
+		const auto addName = !name.isEmpty()
+			? qstr(" : ") + name
+			: QString();
+		if (const auto sticker = _document->sticker()) {
+			if (!_emoji.isEmpty()) {
+				return lng_in_dlg_sticker_emoji(lt_emoji, _emoji);
+			}
+			return lang(lng_in_dlg_sticker);
+		} else if (_document->isAnimation()) {
+			if (_document->isVideoMessage()) {
+				return lang(lng_in_dlg_video_message);
+			}
+			return qsl("GIF");
+		} else if (_document->isVideoFile()) {
+			return lang(lng_in_dlg_video);
+		} else if (_document->isVoiceMessage()) {
+			return lang(lng_in_dlg_audio) + addName;
+		} else if (_document->isSong()) {
+			return lang(lng_in_dlg_audio_file) + addName;
+		}
+		return lang(lng_in_dlg_file) + addName;
+	}();
+	return WithCaptionClipboardText(
+		attachType,
+		parent()->clipboardText());
+}
+
 bool MediaFile::allowsEditCaption() const {
 	return !_document->isVideoMessage() && !_document->sticker();
 }
@@ -666,6 +716,18 @@ QString MediaContact::pinnedTextSubstring() const {
 	return lang(lng_action_pinned_media_contact);
 }
 
+TextWithEntities MediaContact::clipboardText() const {
+	const auto text = qsl("[ ") + lang(lng_in_dlg_contact) + qsl(" ]\n")
+		+ lng_full_name(
+			lt_first_name,
+			_contact.firstName,
+			lt_last_name,
+			_contact.lastName).trimmed()
+		+ '\n'
+		+ _contact.phoneNumber;
+	return { text, EntitiesInText() };
+}
+
 bool MediaContact::updateInlineResultMedia(const MTPMessageMedia &media) {
 	return false;
 }
@@ -734,6 +796,29 @@ QString MediaLocation::pinnedTextSubstring() const {
 	return lang(lng_action_pinned_media_location);
 }
 
+TextWithEntities MediaLocation::clipboardText() const {
+	TextWithEntities result = {
+		qsl("[ ") + lang(lng_maps_point) + qsl(" ]\n"),
+		EntitiesInText()
+	};
+	auto titleResult = TextUtilities::ParseEntities(
+		TextUtilities::Clean(_title),
+		Ui::WebpageTextTitleOptions().flags);
+	auto descriptionResult = TextUtilities::ParseEntities(
+		TextUtilities::Clean(_description),
+		TextParseLinks | TextParseMultiline | TextParseRichText);
+	if (!titleResult.text.isEmpty()) {
+		TextUtilities::Append(result, std::move(titleResult));
+		result.text.append('\n');
+	}
+	if (!descriptionResult.text.isEmpty()) {
+		TextUtilities::Append(result, std::move(descriptionResult));
+		result.text.append('\n');
+	}
+	result.text += LocationClickHandler(_location->coords).dragText();
+	return result;
+}
+
 bool MediaLocation::updateInlineResultMedia(const MTPMessageMedia &media) {
 	return false;
 }
@@ -781,6 +866,10 @@ QString MediaCall::notificationText() const {
 
 QString MediaCall::pinnedTextSubstring() const {
 	return QString();
+}
+
+TextWithEntities MediaCall::clipboardText() const {
+	return { qsl("[ ") + notificationText() + qsl(" ]"), EntitiesInText() };
 }
 
 bool MediaCall::allowsForward() const {
@@ -852,6 +941,10 @@ QString MediaWebPage::pinnedTextSubstring() const {
 	return QString();
 }
 
+TextWithEntities MediaWebPage::clipboardText() const {
+	return TextWithEntities();
+}
+
 bool MediaWebPage::allowsEdit() const {
 	return true;
 }
@@ -902,6 +995,10 @@ GameData *MediaGame::game() const {
 QString MediaGame::pinnedTextSubstring() const {
 	auto title = _game->title;
 	return lng_action_pinned_media_game(lt_game, title);
+}
+
+TextWithEntities MediaGame::clipboardText() const {
+	return TextWithEntities();
 }
 
 QString MediaGame::errorTextForForward(
@@ -963,6 +1060,10 @@ QString MediaInvoice::notificationText() const {
 
 QString MediaInvoice::pinnedTextSubstring() const {
 	return QString();
+}
+
+TextWithEntities MediaInvoice::clipboardText() const {
+	return TextWithEntities();
 }
 
 bool MediaInvoice::updateInlineResultMedia(const MTPMessageMedia &media) {

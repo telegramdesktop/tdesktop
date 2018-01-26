@@ -1387,7 +1387,14 @@ void ListWidget::forwardItems(MessageIdsList &&items) {
 }
 
 void ListWidget::deleteSelected() {
-	deleteItems(collectSelectedIds());
+	if (const auto box = deleteItems(collectSelectedIds())) {
+		const auto weak = make_weak(this);
+		box->setDeleteConfirmedCallback([=]{
+			if (const auto strong = weak.data()) {
+				strong->clearSelected();
+			}
+		});
+	}
 }
 
 void ListWidget::deleteItem(UniversalMsgId universalId) {
@@ -1396,11 +1403,14 @@ void ListWidget::deleteItem(UniversalMsgId universalId) {
 	}
 }
 
-void ListWidget::deleteItems(MessageIdsList &&items) {
+DeleteMessagesBox *ListWidget::deleteItems(MessageIdsList &&items) {
 	if (!items.empty()) {
-		const auto box = Ui::show(Box<DeleteMessagesBox>(std::move(items)));
-		setActionBoxWeak(box.data());
+		const auto box = Ui::show(
+			Box<DeleteMessagesBox>(std::move(items))).data();
+		setActionBoxWeak(box);
+		return box;
 	}
+	return nullptr;
 }
 
 void ListWidget::setActionBoxWeak(QPointer<Ui::RpWidget> box) {
@@ -1575,7 +1585,7 @@ void ListWidget::enterEventHook(QEvent *e) {
 }
 
 void ListWidget::leaveEventHook(QEvent *e) {
-	if (auto item = _overLayout) {
+	if (const auto item = _overLayout) {
 		if (_overState.inside) {
 			repaintItem(item);
 			_overState.inside = false;
@@ -1596,12 +1606,12 @@ QPoint ListWidget::clampMousePosition(QPoint position) const {
 	};
 }
 
-void ListWidget::mouseActionUpdate(const QPoint &screenPos) {
+void ListWidget::mouseActionUpdate(const QPoint &globalPosition) {
 	if (_sections.empty() || _visibleBottom <= _visibleTop) {
 		return;
 	}
 
-	_mousePosition = screenPos;
+	_mousePosition = globalPosition;
 
 	auto local = mapFromGlobal(_mousePosition);
 	auto point = clampMousePosition(local);
@@ -1625,14 +1635,14 @@ void ListWidget::mouseActionUpdate(const QPoint &screenPos) {
 	auto inTextSelection = _overState.inside
 		&& (_overState.itemId == _pressState.itemId)
 		&& hasSelectedText();
-	auto cursorDeltaLength = [&] {
-		auto cursorDelta = (_overState.cursor - _pressState.cursor);
-		return cursorDelta.manhattanLength();
-	};
-	auto dragStartLength = [] {
-		return QApplication::startDragDistance();
-	};
 	if (_overLayout) {
+		auto cursorDeltaLength = [&] {
+			auto cursorDelta = (_overState.cursor - _pressState.cursor);
+			return cursorDelta.manhattanLength();
+		};
+		auto dragStartLength = [] {
+			return QApplication::startDragDistance();
+		};
 		if (_overState.itemId != _pressState.itemId
 			|| cursorDeltaLength() >= dragStartLength()) {
 			if (_mouseAction == MouseAction::PrepareDrag) {
@@ -1770,9 +1780,13 @@ void ListWidget::clearDragSelection() {
 	}
 }
 
-void ListWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton button) {
-	mouseActionUpdate(screenPos);
-	if (button != Qt::LeftButton) return;
+void ListWidget::mouseActionStart(
+		const QPoint &globalPosition,
+		Qt::MouseButton button) {
+	mouseActionUpdate(globalPosition);
+	if (button != Qt::LeftButton) {
+		return;
+	}
 
 	ClickHandler::pressed();
 	if (_pressState != _overState) {
@@ -1799,9 +1813,9 @@ void ListWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butto
 		}
 	}
 	if (_mouseAction == MouseAction::None && pressLayout) {
-		HistoryTextState dragState;
 		validateTrippleClickStartTime();
-		auto startDistance = (screenPos - _trippleClickPoint).manhattanLength();
+		HistoryTextState dragState;
+		auto startDistance = (globalPosition - _trippleClickPoint).manhattanLength();
 		auto validStartPoint = startDistance < QApplication::startDragDistance();
 		if (_trippleClickStartTime != 0 && validStartPoint) {
 			HistoryStateRequest request;
@@ -1950,8 +1964,10 @@ void ListWidget::performDrag() {
 	//}
 }
 
-void ListWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton button) {
-	mouseActionUpdate(screenPos);
+void ListWidget::mouseActionFinish(
+		const QPoint &globalPosition,
+		Qt::MouseButton button) {
+	mouseActionUpdate(globalPosition);
 
 	auto pressState = base::take(_pressState);
 	repaintItem(pressState.itemId);

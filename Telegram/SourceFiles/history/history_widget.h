@@ -324,9 +324,9 @@ public:
 	void grapWithoutTopBarShadow();
 	void grabFinish() override;
 
-	bool isItemVisible(HistoryItem *item);
-
-	void confirmDeleteSelectedItems();
+	void forwardSelected();
+	void confirmDeleteSelected();
+	void clearSelected();
 
 	// Float player interface.
 	bool wheelEventFromFloatPlayer(QEvent *e) override;
@@ -414,9 +414,6 @@ public slots:
 	void onFieldResize();
 	void onCheckFieldAutocomplete();
 	void onScrollTimer();
-
-	void onForwardSelected();
-	void onClearSelected();
 
 	void onDraftSaveDelayed();
 	void onDraftSave(bool delayed = false);

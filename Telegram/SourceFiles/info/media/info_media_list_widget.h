@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_shared_media.h"
 #include "history/view/history_view_cursor_state.h"
 
+class DeleteMessagesBox;
+
 namespace Ui {
 class PopupMenu;
 } // namespace Ui
@@ -186,7 +188,7 @@ private:
 	void forwardItems(MessageIdsList &&items);
 	void deleteSelected();
 	void deleteItem(UniversalMsgId universalId);
-	void deleteItems(MessageIdsList &&items);
+	DeleteMessagesBox *deleteItems(MessageIdsList &&items);
 	void applyItemSelection(
 		UniversalMsgId universalId,
 		TextSelection selection);
@@ -233,12 +235,12 @@ private:
 
 	QPoint clampMousePosition(QPoint position) const;
 	void mouseActionStart(
-		const QPoint &screenPos,
+		const QPoint &globalPosition,
 		Qt::MouseButton button);
-	void mouseActionUpdate(const QPoint &screenPos);
+	void mouseActionUpdate(const QPoint &globalPosition);
 	void mouseActionUpdate();
 	void mouseActionFinish(
-		const QPoint &screenPos,
+		const QPoint &globalPosition,
 		Qt::MouseButton button);
 	void mouseActionCancel();
 	void performDrag();

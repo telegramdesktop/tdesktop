@@ -43,7 +43,7 @@ TopBarWidget::TopBarWidget(
 	not_null<Window::Controller*> controller)
 : RpWidget(parent)
 , _controller(controller)
-, _clearSelection(this, langFactory(lng_selected_clear), st::topBarClearButton)
+, _clear(this, langFactory(lng_selected_clear), st::topBarClearButton)
 , _forward(this, langFactory(lng_selected_forward), st::defaultActiveButton)
 , _delete(this, langFactory(lng_selected_delete), st::defaultActiveButton)
 , _back(this, st::historyTopBarBack)
@@ -55,11 +55,11 @@ TopBarWidget::TopBarWidget(
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	_forward->setClickedCallback([this] { onForwardSelection(); });
+	_forward->setClickedCallback([this] { _forwardSelection.fire({}); });
 	_forward->setWidthChangedCallback([this] { updateControlsGeometry(); });
-	_delete->setClickedCallback([this] { onDeleteSelection(); });
+	_delete->setClickedCallback([this] { _deleteSelection.fire({}); });
 	_delete->setWidthChangedCallback([this] { updateControlsGeometry(); });
-	_clearSelection->setClickedCallback([this] { onClearSelection(); });
+	_clear->setClickedCallback([this] { _clearSelection.fire({}); });
 	_call->setClickedCallback([this] { onCall(); });
 	_search->setClickedCallback([this] { onSearch(); });
 	_menuToggle->setClickedCallback([this] { showMenu(); });
@@ -130,18 +130,6 @@ TopBarWidget::TopBarWidget(
 
 void TopBarWidget::refreshLang() {
 	InvokeQueued(this, [this] { updateControlsGeometry(); });
-}
-
-void TopBarWidget::onForwardSelection() {
-	if (App::main()) App::main()->forwardSelectedItems();
-}
-
-void TopBarWidget::onDeleteSelection() {
-	if (App::main()) App::main()->confirmDeleteSelectedItems();
-}
-
-void TopBarWidget::onClearSelection() {
-	if (App::main()) App::main()->clearSelectedItems();
 }
 
 void TopBarWidget::onSearch() {
@@ -399,7 +387,7 @@ void TopBarWidget::updateControlsGeometry() {
 	auto selectedButtonsTop = countSelectedButtonsTop(_selectedShown.current(hasSelected ? 1. : 0.));
 	auto otherButtonsTop = selectedButtonsTop + st::topBarHeight;
 	auto buttonsLeft = st::topBarActionSkip + (Adaptive::OneColumn() ? 0 : st::lineWidth);
-	auto buttonsWidth = _forward->contentWidth() + _delete->contentWidth() + _clearSelection->width();
+	auto buttonsWidth = _forward->contentWidth() + _delete->contentWidth() + _clear->width();
 	buttonsWidth += buttonsLeft + st::topBarActionSkip * 3;
 
 	auto widthLeft = qMin(width() - buttonsWidth, -2 * st::defaultActiveButton.width);
@@ -414,7 +402,7 @@ void TopBarWidget::updateControlsGeometry() {
 	}
 
 	_delete->moveToLeft(buttonsLeft, selectedButtonsTop);
-	_clearSelection->moveToRight(st::topBarActionSkip, selectedButtonsTop);
+	_clear->moveToRight(st::topBarActionSkip, selectedButtonsTop);
 
 	if (_unreadBadge) {
 		_unreadBadge->setGeometryToLeft(
@@ -469,7 +457,7 @@ void TopBarWidget::updateControlsVisibility() {
 		hideChildren();
 		return;
 	}
-	_clearSelection->show();
+	_clear->show();
 	_delete->setVisible(_canDelete);
 	_forward->setVisible(_canForward);
 

@@ -168,7 +168,6 @@ public:
 
 	void showForwardLayer(MessageIdsList &&items);
 	void showSendPathsLayer();
-	void deleteLayer(MessageIdsList &&items);
 	void deleteLayer(FullMsgId itemId);
 	void cancelUploadLayer(not_null<HistoryItem*> item);
 	void shareUrlLayer(const QString &url, const QString &text);
@@ -220,10 +219,6 @@ public:
 	void checkedHistory(PeerData *peer, const MTPmessages_Messages &result);
 
 	bool sendMessageFail(const RPCError &error);
-
-	void forwardSelectedItems();
-	void confirmDeleteSelectedItems();
-	void clearSelectedItems();
 
 	Dialogs::IndexedList *contactsList();
 	Dialogs::IndexedList *dialogsList();

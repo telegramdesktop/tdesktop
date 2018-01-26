@@ -94,27 +94,6 @@ std::unique_ptr<HistoryMedia> CreateAttach(
 
 } // namespace
 
-TextWithEntities WithCaptionSelectedText(
-		const QString &attachType,
-		const Text &caption,
-		TextSelection selection) {
-	if (selection != FullSelection) {
-		return caption.originalTextWithEntities(selection, ExpandLinksAll);
-	}
-
-	TextWithEntities result, original;
-	if (!caption.isEmpty()) {
-		original = caption.originalTextWithEntities(AllTextSelection, ExpandLinksAll);
-	}
-	result.text.reserve(5 + attachType.size() + original.text.size());
-	result.text.append(qstr("[ ")).append(attachType).append(qstr(" ]"));
-	if (!caption.isEmpty()) {
-		result.text.append(qstr("\n"));
-		TextUtilities::Append(result, std::move(original));
-	}
-	return result;
-}
-
 void HistoryFileMedia::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 	if (p == _savel || p == _cancell) {
 		if (active && !dataLoaded()) {
@@ -682,10 +661,7 @@ void HistoryPhoto::validateGroupedCache(
 }
 
 TextWithEntities HistoryPhoto::selectedText(TextSelection selection) const {
-	return WithCaptionSelectedText(
-		lang(lng_in_dlg_photo),
-		_caption,
-		selection);
+	return _caption.originalTextWithEntities(selection, ExpandLinksAll);
 }
 
 bool HistoryPhoto::needsBubble() const {
@@ -1122,10 +1098,7 @@ void HistoryVideo::setStatusSize(int newSize) const {
 }
 
 TextWithEntities HistoryVideo::selectedText(TextSelection selection) const {
-	return WithCaptionSelectedText(
-		lang(lng_in_dlg_video),
-		_caption,
-		selection);
+	return _caption.originalTextWithEntities(selection, ExpandLinksAll);
 }
 
 bool HistoryVideo::needsBubble() const {
@@ -1715,38 +1688,11 @@ bool HistoryDocument::hasTextForCopy() const {
 }
 
 TextWithEntities HistoryDocument::selectedText(TextSelection selection) const {
-	TextWithEntities result;
-	buildStringRepresentation([&result, selection](const QString &type, const QString &fileName, const Text &caption) {
-		auto fullType = type;
-		if (!fileName.isEmpty()) {
-			fullType.append(qstr(" : ")).append(fileName);
-		}
-		result = WithCaptionSelectedText(fullType, caption, selection);
-	});
-	return result;
-}
-
-template <typename Callback>
-void HistoryDocument::buildStringRepresentation(Callback callback) const {
-	const Text emptyCaption;
-	const Text *caption = &emptyCaption;
-	if (auto captioned = Get<HistoryDocumentCaptioned>()) {
-		caption = &captioned->_caption;
+	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
+		const auto &caption = captioned->_caption;
+		return caption.originalTextWithEntities(selection, ExpandLinksAll);
 	}
-	QString attachType = lang(lng_in_dlg_file);
-	if (Has<HistoryDocumentVoice>()) {
-		attachType = lang(lng_in_dlg_audio);
-	} else if (_data->isAudioFile()) {
-		attachType = lang(lng_in_dlg_audio_file);
-	}
-
-	QString attachFileName;
-	if (auto named = Get<HistoryDocumentNamed>()) {
-		if (!named->_name.isEmpty()) {
-			attachFileName = named->_name;
-		}
-	}
-	return callback(attachType, attachFileName, *caption);
+	return TextWithEntities();
 }
 
 void HistoryDocument::setStatusSize(int newSize, qint64 realDuration) const {
@@ -2521,7 +2467,7 @@ HistoryTextState HistoryGif::getState(QPoint point, HistoryStateRequest request)
 }
 
 TextWithEntities HistoryGif::selectedText(TextSelection selection) const {
-	return WithCaptionSelectedText(mediaTypeString(), _caption, selection);
+	return _caption.originalTextWithEntities(selection, ExpandLinksAll);
 }
 
 bool HistoryGif::needsBubble() const {
@@ -2979,17 +2925,6 @@ HistoryTextState HistorySticker::getState(QPoint point, HistoryStateRequest requ
 	return result;
 }
 
-QString HistorySticker::toString() const {
-	return _emoji.isEmpty() ? lang(lng_in_dlg_sticker) : lng_in_dlg_sticker_emoji(lt_emoji, _emoji);
-}
-
-TextWithEntities HistorySticker::selectedText(TextSelection selection) const {
-	if (selection != FullSelection) {
-		return TextWithEntities();
-	}
-	return { qsl("[ ") + toString() + qsl(" ]"), EntitiesInText() };
-}
-
 ImagePtr HistorySticker::replyPreview() {
 	return _data->makeReplyPreview();
 }
@@ -3197,13 +3132,6 @@ HistoryTextState HistoryContact::getState(QPoint point, HistoryStateRequest requ
 	return result;
 }
 
-TextWithEntities HistoryContact::selectedText(TextSelection selection) const {
-	if (selection != FullSelection) {
-		return TextWithEntities();
-	}
-	return { qsl("[ ") + lang(lng_in_dlg_contact) + qsl(" ]\n") + _name.originalText() + '\n' + _phone, EntitiesInText() };
-}
-
 HistoryCall::HistoryCall(
 	not_null<Element*> parent,
 	not_null<Data::Call*> call)
@@ -3289,13 +3217,6 @@ HistoryTextState HistoryCall::getState(QPoint point, HistoryStateRequest request
 		return result;
 	}
 	return result;
-}
-
-TextWithEntities HistoryCall::selectedText(TextSelection selection) const {
-	if (selection != FullSelection) {
-		return TextWithEntities();
-	}
-	return { qsl("[ ") + _text + qsl(" ]"), EntitiesInText() };
 }
 
 namespace {
@@ -3841,11 +3762,12 @@ bool HistoryWebPage::isDisplayed() const {
 }
 
 TextWithEntities HistoryWebPage::selectedText(TextSelection selection) const {
-	if (selection == FullSelection && !isLogEntryOriginal()) {
-		return TextWithEntities();
-	}
-	auto titleResult = _title.originalTextWithEntities((selection == FullSelection) ? AllTextSelection : selection, ExpandLinksAll);
-	auto descriptionResult = _description.originalTextWithEntities(toDescriptionSelection((selection == FullSelection) ? AllTextSelection : selection), ExpandLinksAll);
+	auto titleResult = _title.originalTextWithEntities(
+		selection,
+		ExpandLinksAll);
+	auto descriptionResult = _description.originalTextWithEntities(
+		toDescriptionSelection(selection),
+		ExpandLinksAll);
 	if (titleResult.text.isEmpty()) {
 		return descriptionResult;
 	} else if (descriptionResult.text.isEmpty()) {
@@ -4237,11 +4159,12 @@ void HistoryGame::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pres
 }
 
 TextWithEntities HistoryGame::selectedText(TextSelection selection) const {
-	if (selection == FullSelection) {
-		return TextWithEntities();
-	}
-	auto titleResult = _title.originalTextWithEntities(selection, ExpandLinksAll);
-	auto descriptionResult = _description.originalTextWithEntities(toDescriptionSelection(selection), ExpandLinksAll);
+	auto titleResult = _title.originalTextWithEntities(
+		selection,
+		ExpandLinksAll);
+	auto descriptionResult = _description.originalTextWithEntities(
+		toDescriptionSelection(selection),
+		ExpandLinksAll);
 	if (titleResult.text.isEmpty()) {
 		return descriptionResult;
 	} else if (descriptionResult.text.isEmpty()) {
@@ -4637,11 +4560,12 @@ void HistoryInvoice::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool p
 }
 
 TextWithEntities HistoryInvoice::selectedText(TextSelection selection) const {
-	if (selection == FullSelection) {
-		return TextWithEntities();
-	}
-	auto titleResult = _title.originalTextWithEntities(selection, ExpandLinksAll);
-	auto descriptionResult = _description.originalTextWithEntities(toDescriptionSelection(selection), ExpandLinksAll);
+	auto titleResult = _title.originalTextWithEntities(
+		selection,
+		ExpandLinksAll);
+	auto descriptionResult = _description.originalTextWithEntities(
+		toDescriptionSelection(selection),
+		ExpandLinksAll);
 	if (titleResult.text.isEmpty()) {
 		return descriptionResult;
 	} else if (descriptionResult.text.isEmpty()) {
@@ -4685,12 +4609,11 @@ HistoryLocation::HistoryLocation(
 			Ui::WebpageTextTitleOptions());
 	}
 	if (!description.isEmpty()) {
-		auto marked = TextWithEntities { TextUtilities::Clean(description) };
-		auto parseFlags = TextParseLinks | TextParseMultiline | TextParseRichText;
-		TextUtilities::ParseEntities(marked, parseFlags);
 		_description.setMarkedText(
 			st::webPageDescriptionStyle,
-			marked,
+			TextUtilities::ParseEntities(
+				TextUtilities::Clean(description),
+				TextParseLinks | TextParseMultiline | TextParseRichText),
 			Ui::WebpageTextDescriptionOptions());
 	}
 }
@@ -4924,17 +4847,6 @@ TextSelection HistoryLocation::adjustSelection(TextSelection selection, TextSele
 }
 
 TextWithEntities HistoryLocation::selectedText(TextSelection selection) const {
-	if (selection == FullSelection) {
-		TextWithEntities result = { qsl("[ ") + lang(lng_maps_point) + qsl(" ]\n"), EntitiesInText() };
-		auto info = selectedText(AllTextSelection);
-		if (!info.text.isEmpty()) {
-			TextUtilities::Append(result, std::move(info));
-			result.text.append('\n');
-		}
-		result.text += _link->dragText();
-		return result;
-	}
-
 	auto titleResult = _title.originalTextWithEntities(selection);
 	auto descriptionResult = _description.originalTextWithEntities(toDescriptionSelection(selection));
 	if (titleResult.text.isEmpty()) {

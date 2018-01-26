@@ -1780,6 +1780,13 @@ void ParseMarkdown(
 	}
 }
 
+TextWithEntities ParseEntities(const QString &text, int32 flags) {
+	const auto rich = ((flags & TextParseRichText) != 0);
+	auto result = TextWithEntities{ text, EntitiesInText() };
+	ParseEntities(result, flags, rich);
+	return result;
+}
+
 // Some code is duplicated in flattextarea.cpp!
 void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 	if (flags & TextParseMarkdown) { // parse markdown entities (bold, italic, code and pre)

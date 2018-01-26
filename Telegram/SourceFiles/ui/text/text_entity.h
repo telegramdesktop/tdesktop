@@ -214,6 +214,7 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &entities, Conver
 
 // New entities are added to the ones that are already in result.
 // Changes text if (flags & TextParseMarkdown).
+TextWithEntities ParseEntities(const QString &text, int32 flags);
 void ParseEntities(TextWithEntities &result, int32 flags, bool rich = false);
 QString ApplyEntities(const TextWithEntities &text);
 

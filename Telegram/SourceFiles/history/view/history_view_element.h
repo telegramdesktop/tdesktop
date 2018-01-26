@@ -37,6 +37,7 @@ public:
 		not_null<HistoryMessage*> message) = 0;
 	virtual std::unique_ptr<Element> elementCreate(
 		not_null<HistoryService*> message) = 0;
+	virtual bool elementUnderCursor(not_null<const Element*> view) = 0;
 	virtual void elementAnimationAutoplayAsync(
 		not_null<const Element*> element) = 0;
 

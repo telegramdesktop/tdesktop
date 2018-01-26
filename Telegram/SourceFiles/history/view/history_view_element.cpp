@@ -186,7 +186,7 @@ int Element::marginBottom() const {
 }
 
 bool Element::isUnderCursor() const {
-	return (App::hoveredItem() == this);
+	return _delegate->elementUnderCursor(this);
 }
 
 void Element::setPendingResize() {

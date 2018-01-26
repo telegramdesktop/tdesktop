@@ -27,6 +27,18 @@ namespace HistoryView {
 
 enum class Context : char;
 
+struct SelectedItem {
+	explicit SelectedItem(FullMsgId msgId) : msgId(msgId) {
+	}
+
+	FullMsgId msgId;
+	bool canDelete = false;
+	bool canForward = false;
+
+};
+
+using SelectedItems = std::vector<SelectedItem>;
+
 class ListDelegate {
 public:
 	virtual Context listContext() = 0;
@@ -36,8 +48,24 @@ public:
 		Data::MessagePosition aroundId,
 		int limitBefore,
 		int limitAfter) = 0;
+	virtual bool listAllowsMultiSelect() = 0;
+	virtual bool listIsLessInOrder(
+		not_null<HistoryItem*> first,
+		not_null<HistoryItem*> second) = 0;
+	virtual void listSelectionChanged(SelectedItems &&items) = 0;
 
 };
+
+struct SelectionData {
+	bool canDelete = false;
+	bool canForward = false;
+
+};
+
+using SelectedMap = base::flat_map<
+	FullMsgId,
+	SelectionData,
+	std::less<>>;
 
 class ListMemento {
 public:
@@ -100,7 +128,8 @@ public:
 	void restoreState(not_null<ListMemento*> memento);
 
 	TextWithEntities getSelectedText() const;
-	TextWithEntities getItemText(FullMsgId itemId) const;
+	MessageIdsList getSelectedItems() const;
+	void cancelSelection();
 
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;
@@ -112,6 +141,7 @@ public:
 		not_null<HistoryMessage*> message) override;
 	std::unique_ptr<Element> elementCreate(
 		not_null<HistoryService*> message) override;
+	bool elementUnderCursor(not_null<const Element*> view) override;
 	void elementAnimationAutoplayAsync(
 		not_null<const Element*> view) override;
 
@@ -136,6 +166,21 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
+	struct CursorState {
+		FullMsgId itemId;
+		int height = 0;
+		QPoint cursor;
+		bool inside = false;
+
+		inline bool operator==(const CursorState &other) const {
+			return (itemId == other.itemId)
+				&& (cursor == other.cursor);
+		}
+		inline bool operator!=(const CursorState &other) const {
+			return !(*this == other);
+		}
+
+	};
 	enum class Direction {
 		Up,
 		Down,
@@ -144,11 +189,17 @@ private:
 		None,
 		PrepareDrag,
 		Dragging,
+		PrepareSelect,
 		Selecting,
 	};
 	enum class EnumItemsDirection {
 		TopToBottom,
 		BottomToTop,
+	};
+	enum class DragSelectAction {
+		None,
+		Selecting,
+		Deselecting,
 	};
 	using ScrollTopState = ListMemento::ScrollTopState;
 
@@ -159,16 +210,23 @@ private:
 	void saveScrollState();
 	void restoreScrollState();
 
+	Element *viewForItem(FullMsgId itemId) const;
 	Element *viewForItem(const HistoryItem *item) const;
 	not_null<Element*> enforceViewForItem(not_null<HistoryItem*> item);
 
-	void mouseActionStart(const QPoint &screenPos, Qt::MouseButton button);
-	void mouseActionUpdate(const QPoint &screenPos);
-	void mouseActionFinish(const QPoint &screenPos, Qt::MouseButton button);
+	void mouseActionStart(
+		const QPoint &globalPosition,
+		Qt::MouseButton button);
+	void mouseActionUpdate(const QPoint &globalPosition);
+	void mouseActionUpdate();
+	void mouseActionFinish(
+		const QPoint &globalPosition,
+		Qt::MouseButton button);
 	void mouseActionCancel();
-	void updateSelected();
 	void performDrag();
+	style::cursor computeMouseCursor() const;
 	int itemTop(not_null<const Element*> view) const;
+	void repaintItem(FullMsgId itemId);
 	void repaintItem(const Element *view);
 	void resizeItem(not_null<Element*> view);
 	void refreshItem(not_null<const Element*> view);
@@ -176,7 +234,6 @@ private:
 	QPoint mapPointToItem(QPoint point, const Element *view) const;
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
-	void showStickerPackInfo(not_null<DocumentData*> document);
 
 	not_null<Element*> findItemByY(int y) const;
 	Element *strictFindItemByY(int y) const;
@@ -196,6 +253,38 @@ private:
 	void scrollDateHide();
 	void scrollDateCheck();
 	void scrollDateHideByTimer();
+
+	void trySwitchToWordSelection();
+	void switchToWordSelection();
+	void validateTrippleClickStartTime();
+	SelectedItems collectSelectedItems() const;
+	MessageIdsList collectSelectedIds() const;
+	void pushSelectedItems();
+	void removeItemSelection(
+		const SelectedMap::const_iterator &i);
+	bool hasSelectedText() const;
+	bool hasSelectedItems() const;
+	void clearTextSelection();
+	void clearSelected();
+	void setTextSelection(
+		not_null<Element*> view,
+		TextSelection selection);
+	bool applyItemSelection(SelectedMap &applyTo, FullMsgId itemId) const;
+	void toggleItemSelection(FullMsgId itemId);
+	SelectedMap::iterator itemUnderPressSelection();
+	SelectedMap::const_iterator itemUnderPressSelection() const;
+	bool isItemUnderPressSelected() const;
+	bool requiredToStartDragging(not_null<Element*> view) const;
+	bool isPressInSelectedText(HistoryTextState state) const;
+	void updateDragSelection();
+	void clearDragSelection();
+	void applyDragSelection();
+	void applyDragSelection(SelectedMap &applyTo) const;
+	TextSelection itemRenderSelection(
+		not_null<const Element*> view) const;
+	TextSelection computeRenderSelection(
+		not_null<const SelectedMap*> selected,
+		not_null<const Element*> view) const;
 
 	// This function finds all history items that are displayed and calls template method
 	// for each found message (in given direction) in the passed history with passed top offset.
@@ -231,7 +320,10 @@ private:
 	int _idsLimit = kMinimalIdsLimit;
 	Data::MessagesSlice _slice;
 	std::vector<not_null<Element*>> _items;
-	std::map<not_null<HistoryItem*>, std::unique_ptr<Element>, std::less<>> _views;
+	std::map<
+		not_null<HistoryItem*>,
+		std::unique_ptr<Element>,
+		std::less<>> _views;
 	int _itemsTop = 0;
 	int _itemsWidth = 0;
 	int _itemsHeight = 0;
@@ -252,22 +344,29 @@ private:
 
 	MouseAction _mouseAction = MouseAction::None;
 	TextSelectType _mouseSelectType = TextSelectType::Letters;
-	QPoint _dragStartPosition;
 	QPoint _mousePosition;
-	Element *_mouseActionItem = nullptr;
+	CursorState _overState;
+	CursorState _pressState;
+	Element *_overItem = nullptr;
 	HistoryCursorState _mouseCursorState = HistoryDefaultCursorState;
 	uint16 _mouseTextSymbol = 0;
 	bool _pressWasInactive = false;
 
-	Element *_selectedItem = nullptr;
-	TextSelection _selectedText;
-	bool _wasSelectedText = false; // was some text selected in current drag action
+	bool _selectEnabled = false;
+	HistoryItem *_selectedTextItem = nullptr;
+	TextSelection _selectedTextRange;
+	TextWithEntities _selectedText;
+	SelectedMap _selected;
+	base::flat_set<FullMsgId> _dragSelected;
+	DragSelectAction _dragSelectAction = DragSelectAction::None;
+	// Was some text selected in current drag action.
+	bool _wasSelectedText = false;
 	Qt::CursorShape _cursor = style::cur_default;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 
 	QPoint _trippleClickPoint;
-	base::Timer _trippleClickTimer;
+	TimeMs _trippleClickStartTime = 0;
 
 	rpl::lifetime _viewerLifetime;
 

@@ -680,13 +680,24 @@ HistoryItem::~HistoryItem() {
 }
 
 ClickHandlerPtr goToMessageClickHandler(
+		not_null<HistoryItem*> item,
+		FullMsgId returnToId) {
+	return goToMessageClickHandler(
+		item->history()->peer,
+		item->id,
+		returnToId);
+}
+
+ClickHandlerPtr goToMessageClickHandler(
 		not_null<PeerData*> peer,
-		MsgId msgId) {
+		MsgId msgId,
+		FullMsgId returnToId) {
 	return std::make_shared<LambdaClickHandler>([=] {
-		if (App::main()) {
-			auto view = App::mousedItem();
-			if (view && view->data()->history()->peer == peer) {
-				App::main()->pushReplyReturn(view->data());
+		if (const auto main = App::main()) {
+			if (const auto returnTo = App::histItemById(returnToId)) {
+				if (returnTo->history()->peer == peer) {
+					main->pushReplyReturn(returnTo);
+				}
 			}
 			App::wnd()->controller()->showPeerHistory(
 				peer,
@@ -694,10 +705,6 @@ ClickHandlerPtr goToMessageClickHandler(
 				msgId);
 		}
 	});
-}
-
-ClickHandlerPtr goToMessageClickHandler(not_null<HistoryItem*> item) {
-	return goToMessageClickHandler(item->history()->peer, item->id);
 }
 
 not_null<HistoryItem*> HistoryItem::Create(

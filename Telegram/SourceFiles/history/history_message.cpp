@@ -1017,6 +1017,13 @@ TextWithEntities HistoryMessage::originalText() const {
 	return _text.originalTextWithEntities();
 }
 
+TextWithEntities HistoryMessage::clipboardText() const {
+	if (emptyText()) {
+		return { QString(), EntitiesInText() };
+	}
+	return _text.originalTextWithEntities(AllTextSelection, ExpandLinksAll);
+}
+
 bool HistoryMessage::textHasLinks() const {
 	return emptyText() ? false : _text.hasLinks();
 }

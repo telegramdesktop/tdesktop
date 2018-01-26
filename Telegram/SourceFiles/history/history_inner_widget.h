@@ -58,7 +58,7 @@ public:
 	bool canDeleteSelected() const;
 
 	HistoryView::TopBarWidget::SelectedState getSelectionState() const;
-	void clearSelectedItems(bool onlyTextSelection = false);
+	void clearSelected(bool onlyTextSelection = false);
 	MessageIdsList getSelectedItems() const;
 	void selectItem(not_null<HistoryItem*> item);
 

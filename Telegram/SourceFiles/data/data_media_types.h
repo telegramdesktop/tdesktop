@@ -89,6 +89,7 @@ public:
 	virtual QString chatsListText() const;
 	virtual QString notificationText() const = 0;
 	virtual QString pinnedTextSubstring() const = 0;
+	virtual TextWithEntities clipboardText() const = 0;
 	virtual bool allowsForward() const;
 	virtual bool allowsEdit() const;
 	virtual bool allowsEditCaption() const;
@@ -136,6 +137,7 @@ public:
 	QString chatsListText() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
+	TextWithEntities clipboardText() const override;
 	bool allowsEditCaption() const override;
 	QString errorTextForForward(
 		not_null<ChannelData*> channel) const override;
@@ -169,6 +171,7 @@ public:
 	QString chatsListText() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
+	TextWithEntities clipboardText() const override;
 	bool allowsEditCaption() const override;
 	bool forwardedBecomesUnread() const override;
 	QString errorTextForForward(
@@ -201,6 +204,7 @@ public:
 	const SharedContact *sharedContact() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
+	TextWithEntities clipboardText() const override;
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
@@ -230,6 +234,7 @@ public:
 	QString chatsListText() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
+	TextWithEntities clipboardText() const override;
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
@@ -255,6 +260,7 @@ public:
 	const Call *call() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
+	TextWithEntities clipboardText() const override;
 	bool allowsForward() const override;
 	bool allowsRevoke() const override;
 
@@ -286,6 +292,7 @@ public:
 	QString chatsListText() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
+	TextWithEntities clipboardText() const override;
 	bool allowsEdit() const override;
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
@@ -311,6 +318,7 @@ public:
 
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
+	TextWithEntities clipboardText() const override;
 	QString errorTextForForward(
 		not_null<ChannelData*> channel) const override;
 
@@ -343,6 +351,7 @@ public:
 
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
+	TextWithEntities clipboardText() const override;
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
