@@ -578,11 +578,15 @@ bool ListWidget::isSelectedAsGroup(
 	return applyTo.contains(item->fullId());
 }
 
+bool ListWidget::isGoodForSelection(not_null<HistoryItem*> item) const {
+	return IsServerMsgId(item->id) && !item->serviceMsg();
+}
+
 bool ListWidget::isGoodForSelection(
 		SelectedMap &applyTo,
 		not_null<HistoryItem*> item,
 		int &totalCount) const {
-	if (!IsServerMsgId(item->id) || item->serviceMsg()) {
+	if (!isGoodForSelection(item)) {
 		return false;
 	} else if (!applyTo.contains(item->fullId())) {
 		++totalCount;
@@ -980,7 +984,7 @@ TextSelection ListWidget::computeRenderSelection(
 
 TextSelection ListWidget::itemRenderSelection(
 		not_null<const Element*> view) const {
-	if (_dragSelectAction != DragSelectAction::None) {
+	if (!_dragSelected.empty()) {
 		const auto i = _dragSelected.find(view->data()->fullId());
 		if (i != _dragSelected.end()) {
 			return (_dragSelectAction == DragSelectAction::Selecting)
@@ -1242,7 +1246,11 @@ auto ListWidget::countScrollState() const -> ScrollTopState {
 
 void ListWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Back) {
-		_delegate->listCloseRequest();
+		if (hasSelectedText() || hasSelectedItems()) {
+			cancelSelection();
+		} else {
+			_delegate->listCancelRequest();
+		}
 	} else if (e == QKeySequence::Copy
 		&& (hasSelectedText() || hasSelectedItems())) {
 		SetClipboardWithEntities(getSelectedText());
@@ -1251,6 +1259,8 @@ void ListWidget::keyPressEvent(QKeyEvent *e) {
 		&& e->modifiers().testFlag(Qt::ControlModifier)) {
 		SetClipboardWithEntities(getSelectedText(), QClipboard::FindBuffer);
 #endif // Q_OS_MAC
+	} else if (e == QKeySequence::Delete) {
+		_delegate->listDeleteRequest();
 	} else {
 		e->ignore();
 	}
@@ -1425,26 +1435,94 @@ void ListWidget::updateDragSelection() {
 	const auto selectingUp = _delegate->listIsLessInOrder(
 		overView->data(),
 		pressItem);
+	if (selectingUp != _dragSelectDirectionUp) {
+		_dragSelectDirectionUp = selectingUp;
+		_dragSelectAction = DragSelectAction::None;
+	}
 	const auto fromView = selectingUp ? overView : pressView;
 	const auto tillView = selectingUp ? pressView : overView;
-	// #TODO skip-from / skip-till
+	updateDragSelection(
+		selectingUp ? overView : pressView,
+		selectingUp ? _overState : _pressState,
+		selectingUp ? pressView : overView,
+		selectingUp ? _pressState : _overState);
+}
+
+void ListWidget::updateDragSelection(
+		const Element *fromView,
+		const MouseState &fromState,
+		const Element *tillView,
+		const MouseState &tillState) {
+	Expects(fromView != nullptr || tillView != nullptr);
+
+	const auto delta = QApplication::startDragDistance();
+
+	const auto includeFrom = [&] (
+			not_null<const Element*> view,
+			const MouseState &state) {
+		const auto bottom = view->height() - view->marginBottom();
+		return (state.point.y() < bottom - delta);
+	};
+	const auto includeTill = [&] (
+			not_null<const Element*> view,
+			const MouseState &state) {
+		const auto top = view->marginTop();
+		return (state.point.y() >= top + delta);
+	};
+	const auto includeSingleItem = [&] (
+			not_null<const Element*> view,
+			const MouseState &state1,
+			const MouseState &state2) {
+		const auto top = view->marginTop();
+		const auto bottom = view->height() - view->marginBottom();
+		const auto y1 = std::min(state1.point.y(), state2.point.y());
+		const auto y2 = std::max(state1.point.y(), state2.point.y());
+		return (y1 < bottom - delta && y2 >= top + delta)
+			? (y2 - y1 >= delta)
+			: false;
+	};
+
 	const auto from = [&] {
-		if (fromView) {
-			const auto result = ranges::find(
-				_items,
-				fromView,
-				[](auto view) { return view.get(); });
-			return (result == end(_items)) ? begin(_items) : result;
-		}
-		return begin(_items);
+		const auto result = fromView ? ranges::find(
+			_items,
+			fromView,
+			[](auto view) { return view.get(); }) : end(_items);
+		return (result == end(_items))
+			? begin(_items)
+			: (fromView == tillView || includeFrom(fromView, fromState))
+			? result
+			: (result + 1);
 	}();
-	const auto till = tillView
-		? ranges::find(
+	const auto till = [&] {
+		if (fromView == tillView) {
+			return (from == end(_items))
+				? from
+				: includeSingleItem(fromView, fromState, tillState)
+				? (from + 1)
+				: from;
+		}
+		const auto result = tillView ? ranges::find(
 			_items,
 			tillView,
-			[](auto view) { return view.get(); })
-		: end(_items);
-	Assert(from <= till);
+			[](auto view) { return view.get(); }) : end(_items);
+		return (result == end(_items))
+			? end(_items)
+			: includeTill(tillView, tillState)
+			? (result + 1)
+			: result;
+	}();
+	if (from < till) {
+		updateDragSelection(from, till);
+	} else {
+		clearDragSelection();
+	}
+}
+
+void ListWidget::updateDragSelection(
+		std::vector<not_null<Element*>>::const_iterator from,
+		std::vector<not_null<Element*>>::const_iterator till) {
+	Expects(from < till);
+
 	const auto &groups = Auth().data().groups();
 	const auto changeItem = [&](not_null<HistoryItem*> item, bool add) {
 		const auto itemId = item->fullId();
@@ -1457,9 +1535,14 @@ void ListWidget::updateDragSelection() {
 	const auto changeGroup = [&](not_null<HistoryItem*> item, bool add) {
 		if (const auto group = groups.find(item)) {
 			for (const auto item : group->items) {
+				if (!isGoodForSelection(item)) {
+					return;
+				}
+			}
+			for (const auto item : group->items) {
 				changeItem(item, add);
 			}
-		} else {
+		} else if (isGoodForSelection(item)) {
 			changeItem(item, add);
 		}
 	};
@@ -1477,25 +1560,28 @@ void ListWidget::updateDragSelection() {
 	for (auto i = till; i != end(_items); ++i) {
 		changeView(*i, false);
 	}
-	_dragSelectAction = [&] {
-		if (_dragSelected.empty()) {
-			return DragSelectAction::None;
-		} else if (!pressView) {
-			return _dragSelectAction;
-		}
-		if (_selected.find(pressItem->fullId()) != end(_selected)) {
-			return DragSelectAction::Deselecting;
-		} else {
-			return DragSelectAction::Selecting;
-		}
-	}();
+
+	ensureDragSelectAction(from, till);
+	update();
+}
+
+void ListWidget::ensureDragSelectAction(
+		std::vector<not_null<Element*>>::const_iterator from,
+		std::vector<not_null<Element*>>::const_iterator till) {
+	if (_dragSelectAction != DragSelectAction::None) {
+		return;
+	}
+	const auto start = _dragSelectDirectionUp ? (till - 1) : from;
+	const auto startId = (*start)->data()->fullId();
+	_dragSelectAction = _selected.contains(startId)
+		? DragSelectAction::Deselecting
+		: DragSelectAction::Selecting;
 	if (!_wasSelectedText
 		&& !_dragSelected.empty()
 		&& _dragSelectAction == DragSelectAction::Selecting) {
 		_wasSelectedText = true;
 		setFocus();
 	}
-	update();
 }
 
 void ListWidget::clearDragSelection() {
@@ -1571,7 +1657,8 @@ void ListWidget::mouseActionStart(
 					_mouseAction = MouseAction::PrepareDrag;
 				} else {
 					if (dragState.afterSymbol) ++_mouseTextSymbol;
-					if (!hasSelectedItems()) {
+					if (!hasSelectedItems()
+						&& _overState.pointState != PointState::Outside) {
 						setTextSelection(pressedView, TextSelection(
 							_mouseTextSymbol,
 							_mouseTextSymbol));
@@ -1627,7 +1714,6 @@ void ListWidget::mouseActionFinish(
 	auto activated = ClickHandler::unpressed();
 
 	auto simpleSelectionChange = pressState.itemId
-		&& (pressState.pointState != PointState::Outside)
 		&& !_pressWasInactive
 		&& (button != Qt::RightButton)
 		&& (_mouseAction == MouseAction::PrepareSelect
@@ -1700,12 +1786,11 @@ void ListWidget::mouseActionUpdate() {
 	const auto view = strictFindItemByY(point.y());
 	const auto item = view ? view->data().get() : nullptr;
 	const auto itemPoint = mapPointToItem(point, view);
-	_overState = MouseState{
+	_overState = MouseState(
 		item ? item->fullId() : FullMsgId(),
 		view ? view->height() : 0,
 		itemPoint,
-		view ? view->pointState(itemPoint) : PointState::Outside
-	};
+		view ? view->pointState(itemPoint) : PointState::Outside);
 	if (_overElement != view) {
 		repaintItem(_overElement);
 		_overElement = view;

@@ -175,8 +175,12 @@ void Widget::listScrollTo(int top) {
 	}
 }
 
-void Widget::listCloseRequest() {
+void Widget::listCancelRequest() {
 	controller()->showBackFromStack();
+}
+
+void Widget::listDeleteRequest() {
+	confirmDeleteSelected();
 }
 
 rpl::producer<Data::MessagesSlice> Widget::listSource(

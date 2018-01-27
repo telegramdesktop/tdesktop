@@ -63,7 +63,8 @@ public:
 	// HistoryView::ListDelegate interface.
 	HistoryView::Context listContext() override;
 	void listScrollTo(int top) override;
-	void listCloseRequest() override;
+	void listCancelRequest() override;
+	void listDeleteRequest() override;
 	rpl::producer<Data::MessagesSlice> listSource(
 		Data::MessagePosition aroundId,
 		int limitBefore,

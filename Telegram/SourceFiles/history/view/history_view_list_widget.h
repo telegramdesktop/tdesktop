@@ -46,7 +46,8 @@ class ListDelegate {
 public:
 	virtual Context listContext() = 0;
 	virtual void listScrollTo(int top) = 0;
-	virtual void listCloseRequest() = 0;
+	virtual void listCancelRequest() = 0;
+	virtual void listDeleteRequest() = 0;
 	virtual rpl::producer<Data::MessagesSlice> listSource(
 		Data::MessagePosition aroundId,
 		int limitBefore,
@@ -290,6 +291,7 @@ private:
 	//bool applyItemSelection(SelectedMap &applyTo, FullMsgId itemId) const;
 	//void toggleItemSelection(FullMsgId itemId);
 
+	bool isGoodForSelection(not_null<HistoryItem*> item) const;
 	bool isGoodForSelection(
 		SelectedMap &applyTo,
 		not_null<HistoryItem*> item,
@@ -318,6 +320,17 @@ private:
 	bool requiredToStartDragging(not_null<Element*> view) const;
 	bool isPressInSelectedText(TextState state) const;
 	void updateDragSelection();
+	void updateDragSelection(
+		const Element *fromView,
+		const MouseState &fromState,
+		const Element *tillView,
+		const MouseState &tillState);
+	void updateDragSelection(
+		std::vector<not_null<Element*>>::const_iterator from,
+		std::vector<not_null<Element*>>::const_iterator till);
+	void ensureDragSelectAction(
+		std::vector<not_null<Element*>>::const_iterator from,
+		std::vector<not_null<Element*>>::const_iterator till);
 	void clearDragSelection();
 	void applyDragSelection();
 	void applyDragSelection(SelectedMap &applyTo) const;
@@ -401,6 +414,7 @@ private:
 	SelectedMap _selected;
 	base::flat_set<FullMsgId> _dragSelected;
 	DragSelectAction _dragSelectAction = DragSelectAction::None;
+	bool _dragSelectDirectionUp = false;
 	// Was some text selected in current drag action.
 	bool _wasSelectedText = false;
 	Qt::CursorShape _cursor = style::cur_default;
