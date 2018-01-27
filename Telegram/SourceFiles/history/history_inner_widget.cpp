@@ -1052,8 +1052,15 @@ void HistoryInner::mouseActionCancel() {
 	_widget->noSelectingScroll();
 }
 
-void HistoryInner::performDrag() {
-	if (_mouseAction != MouseAction::Dragging) return;
+std::unique_ptr<QMimeData> HistoryInner::prepareDrag() {
+	if (_mouseAction != MouseAction::Dragging) {
+		return nullptr;
+	}
+
+	const auto pressedHandler = ClickHandler::getPressed();
+	if (dynamic_cast<VoiceSeekClickHandler*>(pressedHandler.get())) {
+		return nullptr;
+	}
 
 	const auto mouseActionView = _mouseActionItem
 		? _mouseActionItem->mainView()
@@ -1082,11 +1089,6 @@ void HistoryInner::performDrag() {
 			}
 		}
 	}
-	auto pressedHandler = ClickHandler::getPressed();
-
-	if (dynamic_cast<VoiceSeekClickHandler*>(pressedHandler.get())) {
-		return;
-	}
 
 	TextWithEntities sel;
 	QList<QUrl> urls;
@@ -1110,48 +1112,49 @@ void HistoryInner::performDrag() {
 				mimeData->setData(qsl("application/x-td-forward"), "1");
 			}
 		}
-		_controller->window()->launchDrag(std::move(mimeData));
-		return;
-	} else {
-		auto forwardMimeType = QString();
-		auto pressedMedia = static_cast<HistoryMedia*>(nullptr);
-		if (auto pressedItem = App::pressedItem()) {
-			pressedMedia = pressedItem->media();
-			if (_mouseCursorState == CursorState::Date
-				|| (pressedMedia && pressedMedia->dragItem())) {
-				Auth().data().setMimeForwardIds(
-					Auth().data().itemOrItsGroup(pressedItem->data()));
-				forwardMimeType = qsl("application/x-td-forward");
+		return mimeData;
+	} else if (_dragStateItem) {
+		const auto view = _dragStateItem->mainView();
+		if (!view) {
+			return nullptr;
+		}
+		auto forwardIds = MessageIdsList();
+		if (_mouseCursorState == CursorState::Date) {
+			forwardIds = Auth().data().itemOrItsGroup(_dragStateItem);
+		} else if (view->isHiddenByGroup() && pressedHandler) {
+			forwardIds = MessageIdsList(1, _dragStateItem->fullId());
+		} else if (const auto media = view->media()) {
+			if (media->dragItemByHandler(pressedHandler)
+				|| media->dragItem()) {
+				forwardIds = MessageIdsList(1, _dragStateItem->fullId());
 			}
 		}
-		if (const auto pressedLnkItem = _mouseActionItem) {
-			if (const auto view = pressedLnkItem->mainView()) {
-				if ((pressedMedia = view->media())) {
-					if (forwardMimeType.isEmpty()
-						&& pressedMedia->dragItemByHandler(pressedHandler)) {
-						Auth().data().setMimeForwardIds(
-							{ 1, pressedLnkItem->fullId() });
-						forwardMimeType = qsl("application/x-td-forward");
-					}
-				}
-			}
+		if (forwardIds.empty()) {
+			return nullptr;
 		}
-		if (!forwardMimeType.isEmpty()) {
-			auto mimeData = std::make_unique<QMimeData>();
-			mimeData->setData(forwardMimeType, "1");
-			if (auto document = (pressedMedia ? pressedMedia->getDocument() : nullptr)) {
-				auto filepath = document->filepath(DocumentData::FilePathResolveChecked);
+		Auth().data().setMimeForwardIds(std::move(forwardIds));
+		auto result = std::make_unique<QMimeData>();
+		result->setData(qsl("application/x-td-forward"), "1");
+		if (const auto media = view->media()) {
+			if (const auto document = media->getDocument()) {
+				const auto filepath = document->filepath(
+					DocumentData::FilePathResolveChecked);
 				if (!filepath.isEmpty()) {
 					QList<QUrl> urls;
 					urls.push_back(QUrl::fromLocalFile(filepath));
-					mimeData->setUrls(urls);
+					result->setUrls(urls);
 				}
 			}
-
-			// This call enters event loop and can destroy any QObject.
-			_controller->window()->launchDrag(std::move(mimeData));
-			return;
 		}
+		return result;
+	}
+	return nullptr;
+}
+
+void HistoryInner::performDrag() {
+	if (auto mimeData = prepareDrag()) {
+		// This call enters event loop and can destroy any QObject.
+		_controller->window()->launchDrag(std::move(mimeData));
 	}
 }
 
@@ -1739,8 +1742,11 @@ void HistoryInner::saveContextGif(FullMsgId itemId) {
 
 void HistoryInner::copyContextText(FullMsgId itemId) {
 	if (const auto item = App::histItemById(itemId)) {
-		// #TODO check for a group
-		SetClipboardWithEntities(HistoryItemText(item));
+		if (const auto group = Auth().data().groups().find(item)) {
+			SetClipboardWithEntities(HistoryGroupText(group));
+		} else {
+			SetClipboardWithEntities(HistoryItemText(item));
+		}
 	}
 }
 
@@ -2326,7 +2332,7 @@ void HistoryInner::mouseActionUpdate() {
 		if (item != _mouseActionItem || (m - _dragStartPosition).manhattanLength() >= QApplication::startDragDistance()) {
 			if (_mouseAction == MouseAction::PrepareDrag) {
 				_mouseAction = MouseAction::Dragging;
-				InvokeQueued(this, [this] { performDrag(); });
+				crl::on_main(this, [=] { performDrag(); });
 			} else if (_mouseAction == MouseAction::PrepareSelect) {
 				_mouseAction = MouseAction::Selecting;
 			}

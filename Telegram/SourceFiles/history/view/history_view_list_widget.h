@@ -245,6 +245,7 @@ private:
 		const QPoint &globalPosition,
 		Qt::MouseButton button);
 	void mouseActionCancel();
+	std::unique_ptr<QMimeData> prepareDrag();
 	void performDrag();
 	style::cursor computeMouseCursor() const;
 	int itemTop(not_null<const Element*> view) const;
@@ -322,6 +323,10 @@ private:
 	SelectedMap::iterator itemUnderPressSelection();
 	SelectedMap::const_iterator itemUnderPressSelection() const;
 	bool isItemUnderPressSelected() const;
+	bool isInsideSelection(
+		not_null<const Element*> view,
+		not_null<HistoryItem*> exactItem,
+		const MouseState &state) const;
 	bool requiredToStartDragging(not_null<Element*> view) const;
 	bool isPressInSelectedText(TextState state) const;
 	void updateDragSelection();
@@ -408,6 +413,7 @@ private:
 	MouseState _pressState;
 	Element *_overElement = nullptr;
 	HistoryItem *_overItemExact = nullptr;
+	HistoryItem *_pressItemExact = nullptr;
 	CursorState _mouseCursorState = CursorState();
 	uint16 _mouseTextSymbol = 0;
 	bool _pressWasInactive = false;

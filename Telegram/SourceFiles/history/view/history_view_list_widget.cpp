@@ -649,6 +649,35 @@ auto ListWidget::itemUnderPressSelection() -> SelectedMap::iterator {
 		: _selected.end();
 }
 
+bool ListWidget::isInsideSelection(
+		not_null<const Element*> view,
+		not_null<HistoryItem*> exactItem,
+		const MouseState &state) const {
+	if (!_selected.empty()) {
+		if (state.pointState == PointState::GroupPart) {
+			return _selected.contains(exactItem->fullId());
+		} else {
+			return isSelectedAsGroup(_selected, view->data());
+		}
+	} else if (_selectedTextItem
+		&& _selectedTextItem == view->data()
+		&& state.pointState != PointState::Outside) {
+		StateRequest stateRequest;
+		stateRequest.flags |= Text::StateRequest::Flag::LookupSymbol;
+		const auto dragState = view->textState(
+			state.point,
+			stateRequest);
+		if (dragState.cursor == CursorState::Text
+			&& base::in_range(
+				dragState.symbol,
+				_selectedTextRange.from,
+				_selectedTextRange.to)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 auto ListWidget::itemUnderPressSelection() const
 -> SelectedMap::const_iterator {
 	return (_pressState.itemId
@@ -1300,37 +1329,14 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	request.overView = _overElement
 		&& (_overState.pointState != PointState::Outside);
 	request.selectedText = _selectedText;
-	const auto itemId = request.view
-		? request.view->data()->fullId()
-		: FullMsgId();
 	if (!_selected.empty()) {
 		request.selectedItems = collectSelectedIds();
-		if (request.overView && _selected.find(itemId) != end(_selected)) {
-			request.overSelection = true;
-		}
-	} else if (_selectedTextItem
-		&& request.view
-		&& _selectedTextItem == request.view->data()
-		&& request.overView) {
-		const auto pointInItem = mapPointToItem(
-			mapFromGlobal(_mousePosition),
-			request.view);
-		StateRequest stateRequest;
-		stateRequest.flags |= Text::StateRequest::Flag::LookupSymbol;
-		const auto dragState = request.view->textState(
-			pointInItem,
-			stateRequest);
-		if (dragState.cursor == CursorState::Text
-			&& base::in_range(
-				dragState.symbol,
-				_selectedTextRange.from,
-				_selectedTextRange.to)) {
-			request.overSelection = true;
-		}
 	}
-	if (showFromTouch) {
-		request.overSelection = true;
-	}
+	request.overSelection = showFromTouch
+		|| (_overElement && isInsideSelection(
+			_overElement,
+			_overItemExact ? _overItemExact : _overElement->data().get(),
+			_overState));
 
 	_menu = FillContextMenu(this, request);
 	if (_menu && !_menu->actions().isEmpty()) {
@@ -1575,7 +1581,8 @@ void ListWidget::mouseActionStart(
 		_pressState = _overState;
 		repaintItem(_overState.itemId);
 	}
-	const auto pressedView = _overElement;
+	_pressItemExact = _overItemExact;
+	const auto pressElement = _overElement;
 
 	_mouseAction = MouseAction::None;
 	_pressWasInactive = _controller->window()->wasInactivePress();
@@ -1590,7 +1597,7 @@ void ListWidget::mouseActionStart(
 			_mouseAction = MouseAction::PrepareSelect;
 		}
 	}
-	if (_mouseAction == MouseAction::None && pressedView) {
+	if (_mouseAction == MouseAction::None && pressElement) {
 		validateTrippleClickStartTime();
 		TextState dragState;
 		auto startDistance = (globalPosition - _trippleClickPoint).manhattanLength();
@@ -1598,9 +1605,9 @@ void ListWidget::mouseActionStart(
 		if (_trippleClickStartTime != 0 && validStartPoint) {
 			StateRequest request;
 			request.flags = Text::StateRequest::Flag::LookupSymbol;
-			dragState = pressedView->textState(_pressState.point, request);
+			dragState = pressElement->textState(_pressState.point, request);
 			if (dragState.cursor == CursorState::Text) {
-				setTextSelection(pressedView, TextSelection(
+				setTextSelection(pressElement, TextSelection(
 					dragState.symbol,
 					dragState.symbol
 				));
@@ -1610,23 +1617,23 @@ void ListWidget::mouseActionStart(
 				mouseActionUpdate();
 				_trippleClickStartTime = getms();
 			}
-		} else if (pressedView) {
+		} else if (pressElement) {
 			StateRequest request;
 			request.flags = Text::StateRequest::Flag::LookupSymbol;
-			dragState = pressedView->textState(_pressState.point, request);
+			dragState = pressElement->textState(_pressState.point, request);
 		}
 		if (_mouseSelectType != TextSelectType::Paragraphs) {
 			_mouseTextSymbol = dragState.symbol;
 			if (isPressInSelectedText(dragState)) {
 				_mouseAction = MouseAction::PrepareDrag; // start text drag
 			} else if (!_pressWasInactive) {
-				if (requiredToStartDragging(pressedView)) {
+				if (requiredToStartDragging(pressElement)) {
 					_mouseAction = MouseAction::PrepareDrag;
 				} else {
 					if (dragState.afterSymbol) ++_mouseTextSymbol;
 					if (!hasSelectedItems()
 						&& _overState.pointState != PointState::Outside) {
-						setTextSelection(pressedView, TextSelection(
+						setTextSelection(pressElement, TextSelection(
 							_mouseTextSymbol,
 							_mouseTextSymbol));
 						_mouseAction = MouseAction::Selecting;
@@ -1637,7 +1644,7 @@ void ListWidget::mouseActionStart(
 			}
 		}
 	}
-	if (!pressedView) {
+	if (!pressElement) {
 		_mouseAction = MouseAction::None;
 	} else if (_mouseAction == MouseAction::None) {
 		mouseActionCancel();
@@ -1651,6 +1658,7 @@ void ListWidget::mouseActionUpdate(const QPoint &globalPosition) {
 
 void ListWidget::mouseActionCancel() {
 	_pressState = MouseState();
+	_pressItemExact = nullptr;
 	_mouseAction = MouseAction::None;
 	clearDragSelection();
 	_wasSelectedText = false;
@@ -1663,6 +1671,7 @@ void ListWidget::mouseActionFinish(
 	mouseActionUpdate(globalPosition);
 
 	auto pressState = base::take(_pressState);
+	base::take(_pressItemExact);
 	repaintItem(pressState.itemId);
 
 	const auto toggleByHandler = [&](const ClickHandlerPtr &handler) {
@@ -1894,102 +1903,104 @@ style::cursor ListWidget::computeMouseCursor() const {
 	return style::cur_default;
 }
 
+std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
+	if (_mouseAction != MouseAction::Dragging) {
+		return nullptr;
+	}
+	auto pressedHandler = ClickHandler::getPressed();
+	if (dynamic_cast<VoiceSeekClickHandler*>(pressedHandler.get())) {
+		return nullptr;
+	}
+
+	const auto pressedItem = App::histItemById(_pressState.itemId);
+	const auto pressedView = viewForItem(pressedItem);
+	const auto uponSelected = pressedView && isInsideSelection(
+		pressedView,
+		_pressItemExact ? _pressItemExact : pressedItem,
+		_pressState);
+
+	QList<QUrl> urls;
+	auto text = [&] {
+		if (uponSelected) {
+			return getSelectedText();
+		} else if (pressedHandler) {
+			return TextWithEntities{
+				pressedHandler->dragText(),
+				EntitiesInText()
+			};
+		}
+		return TextWithEntities();
+		//if (!sel.isEmpty() && sel.at(0) != '/' && sel.at(0) != '@' && sel.at(0) != '#') {
+		//	urls.push_back(QUrl::fromEncoded(sel.toUtf8())); // Google Chrome crashes in Mac OS X O_o
+		//}
+	}();
+	if (auto mimeData = MimeDataFromTextWithEntities(text)) {
+		clearDragSelection();
+//		_widget->noSelectingScroll(); #TODO scroll
+
+		if (!urls.isEmpty()) {
+			mimeData->setUrls(urls);
+		}
+		if (uponSelected && !Adaptive::OneColumn()) {
+			const auto canForwardAll = [&] {
+				for (const auto &[itemId, data] : _selected) {
+					if (!data.canForward) {
+						return false;
+					}
+				}
+				return true;
+			}();
+			auto items = canForwardAll
+				? getSelectedItems()
+				: MessageIdsList();
+			if (!items.empty()) {
+				Auth().data().setMimeForwardIds(std::move(items));
+				mimeData->setData(qsl("application/x-td-forward"), "1");
+			}
+		}
+		return mimeData;
+	} else if (pressedView) {
+		auto forwardIds = MessageIdsList();
+		const auto exactItem = _pressItemExact
+			? _pressItemExact
+			: pressedItem;
+		if (_mouseCursorState == CursorState::Date) {
+			forwardIds = Auth().data().itemOrItsGroup(_overElement->data());
+		} else if (_pressState.pointState == PointState::GroupPart) {
+			forwardIds = MessageIdsList(1, exactItem->fullId());
+		} else if (const auto media = pressedView->media()) {
+			if (media->dragItemByHandler(pressedHandler)
+				|| media->dragItem()) {
+				forwardIds = MessageIdsList(1, exactItem->fullId());
+			}
+		}
+		if (forwardIds.empty()) {
+			return nullptr;
+		}
+		Auth().data().setMimeForwardIds(std::move(forwardIds));
+		auto result = std::make_unique<QMimeData>();
+		result->setData(qsl("application/x-td-forward"), "1");
+		if (const auto media = pressedView->media()) {
+			if (const auto document = media->getDocument()) {
+				const auto filepath = document->filepath(
+					DocumentData::FilePathResolveChecked);
+				if (!filepath.isEmpty()) {
+					QList<QUrl> urls;
+					urls.push_back(QUrl::fromLocalFile(filepath));
+					result->setUrls(urls);
+				}
+			}
+		}
+		return result;
+	}
+	return nullptr;
+}
+
 void ListWidget::performDrag() {
-	if (_mouseAction != MouseAction::Dragging) return;
-
-	auto uponSelected = false;
-	//if (_mouseActionItem) {
-	//	if (!_selected.isEmpty() && _selected.cbegin().value() == FullSelection) {
-	//		uponSelected = _selected.contains(_mouseActionItem);
-	//	} else {
-	//		StateRequest request;
-	//		request.flags |= Text::StateRequest::Flag::LookupSymbol;
-	//		auto dragState = _mouseActionItem->textState(_dragStartPosition.x(), _dragStartPosition.y(), request);
-	//		uponSelected = (dragState.cursor == CursorState::Text);
-	//		if (uponSelected) {
-	//			if (_selected.isEmpty() ||
-	//				_selected.cbegin().value() == FullSelection ||
-	//				_selected.cbegin().key() != _mouseActionItem
-	//				) {
-	//				uponSelected = false;
-	//			} else {
-	//				uint16 selFrom = _selected.cbegin().value().from, selTo = _selected.cbegin().value().to;
-	//				if (dragState.symbol < selFrom || dragState.symbol >= selTo) {
-	//					uponSelected = false;
-	//				}
-	//			}
-	//		}
-	//	}
-	//}
-	//auto pressedHandler = ClickHandler::getPressed();
-
-	//if (dynamic_cast<VoiceSeekClickHandler*>(pressedHandler.data())) {
-	//	return;
-	//}
-
-	//TextWithEntities sel;
-	//QList<QUrl> urls;
-	//if (uponSelected) {
-	//	sel = getSelectedText();
-	//} else if (pressedHandler) {
-	//	sel = { pressedHandler->dragText(), EntitiesInText() };
-	//	//if (!sel.isEmpty() && sel.at(0) != '/' && sel.at(0) != '@' && sel.at(0) != '#') {
-	//	//	urls.push_back(QUrl::fromEncoded(sel.toUtf8())); // Google Chrome crashes in Mac OS X O_o
-	//	//}
-	//}
-	//if (auto mimeData = mimeDataFromTextWithEntities(sel)) {
-	//	updateDragSelection(0, 0, false);
-	//	_widget->noSelectingScroll();
-
-	//	if (!urls.isEmpty()) mimeData->setUrls(urls);
-	//	if (uponSelected && !Adaptive::OneColumn()) {
-	//		auto selectedState = getSelectionState();
-	//		if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
-	//			Auth().data().setMimeForwardIds(getSelectedItems());
-	//			mimeData->setData(qsl("application/x-td-forward"), "1");
-	//		}
-	//	}
-	//	_controller->window()->launchDrag(std::move(mimeData));
-	//	return;
-	//} else {
-	//	auto forwardMimeType = QString();
-	//	auto pressedMedia = static_cast<HistoryMedia*>(nullptr);
-	//	if (auto pressedItem = App::pressedItem()) { // #TODO no App::
-	//		pressedMedia = pressedItem->media();
-	//		if (_mouseCursorState == CursorState::Date
-	//			|| (pressedMedia && pressedMedia->dragItem())) {
-	//			Auth().data().setMimeForwardIds(
-	//				Auth().data().itemOrItsGroup(pressedItem->data()));
-	//			forwardMimeType = qsl("application/x-td-forward");
-	//		}
-	//	}
-	//	if (auto pressedLnkItem = App::pressedLinkItem()) { // #TODO no App::
-	//		if ((pressedMedia = pressedLnkItem->media())) {
-	//			if (forwardMimeType.isEmpty()
-	//				&& pressedMedia->dragItemByHandler(pressedHandler)) {
-	//				Auth().data().setMimeForwardIds(
-	//					{ 1, pressedLnkItem->fullId() });
-	//				forwardMimeType = qsl("application/x-td-forward");
-	//			}
-	//		}
-	//	}
-	//	if (!forwardMimeType.isEmpty()) {
-	//		auto mimeData = std::make_unique<QMimeData>();
-	//		mimeData->setData(forwardMimeType, "1");
-	//		if (auto document = (pressedMedia ? pressedMedia->getDocument() : nullptr)) {
-	//			auto filepath = document->filepath(DocumentData::FilePathResolveChecked);
-	//			if (!filepath.isEmpty()) {
-	//				QList<QUrl> urls;
-	//				urls.push_back(QUrl::fromLocalFile(filepath));
-	//				mimeData->setUrls(urls);
-	//			}
-	//		}
-
-	//		// This call enters event loop and can destroy any QObject.
-	//		_controller->window()->launchDrag(std::move(mimeData));
-	//		return;
-	//	}
-	//} // #TODO drag
+	if (auto mimeData = prepareDrag()) {
+		// This call enters event loop and can destroy any QObject.
+		_controller->window()->launchDrag(std::move(mimeData));
+	}
 }
 
 int ListWidget::itemTop(not_null<const Element*> view) const {
@@ -2096,6 +2107,9 @@ void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
 	}
 	if (_overItemExact == item) {
 		_overItemExact = nullptr;
+	}
+	if (_pressItemExact == item) {
+		_pressItemExact = nullptr;
 	}
 	const auto i = _views.find(item);
 	if (i == end(_views)) {

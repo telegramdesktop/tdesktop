@@ -194,6 +194,7 @@ private:
 	void mouseActionUpdate(const QPoint &screenPos);
 	void mouseActionFinish(const QPoint &screenPos, Qt::MouseButton button);
 	void mouseActionCancel();
+	std::unique_ptr<QMimeData> prepareDrag();
 	void performDrag();
 
 	QPoint mapPointToItem(QPoint p, const Element *view);
