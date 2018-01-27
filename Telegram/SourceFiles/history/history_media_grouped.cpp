@@ -280,16 +280,6 @@ TextSelection HistoryGroupedMedia::adjustSelection(
 TextWithEntities HistoryGroupedMedia::selectedText(
 		TextSelection selection) const {
 	return _caption.originalTextWithEntities(selection, ExpandLinksAll);
-	// #TODO group select
-	//if (!IsSubGroupSelection(selection)) {
-	//	return WithCaptionSelectedText(
-	//		lang(lng_in_dlg_album),
-	//		_caption,
-	//		selection);
-	//} else if (IsGroupItemSelection(selection, int(_parts.size()) - 1)) {
-	//	return main()->selectedText(FullSelection);
-	//}
-	//return TextWithEntities();
 }
 
 void HistoryGroupedMedia::clickHandlerActiveChanged(

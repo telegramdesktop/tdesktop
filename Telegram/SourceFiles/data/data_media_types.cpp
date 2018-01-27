@@ -130,6 +130,8 @@ QString WithCaptionNotificationText(
 		caption);
 }
 
+} // namespace
+
 TextWithEntities WithCaptionClipboardText(
 		const QString &attachType,
 		TextWithEntities &&caption) {
@@ -142,8 +144,6 @@ TextWithEntities WithCaptionClipboardText(
 	}
 	return result;
 }
-
-} // namespace
 
 Media::Media(not_null<HistoryItem*> parent) : _parent(parent) {
 }

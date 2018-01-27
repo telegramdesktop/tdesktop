@@ -364,4 +364,8 @@ private:
 
 };
 
+TextWithEntities WithCaptionClipboardText(
+	const QString &attachType,
+	TextWithEntities &&caption);
+
 } // namespace Data

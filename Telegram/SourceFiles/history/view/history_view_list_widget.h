@@ -22,6 +22,10 @@ namespace Window {
 class Controller;
 } // namespace Window
 
+namespace Data {
+class Group;
+} // namespace Data
+
 namespace HistoryView {
 
 struct TextState;
@@ -288,8 +292,6 @@ private:
 	void setTextSelection(
 		not_null<Element*> view,
 		TextSelection selection);
-	//bool applyItemSelection(SelectedMap &applyTo, FullMsgId itemId) const;
-	//void toggleItemSelection(FullMsgId itemId);
 
 	bool isGoodForSelection(not_null<HistoryItem*> item) const;
 	bool isGoodForSelection(
@@ -306,6 +308,9 @@ private:
 		SelectedMap &applyTo,
 		not_null<HistoryItem*> item,
 		SelectAction action) const;
+	bool isSelectedGroup(
+		const SelectedMap &applyTo,
+		not_null<const Data::Group*> group) const;
 	bool isSelectedAsGroup(
 		const SelectedMap &applyTo,
 		not_null<HistoryItem*> item) const;

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_media_types.h"
 #include "history/history_message.h"
 #include "history/history_item_components.h"
+#include "history/history_item_text.h"
 #include "history/view/history_view_context_menu.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_message.h"
@@ -527,53 +528,22 @@ bool ListWidget::overSelectedItems() const {
 	return false;
 }
 
-//bool ListWidget::applyItemSelection(
-//		SelectedMap &applyTo,
-//		FullMsgId itemId) const {
-//	if (applyTo.size() >= MaxSelectedItems) {
-//		return false;
-//	}
-//	auto [iterator, ok] = applyTo.try_emplace(
-//		itemId,
-//		SelectionData());
-//	if (!ok) {
-//		return false;
-//	}
-//	const auto item = App::histItemById(itemId);
-//	if (!item) {
-//		applyTo.erase(iterator);
-//		return false;
-//	}
-//	iterator->second.canDelete = item->canDelete();
-//	iterator->second.canForward = item->allowsForward();
-//	return true;
-//}
-//
-//void ListWidget::toggleItemSelection(FullMsgId itemId) {
-//	auto it = _selected.find(itemId);
-//	if (it == _selected.cend()) {
-//		if (_selectedTextItem) {
-//			clearTextSelection();
-//		}
-//		if (applyItemSelection(_selected, itemId)) {
-//			repaintItem(itemId);
-//			pushSelectedItems();
-//		}
-//	} else {
-//		removeItemSelection(it);
-//	}
-//}
+bool ListWidget::isSelectedGroup(
+		const SelectedMap &applyTo,
+		not_null<const Data::Group*> group) const {
+	for (const auto other : group->items) {
+		if (!applyTo.contains(other->fullId())) {
+			return false;
+		}
+	}
+	return true;
+}
 
 bool ListWidget::isSelectedAsGroup(
 		const SelectedMap &applyTo,
 		not_null<HistoryItem*> item) const {
 	if (const auto group = Auth().data().groups().find(item)) {
-		for (const auto other : group->items) {
-			if (!applyTo.contains(other->fullId())) {
-				return false;
-			}
-		}
-		return true;
+		return isSelectedGroup(applyTo, group);
 	}
 	return applyTo.contains(item->fullId());
 }
@@ -1135,72 +1105,69 @@ TextWithEntities ListWidget::getSelectedText() const {
 		return _selectedText;
 	}
 
-	// #TODO selection
-	//const auto timeFormat = qsl(", [dd.MM.yy hh:mm]\n");
-	//auto groupLeadersAdded = base::flat_set<not_null<Element*>>();
-	//auto fullSize = 0;
-	//auto texts = base::flat_map<std::pair<int, MsgId>, TextWithEntities>();
+	const auto timeFormat = qsl(", [dd.MM.yy hh:mm]\n");
+	auto groups = base::flat_set<not_null<const Data::Group*>>();
+	auto fullSize = 0;
+	auto texts = std::vector<std::pair<
+		not_null<HistoryItem*>,
+		TextWithEntities>>();
+	texts.reserve(selected.size());
 
-	//const auto addItem = [&](
-	//		not_null<HistoryView::Element*> view,
-	//		TextSelection selection) {
-	//	const auto item = view->data();
-	//	auto time = item->date.toString(timeFormat);
-	//	auto part = TextWithEntities();
-	//	auto unwrapped = view->selectedText(selection);
-	//	auto size = item->author()->name.size()
-	//		+ time.size()
-	//		+ unwrapped.text.size();
-	//	part.text.reserve(size);
+	const auto wrapItem = [&](
+			not_null<HistoryItem*> item,
+			TextWithEntities &&unwrapped) {
+		auto time = item->date.toString(timeFormat);
+		auto part = TextWithEntities();
+		auto size = item->author()->name.size()
+			+ time.size()
+			+ unwrapped.text.size();
+		part.text.reserve(size);
+		part.text.append(item->author()->name).append(time);
+		TextUtilities::Append(part, std::move(unwrapped));
+		texts.push_back(std::make_pair(std::move(item), std::move(part)));
+		fullSize += size;
+	};
+	const auto addItem = [&](not_null<HistoryItem*> item) {
+		wrapItem(item, HistoryItemText(item));
+	};
+	const auto addGroup = [&](not_null<const Data::Group*> group) {
+		Expects(!group->items.empty());
 
-	//	auto y = itemTop(view);
-	//	if (y >= 0) {
-	//		part.text.append(item->author()->name).append(time);
-	//		TextUtilities::Append(part, std::move(unwrapped));
-	//		texts.emplace(std::make_pair(y, item->id), part);
-	//		fullSize += size;
-	//	}
-	//};
+		wrapItem(group->items.back(), HistoryGroupText(group));
+	};
 
-	//for (const auto [item, selection] : selected) {
-	//	const auto view = item->mainView();
-	//	if (!view) {
-	//		continue;
-	//	}
-
-	//	if (const auto group = Auth().data().groups().find(item)) {
-	//		// #TODO group copy
-	//		//if (groupLeadersAdded.contains(group->leader)) {
-	//		//	continue;
-	//		//}
-	//		//const auto leaderSelection = computeRenderSelection(
-	//		//	&selected,
-	//		//	group->leader);
-	//		//if (leaderSelection == FullSelection) {
-	//		//	groupLeadersAdded.emplace(group->leader);
-	//		//	addItem(group->leader, FullSelection);
-	//		//} else if (view == group->leader) {
-	//		//	const auto leaderFullSelection = AddGroupItemSelection(
-	//		//		TextSelection(),
-	//		//		int(group->others.size()));
-	//		//	addItem(view, leaderFullSelection);
-	//		//} else {
-	//		//	addItem(view, FullSelection);
-	//		//}
-	//	} else {
-	//		addItem(view, FullSelection);
-	//	}
-	//}
+	for (const auto [itemId, data] : selected) {
+		if (const auto item = App::histItemById(itemId)) {
+			if (const auto group = Auth().data().groups().find(item)) {
+				if (groups.contains(group)) {
+					continue;
+				}
+				if (isSelectedGroup(selected, group)) {
+					groups.emplace(group);
+					addGroup(group);
+				} else {
+					addItem(item);
+				}
+			} else {
+				addItem(item);
+			}
+		}
+	}
+	ranges::sort(texts, [&](
+			const std::pair<not_null<HistoryItem*>, TextWithEntities> &a,
+			const std::pair<not_null<HistoryItem*>, TextWithEntities> &b) {
+		return _delegate->listIsLessInOrder(a.first, b.first);
+	});
 
 	auto result = TextWithEntities();
-	//auto sep = qsl("\n\n");
-	//result.text.reserve(fullSize + (texts.size() - 1) * sep.size());
-	//for (auto i = texts.begin(), e = texts.end(); i != e;) {
-	//	TextUtilities::Append(result, std::move(i->second));
-	//	if (++i != e) {
-	//		result.text.append(sep);
-	//	}
-	//}
+	auto sep = qsl("\n\n");
+	result.text.reserve(fullSize + (texts.size() - 1) * sep.size());
+	for (auto i = begin(texts), e = end(texts); i != e;) {
+		TextUtilities::Append(result, std::move(i->second));
+		if (++i != e) {
+			result.text.append(sep);
+		}
+	}
 	return result;
 }
 

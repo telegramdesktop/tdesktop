@@ -1767,56 +1767,46 @@ TextWithEntities HistoryInner::getSelectedText() const {
 	}
 
 	const auto timeFormat = qsl(", [dd.MM.yy hh:mm]\n");
-	auto groupLeadersAdded = base::flat_set<not_null<Element*>>();
+	auto groups = base::flat_set<not_null<const Data::Group*>>();
 	auto fullSize = 0;
-	auto texts = base::flat_map<std::pair<int, MsgId>, TextWithEntities>();
+	auto texts = base::flat_map<Data::MessagePosition, TextWithEntities>();
 
-	const auto addItem = [&](not_null<HistoryView::Element*> view) {
-		const auto item = view->data();
+	const auto wrapItem = [&](
+			not_null<HistoryItem*> item,
+			TextWithEntities &&unwrapped) {
 		auto time = item->date.toString(timeFormat);
 		auto part = TextWithEntities();
-		auto unwrapped = HistoryItemText(item);
 		auto size = item->author()->name.size()
 			+ time.size()
 			+ unwrapped.text.size();
 		part.text.reserve(size);
+		part.text.append(item->author()->name).append(time);
+		TextUtilities::Append(part, std::move(unwrapped));
+		texts.emplace(item->position(), part);
+		fullSize += size;
+	};
+	const auto addItem = [&](not_null<HistoryItem*> item) {
+		wrapItem(item, HistoryItemText(item));
+	};
+	const auto addGroup = [&](not_null<const Data::Group*> group) {
+		Expects(!group->items.empty());
 
-		auto y = itemTop(view);
-		if (y >= 0) {
-			part.text.append(item->author()->name).append(time);
-			TextUtilities::Append(part, std::move(unwrapped));
-			texts.emplace(std::make_pair(y, item->id), part);
-			fullSize += size;
-		}
+		wrapItem(group->items.back(), HistoryGroupText(group));
 	};
 
 	for (const auto [item, selection] : selected) {
-		const auto view = item->mainView();
-		if (!view) {
-			continue;
-		}
-
 		if (const auto group = Auth().data().groups().find(item)) {
-			// #TODO group copy
-			//if (groupLeadersAdded.contains(group->leader)) {
-			//	continue;
-			//}
-			//const auto leaderSelection = computeRenderSelection(
-			//	&selected,
-			//	group->leader);
-			//if (leaderSelection == FullSelection) {
-			//	groupLeadersAdded.emplace(group->leader);
-			//	addItem(group->leader);
-			//} else if (view == group->leader) {
-			//	const auto leaderFullSelection = AddGroupItemSelection(
-			//		TextSelection(),
-			//		int(group->others.size()));
-			//	addItem(view, leaderFullSelection);
-			//} else {
-			//	addItem(view);
-			//}
+			if (groups.contains(group)) {
+				continue;
+			}
+			if (isSelectedGroup(&selected, group)) {
+				groups.emplace(group);
+				addGroup(group);
+			} else {
+				addItem(item);
+			}
 		} else {
-			addItem(view);
+			addItem(item);
 		}
 	}
 
@@ -2686,16 +2676,22 @@ bool HistoryInner::isSelected(
 	return (i != toItems->cend()) && (i->second == FullSelection);
 }
 
+bool HistoryInner::isSelectedGroup(
+		not_null<SelectedItems*> toItems,
+		not_null<const Data::Group*> group) const {
+	for (const auto other : group->items) {
+		if (!isSelected(toItems, other)) {
+			return false;
+		}
+	}
+	return true;
+}
+
 bool HistoryInner::isSelectedAsGroup(
 		not_null<SelectedItems*> toItems,
 		not_null<HistoryItem*> item) const {
 	if (const auto group = Auth().data().groups().find(item)) {
-		for (const auto other : group->items) {
-			if (!isSelected(toItems, other)) {
-				return false;
-			}
-		}
-		return true;
+		return isSelectedGroup(toItems, group);
 	}
 	return isSelected(toItems, item);
 }

@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "history/view/history_view_top_bar_widget.h"
 
+namespace Data {
+class Group;
+} // namespace Data
+
 namespace HistoryView {
 class ElementDelegate;
 struct TextState;
@@ -244,6 +248,9 @@ private:
 	bool isSelected(
 		not_null<SelectedItems*> toItems,
 		not_null<HistoryItem*> item) const;
+	bool isSelectedGroup(
+		not_null<SelectedItems*> toItems,
+		not_null<const Data::Group*> group) const;
 	bool isSelectedAsGroup(
 		not_null<SelectedItems*> toItems,
 		not_null<HistoryItem*> item) const;

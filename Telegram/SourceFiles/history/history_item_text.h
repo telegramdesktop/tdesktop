@@ -7,4 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+class HistoryItem;
+
+namespace Data {
+class Group;
+} // namespace Data
+
 TextWithEntities HistoryItemText(not_null<HistoryItem*> item);
+TextWithEntities HistoryGroupText(not_null<const Data::Group*> group);

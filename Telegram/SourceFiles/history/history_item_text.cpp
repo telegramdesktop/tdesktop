@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "data/data_media_types.h"
 #include "data/data_web_page.h"
+#include "data/data_groups.h"
 #include "lang/lang_keys.h"
 #include "ui/text_options.h"
 
@@ -55,11 +56,27 @@ TextWithEntities WrapAsForwarded(
 	return result;
 }
 
+TextWithEntities WrapAsItem(
+		not_null<HistoryItem*> item,
+		TextWithEntities &&result) {
+	if (const auto reply = item->Get<HistoryMessageReply>()) {
+		if (const auto message = reply->replyToMsg) {
+			result = WrapAsReply(std::move(result), message);
+		}
+	}
+	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+		result = WrapAsForwarded(std::move(result), forwarded);
+	}
+	return result;
+}
+
 TextWithEntities HistoryItemText(not_null<HistoryItem*> item) {
 	const auto media = item->media();
 
-	auto textResult = item->clipboardText();
 	auto mediaResult = media ? media->clipboardText() : TextWithEntities();
+	auto textResult = mediaResult.text.isEmpty()
+		? item->clipboardText()
+		: TextWithEntities();
 	auto logEntryOriginalResult = [&] {
 		const auto entry = item->Get<HistoryMessageLogEntryOriginal>();
 		if (!entry) {
@@ -94,13 +111,26 @@ TextWithEntities HistoryItemText(not_null<HistoryItem*> item) {
 		result.text += qstr("\n\n");
 		TextUtilities::Append(result, std::move(logEntryOriginalResult));
 	}
-	if (const auto reply = item->Get<HistoryMessageReply>()) {
-		if (const auto message = reply->replyToMsg) {
-			result = WrapAsReply(std::move(result), message);
+	return WrapAsItem(item, std::move(result));
+}
+
+TextWithEntities HistoryGroupText(not_null<const Data::Group*> group) {
+	Expects(!group->items.empty());
+
+	auto caption = [&] {
+		const auto first = begin(group->items);
+		const auto result = (*first)->clipboardText();
+		if (result.text.isEmpty()) {
+			return result;
 		}
-	}
-	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
-		result = WrapAsForwarded(std::move(result), forwarded);
-	}
-	return result;
+		for (auto i = first + 1; i != end(group->items); ++i) {
+			if (!(*i)->clipboardText().text.isEmpty()) {
+				return TextWithEntities();
+			}
+		}
+		return result;
+	}();
+	return WrapAsItem(group->items.back(), Data::WithCaptionClipboardText(
+		lang(lng_in_dlg_album),
+		std::move(caption)));
 }
