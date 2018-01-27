@@ -268,14 +268,14 @@ AuthSession &Auth() {
 AuthSession::AuthSession(UserId userId)
 : _userId(userId)
 , _autoLockTimer([this] { checkAutoLock(); })
-, _data(std::make_unique<Data::Session>(this))
 , _api(std::make_unique<ApiWrap>(this))
 , _calls(std::make_unique<Calls::Instance>())
 , _downloader(std::make_unique<Storage::Downloader>())
 , _uploader(std::make_unique<Storage::Uploader>())
 , _storage(std::make_unique<Storage::Facade>())
 , _notifications(std::make_unique<Window::Notifications::System>(this))
-, _changelogs(Core::Changelogs::Create(this)) {
+, _changelogs(Core::Changelogs::Create(this))
+, _data(std::make_unique<Data::Session>(this)) {
 	Expects(_userId != 0);
 
 	_saveDataTimer.setCallback([this] {

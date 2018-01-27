@@ -699,7 +699,9 @@ void Session::photoApplyFields(
 not_null<DocumentData*> Session::document(DocumentId id) {
 	auto i = _documents.find(id);
 	if (i == _documents.cend()) {
-		i = _documents.emplace(id, DocumentData::create(id)).first;
+		i = _documents.emplace(
+			id,
+			std::make_unique<DocumentData>(id, _session)).first;
 	}
 	return i->second.get();
 }

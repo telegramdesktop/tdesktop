@@ -204,7 +204,7 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 					if (media->type() == MediaTypeSticker) {
 						if (auto document = media->getDocument()) {
 							if (document->sticker() && document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
-								result->addAction(lang(document->sticker()->setInstalled() ? lng_context_pack_info : lng_context_pack_add), [=] {
+								result->addAction(lang(document->isStickerSetInstalled() ? lng_context_pack_info : lng_context_pack_add), [=] {
 									ShowStickerPackInfo(document);
 								});
 							}

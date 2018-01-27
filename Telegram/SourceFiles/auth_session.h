@@ -252,7 +252,6 @@ private:
 	TimeMs _shouldLockAt = 0;
 	base::Timer _autoLockTimer;
 
-	const std::unique_ptr<Data::Session> _data;
 	const std::unique_ptr<ApiWrap> _api;
 	const std::unique_ptr<Calls::Instance> _calls;
 	const std::unique_ptr<Storage::Downloader> _downloader;
@@ -260,6 +259,9 @@ private:
 	const std::unique_ptr<Storage::Facade> _storage;
 	const std::unique_ptr<Window::Notifications::System> _notifications;
 	const std::unique_ptr<Core::Changelogs> _changelogs;
+
+	// _data depends on _downloader / _uploader, including destructor.
+	const std::unique_ptr<Data::Session> _data;
 
 	rpl::lifetime _lifetime;
 
