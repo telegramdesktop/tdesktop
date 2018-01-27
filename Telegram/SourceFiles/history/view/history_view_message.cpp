@@ -739,11 +739,19 @@ TextState Message::textState(
 			}
 		}
 
-		auto needDateCheck = mediaOnBottom
-			? !(entry
-				? entry->customInfoLayout()
-				: media->customInfoLayout())
-			: true;
+		auto checkForPointInTime = [&] {
+			if (mediaOnBottom && (entry || media->customInfoLayout())) {
+				return;
+			}
+			const auto inDate = pointInTime(
+				g.left() + g.width(),
+				g.top() + g.height(),
+				point,
+				InfoDisplayType::Default);
+			if (inDate) {
+				result.cursor = CursorState::Date;
+			}
+		};
 		if (mediaDisplayed) {
 			auto mediaHeight = media->height();
 			auto mediaLeft = trect.x() - st::msgPadding.left();
@@ -752,17 +760,19 @@ TextState Message::textState(
 			if (point.y() >= mediaTop && point.y() < mediaTop + mediaHeight) {
 				result = media->textState(point - QPoint(mediaLeft, mediaTop), request);
 				result.symbol += item->_text.length();
-			} else if (trect.contains(point)) {
-				getStateText(point, trect, &result, request);
+			} else if (getStateText(point, trect, &result, request)) {
+				checkForPointInTime();
+				return result;
+			} else if (point.y() >= trect.y() + trect.height()) {
+				result.symbol = item->_text.length();
 			}
-		} else if (trect.contains(point)) {
-			getStateText(point, trect, &result, request);
+		} else if (getStateText(point, trect, &result, request)) {
+			checkForPointInTime();
+			return result;
+		} else if (point.y() >= trect.y() + trect.height()) {
+			result.symbol = item->_text.length();
 		}
-		if (needDateCheck) {
-			if (pointInTime(g.left() + g.width(), g.top() + g.height(), point, InfoDisplayType::Default)) {
-				result.cursor = CursorState::Date;
-			}
-		}
+		checkForPointInTime();
 		if (displayRightAction()) {
 			const auto fastShareSkip = snap(
 				(g.height() - st::historyFastShareSize) / 2,
@@ -921,7 +931,7 @@ bool Message::getStateText(
 		return false;
 	}
 	const auto item = message();
-	if (trect.contains(point)) {
+	if (base::in_range(point.y(), trect.y(), trect.y() + trect.height())) {
 		*outResult = TextState(item, item->_text.getState(
 			point - trect.topLeft(),
 			trect.width(),

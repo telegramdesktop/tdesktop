@@ -1184,12 +1184,16 @@ private:
 		auto currentBlock = _t->_blocks[blockIndex].get();
 		auto nextBlock = (++blockIndex < _blocksSize) ? _t->_blocks[blockIndex].get() : nullptr;
 
-		int32 delta = (currentBlock->from() < _lineStart ? qMin(_lineStart - currentBlock->from(), 2) : 0);
-		_localFrom = _lineStart - delta;
-		int32 lineEnd = (_endBlock && _endBlock->from() < trimmedLineEnd && !elidedLine) ? qMin(uint16(trimmedLineEnd + 2), _t->countBlockEnd(_endBlockIter, _end)) : trimmedLineEnd;
+		const auto extendLeft = (currentBlock->from() < _lineStart)
+			? qMin(_lineStart - currentBlock->from(), 2)
+			: 0;
+		_localFrom = _lineStart - extendLeft;
+		const auto extendedLineEnd = (_endBlock && _endBlock->from() < trimmedLineEnd && !elidedLine)
+			? qMin(uint16(trimmedLineEnd + 2), _t->countBlockEnd(_endBlockIter, _end))
+			: trimmedLineEnd;
 
-		auto lineText = _t->_text.mid(_localFrom, lineEnd - _localFrom);
-		auto lineStart = delta;
+		auto lineText = _t->_text.mid(_localFrom, extendedLineEnd - _localFrom);
+		auto lineStart = extendLeft;
 		auto lineLength = trimmedLineEnd - _lineStart;
 
 		if (elidedLine) {
@@ -1241,21 +1245,30 @@ private:
 		}
 
 		if (_fullWidthSelection) {
-			bool selectFromStart = (_selection.to > _lineStart) && (_lineStart > 0) && (_selection.from <= _lineStart);
-			bool selectTillEnd = (_selection.to >= _lineEnd) && (_lineEnd < _t->_text.size()) && (_selection.from < _lineEnd) && (!_endBlock || _endBlock->type() != TextBlockTSkip);
+			const auto selectFromStart = (_selection.to > _lineStart)
+				&& (_lineStart > 0)
+				&& (_selection.from <= _lineStart);
+			const auto selectTillEnd = (_selection.to > trimmedLineEnd)
+				&& (trimmedLineEnd < _t->_text.size())
+				&& (_selection.from <= trimmedLineEnd)
+				&& (!_endBlock || _endBlock->type() != TextBlockTSkip);
 
-			if ((selectFromStart && _parDirection == Qt::LeftToRight) || (selectTillEnd && _parDirection == Qt::RightToLeft)) {
+			if ((selectFromStart && _parDirection == Qt::LeftToRight)
+				|| (selectTillEnd && _parDirection == Qt::RightToLeft)) {
 				if (x > _x) {
 					fillSelectRange(_x, x);
 				}
 			}
-			if ((selectTillEnd && _parDirection == Qt::LeftToRight) || (selectFromStart && _parDirection == Qt::RightToLeft)) {
+			if ((selectTillEnd && _parDirection == Qt::LeftToRight)
+				|| (selectFromStart && _parDirection == Qt::RightToLeft)) {
 				if (x < _x + _wLeft) {
 					fillSelectRange(x + _w - _wLeft, _x + _w);
 				}
 			}
 		}
-		if (trimmedLineEnd == _lineStart && !elidedLine) return true;
+		if (trimmedLineEnd == _lineStart && !elidedLine) {
+			return true;
+		}
 
 		if (!elidedLine) initParagraphBidi(); // if was not inited
 
