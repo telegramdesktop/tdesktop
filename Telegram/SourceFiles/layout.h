@@ -9,8 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/runtime_composer.h"
 
-struct HistoryTextState;
-struct HistoryStateRequest;
+namespace HistoryView {
+struct TextState;
+struct StateRequest;
+} // namespace HistoryView
 
 constexpr auto FullSelection = TextSelection { 0xFFFF, 0xFFFF };
 
@@ -82,6 +84,9 @@ class LayoutItemBase
 	: public RuntimeComposer<LayoutItemBase>
 	, public ClickHandlerHost {
 public:
+	using TextState = HistoryView::TextState;
+	using StateRequest = HistoryView::StateRequest;
+
 	LayoutItemBase() {
 	}
 
@@ -101,9 +106,9 @@ public:
 		return _height;
 	}
 
-	[[nodiscard]] virtual HistoryTextState getState(
+	[[nodiscard]] virtual TextState getState(
 		QPoint point,
-		HistoryStateRequest request) const;
+		StateRequest request) const;
 	[[nodiscard]] virtual TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const;

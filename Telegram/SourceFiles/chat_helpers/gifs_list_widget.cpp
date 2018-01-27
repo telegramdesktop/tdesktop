@@ -888,7 +888,7 @@ void GifsListWidget::updateSelected() {
 	int row = -1, col = -1, sel = -1;
 	ClickHandlerPtr lnk;
 	ClickHandlerHost *lnkhost = nullptr;
-	HistoryCursorState cursor = HistoryDefaultCursorState;
+	HistoryView::CursorState cursor = HistoryView::CursorState::None;
 	if (sy >= 0) {
 		row = 0;
 		for (int rows = _rows.size(); row < rows; ++row) {
@@ -913,10 +913,12 @@ void GifsListWidget::updateSelected() {
 		}
 		if (col < inlineItems.size()) {
 			sel = row * MatrixRowShift + col;
-			auto result = inlineItems[col]->getState(QPoint(sx, sy), HistoryStateRequest());
+			auto result = inlineItems[col]->getState(
+				QPoint(sx, sy),
+				HistoryView::StateRequest());
 			lnk = result.link;
 			cursor = result.cursor;
-			lnkhost = inlineItems.at(col);
+			lnkhost = inlineItems[col];
 		} else {
 			row = col = -1;
 		}

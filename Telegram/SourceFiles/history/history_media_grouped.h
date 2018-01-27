@@ -28,9 +28,10 @@ public:
 		const QRect &clip,
 		TextSelection selection,
 		TimeMs ms) const override;
-	HistoryTextState getState(
+	PointState pointState(QPoint point) const override;
+	TextState textState(
 		QPoint point,
-		HistoryStateRequest request) const override;
+		StateRequest request) const override;
 
 	bool toggleSelectionByHandlerClick(
 		const ClickHandlerPtr &p) const override;
@@ -107,9 +108,9 @@ private:
 	not_null<HistoryMedia*> main() const;
 	bool validateGroupParts(
 		const std::vector<not_null<HistoryItem*>> &items) const;
-	HistoryTextState getPartState(
+	TextState getPartState(
 		QPoint point,
-		HistoryStateRequest request) const;
+		StateRequest request) const;
 
 	Text _caption;
 	std::vector<Part> _parts;

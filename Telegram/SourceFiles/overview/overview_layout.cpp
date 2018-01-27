@@ -26,12 +26,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
+#include "history/view/history_view_cursor_state.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/text_options.h"
 
 namespace Overview {
 namespace Layout {
 namespace {
+
+using TextState = HistoryView::TextState;
 
 TextParseOptions _documentNameOptions = {
 	TextParseMultiline | TextParseRichText | TextParseLinks | TextParseMarkdown, // flags
@@ -350,9 +353,9 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	paintCheckbox(p, { checkLeft, checkTop }, selected, context);
 }
 
-HistoryTextState Photo::getState(
+TextState Photo::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	if (hasPoint(point)) {
 		return { parent(), _link };
 	}
@@ -505,9 +508,9 @@ bool Video::iconAnimated() const {
 	return true;
 }
 
-HistoryTextState Video::getState(
+TextState Video::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	bool loaded = _data->loaded();
 
 	if (hasPoint(point)) {
@@ -676,9 +679,9 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	paintCheckbox(p, { checkLeft, checkTop }, selected, context);
 }
 
-HistoryTextState Voice::getState(
+TextState Voice::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	const auto loaded = _data->loaded();
 
 	const auto nameleft = _st.songPadding.left()
@@ -702,7 +705,7 @@ HistoryTextState Voice::getState(
 			: _openl;
 		return { parent(), link };
 	}
-	auto result = HistoryTextState(parent());
+	auto result = TextState(parent());
 	const auto statusmaxwidth = _width - nameleft - nameright;
 	const auto statusrect = rtlrect(
 		nameleft,
@@ -714,7 +717,9 @@ HistoryTextState Voice::getState(
 		if (_status.size() == FileStatusSizeLoaded || _status.size() == FileStatusSizeReady) {
 			auto textState = _details.getStateLeft(point - QPoint(nameleft, statustop), _width, _width);
 			result.link = textState.link;
-			result.cursor = textState.uponSymbol ? HistoryInTextCursorState : HistoryDefaultCursorState;
+			result.cursor = textState.uponSymbol
+				? HistoryView::CursorState::Text
+				: HistoryView::CursorState::None;
 		}
 	}
 	const auto namewidth = std::min(
@@ -1000,9 +1005,9 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 	paintCheckbox(p, { checkLeft, checkTop }, selected, context);
 }
 
-HistoryTextState Document::getState(
+TextState Document::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	const auto loaded = _data->loaded()
 		|| Local::willStickerImageLoad(_data->mediaKey());
 	const auto wthumb = withThumb();
@@ -1426,9 +1431,9 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 	paintCheckbox(p, { checkLeft, checkTop }, selected, context);
 }
 
-HistoryTextState Link::getState(
+TextState Link::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	int32 left = st::linksPhotoSize + st::linksPhotoPadding, top = st::linksMargin.top() + st::linksBorder, w = _width - left;
 	if (rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width).contains(point)) {
 		return { parent(), _photol };

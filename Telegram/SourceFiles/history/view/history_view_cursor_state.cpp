@@ -10,43 +10,61 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 
-HistoryTextState::HistoryTextState(not_null<const HistoryItem*> item)
+namespace HistoryView {
+
+TextState::TextState(not_null<const HistoryItem*> item)
 : itemId(item->fullId()) {
 }
 
-HistoryTextState::HistoryTextState(
+TextState::TextState(
 	not_null<const HistoryItem*> item,
 	const Text::StateResult &state)
 : itemId(item->fullId())
 , cursor(state.uponSymbol
-	? HistoryInTextCursorState
-	: HistoryDefaultCursorState)
+	? CursorState::Text
+	: CursorState::None)
 , link(state.link)
 , afterSymbol(state.afterSymbol)
 , symbol(state.symbol) {
 }
 
-HistoryTextState::HistoryTextState(
+TextState::TextState(
 	not_null<const HistoryItem*> item,
 	ClickHandlerPtr link)
 : itemId(item->fullId())
 , link(link) {
 }
 
-
-HistoryTextState::HistoryTextState(
+TextState::TextState(
 	not_null<const HistoryView::Element*> view)
-: HistoryTextState(view->data()) {
+: TextState(view->data()) {
 }
 
-HistoryTextState::HistoryTextState(
+TextState::TextState(
 	not_null<const HistoryView::Element*> view,
 	const Text::StateResult &state)
-: HistoryTextState(view->data(), state) {
+: TextState(view->data(), state) {
 }
 
-HistoryTextState::HistoryTextState(
+TextState::TextState(
 	not_null<const HistoryView::Element*> view,
 	ClickHandlerPtr link)
-: HistoryTextState(view->data(), link) {
+: TextState(view->data(), link) {
 }
+
+TextState::TextState(
+	std::nullptr_t,
+	const Text::StateResult &state)
+: cursor(state.uponSymbol
+	? CursorState::Text
+	: CursorState::None)
+, link(state.link)
+, afterSymbol(state.afterSymbol)
+, symbol(state.symbol) {
+}
+
+TextState::TextState(std::nullptr_t, ClickHandlerPtr link)
+: link(link) {
+}
+
+} // namespace HistoryView

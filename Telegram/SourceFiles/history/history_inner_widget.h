@@ -7,14 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
 #include "ui/rp_widget.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/scroll_area.h"
-#include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_top_bar_widget.h"
 
 namespace HistoryView {
 class ElementDelegate;
+struct TextState;
+struct StateRequest;
+enum class CursorState : char;
+enum class PointState : char;
 } // namespace HistoryView
 
 namespace Window {
@@ -113,17 +117,10 @@ protected:
 	void contextMenuEvent(QContextMenuEvent *e) override;
 
 public slots:
-	void onUpdateSelected();
 	void onParentGeometryChanged();
-
-	void copySelectedText();
 
 	void onTouchSelect();
 	void onTouchScrollTimer();
-
-private slots:
-	void onScrollDateCheck();
-	void onScrollDateHideByTimer();
 
 private:
 	class BotAbout;
@@ -144,6 +141,11 @@ private:
 		TopToBottom,
 		BottomToTop,
 	};
+	using CursorState = HistoryView::CursorState;
+	using PointState = HistoryView::PointState;
+	using TextState = HistoryView::TextState;
+	using StateRequest = HistoryView::StateRequest;
+
 	// This function finds all history items that are displayed and calls template method
 	// for each found message (in given direction) in the passed history with passed top offset.
 	//
@@ -180,8 +182,11 @@ private:
 	template <typename Method>
 	void enumerateDates(Method method);
 
+	void scrollDateCheck();
+	void scrollDateHideByTimer();
 	bool canHaveFromUserpics() const;
 	void mouseActionStart(const QPoint &screenPos, Qt::MouseButton button);
+	void mouseActionUpdate();
 	void mouseActionUpdate(const QPoint &screenPos);
 	void mouseActionFinish(const QPoint &screenPos, Qt::MouseButton button);
 	void mouseActionCancel();
@@ -265,6 +270,7 @@ private:
 	void deleteItem(not_null<HistoryItem*> item);
 	void deleteItem(FullMsgId itemId);
 	void deleteAsGroup(FullMsgId itemId);
+	void copySelectedText();
 
 	// Does any of the shown histories has this flag set.
 	bool hasPendingResizedItems() const;
@@ -301,7 +307,7 @@ private:
 	QPoint _mousePosition;
 	HistoryItem *_mouseActionItem = nullptr;
 	HistoryItem *_dragStateItem = nullptr;
-	HistoryCursorState _mouseCursorState = HistoryDefaultCursorState;
+	CursorState _mouseCursorState = CursorState();
 	uint16 _mouseTextSymbol = 0;
 	bool _pressWasInactive = false;
 
@@ -338,7 +344,7 @@ private:
 	bool _scrollDateShown = false;
 	Animation _scrollDateOpacity;
 	SingleQueuedInvokation _scrollDateCheck;
-	SingleTimer _scrollDateHideTimer;
+	base::Timer _scrollDateHideTimer;
 	Element *_scrollDateLastItem = nullptr;
 	int _scrollDateLastItemTop = 0;
 	ClickHandlerPtr _scrollDateLink;

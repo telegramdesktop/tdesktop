@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "base/timer.h"
 #include "data/data_messages.h"
-#include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_element.h"
 
 namespace Ui {
@@ -25,6 +24,10 @@ class Controller;
 
 namespace HistoryView {
 
+struct TextState;
+struct StateRequest;
+enum class CursorState : char;
+enum class PointState : char;
 enum class Context : char;
 
 struct SelectedItem {
@@ -166,17 +169,24 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
-	struct CursorState {
+	struct MouseState {
+		MouseState();
+		MouseState(
+			FullMsgId itemId,
+			int height,
+			QPoint point,
+			PointState pointState);
+
 		FullMsgId itemId;
 		int height = 0;
-		QPoint cursor;
-		bool inside = false;
+		QPoint point;
+		PointState pointState;
 
-		inline bool operator==(const CursorState &other) const {
+		inline bool operator==(const MouseState &other) const {
 			return (itemId == other.itemId)
-				&& (cursor == other.cursor);
+				&& (point == other.point);
 		}
-		inline bool operator!=(const CursorState &other) const {
+		inline bool operator!=(const MouseState &other) const {
 			return !(*this == other);
 		}
 
@@ -192,6 +202,11 @@ private:
 		PrepareSelect,
 		Selecting,
 	};
+	enum class SelectAction {
+		Select,
+		Deselect,
+		Invert,
+	};
 	enum class EnumItemsDirection {
 		TopToBottom,
 		BottomToTop,
@@ -202,6 +217,8 @@ private:
 		Deselecting,
 	};
 	using ScrollTopState = ListMemento::ScrollTopState;
+	using PointState = HistoryView::PointState;
+	using CursorState = HistoryView::CursorState;
 
 	void refreshViewer();
 	void updateAroundPositionFromRows();
@@ -264,18 +281,42 @@ private:
 		const SelectedMap::const_iterator &i);
 	bool hasSelectedText() const;
 	bool hasSelectedItems() const;
+	bool overSelectedItems() const;
 	void clearTextSelection();
 	void clearSelected();
 	void setTextSelection(
 		not_null<Element*> view,
 		TextSelection selection);
-	bool applyItemSelection(SelectedMap &applyTo, FullMsgId itemId) const;
-	void toggleItemSelection(FullMsgId itemId);
+	//bool applyItemSelection(SelectedMap &applyTo, FullMsgId itemId) const;
+	//void toggleItemSelection(FullMsgId itemId);
+
+	bool isGoodForSelection(
+		SelectedMap &applyTo,
+		not_null<HistoryItem*> item,
+		int &totalCount) const;
+	bool addToSelection(
+		SelectedMap &applyTo,
+		not_null<HistoryItem*> item) const;
+	bool removeFromSelection(
+		SelectedMap &applyTo,
+		FullMsgId itemId) const;
+	void changeSelection(
+		SelectedMap &applyTo,
+		not_null<HistoryItem*> item,
+		SelectAction action) const;
+	bool isSelectedAsGroup(
+		const SelectedMap &applyTo,
+		not_null<HistoryItem*> item) const;
+	void changeSelectionAsGroup(
+		SelectedMap &applyTo,
+		not_null<HistoryItem*> item,
+		SelectAction action) const;
+
 	SelectedMap::iterator itemUnderPressSelection();
 	SelectedMap::const_iterator itemUnderPressSelection() const;
 	bool isItemUnderPressSelected() const;
 	bool requiredToStartDragging(not_null<Element*> view) const;
-	bool isPressInSelectedText(HistoryTextState state) const;
+	bool isPressInSelectedText(TextState state) const;
 	void updateDragSelection();
 	void clearDragSelection();
 	void applyDragSelection();
@@ -345,10 +386,11 @@ private:
 	MouseAction _mouseAction = MouseAction::None;
 	TextSelectType _mouseSelectType = TextSelectType::Letters;
 	QPoint _mousePosition;
-	CursorState _overState;
-	CursorState _pressState;
-	Element *_overItem = nullptr;
-	HistoryCursorState _mouseCursorState = HistoryDefaultCursorState;
+	MouseState _overState;
+	MouseState _pressState;
+	Element *_overElement = nullptr;
+	HistoryItem *_overItemExact = nullptr;
+	CursorState _mouseCursorState = CursorState();
 	uint16 _mouseTextSymbol = 0;
 	bool _pressWasInactive = false;
 

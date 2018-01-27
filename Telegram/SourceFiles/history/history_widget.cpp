@@ -666,14 +666,6 @@ HistoryWidget::HistoryWidget(
 			}
 		}
 	});
-	Auth().data().viewLayoutChanged(
-	) | rpl::start_with_next([this](auto view) {
-		if (view == view->data()->mainView()) {
-			if (view->isUnderCursor() && _list) {
-				_list->onUpdateSelected();
-			}
-		}
-	}, lifetime());
 	_topBar->membersShowAreaActive(
 	) | rpl::start_with_next([=](bool active) {
 		setMembersShowAreaActive(active);

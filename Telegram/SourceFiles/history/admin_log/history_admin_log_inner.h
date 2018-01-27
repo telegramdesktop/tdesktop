@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_element.h"
 #include "history/admin_log/history_admin_log_item.h"
 #include "history/admin_log/history_admin_log_section.h"
@@ -15,6 +14,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "mtproto/sender.h"
 #include "base/timer.h"
+
+namespace HistoryView {
+class Element;
+struct TextState;
+struct StateRequest;
+enum class CursorState : char;
+enum class PointState : char;
+} // namespace HistoryView
 
 namespace Ui {
 class PopupMenu;
@@ -115,6 +122,10 @@ private:
 		TopToBottom,
 		BottomToTop,
 	};
+	using TextState = HistoryView::TextState;
+	using CursorState = HistoryView::CursorState;
+	using PointState = HistoryView::PointState;
+	using StateRequest = HistoryView::StateRequest;
 
 	void mouseActionStart(const QPoint &screenPos, Qt::MouseButton button);
 	void mouseActionUpdate(const QPoint &screenPos);
@@ -228,7 +239,7 @@ private:
 	QPoint _dragStartPosition;
 	QPoint _mousePosition;
 	Element *_mouseActionItem = nullptr;
-	HistoryCursorState _mouseCursorState = HistoryDefaultCursorState;
+	CursorState _mouseCursorState = CursorState();
 	uint16 _mouseTextSymbol = 0;
 	bool _pressWasInactive = false;
 

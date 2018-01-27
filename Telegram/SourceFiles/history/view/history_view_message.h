@@ -37,10 +37,10 @@ public:
 		QRect clip,
 		TextSelection selection,
 		TimeMs ms) const override;
-	bool hasPoint(QPoint point) const override;
-	HistoryTextState getState(
+	PointState pointState(QPoint point) const override;
+	TextState textState(
 		QPoint point,
-		HistoryStateRequest request) const override;
+		StateRequest request) const override;
 	void updatePressed(QPoint point) override;
 	void drawInfo(
 		Painter &p,
@@ -104,25 +104,25 @@ private:
 	bool getStateFromName(
 		QPoint point,
 		QRect &trect,
-		not_null<HistoryTextState*> outResult) const;
+		not_null<TextState*> outResult) const;
 	bool getStateForwardedInfo(
 		QPoint point,
 		QRect &trect,
-		not_null<HistoryTextState*> outResult,
-		HistoryStateRequest request) const;
+		not_null<TextState*> outResult,
+		StateRequest request) const;
 	bool getStateReplyInfo(
 		QPoint point,
 		QRect &trect,
-		not_null<HistoryTextState*> outResult) const;
+		not_null<TextState*> outResult) const;
 	bool getStateViaBotIdInfo(
 		QPoint point,
 		QRect &trect,
-		not_null<HistoryTextState*> outResult) const;
+		not_null<TextState*> outResult) const;
 	bool getStateText(
 		QPoint point,
 		QRect &trect,
-		not_null<HistoryTextState*> outResult,
-		HistoryStateRequest request) const;
+		not_null<TextState*> outResult,
+		StateRequest request) const;
 
 	void updateMediaInBubbleState();
 	QRect countGeometry() const;

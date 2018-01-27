@@ -12,8 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/radial_animation.h"
 #include "styles/style_overview.h"
 
-struct HistoryTextState;
-struct HistoryStateRequest;
 class HistoryMedia;
 
 namespace style {
@@ -202,9 +200,9 @@ public:
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
-	HistoryTextState getState(
+	TextState getState(
 		QPoint point,
-		HistoryStateRequest request) const override;
+		StateRequest request) const override;
 
 private:
 	not_null<PhotoData*> _data;
@@ -224,9 +222,9 @@ public:
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
-	HistoryTextState getState(
+	TextState getState(
 		QPoint point,
-		HistoryStateRequest request) const override;
+		StateRequest request) const override;
 
 protected:
 	float64 dataProgress() const override;
@@ -255,9 +253,9 @@ public:
 
 	void initDimensions() override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
-	HistoryTextState getState(
+	TextState getState(
 		QPoint point,
-		HistoryStateRequest request) const override;
+		StateRequest request) const override;
 
 protected:
 	float64 dataProgress() const override;
@@ -290,9 +288,9 @@ public:
 
 	void initDimensions() override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
-	HistoryTextState getState(
+	TextState getState(
 		QPoint point,
-		HistoryStateRequest request) const override;
+		StateRequest request) const override;
 
 	virtual DocumentData *getDocument() const override {
 		return _data;
@@ -334,9 +332,9 @@ public:
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
-	HistoryTextState getState(
+	TextState getState(
 		QPoint point,
-		HistoryStateRequest request) const override;
+		StateRequest request) const override;
 
 protected:
 	const style::RoundCheckbox &checkboxStyle() const override;

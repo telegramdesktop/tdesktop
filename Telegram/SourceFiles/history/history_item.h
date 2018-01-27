@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/runtime_composer.h"
 #include "base/flags.h"
 #include "base/value_ordering.h"
-#include "history/view/history_view_cursor_state.h"
 
 enum class UnreadMentionType;
 struct HistoryMessageReplyMarkup;
@@ -47,6 +46,10 @@ class Controller;
 } // namespace Window
 
 namespace HistoryView {
+struct TextState;
+struct StateRequest;
+enum class CursorState : char;
+enum class PointState : char;
 enum class Context : char;
 class ElementDelegate;
 } // namespace HistoryView

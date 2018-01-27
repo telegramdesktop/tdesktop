@@ -274,7 +274,7 @@ public:
 	int naturalHeight() const;
 
 	void paint(Painter &p, int outerWidth, const QRect &clip, TimeMs ms) const;
-	ClickHandlerPtr getState(QPoint point) const;
+	ClickHandlerPtr getLink(QPoint point) const;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active);
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed);

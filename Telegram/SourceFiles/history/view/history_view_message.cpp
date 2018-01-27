@@ -435,31 +435,15 @@ void Message::draw(
 		if (entry) {
 			trect.setHeight(trect.height() - entry->height());
 		}
-		auto needDrawInfo = mediaOnBottom
-			? !(entry
-				? entry->customInfoLayout()
-				: media->customInfoLayout())
-			: true;
+		paintText(p, trect, selection);
 		if (mediaDisplayed) {
-			auto mediaAboveText = media->isAboveMessage();
 			auto mediaHeight = media->height();
 			auto mediaLeft = g.left();
-			auto mediaTop = mediaAboveText ? trect.y() : (trect.y() + trect.height() - mediaHeight);
-			if (!mediaAboveText) {
-				paintText(p, trect, selection);
-			}
+			auto mediaTop = (trect.y() + trect.height() - mediaHeight);
+
 			p.translate(mediaLeft, mediaTop);
 			media->draw(p, clip.translated(-mediaLeft, -mediaTop), skipTextSelection(selection), ms);
 			p.translate(-mediaLeft, -mediaTop);
-
-			if (mediaAboveText) {
-				trect.setY(trect.y() + mediaHeight);
-				paintText(p, trect, selection);
-			} else {
-				needDrawInfo = !media->customInfoLayout();
-			}
-		} else {
-			paintText(p, trect, selection);
 		}
 		if (entry) {
 			auto entryLeft = g.left();
@@ -472,8 +456,13 @@ void Message::draw(
 			entry->draw(p, clip.translated(-entryLeft, -entryTop), entrySelection, ms);
 			p.translate(-entryLeft, -entryTop);
 		}
+		const auto needDrawInfo = entry
+			? !entry->customInfoLayout()
+			: (mediaDisplayed
+				? !media->customInfoLayout()
+				: true);
 		if (needDrawInfo) {
-			drawInfo(p, g.left() + g.width(), g.top() + g.height(), 2 * g.left() + g.width(), selected, InfoDisplayDefault);
+			drawInfo(p, g.left() + g.width(), g.top() + g.height(), 2 * g.left() + g.width(), selected, InfoDisplayType::Default);
 		}
 		if (displayRightAction()) {
 			const auto fastShareSkip = snap(
@@ -618,20 +607,56 @@ void Message::paintText(Painter &p, QRect &trect, TextSelection selection) const
 	item->_text.draw(p, trect.x(), trect.y(), trect.width(), style::al_left, 0, -1, selection);
 }
 
-bool Message::hasPoint(QPoint point) const {
+PointState Message::pointState(QPoint point) const {
 	const auto g = countGeometry();
 	if (g.width() < 1) {
-		return false;
+		return PointState::Outside;
 	}
 
+	const auto media = this->media();
 	const auto item = message();
 	if (drawBubble()) {
-		return g.contains(point);
-	} else if (const auto media = this->media()) {
-		return media->hasPoint(point - g.topLeft());
-	} else {
-		return false;
+		if (!g.contains(point)) {
+			return PointState::Outside;
+		}
+		if (const auto mediaDisplayed = media && media->isDisplayed()) {
+			// Hack for grouped media point state.
+			auto entry = logEntryOriginal();
+
+			// Entry page is always a bubble bottom.
+			auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || (entry/* && entry->isBubbleBottom()*/);
+			auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
+
+			auto trect = g.marginsRemoved(st::msgPadding);
+			if (mediaOnBottom) {
+				trect.setHeight(trect.height() + st::msgPadding.bottom());
+			}
+			//if (mediaOnTop) {
+			//	trect.setY(trect.y() - st::msgPadding.top());
+			//} else {
+			//	if (getStateFromName(point, trect, &result)) return result;
+			//	if (getStateForwardedInfo(point, trect, &result, request)) return result;
+			//	if (getStateReplyInfo(point, trect, &result)) return result;
+			//	if (getStateViaBotIdInfo(point, trect, &result)) return result;
+			//}
+			if (entry) {
+				auto entryHeight = entry->height();
+				trect.setHeight(trect.height() - entryHeight);
+			}
+
+			auto mediaHeight = media->height();
+			auto mediaLeft = trect.x() - st::msgPadding.left();
+			auto mediaTop = (trect.y() + trect.height() - mediaHeight);
+
+			if (point.y() >= mediaTop && point.y() < mediaTop + mediaHeight) {
+				return media->pointState(point - QPoint(mediaLeft, mediaTop));
+			}
+		}
+		return PointState::Inside;
+	} else if (media) {
+		return media->pointState(point - g.topLeft());
 	}
+	return PointState::Outside;
 }
 
 bool Message::displayFromPhoto() const {
@@ -661,13 +686,13 @@ bool Message::hasFromPhoto() const {
 	Unexpected("Context in Message::hasFromPhoto.");
 }
 
-HistoryTextState Message::getState(
+TextState Message::textState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	const auto item = message();
 	const auto media = this->media();
 
-	auto result = HistoryTextState(item);
+	auto result = TextState(item);
 
 	auto g = countGeometry();
 	if (g.width() < 1) {
@@ -707,7 +732,7 @@ HistoryTextState Message::getState(
 			auto entryLeft = g.left();
 			auto entryTop = trect.y() + trect.height();
 			if (point.y() >= entryTop && point.y() < entryTop + entryHeight) {
-				result = entry->getState(
+				result = entry->textState(
 					point - QPoint(entryLeft, entryTop),
 					request);
 				result.symbol += item->_text.length() + (mediaDisplayed ? media->fullSelectionLength() : 0);
@@ -720,28 +745,22 @@ HistoryTextState Message::getState(
 				: media->customInfoLayout())
 			: true;
 		if (mediaDisplayed) {
-			auto mediaAboveText = media->isAboveMessage();
 			auto mediaHeight = media->height();
 			auto mediaLeft = trect.x() - st::msgPadding.left();
-			auto mediaTop = mediaAboveText ? trect.y() : (trect.y() + trect.height() - mediaHeight);
+			auto mediaTop = (trect.y() + trect.height() - mediaHeight);
 
 			if (point.y() >= mediaTop && point.y() < mediaTop + mediaHeight) {
-				result = media->getState(point - QPoint(mediaLeft, mediaTop), request);
+				result = media->textState(point - QPoint(mediaLeft, mediaTop), request);
 				result.symbol += item->_text.length();
-			} else {
-				if (mediaAboveText) {
-					trect.setY(trect.y() + mediaHeight);
-				}
-				if (trect.contains(point)) {
-					getStateText(point, trect, &result, request);
-				}
+			} else if (trect.contains(point)) {
+				getStateText(point, trect, &result, request);
 			}
 		} else if (trect.contains(point)) {
 			getStateText(point, trect, &result, request);
 		}
 		if (needDateCheck) {
-			if (pointInTime(g.left() + g.width(), g.top() + g.height(), point, InfoDisplayDefault)) {
-				result.cursor = HistoryInDateCursorState;
+			if (pointInTime(g.left() + g.width(), g.top() + g.height(), point, InfoDisplayType::Default)) {
+				result.cursor = CursorState::Date;
 			}
 		}
 		if (displayRightAction()) {
@@ -761,14 +780,14 @@ HistoryTextState Message::getState(
 			}
 		}
 	} else if (media && media->isDisplayed()) {
-		result = media->getState(point - g.topLeft(), request);
+		result = media->textState(point - g.topLeft(), request);
 		result.symbol += item->_text.length();
 	}
 
 	if (keyboard && !item->isLogEntry()) {
 		auto keyboardTop = g.top() + g.height() + st::msgBotKbButton.margin;
 		if (QRect(g.left(), keyboardTop, g.width(), keyboardHeight).contains(point)) {
-			result.link = keyboard->getState(point - QPoint(g.left(), keyboardTop));
+			result.link = keyboard->getLink(point - QPoint(g.left(), keyboardTop));
 			return result;
 		}
 	}
@@ -779,7 +798,7 @@ HistoryTextState Message::getState(
 bool Message::getStateFromName(
 		QPoint point,
 		QRect &trect,
-		not_null<HistoryTextState*> outResult) const {
+		not_null<TextState*> outResult) const {
 	const auto item = message();
 	if (displayFromName()) {
 		const auto replyWidth = [&] {
@@ -828,8 +847,8 @@ bool Message::getStateFromName(
 bool Message::getStateForwardedInfo(
 		QPoint point,
 		QRect &trect,
-		not_null<HistoryTextState*> outResult,
-		HistoryStateRequest request) const {
+		not_null<TextState*> outResult,
+		StateRequest request) const {
 	if (displayForwardedFrom()) {
 		const auto item = message();
 		auto forwarded = item->Get<HistoryMessageForwarded>();
@@ -840,16 +859,16 @@ bool Message::getStateForwardedInfo(
 			if (breakEverywhere) {
 				textRequest.flags |= Text::StateRequest::Flag::BreakEverywhere;
 			}
-			*outResult = HistoryTextState(item, forwarded->text.getState(
+			*outResult = TextState(item, forwarded->text.getState(
 				point - trect.topLeft(),
 				trect.width(),
 				textRequest));
 			outResult->symbol = 0;
 			outResult->afterSymbol = false;
 			if (breakEverywhere) {
-				outResult->cursor = HistoryInForwardedCursorState;
+				outResult->cursor = CursorState::Forwarded;
 			} else {
-				outResult->cursor = HistoryDefaultCursorState;
+				outResult->cursor = CursorState::None;
 			}
 			return true;
 		}
@@ -861,7 +880,7 @@ bool Message::getStateForwardedInfo(
 bool Message::getStateReplyInfo(
 		QPoint point,
 		QRect &trect,
-		not_null<HistoryTextState*> outResult) const {
+		not_null<TextState*> outResult) const {
 	const auto item = message();
 	if (auto reply = item->Get<HistoryMessageReply>()) {
 		int32 h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
@@ -879,7 +898,7 @@ bool Message::getStateReplyInfo(
 bool Message::getStateViaBotIdInfo(
 		QPoint point,
 		QRect &trect,
-		not_null<HistoryTextState*> outResult) const {
+		not_null<TextState*> outResult) const {
 	const auto item = message();
 	if (!displayFromName() && !item->Has<HistoryMessageForwarded>()) {
 		if (auto via = item->Get<HistoryMessageVia>()) {
@@ -896,14 +915,14 @@ bool Message::getStateViaBotIdInfo(
 bool Message::getStateText(
 		QPoint point,
 		QRect &trect,
-		not_null<HistoryTextState*> outResult,
-		HistoryStateRequest request) const {
+		not_null<TextState*> outResult,
+		StateRequest request) const {
 	if (!hasVisibleText()) {
 		return false;
 	}
 	const auto item = message();
 	if (trect.contains(point)) {
-		*outResult = HistoryTextState(item, item->_text.getState(
+		*outResult = TextState(item, item->_text.getState(
 			point - trect.topLeft(),
 			trect.width(),
 			request.forText()));
@@ -954,10 +973,9 @@ void Message::updatePressed(QPoint point) {
 
 		auto needDateCheck = true;
 		if (mediaDisplayed) {
-			auto mediaAboveText = media->isAboveMessage();
 			auto mediaHeight = media->height();
 			auto mediaLeft = trect.x() - st::msgPadding.left();
-			auto mediaTop = mediaAboveText ? trect.y() : (trect.y() + trect.height() - mediaHeight);
+			auto mediaTop = (trect.y() + trect.height() - mediaHeight);
 			media->updatePressed(point - QPoint(mediaLeft, mediaTop));
 		}
 	} else {
@@ -1054,23 +1072,23 @@ void Message::drawInfo(
 	p.setFont(st::msgDateFont);
 
 	bool outbg = hasOutLayout();
-	bool invertedsprites = (type == InfoDisplayOverImage)
-		|| (type == InfoDisplayOverBackground);
+	bool invertedsprites = (type == InfoDisplayType::Image)
+		|| (type == InfoDisplayType::Background);
 	int32 infoRight = right, infoBottom = bottom;
 	switch (type) {
-	case InfoDisplayDefault:
+	case InfoDisplayType::Default:
 		infoRight -= st::msgPadding.right() - st::msgDateDelta.x();
 		infoBottom -= st::msgPadding.bottom() - st::msgDateDelta.y();
 		p.setPen(selected
 			? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected)
 			: (outbg ? st::msgOutDateFg : st::msgInDateFg));
 	break;
-	case InfoDisplayOverImage:
+	case InfoDisplayType::Image:
 		infoRight -= st::msgDateImgDelta + st::msgDateImgPadding.x();
 		infoBottom -= st::msgDateImgDelta + st::msgDateImgPadding.y();
 		p.setPen(st::msgDateImgFg);
 	break;
-	case InfoDisplayOverBackground:
+	case InfoDisplayType::Background:
 		infoRight -= st::msgDateImgDelta + st::msgDateImgPadding.x();
 		infoBottom -= st::msgDateImgDelta + st::msgDateImgPadding.y();
 		p.setPen(st::msgServiceFg);
@@ -1083,10 +1101,10 @@ void Message::drawInfo(
 
 	auto dateX = infoRight - infoW;
 	auto dateY = infoBottom - st::msgDateFont->height;
-	if (type == InfoDisplayOverImage) {
+	if (type == InfoDisplayType::Image) {
 		auto dateW = infoW + 2 * st::msgDateImgPadding.x(), dateH = st::msgDateFont->height + 2 * st::msgDateImgPadding.y();
 		App::roundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
-	} else if (type == InfoDisplayOverBackground) {
+	} else if (type == InfoDisplayType::Background) {
 		auto dateW = infoW + 2 * st::msgDateImgPadding.x(), dateH = st::msgDateFont->height + 2 * st::msgDateImgPadding.y();
 		App::roundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? st::msgServiceBgSelected : st::msgServiceBg, selected ? StickerSelectedCorners : StickerCorners);
 	}
@@ -1143,11 +1161,11 @@ bool Message::pointInTime(
 	auto infoRight = right;
 	auto infoBottom = bottom;
 	switch (type) {
-	case InfoDisplayDefault:
+	case InfoDisplayType::Default:
 		infoRight -= st::msgPadding.right() - st::msgDateDelta.x();
 		infoBottom -= st::msgPadding.bottom() - st::msgDateDelta.y();
 		break;
-	case InfoDisplayOverImage:
+	case InfoDisplayType::Image:
 		infoRight -= st::msgDateImgDelta + st::msgDateImgPadding.x();
 		infoBottom -= st::msgDateImgDelta + st::msgDateImgPadding.y();
 		break;
@@ -1414,11 +1432,7 @@ void Message::updateMediaInBubbleState() {
 		mediaHasSomethingAbove = getMediaHasSomethingAbove();
 	}
 	if (hasVisibleText()) {
-		if (media->isAboveMessage()) {
-			mediaHasSomethingBelow = true;
-		} else {
-			mediaHasSomethingAbove = true;
-		}
+		mediaHasSomethingAbove = true;
 	}
 	const auto state = [&] {
 		if (mediaHasSomethingAbove) {

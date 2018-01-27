@@ -521,7 +521,7 @@ void ReplyKeyboard::paint(Painter &p, int outerWidth, const QRect &clip, TimeMs 
 	}
 }
 
-ClickHandlerPtr ReplyKeyboard::getState(QPoint point) const {
+ClickHandlerPtr ReplyKeyboard::getLink(QPoint point) const {
 	Assert(_width > 0);
 
 	for_const (auto &row, _rows) {

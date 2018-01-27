@@ -436,13 +436,13 @@ void Service::draw(
 	}
 }
 
-bool Service::hasPoint(QPoint point) const {
+PointState Service::pointState(QPoint point) const {
 	const auto item = message();
 	const auto media = this->media();
 
 	auto g = countGeometry();
 	if (g.width() < 1) {
-		return false;
+		return PointState::Outside;
 	}
 
 	if (const auto dateh = displayedDateHeight()) {
@@ -454,14 +454,14 @@ bool Service::hasPoint(QPoint point) const {
 	if (media) {
 		g.setHeight(g.height() - (st::msgServiceMargin.top() + media->height()));
 	}
-	return g.contains(point);
+	return g.contains(point) ? PointState::Inside : PointState::Outside;
 }
 
-HistoryTextState Service::getState(QPoint point, HistoryStateRequest request) const {
+TextState Service::textState(QPoint point, StateRequest request) const {
 	const auto item = message();
 	const auto media = this->media();
 
-	auto result = HistoryTextState(item);
+	auto result = TextState(item);
 
 	auto g = countGeometry();
 	if (g.width() < 1) {
@@ -485,21 +485,25 @@ HistoryTextState Service::getState(QPoint point, HistoryStateRequest request) co
 	if (trect.contains(point)) {
 		auto textRequest = request.forText();
 		textRequest.align = style::al_center;
-		result = HistoryTextState(item, item->_text.getState(
+		result = TextState(item, item->_text.getState(
 			point - trect.topLeft(),
 			trect.width(),
 			textRequest));
 		if (auto gamescore = item->Get<HistoryServiceGameScore>()) {
-			if (!result.link && result.cursor == HistoryInTextCursorState && g.contains(point)) {
+			if (!result.link
+				&& result.cursor == CursorState::Text
+				&& g.contains(point)) {
 				result.link = gamescore->lnk;
 			}
 		} else if (auto payment = item->Get<HistoryServicePayment>()) {
-			if (!result.link && result.cursor == HistoryInTextCursorState && g.contains(point)) {
+			if (!result.link
+				&& result.cursor == CursorState::Text
+				&& g.contains(point)) {
 				result.link = payment->lnk;
 			}
 		}
 	} else if (media) {
-		result = media->getState(point - QPoint(st::msgServiceMargin.left() + (g.width() - media->maxWidth()) / 2, st::msgServiceMargin.top() + g.height() + st::msgServiceMargin.top()), request);
+		result = media->textState(point - QPoint(st::msgServiceMargin.left() + (g.width() - media->maxWidth()) / 2, st::msgServiceMargin.top() + g.height() + st::msgServiceMargin.top()), request);
 	}
 	return result;
 }

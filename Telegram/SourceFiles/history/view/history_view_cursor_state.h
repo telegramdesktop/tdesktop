@@ -7,58 +7,54 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace HistoryView {
-class Element;
-} // namespace HistoryView
-
 class HistoryItem;
 
-enum HistoryCursorState {
-	HistoryDefaultCursorState,
-	HistoryInTextCursorState,
-	HistoryInDateCursorState,
-	HistoryInForwardedCursorState,
+namespace HistoryView {
+
+class Element;
+
+enum class PointState : char {
+	Outside,
+	Inside,
+	GroupPart,
+};
+enum class CursorState : char {
+	None,
+	Text,
+	Date,
+	Forwarded,
 };
 
-struct HistoryTextState {
-	HistoryTextState() = default;
-	HistoryTextState(not_null<const HistoryItem*> item);
-	HistoryTextState(
+struct TextState {
+	TextState() = default;
+	TextState(not_null<const HistoryItem*> item);
+	TextState(
 		not_null<const HistoryItem*> item,
 		const Text::StateResult &state);
-	HistoryTextState(
+	TextState(
 		not_null<const HistoryItem*> item,
 		ClickHandlerPtr link);
-	HistoryTextState(not_null<const HistoryView::Element*> view);
-	HistoryTextState(
+	TextState(not_null<const HistoryView::Element*> view);
+	TextState(
 		not_null<const HistoryView::Element*> view,
 		const Text::StateResult &state);
-	HistoryTextState(
+	TextState(
 		not_null<const HistoryView::Element*> view,
 		ClickHandlerPtr link);
-	HistoryTextState(
+	TextState(
 		std::nullptr_t,
-		const Text::StateResult &state)
-	: cursor(state.uponSymbol
-		? HistoryInTextCursorState
-		: HistoryDefaultCursorState)
-	, link(state.link)
-	, afterSymbol(state.afterSymbol)
-	, symbol(state.symbol) {
-	}
-	HistoryTextState(std::nullptr_t, ClickHandlerPtr link)
-	: link(link) {
-	}
+		const Text::StateResult &state);
+	TextState(std::nullptr_t, ClickHandlerPtr link);
 
 	FullMsgId itemId;
-	HistoryCursorState cursor = HistoryDefaultCursorState;
+	CursorState cursor = CursorState::None;
 	ClickHandlerPtr link;
 	bool afterSymbol = false;
 	uint16 symbol = 0;
 
 };
 
-struct HistoryStateRequest {
+struct StateRequest {
 	Text::StateRequest::Flags flags = Text::StateRequest::Flag::LookupLink;
 	Text::StateRequest forText() const {
 		Text::StateRequest result;
@@ -67,8 +63,10 @@ struct HistoryStateRequest {
 	}
 };
 
-enum InfoDisplayType : char {
-	InfoDisplayDefault,
-	InfoDisplayOverImage,
-	InfoDisplayOverBackground,
+enum class InfoDisplayType : char {
+	Default,
+	Image,
+	Background,
 };
+
+} // namespace HistoryView

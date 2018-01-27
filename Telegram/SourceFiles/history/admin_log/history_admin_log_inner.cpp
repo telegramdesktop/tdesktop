@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/admin_log/history_admin_log_filter.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
+#include "history/view/history_view_cursor_state.h"
 #include "chat_helpers/message_field.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -451,13 +452,15 @@ void InnerWidget::updateEmptyText() {
 }
 
 QString InnerWidget::tooltipText() const {
-	if (_mouseCursorState == HistoryInDateCursorState && _mouseAction == MouseAction::None) {
+	if (_mouseCursorState == CursorState::Date
+		&& _mouseAction == MouseAction::None) {
 		if (const auto view = App::hoveredItem()) {
 			auto dateText = view->data()->date.toString(
 				QLocale::system().dateTimeFormat(QLocale::LongFormat));
 			return dateText;
 		}
-	} else if (_mouseCursorState == HistoryInForwardedCursorState && _mouseAction == MouseAction::None) {
+	} else if (_mouseCursorState == CursorState::Forwarded
+		&& _mouseAction == MouseAction::None) {
 		if (const auto view = App::hoveredItem()) {
 			if (const auto forwarded = view->data()->Get<HistoryMessageForwarded>()) {
 				return forwarded->text.originalText(AllTextSelection, ExpandLinksNone);
@@ -872,10 +875,10 @@ void InnerWidget::keyPressEvent(QKeyEvent *e) {
 void InnerWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 	mouseActionStart(e->globalPos(), e->button());
 	if (((_mouseAction == MouseAction::Selecting && _selectedItem != nullptr) || (_mouseAction == MouseAction::None)) && _mouseSelectType == TextSelectType::Letters && _mouseActionItem) {
-		HistoryStateRequest request;
+		StateRequest request;
 		request.flags |= Text::StateRequest::Flag::LookupSymbol;
-		auto dragState = _mouseActionItem->getState(_dragStartPosition, request);
-		if (dragState.cursor == HistoryInTextCursorState) {
+		auto dragState = _mouseActionItem->textState(_dragStartPosition, request);
+		if (dragState.cursor == CursorState::Text) {
 			_mouseTextSymbol = dragState.symbol;
 			_mouseSelectType = TextSelectType::Words;
 			if (_mouseAction == MouseAction::None) {
@@ -914,10 +917,10 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			auto mousePos = mapPointToItem(
 				mapFromGlobal(_mousePosition),
 				App::mousedItem());
-			HistoryStateRequest request;
+			StateRequest request;
 			request.flags |= Text::StateRequest::Flag::LookupSymbol;
-			auto dragState = App::mousedItem()->getState(mousePos, request);
-			if (dragState.cursor == HistoryInTextCursorState
+			auto dragState = App::mousedItem()->textState(mousePos, request);
+			if (dragState.cursor == CursorState::Text
 				&& base::in_range(dragState.symbol, selFrom, selTo)) {
 				isUponSelected = 1;
 			}
@@ -1275,12 +1278,12 @@ void InnerWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butt
 		_mouseAction = MouseAction::PrepareDrag;
 	}
 	if (_mouseAction == MouseAction::None && _mouseActionItem) {
-		HistoryTextState dragState;
+		TextState dragState;
 		if (_trippleClickTimer.isActive() && (screenPos - _trippleClickPoint).manhattanLength() < QApplication::startDragDistance()) {
-			HistoryStateRequest request;
+			StateRequest request;
 			request.flags = Text::StateRequest::Flag::LookupSymbol;
-			dragState = _mouseActionItem->getState(_dragStartPosition, request);
-			if (dragState.cursor == HistoryInTextCursorState) {
+			dragState = _mouseActionItem->textState(_dragStartPosition, request);
+			if (dragState.cursor == CursorState::Text) {
 				auto selection = TextSelection { dragState.symbol, dragState.symbol };
 				repaintItem(std::exchange(_selectedItem, _mouseActionItem));
 				_selectedText = selection;
@@ -1291,14 +1294,14 @@ void InnerWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butt
 				_trippleClickTimer.callOnce(QApplication::doubleClickInterval());
 			}
 		} else if (App::pressedItem()) {
-			HistoryStateRequest request;
+			StateRequest request;
 			request.flags = Text::StateRequest::Flag::LookupSymbol;
-			dragState = _mouseActionItem->getState(_dragStartPosition, request);
+			dragState = _mouseActionItem->textState(_dragStartPosition, request);
 		}
 		if (_mouseSelectType != TextSelectType::Paragraphs) {
 			if (App::pressedItem()) {
 				_mouseTextSymbol = dragState.symbol;
-				auto uponSelected = (dragState.cursor == HistoryInTextCursorState);
+				auto uponSelected = (dragState.cursor == CursorState::Text);
 				if (uponSelected) {
 					if (!_selectedItem || _selectedItem != _mouseActionItem) {
 						uponSelected = false;
@@ -1399,7 +1402,7 @@ void InnerWidget::updateSelected() {
 	if (item) {
 		App::mousedItem(view);
 		itemPoint = mapPointToItem(point, view);
-		if (view->hasPoint(itemPoint)) {
+		if (view->pointState(itemPoint) != PointState::Outside) {
 			if (App::hoveredItem() != view) {
 				repaintItem(App::hoveredItem());
 				App::hoveredItem(view);
@@ -1411,7 +1414,7 @@ void InnerWidget::updateSelected() {
 		}
 	}
 
-	HistoryTextState dragState;
+	TextState dragState;
 	ClickHandlerHost *lnkhost = nullptr;
 	auto selectingText = _selectedItem
 		&& (view == _mouseActionItem)
@@ -1423,13 +1426,13 @@ void InnerWidget::updateSelected() {
 				InvokeQueued(this, [this] { performDrag(); });
 			}
 		}
-		HistoryStateRequest request;
+		StateRequest request;
 		if (_mouseAction == MouseAction::Selecting) {
 			request.flags |= Text::StateRequest::Flag::LookupSymbol;
 		} else {
 			selectingText = false;
 		}
-		dragState = view->getState(itemPoint, request);
+		dragState = view->textState(itemPoint, request);
 		lnkhost = view;
 		if (!dragState.link && itemPoint.x() >= st::historyPhotoLeft && itemPoint.x() < st::historyPhotoLeft + st::msgPhotoSize) {
 			if (auto message = item->toHistoryMessage()) {
@@ -1459,7 +1462,9 @@ void InnerWidget::updateSelected() {
 	if (lnkChanged || dragState.cursor != _mouseCursorState) {
 		Ui::Tooltip::Hide();
 	}
-	if (dragState.link || dragState.cursor == HistoryInDateCursorState || dragState.cursor == HistoryInForwardedCursorState) {
+	if (dragState.link
+		|| dragState.cursor == CursorState::Date
+		|| dragState.cursor == CursorState::Forwarded) {
 		Ui::Tooltip::Show(1000, this);
 	}
 
@@ -1468,9 +1473,9 @@ void InnerWidget::updateSelected() {
 		_mouseCursorState = dragState.cursor;
 		if (dragState.link) {
 			cursor = style::cur_pointer;
-		} else if (_mouseCursorState == HistoryInTextCursorState) {
+		} else if (_mouseCursorState == CursorState::Text) {
 			cursor = style::cur_text;
-		} else if (_mouseCursorState == HistoryInDateCursorState) {
+		} else if (_mouseCursorState == CursorState::Date) {
 //			cursor = style::cur_cross;
 		}
 	} else if (item) {
@@ -1530,10 +1535,10 @@ void InnerWidget::performDrag() {
 	//	if (!_selected.isEmpty() && _selected.cbegin().value() == FullSelection) {
 	//		uponSelected = _selected.contains(_mouseActionItem);
 	//	} else {
-	//		HistoryStateRequest request;
+	//		StateRequest request;
 	//		request.flags |= Text::StateRequest::Flag::LookupSymbol;
-	//		auto dragState = _mouseActionItem->getState(_dragStartPosition.x(), _dragStartPosition.y(), request);
-	//		uponSelected = (dragState.cursor == HistoryInTextCursorState);
+	//		auto dragState = _mouseActionItem->textState(_dragStartPosition.x(), _dragStartPosition.y(), request);
+	//		uponSelected = (dragState.cursor == CursorState::Text);
 	//		if (uponSelected) {
 	//			if (_selected.isEmpty() ||
 	//				_selected.cbegin().value() == FullSelection ||
@@ -1584,7 +1589,7 @@ void InnerWidget::performDrag() {
 	//	auto pressedMedia = static_cast<HistoryMedia*>(nullptr);
 	//	if (auto pressedItem = App::pressedItem()) {
 	//		pressedMedia = pressedItem->media();
-	//		if (_mouseCursorState == HistoryInDateCursorState
+	//		if (_mouseCursorState == CursorState::Date
 	//			|| (pressedMedia && pressedMedia->dragItem())) {
 	//			forwardMimeType = qsl("application/x-td-forward");
 	//			Auth().data().setMimeForwardIds(

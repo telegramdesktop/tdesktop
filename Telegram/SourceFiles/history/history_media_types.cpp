@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_location_manager.h"
 #include "history/history_message.h"
 #include "history/view/history_view_element.h"
+#include "history/view/history_view_cursor_state.h"
 #include "window/main_window.h"
 #include "window/window_controller.h"
 #include "styles/style_history.h"
@@ -40,6 +41,8 @@ namespace {
 
 constexpr auto kMaxGifForwardedBarLines = 4;
 constexpr auto kMaxOriginalEntryLines = 8192;
+
+using TextState = HistoryView::TextState;
 
 int documentMaxStatusWidth(DocumentData *document) {
 	auto result = st::normalFont->width(formatDownloadText(document->size, document->size));
@@ -419,7 +422,7 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 		auto fullRight = paintx + paintw;
 		auto fullBottom = painty + painth;
 		if (needInfoDisplay()) {
-			_parent->drawInfo(p, fullRight, fullBottom, 2 * paintx + paintw, selected, InfoDisplayOverImage);
+			_parent->drawInfo(p, fullRight, fullBottom, 2 * paintx + paintw, selected, InfoDisplayType::Image);
 		}
 		if (!bubble && _parent->displayRightAction()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
@@ -429,8 +432,8 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 	}
 }
 
-HistoryTextState HistoryPhoto::getState(QPoint point, HistoryStateRequest request) const {
-	auto result = HistoryTextState(_parent);
+TextState HistoryPhoto::textState(QPoint point, StateRequest request) const {
+	auto result = TextState(_parent);
 
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		return result;
@@ -447,7 +450,7 @@ HistoryTextState HistoryPhoto::getState(QPoint point, HistoryStateRequest reques
 			painth -= st::msgPadding.bottom();
 		}
 		if (QRect(st::msgPadding.left(), painth, captionw, height() - painth).contains(point)) {
-			result = HistoryTextState(_parent, _caption.getState(
+			result = TextState(_parent, _caption.getState(
 				point - QPoint(st::msgPadding.left(), painth),
 				captionw,
 				request.forText()));
@@ -472,8 +475,8 @@ HistoryTextState HistoryPhoto::getState(QPoint point, HistoryStateRequest reques
 	if (_caption.isEmpty() && _parent->media() == this) {
 		auto fullRight = paintx + paintw;
 		auto fullBottom = painty + painth;
-		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayOverImage)) {
-			result.cursor = HistoryInDateCursorState;
+		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayType::Image)) {
+			result.cursor = CursorState::Date;
 		}
 		if (!bubble && _parent->displayRightAction()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
@@ -586,15 +589,15 @@ void HistoryPhoto::drawGrouped(
 	}
 }
 
-HistoryTextState HistoryPhoto::getStateGrouped(
+TextState HistoryPhoto::getStateGrouped(
 		const QRect &geometry,
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	if (!geometry.contains(point)) {
 		return {};
 	}
 	const auto delayed = _data->full->toDelayedStorageImage();
-	return HistoryTextState(_parent, _data->uploading()
+	return TextState(_parent, _data->uploading()
 		? _cancell
 		: _data->loaded()
 		? _openl
@@ -870,7 +873,7 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 		_caption.draw(p, st::msgPadding.left(), painty + painth + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, selection);
 	} else if (_parent->media() == this) {
 		auto fullRight = paintx + paintw, fullBottom = painty + painth;
-		_parent->drawInfo(p, fullRight, fullBottom, 2 * paintx + paintw, selected, InfoDisplayOverImage);
+		_parent->drawInfo(p, fullRight, fullBottom, 2 * paintx + paintw, selected, InfoDisplayType::Image);
 		if (!bubble && _parent->displayRightAction()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
 			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
@@ -879,12 +882,12 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 	}
 }
 
-HistoryTextState HistoryVideo::getState(QPoint point, HistoryStateRequest request) const {
+TextState HistoryVideo::textState(QPoint point, StateRequest request) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		return {};
 	}
 
-	auto result = HistoryTextState(_parent);
+	auto result = TextState(_parent);
 	bool loaded = _data->loaded();
 
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
@@ -899,7 +902,7 @@ HistoryTextState HistoryVideo::getState(QPoint point, HistoryStateRequest reques
 			painth -= st::msgPadding.bottom();
 		}
 		if (QRect(st::msgPadding.left(), painth, captionw, height() - painth).contains(point)) {
-			result = HistoryTextState(_parent, _caption.getState(
+			result = TextState(_parent, _caption.getState(
 				point - QPoint(st::msgPadding.left(), painth),
 				captionw,
 				request.forText()));
@@ -916,8 +919,8 @@ HistoryTextState HistoryVideo::getState(QPoint point, HistoryStateRequest reques
 	if (_caption.isEmpty() && _parent->media() == this) {
 		auto fullRight = paintx + paintw;
 		auto fullBottom = painty + painth;
-		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayOverImage)) {
-			result.cursor = HistoryInDateCursorState;
+		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayType::Image)) {
+			result.cursor = CursorState::Date;
 		}
 		if (!bubble && _parent->displayRightAction()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
@@ -1026,14 +1029,14 @@ void HistoryVideo::drawGrouped(
 	}
 }
 
-HistoryTextState HistoryVideo::getStateGrouped(
+TextState HistoryVideo::getStateGrouped(
 		const QRect &geometry,
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	if (!geometry.contains(point)) {
 		return {};
 	}
-	return HistoryTextState(_parent, _data->uploading()
+	return TextState(_parent, _data->uploading()
 		? _cancell
 		: _data->loaded()
 		? _openl
@@ -1564,8 +1567,8 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 	}
 }
 
-HistoryTextState HistoryDocument::getState(QPoint point, HistoryStateRequest request) const {
-	auto result = HistoryTextState(_parent);
+TextState HistoryDocument::textState(QPoint point, StateRequest request) const {
+	auto result = TextState(_parent);
 
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		return result;
@@ -1631,7 +1634,7 @@ HistoryTextState HistoryDocument::getState(QPoint point, HistoryStateRequest req
 	auto painth = height();
 	if (auto captioned = Get<HistoryDocumentCaptioned>()) {
 		if (point.y() >= bottom) {
-			result = HistoryTextState(_parent, captioned->_caption.getState(
+			result = TextState(_parent, captioned->_caption.getState(
 				point - QPoint(st::msgPadding.left(), bottom),
 				width() - st::msgPadding.left() - st::msgPadding.right(),
 				request.forText()));
@@ -2306,7 +2309,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 			}
 		}
 		if (isRound || needInfoDisplay()) {
-			_parent->drawInfo(p, fullRight, fullBottom, 2 * paintx + paintw, selected, isRound ? InfoDisplayOverBackground : InfoDisplayOverImage);
+			_parent->drawInfo(p, fullRight, fullBottom, 2 * paintx + paintw, selected, isRound ? InfoDisplayType::Background : InfoDisplayType::Image);
 		}
 		if (!bubble && _parent->displayRightAction()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
@@ -2320,8 +2323,8 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 	}
 }
 
-HistoryTextState HistoryGif::getState(QPoint point, HistoryStateRequest request) const {
-	auto result = HistoryTextState(_parent);
+TextState HistoryGif::textState(QPoint point, StateRequest request) const {
+	auto result = TextState(_parent);
 
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		return result;
@@ -2336,7 +2339,7 @@ HistoryTextState HistoryGif::getState(QPoint point, HistoryStateRequest request)
 			painth -= st::msgPadding.bottom();
 		}
 		if (QRect(st::msgPadding.left(), painth, captionw, height() - painth).contains(point)) {
-			result = HistoryTextState(_parent, _caption.getState(
+			result = TextState(_parent, _caption.getState(
 				point - QPoint(st::msgPadding.left(), painth),
 				captionw,
 				request.forText()));
@@ -2386,16 +2389,16 @@ HistoryTextState HistoryGif::getState(QPoint point, HistoryStateRequest request)
 				if (breakEverywhere) {
 					textRequest.flags |= Text::StateRequest::Flag::BreakEverywhere;
 				}
-				result = HistoryTextState(_parent, forwarded->text.getState(
+				result = TextState(_parent, forwarded->text.getState(
 					point - QPoint(rectx + st::msgReplyPadding.left(), recty + st::msgReplyPadding.top()),
 					innerw,
 					textRequest));
 				result.symbol = 0;
 				result.afterSymbol = false;
 				if (breakEverywhere) {
-					result.cursor = HistoryInForwardedCursorState;
+					result.cursor = CursorState::Forwarded;
 				} else {
-					result.cursor = HistoryDefaultCursorState;
+					result.cursor = CursorState::None;
 				}
 				return result;
 			}
@@ -2447,8 +2450,8 @@ HistoryTextState HistoryGif::getState(QPoint point, HistoryStateRequest request)
 			}
 		}
 		if (!inWebPage) {
-			if (_parent->pointInTime(fullRight, fullBottom, point, isRound ? InfoDisplayOverBackground : InfoDisplayOverImage)) {
-				result.cursor = HistoryInDateCursorState;
+			if (_parent->pointInTime(fullRight, fullBottom, point, isRound ? InfoDisplayType::Background : InfoDisplayType::Image)) {
+				result.cursor = CursorState::Date;
 			}
 		}
 		if (!bubble && _parent->displayRightAction()) {
@@ -2810,7 +2813,7 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, T
 	if (!inWebPage) {
 		auto fullRight = usex + usew;
 		auto fullBottom = height();
-		_parent->drawInfo(p, fullRight, fullBottom, usex * 2 + usew, selected, InfoDisplayOverBackground);
+		_parent->drawInfo(p, fullRight, fullBottom, usex * 2 + usew, selected, InfoDisplayType::Background);
 		if (via || reply) {
 			int rectw = width() - usew - st::msgReplyPadding.left();
 			int recth = st::msgReplyPadding.top() + st::msgReplyPadding.bottom();
@@ -2850,8 +2853,8 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, T
 	}
 }
 
-HistoryTextState HistorySticker::getState(QPoint point, HistoryStateRequest request) const {
-	auto result = HistoryTextState(_parent);
+TextState HistorySticker::textState(QPoint point, StateRequest request) const {
+	auto result = TextState(_parent);
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		return result;
 	}
@@ -2904,8 +2907,8 @@ HistoryTextState HistorySticker::getState(QPoint point, HistoryStateRequest requ
 	if (_parent->media() == this) {
 		auto fullRight = usex + usew;
 		auto fullBottom = height();
-		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayOverImage)) {
-			result.cursor = HistoryInDateCursorState;
+		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayType::Image)) {
+			result.cursor = CursorState::Date;
 		}
 		if (_parent->displayRightAction()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
@@ -3112,8 +3115,8 @@ void HistoryContact::draw(Painter &p, const QRect &r, TextSelection selection, T
 	p.drawTextLeft(nameleft, statustop, paintw, _phone);
 }
 
-HistoryTextState HistoryContact::getState(QPoint point, HistoryStateRequest request) const {
-	auto result = HistoryTextState(_parent);
+TextState HistoryContact::textState(QPoint point, StateRequest request) const {
+	auto result = TextState(_parent);
 
 	auto nameleft = 0, nametop = 0, nameright = 0, statustop = 0, linktop = 0;
 	auto topMinus = isBubbleTop() ? 0 : st::msgFileTopMinus;
@@ -3210,8 +3213,8 @@ void HistoryCall::draw(Painter &p, const QRect &r, TextSelection selection, Time
 	icon.paint(p, paintw - st::historyCallIconPosition.x() - icon.width(), st::historyCallIconPosition.y() - topMinus, paintw);
 }
 
-HistoryTextState HistoryCall::getState(QPoint point, HistoryStateRequest request) const {
-	auto result = HistoryTextState(_parent);
+TextState HistoryCall::textState(QPoint point, StateRequest request) const {
+	auto result = TextState(_parent);
 	if (QRect(0, 0, width(), height()).contains(point)) {
 		result.link = _link;
 		return result;
@@ -3626,8 +3629,8 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, T
 	}
 }
 
-HistoryTextState HistoryWebPage::getState(QPoint point, HistoryStateRequest request) const {
-	auto result = HistoryTextState(_parent);
+TextState HistoryWebPage::textState(QPoint point, StateRequest request) const {
+	auto result = TextState(_parent);
 
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		return result;
@@ -3660,7 +3663,7 @@ HistoryTextState HistoryWebPage::getState(QPoint point, HistoryStateRequest requ
 		if (point.y() >= tshift && point.y() < tshift + _titleLines * lineHeight) {
 			Text::StateRequestElided titleRequest = request.forText();
 			titleRequest.lines = _titleLines;
-			result = HistoryTextState(_parent, _title.getStateElidedLeft(
+			result = TextState(_parent, _title.getStateElidedLeft(
 				point - QPoint(padding.left(), tshift),
 				paintw,
 				width(),
@@ -3676,13 +3679,13 @@ HistoryTextState HistoryWebPage::getState(QPoint point, HistoryStateRequest requ
 			if (_descriptionLines > 0) {
 				Text::StateRequestElided descriptionRequest = request.forText();
 				descriptionRequest.lines = _descriptionLines;
-				result = HistoryTextState(_parent, _description.getStateElidedLeft(
+				result = TextState(_parent, _description.getStateElidedLeft(
 					point - QPoint(padding.left(), tshift),
 					paintw,
 					width(),
 					descriptionRequest));
 			} else {
-				result = HistoryTextState(_parent, _description.getStateLeft(
+				result = TextState(_parent, _description.getStateLeft(
 					point - QPoint(padding.left(), tshift),
 					paintw,
 					width(),
@@ -3703,7 +3706,7 @@ HistoryTextState HistoryWebPage::getState(QPoint point, HistoryStateRequest requ
 			auto attachLeft = padding.left() - bubble.left();
 			auto attachTop = tshift - bubble.top();
 			if (rtl()) attachLeft = width() - attachLeft - _attach->width();
-			result = _attach->getState(point - QPoint(attachLeft, attachTop), request);
+			result = _attach->textState(point - QPoint(attachLeft, attachTop), request);
 
 			if (result.link && !_data->document && _data->photo && _attach->isReadyForOpen()) {
 				if (_data->type == WebPageProfile || _data->type == WebPageVideo) {
@@ -4059,8 +4062,8 @@ void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, Time
 	}
 }
 
-HistoryTextState HistoryGame::getState(QPoint point, HistoryStateRequest request) const {
-	auto result = HistoryTextState(_parent);
+TextState HistoryGame::textState(QPoint point, StateRequest request) const {
+	auto result = TextState(_parent);
 
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		return result;
@@ -4083,7 +4086,7 @@ HistoryTextState HistoryGame::getState(QPoint point, HistoryStateRequest request
 		if (point.y() >= tshift && point.y() < tshift + _titleLines * lineHeight) {
 			Text::StateRequestElided titleRequest = request.forText();
 			titleRequest.lines = _titleLines;
-			result = HistoryTextState(_parent, _title.getStateElidedLeft(
+			result = TextState(_parent, _title.getStateElidedLeft(
 				point - QPoint(padding.left(), tshift),
 				paintw,
 				width(),
@@ -4097,7 +4100,7 @@ HistoryTextState HistoryGame::getState(QPoint point, HistoryStateRequest request
 		if (point.y() >= tshift && point.y() < tshift + _descriptionLines * lineHeight) {
 			Text::StateRequestElided descriptionRequest = request.forText();
 			descriptionRequest.lines = _descriptionLines;
-			result = HistoryTextState(_parent, _description.getStateElidedLeft(
+			result = TextState(_parent, _description.getStateElidedLeft(
 				point - QPoint(padding.left(), tshift),
 				paintw,
 				width(),
@@ -4125,7 +4128,7 @@ HistoryTextState HistoryGame::getState(QPoint point, HistoryStateRequest request
 					result.link = _openl;
 				}
 			} else {
-				result = _attach->getState(point - QPoint(attachLeft, attachTop), request);
+				result = _attach->textState(point - QPoint(attachLeft, attachTop), request);
 			}
 		}
 	}
@@ -4473,8 +4476,8 @@ void HistoryInvoice::draw(Painter &p, const QRect &r, TextSelection selection, T
 	}
 }
 
-HistoryTextState HistoryInvoice::getState(QPoint point, HistoryStateRequest request) const {
-	auto result = HistoryTextState(_parent);
+TextState HistoryInvoice::textState(QPoint point, StateRequest request) const {
+	auto result = TextState(_parent);
 
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		return result;
@@ -4496,7 +4499,7 @@ HistoryTextState HistoryInvoice::getState(QPoint point, HistoryStateRequest requ
 		if (point.y() >= tshift && point.y() < tshift + _titleHeight) {
 			Text::StateRequestElided titleRequest = request.forText();
 			titleRequest.lines = _titleHeight / lineHeight;
-			result = HistoryTextState(_parent, _title.getStateElidedLeft(
+			result = TextState(_parent, _title.getStateElidedLeft(
 				point - QPoint(padding.left(), tshift),
 				paintw,
 				width(),
@@ -4508,7 +4511,7 @@ HistoryTextState HistoryInvoice::getState(QPoint point, HistoryStateRequest requ
 	}
 	if (_descriptionHeight) {
 		if (point.y() >= tshift && point.y() < tshift + _descriptionHeight) {
-			result = HistoryTextState(_parent, _description.getStateLeft(
+			result = TextState(_parent, _description.getStateLeft(
 				point - QPoint(padding.left(), tshift),
 				paintw,
 				width(),
@@ -4527,7 +4530,7 @@ HistoryTextState HistoryInvoice::getState(QPoint point, HistoryStateRequest requ
 		if (rtl()) attachLeft = width() - attachLeft - _attach->width();
 
 		if (QRect(attachLeft, tshift, _attach->width(), height() - tshift - bshift).contains(point)) {
-			result = _attach->getState(point - QPoint(attachLeft, attachTop), request);
+			result = _attach->textState(point - QPoint(attachLeft, attachTop), request);
 		}
 	}
 
@@ -4753,7 +4756,7 @@ void HistoryLocation::draw(Painter &p, const QRect &r, TextSelection selection, 
 	if (_parent->media() == this) {
 		auto fullRight = paintx + paintw;
 		auto fullBottom = height();
-		_parent->drawInfo(p, fullRight, fullBottom, paintx * 2 + paintw, selected, InfoDisplayOverImage);
+		_parent->drawInfo(p, fullRight, fullBottom, paintx * 2 + paintw, selected, InfoDisplayType::Image);
 		if (!bubble && _parent->displayRightAction()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
 			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
@@ -4762,8 +4765,8 @@ void HistoryLocation::draw(Painter &p, const QRect &r, TextSelection selection, 
 	}
 }
 
-HistoryTextState HistoryLocation::getState(QPoint point, HistoryStateRequest request) const {
-	auto result = HistoryTextState(_parent);
+TextState HistoryLocation::textState(QPoint point, StateRequest request) const {
+	auto result = TextState(_parent);
 	auto symbolAdd = 0;
 
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
@@ -4784,7 +4787,7 @@ HistoryTextState HistoryLocation::getState(QPoint point, HistoryStateRequest req
 		if (!_title.isEmpty()) {
 			auto titleh = qMin(_title.countHeight(textw), 2 * st::webPageTitleFont->height);
 			if (point.y() >= painty && point.y() < painty + titleh) {
-				result = HistoryTextState(_parent, _title.getStateLeft(
+				result = TextState(_parent, _title.getStateLeft(
 					point - QPoint(paintx + st::msgPadding.left(), painty),
 					textw,
 					width(),
@@ -4798,7 +4801,7 @@ HistoryTextState HistoryLocation::getState(QPoint point, HistoryStateRequest req
 		if (!_description.isEmpty()) {
 			auto descriptionh = qMin(_description.countHeight(textw), 3 * st::webPageDescriptionFont->height);
 			if (point.y() >= painty && point.y() < painty + descriptionh) {
-				result = HistoryTextState(_parent, _description.getStateLeft(
+				result = TextState(_parent, _description.getStateLeft(
 					point - QPoint(paintx + st::msgPadding.left(), painty),
 					textw,
 					width(),
@@ -4819,8 +4822,8 @@ HistoryTextState HistoryLocation::getState(QPoint point, HistoryStateRequest req
 	if (_parent->media() == this) {
 		auto fullRight = paintx + paintw;
 		auto fullBottom = height();
-		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayOverImage)) {
-			result.cursor = HistoryInDateCursorState;
+		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayType::Image)) {
+			result.cursor = CursorState::Date;
 		}
 		if (!bubble && _parent->displayRightAction()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);

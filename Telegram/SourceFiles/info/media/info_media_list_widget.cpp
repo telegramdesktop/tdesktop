@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "history/history_item.h"
 #include "history/history.h"
+#include "history/view/history_view_cursor_state.h"
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
 #include "window/window_peer_menu.h"
@@ -151,8 +152,8 @@ private:
 };
 
 bool ListWidget::IsAfter(
-		const CursorState &a,
-		const CursorState &b) {
+		const MouseState &a,
+		const MouseState &b) {
 	if (a.itemId != b.itemId) {
 		return (a.itemId < b.itemId);
 	}
@@ -161,7 +162,7 @@ bool ListWidget::IsAfter(
 	return (xAfter + yAfter >= 0);
 }
 
-bool ListWidget::SkipSelectFromItem(const CursorState &state) {
+bool ListWidget::SkipSelectFromItem(const MouseState &state) {
 	if (state.cursor.y() >= state.size.height()
 		|| state.cursor.x() >= state.size.width()) {
 		return true;
@@ -169,7 +170,7 @@ bool ListWidget::SkipSelectFromItem(const CursorState &state) {
 	return false;
 }
 
-bool ListWidget::SkipSelectTillItem(const CursorState &state) {
+bool ListWidget::SkipSelectTillItem(const MouseState &state) {
 	if (state.cursor.x() < 0 || state.cursor.y() < 0) {
 		return true;
 	}
@@ -1440,10 +1441,10 @@ void ListWidget::trySwitchToWordSelection() {
 void ListWidget::switchToWordSelection() {
 	Expects(_overLayout != nullptr);
 
-	HistoryStateRequest request;
+	StateRequest request;
 	request.flags |= Text::StateRequest::Flag::LookupSymbol;
 	auto dragState = _overLayout->getState(_pressState.cursor, request);
-	if (dragState.cursor != HistoryInTextCursorState) {
+	if (dragState.cursor != CursorState::Text) {
 		return;
 	}
 	_mouseTextSymbol = dragState.symbol;
@@ -1535,15 +1536,15 @@ auto ListWidget::itemUnderPressSelection() const
 
 bool ListWidget::requiredToStartDragging(
 		not_null<BaseLayout*> layout) const {
-	if (_mouseCursorState == HistoryInDateCursorState) {
+	if (_mouseCursorState == CursorState::Date) {
 		return true;
 	}
 //	return dynamic_cast<HistorySticker*>(layout->getMedia());
 	return false;
 }
 
-bool ListWidget::isPressInSelectedText(HistoryTextState state) const {
-	if (state.cursor != HistoryInTextCursorState) {
+bool ListWidget::isPressInSelectedText(TextState state) const {
+	if (state.cursor != CursorState::Text) {
 		return false;
 	}
 	if (!hasSelectedText()
@@ -1616,7 +1617,7 @@ void ListWidget::mouseActionUpdate(const QPoint &globalPosition) {
 	auto local = mapFromGlobal(_mousePosition);
 	auto point = clampMousePosition(local);
 	auto [layout, geometry, inside] = findItemByPoint(point);
-	auto state = CursorState {
+	auto state = MouseState{
 		GetUniversalId(layout),
 		geometry.size(),
 		point - geometry.topLeft(),
@@ -1630,7 +1631,7 @@ void ListWidget::mouseActionUpdate(const QPoint &globalPosition) {
 	}
 	_overState = state;
 
-	HistoryTextState dragState;
+	TextState dragState;
 	ClickHandlerHost *lnkhost = nullptr;
 	auto inTextSelection = _overState.inside
 		&& (_overState.itemId == _pressState.itemId)
@@ -1652,7 +1653,7 @@ void ListWidget::mouseActionUpdate(const QPoint &globalPosition) {
 				_mouseAction = MouseAction::Selecting;
 			}
 		}
-		HistoryStateRequest request;
+		StateRequest request;
 		if (_mouseAction == MouseAction::Selecting) {
 			request.flags |= Text::StateRequest::Flag::LookupSymbol;
 		} else {
@@ -1709,7 +1710,7 @@ style::cursor ListWidget::computeMouseCursor() const {
 	if (ClickHandler::getPressed() || ClickHandler::getActive()) {
 		return style::cur_pointer;
 	} else if (!hasSelectedItems()
-		&& (_mouseCursorState == HistoryInTextCursorState)) {
+		&& (_mouseCursorState == CursorState::Text)) {
 		return style::cur_text;
 	}
 	return style::cur_default;
@@ -1814,14 +1815,14 @@ void ListWidget::mouseActionStart(
 	}
 	if (_mouseAction == MouseAction::None && pressLayout) {
 		validateTrippleClickStartTime();
-		HistoryTextState dragState;
+		TextState dragState;
 		auto startDistance = (globalPosition - _trippleClickPoint).manhattanLength();
 		auto validStartPoint = startDistance < QApplication::startDragDistance();
 		if (_trippleClickStartTime != 0 && validStartPoint) {
-			HistoryStateRequest request;
+			StateRequest request;
 			request.flags = Text::StateRequest::Flag::LookupSymbol;
 			dragState = pressLayout->getState(_pressState.cursor, request);
-			if (dragState.cursor == HistoryInTextCursorState) {
+			if (dragState.cursor == CursorState::Text) {
 				TextSelection selStatus = { dragState.symbol, dragState.symbol };
 				if (selStatus != FullSelection && !hasSelectedItems()) {
 					clearSelected();
@@ -1834,7 +1835,7 @@ void ListWidget::mouseActionStart(
 				}
 			}
 		} else {
-			HistoryStateRequest request;
+			StateRequest request;
 			request.flags = Text::StateRequest::Flag::LookupSymbol;
 			dragState = pressLayout->getState(_pressState.cursor, request);
 		}
@@ -1873,7 +1874,7 @@ void ListWidget::mouseActionStart(
 }
 
 void ListWidget::mouseActionCancel() {
-	_pressState = CursorState();
+	_pressState = MouseState();
 	_mouseAction = MouseAction::None;
 	clearDragSelection();
 	_wasSelectedText = false;
@@ -1889,7 +1890,7 @@ void ListWidget::performDrag() {
 			uponSelected = isItemUnderPressSelected();
 		} else if (auto pressLayout = getExistingLayout(
 				_pressState.itemId)) {
-			HistoryStateRequest request;
+			StateRequest request;
 			request.flags |= Text::StateRequest::Flag::LookupSymbol;
 			auto dragState = pressLayout->getState(
 				_pressState.cursor,
@@ -1932,7 +1933,7 @@ void ListWidget::performDrag() {
 	//	auto pressedMedia = static_cast<HistoryMedia*>(nullptr);
 	//	if (auto pressedItem = _pressState.layout) {
 	//		pressedMedia = pressedItem->getMedia();
-	//		if (_mouseCursorState == HistoryInDateCursorState || (pressedMedia && pressedMedia->dragItem())) {
+	//		if (_mouseCursorState == CursorState::Date || (pressedMedia && pressedMedia->dragItem())) {
 	//			Auth().data().setMimeForwardIds(Auth().data().itemOrItsGroup(pressedItem));
 	//			forwardMimeType = qsl("application/x-td-forward");
 	//		}

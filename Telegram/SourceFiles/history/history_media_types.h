@@ -141,7 +141,7 @@ public:
 	}
 
 	void draw(Painter &p, const QRect &clip, TextSelection selection, TimeMs ms) const override;
-	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
+	TextState textState(QPoint point, StateRequest request) const override;
 
 	[[nodiscard]] TextSelection adjustSelection(
 			TextSelection selection,
@@ -171,10 +171,10 @@ public:
 		RectParts corners,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const override;
-	HistoryTextState getStateGrouped(
+	TextState getStateGrouped(
 		const QRect &geometry,
 		QPoint point,
-		HistoryStateRequest request) const override;
+		StateRequest request) const override;
 
 	bool hasReplyPreview() const override {
 		return !_data->thumb->isNull();
@@ -233,7 +233,7 @@ public:
 	}
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
-	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
+	TextState textState(QPoint point, StateRequest request) const override;
 
 	[[nodiscard]] TextSelection adjustSelection(
 			TextSelection selection,
@@ -263,10 +263,10 @@ public:
 		RectParts corners,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const override;
-	HistoryTextState getStateGrouped(
+	TextState getStateGrouped(
 		const QRect &geometry,
 		QPoint point,
-		HistoryStateRequest request) const override;
+		StateRequest request) const override;
 
 	bool uploading() const override {
 		return _data->uploading();
@@ -328,7 +328,7 @@ public:
 	}
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
-	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
+	TextState textState(QPoint point, StateRequest request) const override;
 	void updatePressed(QPoint point) override;
 
 	[[nodiscard]] TextSelection adjustSelection(
@@ -400,7 +400,7 @@ public:
 	}
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
-	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
+	TextState textState(QPoint point, StateRequest request) const override;
 
 	[[nodiscard]] TextSelection adjustSelection(
 			TextSelection selection,
@@ -501,7 +501,7 @@ public:
 	}
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
-	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
+	TextState textState(QPoint point, StateRequest request) const override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return true;
@@ -562,7 +562,7 @@ public:
 	}
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
-	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
+	TextState textState(QPoint point, StateRequest request) const override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return true;
@@ -619,7 +619,7 @@ public:
 	}
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
-	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
+	TextState textState(QPoint point, StateRequest request) const override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return true;
@@ -665,7 +665,7 @@ public:
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
-	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
+	TextState textState(QPoint point, StateRequest request) const override;
 
 	bool hideMessageText() const override {
 		return false;
@@ -772,16 +772,13 @@ public:
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
-	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
+	TextState textState(QPoint point, StateRequest request) const override;
 
 	[[nodiscard]] TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const override;
 	uint16 fullSelectionLength() const override {
 		return _title.length() + _description.length();
-	}
-	bool isAboveMessage() const override {
-		return true;
 	}
 	bool hasTextForCopy() const override {
 		return false; // we do not add _title and _description in FullSelection text copy.
@@ -881,7 +878,7 @@ public:
 	}
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
-	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
+	TextState textState(QPoint point, StateRequest request) const override;
 
 	[[nodiscard]] TextSelection adjustSelection(
 		TextSelection selection,
@@ -962,7 +959,7 @@ public:
 	}
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
-	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
+	TextState textState(QPoint point, StateRequest request) const override;
 
 	[[nodiscard]] TextSelection adjustSelection(
 		TextSelection selection,

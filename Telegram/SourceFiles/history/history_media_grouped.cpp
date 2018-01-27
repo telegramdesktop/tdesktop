@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_media_types.h"
 #include "history/history_message.h"
 #include "history/view/history_view_element.h"
+#include "history/view/history_view_cursor_state.h"
 #include "data/data_media_types.h"
 #include "storage/storage_shared_media.h"
 #include "lang/lang_keys.h"
@@ -18,6 +19,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text_options.h"
 #include "styles/style_history.h"
 #include "layout.h"
+
+namespace {
+using TextState = HistoryView::TextState;
+using PointState = HistoryView::PointState;
+} // namespace
 
 HistoryGroupedMedia::Part::Part(not_null<HistoryItem*> item)
 : item(item) {
@@ -176,7 +182,7 @@ void HistoryGroupedMedia::draw(
 		auto fullRight = width();
 		auto fullBottom = height();
 		if (needInfoDisplay()) {
-			_parent->drawInfo(p, fullRight, fullBottom, width(), selected, InfoDisplayOverImage);
+			_parent->drawInfo(p, fullRight, fullBottom, width(), selected, InfoDisplayType::Image);
 		}
 		if (!_parent->hasBubble() && _parent->displayRightAction()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
@@ -186,9 +192,9 @@ void HistoryGroupedMedia::draw(
 	}
 }
 
-HistoryTextState HistoryGroupedMedia::getPartState(
+TextState HistoryGroupedMedia::getPartState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	for (const auto &part : _parts) {
 		if (part.geometry.contains(point)) {
 			auto result = part.content->getStateGrouped(
@@ -199,12 +205,24 @@ HistoryTextState HistoryGroupedMedia::getPartState(
 			return result;
 		}
 	}
-	return HistoryTextState(_parent->data());
+	return TextState(_parent->data());
 }
 
-HistoryTextState HistoryGroupedMedia::getState(
+PointState HistoryGroupedMedia::pointState(QPoint point) const {
+	if (!QRect(0, 0, width(), height()).contains(point)) {
+		return PointState::Outside;
+	}
+	for (const auto &part : _parts) {
+		if (part.geometry.contains(point)) {
+			return PointState::GroupPart;
+		}
+	}
+	return PointState::Inside;
+}
+
+HistoryView::TextState HistoryGroupedMedia::textState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	auto result = getPartState(point, request);
 	if (!result.link && !_caption.isEmpty()) {
 		const auto captionw = width() - st::msgPadding.left() - st::msgPadding.right();
@@ -212,7 +230,7 @@ HistoryTextState HistoryGroupedMedia::getState(
 			- (isBubbleBottom() ? st::msgPadding.bottom() : 0)
 			- _caption.countHeight(captionw);
 		if (QRect(st::msgPadding.left(), captiony, captionw, height() - captiony).contains(point)) {
-			return HistoryTextState(_parent->data(), _caption.getState(
+			return TextState(_parent->data(), _caption.getState(
 				point - QPoint(st::msgPadding.left(), captiony),
 				captionw,
 				request.forText()));
@@ -220,8 +238,8 @@ HistoryTextState HistoryGroupedMedia::getState(
 	} else if (_parent->media() == this) {
 		auto fullRight = width();
 		auto fullBottom = height();
-		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayOverImage)) {
-			result.cursor = HistoryInDateCursorState;
+		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayType::Image)) {
+			result.cursor = CursorState::Date;
 		}
 		if (!_parent->hasBubble() && _parent->displayRightAction()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);

@@ -9,8 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
+#include "history/view/history_view_cursor_state.h"
 #include "storage/storage_shared_media.h"
 #include "ui/text_options.h"
+
+namespace {
+
+using PointState = HistoryView::PointState;
+using TextState = HistoryView::TextState;
+
+} // namespace
 
 Storage::SharedMediaTypesMask HistoryMedia::sharedMediaTypes() const {
 	return {};
@@ -54,9 +62,15 @@ TextSelection HistoryMedia::unskipSelection(TextSelection selection) const {
 		fullSelectionLength());
 }
 
-HistoryTextState HistoryMedia::getStateGrouped(
+PointState HistoryMedia::pointState(QPoint point) const {
+	return QRect(0, 0, width(), height()).contains(point)
+		? PointState::Inside
+		: PointState::Outside;
+}
+
+TextState HistoryMedia::getStateGrouped(
 		const QRect &geometry,
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	Unexpected("Grouping method call.");
 }

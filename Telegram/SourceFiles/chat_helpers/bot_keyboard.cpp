@@ -280,7 +280,7 @@ void BotKeyboard::updateSelected() {
 	auto p = mapFromGlobal(_lastMousePos);
 	auto x = rtl() ? st::botKbScroll.width : _st->margin;
 
-	auto link = _impl->getState(p - QPoint(x, _st->margin));
+	auto link = _impl->getLink(p - QPoint(x, _st->margin));
 	if (ClickHandler::setActive(link, this)) {
 		Ui::Tooltip::Hide();
 		setCursor(link ? style::cur_pointer : style::cur_default);

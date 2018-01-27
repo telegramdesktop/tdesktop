@@ -223,9 +223,9 @@ msp mst paf pif ps1 reg rgs sct shb shs u3p vb vbe vbs vbscript ws wsf\
 	return (lastDotIndex >= 0) && (executableTypes->indexOf(filename.mid(lastDotIndex + 1).toLower()) >= 0);
 }
 
-[[nodiscard]] HistoryTextState LayoutItemBase::getState(
+[[nodiscard]] HistoryView::TextState LayoutItemBase::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	return {};
 }
 

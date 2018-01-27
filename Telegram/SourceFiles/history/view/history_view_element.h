@@ -17,11 +17,13 @@ class HistoryMessage;
 class HistoryService;
 class HistoryMedia;
 class HistoryWebPage;
-struct HistoryTextState;
-struct HistoryStateRequest;
-enum InfoDisplayType : char;
 
 namespace HistoryView {
+
+enum class PointState : char;
+enum class InfoDisplayType : char;
+struct StateRequest;
+struct TextState;
 
 enum class Context : char {
 	History,
@@ -166,10 +168,10 @@ public:
 		QRect clip,
 		TextSelection selection,
 		TimeMs ms) const = 0;
-	[[nodiscard]] virtual bool hasPoint(QPoint point) const = 0;
-	[[nodiscard]] virtual HistoryTextState getState(
+	[[nodiscard]] virtual PointState pointState(QPoint point) const = 0;
+	[[nodiscard]] virtual TextState textState(
 		QPoint point,
-		HistoryStateRequest request) const = 0;
+		StateRequest request) const = 0;
 	virtual void updatePressed(QPoint point) = 0;
 	virtual void drawInfo(
 		Painter &p,

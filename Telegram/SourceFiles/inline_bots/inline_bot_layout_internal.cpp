@@ -28,6 +28,8 @@ namespace InlineBots {
 namespace Layout {
 namespace internal {
 
+using TextState = HistoryView::TextState;
+
 FileBase::FileBase(not_null<Context*> context, Result *result) : ItemBase(context, result) {
 }
 
@@ -208,9 +210,9 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 	}
 }
 
-HistoryTextState Gif::getState(
+TextState Gif::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	if (QRect(0, 0, _width, st::inlineMediaHeight).contains(point)) {
 		if (_delete && rtlpoint(point, _width).x() >= _width - st::stickerPanDeleteIconBg.width() && point.y() < st::stickerPanDeleteIconBg.height()) {
 			return { nullptr, _delete };
@@ -402,9 +404,9 @@ void Sticker::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 	}
 }
 
-HistoryTextState Sticker::getState(
+TextState Sticker::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	if (QRect(0, 0, _width, st::inlineMediaHeight).contains(point)) {
 		return { nullptr, _send };
 	}
@@ -492,9 +494,9 @@ void Photo::paint(Painter &p, const QRect &clip, const PaintContext *context) co
 	}
 }
 
-HistoryTextState Photo::getState(
+TextState Photo::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	if (QRect(0, 0, _width, st::inlineMediaHeight).contains(point)) {
 		return { nullptr, _send };
 	}
@@ -637,9 +639,9 @@ void Video::paint(Painter &p, const QRect &clip, const PaintContext *context) co
 	}
 }
 
-HistoryTextState Video::getState(
+TextState Video::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	if (QRect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize).contains(point)) {
 		return { nullptr, _link };
 	}
@@ -778,9 +780,9 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 	}
 }
 
-HistoryTextState File::getState(
+TextState File::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	if (QRect(0, st::inlineRowMargin, st::msgFileSize, st::msgFileSize).contains(point)) {
 		return { nullptr, getShownDocument()->loading() ? _cancel : _open };
 	} else {
@@ -938,9 +940,9 @@ void Contact::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 	}
 }
 
-HistoryTextState Contact::getState(
+TextState Contact::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	if (!QRect(0, st::inlineRowMargin, st::msgFileSize, st::inlineThumbSize).contains(point)) {
 		auto left = (st::msgFileSize + st::inlineThumbSkip);
 		if (QRect(left, 0, _width - left, _height).contains(point)) {
@@ -1075,9 +1077,9 @@ void Article::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 	}
 }
 
-HistoryTextState Article::getState(
+TextState Article::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	if (_withThumb && QRect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize).contains(point)) {
 		return { nullptr, _link };
 	}
@@ -1259,9 +1261,9 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 	}
 }
 
-HistoryTextState Game::getState(
+TextState Game::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	int left = st::inlineThumbSize + st::inlineThumbSkip;
 	if (QRect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize).contains(point)) {
 		return { nullptr, _send };

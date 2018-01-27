@@ -10,8 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_object.h"
 
 struct HistoryMessageEdited;
-struct HistoryTextState;
-struct HistoryStateRequest;
 struct TextSelection;
 
 namespace base {
@@ -23,6 +21,14 @@ namespace Storage {
 enum class SharedMediaType : char;
 using SharedMediaTypesMask = base::enum_mask<SharedMediaType>;
 } // namespace Storage
+
+namespace HistoryView {
+enum class PointState : char;
+enum class CursorState : char;
+enum class InfoDisplayType : char;
+struct TextState;
+struct StateRequest;
+} // namespace HistoryView
 
 enum class MediaInBubbleState {
 	None,
@@ -53,6 +59,9 @@ enum HistoryMediaType : char {
 class HistoryMedia : public HistoryView::Object {
 public:
 	using Element = HistoryView::Element;
+	using PointState = HistoryView::PointState;
+	using TextState = HistoryView::TextState;
+	using StateRequest = HistoryView::StateRequest;
 
 	HistoryMedia(not_null<Element*> parent) : _parent(parent) {
 	}
@@ -63,15 +72,8 @@ public:
 		return TextWithEntities();
 	}
 
-	bool hasPoint(QPoint point) const {
-		return QRect(0, 0, width(), height()).contains(point);
-	}
-
 	virtual bool isDisplayed() const;
 	virtual void updateNeedBubbleState() {
-	}
-	virtual bool isAboveMessage() const {
-		return false;
 	}
 	virtual bool hasTextForCopy() const {
 		return false;
@@ -85,7 +87,8 @@ public:
 	virtual void refreshParentId(not_null<HistoryItem*> realParent) {
 	}
 	virtual void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const = 0;
-	virtual HistoryTextState getState(QPoint point, HistoryStateRequest request) const = 0;
+	virtual PointState pointState(QPoint point) const;
+	virtual TextState textState(QPoint point, StateRequest request) const = 0;
 	virtual void updatePressed(QPoint point) {
 	}
 
@@ -156,10 +159,10 @@ public:
 			not_null<QPixmap*> cache) const {
 		Unexpected("Grouping method call.");
 	}
-	virtual HistoryTextState getStateGrouped(
+	virtual TextState getStateGrouped(
 		const QRect &geometry,
 		QPoint point,
-		HistoryStateRequest request) const;
+		StateRequest request) const;
 	virtual std::unique_ptr<HistoryMedia> takeLastFromGroup() {
 		return nullptr;
 	}
@@ -236,6 +239,9 @@ public:
 	virtual ~HistoryMedia() = default;
 
 protected:
+	using CursorState = HistoryView::CursorState;
+	using InfoDisplayType = HistoryView::InfoDisplayType;
+
 	QSize countCurrentSize(int newWidth) override;
 	Text createCaption(not_null<HistoryItem*> item) const;
 
