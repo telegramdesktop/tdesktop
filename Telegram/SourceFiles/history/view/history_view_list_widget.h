@@ -138,6 +138,8 @@ public:
 	TextWithEntities getSelectedText() const;
 	MessageIdsList getSelectedItems() const;
 	void cancelSelection();
+	void selectItem(not_null<HistoryItem*> item);
+	void selectItemAsGroup(not_null<HistoryItem*> item);
 
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;

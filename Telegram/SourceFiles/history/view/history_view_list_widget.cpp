@@ -715,6 +715,28 @@ void ListWidget::cancelSelection() {
 	clearTextSelection();
 }
 
+void ListWidget::selectItem(not_null<HistoryItem*> item) {
+	if (const auto view = viewForItem(item)) {
+		clearTextSelection();
+		changeSelection(
+			_selected,
+			item,
+			SelectAction::Select);
+		pushSelectedItems();
+	}
+}
+
+void ListWidget::selectItemAsGroup(not_null<HistoryItem*> item) {
+	if (const auto view = viewForItem(item)) {
+		clearTextSelection();
+		changeSelectionAsGroup(
+			_selected,
+			item,
+			SelectAction::Select);
+		pushSelectedItems();
+	}
+}
+
 void ListWidget::clearSelected() {
 	if (_selected.empty()) {
 		return;
@@ -1325,13 +1347,14 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	ContextMenuRequest request;
 	request.link = ClickHandler::getActive();
 	request.view = _overElement;
-	// #TODO group part context menu using _overItemExact
-	request.overView = _overElement
-		&& (_overState.pointState != PointState::Outside);
+	request.item = _overItemExact
+		? _overItemExact
+		: _overElement
+		? _overElement->data().get()
+		: nullptr;
+	request.pointState = _overState.pointState;
 	request.selectedText = _selectedText;
-	if (!_selected.empty()) {
-		request.selectedItems = collectSelectedIds();
-	}
+	request.selectedItems = collectSelectedItems();
 	request.overSelection = showFromTouch
 		|| (_overElement && isInsideSelection(
 			_overElement,

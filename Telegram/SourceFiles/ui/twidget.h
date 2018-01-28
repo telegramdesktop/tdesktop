@@ -442,6 +442,16 @@ QPointer<const Widget> make_weak(const Widget *object) {
 	return QPointer<const Widget>(object);
 }
 
+template <typename Widget>
+QPointer<Widget> make_weak(not_null<Widget*> object) {
+	return QPointer<Widget>(object.get());
+}
+
+template <typename Widget>
+QPointer<const Widget> make_weak(not_null<const Widget*> object) {
+	return QPointer<const Widget>(object.get());
+}
+
 class SingleQueuedInvokation : public QObject {
 public:
 	SingleQueuedInvokation(base::lambda<void()> callback) : _callback(callback) {

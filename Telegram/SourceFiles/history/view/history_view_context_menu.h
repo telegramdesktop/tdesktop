@@ -15,16 +15,20 @@ class PopupMenu;
 
 namespace HistoryView {
 
+enum class PointState : char;
 class ListWidget;
 class Element;
+struct SelectedItem;
+using SelectedItems = std::vector<SelectedItem>;
 
 struct ContextMenuRequest {
 	ClickHandlerPtr link;
 	Element *view = nullptr;
-	MessageIdsList selectedItems;
+	HistoryItem *item = nullptr;
+	SelectedItems selectedItems;
 	TextWithEntities selectedText;
-	bool overView = false;
 	bool overSelection = false;
+	PointState pointState = PointState();
 };
 
 base::unique_qptr<Ui::PopupMenu> FillContextMenu(

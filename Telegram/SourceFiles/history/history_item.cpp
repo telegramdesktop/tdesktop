@@ -377,7 +377,7 @@ bool HistoryItem::allowsEdit(const QDateTime &now) const {
 }
 
 bool HistoryItem::canDelete() const {
-	if (isLogEntry()) {
+	if (isLogEntry() || (!IsServerMsgId(id) && serviceMsg())) {
 		return false;
 	}
 	auto channel = _history->peer->asChannel();
@@ -450,7 +450,7 @@ bool HistoryItem::suggestDeleteAllReport() const {
 }
 
 bool HistoryItem::hasDirectLink() const {
-	if (id <= 0) {
+	if (!IsServerMsgId(id)) {
 		return false;
 	}
 	if (auto channel = _history->peer->asChannel()) {

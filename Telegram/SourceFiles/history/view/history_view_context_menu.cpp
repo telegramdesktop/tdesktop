@@ -8,14 +8,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_context_menu.h"
 
 #include "history/view/history_view_list_widget.h"
+#include "history/view/history_view_cursor_state.h"
+#include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_message.h"
 #include "history/history_item_text.h"
 #include "history/history_media_types.h"
 #include "ui/widgets/popup_menu.h"
 #include "chat_helpers/message_field.h"
+#include "boxes/confirm_box.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"
+#include "data/data_session.h"
+#include "data/data_groups.h"
 #include "core/file_utilities.h"
 #include "window/window_peer_menu.h"
 #include "lang/lang_keys.h"
@@ -59,6 +65,25 @@ void CopyImage(not_null<PhotoData*> photo) {
 	}
 
 	QApplication::clipboard()->setPixmap(photo->full->pix());
+}
+
+void ShowStickerPackInfo(not_null<DocumentData*> document) {
+	if (const auto sticker = document->sticker()) {
+		if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
+			App::main()->stickersBox(sticker->set);
+		}
+	}
+}
+
+void ToggleFavedSticker(not_null<DocumentData*> document) {
+	const auto unfave = Stickers::IsFaved(document);
+	MTP::send(
+		MTPmessages_FaveSticker(
+			document->mtpInput(),
+			MTP_bool(unfave)),
+		rpcDone([=](const MTPBool &result) {
+		Stickers::SetFaved(document, !unfave);
+	}));
 }
 
 void AddPhotoActions(
@@ -129,6 +154,19 @@ void AddDocumentActions(
 			});
 		}
 	}
+	if (document->sticker()
+		&& document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
+		menu->addAction(
+			lang(document->isStickerSetInstalled()
+				? lng_context_pack_info
+				: lng_context_pack_add),
+			[=] { ShowStickerPackInfo(document); });
+		menu->addAction(
+			lang(Stickers::IsFaved(document)
+				? lng_faved_stickers_remove
+				: lng_faved_stickers_add),
+			[=] { ToggleFavedSticker(document); });
+	}
 	if (!document->filepath(
 			DocumentData::FilePathResolveChecked).isEmpty()) {
 		menu->addAction(
@@ -140,12 +178,254 @@ void AddDocumentActions(
 	AddSaveDocumentAction(menu, document);
 }
 
-void ShowStickerPackInfo(not_null<DocumentData*> document) {
-	if (const auto sticker = document->sticker()) {
-		if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
-			App::main()->stickersBox(sticker->set);
+void CopyPostLink(FullMsgId itemId) {
+	if (const auto item = App::histItemById(itemId)) {
+		if (item->hasDirectLink()) {
+			QApplication::clipboard()->setText(item->directLink());
 		}
 	}
+}
+
+void AddPostLinkAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request) {
+	const auto item = request.item;
+	if (!item
+		|| !item->hasDirectLink()
+		|| request.pointState == PointState::Outside) {
+		return;
+	} else if (request.link
+		&& !request.link->copyToClipboardContextItemText().isEmpty()) {
+		return;
+	}
+	const auto itemId = item->fullId();
+	menu->addAction(
+		lang(item->history()->peer->isMegagroup()
+			? lng_context_copy_link
+			: lng_context_copy_post_link),
+		[=] { CopyPostLink(itemId); });
+}
+
+MessageIdsList ExtractIdsList(const SelectedItems &items) {
+	return ranges::view::all(
+		items
+	) | ranges::view::transform([](const auto &item) {
+		return item.msgId;
+	}) | ranges::to_vector;
+}
+
+bool AddForwardSelectedAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	if (!request.overSelection || request.selectedItems.empty()) {
+		return false;
+	}
+	if (ranges::find_if(request.selectedItems, [](const auto &item) {
+		return !item.canForward;
+	}) != end(request.selectedItems)) {
+		return false;
+	}
+
+	menu->addAction(lang(lng_context_forward_selected), [=] {
+		const auto weak = make_weak(list);
+		auto items = ExtractIdsList(request.selectedItems);
+		Window::ShowForwardMessagesBox(std::move(items), [=] {
+			if (const auto strong = weak.data()) {
+				strong->cancelSelection();
+			}
+		});
+	});
+	return true;
+}
+
+bool AddForwardMessageAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	const auto item = request.item;
+	if (!request.selectedItems.empty()) {
+		return false;
+	} else if (!item || !item->allowsForward()) {
+		return false;
+	}
+	const auto asGroup = (request.pointState != PointState::GroupPart);
+	if (asGroup) {
+		if (const auto group = Auth().data().groups().find(item)) {
+			if (ranges::find_if(group->items, [](auto item) {
+				return !item->allowsForward();
+			}) != end(group->items)) {
+				return false;
+			}
+		}
+	}
+	const auto itemId = item->fullId();
+	menu->addAction(lang(lng_context_forward_msg), [=] {
+		if (const auto item = App::histItemById(itemId)) {
+			Window::ShowForwardMessagesBox(asGroup
+				? Auth().data().itemOrItsGroup(item)
+				: MessageIdsList{ 1, itemId });
+		}
+	});
+	return true;
+}
+
+void AddForwardAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	AddForwardSelectedAction(menu, request, list);
+	AddForwardMessageAction(menu, request, list);
+}
+
+bool AddDeleteSelectedAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	if (!request.overSelection || request.selectedItems.empty()) {
+		return false;
+	}
+	if (ranges::find_if(request.selectedItems, [](const auto &item) {
+		return !item.canDelete;
+	}) != end(request.selectedItems)) {
+		return false;
+	}
+
+	menu->addAction(lang(lng_context_delete_selected), [=] {
+		const auto weak = make_weak(list);
+		auto items = ExtractIdsList(request.selectedItems);
+		const auto box = Ui::show(Box<DeleteMessagesBox>(std::move(items)));
+		box->setDeleteConfirmedCallback([=] {
+			if (const auto strong = weak.data()) {
+				strong->cancelSelection();
+			}
+		});
+	});
+	return true;
+}
+
+bool AddDeleteMessageAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	const auto item = request.item;
+	if (!request.selectedItems.empty()) {
+		return false;
+	} else if (!item || !item->canDelete()) {
+		return false;
+	}
+	const auto asGroup = (request.pointState != PointState::GroupPart);
+	if (asGroup) {
+		if (const auto group = Auth().data().groups().find(item)) {
+			if (ranges::find_if(group->items, [](auto item) {
+				return !IsServerMsgId(item->id) || !item->canDelete();
+			}) != end(group->items)) {
+				return false;
+			}
+		}
+	}
+	const auto itemId = item->fullId();
+	menu->addAction(lang(lng_context_delete_msg), [=] {
+		if (const auto item = App::histItemById(itemId)) {
+			if (asGroup) {
+				if (const auto group = Auth().data().groups().find(item)) {
+					Ui::show(Box<DeleteMessagesBox>(
+						Auth().data().itemsToIds(group->items)));
+					return;
+				}
+			}
+			if (const auto message = item->toHistoryMessage()) {
+				if (message->uploading()) {
+					App::main()->cancelUploadLayer(item);
+					return;
+				}
+			}
+			const auto suggestModerateActions = true;
+			Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
+		}
+	});
+	return true;
+}
+
+void AddDeleteAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	if (!AddDeleteSelectedAction(menu, request, list)) {
+		AddDeleteMessageAction(menu, request, list);
+	}
+}
+
+bool AddClearSelectionAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	if (!request.overSelection || request.selectedItems.empty()) {
+		return false;
+	}
+	menu->addAction(lang(lng_context_clear_selection), [=] {
+		list->cancelSelection();
+	});
+	return true;
+}
+
+bool AddSelectMessageAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	const auto item = request.item;
+	if (request.overSelection && !request.selectedItems.empty()) {
+		return false;
+	} else if (!item || !IsServerMsgId(item->id) || item->serviceMsg()) {
+		return false;
+	}
+	const auto itemId = item->fullId();
+	const auto asGroup = (request.pointState != PointState::GroupPart);
+	menu->addAction(lang(lng_context_select_msg), [=] {
+		if (const auto item = App::histItemById(itemId)) {
+			if (asGroup) {
+				list->selectItemAsGroup(item);
+			} else {
+				list->selectItem(item);
+			}
+		}
+	});
+	return true;
+}
+
+void AddSelectionAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	if (!AddClearSelectionAction(menu, request, list)) {
+		AddSelectMessageAction(menu, request, list);
+	}
+}
+
+void AddMessageActions(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	AddPostLinkAction(menu, request);
+	AddForwardAction(menu, request, list);
+	AddDeleteAction(menu, request, list);
+	AddSelectionAction(menu, request, list);
+}
+
+void AddCopyLinkAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ClickHandlerPtr &link) {
+	if (!link) {
+		return;
+	}
+	const auto action = link->copyToClipboardContextItemText();
+	if (action.isEmpty()) {
+		return;
+	}
+	const auto text = link->copyToClipboardText();
+	menu->addAction(
+		action,
+		[=] { QApplication::clipboard()->setText(text); });
 }
 
 } // namespace
@@ -157,7 +437,7 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 
 	const auto link = request.link;
 	const auto view = request.view;
-	const auto item = view ? view->data().get() : nullptr;
+	const auto item = request.item;
 	const auto itemId = item ? item->fullId() : FullMsgId();
 	const auto rawLink = link.get();
 	const auto linkPhoto = dynamic_cast<PhotoClickHandler*>(rawLink);
@@ -174,7 +454,10 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 		|| !request.selectedText.text.isEmpty();
 
 	if (request.overSelection) {
-		result->addAction(lang(lng_context_copy_selected), [=] {
+		const auto text = lang(request.selectedItems.empty()
+			? lng_context_copy_selected
+			: lng_context_copy_selected_items);
+		result->addAction(text, [=] {
 			SetClipboardWithEntities(list->getSelectedText());
 		});
 	}
@@ -187,57 +470,38 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 		if (list->delegate()->listContext() == Context::Feed) {
 			AddToggleGroupingAction(result, linkPeer->peer());
 		}
-	} else { // maybe cursor on some text history item?
-		bool canDelete = item && item->canDelete() && (item->id > 0 || !item->serviceMsg());
-		bool canForward = item && item->allowsForward();
-
-		const auto msg = item->toHistoryMessage();
-		if (!request.overSelection) {
-			if (item && !hasSelection) {
-				auto mediaHasTextForCopy = false;
-				if (auto media = view->media()) {
-					mediaHasTextForCopy = media->hasTextForCopy();
-					if (media->type() == MediaTypeWebPage
-						&& static_cast<HistoryWebPage*>(media)->attach()) {
-						media = static_cast<HistoryWebPage*>(media)->attach();
-					}
-					if (media->type() == MediaTypeSticker) {
-						if (auto document = media->getDocument()) {
-							if (document->sticker() && document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
-								result->addAction(lang(document->isStickerSetInstalled() ? lng_context_pack_info : lng_context_pack_add), [=] {
-									ShowStickerPackInfo(document);
-								});
-							}
-							result->addAction(
-								lang(lng_context_save_image),
-								App::LambdaDelayed(
-									st::defaultDropdownMenu.menu.ripple.hideDuration,
-									list,
-									[=] { DocumentSaveClickHandler::doSave(document, true); }));
-						}
-					}
-				}
-				if (!link && (view->hasVisibleText() || mediaHasTextForCopy)) {
-					result->addAction(lang(lng_context_copy_text), [=] {
-						if (const auto item = App::histItemById(itemId)) {
-							SetClipboardWithEntities(HistoryItemText(item));
-						}
-					});
+	} else if (!request.overSelection && view && !hasSelection) {
+		auto media = view->media();
+		const auto mediaHasTextForCopy = media && media->hasTextForCopy();
+		if (media) {
+			if (media->type() == MediaTypeWebPage
+				&& static_cast<HistoryWebPage*>(media)->attach()) {
+				media = static_cast<HistoryWebPage*>(media)->attach();
+			}
+			if (media->type() == MediaTypeSticker) {
+				if (const auto document = media->getDocument()) {
+					AddDocumentActions(result, document, view->data()->fullId());
 				}
 			}
 		}
-
-		const auto actionText = link
-			? link->copyToClipboardContextItemText()
-			: QString();
-		if (!actionText.isEmpty()) {
-			result->addAction(
-				actionText,
-				[text = link->copyToClipboardText()] {
-					QApplication::clipboard()->setText(text);
-				});
+		if (!link && (view->hasVisibleText() || mediaHasTextForCopy)) {
+			const auto asGroup = (request.pointState != PointState::GroupPart);
+			result->addAction(lang(lng_context_copy_text), [=] {
+				if (const auto item = App::histItemById(itemId)) {
+					if (asGroup) {
+						if (const auto group = Auth().data().groups().find(item)) {
+							SetClipboardWithEntities(HistoryGroupText(group));
+							return;
+						}
+					}
+					SetClipboardWithEntities(HistoryItemText(item));
+				}
+			});
 		}
 	}
+
+	AddCopyLinkAction(result, link);
+	AddMessageActions(result, request, list);
 	return result;
 }
 

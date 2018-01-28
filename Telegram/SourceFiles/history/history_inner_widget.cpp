@@ -1552,33 +1552,6 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 								saveDocumentToFile(document);
 							}));
 						}
-					} else if (media->type() == MediaTypeGif && !link) {
-						if (auto document = media->getDocument()) {
-							if (document->loading()) {
-								_menu->addAction(lang(lng_context_cancel_download), [=] {
-									cancelContextDownload(document);
-								});
-							} else {
-								if (document->isGifv()) {
-									if (!cAutoPlayGif()) {
-										_menu->addAction(lang(lng_context_open_gif), [=] {
-											openContextGif(itemId);
-										});
-									}
-									_menu->addAction(lang(lng_context_save_gif), [=] {
-										saveContextGif(itemId);
-									});
-								}
-								if (!document->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
-									_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), [=] {
-										showContextInFolder(document);
-									});
-								}
-								_menu->addAction(lang(lng_context_save_file), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
-									saveDocumentToFile(document);
-								}));
-							}
-						}
 					}
 				}
 				if (msg && view && !link && (view->hasVisibleText() || mediaHasTextForCopy)) {
