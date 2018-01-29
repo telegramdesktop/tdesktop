@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_facade.h"
 #include "storage/storage_feed_messages.h"
 #include "auth_session.h"
+#include "apiwrap.h"
+#include "mainwidget.h"
 
 namespace Data {
 
@@ -100,12 +102,13 @@ void Feed::unregisterOne(not_null<ChannelData*> channel) {
 		_parent->session().storage().remove(
 			Storage::FeedMessagesRemoveAll(_id, channel->bareId()));
 
-		history->updateChatListExistence();
 		if (visible && _channels.size() < 2) {
 			updateChatListExistence();
 			for (const auto history : _channels) {
 				history->updateChatListExistence();
 			}
+		} else {
+			history->updateChatListExistence();
 		}
 		_parent->notifyFeedUpdated(this, FeedUpdateFlag::Channels);
 	}
@@ -149,6 +152,14 @@ void Feed::paintUserpic(
 
 const std::vector<not_null<History*>> &Feed::channels() const {
 	return _channels;
+}
+
+int32 Feed::channelsHash() const {
+	return Api::CountHash(ranges::view::all(
+		_channels
+	) | ranges::view::transform([](not_null<History*> history) {
+		return history->peer->bareId();
+	}));
 }
 
 bool Feed::justSetLastMessage(not_null<HistoryItem*> item) {

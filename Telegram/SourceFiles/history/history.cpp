@@ -2271,6 +2271,19 @@ void History::setLastMessage(HistoryItem *msg) {
 	}
 }
 
+void History::updateChatListExistence() {
+	Entry::updateChatListExistence();
+	if (!lastMsg
+		&& (!loadedAtBottom() || !loadedAtTop())) {
+		if (const auto channel = peer->asChannel()) {
+			if (!channel->feed()) {
+				// After ungrouping from a feed we need to load lastMsg.
+				App::main()->checkPeerHistory(peer);
+			}
+		}
+	}
+}
+
 bool History::shouldBeInChatList() const {
 	if (peer->migrateTo()) {
 		return false;

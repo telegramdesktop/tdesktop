@@ -707,8 +707,11 @@ void DialogsWidget::searchReceived(
 		switch (result.type()) {
 		case mtpc_messages_messages: {
 			auto &d = result.c_messages_messages();
-			App::feedUsers(d.vusers);
-			App::feedChats(d.vchats);
+			if (_searchRequest != 0) {
+				// Don't apply cached data!
+				App::feedUsers(d.vusers);
+				App::feedChats(d.vchats);
+			}
 			auto &msgs = d.vmessages.v;
 			if (!_inner->searchReceived(msgs, type, msgs.size())) {
 				if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {
@@ -721,8 +724,11 @@ void DialogsWidget::searchReceived(
 
 		case mtpc_messages_messagesSlice: {
 			auto &d = result.c_messages_messagesSlice();
-			App::feedUsers(d.vusers);
-			App::feedChats(d.vchats);
+			if (_searchRequest != 0) {
+				// Don't apply cached data!
+				App::feedUsers(d.vusers);
+				App::feedChats(d.vchats);
+			}
 			auto &msgs = d.vmessages.v;
 			if (!_inner->searchReceived(msgs, type, d.vcount.v)) {
 				if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {
@@ -740,8 +746,11 @@ void DialogsWidget::searchReceived(
 			} else {
 				LOG(("API Error: received messages.channelMessages when no channel was passed! (DialogsWidget::searchReceived)"));
 			}
-			App::feedUsers(d.vusers);
-			App::feedChats(d.vchats);
+			if (_searchRequest != 0) {
+				// Don't apply cached data!
+				App::feedUsers(d.vusers);
+				App::feedChats(d.vchats);
+			}
 			auto &msgs = d.vmessages.v;
 			if (!_inner->searchReceived(msgs, type, d.vcount.v)) {
 				if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {

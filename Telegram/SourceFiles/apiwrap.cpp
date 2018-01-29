@@ -1892,7 +1892,9 @@ void ApiWrap::requestStickers(TimeId now) {
 		default: Unexpected("Type in ApiWrap::stickersDone()");
 		}
 	};
-	_stickersUpdateRequest = request(MTPmessages_GetAllStickers(MTP_int(Local::countStickersHash(true)))).done(onDone).fail([this, onDone](const RPCError &error) {
+	_stickersUpdateRequest = request(MTPmessages_GetAllStickers(
+		MTP_int(Local::countStickersHash(true))
+	)).done(onDone).fail([this, onDone](const RPCError &error) {
 		LOG(("App Fail: Failed to get stickers!"));
 		onDone(MTP_messages_allStickersNotModified());
 	}).send();
@@ -2654,7 +2656,7 @@ void ApiWrap::requestFeedMessages(
 		}
 		Unexpected("Direction in PrepareSearchRequest");
 	}();
-	const auto sourcesHash = int32(0);
+	const auto sourcesHash = int32(0);// feed->channelsHash(); // #TODO
 	const auto hash = int32(0);
 	const auto flags = (messageId && messageId.fullId.channel)
 		? MTPchannels_GetFeed::Flag::f_offset_position
@@ -2712,13 +2714,11 @@ void ApiWrap::feedMessagesDone(
 			till = candidate;
 		}
 	};
-	const auto checkPosition = [&](const auto &position) {
-		if (slice == SliceType::Before && !(position < messageId)) {
-			return false;
-		} else if (slice == SliceType::After && !(messageId < position)) {
-			return false;
-		}
-		return true;
+	const auto tooLargePosition = [&](const auto &position) {
+		return (slice == SliceType::Before) && !(position < messageId);
+	};
+	const auto tooSmallPosition = [&](const auto &position) {
+		return (slice == SliceType::After) && !(messageId < position);
 	};
 	App::feedUsers(data.vusers);
 	App::feedChats(data.vchats);
@@ -2727,7 +2727,11 @@ void ApiWrap::feedMessagesDone(
 		for (const auto &msg : messages) {
 			if (const auto item = App::histories().addNewMessage(msg, type)) {
 				const auto position = item->position();
-				if (!checkPosition(position)) {
+				if (tooLargePosition(position)) {
+					accumulateTill(noSkipRange.till, position);
+					continue;
+				} else if (tooSmallPosition(position)) {
+					accumulateFrom(noSkipRange.from, position);
 					continue;
 				}
 				ids.push_back(position);
@@ -2741,14 +2745,14 @@ void ApiWrap::feedMessagesDone(
 		accumulateFrom(
 			noSkipRange.from,
 			Data::FeedPositionFromMTP(data.vmin_position));
-	} else {
+	} else if (slice == SliceType::Before) {
 		noSkipRange.from = Data::MinMessagePosition;
 	}
 	if (data.has_max_position() && !ids.empty()) {
 		accumulateTill(
 			noSkipRange.till,
 			Data::FeedPositionFromMTP(data.vmax_position));
-	} else {
+	} else if (slice == SliceType::After) {
 		noSkipRange.till = Data::MaxMessagePosition;
 	}
 

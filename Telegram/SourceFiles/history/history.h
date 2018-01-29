@@ -312,6 +312,7 @@ public:
 	HistoryItemsList validateForwardDraft();
 	void setForwardDraft(MessageIdsList &&items);
 
+	void updateChatListExistence() override;
 	bool shouldBeInChatList() const override;
 	bool toImportant() const override {
 		return !mute();

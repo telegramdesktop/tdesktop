@@ -1282,6 +1282,7 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 				}
 			}
 		}
+		history->updateChatListExistence();
 	}
 	Auth().data().sendHistoryChangeNotifications();
 }

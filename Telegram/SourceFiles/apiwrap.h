@@ -37,6 +37,16 @@ inline const MTPVector<MTPChat> *getChatsFromMessagesChats(const MTPmessages_Cha
 	return nullptr;
 }
 
+template <typename IntRange>
+inline int32 CountHash(IntRange &&range) {
+	uint32 acc = 0;
+	for (auto value : range) {
+		acc += (acc * 20261) + uint32(value);
+	}
+	return int32(acc & 0x7FFFFFFF);
+}
+
+
 } // namespace Api
 
 class ApiWrap : private MTP::Sender, private base::Subscriber {

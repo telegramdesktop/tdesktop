@@ -343,7 +343,7 @@ QSize Service::performCountCurrentSize(int newWidth) {
 		}
 		newHeight += st::msgServicePadding.top() + st::msgServicePadding.bottom() + st::msgServiceMargin.top() + st::msgServiceMargin.bottom();
 		if (media) {
-			newHeight += st::msgServiceMargin.top() + media->resizeGetHeight(media->width());
+			newHeight += st::msgServiceMargin.top() + media->resizeGetHeight(media->maxWidth());
 		}
 	}
 

@@ -804,12 +804,12 @@ void ListWidget::checkMoveToOtherViewer() {
 		+ (visibleHeight / minItemHeight);
 
 	auto preloadBefore = kPreloadIfLessThanScreens * visibleHeight;
-	auto after = _slice.skippedAfter;
-	auto preloadTop = (_visibleTop < preloadBefore);
-	auto topLoaded = after && (*after == 0);
 	auto before = _slice.skippedBefore;
+	auto preloadTop = (_visibleTop < preloadBefore);
+	auto topLoaded = before && (*before == 0);
+	auto after = _slice.skippedAfter;
 	auto preloadBottom = (height() - _visibleBottom < preloadBefore);
-	auto bottomLoaded = before && (*before == 0);
+	auto bottomLoaded = after && (*after == 0);
 
 	auto minScreenDelta = kPreloadedScreensCount
 		- kPreloadIfLessThanScreens;

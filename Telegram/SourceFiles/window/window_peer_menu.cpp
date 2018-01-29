@@ -350,10 +350,13 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 void Filler::addChannelActions(not_null<ChannelData*> channel) {
 	auto isGroup = channel->isMegagroup();
 	if (!isGroup) {
-		const auto grouped = (channel->feed() != nullptr);
-		_addAction(
-			lang(grouped ? lng_feed_ungroup : lng_feed_group),
-			[=] { ToggleChannelGrouping(channel, !grouped); });
+		const auto feed = channel->feed();
+		const auto grouped = (feed != nullptr);
+		if (!grouped || feed->channels().size() > 1) {
+			_addAction(
+				lang(grouped ? lng_feed_ungroup : lng_feed_group),
+				[=] { ToggleChannelGrouping(channel, !grouped); });
+		}
 	}
 	if (_source != PeerMenuSource::ChatsList) {
 		if (ManagePeerBox::Available(channel)) {

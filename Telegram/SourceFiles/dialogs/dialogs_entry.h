@@ -63,7 +63,7 @@ public:
 	}
 	void updateChatListSortPosition();
 	void setChatsListDate(const QDateTime &date);
-	void updateChatListExistence();
+	virtual void updateChatListExistence();
 	bool needUpdateInChatList() const;
 
 	virtual bool toImportant() const = 0;

@@ -65,6 +65,7 @@ public:
 		int size) const override;
 
 	const std::vector<not_null<History*>> &channels() const;
+	int32 channelsHash() const;
 
 private:
 	void indexNameParts();
