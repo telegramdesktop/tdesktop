@@ -1771,7 +1771,7 @@ void ListWidget::mouseActionFinish(
 		&& _selectedTextRange.from != _selectedTextRange.to) {
 		if (const auto view = viewForItem(_selectedTextItem)) {
 			SetClipboardWithEntities(
-				_selectedTextItem->selectedText(_selectedTextRange),
+				view->selectedText(_selectedTextRange),
 				QClipboard::Selection);
 }
 	}

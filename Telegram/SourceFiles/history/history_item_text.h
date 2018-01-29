@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class HistoryItem;
 
 namespace Data {
-class Group;
+struct Group;
 } // namespace Data
 
 TextWithEntities HistoryItemText(not_null<HistoryItem*> item);

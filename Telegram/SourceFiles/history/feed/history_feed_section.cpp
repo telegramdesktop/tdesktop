@@ -103,7 +103,6 @@ Widget::Widget(
 
 	_showNext->setClickedCallback([this] {
 		// #TODO feeds show next
-		Ui::show(Box<InformBox>(lang(lng_admin_log_about_text)));
 	});
 
 	_feed->unreadPositionChanges(

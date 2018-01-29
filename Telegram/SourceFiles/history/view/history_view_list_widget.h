@@ -23,7 +23,7 @@ class Controller;
 } // namespace Window
 
 namespace Data {
-class Group;
+struct Group;
 } // namespace Data
 
 namespace HistoryView {

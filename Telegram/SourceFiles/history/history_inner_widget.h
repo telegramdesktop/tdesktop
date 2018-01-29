@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_top_bar_widget.h"
 
 namespace Data {
-class Group;
+struct Group;
 } // namespace Data
 
 namespace HistoryView {
