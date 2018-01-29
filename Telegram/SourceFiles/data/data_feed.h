@@ -15,6 +15,17 @@ class ChannelData;
 namespace Data {
 
 class Session;
+class Feed;
+
+enum class FeedUpdateFlag {
+	Channels,
+	ChannelPhoto,
+};
+
+struct FeedUpdate {
+	not_null<Data::Feed*> feed;
+	FeedUpdateFlag flag;
+};
 
 MessagePosition FeedPositionFromMTP(const MTPFeedPosition &position);
 
@@ -52,6 +63,8 @@ public:
 		int x,
 		int y,
 		int size) const override;
+
+	const std::vector<not_null<History*>> &channels() const;
 
 private:
 	void indexNameParts();

@@ -76,10 +76,15 @@ void Feed::registerOne(not_null<ChannelData*> channel) {
 		_parent->session().storage().remove(
 			Storage::FeedMessagesInvalidate(_id));
 
-		history->updateChatListExistence();
 		if (invisible && _channels.size() > 1) {
 			updateChatListExistence();
+			for (const auto history : _channels) {
+				history->updateChatListExistence();
+			}
+		} else {
+			history->updateChatListExistence();
 		}
+		_parent->notifyFeedUpdated(this, FeedUpdateFlag::Channels);
 	}
 }
 
@@ -98,7 +103,11 @@ void Feed::unregisterOne(not_null<ChannelData*> channel) {
 		history->updateChatListExistence();
 		if (visible && _channels.size() < 2) {
 			updateChatListExistence();
+			for (const auto history : _channels) {
+				history->updateChatListExistence();
+			}
 		}
+		_parent->notifyFeedUpdated(this, FeedUpdateFlag::Channels);
 	}
 }
 
@@ -136,6 +145,10 @@ void Feed::paintUserpic(
 		case 4: return;
 		}
 	}
+}
+
+const std::vector<not_null<History*>> &Feed::channels() const {
+	return _channels;
 }
 
 bool Feed::justSetLastMessage(not_null<HistoryItem*> item) {

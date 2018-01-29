@@ -299,6 +299,13 @@ void PeerData::setUserpicChecked(
 		|| _userpicLocation != location) {
 		setUserpic(photoId, location, userpic);
 		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
+		if (const auto channel = asChannel()) {
+			if (const auto feed = channel->feed()) {
+				Auth().data().notifyFeedUpdated(
+					feed,
+					Data::FeedUpdateFlag::ChannelPhoto);
+			}
+		}
 	}
 }
 

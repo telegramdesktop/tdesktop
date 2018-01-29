@@ -327,6 +327,16 @@ rpl::producer<not_null<UserData*>> Session::megagroupParticipantAdded(
 	});
 }
 
+void Session::notifyFeedUpdated(
+		not_null<Feed*> feed,
+		FeedUpdateFlag update) {
+	_feedUpdates.fire({ feed, update });
+}
+
+rpl::producer<FeedUpdate> Session::feedUpdated() const {
+	return _feedUpdates.events();
+}
+
 void Session::notifyStickersUpdated() {
 	_stickersUpdated.fire({});
 }
@@ -1422,17 +1432,17 @@ void Session::unregisterItemView(not_null<ViewElement*> view) {
 	}
 }
 
-not_null<Data::Feed*> Session::feed(FeedId id) {
+not_null<Feed*> Session::feed(FeedId id) {
 	if (const auto result = feedLoaded(id)) {
 		return result;
 	}
 	const auto [it, ok] = _feeds.emplace(
 		id,
-		std::make_unique<Data::Feed>(id, this));
+		std::make_unique<Feed>(id, this));
 	return it->second.get();
 }
 
-Data::Feed *Session::feedLoaded(FeedId id) {
+Feed *Session::feedLoaded(FeedId id) {
 	const auto it = _feeds.find(id);
 	return (it == end(_feeds)) ? nullptr : it->second.get();
 }

@@ -29,6 +29,8 @@ class Reader;
 namespace Data {
 
 class Feed;
+enum class FeedUpdateFlag;
+struct FeedUpdate;
 
 class Session final {
 public:
@@ -106,6 +108,9 @@ public:
 	rpl::producer<MegagroupParticipant> megagroupParticipantAdded() const;
 	rpl::producer<not_null<UserData*>> megagroupParticipantAdded(
 		not_null<ChannelData*> channel) const;
+
+	void notifyFeedUpdated(not_null<Feed*> feed, FeedUpdateFlag update);
+	rpl::producer<FeedUpdate> feedUpdated() const;
 
 	void notifyStickersUpdated();
 	rpl::producer<> stickersUpdated() const;
@@ -340,8 +345,8 @@ public:
 	void registerItemView(not_null<ViewElement*> view);
 	void unregisterItemView(not_null<ViewElement*> view);
 
-	not_null<Data::Feed*> feed(FeedId id);
-	Data::Feed *feedLoaded(FeedId id);
+	not_null<Feed*> feed(FeedId id);
+	Feed *feedLoaded(FeedId id);
 
 	void forgetMedia();
 
@@ -454,6 +459,7 @@ private:
 	rpl::event_stream<not_null<History*>> _historyChanged;
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantRemoved;
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantAdded;
+	rpl::event_stream<FeedUpdate> _feedUpdates;
 
 	rpl::event_stream<> _stickersUpdated;
 	rpl::event_stream<> _savedGifsUpdated;
@@ -510,7 +516,7 @@ private:
 	base::flat_set<not_null<GameData*>> _gamesUpdated;
 
 	std::deque<Dialogs::Key> _pinnedDialogs;
-	base::flat_map<FeedId, std::unique_ptr<Data::Feed>> _feeds;
+	base::flat_map<FeedId, std::unique_ptr<Feed>> _feeds;
 	Groups _groups;
 	std::map<
 		not_null<const HistoryItem*>,

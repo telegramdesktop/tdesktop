@@ -86,6 +86,7 @@ protected:
 	void doSetInnerFocus() override;
 
 private:
+	void checkForSingleChannelFeed();
 	void onScroll();
 	void updateInnerVisibleArea();
 	void updateControlsGeometry();

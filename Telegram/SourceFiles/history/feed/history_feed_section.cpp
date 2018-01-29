@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
 #include "history/history_item.h"
-#include "mainwidget.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
@@ -25,7 +24,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_feed_messages.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
+#include "data/data_session.h"
 #include "storage/storage_feed_messages.h"
+#include "mainwidget.h"
+#include "auth_session.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
 
@@ -111,6 +113,27 @@ Widget::Widget(
 		auto memento = HistoryView::ListMemento(position);
 		_inner->restoreState(&memento);
 	}, lifetime());
+
+	rpl::single(
+		Data::FeedUpdate{ _feed, Data::FeedUpdateFlag::Channels }
+	) | rpl::then(
+		Auth().data().feedUpdated()
+	) | rpl::filter([=](const Data::FeedUpdate &update) {
+		return (update.feed == _feed);
+	}) | rpl::start_with_next([=](const Data::FeedUpdate &update) {
+		checkForSingleChannelFeed();
+	}, lifetime());
+}
+
+void Widget::checkForSingleChannelFeed() {
+	const auto &channels = _feed->channels();
+	if (channels.size() > 1) {
+		return;
+	} else if (!channels.empty()) {
+		controller()->showPeerHistory(channels[0]);
+	} else {
+		controller()->clearSectionStack();
+	}
 }
 
 Dialogs::RowDescriptor Widget::activeChat() const {

@@ -142,6 +142,12 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 			}
 		}
 	}));
+	Auth().data().feedUpdated(
+	) | rpl::start_with_next([=](const Data::FeedUpdate &update) {
+		updateDialogRow(
+			Dialogs::RowDescriptor(update.feed, MsgId(0)),
+			QRect(0, 0, getFullWidth(), st::dialogsRowHeight));
+	}, lifetime());
 
 	_controller->activeChatEntryValue(
 	) | rpl::combine_previous(
