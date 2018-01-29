@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/merge.h>
 #include "styles/style_history.h"
 #include "core/file_utilities.h"
+#include "core/crash_reports.h"
 #include "history/history.h"
 #include "history/history_message.h"
 #include "history/history_media_types.h"
@@ -247,6 +248,19 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 
 			// Binary search should've skipped all the items that are above / below the visible area.
 			if (TopToBottom) {
+				if (itembottom <= _visibleAreaTop) {
+					QStringList debug;
+					for (const auto &logBlock : history->blocks) {
+						QStringList debugItems;
+						for (const auto &logItem : logBlock->messages) {
+							debugItems.push_back(QString("%1,%2").arg(logItem->y()).arg(logItem->height()));
+						}
+						debug.push_back(QString("b(%1,%2:%3)").arg(logBlock->y()).arg(logBlock->height()).arg(debugItems.join(';')));
+					}
+					CrashReports::SetAnnotation("geometry", QString("height:%1 ").arg(history->height()) + debug.join(';'));
+					CrashReports::SetAnnotation("info", QString("block:%1(%2,%3), item:%4(%5,%6), limits:%7,%8").arg(blockIndex).arg(block->y()).arg(block->height()).arg(itemIndex).arg(view->y()).arg(view->height()).arg(_visibleAreaTop).arg(_visibleAreaBottom));
+					Unexpected("itembottom > _visibleAreaTop");
+				}
 				Assert(itembottom > _visibleAreaTop);
 			} else {
 				Assert(itemtop < _visibleAreaBottom);
