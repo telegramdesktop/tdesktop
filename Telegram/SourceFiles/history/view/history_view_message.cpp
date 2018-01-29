@@ -1533,7 +1533,7 @@ QRect Message::countGeometry() const {
 
 int Message::resizeContentGetHeight(int newWidth) {
 	if (isHiddenByGroup()) {
-		return 0;
+		return marginTop() + marginBottom();
 	} else if (newWidth < st::msgMinWidth) {
 		return height();
 	}
