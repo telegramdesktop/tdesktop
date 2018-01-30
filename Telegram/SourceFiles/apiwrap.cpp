@@ -2637,12 +2637,81 @@ void ApiWrap::userPhotosDone(
 	));
 }
 
+void ApiWrap::requestFeedChannels(not_null<Data::Feed*> feed) {
+	if (_feedChannelsRequests.contains(feed)) {
+		return;
+	}
+	const auto hash = feed->channelsHash();
+	request(MTPchannels_GetFeedSources(
+		MTP_flags(MTPchannels_GetFeedSources::Flag::f_feed_id),
+		MTP_int(feed->id()),
+		MTP_int(hash)
+	)).done([=](const MTPchannels_FeedSources &result) {
+		_feedChannelsRequests.remove(feed);
+
+		switch (result.type()) {
+		case mtpc_channels_feedSourcesNotModified:
+			if (feed->channelsHash() == hash) {
+				feedChannelsDone(feed);
+			} else {
+				requestFeedChannels(feed);
+			}
+			break;
+
+		case mtpc_channels_feedSources: {
+			const auto &data = result.c_channels_feedSources();
+			App::feedUsers(data.vusers);
+			App::feedChats(data.vchats);
+			for (const auto &broadcasts : data.vfeeds.v) {
+				if (broadcasts.type() == mtpc_feedBroadcasts) {
+					const auto &list = broadcasts.c_feedBroadcasts();
+					const auto feedId = list.vfeed_id.v;
+					const auto feed = _session->data().feed(feedId);
+					auto channels = std::vector<not_null<ChannelData*>>();
+					for (const auto &channelId : list.vchannels.v) {
+						channels.push_back(App::channel(channelId.v));
+					}
+					feed->setChannels(std::move(channels));
+				}
+			}
+			if (feed->channelsLoaded()) {
+				feedChannelsDone(feed);
+			} else {
+				LOG(("API Error: feed channels not received for "
+					).arg(feed->id()));
+			}
+		} break;
+
+		default: Unexpected("Type in channels.getFeedSources response.");
+		}
+	}).fail([=](const RPCError &error) {
+		_feedChannelsRequests.remove(feed);
+	}).send();
+	_feedChannelsRequests.emplace(feed);
+}
+
+void ApiWrap::feedChannelsDone(not_null<Data::Feed*> feed) {
+	feed->setChannelsLoaded(true);
+	for (const auto key : base::take(_feedMessagesRequestsPending)) {
+		std::apply(
+			[=](auto&&...args) { requestFeedMessages(args...); },
+			key);
+	}
+}
+
 void ApiWrap::requestFeedMessages(
 		not_null<Data::Feed*> feed,
 		Data::MessagePosition messageId,
 		SliceType slice) {
 	const auto key = std::make_tuple(feed, messageId, slice);
-	if (_feedMessagesRequests.contains(key)) {
+	if (_feedMessagesRequests.contains(key)
+		|| _feedMessagesRequestsPending.contains(key)) {
+		return;
+	}
+
+	if (!feed->channelsLoaded()) {
+		_feedMessagesRequestsPending.emplace(key);
+		requestFeedChannels(feed);
 		return;
 	}
 
@@ -2656,7 +2725,7 @@ void ApiWrap::requestFeedMessages(
 		}
 		Unexpected("Direction in PrepareSearchRequest");
 	}();
-	const auto sourcesHash = int32(0);// feed->channelsHash(); // #TODO
+	const auto sourcesHash = feed->channelsHash();
 	const auto hash = int32(0);
 	const auto flags = (messageId && messageId.fullId.channel)
 		? MTPchannels_GetFeed::Flag::f_offset_position
@@ -2681,7 +2750,7 @@ void ApiWrap::requestFeedMessages(
 	}).fail([=](const RPCError &error) {
 		_feedMessagesRequests.remove(key);
 	}).send();
-	_feedMessagesRequests.emplace(key, requestId);
+	_feedMessagesRequests.emplace(key);
 }
 
 void ApiWrap::feedMessagesDone(

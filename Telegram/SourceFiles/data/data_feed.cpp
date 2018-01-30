@@ -162,6 +162,49 @@ int32 Feed::channelsHash() const {
 	}));
 }
 
+bool Feed::channelsLoaded() const {
+	return _channelsLoaded;
+}
+
+void Feed::setChannelsLoaded(bool loaded) {
+	_channelsLoaded = loaded;
+}
+
+void Feed::setChannels(std::vector<not_null<ChannelData*>> channels) {
+	const auto remove = ranges::view::all(
+		_channels
+	) | ranges::view::transform([](not_null<History*> history) {
+		return history->peer->asChannel();
+	}) | ranges::view::filter([&](not_null<ChannelData*> channel) {
+		return !base::contains(channels, channel);
+	}) | ranges::to_vector;
+
+	const auto add = ranges::view::all(
+		channels
+	) | ranges::view::filter([&](not_null<ChannelData*> channel) {
+		return ranges::find(
+			_channels,
+			channel.get(),
+			[](auto history) { return history->peer->asChannel(); }
+		) != end(_channels);
+	}) | ranges::to_vector;
+
+	for (const auto channel : remove) {
+		channel->clearFeed();
+	}
+	for (const auto channel : add) {
+		channel->setFeed(this);
+	}
+
+	_channels.clear();
+	for (const auto channel : channels) {
+		Assert(channel->feed() == this);
+
+		_channels.push_back(App::history(channel));
+	}
+	_channelsLoaded = true;
+}
+
 bool Feed::justSetLastMessage(not_null<HistoryItem*> item) {
 	if (_lastMessage && item->position() <= _lastMessage->position()) {
 		return false;

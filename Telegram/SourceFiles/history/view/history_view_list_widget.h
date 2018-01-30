@@ -295,6 +295,7 @@ private:
 	void setTextSelection(
 		not_null<Element*> view,
 		TextSelection selection);
+	int itemMinimalHeight() const;
 
 	bool isGoodForSelection(not_null<HistoryItem*> item) const;
 	bool isGoodForSelection(
@@ -393,6 +394,7 @@ private:
 	int _itemsTop = 0;
 	int _itemsWidth = 0;
 	int _itemsHeight = 0;
+	int _itemAverageHeight = 0;
 
 	int _minHeight = 0;
 	int _visibleTop = 0;

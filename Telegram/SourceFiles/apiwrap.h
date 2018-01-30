@@ -161,6 +161,8 @@ public:
 		not_null<UserData*> user,
 		PhotoId afterId);
 
+	void requestFeedChannels(
+		not_null<Data::Feed*> feed);
 	void requestFeedMessages(
 		not_null<Data::Feed*> feed,
 		Data::MessagePosition messageId,
@@ -323,6 +325,7 @@ private:
 		PhotoId photoId,
 		const MTPphotos_Photos &result);
 
+	void feedChannelsDone(not_null<Data::Feed*> feed);
 	void feedMessagesDone(
 		not_null<Data::Feed*> feed,
 		Data::MessagePosition messageId,
@@ -450,10 +453,15 @@ private:
 
 	base::flat_map<not_null<UserData*>, mtpRequestId> _userPhotosRequests;
 
-	base::flat_map<std::tuple<
+	base::flat_set<not_null<Data::Feed*>> _feedChannelsRequests;
+	base::flat_set<std::tuple<
 		not_null<Data::Feed*>,
 		Data::MessagePosition,
-		SliceType>, mtpRequestId> _feedMessagesRequests;
+		SliceType>> _feedMessagesRequests;
+	base::flat_set<std::tuple<
+		not_null<Data::Feed*>,
+		Data::MessagePosition,
+		SliceType>> _feedMessagesRequestsPending;
 
 	rpl::event_stream<SendOptions> _sendActions;
 

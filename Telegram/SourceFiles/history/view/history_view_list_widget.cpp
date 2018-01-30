@@ -236,6 +236,7 @@ ListWidget::ListWidget(
 , _delegate(delegate)
 , _controller(controller)
 , _context(_delegate->listContext())
+, _itemAverageHeight(itemMinimalHeight())
 , _scrollDateCheck([this] { scrollDateCheck(); })
 , _selectEnabled(_delegate->listAllowsMultiSelect()) {
 	setMouseTracking(true);
@@ -782,6 +783,12 @@ void ListWidget::setTextSelection(
 	}
 }
 
+int ListWidget::itemMinimalHeight() const {
+	return st::msgMarginTopAttached
+		+ st::msgPhotoSize
+		+ st::msgMargin.bottom();
+}
+
 void ListWidget::checkMoveToOtherViewer() {
 	auto visibleHeight = (_visibleBottom - _visibleTop);
 	if (width() <= 0
@@ -795,13 +802,10 @@ void ListWidget::checkMoveToOtherViewer() {
 	auto topItem = findItemByY(_visibleTop);
 	auto bottomItem = findItemByY(_visibleBottom);
 	auto preloadedHeight = kPreloadedScreensCountFull * visibleHeight;
-	auto minItemHeight = st::msgMarginTopAttached
-		+ st::msgPhotoSize
-		+ st::msgMargin.bottom();
-	auto preloadedCount = preloadedHeight / minItemHeight;
+	auto preloadedCount = preloadedHeight / _itemAverageHeight;
 	auto preloadIdsLimitMin = (preloadedCount / 2) + 1;
 	auto preloadIdsLimit = preloadIdsLimitMin
-		+ (visibleHeight / minItemHeight);
+		+ (visibleHeight / _itemAverageHeight);
 
 	auto preloadBefore = kPreloadIfLessThanScreens * visibleHeight;
 	auto before = _slice.skippedBefore;
@@ -814,7 +818,7 @@ void ListWidget::checkMoveToOtherViewer() {
 	auto minScreenDelta = kPreloadedScreensCount
 		- kPreloadIfLessThanScreens;
 	auto minUniversalIdDelta = (minScreenDelta * visibleHeight)
-		/ minItemHeight;
+		/ _itemAverageHeight;
 	auto preloadAroundMessage = [&](not_null<Element*> view) {
 		auto preloadRequired = false;
 		auto itemPosition = view->data()->position();
@@ -951,6 +955,11 @@ int ListWidget::resizeGetHeight(int newWidth) {
 		} else {
 			newHeight += view->height();
 		}
+	}
+	if (newHeight > 0) {
+		_itemAverageHeight = std::max(
+			itemMinimalHeight(),
+			newHeight / int(_items.size()));
 	}
 	_itemsWidth = newWidth;
 	_itemsHeight = newHeight;

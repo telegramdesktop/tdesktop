@@ -185,23 +185,39 @@ void paintRow(
 		icon.paint(p, fullWidth - st::dialogsPadding.x() - icon.width(), texttop, fullWidth);
 		availableWidth -= icon.width() + st::dialogsUnreadPadding;
 	}
-	auto sendStateIcon = ([draft, item, active, selected]() -> const style::icon* {
+	auto sendStateIcon = [&]() -> const style::icon* {
 		if (draft) {
 			if (draft->saveRequestId) {
-				return &(active ? st::dialogsSendingIconActive : (selected ? st::dialogsSendingIconOver : st::dialogsSendingIcon));
+				return &(active
+					? st::dialogsSendingIconActive
+					: (selected
+						? st::dialogsSendingIconOver
+						: st::dialogsSendingIcon));
 			}
 		} else if (item && !item->isEmpty() && item->needCheck()) {
 			if (item->id > 0) {
 				if (item->unread()) {
-					return &(active ? st::dialogsSentIconActive : (selected ? st::dialogsSentIconOver : st::dialogsSentIcon));
+					return &(active
+						? st::dialogsSentIconActive
+						: (selected
+							? st::dialogsSentIconOver
+							: st::dialogsSentIcon));
 				}
-				return &(active ? st::dialogsReceivedIconActive : (selected ? st::dialogsReceivedIconOver : st::dialogsReceivedIcon));
+				return &(active
+					? st::dialogsReceivedIconActive
+					: (selected
+						? st::dialogsReceivedIconOver
+						: st::dialogsReceivedIcon));
 			}
-			return &(active ? st::dialogsSendingIconActive : (selected ? st::dialogsSendingIconOver : st::dialogsSendingIcon));
+			return &(active
+				? st::dialogsSendingIconActive
+				: (selected
+					? st::dialogsSendingIconOver
+					: st::dialogsSendingIcon));
 		}
 		return nullptr;
-	})();
-	if (sendStateIcon) {
+	}();
+	if (sendStateIcon && history) {
 		rectForName.setWidth(rectForName.width() - st::dialogsSendStateSkip);
 		sendStateIcon->paint(p, rectForName.topLeft() + QPoint(rectForName.width(), 0), fullWidth);
 	}

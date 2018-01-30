@@ -66,6 +66,9 @@ public:
 
 	const std::vector<not_null<History*>> &channels() const;
 	int32 channelsHash() const;
+	bool channelsLoaded() const;
+	void setChannelsLoaded(bool loaded);
+	void setChannels(std::vector<not_null<ChannelData*>> channels);
 
 private:
 	void indexNameParts();
@@ -75,6 +78,7 @@ private:
 	FeedId _id = 0;
 	not_null<Data::Session*> _parent;
 	std::vector<not_null<History*>> _channels;
+	bool _channelsLoaded = false;
 
 	QString _name;
 	base::flat_set<QString> _nameWords;
