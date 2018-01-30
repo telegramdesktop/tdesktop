@@ -480,7 +480,7 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
-QString countBetaVersionSignature(quint64 version) { // duplicated in autoupdate.cpp
+QString countBetaVersionSignature(quint64 version) { // duplicated in autoupdater.cpp
 	QByteArray cBetaPrivateKey(BetaPrivateKey);
 	if (cBetaPrivateKey.isEmpty()) {
 		cout << "Error: Trying to count beta version signature without beta private key!\n";
