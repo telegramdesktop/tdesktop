@@ -59,10 +59,6 @@ public:
 		const ClickHandlerPtr &p,
 		bool pressed) override;
 
-	std::unique_ptr<HistoryMedia> takeLastFromGroup() override;
-	bool applyGroup(
-		const std::vector<not_null<HistoryItem*>> &items) override;
-
 	bool hasReplyPreview() const override;
 	ImagePtr replyPreview() override;
 	TextWithEntities getCaption() const override;
@@ -100,6 +96,7 @@ private:
 
 	};
 
+	bool applyGroup(const std::vector<not_null<HistoryItem*>> &items);
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 

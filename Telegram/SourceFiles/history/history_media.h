@@ -163,13 +163,6 @@ public:
 		const QRect &geometry,
 		QPoint point,
 		StateRequest request) const;
-	virtual std::unique_ptr<HistoryMedia> takeLastFromGroup() {
-		return nullptr;
-	}
-	virtual bool applyGroup(
-			const std::vector<not_null<HistoryItem*>> &items) {
-		return false;
-	}
 
 	virtual bool animating() const {
 		return false;

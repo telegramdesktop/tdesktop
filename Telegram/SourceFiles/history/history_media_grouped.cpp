@@ -21,8 +21,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "layout.h"
 
 namespace {
+
 using TextState = HistoryView::TextState;
 using PointState = HistoryView::PointState;
+
+constexpr auto kMaxDisplayedGroupSize = 10;
+
 } // namespace
 
 HistoryGroupedMedia::Part::Part(not_null<HistoryItem*> item)
@@ -34,7 +38,11 @@ HistoryGroupedMedia::HistoryGroupedMedia(
 	const std::vector<not_null<HistoryItem*>> &items)
 : HistoryMedia(parent)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
-	const auto result = applyGroup(items);
+	const auto result = (items.size() <= kMaxDisplayedGroupSize)
+		? applyGroup(items)
+		: applyGroup(std::vector<not_null<HistoryItem*>>(
+			begin(items),
+			begin(items) + kMaxDisplayedGroupSize));
 
 	Ensures(result);
 }
@@ -302,12 +310,10 @@ void HistoryGroupedMedia::clickHandlerPressedChanged(
 	}
 }
 
-std::unique_ptr<HistoryMedia> HistoryGroupedMedia::takeLastFromGroup() {
-	return std::move(_parts.back().content);
-}
-
 bool HistoryGroupedMedia::applyGroup(
 		const std::vector<not_null<HistoryItem*>> &items) {
+	Expects(items.size() <= kMaxDisplayedGroupSize);
+
 	if (items.empty()) {
 		return false;
 	}
@@ -315,14 +321,13 @@ bool HistoryGroupedMedia::applyGroup(
 		return true;
 	}
 
-	const auto pushElement = [&](not_null<HistoryItem*> item) {
+	for (const auto item : items) {
 		const auto media = item->media();
 		Assert(media != nullptr && media->canBeGrouped());
 
 		_parts.push_back(Part(item));
 		_parts.back().content = media->createView(_parent, item);
 	};
-	ranges::for_each(items, pushElement);
 	return true;
 }
 
