@@ -253,12 +253,38 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 					for (const auto &logBlock : history->blocks) {
 						QStringList debugItems;
 						for (const auto &logItem : logBlock->messages) {
-							debugItems.push_back(QString("%1,%2").arg(logItem->y()).arg(logItem->height()));
+							debugItems.push_back(QString("%1,%2"
+							).arg(logItem->y()
+							).arg(logItem->height()
+							));
 						}
-						debug.push_back(QString("b(%1,%2:%3)").arg(logBlock->y()).arg(logBlock->height()).arg(debugItems.join(';')));
+						debug.push_back(QString("b(%1,%2:%3)"
+						).arg(logBlock->y()
+						).arg(logBlock->height()
+						).arg(debugItems.join(';')
+						));
 					}
-					CrashReports::SetAnnotation("geometry", QString("height:%1 ").arg(history->height()) + debug.join(';'));
-					CrashReports::SetAnnotation("info", QString("block:%1(%2,%3), item:%4(%5,%6), limits:%7,%8").arg(blockIndex).arg(block->y()).arg(block->height()).arg(itemIndex).arg(view->y()).arg(view->height()).arg(_visibleAreaTop).arg(_visibleAreaBottom));
+					CrashReports::SetAnnotation(
+						"geometry",
+						QString("height:%1 "
+						).arg(history->height()
+						) + debug.join(';'));
+					CrashReports::SetAnnotation(
+						"info",
+						QString("block:%1(%2,%3), "
+							"item:%4(%5,%6), "
+							"limits:%7,%8, "
+							"has:%9"
+						).arg(blockIndex
+						).arg(block->y()
+						).arg(block->height()
+						).arg(itemIndex
+						).arg(view->y()
+						).arg(view->height()
+						).arg(_visibleAreaTop
+						).arg(_visibleAreaBottom
+						).arg(Logs::b(history->hasPendingResizedItems())
+						));
 					Unexpected("itembottom > _visibleAreaTop");
 				}
 				Assert(itembottom > _visibleAreaTop);

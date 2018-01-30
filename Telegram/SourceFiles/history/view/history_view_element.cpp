@@ -137,6 +137,9 @@ Element::Element(
 , _context(delegate->elementContext()) {
 	Auth().data().registerItemView(this);
 	refreshMedia();
+	if (_context == Context::History) {
+		_data->_history->setHasPendingResizedItems();
+	}
 }
 
 not_null<ElementDelegate*> Element::delegate() const {

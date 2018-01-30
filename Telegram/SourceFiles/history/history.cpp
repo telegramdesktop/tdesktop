@@ -1525,43 +1525,18 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 		return;
 	}
 
-	auto firstAdded = (HistoryItem*)nullptr;
-	auto lastAdded = (HistoryItem*)nullptr;
-
-	auto logged = QStringList();
-	logged.push_back(QString::number(minMsgId()));
-	logged.push_back(QString::number(maxMsgId()));
-
 	if (const auto added = createItems(slice); !added.empty()) {
-		auto minAdded = -1;
-		auto maxAdded = -1;
-
 		startBuildingFrontBlock(added.size());
 		for (const auto item : added) {
 			addItemToBlock(item);
-			if (minAdded < 0 || minAdded > item->id) {
-				minAdded = item->id;
-			}
-			if (maxAdded < 0 || maxAdded < item->id) {
-				maxAdded = item->id;
-			}
 		}
-		auto block = finishBuildingFrontBlock();
+		finishBuildingFrontBlock();
 
 		if (loadedAtBottom()) {
 			// Add photos to overview and authors to lastAuthors.
 			addItemsToLists(added);
 		}
-
-		logged.push_back(QString::number(minAdded));
-		logged.push_back(QString::number(maxAdded));
-		CrashReports::SetAnnotation(
-			"old_minmaxwas_minmaxadd",
-			logged.join(";"));
-
 		addToSharedMedia(added);
-
-		CrashReports::ClearAnnotation("old_minmaxwas_minmaxadd");
 	} else {
 		// If no items were added it means we've loaded everything old.
 		oldLoaded = true;
@@ -1588,32 +1563,11 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 	if (const auto added = createItems(slice); !added.empty()) {
 		Assert(!isBuildingFrontBlock());
 
-		auto logged = QStringList();
-		logged.push_back(QString::number(minMsgId()));
-		logged.push_back(QString::number(maxMsgId()));
-
-		auto minAdded = -1;
-		auto maxAdded = -1;
-
 		for (const auto item : added) {
 			addItemToBlock(item);
-			if (minAdded < 0 || minAdded > item->id) {
-				minAdded = item->id;
-			}
-			if (maxAdded < 0 || maxAdded < item->id) {
-				maxAdded = item->id;
-			}
 		}
 
-		logged.push_back(QString::number(minAdded));
-		logged.push_back(QString::number(maxAdded));
-		CrashReports::SetAnnotation(
-			"new_minmaxwas_minmaxadd",
-			logged.join(";"));
-
 		addToSharedMedia(added);
-
-		CrashReports::ClearAnnotation("new_minmaxwas_minmaxadd");
 	} else {
 		newLoaded = true;
 		setLastMessage(lastAvailableMessage());
@@ -2153,12 +2107,11 @@ void History::startBuildingFrontBlock(int expectedItemsCount) {
 	_buildingFrontBlock->expectedItemsCount = expectedItemsCount;
 }
 
-HistoryBlock *History::finishBuildingFrontBlock() {
-	Assert(isBuildingFrontBlock());
+void History::finishBuildingFrontBlock() {
+	Expects(isBuildingFrontBlock());
 
 	// Some checks if there was some message history already
-	auto block = _buildingFrontBlock->block;
-	if (block) {
+	if (const auto block = base::take(_buildingFrontBlock)->block) {
 		if (blocks.size() > 1) {
 			// ... item, item, item, last ], [ first, item, item ...
 			const auto last = block->messages.back().get();
@@ -2171,9 +2124,6 @@ HistoryBlock *History::finishBuildingFrontBlock() {
 			block->messages.back()->nextInBlocksRemoved();
 		}
 	}
-
-	_buildingFrontBlock = nullptr;
-	return block;
 }
 
 void History::clearNotifications() {

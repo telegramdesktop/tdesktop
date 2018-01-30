@@ -424,7 +424,7 @@ protected:
 	// Only when we scroll up and add a new slice to the
 	// front we want to create a new front block.
 	void startBuildingFrontBlock(int expectedItemsCount = 1);
-	HistoryBlock *finishBuildingFrontBlock(); // Returns the built block or nullptr if nothing was added.
+	void finishBuildingFrontBlock();
 	bool isBuildingFrontBlock() const {
 		return _buildingFrontBlock != nullptr;
 	}
