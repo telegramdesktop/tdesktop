@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 
 namespace Ui {
-class UserpicButton;
+class AbstractButton;
 class RoundButton;
 class IconButton;
 class DropdownMenu;
@@ -67,6 +67,7 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
+	void refreshInfoButton();
 	void refreshLang();
 	void updateControlsGeometry();
 	void selectedShowCallback();
@@ -107,7 +108,7 @@ private:
 
 	object_ptr<Ui::IconButton> _back;
 	object_ptr<Ui::UnreadBadge> _unreadBadge = { nullptr };
-	object_ptr<Ui::UserpicButton> _info = { nullptr };
+	object_ptr<Ui::AbstractButton> _info = { nullptr };
 
 	object_ptr<Ui::IconButton> _call;
 	object_ptr<Ui::IconButton> _search;

@@ -203,6 +203,8 @@ void Feed::setChannels(std::vector<not_null<ChannelData*>> channels) {
 		_channels.push_back(App::history(channel));
 	}
 	_channelsLoaded = true;
+
+	_parent->notifyFeedUpdated(this, FeedUpdateFlag::Channels);
 }
 
 bool Feed::justSetLastMessage(not_null<HistoryItem*> item) {

@@ -116,11 +116,13 @@ Widget::Widget(
 	rpl::single(
 		Data::FeedUpdate{ _feed, Data::FeedUpdateFlag::Channels }
 	) | rpl::then(
-		Auth().data().feedUpdated()
-	) | rpl::filter([=](const Data::FeedUpdate &update) {
-		return (update.feed == _feed);
-	}) | rpl::start_with_next([=](const Data::FeedUpdate &update) {
-		checkForSingleChannelFeed();
+		Auth().data().feedUpdated(
+		) | rpl::filter([=](const Data::FeedUpdate &update) {
+			return (update.feed == _feed)
+				&& (update.flag == Data::FeedUpdateFlag::Channels);
+		})
+	) | rpl::start_with_next([=] {
+		crl::on_main(this, [=] { checkForSingleChannelFeed(); });
 	}, lifetime());
 }
 

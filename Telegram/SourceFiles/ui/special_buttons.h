@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class PeerData;
 
+namespace Data {
+class Feed;
+} // namespace Data
+
 namespace Window {
 class Controller;
 } // namespace Window
@@ -215,6 +219,33 @@ private:
 	bool _cursorInChangeOverlay = false;
 	bool _changeOverlayEnabled = false;
 	Animation _changeOverlayShown;
+
+};
+
+class FeedUserpicButton : public AbstractButton {
+public:
+	FeedUserpicButton(
+		QWidget *parent,
+		not_null<Window::Controller*> controller,
+		not_null<Data::Feed*> feed,
+		const style::FeedUserpicButton &st);
+
+private:
+	struct Part {
+		not_null<ChannelData*> channel;
+		base::unique_qptr<UserpicButton> button;
+	};
+
+	void prepare();
+	void checkParts();
+	bool partsAreValid() const;
+	void refreshParts();
+	QPoint countInnerPosition() const;
+
+	const style::FeedUserpicButton &_st;
+	not_null<Window::Controller*> _controller;
+	not_null<Data::Feed*> _feed;
+	std::vector<Part> _parts;
 
 };
 

@@ -2203,6 +2203,11 @@ void MainWidget::ui_showPeerHistory(
 	}
 
 	updateControlsGeometry();
+
+	if (noPeer) {
+		_controller->setActiveChatEntry(Dialogs::Key());
+	}
+
 	if (onlyDialogs) {
 		_history->hide();
 		if (!_a_show.animating()) {
@@ -2248,10 +2253,6 @@ void MainWidget::ui_showPeerHistory(
 			}
 		}
 		_dialogs->update();
-	}
-
-	if (noPeer) {
-		_controller->setActiveChatEntry(Dialogs::Key());
 	}
 
 	checkFloatPlayerVisibility();

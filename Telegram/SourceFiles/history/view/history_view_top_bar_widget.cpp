@@ -355,22 +355,35 @@ void TopBarWidget::setActiveChat(Dialogs::Key chat) {
 		update();
 
 		updateUnreadBadge();
-		if (const auto peer = _activeChat.peer()) {
-			_info.create(
-				this,
-				_controller,
-				peer,
-				Ui::UserpicButton::Role::Custom,
-				st::topBarInfoButton);
-			_info->showSavedMessagesOnSelf(true);
-			_info->setAttribute(Qt::WA_TransparentForMouseEvents);
-		}
+		refreshInfoButton();
 		if (_menu) {
 			_menuToggle->removeEventFilter(_menu);
 			_menu->hideFast();
 		}
 		updateOnlineDisplay();
 		updateControlsVisibility();
+	}
+}
+
+void TopBarWidget::refreshInfoButton() {
+	if (const auto peer = _activeChat.peer()) {
+		auto info = object_ptr<Ui::UserpicButton>(
+			this,
+			_controller,
+			peer,
+			Ui::UserpicButton::Role::Custom,
+			st::topBarInfoButton);
+		info->showSavedMessagesOnSelf(true);
+		_info = std::move(info);
+	} else if (const auto feed = _activeChat.feed()) {
+		_info = object_ptr<Ui::FeedUserpicButton>(
+			this,
+			_controller,
+			feed,
+			st::topBarFeedInfoButton);
+	}
+	if (_info) {
+		_info->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
 }
 
