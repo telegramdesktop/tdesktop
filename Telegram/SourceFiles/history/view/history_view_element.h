@@ -136,6 +136,7 @@ public:
 	virtual int infoWidth() const;
 
 	bool isHiddenByGroup() const;
+	virtual bool isHidden() const;
 
 	// For blocks context this should be called only from recountAttachToPreviousInBlocks().
 	void setAttachToPrevious(bool attachToNext);

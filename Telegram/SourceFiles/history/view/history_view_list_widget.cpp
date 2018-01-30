@@ -925,7 +925,7 @@ void ListWidget::updateItemsGeometry() {
 	const auto first = [&] {
 		for (auto i = 0; i != count; ++i) {
 			const auto view = _items[i].get();
-			if (view->isHiddenByGroup()) {
+			if (view->isHidden()) {
 				view->setDisplayDate(false);
 			} else {
 				view->setDisplayDate(true);
@@ -1552,7 +1552,7 @@ void ListWidget::updateDragSelection(
 		}
 	};
 	const auto changeView = [&](not_null<Element*> view, bool add) {
-		if (!view->isHiddenByGroup()) {
+		if (!view->isHidden()) {
 			changeGroup(view->data(), add);
 		}
 	};
@@ -2065,7 +2065,7 @@ void ListWidget::refreshAttachmentsAtIndex(int index) {
 	const auto from = [&] {
 		if (index > 0) {
 			for (auto i = index - 1; i != 0; --i) {
-				if (!_items[i]->isHiddenByGroup()) {
+				if (!_items[i]->isHidden()) {
 					return i;
 				}
 			}
@@ -2075,7 +2075,7 @@ void ListWidget::refreshAttachmentsAtIndex(int index) {
 	const auto till = [&] {
 		const auto count = int(_items.size());
 		for (auto i = index + 1; i != count; ++i) {
-			if (!_items[i]->isHiddenByGroup()) {
+			if (!_items[i]->isHidden()) {
 				return i + 1;
 			}
 		}
@@ -2093,7 +2093,7 @@ void ListWidget::refreshAttachmentsFromTill(int from, int till) {
 	auto view = _items[from].get();
 	for (auto i = from + 1; i != till; ++i) {
 		const auto next = _items[i].get();
-		if (next->isHiddenByGroup()) {
+		if (next->isHidden()) {
 			next->setDisplayDate(false);
 		} else {
 			const auto viewDate = view->data()->date;

@@ -311,13 +311,17 @@ QRect Service::countGeometry() const {
 }
 
 QSize Service::performCountCurrentSize(int newWidth) {
-	const auto item = message();
-	const auto media = this->media();
-
 	auto newHeight = displayedDateHeight();
 	if (const auto bar = Get<UnreadBar>()) {
 		newHeight += bar->height();
 	}
+
+	if (isHidden()) {
+		return { newWidth, newHeight };
+	}
+
+	const auto item = message();
+	const auto media = this->media();
 
 	if (item->_text.isEmpty()) {
 		item->_textHeight = 0;
@@ -362,6 +366,13 @@ QSize Service::performCountOptimalSize() {
 	return { maxWidth, minHeight };
 }
 
+bool Service::isHidden() const {
+	if (context() == Context::Feed) {
+		return true;
+	}
+	return Element::isHidden();
+}
+
 void Service::draw(
 		Painter &p,
 		QRect clip,
@@ -390,6 +401,13 @@ void Service::draw(
 		p.translate(0, unreadbarh);
 		clip.translate(0, -unreadbarh);
 		height -= unreadbarh;
+	}
+
+	if (isHidden()) {
+		if (auto skiph = dateh + unreadbarh) {
+			p.translate(0, -skiph);
+		}
+		return;
 	}
 
 	auto fullAnimMs = App::main() ? App::main()->highlightStartTime(item) : 0LL;
@@ -441,7 +459,7 @@ PointState Service::pointState(QPoint point) const {
 	const auto media = this->media();
 
 	auto g = countGeometry();
-	if (g.width() < 1) {
+	if (g.width() < 1 || isHidden()) {
 		return PointState::Outside;
 	}
 
@@ -464,7 +482,7 @@ TextState Service::textState(QPoint point, StateRequest request) const {
 	auto result = TextState(item);
 
 	auto g = countGeometry();
-	if (g.width() < 1) {
+	if (g.width() < 1 || isHidden()) {
 		return result;
 	}
 

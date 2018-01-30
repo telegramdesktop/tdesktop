@@ -19,6 +19,7 @@ public:
 		not_null<ElementDelegate*> delegate,
 		not_null<HistoryService*> data);
 
+	bool isHidden() const override;
 	void draw(
 		Painter &p,
 		QRect clip,

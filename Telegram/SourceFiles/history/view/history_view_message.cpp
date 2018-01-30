@@ -347,17 +347,17 @@ void Message::draw(
 		QRect clip,
 		TextSelection selection,
 		TimeMs ms) const {
+	auto g = countGeometry();
+	if (g.width() < 1) {
+		return;
+	}
+
 	const auto item = message();
 	const auto media = this->media();
 
 	const auto outbg = hasOutLayout();
 	const auto bubble = drawBubble();
 	const auto selected = (selection == FullSelection);
-
-	auto g = countGeometry();
-	if (g.width() < 1) {
-		return;
-	}
 
 	auto dateh = 0;
 	if (const auto date = Get<DateBadge>()) {
@@ -370,6 +370,10 @@ void Message::draw(
 			bar->paint(p, 0, width());
 			p.translate(0, -dateh);
 		}
+	}
+
+	if (isHidden()) {
+		return;
 	}
 
 	auto fullAnimMs = App::main() ? App::main()->highlightStartTime(item) : 0LL;
@@ -609,7 +613,7 @@ void Message::paintText(Painter &p, QRect &trect, TextSelection selection) const
 
 PointState Message::pointState(QPoint point) const {
 	const auto g = countGeometry();
-	if (g.width() < 1) {
+	if (g.width() < 1 || isHidden()) {
 		return PointState::Outside;
 	}
 
@@ -664,7 +668,7 @@ bool Message::displayFromPhoto() const {
 }
 
 bool Message::hasFromPhoto() const {
-	if (isHiddenByGroup()) {
+	if (isHidden()) {
 		return false;
 	}
 	switch (context()) {
@@ -695,7 +699,7 @@ TextState Message::textState(
 	auto result = TextState(item);
 
 	auto g = countGeometry();
-	if (g.width() < 1) {
+	if (g.width() < 1 || isHidden()) {
 		return result;
 	}
 
@@ -1289,7 +1293,7 @@ bool Message::hasOutLayout() const {
 
 bool Message::drawBubble() const {
 	const auto item = message();
-	if (isHiddenByGroup()) {
+	if (isHidden()) {
 		return false;
 	} else if (logEntryOriginal()) {
 		return true;
@@ -1532,7 +1536,7 @@ QRect Message::countGeometry() const {
 }
 
 int Message::resizeContentGetHeight(int newWidth) {
-	if (isHiddenByGroup()) {
+	if (isHidden()) {
 		return marginTop() + marginBottom();
 	} else if (newWidth < st::msgMinWidth) {
 		return height();

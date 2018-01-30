@@ -169,7 +169,7 @@ void Element::setY(int y) {
 int Element::marginTop() const {
 	const auto item = data();
 	auto result = 0;
-	if (!isHiddenByGroup()) {
+	if (!isHidden()) {
 		if (isAttachedToPrevious()) {
 			result += st::msgMarginTopAttached;
 		} else {
@@ -185,7 +185,7 @@ int Element::marginTop() const {
 
 int Element::marginBottom() const {
 	const auto item = data();
-	return isHiddenByGroup() ? 0 : st::msgMargin.bottom();
+	return isHidden() ? 0 : st::msgMargin.bottom();
 }
 
 bool Element::isUnderCursor() const {
@@ -229,6 +229,10 @@ int Element::infoWidth() const {
 
 bool Element::isHiddenByGroup() const {
 	return _flags & Flag::HiddenByGroup;
+}
+
+bool Element::isHidden() const {
+	return isHiddenByGroup();
 }
 
 void Element::refreshMedia() {
