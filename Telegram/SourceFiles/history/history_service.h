@@ -63,12 +63,12 @@ public:
 		not_null<History*> history,
 		const MTPDmessageService &message);
 	HistoryService(
-		not_null<History*> history, 
+		not_null<History*> history,
 		MsgId msgId,
-		QDateTime date, 
-		const PreparedText &message, 
-		MTPDmessage::Flags flags = 0, 
-		UserId from = 0, 
+		QDateTime date,
+		const PreparedText &message,
+		MTPDmessage::Flags flags = 0,
+		UserId from = 0,
 		PhotoData *photo = nullptr);
 
 	bool updateDependencyItem() override;
@@ -151,17 +151,8 @@ private:
 
 };
 
-class HistoryJoined : public HistoryService {
-public:
-	HistoryJoined(
-		not_null<History*> history,
-		const QDateTime &inviteDate,
-		not_null<UserData*> inviter,
-		MTPDmessage::Flags flags);
-
-private:
-	static PreparedText GenerateText(
-		not_null<History*> history,
-		not_null<UserData*> inviter);
-
-};
+HistoryService *GenerateJoinedMessage(
+	not_null<History*> history,
+	const QDateTime &inviteDate,
+	not_null<UserData*> inviter,
+	MTPDmessage::Flags flags);

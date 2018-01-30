@@ -641,23 +641,37 @@ HistoryService::~HistoryService() {
 	_media.reset();
 }
 
-HistoryJoined::HistoryJoined(not_null<History*> history, const QDateTime &inviteDate, not_null<UserData*> inviter, MTPDmessage::Flags flags)
-	: HistoryService(history, clientMsgId(), inviteDate, GenerateText(history, inviter), flags) {
+HistoryService::PreparedText GenerateJoinedText(
+		not_null<History*> history,
+		not_null<UserData*> inviter) {
+	if (inviter->id != Auth().userPeerId()) {
+		auto result = HistoryService::PreparedText{};
+		result.links.push_back(inviter->createOpenLink());
+		result.text = (history->isMegagroup()
+			? lng_action_add_you_group
+			: lng_action_add_you)(lt_from, textcmdLink(1, inviter->name));
+		return result;
+	} else if (history->isMegagroup()) {
+		auto self = App::user(Auth().userPeerId());
+		auto result = HistoryService::PreparedText{};
+		result.links.push_back(self->createOpenLink());
+		result.text = lng_action_user_joined(
+			lt_from,
+			textcmdLink(1, self->name));
+		return result;
+	}
+	return { lang(lng_action_you_joined) };
 }
 
-HistoryJoined::PreparedText HistoryJoined::GenerateText(not_null<History*> history, not_null<UserData*> inviter) {
-	if (inviter->id == Auth().userPeerId()) {
-		if (history->isMegagroup()) {
-			auto self = App::user(Auth().userPeerId());
-			auto result = PreparedText {};
-			result.links.push_back(self->createOpenLink());
-			result.text = lng_action_user_joined(lt_from, textcmdLink(1, self->name));
-			return result;
-		}
-		return { lang(lng_action_you_joined) };
-	}
-	auto result = PreparedText {};
-	result.links.push_back(inviter->createOpenLink());
-	result.text = (history->isMegagroup() ? lng_action_add_you_group : lng_action_add_you)(lt_from, textcmdLink(1, inviter->name));
-	return result;
+HistoryService *GenerateJoinedMessage(
+		not_null<History*> history,
+		const QDateTime &inviteDate,
+		not_null<UserData*> inviter,
+		MTPDmessage::Flags flags) {
+	return new HistoryService(
+		history,
+		clientMsgId(),
+		inviteDate,
+		GenerateJoinedText(history, inviter),
+		flags);
 }

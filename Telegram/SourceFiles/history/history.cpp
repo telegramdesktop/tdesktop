@@ -423,7 +423,7 @@ void ChannelHistory::getRangeDifferenceNext(int32 pts) {
 	_rangeDifferenceRequestId = MTP::send(MTPupdates_GetChannelDifference(MTP_flags(flags), peer->asChannel()->inputChannel, filter, MTP_int(pts), MTP_int(limit)), App::main()->rpcDone(&MainWidget::gotRangeDifference, peer->asChannel()));
 }
 
-HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
+HistoryService *ChannelHistory::insertJoinedMessage(bool unread) {
 	if (_joinedMessage
 		|| !peer->asChannel()->amIn()
 		|| (peer->isMegagroup()
@@ -434,7 +434,9 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 	const auto inviter = (peer->asChannel()->inviter > 0)
 		? App::userLoaded(peer->asChannel()->inviter)
 		: nullptr;
-	if (!inviter) return nullptr;
+	if (!inviter) {
+		return nullptr;
+	}
 
 	MTPDmessage::Flags flags = 0;
 	if (inviter->id == Auth().userPeerId()) {
@@ -446,7 +448,11 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 	auto inviteDate = peer->asChannel()->inviteDate;
 	if (unread) _maxReadMessageDate = inviteDate;
 	if (isEmpty()) {
-		_joinedMessage = new HistoryJoined(this, inviteDate, inviter, flags);
+		_joinedMessage = GenerateJoinedMessage(
+			this,
+			inviteDate,
+			inviter,
+			flags);
 		addNewItem(_joinedMessage, unread);
 		return _joinedMessage;
 	}
@@ -459,13 +465,15 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 			// Due to a server bug sometimes inviteDate is less (before) than the
 			// first message in the megagroup (message about migration), let us
 			// ignore that and think, that the inviteDate is always greater-or-equal.
-			if (item->isGroupMigrate() && peer->isMegagroup() && peer->migrateFrom()) {
+			if (item->isGroupMigrate()
+				&& peer->isMegagroup()
+				&& peer->migrateFrom()) {
 				peer->asChannel()->mgInfo->joinedMessageFound = true;
 				return nullptr;
 			}
 			if (item->date <= inviteDate) {
 				++itemIndex;
-				_joinedMessage = new HistoryJoined(
+				_joinedMessage = GenerateJoinedMessage(
 					this,
 					inviteDate,
 					inviter,
@@ -484,10 +492,12 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 	}
 
 	startBuildingFrontBlock();
-
-	_joinedMessage = new HistoryJoined(this, inviteDate, inviter, flags);
+	_joinedMessage = GenerateJoinedMessage(
+		this,
+		inviteDate,
+		inviter,
+		flags);
 	addItemToBlock(_joinedMessage);
-
 	finishBuildingFrontBlock();
 
 	return _joinedMessage;

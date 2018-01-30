@@ -18,6 +18,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 
 class History;
+class ChannelHistory;
+class HistoryBlock;
+class HistoryItem;
+class HistoryMessage;
+class HistoryService;
+class HistoryMedia;
+
+namespace Data {
+struct Draft;
+} // namespace Data
+
+namespace Dialogs {
+class Row;
+class IndexedList;
+} // namespace Dialogs
 
 namespace HistoryView {
 class Element;
@@ -108,26 +123,11 @@ private:
 
 };
 
-class HistoryBlock;
-
-namespace Data {
-struct Draft;
-} // namespace Data
-
-class HistoryMedia;
-class HistoryMessage;
-
 enum class UnreadMentionType {
 	New, // when new message is added to history
 	Existing, // when some messages slice was received
 };
 
-namespace Dialogs {
-class Row;
-class IndexedList;
-} // namespace Dialogs
-
-class ChannelHistory;
 class History : public Dialogs::Entry {
 public:
 	using Element = HistoryView::Element;
@@ -517,7 +517,6 @@ private:
 
  };
 
-class HistoryJoined;
 class ChannelHistory : public History {
 public:
 	using History::History;
@@ -527,7 +526,7 @@ public:
 	void getRangeDifference();
 	void getRangeDifferenceNext(int32 pts);
 
-	HistoryJoined *insertJoinedMessage(bool unread);
+	HistoryService *insertJoinedMessage(bool unread);
 	void checkJoinedMessage(bool createUnread = false);
 	const QDateTime &maxReadMessageDate();
 
@@ -541,7 +540,7 @@ private:
 
 	QDateTime _maxReadMessageDate;
 
-	HistoryJoined *_joinedMessage = nullptr;
+	HistoryService *_joinedMessage = nullptr;
 
 	MsgId _rangeDifferenceFromId, _rangeDifferenceToId;
 	int32 _rangeDifferencePts;
