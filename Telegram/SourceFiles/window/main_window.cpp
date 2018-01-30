@@ -48,7 +48,7 @@ MainWindow::MainWindow() : QWidget()
 , _positionUpdatedTimer(this)
 , _body(this)
 , _icon(CreateIcon())
-, _titleText(qsl("Telegram")) {
+, _titleText(qsl("Telegreat")) {
 	subscribe(Theme::Background(), [this](const Theme::BackgroundUpdate &data) {
 		if (data.paletteChanged()) {
 			if (_title) {
@@ -274,7 +274,7 @@ void MainWindow::updateUnreadCounter() {
 	if (!Global::started() || App::quitting()) return;
 
 	auto counter = App::histories().unreadBadge();
-	_titleText = (counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram");
+	_titleText = (counter > 0) ? qsl("Telegreat (%1)").arg(counter) : qsl("Telegreat");
 
 	unreadCounterChangedHook();
 }

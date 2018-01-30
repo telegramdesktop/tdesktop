@@ -46,7 +46,6 @@ namespace {
 
 	UserData *self = nullptr;
 
-	using PeersData = QHash<PeerId, PeerData*>;
 	PeersData peersData;
 
 	using MutedPeers = QMap<not_null<PeerData*>, bool>;
@@ -1327,8 +1326,8 @@ namespace {
 	PeerData *peer(const PeerId &id, PeerData::LoadedStatus restriction) {
 		if (!id) return nullptr;
 
-		auto i = peersData.constFind(id);
-		if (i == peersData.cend()) {
+		auto i = ::peersData.constFind(id);
+		if (i == ::peersData.cend()) {
 			PeerData *newData = nullptr;
 			if (peerIsUser(id)) {
 				newData = new UserData(id);
@@ -1340,7 +1339,7 @@ namespace {
 			Assert(newData != nullptr);
 
 			newData->input = MTPinputPeer(MTP_inputPeerEmpty());
-			i = peersData.insert(id, newData);
+			i = ::peersData.insert(id, newData);
 		}
 		switch (restriction) {
 		case PeerData::MinimalLoaded: {
@@ -1358,7 +1357,7 @@ namespace {
 	}
 
 	void enumerateUsers(base::lambda<void(UserData*)> action) {
-		for_const (auto peer, peersData) {
+		for_const (auto peer, ::peersData) {
 			if (auto user = peer->asUser()) {
 				action(user);
 			}
@@ -1371,7 +1370,7 @@ namespace {
 
 	PeerData *peerByName(const QString &username) {
 		QString uname(username.trimmed());
-		for_const (PeerData *peer, peersData) {
+		for_const (PeerData *peer, ::peersData) {
 			if (!peer->userName().compare(uname, Qt::CaseInsensitive)) {
 				return peer;
 			}
@@ -2397,6 +2396,10 @@ namespace {
 
 	void unregDocumentItem(DocumentData *data, HistoryItem *item) {
 		::documentItems[data].remove(item);
+	}
+
+	const PeersData &peersData() {
+		return ::peersData;
 	}
 
 	const DocumentItems &documentItems() {

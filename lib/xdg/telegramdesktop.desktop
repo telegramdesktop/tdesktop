@@ -1,11 +1,11 @@
 [Desktop Entry]
 Version=1.0
-Name=Telegram Desktop
-Comment=Official desktop version of Telegram messaging app
-Exec=telegram-desktop -- %u
-Icon=telegram
+Name=Telegreat
+Comment=Make Telegram Great Again
+Exec=telegreat -- %u
+Icon=telegreat
 Terminal=false
-StartupWMClass=TelegramDesktop
+StartupWMClass=Telegreat
 Type=Application
 Categories=Network;InstantMessaging;Qt;
 MimeType=x-scheme-handler/tg;

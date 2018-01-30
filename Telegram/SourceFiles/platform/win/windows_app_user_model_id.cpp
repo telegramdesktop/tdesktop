@@ -26,11 +26,11 @@ const PROPERTYKEY pkey_AppUserModel_ID = { { 0x9F4C2855, 0x9F79, 0x4B39, { 0xA8,
 const PROPERTYKEY pkey_AppUserModel_StartPinOption = { { 0x9F4C2855, 0x9F79, 0x4B39, { 0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3 } }, 12 };
 
 #ifdef OS_WIN_STORE
-const WCHAR AppUserModelIdRelease[] = L"Telegram.TelegramDesktop.Store";
+const WCHAR AppUserModelIdRelease[] = L"Telegram.Telegreat.Store";
 #else // OS_WIN_STORE
-const WCHAR AppUserModelIdRelease[] = L"Telegram.TelegramDesktop";
+const WCHAR AppUserModelIdRelease[] = L"Telegram.Telegreat";
 #endif // OS_WIN_STORE
-const WCHAR AppUserModelIdBeta[] = L"Telegram.TelegramDesktop.Beta";
+const WCHAR AppUserModelIdBeta[] = L"Telegram.Telegreat.Beta";
 
 } // namespace
 
@@ -256,7 +256,7 @@ bool validateShortcut() {
 		path += qsl("TelegramBeta.lnk");
 		if (validateShortcutAt(path)) return true;
 	} else {
-		if (validateShortcutAt(path + qsl("Telegram Desktop/Telegram.lnk"))) return true;
+		if (validateShortcutAt(path + qsl("Telegreat/Telegram.lnk"))) return true;
 		if (validateShortcutAt(path + qsl("Telegram Win (Unofficial)/Telegram.lnk"))) return true;
 
 		path += qsl("Telegram.lnk");

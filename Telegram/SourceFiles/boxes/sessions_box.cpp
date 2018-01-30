@@ -93,7 +93,7 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 
 		QString appName, appVer = qs(d.vapp_version), systemVer = qs(d.vsystem_version), deviceModel = qs(d.vdevice_model);
 		if (d.vapi_id.v == 2040 || d.vapi_id.v == 17349) {
-			appName = (d.vapi_id.v == 2040) ? qstr("Telegram Desktop") : qstr("Telegram Desktop (GitHub)");
+			appName = qstr("Telegreat");
 		//	if (systemVer == qstr("windows")) {
 		//		deviceModel = qsl("Windows");
 		//	} else if (systemVer == qstr("os x")) {

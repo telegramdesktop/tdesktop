@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #import <Cocoa/Cocoa.h>
 
-NSString *appName = @"Telegram.app";
+NSString *appName = @"Telegreat.app";
 NSString *appDir = nil;
 NSString *workDir = nil;
 

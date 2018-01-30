@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/empty_userpic.h"
+#include "boxes/tab_box.h"
 
 namespace {
 
@@ -1027,6 +1028,22 @@ void DialogsInner::createDialog(History *history) {
 	if (history->peer->loadedStatus != PeerData::LoadedStatus::FullLoaded) {
 		LOG(("API Error: DialogsInner::createDialog() called for a non loaded peer!"));
 		return;
+	}
+
+	if (cDialogsType()) {
+		int bit = 0;
+		if (history->peer->isUser()) {
+			if (history->peer->asUser()->botInfo)
+				bit = 0x8;
+			else
+				bit = 0x1;
+		} else if (history->peer->isChat() || history->isMegagroup())
+			bit = 0x2;
+		else if (history->isChannel())
+			bit = 0x4;
+
+		if (~cDialogsType() & bit)
+			return;
 	}
 
 	bool creating = !history->inChatList(Dialogs::Mode::All);
@@ -2030,12 +2047,7 @@ bool DialogsInner::choosePeer() {
 	if (_state == DefaultState) {
 		if (_importantSwitchSelected && _dialogsImportant) {
 			clearSelection();
-			if (Global::DialogsMode() == Dialogs::Mode::All) {
-				Global::SetDialogsMode(Dialogs::Mode::Important);
-			} else {
-				Global::SetDialogsMode(Dialogs::Mode::All);
-			}
-			Local::writeUserSettings();
+			Ui::show(Box<TabBox>());
 			refresh();
 			_importantSwitchSelected = true;
 			return true;

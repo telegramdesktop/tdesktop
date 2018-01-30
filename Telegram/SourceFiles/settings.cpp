@@ -102,3 +102,10 @@ int32 gAutoDownloadPhoto = 0; // all auto download
 int32 gAutoDownloadAudio = 0;
 int32 gAutoDownloadGif = 0;
 bool gAutoPlayGif = true;
+
+bool gShowCallbackData = false;
+bool gShowUsername = true;
+bool gIgnoreBlocked = true;
+bool gTagMention = true;
+int gDialogsType = 0;
+int gTyping = 0x131;

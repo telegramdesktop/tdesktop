@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_info_widget.h"
 #include "settings/settings_notifications_widget.h"
 #include "settings/settings_general_widget.h"
+#include "settings/settings_great_widget.h"
 #include "settings/settings_chat_settings_widget.h"
 #include "settings/settings_scale_widget.h"
 #include "settings/settings_background_widget.h"
@@ -52,6 +53,9 @@ void InnerWidget::refreshBlocks() {
 		_blocks->add(object_ptr<NotificationsWidget>(this, _self));
 	}
 	_blocks->add(object_ptr<GeneralWidget>(this, _self));
+	if (_self) {
+		_blocks->add(object_ptr<GreatWidget>(this, _self));
+	}
 	if (!cRetina()) {
 		_blocks->add(object_ptr<ScaleWidget>(this, _self));
 	}

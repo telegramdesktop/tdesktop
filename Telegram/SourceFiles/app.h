@@ -24,6 +24,7 @@ using GameItems = QHash<GameData*, HistoryItemsMap>;
 using SharedContactItems = QHash<int32, HistoryItemsMap>;
 using GifItems = QHash<Media::Clip::Reader*, HistoryItem*>;
 
+using PeersData = QHash<PeerId, PeerData*>;
 using PhotosData = QHash<PhotoId, PhotoData*>;
 using DocumentsData = QHash<DocumentId, DocumentData*>;
 
@@ -257,6 +258,7 @@ namespace App {
 
 	void regDocumentItem(DocumentData *data, HistoryItem *item);
 	void unregDocumentItem(DocumentData *data, HistoryItem *item);
+	const PeersData &peersData();
 	const DocumentItems &documentItems();
 	const DocumentsData &documentsData();
 

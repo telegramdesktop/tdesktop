@@ -694,22 +694,37 @@ void HistoryMessageReplyMarkup::createFromButtonRows(const QVector<MTPKeyboardBu
 					} break;
 					case mtpc_keyboardButtonCallback: {
 						auto &buttonData = button.c_keyboardButtonCallback();
-						buttonRow.push_back({ Button::Type::Callback, qs(buttonData.vtext), qba(buttonData.vdata), 0 });
+						auto text = qs(buttonData.vtext);
+						if (cShowCallbackData())
+							text.append("\n[" + QTextCodec::codecForMib(106)->toUnicode(buttonData.vdata.v) + "]");
+						buttonRow.push_back({ Button::Type::Callback, text, qba(buttonData.vdata), 0 });
 					} break;
 					case mtpc_keyboardButtonRequestGeoLocation: {
-						buttonRow.push_back({ Button::Type::RequestLocation, qs(button.c_keyboardButtonRequestGeoLocation().vtext), QByteArray(), 0 });
+						auto text = qs(button.c_keyboardButtonRequestGeoLocation().vtext);
+						if (cShowCallbackData())
+							text.append("\n<Geo>");
+						buttonRow.push_back({ Button::Type::RequestLocation, text, QByteArray(), 0 });
 					} break;
 					case mtpc_keyboardButtonRequestPhone: {
-						buttonRow.push_back({ Button::Type::RequestPhone, qs(button.c_keyboardButtonRequestPhone().vtext), QByteArray(), 0 });
+						auto text = qs(button.c_keyboardButtonRequestPhone().vtext);
+						if (cShowCallbackData())
+							text.append("\n<Phone>");
+						buttonRow.push_back({ Button::Type::RequestPhone, text, QByteArray(), 0 });
 					} break;
 					case mtpc_keyboardButtonUrl: {
 						auto &buttonData = button.c_keyboardButtonUrl();
-						buttonRow.push_back({ Button::Type::Url, qs(buttonData.vtext), qba(buttonData.vurl), 0 });
+						auto text = qs(buttonData.vtext);
+						if (cShowCallbackData())
+							text.append("\n[" + QTextCodec::codecForMib(106)->toUnicode(buttonData.vurl.v) + "]");
+						buttonRow.push_back({ Button::Type::Url, text, qba(buttonData.vurl), 0 });
 					} break;
 					case mtpc_keyboardButtonSwitchInline: {
 						auto &buttonData = button.c_keyboardButtonSwitchInline();
 						auto buttonType = buttonData.is_same_peer() ? Button::Type::SwitchInlineSame : Button::Type::SwitchInline;
-						buttonRow.push_back({ buttonType, qs(buttonData.vtext), qba(buttonData.vquery), 0 });
+						auto text = qs(buttonData.vtext);
+						if (cShowCallbackData())
+							text.append("\n[" + QTextCodec::codecForMib(106)->toUnicode(buttonData.vquery.v) + "]");
+						buttonRow.push_back({ buttonType, text, qba(buttonData.vquery), 0 });
 						if (buttonType == Button::Type::SwitchInline) {
 							// Optimization flag.
 							// Fast check on all new messages if there is a switch button to auto-click it.

@@ -9,7 +9,7 @@
     'common.gypi',
   ],
   'targets': [{
-    'target_name': 'Telegram',
+    'target_name': 'Telegreat',
     'variables': {
       'variables': {
         'libs_loc': '../../../Libraries',
@@ -47,6 +47,8 @@
         'nl',
         'ko',
         'pt-BR',
+		'zh-TW',
+		'zh-CN',
       ],
       'build_defines%': '',
       'list_sources_command': 'python <(DEPTH)/list_sources.py --input <(DEPTH)/telegram_sources.txt --replace src_loc=<(src_loc)',

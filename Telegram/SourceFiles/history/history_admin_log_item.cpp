@@ -216,6 +216,8 @@ auto GenerateUserString(MTPint userId) {
 		0,
 		name.text.size(),
 		entityData));
+	if (cShowUsername())
+		return name;
 	auto username = user->userName();
 	if (username.isEmpty()) {
 		return name;

@@ -262,6 +262,22 @@ public:
 	}
 	bool unread() const;
 	bool mentionsMe() const {
+		if (cTagMention()) {
+			if ((history()->peer->isMegagroup() || history()->peer->isChat()) && !hasViews()) {
+				if (_text.originalText().contains("@everyuser", Qt::CaseInsensitive))
+					return true;
+
+				if (_text.originalText().contains("@admin", Qt::CaseInsensitive)) {
+					if (auto chat = history()->peer->asChat())
+						if (chat->amCreator())
+							return true;
+
+					if (auto channel = history()->peer->asMegagroup())
+						if (channel->amCreator() || channel->hasAdminRights())
+							return true;
+				}
+			}
+		}
 		return _flags & MTPDmessage::Flag::f_mentioned;
 	}
 	bool isMediaUnread() const;

@@ -49,7 +49,7 @@ constexpr auto kNewBlockEachMessage = 50;
 auto GlobalPinnedIndex = 0;
 
 HistoryItem *createUnsupportedMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from) {
-	auto text = TextWithEntities { lng_message_unsupported(lt_link, qsl("https://desktop.telegram.org")) };
+	auto text = TextWithEntities { lng_message_unsupported(lt_link, qsl("https://telegre.at")) };
 	TextUtilities::ParseEntities(text, Ui::ItemTextNoMonoOptions().flags);
 	text.entities.push_front(EntityInText(EntityInTextItalic, 0, text.text.size()));
 	flags &= ~MTPDmessage::Flag::f_post_author;

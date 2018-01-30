@@ -276,6 +276,7 @@ void Filler::addUserActions(not_null<UserData*> user) {
 				lang(lng_profile_invite_to_group),
 				[user] { AddBotToGroupBoxController::Start(user); });
 		}
+		_addAction(QString("Go to first message"), GoToFirstMessageHandler(user));
 	}
 	_addAction(
 		lang(lng_profile_delete_conversation),
@@ -350,6 +351,7 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 				Ui::show(Box<ReportBox>(channel));
 			});
 		}
+		_addAction(QString("Go to first message"), GoToFirstMessageHandler(channel));
 	}
 }
 
@@ -581,6 +583,13 @@ base::lambda<void()> DeleteAndLeaveHandler(not_null<PeerData*> peer) {
 				confirmStyle,
 				std::move(callback)),
 			LayerOption::KeepOther);
+	};
+}
+
+base::lambda<void()> GoToFirstMessageHandler(not_null<PeerData*> peer) {
+	return [peer] {
+		MsgId msgId = 1;
+		App::main()->ui_showPeerHistory(peer->id, Window::SectionShow::Way::ClearStack, msgId);
 	};
 }
 

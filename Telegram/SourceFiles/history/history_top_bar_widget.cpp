@@ -650,7 +650,7 @@ void HistoryTopBarWidget::updateOnlineDisplay() {
 			}
 		}
 	} else if (auto channel = _historyPeer->asChannel()) {
-		if (channel->isMegagroup() && channel->membersCount() > 0 && channel->membersCount() <= Global::ChatSizeMax()) {
+		if (channel->isMegagroup() && channel->membersCount() > 0) {
 			if (channel->mgInfo->lastParticipants.empty() || channel->lastParticipantsCountOutdated()) {
 				Auth().api().requestLastParticipants(channel);
 			}
@@ -665,8 +665,12 @@ void HistoryTopBarWidget::updateOnlineDisplay() {
 				}
 			}
 			if (online && !onlyMe) {
+				QString onlineCount;
+				if (channel->membersCount() > Global::ChatSizeMax())
+					onlineCount = QString("%1+ online").arg(online);
+				else
+					onlineCount = lng_chat_status_online(lt_count, online);
 				auto membersCount = lng_chat_status_members(lt_count, channel->membersCount());
-				auto onlineCount = lng_chat_status_online(lt_count, online);
 				text = lng_chat_status_members_online(lt_members_count, membersCount, lt_online_count, onlineCount);
 			} else if (channel->membersCount() > 0) {
 				text = lng_chat_status_members(lt_count, channel->membersCount());

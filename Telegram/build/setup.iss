@@ -1,9 +1,9 @@
-#define MyAppShortName "Telegram"
-#define MyAppName "Telegram Desktop"
-#define MyAppPublisher "Telegram Messenger LLP"
-#define MyAppURL "https://tdesktop.com"
-#define MyAppExeName "Telegram.exe"
-#define MyAppId "53F49750-6209-4FBF-9CA8-7A333C87D1ED"
+#define MyAppShortName "Telegreat"
+#define MyAppName "Telegreat"
+#define MyAppPublisher "Sean"
+#define MyAppURL "https://telegre.at"
+#define MyAppExeName "Telegreat.exe"
+#define MyAppId "53F49750-5EA2-5EA2-5EA2-7A333C87D1ED"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
@@ -22,7 +22,7 @@ AllowNoIcons=yes
 OutputDir={#ReleasePath}
 OutputBaseFilename=tsetup.{#MyAppVersionFull}
 SetupIconFile={#SourcePath}..\Resources\art\icon256.ico
-UninstallDisplayIcon={app}\Telegram.exe
+UninstallDisplayIcon={app}\Telegreat.exe
 Compression=lzma
 SolidCompression=yes
 DisableStartupPrompt=yes
@@ -34,18 +34,43 @@ DisableProgramGroupPage=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
+Name: "zh_TW"; MessagesFile: "compiler:Languages\ChineseTraditional.isl"
+Name: "zh_CN"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
 Name: "it"; MessagesFile: "compiler:Languages\Italian.isl"
 Name: "es"; MessagesFile: "compiler:Languages\Spanish.isl"
 Name: "de"; MessagesFile: "compiler:Languages\German.isl"
 Name: "nl"; MessagesFile: "compiler:Languages\Dutch.isl"
 Name: "pt_BR"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
+Name: "Japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
+Name: "German"; MessagesFile: "compiler:Languages\German.isl"
+Name: "Russian"; MessagesFile: "compiler:Languages\Russian.isl"
+Name: "Ukrainian"; MessagesFile: "compiler:Languages\Ukrainian.isl"
+Name: "Armenian"; MessagesFile: "compiler:Languages\Armenian.islu"
+Name: "Corsican"; MessagesFile: "compiler:Languages\Corsican.isl"
+Name: "French"; MessagesFile: "compiler:Languages\French.isl"
+Name: "Portuguese"; MessagesFile: "compiler:Languages\Portuguese.isl"
+Name: "Slovenian"; MessagesFile: "compiler:Languages\Slovenian.isl"
+Name: "Czech"; MessagesFile: "compiler:Languages\Czech.isl"
+Name: "Catalan"; MessagesFile: "compiler:Languages\Catalan.isl"
+Name: "Danish"; MessagesFile: "compiler:Languages\Danish.isl"
+Name: "Greek"; MessagesFile: "compiler:Languages\Greek.isl"
+Name: "Nepali"; MessagesFile: "compiler:Languages\Nepali.islu"
+Name: "ScottishGaelic"; MessagesFile: "compiler:Languages\ScottishGaelic.isl"
+Name: "Turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
+Name: "Hebrew"; MessagesFile: "compiler:Languages\Hebrew.isl"
+Name: "Norwegian"; MessagesFile: "compiler:Languages\Norwegian.isl"
+Name: "SerbianCyrillic"; MessagesFile: "compiler:Languages\SerbianCyrillic.isl"
+Name: "Finnish"; MessagesFile: "compiler:Languages\Finnish.isl"
+Name: "Hungarian"; MessagesFile: "compiler:Languages\Hungarian.isl"
+Name: "Polish"; MessagesFile: "compiler:Languages\Polish.isl"
+Name: "SerbianLatin"; MessagesFile: "compiler:Languages\SerbianLatin.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; OnlyBelowVersion: 0,6.1
 
 [Files]
-Source: "{#ReleasePath}\Telegram.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#ReleasePath}\Telegreat.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#ReleasePath}\Updater.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 

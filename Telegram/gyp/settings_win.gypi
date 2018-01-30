@@ -29,6 +29,8 @@
             '/MP',     # Enable multi process build.
             '/EHsc',   # Catch C++ exceptions only, extern C functions never throw a C++ exception.
             '/w14834', # [[nodiscard]]
+            '/utf-8',
+            '/Zm2000',
           ],
           'TreatWChar_tAsBuiltInType': 'false',
         },
@@ -69,15 +71,32 @@
       'configurations': {
         'Debug': {
           'msvs_settings': {
-            'VCCLCompilerTool': {
-              'Optimization': '0',                # Disabled (/Od)
-              'RuntimeLibrary': '1',              # Multi-threaded Debug (/MTd)
+#            'VCCLCompilerTool': {
+#              'Optimization': '0',                # Disabled (/Od)
+#              'RuntimeLibrary': '1',              # Multi-threaded Debug (/MTd)
+#            },
+#            'VCLinkerTool': {
+#              'GenerateDebugInformation': 'true', # true (/DEBUG)
+#              'IgnoreDefaultLibraryNames': 'LIBCMT',
+#              'LinkIncremental': '2',             # Yes (/INCREMENTAL)
+#            },
+            'VCCLCompilerTool': {   # BEGIN of Release Config
+              'Optimization': '2',                 # Maximize Speed (/O2)
+              'InlineFunctionExpansion': '2',      # Any suitable (/Ob2)
+              'EnableIntrinsicFunctions': 'true',  # Yes (/Oi)
+              'FavorSizeOrSpeed': '1',             # Favor fast code (/Ot)
+              'RuntimeLibrary': '0',               # Multi-threaded (/MT)
+              'EnableEnhancedInstructionSet': '2', # Streaming SIMD Extensions 2 (/arch:SSE2)
+              'WholeProgramOptimization': 'true',  # /GL
             },
             'VCLinkerTool': {
-              'GenerateDebugInformation': 'true', # true (/DEBUG)
-              'IgnoreDefaultLibraryNames': 'LIBCMT',
-              'LinkIncremental': '2',             # Yes (/INCREMENTAL)
+              'GenerateDebugInformation': 'true',  # /DEBUG
+              'OptimizeReferences': '2',
+              'LinkTimeCodeGeneration': '1',       # /LTCG
             },
+            'VCLibrarianTool': {
+              'LinkTimeCodeGeneration': 'true',    # /LTCG
+            },   # END of Release Config
           },
         },
         'Release': {

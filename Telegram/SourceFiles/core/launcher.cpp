@@ -29,7 +29,7 @@ void Launcher::init() {
 
 	prepareSettings();
 
-	QCoreApplication::setApplicationName(qsl("TelegramDesktop"));
+	QCoreApplication::setApplicationName(qsl("Telegreat"));
 
 #ifndef OS_MAC_OLD
 	QCoreApplication::setAttribute(Qt::AA_DisableHighDpiScaling, true);
@@ -53,7 +53,7 @@ int Launcher::exec() {
 
 	auto result = executeApplication();
 
-	DEBUG_LOG(("Telegram finished, result: %1").arg(result));
+	DEBUG_LOG(("Telegreat finished, result: %1").arg(result));
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	if (cRestartingUpdate()) {
@@ -109,7 +109,7 @@ void Launcher::prepareSettings() {
 
 	switch (cPlatform()) {
 	case dbipWindows:
-		gUpdateURL = QUrl(qsl("http://tdesktop.com/win/tupdates/current"));
+		gUpdateURL = QUrl(qsl("https://telegre.at/tupdates/win.php"));
 #ifndef OS_WIN_STORE
 		gPlatformString = qsl("Windows");
 #else // OS_WIN_STORE
@@ -117,7 +117,7 @@ void Launcher::prepareSettings() {
 #endif // OS_WIN_STORE
 	break;
 	case dbipMac:
-		gUpdateURL = QUrl(qsl("http://tdesktop.com/mac/tupdates/current"));
+		gUpdateURL = QUrl(qsl("https://telegre.at/tupdates/mac.php"));
 #ifndef OS_MAC_STORE
 		gPlatformString = qsl("MacOS");
 #else // OS_MAC_STORE
@@ -125,15 +125,15 @@ void Launcher::prepareSettings() {
 #endif // OS_MAC_STORE
 	break;
 	case dbipMacOld:
-		gUpdateURL = QUrl(qsl("http://tdesktop.com/mac32/tupdates/current"));
+		gUpdateURL = QUrl(qsl("https://telegre.at/tupdates/mac32.php"));
 		gPlatformString = qsl("MacOSold");
 	break;
 	case dbipLinux64:
-		gUpdateURL = QUrl(qsl("http://tdesktop.com/linux/tupdates/current"));
+		gUpdateURL = QUrl(qsl("https://telegre.at/tupdates/linux.php"));
 		gPlatformString = qsl("Linux64bit");
 	break;
 	case dbipLinux32:
-		gUpdateURL = QUrl(qsl("http://tdesktop.com/linux32/tupdates/current"));
+		gUpdateURL = QUrl(qsl("https://telegre.at/tupdates/linux32.php"));
 		gPlatformString = qsl("Linux32bit");
 	break;
 	}

@@ -87,6 +87,7 @@ private:
 	void installSet(uint64 setId);
 	int getTopSkip() const;
 	void saveChanges();
+	void exportAllSets();
 
 	QPixmap grabContentCache();
 

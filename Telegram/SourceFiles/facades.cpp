@@ -526,10 +526,10 @@ struct Data {
 
 	Adaptive::WindowLayout AdaptiveWindowLayout = Adaptive::WindowLayout::Normal;
 	Adaptive::ChatLayout AdaptiveChatLayout = Adaptive::ChatLayout::Normal;
-	bool AdaptiveForWide = true;
+	bool AdaptiveForWide = false;
 	base::Observable<void> AdaptiveChanged;
 
-	bool DialogsModeEnabled = false;
+	bool DialogsModeEnabled = true;
 	Dialogs::Mode DialogsMode = Dialogs::Mode::All;
 	bool ModerateModeEnabled = false;
 
@@ -598,7 +598,7 @@ struct Data {
 	bool SoundNotify = true;
 	bool DesktopNotify = true;
 	bool RestoreSoundNotifyFromTray = false;
-	bool IncludeMuted = true;
+	bool IncludeMuted = false;
 	DBINotifyView NotifyView = dbinvShowPreview;
 	bool NativeNotifications = false;
 	int NotificationsCount = 3;
@@ -615,7 +615,7 @@ struct Data {
 	bool LocalPasscode = false;
 	base::Observable<void> LocalPasscodeChanged;
 
-	base::Variable<DBIWorkMode> WorkMode = { dbiwmWindowAndTray };
+	base::Variable<DBIWorkMode> WorkMode = { dbiwmWindowOnly };
 
 	base::Observable<void> UnreadCounterUpdate;
 	base::Observable<void> PeerChooseCancel;

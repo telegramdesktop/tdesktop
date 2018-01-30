@@ -163,7 +163,7 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 	}
 
 	if (e == QLocalSocket::ServerNotFoundError) {
-		LOG(("This is the only instance of Telegram, starting server and app..."));
+		LOG(("This is the only instance of Telegreat, starting server and app..."));
 	} else {
 		LOG(("Socket connect error %1, starting server and app...").arg(e));
 	}

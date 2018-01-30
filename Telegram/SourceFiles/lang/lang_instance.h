@@ -25,6 +25,9 @@ constexpr str_const kLegacyLanguages[] = {
 	"nl",
 	"pt_BR",
 	"ko",
+	"zh_TW",
+	"zh_CN",
+	"zh_HK",
 };
 
 inline QString ConvertLegacyLanguageId(const QString &languageId) {
@@ -58,7 +61,7 @@ public:
 		return _id;
 	}
 	bool isCustom() const {
-		return (_id == qstr("custom") || _id == qstr("TEST_X") || _id == qstr("TEST_0"));
+		return (_id == qstr("custom") || _id == qstr("TEST_X") || _id == qstr("TEST_0") || _id == qstr("zh-TW") || _id == qstr("zh-CN") || _id == qstr("zh-HK"));
 	}
 	int version() const {
 		return _version;

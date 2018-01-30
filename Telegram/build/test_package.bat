@@ -5,7 +5,7 @@ set "FullExecPath=%cd%"
 
 if not exist "%FullScriptPath%..\..\..\TelegramPrivate" (
   echo.
-  echo This script is for building the production version of Telegram Desktop.
+  echo This script is for building the production version of Telegreat.
   echo.
   echo For building custom versions please visit the build instructions page at:
   echo https://github.com/telegramdesktop/tdesktop/#build-instructions
@@ -17,7 +17,7 @@ set "SignAppxPath=%HomePath%\..\..\TelegramPrivate\AppxSign.bat"
 set "ResourcesPath=%HomePath%\Resources"
 set "SolutionPath=%HomePath%\.."
 set "ReleasePath=%HomePath%\..\out\Debug"
-set "BinaryName=Telegram"
+set "BinaryName=Telegreat"
 
 if exist %ReleasePath%\AppX\ (
   echo Result folder out\Debug\AppX already exists!
@@ -39,7 +39,7 @@ mkdir "%ReleasePath%\AppX"
 xcopy "Resources\uwp\AppX\*" "%ReleasePath%\AppX\" /E
 
 set "ResourcePath=%ReleasePath%\AppX\AppxManifest.xml"
-call :repl "Argument= (Publisher=)&quot;CN=536BC709-8EE1-4478-AF22-F0F0F26FF64A&quot;/ $1&quot;CN=Telegram Messenger LLP, O=Telegram Messenger LLP, L=London, C=GB&quot;" "Filename=%ResourcePath%" || goto :error
+call :repl "Argument= (Publisher=)&quot;CN=536BC709-8EE1-4478-AF22-F0F0F26FF64A&quot;/ $1&quot;CN=Sean, O=Sean, L=London, C=GB&quot;" "Filename=%ResourcePath%" || goto :error
 call :repl "Argument= (ProcessorArchitecture=)&quot;ARCHITECTURE&quot;/ $1&quot;x64&quot;" "Filename=%ResourcePath%" || goto :error
 
 makepri new /pr Resources\uwp\AppX\ /cf Resources\uwp\priconfig.xml /mn %ReleasePath%\AppX\AppxManifest.xml /of %ReleasePath%\AppX\resources.pri

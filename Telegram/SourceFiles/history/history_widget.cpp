@@ -899,13 +899,13 @@ void HistoryWidget::onMentionInsert(UserData *user) {
 		if (replacement.isEmpty()) {
 			replacement = App::peerName(user);
 		}
-		entityTag = qsl("mention://user.")
-			+ QString::number(user->bareId())
-			+ '.'
-			+ QString::number(user->accessHash());
 	} else {
 		replacement = '@' + user->username;
 	}
+	entityTag = qsl("mention://user.")
+	+ QString::number(user->bareId())
+	+ '.'
+	+ QString::number(user->accessHash());
 	_field->insertTag(replacement, entityTag);
 }
 
@@ -5674,6 +5674,7 @@ void HistoryWidget::onCopyPostLink() {
 	if (!item || !item->hasDirectLink()) return;
 
 	QApplication::clipboard()->setText(item->directLink());
+	Ui::Toast::Show("Copied!");
 }
 
 bool HistoryWidget::lastForceReplyReplied(const FullMsgId &replyTo) const {

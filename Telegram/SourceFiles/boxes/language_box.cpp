@@ -142,7 +142,8 @@ void LanguageBox::refreshLanguages() {
 		}
 	}
 	if (currentId == qstr("custom")) {
-		_languages.insert(_languages.begin(), { currentId, qsl("Custom LangPack"), qsl("Custom LangPack") });
+		auto langName = lang(lng_rights_chat_banned_custom) + ": " + lang(lng_language_name);
+		_languages.insert(_languages.begin(), { currentId, langName, langName });
 		currentIndex = 0;
 	} else if (currentIndex < 0) {
 		currentIndex = _languages.size();

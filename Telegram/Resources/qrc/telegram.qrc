@@ -28,5 +28,8 @@
     <file alias="lang_nl.strings">../langs/lang_nl.strings</file>
     <file alias="lang_pt_BR.strings">../langs/lang_pt_BR.strings</file>
     <file alias="lang_ko.strings">../langs/lang_ko.strings</file>
+	<file alias="lang_zh_TW.strings">../langs/lang_zh_TW.strings</file>
+	<file alias="lang_zh_CN.strings">../langs/lang_zh_CN.strings</file>
+	<file alias="lang_zh_HK.strings">../langs/lang_zh_HK.strings</file>
   </qresource>
 </RCC>

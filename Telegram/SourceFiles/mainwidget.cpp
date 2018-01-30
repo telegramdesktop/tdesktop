@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_widget.h"
 #include "history/history_message.h"
 #include "history/history_media.h"
+#include "history/history_service.h"
 #include "history/history_service_layout.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_cloud_manager.h"
@@ -5092,6 +5093,19 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		const auto history = App::historyLoaded(userId);
 		const auto user = App::userLoaded(d.vuser_id.v);
 		if (history && user) {
+			if ((cTyping() & 0x10) && user->isContact()) {
+				Ui::Toast::Config toast;
+				toast.text = lng_user_typing(lt_user, user->firstName);
+				toast.durationMs = 2000;
+				Ui::Toast::Show(toast);
+			} else if (cTyping() & 0x100) {
+				Ui::Toast::Config toast;
+				toast.text = lng_user_typing(lt_user, user->firstName);
+				toast.durationMs = 1000;
+				if (user->isMuted())
+					toast.durationMs = 300;
+				Ui::Toast::Show(toast);
+			}
 			const auto when = requestingDifference() ? 0 : unixtime();
 			App::histories().registerSendAction(history, user, d.vaction, when);
 		}
@@ -5099,18 +5113,47 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateChatUserTyping: {
 		auto &d = update.c_updateChatUserTyping();
+		const auto user = (d.vuser_id.v == Auth().userId())
+		? nullptr
+		: App::userLoaded(d.vuser_id.v);
+		if (!user)
+			break;
+
 		const auto history = [&]() -> History* {
+			int x = getDurationTime(user);
 			if (auto chat = App::chatLoaded(d.vchat_id.v)) {
+				if ((cTyping() & 0x20) && user->isContact()) {
+					Ui::Toast::Config toast;
+					toast.text = QString("%1 is typing in %2").arg(user->firstName).arg(chat->dialogName().originalText());
+					toast.durationMs = 40 * x;
+					Ui::Toast::Show(toast);
+				} else if (cTyping() & 0x200) {
+					Ui::Toast::Config toast;
+					toast.text = QString("%1 is typing in %2").arg(user->firstName).arg(chat->dialogName().originalText());
+					toast.durationMs = 30 * x;
+					Ui::Toast::Show(toast);
+				}
+
 				return App::historyLoaded(chat->id);
 			} else if (auto channel = App::channelLoaded(d.vchat_id.v)) {
+				if ((cTyping() & 0x20) && user->isContact()) {
+					Ui::Toast::Config toast;
+					toast.text = QString("%1 is typing in %2").arg(user->firstName).arg(channel->shortName());
+					toast.durationMs = 40 * x;
+					Ui::Toast::Show(toast);
+				} else if (cTyping() & 0x400) {
+					Ui::Toast::Config toast;
+					toast.text = QString("%1 is typing in %2").arg(user->firstName).arg(channel->shortName());
+					toast.durationMs = 20 * x;
+					Ui::Toast::Show(toast);
+				}
+
 				return App::historyLoaded(channel->id);
 			}
 			return nullptr;
 		}();
-		const auto user = (d.vuser_id.v == Auth().userId())
-			? nullptr
-			: App::userLoaded(d.vuser_id.v);
-		if (history && user) {
+
+		if (history) {
 			const auto when = requestingDifference() ? 0 : unixtime();
 			App::histories().registerSendAction(history, user, d.vaction, when);
 		}
@@ -5149,7 +5192,23 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			case mtpc_userStatusLastWeek: user->onlineTill = -3; break;
 			case mtpc_userStatusLastMonth: user->onlineTill = -4; break;
 			case mtpc_userStatusOffline: user->onlineTill = d.vstatus.c_userStatusOffline().vwas_online.v; break;
-			case mtpc_userStatusOnline: user->onlineTill = d.vstatus.c_userStatusOnline().vexpires.v; break;
+			case mtpc_userStatusOnline: {
+				user->onlineTill = d.vstatus.c_userStatusOnline().vexpires.v;
+
+				int x = getDurationTime(user);
+
+				if ((cTyping() & 0x1) && user->isContact()) {
+					Ui::Toast::Config toast;
+					toast.text = QString("%1 is online").arg(user->firstName);
+					toast.durationMs = 50 * x;
+					Ui::Toast::Show(toast);
+				} else if (cTyping() & 0x2) {
+					Ui::Toast::Config toast;
+					toast.text = QString("%1 is online").arg(user->firstName);
+					toast.durationMs = 25 * x;
+					Ui::Toast::Show(toast);
+				}
+			} break;
 			}
 			Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserOnlineChanged);
 		}
@@ -5516,4 +5575,32 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	}
+}
+
+int MainWidget::getDurationTime(const PeerData *peer) {
+	PeerId peerId = peer->id;
+	History *history = App::history(peerId);
+	QDateTime msgDate = history->lastMsgDate;
+	QDateTime now = QDateTime::currentDateTime();
+	int after = msgDate.daysTo(now);
+	int time = 1;
+
+	if (msgDate.isNull())
+		time = 30;
+	else if (after > 30)
+		time = 40;
+	else if (after > 7)
+		time = 50;
+	else if (after > 3)
+		time = 60;
+	else if (after > 2)
+		time = 70;
+	else if (after > 1)
+		time = 80;
+	else if (after > 0)
+		time = 90;
+	else
+		time = 100;
+
+	return time;  // Unit: percentage
 }

@@ -20,14 +20,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 
 AboutBox::AboutBox(QWidget *parent)
-: _version(this, lng_about_version(lt_version, QString::fromLatin1(AppVersionStr.c_str()) + (cAlphaVersion() ? " alpha" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString())), st::aboutVersionLink)
+: _version(this, lng_about_version(lt_version, QString::fromLatin1(AppVersionStr.c_str()) + (cAlphaVersion() ? " alpha" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion() % 1000) : QString())), st::aboutVersionLink)
 , _text1(this, lang(lng_about_text_1), Ui::FlatLabel::InitType::Rich, st::aboutLabel)
 , _text2(this, lang(lng_about_text_2), Ui::FlatLabel::InitType::Rich, st::aboutLabel)
 , _text3(this, st::aboutLabel) {
 }
 
 void AboutBox::prepare() {
-	setTitle([] { return qsl("Telegram Desktop"); });
+	setTitle([] { return qsl("Make Telegram Great Again!"); });
 
 	addButton(langFactory(lng_close), [this] { closeBox(); });
 
@@ -60,21 +60,9 @@ void AboutBox::resizeEvent(QResizeEvent *e) {
 
 void AboutBox::showVersionHistory() {
 	if (cRealBetaVersion()) {
-		auto url = qsl("https://tdesktop.com/");
-		switch (cPlatform()) {
-		case dbipWindows: url += qsl("win/%1.zip"); break;
-		case dbipMac: url += qsl("mac/%1.zip"); break;
-		case dbipMacOld: url += qsl("mac32/%1.zip"); break;
-		case dbipLinux32: url += qsl("linux32/%1.tar.xz"); break;
-		case dbipLinux64: url += qsl("linux/%1.tar.xz"); break;
-		}
-		url = url.arg(qsl("tbeta%1_%2").arg(cRealBetaVersion()).arg(countBetaVersionSignature(cRealBetaVersion())));
-
-		Application::clipboard()->setText(url);
-
-		Ui::show(Box<InformBox>("The link to the current private beta version of Telegram Desktop was copied to the clipboard."));
+		QDesktopServices::openUrl(qsl("https://telegre.at/changelog"));
 	} else {
-		QDesktopServices::openUrl(qsl("https://desktop.telegram.org/changelog"));
+		QDesktopServices::openUrl(qsl("https://telegre.at"));
 	}
 }
 

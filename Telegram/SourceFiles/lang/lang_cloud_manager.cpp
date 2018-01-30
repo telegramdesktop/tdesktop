@@ -102,6 +102,9 @@ void CloudManager::applyLangPackDifference(const MTPLangPackDifference &differen
 void CloudManager::requestLanguageList() {
 	_languagesRequestId = request(MTPlangpack_GetLanguages()).done([this](const MTPVector<MTPLangPackLanguage> &result) {
 		auto languages = Languages();
+		languages.push_back({"zh-TW", "Chinese", "中文"});
+		languages.push_back({"zh-CN", "Simplified Chinese", "簡體中文"});
+		languages.push_back({"zh-HK", "Chinese (Hong Kong)", "繁體中文 (香港)"});
 		for_const (auto &langData, result.v) {
 			Assert(langData.type() == mtpc_langPackLanguage);
 			auto &language = langData.c_langPackLanguage();
@@ -204,6 +207,57 @@ void CloudManager::switchToLanguage(QString id) {
 	request(_switchingToLanguageRequest).cancel();
 	if (id == qstr("custom")) {
 		performSwitchToCustom();
+	} else if (id == qstr("zh-TW")) {
+		auto filePath = ":/langs/lang_zh_TW.strings";
+		Lang::FileParser loader(filePath, { lng_sure_save_language, lng_box_ok, lng_cancel });
+		if (loader.errors().isEmpty()) {
+			auto values = loader.found();
+			auto getValue = [&values](LangKey key) {
+				auto it = values.find(key);
+				return (it == values.cend()) ? GetOriginalValue(key) : it.value();
+			};
+			auto text = getValue(lng_sure_save_language);
+			auto save = getValue(lng_box_ok);
+			auto cancel = getValue(lng_cancel);
+			Ui::show(Box<ConfirmBox>(text, save, cancel, [this, filePath] {
+				_langpack.switchToCustomFile(filePath);
+				App::restart();
+			}), LayerOption::KeepOther);
+		}
+	} else if (id == qstr("zh-CN")) {
+		auto filePath = ":/langs/lang_zh_CN.strings";
+		Lang::FileParser loader(filePath, { lng_sure_save_language, lng_box_ok, lng_cancel });
+		if (loader.errors().isEmpty()) {
+			auto values = loader.found();
+			auto getValue = [&values](LangKey key) {
+				auto it = values.find(key);
+				return (it == values.cend()) ? GetOriginalValue(key) : it.value();
+			};
+			auto text = getValue(lng_sure_save_language);
+			auto save = getValue(lng_box_ok);
+			auto cancel = getValue(lng_cancel);
+			Ui::show(Box<ConfirmBox>(text, save, cancel, [this, filePath] {
+				_langpack.switchToCustomFile(filePath);
+				App::restart();
+			}), LayerOption::KeepOther);
+		}
+	} else if (id == qstr("zh-HK")) {
+		auto filePath = ":/langs/lang_zh_HK.strings";
+		Lang::FileParser loader(filePath, { lng_sure_save_language, lng_box_ok, lng_cancel });
+		if (loader.errors().isEmpty()) {
+			auto values = loader.found();
+			auto getValue = [&values](LangKey key) {
+				auto it = values.find(key);
+				return (it == values.cend()) ? GetOriginalValue(key) : it.value();
+			};
+			auto text = getValue(lng_sure_save_language);
+			auto save = getValue(lng_box_ok);
+			auto cancel = getValue(lng_cancel);
+			Ui::show(Box<ConfirmBox>(text, save, cancel, [this, filePath] {
+				_langpack.switchToCustomFile(filePath);
+				App::restart();
+			}), LayerOption::KeepOther);
+		}
 	} else if (canApplyWithoutRestart(id)) {
 		performSwitch(id);
 	} else {

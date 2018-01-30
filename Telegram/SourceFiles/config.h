@@ -11,10 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings.h"
 
 constexpr str_const AppNameOld = "Telegram Win (Unofficial)";
-constexpr str_const AppName = "Telegram Desktop";
+constexpr str_const AppName = "Telegreat";
 
-constexpr str_const AppId = "{53F49750-6209-4FBF-9CA8-7A333C87D1ED}"; // used in updater.cpp and Setup.iss for Windows
-constexpr str_const AppFile = "Telegram";
+constexpr str_const AppId = "{53F49750-5EA2-5EA2-5EA2-7A333C87D1ED}"; // used in updater.cpp and Setup.iss for Windows
+constexpr str_const AppFile = "Telegreat";
 
 enum {
 	MTPShortBufferSize = 65535, // of ints, 256 kb
@@ -202,26 +202,26 @@ inline int builtInDcsCountIPv6() {
 
 static const char *UpdatesPublicKey = "\
 -----BEGIN RSA PUBLIC KEY-----\n\
-MIGJAoGBAMA4ViQrjkPZ9xj0lrer3r23JvxOnrtE8nI69XLGSr+sRERz9YnUptnU\n\
-BZpkIfKaRcl6XzNJiN28cVwO1Ui5JSa814UAiDHzWUqCaXUiUEQ6NmNTneiGx2sQ\n\
-+9PKKlb8mmr3BB9A45ZNwLT6G9AK3+qkZLHojeSA+m84/a6GP4svAgMBAAE=\n\
+MIGJAoGBALKRRx+VecHJxU+w06JGN6rULQddUcRVzAi5CglZHuyBSlMf4yDlA3f+\n\
+3ZmCEbt7SfrC/ZXz3OnvRuGv7tQJ/jpQiFCrIUHocwZOmUE27AiU7Islrc7dtvtw\n\
+ihUthkqjdoGaXmm9PhK2JPdFm1lKoYGC0A/u6yp35gch0dRk/4NzAgMBAAE=\n\
 -----END RSA PUBLIC KEY-----\
 ";
 
 static const char *UpdatesPublicAlphaKey = "\
 -----BEGIN RSA PUBLIC KEY-----\n\
-MIGJAoGBALWu9GGs0HED7KG7BM73CFZ6o0xufKBRQsdnq3lwA8nFQEvmdu+g/I1j\n\
-0LQ+0IQO7GW4jAgzF/4+soPDb6uHQeNFrlVx1JS9DZGhhjZ5rf65yg11nTCIHZCG\n\
-w/CVnbwQOw0g5GBwwFV3r0uTTvy44xx8XXxk+Qknu4eBCsmrAFNnAgMBAAE=\n\
+MIGJAoGBALKRRx+VecHJxU+w06JGN6rULQddUcRVzAi5CglZHuyBSlMf4yDlA3f+\n\
+3ZmCEbt7SfrC/ZXz3OnvRuGv7tQJ/jpQiFCrIUHocwZOmUE27AiU7Islrc7dtvtw\n\
+ihUthkqjdoGaXmm9PhK2JPdFm1lKoYGC0A/u6yp35gch0dRk/4NzAgMBAAE=\n\
 -----END RSA PUBLIC KEY-----\
 ";
 
-#ifdef CUSTOM_API_ID
-#include "../../../TelegramPrivate/custom_api_id.h" // Custom API id and API hash
-#else
-static const int32 ApiId = 17349;
-static const char *ApiHash = "344583e45741c457fe1862106095a5eb";
-#endif
+//#ifdef CUSTOM_API_ID
+//#include "../../../TelegramPrivate/custom_api_id.h" // Custom API id and API hash
+//#else
+static const int32 ApiId = 45735;
+static const char *ApiHash = "";
+//#endif
 
 #if Q_BYTE_ORDER == Q_BIG_ENDIAN
 #error "Only little endian is supported!"
@@ -231,11 +231,11 @@ static const char *ApiHash = "344583e45741c457fe1862106095a5eb";
 #error "Beta version macro is not defined."
 #endif
 
-#if (defined CUSTOM_API_ID) && (BETA_VERSION_MACRO > 0ULL)
+//#if (defined CUSTOM_API_ID) && (BETA_VERSION_MACRO > 0ULL)
 #include "../../../TelegramPrivate/beta_private.h" // private key for downloading closed betas
-#else
-static const char *BetaPrivateKey = "";
-#endif
+//#else
+//static const char *BetaPrivateKey = "";
+//#endif
 
 inline const char *cApiDeviceModel() {
 #ifdef Q_OS_WIN

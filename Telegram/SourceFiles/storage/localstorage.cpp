@@ -569,6 +569,8 @@ enum {
 	dbiConnectionType = 0x4f,
 	dbiStickersFavedLimit = 0x50,
 
+	dbiSean = 0x80,
+
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
 
@@ -1546,6 +1548,20 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		Global::SetVideoVolume(snap(v / 1e6, 0., 1.));
 	} break;
 
+	case dbiSean: {
+		qint32 conf, type, typing;
+		stream >> conf >> type >> typing;
+		if (!_checkStreamStatus(stream)) return false;
+
+		cSetShowCallbackData(conf & 0x2);
+		cSetShowUsername(conf & 0x4);
+		cSetIgnoreBlocked(conf & 0x8);
+		cSetTagMention(conf & 0x10);
+
+		cSetDialogsType(type);
+		cSetTyping(typing);
+	} break;
+
 	default:
 	LOG(("App Error: unknown blockId in _readSetting: %1").arg(blockId));
 	return false;
@@ -1778,6 +1794,8 @@ void _writeUserSettings() {
 	if (!userData.isEmpty()) {
 		size += sizeof(quint32) + Serialize::bytearraySize(userData);
 	}
+	
+	size += sizeof(quint32) + 2 * sizeof(qint32);   // Sean
 
 	EncryptedDescriptor data(size);
 	data.stream << quint32(dbiSendKey) << qint32(cCtrlEnter() ? dbiskCtrlEnter : dbiskEnter);
@@ -1822,6 +1840,19 @@ void _writeUserSettings() {
 	}
 	if (!Global::HiddenPinnedMessages().isEmpty()) {
 		data.stream << quint32(dbiHiddenPinnedMessages) << Global::HiddenPinnedMessages();
+	}
+	
+	{
+		qint32 conf = 0;
+		if (cShowCallbackData())
+			conf |= 0x2;
+		if (cShowUsername())
+			conf |= 0x4;
+		if (cIgnoreBlocked())
+			conf |= 0x8;
+		if (cTagMention())
+			conf |= 0x10;
+		data.stream << quint32(dbiSean) << conf << qint32(cDialogsType()) << qint32(cTyping());
 	}
 
 	FileWriteDescriptor file(_userSettingsKey);

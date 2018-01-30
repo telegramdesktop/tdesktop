@@ -338,6 +338,8 @@ public:
 	bool cmd_next_chat();
 	bool cmd_previous_chat();
 
+	int getDurationTime(const PeerData *peer);
+
 	~MainWidget();
 
 signals:

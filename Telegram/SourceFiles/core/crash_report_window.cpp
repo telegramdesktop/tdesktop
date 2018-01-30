@@ -23,7 +23,7 @@ PreLaunchWindow::PreLaunchWindow(QString title) {
 	setWindowIcon(icon);
 	setWindowFlags(Qt::Dialog | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowCloseButtonHint);
 
-	setWindowTitle(title.isEmpty() ? qsl("Telegram") : title);
+	setWindowTitle(title.isEmpty() ? qsl("Telegreat") : title);
 
 	QPalette p(palette());
 	p.setColor(QPalette::Background, QColor(255, 255, 255));
@@ -156,7 +156,7 @@ NotStartedWindow::NotStartedWindow()
 : _label(this)
 , _log(this)
 , _close(this) {
-	_label.setText(qsl("Could not start Telegram Desktop!\nYou can see complete log below:"));
+	_label.setText(qsl("Could not start Telegreat!\nYou can see complete log below:"));
 
 	_log.setPlainText(Logs::full());
 
@@ -288,9 +288,9 @@ LastCrashedWindow::LastCrashedWindow()
 	connect(&_networkSettings, SIGNAL(clicked()), this, SLOT(onNetworkSettings()));
 
 	if (_sendingState == SendingNoReport) {
-		_label.setText(qsl("Last time Telegram Desktop was not closed properly."));
+		_label.setText(qsl("Last time Telegreat was not closed properly."));
 	} else {
-		_label.setText(qsl("Last time Telegram Desktop crashed :("));
+		_label.setText(qsl("Last time Telegreat crashed :("));
 	}
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -336,7 +336,7 @@ LastCrashedWindow::LastCrashedWindow()
 	connect(&_showReport, SIGNAL(clicked()), this, SLOT(onViewReport()));
 	_saveReport.setText(qsl("SAVE TO FILE"));
 	connect(&_saveReport, SIGNAL(clicked()), this, SLOT(onSaveReport()));
-	_getApp.setText(qsl("GET THE LATEST OFFICIAL VERSION OF TELEGRAM DESKTOP"));
+	_getApp.setText(qsl("GET THE LATEST VERSION OF TELEGREAT"));
 	connect(&_getApp, SIGNAL(clicked()), this, SLOT(onGetApp()));
 
 	_send.setText(qsl("SEND CRASH REPORT"));
@@ -359,7 +359,7 @@ void LastCrashedWindow::onViewReport() {
 }
 
 void LastCrashedWindow::onSaveReport() {
-	QString to = QFileDialog::getSaveFileName(0, qsl("Telegram Crash Report"), QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + qsl("/report.telegramcrash"), qsl("Telegram crash report (*.telegramcrash)"));
+	QString to = QFileDialog::getSaveFileName(0, qsl("Telegreat Crash Report"), QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + qsl("/report.telegramcrash"), qsl("Telegreat crash report (*.telegramcrash)"));
 	if (!to.isEmpty()) {
 		QFile file(to);
 		if (file.open(QIODevice::WriteOnly)) {
@@ -379,7 +379,7 @@ QByteArray LastCrashedWindow::getCrashReportRaw() const {
 }
 
 void LastCrashedWindow::onGetApp() {
-	QDesktopServices::openUrl(qsl("https://desktop.telegram.org"));
+	QDesktopServices::openUrl(qsl("https://telegre.at"));
 }
 
 void LastCrashedWindow::excludeReportUsername() {
@@ -437,7 +437,7 @@ void LastCrashedWindow::onSendReport() {
 	App::setProxySettings(_sendManager);
 
 	QString apiid = getReportField(qstr("apiid"), qstr("ApiId:")), version = getReportField(qstr("version"), qstr("Version:"));
-	_checkReply = _sendManager.get(QNetworkRequest(qsl("https://tdesktop.com/crash.php?act=query_report&apiid=%1&version=%2&dmp=%3&platform=%4").arg(apiid).arg(version).arg(minidumpFileName().isEmpty() ? 0 : 1).arg(cPlatformString())));
+	_checkReply = _sendManager.get(QNetworkRequest(qsl("https://telegre.at/crash.php?act=query_report&apiid=%1&version=%2&dmp=%3&platform=%4").arg(apiid).arg(version).arg(minidumpFileName().isEmpty() ? 0 : 1).arg(cPlatformString())));
 
 	connect(_checkReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onSendingError(QNetworkReply::NetworkError)));
 	connect(_checkReply, SIGNAL(finished()), this, SLOT(onCheckingFinished()));
@@ -467,12 +467,12 @@ void LastCrashedWindow::onCheckingFinished() {
 	LOG(("Crash report check for sending done, result: %1").arg(QString::fromUtf8(result)));
 
 	if (result == "Old") {
-		_pleaseSendReport.setText(qsl("This report is about some old version of Telegram Desktop."));
+		_pleaseSendReport.setText(qsl("This report is about some old version of Telegreat."));
 		_sendingState = SendingTooOld;
 		updateControls();
 		return;
 	} else if (result == "Unofficial") {
-		_pleaseSendReport.setText(qsl("You use some custom version of Telegram Desktop."));
+		_pleaseSendReport.setText(qsl("You use some custom version of Telegreat."));
 		_sendingState = SendingUnofficial;
 		updateControls();
 		return;
@@ -526,7 +526,7 @@ void LastCrashedWindow::onCheckingFinished() {
 		}
 	}
 
-	_sendReply = _sendManager.post(QNetworkRequest(qsl("https://tdesktop.com/crash.php?act=report")), multipart);
+	_sendReply = _sendManager.post(QNetworkRequest(qsl("https://telegre.at/crash.php?act=report")), multipart);
 	multipart->setParent(_sendReply);
 
 	connect(_sendReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onSendingError(QNetworkReply::NetworkError)));
@@ -747,7 +747,7 @@ void LastCrashedWindow::updateControls() {
 #endif // else for !TDESKTOP_DISABLE_AUTOUPDATE
 
 	QRect scr(QApplication::primaryScreen()->availableGeometry());
-	QSize s(2 * padding + QFontMetrics(_label.font()).width(qsl("Last time Telegram Desktop was not closed properly.")) + padding + _networkSettings.width(), h);
+	QSize s(2 * padding + QFontMetrics(_label.font()).width(qsl("Last time Telegreat was not closed properly.")) + padding + _networkSettings.width(), h);
 	if (s == size()) {
 		resizeEvent(0);
 	} else {

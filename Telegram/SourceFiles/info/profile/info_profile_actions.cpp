@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "application.h"
 #include "styles/style_info.h"
 #include "styles/style_boxes.h"
+#include "storage/localstorage.h"
 
 namespace Info {
 namespace Profile {
@@ -277,6 +278,10 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 	result->toggleOn(
 		NotificationsEnabledValue(peer)
 	)->addClickHandler([=] {
+		if (peer->isMuted()) {   // was muted
+			Global::RefHiddenPinnedMessages().remove(peer->id);
+			Local::writeUserSettings();
+		}
 		const auto muteState = peer->isMuted()
 			? Data::NotifySettings::MuteChange::Unmute
 			: Data::NotifySettings::MuteChange::Mute;

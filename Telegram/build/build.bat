@@ -5,10 +5,10 @@ set "FullExecPath=%cd%"
 
 if not exist "%FullScriptPath%..\..\..\TelegramPrivate" (
   echo.
-  echo This script is for building the production version of Telegram Desktop.
+  echo This script is for building the production version of Telegreat.
   echo.
   echo For building custom versions please visit the build instructions page at:
-  echo https://github.com/telegramdesktop/tdesktop/#build-instructions
+  echo https://github.com/Sea-n/tdesktop/#build-instructions
   exit /b
 )
 
@@ -51,14 +51,14 @@ set "ResourcesPath=%HomePath%\Resources"
 set "SolutionPath=%HomePath%\.."
 set "UpdateFile=tupdate%AppVersion%"
 set "SetupFile=tsetup.%AppVersionStrFull%.exe"
-set "PortableFile=tportable.%AppVersionStrFull%.zip"
+set "PortableFile=tportable.%AppVersionStrFull%.7z"
 set "ReleasePath=%HomePath%\..\out\Release"
 set "DeployPath=%ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStrFull%"
 set "SignPath=%HomePath%\..\..\TelegramPrivate\Sign.bat"
 set "SignAppxPath=%HomePath%\..\..\TelegramPrivate\AppxSign.bat"
-set "BinaryName=Telegram"
-set "DropboxSymbolsPath=Y:\Telegram\symbols"
-set "FinalReleasePath=Z:\Telegram\deploy_temp\tsetup"
+set "BinaryName=Telegreat"
+set "DropboxSymbolsPath=D:\TBuild\symbols"
+set "FinalReleasePath=D:\TBuild\deploy_temp\tsetup"
 
 if not exist %DropboxSymbolsPath% (
   echo Dropbox path %DropboxSymbolsPath% not found!
@@ -110,7 +110,7 @@ call gyp\refresh.bat
 if %errorlevel% neq 0 goto error
 
 cd "%SolutionPath%"
-call ninja -C out/Release Telegram
+call ninja -C out/Release Telegreat
 if %errorlevel% neq 0 goto error
 
 echo.
@@ -133,14 +133,12 @@ if %BuildUWP% equ 0 (
   call "%SignPath%" "Updater.exe"
   if %errorlevel% neq 0 goto error
 
-  if %BetaVersion% equ 0 (
-    iscc /dMyAppVersion=%AppVersionStrSmall% /dMyAppVersionZero=%AppVersionStr% /dMyAppVersionFull=%AppVersionStrFull% "/dReleasePath=%ReleasePath%" "%FullScriptPath%setup.iss"
-    if %errorlevel% neq 0 goto error
-    if not exist "tsetup.%AppVersionStrFull%.exe" goto error
+  iscc /dMyAppVersion=%AppVersionStrSmall% /dMyAppVersionZero=%AppVersionStr% /dMyAppVersionFull=%AppVersionStrFull% "/dReleasePath=%ReleasePath%" "%FullScriptPath%setup.iss"
+  if %errorlevel% neq 0 goto error
+  if not exist "tsetup.%AppVersionStrFull%.exe" goto error
 
-    call "%SignPath%" "tsetup.%AppVersionStrFull%.exe"
-    if %errorlevel% neq 0 goto error
-  )
+  call "%SignPath%" "tsetup.%AppVersionStrFull%.exe"
+  if %errorlevel% neq 0 goto error
 
   call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe %AlphaBetaParam%
   if %errorlevel% neq 0 goto error
@@ -155,9 +153,9 @@ if %BuildUWP% equ 0 (
   )
   if %errorlevel% neq 0 goto error
 
-  if %BetaVersion% neq 0 (
+  if %BetaVersion% equ 9487 (
     set "UpdateFile=!UpdateFile!_!BetaSignature!"
-    set "PortableFile=tbeta!BetaVersion!_!BetaSignature!.zip"
+    set "PortableFile=tbeta!BetaVersion!_!BetaSignature!.7z"
   )
 )
 
@@ -234,9 +232,8 @@ if %BuildUWP% neq 0 (
   xcopy "%ReleasePath%\Updater.pdb" "%DeployPath%\"
   move "%ReleasePath%\%BinaryName%.exe.pdb" "%DeployPath%\"
   move "%ReleasePath%\Updater.exe.pdb" "%DeployPath%\"
-  if %BetaVersion% equ 0 (
-    move "%ReleasePath%\%SetupFile%" "%DeployPath%\"
-  ) else (
+  move "%ReleasePath%\%SetupFile%" "%DeployPath%\"
+  if %BetaVersion% neq 0 (
     move "%ReleasePath%\%BetaKeyFile%" "%DeployPath%\"
   )
   move "%ReleasePath%\%UpdateFile%" "%DeployPath%\"
@@ -256,9 +253,7 @@ if %BuildUWP% equ 0 (
 
   if not exist "%DeployPath%\%UpdateFile%" goto error
   if not exist "%DeployPath%\%PortableFile%" goto error
-  if %BetaVersion% equ 0 (
-    if not exist "%DeployPath%\%SetupFile%" goto error
-  )
+  if not exist "%DeployPath%\%SetupFile%" goto error
   if not exist "%DeployPath%\%BinaryName%.pdb" goto error
   if not exist "%DeployPath%\%BinaryName%.exe.pdb" goto error
   if not exist "%DeployPath%\Updater.exe" goto error
@@ -269,9 +264,8 @@ if %BuildUWP% equ 0 (
 
   xcopy "%DeployPath%\%UpdateFile%" "%FinalDeployPath%\" /Y
   xcopy "%DeployPath%\%PortableFile%" "%FinalDeployPath%\" /Y
-  if %BetaVersion% equ 0 (
-    xcopy "%DeployPath%\%SetupFile%" "%FinalDeployPath%\" /Y
-  ) else (
+  xcopy "%DeployPath%\%SetupFile%" "%FinalDeployPath%\" /Y
+  if %BetaVersion% neq 0 (
     xcopy "%DeployPath%\%BetaKeyFile%" "%FinalDeployPath%\" /Y
   )
 )

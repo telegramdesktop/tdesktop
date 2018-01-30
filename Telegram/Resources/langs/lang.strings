@@ -1,9 +1,9 @@
 /*
-This file is part of Telegram Desktop,
+This file is part of Telegreat,
 the official desktop application for the Telegram messaging service.
 
 For license and copyright information please follow this link:
-https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 */
 "lng_language_name" = "English";
 "lng_switch_to_this" = "Continue in English";
@@ -1467,5 +1467,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_stickers_export" = "Export";
 "lng_stickers_export_copied" = "All Stickers links copied.";
+
+"lng_telegreat_setting" = "Telegreat Config";
+"lng_telegreat_setting_unstable" = "Unstable Features";
+"lng_telegreat_setting_callback" = "Show callback data";
+"lng_telegreat_setting_username" = "Append @username to Display Name";
+"lng_telegreat_setting_ignore" = "Ignore blocked users";
+"lng_telegreat_setting_everyuser" = "Be mention by @admin and @everyuser";
+"lng_telegreat_setting_typing" = "Online/Typing Toast";
+
+"lng_telegreat_online_toast" = "Online Toast";
+"lng_telegreat_typing_toast_all" = "Typing Toast (All)";
+"lng_telegreat_typing_toast_contact" = "Typing Toast (Contact)";
+"lng_telegreat_typing_desc" = "Toast duration time will vary,\nbased on the recently messaging log.";
+
+"lng_telegreat_chat_type" = "Chat Type";
+"lng_telegreat_user" = "Users";
+"lng_telegreat_group" = "Groups";
+"lng_telegreat_supergroup" = "Supergroups";
+"lng_telegreat_channel" = "Channels";
+"lng_telegreat_bot" = "Bots";
 
 // Keys finished

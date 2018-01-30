@@ -6,10 +6,10 @@ popd > /dev/null
 
 if [ ! -d "$FullScriptPath/../../../TelegramPrivate" ]; then
   echo ""
-  echo "This script is for building the production version of Telegram Desktop."
+  echo "This script is for building the production version of Telegreat."
   echo ""
   echo "For building custom versions please visit the build instructions page at:"
-  echo "https://github.com/telegramdesktop/tdesktop/#build-instructions"
+  echo "https://github.com/Sea-n/tdesktop/#build-instructions"
   exit
 fi
 
@@ -48,30 +48,32 @@ fi
 
 echo ""
 HomePath="$FullScriptPath/.."
+cd $HomePath
+
 if [ "$BuildTarget" == "linux" ]; then
   echo "Building version $AppVersionStrFull for Linux 64bit.."
   UpdateFile="tlinuxupd$AppVersion"
   SetupFile="tsetup.$AppVersionStrFull.tar.xz"
   ReleasePath="$HomePath/../out/Release"
-  BinaryName="Telegram"
+  BinaryName="Telegreat"
 elif [ "$BuildTarget" == "linux32" ]; then
   echo "Building version $AppVersionStrFull for Linux 32bit.."
   UpdateFile="tlinux32upd$AppVersion"
   SetupFile="tsetup32.$AppVersionStrFull.tar.xz"
   ReleasePath="$HomePath/../out/Release"
-  BinaryName="Telegram"
+  BinaryName="Telegreat"
 elif [ "$BuildTarget" == "mac" ]; then
   echo "Building version $AppVersionStrFull for OS X 10.8+.."
   UpdateFile="tmacupd$AppVersion"
   SetupFile="tsetup.$AppVersionStrFull.dmg"
   ReleasePath="$HomePath/../out/Release"
-  BinaryName="Telegram"
+  BinaryName="Telegreat"
 elif [ "$BuildTarget" == "mac32" ]; then
   echo "Building version $AppVersionStrFull for OS X 10.6 and 10.7.."
   UpdateFile="tmac32upd$AppVersion"
   SetupFile="tsetup32.$AppVersionStrFull.dmg"
   ReleasePath="$HomePath/../out/Release"
-  BinaryName="Telegram"
+  BinaryName="Telegreat"
 elif [ "$BuildTarget" == "macstore" ]; then
   if [ "$BetaVersion" != "0" ]; then
     Error "Can't build macstore beta version!"
@@ -79,7 +81,7 @@ elif [ "$BuildTarget" == "macstore" ]; then
 
   echo "Building version $AppVersionStrFull for Mac App Store.."
   ReleasePath="$HomePath/../out/Release"
-  BinaryName="Telegram Desktop"
+  BinaryName="Telegreat"
 else
   Error "Invalid target!"
 fi
@@ -116,7 +118,7 @@ fi
 
 if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
 
-  DropboxSymbolsPath="/media/psf/Dropbox/Telegram/symbols"
+  DropboxSymbolsPath="/media/psf/Dropbox/Telegreat/symbols"
   if [ ! -d "$DropboxSymbolsPath" ]; then
     Error "Dropbox path not found!"
   fi
@@ -197,8 +199,8 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
       BetaSignature="$line"
     done < "$ReleasePath/$BetaKeyFile"
 
-    UpdateFile="${UpdateFile}_${BetaSignature}"
-    SetupFile="tbeta${BetaVersion}_${BetaSignature}.tar.xz"
+#   UpdateFile="${UpdateFile}_${BetaSignature}"
+#   SetupFile="tbeta${BetaVersion}_${BetaSignature}.tar.xz"
   fi
 
   SymbolsHash=`head -n 1 "$ReleasePath/$BinaryName.sym" | awk -F " " 'END {print $4}'`
@@ -230,13 +232,15 @@ fi
 
 if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarget" == "macstore" ]; then
 
-  DropboxSymbolsPath="$HOME/Dropbox/Telegram/symbols"
+  DropboxSymbolsPath="$HOME/Dropbox/Telegreat/symbols"
   if [ ! -d "$DropboxSymbolsPath" ]; then
     Error "Dropbox path not found!"
   fi
 
   gyp/refresh.sh
-  xcodebuild -project Telegram.xcodeproj -alltargets -configuration Release build
+  xcodebuild -project Telegreat.xcodeproj -alltargets -configuration Release build
+  cp "$FullScriptPath/../../../TelegramPrivate/Telegreat.icns" "$ReleasePath/$BinaryName.app/Contents/Resources/Icon.icns"
+  cp "$FullScriptPath/../../../TelegramPrivate/Telegreat.icns" "$ReleasePath/$BinaryName.app/Contents/Resources/AppIcon.icns"
 
   if [ ! -d "$ReleasePath/$BinaryName.app" ]; then
     Error "$BinaryName.app not found!"
@@ -270,9 +274,9 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
 
   echo "Signing the application.."
   if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
-    codesign --force --deep --sign "Developer ID Application: John Preston" "$ReleasePath/$BinaryName.app"
+: #    codesign --force --deep --sign "Developer ID Application: John Preston" "$ReleasePath/$BinaryName.app"
   elif [ "$BuildTarget" == "macstore" ]; then
-    codesign --force --deep --sign "3rd Party Mac Developer Application: TELEGRAM MESSENGER LLP (6N38VWS5BX)" "$ReleasePath/$BinaryName.app" --entitlements "$HomePath/Telegram/Telegram Desktop.entitlements"
+    codesign --force --deep --sign "3rd Party Mac Developer Application: TELEGRAM MESSENGER LLP (6N38VWS5BX)" "$ReleasePath/$BinaryName.app" --entitlements "$HomePath/Telegreat/Telegreat.entitlements"
     echo "Making an installer.."
     productbuild --sign "3rd Party Mac Developer Installer: TELEGRAM MESSENGER LLP (6N38VWS5BX)" --component "$ReleasePath/$BinaryName.app" /Applications "$ReleasePath/$BinaryName.pkg"
   fi
@@ -293,7 +297,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
   fi
 
   if [ ! -d "$ReleasePath/$BinaryName.app/Contents/_CodeSignature" ]; then
-    Error "$BinaryName signature not found!"
+: #    Error "$BinaryName signature not found!"
   fi
 
   if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
@@ -313,7 +317,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
   echo "Done!"
 
   if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
-    if [ "$BetaVersion" == "0" ]; then
+#    if [ "$BetaVersion" == "0" ]; then
       cd "$ReleasePath"
       cp -f tsetup_template.dmg tsetup.temp.dmg
       TempDiskPath=`hdiutil attach -nobrowse -noautoopenrw -readwrite tsetup.temp.dmg | awk -F "\t" 'END {print $3}'`
@@ -322,7 +326,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
       hdiutil detach "$TempDiskPath"
       hdiutil convert tsetup.temp.dmg -format UDZO -imagekey zlib-level=9 -ov -o "$SetupFile"
       rm tsetup.temp.dmg
-    fi
+#    fi
     cd "$ReleasePath"
     "./Packer" -path "$BinaryName.app" -target "$BuildTarget" -version $VersionForPacker $AlphaBetaParam
     echo "Packer done!"
@@ -336,8 +340,8 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
         BetaSignature="$line"
       done < "$ReleasePath/$BetaKeyFile"
 
-      UpdateFile="${UpdateFile}_${BetaSignature}"
-      SetupFile="tbeta${BetaVersion}_${BetaSignature}.zip"
+#     UpdateFile="${UpdateFile}_${BetaSignature}"
+#     SetupFile="tbeta${BetaVersion}_${BetaSignature}.zip"
     fi
   fi
 

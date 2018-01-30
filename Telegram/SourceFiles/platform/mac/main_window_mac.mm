@@ -572,8 +572,8 @@ void MainWindow::psFirstShow() {
 }
 
 void MainWindow::createGlobalMenu() {
-	auto main = psMainMenu.addMenu(qsl("Telegram"));
-	auto about = main->addAction(lng_mac_menu_about_telegram(lt_telegram, qsl("Telegram")));
+	auto main = psMainMenu.addMenu(qsl("Telegreat"));
+	auto about = main->addAction(lng_mac_menu_about_telegram(lt_telegram, qsl("Telegreat")));
 	connect(about, &QAction::triggered, about, [] {
 		if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
 		Ui::show(Box<AboutBox>());

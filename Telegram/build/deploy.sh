@@ -6,10 +6,10 @@ popd > /dev/null
 
 if [ ! -d "$FullScriptPath/../../../TelegramPrivate" ]; then
   echo ""
-  echo "This script is for building the production version of Telegram Desktop."
+  echo "This script is for building the production version of Telegreat."
   echo ""
   echo "For building custom versions please visit the build instructions page at:"
-  echo "https://github.com/telegramdesktop/tdesktop/#build-instructions"
+  echo "https://github.com/Sea-n/tdesktop/#build-instructions"
   exit
 fi
 
@@ -94,7 +94,7 @@ elif [ "$BuildTarget" == "mac" ]; then
   WinSetupFile="tsetup.$AppVersionStrFull.exe"
   WinPortableFile="tportable.$AppVersionStrFull.zip"
   WinRemoteFolder="tsetup"
-  BackupPath="$HOME/Telegram/backup/$AppVersionStrMajor/$AppVersionStrFull"
+  BackupPath="$FullScriptPath/../../../backup/$AppVersionStrMajor/$AppVersionStrFull"
 elif [ "$BuildTarget" == "mac32" ] || [ "$BuildTarget" = "macstore" ]; then
   Error "No need to deploy this target."
 else
@@ -119,15 +119,15 @@ if [ "$BetaVersion" != "0" ]; then
     BetaSignature="$line"
   done < "$BetaFilePath"
 
-  UpdateFile="${UpdateFile}_${BetaSignature}"
+# UpdateFile="${UpdateFile}_${BetaSignature}"
   if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
-    SetupFile="tbeta${BetaVersion}_${BetaSignature}.tar.xz"
+#   SetupFile="tbeta${BetaVersion}_${BetaSignature}.tar.xz"
   elif [ "$BuildTarget" == "mac" ]; then
-    SetupFile="tbeta${BetaVersion}_${BetaSignature}.zip"
-    Mac32UpdateFile="${Mac32UpdateFile}_${BetaSignature}"
-    Mac32SetupFile="tbeta${BetaVersion}_${BetaSignature}.zip"
-    WinUpdateFile="${WinUpdateFile}_${BetaSignature}"
-    WinPortableFile="tbeta${BetaVersion}_${BetaSignature}.zip"
+#   SetupFile="tbeta${BetaVersion}_${BetaSignature}.zip"
+#   Mac32UpdateFile="${Mac32UpdateFile}_${BetaSignature}"
+#   Mac32SetupFile="tbeta${BetaVersion}_${BetaSignature}.zip"
+#   WinUpdateFile="${WinUpdateFile}_${BetaSignature}"
+#   WinPortableFile="tbeta${BetaVersion}_${BetaSignature}.zip"
   fi
 elif [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
   BackupPath="/media/psf/backup/$AppVersionStrMajor/$AppVersionStrFull/t$BuildTarget"
@@ -179,7 +179,7 @@ fi
 
 if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ] || [ "$BuildTarget" == "mac" ]; then
   if [ "$BuildTarget" != "mac" ] || [ "$DeployMac" == "1" ]; then
-    rsync -av --progress "$DeployPath/$UpdateFile" "$DeployPath/$SetupFile" "tmaster:tdesktop/www/$RemoteFolder/"
+    rsync -av --progress "$DeployPath/$UpdateFile" "$DeployPath/$SetupFile" "sean:/usr/share/nginx/telegre.at/$RemoteFolder/"
   fi
   if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
     if [ "$BetaVersion" == "0" ]; then
@@ -189,13 +189,13 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ] || [ "$Build
   fi
   if [ "$BuildTarget" == "mac" ]; then
     if [ "$DeployMac32" == "1" ]; then
-      rsync -av --progress "$Mac32DeployPath/$Mac32UpdateFile" "$Mac32DeployPath/$Mac32SetupFile" "tmaster:tdesktop/www/$Mac32RemoteFolder/"
+      rsync -av --progress "$Mac32DeployPath/$Mac32UpdateFile" "$Mac32DeployPath/$Mac32SetupFile" "sean:/usr/share/nginx/telegre.at/$Mac32RemoteFolder/"
     fi
     if [ "$DeployWin" == "1" ]; then
       if [ "$BetaVersion" == "0" ]; then
-        rsync -av --progress "$WinDeployPath/$WinUpdateFile" "$WinDeployPath/$WinSetupFile" "$WinDeployPath/$WinPortableFile" "tmaster:tdesktop/www/$WinRemoteFolder/"
+        rsync -av --progress "$WinDeployPath/$WinUpdateFile" "$WinDeployPath/$WinSetupFile" "$WinDeployPath/$WinPortableFile" "sean:/usr/share/nginx/telegre.at/$WinRemoteFolder/"
       else
-        rsync -av --progress "$WinDeployPath/$WinUpdateFile" "$WinDeployPath/$WinPortableFile" "tmaster:tdesktop/www/$WinRemoteFolder/"
+        rsync -av --progress "$WinDeployPath/$WinUpdateFile" "$WinDeployPath/$WinPortableFile" "sean:/usr/share/nginx/telegre.at/$WinRemoteFolder/"
       fi
     fi
 

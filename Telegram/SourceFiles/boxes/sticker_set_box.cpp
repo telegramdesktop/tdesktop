@@ -148,8 +148,8 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 		}
 		if (d.vset.type() == mtpc_stickerSet) {
 			auto &s = d.vset.c_stickerSet();
-			_setTitle = Stickers::GetSetTitle(s);
 			_setShortName = qs(s.vshort_name);
+			_setTitle = Stickers::GetSetTitle(s).append(" (%1)").arg(_setShortName);
 			_setId = s.vid.v;
 			_setAccess = s.vaccess_hash.v;
 			_setCount = s.vcount.v;

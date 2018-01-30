@@ -50,7 +50,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 * [Official Channel](https://t.me/Telegreat)
 * [Main Developer](https://t.me/SeanChannel)
-* [Public Site][telegreat]
+* [Public Site](telegreat)
 
 [//]: # (LINKS)
 [telegreat]: https://telegre.at

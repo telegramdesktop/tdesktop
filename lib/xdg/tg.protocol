@@ -1,5 +1,5 @@
 [Protocol]
-exec=/usr/bin/telegram-desktop -- %u
+exec=/usr/bin/telegreat -- %u
 protocol=tg
 input=none
 output=none

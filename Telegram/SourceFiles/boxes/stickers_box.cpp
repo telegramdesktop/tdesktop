@@ -26,8 +26,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/slide_animation.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/toast/toast.h"
 #include "auth_session.h"
 #include "messenger.h"
+#include "application.h"
 
 namespace {
 
@@ -252,6 +254,7 @@ void StickersBox::prepare() {
 		addButton(langFactory(lng_cancel), [this] { closeBox(); });
 	} else {
 		addButton(langFactory(lng_about_done), [this] { closeBox(); });
+		addButton(langFactory(lng_stickers_export), [this] { exportAllSets(); });
 	}
 
 	if (_section == Section::Installed) {
@@ -289,7 +292,7 @@ void StickersBox::refreshTabs() {
 
 	_tabIndices.clear();
 	auto sections = QStringList();
-	sections.push_back(lang(lng_stickers_installed_tab).toUpper());
+	sections.push_back(lang(lng_stickers_installed_tab).toUpper().append(" (%1)").arg(stickerPacksCount(false)));
 	_tabIndices.push_back(Section::Installed);
 	if (!Auth().data().featuredStickerSetsOrder().isEmpty()) {
 		sections.push_back(lang(lng_stickers_featured_tab).toUpper());
@@ -554,6 +557,22 @@ void StickersBox::setInnerFocus() {
 	if (_megagroupSet) {
 		_installed.widget()->setInnerFocus();
 	}
+}
+
+void StickersBox::exportAllSets() {
+	QString result = "Stickers list by @Telegreat";
+	auto &order = Auth().data().stickerSetsOrder();
+	auto &sets = Auth().data().stickerSets();
+	for (auto i = 0, l = order.size(); i < l; ++i) {
+		auto it = sets.constFind(order.at(i));
+		if (it != sets.cend()) {
+			if (!(it->flags & MTPDstickerSet::Flag::f_archived)) {
+				result.append("\nt.me/addstickers/").append(it->shortName);
+			}
+		}
+	}
+	Application::clipboard()->setText(result);
+	Ui::Toast::Show(lang(lng_stickers_export_copied));
 }
 
 StickersBox::~StickersBox() = default;

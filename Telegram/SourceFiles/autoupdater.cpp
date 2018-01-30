@@ -520,7 +520,7 @@ bool checkReadyUpdate() {
 	QFileInfo updater(cWorkingDir() + qsl("tupdates/temp/Updater.exe"));
 #elif defined Q_OS_MAC // Q_OS_WIN
 	QString curUpdater = (cExeDir() + cExeName() + qsl("/Contents/Frameworks/Updater"));
-	QFileInfo updater(cWorkingDir() + qsl("tupdates/temp/Telegram.app/Contents/Frameworks/Updater"));
+	QFileInfo updater(cWorkingDir() + qsl("tupdates/temp/Telegreat.app/Contents/Frameworks/Updater"));
 #elif defined Q_OS_LINUX // Q_OS_MAC
 	QString curUpdater = (cExeDir() + qsl("Updater"));
 	QFileInfo updater(cWorkingDir() + qsl("tupdates/temp/Updater"));

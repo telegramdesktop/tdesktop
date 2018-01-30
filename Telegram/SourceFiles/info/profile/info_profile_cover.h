@@ -82,6 +82,7 @@ private:
 	object_ptr<Ui::FlatLabel> _name = { nullptr };
 	object_ptr<Ui::RpWidget> _verifiedCheck = { nullptr };
 	object_ptr<Ui::FlatLabel> _status = { nullptr };
+	object_ptr<Ui::FlatLabel> _id = { nullptr };
 	//object_ptr<CoverDropArea> _dropArea = { nullptr };
 	base::Timer _refreshStatusTimer;
 
