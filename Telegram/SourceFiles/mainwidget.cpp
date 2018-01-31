@@ -887,21 +887,27 @@ void MainWidget::deleteLayer(FullMsgId itemId) {
 void MainWidget::cancelUploadLayer(not_null<HistoryItem*> item) {
 	const auto itemId = item->fullId();
 	Auth().uploader().pause(itemId);
-	Ui::show(Box<ConfirmBox>(lang(lng_selected_cancel_sure_this), lang(lng_selected_upload_stop), lang(lng_continue), base::lambda_guarded(this, [=] {
+	const auto stopUpload = [=] {
 		Ui::hideLayer();
 		if (const auto item = App::histItemById(itemId)) {
 			const auto history = item->history();
-			const auto wasLast = (history->lastMsg == item);
 			item->destroy();
-			if (wasLast && !history->lastMsg) {
-				checkPeerHistory(history->peer);
+			if (!history->lastMessageKnown()) {
+				Auth().api().requestDialogEntry(history);
 			}
 			Auth().data().sendHistoryChangeNotifications();
 		}
 		Auth().uploader().unpause();
-	}), base::lambda_guarded(this, [] {
+	};
+	const auto continueUpload = [=] {
 		Auth().uploader().unpause();
-	})));
+	};
+	Ui::show(Box<ConfirmBox>(
+		lang(lng_selected_cancel_sure_this),
+		lang(lng_selected_upload_stop),
+		lang(lng_continue),
+		stopUpload,
+		continueUpload));
 }
 
 void MainWidget::deletePhotoLayer(PhotoData *photo) {
@@ -1041,12 +1047,11 @@ void MainWidget::deleteConversation(
 	if (const auto history = App::historyLoaded(peer->id)) {
 		Auth().data().setPinnedDialog(history, false);
 		removeDialog(history);
-		if (peer->isMegagroup() && peer->asChannel()->mgInfo->migrateFromPtr) {
-			if (auto migrated = App::historyLoaded(peer->asChannel()->mgInfo->migrateFromPtr->id)) {
-				if (migrated->lastMsg) { // return initial dialog
-					migrated->setLastMessage(migrated->lastMsg);
-				} else {
-					checkPeerHistory(migrated->peer);
+		if (const auto channel = peer->asMegagroup()) {
+			channel->addFlags(MTPDchannel::Flag::f_left);
+			if (const auto from = channel->mgInfo->migrateFromPtr) {
+				if (const auto migrated = App::historyLoaded(from)) {
+					migrated->updateChatListExistence();
 				}
 			}
 		}
@@ -1059,54 +1064,18 @@ void MainWidget::deleteConversation(
 	}
 	if (deleteHistory) {
 		DeleteHistoryRequest request = { peer, false };
-		MTP::send(MTPmessages_DeleteHistory(MTP_flags(0), peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, request));
+		MTP::send(
+			MTPmessages_DeleteHistory(
+				MTP_flags(0),
+				peer->input,
+				MTP_int(0)),
+			rpcDone(&MainWidget::deleteHistoryPart, request));
 	}
 }
 
 void MainWidget::deleteAndExit(ChatData *chat) {
 	PeerData *peer = chat;
 	MTP::send(MTPmessages_DeleteChatUser(chat->inputChat, App::self()->inputUser), rpcDone(&MainWidget::deleteHistoryAfterLeave, peer), rpcFail(&MainWidget::leaveChatFailed, peer));
-}
-
-void MainWidget::deleteAllFromUser(ChannelData *channel, UserData *from) {
-	Assert(channel != nullptr && from != nullptr);
-
-	QVector<MsgId> toDestroy;
-	if (auto history = App::historyLoaded(channel->id)) {
-		for (const auto &block : history->blocks) {
-			for (const auto &message : block->messages) {
-				const auto item = message->data();
-				if (item->from() == from && item->canDelete()) {
-					toDestroy.push_back(item->id);
-				}
-			}
-		}
-		for_const (auto &msgId, toDestroy) {
-			if (auto item = App::histItemById(peerToChannel(channel->id), msgId)) {
-				item->destroy();
-			}
-		}
-	}
-	MTP::send(
-		MTPchannels_DeleteUserHistory(
-			channel->inputChannel,
-			from->inputUser),
-		rpcDone(&MainWidget::deleteAllFromUserPart, { channel, from }));
-	Auth().data().sendHistoryChangeNotifications();
-}
-
-void MainWidget::deleteAllFromUserPart(DeleteAllFromUserParams params, const MTPmessages_AffectedHistory &result) {
-	auto &d = result.c_messages_affectedHistory();
-	params.channel->ptsUpdateAndApply(d.vpts.v, d.vpts_count.v);
-
-	auto offset = d.voffset.v;
-	if (offset > 0) {
-		MTP::send(MTPchannels_DeleteUserHistory(params.channel->inputChannel, params.from->inputUser), rpcDone(&MainWidget::deleteAllFromUserPart, params));
-	} else if (auto h = App::historyLoaded(params.channel)) {
-		if (!h->lastMsg) {
-			checkPeerHistory(params.channel);
-		}
-	}
 }
 
 void MainWidget::addParticipants(
@@ -1192,99 +1161,6 @@ bool MainWidget::addParticipantsFail(
 	}
 	Ui::show(Box<InformBox>(text));
 	return false;
-}
-
-void MainWidget::checkPeerHistory(PeerData *peer) {
-	auto offsetId = 0;
-	auto offsetDate = 0;
-	auto addOffset = 0;
-	auto limit = 1;
-	auto maxId = 0;
-	auto minId = 0;
-	auto historyHash = 0;
-	MTP::send(
-		MTPmessages_GetHistory(
-			peer->input,
-			MTP_int(offsetId),
-			MTP_int(offsetDate),
-			MTP_int(addOffset),
-			MTP_int(limit),
-			MTP_int(maxId),
-			MTP_int(minId),
-			MTP_int(historyHash)),
-		rpcDone(&MainWidget::checkedHistory, peer));
-}
-
-void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &result) {
-	const QVector<MTPMessage> *v = 0;
-	switch (result.type()) {
-	case mtpc_messages_messages: {
-		auto &d(result.c_messages_messages());
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
-		v = &d.vmessages.v;
-	} break;
-
-	case mtpc_messages_messagesSlice: {
-		auto &d(result.c_messages_messagesSlice());
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
-		v = &d.vmessages.v;
-	} break;
-
-	case mtpc_messages_channelMessages: {
-		auto &d(result.c_messages_channelMessages());
-		if (peer && peer->isChannel()) {
-			peer->asChannel()->ptsReceived(d.vpts.v);
-		} else {
-			LOG(("API Error: received messages.channelMessages when no channel was passed! (MainWidget::checkedHistory)"));
-		}
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
-		v = &d.vmessages.v;
-	} break;
-
-	case mtpc_messages_messagesNotModified: {
-		LOG(("API Error: received messages.messagesNotModified! (MainWidget::checkedHistory)"));
-	} break;
-	}
-
-	if (!v || v->isEmpty()) {
-		if (peer->isChat() && !peer->asChat()->haveLeft()) {
-			if (const auto history = App::historyLoaded(peer->id)) {
-				Local::addSavedPeer(peer, history->chatsListDate());
-			}
-		} else if (const auto channel = peer->asChannel()) {
-			if (channel->inviter > 0 && channel->amIn()) {
-				if (const auto from = App::userLoaded(channel->inviter)) {
-					const auto history = App::history(peer->id);
-					history->clear(true);
-					history->addNewerSlice(QVector<MTPMessage>());
-					history->asChannelHistory()->insertJoinedMessage(true);
-				}
-			}
-		} else if (const auto history = App::historyLoaded(peer->id)) {
-			deleteConversation(history->peer, false);
-		}
-	} else {
-		const auto history = App::history(peer->id);
-		if (!history->lastMsg) {
-			history->addNewMessage((*v)[0], NewMessageLast);
-		}
-		if (!history->chatsListDate().isNull() && history->loadedAtBottom()) {
-			if (const auto channel = peer->asChannel()) {
-				if (channel->inviter > 0
-					&& history->chatsListDate() <= channel->inviteDate
-					&& channel->amIn()) {
-					if (const auto from = App::userLoaded(channel->inviter)) {
-						history->asChannelHistory()->insertJoinedMessage(true);
-					}
-				}
-			}
-		}
-		history->updateChatListExistence();
-	}
-	Auth().data().sendHistoryChangeNotifications();
 }
 
 bool MainWidget::sendMessageFail(const RPCError &error) {
@@ -1562,9 +1438,9 @@ void MainWidget::messagesAffected(
 		ptsUpdateAndApply(data.vpts.v, data.vpts_count.v);
 	}
 
-	if (auto h = App::historyLoaded(peer ? peer->id : 0)) {
-		if (!h->lastMsg) {
-			checkPeerHistory(peer);
+	if (const auto history = App::historyLoaded(peer)) {
+		if (!history->lastMessageKnown()) {
+			Auth().api().requestDialogEntry(history);
 		}
 	}
 }
@@ -3473,7 +3349,9 @@ void MainWidget::updSetState(int32 pts, int32 date, int32 qts, int32 seq) {
 	}
 }
 
-void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_ChannelDifference &diff) {
+void MainWidget::gotChannelDifference(
+		ChannelData *channel,
+		const MTPupdates_ChannelDifference &diff) {
 	_channelFailDifferenceTimeout.remove(channel);
 
 	int32 timeout = 0;
@@ -3491,28 +3369,28 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
-		auto h = App::historyLoaded(channel->id);
-		if (h) {
-			h->setNotLoadedAtBottom();
+		auto history = App::historyLoaded(channel->id);
+		if (history) {
+			history->setNotLoadedAtBottom();
 		}
 		App::feedMsgs(d.vmessages, NewMessageLast);
-		if (h) {
-			if (auto item = App::histItemById(peerToChannel(channel->id), d.vtop_message.v)) {
-				h->setLastMessage(item);
-			}
-			if (d.vunread_count.v >= h->unreadCount()) {
-				h->setUnreadCount(d.vunread_count.v);
-				h->inboxReadBefore = d.vread_inbox_max_id.v + 1;
-			}
-			h->setUnreadMentionsCount(d.vunread_mentions_count.v);
+		if (history) {
+			history->applyDialogFields(
+				d.vunread_count.v,
+				d.vread_inbox_max_id.v,
+				d.vread_outbox_max_id.v);
+			history->applyDialogTopMessage(d.vtop_message.v);
+			history->setUnreadMentionsCount(d.vunread_mentions_count.v);
 			if (_history->peer() == channel) {
 				_history->updateHistoryDownVisibility();
 				_history->preloadHistoryIfNeeded();
 			}
-			h->asChannelHistory()->getRangeDifference();
+			Auth().api().requestChannelRangeDifference(history);
 		}
 
-		if (d.has_timeout()) timeout = d.vtimeout.v;
+		if (d.has_timeout()) {
+			timeout = d.vtimeout.v;
+		}
 		isFinal = d.is_final();
 		channel->ptsInit(d.vpts.v);
 	} break;
@@ -3520,39 +3398,7 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 	case mtpc_updates_channelDifference: {
 		auto &d = diff.c_updates_channelDifference();
 
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
-
-		_handlingChannelDifference = true;
-		feedMessageIds(d.vother_updates);
-
-		// feed messages and groups, copy from App::feedMsgs
-		auto h = App::history(channel->id);
-		auto &vmsgs = d.vnew_messages.v;
-		auto indices = base::flat_map<uint64, int>();
-		for (auto i = 0, l = vmsgs.size(); i != l; ++i) {
-			const auto &msg = vmsgs[i];
-			if (msg.type() == mtpc_message) {
-				const auto &data = msg.c_message();
-				if (App::checkEntitiesAndViewsUpdate(data)) { // new message, index my forwarded messages to links _overview, already in blocks
-					LOG(("Skipping message, because it is already in blocks!"));
-					continue;
-				}
-			}
-			const auto msgId = idFromMessage(msg);
-			indices.emplace((uint64(uint32(msgId)) << 32) | uint64(i), i);
-		}
-		for (const auto [position, index] : indices) {
-			const auto &msg = vmsgs[index];
-			if (channel->id != peerFromMessage(msg)) {
-				LOG(("API Error: message with invalid peer returned in channelDifference, channelId: %1, peer: %2").arg(peerToChannel(channel->id)).arg(peerFromMessage(msg)));
-				continue; // wtf
-			}
-			h->addNewMessage(msg, NewMessageUnread);
-		}
-
-		feedUpdateVector(d.vother_updates, true);
-		_handlingChannelDifference = false;
+		feedChannelDifference(d);
 
 		if (d.has_timeout()) timeout = d.vtimeout.v;
 		isFinal = d.is_final();
@@ -3570,55 +3416,16 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 	}
 }
 
-void MainWidget::gotRangeDifference(
-		ChannelData *channel,
-		const MTPupdates_ChannelDifference &diff) {
-	int32 nextRequestPts = 0;
-	bool isFinal = true;
-	switch (diff.type()) {
-	case mtpc_updates_channelDifferenceEmpty: {
-		auto &d = diff.c_updates_channelDifferenceEmpty();
-		nextRequestPts = d.vpts.v;
-		isFinal = d.is_final();
-	} break;
+void MainWidget::feedChannelDifference(
+		const MTPDupdates_channelDifference &data) {
+	App::feedUsers(data.vusers);
+	App::feedChats(data.vchats);
 
-	case mtpc_updates_channelDifferenceTooLong: {
-		auto &d = diff.c_updates_channelDifferenceTooLong();
-
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
-
-		nextRequestPts = d.vpts.v;
-		isFinal = d.is_final();
-	} break;
-
-	case mtpc_updates_channelDifference: {
-		auto &d = diff.c_updates_channelDifference();
-
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
-
-		_handlingChannelDifference = true;
-		feedMessageIds(d.vother_updates);
-		App::feedMsgs(d.vnew_messages, NewMessageUnread);
-		feedUpdateVector(d.vother_updates, true);
-		_handlingChannelDifference = false;
-
-		nextRequestPts = d.vpts.v;
-		isFinal = d.is_final();
-	} break;
-	}
-
-	if (!isFinal) {
-		if (const auto history = App::historyLoaded(channel->id)) {
-			MTP_LOG(0, ("getChannelDifference { "
-				"good - after not final channelDifference was received, "
-				"validating history part }%1"
-				).arg(cTestMode() ? " TESTMODE" : ""));
-			history->asChannelHistory()->getRangeDifferenceNext(
-				nextRequestPts);
-		}
-	}
+	_handlingChannelDifference = true;
+	feedMessageIds(data.vother_updates);
+	App::feedMsgs(data.vnew_messages, NewMessageUnread);
+	feedUpdateVector(data.vother_updates, true);
+	_handlingChannelDifference = false;
 }
 
 bool MainWidget::failChannelDifference(ChannelData *channel, const RPCError &error) {
@@ -3985,12 +3792,12 @@ void MainWidget::onSelfParticipantUpdated(ChannelData *channel) {
 			history = App::history(channel);
 		}
 		if (history->isEmpty()) {
-			checkPeerHistory(channel);
+			Auth().api().requestDialogEntry(history);
 		} else {
-			history->asChannelHistory()->checkJoinedMessage(true);
+			history->checkJoinedMessage(true);
 		}
 	} else if (history) {
-		history->asChannelHistory()->checkJoinedMessage();
+		history->checkJoinedMessage();
 	}
 	Auth().data().sendHistoryChangeNotifications();
 }
@@ -4768,10 +4575,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				const auto existing = App::histItemById(channel, newId);
 				if (existing && !local->mainView()) {
 					const auto history = local->history();
-					const auto wasLast = (history->lastMsg == local);
 					local->destroy();
-					if (wasLast && !history->lastMsg) {
-						checkPeerHistory(history->peer);
+					if (!history->lastMessageKnown()) {
+						Auth().api().requestDialogEntry(history);
 					}
 				} else {
 					if (existing) {
@@ -5211,7 +5017,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateChannel: {
 		auto &d = update.c_updateChannel();
-		if (auto channel = App::channelLoaded(d.vchannel_id.v)) {
+		if (const auto channel = App::channelLoaded(d.vchannel_id.v)) {
 			channel->inviter = 0;
 			if (!channel->amIn()) {
 				if (const auto history = App::historyLoaded(channel->id)) {

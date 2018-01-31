@@ -148,19 +148,7 @@ void HistoryItem::invalidateChatsListEntry() {
 
 void HistoryItem::finishEditionToEmpty() {
 	finishEdition(-1);
-
-	_history->removeNotification(this);
-	if (auto channel = history()->peer->asChannel()) {
-		if (channel->pinnedMessageId() == id) {
-			channel->clearPinnedMessage();
-		}
-	}
-	if (history()->lastKeyboardId == id) {
-		history()->clearLastKeyboard();
-	}
-	if ((!out() || isPost()) && unread() && history()->unreadCount() > 0) {
-		history()->setUnreadCount(history()->unreadCount() - 1);
-	}
+	_history->itemVanished(this);
 }
 
 bool HistoryItem::isMediaUnread() const {
@@ -244,7 +232,7 @@ void HistoryItem::destroy() {
 	if (isLogEntry()) {
 		Assert(!mainView());
 	} else {
-		// All this must be done for all items manually in History::clear(false)!
+		// All this must be done for all items manually in History::clear()!
 		eraseFromUnreadMentions();
 		if (IsServerMsgId(id)) {
 			if (const auto types = sharedMediaTypes()) {
@@ -256,32 +244,7 @@ void HistoryItem::destroy() {
 		} else {
 			Auth().api().cancelLocalItem(this);
 		}
-
-		const auto wasAtBottom = history->loadedAtBottom();
-		history->removeNotification(this);
-
-		removeMainView();
-
-		if (history->lastMsg == this) {
-			history->fixLastMessage(wasAtBottom);
-		}
-		if (history->lastKeyboardId == id) {
-			history->clearLastKeyboard();
-		}
-		if ((!out() || isPost()) && unread() && history->unreadCount() > 0) {
-			history->setUnreadCount(history->unreadCount() - 1);
-		}
-		if (const auto channel = history->peer->asChannel()) {
-			if (channel->pinnedMessageId() == id) {
-				channel->clearPinnedMessage();
-			}
-			if (const auto feed = channel->feed()) {
-				// Must be after histroy->lastMsg is cleared.
-				// Otherwise feed last message will be this value again.
-				feed->messageRemoved(this);
-				// #TODO feeds unread
-			}
-		}
+		_history->itemRemoved(this);
 	}
 	delete this;
 }
@@ -295,9 +258,6 @@ void HistoryItem::refreshMainView() {
 
 void HistoryItem::removeMainView() {
 	if (const auto view = mainView()) {
-		if (const auto channelHistory = _history->asChannelHistory()) {
-			channelHistory->messageDetached(this);
-		}
 		Auth().data().notifyHistoryChangeDelayed(_history);
 		view->removeFromBlock();
 	}
@@ -551,11 +511,11 @@ bool HistoryItem::unread() const {
 			return false;
 		}
 
-		if (id > 0) {
-			if (id < history()->outboxReadBefore) {
+		if (IsServerMsgId(id)) {
+			if (!history()->isServerSideUnread(this)) {
 				return false;
 			}
-			if (auto user = history()->peer->asUser()) {
+			if (const auto user = history()->peer->asUser()) {
 				if (user->botInfo) {
 					return false;
 				}
@@ -568,8 +528,8 @@ bool HistoryItem::unread() const {
 		return true;
 	}
 
-	if (id > 0) {
-		if (id < history()->inboxReadBefore) {
+	if (IsServerMsgId(id)) {
+		if (!history()->isServerSideUnread(this)) {
 			return false;
 		}
 		return true;
@@ -585,24 +545,6 @@ bool HistoryItem::isEmpty() const {
 	return _text.isEmpty()
 		&& !_media
 		&& !Has<HistoryMessageLogEntryOriginal>();
-}
-
-HistoryItem *HistoryItem::previousItem() const {
-	if (const auto view = mainView()) {
-		if (const auto previous = view->previousInBlocks()) {
-			return previous->data();
-		}
-	}
-	return nullptr;
-}
-
-HistoryItem *HistoryItem::nextItem() const {
-	if (const auto view = mainView()) {
-		if (const auto next = view->nextInBlocks()) {
-			return next->data();
-		}
-	}
-	return nullptr;
 }
 
 QString HistoryItem::notificationText() const {

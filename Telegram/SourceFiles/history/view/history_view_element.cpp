@@ -611,6 +611,9 @@ void Element::clickHandlerPressedChanged(
 }
 
 Element::~Element() {
+	if (_data->mainView() == this) {
+		_data->clearMainView();
+	}
 	Auth().data().unregisterItemView(this);
 }
 

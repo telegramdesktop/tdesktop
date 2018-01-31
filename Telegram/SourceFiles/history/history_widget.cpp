@@ -2256,9 +2256,7 @@ void HistoryWidget::historyToDown(History *history) {
 void HistoryWidget::unreadCountChanged(not_null<History*> history) {
 	if (history == _history || history == _migrated) {
 		updateHistoryDownVisibility();
-		_historyDown->setUnreadCount(
-			_history->unreadCount()
-			+ (_migrated ? _migrated->unreadCount() : 0));
+		_historyDown->setUnreadCount(_history->chatListUnreadCount());
 	}
 }
 
@@ -2402,9 +2400,9 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		if (_history->loadedAtBottom() && App::wnd()) App::wnd()->checkHistoryActivation();
 	} else if (_firstLoadRequest == requestId) {
 		if (toMigrated) {
-			_history->clear(true);
+			_history->unloadBlocks();
 		} else if (_migrated) {
-			_migrated->clear(true);
+			_migrated->unloadBlocks();
 		}
 		addMessagesToFront(peer, *histList);
 		_firstLoadRequest = 0;
@@ -2421,9 +2419,9 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		historyLoaded();
 	} else if (_delayedShowAtRequest == requestId) {
 		if (toMigrated) {
-			_history->clear(true);
+			_history->unloadBlocks();
 		} else if (_migrated) {
-			_migrated->clear(true);
+			_migrated->unloadBlocks();
 		}
 
 		_delayedShowAtRequest = 0;
@@ -2506,15 +2504,15 @@ void HistoryWidget::firstLoadMessages() {
 	auto offset = 0;
 	auto loadCount = kMessagesPerPage;
 	if (_showAtMsgId == ShowAtUnreadMsgId) {
-		if (_migrated && _migrated->unreadCount()) {
+		if (const auto around = _migrated ? _migrated->loadAroundId() : 0) {
 			_history->getReadyFor(_showAtMsgId);
 			from = _migrated->peer;
 			offset = -loadCount / 2;
-			offsetId = _migrated->inboxReadBefore;
-		} else if (_history->unreadCount()) {
+			offsetId = around;
+		} else if (const auto around = _history->loadAroundId()) {
 			_history->getReadyFor(_showAtMsgId);
 			offset = -loadCount / 2;
-			offsetId = _history->inboxReadBefore;
+			offsetId = around;
 		} else {
 			_history->getReadyFor(ShowAtTheEndMsgId);
 		}
@@ -2651,13 +2649,13 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 	auto offset = 0;
 	auto loadCount = kMessagesPerPage;
 	if (_delayedShowAtMsgId == ShowAtUnreadMsgId) {
-		if (_migrated && _migrated->unreadCount()) {
+		if (const auto around = _migrated ? _migrated->loadAroundId() : 0) {
 			from = _migrated->peer;
 			offset = -loadCount / 2;
-			offsetId = _migrated->inboxReadBefore;
-		} else if (_history->unreadCount()) {
+			offsetId = around;
+		} else if (const auto around = _history->loadAroundId()) {
 			offset = -loadCount / 2;
-			offsetId = _history->inboxReadBefore;
+			offsetId = around;
 		} else {
 			loadCount = kMessagesPerPageFirst;
 		}
@@ -3630,8 +3628,17 @@ bool HistoryWidget::inlineBotResolveFail(QString name, const RPCError &error) {
 }
 
 bool HistoryWidget::isBotStart() const {
-	if (!_peer || !_peer->isUser() || !_peer->asUser()->botInfo || !_canSendMessages) return false;
-	return !_peer->asUser()->botInfo->startToken.isEmpty() || (_history->isEmpty() && !_history->lastMsg);
+	const auto user = _peer ? _peer->asUser() : nullptr;
+	if (!user
+		|| !user->botInfo
+		|| !_canSendMessages) {
+		return false;
+	} else if (!user->botInfo->startToken.isEmpty()) {
+		return true;
+	} else if (_history->isEmpty() && !_history->lastMessage()) {
+		return true;
+	}
+	return false;
 }
 
 bool HistoryWidget::isBlocked() const {
@@ -5126,14 +5133,7 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 		if (!(e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier))) {
 			_scroll->keyPressEvent(e);
 		} else if ((e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier)) == Qt::ControlModifier) {
-			if (_history && _history->lastMsg && !_editMsgId) {
-				if (const auto item = App::histItemById(_history->channelId(), _replyToId)) {
-					if (const auto next = item->nextItem()) {
-						Ui::showPeerHistory(_peer, next->id);
-						replyToMessage(next);
-					}
-				}
-			}
+			replyToNextMessage();
 		}
 	} else if (e->key() == Qt::Key_Up) {
 		if (!(e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier))) {
@@ -5145,22 +5145,51 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 			}
 			_scroll->keyPressEvent(e);
 		} else if ((e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier)) == Qt::ControlModifier) {
-			if (_history && _history->lastMsg && !_editMsgId) {
-				if (const auto item = App::histItemById(_history->channelId(), _replyToId)) {
-					if (const auto previous = item->previousItem()) {
-						Ui::showPeerHistory(_peer, previous->id);
-						replyToMessage(previous);
-					}
-				} else if (const auto previous = _history->lastMsg) {
-					Ui::showPeerHistory(_peer, previous->id);
-					replyToMessage(previous);
-				}
-			}
+			replyToPreviousMessage();
 		}
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
 		onListEnterPressed();
 	} else {
 		e->ignore();
+	}
+}
+
+void HistoryWidget::replyToPreviousMessage() {
+	if (!_history || _editMsgId) {
+		return;
+	}
+	const auto fullId = FullMsgId(
+		_history->channelId(),
+		_replyToId);
+	if (const auto item = App::histItemById(fullId)) {
+		if (const auto view = item->mainView()) {
+			if (const auto previousView = view->previousInBlocks()) {
+				const auto previous = previousView->data();
+				Ui::showPeerHistoryAtItem(previous);
+				replyToMessage(previous);
+			}
+		}
+	} else if (const auto previous = _history->lastMessage()) {
+		Ui::showPeerHistoryAtItem(previous);
+		replyToMessage(previous);
+	}
+}
+
+void HistoryWidget::replyToNextMessage() {
+	if (!_history || _editMsgId) {
+		return;
+	}
+	const auto fullId = FullMsgId(
+		_history->channelId(),
+		_replyToId);
+	if (const auto item = App::histItemById(fullId)) {
+		if (const auto view = item->mainView()) {
+			if (const auto nextView = view->nextInBlocks()) {
+				const auto next = nextView->data();
+				Ui::showPeerHistoryAtItem(next);
+				replyToMessage(next);
+			}
+		}
 	}
 }
 

@@ -593,7 +593,15 @@ void PeerMenuAddChannelMembers(not_null<ChannelData*> channel) {
 }
 
 void ToggleChannelGrouping(not_null<ChannelData*> channel, bool group) {
-	Auth().api().toggleChannelGrouping(channel, group);
+	const auto callback = [=] {
+		Ui::Toast::Show(lang(group
+			? lng_feed_channel_added
+			: lng_feed_channel_removed));
+	};
+	Auth().api().toggleChannelGrouping(
+		channel,
+		group,
+		callback);
 }
 
 base::lambda<void()> ClearHistoryHandler(not_null<PeerData*> peer) {

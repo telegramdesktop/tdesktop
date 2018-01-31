@@ -72,8 +72,10 @@ void Feed::registerOne(not_null<ChannelData*> channel) {
 	if (!base::contains(_channels, history)) {
 		const auto invisible = (_channels.size() < 2);
 		_channels.push_back(history);
-		if (history->lastMsg) {
-			updateLastMessage(history->lastMsg);
+		if (history->lastMessageKnown()) {
+			recountLastMessage();
+		} else if (_channelsLoaded) {
+			_parent->session().api().requestDialogEntry(history);
 		}
 		_parent->session().storage().remove(
 			Storage::FeedMessagesInvalidate(_id));
@@ -96,8 +98,10 @@ void Feed::unregisterOne(not_null<ChannelData*> channel) {
 	if (i != end(_channels)) {
 		const auto visible = (_channels.size() > 1);
 		_channels.erase(i, end(_channels));
-		if (_lastMessage && _lastMessage->history() == history) {
-			messageRemoved(_lastMessage);
+		if (const auto last = lastMessage()) {
+			if (last->history() == history) {
+				recountLastMessage();
+			}
 		}
 		_parent->session().storage().remove(
 			Storage::FeedMessagesRemoveAll(_id, channel->bareId()));
@@ -115,8 +119,10 @@ void Feed::unregisterOne(not_null<ChannelData*> channel) {
 }
 
 void Feed::updateLastMessage(not_null<HistoryItem*> item) {
-	if (justSetLastMessage(item)) {
-		setChatsListDate(_lastMessage->date);
+	if (justUpdateLastMessage(item)) {
+		if (_lastMessage && *_lastMessage) {
+			setChatsListDate((*_lastMessage)->date);
+		}
 	}
 }
 
@@ -207,8 +213,11 @@ void Feed::setChannels(std::vector<not_null<ChannelData*>> channels) {
 	_parent->notifyFeedUpdated(this, FeedUpdateFlag::Channels);
 }
 
-bool Feed::justSetLastMessage(not_null<HistoryItem*> item) {
-	if (_lastMessage && item->position() <= _lastMessage->position()) {
+bool Feed::justUpdateLastMessage(not_null<HistoryItem*> item) {
+	if (!_lastMessage) {
+		return false;
+	} else if (*_lastMessage
+		&& item->position() <= (*_lastMessage)->position()) {
 		return false;
 	}
 	_lastMessage = item;
@@ -216,36 +225,106 @@ bool Feed::justSetLastMessage(not_null<HistoryItem*> item) {
 }
 
 void Feed::messageRemoved(not_null<HistoryItem*> item) {
-	if (_lastMessage == item) {
+	if (lastMessage() == item) {
+		_lastMessage = base::none;
 		recountLastMessage();
 	}
 }
 
 void Feed::historyCleared(not_null<History*> history) {
-	if (_lastMessage->history() == history) {
-		recountLastMessage();
+	if (const auto last = lastMessage()) {
+		if (last->history() == history) {
+			messageRemoved(last);
+		}
 	}
 }
 
 void Feed::recountLastMessage() {
-	_lastMessage = nullptr;
 	for (const auto history : _channels) {
-		if (const auto last = history->lastMsg) {
-			justSetLastMessage(last);
+		if (!history->lastMessageKnown()) {
+			return;
 		}
 	}
-	if (_lastMessage) {
-		setChatsListDate(_lastMessage->date);
+	_lastMessage = nullptr;
+	for (const auto history : _channels) {
+		if (const auto last = history->lastMessage()) {
+			justUpdateLastMessage(last);
+		}
+	}
+	updateChatsListDate();
+}
+
+void Feed::updateChatsListDate() {
+	if (_lastMessage && *_lastMessage) {
+		setChatsListDate((*_lastMessage)->date);
 	}
 }
 
-void Feed::setUnreadCounts(int unreadCount, int unreadMutedCount) {
-	_unreadCount = unreadCount;
+HistoryItem *Feed::lastMessage() const {
+	return _lastMessage ? *_lastMessage : nullptr;
+}
+
+bool Feed::lastMessageKnown() const {
+	return !!_lastMessage;
+}
+
+void Feed::applyDialog(const MTPDdialogFeed &data) {
+	const auto addChannel = [&](ChannelId channelId) {
+		if (const auto channel = App::channelLoaded(channelId)) {
+			channel->setFeed(this);
+		}
+	};
+	for (const auto &channelId : data.vfeed_other_channels.v) {
+		addChannel(channelId.v);
+	}
+
+	_lastMessage = nullptr;
+	if (const auto peerId = peerFromMTP(data.vpeer)) {
+		if (const auto channelId = peerToChannel(peerId)) {
+			addChannel(channelId);
+			const auto fullId = FullMsgId(channelId, data.vtop_message.v);
+			if (const auto item = App::histItemById(fullId)) {
+				justUpdateLastMessage(item);
+			}
+		}
+	}
+	updateChatsListDate();
+
+	setUnreadCounts(
+		data.vunread_count.v,
+		data.vunread_muted_count.v);
+	if (data.has_read_max_position()) {
+		setUnreadPosition(FeedPositionFromMTP(data.vread_max_position));
+	}
+}
+
+void Feed::setUnreadCounts(int unreadNonMutedCount, int unreadMutedCount) {
+	_unreadCount = unreadNonMutedCount + unreadMutedCount;
 	_unreadMutedCount = unreadMutedCount;
 }
 
 void Feed::setUnreadPosition(const MessagePosition &position) {
-	_unreadPosition = position;
+	if (_unreadPosition.current() < position) {
+		_unreadPosition = position;
+	}
+}
+
+void Feed::unreadCountChanged(
+		base::optional<int> unreadCountDelta,
+		int mutedCountDelta) {
+	if (!_unreadCount) {
+		return;
+	}
+	if (unreadCountDelta) {
+		*_unreadCount = std::max(*_unreadCount + *unreadCountDelta, 0);
+		_unreadMutedCount = snap(
+			_unreadMutedCount + mutedCountDelta,
+			0,
+			*_unreadCount);
+		updateChatListEntry();
+	} else {
+		_parent->session().api().requestDialogEntry(this);
+	}
 }
 
 MessagePosition Feed::unreadPosition() const {
@@ -265,15 +344,15 @@ bool Feed::shouldBeInChatList() const {
 }
 
 int Feed::chatListUnreadCount() const {
-	return _unreadCount;
+	return _unreadCount ? *_unreadCount : 0;
 }
 
 bool Feed::chatListMutedBadge() const {
-	return _unreadCount <= _unreadMutedCount;
+	return _unreadCount ? (*_unreadCount <= _unreadMutedCount) : false;
 }
 
 HistoryItem *Feed::chatsListItem() const {
-	return _lastMessage;
+	return lastMessage();
 }
 
 const QString &Feed::chatsListName() const {

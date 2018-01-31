@@ -56,7 +56,10 @@ public:
 	void applyUpdates(const MTPUpdates &updates, uint64 sentMessageRandomId = 0);
 
 	void savePinnedOrder();
-	void toggleChannelGrouping(not_null<ChannelData*> channel, bool group);
+	void toggleChannelGrouping(
+		not_null<ChannelData*> channel,
+		bool group,
+		base::lambda<void()> callback);
 
 	using RequestMessageDataCallback = base::lambda<void(ChannelData*, MsgId)>;
 	void requestMessageData(
@@ -65,6 +68,8 @@ public:
 		RequestMessageDataCallback callback);
 
 	void requestContacts();
+	void requestDialogEntry(not_null<Data::Feed*> feed);
+	void requestDialogEntry(not_null<History*> history);
 
 	void requestFullPeer(PeerData *peer);
 	void requestPeer(PeerData *peer);
@@ -73,6 +78,7 @@ public:
 	void requestBots(not_null<ChannelData*> channel);
 	void requestAdmins(not_null<ChannelData*> channel);
 	void requestParticipantsCountDelayed(not_null<ChannelData*> channel);
+	void requestChannelRangeDifference(not_null<History*> history);
 
 	void requestChangelog(
 		const QString &sinceVersion,
@@ -96,6 +102,9 @@ public:
 	void unblockParticipant(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> user);
+	void deleteAllFromUser(
+		not_null<ChannelData*> channel,
+		not_null<UserData*> from);
 
 	void requestWebPageDelayed(WebPageData *page);
 	void clearWebPageRequest(WebPageData *page);
@@ -269,6 +278,7 @@ private:
 
 	QVector<MTPint> collectMessageIds(const MessageDataRequests &requests);
 	MessageDataRequests *messageDataRequests(ChannelData *channel, bool onlyExisting = false);
+	void applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs);
 
 	void gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mtpRequestId req);
 	void gotUserFull(UserData *user, const MTPUserFull &result, mtpRequestId req);
@@ -285,10 +295,24 @@ private:
 		int availableCount,
 		const QVector<MTPChannelParticipant> &list);
 	void resolveWebPages();
-	void gotWebPages(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req);
+	void gotWebPages(
+		ChannelData *channel,
+		const MTPmessages_Messages &result,
+		mtpRequestId req);
 	void gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result);
 
-	PeerData *notifySettingReceived(MTPInputNotifyPeer peer, const MTPPeerNotifySettings &settings);
+	void channelRangeDifferenceSend(
+		not_null<ChannelData*> channel,
+		MsgRange range,
+		int32 pts);
+	void channelRangeDifferenceDone(
+		not_null<ChannelData*> channel,
+		MsgRange range,
+		const MTPupdates_ChannelDifference &result);
+
+	PeerData *notifySettingReceived(
+		MTPInputNotifyPeer peer,
+		const MTPPeerNotifySettings &settings);
 
 	void stickerSetDisenabled(mtpRequestId requestId);
 	void stickersSaveOrder();
@@ -347,6 +371,11 @@ private:
 	void applyAffectedMessages(
 		not_null<PeerData*> peer,
 		const MTPmessages_AffectedMessages &result);
+
+	void deleteAllFromUserSend(
+		not_null<ChannelData*> channel,
+		not_null<UserData*> from);
+
 	void sendMessageFail(const RPCError &error);
 	void uploadAlbumMedia(
 		not_null<HistoryItem*> item,
@@ -391,7 +420,7 @@ private:
 		const MTPchannels_ChannelParticipants&)> _channelMembersForAddCallback;
 	base::flat_map<
 		not_null<ChannelData*>,
-		mtpRequestId> _channelGroupingRequests;
+		std::pair<mtpRequestId,base::lambda<void()>>> _channelGroupingRequests;
 
 	using KickRequest = std::pair<
 		not_null<ChannelData*>,
@@ -399,6 +428,10 @@ private:
 	base::flat_map<KickRequest, mtpRequestId> _kickRequests;
 
 	QMap<ChannelData*, mtpRequestId> _selfParticipantRequests;
+
+	base::flat_map<
+		not_null<ChannelData*>,
+		mtpRequestId> _rangeDifferenceRequests;
 
 	QMap<WebPageData*, mtpRequestId> _webPagesPending;
 	base::Timer _webPagesTimer;
@@ -432,6 +465,8 @@ private:
 
 	mtpRequestId _contactsRequestId = 0;
 	mtpRequestId _contactsStatusesRequestId = 0;
+	base::flat_set<not_null<Data::Feed*>> _dialogFeedRequests;
+	base::flat_set<not_null<History*>> _dialogRequests;
 
 	base::flat_map<not_null<History*>, mtpRequestId> _unreadMentionsRequests;
 

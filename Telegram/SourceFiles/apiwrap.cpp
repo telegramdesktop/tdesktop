@@ -172,9 +172,10 @@ void ApiWrap::savePinnedOrder() {
 
 void ApiWrap::toggleChannelGrouping(
 		not_null<ChannelData*> channel,
-		bool group) {
+		bool group,
+		base::lambda<void()> callback) {
 	if (const auto already = _channelGroupingRequests.take(channel)) {
-		request(*already).cancel();
+		request(already->first).cancel();
 	}
 	const auto feedId = Data::Feed::kId;
 	const auto flags = group
@@ -185,15 +186,18 @@ void ApiWrap::toggleChannelGrouping(
 		channel->inputChannel,
 		MTP_int(feedId)
 	)).done([=](const MTPBool &result) {
-		_channelGroupingRequests.remove(channel);
 		if (group) {
 			channel->setFeed(Auth().data().feed(feedId));
 		} else {
 			channel->clearFeed();
 		}
+		if (const auto data = _channelGroupingRequests.take(channel)) {
+			data->second();
+		}
 	}).fail([=](const RPCError &error) {
 		_channelGroupingRequests.remove(channel);
 	}).send();
+	_channelGroupingRequests.emplace(channel, requestId, callback);
 }
 
 void ApiWrap::sendMessageFail(const RPCError &error) {
@@ -362,6 +366,124 @@ void ApiWrap::requestContacts() {
 	}).send();
 }
 
+void ApiWrap::requestDialogEntry(not_null<Data::Feed*> feed) {
+	if (_dialogFeedRequests.contains(feed)) {
+		return;
+	}
+	_dialogFeedRequests.emplace(feed);
+
+	auto peers = QVector<MTPInputDialogPeer>(
+		1,
+		MTP_inputDialogPeerFeed(MTP_int(feed->id())));
+	if (feed->channelsLoaded()) {
+		const auto &channels = feed->channels();
+		peers.reserve(channels.size() + 1);
+		for (const auto history : feed->channels()) {
+			peers.push_back(MTP_inputDialogPeer(history->peer->input));
+		}
+	} else {
+		request(MTPmessages_GetDialogs(
+			MTP_flags(MTPmessages_GetDialogs::Flag::f_feed_id),
+			MTP_int(feed->id()),
+			MTP_int(0), // offset_date
+			MTP_int(0), // offset_id
+			MTP_inputPeerEmpty(), // offset_peer
+			MTP_int(Data::Feed::kChannelsLimit)
+		)).done([=](const MTPmessages_Dialogs &result) {
+		//	applyFeedChannels(result);
+		}).send();
+	}
+	request(MTPmessages_GetPeerDialogs(
+		MTP_vector(std::move(peers))
+	)).done([=](const MTPmessages_PeerDialogs &result) {
+		applyPeerDialogs(result);
+		_dialogFeedRequests.remove(feed);
+	}).fail([=](const RPCError &error) {
+		_dialogFeedRequests.remove(feed);
+	}).send();
+}
+
+void ApiWrap::requestDialogEntry(not_null<History*> history) {
+	if (_dialogRequests.contains(history)) {
+		return;
+	}
+	_dialogRequests.emplace(history);
+	auto peers = QVector<MTPInputDialogPeer>(
+		1,
+		MTP_inputDialogPeer(history->peer->input));
+	request(MTPmessages_GetPeerDialogs(
+		MTP_vector(std::move(peers))
+	)).done([=](const MTPmessages_PeerDialogs &result) {
+		applyPeerDialogs(result);
+
+		if (history->lastMessage()) {
+			if (!history->chatsListDate().isNull()
+				&& history->loadedAtBottom()) {
+				if (const auto channel = history->peer->asChannel()) {
+					const auto inviter = channel->inviter;
+					if (inviter != 0
+						&& history->chatsListDate() <= channel->inviteDate
+						&& channel->amIn()) {
+						if (const auto from = App::userLoaded(inviter)) {
+							history->insertJoinedMessage(true);
+						}
+					}
+				}
+			}
+			history->updateChatListExistence();
+		} else {
+			if (const auto chat = history->peer->asChat()) {
+				if (!chat->haveLeft()) {
+					Local::addSavedPeer(
+						history->peer,
+						history->chatsListDate());
+				}
+			} else if (const auto channel = history->peer->asChannel()) {
+				const auto inviter = channel->inviter;
+				if (inviter != 0 && channel->amIn()) {
+					if (const auto from = App::userLoaded(inviter)) {
+						history->unloadBlocks();
+						history->addNewerSlice(QVector<MTPMessage>());
+						history->insertJoinedMessage(
+							true);
+					}
+				}
+			} else {
+				App::main()->deleteConversation(history->peer, false);
+			}
+		}
+		_dialogRequests.remove(history);
+	}).fail([=](const RPCError &error) {
+		_dialogRequests.remove(history);
+	}).send();
+}
+
+void ApiWrap::applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs) {
+	Expects(dialogs.type() == mtpc_messages_peerDialogs);
+
+	const auto &data = dialogs.c_messages_peerDialogs();
+	App::feedUsers(data.vusers);
+	App::feedChats(data.vchats);
+	App::feedMsgs(data.vmessages, NewMessageLast);
+	for (const auto &dialog : data.vdialogs.v) {
+		switch (dialog.type()) {
+		case mtpc_dialog: {
+			const auto &fields = dialog.c_dialog();
+			if (const auto peerId = peerFromMTP(fields.vpeer)) {
+				App::history(peerId)->applyDialog(fields);
+			}
+		} break;
+
+		case mtpc_dialogFeed: {
+			const auto &fields = dialog.c_dialogFeed();
+			const auto feed = Auth().data().feed(fields.vfeed_id.v);
+			feed->applyDialog(fields);
+		} break;
+		}
+	}
+	_session->data().sendHistoryChangeNotifications();
+}
+
 void ApiWrap::requestFullPeer(PeerData *peer) {
 	if (!peer || _fullPeerRequests.contains(peer)) return;
 
@@ -464,7 +586,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 				if (auto h = App::historyLoaded(cfrom->id)) {
 					if (auto hto = App::historyLoaded(channel->id)) {
 						if (!h->isEmpty()) {
-							h->clear(true);
+							h->unloadBlocks();
 						}
 						if (hto->inChatList(Dialogs::Mode::All) && h->inChatList(Dialogs::Mode::All)) {
 							App::main()->removeDialog(h);
@@ -495,14 +617,12 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		channel->setRestrictedCount(f.has_banned_count() ? f.vbanned_count.v : 0);
 		channel->setKickedCount(f.has_kicked_count() ? f.vkicked_count.v : 0);
 		channel->setInviteLink((f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString());
-		if (auto h = App::historyLoaded(channel->id)) {
-			if (h->inboxReadBefore < f.vread_inbox_max_id.v + 1) {
-				h->setUnreadCount(f.vunread_count.v);
-				h->inboxReadBefore = f.vread_inbox_max_id.v + 1;
-			}
-			accumulate_max(h->outboxReadBefore, f.vread_outbox_max_id.v + 1);
+		if (const auto history = App::historyLoaded(channel->id)) {
+			history->applyDialogFields(
+				f.vunread_count.v,
+				f.vread_inbox_max_id.v,
+				f.vread_outbox_max_id.v);
 		}
-		ranges::overload([] {}, [](int a) {});
 		if (f.has_pinned_msg_id()) {
 			channel->setPinnedMessageId(f.vpinned_msg_id.v);
 		} else {
@@ -1063,7 +1183,9 @@ void ApiWrap::unblockParticipant(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> user) {
 	const auto kick = KickRequest(channel, user);
-	if (_kickRequests.contains(kick)) return;
+	if (_kickRequests.contains(kick)) {
+		return;
+	}
 
 	const auto requestId = request(MTPchannels_EditBanned(
 		channel->inputChannel,
@@ -1083,6 +1205,43 @@ void ApiWrap::unblockParticipant(
 	}).send();
 
 	_kickRequests.emplace(kick, requestId);
+}
+
+void ApiWrap::deleteAllFromUser(
+		not_null<ChannelData*> channel,
+		not_null<UserData*> from) {
+	const auto history = App::historyLoaded(channel->id);
+	const auto ids = history
+		? history->collectMessagesFromUserToDelete(from)
+		: QVector<MsgId>();
+	const auto channelId = peerToChannel(channel->id);
+	for (const auto msgId : ids) {
+		if (const auto item = App::histItemById(channelId, msgId)) {
+			item->destroy();
+		}
+	}
+
+	Auth().data().sendHistoryChangeNotifications();
+
+	deleteAllFromUserSend(channel, from);
+}
+
+void ApiWrap::deleteAllFromUserSend(
+		not_null<ChannelData*> channel,
+		not_null<UserData*> from) {
+	request(MTPchannels_DeleteUserHistory(
+		channel->inputChannel,
+		from->inputUser
+	)).done([=](const MTPmessages_AffectedHistory &result) {
+		const auto offset = applyAffectedHistory(channel, result);
+		if (offset > 0) {
+			deleteAllFromUserSend(channel, from);
+		} else if (const auto history = App::historyLoaded(channel)) {
+			if (!history->lastMessageKnown()) {
+				Auth().api().requestDialogEntry(history);
+			}
+		}
+	}).send();
 }
 
 void ApiWrap::requestChannelMembersForAdd(
@@ -1505,23 +1664,23 @@ int ApiWrap::onlineTillFromStatus(const MTPUserStatus &status, int currentOnline
 }
 
 void ApiWrap::clearHistory(not_null<PeerData*> peer) {
-	auto lastMsgId = MsgId(0);
+	auto deleteTillId = MsgId(0);
 	if (auto history = App::historyLoaded(peer->id)) {
-		if (history->lastMsg) {
-			lastMsgId = history->lastMsg->id;
-			Local::addSavedPeer(history->peer, history->lastMsg->date);
+		if (const auto last = history->lastMessage()) {
+			deleteTillId = last->id;
+			Local::addSavedPeer(history->peer, last->date);
 		}
 		history->clear();
 		history->newLoaded = history->oldLoaded = true;
 	}
-	if (auto channel = peer->asChannel()) {
-		if (auto migrated = peer->migrateFrom()) {
+	if (const auto channel = peer->asChannel()) {
+		if (const auto migrated = peer->migrateFrom()) {
 			clearHistory(migrated);
 		}
-		if (IsServerMsgId(lastMsgId)) {
+		if (IsServerMsgId(deleteTillId)) {
 			request(MTPchannels_DeleteHistory(
 				channel->inputChannel,
-				MTP_int(lastMsgId)
+				MTP_int(deleteTillId)
 			)).send();
 		}
 	} else {
@@ -1530,7 +1689,7 @@ void ApiWrap::clearHistory(not_null<PeerData*> peer) {
 			peer->input,
 			MTP_int(0)
 		)).done([=](const MTPmessages_AffectedHistory &result) {
-			auto offset = applyAffectedHistory(peer, result);
+			const auto offset = applyAffectedHistory(peer, result);
 			if (offset > 0) {
 				clearHistory(peer);
 			}
@@ -1773,6 +1932,94 @@ void ApiWrap::requestParticipantsCountDelayed(
 	_participantsCountRequestTimer.call(
 		kReloadChannelMembersTimeout,
 		[this, channel] { channel->updateFullForced(); });
+}
+
+void ApiWrap::requestChannelRangeDifference(not_null<History*> history) {
+	Expects(history->isChannel());
+
+	const auto channel = history->peer->asChannel();
+	if (const auto requestId = _rangeDifferenceRequests.take(channel)) {
+		request(*requestId).cancel();
+	}
+	const auto range = history->rangeForDifferenceRequest();
+	if (!(range.from < range.till) || !channel->pts()) {
+		return;
+	}
+
+	MTP_LOG(0, ("getChannelDifference { good - "
+		"after channelDifferenceTooLong was received, "
+		"validating history part }%1").arg(cTestMode() ? " TESTMODE" : ""));
+	channelRangeDifferenceSend(channel, range, channel->pts());
+}
+
+void ApiWrap::channelRangeDifferenceSend(
+		not_null<ChannelData*> channel,
+		MsgRange range,
+		int32 pts) {
+	Expects(range.from < range.till);
+
+	const auto limit = range.till - range.from;
+	const auto filter = MTP_channelMessagesFilter(
+		MTP_flags(0),
+		MTP_vector<MTPMessageRange>(1, MTP_messageRange(
+			MTP_int(range.from),
+			MTP_int(range.till - 1))));
+	const auto requestId = request(MTPupdates_GetChannelDifference(
+		MTP_flags(MTPupdates_GetChannelDifference::Flag::f_force),
+		channel->inputChannel,
+		filter,
+		MTP_int(pts),
+		MTP_int(limit)
+	)).done([=](const MTPupdates_ChannelDifference &result) {
+		_rangeDifferenceRequests.remove(channel);
+		channelRangeDifferenceDone(channel, range, result);
+	}).fail([=](const RPCError &error) {
+		_rangeDifferenceRequests.remove(channel);
+	}).send();
+	_rangeDifferenceRequests.emplace(channel, requestId);
+}
+
+void ApiWrap::channelRangeDifferenceDone(
+		not_null<ChannelData*> channel,
+		MsgRange range,
+		const MTPupdates_ChannelDifference &result) {
+	auto nextRequestPts = int32(0);
+	auto isFinal = true;
+
+	switch (result.type()) {
+	case mtpc_updates_channelDifferenceEmpty: {
+		const auto &d = result.c_updates_channelDifferenceEmpty();
+		nextRequestPts = d.vpts.v;
+		isFinal = d.is_final();
+	} break;
+
+	case mtpc_updates_channelDifferenceTooLong: {
+		const auto &d = result.c_updates_channelDifferenceTooLong();
+
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+
+		nextRequestPts = d.vpts.v;
+		isFinal = d.is_final();
+	} break;
+
+	case mtpc_updates_channelDifference: {
+		const auto &d = result.c_updates_channelDifference();
+
+		App::main()->feedChannelDifference(d);
+
+		nextRequestPts = d.vpts.v;
+		isFinal = d.is_final();
+	} break;
+	}
+
+	if (!isFinal) {
+		MTP_LOG(0, ("getChannelDifference { "
+			"good - after not final channelDifference was received, "
+			"validating history part }%1"
+			).arg(cTestMode() ? " TESTMODE" : ""));
+		channelRangeDifferenceSend(channel, range, nextRequestPts);
+	}
 }
 
 void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs, mtpRequestId req) {
@@ -3438,7 +3685,11 @@ void ApiWrap::readServerHistory(not_null<History*> history) {
 
 void ApiWrap::readServerHistoryForce(not_null<History*> history) {
 	const auto peer = history->peer;
-	const auto upTo = history->inboxRead(0);
+	const auto upTo = history->readInbox();
+	if (!upTo) {
+		return;
+	}
+
 	if (const auto channel = peer->asChannel()) {
 		if (!channel->amIn()) {
 			return; // no read request for channels that I didn't join

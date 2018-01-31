@@ -178,11 +178,15 @@ HistoryInner::HistoryInner(
 	}, lifetime());
 }
 
-void HistoryInner::messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages) {
+void HistoryInner::messagesReceived(
+		PeerData *peer,
+		const QVector<MTPMessage> &messages) {
 	if (_history && _history->peer == peer) {
 		_history->addOlderSlice(messages);
 	} else if (_migrated && _migrated->peer == peer) {
-		bool newLoaded = (_migrated && _migrated->isEmpty() && !_history->isEmpty());
+		const auto newLoaded = _migrated
+			&& _migrated->isEmpty()
+			&& !_history->isEmpty();
 		_migrated->addOlderSlice(messages);
 		if (newLoaded) {
 			_migrated->addNewerSlice(QVector<MTPMessage>());

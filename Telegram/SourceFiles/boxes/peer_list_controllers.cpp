@@ -372,6 +372,7 @@ std::unique_ptr<PeerListRow> ContactsBoxController::createSearchRow(not_null<Pee
 }
 
 void ContactsBoxController::rowClicked(not_null<PeerListRow*> row) {
+	Auth().api().requestDialogEntry(App::history(row->peer()));
 	Ui::showPeerHistory(row->peer(), ShowAtUnreadMsgId);
 }
 

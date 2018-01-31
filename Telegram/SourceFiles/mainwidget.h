@@ -215,9 +215,6 @@ public:
 		not_null<ChannelData*> channel,
 		const RPCError &e); // for multi invite in channels
 
-	void checkPeerHistory(PeerData *peer);
-	void checkedHistory(PeerData *peer, const MTPmessages_Messages &result);
-
 	bool sendMessageFail(const RPCError &error);
 
 	Dialogs::IndexedList *contactsList();
@@ -288,8 +285,8 @@ public:
 
 	void scheduleViewIncrement(HistoryItem *item);
 
-	void gotRangeDifference(ChannelData *channel, const MTPupdates_ChannelDifference &diff);
 	void onSelfParticipantUpdated(ChannelData *channel);
+	void feedChannelDifference(const MTPDupdates_channelDifference &data);
 
 	// Mayde public for ApiWrap, while it is still here.
 	// Better would be for this to be moved to ApiWrap.
@@ -478,7 +475,6 @@ private:
 	void feedUpdate(const MTPUpdate &update);
 
 	void deleteHistoryPart(DeleteHistoryRequest request, const MTPmessages_AffectedHistory &result);
-	void deleteAllFromUserPart(DeleteAllFromUserParams params, const MTPmessages_AffectedHistory &result);
 
 	void updateReceived(const mtpPrime *from, const mtpPrime *end);
 	bool updateFail(const RPCError &e);

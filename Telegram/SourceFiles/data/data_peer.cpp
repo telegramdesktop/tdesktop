@@ -849,13 +849,22 @@ void ChannelData::setAvailableMinId(MsgId availableMinId) {
 		if (auto history = App::historyLoaded(this)) {
 			history->clearUpTill(availableMinId);
 		}
+		if (_pinnedMessageId <= _availableMinId) {
+			_pinnedMessageId = MsgId(0);
+			Notify::peerUpdatedDelayed(
+				this,
+				Notify::PeerUpdate::Flag::ChannelPinnedChanged);
+		}
 	}
 }
 
 void ChannelData::setPinnedMessageId(MsgId messageId) {
+	messageId = (messageId > _availableMinId) ? messageId : MsgId(0);
 	if (_pinnedMessageId != messageId) {
 		_pinnedMessageId = messageId;
-		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::ChannelPinnedChanged);
+		Notify::peerUpdatedDelayed(
+			this,
+			Notify::PeerUpdate::Flag::ChannelPinnedChanged);
 	}
 }
 

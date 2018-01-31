@@ -459,7 +459,7 @@ namespace {
 					if (auto h = App::historyLoaded(cdata->id)) {
 						if (auto hto = App::historyLoaded(channel->id)) {
 							if (!h->isEmpty()) {
-								h->clear(true);
+								h->unloadBlocks();
 							}
 							if (hto->inChatList(Dialogs::Mode::All) && h->inChatList(Dialogs::Mode::All)) {
 								App::main()->removeDialog(h);
@@ -1019,7 +1019,7 @@ namespace {
 	}
 
 	void feedInboxRead(const PeerId &peer, MsgId upTo) {
-		if (auto history = App::historyLoaded(peer)) {
+		if (const auto history = App::historyLoaded(peer)) {
 			history->inboxRead(upTo);
 		}
 	}
@@ -1027,17 +1027,8 @@ namespace {
 	void feedOutboxRead(const PeerId &peer, MsgId upTo, TimeId when) {
 		if (auto history = App::historyLoaded(peer)) {
 			history->outboxRead(upTo);
-			if (history->lastMsg
-				&& history->lastMsg->out()
-				&& history->lastMsg->id <= upTo) {
-				if (const auto main = App::main()) {
-					main->repaintDialogRow(history, history->lastMsg->id);
-				}
-			}
-			history->updateChatListEntry();
-
-			if (history->peer->isUser()) {
-				history->peer->asUser()->madeAction(when);
+			if (const auto user = history->peer->asUser()) {
+				user->madeAction(when);
 			}
 		}
 	}
@@ -1055,37 +1046,31 @@ namespace {
 		return &(*i);
 	}
 
-	void feedWereDeleted(ChannelId channelId, const QVector<MTPint> &msgsIds) {
+	void feedWereDeleted(
+			ChannelId channelId,
+			const QVector<MTPint> &msgsIds) {
 		const auto data = fetchMsgsData(channelId, false);
 		if (!data) return;
 
-		const auto channelHistory = (channelId != NoChannel)
-			? App::history(peerFromChannel(channelId))->asChannelHistory()
+		const auto affectedHistory = (channelId != NoChannel)
+			? App::history(peerFromChannel(channelId)).get()
 			: nullptr;
 
-		base::flat_set<not_null<History*>> historiesToCheck;
+		auto historiesToCheck = base::flat_set<not_null<History*>>();
 		for (const auto msgId : msgsIds) {
 			auto j = data->constFind(msgId.v);
 			if (j != data->cend()) {
-				const auto h = (*j)->history();
+				const auto history = (*j)->history();
 				(*j)->destroy();
-				if (!h->lastMsg) {
-					historiesToCheck.emplace(h);
+				if (!history->lastMessageKnown()) {
+					historiesToCheck.emplace(history);
 				}
-			} else {
-				if (channelHistory) {
-					if (channelHistory->unreadCount() > 0
-						&& msgId.v >= channelHistory->inboxReadBefore) {
-						channelHistory->setUnreadCount(
-							channelHistory->unreadCount() - 1);
-					}
-				}
+			} else if (affectedHistory) {
+				affectedHistory->unknownMessageDeleted(msgId.v);
 			}
 		}
-		if (main()) {
-			for (const auto history : historiesToCheck) {
-				main()->checkPeerHistory(history->peer);
-			}
+		for (const auto history : historiesToCheck) {
+			Auth().api().requestDialogEntry(history);
 		}
 	}
 
@@ -1220,10 +1205,6 @@ namespace {
 
 	not_null<History*> history(const PeerId &peer) {
 		return ::histories.findOrInsert(peer);
-	}
-
-	not_null<History*> historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead, int32 maxOutboxRead) {
-		return ::histories.findOrInsert(peer, unreadCnt, maxInboxRead, maxOutboxRead);
 	}
 
 	History *historyLoaded(const PeerId &peer) {

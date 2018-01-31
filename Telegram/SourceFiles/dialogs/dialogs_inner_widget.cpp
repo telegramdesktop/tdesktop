@@ -1726,75 +1726,31 @@ void DialogsInner::applyDialog(const MTPDdialog &dialog) {
 		return;
 	}
 
-	const auto history = App::historyFromDialog(
-		peerId,
-		dialog.vunread_count.v,
-		dialog.vread_inbox_max_id.v,
-		dialog.vread_outbox_max_id.v);
-	history->setUnreadMentionsCount(dialog.vunread_mentions_count.v);
-	const auto peer = history->peer;
-	if (const auto channel = peer->asChannel()) {
-		if (dialog.has_pts()) {
-			channel->ptsReceived(dialog.vpts.v);
-		}
-		if (!channel->amCreator()) {
-			const auto topMsgId = FullMsgId(
-				peerToChannel(channel->id),
-				dialog.vtop_message.v);
-			if (const auto topMsg = App::histItemById(topMsgId)) {
-				if (topMsg->date <= date(channel->date)) {
-					Auth().api().requestSelfParticipant(channel);
-				}
-			}
-		}
-	}
-	App::main()->applyNotifySetting(
-		MTP_notifyPeer(dialog.vpeer),
-		dialog.vnotify_settings,
-		history);
+	const auto history = App::history(peerId);
+	history->applyDialog(dialog);
 
 	if (!history->isPinnedDialog() && !history->chatsListDate().isNull()) {
 		addSavedPeersAfter(history->chatsListDate());
 	}
 	_contactsNoDialogs->del(history);
-	if (peer->migrateFrom()) {
-		if (const auto historyFrom = App::historyLoaded(peer->migrateFrom())) {
+	if (const auto from = history->peer->migrateFrom()) {
+		if (const auto historyFrom = App::historyLoaded(from)) {
 			removeDialog(historyFrom);
 		}
-	} else if (peer->migrateTo() && peer->migrateTo()->amIn()) {
-		removeDialog(history);
-	}
-
-	if (dialog.has_draft() && dialog.vdraft.type() == mtpc_draftMessage) {
-		const auto &draft = dialog.vdraft.c_draftMessage();
-		Data::applyPeerCloudDraft(peerId, draft);
+	} else if (const auto to = history->peer->migrateTo()) {
+		if (to->amIn()) {
+			removeDialog(history);
+		}
 	}
 }
 
 void DialogsInner::applyFeedDialog(const MTPDdialogFeed &dialog) {
-	const auto peerId = peerFromMTP(dialog.vpeer);
 	const auto feedId = dialog.vfeed_id.v;
 	const auto feed = Auth().data().feed(feedId);
-	const auto addChannel = [&](ChannelId channelId) {
-		if (const auto channel = App::channelLoaded(channelId)) {
-			channel->setFeed(feed);
-		}
-	};
-	if (peerId && peerIsChannel(peerId)) {
-		addChannel(peerToChannel(peerId));
-	}
-	for (const auto &channelId : dialog.vfeed_other_channels.v) {
-		addChannel(channelId.v);
-	}
-	feed->setUnreadCounts(
-		dialog.vunread_count.v,
-		dialog.vunread_muted_count.v);
+	feed->applyDialog(dialog);
+
 	if (!feed->isPinnedDialog() && !feed->chatsListDate().isNull()) {
 		addSavedPeersAfter(feed->chatsListDate());
-	}
-	if (dialog.has_read_max_position()) {
-		feed->setUnreadPosition(
-			Data::FeedPositionFromMTP(dialog.vread_max_position));
 	}
 }
 

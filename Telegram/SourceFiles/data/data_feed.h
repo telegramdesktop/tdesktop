@@ -32,6 +32,7 @@ MessagePosition FeedPositionFromMTP(const MTPFeedPosition &position);
 class Feed : public Dialogs::Entry {
 public:
 	static constexpr auto kId = 1;
+	static constexpr auto kChannelsLimit = 1000;
 
 	Feed(FeedId id, not_null<Data::Session*> parent);
 
@@ -43,10 +44,17 @@ public:
 	void messageRemoved(not_null<HistoryItem*> item);
 	void historyCleared(not_null<History*> history);
 
-	void setUnreadCounts(int unreadCount, int unreadMutedCount);
+	void applyDialog(const MTPDdialogFeed &data);
+	void setUnreadCounts(int unreadNonMutedCount, int unreadMutedCount);
 	void setUnreadPosition(const MessagePosition &position);
+	void unreadCountChanged(
+		base::optional<int> unreadCountDelta,
+		int mutedCountDelta);
 	MessagePosition unreadPosition() const;
 	rpl::producer<MessagePosition> unreadPositionChanges() const;
+
+	HistoryItem *lastMessage() const;
+	bool lastMessageKnown() const;
 
 	bool toImportant() const override;
 	bool shouldBeInChatList() const override;
@@ -73,7 +81,8 @@ public:
 private:
 	void indexNameParts();
 	void recountLastMessage();
-	bool justSetLastMessage(not_null<HistoryItem*> item);
+	bool justUpdateLastMessage(not_null<HistoryItem*> item);
+	void updateChatsListDate();
 
 	FeedId _id = 0;
 	not_null<Data::Session*> _parent;
@@ -83,10 +92,10 @@ private:
 	QString _name;
 	base::flat_set<QString> _nameWords;
 	base::flat_set<QChar> _nameFirstLetters;
-	HistoryItem *_lastMessage = nullptr;
+	base::optional<HistoryItem*> _lastMessage;
 
 	rpl::variable<MessagePosition> _unreadPosition;
-	int _unreadCount = 0;
+	base::optional<int> _unreadCount;
 	int _unreadMutedCount = 0;
 
 };

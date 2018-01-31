@@ -254,9 +254,6 @@ public:
 
 	MessageGroupId groupId() const;
 
-	HistoryItem *previousItem() const;
-	HistoryItem *nextItem() const;
-
 	virtual std::unique_ptr<HistoryView::Element> createView(
 		not_null<HistoryView::ElementDelegate*> delegate) = 0;
 

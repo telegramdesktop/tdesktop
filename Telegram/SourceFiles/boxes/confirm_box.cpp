@@ -568,7 +568,7 @@ void DeleteMessagesBox::deleteAndClear() {
 					MTP_vector<MTPint>(1, MTP_int(_ids[0].msg))));
 		}
 		if (_deleteAll && _deleteAll->checked()) {
-			App::main()->deleteAllFromUser(
+			Auth().api().deleteAllFromUser(
 				_moderateInChannel,
 				_moderateFrom);
 		}
@@ -583,13 +583,13 @@ void DeleteMessagesBox::deleteAndClear() {
 		if (auto item = App::histItemById(itemId)) {
 			auto history = item->history();
 			auto wasOnServer = (item->id > 0);
-			auto wasLast = (history->lastMsg == item);
+			auto wasLast = (history->lastMessage() == item);
 			item->destroy();
 
 			if (wasOnServer) {
 				idsByPeer[history->peer].push_back(MTP_int(itemId.msg));
 			} else if (wasLast) {
-				App::main()->checkPeerHistory(history->peer);
+				Auth().api().requestDialogEntry(history);
 			}
 		}
 	}
