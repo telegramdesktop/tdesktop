@@ -50,6 +50,21 @@ class QtBuilderPlugin(make.MakePlugin):
             'default': [],
         }
 
+        schema['properties']['qt-extra-plugins'] = {
+            'type': 'array',
+            'minitems': 0,
+            'uniqueItems': True,
+            'items': {
+                'type': 'object',
+                'minitems': 0,
+                'uniqueItems': True,
+                'items': {
+                    'type': 'string',
+                },
+            },
+            'default': [],
+        }
+
         schema['required'].append('qt-source-git')
 
         schema['build-properties'].append('configflags')
@@ -120,6 +135,21 @@ class QtBuilderPlugin(make.MakePlugin):
                             patch=patch_path_template)]
 
             self.run(patch_cmd, cwd=self.sourcedir)
+
+        for extra_plugin in self.options.qt_extra_plugins:
+            [framework] = list(extra_plugin)
+
+            final_path = os.path.join(self.sourcedir, 'qtbase', 'src',
+                'plugins', framework)
+
+            for repo in extra_plugin[framework]:
+                repo_path = os.path.basename(repo)
+                if repo_path.endswith('.git'):
+                    repo_path = repo_path[:-4]
+
+                if not os.path.exists(os.path.join(final_path, repo_path)):
+                    command = 'git clone {}'.format(repo).split()
+                    self.run(command, cwd=final_path)
 
     def build(self):
         self.run(['./configure'] + self.options.configflags)

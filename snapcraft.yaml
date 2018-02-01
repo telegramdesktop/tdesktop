@@ -219,6 +219,10 @@ parts:
     qt-submodules: ['qtbase', 'qtimageformats']
     qt-patches-base-url: https://raw.githubusercontent.com/telegramdesktop/tdesktop/master/Telegram/Patches
     qt-patches-path: patches
+    qt-extra-plugins:
+      - platforminputcontexts:
+        - https://github.com/telegramdesktop/fcitx.git
+        - https://github.com/telegramdesktop/hime.git
     build-packages:
       - libasound2-dev
       - libdbusmenu-glib-dev
