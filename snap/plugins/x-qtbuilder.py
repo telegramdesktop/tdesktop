@@ -65,6 +65,21 @@ class QtBuilderPlugin(make.MakePlugin):
             'default': [],
         }
 
+        schema['properties']['environment'] = {
+            'type': 'array',
+            'minitems': 0,
+            'uniqueItems': True,
+            'items': {
+                'type': 'object',
+                'minitems': 0,
+                'uniqueItems': True,
+                'items': {
+                    'type': 'string',
+                },
+            },
+            'default': [],
+        }
+
         schema['required'].append('qt-source-git')
 
         schema['build-properties'].append('configflags')
@@ -155,5 +170,11 @@ class QtBuilderPlugin(make.MakePlugin):
                     self.run(command, cwd=final_path)
 
     def build(self):
-        self.run(['./configure'] + self.options.configflags)
+        env = {}
+
+        for environ in self.options.environment:
+            [env_name] = list(environ)
+            env[env_name] = str(environ[env_name])
+
+        self.run(['./configure'] + self.options.configflags, env=env)
         super().build()
