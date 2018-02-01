@@ -32,6 +32,8 @@ parts:
     plugin: gyp-cmake
     source: https://github.com/telegramdesktop/tdesktop.git
     source-depth: 1
+    prepare: |
+      git -C ../src apply $SNAPCRAFT_STAGE/../patches/telegram-linux-use-HOME-to-determine-actual-user-path.patch
     build-packages:
       - libappindicator-dev
       - libappindicator3-dev
