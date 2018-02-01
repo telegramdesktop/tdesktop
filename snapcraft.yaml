@@ -55,7 +55,7 @@ parts:
       - -Dlinux_path_ffmpeg=$SNAPCRAFT_STAGE
       - -Dlinux_path_libexif_lib=$SNAPCRAFT_STAGE
       - -Dlinux_path_openal=$SNAPCRAFT_STAGE
-      - -Dlinux_path_opus_include=/usr/include/opus
+      - -Dlinux_path_opus_include=$SNAPCRAFT_STAGE/include/opus
       - -Dlinux_path_qt=$SNAPCRAFT_STAGE
       - -Dlinux_path_va=$SNAPCRAFT_STAGE
       - -Dlinux_path_vdpau=$SNAPCRAFT_STAGE
@@ -121,6 +121,13 @@ parts:
       - --enable-static
     prime: [-./*]
 
+  opus:
+    source: https://github.com/xiph/opus.git
+    source-depth: 1
+    source-branch: v1.2.1
+    plugin: autotools
+    prime: [-./*]
+
   ffmpeg:
     source: https://github.com/FFmpeg/FFmpeg.git
     source-depth: 1
@@ -131,7 +138,6 @@ parts:
       - libfreetype6-dev
       - libgpac-dev
       - liblzma-dev
-      - libopus-dev
       - libsdl1.2-dev
       - libtheora-dev
       - libtool
@@ -207,6 +213,7 @@ parts:
     after:
       - libva
       - libvdpau
+      - opus
     prime: [-./*]
 
   openal:
