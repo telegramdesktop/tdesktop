@@ -23,6 +23,7 @@ apps:
       - network
       - network-manager
       - network-bind
+      - network-status
       - pulseaudio
       - unity7
 
