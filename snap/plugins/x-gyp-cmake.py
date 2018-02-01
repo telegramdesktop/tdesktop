@@ -21,6 +21,21 @@ class GypCMakePlugin(cmake.CMakePlugin):
             'enum': ['Debug', 'Release'],
         }
 
+        schema['properties']['environment'] = {
+            'type': 'array',
+            'minitems': 0,
+            'uniqueItems': True,
+            'items': {
+                'type': 'object',
+                'minitems': 0,
+                'uniqueItems': True,
+                'items': {
+                    'type': 'string',
+                },
+            },
+            'default': [],
+        }
+
         schema['required'].append('gyp-file')
 
         schema['build-properties'].extend([
@@ -42,6 +57,10 @@ class GypCMakePlugin(cmake.CMakePlugin):
     def build(self):
         env = self._build_environment()
         gyp_path = os.path.join(self.sourcedir, os.path.dirname(self.options.gyp_file))
+
+        for environ in self.options.environment:
+            [env_name] = list(environ)
+            env[env_name] = str(environ[env_name])
 
         if not os.path.exists(os.path.join(self.builddir, 'CMakeLists.txt')):
             gyp_command = ['gyp'] + self.options.configflags + ['--format=cmake']
