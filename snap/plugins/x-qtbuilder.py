@@ -93,6 +93,7 @@ class QtBuilderPlugin(make.MakePlugin):
             'qt-patches-base-url',
             'qt-patches-path',
             'qt-submodules',
+            'qt-extra-plugins',
         ]
 
     def __init__(self, name, options, project):
