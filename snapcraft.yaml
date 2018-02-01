@@ -8,6 +8,18 @@ description: |
 grade: stable
 confinement: strict
 
+version-script: |
+  cd parts/telegram/src
+  version=$(sed -n "s/AppVersionStr[ ]\+\(.*\)\+/\1/p" Telegram/build/version)
+  head_sha=$(git rev-parse HEAD)
+  last_tag_sha=$(git ls-remote -q --tags | tail -1 | cut -f1)
+
+  if [ "$head_sha" != "$last_tag_sha" ]; then
+    version="$version+git$(git rev-parse --short HEAD)"
+  fi
+
+  echo $version
+
 apps:
   telegram-desktop:
     command: |
