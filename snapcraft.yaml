@@ -1,5 +1,5 @@
-name: telegramdesktop
-version: 0.10.20
+name: telegram-desktop
+version: git
 summary: Telegram Desktop
 description: |
   Telegram is a popular messaging protocol with encryption and security as
