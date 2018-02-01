@@ -9,7 +9,7 @@ grade: stable
 confinement: strict
 
 apps:
-  telegramdesktop:
+  telegram-desktop:
     command: |
       bash -c \'mkdir -p $HOME/{.local/share/fonts,.cache} &&
                 env QT_XKB_CONFIG_ROOT=$SNAP/usr/share/X11/xkb
