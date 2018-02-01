@@ -44,6 +44,9 @@ parts:
     gyp-file: Telegram/gyp/Telegram.gyp
     build-type: 'Release'
     artifacts: ['Telegram']
+    environment:
+      - CC: gcc-7
+      - CXX: g++-7
     organize:
       Telegram: bin/Telegram
     configflags:
@@ -72,6 +75,7 @@ parts:
       - openal
       - qt
       - range-v3
+      - gcc7
 
   desktop-integration:
     plugin: nil
@@ -322,4 +326,24 @@ parts:
     python-version: python2
     patches:
       - https://raw.githubusercontent.com/telegramdesktop/tdesktop/master/Telegram/Patches/gyp.diff
+    prime: [-./*]
+
+  gcc7:
+    plugin: nil
+    build-packages:
+      - devscripts
+      - equivs
+      - libmpc-dev
+      - libcloog-ppl-dev
+    prepare: |
+      echo "deb http://ppa.launchpad.net/ubuntu-toolchain-r/test/ubuntu xenial main" | sudo tee /etc/apt/sources.list.d/ubuntu-toolchain-r.list
+      sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 60C317803A41BA51845E371A1E9377A2BA9EF27F
+      sudo apt-get update \
+        -o Dir::Etc::sourcelist="sources.list.d/ubuntu-toolchain-r.list" \
+        -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0"
+
+    install: |
+      sudo apt install gcc-7 g++-7 -o Debug::pkgProblemResolver=yes --no-install-recommends -y
+      sudo apt-mark auto gcc-7 g++-7
+
     prime: [-./*]
