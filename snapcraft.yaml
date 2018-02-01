@@ -30,7 +30,8 @@ apps:
 parts:
   telegram:
     plugin: gyp-cmake
-    source: https://github.com/telegramdesktop/tdesktop/archive/v$SNAPCRAFT_PROJECT_VERSION.tar.gz
+    source: https://github.com/telegramdesktop/tdesktop.git
+    source-depth: 1
     build-packages:
       - libappindicator-dev
       - libappindicator3-dev
@@ -46,19 +47,22 @@ parts:
     organize:
       Telegram: bin/Telegram
     configflags:
-      - -Dlinux_path_xkbcommon=$SNAPCRAFT_STAGE
-      - -Dlinux_path_va=$SNAPCRAFT_STAGE
-      - -Dlinux_path_ffmpeg=$SNAPCRAFT_STAGE
-      - -Dlinux_path_openal=$SNAPCRAFT_STAGE
-      - -Dlinux_path_qt=$SNAPCRAFT_STAGE
       - -Dlinux_path_breakpad=$SNAPCRAFT_STAGE
+      - -Dlinux_path_range=$SNAPCRAFT_STAGE/range-v3
+      - -Dlinux_path_ffmpeg=$SNAPCRAFT_STAGE
       - -Dlinux_path_libexif_lib=$SNAPCRAFT_STAGE
+      - -Dlinux_path_openal=$SNAPCRAFT_STAGE
+      - -Dlinux_path_opus_include=/usr/include/opus
+      - -Dlinux_path_qt=$SNAPCRAFT_STAGE
+      - -Dlinux_path_va=$SNAPCRAFT_STAGE
+      - -Dlinux_path_vdpau=$SNAPCRAFT_STAGE
+      - -Dlinux_path_xkbcommon=$SNAPCRAFT_STAGE
       - -Dlinux_lib_ssl=-lssl
       - -Dlinux_lib_crypto=-lcrypto
       - -Dlinux_lib_icu=-licuuc -licutu -licui18n
-      - -Dtravis_defines=TDESKTOP_DISABLE_AUTOUPDATE,
-                         TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME,
-                         TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
+      - -Dbuild_defines=TDESKTOP_DISABLE_AUTOUPDATE,
+                        TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME,
+                        TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
       - --depth=.
     after:
       - breakpad
@@ -67,6 +71,7 @@ parts:
       - libva
       - openal
       - qt
+      - range-v3
 
   desktop-integration:
     plugin: nil
@@ -86,7 +91,7 @@ parts:
       - bin
 
   libva:
-    source: https://anongit.freedesktop.org/git/libva.git
+    source: https://github.com/01org/libva.git
     source-depth: 1
     plugin: autotools
     build-packages:
@@ -100,10 +105,22 @@ parts:
       - --enable-static
     prime: [-./*]
 
+  libvdpau:
+    source: git://anongit.freedesktop.org/vdpau/libvdpau
+    source-depth: 1
+    plugin: autotools
+    build-packages:
+      - libx11-dev
+      - x11proto-dri2-dev
+      - libxext-dev
+    configflags:
+      - --enable-static
+    prime: [-./*]
+
   ffmpeg:
     source: https://github.com/FFmpeg/FFmpeg.git
     source-depth: 1
-    source-branch: release/3.1
+    source-branch: release/3.4
     plugin: autotools
     build-packages:
       - libass-dev
@@ -114,8 +131,6 @@ parts:
       - libsdl1.2-dev
       - libtheora-dev
       - libtool
-      - libva-dev
-      - libvdpau-dev
       - libvorbis-dev
       - libxcb1-dev
       - libxcb-shm0-dev
@@ -185,10 +200,13 @@ parts:
       - --enable-demuxer=wav
       - --enable-muxer=ogg
       - --enable-muxer=opus
+    after:
+      - libva
+      - libvdpau
     prime: [-./*]
 
   openal:
-    source: http://repo.or.cz/openal-soft.git
+    source: https://github.com/kcat/openal-soft.git
     source-depth: 1
     plugin: cmake
     build-packages:
@@ -196,6 +214,9 @@ parts:
       - portaudio19-dev
     configflags:
       - -DCMAKE_BUILD_TYPE=Release
+      - -DALSOFT_EXAMPLES=OFF
+      - -DALSOFT_TESTS=OFF
+      - -DALSOFT_UTILS=OFF
       - -DLIBTYPE=STATIC
     after:
       - ffmpeg
@@ -260,6 +281,7 @@ parts:
       - -no-opengl
       - -no-gtkstyle
       - -static
+      - -dbus-runtime
       - -openssl-linked
       - -no-mirclient
       - -nomake
@@ -283,11 +305,20 @@ parts:
           source-depth: 1
     prime: [-./*]
 
+  range-v3:
+    source: https://github.com/ericniebler/range-v3.git
+    source-depth: 1
+    plugin: nil
+    install: |
+      mkdir $SNAPCRAFT_PART_INSTALL/range-v3
+      cp -rv * $SNAPCRAFT_PART_INSTALL/range-v3
+    prime: [-./*]
+
   gyp:
     plugin: patched-python
     source: https://chromium.googlesource.com/external/gyp
     source-type: git
-    source-commit: 702ac58e4772
+    source-commit: 702ac58e47
     python-version: python2
     patches:
       - https://raw.githubusercontent.com/telegramdesktop/tdesktop/master/Telegram/Patches/gyp.diff
