@@ -83,8 +83,11 @@ class QtBuilderPlugin(make.MakePlugin):
     def __init__(self, name, options, project):
         super().__init__(name, options, project)
         self.build_packages.extend(['g++', 'patch', 'perl', 'wget'])
-        self.options.source_branch = self.options.qt_version
         self.options.source_depth = self.options.qt_source_depth
+
+        if self.options.qt_version:
+            self.options.source_branch = '.'.join(
+                self.options.qt_version.split('.')[:-1])
 
     def pull(self):
         if not os.path.exists(os.path.join(self.sourcedir, '.git')) or \
@@ -93,13 +96,13 @@ class QtBuilderPlugin(make.MakePlugin):
             command = 'git clone {} {}'.format(
                 self.options.qt_source_git, self.sourcedir).split()
             if self.options.source_branch:
-                command.extend(['--branch', self.options.source_branch])
+                command.extend(['--branch', str(self.options.source_branch)])
             if self.options.source_depth:
                 command.extend(['--depth', str(self.options.source_depth)])
 
             self.run(command)
 
-        command = 'perl init-repository -f'.split()
+        command = 'perl init-repository --branch -f'.split()
         if len(self.options.qt_submodules):
             command.extend('--module-subset={}'.format(
                 ','.join(self.options.qt_submodules)).split())
