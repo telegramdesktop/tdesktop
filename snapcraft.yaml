@@ -82,7 +82,7 @@ parts:
     plugin: dump
     organize:
       data/xdg-open: bin/xdg-open
-    snap:
+    prime:
       - bin
 
   libva:
@@ -98,7 +98,7 @@ parts:
       - libxfixes-dev
     configflags:
       - --enable-static
-    snap: [-./*]
+    prime: [-./*]
 
   ffmpeg:
     source: https://github.com/FFmpeg/FFmpeg.git
@@ -185,7 +185,7 @@ parts:
       - --enable-demuxer=wav
       - --enable-muxer=ogg
       - --enable-muxer=opus
-    snap: [-./*]
+    prime: [-./*]
 
   openal:
     source: http://repo.or.cz/openal-soft.git
@@ -199,7 +199,7 @@ parts:
       - -DLIBTYPE=STATIC
     after:
       - ffmpeg
-    snap: [-./*]
+    prime: [-./*]
 
   libxkbcommon:
     source: https://github.com/xkbcommon/libxkbcommon.git
@@ -211,7 +211,7 @@ parts:
       - python-xcbgen
     configflags:
       - --disable-x11
-    snap: [-./*]
+    prime: [-./*]
 
   qt:
     plugin: qtbuilder
@@ -268,7 +268,7 @@ parts:
       - tests
     after:
       - libxkbcommon
-    snap: [-./*]
+    prime: [-./*]
 
   breakpad:
     plugin: autotools-subsource
@@ -281,7 +281,7 @@ parts:
           source: https://chromium.googlesource.com/linux-syscall-support
           source-type: git
           source-depth: 1
-    snap: [-./*]
+    prime: [-./*]
 
   gyp:
     plugin: patched-python
@@ -291,4 +291,4 @@ parts:
     python-version: python2
     patches:
       - https://raw.githubusercontent.com/telegramdesktop/tdesktop/master/Telegram/Patches/gyp.diff
-    snap: [-./*]
+    prime: [-./*]
