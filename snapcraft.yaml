@@ -39,6 +39,7 @@ parts:
     source-depth: 1
     prepare: |
       git -C ../src apply $SNAPCRAFT_STAGE/../patches/telegram-linux-use-HOME-to-determine-actual-user-path.patch
+      git -C ../src apply $SNAPCRAFT_STAGE/../patches/telegram-linux-add-support-unity-launcher-when-snapped.patch
     build-packages:
       - libappindicator-dev
       - libappindicator3-dev
