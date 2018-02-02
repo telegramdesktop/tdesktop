@@ -22,7 +22,7 @@ version-script: |
 
 apps:
   telegram-desktop:
-    command: Telegram
+    command: desktop-launch Telegram
     plugs:
       - home
       - network
@@ -87,10 +87,8 @@ parts:
   desktop-integration:
     plugin: nil
     stage-packages:
-      - libpulse0
-      - libx11-data
-      - libx11-xcb1
-      - xkb-data
+      - libnotify4
+    after: [desktop-gtk3]
 
   libva:
     source: https://github.com/01org/libva.git
