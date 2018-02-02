@@ -352,9 +352,8 @@ parts:
       sudo apt-get update \
         -o Dir::Etc::sourcelist="sources.list.d/ubuntu-toolchain-r.list" \
         -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0"
-
     install: |
       sudo apt install gcc-7 g++-7 -o Debug::pkgProblemResolver=yes --no-install-recommends -y
       sudo apt-mark auto gcc-7 g++-7
-
+      sudo rm -f /etc/apt/sources.list.d/ubuntu-toolchain-r.list
     prime: [-./*]
