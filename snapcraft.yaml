@@ -252,6 +252,11 @@ parts:
       - platforminputcontexts:
         - https://github.com/telegramdesktop/fcitx.git
         - https://github.com/telegramdesktop/hime.git
+    environment:
+      - CC: gcc-7
+      - CXX: g++-7
+      - QMAKE_CC: gcc-7
+      - QMAKE_CXX: g++-7
     build-packages:
       - libasound2-dev
       - libdbusmenu-glib-dev
@@ -297,6 +302,7 @@ parts:
       - tests
     after:
       - libxkbcommon
+      - gcc7
     prime: [-./*]
 
   breakpad:
