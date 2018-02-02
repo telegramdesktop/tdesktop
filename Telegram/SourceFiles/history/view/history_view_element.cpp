@@ -57,11 +57,14 @@ TextSelection ShiftItemSelection(
 	return ShiftItemSelection(selection, byText.length());
 }
 
-void UnreadBar::init(int count) {
+void UnreadBar::init(int newCount) {
 	if (freezed) {
 		return;
 	}
-	text = lng_unread_bar(lt_count, count);
+	count = newCount;
+	text = (count == kCountUnknown)
+		? lang(lng_unread_bar_some)
+		: lng_unread_bar(lt_count, count);
 	width = st::semiboldFont->width(text);
 }
 
@@ -311,8 +314,6 @@ void Element::destroyUnreadBar() {
 }
 
 void Element::setUnreadBarCount(int count) {
-	Expects(count > 0);
-
 	const auto changed = AddComponents(UnreadBar::Bit());
 	const auto bar = Get<UnreadBar>();
 	if (bar->freezed) {

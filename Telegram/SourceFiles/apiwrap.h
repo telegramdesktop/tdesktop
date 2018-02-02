@@ -226,6 +226,9 @@ public:
 	void shareContact(not_null<UserData*> user, const SendOptions &options);
 	void readServerHistory(not_null<History*> history);
 	void readServerHistoryForce(not_null<History*> history);
+	void readFeed(
+		not_null<Data::Feed*> feed,
+		Data::MessagePosition position);
 
 	void sendVoiceMessage(
 		QByteArray result,
@@ -399,6 +402,8 @@ private:
 		bool silent,
 		uint64 randomId);
 
+	void readFeeds();
+
 	not_null<AuthSession*> _session;
 
 	MessageDataRequests _messageDataRequests;
@@ -511,11 +516,16 @@ private:
 	};
 	base::flat_map<not_null<PeerData*>, ReadRequest> _readRequests;
 	base::flat_map<not_null<PeerData*>, MsgId> _readRequestsPending;
+
 	std::unique_ptr<TaskQueue> _fileLoader;
 	base::flat_map<uint64, std::shared_ptr<SendingAlbum>> _sendingAlbums;
 
 	base::Observable<PeerData*> _fullPeerUpdated;
 
 	rpl::event_stream<uint64> _stickerSetInstalled;
+
+	base::flat_map<not_null<Data::Feed*>, TimeMs> _feedReadsDelayed;
+	base::flat_map<not_null<Data::Feed*>, mtpRequestId> _feedReadRequests;
+	base::Timer _feedReadTimer;
 
 };

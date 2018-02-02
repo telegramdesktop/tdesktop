@@ -21,6 +21,7 @@ class FlatButton;
 namespace HistoryView {
 class ListWidget;
 class TopBarWidget;
+class Element;
 } // namespace HistoryView
 
 namespace HistoryFeed {
@@ -31,6 +32,8 @@ class Widget final
 	: public Window::SectionWidget
 	, public HistoryView::ListDelegate {
 public:
+	using Element = HistoryView::Element;
+
 	Widget(
 		QWidget *parent,
 		not_null<Window::Controller*> controller,
@@ -75,6 +78,9 @@ public:
 		not_null<HistoryItem*> second) override;
 	void listSelectionChanged(
 		HistoryView::SelectedItems &&items) override;
+	void listVisibleItemsChanged(HistoryItemsList &&items) override;
+	base::optional<int> listUnreadBarView(
+		const std::vector<not_null<Element*>> &elements) override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -104,6 +110,7 @@ private:
 	object_ptr<HistoryView::TopBarWidget> _topBar;
 	object_ptr<Ui::PlainShadow> _topBarShadow;
 	object_ptr<Ui::FlatButton> _showNext;
+	bool _skipScrollEvent = false;
 	bool _undefinedAroundPosition = false;
 
 };

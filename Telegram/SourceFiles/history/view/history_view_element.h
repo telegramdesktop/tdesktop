@@ -61,15 +61,18 @@ TextSelection ShiftItemSelection(
 // Any HistoryView::Element can have this Component for
 // displaying the unread messages bar above the message.
 struct UnreadBar : public RuntimeComponent<UnreadBar, Element> {
-	void init(int count);
+	void init(int newCount);
 
 	static int height();
 	static int marginTop();
 
 	void paint(Painter &p, int y, int w) const;
 
+	static constexpr auto kCountUnknown = std::numeric_limits<int>::max();
+
 	QString text;
 	int width = 0;
+	int count = 0;
 
 	// If unread bar is freezed the new messages do not
 	// increment the counter displayed by this bar.
@@ -150,8 +153,6 @@ public:
 
 	bool computeIsAttachToPrevious(not_null<Element*> previous);
 
-	// count > 0 - creates the unread bar if necessary and
-	// sets unread messages count if bar is not freezed yet
 	void setUnreadBarCount(int count);
 	void destroyUnreadBar();
 

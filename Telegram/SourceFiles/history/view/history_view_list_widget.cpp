@@ -238,6 +238,7 @@ ListWidget::ListWidget(
 , _context(_delegate->listContext())
 , _itemAverageHeight(itemMinimalHeight())
 , _scrollDateCheck([this] { scrollDateCheck(); })
+, _applyUpdatedScrollState([this] { applyUpdatedScrollState(); })
 , _selectEnabled(_delegate->listAllowsMultiSelect()) {
 	setMouseTracking(true);
 	_scrollDateHideTimer.setCallback([this] { scrollDateHideByTimer(); });
@@ -320,8 +321,19 @@ void ListWidget::refreshRows() {
 	updateAroundPositionFromRows();
 
 	updateItemsGeometry();
+	checkUnreadBarCreation();
 	restoreScrollState();
 	mouseActionUpdate(QCursor::pos());
+}
+
+void ListWidget::checkUnreadBarCreation() {
+	if (!_unreadBarElement) {
+		if (const auto index = _delegate->listUnreadBarView(_items)) {
+			_unreadBarElement = _items[*index].get();
+			_unreadBarElement->setUnreadBarCount(UnreadBar::kCountUnknown);
+			refreshAttachmentsAtIndex(*index);
+		}
+	}
 }
 
 void ListWidget::saveScrollState() {
@@ -331,8 +343,15 @@ void ListWidget::saveScrollState() {
 }
 
 void ListWidget::restoreScrollState() {
-	if (_items.empty() || !_scrollTopState.item) {
+	if (_items.empty()) {
 		return;
+	}
+	if (!_scrollTopState.item) {
+		if (!_unreadBarElement) {
+			return;
+		}
+		_scrollTopState.item = _unreadBarElement->data()->position();
+		_scrollTopState.shift = st::lineWidth + st::historyUnreadBarMargin;
 	}
 	const auto index = findNearestItem(_scrollTopState.item);
 	if (index >= 0) {
@@ -393,21 +412,57 @@ int ListWidget::findNearestItem(Data::MessagePosition position) const {
 		: int(after - begin(_items));
 }
 
+HistoryItemsList ListWidget::collectVisibleItems() const {
+	auto result = HistoryItemsList();
+	const auto from = std::lower_bound(
+		begin(_items),
+		end(_items),
+		_visibleTop,
+		[this](auto &elem, int top) {
+			return this->itemTop(elem) + elem->height() <= top;
+		});
+	const auto to = std::lower_bound(
+		begin(_items),
+		end(_items),
+		_visibleBottom,
+		[this](auto &elem, int bottom) {
+			return this->itemTop(elem) < bottom;
+		});
+	result.reserve(to - from);
+	for (auto i = from; i != to; ++i) {
+		result.push_back((*i)->data());
+	}
+	return result;
+}
+
 void ListWidget::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
-	auto scrolledUp = (visibleTop < _visibleTop);
+	if (!(visibleTop < visibleBottom)) {
+		return;
+	}
+
+	const auto initializing = !(_visibleTop < _visibleBottom);
+	const auto scrolledUp = (visibleTop < _visibleTop);
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;
 
+	if (initializing) {
+		checkUnreadBarCreation();
+	}
 	updateVisibleTopItem();
-	checkMoveToOtherViewer();
 	if (scrolledUp) {
 		_scrollDateCheck.call();
 	} else {
 		scrollDateHideByTimer();
 	}
 	_controller->floatPlayerAreaUpdated().notify(true);
+	_applyUpdatedScrollState.call();
+}
+
+void ListWidget::applyUpdatedScrollState() {
+	checkMoveToOtherViewer();
+	_delegate->listVisibleItemsChanged(collectVisibleItems());
 }
 
 void ListWidget::updateVisibleTopItem() {
@@ -938,9 +993,14 @@ void ListWidget::updateItemsGeometry() {
 }
 
 void ListWidget::updateSize() {
-	TWidget::resizeToWidth(width());
-	restoreScrollPosition();
+	resizeToWidth(width(), _minHeight);
 	updateVisibleTopItem();
+}
+
+void ListWidget::resizeToWidth(int newWidth, int minHeight) {
+	_minHeight = minHeight;
+	TWidget::resizeToWidth(newWidth);
+	restoreScrollPosition();
 }
 
 int ListWidget::resizeGetHeight(int newWidth) {
@@ -963,7 +1023,9 @@ int ListWidget::resizeGetHeight(int newWidth) {
 	}
 	_itemsWidth = newWidth;
 	_itemsHeight = newHeight;
-	_itemsTop = (_minHeight > _itemsHeight + st::historyPaddingBottom) ? (_minHeight - _itemsHeight - st::historyPaddingBottom) : 0;
+	_itemsTop = (_minHeight > _itemsHeight + st::historyPaddingBottom)
+		? (_minHeight - _itemsHeight - st::historyPaddingBottom)
+		: 0;
 	return _itemsTop + _itemsHeight + st::historyPaddingBottom;
 }
 
@@ -2131,6 +2193,18 @@ void ListWidget::viewReplaced(not_null<const Element*> was, Element *now) {
 	if (_visibleTopItem == was) _visibleTopItem = now;
 	if (_scrollDateLastItem == was) _scrollDateLastItem = now;
 	if (_overElement == was) _overElement = now;
+	if (_unreadBarElement == was) {
+		const auto bar = _unreadBarElement->Get<UnreadBar>();
+		const auto count = bar ? bar->count : 0;
+		const auto freezed = bar ? bar->freezed : false;
+		_unreadBarElement = now;
+		if (now && count) {
+			_unreadBarElement->setUnreadBarCount(count);
+			if (freezed) {
+				_unreadBarElement->setUnreadBarFreezed();
+			}
+		}
+	}
 }
 
 void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {

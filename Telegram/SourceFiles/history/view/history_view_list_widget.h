@@ -61,6 +61,9 @@ public:
 		not_null<HistoryItem*> first,
 		not_null<HistoryItem*> second) = 0;
 	virtual void listSelectionChanged(SelectedItems &&items) = 0;
+	virtual void listVisibleItemsChanged(HistoryItemsList &&items) = 0;
+	virtual base::optional<int> listUnreadBarView(
+		const std::vector<not_null<Element*>> &elements) = 0;
 
 };
 
@@ -127,10 +130,7 @@ public:
 	// Set the correct scroll position after being resized.
 	void restoreScrollPosition();
 
-	void resizeToWidth(int newWidth, int minHeight) {
-		_minHeight = minHeight;
-		return TWidget::resizeToWidth(newWidth);
-	}
+	void resizeToWidth(int newWidth, int minHeight);
 
 	void saveState(not_null<ListMemento*> memento);
 	void restoreState(not_null<ListMemento*> memento);
@@ -264,6 +264,7 @@ private:
 	Element *strictFindItemByY(int y) const;
 	int findNearestItem(Data::MessagePosition position) const;
 	void viewReplaced(not_null<const Element*> was, Element *now);
+	HistoryItemsList collectVisibleItems() const;
 
 	void checkMoveToOtherViewer();
 	void updateVisibleTopItem();
@@ -352,6 +353,8 @@ private:
 	TextSelection computeRenderSelection(
 		not_null<const SelectedMap*> selected,
 		not_null<const Element*> view) const;
+	void checkUnreadBarCreation();
+	void applyUpdatedScrollState();
 
 	// This function finds all history items that are displayed and calls template method
 	// for each found message (in given direction) in the passed history with passed top offset.
@@ -409,6 +412,9 @@ private:
 	base::Timer _scrollDateHideTimer;
 	Element *_scrollDateLastItem = nullptr;
 	int _scrollDateLastItemTop = 0;
+	SingleQueuedInvokation _applyUpdatedScrollState;
+
+	Element *_unreadBarElement = nullptr;
 
 	MouseAction _mouseAction = MouseAction::None;
 	TextSelectType _mouseSelectType = TextSelectType::Letters;

@@ -1024,6 +1024,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_user_action_upload_file" = "{user} is sending a file";
 "lng_unread_bar#one" = "{count} unread message";
 "lng_unread_bar#other" = "{count} unread messages";
+"lng_unread_bar_some" = "Unread messages";
 
 "lng_maps_point" = "Location";
 "lng_save_photo" = "Save image";

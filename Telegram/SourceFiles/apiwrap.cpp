@@ -55,6 +55,7 @@ constexpr auto kSharedMediaLimit = 100;
 constexpr auto kFeedMessagesLimit = 50;
 constexpr auto kReadFeaturedSetsTimeout = TimeMs(1000);
 constexpr auto kFileLoaderQueueStopTimeout = TimeMs(5000);
+constexpr auto kFeedReadTimeout = TimeMs(1000);
 
 bool IsSilentPost(not_null<HistoryItem*> item, bool silent) {
 	const auto history = item->history();
@@ -133,7 +134,8 @@ ApiWrap::ApiWrap(not_null<AuthSession*> session)
 , _webPagesTimer([this] { resolveWebPages(); })
 , _draftsSaveTimer([this] { saveDraftsToCloud(); })
 , _featuredSetsReadTimer([this] { readFeaturedSets(); })
-, _fileLoader(std::make_unique<TaskQueue>(kFileLoaderQueueStopTimeout)) {
+, _fileLoader(std::make_unique<TaskQueue>(kFileLoaderQueueStopTimeout))
+, _feedReadTimer([this] { readFeeds(); }) {
 }
 
 void ApiWrap::requestChangelog(
@@ -3076,9 +3078,12 @@ void ApiWrap::feedMessagesDone(
 		if (data.has_read_max_position()) {
 			return Data::FeedPositionFromMTP(data.vread_max_position);
 		} else if (!messageId) {
-			return ids.empty()
+			const auto result = ids.empty()
 				? noSkipRange.till
 				: ids.back();
+			return Data::MessagePosition(
+				result.date,
+				FullMsgId(result.fullId.channel, result.fullId.msg - 1));
 		}
 		return Data::MessagePosition();
 	}();
@@ -3709,6 +3714,56 @@ void ApiWrap::readServerHistoryForce(not_null<History*> history) {
 		}
 	} else {
 		sendReadRequest(peer, upTo);
+	}
+}
+
+void ApiWrap::readFeed(
+		not_null<Data::Feed*> feed,
+		Data::MessagePosition position) {
+	const auto already = feed->unreadPosition();
+	if (already && already >= position) {
+		return;
+	}
+	feed->setUnreadPosition(position);
+	if (!_feedReadsDelayed.contains(feed)) {
+		if (_feedReadsDelayed.empty()) {
+			_feedReadTimer.callOnce(kFeedReadTimeout);
+		}
+		_feedReadsDelayed.emplace(feed, getms(true) + kFeedReadTimeout);
+	}
+}
+
+void ApiWrap::readFeeds() {
+	auto delay = kFeedReadTimeout;
+	const auto now = getms(true);
+	for (auto i = begin(_feedReadsDelayed); i != end(_feedReadsDelayed);) {
+		const auto [feed, time] = *i;
+		if (time > now) {
+			accumulate_min(delay, time - now);
+			++i;
+		} else if (_feedReadRequests.contains(feed)) {
+			++i;
+		} else {
+			const auto position = feed->unreadPosition();
+			const auto requestId = request(MTPchannels_ReadFeed(
+				MTP_int(feed->id()),
+				MTP_feedPosition(
+					MTP_int(position.date),
+					MTP_peerChannel(MTP_int(position.fullId.channel)),
+					MTP_int(position.fullId.msg))
+			)).done([=](const MTPUpdates &result) {
+				applyUpdates(result);
+				_feedReadRequests.remove(feed);
+			}).fail([=](const RPCError &error) {
+				_feedReadRequests.remove(feed);
+			}).send();
+			_feedReadRequests.emplace(feed, requestId);
+
+			i = _feedReadsDelayed.erase(i);
+		}
+	}
+	if (!_feedReadRequests.empty()) {
+		_feedReadTimer.callOnce(delay);
 	}
 }
 

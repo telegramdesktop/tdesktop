@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
+#include "data/data_feed.h"
 #include "ui/special_buttons.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
@@ -4676,7 +4677,17 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateReadFeed: {
 		const auto &d = update.c_updateReadFeed();
 		const auto feedId = d.vfeed_id.v;
-		// #TODO feeds
+		if (const auto feed = Auth().data().feedLoaded(feedId)) {
+			feed->setUnreadPosition(
+				Data::FeedPositionFromMTP(d.vmax_position));
+			if (d.has_unread_count() && d.has_unread_muted_count()) {
+				feed->setUnreadCounts(
+					d.vunread_count.v,
+					d.vunread_muted_count.v);
+			} else {
+				Auth().api().requestDialogEntry(feed);
+			}
+		}
 	} break;
 
 	// Deleted messages.

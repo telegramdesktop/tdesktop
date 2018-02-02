@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "storage/storage_feed_messages.h"
 #include "mainwidget.h"
+#include "apiwrap.h"
 #include "auth_session.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
@@ -241,6 +242,40 @@ void Widget::listSelectionChanged(HistoryView::SelectedItems &&items) {
 	_topBar->showSelected(state);
 }
 
+void Widget::listVisibleItemsChanged(HistoryItemsList &&items) {
+	const auto reversed = ranges::view::reverse(items);
+	const auto good = ranges::find_if(reversed, [](auto item) {
+		return IsServerMsgId(item->id);
+	});
+	if (good != end(reversed)) {
+		Auth().api().readFeed(_feed, (*good)->position());
+	}
+}
+
+base::optional<int> Widget::listUnreadBarView(
+		const std::vector<not_null<Element*>> &elements) {
+	const auto position = _feed->unreadPosition();
+	if (!position || elements.empty()) {
+		return base::none;
+	}
+	const auto minimal = ranges::upper_bound(
+		elements,
+		position,
+		std::less<>(),
+		[](auto view) { return view->data()->position(); });
+	if (minimal == end(elements)) {
+		return base::none;
+	}
+	const auto view = *minimal;
+	const auto unreadMessagesHeight = elements.back()->y()
+		+ elements.back()->height()
+		- view->y();
+	if (unreadMessagesHeight < _scroll->height()) {
+		return base::none;
+	}
+	return base::make_optional(int(minimal - begin(elements)));
+}
+
 std::unique_ptr<Window::SectionMemento> Widget::createMemento() {
 	auto result = std::make_unique<Memento>(_feed);
 	saveState(result.get());
@@ -272,7 +307,9 @@ void Widget::resizeEvent(QResizeEvent *e) {
 void Widget::updateControlsGeometry() {
 	const auto contentWidth = width();
 
-	const auto newScrollTop = _scroll->scrollTop() + topDelta();
+	const auto newScrollTop = _scroll->isHidden()
+		? base::none
+		: base::make_optional(_scroll->scrollTop() + topDelta());
 	_topBar->resizeToWidth(contentWidth);
 	_topBarShadow->resize(contentWidth, st::lineWidth);
 
@@ -282,14 +319,14 @@ void Widget::updateControlsGeometry() {
 		- _showNext->height();
 	const auto scrollSize = QSize(contentWidth, scrollHeight);
 	if (_scroll->size() != scrollSize) {
+		_skipScrollEvent = true;
 		_scroll->resize(scrollSize);
 		_inner->resizeToWidth(scrollSize.width(), _scroll->height());
-		//_inner->restoreScrollPosition();
+		_skipScrollEvent = false;
 	}
-
 	if (!_scroll->isHidden()) {
-		if (topDelta()) {
-			_scroll->scrollToY(newScrollTop);
+		if (newScrollTop) {
+			_scroll->scrollToY(*newScrollTop);
 		}
 		updateInnerVisibleArea();
 	}
@@ -320,12 +357,16 @@ void Widget::paintEvent(QPaintEvent *e) {
 }
 
 void Widget::onScroll() {
+	if (_skipScrollEvent) {
+		return;
+	}
 	updateInnerVisibleArea();
 }
 
 void Widget::updateInnerVisibleArea() {
 	const auto scrollTop = _scroll->scrollTop();
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
+
 }
 
 void Widget::showAnimatedHook(
