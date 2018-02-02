@@ -92,15 +92,6 @@ parts:
       - libx11-xcb1
       - xkb-data
 
-  snapd-xdg-open:
-    source: https://github.com/ubuntu-core/snapd-xdg-open.git
-    source-depth: 1
-    plugin: dump
-    organize:
-      data/xdg-open: bin/xdg-open
-    prime:
-      - bin
-
   libva:
     source: https://github.com/01org/libva.git
     source-depth: 1
@@ -350,7 +341,8 @@ parts:
       - libmpc-dev
       - libcloog-ppl-dev
     prepare: |
-      echo "deb http://ppa.launchpad.net/ubuntu-toolchain-r/test/ubuntu xenial main" | sudo tee /etc/apt/sources.list.d/ubuntu-toolchain-r.list
+      echo "deb http://ppa.launchpad.net/ubuntu-toolchain-r/test/ubuntu xenial main" | \
+            sudo tee /etc/apt/sources.list.d/ubuntu-toolchain-r.list
       sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 60C317803A41BA51845E371A1E9377A2BA9EF27F
       sudo apt-get update \
         -o Dir::Etc::sourcelist="sources.list.d/ubuntu-toolchain-r.list" \
