@@ -78,10 +78,10 @@ HistoryItem::HistoryItem(
 	TimeId date,
 	UserId from)
 : id(id)
-, _date(date)
 , _history(history)
 , _from(from ? App::user(from) : history->peer)
-, _flags(flags) {
+, _flags(flags)
+, _date(date) {
 	App::historyRegItem(this);
 }
 

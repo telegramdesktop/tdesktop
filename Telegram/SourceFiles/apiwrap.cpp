@@ -3799,7 +3799,10 @@ void ApiWrap::readFeeds() {
 	auto delay = kFeedReadTimeout;
 	const auto now = getms(true);
 	for (auto i = begin(_feedReadsDelayed); i != end(_feedReadsDelayed);) {
-		const auto [feed, time] = *i;
+		const auto feed = i->first;
+		const auto time = i->second;
+		// Clang fails to capture structure-binded feed to lambda :(
+		//const auto [feed, time] = *i;
 		if (time > now) {
 			accumulate_min(delay, time - now);
 			++i;

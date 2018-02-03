@@ -521,8 +521,6 @@ private:
 	Ui::SendActionAnimation _sendActionAnimation;
 	QMap<SendAction::Type, TimeMs> _mySendActions;
 
-	int _pinnedIndex = 0; // > 0 for pinned dialogs
-
 	std::weak_ptr<AdminLog::LocalIdManager> _adminLogIdManager;
 
  };
