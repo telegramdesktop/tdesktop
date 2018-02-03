@@ -281,7 +281,7 @@ QSize Message::performCountOptimalSize() {
 				auto namew = st::msgPadding.left()
 					+ item->displayFrom()->nameText.maxWidth()
 					+ st::msgPadding.right();
-				if (via && !forwarded) {
+				if (via && !displayForwardedFrom()) {
 					namew += st::msgServiceFont->spacew + via->maxWidth;
 				}
 				const auto replyWidth = hasFastReply()
@@ -296,10 +296,10 @@ QSize Message::performCountOptimalSize() {
 					namew += st::msgPadding.right() + replyWidth;
 				}
 				accumulate_max(maxWidth, namew);
-			} else if (via && !forwarded) {
+			} else if (via && !displayForwardedFrom()) {
 				accumulate_max(maxWidth, st::msgPadding.left() + via->maxWidth + st::msgPadding.right());
 			}
-			if (forwarded) {
+			if (displayForwardedFrom()) {
 				auto namew = st::msgPadding.left() + forwarded->text.maxWidth() + st::msgPadding.right();
 				if (via) {
 					namew += st::msgServiceFont->spacew + via->maxWidth;
@@ -527,9 +527,8 @@ void Message::paintFromName(
 		availableLeft += skipWidth;
 		availableWidth -= skipWidth;
 
-		auto forwarded = item->Get<HistoryMessageForwarded>();
 		auto via = item->Get<HistoryMessageVia>();
-		if (via && !forwarded && availableWidth > 0) {
+		if (via && !displayForwardedFrom() && availableWidth > 0) {
 			const auto outbg = hasOutLayout();
 			p.setPen(selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg));
 			p.drawText(availableLeft, trect.top() + st::msgServiceFont->ascent, via->text);
@@ -587,7 +586,7 @@ void Message::paintReplyInfo(Painter &p, QRect &trect, bool selected) const {
 
 void Message::paintViaBotIdInfo(Painter &p, QRect &trect, bool selected) const {
 	const auto item = message();
-	if (!displayFromName() && !item->Has<HistoryMessageForwarded>()) {
+	if (!displayFromName() && !displayForwardedFrom()) {
 		if (auto via = item->Get<HistoryMessageVia>()) {
 			const auto outbg = hasOutLayout();
 			p.setFont(st::msgServiceNameFont);
@@ -725,10 +724,18 @@ TextState Message::textState(
 		if (mediaOnTop) {
 			trect.setY(trect.y() - st::msgPadding.top());
 		} else {
-			if (getStateFromName(point, trect, &result)) return result;
-			if (getStateForwardedInfo(point, trect, &result, request)) return result;
-			if (getStateReplyInfo(point, trect, &result)) return result;
-			if (getStateViaBotIdInfo(point, trect, &result)) return result;
+			if (getStateFromName(point, trect, &result)) {
+				return result;
+			}
+			if (getStateForwardedInfo(point, trect, &result, request)) {
+				return result;
+			}
+			if (getStateReplyInfo(point, trect, &result)) {
+				return result;
+			}
+			if (getStateViaBotIdInfo(point, trect, &result)) {
+				return result;
+			}
 		}
 		if (entry) {
 			auto entryHeight = entry->height();
@@ -842,10 +849,9 @@ bool Message::getStateFromName(
 				outResult->link = user->openLink();
 				return true;
 			}
-			auto forwarded = item->Get<HistoryMessageForwarded>();
 			auto via = item->Get<HistoryMessageVia>();
 			if (via
-				&& !forwarded
+				&& !displayForwardedFrom()
 				&& point.x() >= availableLeft + item->author()->nameText.maxWidth() + st::msgServiceFont->spacew
 				&& point.x() < availableLeft + availableWidth
 				&& point.x() < availableLeft + user->nameText.maxWidth() + st::msgServiceFont->spacew + via->width) {
@@ -914,8 +920,8 @@ bool Message::getStateViaBotIdInfo(
 		QRect &trect,
 		not_null<TextState*> outResult) const {
 	const auto item = message();
-	if (!displayFromName() && !item->Has<HistoryMessageForwarded>()) {
-		if (auto via = item->Get<HistoryMessageVia>()) {
+	if (const auto via = item->Get<HistoryMessageVia>()) {
+		if (!displayFromName() && !displayForwardedFrom()) {
 			if (QRect(trect.x(), trect.y(), via->width, st::msgNameFont->height).contains(point)) {
 				outResult->link = via->link;
 				return true;
@@ -965,7 +971,9 @@ void Message::updatePressed(QPoint point) {
 		if (mediaDisplayed && media->isBubbleTop()) {
 			trect.setY(trect.y() - st::msgPadding.top());
 		} else {
-			if (displayFromName()) trect.setTop(trect.top() + st::msgNameFont->height);
+			if (displayFromName()) {
+				trect.setTop(trect.top() + st::msgNameFont->height);
+			}
 			if (displayForwardedFrom()) {
 				auto forwarded = item->Get<HistoryMessageForwarded>();
 				auto fwdheight = ((forwarded->text.maxWidth() > trect.width()) ? 2 : 1) * st::semiboldFont->height;
@@ -975,8 +983,8 @@ void Message::updatePressed(QPoint point) {
 				auto h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 				trect.setTop(trect.top() + h);
 			}
-			if (!displayFromName() && !item->Has<HistoryMessageForwarded>()) {
-				if (auto via = item->Get<HistoryMessageVia>()) {
+			if (const auto via = item->Get<HistoryMessageVia>()) {
+				if (!displayFromName() && !displayForwardedFrom()) {
 					trect.setTop(trect.top() + st::msgNameFont->height);
 				}
 			}
@@ -1269,7 +1277,7 @@ bool Message::displayFromName() const {
 
 bool Message::displayForwardedFrom() const {
 	const auto item = message();
-	if (auto forwarded = item->Get<HistoryMessageForwarded>()) {
+	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
 		if (item->history()->peer->isSelf()) {
 			return false;
 		}
@@ -1474,8 +1482,8 @@ void Message::fromNameUpdated(int width) const {
 		width -= st::msgPadding.right() + replyWidth;
 	}
 	item->_fromNameVersion = item->displayFrom()->nameVersion;
-	if (!item->Has<HistoryMessageForwarded>()) {
-		if (auto via = item->Get<HistoryMessageVia>()) {
+	if (const auto via = item->Get<HistoryMessageVia>()) {
+		if (!displayForwardedFrom()) {
 			via->resize(width
 				- st::msgPadding.left()
 				- st::msgPadding.right()
@@ -1569,7 +1577,6 @@ int Message::resizeContentGetHeight(int newWidth) {
 	}
 
 	if (bubble) {
-		auto forwarded = item->Get<HistoryMessageForwarded>();
 		auto reply = item->Get<HistoryMessageReply>();
 		auto via = item->Get<HistoryMessageVia>();
 		auto entry = logEntryOriginal();
@@ -1620,12 +1627,13 @@ int Message::resizeContentGetHeight(int newWidth) {
 		if (displayFromName()) {
 			fromNameUpdated(contentWidth);
 			newHeight += st::msgNameFont->height;
-		} else if (via && !forwarded) {
+		} else if (via && !displayForwardedFrom()) {
 			via->resize(contentWidth - st::msgPadding.left() - st::msgPadding.right());
 			newHeight += st::msgNameFont->height;
 		}
 
 		if (displayForwardedFrom()) {
+			auto forwarded = item->Get<HistoryMessageForwarded>();
 			auto fwdheight = ((forwarded->text.maxWidth() > (contentWidth - st::msgPadding.left() - st::msgPadding.right())) ? 2 : 1) * st::semiboldFont->height;
 			newHeight += fwdheight;
 		}
