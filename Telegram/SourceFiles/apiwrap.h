@@ -69,6 +69,7 @@ public:
 
 	void requestContacts();
 	void requestDialogEntry(not_null<Data::Feed*> feed);
+	//void requestFeedDialogsEntries(not_null<Data::Feed*> feed);
 	void requestDialogEntry(not_null<History*> history);
 
 	void requestFullPeer(PeerData *peer);
@@ -282,6 +283,10 @@ private:
 	QVector<MTPint> collectMessageIds(const MessageDataRequests &requests);
 	MessageDataRequests *messageDataRequests(ChannelData *channel, bool onlyExisting = false);
 	void applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs);
+	void historyDialogEntryApplied(not_null<History*> history);
+	void applyFeedDialogs(
+		not_null<Data::Feed*> feed,
+		const MTPmessages_Dialogs &dialogs);
 
 	void gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mtpRequestId req);
 	void gotUserFull(UserData *user, const MTPUserFull &result, mtpRequestId req);

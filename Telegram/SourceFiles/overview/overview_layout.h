@@ -64,6 +64,8 @@ class ItemBase : public AbstractItem {
 public:
 	ItemBase(not_null<HistoryItem*> parent);
 
+	QDateTime dateTime() const;
+
 	void setPosition(int position) {
 		_position = position;
 	}
@@ -103,7 +105,8 @@ private:
 	void ensureCheckboxCreated();
 
 	int _position = 0;
-	not_null<HistoryItem*> _parent;
+	const not_null<HistoryItem*> _parent;
+	const QDateTime _dateTime;
 	std::unique_ptr<Checkbox> _check;
 
 };

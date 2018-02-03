@@ -194,7 +194,7 @@ bool ListWidget::Section::addItem(not_null<BaseLayout*> item) {
 
 void ListWidget::Section::setHeader(not_null<BaseLayout*> item) {
 	auto text = [&] {
-		auto date = item->getItem()->date.date();
+		auto date = item->dateTime().date();
 		switch (_type) {
 		case Type::Photo:
 		case Type::Video:
@@ -217,8 +217,8 @@ void ListWidget::Section::setHeader(not_null<BaseLayout*> item) {
 bool ListWidget::Section::belongsHere(
 		not_null<BaseLayout*> item) const {
 	Expects(!_items.empty());
-	auto date = item->getItem()->date.date();
-	auto myDate = _items.back().second->getItem()->date.date();
+	auto date = item->dateTime().date();
+	auto myDate = _items.back().second->dateTime().date();
 
 	switch (_type) {
 	case Type::Photo:

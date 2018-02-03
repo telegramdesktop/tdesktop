@@ -39,7 +39,8 @@ public:
 	};
 
 	bool canAddItem(not_null<const HistoryItem*> item) const {
-		return (ComputeType(item) == _type && item->date.date() == _date);
+		return (ComputeType(item) == _type)
+			&& (ItemDateTime(item).date() == _date);
 	}
 	void addItem(not_null<HistoryItem*> item) {
 		Expects(canAddItem(item));
@@ -117,7 +118,7 @@ private:
 BoxController::Row::Row(not_null<HistoryItem*> item)
 : PeerListRow(item->history()->peer, item->id)
 , _items(1, item)
-, _date(item->date.date())
+, _date(ItemDateTime(item).date())
 , _type(ComputeType(item)) {
 	refreshStatus();
 }
@@ -162,7 +163,7 @@ void BoxController::Row::refreshStatus() {
 		return;
 	}
 	auto text = [this] {
-		auto time = _items.front()->date.time().toString(cTimeFormat());
+		auto time = ItemDateTime(_items.front()).time().toString(cTimeFormat());
 		auto today = QDateTime::currentDateTime().date();
 		if (_date == today) {
 			return lng_call_box_status_today(lt_time, time);

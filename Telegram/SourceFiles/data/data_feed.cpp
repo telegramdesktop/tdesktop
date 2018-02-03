@@ -74,7 +74,7 @@ void Feed::registerOne(not_null<ChannelData*> channel) {
 		_channels.push_back(history);
 		if (history->lastMessageKnown()) {
 			recountLastMessage();
-		} else if (_channelsLoaded) {
+		} else if (lastMessageKnown()) {
 			_parent->session().api().requestDialogEntry(history);
 		}
 		_parent->session().storage().remove(
@@ -121,7 +121,7 @@ void Feed::unregisterOne(not_null<ChannelData*> channel) {
 void Feed::updateLastMessage(not_null<HistoryItem*> item) {
 	if (justUpdateLastMessage(item)) {
 		if (_lastMessage && *_lastMessage) {
-			setChatsListDate((*_lastMessage)->date);
+			setChatsListDate(ItemDateTime(*_lastMessage));
 		}
 	}
 }
@@ -192,15 +192,22 @@ void Feed::setChannels(std::vector<not_null<ChannelData*>> channels) {
 			_channels,
 			channel.get(),
 			[](auto history) { return history->peer->asChannel(); }
-		) != end(_channels);
+		) == end(_channels);
 	}) | ranges::to_vector;
 
 	for (const auto channel : remove) {
 		channel->clearFeed();
 	}
+
+	// We assume the last message was correct before requesting the list.
+	// So we save it and don't allow channels from the list to change it.
+	// After that we restore it.
+	const auto oldLastMessage = base::take(_lastMessage);
 	for (const auto channel : add) {
+		_lastMessage = base::none;
 		channel->setFeed(this);
 	}
+	_lastMessage = oldLastMessage;
 
 	_channels.clear();
 	for (const auto channel : channels) {
@@ -256,7 +263,7 @@ void Feed::recountLastMessage() {
 
 void Feed::updateChatsListDate() {
 	if (_lastMessage && *_lastMessage) {
-		setChatsListDate((*_lastMessage)->date);
+		setChatsListDate(ItemDateTime(*_lastMessage));
 	}
 }
 
@@ -266,6 +273,14 @@ HistoryItem *Feed::lastMessage() const {
 
 bool Feed::lastMessageKnown() const {
 	return !!_lastMessage;
+}
+
+int Feed::unreadCount() const {
+	return _unreadCount ? *_unreadCount : 0;
+}
+
+bool Feed::unreadCountKnown() const {
+	return !!_unreadCount;
 }
 
 void Feed::applyDialog(const MTPDdialogFeed &data) {
@@ -299,8 +314,14 @@ void Feed::applyDialog(const MTPDdialogFeed &data) {
 }
 
 void Feed::setUnreadCounts(int unreadNonMutedCount, int unreadMutedCount) {
+	if (unreadCountKnown()
+		&& (*_unreadCount == unreadNonMutedCount + unreadMutedCount)
+		&& (_unreadMutedCount == unreadMutedCount)) {
+		return;
+	}
 	_unreadCount = unreadNonMutedCount + unreadMutedCount;
 	_unreadMutedCount = unreadMutedCount;
+	updateChatListEntry();
 }
 
 void Feed::setUnreadPosition(const MessagePosition &position) {
@@ -312,7 +333,7 @@ void Feed::setUnreadPosition(const MessagePosition &position) {
 void Feed::unreadCountChanged(
 		base::optional<int> unreadCountDelta,
 		int mutedCountDelta) {
-	if (!_unreadCount) {
+	if (!unreadCountKnown()) {
 		return;
 	}
 	if (unreadCountDelta) {
@@ -323,6 +344,9 @@ void Feed::unreadCountChanged(
 			*_unreadCount);
 		updateChatListEntry();
 	} else {
+//		_parent->session().api().requestFeedDialogsEntries(this);
+		// Happens once for each channel with unknown unread count.
+		// Requesting all feed dialogs could be huge and even have slicing.
 		_parent->session().api().requestDialogEntry(this);
 	}
 }
@@ -344,7 +368,7 @@ bool Feed::shouldBeInChatList() const {
 }
 
 int Feed::chatListUnreadCount() const {
-	return _unreadCount ? *_unreadCount : 0;
+	return unreadCount();
 }
 
 bool Feed::chatListMutedBadge() const {

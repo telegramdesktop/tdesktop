@@ -148,15 +148,56 @@ public:
 	void unloadBlocks();
 	void clearUpTill(MsgId availableMinId);
 
-	void applyGroupAdminChanges(const base::flat_map<UserId, bool> &changes);
+	void applyGroupAdminChanges(
+		const base::flat_map<UserId, bool> &changes);
 
 	HistoryItem *addNewMessage(const MTPMessage &msg, NewMessageType type);
 	HistoryItem *addToHistory(const MTPMessage &msg);
-	not_null<HistoryItem*> addNewService(MsgId msgId, QDateTime date, const QString &text, MTPDmessage::Flags flags = 0, bool newMsg = true);
-	not_null<HistoryItem*> addNewForwarded(MsgId id, MTPDmessage::Flags flags, QDateTime date, UserId from, const QString &postAuthor, HistoryMessage *item);
-	not_null<HistoryItem*> addNewDocument(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, DocumentData *doc, const TextWithEntities &caption, const MTPReplyMarkup &markup);
-	not_null<HistoryItem*> addNewPhoto(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, PhotoData *photo, const TextWithEntities &caption, const MTPReplyMarkup &markup);
-	not_null<HistoryItem*> addNewGame(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, GameData *game, const MTPReplyMarkup &markup);
+	not_null<HistoryItem*> addNewService(
+		MsgId msgId,
+		TimeId date,
+		const QString &text,
+		MTPDmessage::Flags flags = 0,
+		bool newMsg = true);
+	not_null<HistoryItem*> addNewForwarded(
+		MsgId id,
+		MTPDmessage::Flags flags,
+		TimeId date,
+		UserId from,
+		const QString &postAuthor,
+		not_null<HistoryMessage*> original);
+	not_null<HistoryItem*> addNewDocument(
+		MsgId id,
+		MTPDmessage::Flags flags,
+		UserId viaBotId,
+		MsgId replyTo,
+		TimeId date,
+		UserId from,
+		const QString &postAuthor,
+		not_null<DocumentData*> document,
+		const TextWithEntities &caption,
+		const MTPReplyMarkup &markup);
+	not_null<HistoryItem*> addNewPhoto(
+		MsgId id,
+		MTPDmessage::Flags flags,
+		UserId viaBotId,
+		MsgId replyTo,
+		TimeId date,
+		UserId from,
+		const QString &postAuthor,
+		not_null<PhotoData*> photo,
+		const TextWithEntities &caption,
+		const MTPReplyMarkup &markup);
+	not_null<HistoryItem*> addNewGame(
+		MsgId id,
+		MTPDmessage::Flags flags,
+		UserId viaBotId,
+		MsgId replyTo,
+		TimeId date,
+		UserId from,
+		const QString &postAuthor,
+		not_null<GameData*> game,
+		const MTPReplyMarkup &markup);
 
 	// Used only internally and for channel admin log.
 	HistoryItem *createItem(
@@ -180,6 +221,7 @@ public:
 	MsgId loadAroundId() const;
 
 	int unreadCount() const;
+	bool unreadCountKnown() const;
 	void setUnreadCount(int newUnreadCount);
 	bool mute() const;
 	bool changeMute(bool newMute);
@@ -375,11 +417,6 @@ private:
 	void removeBlock(not_null<HistoryBlock*> block);
 
 	void clearBlocks(bool leaveItems);
-
-	not_null<HistoryItem*> createItemForwarded(MsgId id, MTPDmessage::Flags flags, QDateTime date, UserId from, const QString &postAuthor, HistoryMessage *msg);
-	not_null<HistoryItem*> createItemDocument(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, DocumentData *doc, const TextWithEntities &caption, const MTPReplyMarkup &markup);
-	not_null<HistoryItem*> createItemPhoto(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, PhotoData *photo, const TextWithEntities &caption, const MTPReplyMarkup &markup);
-	not_null<HistoryItem*> createItemGame(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, GameData *game, const MTPReplyMarkup &markup);
 
 	not_null<HistoryItem*> addNewItem(
 		not_null<HistoryItem*> item,

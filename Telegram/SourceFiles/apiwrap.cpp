@@ -377,24 +377,6 @@ void ApiWrap::requestDialogEntry(not_null<Data::Feed*> feed) {
 	auto peers = QVector<MTPInputDialogPeer>(
 		1,
 		MTP_inputDialogPeerFeed(MTP_int(feed->id())));
-	if (feed->channelsLoaded()) {
-		const auto &channels = feed->channels();
-		peers.reserve(channels.size() + 1);
-		for (const auto history : feed->channels()) {
-			peers.push_back(MTP_inputDialogPeer(history->peer->input));
-		}
-	} else {
-		request(MTPmessages_GetDialogs(
-			MTP_flags(MTPmessages_GetDialogs::Flag::f_feed_id),
-			MTP_int(feed->id()),
-			MTP_int(0), // offset_date
-			MTP_int(0), // offset_id
-			MTP_inputPeerEmpty(), // offset_peer
-			MTP_int(Data::Feed::kChannelsLimit)
-		)).done([=](const MTPmessages_Dialogs &result) {
-		//	applyFeedChannels(result);
-		}).send();
-	}
 	request(MTPmessages_GetPeerDialogs(
 		MTP_vector(std::move(peers))
 	)).done([=](const MTPmessages_PeerDialogs &result) {
@@ -404,6 +386,27 @@ void ApiWrap::requestDialogEntry(not_null<Data::Feed*> feed) {
 		_dialogFeedRequests.remove(feed);
 	}).send();
 }
+
+//void ApiWrap::requestFeedDialogsEntries(not_null<Data::Feed*> feed) {
+//	if (_dialogFeedRequests.contains(feed)) {
+//		return;
+//	}
+//	_dialogFeedRequests.emplace(feed);
+//
+//	request(MTPmessages_GetDialogs(
+//		MTP_flags(MTPmessages_GetDialogs::Flag::f_feed_id),
+//		MTP_int(feed->id()),
+//		MTP_int(0), // offset_date
+//		MTP_int(0), // offset_id
+//		MTP_inputPeerEmpty(), // offset_peer
+//		MTP_int(Data::Feed::kChannelsLimit)
+//	)).done([=](const MTPmessages_Dialogs &result) {
+//		applyFeedDialogs(feed, result);
+//		_dialogFeedRequests.remove(feed);
+//	}).fail([=](const RPCError &error) {
+//		_dialogFeedRequests.remove(feed);
+//	}).send();
+//}
 
 void ApiWrap::requestDialogEntry(not_null<History*> history) {
 	if (_dialogRequests.contains(history)) {
@@ -417,43 +420,7 @@ void ApiWrap::requestDialogEntry(not_null<History*> history) {
 		MTP_vector(std::move(peers))
 	)).done([=](const MTPmessages_PeerDialogs &result) {
 		applyPeerDialogs(result);
-
-		if (history->lastMessage()) {
-			if (!history->chatsListDate().isNull()
-				&& history->loadedAtBottom()) {
-				if (const auto channel = history->peer->asChannel()) {
-					const auto inviter = channel->inviter;
-					if (inviter != 0
-						&& history->chatsListDate() <= channel->inviteDate
-						&& channel->amIn()) {
-						if (const auto from = App::userLoaded(inviter)) {
-							history->insertJoinedMessage(true);
-						}
-					}
-				}
-			}
-			history->updateChatListExistence();
-		} else {
-			if (const auto chat = history->peer->asChat()) {
-				if (!chat->haveLeft()) {
-					Local::addSavedPeer(
-						history->peer,
-						history->chatsListDate());
-				}
-			} else if (const auto channel = history->peer->asChannel()) {
-				const auto inviter = channel->inviter;
-				if (inviter != 0 && channel->amIn()) {
-					if (const auto from = App::userLoaded(inviter)) {
-						history->unloadBlocks();
-						history->addNewerSlice(QVector<MTPMessage>());
-						history->insertJoinedMessage(
-							true);
-					}
-				}
-			} else {
-				App::main()->deleteConversation(history->peer, false);
-			}
-		}
+		historyDialogEntryApplied(history);
 		_dialogRequests.remove(history);
 	}).fail([=](const RPCError &error) {
 		_dialogRequests.remove(history);
@@ -483,6 +450,95 @@ void ApiWrap::applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs) {
 		} break;
 		}
 	}
+	_session->data().sendHistoryChangeNotifications();
+}
+
+void ApiWrap::historyDialogEntryApplied(not_null<History*> history) {
+	if (!history->lastMessage()) {
+		if (const auto chat = history->peer->asChat()) {
+			if (!chat->haveLeft()) {
+				Local::addSavedPeer(
+					history->peer,
+					history->chatsListDate());
+			}
+		} else if (const auto channel = history->peer->asChannel()) {
+			const auto inviter = channel->inviter;
+			if (inviter != 0 && channel->amIn()) {
+				if (const auto from = App::userLoaded(inviter)) {
+					history->unloadBlocks();
+					history->addNewerSlice(QVector<MTPMessage>());
+					history->insertJoinedMessage(true);
+				}
+			}
+		} else {
+			App::main()->deleteConversation(history->peer, false);
+		}
+		return;
+	}
+
+	if (!history->chatsListDate().isNull()
+		&& history->loadedAtBottom()) {
+		if (const auto channel = history->peer->asChannel()) {
+			const auto inviter = channel->inviter;
+			if (inviter != 0
+				&& history->chatsListDate() <= ParseDateTime(channel->inviteDate)
+				&& channel->amIn()) {
+				if (const auto from = App::userLoaded(inviter)) {
+					history->insertJoinedMessage(true);
+				}
+			}
+		}
+	}
+	history->updateChatListExistence();
+}
+
+void ApiWrap::applyFeedDialogs(
+		not_null<Data::Feed*> feed,
+		const MTPmessages_Dialogs &dialogs) {
+	const auto [dialogsList, messagesList] = [&] {
+		const auto process = [&](const auto &data) {
+			App::feedUsers(data.vusers);
+			App::feedChats(data.vchats);
+			return std::make_tuple(&data.vdialogs.v, &data.vmessages.v);
+		};
+		switch (dialogs.type()) {
+		case mtpc_messages_dialogs:
+			return process(dialogs.c_messages_dialogs());
+
+		case mtpc_messages_dialogsSlice:
+			LOG(("API Error: "
+				"Unexpected dialogsSlice in feed dialogs list."));
+			return process(dialogs.c_messages_dialogsSlice());
+		}
+		Unexpected("Type in DialogsWidget::dialogsReceived");
+	}();
+
+	App::feedMsgs(*messagesList, NewMessageLast);
+
+	auto channels = std::vector<not_null<ChannelData*>>();
+	channels.reserve(dialogsList->size());
+	for (const auto &dialog : *dialogsList) {
+		switch (dialog.type()) {
+		case mtpc_dialog: {
+			if (const auto peerId = peerFromMTP(dialog.c_dialog().vpeer)) {
+				if (peerIsChannel(peerId)) {
+					const auto history = App::history(peerId);
+					history->applyDialog(dialog.c_dialog());
+					channels.push_back(history->peer->asChannel());
+				} else {
+					LOG(("API Error: "
+						"Unexpected non-channel in feed dialogs list."));
+				}
+			}
+		} break;
+		case mtpc_dialogFeed: {
+			LOG(("API Error: Unexpected dialogFeed in feed dialogs list."));
+		} break;
+		default: Unexpected("Type in DialogsInner::dialogsReceived");
+		}
+	}
+
+	feed->setChannels(channels);
 	_session->data().sendHistoryChangeNotifications();
 }
 
@@ -1118,12 +1174,12 @@ void ApiWrap::requestSelfParticipant(ChannelData *channel) {
 		case mtpc_channelParticipantSelf: {
 			auto &d = p.vparticipant.c_channelParticipantSelf();
 			channel->inviter = d.vinviter_id.v;
-			channel->inviteDate = date(d.vdate);
+			channel->inviteDate = d.vdate.v;
 		} break;
 		case mtpc_channelParticipantCreator: {
 			auto &d = p.vparticipant.c_channelParticipantCreator();
 			channel->inviter = _session->userId();
-			channel->inviteDate = date(MTP_int(channel->date));
+			channel->inviteDate = channel->date;
 			if (channel->mgInfo) {
 				channel->mgInfo->creator = App::self();
 			}
@@ -1131,7 +1187,7 @@ void ApiWrap::requestSelfParticipant(ChannelData *channel) {
 		case mtpc_channelParticipantAdmin: {
 			auto &d = p.vparticipant.c_channelParticipantAdmin();
 			channel->inviter = d.vinviter_id.v;
-			channel->inviteDate = date(d.vdate);
+			channel->inviteDate = d.vdate.v;
 		} break;
 		}
 
@@ -1670,7 +1726,7 @@ void ApiWrap::clearHistory(not_null<PeerData*> peer) {
 	if (auto history = App::historyLoaded(peer->id)) {
 		if (const auto last = history->lastMessage()) {
 			deleteTillId = last->id;
-			Local::addSavedPeer(history->peer, last->date);
+			Local::addSavedPeer(history->peer, ItemDateTime(last));
 		}
 		history->clear();
 		history->newLoaded = history->oldLoaded = true;
@@ -2909,8 +2965,10 @@ void ApiWrap::requestFeedChannels(not_null<Data::Feed*> feed) {
 
 		case mtpc_channels_feedSources: {
 			const auto &data = result.c_channels_feedSources();
-			App::feedUsers(data.vusers);
-			App::feedChats(data.vchats);
+
+			// First we set channels without reading them from data.
+			// This allows us to apply them all at once without registering
+			// them one by one.
 			for (const auto &broadcasts : data.vfeeds.v) {
 				if (broadcasts.type() == mtpc_feedBroadcasts) {
 					const auto &list = broadcasts.c_feedBroadcasts();
@@ -2923,6 +2981,10 @@ void ApiWrap::requestFeedChannels(not_null<Data::Feed*> feed) {
 					feed->setChannels(std::move(channels));
 				}
 			}
+
+			App::feedUsers(data.vusers);
+			App::feedChats(data.vchats);
+
 			if (feed->channelsLoaded()) {
 				feedChannelsDone(feed);
 			} else {
@@ -3198,7 +3260,7 @@ void ApiWrap::forwardMessages(
 				history->addNewForwarded(
 					newId.msg,
 					flags,
-					date(MTP_int(unixtime())),
+					unixtime(),
 					messageFromId,
 					messagePostAuthor,
 					message);

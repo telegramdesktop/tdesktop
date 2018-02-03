@@ -1716,7 +1716,6 @@ void DialogsInner::dialogsReceived(const QVector<MTPDialog> &added) {
 		default: Unexpected("Type in DialogsInner::dialogsReceived");
 		}
 	}
-	Notify::unreadCounterUpdated();
 	refresh();
 }
 
@@ -1729,8 +1728,11 @@ void DialogsInner::applyDialog(const MTPDdialog &dialog) {
 	const auto history = App::history(peerId);
 	history->applyDialog(dialog);
 
-	if (!history->isPinnedDialog() && !history->chatsListDate().isNull()) {
-		addSavedPeersAfter(history->chatsListDate());
+	if (!history->isPinnedDialog()) {
+		const auto date = history->chatsListDate();
+		if (!date.isNull()) {
+			addSavedPeersAfter(date);
+		}
 	}
 	_contactsNoDialogs->del(history);
 	if (const auto from = history->peer->migrateFrom()) {
@@ -1749,8 +1751,11 @@ void DialogsInner::applyFeedDialog(const MTPDdialogFeed &dialog) {
 	const auto feed = Auth().data().feed(feedId);
 	feed->applyDialog(dialog);
 
-	if (!feed->isPinnedDialog() && !feed->chatsListDate().isNull()) {
-		addSavedPeersAfter(feed->chatsListDate());
+	if (!feed->isPinnedDialog()) {
+		const auto date = feed->chatsListDate();
+		if (!date.isNull()) {
+			addSavedPeersAfter(date);
+		}
 	}
 }
 

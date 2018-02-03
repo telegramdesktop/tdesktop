@@ -79,7 +79,7 @@ public:
 		int outerWidth) const override;
 	ClickHandlerPtr rightActionLink() const override;
 	bool displayEditedBadge() const override;
-	QDateTime displayedEditDate() const override;
+	TimeId displayedEditDate() const override;
 	int infoWidth() const override;
 
 private:
@@ -135,7 +135,7 @@ private:
 	bool displayFastShare() const;
 	bool displayGoToOriginal() const;
 	ClickHandlerPtr fastReplyLink() const;
-	QDateTime displayedEditDate(bool hasViaBotOrInlineMarkup) const;
+	TimeId displayedEditDate(bool hasViaBotOrInlineMarkup) const;
 	const HistoryMessageEdited *displayedEditBadge() const;
 	HistoryMessageEdited *displayedEditBadge();
 	void initTime();

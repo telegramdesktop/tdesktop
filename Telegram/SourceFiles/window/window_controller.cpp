@@ -309,13 +309,13 @@ void Controller::showJumpToDate(not_null<PeerData*> peer, QDate requestedDate) {
 	auto currentPeerDate = [peer] {
 		if (auto history = App::historyLoaded(peer)) {
 			if (history->scrollTopItem) {
-				return history->scrollTopItem->data()->date.date();
+				return history->scrollTopItem->dateTime().date();
 			} else if (history->loadedAtTop() && !history->isEmpty() && history->peer->migrateFrom()) {
 				if (auto migrated = App::historyLoaded(history->peer->migrateFrom())) {
 					if (migrated->scrollTopItem) {
 						// We're up in the migrated history.
 						// So current date is the date of first message here.
-						return history->blocks.front()->messages.front()->data()->date.date();
+						return history->blocks.front()->messages.front()->dateTime().date();
 					}
 				}
 			} else if (!history->chatsListDate().isNull()) {
@@ -344,7 +344,7 @@ void Controller::showJumpToDate(not_null<PeerData*> peer, QDate requestedDate) {
 			if (auto history = App::historyLoaded(chat)) {
 				if (history->loadedAtTop()) {
 					if (!history->isEmpty()) {
-						return history->blocks.front()->messages.front()->data()->date.date();
+						return history->blocks.front()->messages.front()->dateTime().date();
 					}
 				} else {
 					return startDate();
@@ -354,7 +354,7 @@ void Controller::showJumpToDate(not_null<PeerData*> peer, QDate requestedDate) {
 		if (auto history = App::historyLoaded(peer)) {
 			if (history->loadedAtTop()) {
 				if (!history->isEmpty()) {
-					return history->blocks.front()->messages.front()->data()->date.date();
+					return history->blocks.front()->messages.front()->dateTime().date();
 				}
 				return QDate::currentDate();
 			}

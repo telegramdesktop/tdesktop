@@ -29,7 +29,7 @@ QString filedialogDefaultName(
 		const QString &extension,
 		const QString &path,
 		bool skipExistance,
-		int fileTime) {
+		TimeId fileTime) {
 	auto directoryPath = path;
 	if (directoryPath.isEmpty()) {
 		if (cDialogLastPath().isEmpty()) {
@@ -40,7 +40,8 @@ QString filedialogDefaultName(
 
 	QString base;
 	if (fileTime) {
-		base = prefix + ::date(fileTime).toString("_yyyy-MM-dd_HH-mm-ss");
+		const auto date = ParseDateTime(fileTime);
+		base = prefix + date.toString("_yyyy-MM-dd_HH-mm-ss");
 	} else {
 		struct tm tm;
 		time_t t = time(NULL);

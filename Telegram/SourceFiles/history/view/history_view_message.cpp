@@ -1682,12 +1682,12 @@ void Message::refreshEditedBadge() {
 	const auto item = message();
 	const auto edited = displayedEditBadge();
 	const auto editDate = displayedEditDate();
-	const auto dateText = item->date.toString(cTimeFormat());
+	const auto dateText = dateTime().toString(cTimeFormat());
 	if (edited) {
-		edited->refresh(dateText, !editDate.isNull());
+		edited->refresh(dateText, editDate != 0);
 	}
 	if (const auto msgsigned = item->Get<HistoryMessageSigned>()) {
-		const auto text = (!edited || editDate.isNull())
+		const auto text = (!edited || !editDate)
 			? dateText
 			: edited->text.originalText();
 		msgsigned->refresh(text);
@@ -1702,7 +1702,7 @@ void Message::initTime() {
 	} else if (const auto edited = displayedEditBadge()) {
 		item->_timeWidth = edited->maxWidth();
 	} else {
-		item->_timeText = item->date.toString(cTimeFormat());
+		item->_timeText = dateTime().toString(cTimeFormat());
 		item->_timeWidth = st::msgDateFont->width(item->_timeText);
 	}
 	if (const auto views = item->Get<HistoryMessageViews>()) {
@@ -1722,29 +1722,29 @@ void Message::initTime() {
 }
 
 bool Message::displayEditedBadge() const {
-	return !displayedEditDate().isNull();
+	return (displayedEditDate() != TimeId(0));
 }
 
-QDateTime Message::displayedEditDate() const {
+TimeId Message::displayedEditDate() const {
 	const auto item = message();
 	auto hasViaBotId = item->Has<HistoryMessageVia>();
 	auto hasInlineMarkup = (item->inlineReplyMarkup() != nullptr);
 	return displayedEditDate(hasViaBotId || hasInlineMarkup);
 }
 
-QDateTime Message::displayedEditDate(
+TimeId Message::displayedEditDate(
 		bool hasViaBotOrInlineMarkup) const {
 	if (hasViaBotOrInlineMarkup) {
-		return QDateTime();
+		return TimeId(0);
 	} else if (const auto fromUser = message()->from()->asUser()) {
 		if (fromUser->botInfo) {
-			return QDateTime();
+			return TimeId(0);
 		}
 	}
 	if (const auto edited = displayedEditBadge()) {
 		return edited->date;
 	}
-	return QDateTime();
+	return TimeId(0);
 }
 
 HistoryMessageEdited *Message::displayedEditBadge() {

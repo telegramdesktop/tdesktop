@@ -55,6 +55,8 @@ public:
 
 	HistoryItem *lastMessage() const;
 	bool lastMessageKnown() const;
+	int unreadCount() const;
+	bool unreadCountKnown() const;
 
 	bool toImportant() const override;
 	bool shouldBeInChatList() const override;

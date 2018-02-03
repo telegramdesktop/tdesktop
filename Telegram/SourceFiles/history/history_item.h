@@ -207,9 +207,9 @@ public:
 	bool isPinned() const;
 	bool canPin() const;
 	virtual bool allowsForward() const;
-	virtual bool allowsEdit(const QDateTime &now) const;
+	virtual bool allowsEdit(TimeId now) const;
 	bool canDelete() const;
-	bool canDeleteForEveryone(const QDateTime &cur) const;
+	bool canDeleteForEveryone(TimeId now) const;
 	bool suggestBanReport() const;
 	bool suggestDeleteAllReport() const;
 
@@ -217,13 +217,13 @@ public:
 	QString directLink() const;
 
 	MsgId id;
-	QDateTime date;
 
 	ChannelId channelId() const;
 	FullMsgId fullId() const {
 		return FullMsgId(channelId(), id);
 	}
 	Data::MessagePosition position() const;
+	TimeId date() const;
 
 	Data::Media *media() const {
 		return _media.get();
@@ -244,7 +244,7 @@ public:
 
 	not_null<PeerData*> author() const;
 
-	QDateTime dateOriginal() const;
+	TimeId dateOriginal() const;
 	not_null<PeerData*> senderOriginal() const;
 	not_null<PeerData*> fromOriginal() const;
 	QString authorOriginal() const;
@@ -264,7 +264,7 @@ protected:
 		not_null<History*> history,
 		MsgId id,
 		MTPDmessage::Flags flags,
-		QDateTime date,
+		TimeId date,
 		UserId from);
 
 	virtual void markMediaAsReadHook() {
@@ -296,12 +296,16 @@ protected:
 	std::unique_ptr<Data::Media> _media;
 
 private:
+	TimeId _date = 0;
+
 	HistoryView::Element *_mainView = nullptr;
 	friend class HistoryView::Element;
 
 	MessageGroupId _groupId = MessageGroupId::None;
 
 };
+
+QDateTime ItemDateTime(not_null<const HistoryItem*> item);
 
 ClickHandlerPtr goToMessageClickHandler(
 	not_null<PeerData*> peer,

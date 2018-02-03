@@ -58,14 +58,14 @@ public:
 		QList<ClickHandlerPtr> links;
 	};
 
-	HistoryService(not_null<History*> history, const MTPDmessage &message);
+	HistoryService(not_null<History*> history, const MTPDmessage &data);
 	HistoryService(
 		not_null<History*> history,
-		const MTPDmessageService &message);
+		const MTPDmessageService &data);
 	HistoryService(
 		not_null<History*> history,
-		MsgId msgId,
-		QDateTime date,
+		MsgId id,
+		TimeId date,
 		const PreparedText &message,
 		MTPDmessage::Flags flags = 0,
 		UserId from = 0,
@@ -153,6 +153,6 @@ private:
 
 HistoryService *GenerateJoinedMessage(
 	not_null<History*> history,
-	const QDateTime &inviteDate,
+	TimeId inviteDate,
 	not_null<UserData*> inviter,
 	MTPDmessage::Flags flags);

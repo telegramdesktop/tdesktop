@@ -33,8 +33,6 @@ struct PositionChange {
 	int movedTo;
 };
 
-bool MessageIsLess(not_null<HistoryItem*> a, not_null<HistoryItem*> b);
-
 class Entry {
 public:
 	Entry(const Key &key);
@@ -62,7 +60,7 @@ public:
 		return _sortKeyInChatList;
 	}
 	void updateChatListSortPosition();
-	void setChatsListDate(const QDateTime &date);
+	void setChatsListDate(QDateTime date);
 	virtual void updateChatListExistence();
 	bool needUpdateInChatList() const;
 

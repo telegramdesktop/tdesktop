@@ -25,7 +25,7 @@ namespace {
 // Show all dates that are in the last 20 hours in time format.
 constexpr int kRecentlyInSeconds = 20 * 3600;
 
-void paintRowDate(Painter &p, const QDateTime &date, QRect &rectForName, bool active, bool selected) {
+void paintRowDate(Painter &p, QDateTime date, QRect &rectForName, bool active, bool selected) {
 	auto now = QDateTime::currentDateTime();
 	auto lastTime = date;
 	auto nowDate = now.date();
@@ -389,13 +389,13 @@ void RowPainter::paint(
 	const auto displayDate = [item, cloudDraft] {
 		if (item) {
 			if (cloudDraft) {
-				return (item->date > cloudDraft->date)
-					? item->date
-					: cloudDraft->date;
+				return (item->date() > cloudDraft->date)
+					? ItemDateTime(item)
+					: ParseDateTime(cloudDraft->date);
 			}
-			return item->date;
+			return ItemDateTime(item);
 		}
-		return cloudDraft ? cloudDraft->date : QDateTime();
+		return cloudDraft ? ParseDateTime(cloudDraft->date) : QDateTime();
 	}();
 
 	const auto from = history
@@ -581,7 +581,7 @@ void RowPainter::paint(
 		from,
 		item,
 		cloudDraft,
-		item->date,
+		ItemDateTime(item),
 		fullWidth,
 		flags,
 		ms,

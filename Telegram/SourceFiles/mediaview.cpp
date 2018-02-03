@@ -325,14 +325,17 @@ void MediaView::updateControls() {
 	_moreNav = myrtlrect(width() - st::mediaviewIconSize.width(), height() - st::mediaviewIconSize.height(), st::mediaviewIconSize.width(), st::mediaviewIconSize.height());
 	_moreNavIcon = centerrect(_moreNav, st::mediaviewMore);
 
-	QDateTime d, dNow(date(unixtime()));
-	if (_photo) {
-		d = date(_photo->date);
-	} else if (_doc) {
-		d = date(_doc->date);
-	} else if (auto item = App::histItemById(_msgid)) {
-		d = item->date;
-	}
+	const auto dNow = QDateTime::currentDateTime();
+	const auto d = [&] {
+		if (_photo) {
+			return ParseDateTime(_photo->date);
+		} else if (_doc) {
+			return ParseDateTime(_doc->date);
+		} else if (const auto item = App::histItemById(_msgid)) {
+			return ItemDateTime(item);
+		}
+		return dNow;
+	}();
 	if (d.date() == dNow.date()) {
 		_dateText = lng_mediaview_today(lt_time, d.time().toString(cTimeFormat()));
 	} else if (d.date().addDays(1) == dNow.date()) {
@@ -847,14 +850,23 @@ void MediaView::onSaveAs() {
 
 		psBringToBack(this);
 		auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
-		FileDialog::GetWritePath(lang(lng_save_photo), filter, filedialogDefaultName(qsl("photo"), qsl(".jpg"), QString(), false, _photo->date), base::lambda_guarded(this, [this, photo = _photo](const QString &result) {
-			if (!result.isEmpty() && _photo == photo && photo->loaded()) {
-				photo->full->pix().toImage().save(result, "JPG");
-			}
-			psShowOverAll(this);
-		}), base::lambda_guarded(this, [this] {
-			psShowOverAll(this);
-		}));
+		FileDialog::GetWritePath(
+			lang(lng_save_photo),
+			filter,
+			filedialogDefaultName(
+				qsl("photo"),
+				qsl(".jpg"),
+				QString(),
+				false,
+				_photo->date),
+			base::lambda_guarded(this, [this, photo = _photo](const QString &result) {
+				if (!result.isEmpty() && _photo == photo && photo->loaded()) {
+					photo->full->pix().toImage().save(result, "JPG");
+				}
+				psShowOverAll(this);
+			}), base::lambda_guarded(this, [this] {
+				psShowOverAll(this);
+			}));
 	}
 	activateWindow();
 	Sandbox::setActiveWindow(this);

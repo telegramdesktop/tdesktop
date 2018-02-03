@@ -225,32 +225,14 @@ private:
 
 };
 
-class MTPint;
 using TimeId = int32;
-TimeId myunixtime();
 void unixtimeInit();
-void unixtimeSet(TimeId servertime, bool force = false);
+void unixtimeSet(TimeId serverTime, bool force = false);
 TimeId unixtime();
-TimeId fromServerTime(const MTPint &serverTime);
-MTPint toServerTime(const TimeId &clientTime);
 uint64 msgid();
 int32 reqid();
 
-inline QDateTime date(int32 time = -1) {
-	QDateTime result;
-	if (time >= 0) result.setTime_t(time);
-	return result;
-}
-
-inline QDateTime dateFromServerTime(const MTPint &time) {
-	return date(fromServerTime(time));
-}
-
-inline QDateTime date(const MTPint &time) {
-	return dateFromServerTime(time);
-}
-
-QDateTime dateFromServerTime(TimeId time);
+QDateTime ParseDateTime(TimeId serverTime);
 
 inline void mylocaltime(struct tm * _Tm, const time_t * _Time) {
 #ifdef Q_OS_WIN

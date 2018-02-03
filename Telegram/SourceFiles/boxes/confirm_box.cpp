@@ -460,7 +460,7 @@ void DeleteMessagesBox::prepare() {
 	} else {
 		text = _singleItem ? lang(lng_selected_delete_sure_this) : lng_selected_delete_sure(lt_count, _ids.size());
 		auto canDeleteAllForEveryone = true;
-		auto now = ::date(unixtime());
+		auto now = unixtime();
 		auto deleteForUser = (UserData*)nullptr;
 		auto peer = (PeerData*)nullptr;
 		auto forEveryoneText = lang(lng_delete_for_everyone_check);
@@ -588,7 +588,7 @@ void DeleteMessagesBox::deleteAndClear() {
 
 			if (wasOnServer) {
 				idsByPeer[history->peer].push_back(MTP_int(itemId.msg));
-			} else if (wasLast) {
+			} else if (wasLast && !history->lastMessageKnown()) {
 				Auth().api().requestDialogEntry(history);
 			}
 		}

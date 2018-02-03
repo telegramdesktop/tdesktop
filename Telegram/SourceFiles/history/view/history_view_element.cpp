@@ -137,6 +137,7 @@ Element::Element(
 	not_null<HistoryItem*> data)
 : _delegate(delegate)
 , _data(data)
+, _dateTime(ItemDateTime(data))
 , _context(delegate->elementContext()) {
 	Auth().data().registerItemView(this);
 	refreshMedia();
@@ -151,6 +152,10 @@ not_null<ElementDelegate*> Element::delegate() const {
 
 not_null<HistoryItem*> Element::data() const {
 	return _data;
+}
+
+QDateTime Element::dateTime() const {
+	return _dateTime;
 }
 
 HistoryMedia *Element::media() const {
@@ -287,7 +292,7 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 		const auto prev = previous->data();
 		const auto possible = !item->serviceMsg() && !prev->serviceMsg()
 			&& !item->isEmpty() && !prev->isEmpty()
-			&& (qAbs(prev->date.secsTo(item->date)) < kAttachMessageToPreviousSecondsDelta)
+			&& (std::abs(prev->date() - item->date()) < kAttachMessageToPreviousSecondsDelta)
 			&& (_context == Context::Feed
 				|| (!item->isPost() && !prev->isPost()));
 		if (possible) {
@@ -367,9 +372,10 @@ void Element::recountDisplayDateInBlocks() {
 			return false;
 		}
 
-		if (auto previous = previousInBlocks()) {
+		if (const auto previous = previousInBlocks()) {
 			const auto prev = previous->data();
-			return prev->isEmpty() || (prev->date.date() != item->date.date());
+			return prev->isEmpty()
+				|| (previous->dateTime().date() != dateTime().date());
 		}
 		return true;
 	}());
@@ -391,7 +397,7 @@ void Element::setDisplayDate(bool displayDate) {
 	const auto item = data();
 	if (displayDate && !Has<DateBadge>()) {
 		AddComponents(DateBadge::Bit());
-		Get<DateBadge>()->init(item->date);
+		Get<DateBadge>()->init(dateTime());
 		setPendingResize();
 	} else if (!displayDate && Has<DateBadge>()) {
 		RemoveComponents(DateBadge::Bit());
@@ -478,8 +484,8 @@ bool Element::displayEditedBadge() const {
 	return false;
 }
 
-QDateTime Element::displayedEditDate() const {
-	return QDateTime();
+TimeId Element::displayedEditDate() const {
+	return TimeId(0);
 }
 
 bool Element::hasVisibleText() const {

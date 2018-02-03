@@ -45,14 +45,14 @@ struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited, Hist
 	void refresh(const QString &date, bool displayed);
 	int maxWidth() const;
 
-	QDateTime date;
+	TimeId date = 0;
 	Text text;
 };
 
 struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded, HistoryItem> {
 	void create(const HistoryMessageVia *via) const;
 
-	QDateTime originalDate;
+	TimeId originalDate = 0;
 	PeerData *originalSender = nullptr;
 	QString originalAuthor;
 	MsgId originalId = 0;

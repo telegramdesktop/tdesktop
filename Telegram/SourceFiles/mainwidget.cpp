@@ -4860,16 +4860,20 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateContactRegistered: {
-		auto &d = update.c_updateContactRegistered();
-		if (auto user = App::userLoaded(d.vuser_id.v)) {
+		const auto &d = update.c_updateContactRegistered();
+		if (const auto user = App::userLoaded(d.vuser_id.v)) {
 			if (App::history(user->id)->loadedAtBottom()) {
-				App::history(user->id)->addNewService(clientMsgId(), date(d.vdate), lng_action_user_registered(lt_from, user->name), 0);
+				App::history(user->id)->addNewService(
+					clientMsgId(),
+					d.vdate.v,
+					lng_action_user_registered(lt_from, user->name),
+					MTPDmessage::Flags(0));
 			}
 		}
 	} break;
 
 	case mtpc_updateContactLink: {
-		auto &d = update.c_updateContactLink();
+		const auto &d = update.c_updateContactLink();
 		App::feedUserLink(d.vuser_id, d.vmy_link, d.vforeign_link);
 	} break;
 

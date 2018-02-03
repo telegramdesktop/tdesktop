@@ -119,8 +119,9 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 		//CountriesByISO2::const_iterator j = countries.constFind(country);
 		//if (j != countries.cend()) country = QString::fromUtf8(j.value()->name);
 
-		MTPint active = d.vdate_active.v ? d.vdate_active : d.vdate_created;
-		data.activeTime = active.v;
+		const auto active = data.activeTime = d.vdate_active.v
+			? d.vdate_active.v
+			: d.vdate_created.v;
 
 		data.info = qs(d.vdevice_model) + qstr(", ") + (platform.isEmpty() ? QString() : platform + ' ') + qs(d.vsystem_version);
 		data.ip = qs(d.vip) + (country.isEmpty() ? QString() : QString::fromUtf8(" \xe2\x80\x93 ") + country);
@@ -144,12 +145,15 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 			}
 			_current = data;
 		} else {
-			QDateTime now(QDateTime::currentDateTime()), lastTime(date(active));
-			QDate nowDate(now.date()), lastDate(lastTime.date());
+			const auto now = QDateTime::currentDateTime();
+			const auto lastTime = ParseDateTime(active);
+			const auto nowDate = now.date();
+			const auto lastDate = lastTime.date();
 			QString dt;
 			if (lastDate == nowDate) {
 				data.active = lastTime.toString(cTimeFormat());
-			} else if (lastDate.year() == nowDate.year() && lastDate.weekNumber() == nowDate.weekNumber()) {
+			} else if (lastDate.year() == nowDate.year()
+				&& lastDate.weekNumber() == nowDate.weekNumber()) {
 				data.active = langDayOfWeek(lastDate);
 			} else {
 				data.active = lastDate.toString(qsl("d.MM.yy"));

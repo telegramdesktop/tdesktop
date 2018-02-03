@@ -121,6 +121,8 @@ public:
 	Context context() const;
 	void refreshDataId();
 
+	QDateTime dateTime() const;
+
 	int y() const;
 	void setY(int y);
 
@@ -221,7 +223,7 @@ public:
 		int outerWidth) const;
 	virtual ClickHandlerPtr rightActionLink() const;
 	virtual bool displayEditedBadge() const;
-	virtual QDateTime displayedEditDate() const;
+	virtual TimeId displayedEditDate() const;
 	virtual bool hasVisibleText() const;
 
 	// Legacy blocks structure.
@@ -266,9 +268,10 @@ private:
 	const not_null<ElementDelegate*> _delegate;
 	const not_null<HistoryItem*> _data;
 	std::unique_ptr<HistoryMedia> _media;
+	const QDateTime _dateTime;
 
 	int _y = 0;
-	Context _context;
+	Context _context = Context();
 
 	Flags _flags = Flag::NeedsResize;
 

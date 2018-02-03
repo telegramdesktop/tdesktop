@@ -5137,7 +5137,9 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 		}
 	} else if (e->key() == Qt::Key_Up) {
 		if (!(e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier))) {
-			if (_history && _history->lastSentMsg && _history->lastSentMsg->allowsEdit(::date(unixtime()))) {
+			if (_history
+				&& _history->lastSentMsg
+				&& _history->lastSentMsg->allowsEdit(unixtime())) {
 				if (_field->isEmpty() && !_editMsgId && !_replyToId && _history->lastSentMsg) {
 					editMessage(_history->lastSentMsg);
 					return;
@@ -5490,7 +5492,7 @@ bool HistoryWidget::sendExistingDocument(
 		flags,
 		0,
 		options.replyTo,
-		date(MTP_int(unixtime())),
+		unixtime(),
 		messageFromId,
 		messagePostAuthor,
 		doc,
@@ -5586,7 +5588,7 @@ void HistoryWidget::sendExistingPhoto(
 		flags,
 		0,
 		options.replyTo,
-		date(MTP_int(unixtime())),
+		unixtime(),
 		messageFromId,
 		messagePostAuthor,
 		photo,
@@ -6539,8 +6541,7 @@ void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int
 
 	QString editTimeLeftText;
 	int updateIn = -1;
-	auto tmp = ::date(unixtime());
-	auto timeSinceMessage = _replyEditMsg->date.msecsTo(QDateTime::currentDateTime());
+	auto timeSinceMessage = ItemDateTime(_replyEditMsg).msecsTo(QDateTime::currentDateTime());
 	auto editTimeLeft = (Global::EditTimeLimit() * 1000LL) - timeSinceMessage;
 	if (editTimeLeft < 2) {
 		editTimeLeftText = qsl("0:00");

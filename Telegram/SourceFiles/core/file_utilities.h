@@ -21,7 +21,7 @@ QString filedialogDefaultName(
 	const QString &extension,
 	const QString &path = QString(),
 	bool skipExistance = false,
-	int fileTime = 0);
+	TimeId fileTime = TimeId(0));
 QString filedialogNextFilename(
 	const QString &name,
 	const QString &cur,

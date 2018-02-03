@@ -32,22 +32,6 @@ uint64 PinnedDialogPos(int pinnedIndex) {
 
 } // namespace
 
-bool MessageIsLess(not_null<HistoryItem*> a, not_null<HistoryItem*> b) {
-	if (a->date < b->date) {
-		return true;
-	} else if (b->date < a->date) {
-		return false;
-	}
-	const auto apeer = a->history()->peer->bareId();
-	const auto bpeer = b->history()->peer->bareId();
-	if (apeer < bpeer) {
-		return true;
-	} else if (bpeer < apeer) {
-		return false;
-	}
-	return a->id < b->id;
-}
-
 Entry::Entry(const Key &key)
 : lastItemTextCache(st::dialogsTextWidthMin)
 , _key(key) {
@@ -127,7 +111,7 @@ PositionChange Entry::adjustByPosInChatList(
 	return { movedFrom, movedTo };
 }
 
-void Entry::setChatsListDate(const QDateTime &date) {
+void Entry::setChatsListDate(QDateTime date) {
 	if (!_lastMessageDate.isNull() && _lastMessageDate >= date) {
 		if (!inChatList(Dialogs::Mode::All)) {
 			return;

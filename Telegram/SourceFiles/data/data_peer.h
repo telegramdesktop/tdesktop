@@ -946,8 +946,8 @@ public:
 			|| amCreator();
 	}
 
-	int32 inviter = 0; // > 0 - user who invited me to channel, < 0 - not in channel
-	QDateTime inviteDate;
+	UserId inviter = 0; // > 0 - user who invited me to channel, < 0 - not in channel
+	TimeId inviteDate = 0;
 
 	void ptsInit(int32 pts) {
 		_ptsWaiter.init(pts);

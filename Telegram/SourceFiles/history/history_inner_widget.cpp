@@ -731,7 +731,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 						} else {
 							HistoryView::ServiceMessagePainter::paintDate(
 								p,
-								view->data()->date,
+								view->dateTime(),
 								dateY,
 								_contentWidth);
 						}
@@ -1430,7 +1430,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				_widget->replyToMessage(itemId);
 			});
 		}
-		if (item->allowsEdit(::date(unixtime()))) {
+		if (item->allowsEdit(unixtime())) {
 			_menu->addAction(lang(lng_context_edit_msg), [=] {
 				_widget->editMessage(itemId);
 			});
@@ -1693,11 +1693,17 @@ void HistoryInner::savePhotoToFile(not_null<PhotoData*> photo) {
 	if (!photo->date || !photo->loaded()) return;
 
 	auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
-	FileDialog::GetWritePath(lang(lng_save_photo), filter, filedialogDefaultName(qsl("photo"), qsl(".jpg")), base::lambda_guarded(this, [this, photo](const QString &result) {
-		if (!result.isEmpty()) {
-			photo->full->pix().toImage().save(result, "JPG");
-		}
-	}));
+	FileDialog::GetWritePath(
+		lang(lng_save_photo),
+		filter,
+		filedialogDefaultName(
+			qsl("photo"),
+			qsl(".jpg")),
+		base::lambda_guarded(this, [this, photo](const QString &result) {
+			if (!result.isEmpty()) {
+				photo->full->pix().toImage().save(result, "JPG");
+			}
+		}));
 }
 
 void HistoryInner::copyContextImage(not_null<PhotoData*> photo) {
@@ -1797,7 +1803,7 @@ TextWithEntities HistoryInner::getSelectedText() const {
 	const auto wrapItem = [&](
 			not_null<HistoryItem*> item,
 			TextWithEntities &&unwrapped) {
-		auto time = item->date.toString(timeFormat);
+		auto time = ItemDateTime(item).toString(timeFormat);
 		auto part = TextWithEntities();
 		auto size = item->author()->name.size()
 			+ time.size()
@@ -1886,7 +1892,7 @@ void HistoryInner::recountHistoryGeometry() {
 	_historySkipHeight = 0;
 	if (_migrated) {
 		if (!_migrated->isEmpty() && !_history->isEmpty() && _migrated->loadedAtBottom() && _history->loadedAtTop()) {
-			if (_migrated->blocks.back()->messages.back()->data()->date.date() == _history->blocks.front()->messages.front()->data()->date.date()) {
+			if (_migrated->blocks.back()->messages.back()->dateTime().date() == _history->blocks.front()->messages.front()->dateTime().date()) {
 				if (_migrated->blocks.back()->messages.back()->data()->isGroupMigrate() && _history->blocks.front()->messages.front()->data()->isGroupMigrate()) {
 					_historySkipHeight += _history->blocks.front()->messages.front()->height();
 				} else {
@@ -2379,7 +2385,7 @@ void HistoryInner::mouseActionUpdate() {
 					if (const auto date = view->Get<HistoryView::DateBadge>()) {
 						dateWidth = date->width;
 					} else {
-						dateWidth = st::msgServiceFont->width(langDayOfMonthFull(item->date.date()));
+						dateWidth = st::msgServiceFont->width(langDayOfMonthFull(view->dateTime().date()));
 					}
 					dateWidth += st::msgServicePadding.left() + st::msgServicePadding.right();
 					auto dateLeft = st::msgServiceMargin.left();
@@ -2393,9 +2399,9 @@ void HistoryInner::mouseActionUpdate() {
 
 					if (point.x() >= dateLeft && point.x() < dateLeft + dateWidth) {
 						if (!_scrollDateLink) {
-							_scrollDateLink = std::make_shared<DateClickHandler>(item->history()->peer, item->date.date());
+							_scrollDateLink = std::make_shared<DateClickHandler>(item->history()->peer, view->dateTime().date());
 						} else {
-							static_cast<DateClickHandler*>(_scrollDateLink.get())->setDate(item->date.date());
+							static_cast<DateClickHandler*>(_scrollDateLink.get())->setDate(view->dateTime().date());
 						}
 						dragState = TextState(
 							nullptr,
@@ -2924,14 +2930,21 @@ QString HistoryInner::tooltipText() const {
 	if (_mouseCursorState == CursorState::Date
 		&& _mouseAction == MouseAction::None) {
 		if (const auto view = App::hoveredItem()) {
-			auto dateText = view->data()->date.toString(
+			auto dateText = view->dateTime().toString(
 				QLocale::system().dateTimeFormat(QLocale::LongFormat));
-			auto editedDate = view->displayedEditDate();
-			if (!editedDate.isNull()) {
-				dateText += '\n' + lng_edited_date(lt_date, editedDate.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)));
+			if (const auto editedDate = view->displayedEditDate()) {
+				dateText += '\n' + lng_edited_date(
+					lt_date,
+					ParseDateTime(editedDate).toString(
+						QLocale::system().dateTimeFormat(
+							QLocale::LongFormat)));
 			}
 			if (const auto forwarded = view->data()->Get<HistoryMessageForwarded>()) {
-				dateText += '\n' + lng_forwarded_date(lt_date, forwarded->originalDate.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)));
+				dateText += '\n' + lng_forwarded_date(
+					lt_date,
+					ParseDateTime(forwarded->originalDate).toString(
+						QLocale::system().dateTimeFormat(
+							QLocale::LongFormat)));
 			}
 			return dateText;
 		}

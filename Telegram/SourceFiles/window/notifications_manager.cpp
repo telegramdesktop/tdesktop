@@ -331,7 +331,9 @@ void System::showNext() {
 						if (nextNotify) {
 							if (forwardedItem) {
 								auto nextForwarded = nextNotify->Has<HistoryMessageForwarded>() ? nextNotify : nullptr;
-								if (nextForwarded && forwardedItem->author() == nextForwarded->author() && qAbs(int64(nextForwarded->date.toTime_t()) - int64(forwardedItem->date.toTime_t())) < 2) {
+								if (nextForwarded
+									&& forwardedItem->author() == nextForwarded->author()
+									&& qAbs(int64(nextForwarded->date()) - int64(forwardedItem->date())) < 2) {
 									forwardedItem = nextForwarded;
 									++forwardedCount;
 								} else {

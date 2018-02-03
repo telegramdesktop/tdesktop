@@ -322,12 +322,18 @@ void History::takeLocalDraft(History *from) {
 
 void History::createLocalDraftFromCloud() {
 	auto draft = cloudDraft();
-	if (Data::draftIsNull(draft) || !draft->date.isValid()) return;
+	if (Data::draftIsNull(draft) || !draft->date) {
+		return;
+	}
 
 	auto existing = localDraft();
-	if (Data::draftIsNull(existing) || !existing->date.isValid() || draft->date >= existing->date) {
+	if (Data::draftIsNull(existing) || !existing->date || draft->date >= existing->date) {
 		if (!existing) {
-			setLocalDraft(std::make_unique<Data::Draft>(draft->textWithTags, draft->msgId, draft->cursor, draft->previewCancelled));
+			setLocalDraft(std::make_unique<Data::Draft>(
+				draft->textWithTags,
+				draft->msgId,
+				draft->cursor,
+				draft->previewCancelled));
 			existing = localDraft();
 		} else if (existing != draft) {
 			existing->textWithTags = draft->textWithTags;
@@ -351,11 +357,15 @@ Data::Draft *History::createCloudDraft(Data::Draft *fromDraft) {
 			0,
 			MessageCursor(),
 			false));
-		cloudDraft()->date = QDateTime();
+		cloudDraft()->date = TimeId(0);
 	} else {
 		auto existing = cloudDraft();
 		if (!existing) {
-			setCloudDraft(std::make_unique<Data::Draft>(fromDraft->textWithTags, fromDraft->msgId, fromDraft->cursor, fromDraft->previewCancelled));
+			setCloudDraft(std::make_unique<Data::Draft>(
+				fromDraft->textWithTags,
+				fromDraft->msgId,
+				fromDraft->cursor,
+				fromDraft->previewCancelled));
 			existing = cloudDraft();
 		} else if (existing != fromDraft) {
 			existing->textWithTags = fromDraft->textWithTags;
@@ -363,7 +373,7 @@ Data::Draft *History::createCloudDraft(Data::Draft *fromDraft) {
 			existing->cursor = fromDraft->cursor;
 			existing->previewCancelled = fromDraft->previewCancelled;
 		}
-		existing->date = ::date(myunixtime());
+		existing->date = unixtime();
 	}
 
 	cloudDraftTextCache.clear();
@@ -623,99 +633,9 @@ std::vector<not_null<HistoryItem*>> History::createItems(
 	return result;
 }
 
-not_null<HistoryItem*> History::createItemForwarded(
-		MsgId id,
-		MTPDmessage::Flags flags,
-		QDateTime date,
-		UserId from,
-		const QString &postAuthor,
-		HistoryMessage *original) {
-	return new HistoryMessage(
-		this,
-		id,
-		flags,
-		date,
-		from,
-		postAuthor,
-		original);
-}
-
-not_null<HistoryItem*> History::createItemDocument(
-		MsgId id,
-		MTPDmessage::Flags flags,
-		UserId viaBotId,
-		MsgId replyTo,
-		QDateTime date,
-		UserId from,
-		const QString &postAuthor,
-		DocumentData *document,
-		const TextWithEntities &caption,
-		const MTPReplyMarkup &markup) {
-	return new HistoryMessage(
-		this,
-		id,
-		flags,
-		replyTo,
-		viaBotId,
-		date,
-		from,
-		postAuthor,
-		document,
-		caption,
-		markup);
-}
-
-not_null<HistoryItem*> History::createItemPhoto(
-		MsgId id,
-		MTPDmessage::Flags flags,
-		UserId viaBotId,
-		MsgId replyTo,
-		QDateTime date,
-		UserId from,
-		const QString &postAuthor,
-		PhotoData *photo,
-		const TextWithEntities &caption,
-		const MTPReplyMarkup &markup) {
-	return new HistoryMessage(
-		this,
-		id,
-		flags,
-		replyTo,
-		viaBotId,
-		date,
-		from,
-		postAuthor,
-		photo,
-		caption,
-		markup);
-}
-
-not_null<HistoryItem*> History::createItemGame(
-		MsgId id,
-		MTPDmessage::Flags flags,
-		UserId viaBotId,
-		MsgId replyTo,
-		QDateTime date,
-		UserId from,
-		const QString &postAuthor,
-		GameData *game,
-		const MTPReplyMarkup &markup) {
-	return new HistoryMessage(
-		this,
-		id,
-		flags,
-		replyTo,
-		viaBotId,
-		date,
-		from,
-		postAuthor,
-		game,
-		markup);
-}
-
 not_null<HistoryItem*> History::addNewService(
 		MsgId msgId,
-		QDateTime date,
+		TimeId date,
 		const QString &text,
 		MTPDmessage::Flags flags,
 		bool unread) {
@@ -781,12 +701,19 @@ HistoryItem *History::addToHistory(const MTPMessage &msg) {
 not_null<HistoryItem*> History::addNewForwarded(
 		MsgId id,
 		MTPDmessage::Flags flags,
-		QDateTime date,
+		TimeId date,
 		UserId from,
 		const QString &postAuthor,
-		HistoryMessage *original) {
+		not_null<HistoryMessage*> original) {
 	return addNewItem(
-		createItemForwarded(id, flags, date, from, postAuthor, original),
+		new HistoryMessage(
+			this,
+			id,
+			flags,
+			date,
+			from,
+			postAuthor,
+			original),
 		true);
 }
 
@@ -795,18 +722,19 @@ not_null<HistoryItem*> History::addNewDocument(
 		MTPDmessage::Flags flags,
 		UserId viaBotId,
 		MsgId replyTo,
-		QDateTime date,
+		TimeId date,
 		UserId from,
 		const QString &postAuthor,
-		DocumentData *document,
+		not_null<DocumentData*> document,
 		const TextWithEntities &caption,
 		const MTPReplyMarkup &markup) {
 	return addNewItem(
-		createItemDocument(
+		new HistoryMessage(
+			this,
 			id,
 			flags,
-			viaBotId,
 			replyTo,
+			viaBotId,
 			date,
 			from,
 			postAuthor,
@@ -821,18 +749,19 @@ not_null<HistoryItem*> History::addNewPhoto(
 		MTPDmessage::Flags flags,
 		UserId viaBotId,
 		MsgId replyTo,
-		QDateTime date,
+		TimeId date,
 		UserId from,
 		const QString &postAuthor,
-		PhotoData *photo,
+		not_null<PhotoData*> photo,
 		const TextWithEntities &caption,
 		const MTPReplyMarkup &markup) {
 	return addNewItem(
-		createItemPhoto(
+		new HistoryMessage(
+			this,
 			id,
 			flags,
-			viaBotId,
 			replyTo,
+			viaBotId,
 			date,
 			from,
 			postAuthor,
@@ -847,17 +776,18 @@ not_null<HistoryItem*> History::addNewGame(
 		MTPDmessage::Flags flags,
 		UserId viaBotId,
 		MsgId replyTo,
-		QDateTime date,
+		TimeId date,
 		UserId from,
 		const QString &postAuthor,
-		GameData *game,
+		not_null<GameData*> game,
 		const MTPReplyMarkup &markup) {
 	return addNewItem(
-		createItemGame(
+		new HistoryMessage(
+			this,
 			id,
 			flags,
-			viaBotId,
 			replyTo,
+			viaBotId,
 			date,
 			from,
 			postAuthor,
@@ -1291,8 +1221,7 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 		if (from == item->author()) {
 			clearSendAction(from);
 		}
-		auto itemServerTime = toServerTime(item->date.toTime_t());
-		from->madeAction(itemServerTime.v);
+		from->madeAction(item->date());
 	}
 	if (item->out()) {
 		destroyUnreadBar();
@@ -1670,6 +1599,10 @@ int History::unreadCount() const {
 	return _unreadCount ? *_unreadCount : 0;
 }
 
+bool History::unreadCountKnown() const {
+	return !!_unreadCount;
+}
+
 void History::setUnreadCount(int newUnreadCount) {
 	if (!_unreadCount || *_unreadCount != newUnreadCount) {
 		const auto unreadCountDelta = _unreadCount | [&](int count) {
@@ -1805,8 +1738,11 @@ std::shared_ptr<AdminLog::LocalIdManager> History::adminLogIdManager() {
 QDateTime History::adjustChatListDate() const {
 	const auto result = chatsListDate();
 	if (const auto draft = cloudDraft()) {
-		if (!Data::draftIsNull(draft) && draft->date > result) {
-			return draft->date;
+		if (!Data::draftIsNull(draft)) {
+			const auto draftResult = ParseDateTime(draft->date);
+			if (draftResult > result) {
+				return draftResult;
+			}
 		}
 	}
 	return result;
@@ -2123,7 +2059,7 @@ void History::setLastMessage(HistoryItem *item) {
 		if (const auto feed = peer->feed()) {
 			feed->updateLastMessage(item);
 		}
-		setChatsListDate(item->date);
+		setChatsListDate(ItemDateTime(item));
 	} else if (!_lastMessage || *_lastMessage) {
 		_lastMessage = nullptr;
 		updateChatListEntry();
@@ -2140,7 +2076,7 @@ bool History::lastMessageKnown() const {
 
 void History::updateChatListExistence() {
 	Entry::updateChatListExistence();
-	if (!lastMessageKnown() || !_unreadCount) {
+	if (!lastMessageKnown() || !unreadCountKnown()) {
 		if (const auto channel = peer->asChannel()) {
 			if (!channel->feed()) {
 				// After ungrouping from a feed we need to load dialog.
@@ -2197,7 +2133,7 @@ void History::applyDialog(const MTPDdialog &data) {
 				peerToChannel(channel->id),
 				data.vtop_message.v);
 			if (const auto item = App::histItemById(topMessageId)) {
-				if (item->date <= date(channel->date)) {
+				if (item->date() <= channel->date) {
 					Auth().api().requestSelfParticipant(channel);
 				}
 			}
@@ -2384,7 +2320,7 @@ HistoryService *History::insertJoinedMessage(bool unread) {
 	//	flags |= MTPDmessage::Flag::f_unread;
 	}
 
-	auto inviteDate = peer->asChannel()->inviteDate;
+	const auto inviteDate = peer->asChannel()->inviteDate;
 	if (isEmpty()) {
 		_joinedMessage = GenerateJoinedMessage(
 			this,
@@ -2409,7 +2345,7 @@ HistoryService *History::insertJoinedMessage(bool unread) {
 				peer->asChannel()->mgInfo->joinedMessageFound = true;
 				return nullptr;
 			}
-			if (item->date <= inviteDate) {
+			if (item->date() <= inviteDate) {
 				++itemIndex;
 				_joinedMessage = GenerateJoinedMessage(
 					this,
@@ -2418,7 +2354,7 @@ HistoryService *History::insertJoinedMessage(bool unread) {
 					flags);
 				addNewInTheMiddle(_joinedMessage, blockIndex, itemIndex);
 				const auto lastDate = chatsListDate();
-				if (lastDate.isNull() || inviteDate >= lastDate) {
+				if (lastDate.isNull() || ParseDateTime(inviteDate) >= lastDate) {
 					setLastMessage(_joinedMessage);
 					if (unread) {
 						newItemAdded(_joinedMessage);
@@ -2456,14 +2392,15 @@ void History::checkJoinedMessage(bool createUnread) {
 		}
 	}
 
-	QDateTime inviteDate = peer->asChannel()->inviteDate;
-	QDateTime firstDate, lastDate;
+	const auto inviteDate = peer->asChannel()->inviteDate;
+	auto firstDate = TimeId(0);
+	auto lastDate = TimeId(0);
 	if (!blocks.empty()) {
-		firstDate = blocks.front()->messages.front()->data()->date;
-		lastDate = blocks.back()->messages.back()->data()->date;
+		firstDate = blocks.front()->messages.front()->data()->date();
+		lastDate = blocks.back()->messages.back()->data()->date();
 	}
-	if (!firstDate.isNull()
-		&& !lastDate.isNull()
+	if (firstDate
+		&& lastDate
 		&& (firstDate <= inviteDate || loadedAtTop())
 		&& (lastDate > inviteDate || loadedAtBottom())) {
 		const auto willBeLastMsg = (inviteDate >= lastDate);
@@ -2596,7 +2533,7 @@ void History::clearUpTill(MsgId availableMinId) {
 					MTP_int(fromId),
 					peerToMTP(peer->id),
 					MTP_int(replyToId),
-					toServerTime(item->date.toTime_t()),
+					MTP_int(item->date()),
 					MTP_messageActionHistoryClear()
 				).c_messageService());
 			}

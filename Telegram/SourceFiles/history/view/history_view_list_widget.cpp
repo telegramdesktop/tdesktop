@@ -908,7 +908,7 @@ QString ListWidget::tooltipText() const {
 		? _overElement->data().get()
 		: nullptr;
 	if (_mouseCursorState == CursorState::Date && item) {
-		return item->date.toString(
+		return _overElement->dateTime().toString(
 			QLocale::system().dateTimeFormat(QLocale::LongFormat));
 	} else if (_mouseCursorState == CursorState::Forwarded && item) {
 		if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
@@ -1178,7 +1178,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 					} else {
 						ServiceMessagePainter::paintDate(
 							p,
-							view->data()->date,
+							view->dateTime(),
 							dateY,
 							width);
 					}
@@ -1238,7 +1238,7 @@ TextWithEntities ListWidget::getSelectedText() const {
 	const auto wrapItem = [&](
 			not_null<HistoryItem*> item,
 			TextWithEntities &&unwrapped) {
-		auto time = item->date.toString(timeFormat);
+		auto time = ItemDateTime(item).toString(timeFormat);
 		auto part = TextWithEntities();
 		auto size = item->author()->name.size()
 			+ time.size()
@@ -2158,8 +2158,8 @@ void ListWidget::refreshAttachmentsFromTill(int from, int till) {
 		if (next->isHidden()) {
 			next->setDisplayDate(false);
 		} else {
-			const auto viewDate = view->data()->date;
-			const auto nextDate = next->data()->date;
+			const auto viewDate = view->dateTime();
+			const auto nextDate = next->dateTime();
 			next->setDisplayDate(nextDate.date() != viewDate.date());
 			auto attached = next->computeIsAttachToPrevious(view);
 			next->setAttachToPrevious(attached);

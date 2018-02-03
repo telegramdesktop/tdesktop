@@ -124,7 +124,13 @@ MsgId AbstractItem::msgId() const {
 	return item ? item->id : 0;
 }
 
-ItemBase::ItemBase(not_null<HistoryItem*> parent) : _parent(parent) {
+ItemBase::ItemBase(not_null<HistoryItem*> parent)
+: _parent(parent)
+, _dateTime(ItemDateTime(parent)) {
+}
+
+QDateTime ItemBase::dateTime() const {
+	return _dateTime;
 }
 
 void ItemBase::clickHandlerActiveChanged(
@@ -564,9 +570,19 @@ Voice::Voice(
 	setDocumentLinks(_data);
 
 	updateName();
-	QString d = textcmdLink(1, TextUtilities::EscapeForRichParsing(langDateTime(date(_data->date))));
+	const auto dateText = textcmdLink(
+		1,
+		TextUtilities::EscapeForRichParsing(
+			langDateTime(ParseDateTime(_data->date))));
 	TextParseOptions opts = { TextParseRichText, 0, 0, Qt::LayoutDirectionAuto };
-	_details.setText(st::defaultTextStyle, lng_date_and_duration(lt_date, d, lt_duration, formatDurationText(_data->voice()->duration)), opts);
+	_details.setText(
+		st::defaultTextStyle,
+		lng_date_and_duration(
+			lt_date,
+			dateText,
+			lt_duration,
+			formatDurationText(_data->voice()->duration)),
+		opts);
 	_details.setLink(1, goToMessageClickHandler(parent));
 }
 
@@ -804,7 +820,7 @@ Document::Document(
 , _msgl(goToMessageClickHandler(parent))
 , _namel(std::make_shared<DocumentOpenClickHandler>(_data, parent->fullId()))
 , _st(st)
-, _date(langDateTime(date(_data->date)))
+, _date(langDateTime(ParseDateTime(_data->date)))
 , _datew(st::normalFont->width(_date))
 , _colorIndex(documentColorIndex(_data, _ext)) {
 	_name.setMarkedText(st::defaultTextStyle, ComposeNameWithEntities(_data), _documentNameOptions);

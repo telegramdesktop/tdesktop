@@ -29,35 +29,35 @@ class HistoryMessage
 public:
 	HistoryMessage(
 		not_null<History*> history,
-		const MTPDmessage &msg);
+		const MTPDmessage &data);
 	HistoryMessage(
 		not_null<History*> history,
-		const MTPDmessageService &msg);
+		const MTPDmessageService &data);
 	HistoryMessage(
 		not_null<History*> history,
-		MsgId msgId,
+		MsgId id,
 		MTPDmessage::Flags flags,
-		QDateTime date,
+		TimeId date,
 		UserId from,
 		const QString &postAuthor,
-		not_null<HistoryMessage*> fwd); // local forwarded
+		not_null<HistoryMessage*> original); // local forwarded
 	HistoryMessage(
 		not_null<History*> history,
-		MsgId msgId,
+		MsgId id,
 		MTPDmessage::Flags flags,
 		MsgId replyTo,
 		UserId viaBotId,
-		QDateTime date,
+		TimeId date,
 		UserId from,
 		const QString &postAuthor,
 		const TextWithEntities &textWithEntities); // local message
 	HistoryMessage(
 		not_null<History*> history,
-		MsgId msgId,
+		MsgId id,
 		MTPDmessage::Flags flags,
 		MsgId replyTo,
 		UserId viaBotId,
-		QDateTime date,
+		TimeId date,
 		UserId from,
 		const QString &postAuthor,
 		not_null<DocumentData*> document,
@@ -65,11 +65,11 @@ public:
 		const MTPReplyMarkup &markup); // local document
 	HistoryMessage(
 		not_null<History*> history,
-		MsgId msgId,
+		MsgId id,
 		MTPDmessage::Flags flags,
 		MsgId replyTo,
 		UserId viaBotId,
-		QDateTime date,
+		TimeId date,
 		UserId from,
 		const QString &postAuthor,
 		not_null<PhotoData*> photo,
@@ -77,11 +77,11 @@ public:
 		const MTPReplyMarkup &markup); // local photo
 	HistoryMessage(
 		not_null<History*> history,
-		MsgId msgId,
+		MsgId id,
 		MTPDmessage::Flags flags,
 		MsgId replyTo,
 		UserId viaBotId,
-		QDateTime date,
+		TimeId date,
 		UserId from,
 		const QString &postAuthor,
 		not_null<GameData*> game,
@@ -95,7 +95,7 @@ public:
 		const MTPMessageMedia &media);
 
 	bool allowsForward() const override;
-	bool allowsEdit(const QDateTime &now) const override;
+	bool allowsEdit(TimeId now) const override;
 	bool uploading() const;
 
 	void applyGroupAdminChanges(

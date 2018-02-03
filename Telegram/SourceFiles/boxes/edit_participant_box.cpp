@@ -415,7 +415,7 @@ MTPChannelBannedRights EditRestrictedBox::DefaultRights(not_null<ChannelData*> c
 
 void EditRestrictedBox::showRestrictUntil() {
 	auto tomorrow = QDate::currentDate().addDays(1);
-	auto highlighted = isUntilForever() ? tomorrow : date(getRealUntilValue()).date();
+	auto highlighted = isUntilForever() ? tomorrow : ParseDateTime(getRealUntilValue()).date();
 	auto month = highlighted;
 	_restrictUntilBox = Ui::show(
 		Box<CalendarBox>(
@@ -471,7 +471,11 @@ void EditRestrictedBox::createUntilVariants() {
 	};
 	auto addCustomVariant = [this, addVariant](TimeId until, TimeId from, TimeId to) {
 		if (!ChannelData::IsRestrictedForever(until) && until > from && until <= to) {
-			addVariant(until, lng_rights_chat_banned_custom_date(lt_date, langDayOfMonthFull(date(until).date())));
+			addVariant(
+				until,
+				lng_rights_chat_banned_custom_date(
+					lt_date,
+					langDayOfMonthFull(ParseDateTime(until).date())));
 		}
 	};
 	auto addCurrentVariant = [this, addCustomVariant](TimeId from, TimeId to) {

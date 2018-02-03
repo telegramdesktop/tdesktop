@@ -400,32 +400,39 @@ HistoryService::PreparedText HistoryService::preparePaymentSentText() {
 	return result;
 }
 
-HistoryService::HistoryService(not_null<History*> history, const MTPDmessage &message) :
-	HistoryItem(history, message.vid.v, message.vflags.v, ::date(message.vdate), message.has_from_id() ? message.vfrom_id.v : 0) {
-	createFromMtp(message);
-}
-
 HistoryService::HistoryService(
 	not_null<History*> history,
-	const MTPDmessageService &message)
+	const MTPDmessage &data)
 : HistoryItem(
 		history,
-		message.vid.v,
-		mtpCastFlags(message.vflags.v),
-		::date(message.vdate),
-		message.has_from_id() ? message.vfrom_id.v : 0) {
-	createFromMtp(message);
+		data.vid.v,
+		data.vflags.v,
+		data.vdate.v,
+		data.has_from_id() ? data.vfrom_id.v : UserId(0)) {
+	createFromMtp(data);
 }
 
 HistoryService::HistoryService(
 	not_null<History*> history,
-	MsgId msgId,
-	QDateTime date,
+	const MTPDmessageService &data)
+: HistoryItem(
+		history,
+		data.vid.v,
+		mtpCastFlags(data.vflags.v),
+		data.vdate.v,
+		data.has_from_id() ? data.vfrom_id.v : UserId(0)) {
+	createFromMtp(data);
+}
+
+HistoryService::HistoryService(
+	not_null<History*> history,
+	MsgId id,
+	TimeId date,
 	const PreparedText &message,
 	MTPDmessage::Flags flags,
 	UserId from,
 	PhotoData *photo)
-: HistoryItem(history, msgId, flags, date, from) {
+: HistoryItem(history, id, flags, date, from) {
 	setServiceText(message);
 	if (photo) {
 		_media = std::make_unique<Data::MediaPhoto>(
@@ -665,7 +672,7 @@ HistoryService::PreparedText GenerateJoinedText(
 
 HistoryService *GenerateJoinedMessage(
 		not_null<History*> history,
-		const QDateTime &inviteDate,
+		TimeId inviteDate,
 		not_null<UserData*> inviter,
 		MTPDmessage::Flags flags) {
 	return new HistoryService(

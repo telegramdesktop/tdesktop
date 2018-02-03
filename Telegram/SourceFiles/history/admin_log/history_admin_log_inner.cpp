@@ -455,7 +455,7 @@ QString InnerWidget::tooltipText() const {
 	if (_mouseCursorState == CursorState::Date
 		&& _mouseAction == MouseAction::None) {
 		if (const auto view = App::hoveredItem()) {
-			auto dateText = view->data()->date.toString(
+			auto dateText = view->dateTime().toString(
 				QLocale::system().dateTimeFormat(QLocale::LongFormat));
 			return dateText;
 		}
@@ -666,7 +666,7 @@ void InnerWidget::itemsAdded(Direction direction, int addedCount) {
 			const auto view = _items[i - 1].get();
 			if (i < _items.size()) {
 				const auto previous = _items[i].get();
-				view->setDisplayDate(view->data()->date.date() != previous->data()->date.date());
+				view->setDisplayDate(view->dateTime().date() != previous->dateTime().date());
 				const auto attach = view->computeIsAttachToPrevious(previous);
 				view->setAttachToPrevious(attach);
 				previous->setAttachToNext(attach);
@@ -796,7 +796,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						} else {
 							HistoryView::ServiceMessagePainter::paintDate(
 								p,
-								view->data()->date,
+								view->dateTime(),
 								dateY,
 								width);
 						}

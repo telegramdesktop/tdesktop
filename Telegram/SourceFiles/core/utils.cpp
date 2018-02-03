@@ -80,7 +80,7 @@ namespace {
 	}
 }
 
-TimeId myunixtime() {
+TimeId LocalUnixtime() {
 	return (TimeId)time(NULL);
 }
 
@@ -103,31 +103,25 @@ void unixtimeSet(int32 serverTime, bool force) {
 			DEBUG_LOG(("MTP Info: setting client unixtime to %1").arg(serverTime));
 		}
 		unixtimeWasSet = true;
-		unixtimeDelta = serverTime + 1 - myunixtime();
+		unixtimeDelta = serverTime + 1 - LocalUnixtime();
 		DEBUG_LOG(("MTP Info: now unixtimeDelta is %1").arg(unixtimeDelta));
 	}
 	_initMsgIdConstants();
 }
 
 TimeId unixtime() {
-	auto result = myunixtime();
+	auto result = LocalUnixtime();
 
 	QReadLocker locker(&unixtimeLock);
 	return result + unixtimeDelta;
 }
 
-TimeId fromServerTime(const MTPint &serverTime) {
+QDateTime ParseDateTime(TimeId serverTime) {
+	if (serverTime <= 0) {
+		return QDateTime();
+	}
 	QReadLocker locker(&unixtimeLock);
-	return serverTime.v - unixtimeDelta;
-}
-
-MTPint toServerTime(const TimeId &clientTime) {
-	QReadLocker locker(&unixtimeLock);
-	return MTP_int(clientTime + unixtimeDelta);
-}
-
-QDateTime dateFromServerTime(TimeId time) {
-	return dateFromServerTime(MTP_int(time));
+	return QDateTime::fromTime_t(serverTime - unixtimeDelta);
 }
 
 // Precise timing functions / rand init
@@ -224,7 +218,7 @@ namespace {
             _msgIdCoef = float64(0xFFFF0000L) / 1000000000.;
             _msStart = 1000LL * static_cast<TimeMs>(ts.tv_sec) + (static_cast<TimeMs>(ts.tv_nsec) / 1000000LL);
 #endif
-			_timeStart = myunixtime();
+			_timeStart = LocalUnixtime();
 			srand((uint32)(_msStart & 0xFFFFFFFFL));
 		}
 	};
@@ -310,7 +304,7 @@ namespace ThirdParty {
 }
 
 bool checkms() {
-	auto unixms = (myunixtime() - _timeStart) * 1000LL + _msAddToUnixtime;
+	auto unixms = (LocalUnixtime() - _timeStart) * 1000LL + _msAddToUnixtime;
 	auto ms = getms(true);
 	if (ms > unixms + 1000LL) {
 		_msAddToUnixtime = ((ms - unixms) / 1000LL) * 1000LL;

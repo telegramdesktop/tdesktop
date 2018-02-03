@@ -47,7 +47,7 @@ not_null<HistoryItem*> CreateUnsupportedMessage(
 		MTPDmessage::Flags flags,
 		MsgId replyTo,
 		UserId viaBotId,
-		QDateTime date,
+		TimeId date,
 		UserId from) {
 	const auto siteLink = qsl("https://desktop.telegram.org");
 	auto text = TextWithEntities{
@@ -75,14 +75,18 @@ HistoryItem::HistoryItem(
 	not_null<History*> history,
 	MsgId id,
 	MTPDmessage::Flags flags,
-	QDateTime date,
+	TimeId date,
 	UserId from)
 : id(id)
-, date(date)
+, _date(date)
 , _history(history)
 , _from(from ? App::user(from) : history->peer)
 , _flags(flags) {
 	App::historyRegItem(this);
+}
+
+TimeId HistoryItem::date() const {
+	return _date;
 }
 
 void HistoryItem::finishEdition(int oldKeyboardTop) {
@@ -153,8 +157,7 @@ void HistoryItem::finishEditionToEmpty() {
 
 bool HistoryItem::isMediaUnread() const {
 	if (!mentionsMe() && _history->peer->isChannel()) {
-		auto now = ::date(unixtime());
-		auto passed = date.secsTo(now);
+		auto passed = unixtime() - date();
 		if (passed >= Global::ChannelsReadMediaPeriod()) {
 			return false;
 		}
@@ -332,7 +335,7 @@ bool HistoryItem::allowsForward() const {
 	return false;
 }
 
-bool HistoryItem::allowsEdit(const QDateTime &now) const {
+bool HistoryItem::allowsEdit(TimeId now) const {
 	return false;
 }
 
@@ -357,9 +360,11 @@ bool HistoryItem::canDelete() const {
 	return false;
 }
 
-bool HistoryItem::canDeleteForEveryone(const QDateTime &cur) const {
+bool HistoryItem::canDeleteForEveryone(TimeId now) const {
 	auto messageToMyself = _history->peer->isSelf();
-	auto messageTooOld = messageToMyself ? false : (date.secsTo(cur) >= Global::EditTimeLimit());
+	auto messageTooOld = messageToMyself
+		? false
+		: (now >= date() + Global::EditTimeLimit());
 	if (id < 0 || messageToMyself || messageTooOld || isPost()) {
 		return false;
 	}
@@ -443,7 +448,7 @@ ChannelId HistoryItem::channelId() const {
 }
 
 Data::MessagePosition HistoryItem::position() const {
-	return Data::MessagePosition(toServerTime(date.toTime_t()).v, fullId());
+	return Data::MessagePosition(date(), fullId());
 }
 
 MsgId HistoryItem::replyToId() const {
@@ -457,11 +462,11 @@ not_null<PeerData*> HistoryItem::author() const {
 	return isPost() ? history()->peer : from();
 }
 
-QDateTime HistoryItem::dateOriginal() const {
+TimeId HistoryItem::dateOriginal() const {
 	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
 		return forwarded->originalDate;
 	}
-	return date;
+	return date();
 }
 
 not_null<PeerData*> HistoryItem::senderOriginal() const {
@@ -621,6 +626,10 @@ HistoryItem::~HistoryItem() {
 	}
 }
 
+QDateTime ItemDateTime(not_null<const HistoryItem*> item) {
+	return ParseDateTime(item->date());
+}
+
 ClickHandlerPtr goToMessageClickHandler(
 		not_null<HistoryItem*> item,
 		FullMsgId returnToId) {
@@ -658,7 +667,7 @@ not_null<HistoryItem*> HistoryItem::Create(
 		const auto text = HistoryService::PreparedText {
 			lang(lng_message_empty)
 		};
-		return new HistoryService(history, data.vid.v, ::date(), text);
+		return new HistoryService(history, data.vid.v, TimeId(0), text);
 	} break;
 
 	case mtpc_message: {
@@ -750,7 +759,7 @@ not_null<HistoryItem*> HistoryItem::Create(
 				data.vflags.v,
 				data.vreply_to_msg_id.v,
 				data.vvia_bot_id.v,
-				::date(data.vdate),
+				data.vdate.v,
 				data.vfrom_id.v);
 		} else if (badMedia == MediaCheckResult::Empty) {
 			const auto text = HistoryService::PreparedText {
@@ -759,7 +768,7 @@ not_null<HistoryItem*> HistoryItem::Create(
 			return new HistoryService(
 				history,
 				data.vid.v,
-				::date(data.vdate),
+				data.vdate.v,
 				text,
 				data.vflags.v,
 				data.has_from_id() ? data.vfrom_id.v : UserId(0));

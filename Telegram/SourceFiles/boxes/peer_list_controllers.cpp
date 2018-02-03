@@ -364,15 +364,15 @@ void ContactsBoxController::checkForEmptyRows() {
 	}
 }
 
-std::unique_ptr<PeerListRow> ContactsBoxController::createSearchRow(not_null<PeerData*> peer) {
-	if (auto user = peer->asUser()) {
+std::unique_ptr<PeerListRow> ContactsBoxController::createSearchRow(
+		not_null<PeerData*> peer) {
+	if (const auto user = peer->asUser()) {
 		return createRow(user);
 	}
 	return nullptr;
 }
 
 void ContactsBoxController::rowClicked(not_null<PeerListRow*> row) {
-	Auth().api().requestDialogEntry(App::history(row->peer()));
 	Ui::showPeerHistory(row->peer(), ShowAtUnreadMsgId);
 }
 

@@ -3144,7 +3144,7 @@ HistoryCall::HistoryCall(
 
 	const auto item = parent->data();
 	_text = Data::MediaCall::Text(item, _reason);
-	_status = item->date.time().toString(cTimeFormat());
+	_status = parent->dateTime().time().toString(cTimeFormat());
 	if (_duration) {
 		if (_reason != FinishReason::Missed
 			&& _reason != FinishReason::Busy) {

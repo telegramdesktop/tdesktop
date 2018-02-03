@@ -784,7 +784,11 @@ void SingleFilePreview::preparePreview(const Storage::PreparedFile &file) {
 	prepareThumb(preview);
 	const auto filepath = file.path;
 	if (filepath.isEmpty()) {
-		auto filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
+		auto filename = filedialogDefaultName(
+			qsl("image"),
+			qsl(".png"),
+			QString(),
+			true);
 		_nameText.setText(
 			st::semiboldTextStyle,
 			filename,
