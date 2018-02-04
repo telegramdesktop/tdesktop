@@ -147,6 +147,8 @@
 <(src_loc)/core/crash_report_window.h
 <(src_loc)/core/crash_reports.cpp
 <(src_loc)/core/crash_reports.h
+<(src_loc)/core/event_filter.cpp
+<(src_loc)/core/event_filter.h
 <(src_loc)/core/file_utilities.cpp
 <(src_loc)/core/file_utilities.h
 <(src_loc)/core/launcher.cpp

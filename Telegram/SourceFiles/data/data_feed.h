@@ -50,6 +50,7 @@ public:
 	void unreadCountChanged(
 		base::optional<int> unreadCountDelta,
 		int mutedCountDelta);
+	rpl::producer<int> unreadCountValue() const;
 	MessagePosition unreadPosition() const;
 	rpl::producer<MessagePosition> unreadPositionChanges() const;
 
@@ -98,6 +99,7 @@ private:
 
 	rpl::variable<MessagePosition> _unreadPosition;
 	base::optional<int> _unreadCount;
+	rpl::event_stream<int> _unreadCountChanges;
 	int _unreadMutedCount = 0;
 
 };

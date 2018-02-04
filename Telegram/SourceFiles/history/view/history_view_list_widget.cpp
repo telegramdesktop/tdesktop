@@ -324,6 +324,75 @@ void ListWidget::refreshRows() {
 	checkUnreadBarCreation();
 	restoreScrollState();
 	mouseActionUpdate(QCursor::pos());
+	_delegate->listContentRefreshed();
+}
+
+base::optional<int> ListWidget::scrollTopForPosition(
+		Data::MessagePosition position) const {
+	if (position == Data::MaxMessagePosition) {
+		if (loadedAtBottom()) {
+			return height();
+		}
+		return base::none;
+	}
+	// #TODO showAtPosition
+	return base::none;
+}
+
+void ListWidget::animatedScrollTo(
+		int scrollTop,
+		Data::MessagePosition attachPosition,
+		int delta,
+		AnimatedScroll type) {
+	_scrollToAnimation.finish();
+	if (!delta || _items.empty()) {
+		_delegate->listScrollTo(scrollTop);
+		return;
+	}
+	const auto index = findNearestItem(attachPosition);
+	Assert(index >= 0 && index < int(_items.size()));
+	const auto attachTo = _items[index];
+	const auto attachToId = attachTo->data()->fullId();
+	const auto transition = (type == AnimatedScroll::Full)
+		? anim::sineInOut
+		: anim::easeOutCubic;
+	const auto initial = scrollTop - delta;
+	_delegate->listScrollTo(initial);
+
+	const auto attachToTop = itemTop(attachTo);
+	const auto relativeStart = initial - attachToTop;
+	const auto relativeFinish = scrollTop - attachToTop;
+	_scrollToAnimation.start(
+		[=] { scrollToAnimationCallback(attachToId); },
+		relativeStart,
+		relativeFinish,
+		st::slideDuration,
+		transition);
+}
+
+void ListWidget::scrollToAnimationCallback(FullMsgId attachToId) {
+	const auto attachTo = App::histItemById(attachToId);
+	const auto attachToView = viewForItem(attachTo);
+	if (!attachToView) {
+		_scrollToAnimation.finish();
+	} else {
+		const auto current = int(std::round(_scrollToAnimation.current()));
+		_delegate->listScrollTo(itemTop(attachToView) + current);
+	}
+}
+
+bool ListWidget::isAbovePosition(Data::MessagePosition position) const {
+	if (_items.empty()) {
+		return false;
+	}
+	return _items.back()->data()->position() < position;
+}
+
+bool ListWidget::isBelowPosition(Data::MessagePosition position) const {
+	if (_items.empty()) {
+		return false;
+	}
+	return _items.front()->data()->position() > position;
 }
 
 void ListWidget::checkUnreadBarCreation() {
@@ -836,6 +905,22 @@ void ListWidget::setTextSelection(
 		_wasSelectedText = true;
 		setFocus();
 	}
+}
+
+bool ListWidget::loadedAtTopKnown() const {
+	return !!_slice.skippedBefore;
+}
+
+bool ListWidget::loadedAtTop() const {
+	return _slice.skippedBefore && (*_slice.skippedBefore == 0);
+}
+
+bool ListWidget::loadedAtBottomKnown() const {
+	return !!_slice.skippedAfter;
+}
+
+bool ListWidget::loadedAtBottom() const {
+	return _slice.skippedAfter && (*_slice.skippedAfter == 0);
 }
 
 int ListWidget::itemMinimalHeight() const {

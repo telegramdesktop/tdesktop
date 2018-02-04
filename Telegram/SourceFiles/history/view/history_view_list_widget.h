@@ -64,6 +64,7 @@ public:
 	virtual void listVisibleItemsChanged(HistoryItemsList &&items) = 0;
 	virtual base::optional<int> listUnreadBarView(
 		const std::vector<not_null<Element*>> &elements) = 0;
+	virtual void listContentRefreshed() = 0;
 
 };
 
@@ -134,12 +135,30 @@ public:
 
 	void saveState(not_null<ListMemento*> memento);
 	void restoreState(not_null<ListMemento*> memento);
+	base::optional<int> scrollTopForPosition(
+		Data::MessagePosition position) const;
+	enum class AnimatedScroll {
+		Full,
+		Part,
+	};
+	void animatedScrollTo(
+		int scrollTop,
+		Data::MessagePosition attachPosition,
+		int delta,
+		AnimatedScroll type);
+	bool isAbovePosition(Data::MessagePosition position) const;
+	bool isBelowPosition(Data::MessagePosition position) const;
 
 	TextWithEntities getSelectedText() const;
 	MessageIdsList getSelectedItems() const;
 	void cancelSelection();
 	void selectItem(not_null<HistoryItem*> item);
 	void selectItemAsGroup(not_null<HistoryItem*> item);
+
+	bool loadedAtTopKnown() const;
+	bool loadedAtTop() const;
+	bool loadedAtBottomKnown() const;
+	bool loadedAtBottom() const;
 
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;
@@ -355,6 +374,7 @@ private:
 		not_null<const Element*> view) const;
 	void checkUnreadBarCreation();
 	void applyUpdatedScrollState();
+	void scrollToAnimationCallback(FullMsgId attachToId);
 
 	// This function finds all history items that are displayed and calls template method
 	// for each found message (in given direction) in the passed history with passed top offset.
@@ -385,6 +405,7 @@ private:
 	not_null<ListDelegate*> _delegate;
 	not_null<Window::Controller*> _controller;
 	Data::MessagePosition _aroundPosition;
+	Data::MessagePosition _shownAtPosition;
 	Context _context;
 	int _aroundIndex = -1;
 	int _idsLimit = kMinimalIdsLimit;
@@ -405,6 +426,7 @@ private:
 	Element *_visibleTopItem = nullptr;
 	int _visibleTopFromItem = 0;
 	ScrollTopState _scrollTopState;
+	Animation _scrollToAnimation;
 
 	bool _scrollDateShown = false;
 	Animation _scrollDateOpacity;

@@ -16,6 +16,7 @@ namespace Ui {
 class ScrollArea;
 class PlainShadow;
 class FlatButton;
+class HistoryDownButton;
 } // namespace Ui
 
 namespace HistoryView {
@@ -81,6 +82,7 @@ public:
 	void listVisibleItemsChanged(HistoryItemsList &&items) override;
 	base::optional<int> listUnreadBarView(
 		const std::vector<not_null<Element*>> &elements) override;
+	void listContentRefreshed() override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -99,6 +101,14 @@ private:
 	void updateAdaptiveLayout();
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
+	void showAtPosition(Data::MessagePosition position);
+	bool showAtPositionNow(Data::MessagePosition position);
+
+	void setupScrollDownButton();
+	void scrollDownClicked();
+	void scrollDownAnimationFinish();
+	void updateScrollDownVisibility();
+	void updateScrollDownPosition();
 
 	void forwardSelected();
 	void confirmDeleteSelected();
@@ -112,6 +122,14 @@ private:
 	object_ptr<Ui::FlatButton> _showNext;
 	bool _skipScrollEvent = false;
 	bool _undefinedAroundPosition = false;
+
+	base::optional<Data::MessagePosition> _nextAnimatedScrollPosition;
+	int _nextAnimatedScrollDelta = 0;
+
+	Animation _scrollDownShown;
+	bool _scrollDownIsShown = false;
+	object_ptr<Ui::HistoryDownButton> _scrollDown;
+
 
 };
 

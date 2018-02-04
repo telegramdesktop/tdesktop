@@ -1833,15 +1833,23 @@ void DialogsInner::peerSearchReceived(
 		return;
 	}
 
+	const auto alreadyAdded = [&](not_null<PeerData*> peer) {
+		for (const auto &row : _filterResults) {
+			if (const auto history = row->history()) {
+				if (history->peer == peer) {
+					return true;
+				}
+			}
+		}
+		return false;
+	};
 	_peerSearchQuery = query.toLower().trimmed();
 	_peerSearchResults.clear();
 	_peerSearchResults.reserve(result.size());
 	for (const auto &mtpPeer : my) {
 		if (const auto peer = App::peerLoaded(peerFromMTP(mtpPeer))) {
-			if (const auto history = App::historyLoaded(peer)) {
-				if (history->inChatList(Dialogs::Mode::All)) {
-					continue; // skip existing chats
-				}
+			if (alreadyAdded(peer)) {
+				continue;
 			}
 			const auto prev = nullptr, next = nullptr;
 			const auto position = 0;

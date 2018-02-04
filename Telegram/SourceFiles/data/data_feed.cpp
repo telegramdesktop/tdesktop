@@ -279,6 +279,12 @@ int Feed::unreadCount() const {
 	return _unreadCount ? *_unreadCount : 0;
 }
 
+rpl::producer<int> Feed::unreadCountValue() const {
+	return rpl::single(
+		unreadCount()
+	) | rpl::then(_unreadCountChanges.events());
+}
+
 bool Feed::unreadCountKnown() const {
 	return !!_unreadCount;
 }
@@ -321,6 +327,8 @@ void Feed::setUnreadCounts(int unreadNonMutedCount, int unreadMutedCount) {
 	}
 	_unreadCount = unreadNonMutedCount + unreadMutedCount;
 	_unreadMutedCount = unreadMutedCount;
+
+	_unreadCountChanges.fire(unreadCount());
 	updateChatListEntry();
 }
 
@@ -333,7 +341,7 @@ void Feed::setUnreadPosition(const MessagePosition &position) {
 void Feed::unreadCountChanged(
 		base::optional<int> unreadCountDelta,
 		int mutedCountDelta) {
-	if (!unreadCountKnown()) {
+	if (!unreadCountKnown() || (unreadCountDelta && !*unreadCountDelta)) {
 		return;
 	}
 	if (unreadCountDelta) {
@@ -342,6 +350,8 @@ void Feed::unreadCountChanged(
 			_unreadMutedCount + mutedCountDelta,
 			0,
 			*_unreadCount);
+
+		_unreadCountChanges.fire(unreadCount());
 		updateChatListEntry();
 	} else {
 //		_parent->session().api().requestFeedDialogsEntries(this);

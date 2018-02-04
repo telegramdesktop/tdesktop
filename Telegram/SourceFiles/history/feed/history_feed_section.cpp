@@ -13,11 +13,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
 #include "history/history_item.h"
+#include "core/event_filter.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/special_buttons.h"
 #include "boxes/confirm_box.h"
 #include "window/window_controller.h"
 #include "window/window_peer_menu.h"
@@ -66,9 +68,10 @@ Widget::Widget(
 , _topBar(this, controller)
 , _topBarShadow(this)
 , _showNext(
-		this,
-		lang(lng_feed_show_next).toUpper(),
-		st::historyComposeButton) {
+	this,
+	lang(lng_feed_show_next).toUpper(),
+	st::historyComposeButton)
+, _scrollDown(_scroll, st::historyToDown) {
 	_topBar->setActiveChat(_feed);
 
 	_topBar->move(0, 0);
@@ -125,6 +128,107 @@ Widget::Widget(
 	) | rpl::start_with_next([=] {
 		crl::on_main(this, [=] { checkForSingleChannelFeed(); });
 	}, lifetime());
+
+	setupScrollDownButton();
+}
+
+void Widget::setupScrollDownButton() {
+	_scrollDown->setClickedCallback([=] {
+		scrollDownClicked();
+	});
+	Core::InstallEventFilter(_scrollDown, [=](not_null<QEvent*> event) {
+		if (event->type() == QEvent::Wheel) {
+			return _scroll->viewportEvent(event);
+		}
+		return false;
+	});
+	updateScrollDownVisibility();
+	_feed->unreadCountValue(
+	) | rpl::start_with_next([=](int count) {
+		_scrollDown->setUnreadCount(count);
+	}, _scrollDown->lifetime());
+}
+
+void Widget::scrollDownClicked() {
+	showAtPosition(Data::MaxMessagePosition);
+}
+
+void Widget::showAtPosition(Data::MessagePosition position) {
+	if (!showAtPositionNow(position)) {
+		_nextAnimatedScrollPosition = position;
+		_nextAnimatedScrollDelta = _inner->isBelowPosition(position)
+			? -_scroll->height()
+			: _inner->isAbovePosition(position)
+			? _scroll->height()
+			: 0;
+		auto memento = HistoryView::ListMemento(position);
+		_inner->restoreState(&memento);
+	}
+}
+
+bool Widget::showAtPositionNow(Data::MessagePosition position) {
+	if (const auto scrollTop = _inner->scrollTopForPosition(position)) {
+		const auto currentScrollTop = _scroll->scrollTop();
+		const auto wanted = snap(*scrollTop, 0, _scroll->scrollTopMax());
+		const auto fullDelta = (wanted - currentScrollTop);
+		const auto limit = _scroll->height();
+		const auto scrollDelta = snap(fullDelta, -limit, limit);
+		_inner->animatedScrollTo(
+			wanted,
+			position,
+			scrollDelta,
+			(std::abs(fullDelta) > limit
+				? HistoryView::ListWidget::AnimatedScroll::Part
+				: HistoryView::ListWidget::AnimatedScroll::Full));
+		return true;
+	}
+	return false;
+}
+
+void Widget::updateScrollDownVisibility() {
+	if (animating() || !_inner->loadedAtBottomKnown()) {
+		return;
+	}
+
+	const auto scrollDownIsVisible = [&] {
+		if (!_inner->loadedAtBottom()) {
+			return true;
+		}
+		const auto top = _scroll->scrollTop() + st::historyToDownShownAfter;
+		if (top < _scroll->scrollTopMax()) {
+			return true;
+		}
+		return false;
+	};
+	auto scrollDownIsShown = scrollDownIsVisible();
+	if (_scrollDownIsShown != scrollDownIsShown) {
+		_scrollDownIsShown = scrollDownIsShown;
+		_scrollDownShown.start(
+			[=] { updateScrollDownPosition(); },
+			_scrollDownIsShown ? 0. : 1.,
+			_scrollDownIsShown ? 1. : 0.,
+			st::historyToDownDuration);
+	}
+}
+
+void Widget::updateScrollDownPosition() {
+	// _scrollDown is a child widget of _scroll, not me.
+	auto top = anim::interpolate(
+		0,
+		_scrollDown->height() + st::historyToDownPosition.y(),
+		_scrollDownShown.current(_scrollDownIsShown ? 1. : 0.));
+	_scrollDown->moveToRight(
+		st::historyToDownPosition.x(),
+		_scroll->height() - top);
+	auto shouldBeHidden = !_scrollDownIsShown && !_scrollDownShown.animating();
+	if (shouldBeHidden != _scrollDown->isHidden()) {
+		_scrollDown->setVisible(!shouldBeHidden);
+	}
+}
+
+void Widget::scrollDownAnimationFinish() {
+	_scrollDownShown.finish();
+	updateScrollDownPosition();
 }
 
 void Widget::checkForSingleChannelFeed() {
@@ -255,7 +359,7 @@ void Widget::listVisibleItemsChanged(HistoryItemsList &&items) {
 base::optional<int> Widget::listUnreadBarView(
 		const std::vector<not_null<Element*>> &elements) {
 	const auto position = _feed->unreadPosition();
-	if (!position || elements.empty()) {
+	if (!position || elements.empty() || !_feed->unreadCount()) {
 		return base::none;
 	}
 	const auto minimal = ranges::upper_bound(
@@ -274,6 +378,21 @@ base::optional<int> Widget::listUnreadBarView(
 		return base::none;
 	}
 	return base::make_optional(int(minimal - begin(elements)));
+}
+
+void Widget::listContentRefreshed() {
+	if (!_nextAnimatedScrollPosition) {
+		return;
+	}
+	const auto position = *base::take(_nextAnimatedScrollPosition);
+	if (const auto scrollTop = _inner->scrollTopForPosition(position)) {
+		const auto wanted = snap(*scrollTop, 0, _scroll->scrollTopMax());
+		_inner->animatedScrollTo(
+			wanted,
+			position,
+			_nextAnimatedScrollDelta,
+			HistoryView::ListWidget::AnimatedScroll::Part);
+	}
 }
 
 std::unique_ptr<Window::SectionMemento> Widget::createMemento() {
@@ -330,6 +449,8 @@ void Widget::updateControlsGeometry() {
 		}
 		updateInnerVisibleArea();
 	}
+
+	updateScrollDownPosition();
 	const auto fullWidthButtonRect = myrtlrect(
 		0,
 		bottom - _showNext->height(),
@@ -350,8 +471,8 @@ void Widget::paintEvent(QPaintEvent *e) {
 	//	updateListSize();
 	//}
 
-	//auto ms = getms();
-	//_historyDownShown.step(ms);
+	const auto ms = getms();
+	_scrollDownShown.step(ms);
 
 	SectionWidget::PaintBackground(this, e);
 }
@@ -366,7 +487,7 @@ void Widget::onScroll() {
 void Widget::updateInnerVisibleArea() {
 	const auto scrollTop = _scroll->scrollTop();
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
-
+	updateScrollDownVisibility();
 }
 
 void Widget::showAnimatedHook(

@@ -77,12 +77,18 @@ struct MessagesRange {
 };
 
 constexpr auto MaxDate = std::numeric_limits<TimeId>::max();
-constexpr auto MinMessagePosition = MessagePosition(TimeId(0), FullMsgId());
-constexpr auto MaxMessagePosition = MessagePosition(MaxDate, FullMsgId());
+constexpr auto MinMessagePosition = MessagePosition(
+	TimeId(0),
+	FullMsgId(0, 1));
+constexpr auto MaxMessagePosition = MessagePosition(
+	MaxDate,
+	FullMsgId(0, ServerMaxMsgId - 1));
 constexpr auto FullMessagesRange = MessagesRange(
 	MinMessagePosition,
 	MaxMessagePosition);
-constexpr auto UnreadMessagePosition = MinMessagePosition;
+constexpr auto UnreadMessagePosition = MessagePosition(
+	TimeId(0),
+	FullMsgId(0, 0));;
 
 struct MessagesSlice {
 	std::vector<FullMsgId> ids;
