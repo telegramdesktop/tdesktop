@@ -89,6 +89,7 @@ parts:
     plugin: nil
     stage-packages:
       - libnotify4
+      - libpulse0
     after: [desktop-gtk3]
 
   libva:
