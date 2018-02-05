@@ -103,9 +103,11 @@ int32 gAutoDownloadAudio = 0;
 int32 gAutoDownloadGif = 0;
 bool gAutoPlayGif = true;
 
+bool gUnstableFeature = false;
 bool gShowCallbackData = false;
 bool gShowUsername = true;
 bool gIgnoreBlocked = true;
 bool gTagMention = true;
+bool gAutoCopy = false;
 int gDialogsType = 0;
 int gTyping = 0x131;

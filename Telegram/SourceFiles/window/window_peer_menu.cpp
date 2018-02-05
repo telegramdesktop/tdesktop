@@ -276,7 +276,6 @@ void Filler::addUserActions(not_null<UserData*> user) {
 				lang(lng_profile_invite_to_group),
 				[user] { AddBotToGroupBoxController::Start(user); });
 		}
-		_addAction(QString("Go to first message"), GoToFirstMessageHandler(user));
 	}
 	_addAction(
 		lang(lng_profile_delete_conversation),
@@ -284,6 +283,13 @@ void Filler::addUserActions(not_null<UserData*> user) {
 	_addAction(
 		lang(lng_profile_clear_history),
 		ClearHistoryHandler(user));
+	_addAction(lang(lng_telegreat_mark_as_read), [user] {
+		const auto history = App::history(user);
+		Auth().api().readServerHistoryForce(history);
+	});
+	if (_source != PeerMenuSource::ChatsList) {
+		_addAction(lang(lng_telegreat_goto_first_message), GoToFirstMessageHandler(user));
+	}
 	if (!user->isInaccessible() && user != App::self()) {
 		addBlockUser(user);
 	}
@@ -306,6 +312,10 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 	_addAction(
 		lang(lng_profile_clear_history),
 		ClearHistoryHandler(_peer));
+	_addAction(lang(lng_telegreat_mark_as_read), [chat] {
+		const auto history = App::history(chat);
+		Auth().api().readServerHistoryForce(history);
+	});
 }
 
 void Filler::addChannelActions(not_null<ChannelData*> channel) {
@@ -351,7 +361,13 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 				Ui::show(Box<ReportBox>(channel));
 			});
 		}
-		_addAction(QString("Go to first message"), GoToFirstMessageHandler(channel));
+	}
+	_addAction(lang(lng_telegreat_mark_as_read), [channel] {
+		const auto history = App::history(channel);
+		Auth().api().readServerHistoryForce(history);
+	});
+	if (_source != PeerMenuSource::ChatsList) {
+		_addAction(lang(lng_telegreat_goto_first_message), GoToFirstMessageHandler(channel));
 	}
 }
 

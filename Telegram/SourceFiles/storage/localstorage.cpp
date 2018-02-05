@@ -1553,10 +1553,12 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> conf >> type >> typing;
 		if (!_checkStreamStatus(stream)) return false;
 
+		cSetUnstableFeature(conf & 0x1);
 		cSetShowCallbackData(conf & 0x2);
 		cSetShowUsername(conf & 0x4);
 		cSetIgnoreBlocked(conf & 0x8);
 		cSetTagMention(conf & 0x10);
+		cSetAutoCopy(conf & 0x20);
 
 		cSetDialogsType(type);
 		cSetTyping(typing);
@@ -1844,6 +1846,8 @@ void _writeUserSettings() {
 	
 	{
 		qint32 conf = 0;
+		if (cUnstableFeature())
+			conf |= 0x1;
 		if (cShowCallbackData())
 			conf |= 0x2;
 		if (cShowUsername())
@@ -1852,6 +1856,8 @@ void _writeUserSettings() {
 			conf |= 0x8;
 		if (cTagMention())
 			conf |= 0x10;
+		if (cAutoCopy())
+			conf |= 0x20;
 		data.stream << quint32(dbiSean) << conf << qint32(cDialogsType()) << qint32(cTyping());
 	}
 

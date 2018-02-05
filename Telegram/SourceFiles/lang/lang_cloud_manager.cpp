@@ -102,9 +102,9 @@ void CloudManager::applyLangPackDifference(const MTPLangPackDifference &differen
 void CloudManager::requestLanguageList() {
 	_languagesRequestId = request(MTPlangpack_GetLanguages()).done([this](const MTPVector<MTPLangPackLanguage> &result) {
 		auto languages = Languages();
-		languages.push_back({"zh-TW", "Chinese", "中文"});
-		languages.push_back({"zh-CN", "Simplified Chinese", "簡體中文"});
-		languages.push_back({"zh-HK", "Chinese (Hong Kong)", "繁體中文 (香港)"});
+		languages.push_back({"Telegreat_zh_TW", "Chinese (Taiwan)", "正體中文 (臺灣)"});
+		languages.push_back({"Telegreat_zh_CN", "Simplified Chinese", "简体中文"});
+		languages.push_back({"Telegreat_zh_HK", "Chinese (Hong Kong)", "繁體中文 (香港)"});
 		for_const (auto &langData, result.v) {
 			Assert(langData.type() == mtpc_langPackLanguage);
 			auto &language = langData.c_langPackLanguage();
@@ -207,56 +207,12 @@ void CloudManager::switchToLanguage(QString id) {
 	request(_switchingToLanguageRequest).cancel();
 	if (id == qstr("custom")) {
 		performSwitchToCustom();
-	} else if (id == qstr("zh-TW")) {
-		auto filePath = ":/langs/lang_zh_TW.strings";
+	} else if (id.startsWith("Telegreat_")) {
+		Ui::hideLayer();
+		auto filePath = QString(":/langs/lang_%1.strings").arg(id.mid(10));
 		Lang::FileParser loader(filePath, { lng_sure_save_language, lng_box_ok, lng_cancel });
 		if (loader.errors().isEmpty()) {
-			auto values = loader.found();
-			auto getValue = [&values](LangKey key) {
-				auto it = values.find(key);
-				return (it == values.cend()) ? GetOriginalValue(key) : it.value();
-			};
-			auto text = getValue(lng_sure_save_language);
-			auto save = getValue(lng_box_ok);
-			auto cancel = getValue(lng_cancel);
-			Ui::show(Box<ConfirmBox>(text, save, cancel, [this, filePath] {
-				_langpack.switchToCustomFile(filePath);
-				App::restart();
-			}), LayerOption::KeepOther);
-		}
-	} else if (id == qstr("zh-CN")) {
-		auto filePath = ":/langs/lang_zh_CN.strings";
-		Lang::FileParser loader(filePath, { lng_sure_save_language, lng_box_ok, lng_cancel });
-		if (loader.errors().isEmpty()) {
-			auto values = loader.found();
-			auto getValue = [&values](LangKey key) {
-				auto it = values.find(key);
-				return (it == values.cend()) ? GetOriginalValue(key) : it.value();
-			};
-			auto text = getValue(lng_sure_save_language);
-			auto save = getValue(lng_box_ok);
-			auto cancel = getValue(lng_cancel);
-			Ui::show(Box<ConfirmBox>(text, save, cancel, [this, filePath] {
-				_langpack.switchToCustomFile(filePath);
-				App::restart();
-			}), LayerOption::KeepOther);
-		}
-	} else if (id == qstr("zh-HK")) {
-		auto filePath = ":/langs/lang_zh_HK.strings";
-		Lang::FileParser loader(filePath, { lng_sure_save_language, lng_box_ok, lng_cancel });
-		if (loader.errors().isEmpty()) {
-			auto values = loader.found();
-			auto getValue = [&values](LangKey key) {
-				auto it = values.find(key);
-				return (it == values.cend()) ? GetOriginalValue(key) : it.value();
-			};
-			auto text = getValue(lng_sure_save_language);
-			auto save = getValue(lng_box_ok);
-			auto cancel = getValue(lng_cancel);
-			Ui::show(Box<ConfirmBox>(text, save, cancel, [this, filePath] {
-				_langpack.switchToCustomFile(filePath);
-				App::restart();
-			}), LayerOption::KeepOther);
+			_langpack.switchToCustomFile(filePath);
 		}
 	} else if (canApplyWithoutRestart(id)) {
 		performSwitch(id);
@@ -267,17 +223,8 @@ void CloudManager::switchToLanguage(QString id) {
 		keys.push_back(MTP_string("lng_box_ok"));
 		keys.push_back(MTP_string("lng_cancel"));
 		_switchingToLanguageRequest = request(MTPlangpack_GetStrings(MTP_string(id), MTP_vector<MTPstring>(std::move(keys)))).done([this, id](const MTPVector<MTPLangPackString> &result) {
-			auto values = Instance::ParseStrings(result);
-			auto getValue = [&values](LangKey key) {
-				auto it = values.find(key);
-				return (it == values.cend()) ? GetOriginalValue(key) : it->second;
-			};
-			auto text = getValue(lng_sure_save_language);
-			auto save = getValue(lng_box_ok);
-			auto cancel = getValue(lng_cancel);
-			Ui::show(Box<ConfirmBox>(text, save, cancel, [this, id] {
-				performSwitchAndRestart(id);
-			}), LayerOption::KeepOther);
+			Ui::hideLayer();
+			performSwitch(id);
 		}).send();
 	}
 }

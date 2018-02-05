@@ -446,7 +446,7 @@ void DeleteMessagesBox::prepare() {
 	auto text = QString();
 	if (_moderateFrom) {
 		Assert(_moderateInChannel != nullptr);
-		text = lang(lng_selected_delete_sure_this);
+		text = lang(lng_selected_delete_sure_this).append(" (%1)").arg(_moderateFrom->firstName);
 		if (_moderateBan) {
 			_banUser.create(this, lang(lng_ban_user), false, st::defaultBoxCheckbox);
 		}
@@ -496,10 +496,16 @@ void DeleteMessagesBox::prepare() {
 	}
 	_text.create(this, text, Ui::FlatLabel::InitType::Simple, st::boxLabel);
 
-	addButton(langFactory(lng_box_delete), [this] { deleteAndClear(); });
+	if (_moderateFrom && _moderateFrom->isContact() && !_moderateFrom->isBlocked() && _moderateInChannel)
+		_warn.create(this, lang(lng_telegreat_delete_message_warning), Ui::FlatLabel::InitType::Simple, st::changePhoneError);
+	else
+		addButton(langFactory(lng_box_delete), [this] { deleteAndClear(); });
+
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	auto fullHeight = st::boxPadding.top() + _text->height() + st::boxPadding.bottom();
+	if (_warn)
+		fullHeight += _warn->height();
 	if (_moderateFrom) {
 		fullHeight += st::boxMediumSkip;
 		if (_banUser) {
@@ -519,8 +525,8 @@ void DeleteMessagesBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
 	_text->moveToLeft(st::boxPadding.left(), st::boxPadding.top());
+	auto top = _text->bottomNoMargins() + st::boxMediumSkip;
 	if (_moderateFrom) {
-		auto top = _text->bottomNoMargins() + st::boxMediumSkip;
 		if (_banUser) {
 			_banUser->moveToLeft(st::boxPadding.left(), top);
 			top += _banUser->heightNoMargins() + st::boxLittleSkip;
@@ -529,17 +535,22 @@ void DeleteMessagesBox::resizeEvent(QResizeEvent *e) {
 		top += _reportSpam->heightNoMargins() + st::boxLittleSkip;
 		if (_deleteAll) {
 			_deleteAll->moveToLeft(st::boxPadding.left(), top);
+			top += _deleteAll->heightNoMargins() + st::boxLittleSkip;
 		}
 	} else if (_forEveryone) {
 		auto availableWidth = width() - 2 * st::boxPadding.left();
 		_forEveryone->resizeToNaturalWidth(availableWidth);
 		_forEveryone->moveToLeft(st::boxPadding.left(), _text->bottomNoMargins() + st::boxMediumSkip);
+		top += _forEveryone->heightNoMargins() + st::boxLittleSkip;
 	}
+	if (_warn)
+		_warn->moveToLeft(st::boxPadding.left(), top);
 }
 
 void DeleteMessagesBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-		deleteAndClear();
+		if (!_warn)
+			deleteAndClear();
 	} else {
 		BoxContent::keyPressEvent(e);
 	}

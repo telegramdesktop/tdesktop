@@ -16,8 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "window/notifications_manager.h"
 #include "boxes/notifications_box.h"
+#include "boxes/confirm_box.h"
 #include "platform/platform_notifications_manager.h"
 #include "auth_session.h"
+#include "apiwrap.h"
 
 namespace Settings {
 namespace {
@@ -59,6 +61,7 @@ void NotificationsWidget::createControls() {
 	if (cPlatform() != dbipMac) {
 		createNotificationsControls();
 	}
+	createChildRow(_readAll, margin, lang(lng_telegreat_mark_all_as_read), SLOT(onReadAll()));
 }
 
 void NotificationsWidget::createNotificationsControls() {
@@ -160,6 +163,21 @@ void NotificationsWidget::onNativeNotifications() {
 
 void NotificationsWidget::onAdvanced() {
 	Ui::show(Box<NotificationsBox>());
+}
+
+void NotificationsWidget::onReadAll() {
+	
+	Ui::show(Box<ConfirmBox>(lang(lng_telegreat_mark_all_as_read), lang(lng_continue), base::lambda_guarded(this, [this] {
+		Ui::hideLayer();
+		auto peersData = App::peersData();
+		for_const (auto peer, peersData) {
+			if (auto peerId = peer->id) {
+				not_null<History *> history = App::history(peerId);
+				if (history && history->unreadCount())
+					Auth().api().readServerHistoryForce(history);
+			}
+		}
+	})));
 }
 
 void NotificationsWidget::onPlaySound() {

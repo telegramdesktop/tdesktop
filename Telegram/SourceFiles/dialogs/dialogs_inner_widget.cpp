@@ -1264,6 +1264,13 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 		updateSelected();
 	}
 
+	if (_state == DefaultState) {
+		if (_importantSwitchSelected && _dialogsImportant) {
+			Ui::show(Box<TabBox>());
+			_importantSwitchSelected = true;
+		}
+	}
+
 	auto history = [&]() -> History* {
 		if (_state == DefaultState) {
 			if (_selected) {
@@ -2047,7 +2054,12 @@ bool DialogsInner::choosePeer() {
 	if (_state == DefaultState) {
 		if (_importantSwitchSelected && _dialogsImportant) {
 			clearSelection();
-			Ui::show(Box<TabBox>());
+			if (Global::DialogsMode() == Dialogs::Mode::All) {
+				Global::SetDialogsMode(Dialogs::Mode::Important);
+			} else {
+				Global::SetDialogsMode(Dialogs::Mode::All);
+			}
+			Local::writeUserSettings();
 			refresh();
 			_importantSwitchSelected = true;
 			return true;

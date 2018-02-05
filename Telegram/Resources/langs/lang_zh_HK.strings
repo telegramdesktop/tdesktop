@@ -1757,12 +1757,17 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_stickers_export_copied" = "已複製所有貼圖連結";
 
 "lng_telegreat_setting" = "Telegreat 設定";
-"lng_telegreat_setting_unstable" = "不穩定的功能";
 "lng_telegreat_setting_callback" = "顯示 callback 資料";
 "lng_telegreat_setting_username" = "將 @username 加到名稱後";
 "lng_telegreat_setting_ignore" = "忽略被封鎖的使用者";
 "lng_telegreat_setting_everyuser" = "被 @admin 和 @everyuser 通知";
+"lng_telegreat_setting_auto_copy" = "點擊文字時自動複製";
 "lng_telegreat_setting_typing" = "輸入中/上線通知";
+
+"lng_telegreat_goto_first_message" = "前往首則訊息";
+"lng_telegreat_delete_message_warning" = "這個人是您的聯絡人，如果要刪除他的訊息，您需要先封鎖他。";
+"lng_telegreat_mark_all_as_read" = "已讀所有訊息";
+"lng_telegreat_mark_as_read" = "標記為已讀";
 
 "lng_telegreat_online_toast" = "上線通知";
 "lng_telegreat_typing_toast_all" = "輸入中通知 (其他)";
@@ -1775,3 +1780,6 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_telegreat_supergroup" = "超級群組";
 "lng_telegreat_channel" = "頻道";
 "lng_telegreat_bot" = "機械人";
+
+"lng_telegreat_custom" = "true";
+"lng_telegreat_index" = "3";

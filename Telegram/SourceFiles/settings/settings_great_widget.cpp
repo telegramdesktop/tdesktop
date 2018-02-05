@@ -43,6 +43,8 @@ void GreatWidget::refreshControls() {
 	createChildRow(_enableUsername, marginSmall, lang(lng_telegreat_setting_username), [this](bool) { onUsername(); }, cShowUsername());
 	createChildRow(_enableIgnore, marginSmall, lang(lng_telegreat_setting_ignore), [this](bool) { onIgnore(); }, cIgnoreBlocked());
 	createChildRow(_enableTagMention, marginSmall, lang(lng_telegreat_setting_everyuser), [this](bool) { onTagMention(); }, cTagMention());
+	createChildRow(_enableAutoCopy, marginSmall, lang(lng_telegreat_setting_auto_copy), [this](bool) { onAutoCopy(); }, cAutoCopy());
+	createChildRow(_enableUnstable, marginSmall, lang(lng_telegreat_setting_unstable), [this](bool) { onUnstable(); }, cUnstableFeature());
 	createChildRow(_typing, marginSmall, lang(lng_telegreat_setting_typing), SLOT(onTyping()));
 }
 
@@ -50,6 +52,11 @@ void GreatWidget::onRestart() {
 	App::restart();
 }
 	
+void GreatWidget::onUnstable() {
+	cSetUnstableFeature(_enableUnstable->checked());
+	Local::writeUserSettings();
+}
+
 void GreatWidget::onCallbackData() {
 	cSetShowCallbackData(_enableCallbackData->checked());
 	Local::writeUserSettings();
@@ -67,6 +74,11 @@ void GreatWidget::onIgnore() {
 	
 void GreatWidget::onTagMention() {
 	cSetTagMention(_enableTagMention->checked());
+	Local::writeUserSettings();
+}
+
+void GreatWidget::onAutoCopy() {
+	cSetAutoCopy(_enableAutoCopy->checked());
 	Local::writeUserSettings();
 }
 

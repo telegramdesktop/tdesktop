@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "observer_peer.h"
 #include "storage/storage_shared_media.h"
+#include "window/themes/window_theme.h"
 
 namespace {
 
@@ -1918,8 +1919,12 @@ void HistoryMessage::paintFromName(
 			p.setPen(selected ? st::msgInServiceFgSelected : st::msgInServiceFg);
 		} else {
 			p.setPen(FromNameFg(author(), selected));
-			if (cIgnoreBlocked() && author()->isUser() && author()->asUser()->isBlocked())
-				p.setPen(Qt::lightGray);
+			if (cIgnoreBlocked() && author()->isUser() && author()->asUser()->isBlocked()) {
+				if (Window::Theme::IsNightTheme())
+					p.setPen(Qt::darkGray);
+				else
+					p.setPen(Qt::lightGray);
+			}
 		}
 		displayFrom()->nameText.drawElided(p, availableLeft, trect.top(), availableWidth);
 		auto skipWidth = author()->nameText.maxWidth() + st::msgServiceFont->spacew;
@@ -1987,8 +1992,12 @@ void HistoryMessage::paintViaBotIdInfo(Painter &p, QRect &trect, bool selected) 
 		if (auto via = Get<HistoryMessageVia>()) {
 			p.setFont(st::msgServiceNameFont);
 			p.setPen(selected ? (hasOutLayout() ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (hasOutLayout() ? st::msgOutServiceFg : st::msgInServiceFg));
-			if (cIgnoreBlocked() && author()->isUser() && author()->asUser()->isBlocked())
-				p.setPen(Qt::lightGray);
+			if (cIgnoreBlocked() && author()->isUser() && author()->asUser()->isBlocked()) {
+				if (Window::Theme::IsNightTheme())
+					p.setPen(Qt::darkGray);
+				else
+					p.setPen(Qt::lightGray);
+			}
 			p.drawTextLeft(trect.left(), trect.top(), width(), via->text);
 			trect.setY(trect.y() + st::msgServiceNameFont->height);
 		}
@@ -1999,8 +2008,12 @@ void HistoryMessage::paintText(Painter &p, QRect &trect, TextSelection selection
 	auto outbg = hasOutLayout();
 	auto selected = (selection == FullSelection);
 	p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
-	if (cIgnoreBlocked() && author()->isUser() && author()->asUser()->isBlocked())
-		p.setPen(Qt::lightGray);
+	if (cIgnoreBlocked() && author()->isUser() && author()->asUser()->isBlocked()) {
+		if (Window::Theme::IsNightTheme())
+			p.setPen(Qt::darkGray);
+		else
+			p.setPen(Qt::lightGray);
+	}
 	p.setFont(st::msgFont);
 	_text.draw(p, trect.x(), trect.y(), trect.width(), style::al_left, 0, -1, selection);
 }

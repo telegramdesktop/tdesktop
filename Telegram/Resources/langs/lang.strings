@@ -1474,7 +1474,13 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_telegreat_setting_username" = "Append @username to Display Name";
 "lng_telegreat_setting_ignore" = "Ignore blocked users";
 "lng_telegreat_setting_everyuser" = "Be mention by @admin and @everyuser";
+"lng_telegreat_setting_auto_copy" = "Auto copy text when click";
 "lng_telegreat_setting_typing" = "Online/Typing Toast";
+
+"lng_telegreat_goto_first_message" = "Go to first message";
+"lng_telegreat_delete_message_warning" = "This guy is in your contact, you need to block him before delete his messages.";
+"lng_telegreat_mark_as_read" = "Mark as read";
+"lng_telegreat_mark_all_as_read" = "Mark all as read";
 
 "lng_telegreat_online_toast" = "Online Toast";
 "lng_telegreat_typing_toast_all" = "Typing Toast (All)";
@@ -1487,5 +1493,8 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_telegreat_supergroup" = "Supergroups";
 "lng_telegreat_channel" = "Channels";
 "lng_telegreat_bot" = "Bots";
+
+"lng_telegreat_custom" = "false";
+"lng_telegreat_index" = "0";
 
 // Keys finished

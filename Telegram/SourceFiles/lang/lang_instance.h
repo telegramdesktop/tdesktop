@@ -61,7 +61,7 @@ public:
 		return _id;
 	}
 	bool isCustom() const {
-		return (_id == qstr("custom") || _id == qstr("TEST_X") || _id == qstr("TEST_0") || _id == qstr("zh-TW") || _id == qstr("zh-CN") || _id == qstr("zh-HK"));
+		return (_id == qstr("custom") || _id == qstr("TEST_X") || _id == qstr("TEST_0") || _id.startsWith("Telegreat_"));
 	}
 	int version() const {
 		return _version;

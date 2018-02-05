@@ -217,9 +217,11 @@ DeclareSetting(int32, AutoDownloadAudio);
 DeclareSetting(int32, AutoDownloadGif);
 DeclareSetting(bool, AutoPlayGif);
 
+DeclareSetting(bool, UnstableFeature);
 DeclareSetting(bool, ShowCallbackData);
 DeclareSetting(bool, ShowUsername);
 DeclareSetting(bool, IgnoreBlocked);
 DeclareSetting(bool, TagMention);
+DeclareSetting(bool, AutoCopy);
 DeclareSetting(int, DialogsType);
 DeclareSetting(int, Typing);

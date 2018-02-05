@@ -25,6 +25,7 @@ private slots:
 	void onPlaySound();
 	void onIncludeMuted();
 	void onAdvanced();
+	void onReadAll();
 
 private:
 	void createControls();
@@ -39,6 +40,7 @@ private:
 	Ui::Checkbox *_playSound = nullptr;
 	Ui::Checkbox *_includeMuted = nullptr;
 	Ui::SlideWrap<Ui::LinkButton> *_advanced = nullptr;
+	Ui::LinkButton *_readAll = nullptr;
 
 };
 

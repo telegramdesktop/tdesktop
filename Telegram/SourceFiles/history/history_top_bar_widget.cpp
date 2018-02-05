@@ -650,7 +650,7 @@ void HistoryTopBarWidget::updateOnlineDisplay() {
 			}
 		}
 	} else if (auto channel = _historyPeer->asChannel()) {
-		if (channel->isMegagroup() && channel->membersCount() > 0) {
+		if (channel->isMegagroup() && channel->membersCount() > 0 && channel->membersCount() <= 5 * Global::ChatSizeMax()) {
 			if (channel->mgInfo->lastParticipants.empty() || channel->lastParticipantsCountOutdated()) {
 				Auth().api().requestLastParticipants(channel);
 			}

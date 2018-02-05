@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 
 AboutBox::AboutBox(QWidget *parent)
-: _version(this, lng_about_version(lt_version, QString::fromLatin1(AppVersionStr.c_str()) + (cAlphaVersion() ? " alpha" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion() % 1000) : QString())), st::aboutVersionLink)
+: _version(this, lng_about_version(lt_version, qsl("%1 (v%2)").arg(cBetaVersion() % 1000).arg(AppVersionStr.c_str())), st::aboutVersionLink)
 , _text1(this, lang(lng_about_text_1), Ui::FlatLabel::InitType::Rich, st::aboutLabel)
 , _text2(this, lang(lng_about_text_2), Ui::FlatLabel::InitType::Rich, st::aboutLabel)
 , _text3(this, st::aboutLabel) {
@@ -86,12 +86,6 @@ QString telegramFaqLink() {
 }
 
 QString currentVersionText() {
-	auto result = QString::fromLatin1(AppVersionStr.c_str());
-	if (cAlphaVersion()) {
-		result += " alpha";
-	}
-	if (cBetaVersion()) {
-		result += qsl(" beta %1").arg(cBetaVersion() % 1000);
-	}
+	auto result = qsl("%1 (v%2)").arg(cBetaVersion() % 1000).arg(AppVersionStr.c_str());
 	return result;
 }

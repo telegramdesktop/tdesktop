@@ -142,9 +142,13 @@ void LanguageBox::refreshLanguages() {
 		}
 	}
 	if (currentId == qstr("custom")) {
-		auto langName = lang(lng_rights_chat_banned_custom) + ": " + lang(lng_language_name);
-		_languages.insert(_languages.begin(), { currentId, langName, langName });
-		currentIndex = 0;
+		if (lang(lng_telegreat_custom) == "true") {
+			currentIndex = lang(lng_telegreat_index).toInt();
+		} else {
+			auto langName = lang(lng_rights_chat_banned_custom) + ": " + lang(lng_language_name);
+			_languages.insert(_languages.begin(), { currentId, langName, langName });
+			currentIndex = 0;
+		}
 	} else if (currentIndex < 0) {
 		currentIndex = _languages.size();
 		_languages.push_back({ currentId, lang(lng_language_name), lang(lng_language_name) });

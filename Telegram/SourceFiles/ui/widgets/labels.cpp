@@ -8,8 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 
 #include "ui/widgets/popup_menu.h"
+#include "ui/toast/toast.h"
 #include "mainwindow.h"
 #include "lang/lang_keys.h"
+#include "styles/style_info.h"
 
 namespace Ui {
 namespace {
@@ -369,6 +371,8 @@ Text::StateResult FlatLabel::dragActionFinish(const QPoint &p, Qt::MouseButton b
 }
 
 void FlatLabel::mouseReleaseEvent(QMouseEvent *e) {
+	if (_selectable && cAutoCopy())
+		onCopyContextText();
 	dragActionFinish(e->globalPos(), e->button());
 	if (!rect().contains(e->pos())) {
 		leaveEvent(e);
@@ -570,6 +574,7 @@ void FlatLabel::onCopySelectedText() {
 
 void FlatLabel::onCopyContextText() {
 	QApplication::clipboard()->setText(_text.originalText({ 0, 0xFFFF }, _contextExpandLinksMode));
+	Ui::Toast::Show("Copied!");
 }
 
 void FlatLabel::onCopyContextUrl() {
