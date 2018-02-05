@@ -23,6 +23,8 @@ version-script: |
 apps:
   telegram-desktop:
     command: desktop-launch Telegram
+    environment:
+      XCURSOR_PATH: $SNAP/usr/share/icons
     plugs:
       - home
       - network
