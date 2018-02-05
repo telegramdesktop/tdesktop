@@ -237,6 +237,9 @@ bool SparseIdsSliceBuilder::removeOne(MsgId messageId) {
 			changed = true;
 		}
 	}
+	if (changed) {
+		checkInsufficient();
+	}
 	return changed;
 }
 

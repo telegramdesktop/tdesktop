@@ -159,6 +159,7 @@ public:
 	bool loadedAtTop() const;
 	bool loadedAtBottomKnown() const;
 	bool loadedAtBottom() const;
+	bool isEmpty() const;
 
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;

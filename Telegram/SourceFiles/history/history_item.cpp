@@ -71,6 +71,12 @@ not_null<HistoryItem*> CreateUnsupportedMessage(
 
 } // namespace
 
+void HistoryItem::HistoryItem::Destroyer::operator()(HistoryItem *value) {
+	if (value) {
+		value->destroy();
+	}
+}
+
 HistoryItem::HistoryItem(
 	not_null<History*> history,
 	MsgId id,

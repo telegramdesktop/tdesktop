@@ -60,6 +60,11 @@ public:
 		not_null<History*> history,
 		const MTPMessage &message);
 
+	struct Destroyer {
+		void operator()(HistoryItem *value);
+
+	};
+
 	virtual void dependencyItemRemoved(HistoryItem *dependency) {
 	}
 	virtual bool updateDependencyItem() {

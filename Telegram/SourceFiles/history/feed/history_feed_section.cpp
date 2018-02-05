@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
 #include "history/history_item.h"
+#include "history/history_service.h"
+#include "history/history_inner_widget.h"
 #include "core/event_filter.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
@@ -380,7 +382,34 @@ base::optional<int> Widget::listUnreadBarView(
 	return base::make_optional(int(minimal - begin(elements)));
 }
 
+void Widget::validateEmptyTextItem() {
+	if (!_inner->isEmpty()) {
+		_emptyTextView = nullptr;
+		_emptyTextItem = nullptr;
+		update();
+		return;
+	} else if (_emptyTextItem) {
+		return;
+	}
+	const auto channels = _feed->channels();
+	if (channels.empty()) {
+		return;
+	}
+	const auto history = channels[0];
+	_emptyTextItem.reset(new HistoryService(
+		history,
+		clientMsgId(),
+		unixtime(),
+		{ lang(lng_feed_no_messages) }));
+	_emptyTextView = _emptyTextItem->createView(
+		HistoryInner::ElementDelegate());
+	updateControlsGeometry();
+	update();
+}
+
 void Widget::listContentRefreshed() {
+	validateEmptyTextItem();
+
 	if (!_nextAnimatedScrollPosition) {
 		return;
 	}
@@ -457,6 +486,10 @@ void Widget::updateControlsGeometry() {
 		contentWidth,
 		_showNext->height());
 	_showNext->setGeometry(fullWidthButtonRect);
+
+	if (_emptyTextView) {
+		_emptyTextView->resizeGetHeight(width());
+	}
 }
 
 void Widget::paintEvent(QPaintEvent *e) {
@@ -475,6 +508,22 @@ void Widget::paintEvent(QPaintEvent *e) {
 	_scrollDownShown.step(ms);
 
 	SectionWidget::PaintBackground(this, e);
+
+	if (_emptyTextView) {
+		Painter p(this);
+
+		const auto clip = e->rect();
+		const auto left = 0;
+		const auto top = (height()
+			- _showNext->height()
+			- _emptyTextView->height()) / 2;
+		p.translate(left, top);
+		_emptyTextView->draw(
+			p,
+			clip.translated(-left, -top),
+			TextSelection(),
+			getms());
+	}
 }
 
 void Widget::onScroll() {

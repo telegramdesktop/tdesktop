@@ -1423,6 +1423,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_feed_ungroup" = "Ungroup from feed";
 "lng_feed_channel_added" = "Channel added to your feed.";
 "lng_feed_channel_removed" = "Channel removed from your feed.";
+"lng_feed_no_messages" = "No messages in this feed yet";
 
 "lng_info_feed_title" = "Feed Info";
 

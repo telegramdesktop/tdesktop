@@ -463,7 +463,11 @@ not_null<Element*> ListWidget::enforceViewForItem(
 void ListWidget::updateAroundPositionFromRows() {
 	_aroundIndex = findNearestItem(_aroundPosition);
 	if (_aroundIndex >= 0) {
-		_aroundPosition = _items[_aroundIndex]->data()->position();
+		const auto newPosition = _items[_aroundIndex]->data()->position();
+		if (_aroundPosition != newPosition) {
+			_aroundPosition = newPosition;
+			crl::on_main(this, [=] { refreshViewer(); });
+		}
 	}
 }
 
@@ -921,6 +925,10 @@ bool ListWidget::loadedAtBottomKnown() const {
 
 bool ListWidget::loadedAtBottom() const {
 	return _slice.skippedAfter && (*_slice.skippedAfter == 0);
+}
+
+bool ListWidget::isEmpty() const {
+	return loadedAtTop() && loadedAtBottom() && (_itemsHeight == 0);
 }
 
 int ListWidget::itemMinimalHeight() const {
@@ -2235,6 +2243,7 @@ void ListWidget::refreshAttachmentsFromTill(int from, int till) {
 	Expects(from >= 0 && from <= till && till <= int(_items.size()));
 
 	if (from == till) {
+		updateSize();
 		return;
 	}
 	auto view = _items[from].get();

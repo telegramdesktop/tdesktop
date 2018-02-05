@@ -860,10 +860,11 @@ void FeedUserpicButton::checkParts() {
 
 bool FeedUserpicButton::partsAreValid() const {
 	const auto &channels = _feed->channels();
-	if (std::min(int(channels.size()), 4) != _parts.size()) {
+	const auto count = std::min(int(channels.size()), 4);
+	if (count != _parts.size()) {
 		return false;
 	}
-	for (auto i = 0; i != 4; ++i) {
+	for (auto i = 0; i != count; ++i) {
 		if (channels[i]->peer != _parts[i].channel) {
 			return false;
 		}

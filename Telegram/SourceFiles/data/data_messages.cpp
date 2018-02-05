@@ -332,6 +332,7 @@ bool MessagesSliceBuilder::removeFromChannel(ChannelId channelId) {
 		}
 	}
 	_skippedBefore = _skippedAfter = base::none;
+	checkInsufficient();
 	return true;
 }
 

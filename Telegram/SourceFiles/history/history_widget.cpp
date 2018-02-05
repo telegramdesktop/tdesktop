@@ -6690,14 +6690,27 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 			HistoryView::paintEmpty(p, width(), height() - _field->height() - 2 * st::historySendPadding);
 		}
 	} else {
-		style::font font(st::msgServiceFont);
-		int32 w = font->width(lang(lng_willbe_history)) + st::msgPadding.left() + st::msgPadding.right(), h = font->height + st::msgServicePadding.top() + st::msgServicePadding.bottom() + 2;
-		QRect tr((width() - w) / 2, (height() - _field->height() - 2 * st::historySendPadding - h) / 2, w, h);
+		const auto w = st::msgServiceFont->width(lang(lng_willbe_history))
+			+ st::msgPadding.left()
+			+ st::msgPadding.right();
+		const auto h = st::msgServiceFont->height
+			+ st::msgServicePadding.top()
+			+ st::msgServicePadding.bottom();
+		const auto tr = QRect(
+			(width() - w) / 2,
+			st::msgServiceMargin.top() + (height()
+				- _field->height()
+				- 2 * st::historySendPadding
+				- h
+				- st::msgServiceMargin.top()
+				- st::msgServiceMargin.bottom()) / 2,
+			w,
+			h);
 		HistoryView::ServiceMessagePainter::paintBubble(p, tr.x(), tr.y(), tr.width(), tr.height());
 
 		p.setPen(st::msgServiceFg);
-		p.setFont(font->f);
-		p.drawText(tr.left() + st::msgPadding.left(), tr.top() + st::msgServicePadding.top() + 1 + font->ascent, lang(lng_willbe_history));
+		p.setFont(st::msgServiceFont->f);
+		p.drawTextLeft(tr.left() + st::msgPadding.left(), tr.top() + st::msgServicePadding.top(), width(), lang(lng_willbe_history));
 	}
 }
 

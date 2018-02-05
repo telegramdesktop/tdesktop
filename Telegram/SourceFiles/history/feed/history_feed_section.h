@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_widget.h"
 #include "window/section_memento.h"
 #include "data/data_feed.h"
+#include "history/history_item.h"
+#include "history/admin_log/history_admin_log_item.h"
 
 namespace Ui {
 class ScrollArea;
@@ -103,6 +105,7 @@ private:
 	void restoreState(not_null<Memento*> memento);
 	void showAtPosition(Data::MessagePosition position);
 	bool showAtPositionNow(Data::MessagePosition position);
+	void validateEmptyTextItem();
 
 	void setupScrollDownButton();
 	void scrollDownClicked();
@@ -122,6 +125,8 @@ private:
 	object_ptr<Ui::FlatButton> _showNext;
 	bool _skipScrollEvent = false;
 	bool _undefinedAroundPosition = false;
+	std::unique_ptr<HistoryItem, HistoryItem::Destroyer> _emptyTextItem;
+	std::unique_ptr<HistoryView::Element> _emptyTextView;
 
 	base::optional<Data::MessagePosition> _nextAnimatedScrollPosition;
 	int _nextAnimatedScrollDelta = 0;
