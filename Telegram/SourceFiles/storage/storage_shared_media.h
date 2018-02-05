@@ -113,6 +113,14 @@ struct SharedMediaRemoveAll {
 
 };
 
+struct SharedMediaInvalidateBottom {
+	SharedMediaInvalidateBottom(PeerId peerId) : peerId(peerId) {
+	}
+
+	PeerId peerId = 0;
+
+};
+
 struct SharedMediaKey {
 	SharedMediaKey(
 		PeerId peerId,
@@ -180,11 +188,13 @@ public:
 	void add(SharedMediaAddSlice &&query);
 	void remove(SharedMediaRemoveOne &&query);
 	void remove(SharedMediaRemoveAll &&query);
+	void invalidate(SharedMediaInvalidateBottom &&query);
 
 	rpl::producer<SharedMediaResult> query(SharedMediaQuery &&query) const;
 	rpl::producer<SharedMediaSliceUpdate> sliceUpdated() const;
 	rpl::producer<SharedMediaRemoveOne> oneRemoved() const;
 	rpl::producer<SharedMediaRemoveAll> allRemoved() const;
+	rpl::producer<SharedMediaInvalidateBottom> bottomInvalidated() const;
 
 private:
 	using Lists = std::array<SparseIdsList, kSharedMediaTypeCount>;
@@ -196,6 +206,7 @@ private:
 	rpl::event_stream<SharedMediaSliceUpdate> _sliceUpdated;
 	rpl::event_stream<SharedMediaRemoveOne> _oneRemoved;
 	rpl::event_stream<SharedMediaRemoveAll> _allRemoved;
+	rpl::event_stream<SharedMediaInvalidateBottom> _bottomInvalidated;
 
 	rpl::lifetime _lifetime;
 

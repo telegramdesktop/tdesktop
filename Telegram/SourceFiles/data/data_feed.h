@@ -84,6 +84,7 @@ public:
 private:
 	void indexNameParts();
 	void recountLastMessage();
+	void setLastMessageFromChannels();
 	bool justUpdateLastMessage(not_null<HistoryItem*> item);
 	void updateChatsListDate();
 

@@ -1729,7 +1729,7 @@ void ApiWrap::clearHistory(not_null<PeerData*> peer) {
 			Local::addSavedPeer(history->peer, ItemDateTime(last));
 		}
 		history->clear();
-		history->newLoaded = history->oldLoaded = true;
+		history->markFullyLoaded();
 	}
 	if (const auto channel = peer->asChannel()) {
 		if (const auto migrated = peer->migrateFrom()) {
@@ -3827,7 +3827,7 @@ void ApiWrap::readFeeds() {
 			i = _feedReadsDelayed.erase(i);
 		}
 	}
-	if (!_feedReadRequests.empty()) {
+	if (!_feedReadsDelayed.empty()) {
 		_feedReadTimer.callOnce(delay);
 	}
 }

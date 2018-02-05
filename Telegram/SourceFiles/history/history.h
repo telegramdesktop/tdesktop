@@ -145,6 +145,7 @@ public:
 		not_null<UserData*> user) const;
 
 	void clear();
+	void markFullyLoaded();
 	void unloadBlocks();
 	void clearUpTill(MsgId availableMinId);
 
@@ -362,8 +363,6 @@ public:
 	std::deque<std::unique_ptr<HistoryBlock>> blocks;
 
 	not_null<PeerData*> peer;
-	bool oldLoaded = false;
-	bool newLoaded = true;
 	HistoryItem *lastSentMsg = nullptr;
 
 	typedef QList<HistoryItem*> NotifyQueue;
@@ -462,7 +461,7 @@ private:
 		not_null<HistoryItem*> item,
 		const MTPDmessageService &data);
 
-	// After adding a new history slice check the lastMessage and newLoaded.
+	// After adding a new history slice check lastMessage / loadedAtBottom.
 	void checkLastMessage();
 	void setLastMessage(HistoryItem *item);
 
@@ -491,6 +490,8 @@ private:
 	Element *_unreadBarView = nullptr;
 	Element *_firstUnreadView = nullptr;
 	HistoryService *_joinedMessage = nullptr;
+	bool _loadedAtTop = false;
+	bool _loadedAtBottom = true;
 
 	base::optional<MsgId> _inboxReadBefore;
 	base::optional<MsgId> _outboxReadBefore;

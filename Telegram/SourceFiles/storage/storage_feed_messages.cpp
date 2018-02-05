@@ -55,11 +55,20 @@ void FeedMessages::remove(FeedMessagesRemoveAll &&query) {
 	}
 }
 
-void FeedMessages::remove(FeedMessagesInvalidate &&query) {
+void FeedMessages::invalidate(FeedMessagesInvalidate &&query) {
 	auto feedIt = _lists.find(query.feedId);
 	if (feedIt != _lists.end()) {
-		feedIt->second.invalidated();
+		feedIt->second.invalidateBottom();
+		feedIt->second.invalidate();
 		_invalidated.fire(std::move(query));
+	}
+}
+
+void FeedMessages::invalidate(FeedMessagesInvalidateBottom &&query) {
+	auto feedIt = _lists.find(query.feedId);
+	if (feedIt != _lists.end()) {
+		feedIt->second.invalidateBottom();
+		_bottomInvalidated.fire(std::move(query));
 	}
 }
 
@@ -92,6 +101,10 @@ rpl::producer<FeedMessagesRemoveAll> FeedMessages::allRemoved() const {
 
 rpl::producer<FeedMessagesInvalidate> FeedMessages::invalidated() const {
 	return _invalidated.events();
+}
+
+rpl::producer<FeedMessagesInvalidateBottom> FeedMessages::bottomInvalidated() const {
+	return _bottomInvalidated.events();
 }
 
 } // namespace Storage

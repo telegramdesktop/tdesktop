@@ -165,8 +165,22 @@ void MessagesList::removeAll(ChannelId channelId) {
 	}
 }
 
-void MessagesList::invalidated() {
+void MessagesList::invalidate() {
 	_slices.clear();
+	_count = base::none;
+}
+
+void MessagesList::invalidateBottom() {
+	if (!_slices.empty()) {
+		const auto &last = _slices.back();
+		if (last.range.till == MaxMessagePosition) {
+			_slices.modify(_slices.end() - 1, [](Slice &slice) {
+				slice.range.till = slice.messages.empty()
+					? slice.range.from
+					: slice.messages.back();
+			});
+		}
+	}
 	_count = base::none;
 }
 
@@ -326,6 +340,12 @@ bool MessagesSliceBuilder::invalidated() {
 	_ids.clear();
 	checkInsufficient();
 	return false;
+}
+
+bool MessagesSliceBuilder::bottomInvalidated() {
+	_fullCount = _skippedAfter = base::none;
+	checkInsufficient();
+	return true;
 }
 
 void MessagesSliceBuilder::checkInsufficient() {

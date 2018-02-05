@@ -72,14 +72,18 @@ void Feed::registerOne(not_null<ChannelData*> channel) {
 	if (!base::contains(_channels, history)) {
 		const auto invisible = (_channels.size() < 2);
 		_channels.push_back(history);
+		_parent->session().storage().invalidate(
+			Storage::FeedMessagesInvalidate(_id));
+
 		if (history->lastMessageKnown()) {
-			recountLastMessage();
+			if (const auto last = history->lastMessage()) {
+				if (justUpdateLastMessage(last)) {
+					updateChatListEntry();
+				}
+			}
 		} else if (lastMessageKnown()) {
 			_parent->session().api().requestDialogEntry(history);
 		}
-		_parent->session().storage().remove(
-			Storage::FeedMessagesInvalidate(_id));
-
 		if (invisible && _channels.size() > 1) {
 			updateChatListExistence();
 			for (const auto history : _channels) {
@@ -98,14 +102,14 @@ void Feed::unregisterOne(not_null<ChannelData*> channel) {
 	if (i != end(_channels)) {
 		const auto visible = (_channels.size() > 1);
 		_channels.erase(i, end(_channels));
+		_parent->session().storage().remove(
+			Storage::FeedMessagesRemoveAll(_id, channel->bareId()));
+
 		if (const auto last = lastMessage()) {
 			if (last->history() == history) {
 				recountLastMessage();
 			}
 		}
-		_parent->session().storage().remove(
-			Storage::FeedMessagesRemoveAll(_id, channel->bareId()));
-
 		if (visible && _channels.size() < 2) {
 			updateChatListExistence();
 			for (const auto history : _channels) {
@@ -233,7 +237,6 @@ bool Feed::justUpdateLastMessage(not_null<HistoryItem*> item) {
 
 void Feed::messageRemoved(not_null<HistoryItem*> item) {
 	if (lastMessage() == item) {
-		_lastMessage = base::none;
 		recountLastMessage();
 	}
 }
@@ -247,11 +250,17 @@ void Feed::historyCleared(not_null<History*> history) {
 }
 
 void Feed::recountLastMessage() {
+	_lastMessage = base::none;
 	for (const auto history : _channels) {
 		if (!history->lastMessageKnown()) {
+			_parent->session().api().requestDialogEntry(this);
 			return;
 		}
 	}
+	setLastMessageFromChannels();
+}
+
+void Feed::setLastMessageFromChannels() {
 	_lastMessage = nullptr;
 	for (const auto history : _channels) {
 		if (const auto last = history->lastMessage()) {

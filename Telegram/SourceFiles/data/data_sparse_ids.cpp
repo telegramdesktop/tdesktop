@@ -249,6 +249,15 @@ bool SparseIdsSliceBuilder::removeAll() {
 	return true;
 }
 
+bool SparseIdsSliceBuilder::invalidateBottom() {
+	_fullCount = _skippedAfter = base::none;
+	if (_range.till == ServerMaxMsgId) {
+		_range.till = _ids.empty() ? _range.from : _ids.back();
+	}
+	checkInsufficient();
+	return true;
+}
+
 void SparseIdsSliceBuilder::checkInsufficient() {
 	sliceToLimits();
 }

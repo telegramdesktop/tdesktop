@@ -170,6 +170,7 @@ public:
 	bool applyUpdate(const Storage::SparseIdsSliceUpdate &update);
 	bool removeOne(MsgId messageId);
 	bool removeAll();
+	bool invalidateBottom();
 
 	void checkInsufficient();
 	struct AroundData {

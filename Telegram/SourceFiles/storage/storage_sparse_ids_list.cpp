@@ -158,6 +158,20 @@ void SparseIdsList::removeAll() {
 	_count = 0;
 }
 
+void SparseIdsList::invalidateBottom() {
+	if (!_slices.empty()) {
+		const auto &last = _slices.back();
+		if (last.range.till == ServerMaxMsgId) {
+			_slices.modify(_slices.end() - 1, [](Slice &slice) {
+				slice.range.till = slice.messages.empty()
+					? slice.range.from
+					: slice.messages.back();
+			});
+		}
+	}
+	_count = base::none;
+}
+
 rpl::producer<SparseIdsListResult> SparseIdsList::query(
 		SparseIdsListQuery &&query) const {
 	return [this, query = std::move(query)](auto consumer) {

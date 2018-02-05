@@ -1057,8 +1057,9 @@ void MainWidget::deleteConversation(
 			}
 		}
 		history->clear();
-		history->newLoaded = true;
-		history->oldLoaded = deleteHistory;
+		if (deleteHistory) {
+			history->markFullyLoaded();
+		}
 	}
 	if (const auto channel = peer->asChannel()) {
 		channel->ptsWaitingForShortPoll(-1);

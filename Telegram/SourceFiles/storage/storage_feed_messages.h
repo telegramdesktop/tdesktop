@@ -73,6 +73,16 @@ struct FeedMessagesInvalidate {
 
 };
 
+struct FeedMessagesInvalidateBottom {
+	explicit FeedMessagesInvalidateBottom(FeedId feedId)
+	: feedId(feedId) {
+	}
+
+	FeedId feedId = 0;
+
+};
+
+
 struct FeedMessagesKey {
 	FeedMessagesKey(
 		FeedId feedId,
@@ -131,7 +141,8 @@ public:
 	void add(FeedMessagesAddSlice &&query);
 	void remove(FeedMessagesRemoveOne &&query);
 	void remove(FeedMessagesRemoveAll &&query);
-	void remove(FeedMessagesInvalidate &&query);
+	void invalidate(FeedMessagesInvalidate &&query);
+	void invalidate(FeedMessagesInvalidateBottom &&query);
 
 	rpl::producer<FeedMessagesResult> query(
 		FeedMessagesQuery &&query) const;
@@ -139,6 +150,7 @@ public:
 	rpl::producer<FeedMessagesRemoveOne> oneRemoved() const;
 	rpl::producer<FeedMessagesRemoveAll> allRemoved() const;
 	rpl::producer<FeedMessagesInvalidate> invalidated() const;
+	rpl::producer<FeedMessagesInvalidateBottom> bottomInvalidated() const;
 
 private:
 	using List = Data::MessagesList;
@@ -151,6 +163,7 @@ private:
 	rpl::event_stream<FeedMessagesRemoveOne> _oneRemoved;
 	rpl::event_stream<FeedMessagesRemoveAll> _allRemoved;
 	rpl::event_stream<FeedMessagesInvalidate> _invalidated;
+	rpl::event_stream<FeedMessagesInvalidateBottom> _bottomInvalidated;
 
 	rpl::lifetime _lifetime;
 

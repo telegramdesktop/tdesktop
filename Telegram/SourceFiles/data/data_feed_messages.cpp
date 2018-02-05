@@ -76,6 +76,14 @@ rpl::producer<MessagesSlice> FeedMessagesViewer(
 			return builder->invalidated();
 		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
 
+		using InvalidateBottom = Storage::FeedMessagesInvalidateBottom;
+		Auth().storage().feedMessagesBottomInvalidated(
+		) | rpl::filter([=](const InvalidateBottom &update) {
+			return (update.feedId == key.feedId);
+		}) | rpl::filter([=] {
+			return builder->bottomInvalidated();
+		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
+
 		using Result = Storage::FeedMessagesResult;
 		Auth().storage().query(Storage::FeedMessagesQuery(
 			key,

@@ -48,6 +48,7 @@ public:
 		base::optional<int> count);
 	void removeOne(MsgId messageId);
 	void removeAll();
+	void invalidateBottom();
 	rpl::producer<SparseIdsListResult> query(SparseIdsListQuery &&query) const;
 	rpl::producer<SparseIdsSliceUpdate> sliceUpdated() const;
 

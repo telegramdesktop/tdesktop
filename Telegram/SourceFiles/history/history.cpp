@@ -1302,7 +1302,7 @@ void History::addEdgesToSharedMedia() {
 
 void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 	if (slice.isEmpty()) {
-		oldLoaded = true;
+		_loadedAtTop = true;
 		checkJoinedMessage();
 		return;
 	}
@@ -1321,7 +1321,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 		addToSharedMedia(added);
 	} else {
 		// If no items were added it means we've loaded everything old.
-		oldLoaded = true;
+		_loadedAtTop = true;
 		addEdgesToSharedMedia();
 	}
 
@@ -1333,7 +1333,7 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 	bool wasEmpty = isEmpty(), wasLoadedAtBottom = loadedAtBottom();
 
 	if (slice.isEmpty()) {
-		newLoaded = true;
+		_loadedAtBottom = true;
 		if (!lastMessage()) {
 			setLastMessage(lastAvailableMessage());
 		}
@@ -1348,7 +1348,7 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 
 		addToSharedMedia(added);
 	} else {
-		newLoaded = true;
+		_loadedAtBottom = true;
 		setLastMessage(lastAvailableMessage());
 		addEdgesToSharedMedia();
 	}
@@ -1363,11 +1363,11 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 
 void History::checkLastMessage() {
 	if (const auto last = lastMessage()) {
-		if (!newLoaded && last->mainView()) {
-			newLoaded = true;
+		if (!_loadedAtBottom && last->mainView()) {
+			_loadedAtBottom = true;
 			checkAddAllToUnreadMentions();
 		}
-	} else if (newLoaded) {
+	} else if (_loadedAtBottom) {
 		setLastMessage(lastAvailableMessage());
 	}
 }
@@ -1974,11 +1974,11 @@ void History::clearNotifications() {
 }
 
 bool History::loadedAtBottom() const {
-	return newLoaded;
+	return _loadedAtBottom;
 }
 
 bool History::loadedAtTop() const {
-	return oldLoaded;
+	return _loadedAtTop;
 }
 
 bool History::isReadyFor(MsgId msgId) {
@@ -2035,20 +2035,38 @@ void History::getReadyFor(MsgId msgId) {
 		unloadBlocks();
 
 		if (msgId == ShowAtTheEndMsgId) {
-			newLoaded = true;
+			_loadedAtBottom = true;
 		}
 	}
 }
 
 void History::setNotLoadedAtBottom() {
-	newLoaded = false;
+	_loadedAtBottom = false;
+
+	Auth().storage().invalidate(
+		Storage::SharedMediaInvalidateBottom(peer->id));
+	if (const auto channel = peer->asChannel()) {
+		if (const auto feed = channel->feed()) {
+			Auth().storage().invalidate(
+				Storage::FeedMessagesInvalidateBottom(
+					feed->id()));
+		}
+	}
 }
 
-namespace {
-
-uint32 _dialogsPosToTopShift = 0x80000000UL;
-
-} // namespace
+void History::markFullyLoaded() {
+	_loadedAtTop = _loadedAtBottom = true;
+	if (isEmpty()) {
+		Auth().storage().remove(Storage::SharedMediaRemoveAll(peer->id));
+		if (const auto channel = peer->asChannel()) {
+			if (const auto feed = channel->feed()) {
+				Auth().storage().remove(Storage::FeedMessagesRemoveAll(
+					feed->id(),
+					channel->bareId()));
+			}
+		}
+	}
+}
 
 void History::setLastMessage(HistoryItem *item) {
 	if (item) {
@@ -2479,14 +2497,6 @@ void History::clearBlocks(bool leaveItems) {
 	} else {
 		setLastMessage(nullptr);
 		notifies.clear();
-		Auth().storage().remove(Storage::SharedMediaRemoveAll(peer->id));
-		if (const auto channel = peer->asChannel()) {
-			if (const auto feed = channel->feed()) {
-				Auth().storage().remove(Storage::FeedMessagesRemoveAll(
-					feed->id(),
-					channel->bareId()));
-			}
-		}
 		Auth().data().notifyHistoryCleared(this);
 	}
 	blocks.clear();
@@ -2505,7 +2515,8 @@ void History::clearBlocks(bool leaveItems) {
 	}
 	Auth().data().notifyHistoryChangeDelayed(this);
 
-	newLoaded = oldLoaded = false;
+	_loadedAtTop = false;
+	_loadedAtBottom = !leaveItems;
 	forgetScrollState();
 	if (const auto chat = peer->asChat()) {
 		chat->lastAuthors.clear();
