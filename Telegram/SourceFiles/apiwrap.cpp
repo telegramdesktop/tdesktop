@@ -224,12 +224,12 @@ void ApiWrap::requestMessageData(ChannelData *channel, MsgId msgId, RequestMessa
 	if (!req.requestId) _messageDataResolveDelayed.call();
 }
 
-QVector<MTPint> ApiWrap::collectMessageIds(const MessageDataRequests &requests) {
-	auto result = QVector<MTPint>();
+QVector<MTPInputMessage> ApiWrap::collectMessageIds(const MessageDataRequests &requests) {
+	auto result = QVector<MTPInputMessage>();
 	result.reserve(requests.size());
 	for (auto i = requests.cbegin(), e = requests.cend(); i != e; ++i) {
 		if (i.value().requestId > 0) continue;
-		result.push_back(MTP_int(i.key()));
+		result.push_back(MTP_inputMessageID(MTP_int(i.key())));
 	}
 	return result;
 }
@@ -252,7 +252,7 @@ void ApiWrap::resolveMessageDatas() {
 	auto ids = collectMessageIds(_messageDataRequests);
 	if (!ids.isEmpty()) {
 		auto requestId = request(MTPmessages_GetMessages(
-			MTP_vector<MTPint>(ids)
+			MTP_vector<MTPInputMessage>(ids)
 		)).done([this](const MTPmessages_Messages &result, mtpRequestId requestId) {
 			gotMessageDatas(nullptr, result, requestId);
 		}).fail([this](const RPCError &error, mtpRequestId requestId) {
@@ -273,7 +273,7 @@ void ApiWrap::resolveMessageDatas() {
 			auto channel = j.key();
 			auto requestId = request(MTPchannels_GetMessages(
 				j.key()->inputChannel,
-				MTP_vector<MTPint>(ids)
+				MTP_vector<MTPInputMessage>(ids)
 			)).done([=](const MTPmessages_Messages &result, mtpRequestId requestId) {
 				gotMessageDatas(channel, result, requestId);
 			}).fail([=](const RPCError &error, mtpRequestId requestId) {
@@ -1920,8 +1920,8 @@ void ApiWrap::clearWebPageRequests() {
 }
 
 void ApiWrap::resolveWebPages() {
-	auto ids = QVector<MTPint>(); // temp_req_id = -1
-	using IndexAndMessageIds = QPair<int32, QVector<MTPint>>;
+	auto ids = QVector<MTPInputMessage>(); // temp_req_id = -1
+	using IndexAndMessageIds = QPair<int32, QVector<MTPInputMessage>>;
 	using MessageIdsByChannel = QMap<ChannelData*, IndexAndMessageIds>;
 	MessageIdsByChannel idsByChannel; // temp_req_id = -index - 2
 
@@ -1933,7 +1933,7 @@ void ApiWrap::resolveWebPages() {
 			const auto item = _session->data().findWebPageItem(i.key());
 			if (item) {
 				if (item->channelId() == NoChannel) {
-					ids.push_back(MTP_int(item->id));
+					ids.push_back(MTP_inputMessageID(MTP_int(item->id)));
 					i.value() = -1;
 				} else {
 					auto channel = item->history()->peer->asChannel();
@@ -1943,9 +1943,12 @@ void ApiWrap::resolveWebPages() {
 							channel,
 							IndexAndMessageIds(
 								idsByChannel.size(),
-								QVector<MTPint>(1, MTP_int(item->id))));
+								QVector<MTPInputMessage>(
+									1,
+									MTP_inputMessageID(MTP_int(item->id)))));
 					} else {
-						channelMap.value().second.push_back(MTP_int(item->id));
+						channelMap.value().second.push_back(
+							MTP_inputMessageID(MTP_int(item->id)));
 					}
 					i.value() = -channelMap.value().first - 2;
 				}
@@ -1957,13 +1960,18 @@ void ApiWrap::resolveWebPages() {
 
 	auto requestId = mtpRequestId(0);
 	if (!ids.isEmpty()) {
-		requestId = request(MTPmessages_GetMessages(MTP_vector<MTPint>(ids))).done([this](const MTPmessages_Messages &result, mtpRequestId requestId) {
+		requestId = request(MTPmessages_GetMessages(
+			MTP_vector<MTPInputMessage>(ids)
+		)).done([=](const MTPmessages_Messages &result, mtpRequestId requestId) {
 			gotWebPages(nullptr, result, requestId);
 		}).afterDelay(kSmallDelayMs).send();
 	}
 	QVector<mtpRequestId> reqsByIndex(idsByChannel.size(), 0);
 	for (auto i = idsByChannel.cbegin(), e = idsByChannel.cend(); i != e; ++i) {
-		reqsByIndex[i.value().first] = request(MTPchannels_GetMessages(i.key()->inputChannel, MTP_vector<MTPint>(i.value().second))).done([this, channel = i.key()](const MTPmessages_Messages &result, mtpRequestId requestId) {
+		reqsByIndex[i.value().first] = request(MTPchannels_GetMessages(
+			i.key()->inputChannel,
+			MTP_vector<MTPInputMessage>(i.value().second)
+		)).done([=, channel = i.key()](const MTPmessages_Messages &result, mtpRequestId requestId) {
 			gotWebPages(channel, result, requestId);
 		}).afterDelay(kSmallDelayMs).send();
 	}
@@ -3655,8 +3663,8 @@ void ApiWrap::sendAlbumWithUploaded(
 		: MTPDinputSingleMedia::Flag(0);
 
 	itemIt->media = MTP_inputSingleMedia(
-		media,
 		MTP_flags(flags),
+		media,
 		MTP_long(randomId),
 		MTP_string(caption.text),
 		sentEntities);

@@ -157,6 +157,15 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareBotAllowed = [&](const MTPDmessageActionBotAllowed &action) {
+		auto result = PreparedText{};
+		const auto domain = qs(action.vdomain);
+		result.text = lng_action_bot_allowed_from_domain(
+			lt_domain,
+			textcmdLink(qstr("http://") + domain, domain));
+		return result;
+	};
+
 	auto messageText = PreparedText {};
 
 	switch (action.type()) {
@@ -177,6 +186,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	case mtpc_messageActionPaymentSent: messageText = preparePaymentSentText(); break;
 	case mtpc_messageActionScreenshotTaken: messageText = prepareScreenshotTaken(); break;
 	case mtpc_messageActionCustomAction: messageText = prepareCustomAction(action.c_messageActionCustomAction()); break;
+	case mtpc_messageActionBotAllowed: messageText = prepareBotAllowed(action.c_messageActionBotAllowed()); break;
 	default: messageText.text = lang(lng_message_empty); break;
 	}
 

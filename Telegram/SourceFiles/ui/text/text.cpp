@@ -255,6 +255,7 @@ public:
 		        || type == EntityInTextEmail
 		        || type == EntityInTextMention
 		        || type == EntityInTextHashtag
+		        || type == EntityInTextCashtag
 		        || type == EntityInTextBotCommand) {
 			linkType = type;
 			linkData = QString(start + waitingEntity->offset(), waitingEntity->length());
@@ -520,6 +521,7 @@ public:
 					auto type = preparsed.at(i).type();
 					if (((type == EntityInTextMention || type == EntityInTextMentionName) && !parseMentions) ||
 						(type == EntityInTextHashtag && !parseHashtags) ||
+						(type == EntityInTextCashtag && !parseHashtags) ||
 						(type == EntityInTextBotCommand && !parseBotCommands) ||
 						((type == EntityInTextBold || type == EntityInTextItalic || type == EntityInTextCode || type == EntityInTextPre) && !parseMarkdown)) {
 						continue;
@@ -543,6 +545,7 @@ public:
 			EntityInTextCustomUrl,
 			EntityInTextEmail,
 			EntityInTextHashtag,
+			EntityInTextCashtag,
 			EntityInTextMention,
 			EntityInTextMentionName,
 			EntityInTextBotCommand
@@ -630,6 +633,9 @@ public:
 							handler = std::make_shared<HashtagClickHandler>(link.data);
 						}
 					break;
+					case EntityInTextCashtag:
+						handler = std::make_shared<CashtagClickHandler>(link.data);
+						break;
 					case EntityInTextMention:
 						if (options.flags & TextTwitterMentions) {
 							handler = std::make_shared<UrlClickHandler>(qsl("https://twitter.com/") + link.data.mid(1), true);

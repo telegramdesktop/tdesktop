@@ -1449,6 +1449,8 @@ EntitiesInText EntitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
 			case mtpc_messageEntityTextUrl: { auto &d = entity.c_messageEntityTextUrl(); result.push_back(EntityInText(EntityInTextCustomUrl, d.voffset.v, d.vlength.v, Clean(qs(d.vurl)))); } break;
 			case mtpc_messageEntityEmail: { auto &d = entity.c_messageEntityEmail(); result.push_back(EntityInText(EntityInTextEmail, d.voffset.v, d.vlength.v)); } break;
 			case mtpc_messageEntityHashtag: { auto &d = entity.c_messageEntityHashtag(); result.push_back(EntityInText(EntityInTextHashtag, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityCashtag: { auto &d = entity.c_messageEntityCashtag(); result.push_back(EntityInText(EntityInTextCashtag, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityPhone: break; // Skipping phones.
 			case mtpc_messageEntityMention: { auto &d = entity.c_messageEntityMention(); result.push_back(EntityInText(EntityInTextMention, d.voffset.v, d.vlength.v)); } break;
 			case mtpc_messageEntityMentionName: {
 				auto &d = entity.c_messageEntityMentionName();
@@ -1509,6 +1511,7 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &entities, Conver
 		case EntityInTextCustomUrl: v.push_back(MTP_messageEntityTextUrl(offset, length, MTP_string(entity.data()))); break;
 		case EntityInTextEmail: v.push_back(MTP_messageEntityEmail(offset, length)); break;
 		case EntityInTextHashtag: v.push_back(MTP_messageEntityHashtag(offset, length)); break;
+		case EntityInTextCashtag: v.push_back(MTP_messageEntityCashtag(offset, length)); break;
 		case EntityInTextMention: v.push_back(MTP_messageEntityMention(offset, length)); break;
 		case EntityInTextMentionName: {
 			auto inputUser = ([](const QString &data) -> MTPInputUser {

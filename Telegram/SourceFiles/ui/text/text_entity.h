@@ -14,6 +14,7 @@ enum EntityInTextType {
 	EntityInTextCustomUrl,
 	EntityInTextEmail,
 	EntityInTextHashtag,
+	EntityInTextCashtag,
 	EntityInTextMention,
 	EntityInTextMentionName,
 	EntityInTextBotCommand,

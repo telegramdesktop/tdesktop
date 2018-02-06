@@ -280,7 +280,7 @@ private:
 		ChannelData *channel,
 		mtpRequestId requestId);
 
-	QVector<MTPint> collectMessageIds(const MessageDataRequests &requests);
+	QVector<MTPInputMessage> collectMessageIds(const MessageDataRequests &requests);
 	MessageDataRequests *messageDataRequests(ChannelData *channel, bool onlyExisting = false);
 	void applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs);
 	void historyDialogEntryApplied(not_null<History*> history);

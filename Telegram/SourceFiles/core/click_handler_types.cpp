@@ -65,6 +65,20 @@ bool UrlRequiresConfirmation(const QUrl &url) {
 
 } // namespace
 
+UrlClickHandler::UrlClickHandler(const QString &url, bool fullDisplayed)
+: TextClickHandler(fullDisplayed)
+, _originalUrl(url) {
+	if (isEmail()) {
+		_readable = _originalUrl;
+	} else {
+		const auto original = QUrl(_originalUrl);
+		const auto good = QUrl(original.isValid()
+			? original.toEncoded()
+			: QString());
+		_readable = good.isValid() ? good.toDisplayString() : _originalUrl;
+	}
+}
+
 QString UrlClickHandler::copyToClipboardContextItemText() const {
 	return lang(isEmail() ? lng_context_copy_email : lng_context_copy_link);
 }
@@ -228,6 +242,23 @@ void HashtagClickHandler::onClick(Qt::MouseButton button) const {
 
 TextWithEntities HashtagClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const {
 	return simpleTextWithEntity({ EntityInTextHashtag, entityOffset, textPart.size() });
+}
+
+QString CashtagClickHandler::copyToClipboardContextItemText() const {
+	return lang(lng_context_copy_hashtag);
+}
+
+void CashtagClickHandler::onClick(Qt::MouseButton button) const {
+	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
+		App::searchByHashtag(_tag, Ui::getPeerForMouseAction());
+	}
+}
+
+TextWithEntities CashtagClickHandler::getExpandedLinkTextWithEntities(
+		ExpandLinksMode mode,
+		int entityOffset,
+		const QStringRef &textPart) const {
+	return simpleTextWithEntity({ EntityInTextCashtag, entityOffset, textPart.size() });
 }
 
 PeerData *BotCommandClickHandler::_peer = nullptr;
