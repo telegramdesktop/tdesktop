@@ -10,11 +10,16 @@ confinement: strict
 
 version-script: |
   cd parts/telegram/src
-  version=$(sed -n "s/AppVersionStr[ ]\+\(.*\)\+/\1/p" Telegram/build/version)
+  version_file=Telegram/build/version
+  version=$(sed -n "s/AppVersionStr[ ]\+\(.*\)\+/\1/p" $version_file)
+  alpha=$(sed -n "s/AlphaChannel[ ]\+\(.*\)\+/\1/p" $version_file)
   head_sha=$(git rev-parse HEAD)
-  last_tag_sha=$(git ls-remote -q --tags | tail -1 | cut -f1)
 
-  if [ "$head_sha" != "$last_tag_sha" ]; then
+  if [ "$alpha" = "1" ]; then
+    version="$version-alpha"
+  fi
+
+  if ! git ls-remote -q --tags | cut -f1 | grep -q "$head_sha"; then
     version="$version+git$(git rev-parse --short HEAD)"
   fi
 
