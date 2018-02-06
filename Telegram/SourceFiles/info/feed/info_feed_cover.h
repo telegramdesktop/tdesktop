@@ -20,7 +20,7 @@ class Feed;
 } // namespace Data
 
 namespace Ui {
-class UserpicButton;
+class FeedUserpicButton;
 class FlatLabel;
 template <typename Widget>
 class SlideWrap;
@@ -48,12 +48,11 @@ private:
 	void refreshStatusText();
 	void refreshNameGeometry(int newWidth);
 	void refreshStatusGeometry(int newWidth);
-	void refreshUploadPhotoOverlay();
 
 	not_null<Controller*> _controller;
 	not_null<Data::Feed*> _feed;
 
-	//object_ptr<Ui::UserpicButton> _userpic;
+	object_ptr<Ui::FeedUserpicButton> _userpic;
 	object_ptr<Ui::FlatLabel> _name = { nullptr };
 	object_ptr<Ui::FlatLabel> _status = { nullptr };
 	//object_ptr<CoverDropArea> _dropArea = { nullptr };

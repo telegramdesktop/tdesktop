@@ -260,9 +260,22 @@ infoTabs: SettingsSlider(defaultTabsSlider) {
 	labelTop: 19px;
 }
 
+infoProfilePhotoInnerSize: 72px;
+infoProfilePhotoSize: size(
+	infoProfilePhotoInnerSize,
+	infoProfilePhotoInnerSize);
 infoProfilePhoto: UserpicButton(defaultUserpicButton) {
-	size: size(72px, 72px);
-	photoSize: 72px;
+	size: infoProfilePhotoSize;
+	photoSize: infoProfilePhotoInnerSize;
+}
+infoFeedProfilePhoto: FeedUserpicButton(defaultFeedUserpicButton) {
+	size: infoProfilePhotoSize;
+	innerSize: infoProfilePhotoInnerSize;
+	innerPart: UserpicButton(defaultUserpicButton) {
+		size: size(35px, 35px);
+		photoSize: 35px;
+	}
+
 }
 infoProfilePhotoLeft: 19px;
 infoProfilePhotoTop: 18px;
