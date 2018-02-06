@@ -40,8 +40,10 @@ parts:
     source: https://github.com/telegramdesktop/tdesktop.git
     source-depth: 1
     prepare: |
-      git -C ../src apply $SNAPCRAFT_STAGE/../patches/telegram-linux-use-HOME-to-determine-actual-user-path.patch
-      git -C ../src apply $SNAPCRAFT_STAGE/../patches/telegram-linux-add-support-unity-launcher-when-snapped.patch
+      patches_dir=$SNAPCRAFT_STAGE/../patches
+      git -C ../src apply -v $patches_dir/telegram-linux-use-HOME-to-determine-actual-user-path.patch
+      git -C ../src apply -v $patches_dir/telegram-linux-add-support-unity-launcher-when-snapped.patch
+      git -C ../src/Telegram/ThirdParty/libtgvoip apply -v $patches_dir/libtgvoip-only-enable-msse2-on-supported-archs.patch
     build-packages:
       - libappindicator-dev
       - libappindicator3-dev
