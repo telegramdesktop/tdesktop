@@ -100,6 +100,7 @@ parts:
     stage-packages:
       - libnotify4
       - libpulse0
+      - libunity9
     after: [desktop-gtk3]
 
   libva:
