@@ -1,0 +1,15 @@
+diff --git a/Telegram/SourceFiles/base/build_config.h b/Telegram/SourceFiles/base/build_config.h
+index e708ab5..224f831 100644
+--- a/Telegram/SourceFiles/base/build_config.h
++++ b/Telegram/SourceFiles/base/build_config.h
+@@ -60,6 +60,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+ #define ARCH_CPU_X86_FAMILY 1
+ #define ARCH_CPU_X86 1
+ #define ARCH_CPU_32_BITS 1
++#elif defined(__aarch64__)
++#define ARCH_CPU_64_BITS 1
++#elif defined(__arm__)
++#define ARCH_CPU_32_BITS 1
+ #else
+ #error Please add support for your architecture in base/build_config.h
+ #endif
