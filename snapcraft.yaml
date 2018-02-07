@@ -377,8 +377,6 @@ parts:
   gcc7:
     plugin: nil
     build-packages:
-      - devscripts
-      - equivs
       - libmpc-dev
       - libcloog-ppl-dev
     prepare: |
