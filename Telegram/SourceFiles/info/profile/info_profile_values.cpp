@@ -13,9 +13,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/combine.h>
 #include "observer_peer.h"
 #include "messenger.h"
+#include "auth_session.h"
 #include "ui/wrap/slide_wrap.h"
 #include "data/data_peer_values.h"
 #include "data/data_shared_media.h"
+#include "data/data_feed.h"
+#include "data/data_session.h"
 
 namespace Info {
 namespace Profile {
@@ -291,6 +294,23 @@ rpl::producer<bool> VerifiedValue(
 	}
 	return rpl::single(false);
 }
+
+rpl::producer<int> FeedChannelsCountValue(
+		not_null<Data::Feed*> feed) {
+	using Flag = Data::FeedUpdateFlag;
+	return rpl::single(
+		Data::FeedUpdate{ feed, Flag::Channels }
+	) | rpl::then(
+		Auth().data().feedUpdated()
+	) | rpl::filter([=](const Data::FeedUpdate &update) {
+		return (update.feed == feed) && (update.flag == Flag::Channels);
+	}) | rpl::filter([=] {
+		return feed->channelsLoaded();
+	}) | rpl::map([=] {
+		return int(feed->channels().size());
+	}) | rpl::distinct_until_changed();
+}
+
 
 } // namespace Profile
 } // namespace Info

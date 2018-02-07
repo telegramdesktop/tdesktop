@@ -292,6 +292,8 @@
 <(src_loc)/info/common_groups/info_common_groups_widget.h
 <(src_loc)/info/feed/info_feed_channels.cpp
 <(src_loc)/info/feed/info_feed_channels.h
+<(src_loc)/info/feed/info_feed_channels_controllers.cpp
+<(src_loc)/info/feed/info_feed_channels_controllers.h
 <(src_loc)/info/feed/info_feed_cover.cpp
 <(src_loc)/info/feed/info_feed_cover.h
 <(src_loc)/info/feed/info_feed_profile_inner_widget.cpp

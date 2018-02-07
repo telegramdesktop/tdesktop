@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/feed/info_feed_profile_widget.h"
 #include "info/feed/info_feed_cover.h"
 #include "info/feed/info_feed_channels.h"
+#include "info/profile/info_profile_actions.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/vertical_layout.h"
 
@@ -39,32 +40,26 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	_cover = result->add(object_ptr<Cover>(
 		result,
 		_controller));
-	//auto details = SetupDetails(_controller, parent, _peer);
-	//result->add(std::move(details));
-	//if (auto members = SetupChannelMembers(_controller, result.data(), _peer)) {
-	//	result->add(std::move(members));
-	//}
-	//result->add(object_ptr<BoxContentDivider>(result));
-	//if (auto actions = SetupActions(_controller, result.data(), _peer)) {
-	//	result->add(std::move(actions));
-	//}
+	auto details = Profile::SetupFeedDetails(_controller, parent, _feed);
+	result->add(std::move(details));
+	result->add(object_ptr<BoxContentDivider>(result));
 
-	//_channels = result->add(object_ptr<Channels>(
-	//	result,
-	//	_controller)
-	//);
-	//_channels->scrollToRequests(
-	//) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
-	//	auto min = (request.ymin < 0)
-	//		? request.ymin
-	//		: mapFromGlobal(_channels->mapToGlobal({ 0, request.ymin })).y();
-	//	auto max = (request.ymin < 0)
-	//		? mapFromGlobal(_channels->mapToGlobal({ 0, 0 })).y()
-	//		: (request.ymax < 0)
-	//		? request.ymax
-	//		: mapFromGlobal(_channels->mapToGlobal({ 0, request.ymax })).y();
-	//	_scrollToRequests.fire({ min, max });
-	//}, _channels->lifetime());
+	_channels = result->add(object_ptr<Channels>(
+		result,
+		_controller)
+	);
+	_channels->scrollToRequests(
+	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
+		auto min = (request.ymin < 0)
+			? request.ymin
+			: mapFromGlobal(_channels->mapToGlobal({ 0, request.ymin })).y();
+		auto max = (request.ymin < 0)
+			? mapFromGlobal(_channels->mapToGlobal({ 0, 0 })).y()
+			: (request.ymax < 0)
+			? request.ymax
+			: mapFromGlobal(_channels->mapToGlobal({ 0, request.ymax })).y();
+		_scrollToRequests.fire({ min, max });
+	}, _channels->lifetime());
 
 	return std::move(result);
 }

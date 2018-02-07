@@ -1429,6 +1429,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_feed_channels#other" = "{count} channels";
 
 "lng_info_feed_title" = "Feed Info";
+"lng_info_feed_is_default" = "Group new channels";
+"lng_info_feed_channels" = "Channels";
 
 // Wnd specific
 

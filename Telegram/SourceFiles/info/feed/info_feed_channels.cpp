@@ -7,8 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/feed/info_feed_channels.h"
 
+#include "info/feed/info_feed_channels_controllers.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_button.h"
+#include "info/profile/info_profile_values.h"
 #include "info/info_controller.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
@@ -16,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/search_field_controller.h"
 #include "boxes/peer_list_controllers.h"
+#include "lang/lang_keys.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 
@@ -33,7 +36,7 @@ Channels::Channels(
 : RpWidget(parent)
 , _controller(controller)
 , _feed(_controller->key().feed())
-, _listController(std::make_unique<ContactsBoxController>()) {
+, _listController(std::make_unique<ChannelsController>(_controller)) {
 	setupHeader();
 	setupList();
 	setContent(_list.data());
@@ -44,12 +47,12 @@ Channels::Channels(
 		peerListScrollToTop();
 		content()->searchQueryChanged(std::move(query));
 	}, lifetime());
-	//MembersCountValue(
-	//	_peer
-	//) | rpl::start_with_next([this](int count) {
-	//	const auto enabled = (count >= kEnableSearchChannelsAfterCount);
-	//	_controller->setSearchEnabledByContent(enabled);
-	//}, lifetime());
+	Profile::FeedChannelsCountValue(
+		_feed
+	) | rpl::start_with_next([this](int count) {
+		const auto enabled = (count >= kEnableSearchChannelsAfterCount);
+		_controller->setSearchEnabledByContent(enabled);
+	}, lifetime());
 }
 
 int Channels::desiredHeight() const {
@@ -122,12 +125,11 @@ void Channels::setupHeader() {
 object_ptr<Ui::FlatLabel> Channels::setupTitle() {
 	auto result = object_ptr<Ui::FlatLabel>(
 		_titleWrap,
-		rpl::single(QString("Contacts")),
-		//MembersCountValue(
-		//	_peer
-		//) | rpl::map([](int count) {
-		//	return lng_chat_status_members(lt_count, count);
-		//}) | ToUpperValue(),
+		Profile::FeedChannelsCountValue(
+			_feed
+		) | rpl::map([](int count) {
+			return lng_feed_channels(lt_count, count);
+		}) | Profile::ToUpperValue(),
 		st::infoBlockHeaderLabel);
 	result->setAttribute(Qt::WA_TransparentForMouseEvents);
 	return result;

@@ -42,6 +42,7 @@ Cover::Cover(
 	_name->setSelectable(true);
 	_name->setContextCopyText(lang(lng_profile_copy_fullname));
 	refreshNameText();
+	refreshStatusText();
 
 	initViewers();
 	setupChildGeometry();
@@ -62,7 +63,7 @@ void Cover::setupChildGeometry() {
 void Cover::initViewers() {
 	Auth().data().feedUpdated(
 	) | rpl::filter([](const Data::FeedUpdate &update) {
-		return update.flag == Data::FeedUpdateFlag::Channels;
+		return (update.flag == Data::FeedUpdateFlag::Channels);
 	}) | rpl::start_with_next(
 		[=] { refreshStatusText(); },
 		lifetime());

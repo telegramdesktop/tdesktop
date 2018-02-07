@@ -83,5 +83,8 @@ rpl::producer<bool> CanAddMemberValue(
 rpl::producer<bool> VerifiedValue(
 	not_null<PeerData*> peer);
 
+rpl::producer<int> FeedChannelsCountValue(
+	not_null<Data::Feed*> feed);
+
 } // namespace Profile
 } // namespace Info
