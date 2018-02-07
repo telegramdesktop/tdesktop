@@ -97,4 +97,3 @@ void Widget::restoreState(not_null<Memento*> memento) {
 
 } // namespace Members
 } // namespace Info
-

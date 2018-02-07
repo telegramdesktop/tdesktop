@@ -273,7 +273,7 @@ messageActionCustomAction#fae69f56 message:string = MessageAction;
 messageActionBotAllowed#abe9affe domain:string = MessageAction;
 
 dialog#e4def5db flags:# pinned:flags.2?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage = Dialog;
-dialogFeed#36086d42 flags:# pinned:flags.2?true peer:Peer top_message:int feed_id:int feed_other_channels:Vector<int> read_max_position:flags.3?FeedPosition unread_count:int unread_muted_count:int = Dialog;
+dialogFeed#907750e4 flags:# pinned:flags.2?true peer:Peer top_message:int feed_id:int feed_other_channels:Vector<int> read_max_position:flags.3?FeedPosition unread_count:int unread_muted_count:int sources_hash:int = Dialog;
 
 photoEmpty#2331b22d id:long = Photo;
 photo#9288dd29 flags:# has_stickers:flags.0?true id:long access_hash:long date:int sizes:Vector<PhotoSize> = Photo;
@@ -942,6 +942,14 @@ help.recentMeUrls#e0310d7 urls:Vector<RecentMeUrl> chats:Vector<Chat> users:Vect
 
 inputSingleMedia#1cc6e91f flags:# media:InputMedia random_id:long message:string entities:flags.0?Vector<MessageEntity> = InputSingleMedia;
 
+webAuthorization#cac943f2 hash:long bot_id:int domain:string browser:string platform:string date_created:int date_active:int ip:string region:string = WebAuthorization;
+
+account.webAuthorizations#ed56c9fc authorizations:Vector<WebAuthorization> users:Vector<User> = account.WebAuthorizations;
+
+inputMessageID#a676a322 id:int = InputMessage;
+inputMessageReplyTo#bad88395 id:int = InputMessage;
+inputMessagePinned#86872538 = InputMessage;
+
 feedPosition#5059dc73 date:int peer:Peer id:int = FeedPosition;
 
 messages.feedMessagesNotModified#4678d0cf = messages.FeedMessages;
@@ -958,14 +966,6 @@ inputDialogPeer#fcaafeb7 peer:InputPeer = InputDialogPeer;
 
 dialogPeerFeed#da429411 feed_id:int = DialogPeer;
 dialogPeer#e56dbf05 peer:Peer = DialogPeer;
-
-webAuthorization#cac943f2 hash:long bot_id:int domain:string browser:string platform:string date_created:int date_active:int ip:string region:string = WebAuthorization;
-
-account.webAuthorizations#ed56c9fc authorizations:Vector<WebAuthorization> users:Vector<User> = account.WebAuthorizations;
-
-inputMessageID#a676a322 id:int = InputMessage;
-inputMessageReplyTo#bad88395 id:int = InputMessage;
-inputMessagePinned#86872538 = InputMessage;
 
 ---functions---
 

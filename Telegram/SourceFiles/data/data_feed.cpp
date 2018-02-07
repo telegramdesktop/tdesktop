@@ -165,11 +165,12 @@ const std::vector<not_null<History*>> &Feed::channels() const {
 }
 
 int32 Feed::channelsHash() const {
-	return Api::CountHash(ranges::view::all(
+	const auto ordered = ranges::view::all(
 		_channels
 	) | ranges::view::transform([](not_null<History*> history) {
 		return history->peer->bareId();
-	}));
+	}) | ranges::to_vector | ranges::action::sort;
+	return Api::CountHash(ordered);
 }
 
 bool Feed::channelsLoaded() const {
@@ -177,7 +178,10 @@ bool Feed::channelsLoaded() const {
 }
 
 void Feed::setChannelsLoaded(bool loaded) {
-	_channelsLoaded = loaded;
+	if (_channelsLoaded != loaded) {
+		_channelsLoaded = loaded;
+		_parent->notifyFeedUpdated(this, FeedUpdateFlag::Channels);
+	}
 }
 
 void Feed::setChannels(std::vector<not_null<ChannelData*>> channels) {
@@ -219,9 +223,7 @@ void Feed::setChannels(std::vector<not_null<ChannelData*>> channels) {
 
 		_channels.push_back(App::history(channel));
 	}
-	_channelsLoaded = true;
-
-	_parent->notifyFeedUpdated(this, FeedUpdateFlag::Channels);
+	setChannelsLoaded(true);
 }
 
 bool Feed::justUpdateLastMessage(not_null<HistoryItem*> item) {
@@ -325,6 +327,10 @@ void Feed::applyDialog(const MTPDdialogFeed &data) {
 		data.vunread_muted_count.v);
 	if (data.has_read_max_position()) {
 		setUnreadPosition(FeedPositionFromMTP(data.vread_max_position));
+	}
+
+	if (channelsHash() != data.vsources_hash.v) {
+		setChannelsLoaded(false);
 	}
 }
 

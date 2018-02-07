@@ -3068,6 +3068,10 @@ void ApiWrap::requestFeedMessages(
 		feedMessagesDone(feed, messageId, slice, result);
 	}).fail([=](const RPCError &error) {
 		_feedMessagesRequests.remove(key);
+		if (error.type() == qstr("SOURCES_HASH_INVALID")) {
+			_feedMessagesRequestsPending.emplace(key);
+			requestFeedChannels(feed);
+		}
 	}).send();
 	_feedMessagesRequests.emplace(key);
 }
