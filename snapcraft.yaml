@@ -111,7 +111,7 @@ parts:
   # Using latest version of libunity as it supports proper $SNAP namespace
   libunity:
     plugin: autotools
-    source: lp:~3v1n0/libunity/desktop-use-snap-namespace
+    source: lp:libunity
     build-packages:
       - gnome-common
       - valac
