@@ -5,6 +5,8 @@ description: |
   Telegram is a popular messaging protocol with encryption and security as
   its key focus.
 
+  Fast and secure desktop app, perfectly synced with your mobile phone.
+
 grade: stable
 confinement: strict
 
