@@ -84,6 +84,11 @@ parts:
                         TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME,
                         TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
       - --depth=.
+    install: |
+      snap_gui=$SNAPCRAFT_STAGE/../snap/gui
+      mkdir -vp $snap_gui
+      cp -v lib/xdg/telegramdesktop.desktop $snap_gui
+      cp -v Telegram/Resources/art/icon512@2x.png $snap_gui/icon.png
     after:
       - breakpad
       - ffmpeg
