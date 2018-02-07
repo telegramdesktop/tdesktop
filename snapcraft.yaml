@@ -29,6 +29,7 @@ apps:
   telegram-desktop:
     command: desktop-launch Telegram
     environment:
+      LD_LIBRARY_PATH: $LD_LIBRARY_PATH:$SNAP/lib/libunity
     plugs:
       - home
       - network
@@ -46,7 +47,6 @@ parts:
     prepare: |
       patches_dir=$SNAPCRAFT_STAGE/../patches
       git -C ../src apply -v $patches_dir/telegram-linux-use-HOME-to-determine-actual-user-path.patch
-      git -C ../src apply -v $patches_dir/telegram-linux-add-support-unity-launcher-when-snapped.patch
       git -C ../src apply -v $patches_dir/telegram-arm-support.patch
       git -C ../src/Telegram/ThirdParty/libtgvoip apply -v $patches_dir/libtgvoip-only-enable-msse2-on-supported-archs.patch
     build-packages:
@@ -99,8 +99,26 @@ parts:
     stage-packages:
       - libnotify4
       - libpulse0
-      - libunity9
-    after: [desktop-gtk3]
+    after: [desktop-gtk3, libunity]
+
+  # Using latest version of libunity as it supports proper $SNAP namespace
+  libunity:
+    plugin: autotools
+    source: lp:~3v1n0/libunity/desktop-use-snap-namespace
+    build-packages:
+      - gnome-common
+      - valac
+      - libglib2.0-dev
+      - libdee-dev
+      - libdbusmenu-glib-dev
+      - libgirepository1.0-dev
+      - libgtk-3-dev
+      - python
+      - python3
+      - python-gi
+      - python3-gi
+      - gobject-introspection
+    prime: [./lib/libunity**]
 
   libva:
     source: https://github.com/01org/libva.git
