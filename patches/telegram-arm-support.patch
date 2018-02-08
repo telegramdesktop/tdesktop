@@ -13,8 +13,21 @@ index e708ab5..224f831 100644
  #else
  #error Please add support for your architecture in base/build_config.h
  #endif
+diff --git a/Telegram/SourceFiles/apiwrap.h b/Telegram/SourceFiles/apiwrap.h
+index a65ecf0..5c5b57b 100644
+--- a/Telegram/SourceFiles/apiwrap.h
++++ b/Telegram/SourceFiles/apiwrap.h
+@@ -23,7 +23,7 @@ struct SendingAlbum;
+ enum class SendMediaType;
+ 
+ namespace Storage {
+-enum class SharedMediaType : char;
++enum class SharedMediaType : signed char;
+ struct PreparedList;
+ } // namespace Storage
+ 
 diff --git a/Telegram/SourceFiles/core/crash_reports.cpp b/Telegram/SourceFiles/core/crash_reports.cpp
-index e799eed..35c9dd7 100644
+index e799eed..b4a998e 100644
 --- a/Telegram/SourceFiles/core/crash_reports.cpp
 +++ b/Telegram/SourceFiles/core/crash_reports.cpp
 @@ -520,7 +520,11 @@ const dump &operator<<(const dump &stream, const wchar_t *str) {
@@ -23,10 +36,107 @@ index e799eed..35c9dd7 100644
      for (int i = 0, l = wcslen(str); i < l; ++i) {
 -        if (str[i] >= 0 && str[i] < 128) {
 +        if (
-+#if !defined(__arm__)
++#if !defined(__WCHAR_UNSIGNED__)
 +            str[i] >= 0 &&
 +#endif
 +            str[i] < 128) {
  			SafeWriteChar(char(str[i]));
          } else {
  			SafeWriteChar('?');
+diff --git a/Telegram/SourceFiles/data/data_types.h b/Telegram/SourceFiles/data/data_types.h
+index 5a0901c..80758f7 100644
+--- a/Telegram/SourceFiles/data/data_types.h
++++ b/Telegram/SourceFiles/data/data_types.h
+@@ -219,7 +219,7 @@ constexpr auto CancelledWebPageId = WebPageId(0xFFFFFFFFFFFFFFFFULL);
+ using PreparedPhotoThumbs = QMap<char, QPixmap>;
+ 
+ // [0] == -1 -- counting, [0] == -2 -- could not count
+-using VoiceWaveform = QVector<char>;
++using VoiceWaveform = QVector<signed char>;
+ 
+ enum ActionOnLoad {
+ 	ActionOnLoadNone,
+diff --git a/Telegram/SourceFiles/history/history_item.h b/Telegram/SourceFiles/history/history_item.h
+index d0e6205..2be2aa6 100644
+--- a/Telegram/SourceFiles/history/history_item.h
++++ b/Telegram/SourceFiles/history/history_item.h
+@@ -24,7 +24,7 @@ class enum_mask;
+ } // namespace base
+ 
+ namespace Storage {
+-enum class SharedMediaType : char;
++enum class SharedMediaType : signed char;
+ using SharedMediaTypesMask = base::enum_mask<SharedMediaType>;
+ } // namespace Storage
+ 
+diff --git a/Telegram/SourceFiles/history/history_media.h b/Telegram/SourceFiles/history/history_media.h
+index 4987482..224f490 100644
+--- a/Telegram/SourceFiles/history/history_media.h
++++ b/Telegram/SourceFiles/history/history_media.h
+@@ -15,7 +15,7 @@ class enum_mask;
+ } // namespace base
+ 
+ namespace Storage {
+-enum class SharedMediaType : char;
++enum class SharedMediaType : signed char;
+ using SharedMediaTypesMask = base::enum_mask<SharedMediaType>;
+ } // namespace Storage
+ 
+diff --git a/Telegram/SourceFiles/info/info_content_widget.h b/Telegram/SourceFiles/info/info_content_widget.h
+index cbcb091..e9b35f4 100644
+--- a/Telegram/SourceFiles/info/info_content_widget.h
++++ b/Telegram/SourceFiles/info/info_content_widget.h
+@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+ #include "info/info_wrap_widget.h"
+ 
+ namespace Storage {
+-enum class SharedMediaType : char;
++enum class SharedMediaType : signed char;
+ } // namespace Storage
+ 
+ namespace Ui {
+diff --git a/Telegram/SourceFiles/info/info_memento.h b/Telegram/SourceFiles/info/info_memento.h
+index 962ee60..2c1a264 100644
+--- a/Telegram/SourceFiles/info/info_memento.h
++++ b/Telegram/SourceFiles/info/info_memento.h
+@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+ #include "window/section_memento.h"
+ 
+ namespace Storage {
+-enum class SharedMediaType : char;
++enum class SharedMediaType : signed char;
+ } // namespace Storage
+ 
+ namespace Ui {
+diff --git a/Telegram/SourceFiles/storage/storage_shared_media.h b/Telegram/SourceFiles/storage/storage_shared_media.h
+index 19d2c59..d1d8d11 100644
+--- a/Telegram/SourceFiles/storage/storage_shared_media.h
++++ b/Telegram/SourceFiles/storage/storage_shared_media.h
+@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+ namespace Storage {
+ 
+ // Allow forward declarations.
+-enum class SharedMediaType : char {
++enum class SharedMediaType : signed char {
+ 	Photo,
+ 	Video,
+ 	PhotoVideo,
+diff --git a/Telegram/gyp/telegram_linux.gypi b/Telegram/gyp/telegram_linux.gypi
+index a5b4b19..bb754db 100644
+--- a/Telegram/gyp/telegram_linux.gypi
++++ b/Telegram/gyp/telegram_linux.gypi
+@@ -103,7 +103,13 @@
+         'ldflags': [
+           '-Wl,-wrap,__divmoddi4',
+         ],
+-      }], ['not_need_gtk!="True"', {
++      }],
++      [ '"<!(uname -p)" == "armv7l" or "<!(uname -p)" == "aarch64"', {
++          # 'cflags_cc': [ '-fsigned-char' ]
++          'cflags_cc': [ '-Wno-error=type-limits' ]
++        }
++      ],
++      ['not_need_gtk!="True"', {
+         'cflags_cc': [
+           '<!(pkg-config 2> /dev/null --cflags appindicator-0.1)',
+           '<!(pkg-config 2> /dev/null --cflags gtk+-2.0)',
