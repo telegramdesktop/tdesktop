@@ -102,6 +102,7 @@ Go to ***BuildPath*** and run
     git clone https://chromium.googlesource.com/crashpad/crashpad.git
     cd crashpad
     git checkout feb3aa3923
+    git apply ../../../tdesktop/Telegram/Patches/crashpad.diff
     cd third_party/mini_chromium
     git clone https://chromium.googlesource.com/chromium/mini_chromium
     cd mini_chromium

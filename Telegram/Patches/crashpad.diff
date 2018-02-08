@@ -1,23 +1,3 @@
-diff --git a/build/crashpad.gypi b/build/crashpad.gypi
-index 027c7b68..4bfdfb5a 100644
---- a/build/crashpad.gypi
-+++ b/build/crashpad.gypi
-@@ -25,5 +25,15 @@
-       4201,  # nonstandard extension used : nameless struct/union.
-       4324,  # structure was padded due to __declspec(align()).
-     ],
-+    'xcode_settings': {
-+      'OTHER_CPLUSPLUSFLAGS': [ '-nostdinc++' ],
-+      'OTHER_LDFLAGS': [
-+        '/usr/local/macold/lib/libc++.a',
-+        '/usr/local/macold/lib/libc++abi.a',
-+      ],
-+    },
-+    'include_dirs': [
-+      '/usr/local/macold/include/c++/v1',
-+    ],
-   },
- }
 diff --git a/client/capture_context_mac_test.cc b/client/capture_context_mac_test.cc
 index 436ac5ad..8e14fb9c 100644
 --- a/client/capture_context_mac_test.cc
