@@ -203,8 +203,7 @@ index a5b4b19..bb754db 100644
 -      }], ['not_need_gtk!="True"', {
 +      }],
 +      [ '"<!(uname -p)" == "armv7l" or "<!(uname -p)" == "aarch64"', {
-+          # 'cflags_cc': [ '-fsigned-char' ]
-+          'cflags_cc': [ '-Wno-error=type-limits' ]
++          'cflags_cc': [ '-fsigned-char' ]
 +        }
 +      ],
 +      ['not_need_gtk!="True"', {
