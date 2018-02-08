@@ -1,0 +1,76 @@
+From 8b52bbc37e0923d3704d73a32429aaf93c7aee22 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marco=20Trevisan=20=28Trevi=C3=B1o=29?= <mail@3v1n0.net>
+Date: Thu, 8 Feb 2018 20:43:29 +0100
+Subject: [PATCH] linux-desktop-environment: detect Ubuntu properly enabling
+ features
+
+In Ubuntu (running in GNOME) we support AppIndicator and
+Unity counters still.
+---
+ Telegram/SourceFiles/platform/linux/linux_desktop_environment.cpp | 8 ++++++--
+ Telegram/SourceFiles/platform/linux/linux_desktop_environment.h   | 5 +++++
+ 2 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/Telegram/SourceFiles/platform/linux/linux_desktop_environment.cpp b/Telegram/SourceFiles/platform/linux/linux_desktop_environment.cpp
+index d273a57..483eaf1 100644
+--- a/Telegram/SourceFiles/platform/linux/linux_desktop_environment.cpp
++++ b/Telegram/SourceFiles/platform/linux/linux_desktop_environment.cpp
+@@ -38,6 +38,9 @@ Type Compute() {
+ 		} else if (list.contains("pantheon")) {
+ 			return Type::Pantheon;
+ 		} else if (list.contains("gnome")) {
++			if (list.contains("ubuntu"))
++				return Type::Ubuntu;
++
+ 			return Type::Gnome;
+ 		} else if (list.contains("kde")) {
+ 			if (kdeSession == qstr("5")) {
+@@ -88,6 +91,7 @@ Type ComputeAndLog() {
+ 		case Type::KDE3: return "KDE3";
+ 		case Type::KDE4: return "KDE4";
+ 		case Type::KDE5: return "KDE5";
++		case Type::Ubuntu: return "Ubuntu";
+ 		case Type::Unity: return "Unity";
+ 		case Type::XFCE: return "XFCE";
+ 		case Type::Pantheon: return "Pantheon";
+@@ -112,12 +116,12 @@ bool TryQtTrayIcon() {
+ }
+ 
+ bool PreferAppIndicatorTrayIcon() {
+-	return IsXFCE() || IsUnity() ||
++	return IsXFCE() || IsUnity() || IsUbuntu() ||
+ 	       (IsGnome() && QDBusInterface("org.kde.StatusNotifierWatcher", "/").isValid());
+ }
+ 
+ bool TryUnityCounter() {
+-	return IsUnity() || IsPantheon();
++	return IsUnity() || IsPantheon() || IsUbuntu();
+ }
+ 
+ } // namespace DesktopEnvironment
+diff --git a/Telegram/SourceFiles/platform/linux/linux_desktop_environment.h b/Telegram/SourceFiles/platform/linux/linux_desktop_environment.h
+index 423b1c7..4213b08 100644
+--- a/Telegram/SourceFiles/platform/linux/linux_desktop_environment.h
++++ b/Telegram/SourceFiles/platform/linux/linux_desktop_environment.h
+@@ -16,6 +16,7 @@ enum class Type {
+ 	KDE3,
+ 	KDE4,
+ 	KDE5,
++	Ubuntu,
+ 	Unity,
+ 	XFCE,
+ 	Pantheon,
+@@ -44,6 +45,10 @@ inline bool IsKDE() {
+ 	return IsKDE3() || IsKDE4() || IsKDE5();
+ }
+ 
++inline bool IsUbuntu() {
++	return Get() == Type::Ubuntu;
++}
++
+ inline bool IsUnity() {
+ 	return Get() == Type::Unity;
+ }
+-- 
+2.7.4
+
