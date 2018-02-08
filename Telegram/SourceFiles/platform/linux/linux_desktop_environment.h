@@ -16,6 +16,7 @@ enum class Type {
 	KDE3,
 	KDE4,
 	KDE5,
+	Ubuntu,
 	Unity,
 	XFCE,
 	Pantheon,
@@ -42,6 +43,10 @@ inline bool IsKDE5() {
 
 inline bool IsKDE() {
 	return IsKDE3() || IsKDE4() || IsKDE5();
+}
+
+inline bool IsUbuntu() {
+	return Get() == Type::Ubuntu;
 }
 
 inline bool IsUnity() {

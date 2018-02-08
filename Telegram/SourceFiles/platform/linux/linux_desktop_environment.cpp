@@ -38,6 +38,9 @@ Type Compute() {
 		} else if (list.contains("pantheon")) {
 			return Type::Pantheon;
 		} else if (list.contains("gnome")) {
+			if (list.contains("ubuntu"))
+				return Type::Ubuntu;
+
 			return Type::Gnome;
 		} else if (list.contains("kde")) {
 			if (kdeSession == qstr("5")) {
@@ -88,6 +91,7 @@ Type ComputeAndLog() {
 		case Type::KDE3: return "KDE3";
 		case Type::KDE4: return "KDE4";
 		case Type::KDE5: return "KDE5";
+		case Type::Ubuntu: return "Ubuntu";
 		case Type::Unity: return "Unity";
 		case Type::XFCE: return "XFCE";
 		case Type::Pantheon: return "Pantheon";
@@ -112,12 +116,12 @@ bool TryQtTrayIcon() {
 }
 
 bool PreferAppIndicatorTrayIcon() {
-	return IsXFCE() || IsUnity() ||
+	return IsXFCE() || IsUnity() || IsUbuntu() ||
 	       (IsGnome() && QDBusInterface("org.kde.StatusNotifierWatcher", "/").isValid());
 }
 
 bool TryUnityCounter() {
-	return IsUnity() || IsPantheon();
+	return IsUnity() || IsPantheon() || IsUbuntu();
 }
 
 } // namespace DesktopEnvironment
