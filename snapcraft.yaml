@@ -32,6 +32,7 @@ apps:
     command: desktop-launch Telegram
     environment:
       LD_LIBRARY_PATH: $LD_LIBRARY_PATH:$SNAP/lib/libunity
+      WAYLAND_DISPLAY: no-display
     plugs:
       - home
       - network
