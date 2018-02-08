@@ -8,7 +8,7 @@ index e708ab5..224f831 100644
  #define ARCH_CPU_32_BITS 1
 +#elif defined(__aarch64__)
 +#define ARCH_CPU_64_BITS 1
-+#elif defined(__arm__)
++#elif defined(_M_ARM) || defined(__arm__)
 +#define ARCH_CPU_32_BITS 1
  #else
  #error Please add support for your architecture in base/build_config.h
@@ -108,6 +108,51 @@ index 962ee60..2c1a264 100644
  } // namespace Storage
  
  namespace Ui {
+diff --git a/Telegram/SourceFiles/platform/linux/linux_glibc_wraps_32.c b/Telegram/SourceFiles/platform/linux/linux_glibc_wraps_32.c
+index e0982c3..c659b6e 100644
+--- a/Telegram/SourceFiles/platform/linux/linux_glibc_wraps_32.c
++++ b/Telegram/SourceFiles/platform/linux/linux_glibc_wraps_32.c
+@@ -8,8 +8,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+ #include <time.h>
+ #include <stdint.h>
+ 
++#if defined(_M_IX86) || defined(__i386__)
++#define GETTIME_GLIBC_VERSION "2.2"
++#elif defined(_M_ARM) || defined(__arm__)
++#define GETTIME_GLIBC_VERSION "2.4"
++#else
++#error Please add glibc wraps for your architecture
++#endif
++
+ int __clock_gettime_glibc_old(clockid_t clk_id, struct timespec *tp);
+-__asm__(".symver __clock_gettime_glibc_old,clock_gettime@GLIBC_2.2");
++__asm__(".symver __clock_gettime_glibc_old,clock_gettime@GLIBC_" GETTIME_GLIBC_VERSION);
+ 
+ int __wrap_clock_gettime(clockid_t clk_id, struct timespec *tp) {
+         return __clock_gettime_glibc_old(clk_id, tp);
+diff --git a/Telegram/SourceFiles/platform/linux/linux_glibc_wraps_64.c b/Telegram/SourceFiles/platform/linux/linux_glibc_wraps_64.c
+index 1292278..436ee34 100644
+--- a/Telegram/SourceFiles/platform/linux/linux_glibc_wraps_64.c
++++ b/Telegram/SourceFiles/platform/linux/linux_glibc_wraps_64.c
+@@ -7,8 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+ */
+ #include <time.h>
+ 
++#if defined(_M_X64) || defined(__x86_64__)
++#define GETTIME_GLIBC_VERSION "2.2.5"
++#elif defined(__aarch64__)
++#define GETTIME_GLIBC_VERSION "2.17"
++#else
++#error Please add glibc wraps for your architecture
++#endif
++
+ int __clock_gettime_glibc_old(clockid_t clk_id, struct timespec *tp);
+-__asm__(".symver __clock_gettime_glibc_old,clock_gettime@GLIBC_2.2.5");
++__asm__(".symver __clock_gettime_glibc_old,clock_gettime@GLIBC_" GETTIME_GLIBC_VERSION);
++
+ 
+ int __wrap_clock_gettime(clockid_t clk_id, struct timespec *tp) {
+         return __clock_gettime_glibc_old(clk_id, tp);
 diff --git a/Telegram/SourceFiles/storage/storage_shared_media.h b/Telegram/SourceFiles/storage/storage_shared_media.h
 index 19d2c59..d1d8d11 100644
 --- a/Telegram/SourceFiles/storage/storage_shared_media.h
@@ -121,6 +166,32 @@ index 19d2c59..d1d8d11 100644
  	Photo,
  	Video,
  	PhotoVideo,
+diff --git a/Telegram/gyp/linux_glibc_wraps.gyp b/Telegram/gyp/linux_glibc_wraps.gyp
+index cdb25b8..824708c 100644
+--- a/Telegram/gyp/linux_glibc_wraps.gyp
++++ b/Telegram/gyp/linux_glibc_wraps.gyp
+@@ -14,7 +14,7 @@
+     'sources': [
+       '../SourceFiles/platform/linux/linux_glibc_wraps.c',
+     ],
+-    'conditions': [[ '"<!(uname -p)" == "x86_64"', {
++    'conditions': [[ '"<!(uname -p)" == "x86_64" or "<!(uname -p)" == "aarch64"', {
+       'sources': [
+         '../SourceFiles/platform/linux/linux_glibc_wraps_64.c',
+       ],
+diff --git a/Telegram/gyp/settings_linux.gypi b/Telegram/gyp/settings_linux.gypi
+index a4b5f58..842b195 100644
+--- a/Telegram/gyp/settings_linux.gypi
++++ b/Telegram/gyp/settings_linux.gypi
+@@ -25,7 +25,7 @@
+         ],
+       },
+       'conditions': [
+-        [ '"<!(uname -p)" == "x86_64"', {
++        [ '"<!(uname -p)" == "x86_64" or "<!(uname -p)" == "aarch64"', {
+           'defines': [
+             'Q_OS_LINUX64',
+           ],
 diff --git a/Telegram/gyp/telegram_linux.gypi b/Telegram/gyp/telegram_linux.gypi
 index a5b4b19..bb754db 100644
 --- a/Telegram/gyp/telegram_linux.gypi
