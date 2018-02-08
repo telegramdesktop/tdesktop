@@ -347,6 +347,9 @@ public:
 
 	not_null<Feed*> feed(FeedId id);
 	Feed *feedLoaded(FeedId id);
+	void setDefaultFeedId(FeedId id);
+	FeedId defaultFeedId() const;
+	rpl::producer<FeedId> defaultFeedIdValue() const;
 
 	void forgetMedia();
 
@@ -361,6 +364,8 @@ public:
 	}
 
 private:
+	void setupContactViewsViewer();
+	void setupChannelLeavingViewer();
 	void photoApplyFields(
 		not_null<PhotoData*> photo,
 		const MTPPhoto &data);
@@ -517,6 +522,7 @@ private:
 
 	std::deque<Dialogs::Key> _pinnedDialogs;
 	base::flat_map<FeedId, std::unique_ptr<Feed>> _feeds;
+	rpl::variable<FeedId> _defaultFeedId = FeedId();
 	Groups _groups;
 	std::map<
 		not_null<const HistoryItem*>,

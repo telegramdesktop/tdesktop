@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/search_field_controller.h"
 #include "boxes/peer_list_controllers.h"
+#include "data/data_feed.h"
 #include "lang/lang_keys.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
@@ -57,16 +58,8 @@ Channels::Channels(
 
 int Channels::desiredHeight() const {
 	auto desired = _header ? _header->height() : 0;
-	//auto count = [this] {
-	//	if (auto chat = _peer->asChat()) {
-	//		return chat->count;
-	//	} else if (auto channel = _peer->asChannel()) {
-	//		return channel->membersCount();
-	//	}
-	//	return 0;
-	//}();
-	//desired += qMax(count, _list->fullRowsCount())
-	//	* st::infoMembersList.item.height;
+	desired += st::infoMembersList.item.height
+		* std::max(int(_feed->channels().size()), _list->fullRowsCount());
 	return qMax(height(), desired);
 }
 
@@ -171,7 +164,7 @@ void Channels::setupList() {
 	_list = object_ptr<ListWidget>(
 		this,
 		_listController.get(),
-		st::infoMembersList);
+		st::infoCommonGroupsList);
 	_list->scrollToRequests(
 	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
 		auto addmin = (request.ymin < 0 || !_header)

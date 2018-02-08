@@ -691,3 +691,5 @@ topBarFeedInfoButton: FeedUserpicButton(defaultFeedUserpicButton) {
 		photoSize: 20px;
 	}
 }
+
+infoFeedLeaveIconMargins: margins(10px, 12px, 20px, 10px);

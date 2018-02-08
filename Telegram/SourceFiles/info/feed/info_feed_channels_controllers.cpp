@@ -11,11 +11,72 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "info/info_controller.h"
 #include "lang/lang_keys.h"
-#include "auth_session.h"
 #include "history/history.h"
+#include "window/window_peer_menu.h"
+#include "auth_session.h"
+#include "styles/style_widgets.h"
+#include "styles/style_info.h"
+#include "styles/style_boxes.h"
 
 namespace Info {
 namespace FeedProfile {
+
+class ChannelsController::Row final : public PeerListRow {
+public:
+	Row(not_null<ChannelData*> channel);
+
+	QSize actionSize() const override;
+	QMargins actionMargins() const override;
+	void paintAction(
+		Painter &p,
+		TimeMs ms,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) override;
+
+	not_null<ChannelData*> channel() const {
+		return peer()->asChannel();
+	}
+
+};
+
+ChannelsController::Row::Row(not_null<ChannelData*> channel)
+: PeerListRow(channel) {
+}
+
+QSize ChannelsController::Row::actionSize() const {
+	return QRect(
+			QPoint(),
+			st::smallCloseIcon.size()).marginsAdded(
+				st::infoFeedLeaveIconMargins).size();
+}
+
+QMargins ChannelsController::Row::actionMargins() const {
+	return QMargins(
+		0,
+		(st::infoCommonGroupsList.item.height - actionSize().height()) / 2,
+		0,
+		0);
+}
+
+void ChannelsController::Row::paintAction(
+		Painter &p,
+		TimeMs ms,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) {
+	if (selected) {
+		x += st::infoFeedLeaveIconMargins.left();
+		y += st::infoFeedLeaveIconMargins.top();
+		(actionSelected
+			? st::smallCloseIconOver
+			: st::smallCloseIcon).paint(p, x, y, outerWidth);
+	}
+}
 
 ChannelsController::ChannelsController(not_null<Controller*> controller)
 : PeerListController()
@@ -24,16 +85,16 @@ ChannelsController::ChannelsController(not_null<Controller*> controller)
 	_controller->setSearchEnabledByContent(false);
 }
 
-std::unique_ptr<PeerListRow> ChannelsController::createRow(
-		not_null<PeerData*> peer) {
-	auto result = std::make_unique<PeerListRow>(peer);
+auto ChannelsController::createRow(not_null<ChannelData*> channel)
+-> std::unique_ptr<Row> {
+	auto result = std::make_unique<Row>(channel);
 	result->setCustomStatus(QString());
 	return result;
 }
 
 std::unique_ptr<PeerListRow> ChannelsController::createRestoredRow(
 		not_null<PeerData*> peer) {
-	return createRow(peer);
+	return createRow(peer->asChannel());
 }
 
 void ChannelsController::prepare() {
@@ -43,10 +104,7 @@ void ChannelsController::prepare() {
 
 	rebuildRows();
 	using Flag = Data::FeedUpdateFlag;
-	rpl::single(
-		Data::FeedUpdate{ _feed, Flag::Channels }
-	) | rpl::then(
-		Auth().data().feedUpdated()
+	Auth().data().feedUpdated(
 	) | rpl::filter([=](const Data::FeedUpdate &update) {
 		return (update.feed == _feed) && (update.flag == Flag::Channels);
 	}) | rpl::filter([=] {
@@ -75,10 +133,11 @@ void ChannelsController::rebuildRows() {
 		}
 	}
 	for (const auto history : channels) {
-		if (auto row = createRow(history->peer)) {
+		if (auto row = createRow(history->peer->asChannel())) {
 			delegate()->peerListAppendRow(std::move(row));
 		}
 	}
+	delegate()->peerListRefreshRows();
 }
 
 std::unique_ptr<PeerListState> ChannelsController::saveState() const {
@@ -104,6 +163,10 @@ void ChannelsController::rowClicked(not_null<PeerListRow*> row) {
 	_controller->parentController()->showPeerHistory(
 		row->peer(),
 		Window::SectionShow::Way::Forward);
+}
+
+void ChannelsController::rowActionClicked(not_null<PeerListRow*> row) {
+	Window::DeleteAndLeaveHandler(row->peer())();
 }
 
 } // namespace FeedProfile

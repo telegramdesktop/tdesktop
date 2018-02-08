@@ -60,6 +60,11 @@ void UpdateImage(ImagePtr &old, ImagePtr now) {
 Session::Session(not_null<AuthSession*> session)
 : _session(session)
 , _groups(this) {
+	setupContactViewsViewer();
+	setupChannelLeavingViewer();
+}
+
+void Session::setupContactViewsViewer() {
 	Notify::PeerUpdateViewer(
 		Notify::PeerUpdate::Flag::UserIsContact
 	) | rpl::map([](const Notify::PeerUpdate &update) {
@@ -68,6 +73,20 @@ Session::Session(not_null<AuthSession*> session)
 		return user != nullptr;
 	}) | rpl::start_with_next([=](not_null<UserData*> user) {
 		userIsContactUpdated(user);
+	}, _lifetime);
+}
+
+void Session::setupChannelLeavingViewer() {
+	Notify::PeerUpdateViewer(
+		Notify::PeerUpdate::Flag::ChannelAmIn
+	) | rpl::map([](const Notify::PeerUpdate &update) {
+		return update.peer->asChannel();
+	}) | rpl::filter([](ChannelData *channel) {
+		return (channel != nullptr)
+			&& !(channel->amIn())
+			&& (channel->feed() != nullptr);
+	}) | rpl::start_with_next([=](not_null<ChannelData*> channel) {
+		channel->clearFeed();
 	}, _lifetime);
 }
 
@@ -1445,6 +1464,18 @@ not_null<Feed*> Session::feed(FeedId id) {
 Feed *Session::feedLoaded(FeedId id) {
 	const auto it = _feeds.find(id);
 	return (it == end(_feeds)) ? nullptr : it->second.get();
+}
+
+void Session::setDefaultFeedId(FeedId id) {
+	_defaultFeedId = id;
+}
+
+FeedId Session::defaultFeedId() const {
+	return _defaultFeedId.current();
+}
+
+rpl::producer<FeedId> Session::defaultFeedIdValue() const {
+	return _defaultFeedId.value();
 }
 
 void Session::forgetMedia() {

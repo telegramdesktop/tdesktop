@@ -575,10 +575,14 @@ namespace {
 
 			cdata->setPhoto(d.vphoto);
 
-			if (wasInChannel != cdata->amIn()) update.flags |= UpdateFlag::ChannelAmIn;
+			if (wasInChannel != cdata->amIn()) {
+				update.flags |= UpdateFlag::ChannelAmIn;
+			}
 			if (canViewAdmins != cdata->canViewAdmins()
 				|| canViewMembers != cdata->canViewMembers()
-				|| canAddMembers != cdata->canAddMembers()) update.flags |= UpdateFlag::ChannelRightsChanged;
+				|| canAddMembers != cdata->canAddMembers()) {
+				update.flags |= UpdateFlag::ChannelRightsChanged;
+			}
 		} break;
 		case mtpc_channelForbidden: {
 			auto &d(chat.c_channelForbidden());
@@ -612,10 +616,14 @@ namespace {
 			cdata->date = 0;
 			cdata->setMembersCount(0);
 
-			if (wasInChannel != cdata->amIn()) update.flags |= UpdateFlag::ChannelAmIn;
+			if (wasInChannel != cdata->amIn()) {
+				update.flags |= UpdateFlag::ChannelAmIn;
+			}
 			if (canViewAdmins != cdata->canViewAdmins()
 				|| canViewMembers != cdata->canViewMembers()
-				|| canAddMembers != cdata->canAddMembers()) update.flags |= UpdateFlag::ChannelRightsChanged;
+				|| canAddMembers != cdata->canAddMembers()) {
+				update.flags |= UpdateFlag::ChannelRightsChanged;
+			}
 		} break;
 		}
 		if (!data) {

@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/flatten_latest.h>
 #include <rpl/combine.h>
 #include "data/data_peer_values.h"
+#include "data/data_session.h"
+#include "data/data_feed.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
@@ -580,19 +582,11 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 
 void ActionsFiller::addLeaveChannelAction(
 		not_null<ChannelData*> channel) {
-	auto callback = [=] {
-		auto text = lang(channel->isMegagroup()
-			? lng_sure_leave_group
-			: lng_sure_leave_channel);
-		Ui::show(Box<ConfirmBox>(text, lang(lng_box_leave), [=] {
-			Auth().api().leaveChannel(channel);
-		}), LayerOption::KeepOther);
-	};
 	AddActionButton(
 		_wrap,
 		Lang::Viewer(lng_profile_leave_channel),
 		AmInChannelValue(channel),
-		std::move(callback));
+		Window::DeleteAndLeaveHandler(channel));
 }
 
 void ActionsFiller::addJoinChannelAction(
@@ -700,15 +694,20 @@ object_ptr<Ui::RpWidget> FeedDetailsFiller::fill() {
 }
 
 object_ptr<Ui::RpWidget> FeedDetailsFiller::setupDefaultToggle() {
-	const auto feed = _feed;
+	using namespace rpl::mappers;
+	const auto feedId = _feed->id();
 	auto result = object_ptr<Button>(
 		_wrap,
 		Lang::Viewer(lng_info_feed_is_default),
 		st::infoNotificationsButton);
 	result->toggleOn(
-		rpl::single(false)// #TODO default
+		Auth().data().defaultFeedIdValue(
+		) | rpl::map(_1 == feedId)
 	)->addClickHandler([=] {
-
+		const auto makeDefault = (Auth().data().defaultFeedId() != feedId);
+		const auto defaultFeedId = makeDefault ? feedId : 0;
+		Auth().data().setDefaultFeedId(defaultFeedId);
+		Auth().api().saveDefaultFeedId(feedId, makeDefault);
 	});
 	object_ptr<FloatingIcon>(
 		result,

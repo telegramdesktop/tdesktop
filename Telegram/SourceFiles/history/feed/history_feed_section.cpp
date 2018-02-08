@@ -110,6 +110,7 @@ Widget::Widget(
 	_showNext->setClickedCallback([this] {
 		// #TODO feeds show next
 	});
+	_showNext->hide();
 
 	_feed->unreadPositionChanges(
 	) | rpl::filter([=](const Data::MessagePosition &position) {
@@ -463,8 +464,8 @@ void Widget::updateControlsGeometry() {
 
 	const auto bottom = height();
 	const auto scrollHeight = bottom
-		- _topBar->height()
-		- _showNext->height();
+		- _topBar->height();
+//		- _showNext->height();
 	const auto scrollSize = QSize(contentWidth, scrollHeight);
 	if (_scroll->size() != scrollSize) {
 		_skipScrollEvent = true;
@@ -480,12 +481,12 @@ void Widget::updateControlsGeometry() {
 	}
 
 	updateScrollDownPosition();
-	const auto fullWidthButtonRect = myrtlrect(
-		0,
-		bottom - _showNext->height(),
-		contentWidth,
-		_showNext->height());
-	_showNext->setGeometry(fullWidthButtonRect);
+	//const auto fullWidthButtonRect = myrtlrect(
+	//	0,
+	//	bottom - _showNext->height(),
+	//	contentWidth,
+	//	_showNext->height());
+	//_showNext->setGeometry(fullWidthButtonRect);
 
 	if (_emptyTextView) {
 		_emptyTextView->resizeGetHeight(width());
@@ -515,7 +516,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 		const auto clip = e->rect();
 		const auto left = 0;
 		const auto top = (height()
-			- _showNext->height()
+//			- _showNext->height()
 			- _emptyTextView->height()) / 2;
 		p.translate(left, top);
 		_emptyTextView->draw(

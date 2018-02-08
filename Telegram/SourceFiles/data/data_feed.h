@@ -87,10 +87,14 @@ private:
 	void setLastMessageFromChannels();
 	bool justUpdateLastMessage(not_null<HistoryItem*> item);
 	void updateChatsListDate();
+	void changeChannelsList(
+		const std::vector<not_null<ChannelData*>> &add,
+		const std::vector<not_null<ChannelData*>> &remove);
 
 	FeedId _id = 0;
 	not_null<Data::Session*> _parent;
 	std::vector<not_null<History*>> _channels;
+	bool _settingChannels = false;
 	bool _channelsLoaded = false;
 
 	QString _name;

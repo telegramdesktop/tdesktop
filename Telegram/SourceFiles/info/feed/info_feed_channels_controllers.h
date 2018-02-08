@@ -27,6 +27,7 @@ public:
 
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
+	void rowActionClicked(not_null<PeerListRow*> row) override;
 
 	std::unique_ptr<PeerListRow> createRestoredRow(
 		not_null<PeerData*> peer) override;
@@ -35,12 +36,13 @@ public:
 	void restoreState(std::unique_ptr<PeerListState> state) override;
 
 private:
+	class Row;
 	struct SavedState : SavedStateBase {
 		rpl::lifetime lifetime;
 	};
 
 	void rebuildRows();
-	std::unique_ptr<PeerListRow> createRow(not_null<PeerData*> peer);
+	std::unique_ptr<Row> createRow(not_null<ChannelData*> channel);
 
 	const not_null<Controller*> _controller;
 	not_null<Data::Feed*> _feed;

@@ -187,7 +187,8 @@ void ApiWrap::toggleChannelGrouping(
 		MTP_flags(flags),
 		channel->inputChannel,
 		MTP_int(feedId)
-	)).done([=](const MTPBool &result) {
+	)).done([=](const MTPUpdates &result) {
+		applyUpdates(result);
 		if (group) {
 			channel->setFeed(Auth().data().feed(feedId));
 		} else {
@@ -2993,6 +2994,11 @@ void ApiWrap::requestFeedChannels(not_null<Data::Feed*> feed) {
 			App::feedUsers(data.vusers);
 			App::feedChats(data.vchats);
 
+			if (data.has_newly_joined_feed()) {
+				_session->data().setDefaultFeedId(
+					data.vnewly_joined_feed.v);
+			}
+
 			if (feed->channelsLoaded()) {
 				feedChannelsDone(feed);
 			} else {
@@ -3044,7 +3050,6 @@ void ApiWrap::requestFeedMessages(
 		}
 		Unexpected("Direction in PrepareSearchRequest");
 	}();
-	const auto sourcesHash = feed->channelsHash();
 	const auto hash = int32(0);
 	const auto flags = (messageId && messageId.fullId.channel)
 		? MTPchannels_GetFeed::Flag::f_offset_position
@@ -3060,7 +3065,6 @@ void ApiWrap::requestFeedMessages(
 		MTP_int(limit),
 		MTPFeedPosition(),
 		MTPFeedPosition(),
-		MTP_int(sourcesHash),
 		MTP_int(hash)
 	)).done([=](const MTPmessages_FeedMessages &result) {
 		const auto key = std::make_tuple(feed, messageId, slice);
@@ -3170,6 +3174,18 @@ void ApiWrap::feedMessagesDone(
 	if (unreadPosition) {
 		feed->setUnreadPosition(unreadPosition);
 	}
+}
+
+void ApiWrap::saveDefaultFeedId(FeedId id, bool isDefaultFeedId) {
+	if (const auto already = base::take(_saveDefaultFeedIdRequest)) {
+		request(already).cancel();
+	}
+	_saveDefaultFeedIdRequest = request(MTPchannels_SetFeedBroadcasts(
+		MTP_flags(MTPchannels_SetFeedBroadcasts::Flag::f_also_newly_joined),
+		MTP_int(id),
+		MTPVector<MTPInputChannel>(),
+		MTP_bool(isDefaultFeedId)
+	)).send();
 }
 
 void ApiWrap::sendAction(const SendOptions &options) {

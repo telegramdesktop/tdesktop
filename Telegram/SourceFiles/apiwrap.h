@@ -177,6 +177,7 @@ public:
 		not_null<Data::Feed*> feed,
 		Data::MessagePosition messageId,
 		SliceType slice);
+	void saveDefaultFeedId(FeedId id, bool isDefaultFeedId);
 
 	void stickerSetInstalled(uint64 setId) {
 		_stickerSetInstalled.fire_copy(setId);
@@ -507,6 +508,7 @@ private:
 		not_null<Data::Feed*>,
 		Data::MessagePosition,
 		SliceType>> _feedMessagesRequestsPending;
+	mtpRequestId _saveDefaultFeedIdRequest = 0;
 
 	rpl::event_stream<SendOptions> _sendActions;
 

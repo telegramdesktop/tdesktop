@@ -273,7 +273,7 @@ messageActionCustomAction#fae69f56 message:string = MessageAction;
 messageActionBotAllowed#abe9affe domain:string = MessageAction;
 
 dialog#e4def5db flags:# pinned:flags.2?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage = Dialog;
-dialogFeed#907750e4 flags:# pinned:flags.2?true peer:Peer top_message:int feed_id:int feed_other_channels:Vector<int> read_max_position:flags.3?FeedPosition unread_count:int unread_muted_count:int sources_hash:int = Dialog;
+dialogFeed#36086d42 flags:# pinned:flags.2?true peer:Peer top_message:int feed_id:int feed_other_channels:Vector<int> read_max_position:flags.3?FeedPosition unread_count:int unread_muted_count:int = Dialog;
 
 photoEmpty#2331b22d id:long = Photo;
 photo#9288dd29 flags:# has_stickers:flags.0?true id:long access_hash:long date:int sizes:Vector<PhotoSize> = Photo;
@@ -1199,11 +1199,11 @@ channels.setStickers#ea8ca4f9 channel:InputChannel stickerset:InputStickerSet = 
 channels.readMessageContents#eab5dc38 channel:InputChannel id:Vector<int> = Bool;
 channels.deleteHistory#af369d42 channel:InputChannel max_id:int = Bool;
 channels.togglePreHistoryHidden#eabbb94c channel:InputChannel enabled:Bool = Updates;
-channels.getFeed#18117df2 flags:# offset_to_max_read:flags.3?true feed_id:int offset_position:flags.0?FeedPosition add_offset:int limit:int max_position:flags.1?FeedPosition min_position:flags.2?FeedPosition sources_hash:int hash:int = messages.FeedMessages;
+channels.getFeed#b90f450 flags:# offset_to_max_read:flags.3?true feed_id:int offset_position:flags.0?FeedPosition add_offset:int limit:int max_position:flags.1?FeedPosition min_position:flags.2?FeedPosition hash:int = messages.FeedMessages;
 channels.searchFeed#88325369 feed_id:int q:string offset_date:int offset_peer:InputPeer offset_id:int limit:int = messages.Messages;
 channels.getFeedSources#d8ce236e flags:# feed_id:flags.0?int hash:int = channels.FeedSources;
-channels.changeFeedBroadcast#2528871e flags:# channel:InputChannel feed_id:flags.0?int = Bool;
-channels.setFeedBroadcasts#7e91b8f2 feed_id:int channels:Vector<InputChannel> also_newly_joined:Bool = Bool;
+channels.changeFeedBroadcast#ffb37511 flags:# channel:InputChannel feed_id:flags.0?int = Updates;
+channels.setFeedBroadcasts#ea80bfae flags:# feed_id:int channels:flags.0?Vector<InputChannel> also_newly_joined:flags.1?Bool = Updates;
 channels.readFeed#9c3011d feed_id:int max_position:FeedPosition = Updates;
 
 bots.sendCustomRequest#aa2769ed custom_method:string params:DataJSON = DataJSON;

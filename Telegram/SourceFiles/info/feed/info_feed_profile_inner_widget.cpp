@@ -40,26 +40,26 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	_cover = result->add(object_ptr<Cover>(
 		result,
 		_controller));
-	//auto details = Profile::SetupFeedDetails(_controller, parent, _feed);
-	//result->add(std::move(details));
-	//result->add(object_ptr<BoxContentDivider>(result));
+	auto details = Profile::SetupFeedDetails(_controller, parent, _feed);
+	result->add(std::move(details));
+	result->add(object_ptr<BoxContentDivider>(result));
 
-	//_channels = result->add(object_ptr<Channels>(
-	//	result,
-	//	_controller)
-	//);
-	//_channels->scrollToRequests(
-	//) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
-	//	auto min = (request.ymin < 0)
-	//		? request.ymin
-	//		: mapFromGlobal(_channels->mapToGlobal({ 0, request.ymin })).y();
-	//	auto max = (request.ymin < 0)
-	//		? mapFromGlobal(_channels->mapToGlobal({ 0, 0 })).y()
-	//		: (request.ymax < 0)
-	//		? request.ymax
-	//		: mapFromGlobal(_channels->mapToGlobal({ 0, request.ymax })).y();
-	//	_scrollToRequests.fire({ min, max });
-	//}, _channels->lifetime());
+	_channels = result->add(object_ptr<Channels>(
+		result,
+		_controller)
+	);
+	_channels->scrollToRequests(
+	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
+		auto min = (request.ymin < 0)
+			? request.ymin
+			: mapFromGlobal(_channels->mapToGlobal({ 0, request.ymin })).y();
+		auto max = (request.ymin < 0)
+			? mapFromGlobal(_channels->mapToGlobal({ 0, 0 })).y()
+			: (request.ymax < 0)
+			? request.ymax
+			: mapFromGlobal(_channels->mapToGlobal({ 0, request.ymax })).y();
+		_scrollToRequests.fire({ min, max });
+	}, _channels->lifetime());
 
 	return std::move(result);
 }

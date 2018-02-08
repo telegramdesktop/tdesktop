@@ -84,6 +84,19 @@ void Feed::registerOne(not_null<ChannelData*> channel) {
 		} else if (lastMessageKnown()) {
 			_parent->session().api().requestDialogEntry(history);
 		}
+		if (unreadCountKnown()) {
+			if (history->unreadCountKnown()) {
+				// If history unreadCount is known that means that we've
+				// already had the channel information and if it was in the
+				// feed already (not yet known) it wouldn't get here.
+				// That means here we get if we add a new channel to feed.
+				if (const auto count = history->unreadCount()) {
+					unreadCountChanged(count, history->mute() ? count : 0);
+				}
+			} else if (!_settingChannels) {
+				_parent->session().api().requestDialogEntry(this);
+			}
+		}
 		if (invisible && _channels.size() > 1) {
 			updateChatListExistence();
 			for (const auto history : _channels) {
@@ -105,9 +118,20 @@ void Feed::unregisterOne(not_null<ChannelData*> channel) {
 		_parent->session().storage().remove(
 			Storage::FeedMessagesRemoveAll(_id, channel->bareId()));
 
-		if (const auto last = lastMessage()) {
-			if (last->history() == history) {
-				recountLastMessage();
+		if (lastMessageKnown()) {
+			if (const auto last = lastMessage()) {
+				if (last->history() == history) {
+					recountLastMessage();
+				}
+			}
+		}
+		if (unreadCountKnown()) {
+			if (history->unreadCountKnown()) {
+				if (const auto delta = -history->unreadCount()) {
+					unreadCountChanged(delta, history->mute() ? delta : 0);
+				}
+			} else {
+				_parent->session().api().requestDialogEntry(this);
 			}
 		}
 		if (visible && _channels.size() < 2) {
@@ -188,7 +212,7 @@ void Feed::setChannels(std::vector<not_null<ChannelData*>> channels) {
 	const auto remove = ranges::view::all(
 		_channels
 	) | ranges::view::transform([](not_null<History*> history) {
-		return history->peer->asChannel();
+		return not_null<ChannelData*>(history->peer->asChannel());
 	}) | ranges::view::filter([&](not_null<ChannelData*> channel) {
 		return !base::contains(channels, channel);
 	}) | ranges::to_vector;
@@ -201,7 +225,20 @@ void Feed::setChannels(std::vector<not_null<ChannelData*>> channels) {
 			channel.get(),
 			[](auto history) { return history->peer->asChannel(); }
 		) == end(_channels);
+	}) | ranges::view::transform([](ChannelData *channel) {
+		return not_null<ChannelData*>(channel);
 	}) | ranges::to_vector;
+
+	changeChannelsList(add, remove);
+
+	setChannelsLoaded(true);
+}
+
+void Feed::changeChannelsList(
+		const std::vector<not_null<ChannelData*>> &add,
+		const std::vector<not_null<ChannelData*>> &remove) {
+	_settingChannels = true;
+	const auto restore = gsl::finally([&] { _settingChannels = false; });
 
 	for (const auto channel : remove) {
 		channel->clearFeed();
@@ -216,14 +253,6 @@ void Feed::setChannels(std::vector<not_null<ChannelData*>> channels) {
 		channel->setFeed(this);
 	}
 	_lastMessage = oldLastMessage;
-
-	_channels.clear();
-	for (const auto channel : channels) {
-		Assert(channel->feed() == this);
-
-		_channels.push_back(App::history(channel));
-	}
-	setChannelsLoaded(true);
 }
 
 bool Feed::justUpdateLastMessage(not_null<HistoryItem*> item) {
@@ -327,10 +356,6 @@ void Feed::applyDialog(const MTPDdialogFeed &data) {
 		data.vunread_muted_count.v);
 	if (data.has_read_max_position()) {
 		setUnreadPosition(FeedPositionFromMTP(data.vread_max_position));
-	}
-
-	if (channelsHash() != data.vsources_hash.v) {
-		setChannelsLoaded(false);
 	}
 }
 
