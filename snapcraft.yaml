@@ -17,7 +17,7 @@ version-script: |
   alpha=$(sed -n "s/AlphaChannel[ ]\+\(.*\)\+/\1/p" $version_file)
   head_sha=$(git rev-parse HEAD)
 
-  if [ "$alpha" = "1" ]; then
+  if [ "$alpha" != "0" ]; then
     version="$version-alpha"
   fi
 
