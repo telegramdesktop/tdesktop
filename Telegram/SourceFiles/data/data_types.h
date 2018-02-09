@@ -268,7 +268,7 @@ constexpr auto CancelledWebPageId = WebPageId(0xFFFFFFFFFFFFFFFFULL);
 using PreparedPhotoThumbs = QMap<char, QPixmap>;
 
 // [0] == -1 -- counting, [0] == -2 -- could not count
-using VoiceWaveform = QVector<char>;
+using VoiceWaveform = QVector<signed char>;
 
 enum ActionOnLoad {
 	ActionOnLoadNone,

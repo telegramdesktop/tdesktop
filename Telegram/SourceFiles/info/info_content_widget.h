@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_wrap_widget.h"
 
 namespace Storage {
-enum class SharedMediaType : char;
+enum class SharedMediaType : signed char;
 } // namespace Storage
 
 namespace Ui {
