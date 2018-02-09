@@ -40,8 +40,7 @@ apps:
       - home
       - network
       - network-bind
-      - network-observe
-      - network-status
+      - network-manager
       - pulseaudio
       - unity7
 
