@@ -105,7 +105,7 @@
         ],
       }],
       [ '"<!(uname -p)" == "armv7l" or "<!(uname -p)" == "aarch64"', {
-          'cflags_cc': [ '-Wno-error=type-limits' ]
+          'cflags_cc': [ '-fsigned-char' ],
         }
       ],
       ['not_need_gtk!="True"', {
