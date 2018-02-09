@@ -25,7 +25,7 @@
         ],
       },
       'conditions': [
-        [ '"<!(uname -p)" == "x86_64"', {
+        [ '"<!(uname -p)" == "x86_64" or "<!(uname -p)" == "aarch64"', {
           'defines': [
             'Q_OS_LINUX64',
           ],
