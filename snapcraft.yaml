@@ -36,8 +36,8 @@ apps:
     plugs:
       - home
       - network
-      - network-manager
       - network-bind
+      - network-observe
       - network-status
       - pulseaudio
       - unity7
