@@ -103,7 +103,12 @@
         'ldflags': [
           '-Wl,-wrap,__divmoddi4',
         ],
-      }], ['not_need_gtk!="True"', {
+      }],
+      [ '"<!(uname -p)" == "armv7l" or "<!(uname -p)" == "aarch64"', {
+          'cflags_cc': [ '-Wno-error=type-limits' ]
+        }
+      ],
+      ['not_need_gtk!="True"', {
         'cflags_cc': [
           '<!(pkg-config 2> /dev/null --cflags appindicator-0.1)',
           '<!(pkg-config 2> /dev/null --cflags gtk+-2.0)',
