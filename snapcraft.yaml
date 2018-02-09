@@ -36,6 +36,8 @@ apps:
     environment:
       LD_LIBRARY_PATH: $LD_LIBRARY_PATH:$SNAP/lib/libunity
       WAYLAND_DISPLAY: no-display
+      QT_IM_MODULE: xim
+      QTCOMPOSE: $SNAP/usr/share/X11/locale
     plugs:
       - home
       - network
