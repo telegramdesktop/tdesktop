@@ -13,7 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/media_audio.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
+#include "history/feed/history_feed_section.h"
 #include "lang/lang_keys.h"
+#include "window/window_controller.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
@@ -397,18 +399,42 @@ void Manager::notificationActivated(PeerId peerId, MsgId msgId) {
 			window->setInnerFocus();
 			system()->clearAll();
 		} else {
-			auto tomsg = !history->peer->isUser() && (msgId > 0);
-			if (tomsg) {
-				auto item = App::histItemById(peerToChannel(peerId), msgId);
-				if (!item || !item->mentionsMe()) {
-					tomsg = false;
-				}
-			}
-			Ui::showPeerHistory(history, tomsg ? msgId : ShowAtUnreadMsgId);
-			system()->clearFromHistory(history);
+			openNotificationMessage(history, msgId);
 		}
 	}
 	onAfterNotificationActivated(peerId, msgId);
+}
+
+void Manager::openNotificationMessage(
+		not_null<History*> history,
+		MsgId messageId) {
+	const auto openExactlyMessage = [&] {
+		if (history->peer->isUser()
+			|| history->peer->isChannel()
+			|| !IsServerMsgId(messageId)) {
+			return false;
+		}
+		const auto item = App::histItemById(history->channelId(), messageId);
+		if (!item || !item->mentionsMe()) {
+			return false;
+		}
+		return true;
+	}();
+	const auto messageFeed = [&] {
+		if (const auto channel = history->peer->asChannel()) {
+			return channel->feed();
+		}
+		return (Data::Feed*)nullptr;
+	}();
+	if (openExactlyMessage) {
+		Ui::showPeerHistory(history, messageId);
+	} else if (messageFeed) {
+		App::wnd()->controller()->showSection(
+			HistoryFeed::Memento(messageFeed));
+	} else {
+		Ui::showPeerHistory(history, ShowAtUnreadMsgId);
+	}
+	system()->clearFromHistory(history);
 }
 
 void Manager::notificationReplied(

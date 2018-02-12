@@ -48,7 +48,7 @@ public:
 	void setUnreadCounts(int unreadNonMutedCount, int unreadMutedCount);
 	void setUnreadPosition(const MessagePosition &position);
 	void unreadCountChanged(
-		base::optional<int> unreadCountDelta,
+		int unreadCountDelta,
 		int mutedCountDelta);
 	rpl::producer<int> unreadCountValue() const;
 	MessagePosition unreadPosition() const;

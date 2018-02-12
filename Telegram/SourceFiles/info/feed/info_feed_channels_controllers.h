@@ -31,6 +31,8 @@ public:
 
 	std::unique_ptr<PeerListRow> createRestoredRow(
 		not_null<PeerData*> peer) override;
+	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
+		not_null<PeerListRow*> row) override;
 
 	std::unique_ptr<PeerListState> saveState() const override;
 	void restoreState(std::unique_ptr<PeerListState> state) override;
@@ -42,7 +44,7 @@ private:
 	};
 
 	void rebuildRows();
-	std::unique_ptr<Row> createRow(not_null<ChannelData*> channel);
+	std::unique_ptr<Row> createRow(not_null<History*> history);
 
 	const not_null<Controller*> _controller;
 	not_null<Data::Feed*> _feed;

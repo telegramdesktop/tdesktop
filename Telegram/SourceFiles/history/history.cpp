@@ -293,7 +293,7 @@ void History::itemVanished(not_null<HistoryItem*> item) {
 	if ((!item->out() || item->isPost())
 		&& item->unread()
 		&& unreadCount() > 0) {
-		setUnreadCount(unreadCount() - 1);
+		changeUnreadCount(-1);
 	}
 	if (const auto channel = peer->asChannel()) {
 		if (channel->pinnedMessageId() == item->id) {
@@ -1534,7 +1534,7 @@ void History::calculateFirstUnreadMessage() {
 
 MsgId History::readInbox() {
 	const auto upTo = msgIdForRead();
-	setUnreadCount(0);
+	changeUnreadCount(-unreadCount());
 	if (upTo) {
 		inboxRead(upTo);
 	}
@@ -1542,11 +1542,11 @@ MsgId History::readInbox() {
 }
 
 void History::inboxRead(MsgId upTo) {
-	if (unreadCount()) {
+	if (const auto nowUnreadCount = unreadCount()) {
 		if (loadedAtBottom()) {
 			App::main()->historyToDown(this);
 		}
-		setUnreadCount(countUnread(upTo));
+		changeUnreadCount(countUnread(upTo) - nowUnreadCount);
 	}
 	setInboxReadTill(upTo);
 	updateChatListEntry();
@@ -1638,15 +1638,6 @@ void History::setUnreadCount(int newUnreadCount) {
 			}
 		}
 
-		const auto feed = peer->isChannel()
-			? peer->asChannel()->feed()
-			: nullptr;
-		if (feed) {
-			const auto mutedCountDelta = (mute() && unreadCountDelta)
-				? *unreadCountDelta
-				: 0;
-			feed->unreadCountChanged(unreadCountDelta, mutedCountDelta);
-		}
 		if (inChatList(Dialogs::Mode::All)) {
 			App::histories().unreadIncrement(
 				unreadCountDelta ? *unreadCountDelta : newUnreadCount,
@@ -1657,6 +1648,18 @@ void History::setUnreadCount(int newUnreadCount) {
 		}
 		if (const auto main = App::main()) {
 			main->unreadCountChanged(this);
+		}
+	}
+}
+
+void History::changeUnreadCount(int delta) {
+	if (_unreadCount) {
+		setUnreadCount(std::max(*_unreadCount + delta, 0));
+	}
+	if (const auto channel = peer->asChannel()) {
+		if (const auto feed = channel->feed()) {
+			const auto mutedCountDelta = mute() ? delta : 0;
+			feed->unreadCountChanged(delta, mutedCountDelta);
 		}
 	}
 }
@@ -1674,10 +1677,17 @@ bool History::changeMute(bool newMute) {
 	const auto feed = peer->isChannel()
 		? peer->asChannel()->feed()
 		: nullptr;
-	if (feed && _unreadCount && *_unreadCount) {
-		const auto unreadCountDelta = 0;
-		const auto mutedCountDelta = _mute ? *_unreadCount : -*_unreadCount;
-		feed->unreadCountChanged(unreadCountDelta, mutedCountDelta);
+	if (feed) {
+		if (_unreadCount) {
+			if (*_unreadCount) {
+				const auto unreadCountDelta = 0;
+				const auto mutedCountDelta = _mute ? *_unreadCount : -*_unreadCount;
+				feed->unreadCountChanged(unreadCountDelta, mutedCountDelta);
+			}
+		} else {
+			Auth().api().requestDialogEntry(this);
+			Auth().api().requestDialogEntry(feed);
+		}
 	}
 	if (inChatList(Dialogs::Mode::All)) {
 		if (_unreadCount && *_unreadCount) {
@@ -2120,10 +2130,8 @@ bool History::shouldBeInChatList() const {
 }
 
 void History::unknownMessageDeleted(MsgId messageId) {
-	if (_unreadCount && *_unreadCount > 0 && _inboxReadBefore) {
-		if (messageId >= *_inboxReadBefore) {
-			setUnreadCount(*_unreadCount - 1);
-		}
+	if (_inboxReadBefore && messageId >= *_inboxReadBefore) {
+		changeUnreadCount(-1);
 	}
 }
 
@@ -2503,7 +2511,7 @@ void History::clearBlocks(bool leaveItems) {
 	if (leaveItems) {
 		lastKeyboardInited = false;
 	} else {
-		setUnreadCount(0);
+		changeUnreadCount(-unreadCount());
 		if (auto channel = peer->asChannel()) {
 			channel->clearPinnedMessage();
 			if (const auto feed = channel->feed()) {

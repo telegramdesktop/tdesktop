@@ -224,6 +224,7 @@ public:
 	int unreadCount() const;
 	bool unreadCountKnown() const;
 	void setUnreadCount(int newUnreadCount);
+	void changeUnreadCount(int delta);
 	bool mute() const;
 	bool changeMute(bool newMute);
 	void addUnreadBar();

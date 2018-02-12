@@ -69,10 +69,11 @@ Widget::Widget(
 , _scroll(this, st::historyScroll, false)
 , _topBar(this, controller)
 , _topBarShadow(this)
-, _showNext(
-	this,
-	lang(lng_feed_show_next).toUpper(),
-	st::historyComposeButton)
+, _showNext(nullptr)
+//, _showNext(
+//	this,
+//	lang(lng_feed_show_next).toUpper(),
+//	st::historyComposeButton)
 , _scrollDown(_scroll, st::historyToDown) {
 	_topBar->setActiveChat(_feed);
 
@@ -107,10 +108,9 @@ Widget::Widget(
 		this,
 		[this] { onScroll(); });
 
-	_showNext->setClickedCallback([this] {
-		// #TODO feeds show next
-	});
-	_showNext->hide();
+	//_showNext->setClickedCallback([this] {
+	//	// TODO feeds show next
+	//});
 
 	_feed->unreadPositionChanges(
 	) | rpl::filter([=](const Data::MessagePosition &position) {

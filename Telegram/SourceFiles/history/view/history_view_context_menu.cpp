@@ -467,7 +467,15 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	} else if (linkDocument) {
 		AddDocumentActions(result, document, itemId);
 	} else if (linkPeer) {
-		if (list->delegate()->listContext() == Context::Feed) {
+		const auto peer = linkPeer->peer();
+		if (peer->isChannel()
+			&& peer->asChannel()->feed() != nullptr
+			&& (list->delegate()->listContext() == Context::Feed)) {
+			Window::PeerMenuAddMuteAction(peer, [&](
+					const QString &text,
+					base::lambda<void()> handler) {
+				return result->addAction(text, handler);
+			});
 			AddToggleGroupingAction(result, linkPeer->peer());
 		}
 	} else if (!request.overSelection && view && !hasSelection) {

@@ -250,6 +250,11 @@ void PeerListController::setSearchNoResultsText(const QString &text) {
 	}
 }
 
+base::unique_qptr<Ui::PopupMenu> PeerListController::rowContextMenu(
+		not_null<PeerListRow*> row) {
+	return nullptr;
+}
+
 std::unique_ptr<PeerListState> PeerListController::saveState() const {
 	return delegate()->peerListSaveState();
 }
@@ -1008,7 +1013,7 @@ void PeerListContent::contextMenuEvent(QContextMenuEvent *e) {
 		mousePressReleased(_pressButton);
 	}
 
-	if (auto row = getRow(_contexted.index)) {
+	if (const auto row = getRow(_contexted.index)) {
 		_contextMenu = _controller->rowContextMenu(row);
 		if (_contextMenu) {
 			_contextMenu->setDestroyedCallback(base::lambda_guarded(

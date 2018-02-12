@@ -379,26 +379,19 @@ void Feed::setUnreadPosition(const MessagePosition &position) {
 }
 
 void Feed::unreadCountChanged(
-		base::optional<int> unreadCountDelta,
+		int unreadCountDelta,
 		int mutedCountDelta) {
-	if (!unreadCountKnown() || (unreadCountDelta && !*unreadCountDelta)) {
+	if (!unreadCountKnown()) {
 		return;
 	}
-	if (unreadCountDelta) {
-		*_unreadCount = std::max(*_unreadCount + *unreadCountDelta, 0);
-		_unreadMutedCount = snap(
-			_unreadMutedCount + mutedCountDelta,
-			0,
-			*_unreadCount);
+	*_unreadCount = std::max(*_unreadCount + unreadCountDelta, 0);
+	_unreadMutedCount = snap(
+		_unreadMutedCount + mutedCountDelta,
+		0,
+		*_unreadCount);
 
-		_unreadCountChanges.fire(unreadCount());
-		updateChatListEntry();
-	} else {
-//		_parent->session().api().requestFeedDialogsEntries(this);
-		// Happens once for each channel with unknown unread count.
-		// Requesting all feed dialogs could be huge and even have slicing.
-		_parent->session().api().requestDialogEntry(this);
-	}
+	_unreadCountChanges.fire(unreadCount());
+	updateChatListEntry();
 }
 
 MessagePosition Feed::unreadPosition() const {

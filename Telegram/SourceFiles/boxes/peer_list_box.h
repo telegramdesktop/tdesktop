@@ -344,10 +344,8 @@ public:
 	}
 	virtual void itemDeselectedHook(not_null<PeerData*> peer) {
 	}
-	virtual Ui::PopupMenu *rowContextMenu(
-			not_null<PeerListRow*> row) {
-		return nullptr;
-	}
+	virtual base::unique_qptr<Ui::PopupMenu> rowContextMenu(
+		not_null<PeerListRow*> row);
 	bool isSearchLoading() const {
 		return _searchController ? _searchController->isLoading() : false;
 	}
@@ -360,7 +358,7 @@ public:
 		return nullptr;
 	}
 
-	virtual std::unique_ptr<PeerListState> saveState() const ;
+	virtual std::unique_ptr<PeerListState> saveState() const;
 	virtual void restoreState(
 		std::unique_ptr<PeerListState> state);
 
@@ -625,7 +623,7 @@ private:
 
 	std::vector<std::unique_ptr<PeerListRow>> _searchRows;
 	base::Timer _repaintByStatus;
-	QPointer<Ui::PopupMenu> _contextMenu;
+	base::unique_qptr<Ui::PopupMenu> _contextMenu;
 
 };
 

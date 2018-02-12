@@ -45,7 +45,6 @@ private:
 	bool showInfo();
 	void addPinToggle();
 	void addInfo();
-	void addNotifications();
 	void addSearch();
 	void addUserActions(not_null<UserData*> user);
 	void addBlockUser(not_null<UserData*> user);
@@ -208,36 +207,6 @@ void Filler::addInfo() {
 	_addAction(lang(infoKey), [=] {
 		controller->showPeerInfo(peer);
 	});
-}
-
-void Filler::addNotifications() {
-	auto peer = _peer;
-	auto muteText = [](bool isMuted) {
-		return lang(isMuted
-			? lng_enable_notifications_from_tray
-			: lng_disable_notifications_from_tray);
-	};
-	auto muteAction = _addAction(muteText(peer->isMuted()), [peer] {
-		if (!peer->isMuted()) {
-			Ui::show(Box<MuteSettingsBox>(peer));
-		} else {
-			App::main()->updateNotifySettings(
-				peer,
-				Data::NotifySettings::MuteChange::Unmute);
-		}
-	});
-
-	auto lifetime = Notify::PeerUpdateViewer(
-		_peer,
-		Notify::PeerUpdate::Flag::NotificationsEnabled
-	) | rpl::map([=] {
-		return peer->isMuted();
-	}) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](bool muted) {
-		muteAction->setText(muteText(muted));
-	});
-
-	Ui::AttachAsChild(muteAction, std::move(lifetime));
 }
 
 void Filler::addSearch() {
@@ -410,7 +379,7 @@ void Filler::fill() {
 		addInfo();
 	}
 	if (_source != PeerMenuSource::Profile && !_peer->isSelf()) {
-		addNotifications();
+		PeerMenuAddMuteAction(_peer, _addAction);
 	}
 	if (_source == PeerMenuSource::ChatsList) {
 		addSearch();
@@ -590,6 +559,40 @@ void PeerMenuAddChannelMembers(not_null<ChannelData*> channel) {
 		});
 	};
 	Auth().api().requestChannelMembersForAdd(channel, callback);
+}
+
+void PeerMenuAddMuteAction(
+		not_null<PeerData*> peer,
+		const PeerMenuCallback &addAction) {
+	if (peer->notifySettingsUnknown()) {
+		Auth().api().requestNotifySetting(peer);
+	}
+	auto muteText = [](bool isMuted) {
+		return lang(isMuted
+			? lng_enable_notifications_from_tray
+			: lng_disable_notifications_from_tray);
+	};
+	auto muteAction = addAction(muteText(peer->isMuted()), [=] {
+		if (!peer->isMuted()) {
+			Ui::show(Box<MuteSettingsBox>(peer));
+		} else {
+			App::main()->updateNotifySettings(
+				peer,
+				Data::NotifySettings::MuteChange::Unmute);
+		}
+	});
+
+	auto lifetime = Notify::PeerUpdateViewer(
+		peer,
+		Notify::PeerUpdate::Flag::NotificationsEnabled
+	) | rpl::map([=] {
+		return peer->isMuted();
+	}) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](bool muted) {
+		muteAction->setText(muteText(muted));
+	});
+
+	Ui::AttachAsChild(muteAction, std::move(lifetime));
 }
 
 void ToggleChannelGrouping(not_null<ChannelData*> channel, bool group) {

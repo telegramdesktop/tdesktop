@@ -39,7 +39,7 @@ public:
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void rowActionClicked(not_null<PeerListRow*> row) override;
-	Ui::PopupMenu *rowContextMenu(
+	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
 		not_null<PeerListRow*> row) override;
 
 	rpl::producer<int> onlineCountValue() const override {
@@ -265,13 +265,13 @@ void ChatMembersController::rowActionClicked(
 	removeMember(row->peer()->asUser());
 }
 
-Ui::PopupMenu *ChatMembersController::rowContextMenu(
+base::unique_qptr<Ui::PopupMenu> ChatMembersController::rowContextMenu(
 		not_null<PeerListRow*> row) {
 	auto my = static_cast<MemberListRow*>(row.get());
 	auto user = my->user();
 	auto canRemoveMember = my->canRemove();
 
-	auto result = new Ui::PopupMenu(nullptr);
+	auto result = base::make_unique_q<Ui::PopupMenu>(nullptr);
 	result->addAction(
 		lang(lng_context_view_profile),
 		[weak = base::make_weak(this), user] {

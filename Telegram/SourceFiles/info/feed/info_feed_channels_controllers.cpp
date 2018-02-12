@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "history/history.h"
 #include "window/window_peer_menu.h"
+#include "ui/widgets/popup_menu.h"
 #include "auth_session.h"
 #include "styles/style_widgets.h"
 #include "styles/style_info.h"
@@ -23,7 +24,7 @@ namespace FeedProfile {
 
 class ChannelsController::Row final : public PeerListRow {
 public:
-	Row(not_null<ChannelData*> channel);
+	Row(not_null<History*> history);
 
 	QSize actionSize() const override;
 	QMargins actionMargins() const override;
@@ -36,14 +37,18 @@ public:
 		bool selected,
 		bool actionSelected) override;
 
-	not_null<ChannelData*> channel() const {
-		return peer()->asChannel();
+	not_null<History*> history() const {
+		return _history;
 	}
+
+private:
+	not_null<History*> _history;
 
 };
 
-ChannelsController::Row::Row(not_null<ChannelData*> channel)
-: PeerListRow(channel) {
+ChannelsController::Row::Row(not_null<History*> history)
+: PeerListRow(history->peer)
+, _history(history) {
 }
 
 QSize ChannelsController::Row::actionSize() const {
@@ -85,16 +90,16 @@ ChannelsController::ChannelsController(not_null<Controller*> controller)
 	_controller->setSearchEnabledByContent(false);
 }
 
-auto ChannelsController::createRow(not_null<ChannelData*> channel)
+auto ChannelsController::createRow(not_null<History*> history)
 -> std::unique_ptr<Row> {
-	auto result = std::make_unique<Row>(channel);
+	auto result = std::make_unique<Row>(history);
 	result->setCustomStatus(QString());
 	return result;
 }
 
 std::unique_ptr<PeerListRow> ChannelsController::createRestoredRow(
 		not_null<PeerData*> peer) {
-	return createRow(peer->asChannel());
+	return createRow(App::history(peer));
 }
 
 void ChannelsController::prepare() {
@@ -133,7 +138,7 @@ void ChannelsController::rebuildRows() {
 		}
 	}
 	for (const auto history : channels) {
-		if (auto row = createRow(history->peer->asChannel())) {
+		if (auto row = createRow(history)) {
 			delegate()->peerListAppendRow(std::move(row));
 		}
 	}
@@ -167,6 +172,28 @@ void ChannelsController::rowClicked(not_null<PeerListRow*> row) {
 
 void ChannelsController::rowActionClicked(not_null<PeerListRow*> row) {
 	Window::DeleteAndLeaveHandler(row->peer())();
+}
+
+base::unique_qptr<Ui::PopupMenu> ChannelsController::rowContextMenu(
+		not_null<PeerListRow*> row) {
+	auto my = static_cast<Row*>(row.get());
+	auto channel = my->history()->peer->asChannel();
+
+	auto result = base::make_unique_q<Ui::PopupMenu>(nullptr);
+	Window::PeerMenuAddMuteAction(channel, [&](
+			const QString &text,
+			base::lambda<void()> handler) {
+		return result->addAction(text, handler);
+	});
+	result->addAction(
+		lang(lng_feed_ungroup),
+		[=] { Window::ToggleChannelGrouping(channel, false); });
+
+	result->addAction(
+		lang(lng_profile_leave_channel),
+		Window::DeleteAndLeaveHandler(channel));
+
+	return result;
 }
 
 } // namespace FeedProfile

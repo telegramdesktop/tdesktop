@@ -653,12 +653,12 @@ bool ParticipantsBoxController::canRestrictUser(
 	return _channel->adminRights() & ChannelAdminRight::f_ban_users;
 }
 
-Ui::PopupMenu *ParticipantsBoxController::rowContextMenu(
+base::unique_qptr<Ui::PopupMenu> ParticipantsBoxController::rowContextMenu(
 		not_null<PeerListRow*> row) {
 	Expects(row->peer()->isUser());
 
 	auto user = row->peer()->asUser();
-	auto result = new Ui::PopupMenu(nullptr);
+	auto result = base::make_unique_q<Ui::PopupMenu>(nullptr);
 	result->addAction(
 		lang(lng_context_view_profile),
 		[weak = base::make_weak(this), user] {

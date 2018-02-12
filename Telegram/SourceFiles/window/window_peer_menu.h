@@ -40,6 +40,10 @@ void FillFeedMenu(
 	const PeerMenuCallback &addAction,
 	PeerMenuSource source);
 
+void PeerMenuAddMuteAction(
+	not_null<PeerData*> peer,
+	const PeerMenuCallback &addAction);
+
 void PeerMenuDeleteContact(not_null<UserData*> user);
 void PeerMenuShareContactBox(not_null<UserData*> user);
 void PeerMenuAddContact(not_null<UserData*> user);

@@ -2240,7 +2240,7 @@ void HistoryWidget::newUnreadMsg(History *history, HistoryItem *item) {
 		}
 	}
 	Auth().notifications().schedule(history, item);
-	history->setUnreadCount(history->unreadCount() + 1);
+	history->changeUnreadCount(1);
 }
 
 void HistoryWidget::historyToDown(History *history) {
@@ -2406,14 +2406,9 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		}
 		addMessagesToFront(peer, *histList);
 		_firstLoadRequest = 0;
-		if (_history->loadedAtTop()) {
-			if (_history->unreadCount() > count) {
-				_history->setUnreadCount(count);
-			}
-			if (_history->isEmpty() && count > 0) {
-				firstLoadMessages();
-				return;
-			}
+		if (_history->loadedAtTop() && _history->isEmpty() && count > 0) {
+			firstLoadMessages();
+			return;
 		}
 
 		historyLoaded();
@@ -2434,14 +2429,11 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 			_firstLoadRequest = -1; // hack - don't updateListSize yet
 			addMessagesToFront(peer, *histList);
 			_firstLoadRequest = 0;
-			if (_history->loadedAtTop()) {
-				if (_history->unreadCount() > count) {
-					_history->setUnreadCount(count);
-				}
-				if (_history->isEmpty() && count > 0) {
-					firstLoadMessages();
-					return;
-				}
+			if (_history->loadedAtTop()
+				&& _history->isEmpty()
+				&& count > 0) {
+				firstLoadMessages();
+				return;
 			}
 		}
 		if (_replyReturn) {
