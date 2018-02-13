@@ -2646,6 +2646,8 @@ void HistoryGif::clipCallback(Media::Clip::Notification notification) {
 void HistoryGif::playAnimation(bool autoplay) {
 	if (_data->isVideoMessage() && !autoplay) {
 		return;
+	} else if (_gif && autoplay) {
+		return;
 	}
 	using Mode = Media::Clip::Reader::Mode;
 	if (_gif) {
