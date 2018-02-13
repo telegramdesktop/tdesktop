@@ -147,8 +147,7 @@ void TopBarWidget::onCall() {
 }
 
 void TopBarWidget::showMenu() {
-	// #TODO feeds menu
-	if (!_activeChat || _menu || !_activeChat.peer()) {
+	if (!_activeChat || _menu) {
 		return;
 	}
 	_menu.create(parentWidget());
@@ -170,13 +169,26 @@ void TopBarWidget::showMenu() {
 		}
 	}));
 	_menuToggle->installEventFilter(_menu);
-	Window::FillPeerMenu(
-		_controller,
-		_activeChat.peer(),
-		[this](const QString &text, base::lambda<void()> callback) {
-			return _menu->addAction(text, std::move(callback));
-		},
-		Window::PeerMenuSource::History);
+	const auto addAction = [&](
+			const QString &text,
+			base::lambda<void()> callback) {
+		return _menu->addAction(text, std::move(callback));
+	};
+	if (const auto peer = _activeChat.peer()) {
+		Window::FillPeerMenu(
+			_controller,
+			peer,
+			addAction,
+			Window::PeerMenuSource::History);
+	} else if (const auto feed = _activeChat.feed()) {
+		Window::FillFeedMenu(
+			_controller,
+			feed,
+			addAction,
+			Window::PeerMenuSource::History);
+	} else {
+		Unexpected("Empty active chat in TopBarWidget::showMenu.");
+	}
 	_menu->moveToRight((parentWidget()->width() - width()) + st::topBarMenuPosition.x(), st::topBarMenuPosition.y());
 	_menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
 }

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/peer_list_box.h"
+#include "mtproto/sender.h"
 
 namespace Data {
 class Feed;
@@ -48,6 +49,32 @@ private:
 
 	const not_null<Controller*> _controller;
 	not_null<Data::Feed*> _feed;
+
+};
+
+class FeedNotificationsController
+	: public PeerListController
+	, private MTP::Sender {
+public:
+	static void Start(not_null<Data::Feed*> feed);
+
+	FeedNotificationsController(not_null<Data::Feed*> feed);
+
+	void prepare() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+
+	void loadMoreRows() override;
+
+private:
+	std::unique_ptr<PeerListRow> createRow(not_null<ChannelData*> channel);
+	void applyFeedDialogs(const MTPmessages_Dialogs &result);
+
+	not_null<Data::Feed*> _feed;
+	mtpRequestId _preloadRequestId = 0;
+	TimeId _preloadOffsetDate = TimeId(0);
+	MsgId _preloadOffsetId = MsgId(0);
+	PeerData *_preloadPeer = nullptr;
+	bool _allLoaded = false;
 
 };
 

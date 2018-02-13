@@ -1427,6 +1427,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_feed_no_messages" = "No messages in this feed yet";
 "lng_feed_channels#one" = "{count} channel";
 "lng_feed_channels#other" = "{count} channels";
+"lng_feed_notifications" = "Feed notifications";
 
 "lng_info_feed_title" = "Feed Info";
 "lng_info_feed_is_default" = "Group new channels";

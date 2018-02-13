@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "history/history.h"
 #include "window/window_controller.h"
+#include "info/feed/info_feed_channels_controllers.h"
 #include "data/data_session.h"
 #include "data/data_feed.h"
 #include "dialogs/dialogs_key.h"
@@ -69,6 +70,7 @@ public:
 
 private:
 	void addPinToggle();
+	void addNotifications();
 
 	not_null<Controller*> _controller;
 	not_null<Data::Feed*> _feed;
@@ -385,11 +387,11 @@ void Filler::fill() {
 		addSearch();
 	}
 
-	if (auto user = _peer->asUser()) {
+	if (const auto user = _peer->asUser()) {
 		addUserActions(user);
-	} else if (auto chat = _peer->asChat()) {
+	} else if (const auto chat = _peer->asChat()) {
 		addChatActions(chat);
-	} else if (auto channel = _peer->asChannel()) {
+	} else if (const auto channel = _peer->asChannel()) {
 		addChannelActions(channel);
 	}
 }
@@ -409,20 +411,27 @@ void FeedFiller::fill() {
 	if (_source == PeerMenuSource::ChatsList) {
 		addPinToggle();
 	}
+	addNotifications();
 }
 
 void FeedFiller::addPinToggle() {
-	auto feed = _feed;
-	auto isPinned = feed->isPinnedDialog();
-	auto pinText = [](bool isPinned) {
+	const auto feed = _feed;
+	const auto isPinned = feed->isPinnedDialog();
+	const auto pinText = [](bool isPinned) {
 		return lang(isPinned
 			? lng_context_unpin_from_top
 			: lng_context_pin_to_top);
 	};
-	auto pinToggle = [=] {
+	_addAction(pinText(isPinned), [=] {
 		TogglePinnedDialog(feed);
-	};
-	_addAction(pinText(isPinned), pinToggle);
+	});
+}
+
+void FeedFiller::addNotifications() {
+	const auto feed = _feed;
+	_addAction(lang(lng_feed_notifications), [=] {
+		Info::FeedProfile::FeedNotificationsController::Start(feed);
+	});
 }
 
 } // namespace
@@ -692,7 +701,6 @@ void FillFeedMenu(
 		not_null<Data::Feed*> feed,
 		const PeerMenuCallback &callback,
 		PeerMenuSource source) {
-	// TODO feeds context menu
 	FeedFiller filler(controller, feed, callback, source);
 	filler.fill();
 }
