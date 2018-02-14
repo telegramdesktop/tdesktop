@@ -149,13 +149,17 @@ void activateBotCommand(
 }
 
 void searchByHashtag(const QString &tag, PeerData *inPeer) {
-	if (MainWidget *m = main()) {
+	if (const auto m = main()) {
 		Ui::hideSettingsAndLayer();
 		Messenger::Instance().hideMediaView();
 		if (inPeer && (!inPeer->isChannel() || inPeer->isMegagroup())) {
 			inPeer = nullptr;
 		}
-		m->searchMessages(tag + ' ', inPeer);
+		m->searchMessages(
+			tag + ' ',
+			(inPeer
+				? App::history(inPeer).get()
+				: nullptr));
 	}
 }
 

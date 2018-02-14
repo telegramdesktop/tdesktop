@@ -12,6 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 
 namespace Data {
+namespace {
+
+constexpr auto kMaxItemsInGroup = 10;
+
+} // namespace
 
 Groups::Groups(not_null<Session*> data) : _data(data) {
 }
@@ -30,9 +35,11 @@ void Groups::registerMessage(not_null<HistoryItem*> item) {
 	}
 	const auto i = _groups.emplace(item->groupId(), Group()).first;
 	auto &items = i->second.items;
-	items.insert(findPositionForItem(items, item), item);
-	if (items.size() > 1) {
-		refreshViews(items);
+	if (items.size() < kMaxItemsInGroup) {
+		items.insert(findPositionForItem(items, item), item);
+		if (items.size() > 1) {
+			refreshViews(items);
+		}
 	}
 }
 

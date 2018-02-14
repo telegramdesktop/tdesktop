@@ -94,7 +94,7 @@ public:
 	}
 	bool hasFilteredResults() const;
 
-	void searchInPeer(PeerData *peer, UserData *from);
+	void searchInChat(Dialogs::Key key, UserData *from);
 
 	void onFilterUpdate(QString newFilter, bool force = false);
 	void onHashtagFilterUpdate(QStringRef newFilter);
@@ -121,7 +121,7 @@ signals:
 	void dialogMoved(int movedFrom, int movedTo);
 	void searchMessages();
 	void searchResultChosen();
-	void cancelSearchInPeer();
+	void cancelSearchInChat();
 	void completeHashtag(QString tag);
 	void refreshHashtags();
 
@@ -215,7 +215,7 @@ private:
 	int filteredOffset() const;
 	int peerSearchOffset() const;
 	int searchedOffset() const;
-	int searchInPeerSkip() const;
+	int searchInChatSkip() const;
 
 	void paintDialog(
 		Painter &p,
@@ -233,17 +233,37 @@ private:
 		bool selected,
 		bool onlyBackground,
 		TimeMs ms) const;
-	void paintSearchInPeer(
+	void paintSearchInChat(
 		Painter &p,
 		int fullWidth,
 		bool onlyBackground,
 		TimeMs ms) const;
-	void paintSearchInFilter(
+	void paintSearchInPeer(
 		Painter &p,
-		PeerData *peer,
+		not_null<PeerData*> peer,
 		int top,
 		int fullWidth,
 		const Text &text) const;
+	void paintSearchInSaved(
+		Painter &p,
+		int top,
+		int fullWidth,
+		const Text &text) const;
+	void paintSearchInFeed(
+		Painter &p,
+		not_null<Data::Feed*> feed,
+		int top,
+		int fullWidth,
+		const Text &text) const;
+	template <typename PaintUserpic>
+	void paintSearchInFilter(
+		Painter &p,
+		PaintUserpic paintUserpic,
+		int top,
+		int fullWidth,
+		const style::icon *icon,
+		const Text &text) const;
+	void refreshSearchInChatLabel();
 
 	void clearSelection();
 	void clearSearchResults(bool clearPeerSearchResults = true);
@@ -332,14 +352,14 @@ private:
 	State _state = State::Default;
 
 	object_ptr<Ui::LinkButton> _addContactLnk;
-	object_ptr<Ui::IconButton> _cancelSearchInPeer;
+	object_ptr<Ui::IconButton> _cancelSearchInChat;
 	object_ptr<Ui::IconButton> _cancelSearchFromUser;
 
-	PeerData *_searchInPeer = nullptr;
-	PeerData *_searchInMigrated = nullptr;
+	Dialogs::Key _searchInChat;
+	History *_searchInMigrated = nullptr;
 	UserData *_searchFromUser = nullptr;
+	Text _searchInChatText;
 	Text _searchFromUserText;
-	Text _searchInSavedText;
 	Dialogs::Key _menuKey;
 
 	base::lambda<void()> _loadMoreCallback;

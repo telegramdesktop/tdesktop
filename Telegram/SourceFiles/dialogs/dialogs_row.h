@@ -81,10 +81,10 @@ private:
 
 class FakeRow : public RippleRow {
 public:
-	FakeRow(PeerData *searchInPeer, not_null<HistoryItem*> item);
+	FakeRow(Key searchInChat, not_null<HistoryItem*> item);
 
-	PeerData *searchInPeer() const {
-		return _searchInPeer;
+	Key searchInChat() const {
+		return _searchInChat;
 	}
 	not_null<HistoryItem*> item() const {
 		return _item;
@@ -93,7 +93,7 @@ public:
 private:
 	friend class Layout::RowPainter;
 
-	PeerData *_searchInPeer = nullptr;
+	Key _searchInChat;
 	not_null<HistoryItem*> _item;
 	mutable const HistoryItem *_cacheFor = nullptr;
 	mutable Text _cache;

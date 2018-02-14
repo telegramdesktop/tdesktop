@@ -69,7 +69,7 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 , _contacts(std::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Name))
 , _a_pinnedShifting(animation(this, &DialogsInner::step_pinnedShifting))
 , _addContactLnk(this, lang(lng_add_contact_button))
-, _cancelSearchInPeer(this, st::dialogsCancelSearchInPeer)
+, _cancelSearchInChat(this, st::dialogsCancelSearchInPeer)
 , _cancelSearchFromUser(this, st::dialogsCancelSearchInPeer) {
 
 #ifdef OS_MAC_OLD
@@ -83,8 +83,8 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 	}
 	connect(main, SIGNAL(dialogRowReplaced(Dialogs::Row*, Dialogs::Row*)), this, SLOT(onDialogRowReplaced(Dialogs::Row*, Dialogs::Row*)));
 	connect(_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
-	_cancelSearchInPeer->setClickedCallback([this] { cancelSearchInPeer(); });
-	_cancelSearchInPeer->hide();
+	_cancelSearchInChat->setClickedCallback([this] { cancelSearchInChat(); });
+	_cancelSearchInChat->hide();
 	_cancelSearchFromUser->setClickedCallback([this] { searchFromUserChanged.notify(nullptr); });
 	_cancelSearchFromUser->hide();
 
@@ -175,13 +175,13 @@ int DialogsInner::peerSearchOffset() const {
 
 int DialogsInner::searchedOffset() const {
 	auto result = peerSearchOffset() + (_peerSearchResults.empty() ? 0 : ((_peerSearchResults.size() * st::dialogsRowHeight) + st::searchedBarHeight));
-	if (_searchInPeer) {
-		result += searchInPeerSkip();
+	if (_searchInChat) {
+		result += searchInChatSkip();
 	}
 	return result;
 }
 
-int DialogsInner::searchInPeerSkip() const {
+int DialogsInner::searchInChatSkip() const {
 	auto result = st::searchedBarHeight + st::dialogsSearchInHeight;
 	if (_searchFromUser) {
 		result += st::lineWidth + st::dialogsSearchInHeight;
@@ -390,15 +390,24 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 			}
 		}
 
-		if (_searchInPeer) {
-			paintSearchInPeer(p, fullWidth, paintingOther, ms);
-			p.translate(0, searchInPeerSkip());
+		if (_searchInChat) {
+			paintSearchInChat(p, fullWidth, paintingOther, ms);
+			p.translate(0, searchInChatSkip());
 			if (_waitingForSearch && _searchResults.empty()) {
-				p.fillRect(0, 0, fullWidth, st::searchedBarHeight, st::searchedBarBg);
+				p.fillRect(
+					0,
+					0,
+					fullWidth,
+					st::searchedBarHeight,
+					st::searchedBarBg);
 				if (!paintingOther) {
 					p.setFont(st::searchedBarFont);
 					p.setPen(st::searchedBarFg);
-					p.drawTextLeft(st::searchedBarPosition.x(), st::searchedBarPosition.y(), width(), lang(lng_dlg_search_for_messages));
+					p.drawTextLeft(
+						st::searchedBarPosition.x(),
+						st::searchedBarPosition.y(),
+						width(),
+						lang(lng_dlg_search_for_messages));
 				}
 				p.translate(0, st::searchedBarHeight);
 			}
@@ -537,12 +546,12 @@ void DialogsInner::paintPeerSearchResult(
 	peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
-void DialogsInner::paintSearchInPeer(
+void DialogsInner::paintSearchInChat(
 		Painter &p,
 		int fullWidth,
 		bool onlyBackground,
 		TimeMs ms) const {
-	auto height = searchInPeerSkip();
+	auto height = searchInChatSkip();
 
 	auto top = st::searchedBarHeight;
 	p.fillRect(0, 0, fullWidth, top, st::searchedBarBg);
@@ -560,44 +569,39 @@ void DialogsInner::paintSearchInPeer(
 	if (onlyBackground) return;
 
 	p.setPen(st::dialogsNameFg);
-	if (_searchInPeer->isSelf()) {
-		paintSearchInFilter(p, nullptr, top, fullWidth, _searchInSavedText);
+	if (const auto peer = _searchInChat.peer()) {
+		if (peer->isSelf()) {
+			paintSearchInSaved(p, top, fullWidth, _searchInChatText);
+		} else {
+			paintSearchInPeer(p, peer, top, fullWidth, _searchInChatText);
+		}
+	} else if (const auto feed = _searchInChat.feed()) {
+		paintSearchInFeed(p, feed, top, fullWidth, _searchInChatText);
 	} else {
-		paintSearchInFilter(p, _searchInPeer, top, fullWidth, _searchInPeer->nameText);
+		Unexpected("Empty Dialogs::Key in paintSearchInChat.");
 	}
-	if (_searchFromUser) {
+	if (const auto from = _searchFromUser) {
 		top += st::dialogsSearchInHeight + st::lineWidth;
 		p.setPen(st::dialogsTextFg);
 		p.setTextPalette(st::dialogsSearchFromPalette);
-		paintSearchInFilter(p, _searchFromUser, top, fullWidth, _searchFromUserText);
+		paintSearchInPeer(p, from, top, fullWidth, _searchFromUserText);
 		p.restoreTextPalette();
 	}
 }
-
+template <typename PaintUserpic>
 void DialogsInner::paintSearchInFilter(
 		Painter &p,
-		PeerData *peer,
+		PaintUserpic paintUserpic,
 		int top,
 		int fullWidth,
+		const style::icon *icon,
 		const Text &text) const {
 	const auto savedPen = p.pen();
+	const auto userpicLeft = st::dialogsPadding.x();
 	const auto userpicTop = top
 		+ (st::dialogsSearchInHeight - st::dialogsSearchInPhotoSize) / 2;
-	if (peer) {
-		peer->paintUserpicLeft(
-			p,
-			st::dialogsPadding.x(),
-			userpicTop,
-			getFullWidth(),
-			st::dialogsSearchInPhotoSize);
-	} else {
-		Ui::EmptyUserpic::PaintSavedMessages(
-			p,
-			st::dialogsPadding.x(),
-			userpicTop,
-			getFullWidth(),
-			st::dialogsSearchInPhotoSize);
-	}
+	paintUserpic(p, userpicLeft, userpicTop, st::dialogsSearchInPhotoSize);
+
 	const auto nameleft = st::dialogsPadding.x()
 		+ st::dialogsSearchInPhotoSize
 		+ st::dialogsSearchInPhotoPadding;
@@ -610,7 +614,7 @@ void DialogsInner::paintSearchInFilter(
 		top + (st::dialogsSearchInHeight - st::msgNameFont->height) / 2,
 		namewidth,
 		st::msgNameFont->height);
-	if (auto icon = Dialogs::Layout::ChatTypeIcon(peer, false, false)) {
+	if (icon) {
 		icon->paint(p, rectForName.topLeft(), fullWidth);
 		rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
 	}
@@ -622,6 +626,44 @@ void DialogsInner::paintSearchInFilter(
 		rectForName.width(),
 		getFullWidth());
 }
+
+void DialogsInner::paintSearchInPeer(
+		Painter &p,
+		not_null<PeerData*> peer,
+		int top,
+		int fullWidth,
+		const Text &text) const {
+	const auto paintUserpic = [&](Painter &p, int x, int y, int size) {
+		peer->paintUserpicLeft(p, x, y, fullWidth, size);
+	};
+	const auto icon = Dialogs::Layout::ChatTypeIcon(peer, false, false);
+	paintSearchInFilter(p, paintUserpic, top, fullWidth, icon, text);
+}
+
+void DialogsInner::paintSearchInSaved(
+		Painter &p,
+		int top,
+		int fullWidth,
+		const Text &text) const {
+	const auto paintUserpic = [&](Painter &p, int x, int y, int size) {
+		Ui::EmptyUserpic::PaintSavedMessages(p, x, y, fullWidth, size);
+	};
+	paintSearchInFilter(p, paintUserpic, top, fullWidth, nullptr, text);
+}
+
+void DialogsInner::paintSearchInFeed(
+		Painter &p,
+		not_null<Data::Feed*> feed,
+		int top,
+		int fullWidth,
+		const Text &text) const {
+	const auto paintUserpic = [&](Painter &p, int x, int y, int size) {
+		feed->paintUserpicLeft(p, x, y, fullWidth, size);
+	};
+	const auto icon = nullptr;
+	paintSearchInFilter(p, paintUserpic, top, fullWidth, icon, text);
+}
+
 
 void DialogsInner::activate() {
 }
@@ -1095,7 +1137,7 @@ void DialogsInner::setSearchedPressed(int pressed) {
 void DialogsInner::resizeEvent(QResizeEvent *e) {
 	_addContactLnk->move((width() - _addContactLnk->width()) / 2, (st::noContactsHeight + st::noContactsFont->height) / 2);
 	auto widthForCancelButton = qMax(width() + otherWidth(), st::columnMinimalWidthLeft);
-	_cancelSearchInPeer->moveToLeft(widthForCancelButton - st::dialogsSearchInSkip - _cancelSearchInPeer->width(), st::searchedBarHeight + (st::dialogsSearchInHeight - st::dialogsCancelSearchInPeer.height) / 2);
+	_cancelSearchInChat->moveToLeft(widthForCancelButton - st::dialogsSearchInSkip - _cancelSearchInChat->width(), st::searchedBarHeight + (st::dialogsSearchInHeight - st::dialogsCancelSearchInPeer.height) / 2);
 	_cancelSearchFromUser->moveToLeft(widthForCancelButton - st::dialogsSearchInSkip - _cancelSearchFromUser->width(), st::searchedBarHeight + st::dialogsSearchInHeight + st::lineWidth + (st::dialogsSearchInHeight - st::dialogsCancelSearchInPeer.height) / 2);
 }
 
@@ -1532,7 +1574,7 @@ void DialogsInner::onFilterUpdate(QString newFilter, bool force) {
 			_waitingForSearch = true;
 			_filterResults.clear();
 			_filterResultsGlobal.clear();
-			if (!_searchInPeer && !words.isEmpty()) {
+			if (!_searchInChat && !words.isEmpty()) {
 				const Dialogs::List *toFilter = nullptr;
 				if (!_dialogs->isEmpty()) {
 					for (fi = fb; fi != fe; ++fi) {
@@ -1612,7 +1654,7 @@ void DialogsInner::onFilterUpdate(QString newFilter, bool force) {
 }
 
 void DialogsInner::onHashtagFilterUpdate(QStringRef newFilter) {
-	if (newFilter.isEmpty() || newFilter.at(0) != '#' || _searchInPeer) {
+	if (newFilter.isEmpty() || newFilter.at(0) != '#' || _searchInChat) {
 		_hashtagFilter = QString();
 		if (!_hashtagResults.empty()) {
 			_hashtagResults.clear();
@@ -1694,7 +1736,7 @@ void DialogsInner::itemRemoved(not_null<const HistoryItem*> item) {
 	for (auto i = _searchResults.begin(); i != _searchResults.end();) {
 		if ((*i)->item() == item) {
 			i = _searchResults.erase(i);
-			if (item->history()->peer == _searchInMigrated) {
+			if (item->history() == _searchInMigrated) {
 				if (_searchedMigratedCount > 0) --_searchedMigratedCount;
 			} else {
 				if (_searchedCount > 0) --_searchedCount;
@@ -1791,7 +1833,10 @@ bool DialogsInner::searchReceived(
 		if (auto peer = App::peerLoaded(peerId)) {
 			if (lastDate) {
 				auto item = App::histories().addNewMessage(message, NewMessageExisting);
-				_searchResults.push_back(std::make_unique<Dialogs::FakeRow>(_searchInPeer, item));
+				_searchResults.push_back(
+					std::make_unique<Dialogs::FakeRow>(
+						_searchInChat,
+						item));
 				lastDateFound = lastDate;
 				if (isGlobalSearch) {
 					_lastSearchDate = lastDateFound;
@@ -1973,7 +2018,7 @@ void DialogsInner::refresh(bool toTop) {
 	} else if (_state == State::Filtered) {
 		if (!_addContactLnk->isHidden()) _addContactLnk->hide();
 		if (_waitingForSearch) {
-			h = searchedOffset() + (_searchResults.size() * st::dialogsRowHeight) + ((_searchResults.empty() && !_searchInPeer) ? -st::searchedBarHeight : 0);
+			h = searchedOffset() + (_searchResults.size() * st::dialogsRowHeight) + ((_searchResults.empty() && !_searchInChat) ? -st::searchedBarHeight : 0);
 		} else {
 			h = searchedOffset() + (_searchResults.size() * st::dialogsRowHeight);
 		}
@@ -1984,7 +2029,9 @@ void DialogsInner::refresh(bool toTop) {
 		emit mustScrollTo(0, 0);
 		loadPeerPhotos();
 	}
-	_controller->dialogsListDisplayForced().set(_searchInPeer || !_filter.isEmpty(), true);
+	_controller->dialogsListDisplayForced().set(
+		_searchInChat || !_filter.isEmpty(),
+		true);
 	update();
 }
 
@@ -2012,40 +2059,72 @@ bool DialogsInner::hasFilteredResults() const {
 	return !_filterResults.isEmpty() && _hashtagResults.empty();
 }
 
-void DialogsInner::searchInPeer(PeerData *peer, UserData *from) {
-	_searchInPeer = peer ? (peer->migrateTo() ? peer->migrateTo() : peer) : nullptr;
-	_searchInMigrated = _searchInPeer ? _searchInPeer->migrateFrom() : nullptr;
-	_searchFromUser = from;
-	if (_searchInPeer) {
-		onHashtagFilterUpdate(QStringRef());
-		_cancelSearchInPeer->show();
-		if (_searchInPeer->isSelf()) {
-			_searchInSavedText.setText(
-				st::msgNameStyle,
-				lang(lng_saved_messages),
-				Ui::DialogTextOptions());
+void DialogsInner::searchInChat(Dialogs::Key key, UserData *from) {
+	_searchInMigrated = nullptr;
+	if (const auto peer = key.peer()) {
+		if (const auto migrateTo = peer->migrateTo()) {
+			return searchInChat(App::history(migrateTo), from);
+		} else if (const auto migrateFrom = peer->migrateFrom()) {
+			_searchInMigrated = App::history(migrateFrom);
 		}
+	}
+	_searchInChat = key;
+	_searchFromUser = from;
+	if (_searchInChat) {
+		onHashtagFilterUpdate(QStringRef());
+		_cancelSearchInChat->show();
+		refreshSearchInChatLabel();
 	} else {
-		_cancelSearchInPeer->hide();
+		_cancelSearchInChat->hide();
 	}
 	if (_searchFromUser) {
-		auto fromUserText = lng_dlg_search_from(
-			lt_user,
-			textcmdLink(1, App::peerName(_searchFromUser)));
-		_searchFromUserText.setText(
-			st::dialogsSearchFromStyle,
-			fromUserText,
-			Ui::DialogTextOptions());
 		_cancelSearchFromUser->show();
 	} else {
 		_cancelSearchFromUser->hide();
 	}
-	_controller->dialogsListDisplayForced().set(_searchInPeer || !_filter.isEmpty(), true);
+	_controller->dialogsListDisplayForced().set(
+		_searchInChat || !_filter.isEmpty(),
+		true);
+}
+
+void DialogsInner::refreshSearchInChatLabel() {
+	const auto dialog = [&] {
+		if (const auto peer = _searchInChat.peer()) {
+			if (peer->isSelf()) {
+				return lang(lng_saved_messages);
+			}
+			return peer->name;
+		} else if (const auto feed = _searchInChat.feed()) {
+			return feed->chatsListName();
+		}
+		return QString();
+	}();
+	if (!dialog.isEmpty()) {
+		_searchInChatText.setText(
+			st::msgNameStyle,
+			dialog,
+			Ui::DialogTextOptions());
+	}
+	const auto from = [&] {
+		if (const auto from = _searchFromUser) {
+			return App::peerName(from);
+		}
+		return QString();
+	}();
+	if (!from.isEmpty()) {
+		const auto fromUserText = lng_dlg_search_from(
+			lt_user,
+			textcmdLink(1, from));
+		_searchFromUserText.setText(
+			st::dialogsSearchFromStyle,
+			fromUserText,
+			Ui::DialogTextOptions());
+	}
 }
 
 void DialogsInner::clearFilter() {
-	if (_state == State::Filtered || _searchInPeer) {
-		if (_searchInPeer) {
+	if (_state == State::Filtered || _searchInChat) {
+		if (_searchInChat) {
 			_state = State::Filtered;
 			_waitingForSearch = true;
 		} else {

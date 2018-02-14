@@ -49,11 +49,12 @@ void paintRowDate(Painter &p, QDateTime date, QRect &rectForName, bool active, b
 }
 
 enum class Flag {
-	Active         = 0x01,
-	Selected       = 0x02,
-	OnlyBackground = 0x04,
-	SearchResult   = 0x08,
-	SavedMessages  = 0x10,
+	Active           = 0x01,
+	Selected         = 0x02,
+	OnlyBackground   = 0x04,
+	SearchResult     = 0x08,
+	SavedMessages    = 0x10,
+	FeedSearchResult = 0x20,
 };
 inline constexpr bool is_flag_type(Flag) { return true; }
 
@@ -130,7 +131,7 @@ void paintRow(
 		namewidth,
 		st::msgNameFont->height);
 
-	if (from) {
+	if (from && !(flags & Flag::FeedSearchResult)) {
 		if (auto chatTypeIcon = ChatTypeIcon(from, active, selected)) {
 			chatTypeIcon->paint(p, rectForName.topLeft(), fullWidth);
 			rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
@@ -534,11 +535,13 @@ void RowPainter::paint(
 	auto history = item->history();
 	auto cloudDraft = nullptr;
 	const auto from = [&] {
-		if (auto searchPeer = row->searchInPeer()) {
-			if (searchPeer->isSelf()) {
-				return item->senderOriginal().get();
-			} else if (!searchPeer->isChannel() || searchPeer->isMegagroup()) {
-				return item->from().get();
+		if (const auto searchChat = row->searchInChat()) {
+			if (const auto peer = searchChat.peer()) {
+				if (peer->isSelf()) {
+					return item->senderOriginal().get();
+				} else if (!peer->isChannel() || peer->isMegagroup()) {
+					return item->from().get();
+				}
 			}
 		}
 		return history->peer->migrateTo()
@@ -546,9 +549,11 @@ void RowPainter::paint(
 			: history->peer.get();
 	}();
 	const auto drawInDialogWay = [&] {
-		if (auto searchPeer = row->searchInPeer()) {
-			if (!searchPeer->isChannel() || searchPeer->isMegagroup()) {
-				return HistoryItem::DrawInDialog::WithoutSender;
+		if (const auto searchChat = row->searchInChat()) {
+			if (const auto peer = searchChat.peer()) {
+				if (!peer->isChannel() || peer->isMegagroup()) {
+					return HistoryItem::DrawInDialog::WithoutSender;
+				}
 			}
 		}
 		return HistoryItem::DrawInDialog::Normal;
@@ -567,12 +572,13 @@ void RowPainter::paint(
 	};
 	const auto paintCounterCallback = [] {};
 	const auto showSavedMessages = history->peer->isSelf()
-		&& !row->searchInPeer();
+		&& !row->searchInChat();
 	const auto flags = (active ? Flag::Active : Flag(0))
 		| (selected ? Flag::Selected : Flag(0))
 		| (onlyBackground ? Flag::OnlyBackground : Flag(0))
 		| Flag::SearchResult
-		| (showSavedMessages ? Flag::SavedMessages : Flag(0));
+		| (showSavedMessages ? Flag::SavedMessages : Flag(0))
+		| (row->searchInChat().feed() ? Flag::FeedSearchResult : Flag(0));
 	paintRow(
 		p,
 		row,

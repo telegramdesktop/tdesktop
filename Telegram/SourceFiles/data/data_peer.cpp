@@ -73,7 +73,9 @@ PeerClickHandler::PeerClickHandler(not_null<PeerData*> peer)
 void PeerClickHandler::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton && App::wnd()) {
 		auto controller = App::wnd()->controller();
-		if (_peer && _peer->isChannel() && controller->historyPeer.current() != _peer) {
+		if (_peer
+			&& _peer->isChannel()
+			&& controller->activeChatCurrent().peer() != _peer) {
 			if (!_peer->asChannel()->isPublic() && !_peer->asChannel()->amIn()) {
 				Ui::show(Box<InformBox>(lang(_peer->isMegagroup()
 					? lng_group_not_accessible

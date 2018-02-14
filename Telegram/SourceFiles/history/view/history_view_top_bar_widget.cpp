@@ -67,26 +67,26 @@ TopBarWidget::TopBarWidget(
 	_back->addClickHandler([this] { backClicked(); });
 
 	rpl::combine(
-		_controller->historyPeer.value(),
-		_controller->searchInPeer.value()
+		_controller->activeChatValue(),
+		_controller->searchInChat.value()
 	) | rpl::combine_previous(
-		std::make_tuple(nullptr, nullptr)
+		std::make_tuple(Dialogs::Key(), Dialogs::Key())
 	) | rpl::map([](
-			const std::tuple<PeerData*, PeerData*> &previous,
-			const std::tuple<PeerData*, PeerData*> &current) {
-		auto peer = std::get<0>(current);
-		auto searchPeer = std::get<1>(current);
-		auto peerChanged = (peer != std::get<0>(previous));
-		auto searchInPeer
-			= (peer != nullptr) && (peer == searchPeer);
-		return std::make_tuple(searchInPeer, peerChanged);
+			const std::tuple<Dialogs::Key, Dialogs::Key> &previous,
+			const std::tuple<Dialogs::Key, Dialogs::Key> &current) {
+		auto active = std::get<0>(current);
+		auto search = std::get<1>(current);
+		auto activeChanged = (active != std::get<0>(previous));
+		auto searchInChat
+			= search && (active == search);
+		return std::make_tuple(searchInChat, activeChanged);
 	}) | rpl::start_with_next([this](
-			bool searchInHistoryPeer,
-			bool peerChanged) {
-		auto animated = peerChanged
+			bool searchInActiveChat,
+			bool activeChanged) {
+		auto animated = activeChanged
 			? anim::type::instant
 			: anim::type::normal;
-		_search->setForceRippled(searchInHistoryPeer, animated);
+		_search->setForceRippled(searchInActiveChat, animated);
 	}, lifetime());
 
 	subscribe(Adaptive::Changed(), [this] { updateAdaptiveLayout(); });

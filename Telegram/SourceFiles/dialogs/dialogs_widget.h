@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/section_widget.h"
 #include "ui/widgets/scroll_area.h"
+#include "dialogs/dialogs_key.h"
 
 class DialogsInner;
 
@@ -85,7 +86,7 @@ public:
 	Dialogs::IndexedList *dialogsList();
 	Dialogs::IndexedList *contactsNoDialogsList();
 
-	void searchMessages(const QString &query, PeerData *inPeer = 0);
+	void searchMessages(const QString &query, Dialogs::Key inChat = {});
 	void onSearchMore();
 
 	// Float player interface.
@@ -105,7 +106,7 @@ public slots:
 	void activate();
 	void onFilterUpdate(bool force = false);
 	bool onCancelSearch();
-	void onCancelSearchInPeer();
+	void onCancelSearchInChat();
 
 	void onFilterCursorMoved(int from = -1, int to = -1);
 	void onCompleteHashtag(QString tag);
@@ -154,7 +155,7 @@ private:
 		const QVector<MTPDialog> &dialogs,
 		const QVector<MTPMessage> &messages);
 
-	void setSearchInPeer(PeerData *peer, UserData *from = nullptr);
+	void setSearchInChat(Dialogs::Key chat, UserData *from = nullptr);
 	void showSearchFrom();
 	void showMainMenu();
 	void clearSearchCache();
@@ -196,8 +197,8 @@ private:
 	Window::SlideDirection _showDirection;
 	QPixmap _cacheUnder, _cacheOver;
 
-	PeerData *_searchInPeer = nullptr;
-	PeerData *_searchInMigrated = nullptr;
+	Dialogs::Key _searchInChat;
+	History *_searchInMigrated = nullptr;
 	UserData *_searchFromUser = nullptr;
 	QString _lastFilterText;
 

@@ -108,16 +108,9 @@ public:
 		return _window;
 	}
 
-	// This is needed for History TopBar updating when searchInPeer
+	// This is needed for History TopBar updating when searchInChat
 	// is changed in the DialogsWidget of the current window.
-	rpl::variable<PeerData*> searchInPeer;
-
-	// This is needed while we have one HistoryWidget and one TopBarWidget
-	// for all histories we show in a window. Once each history is shown
-	// in its own HistoryWidget with its own TopBarWidget this can be removed.
-	//
-	// Also used in the Info::Profile to toggle Send Message button.
-	rpl::variable<PeerData*> historyPeer;
+	rpl::variable<Dialogs::Key> searchInChat;
 
 	void setActiveChatEntry(Dialogs::RowDescriptor row);
 	void setActiveChatEntry(Dialogs::Key key);

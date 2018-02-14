@@ -349,9 +349,13 @@ Ui::MultiSlideTracker DetailsFiller::fillUserButtons(
 	auto window = _controller->parentController();
 
 	auto addSendMessageButton = [&] {
+		auto activePeerValue = window->activeChatValue(
+		) | rpl::map([](Dialogs::Key key) {
+			return key.peer();
+		});
 		auto sendMessageVisible = rpl::combine(
 			_controller->wrapValue(),
-			window->historyPeer.value(),
+			std::move(activePeerValue),
 			(_1 != Wrap::Side) || (_2 != user));
 		auto sendMessage = [window, user] {
 			window->showPeerHistory(
@@ -399,9 +403,13 @@ Ui::MultiSlideTracker DetailsFiller::fillChannelButtons(
 
 	Ui::MultiSlideTracker tracker;
 	auto window = _controller->parentController();
+	auto activePeerValue = window->activeChatValue(
+	) | rpl::map([](Dialogs::Key key) {
+		return key.peer();
+	});
 	auto viewChannelVisible = rpl::combine(
 		_controller->wrapValue(),
-		window->historyPeer.value(),
+		std::move(activePeerValue),
 		(_1 != Wrap::Side) || (_2 != channel));
 	auto viewChannel = [=] {
 		window->showPeerHistory(

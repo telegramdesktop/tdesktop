@@ -1406,8 +1406,8 @@ bool MainWidget::insertBotCommand(const QString &cmd) {
 	return _history->insertBotCommand(cmd);
 }
 
-void MainWidget::searchMessages(const QString &query, PeerData *inPeer) {
-	_dialogs->searchMessages(query, inPeer);
+void MainWidget::searchMessages(const QString &query, Dialogs::Key inChat) {
+	_dialogs->searchMessages(query, inChat);
 	if (Adaptive::OneColumn()) {
 		Ui::showChatsList();
 	} else {
@@ -2018,9 +2018,11 @@ void MainWidget::ui_showPeerHistory(
 				break;
 			}
 		}
-		if (auto historyPeer = _controller->historyPeer.current()) {
-			if (way == Way::Forward && historyPeer->id == peerId) {
-				way = Way::ClearStack;
+		if (const auto activeChat = _controller->activeChatCurrent()) {
+			if (const auto peer = activeChat.peer()) {
+				if (way == Way::Forward && peer->id == peerId) {
+					way = Way::ClearStack;
+				}
 			}
 		}
 	}

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "dialogs/dialogs_entry.h"
 #include "history/history.h"
+#include "history/feed/history_feed_section.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/fade_wrap.h"
@@ -106,9 +107,9 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 	connect(_inner, SIGNAL(searchResultChosen()), this, SLOT(onCancel()));
 	connect(_inner, SIGNAL(completeHashtag(QString)), this, SLOT(onCompleteHashtag(QString)));
 	connect(_inner, SIGNAL(refreshHashtags()), this, SLOT(onFilterCursorMoved()));
-	connect(_inner, SIGNAL(cancelSearchInPeer()), this, SLOT(onCancelSearchInPeer()));
+	connect(_inner, SIGNAL(cancelSearchInChat()), this, SLOT(onCancelSearchInChat()));
 	subscribe(_inner->searchFromUserChanged, [this](UserData *user) {
-		setSearchInPeer(_searchInPeer, user);
+		setSearchInChat(_searchInChat, user);
 		onFilterUpdate(true);
 	});
 	connect(_scroll, SIGNAL(geometryChanged()), _inner, SLOT(onParentGeometryChanged()));
@@ -127,7 +128,11 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 	subscribe(Adaptive::Changed(), [this] { updateForwardBar(); });
 
 	_cancelSearch->setClickedCallback([this] { onCancelSearch(); });
-	_jumpToDate->entity()->setClickedCallback([this] { if (_searchInPeer) this->controller()->showJumpToDate(_searchInPeer, QDate()); });
+	_jumpToDate->entity()->setClickedCallback([this] {
+		if (const auto peer = _searchInChat.peer()) {
+			this->controller()->showJumpToDate(peer, QDate());
+		}
+	});
 	_chooseFromUser->entity()->setClickedCallback([this] { showSearchFrom(); });
 	_lockUnlock->setVisible(Global::LocalPasscode());
 	subscribe(Global::RefLocalPasscodeChanged(), [this] { updateLockUnlockVisibility(); });
@@ -310,7 +315,7 @@ void DialogsWidget::animationCallback() {
 }
 
 void DialogsWidget::onCancel() {
-	if (!onCancelSearch() || (!_searchInPeer && !App::main()->selectingPeer())) {
+	if (!onCancelSearch() || (!_searchInChat && !App::main()->selectingPeer())) {
 		emit cancelled();
 	}
 }
@@ -481,7 +486,7 @@ bool DialogsWidget::onSearchMessages(bool searchCache) {
 			_searchFull = _searchFullMigrated = false;
 			MTP::cancel(base::take(_searchRequest));
 			searchReceived(
-				_searchInPeer
+				_searchInChat
 					? DialogsSearchPeerFromStart
 					: DialogsSearchFromStart,
 				i.value(),
@@ -493,14 +498,14 @@ bool DialogsWidget::onSearchMessages(bool searchCache) {
 		_searchQueryFrom = _searchFromUser;
 		_searchFull = _searchFullMigrated = false;
 		MTP::cancel(base::take(_searchRequest));
-		if (_searchInPeer) {
+		if (const auto peer = _searchInChat.peer()) {
 			const auto flags = _searchQueryFrom
 				? MTP_flags(MTPmessages_Search::Flag::f_from_id)
 				: MTP_flags(0);
 			_searchRequest = MTP::send(
 				MTPmessages_Search(
 					flags,
-					_searchInPeer->input,
+					peer->input,
 					MTP_string(_searchQuery),
 					_searchQueryFrom
 						? _searchQueryFrom->inputUser
@@ -516,6 +521,17 @@ bool DialogsWidget::onSearchMessages(bool searchCache) {
 					MTP_int(0)),
 				rpcDone(&DialogsWidget::searchReceived, DialogsSearchPeerFromStart),
 				rpcFail(&DialogsWidget::searchFailed, DialogsSearchPeerFromStart));
+		} else if (const auto feed = _searchInChat.feed()) {
+			_searchRequest = MTP::send(
+				MTPchannels_SearchFeed(
+					MTP_int(feed->id()),
+					MTP_string(_searchQuery),
+					MTP_int(0),
+					MTP_inputPeerEmpty(),
+					MTP_int(0),
+					MTP_int(SearchPerPage)),
+				rpcDone(&DialogsWidget::searchReceived, DialogsSearchFromStart),
+				rpcFail(&DialogsWidget::searchFailed, DialogsSearchFromStart));
 		} else {
 			_searchRequest = MTP::send(
 				MTPmessages_SearchGlobal(
@@ -529,7 +545,7 @@ bool DialogsWidget::onSearchMessages(bool searchCache) {
 		}
 		_searchQueries.insert(_searchRequest, _searchQuery);
 	}
-	if (!_searchInPeer && !q.isEmpty()) {
+	if (!_searchInChat && !q.isEmpty()) {
 		if (searchCache) {
 			auto i = _peerSearchCache.constFind(q);
 			if (i != _peerSearchCache.cend()) {
@@ -567,11 +583,23 @@ void DialogsWidget::showMainMenu() {
 	App::wnd()->showMainMenu();
 }
 
-void DialogsWidget::searchMessages(const QString &query, PeerData *inPeer) {
-	if ((_filter->getLastText() != query) || (inPeer && inPeer != _searchInPeer && inPeer->migrateTo() != _searchInPeer)) {
-		if (inPeer) {
+void DialogsWidget::searchMessages(
+		const QString &query,
+		Dialogs::Key inChat) {
+	auto inChatChanged = [&] {
+		if (inChat == _searchInChat) {
+			return false;
+		} else if (const auto inPeer = inChat.peer()) {
+			if (inPeer->migrateTo() == _searchInChat.peer()) {
+				return false;
+			}
+		}
+		return true;
+	}();
+	if ((_filter->getLastText() != query) || inChatChanged) {
+		if (inChat) {
 			onCancelSearch();
-			setSearchInPeer(inPeer);
+			setSearchInChat(inChat);
 		}
 		_filter->setText(query);
 		_filter->updatePlaceholder();
@@ -589,12 +617,14 @@ void DialogsWidget::onSearchMore() {
 			auto offsetDate = _inner->lastSearchDate();
 			auto offsetPeer = _inner->lastSearchPeer();
 			auto offsetId = _inner->lastSearchId();
-			if (_searchInPeer) {
-				auto flags = _searchQueryFrom ? MTP_flags(MTPmessages_Search::Flag::f_from_id) : MTP_flags(0);
+			if (const auto peer = _searchInChat.peer()) {
+				auto flags = _searchQueryFrom
+					? MTP_flags(MTPmessages_Search::Flag::f_from_id)
+					: MTP_flags(0);
 				_searchRequest = MTP::send(
 					MTPmessages_Search(
 						flags,
-						_searchInPeer->input,
+						peer->input,
 						MTP_string(_searchQuery),
 						_searchQueryFrom
 							? _searchQueryFrom->inputUser
@@ -610,6 +640,19 @@ void DialogsWidget::onSearchMore() {
 						MTP_int(0)),
 					rpcDone(&DialogsWidget::searchReceived, offsetId ? DialogsSearchPeerFromOffset : DialogsSearchPeerFromStart),
 					rpcFail(&DialogsWidget::searchFailed, offsetId ? DialogsSearchPeerFromOffset : DialogsSearchPeerFromStart));
+			} else if (const auto feed = _searchInChat.feed()) {
+				_searchRequest = MTP::send(
+					MTPchannels_SearchFeed(
+						MTP_int(feed->id()),
+						MTP_string(_searchQuery),
+						MTP_int(offsetDate),
+						offsetPeer
+							? offsetPeer->input
+							: MTP_inputPeerEmpty(),
+						MTP_int(offsetId),
+						MTP_int(SearchPerPage)),
+					rpcDone(&DialogsWidget::searchReceived, offsetId ? DialogsSearchFromOffset : DialogsSearchFromStart),
+					rpcFail(&DialogsWidget::searchFailed, offsetId ? DialogsSearchFromOffset : DialogsSearchFromStart));
 			} else {
 				_searchRequest = MTP::send(
 					MTPmessages_SearchGlobal(
@@ -628,11 +671,13 @@ void DialogsWidget::onSearchMore() {
 			}
 		} else if (_searchInMigrated && !_searchFullMigrated) {
 			auto offsetMigratedId = _inner->lastSearchMigratedId();
-			auto flags = _searchQueryFrom ? MTP_flags(MTPmessages_Search::Flag::f_from_id) : MTP_flags(0);
+			auto flags = _searchQueryFrom
+				? MTP_flags(MTPmessages_Search::Flag::f_from_id)
+				: MTP_flags(0);
 			_searchRequest = MTP::send(
 				MTPmessages_Search(
 					flags,
-					_searchInMigrated->input,
+					_searchInMigrated->peer->input,
 					MTP_string(_searchQuery),
 					_searchQueryFrom
 						? _searchQueryFrom->inputUser
@@ -741,10 +786,18 @@ void DialogsWidget::searchReceived(
 
 		case mtpc_messages_channelMessages: {
 			auto &d = result.c_messages_channelMessages();
-			if (_searchInPeer && _searchInPeer->isChannel()) {
-				_searchInPeer->asChannel()->ptsReceived(d.vpts.v);
+			if (const auto peer = _searchInChat.peer()) {
+				if (const auto channel = peer->asChannel()) {
+					channel->ptsReceived(d.vpts.v);
+				} else {
+					LOG(("API Error: "
+						"received messages.channelMessages when no channel "
+						"was passed! (DialogsWidget::searchReceived)"));
+				}
 			} else {
-				LOG(("API Error: received messages.channelMessages when no channel was passed! (DialogsWidget::searchReceived)"));
+				LOG(("API Error: "
+					"received messages.channelMessages when no channel "
+					"was passed! (DialogsWidget::searchReceived)"));
 			}
 			if (_searchRequest != 0) {
 				// Don't apply cached data!
@@ -941,26 +994,26 @@ void DialogsWidget::onFilterUpdate(bool force) {
 
 void DialogsWidget::searchInChat(Dialogs::Key chat) {
 	onCancelSearch();
-	if (const auto peer = chat.peer()) {
-		setSearchInPeer(peer);
-	} else {
-		// #TODO feeds search
-		setSearchInPeer(nullptr);
-	}
+	setSearchInChat(chat);
 	onFilterUpdate(true);
 }
 
-void DialogsWidget::setSearchInPeer(PeerData *peer, UserData *from) {
-	auto searchInPeerUpdated = false;
-	auto newSearchInPeer = peer ? (peer->migrateTo() ? peer->migrateTo() : peer) : nullptr;
-	_searchInMigrated = newSearchInPeer ? newSearchInPeer->migrateFrom() : nullptr;
-	searchInPeerUpdated = (newSearchInPeer != _searchInPeer);
+void DialogsWidget::setSearchInChat(Dialogs::Key chat, UserData *from) {
+	_searchInMigrated = nullptr;
+	if (const auto peer = chat.peer()) {
+		if (const auto migrateTo = peer->migrateTo()) {
+			return setSearchInChat(App::history(migrateTo), from);
+		} else if (const auto migrateFrom = peer->migrateFrom()) {
+			_searchInMigrated = App::history(migrateFrom);
+		}
+	}
+	const auto searchInPeerUpdated = (_searchInChat != chat);
 	if (searchInPeerUpdated) {
-		_searchInPeer = newSearchInPeer;
+		_searchInChat = chat;
 		from = nullptr;
-		controller()->searchInPeer = _searchInPeer;
+		controller()->searchInChat = _searchInChat;
 		updateJumpToDateVisibility();
-	} else if (!_searchInPeer) {
+	} else if (!_searchInChat) {
 		from = nullptr;
 	}
 	if (_searchFromUser != from || searchInPeerUpdated) {
@@ -968,7 +1021,7 @@ void DialogsWidget::setSearchInPeer(PeerData *peer, UserData *from) {
 		updateSearchFromVisibility();
 		clearSearchCache();
 	}
-	_inner->searchInPeer(_searchInPeer, _searchFromUser);
+	_inner->searchInChat(_searchInChat, _searchFromUser);
 	if (_searchFromUser && _lastFilterText == SwitchToChooseFromQuery()) {
 		onCancelSearch();
 	}
@@ -984,20 +1037,19 @@ void DialogsWidget::clearSearchCache() {
 }
 
 void DialogsWidget::showSearchFrom() {
-	if (!_searchInPeer) {
-		return;
+	if (const auto peer = _searchInChat.peer()) {
+		const auto chat = _searchInChat;
+		Dialogs::ShowSearchFromBox(
+			controller(),
+			peer,
+			base::lambda_guarded(this, [=](
+					not_null<UserData*> user) {
+				Ui::hideLayer();
+				setSearchInChat(chat, user);
+				onFilterUpdate(true);
+			}),
+			base::lambda_guarded(this, [this] { _filter->setFocus(); }));
 	}
-	auto peer = _searchInPeer;
-	Dialogs::ShowSearchFromBox(
-		controller(),
-		peer,
-		base::lambda_guarded(this, [this, peer](
-				not_null<UserData*> user) {
-			Ui::hideLayer();
-			setSearchInPeer(peer, user);
-			onFilterUpdate(true);
-		}),
-		base::lambda_guarded(this, [this] { _filter->setFocus(); }));
 }
 
 void DialogsWidget::onFilterCursorMoved(int from, int to) {
@@ -1058,12 +1110,19 @@ void DialogsWidget::updateJumpToDateVisibility(bool fast) {
 	if (_a_show.animating()) return;
 
 	_jumpToDate->toggle(
-		(_searchInPeer && _filter->getLastText().isEmpty()),
+		(_searchInChat && _filter->getLastText().isEmpty()),
 		fast ? anim::type::instant : anim::type::normal);
 }
 
 void DialogsWidget::updateSearchFromVisibility(bool fast) {
-	auto visible = _searchInPeer && (_searchInPeer->isChat() || _searchInPeer->isMegagroup()) && !_searchFromUser;
+	auto visible = [&] {
+		if (const auto peer = _searchInChat.peer()) {
+			if (peer->isChat() || peer->isMegagroup()) {
+				return !_searchFromUser;
+			}
+		}
+		return false;
+	}();
 	auto changed = (visible == !_chooseFromUser->toggled());
 	_chooseFromUser->toggle(
 		visible,
@@ -1263,11 +1322,17 @@ bool DialogsWidget::onCancelSearch() {
 		MTP::cancel(_searchRequest);
 		_searchRequest = 0;
 	}
-	if (_searchInPeer && !clearing) {
+	if (_searchInChat && !clearing) {
 		if (Adaptive::OneColumn()) {
-			Ui::showPeerHistory(_searchInPeer, ShowAtUnreadMsgId);
+			if (const auto peer = _searchInChat.peer()) {
+				Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
+			} else if (const auto feed = _searchInChat.feed()) {
+				controller()->showSection(HistoryFeed::Memento(feed));
+			} else {
+				Unexpected("Empty key in onCancelSearch().");
+			}
 		}
-		setSearchInPeer(nullptr);
+		setSearchInChat(Dialogs::Key());
 		clearing = true;
 	}
 	_inner->clearFilter();
@@ -1277,16 +1342,22 @@ bool DialogsWidget::onCancelSearch() {
 	return clearing;
 }
 
-void DialogsWidget::onCancelSearchInPeer() {
+void DialogsWidget::onCancelSearchInChat() {
 	if (_searchRequest) {
 		MTP::cancel(_searchRequest);
 		_searchRequest = 0;
 	}
-	if (_searchInPeer) {
+	if (_searchInChat) {
 		if (Adaptive::OneColumn() && !App::main()->selectingPeer()) {
-			Ui::showPeerHistory(_searchInPeer, ShowAtUnreadMsgId);
+			if (const auto peer = _searchInChat.peer()) {
+				Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
+			} else if (const auto feed = _searchInChat.feed()) {
+				controller()->showSection(HistoryFeed::Memento(feed));
+			} else {
+				Unexpected("Empty key in onCancelSearchInPeer().");
+			}
 		}
-		setSearchInPeer(nullptr);
+		setSearchInChat(Dialogs::Key());
 	}
 	_inner->clearFilter();
 	_filter->clear();

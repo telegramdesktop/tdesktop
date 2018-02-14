@@ -44,8 +44,8 @@ uint64 Row::sortKey() const {
 	return _id.entry()->sortKeyInChatList();
 }
 
-FakeRow::FakeRow(PeerData *searchInPeer, not_null<HistoryItem*> item)
-: _searchInPeer(searchInPeer)
+FakeRow::FakeRow(Key searchInChat, not_null<HistoryItem*> item)
+: _searchInChat(searchInChat)
 , _item(item)
 , _cache(st::dialogsTextWidthMin) {
 }

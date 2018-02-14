@@ -243,7 +243,7 @@ public:
 	bool insertBotCommand(const QString &cmd);
 
 	void jumpToDate(not_null<PeerData*> peer, const QDate &date);
-	void searchMessages(const QString &query, PeerData *inPeer);
+	void searchMessages(const QString &query, Dialogs::Key inChat);
 	void itemEdited(not_null<HistoryItem*> item);
 
 	void checkLastUpdate(bool afterSleep);

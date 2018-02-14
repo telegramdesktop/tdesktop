@@ -1839,13 +1839,12 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	updateForwarding();
 	updateOverStates(mapFromGlobal(QCursor::pos()));
 
-	crl::on_main(App::wnd(), [] { App::wnd()->setInnerFocus(); });
-
-	controller()->historyPeer = _peer;
 	if (_history) {
 		controller()->setActiveChatEntry({ _history, _showAtMsgId });
 	}
 	update();
+
+	crl::on_main(App::wnd(), [] { App::wnd()->setInnerFocus(); });
 }
 
 void HistoryWidget::clearDelayedShowAt() {
