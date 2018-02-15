@@ -432,15 +432,26 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			}
 		} break;
 		case mtpc_documentAttributeFilename: {
-			auto &attribute = attributes[i];
-			auto remoteFileName = qs(
+			const auto &attribute = attributes[i];
+			_filename = qs(
 				attribute.c_documentAttributeFilename().vfile_name);
 
-			// We don't want RTL Override characters in filenames,
-			// because they introduce a security issue, when a filename
-			// "Fil[RTLO]gepj.exe" looks like "Filexe.jpeg" being ".exe"
-			auto rtlOverride = QChar(0x202E);
-			_filename = std::move(remoteFileName).replace(rtlOverride, "");
+			// We don't want LTR/RTL mark/embedding/override/isolate chars
+			// in filenames, because they introduce a security issue, when
+			// an executable "Fil[x]gepj.exe" may look like "Filexe.jpeg".
+			QChar controls[] = {
+				0x200E, // LTR Mark
+				0x200F, // RTL Mark
+				0x202A, // LTR Embedding
+				0x202B, // RTL Embedding
+				0x202D, // LTR Override
+				0x202E, // RTL Override
+				0x2066, // LTR Isolate
+				0x2067, // RTL Isolate
+			};
+			for (const auto ch : controls) {
+				_filename = std::move(_filename).replace(ch, "_");
+			}
 		} break;
 		}
 	}
