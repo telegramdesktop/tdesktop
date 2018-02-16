@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_widget.h"
 #include "dialogs/dialogs_key.h"
+#include "data/data_messages.h"
 #include "base/flags.h"
 
 namespace Dialogs {
@@ -151,7 +152,7 @@ private:
 
 	struct ChosenRow {
 		Dialogs::Key key;
-		MsgId messageId = 0;
+		Data::MessagePosition message;
 	};
 	bool switchImportantChats();
 	bool chooseHashtag();

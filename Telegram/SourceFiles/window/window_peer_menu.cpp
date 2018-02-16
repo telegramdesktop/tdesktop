@@ -25,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "history/history.h"
 #include "window/window_controller.h"
+#include "info/info_memento.h"
+#include "info/info_controller.h"
 #include "info/feed/info_feed_channels_controllers.h"
 #include "data/data_session.h"
 #include "data/data_feed.h"
@@ -69,7 +71,10 @@ public:
 	void fill();
 
 private:
+	bool showInfo();
 	void addPinToggle();
+	void addInfo();
+	void addSearch();
 	void addNotifications();
 
 	not_null<Controller*> _controller;
@@ -411,7 +416,28 @@ void FeedFiller::fill() {
 	if (_source == PeerMenuSource::ChatsList) {
 		addPinToggle();
 	}
+	if (showInfo()) {
+		addInfo();
+	}
 	addNotifications();
+	if (_source == PeerMenuSource::ChatsList) {
+		addSearch();
+	}
+}
+
+bool FeedFiller::showInfo() {
+	if (_source == PeerMenuSource::Profile) {
+		return false;
+	} else if (_controller->activeChatCurrent().feed() != _feed) {
+		return true;
+	} else if (!Adaptive::ThreeColumn()) {
+		return true;
+	} else if (
+		!Auth().settings().thirdSectionInfoEnabled() &&
+		!Auth().settings().tabbedReplacedWithInfo()) {
+		return true;
+	}
+	return false;
 }
 
 void FeedFiller::addPinToggle() {
@@ -427,10 +453,27 @@ void FeedFiller::addPinToggle() {
 	});
 }
 
+void FeedFiller::addInfo() {
+	auto controller = _controller;
+	auto feed = _feed;
+	_addAction(lang(lng_context_view_feed_info), [=] {
+		controller->showSection(Info::Memento(
+			feed,
+			Info::Section(Info::Section::Type::Profile)));
+	});
+}
+
 void FeedFiller::addNotifications() {
 	const auto feed = _feed;
 	_addAction(lang(lng_feed_notifications), [=] {
 		Info::FeedProfile::FeedNotificationsController::Start(feed);
+	});
+}
+
+void FeedFiller::addSearch() {
+	const auto feed = _feed;
+	_addAction(lang(lng_profile_search_messages), [=] {
+		App::main()->searchInChat(feed);
 	});
 }
 

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "auth_session.h"
 #include "mainwidget.h"
+#include "apiwrap.h"
 #include "styles/style_widgets.h"
 #include "styles/style_info.h"
 #include "styles/style_boxes.h"
@@ -88,6 +89,9 @@ ChannelsController::ChannelsController(not_null<Controller*> controller)
 : PeerListController()
 , _controller(controller)
 , _feed(_controller->key().feed()) {
+	if (!_feed->channelsLoaded()) {
+		Auth().api().requestFeedChannels(_feed);
+	}
 	_controller->setSearchEnabledByContent(false);
 }
 

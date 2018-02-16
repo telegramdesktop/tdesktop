@@ -76,16 +76,16 @@ private:
 
 struct RowDescriptor {
 	RowDescriptor() = default;
-	RowDescriptor(Key key, MsgId msgId) : key(key), msgId(msgId) {
+	RowDescriptor(Key key, FullMsgId fullId) : key(key), fullId(fullId) {
 	}
 
 	Key key;
-	MsgId msgId = 0;
+	FullMsgId fullId;
 
 };
 
 inline bool operator==(const RowDescriptor &a, const RowDescriptor &b) {
-	return (a.key == b.key) && (a.msgId == b.msgId);
+	return (a.key == b.key) && (a.fullId == b.fullId);
 }
 
 inline bool operator!=(const RowDescriptor &a, const RowDescriptor &b) {
@@ -98,7 +98,7 @@ inline bool operator<(const RowDescriptor &a, const RowDescriptor &b) {
 	} else if (a.key > b.key) {
 		return false;
 	}
-	return a.msgId < b.msgId;
+	return a.fullId < b.fullId;
 }
 
 inline bool operator>(const RowDescriptor &a, const RowDescriptor &b) {

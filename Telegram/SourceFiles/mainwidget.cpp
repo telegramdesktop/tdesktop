@@ -2184,6 +2184,9 @@ void MainWidget::showSection(
 	if (_mainSection && _mainSection->showInternal(
 			&memento,
 			params)) {
+		if (const auto entry = _mainSection->activeChat(); entry.key) {
+			_controller->setActiveChatEntry(entry);
+		}
 		return;
 	//
 	// Now third section handles only its own showSection() requests.

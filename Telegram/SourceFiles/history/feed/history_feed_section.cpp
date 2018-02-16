@@ -40,9 +40,10 @@ namespace HistoryFeed {
 
 Memento::Memento(
 	not_null<Data::Feed*> feed,
-	Data::MessagePosition aroundPosition)
+	Data::MessagePosition position)
 : _feed(feed)
-, _list(std::make_unique<HistoryView::ListMemento>(aroundPosition)) {
+, _position(position)
+, _list(std::make_unique<HistoryView::ListMemento>(position)) {
 }
 
 Memento::~Memento() = default;
@@ -153,6 +154,7 @@ void Widget::setupScrollDownButton() {
 }
 
 void Widget::scrollDownClicked() {
+	_currentMessageId = Data::MaxMessagePosition.fullId;
 	showAtPosition(Data::MaxMessagePosition);
 }
 
@@ -246,7 +248,7 @@ void Widget::checkForSingleChannelFeed() {
 }
 
 Dialogs::RowDescriptor Widget::activeChat() const {
-	return Dialogs::RowDescriptor(_feed, MsgId(0));
+	return Dialogs::RowDescriptor(_feed, _currentMessageId);
 }
 
 void Widget::updateAdaptiveLayout() {
@@ -444,6 +446,10 @@ void Widget::restoreState(not_null<Memento*> memento) {
 	}
 	_undefinedAroundPosition = !list->aroundPosition();
 	_inner->restoreState(memento->list());
+	if (const auto position = memento->position()) {
+		_currentMessageId = position.fullId;
+		showAtPosition(position);
+	}
 }
 
 void Widget::resizeEvent(QResizeEvent *e) {

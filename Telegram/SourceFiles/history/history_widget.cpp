@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_drag_area.h"
 #include "history/history_inner_widget.h"
 #include "history/history_item_components.h"
+#include "history/feed/history_feed_section.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_element.h"
 #include "profile/profile_block_group_members.h"
@@ -1441,12 +1442,19 @@ bool HistoryWidget::cmd_next_chat() {
 		return false;
 	}
 	const auto next = App::main()->chatListEntryAfter(
-		Dialogs::RowDescriptor(_history, std::max(_showAtMsgId, 0)));
+		Dialogs::RowDescriptor(
+			_history,
+			FullMsgId(_history->channelId(), std::max(_showAtMsgId, 0))));
 	if (const auto history = next.key.history()) {
-		Ui::showPeerHistory(history, next.msgId);
+		Ui::showPeerHistory(history, next.fullId.msg);
 		return true;
+	} else if (const auto feed = next.key.feed()) {
+		if (const auto item = App::histItemById(next.fullId)) {
+			controller()->showSection(HistoryFeed::Memento(feed, item->position()));
+		} else {
+			controller()->showSection(HistoryFeed::Memento(feed));
+		}
 	}
-	// #TODO feeds show
 	return false;
 }
 
@@ -1455,12 +1463,19 @@ bool HistoryWidget::cmd_previous_chat() {
 		return false;
 	}
 	const auto next = App::main()->chatListEntryBefore(
-		Dialogs::RowDescriptor(_history, std::max(_showAtMsgId, 0)));
+		Dialogs::RowDescriptor(
+			_history,
+			FullMsgId(_history->channelId(), std::max(_showAtMsgId, 0))));
 	if (const auto history = next.key.history()) {
-		Ui::showPeerHistory(history, next.msgId);
+		Ui::showPeerHistory(history, next.fullId.msg);
 		return true;
+	} else if (const auto feed = next.key.feed()) {
+		if (const auto item = App::histItemById(next.fullId)) {
+			controller()->showSection(HistoryFeed::Memento(feed, item->position()));
+		} else {
+			controller()->showSection(HistoryFeed::Memento(feed));
+		}
 	}
-	// #TODO feeds show
 	return false;
 }
 
@@ -1840,7 +1855,9 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	updateOverStates(mapFromGlobal(QCursor::pos()));
 
 	if (_history) {
-		controller()->setActiveChatEntry({ _history, _showAtMsgId });
+		controller()->setActiveChatEntry({
+			_history,
+			FullMsgId(_history->channelId(), _showAtMsgId) });
 	}
 	update();
 
@@ -3046,7 +3063,9 @@ void HistoryWidget::setMsgId(MsgId showAtMsgId) {
 		auto wasMsgId = _showAtMsgId;
 		_showAtMsgId = showAtMsgId;
 		if (_history) {
-			controller()->setActiveChatEntry({ _history, _showAtMsgId });
+			controller()->setActiveChatEntry({
+				_history,
+				FullMsgId(_history->channelId(), _showAtMsgId) });
 		}
 	}
 }

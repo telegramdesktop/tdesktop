@@ -137,6 +137,7 @@ public:
 	void restoreState(not_null<ListMemento*> memento);
 	base::optional<int> scrollTopForPosition(
 		Data::MessagePosition position) const;
+	base::optional<int> scrollTopForView(not_null<Element*> view) const;
 	enum class AnimatedScroll {
 		Full,
 		Part,

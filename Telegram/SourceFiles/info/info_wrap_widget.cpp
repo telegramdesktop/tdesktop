@@ -199,9 +199,9 @@ Key WrapWidget::key() const {
 
 Dialogs::RowDescriptor WrapWidget::activeChat() const {
 	if (const auto peer = key().peer()) {
-		return Dialogs::RowDescriptor(App::history(peer), MsgId(0));
+		return Dialogs::RowDescriptor(App::history(peer), FullMsgId());
 	} else if (const auto feed = key().feed()) {
-		return Dialogs::RowDescriptor(feed, MsgId(0));
+		return Dialogs::RowDescriptor(feed, FullMsgId());
 	}
 	Unexpected("Owner in WrapWidget::activeChat().");
 }
@@ -497,18 +497,27 @@ void WrapWidget::showProfileMenu() {
 	});
 	_topBarMenuToggle->installEventFilter(_topBarMenu.get());
 
-	// #TODO feeds menu
-	const auto peer = key().peer();
-	if (!peer) {
+	const auto addAction = [=](
+			const QString &text,
+			base::lambda<void()> callback) {
+		return _topBarMenu->addAction(text, std::move(callback));
+	};
+	if (const auto peer = key().peer()) {
+		Window::FillPeerMenu(
+			_controller->parentController(),
+			peer,
+			addAction,
+			Window::PeerMenuSource::Profile);
+	} else if (const auto feed = key().feed()) {
+		Window::FillFeedMenu(
+			_controller->parentController(),
+			feed,
+			addAction,
+			Window::PeerMenuSource::Profile);
+	} else {
+		_topBarMenu = nullptr;
 		return;
 	}
-	Window::FillPeerMenu(
-		_controller->parentController(),
-		peer,
-		[this](const QString &text, base::lambda<void()> callback) {
-			return _topBarMenu->addAction(text, std::move(callback));
-		},
-		Window::PeerMenuSource::Profile);
 	auto position = (wrap() == Wrap::Layer)
 		? st::infoLayerTopBarMenuPosition
 		: st::infoTopBarMenuPosition;

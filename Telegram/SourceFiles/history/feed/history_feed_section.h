@@ -128,6 +128,7 @@ private:
 	std::unique_ptr<HistoryItem, HistoryItem::Destroyer> _emptyTextItem;
 	std::unique_ptr<HistoryView::Element> _emptyTextView;
 
+	FullMsgId _currentMessageId;
 	base::optional<Data::MessagePosition> _nextAnimatedScrollPosition;
 	int _nextAnimatedScrollDelta = 0;
 
@@ -142,7 +143,7 @@ class Memento : public Window::SectionMemento {
 public:
 	explicit Memento(
 		not_null<Data::Feed*> feed,
-		Data::MessagePosition aroundPosition = Data::UnreadMessagePosition);
+		Data::MessagePosition position = Data::UnreadMessagePosition);
 	~Memento();
 
 	object_ptr<Window::SectionWidget> createWidget(
@@ -154,12 +155,16 @@ public:
 	not_null<Data::Feed*> feed() const {
 		return _feed;
 	}
+	Data::MessagePosition position() const {
+		return _position;
+	}
 	not_null<HistoryView::ListMemento*> list() const {
 		return _list.get();
 	}
 
 private:
 	not_null<Data::Feed*> _feed;
+	Data::MessagePosition _position;
 	std::unique_ptr<HistoryView::ListMemento> _list;
 
 };

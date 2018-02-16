@@ -280,7 +280,10 @@ not_null<ChannelData*> Widget::channel() const {
 }
 
 Dialogs::RowDescriptor Widget::activeChat() const {
-	return { App::history(channel()), MsgId(0) };
+	return {
+		App::history(channel()),
+		FullMsgId(channel()->bareId(), ShowAtUnreadMsgId)
+	};
 }
 
 QPixmap Widget::grabForShowAnimation(const Window::SectionSlideParams &params) {

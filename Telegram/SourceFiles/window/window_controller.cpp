@@ -41,7 +41,7 @@ void Controller::setActiveChatEntry(Dialogs::RowDescriptor row) {
 }
 
 void Controller::setActiveChatEntry(Dialogs::Key key) {
-	setActiveChatEntry({ key, MsgId(0) });
+	setActiveChatEntry({ key, FullMsgId() });
 }
 
 Dialogs::RowDescriptor Controller::activeChatEntryCurrent() const {

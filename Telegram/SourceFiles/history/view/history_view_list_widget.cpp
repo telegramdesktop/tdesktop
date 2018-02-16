@@ -334,9 +334,31 @@ base::optional<int> ListWidget::scrollTopForPosition(
 			return height();
 		}
 		return base::none;
+	} else if (_items.empty()
+		|| isBelowPosition(position)
+		|| isAbovePosition(position)) {
+		return base::none;
 	}
-	// #TODO showAtPosition
-	return base::none;
+	const auto index = findNearestItem(position);
+	const auto view = _items[index];
+	return scrollTopForView(_items[index]);
+}
+
+base::optional<int> ListWidget::scrollTopForView(
+		not_null<Element*> view) const {
+	if (view->isHiddenByGroup()) {
+		if (const auto group = Auth().data().groups().find(view->data())) {
+			if (const auto leader = viewForItem(group->items.back())) {
+				if (!leader->isHiddenByGroup()) {
+					return scrollTopForView(leader);
+				}
+			}
+		}
+	}
+	const auto top = view->y();
+	const auto height = view->height();
+	const auto available = _visibleBottom - _visibleTop;
+	return top - std::max((available - height) / 2, 0);
 }
 
 void ListWidget::animatedScrollTo(
@@ -382,14 +404,14 @@ void ListWidget::scrollToAnimationCallback(FullMsgId attachToId) {
 }
 
 bool ListWidget::isAbovePosition(Data::MessagePosition position) const {
-	if (_items.empty()) {
+	if (_items.empty() || loadedAtBottom()) {
 		return false;
 	}
 	return _items.back()->data()->position() < position;
 }
 
 bool ListWidget::isBelowPosition(Data::MessagePosition position) const {
-	if (_items.empty()) {
+	if (_items.empty() || loadedAtTop()) {
 		return false;
 	}
 	return _items.front()->data()->position() > position;

@@ -1044,6 +1044,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_view_profile" = "View profile";
 "lng_context_view_group" = "View group info";
 "lng_context_view_channel" = "View channel info";
+"lng_context_view_feed_info" = "View feed info";
 "lng_context_pin_to_top" = "Pin to top";
 "lng_context_unpin_from_top" = "Unpin from top";
 
