@@ -342,6 +342,26 @@ QSize Message::performCountOptimalSize() {
 	return QSize(maxWidth, minHeight);
 }
 
+int Message::marginTop() const {
+	auto result = 0;
+	if (!isHidden()) {
+		if (isAttachedToPrevious()) {
+			result += st::msgMarginTopAttached;
+		} else {
+			result += st::msgMargin.top();
+		}
+	}
+	result += displayedDateHeight();
+	if (const auto bar = Get<UnreadBar>()) {
+		result += bar->height();
+	}
+	return result;
+}
+
+int Message::marginBottom() const {
+	return isHidden() ? 0 : st::msgMargin.bottom();
+}
+
 void Message::draw(
 		Painter &p,
 		QRect clip,
@@ -376,25 +396,11 @@ void Message::draw(
 		return;
 	}
 
-	auto fullAnimMs = App::main() ? App::main()->highlightStartTime(item) : 0LL;
-	if (fullAnimMs > 0 && fullAnimMs <= ms) {
-		auto animms = ms - fullAnimMs;
-		if (animms < st::activeFadeInDuration + st::activeFadeOutDuration) {
-			auto top = marginTop();
-			auto bottom = marginBottom();
-			auto fill = qMin(top, bottom);
-			auto skiptop = top - fill;
-			auto fillheight = fill + g.height() + fill;
+	paintHighlight(p, g.height());
 
-			auto dt = (animms > st::activeFadeInDuration) ? (1. - (animms - st::activeFadeInDuration) / float64(st::activeFadeOutDuration)) : (animms / float64(st::activeFadeInDuration));
-			auto o = p.opacity();
-			p.setOpacity(o * dt);
-			p.fillRect(0, skiptop, width(), fillheight, st::defaultTextPalette.selectOverlay);
-			p.setOpacity(o);
-		}
-	}
-
-	p.setTextPalette(selected ? (outbg ? st::outTextPaletteSelected : st::inTextPaletteSelected) : (outbg ? st::outTextPalette : st::inTextPalette));
+	p.setTextPalette(selected
+		? (outbg ? st::outTextPaletteSelected : st::inTextPaletteSelected)
+		: (outbg ? st::outTextPalette : st::inTextPalette));
 
 	auto keyboard = item->inlineReplyKeyboard();
 	if (keyboard) {

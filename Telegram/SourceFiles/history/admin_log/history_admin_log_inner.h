@@ -85,6 +85,8 @@ public:
 		not_null<const HistoryView::Element*> view) override;
 	void elementAnimationAutoplayAsync(
 		not_null<const HistoryView::Element*> view) override;
+	TimeMs elementHighlightTime(
+		not_null<const HistoryView::Element*> element) override;
 
 	~InnerWidget();
 

@@ -149,6 +149,7 @@ public:
 		AnimatedScroll type);
 	bool isAbovePosition(Data::MessagePosition position) const;
 	bool isBelowPosition(Data::MessagePosition position) const;
+	void highlightMessage(FullMsgId itemId);
 
 	TextWithEntities getSelectedText() const;
 	MessageIdsList getSelectedItems() const;
@@ -175,6 +176,7 @@ public:
 	bool elementUnderCursor(not_null<const Element*> view) override;
 	void elementAnimationAutoplayAsync(
 		not_null<const Element*> view) override;
+	TimeMs elementHighlightTime(not_null<const Element*> element) override;
 
 	~ListWidget();
 
@@ -378,6 +380,8 @@ private:
 	void applyUpdatedScrollState();
 	void scrollToAnimationCallback(FullMsgId attachToId);
 
+	void updateHighlightedMessage();
+
 	// This function finds all history items that are displayed and calls template method
 	// for each found message (in given direction) in the passed history with passed top offset.
 	//
@@ -468,6 +472,10 @@ private:
 
 	QPoint _trippleClickPoint;
 	TimeMs _trippleClickStartTime = 0;
+
+	TimeMs _highlightStart = 0;
+	FullMsgId _highlightedMessageId;
+	base::Timer _highlightTimer;
 
 	rpl::lifetime _viewerLifetime;
 

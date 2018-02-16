@@ -239,7 +239,8 @@ ListWidget::ListWidget(
 , _itemAverageHeight(itemMinimalHeight())
 , _scrollDateCheck([this] { scrollDateCheck(); })
 , _applyUpdatedScrollState([this] { applyUpdatedScrollState(); })
-, _selectEnabled(_delegate->listAllowsMultiSelect()) {
+, _selectEnabled(_delegate->listAllowsMultiSelect())
+, _highlightTimer([this] { updateHighlightedMessage(); }) {
 	setMouseTracking(true);
 	_scrollDateHideTimer.setCallback([this] { scrollDateHideByTimer(); });
 	Auth().data().viewRepaintRequest(
@@ -415,6 +416,32 @@ bool ListWidget::isBelowPosition(Data::MessagePosition position) const {
 		return false;
 	}
 	return _items.front()->data()->position() > position;
+}
+
+void ListWidget::highlightMessage(FullMsgId itemId) {
+	if (const auto item = App::histItemById(itemId)) {
+		if (const auto view = viewForItem(item)) {
+			_highlightStart = getms();
+			_highlightedMessageId = itemId;
+			_highlightTimer.callEach(AnimationTimerDelta);
+
+			repaintItem(view);
+		}
+	}
+}
+
+void ListWidget::updateHighlightedMessage() {
+	if (const auto item = App::histItemById(_highlightedMessageId)) {
+		if (const auto view = viewForItem(item)) {
+			repaintItem(view);
+			auto duration = st::activeFadeInDuration + st::activeFadeOutDuration;
+			if (getms() - _highlightStart <= duration) {
+				return;
+			}
+		}
+	}
+	_highlightTimer.cancel();
+	_highlightedMessageId = FullMsgId();
 }
 
 void ListWidget::checkUnreadBarCreation() {
@@ -1069,6 +1096,16 @@ void ListWidget::elementAnimationAutoplayAsync(
 			}
 		}
 	});
+}
+
+TimeMs ListWidget::elementHighlightTime(
+		not_null<const HistoryView::Element*> element) {
+	if (element->data()->fullId() == _highlightedMessageId) {
+		if (_highlightTimer.isActive()) {
+			return getms() - _highlightStart;
+		}
+	}
+	return TimeMs(0);
 }
 
 void ListWidget::saveState(not_null<ListMemento*> memento) {

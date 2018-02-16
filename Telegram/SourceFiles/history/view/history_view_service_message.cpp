@@ -373,6 +373,14 @@ bool Service::isHidden() const {
 	return Element::isHidden();
 }
 
+int Service::marginTop() const {
+	return st::msgServiceMargin.top();
+}
+
+int Service::marginBottom() const {
+	return st::msgServiceMargin.bottom();
+}
+
 void Service::draw(
 		Painter &p,
 		QRect clip,
@@ -410,23 +418,7 @@ void Service::draw(
 		return;
 	}
 
-	auto fullAnimMs = App::main() ? App::main()->highlightStartTime(item) : 0LL;
-	if (fullAnimMs > 0 && fullAnimMs <= ms) {
-		auto animms = ms - fullAnimMs;
-		if (animms < st::activeFadeInDuration + st::activeFadeOutDuration) {
-			auto top = st::msgServiceMargin.top();
-			auto bottom = st::msgServiceMargin.bottom();
-			auto fill = qMin(top, bottom);
-			auto skiptop = top - fill;
-			auto fillheight = fill + height + fill;
-
-			auto dt = (animms > st::activeFadeInDuration) ? (1. - (animms - st::activeFadeInDuration) / float64(st::activeFadeOutDuration)) : (animms / float64(st::activeFadeInDuration));
-			auto o = p.opacity();
-			p.setOpacity(o * dt);
-			p.fillRect(0, skiptop, width(), fillheight, st::defaultTextPalette.selectOverlay);
-			p.setOpacity(o);
-		}
-	}
+	paintHighlight(p, height);
 
 	p.setTextPalette(st::serviceTextPalette);
 

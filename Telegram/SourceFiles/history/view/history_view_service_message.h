@@ -19,6 +19,8 @@ public:
 		not_null<ElementDelegate*> delegate,
 		not_null<HistoryService*> data);
 
+	int marginTop() const override;
+	int marginBottom() const override;
 	bool isHidden() const override;
 	void draw(
 		Painter &p,

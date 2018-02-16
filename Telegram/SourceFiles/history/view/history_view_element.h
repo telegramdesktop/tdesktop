@@ -42,6 +42,8 @@ public:
 	virtual bool elementUnderCursor(not_null<const Element*> view) = 0;
 	virtual void elementAnimationAutoplayAsync(
 		not_null<const Element*> element) = 0;
+	virtual TimeMs elementHighlightTime(
+		not_null<const Element*> element) = 0;
 
 };
 
@@ -126,8 +128,9 @@ public:
 	int y() const;
 	void setY(int y);
 
-	int marginTop() const;
-	int marginBottom() const;
+	virtual int marginTop() const = 0;
+	virtual int marginBottom() const = 0;
+
 	void setPendingResize();
 	bool pendingResize() const;
 	bool isUnderCursor() const;
@@ -242,8 +245,9 @@ public:
 	virtual ~Element();
 
 protected:
-	void setInitialSize(int maxWidth, int minHeight);
-	void setCurrentSize(int width, int height);
+	void paintHighlight(
+		Painter &p,
+		int geometryHeight) const;
 
 private:
 	// This should be called only from previousInBlocksChanged()

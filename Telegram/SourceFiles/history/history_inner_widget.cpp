@@ -3006,6 +3006,18 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 				}
 			});
 		}
+		TimeMs elementHighlightTime(
+				not_null<const HistoryView::Element*> view) override {
+			const auto fullAnimMs = App::main()->highlightStartTime(
+				view->data());
+			if (fullAnimMs > 0) {
+				const auto now = getms();
+				if (fullAnimMs < now) {
+					return now - fullAnimMs;
+				}
+			}
+			return TimeMs(0);
+		}
 
 	};
 

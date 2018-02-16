@@ -159,7 +159,11 @@ void Widget::scrollDownClicked() {
 }
 
 void Widget::showAtPosition(Data::MessagePosition position) {
-	if (!showAtPositionNow(position)) {
+	if (showAtPositionNow(position)) {
+		if (const auto highlight = base::take(_highlightMessageId)) {
+			_inner->highlightMessage(highlight);
+		}
+	} else {
 		_nextAnimatedScrollPosition = position;
 		_nextAnimatedScrollDelta = _inner->isBelowPosition(position)
 			? -_scroll->height()
@@ -424,6 +428,9 @@ void Widget::listContentRefreshed() {
 			position,
 			_nextAnimatedScrollDelta,
 			HistoryView::ListWidget::AnimatedScroll::Part);
+		if (const auto highlight = base::take(_highlightMessageId)) {
+			_inner->highlightMessage(highlight);
+		}
 	}
 }
 
@@ -447,7 +454,7 @@ void Widget::restoreState(not_null<Memento*> memento) {
 	_undefinedAroundPosition = !list->aroundPosition();
 	_inner->restoreState(memento->list());
 	if (const auto position = memento->position()) {
-		_currentMessageId = position.fullId;
+		_currentMessageId = _highlightMessageId = position.fullId;
 		showAtPosition(position);
 	}
 }

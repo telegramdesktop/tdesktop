@@ -174,26 +174,34 @@ void Element::setY(int y) {
 	_y = y;
 }
 
-int Element::marginTop() const {
-	const auto item = data();
-	auto result = 0;
-	if (!isHidden()) {
-		if (isAttachedToPrevious()) {
-			result += st::msgMarginTopAttached;
-		} else {
-			result += st::msgMargin.top();
-		}
+void Element::paintHighlight(
+		Painter &p,
+		int geometryHeight) const {
+	const auto animms = delegate()->elementHighlightTime(this);
+	if (!animms
+		|| animms >= st::activeFadeInDuration + st::activeFadeOutDuration) {
+		return;
 	}
-	result += displayedDateHeight();
-	if (const auto bar = Get<UnreadBar>()) {
-		result += bar->height();
-	}
-	return result;
-}
 
-int Element::marginBottom() const {
-	const auto item = data();
-	return isHidden() ? 0 : st::msgMargin.bottom();
+	const auto top = marginTop();
+	const auto bottom = marginBottom();
+	const auto fill = qMin(top, bottom);
+	const auto skiptop = top - fill;
+	const auto fillheight = fill + geometryHeight + fill;
+
+	const auto dt = (animms > st::activeFadeInDuration)
+		? (1. - (animms - st::activeFadeInDuration)
+			/ float64(st::activeFadeOutDuration))
+		: (animms / float64(st::activeFadeInDuration));
+	const auto o = p.opacity();
+	p.setOpacity(o * dt);
+	p.fillRect(
+		0,
+		skiptop,
+		width(),
+		fillheight,
+		st::defaultTextPalette.selectOverlay);
+	p.setOpacity(o);
 }
 
 bool Element::isUnderCursor() const {

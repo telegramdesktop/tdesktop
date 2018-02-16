@@ -32,6 +32,8 @@ public:
 		not_null<ElementDelegate*> delegate,
 		not_null<HistoryMessage*> data);
 
+	int marginTop() const override;
+	int marginBottom() const override;
 	void draw(
 		Painter &p,
 		QRect clip,

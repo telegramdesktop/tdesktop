@@ -508,6 +508,10 @@ void InnerWidget::elementAnimationAutoplayAsync(
 	});
 }
 
+TimeMs InnerWidget::elementHighlightTime(
+		not_null<const HistoryView::Element*> element) {
+	return TimeMs(0);
+}
 
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 	memento->setFilter(std::move(_filter));

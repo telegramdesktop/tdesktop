@@ -129,6 +129,7 @@ private:
 	std::unique_ptr<HistoryView::Element> _emptyTextView;
 
 	FullMsgId _currentMessageId;
+	FullMsgId _highlightMessageId;
 	base::optional<Data::MessagePosition> _nextAnimatedScrollPosition;
 	int _nextAnimatedScrollDelta = 0;
 
