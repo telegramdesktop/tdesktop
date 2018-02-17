@@ -113,9 +113,13 @@ parts:
   desktop-integration:
     plugin: nil
     stage-packages:
+      - fonts-droid-fallback
       - libnotify4
       - libpulse0
-    after: [desktop-gtk3, libunity]
+    after:
+      - desktop-gtk3
+      - indicator-gtk3
+      - libunity
 
   # Using latest version of libunity as it supports proper $SNAP namespace
   libunity:
