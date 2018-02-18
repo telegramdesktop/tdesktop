@@ -203,6 +203,19 @@ void ApiWrap::toggleChannelGrouping(
 	_channelGroupingRequests.emplace(channel, requestId, callback);
 }
 
+void ApiWrap::ungroupAllFromFeed(not_null<Data::Feed*> feed) {
+	const auto flags = MTPchannels_SetFeedBroadcasts::Flag::f_channels
+		| MTPchannels_SetFeedBroadcasts::Flag::f_also_newly_joined;
+	request(MTPchannels_SetFeedBroadcasts(
+		MTP_flags(flags),
+		MTP_int(feed->id()),
+		MTP_vector<MTPInputChannel>(0),
+		MTP_bool(false)
+	)).done([=](const MTPUpdates &result) {
+		applyUpdates(result);
+	}).send();
+}
+
 void ApiWrap::sendMessageFail(const RPCError &error) {
 	if (error.type() == qstr("PEER_FLOOD")) {
 		Ui::show(Box<InformBox>(

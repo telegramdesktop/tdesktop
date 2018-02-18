@@ -1429,6 +1429,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_feed_channels#one" = "{count} channel";
 "lng_feed_channels#other" = "{count} channels";
 "lng_feed_notifications" = "Feed notifications";
+"lng_feed_ungroup_all" = "Ungroup all channels";
+"lng_feed_sure_ungroup_all" = "Are you sure you want to ungroup all channels from this feed?";
+"lng_feed_ungroup_sure" = "Ungroup";
 
 "lng_info_feed_title" = "Feed Info";
 "lng_info_feed_is_default" = "Group new channels";

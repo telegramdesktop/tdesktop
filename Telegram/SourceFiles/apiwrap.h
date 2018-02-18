@@ -60,6 +60,7 @@ public:
 		not_null<ChannelData*> channel,
 		bool group,
 		base::lambda<void()> callback);
+	void ungroupAllFromFeed(not_null<Data::Feed*> feed);
 
 	using RequestMessageDataCallback = base::lambda<void(ChannelData*, MsgId)>;
 	void requestMessageData(

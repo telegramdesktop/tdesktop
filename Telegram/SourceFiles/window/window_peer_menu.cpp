@@ -76,6 +76,7 @@ private:
 	void addInfo();
 	void addSearch();
 	void addNotifications();
+	void addUngroup();
 
 	not_null<Controller*> _controller;
 	not_null<Data::Feed*> _feed;
@@ -423,6 +424,7 @@ void FeedFiller::fill() {
 	if (_source == PeerMenuSource::ChatsList) {
 		addSearch();
 	}
+	addUngroup();
 }
 
 bool FeedFiller::showInfo() {
@@ -474,6 +476,13 @@ void FeedFiller::addSearch() {
 	const auto feed = _feed;
 	_addAction(lang(lng_profile_search_messages), [=] {
 		App::main()->searchInChat(feed);
+	});
+}
+
+void FeedFiller::addUngroup() {
+	const auto feed = _feed;
+	_addAction(lang(lng_feed_ungroup_all), [=] {
+		PeerMenuUngroupFeed(feed);
 	});
 }
 
@@ -645,6 +654,13 @@ void PeerMenuAddMuteAction(
 	});
 
 	Ui::AttachAsChild(muteAction, std::move(lifetime));
+}
+
+void PeerMenuUngroupFeed(not_null<Data::Feed*> feed) {
+	Ui::show(Box<ConfirmBox>(
+		lang(lng_feed_sure_ungroup_all),
+		lang(lng_feed_ungroup_sure),
+		[=] { Ui::hideLayer(); Auth().api().ungroupAllFromFeed(feed); }));
 }
 
 void ToggleChannelGrouping(not_null<ChannelData*> channel, bool group) {
