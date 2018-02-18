@@ -716,6 +716,7 @@ TextState Message::textState(
 	}
 
 	if (drawBubble()) {
+		const auto inBubble = g.contains(point);
 		auto entry = logEntryOriginal();
 		auto mediaDisplayed = media && media->isDisplayed();
 
@@ -729,7 +730,7 @@ TextState Message::textState(
 		}
 		if (mediaOnTop) {
 			trect.setY(trect.y() - st::msgPadding.top());
-		} else {
+		} else if (inBubble) {
 			if (getStateFromName(point, trect, &result)) {
 				return result;
 			}
@@ -769,25 +770,27 @@ TextState Message::textState(
 				result.cursor = CursorState::Date;
 			}
 		};
-		if (mediaDisplayed) {
-			auto mediaHeight = media->height();
-			auto mediaLeft = trect.x() - st::msgPadding.left();
-			auto mediaTop = (trect.y() + trect.height() - mediaHeight);
+		if (inBubble) {
+			if (mediaDisplayed) {
+				auto mediaHeight = media->height();
+				auto mediaLeft = trect.x() - st::msgPadding.left();
+				auto mediaTop = (trect.y() + trect.height() - mediaHeight);
 
-			if (point.y() >= mediaTop && point.y() < mediaTop + mediaHeight) {
-				result = media->textState(point - QPoint(mediaLeft, mediaTop), request);
-				result.symbol += item->_text.length();
+				if (point.y() >= mediaTop && point.y() < mediaTop + mediaHeight) {
+					result = media->textState(point - QPoint(mediaLeft, mediaTop), request);
+					result.symbol += item->_text.length();
+				} else if (getStateText(point, trect, &result, request)) {
+					checkForPointInTime();
+					return result;
+				} else if (point.y() >= trect.y() + trect.height()) {
+					result.symbol = item->_text.length();
+				}
 			} else if (getStateText(point, trect, &result, request)) {
 				checkForPointInTime();
 				return result;
 			} else if (point.y() >= trect.y() + trect.height()) {
 				result.symbol = item->_text.length();
 			}
-		} else if (getStateText(point, trect, &result, request)) {
-			checkForPointInTime();
-			return result;
-		} else if (point.y() >= trect.y() + trect.height()) {
-			result.symbol = item->_text.length();
 		}
 		checkForPointInTime();
 		if (displayRightAction()) {
