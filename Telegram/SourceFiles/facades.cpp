@@ -159,7 +159,7 @@ void searchByHashtag(const QString &tag, PeerData *inPeer) {
 			tag + ' ',
 			(inPeer
 				? App::history(inPeer).get()
-				: nullptr));
+				: Dialogs::Key()));
 	}
 }
 
