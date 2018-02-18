@@ -258,10 +258,12 @@ private:
 	const std::unique_ptr<Storage::Uploader> _uploader;
 	const std::unique_ptr<Storage::Facade> _storage;
 	const std::unique_ptr<Window::Notifications::System> _notifications;
-	const std::unique_ptr<Core::Changelogs> _changelogs;
 
 	// _data depends on _downloader / _uploader, including destructor.
 	const std::unique_ptr<Data::Session> _data;
+
+	// _changelogs depends on _data, subscribes on chats loading event.
+	const std::unique_ptr<Core::Changelogs> _changelogs;
 
 	rpl::lifetime _lifetime;
 

@@ -274,8 +274,8 @@ AuthSession::AuthSession(UserId userId)
 , _uploader(std::make_unique<Storage::Uploader>())
 , _storage(std::make_unique<Storage::Facade>())
 , _notifications(std::make_unique<Window::Notifications::System>(this))
-, _changelogs(Core::Changelogs::Create(this))
-, _data(std::make_unique<Data::Session>(this)) {
+, _data(std::make_unique<Data::Session>(this))
+, _changelogs(Core::Changelogs::Create(this)) {
 	Expects(_userId != 0);
 
 	_saveDataTimer.setCallback([this] {
