@@ -289,7 +289,9 @@ namespace ThirdParty {
 		av_lockmgr_register(nullptr);
 
 		CRYPTO_cleanup_all_ex_data();
+#ifndef LIBRESSL_VERSION_NUMBER
 		FIPS_mode_set(0);
+#endif
 		ENGINE_cleanup();
 		CONF_modules_unload(1);
 		ERR_remove_state(0);
