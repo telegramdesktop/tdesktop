@@ -5039,7 +5039,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateChannel: {
 		auto &d = update.c_updateChannel();
 		if (const auto channel = App::channelLoaded(d.vchannel_id.v)) {
-			channel->inviter = 0;
+			channel->inviter = UserId(0);
 			if (!channel->amIn()) {
 				if (const auto history = App::historyLoaded(channel->id)) {
 					history->updateChatListExistence();
@@ -5047,6 +5047,18 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			} else if (!channel->amCreator() && App::history(channel->id)) {
 				_updatedChannels.insert(channel, true);
 				Auth().api().requestSelfParticipant(channel);
+			}
+			if (const auto feed = channel->feed()) {
+				if (!feed->lastMessageKnown()
+					|| !feed->unreadCountKnown()) {
+					Auth().api().requestDialogEntry(feed);
+				}
+			} else if (channel->amIn()) {
+				const auto history = App::history(channel->id);
+				if (!history->lastMessageKnown()
+					|| !history->unreadCountKnown()) {
+					Auth().api().requestDialogEntry(history);
+				}
 			}
 		}
 	} break;

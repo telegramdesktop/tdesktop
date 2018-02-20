@@ -2965,7 +2965,7 @@ void ApiWrap::userPhotosDone(
 }
 
 void ApiWrap::requestFeedChannels(not_null<Data::Feed*> feed) {
-	if (_feedChannelsRequests.contains(feed)) {
+	if (_feedChannelsGetRequests.contains(feed)) {
 		return;
 	}
 	const auto hash = feed->channelsHash();
@@ -2974,7 +2974,7 @@ void ApiWrap::requestFeedChannels(not_null<Data::Feed*> feed) {
 		MTP_int(feed->id()),
 		MTP_int(hash)
 	)).done([=](const MTPchannels_FeedSources &result) {
-		_feedChannelsRequests.remove(feed);
+		_feedChannelsGetRequests.remove(feed);
 
 		switch (result.type()) {
 		case mtpc_channels_feedSourcesNotModified:
@@ -2987,31 +2987,7 @@ void ApiWrap::requestFeedChannels(not_null<Data::Feed*> feed) {
 
 		case mtpc_channels_feedSources: {
 			const auto &data = result.c_channels_feedSources();
-
-			// First we set channels without reading them from data.
-			// This allows us to apply them all at once without registering
-			// them one by one.
-			for (const auto &broadcasts : data.vfeeds.v) {
-				if (broadcasts.type() == mtpc_feedBroadcasts) {
-					const auto &list = broadcasts.c_feedBroadcasts();
-					const auto feedId = list.vfeed_id.v;
-					const auto feed = _session->data().feed(feedId);
-					auto channels = std::vector<not_null<ChannelData*>>();
-					for (const auto &channelId : list.vchannels.v) {
-						channels.push_back(App::channel(channelId.v));
-					}
-					feed->setChannels(std::move(channels));
-				}
-			}
-
-			App::feedUsers(data.vusers);
-			App::feedChats(data.vchats);
-
-			if (data.has_newly_joined_feed()) {
-				_session->data().setDefaultFeedId(
-					data.vnewly_joined_feed.v);
-			}
-
+			applyFeedSources(data);
 			if (feed->channelsLoaded()) {
 				feedChannelsDone(feed);
 			} else {
@@ -3023,9 +2999,61 @@ void ApiWrap::requestFeedChannels(not_null<Data::Feed*> feed) {
 		default: Unexpected("Type in channels.getFeedSources response.");
 		}
 	}).fail([=](const RPCError &error) {
-		_feedChannelsRequests.remove(feed);
+		_feedChannelsGetRequests.remove(feed);
 	}).send();
-	_feedChannelsRequests.emplace(feed);
+	_feedChannelsGetRequests.emplace(feed);
+}
+
+void ApiWrap::applyFeedSources(const MTPDchannels_feedSources &data) {
+	// First we set channels without reading them from data.
+	// This allows us to apply them all at once without registering
+	// them one by one.
+	for (const auto &broadcasts : data.vfeeds.v) {
+		if (broadcasts.type() == mtpc_feedBroadcasts) {
+			const auto &list = broadcasts.c_feedBroadcasts();
+			const auto feedId = list.vfeed_id.v;
+			const auto feed = _session->data().feed(feedId);
+			auto channels = std::vector<not_null<ChannelData*>>();
+			for (const auto &channelId : list.vchannels.v) {
+				channels.push_back(App::channel(channelId.v));
+			}
+			feed->setChannels(std::move(channels));
+		}
+	}
+
+	App::feedUsers(data.vusers);
+	App::feedChats(data.vchats);
+
+	if (data.has_newly_joined_feed()) {
+		_session->data().setDefaultFeedId(
+			data.vnewly_joined_feed.v);
+	}
+}
+
+void ApiWrap::setFeedChannels(
+		not_null<Data::Feed*> feed,
+		const std::vector<not_null<ChannelData*>> &channels) {
+	if (const auto already = _feedChannelsSetRequests.take(feed)) {
+		request(*already).cancel();
+	}
+	auto inputs = QVector<MTPInputChannel>();
+	inputs.reserve(channels.size());
+	for (const auto channel : channels) {
+		inputs.push_back(channel->inputChannel);
+	}
+	const auto requestId = request(MTPchannels_SetFeedBroadcasts(
+		MTP_flags(MTPchannels_SetFeedBroadcasts::Flag::f_channels),
+		MTP_int(feed->id()),
+		MTP_vector<MTPInputChannel>(inputs),
+		MTPbool()
+	)).done([=](const MTPUpdates &result) {
+		applyUpdates(result);
+
+		_feedChannelsSetRequests.remove(feed);
+	}).fail([=](const RPCError &error) {
+		_feedChannelsSetRequests.remove(feed);
+	}).send();
+
 }
 
 void ApiWrap::feedChannelsDone(not_null<Data::Feed*> feed) {

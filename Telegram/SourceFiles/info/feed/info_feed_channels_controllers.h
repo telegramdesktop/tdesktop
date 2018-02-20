@@ -52,13 +52,13 @@ private:
 
 };
 
-class FeedNotificationsController
+class NotificationsController
 	: public PeerListController
 	, private MTP::Sender {
 public:
 	static void Start(not_null<Data::Feed*> feed);
 
-	FeedNotificationsController(not_null<Data::Feed*> feed);
+	NotificationsController(not_null<Data::Feed*> feed);
 
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
@@ -74,6 +74,34 @@ private:
 	TimeId _preloadOffsetDate = TimeId(0);
 	MsgId _preloadOffsetId = MsgId(0);
 	PeerData *_preloadPeer = nullptr;
+	bool _allLoaded = false;
+
+};
+
+class EditController
+	: public PeerListController
+	, private MTP::Sender {
+public:
+	static void Start(
+		not_null<Data::Feed*> feed,
+		ChannelData *channel = nullptr);
+
+	EditController(
+		not_null<Data::Feed*> feed,
+		ChannelData *channel);
+
+	void prepare() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+
+	void loadMoreRows() override;
+
+private:
+	std::unique_ptr<PeerListRow> createRow(not_null<ChannelData*> channel);
+	void applyFeedSources(const MTPchannels_FeedSources &result);
+
+	not_null<Data::Feed*> _feed;
+	ChannelData *_startWithChannel = nullptr;
+	mtpRequestId _preloadRequestId = 0;
 	bool _allLoaded = false;
 
 };

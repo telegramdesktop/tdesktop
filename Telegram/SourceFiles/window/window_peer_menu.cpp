@@ -468,7 +468,7 @@ void FeedFiller::addInfo() {
 void FeedFiller::addNotifications() {
 	const auto feed = _feed;
 	_addAction(lang(lng_feed_notifications), [=] {
-		Info::FeedProfile::FeedNotificationsController::Start(feed);
+		Info::FeedProfile::NotificationsController::Start(feed);
 	});
 }
 
@@ -669,6 +669,13 @@ void ToggleChannelGrouping(not_null<ChannelData*> channel, bool group) {
 			? lng_feed_channel_added
 			: lng_feed_channel_removed));
 	};
+	if (group) {
+		const auto feed = Auth().data().feedLoaded(Data::Feed::kId);
+		if (!feed || feed->channels().size() < 2) {
+			Info::FeedProfile::EditController::Start(feed, channel);
+			return;
+		}
+	}
 	Auth().api().toggleChannelGrouping(
 		channel,
 		group,

@@ -195,23 +195,26 @@ bool Widget::showAtPositionNow(Data::MessagePosition position) {
 }
 
 void Widget::updateScrollDownVisibility() {
-	if (animating() || !_inner->loadedAtBottomKnown()) {
+	if (animating()) {
 		return;
 	}
 
-	const auto scrollDownIsVisible = [&] {
-		if (!_inner->loadedAtBottom()) {
-			return true;
-		}
+	const auto scrollDownIsVisible = [&]() -> base::optional<bool> {
 		const auto top = _scroll->scrollTop() + st::historyToDownShownAfter;
 		if (top < _scroll->scrollTopMax()) {
 			return true;
 		}
-		return false;
+		if (_inner->loadedAtBottomKnown()) {
+			return !_inner->loadedAtBottom();
+		}
+		return base::none;
 	};
-	auto scrollDownIsShown = scrollDownIsVisible();
-	if (_scrollDownIsShown != scrollDownIsShown) {
-		_scrollDownIsShown = scrollDownIsShown;
+	const auto scrollDownIsShown = scrollDownIsVisible();
+	if (!scrollDownIsShown) {
+		return;
+	}
+	if (_scrollDownIsShown != *scrollDownIsShown) {
+		_scrollDownIsShown = *scrollDownIsShown;
 		_scrollDownShown.start(
 			[=] { updateScrollDownPosition(); },
 			_scrollDownIsShown ? 0. : 1.,

@@ -1432,6 +1432,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_feed_ungroup_all" = "Ungroup all channels";
 "lng_feed_sure_ungroup_all" = "Are you sure you want to ungroup all channels from this feed?";
 "lng_feed_ungroup_sure" = "Ungroup";
+"lng_feed_create_new" = "New feed";
+"lng_feed_too_few_channels#one" = "You need at least {count} channel to create a feed.";
+"lng_feed_too_few_channels#other" = "You need at least {count} channels to create a feed.";
+"lng_feed_select_more_channels#one" = "Select {count} channel or more.";
+"lng_feed_select_more_channels#other" = "Select {count} channels or more.";
+"lng_feed_create" = "Create";
 
 "lng_info_feed_title" = "Feed Info";
 "lng_info_feed_is_default" = "Group new channels";

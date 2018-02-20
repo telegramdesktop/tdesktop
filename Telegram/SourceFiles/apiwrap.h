@@ -72,6 +72,10 @@ public:
 	void requestDialogEntry(not_null<Data::Feed*> feed);
 	//void requestFeedDialogsEntries(not_null<Data::Feed*> feed);
 	void requestDialogEntry(not_null<History*> history);
+	void applyFeedSources(const MTPDchannels_feedSources &data);
+	void setFeedChannels(
+		not_null<Data::Feed*> feed,
+		const std::vector<not_null<ChannelData*>> &channels);
 
 	void requestFullPeer(PeerData *peer);
 	void requestPeer(PeerData *peer);
@@ -500,7 +504,10 @@ private:
 
 	base::flat_map<not_null<UserData*>, mtpRequestId> _userPhotosRequests;
 
-	base::flat_set<not_null<Data::Feed*>> _feedChannelsRequests;
+	base::flat_set<not_null<Data::Feed*>> _feedChannelsGetRequests;
+	base::flat_map<
+		not_null<Data::Feed*>,
+		mtpRequestId> _feedChannelsSetRequests;
 	base::flat_set<std::tuple<
 		not_null<Data::Feed*>,
 		Data::MessagePosition,

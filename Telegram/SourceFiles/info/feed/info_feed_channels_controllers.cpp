@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "window/window_peer_menu.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/toast/toast.h"
 #include "auth_session.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
@@ -23,6 +24,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Info {
 namespace FeedProfile {
+namespace {
+
+constexpr auto kChannelsInFeedMin = 4;
+
+} // namespace
 
 class ChannelsController::Row final : public PeerListRow {
 public:
@@ -201,7 +207,7 @@ base::unique_qptr<Ui::PopupMenu> ChannelsController::rowContextMenu(
 	return result;
 }
 
-void FeedNotificationsController::Start(not_null<Data::Feed*> feed) {
+void NotificationsController::Start(not_null<Data::Feed*> feed) {
 	const auto initBox = [=](not_null<PeerListBox*> box) {
 		box->addButton(langFactory(lng_settings_save), [=] {
 			const auto main = App::main();
@@ -223,16 +229,16 @@ void FeedNotificationsController::Start(not_null<Data::Feed*> feed) {
 		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
 	};
 	Ui::show(Box<PeerListBox>(
-		std::make_unique<FeedNotificationsController>(feed),
+		std::make_unique<NotificationsController>(feed),
 		initBox));
 }
 
-FeedNotificationsController::FeedNotificationsController(
+NotificationsController::NotificationsController(
 	not_null<Data::Feed*> feed)
 : _feed(feed) {
 }
 
-void FeedNotificationsController::prepare() {
+void NotificationsController::prepare() {
 	setSearchNoResultsText(lang(lng_blocked_list_not_found));
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
 	delegate()->peerListSetTitle(langFactory(lng_feed_notifications));
@@ -240,7 +246,7 @@ void FeedNotificationsController::prepare() {
 	loadMoreRows();
 }
 
-void FeedNotificationsController::loadMoreRows() {
+void NotificationsController::loadMoreRows() {
 	if (_preloadRequestId || _allLoaded) {
 		return;
 	}
@@ -259,7 +265,7 @@ void FeedNotificationsController::loadMoreRows() {
 	}).send();
 }
 
-void FeedNotificationsController::applyFeedDialogs(
+void NotificationsController::applyFeedDialogs(
 		const MTPmessages_Dialogs &result) {
 	const auto [dialogsList, messagesList] = [&] {
 		const auto process = [&](const auto &data) {
@@ -277,7 +283,7 @@ void FeedNotificationsController::applyFeedDialogs(
 				"Unexpected dialogsSlice in feed dialogs list."));
 			return process(result.c_messages_dialogsSlice());
 		}
-		Unexpected("Type in FeedNotificationsController::applyFeedDialogs");
+		Unexpected("Type in NotificationsController::applyFeedDialogs");
 	}();
 
 	App::feedMsgs(*messagesList, NewMessageLast);
@@ -322,11 +328,125 @@ void FeedNotificationsController::applyFeedDialogs(
 	delegate()->peerListRefreshRows();
 }
 
-void FeedNotificationsController::rowClicked(not_null<PeerListRow*> row) {
+void NotificationsController::rowClicked(not_null<PeerListRow*> row) {
 	delegate()->peerListSetRowChecked(row, !row->checked());
 }
 
-std::unique_ptr<PeerListRow> FeedNotificationsController::createRow(
+std::unique_ptr<PeerListRow> NotificationsController::createRow(
+		not_null<ChannelData*> channel) {
+	return std::make_unique<PeerListRow>(channel);
+}
+
+void EditController::Start(
+		not_null<Data::Feed*> feed,
+		ChannelData *channel) {
+	const auto initBox = [=](not_null<PeerListBox*> box) {
+		box->addButton(langFactory(lng_settings_save), [=] {
+			auto channels = std::vector<not_null<ChannelData*>>();
+			const auto main = App::main();
+			const auto count = box->peerListFullRowsCount();
+			for (auto i = 0; i != count; ++i) {
+				const auto row = box->peerListRowAt(i);
+				if (row->checked()) {
+					channels.push_back(row->peer()->asChannel());
+				}
+			}
+			if (channels.size() < kChannelsInFeedMin) {
+				Ui::Toast::Show(lng_feed_select_more_channels(
+					lt_count,
+					kChannelsInFeedMin));
+				return;
+			}
+			box->closeBox();
+			Auth().api().setFeedChannels(feed, channels);
+		});
+		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
+	};
+	Ui::show(Box<PeerListBox>(
+		std::make_unique<EditController>(feed, channel),
+		initBox));
+}
+
+EditController::EditController(
+	not_null<Data::Feed*> feed,
+	ChannelData *channel)
+: _feed(feed)
+, _startWithChannel(channel) {
+}
+
+void EditController::prepare() {
+	setSearchNoResultsText(lang(lng_blocked_list_not_found));
+	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
+	delegate()->peerListSetTitle(langFactory(lng_feed_create_new));
+
+	loadMoreRows();
+}
+
+void EditController::loadMoreRows() {
+	if (_preloadRequestId || _allLoaded) {
+		return;
+	}
+	const auto hash = 0;
+	_preloadRequestId = request(MTPchannels_GetFeedSources(
+		MTP_flags(0),
+		MTP_int(0),
+		MTP_int(hash)
+	)).done([=](const MTPchannels_FeedSources &result) {
+		applyFeedSources(result);
+		_preloadRequestId = 0;
+	}).fail([=](const RPCError &error) {
+		_preloadRequestId = 0;
+	}).send();
+}
+
+void EditController::applyFeedSources(
+		const MTPchannels_FeedSources &result) {
+	auto channels = std::vector<not_null<ChannelData*>>();
+
+	switch (result.type()) {
+	case mtpc_channels_feedSourcesNotModified:
+		LOG(("API Error: Unexpected channels.feedSourcesNotModified."));
+		break;
+
+	case mtpc_channels_feedSources: {
+		const auto &data = result.c_channels_feedSources();
+		Auth().api().applyFeedSources(data);
+
+		for (const auto &chat : data.vchats.v) {
+			if (chat.type() == mtpc_channel) {
+				channels.push_back(App::channel(chat.c_channel().vid.v));
+			}
+		}
+	} break;
+
+	default: Unexpected("Type in channels.getFeedSources response.");
+	}
+
+	_allLoaded = true;
+	if (channels.size() < kChannelsInFeedMin) {
+		setDescriptionText(lng_feed_too_few_channels(
+			lt_count,
+			kChannelsInFeedMin));
+	} else {
+		auto alreadyInFeed = ranges::view::all(
+			channels
+		) | ranges::view::filter([&](not_null<ChannelData*> channel) {
+			return (channel->feed() == _feed)
+				|| (channel == _startWithChannel);
+		});
+		delegate()->peerListAddSelectedRows(alreadyInFeed);
+		for (const auto channel : channels) {
+			delegate()->peerListAppendRow(createRow(channel));
+		}
+	}
+	delegate()->peerListRefreshRows();
+}
+
+void EditController::rowClicked(not_null<PeerListRow*> row) {
+	delegate()->peerListSetRowChecked(row, !row->checked());
+}
+
+std::unique_ptr<PeerListRow> EditController::createRow(
 		not_null<ChannelData*> channel) {
 	return std::make_unique<PeerListRow>(channel);
 }
