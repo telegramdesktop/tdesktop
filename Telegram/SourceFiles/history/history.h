@@ -72,23 +72,10 @@ public:
 	BasicAnimation _a_typings;
 
 	int unreadBadge() const;
-	int unreadMutedCount() const {
-		return _unreadMuted;
-	}
+	int unreadMutedCount() const;
 	bool unreadOnlyMuted() const;
-	void unreadIncrement(int32 count, bool muted) {
-		_unreadFull += count;
-		if (muted) {
-			_unreadMuted += count;
-		}
-	}
-	void unreadMuteChanged(int32 count, bool muted) {
-		if (muted) {
-			_unreadMuted += count;
-		} else {
-			_unreadMuted -= count;
-		}
-	}
+	void unreadIncrement(int count, bool muted);
+	void unreadMuteChanged(int count, bool muted);
 
 	struct SendActionAnimationUpdate {
 		History *history;

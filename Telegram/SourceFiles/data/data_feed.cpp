@@ -359,17 +359,43 @@ void Feed::applyDialog(const MTPDdialogFeed &data) {
 	}
 }
 
+void Feed::changedInChatListHook(Dialogs::Mode list, bool added) {
+	if (list == Dialogs::Mode::All && unreadCount()) {
+		const auto mutedCount = _unreadMutedCount;
+		const auto nonMutedCount = unreadCount() - mutedCount;
+		const auto mutedDelta = added ? mutedCount : -mutedCount;
+		const auto nonMutedDelta = added ? nonMutedCount : -nonMutedCount;
+		App::histories().unreadIncrement(nonMutedDelta, false);
+		App::histories().unreadIncrement(mutedDelta, true);
+	}
+}
+
 void Feed::setUnreadCounts(int unreadNonMutedCount, int unreadMutedCount) {
 	if (unreadCountKnown()
 		&& (*_unreadCount == unreadNonMutedCount + unreadMutedCount)
 		&& (_unreadMutedCount == unreadMutedCount)) {
 		return;
 	}
+	const auto unreadNonMutedCountDelta = _unreadCount | [&](int count) {
+		return unreadNonMutedCount - (count - _unreadMutedCount);
+	};
+	const auto unreadMutedCountDelta = _unreadCount | [&](int count) {
+		return unreadMutedCount - _unreadMutedCount;
+	};
 	_unreadCount = unreadNonMutedCount + unreadMutedCount;
 	_unreadMutedCount = unreadMutedCount;
 
 	_unreadCountChanges.fire(unreadCount());
 	updateChatListEntry();
+
+	if (inChatList(Dialogs::Mode::All)) {
+		App::histories().unreadIncrement(
+			unreadNonMutedCountDelta ? *unreadNonMutedCountDelta : unreadNonMutedCount,
+			false);
+		App::histories().unreadIncrement(
+			unreadMutedCountDelta ? *unreadMutedCountDelta : unreadMutedCount,
+			true);
+	}
 }
 
 void Feed::setUnreadPosition(const MessagePosition &position) {
@@ -384,14 +410,24 @@ void Feed::unreadCountChanged(
 	if (!unreadCountKnown()) {
 		return;
 	}
-	*_unreadCount = std::max(*_unreadCount + unreadCountDelta, 0);
-	_unreadMutedCount = snap(
-		_unreadMutedCount + mutedCountDelta,
-		0,
-		*_unreadCount);
+	accumulate_max(unreadCountDelta, -*_unreadCount);
+	*_unreadCount += unreadCountDelta;
+
+	mutedCountDelta = snap(
+		mutedCountDelta,
+		-_unreadMutedCount,
+		*_unreadCount - _unreadMutedCount);
+	_unreadMutedCount += mutedCountDelta;
 
 	_unreadCountChanges.fire(unreadCount());
 	updateChatListEntry();
+
+	if (inChatList(Dialogs::Mode::All)) {
+		App::histories().unreadIncrement(
+			unreadCountDelta,
+			false);
+		App::histories().unreadMuteChanged(mutedCountDelta, true);
+	}
 }
 
 MessagePosition Feed::unreadPosition() const {

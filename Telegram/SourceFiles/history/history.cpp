@@ -162,6 +162,29 @@ int Histories::unreadBadge() const {
 	return _unreadFull - (Global::IncludeMuted() ? 0 : _unreadMuted);
 }
 
+int Histories::unreadMutedCount() const {
+	return _unreadMuted;
+}
+
+void Histories::unreadIncrement(int count, bool muted) {
+	_unreadFull += count;
+	if (muted) {
+		_unreadMuted += count;
+	}
+	if (!muted || Global::IncludeMuted()) {
+		Notify::unreadCounterUpdated();
+	}
+}
+
+void Histories::unreadMuteChanged(int count, bool muted) {
+	if (muted) {
+		_unreadMuted += count;
+	} else {
+		_unreadMuted -= count;
+	}
+	Notify::unreadCounterUpdated();
+}
+
 bool Histories::unreadOnlyMuted() const {
 	return Global::IncludeMuted() ? (_unreadMuted >= _unreadFull) : false;
 }
@@ -1642,9 +1665,6 @@ void History::setUnreadCount(int newUnreadCount) {
 			App::histories().unreadIncrement(
 				unreadCountDelta ? *unreadCountDelta : newUnreadCount,
 				mute());
-			if (!mute() || Global::IncludeMuted()) {
-				Notify::unreadCounterUpdated();
-			}
 		}
 		if (const auto main = App::main()) {
 			main->unreadCountChanged(this);
@@ -2580,7 +2600,6 @@ void History::changedInChatListHook(Dialogs::Mode list, bool added) {
 	if (list == Dialogs::Mode::All && unreadCount()) {
 		const auto delta = added ? unreadCount() : -unreadCount();
 		App::histories().unreadIncrement(delta, mute());
-		Notify::unreadCounterUpdated();
 	}
 }
 

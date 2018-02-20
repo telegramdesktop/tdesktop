@@ -160,9 +160,11 @@ std::unique_ptr<PeerListState> ChannelsController::saveState() const {
 	auto result = PeerListController::saveState();
 	auto my = std::make_unique<SavedState>();
 	using Flag = Data::FeedUpdateFlag;
+
+	// Must not capture `this` here, because it dies before my->lifetime.
 	Auth().data().feedUpdated(
-	) | rpl::filter([=](const Data::FeedUpdate &update) {
-		return (update.feed == _feed) && (update.flag == Flag::Channels);
+	) | rpl::filter([feed = _feed](const Data::FeedUpdate &update) {
+		return (update.feed == feed) && (update.flag == Flag::Channels);
 	}) | rpl::start_with_next([state = result.get()] {
 		state->controllerState = nullptr;
 	}, my->lifetime);

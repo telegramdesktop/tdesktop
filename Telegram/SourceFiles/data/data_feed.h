@@ -67,6 +67,7 @@ public:
 	const QString &chatsListName() const override;
 	const base::flat_set<QString> &chatsListNameWords() const override;
 	const base::flat_set<QChar> &chatsListFirstLetters() const override;
+	void changedInChatListHook(Dialogs::Mode list, bool added) override;
 
 	void loadUserpic() override;
 	void paintUserpic(
