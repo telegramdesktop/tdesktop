@@ -27,6 +27,10 @@ class TopBarWidget;
 class Element;
 } // namespace HistoryView
 
+namespace Window {
+class DateClickHandler;
+} // namespace Window
+
 namespace HistoryFeed {
 
 class Memento;
@@ -85,6 +89,7 @@ public:
 	base::optional<int> listUnreadBarView(
 		const std::vector<not_null<Element*>> &elements) override;
 	void listContentRefreshed() override;
+	ClickHandlerPtr listDateLink(not_null<Element*> view) override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -136,7 +141,7 @@ private:
 	Animation _scrollDownShown;
 	bool _scrollDownIsShown = false;
 	object_ptr<Ui::HistoryDownButton> _scrollDown;
-
+	std::shared_ptr<Window::DateClickHandler> _dateLink;
 
 };
 

@@ -2756,6 +2756,7 @@ void ApiWrap::requestMessageAfterDate(
 
 void ApiWrap::jumpToFeedDate(not_null<Data::Feed*> feed, const QDate &date) {
 	requestMessageAfterDate(feed, date, [=](Data::MessagePosition result) {
+		Ui::hideLayer();
 		App::wnd()->controller()->showSection(
 			HistoryFeed::Memento(feed, result));
 	});

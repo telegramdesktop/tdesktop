@@ -437,6 +437,15 @@ void Widget::listContentRefreshed() {
 	}
 }
 
+ClickHandlerPtr Widget::listDateLink(not_null<Element*> view) {
+	if (!_dateLink) {
+		_dateLink = std::make_shared<Window::DateClickHandler>(_feed, view->dateTime().date());
+	} else {
+		_dateLink->setDate(view->dateTime().date());
+	}
+	return _dateLink;
+}
+
 std::unique_ptr<Window::SectionMemento> Widget::createMemento() {
 	auto result = std::make_unique<Memento>(_feed);
 	saveState(result.get());

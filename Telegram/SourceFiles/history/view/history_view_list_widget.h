@@ -65,6 +65,7 @@ public:
 	virtual base::optional<int> listUnreadBarView(
 		const std::vector<not_null<Element*>> &elements) = 0;
 	virtual void listContentRefreshed() = 0;
+	virtual ClickHandlerPtr listDateLink(not_null<Element*> view) = 0;
 
 };
 
@@ -302,6 +303,7 @@ private:
 	void scrollDateHide();
 	void scrollDateCheck();
 	void scrollDateHideByTimer();
+	void keepScrollDateForNow();
 
 	void trySwitchToWordSelection();
 	void switchToWordSelection();
@@ -440,6 +442,7 @@ private:
 	base::Timer _scrollDateHideTimer;
 	Element *_scrollDateLastItem = nullptr;
 	int _scrollDateLastItemTop = 0;
+	ClickHandlerPtr _scrollDateLink;
 	SingleQueuedInvokation _applyUpdatedScrollState;
 
 	Element *_unreadBarElement = nullptr;

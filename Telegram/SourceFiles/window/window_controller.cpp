@@ -337,7 +337,7 @@ void Controller::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 				return history->chatsListDate().date();
 			}
 		} else if (const auto feed = chat.feed()) {
-			/*if (chatScrollPosition(feed)) {
+			/*if (chatScrollPosition(feed)) { // #TODO feeds save position
 
 			} else */if (!feed->chatsListDate().isNull()) {
 				return feed->chatsListDate().date();

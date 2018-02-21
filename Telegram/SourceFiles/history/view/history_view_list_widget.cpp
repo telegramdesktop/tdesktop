@@ -621,13 +621,24 @@ void ListWidget::scrollDateCheck() {
 
 void ListWidget::scrollDateHideByTimer() {
 	_scrollDateHideTimer.cancel();
-	scrollDateHide();
+	if (!_scrollDateLink || ClickHandler::getPressed() != _scrollDateLink) {
+		scrollDateHide();
+	}
 }
 
 void ListWidget::scrollDateHide() {
 	if (_scrollDateShown) {
 		toggleScrollDateShown();
 	}
+}
+
+void ListWidget::keepScrollDateForNow() {
+	if (!_scrollDateShown
+		&& _scrollDateLastItem
+		&& _scrollDateOpacity.animating()) {
+		toggleScrollDateShown();
+	}
+	_scrollDateHideTimer.callOnce(kScrollDateHideTimeout);
 }
 
 void ListWidget::toggleScrollDateShown() {
@@ -1602,9 +1613,19 @@ void ListWidget::mousePressEvent(QMouseEvent *e) {
 }
 
 void ListWidget::mouseMoveEvent(QMouseEvent *e) {
+	static auto lastGlobalPosition = e->globalPos();
+	auto reallyMoved = (lastGlobalPosition != e->globalPos());
 	auto buttonsPressed = (e->buttons() & (Qt::LeftButton | Qt::MiddleButton));
 	if (!buttonsPressed && _mouseAction != MouseAction::None) {
 		mouseReleaseEvent(e);
+	}
+	if (reallyMoved) {
+		lastGlobalPosition = e->globalPos();
+		if (!buttonsPressed
+			|| (_scrollDateLink
+				&& ClickHandler::getPressed() == _scrollDateLink)) {
+			keepScrollDateForNow();
+		}
 	}
 	mouseActionUpdate(e->globalPos());
 }
@@ -2047,34 +2068,87 @@ void ListWidget::mouseActionUpdate() {
 		} else {
 			inTextSelection = false;
 		}
-		// #TODO enumerate dates like HistoryInner
-		dragState = view->textState(itemPoint, request);
-		_overItemExact = App::histItemById(dragState.itemId);
-		lnkhost = view;
-		if (!dragState.link
-			&& itemPoint.x() >= st::historyPhotoLeft
-			&& itemPoint.x() < st::historyPhotoLeft + st::msgPhotoSize) {
-			if (view->hasFromPhoto()) {
-				enumerateUserpics([&](not_null<Element*> view, int userpicTop) {
-					// stop enumeration if the userpic is below our point
-					if (userpicTop > point.y()) {
-						return false;
+
+		const auto dateHeight = st::msgServicePadding.bottom()
+			+ st::msgServiceFont->height
+			+ st::msgServicePadding.top();
+		const auto scrollDateOpacity = _scrollDateOpacity.current(_scrollDateShown ? 1. : 0.);
+		enumerateDates([&](not_null<Element*> view, int itemtop, int dateTop) {
+			// stop enumeration if the date is above our point
+			if (dateTop + dateHeight <= point.y()) {
+				return false;
+			}
+
+			const auto displayDate = view->displayDate();
+			auto dateInPlace = displayDate;
+			if (dateInPlace) {
+				const auto correctDateTop = itemtop + st::msgServiceMargin.top();
+				dateInPlace = (dateTop < correctDateTop + dateHeight);
+			}
+
+			// stop enumeration if we've found a date under the cursor
+			if (dateTop <= point.y()) {
+				auto opacity = (dateInPlace/* || noFloatingDate*/) ? 1. : scrollDateOpacity;
+				if (opacity > 0.) {
+					const auto item = view->data();
+					auto dateWidth = 0;
+					if (const auto date = view->Get<HistoryView::DateBadge>()) {
+						dateWidth = date->width;
+					} else {
+						dateWidth = st::msgServiceFont->width(langDayOfMonthFull(view->dateTime().date()));
 					}
+					dateWidth += st::msgServicePadding.left() + st::msgServicePadding.right();
+					auto dateLeft = st::msgServiceMargin.left();
+					auto maxwidth = view->width();
+					if (Adaptive::ChatWide()) {
+						maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
+					}
+					auto widthForDate = maxwidth - st::msgServiceMargin.left() - st::msgServiceMargin.left();
 
-					// stop enumeration if we've found a userpic under the cursor
-					if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
-						const auto message = view->data()->toHistoryMessage();
-						Assert(message != nullptr);
+					dateLeft += (widthForDate - dateWidth) / 2;
 
+					if (point.x() >= dateLeft && point.x() < dateLeft + dateWidth) {
+						_scrollDateLink = _delegate->listDateLink(view);
 						dragState = TextState(
 							nullptr,
-							message->displayFrom()->openLink());
+							_scrollDateLink);
 						_overItemExact = App::histItemById(dragState.itemId);
 						lnkhost = view;
-						return false;
 					}
-					return true;
-				});
+				}
+				return false;
+			}
+			return true;
+		});
+		if (!dragState.link) {
+			dragState = view->textState(itemPoint, request);
+			_overItemExact = App::histItemById(dragState.itemId);
+			lnkhost = view;
+			if (!dragState.link
+				&& itemPoint.x() >= st::historyPhotoLeft
+				&& itemPoint.x() < st::historyPhotoLeft + st::msgPhotoSize) {
+				if (view->hasFromPhoto()) {
+					enumerateUserpics([&](not_null<Element*> view, int userpicTop) {
+						// stop enumeration if the userpic is below our point
+						if (userpicTop > point.y()) {
+							return false;
+						}
+
+						// stop enumeration if we've found a userpic under the cursor
+						if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
+							const auto message = view->data()->toHistoryMessage();
+							Assert(message != nullptr);
+
+							dragState = TextState(
+								nullptr,
+								message->displayFrom()->openLink());
+							_overItemExact = App::histItemById(dragState.itemId);
+							lnkhost = view;
+							return false;
+						}
+						return true;
+					});
+				}
 			}
 		}
 	}
