@@ -464,7 +464,7 @@ upload.fileCdnRedirect#ea52fe5a dc_id:int file_token:bytes encryption_key:bytes 
 
 dcOption#5d8c6cc flags:# ipv6:flags.0?true media_only:flags.1?true tcpo_only:flags.2?true cdn:flags.3?true static:flags.4?true id:int ip_address:string port:int = DcOption;
 
-config#9c840964 flags:# phonecalls_enabled:flags.1?true default_p2p_contacts:flags.3?true preload_featured:flags.4?true ignore_phone_entities:flags.5?true date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int megagroup_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int push_chat_period_ms:int push_chat_limit:int saved_gifs_limit:int edit_time_limit:int rating_e_decay:int stickers_recent_limit:int stickers_faved_limit:int channels_read_media_period:int tmp_sessions:flags.0?int pinned_dialogs_count_max:int call_receive_timeout_ms:int call_ring_timeout_ms:int call_connect_timeout_ms:int call_packet_timeout_ms:int me_url_prefix:string suggested_lang_code:flags.2?string lang_pack_version:flags.2?int disabled_features:Vector<DisabledFeature> = Config;
+config#e644ec1f flags:# phonecalls_enabled:flags.1?true default_p2p_contacts:flags.3?true preload_featured_stickers:flags.4?true ignore_phone_entities:flags.5?true revoke_pm_inbox:flags.6?true date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int megagroup_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int push_chat_period_ms:int push_chat_limit:int saved_gifs_limit:int edit_time_limit:int revoke_time_limit:int revoke_pm_time_limit:int rating_e_decay:int stickers_recent_limit:int stickers_faved_limit:int channels_read_media_period:int tmp_sessions:flags.0?int pinned_dialogs_count_max:int call_receive_timeout_ms:int call_ring_timeout_ms:int call_connect_timeout_ms:int call_packet_timeout_ms:int me_url_prefix:string suggested_lang_code:flags.2?string lang_pack_version:flags.2?int = Config;
 
 nearestDc#8e1a1775 country:string this_dc:int nearest_dc:int = NearestDc;
 
@@ -950,6 +950,15 @@ inputMessageID#a676a322 id:int = InputMessage;
 inputMessageReplyTo#bad88395 id:int = InputMessage;
 inputMessagePinned#86872538 = InputMessage;
 
+inputDialogPeer#fcaafeb7 peer:InputPeer = InputDialogPeer;
+inputDialogPeerFeed#2c38b8cf feed_id:int = InputDialogPeer;
+
+dialogPeer#e56dbf05 peer:Peer = DialogPeer;
+dialogPeerFeed#da429411 feed_id:int = DialogPeer;
+
+messages.foundStickerSetsNotModified#d54b65d = messages.FoundStickerSets;
+messages.foundStickerSets#b35bcea9 hash:int sets:Vector<StickerSet> = messages.FoundStickerSets;
+
 feedPosition#5059dc73 date:int peer:Peer id:int = FeedPosition;
 
 messages.feedMessagesNotModified#4678d0cf = messages.FeedMessages;
@@ -960,12 +969,6 @@ feedBroadcastsUngrouped#9a687cba channels:Vector<int> = FeedBroadcasts;
 
 channels.feedSourcesNotModified#88b12a17 = channels.FeedSources;
 channels.feedSources#8e8bca3d flags:# newly_joined_feed:flags.0?int feeds:Vector<FeedBroadcasts> chats:Vector<Chat> users:Vector<User> = channels.FeedSources;
-
-inputDialogPeerFeed#2c38b8cf feed_id:int = InputDialogPeer;
-inputDialogPeer#fcaafeb7 peer:InputPeer = InputDialogPeer;
-
-dialogPeerFeed#da429411 feed_id:int = DialogPeer;
-dialogPeer#e56dbf05 peer:Peer = DialogPeer;
 
 ---functions---
 
@@ -1137,6 +1140,7 @@ messages.readMentions#f0189d3 peer:InputPeer = messages.AffectedHistory;
 messages.getRecentLocations#bbc45b09 peer:InputPeer limit:int hash:int = messages.Messages;
 messages.sendMultiMedia#2095512f flags:# silent:flags.5?true background:flags.6?true clear_draft:flags.7?true peer:InputPeer reply_to_msg_id:flags.0?int multi_media:Vector<InputSingleMedia> = Updates;
 messages.uploadEncryptedFile#5057c497 peer:InputEncryptedChat file:InputEncryptedFile = EncryptedFile;
+messages.searchStickerSets#c2b7d08b flags:# exclude_featured:flags.0?true q:string hash:int = messages.FoundStickerSets;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#25939651 flags:# pts:int pts_total_limit:flags.0?int date:int qts:int = updates.Difference;
@@ -1235,4 +1239,4 @@ langpack.getStrings#2e1ee318 lang_code:string keys:Vector<string> = Vector<LangP
 langpack.getDifference#b2e4d7d from_version:int = LangPackDifference;
 langpack.getLanguages#800fd57d = Vector<LangPackLanguage>;
 
-// LAYER 76
+// LAYER 77
