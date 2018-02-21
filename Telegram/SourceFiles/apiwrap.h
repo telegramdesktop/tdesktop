@@ -27,6 +27,10 @@ enum class SharedMediaType : char;
 struct PreparedList;
 } // namespace Storage
 
+namespace Dialogs {
+class Key;
+} // namespace Dialogs
+
 namespace Api {
 
 inline const MTPVector<MTPChat> *getChatsFromMessagesChats(const MTPmessages_Chats &chats) {
@@ -152,7 +156,7 @@ public:
 	void applyUpdatesNoPtsCheck(const MTPUpdates &updates);
 	void applyUpdateNoPtsCheck(const MTPUpdate &update);
 
-	void jumpToDate(not_null<PeerData*> peer, const QDate &date);
+	void jumpToDate(Dialogs::Key chat, const QDate &date);
 
 	void preloadEnoughUnreadMentions(not_null<History*> history);
 	void checkForUnreadMentions(const base::flat_set<MsgId> &possiblyReadMentions, ChannelData *channel = nullptr);
@@ -345,9 +349,17 @@ private:
 		not_null<ChannelData*> channel,
 		const QVector<MTPChannelParticipant> &participants);
 
+
+	void jumpToHistoryDate(not_null<PeerData*> peer, const QDate &date);
+	void jumpToFeedDate(not_null<Data::Feed*> feed, const QDate &date);
 	template <typename Callback>
 	void requestMessageAfterDate(
 		not_null<PeerData*> peer,
+		const QDate &date,
+		Callback &&callback);
+	template <typename Callback>
+	void requestMessageAfterDate(
+		not_null<Data::Feed*> feed,
 		const QDate &date,
 		Callback &&callback);
 

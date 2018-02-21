@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "media/player/media_player_round_controller.h"
 #include "data/data_session.h"
+#include "data/data_feed.h"
 #include "boxes/calendar_box.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -23,6 +24,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 
 namespace Window {
+
+DateClickHandler::DateClickHandler(Dialogs::Key chat, QDate date)
+: _chat(chat)
+, _date(date) {
+}
+
+void DateClickHandler::setDate(QDate date) {
+	_date = date;
+}
+
+void DateClickHandler::onClick(Qt::MouseButton) const {
+	App::wnd()->controller()->showJumpToDate(_chat, _date);
+}
 
 Controller::Controller(not_null<MainWindow*> window)
 : _window(window) {
@@ -304,14 +318,15 @@ void Controller::closeThirdSection() {
 	}
 }
 
-void Controller::showJumpToDate(not_null<PeerData*> peer, QDate requestedDate) {
-	Expects(peer != nullptr);
-	auto currentPeerDate = [peer] {
-		if (auto history = App::historyLoaded(peer)) {
+void Controller::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
+	const auto currentPeerDate = [&] {
+		if (const auto history = chat.history()) {
 			if (history->scrollTopItem) {
 				return history->scrollTopItem->dateTime().date();
-			} else if (history->loadedAtTop() && !history->isEmpty() && history->peer->migrateFrom()) {
-				if (auto migrated = App::historyLoaded(history->peer->migrateFrom())) {
+			} else if (history->loadedAtTop()
+				&& !history->isEmpty()
+				&& history->peer->migrateFrom()) {
+				if (const auto migrated = App::historyLoaded(history->peer->migrateFrom())) {
 					if (migrated->scrollTopItem) {
 						// We're up in the migrated history.
 						// So current date is the date of first message here.
@@ -321,59 +336,71 @@ void Controller::showJumpToDate(not_null<PeerData*> peer, QDate requestedDate) {
 			} else if (!history->chatsListDate().isNull()) {
 				return history->chatsListDate().date();
 			}
-		}
-		return QDate::currentDate();
-	};
-	auto maxPeerDate = [](not_null<PeerData*> peer) {
-		if (auto channel = peer->migrateTo()) {
-			peer = channel;
-		}
-		if (auto history = App::historyLoaded(peer)) {
-			if (!history->chatsListDate().isNull()) {
-				return history->chatsListDate().date();
+		} else if (const auto feed = chat.feed()) {
+			/*if (chatScrollPosition(feed)) {
+
+			} else */if (!feed->chatsListDate().isNull()) {
+				return feed->chatsListDate().date();
 			}
 		}
 		return QDate::currentDate();
 	};
-	auto minPeerDate = [](not_null<PeerData*> peer) {
+	const auto maxPeerDate = [](Dialogs::Key chat) {
+		if (auto history = chat.history()) {
+			if (const auto channel = history->peer->migrateTo()) {
+				history = App::historyLoaded(channel);
+			}
+			if (history && !history->chatsListDate().isNull()) {
+				return history->chatsListDate().date();
+			}
+		} else if (const auto feed = chat.feed()) {
+			if (!feed->chatsListDate().isNull()) {
+				return feed->chatsListDate().date();
+			}
+		}
+		return QDate::currentDate();
+	};
+	const auto minPeerDate = [](Dialogs::Key chat) {
 		const auto startDate = [] {
 			// Telegram was launched in August 2013 :)
 			return QDate(2013, 8, 1);
 		};
-		if (auto chat = peer->migrateFrom()) {
-			if (auto history = App::historyLoaded(chat)) {
-				if (history->loadedAtTop()) {
-					if (!history->isEmpty()) {
-						return history->blocks.front()->messages.front()->dateTime().date();
+		if (const auto history = chat.history()) {
+			if (const auto chat = history->peer->migrateFrom()) {
+				if (const auto history = App::historyLoaded(chat)) {
+					if (history->loadedAtTop()) {
+						if (!history->isEmpty()) {
+							return history->blocks.front()->messages.front()->dateTime().date();
+						}
+					} else {
+						return startDate();
 					}
-				} else {
-					return startDate();
 				}
 			}
-		}
-		if (auto history = App::historyLoaded(peer)) {
 			if (history->loadedAtTop()) {
 				if (!history->isEmpty()) {
 					return history->blocks.front()->messages.front()->dateTime().date();
 				}
 				return QDate::currentDate();
 			}
+		} else if (const auto feed = chat.feed()) {
+			return startDate();
 		}
 		return startDate();
 	};
-	auto highlighted = requestedDate.isNull()
+	const auto highlighted = requestedDate.isNull()
 		? currentPeerDate()
 		: requestedDate;
-	auto month = highlighted;
-	auto callback = [this, peer](const QDate &date) {
-		Auth().api().jumpToDate(peer, date);
+	const auto month = highlighted;
+	auto callback = [=](const QDate &date) {
+		Auth().api().jumpToDate(chat, date);
 	};
 	auto box = Box<CalendarBox>(
 		month,
 		highlighted,
 		std::move(callback));
-	box->setMinDate(minPeerDate(peer));
-	box->setMaxDate(maxPeerDate(peer));
+	box->setMinDate(minPeerDate(chat));
+	box->setMaxDate(maxPeerDate(chat));
 	Ui::show(std::move(box));
 }
 

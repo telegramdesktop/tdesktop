@@ -12,6 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "data/data_feed.h"
 #include "data/data_media_types.h"
+#include "data/data_sparse_ids.h"
+#include "data/data_search_controller.h"
+#include "data/data_channel_admins.h"
+#include "data/data_session.h"
+#include "dialogs/dialogs_key.h"
 #include "core/tl_help.h"
 #include "base/overload.h"
 #include "observer_peer.h"
@@ -25,10 +30,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 #include "history/history_media_types.h"
 #include "history/history_item_components.h"
+#include "history/feed/history_feed_section.h"
 #include "storage/localstorage.h"
 #include "auth_session.h"
 #include "boxes/confirm_box.h"
 #include "window/notifications_manager.h"
+#include "window/window_controller.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers.h"
 #include "storage/localimageloader.h"
@@ -37,10 +44,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_user_photos.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/storage_feed_messages.h"
-#include "data/data_sparse_ids.h"
-#include "data/data_search_controller.h"
-#include "data/data_channel_admins.h"
-#include "data/data_session.h"
 
 namespace {
 
@@ -2601,6 +2604,14 @@ void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 	}
 }
 
+void ApiWrap::jumpToDate(Dialogs::Key chat, const QDate &date) {
+	if (const auto peer = chat.peer()) {
+		jumpToHistoryDate(peer, date);
+	} else if (const auto feed = chat.feed()) {
+		jumpToFeedDate(feed, date);
+	}
+}
+
 template <typename Callback>
 void ApiWrap::requestMessageAfterDate(
 		not_null<PeerData*> peer,
@@ -2670,17 +2681,17 @@ void ApiWrap::requestMessageAfterDate(
 	}).send();
 }
 
-void ApiWrap::jumpToDate(not_null<PeerData*> peer, const QDate &date) {
-	if (auto channel = peer->migrateTo()) {
-		jumpToDate(channel, date);
+void ApiWrap::jumpToHistoryDate(not_null<PeerData*> peer, const QDate &date) {
+	if (const auto channel = peer->migrateTo()) {
+		jumpToHistoryDate(channel, date);
 		return;
 	}
-	auto jumpToDateInPeer = [peer, date, this] {
-		requestMessageAfterDate(peer, date, [peer](MsgId resultId) {
+	const auto jumpToDateInPeer = [=] {
+		requestMessageAfterDate(peer, date, [=](MsgId resultId) {
 			Ui::showPeerHistory(peer, resultId);
 		});
 	};
-	if (auto chat = peer->migrateFrom()) {
+	if (const auto chat = peer->migrateFrom()) {
 		requestMessageAfterDate(chat, date, [=](MsgId resultId) {
 			if (resultId) {
 				Ui::showPeerHistory(chat, resultId);
@@ -2691,6 +2702,63 @@ void ApiWrap::jumpToDate(not_null<PeerData*> peer, const QDate &date) {
 	} else {
 		jumpToDateInPeer();
 	}
+}
+
+template <typename Callback>
+void ApiWrap::requestMessageAfterDate(
+		not_null<Data::Feed*> feed,
+		const QDate &date,
+		Callback &&callback) {
+	const auto offsetId = 0;
+	const auto offsetDate = static_cast<TimeId>(QDateTime(date).toTime_t());
+	const auto addOffset = -2;
+	const auto limit = 1;
+	const auto hash = 0;
+	request(MTPchannels_GetFeed(
+		MTP_flags(MTPchannels_GetFeed::Flag::f_offset_position),
+		MTP_int(feed->id()),
+		MTP_feedPosition(
+			MTP_int(offsetDate),
+			MTP_peerUser(MTP_int(_session->userId())),
+			MTP_int(0)),
+		MTP_int(addOffset),
+		MTP_int(limit),
+		MTPfeedPosition(), // max_id
+		MTPfeedPosition(), // min_id
+		MTP_int(hash)
+	)).done([
+		=,
+		callback = std::forward<Callback>(callback)
+	](const MTPmessages_FeedMessages &result) {
+		if (result.type() == mtpc_messages_feedMessagesNotModified) {
+			LOG(("API Error: "
+				"Unexpected messages.feedMessagesNotModified."));
+			callback(Data::UnreadMessagePosition);
+			return;
+		}
+		Assert(result.type() == mtpc_messages_feedMessages);
+		const auto &data = result.c_messages_feedMessages();
+		const auto &messages = data.vmessages.v;
+		const auto type = NewMessageExisting;
+		App::feedUsers(data.vusers);
+		App::feedChats(data.vchats);
+		for (const auto &msg : messages) {
+			if (const auto item = App::histories().addNewMessage(msg, type)) {
+				if (item->date() >= offsetDate || true) {
+					callback(item->position());
+					return;
+				}
+			}
+		}
+		callback(Data::UnreadMessagePosition);
+	}).send();
+}
+
+void ApiWrap::jumpToFeedDate(not_null<Data::Feed*> feed, const QDate &date) {
+	requestMessageAfterDate(feed, date, [=](Data::MessagePosition result) {
+		App::wnd()->controller()->showSection(
+			HistoryFeed::Memento(feed, result));
+	});
 }
 
 void ApiWrap::preloadEnoughUnreadMentions(not_null<History*> history) {

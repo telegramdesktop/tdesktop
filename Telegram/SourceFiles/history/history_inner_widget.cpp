@@ -41,25 +41,6 @@ namespace {
 
 constexpr auto kScrollDateHideTimeout = 1000;
 
-class DateClickHandler : public ClickHandler {
-public:
-	DateClickHandler(PeerData *peer, QDate date) : _peer(peer), _date(date) {
-	}
-
-	void setDate(QDate date) {
-		_date = date;
-	}
-
-	void onClick(Qt::MouseButton) const override {
-		App::wnd()->controller()->showJumpToDate(_peer, _date);
-	}
-
-private:
-	PeerData *_peer = nullptr;
-	QDate _date;
-
-};
-
 // Helper binary search for an item in a list that is not completely
 // above the given top of the visible area or below the given bottom of the visible area
 // is applied once for blocks list in a history and once for items list in the found block.
@@ -2401,9 +2382,9 @@ void HistoryInner::mouseActionUpdate() {
 
 					if (point.x() >= dateLeft && point.x() < dateLeft + dateWidth) {
 						if (!_scrollDateLink) {
-							_scrollDateLink = std::make_shared<DateClickHandler>(item->history()->peer, view->dateTime().date());
+							_scrollDateLink = std::make_shared<Window::DateClickHandler>(item->history(), view->dateTime().date());
 						} else {
-							static_cast<DateClickHandler*>(_scrollDateLink.get())->setDate(view->dateTime().date());
+							static_cast<Window::DateClickHandler*>(_scrollDateLink.get())->setDate(view->dateTime().date());
 						}
 						dragState = TextState(
 							nullptr,

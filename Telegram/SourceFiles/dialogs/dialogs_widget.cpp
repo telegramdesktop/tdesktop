@@ -128,11 +128,7 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 	subscribe(Adaptive::Changed(), [this] { updateForwardBar(); });
 
 	_cancelSearch->setClickedCallback([this] { onCancelSearch(); });
-	_jumpToDate->entity()->setClickedCallback([this] {
-		if (const auto peer = _searchInChat.peer()) {
-			this->controller()->showJumpToDate(peer, QDate());
-		}
-	});
+	_jumpToDate->entity()->setClickedCallback([this] { showJumpToDate(); });
 	_chooseFromUser->entity()->setClickedCallback([this] { showSearchFrom(); });
 	_lockUnlock->setVisible(Global::LocalPasscode());
 	subscribe(Global::RefLocalPasscodeChanged(), [this] { updateLockUnlockVisibility(); });
@@ -1034,6 +1030,12 @@ void DialogsWidget::clearSearchCache() {
 	_searchQuery = QString();
 	_searchQueryFrom = nullptr;
 	MTP::cancel(base::take(_searchRequest));
+}
+
+void DialogsWidget::showJumpToDate() {
+	if (_searchInChat) {
+		this->controller()->showJumpToDate(_searchInChat, QDate());
+	}
 }
 
 void DialogsWidget::showSearchFrom() {

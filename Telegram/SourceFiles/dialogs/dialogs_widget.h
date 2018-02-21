@@ -156,6 +156,7 @@ private:
 		const QVector<MTPMessage> &messages);
 
 	void setSearchInChat(Dialogs::Key chat, UserData *from = nullptr);
+	void showJumpToDate();
 	void showSearchFrom();
 	void showMainMenu();
 	void clearSearchCache();

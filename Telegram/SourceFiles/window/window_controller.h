@@ -38,6 +38,19 @@ enum class GifPauseReason {
 using GifPauseReasons = base::flags<GifPauseReason>;
 inline constexpr bool is_flag_type(GifPauseReason) { return true; };
 
+class DateClickHandler : public ClickHandler {
+public:
+	DateClickHandler(Dialogs::Key chat, QDate date);
+
+	void setDate(QDate date);
+	void onClick(Qt::MouseButton) const override;
+
+private:
+	Dialogs::Key _chat;
+	QDate _date;
+
+};
+
 struct SectionShow {
 	enum class Way {
 		Forward,
@@ -184,7 +197,7 @@ public:
 	}
 
 	void showJumpToDate(
-		not_null<PeerData*> peer,
+		Dialogs::Key chat,
 		QDate requestedDate);
 
 	base::Variable<bool> &dialogsListFocused() {
