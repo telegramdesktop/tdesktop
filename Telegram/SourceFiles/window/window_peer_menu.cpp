@@ -670,8 +670,8 @@ void ToggleChannelGrouping(not_null<ChannelData*> channel, bool group) {
 			: lng_feed_channel_removed));
 	};
 	if (group) {
-		const auto feed = Auth().data().feedLoaded(Data::Feed::kId);
-		if (!feed || feed->channels().size() < 2) {
+		const auto feed = Auth().data().feed(Data::Feed::kId);
+		if (feed->channels().size() < 2) {
 			Info::FeedProfile::EditController::Start(feed, channel);
 			return;
 		}
