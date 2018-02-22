@@ -156,7 +156,9 @@ void Controller::updateSearchControllers(
 	auto hasCommonGroupsSearch
 		= (type == Type::CommonGroups);
 	auto hasMembersSearch
-		= (type == Type::Members || type == Type::Profile);
+		= (type == Type::Members
+			|| type == Type::Profile
+			|| type == Type::Channels);
 	auto searchQuery = memento->searchFieldQuery();
 	if (isMedia) {
 		_searchController

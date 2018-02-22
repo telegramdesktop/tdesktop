@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_feed.h"
 #include "data/data_session.h"
 #include "info/info_controller.h"
+#include "info/info_memento.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/labels.h"
 #include "ui/special_buttons.h"
@@ -81,12 +82,12 @@ void Cover::refreshStatusText() {
 		}
 		return lng_feed_channels(lt_count, _feed->channels().size());
 	}();
-	_status->setRichText(statusText);
-	//_status->setLink(1, std::make_shared<LambdaClickHandler>([=] {
-	//	_controller->showSection(Info::Memento(
-	//		_feed,
-	//		Section::Type::Channels));
-	//})); // #TODO channels list
+	_status->setRichText(textcmdLink(1, statusText));
+	_status->setLink(1, std::make_shared<LambdaClickHandler>([=] {
+		_controller->showSection(Info::Memento(
+			_feed,
+			Section::Type::Channels));
+	}));
 	refreshStatusGeometry(width());
 }
 

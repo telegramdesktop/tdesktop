@@ -114,7 +114,7 @@ std::unique_ptr<PeerListRow> ChannelsController::createRestoredRow(
 }
 
 void ChannelsController::prepare() {
-	setSearchNoResultsText(lang(lng_bot_groups_not_found));
+	setSearchNoResultsText(lang(lng_feed_channels_not_found));
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
 	delegate()->peerListSetTitle(langFactory(lng_info_feed_channels));
 
@@ -241,7 +241,7 @@ NotificationsController::NotificationsController(
 }
 
 void NotificationsController::prepare() {
-	setSearchNoResultsText(lang(lng_blocked_list_not_found));
+	setSearchNoResultsText(lang(lng_feed_channels_not_found));
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
 	delegate()->peerListSetTitle(langFactory(lng_feed_notifications));
 
@@ -377,9 +377,12 @@ EditController::EditController(
 }
 
 void EditController::prepare() {
-	setSearchNoResultsText(lang(lng_blocked_list_not_found));
+	setSearchNoResultsText(lang(lng_feed_channels_not_found));
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
-	delegate()->peerListSetTitle(langFactory(lng_feed_create_new));
+	delegate()->peerListSetTitle(langFactory(
+		(_feed->channels().size() < kChannelsInFeedMin
+			? lng_feed_create_new
+			: lng_feed_edit_title)));
 
 	loadMoreRows();
 }
@@ -429,6 +432,7 @@ void EditController::applyFeedSources(
 		setDescriptionText(lng_feed_too_few_channels(
 			lt_count,
 			kChannelsInFeedMin));
+		delegate()->peerListSetSearchMode(PeerListSearchMode::Disabled);
 	} else {
 		auto alreadyInFeed = ranges::view::all(
 			channels

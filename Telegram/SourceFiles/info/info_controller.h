@@ -42,6 +42,7 @@ public:
 		Media,
 		CommonGroups,
 		Members,
+		Channels,
 	};
 	using MediaType = Storage::SharedMediaType;
 

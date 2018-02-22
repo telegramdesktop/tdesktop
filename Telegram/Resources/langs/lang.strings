@@ -1438,6 +1438,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_feed_select_more_channels#one" = "Select {count} channel or more.";
 "lng_feed_select_more_channels#other" = "Select {count} channels or more.";
 "lng_feed_create" = "Create";
+"lng_feed_edit_title" = "Edit feed";
+"lng_feed_channels_not_found" = "No channels found";
 
 "lng_info_feed_title" = "Feed Info";
 "lng_info_feed_is_default" = "Group new channels";

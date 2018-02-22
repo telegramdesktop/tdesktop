@@ -286,6 +286,8 @@
 <(src_loc)/info/info_top_bar.h
 <(src_loc)/info/info_wrap_widget.cpp
 <(src_loc)/info/info_wrap_widget.h
+<(src_loc)/info/channels/info_channels_widget.cpp
+<(src_loc)/info/channels/info_channels_widget.h
 <(src_loc)/info/common_groups/info_common_groups_inner_widget.cpp
 <(src_loc)/info/common_groups/info_common_groups_inner_widget.h
 <(src_loc)/info/common_groups/info_common_groups_widget.cpp

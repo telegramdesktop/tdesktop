@@ -11,7 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_values.h"
+#include "info/channels/info_channels_widget.h"
 #include "info/info_controller.h"
+#include "info/info_memento.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
@@ -58,7 +60,7 @@ Channels::Channels(
 
 int Channels::desiredHeight() const {
 	auto desired = _header ? _header->height() : 0;
-	desired += st::infoMembersList.item.height
+	desired += st::infoChannelsList.item.height
 		* std::max(int(_feed->channels().size()), _list->fullRowsCount());
 	return qMax(height(), desired);
 }
@@ -81,7 +83,7 @@ void Channels::restoreState(std::unique_ptr<ChannelsState> state) {
 }
 
 void Channels::setupHeader() {
-	if (_controller->section().type() == Section::Type::Members) {
+	if (_controller->section().type() == Section::Type::Channels) {
 		return;
 	}
 	_header = object_ptr<Ui::FixedHeightWidget>(
@@ -135,28 +137,24 @@ void Channels::setupButtons() {
 		showChannelsWithSearch(false);
 	});
 
-	//auto addMemberShown = CanAddMemberValue(_peer)
-	//	| rpl::start_spawning(lifetime());
-	//_addChannel->showOn(rpl::duplicate(addMemberShown));
-	//_addChannel->addClickHandler([this] { // TODO throttle(ripple duration)
-	//	this->addMember();
-	//});
+	_addChannel->addClickHandler([this] { // TODO throttle(ripple duration)
+		this->addChannel();
+	});
 
-	//auto searchShown = MembersCountValue(_peer)
-	//	| rpl::map(_1 >= kEnableSearchMembersAfterCount)
-	//	| rpl::distinct_until_changed()
-	//	| rpl::start_spawning(lifetime());
-	//_search->showOn(rpl::duplicate(searchShown));
-	//_search->addClickHandler([this] { // TODO throttle(ripple duration)
-	//	this->showMembersWithSearch(true);
-	//});
+	auto searchShown = Profile::FeedChannelsCountValue(_feed)
+		| rpl::map(_1 >= kEnableSearchChannelsAfterCount)
+		| rpl::distinct_until_changed()
+		| rpl::start_spawning(lifetime());
+	_search->showOn(rpl::duplicate(searchShown));
+	_search->addClickHandler([this] { // TODO throttle(ripple duration)
+		this->showChannelsWithSearch(true);
+	});
 
-	//rpl::combine(
-	//	std::move(addMemberShown),
-	//	std::move(searchShown)
-	//) | rpl::start_with_next([this] {
-	//	updateHeaderControlsGeometry(width());
-	//}, lifetime());
+	std::move(
+		searchShown
+	) | rpl::start_with_next([this] {
+		updateHeaderControlsGeometry(width());
+	}, lifetime());
 }
 
 void Channels::setupList() {
@@ -164,7 +162,7 @@ void Channels::setupList() {
 	_list = object_ptr<ListWidget>(
 		this,
 		_listController.get(),
-		st::infoCommonGroupsList);
+		st::infoChannelsList);
 	_list->scrollToRequests(
 	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
 		auto addmin = (request.ymin < 0 || !_header)
@@ -271,34 +269,18 @@ void Channels::updateHeaderControlsGeometry(int newWidth) {
 }
 
 void Channels::addChannel() {
-	//if (const auto chat = _peer->asChat()) {
-	//	if (chat->count >= Global::ChatSizeMax() && chat->amCreator()) {
-	//		Ui::show(Box<ConvertToSupergroupBox>(chat));
-	//	} else {
-	//		AddParticipantsBoxController::Start(chat);
-	//	}
-	//} else if (const auto channel = _peer->asChannel()) {
-	//	const auto state = _listController->saveState();
-	//	const auto users = ranges::view::all(
-	//		state->list
-	//	) | ranges::view::transform([](not_null<PeerData*> peer) {
-	//		return peer->asUser();
-	//	}) | ranges::to_vector;
-	//	AddParticipantsBoxController::Start(
-	//		channel,
-	//		{ users.begin(), users.end() });
-	//}
+	EditController::Start(_feed);
 }
 
 void Channels::showChannelsWithSearch(bool withSearch) {
-	//auto contentMemento = std::make_unique<Info::Members::Memento>(
-	//	_controller);
-	//contentMemento->setState(saveState());
-	//contentMemento->setSearchStartsFocused(withSearch);
-	//auto mementoStack = std::vector<std::unique_ptr<ContentMemento>>();
-	//mementoStack.push_back(std::move(contentMemento));
-	//_controller->showSection(
-	//	Info::Memento(std::move(mementoStack)));
+	auto contentMemento = std::make_unique<Info::Channels::Memento>(
+		_controller);
+	contentMemento->setState(saveState());
+	contentMemento->setSearchStartsFocused(withSearch);
+	auto mementoStack = std::vector<std::unique_ptr<ContentMemento>>();
+	mementoStack.push_back(std::move(contentMemento));
+	_controller->showSection(
+		Info::Memento(std::move(mementoStack)));
 }
 
 void Channels::visibleTopBottomUpdated(

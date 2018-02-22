@@ -11,20 +11,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct PeerListState;
 
+namespace Data {
+class Feed;
+} // namespace Data
+
 namespace Info {
-namespace Profile {
-class Members;
-struct MembersState;
-} // namespace Profile
+namespace FeedProfile {
+class Channels;
+struct ChannelsState;
+} // namespace FeedProfile
 
-namespace Members {
+namespace Channels {
 
-using SavedState = Profile::MembersState;
+using SavedState = FeedProfile::ChannelsState;
 
 class Memento final : public ContentMemento {
 public:
-	Memento(not_null<Controller*> controller);
-	Memento(PeerId peerId, PeerId migratedPeerId);
+	explicit Memento(not_null<Controller*> controller);
+	explicit Memento(not_null<Data::Feed*> feed);
 
 	object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
@@ -62,10 +66,9 @@ private:
 
 	std::unique_ptr<ContentMemento> doCreateMemento() override;
 
-	Profile::Members *_inner = nullptr;
+	FeedProfile::Channels *_inner = nullptr;
 
 };
 
-} // namespace Members
+} // namespace Channels
 } // namespace Info
-

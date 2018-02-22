@@ -584,6 +584,9 @@ rpl::producer<QString> TitleValue(
 		case Section::Type::Members:
 			return lng_profile_participants_section;
 
+		case Section::Type::Channels:
+			return lng_info_feed_channels;
+
 		}
 		Unexpected("Bad section type in Info::TitleValue()");
 	}());

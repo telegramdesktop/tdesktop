@@ -119,7 +119,7 @@ public:
 	: _peerId(peerId)
 	, _migratedPeerId(migratedPeerId) {
 	}
-	ContentMemento(not_null<Data::Feed*> feed)
+	explicit ContentMemento(not_null<Data::Feed*> feed)
 	: _feed(feed) {
 	}
 

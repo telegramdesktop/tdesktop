@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_widget.h"
 #include "info/media/info_media_widget.h"
 #include "info/members/info_members_widget.h"
+#include "info/channels/info_channels_widget.h"
 #include "info/common_groups/info_common_groups_widget.h"
 #include "info/feed/info_feed_profile_widget.h"
 #include "info/info_section_widget.h"
@@ -108,6 +109,8 @@ std::unique_ptr<ContentMemento> Memento::DefaultContent(
 	switch (section.type()) {
 	case Section::Type::Profile:
 		return std::make_unique<FeedProfile::Memento>(feed);
+	case Section::Type::Channels:
+		return std::make_unique<Channels::Memento>(feed);
 	}
 	Unexpected("Wrong feed section in Info::Memento::DefaultContent()");
 }
