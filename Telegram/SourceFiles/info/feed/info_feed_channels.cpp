@@ -95,14 +95,14 @@ void Channels::setupHeader() {
 
 	object_ptr<Profile::FloatingIcon>(
 		parent,
-		st::infoIconMembers,
+		st::infoIconFeed,
 		st::infoIconPosition);
 
 	_titleWrap = Ui::CreateChild<Ui::RpWidget>(parent);
 	_title = setupTitle();
 	_addChannel = Ui::CreateChild<Ui::IconButton>(
 		_openChannels,
-		st::infoMembersAddMember);
+		st::infoChannelsAddChannel);
 	_search = Ui::CreateChild<Ui::IconButton>(
 		_openChannels,
 		st::infoMembersSearch);

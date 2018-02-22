@@ -139,6 +139,9 @@ dialogsChatIconActive: icon {{ "dialogs_chat", dialogsChatIconFgActive, point(1p
 dialogsChannelIcon: icon {{ "dialogs_channel", dialogsChatIconFg, point(3px, 4px) }};
 dialogsChannelIconOver: icon {{ "dialogs_channel", dialogsChatIconFgOver, point(3px, 4px) }};
 dialogsChannelIconActive: icon {{ "dialogs_channel", dialogsChatIconFgActive, point(3px, 4px) }};
+dialogsFeedIcon: icon {{ "dialogs_feed", dialogsChatIconFg, point(4px, 4px) }};
+dialogsFeedIconOver: icon {{ "dialogs_feed", dialogsChatIconFgOver, point(4px, 4px) }};
+dialogsFeedIconActive: icon {{ "dialogs_feed", dialogsChatIconFgActive, point(4px, 4px) }};
 
 dialogsSendStateSkip: 20px;
 dialogsSendingIcon: icon {{ "dialogs_sending", dialogsSendingIconFg, point(8px, 4px) }};

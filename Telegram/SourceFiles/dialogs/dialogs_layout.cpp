@@ -61,9 +61,9 @@ inline constexpr bool is_flag_type(Flag) { return true; }
 template <typename PaintItemCallback, typename PaintCounterCallback>
 void paintRow(
 		Painter &p,
-		const RippleRow *row,
+		not_null<const RippleRow*> row,
 		not_null<Entry*> entry,
-		History *history,
+		Dialogs::Key chat,
 		PeerData *from,
 		HistoryItem *item,
 		const Data::Draft *draft,
@@ -124,6 +124,7 @@ void paintRow(
 		return;
 	}
 
+	const auto history = chat.history();
 	auto namewidth = fullWidth - nameleft - st::dialogsPadding.x();
 	auto rectForName = QRect(
 		nameleft,
@@ -132,8 +133,13 @@ void paintRow(
 		st::msgNameFont->height);
 
 	if (from && !(flags & Flag::FeedSearchResult)) {
-		if (auto chatTypeIcon = ChatTypeIcon(from, active, selected)) {
+		if (const auto chatTypeIcon = ChatTypeIcon(from, active, selected)) {
 			chatTypeIcon->paint(p, rectForName.topLeft(), fullWidth);
+			rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
+		}
+	} else if (const auto feed = chat.feed()) {
+		if (const auto feedTypeIcon = FeedTypeIcon(feed, active, selected)) {
+			feedTypeIcon->paint(p, rectForName.topLeft(), fullWidth);
 			rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
 		}
 	}
@@ -287,15 +293,30 @@ QImage colorizeCircleHalf(UnreadBadgeSizeData *data, int size, int half, int xof
 
 } // namepsace
 
-const style::icon *ChatTypeIcon(PeerData *peer, bool active, bool selected) {
-	if (!peer) {
-		return nullptr;
-	} else if (peer->isChat() || peer->isMegagroup()) {
-		return &(active ? st::dialogsChatIconActive : (selected ? st::dialogsChatIconOver : st::dialogsChatIcon));
+const style::icon *ChatTypeIcon(
+		not_null<PeerData*> peer,
+		bool active,
+		bool selected) {
+	if (peer->isChat() || peer->isMegagroup()) {
+		return &(active
+			? st::dialogsChatIconActive
+			: (selected ? st::dialogsChatIconOver : st::dialogsChatIcon));
 	} else if (peer->isChannel()) {
-		return &(active ? st::dialogsChannelIconActive : (selected ? st::dialogsChannelIconOver : st::dialogsChannelIcon));
+		return &(active
+			? st::dialogsChannelIconActive
+			: (selected
+				? st::dialogsChannelIconOver
+				: st::dialogsChannelIcon));
 	}
 	return nullptr;
+}
+
+const style::icon *FeedTypeIcon(
+		not_null<Data::Feed*> feed,
+		bool active,
+		bool selected) {
+	return &(active ? st::dialogsFeedIconActive
+		: (selected ? st::dialogsFeedIconOver : st::dialogsFeedIcon));
 }
 
 void paintUnreadBadge(Painter &p, const QRect &rect, const UnreadBadgeStyle &st) {
@@ -511,7 +532,7 @@ void RowPainter::paint(
 		p,
 		row,
 		entry,
-		history,
+		row->key(),
 		from,
 		item,
 		cloudDraft,

@@ -659,7 +659,7 @@ void DialogsInner::paintSearchInFeed(
 	const auto paintUserpic = [&](Painter &p, int x, int y, int size) {
 		feed->paintUserpicLeft(p, x, y, fullWidth, size);
 	};
-	const auto icon = nullptr;
+	const auto icon = Dialogs::Layout::FeedTypeIcon(feed, false, false);
 	paintSearchInFilter(p, paintUserpic, top, fullWidth, icon, text);
 }
 

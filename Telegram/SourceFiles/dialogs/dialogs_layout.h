@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Data {
+class Feed;
+} // namespace Data
+
 namespace Dialogs {
 
 class Row;
@@ -15,7 +19,11 @@ class FakeRow;
 namespace Layout {
 
 const style::icon *ChatTypeIcon(
-	PeerData *peer,
+	not_null<PeerData*> peer,
+	bool active,
+	bool selected);
+const style::icon *FeedTypeIcon(
+	not_null<Data::Feed*> feed,
 	bool active,
 	bool selected);
 
