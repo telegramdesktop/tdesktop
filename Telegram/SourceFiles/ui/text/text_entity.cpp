@@ -31,8 +31,8 @@ QString ExpressionMailNameAtEnd() {
 }
 
 QString ExpressionSeparators(const QString &additional) {
-	// UTF8 quotes
-	const auto quotes = QString::fromUtf8("\xC2\xAB\xC2\xBB\xE2\x80\x9C\xE2\x80\x9D\xE2\x80\x98\xE2\x80\x99");
+	// UTF8 quotes and ellipsis
+	const auto quotes = QString::fromUtf8("\xC2\xAB\xC2\xBB\xE2\x80\x9C\xE2\x80\x9D\xE2\x80\x98\xE2\x80\x99\xE2\x80\xA6");
 	return qsl("\\s\\.,:;<>|'\"\\[\\]\\{\\}\\~\\!\\?\\%\\^\\(\\)\\-\\+=\\x10") + quotes + additional;
 }
 
