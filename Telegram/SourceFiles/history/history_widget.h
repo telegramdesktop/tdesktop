@@ -201,7 +201,9 @@ public:
 	void firstLoadMessages();
 	void delayedShowAt(MsgId showAtMsgId);
 
-	void newUnreadMsg(History *history, HistoryItem *item);
+	void newUnreadMsg(
+		not_null<History*> history,
+		not_null<HistoryItem*> item);
 	void historyToDown(History *history);
 	void unreadCountChanged(not_null<History*> history);
 

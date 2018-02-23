@@ -125,7 +125,9 @@ public:
 		const MTPUpdates &updates);
 	void historyToDown(History *hist);
 	void dialogsToUp();
-	void newUnreadMsg(History *history, HistoryItem *item);
+	void newUnreadMsg(
+		not_null<History*> history,
+		not_null<HistoryItem*> item);
 	void markActiveHistoryAsRead();
 
 	Dialogs::RowDescriptor chatListEntryBefore(

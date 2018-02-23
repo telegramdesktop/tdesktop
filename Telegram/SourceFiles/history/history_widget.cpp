@@ -2235,7 +2235,9 @@ void HistoryWidget::destroyUnreadBar() {
 	if (_migrated) _migrated->destroyUnreadBar();
 }
 
-void HistoryWidget::newUnreadMsg(History *history, HistoryItem *item) {
+void HistoryWidget::newUnreadMsg(
+		not_null<History*> history,
+		not_null<HistoryItem*> item) {
 	if (_history == history) {
 		// If we get here in non-resized state we can't rely on results of
 		// doWeReadServerHistory() and mark chat as read.
@@ -2256,7 +2258,11 @@ void HistoryWidget::newUnreadMsg(History *history, HistoryItem *item) {
 		}
 	}
 	Auth().notifications().schedule(history, item);
-	history->changeUnreadCount(1);
+	if (history->unreadCountKnown()) {
+		history->changeUnreadCount(1);
+	} else {
+		Auth().api().requestDialogEntry(history);
+	}
 }
 
 void HistoryWidget::historyToDown(History *history) {

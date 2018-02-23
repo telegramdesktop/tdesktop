@@ -2684,7 +2684,9 @@ void MainWidget::dialogsToUp() {
 	_dialogs->dialogsToUp();
 }
 
-void MainWidget::newUnreadMsg(History *history, HistoryItem *item) {
+void MainWidget::newUnreadMsg(
+		not_null<History*> history,
+		not_null<HistoryItem*> item) {
 	_history->newUnreadMsg(history, item);
 }
 
