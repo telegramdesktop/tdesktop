@@ -2245,9 +2245,9 @@ void MediaView::paintDocRadialLoading(Painter &p, bool radial, float64 radialOpa
 		p.setOpacity(1.);
 		auto icon = ([radial, this]() -> const style::icon* {
 			if (radial || _doc->loading()) {
-				return &st::historyFileInCancel;
+				return &st::historyFileThumbCancel;
 			}
-			return &st::historyFileInDownload;
+			return &st::historyFileThumbDownload;
 		})();
 		if (icon) {
 			icon->paintInCenter(p, inner);
