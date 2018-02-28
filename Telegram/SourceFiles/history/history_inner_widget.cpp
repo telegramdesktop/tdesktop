@@ -1352,6 +1352,14 @@ void HistoryInner::mouseDoubleClickEvent(QMouseEvent *e) {
 			_trippleClickTimer.start(QApplication::doubleClickInterval());
 		}
 	}
+	if (!ClickHandler::getActive()
+		&& !ClickHandler::getPressed()
+		&& _mouseCursorState == CursorState::None) {
+		if (const auto item = _mouseActionItem) {
+			mouseActionCancel();
+			_widget->replyToMessage(item);
+		}
+	}
 }
 
 void HistoryInner::contextMenuEvent(QContextMenuEvent *e) {
