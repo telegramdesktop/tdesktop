@@ -2402,11 +2402,17 @@ void ListWidget::refreshItem(not_null<const Element*> view) {
 	const auto index = i - begin(_items);
 	if (index < int(_items.size())) {
 		const auto item = view->data();
-		_views.erase(item);
+		const auto was = [&]() -> std::unique_ptr<Element> {
+			if (const auto i = _views.find(item); i != end(_views)) {
+				auto result = std::move(i->second);
+				_views.erase(i);
+				return std::move(result);
+			}
+			return nullptr;
+		}();
 		const auto [i, ok] = _views.emplace(
 			item,
 			item->createView(this));
-		const auto was = view;
 		const auto now = i->second.get();
 		_items[index] = now;
 
