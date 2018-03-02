@@ -957,7 +957,7 @@ dialogPeer#e56dbf05 peer:Peer = DialogPeer;
 dialogPeerFeed#da429411 feed_id:int = DialogPeer;
 
 messages.foundStickerSetsNotModified#d54b65d = messages.FoundStickerSets;
-messages.foundStickerSets#b35bcea9 hash:int sets:Vector<StickerSet> = messages.FoundStickerSets;
+messages.foundStickerSets#5108d648 hash:int sets:Vector<StickerSetCovered> = messages.FoundStickerSets;
 
 feedPosition#5059dc73 date:int peer:Peer id:int = FeedPosition;
 

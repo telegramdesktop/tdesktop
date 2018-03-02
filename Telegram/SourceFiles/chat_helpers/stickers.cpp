@@ -744,7 +744,11 @@ Set *FeedSet(const MTPDstickerSet &set) {
 		it->title = title;
 		it->shortName = qs(set.vshort_name);
 		flags = it->flags;
-		auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_not_loaded | MTPDstickerSet_ClientFlag::f_special);
+		auto clientFlags = it->flags
+			& (MTPDstickerSet_ClientFlag::f_featured
+				| MTPDstickerSet_ClientFlag::f_unread
+				| MTPDstickerSet_ClientFlag::f_not_loaded
+				| MTPDstickerSet_ClientFlag::f_special);
 		it->flags = set.vflags.v | clientFlags;
 		it->installDate = set.has_installed_date()
 			? set.vinstalled_date.v

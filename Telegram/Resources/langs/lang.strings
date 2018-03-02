@@ -926,6 +926,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stickers_remove_group_set" = "Remove group sticker set?";
 "lng_stickers_group_from_your" = "Choose from your stickers";
 "lng_stickers_group_from_featured" = "Choose from trending stickers";
+"lng_stickers_search_sets" = "Search sticker sets";
+"lng_stickers_nothing_found" = "No stickers found";
 
 "lng_in_dlg_photo" = "Photo";
 "lng_in_dlg_album" = "Album";

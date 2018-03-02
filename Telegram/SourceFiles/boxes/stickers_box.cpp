@@ -163,8 +163,7 @@ void StickersBox::getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedSti
 
 	auto addedSet = false;
 	auto changedSets = false;
-	auto &v = stickers.vsets.v;
-	for_const (auto &stickerSet, v) {
+	for_const (const auto &stickerSet, stickers.vsets.v) {
 		const MTPDstickerSet *setData = nullptr;
 		switch (stickerSet.type()) {
 		case mtpc_stickerSetCovered: {
@@ -202,7 +201,8 @@ void StickersBox::getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedSti
 	if (addedSet) {
 		_archived.widget()->updateSize();
 	} else {
-		_allArchivedLoaded = v.isEmpty() || (!changedSets && offsetId != 0);
+		_allArchivedLoaded = stickers.vsets.v.isEmpty()
+			|| (!changedSets && offsetId != 0);
 		if (changedSets) {
 			loadMoreArchived();
 		}

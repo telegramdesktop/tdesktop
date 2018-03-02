@@ -568,6 +568,7 @@ PeerListContent::PeerListContent(
 
 void PeerListContent::appendRow(std::unique_ptr<PeerListRow> row) {
 	Expects(row != nullptr);
+
 	if (_rowsById.find(row->id()) == _rowsById.cend()) {
 		row->setAbsoluteIndex(_rows.size());
 		addRowEntry(row.get());
@@ -578,6 +579,7 @@ void PeerListContent::appendRow(std::unique_ptr<PeerListRow> row) {
 void PeerListContent::appendSearchRow(std::unique_ptr<PeerListRow> row) {
 	Expects(row != nullptr);
 	Expects(showingSearch());
+
 	if (_rowsById.find(row->id()) == _rowsById.cend()) {
 		row->setAbsoluteIndex(_searchRows.size());
 		row->setIsSearchResult(true);
@@ -589,13 +591,17 @@ void PeerListContent::appendSearchRow(std::unique_ptr<PeerListRow> row) {
 
 void PeerListContent::appendFoundRow(not_null<PeerListRow*> row) {
 	Expects(showingSearch());
+
 	auto index = findRowIndex(row);
 	if (index.value < 0) {
 		_filterResults.push_back(row);
 	}
 }
 
-void PeerListContent::changeCheckState(not_null<PeerListRow*> row, bool checked, PeerListRow::SetStyle style) {
+void PeerListContent::changeCheckState(
+		not_null<PeerListRow*> row,
+		bool checked,
+		PeerListRow::SetStyle style) {
 	row->setChecked(
 		checked,
 		style,

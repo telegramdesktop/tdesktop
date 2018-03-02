@@ -52,6 +52,7 @@ struct Set {
 	MTPDstickerSet::Flags flags;
 	TimeId installDate = 0;
 	Pack stickers;
+	Pack covers;
 	ByEmojiMap emoji;
 };
 using Sets = QMap<uint64, Set>;
