@@ -681,10 +681,6 @@ bool HistoryPhoto::needsBubble() const {
 	return false;
 }
 
-ImagePtr HistoryPhoto::replyPreview() {
-	return _data->makeReplyPreview();
-}
-
 HistoryVideo::HistoryVideo(
 	not_null<Element*> parent,
 	not_null<HistoryItem*> realParent,
@@ -1134,21 +1130,6 @@ void HistoryVideo::updateStatusText() const {
 	if (statusSize != _statusSize) {
 		setStatusSize(statusSize);
 	}
-}
-
-ImagePtr HistoryVideo::replyPreview() {
-	if (_data->replyPreview->isNull() && !_data->thumb->isNull()) {
-		if (_data->thumb->loaded()) {
-			auto w = convertScale(_data->thumb->width());
-			auto h = convertScale(_data->thumb->height());
-			if (w <= 0) w = 1;
-			if (h <= 0) h = 1;
-			_data->replyPreview = ImagePtr(w > h ? _data->thumb->pix(w * st::msgReplyBarSize.height() / h, st::msgReplyBarSize.height()) : _data->thumb->pix(st::msgReplyBarSize.height()), "PNG");
-		} else {
-			_data->thumb->load();
-		}
-	}
-	return _data->replyPreview;
 }
 
 HistoryDocument::HistoryDocument(
@@ -1856,10 +1837,6 @@ TextWithEntities HistoryDocument::getCaption() const {
 	return TextWithEntities();
 }
 
-ImagePtr HistoryDocument::replyPreview() {
-	return _data->makeReplyPreview();
-}
-
 HistoryGif::HistoryGif(
 	not_null<Element*> parent,
 	not_null<DocumentData*> document)
@@ -2564,10 +2541,6 @@ QString HistoryGif::additionalInfoString() const {
 	return QString();
 }
 
-ImagePtr HistoryGif::replyPreview() {
-	return _data->makeReplyPreview();
-}
-
 int HistoryGif::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply, const HistoryMessageForwarded *forwarded) const {
 	int result = 0;
 	if (forwarded) {
@@ -2928,10 +2901,6 @@ TextState HistorySticker::textState(QPoint point, StateRequest request) const {
 		return result;
 	}
 	return result;
-}
-
-ImagePtr HistorySticker::replyPreview() {
-	return _data->makeReplyPreview();
 }
 
 int HistorySticker::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply) const {
@@ -3784,14 +3753,6 @@ TextWithEntities HistoryWebPage::selectedText(TextSelection selection) const {
 	return titleResult;
 }
 
-bool HistoryWebPage::hasReplyPreview() const {
-	return _attach ? _attach->hasReplyPreview() : (_data->photo ? true : false);
-}
-
-ImagePtr HistoryWebPage::replyPreview() {
-	return _attach ? _attach->replyPreview() : (_data->photo ? _data->photo->makeReplyPreview() : ImagePtr());
-}
-
 QMargins HistoryWebPage::inBubblePadding() const {
 	auto lshift = st::msgPadding.left() + st::webPageLeft;
 	auto rshift = st::msgPadding.right();
@@ -4179,10 +4140,6 @@ TextWithEntities HistoryGame::selectedText(TextSelection selection) const {
 	titleResult.text += '\n';
 	TextUtilities::Append(titleResult, std::move(descriptionResult));
 	return titleResult;
-}
-
-ImagePtr HistoryGame::replyPreview() {
-	return _attach ? _attach->replyPreview() : (_data->photo ? _data->photo->makeReplyPreview() : ImagePtr());
 }
 
 void HistoryGame::playAnimation(bool autoplay) {

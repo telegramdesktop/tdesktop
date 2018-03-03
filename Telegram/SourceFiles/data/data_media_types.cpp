@@ -294,6 +294,14 @@ bool MediaPhoto::canBeGrouped() const {
 	return true;
 }
 
+bool MediaPhoto::hasReplyPreview() const {
+	return !_photo->thumb->isNull();
+}
+
+ImagePtr MediaPhoto::replyPreview() const {
+	return _photo->makeReplyPreview();
+}
+
 QString MediaPhoto::notificationText() const {
 	return WithCaptionNotificationText(
 		lang(lng_in_dlg_photo),
@@ -485,6 +493,14 @@ Storage::SharedMediaTypesMask MediaFile::sharedMediaTypes() const {
 
 bool MediaFile::canBeGrouped() const {
 	return _document->isVideoFile();
+}
+
+bool MediaFile::hasReplyPreview() const {
+	return !_document->thumb->isNull();
+}
+
+ImagePtr MediaFile::replyPreview() const {
+	return _document->makeReplyPreview();
 }
 
 QString MediaFile::chatsListText() const {
@@ -929,6 +945,24 @@ WebPageData *MediaWebPage::webpage() const {
 	return _page;
 }
 
+bool MediaWebPage::hasReplyPreview() const {
+	if (const auto document = _page->document) {
+		return !document->thumb->isNull();
+	} else if (const auto photo = _page->photo) {
+		return !photo->thumb->isNull();
+	}
+	return false;
+}
+
+ImagePtr MediaWebPage::replyPreview() const {
+	if (const auto document = _page->document) {
+		return document->makeReplyPreview();
+	} else if (const auto photo = _page->photo) {
+		return photo->makeReplyPreview();
+	}
+	return ImagePtr();
+}
+
 QString MediaWebPage::chatsListText() const {
 	return notificationText();
 }
@@ -972,6 +1006,24 @@ MediaGame::MediaGame(
 
 std::unique_ptr<Media> MediaGame::clone(not_null<HistoryItem*> parent) {
 	return std::make_unique<MediaGame>(parent, _game);
+}
+
+bool MediaGame::hasReplyPreview() const {
+	if (const auto document = _game->document) {
+		return !document->thumb->isNull();
+	} else if (const auto photo = _game->photo) {
+		return !photo->thumb->isNull();
+	}
+	return false;
+}
+
+ImagePtr MediaGame::replyPreview() const {
+	if (const auto document = _game->document) {
+		return document->makeReplyPreview();
+	} else if (const auto photo = _game->photo) {
+		return photo->makeReplyPreview();
+	}
+	return ImagePtr();
 }
 
 QString MediaGame::notificationText() const {
@@ -1052,6 +1104,20 @@ std::unique_ptr<Media> MediaInvoice::clone(not_null<HistoryItem*> parent) {
 
 const Invoice *MediaInvoice::invoice() const {
 	return &_invoice;
+}
+
+bool MediaInvoice::hasReplyPreview() const {
+	if (const auto photo = _invoice.photo) {
+		return !photo->thumb->isNull();
+	}
+	return false;
+}
+
+ImagePtr MediaInvoice::replyPreview() const {
+	if (const auto photo = _invoice.photo) {
+		return photo->makeReplyPreview();
+	}
+	return ImagePtr();
 }
 
 QString MediaInvoice::notificationText() const {

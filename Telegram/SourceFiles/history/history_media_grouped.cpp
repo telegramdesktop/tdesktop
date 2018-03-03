@@ -350,14 +350,6 @@ not_null<HistoryMedia*> HistoryGroupedMedia::main() const {
 	return _parts.back().content.get();
 }
 
-bool HistoryGroupedMedia::hasReplyPreview() const {
-	return main()->hasReplyPreview();
-}
-
-ImagePtr HistoryGroupedMedia::replyPreview() {
-	return main()->replyPreview();
-}
-
 TextWithEntities HistoryGroupedMedia::getCaption() const {
 	return main()->getCaption();
 }

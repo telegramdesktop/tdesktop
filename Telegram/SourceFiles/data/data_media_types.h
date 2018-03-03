@@ -134,6 +134,8 @@ public:
 	bool uploading() const override;
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 	bool canBeGrouped() const override;
+	bool hasReplyPreview() const override;
+	ImagePtr replyPreview() const override;
 	QString chatsListText() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
@@ -168,6 +170,8 @@ public:
 	bool uploading() const override;
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 	bool canBeGrouped() const override;
+	bool hasReplyPreview() const override;
+	ImagePtr replyPreview() const override;
 	QString chatsListText() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
@@ -289,6 +293,9 @@ public:
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
 	WebPageData *webpage() const override;
+
+	bool hasReplyPreview() const override;
+	ImagePtr replyPreview() const override;
 	QString chatsListText() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
@@ -316,6 +323,8 @@ public:
 
 	GameData *game() const override;
 
+	bool hasReplyPreview() const override;
+	ImagePtr replyPreview() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
 	TextWithEntities clipboardText() const override;
@@ -349,6 +358,8 @@ public:
 
 	const Invoice *invoice() const override;
 
+	bool hasReplyPreview() const override;
+	ImagePtr replyPreview() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
 	TextWithEntities clipboardText() const override;

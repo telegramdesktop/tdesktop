@@ -168,12 +168,6 @@ public:
 		return false;
 	}
 
-	virtual bool hasReplyPreview() const {
-		return false;
-	}
-	virtual ImagePtr replyPreview() {
-		return ImagePtr();
-	}
 	virtual TextWithEntities getCaption() const {
 		return TextWithEntities();
 	}

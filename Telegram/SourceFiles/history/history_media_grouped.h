@@ -59,8 +59,6 @@ public:
 		const ClickHandlerPtr &p,
 		bool pressed) override;
 
-	bool hasReplyPreview() const override;
-	ImagePtr replyPreview() override;
 	TextWithEntities getCaption() const override;
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 

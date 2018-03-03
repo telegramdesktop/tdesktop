@@ -176,11 +176,6 @@ public:
 		QPoint point,
 		StateRequest request) const override;
 
-	bool hasReplyPreview() const override {
-		return !_data->thumb->isNull();
-	}
-	ImagePtr replyPreview() override;
-
 	TextWithEntities getCaption() const override {
 		return _caption.originalTextWithEntities();
 	}
@@ -272,11 +267,6 @@ public:
 		return _data->uploading();
 	}
 
-	bool hasReplyPreview() const override {
-		return !_data->thumb->isNull();
-	}
-	ImagePtr replyPreview() override;
-
 	TextWithEntities getCaption() const override {
 		return _caption.originalTextWithEntities();
 	}
@@ -346,11 +336,6 @@ public:
 	DocumentData *getDocument() const override {
 		return _data;
 	}
-
-	bool hasReplyPreview() const override {
-		return !_data->thumb->isNull();
-	}
-	ImagePtr replyPreview() override;
 
 	TextWithEntities getCaption() const override;
 	bool needsBubble() const override {
@@ -425,11 +410,6 @@ public:
 	}
 
 	void stopAnimation() override;
-
-	bool hasReplyPreview() const override {
-		return !_data->thumb->isNull();
-	}
-	ImagePtr replyPreview() override;
 
 	TextWithEntities getCaption() const override {
 		return _caption.originalTextWithEntities();
@@ -516,11 +496,6 @@ public:
 	DocumentData *getDocument() const override {
 		return _data;
 	}
-
-	bool hasReplyPreview() const override {
-		return !_data->thumb->isNull();
-	}
-	ImagePtr replyPreview() override;
 
 	bool needsBubble() const override {
 		return false;
@@ -704,9 +679,6 @@ public:
 		if (_attach) _attach->stopAnimation();
 	}
 
-	bool hasReplyPreview() const override;
-	ImagePtr replyPreview() override;
-
 	not_null<WebPageData*> webpage() {
 		return _data;
 	}
@@ -806,11 +778,6 @@ public:
 		if (_attach) _attach->stopAnimation();
 	}
 
-	bool hasReplyPreview() const override {
-		return (_data->photo && !_data->photo->thumb->isNull()) || (_data->document && !_data->document->thumb->isNull());
-	}
-	ImagePtr replyPreview() override;
-
 	not_null<GameData*> game() {
 		return _data;
 	}
@@ -901,13 +868,6 @@ public:
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
-
-	bool hasReplyPreview() const override {
-		return _attach && _attach->hasReplyPreview();
-	}
-	ImagePtr replyPreview() override {
-		return _attach ? _attach->replyPreview() : ImagePtr();
-	}
 
 	bool needsBubble() const override {
 		return true;
