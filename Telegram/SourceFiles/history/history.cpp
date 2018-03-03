@@ -830,6 +830,9 @@ void History::setUnreadMentionsCount(int count) {
 bool History::addToUnreadMentions(
 		MsgId msgId,
 		UnreadMentionType type) {
+	if (peer->isChannel() && !peer->isMegagroup()) {
+		return false;
+	}
 	auto allLoaded = _unreadMentionsCount
 		? (_unreadMentions.size() >= *_unreadMentionsCount)
 		: false;
