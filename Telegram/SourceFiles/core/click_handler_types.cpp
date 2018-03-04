@@ -38,12 +38,16 @@ QString tryConvertUrlToLocal(QString url) {
 		} else if (auto confirmPhoneMatch = regex_match(qsl("^confirmphone/?\\?(.+)"), query, matchOptions)) {
 			return qsl("tg://confirmphone?") + confirmPhoneMatch->captured(1);
 		} else if (auto ivMatch = regex_match(qsl("iv/?\\?(.+)(#|$)"), query, matchOptions)) {
-			auto params = url_parse_params(ivMatch->captured(1), UrlParamNameTransform::ToLower);
-			auto previewedUrl = params.value(qsl("url"));
-			if (previewedUrl.startsWith(qstr("http://"), Qt::CaseInsensitive)
-				|| previewedUrl.startsWith(qstr("https://"), Qt::CaseInsensitive)) {
-				return previewedUrl;
-			}
+			//
+			// We need to show our t.me page, not the url directly.
+			//
+			//auto params = url_parse_params(ivMatch->captured(1), UrlParamNameTransform::ToLower);
+			//auto previewedUrl = params.value(qsl("url"));
+			//if (previewedUrl.startsWith(qstr("http://"), Qt::CaseInsensitive)
+			//	|| previewedUrl.startsWith(qstr("https://"), Qt::CaseInsensitive)) {
+			//	return previewedUrl;
+			//}
+			return url;
 		} else if (auto socksMatch = regex_match(qsl("socks/?\\?(.+)(#|$)"), query, matchOptions)) {
 			return qsl("tg://socks?") + socksMatch->captured(1);
 		} else if (auto usernameMatch = regex_match(qsl("^([a-zA-Z0-9\\.\\_]+)(/?\\?|/?$|/(\\d+)/?(?:\\?|$))"), query, matchOptions)) {
