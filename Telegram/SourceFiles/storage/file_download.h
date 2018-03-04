@@ -176,14 +176,14 @@ protected:
 };
 
 class StorageImageLocation;
-class WebFileImageLocation;
+class WebFileLocation;
 class mtpFileLoader : public FileLoader, public RPCSender {
 	Q_OBJECT
 
 public:
 	mtpFileLoader(const StorageImageLocation *location, int32 size, LoadFromCloudSetting fromCloud, bool autoLoading);
 	mtpFileLoader(int32 dc, uint64 id, uint64 accessHash, int32 version, LocationType type, const QString &toFile, int32 size, LoadToCacheSetting toCache, LoadFromCloudSetting fromCloud, bool autoLoading);
-	mtpFileLoader(const WebFileImageLocation *location, int32 size, LoadFromCloudSetting fromCloud, bool autoLoading);
+	mtpFileLoader(const WebFileLocation *location, int32 size, LoadFromCloudSetting fromCloud, bool autoLoading);
 
 	int32 currentOffset(bool includeSkipped = false) const override;
 
@@ -217,13 +217,14 @@ private:
 	RequestData prepareRequest(int offset) const;
 	void makeRequest(int offset);
 
+	MTPInputFileLocation computeLocation() const;
 	bool loadPart() override;
 	void normalPartLoaded(const MTPupload_File &result, mtpRequestId requestId);
 	void webPartLoaded(const MTPupload_WebFile &result, mtpRequestId requestId);
 	void cdnPartLoaded(const MTPupload_CdnFile &result, mtpRequestId requestId);
-	void reuploadDone(const MTPVector<MTPCdnFileHash> &result, mtpRequestId requestId);
+	void reuploadDone(const MTPVector<MTPFileHash> &result, mtpRequestId requestId);
 	void requestMoreCdnFileHashes();
-	void getCdnFileHashesDone(const MTPVector<MTPCdnFileHash> &result, mtpRequestId requestId);
+	void getCdnFileHashesDone(const MTPVector<MTPFileHash> &result, mtpRequestId requestId);
 
 	bool feedPart(int offset, base::const_byte_span bytes);
 	void partLoaded(int offset, base::const_byte_span bytes);
@@ -234,8 +235,8 @@ private:
 	void placeSentRequest(mtpRequestId requestId, const RequestData &requestData);
 	int finishSentRequestGetOffset(mtpRequestId requestId);
 	void switchToCDN(int offset, const MTPDupload_fileCdnRedirect &redirect);
-	void addCdnHashes(const QVector<MTPCdnFileHash> &hashes);
-	void changeCDNParams(int offset, MTP::DcId dcId, const QByteArray &token, const QByteArray &encryptionKey, const QByteArray &encryptionIV, const QVector<MTPCdnFileHash> &hashes);
+	void addCdnHashes(const QVector<MTPFileHash> &hashes);
+	void changeCDNParams(int offset, MTP::DcId dcId, const QByteArray &token, const QByteArray &encryptionKey, const QByteArray &encryptionIV, const QVector<MTPFileHash> &hashes);
 
 	enum class CheckCdnHashResult {
 		NoHash,
@@ -257,7 +258,7 @@ private:
 	uint64 _accessHash = 0;
 	int32 _version = 0;
 
-	const WebFileImageLocation *_urlLocation = nullptr; // for webdocument locations
+	const WebFileLocation *_urlLocation = nullptr; // for webdocument locations
 
 	MTP::DcId _cdnDcId = 0;
 	QByteArray _cdnToken;

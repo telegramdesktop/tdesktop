@@ -226,6 +226,7 @@ public:
 	void photoConvert(
 		not_null<PhotoData*> original,
 		const MTPPhoto &data);
+	PhotoData *photoFromWeb(const MTPWebDocument &data, ImagePtr thumb);
 
 	not_null<DocumentData*> document(DocumentId id);
 	not_null<DocumentData*> document(const MTPDocument &data);
@@ -247,6 +248,9 @@ public:
 	void documentConvert(
 		not_null<DocumentData*> original,
 		const MTPDocument &data);
+	DocumentData *documentFromWeb(
+		const MTPWebDocument &data,
+		ImagePtr thumb);
 
 	not_null<WebPageData*> webpage(WebPageId id);
 	not_null<WebPageData*> webpage(const MTPWebPage &data);
@@ -397,6 +401,12 @@ private:
 		int32 dc,
 		int32 size,
 		const StorageImageLocation &thumbLocation);
+	DocumentData *documentFromWeb(
+		const MTPDwebDocument &data,
+		ImagePtr thumb);
+	DocumentData *documentFromWeb(
+		const MTPDwebDocumentNoProxy &data,
+		ImagePtr thumb);
 
 	void webpageApplyFields(
 		not_null<WebPageData*> page,

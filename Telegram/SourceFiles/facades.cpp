@@ -511,7 +511,6 @@ struct Data {
 	int32 OnlineCloudTimeout = 300000;
 	int32 NotifyCloudDelay = 30000;
 	int32 NotifyDefaultDelay = 1500;
-	int32 ChatBigSize = 10;
 	int32 PushChatPeriod = 60000;
 	int32 PushChatLimit = 2;
 	int32 SavedGifsLimit = 200;
@@ -631,7 +630,6 @@ DefineVar(Global, int32, OnlineFocusTimeout);
 DefineVar(Global, int32, OnlineCloudTimeout);
 DefineVar(Global, int32, NotifyCloudDelay);
 DefineVar(Global, int32, NotifyDefaultDelay);
-DefineVar(Global, int32, ChatBigSize);
 DefineVar(Global, int32, PushChatPeriod);
 DefineVar(Global, int32, PushChatLimit);
 DefineVar(Global, int32, SavedGifsLimit);

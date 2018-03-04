@@ -63,9 +63,12 @@ public:
 	~Result();
 
 private:
-	void createPhoto();
-	void createDocument();
 	void createGame();
+	QSize thumbBox() const;
+	MTPWebDocument adjustAttributes(const MTPWebDocument &document);
+	MTPVector<MTPDocumentAttribute> adjustAttributes(
+		const MTPVector<MTPDocumentAttribute> &document,
+		const MTPstring &mimeType);
 
 	enum class Type {
 		Unknown,
@@ -92,12 +95,8 @@ private:
 	uint64 _queryId = 0;
 	QString _id;
 	Type _type = Type::Unknown;
-	QString _title, _description, _url, _thumb_url;
-	QString _content_type, _content_url;
-	int _width = 0;
-	int _height = 0;
-	int _duration = 0;
-
+	QString _title, _description, _url;
+	QString _content_url;
 	DocumentData *_document = nullptr;
 	PhotoData *_photo = nullptr;
 	GameData *_game = nullptr;

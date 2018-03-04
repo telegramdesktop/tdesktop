@@ -717,11 +717,14 @@ void DocumentData::save(
 		if (fromCloud == LoadFromCloudOrLocal) _loader->permitLoadFromCloud();
 	} else {
 		status = FileReady;
-		if (!_access && !_url.isEmpty()) {
+		if (hasWebLocation()) {
+			_loader = new mtpFileLoader(&_urlLocation, size, fromCloud, autoLoading);
+		} else if (!_access && !_url.isEmpty()) {
 			_loader = new webFileLoader(_url, toFile, fromCloud, autoLoading);
 		} else {
 			_loader = new mtpFileLoader(_dc, id, _access, _version, locationType(), toFile, size, (saveToCache() ? LoadToCacheAsWell : LoadToFileOnly), fromCloud, autoLoading);
 		}
+
 		_loader->connect(_loader, SIGNAL(progress(FileLoader*)), App::main(), SLOT(documentLoadProgress(FileLoader*)));
 		_loader->connect(_loader, SIGNAL(failed(FileLoader*,bool)), App::main(), SLOT(documentLoadFailed(FileLoader*,bool)));
 		_loader->start();
@@ -935,8 +938,12 @@ bool DocumentData::hasRemoteLocation() const {
 	return (_dc != 0 && _access != 0);
 }
 
+bool DocumentData::hasWebLocation() const {
+	return _urlLocation.dc() != 0 && _urlLocation.accessHash() != 0;
+}
+
 bool DocumentData::isValid() const {
-	return hasRemoteLocation() || !_url.isEmpty();
+	return hasRemoteLocation() || hasWebLocation() || !_url.isEmpty();
 }
 
 MTPInputDocument DocumentData::mtpInput() const {
@@ -1084,6 +1091,10 @@ void DocumentData::setRemoteLocation(int32 dc, uint64 access) {
 
 void DocumentData::setContentUrl(const QString &url) {
 	_url = url;
+}
+
+void DocumentData::setWebLocation(const WebFileLocation &location) {
+	_urlLocation = location;
 }
 
 void DocumentData::collectLocalData(DocumentData *local) {

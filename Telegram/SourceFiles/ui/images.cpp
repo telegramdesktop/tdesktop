@@ -403,7 +403,7 @@ uint64 SinglePixKey(Images::Options options) {
 } // namespace
 
 StorageImageLocation StorageImageLocation::Null;
-WebFileImageLocation WebFileImageLocation::Null;
+WebFileLocation WebFileLocation::Null;
 
 bool Image::isNull() const {
 	return (this == blank());
@@ -1040,25 +1040,45 @@ FileLoader *StorageImage::createLoader(LoadFromCloudSetting fromCloud, bool auto
 	return new mtpFileLoader(&_location, _size, fromCloud, autoLoading);
 }
 
-WebFileImage::WebFileImage(const WebFileImageLocation &location, int32 size)
+WebFileImage::WebFileImage(
+	const WebFileLocation &location,
+	QSize box,
+	int size)
 : _location(location)
+, _box(box)
+, _width(0)
+, _height(0)
 , _size(size) {
 }
 
-int32 WebFileImage::countWidth() const {
-	return _location.width();
+WebFileImage::WebFileImage(
+	const WebFileLocation &location,
+	int width,
+	int height,
+	int size)
+: _location(location)
+, _width(width)
+, _height(height)
+, _size(size) {
 }
 
-int32 WebFileImage::countHeight() const {
-	return _location.height();
+int WebFileImage::countWidth() const {
+	return _width;
 }
 
-void WebFileImage::setInformation(int32 size, int32 width, int32 height) {
+int WebFileImage::countHeight() const {
+	return _height;
+}
+
+void WebFileImage::setInformation(int size, int width, int height) {
 	_size = size;
-	_location.setSize(width, height);
+	_width = width;
+	_height = height;
 }
 
-FileLoader *WebFileImage::createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) {
+FileLoader *WebFileImage::createLoader(
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading) {
 	if (_location.isNull()) return 0;
 	return new mtpFileLoader(&_location, _size, fromCloud, autoLoading);
 }
@@ -1146,10 +1166,19 @@ void DelayedStorageImage::cancel() {
 	StorageImage::cancel();
 }
 
-WebImage::WebImage(const QString &url, QSize box) : _url(url), _box(box), _size(0), _width(0), _height(0) {
+WebImage::WebImage(const QString &url, QSize box)
+: _url(url)
+, _box(box)
+, _size(0)
+, _width(0)
+, _height(0) {
 }
 
-WebImage::WebImage(const QString &url, int width, int height) : _url(url), _size(0), _width(width), _height(height) {
+WebImage::WebImage(const QString &url, int width, int height)
+: _url(url)
+, _size(0)
+, _width(width)
+, _height(height) {
 }
 
 void WebImage::setSize(int width, int height) {
@@ -1256,11 +1285,116 @@ StorageImage *getImage(const StorageImageLocation &location, const QByteArray &b
 	return i.value();
 }
 
-WebFileImage *getImage(const WebFileImageLocation &location, int32 size) {
+QSize getImageSize(const QVector<MTPDocumentAttribute> &attributes) {
+	for (const auto &attribute : attributes) {
+		if (attribute.type() == mtpc_documentAttributeImageSize) {
+			auto &size = attribute.c_documentAttributeImageSize();
+			return QSize(size.vw.v, size.vh.v);
+		}
+	}
+	return QSize();
+}
+
+Image *getImage(const MTPDwebDocument &document) {
+	const auto size = getImageSize(document.vattributes.v);
+	if (size.isEmpty()) {
+		return blank();
+	}
+
+	// We don't use size from WebDocument, because it is not reliable.
+	// It can be > 0 and different from the real size that we get in upload.WebFile result.
+	auto filesize = 0; // document.vsize.v;
+	return getImage(
+		WebFileLocation(
+			document.vdc_id.v,
+			document.vurl.v,
+			document.vaccess_hash.v),
+		size.width(),
+		size.height(),
+		filesize);
+}
+
+Image *getImage(const MTPDwebDocumentNoProxy &document) {
+	const auto size = getImageSize(document.vattributes.v);
+	if (size.isEmpty()) {
+		return blank();
+	}
+
+	return getImage(qs(document.vurl), size.width(), size.height());
+}
+
+Image *getImage(const MTPDwebDocument &document, QSize box) {
+	const auto size = getImageSize(document.vattributes.v);
+	if (size.isEmpty()) {
+		return blank();
+	}
+
+	// We don't use size from WebDocument, because it is not reliable.
+	// It can be > 0 and different from the real size that we get in upload.WebFile result.
+	auto filesize = 0; // document.vsize.v;
+	return getImage(
+		WebFileLocation(
+			document.vdc_id.v,
+			document.vurl.v,
+			document.vaccess_hash.v),
+		box,
+		filesize);
+}
+
+Image *getImage(const MTPDwebDocumentNoProxy &document, QSize box) {
+	const auto size = getImageSize(document.vattributes.v);
+	if (size.isEmpty()) {
+		return blank();
+	}
+
+	return getImage(qs(document.vurl), box);
+}
+
+Image *getImage(const MTPWebDocument &document) {
+	switch (document.type()) {
+	case mtpc_webDocument:
+		return getImage(document.c_webDocument());
+	case mtpc_webDocumentNoProxy:
+		return getImage(document.c_webDocumentNoProxy());
+	}
+	Unexpected("Type in getImage(MTPWebDocument).");
+}
+
+Image *getImage(const MTPWebDocument &document, QSize box) {
+	switch (document.type()) {
+	case mtpc_webDocument:
+		return getImage(document.c_webDocument(), box);
+	case mtpc_webDocumentNoProxy:
+		return getImage(document.c_webDocumentNoProxy(), box);
+	}
+	Unexpected("Type in getImage(MTPWebDocument).");
+}
+
+WebFileImage *getImage(
+		const WebFileLocation &location,
+		QSize box,
+		int size) {
 	auto key = storageKey(location);
 	auto i = webFileImages.constFind(key);
 	if (i == webFileImages.cend()) {
-		i = webFileImages.insert(key, new WebFileImage(location, size));
+		i = webFileImages.insert(
+			key,
+			new WebFileImage(location, box, size));
+	}
+	return i.value();
+}
+
+WebFileImage *getImage(
+		const WebFileLocation &location,
+		int width,
+		int height,
+		int size) {
+	auto key = storageKey(location);
+	auto i = webFileImages.constFind(key);
+	if (i == webFileImages.cend()) {
+		i = webFileImages.insert(
+			key,
+			new WebFileImage(location, width, height, size));
 	}
 	return i.value();
 }

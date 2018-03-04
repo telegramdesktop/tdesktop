@@ -644,6 +644,32 @@ void Session::photoConvert(
 	photoApplyFields(original, data);
 }
 
+PhotoData *Session::photoFromWeb(
+		const MTPWebDocument &data,
+		ImagePtr thumb) {
+	const auto full = ImagePtr(data);
+	if (full->isNull()) {
+		return nullptr;
+	}
+	const auto width = full->width();
+	const auto height = full->height();
+	if (thumb->isNull()) {
+		auto thumbsize = shrinkToKeepAspect(width, height, 100, 100);
+		thumb = ImagePtr(thumbsize.width(), thumbsize.height());
+	}
+
+	auto mediumsize = shrinkToKeepAspect(width, height, 320, 320);
+	auto medium = ImagePtr(mediumsize.width(), mediumsize.height());
+
+	return photo(
+		rand_value<PhotoId>(),
+		uint64(0),
+		unixtime(),
+		thumb,
+		medium,
+		full);
+}
+
 void Session::photoApplyFields(
 		not_null<PhotoData*> photo,
 		const MTPPhoto &data) {
@@ -848,6 +874,59 @@ void Session::documentConvert(
 			Local::writeSavedGifs();
 		}
 	}
+}
+
+DocumentData *Session::documentFromWeb(
+		const MTPWebDocument &data,
+		ImagePtr thumb) {
+	switch (data.type()) {
+	case mtpc_webDocument:
+		return documentFromWeb(data.c_webDocument(), thumb);
+
+	case mtpc_webDocumentNoProxy:
+		return documentFromWeb(data.c_webDocumentNoProxy(), thumb);
+
+	}
+	Unexpected("Type in Session::documentFromWeb.");
+}
+
+DocumentData *Session::documentFromWeb(
+		const MTPDwebDocument &data,
+		ImagePtr thumb) {
+	const auto result = document(
+		rand_value<DocumentId>(),
+		uint64(0),
+		int32(0),
+		unixtime(),
+		data.vattributes.v,
+		data.vmime_type.v,
+		thumb,
+		MTP::maindc(),
+		int32(0), // data.vsize.v
+		StorageImageLocation());
+	result->setWebLocation(WebFileLocation(
+		data.vdc_id.v,
+		data.vurl.v,
+		data.vaccess_hash.v));
+	return result;
+}
+
+DocumentData *Session::documentFromWeb(
+		const MTPDwebDocumentNoProxy &data,
+		ImagePtr thumb) {
+	const auto result = document(
+		rand_value<DocumentId>(),
+		uint64(0),
+		int32(0),
+		unixtime(),
+		data.vattributes.v,
+		data.vmime_type.v,
+		thumb,
+		MTP::maindc(),
+		int32(0), // data.vsize.v
+		StorageImageLocation());
+	result->setContentUrl(qs(data.vurl));
+	return result;
 }
 
 void Session::documentApplyFields(

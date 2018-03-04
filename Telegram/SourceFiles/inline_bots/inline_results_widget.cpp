@@ -112,6 +112,8 @@ bool Inner::isRestrictedView() {
 int Inner::countHeight() {
 	if (isRestrictedView()) {
 		return st::stickerPanPadding + _restrictedLabel->height() + st::stickerPanPadding;
+	} else if (_rows.isEmpty() && !_switchPmButton) {
+		return st::stickerPanPadding + st::normalFont->height + st::stickerPanPadding;
 	}
 	auto result = st::stickerPanPadding;
 	if (_switchPmButton) {
@@ -1087,7 +1089,9 @@ void Widget::onInlineRequest() {
 	auto it = _inlineCache.find(_inlineQuery);
 	if (it != _inlineCache.cend()) {
 		nextOffset = it->second->nextOffset;
-		if (nextOffset.isEmpty()) return;
+		if (nextOffset.isEmpty()) {
+			return;
+		}
 	}
 	Notify::inlineBotRequesting(true);
 	_inlineRequestId = request(MTPmessages_GetInlineBotResults(MTP_flags(0), _inlineBot->inputUser, _inlineQueryPeer->input, MTPInputGeoPoint(), MTP_string(_inlineQuery), MTP_string(nextOffset))).done([this](const MTPmessages_BotResults &result, mtpRequestId requestId) {

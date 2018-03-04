@@ -154,7 +154,7 @@ QPixmap ItemBase::getResultContactAvatar(int width, int height) const {
 }
 
 int ItemBase::getResultDuration() const {
-	return _result->_duration;
+	return 0;
 }
 
 QString ItemBase::getResultUrl() const {

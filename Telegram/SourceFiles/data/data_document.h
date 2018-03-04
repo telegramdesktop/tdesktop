@@ -148,7 +148,9 @@ public:
 	bool setRemoteVersion(int32 version); // Returns true if version has changed.
 	void setRemoteLocation(int32 dc, uint64 access);
 	void setContentUrl(const QString &url);
+	void setWebLocation(const WebFileLocation &location);
 	bool hasRemoteLocation() const;
+	bool hasWebLocation() const;
 	bool isValid() const;
 	MTPInputDocument mtpInput() const;
 
@@ -198,6 +200,7 @@ private:
 	QString _url;
 	QString _filename;
 	QString _mimeString;
+	WebFileLocation _urlLocation;
 
 	not_null<AuthSession*> _session;
 

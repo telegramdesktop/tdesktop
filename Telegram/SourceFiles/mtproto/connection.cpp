@@ -2030,8 +2030,15 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 		QWriteLocker locker(sessionData->haveReceivedMutex());
 		sessionData->haveReceivedUpdates().push_back(SerializedMessage(update));
 
-		if (cons != mtpc_updatesTooLong && cons != mtpc_updateShortMessage && cons != mtpc_updateShortChatMessage && cons != mtpc_updateShortSentMessage && cons != mtpc_updateShort && cons != mtpc_updatesCombined && cons != mtpc_updates) {
-			LOG(("Message Error: unknown constructor %1").arg(cons)); // maybe new api?..
+		if (cons != mtpc_updatesTooLong
+			&& cons != mtpc_updateShortMessage
+			&& cons != mtpc_updateShortChatMessage
+			&& cons != mtpc_updateShortSentMessage
+			&& cons != mtpc_updateShort
+			&& cons != mtpc_updatesCombined
+			&& cons != mtpc_updates) {
+			// Maybe some new unknown update?
+			LOG(("Message Error: unknown constructor %1").arg(cons));
 		}
 	} else {
 		LOG(("Message Error: unexpected updates in dcType: %1").arg(static_cast<int>(_dcType)));

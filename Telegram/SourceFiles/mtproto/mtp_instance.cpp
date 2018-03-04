@@ -598,7 +598,6 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 	Global::SetOnlineCloudTimeout(data.vonline_cloud_timeout_ms.v);
 	Global::SetNotifyCloudDelay(data.vnotify_cloud_delay_ms.v);
 	Global::SetNotifyDefaultDelay(data.vnotify_default_delay_ms.v);
-	Global::SetChatBigSize(data.vchat_big_size.v);
 	Global::SetPushChatPeriod(data.vpush_chat_period_ms.v);
 	Global::SetPushChatLimit(data.vpush_chat_limit.v);
 	Global::SetSavedGifsLimit(data.vsaved_gifs_limit.v);

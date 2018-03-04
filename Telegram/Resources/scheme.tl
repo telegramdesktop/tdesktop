@@ -460,11 +460,11 @@ photos.photosSlice#15051f54 count:int photos:Vector<Photo> users:Vector<User> = 
 photos.photo#20212ca8 photo:Photo users:Vector<User> = photos.Photo;
 
 upload.file#96a18d5 type:storage.FileType mtime:int bytes:bytes = upload.File;
-upload.fileCdnRedirect#ea52fe5a dc_id:int file_token:bytes encryption_key:bytes encryption_iv:bytes cdn_file_hashes:Vector<CdnFileHash> = upload.File;
+upload.fileCdnRedirect#f18cda44 dc_id:int file_token:bytes encryption_key:bytes encryption_iv:bytes file_hashes:Vector<FileHash> = upload.File;
 
 dcOption#5d8c6cc flags:# ipv6:flags.0?true media_only:flags.1?true tcpo_only:flags.2?true cdn:flags.3?true static:flags.4?true id:int ip_address:string port:int = DcOption;
 
-config#e644ec1f flags:# phonecalls_enabled:flags.1?true default_p2p_contacts:flags.3?true preload_featured_stickers:flags.4?true ignore_phone_entities:flags.5?true revoke_pm_inbox:flags.6?true date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int megagroup_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int push_chat_period_ms:int push_chat_limit:int saved_gifs_limit:int edit_time_limit:int revoke_time_limit:int revoke_pm_time_limit:int rating_e_decay:int stickers_recent_limit:int stickers_faved_limit:int channels_read_media_period:int tmp_sessions:flags.0?int pinned_dialogs_count_max:int call_receive_timeout_ms:int call_ring_timeout_ms:int call_connect_timeout_ms:int call_packet_timeout_ms:int me_url_prefix:string suggested_lang_code:flags.2?string lang_pack_version:flags.2?int = Config;
+config#86b5778e flags:# phonecalls_enabled:flags.1?true default_p2p_contacts:flags.3?true preload_featured_stickers:flags.4?true ignore_phone_entities:flags.5?true revoke_pm_inbox:flags.6?true date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int megagroup_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int push_chat_period_ms:int push_chat_limit:int saved_gifs_limit:int edit_time_limit:int revoke_time_limit:int revoke_pm_time_limit:int rating_e_decay:int stickers_recent_limit:int stickers_faved_limit:int channels_read_media_period:int tmp_sessions:flags.0?int pinned_dialogs_count_max:int call_receive_timeout_ms:int call_ring_timeout_ms:int call_connect_timeout_ms:int call_packet_timeout_ms:int me_url_prefix:string suggested_lang_code:flags.2?string lang_pack_version:flags.2?int = Config;
 
 nearestDc#8e1a1775 country:string this_dc:int nearest_dc:int = NearestDc;
 
@@ -568,8 +568,6 @@ stickerPack#12b299d4 emoticon:string documents:Vector<long> = StickerPack;
 
 messages.allStickersNotModified#e86602c3 = messages.AllStickers;
 messages.allStickers#edfd405f hash:int sets:Vector<StickerSet> = messages.AllStickers;
-
-disabledFeature#ae636f24 feature:string description:string = DisabledFeature;
 
 messages.affectedMessages#84d19185 pts:int pts_count:int = messages.AffectedMessages;
 
@@ -697,7 +695,7 @@ inputBotInlineMessageMediaVenue#aaafadc8 flags:# geo_point:InputGeoPoint title:s
 inputBotInlineMessageMediaContact#2daf01a7 flags:# phone_number:string first_name:string last_name:string reply_markup:flags.2?ReplyMarkup = InputBotInlineMessage;
 inputBotInlineMessageGame#4b425864 flags:# reply_markup:flags.2?ReplyMarkup = InputBotInlineMessage;
 
-inputBotInlineResult#2cbbe15a flags:# id:string type:string title:flags.1?string description:flags.2?string url:flags.3?string thumb_url:flags.4?string content_url:flags.5?string content_type:flags.5?string w:flags.6?int h:flags.6?int duration:flags.7?int send_message:InputBotInlineMessage = InputBotInlineResult;
+inputBotInlineResult#88bf9319 flags:# id:string type:string title:flags.1?string description:flags.2?string url:flags.3?string thumb:flags.4?InputWebDocument content:flags.5?InputWebDocument send_message:InputBotInlineMessage = InputBotInlineResult;
 inputBotInlineResultPhoto#a8d864a7 id:string type:string photo:InputPhoto send_message:InputBotInlineMessage = InputBotInlineResult;
 inputBotInlineResultDocument#fff8fdc4 flags:# id:string type:string title:flags.1?string description:flags.2?string document:InputDocument send_message:InputBotInlineMessage = InputBotInlineResult;
 inputBotInlineResultGame#4fa417f2 id:string short_name:string send_message:InputBotInlineMessage = InputBotInlineResult;
@@ -708,7 +706,7 @@ botInlineMessageMediaGeo#b722de65 flags:# geo:GeoPoint period:int reply_markup:f
 botInlineMessageMediaVenue#4366232e flags:# geo:GeoPoint title:string address:string provider:string venue_id:string reply_markup:flags.2?ReplyMarkup = BotInlineMessage;
 botInlineMessageMediaContact#35edb4d4 flags:# phone_number:string first_name:string last_name:string reply_markup:flags.2?ReplyMarkup = BotInlineMessage;
 
-botInlineResult#9bebaeb9 flags:# id:string type:string title:flags.1?string description:flags.2?string url:flags.3?string thumb_url:flags.4?string content_url:flags.5?string content_type:flags.5?string w:flags.6?int h:flags.6?int duration:flags.7?int send_message:BotInlineMessage = BotInlineResult;
+botInlineResult#11965f3a flags:# id:string type:string title:flags.1?string description:flags.2?string url:flags.3?string thumb:flags.4?WebDocument content:flags.5?WebDocument send_message:BotInlineMessage = BotInlineResult;
 botInlineMediaResult#17db940b flags:# id:string type:string photo:flags.0?Photo document:flags.1?Document title:flags.2?string description:flags.3?string send_message:BotInlineMessage = BotInlineResult;
 
 messages.botResults#947ca848 flags:# gallery:flags.0?true query_id:long next_offset:flags.1?string switch_pm:flags.2?InlineBotSwitchPM results:Vector<BotInlineResult> cache_time:int users:Vector<User> = messages.BotResults;
@@ -839,6 +837,7 @@ paymentRequestedInfo#909c3f94 flags:# name:flags.0?string phone:flags.1?string e
 paymentSavedCredentialsCard#cdc27a1f id:string title:string = PaymentSavedCredentials;
 
 webDocument#c61acbd8 url:string access_hash:long size:int mime_type:string attributes:Vector<DocumentAttribute> dc_id:int = WebDocument;
+webDocumentNoProxy#f9c8bcc6 url:string size:int mime_type:string attributes:Vector<DocumentAttribute> = WebDocument;
 
 inputWebDocument#9bed434d url:string size:int mime_type:string attributes:Vector<DocumentAttribute> = InputWebDocument;
 
@@ -927,8 +926,6 @@ channelAdminLogEventsFilter#ea107ae4 flags:# join:flags.0?true leave:flags.1?tru
 
 popularContact#5ce14175 client_id:long importers:int = PopularContact;
 
-cdnFileHash#77eec38f offset:int limit:int hash:bytes = CdnFileHash;
-
 messages.favedStickersNotModified#9e8fa6d3 = messages.FavedStickers;
 messages.favedStickers#f37f2f16 hash:int packs:Vector<StickerPack> stickers:Vector<Document> = messages.FavedStickers;
 
@@ -958,6 +955,8 @@ dialogPeerFeed#da429411 feed_id:int = DialogPeer;
 
 messages.foundStickerSetsNotModified#d54b65d = messages.FoundStickerSets;
 messages.foundStickerSets#5108d648 hash:int sets:Vector<StickerSetCovered> = messages.FoundStickerSets;
+
+fileHash#6242c773 offset:int limit:int hash:bytes = FileHash;
 
 feedPosition#5059dc73 date:int peer:Peer id:int = FeedPosition;
 
@@ -996,7 +995,7 @@ auth.resendCode#3ef1a9bf phone_number:string phone_code_hash:string = auth.SentC
 auth.cancelCode#1f040578 phone_number:string phone_code_hash:string = Bool;
 auth.dropTempAuthKeys#8e48a188 except_auth_keys:Vector<long> = Bool;
 
-account.registerDevice#1389cc token_type:int token:string app_sandbox:Bool other_uids:Vector<int> = Bool;
+account.registerDevice#5cbea590 token_type:int token:string app_sandbox:Bool secret:bytes other_uids:Vector<int> = Bool;
 account.unregisterDevice#3076c4bf token_type:int token:string other_uids:Vector<int> = Bool;
 account.updateNotifySettings#84be5b93 peer:InputNotifyPeer settings:InputPeerNotifySettings = Bool;
 account.getNotifySettings#12b3ad31 peer:InputNotifyPeer = PeerNotifySettings;
@@ -1061,6 +1060,7 @@ messages.forwardMessages#708e0195 flags:# silent:flags.5?true background:flags.6
 messages.reportSpam#cf1592db peer:InputPeer = Bool;
 messages.hideReportSpam#a8f1709b peer:InputPeer = Bool;
 messages.getPeerSettings#3672e09c peer:InputPeer = PeerSettings;
+messages.report#bd82b658 peer:InputPeer id:Vector<int> reason:ReportReason = Bool;
 messages.getChats#3c6aa187 id:Vector<int> = messages.Chats;
 messages.getFullChat#3b831c66 chat_id:int = messages.ChatFull;
 messages.editChatTitle#dc452855 chat_id:int title:string = Updates;
@@ -1156,8 +1156,9 @@ upload.getFile#e3a6cfb5 location:InputFileLocation offset:int limit:int = upload
 upload.saveBigFilePart#de7b673d file_id:long file_part:int file_total_parts:int bytes:bytes = Bool;
 upload.getWebFile#24e6818d location:InputWebFileLocation offset:int limit:int = upload.WebFile;
 upload.getCdnFile#2000bcc3 file_token:bytes offset:int limit:int = upload.CdnFile;
-upload.reuploadCdnFile#1af91c09 file_token:bytes request_token:bytes = Vector<CdnFileHash>;
-upload.getCdnFileHashes#f715c87b file_token:bytes offset:int = Vector<CdnFileHash>;
+upload.reuploadCdnFile#9b2754a8 file_token:bytes request_token:bytes = Vector<FileHash>;
+upload.getCdnFileHashes#4da54231 file_token:bytes offset:int = Vector<FileHash>;
+upload.getFileHashes#c7025931 location:InputFileLocation offset:int = Vector<FileHash>;
 
 help.getConfig#c4f9186b = Config;
 help.getNearestDc#1fb33026 = NearestDc;

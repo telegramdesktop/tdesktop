@@ -328,7 +328,6 @@ DeclareVar(int32, OnlineFocusTimeout); // not from config
 DeclareVar(int32, OnlineCloudTimeout);
 DeclareVar(int32, NotifyCloudDelay);
 DeclareVar(int32, NotifyDefaultDelay);
-DeclareVar(int32, ChatBigSize);
 DeclareVar(int32, PushChatPeriod);
 DeclareVar(int32, PushChatLimit);
 DeclareVar(int32, SavedGifsLimit);

@@ -54,43 +54,9 @@ Invoice ComputeInvoiceData(const MTPDmessageMediaInvoice &data) {
 	if (data.has_receipt_msg_id()) {
 		result.receiptMsgId = data.vreceipt_msg_id.v;
 	}
-	if (data.has_photo() && data.vphoto.type() == mtpc_webDocument) {
-		auto &doc = data.vphoto.c_webDocument();
-		auto imageSize = QSize();
-		for (auto &attribute : doc.vattributes.v) {
-			if (attribute.type() == mtpc_documentAttributeImageSize) {
-				auto &size = attribute.c_documentAttributeImageSize();
-				imageSize = QSize(size.vw.v, size.vh.v);
-				break;
-			}
-		}
-		if (!imageSize.isEmpty()) {
-			auto thumbsize = shrinkToKeepAspect(imageSize.width(), imageSize.height(), 100, 100);
-			auto thumb = ImagePtr(thumbsize.width(), thumbsize.height());
-
-			auto mediumsize = shrinkToKeepAspect(imageSize.width(), imageSize.height(), 320, 320);
-			auto medium = ImagePtr(mediumsize.width(), mediumsize.height());
-
-			// We don't use size from WebDocument, because it is not reliable.
-			// It can be > 0 and different from the real size that we get in upload.WebFile result.
-			auto filesize = 0; // doc.vsize.v;
-			auto full = ImagePtr(
-				WebFileImageLocation(
-					imageSize.width(),
-					imageSize.height(),
-					doc.vdc_id.v,
-					doc.vurl.v,
-					doc.vaccess_hash.v),
-				filesize);
-			auto photoId = rand_value<PhotoId>();
-			result.photo = Auth().data().photo(
-				photoId,
-				uint64(0),
-				unixtime(),
-				thumb,
-				medium,
-				full);
-		}
+	if (data.has_photo()) {
+		const auto thumb = ImagePtr();
+		result.photo = Auth().data().photoFromWeb(data.vphoto, thumb);
 	}
 	return result;
 }
