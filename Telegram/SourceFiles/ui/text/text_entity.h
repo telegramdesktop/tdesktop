@@ -160,6 +160,7 @@ const QRegularExpression &RegExpDomain();
 const QRegularExpression &RegExpDomainExplicit();
 const QRegularExpression &RegExpMailNameAtEnd();
 const QRegularExpression &RegExpHashtag();
+const QRegularExpression &RegExpHashtagExclude();
 const QRegularExpression &RegExpMention();
 const QRegularExpression &RegExpBotCommand();
 const QRegularExpression &RegExpMarkdownBold();

@@ -1365,12 +1365,16 @@ void MainWidget::saveRecentHashtags(const QString &text) {
 				--next;
 			}
 		}
+		const auto tag = text.mid(i + 1, next - i - 1);
+		if (TextUtilities::RegExpHashtagExclude().match(tag).hasMatch()) {
+			continue;
+		}
 		if (!found && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) {
 			Local::readRecentHashtagsAndBots();
 			recent = cRecentWriteHashtags();
 		}
 		found = true;
-		Stickers::IncrementRecentHashtag(recent, text.mid(i + 1, next - i - 1));
+		Stickers::IncrementRecentHashtag(recent, tag);
 	}
 	if (found) {
 		cSetRecentWriteHashtags(recent);

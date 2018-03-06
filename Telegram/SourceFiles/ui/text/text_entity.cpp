@@ -40,6 +40,10 @@ QString ExpressionHashtag() {
 	return qsl("(^|[") + ExpressionSeparators(qsl("`\\*/")) + qsl("])#[\\w]{2,64}([\\W]|$)");
 }
 
+QString ExpressionHashtagExclude() {
+	return qsl("^#?\\d+$");
+}
+
 QString ExpressionMention() {
 	return qsl("(^|[") + ExpressionSeparators(qsl("`\\*/")) + qsl("])@[A-Za-z_0-9]{1,32}([\\W]|$)");
 }
@@ -1141,6 +1145,11 @@ const QRegularExpression &RegExpHashtag() {
 	return result;
 }
 
+const QRegularExpression &RegExpHashtagExclude() {
+	static const auto result = CreateRegExp(ExpressionHashtagExclude());
+	return result;
+}
+
 const QRegularExpression &RegExpMention() {
 	static const auto result = CreateRegExp(ExpressionMention());
 	return result;
@@ -1843,6 +1852,13 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 			}
 			if (!mHashtag.capturedRef(2).isEmpty()) {
 				--hashtagEnd;
+			}
+			if (RegExpHashtagExclude().match(
+				result.text.mid(
+					hashtagStart + 1,
+					hashtagEnd - hashtagStart - 1)).hasMatch()) {
+				hashtagStart = INT_MAX;
+				hashtagEnd = INT_MAX;
 			}
 		}
 		while (mMention.hasMatch()) {
