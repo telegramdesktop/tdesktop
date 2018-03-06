@@ -1256,7 +1256,9 @@ QSize HistoryDocument::countOptimalSize() {
 	} else {
 		minHeight = st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom();
 	}
-	if (!captioned && (item->Has<HistoryMessageSigned>() || _parent->displayEditedBadge())) {
+	if (!captioned && (item->Has<HistoryMessageSigned>()
+		|| item->Has<HistoryMessageViews>()
+		|| _parent->displayEditedBadge())) {
 		minHeight += st::msgDateFont->height - st::msgDateDelta.y();
 	}
 	if (!isBubbleTop()) {
@@ -3019,7 +3021,8 @@ QSize HistoryContact::countOptimalSize() {
 	auto minHeight = 0;
 	if (_userId) {
 		minHeight = st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom();
-		if (item->Has<HistoryMessageSigned>()) {
+		if (item->Has<HistoryMessageSigned>()
+			|| item->Has<HistoryMessageViews>()) {
 			minHeight += st::msgDateFont->height - st::msgDateDelta.y();
 		}
 	} else {
