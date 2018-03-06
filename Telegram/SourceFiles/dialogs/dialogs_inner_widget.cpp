@@ -1754,7 +1754,7 @@ void DialogsInner::dialogsReceived(const QVector<MTPDialog> &added) {
 	for (const auto &dialog : added) {
 		switch (dialog.type()) {
 		case mtpc_dialog: applyDialog(dialog.c_dialog()); break;
-		case mtpc_dialogFeed: applyFeedDialog(dialog.c_dialogFeed()); break;
+		//case mtpc_dialogFeed: applyFeedDialog(dialog.c_dialogFeed()); break; // #feed
 		default: Unexpected("Type in DialogsInner::dialogsReceived");
 		}
 	}
@@ -1787,19 +1787,19 @@ void DialogsInner::applyDialog(const MTPDdialog &dialog) {
 		}
 	}
 }
-
-void DialogsInner::applyFeedDialog(const MTPDdialogFeed &dialog) {
-	const auto feedId = dialog.vfeed_id.v;
-	const auto feed = Auth().data().feed(feedId);
-	feed->applyDialog(dialog);
-
-	if (!feed->isPinnedDialog()) {
-		const auto date = feed->chatsListDate();
-		if (!date.isNull()) {
-			addSavedPeersAfter(date);
-		}
-	}
-}
+// #feed
+//void DialogsInner::applyFeedDialog(const MTPDdialogFeed &dialog) {
+//	const auto feedId = dialog.vfeed_id.v;
+//	const auto feed = Auth().data().feed(feedId);
+//	feed->applyDialog(dialog);
+//
+//	if (!feed->isPinnedDialog()) {
+//		const auto date = feed->chatsListDate();
+//		if (!date.isNull()) {
+//			addSavedPeersAfter(date);
+//		}
+//	}
+//}
 
 void DialogsInner::addSavedPeersAfter(const QDateTime &date) {
 	auto &saved = cRefSavedPeersByTime();

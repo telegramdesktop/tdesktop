@@ -2406,7 +2406,7 @@ void ListWidget::refreshItem(not_null<const Element*> view) {
 			if (const auto i = _views.find(item); i != end(_views)) {
 				auto result = std::move(i->second);
 				_views.erase(i);
-				return std::move(result);
+				return result;
 			}
 			return nullptr;
 		}();

@@ -389,7 +389,7 @@ void DialogsWidget::updateDialogsOffset(
 		const auto &dialog = dialogs[--i];
 		switch (dialog.type()) {
 		case mtpc_dialog: fillFromDialog(dialog.c_dialog()); break;
-		case mtpc_dialogFeed: fillFromDialog(dialog.c_dialogFeed()); break;
+//		case mtpc_dialogFeed: fillFromDialog(dialog.c_dialogFeed()); break; // #feed
 		default: Unexpected("Type in DialogsWidget::updateDialogsOffset");
 		}
 		if (lastDate) {
@@ -518,16 +518,16 @@ bool DialogsWidget::onSearchMessages(bool searchCache) {
 				rpcDone(&DialogsWidget::searchReceived, DialogsSearchPeerFromStart),
 				rpcFail(&DialogsWidget::searchFailed, DialogsSearchPeerFromStart));
 		} else if (const auto feed = _searchInChat.feed()) {
-			_searchRequest = MTP::send(
-				MTPchannels_SearchFeed(
-					MTP_int(feed->id()),
-					MTP_string(_searchQuery),
-					MTP_int(0),
-					MTP_inputPeerEmpty(),
-					MTP_int(0),
-					MTP_int(SearchPerPage)),
-				rpcDone(&DialogsWidget::searchReceived, DialogsSearchFromStart),
-				rpcFail(&DialogsWidget::searchFailed, DialogsSearchFromStart));
+			//_searchRequest = MTP::send( // #feed
+			//	MTPchannels_SearchFeed(
+			//		MTP_int(feed->id()),
+			//		MTP_string(_searchQuery),
+			//		MTP_int(0),
+			//		MTP_inputPeerEmpty(),
+			//		MTP_int(0),
+			//		MTP_int(SearchPerPage)),
+			//	rpcDone(&DialogsWidget::searchReceived, DialogsSearchFromStart),
+			//	rpcFail(&DialogsWidget::searchFailed, DialogsSearchFromStart));
 		} else {
 			_searchRequest = MTP::send(
 				MTPmessages_SearchGlobal(
@@ -637,18 +637,18 @@ void DialogsWidget::onSearchMore() {
 					rpcDone(&DialogsWidget::searchReceived, offsetId ? DialogsSearchPeerFromOffset : DialogsSearchPeerFromStart),
 					rpcFail(&DialogsWidget::searchFailed, offsetId ? DialogsSearchPeerFromOffset : DialogsSearchPeerFromStart));
 			} else if (const auto feed = _searchInChat.feed()) {
-				_searchRequest = MTP::send(
-					MTPchannels_SearchFeed(
-						MTP_int(feed->id()),
-						MTP_string(_searchQuery),
-						MTP_int(offsetDate),
-						offsetPeer
-							? offsetPeer->input
-							: MTP_inputPeerEmpty(),
-						MTP_int(offsetId),
-						MTP_int(SearchPerPage)),
-					rpcDone(&DialogsWidget::searchReceived, offsetId ? DialogsSearchFromOffset : DialogsSearchFromStart),
-					rpcFail(&DialogsWidget::searchFailed, offsetId ? DialogsSearchFromOffset : DialogsSearchFromStart));
+				//_searchRequest = MTP::send( // #feed
+				//	MTPchannels_SearchFeed(
+				//		MTP_int(feed->id()),
+				//		MTP_string(_searchQuery),
+				//		MTP_int(offsetDate),
+				//		offsetPeer
+				//			? offsetPeer->input
+				//			: MTP_inputPeerEmpty(),
+				//		MTP_int(offsetId),
+				//		MTP_int(SearchPerPage)),
+				//	rpcDone(&DialogsWidget::searchReceived, offsetId ? DialogsSearchFromOffset : DialogsSearchFromStart),
+				//	rpcFail(&DialogsWidget::searchFailed, offsetId ? DialogsSearchFromOffset : DialogsSearchFromStart));
 			} else {
 				_searchRequest = MTP::send(
 					MTPmessages_SearchGlobal(
@@ -707,7 +707,7 @@ void DialogsWidget::loadDialogs() {
 	_dialogsRequestId = MTP::send(
 		MTPmessages_GetDialogs(
 			MTP_flags(flags),
-			MTP_int(feedId),
+			//MTP_int(feedId), // #feed
 			MTP_int(_dialogsOffsetDate),
 			MTP_int(_dialogsOffsetId),
 			_dialogsOffsetPeer

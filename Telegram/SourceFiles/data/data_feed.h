@@ -27,7 +27,7 @@ struct FeedUpdate {
 	FeedUpdateFlag flag;
 };
 
-MessagePosition FeedPositionFromMTP(const MTPFeedPosition &position);
+//MessagePosition FeedPositionFromMTP(const MTPFeedPosition &position); // #feed
 
 class Feed : public Dialogs::Entry {
 public:
@@ -44,7 +44,7 @@ public:
 	void messageRemoved(not_null<HistoryItem*> item);
 	void historyCleared(not_null<History*> history);
 
-	void applyDialog(const MTPDdialogFeed &data);
+	//void applyDialog(const MTPDdialogFeed &data); // #feed
 	void setUnreadCounts(int unreadNonMutedCount, int unreadMutedCount);
 	void setUnreadPosition(const MessagePosition &position);
 	void unreadCountChanged(

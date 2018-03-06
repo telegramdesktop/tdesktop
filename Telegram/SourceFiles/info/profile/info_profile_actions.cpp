@@ -715,7 +715,7 @@ object_ptr<Ui::RpWidget> FeedDetailsFiller::setupDefaultToggle() {
 		const auto makeDefault = (Auth().data().defaultFeedId() != feedId);
 		const auto defaultFeedId = makeDefault ? feedId : 0;
 		Auth().data().setDefaultFeedId(defaultFeedId);
-		Auth().api().saveDefaultFeedId(feedId, makeDefault);
+//		Auth().api().saveDefaultFeedId(feedId, makeDefault); // #feed
 	});
 	object_ptr<FloatingIcon>(
 		result,

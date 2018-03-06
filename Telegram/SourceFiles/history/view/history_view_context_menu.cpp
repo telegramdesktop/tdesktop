@@ -37,9 +37,9 @@ void AddToggleGroupingAction(
 		not_null<PeerData*> peer) {
 	if (const auto channel = peer->asChannel()) {
 		const auto grouped = (channel->feed() != nullptr);
-		menu->addAction(
-			lang(grouped ? lng_feed_ungroup : lng_feed_group),
-			[=] { Window::ToggleChannelGrouping(channel, !grouped); });
+		//menu->addAction( // #feed
+		//	lang(grouped ? lng_feed_ungroup : lng_feed_group),
+		//	[=] { Window::ToggleChannelGrouping(channel, !grouped); });
 	}
 }
 

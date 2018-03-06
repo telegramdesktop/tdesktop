@@ -71,9 +71,9 @@ private:
 
 	not_null<Data::Feed*> _feed;
 	mtpRequestId _preloadRequestId = 0;
-	TimeId _preloadOffsetDate = TimeId(0);
-	MsgId _preloadOffsetId = MsgId(0);
-	PeerData *_preloadPeer = nullptr;
+	//TimeId _preloadOffsetDate = TimeId(0); // #feed
+	//MsgId _preloadOffsetId = MsgId(0);
+	//PeerData *_preloadPeer = nullptr;
 	bool _allLoaded = false;
 
 };
@@ -97,10 +97,10 @@ public:
 
 private:
 	std::unique_ptr<PeerListRow> createRow(not_null<ChannelData*> channel);
-	void applyFeedSources(const MTPchannels_FeedSources &result);
+//	void applyFeedSources(const MTPchannels_FeedSources &result); // #feed
 
 	not_null<Data::Feed*> _feed;
-	ChannelData *_startWithChannel = nullptr;
+//	ChannelData *_startWithChannel = nullptr; // #feed
 	mtpRequestId _preloadRequestId = 0;
 	bool _allLoaded = false;
 

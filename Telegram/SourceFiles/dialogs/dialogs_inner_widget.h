@@ -193,7 +193,7 @@ private:
 		const base::flat_set<QChar> &oldLetters);
 
 	void applyDialog(const MTPDdialog &dialog);
-	void applyFeedDialog(const MTPDdialogFeed &dialog);
+//	void applyFeedDialog(const MTPDdialogFeed &dialog); // #feed
 
 	void itemRemoved(not_null<const HistoryItem*> item);
 	enum class UpdateRowSection {

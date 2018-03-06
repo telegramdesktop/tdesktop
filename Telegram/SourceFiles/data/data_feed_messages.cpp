@@ -31,10 +31,10 @@ rpl::producer<MessagesSlice> FeedMessagesViewer(
 		using AroundData = MessagesSliceBuilder::AroundData;
 		const auto requestMediaAround = [=](const AroundData &data) {
 			if (data.aroundId || !key.position) {
-				Auth().api().requestFeedMessages(
-					feed,
-					data.aroundId,
-					data.direction);
+				//Auth().api().requestFeedMessages( // #feed
+				//	feed,
+				//	data.aroundId,
+				//	data.direction);
 			}
 		};
 		builder->insufficientAround(

@@ -96,7 +96,7 @@ ChannelsController::ChannelsController(not_null<Controller*> controller)
 , _controller(controller)
 , _feed(_controller->key().feed()) {
 	if (!_feed->channelsLoaded()) {
-		Auth().api().requestFeedChannels(_feed);
+//		Auth().api().requestFeedChannels(_feed); // #feed
 	}
 	_controller->setSearchEnabledByContent(false);
 }
@@ -198,9 +198,9 @@ base::unique_qptr<Ui::PopupMenu> ChannelsController::rowContextMenu(
 			base::lambda<void()> handler) {
 		return result->addAction(text, handler);
 	});
-	result->addAction(
-		lang(lng_feed_ungroup),
-		[=] { Window::ToggleChannelGrouping(channel, false); });
+	//result->addAction( // #feed
+	//	lang(lng_feed_ungroup),
+	//	[=] { Window::ToggleChannelGrouping(channel, false); });
 
 	result->addAction(
 		lang(lng_profile_leave_channel),
@@ -252,19 +252,19 @@ void NotificationsController::loadMoreRows() {
 	if (_preloadRequestId || _allLoaded) {
 		return;
 	}
-	_preloadRequestId = request(MTPmessages_GetDialogs(
-		MTP_flags(MTPmessages_GetDialogs::Flag::f_feed_id),
-		MTP_int(_feed->id()),
-		MTP_int(_preloadOffsetDate),
-		MTP_int(_preloadOffsetId),
-		_preloadPeer ? _preloadPeer->input : MTP_inputPeerEmpty(),
-		MTP_int(Data::Feed::kChannelsLimit)
-	)).done([=](const MTPmessages_Dialogs &result) {
-		applyFeedDialogs(result);
-		_preloadRequestId = 0;
-	}).fail([=](const RPCError &error) {
-		_preloadRequestId = 0;
-	}).send();
+	//_preloadRequestId = request(MTPmessages_GetDialogs( // #feed
+	//	MTP_flags(MTPmessages_GetDialogs::Flag::f_feed_id),
+	//	MTP_int(_feed->id()),
+	//	MTP_int(_preloadOffsetDate),
+	//	MTP_int(_preloadOffsetId),
+	//	_preloadPeer ? _preloadPeer->input : MTP_inputPeerEmpty(),
+	//	MTP_int(Data::Feed::kChannelsLimit)
+	//)).done([=](const MTPmessages_Dialogs &result) {
+	//	applyFeedDialogs(result);
+	//	_preloadRequestId = 0;
+	//}).fail([=](const RPCError &error) {
+	//	_preloadRequestId = 0;
+	//}).send();
 }
 
 void NotificationsController::applyFeedDialogs(
@@ -310,9 +310,9 @@ void NotificationsController::applyFeedDialogs(
 				}
 			}
 		} break;
-		case mtpc_dialogFeed: {
-			LOG(("API Error: Unexpected dialogFeed in feed dialogs list."));
-		} break;
+		//case mtpc_dialogFeed: { // #feed
+		//	LOG(("API Error: Unexpected dialogFeed in feed dialogs list."));
+		//} break;
 		default: Unexpected("Type in DialogsInner::dialogsReceived");
 		}
 	}
@@ -360,7 +360,7 @@ void EditController::Start(
 				return;
 			}
 			box->closeBox();
-			Auth().api().setFeedChannels(feed, channels);
+			//Auth().api().setFeedChannels(feed, channels); // #feed
 		});
 		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
 	};
@@ -372,8 +372,8 @@ void EditController::Start(
 EditController::EditController(
 	not_null<Data::Feed*> feed,
 	ChannelData *channel)
-: _feed(feed)
-, _startWithChannel(channel) {
+: _feed(feed) {
+//, _startWithChannel(channel) { // #feed
 }
 
 void EditController::prepare() {
@@ -391,62 +391,62 @@ void EditController::loadMoreRows() {
 	if (_preloadRequestId || _allLoaded) {
 		return;
 	}
-	const auto hash = 0;
-	_preloadRequestId = request(MTPchannels_GetFeedSources(
-		MTP_flags(0),
-		MTP_int(0),
-		MTP_int(hash)
-	)).done([=](const MTPchannels_FeedSources &result) {
-		applyFeedSources(result);
-		_preloadRequestId = 0;
-	}).fail([=](const RPCError &error) {
-		_preloadRequestId = 0;
-	}).send();
+	//const auto hash = 0; // #feed
+	//_preloadRequestId = request(MTPchannels_GetFeedSources(
+	//	MTP_flags(0),
+	//	MTP_int(0),
+	//	MTP_int(hash)
+	//)).done([=](const MTPchannels_FeedSources &result) {
+	//	applyFeedSources(result);
+	//	_preloadRequestId = 0;
+	//}).fail([=](const RPCError &error) {
+	//	_preloadRequestId = 0;
+	//}).send();
 }
-
-void EditController::applyFeedSources(
-		const MTPchannels_FeedSources &result) {
-	auto channels = std::vector<not_null<ChannelData*>>();
-
-	switch (result.type()) {
-	case mtpc_channels_feedSourcesNotModified:
-		LOG(("API Error: Unexpected channels.feedSourcesNotModified."));
-		break;
-
-	case mtpc_channels_feedSources: {
-		const auto &data = result.c_channels_feedSources();
-		Auth().api().applyFeedSources(data);
-
-		for (const auto &chat : data.vchats.v) {
-			if (chat.type() == mtpc_channel) {
-				channels.push_back(App::channel(chat.c_channel().vid.v));
-			}
-		}
-	} break;
-
-	default: Unexpected("Type in channels.getFeedSources response.");
-	}
-
-	_allLoaded = true;
-	if (channels.size() < kChannelsInFeedMin) {
-		setDescriptionText(lng_feed_too_few_channels(
-			lt_count,
-			kChannelsInFeedMin));
-		delegate()->peerListSetSearchMode(PeerListSearchMode::Disabled);
-	} else {
-		auto alreadyInFeed = ranges::view::all(
-			channels
-		) | ranges::view::filter([&](not_null<ChannelData*> channel) {
-			return (channel->feed() == _feed)
-				|| (channel == _startWithChannel);
-		});
-		delegate()->peerListAddSelectedRows(alreadyInFeed);
-		for (const auto channel : channels) {
-			delegate()->peerListAppendRow(createRow(channel));
-		}
-	}
-	delegate()->peerListRefreshRows();
-}
+// #feed
+//void EditController::applyFeedSources(
+//		const MTPchannels_FeedSources &result) {
+//	auto channels = std::vector<not_null<ChannelData*>>();
+//
+//	switch (result.type()) {
+//	case mtpc_channels_feedSourcesNotModified:
+//		LOG(("API Error: Unexpected channels.feedSourcesNotModified."));
+//		break;
+//
+//	case mtpc_channels_feedSources: {
+//		const auto &data = result.c_channels_feedSources();
+//		Auth().api().applyFeedSources(data);
+//
+//		for (const auto &chat : data.vchats.v) {
+//			if (chat.type() == mtpc_channel) {
+//				channels.push_back(App::channel(chat.c_channel().vid.v));
+//			}
+//		}
+//	} break;
+//
+//	default: Unexpected("Type in channels.getFeedSources response.");
+//	}
+//
+//	_allLoaded = true;
+//	if (channels.size() < kChannelsInFeedMin) {
+//		setDescriptionText(lng_feed_too_few_channels(
+//			lt_count,
+//			kChannelsInFeedMin));
+//		delegate()->peerListSetSearchMode(PeerListSearchMode::Disabled);
+//	} else {
+//		auto alreadyInFeed = ranges::view::all(
+//			channels
+//		) | ranges::view::filter([&](not_null<ChannelData*> channel) {
+//			return (channel->feed() == _feed)
+//				|| (channel == _startWithChannel);
+//		});
+//		delegate()->peerListAddSelectedRows(alreadyInFeed);
+//		for (const auto channel : channels) {
+//			delegate()->peerListAppendRow(createRow(channel));
+//		}
+//	}
+//	delegate()->peerListRefreshRows();
+//}
 
 void EditController::rowClicked(not_null<PeerListRow*> row) {
 	delegate()->peerListSetRowChecked(row, !row->checked());

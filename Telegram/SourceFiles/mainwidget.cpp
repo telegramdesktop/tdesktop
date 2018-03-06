@@ -4686,21 +4686,21 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
-	case mtpc_updateReadFeed: {
-		const auto &d = update.c_updateReadFeed();
-		const auto feedId = d.vfeed_id.v;
-		if (const auto feed = Auth().data().feedLoaded(feedId)) {
-			feed->setUnreadPosition(
-				Data::FeedPositionFromMTP(d.vmax_position));
-			if (d.has_unread_count() && d.has_unread_muted_count()) {
-				feed->setUnreadCounts(
-					d.vunread_count.v,
-					d.vunread_muted_count.v);
-			} else {
-				Auth().api().requestDialogEntry(feed);
-			}
-		}
-	} break;
+	//case mtpc_updateReadFeed: { // #feed
+	//	const auto &d = update.c_updateReadFeed();
+	//	const auto feedId = d.vfeed_id.v;
+	//	if (const auto feed = Auth().data().feedLoaded(feedId)) {
+	//		feed->setUnreadPosition(
+	//			Data::FeedPositionFromMTP(d.vmax_position));
+	//		if (d.has_unread_count() && d.has_unread_muted_count()) {
+	//			feed->setUnreadCounts(
+	//				d.vunread_count.v,
+	//				d.vunread_muted_count.v);
+	//		} else {
+	//			Auth().api().requestDialogEntry(feed);
+	//		}
+	//	}
+	//} break;
 
 	// Deleted messages.
 	case mtpc_updateDeleteMessages: {
@@ -4987,17 +4987,17 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 							return false;
 						}
 					} break;
-					case mtpc_dialogPeerFeed: {
-						const auto &feed = dialogPeer.c_dialogPeerFeed();
-						const auto feedId = feed.vfeed_id.v;
-						if (!Auth().data().feedLoaded(feedId)) {
-							DEBUG_LOG(("API Error: "
-								"pinned feed not loaded for feedId %1"
-								).arg(feedId
-								));
-							return false;
-						}
-					} break;
+					//case mtpc_dialogPeerFeed: { // #feed
+					//	const auto &feed = dialogPeer.c_dialogPeerFeed();
+					//	const auto feedId = feed.vfeed_id.v;
+					//	if (!Auth().data().feedLoaded(feedId)) {
+					//		DEBUG_LOG(("API Error: "
+					//			"pinned feed not loaded for feedId %1"
+					//			).arg(feedId
+					//			));
+					//		return false;
+					//	}
+					//} break;
 					}
 				}
 				return true;
@@ -5027,18 +5027,18 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				_dialogs->loadPinnedDialogs();
 			}
 		} break;
-		case mtpc_dialogPeerFeed: {
-			const auto feedId = d.vpeer.c_dialogPeerFeed().vfeed_id.v;
-			if (const auto feed = Auth().data().feedLoaded(feedId)) {
-				Auth().data().setPinnedDialog(feed, d.is_pinned());
-			} else {
-				DEBUG_LOG(("API Error: "
-					"pinned feed not loaded for feedId %1"
-					).arg(feedId
-					));
-				_dialogs->loadPinnedDialogs();
-			}
-		} break;
+		//case mtpc_dialogPeerFeed: { // #feed
+		//	const auto feedId = d.vpeer.c_dialogPeerFeed().vfeed_id.v;
+		//	if (const auto feed = Auth().data().feedLoaded(feedId)) {
+		//		Auth().data().setPinnedDialog(feed, d.is_pinned());
+		//	} else {
+		//		DEBUG_LOG(("API Error: "
+		//			"pinned feed not loaded for feedId %1"
+		//			).arg(feedId
+		//			));
+		//		_dialogs->loadPinnedDialogs();
+		//	}
+		//} break;
 		}
 	} break;
 

@@ -60,11 +60,11 @@ public:
 	void applyUpdates(const MTPUpdates &updates, uint64 sentMessageRandomId = 0);
 
 	void savePinnedOrder();
-	void toggleChannelGrouping(
-		not_null<ChannelData*> channel,
-		bool group,
-		base::lambda<void()> callback);
-	void ungroupAllFromFeed(not_null<Data::Feed*> feed);
+	//void toggleChannelGrouping( // #feed
+	//	not_null<ChannelData*> channel,
+	//	bool group,
+	//	base::lambda<void()> callback);
+	//void ungroupAllFromFeed(not_null<Data::Feed*> feed);
 
 	using RequestMessageDataCallback = base::lambda<void(ChannelData*, MsgId)>;
 	void requestMessageData(
@@ -76,10 +76,10 @@ public:
 	void requestDialogEntry(not_null<Data::Feed*> feed);
 	//void requestFeedDialogsEntries(not_null<Data::Feed*> feed);
 	void requestDialogEntry(not_null<History*> history);
-	void applyFeedSources(const MTPDchannels_feedSources &data);
-	void setFeedChannels(
-		not_null<Data::Feed*> feed,
-		const std::vector<not_null<ChannelData*>> &channels);
+	//void applyFeedSources(const MTPDchannels_feedSources &data); // #feed
+	//void setFeedChannels(
+	//	not_null<Data::Feed*> feed,
+	//	const std::vector<not_null<ChannelData*>> &channels);
 
 	void requestFullPeer(PeerData *peer);
 	void requestPeer(PeerData *peer);
@@ -180,13 +180,13 @@ public:
 		not_null<UserData*> user,
 		PhotoId afterId);
 
-	void requestFeedChannels(
-		not_null<Data::Feed*> feed);
-	void requestFeedMessages(
-		not_null<Data::Feed*> feed,
-		Data::MessagePosition messageId,
-		SliceType slice);
-	void saveDefaultFeedId(FeedId id, bool isDefaultFeedId);
+	//void requestFeedChannels( // #feed
+	//	not_null<Data::Feed*> feed);
+	//void requestFeedMessages(
+	//	not_null<Data::Feed*> feed,
+	//	Data::MessagePosition messageId,
+	//	SliceType slice);
+	//void saveDefaultFeedId(FeedId id, bool isDefaultFeedId);
 
 	void stickerSetInstalled(uint64 setId) {
 		_stickerSetInstalled.fire_copy(setId);
@@ -375,12 +375,12 @@ private:
 		PhotoId photoId,
 		const MTPphotos_Photos &result);
 
-	void feedChannelsDone(not_null<Data::Feed*> feed);
-	void feedMessagesDone(
-		not_null<Data::Feed*> feed,
-		Data::MessagePosition messageId,
-		SliceType slice,
-		const MTPmessages_FeedMessages &result);
+	//void feedChannelsDone(not_null<Data::Feed*> feed); // #feed
+	//void feedMessagesDone(
+	//	not_null<Data::Feed*> feed,
+	//	Data::MessagePosition messageId,
+	//	SliceType slice,
+	//	const MTPmessages_FeedMessages &result);
 
 	void sendSharedContact(
 		const QString &phone,

@@ -426,11 +426,11 @@ void Session::applyPinnedDialogs(const QVector<MTPDialog> &list) {
 			}
 		} break;
 
-		case mtpc_dialogFeed: {
-			const auto &feedData = dialog.c_dialogFeed();
-			const auto feedId = feedData.vfeed_id.v;
-			setPinnedDialog(feed(feedId), true);
-		} break;
+		//case mtpc_dialogFeed: { // #feed
+		//	const auto &feedData = dialog.c_dialogFeed();
+		//	const auto feedId = feedData.vfeed_id.v;
+		//	setPinnedDialog(feed(feedId), true);
+		//} break;
 
 		default: Unexpected("Type in ApiWrap::applyDialogsPinned.");
 		}
@@ -448,11 +448,11 @@ void Session::applyPinnedDialogs(const QVector<MTPDialogPeer> &list) {
 				setPinnedDialog(App::history(peerId), true);
 			}
 		} break;
-		case mtpc_dialogPeerFeed: {
-			const auto &feedData = dialogPeer.c_dialogPeerFeed();
-			const auto feedId = feedData.vfeed_id.v;
-			setPinnedDialog(feed(feedId), true);
-		} break;
+		//case mtpc_dialogPeerFeed: { // #feed
+		//	const auto &feedData = dialogPeer.c_dialogPeerFeed();
+		//	const auto feedId = feedData.vfeed_id.v;
+		//	setPinnedDialog(feed(feedId), true);
+		//} break;
 		}
 	}
 }

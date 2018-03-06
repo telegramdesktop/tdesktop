@@ -20,14 +20,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 
-MessagePosition FeedPositionFromMTP(const MTPFeedPosition &position) {
-	Expects(position.type() == mtpc_feedPosition);
-
-	const auto &data = position.c_feedPosition();
-	return MessagePosition(data.vdate.v, FullMsgId(
-		peerToChannel(peerFromMTP(data.vpeer)),
-		data.vid.v));
-}
+// #feed
+//MessagePosition FeedPositionFromMTP(const MTPFeedPosition &position) {
+//	Expects(position.type() == mtpc_feedPosition);
+//
+//	const auto &data = position.c_feedPosition();
+//	return MessagePosition(data.vdate.v, FullMsgId(
+//		peerToChannel(peerFromMTP(data.vpeer)),
+//		data.vid.v));
+//}
 
 Feed::Feed(FeedId id, not_null<Data::Session*> parent)
 : Entry(this)
@@ -328,36 +329,36 @@ rpl::producer<int> Feed::unreadCountValue() const {
 bool Feed::unreadCountKnown() const {
 	return !!_unreadCount;
 }
-
-void Feed::applyDialog(const MTPDdialogFeed &data) {
-	const auto addChannel = [&](ChannelId channelId) {
-		if (const auto channel = App::channelLoaded(channelId)) {
-			channel->setFeed(this);
-		}
-	};
-	for (const auto &channelId : data.vfeed_other_channels.v) {
-		addChannel(channelId.v);
-	}
-
-	_lastMessage = nullptr;
-	if (const auto peerId = peerFromMTP(data.vpeer)) {
-		if (const auto channelId = peerToChannel(peerId)) {
-			addChannel(channelId);
-			const auto fullId = FullMsgId(channelId, data.vtop_message.v);
-			if (const auto item = App::histItemById(fullId)) {
-				justUpdateLastMessage(item);
-			}
-		}
-	}
-	updateChatsListDate();
-
-	setUnreadCounts(
-		data.vunread_count.v,
-		data.vunread_muted_count.v);
-	if (data.has_read_max_position()) {
-		setUnreadPosition(FeedPositionFromMTP(data.vread_max_position));
-	}
-}
+// #feed
+//void Feed::applyDialog(const MTPDdialogFeed &data) {
+//	const auto addChannel = [&](ChannelId channelId) {
+//		if (const auto channel = App::channelLoaded(channelId)) {
+//			channel->setFeed(this);
+//		}
+//	};
+//	for (const auto &channelId : data.vfeed_other_channels.v) {
+//		addChannel(channelId.v);
+//	}
+//
+//	_lastMessage = nullptr;
+//	if (const auto peerId = peerFromMTP(data.vpeer)) {
+//		if (const auto channelId = peerToChannel(peerId)) {
+//			addChannel(channelId);
+//			const auto fullId = FullMsgId(channelId, data.vtop_message.v);
+//			if (const auto item = App::histItemById(fullId)) {
+//				justUpdateLastMessage(item);
+//			}
+//		}
+//	}
+//	updateChatsListDate();
+//
+//	setUnreadCounts(
+//		data.vunread_count.v,
+//		data.vunread_muted_count.v);
+//	if (data.has_read_max_position()) {
+//		setUnreadPosition(FeedPositionFromMTP(data.vread_max_position));
+//	}
+//}
 
 void Feed::changedInChatListHook(Dialogs::Mode list, bool added) {
 	if (list == Dialogs::Mode::All && unreadCount()) {

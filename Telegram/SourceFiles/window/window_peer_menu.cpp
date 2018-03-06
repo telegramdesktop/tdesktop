@@ -138,11 +138,16 @@ void TogglePinnedDialog(Dialogs::Key key) {
 	if (isPinned) {
 		flags |= MTPmessages_ToggleDialogPin::Flag::f_pinned;
 	}
-	MTP::send(MTPmessages_ToggleDialogPin(
-		MTP_flags(flags),
-		key.history()
-			? MTP_inputDialogPeer(key.history()->peer->input)
-			: MTP_inputDialogPeerFeed(MTP_int(key.feed()->id()))));
+	//MTP::send(MTPmessages_ToggleDialogPin( // #feed
+	//	MTP_flags(flags),
+	//	key.history()
+	//		? MTP_inputDialogPeer(key.history()->peer->input)
+	//		: MTP_inputDialogPeerFeed(MTP_int(key.feed()->id()))));
+	if (key.history()) {
+		MTP::send(MTPmessages_ToggleDialogPin(
+			MTP_flags(flags),
+			MTP_inputDialogPeer(key.history()->peer->input)));
+	}
 	if (isPinned) {
 		if (const auto main = App::main()) {
 			main->dialogsToUp();
@@ -330,9 +335,9 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 		const auto feed = channel->feed();
 		const auto grouped = (feed != nullptr);
 		if (!grouped || feed->channels().size() > 1) {
-			_addAction(
-				lang(grouped ? lng_feed_ungroup : lng_feed_group),
-				[=] { ToggleChannelGrouping(channel, !grouped); });
+			//_addAction( // #feed
+			//	lang(grouped ? lng_feed_ungroup : lng_feed_group),
+			//	[=] { ToggleChannelGrouping(channel, !grouped); });
 		}
 	}
 	if (_source != PeerMenuSource::ChatsList) {
@@ -481,9 +486,9 @@ void FeedFiller::addSearch() {
 
 void FeedFiller::addUngroup() {
 	const auto feed = _feed;
-	_addAction(lang(lng_feed_ungroup_all), [=] {
-		PeerMenuUngroupFeed(feed);
-	});
+	//_addAction(lang(lng_feed_ungroup_all), [=] { // #feed
+	//	PeerMenuUngroupFeed(feed);
+	//});
 }
 
 } // namespace
@@ -655,32 +660,32 @@ void PeerMenuAddMuteAction(
 
 	Ui::AttachAsChild(muteAction, std::move(lifetime));
 }
-
-void PeerMenuUngroupFeed(not_null<Data::Feed*> feed) {
-	Ui::show(Box<ConfirmBox>(
-		lang(lng_feed_sure_ungroup_all),
-		lang(lng_feed_ungroup_sure),
-		[=] { Ui::hideLayer(); Auth().api().ungroupAllFromFeed(feed); }));
-}
-
-void ToggleChannelGrouping(not_null<ChannelData*> channel, bool group) {
-	const auto callback = [=] {
-		Ui::Toast::Show(lang(group
-			? lng_feed_channel_added
-			: lng_feed_channel_removed));
-	};
-	if (group) {
-		const auto feed = Auth().data().feed(Data::Feed::kId);
-		if (feed->channels().size() < 2) {
-			Info::FeedProfile::EditController::Start(feed, channel);
-			return;
-		}
-	}
-	Auth().api().toggleChannelGrouping(
-		channel,
-		group,
-		callback);
-}
+// #feed
+//void PeerMenuUngroupFeed(not_null<Data::Feed*> feed) {
+//	Ui::show(Box<ConfirmBox>(
+//		lang(lng_feed_sure_ungroup_all),
+//		lang(lng_feed_ungroup_sure),
+//		[=] { Ui::hideLayer(); Auth().api().ungroupAllFromFeed(feed); }));
+//}
+//
+//void ToggleChannelGrouping(not_null<ChannelData*> channel, bool group) {
+//	const auto callback = [=] {
+//		Ui::Toast::Show(lang(group
+//			? lng_feed_channel_added
+//			: lng_feed_channel_removed));
+//	};
+//	if (group) {
+//		const auto feed = Auth().data().feed(Data::Feed::kId);
+//		if (feed->channels().size() < 2) {
+//			Info::FeedProfile::EditController::Start(feed, channel);
+//			return;
+//		}
+//	}
+//	Auth().api().toggleChannelGrouping(
+//		channel,
+//		group,
+//		callback);
+//}
 
 base::lambda<void()> ClearHistoryHandler(not_null<PeerData*> peer) {
 	return [peer] {
