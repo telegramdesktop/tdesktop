@@ -2301,7 +2301,7 @@ void StickersListWidget::removeSet(uint64 setId) {
 	if (it != sets.cend()) {
 		_removingSetId = it->id;
 		auto text = lng_stickers_remove_pack(lt_sticker_pack, it->title);
-		Ui::show(Box<ConfirmBox>(text, lang(lng_box_remove), base::lambda_guarded(this, [this] {
+		Ui::show(Box<ConfirmBox>(text, lang(lng_stickers_remove_pack_confirm), base::lambda_guarded(this, [this] {
 			Ui::hideLayer();
 			auto &sets = Auth().data().stickerSetsRef();
 			auto it = sets.find(_removingSetId);
