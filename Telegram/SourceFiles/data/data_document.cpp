@@ -65,7 +65,13 @@ bool fileIsImage(const QString &name, const QString &mime) {
 	return false;
 }
 
-QString saveFileName(const QString &title, const QString &filter, const QString &prefix, QString name, bool savingAs, const QDir &dir) {
+QString FileNameUnsafe(
+		const QString &title,
+		const QString &filter,
+		const QString &prefix,
+		QString name,
+		bool savingAs,
+		const QDir &dir) {
 #ifdef Q_OS_WIN
 	name = name.replace(QRegularExpression(qsl("[\\\\\\/\\:\\*\\?\\\"\\<\\>\\|]")), qsl("_"));
 #elif defined Q_OS_MAC
@@ -152,6 +158,33 @@ QString saveFileName(const QString &title, const QString &filter, const QString 
 	return name;
 }
 
+QString FileNameForSave(
+		const QString &title,
+		const QString &filter,
+		const QString &prefix,
+		QString name,
+		bool savingAs,
+		const QDir &dir) {
+	const auto result = FileNameUnsafe(
+		title,
+		filter,
+		prefix,
+		name,
+		savingAs,
+		dir);
+#ifdef Q_OS_WIN
+	const auto lower = result.trimmed().toLower();
+	const auto kBadExtensions = { qstr(".lnk"), qstr(".scf") };
+	const auto kMaskExtension = qsl(".download");
+	for (const auto extension : kBadExtensions) {
+		if (lower.endsWith(extension)) {
+			return result + kMaskExtension;
+		}
+	}
+#endif // Q_OS_WIN
+	return result;
+}
+
 QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = false, const QString already = QString(), const QDir &dir = QDir()) {
 	auto alreadySavingFilename = data->loadingFilePath();
 	if (!alreadySavingFilename.isEmpty()) {
@@ -195,7 +228,7 @@ QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = fals
 		prefix = qsl("doc");
 	}
 
-	return saveFileName(caption, filter, prefix, name, forceSavingAs, dir);
+	return FileNameForSave(caption, filter, prefix, name, forceSavingAs, dir);
 }
 
 void DocumentOpenClickHandler::doOpen(

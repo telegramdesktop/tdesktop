@@ -288,7 +288,7 @@ protected:
 
 };
 
-QString saveFileName(
+QString FileNameForSave(
 	const QString &title,
 	const QString &filter,
 	const QString &prefix,

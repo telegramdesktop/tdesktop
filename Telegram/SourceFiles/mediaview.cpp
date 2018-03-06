@@ -821,7 +821,7 @@ void MediaView::onSaveAs() {
 			}
 
 			psBringToBack(this);
-			file = saveFileName(lang(lng_save_file), filter, qsl("doc"), name, true, alreadyDir);
+			file = FileNameForSave(lang(lng_save_file), filter, qsl("doc"), name, true, alreadyDir);
 			psShowOverAll(this);
 			if (!file.isEmpty() && file != location.name()) {
 				if (_doc->data().isEmpty()) {
