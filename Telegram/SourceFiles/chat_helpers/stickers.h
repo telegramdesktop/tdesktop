@@ -52,6 +52,7 @@ struct Set {
 	MTPDstickerSet::Flags flags;
 	TimeId installDate = 0;
 	Pack stickers;
+	std::vector<TimeId> dates;
 	Pack covers;
 	ByEmojiMap emoji;
 };
@@ -77,7 +78,8 @@ void SpecialSetReceived(
 	const QString &setTitle,
 	const QVector<MTPDocument> &items,
 	int32 hash,
-	const QVector<MTPStickerPack> &packs = QVector<MTPStickerPack>());
+	const QVector<MTPStickerPack> &packs = QVector<MTPStickerPack>(),
+	const QVector<MTPint> &usageDates = QVector<MTPint>());
 void FeaturedSetsReceived(
 	const QVector<MTPStickerSetCovered> &data,
 	const QVector<MTPlong> &unread,

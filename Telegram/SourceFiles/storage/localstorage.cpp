@@ -3216,6 +3216,15 @@ void _writeStickerSet(QDataStream &stream, const Stickers::Set &set) {
 	for (auto j = set.stickers.cbegin(), e = set.stickers.cend(); j != e; ++j) {
 		Serialize::Document::writeToStream(stream, *j);
 	}
+	if (AppVersion > 1002008) {
+		stream << qint32(set.dates.size());
+		if (!set.dates.empty()) {
+			Assert(set.dates.size() == set.stickers.size());
+			for (const auto date : set.dates) {
+				stream << qint32(date);
+			}
+		}
+	}
 
 	if (AppVersion > 9018) {
 		stream << qint32(set.emoji.size());
@@ -3266,6 +3275,11 @@ void _writeStickerSets(FileKey &stickersKey, CheckSet checkSet, const Stickers::
 		size += sizeof(quint64) * 2 + Serialize::stringSize(set.title) + Serialize::stringSize(set.shortName) + sizeof(quint32) + sizeof(qint32) * 3;
 		for_const (auto &sticker, set.stickers) {
 			size += Serialize::Document::sizeInStream(sticker);
+		}
+		size += sizeof(qint32); // dates count
+		if (!set.dates.empty()) {
+			Assert(set.stickers.size() == set.dates.size());
+			size += set.dates.size() * sizeof(qint32);
 		}
 
 		size += sizeof(qint32); // emojiCount
@@ -3429,6 +3443,23 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 					}
 				}
 				++set.count;
+			}
+		}
+
+		if (stickers.version > 1002008) {
+			auto datesCount = qint32(0);
+			stickers.stream >> datesCount;
+			if (datesCount > 0) {
+				if (datesCount != scnt) {
+					// Bad file.
+					return;
+				}
+				set.dates.reserve(datesCount);
+				for (auto i = 0; i != datesCount; ++i) {
+					auto date = qint32();
+					stickers.stream >> date;
+					set.dates.push_back(TimeId(date));
+				}
 			}
 		}
 

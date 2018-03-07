@@ -4060,9 +4060,16 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	}
 	auto index = it->stickers.indexOf(sticker);
 	if (index > 0) {
+		if (!it->dates.empty()) {
+			Assert(it->dates.size() == it->stickers.size());
+			it->dates.erase(it->dates.begin() + index);
+		}
 		it->stickers.removeAt(index);
 	}
 	if (index) {
+		if (it->dates.size() == it->stickers.size()) {
+			it->dates.insert(it->dates.begin(), unixtime());
+		}
 		it->stickers.push_front(sticker);
 		writeRecentStickers = true;
 	}

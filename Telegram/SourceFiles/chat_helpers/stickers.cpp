@@ -405,8 +405,13 @@ void SetsReceived(const QVector<MTPStickerSet> &data, int32 hash) {
 	Auth().data().notifyStickersUpdated();
 }
 
-void SetPackAndEmoji(Set &set, Pack &&pack, const QVector<MTPStickerPack> &packs) {
+void SetPackAndEmoji(
+		Set &set,
+		Pack &&pack,
+		const std::vector<TimeId> &&dates,
+		const QVector<MTPStickerPack> &packs) {
 	set.stickers = std::move(pack);
+	set.dates = std::move(dates);
 	set.emoji.clear();
 	for_const (auto &mtpPack, packs) {
 		Assert(mtpPack.type() == mtpc_stickerPack);
@@ -433,12 +438,12 @@ void SpecialSetReceived(
 		const QString &setTitle,
 		const QVector<MTPDocument> &items,
 		int32 hash,
-		const QVector<MTPStickerPack> &packs) {
+		const QVector<MTPStickerPack> &packs,
+		const QVector<MTPint> &usageDates) {
 	auto &sets = Auth().data().stickerSetsRef();
 	auto it = sets.find(setId);
 
-	auto &d_docs = items;
-	if (d_docs.isEmpty()) {
+	if (items.isEmpty()) {
 		if (it != sets.cend()) {
 			sets.erase(it);
 		}
@@ -458,14 +463,22 @@ void SpecialSetReceived(
 		}
 		it->hash = hash;
 
+		auto dates = std::vector<TimeId>();
+		auto dateIndex = 0;
+		auto datesAvailable = (items.size() == usageDates.size());
+
 		auto custom = sets.find(CustomSetId);
 		auto pack = Pack();
-		pack.reserve(d_docs.size());
-		for_const (auto &mtpDocument, d_docs) {
+		pack.reserve(items.size());
+		for_const (auto &mtpDocument, items) {
+			const auto date = datesAvailable
+				? TimeId(usageDates[dateIndex++].v)
+				: TimeId();
 			auto document = Auth().data().document(mtpDocument);
 			if (!document->sticker()) continue;
 
 			pack.push_back(document);
+			dates.push_back(date);
 			if (custom != sets.cend()) {
 				auto index = custom->stickers.indexOf(document);
 				if (index >= 0) {
@@ -492,7 +505,7 @@ void SpecialSetReceived(
 		if (pack.isEmpty()) {
 			sets.erase(it);
 		} else {
-			SetPackAndEmoji(*it, std::move(pack), packs);
+			SetPackAndEmoji(*it, std::move(pack), std::move(dates), packs);
 		}
 
 		if (writeRecent) {

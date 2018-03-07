@@ -1397,7 +1397,9 @@ void ApiWrap::saveStickerSets(
 				writeRecent = true;
 			}
 
-			_stickersClearRecentRequestId = request(MTPmessages_ClearRecentStickers(MTP_flags(0))).done([this](const MTPBool &result) {
+			_stickersClearRecentRequestId = request(MTPmessages_ClearRecentStickers(
+				MTP_flags(0)
+			)).done([this](const MTPBool &result) {
 				_stickersClearRecentRequestId = 0;
 			}).fail([this](const RPCError &error) {
 				_stickersClearRecentRequestId = 0;
@@ -2301,7 +2303,8 @@ void ApiWrap::requestRecentStickers(TimeId now) {
 				lang(lng_recent_stickers),
 				d.vstickers.v,
 				d.vhash.v,
-				d.vpacks.v);
+				d.vpacks.v,
+				d.vdates.v);
 		} return;
 		default: Unexpected("Type in ApiWrap::recentStickersDone()");
 		}
