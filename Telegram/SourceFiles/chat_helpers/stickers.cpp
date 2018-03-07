@@ -558,7 +558,8 @@ void FeaturedSetsReceived(const QVector<MTPStickerSetCovered> &data, const QVect
 				? set->vinstalled_date.v
 				: TimeId(0);
 			if (it == sets.cend()) {
-				auto setClientFlags = MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_not_loaded;
+				auto setClientFlags = MTPDstickerSet_ClientFlag::f_featured
+					| MTPDstickerSet_ClientFlag::f_not_loaded;
 				if (unreadMap.contains(set->vid.v)) {
 					setClientFlags |= MTPDstickerSet_ClientFlag::f_unread;
 				}

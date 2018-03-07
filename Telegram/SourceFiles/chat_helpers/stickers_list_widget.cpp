@@ -32,6 +32,7 @@ namespace {
 
 constexpr auto kInlineItemsMaxPerRow = 5;
 constexpr auto kSearchRequestDelay = 400;
+constexpr auto kRecentDisplayLimit = 20;
 
 bool SetInMyList(MTPDstickerSet::Flags flags) {
 	return (flags & MTPDstickerSet::Flag::f_installed_date)
@@ -1796,45 +1797,59 @@ void StickersListWidget::refreshRecent() {
 	}
 }
 
-void StickersListWidget::refreshRecentStickers(bool performResize) {
+Stickers::Pack StickersListWidget::collectRecentStickers() {
 	_custom.clear();
-	clearSelection();
+	auto result = Stickers::Pack();
+
 	auto &sets = Auth().data().stickerSets();
 	auto &recent = Stickers::GetRecentPack();
 	auto customIt = sets.constFind(Stickers::CustomSetId);
 	auto cloudIt = sets.constFind(Stickers::CloudRecentSetId);
+	const auto customCount = (customIt != sets.cend())
+		? customIt->stickers.size()
+		: 0;
+	const auto cloudCount = (cloudIt != sets.cend())
+		? cloudIt->stickers.size()
+		: 0;
+	result.reserve(cloudCount + recent.size() + customCount);
+	_custom.reserve(cloudCount + recent.size() + customCount);
 
-	Stickers::Pack recentPack;
-	int customCnt = (customIt == sets.cend()) ? 0 : customIt->stickers.size();
-	int cloudCnt = (cloudIt == sets.cend()) ? 0 : cloudIt->stickers.size();
-	recentPack.reserve(cloudCnt + recent.size() + customCnt);
-	_custom.reserve(cloudCnt + recent.size() + customCnt);
-	if (cloudCnt > 0) {
-		for_const (auto sticker, cloudIt->stickers) {
-			if (!_favedStickersMap.contains(sticker)) {
-				recentPack.push_back(sticker);
-				_custom.push_back(false);
+	auto add = [&](not_null<DocumentData*> document, bool custom) {
+		if (result.size() >= kRecentDisplayLimit) {
+			return;
+		}
+		const auto index = result.indexOf(document);
+		if (index >= 0) {
+			if (index >= cloudCount && custom) {
+				// Mark stickers from local recent as custom.
+				_custom[index] = true;
 			}
+		} else if (!_favedStickersMap.contains(document)) {
+			result.push_back(document);
+			_custom.push_back(custom);
+		}
+	};
+
+	if (cloudCount > 0) {
+		for_const (auto document, cloudIt->stickers) {
+			add(document, false);
 		}
 	}
 	for_const (auto &recentSticker, recent) {
-		auto sticker = recentSticker.first;
-		if (!_favedStickersMap.contains(sticker)) {
-			recentPack.push_back(sticker);
-			_custom.push_back(false);
+		add(recentSticker.first, false);
+	}
+	if (customCount > 0) {
+		for_const (auto document, customIt->stickers) {
+			add(document, true);
 		}
 	}
-	if (customCnt > 0) {
-		for_const (auto &sticker, customIt->stickers) {
-			auto index = recentPack.indexOf(sticker);
-			if (index >= cloudCnt) {
-				_custom[index] = true; // mark stickers from recent as custom
-			} else if (!_favedStickersMap.contains(sticker)) {
-				recentPack.push_back(sticker);
-				_custom.push_back(true);
-			}
-		}
-	}
+	return result;
+}
+
+void StickersListWidget::refreshRecentStickers(bool performResize) {
+	clearSelection();
+
+	auto recentPack = collectRecentStickers();
 	auto recentIt = std::find_if(_mySets.begin(), _mySets.end(), [](auto &set) {
 		return set.id == Stickers::RecentSetId;
 	});

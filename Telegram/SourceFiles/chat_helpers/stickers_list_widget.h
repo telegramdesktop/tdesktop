@@ -172,6 +172,7 @@ private:
 
 	bool setHasTitle(const Set &set) const;
 	bool stickerHasDeleteButton(const Set &set, int index) const;
+	Stickers::Pack collectRecentStickers();
 	void refreshRecentStickers(bool resize = true);
 	void refreshFavedStickers();
 	enum class GroupStickersPlace {
