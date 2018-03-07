@@ -19,6 +19,7 @@ namespace internal {
 using MentionRows = QList<UserData*>;
 using HashtagRows = QList<QString>;
 using BotCommandRows = QList<QPair<UserData*, const BotCommand*>>;
+using StickerRows = std::vector<not_null<DocumentData*>>;
 
 class FieldAutocompleteInner;
 
@@ -53,7 +54,7 @@ public:
 	bool chooseSelected(ChooseMethod method) const;
 
 	bool stickersShown() const {
-		return !_srows.isEmpty();
+		return !_srows.empty();
 	}
 
 	bool overlaps(const QRect &globalRect) {
@@ -92,9 +93,9 @@ private:
 	internal::MentionRows _mrows;
 	internal::HashtagRows _hrows;
 	internal::BotCommandRows _brows;
-	Stickers::Pack _srows;
+	internal::StickerRows _srows;
 
-	void rowsUpdated(const internal::MentionRows &mrows, const internal::HashtagRows &hrows, const internal::BotCommandRows &brows, const Stickers::Pack &srows, bool resetScroll);
+	void rowsUpdated(const internal::MentionRows &mrows, const internal::HashtagRows &hrows, const internal::BotCommandRows &brows, const internal::StickerRows &srows, bool resetScroll);
 
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<internal::FieldAutocompleteInner> _inner;
@@ -103,6 +104,7 @@ private:
 	UserData *_user = nullptr;
 	ChannelData *_channel = nullptr;
 	EmojiPtr _emoji;
+	uint64 _stickersSeed = 0;
 	enum class Type {
 		Mentions,
 		Hashtags,
@@ -129,7 +131,7 @@ class FieldAutocompleteInner final : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	FieldAutocompleteInner(FieldAutocomplete *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows, Stickers::Pack *srows);
+	FieldAutocompleteInner(FieldAutocomplete *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows, StickerRows *srows);
 
 	void clearSel(bool hidden = false);
 	bool moveSel(int key);
@@ -167,7 +169,7 @@ private:
 	MentionRows *_mrows;
 	HashtagRows *_hrows;
 	BotCommandRows *_brows;
-	Stickers::Pack *_srows;
+	StickerRows *_srows;
 	int32 _stickersPerRow, _recentInlineBotsInRows;
 	int32 _sel, _down;
 	bool _mouseSel;

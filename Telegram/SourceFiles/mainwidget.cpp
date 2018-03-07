@@ -4058,19 +4058,45 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 			it->title = lang(lng_recent_stickers);
 		}
 	}
+	auto removedFromEmoji = std::vector<not_null<EmojiPtr>>();
 	auto index = it->stickers.indexOf(sticker);
 	if (index > 0) {
-		if (!it->dates.empty()) {
+		if (it->dates.empty()) {
+			Auth().api().requestRecentStickersForce();
+		} else {
 			Assert(it->dates.size() == it->stickers.size());
 			it->dates.erase(it->dates.begin() + index);
 		}
 		it->stickers.removeAt(index);
+		for (auto i = it->emoji.begin(); i != it->emoji.end();) {
+			if (const auto index = i->indexOf(sticker); index >= 0) {
+				removedFromEmoji.push_back(i.key());
+				i->removeAt(index);
+				if (i->isEmpty()) {
+					i = it->emoji.erase(i);
+					continue;
+				}
+			}
+			++i;
+		}
 	}
 	if (index) {
 		if (it->dates.size() == it->stickers.size()) {
 			it->dates.insert(it->dates.begin(), unixtime());
 		}
 		it->stickers.push_front(sticker);
+		if (const auto emojiList = Stickers::GetEmojiListFromSet(sticker)) {
+			for (const auto emoji : *emojiList) {
+				it->emoji[emoji].push_front(sticker);
+			}
+		} else if (!removedFromEmoji.empty()) {
+			for (const auto emoji : removedFromEmoji) {
+				it->emoji[emoji].push_front(sticker);
+			}
+		} else {
+			Auth().api().requestRecentStickersForce();
+		}
+
 		writeRecentStickers = true;
 	}
 

@@ -668,19 +668,84 @@ void GifsReceived(const QVector<MTPDocument> &items, int32 hash) {
 	Auth().data().notifySavedGifsUpdated();
 }
 
-Pack GetListByEmoji(not_null<EmojiPtr> emoji) {
-	auto original = emoji->original();
-	auto result = Pack();
-	auto setsToRequest = QMap<uint64, uint64>();
-	auto &sets = Auth().data().stickerSetsRef();
+std::vector<not_null<DocumentData*>> GetListByEmoji(
+		not_null<EmojiPtr> emoji,
+		uint64 seed) {
+	const auto original = emoji->original();
 
-	auto faved = Pack();
-	auto favedIt = sets.find(Stickers::FavedSetId);
-	if (favedIt != sets.cend()) {
-		auto i = favedIt->emoji.constFind(original);
-		if (i != favedIt->emoji.cend()) {
-			faved = *i;
-			result = faved;
+	struct StickerWithDate {
+		not_null<DocumentData*> document;
+		TimeId date = 0;
+	};
+	auto result = std::vector<StickerWithDate>();
+	auto &sets = Auth().data().stickerSetsRef();
+	auto setsToRequest = base::flat_map<uint64, uint64>();
+
+	const auto add = [&](not_null<DocumentData*> document, TimeId date) {
+		if (ranges::find(result, document, [](const StickerWithDate &data) {
+			return data.document;
+		}) == result.end()) {
+			result.push_back({ document, date });
+		}
+	};
+
+	constexpr auto kSlice = 65536;
+	const auto CreateSortKey = [&](
+			not_null<DocumentData*> document,
+			int base) {
+		return TimeId(base + int((document->id ^ seed) % kSlice));
+	};
+	const auto CreateRecentSortKey = [&](not_null<DocumentData*> document) {
+		return CreateSortKey(document, kSlice * 4);
+	};
+	auto myCounter = 0;
+	const auto CreateMySortKey = [&] {
+		return (kSlice * 4 - (++myCounter));
+	};
+	const auto CreateFeaturedSortKey = [&](not_null<DocumentData*> document) {
+		return CreateSortKey(document, kSlice * 2);
+	};
+	const auto CreateOtherSortKey = [&](not_null<DocumentData*> document) {
+		return CreateSortKey(document, kSlice);
+	};
+	const auto InstallDate = [&](not_null<DocumentData*> document) {
+		Expects(document->sticker() != nullptr);
+
+		const auto sticker = document->sticker();
+		if (sticker->set.type() == mtpc_inputStickerSetID) {
+			const auto setId = sticker->set.c_inputStickerSetID().vid.v;
+			const auto setIt = sets.find(setId);
+			if (setIt != sets.end()) {
+				return setIt->installDate;
+			}
+		}
+		return TimeId(0);
+	};
+
+	auto recentIt = sets.find(Stickers::CloudRecentSetId);
+	if (recentIt != sets.cend()) {
+		auto i = recentIt->emoji.constFind(original);
+		if (i != recentIt->emoji.cend()) {
+			result.reserve(i->size());
+			for (const auto document : *i) {
+				const auto usageDate = [&] {
+					if (recentIt->dates.empty()) {
+						return TimeId(0);
+					}
+					const auto index = recentIt->stickers.indexOf(document);
+					if (index < 0) {
+						return TimeId(0);
+					}
+					Assert(index < recentIt->dates.size());
+					return recentIt->dates[index];
+				}();
+				const auto date = usageDate
+					? usageDate
+					: InstallDate(document);
+				result.push_back({
+					document,
+					date ? date : CreateRecentSortKey(document) });
+			}
 		}
 	}
 	const auto addList = [&](const Order &order, MTPDstickerSet::Flag skip) {
@@ -690,7 +755,7 @@ Pack GetListByEmoji(not_null<EmojiPtr> emoji) {
 				continue;
 			}
 			if (it->emoji.isEmpty()) {
-				setsToRequest.insert(it->id, it->access);
+				setsToRequest.emplace(it->id, it->access);
 				it->flags |= MTPDstickerSet_ClientFlag::f_not_loaded;
 				continue;
 			}
@@ -698,11 +763,16 @@ Pack GetListByEmoji(not_null<EmojiPtr> emoji) {
 			if (i == it->emoji.cend()) {
 				continue;
 			}
+			const auto my = (it->flags & MTPDstickerSet::Flag::f_installed_date);
 			result.reserve(result.size() + i->size());
-			for_const (const auto document, *i) {
-				if (!faved.contains(document)) {
-					result.push_back(document);
-				}
+			for (const auto document : *i) {
+				const auto installDate = my ? it->installDate : TimeId(0);
+				const auto date = (installDate > 1)
+					? installDate
+					: my
+					? CreateMySortKey()
+					: CreateFeaturedSortKey(document);
+				add(document, date);
 			}
 		}
 	};
@@ -714,21 +784,32 @@ Pack GetListByEmoji(not_null<EmojiPtr> emoji) {
 		Auth().data().featuredStickerSetsOrder(),
 		MTPDstickerSet::Flag::f_installed_date);
 
-	if (!setsToRequest.isEmpty()) {
-		for (auto i = setsToRequest.cbegin(), e = setsToRequest.cend(); i != e; ++i) {
-			Auth().api().scheduleStickerSetRequest(i.key(), i.value());
+	if (!setsToRequest.empty()) {
+		for (const auto [setId, accessHash] : setsToRequest) {
+			Auth().api().scheduleStickerSetRequest(setId, accessHash);
 		}
 		Auth().api().requestStickerSets();
 	}
-	if (const auto pack = Auth().api().stickersByEmoji(original)) {
-		for (const auto document : *pack) {
-			if (!base::contains(result, document)) {
-				result.push_back(document);
-			}
-		}
-		return result;
+
+	const auto others = Auth().api().stickersByEmoji(original);
+	if (!others) {
+		return {};
 	}
-	return Pack();
+	result.reserve(result.size() + others->size());
+	for (const auto document : *others) {
+		add(document, CreateOtherSortKey(document));
+	}
+
+	ranges::action::sort(
+		result,
+		std::greater<>(),
+		[](const StickerWithDate &data) { return data.date; });
+
+	return ranges::view::all(
+		result
+	) | ranges::view::transform([](const StickerWithDate &data) {
+		return data.document;
+	}) | ranges::to_vector;
 }
 
 base::optional<std::vector<not_null<EmojiPtr>>> GetEmojiListFromSet(

@@ -2200,6 +2200,10 @@ void ApiWrap::updateStickers() {
 	requestSavedGifs(now);
 }
 
+void ApiWrap::requestRecentStickersForce() {
+	requestRecentStickersWithHash(0);
+}
+
 void ApiWrap::setGroupStickerSet(not_null<ChannelData*> megagroup, const MTPInputStickerSet &set) {
 	Expects(megagroup->mgInfo != nullptr);
 
@@ -2283,13 +2287,19 @@ void ApiWrap::requestStickers(TimeId now) {
 }
 
 void ApiWrap::requestRecentStickers(TimeId now) {
-	if (!_session->data().recentStickersUpdateNeeded(now)
-		|| _recentStickersUpdateRequest) {
+	if (!_session->data().recentStickersUpdateNeeded(now)) {
+		return;
+	}
+	requestRecentStickersWithHash(Local::countRecentStickersHash());
+}
+
+void ApiWrap::requestRecentStickersWithHash(int32 hash) {
+	if (_recentStickersUpdateRequest) {
 		return;
 	}
 	_recentStickersUpdateRequest = request(MTPmessages_GetRecentStickers(
 		MTP_flags(0),
-		MTP_int(Local::countRecentStickersHash())
+		MTP_int(hash)
 	)).done([=](const MTPmessages_RecentStickers &result) {
 		_session->data().setLastRecentStickersUpdate(getms(true));
 		_recentStickersUpdateRequest = 0;

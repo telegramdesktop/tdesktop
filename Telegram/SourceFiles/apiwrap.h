@@ -126,6 +126,7 @@ public:
 		const Stickers::Order &localOrder,
 		const Stickers::Order &localRemoved);
 	void updateStickers();
+	void requestRecentStickersForce();
 	void setGroupStickerSet(
 		not_null<ChannelData*> megagroup,
 		const MTPInputStickerSet &set);
@@ -345,6 +346,7 @@ private:
 
 	void requestStickers(TimeId now);
 	void requestRecentStickers(TimeId now);
+	void requestRecentStickersWithHash(int32 hash);
 	void requestFavedStickers(TimeId now);
 	void requestFeaturedStickers(TimeId now);
 	void requestSavedGifs(TimeId now);
