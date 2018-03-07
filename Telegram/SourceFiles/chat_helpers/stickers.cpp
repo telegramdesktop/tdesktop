@@ -670,33 +670,52 @@ Pack GetListByEmoji(not_null<EmojiPtr> emoji) {
 			result = faved;
 		}
 	}
-	auto &order = Auth().data().stickerSetsOrder();
-	for (auto i = 0, l = order.size(); i != l; ++i) {
-		auto it = sets.find(order[i]);
-		if (it != sets.cend()) {
+	const auto addList = [&](const Order &order, MTPDstickerSet::Flag skip) {
+		for (const auto setId : order) {
+			auto it = sets.find(setId);
+			if (it == sets.cend() || (it->flags & skip)) {
+				continue;
+			}
 			if (it->emoji.isEmpty()) {
 				setsToRequest.insert(it->id, it->access);
 				it->flags |= MTPDstickerSet_ClientFlag::f_not_loaded;
-			} else if (!(it->flags & MTPDstickerSet::Flag::f_archived)) {
-				auto i = it->emoji.constFind(original);
-				if (i != it->emoji.cend()) {
-					result.reserve(result.size() + i->size());
-					for_const (auto sticker, *i) {
-						if (!faved.contains(sticker)) {
-							result.push_back(sticker);
-						}
-					}
+				continue;
+			}
+			auto i = it->emoji.constFind(original);
+			if (i == it->emoji.cend()) {
+				continue;
+			}
+			result.reserve(result.size() + i->size());
+			for_const (const auto document, *i) {
+				if (!faved.contains(document)) {
+					result.push_back(document);
 				}
 			}
 		}
-	}
+	};
+
+	addList(
+		Auth().data().stickerSetsOrder(),
+		MTPDstickerSet::Flag::f_archived);
+	addList(
+		Auth().data().featuredStickerSetsOrder(),
+		MTPDstickerSet::Flag::f_installed_date);
+
 	if (!setsToRequest.isEmpty()) {
 		for (auto i = setsToRequest.cbegin(), e = setsToRequest.cend(); i != e; ++i) {
 			Auth().api().scheduleStickerSetRequest(i.key(), i.value());
 		}
 		Auth().api().requestStickerSets();
 	}
-	return result;
+	if (const auto pack = Auth().api().stickersByEmoji(original)) {
+		for (const auto document : *pack) {
+			if (!base::contains(result, document)) {
+				result.push_back(document);
+			}
+		}
+		return result;
+	}
+	return Pack();
 }
 
 base::optional<std::vector<not_null<EmojiPtr>>> GetEmojiListFromSet(

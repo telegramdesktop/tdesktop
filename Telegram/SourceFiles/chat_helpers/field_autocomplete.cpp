@@ -324,6 +324,7 @@ void FieldAutocomplete::rowsUpdated(const internal::MentionRows &mrows, const in
 		if (!isHidden()) {
 			hideAnimated();
 		}
+		_scroll->scrollToY(0);
 		_mrows.clear();
 		_hrows.clear();
 		_brows.clear();

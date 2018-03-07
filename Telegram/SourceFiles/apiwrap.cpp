@@ -59,6 +59,7 @@ constexpr auto kFeedMessagesLimit = 50;
 constexpr auto kReadFeaturedSetsTimeout = TimeMs(1000);
 constexpr auto kFileLoaderQueueStopTimeout = TimeMs(5000);
 constexpr auto kFeedReadTimeout = TimeMs(1000);
+constexpr auto kStickersByEmojiInvalidateTimeout = TimeMs(60 * 60 * 1000);
 
 bool IsSilentPost(not_null<HistoryItem*> item, bool silent) {
 	const auto history = item->history();
@@ -2199,9 +2200,58 @@ void ApiWrap::updateStickers() {
 
 void ApiWrap::setGroupStickerSet(not_null<ChannelData*> megagroup, const MTPInputStickerSet &set) {
 	Expects(megagroup->mgInfo != nullptr);
+
 	megagroup->mgInfo->stickerSet = set;
 	request(MTPchannels_SetStickers(megagroup->inputChannel, set)).send();
 	_session->data().notifyStickersUpdated();
+}
+
+std::vector<not_null<DocumentData*>> *ApiWrap::stickersByEmoji(
+		not_null<EmojiPtr> emoji) {
+	const auto it = _stickersByEmoji.find(emoji);
+	const auto sendRequest = [&] {
+		if (it == _stickersByEmoji.end()) {
+			return true;
+		}
+		const auto received = it->second.received;
+		const auto now = getms(true);
+		return (received > 0)
+			&& (received + kStickersByEmojiInvalidateTimeout) <= now;
+	}();
+	if (sendRequest) {
+		const auto hash = (it != _stickersByEmoji.end())
+			? it->second.hash
+			: QString();
+		request(MTPmessages_GetStickers(
+			MTP_flags(MTPmessages_GetStickers::Flag::f_exclude_featured),
+			MTP_string(emoji->text()),
+			MTP_string(hash)
+		)).done([=](const MTPmessages_Stickers &result) {
+			if (result.type() == mtpc_messages_stickersNotModified) {
+				return;
+			}
+			Assert(result.type() == mtpc_messages_stickers);
+			const auto &data = result.c_messages_stickers();
+			auto &entry = _stickersByEmoji[emoji];
+			entry.list.clear();
+			entry.list.reserve(data.vstickers.v.size());
+			for (const auto &sticker : data.vstickers.v) {
+				const auto document = Auth().data().document(sticker);
+				if (document->sticker()) {
+					entry.list.push_back(document);
+				}
+			}
+			entry.hash = qs(data.vhash);
+			entry.received = getms(true);
+			_session->data().notifyStickersUpdated();
+		}).send();
+	}
+	if (it == _stickersByEmoji.end()) {
+		_stickersByEmoji.emplace(emoji, StickersByEmoji());
+	} else if (it->second.received > 0) {
+		return &it->second.list;
+	}
+	return nullptr;
 }
 
 void ApiWrap::requestStickers(TimeId now) {

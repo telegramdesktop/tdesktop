@@ -43,13 +43,13 @@ public:
 		return *_session;
 	}
 
-	base::Variable<bool> &contactsLoaded() {
+	[[nodiscard]] base::Variable<bool> &contactsLoaded() {
 		return _contactsLoaded;
 	}
-	base::Variable<bool> &allChatsLoaded() {
+	[[nodiscard]] base::Variable<bool> &allChatsLoaded() {
 		return _allChatsLoaded;
 	}
-	base::Observable<void> &moreChatsLoaded() {
+	[[nodiscard]] base::Observable<void> &moreChatsLoaded() {
 		return _moreChatsLoaded;
 	}
 
@@ -57,7 +57,7 @@ public:
 		not_null<HistoryItem*> item;
 		not_null<bool*> isVisible;
 	};
-	base::Observable<ItemVisibilityQuery> &queryItemVisibility() {
+	[[nodiscard]] base::Observable<ItemVisibilityQuery> &queryItemVisibility() {
 		return _queryItemVisibility;
 	}
 	struct IdChange {
@@ -65,32 +65,32 @@ public:
 		MsgId oldId = 0;
 	};
 	void notifyItemIdChange(IdChange event);
-	rpl::producer<IdChange> itemIdChanged() const;
+	[[nodiscard]] rpl::producer<IdChange> itemIdChanged() const;
 	void notifyItemLayoutChange(not_null<const HistoryItem*> item);
-	rpl::producer<not_null<const HistoryItem*>> itemLayoutChanged() const;
+	[[nodiscard]] rpl::producer<not_null<const HistoryItem*>> itemLayoutChanged() const;
 	void notifyViewLayoutChange(not_null<const ViewElement*> view);
-	rpl::producer<not_null<const ViewElement*>> viewLayoutChanged() const;
+	[[nodiscard]] rpl::producer<not_null<const ViewElement*>> viewLayoutChanged() const;
 	void requestItemRepaint(not_null<const HistoryItem*> item);
-	rpl::producer<not_null<const HistoryItem*>> itemRepaintRequest() const;
+	[[nodiscard]] rpl::producer<not_null<const HistoryItem*>> itemRepaintRequest() const;
 	void requestViewRepaint(not_null<const ViewElement*> view);
-	rpl::producer<not_null<const ViewElement*>> viewRepaintRequest() const;
+	[[nodiscard]] rpl::producer<not_null<const ViewElement*>> viewRepaintRequest() const;
 	void requestItemResize(not_null<const HistoryItem*> item);
-	rpl::producer<not_null<const HistoryItem*>> itemResizeRequest() const;
+	[[nodiscard]] rpl::producer<not_null<const HistoryItem*>> itemResizeRequest() const;
 	void requestViewResize(not_null<ViewElement*> view);
-	rpl::producer<not_null<ViewElement*>> viewResizeRequest() const;
+	[[nodiscard]] rpl::producer<not_null<ViewElement*>> viewResizeRequest() const;
 	void requestItemViewRefresh(not_null<HistoryItem*> item);
-	rpl::producer<not_null<HistoryItem*>> itemViewRefreshRequest() const;
+	[[nodiscard]] rpl::producer<not_null<HistoryItem*>> itemViewRefreshRequest() const;
 	void requestAnimationPlayInline(not_null<HistoryItem*> item);
-	rpl::producer<not_null<HistoryItem*>> animationPlayInlineRequest() const;
+	[[nodiscard]] rpl::producer<not_null<HistoryItem*>> animationPlayInlineRequest() const;
 	void notifyHistoryUnloaded(not_null<const History*> history);
-	rpl::producer<not_null<const History*>> historyUnloaded() const;
+	[[nodiscard]] rpl::producer<not_null<const History*>> historyUnloaded() const;
 
 	void notifyItemRemoved(not_null<const HistoryItem*> item);
-	rpl::producer<not_null<const HistoryItem*>> itemRemoved() const;
+	[[nodiscard]] rpl::producer<not_null<const HistoryItem*>> itemRemoved() const;
 	void notifyHistoryCleared(not_null<const History*> history);
-	rpl::producer<not_null<const History*>> historyCleared() const;
+	[[nodiscard]] rpl::producer<not_null<const History*>> historyCleared() const;
 	void notifyHistoryChangeDelayed(not_null<History*> history);
-	rpl::producer<not_null<History*>> historyChanged() const;
+	[[nodiscard]] rpl::producer<not_null<History*>> historyChanged() const;
 	void sendHistoryChangeNotifications();
 
 	using MegagroupParticipant = std::tuple<
@@ -99,23 +99,23 @@ public:
 	void removeMegagroupParticipant(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> user);
-	rpl::producer<MegagroupParticipant> megagroupParticipantRemoved() const;
-	rpl::producer<not_null<UserData*>> megagroupParticipantRemoved(
+	[[nodiscard]] rpl::producer<MegagroupParticipant> megagroupParticipantRemoved() const;
+	[[nodiscard]] rpl::producer<not_null<UserData*>> megagroupParticipantRemoved(
 		not_null<ChannelData*> channel) const;
 	void addNewMegagroupParticipant(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> user);
-	rpl::producer<MegagroupParticipant> megagroupParticipantAdded() const;
-	rpl::producer<not_null<UserData*>> megagroupParticipantAdded(
+	[[nodiscard]] rpl::producer<MegagroupParticipant> megagroupParticipantAdded() const;
+	[[nodiscard]] rpl::producer<not_null<UserData*>> megagroupParticipantAdded(
 		not_null<ChannelData*> channel) const;
 
 	void notifyFeedUpdated(not_null<Feed*> feed, FeedUpdateFlag update);
-	rpl::producer<FeedUpdate> feedUpdated() const;
+	[[nodiscard]] rpl::producer<FeedUpdate> feedUpdated() const;
 
 	void notifyStickersUpdated();
-	rpl::producer<> stickersUpdated() const;
+	[[nodiscard]] rpl::producer<> stickersUpdated() const;
 	void notifySavedGifsUpdated();
-	rpl::producer<> savedGifsUpdated() const;
+	[[nodiscard]] rpl::producer<> savedGifsUpdated() const;
 
 	bool stickersUpdateNeeded(TimeMs now) const {
 		return stickersUpdateNeeded(_lastStickersUpdate, now);
@@ -153,7 +153,7 @@ public:
 	void setFeaturedStickerSetsUnreadCount(int count) {
 		_featuredStickerSetsUnreadCount = count;
 	}
-	rpl::producer<int> featuredStickerSetsUnreadCountValue() const {
+	[[nodiscard]] rpl::producer<int> featuredStickerSetsUnreadCountValue() const {
 		return _featuredStickerSetsUnreadCount.value();
 	}
 	const Stickers::Sets &stickerSets() const {

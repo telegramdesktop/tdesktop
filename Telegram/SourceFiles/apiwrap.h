@@ -129,6 +129,8 @@ public:
 	void setGroupStickerSet(
 		not_null<ChannelData*> megagroup,
 		const MTPInputStickerSet &set);
+	std::vector<not_null<DocumentData*>> *stickersByEmoji(
+		not_null<EmojiPtr> emoji);
 
 	void joinChannel(ChannelData *channel);
 	void leaveChannel(ChannelData *channel);
@@ -278,6 +280,12 @@ private:
 	};
 	using MessageDataRequests = QMap<MsgId, MessageDataRequest>;
 	using SharedMediaType = Storage::SharedMediaType;
+
+	struct StickersByEmoji {
+		std::vector<not_null<DocumentData*>> list;
+		QString hash;
+		TimeMs received = 0;
+	};
 
 	void updatesReceived(const MTPUpdates &updates);
 	void checkQuitPreventFinished();
@@ -488,6 +496,8 @@ private:
 
 	base::Timer _featuredSetsReadTimer;
 	base::flat_set<uint64> _featuredSetsRead;
+
+	base::flat_map<not_null<EmojiPtr>, StickersByEmoji> _stickersByEmoji;
 
 	base::flat_map<mtpTypeId, mtpRequestId> _privacySaveRequests;
 
