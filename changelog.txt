@@ -1,3 +1,8 @@
+1.2.9 alpha (07.03.18)
+
+- Quick Reply. Double click near a message for a quick reply.
+- Search for Stickers. Click on the new search icon to access your sticker sets or find new ones.
+
 1.2.8 alpha (03.01.18)
 
 - Bug fixes and other minor improvements.

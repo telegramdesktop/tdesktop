@@ -72,6 +72,15 @@ std::map<int, const char*> AlphaLogs() {
 		"\xE2\x80\x94 Select a message you want to reply to by "
 		"pressing Ctrl+Up and Ctrl+Down."
 	},
+	{
+		1002009,
+		"\xE2\x80\x94 Quick Reply. "
+		"Double click near a message for a quick reply.\n"
+
+		"\xE2\x80\x94 Search for Stickers. "
+		"Click on the new search icon to access "
+		"your sticker sets or find new ones."
+	}
 	};
 }
 
