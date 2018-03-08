@@ -43,6 +43,19 @@ index 9480e51..6b104ca 100644
  			SafeWriteChar(char(str[i]));
          } else {
  			SafeWriteChar('?');
+diff --git a/Telegram/SourceFiles/data/data_media_types.h b/Telegram/SourceFiles/data/data_media_types.h
+index e60aeec..915cbce 100644
+--- a/Telegram/SourceFiles/data/data_media_types.h
++++ b/Telegram/SourceFiles/data/data_media_types.h
+@@ -16,7 +16,7 @@ class enum_mask;
+ } // namespace base
+ 
+ namespace Storage {
+-enum class SharedMediaType : char;
++enum class SharedMediaType : signed char;
+ using SharedMediaTypesMask = base::enum_mask<SharedMediaType>;
+ } // namespace Storage
+ 
 diff --git a/Telegram/SourceFiles/data/data_types.h b/Telegram/SourceFiles/data/data_types.h
 index 244babc..32b92e1 100644
 --- a/Telegram/SourceFiles/data/data_types.h
@@ -108,6 +121,32 @@ index 103bcf9..29b0c12 100644
  } // namespace Storage
  
  namespace Data {
+diff --git a/Telegram/SourceFiles/info/info_wrap_widget.h b/Telegram/SourceFiles/info/info_wrap_widget.h
+index 72c41be..915db2e 100644
+--- a/Telegram/SourceFiles/info/info_wrap_widget.h
++++ b/Telegram/SourceFiles/info/info_wrap_widget.h
+@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+ #include "window/section_widget.h"
+ 
+ namespace Storage {
+-enum class SharedMediaType : char;
++enum class SharedMediaType : signed char;
+ } // namespace Storage
+ 
+ namespace Data {
+diff --git a/Telegram/SourceFiles/info/profile/info_profile_values.h b/Telegram/SourceFiles/info/profile/info_profile_values.h
+index 7a78f2f..9170963 100644
+--- a/Telegram/SourceFiles/info/profile/info_profile_values.h
++++ b/Telegram/SourceFiles/info/profile/info_profile_values.h
+@@ -18,7 +18,7 @@ class SlideWrap;
+ } // namespace Ui
+ 
+ namespace Storage {
+-enum class SharedMediaType : char;
++enum class SharedMediaType : signed char;
+ } // namespace Storage
+ 
+ namespace Info {
 diff --git a/Telegram/SourceFiles/platform/linux/linux_glibc_wraps_32.c b/Telegram/SourceFiles/platform/linux/linux_glibc_wraps_32.c
 index e0982c3..c659b6e 100644
 --- a/Telegram/SourceFiles/platform/linux/linux_glibc_wraps_32.c
