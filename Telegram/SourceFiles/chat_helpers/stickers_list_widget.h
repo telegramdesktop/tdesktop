@@ -142,6 +142,7 @@ private:
 			MTPDstickerSet::Flags flags,
 			const QString &title,
 			bool externalLayout,
+			int count,
 			const Stickers::Pack &pack = Stickers::Pack());
 		Set(Set &&other);
 		Set &operator=(Set &&other);
@@ -153,6 +154,7 @@ private:
 		Stickers::Pack pack;
 		std::unique_ptr<Ui::RippleAnimation> ripple;
 		bool externalLayout = false;
+		int count = 0;
 	};
 
 	template <typename Callback>

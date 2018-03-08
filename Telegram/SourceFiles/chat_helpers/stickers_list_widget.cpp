@@ -147,12 +147,14 @@ StickersListWidget::Set::Set(
 	MTPDstickerSet::Flags flags,
 	const QString &title,
 	bool externalLayout,
+	int count,
 	const Stickers::Pack &pack)
 : id(id)
 , flags(flags)
 , title(title)
 , pack(pack)
-, externalLayout(externalLayout) {
+, externalLayout(externalLayout)
+, count(count) {
 }
 
 StickersListWidget::Set::Set(Set &&other) = default;
@@ -986,6 +988,7 @@ void StickersListWidget::addSearchRow(not_null<const Stickers::Set*> set) {
 		set->flags,
 		set->title,
 		!SetInMyList(set->flags),
+		set->count,
 		set->stickers.empty() ? set->covers : set->stickers));
 }
 
@@ -1114,7 +1117,10 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 		}
 		auto &set = sets[info.section];
 		if (set.externalLayout) {
-			auto size = int(set.pack.size());
+			const auto size = (set.flags
+				& MTPDstickerSet_ClientFlag::f_not_loaded)
+				? set.count
+				: int(set.pack.size());
 
 			auto widthForTitle = stickersRight() - (st::emojiPanHeaderLeft - st::buttonRadius);
 			if (featuredHasAddButton(info.section)) {
@@ -1785,6 +1791,7 @@ void StickersListWidget::appendSet(
 		it->flags,
 		it->title,
 		externalLayout,
+		it->count,
 		it->stickers));
 }
 
@@ -1862,6 +1869,7 @@ void StickersListWidget::refreshRecentStickers(bool performResize) {
 					| MTPDstickerSet_ClientFlag::f_special),
 				lang(lng_recent_stickers),
 				externalLayout,
+				recentPack.size(),
 				recentPack));
 		} else {
 			recentIt->pack = recentPack;
@@ -1890,6 +1898,7 @@ void StickersListWidget::refreshFavedStickers() {
 			| MTPDstickerSet_ClientFlag::f_special),
 		Lang::Hard::FavedSetTitle(),
 		externalLayout,
+		it->count,
 		it->stickers));
 	_favedStickersMap = base::flat_set<not_null<DocumentData*>> { it->stickers.begin(), it->stickers.end() };
 }
@@ -1907,11 +1916,13 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 			auto hidden = Auth().settings().isGroupStickersSectionHidden(_megagroupSet->id);
 			if (isShownHere(hidden)) {
 				const auto externalLayout = false;
+				const auto count = 0;
 				_mySets.push_back(Set(
 					Stickers::MegagroupSetId,
 					MTPDstickerSet_ClientFlag::f_special | 0,
 					lang(lng_group_stickers),
-					externalLayout));
+					externalLayout,
+					count));
 			}
 		}
 		return;
@@ -1943,6 +1954,7 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 					MTPDstickerSet_ClientFlag::f_special | 0,
 					lang(lng_group_stickers),
 					externalLayout,
+					it->count,
 					it->stickers));
 			}
 			return;
