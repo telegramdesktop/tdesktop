@@ -2261,7 +2261,7 @@ auto HistoryInner::getSelectionState() const
 			if (selected.first->allowsForward()) {
 				++result.canForwardCount;
 			}
-		} else {
+		} else if (selected.second.from != selected.second.to) {
 			result.textSelected = true;
 		}
 	}
