@@ -1,3 +1,7 @@
+1.2.10 alpha (09.03.18)
+
+- Bug fixes and other minor improvements.
+
 1.2.9 alpha (07.03.18)
 
 - Quick Reply. Double click near a message for a quick reply.

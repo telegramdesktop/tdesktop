@@ -75,7 +75,7 @@ std::map<int, const char*> AlphaLogs() {
 	{
 		1002009,
 		"\xE2\x80\x94 Quick Reply. "
-		"Double click near a message for a quick reply.\n"
+		"Double click next to any message for a quick reply.\n"
 
 		"\xE2\x80\x94 Search for Stickers. "
 		"Click on the new search icon to access "
