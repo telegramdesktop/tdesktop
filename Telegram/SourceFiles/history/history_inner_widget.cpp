@@ -139,6 +139,10 @@ HistoryInner::HistoryInner(
 	) | rpl::start_with_next(
 		[this](auto item) { itemRemoved(item); },
 		lifetime());
+	Auth().data().itemViewRefreshRequest(
+	) | rpl::start_with_next([this](auto item) {
+		refreshView(item);
+	}, lifetime());
 	rpl::merge(
 		Auth().data().historyUnloaded(),
 		Auth().data().historyCleared()
@@ -1212,7 +1216,27 @@ void HistoryInner::itemRemoved(not_null<const HistoryItem*> item) {
 		_dragSelTo = nullptr;
 		update();
 	}
+	if (_scrollDateLastItem && _scrollDateLastItem->data() == item) {
+		_scrollDateLastItem = nullptr;
+	}
 	mouseActionUpdate();
+}
+
+void HistoryInner::refreshView(not_null<HistoryItem*> item) {
+	const auto dragSelFrom = (_dragSelFrom && _dragSelFrom->data() == item);
+	const auto dragSelTo = (_dragSelTo && _dragSelTo->data() == item);
+	const auto scrollDateLastItem = (_scrollDateLastItem
+		&& _scrollDateLastItem->data() == item);
+	item->refreshMainView();
+	if (dragSelFrom) {
+		_dragSelFrom = item->mainView();
+	}
+	if (dragSelTo) {
+		_dragSelTo = item->mainView();
+	}
+	if (scrollDateLastItem) {
+		_scrollDateLastItem = item->mainView();
+	}
 }
 
 void HistoryInner::mouseActionFinish(

@@ -573,10 +573,6 @@ HistoryWidget::HistoryWidget(
 			updateHistoryGeometry();
 		}
 	}, lifetime());
-	Auth().data().itemViewRefreshRequest(
-	) | rpl::start_with_next([this](auto item) {
-		item->refreshMainView();
-	}, lifetime());
 	Auth().data().animationPlayInlineRequest(
 	) | rpl::start_with_next([this](auto item) {
 		if (const auto view = item->mainView()) {
