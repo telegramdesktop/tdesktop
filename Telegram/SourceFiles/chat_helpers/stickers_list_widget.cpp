@@ -146,12 +146,14 @@ StickersListWidget::Set::Set(
 	uint64 id,
 	MTPDstickerSet::Flags flags,
 	const QString &title,
+	const QString &shortName,
 	bool externalLayout,
 	int count,
 	const Stickers::Pack &pack)
 : id(id)
 , flags(flags)
 , title(title)
+, shortName(shortName)
 , pack(pack)
 , externalLayout(externalLayout)
 , count(count) {
@@ -987,6 +989,7 @@ void StickersListWidget::addSearchRow(not_null<const Stickers::Set*> set) {
 		set->id,
 		set->flags,
 		set->title,
+		set->shortName,
 		!SetInMyList(set->flags),
 		set->count,
 		set->stickers.empty() ? set->covers : set->stickers));
@@ -1708,7 +1711,7 @@ void StickersListWidget::refreshSearchSets() {
 void StickersListWidget::refreshSearchIndex() {
 	_searchIndex.clear();
 	for (const auto &set : _mySets) {
-		const auto list = TextUtilities::PrepareSearchWords(set.title);
+		const auto list = TextUtilities::PrepareSearchWords(set.title + ' ' + set.shortName);
 		_searchIndex.emplace_back(set.id, list);
 	}
 }
@@ -1790,6 +1793,7 @@ void StickersListWidget::appendSet(
 		it->id,
 		it->flags,
 		it->title,
+		it->shortName,
 		externalLayout,
 		it->count,
 		it->stickers));
@@ -1862,12 +1866,14 @@ void StickersListWidget::refreshRecentStickers(bool performResize) {
 	});
 	if (!recentPack.empty()) {
 		if (recentIt == _mySets.end()) {
+			const auto shortName = QString();
 			const auto externalLayout = false;
 			_mySets.push_back(Set(
 				Stickers::RecentSetId,
 				(MTPDstickerSet::Flag::f_official
 					| MTPDstickerSet_ClientFlag::f_special),
 				lang(lng_recent_stickers),
+				shortName,
 				externalLayout,
 				recentPack.size(),
 				recentPack));
@@ -1892,11 +1898,13 @@ void StickersListWidget::refreshFavedStickers() {
 		return;
 	}
 	const auto externalLayout = false;
+	const auto shortName = QString();
 	_mySets.push_back(Set(
 		Stickers::FavedSetId,
 		(MTPDstickerSet::Flag::f_official
 			| MTPDstickerSet_ClientFlag::f_special),
 		Lang::Hard::FavedSetTitle(),
+		shortName,
 		externalLayout,
 		it->count,
 		it->stickers));
@@ -1915,12 +1923,14 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 		if (canEdit) {
 			auto hidden = Auth().settings().isGroupStickersSectionHidden(_megagroupSet->id);
 			if (isShownHere(hidden)) {
+				const auto shortName = QString();
 				const auto externalLayout = false;
 				const auto count = 0;
 				_mySets.push_back(Set(
 					Stickers::MegagroupSetId,
 					MTPDstickerSet_ClientFlag::f_special | 0,
 					lang(lng_group_stickers),
+					QString(),
 					externalLayout,
 					count));
 			}
@@ -1948,11 +1958,13 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 			if (isInstalled && !canEdit) {
 				removeHiddenForGroup();
 			} else if (isShownHere(hidden)) {
+				const auto shortName = QString();
 				const auto externalLayout = false;
 				_mySets.push_back(Set(
 					Stickers::MegagroupSetId,
 					MTPDstickerSet_ClientFlag::f_special | 0,
 					lang(lng_group_stickers),
+					shortName,
 					externalLayout,
 					it->count,
 					it->stickers));
