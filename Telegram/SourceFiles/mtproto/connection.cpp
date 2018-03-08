@@ -2386,7 +2386,7 @@ void ConnectionPrivate::updateAuthKey() 	{
 	_authKeyData->req_num = 0;
 	_authKeyData->nonce = rand_value<MTPint128>();
 
-	MTPReq_pq req_pq;
+	MTPReq_pq_multi req_pq;
 	req_pq.vnonce = _authKeyData->nonce;
 
 	connect(_conn, SIGNAL(receivedData()), this, SLOT(pqAnswered()));
