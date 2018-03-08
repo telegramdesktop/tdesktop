@@ -465,20 +465,23 @@ void SpecialSetReceived(
 
 		auto dates = std::vector<TimeId>();
 		auto dateIndex = 0;
-		auto datesAvailable = (items.size() == usageDates.size());
+		auto datesAvailable = (items.size() == usageDates.size())
+			&& (setId == CloudRecentSetId);
 
 		auto custom = sets.find(CustomSetId);
 		auto pack = Pack();
 		pack.reserve(items.size());
 		for_const (auto &mtpDocument, items) {
-			const auto date = datesAvailable
-				? TimeId(usageDates[dateIndex++].v)
-				: TimeId();
+			++dateIndex;
 			auto document = Auth().data().document(mtpDocument);
-			if (!document->sticker()) continue;
+			if (!document->sticker()) {
+				continue;
+			}
 
 			pack.push_back(document);
-			dates.push_back(date);
+			if (datesAvailable) {
+				dates.push_back(TimeId(usageDates[dateIndex - 1].v));
+			}
 			if (custom != sets.cend()) {
 				auto index = custom->stickers.indexOf(document);
 				if (index >= 0) {

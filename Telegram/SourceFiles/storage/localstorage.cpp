@@ -3458,7 +3458,9 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 				for (auto i = 0; i != datesCount; ++i) {
 					auto date = qint32();
 					stickers.stream >> date;
-					set.dates.push_back(TimeId(date));
+					if (set.id == Stickers::CloudRecentSetId) {
+						set.dates.push_back(TimeId(date));
+					}
 				}
 			}
 		}
