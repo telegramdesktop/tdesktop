@@ -468,6 +468,7 @@ void DialogsWidget::onDraggingScrollTimer() {
 }
 
 bool DialogsWidget::onSearchMessages(bool searchCache) {
+	auto result = false;
 	auto q = _filter->getLastText().trimmed();
 	if (q.isEmpty() && !_searchFromUser) {
 		MTP::cancel(base::take(_searchRequest));
@@ -487,7 +488,7 @@ bool DialogsWidget::onSearchMessages(bool searchCache) {
 					: DialogsSearchFromStart,
 				i.value(),
 				0);
-			return true;
+			result = true;
 		}
 	} else if (_searchQuery != q || _searchQueryFrom != _searchFromUser) {
 		_searchQuery = q;
@@ -541,14 +542,14 @@ bool DialogsWidget::onSearchMessages(bool searchCache) {
 		}
 		_searchQueries.insert(_searchRequest, _searchQuery);
 	}
-	if (!_searchInChat && !q.isEmpty()) {
+	if (searchForPeersRequired(q)) {
 		if (searchCache) {
 			auto i = _peerSearchCache.constFind(q);
 			if (i != _peerSearchCache.cend()) {
 				_peerSearchQuery = q;
 				_peerSearchRequest = 0;
 				peerSearchReceived(i.value(), 0);
-				return true;
+				result = true;
 			}
 		} else if (_peerSearchQuery != q) {
 			_peerSearchQuery = q;
@@ -561,8 +562,25 @@ bool DialogsWidget::onSearchMessages(bool searchCache) {
 				rpcFail(&DialogsWidget::peopleFailed));
 			_peerSearchQueries.insert(_peerSearchRequest, _peerSearchQuery);
 		}
+	} else {
+		_peerSearchQuery = q;
+		_peerSearchFull = true;
+		peerSearchReceived(
+			MTP_contacts_found(
+				MTP_vector<MTPPeer>(0),
+				MTP_vector<MTPPeer>(0),
+				MTP_vector<MTPChat>(0),
+				MTP_vector<MTPUser>(0)),
+			0);
 	}
-	return false;
+	return result;
+}
+
+bool DialogsWidget::searchForPeersRequired(const QString &query) const {
+	if (_searchInChat || query.isEmpty()) {
+		return false;
+	}
+	return (query[0] != '#');
 }
 
 void DialogsWidget::onNeedSearchMessages() {
