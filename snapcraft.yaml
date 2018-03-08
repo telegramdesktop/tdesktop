@@ -34,7 +34,6 @@ apps:
   telegram-desktop:
     command: desktop-launch Telegram
     environment:
-      LD_LIBRARY_PATH: $LD_LIBRARY_PATH:$SNAP/lib/libunity
       DISABLE_WAYLAND: 1
       WAYLAND_DISPLAY: no-display
       QT_IM_MODULE: xim
@@ -119,30 +118,12 @@ parts:
       - libappindicator3-1
       - libnotify4
       - libpulse0
-    after: [desktop-gtk3, libunity]
+      - libunity9
+    after: [desktop-gtk3]
     stage: [-./usr/share/fonts/**]
 
   desktop-gtk3:
     stage: [-./usr/share/fonts/**]
-
-  # Using latest version of libunity as it supports proper $SNAP namespace
-  libunity:
-    plugin: autotools
-    source: lp:libunity
-    build-packages:
-      - gnome-common
-      - valac
-      - libglib2.0-dev
-      - libdee-dev
-      - libdbusmenu-glib-dev
-      - libgirepository1.0-dev
-      - libgtk-3-dev
-      - python
-      - python3
-      - python-gi
-      - python3-gi
-      - gobject-introspection
-    prime: [./lib/libunity**]
 
   libva:
     source: https://github.com/01org/libva.git
