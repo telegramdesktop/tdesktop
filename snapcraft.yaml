@@ -55,11 +55,11 @@ parts:
     source-depth: 1
     prepare: |
       patches_dir=$SNAPCRAFT_STAGE/../patches
-      git -C ../src apply -v $patches_dir/telegram-linux-use-HOME-to-determine-actual-user-path.patch
-      git -C ../src apply -v $patches_dir/telegram-debug-customizable-working-dir.patch || true
-      git -C ../src apply -v $patches_dir/telegram-linux-desktop-environment-detect-Ubuntu-properly.patch
-      git -C ../src apply -v $patches_dir/telegram-arm-support.patch
-      git -C ../src/Telegram/ThirdParty/libtgvoip apply -v $patches_dir/libtgvoip-only-enable-msse2-on-supported-archs.patch
+      git -C ../src apply -v3 $patches_dir/telegram-linux-use-HOME-to-determine-actual-user-path.patch
+      git -C ../src apply -v3 $patches_dir/telegram-debug-customizable-working-dir.patch || true
+      git -C ../src apply -v3 $patches_dir/telegram-linux-desktop-environment-detect-Ubuntu-properly.patch
+      git -C ../src apply -v3 $patches_dir/telegram-arm-support.patch || true
+      git -C ../src/Telegram/ThirdParty/libtgvoip apply -v3 $patches_dir/libtgvoip-only-enable-msse2-on-supported-archs.patch || true
     build-packages:
       - libappindicator-dev
       - libappindicator3-dev

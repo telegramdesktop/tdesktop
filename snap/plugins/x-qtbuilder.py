@@ -150,7 +150,7 @@ class QtBuilderPlugin(make.MakePlugin):
                 os.getcwd(), self.options.qt_patches_path, patch_file_template)
 
             patch_cmd = 'git submodule foreach -q'.split() + \
-                        ['[ -e {patch} ] && git apply {patch} || true'.format(
+                        ['[ -e {patch} ] && git apply -v3 {patch} || true'.format(
                             patch=patch_path_template)]
 
             self.run(patch_cmd, cwd=self.sourcedir)

@@ -43,6 +43,6 @@ class PatchedPythonPlugin(python.PythonPlugin):
                     with open(patch_file, 'wb') as file:
                         file.write(requests.get(patch).content)
 
-                patch_cmd = 'git apply {}'.format(patch_file).split()
+                patch_cmd = 'git apply -v3 {}'.format(patch_file).split()
                 self.run(patch_cmd, cwd=self.sourcedir)
                 open(patch_stamp, 'a').close()
