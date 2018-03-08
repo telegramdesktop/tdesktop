@@ -247,6 +247,7 @@ public:
 
 	void enqueueMessageHighlight(not_null<HistoryView::Element*> view);
 	TimeMs highlightStartTime(not_null<const HistoryItem*> item) const;
+	bool inSelectionMode() const;
 
 	MessageIdsList getSelectedItems() const;
 	void itemEdited(HistoryItem *item);

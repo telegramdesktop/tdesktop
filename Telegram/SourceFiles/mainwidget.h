@@ -238,7 +238,9 @@ public:
 
 	void unreadCountChanged(not_null<History*> history);
 
+	// While HistoryInner is not HistoryView::ListWidget.
 	TimeMs highlightStartTime(not_null<const HistoryItem*> item) const;
+	bool historyInSelectionMode() const;
 
 	void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo);
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);

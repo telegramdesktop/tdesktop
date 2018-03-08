@@ -921,6 +921,10 @@ int HistoryWidget::itemTopForHighlight(
 	return qMax(itemTop - (heightLeft / 2), 0);
 }
 
+bool HistoryWidget::inSelectionMode() const {
+	return _list ? _list->inSelectionMode() : false;
+}
+
 void HistoryWidget::start() {
 	Auth().data().stickersUpdated(
 	) | rpl::start_with_next([this] {

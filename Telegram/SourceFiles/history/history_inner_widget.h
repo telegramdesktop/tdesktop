@@ -69,6 +69,7 @@ public:
 	void clearSelected(bool onlyTextSelection = false);
 	MessageIdsList getSelectedItems() const;
 	void selectItem(not_null<HistoryItem*> item);
+	bool inSelectionMode() const;
 
 	void updateBotInfo(bool recount = true);
 

@@ -513,6 +513,10 @@ TimeMs InnerWidget::elementHighlightTime(
 	return TimeMs(0);
 }
 
+bool InnerWidget::elementInSelectionMode() {
+	return false;
+}
+
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 	memento->setFilter(std::move(_filter));
 	memento->setAdmins(std::move(_admins));

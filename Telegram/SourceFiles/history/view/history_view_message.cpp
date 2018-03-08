@@ -1334,7 +1334,9 @@ bool Message::hasFastReply() const {
 }
 
 bool Message::displayFastReply() const {
-	return hasFastReply() && data()->history()->peer->canWrite();
+	return hasFastReply()
+		&& data()->history()->peer->canWrite()
+		&& !delegate()->elementInSelectionMode();
 }
 
 bool Message::displayRightAction() const {

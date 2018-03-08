@@ -178,6 +178,7 @@ public:
 	void elementAnimationAutoplayAsync(
 		not_null<const Element*> view) override;
 	TimeMs elementHighlightTime(not_null<const Element*> element) override;
+	bool elementInSelectionMode() override;
 
 	~ListWidget();
 

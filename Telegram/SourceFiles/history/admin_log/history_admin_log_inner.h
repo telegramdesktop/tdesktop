@@ -87,6 +87,7 @@ public:
 		not_null<const HistoryView::Element*> view) override;
 	TimeMs elementHighlightTime(
 		not_null<const HistoryView::Element*> element) override;
+	bool elementInSelectionMode() override;
 
 	~InnerWidget();
 

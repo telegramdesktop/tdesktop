@@ -1390,6 +1390,10 @@ TimeMs MainWidget::highlightStartTime(not_null<const HistoryItem*> item) const {
 	return _history->highlightStartTime(item);
 }
 
+bool MainWidget::historyInSelectionMode() const {
+	return _history->inSelectionMode();
+}
+
 void MainWidget::sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo) {
 	_history->sendBotCommand(peer, bot, cmd, replyTo);
 }

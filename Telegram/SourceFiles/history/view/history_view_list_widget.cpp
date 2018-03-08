@@ -1119,6 +1119,10 @@ TimeMs ListWidget::elementHighlightTime(
 	return TimeMs(0);
 }
 
+bool ListWidget::elementInSelectionMode() {
+	return hasSelectedItems() || !_dragSelected.empty();
+}
+
 void ListWidget::saveState(not_null<ListMemento*> memento) {
 	memento->setAroundPosition(_aroundPosition);
 	auto state = countScrollState();

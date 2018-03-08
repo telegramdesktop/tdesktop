@@ -1378,7 +1378,8 @@ void HistoryInner::mouseDoubleClickEvent(QMouseEvent *e) {
 	}
 	if (!ClickHandler::getActive()
 		&& !ClickHandler::getPressed()
-		&& _mouseCursorState == CursorState::None) {
+		&& _mouseCursorState == CursorState::None
+		&& !inSelectionMode()) {
 		if (const auto item = _mouseActionItem) {
 			mouseActionCancel();
 			_widget->replyToMessage(item);
@@ -2249,6 +2250,18 @@ bool HistoryInner::canDeleteSelected() const {
 	return (selectedState.count > 0) && (selectedState.count == selectedState.canDeleteCount);
 }
 
+bool HistoryInner::inSelectionMode() const {
+	if (!_selected.empty()
+		&& (_selected.begin()->second == FullSelection)) {
+		return true;
+	} else if (_mouseAction == MouseAction::Selecting
+		&& _dragSelFrom
+		&& _dragSelTo) {
+		return true;
+	}
+	return false;
+}
+
 auto HistoryInner::getSelectionState() const
 -> HistoryView::TopBarWidget::SelectedState {
 	auto result = HistoryView::TopBarWidget::SelectedState {};
@@ -2534,13 +2547,13 @@ void HistoryInner::mouseActionUpdate() {
 					if (selectingDown) {
 						if (m.y() < dragSelTo->marginTop()) {
 							dragSelTo = (dragSelFrom != dragSelTo)
-								? prevItem(dragSelFrom)
+								? prevItem(dragSelTo)
 								: nullptr;
 						}
 					} else {
 						if (m.y() >= dragSelTo->height() - dragSelTo->marginBottom()) {
 							dragSelTo = (dragSelFrom != dragSelTo)
-								? nextItem(dragSelFrom)
+								? nextItem(dragSelTo)
 								: nullptr;
 						}
 					}
@@ -3030,6 +3043,9 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 				}
 			}
 			return TimeMs(0);
+		}
+		bool elementInSelectionMode() override {
+			return App::main()->historyInSelectionMode();
 		}
 
 	};

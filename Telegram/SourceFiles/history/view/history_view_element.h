@@ -44,6 +44,7 @@ public:
 		not_null<const Element*> element) = 0;
 	virtual TimeMs elementHighlightTime(
 		not_null<const Element*> element) = 0;
+	virtual bool elementInSelectionMode() = 0;
 
 };
 
