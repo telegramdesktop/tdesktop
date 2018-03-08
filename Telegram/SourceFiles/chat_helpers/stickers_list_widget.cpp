@@ -619,8 +619,8 @@ void StickersListWidget::Footer::paintSetIcon(
 		auto getSpecialSetIcon = [](uint64 setId) {
 			if (setId == Stickers::FeaturedSetId) {
 				return &st::stickersTrending;
-			} else if (setId == Stickers::FavedSetId) {
-				return &st::stickersFaved;
+			//} else if (setId == Stickers::FavedSetId) {
+			//	return &st::stickersFaved;
 			}
 			return &st::emojiRecent;
 		};
@@ -1252,7 +1252,7 @@ void StickersListWidget::paintEmptySearchResults(Painter &p) {
 	p.setPen(st::windowSubTextFg);
 	p.drawTextLeft(
 		(width() - textWidth) / 2,
-		iconTop + st::stickersEmpty.height() + st::normalFont->height,
+		iconTop + st::stickersEmpty.height() - st::normalFont->height,
 		width(),
 		text,
 		textWidth);
@@ -1997,7 +1997,9 @@ void StickersListWidget::fillIcons(QList<StickerIcon> &icons) {
 	}
 	if (i != _mySets.size() && _mySets[i].id == Stickers::RecentSetId) {
 		++i;
-		icons.push_back(StickerIcon(Stickers::RecentSetId));
+		if (!icons.empty() && icons.back().setId != Stickers::FavedSetId) {
+			icons.push_back(StickerIcon(Stickers::RecentSetId));
+		}
 	}
 	for (auto l = _mySets.size(); i != l; ++i) {
 		if (_mySets[i].id == Stickers::MegagroupSetId) {

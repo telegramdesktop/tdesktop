@@ -90,8 +90,7 @@ stickersRowDuration: 200;
 
 stickersSettings: icon {{ "emoji_settings", emojiIconFg }};
 stickersTrending: icon {{ "emoji_trending", emojiIconFg }};
-stickersFaved: icon {{ "emoji_faved", emojiIconFg }};
-stickersSearch: icon {{ "title_search", emojiIconFg, point(0px, 5px) }};
+stickersSearch: icon {{ "stickers_search", emojiIconFg, point(0px, 1px) }};
 
 stickersSettingsUnreadSize: 17px;
 stickersSettingsUnreadPosition: point(4px, 5px);
