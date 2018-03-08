@@ -1,20 +1,5 @@
-diff --git a/Telegram/SourceFiles/base/build_config.h b/Telegram/SourceFiles/base/build_config.h
-index e708ab5..224f831 100644
---- a/Telegram/SourceFiles/base/build_config.h
-+++ b/Telegram/SourceFiles/base/build_config.h
-@@ -60,6 +60,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
- #define ARCH_CPU_X86_FAMILY 1
- #define ARCH_CPU_X86 1
- #define ARCH_CPU_32_BITS 1
-+#elif defined(__aarch64__)
-+#define ARCH_CPU_64_BITS 1
-+#elif defined(_M_ARM) || defined(__arm__)
-+#define ARCH_CPU_32_BITS 1
- #else
- #error Please add support for your architecture in base/build_config.h
- #endif
 diff --git a/Telegram/SourceFiles/apiwrap.h b/Telegram/SourceFiles/apiwrap.h
-index a65ecf0..5c5b57b 100644
+index dc742a7..5a1aee2 100644
 --- a/Telegram/SourceFiles/apiwrap.h
 +++ b/Telegram/SourceFiles/apiwrap.h
 @@ -23,7 +23,7 @@ struct SendingAlbum;
@@ -26,11 +11,26 @@ index a65ecf0..5c5b57b 100644
  struct PreparedList;
  } // namespace Storage
  
+diff --git a/Telegram/SourceFiles/base/build_config.h b/Telegram/SourceFiles/base/build_config.h
+index e88faeb..4640bce 100644
+--- a/Telegram/SourceFiles/base/build_config.h
++++ b/Telegram/SourceFiles/base/build_config.h
+@@ -47,6 +47,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+ #define ARCH_CPU_X86_FAMILY 1
+ #define ARCH_CPU_X86 1
+ #define ARCH_CPU_32_BITS 1
++#elif defined(__aarch64__)
++#define ARCH_CPU_64_BITS 1
++#elif defined(_M_ARM) || defined(__arm__)
++#define ARCH_CPU_32_BITS 1
+ #else
+ #error Please add support for your architecture in base/build_config.h
+ #endif
 diff --git a/Telegram/SourceFiles/core/crash_reports.cpp b/Telegram/SourceFiles/core/crash_reports.cpp
-index e799eed..b4a998e 100644
+index 9480e51..6b104ca 100644
 --- a/Telegram/SourceFiles/core/crash_reports.cpp
 +++ b/Telegram/SourceFiles/core/crash_reports.cpp
-@@ -520,7 +520,11 @@ const dump &operator<<(const dump &stream, const wchar_t *str) {
+@@ -545,7 +545,11 @@ const dump &operator<<(const dump &stream, const wchar_t *str) {
      if (!ReportFile) return stream;
  
      for (int i = 0, l = wcslen(str); i < l; ++i) {
@@ -44,10 +44,10 @@ index e799eed..b4a998e 100644
          } else {
  			SafeWriteChar('?');
 diff --git a/Telegram/SourceFiles/data/data_types.h b/Telegram/SourceFiles/data/data_types.h
-index 5a0901c..80758f7 100644
+index 244babc..32b92e1 100644
 --- a/Telegram/SourceFiles/data/data_types.h
 +++ b/Telegram/SourceFiles/data/data_types.h
-@@ -219,7 +219,7 @@ constexpr auto CancelledWebPageId = WebPageId(0xFFFFFFFFFFFFFFFFULL);
+@@ -268,7 +268,7 @@ constexpr auto CancelledWebPageId = WebPageId(0xFFFFFFFFFFFFFFFFULL);
  using PreparedPhotoThumbs = QMap<char, QPixmap>;
  
  // [0] == -1 -- counting, [0] == -2 -- could not count
@@ -57,10 +57,10 @@ index 5a0901c..80758f7 100644
  enum ActionOnLoad {
  	ActionOnLoadNone,
 diff --git a/Telegram/SourceFiles/history/history_item.h b/Telegram/SourceFiles/history/history_item.h
-index d0e6205..2be2aa6 100644
+index e697ead..62000e5 100644
 --- a/Telegram/SourceFiles/history/history_item.h
 +++ b/Telegram/SourceFiles/history/history_item.h
-@@ -24,7 +24,7 @@ class enum_mask;
+@@ -23,7 +23,7 @@ class enum_mask;
  } // namespace base
  
  namespace Storage {
@@ -70,10 +70,10 @@ index d0e6205..2be2aa6 100644
  } // namespace Storage
  
 diff --git a/Telegram/SourceFiles/history/history_media.h b/Telegram/SourceFiles/history/history_media.h
-index 4987482..224f490 100644
+index 2f2a6b6..11424a6 100644
 --- a/Telegram/SourceFiles/history/history_media.h
 +++ b/Telegram/SourceFiles/history/history_media.h
-@@ -15,7 +15,7 @@ class enum_mask;
+@@ -18,7 +18,7 @@ class enum_mask;
  } // namespace base
  
  namespace Storage {
@@ -83,7 +83,7 @@ index 4987482..224f490 100644
  } // namespace Storage
  
 diff --git a/Telegram/SourceFiles/info/info_content_widget.h b/Telegram/SourceFiles/info/info_content_widget.h
-index cbcb091..e9b35f4 100644
+index af08bf6..f0053ca 100644
 --- a/Telegram/SourceFiles/info/info_content_widget.h
 +++ b/Telegram/SourceFiles/info/info_content_widget.h
 @@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
@@ -96,10 +96,10 @@ index cbcb091..e9b35f4 100644
  
  namespace Ui {
 diff --git a/Telegram/SourceFiles/info/info_memento.h b/Telegram/SourceFiles/info/info_memento.h
-index 962ee60..2c1a264 100644
+index 103bcf9..29b0c12 100644
 --- a/Telegram/SourceFiles/info/info_memento.h
 +++ b/Telegram/SourceFiles/info/info_memento.h
-@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
  #include "window/section_memento.h"
  
  namespace Storage {
@@ -107,7 +107,7 @@ index 962ee60..2c1a264 100644
 +enum class SharedMediaType : signed char;
  } // namespace Storage
  
- namespace Ui {
+ namespace Data {
 diff --git a/Telegram/SourceFiles/platform/linux/linux_glibc_wraps_32.c b/Telegram/SourceFiles/platform/linux/linux_glibc_wraps_32.c
 index e0982c3..c659b6e 100644
 --- a/Telegram/SourceFiles/platform/linux/linux_glibc_wraps_32.c
@@ -154,7 +154,7 @@ index 1292278..436ee34 100644
  int __wrap_clock_gettime(clockid_t clk_id, struct timespec *tp) {
          return __clock_gettime_glibc_old(clk_id, tp);
 diff --git a/Telegram/SourceFiles/storage/storage_shared_media.h b/Telegram/SourceFiles/storage/storage_shared_media.h
-index 19d2c59..d1d8d11 100644
+index 0bd2786..dab7006 100644
 --- a/Telegram/SourceFiles/storage/storage_shared_media.h
 +++ b/Telegram/SourceFiles/storage/storage_shared_media.h
 @@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
