@@ -1807,6 +1807,8 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 		ParseMarkdown(result, copy.entities, rich);
 	}
 
+	constexpr auto kNotFound = std::numeric_limits<int>::max();
+
 	auto newEntities = EntitiesInText();
 	bool withHashtags = (flags & TextParseHashtags);
 	bool withMentions = (flags & TextParseMentions);
@@ -1836,16 +1838,19 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 
 		EntityInTextType lnkType = EntityInTextUrl;
 		int32 lnkStart = 0, lnkLength = 0;
-		int32 domainStart = mDomain.hasMatch() ? mDomain.capturedStart() : INT_MAX,
-			domainEnd = mDomain.hasMatch() ? mDomain.capturedEnd() : INT_MAX,
-			explicitDomainStart = mExplicitDomain.hasMatch() ? mExplicitDomain.capturedStart() : INT_MAX,
-			explicitDomainEnd = mExplicitDomain.hasMatch() ? mExplicitDomain.capturedEnd() : INT_MAX,
-			hashtagStart = mHashtag.hasMatch() ? mHashtag.capturedStart() : INT_MAX,
-			hashtagEnd = mHashtag.hasMatch() ? mHashtag.capturedEnd() : INT_MAX,
-			mentionStart = mMention.hasMatch() ? mMention.capturedStart() : INT_MAX,
-			mentionEnd = mMention.hasMatch() ? mMention.capturedEnd() : INT_MAX,
-			botCommandStart = mBotCommand.hasMatch() ? mBotCommand.capturedStart() : INT_MAX,
-			botCommandEnd = mBotCommand.hasMatch() ? mBotCommand.capturedEnd() : INT_MAX;
+		auto domainStart = mDomain.hasMatch() ? mDomain.capturedStart() : kNotFound,
+			domainEnd = mDomain.hasMatch() ? mDomain.capturedEnd() : kNotFound,
+			explicitDomainStart = mExplicitDomain.hasMatch() ? mExplicitDomain.capturedStart() : kNotFound,
+			explicitDomainEnd = mExplicitDomain.hasMatch() ? mExplicitDomain.capturedEnd() : kNotFound,
+			hashtagStart = mHashtag.hasMatch() ? mHashtag.capturedStart() : kNotFound,
+			hashtagEnd = mHashtag.hasMatch() ? mHashtag.capturedEnd() : kNotFound,
+			mentionStart = mMention.hasMatch() ? mMention.capturedStart() : kNotFound,
+			mentionEnd = mMention.hasMatch() ? mMention.capturedEnd() : kNotFound,
+			botCommandStart = mBotCommand.hasMatch() ? mBotCommand.capturedStart() : kNotFound,
+			botCommandEnd = mBotCommand.hasMatch() ? mBotCommand.capturedEnd() : kNotFound;
+		auto hashtagIgnore = false;
+		auto mentionIgnore = false;
+
 		if (mHashtag.hasMatch()) {
 			if (!mHashtag.capturedRef(1).isEmpty()) {
 				++hashtagStart;
@@ -1857,8 +1862,7 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 				result.text.mid(
 					hashtagStart + 1,
 					hashtagEnd - hashtagStart - 1)).hasMatch()) {
-				hashtagStart = INT_MAX;
-				hashtagEnd = INT_MAX;
+				hashtagIgnore = true;
 			}
 		}
 		while (mMention.hasMatch()) {
@@ -1875,8 +1879,7 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 					mentionStart = mMention.capturedStart();
 					mentionEnd = mMention.capturedEnd();
 				} else {
-					mentionStart = INT_MAX;
-					mentionEnd = INT_MAX;
+					mentionIgnore = true;
 				}
 			} else {
 				break;
@@ -1890,7 +1893,11 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 				--botCommandEnd;
 			}
 		}
-		if (!mDomain.hasMatch() && !mExplicitDomain.hasMatch() && !mHashtag.hasMatch() && !mMention.hasMatch() && !mBotCommand.hasMatch()) {
+		if (!mDomain.hasMatch()
+			&& !mExplicitDomain.hasMatch()
+			&& !mHashtag.hasMatch()
+			&& !mMention.hasMatch()
+			&& !mBotCommand.hasMatch()) {
 			break;
 		}
 
@@ -1899,8 +1906,20 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 			domainEnd = explicitDomainEnd;
 			mDomain = mExplicitDomain;
 		}
-		if (mentionStart < hashtagStart && mentionStart < domainStart && mentionStart < botCommandStart) {
-			bool inCommand = checkTagStartInCommand(start, len, mentionStart, commandOffset, commandIsLink, inLink);
+		if (mentionStart < hashtagStart
+			&& mentionStart < domainStart
+			&& mentionStart < botCommandStart) {
+			if (mentionIgnore) {
+				offset = matchOffset = mentionEnd;
+				continue;
+			}
+			const auto inCommand = checkTagStartInCommand(
+				start,
+				len,
+				mentionStart,
+				commandOffset,
+				commandIsLink,
+				inLink);
 			if (inCommand || inLink) {
 				offset = matchOffset = commandOffset;
 				continue;
@@ -1909,8 +1928,19 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 			lnkType = EntityInTextMention;
 			lnkStart = mentionStart;
 			lnkLength = mentionEnd - mentionStart;
-		} else if (hashtagStart < domainStart && hashtagStart < botCommandStart) {
-			bool inCommand = checkTagStartInCommand(start, len, hashtagStart, commandOffset, commandIsLink, inLink);
+		} else if (hashtagStart < domainStart
+			&& hashtagStart < botCommandStart) {
+			if (hashtagIgnore) {
+				offset = matchOffset = hashtagEnd;
+				continue;
+			}
+			const auto inCommand = checkTagStartInCommand(
+				start,
+				len,
+				hashtagStart,
+				commandOffset,
+				commandIsLink,
+				inLink);
 			if (inCommand || inLink) {
 				offset = matchOffset = commandOffset;
 				continue;
@@ -1920,7 +1950,13 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 			lnkStart = hashtagStart;
 			lnkLength = hashtagEnd - hashtagStart;
 		} else if (botCommandStart < domainStart) {
-			bool inCommand = checkTagStartInCommand(start, len, botCommandStart, commandOffset, commandIsLink, inLink);
+			const auto inCommand = checkTagStartInCommand(
+				start,
+				len,
+				botCommandStart,
+				commandOffset,
+				commandIsLink,
+				inLink);
 			if (inCommand || inLink) {
 				offset = matchOffset = commandOffset;
 				continue;
@@ -1930,7 +1966,13 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 			lnkStart = botCommandStart;
 			lnkLength = botCommandEnd - botCommandStart;
 		} else {
-			auto inCommand = checkTagStartInCommand(start, len, domainStart, commandOffset, commandIsLink, inLink);
+			const auto inCommand = checkTagStartInCommand(
+				start,
+				len,
+				domainStart,
+				commandOffset,
+				commandIsLink,
+				inLink);
 			if (inCommand || inLink) {
 				offset = matchOffset = commandOffset;
 				continue;
