@@ -14,7 +14,7 @@
     'sources': [
       '../SourceFiles/platform/linux/linux_glibc_wraps.c',
     ],
-    'conditions': [[ '"<!(uname -p)" == "x86_64"', {
+    'conditions': [[ '"<!(uname -p)" == "x86_64" or "<!(uname -p)" == "aarch64"', {
       'sources': [
         '../SourceFiles/platform/linux/linux_glibc_wraps_64.c',
       ],

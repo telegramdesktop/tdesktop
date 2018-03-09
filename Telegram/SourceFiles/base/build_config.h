@@ -47,6 +47,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #define ARCH_CPU_X86_FAMILY 1
 #define ARCH_CPU_X86 1
 #define ARCH_CPU_32_BITS 1
+#elif defined(__aarch64__)
+#define ARCH_CPU_64_BITS 1
+#elif defined(_M_ARM) || defined(__arm__)
+#define ARCH_CPU_32_BITS 1
 #else
 #error Please add support for your architecture in base/build_config.h
 #endif

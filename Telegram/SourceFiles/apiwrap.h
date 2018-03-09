@@ -23,7 +23,7 @@ struct SendingAlbum;
 enum class SendMediaType;
 
 namespace Storage {
-enum class SharedMediaType : char;
+enum class SharedMediaType : signed char;
 struct PreparedList;
 } // namespace Storage
 

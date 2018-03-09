@@ -545,7 +545,11 @@ const dump &operator<<(const dump &stream, const wchar_t *str) {
     if (!ReportFile) return stream;
 
     for (int i = 0, l = wcslen(str); i < l; ++i) {
-        if (str[i] >= 0 && str[i] < 128) {
+        if (
+#if !defined(__WCHAR_UNSIGNED__)
+            str[i] >= 0 &&
+#endif
+            str[i] < 128) {
 			SafeWriteChar(char(str[i]));
         } else {
 			SafeWriteChar('?');

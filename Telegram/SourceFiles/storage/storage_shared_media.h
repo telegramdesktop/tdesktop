@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Storage {
 
 // Allow forward declarations.
-enum class SharedMediaType : char {
+enum class SharedMediaType : signed char {
 	Photo,
 	Video,
 	PhotoVideo,

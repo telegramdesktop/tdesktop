@@ -18,7 +18,7 @@ class SlideWrap;
 } // namespace Ui
 
 namespace Storage {
-enum class SharedMediaType : char;
+enum class SharedMediaType : signed char;
 } // namespace Storage
 
 namespace Info {
