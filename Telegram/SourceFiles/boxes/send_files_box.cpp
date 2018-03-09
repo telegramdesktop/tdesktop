@@ -1581,18 +1581,21 @@ void SendFilesBox::captionResized() {
 	update();
 }
 
+bool SendFilesBox::canAddUrls(const QList<QUrl> &urls) const {
+	return !urls.isEmpty() && ranges::find_if(
+		urls,
+		[](const QUrl &url) { return !url.isLocalFile(); }
+	) == urls.end();
+}
+
 bool SendFilesBox::canAddFiles(not_null<const QMimeData*> data) const {
-	auto files = 0;
-	if (data->hasUrls()) {
-		for (const auto &url : data->urls()) {
-			if (url.isLocalFile()) {
-				++files;
-			}
-		}
-	} else if (data->hasImage()) {
-		++files;
+	const auto urls = data->hasUrls() ? data->urls() : QList<QUrl>();
+	auto filesCount = canAddUrls(urls) ? urls.size() : 0;
+	if (!filesCount && data->hasImage()) {
+		++filesCount;
 	}
-	if (_list.files.size() + files > Storage::MaxAlbumItems()) {
+
+	if (_list.files.size() + filesCount > Storage::MaxAlbumItems()) {
 		return false;
 	} else if (_list.files.size() > 1 && !_albumPreview) {
 		return false;
@@ -1605,10 +1608,14 @@ bool SendFilesBox::canAddFiles(not_null<const QMimeData*> data) const {
 
 bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {
 	auto list = [&] {
-		if (data->hasUrls()) {
-			return Storage::PrepareMediaList(
-				data->urls(),
-				st::sendMediaPreviewSize);
+		const auto urls = data->hasUrls() ? data->urls() : QList<QUrl>();
+		auto result = canAddUrls(urls)
+			? Storage::PrepareMediaList(urls, st::sendMediaPreviewSize)
+			: Storage::PreparedList(
+				Storage::PreparedList::Error::EmptyFile,
+				QString());
+		if (result.error == Storage::PreparedList::Error::None) {
+			return result;
 		} else if (data->hasImage()) {
 			auto image = qvariant_cast<QImage>(data->imageData());
 			if (!image.isNull()) {
@@ -1618,9 +1625,7 @@ bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {
 					st::sendMediaPreviewSize);
 			}
 		}
-		return Storage::PreparedList(
-			Storage::PreparedList::Error::EmptyFile,
-			QString());
+		return result;
 	}();
 	if (_list.files.size() + list.files.size() > Storage::MaxAlbumItems()) {
 		return false;
