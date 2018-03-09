@@ -1515,7 +1515,9 @@ TextSelection Message::unskipTextSelection(TextSelection selection) const {
 QRect Message::countGeometry() const {
 	const auto item = message();
 	const auto media = this->media();
-	const auto mediaWidth = media ? media->width() : width();
+	const auto mediaWidth = (media && media->isDisplayed())
+		? media->width()
+		: width();
 	const auto outbg = hasOutLayout();
 	const auto availableWidth = width()
 		- st::msgMargin.left()
