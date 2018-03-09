@@ -16,7 +16,7 @@ class enum_mask;
 } // namespace base
 
 namespace Storage {
-enum class SharedMediaType : char;
+enum class SharedMediaType : signed char;
 using SharedMediaTypesMask = base::enum_mask<SharedMediaType>;
 } // namespace Storage
 
