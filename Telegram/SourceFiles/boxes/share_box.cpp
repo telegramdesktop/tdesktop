@@ -573,15 +573,23 @@ void ShareBox::Inner::paintEvent(QPaintEvent *e) {
 				++indexFrom;
 			}
 		} else {
-			// empty
 			p.setFont(st::noContactsFont);
 			p.setPen(st::noContactsColor);
+			p.drawText(
+				rect().marginsRemoved(st::boxPadding),
+				lang(lng_bot_no_chats),
+				style::al_center);
 		}
 	} else {
-		if (_filtered.isEmpty() && _byUsernameFiltered.empty()) {
-			// empty
+		if (_filtered.isEmpty()
+			&& _byUsernameFiltered.empty()
+			&& !_searching) {
 			p.setFont(st::noContactsFont);
 			p.setPen(st::noContactsColor);
+			p.drawText(
+				rect().marginsRemoved(st::boxPadding),
+				lang(lng_bot_chats_not_found),
+				style::al_center);
 		} else {
 			auto filteredSize = _filtered.size();
 			if (filteredSize) {
@@ -781,7 +789,9 @@ void ShareBox::Inner::peopleReceived(
 		const QVector<MTPPeer> &my,
 		const QVector<MTPPeer> &people) {
 	_lastQuery = query.toLower().trimmed();
-	if (_lastQuery.at(0) == '@') _lastQuery = _lastQuery.mid(1);
+	if (_lastQuery.at(0) == '@') {
+		_lastQuery = _lastQuery.mid(1);
+	}
 	int32 already = _byUsernameFiltered.size();
 	_byUsernameFiltered.reserve(already + my.size() + people.size());
 	d_byUsernameFiltered.reserve(already + my.size() + people.size());
