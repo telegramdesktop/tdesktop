@@ -242,6 +242,7 @@ public:
 	MsgId minMsgId() const;
 	MsgId maxMsgId() const;
 	MsgId msgIdForRead() const;
+	HistoryItem *lastSentMessage() const;
 
 	void resizeToWidth(int newWidth);
 	int height() const;
@@ -351,7 +352,6 @@ public:
 	std::deque<std::unique_ptr<HistoryBlock>> blocks;
 
 	not_null<PeerData*> peer;
-	HistoryItem *lastSentMsg = nullptr;
 
 	typedef QList<HistoryItem*> NotifyQueue;
 	NotifyQueue notifies;

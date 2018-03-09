@@ -1223,9 +1223,6 @@ void History::clearSendAction(not_null<UserData*> from) {
 void History::mainViewRemoved(
 		not_null<HistoryBlock*> block,
 		not_null<HistoryView::Element*> view) {
-	if (lastSentMsg == view->data()) {
-		lastSentMsg = nullptr;
-	}
 	if (_joinedMessage == view->data()) {
 		_joinedMessage = nullptr;
 	}
@@ -2271,6 +2268,21 @@ MsgId History::msgIdForRead() const {
 		: result;
 }
 
+HistoryItem *History::lastSentMessage() const {
+	if (!loadedAtBottom()) {
+		return nullptr;
+	}
+	for (const auto &block : base::reversed(blocks)) {
+		for (const auto &message : base::reversed(block->messages)) {
+			const auto item = message->data();
+			if (IsServerMsgId(item->id) && item->out()) {
+				return item;
+			}
+		}
+	}
+	return nullptr;
+}
+
 void History::resizeToWidth(int newWidth) {
 	const auto resizeAllItems = (_width != newWidth);
 
@@ -2517,7 +2529,6 @@ void History::unloadBlocks() {
 void History::clearBlocks(bool leaveItems) {
 	_unreadBarView = nullptr;
 	_firstUnreadView = nullptr;
-	lastSentMsg = nullptr;
 	_joinedMessage = nullptr;
 
 	if (scrollTopItem) {

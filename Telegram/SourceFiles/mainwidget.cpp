@@ -1345,8 +1345,6 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 			history->sendRequestId);
 	}
 
-	history->lastSentMsg = lastMessage;
-
 	finishForwarding(history);
 }
 
