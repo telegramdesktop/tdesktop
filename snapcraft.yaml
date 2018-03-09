@@ -344,13 +344,13 @@ parts:
     plugin: autotools-subsource
     source: https://chromium.googlesource.com/breakpad/breakpad
     source-type: git
-    source-depth: 1
+    source-commit: bc8fb886
     sub-sources:
       - linux-syscall-support:
           dest: src/third_party/lss
           source: https://chromium.googlesource.com/linux-syscall-support
           source-type: git
-          source-depth: 1
+          source-commit: a91633d1
     prime: [-./*]
 
   range-v3:
