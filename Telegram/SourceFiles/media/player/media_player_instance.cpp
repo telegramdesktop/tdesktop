@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 
 #include "data/data_document.h"
+#include "data/data_session.h"
 #include "media/media_audio.h"
 #include "media/media_audio_capture.h"
 #include "calls/calls_instance.h"
@@ -307,6 +308,9 @@ void Instance::play(const AudioMsgId &audioId) {
 		if (const auto item = App::histItemById(audioId.contextId())) {
 			App::wnd()->controller()->startRoundVideo(item);
 		}
+	}
+	if (document->isVoiceMessage() || document->isVideoMessage()) {
+		document->session()->data().markMediaRead(document);
 	}
 }
 
