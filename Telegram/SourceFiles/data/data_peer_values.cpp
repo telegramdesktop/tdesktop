@@ -21,7 +21,7 @@ int OnlinePhraseChangeInSeconds(TimeId online, TimeId now) {
 		if (-online > now) {
 			return (-online - now);
 		}
-		return std::numeric_limits<int32>::max();
+		return std::numeric_limits<TimeId>::max();
 	}
 	if (online > now) {
 		return online - now;
@@ -36,7 +36,7 @@ int OnlinePhraseChangeInSeconds(TimeId online, TimeId now) {
 	}
 	const auto nowFull = ParseDateTime(now);
 	const auto tomorrow = QDateTime(nowFull.date().addDays(1));
-	return static_cast<int32>(nowFull.secsTo(tomorrow));
+	return std::max(static_cast<TimeId>(nowFull.secsTo(tomorrow)), 0);
 }
 
 base::optional<QString> OnlineTextSpecial(not_null<UserData*> user) {

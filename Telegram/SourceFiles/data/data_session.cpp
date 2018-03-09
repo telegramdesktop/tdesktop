@@ -273,6 +273,14 @@ rpl::producer<not_null<const HistoryItem*>> Session::itemRemoved() const {
 	return _itemRemoved.events();
 }
 
+void Session::notifyViewRemoved(not_null<const ViewElement*> view) {
+	_viewRemoved.fire_copy(view);
+}
+
+rpl::producer<not_null<const ViewElement*>> Session::viewRemoved() const {
+	return _viewRemoved.events();
+}
+
 void Session::notifyHistoryUnloaded(not_null<const History*> history) {
 	_historyUnloaded.fire_copy(history);
 }

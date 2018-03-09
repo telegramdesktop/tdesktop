@@ -268,6 +268,7 @@ void HistoryItem::refreshMainView() {
 void HistoryItem::removeMainView() {
 	if (const auto view = mainView()) {
 		Auth().data().notifyHistoryChangeDelayed(_history);
+		Auth().data().notifyViewRemoved(view);
 		view->removeFromBlock();
 	}
 }
