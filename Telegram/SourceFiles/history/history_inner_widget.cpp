@@ -1394,7 +1394,8 @@ void HistoryInner::mouseDoubleClickEvent(QMouseEvent *e) {
 	}
 	if (!ClickHandler::getActive()
 		&& !ClickHandler::getPressed()
-		&& _mouseCursorState == CursorState::None
+		&& (_mouseCursorState == CursorState::None
+			|| _mouseCursorState == CursorState::Date)
 		&& !inSelectionMode()) {
 		if (const auto item = _mouseActionItem) {
 			mouseActionCancel();
