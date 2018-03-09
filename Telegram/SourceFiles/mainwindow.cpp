@@ -779,13 +779,20 @@ void MainWindow::toggleTray(QSystemTrayIcon::ActivationReason reason) {
 	if (reason == QSystemTrayIcon::Context) {
 		updateTrayMenu(true);
 		QTimer::singleShot(1, this, SLOT(psShowTrayMenu()));
-	} else {
+	} else if (!skipTrayClick()) {
 		if (isActive()) {
 			minimizeToTray();
 		} else {
 			showFromTray(reason);
 		}
+		_lastTrayClickTime = getms();
 	}
+}
+
+bool MainWindow::skipTrayClick() const {
+	return (_lastTrayClickTime > 0)
+		&& (getms() - _lastTrayClickTime
+			< QApplication::doubleClickInterval());
 }
 
 void MainWindow::toggleDisplayNotifyFromTray() {
