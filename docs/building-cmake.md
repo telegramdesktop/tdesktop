@@ -162,3 +162,27 @@ To make Release version go to ***BuildPath*/tdesktop/out/Release** and run
 
 You can debug your builds from Qt Creator, just open **CMakeLists.txt** from ***BuildPath*/tdesktop/out/Debug** and launch with debug.
 
+
+### Troubleshooting
+Make sure to follow this guide step-by-step.
+If you still face troubles, check if a solution to your problem might be here:
+
+#### qsslsocket_openssl_symbols.cpp:426: undefined reference toEC_curve_nist2nid
+
+    /usr/local/tdesktop/Qt-5.6.2/lib/libQt5Network.a(qsslsocket_openssl_symbols.o): In function q_EC_curve_nist2nid(char const*)': /home/slighthoof/Tbuild/Libraries/qt5_6_2/qtbase/src/network/ssl/qsslsocket_openssl_symbols.cpp:426: undefined reference toEC_curve_nist2nid'
+    collect2: error: ld returned 1 exit status
+    CMakeFiles/Telegram.dir/build.make:13117: recipe for target 'Telegram' failed
+    make[2]: *** [Telegram] Error 1
+    CMakeFiles/Makefile2:85: recipe for target 'CMakeFiles/Telegram.dir/all' failed
+    make[1]: *** [CMakeFiles/Telegram.dir/all] Error 2
+    Makefile:83: recipe for target 'all' failed
+    make: *** [all] Error 2
+
+**Possible solution:** Switch to the openssl directory and make sure to checkout OpenSSL_1_0_2-stable, try recompiling and reinstalling openssl.
+
+    cd Libraries/openssl
+    git checkout OpenSSL_1_0_2-stable
+    ./config
+    make $MAKE_THREADS_CNT
+    sudo make install
+then restart the compilation of Telegram.
