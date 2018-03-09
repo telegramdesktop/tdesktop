@@ -3870,7 +3870,7 @@ void ApiWrap::sendAlbumWithCancelled(
 		const MessageGroupId &groupId) {
 	const auto localId = item->fullId();
 	const auto albumIt = _sendingAlbums.find(groupId.raw());
-	if (albumIt != _sendingAlbums.end()) {
+	if (albumIt == _sendingAlbums.end()) {
 		// Sometimes we destroy item being sent already after the album
 		// was sent successfully. For example the message could be loaded
 		// from server (by messages.getHistory or updateNewMessage) and
