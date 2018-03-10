@@ -100,7 +100,7 @@ public:
 	HistoryView::Element *mainView() const {
 		return _mainView;
 	}
-	void setMainView(HistoryView::Element *view) {
+	void setMainView(not_null<HistoryView::Element*> view) {
 		_mainView = view;
 	}
 	void refreshMainView();

@@ -629,6 +629,9 @@ Element::~Element() {
 	if (_data->mainView() == this) {
 		_data->clearMainView();
 	}
+	if (_context == Context::History) {
+		Auth().data().notifyViewRemoved(this);
+	}
 	Auth().data().unregisterItemView(this);
 }
 
