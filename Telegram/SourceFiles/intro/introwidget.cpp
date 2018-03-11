@@ -790,6 +790,7 @@ QPixmap Widget::Step::prepareSlideAnimation() {
 }
 
 void Widget::Step::showAnimated(Direction direction) {
+	setFocus();
 	show();
 	hideChildren();
 	if (_slideAnimation) {
