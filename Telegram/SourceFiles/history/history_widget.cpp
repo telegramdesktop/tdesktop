@@ -2371,25 +2371,7 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 
 	if (_preloadRequest == requestId) {
 		auto to = toMigrated ? _migrated : _history;
-		if (cBetaVersion()) {
-			CrashReports::SetAnnotation("old_debugstr", QString(
-				"%1_%2_%3_%4:%5_%6 (%7)"
-			).arg(PeerString(_debug_preloadDownPeer)
-			).arg(_debug_preloadOffsetId
-			).arg(_debug_preloadAddOffset
-			).arg(_debug_preloadLoadCount
-			).arg(ExtractFirstId()
-			).arg(ExtractLastId()
-			).arg(Auth().userId()
-			));
-		}
-
 		addMessagesToFront(peer, *histList);
-
-		if (cBetaVersion()) {
-			CrashReports::ClearAnnotation("old_debugstr");
-		}
-
 		_preloadRequest = 0;
 		preloadHistoryIfNeeded();
 		if (_reportSpamStatus == dbiprsUnknown) {
@@ -2398,25 +2380,7 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		}
 	} else if (_preloadDownRequest == requestId) {
 		auto to = toMigrated ? _migrated : _history;
-		if (cBetaVersion()) {
-			CrashReports::SetAnnotation("new_debugstr", QString(
-				"%1_%2_%3_%4:%5_%6 (%7)"
-			).arg(PeerString(_debug_preloadDownPeer)
-			).arg(_debug_preloadDownOffsetId
-			).arg(_debug_preloadDownAddOffset
-			).arg(_debug_preloadDownLoadCount
-			).arg(ExtractFirstId()
-			).arg(ExtractLastId()
-			).arg(Auth().userId()
-			));
-		}
-
 		addMessagesToBack(peer, *histList);
-
-		if (cBetaVersion()) {
-			CrashReports::ClearAnnotation("new_debugstr");
-		}
-
 		_preloadDownRequest = 0;
 		preloadHistoryIfNeeded();
 		if (_history->loadedAtBottom() && App::wnd()) App::wnd()->checkHistoryActivation();
@@ -2590,10 +2554,6 @@ void HistoryWidget::loadMessages() {
 	auto minId = 0;
 	auto historyHash = 0;
 
-	_debug_preloadOffsetId = offsetId + 1;
-	_debug_preloadAddOffset = addOffset;
-	_debug_preloadLoadCount = loadCount;
-	_debug_preloadPeer = from->peer->id;
 	_preloadRequest = MTP::send(
 		MTPmessages_GetHistory(
 			from->peer->input,
@@ -2634,10 +2594,6 @@ void HistoryWidget::loadMessagesDown() {
 	auto minId = 0;
 	auto historyHash = 0;
 
-	_debug_preloadDownOffsetId = offsetId + 1;
-	_debug_preloadDownAddOffset = addOffset;
-	_debug_preloadDownLoadCount = loadCount;
-	_debug_preloadDownPeer = from->peer->id;
 	_preloadDownRequest = MTP::send(
 		MTPmessages_GetHistory(
 			from->peer->input,

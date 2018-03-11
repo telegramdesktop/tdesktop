@@ -730,15 +730,6 @@ private:
 	mtpRequestId _preloadRequest = 0;
 	mtpRequestId _preloadDownRequest = 0;
 
-	MsgId _debug_preloadOffsetId = 0;
-	int32 _debug_preloadAddOffset = 0;
-	int32 _debug_preloadLoadCount = 0;
-	PeerId _debug_preloadPeer = 0;
-	MsgId _debug_preloadDownOffsetId = 0;
-	int32 _debug_preloadDownAddOffset = 0;
-	int32 _debug_preloadDownLoadCount = 0;
-	PeerId _debug_preloadDownPeer = 0;
-
 	MsgId _delayedShowAtMsgId = -1;
 	mtpRequestId _delayedShowAtRequest = 0;
 
