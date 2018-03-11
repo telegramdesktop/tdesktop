@@ -367,16 +367,19 @@ bool HistoryItem::canDelete() const {
 }
 
 bool HistoryItem::canDeleteForEveryone(TimeId now) const {
-	auto messageToMyself = _history->peer->isSelf();
-	auto messageTooOld = messageToMyself
+	const auto peer = history()->peer;
+	const auto messageToMyself = peer->isSelf();
+	const auto messageTooOld = messageToMyself
 		? false
-		: (now >= date() + Global::EditTimeLimit());
+		: peer->isUser()
+		? (now >= date() + Global::RevokePrivateTimeLimit())
+		: (now >= date() + Global::RevokeTimeLimit());
 	if (id < 0 || messageToMyself || messageTooOld || isPost()) {
 		return false;
 	}
-	if (history()->peer->isChannel()) {
+	if (peer->isChannel()) {
 		return false;
-	} else if (auto user = history()->peer->asUser()) {
+	} else if (const auto user = peer->asUser()) {
 		// Bots receive all messages and there is no sense in revoking them.
 		// See https://github.com/telegramdesktop/tdesktop/issues/3818
 		if (user->botInfo) {
@@ -385,17 +388,18 @@ bool HistoryItem::canDeleteForEveryone(TimeId now) const {
 	}
 	if (!toHistoryMessage()) {
 		return false;
-	}
-	if (const auto media = this->media()) {
+	} else if (const auto media = this->media()) {
 		if (!media->allowsRevoke()) {
 			return false;
 		}
 	}
 	if (!out()) {
-		if (auto chat = history()->peer->asChat()) {
+		if (const auto chat = peer->asChat()) {
 			if (!chat->amCreator() && (!chat->amAdmin() || !chat->adminsEnabled())) {
 				return false;
 			}
+		} else if (peer->isUser()) {
+			return Global::RevokePrivateInbox();
 		} else {
 			return false;
 		}

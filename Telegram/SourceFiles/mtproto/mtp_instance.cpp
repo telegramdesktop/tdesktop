@@ -602,6 +602,9 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 	Global::SetPushChatLimit(data.vpush_chat_limit.v);
 	Global::SetSavedGifsLimit(data.vsaved_gifs_limit.v);
 	Global::SetEditTimeLimit(data.vedit_time_limit.v);
+	Global::SetRevokeTimeLimit(data.vrevoke_time_limit.v);
+	Global::SetRevokePrivateTimeLimit(data.vrevoke_pm_time_limit.v);
+	Global::SetRevokePrivateInbox(data.is_revoke_pm_inbox());
 	Global::SetStickersRecentLimit(data.vstickers_recent_limit.v);
 	Global::SetStickersFavedLimit(data.vstickers_faved_limit.v);
 	Global::SetPinnedDialogsCountMax(data.vpinned_dialogs_count_max.v);
