@@ -38,6 +38,7 @@ namespace {
 
 constexpr auto kUsernameCheckTimeout = TimeMs(200);
 constexpr auto kMinUsernameLength = 5;
+constexpr auto kMaxChannelDescription = 255; // See also add_contact_box.
 
 class Controller
 	: private MTP::Sender
@@ -324,6 +325,7 @@ object_ptr<Ui::RpWidget> Controller::createDescriptionEdit() {
 			langFactory(lng_create_group_description),
 			channel->about()),
 		st::editPeerDescriptionMargins);
+	result->entity()->setMaxLength(kMaxChannelDescription);
 
 	QObject::connect(
 		result->entity(),
@@ -1252,11 +1254,9 @@ void Controller::saveTitle() {
 			continueSave();
 			return;
 		}
+		_controls.title->showError();
 		if (type == qstr("NO_CHAT_TITLE")) {
-			_controls.title->showError();
 			_box->scrollToWidget(_controls.title);
-		} else {
-			_controls.title->setFocus();
 		}
 		cancelSave();
 	};
@@ -1302,7 +1302,7 @@ void Controller::saveDescription() {
 			successCallback();
 			return;
 		}
-		_controls.description->setFocus();
+		_controls.description->showError();
 		cancelSave();
 	}).send();
 }

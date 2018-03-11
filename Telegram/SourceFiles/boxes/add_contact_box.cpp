@@ -33,7 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kMaxGroupChannelTitle = 255;
-constexpr auto kMaxChannelDescription = 255;
+constexpr auto kMaxChannelDescription = 255; // See also edit_peer_info_box.
 constexpr auto kMaxBioLength = 70;
 constexpr auto kMinUsernameLength = 5;
 
