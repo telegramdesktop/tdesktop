@@ -39,12 +39,12 @@ SpecialConfigRequest::SpecialConfigRequest(base::lambda<void(DcId dcId, const st
 void SpecialConfigRequest::performAppRequest() {
 	auto appUrl = QUrl();
 	appUrl.setScheme(qsl("https"));
-	appUrl.setHost(qsl("google.com"));
-	if (cTestMode()) {
-		appUrl.setPath(qsl("/test/"));
-	}
+	appUrl.setHost(qsl("software-download.microsoft.com"));
+	appUrl.setPath(cTestMode()
+		? qsl("/test/config.txt")
+		: qsl("/prod/config.txt"));
 	auto appRequest = QNetworkRequest(appUrl);
-	appRequest.setRawHeader("Host", "dns-telegram.appspot.com");
+	appRequest.setRawHeader("Host", "tcdnb.azureedge.net");
 	_appReply.reset(_manager.get(appRequest));
 	connect(_appReply.get(), &QNetworkReply::finished, this, [this] { appFinished(); });
 }
