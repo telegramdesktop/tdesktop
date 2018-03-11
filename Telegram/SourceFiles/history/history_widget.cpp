@@ -6229,6 +6229,8 @@ void HistoryWidget::confirmDeleteSelected() {
 void HistoryWidget::onListEscapePressed() {
 	if (_nonEmptySelection && _list) {
 		clearSelected();
+	} else if (_replyToId && _field->getTextWithTags().text.isEmpty()) {
+		cancelReply();
 	} else {
 		onCancel();
 	}
