@@ -1,3 +1,7 @@
+1.2.12 alpha (12.03.18)
+
+- Bug fixes and other minor improvements.
+
 1.2.11 alpha (10.03.18)
 
 - Bug fixes and other minor improvements.
