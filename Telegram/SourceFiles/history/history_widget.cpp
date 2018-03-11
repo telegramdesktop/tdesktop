@@ -6127,7 +6127,9 @@ void HistoryWidget::onCancel() {
 		}
 	} else if (!_fieldAutocomplete->isHidden()) {
 		_fieldAutocomplete->hideAnimated();
-	} else  {
+	} else if (_replyToId && _field->getTextWithTags().text.isEmpty()) {
+		cancelReply();
+	} else {
 		controller()->showBackFromStack();
 		emit cancelled();
 	}
@@ -6229,8 +6231,6 @@ void HistoryWidget::confirmDeleteSelected() {
 void HistoryWidget::onListEscapePressed() {
 	if (_nonEmptySelection && _list) {
 		clearSelected();
-	} else if (_replyToId && _field->getTextWithTags().text.isEmpty()) {
-		cancelReply();
 	} else {
 		onCancel();
 	}
