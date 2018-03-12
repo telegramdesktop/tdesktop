@@ -2995,6 +2995,8 @@ bool HistoryWidget::joinFail(const RPCError &error, mtpRequestId req) {
 		return true;
 	} else if (error.type() == qstr("CHANNELS_TOO_MUCH")) {
 		Ui::show(Box<InformBox>(lang(lng_join_channel_error)));
+	} else if (error.type() == qstr("USERS_TOO_MUCH")) {
+		Ui::show(Box<InformBox>(lang(lng_group_full)));
 	}
 
 	return false;

@@ -819,6 +819,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_channel_not_accessible" = "Sorry, this channel is not accessible.";
 "lng_group_not_accessible" = "Sorry, this group is not accessible.";
+"lng_group_full" = "Sorry, this group is full.";
 
 "lng_channels_too_much_public_about" = "Sorry, you have reserved too many public usernames. You can revoke the link from one of your older groups or channels.";
 "lng_channels_too_much_public_revoke_confirm_group" = "Are you sure you want to revoke the link {link}?\n\nThe group «{group}» will become private.";
