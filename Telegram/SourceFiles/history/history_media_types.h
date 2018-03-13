@@ -190,6 +190,8 @@ public:
 		return _data->loaded();
 	}
 
+	void parentTextUpdated() override;
+
 protected:
 	float64 dataProgress() const override;
 	bool dataFinished() const override;
@@ -278,6 +280,8 @@ public:
 		return isBubbleBottom() && _caption.isEmpty();
 	}
 
+	void parentTextUpdated() override;
+
 protected:
 	float64 dataProgress() const override;
 	bool dataFinished() const override;
@@ -354,6 +358,7 @@ public:
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
+	void parentTextUpdated() override;
 
 protected:
 	float64 dataProgress() const override;
@@ -426,6 +431,8 @@ public:
 	bool isReadyForOpen() const override {
 		return _data->loaded();
 	}
+
+	void parentTextUpdated() override;
 
 	~HistoryGif();
 

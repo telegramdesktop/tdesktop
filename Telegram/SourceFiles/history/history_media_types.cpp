@@ -681,6 +681,13 @@ bool HistoryPhoto::needsBubble() const {
 	return false;
 }
 
+void HistoryPhoto::parentTextUpdated() {
+	_caption = (_parent->media() == this)
+		? createCaption(_parent->data())
+		: Text();
+	Auth().data().requestViewResize(_parent);
+}
+
 HistoryVideo::HistoryVideo(
 	not_null<Element*> parent,
 	not_null<HistoryItem*> realParent,
@@ -1110,6 +1117,13 @@ bool HistoryVideo::needsBubble() const {
 		|| _parent->displayForwardedFrom()
 		|| _parent->displayFromName();
 	return false;
+}
+
+void HistoryVideo::parentTextUpdated() {
+	_caption = (_parent->media() == this)
+		? createCaption(_parent->data())
+		: Text();
+	Auth().data().requestViewResize(_parent);
 }
 
 void HistoryVideo::updateStatusText() const {
@@ -1832,6 +1846,20 @@ void HistoryDocument::refreshParentId(not_null<HistoryItem*> realParent) {
 	}
 }
 
+void HistoryDocument::parentTextUpdated() {
+	auto caption = (_parent->media() == this)
+		? createCaption(_parent->data())
+		: Text();
+	if (!caption.isEmpty()) {
+		AddComponents(HistoryDocumentCaptioned::Bit());
+		auto captioned = Get<HistoryDocumentCaptioned>();
+		captioned->_caption = std::move(caption);
+	} else {
+		RemoveComponents(HistoryDocumentCaptioned::Bit());
+	}
+	Auth().data().requestViewResize(_parent);
+}
+
 TextWithEntities HistoryDocument::getCaption() const {
 	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
 		return captioned->_caption.originalTextWithEntities();
@@ -2541,6 +2569,13 @@ QString HistoryGif::additionalInfoString() const {
 		return _statusText;
 	}
 	return QString();
+}
+
+void HistoryGif::parentTextUpdated() {
+	_caption = (_parent->media() == this)
+		? createCaption(_parent->data())
+		: Text();
+	Auth().data().requestViewResize(_parent);
 }
 
 int HistoryGif::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply, const HistoryMessageForwarded *forwarded) const {

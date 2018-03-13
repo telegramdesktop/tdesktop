@@ -13,12 +13,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "data/data_media_types.h"
+#include "data/data_session.h"
 #include "storage/storage_shared_media.h"
 #include "lang/lang_keys.h"
 #include "ui/grouped_layout.h"
 #include "ui/text_options.h"
-#include "styles/style_history.h"
+#include "auth_session.h"
 #include "layout.h"
+#include "styles/style_history.h"
 
 namespace {
 
@@ -389,6 +391,10 @@ void HistoryGroupedMedia::updateNeedBubbleState() {
 		_caption = createCaption(_parts.front().item);
 	}
 	_needBubble = computeNeedBubble();
+}
+
+void HistoryGroupedMedia::parentTextUpdated() {
+	Auth().data().requestViewResize(_parent);
 }
 
 bool HistoryGroupedMedia::needsBubble() const {

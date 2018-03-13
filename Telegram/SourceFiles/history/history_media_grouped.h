@@ -79,6 +79,8 @@ public:
 		return true;
 	}
 
+	void parentTextUpdated() override;
+
 private:
 	struct Part {
 		Part(not_null<HistoryItem*> item);

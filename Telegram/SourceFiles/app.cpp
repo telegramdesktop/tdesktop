@@ -923,6 +923,7 @@ namespace {
 				: nullptr);
 			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
 			existing->indexAsNewItem();
+			Auth().data().requestItemTextRefresh(existing);
 			if (existing->mainView()) {
 				App::checkSavedGif(existing);
 				return true;

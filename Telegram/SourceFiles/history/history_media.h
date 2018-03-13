@@ -222,6 +222,8 @@ public:
 	// Should be called only by Data::Session.
 	virtual void updateSharedContactUserId(UserId userId) {
 	}
+	virtual void parentTextUpdated() {
+	}
 
 	virtual ~HistoryMedia() = default;
 

@@ -256,6 +256,16 @@ rpl::producer<not_null<HistoryItem*>> Session::itemViewRefreshRequest() const {
 	return _itemViewRefreshRequest.events();
 }
 
+void Session::requestItemTextRefresh(not_null<HistoryItem*> item) {
+	if (const auto i = _views.find(item); i != _views.end()) {
+		for (const auto view : i->second) {
+			if (const auto media = view->media()) {
+				media->parentTextUpdated();
+			}
+		}
+	}
+}
+
 void Session::requestAnimationPlayInline(not_null<HistoryItem*> item) {
 	_animationPlayInlineRequest.fire_copy(item);
 }
