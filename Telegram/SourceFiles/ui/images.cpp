@@ -1324,10 +1324,10 @@ Image *getImage(const MTPDwebDocumentNoProxy &document) {
 }
 
 Image *getImage(const MTPDwebDocument &document, QSize box) {
-	const auto size = getImageSize(document.vattributes.v);
-	if (size.isEmpty()) {
-		return blank();
-	}
+	//const auto size = getImageSize(document.vattributes.v);
+	//if (size.isEmpty()) {
+	//	return blank();
+	//}
 
 	// We don't use size from WebDocument, because it is not reliable.
 	// It can be > 0 and different from the real size that we get in upload.WebFile result.
@@ -1342,10 +1342,10 @@ Image *getImage(const MTPDwebDocument &document, QSize box) {
 }
 
 Image *getImage(const MTPDwebDocumentNoProxy &document, QSize box) {
-	const auto size = getImageSize(document.vattributes.v);
-	if (size.isEmpty()) {
-		return blank();
-	}
+	//const auto size = getImageSize(document.vattributes.v);
+	//if (size.isEmpty()) {
+	//	return blank();
+	//}
 
 	return getImage(qs(document.vurl), box);
 }

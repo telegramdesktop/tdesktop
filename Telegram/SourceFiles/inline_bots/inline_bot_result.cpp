@@ -107,7 +107,8 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 		message = &r.vsend_message;
 	} break;
 	}
-	bool badAttachment = (result->_photo && !result->_photo->access) || (result->_document && !result->_document->isValid());
+	auto badAttachment = (result->_photo && result->_photo->full->isNull())
+		|| (result->_document && !result->_document->isValid());
 
 	if (!message) {
 		return nullptr;
