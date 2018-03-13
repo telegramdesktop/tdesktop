@@ -1233,10 +1233,7 @@ Link::Link(
 		}
 	}
 
-	// #TODO webpage
-	//_page = (media && media->type() == MediaTypeWebPage)
-	//	? static_cast<HistoryWebPage*>(media)->webpage().get()
-	//	: nullptr;
+	_page = media ? media->webpage() : nullptr;
 	if (_page) {
 		mainUrl = _page->url;
 		if (_page->document) {
