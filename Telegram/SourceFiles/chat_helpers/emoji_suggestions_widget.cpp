@@ -401,7 +401,7 @@ QString SuggestionsController::getEmojiQuery() {
 			}
 			position -= from;
 			_queryStartPosition = from;
-			return fragment.text().toLower();
+			return fragment.text();
 		}
 		return QString();
 	};
@@ -411,10 +411,18 @@ QString SuggestionsController::getEmojiQuery() {
 		return QString();
 	}
 
-	auto isSuggestionChar = [](QChar ch) {
-		return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || (ch == '_') || (ch == '-') || (ch == '+');
+	const auto isUpperCaseLetter = [](QChar ch) {
+		return (ch >= 'A' && ch <= 'Z');
 	};
-	auto isGoodCharBeforeSuggestion = [isSuggestionChar](QChar ch) {
+	const auto isSuggestionChar = [](QChar ch) {
+		return (ch >= 'a' && ch <= 'z')
+			|| (ch >= 'A' && ch <= 'Z')
+			|| (ch >= '0' && ch <= '9')
+			|| (ch == '_')
+			|| (ch == '-')
+			|| (ch == '+');
+	};
+	const auto isGoodCharBeforeSuggestion = [&](QChar ch) {
 		return !isSuggestionChar(ch) || (ch == 0);
 	};
 	Assert(position > 0 && position <= text.size());
@@ -427,7 +435,14 @@ QString SuggestionsController::getEmojiQuery() {
 				if (position > i + 1) {
 					// Skip colon and the first letter.
 					_queryStartPosition += i + 2;
-					return text.mid(i, position - i);
+					const auto length = position - i;
+					auto result = text.mid(i, length);
+					if (length == 2 && isUpperCaseLetter(text[1])) {
+						// No upper case single letter suggestions.
+						// We don't want to suggest emoji on :D and :P
+						return QString();
+					}
+					return result.toLower();
 				}
 			}
 			return QString();
