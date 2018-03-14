@@ -482,8 +482,9 @@ QString MediaFile::chatsListText() const {
 			return lang(lng_in_dlg_video);
 		} else if (_document->isVoiceMessage()) {
 			return lang(lng_in_dlg_audio);
-		} else if (!_document->filename().isEmpty()) {
-			return _document->filename();
+		} else if (const auto name = _document->composeNameString();
+				!name.isEmpty()) {
+			return name;
 		} else if (_document->isAudioFile()) {
 			return lang(lng_in_dlg_audio_file);
 		}
