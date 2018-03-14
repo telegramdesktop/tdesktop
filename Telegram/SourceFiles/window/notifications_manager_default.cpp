@@ -676,7 +676,7 @@ void Notification::updateNotifyDisplay() {
 				if (_author) {
 					itemTextCache.setText(st::dialogsTextStyle, _author->name);
 					p.setPen(st::dialogsTextFgService);
-					itemTextCache.drawElided(p, r.left(), r.top(), r.width(), st::dialogsTextFont->height);
+					itemTextCache.drawElided(p, r.left(), r.top(), r.width());
 					r.setTop(r.top() + st::dialogsTextFont->height);
 				}
 				p.setPen(st::dialogsTextFg);
