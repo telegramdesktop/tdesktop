@@ -11,6 +11,7 @@ grade: stable
 confinement: strict
 
 version-script: |
+  set -x
   cd parts/telegram/src
   version_file=Telegram/build/version
   version=$(sed -n "s/AppVersionStr[ ]\+\(.*\)\+/\1/p" $version_file)
