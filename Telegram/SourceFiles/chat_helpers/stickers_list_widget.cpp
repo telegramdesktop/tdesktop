@@ -919,7 +919,7 @@ void StickersListWidget::refreshSearchRows(
 	_searchSets.clear();
 	fillLocalSearchRows(_searchNextQuery);
 
-	if (!cloudSets && _searchSets.empty()) {
+	if (!cloudSets && _searchNextQuery.isEmpty()) {
 		showStickerSet(!_mySets.empty()
 			? _mySets[0].id
 			: Stickers::FeaturedSetId);
@@ -1711,7 +1711,11 @@ void StickersListWidget::refreshSearchSets() {
 void StickersListWidget::refreshSearchIndex() {
 	_searchIndex.clear();
 	for (const auto &set : _mySets) {
-		const auto list = TextUtilities::PrepareSearchWords(set.title + ' ' + set.shortName);
+		if (set.flags & MTPDstickerSet_ClientFlag::f_special) {
+			continue;
+		}
+		const auto string = set.title + ' ' + set.shortName;
+		const auto list = TextUtilities::PrepareSearchWords(string);
 		_searchIndex.emplace_back(set.id, list);
 	}
 }
