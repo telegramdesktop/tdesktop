@@ -42,6 +42,7 @@ apps:
     plugs:
       - desktop
       - desktop-legacy
+      - gsettings
       - home
       - network
       - network-bind
