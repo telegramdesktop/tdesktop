@@ -386,8 +386,10 @@ void TopBarWidget::refreshInfoButton() {
 			Ui::UserpicButton::Role::Custom,
 			st::topBarInfoButton);
 		info->showSavedMessagesOnSelf(true);
+		_info.destroy();
 		_info = std::move(info);
 	} else if (const auto feed = _activeChat.feed()) {
+		_info.destroy();
 		_info = object_ptr<Ui::FeedUserpicButton>(
 			this,
 			_controller,
