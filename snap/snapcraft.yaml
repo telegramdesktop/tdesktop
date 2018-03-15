@@ -12,7 +12,6 @@ confinement: strict
 
 version-script: |
   set -x
-  cd parts/telegram/src
   version_file=Telegram/build/version
   version=$(sed -n "s/AppVersionStr[ ]\+\(.*\)\+/\1/p" $version_file)
   alpha=$(sed -n "s/AlphaChannel[ ]\+\(.*\)\+/\1/p" $version_file)
@@ -54,10 +53,11 @@ apps:
 parts:
   telegram:
     plugin: gyp-cmake
-    source: https://github.com/telegramdesktop/tdesktop.git
-    source-depth: 1
+    source: .
+    source-type: git
     prepare: |
-      patches_dir=$SNAPCRAFT_STAGE/../patches
+      set -x
+      patches_dir=$SNAPCRAFT_STAGE/../snap/patches
       git -C ../src apply -v3 $patches_dir/telegram-debug-customizable-working-dir.patch || true
       git -C ../src apply -v3 $patches_dir/telegram-disable-werror.patch || true
       git -C ../src/Telegram/ThirdParty/libtgvoip apply -v3 $patches_dir/libtgvoip-only-enable-msse2-on-supported-archs.patch || true
@@ -97,6 +97,7 @@ parts:
                         TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
       - --depth=.
     install: |
+      set -x
       snap_gui=$SNAPCRAFT_STAGE/../snap/gui
       mkdir -vp $snap_gui
       cp -v lib/xdg/telegramdesktop.desktop $snap_gui
@@ -115,7 +116,7 @@ parts:
 
   telegram-launcher:
     plugin: dump
-    source: .
+    source: snap/scripts
     organize:
       telegram-launch: bin/telegram-launch
 
@@ -298,8 +299,7 @@ parts:
     qt-version: 5.6.2
     qt-source-git: https://code.qt.io/qt/qt5.git
     qt-submodules: ['qtbase', 'qtimageformats']
-    qt-patches-base-url: https://raw.githubusercontent.com/telegramdesktop/tdesktop/master/Telegram/Patches
-    qt-patches-path: patches
+    qt-patches-path: Telegram/Patches
     qt-extra-plugins:
       - platforminputcontexts:
         - https://github.com/telegramdesktop/fcitx.git
@@ -375,6 +375,7 @@ parts:
     source-depth: 1
     plugin: nil
     install: |
+      set -x
       mkdir $SNAPCRAFT_PART_INSTALL/range-v3
       cp -rv * $SNAPCRAFT_PART_INSTALL/range-v3
     prime: [-./*]
@@ -386,7 +387,7 @@ parts:
     source-commit: 702ac58e47
     python-version: python2
     patches:
-      - https://raw.githubusercontent.com/telegramdesktop/tdesktop/master/Telegram/Patches/gyp.diff
+      - Telegram/Patches/gyp.diff
     prime: [-./*]
 
   gcc7:
@@ -395,6 +396,7 @@ parts:
       - libmpc-dev
       - libcloog-ppl-dev
     prepare: |
+      set -x
       echo "deb http://ppa.launchpad.net/ubuntu-toolchain-r/test/ubuntu xenial main" | \
             sudo tee /etc/apt/sources.list.d/ubuntu-toolchain-r.list
       sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 60C317803A41BA51845E371A1E9377A2BA9EF27F
@@ -402,6 +404,7 @@ parts:
         -o Dir::Etc::sourcelist="sources.list.d/ubuntu-toolchain-r.list" \
         -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0"
     install: |
+      set -x
       sudo apt install gcc-7 g++-7 -o Debug::pkgProblemResolver=yes --no-install-recommends -y
       sudo apt-mark auto gcc-7 g++-7
       sudo rm -f /etc/apt/sources.list.d/ubuntu-toolchain-r.list
