@@ -1,0 +1,10 @@
+#!/bin/bash
+
+default_downloaddir="$SNAP_USER_DATA/Telegram Desktop"
+
+if [ -d "$default_downloaddir" ] && [ ! -L "$default_downloaddir" ]; then
+  mv -v "$default_downloaddir" "$SNAP_USER_COMMON"
+  ln -sv "$SNAP_USER_COMMON/$(basename "$default_downloaddir")" "$default_downloaddir"
+fi
+
+exec desktop-launch Telegram $*
