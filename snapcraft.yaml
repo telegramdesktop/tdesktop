@@ -33,12 +33,13 @@ version-script: |
 
 apps:
   telegram-desktop:
-    command: desktop-launch Telegram
+    command: telegram-launch
     environment:
       DISABLE_WAYLAND: 1
       WAYLAND_DISPLAY: no-display
       QT_IM_MODULE: xim
       QTCOMPOSE: $SNAP/usr/share/X11/locale
+      HOME: "$SNAP_USER_COMMON"
     plugs:
       - desktop
       - desktop-legacy
@@ -111,6 +112,12 @@ parts:
       - qt
       - range-v3
       - gcc7
+
+  telegram-launcher:
+    plugin: dump
+    source: .
+    organize:
+      telegram-launch: bin/telegram-launch
 
   desktop-integration:
     plugin: nil
