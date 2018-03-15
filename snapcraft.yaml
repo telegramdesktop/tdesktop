@@ -123,6 +123,16 @@ parts:
 
   desktop-gtk3:
     stage: [-./usr/share/fonts/**]
+    install: |
+      set -x
+      export XDG_DATA_DIRS=$SNAPCRAFT_PART_INSTALL/usr/share
+      update-mime-database $SNAPCRAFT_PART_INSTALL/usr/share/mime
+
+      for dir in $SNAPCRAFT_PART_INSTALL/usr/share/icons/*/; do
+        if [ -f $dir/index.theme ]; then
+          gtk-update-icon-cache-3.0 -q $dir
+        fi
+      done
 
   libva:
     source: https://github.com/01org/libva.git
