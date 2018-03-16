@@ -55,10 +55,6 @@ parts:
     plugin: gyp-cmake
     source: .
     source-type: git
-    prepare: |
-      set -x
-      patches_dir=$SNAPCRAFT_STAGE/../snap/patches
-      git -C ../src/Telegram/ThirdParty/libtgvoip apply -v3 $patches_dir/libtgvoip-only-enable-msse2-on-supported-archs.patch || true
     build-packages:
       - libappindicator-dev
       - libappindicator3-dev
