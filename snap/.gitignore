@@ -1,8 +1,0 @@
-parts
-prime
-stage
-*.snap
-__pycache__
-.snapcraft
-/snap/gui/*.png
-/snap/gui/*.desktop

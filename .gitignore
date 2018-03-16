@@ -50,6 +50,15 @@ ipch/
 project.xcworkspace
 xcuserdata
 
+parts
+prime
+stage
+*.snap
+.snapcraft
+/snap/gui/*.png
+/snap/gui/*.desktop
+/snap/plugins/__pycache__
+
 /Telegram/*.user.*
 *.pro.user
 /Linux/
