@@ -58,8 +58,6 @@ parts:
     prepare: |
       set -x
       patches_dir=$SNAPCRAFT_STAGE/../snap/patches
-      git -C ../src apply -v3 $patches_dir/telegram-debug-customizable-working-dir.patch || true
-      git -C ../src apply -v3 $patches_dir/telegram-disable-werror.patch || true
       git -C ../src/Telegram/ThirdParty/libtgvoip apply -v3 $patches_dir/libtgvoip-only-enable-msse2-on-supported-archs.patch || true
     build-packages:
       - libappindicator-dev
