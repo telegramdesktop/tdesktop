@@ -9,7 +9,7 @@ index 8639848..10cd0e7 100644
 -              'cflags_cc': [
 -                '-msse2',
 +              'conditions': [
-+                [ '"<!(uname -p)" == "x86_64" or "<!(uname -p)" == "i686"', {
++                [ '"<!(uname -m)" == "i686"', {
 +                  'cflags_cc': [
 +                    '-msse2',
 +                  ],
