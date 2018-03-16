@@ -133,8 +133,8 @@ public:
 	std::vector<not_null<DocumentData*>> *stickersByEmoji(
 		not_null<EmojiPtr> emoji);
 
-	void joinChannel(ChannelData *channel);
-	void leaveChannel(ChannelData *channel);
+	void joinChannel(not_null<ChannelData*> channel);
+	void leaveChannel(not_null<ChannelData*> channel);
 
 	void blockUser(UserData *user);
 	void unblockUser(UserData *user);

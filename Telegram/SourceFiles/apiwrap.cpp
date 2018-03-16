@@ -1509,16 +1509,28 @@ void ApiWrap::stickerSetDisenabled(mtpRequestId requestId) {
 	}
 };
 
-void ApiWrap::joinChannel(ChannelData *channel) {
+void ApiWrap::joinChannel(not_null<ChannelData*> channel) {
 	if (channel->amIn()) {
-		Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::ChannelAmIn);
+		Notify::peerUpdatedDelayed(
+			channel,
+			Notify::PeerUpdate::Flag::ChannelAmIn);
 	} else if (!_channelAmInRequests.contains(channel)) {
-		auto requestId = request(MTPchannels_JoinChannel(channel->inputChannel)).done([this, channel](const MTPUpdates &result) {
+		auto requestId = request(MTPchannels_JoinChannel(
+			channel->inputChannel
+		)).done([=](const MTPUpdates &result) {
 			_channelAmInRequests.remove(channel);
 			applyUpdates(result);
-		}).fail([this, channel](const RPCError &error) {
-			if (error.type() == qstr("CHANNELS_TOO_MUCH")) {
+		}).fail([=](const RPCError &error) {
+			if (error.type() == qstr("CHANNEL_PRIVATE")
+				|| error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA")
+				|| error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
+				Ui::show(Box<InformBox>(lang(channel->isMegagroup()
+					? lng_group_not_accessible
+					: lng_channel_not_accessible)));
+			} else if (error.type() == qstr("CHANNELS_TOO_MUCH")) {
 				Ui::show(Box<InformBox>(lang(lng_join_channel_error)));
+			} else if (error.type() == qstr("USERS_TOO_MUCH")) {
+				Ui::show(Box<InformBox>(lang(lng_group_full)));
 			}
 			_channelAmInRequests.remove(channel);
 		}).send();
@@ -1527,14 +1539,18 @@ void ApiWrap::joinChannel(ChannelData *channel) {
 	}
 }
 
-void ApiWrap::leaveChannel(ChannelData *channel) {
+void ApiWrap::leaveChannel(not_null<ChannelData*> channel) {
 	if (!channel->amIn()) {
-		Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::ChannelAmIn);
+		Notify::peerUpdatedDelayed(
+			channel,
+			Notify::PeerUpdate::Flag::ChannelAmIn);
 	} else if (!_channelAmInRequests.contains(channel)) {
-		auto requestId = request(MTPchannels_LeaveChannel(channel->inputChannel)).done([this, channel](const MTPUpdates &result) {
+		auto requestId = request(MTPchannels_LeaveChannel(
+			channel->inputChannel
+		)).done([=](const MTPUpdates &result) {
 			_channelAmInRequests.remove(channel);
 			applyUpdates(result);
-		}).fail([this, channel](const RPCError &error) {
+		}).fail([=](const RPCError &error) {
 			_channelAmInRequests.remove(channel);
 		}).send();
 

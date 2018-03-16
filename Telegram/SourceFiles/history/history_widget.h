@@ -683,9 +683,6 @@ private:
 	bool unblockFail(const RPCError &error, mtpRequestId req);
 	void blockDone(PeerData *peer, const MTPBool &result);
 
-	void joinDone(const MTPUpdates &result, mtpRequestId req);
-	bool joinFail(const RPCError &error, mtpRequestId req);
-
 	void countHistoryShowFrom();
 
 	enum class TextUpdateEvent {

@@ -2980,34 +2980,11 @@ void HistoryWidget::onBotStart() {
 }
 
 void HistoryWidget::onJoinChannel() {
-	if (_unblockRequest) return;
 	if (!_peer || !_peer->isChannel() || !isJoinChannel()) {
 		updateControlsVisibility();
 		return;
 	}
-
-	_unblockRequest = MTP::send(MTPchannels_JoinChannel(_peer->asChannel()->inputChannel), rpcDone(&HistoryWidget::joinDone), rpcFail(&HistoryWidget::joinFail));
-}
-
-void HistoryWidget::joinDone(const MTPUpdates &result, mtpRequestId req) {
-	if (_unblockRequest == req) _unblockRequest = 0;
-	if (App::main()) App::main()->sentUpdatesReceived(result);
-}
-
-bool HistoryWidget::joinFail(const RPCError &error, mtpRequestId req) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	if (_unblockRequest == req) _unblockRequest = 0;
-	if (error.type() == qstr("CHANNEL_PRIVATE") || error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA") || error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
-		Ui::show(Box<InformBox>(lang((_peer && _peer->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
-		return true;
-	} else if (error.type() == qstr("CHANNELS_TOO_MUCH")) {
-		Ui::show(Box<InformBox>(lang(lng_join_channel_error)));
-	} else if (error.type() == qstr("USERS_TOO_MUCH")) {
-		Ui::show(Box<InformBox>(lang(lng_group_full)));
-	}
-
-	return false;
+	Auth().api().joinChannel(_peer->asChannel());
 }
 
 void HistoryWidget::onMuteUnmute() {
