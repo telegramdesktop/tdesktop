@@ -486,6 +486,9 @@ buildOpenAL() {
       -D CMAKE_INSTALL_PREFIX=$OPENAL_PATH \
       -D CMAKE_BUILD_TYPE=Release \
       -D LIBTYPE=STATIC \
+      -D ALSOFT_EXAMPLES=OFF \
+      -D ALSOFT_TESTS=OFF \
+      -D ALSOFT_UTILS=OFF \
       ..
   make $MAKE_ARGS
   sudo make install
