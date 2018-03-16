@@ -1,6 +1,6 @@
 name: telegram-desktop
 version: git
-summary: Telegram Desktop
+summary: Official desktop version of Telegram messaging app
 description: |
   Telegram is a popular messaging protocol with encryption and security as
   its key focus.
