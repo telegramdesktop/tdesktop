@@ -384,6 +384,10 @@ parts:
       - Telegram/Patches/gyp.diff
     prime: [-./*]
 
+  # Since this is supposed to be built against ubuntu 16.04, we need to manually
+  # install gcc7, and this is a workaround to achieve this.
+  # This part can be safely removed when build.snapcraft.io will allow
+  # to build against 18.04.
   gcc7:
     plugin: nil
     build-packages:
