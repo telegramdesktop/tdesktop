@@ -12,6 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_channel_admins.h"
 #include "data/data_photo.h"
+#include "data/data_feed.h"
+#include "data/data_session.h"
+#include "history/history.h"
 #include "lang/lang_keys.h"
 #include "observer_peer.h"
 #include "mainwidget.h"
@@ -22,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "messenger.h"
 #include "mainwindow.h"
 #include "window/window_controller.h"
+#include "storage/localstorage.h"
 #include "ui/empty_userpic.h"
 #include "ui/text_options.h"
 
@@ -69,7 +73,9 @@ PeerClickHandler::PeerClickHandler(not_null<PeerData*> peer)
 void PeerClickHandler::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton && App::wnd()) {
 		auto controller = App::wnd()->controller();
-		if (_peer && _peer->isChannel() && controller->historyPeer.current() != _peer) {
+		if (_peer
+			&& _peer->isChannel()
+			&& controller->activeChatCurrent().peer() != _peer) {
 			if (!_peer->asChannel()->isPublic() && !_peer->asChannel()->amIn()) {
 				Ui::show(Box<InformBox>(lang(_peer->isMegagroup()
 					? lng_group_not_accessible
@@ -117,7 +123,7 @@ void PeerData::updateNameDelayed(
 
 	Notify::PeerUpdate update(this);
 	update.flags |= UpdateFlag::NameChanged;
-	update.oldNameFirstChars = nameFirstChars();
+	update.oldNameFirstLetters = nameFirstLetters();
 
 	if (isUser()) {
 		if (asUser()->username != newUsername) {
@@ -167,7 +173,7 @@ void PeerData::setUserpic(
 
 void PeerData::setUserpicPhoto(const MTPPhoto &data) {
 	auto photoId = [&]() -> PhotoId {
-		if (auto photo = App::feedPhoto(data)) {
+		if (const auto photo = Auth().data().photo(data)) {
 			photo->peer = this;
 			return photo->id;
 		}
@@ -295,12 +301,19 @@ void PeerData::setUserpicChecked(
 		|| _userpicLocation != location) {
 		setUserpic(photoId, location, userpic);
 		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
+		if (const auto channel = asChannel()) {
+			if (const auto feed = channel->feed()) {
+				Auth().data().notifyFeedUpdated(
+					feed,
+					Data::FeedUpdateFlag::ChannelPhoto);
+			}
+		}
 	}
 }
 
 void PeerData::fillNames() {
 	_nameWords.clear();
-	_nameFirstChars.clear();
+	_nameFirstLetters.clear();
 	auto toIndexList = QStringList();
 	auto appendToIndex = [&](const QString &value) {
 		if (!value.isEmpty()) {
@@ -314,7 +327,7 @@ void PeerData::fillNames() {
 	if (appendTranslit) {
 		appendToIndex(translitRusEng(toIndexList.front()));
 	}
-	if (auto user = asUser()) {
+	if (const auto user = asUser()) {
 		if (user->nameOrPhone != name) {
 			appendToIndex(user->nameOrPhone);
 		}
@@ -322,7 +335,7 @@ void PeerData::fillNames() {
 		if (isSelf()) {
 			appendToIndex(lang(lng_saved_messages));
 		}
-	} else if (auto channel = asChannel()) {
+	} else if (const auto channel = asChannel()) {
 		appendToIndex(channel->username);
 	}
 	auto toIndex = toIndexList.join(' ');
@@ -331,7 +344,7 @@ void PeerData::fillNames() {
 	const auto namesList = TextUtilities::PrepareSearchWords(toIndex);
 	for (const auto &name : namesList) {
 		_nameWords.insert(name);
-		_nameFirstChars.insert(name[0]);
+		_nameFirstLetters.insert(name[0]);
 	}
 }
 
@@ -348,7 +361,26 @@ const Text &BotCommand::descriptionText() const {
 }
 
 bool UserData::canShareThisContact() const {
-	return canShareThisContactFast() || !App::phoneFromSharedContact(peerToUser(id)).isEmpty();
+	return canShareThisContactFast()
+		|| !Auth().data().findContactPhone(peerToUser(id)).isEmpty();
+}
+
+void UserData::setContactStatus(ContactStatus status) {
+	if (_contactStatus != status) {
+		const auto changed = (_contactStatus == ContactStatus::Contact)
+			!= (status == ContactStatus::Contact);
+		_contactStatus = status;
+		if (changed) {
+			Notify::peerUpdatedDelayed(
+				this,
+				Notify::PeerUpdate::Flag::UserIsContact);
+		}
+	}
+	if (_contactStatus == ContactStatus::Contact
+		&& cReportSpamStatuses().value(id, dbiprsHidden) != dbiprsHidden) {
+		cRefReportSpamStatuses().insert(id, dbiprsHidden);
+		Local::writeReportSpamStatuses();
+	}
 }
 
 // see Local::readPeer as well
@@ -821,13 +853,43 @@ void ChannelData::setAvailableMinId(MsgId availableMinId) {
 		if (auto history = App::historyLoaded(this)) {
 			history->clearUpTill(availableMinId);
 		}
+		if (_pinnedMessageId <= _availableMinId) {
+			_pinnedMessageId = MsgId(0);
+			Notify::peerUpdatedDelayed(
+				this,
+				Notify::PeerUpdate::Flag::ChannelPinnedChanged);
+		}
 	}
 }
 
 void ChannelData::setPinnedMessageId(MsgId messageId) {
+	messageId = (messageId > _availableMinId) ? messageId : MsgId(0);
 	if (_pinnedMessageId != messageId) {
 		_pinnedMessageId = messageId;
-		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::ChannelPinnedChanged);
+		Notify::peerUpdatedDelayed(
+			this,
+			Notify::PeerUpdate::Flag::ChannelPinnedChanged);
+	}
+}
+
+void ChannelData::setFeed(not_null<Data::Feed*> feed) {
+	setFeedPointer(feed);
+}
+
+void ChannelData::clearFeed() {
+	setFeedPointer(nullptr);
+}
+
+void ChannelData::setFeedPointer(Data::Feed *feed) {
+	if (_feed != feed) {
+		const auto was = _feed;
+		_feed = feed;
+		if (was) {
+			was->unregisterOne(this);
+		}
+		if (_feed) {
+			_feed->registerOne(this);
+		}
 	}
 }
 

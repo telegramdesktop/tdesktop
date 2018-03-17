@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_photo.h"
 
+#include "data/data_session.h"
 #include "mainwidget.h"
 #include "history/history_media_types.h"
 #include "auth_session.h"
@@ -31,14 +32,14 @@ void PhotoData::automaticLoadSettingsChanged() {
 
 void PhotoData::download() {
 	full->loadEvenCancelled();
-	notifyLayoutChanged();
+	Auth().data().notifyPhotoLayoutChanged(this);
 }
 
 bool PhotoData::loaded() const {
 	bool wasLoading = loading();
 	if (full->loaded()) {
 		if (wasLoading) {
-			notifyLayoutChanged();
+			Auth().data().notifyPhotoLayoutChanged(this);
 		}
 		return true;
 	}
@@ -57,17 +58,7 @@ bool PhotoData::displayLoading() const {
 
 void PhotoData::cancel() {
 	full->cancel();
-	notifyLayoutChanged();
-}
-
-void PhotoData::notifyLayoutChanged() const {
-	auto &items = App::photoItems();
-	auto i = items.constFind(const_cast<PhotoData*>(this));
-	if (i != items.cend()) {
-		for_const (auto item, i.value()) {
-			Auth().data().markItemLayoutChanged(item);
-		}
-	}
+	Auth().data().notifyPhotoLayoutChanged(this);
 }
 
 float64 PhotoData::progress() const {
@@ -136,8 +127,7 @@ void PhotoCancelClickHandler::onClickImpl() const {
 
 	if (data->uploading()) {
 		if (const auto item = App::histItemById(context())) {
-			App::contextItem(item);
-			App::main()->cancelUploadLayer();
+			App::main()->cancelUploadLayer(item);
 		}
 	} else {
 		data->cancel();

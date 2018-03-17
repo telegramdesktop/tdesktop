@@ -42,12 +42,12 @@
 962;JO;Jordan;962 X XXXX XXXX;12;
 961;LB;Lebanon
 960;MV;Maldives
-886;TW;Taiwan
+886;TW;Taiwan;886 XXX XXX XXX;12;
 880;BD;Bangladesh
 856;LA;Laos
 855;KH;Cambodia
 853;MO;Macau
-852;HK;Hong Kong
+852;HK;Hong Kong;852 XXXX XXXX;11;
 850;KP;North Korea
 692;MH;Marshall Islands
 691;FM;Micronesia

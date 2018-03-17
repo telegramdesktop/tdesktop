@@ -21,6 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_volume_controller.h"
 #include "styles/style_media_player.h"
 #include "styles/style_mediaview.h"
+#include "history/history_item.h"
+#include "layout.h"
 
 namespace Media {
 namespace Player {
@@ -466,22 +468,31 @@ void Widget::handleSongChange() {
 
 	TextWithEntities textWithEntities;
 	if (document->isVoiceMessage() || document->isVideoMessage()) {
-		if (auto item = App::histItemById(current.contextId())) {
-			auto name = App::peerName(item->fromOriginal());
-			auto date = [item] {
-				auto date = item->date.date();
-				auto time = item->date.time().toString(cTimeFormat());
-				auto today = QDateTime::currentDateTime().date();
+		if (const auto item = App::histItemById(current.contextId())) {
+			const auto name = App::peerName(item->fromOriginal());
+			const auto date = [item] {
+				const auto parsed = ItemDateTime(item);
+				const auto date = parsed.date();
+				const auto time = parsed.time().toString(cTimeFormat());
+				const auto today = QDateTime::currentDateTime().date();
 				if (date == today) {
 					return lng_player_message_today(lt_time, time);
 				} else if (date.addDays(1) == today) {
 					return lng_player_message_yesterday(lt_time, time);
 				}
-				return lng_player_message_date(lt_date, langDayOfMonthFull(date), lt_time, time);
+				return lng_player_message_date(
+					lt_date,
+					langDayOfMonthFull(date),
+					lt_time,
+					time);
 			};
 
 			textWithEntities.text = name + ' ' + date();
-			textWithEntities.entities.append({ EntityInTextBold, 0, name.size(), QString() });
+			textWithEntities.entities.append(EntityInText(
+				EntityInTextBold,
+				0,
+				name.size(),
+				QString()));
 		} else {
 			textWithEntities.text = lang(lng_media_audio);
 		}

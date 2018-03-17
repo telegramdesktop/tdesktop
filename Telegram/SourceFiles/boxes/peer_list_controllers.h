@@ -91,8 +91,8 @@ public:
 protected:
 	class Row : public PeerListRow {
 	public:
-		Row(not_null<History*> history) : PeerListRow(history->peer), _history(history) {
-		}
+		Row(not_null<History*> history);
+
 		not_null<History*> history() const {
 			return _history;
 		}

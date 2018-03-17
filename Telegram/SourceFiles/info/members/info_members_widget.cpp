@@ -21,6 +21,10 @@ Memento::Memento(not_null<Controller*> controller)
 	controller->migratedPeerId()) {
 }
 
+Memento::Memento(PeerId peerId, PeerId migratedPeerId)
+: ContentMemento(peerId, migratedPeerId) {
+}
+
 Section Memento::section() const {
 	return Section(Section::Type::Members);
 }
@@ -52,8 +56,7 @@ Widget::Widget(
 : ContentWidget(parent, controller) {
 	_inner = setInnerWidget(object_ptr<Profile::Members>(
 		this,
-		controller,
-		controller->peer()));
+		controller));
 }
 
 bool Widget::showInternal(not_null<ContentMemento*> memento) {
@@ -94,4 +97,3 @@ void Widget::restoreState(not_null<Memento*> memento) {
 
 } // namespace Members
 } // namespace Info
-

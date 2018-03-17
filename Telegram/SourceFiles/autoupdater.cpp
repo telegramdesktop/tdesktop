@@ -274,13 +274,19 @@ void UpdateChecker::unpackUpdate() {
 				LOG(("Update Error: cant read public rsa key!"));
 				return fatalFail();
 			}
+			LOG(("NID_sha1: %1").arg(NID_sha1));
+			LOG(("compressed len: %1").arg(compressedLen));
+			LOG(("const data: %1").arg(compressed.constData()));
+			LOG(("hShaLen: %1").arg(hShaLen));
+			LOG(("hSigLen: %1").arg(hSigLen));
+			LOG(("UpdatesPublicKey: %1").arg(UpdatesPublicKey));
 			if (RSA_verify(NID_sha1, (const uchar*)(compressed.constData() + hSigLen), hShaLen, (const uchar*)(compressed.constData()), hSigLen, pbKey) != 1) { // verify signature
 				RSA_free(pbKey);
-				LOG(("Update Error: bad RSA signature of update file!"));
+				LOG(("Update Error: bad RSA signature of update file! (verify fail)"));
 				return fatalFail();
 			}
 		} else {
-			LOG(("Update Error: bad RSA signature of update file!"));
+			LOG(("Update Error: bad RSA signature of update file! (not alpha or beta)"));
 			return fatalFail();
 		}
 	}

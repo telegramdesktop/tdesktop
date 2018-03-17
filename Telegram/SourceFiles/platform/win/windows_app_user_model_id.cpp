@@ -252,16 +252,10 @@ bool validateShortcut() {
 	QString path = systemShortcutPath();
 	if (path.isEmpty() || cExeName().isEmpty()) return false;
 
-	if (cBetaVersion()) {
-		path += qsl("TelegramBeta.lnk");
-		if (validateShortcutAt(path)) return true;
-	} else {
-		if (validateShortcutAt(path + qsl("Telegreat/Telegram.lnk"))) return true;
-		if (validateShortcutAt(path + qsl("Telegram Win (Unofficial)/Telegram.lnk"))) return true;
+	if (validateShortcutAt(path + qsl("Telegreat/Telegreat.lnk"))) return true;
 
-		path += qsl("Telegram.lnk");
-		if (validateShortcutAt(path)) return true;
-	}
+	path += qsl("Telegreat.lnk");
+	if (validateShortcutAt(path)) return true;
 
 	ComPtr<IShellLink> shellLink;
 	HRESULT hr = CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&shellLink));

@@ -9,15 +9,86 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/main_window.h"
 #include "info/info_memento.h"
+#include "history/history.h"
+#include "history/history_item.h"
+#include "history/view/history_view_element.h"
+#include "media/player/media_player_round_controller.h"
+#include "data/data_session.h"
+#include "data/data_feed.h"
+#include "boxes/calendar_box.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "styles/style_window.h"
-#include "styles/style_dialogs.h"
-#include "boxes/calendar_box.h"
 #include "auth_session.h"
 #include "apiwrap.h"
+#include "styles/style_window.h"
+#include "styles/style_dialogs.h"
 
 namespace Window {
+
+DateClickHandler::DateClickHandler(Dialogs::Key chat, QDate date)
+: _chat(chat)
+, _date(date) {
+}
+
+void DateClickHandler::setDate(QDate date) {
+	_date = date;
+}
+
+void DateClickHandler::onClick(Qt::MouseButton) const {
+	App::wnd()->controller()->showJumpToDate(_chat, _date);
+}
+
+Controller::Controller(not_null<MainWindow*> window)
+: _window(window) {
+	Auth().data().animationPlayInlineRequest(
+	) | rpl::start_with_next([this](auto item) {
+		if (const auto video = roundVideo(item)) {
+			video->pauseResume();
+		} else {
+			startRoundVideo(item);
+		}
+	}, lifetime());
+}
+
+void Controller::setActiveChatEntry(Dialogs::RowDescriptor row) {
+	_activeChatEntry = row;
+}
+
+void Controller::setActiveChatEntry(Dialogs::Key key) {
+	setActiveChatEntry({ key, FullMsgId() });
+}
+
+Dialogs::RowDescriptor Controller::activeChatEntryCurrent() const {
+	return _activeChatEntry.current();
+}
+
+Dialogs::Key Controller::activeChatCurrent() const {
+	return activeChatEntryCurrent().key;
+}
+
+auto Controller::activeChatEntryChanges() const
+-> rpl::producer<Dialogs::RowDescriptor> {
+	return _activeChatEntry.changes();
+}
+
+rpl::producer<Dialogs::Key> Controller::activeChatChanges() const {
+	return activeChatEntryChanges(
+	) | rpl::map([](const Dialogs::RowDescriptor &value) {
+		return value.key;
+	}) | rpl::distinct_until_changed();
+}
+
+auto Controller::activeChatEntryValue() const
+-> rpl::producer<Dialogs::RowDescriptor> {
+	return _activeChatEntry.value();
+}
+
+rpl::producer<Dialogs::Key> Controller::activeChatValue() const {
+	return activeChatEntryValue(
+	) | rpl::map([](const Dialogs::RowDescriptor &value) {
+		return value.key;
+	}) | rpl::distinct_until_changed();
+}
 
 void Controller::enableGifPauseReason(GifPauseReason reason) {
 	if (!(_gifPauseReasons & reason)) {
@@ -84,8 +155,8 @@ Controller::ColumnLayout Controller::computeColumnLayout() const {
 		if (bodyWidth < minimalThreeColumnWidth()) {
 			return true;
 		}
-		if (!Auth().data().tabbedSelectorSectionEnabled()
-			&& !Auth().data().thirdSectionInfoEnabled()) {
+		if (!Auth().settings().tabbedSelectorSectionEnabled()
+			&& !Auth().settings().thirdSectionInfoEnabled()) {
 			return true;
 		}
 		return false;
@@ -115,14 +186,14 @@ Controller::ColumnLayout Controller::computeColumnLayout() const {
 }
 
 int Controller::countDialogsWidthFromRatio(int bodyWidth) const {
-	auto result = qRound(bodyWidth * Auth().data().dialogsWidthRatio());
+	auto result = qRound(bodyWidth * Auth().settings().dialogsWidthRatio());
 	accumulate_max(result, st::columnMinimalWidthLeft);
 //	accumulate_min(result, st::columnMaximalWidthLeft);
 	return result;
 }
 
 int Controller::countThirdColumnWidthFromRatio(int bodyWidth) const {
-	auto result = Auth().data().thirdColumnWidth();
+	auto result = Auth().settings().thirdColumnWidth();
 	accumulate_max(result, st::columnMinimalWidthThird);
 	accumulate_min(result, st::columnMaximalWidthThird);
 	return result;
@@ -175,11 +246,11 @@ void Controller::resizeForThirdSection() {
 
 	auto layout = computeColumnLayout();
 	auto tabbedSelectorSectionEnabled =
-		Auth().data().tabbedSelectorSectionEnabled();
+		Auth().settings().tabbedSelectorSectionEnabled();
 	auto thirdSectionInfoEnabled =
-		Auth().data().thirdSectionInfoEnabled();
-	Auth().data().setTabbedSelectorSectionEnabled(false);
-	Auth().data().setThirdSectionInfoEnabled(false);
+		Auth().settings().thirdSectionInfoEnabled();
+	Auth().settings().setTabbedSelectorSectionEnabled(false);
+	Auth().settings().setThirdSectionInfoEnabled(false);
 
 	auto wanted = countThirdColumnWidthFromRatio(layout.bodyWidth);
 	auto minimal = st::columnMinimalWidthThird;
@@ -200,20 +271,20 @@ void Controller::resizeForThirdSection() {
 		return window()->tryToExtendWidthBy(minimal);
 	}();
 	if (extendedBy) {
-		if (extendBy != Auth().data().thirdColumnWidth()) {
-			Auth().data().setThirdColumnWidth(extendBy);
+		if (extendBy != Auth().settings().thirdColumnWidth()) {
+			Auth().settings().setThirdColumnWidth(extendBy);
 		}
 		auto newBodyWidth = layout.bodyWidth + extendedBy;
-		auto currentRatio = Auth().data().dialogsWidthRatio();
-		Auth().data().setDialogsWidthRatio(
+		auto currentRatio = Auth().settings().dialogsWidthRatio();
+		Auth().settings().setDialogsWidthRatio(
 			(currentRatio * layout.bodyWidth) / newBodyWidth);
 	}
 	auto savedValue = (extendedBy == extendBy) ? -1 : extendedBy;
-	Auth().data().setThirdSectionExtendedBy(savedValue);
+	Auth().settings().setThirdSectionExtendedBy(savedValue);
 
-	Auth().data().setTabbedSelectorSectionEnabled(
+	Auth().settings().setTabbedSelectorSectionEnabled(
 		tabbedSelectorSectionEnabled);
-	Auth().data().setThirdSectionInfoEnabled(
+	Auth().settings().setThirdSectionInfoEnabled(
 		thirdSectionInfoEnabled);
 }
 
@@ -223,23 +294,23 @@ void Controller::closeThirdSection() {
 	if (layout.windowLayout == Adaptive::WindowLayout::ThreeColumn) {
 		auto noResize = window()->isFullScreen()
 			|| window()->isMaximized();
-		auto savedValue = Auth().data().thirdSectionExtendedBy();
+		auto savedValue = Auth().settings().thirdSectionExtendedBy();
 		auto extendedBy = (savedValue == -1)
 			? layout.thirdWidth
 			: savedValue;
 		auto newBodyWidth = noResize
 			? layout.bodyWidth
 			: (layout.bodyWidth - extendedBy);
-		auto currentRatio = Auth().data().dialogsWidthRatio();
-		Auth().data().setDialogsWidthRatio(
+		auto currentRatio = Auth().settings().dialogsWidthRatio();
+		Auth().settings().setDialogsWidthRatio(
 			(currentRatio * layout.bodyWidth) / newBodyWidth);
 		newWindowSize = QSize(
 			window()->width() + (newBodyWidth - layout.bodyWidth),
 			window()->height());
 	}
-	Auth().data().setTabbedSelectorSectionEnabled(false);
-	Auth().data().setThirdSectionInfoEnabled(false);
-	Auth().saveDataDelayed();
+	Auth().settings().setTabbedSelectorSectionEnabled(false);
+	Auth().settings().setThirdSectionInfoEnabled(false);
+	Auth().saveSettingsDelayed();
 	if (window()->size() != newWindowSize) {
 		window()->resize(newWindowSize);
 	} else {
@@ -247,76 +318,89 @@ void Controller::closeThirdSection() {
 	}
 }
 
-void Controller::showJumpToDate(not_null<PeerData*> peer, QDate requestedDate) {
-	Expects(peer != nullptr);
-	auto currentPeerDate = [peer] {
-		if (auto history = App::historyLoaded(peer)) {
+void Controller::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
+	const auto currentPeerDate = [&] {
+		if (const auto history = chat.history()) {
 			if (history->scrollTopItem) {
-				return history->scrollTopItem->date.date();
-			} else if (history->loadedAtTop() && !history->isEmpty() && history->peer->migrateFrom()) {
-				if (auto migrated = App::historyLoaded(history->peer->migrateFrom())) {
+				return history->scrollTopItem->dateTime().date();
+			} else if (history->loadedAtTop()
+				&& !history->isEmpty()
+				&& history->peer->migrateFrom()) {
+				if (const auto migrated = App::historyLoaded(history->peer->migrateFrom())) {
 					if (migrated->scrollTopItem) {
 						// We're up in the migrated history.
 						// So current date is the date of first message here.
-						return history->blocks.front()->items.front()->date.date();
+						return history->blocks.front()->messages.front()->dateTime().date();
 					}
 				}
-			} else if (!history->lastMsgDate.isNull()) {
-				return history->lastMsgDate.date();
+			} else if (!history->chatsListDate().isNull()) {
+				return history->chatsListDate().date();
+			}
+		} else if (const auto feed = chat.feed()) {
+			/*if (chatScrollPosition(feed)) { // #TODO feeds save position
+
+			} else */if (!feed->chatsListDate().isNull()) {
+				return feed->chatsListDate().date();
 			}
 		}
 		return QDate::currentDate();
 	};
-	auto maxPeerDate = [](not_null<PeerData*> peer) {
-		if (auto channel = peer->migrateTo()) {
-			peer = channel;
-		}
-		if (auto history = App::historyLoaded(peer)) {
-			if (!history->lastMsgDate.isNull()) {
-				return history->lastMsgDate.date();
+	const auto maxPeerDate = [](Dialogs::Key chat) {
+		if (auto history = chat.history()) {
+			if (const auto channel = history->peer->migrateTo()) {
+				history = App::historyLoaded(channel);
+			}
+			if (history && !history->chatsListDate().isNull()) {
+				return history->chatsListDate().date();
+			}
+		} else if (const auto feed = chat.feed()) {
+			if (!feed->chatsListDate().isNull()) {
+				return feed->chatsListDate().date();
 			}
 		}
 		return QDate::currentDate();
 	};
-	auto minPeerDate = [](not_null<PeerData*> peer) {
+	const auto minPeerDate = [](Dialogs::Key chat) {
 		const auto startDate = [] {
 			// Telegram was launched in August 2013 :)
 			return QDate(2013, 8, 1);
 		};
-		if (auto chat = peer->migrateFrom()) {
-			if (auto history = App::historyLoaded(chat)) {
-				if (history->loadedAtTop()) {
-					if (!history->isEmpty()) {
-						return history->blocks.front()->items.front()->date.date();
+		if (const auto history = chat.history()) {
+			if (const auto chat = history->peer->migrateFrom()) {
+				if (const auto history = App::historyLoaded(chat)) {
+					if (history->loadedAtTop()) {
+						if (!history->isEmpty()) {
+							return history->blocks.front()->messages.front()->dateTime().date();
+						}
+					} else {
+						return startDate();
 					}
-				} else {
-					return startDate();
 				}
 			}
-		}
-		if (auto history = App::historyLoaded(peer)) {
 			if (history->loadedAtTop()) {
 				if (!history->isEmpty()) {
-					return history->blocks.front()->items.front()->date.date();
+					return history->blocks.front()->messages.front()->dateTime().date();
 				}
 				return QDate::currentDate();
 			}
+		} else if (const auto feed = chat.feed()) {
+			return startDate();
 		}
 		return startDate();
 	};
-	auto highlighted = requestedDate.isNull()
+	const auto highlighted = requestedDate.isNull()
 		? currentPeerDate()
 		: requestedDate;
-	auto month = highlighted;
-	auto callback = [this, peer](const QDate &date) {
-		Auth().api().jumpToDate(peer, date);
+	const auto month = highlighted;
+	auto callback = [=](const QDate &date) {
+		Auth().api().jumpToDate(chat, date);
 	};
 	auto box = Box<CalendarBox>(
 		month,
 		highlighted,
 		std::move(callback));
-	box->setMinDate(minPeerDate(peer));
-	box->setMaxDate(maxPeerDate(peer));
+	box->setMinDate(minPeerDate(chat));
+	box->setMaxDate(maxPeerDate(chat));
 	Ui::show(std::move(box));
 }
 
@@ -358,9 +442,9 @@ void Navigation::showPeerInfo(
 		PeerId peerId,
 		const SectionShow &params) {
 	//if (Adaptive::ThreeColumn()
-	//	&& !Auth().data().thirdSectionInfoEnabled()) {
-	//	Auth().data().setThirdSectionInfoEnabled(true);
-	//	Auth().saveDataDelayed();
+	//	&& !Auth().settings().thirdSectionInfoEnabled()) {
+	//	Auth().settings().setThirdSectionInfoEnabled(true);
+	//	Auth().saveSettingsDelayed();
 	//}
 	showSection(Info::Memento(peerId), params);
 }
@@ -401,5 +485,41 @@ void Controller::showSpecialLayer(
 not_null<MainWidget*> Controller::chats() const {
 	return App::wnd()->chatsWidget();
 }
+
+bool Controller::startRoundVideo(not_null<HistoryItem*> context) {
+	if (auto video = RoundController::TryStart(this, context)) {
+		enableGifPauseReason(Window::GifPauseReason::RoundPlaying);
+		_roundVideo = std::move(video);
+		return true;
+	}
+	return false;
+}
+
+auto Controller::currentRoundVideo() const -> RoundController* {
+	return _roundVideo.get();
+}
+
+auto Controller::roundVideo(not_null<const HistoryItem*> context) const
+-> RoundController* {
+	return roundVideo(context->fullId());
+}
+
+auto Controller::roundVideo(FullMsgId contextId) const -> RoundController* {
+	if (const auto result = currentRoundVideo()) {
+		if (result->contextId() == contextId) {
+			return result;
+		}
+	}
+	return nullptr;
+}
+
+void Controller::roundVideoFinished(not_null<RoundController*> video) {
+	if (video == _roundVideo.get()) {
+		_roundVideo = nullptr;
+		disableGifPauseReason(Window::GifPauseReason::RoundPlaying);
+	}
+}
+
+Controller::~Controller() = default;
 
 } // namespace Window

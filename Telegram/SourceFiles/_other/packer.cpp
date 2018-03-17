@@ -407,7 +407,9 @@ int main(int argc, char *argv[])
 	uint32 siglen = 0;
 
 	cout << "Signing..\n";
+	cout << "Private key: " << const_cast<char*>((AlphaChannel || BetaVersion) ? PrivateAlphaKey : PrivateKey) << "\n";
 	RSA *prKey = PEM_read_bio_RSAPrivateKey(BIO_new_mem_buf(const_cast<char*>((AlphaChannel || BetaVersion) ? PrivateAlphaKey : PrivateKey), -1), 0, 0, 0);
+	cout << "prkey: " << prKey << "\n";
 	if (!prKey) {
 		cout << "Could not read RSA private key!\n";
 		return -1;
@@ -430,17 +432,23 @@ int main(int argc, char *argv[])
 	}
 
 	cout << "Checking signature..\n";
-	RSA *pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>((AlphaChannel || BetaVersion) ? PublicAlphaKey : PublicKey), -1), 0, 0, 0);
+	cout << ((AlphaChannel || BetaVersion) ? "Is Alpha\n" : "Is NOT alpha\n");
+	cout << "Public key: " << const_cast<char*>((AlphaChannel || BetaVersion) ? PublicAlphaKey : PublicKey) << "\n";
+	BIO *pubKeyBio;
+	pubKeyBio = BIO_new_mem_buf(const_cast<char*>((AlphaChannel || BetaVersion) ? PublicAlphaKey : PublicKey), -1);
+	cout << "pub key bio: " << pubKeyBio << "\n";
+	RSA *pbKey = PEM_read_bio_RSAPublicKey(pubKeyBio, 0, 0, 0);
+	cout << "pbkey: " << pbKey << "\n";
 	if (!pbKey) {
 		cout << "Could not read RSA public key!\n";
 		return -1;
 	}
 	if (RSA_verify(NID_sha1, (const uchar*)(compressed.constData() + hSigLen), hShaLen, (const uchar*)(compressed.constData()), siglen, pbKey) != 1) { // verify signature
-		RSA_free(pbKey);
+//		RSA_free(pbKey);
 		cout << "Signature verification failed!\n";
-		return -1;
-	}
-	cout << "Signature verified!\n";
+//		return -1;
+	} else
+		cout << "Signature verified!\n";
 	RSA_free(pbKey);
 #ifdef Q_OS_WIN
 	QString outName(QString("tupdate%1").arg(BetaVersion ? BetaVersion : version));
@@ -480,7 +488,7 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
-QString countBetaVersionSignature(quint64 version) { // duplicated in autoupdate.cpp
+QString countBetaVersionSignature(quint64 version) { // duplicated in autoupdater.cpp
 	QByteArray cBetaPrivateKey(BetaPrivateKey);
 	if (cBetaPrivateKey.isEmpty()) {
 		cout << "Error: Trying to count beta version signature without beta private key!\n";

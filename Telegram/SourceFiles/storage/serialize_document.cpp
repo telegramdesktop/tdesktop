@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/serialize_common.h"
 #include "chat_helpers/stickers.h"
+#include "data/data_session.h"
+#include "auth_session.h"
 
 namespace {
 
@@ -80,7 +82,10 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		if (typeOfSet == StickerSetTypeEmpty) {
 			attributes.push_back(MTP_documentAttributeSticker(MTP_flags(0), MTP_string(alt), MTP_inputStickerSetEmpty(), MTPMaskCoords()));
 		} else if (info) {
-			if (info->setId == Stickers::DefaultSetId || info->setId == Stickers::CloudRecentSetId || info->setId == Stickers::FavedSetId || info->setId == Stickers::CustomSetId) {
+			if (info->setId == Stickers::DefaultSetId
+				|| info->setId == Stickers::CloudRecentSetId
+				|| info->setId == Stickers::FavedSetId
+				|| info->setId == Stickers::CustomSetId) {
 				typeOfSet = StickerSetTypeEmpty;
 			}
 
@@ -119,7 +124,17 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 	if (!dc && !access) {
 		return nullptr;
 	}
-	return App::documentSet(id, nullptr, access, version, date, attributes, mime, thumb.isNull() ? ImagePtr() : ImagePtr(thumb), dc, size, thumb);
+	return Auth().data().document(
+		id,
+		access,
+		version,
+		date,
+		attributes,
+		mime,
+		thumb.isNull() ? ImagePtr() : ImagePtr(thumb),
+		dc,
+		size,
+		thumb);
 }
 
 DocumentData *Document::readStickerFromStream(int streamAppVersion, QDataStream &stream, const StickerSetInfo &info) {

@@ -10,12 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text_options.h"
-#include "history/history_service_layout.h"
 #include "history/history_message.h"
 #include "history/history_media.h"
 #include "history/history_media_types.h"
+#include "history/view/history_view_service_message.h"
 #include "media/media_audio.h"
 #include "media/player/media_player_instance.h"
+#include "auth_session.h"
+#include "data/data_media_types.h"
+#include "data/data_session.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
 
@@ -122,7 +125,9 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 	}
 }
 
-bool HistoryMessageReply::updateData(HistoryMessage *holder, bool force) {
+bool HistoryMessageReply::updateData(
+		not_null<HistoryMessage*> holder,
+		bool force) {
 	if (!force) {
 		if (replyToMsg || !replyToMsgId) {
 			return true;
@@ -149,7 +154,7 @@ bool HistoryMessageReply::updateData(HistoryMessage *holder, bool force) {
 
 		updateName();
 
-		replyToLnk = goToMessageClickHandler(replyToMsg);
+		replyToLnk = goToMessageClickHandler(replyToMsg, holder->fullId());
 		if (!replyToMsg->Has<HistoryMessageForwarded>()) {
 			if (auto bot = replyToMsg->viaBot()) {
 				replyToVia = std::make_unique<HistoryMessageVia>();
@@ -160,12 +165,12 @@ bool HistoryMessageReply::updateData(HistoryMessage *holder, bool force) {
 		replyToMsgId = 0;
 	}
 	if (force) {
-		holder->setPendingInitDimensions();
+		Auth().data().requestItemResize(holder);
 	}
 	return (replyToMsg || !replyToMsgId);
 }
 
-void HistoryMessageReply::clearData(HistoryMessage *holder) {
+void HistoryMessageReply::clearData(not_null<HistoryMessage*> holder) {
 	replyToVia = nullptr;
 	if (replyToMsg) {
 		App::historyUnregDependency(holder, replyToMsg);
@@ -189,7 +194,7 @@ void HistoryMessageReply::updateName() const {
 			: App::peerName(replyToMsg->author());
 		replyToName.setText(st::fwdTextStyle, name, Ui::NameTextOptions());
 		replyToVersion = replyToMsg->author()->nameVersion;
-		bool hasPreview = replyToMsg->getMedia() ? replyToMsg->getMedia()->hasReplyPreview() : false;
+		bool hasPreview = replyToMsg->media() ? replyToMsg->media()->hasReplyPreview() : false;
 		int32 previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;
 		int32 w = replyToName.maxWidth();
 		if (replyToVia) {
@@ -205,20 +210,28 @@ void HistoryMessageReply::updateName() const {
 
 void HistoryMessageReply::resize(int width) const {
 	if (replyToVia) {
-		bool hasPreview = replyToMsg->getMedia() ? replyToMsg->getMedia()->hasReplyPreview() : false;
+		bool hasPreview = replyToMsg->media() ? replyToMsg->media()->hasReplyPreview() : false;
 		int previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;
 		replyToVia->resize(width - st::msgReplyBarSkip - previewSkip - replyToName.maxWidth() - st::msgServiceFont->spacew);
 	}
 }
 
-void HistoryMessageReply::itemRemoved(HistoryMessage *holder, HistoryItem *removed) {
+void HistoryMessageReply::itemRemoved(
+		HistoryMessage *holder,
+		HistoryItem *removed) {
 	if (replyToMsg == removed) {
 		clearData(holder);
-		holder->setPendingInitDimensions();
+		Auth().data().requestItemResize(holder);
 	}
 }
 
-void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, int y, int w, PaintFlags flags) const {
+void HistoryMessageReply::paint(
+		Painter &p,
+		not_null<const HistoryView::Element*> holder,
+		int x,
+		int y,
+		int w,
+		PaintFlags flags) const {
 	bool selected = (flags & PaintFlag::Selected), outbg = holder->hasOutLayout();
 
 	style::color bar = st::msgImgReplyBarColor;
@@ -230,14 +243,14 @@ void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, in
 
 	if (w > st::msgReplyBarSkip) {
 		if (replyToMsg) {
-			auto hasPreview = replyToMsg->getMedia() ? replyToMsg->getMedia()->hasReplyPreview() : false;
+			auto hasPreview = replyToMsg->media() ? replyToMsg->media()->hasReplyPreview() : false;
 			if (hasPreview && w < st::msgReplyBarSkip + st::msgReplyBarSize.height()) {
 				hasPreview = false;
 			}
 			auto previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;
 
 			if (hasPreview) {
-				ImagePtr replyPreview = replyToMsg->getMedia()->replyPreview();
+				const auto replyPreview = replyToMsg->media()->replyPreview();
 				if (!replyPreview->isNull()) {
 					auto to = rtlrect(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height(), w + 2 * x);
 					auto previewWidth = replyPreview->width() / cIntRetinaFactor();
@@ -260,7 +273,7 @@ void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, in
 
 				auto replyToAsMsg = replyToMsg->toHistoryMessage();
 				if (!(flags & PaintFlag::InBubble)) {
-				} else if ((replyToAsMsg && replyToAsMsg->emptyText()) || replyToMsg->serviceMsg()) {
+				} else if (!replyToAsMsg) {
 					p.setPen(outbg ? (selected ? st::msgOutDateFgSelected : st::msgOutDateFg) : (selected ? st::msgInDateFgSelected : st::msgInDateFg));
 				} else {
 					p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
@@ -286,15 +299,13 @@ ReplyMarkupClickHandler::ReplyMarkupClickHandler(
 }
 
 // Copy to clipboard support.
-void ReplyMarkupClickHandler::copyToClipboard() const {
+QString ReplyMarkupClickHandler::copyToClipboardText() const {
 	if (auto button = getButton()) {
 		if (button->type == HistoryMessageMarkupButton::Type::Url) {
-			auto url = QString::fromUtf8(button->data);
-			if (!url.isEmpty()) {
-				QApplication::clipboard()->setText(url);
-			}
+			return QString::fromUtf8(button->data);
 		}
 	}
+	return QString();
 }
 
 QString ReplyMarkupClickHandler::copyToClipboardContextItemText() const {
@@ -510,7 +521,7 @@ void ReplyKeyboard::paint(Painter &p, int outerWidth, const QRect &clip, TimeMs 
 	}
 }
 
-ClickHandlerPtr ReplyKeyboard::getState(QPoint point) const {
+ClickHandlerPtr ReplyKeyboard::getLink(QPoint point) const {
 	Assert(_width > 0);
 
 	for_const (auto &row, _rows) {
@@ -551,11 +562,13 @@ ReplyKeyboard::ButtonCoords ReplyKeyboard::findButtonCoordsByClickHandler(const 
 	return { -1, -1 };
 }
 
-void ReplyKeyboard::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
-	if (!p) return;
+void ReplyKeyboard::clickHandlerPressedChanged(
+		const ClickHandlerPtr &handler,
+		bool pressed) {
+	if (!handler) return;
 
-	_savedPressed = pressed ? p : ClickHandlerPtr();
-	auto coords = findButtonCoordsByClickHandler(p);
+	_savedPressed = pressed ? handler : ClickHandlerPtr();
+	auto coords = findButtonCoordsByClickHandler(handler);
 	if (coords.i >= 0) {
 		auto &button = _rows[coords.i][coords.j];
 		if (pressed) {
@@ -573,7 +586,7 @@ void ReplyKeyboard::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pr
 			if (button.ripple) {
 				button.ripple->lastStop();
 			}
-			if (_savedActive != p) {
+			if (_savedActive != handler) {
 				startAnimation(coords.i, coords.j, -1);
 			}
 		}
@@ -800,56 +813,16 @@ void HistoryMessageReplyMarkup::create(
 	}
 }
 
-void HistoryMessageUnreadBar::init(int count) {
-	if (_freezed) return;
-	_text = lng_unread_bar(lt_count, count);
-	_width = st::semiboldFont->width(_text);
-}
-
-int HistoryMessageUnreadBar::height() {
-	return st::historyUnreadBarHeight + st::historyUnreadBarMargin;
-}
-
-int HistoryMessageUnreadBar::marginTop() {
-	return st::lineWidth + st::historyUnreadBarMargin;
-}
-
-void HistoryMessageUnreadBar::paint(Painter &p, int y, int w) const {
-	p.fillRect(0, y + marginTop(), w, height() - marginTop() - st::lineWidth, st::historyUnreadBarBg);
-	p.fillRect(0, y + height() - st::lineWidth, w, st::lineWidth, st::historyUnreadBarBorder);
-	p.setFont(st::historyUnreadBarFont);
-	p.setPen(st::historyUnreadBarFg);
-
-	int left = st::msgServiceMargin.left();
-	int maxwidth = w;
-	if (Adaptive::ChatWide()) {
-		maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
-	}
-	w = maxwidth;
-
-	p.drawText((w - _width) / 2, y + marginTop() + (st::historyUnreadBarHeight - 2 * st::lineWidth - st::historyUnreadBarFont->height) / 2 + st::historyUnreadBarFont->ascent, _text);
-}
-
-void HistoryMessageDate::init(const QDateTime &date) {
-	_text = langDayOfMonthFull(date.date());
-	_width = st::msgServiceFont->width(_text);
-}
-
-int HistoryMessageDate::height() const {
-	return st::msgServiceMargin.top() + st::msgServicePadding.top() + st::msgServiceFont->height + st::msgServicePadding.bottom() + st::msgServiceMargin.bottom();
-}
-
-void HistoryMessageDate::paint(Painter &p, int y, int w) const {
-	HistoryLayout::ServiceMessagePainter::paintDate(p, _text, _width, y, w);
-}
-
 HistoryMessageLogEntryOriginal::HistoryMessageLogEntryOriginal() = default;
 
-HistoryMessageLogEntryOriginal::HistoryMessageLogEntryOriginal(HistoryMessageLogEntryOriginal &&other) : _page(std::move(other._page)) {
+HistoryMessageLogEntryOriginal::HistoryMessageLogEntryOriginal(
+	HistoryMessageLogEntryOriginal &&other)
+: page(std::move(other.page)) {
 }
 
-HistoryMessageLogEntryOriginal &HistoryMessageLogEntryOriginal::operator=(HistoryMessageLogEntryOriginal &&other) {
-	_page = std::move(other._page);
+HistoryMessageLogEntryOriginal &HistoryMessageLogEntryOriginal::operator=(
+		HistoryMessageLogEntryOriginal &&other) {
+	page = std::move(other.page);
 	return *this;
 }
 

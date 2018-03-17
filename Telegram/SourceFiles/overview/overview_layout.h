@@ -12,9 +12,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/radial_animation.h"
 #include "styles/style_overview.h"
 
+class HistoryMedia;
+
 namespace style {
 struct RoundCheckbox;
 } // namespace style
+
+namespace Data {
+class Media;
+} // namespace Data
 
 namespace Overview {
 namespace Layout {
@@ -47,10 +53,7 @@ public:
 	virtual DocumentData *getDocument() const {
 		return nullptr;
 	}
-	MsgId msgId() const {
-		auto item = getItem();
-		return item ? item->id : 0;
-	}
+	MsgId msgId() const;
 
 	virtual void invalidateCache() {
 	}
@@ -60,6 +63,8 @@ public:
 class ItemBase : public AbstractItem {
 public:
 	ItemBase(not_null<HistoryItem*> parent);
+
+	QDateTime dateTime() const;
 
 	void setPosition(int position) {
 		_position = position;
@@ -100,7 +105,8 @@ private:
 	void ensureCheckboxCreated();
 
 	int _position = 0;
-	not_null<HistoryItem*> _parent;
+	const not_null<HistoryItem*> _parent;
+	const QDateTime _dateTime;
 	std::unique_ptr<Checkbox> _check;
 
 };
@@ -171,7 +177,7 @@ private:
 
 };
 
-struct Info : public RuntimeComponent<Info> {
+struct Info : public RuntimeComponent<Info, LayoutItemBase> {
 	int top = 0;
 };
 
@@ -197,9 +203,9 @@ public:
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
-	HistoryTextState getState(
+	TextState getState(
 		QPoint point,
-		HistoryStateRequest request) const override;
+		StateRequest request) const override;
 
 private:
 	not_null<PhotoData*> _data;
@@ -219,9 +225,9 @@ public:
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
-	HistoryTextState getState(
+	TextState getState(
 		QPoint point,
-		HistoryStateRequest request) const override;
+		StateRequest request) const override;
 
 protected:
 	float64 dataProgress() const override;
@@ -250,9 +256,9 @@ public:
 
 	void initDimensions() override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
-	HistoryTextState getState(
+	TextState getState(
 		QPoint point,
-		HistoryStateRequest request) const override;
+		StateRequest request) const override;
 
 protected:
 	float64 dataProgress() const override;
@@ -285,9 +291,9 @@ public:
 
 	void initDimensions() override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
-	HistoryTextState getState(
+	TextState getState(
 		QPoint point,
-		HistoryStateRequest request) const override;
+		StateRequest request) const override;
 
 	virtual DocumentData *getDocument() const override {
 		return _data;
@@ -324,14 +330,14 @@ class Link : public ItemBase {
 public:
 	Link(
 		not_null<HistoryItem*> parent,
-		HistoryMedia *media);
+		Data::Media *media);
 
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
-	HistoryTextState getState(
+	TextState getState(
 		QPoint point,
-		HistoryStateRequest request) const override;
+		StateRequest request) const override;
 
 protected:
 	const style::RoundCheckbox &checkboxStyle() const override;

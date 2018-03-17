@@ -31,13 +31,17 @@ QString ExpressionMailNameAtEnd() {
 }
 
 QString ExpressionSeparators(const QString &additional) {
-	// UTF8 quotes
-	const auto quotes = QString::fromUtf8("\xC2\xAB\xC2\xBB\xE2\x80\x9C\xE2\x80\x9D\xE2\x80\x98\xE2\x80\x99");
+	// UTF8 quotes and ellipsis
+	const auto quotes = QString::fromUtf8("\xC2\xAB\xC2\xBB\xE2\x80\x9C\xE2\x80\x9D\xE2\x80\x98\xE2\x80\x99\xE2\x80\xA6");
 	return qsl("\\s\\.,:;<>|'\"\\[\\]\\{\\}\\~\\!\\?\\%\\^\\(\\)\\-\\+=\\x10") + quotes + additional;
 }
 
 QString ExpressionHashtag() {
 	return qsl("(^|[") + ExpressionSeparators(qsl("`\\*/")) + qsl("])#[\\w]{2,64}([\\W]|$)");
+}
+
+QString ExpressionHashtagExclude() {
+	return qsl("^#?\\d+$");
 }
 
 QString ExpressionMention() {
@@ -1141,6 +1145,11 @@ const QRegularExpression &RegExpHashtag() {
 	return result;
 }
 
+const QRegularExpression &RegExpHashtagExclude() {
+	static const auto result = CreateRegExp(ExpressionHashtagExclude());
+	return result;
+}
+
 const QRegularExpression &RegExpMention() {
 	static const auto result = CreateRegExp(ExpressionMention());
 	return result;
@@ -1449,6 +1458,8 @@ EntitiesInText EntitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
 			case mtpc_messageEntityTextUrl: { auto &d = entity.c_messageEntityTextUrl(); result.push_back(EntityInText(EntityInTextCustomUrl, d.voffset.v, d.vlength.v, Clean(qs(d.vurl)))); } break;
 			case mtpc_messageEntityEmail: { auto &d = entity.c_messageEntityEmail(); result.push_back(EntityInText(EntityInTextEmail, d.voffset.v, d.vlength.v)); } break;
 			case mtpc_messageEntityHashtag: { auto &d = entity.c_messageEntityHashtag(); result.push_back(EntityInText(EntityInTextHashtag, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityCashtag: { auto &d = entity.c_messageEntityCashtag(); result.push_back(EntityInText(EntityInTextCashtag, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityPhone: break; // Skipping phones.
 			case mtpc_messageEntityMention: { auto &d = entity.c_messageEntityMention(); result.push_back(EntityInText(EntityInTextMention, d.voffset.v, d.vlength.v)); } break;
 			case mtpc_messageEntityMentionName: {
 				auto &d = entity.c_messageEntityMentionName();
@@ -1509,6 +1520,7 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &entities, Conver
 		case EntityInTextCustomUrl: v.push_back(MTP_messageEntityTextUrl(offset, length, MTP_string(entity.data()))); break;
 		case EntityInTextEmail: v.push_back(MTP_messageEntityEmail(offset, length)); break;
 		case EntityInTextHashtag: v.push_back(MTP_messageEntityHashtag(offset, length)); break;
+		case EntityInTextCashtag: v.push_back(MTP_messageEntityCashtag(offset, length)); break;
 		case EntityInTextMention: v.push_back(MTP_messageEntityMention(offset, length)); break;
 		case EntityInTextMentionName: {
 			auto inputUser = ([](const QString &data) -> MTPInputUser {
@@ -1769,6 +1781,7 @@ void ParseMarkdown(
 
 		copyFromOffset = matchFromOffset = part.outerEnd;
 	}
+
 	if (!newResult.empty()) {
 		newResult.text.append(start + copyFromOffset, length - copyFromOffset);
 		for (; existingEntityIndex < existingEntitiesCount; ++existingEntityIndex) {
@@ -1780,6 +1793,13 @@ void ParseMarkdown(
 	}
 }
 
+TextWithEntities ParseEntities(const QString &text, int32 flags) {
+	const auto rich = ((flags & TextParseRichText) != 0);
+	auto result = TextWithEntities{ text, EntitiesInText() };
+	ParseEntities(result, flags, rich);
+	return result;
+}
+
 // Some code is duplicated in flattextarea.cpp!
 void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 	if (flags & TextParseMarkdown) { // parse markdown entities (bold, italic, code and pre)
@@ -1787,6 +1807,8 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 		ParseEntities(copy, TextParseLinks, false);
 		ParseMarkdown(result, copy.entities, rich);
 	}
+
+	constexpr auto kNotFound = std::numeric_limits<int>::max();
 
 	auto newEntities = EntitiesInText();
 	bool withHashtags = (flags & TextParseHashtags);
@@ -1817,22 +1839,31 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 
 		EntityInTextType lnkType = EntityInTextUrl;
 		int32 lnkStart = 0, lnkLength = 0;
-		int32 domainStart = mDomain.hasMatch() ? mDomain.capturedStart() : INT_MAX,
-			domainEnd = mDomain.hasMatch() ? mDomain.capturedEnd() : INT_MAX,
-			explicitDomainStart = mExplicitDomain.hasMatch() ? mExplicitDomain.capturedStart() : INT_MAX,
-			explicitDomainEnd = mExplicitDomain.hasMatch() ? mExplicitDomain.capturedEnd() : INT_MAX,
-			hashtagStart = mHashtag.hasMatch() ? mHashtag.capturedStart() : INT_MAX,
-			hashtagEnd = mHashtag.hasMatch() ? mHashtag.capturedEnd() : INT_MAX,
-			mentionStart = mMention.hasMatch() ? mMention.capturedStart() : INT_MAX,
-			mentionEnd = mMention.hasMatch() ? mMention.capturedEnd() : INT_MAX,
-			botCommandStart = mBotCommand.hasMatch() ? mBotCommand.capturedStart() : INT_MAX,
-			botCommandEnd = mBotCommand.hasMatch() ? mBotCommand.capturedEnd() : INT_MAX;
+		auto domainStart = mDomain.hasMatch() ? mDomain.capturedStart() : kNotFound,
+			domainEnd = mDomain.hasMatch() ? mDomain.capturedEnd() : kNotFound,
+			explicitDomainStart = mExplicitDomain.hasMatch() ? mExplicitDomain.capturedStart() : kNotFound,
+			explicitDomainEnd = mExplicitDomain.hasMatch() ? mExplicitDomain.capturedEnd() : kNotFound,
+			hashtagStart = mHashtag.hasMatch() ? mHashtag.capturedStart() : kNotFound,
+			hashtagEnd = mHashtag.hasMatch() ? mHashtag.capturedEnd() : kNotFound,
+			mentionStart = mMention.hasMatch() ? mMention.capturedStart() : kNotFound,
+			mentionEnd = mMention.hasMatch() ? mMention.capturedEnd() : kNotFound,
+			botCommandStart = mBotCommand.hasMatch() ? mBotCommand.capturedStart() : kNotFound,
+			botCommandEnd = mBotCommand.hasMatch() ? mBotCommand.capturedEnd() : kNotFound;
+		auto hashtagIgnore = false;
+		auto mentionIgnore = false;
+
 		if (mHashtag.hasMatch()) {
 			if (!mHashtag.capturedRef(1).isEmpty()) {
 				++hashtagStart;
 			}
 			if (!mHashtag.capturedRef(2).isEmpty()) {
 				--hashtagEnd;
+			}
+			if (RegExpHashtagExclude().match(
+				result.text.mid(
+					hashtagStart + 1,
+					hashtagEnd - hashtagStart - 1)).hasMatch()) {
+				hashtagIgnore = true;
 			}
 		}
 		while (mMention.hasMatch()) {
@@ -1849,8 +1880,7 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 					mentionStart = mMention.capturedStart();
 					mentionEnd = mMention.capturedEnd();
 				} else {
-					mentionStart = INT_MAX;
-					mentionEnd = INT_MAX;
+					mentionIgnore = true;
 				}
 			} else {
 				break;
@@ -1864,7 +1894,11 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 				--botCommandEnd;
 			}
 		}
-		if (!mDomain.hasMatch() && !mExplicitDomain.hasMatch() && !mHashtag.hasMatch() && !mMention.hasMatch() && !mBotCommand.hasMatch()) {
+		if (!mDomain.hasMatch()
+			&& !mExplicitDomain.hasMatch()
+			&& !mHashtag.hasMatch()
+			&& !mMention.hasMatch()
+			&& !mBotCommand.hasMatch()) {
 			break;
 		}
 
@@ -1873,8 +1907,20 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 			domainEnd = explicitDomainEnd;
 			mDomain = mExplicitDomain;
 		}
-		if (mentionStart < hashtagStart && mentionStart < domainStart && mentionStart < botCommandStart) {
-			bool inCommand = checkTagStartInCommand(start, len, mentionStart, commandOffset, commandIsLink, inLink);
+		if (mentionStart < hashtagStart
+			&& mentionStart < domainStart
+			&& mentionStart < botCommandStart) {
+			if (mentionIgnore) {
+				offset = matchOffset = mentionEnd;
+				continue;
+			}
+			const auto inCommand = checkTagStartInCommand(
+				start,
+				len,
+				mentionStart,
+				commandOffset,
+				commandIsLink,
+				inLink);
 			if (inCommand || inLink) {
 				offset = matchOffset = commandOffset;
 				continue;
@@ -1883,8 +1929,19 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 			lnkType = EntityInTextMention;
 			lnkStart = mentionStart;
 			lnkLength = mentionEnd - mentionStart;
-		} else if (hashtagStart < domainStart && hashtagStart < botCommandStart) {
-			bool inCommand = checkTagStartInCommand(start, len, hashtagStart, commandOffset, commandIsLink, inLink);
+		} else if (hashtagStart < domainStart
+			&& hashtagStart < botCommandStart) {
+			if (hashtagIgnore) {
+				offset = matchOffset = hashtagEnd;
+				continue;
+			}
+			const auto inCommand = checkTagStartInCommand(
+				start,
+				len,
+				hashtagStart,
+				commandOffset,
+				commandIsLink,
+				inLink);
 			if (inCommand || inLink) {
 				offset = matchOffset = commandOffset;
 				continue;
@@ -1894,7 +1951,13 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 			lnkStart = hashtagStart;
 			lnkLength = hashtagEnd - hashtagStart;
 		} else if (botCommandStart < domainStart) {
-			bool inCommand = checkTagStartInCommand(start, len, botCommandStart, commandOffset, commandIsLink, inLink);
+			const auto inCommand = checkTagStartInCommand(
+				start,
+				len,
+				botCommandStart,
+				commandOffset,
+				commandIsLink,
+				inLink);
 			if (inCommand || inLink) {
 				offset = matchOffset = commandOffset;
 				continue;
@@ -1904,7 +1967,13 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 			lnkStart = botCommandStart;
 			lnkLength = botCommandEnd - botCommandStart;
 		} else {
-			auto inCommand = checkTagStartInCommand(start, len, domainStart, commandOffset, commandIsLink, inLink);
+			const auto inCommand = checkTagStartInCommand(
+				start,
+				len,
+				domainStart,
+				commandOffset,
+				commandIsLink,
+				inLink);
 			if (inCommand || inLink) {
 				offset = matchOffset = commandOffset;
 				continue;

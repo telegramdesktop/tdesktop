@@ -31,7 +31,7 @@ const RuntimeComposerMetadata *GetRuntimeComposerMetadata(uint64 mask) {
 	return i.value();
 }
 
-const RuntimeComposerMetadata *RuntimeComposer::ZeroRuntimeComposerMetadata = GetRuntimeComposerMetadata(0);
+const RuntimeComposerMetadata *RuntimeComposerBase::ZeroRuntimeComposerMetadata = GetRuntimeComposerMetadata(0);
 
 RuntimeComponentWrapStruct RuntimeComponentWraps[64];
 

@@ -44,8 +44,8 @@ void SectionWidget::init() {
 	}, _content->lifetime());
 }
 
-PeerData *SectionWidget::activePeer() const {
-	return _content->activePeer();
+Dialogs::RowDescriptor SectionWidget::activeChat() const {
+	return _content->activeChat();
 }
 
 bool SectionWidget::hasTopBarShadow() const {

@@ -37,6 +37,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kUsernameCheckTimeout = TimeMs(200);
+constexpr auto kMinUsernameLength = 5;
+constexpr auto kMaxChannelDescription = 255; // See also add_contact_box.
 
 class Controller
 	: private MTP::Sender
@@ -323,6 +325,7 @@ object_ptr<Ui::RpWidget> Controller::createDescriptionEdit() {
 			langFactory(lng_create_group_description),
 			channel->about()),
 		st::editPeerDescriptionMargins);
+	result->entity()->setMaxLength(kMaxChannelDescription);
 
 	QObject::connect(
 		result->entity(),
@@ -503,7 +506,7 @@ void Controller::checkUsernameAvailability() {
 	auto checking = initial
 		? qsl(".bad.")
 		: _controls.username->getLastText().trimmed();
-	if (checking.size() < MinUsernameLength) {
+	if (checking.size() < kMinUsernameLength) {
 		return;
 	}
 	if (_checkUsernameRequestId) {
@@ -580,7 +583,7 @@ void Controller::usernameChanged() {
 	if (bad) {
 		showUsernameError(
 			Lang::Viewer(lng_create_channel_link_bad_symbols));
-	} else if (username.size() < MinUsernameLength) {
+	} else if (username.size() < kMinUsernameLength) {
 		showUsernameError(
 			Lang::Viewer(lng_create_channel_link_too_short));
 	} else {
@@ -1251,11 +1254,9 @@ void Controller::saveTitle() {
 			continueSave();
 			return;
 		}
+		_controls.title->showError();
 		if (type == qstr("NO_CHAT_TITLE")) {
-			_controls.title->showError();
 			_box->scrollToWidget(_controls.title);
-		} else {
-			_controls.title->setFocus();
 		}
 		cancelSave();
 	};
@@ -1301,7 +1302,7 @@ void Controller::saveDescription() {
 			successCallback();
 			return;
 		}
-		_controls.description->setFocus();
+		_controls.description->showError();
 		cancelSave();
 	}).send();
 }

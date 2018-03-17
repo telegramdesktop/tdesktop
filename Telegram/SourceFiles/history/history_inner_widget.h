@@ -7,10 +7,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
 #include "ui/rp_widget.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/scroll_area.h"
-#include "history/history_top_bar_widget.h"
+#include "history/view/history_view_top_bar_widget.h"
+
+namespace Data {
+struct Group;
+} // namespace Data
+
+namespace HistoryView {
+class ElementDelegate;
+struct TextState;
+struct StateRequest;
+enum class CursorState : char;
+enum class PointState : char;
+} // namespace HistoryView
 
 namespace Window {
 class Controller;
@@ -28,6 +41,8 @@ class HistoryInner
 	Q_OBJECT
 
 public:
+	using Element = HistoryView::Element;
+
 	HistoryInner(
 		not_null<HistoryWidget*> historyWidget,
 		not_null<Window::Controller*> controller,
@@ -40,20 +55,21 @@ public:
 	TextWithEntities getSelectedText() const;
 
 	void touchScrollUpdated(const QPoint &screenPos);
-	QPoint mapPointToItem(QPoint p, HistoryItem *item);
 
 	void recountHistoryGeometry();
 	void updateSize();
 
 	void repaintItem(const HistoryItem *item);
+	void repaintItem(const Element *view);
 
 	bool canCopySelected() const;
 	bool canDeleteSelected() const;
 
-	HistoryTopBarWidget::SelectedState getSelectionState() const;
-	void clearSelectedItems(bool onlyTextSelection = false);
+	HistoryView::TopBarWidget::SelectedState getSelectionState() const;
+	void clearSelected(bool onlyTextSelection = false);
 	MessageIdsList getSelectedItems() const;
 	void selectItem(not_null<HistoryItem*> item);
+	bool inSelectionMode() const;
 
 	void updateBotInfo(bool recount = true);
 
@@ -68,7 +84,10 @@ public:
 	int migratedTop() const;
 	int historyTop() const;
 	int historyDrawTop() const;
-	int itemTop(const HistoryItem *item) const; // -1 if should not be visible, -2 if bad history()
+
+	// -1 if should not be visible, -2 if bad history()
+	int itemTop(const HistoryItem *item) const;
+	int itemTop(const Element *view) const;
 
 	void notifyIsBotChanged();
 	void notifyMigrateUpdated();
@@ -77,9 +96,12 @@ public:
 	// to move scroll position so that mouse points to the same button row.
 	int moveScrollFollowingInlineKeyboard(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
 
-	// AbstractTooltipShower interface
+	// Ui::AbstractTooltipShower interface.
 	QString tooltipText() const override;
 	QPoint tooltipPos() const override;
+
+	// HistoryView::ElementDelegate interface.
+	static not_null<HistoryView::ElementDelegate*> ElementDelegate();
 
 	~HistoryInner();
 
@@ -100,29 +122,14 @@ protected:
 	void contextMenuEvent(QContextMenuEvent *e) override;
 
 public slots:
-	void onUpdateSelected();
 	void onParentGeometryChanged();
 
-	void copyContextUrl();
-	void cancelContextDownload();
-	void showContextInFolder();
-	void saveContextGif();
-	void openContextGif();
-	void copyContextText();
-	void copySelectedText();
-
-	void onMenuDestroy(QObject *obj);
 	void onTouchSelect();
 	void onTouchScrollTimer();
-
-private slots:
-	void onScrollDateCheck();
-	void onScrollDateHideByTimer();
 
 private:
 	class BotAbout;
 	using SelectedItems = std::map<HistoryItem*, TextSelection, std::less<>>;
-
 	enum class MouseAction {
 		None,
 		PrepareDrag,
@@ -135,21 +142,80 @@ private:
 		Deselect,
 		Invert,
 	};
+	enum class EnumItemsDirection {
+		TopToBottom,
+		BottomToTop,
+	};
+	using CursorState = HistoryView::CursorState;
+	using PointState = HistoryView::PointState;
+	using TextState = HistoryView::TextState;
+	using StateRequest = HistoryView::StateRequest;
 
+	// This function finds all history items that are displayed and calls template method
+	// for each found message (in given direction) in the passed history with passed top offset.
+	//
+	// Method has "bool (*Method)(not_null<Element*> view, int itemtop, int itembottom)" signature
+	// if it returns false the enumeration stops immidiately.
+	template <bool TopToBottom, typename Method>
+	void enumerateItemsInHistory(History *history, int historytop, Method method);
+
+	template <EnumItemsDirection direction, typename Method>
+	void enumerateItems(Method method) {
+		constexpr auto TopToBottom = (direction == EnumItemsDirection::TopToBottom);
+		if (TopToBottom && _migrated) {
+			enumerateItemsInHistory<TopToBottom>(_migrated, migratedTop(), method);
+		}
+		enumerateItemsInHistory<TopToBottom>(_history, historyTop(), method);
+		if (!TopToBottom && _migrated) {
+			enumerateItemsInHistory<TopToBottom>(_migrated, migratedTop(), method);
+		}
+	}
+
+	// This function finds all userpics on the left that are displayed and calls template method
+	// for each found userpic (from the top to the bottom) using enumerateItems() method.
+	//
+	// Method has "bool (*Method)(not_null<Element*> view, int userpicTop)" signature
+	// if it returns false the enumeration stops immidiately.
+	template <typename Method>
+	void enumerateUserpics(Method method);
+
+	// This function finds all date elements that are displayed and calls template method
+	// for each found date element (from the bottom to the top) using enumerateItems() method.
+	//
+	// Method has "bool (*Method)(not_null<Element*> view, int itemtop, int dateTop)" signature
+	// if it returns false the enumeration stops immidiately.
+	template <typename Method>
+	void enumerateDates(Method method);
+
+	void scrollDateCheck();
+	void scrollDateHideByTimer();
+	bool canHaveFromUserpics() const;
 	void mouseActionStart(const QPoint &screenPos, Qt::MouseButton button);
+	void mouseActionUpdate();
 	void mouseActionUpdate(const QPoint &screenPos);
 	void mouseActionFinish(const QPoint &screenPos, Qt::MouseButton button);
 	void mouseActionCancel();
+	std::unique_ptr<QMimeData> prepareDrag();
 	void performDrag();
 
+	QPoint mapPointToItem(QPoint p, const Element *view);
+	QPoint mapPointToItem(QPoint p, const HistoryItem *item);
+
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
+	void cancelContextDownload(not_null<DocumentData*> document);
+	void openContextGif(FullMsgId itemId);
+	void saveContextGif(FullMsgId itemId);
+	void copyContextText(FullMsgId itemId);
+	void showContextInFolder(not_null<DocumentData*> document);
+	void savePhotoToFile(not_null<PhotoData*> photo);
+	void saveDocumentToFile(not_null<DocumentData*> document);
+	void copyContextImage(not_null<PhotoData*> photo);
+	void showStickerPackInfo(not_null<DocumentData*> document);
+	void toggleFavedSticker(not_null<DocumentData*> document);
 
 	void itemRemoved(not_null<const HistoryItem*> item);
-	void savePhotoToFile(PhotoData *photo);
-	void saveDocumentToFile(DocumentData *document);
-	void copyContextImage(PhotoData *photo);
-	void showStickerPackInfo(DocumentData *document);
-	void toggleFavedSticker(DocumentData *document);
+	void viewRemoved(not_null<const Element*> view);
+	void refreshView(not_null<HistoryItem*> item);
 
 	void touchResetSpeed();
 	void touchUpdateSpeed();
@@ -157,49 +223,22 @@ private:
 
 	void adjustCurrent(int32 y) const;
 	void adjustCurrent(int32 y, History *history) const;
-	HistoryItem *prevItem(HistoryItem *item);
-	HistoryItem *nextItem(HistoryItem *item);
-	void updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dragSelTo, bool dragSelecting);
+	Element *prevItem(Element *item);
+	Element *nextItem(Element *item);
+	void updateDragSelection(Element *dragSelFrom, Element *dragSelTo, bool dragSelecting);
 	TextSelection itemRenderSelection(
-		not_null<HistoryItem*> item,
+		not_null<Element*> view,
 		int selfromy,
 		int seltoy) const;
 	TextSelection computeRenderSelection(
 		not_null<const SelectedItems*> selected,
-		not_null<HistoryItem*> item) const;
-
-	void setToClipboard(const TextWithEntities &forClipboard, QClipboard::Mode mode = QClipboard::Clipboard);
+		not_null<Element*> view) const;
 
 	void toggleScrollDateShown();
 	void repaintScrollDateCallback();
 	bool displayScrollDate() const;
 	void scrollDateHide();
 	void keepScrollDateForNow();
-
-	not_null<Window::Controller*> _controller;
-
-	PeerData *_peer = nullptr;
-	History *_migrated = nullptr;
-	History *_history = nullptr;
-	int _historyPaddingTop = 0;
-
-	// with migrated history we perhaps do not need to display first _history message
-	// (if last _migrated message and first _history message are both isGroupMigrate)
-	// or at least we don't need to display first _history date (just skip it by height)
-	int _historySkipHeight = 0;
-
-	std::unique_ptr<BotAbout> _botAbout;
-
-	HistoryWidget *_widget = nullptr;
-	Ui::ScrollArea *_scroll = nullptr;
-	mutable History *_curHistory = nullptr;
-	mutable int _curBlock = 0;
-	mutable int _curItem = 0;
-
-	bool _firstLoading = false;
-
-	style::cursor _cursor = style::cur_default;
-	SelectedItems _selected;
 
 	void applyDragSelection();
 	void applyDragSelection(not_null<SelectedItems*> toItems) const;
@@ -213,6 +252,9 @@ private:
 	bool isSelected(
 		not_null<SelectedItems*> toItems,
 		not_null<HistoryItem*> item) const;
+	bool isSelectedGroup(
+		not_null<SelectedItems*> toItems,
+		not_null<const Data::Group*> group) const;
 	bool isSelectedAsGroup(
 		not_null<SelectedItems*> toItems,
 		not_null<HistoryItem*> item) const;
@@ -234,15 +276,41 @@ private:
 		not_null<SelectedItems*> toItems,
 		not_null<HistoryItem*> item,
 		SelectAction action) const;
-	void forwardItem(not_null<HistoryItem*> item);
-	void forwardAsGroup(not_null<HistoryItem*> item);
+	void forwardItem(FullMsgId itemId);
+	void forwardAsGroup(FullMsgId itemId);
 	void deleteItem(not_null<HistoryItem*> item);
-	void deleteAsGroup(not_null<HistoryItem*> item);
+	void deleteItem(FullMsgId itemId);
+	void deleteAsGroup(FullMsgId itemId);
+	void copySelectedText();
 
 	// Does any of the shown histories has this flag set.
-	bool hasPendingResizedItems() const {
-		return (_history && _history->hasPendingResizedItems()) || (_migrated && _migrated->hasPendingResizedItems());
-	}
+	bool hasPendingResizedItems() const;
+
+	not_null<Window::Controller*> _controller;
+
+	not_null<PeerData*> _peer;
+	not_null<History*> _history;
+	History *_migrated = nullptr;
+	int _contentWidth = 0;
+	int _historyPaddingTop = 0;
+
+	// with migrated history we perhaps do not need to display first _history message
+	// (if last _migrated message and first _history message are both isGroupMigrate)
+	// or at least we don't need to display first _history date (just skip it by height)
+	int _historySkipHeight = 0;
+
+	std::unique_ptr<BotAbout> _botAbout;
+
+	HistoryWidget *_widget = nullptr;
+	Ui::ScrollArea *_scroll = nullptr;
+	mutable History *_curHistory = nullptr;
+	mutable int _curBlock = 0;
+	mutable int _curItem = 0;
+
+	bool _firstLoading = false;
+
+	style::cursor _cursor = style::cur_default;
+	SelectedItems _selected;
 
 	MouseAction _mouseAction = MouseAction::None;
 	TextSelectType _mouseSelectType = TextSelectType::Letters;
@@ -250,17 +318,15 @@ private:
 	QPoint _mousePosition;
 	HistoryItem *_mouseActionItem = nullptr;
 	HistoryItem *_dragStateItem = nullptr;
-	HistoryCursorState _mouseCursorState = HistoryDefaultCursorState;
+	CursorState _mouseCursorState = CursorState();
 	uint16 _mouseTextSymbol = 0;
 	bool _pressWasInactive = false;
 
 	QPoint _trippleClickPoint;
 	QTimer _trippleClickTimer;
 
-	ClickHandlerPtr _contextMenuLink;
-
-	HistoryItem *_dragSelFrom = nullptr;
-	HistoryItem *_dragSelTo = nullptr;
+	Element *_dragSelFrom = nullptr;
+	Element *_dragSelTo = nullptr;
 	bool _dragSelecting = false;
 	bool _wasSelectedText = false; // was some text selected in current drag action
 
@@ -280,8 +346,7 @@ private:
 	TimeMs _touchTime = 0;
 	QTimer _touchScrollTimer;
 
-	// context menu
-	Ui::PopupMenu *_menu = nullptr;
+	base::unique_qptr<Ui::PopupMenu> _menu;
 
 	// save visible area coords for painting / pressing userpics
 	int _visibleAreaTop = 0;
@@ -290,49 +355,9 @@ private:
 	bool _scrollDateShown = false;
 	Animation _scrollDateOpacity;
 	SingleQueuedInvokation _scrollDateCheck;
-	SingleTimer _scrollDateHideTimer;
-	HistoryItem *_scrollDateLastItem = nullptr;
+	base::Timer _scrollDateHideTimer;
+	Element *_scrollDateLastItem = nullptr;
 	int _scrollDateLastItemTop = 0;
 	ClickHandlerPtr _scrollDateLink;
-
-	enum class EnumItemsDirection {
-		TopToBottom,
-		BottomToTop,
-	};
-	// This function finds all history items that are displayed and calls template method
-	// for each found message (in given direction) in the passed history with passed top offset.
-	//
-	// Method has "bool (*Method)(not_null<HistoryItem*> item, int itemtop, int itembottom)" signature
-	// if it returns false the enumeration stops immidiately.
-	template <bool TopToBottom, typename Method>
-	void enumerateItemsInHistory(History *history, int historytop, Method method);
-
-	template <EnumItemsDirection direction, typename Method>
-	void enumerateItems(Method method) {
-		constexpr auto TopToBottom = (direction == EnumItemsDirection::TopToBottom);
-		if (TopToBottom && _migrated) {
-			enumerateItemsInHistory<TopToBottom>(_migrated, migratedTop(), method);
-		}
-		enumerateItemsInHistory<TopToBottom>(_history, historyTop(), method);
-		if (!TopToBottom && _migrated) {
-			enumerateItemsInHistory<TopToBottom>(_migrated, migratedTop(), method);
-		}
-	}
-
-	// This function finds all userpics on the left that are displayed and calls template method
-	// for each found userpic (from the top to the bottom) using enumerateItems() method.
-	//
-	// Method has "bool (*Method)(not_null<HistoryMessage*> message, int userpicTop)" signature
-	// if it returns false the enumeration stops immidiately.
-	template <typename Method>
-	void enumerateUserpics(Method method);
-
-	// This function finds all date elements that are displayed and calls template method
-	// for each found date element (from the bottom to the top) using enumerateItems() method.
-	//
-	// Method has "bool (*Method)(not_null<HistoryItem*> item, int itemtop, int dateTop)" signature
-	// if it returns false the enumeration stops immidiately.
-	template <typename Method>
-	void enumerateDates(Method method);
 
 };

@@ -2,7 +2,7 @@
 This file is part of Telegreat,
 the official desktop version of Telegram messaging app, see https://telegre.at
 
-Telegram Desktop is free software: you can redistribute it and/or modify
+Telegreat Desktop is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
@@ -15,7 +15,7 @@ GNU General Public License for more details.
 In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
-Full license: https://github.com/telegramdesktop/Sea-n/blob/master/LICENSE
+Full license: https://github.com/Sea-n/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2018 Sean, https://telegre.at
 */
 "lng_language_name" = "简体中文";
@@ -129,7 +129,7 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_error_phone_flood" = "对不起，您最近删除并重建您的帐户次数过多。请稍等几天再来重新注册。";
 "lng_error_start_minimized_passcoded" = "您已经设置了锁定码，所以应用不能以最小化模式启动。应用会在它能够开始工作前要求您输入锁定码。";
 "lng_error_pinned_max#one" = "对不起，您最多只能将 {count} 个会话置顶。";
-"lng_error_pinned_max#other" = "对不起，您最多只能将 {count} 个会话置顶。";
+"lng_error_pinned_max#other" = "对不起，您最多只能将 {count} 个对话置顶。";
 "lng_error_public_groups_denied" = "很抱歉，您已被禁止参与公开群组。\n{more_info}";
 "lng_error_cant_add_member" = "抱歉，您不能将机器人加入此群组。请寻求群组管理员帮助。";
 "lng_error_cant_add_bot" = "抱歉，这个机器人无法被添加至群组。";
@@ -151,7 +151,7 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_deleted" = "已删除的帐户";
 "lng_deleted_message" = "已删除的消息";
 "lng_pinned_message" = "置顶消息";
-"lng_pinned_unpin_sure" = "您要取消置顶吗？";
+"lng_pinned_unpin_sure" = "您确定要取消置顶此消息吗？";
 "lng_pinned_pin_sure" = "您确定要置顶此消息吗？";
 "lng_pinned_pin" = "置顶";
 "lng_pinned_unpin" = "取消置顶";
@@ -206,7 +206,7 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_signin_no_email_forgot" = "因为您在设置密码时没有同时提供密码恢复邮箱，您剩余的选择只有回忆起您的密码或重置您的帐户。";
 "lng_signin_cant_email_forgot" = "如果您无法访问密保邮箱，您只能尝试想起密码，或者重置账号。";
 "lng_signin_reset_account" = "重置账号";
-"lng_signin_sure_reset" = "注意！\n\n您账号中的所有会话和聊天记录，\n包括您分享的媒体和文件，都会丢失。\n\n确定重置账号？";
+"lng_signin_sure_reset" = "警告！\n\n您将会丢失您所有的对话和消息，以及任何您分享的媒体和文件！\n\n您确定要重置您的帐户吗？";
 "lng_signin_reset" = "重置";
 "lng_signin_reset_wait" = "因为 {phone_number} 这个账号处于活动状态并且设置了密码，出于安全考虑，我们将在 1 周后执行删除。您可以在这段时间内随时取消这一过程。\n\n您将可以在以下时间重置您的账号：\n{when}";
 "lng_signin_reset_days#one" = "{count} 天";
@@ -231,7 +231,7 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_dlg_new_group_name" = "群组名称";
 "lng_dlg_new_channel_name" = "频道名称";
 "lng_no_contacts" = "您还没有任何联系人";
-"lng_no_chats" = "您的会话将在此处显示";
+"lng_no_chats" = "您的对话将在此处显示";
 "lng_contacts_loading" = "加载中...";
 "lng_contacts_not_found" = "未找到任何联系人";
 "lng_dlg_search_for_messages" = "搜索消息";
@@ -254,7 +254,7 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_username_too_short" = "该用户名过短";
 "lng_username_bad_symbols" = "用户名只允许使用 a-z, 0-9 和下划线。";
 "lng_username_available" = "该用户名可用";
-"lng_username_not_found" = "未找到 @{user}";
+"lng_username_not_found" = "未找到用户名 @{user}";
 "lng_username_link_willbe" = "此链接会打开一个与您的会话窗口：";
 "lng_username_link" = "此链接会打开一个与您的会话窗口：";
 "lng_username_copied" = "链接已复制到剪贴板";
@@ -278,7 +278,7 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_settings_notifications_position" = "在屏幕上的位置";
 "lng_settings_notifications_count" = "通知计数";
 "lng_settings_sound_notify" = "播放提示音";
-"lng_settings_include_muted" = "在未读消息数中包含已关闭消息提醒的会话";
+"lng_settings_include_muted" = "在未读消息数中包含已关闭消息提醒的对话";
 
 "lng_notification_preview" = "新消息";
 "lng_notification_reply" = "回复";
@@ -446,7 +446,7 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_settings_reset_button" = "确定";
 "lng_settings_manage_local_storage" = "管理本地缓存";
 "lng_settings_ask_question" = "我有疑问";
-"lng_settings_ask_sure" = "请注意：Telegram 的技术支持由志愿者提供，反馈时请使用英文，我们会尽快回复您，但是您可能需要等待一段时间。\n\n请前往 Telegram FAQ 看看：那里有各种常见问题及故障排除提示。";
+"lng_settings_ask_sure" = "请注意：Telegram 的技术支持由志愿者提供，反馈时请使用英文。我们会尽快回复您，但是仍可能需要等待一段时间。\n\n请前往“常见问题” 看看：那里有各种常见问题和故障排除指南。";
 "lng_settings_faq_button" = "前往「常见问题」";
 "lng_settings_ask_ok" = "向志愿者提问";
 "lng_settings_faq" = "常见问题";
@@ -520,8 +520,8 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_self_destruct_years#other" = "{count} 年";
 
 "lng_change_phone_title" = "更改手机号码";
-"lng_change_phone_description" = "您可以在此修改您绑定至 Telegram 的电话号码。\n您的帐户和所有的云端数据——消息，媒体，通讯录等\n将会被迁移到新的手机号码。\n\n[b]注意[/b]：如果您的 Telegram 联系人有您的旧号码\n并且您没有在 Telegram 里屏蔽他们，\n您的[b]新号码[/b]将被添加到他们的通讯录里。";
-"lng_change_phone_warning" = "如果您的 Telegram 联系人有您的旧号码并且您没有在 Telegram 里屏蔽他们，您的新号码将被添加到他们的通讯录里。";
+"lng_change_phone_description" = "您可以在此更改您注册 Telegram 的手机号码。\n您的帐户和所有的云端数据——消息，媒体，联系人等\n将会被迁移到新的手机号码。\n\n[b]注意[/b]：如果您的 Telegram 联系人有您的旧号码，\n并且您没有在 Telegram 里屏蔽他们，\n您的[b]新号码[/b]将被添加到他们的通讯录里。";
+"lng_change_phone_warning" = "如果您的 Telegram 联系人有您的旧号码，并且您没有在 Telegram 里屏蔽他们，您的新号码将被添加到他们的通讯录里。";
 "lng_change_phone_occupied" = "手机号码 {phone} 已经和另一个 Telegram 帐户绑定。请先删除该帐户再迁移到此新号码。";
 "lng_change_phone_button" = "更改手机号码";
 "lng_change_phone_new_title" = "输入新的手机号码";
@@ -548,7 +548,7 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_profile_manage_admins" = "设置管理员";
 "lng_profile_manage_blocklist" = "管理被封禁用户";
 "lng_profile_manage_restrictedlist" = "管理被限制用户";
-"lng_profile_recent_actions" = "事件记录";
+"lng_profile_recent_actions" = "近期操作";
 "lng_profile_common_groups#one" = "{count} 个共同加入的群组";
 "lng_profile_common_groups#other" = "{count} 个共同加入的群组";
 "lng_profile_participants_section" = "成员";
@@ -731,8 +731,8 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_create_channel_crop" = "选择合适区域作为频道标识";
 
 "lng_failed_add_participant" = "无法添加用户。请稍后再试。";
-"lng_failed_add_not_mutual" = "抱歉，如果一个人主动离开群组，只有双向联系人可以将其带回 (两个人互相加为通讯录联系人)。";
-"lng_failed_add_not_mutual_channel" = "抱歉，如果一个人主动离开频道，只有双向联系人可以将其带回 (两个人互相加为通讯录联系人)。";
+"lng_failed_add_not_mutual" = "抱歉，如果一位用户主动退出了群组，只有双向联系人可以将其添加回来（双方都有对方的手机号码）。";
+"lng_failed_add_not_mutual_channel" = "抱歉，如果一位用户主动退出了频道，只有双向联系人可以将其添加回来（双方都有对方的手机号码）。";
 
 "lng_sure_delete_contact" = "您确定从联系人列表中删除 {contact} 吗？";
 "lng_sure_delete_history" = "您确定要删除所有与 {contact} 的消息记录？\n\n此操作不可撤销。";
@@ -800,8 +800,8 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_action_game_you_scored_no_game#other" = "您获得了 {count} 分";
 "lng_action_payment_done" = "您已成功向 {user} 转账 {amount}";
 "lng_action_payment_done_for" = "您已成功为 {invoice} 向 {user} 转账 {amount}";
-"lng_action_took_screenshot" = "{from} 进行了截图！";
-"lng_action_you_took_screenshot" = "您进行了截图！";
+"lng_action_took_screenshot" = "{from} 截了一张图！";
+"lng_action_you_took_screenshot" = "您截了一张图！";
 
 "lng_ttl_photo_received" = "{from} 发送给您一张自毁照片，请在您的移动设备上查看。";
 "lng_ttl_photo_sent" = "您发送了一张自毁照片。";
@@ -859,6 +859,7 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_edited" = "已编辑";
 "lng_edited_date" = "编辑时间：{date} ";
 "lng_admin_badge" = "管理员";
+"lng_fast_reply" = "回复";
 "lng_cancel_edit_post_sure" = "取消编辑？";
 "lng_cancel_edit_post_yes" = "是";
 "lng_cancel_edit_post_no" = "否";
@@ -881,7 +882,7 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_media_auto_photo" = "自动下载图片";
 "lng_media_auto_audio" = "自动下载语音信息";
 "lng_media_auto_gif" = "自动下载 GIF 动画";
-"lng_media_auto_private_chats" = "个人聊天";
+"lng_media_auto_private_chats" = "私密对话";
 "lng_media_auto_groups" = "群组和频道";
 "lng_media_auto_play" = "自动播放";
 
@@ -1184,7 +1185,7 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 
 "lng_about_version" = "版本 {version}";
 "lng_about_text_1" = "基于 [a href=\"https://core.telegram.org/api\"]Telegram API[/a] 的官方免费聊天应用，为快速和安全而生。";
-"lng_about_text_2" = "本软件基于 [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] version 3 协议 \n源代码托管于 [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a]";
+"lng_about_text_2" = "本软件基于 [a href=\"https://github.com/Sea-n/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] version 3 协议 \n源代码托管于 [a href=\"https://github.com/Sea-n/tdesktop\"]GitHub[/a]";
 "lng_about_text_3" = "更多详情请前往 {faq_open}常见问题{faq_close} ";
 "lng_about_done" = "确定";
 
@@ -1221,7 +1222,7 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 
 "lng_new_authorization" = "{name}，\n我们在 {date}{day}{time} 发现一个新设备登录您的帐号。\n\n设备： {device}\n位置： {location}\n\n如果这不是您本人， 您可以前往「设置—显示所有活动会话」 中注销该设备。\n\n谢谢！\nTelegram 团队";
 
-"lng_new_version_wrap" = "Telegram Desktop 已更新到 {version}\n\n{changes}\n\n更多版本记录请在这里查看：\n{link}";
+"lng_new_version_wrap" = "Telegreat Desktop 已更新到 {version}\n\n{changes}\n\n更多版本记录请在这里查看：\n{link}";
 "lng_new_version_minor" = "— 错误修复及细节改进";
 
 "lng_menu_insert_unicode" = "插入 Unicode 控制符";
@@ -1358,8 +1359,8 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_admin_log_about" = "这是什么？";
 "lng_admin_log_about_text" = "此列表包含了在过去 48 小时内群组成员和管理员执行的所有服务操作。";
 "lng_admin_log_no_results_title" = "未找到操作日志";
-"lng_admin_log_no_results_text" = "找不到与您查询的事件相符的结果。";
-"lng_admin_log_no_results_search_text" = "找不到包含 {query} 的事件相符的结果。";
+"lng_admin_log_no_results_text" = "找不到与您查询的近期操作相符的结果。";
+"lng_admin_log_no_results_search_text" = "找不到包含 ‘{query}’ 的近期操作。";
 "lng_admin_log_no_events_title" = "暂无操作日志";
 "lng_admin_log_no_events_text" = "在过去的 48 小时内\n群组成员和管理员\n没有执行任何服务操作。";
 
@@ -1423,16 +1424,19 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_admin_log_admin_pin_messages" = "置顶消息";
 "lng_admin_log_admin_add_admins" = "添加新管理员";
 
+/* Wnd specific */
 
 "lng_wnd_choose_program_menu" = "选择默认程序...";
 
 "lng_wnd_menu_undo" = "撤销";
 "lng_wnd_menu_redo" = "重做";
 
+/* Linux specific */
 
 "lng_linux_menu_undo" = "撤销";
 "lng_linux_menu_redo" = "重做";
 
+/* Mac specific */
 
 "lng_mac_choose_program_menu" = "其他...";
 
@@ -1469,6 +1473,7 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_mac_menu_new_channel" = "新建频道";
 "lng_mac_menu_show" = "打开 Telegram";
 
+/* Keys finished */
 
 
 /* new from translations.telegram.org */
@@ -1553,10 +1558,10 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_edit_privacy_lastseen_never#two" = "从不共享给 {count} 位用户";
 "lng_edit_privacy_lastseen_never#few" = "从不共享给 {count} 位用户";
 "lng_edit_privacy_lastseen_never#many" = "从不共享给 {count} 位用户";
-"lng_error_pinned_max#zero" = "对不起，您最多只能将 {count} 个会话置顶。";
-"lng_error_pinned_max#two" = "对不起，您最多只能将 {count} 个会话置顶。";
-"lng_error_pinned_max#few" = "对不起，您最多只能将 {count} 个会话置顶。";
-"lng_error_pinned_max#many" = "对不起，您最多只能将 {count} 个会话置顶。";
+"lng_error_pinned_max#zero" = "对不起，您最多只能将 {count} 个对话置顶。";
+"lng_error_pinned_max#two" = "对不起，您最多只能将 {count} 个对话置顶。";
+"lng_error_pinned_max#few" = "对不起，您最多只能将 {count} 个对话置顶。";
+"lng_error_pinned_max#many" = "对不起，您最多只能将 {count} 个对话置顶。";
 "lng_forward_messages#zero" = "{count} 条转发的消息";
 "lng_forward_messages#two" = "{count} 条转发的消息";
 "lng_forward_messages#few" = "{count} 条转发的消息";
@@ -1745,8 +1750,8 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_unread_bar#many" = "{count} 条未读消息";
 
 
-"lng_stickers_export" = "汇出";
-"lng_stickers_export_copied" = "已复制所有贴图连结";
+"lng_telegreat_stickers_export" = "汇出";
+"lng_telegreat_stickers_export_copied" = "已复制所有贴图连结";
 
 "lng_telegreat_setting" = "Telegreat 设定";
 "lng_telegreat_setting_callback" = "显示 callback 资料";
@@ -1775,3 +1780,4 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 
 "lng_telegreat_custom" = "true";
 "lng_telegreat_index" = "2";
+"lng_telegreat_lang_code" = "zh-CN";

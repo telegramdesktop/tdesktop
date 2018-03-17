@@ -22,11 +22,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/layer_widget.h"
 #include "lang/lang_keys.h"
 #include "base/observer.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "history/history_media.h"
 #include "styles/style_history.h"
-
-Q_DECLARE_METATYPE(ClickHandlerPtr);
-Q_DECLARE_METATYPE(Qt::MouseButton);
+#include "data/data_session.h"
 
 namespace App {
 namespace internal {
@@ -149,13 +149,17 @@ void activateBotCommand(
 }
 
 void searchByHashtag(const QString &tag, PeerData *inPeer) {
-	if (MainWidget *m = main()) {
+	if (const auto m = main()) {
 		Ui::hideSettingsAndLayer();
 		Messenger::Instance().hideMediaView();
 		if (inPeer && (!inPeer->isChannel() || inPeer->isMegagroup())) {
 			inPeer = nullptr;
 		}
-		m->searchMessages(tag + ' ', inPeer);
+		m->searchMessages(
+			tag + ' ',
+			(inPeer
+				? App::history(inPeer).get()
+				: Dialogs::Key()));
 	}
 }
 
@@ -167,12 +171,6 @@ void joinGroupByHash(const QString &hash) {
 	if (MainWidget *m = main()) m->joinGroupByHash(hash);
 }
 
-void removeDialog(History *history) {
-	if (MainWidget *m = main()) {
-		m->removeDialog(history);
-	}
-}
-
 void showSettings() {
 	if (auto w = wnd()) {
 		w->showSettings();
@@ -180,11 +178,9 @@ void showSettings() {
 }
 
 void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
-	if (auto w = wnd()) {
-		qRegisterMetaType<ClickHandlerPtr>();
-		qRegisterMetaType<Qt::MouseButton>();
-		QMetaObject::invokeMethod(w, "app_activateClickHandler", Qt::QueuedConnection, Q_ARG(ClickHandlerPtr, handler), Q_ARG(Qt::MouseButton, button));
-	}
+	crl::on_main(wnd(), [handler, button] {
+		handler->onClick(button);
+	});
 }
 
 void logOutDelayed() {
@@ -247,18 +243,6 @@ bool isLayerShown() {
 	return false;
 }
 
-void autoplayMediaInlineAsync(const FullMsgId &msgId) {
-	if (auto main = App::main()) {
-		InvokeQueued(main, [msgId] {
-			if (auto item = App::histItemById(msgId)) {
-				if (auto media = item->getMedia()) {
-					media->playInline(true);
-				}
-			}
-		});
-	}
-}
-
 void showPeerProfile(const PeerId &peer) {
 	if (auto window = App::wnd()) {
 		if (auto controller = window->controller()) {
@@ -267,18 +251,28 @@ void showPeerProfile(const PeerId &peer) {
 	}
 }
 
+void showPeerProfile(not_null<const History*> history) {
+	showPeerProfile(history->peer->id);
+}
+
 void showPeerHistory(
 		const PeerId &peer,
 		MsgId msgId) {
 	auto ms = getms();
-	LOG(("Show Peer Start"));
 	if (auto m = App::main()) {
 		m->ui_showPeerHistory(
 			peer,
 			Window::SectionShow::Way::ClearStack,
 			msgId);
 	}
-	LOG(("Show Peer End: %1").arg(getms() - ms));
+}
+
+void showPeerHistoryAtItem(not_null<const HistoryItem*> item) {
+	showPeerHistory(item->history()->peer->id, item->id);
+}
+
+void showPeerHistory(not_null<const History*> history, MsgId msgId) {
+	showPeerHistory(history->peer->id, msgId);
 }
 
 PeerData *getPeerForMouseAction() {
@@ -300,10 +294,6 @@ namespace Notify {
 
 void userIsBotChanged(UserData *user) {
 	if (MainWidget *m = App::main()) m->notify_userIsBotChanged(user);
-}
-
-void userIsContactChanged(UserData *user, bool fromThisApp) {
-	if (MainWidget *m = App::main()) m->notify_userIsContactChanged(user, fromThisApp);
 }
 
 void botCommandsChanged(UserData *user) {
@@ -342,38 +332,6 @@ void migrateUpdated(PeerData *peer) {
 
 void historyMuteUpdated(History *history) {
 	if (MainWidget *m = App::main()) m->notify_historyMuteUpdated(history);
-}
-
-void handlePendingHistoryUpdate() {
-	if (!AuthSession::Exists()) {
-		return;
-	}
-	Auth().data().pendingHistoryResize().notify(true);
-
-	for (const auto item : base::take(Global::RefPendingRepaintItems())) {
-		Auth().data().requestItemRepaint(item);
-
-		// Start the video if it is waiting for that.
-		if (item->pendingInitDimensions()) {
-			if (const auto media = item->getMedia()) {
-				if (const auto reader = media->getClipReader()) {
-					const auto startRequired = [&] {
-						if (reader->started()) {
-							return false;
-						}
-						using Mode = Media::Clip::Reader::Mode;
-						return (reader->mode() == Mode::Video);
-					};
-					if (startRequired()) {
-						const auto width = std::max(
-							item->width(),
-							st::historyMinimalWidth);
-						item->resizeGetHeight(width);
-					}
-				}
-			}
-		}
-	}
 }
 
 void unreadCounterUpdated() {
@@ -519,7 +477,6 @@ namespace Global {
 namespace internal {
 
 struct Data {
-	SingleQueuedInvokation HandleHistoryUpdate = { [] { Messenger::Instance().call_handleHistoryUpdate(); } };
 	SingleQueuedInvokation HandleUnreadCounterUpdate = { [] { Messenger::Instance().call_handleUnreadCounterUpdate(); } };
 	SingleQueuedInvokation HandleDelayedPeerUpdates = { [] { Messenger::Instance().call_handleDelayedPeerUpdates(); } };
 	SingleQueuedInvokation HandleObservables = { [] { Messenger::Instance().call_handleObservables(); } };
@@ -554,11 +511,13 @@ struct Data {
 	int32 OnlineCloudTimeout = 300000;
 	int32 NotifyCloudDelay = 30000;
 	int32 NotifyDefaultDelay = 1500;
-	int32 ChatBigSize = 10;
 	int32 PushChatPeriod = 60000;
 	int32 PushChatLimit = 2;
 	int32 SavedGifsLimit = 200;
 	int32 EditTimeLimit = 172800;
+	int32 RevokeTimeLimit = 172800;
+	int32 RevokePrivateTimeLimit = 172800;
+	bool RevokePrivateInbox = false;
 	int32 StickersRecentLimit = 30;
 	int32 StickersFavedLimit = 5;
 	int32 PinnedDialogsCountMax = 5;
@@ -572,8 +531,6 @@ struct Data {
 	base::Observable<void> PhoneCallsEnabledChanged;
 
 	HiddenPinnedMessagesMap HiddenPinnedMessages;
-
-	PendingItemsMap PendingRepaintItems;
 
 	Stickers::Sets StickerSets;
 	Stickers::Order StickerSetsOrder;
@@ -642,7 +599,6 @@ void finish() {
 	GlobalData = nullptr;
 }
 
-DefineRefVar(Global, SingleQueuedInvokation, HandleHistoryUpdate);
 DefineRefVar(Global, SingleQueuedInvokation, HandleUnreadCounterUpdate);
 DefineRefVar(Global, SingleQueuedInvokation, HandleDelayedPeerUpdates);
 DefineRefVar(Global, SingleQueuedInvokation, HandleObservables);
@@ -677,11 +633,13 @@ DefineVar(Global, int32, OnlineFocusTimeout);
 DefineVar(Global, int32, OnlineCloudTimeout);
 DefineVar(Global, int32, NotifyCloudDelay);
 DefineVar(Global, int32, NotifyDefaultDelay);
-DefineVar(Global, int32, ChatBigSize);
 DefineVar(Global, int32, PushChatPeriod);
 DefineVar(Global, int32, PushChatLimit);
 DefineVar(Global, int32, SavedGifsLimit);
 DefineVar(Global, int32, EditTimeLimit);
+DefineVar(Global, int32, RevokeTimeLimit);
+DefineVar(Global, int32, RevokePrivateTimeLimit);
+DefineVar(Global, bool, RevokePrivateInbox);
 DefineVar(Global, int32, StickersRecentLimit);
 DefineVar(Global, int32, StickersFavedLimit);
 DefineVar(Global, int32, PinnedDialogsCountMax);
@@ -695,8 +653,6 @@ DefineVar(Global, bool, PhoneCallsEnabled);
 DefineRefVar(Global, base::Observable<void>, PhoneCallsEnabledChanged);
 
 DefineVar(Global, HiddenPinnedMessagesMap, HiddenPinnedMessages);
-
-DefineRefVar(Global, PendingItemsMap, PendingRepaintItems);
 
 DefineVar(Global, Stickers::Sets, StickerSets);
 DefineVar(Global, Stickers::Order, StickerSetsOrder);

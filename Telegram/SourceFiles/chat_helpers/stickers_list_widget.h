@@ -8,7 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "chat_helpers/tabbed_selector.h"
+#include "chat_helpers/stickers.h"
 #include "base/variant.h"
+#include "base/timer.h"
 
 namespace Window {
 class Controller;
@@ -16,6 +18,7 @@ class Controller;
 
 namespace Ui {
 class LinkButton;
+class RippleAnimation;
 } // namespace Ui
 
 namespace ChatHelpers {
@@ -29,7 +32,9 @@ class StickersListWidget
 	Q_OBJECT
 
 public:
-	StickersListWidget(QWidget *parent, not_null<Window::Controller*> controller);
+	StickersListWidget(
+		QWidget *parent,
+		not_null<Window::Controller*> controller);
 
 	void refreshRecent() override;
 	void preloadImages() override;
@@ -38,6 +43,9 @@ public:
 
 	void showStickerSet(uint64 setId);
 	void showMegagroupSet(ChannelData *megagroup);
+
+	void afterShown() override;
+	void beforeHiding() override;
 
 	void refreshStickers();
 
@@ -49,6 +57,9 @@ public:
 	void installedLocally(uint64 setId);
 	void notInstalledLocally(uint64 setId);
 	void clearInstalledLocally();
+
+	void sendSearchRequest();
+	void searchForSets(const QString &query);
 
 	~StickersListWidget();
 
@@ -86,6 +97,7 @@ private:
 	enum class Section {
 		Featured,
 		Stickers,
+		Search,
 	};
 
 	struct OverSticker {
@@ -129,17 +141,22 @@ private:
 			uint64 id,
 			MTPDstickerSet::Flags flags,
 			const QString &title,
-			int hoversSize,
+			const QString &shortName,
+			bool externalLayout,
+			int count,
 			const Stickers::Pack &pack = Stickers::Pack());
 		Set(Set &&other);
 		Set &operator=(Set &&other);
 		~Set();
 
-		uint64 id;
-		MTPDstickerSet::Flags flags;
+		uint64 id = 0;
+		MTPDstickerSet::Flags flags = MTPDstickerSet::Flags();
 		QString title;
+		QString shortName;
 		Stickers::Pack pack;
 		std::unique_ptr<Ui::RippleAnimation> ripple;
+		bool externalLayout = false;
+		int count = 0;
 	};
 
 	template <typename Callback>
@@ -151,9 +168,15 @@ private:
 	void installSet(uint64 setId);
 	void removeMegagroupSet(bool locally);
 	void removeSet(uint64 setId);
+	void sendInstallRequest(
+		uint64 setId,
+		const MTPInputStickerSet &input);
+	void refreshSearchSets();
+	void refreshSearchIndex();
 
 	bool setHasTitle(const Set &set) const;
 	bool stickerHasDeleteButton(const Set &set, int index) const;
+	Stickers::Pack collectRecentStickers();
 	void refreshRecentStickers(bool resize = true);
 	void refreshFavedStickers();
 	enum class GroupStickersPlace {
@@ -176,12 +199,8 @@ private:
 	};
 	void validateSelectedIcon(ValidateIconAnimations animations);
 
-	std::vector<Set> &shownSets() {
-		return (_section == Section::Featured) ? _featuredSets : _mySets;
-	}
-	const std::vector<Set> &shownSets() const {
-		return (_section == Section::Featured) ? _featuredSets : _mySets;
-	}
+	std::vector<Set> &shownSets();
+	const std::vector<Set> &shownSets() const;
 	int featuredRowHeight() const;
 	void readVisibleSets();
 
@@ -189,6 +208,7 @@ private:
 	void paintStickers(Painter &p, QRect clip);
 	void paintMegagroupEmptySet(Painter &p, int y, bool buttonSelected, TimeMs ms);
 	void paintSticker(Painter &p, Set &set, int y, int index, bool selected, bool deleteSelected);
+	void paintEmptySearchResults(Painter &p);
 
 	int stickersRight() const;
 	bool featuredHasAddButton(int index) const;
@@ -207,6 +227,7 @@ private:
 	void appendSet(
 		std::vector<Set> &to,
 		uint64 setId,
+		bool externalLayout,
 		AppendSkip skip = AppendSkip::None);
 
 	void selectEmoji(EmojiPtr emoji);
@@ -218,9 +239,19 @@ private:
 	void setColumnCount(int count);
 	void refreshFooterIcons();
 
+	void cancelSetsSearch();
+	void showSearchResults();
+	void searchResultsDone(const MTPmessages_FoundStickerSets &result);
+	void refreshSearchRows();
+	void refreshSearchRows(const std::vector<Stickers::Set*> *cloudSets);
+	void fillLocalSearchRows(const QString &query);
+	void fillCloudSearchRows(const std::vector<Stickers::Set*> &sets);
+	void addSearchRow(not_null<const Stickers::Set*> set);
+
 	ChannelData *_megagroupSet = nullptr;
 	std::vector<Set> _mySets;
 	std::vector<Set> _featuredSets;
+	std::vector<Set> _searchSets;
 	base::flat_set<uint64> _installedLocallySets;
 	std::vector<bool> _custom;
 	base::flat_set<not_null<DocumentData*>> _favedStickersMap;
@@ -252,6 +283,12 @@ private:
 
 	QTimer _previewTimer;
 	bool _previewShown = false;
+
+	std::map<QString, std::vector<Stickers::Set*>> _searchCache;
+	std::vector<std::pair<uint64, QStringList>> _searchIndex;
+	base::Timer _searchRequestTimer;
+	QString _searchQuery, _searchNextQuery;
+	mtpRequestId _searchRequestId = 0;
 
 };
 

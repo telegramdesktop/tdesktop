@@ -2,10 +2,6 @@
 
 Make Telegram Great Again!
 
-[![Version](https://badge.fury.io/gh/Sea-n%2Ftdesktop.svg)](https://github.com/Sea-n/tdesktop/releases)
-[![Build Status](https://travis-ci.org/Sea-n/tdesktop.svg?branch=dev)](https://travis-ci.org/Sea-n/tdesktop)
-[![Build status](https://ci.appveyor.com/api/projects/status/la7r9kwwumhcsu42/branch/dev?svg=true)](https://ci.appveyor.com/project/Sea-n/tdesktop)
-
 [![Preview of Telegreat][preview_image]][preview_image_url]
 
 The source code is published under GPLv3 with OpenSSL exception, the license is available [here][license].
@@ -14,7 +10,6 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 * Windows XP - Windows 10 (**not** RT)
 * Mac OS X 10.8 - Mac OS X 10.11
-* Mac OS X 10.6 - Mac OS X 10.7 (separate build)
 * Ubuntu 12.04 - Ubuntu 16.04
 * Fedora 22 - Fedora 24
 
@@ -50,14 +45,13 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 * [Official Channel](https://t.me/Telegreat)
 * [Main Developer](https://t.me/SeanChannel)
-* [Public Site](telegreat)
+* [Public Site][telegreat]
 
 [//]: # (LINKS)
 [telegreat]: https://telegre.at
 [license]: LICENSE
 [msvc]: docs/building-msvc.md
 [xcode]: docs/building-xcode.md
-[xcode_old]: docs/building-xcode-old.md
 [cmake]: docs/building-cmake.md
 [preview_image]: https://img.sean.taipei/2018/01/telegreat-preview.png "Preview of Telegreat"
 [preview_image_url]: https://img.sean.taipei/2018/01/telegreat-preview.png

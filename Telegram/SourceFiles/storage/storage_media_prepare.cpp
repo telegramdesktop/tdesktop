@@ -135,10 +135,7 @@ PreparedFile &PreparedFile::operator=(PreparedFile &&other) = default;
 PreparedFile::~PreparedFile() = default;
 
 MimeDataState ComputeMimeDataState(const QMimeData *data) {
-	if (!data
-		|| data->hasFormat(qsl("application/x-td-forward-selected"))
-		|| data->hasFormat(qsl("application/x-td-forward-pressed"))
-		|| data->hasFormat(qsl("application/x-td-forward-pressed-link"))) {
+	if (!data || data->hasFormat(qsl("application/x-td-forward"))) {
 		return MimeDataState::None;
 	}
 

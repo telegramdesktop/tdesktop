@@ -11,6 +11,10 @@ namespace Ui {
 class RpWidget;
 } // namespace Ui
 
+namespace Data {
+class Feed;
+} // namespace Data
+
 namespace Window {
 
 class Controller;
@@ -30,12 +34,23 @@ void FillPeerMenu(
 	not_null<PeerData*> peer,
 	const PeerMenuCallback &addAction,
 	PeerMenuSource source);
+void FillFeedMenu(
+	not_null<Controller*> controller,
+	not_null<Data::Feed*> feed,
+	const PeerMenuCallback &addAction,
+	PeerMenuSource source);
+
+void PeerMenuAddMuteAction(
+	not_null<PeerData*> peer,
+	const PeerMenuCallback &addAction);
 
 void PeerMenuDeleteContact(not_null<UserData*> user);
 void PeerMenuShareContactBox(not_null<UserData*> user);
 void PeerMenuAddContact(not_null<UserData*> user);
 void PeerMenuAddChannelMembers(not_null<ChannelData*> channel);
+//void PeerMenuUngroupFeed(not_null<Data::Feed*> feed); // #feed
 
+//void ToggleChannelGrouping(not_null<ChannelData*> channel, bool group); // #feed
 base::lambda<void()> ClearHistoryHandler(not_null<PeerData*> peer);
 base::lambda<void()> DeleteAndLeaveHandler(not_null<PeerData*> peer);
 base::lambda<void()> GoToFirstMessageHandler(not_null<PeerData*> peer);

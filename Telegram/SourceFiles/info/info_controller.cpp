@@ -22,6 +22,7 @@ namespace {
 
 not_null<PeerData*> CorrectPeer(PeerId peerId) {
 	Expects(peerId != 0);
+
 	auto result = App::peer(peerId);
 	if (auto to = result->migrateTo()) {
 		return to;
@@ -30,6 +31,26 @@ not_null<PeerData*> CorrectPeer(PeerId peerId) {
 }
 
 } // namespace
+
+Key::Key(not_null<PeerData*> peer) : _value(peer) {
+}
+
+Key::Key(not_null<Data::Feed*> feed) : _value(feed) {
+}
+
+PeerData *Key::peer() const {
+	if (const auto peer = base::get_if<not_null<PeerData*>>(&_value)) {
+		return *peer;
+	}
+	return nullptr;
+}
+
+Data::Feed *Key::feed() const {
+	if (const auto feed = base::get_if<not_null<Data::Feed*>>(&_value)) {
+		return *feed;
+	}
+	return nullptr;
+}
 
 rpl::producer<SparseIdsMergedSlice> AbstractController::mediaSource(
 		SparseIdsMergedSlice::UniversalMsgId aroundId,
@@ -67,7 +88,9 @@ Controller::Controller(
 	not_null<ContentMemento*> memento)
 : AbstractController(window)
 , _widget(widget)
-, _peer(App::peer(memento->peerId()))
+, _key(memento->peerId()
+	? Key(App::peer(memento->peerId()))
+	: Key(memento->feed()))
 , _migrated(memento->migratedPeerId()
 	? App::peer(memento->migratedPeerId())
 	: nullptr)
@@ -77,20 +100,20 @@ Controller::Controller(
 }
 
 void Controller::setupMigrationViewer() {
-	if (!_peer->isChat() && (!_peer->isChannel() || _migrated != nullptr)) {
+	const auto peer = _key.peer();
+	if (!peer || (!peer->isChat() && !peer->isChannel()) || _migrated) {
 		return;
 	}
 	Notify::PeerUpdateValue(
-		_peer,
+		peer,
 		Notify::PeerUpdate::Flag::MigrationChanged
-	) | rpl::start_with_next([this] {
-		if (_peer->migrateTo() || (_peer->migrateFrom() != _migrated)) {
-			auto window = parentController();
-			auto peerId = _peer->id;
-			auto section = _section;
+	) | rpl::start_with_next([=] {
+		if (peer->migrateTo() || (peer->migrateFrom() != _migrated)) {
+			const auto window = parentController();
+			const auto section = _section;
 			InvokeQueued(_widget, [=] {
 				window->showSection(
-					Memento(peerId, section),
+					Memento(peer->id, section),
 					Window::SectionShow(
 						Window::SectionShow::Way::Backward,
 						anim::type::instant,
@@ -111,7 +134,8 @@ rpl::producer<Wrap> Controller::wrapValue() const {
 bool Controller::validateMementoPeer(
 		not_null<ContentMemento*> memento) const {
 	return memento->peerId() == peerId()
-		&& memento->migratedPeerId() == migratedPeerId();
+		&& memento->migratedPeerId() == migratedPeerId()
+		&& memento->feed() == feed();
 }
 
 void Controller::setSection(not_null<ContentMemento*> memento) {
@@ -132,7 +156,9 @@ void Controller::updateSearchControllers(
 	auto hasCommonGroupsSearch
 		= (type == Type::CommonGroups);
 	auto hasMembersSearch
-		= (type == Type::Members || type == Type::Profile);
+		= (type == Type::Members
+			|| type == Type::Profile
+			|| type == Type::Channels);
 	auto searchQuery = memento->searchFieldQuery();
 	if (isMedia) {
 		_searchController
@@ -193,9 +219,11 @@ void Controller::showBackFromStack(const Window::SectionShow &params) {
 
 auto Controller::produceSearchQuery(
 		const QString &query) const -> SearchQuery {
+	Expects(_key.peer() != nullptr);
+
 	auto result = SearchQuery();
 	result.type = _section.mediaType();
-	result.peerId = _peer->id;
+	result.peerId = _key.peer()->id;
 	result.query = query;
 	result.migratedPeerId = _migrated ? _migrated->id : PeerId(0);
 	return result;

@@ -117,6 +117,7 @@ void Widget::createLanguageLink() {
 	if (!currentId.isEmpty() && currentId != defaultId) {
 		createLink(Lang::GetOriginalValue(lng_switch_to_this), defaultId);
 	} else if (!suggestedId.isEmpty() && suggestedId != currentId) {
+		LOG(("createLanguageLink"));
 		request(MTPlangpack_GetStrings(MTP_string(suggestedId), MTP_vector<MTPstring>(1, MTP_string("lng_switch_to_this")))).done([this, suggestedId, createLink](const MTPVector<MTPLangPackString> &result) {
 			auto strings = Lang::Instance::ParseStrings(result);
 			auto it = strings.find(lng_switch_to_this);
@@ -790,6 +791,7 @@ QPixmap Widget::Step::prepareSlideAnimation() {
 }
 
 void Widget::Step::showAnimated(Direction direction) {
+	setFocus();
 	show();
 	hideChildren();
 	if (_slideAnimation) {

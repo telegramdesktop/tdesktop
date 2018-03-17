@@ -260,9 +260,22 @@ infoTabs: SettingsSlider(defaultTabsSlider) {
 	labelTop: 19px;
 }
 
+infoProfilePhotoInnerSize: 72px;
+infoProfilePhotoSize: size(
+	infoProfilePhotoInnerSize,
+	infoProfilePhotoInnerSize);
 infoProfilePhoto: UserpicButton(defaultUserpicButton) {
-	size: size(72px, 72px);
-	photoSize: 72px;
+	size: infoProfilePhotoSize;
+	photoSize: infoProfilePhotoInnerSize;
+}
+infoFeedProfilePhoto: FeedUserpicButton(defaultFeedUserpicButton) {
+	size: infoProfilePhotoSize;
+	innerSize: infoProfilePhotoInnerSize;
+	innerPart: UserpicButton(defaultUserpicButton) {
+		size: size(35px, 35px);
+		photoSize: 35px;
+	}
+
 }
 infoProfilePhotoLeft: 19px;
 infoProfilePhotoTop: 18px;
@@ -319,6 +332,7 @@ infoIconInformation: icon {{ "info_information", infoIconFg }};
 infoIconMembers: icon {{ "info_members", infoIconFg }};
 infoIconNotifications: icon {{ "info_notifications", infoIconFg }};
 infoIconActions: icon {{ "info_actions", infoIconFg }};
+infoIconFeed: icon {{ "info_feed", infoIconFg }};
 infoIconMediaPhoto: icon {{ "info_media_photo", infoIconFg }};
 infoIconMediaVideo: icon {{ "info_media_video", infoIconFg }};
 infoIconMediaFile: icon {{ "info_media_file", infoIconFg }};
@@ -482,6 +496,11 @@ infoMembersCancelSearch: CrossButton {
 }
 infoMembersSearchTop: 15px;
 
+infoChannelsAddChannel: IconButton(infoMembersButton) {
+	icon: icon {{ "settings_edit_name", menuIconFg, point(9px, 9px) }};
+	iconOver: icon {{ "settings_edit_name", menuIconFgOver, point(9px, 9px) }};
+}
+
 infoMembersCreatorIcon: icon {{
 	"profile_admin_star",
 	profileAdminStartFg,
@@ -522,18 +541,25 @@ infoMediaMargin: margins(0px, 6px, 0px, 2px);
 infoMediaMinGridSize: 90px;
 
 infoCommonGroupsMargin: margins(0px, 13px, 0px, 2px);
+infoCommonGroupsListItem: PeerListItem(defaultPeerListItem) {
+	height: 52px;
+	photoSize: 40px;
+	photoPosition: point(16px, 6px);
+	namePosition: point(71px, 15px);
+	nameStyle: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+		linkFont: font(14px semibold);
+		linkFontOver: font(14px semibold);
+	}
+	statusPosition: point(79px, 31px);
+}
 infoCommonGroupsList: PeerList(infoMembersList) {
-	item: PeerListItem(defaultPeerListItem) {
-		height: 52px;
-		photoSize: 40px;
-		photoPosition: point(16px, 6px);
-		namePosition: point(71px, 15px);
-		nameStyle: TextStyle(defaultTextStyle) {
-			font: font(14px semibold);
-			linkFont: font(14px semibold);
-			linkFontOver: font(14px semibold);
-		}
-		statusPosition: point(79px, 31px);
+	item: infoCommonGroupsListItem;
+}
+infoChannelsList: PeerList(infoCommonGroupsList) {
+	item: PeerListItem(infoCommonGroupsListItem) {
+		photoPosition: point(18px, 6px);
+		namePosition: point(79px, 15px);
 	}
 }
 
@@ -661,8 +687,22 @@ topBarInfo: IconButton(topBarSearch) {
 topBarInfoActive: icon {{ "top_bar_profile", windowActiveTextFg }};
 topBarActionSkip: 10px;
 
+topBarInfoButtonSize: size(52px, topBarHeight);
+topBarInfoButtonInnerSize: 42px;
+topBarInfoButtonInnerPosition: point(2px, -1px);
 topBarInfoButton: UserpicButton(defaultUserpicButton) {
-	size: size(52px, topBarHeight);
-	photoSize: 42px;
-	photoPosition: point(2px, -1px);
+	size: topBarInfoButtonSize;
+	photoSize: topBarInfoButtonInnerSize;
+	photoPosition: topBarInfoButtonInnerPosition;
 }
+topBarFeedInfoButton: FeedUserpicButton(defaultFeedUserpicButton) {
+	size: topBarInfoButtonSize;
+	innerSize: topBarInfoButtonInnerSize;
+	innerPosition: topBarInfoButtonInnerPosition;
+	innerPart: UserpicButton(defaultUserpicButton) {
+		size: size(20px, 20px);
+		photoSize: 20px;
+	}
+}
+
+infoFeedLeaveIconMargins: margins(10px, 12px, 20px, 10px);

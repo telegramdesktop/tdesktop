@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "messenger.h"
 #include "platform/platform_specific.h"
+#include "history/view/history_view_element.h"
+#include "history/history_item.h"
 #include "boxes/confirm_box.h"
 #include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
@@ -36,12 +38,16 @@ QString tryConvertUrlToLocal(QString url) {
 		} else if (auto confirmPhoneMatch = regex_match(qsl("^confirmphone/?\\?(.+)"), query, matchOptions)) {
 			return qsl("tg://confirmphone?") + confirmPhoneMatch->captured(1);
 		} else if (auto ivMatch = regex_match(qsl("iv/?\\?(.+)(#|$)"), query, matchOptions)) {
-			auto params = url_parse_params(ivMatch->captured(1), UrlParamNameTransform::ToLower);
-			auto previewedUrl = params.value(qsl("url"));
-			if (previewedUrl.startsWith(qstr("http://"), Qt::CaseInsensitive)
-				|| previewedUrl.startsWith(qstr("https://"), Qt::CaseInsensitive)) {
-				return previewedUrl;
-			}
+			//
+			// We need to show our t.me page, not the url directly.
+			//
+			//auto params = url_parse_params(ivMatch->captured(1), UrlParamNameTransform::ToLower);
+			//auto previewedUrl = params.value(qsl("url"));
+			//if (previewedUrl.startsWith(qstr("http://"), Qt::CaseInsensitive)
+			//	|| previewedUrl.startsWith(qstr("https://"), Qt::CaseInsensitive)) {
+			//	return previewedUrl;
+			//}
+			return url;
 		} else if (auto socksMatch = regex_match(qsl("socks/?\\?(.+)(#|$)"), query, matchOptions)) {
 			return qsl("tg://socks?") + socksMatch->captured(1);
 		} else if (auto usernameMatch = regex_match(qsl("^([a-zA-Z0-9\\.\\_]+)(/?\\?|/?$|/(\\d+)/?(?:\\?|$))"), query, matchOptions)) {
@@ -62,6 +68,20 @@ bool UrlRequiresConfirmation(const QUrl &url) {
 }
 
 } // namespace
+
+UrlClickHandler::UrlClickHandler(const QString &url, bool fullDisplayed)
+: TextClickHandler(fullDisplayed)
+, _originalUrl(url) {
+	if (isEmail()) {
+		_readable = _originalUrl;
+	} else {
+		const auto original = QUrl(_originalUrl);
+		const auto good = QUrl(original.isValid()
+			? original.toEncoded()
+			: QString());
+		_readable = good.isValid() ? good.toDisplayString() : _originalUrl;
+	}
+}
 
 QString UrlClickHandler::copyToClipboardContextItemText() const {
 	return lang(isEmail() ? lng_context_copy_email : lng_context_copy_link);
@@ -228,6 +248,23 @@ TextWithEntities HashtagClickHandler::getExpandedLinkTextWithEntities(ExpandLink
 	return simpleTextWithEntity({ EntityInTextHashtag, entityOffset, textPart.size() });
 }
 
+QString CashtagClickHandler::copyToClipboardContextItemText() const {
+	return lang(lng_context_copy_hashtag);
+}
+
+void CashtagClickHandler::onClick(Qt::MouseButton button) const {
+	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
+		App::searchByHashtag(_tag, Ui::getPeerForMouseAction());
+	}
+}
+
+TextWithEntities CashtagClickHandler::getExpandedLinkTextWithEntities(
+		ExpandLinksMode mode,
+		int entityOffset,
+		const QStringRef &textPart) const {
+	return simpleTextWithEntity({ EntityInTextCashtag, entityOffset, textPart.size() });
+}
+
 PeerData *BotCommandClickHandler::_peer = nullptr;
 UserData *BotCommandClickHandler::_bot = nullptr;
 void BotCommandClickHandler::onClick(Qt::MouseButton button) const {
@@ -241,10 +278,11 @@ void BotCommandClickHandler::onClick(Qt::MouseButton button) const {
 		}
 
 		if (auto peer = Ui::getPeerForMouseAction()) { // old way
-			UserData *bot = peer->isUser() ? peer->asUser() : nullptr;
-			if (auto item = App::hoveredLinkItem()) {
-				if (!bot) {
-					bot = item->fromOriginal()->asUser(); // may return nullptr
+			auto bot = peer->isUser() ? peer->asUser() : nullptr;
+			if (!bot) {
+				if (const auto view = App::hoveredLinkItem()) {
+					// may return nullptr
+					bot = view->data()->fromOriginal()->asUser();
 				}
 			}
 			Ui::showPeerHistory(peer, ShowAtTheEndMsgId);

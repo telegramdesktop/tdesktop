@@ -9,6 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/runtime_composer.h"
 
+namespace HistoryView {
+struct TextState;
+struct StateRequest;
+} // namespace HistoryView
+
 constexpr auto FullSelection = TextSelection { 0xFFFF, 0xFFFF };
 
 inline bool IsSubGroupSelection(TextSelection selection) {
@@ -45,42 +50,6 @@ inline bool IsGroupItemSelection(
 		: selection;
 }
 
-enum RoundCorners {
-	SmallMaskCorners = 0x00, // for images
-	LargeMaskCorners,
-
-	BoxCorners,
-	MenuCorners,
-	BotKbOverCorners,
-	StickerCorners,
-	StickerSelectedCorners,
-	SelectedOverlaySmallCorners,
-	SelectedOverlayLargeCorners,
-	DateCorners,
-	DateSelectedCorners,
-	ForwardCorners,
-	MediaviewSaveCorners,
-	EmojiHoverCorners,
-	StickerHoverCorners,
-	BotKeyboardCorners,
-	PhotoSelectOverlayCorners,
-
-	Doc1Corners,
-	Doc2Corners,
-	Doc3Corners,
-	Doc4Corners,
-
-	InShadowCorners, // for photos without bg
-	InSelectedShadowCorners,
-
-	MessageInCorners, // with shadow
-	MessageInSelectedCorners,
-	MessageOutCorners,
-	MessageOutSelectedCorners,
-
-	RoundCornersCount
-};
-
 static const int32 FileStatusSizeReady = 0x7FFFFFF0;
 static const int32 FileStatusSizeLoaded = 0x7FFFFFF1;
 static const int32 FileStatusSizeFailed = 0x7FFFFFF2;
@@ -111,8 +80,13 @@ public:
 
 };
 
-class LayoutItemBase : public RuntimeComposer, public ClickHandlerHost {
+class LayoutItemBase
+	: public RuntimeComposer<LayoutItemBase>
+	, public ClickHandlerHost {
 public:
+	using TextState = HistoryView::TextState;
+	using StateRequest = HistoryView::StateRequest;
+
 	LayoutItemBase() {
 	}
 
@@ -132,16 +106,12 @@ public:
 		return _height;
 	}
 
-	[[nodiscard]] virtual HistoryTextState getState(
-			QPoint point,
-			HistoryStateRequest request) const {
-		return {};
-	}
+	[[nodiscard]] virtual TextState getState(
+		QPoint point,
+		StateRequest request) const;
 	[[nodiscard]] virtual TextSelection adjustSelection(
-			TextSelection selection,
-			TextSelectType type) const {
-		return selection;
-	}
+		TextSelection selection,
+		TextSelectType type) const;
 
 	int width() const {
 		return _width;

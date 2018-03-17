@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "dialogs/dialogs_key.h"
 
 namespace Window {
 
@@ -69,8 +70,8 @@ class SectionWidget : public AbstractSectionWidget {
 public:
 	SectionWidget(QWidget *parent, not_null<Window::Controller*> controller);
 
-	virtual PeerData *activePeer() const {
-		return nullptr;
+	virtual Dialogs::RowDescriptor activeChat() const {
+		return {};
 	}
 
 	// When resizing the widget with top edge moved up or down and we
@@ -125,6 +126,8 @@ public:
 	virtual bool cmd_search() {
 		return false;
 	}
+
+	static void PaintBackground(QWidget *widget, QPaintEvent *event);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;

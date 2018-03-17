@@ -48,7 +48,8 @@ public:
 	}
 
 	// Copy to clipboard support.
-	virtual void copyToClipboard() const {
+	virtual QString copyToClipboardText() const {
+		return QString();
 	}
 	virtual QString copyToClipboardContextItemText() const {
 		return QString();

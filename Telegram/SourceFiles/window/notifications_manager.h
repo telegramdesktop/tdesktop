@@ -160,6 +160,10 @@ protected:
 	}
 
 private:
+	void openNotificationMessage(
+		not_null<History*> history,
+		MsgId messageId);
+
 	System *_system = nullptr;
 
 };

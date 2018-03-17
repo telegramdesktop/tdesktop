@@ -13,9 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "ui/widgets/checkbox.h"
 #include "auth_session.h"
+#include "data/data_session.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
+#include "history/history.h"
 #include "dialogs/dialogs_indexed_list.h"
 
 namespace {
@@ -147,7 +149,7 @@ void PeerListGlobalSearchController::searchQuery(const QString &query) {
 	if (_query != query) {
 		_query = query;
 		_requestId = 0;
-		if (_query.size() >= MinUsernameLength && !searchInCache()) {
+		if (!_query.isEmpty() && !searchInCache()) {
 			_timer.callOnce(AutoSearchTimeout);
 		} else {
 			_timer.cancel();
@@ -166,9 +168,12 @@ bool PeerListGlobalSearchController::searchInCache() {
 }
 
 void PeerListGlobalSearchController::searchOnServer() {
-	_requestId = request(MTPcontacts_Search(MTP_string(_query), MTP_int(SearchPeopleLimit))).done([this](const MTPcontacts_Found &result, mtpRequestId requestId) {
+	_requestId = request(MTPcontacts_Search(
+		MTP_string(_query),
+		MTP_int(SearchPeopleLimit)
+	)).done([=](const MTPcontacts_Found &result, mtpRequestId requestId) {
 		searchDone(result, requestId);
-	}).fail([this](const RPCError &error, mtpRequestId requestId) {
+	}).fail([=](const RPCError &error, mtpRequestId requestId) {
 		if (_requestId == requestId) {
 			_requestId = 0;
 			delegate()->peerListSearchRefreshRows();
@@ -177,7 +182,9 @@ void PeerListGlobalSearchController::searchOnServer() {
 	_queries.emplace(_requestId, _query);
 }
 
-void PeerListGlobalSearchController::searchDone(const MTPcontacts_Found &result, mtpRequestId requestId) {
+void PeerListGlobalSearchController::searchDone(
+		const MTPcontacts_Found &result,
+		mtpRequestId requestId) {
 	Expects(result.type() == mtpc_contacts_found);
 
 	auto &contacts = result.c_contacts_found();
@@ -192,19 +199,28 @@ void PeerListGlobalSearchController::searchDone(const MTPcontacts_Found &result,
 			_queries.erase(it);
 		}
 	}
-	if (_requestId == requestId) {
-		_requestId = 0;
-		for_const (auto &mtpPeer, contacts.vresults.v) {
-			if (auto peer = App::peerLoaded(peerFromMTP(mtpPeer))) {
+	const auto feedList = [&](const MTPVector<MTPPeer> &list) {
+		for (const auto &mtpPeer : list.v) {
+			if (const auto peer = App::peerLoaded(peerFromMTP(mtpPeer))) {
 				delegate()->peerListSearchAddRow(peer);
 			}
 		}
+	};
+	if (_requestId == requestId) {
+		_requestId = 0;
+		feedList(contacts.vmy_results);
+		feedList(contacts.vresults);
 		delegate()->peerListSearchRefreshRows();
 	}
 }
 
 bool PeerListGlobalSearchController::isLoading() {
 	return _timer.isActive() || _requestId;
+}
+
+ChatsListBoxController::Row::Row(not_null<History*> history)
+: PeerListRow(history->peer)
+, _history(history) {
 }
 
 ChatsListBoxController::ChatsListBoxController(
@@ -236,9 +252,11 @@ void ChatsListBoxController::rebuildRows() {
 	auto wasEmpty = !delegate()->peerListFullRowsCount();
 	auto appendList = [this](auto chats) {
 		auto count = 0;
-		for_const (auto row, chats->all()) {
-			if (appendRow(row->history())) {
-				++count;
+		for (const auto row : chats->all()) {
+			if (const auto history = row->history()) {
+				if (appendRow(history)) {
+					++count;
+				}
 			}
 		}
 		return count;
@@ -320,11 +338,12 @@ void ContactsBoxController::prepare() {
 void ContactsBoxController::rebuildRows() {
 	auto appendList = [this](auto chats) {
 		auto count = 0;
-		for_const (auto row, chats->all()) {
-			auto history = row->history();
-			if (auto user = history->peer->asUser()) {
-				if (appendRow(user)) {
-					++count;
+		for (const auto row : chats->all()) {
+			if (const auto history = row->history()) {
+				if (const auto user = history->peer->asUser()) {
+					if (appendRow(user)) {
+						++count;
+					}
 				}
 			}
 		}
@@ -345,8 +364,9 @@ void ContactsBoxController::checkForEmptyRows() {
 	}
 }
 
-std::unique_ptr<PeerListRow> ContactsBoxController::createSearchRow(not_null<PeerData*> peer) {
-	if (auto user = peer->asUser()) {
+std::unique_ptr<PeerListRow> ContactsBoxController::createSearchRow(
+		not_null<PeerData*> peer) {
+	if (const auto user = peer->asUser()) {
 		return createRow(user);
 	}
 	return nullptr;
@@ -748,8 +768,10 @@ void AddBotToGroupBoxController::shareBotGame(not_null<PeerData*> chat) {
 					MTP_inputGameShortName(
 						bot->inputUser,
 						MTP_string(bot->botInfo->shareGameShortName))),
+				MTP_string(""),
 				MTP_long(randomId),
-				MTPnullMarkup),
+				MTPnullMarkup,
+				MTPnullEntities),
 			App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
 			App::main()->rpcFail(&MainWidget::sendMessageFail),
 			0,

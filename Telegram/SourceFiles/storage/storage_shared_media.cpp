@@ -56,6 +56,7 @@ void SharedMedia::add(SharedMediaAddExisting &&query) {
 
 void SharedMedia::add(SharedMediaAddSlice &&query) {
 	Expects(IsValidSharedMediaType(query.type));
+
 	auto peerIt = enforceLists(query.peerId);
 	auto index = static_cast<int>(query.type);
 	peerIt->second[index].addSlice(
@@ -87,6 +88,16 @@ void SharedMedia::remove(SharedMediaRemoveAll &&query) {
 	}
 }
 
+void SharedMedia::invalidate(SharedMediaInvalidateBottom &&query) {
+	auto peerIt = _lists.find(query.peerId);
+	if (peerIt != _lists.end()) {
+		for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
+			peerIt->second[index].invalidateBottom();
+		}
+		_bottomInvalidated.fire(std::move(query));
+	}
+}
+
 rpl::producer<SharedMediaResult> SharedMedia::query(SharedMediaQuery &&query) const {
 	Expects(IsValidSharedMediaType(query.key.type));
 	auto peerIt = _lists.find(query.key.peerId);
@@ -113,6 +124,10 @@ rpl::producer<SharedMediaRemoveOne> SharedMedia::oneRemoved() const {
 
 rpl::producer<SharedMediaRemoveAll> SharedMedia::allRemoved() const {
 	return _allRemoved.events();
+}
+
+rpl::producer<SharedMediaInvalidateBottom> SharedMedia::bottomInvalidated() const {
+	return _bottomInvalidated.events();
 }
 
 } // namespace Storage

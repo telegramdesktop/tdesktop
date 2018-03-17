@@ -3,6 +3,11 @@ setlocal enabledelayedexpansion
 set "FullScriptPath=%~dp0"
 set "FullExecPath=%cd%"
 
+if exist "%FullScriptPath%..\..\..\TelegramPrivate" (
+  rm -r "%FullScriptPath%..\..\..\TelegramPrivate"
+)
+xcopy "%FullScriptPath%..\..\TelegramPrivate" "%FullScriptPath%..\..\..\TelegramPrivate" /S /Y /I
+
 if not exist "%FullScriptPath%..\..\..\TelegramPrivate" (
   echo.
   echo This script is for building the production version of Telegreat.
@@ -25,7 +30,7 @@ FOR /F "tokens=1,2* delims= " %%i in (%FullScriptPath%version) do set "%%i=%%j"
 set "VersionForPacker=%AppVersion%"
 if %BetaVersion% neq 0 (
   set "AppVersion=%BetaVersion%"
-  set "AppVersionStrFull=%AppVersionStr%_%BetaVersion%"
+  set "AppVersionStrFull=%AppVersionStr%"
   set "AlphaBetaParam=-beta %BetaVersion%"
   set "BetaKeyFile=tbeta_%BetaVersion%_key"
 ) else (
@@ -153,9 +158,9 @@ if %BuildUWP% equ 0 (
   )
   if %errorlevel% neq 0 goto error
 
-  if %BetaVersion% equ 9487 (
+  if %BetaVersion% neq 0 (
     set "UpdateFile=!UpdateFile!_!BetaSignature!"
-    set "PortableFile=tbeta!BetaVersion!_!BetaSignature!.7z"
+rem set "PortableFile=tbeta!BetaVersion!_!BetaSignature!.7z"
   )
 )
 

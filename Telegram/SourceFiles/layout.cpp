@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "media/media_audio.h"
 #include "storage/localstorage.h"
+#include "history/view/history_view_cursor_state.h"
 
 QString formatSizeText(qint64 size) {
 	if (size >= 1024 * 1024) { // more than 1 mb
@@ -220,4 +221,16 @@ msp mst paf pif ps1 reg rgs sct shb shs u3p vb vbe vbs vbscript ws wsf\
 
 	auto lastDotIndex = filename.lastIndexOf('.');
 	return (lastDotIndex >= 0) && (executableTypes->indexOf(filename.mid(lastDotIndex + 1).toLower()) >= 0);
+}
+
+[[nodiscard]] HistoryView::TextState LayoutItemBase::getState(
+		QPoint point,
+		StateRequest request) const {
+	return {};
+}
+
+[[nodiscard]] TextSelection LayoutItemBase::adjustSelection(
+		TextSelection selection,
+		TextSelectType type) const {
+	return selection;
 }

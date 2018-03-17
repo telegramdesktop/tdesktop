@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/themes/window_theme.h"
+#include "history/history.h"
 
 #include <qpa/qplatformnativeinterface.h>
 

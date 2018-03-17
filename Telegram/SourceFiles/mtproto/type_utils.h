@@ -41,20 +41,20 @@ enum class MTPDmessage_ClientFlag : uint32 {
 	// message is a group migrate (group -> supergroup) service message
 	f_is_group_migrate = (1U << 29),
 
-	// message needs initDimensions() + resize() + paint()
-	f_pending_init_dimensions = (1U << 28),
+	//// message needs initDimensions() + resize() + paint()
+	//f_pending_init_dimensions = (1U << 28),
 
-	// message needs resize() + paint()
-	f_pending_resize = (1U << 27),
+	//// message needs resize() + paint()
+	//f_pending_resize = (1U << 27),
 
-	// message needs paint()
-	f_pending_paint = (1U << 26),
+	//// message needs paint()
+	//f_pending_paint = (1U << 26),
 
-	// message is attached to previous one when displaying the history
-	f_attach_to_previous = (1U << 25),
+	//// message is attached to previous one when displaying the history
+	//f_attach_to_previous = (1U << 25),
 
-	// message is attached to next one when displaying the history
-	f_attach_to_next = (1U << 24),
+	//// message is attached to next one when displaying the history
+	//f_attach_to_next = (1U << 24),
 
 	// message was sent from inline bot, need to re-set media when sent
 	f_from_inline_bot = (1U << 23),
@@ -68,8 +68,8 @@ enum class MTPDmessage_ClientFlag : uint32 {
 	// message has an admin badge in supergroup
 	f_has_admin_badge = (1U << 20),
 
-	// message is not displayed because it is part of a group
-	f_hidden_by_group = (1U << 19),
+	//// message is not displayed because it is part of a group
+	//f_hidden_by_group = (1U << 19),
 
 	// update this when adding new client side flags
 	MIN_FIELD = (1U << 19),

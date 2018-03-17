@@ -154,7 +154,7 @@ QPixmap ItemBase::getResultContactAvatar(int width, int height) const {
 }
 
 int ItemBase::getResultDuration() const {
-	return _result->_duration;
+	return 0;
 }
 
 QString ItemBase::getResultUrl() const {
@@ -210,18 +210,25 @@ const DocumentItems *documentItems() {
 
 namespace internal {
 
-void regDocumentItem(DocumentData *document, ItemBase *item) {
+void regDocumentItem(
+		not_null<const DocumentData*> document,
+		not_null<ItemBase*> item) {
 	documentItemsMap.createIfNull();
 	(*documentItemsMap)[document].insert(item);
 }
 
-void unregDocumentItem(DocumentData *document, ItemBase *item) {
+void unregDocumentItem(
+		not_null<const DocumentData*> document,
+		not_null<ItemBase*> item) {
 	if (documentItemsMap) {
 		auto i = documentItemsMap->find(document);
 		if (i != documentItemsMap->cend()) {
-			if (i->remove(item) && i->isEmpty()) {
+			if (i->second.remove(item) && i->second.empty()) {
 				documentItemsMap->erase(i);
 			}
+		}
+		if (documentItemsMap->empty()) {
+			documentItemsMap.clear();
 		}
 	}
 }

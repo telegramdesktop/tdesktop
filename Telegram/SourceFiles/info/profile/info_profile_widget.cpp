@@ -21,6 +21,10 @@ Memento::Memento(not_null<Controller*> controller)
 	controller->migratedPeerId()) {
 }
 
+Memento::Memento(PeerId peerId, PeerId migratedPeerId)
+: ContentMemento(peerId, migratedPeerId) {
+}
+
 Section Memento::section() const {
 	return Section(Section::Type::Profile);
 }

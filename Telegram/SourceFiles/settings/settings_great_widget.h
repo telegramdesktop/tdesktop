@@ -29,12 +29,14 @@ private:
 	void onUsername();
 	void onIgnore();
 	void onTagMention();
+	void onTextMention();
 	void onAutoCopy();
 
 	Ui::Checkbox *_enableCallbackData = nullptr;
 	Ui::Checkbox *_enableUsername = nullptr;
 	Ui::Checkbox *_enableIgnore = nullptr;
 	Ui::Checkbox *_enableTagMention = nullptr;
+	Ui::Checkbox *_enableTextMention = nullptr;
 	Ui::Checkbox *_enableAutoCopy = nullptr;
 	Ui::Checkbox *_enableUnstable = nullptr;
 	Ui::LinkButton *_typing = nullptr;

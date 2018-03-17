@@ -26,6 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "window/window_controller.h"
 #include "base/flags.h"
+#include "data/data_session.h"
+#include "history/history.h"
 
 #include <openssl/evp.h>
 
@@ -34,6 +36,7 @@ namespace {
 
 constexpr auto kThemeFileSizeLimit = 5 * 1024 * 1024;
 constexpr auto kFileLoaderQueueStopTimeout = TimeMs(5000);
+constexpr auto kDefaultStickerInstallDate = TimeId(1);
 
 using FileKey = quint64;
 
@@ -564,7 +567,7 @@ enum {
 	dbiDcOptions = 0x4a,
 	dbiMtpAuthorization = 0x4b,
 	dbiLastSeenWarningSeenOld = 0x4c,
-	dbiAuthSessionData = 0x4d,
+	dbiAuthSessionSettings = 0x4d,
 	dbiLangPackKey = 0x4e,
 	dbiConnectionType = 0x4f,
 	dbiStickersFavedLimit = 0x50,
@@ -636,10 +639,10 @@ enum class WriteMapWhen {
 	Soon,
 };
 
-std::unique_ptr<AuthSessionData> StoredAuthSessionCache;
-AuthSessionData &GetStoredAuthSessionCache() {
+std::unique_ptr<AuthSessionSettings> StoredAuthSessionCache;
+AuthSessionSettings &GetStoredAuthSessionCache() {
 	if (!StoredAuthSessionCache) {
-		StoredAuthSessionCache = std::make_unique<AuthSessionData>();
+		StoredAuthSessionCache = std::make_unique<AuthSessionSettings>();
 	}
 	return *StoredAuthSessionCache;
 }
@@ -1108,7 +1111,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		GetStoredAuthSessionCache().setLastSeenWarningSeen(v == 1);
 	} break;
 
-	case dbiAuthSessionData: {
+	case dbiAuthSessionSettings: {
 		QByteArray v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
@@ -1559,6 +1562,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		cSetIgnoreBlocked(conf & 0x8);
 		cSetTagMention(conf & 0x10);
 		cSetAutoCopy(conf & 0x20);
+		cSetTextMention(conf & 0x40);
 
 		cSetDialogsType(type);
 		cSetTyping(typing);
@@ -1774,8 +1778,12 @@ void _writeUserSettings() {
 			recentEmojiPreloadData.push_back(qMakePair(item.first->id(), item.second));
 		}
 	}
-	auto userDataInstance = StoredAuthSessionCache ? StoredAuthSessionCache.get() : Messenger::Instance().getAuthSessionData();
-	auto userData = userDataInstance ? userDataInstance->serialize() : QByteArray();
+	auto userDataInstance = StoredAuthSessionCache
+		? StoredAuthSessionCache.get()
+		: Messenger::Instance().getAuthSessionSettings();
+	auto userData = userDataInstance
+		? userDataInstance->serialize()
+		: QByteArray();
 
 	uint32 size = 21 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::stringSize(Global::AskDownloadPath() ? QString() : Global::DownloadPath()) + Serialize::bytearraySize(Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
@@ -1823,7 +1831,7 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiAutoPlay) << qint32(cAutoPlayGif() ? 1 : 0);
 	data.stream << quint32(dbiUseExternalVideoPlayer) << qint32(cUseExternalVideoPlayer());
 	if (!userData.isEmpty()) {
-		data.stream << quint32(dbiAuthSessionData) << userData;
+		data.stream << quint32(dbiAuthSessionSettings) << userData;
 	}
 
 	{
@@ -1858,6 +1866,8 @@ void _writeUserSettings() {
 			conf |= 0x10;
 		if (cAutoCopy())
 			conf |= 0x20;
+		if (cTextMention())
+			conf |= 0x40;
 		data.stream << quint32(dbiSean) << conf << qint32(cDialogsType()) << qint32(cTyping());
 	}
 
@@ -3177,13 +3187,7 @@ public:
 				voice->waveform[0] = -2;
 				voice->wavemax = 0;
 			}
-			auto &items = App::documentItems();
-			auto i = items.constFind(_doc);
-			if (i != items.cend()) {
-				for_const (auto item, i.value()) {
-					Auth().data().requestItemRepaint(item);
-				}
-			}
+			Auth().data().requestDocumentViewRepaint(_doc);
 		}
 	}
 	virtual ~CountWaveformTask() {
@@ -3222,15 +3226,44 @@ void cancelTask(TaskId id) {
 void _writeStickerSet(QDataStream &stream, const Stickers::Set &set) {
 	bool notLoaded = (set.flags & MTPDstickerSet_ClientFlag::f_not_loaded);
 	if (notLoaded) {
-		stream << quint64(set.id) << quint64(set.access) << set.title << set.shortName << qint32(-set.count) << qint32(set.hash) << qint32(set.flags);
+		stream
+			<< quint64(set.id)
+			<< quint64(set.access)
+			<< set.title
+			<< set.shortName
+			<< qint32(-set.count)
+			<< qint32(set.hash)
+			<< qint32(set.flags);
+		if (AppVersion > 1002008) {
+			stream << qint32(set.installDate);
+		}
 		return;
 	} else {
 		if (set.stickers.isEmpty()) return;
 	}
 
-	stream << quint64(set.id) << quint64(set.access) << set.title << set.shortName << qint32(set.stickers.size()) << qint32(set.hash) << qint32(set.flags);
+	stream
+		<< quint64(set.id)
+		<< quint64(set.access)
+		<< set.title
+		<< set.shortName
+		<< qint32(set.stickers.size())
+		<< qint32(set.hash)
+		<< qint32(set.flags);
+	if (AppVersion > 1002008) {
+		stream << qint32(set.installDate);
+	}
 	for (auto j = set.stickers.cbegin(), e = set.stickers.cend(); j != e; ++j) {
 		Serialize::Document::writeToStream(stream, *j);
+	}
+	if (AppVersion > 1002008) {
+		stream << qint32(set.dates.size());
+		if (!set.dates.empty()) {
+			Assert(set.dates.size() == set.stickers.size());
+			for (const auto date : set.dates) {
+				stream << qint32(date);
+			}
+		}
 	}
 
 	if (AppVersion > 9018) {
@@ -3278,10 +3311,15 @@ void _writeStickerSets(FileKey &stickersKey, CheckSet checkSet, const Stickers::
 			continue;
 		}
 
-		// id + access + title + shortName + stickersCount + hash + flags
-		size += sizeof(quint64) * 2 + Serialize::stringSize(set.title) + Serialize::stringSize(set.shortName) + sizeof(quint32) + sizeof(qint32) * 2;
+		// id + access + title + shortName + stickersCount + hash + flags + installDate
+		size += sizeof(quint64) * 2 + Serialize::stringSize(set.title) + Serialize::stringSize(set.shortName) + sizeof(quint32) + sizeof(qint32) * 3;
 		for_const (auto &sticker, set.stickers) {
 			size += Serialize::Document::sizeInStream(sticker);
+		}
+		size += sizeof(qint32); // dates count
+		if (!set.dates.empty()) {
+			Assert(set.stickers.size() == set.dates.size());
+			size += set.dates.size() * sizeof(qint32);
 		}
 
 		size += sizeof(qint32); // emojiCount
@@ -3333,7 +3371,7 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 		return;
 	}
 
-	bool readingInstalled = (readingFlags == MTPDstickerSet::Flag::f_installed);
+	bool readingInstalled = (readingFlags == MTPDstickerSet::Flag::f_installed_date);
 
 	auto &sets = Auth().data().stickerSetsRef();
 	if (outOrder) outOrder->clear();
@@ -3348,7 +3386,14 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 		quint64 setId = 0, setAccess = 0;
 		QString setTitle, setShortName;
 		qint32 scnt = 0;
-		stickers.stream >> setId >> setAccess >> setTitle >> setShortName >> scnt;
+		auto setInstallDate = qint32(0);
+
+		stickers.stream
+			>> setId
+			>> setAccess
+			>> setTitle
+			>> setShortName
+			>> scnt;
 
 		qint32 setHash = 0;
 		MTPDstickerSet::Flags setFlags = 0;
@@ -3361,8 +3406,11 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 				setFlags |= MTPDstickerSet_ClientFlag::f_not_loaded;
 			}
 		}
+		if (stickers.version > 1002008) {
+			stickers.stream >> setInstallDate;
+		}
 		if (readingInstalled && stickers.version < 9061) {
-			setFlags |= MTPDstickerSet::Flag::f_installed;
+			setFlags |= MTPDstickerSet::Flag::f_installed_date;
 		}
 
 		if (setId == Stickers::DefaultSetId) {
@@ -3391,8 +3439,16 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 		auto it = sets.find(setId);
 		if (it == sets.cend()) {
 			// We will set this flags from order lists when reading those stickers.
-			setFlags &= ~(MTPDstickerSet::Flag::f_installed | MTPDstickerSet_ClientFlag::f_featured);
-			it = sets.insert(setId, Stickers::Set(setId, setAccess, setTitle, setShortName, 0, setHash, MTPDstickerSet::Flags(setFlags)));
+			setFlags &= ~(MTPDstickerSet::Flag::f_installed_date | MTPDstickerSet_ClientFlag::f_featured);
+			it = sets.insert(setId, Stickers::Set(
+				setId,
+				setAccess,
+				setTitle,
+				setShortName,
+				0,
+				setHash,
+				MTPDstickerSet::Flags(setFlags),
+				setInstallDate));
 		}
 		auto &set = it.value();
 		auto inputSet = MTP_inputStickerSetID(MTP_long(set.id), MTP_long(set.access));
@@ -3430,6 +3486,25 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 			}
 		}
 
+		if (stickers.version > 1002008) {
+			auto datesCount = qint32(0);
+			stickers.stream >> datesCount;
+			if (datesCount > 0) {
+				if (datesCount != scnt) {
+					// Bad file.
+					return;
+				}
+				set.dates.reserve(datesCount);
+				for (auto i = 0; i != datesCount; ++i) {
+					auto date = qint32();
+					stickers.stream >> date;
+					if (set.id == Stickers::CloudRecentSetId) {
+						set.dates.push_back(TimeId(date));
+					}
+				}
+			}
+		}
+
 		if (stickers.version > 9018) {
 			qint32 emojiCount;
 			stickers.stream >> emojiCount;
@@ -3442,8 +3517,8 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 				for (int32 k = 0; k < stickersCount; ++k) {
 					quint64 id;
 					stickers.stream >> id;
-					DocumentData *doc = App::document(id);
-					if (!doc || !doc->sticker()) continue;
+					const auto doc = Auth().data().document(id);
+					if (!doc->sticker()) continue;
 
 					pack.push_back(doc);
 				}
@@ -3468,6 +3543,9 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 			auto it = sets.find(setId);
 			if (it != sets.cend()) {
 				it->flags |= readingFlags;
+				if (readingInstalled && !it->installDate) {
+					it->installDate = kDefaultStickerInstallDate;
+				}
 			}
 		}
 	}
@@ -3483,7 +3561,7 @@ void writeInstalledStickers() {
 			if (set.stickers.isEmpty()) { // all other special are "installed"
 				return StickerSetCheckResult::Skip;
 			}
-		} else if (!(set.flags & MTPDstickerSet::Flag::f_installed) || (set.flags & MTPDstickerSet::Flag::f_archived)) {
+		} else if (!(set.flags & MTPDstickerSet::Flag::f_installed_date) || (set.flags & MTPDstickerSet::Flag::f_archived)) {
 			return StickerSetCheckResult::Skip;
 		} else if (set.flags & MTPDstickerSet_ClientFlag::f_not_loaded) { // waiting to receive
 			return StickerSetCheckResult::Abort;
@@ -3566,8 +3644,27 @@ void importOldRecentStickers() {
 	auto &recent = cRefRecentStickers();
 	recent.clear();
 
-	auto &def = sets.insert(Stickers::DefaultSetId, Stickers::Set(Stickers::DefaultSetId, 0, lang(lng_stickers_default_set), QString(), 0, 0, MTPDstickerSet::Flag::f_official | MTPDstickerSet::Flag::f_installed | MTPDstickerSet_ClientFlag::f_special)).value();
-	auto &custom = sets.insert(Stickers::CustomSetId, Stickers::Set(Stickers::CustomSetId, 0, qsl("Custom stickers"), QString(), 0, 0, MTPDstickerSet::Flag::f_installed | MTPDstickerSet_ClientFlag::f_special)).value();
+	auto &def = sets.insert(Stickers::DefaultSetId, Stickers::Set(
+		Stickers::DefaultSetId,
+		uint64(0),
+		lang(lng_stickers_default_set),
+		QString(),
+		0, // count
+		0, // hash
+		(MTPDstickerSet::Flag::f_official
+			| MTPDstickerSet::Flag::f_installed_date
+			| MTPDstickerSet_ClientFlag::f_special),
+		kDefaultStickerInstallDate)).value();
+	auto &custom = sets.insert(Stickers::CustomSetId, Stickers::Set(
+		Stickers::CustomSetId,
+		uint64(0),
+		qsl("Custom stickers"),
+		QString(),
+		0, // count
+		0, // hash
+		(MTPDstickerSet::Flag::f_installed_date
+			| MTPDstickerSet_ClientFlag::f_special),
+		kDefaultStickerInstallDate)).value();
 
 	QMap<uint64, bool> read;
 	while (!stickers.stream.atEnd()) {
@@ -3593,7 +3690,17 @@ void importOldRecentStickers() {
 			attributes.push_back(MTP_documentAttributeImageSize(MTP_int(width), MTP_int(height)));
 		}
 
-		DocumentData *doc = App::documentSet(id, 0, access, 0, date, attributes, mime, ImagePtr(), dc, size, StorageImageLocation());
+		const auto doc = Auth().data().document(
+			id,
+			access,
+			int32(0),
+			date,
+			attributes,
+			mime,
+			ImagePtr(),
+			dc,
+			size,
+			StorageImageLocation());
 		if (!doc->sticker()) continue;
 
 		if (value > 0) {
@@ -3628,11 +3735,17 @@ void readInstalledStickers() {
 	}
 
 	Auth().data().stickerSetsRef().clear();
-	_readStickerSets(_installedStickersKey, &Auth().data().stickerSetsOrderRef(), MTPDstickerSet::Flag::f_installed);
+	_readStickerSets(
+		_installedStickersKey,
+		&Auth().data().stickerSetsOrderRef(),
+		MTPDstickerSet::Flag::f_installed_date);
 }
 
 void readFeaturedStickers() {
-	_readStickerSets(_featuredStickersKey, &Auth().data().featuredStickerSetsOrderRef(), MTPDstickerSet::Flags() | MTPDstickerSet_ClientFlag::f_featured);
+	_readStickerSets(
+		_featuredStickersKey,
+		&Auth().data().featuredStickerSetsOrderRef(),
+		MTPDstickerSet::Flags() | MTPDstickerSet_ClientFlag::f_featured);
 
 	auto &sets = Auth().data().stickerSets();
 	int unreadCount = 0;
@@ -4044,20 +4157,52 @@ void _writePeer(QDataStream &stream, PeerData *peer) {
 	stream << quint64(peer->id) << quint64(peer->userpicPhotoId());
 	Serialize::writeStorageImageLocation(stream, peer->userpicLocation());
 	if (const auto user = peer->asUser()) {
-		stream << user->firstName << user->lastName << user->phone() << user->username << quint64(user->accessHash());
+		stream
+			<< user->firstName
+			<< user->lastName
+			<< user->phone()
+			<< user->username
+			<< quint64(user->accessHash());
 		if (AppVersion >= 9012) {
 			stream << qint32(user->flags());
 		}
 		if (AppVersion >= 9016) {
-			stream << (user->botInfo ? user->botInfo->inlinePlaceholder : QString());
+			const auto botInlinePlaceholder = user->botInfo
+				? user->botInfo->inlinePlaceholder
+				: QString();
+			stream << botInlinePlaceholder;
 		}
-		stream << qint32(user->onlineTill) << qint32(user->contact) << qint32(user->botInfo ? user->botInfo->version : -1);
+		const auto contactSerialized = [&] {
+			switch (user->contactStatus()) {
+			case UserData::ContactStatus::Contact: return 1;
+			case UserData::ContactStatus::CanAdd: return 0;
+			case UserData::ContactStatus::PhoneUnknown: return -1;
+			}
+			Unexpected("contactStatus in _writePeer()");
+		}();
+		stream
+			<< qint32(user->onlineTill)
+			<< qint32(contactSerialized)
+			<< qint32(user->botInfo ? user->botInfo->version : -1);
 	} else if (const auto chat = peer->asChat()) {
-		stream << chat->name << qint32(chat->count) << qint32(chat->date) << qint32(chat->version) << qint32(chat->creator);
-		stream << qint32(0) << quint32(chat->flags()) << chat->inviteLink();
-	} else if (auto channel = peer->asChannel()) {
-		stream << channel->name << quint64(channel->access) << qint32(channel->date) << qint32(channel->version);
-		stream << qint32(0) << quint32(channel->flags()) << channel->inviteLink();
+		stream
+			<< chat->name
+			<< qint32(chat->count)
+			<< qint32(chat->date)
+			<< qint32(chat->version)
+			<< qint32(chat->creator)
+			<< qint32(0)
+			<< quint32(chat->flags())
+			<< chat->inviteLink();
+	} else if (const auto channel = peer->asChannel()) {
+		stream
+			<< channel->name
+			<< quint64(channel->access)
+			<< qint32(channel->date)
+			<< qint32(channel->version)
+			<< qint32(0)
+			<< quint32(channel->flags())
+			<< channel->inviteLink();
 	}
 }
 
@@ -4086,8 +4231,12 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 		}
 		from.stream >> onlineTill >> contact >> botInfoVersion;
 
-		bool showPhone = !isServiceUser(user->id) && (user->id != Auth().userPeerId()) && (contact <= 0);
-		QString pname = (showPhone && !phone.isEmpty()) ? App::formatPhone(phone) : QString();
+		const auto showPhone = !isServiceUser(user->id)
+			&& (user->id != Auth().userPeerId())
+			&& (contact <= 0);
+		const auto pname = (showPhone && !phone.isEmpty())
+			? App::formatPhone(phone)
+			: QString();
 
 		if (!wasLoaded) {
 			user->setPhone(phone);
@@ -4096,7 +4245,11 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 			user->setFlags(MTPDuser::Flags::from_raw(flags));
 			user->setAccessHash(access);
 			user->onlineTill = onlineTill;
-			user->contact = contact;
+			user->setContactStatus((contact > 0)
+				? UserData::ContactStatus::Contact
+				: (contact == 0)
+				? UserData::ContactStatus::CanAdd
+				: UserData::ContactStatus::PhoneUnknown);
 			user->setBotInfoVersion(botInfoVersion);
 			if (!inlinePlaceholder.isEmpty() && user->botInfo) {
 				user->botInfo->inlinePlaceholder = inlinePlaceholder;

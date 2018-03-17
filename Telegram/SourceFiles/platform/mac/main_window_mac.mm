@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "application.h"
+#include "history/history.h"
 #include "history/history_widget.h"
 #include "history/history_inner_widget.h"
 #include "storage/localstorage.h"

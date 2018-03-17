@@ -19,15 +19,11 @@ constexpr auto kLegacyDefaultLanguage = 0;
 
 constexpr str_const kLegacyLanguages[] = {
 	"en",
-	"it",
-	"es",
-	"de",
-	"nl",
-	"pt_BR",
-	"ko",
 	"zh_TW",
 	"zh_CN",
 	"zh_HK",
+	"ca",
+	"he",
 };
 
 inline QString ConvertLegacyLanguageId(const QString &languageId) {

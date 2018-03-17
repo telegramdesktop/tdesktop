@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/storage_shared_media.h"
 #include "storage/storage_user_photos.h"
+#include "storage/storage_feed_messages.h"
 
 namespace Storage {
 
@@ -19,10 +20,12 @@ public:
 	void add(SharedMediaAddSlice &&query);
 	void remove(SharedMediaRemoveOne &&query);
 	void remove(SharedMediaRemoveAll &&query);
+	void invalidate(SharedMediaInvalidateBottom &&query);
 	rpl::producer<SharedMediaResult> query(SharedMediaQuery &&query) const;
 	rpl::producer<SharedMediaSliceUpdate> sharedMediaSliceUpdated() const;
 	rpl::producer<SharedMediaRemoveOne> sharedMediaOneRemoved() const;
 	rpl::producer<SharedMediaRemoveAll> sharedMediaAllRemoved() const;
+	rpl::producer<SharedMediaInvalidateBottom> sharedMediaBottomInvalidated() const;
 
 	void add(UserPhotosAddNew &&query);
 	void add(UserPhotosAddSlice &&query);
@@ -31,9 +34,24 @@ public:
 	rpl::producer<UserPhotosResult> query(UserPhotosQuery &&query) const;
 	rpl::producer<UserPhotosSliceUpdate> userPhotosSliceUpdated() const;
 
+	void add(FeedMessagesAddNew &&query);
+	void add(FeedMessagesAddSlice &&query);
+	void remove(FeedMessagesRemoveOne &&query);
+	void remove(FeedMessagesRemoveAll &&query);
+	void invalidate(FeedMessagesInvalidate &&query);
+	void invalidate(FeedMessagesInvalidateBottom &&query);
+	rpl::producer<FeedMessagesResult> query(
+		FeedMessagesQuery &&query) const;
+	rpl::producer<FeedMessagesSliceUpdate> feedMessagesSliceUpdated() const;
+	rpl::producer<FeedMessagesRemoveOne> feedMessagesOneRemoved() const;
+	rpl::producer<FeedMessagesRemoveAll> feedMessagesAllRemoved() const;
+	rpl::producer<FeedMessagesInvalidate> feedMessagesInvalidated() const;
+	rpl::producer<FeedMessagesInvalidateBottom> feedMessagesBottomInvalidated() const;
+
 private:
 	SharedMedia _sharedMedia;
 	UserPhotos _userPhotos;
+	FeedMessages _feedMessages;
 
 };
 
@@ -57,6 +75,10 @@ void Facade::Impl::remove(SharedMediaRemoveAll &&query) {
 	_sharedMedia.remove(std::move(query));
 }
 
+void Facade::Impl::invalidate(SharedMediaInvalidateBottom &&query) {
+	_sharedMedia.invalidate(std::move(query));
+}
+
 rpl::producer<SharedMediaResult> Facade::Impl::query(SharedMediaQuery &&query) const {
 	return _sharedMedia.query(std::move(query));
 }
@@ -71,6 +93,10 @@ rpl::producer<SharedMediaRemoveOne> Facade::Impl::sharedMediaOneRemoved() const 
 
 rpl::producer<SharedMediaRemoveAll> Facade::Impl::sharedMediaAllRemoved() const {
 	return _sharedMedia.allRemoved();
+}
+
+rpl::producer<SharedMediaInvalidateBottom> Facade::Impl::sharedMediaBottomInvalidated() const {
+	return _sharedMedia.bottomInvalidated();
 }
 
 void Facade::Impl::add(UserPhotosAddNew &&query) {
@@ -97,6 +123,55 @@ rpl::producer<UserPhotosSliceUpdate> Facade::Impl::userPhotosSliceUpdated() cons
 	return _userPhotos.sliceUpdated();
 }
 
+void Facade::Impl::add(FeedMessagesAddNew &&query) {
+	return _feedMessages.add(std::move(query));
+}
+
+void Facade::Impl::add(FeedMessagesAddSlice &&query) {
+	return _feedMessages.add(std::move(query));
+}
+
+void Facade::Impl::remove(FeedMessagesRemoveOne &&query) {
+	return _feedMessages.remove(std::move(query));
+}
+
+void Facade::Impl::remove(FeedMessagesRemoveAll &&query) {
+	return _feedMessages.remove(std::move(query));
+}
+
+void Facade::Impl::invalidate(FeedMessagesInvalidate &&query) {
+	return _feedMessages.invalidate(std::move(query));
+}
+
+void Facade::Impl::invalidate(FeedMessagesInvalidateBottom &&query) {
+	return _feedMessages.invalidate(std::move(query));
+}
+
+rpl::producer<FeedMessagesResult> Facade::Impl::query(
+		FeedMessagesQuery &&query) const {
+	return _feedMessages.query(std::move(query));
+}
+
+rpl::producer<FeedMessagesSliceUpdate> Facade::Impl::feedMessagesSliceUpdated() const {
+	return _feedMessages.sliceUpdated();
+}
+
+rpl::producer<FeedMessagesRemoveOne> Facade::Impl::feedMessagesOneRemoved() const {
+	return _feedMessages.oneRemoved();
+}
+
+rpl::producer<FeedMessagesRemoveAll> Facade::Impl::feedMessagesAllRemoved() const {
+	return _feedMessages.allRemoved();
+}
+
+rpl::producer<FeedMessagesInvalidate> Facade::Impl::feedMessagesInvalidated() const {
+	return _feedMessages.invalidated();
+}
+
+rpl::producer<FeedMessagesInvalidateBottom> Facade::Impl::feedMessagesBottomInvalidated() const {
+	return _feedMessages.bottomInvalidated();
+}
+
 Facade::Facade() : _impl(std::make_unique<Impl>()) {
 }
 
@@ -120,6 +195,10 @@ void Facade::remove(SharedMediaRemoveAll &&query) {
 	_impl->remove(std::move(query));
 }
 
+void Facade::invalidate(SharedMediaInvalidateBottom &&query) {
+	_impl->invalidate(std::move(query));
+}
+
 rpl::producer<SharedMediaResult> Facade::query(SharedMediaQuery &&query) const {
 	return _impl->query(std::move(query));
 }
@@ -134,6 +213,10 @@ rpl::producer<SharedMediaRemoveOne> Facade::sharedMediaOneRemoved() const {
 
 rpl::producer<SharedMediaRemoveAll> Facade::sharedMediaAllRemoved() const {
 	return _impl->sharedMediaAllRemoved();
+}
+
+rpl::producer<SharedMediaInvalidateBottom> Facade::sharedMediaBottomInvalidated() const {
+	return _impl->sharedMediaBottomInvalidated();
 }
 
 void Facade::add(UserPhotosAddNew &&query) {
@@ -158,6 +241,55 @@ rpl::producer<UserPhotosResult> Facade::query(UserPhotosQuery &&query) const {
 
 rpl::producer<UserPhotosSliceUpdate> Facade::userPhotosSliceUpdated() const {
 	return _impl->userPhotosSliceUpdated();
+}
+
+void Facade::add(FeedMessagesAddNew &&query) {
+	return _impl->add(std::move(query));
+}
+
+void Facade::add(FeedMessagesAddSlice &&query) {
+	return _impl->add(std::move(query));
+}
+
+void Facade::remove(FeedMessagesRemoveOne &&query) {
+	return _impl->remove(std::move(query));
+}
+
+void Facade::remove(FeedMessagesRemoveAll &&query) {
+	return _impl->remove(std::move(query));
+}
+
+void Facade::invalidate(FeedMessagesInvalidate &&query) {
+	return _impl->invalidate(std::move(query));
+}
+
+void Facade::invalidate(FeedMessagesInvalidateBottom &&query) {
+	return _impl->invalidate(std::move(query));
+}
+
+rpl::producer<FeedMessagesResult> Facade::query(
+		FeedMessagesQuery &&query) const {
+	return _impl->query(std::move(query));
+}
+
+rpl::producer<FeedMessagesSliceUpdate> Facade::feedMessagesSliceUpdated() const {
+	return _impl->feedMessagesSliceUpdated();
+}
+
+rpl::producer<FeedMessagesRemoveOne> Facade::feedMessagesOneRemoved() const {
+	return _impl->feedMessagesOneRemoved();
+}
+
+rpl::producer<FeedMessagesRemoveAll> Facade::feedMessagesAllRemoved() const {
+	return _impl->feedMessagesAllRemoved();
+}
+
+rpl::producer<FeedMessagesInvalidate> Facade::feedMessagesInvalidated() const {
+	return _impl->feedMessagesInvalidated();
+}
+
+rpl::producer<FeedMessagesInvalidateBottom> Facade::feedMessagesBottomInvalidated() const {
+	return _impl->feedMessagesBottomInvalidated();
 }
 
 Facade::~Facade() = default;

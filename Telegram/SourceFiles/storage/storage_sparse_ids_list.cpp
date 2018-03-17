@@ -10,10 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Storage {
 
 SparseIdsList::Slice::Slice(
-		base::flat_set<MsgId> &&messages,
-		MsgRange range)
-	: messages(std::move(messages))
-	, range(range) {
+	base::flat_set<MsgId> &&messages,
+	MsgRange range)
+: messages(std::move(messages))
+, range(range) {
 }
 
 template <typename Range>
@@ -156,6 +156,20 @@ void SparseIdsList::removeAll() {
 	_slices.clear();
 	_slices.emplace(base::flat_set<MsgId>{}, MsgRange { 0, ServerMaxMsgId });
 	_count = 0;
+}
+
+void SparseIdsList::invalidateBottom() {
+	if (!_slices.empty()) {
+		const auto &last = _slices.back();
+		if (last.range.till == ServerMaxMsgId) {
+			_slices.modify(_slices.end() - 1, [](Slice &slice) {
+				slice.range.till = slice.messages.empty()
+					? slice.range.from
+					: slice.messages.back();
+			});
+		}
+	}
+	_count = base::none;
 }
 
 rpl::producer<SparseIdsListResult> SparseIdsList::query(

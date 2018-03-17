@@ -130,14 +130,16 @@ Go to ***BuildPath*** and run
     cd ..
 
     git clone https://chromium.googlesource.com/breakpad/breakpad
-    git clone https://chromium.googlesource.com/linux-syscall-support breakpad/src/third_party/lss
     cd breakpad
+    git checkout bc8fb886
+    git clone https://chromium.googlesource.com/linux-syscall-support src/third_party/lss
+    cd src/third_party/lss
+    git checkout a91633d1
+    cd ../../..
     ./configure
     make $MAKE_THREADS_CNT
     sudo make install
-    cd src
-    git clone https://github.com/google/googletest testing
-    cd tools
+    cd src/tools
     ../../../gyp/gyp  --depth=. --generator-output=.. -Goutput_dir=../out tools.gyp --format=cmake
     cd ../../out/Default
     cmake .

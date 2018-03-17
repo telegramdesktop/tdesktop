@@ -8,6 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_search_controller.h"
 
 #include "auth_session.h"
+#include "data/data_session.h"
+#include "data/data_messages.h"
+#include "history/history.h"
+#include "history/history_item.h"
 
 namespace Api {
 namespace {
@@ -22,7 +26,7 @@ MTPmessages_Search PrepareSearchRequest(
 		Storage::SharedMediaType type,
 		const QString &query,
 		MsgId messageId,
-		SparseIdsLoadDirection direction) {
+		Data::LoadDirection direction) {
 	const auto filter = [&] {
 		using Type = Storage::SharedMediaType;
 		switch (type) {
@@ -57,20 +61,21 @@ MTPmessages_Search PrepareSearchRequest(
 	const auto limit = messageId ? kSharedMediaLimit : 0;
 	const auto offsetId = [&] {
 		switch (direction) {
-		case SparseIdsLoadDirection::Before:
-		case SparseIdsLoadDirection::Around: return messageId;
-		case SparseIdsLoadDirection::After: return messageId + 1;
+		case Data::LoadDirection::Before:
+		case Data::LoadDirection::Around: return messageId;
+		case Data::LoadDirection::After: return messageId + 1;
 		}
 		Unexpected("Direction in PrepareSearchRequest");
 	}();
 	const auto addOffset = [&] {
 		switch (direction) {
-		case SparseIdsLoadDirection::Before: return 0;
-		case SparseIdsLoadDirection::Around: return -limit / 2;
-		case SparseIdsLoadDirection::After: return -limit;
+		case Data::LoadDirection::Before: return 0;
+		case Data::LoadDirection::Around: return -limit / 2;
+		case Data::LoadDirection::After: return -limit;
 		}
 		Unexpected("Direction in PrepareSearchRequest");
 	}();
+	const auto hash = int32(0);
 
 	return MTPmessages_Search(
 		MTP_flags(0),
@@ -84,14 +89,15 @@ MTPmessages_Search PrepareSearchRequest(
 		MTP_int(addOffset),
 		MTP_int(limit),
 		MTP_int(maxId),
-		MTP_int(minId));
+		MTP_int(minId),
+		MTP_int(hash));
 }
 
 SearchResult ParseSearchResult(
 		not_null<PeerData*> peer,
 		Storage::SharedMediaType type,
 		MsgId messageId,
-		SparseIdsLoadDirection direction,
+		Data::LoadDirection direction,
 		const MTPmessages_Messages &data) {
 	auto result = SearchResult();
 	result.noSkipRange = MsgRange{ messageId, messageId };
@@ -157,11 +163,11 @@ SearchResult ParseSearchResult(
 	if (messageId && result.messageIds.empty()) {
 		result.noSkipRange = [&]() -> MsgRange {
 			switch (direction) {
-			case SparseIdsLoadDirection::Before: // All old loaded.
+			case Data::LoadDirection::Before: // All old loaded.
 				return { 0, result.noSkipRange.till };
-			case SparseIdsLoadDirection::Around: // All loaded.
+			case Data::LoadDirection::Around: // All loaded.
 				return { 0, ServerMaxMsgId };
-			case SparseIdsLoadDirection::After: // All new loaded.
+			case Data::LoadDirection::After: // All new loaded.
 				return { result.noSkipRange.from, ServerMaxMsgId };
 			}
 			Unexpected("Direction in ParseSearchResult");

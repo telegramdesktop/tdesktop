@@ -183,22 +183,16 @@ inline bool operator!=(const StorageImageLocation &a, const StorageImageLocation
 	return !(a == b);
 }
 
-class WebFileImageLocation {
+class WebFileLocation {
 public:
-	WebFileImageLocation() = default;
-	WebFileImageLocation(int32 width, int32 height, int32 dc, const QByteArray &url, uint64 accessHash) : _widthheight(packIntInt(width, height)), _accessHash(accessHash), _url(url), _dc(dc) {
+	WebFileLocation() = default;
+	WebFileLocation(int32 dc, const QByteArray &url, uint64 accessHash)
+	: _accessHash(accessHash)
+	, _url(url)
+	, _dc(dc) {
 	}
 	bool isNull() const {
 		return !_dc;
-	}
-	int32 width() const {
-		return unpackIntFirst(_widthheight);
-	}
-	int32 height() const {
-		return unpackIntSecond(_widthheight);
-	}
-	void setSize(int32 width, int32 height) {
-		_widthheight = packIntInt(width, height);
 	}
 	int32 dc() const {
 		return _dc;
@@ -210,21 +204,20 @@ public:
 		return _url;
 	}
 
-	static WebFileImageLocation Null;
+	static WebFileLocation Null;
 
 private:
-	uint64 _widthheight = 0;
 	uint64 _accessHash = 0;
 	QByteArray _url;
 	int32 _dc = 0;
 
-	friend inline bool operator==(const WebFileImageLocation &a, const WebFileImageLocation &b) {
+	friend inline bool operator==(const WebFileLocation &a, const WebFileLocation &b) {
 		return (a._dc == b._dc) && (a._accessHash == b._accessHash) && (a._url == b._url);
 	}
 
 };
 
-inline bool operator!=(const WebFileImageLocation &a, const WebFileImageLocation &b) {
+inline bool operator!=(const WebFileLocation &a, const WebFileLocation &b) {
 	return !(a == b);
 }
 
@@ -354,10 +347,13 @@ inline StorageKey storageKey(const MTPDfileLocation &location) {
 inline StorageKey storageKey(const StorageImageLocation &location) {
 	return storageKey(location.dc(), location.volume(), location.local());
 }
-inline StorageKey storageKey(const WebFileImageLocation &location) {
+inline StorageKey storageKey(const WebFileLocation &location) {
 	auto url = location.url();
 	auto sha = hashSha1(url.data(), url.size());
-	return storageKey(location.dc(), *reinterpret_cast<const uint64*>(sha.data()), *reinterpret_cast<const int32*>(sha.data() + sizeof(uint64)));
+	return storageKey(
+		location.dc(),
+		*reinterpret_cast<const uint64*>(sha.data()),
+		*reinterpret_cast<const int32*>(sha.data() + sizeof(uint64)));
 }
 
 class RemoteImage : public Image {
@@ -427,17 +423,25 @@ protected:
 
 class WebFileImage : public RemoteImage {
 public:
-	WebFileImage(const WebFileImageLocation &location, int32 size = 0);
+	WebFileImage(const WebFileLocation &location, QSize box, int size = 0);
+	WebFileImage(const WebFileLocation &location, int width, int height, int size = 0);
 
 protected:
-	void setInformation(int32 size, int32 width, int32 height) override;
+	void setInformation(int size, int width, int height) override;
 	FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) override;
 
-	WebFileImageLocation _location;
-	int32 _size;
+	QSize shrinkBox() const override {
+		return _box;
+	}
 
-	int32 countWidth() const override;
-	int32 countHeight() const override;
+	WebFileLocation _location;
+	QSize _box;
+	int _width = 0;
+	int _height = 0;
+	int _size = 0;
+
+	int countWidth() const override;
+	int countHeight() const override;
 
 };
 
@@ -476,7 +480,6 @@ private:
 
 class WebImage : public RemoteImage {
 public:
-
 	// If !box.isEmpty() then resize the image to fit in this box.
 	WebImage(const QString &url, QSize box = QSize());
 	WebImage(const QString &url, int width, int height);
@@ -484,7 +487,6 @@ public:
 	void setSize(int width, int height);
 
 protected:
-
 	QSize shrinkBox() const override {
 		return _box;
 	}
@@ -502,16 +504,33 @@ private:
 };
 
 namespace internal {
-	Image *getImage(const QString &file, QByteArray format);
-	Image *getImage(const QString &url, QSize box);
-	Image *getImage(const QString &url, int width, int height);
-	Image *getImage(const QByteArray &filecontent, QByteArray format);
-	Image *getImage(const QPixmap &pixmap, QByteArray format);
-	Image *getImage(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap);
-	Image *getImage(int32 width, int32 height);
-	StorageImage *getImage(const StorageImageLocation &location, int32 size = 0);
-	StorageImage *getImage(const StorageImageLocation &location, const QByteArray &bytes);
-	WebFileImage *getImage(const WebFileImageLocation &location, int32 size = 0);
+
+Image *getImage(const QString &file, QByteArray format);
+Image *getImage(const QString &url, QSize box);
+Image *getImage(const QString &url, int width, int height);
+Image *getImage(const QByteArray &filecontent, QByteArray format);
+Image *getImage(const QPixmap &pixmap, QByteArray format);
+Image *getImage(
+	const QByteArray &filecontent,
+	QByteArray format,
+	const QPixmap &pixmap);
+Image *getImage(int32 width, int32 height);
+StorageImage *getImage(const StorageImageLocation &location, int size = 0);
+StorageImage *getImage(
+	const StorageImageLocation &location,
+	const QByteArray &bytes);
+Image *getImage(const MTPWebDocument &location);
+Image *getImage(const MTPWebDocument &location, QSize box);
+WebFileImage *getImage(
+	const WebFileLocation &location,
+	int width,
+	int height,
+	int size = 0);
+WebFileImage *getImage(
+	const WebFileLocation &location,
+	QSize box,
+	int size = 0);
+
 } // namespace internal
 
 class ImagePtr : public ManagedPtr<Image> {
@@ -533,7 +552,15 @@ public:
 	}
 	ImagePtr(const StorageImageLocation &location, const QByteArray &bytes) : Parent(internal::getImage(location, bytes)) {
 	}
-	ImagePtr(const WebFileImageLocation &location, int32 size = 0) : Parent(internal::getImage(location, size)) {
+	ImagePtr(const MTPWebDocument &location) : Parent(internal::getImage(location)) {
+	}
+	ImagePtr(const MTPWebDocument &location, QSize box) : Parent(internal::getImage(location, box)) {
+	}
+	ImagePtr(const WebFileLocation &location, int width, int height, int size = 0)
+	: Parent(internal::getImage(location, width, height, size)) {
+	}
+	ImagePtr(const WebFileLocation &location, QSize box, int size = 0)
+		: Parent(internal::getImage(location, box, size)) {
 	}
 	ImagePtr(int32 width, int32 height, const MTPFileLocation &location, ImagePtr def = ImagePtr());
 	ImagePtr(int32 width, int32 height) : Parent(internal::getImage(width, height)) {

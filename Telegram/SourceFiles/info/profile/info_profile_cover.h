@@ -52,8 +52,7 @@ class Cover : public SectionWithToggle {
 public:
 	Cover(
 		QWidget *parent,
-		not_null<Controller*> controller,
-		not_null<PeerData*> peer);
+		not_null<Controller*> controller);
 
 	Cover *setOnlineCount(rpl::producer<int> &&count);
 

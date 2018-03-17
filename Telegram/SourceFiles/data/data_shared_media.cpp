@@ -12,8 +12,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "history/history_media_types.h"
+#include "data/data_media_types.h"
 #include "data/data_sparse_ids.h"
+#include "data/data_session.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "window/window_controller.h"
@@ -112,6 +116,14 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 			return (update.peerId == key.peerId);
 		}) | rpl::filter([=] {
 			return builder->removeAll();
+		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
+
+		using InvalidateBottom = Storage::SharedMediaInvalidateBottom;
+		Auth().storage().sharedMediaBottomInvalidated(
+		) | rpl::filter([=](const InvalidateBottom &update) {
+			return (update.peerId == key.peerId);
+		}) | rpl::filter([=] {
+			return builder->invalidateBottom();
 		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
 
 		using Result = Storage::SharedMediaResult;
@@ -281,7 +293,7 @@ SharedMediaWithLastSlice::Value SharedMediaWithLastSlice::operator[](int index) 
 	}
 	return (index < _slice.size())
 		? Value(_slice[index])
-		: Value(App::photo(*_lastPhotoId));
+		: Value(Auth().data().photo(*_lastPhotoId));
 }
 
 base::optional<int> SharedMediaWithLastSlice::distance(
@@ -320,10 +332,8 @@ base::optional<bool> SharedMediaWithLastSlice::IsLastIsolated(
 	}
 	return LastFullMsgId(ending ? *ending : slice)
 		| [](FullMsgId msgId) {	return App::histItemById(msgId); }
-		| [](HistoryItem *item) { return item ? item->getMedia() : nullptr; }
-		| [](HistoryMedia *media) {
-			return media ? media->getPhoto() : nullptr;
-		}
+		| [](HistoryItem *item) { return item ? item->media() : nullptr; }
+		| [](Data::Media *media) { return media ? media->photo() : nullptr; }
 		| [](PhotoData *photo) { return photo ? photo->id : 0; }
 		| [&](PhotoId photoId) { return *lastPeerPhotoId != photoId; };
 }

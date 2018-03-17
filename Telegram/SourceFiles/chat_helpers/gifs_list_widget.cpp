@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_photo.h"
 #include "data/data_document.h"
+#include "data/data_session.h"
 #include "styles/style_chat_helpers.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -20,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "window/window_controller.h"
+#include "history/view/history_view_cursor_state.h"
 
 namespace ChatHelpers {
 namespace {
@@ -207,9 +209,10 @@ void GifsListWidget::inlineResultsDone(const MTPmessages_BotResults &result) {
 
 	auto it = _inlineCache.find(_inlineQuery);
 	auto adding = (it != _inlineCache.cend());
-	// #TODO layer 72 feed users
 	if (result.type() == mtpc_messages_botResults) {
 		auto &d = result.c_messages_botResults();
+		App::feedUsers(d.vusers);
+
 		auto &v = d.vresults.v;
 		auto queryId = d.vquery_id.v;
 
@@ -885,7 +888,7 @@ void GifsListWidget::updateSelected() {
 	int row = -1, col = -1, sel = -1;
 	ClickHandlerPtr lnk;
 	ClickHandlerHost *lnkhost = nullptr;
-	HistoryCursorState cursor = HistoryDefaultCursorState;
+	HistoryView::CursorState cursor = HistoryView::CursorState::None;
 	if (sy >= 0) {
 		row = 0;
 		for (int rows = _rows.size(); row < rows; ++row) {
@@ -910,10 +913,12 @@ void GifsListWidget::updateSelected() {
 		}
 		if (col < inlineItems.size()) {
 			sel = row * MatrixRowShift + col;
-			auto result = inlineItems[col]->getState(QPoint(sx, sy), HistoryStateRequest());
+			auto result = inlineItems[col]->getState(
+				QPoint(sx, sy),
+				HistoryView::StateRequest());
 			lnk = result.link;
 			cursor = result.cursor;
-			lnkhost = inlineItems.at(col);
+			lnkhost = inlineItems[col];
 		} else {
 			row = col = -1;
 		}

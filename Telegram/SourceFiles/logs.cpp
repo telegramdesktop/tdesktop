@@ -319,7 +319,6 @@ void start(not_null<Core::Launcher*> launcher) {
 	auto workingDirChosen = false;
 
 	if (cBetaVersion()) {
-		cSetDebug(true);
 		workingDirChosen = true;
 #if defined Q_OS_MAC || defined Q_OS_LINUX
 	} else {

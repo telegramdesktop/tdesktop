@@ -81,7 +81,8 @@ TextWithTags::Tags ConvertEntitiesToTextTags(const EntitiesInText &entities) {
 	return result;
 }
 
-std::unique_ptr<QMimeData> MimeDataFromTextWithEntities(const TextWithEntities &forClipboard) {
+std::unique_ptr<QMimeData> MimeDataFromTextWithEntities(
+		const TextWithEntities &forClipboard) {
 	if (forClipboard.text.isEmpty()) {
 		return nullptr;
 	}
@@ -93,9 +94,19 @@ std::unique_ptr<QMimeData> MimeDataFromTextWithEntities(const TextWithEntities &
 		for (auto &tag : tags) {
 			tag.id = ConvertTagToMimeTag(tag.id);
 		}
-		result->setData(Ui::FlatTextarea::tagsMimeType(), Ui::FlatTextarea::serializeTagsList(tags));
+		result->setData(
+			Ui::FlatTextarea::tagsMimeType(),
+			Ui::FlatTextarea::serializeTagsList(tags));
 	}
 	return result;
+}
+
+void SetClipboardWithEntities(
+		const TextWithEntities &forClipboard,
+		QClipboard::Mode mode) {
+	if (auto data = MimeDataFromTextWithEntities(forClipboard)) {
+		QApplication::clipboard()->setMimeData(data.release(), mode);
+	}
 }
 
 MessageField::MessageField(QWidget *parent, not_null<Window::Controller*> controller, const style::FlatTextarea &st, base::lambda<QString()> placeholderFactory, const QString &val) : Ui::FlatTextarea(parent, st, std::move(placeholderFactory), val)

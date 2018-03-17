@@ -17,8 +17,13 @@ class Controller;
 QString ConvertTagToMimeTag(const QString &tagId);
 
 EntitiesInText ConvertTextTagsToEntities(const TextWithTags::Tags &tags);
-TextWithTags::Tags ConvertEntitiesToTextTags(const EntitiesInText &entities);
-std::unique_ptr<QMimeData> MimeDataFromTextWithEntities(const TextWithEntities &forClipboard);
+TextWithTags::Tags ConvertEntitiesToTextTags(
+	const EntitiesInText &entities);
+std::unique_ptr<QMimeData> MimeDataFromTextWithEntities(
+	const TextWithEntities &forClipboard);
+void SetClipboardWithEntities(
+	const TextWithEntities &forClipboard,
+	QClipboard::Mode mode = QClipboard::Clipboard);
 
 class MessageField final : public Ui::FlatTextarea {
 	Q_OBJECT

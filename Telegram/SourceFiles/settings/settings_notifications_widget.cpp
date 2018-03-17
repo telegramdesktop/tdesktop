@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_notifications_manager.h"
 #include "auth_session.h"
 #include "apiwrap.h"
+#include "history/history.h"
 
 namespace Settings {
 namespace {

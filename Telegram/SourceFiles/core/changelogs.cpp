@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/localstorage.h"
 #include "lang/lang_keys.h"
+#include "data/data_session.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
 
@@ -71,6 +72,23 @@ std::map<int, const char*> AlphaLogs() {
 		"\xE2\x80\x94 Select a message you want to reply to by "
 		"pressing Ctrl+Up and Ctrl+Down."
 	},
+	{
+		1002009,
+		"\xE2\x80\x94 Quick Reply. "
+		"Double click next to any message for a quick reply.\n"
+
+		"\xE2\x80\x94 Search for Stickers. "
+		"Click on the new search icon to access "
+		"your sticker sets or find new ones."
+	},
+	{
+		1002012,
+		"\xE2\x80\x94 Let emoji suggestions be case insensitive\n"
+
+		"\xE2\x80\x94 Cancel empty reply by Escape.\n"
+
+		"Welcome to join @Telegreat channel and chat group \xF0\x9F\x98\x8A"
+	}
 	};
 }
 
@@ -150,7 +168,7 @@ void Changelogs::addLocalLogs() {
 			lt_changes,
 			lang(lng_new_version_minor),
 			lt_link,
-			qsl("https://telegre.at/changelog"));
+			qsl("https://telegre.at/changelog.php"));
 		addLocalLog(text.trimmed());
 	}
 }

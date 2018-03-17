@@ -14,6 +14,7 @@ enum EntityInTextType {
 	EntityInTextCustomUrl,
 	EntityInTextEmail,
 	EntityInTextHashtag,
+	EntityInTextCashtag,
 	EntityInTextMention,
 	EntityInTextMentionName,
 	EntityInTextBotCommand,
@@ -123,6 +124,31 @@ enum {
 	TextInstagramHashtags = 0x800,
 };
 
+struct TextWithTags {
+	struct Tag {
+		int offset, length;
+		QString id;
+	};
+	using Tags = QVector<Tag>;
+
+	QString text;
+	Tags tags;
+};
+
+inline bool operator==(const TextWithTags::Tag &a, const TextWithTags::Tag &b) {
+	return (a.offset == b.offset) && (a.length == b.length) && (a.id == b.id);
+}
+inline bool operator!=(const TextWithTags::Tag &a, const TextWithTags::Tag &b) {
+	return !(a == b);
+}
+
+inline bool operator==(const TextWithTags &a, const TextWithTags &b) {
+	return (a.text == b.text) && (a.tags == b.tags);
+}
+inline bool operator!=(const TextWithTags &a, const TextWithTags &b) {
+	return !(a == b);
+}
+
 // Parsing helpers.
 
 namespace TextUtilities {
@@ -134,6 +160,7 @@ const QRegularExpression &RegExpDomain();
 const QRegularExpression &RegExpDomainExplicit();
 const QRegularExpression &RegExpMailNameAtEnd();
 const QRegularExpression &RegExpHashtag();
+const QRegularExpression &RegExpHashtagExclude();
 const QRegularExpression &RegExpMention();
 const QRegularExpression &RegExpBotCommand();
 const QRegularExpression &RegExpMarkdownBold();
@@ -189,6 +216,7 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &entities, Conver
 
 // New entities are added to the ones that are already in result.
 // Changes text if (flags & TextParseMarkdown).
+TextWithEntities ParseEntities(const QString &text, int32 flags);
 void ParseEntities(TextWithEntities &result, int32 flags, bool rich = false);
 QString ApplyEntities(const TextWithEntities &text);
 

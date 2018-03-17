@@ -8,38 +8,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/history_item.h"
-#include "base/value_ordering.h"
 
 class HistoryDocument;
-class HistoryWebPage;
+struct WebPageData;
 
-struct MessageGroupId {
-	using Underlying = uint64;
+namespace HistoryView {
+class Element;
+} // namespace HistoryView
 
-	enum Type : Underlying {
-		None = 0,
-	} value;
-
-	MessageGroupId(Type value = None) : value(value) {
-	}
-	static MessageGroupId FromRaw(Underlying value) {
-		return static_cast<Type>(value);
-	}
-
-	explicit operator bool() const {
-		return value != None;
-	}
-	Underlying raw() const {
-		return static_cast<Underlying>(value);
-	}
-
-	friend inline Type value_ordering_helper(MessageGroupId value) {
-		return value.value;
-	}
-
-};
-
-struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia> {
+struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia, HistoryItem> {
 	void create(UserId userId);
 	void resize(int32 availw) const;
 
@@ -50,13 +27,13 @@ struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia> {
 	ClickHandlerPtr link;
 };
 
-struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews> {
+struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews, HistoryItem> {
 	QString _viewsText;
 	int _views = 0;
 	int _viewsWidth = 0;
 };
 
-struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned> {
+struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned, HistoryItem> {
 	void refresh(const QString &date);
 	int maxWidth() const;
 
@@ -64,18 +41,18 @@ struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned> {
 	Text signature;
 };
 
-struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited> {
+struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited, HistoryItem> {
 	void refresh(const QString &date, bool displayed);
 	int maxWidth() const;
 
-	QDateTime date;
+	TimeId date = 0;
 	Text text;
 };
 
-struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded> {
+struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded, HistoryItem> {
 	void create(const HistoryMessageVia *via) const;
 
-	QDateTime originalDate;
+	TimeId originalDate = 0;
 	PeerData *originalSender = nullptr;
 	QString originalAuthor;
 	MsgId originalId = 0;
@@ -85,7 +62,7 @@ struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded
 	MsgId savedFromMsgId = 0;
 };
 
-struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply> {
+struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, HistoryItem> {
 	HistoryMessageReply() = default;
 	HistoryMessageReply(const HistoryMessageReply &other) = delete;
 	HistoryMessageReply(HistoryMessageReply &&other) = delete;
@@ -107,10 +84,10 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply> {
 		Expects(replyToVia == nullptr);
 	}
 
-	bool updateData(HistoryMessage *holder, bool force = false);
+	bool updateData(not_null<HistoryMessage*> holder, bool force = false);
 
 	// Must be called before destructor.
-	void clearData(HistoryMessage *holder);
+	void clearData(not_null<HistoryMessage*> holder);
 
 	bool isNameUpdated() const;
 	void updateName() const;
@@ -125,7 +102,7 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply> {
 	friend inline constexpr auto is_flag_type(PaintFlag) { return true; };
 	void paint(
 		Painter &p,
-		const HistoryItem *holder,
+		not_null<const HistoryView::Element*> holder,
 		int x,
 		int y,
 		int w,
@@ -171,7 +148,7 @@ struct HistoryMessageMarkupButton {
 
 };
 
-struct HistoryMessageReplyMarkup : public RuntimeComponent<HistoryMessageReplyMarkup> {
+struct HistoryMessageReplyMarkup : public RuntimeComponent<HistoryMessageReplyMarkup, HistoryItem> {
 	using Button = HistoryMessageMarkupButton;
 
 	HistoryMessageReplyMarkup() = default;
@@ -207,7 +184,7 @@ public:
 	}
 
 	// Copy to clipboard support.
-	void copyToClipboard() const override;
+	QString copyToClipboardText() const override;
 	QString copyToClipboardContextItemText() const override;
 
 	// Finds the corresponding button in the items markup struct.
@@ -297,7 +274,7 @@ public:
 	int naturalHeight() const;
 
 	void paint(Painter &p, int outerWidth, const QRect &clip, TimeMs ms) const;
-	ClickHandlerPtr getState(QPoint point) const;
+	ClickHandlerPtr getLink(QPoint point) const;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active);
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed);
@@ -346,73 +323,34 @@ private:
 
 };
 
-// Any HistoryItem can have this Component for
-// displaying the day mark above the message.
-struct HistoryMessageDate : public RuntimeComponent<HistoryMessageDate> {
-	void init(const QDateTime &date);
-
-	int height() const;
-	void paint(Painter &p, int y, int w) const;
-
-	QString _text;
-	int _width = 0;
-};
-
-// Any HistoryItem can have this Component for
-// displaying the unread messages bar above the message.
-struct HistoryMessageUnreadBar : public RuntimeComponent<HistoryMessageUnreadBar> {
-	void init(int count);
-
-	static int height();
-	static int marginTop();
-
-	void paint(Painter &p, int y, int w) const;
-
-	QString _text;
-	int _width = 0;
-
-	// If unread bar is freezed the new messages do not
-	// increment the counter displayed by this bar.
-	//
-	// It happens when we've opened the conversation and
-	// we've seen the bar and new messages are marked as read
-	// as soon as they are added to the chat history.
-	bool _freezed = false;
-
-};
-
-struct HistoryMessageGroup : public RuntimeComponent<HistoryMessageGroup> {
-	MessageGroupId groupId = MessageGroupId::None;
-	HistoryItem *leader = nullptr;
-	std::vector<not_null<HistoryItem*>> others;
-};
-
 // Special type of Component for the channel actions log.
-struct HistoryMessageLogEntryOriginal : public RuntimeComponent<HistoryMessageLogEntryOriginal> {
+struct HistoryMessageLogEntryOriginal
+	: public RuntimeComponent<HistoryMessageLogEntryOriginal, HistoryItem> {
 	HistoryMessageLogEntryOriginal();
 	HistoryMessageLogEntryOriginal(HistoryMessageLogEntryOriginal &&other);
 	HistoryMessageLogEntryOriginal &operator=(HistoryMessageLogEntryOriginal &&other);
 	~HistoryMessageLogEntryOriginal();
 
-	std::unique_ptr<HistoryWebPage> _page;
+	WebPageData *page = nullptr;
 
 };
 
-struct HistoryDocumentThumbed : public RuntimeComponent<HistoryDocumentThumbed> {
-	ClickHandlerPtr _linksavel, _linkcancell;
+class FileClickHandler;
+struct HistoryDocumentThumbed : public RuntimeComponent<HistoryDocumentThumbed, HistoryDocument> {
+	std::shared_ptr<FileClickHandler> _linksavel, _linkcancell;
 	int _thumbw = 0;
 
 	mutable int _linkw = 0;
 	mutable QString _link;
 };
 
-struct HistoryDocumentCaptioned : public RuntimeComponent<HistoryDocumentCaptioned> {
+struct HistoryDocumentCaptioned : public RuntimeComponent<HistoryDocumentCaptioned, HistoryDocument> {
 	HistoryDocumentCaptioned();
 
 	Text _caption;
 };
 
-struct HistoryDocumentNamed : public RuntimeComponent<HistoryDocumentNamed> {
+struct HistoryDocumentNamed : public RuntimeComponent<HistoryDocumentNamed, HistoryDocument> {
 	QString _name;
 	int _namew = 0;
 };
@@ -425,7 +363,7 @@ struct HistoryDocumentVoicePlayback {
 	BasicAnimation _a_progress;
 };
 
-class HistoryDocumentVoice : public RuntimeComponent<HistoryDocumentVoice> {
+class HistoryDocumentVoice : public RuntimeComponent<HistoryDocumentVoice, HistoryDocument> {
 	// We don't use float64 because components should align to pointer even on 32bit systems.
 	static constexpr float64 kFloatToIntMultiplier = 65536.;
 

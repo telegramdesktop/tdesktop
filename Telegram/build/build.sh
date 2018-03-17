@@ -1,3 +1,5 @@
+#!/bin/bash
+
 set -e
 FullExecPath=$PWD
 pushd `dirname $0` > /dev/null
@@ -19,6 +21,8 @@ Error () {
   exit 1
 }
 
+REBUILD="yes"
+
 if [ ! -f "$FullScriptPath/target" ]; then
   Error "Build target not found!"
 fi
@@ -35,7 +39,7 @@ done < "$FullScriptPath/version"
 VersionForPacker="$AppVersion"
 if [ "$BetaVersion" != "0" ]; then
   AppVersion="$BetaVersion"
-  AppVersionStrFull="${AppVersionStr}_${BetaVersion}"
+  AppVersionStrFull="${AppVersionStr}"
   AlphaBetaParam="-beta $BetaVersion"
   BetaKeyFile="tbeta_${AppVersion}_key"
 elif [ "$AlphaChannel" == "0" ]; then
@@ -88,27 +92,27 @@ fi
 
 #if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ] || [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarget" == "macstore" ]; then
   if [ "$BetaVersion" != "0" ]; then
-    if [ -f "$ReleasePath/$BetaKeyFile" ]; then
+    if [ -f "$ReleasePath/$BetaKeyFile" ] && [ "$REBUILD" != "no" ]; then
       Error "Beta version key file for version $AppVersion already exists!"
     fi
 
-    if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStrFull" ]; then
+    if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStrFull" ] && [ "$REBUILD" != "no" ]; then
       Error "Deploy folder for version $AppVersionStrFull already exists!"
     fi
   else
-    if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStr.alpha" ]; then
+    if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStr.alpha" ] && [ "$REBUILD" != "no" ]; then
       Error "Deploy folder for version $AppVersionStr.alpha already exists!"
     fi
 
-    if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStr.dev" ]; then
+    if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStr.dev" ] && [ "$REBUILD" != "no" ]; then
       Error "Deploy folder for version $AppVersionStr.dev already exists!"
     fi
 
-    if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStr" ]; then
+    if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStr" ] && [ "$REBUILD" != "no" ]; then
       Error "Deploy folder for version $AppVersionStr already exists!"
     fi
 
-    if [ -f "$ReleasePath/$UpdateFile" ]; then
+    if [ -f "$ReleasePath/$UpdateFile" ] && [ "$REBUILD" != "no" ]; then
       Error "Update file for version $AppVersion already exists!"
     fi
   fi
@@ -118,10 +122,10 @@ fi
 
 if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
 
-  DropboxSymbolsPath="/media/psf/Dropbox/Telegreat/symbols"
-  if [ ! -d "$DropboxSymbolsPath" ]; then
-    Error "Dropbox path not found!"
-  fi
+# DropboxSymbolsPath="/root/TBuild/symbols"
+# if [ ! -d "$DropboxSymbolsPath" ]; then
+#   Error "Dropbox path not found!"
+# fi
 
   gyp/refresh.sh
 
@@ -177,9 +181,9 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
     Error "Bad GCC usages found: $BadCount"
   fi
 
-  echo "Dumping debug symbols.."
-  "$HomePath/../../Libraries/breakpad/out/Default/dump_syms" "$ReleasePath/$BinaryName" > "$ReleasePath/$BinaryName.sym"
-  echo "Done!"
+# echo "Dumping debug symbols.."
+# "$HomePath/../../Libraries/breakpad/out/Default/dump_syms" "$ReleasePath/$BinaryName" > "$ReleasePath/$BinaryName.sym"
+# echo "Done!"
 
   echo "Stripping the executable.."
   strip -s "$ReleasePath/$BinaryName"
@@ -199,15 +203,15 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
       BetaSignature="$line"
     done < "$ReleasePath/$BetaKeyFile"
 
-#   UpdateFile="${UpdateFile}_${BetaSignature}"
+    UpdateFile="${UpdateFile}_${BetaSignature}"
 #   SetupFile="tbeta${BetaVersion}_${BetaSignature}.tar.xz"
   fi
 
-  SymbolsHash=`head -n 1 "$ReleasePath/$BinaryName.sym" | awk -F " " 'END {print $4}'`
-  echo "Copying $BinaryName.sym to $DropboxSymbolsPath/$BinaryName/$SymbolsHash"
-  mkdir -p "$DropboxSymbolsPath/$BinaryName/$SymbolsHash"
-  cp "$ReleasePath/$BinaryName.sym" "$DropboxSymbolsPath/$BinaryName/$SymbolsHash/"
-  echo "Done!"
+# SymbolsHash=`head -n 1 "$ReleasePath/$BinaryName.sym" | awk -F " " 'END {print $4}'`
+# echo "Copying $BinaryName.sym to $DropboxSymbolsPath/$BinaryName/$SymbolsHash"
+# mkdir -p "$DropboxSymbolsPath/$BinaryName/$SymbolsHash"
+# cp "$ReleasePath/$BinaryName.sym" "$DropboxSymbolsPath/$BinaryName/$SymbolsHash/"
+# echo "Done!"
 
   if [ ! -d "$ReleasePath/deploy" ]; then
     mkdir "$ReleasePath/deploy"
@@ -220,11 +224,11 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
   echo "Copying $BinaryName, Updater and $UpdateFile to deploy/$AppVersionStrMajor/$AppVersionStrFull..";
   mkdir "$DeployPath"
   mkdir "$DeployPath/$BinaryName"
-  mv "$ReleasePath/$BinaryName" "$DeployPath/$BinaryName/"
-  mv "$ReleasePath/Updater" "$DeployPath/$BinaryName/"
-  mv "$ReleasePath/$UpdateFile" "$DeployPath/"
+  cp "$ReleasePath/$BinaryName" "$DeployPath/$BinaryName/"
+  cp "$ReleasePath/Updater" "$DeployPath/$BinaryName/"
+  cp "$ReleasePath/$UpdateFile" "$DeployPath/"
   if [ "$BetaVersion" != "0" ]; then
-    mv "$ReleasePath/$BetaKeyFile" "$DeployPath/"
+    cp "$ReleasePath/$BetaKeyFile" "$DeployPath/"
   fi
   cd "$DeployPath"
   tar -cJvf "$SetupFile" "$BinaryName/"
@@ -232,23 +236,25 @@ fi
 
 if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarget" == "macstore" ]; then
 
-  DropboxSymbolsPath="$HOME/Dropbox/Telegreat/symbols"
-  if [ ! -d "$DropboxSymbolsPath" ]; then
-    Error "Dropbox path not found!"
-  fi
+# DropboxSymbolsPath="$HOME/Dropbox/Telegreat/symbols"
+# if [ ! -d "$DropboxSymbolsPath" ]; then
+#   Error "Dropbox path not found!"
+# fi
 
-  gyp/refresh.sh
-  xcodebuild -project Telegreat.xcodeproj -alltargets -configuration Release build
-  cp "$FullScriptPath/../../../TelegramPrivate/Telegreat.icns" "$ReleasePath/$BinaryName.app/Contents/Resources/Icon.icns"
-  cp "$FullScriptPath/../../../TelegramPrivate/Telegreat.icns" "$ReleasePath/$BinaryName.app/Contents/Resources/AppIcon.icns"
+  if [ ! "$REBUILD" == "no" ]; then
+    gyp/refresh.sh
+    xcodebuild -project Telegreat.xcodeproj -alltargets -configuration Release build
+    cp "$FullScriptPath/../../../TelegramPrivate/Telegreat.icns" "$ReleasePath/$BinaryName.app/Contents/Resources/Icon.icns"
+    cp "$FullScriptPath/../../../TelegramPrivate/Telegreat.icns" "$ReleasePath/$BinaryName.app/Contents/Resources/AppIcon.icns"
+  fi
 
   if [ ! -d "$ReleasePath/$BinaryName.app" ]; then
     Error "$BinaryName.app not found!"
   fi
 
-  if [ ! -d "$ReleasePath/$BinaryName.app.dSYM" ]; then
-    Error "$BinaryName.app.dSYM not found!"
-  fi
+# if [ ! -d "$ReleasePath/$BinaryName.app.dSYM" ]; then
+#   Error "$BinaryName.app.dSYM not found!"
+# fi
 
   if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
     if [ ! -f "$ReleasePath/$BinaryName.app/Contents/Frameworks/Updater" ]; then
@@ -264,15 +270,17 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     fi
   fi
 
-  echo "Dumping debug symbols.."
-  "$HomePath/../../Libraries/breakpad/src/tools/mac/dump_syms/build/Release/dump_syms" "$ReleasePath/$BinaryName.app.dSYM" > "$ReleasePath/$BinaryName.sym" 2>/dev/null
-  echo "Done!"
+  if [ ! "$REBUILD" == "no" ]; then
+#   echo "Dumping debug symbols.."
+#   "$HomePath/../../Libraries/breakpad/src/tools/mac/dump_syms/build/Release/dump_syms" "$ReleasePath/$BinaryName.app.dSYM" > "$ReleasePath/$BinaryName.sym" 2>/dev/null
+#   echo "Done!"
 
-  echo "Stripping the executable.."
-  strip "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
-  echo "Done!"
+    echo "Stripping the executable.."
+    strip "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
+    echo "Done!"
+  fi
 
-  echo "Signing the application.."
+# echo "Signing the application.."
   if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
 : #    codesign --force --deep --sign "Developer ID Application: John Preston" "$ReleasePath/$BinaryName.app"
   elif [ "$BuildTarget" == "macstore" ]; then
@@ -280,13 +288,13 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     echo "Making an installer.."
     productbuild --sign "3rd Party Mac Developer Installer: TELEGRAM MESSENGER LLP (6N38VWS5BX)" --component "$ReleasePath/$BinaryName.app" /Applications "$ReleasePath/$BinaryName.pkg"
   fi
-  echo "Done!"
+# echo "Done!"
 
   AppUUID=`dwarfdump -u "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName" | awk -F " " '{print $2}'`
-  DsymUUID=`dwarfdump -u "$ReleasePath/$BinaryName.app.dSYM" | awk -F " " '{print $2}'`
-  if [ "$AppUUID" != "$DsymUUID" ]; then
-    Error "UUID of binary '$AppUUID' and dSYM '$DsymUUID' differ!"
-  fi
+# DsymUUID=`dwarfdump -u "$ReleasePath/$BinaryName.app.dSYM" | awk -F " " '{print $2}'`
+# if [ "$AppUUID" != "$DsymUUID" ]; then
+#   Error "UUID of binary '$AppUUID' and dSYM '$DsymUUID' differ!"
+# fi
 
   if [ ! -f "$ReleasePath/$BinaryName.app/Contents/Resources/Icon.icns" ]; then
     Error "Icon.icns not found in Resources!"
@@ -310,14 +318,14 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     fi
   fi
 
-  SymbolsHash=`head -n 1 "$ReleasePath/$BinaryName.sym" | awk -F " " 'END {print $4}'`
-  echo "Copying $BinaryName.sym to $DropboxSymbolsPath/$BinaryName/$SymbolsHash"
-  mkdir -p "$DropboxSymbolsPath/$BinaryName/$SymbolsHash"
-  cp "$ReleasePath/$BinaryName.sym" "$DropboxSymbolsPath/$BinaryName/$SymbolsHash/"
-  echo "Done!"
+# SymbolsHash=`head -n 1 "$ReleasePath/$BinaryName.sym" | awk -F " " 'END {print $4}'`
+# echo "Copying $BinaryName.sym to $DropboxSymbolsPath/$BinaryName/$SymbolsHash"
+# mkdir -p "$DropboxSymbolsPath/$BinaryName/$SymbolsHash"
+# cp "$ReleasePath/$BinaryName.sym" "$DropboxSymbolsPath/$BinaryName/$SymbolsHash/"
+# echo "Done!"
 
   if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
-#    if [ "$BetaVersion" == "0" ]; then
+#   if [ "$BetaVersion" == "0" ]; then
       cd "$ReleasePath"
       cp -f tsetup_template.dmg tsetup.temp.dmg
       TempDiskPath=`hdiutil attach -nobrowse -noautoopenrw -readwrite tsetup.temp.dmg | awk -F "\t" 'END {print $3}'`
@@ -325,8 +333,8 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
       bless --folder "$TempDiskPath/" --openfolder "$TempDiskPath/"
       hdiutil detach "$TempDiskPath"
       hdiutil convert tsetup.temp.dmg -format UDZO -imagekey zlib-level=9 -ov -o "$SetupFile"
-      rm tsetup.temp.dmg
-#    fi
+#     rm tsetup.temp.dmg
+#   fi
     cd "$ReleasePath"
     "./Packer" -path "$BinaryName.app" -target "$BuildTarget" -version $VersionForPacker $AlphaBetaParam
     echo "Packer done!"
@@ -340,7 +348,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
         BetaSignature="$line"
       done < "$ReleasePath/$BetaKeyFile"
 
-#     UpdateFile="${UpdateFile}_${BetaSignature}"
+     UpdateFile="${UpdateFile}_${BetaSignature}"
 #     SetupFile="tbeta${BetaVersion}_${BetaSignature}.zip"
     fi
   fi
@@ -358,19 +366,21 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     mkdir "$DeployPath"
     mkdir "$DeployPath/$BinaryName"
     cp -r "$ReleasePath/$BinaryName.app" "$DeployPath/$BinaryName/"
-    if [ "$BetaVersion" != "0" ]; then
+    if [ "$BetaVersion" == "9487" ]; then
       cd "$DeployPath"
       zip -r "$SetupFile" "$BinaryName"
-      mv "$SetupFile" "$ReleasePath/"
-      mv "$ReleasePath/$BetaKeyFile" "$DeployPath/"
+      cp "$SetupFile" "$ReleasePath/"
     fi
-    mv "$ReleasePath/$BinaryName.app.dSYM" "$DeployPath/"
-    rm "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
-    rm "$ReleasePath/$BinaryName.app/Contents/Frameworks/Updater"
-    rm "$ReleasePath/$BinaryName.app/Contents/Info.plist"
-    rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
-    mv "$ReleasePath/$UpdateFile" "$DeployPath/"
-    mv "$ReleasePath/$SetupFile" "$DeployPath/"
+    if [ "$BetaVersion" != "0" ]; then
+      cp "$ReleasePath/$BetaKeyFile" "$DeployPath/"
+    fi
+#   cp -r "$ReleasePath/$BinaryName.app.dSYM" "$DeployPath/"
+#   rm "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
+#   rm "$ReleasePath/$BinaryName.app/Contents/Frameworks/Updater"
+#   rm "$ReleasePath/$BinaryName.app/Contents/Info.plist"
+#   rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
+    cp "$ReleasePath/$UpdateFile" "$DeployPath/"
+    cp "$ReleasePath/$SetupFile" "$DeployPath/"
 
     if [ "$BuildTarget" == "mac32" ]; then
       ReleaseToPath="$HomePath/../../deploy_temp/tmac32"
@@ -393,11 +403,11 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     echo "Copying $BinaryName.app to deploy/$AppVersionStrMajor/$AppVersionStr..";
     mkdir "$DeployPath"
     cp -r "$ReleasePath/$BinaryName.app" "$DeployPath/"
-    mv "$ReleasePath/$BinaryName.pkg" "$DeployPath/"
-    mv "$ReleasePath/$BinaryName.app.dSYM" "$DeployPath/"
-    rm "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
-    rm "$ReleasePath/$BinaryName.app/Contents/Info.plist"
-    rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
+    cp "$ReleasePath/$BinaryName.pkg" "$DeployPath/"
+#   cp -r "$ReleasePath/$BinaryName.app.dSYM" "$DeployPath/"
+#   rm "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
+#   rm "$ReleasePath/$BinaryName.app/Contents/Info.plist"
+#   rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
   fi
 fi
 

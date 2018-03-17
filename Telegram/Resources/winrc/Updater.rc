@@ -25,8 +25,8 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,2,8,5
- PRODUCTVERSION 1,2,8,5
+ FILEVERSION 1,2,12,8
+ PRODUCTVERSION 1,2,12,8
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -42,11 +42,11 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "CompanyName", "Sean"
-            VALUE "FileDescription", "Telegreat Updater"
-            VALUE "FileVersion", "1.2.8.5"
+            VALUE "FileDescription", "Telegreat Desktop Updater"
+            VALUE "FileVersion", "1.2.12.8"
             VALUE "LegalCopyright", "Copyright (C) 2014-2018"
-            VALUE "ProductName", "Telegreat"
-            VALUE "ProductVersion", "1.2.8.5"
+            VALUE "ProductName", "Telegreat Desktop"
+            VALUE "ProductVersion", "1.2.12.8"
         END
     END
     BLOCK "VarFileInfo"

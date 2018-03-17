@@ -75,6 +75,9 @@ void AboutBox::keyPressEvent(QKeyEvent *e) {
 }
 
 QString telegramFaqLink() {
+	if (lang(lng_telegreat_lang_code).startsWith("zh"))
+		return qsl("https://telegram.how/faq");
+
 	auto result = qsl("https://telegram.org/faq");
 	auto language = Lang::Current().id();
 	for (auto faqLanguage : { "de", "es", "it", "ko", "br" }) {

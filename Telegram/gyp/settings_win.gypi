@@ -26,6 +26,7 @@
           'AdditionalOptions': [
             '/std:c++latest',
             '/permissive-',
+            '/Qspectre',
             '/MP',     # Enable multi process build.
             '/EHsc',   # Catch C++ exceptions only, extern C functions never throw a C++ exception.
             '/w14834', # [[nodiscard]]

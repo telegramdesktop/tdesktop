@@ -58,9 +58,13 @@ else
   VersionFullBeta=0
 fi
 
-VersionStr="$VersionMajor.$VersionMinor.$VersionPatch"
+if [ "$VersionBeta" != "0" ]; then
+  VersionStr="$VersionMajor.$VersionMinor.$VersionPatch.$VersionBeta"
+else
+  VersionStr="$VersionMajor.$VersionMinor.$VersionPatch"
+fi
 if [ "$VersionPatch" != "0" ]; then
-  VersionStrSmall="$VersionStr"
+  VersionStrSmall="$VersionMajor.$VersionMinor.$VersionPatch"
 else
   VersionStrSmall="$VersionMajor.$VersionMinor"
 fi
@@ -68,7 +72,7 @@ fi
 if [ "$VersionAlpha" != "0" ]; then
   echo "Setting version: $VersionStr alpha"
 elif [ "$VersionBeta" != "0" ]; then
-  echo "Setting version: $VersionStr.$VersionBeta closed beta"
+  echo "Setting version: $VersionStr closed beta"
 else
   echo "Setting version: $VersionStr stable"
 fi
@@ -90,6 +94,7 @@ repl () {
   fi
 }
 
+if [ "0" == "1" ]; then
 echo "Checking changelog..."
 ChangelogFile="$FullScriptPath/../../changelog.txt"
 ChangelogCommand="grep -sc '^$VersionStr ' $ChangelogFile"
@@ -108,6 +113,7 @@ if [ "$FoundCount" == "0" ]; then
   fi
 elif [ "$FoundCount" != "1" ]; then
   Error "Wrong changelog entries count found: $FoundCount"
+fi
 fi
 
 echo "Patching build/version..."

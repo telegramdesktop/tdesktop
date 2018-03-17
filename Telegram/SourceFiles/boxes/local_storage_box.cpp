@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "auth_session.h"
+#include "layout.h"
 
 LocalStorageBox::LocalStorageBox(QWidget *parent)
 : _clear(this, lang(lng_local_storage_clear), st::boxLinkButton) {

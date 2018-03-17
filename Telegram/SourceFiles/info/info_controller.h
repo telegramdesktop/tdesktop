@@ -17,6 +17,19 @@ class SearchFieldController;
 
 namespace Info {
 
+class Key {
+public:
+	Key(not_null<PeerData*> peer);
+	Key(not_null<Data::Feed*> feed);
+
+	PeerData *peer() const;
+	Data::Feed *feed() const;
+
+private:
+	base::variant<not_null<PeerData*>, not_null<Data::Feed*>> _value;
+
+};
+
 enum class Wrap;
 class WrapWidget;
 class Memento;
@@ -29,6 +42,7 @@ public:
 		Media,
 		CommonGroups,
 		Members,
+		Channels,
 	};
 	using MediaType = Storage::SharedMediaType;
 
@@ -60,18 +74,24 @@ public:
 	: _parent(parent) {
 	}
 
-	virtual not_null<PeerData*> peer() const = 0;
+	virtual Key key() const = 0;
 	virtual PeerData *migrated() const = 0;
 	virtual Section section() const = 0;
 
 	PeerId peerId() const {
-		return peer()->id;
+		if (const auto peer = key().peer()) {
+			return peer->id;
+		}
+		return PeerId(0);
 	}
 	PeerId migratedPeerId() const {
 		if (auto peer = migrated()) {
 			return peer->id;
 		}
 		return PeerId(0);
+	}
+	Data::Feed *feed() const {
+		return key().feed();
 	}
 
 	virtual void setSearchEnabledByContent(bool enabled) {
@@ -103,8 +123,8 @@ public:
 		not_null<Window::Controller*> window,
 		not_null<ContentMemento*> memento);
 
-	not_null<PeerData*> peer() const override {
-		return _peer;
+	Key key() const override {
+		return _key;
 	}
 	PeerData *migrated() const override {
 		return _migrated;
@@ -158,7 +178,7 @@ private:
 	void setupMigrationViewer();
 
 	not_null<WrapWidget*> _widget;
-	not_null<PeerData*> _peer;
+	Key _key;
 	PeerData *_migrated = nullptr;
 	rpl::variable<Wrap> _wrap;
 	Section _section;

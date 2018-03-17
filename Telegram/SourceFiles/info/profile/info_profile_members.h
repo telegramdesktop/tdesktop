@@ -20,7 +20,6 @@ class AbstractButton;
 } // namespace Ui
 
 namespace Profile {
-class GroupMembersWidget;
 class ParticipantsBoxController;
 } // namespace Profile
 
@@ -44,8 +43,7 @@ class Members
 public:
 	Members(
 		QWidget *parent,
-		not_null<Controller*> controller,
-		not_null<PeerData*> peer);
+		not_null<Controller*> controller);
 
 	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const;
 

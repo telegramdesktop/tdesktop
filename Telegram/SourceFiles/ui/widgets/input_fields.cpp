@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace {
 
+constexpr auto kMaxUsernameLength = 32;
+
 template <typename InputClass>
 class InputStyle : public QCommonStyle {
 public:
@@ -3976,7 +3978,9 @@ void UsernameInput::correctValue(
 		if (newPos > 0) --newPos;
 	}
 	len -= from;
-	if (len > MaxUsernameLength) len = MaxUsernameLength + (now.at(from) == '@' ? 1 : 0);
+	if (len > kMaxUsernameLength) {
+		len = kMaxUsernameLength + (now.at(from) == '@' ? 1 : 0);
+	}
 	for (int32 to = from + len; to > from;) {
 		--to;
 		if (!now.at(to).isSpace()) {

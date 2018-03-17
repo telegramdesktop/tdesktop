@@ -61,6 +61,7 @@ enum LaunchMode {
 DeclareReadSetting(LaunchMode, LaunchMode);
 DeclareSetting(QString, WorkingDir);
 inline void cForceWorkingDir(const QString &newDir) {
+	LOG(("Force Working Dir: %1").arg(newDir));
 	cSetWorkingDir(newDir);
 	if (!gWorkingDir.isEmpty()) {
 		QDir().mkpath(gWorkingDir);
@@ -222,6 +223,7 @@ DeclareSetting(bool, ShowCallbackData);
 DeclareSetting(bool, ShowUsername);
 DeclareSetting(bool, IgnoreBlocked);
 DeclareSetting(bool, TagMention);
+DeclareSetting(bool, TextMention);
 DeclareSetting(bool, AutoCopy);
 DeclareSetting(int, DialogsType);
 DeclareSetting(int, Typing);

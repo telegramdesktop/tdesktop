@@ -34,6 +34,7 @@ Status Restart(); // can be only CantOpen or Started
 void Finish();
 
 void SetAnnotation(const std::string &key, const QString &value);
+void SetAnnotationHex(const std::string &key, const QString &value);
 inline void ClearAnnotation(const std::string &key) {
 	SetAnnotation(key, QString());
 }

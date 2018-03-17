@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <vector>
 #include <set>
 #include <map>
+#include <unordered_map>
 #include <algorithm>
 #include <memory>
 

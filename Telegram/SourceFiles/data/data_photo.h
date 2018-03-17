@@ -49,9 +49,6 @@ public:
 
 	std::unique_ptr<Data::UploadState> uploadingData;
 
-private:
-	void notifyLayoutChanged() const;
-
 };
 
 class PhotoClickHandler : public FileClickHandler {

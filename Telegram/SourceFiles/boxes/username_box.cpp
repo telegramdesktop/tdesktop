@@ -17,6 +17,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "messenger.h"
 
+namespace {
+
+constexpr auto kMinUsernameLength = 5;
+
+} // namespace
+
 UsernameBox::UsernameBox(QWidget*)
 : _username(this, st::defaultInputField, [] { return qsl("@username"); }, App::self()->username, false)
 , _link(this, QString(), st::boxLinkButton)
@@ -102,9 +108,13 @@ void UsernameBox::onCheck() {
 		MTP::cancel(_checkRequestId);
 	}
 	QString name = getName();
-	if (name.size() >= MinUsernameLength) {
+	if (name.size() >= kMinUsernameLength) {
 		_checkUsername = name;
-		_checkRequestId = MTP::send(MTPaccount_CheckUsername(MTP_string(name)), rpcDone(&UsernameBox::onCheckDone), rpcFail(&UsernameBox::onCheckFail));
+		_checkRequestId = MTP::send(
+			MTPaccount_CheckUsername(
+				MTP_string(name)),
+			rpcDone(&UsernameBox::onCheckDone),
+			rpcFail(&UsernameBox::onCheckFail));
 	}
 }
 
@@ -130,7 +140,7 @@ void UsernameBox::onChanged() {
 				return;
 			}
 		}
-		if (name.size() < MinUsernameLength) {
+		if (name.size() < kMinUsernameLength) {
 			if (_errorText != lang(lng_username_too_short)) {
 				_errorText = lang(lng_username_too_short);
 				update();

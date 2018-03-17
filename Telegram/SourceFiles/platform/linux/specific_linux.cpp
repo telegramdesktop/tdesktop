@@ -293,6 +293,11 @@ void psActivateProcess(uint64 pid) {
 namespace {
 
 QString getHomeDir() {
+	auto home = QDir::homePath();
+
+	if (home != QDir::rootPath())
+		return home + '/';
+
 	struct passwd *pw = getpwuid(getuid());
 	return (pw && pw->pw_dir && strlen(pw->pw_dir)) ? (QFile::decodeName(pw->pw_dir) + '/') : QString();
 }

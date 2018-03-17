@@ -36,8 +36,8 @@ done < "$FullScriptPath/version"
 
 if [ "$BetaVersion" != "0" ]; then
   AppVersion="$BetaVersion"
-  AppVersionStrFull="${AppVersionStr}_${BetaVersion}"
-  BetaKeyFile="tbeta_${AppVersion}_key"
+  AppVersionStrFull="${AppVersionStr}"
+  BetaKeyFile="tbeta_${BetaVersion}_key"
 elif [ "$AlphaChannel" == "0" ]; then
   AppVersionStrFull="$AppVersionStr"
 else
@@ -112,23 +112,23 @@ if [ "$BetaVersion" != "0" ]; then
     BetaFilePath="$DeployPath/$BetaKeyFile"
   fi
   if [ ! -f "$BetaFilePath" ]; then
-    Error "Beta key file for $AppVersionStrFull not found :("
+    Error "Beta key file for $AppVersionStrFull ($BetaFilePath) not found :("
   fi
 
   while IFS='' read -r line || [[ -n "$line" ]]; do
     BetaSignature="$line"
   done < "$BetaFilePath"
 
-# UpdateFile="${UpdateFile}_${BetaSignature}"
-  if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
+  UpdateFile="${UpdateFile}_${BetaSignature}"
+# if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
 #   SetupFile="tbeta${BetaVersion}_${BetaSignature}.tar.xz"
-  elif [ "$BuildTarget" == "mac" ]; then
+# elif [ "$BuildTarget" == "mac" ]; then
 #   SetupFile="tbeta${BetaVersion}_${BetaSignature}.zip"
 #   Mac32UpdateFile="${Mac32UpdateFile}_${BetaSignature}"
 #   Mac32SetupFile="tbeta${BetaVersion}_${BetaSignature}.zip"
 #   WinUpdateFile="${WinUpdateFile}_${BetaSignature}"
 #   WinPortableFile="tbeta${BetaVersion}_${BetaSignature}.zip"
-  fi
+# fi
 elif [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
   BackupPath="/media/psf/backup/$AppVersionStrMajor/$AppVersionStrFull/t$BuildTarget"
   if [ ! -d "/media/psf/backup" ]; then
@@ -140,38 +140,38 @@ fi
 
   if [ "$BuildTarget" != "mac" ] || [ "$DeployMac" == "1" ]; then
     if [ ! -f "$DeployPath/$UpdateFile" ]; then
-      Error "$UpdateFile not found!";
+      Error "Update File $UpdateFile not found!";
     fi
 
     if [ ! -f "$DeployPath/$SetupFile" ]; then
-      Error "$SetupFile not found!"
+      Error "Setup File $SetupFile not found!"
     fi
   fi
 
   if [ "$BuildTarget" == "mac" ]; then
     if [ "$DeployMac32" == "1" ]; then
       if [ ! -f "$Mac32DeployPath/$Mac32UpdateFile" ]; then
-        Error "$Mac32UpdateFile not found!"
+        Error "Mac32 Update File $Mac32UpdateFile not found!"
       fi
 
       if [ ! -f "$Mac32DeployPath/$Mac32SetupFile" ]; then
-        Error "$Mac32SetupFile not found!"
+        Error "Mac32 Setup File $Mac32SetupFile not found!"
       fi
     fi
 
     if [ "$DeployWin" == "1" ]; then
       if [ ! -f "$WinDeployPath/$WinUpdateFile" ]; then
-        Error "$WinUpdateFile not found!"
+        Error "Win Update File $WinUpdateFile not found!"
       fi
 
       if [ "$BetaVersion" == "0" ]; then
         if [ ! -f "$WinDeployPath/$WinSetupFile" ]; then
-          Error "$WinSetupFile not found!"
+          Error "Win Setup File $WinSetupFile not found!"
         fi
       fi
 
       if [ ! -f "$WinDeployPath/$WinPortableFile" ]; then
-        Error "$WinPortableFile not found!"
+        Error "Win Portable File $WinPortableFile not found!"
       fi
     fi
   fi

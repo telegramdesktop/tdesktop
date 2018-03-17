@@ -57,7 +57,7 @@ protected:
 
 private:
 	// Info::AbstractController implementation.
-	not_null<PeerData*> peer() const override;
+	Info::Key key() const override;
 	PeerData *migrated() const override;
 	Info::Section section() const override;
 

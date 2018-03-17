@@ -41,4 +41,4 @@ else
 fi
 
 cd "$FullScriptPath"
-python release.py $AppVersionStr $Param1 $Param2 $Param3 $Param4
+python3 release.py $AppVersionStr $Param1 $Param2 $Param3 $Param4

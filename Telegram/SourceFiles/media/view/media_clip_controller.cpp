@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/fade_animation.h"
 #include "ui/widgets/buttons.h"
 #include "media/media_audio.h"
+#include "layout.h"
 
 namespace Media {
 namespace Clip {

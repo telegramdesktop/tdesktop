@@ -29,7 +29,7 @@ QString filedialogDefaultName(
 		const QString &extension,
 		const QString &path,
 		bool skipExistance,
-		int fileTime) {
+		TimeId fileTime) {
 	auto directoryPath = path;
 	if (directoryPath.isEmpty()) {
 		if (cDialogLastPath().isEmpty()) {
@@ -40,7 +40,8 @@ QString filedialogDefaultName(
 
 	QString base;
 	if (fileTime) {
-		base = prefix + ::date(fileTime).toString("_yyyy-MM-dd_HH-mm-ss");
+		const auto date = ParseDateTime(fileTime);
+		base = prefix + date.toString("_yyyy-MM-dd_HH-mm-ss");
 	} else {
 		struct tm tm;
 		time_t t = time(NULL);
@@ -91,7 +92,7 @@ void OpenEmailLink(const QString &email) {
 }
 
 void OpenWith(const QString &filepath, QPoint menuPosition) {
-	crl::on_main([=] {
+	InvokeQueued(QApplication::instance(), [=] {
 		if (!Platform::File::UnsafeShowOpenWithDropdown(filepath, menuPosition)) {
 			if (!Platform::File::UnsafeShowOpenWith(filepath)) {
 				Platform::File::UnsafeLaunch(filepath);
@@ -133,7 +134,7 @@ void GetOpenPath(
 		const QString &filter,
 		base::lambda<void(OpenResult &&result)> callback,
 		base::lambda<void()> failed) {
-	crl::on_main([=] {
+	InvokeQueued(QApplication::instance(), [=] {
 		auto files = QStringList();
 		auto remoteContent = QByteArray();
 		const auto success = Platform::FileDialog::Get(
@@ -164,7 +165,7 @@ void GetOpenPaths(
 		const QString &filter,
 		base::lambda<void(OpenResult &&result)> callback,
 		base::lambda<void()> failed) {
-	crl::on_main([=] {
+	InvokeQueued(QApplication::instance(), [=] {
 		auto files = QStringList();
 		auto remoteContent = QByteArray();
 		const auto success = Platform::FileDialog::Get(
@@ -192,7 +193,7 @@ void GetWritePath(
 		const QString &initialPath,
 		base::lambda<void(QString &&result)> callback,
 		base::lambda<void()> failed) {
-	crl::on_main([=] {
+	InvokeQueued(QApplication::instance(), [=] {
 		auto file = QString();
 		if (filedialogGetSaveFile(file, caption, filter, initialPath)) {
 			if (callback) {
@@ -209,7 +210,7 @@ void GetFolder(
 		const QString &initialPath,
 		base::lambda<void(QString &&result)> callback,
 		base::lambda<void()> failed) {
-	crl::on_main([=] {
+	InvokeQueued(QApplication::instance(), [=] {
 		auto files = QStringList();
 		auto remoteContent = QByteArray();
 		const auto success = Platform::FileDialog::Get(

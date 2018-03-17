@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_libs.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/platform_notifications_manager.h"
+#include "history/history.h"
 #include "mainwindow.h"
 #include "messenger.h"
 #include "application.h"

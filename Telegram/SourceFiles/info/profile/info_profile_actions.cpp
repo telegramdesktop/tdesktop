@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/flatten_latest.h>
 #include <rpl/combine.h>
 #include "data/data_peer_values.h"
+#include "data/data_session.h"
+#include "data/data_feed.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
@@ -162,6 +164,37 @@ private:
 	not_null<Ui::RpWidget*> _parent;
 	not_null<PeerData*> _peer;
 	object_ptr<Ui::VerticalLayout> _wrap = { nullptr };
+
+};
+
+class FeedDetailsFiller {
+public:
+	FeedDetailsFiller(
+		not_null<Controller*> controller,
+		not_null<Ui::RpWidget*> parent,
+		not_null<Data::Feed*> feed);
+
+	object_ptr<Ui::RpWidget> fill();
+
+private:
+	object_ptr<Ui::RpWidget> setupDefaultToggle();
+
+	template <
+		typename Widget,
+		typename = std::enable_if_t<
+		std::is_base_of_v<Ui::RpWidget, Widget>>>
+	Widget *add(
+			object_ptr<Widget> &&child,
+			const style::margins &margin = style::margins()) {
+		return _wrap->add(
+			std::move(child),
+			margin);
+	}
+
+	not_null<Controller*> _controller;
+	not_null<Ui::RpWidget*> _parent;
+	not_null<Data::Feed*> _feed;
+	object_ptr<Ui::VerticalLayout> _wrap;
 
 };
 
@@ -321,9 +354,13 @@ Ui::MultiSlideTracker DetailsFiller::fillUserButtons(
 	auto window = _controller->parentController();
 
 	auto addSendMessageButton = [&] {
+		auto activePeerValue = window->activeChatValue(
+		) | rpl::map([](Dialogs::Key key) {
+			return key.peer();
+		});
 		auto sendMessageVisible = rpl::combine(
 			_controller->wrapValue(),
-			window->historyPeer.value(),
+			std::move(activePeerValue),
 			(_1 != Wrap::Side) || (_2 != user));
 		auto sendMessage = [window, user] {
 			window->showPeerHistory(
@@ -371,9 +408,13 @@ Ui::MultiSlideTracker DetailsFiller::fillChannelButtons(
 
 	Ui::MultiSlideTracker tracker;
 	auto window = _controller->parentController();
+	auto activePeerValue = window->activeChatValue(
+	) | rpl::map([](Dialogs::Key key) {
+		return key.peer();
+	});
 	auto viewChannelVisible = rpl::combine(
 		_controller->wrapValue(),
-		window->historyPeer.value(),
+		std::move(activePeerValue),
 		(_1 != Wrap::Side) || (_2 != channel));
 	auto viewChannel = [=] {
 		window->showPeerHistory(
@@ -554,19 +595,11 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 
 void ActionsFiller::addLeaveChannelAction(
 		not_null<ChannelData*> channel) {
-	auto callback = [=] {
-		auto text = lang(channel->isMegagroup()
-			? lng_sure_leave_group
-			: lng_sure_leave_channel);
-		Ui::show(Box<ConfirmBox>(text, lang(lng_box_leave), [=] {
-			Auth().api().leaveChannel(channel);
-		}), LayerOption::KeepOther);
-	};
 	AddActionButton(
 		_wrap,
 		Lang::Viewer(lng_profile_leave_channel),
 		AmInChannelValue(channel),
-		std::move(callback));
+		Window::DeleteAndLeaveHandler(channel));
 }
 
 void ActionsFiller::addJoinChannelAction(
@@ -653,6 +686,47 @@ object_ptr<Ui::RpWidget> ActionsFiller::fill() {
 		});
 	}
 	return { nullptr };
+}
+
+FeedDetailsFiller::FeedDetailsFiller(
+	not_null<Controller*> controller,
+	not_null<Ui::RpWidget*> parent,
+	not_null<Data::Feed*> feed)
+: _controller(controller)
+, _parent(parent)
+, _feed(feed)
+, _wrap(_parent) {
+}
+
+object_ptr<Ui::RpWidget> FeedDetailsFiller::fill() {
+	add(object_ptr<BoxContentDivider>(_wrap));
+	add(CreateSkipWidget(_wrap));
+	add(setupDefaultToggle());
+	add(CreateSkipWidget(_wrap));
+	return std::move(_wrap);
+}
+
+object_ptr<Ui::RpWidget> FeedDetailsFiller::setupDefaultToggle() {
+	using namespace rpl::mappers;
+	const auto feedId = _feed->id();
+	auto result = object_ptr<Button>(
+		_wrap,
+		Lang::Viewer(lng_info_feed_is_default),
+		st::infoNotificationsButton);
+	result->toggleOn(
+		Auth().data().defaultFeedIdValue(
+		) | rpl::map(_1 == feedId)
+	)->addClickHandler([=] {
+		const auto makeDefault = (Auth().data().defaultFeedId() != feedId);
+		const auto defaultFeedId = makeDefault ? feedId : 0;
+		Auth().data().setDefaultFeedId(defaultFeedId);
+//		Auth().api().saveDefaultFeedId(feedId, makeDefault); // #feed
+	});
+	object_ptr<FloatingIcon>(
+		result,
+		st::infoIconNotifications,
+		st::infoNotificationsIconPosition);
+	return std::move(result);
 }
 
 } // namespace
@@ -749,6 +823,14 @@ object_ptr<Ui::RpWidget> SetupChannelMembers(
 	members->add(CreateSkipWidget(members));
 
 	return std::move(result);
+}
+
+object_ptr<Ui::RpWidget> SetupFeedDetails(
+		not_null<Controller*> controller,
+		not_null<Ui::RpWidget*> parent,
+		not_null<Data::Feed*> feed) {
+	FeedDetailsFiller filler(controller, parent, feed);
+	return filler.fill();
 }
 
 } // namespace Profile

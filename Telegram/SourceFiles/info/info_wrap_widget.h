@@ -11,6 +11,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/event_stream.h>
 #include "window/section_widget.h"
 
+namespace Storage {
+enum class SharedMediaType : signed char;
+} // namespace Storage
+
+namespace Data {
+class Feed;
+} // namespace Data
+
 namespace Ui {
 class SettingsSlider;
 class FadeShadow;
@@ -32,6 +40,7 @@ namespace Media {
 class Widget;
 } // namespace Media
 
+class Key;
 class Controller;
 class Section;
 class Memento;
@@ -73,10 +82,8 @@ public:
 		Wrap wrap,
 		not_null<Memento*> memento);
 
-	not_null<PeerData*> peer() const;
-	PeerData *activePeer() const override {
-		return peer();
-	}
+	Key key() const;
+	Dialogs::RowDescriptor activeChat() const override;
 	Wrap wrap() const {
 		return _wrap.current();
 	}
@@ -136,7 +143,11 @@ private:
 	struct StackItem;
 
 	void startInjectingActivePeerProfiles();
+	void injectActiveProfile(Dialogs::Key key);
 	void injectActivePeerProfile(not_null<PeerData*> peer);
+	void injectActiveFeedProfile(not_null<Data::Feed*> feed);
+	void injectActiveProfileMemento(
+		std::unique_ptr<ContentMemento> memento);
 	void restoreHistoryStack(
 		std::vector<std::unique_ptr<ContentMemento>> stack);
 	bool hasStackHistory() const {

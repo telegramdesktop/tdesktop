@@ -13,6 +13,7 @@ https://git.io/TD
 #include "mainwindow.h"
 #include "ui/widgets/checkbox.h"
 #include "styles/style_boxes.h"
+#include "history/history.h"
 
 TabBox::TabBox(QWidget *parent)
 : _hideMuted(this, lang(lng_dialogs_hide_muted_chats), (Global::DialogsMode() == Dialogs::Mode::Important), st::defaultBoxCheckbox)
@@ -70,7 +71,7 @@ void TabBox::onHideMute() {
 	if (c != peersData.cend()) {
 		PeerId peerId = c.value()->id;
 		auto history = App::history(peerId);
-		App::removeDialog(history);
+		App::main()->removeDialog(history);
 		history->updateChatListSortPosition(); // Refresh
 	}
 }
@@ -112,9 +113,9 @@ void TabBox::onSave() {
 			PeerId peerId = peer->id;
 			auto history = App::history(peerId);
 			if (type & bit)
-				history->updateChatListSortPosition();
+				history->updateChatListExistence();
 			else
-				App::removeDialog(history);
+				App::main()->removeDialog(history);
 		}
 	}
 }

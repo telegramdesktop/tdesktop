@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
+#include "layout.h"
 
 namespace {
 
@@ -783,7 +784,11 @@ void SingleFilePreview::preparePreview(const Storage::PreparedFile &file) {
 	prepareThumb(preview);
 	const auto filepath = file.path;
 	if (filepath.isEmpty()) {
-		auto filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
+		auto filename = filedialogDefaultName(
+			qsl("image"),
+			qsl(".png"),
+			QString(),
+			true);
 		_nameText.setText(
 			st::semiboldTextStyle,
 			filename,
@@ -1433,7 +1438,7 @@ void SendFilesBox::initSendWay() {
 				? SendFilesWay::Album
 				: SendFilesWay::Photos;
 		}
-		const auto currentWay = Auth().data().sendFilesWay();
+		const auto currentWay = Auth().settings().sendFilesWay();
 		if (currentWay == SendFilesWay::Files) {
 			return currentWay;
 		} else if (currentWay == SendFilesWay::Album) {
@@ -1576,18 +1581,21 @@ void SendFilesBox::captionResized() {
 	update();
 }
 
+bool SendFilesBox::canAddUrls(const QList<QUrl> &urls) const {
+	return !urls.isEmpty() && ranges::find_if(
+		urls,
+		[](const QUrl &url) { return !url.isLocalFile(); }
+	) == urls.end();
+}
+
 bool SendFilesBox::canAddFiles(not_null<const QMimeData*> data) const {
-	auto files = 0;
-	if (data->hasUrls()) {
-		for (const auto &url : data->urls()) {
-			if (url.isLocalFile()) {
-				++files;
-			}
-		}
-	} else if (data->hasImage()) {
-		++files;
+	const auto urls = data->hasUrls() ? data->urls() : QList<QUrl>();
+	auto filesCount = canAddUrls(urls) ? urls.size() : 0;
+	if (!filesCount && data->hasImage()) {
+		++filesCount;
 	}
-	if (_list.files.size() + files > Storage::MaxAlbumItems()) {
+
+	if (_list.files.size() + filesCount > Storage::MaxAlbumItems()) {
 		return false;
 	} else if (_list.files.size() > 1 && !_albumPreview) {
 		return false;
@@ -1600,10 +1608,14 @@ bool SendFilesBox::canAddFiles(not_null<const QMimeData*> data) const {
 
 bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {
 	auto list = [&] {
-		if (data->hasUrls()) {
-			return Storage::PrepareMediaList(
-				data->urls(),
-				st::sendMediaPreviewSize);
+		const auto urls = data->hasUrls() ? data->urls() : QList<QUrl>();
+		auto result = canAddUrls(urls)
+			? Storage::PrepareMediaList(urls, st::sendMediaPreviewSize)
+			: Storage::PreparedList(
+				Storage::PreparedList::Error::EmptyFile,
+				QString());
+		if (result.error == Storage::PreparedList::Error::None) {
+			return result;
 		} else if (data->hasImage()) {
 			auto image = qvariant_cast<QImage>(data->imageData());
 			if (!image.isNull()) {
@@ -1613,9 +1625,7 @@ bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {
 					st::sendMediaPreviewSize);
 			}
 		}
-		return Storage::PreparedList(
-			Storage::PreparedList::Error::EmptyFile,
-			QString());
+		return result;
 	}();
 	if (_list.files.size() + list.files.size() > Storage::MaxAlbumItems()) {
 		return false;
@@ -1756,7 +1766,7 @@ void SendFilesBox::send(bool ctrlShiftEnter) {
 	const auto way = _sendWay ? _sendWay->value() : Way::Files;
 
 	if (_compressConfirm == CompressConfirm::Auto) {
-		const auto oldWay = Auth().data().sendFilesWay();
+		const auto oldWay = Auth().settings().sendFilesWay();
 		if (way != oldWay) {
 			// Check if the user _could_ use the old value, but didn't.
 			if ((oldWay == Way::Album && _sendAlbum)
@@ -1764,8 +1774,8 @@ void SendFilesBox::send(bool ctrlShiftEnter) {
 				|| (oldWay == Way::Files && _sendFiles)
 				|| (way == Way::Files && (_sendAlbum || _sendPhotos))) {
 				// And in that case save it to settings.
-				Auth().data().setSendFilesWay(way);
-				Auth().saveDataDelayed();
+				Auth().settings().setSendFilesWay(way);
+				Auth().saveSettingsDelayed();
 			}
 		}
 	}

@@ -168,8 +168,6 @@ public slots:
 	void onShowNewChannel();
 	void onLogout();
 
-	void app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button);
-
 signals:
 	void tempDirCleared(int task);
 	void tempDirClearFailed(int task);
@@ -178,6 +176,8 @@ signals:
 private:
 	void showConnecting(const QString &text, const QString &reconnect = QString());
 	void hideConnecting();
+
+	[[nodiscard]] bool skipTrayClick() const;
 
 	void ensureLayerCreated();
 	void destroyLayerDelayed();
@@ -198,6 +198,7 @@ private:
 	};
 	QList<DelayedServiceMsg> _delayedServiceMsgs;
 	mtpRequestId _serviceHistoryRequest = 0;
+	TimeMs _lastTrayClickTime = 0;
 
 	object_ptr<PasscodeWidget> _passcode = { nullptr };
 	object_ptr<Intro::Widget> _intro = { nullptr };

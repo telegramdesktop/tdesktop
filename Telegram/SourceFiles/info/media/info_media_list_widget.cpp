@@ -9,8 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "info/info_controller.h"
 #include "overview/overview_layout.h"
-#include "history/history_media_types.h"
+#include "data/data_media_types.h"
+#include "data/data_photo.h"
+#include "data/data_document.h"
+#include "data/data_session.h"
 #include "history/history_item.h"
+#include "history/history.h"
+#include "history/view/history_view_cursor_state.h"
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
 #include "window/window_peer_menu.h"
@@ -147,8 +152,8 @@ private:
 };
 
 bool ListWidget::IsAfter(
-		const CursorState &a,
-		const CursorState &b) {
+		const MouseState &a,
+		const MouseState &b) {
 	if (a.itemId != b.itemId) {
 		return (a.itemId < b.itemId);
 	}
@@ -157,7 +162,7 @@ bool ListWidget::IsAfter(
 	return (xAfter + yAfter >= 0);
 }
 
-bool ListWidget::SkipSelectFromItem(const CursorState &state) {
+bool ListWidget::SkipSelectFromItem(const MouseState &state) {
 	if (state.cursor.y() >= state.size.height()
 		|| state.cursor.x() >= state.size.width()) {
 		return true;
@@ -165,7 +170,7 @@ bool ListWidget::SkipSelectFromItem(const CursorState &state) {
 	return false;
 }
 
-bool ListWidget::SkipSelectTillItem(const CursorState &state) {
+bool ListWidget::SkipSelectTillItem(const MouseState &state) {
 	if (state.cursor.x() < 0 || state.cursor.y() < 0) {
 		return true;
 	}
@@ -189,7 +194,7 @@ bool ListWidget::Section::addItem(not_null<BaseLayout*> item) {
 
 void ListWidget::Section::setHeader(not_null<BaseLayout*> item) {
 	auto text = [&] {
-		auto date = item->getItem()->date.date();
+		auto date = item->dateTime().date();
 		switch (_type) {
 		case Type::Photo:
 		case Type::Video:
@@ -212,8 +217,8 @@ void ListWidget::Section::setHeader(not_null<BaseLayout*> item) {
 bool ListWidget::Section::belongsHere(
 		not_null<BaseLayout*> item) const {
 	Expects(!_items.empty());
-	auto date = item->getItem()->date.date();
-	auto myDate = _items.back().second->getItem()->date.date();
+	auto date = item->dateTime().date();
+	auto myDate = _items.back().second->dateTime().date();
 
 	switch (_type) {
 	case Type::Photo:
@@ -537,7 +542,7 @@ ListWidget::ListWidget(
 	not_null<AbstractController*> controller)
 : RpWidget(parent)
 , _controller(controller)
-, _peer(_controller->peer())
+, _peer(_controller->key().peer())
 , _migrated(_controller->migrated())
 , _type(_controller->section().mediaType())
 , _slice(sliceKey(_universalAroundId)) {
@@ -790,8 +795,7 @@ void ListWidget::refreshViewer() {
 		idForViewer,
 		_idsLimit,
 		_idsLimit
-	) | rpl::start_with_next([=](
-			SparseIdsMergedSlice &&slice) {
+	) | rpl::start_with_next([=](SparseIdsMergedSlice &&slice) {
 		if (!slice.fullCount()) {
 			// Don't display anything while full count is unknown.
 			return;
@@ -836,14 +840,14 @@ std::unique_ptr<BaseLayout> ListWidget::createLayout(
 		return nullptr;
 	}
 	auto getPhoto = [&]() -> PhotoData* {
-		if (const auto media = item->getMedia()) {
-			return media->getPhoto();
+		if (const auto media = item->media()) {
+			return media->photo();
 		}
 		return nullptr;
 	};
 	auto getFile = [&]() -> DocumentData* {
-		if (auto media = item->getMedia()) {
-			return media->getDocument();
+		if (auto media = item->media()) {
+			return media->document();
 		}
 		return nullptr;
 	};
@@ -877,7 +881,7 @@ std::unique_ptr<BaseLayout> ListWidget::createLayout(
 		}
 		return nullptr;
 	case Type::Link:
-		return std::make_unique<Link>(item, item->getMedia());
+		return std::make_unique<Link>(item, item->media());
 	case Type::RoundFile:
 		return nullptr;
 	}
@@ -1280,13 +1284,12 @@ void ListWidget::showContextMenu(
 			}
 		}
 	} else if (link) {
-		auto linkCopyToClipboardText
-			= link->copyToClipboardContextItemText();
-		if (!linkCopyToClipboardText.isEmpty()) {
+		const auto actionText = link->copyToClipboardContextItemText();
+		if (!actionText.isEmpty()) {
 			_contextMenu->addAction(
-				linkCopyToClipboardText,
-				[link] {
-					link->copyToClipboard();
+				actionText,
+				[text = link->copyToClipboardText()] {
+					QApplication::clipboard()->setText(text);
 				});
 		}
 	}
@@ -1312,7 +1315,7 @@ void ListWidget::showContextMenu(
 			}));
 	} else {
 		if (overSelected != SelectionState::NotOverSelectedItems) {
-			if (item->canForward()) {
+			if (item->allowsForward()) {
 				_contextMenu->addAction(
 					lang(lng_context_forward_msg),
 					base::lambda_guarded(this, [this, universalId] {
@@ -1385,7 +1388,14 @@ void ListWidget::forwardItems(MessageIdsList &&items) {
 }
 
 void ListWidget::deleteSelected() {
-	deleteItems(collectSelectedIds());
+	if (const auto box = deleteItems(collectSelectedIds())) {
+		const auto weak = make_weak(this);
+		box->setDeleteConfirmedCallback([=]{
+			if (const auto strong = weak.data()) {
+				strong->clearSelected();
+			}
+		});
+	}
 }
 
 void ListWidget::deleteItem(UniversalMsgId universalId) {
@@ -1394,11 +1404,14 @@ void ListWidget::deleteItem(UniversalMsgId universalId) {
 	}
 }
 
-void ListWidget::deleteItems(MessageIdsList &&items) {
+DeleteMessagesBox *ListWidget::deleteItems(MessageIdsList &&items) {
 	if (!items.empty()) {
-		const auto box = Ui::show(Box<DeleteMessagesBox>(std::move(items)));
-		setActionBoxWeak(box.data());
+		const auto box = Ui::show(
+			Box<DeleteMessagesBox>(std::move(items))).data();
+		setActionBoxWeak(box);
+		return box;
 	}
+	return nullptr;
 }
 
 void ListWidget::setActionBoxWeak(QPointer<Ui::RpWidget> box) {
@@ -1428,10 +1441,10 @@ void ListWidget::trySwitchToWordSelection() {
 void ListWidget::switchToWordSelection() {
 	Expects(_overLayout != nullptr);
 
-	HistoryStateRequest request;
+	StateRequest request;
 	request.flags |= Text::StateRequest::Flag::LookupSymbol;
 	auto dragState = _overLayout->getState(_pressState.cursor, request);
-	if (dragState.cursor != HistoryInTextCursorState) {
+	if (dragState.cursor != CursorState::Text) {
 		return;
 	}
 	_mouseTextSymbol = dragState.symbol;
@@ -1496,7 +1509,7 @@ bool ListWidget::changeItemSelection(
 				return false;
 			}
 			iterator->second.canDelete = item->canDelete();
-			iterator->second.canForward = item->canForward();
+			iterator->second.canForward = item->allowsForward();
 			return true;
 		}
 		return changeExisting(iterator);
@@ -1523,15 +1536,15 @@ auto ListWidget::itemUnderPressSelection() const
 
 bool ListWidget::requiredToStartDragging(
 		not_null<BaseLayout*> layout) const {
-	if (_mouseCursorState == HistoryInDateCursorState) {
+	if (_mouseCursorState == CursorState::Date) {
 		return true;
 	}
 //	return dynamic_cast<HistorySticker*>(layout->getMedia());
 	return false;
 }
 
-bool ListWidget::isPressInSelectedText(HistoryTextState state) const {
-	if (state.cursor != HistoryInTextCursorState) {
+bool ListWidget::isPressInSelectedText(TextState state) const {
+	if (state.cursor != CursorState::Text) {
 		return false;
 	}
 	if (!hasSelectedText()
@@ -1573,7 +1586,7 @@ void ListWidget::enterEventHook(QEvent *e) {
 }
 
 void ListWidget::leaveEventHook(QEvent *e) {
-	if (auto item = _overLayout) {
+	if (const auto item = _overLayout) {
 		if (_overState.inside) {
 			repaintItem(item);
 			_overState.inside = false;
@@ -1594,17 +1607,17 @@ QPoint ListWidget::clampMousePosition(QPoint position) const {
 	};
 }
 
-void ListWidget::mouseActionUpdate(const QPoint &screenPos) {
+void ListWidget::mouseActionUpdate(const QPoint &globalPosition) {
 	if (_sections.empty() || _visibleBottom <= _visibleTop) {
 		return;
 	}
 
-	_mousePosition = screenPos;
+	_mousePosition = globalPosition;
 
 	auto local = mapFromGlobal(_mousePosition);
 	auto point = clampMousePosition(local);
 	auto [layout, geometry, inside] = findItemByPoint(point);
-	auto state = CursorState {
+	auto state = MouseState{
 		GetUniversalId(layout),
 		geometry.size(),
 		point - geometry.topLeft(),
@@ -1618,19 +1631,19 @@ void ListWidget::mouseActionUpdate(const QPoint &screenPos) {
 	}
 	_overState = state;
 
-	HistoryTextState dragState;
+	TextState dragState;
 	ClickHandlerHost *lnkhost = nullptr;
 	auto inTextSelection = _overState.inside
 		&& (_overState.itemId == _pressState.itemId)
 		&& hasSelectedText();
-	auto cursorDeltaLength = [&] {
-		auto cursorDelta = (_overState.cursor - _pressState.cursor);
-		return cursorDelta.manhattanLength();
-	};
-	auto dragStartLength = [] {
-		return QApplication::startDragDistance();
-	};
 	if (_overLayout) {
+		auto cursorDeltaLength = [&] {
+			auto cursorDelta = (_overState.cursor - _pressState.cursor);
+			return cursorDelta.manhattanLength();
+		};
+		auto dragStartLength = [] {
+			return QApplication::startDragDistance();
+		};
 		if (_overState.itemId != _pressState.itemId
 			|| cursorDeltaLength() >= dragStartLength()) {
 			if (_mouseAction == MouseAction::PrepareDrag) {
@@ -1640,7 +1653,7 @@ void ListWidget::mouseActionUpdate(const QPoint &screenPos) {
 				_mouseAction = MouseAction::Selecting;
 			}
 		}
-		HistoryStateRequest request;
+		StateRequest request;
 		if (_mouseAction == MouseAction::Selecting) {
 			request.flags |= Text::StateRequest::Flag::LookupSymbol;
 		} else {
@@ -1697,7 +1710,7 @@ style::cursor ListWidget::computeMouseCursor() const {
 	if (ClickHandler::getPressed() || ClickHandler::getActive()) {
 		return style::cur_pointer;
 	} else if (!hasSelectedItems()
-		&& (_mouseCursorState == HistoryInTextCursorState)) {
+		&& (_mouseCursorState == CursorState::Text)) {
 		return style::cur_text;
 	}
 	return style::cur_default;
@@ -1768,9 +1781,13 @@ void ListWidget::clearDragSelection() {
 	}
 }
 
-void ListWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton button) {
-	mouseActionUpdate(screenPos);
-	if (button != Qt::LeftButton) return;
+void ListWidget::mouseActionStart(
+		const QPoint &globalPosition,
+		Qt::MouseButton button) {
+	mouseActionUpdate(globalPosition);
+	if (button != Qt::LeftButton) {
+		return;
+	}
 
 	ClickHandler::pressed();
 	if (_pressState != _overState) {
@@ -1797,15 +1814,15 @@ void ListWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butto
 		}
 	}
 	if (_mouseAction == MouseAction::None && pressLayout) {
-		HistoryTextState dragState;
 		validateTrippleClickStartTime();
-		auto startDistance = (screenPos - _trippleClickPoint).manhattanLength();
+		TextState dragState;
+		auto startDistance = (globalPosition - _trippleClickPoint).manhattanLength();
 		auto validStartPoint = startDistance < QApplication::startDragDistance();
 		if (_trippleClickStartTime != 0 && validStartPoint) {
-			HistoryStateRequest request;
+			StateRequest request;
 			request.flags = Text::StateRequest::Flag::LookupSymbol;
 			dragState = pressLayout->getState(_pressState.cursor, request);
-			if (dragState.cursor == HistoryInTextCursorState) {
+			if (dragState.cursor == CursorState::Text) {
 				TextSelection selStatus = { dragState.symbol, dragState.symbol };
 				if (selStatus != FullSelection && !hasSelectedItems()) {
 					clearSelected();
@@ -1818,7 +1835,7 @@ void ListWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butto
 				}
 			}
 		} else {
-			HistoryStateRequest request;
+			StateRequest request;
 			request.flags = Text::StateRequest::Flag::LookupSymbol;
 			dragState = pressLayout->getState(_pressState.cursor, request);
 		}
@@ -1857,7 +1874,7 @@ void ListWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butto
 }
 
 void ListWidget::mouseActionCancel() {
-	_pressState = CursorState();
+	_pressState = MouseState();
 	_mouseAction = MouseAction::None;
 	clearDragSelection();
 	_wasSelectedText = false;
@@ -1873,7 +1890,7 @@ void ListWidget::performDrag() {
 			uponSelected = isItemUnderPressSelected();
 		} else if (auto pressLayout = getExistingLayout(
 				_pressState.itemId)) {
-			HistoryStateRequest request;
+			StateRequest request;
 			request.flags |= Text::StateRequest::Flag::LookupSymbol;
 			auto dragState = pressLayout->getState(
 				_pressState.cursor,
@@ -1905,7 +1922,8 @@ void ListWidget::performDrag() {
 	//	if (uponSelected && !Adaptive::OneColumn()) {
 	//		auto selectedState = getSelectionState();
 	//		if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
-	//			mimeData->setData(qsl("application/x-td-forward-selected"), "1");
+	//			Auth().data().setMimeForwardIds(collectSelectedIds());
+	//			mimeData->setData(qsl("application/x-td-forward"), "1");
 	//		}
 	//	}
 	//	_controller->parentController()->window()->launchDrag(std::move(mimeData));
@@ -1915,14 +1933,16 @@ void ListWidget::performDrag() {
 	//	auto pressedMedia = static_cast<HistoryMedia*>(nullptr);
 	//	if (auto pressedItem = _pressState.layout) {
 	//		pressedMedia = pressedItem->getMedia();
-	//		if (_mouseCursorState == HistoryInDateCursorState || (pressedMedia && pressedMedia->dragItem())) {
-	//			forwardMimeType = qsl("application/x-td-forward-pressed");
+	//		if (_mouseCursorState == CursorState::Date || (pressedMedia && pressedMedia->dragItem())) {
+	//			Auth().data().setMimeForwardIds(Auth().data().itemOrItsGroup(pressedItem));
+	//			forwardMimeType = qsl("application/x-td-forward");
 	//		}
 	//	}
 	//	if (auto pressedLnkItem = App::pressedLinkItem()) {
 	//		if ((pressedMedia = pressedLnkItem->getMedia())) {
 	//			if (forwardMimeType.isEmpty() && pressedMedia->dragItemByHandler(pressedHandler)) {
-	//				forwardMimeType = qsl("application/x-td-forward-pressed-link");
+	//				Auth().data().setMimeForwardIds({ 1, pressedLnkItem->fullId() });
+	//				forwardMimeType = qsl("application/x-td-forward");
 	//			}
 	//		}
 	//	}
@@ -1945,8 +1965,10 @@ void ListWidget::performDrag() {
 	//}
 }
 
-void ListWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton button) {
-	mouseActionUpdate(screenPos);
+void ListWidget::mouseActionFinish(
+		const QPoint &globalPosition,
+		Qt::MouseButton button) {
+	mouseActionUpdate(globalPosition);
 
 	auto pressState = base::take(_pressState);
 	repaintItem(pressState.itemId);
@@ -2000,7 +2022,7 @@ void ListWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton butt
 
 #if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
 	//if (hasSelectedText()) { // #TODO linux clipboard
-	//	setToClipboard(_selected.cbegin()->first->selectedText(_selected.cbegin()->second), QClipboard::Selection);
+	//	SetClipboardWithEntities(_selected.cbegin()->first->selectedText(_selected.cbegin()->second), QClipboard::Selection);
 	//}
 #endif // Q_OS_LINUX32 || Q_OS_LINUX64
 }

@@ -16,6 +16,11 @@ Go to ***BuildPath*** and run
 
     MACOSX_DEPLOYMENT_TARGET=10.8
 
+    ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+    brew install automake fdk-aac git lame libass libtool libvorbis libvpx opus sdl shtool texi2html theora wget x264 xvid yasm automake libtool
+
+    sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
     git clone --recursive https://github.com/Sea-n/tdesktop.git
 
     cd Libraries
@@ -64,9 +69,6 @@ Go to ***BuildPath*** and run
     sudo make install
     cd ..
 
-    ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-    brew install automake fdk-aac git lame libass libtool libvorbis libvpx opus sdl shtool texi2html theora wget x264 xvid yasm
-
     git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
     git checkout release/3.4
@@ -100,6 +102,7 @@ Go to ***BuildPath*** and run
     git clone https://chromium.googlesource.com/crashpad/crashpad.git
     cd crashpad
     git checkout feb3aa3923
+    git apply ../../../tdesktop/Telegram/Patches/crashpad.diff
     cd third_party/mini_chromium
     git clone https://chromium.googlesource.com/chromium/mini_chromium
     cd mini_chromium

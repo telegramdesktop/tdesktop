@@ -61,7 +61,7 @@ public:
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void rowActionClicked(not_null<PeerListRow*> row) override;
-	Ui::PopupMenu *rowContextMenu(
+	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
 		not_null<PeerListRow*> row) override;
 	void loadMoreRows() override;
 

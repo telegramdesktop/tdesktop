@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_result.h"
 #include "storage/localstorage.h"
 #include "lang/lang_keys.h"
+#include "history/history.h"
 
 namespace InlineBots {
 namespace internal {
@@ -130,11 +131,11 @@ void SendPhoto::addToHistory(
 		flags,
 		viaBotId,
 		replyToId,
-		date(mtpDate),
+		mtpDate.v,
 		fromId,
 		postAuthor,
 		_photo,
-		_caption,
+		{ _message, _entities },
 		markup);
 }
 
@@ -165,11 +166,11 @@ void SendFile::addToHistory(
 		flags,
 		viaBotId,
 		replyToId,
-		date(mtpDate),
+		mtpDate.v,
 		fromId,
 		postAuthor,
 		_document,
-		_caption,
+		{ _message, _entities },
 		markup);
 }
 
@@ -207,7 +208,7 @@ void SendGame::addToHistory(
 		flags,
 		viaBotId,
 		replyToId,
-		date(mtpDate),
+		mtpDate.v,
 		fromId,
 		postAuthor,
 		_game,

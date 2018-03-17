@@ -493,6 +493,31 @@ void SetAnnotation(const std::string &key, const QString &value) {
 	}
 }
 
+void SetAnnotationHex(const std::string &key, const QString &value) {
+	if (value.isEmpty()) {
+		return SetAnnotation(key, value);
+	}
+	const auto utf = value.toUtf8();
+	auto buffer = std::string();
+	buffer.reserve(4 * utf.size());
+	const auto hexDigit = [](std::uint8_t value) {
+		if (value >= 10) {
+			return 'A' + (value - 10);
+		}
+		return '0' + value;
+	};
+	const auto appendHex = [&](std::uint8_t value) {
+		buffer.push_back('\\');
+		buffer.push_back('x');
+		buffer.push_back(hexDigit(value / 16));
+		buffer.push_back(hexDigit(value % 16));
+	};
+	for (const auto ch : utf) {
+		appendHex(ch);
+	}
+	ProcessAnnotations[key] = std::move(buffer);
+}
+
 void SetAnnotationRef(const std::string &key, const QString *valuePtr) {
 	if (valuePtr) {
 		ProcessAnnotationRefs[key] = valuePtr;
@@ -520,7 +545,11 @@ const dump &operator<<(const dump &stream, const wchar_t *str) {
     if (!ReportFile) return stream;
 
     for (int i = 0, l = wcslen(str); i < l; ++i) {
-        if (str[i] >= 0 && str[i] < 128) {
+        if (
+#if !defined(__WCHAR_UNSIGNED__)
+            str[i] >= 0 &&
+#endif
+            str[i] < 128) {
 			SafeWriteChar(char(str[i]));
         } else {
 			SafeWriteChar('?');

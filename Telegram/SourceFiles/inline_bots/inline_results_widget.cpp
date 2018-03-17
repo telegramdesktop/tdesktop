@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/labels.h"
 #include "observer_peer.h"
+#include "history/view/history_view_cursor_state.h"
 
 namespace InlineBots {
 namespace Layout {
@@ -111,6 +112,8 @@ bool Inner::isRestrictedView() {
 int Inner::countHeight() {
 	if (isRestrictedView()) {
 		return st::stickerPanPadding + _restrictedLabel->height() + st::stickerPanPadding;
+	} else if (_rows.isEmpty() && !_switchPmButton) {
+		return st::stickerPanPadding + st::normalFont->height + st::stickerPanPadding;
 	}
 	auto result = st::stickerPanPadding;
 	if (_switchPmButton) {
@@ -606,14 +609,14 @@ void Inner::updateSelected() {
 	int row = -1, col = -1, sel = -1;
 	ClickHandlerPtr lnk;
 	ClickHandlerHost *lnkhost = nullptr;
-	HistoryCursorState cursor = HistoryDefaultCursorState;
+	HistoryView::CursorState cursor = HistoryView::CursorState::None;
 	if (sy >= 0) {
 		row = 0;
 		for (int rows = _rows.size(); row < rows; ++row) {
-			if (sy < _rows.at(row).height) {
+			if (sy < _rows[row].height) {
 				break;
 			}
-			sy -= _rows.at(row).height;
+			sy -= _rows[row].height;
 		}
 	}
 	if (sx >= 0 && row >= 0 && row < _rows.size()) {
@@ -631,7 +634,9 @@ void Inner::updateSelected() {
 		}
 		if (col < inlineItems.size()) {
 			sel = row * MatrixRowShift + col;
-			auto result = inlineItems[col]->getState(QPoint(sx, sy), HistoryStateRequest());
+			auto result = inlineItems[col]->getState(
+				QPoint(sx, sy),
+				HistoryView::StateRequest());
 			lnk = result.link;
 			cursor = result.cursor;
 			lnkhost = inlineItems[col];
@@ -1008,9 +1013,10 @@ void Widget::inlineResultsDone(const MTPmessages_BotResults &result) {
 
 	auto it = _inlineCache.find(_inlineQuery);
 	auto adding = (it != _inlineCache.cend());
-	// #TODO layer 72 feed users
 	if (result.type() == mtpc_messages_botResults) {
 		auto &d = result.c_messages_botResults();
+		App::feedUsers(d.vusers);
+
 		auto &v = d.vresults.v;
 		auto queryId = d.vquery_id.v;
 
@@ -1083,7 +1089,9 @@ void Widget::onInlineRequest() {
 	auto it = _inlineCache.find(_inlineQuery);
 	if (it != _inlineCache.cend()) {
 		nextOffset = it->second->nextOffset;
-		if (nextOffset.isEmpty()) return;
+		if (nextOffset.isEmpty()) {
+			return;
+		}
 	}
 	Notify::inlineBotRequesting(true);
 	_inlineRequestId = request(MTPmessages_GetInlineBotResults(MTP_flags(0), _inlineBot->inputUser, _inlineQueryPeer->input, MTPInputGeoPoint(), MTP_string(_inlineQuery), MTP_string(nextOffset))).done([this](const MTPmessages_BotResults &result, mtpRequestId requestId) {

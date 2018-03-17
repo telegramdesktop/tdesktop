@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 class AuthSession;
-class AuthSessionData;
+class AuthSessionSettings;
 class MainWidget;
 class FileUploader;
 class Translator;
@@ -103,8 +103,9 @@ public:
 	void setMtpMainDcId(MTP::DcId mainDcId);
 	void setMtpKey(MTP::DcId dcId, const MTP::AuthKey::Data &keyData);
 	void setAuthSessionUserId(UserId userId);
-	void setAuthSessionFromStorage(std::unique_ptr<AuthSessionData> data);
-	AuthSessionData *getAuthSessionData();
+	void setAuthSessionFromStorage(
+		std::unique_ptr<AuthSessionSettings> data);
+	AuthSessionSettings *getAuthSessionSettings();
 
 	// Serialization.
 	QByteArray serializeMtpAuthorization() const;
@@ -177,7 +178,6 @@ public:
 	void handleAppActivated();
 	void handleAppDeactivated();
 
-	void call_handleHistoryUpdate();
 	void call_handleUnreadCounterUpdate();
 	void call_handleDelayedPeerUpdates();
 	void call_handleObservables();

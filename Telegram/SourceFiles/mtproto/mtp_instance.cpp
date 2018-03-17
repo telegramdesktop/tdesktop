@@ -598,11 +598,13 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 	Global::SetOnlineCloudTimeout(data.vonline_cloud_timeout_ms.v);
 	Global::SetNotifyCloudDelay(data.vnotify_cloud_delay_ms.v);
 	Global::SetNotifyDefaultDelay(data.vnotify_default_delay_ms.v);
-	Global::SetChatBigSize(data.vchat_big_size.v);
 	Global::SetPushChatPeriod(data.vpush_chat_period_ms.v);
 	Global::SetPushChatLimit(data.vpush_chat_limit.v);
 	Global::SetSavedGifsLimit(data.vsaved_gifs_limit.v);
 	Global::SetEditTimeLimit(data.vedit_time_limit.v);
+	Global::SetRevokeTimeLimit(data.vrevoke_time_limit.v);
+	Global::SetRevokePrivateTimeLimit(data.vrevoke_pm_time_limit.v);
+	Global::SetRevokePrivateInbox(data.is_revoke_pm_inbox());
 	Global::SetStickersRecentLimit(data.vstickers_recent_limit.v);
 	Global::SetStickersFavedLimit(data.vstickers_faved_limit.v);
 	Global::SetPinnedDialogsCountMax(data.vpinned_dialogs_count_max.v);

@@ -21,17 +21,17 @@ stickersRestrictedLabel: FlatLabel(defaultFlatLabel) {
 	textFg: noContactsColor;
 }
 
-stickersTrendingHeader: 45px;
-stickersTrendingSkip: 15px;
+stickersTrendingHeader: 56px;
+stickersTrendingSkip: 4px;
 
 stickersTrendingHeaderFont: semiboldFont;
 stickersTrendingHeaderFg: windowFg;
-stickersTrendingHeaderTop: 0px;
+stickersTrendingHeaderTop: 11px;
 stickersTrendingSubheaderFont: normalFont;
 stickersTrendingSubheaderFg: windowSubTextFg;
-stickersTrendingSubheaderTop: 20px;
+stickersTrendingSubheaderTop: 31px;
 
-stickersTrendingAddTop: 3px;
+stickersTrendingAddTop: 14px;
 stickersTrendingAdd: RoundButton(defaultActiveButton) {
 	width: -16px;
 	height: 26px;
@@ -90,7 +90,7 @@ stickersRowDuration: 200;
 
 stickersSettings: icon {{ "emoji_settings", emojiIconFg }};
 stickersTrending: icon {{ "emoji_trending", emojiIconFg }};
-stickersFaved: icon {{ "emoji_faved", emojiIconFg }};
+stickersSearch: icon {{ "stickers_search", emojiIconFg, point(0px, 1px) }};
 
 stickersSettingsUnreadSize: 17px;
 stickersSettingsUnreadPosition: point(4px, 5px);
@@ -208,6 +208,8 @@ stickerGroupCategoryAdd: stickersTrendingAdd;
 
 stickersToastMaxWidth: 340px;
 stickersToastPadding: margins(16px, 13px, 16px, 12px);
+
+stickersEmpty: icon {{ "stickers_empty", windowSubTextFg }};
 
 inlineBotsScroll: ScrollArea(defaultSolidScroll) {
 	deltat: stickerPanPadding;

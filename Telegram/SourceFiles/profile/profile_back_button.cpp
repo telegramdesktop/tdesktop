@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "profile/profile_back_button.h"
 
-//#include "history/history_top_bar_widget.h"
+//#include "history/view/history_view_top_bar_widget.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 #include "styles/style_profile.h"
@@ -41,8 +41,6 @@ void BackButton::paintEvent(QPaintEvent *e) {
 	p.setFont(st::topBarButton.font);
 	p.setPen(st::topBarButton.textFg);
 	p.drawTextLeft(st::topBarArrowPadding.left(), st::topBarButton.padding.top() + st::topBarButton.textTop, width(), _text);
-
-//	HistoryTopBarWidget::paintUnreadCounter(p, width());
 }
 
 void BackButton::onStateChanged(State was, StateChangeSource source) {

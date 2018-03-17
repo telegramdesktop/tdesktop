@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <rpl/producer.h>
 #include "info/info_content_widget.h"
 
 struct PeerListState;
@@ -25,9 +24,7 @@ using SavedState = Profile::MembersState;
 class Memento final : public ContentMemento {
 public:
 	Memento(not_null<Controller*> controller);
-	Memento(PeerId peerId, PeerId migratedPeerId)
-	: ContentMemento(peerId, migratedPeerId) {
-	}
+	Memento(PeerId peerId, PeerId migratedPeerId);
 
 	object_ptr<ContentWidget> createWidget(
 		QWidget *parent,

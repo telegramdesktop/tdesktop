@@ -14,30 +14,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class HistoryGroupedMedia : public HistoryMedia {
 public:
 	HistoryGroupedMedia(
-		not_null<HistoryItem*> parent,
-		const std::vector<not_null<HistoryItem*>> &others);
+		not_null<Element*> parent,
+		const std::vector<not_null<HistoryItem*>> &items);
 
 	HistoryMediaType type() const override {
 		return MediaTypeGrouped;
 	}
-	std::unique_ptr<HistoryMedia> clone(
-		not_null<HistoryItem*> newParent,
-		not_null<HistoryItem*> realParent) const override;
 
-	void initDimensions() override;
-	int resizeGetHeight(int width) override;
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
-	void updateSentMedia(const MTPMessageMedia &media) override;
-	bool needReSetInlineResultMedia(const MTPMessageMedia &media) override;
 
 	void draw(
 		Painter &p,
 		const QRect &clip,
 		TextSelection selection,
 		TimeMs ms) const override;
-	HistoryTextState getState(
+	PointState pointState(QPoint point) const override;
+	TextState textState(
 		QPoint point,
-		HistoryStateRequest request) const override;
+		StateRequest request) const override;
 
 	bool toggleSelectionByHandlerClick(
 		const ClickHandlerPtr &p) const override;
@@ -56,8 +50,6 @@ public:
 	PhotoData *getPhoto() const override;
 	DocumentData *getDocument() const override;
 
-	QString notificationText() const override;
-	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
 	void clickHandlerActiveChanged(
@@ -67,14 +59,6 @@ public:
 		const ClickHandlerPtr &p,
 		bool pressed) override;
 
-	void attachToParent() override;
-	void detachFromParent() override;
-	std::unique_ptr<HistoryMedia> takeLastFromGroup() override;
-	bool applyGroup(
-		const std::vector<not_null<HistoryItem*>> &others) override;
-
-	bool hasReplyPreview() const override;
-	ImagePtr replyPreview() override;
 	TextWithEntities getCaption() const override;
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
@@ -82,10 +66,6 @@ public:
 		return true;
 	}
 	HistoryMessageEdited *displayedEditBadge() const override;
-
-	bool canBeGrouped() const override {
-		return true;
-	}
 
 	bool skipBubbleTail() const override {
 		return isBubbleBottom() && _caption.isEmpty();
@@ -95,14 +75,15 @@ public:
 	bool customInfoLayout() const override {
 		return _caption.isEmpty();
 	}
-	bool canEditCaption() const override;
 	bool allowsFastShare() const override {
 		return true;
 	}
 
+	void parentTextUpdated() override;
+
 private:
-	struct Element {
-		Element(not_null<HistoryItem*> item);
+	struct Part {
+		Part(not_null<HistoryItem*> item);
 
 		not_null<HistoryItem*> item;
 		std::unique_ptr<HistoryMedia> content;
@@ -115,16 +96,21 @@ private:
 
 	};
 
+	bool applyGroup(const std::vector<not_null<HistoryItem*>> &items);
+	QSize countOptimalSize() override;
+	QSize countCurrentSize(int newWidth) override;
+
+	bool needInfoDisplay() const;
 	bool computeNeedBubble() const;
 	not_null<HistoryMedia*> main() const;
-	bool validateGroupElements(
-		const std::vector<not_null<HistoryItem*>> &others) const;
-	HistoryTextState getElementState(
+	bool validateGroupParts(
+		const std::vector<not_null<HistoryItem*>> &items) const;
+	TextState getPartState(
 		QPoint point,
-		HistoryStateRequest request) const;
+		StateRequest request) const;
 
 	Text _caption;
-	std::vector<Element> _elements;
+	std::vector<Part> _parts;
 	bool _needBubble = false;
 
 };

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_list.h"
 
+#include "dialogs/dialogs_entry.h"
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_dialogs.h"
 #include "mainwidget.h"
@@ -14,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Dialogs {
 
 List::List(SortMode sortMode)
-: _last(std::make_unique<Row>(nullptr, nullptr, nullptr, 0))
+: _last(std::make_unique<Row>(nullptr))
 , _begin(_last.get())
 , _end(_last.get())
 , _sortMode(sortMode)
@@ -33,15 +34,15 @@ void List::adjustCurrent(int32 y, int32 h) const {
 	}
 }
 
-Row *List::addToEnd(History *history) {
-	Row *result = new Row(history, _end->_prev, _end, _end->_pos);
+Row *List::addToEnd(Key key) {
+	const auto result = new Row(key, _end->_prev, _end, _end->_pos);
 	_end->_pos++;
 	if (_begin == _end) {
 		_begin = _current = result;
 	} else {
 		_end->_prev->_next = result;
 	}
-	_rowByPeer.insert(history->peer->id, result);
+	_rowByKey.emplace(key, result);
 	++_count;
 	_end->_prev = result;
 	if (_sortMode == SortMode::Date) {
@@ -51,13 +52,15 @@ Row *List::addToEnd(History *history) {
 }
 
 bool List::insertBefore(Row *row, Row *before) {
-	if (row == before) return false;
+	if (row == before) {
+		return false;
+	}
 
 	if (_current == row) {
 		_current = row->_prev;
 	}
 
-	Row *updateTill = row->_prev;
+	const auto updateTill = row->_prev;
 	remove(row);
 
 	// insert row
@@ -70,8 +73,8 @@ bool List::insertBefore(Row *row, Row *before) {
 		_begin = row;
 	}
 
-	// update y
-	for (Row *n = row; n != updateTill; n = n->_next) {
+	// update pos
+	for (auto n = row; n != updateTill; n = n->_next) {
 		n->_next->_pos++;
 		row->_pos--;
 	}
@@ -79,13 +82,15 @@ bool List::insertBefore(Row *row, Row *before) {
 }
 
 bool List::insertAfter(Row *row, Row *after) {
-	if (row == after) return false;
+	if (row == after) {
+		return false;
+	}
 
 	if (_current == row) {
 		_current = row->_next;
 	}
 
-	Row *updateFrom = row->_next;
+	const auto updateFrom = row->_next;
 	remove(row);
 
 	// insert row
@@ -94,26 +99,30 @@ bool List::insertAfter(Row *row, Row *after) {
 	row->_prev->_next = row; // update row->prev
 	row->_next->_prev = row; // update row->next
 
-	// update y
-	for (Row *n = updateFrom; n != row; n = n->_next) {
+	// update pos
+	for (auto n = updateFrom; n != row; n = n->_next) {
 		n->_pos--;
 		row->_pos++;
 	}
 	return true;
 }
 
-Row *List::adjustByName(const PeerData *peer) {
+Row *List::adjustByName(Key key) {
 	if (_sortMode != SortMode::Name) return nullptr;
 
-	auto i = _rowByPeer.find(peer->id);
-	if (i == _rowByPeer.cend()) return nullptr;
+	const auto i = _rowByKey.find(key);
+	if (i == _rowByKey.cend()) return nullptr;
 
-	Row *row = i.value(), *change = row;
-	while (change->_prev && change->_prev->history()->peer->name > peer->name) {
+	const auto row = i->second;
+	const auto name = key.entry()->chatsListName();
+	auto change = row;
+	while (change->_prev
+		&& change->_prev->entry()->chatsListName().compare(name, Qt::CaseInsensitive) < 0) {
 		change = change->_prev;
 	}
 	if (!insertBefore(row, change)) {
-		while (change->_next != _end && change->_next->history()->peer->name < peer->name) {
+		while (change->_next != _end
+			&& change->_next->entry()->chatsListName().compare(name, Qt::CaseInsensitive) < 0) {
 			change = change->_next;
 		}
 		insertAfter(row, change);
@@ -121,16 +130,21 @@ Row *List::adjustByName(const PeerData *peer) {
 	return row;
 }
 
-Row *List::addByName(History *history) {
-	if (_sortMode != SortMode::Name) return nullptr;
+Row *List::addByName(Key key) {
+	if (_sortMode != SortMode::Name) {
+		return nullptr;
+	}
 
-	Row *row = addToEnd(history), *change = row;
-	const QString &peerName(history->peer->name);
-	while (change->_prev && change->_prev->history()->peer->name.compare(peerName, Qt::CaseInsensitive) > 0) {
+	const auto row = addToEnd(key);
+	auto change = row;
+	const auto name = key.entry()->chatsListName();
+	while (change->_prev
+		&& change->_prev->entry()->chatsListName().compare(name, Qt::CaseInsensitive) > 0) {
 		change = change->_prev;
 	}
 	if (!insertBefore(row, change)) {
-		while (change->_next != _end && change->_next->history()->peer->name.compare(peerName, Qt::CaseInsensitive) < 0) {
+		while (change->_next != _end
+			&& change->_next->entry()->chatsListName().compare(name, Qt::CaseInsensitive) < 0) {
 			change = change->_next;
 		}
 		insertAfter(row, change);
@@ -142,18 +156,18 @@ void List::adjustByPos(Row *row) {
 	if (_sortMode != SortMode::Date || !_begin) return;
 
 	Row *change = row;
-	if (change != _begin && _begin->history()->sortKeyInChatList() < row->history()->sortKeyInChatList()) {
+	if (change != _begin && _begin->sortKey() < row->sortKey()) {
 		change = _begin;
 	} else {
-		while (change->_prev && change->_prev->history()->sortKeyInChatList() < row->history()->sortKeyInChatList()) {
+		while (change->_prev && change->_prev->sortKey() < row->sortKey()) {
 			change = change->_prev;
 		}
 	}
 	if (!insertBefore(row, change)) {
-		if (change->_next != _end && _end->_prev->history()->sortKeyInChatList() > row->history()->sortKeyInChatList()) {
+		if (change->_next != _end && _end->_prev->sortKey() > row->sortKey()) {
 			change = _end->_prev;
 		} else {
-			while (change->_next != _end && change->_next->history()->sortKeyInChatList() > row->history()->sortKeyInChatList()) {
+			while (change->_next != _end && change->_next->sortKey() > row->sortKey()) {
 				change = change->_next;
 			}
 		}
@@ -161,19 +175,23 @@ void List::adjustByPos(Row *row) {
 	}
 }
 
-bool List::moveToTop(PeerId peerId) {
-	auto i = _rowByPeer.find(peerId);
-	if (i == _rowByPeer.cend()) return false;
+bool List::moveToTop(Key key) {
+	auto i = _rowByKey.find(key);
+	if (i == _rowByKey.cend()) {
+		return false;
+	}
 
-	insertBefore(i.value(), _begin);
+	insertBefore(i->second, _begin);
 	return true;
 }
 
-bool List::del(PeerId peerId, Row *replacedBy) {
-	auto i = _rowByPeer.find(peerId);
-	if (i == _rowByPeer.cend()) return false;
+bool List::del(Key key, Row *replacedBy) {
+	auto i = _rowByKey.find(key);
+	if (i == _rowByKey.cend()) {
+		return false;
+	}
 
-	auto row = i.value();
+	const auto row = i->second;
 	if (App::main()) {
 		emit App::main()->dialogRowReplaced(row, replacedBy);
 	}
@@ -188,7 +206,7 @@ bool List::del(PeerId peerId, Row *replacedBy) {
 	remove(row);
 	delete row;
 	--_count;
-	_rowByPeer.erase(i);
+	_rowByKey.erase(i);
 
 	return true;
 }
@@ -209,7 +227,7 @@ void List::clear() {
 		delete _current;
 	}
 	_current = _begin;
-	_rowByPeer.clear();
+	_rowByKey.clear();
 	_count = 0;
 }
 

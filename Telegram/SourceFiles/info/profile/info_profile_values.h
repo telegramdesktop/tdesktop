@@ -17,6 +17,10 @@ template <typename Widget>
 class SlideWrap;
 } // namespace Ui
 
+namespace Storage {
+enum class SharedMediaType : signed char;
+} // namespace Storage
+
 namespace Info {
 namespace Profile {
 
@@ -78,6 +82,9 @@ rpl::producer<bool> CanAddMemberValue(
 	not_null<PeerData*> peer);
 rpl::producer<bool> VerifiedValue(
 	not_null<PeerData*> peer);
+
+rpl::producer<int> FeedChannelsCountValue(
+	not_null<Data::Feed*> feed);
 
 } // namespace Profile
 } // namespace Info

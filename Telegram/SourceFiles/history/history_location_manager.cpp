@@ -18,6 +18,10 @@ constexpr auto kMaxHttpRedirects = 5;
 
 } // namespace
 
+QString LocationClickHandler::copyToClipboardText() const {
+	return _text;
+}
+
 QString LocationClickHandler::copyToClipboardContextItemText() const {
 	return lang(lng_context_copy_link);
 }

@@ -71,7 +71,7 @@ struct PeerUpdate {
 	Flags flags = 0;
 
 	// NameChanged data
-	PeerData::NameFirstChars oldNameFirstChars;
+	base::flat_set<QChar> oldNameFirstLetters;
 
 };
 

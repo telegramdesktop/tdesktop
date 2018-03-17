@@ -32,6 +32,7 @@ void CloudManager::requestLangPackDifference() {
 
 	auto version = _langpack.version();
 	if (version > 0) {
+		LOG(("langpack.getLangPack: %1 %2").arg(_langpack.cloudLangCode()).arg(version));
 		_langPackRequestId = request(MTPlangpack_GetDifference(MTP_int(version))).done([this](const MTPLangPackDifference &result) {
 			_langPackRequestId = 0;
 			applyLangPackDifference(result);
@@ -40,6 +41,7 @@ void CloudManager::requestLangPackDifference() {
 		}).send();
 	} else {
 		_langPackRequestId = request(MTPlangpack_GetLangPack(MTP_string(_langpack.cloudLangCode()))).done([this](const MTPLangPackDifference &result) {
+			LOG(("langpack.getLangPack: %1 %2").arg(_langpack.cloudLangCode()).arg(_langpack.version()));
 			_langPackRequestId = 0;
 			applyLangPackDifference(result);
 		}).fail([this](const RPCError &error) {
@@ -49,6 +51,7 @@ void CloudManager::requestLangPackDifference() {
 }
 
 void CloudManager::setSuggestedLanguage(const QString &langCode) {
+	LOG(("setSuggestedLanguage"));
 	if (!langCode.isEmpty()
 		&& langCode != Lang::DefaultLanguageId()) {
 		_suggestedLanguage = langCode;
@@ -105,6 +108,8 @@ void CloudManager::requestLanguageList() {
 		languages.push_back({"Telegreat_zh_TW", "Chinese (Taiwan)", "正體中文 (臺灣)"});
 		languages.push_back({"Telegreat_zh_CN", "Simplified Chinese", "简体中文"});
 		languages.push_back({"Telegreat_zh_HK", "Chinese (Hong Kong)", "繁體中文 (香港)"});
+		languages.push_back({"Telegreat_ca", "Catalan", "Català"});
+		languages.push_back({"Telegreat_he", "Hebrew", "עִברִית"});
 		for_const (auto &langData, result.v) {
 			Assert(langData.type() == mtpc_langPackLanguage);
 			auto &language = langData.c_langPackLanguage();
@@ -131,6 +136,7 @@ bool CloudManager::needToApplyLangPack(const QString &id) {
 }
 
 void CloudManager::offerSwitchLangPack() {
+	LOG(("offerSwitchLangPack"));
 	Expects(!_offerSwitchToId.isEmpty());
 	Expects(_offerSwitchToId != DefaultLanguageId());
 
@@ -197,6 +203,7 @@ void CloudManager::resetToDefault() {
 }
 
 void CloudManager::switchToLanguage(QString id) {
+	LOG(("switchToLanguage: %1").arg(id));
 	if (id.isEmpty()) {
 		id = DefaultLanguageId();
 	}

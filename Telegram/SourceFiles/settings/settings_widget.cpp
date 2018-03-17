@@ -131,7 +131,7 @@ void fillCodes() {
 					if (track->failed()) {
 						Ui::show(Box<InformBox>("Could not audio :( Errors in 'log.txt'."));
 					} else {
-						Auth().data().setSoundOverride(key, result.paths.front());
+						Auth().settings().setSoundOverride(key, result.paths.front());
 						Local::writeUserSettings();
 					}
 				}
@@ -140,7 +140,7 @@ void fillCodes() {
 	}
 	Codes.insert(qsl("sounds_reset"), [] {
 		if (AuthSession::Exists()) {
-			Auth().data().clearSoundOverrides();
+			Auth().settings().clearSoundOverrides();
 			Local::writeUserSettings();
 			Ui::show(Box<InformBox>("All sound overrides were reset."));
 		}

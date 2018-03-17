@@ -58,7 +58,11 @@ if "%VersionBeta%" neq "0" (
   set "VersionFullBeta=0"
 )
 
-set "VersionStr=%VersionMajor%.%VersionMinor%.%VersionPatch%"
+if "%VersionBeta%" neq "0" (
+  set "VersionStr=%VersionMajor%.%VersionMinor%.%VersionPatch%.%VersionBeta%"
+) else (
+  set "VersionStr=%VersionMajor%.%VersionMinor%.%VersionPatch%"
+)
 if "%VersionPatch%" neq "0" (
   set "VersionStrSmall=%VersionStr%"
 ) else (

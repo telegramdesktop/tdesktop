@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "stickers_box.h"
 
 #include "data/data_document.h"
+#include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "chat_helpers/stickers.h"
@@ -164,8 +165,7 @@ void StickersBox::getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedSti
 
 	auto addedSet = false;
 	auto changedSets = false;
-	auto &v = stickers.vsets.v;
-	for_const (auto &stickerSet, v) {
+	for_const (const auto &stickerSet, stickers.vsets.v) {
 		const MTPDstickerSet *setData = nullptr;
 		switch (stickerSet.type()) {
 		case mtpc_stickerSetCovered: {
@@ -203,7 +203,8 @@ void StickersBox::getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedSti
 	if (addedSet) {
 		_archived.widget()->updateSize();
 	} else {
-		_allArchivedLoaded = v.isEmpty() || (!changedSets && offsetId != 0);
+		_allArchivedLoaded = stickers.vsets.v.isEmpty()
+			|| (!changedSets && offsetId != 0);
 		if (changedSets) {
 			loadMoreArchived();
 		}
@@ -254,7 +255,7 @@ void StickersBox::prepare() {
 		addButton(langFactory(lng_cancel), [this] { closeBox(); });
 	} else {
 		addButton(langFactory(lng_about_done), [this] { closeBox(); });
-		addButton(langFactory(lng_stickers_export), [this] { exportAllSets(); });
+		addButton(langFactory(lng_telegreat_stickers_export), [this] { exportAllSets(); });
 	}
 
 	if (_section == Section::Installed) {
@@ -448,8 +449,14 @@ void StickersBox::installSet(uint64 setId) {
 		if (_featured.widget()) _featured.widget()->setRemovedSets(_localRemoved);
 		_archived.widget()->setRemovedSets(_localRemoved);
 	}
-	if (!(it->flags & MTPDstickerSet::Flag::f_installed) || (it->flags & MTPDstickerSet::Flag::f_archived)) {
-		MTP::send(MTPmessages_InstallStickerSet(Stickers::inputSetId(*it), MTP_boolFalse()), rpcDone(&StickersBox::installDone), rpcFail(&StickersBox::installFail, setId));
+	if (!(it->flags & MTPDstickerSet::Flag::f_installed_date)
+		|| (it->flags & MTPDstickerSet::Flag::f_archived)) {
+		MTP::send(
+			MTPmessages_InstallStickerSet(
+				Stickers::inputSetId(*it),
+				MTP_boolFalse()),
+			rpcDone(&StickersBox::installDone),
+			rpcFail(&StickersBox::installFail, setId));
 
 		Stickers::InstallLocally(setId);
 	}
@@ -457,7 +464,8 @@ void StickersBox::installSet(uint64 setId) {
 
 void StickersBox::installDone(const MTPmessages_StickerSetInstallResult &result) {
 	if (result.type() == mtpc_messages_stickerSetInstallResultArchive) {
-		Stickers::ApplyArchivedResult(result.c_messages_stickerSetInstallResultArchive());
+		Stickers::ApplyArchivedResult(
+			result.c_messages_stickerSetInstallResultArchive());
 	}
 }
 
@@ -572,7 +580,7 @@ void StickersBox::exportAllSets() {
 		}
 	}
 	Application::clipboard()->setText(result);
-	Ui::Toast::Show(lang(lng_stickers_export_copied));
+	Ui::Toast::Show(lang(lng_telegreat_stickers_export_copied));
 }
 
 StickersBox::~StickersBox() = default;
@@ -1582,8 +1590,13 @@ QString StickersBox::Inner::fillSetTitle(const Stickers::Set &set, int maxNameWi
 	return result;
 }
 
-void StickersBox::Inner::fillSetFlags(const Stickers::Set &set, bool *outInstalled, bool *outOfficial, bool *outUnread, bool *outArchived) {
-	*outInstalled = (set.flags & MTPDstickerSet::Flag::f_installed);
+void StickersBox::Inner::fillSetFlags(
+		const Stickers::Set &set,
+		bool *outInstalled,
+		bool *outOfficial,
+		bool *outUnread,
+		bool *outArchived) {
+	*outInstalled = (set.flags & MTPDstickerSet::Flag::f_installed_date);
 	*outOfficial = (set.flags & MTPDstickerSet::Flag::f_official);
 	*outArchived = (set.flags & MTPDstickerSet::Flag::f_archived);
 	if (_section == Section::Featured) {

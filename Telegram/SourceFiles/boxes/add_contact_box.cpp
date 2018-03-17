@@ -33,8 +33,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kMaxGroupChannelTitle = 255;
-constexpr auto kMaxChannelDescription = 255;
+constexpr auto kMaxChannelDescription = 255; // See also edit_peer_info_box.
 constexpr auto kMaxBioLength = 70;
+constexpr auto kMinUsernameLength = 5;
 
 style::InputField CreateBioFieldStyle() {
 	auto result = st::newGroupDescription;
@@ -241,19 +242,23 @@ bool AddContactBox::onSaveUserFail(const RPCError &error) {
 void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 	if (!isBoxShown() || !App::main()) return;
 
-	auto &d = res.c_contacts_importedContacts();
+	const auto &d = res.c_contacts_importedContacts();
 	App::feedUsers(d.vusers);
 
-	auto &v = d.vimported.v;
-	UserData *user = nullptr;
-	if (!v.isEmpty()) {
-		auto &c = v.front().c_importedContact();
-		if (c.vclient_id.v != _contactId) return;
-
-		user = App::userLoaded(c.vuser_id.v);
-	}
+	const auto &v = d.vimported.v;
+	const auto user = [&]() -> UserData* {
+		if (!v.isEmpty()) {
+			auto &c = v.front().c_importedContact();
+			if (c.vclient_id.v == _contactId) {
+				return App::userLoaded(c.vuser_id.v);
+			}
+		}
+		return nullptr;
+	}();
 	if (user) {
-		Notify::userIsContactChanged(user, true);
+		if (user->contactStatus() == UserData::ContactStatus::Contact) {
+			Ui::showPeerHistory(user, ShowAtTheEndMsgId);
+		}
 		Ui::hideLayer();
 	} else {
 		hideChildren();
@@ -763,7 +768,7 @@ void SetupChannelBox::onChange() {
 				return;
 			}
 		}
-		if (name.size() < MinUsernameLength) {
+		if (name.size() < kMinUsernameLength) {
 			if (_errorText != lang(lng_create_channel_link_too_short)) {
 				_errorText = lang(lng_create_channel_link_too_short);
 				update();
@@ -784,9 +789,14 @@ void SetupChannelBox::onCheck() {
 		MTP::cancel(_checkRequestId);
 	}
 	QString link = _link->text().trimmed();
-	if (link.size() >= MinUsernameLength) {
+	if (link.size() >= kMinUsernameLength) {
 		_checkUsername = link;
-		_checkRequestId = MTP::send(MTPchannels_CheckUsername(_channel->inputChannel, MTP_string(link)), rpcDone(&SetupChannelBox::onCheckDone), rpcFail(&SetupChannelBox::onCheckFail));
+		_checkRequestId = MTP::send(
+			MTPchannels_CheckUsername(
+				_channel->inputChannel,
+				MTP_string(link)),
+			rpcDone(&SetupChannelBox::onCheckDone),
+			rpcFail(&SetupChannelBox::onCheckFail));
 	}
 }
 

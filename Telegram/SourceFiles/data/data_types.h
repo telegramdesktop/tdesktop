@@ -7,6 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/value_ordering.h"
+
+class HistoryItem;
+using HistoryItemsList = std::vector<not_null<HistoryItem*>>;
+
 namespace Data {
 
 struct UploadState {
@@ -19,6 +24,32 @@ struct UploadState {
 
 } // namespace Data
 
+struct MessageGroupId {
+	using Underlying = uint64;
+
+	enum Type : Underlying {
+		None = 0,
+	} value;
+
+	MessageGroupId(Type value = None) : value(value) {
+	}
+	static MessageGroupId FromRaw(Underlying value) {
+		return static_cast<Type>(value);
+	}
+
+	explicit operator bool() const {
+		return value != None;
+	}
+	Underlying raw() const {
+		return static_cast<Underlying>(value);
+	}
+
+	friend inline Type value_ordering_helper(MessageGroupId value) {
+		return value.value;
+	}
+
+};
+
 class PeerData;
 class UserData;
 class ChatData;
@@ -27,6 +58,7 @@ class ChannelData;
 using UserId = int32;
 using ChatId = int32;
 using ChannelId = int32;
+using FeedId = int32;
 
 constexpr auto NoChannel = ChannelId(0);
 
@@ -132,26 +164,43 @@ inline bool operator!=(const MsgRange &a, const MsgRange &b) {
 }
 
 struct FullMsgId {
-	FullMsgId() = default;
-	FullMsgId(ChannelId channel, MsgId msg) : channel(channel), msg(msg) {
+	constexpr FullMsgId() = default;
+	constexpr FullMsgId(ChannelId channel, MsgId msg) : channel(channel), msg(msg) {
 	}
+
 	explicit operator bool() const {
 		return msg != 0;
 	}
+
+
+	inline constexpr bool operator<(const FullMsgId &other) const {
+		if (channel < other.channel) {
+			return true;
+		} else if (channel > other.channel) {
+			return false;
+		}
+		return msg < other.msg;
+	}
+	inline constexpr bool operator>(const FullMsgId &other) const {
+		return other < *this;
+	}
+	inline constexpr bool operator<=(const FullMsgId &other) const {
+		return !(other < *this);
+	}
+	inline constexpr bool operator>=(const FullMsgId &other) const {
+		return !(*this < other);
+	}
+	inline constexpr bool operator==(const FullMsgId &other) const {
+		return (channel == other.channel) && (msg == other.msg);
+	}
+	inline constexpr bool operator!=(const FullMsgId &other) const {
+		return !(*this == other);
+	}
+
 	ChannelId channel = NoChannel;
 	MsgId msg = 0;
+
 };
-inline bool operator==(const FullMsgId &a, const FullMsgId &b) {
-	return (a.channel == b.channel) && (a.msg == b.msg);
-}
-inline bool operator!=(const FullMsgId &a, const FullMsgId &b) {
-	return !(a == b);
-}
-inline bool operator<(const FullMsgId &a, const FullMsgId &b) {
-	if (a.msg < b.msg) return true;
-	if (a.msg > b.msg) return false;
-	return a.channel < b.channel;
-}
 
 using MessageIdsList = std::vector<FullMsgId>;
 
@@ -219,7 +268,7 @@ constexpr auto CancelledWebPageId = WebPageId(0xFFFFFFFFFFFFFFFFULL);
 using PreparedPhotoThumbs = QMap<char, QPixmap>;
 
 // [0] == -1 -- counting, [0] == -2 -- could not count
-using VoiceWaveform = QVector<char>;
+using VoiceWaveform = QVector<signed char>;
 
 enum ActionOnLoad {
 	ActionOnLoadNone,

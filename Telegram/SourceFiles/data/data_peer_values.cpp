@@ -14,13 +14,14 @@ namespace {
 
 constexpr auto kMinOnlineChangeTimeout = TimeMs(1000);
 constexpr auto kMaxOnlineChangeTimeout = 86400 * TimeMs(1000);
+constexpr auto kSecondsInDay = 86400;
 
 int OnlinePhraseChangeInSeconds(TimeId online, TimeId now) {
 	if (online <= 0) {
 		if (-online > now) {
 			return (-online - now);
 		}
-		return std::numeric_limits<int32>::max();
+		return std::numeric_limits<TimeId>::max();
 	}
 	if (online > now) {
 		return online - now;
@@ -33,9 +34,9 @@ int OnlinePhraseChangeInSeconds(TimeId online, TimeId now) {
 	if (hours < 12) {
 		return (hours + 1) * 3600 - (now - online);
 	}
-	const auto nowFull = ::date(now);
+	const auto nowFull = ParseDateTime(now);
 	const auto tomorrow = QDateTime(nowFull.date().addDays(1));
-	return static_cast<int32>(nowFull.secsTo(tomorrow));
+	return std::max(static_cast<TimeId>(nowFull.secsTo(tomorrow)), 0);
 }
 
 base::optional<QString> OnlineTextSpecial(not_null<UserData*> user) {
@@ -175,28 +176,21 @@ TimeId SortByOnlineValue(not_null<UserData*> user, TimeId now) {
 		return -1;
 	}
 	const auto online = user->onlineTill;
-	const auto fromDate = [](const QDate &date) {
-		const auto shift = (unixtime() - myunixtime());
-		return static_cast<TimeId>(QDateTime(date).toTime_t()) + shift;
-	};
 	if (online <= 0) {
 		switch (online) {
 		case 0:
 		case -1: return online;
 
 		case -2: {
-			const auto recently = date(now).date().addDays(-3);
-			return fromDate(recently);
+			return now - 3 * kSecondsInDay;
 		} break;
 
 		case -3: {
-			const auto weekago = date(now).date().addDays(-7);
-			return fromDate(weekago);
+			return now - 7 * kSecondsInDay;
 		} break;
 
 		case -4: {
-			const auto monthago = date(now).date().addDays(-30);
-			return fromDate(monthago);
+			return now - 30 * kSecondsInDay;
 		} break;
 		}
 		return -online;
@@ -234,8 +228,8 @@ QString OnlineText(TimeId online, TimeId now) {
 	if (hours < 12) {
 		return lng_status_lastseen_hours(lt_count, hours);
 	}
-	const auto onlineFull = ::date(online);
-	const auto nowFull = ::date(now);
+	const auto onlineFull = ParseDateTime(online);
+	const auto nowFull = ParseDateTime(now);
 	if (onlineFull.date() == nowFull.date()) {
 		const auto onlineTime = onlineFull.time().toString(cTimeFormat());
 		return lng_status_lastseen_today(lt_time, onlineTime);
@@ -260,8 +254,8 @@ QString OnlineTextFull(not_null<UserData*> user, TimeId now) {
 	} else if (const auto common = OnlineTextCommon(user->onlineTill, now)) {
 		return *common;
 	}
-	const auto onlineFull = ::date(user->onlineTill);
-	const auto nowFull = ::date(now);
+	const auto onlineFull = ParseDateTime(user->onlineTill);
+	const auto nowFull = ParseDateTime(now);
 	if (onlineFull.date() == nowFull.date()) {
 		const auto onlineTime = onlineFull.time().toString(cTimeFormat());
 		return lng_status_lastseen_today(lt_time, onlineTime);

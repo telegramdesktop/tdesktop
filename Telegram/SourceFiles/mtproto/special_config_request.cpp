@@ -37,19 +37,21 @@ SpecialConfigRequest::SpecialConfigRequest(base::lambda<void(DcId dcId, const st
 }
 
 void SpecialConfigRequest::performAppRequest() {
+	LOG(("SpecialConfigRequest performDnsRequest"));
 	auto appUrl = QUrl();
 	appUrl.setScheme(qsl("https"));
-	appUrl.setHost(qsl("google.com"));
-	if (cTestMode()) {
-		appUrl.setPath(qsl("/test/"));
-	}
+	appUrl.setHost(qsl("software-download.microsoft.com"));
+	appUrl.setPath(cTestMode()
+		? qsl("/test/config.txt")
+		: qsl("/prod/config.txt"));
 	auto appRequest = QNetworkRequest(appUrl);
-	appRequest.setRawHeader("Host", "dns-telegram.appspot.com");
+	appRequest.setRawHeader("Host", "tcdnb.azureedge.net");
 	_appReply.reset(_manager.get(appRequest));
 	connect(_appReply.get(), &QNetworkReply::finished, this, [this] { appFinished(); });
 }
 
 void SpecialConfigRequest::performDnsRequest() {
+	LOG(("SpecialConfigRequest performDnsRequest"));
 	auto dnsUrl = QUrl();
 	dnsUrl.setScheme(qsl("https"));
 	dnsUrl.setHost(qsl("google.com"));
@@ -109,6 +111,7 @@ void SpecialConfigRequest::dnsFinished() {
 						LOG(("Config Error: Not a string data found in Answer array entry in dns response JSON."));
 					} else {
 						auto data = (*dataIt).toString();
+						LOG(("SpecialConfigRequest data: %1").arg(data));
 						entries.insertMulti(INT_MAX - data.size(), data);
 					}
 				}
@@ -212,6 +215,7 @@ void SpecialConfigRequest::handleResponse(const QByteArray &bytes) {
 		auto &ipPort = entry.c_ipPort();
 		auto ip = *reinterpret_cast<const uint32*>(&ipPort.vipv4.v);
 		auto ipString = qsl("%1.%2.%3.%4").arg((ip >> 24) & 0xFF).arg((ip >> 16) & 0xFF).arg((ip >> 8) & 0xFF).arg(ip & 0xFF);
+		LOG(("SpecialConfigRequest IP String: %1").arg(ipString));
 		_callback(config.vdc_id.v, ipString.toStdString(), ipPort.vport.v);
 	}
 }

@@ -53,8 +53,8 @@ struct TextSelection {
 	constexpr bool empty() const {
 		return from == to;
 	}
-	uint16 from : 16;
-	uint16 to : 16;
+	uint16 from;
+	uint16 to;
 };
 inline bool operator==(TextSelection a, TextSelection b) {
 	return a.from == b.from && a.to == b.to;
@@ -89,8 +89,8 @@ public:
 	bool hasLinks() const;
 
 	bool hasSkipBlock() const;
-	void setSkipBlock(int32 width, int32 height);
-	void removeSkipBlock();
+	bool updateSkipBlock(int width, int height);
+	bool removeSkipBlock();
 
 	int32 maxWidth() const {
 		return _maxWidth.ceil().toInt();

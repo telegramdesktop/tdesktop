@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "styles/style_dialogs.h"
 #include "ui/effects/ripple_animation.h"
+#include "dialogs/dialogs_entry.h"
 #include "mainwidget.h"
 
 namespace Dialogs {
@@ -39,8 +40,12 @@ void RippleRow::paintRipple(Painter &p, int x, int y, int outerWidth, TimeMs ms,
 	}
 }
 
-FakeRow::FakeRow(PeerData *searchInPeer, not_null<HistoryItem*> item)
-: _searchInPeer(searchInPeer)
+uint64 Row::sortKey() const {
+	return _id.entry()->sortKeyInChatList();
+}
+
+FakeRow::FakeRow(Key searchInChat, not_null<HistoryItem*> item)
+: _searchInChat(searchInChat)
 , _item(item)
 , _cache(st::dialogsTextWidthMin) {
 }

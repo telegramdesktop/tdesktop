@@ -26,20 +26,34 @@ using Pack = QVector<DocumentData*>;
 using ByEmojiMap = QMap<EmojiPtr, Pack>;
 
 struct Set {
-	Set(uint64 id, uint64 access, const QString &title, const QString &shortName, int32 count, int32 hash, MTPDstickerSet::Flags flags)
-		: id(id)
-		, access(access)
-		, title(title)
-		, shortName(shortName)
-		, count(count)
-		, hash(hash)
-		, flags(flags) {
+	Set(
+		uint64 id,
+		uint64 access,
+		const QString &title,
+		const QString &shortName,
+		int count,
+		int32 hash,
+		MTPDstickerSet::Flags flags,
+		TimeId installDate)
+	: id(id)
+	, access(access)
+	, title(title)
+	, shortName(shortName)
+	, count(count)
+	, hash(hash)
+	, flags(flags)
+	, installDate(installDate) {
 	}
-	uint64 id, access;
+	uint64 id = 0;
+	uint64 access = 0;
 	QString title, shortName;
-	int32 count, hash;
+	int count = 0;
+	int32 hash = 0;
 	MTPDstickerSet::Flags flags;
+	TimeId installDate = 0;
 	Pack stickers;
+	std::vector<TimeId> dates;
+	Pack covers;
 	ByEmojiMap emoji;
 };
 using Sets = QMap<uint64, Set>;
@@ -59,11 +73,22 @@ bool IsFaved(not_null<DocumentData*> document);
 void SetFaved(not_null<DocumentData*> document, bool faved);
 
 void SetsReceived(const QVector<MTPStickerSet> &data, int32 hash);
-void SpecialSetReceived(uint64 setId, const QString &setTitle, const QVector<MTPDocument> &items, int32 hash, const QVector<MTPStickerPack> &packs = QVector<MTPStickerPack>());
-void FeaturedSetsReceived(const QVector<MTPStickerSetCovered> &data, const QVector<MTPlong> &unread, int32 hash);
+void SpecialSetReceived(
+	uint64 setId,
+	const QString &setTitle,
+	const QVector<MTPDocument> &items,
+	int32 hash,
+	const QVector<MTPStickerPack> &packs = QVector<MTPStickerPack>(),
+	const QVector<MTPint> &usageDates = QVector<MTPint>());
+void FeaturedSetsReceived(
+	const QVector<MTPStickerSetCovered> &data,
+	const QVector<MTPlong> &unread,
+	int32 hash);
 void GifsReceived(const QVector<MTPDocument> &items, int32 hash);
 
-Pack GetListByEmoji(not_null<EmojiPtr> emoji);
+std::vector<not_null<DocumentData*>> GetListByEmoji(
+	not_null<EmojiPtr> emoji,
+	uint64 seed);
 base::optional<std::vector<not_null<EmojiPtr>>> GetEmojiListFromSet(
 	not_null<DocumentData*> document);
 

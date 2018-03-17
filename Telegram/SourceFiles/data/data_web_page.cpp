@@ -44,7 +44,7 @@ bool WebPageData::applyChanges(
 		const QString &newAuthor,
 		int newPendingTill) {
 	if (newPendingTill != 0
-		&& (!url.isEmpty() || newUrl.isEmpty())
+		&& (!url.isEmpty() || pendingTill < 0)
 		&& (!pendingTill
 			|| pendingTill == newPendingTill
 			|| newPendingTill < -1)) {
@@ -103,7 +103,5 @@ bool WebPageData::applyChanges(
 	author = resultAuthor;
 	pendingTill = newPendingTill;
 	++version;
-	if (App::main()) App::main()->webPageUpdated(this);
-
 	return true;
 }

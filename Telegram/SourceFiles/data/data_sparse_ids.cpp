@@ -237,6 +237,9 @@ bool SparseIdsSliceBuilder::removeOne(MsgId messageId) {
 			changed = true;
 		}
 	}
+	if (changed) {
+		checkInsufficient();
+	}
 	return changed;
 }
 
@@ -246,6 +249,15 @@ bool SparseIdsSliceBuilder::removeAll() {
 	_fullCount = 0;
 	_skippedBefore = 0;
 	_skippedAfter = 0;
+	return true;
+}
+
+bool SparseIdsSliceBuilder::invalidateBottom() {
+	_fullCount = _skippedAfter = base::none;
+	if (_range.till == ServerMaxMsgId) {
+		_range.till = _ids.empty() ? _range.from : _ids.back();
+	}
+	checkInsufficient();
 	return true;
 }
 
@@ -361,17 +373,17 @@ void SparseIdsSliceBuilder::requestMessages(
 		RequestDirection direction) {
 	auto requestAroundData = [&]() -> AroundData {
 		if (_ids.empty()) {
-			return { _key, SparseIdsLoadDirection::Around };
+			return { _key, Data::LoadDirection::Around };
 		} else if (direction == RequestDirection::Before) {
-			return { _ids.front(), SparseIdsLoadDirection::Before };
+			return { _ids.front(), Data::LoadDirection::Before };
 		}
-		return { _ids.back(), SparseIdsLoadDirection::After };
+		return { _ids.back(), Data::LoadDirection::After };
 	};
 	_insufficientAround.fire(requestAroundData());
 }
 
 void SparseIdsSliceBuilder::requestMessagesCount() {
-	_insufficientAround.fire({ 0, SparseIdsLoadDirection::Around });
+	_insufficientAround.fire({ 0, Data::LoadDirection::Around });
 }
 
 SparseIdsSlice SparseIdsSliceBuilder::snapshot() const {

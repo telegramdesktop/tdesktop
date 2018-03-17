@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/input_fields.h"
 #include "chat_helpers/message_field.h"
+#include "history/history.h"
 #include "history/history_widget.h"
 #include "mainwidget.h"
 #include "storage/localstorage.h"
@@ -18,11 +19,28 @@ namespace {
 
 } // namespace
 
-Draft::Draft(const Ui::FlatTextarea *field, MsgId msgId, bool previewCancelled, mtpRequestId saveRequestId)
-	: textWithTags(field->getTextWithTags())
-	, msgId(msgId)
-	, cursor(field)
-	, previewCancelled(previewCancelled) {
+Draft::Draft(
+	const TextWithTags &textWithTags,
+	MsgId msgId,
+	const MessageCursor &cursor,
+	bool previewCancelled,
+	mtpRequestId saveRequestId)
+: textWithTags(textWithTags)
+, msgId(msgId)
+, cursor(cursor)
+, previewCancelled(previewCancelled)
+, saveRequestId(saveRequestId) {
+}
+
+Draft::Draft(
+	not_null<const Ui::FlatTextarea*> field,
+	MsgId msgId,
+	bool previewCancelled,
+	mtpRequestId saveRequestId)
+: textWithTags(field->getTextWithTags())
+, msgId(msgId)
+, cursor(field)
+, previewCancelled(previewCancelled) {
 }
 
 void applyPeerCloudDraft(PeerId peerId, const MTPDdraftMessage &draft) {
@@ -31,7 +49,7 @@ void applyPeerCloudDraft(PeerId peerId, const MTPDdraftMessage &draft) {
 	auto textWithTags = TextWithTags { TextUtilities::ApplyEntities(text), ConvertEntitiesToTextTags(text.entities) };
 	auto replyTo = draft.has_reply_to_msg_id() ? draft.vreply_to_msg_id.v : MsgId(0);
 	auto cloudDraft = std::make_unique<Draft>(textWithTags, replyTo, MessageCursor(QFIXED_MAX, QFIXED_MAX, QFIXED_MAX), draft.is_no_webpage());
-	cloudDraft->date = ::date(draft.vdate);
+	cloudDraft->date = draft.vdate.v;
 
 	history->setCloudDraft(std::move(cloudDraft));
 	history->createLocalDraftFromCloud();

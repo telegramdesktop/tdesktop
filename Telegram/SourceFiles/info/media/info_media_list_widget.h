@@ -11,6 +11,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_widget.h"
 #include "data/data_shared_media.h"
 
+class DeleteMessagesBox;
+
+namespace HistoryView {
+struct TextState;
+struct StateRequest;
+enum class CursorState : char;
+enum class PointState : char;
+} // namespace HistoryView
+
 namespace Ui {
 class PopupMenu;
 } // namespace Ui
@@ -77,6 +86,11 @@ protected:
 	void leaveEventHook(QEvent *e) override;
 
 private:
+	struct Context;
+	class Section;
+	using CursorState = HistoryView::CursorState;
+	using TextState = HistoryView::TextState;
+	using StateRequest = HistoryView::StateRequest;
 	enum class MouseAction {
 		None,
 		PrepareDrag,
@@ -91,8 +105,6 @@ private:
 		std::unique_ptr<BaseLayout> item;
 		bool stale = false;
 	};
-	struct Context;
-	class Section;
 	struct FoundItem {
 		not_null<BaseLayout*> layout;
 		QRect geometry;
@@ -115,17 +127,17 @@ private:
 		Selecting,
 		Deselecting,
 	};
-	struct CursorState {
+	struct MouseState {
 		UniversalMsgId itemId = 0;
 		QSize size;
 		QPoint cursor;
 		bool inside = false;
 
-		inline bool operator==(const CursorState &other) const {
+		inline bool operator==(const MouseState &other) const {
 			return (itemId == other.itemId)
 				&& (cursor == other.cursor);
 		}
-		inline bool operator!=(const CursorState &other) const {
+		inline bool operator!=(const MouseState &other) const {
 			return !(*this == other);
 		}
 
@@ -185,7 +197,7 @@ private:
 	void forwardItems(MessageIdsList &&items);
 	void deleteSelected();
 	void deleteItem(UniversalMsgId universalId);
-	void deleteItems(MessageIdsList &&items);
+	DeleteMessagesBox *deleteItems(MessageIdsList &&items);
 	void applyItemSelection(
 		UniversalMsgId universalId,
 		TextSelection selection);
@@ -195,7 +207,7 @@ private:
 	SelectedMap::const_iterator itemUnderPressSelection() const;
 	bool isItemUnderPressSelected() const;
 	bool requiredToStartDragging(not_null<BaseLayout*> layout) const;
-	bool isPressInSelectedText(HistoryTextState state) const;
+	bool isPressInSelectedText(TextState state) const;
 	void applyDragSelection();
 	void applyDragSelection(SelectedMap &applyTo) const;
 	bool changeItemSelection(
@@ -204,10 +216,10 @@ private:
 		TextSelection selection) const;
 
 	static bool IsAfter(
-		const CursorState &a,
-		const CursorState &b);
-	static bool SkipSelectFromItem(const CursorState &state);
-	static bool SkipSelectTillItem(const CursorState &state);
+		const MouseState &a,
+		const MouseState &b);
+	static bool SkipSelectFromItem(const MouseState &state);
+	static bool SkipSelectTillItem(const MouseState &state);
 
 	void markLayoutsStale();
 	void clearStaleLayouts();
@@ -232,12 +244,12 @@ private:
 
 	QPoint clampMousePosition(QPoint position) const;
 	void mouseActionStart(
-		const QPoint &screenPos,
+		const QPoint &globalPosition,
 		Qt::MouseButton button);
-	void mouseActionUpdate(const QPoint &screenPos);
+	void mouseActionUpdate(const QPoint &globalPosition);
 	void mouseActionUpdate();
 	void mouseActionFinish(
-		const QPoint &screenPos,
+		const QPoint &globalPosition,
 		Qt::MouseButton button);
 	void mouseActionCancel();
 	void performDrag();
@@ -278,11 +290,11 @@ private:
 	MouseAction _mouseAction = MouseAction::None;
 	TextSelectType _mouseSelectType = TextSelectType::Letters;
 	QPoint _mousePosition;
-	CursorState _overState;
-	CursorState _pressState;
+	MouseState _overState;
+	MouseState _pressState;
 	BaseLayout *_overLayout = nullptr;
 	UniversalMsgId _contextUniversalId = 0;
-	HistoryCursorState _mouseCursorState = HistoryDefaultCursorState;
+	CursorState _mouseCursorState = CursorState();
 	uint16 _mouseTextSymbol = 0;
 	bool _pressWasInactive = false;
 	SelectedMap _selected;
