@@ -12,11 +12,11 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 ## Supported systems
 
-* Windows XP - Windows 10 (**not** RT)
-* Mac OS X 10.8 - Mac OS X 10.11
-* Mac OS X 10.6 - Mac OS X 10.7 (separate build)
-* Ubuntu 12.04 - Ubuntu 16.04
-* Fedora 22 - Fedora 24
+* ![windows](https://github.com/yiyu0x/tdesktop/blob/dev/docs/assets/windows.png?raw=true) Windows XP - Windows 10 (**not** RT)
+* ![mac](https://github.com/yiyu0x/tdesktop/blob/dev/docs/assets/mac.png?raw=true) Mac OS X 10.8 - Mac OS X 10.11
+* ![mac](https://github.com/yiyu0x/tdesktop/blob/dev/docs/assets/mac.png?raw=true) Mac OS X 10.6 - Mac OS X 10.7 (separate build)
+* ![ubuntu](https://github.com/yiyu0x/tdesktop/blob/dev/docs/assets/ubuntu.png?raw=trueg) Ubuntu 12.04 - Ubuntu 16.04
+* ![fedora](https://github.com/yiyu0x/tdesktop/blob/dev/docs/assets/fedora.png?raw=true) Fedora 22 - Fedora 24
 
 ## Third-party
 
@@ -39,6 +39,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 * Open Sans font ([Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0.html))
 * Emoji alpha codes ([MIT License](https://github.com/emojione/emojione/blob/master/extras/alpha-codes/LICENSE.md))
 * Catch test framework ([Boost License](https://github.com/philsquared/Catch/blob/master/LICENSE.txt))
+* os icon ([Flaticon Basic License](https://profile.flaticon.com/license/free))
 
 ## Build instructions
 
