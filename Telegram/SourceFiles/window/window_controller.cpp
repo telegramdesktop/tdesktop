@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_round_controller.h"
 #include "data/data_session.h"
 #include "data/data_feed.h"
+#include "passport/passport_form_controller.h"
 #include "boxes/calendar_box.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -402,6 +403,11 @@ void Controller::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 	box->setMinDate(minPeerDate(chat));
 	box->setMaxDate(maxPeerDate(chat));
 	Ui::show(std::move(box));
+}
+
+void Controller::showAuthForm(const Passport::FormRequest &request) {
+	_authForm = std::make_unique<Passport::FormController>(this, request);
+	_authForm->show();
 }
 
 void Controller::updateColumnLayout() {

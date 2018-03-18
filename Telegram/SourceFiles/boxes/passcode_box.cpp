@@ -327,8 +327,19 @@ void PasscodeBox::save(bool force) {
 			if (_oldPasscode->isHidden() || _newPasscode->isHidden()) {
 				flags |= MTPDaccount_passwordInputSettings::Flag::f_email;
 			}
-			MTPaccount_PasswordInputSettings settings(MTP_account_passwordInputSettings(MTP_flags(flags), MTP_bytes(_newSalt), MTP_bytes(newPasswordHash), MTP_string(hint), MTP_string(email)));
-			_setRequest = MTP::send(MTPaccount_UpdatePasswordSettings(MTP_bytes(oldPasswordHash), settings), rpcDone(&PasscodeBox::setPasswordDone), rpcFail(&PasscodeBox::setPasswordFail));
+			const auto newSecureSecret = base::byte_vector();
+			_setRequest = MTP::send(
+				MTPaccount_UpdatePasswordSettings(
+					MTP_bytes(oldPasswordHash),
+					MTP_account_passwordInputSettings(
+						MTP_flags(flags),
+						MTP_bytes(_newSalt),
+						MTP_bytes(newPasswordHash),
+						MTP_string(hint),
+						MTP_string(email),
+						MTP_bytes(newSecureSecret))),
+				rpcDone(&PasscodeBox::setPasswordDone),
+				rpcFail(&PasscodeBox::setPasswordFail));
 		}
 	} else {
 		cSetPasscodeBadTries(0);

@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_hardcoded.h"
 #include "core/update_checker.h"
+#include "passport/passport_form_controller.h"
 #include "observer_peer.h"
 #include "storage/file_upload.h"
 #include "mainwidget.h"
@@ -907,6 +908,24 @@ bool Messenger::openLocalUrl(const QString &url) {
 		auto params = url_parse_params(proxyMatch->captured(1), UrlParamNameTransform::ToLower);
 		ProxiesBoxController::ShowApplyConfirmation(ProxyData::Type::Mtproto, params);
 		return true;
+	} else if (auto authMatch = regex_match(qsl("^auth/?\\?(.+)(#|$)"), command, matchOptions)) {
+		const auto params = url_parse_params(
+			authMatch->captured(1),
+			UrlParamNameTransform::ToLower);
+		if (const auto botId = params.value("bot_id", QString()).toInt()) {
+			const auto scope = params.value("scope", QString()).split(',');
+			const auto callback = params.value("callback_url", QString());
+			const auto publicKey = params.value("public_key", QString());
+			if (const auto window = App::wnd()) {
+				if (const auto controller = window->controller()) {
+					controller->showAuthForm(Passport::FormRequest(
+						botId,
+						scope,
+						callback,
+						publicKey));
+				}
+			}
+		}
 	}
 	return false;
 }

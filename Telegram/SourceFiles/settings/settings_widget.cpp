@@ -12,8 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_window.h"
 #include "styles/style_boxes.h"
+#include "platform/platform_specific.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/buttons.h"
+#include "ui/toast/toast.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "storage/localstorage.h"
@@ -113,6 +115,10 @@ void fillCodes() {
 				}
 			}
 		});
+	});
+	Codes.insert(qsl("registertg"), [] {
+		Platform::RegisterCustomScheme();
+		Ui::Toast::Show("Forced custom scheme register.");
 	});
 
 	auto audioFilters = qsl("Audio files (*.wav *.mp3);;") + FileDialog::AllFilesFilter();

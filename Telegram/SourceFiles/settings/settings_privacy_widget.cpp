@@ -81,9 +81,18 @@ void CloudPasswordState::onTurnOff() {
 	if (_curPasswordSalt.isEmpty()) {
 		_turnOff->hide();
 
-		auto flags = MTPDaccount_passwordInputSettings::Flag::f_email;
-		MTPaccount_PasswordInputSettings settings(MTP_account_passwordInputSettings(MTP_flags(flags), MTP_bytes(QByteArray()), MTP_bytes(QByteArray()), MTP_string(QString()), MTP_string(QString())));
-		MTP::send(MTPaccount_UpdatePasswordSettings(MTP_bytes(QByteArray()), settings), rpcDone(&CloudPasswordState::offPasswordDone), rpcFail(&CloudPasswordState::offPasswordFail));
+		MTP::send(
+			MTPaccount_UpdatePasswordSettings(
+				MTP_bytes(QByteArray()),
+				MTP_account_passwordInputSettings(
+			MTP_flags(MTPDaccount_passwordInputSettings::Flag::f_email),
+			MTP_bytes(QByteArray()),
+			MTP_bytes(QByteArray()),
+			MTP_string(QString()),
+			MTP_string(QString()),
+			MTP_bytes(QByteArray()))),
+			rpcDone(&CloudPasswordState::offPasswordDone),
+			rpcFail(&CloudPasswordState::offPasswordFail));
 	} else {
 		auto box = Ui::show(Box<PasscodeBox>(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint, true));
 		connect(box, SIGNAL(reloadPassword()), this, SLOT(onReloadPassword()));

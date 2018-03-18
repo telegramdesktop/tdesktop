@@ -454,6 +454,8 @@
 <(src_loc)/mtproto/type_utils.h
 <(src_loc)/overview/overview_layout.cpp
 <(src_loc)/overview/overview_layout.h
+<(src_loc)/passport/passport_form_controller.cpp
+<(src_loc)/passport/passport_form_controller.h
 <(src_loc)/platform/linux/linux_desktop_environment.cpp
 <(src_loc)/platform/linux/linux_desktop_environment.h
 <(src_loc)/platform/linux/linux_gdk_helper.cpp
