@@ -12,11 +12,11 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 ## Supported systems
 
-* Windows XP - Windows 10 (**not** RT)
-* Mac OS X 10.8 - Mac OS X 10.11
-* Mac OS X 10.6 - Mac OS X 10.7 (separate build)
-* Ubuntu 12.04 - Ubuntu 16.04
-* Fedora 22 - Fedora 24
+* ![windows](https://i.imgur.com/nyK3wdT.png) Windows XP - Windows 10 (**not** RT)
+* ![mac](https://i.imgur.com/gRwRPmk.png) Mac OS X 10.8 - Mac OS X 10.11
+* ![mac](https://i.imgur.com/gRwRPmk.png) Mac OS X 10.6 - Mac OS X 10.7 (separate build)
+* ![ubuntu](https://i.imgur.com/JWcVIVh.png) Ubuntu 12.04 - Ubuntu 16.04
+* ![fedora](https://i.imgur.com/85EcXaE.pngMac) Fedora 22 - Fedora 24
 
 ## Third-party
 
