@@ -12,11 +12,11 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 ## Supported systems
 
-* ![windows](https://i.imgur.com/nyK3wdT.png) Windows XP - Windows 10 (**not** RT)
-* ![mac](https://i.imgur.com/gRwRPmk.png) Mac OS X 10.8 - Mac OS X 10.11
-* ![mac](https://i.imgur.com/gRwRPmk.png) Mac OS X 10.6 - Mac OS X 10.7 (separate build)
-* ![ubuntu](https://i.imgur.com/JWcVIVh.png) Ubuntu 12.04 - Ubuntu 16.04
-* ![fedora](https://i.imgur.com/85EcXaE.pngMac) Fedora 22 - Fedora 24
+* ![windows](https://github.com/yiyu0x/tdesktop/blob/dev/docs/assets/windows.png?raw=true) Windows XP - Windows 10 (**not** RT)
+* ![mac](https://github.com/yiyu0x/tdesktop/blob/dev/docs/assets/mac.png?raw=true) Mac OS X 10.8 - Mac OS X 10.11
+* ![mac](https://github.com/yiyu0x/tdesktop/blob/dev/docs/assets/mac.png?raw=true) Mac OS X 10.6 - Mac OS X 10.7 (separate build)
+* ![ubuntu](https://github.com/yiyu0x/tdesktop/blob/dev/docs/assets/ubuntu.png?raw=trueg) Ubuntu 12.04 - Ubuntu 16.04
+* ![fedora](https://github.com/yiyu0x/tdesktop/blob/dev/docs/assets/fedora.png?raw=true) Fedora 22 - Fedora 24
 
 ## Third-party
 
