@@ -552,6 +552,7 @@ struct Data {
 	QByteArray DownloadPathBookmark;
 	base::Observable<void> DownloadPathChanged;
 
+	bool SuggestStickersByEmoji = true;
 	bool SoundNotify = true;
 	bool DesktopNotify = true;
 	bool RestoreSoundNotifyFromTray = false;
@@ -674,6 +675,7 @@ DefineVar(Global, QString, DownloadPath);
 DefineVar(Global, QByteArray, DownloadPathBookmark);
 DefineRefVar(Global, base::Observable<void>, DownloadPathChanged);
 
+DefineVar(Global, bool, SuggestStickersByEmoji);
 DefineVar(Global, bool, SoundNotify);
 DefineVar(Global, bool, DesktopNotify);
 DefineVar(Global, bool, RestoreSoundNotifyFromTray);

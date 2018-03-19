@@ -81,7 +81,6 @@ public:
 	ChatSettingsWidget(QWidget *parent, UserData *self);
 
 private slots:
-	void onReplaceEmoji();
 	void onDontAskDownloadPath();
 	void onAutomaticMediaDownloadSettings();
 	void onManageStickerSets();
@@ -94,7 +93,11 @@ private:
 	void sendByChanged(SendByType value);
 	void createControls();
 
+	void toggleReplaceEmoji();
+	void toggleSuggestStickersByEmoji();
+
 	Ui::Checkbox *_replaceEmoji = nullptr;
+	Ui::Checkbox *_suggestByEmoji = nullptr;
 	Ui::Checkbox *_dontAskDownloadPath = nullptr;
 
 #ifndef OS_WIN_STORE

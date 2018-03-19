@@ -296,6 +296,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_settings_section_chat_settings" = "Chat Settings";
 "lng_settings_replace_emojis" = "Replace emoji";
+"lng_settings_suggest_by_emoji" = "Suggest popular stickers by emoji";
 "lng_settings_view_emojis" = "View list";
 "lng_settings_send_enter" = "Send by Enter";
 "lng_settings_send_ctrlenter" = "Send by Ctrl+Enter";

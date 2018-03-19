@@ -140,7 +140,8 @@ void ChatSettingsWidget::createControls() {
 	style::margins marginSub(0, 0, 0, st::settingsSubSkip);
 	style::margins slidedPadding(0, marginSub.bottom() / 2, 0, marginSub.bottom() - (marginSub.bottom() / 2));
 
-	createChildRow(_replaceEmoji, marginSkip, lang(lng_settings_replace_emojis), [this](bool) { onReplaceEmoji(); }, cReplaceEmojis());
+	createChildRow(_replaceEmoji, marginSmall, lang(lng_settings_replace_emojis), [this](bool) { toggleReplaceEmoji(); }, cReplaceEmojis());
+	createChildRow(_suggestByEmoji, marginSkip, lang(lng_settings_suggest_by_emoji), [this](bool) { toggleSuggestStickersByEmoji(); }, Global::SuggestStickersByEmoji());
 
 #ifndef OS_WIN_STORE
 	auto pathMargin = marginSub;
@@ -168,8 +169,13 @@ void ChatSettingsWidget::createControls() {
 	createChildRow(_manageStickerSets, marginSmall, lang(lng_stickers_you_have), SLOT(onManageStickerSets()));
 }
 
-void ChatSettingsWidget::onReplaceEmoji() {
+void ChatSettingsWidget::toggleReplaceEmoji() {
 	cSetReplaceEmojis(_replaceEmoji->checked());
+	Local::writeUserSettings();
+}
+
+void ChatSettingsWidget::toggleSuggestStickersByEmoji() {
+	Global::SetSuggestStickersByEmoji(_suggestByEmoji->checked());
 	Local::writeUserSettings();
 }
 
