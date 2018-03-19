@@ -223,6 +223,10 @@ inline int FillRandom(base::byte_span bytes) {
 	return RAND_bytes(reinterpret_cast<unsigned char*>(bytes.data()), bytes.size());
 }
 
+inline void AddRandomSeed(base::const_byte_span bytes) {
+	RAND_seed(bytes.data(), bytes.size());
+}
+
 } // namespace openssl
 
 namespace bytes {

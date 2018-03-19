@@ -31,11 +31,31 @@ struct FormRequest {
 
 class FormController : private MTP::Sender {
 public:
+	struct PasswordCheckResult {
+		QByteArray secret;
+
+	};
+
 	FormController(
 		not_null<Window::Controller*> controller,
 		const FormRequest &request);
 
 	void show();
+
+	void submitPassword(const QString &password);
+	rpl::producer<QString> passwordError() const;
+	QString passwordHint() const;
+
+	rpl::producer<> secretReadyEvents() const;
+
+	QString defaultEmail() const;
+	QString defaultPhoneNumber() const;
+
+	void fillRows(
+		base::lambda<void(
+			QString title,
+			QString description,
+			bool ready)> callback);
 
 private:
 	struct File {
@@ -76,6 +96,13 @@ private:
 		bool requestWrite = false;
 		std::vector<Field> fields;
 	};
+	struct PasswordSettings {
+		QByteArray salt;
+		QByteArray newSalt;
+		QString hint;
+		QString unconfirmedPattern;
+		bool hasRecovery = false;
+	};
 	Value convertValue(const MTPSecureValue &value) const;
 
 	void requestForm();
@@ -88,15 +115,25 @@ private:
 
 	void passwordDone(const MTPaccount_Password &result);
 	void passwordFail(const RPCError &error);
-	void createPassword(const MTPDaccount_noPassword &settings);
-	void checkPassword(const MTPDaccount_password &settings);
+	void parsePassword(const MTPDaccount_noPassword &settings);
+	void parsePassword(const MTPDaccount_password &settings);
 
 	not_null<Window::Controller*> _controller;
 	FormRequest _request;
 	UserData *_bot = nullptr;
 	QString _origin;
 
+	mtpRequestId _formRequestId = 0;
+	mtpRequestId _passwordRequestId = 0;
+	mtpRequestId _passwordCheckRequestId = 0;
+
+	PasswordSettings _password;
 	Form _form;
+
+	base::byte_vector _secret;
+	QString _passwordEmail;
+	rpl::event_stream<> _secretReady;
+	rpl::event_stream<QString> _passwordError;
 
 };
 

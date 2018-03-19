@@ -1502,6 +1502,28 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_terms_decline" = "Decline";
 "lng_terms_signup_sorry" = "We're very sorry, but this means you can't sign up for Telegram.\n\nUnlike others, we don't use your data for ad targeting or other commercial purposes. Telegram only stores the information it needs to function as a feature-rich cloud service. You can adjust how we use your data in Privacy & Security settings.\n\nBut if you're generally not OK with Telegram's modest needs, it won't be possible for us to provide this service.";
 
+"lng_passport_title" = "Telegram passport";
+"lng_passport_request" = "{domain} requests access to your personal data\nto sign you up for their services";
+"lng_passport_password_request" = "Please provide the password for\naccessing your personal data.";
+"lng_passport_password_placeholder" = "Enter password";
+"lng_passport_password_wrong" = "Wrong password";
+"lng_passport_header" = "Requested information";
+"lng_passport_identity_title" = "Identity document";
+"lng_passport_identity_description" = "Upload scan of your passport or other ID";
+"lng_passport_identity_passport" = "Passport";
+"lng_passport_identity_card" = "Identity card";
+"lng_passport_identity_license" = "Driver's license";
+"lng_passport_address_title" = "Residential address";
+"lng_passport_address_description" = "Upload proof of your address";
+"lng_passport_phone_title" = "Phone number";
+"lng_passport_email_title" = "E-mail";
+"lng_passport_email_description" = "Specify your e-mail address";
+"lng_passport_accept_allow" = "You accept {policy} and allow their {bot} to send messages to you.";
+"lng_passport_accept" = "You accept {policy}.";
+"lng_passport_policy" = "{domain} privacy policy";
+"lng_passport_authorize" = "Authorize";
+"lng_passport_form_error" = "Could not get authorization form.";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";

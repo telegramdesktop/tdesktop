@@ -1,0 +1,39 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "basic.style";
+
+using "ui/widgets/widgets.style";
+using "boxes/boxes.style";
+using "intro/intro.style";
+
+passportPasswordPadding: margins(20px, 30px, 20px, 40px);
+passportPasswordForgotSkip: 5px;
+passportPasswordAboutSkip: 15px;
+passportPasswordLabel: FlatLabel(boxLabel) {
+	minWidth: 275px;
+}
+passportPasswordHintLabel: passportPasswordLabel;
+passportErrorLabel: FlatLabel(passportPasswordLabel) {
+	textFg: boxTextFgError;
+}
+
+passportRowPadding: margins(20px, 10px, 20px, 10px);
+passportRowSkip: 5px;
+passportRowRipple: RippleAnimation(defaultRippleAnimation) {
+	color: windowBgOver;
+}
+passportRowCheckbox: IconButton(defaultIconButton) {
+	width: 38px;
+	height: 38px;
+	iconPosition: point(10px, 13px);
+	icon: icon {{ "send_control_save", menuIconFg }};
+	iconOver: icon {{ "send_control_save", menuIconFgOver }};
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 38px;
+	ripple: passportRowRipple;
+}

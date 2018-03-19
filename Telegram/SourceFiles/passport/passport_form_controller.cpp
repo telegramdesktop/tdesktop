@@ -7,8 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "passport/passport_form_controller.h"
 
+#include "passport/passport_form_box.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
+#include "base/openssl_help.h"
 #include "mainwindow.h"
 
 namespace Passport {
@@ -42,6 +44,95 @@ void FormController::show() {
 	requestPassword();
 }
 
+void FormController::submitPassword(const QString &password) {
+	Expects(!_password.salt.isEmpty());
+
+	if (_passwordCheckRequestId) {
+		return;
+	}
+	const auto data = _password.salt + password.toUtf8() + _password.salt;
+	const auto hash = hashSha256(data.constData(), data.size());
+	_passwordCheckRequestId = request(MTPaccount_GetPasswordSettings(
+		MTP_bytes(gsl::as_bytes(gsl::make_span(hash)))
+	)).handleFloodErrors(
+	).done([=](const MTPaccount_PasswordSettings &result) {
+		Expects(result.type() == mtpc_account_passwordSettings);
+
+		_passwordCheckRequestId = 0;
+		const auto &data = result.c_account_passwordSettings();
+		_passwordEmail = qs(data.vemail);
+		_secret = byteVectorFromMTP(data.vsecure_secret);
+		_secretReady.fire({});
+	}).fail([=](const RPCError &error) {
+		_passwordCheckRequestId = 0;
+		if (MTP::isFloodError(error)) {
+			_passwordError.fire(lang(lng_flood_error));
+		} else if (error.type() == qstr("PASSWORD_HASH_INVALID")) {
+			_passwordError.fire(lang(lng_passport_password_wrong));
+		} else {
+			_passwordError.fire_copy(error.type());
+		}
+	}).send();
+}
+
+rpl::producer<QString> FormController::passwordError() const {
+	return _passwordError.events();
+}
+
+QString FormController::passwordHint() const {
+	return _password.hint;
+}
+
+rpl::producer<> FormController::secretReadyEvents() const {
+	return _secretReady.events();
+}
+
+QString FormController::defaultEmail() const {
+	return _passwordEmail;
+}
+
+QString FormController::defaultPhoneNumber() const {
+	if (const auto self = App::self()) {
+		return self->phone();
+	}
+	return QString();
+}
+
+void FormController::fillRows(
+	base::lambda<void(
+		QString title,
+		QString description,
+		bool ready)> callback) {
+	for (const auto &field : _form.fields) {
+		switch (field.type) {
+		case Field::Type::Identity:
+			callback(
+				lang(lng_passport_identity_title),
+				lang(lng_passport_identity_description),
+				false);
+			break;
+		case Field::Type::Address:
+			callback(
+				lang(lng_passport_address_title),
+				lang(lng_passport_address_description),
+				false);
+			break;
+		case Field::Type::Phone:
+			callback(
+				lang(lng_passport_phone_title),
+				App::self()->phone(),
+				true);
+			break;
+		case Field::Type::Email:
+			callback(
+				lang(lng_passport_email_title),
+				lang(lng_passport_email_description),
+				false);
+			break;
+		}
+	}
+}
+
 void FormController::requestForm() {
 	auto scope = QVector<MTPstring>();
 	scope.reserve(_request.scope.size());
@@ -51,7 +142,7 @@ void FormController::requestForm() {
 	auto normalizedKey = _request.publicKey;
 	normalizedKey.replace("\r\n", "\n");
 	const auto bytes = normalizedKey.toUtf8();
-	request(MTPaccount_GetAuthorizationForm(
+	_formRequestId = request(MTPaccount_GetAuthorizationForm(
 		MTP_flags(MTPaccount_GetAuthorizationForm::Flag::f_origin
 			| MTPaccount_GetAuthorizationForm::Flag::f_public_key),
 		MTP_int(_request.botId),
@@ -61,6 +152,7 @@ void FormController::requestForm() {
 		MTPstring(), // bundle_id
 		MTP_bytes(bytes)
 	)).done([=](const MTPaccount_AuthorizationForm &result) {
+		_formRequestId = 0;
 		formDone(result);
 	}).fail([=](const RPCError &error) {
 		formFail(error);
@@ -117,7 +209,9 @@ auto FormController::convertValue(
 
 void FormController::formDone(const MTPaccount_AuthorizationForm &result) {
 	parseForm(result);
-	showForm();
+	if (!_passwordRequestId) {
+		showForm();
+	}
 }
 
 void FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
@@ -160,45 +254,35 @@ void FormController::showForm() {
 		Ui::show(Box<InformBox>("Could not get authorization bot."));
 		return;
 	}
-	auto text = QString("Auth request:\n");
-	for (const auto &field : _form.fields) {
-		switch (field.type) {
-		case Field::Type::Identity: text += "- identity\n"; break;
-		case Field::Type::Address: text += "- address\n"; break;
-		case Field::Type::Email: text += "- email\n"; break;
-		case Field::Type::Phone: text += "- phone\n"; break;
-		}
-	}
-	if (_form.requestWrite) {
-		text += "and bot @" + _bot->username + " requests write permission.";
-	} else {
-		text += "and bot @" + _bot->username + " does not request write permission.";
-	}
-	Ui::show(Box<InformBox>(text));
-//	Ui::show(Box<FormBox>(this));
+	Ui::show(Box<FormBox>(this));
 }
 
 void FormController::formFail(const RPCError &error) {
-	// #TODO langs
-	Ui::show(Box<InformBox>("Could not get authorization form."));
+	Ui::show(Box<InformBox>(lang(lng_passport_form_error)));
 }
 
 void FormController::requestPassword() {
-	request(MTPaccount_GetPassword(
+	_passwordRequestId = request(MTPaccount_GetPassword(
 	)).done([=](const MTPaccount_Password &result) {
+		_passwordRequestId = 0;
 		passwordDone(result);
+	}).fail([=](const RPCError &error) {
+		formFail(error);
 	}).send();
 }
 
 void FormController::passwordDone(const MTPaccount_Password &result) {
 	switch (result.type()) {
 	case mtpc_account_noPassword:
-		createPassword(result.c_account_noPassword());
+		parsePassword(result.c_account_noPassword());
 		break;
 
 	case mtpc_account_password:
-		checkPassword(result.c_account_password());
+		parsePassword(result.c_account_password());
 		break;
+	}
+	if (!_formRequestId) {
+		showForm();
 	}
 }
 
@@ -206,11 +290,21 @@ void FormController::passwordFail(const RPCError &error) {
 	Ui::show(Box<InformBox>("Could not get authorization form."));
 }
 
-void FormController::createPassword(const MTPDaccount_noPassword &result) {
-	Ui::show(Box<InformBox>("You need 2fa password!")); // #TODO
+void FormController::parsePassword(const MTPDaccount_noPassword &result) {
+	_password.unconfirmedPattern = qs(result.vemail_unconfirmed_pattern);
+	_password.newSalt = result.vnew_salt.v;
+	openssl::AddRandomSeed(
+		gsl::as_bytes(gsl::make_span(result.vsecret_random.v)));
 }
 
-void FormController::checkPassword(const MTPDaccount_password &result) {
+void FormController::parsePassword(const MTPDaccount_password &result) {
+	_password.hint = qs(result.vhint);
+	_password.hasRecovery = mtpIsTrue(result.vhas_recovery);
+	_password.salt = result.vcurrent_salt.v;
+	_password.unconfirmedPattern = qs(result.vemail_unconfirmed_pattern);
+	_password.newSalt = result.vnew_salt.v;
+	openssl::AddRandomSeed(
+		gsl::as_bytes(gsl::make_span(result.vsecret_random.v)));
 }
 
 } // namespace Passport

@@ -923,6 +923,7 @@ bool Messenger::openLocalUrl(const QString &url) {
 						scope,
 						callback,
 						publicKey));
+					return true;
 				}
 			}
 		}
