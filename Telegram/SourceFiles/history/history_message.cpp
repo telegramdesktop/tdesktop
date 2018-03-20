@@ -970,6 +970,14 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 			st::messageTextStyle,
 			textWithEntities,
 			Ui::ItemTextOptions(this));
+		if (!textWithEntities.text.isEmpty() && _text.isEmpty()) {
+			// If server has allowed some text that we've trim-ed entirely,
+			// just replace it with something so that UI won't look buggy.
+			_text.setMarkedText(
+				st::messageTextStyle,
+				{ QString::fromUtf8("\xF0\x9F\x98\x94"), EntitiesInText() },
+				Ui::ItemTextOptions(this));
+		}
 		_textWidth = -1;
 		_textHeight = 0;
 	}
