@@ -11,23 +11,33 @@ namespace MTP {
 
 class SpecialConfigRequest : public QObject {
 public:
-	SpecialConfigRequest(base::lambda<void(DcId dcId, const std::string &ip, int port)> callback);
+	SpecialConfigRequest(
+		base::lambda<void(
+			DcId dcId,
+			const std::string &ip,
+			int port)> callback);
 
 	~SpecialConfigRequest();
 
 private:
-	void performAppRequest();
+	void performApp1Request();
+	void performApp2Request();
 	void performDnsRequest();
-	void appFinished();
+	void app1Finished();
+	void app2Finished();
 	void dnsFinished();
 	void handleResponse(const QByteArray &bytes);
 	bool decryptSimpleConfig(const QByteArray &bytes);
 
-	base::lambda<void(DcId dcId, const std::string &ip, int port)> _callback;
+	base::lambda<void(
+		DcId dcId,
+		const std::string &ip,
+		int port)> _callback;
 	MTPhelp_ConfigSimple _simpleConfig;
 
 	QNetworkAccessManager _manager;
-	std::unique_ptr<QNetworkReply> _appReply;
+	std::unique_ptr<QNetworkReply> _app1Reply;
+	std::unique_ptr<QNetworkReply> _app2Reply;
 	std::unique_ptr<QNetworkReply> _dnsReply;
 
 	std::unique_ptr<DcOptions> _localOptions;

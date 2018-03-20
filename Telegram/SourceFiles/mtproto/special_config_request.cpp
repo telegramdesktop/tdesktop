@@ -29,14 +29,35 @@ Y1hZCxdv6cs5UnW9+PWvS+WIbkh+GaWYxwIDAQAB\n\
 
 } // namespace
 
-SpecialConfigRequest::SpecialConfigRequest(base::lambda<void(DcId dcId, const std::string &ip, int port)> callback) : _callback(std::move(callback)) {
+SpecialConfigRequest::SpecialConfigRequest(
+	base::lambda<void(
+		DcId dcId,
+		const std::string &ip,
+		int port)> callback)
+: _callback(std::move(callback)) {
 	App::setProxySettings(_manager);
 
-	performAppRequest();
+	performApp1Request();
+	performApp2Request();
 	performDnsRequest();
 }
 
-void SpecialConfigRequest::performAppRequest() {
+void SpecialConfigRequest::performApp1Request() {
+	auto appUrl = QUrl();
+	appUrl.setScheme(qsl("https"));
+	appUrl.setHost(qsl("google.com"));
+	if (cTestMode()) {
+		appUrl.setPath(qsl("/test/"));
+	}
+	auto appRequest = QNetworkRequest(appUrl);
+	appRequest.setRawHeader("Host", "dns-telegram.appspot.com");
+	_app1Reply.reset(_manager.get(appRequest));
+	connect(_app1Reply.get(), &QNetworkReply::finished, this, [=] {
+		app1Finished();
+	});
+}
+
+void SpecialConfigRequest::performApp2Request() {
 	auto appUrl = QUrl();
 	appUrl.setScheme(qsl("https"));
 	appUrl.setHost(qsl("software-download.microsoft.com"));
@@ -45,8 +66,10 @@ void SpecialConfigRequest::performAppRequest() {
 		: qsl("/prod/config.txt"));
 	auto appRequest = QNetworkRequest(appUrl);
 	appRequest.setRawHeader("Host", "tcdnb.azureedge.net");
-	_appReply.reset(_manager.get(appRequest));
-	connect(_appReply.get(), &QNetworkReply::finished, this, [this] { appFinished(); });
+	_app2Reply.reset(_manager.get(appRequest));
+	connect(_app2Reply.get(), &QNetworkReply::finished, this, [=] {
+		app2Finished();
+	});
 }
 
 void SpecialConfigRequest::performDnsRequest() {
@@ -54,19 +77,32 @@ void SpecialConfigRequest::performDnsRequest() {
 	dnsUrl.setScheme(qsl("https"));
 	dnsUrl.setHost(qsl("google.com"));
 	dnsUrl.setPath(qsl("/resolve"));
-	dnsUrl.setQuery(qsl("name=%1.stel.com&type=16").arg(cTestMode() ? qsl("tap") : qsl("ap")));
+	dnsUrl.setQuery(
+		qsl("name=%1.stel.com&type=16").arg(
+			cTestMode() ? qsl("tap") : qsl("ap")));
 	auto dnsRequest = QNetworkRequest(QUrl(dnsUrl));
 	dnsRequest.setRawHeader("Host", "dns.google.com");
 	_dnsReply.reset(_manager.get(dnsRequest));
-	connect(_dnsReply.get(), &QNetworkReply::finished, this, [this] { dnsFinished(); });
+	connect(_dnsReply.get(), &QNetworkReply::finished, this, [this] {
+		dnsFinished();
+	});
 }
 
-void SpecialConfigRequest::appFinished() {
-	if (!_appReply) {
+void SpecialConfigRequest::app1Finished() {
+	if (!_app1Reply) {
 		return;
 	}
-	auto result = _appReply->readAll();
-	_appReply.release()->deleteLater();
+	auto result = _app1Reply->readAll();
+	_app1Reply.release()->deleteLater();
+	handleResponse(result);
+}
+
+void SpecialConfigRequest::app2Finished() {
+	if (!_app2Reply) {
+		return;
+	}
+	auto result = _app2Reply->readAll();
+	_app2Reply.release()->deleteLater();
 	handleResponse(result);
 }
 
@@ -217,8 +253,11 @@ void SpecialConfigRequest::handleResponse(const QByteArray &bytes) {
 }
 
 SpecialConfigRequest::~SpecialConfigRequest() {
-	if (_appReply) {
-		_appReply->abort();
+	if (_app1Reply) {
+		_app1Reply->abort();
+	}
+	if (_app2Reply) {
+		_app2Reply->abort();
 	}
 	if (_dnsReply) {
 		_dnsReply->abort();
