@@ -1,3 +1,9 @@
+1.2.14 (21.03.18)
+
+- Discover new stickers. Type one emoji to see suggestions from popular sticker sets. Suggestions from your installed sticker sets will come first.
+- Search for Stickers. Click on the new search icon to access your sticker sets or find new ones.
+- Quick Reply. Double click near a message for a quick reply.
+
 1.2.13 alpha (21.03.18)
 
 - Bug fixes and other minor improvements.
