@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "boxes/send_files_box.h"
 #include "window/themes/window_theme.h"
+#include "core/crash_reports.h"
 #include "observer_peer.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -2191,7 +2192,23 @@ void _writeMap(WriteMapWhen when) {
 	if (_backgroundKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_userSettingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_recentHashtagsAndBotsKey) mapSize += sizeof(quint32) + sizeof(quint64);
+
+	if (mapSize > 30 * 1024 * 1024) {
+		CrashReports::SetAnnotation("MapSize", QString("%1,%2,%3,%4,%5"
+		).arg(_draftsMap.size()
+		).arg(_draftCursorsMap.size()
+		).arg(_imagesMap.size()
+		).arg(_stickerImagesMap.size()
+		).arg(_audiosMap.size()
+		));
+	}
+
 	EncryptedDescriptor mapData(mapSize);
+
+	if (mapSize > 30 * 1024 * 1024) {
+		CrashReports::ClearAnnotation("MapSize");
+	}
+
 	if (!_draftsMap.isEmpty()) {
 		mapData.stream << quint32(lskDraft) << quint32(_draftsMap.size());
 		for (DraftsMap::const_iterator i = _draftsMap.cbegin(), e = _draftsMap.cend(); i != e; ++i) {
