@@ -207,20 +207,40 @@ inline BigNum operator-(const BigNum &a, const BigNum &b) {
 	return result;
 }
 
-inline base::byte_array<SHA256_DIGEST_LENGTH> Sha256(base::const_byte_span bytes) {
-	auto result = base::byte_array<SHA256_DIGEST_LENGTH>();
-	SHA256(reinterpret_cast<const unsigned char*>(bytes.data()), bytes.size(), reinterpret_cast<unsigned char*>(result.data()));
+inline base::byte_array<SHA512_DIGEST_LENGTH> Sha512(
+		base::const_byte_span bytes) {
+	auto result = base::byte_array<SHA512_DIGEST_LENGTH>();
+	SHA512(
+		reinterpret_cast<const unsigned char*>(bytes.data()),
+		bytes.size(),
+		reinterpret_cast<unsigned char*>(result.data()));
 	return result;
 }
 
-inline base::byte_array<SHA_DIGEST_LENGTH> Sha1(base::const_byte_span bytes) {
+inline base::byte_array<SHA256_DIGEST_LENGTH> Sha256(
+		base::const_byte_span bytes) {
+	auto result = base::byte_array<SHA256_DIGEST_LENGTH>();
+	SHA256(
+		reinterpret_cast<const unsigned char*>(bytes.data()),
+		bytes.size(),
+		reinterpret_cast<unsigned char*>(result.data()));
+	return result;
+}
+
+inline base::byte_array<SHA_DIGEST_LENGTH> Sha1(
+		base::const_byte_span bytes) {
 	auto result = base::byte_array<SHA_DIGEST_LENGTH>();
-	SHA1(reinterpret_cast<const unsigned char*>(bytes.data()), bytes.size(), reinterpret_cast<unsigned char*>(result.data()));
+	SHA1(
+		reinterpret_cast<const unsigned char*>(bytes.data()),
+		bytes.size(),
+		reinterpret_cast<unsigned char*>(result.data()));
 	return result;
 }
 
 inline int FillRandom(base::byte_span bytes) {
-	return RAND_bytes(reinterpret_cast<unsigned char*>(bytes.data()), bytes.size());
+	return RAND_bytes(
+		reinterpret_cast<unsigned char*>(bytes.data()),
+		bytes.size());
 }
 
 inline void AddRandomSeed(base::const_byte_span bytes) {

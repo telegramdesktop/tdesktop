@@ -171,6 +171,9 @@ void FormBox::Inner::refresh() {
 			bool ready) {
 		if (_rows.size() <= index) {
 			_rows.push_back(object_ptr<FormRow>(this, title, description));
+			_rows[index]->addClickHandler([=] {
+				_controller->editField(index);
+			});
 		}
 		_rows[index++]->setReady(ready);
 	});

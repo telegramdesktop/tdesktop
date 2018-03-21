@@ -454,6 +454,10 @@
 <(src_loc)/mtproto/type_utils.h
 <(src_loc)/overview/overview_layout.cpp
 <(src_loc)/overview/overview_layout.h
+<(src_loc)/passport/passport_edit_identity_box.cpp
+<(src_loc)/passport/passport_edit_identity_box.h
+<(src_loc)/passport/passport_encryption.cpp
+<(src_loc)/passport/passport_encryption.h
 <(src_loc)/passport/passport_form_box.cpp
 <(src_loc)/passport/passport_form_box.h
 <(src_loc)/passport/passport_form_controller.cpp

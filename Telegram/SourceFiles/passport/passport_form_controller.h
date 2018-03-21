@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/sender.h"
 
+class BoxContent;
+
 namespace Window {
 class Controller;
 } // namespace Window
@@ -29,13 +31,10 @@ struct FormRequest {
 
 };
 
+struct IdentityData;
+
 class FormController : private MTP::Sender {
 public:
-	struct PasswordCheckResult {
-		QByteArray secret;
-
-	};
-
 	FormController(
 		not_null<Window::Controller*> controller,
 		const FormRequest &request);
@@ -56,6 +55,9 @@ public:
 			QString title,
 			QString description,
 			bool ready)> callback);
+	void editField(int index);
+
+	void saveFieldIdentity(int index, const IdentityData &data);
 
 private:
 	struct File {
@@ -71,6 +73,7 @@ private:
 		QByteArray data;
 		QByteArray dataHash;
 		QByteArray dataSecret;
+		std::map<QString, QString> values;
 
 		QString text;
 		QByteArray textHash;
@@ -118,6 +121,12 @@ private:
 	void parsePassword(const MTPDaccount_noPassword &settings);
 	void parsePassword(const MTPDaccount_password &settings);
 
+	IdentityData fieldDataIdentity(const Field &field) const;
+
+	std::map<QString, QString> fillData(const Value &from) const;
+	void saveData(int index);
+	void generateSecret(base::lambda<void()> callback);
+
 	not_null<Window::Controller*> _controller;
 	FormRequest _request;
 	UserData *_bot = nullptr;
@@ -130,10 +139,15 @@ private:
 	PasswordSettings _password;
 	Form _form;
 
+	base::byte_vector _passwordHashForSecret;
+	base::byte_vector _passwordHashForAuth;
 	base::byte_vector _secret;
+	mtpRequestId _saveSecretRequestId = 0;
 	QString _passwordEmail;
 	rpl::event_stream<> _secretReady;
 	rpl::event_stream<QString> _passwordError;
+
+	QPointer<BoxContent> _editBox;
 
 };
 

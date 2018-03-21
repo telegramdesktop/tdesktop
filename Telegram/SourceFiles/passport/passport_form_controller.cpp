@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_form_controller.h"
 
 #include "passport/passport_form_box.h"
+#include "passport/passport_edit_identity_box.h"
+#include "passport/passport_encryption.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "base/openssl_help.h"
@@ -49,11 +51,15 @@ void FormController::submitPassword(const QString &password) {
 
 	if (_passwordCheckRequestId) {
 		return;
+	} else if (password.isEmpty()) {
+		_passwordError.fire(QString());
 	}
-	const auto data = _password.salt + password.toUtf8() + _password.salt;
-	const auto hash = hashSha256(data.constData(), data.size());
+	const auto passwordBytes = password.toUtf8();
+	const auto data = _password.salt + passwordBytes + _password.salt;
+	const auto hash = openssl::Sha256(gsl::as_bytes(gsl::make_span(data)));
+	_passwordHashForAuth = { hash.begin(), hash.end() };
 	_passwordCheckRequestId = request(MTPaccount_GetPasswordSettings(
-		MTP_bytes(gsl::as_bytes(gsl::make_span(hash)))
+		MTP_bytes(_passwordHashForAuth)
 	)).handleFloodErrors(
 	).done([=](const MTPaccount_PasswordSettings &result) {
 		Expects(result.type() == mtpc_account_passwordSettings);
@@ -61,7 +67,14 @@ void FormController::submitPassword(const QString &password) {
 		_passwordCheckRequestId = 0;
 		const auto &data = result.c_account_passwordSettings();
 		_passwordEmail = qs(data.vemail);
-		_secret = byteVectorFromMTP(data.vsecure_secret);
+		const auto hash = openssl::Sha512(gsl::as_bytes(gsl::make_span(passwordBytes)));
+		_passwordHashForSecret = { hash.begin(), hash.end() };
+		_secret = DecryptSecretBytes(
+			bytesFromMTP(data.vsecure_secret),
+			_passwordHashForSecret);
+		for (auto &field : _form.fields) {
+			field.data.values = fillData(field.data);
+		}
 		_secretReady.fire({});
 	}).fail([=](const RPCError &error) {
 		_passwordCheckRequestId = 0;
@@ -133,6 +146,142 @@ void FormController::fillRows(
 	}
 }
 
+void FormController::editField(int index) {
+	Expects(index >= 0 && index < _form.fields.size());
+
+	auto box = [&]() -> object_ptr<BoxContent> {
+		const auto &field = _form.fields[index];
+		switch (field.type) {
+		case Field::Type::Identity:
+			return Box<IdentityBox>(this, index, fieldDataIdentity(field));
+		}
+		return { nullptr };
+	}();
+	if (box) {
+		_editBox = Ui::show(std::move(box), LayerOption::KeepOther);
+	}
+}
+
+IdentityData FormController::fieldDataIdentity(const Field &field) const {
+	const auto &map = field.data.values;
+	auto result = IdentityData();
+	if (const auto i = map.find(qsl("first_name")); i != map.cend()) {
+		result.name = i->second;
+	}
+	if (const auto i = map.find(qsl("last_name")); i != map.cend()) {
+		result.surname = i->second;
+	}
+	return result;
+}
+
+void FormController::saveFieldIdentity(
+		int index,
+		const IdentityData &data) {
+	Expects(_editBox != nullptr);
+	Expects(index >= 0 && index < _form.fields.size());
+	Expects(_form.fields[index].type == Field::Type::Identity);
+
+	_form.fields[index].data.values[qsl("first_name")] = data.name;
+	_form.fields[index].data.values[qsl("last_name")] = data.surname;
+
+	saveData(index);
+
+	_editBox->closeBox();
+}
+
+std::map<QString, QString> FormController::fillData(
+		const Value &from) const {
+	if (from.data.isEmpty()) {
+		return {};
+	}
+	const auto valueHash = gsl::as_bytes(gsl::make_span(from.dataHash));
+	const auto valueSecret = DecryptValueSecret(
+		gsl::as_bytes(gsl::make_span(from.dataSecret)),
+		_secret,
+		valueHash);
+	return DecryptData(
+		gsl::as_bytes(gsl::make_span(from.data)),
+		valueHash,
+		valueSecret);
+}
+
+void FormController::saveData(int index) {
+	Expects(index >= 0 && index < _form.fields.size());
+
+	if (_secret.empty()) {
+		generateSecret([=] {
+			saveData(index);
+		});
+		return;
+	}
+	const auto &data = _form.fields[index].data;
+	const auto valueSecret = GenerateSecretBytes();
+	const auto encrypted = EncryptData(valueSecret, data.values);
+
+	// #TODO file_hash + file_hash + ...
+	// PrepareValueHash(encrypted.hash, valueSecret);
+	const auto valueHash = encrypted.hash;
+	auto valueHashString = QString();
+	valueHashString.reserve(valueHash.size() * 2);
+	const auto hex = [](uchar value) -> QChar {
+		return (value >= 10) ? ('a' + (value - 10)) : ('0' + value);
+	};
+	for (const auto byte : valueHash) {
+		const auto value = uchar(byte);
+		const auto high = uchar(value / 16);
+		const auto low = uchar(value % 16);
+		valueHashString.append(hex(high)).append(hex(low));
+	}
+
+	const auto encryptedValueSecret = EncryptValueSecret(
+		valueSecret,
+		_secret,
+		valueHash);
+	request(MTPaccount_SaveSecureValue(MTP_inputSecureValueData(
+		MTP_string(data.name),
+		MTP_bytes(encrypted.bytes),
+		MTP_string(valueHashString),
+		MTP_bytes(encryptedValueSecret)
+	))).done([=](const MTPaccount_SecureValueResult &result) {
+		if (result.type() == mtpc_account_secureValueResultSaved) {
+			Ui::show(Box<InformBox>("Saved"), LayerOption::KeepOther);
+		} else if (result.type() == mtpc_account_secureValueVerificationNeeded) {
+			Ui::show(Box<InformBox>("Verification needed :("), LayerOption::KeepOther);
+		}
+	}).fail([=](const RPCError &error) {
+		// #TODO
+	}).send();
+}
+
+void FormController::generateSecret(base::lambda<void()> callback) {
+	if (_saveSecretRequestId) {
+		return;
+	}
+	auto secret = GenerateSecretBytes();
+	auto encryptedSecret = EncryptSecretBytes(
+		secret,
+		_passwordHashForSecret);
+	using Flag = MTPDaccount_passwordInputSettings::Flag;
+	_saveSecretRequestId = request(MTPaccount_UpdatePasswordSettings(
+		MTP_bytes(_passwordHashForAuth),
+		MTP_account_passwordInputSettings(
+			MTP_flags(Flag::f_new_secure_secret),
+			MTPbytes(), // new_salt
+			MTPbytes(), // new_password_hash
+			MTPstring(), // hint
+			MTPstring(), // email
+			MTP_bytes(encryptedSecret))
+	)).done([=](const MTPBool &result) {
+		_saveSecretRequestId = 0;
+		_secret = secret;
+		callback();
+	}).fail([=](const RPCError &error) {
+		// #TODO wrong password hash error?
+		Ui::show(Box<InformBox>("Saving encrypted value failed."));
+		_saveSecretRequestId = 0;
+	}).send();
+}
+
 void FormController::requestForm() {
 	auto scope = QVector<MTPstring>();
 	scope.reserve(_request.scope.size());
@@ -171,7 +320,30 @@ auto FormController::convertValue(
 		const auto &data = value.c_secureValueData();
 		result.name = qs(data.vname);
 		result.data = data.vdata.v;
-		result.dataHash = data.vhash.v;
+		const auto hashString = qs(data.vhash);
+		for (auto i = 0, count = hashString.size(); i + 1 < count; i += 2) {
+			auto digit = [&](QChar ch) -> int {
+				const auto code = ch.unicode();
+				if (code >= 'a' && code <= 'f') {
+					return (code - 'a') + 10;
+				} else if (code >= 'A' && code <= 'F') {
+					return (code - 'A') + 10;
+				} else if (code >= '0' && code <= '9') {
+					return (code - '0');
+				}
+				return -1;
+			};
+			const auto ch1 = digit(hashString[i]);
+			const auto ch2 = digit(hashString[i + 1]);
+			if (ch1 >= 0 && ch2 >= 0) {
+				const auto byte = ch1 * 16 + ch2;
+				result.dataHash.push_back(byte);
+			}
+		}
+		if (result.dataHash.size() != 32) {
+			result.dataHash.clear();
+		}
+//		result.dataHash = data.vhash.v;
 		result.dataSecret = data.vsecret.v;
 	} break;
 	case mtpc_secureValueText: {

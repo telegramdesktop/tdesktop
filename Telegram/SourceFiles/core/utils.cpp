@@ -494,6 +494,10 @@ int32 *hashSha256(const void *data, uint32 len, void *dest) {
 	return (int32*)SHA256((const uchar*)data, (size_t)len, (uchar*)dest);
 }
 
+int32 *hashSha512(const void *data, uint32 len, void *dest) {
+	return (int32*)SHA512((const uchar*)data, (size_t)len, (uchar*)dest);
+}
+
 // md5 hash, taken somewhere from the internet
 
 namespace {
