@@ -46,6 +46,8 @@ public:
 		return get();
 	}
 
+	void refreshView(not_null<HistoryView::ElementDelegate*> delegate);
+
 private:
 	HistoryItem *_data = nullptr;
 	std::unique_ptr<HistoryView::Element> _view;

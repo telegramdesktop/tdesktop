@@ -531,6 +531,9 @@ void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 
 void InnerWidget::restoreState(not_null<SectionMemento*> memento) {
 	_items = memento->takeItems();
+	for (auto &item : _items) {
+		item.refreshView(this);
+	}
 	_itemsByIds = memento->takeItemsByIds();
 	if (auto manager = memento->takeIdManager()) {
 		_idManager = std::move(manager);

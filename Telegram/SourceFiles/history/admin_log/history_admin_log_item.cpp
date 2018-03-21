@@ -195,9 +195,9 @@ auto GenerateBannedChangeText(const TextWithEntities &user, const MTPChannelBann
 			lt_date,
 			langDateTime(ParseDateTime(newUntil)));
 	auto result = lng_admin_log_restricted__generic(
-		lt_user, 
-		user, 
-		lt_until, 
+		lt_user,
+		user,
+		lt_until,
 		TextWithEntities { untilText });
 
 	static auto phraseMap = std::map<Flags, LangKey> {
@@ -315,6 +315,11 @@ OwnedItem::~OwnedItem() {
 	if (_data) {
 		_data->destroy();
 	}
+}
+
+void OwnedItem::refreshView(
+		not_null<HistoryView::ElementDelegate*> delegate) {
+	_view = _data->createView(delegate);
 }
 
 void GenerateItems(
