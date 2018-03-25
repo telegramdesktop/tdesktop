@@ -292,6 +292,8 @@ public:
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
+	DocumentData *document() const override;
+	PhotoData *photo() const override;
 	WebPageData *webpage() const override;
 
 	bool hasReplyPreview() const override;

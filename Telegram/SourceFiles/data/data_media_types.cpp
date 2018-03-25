@@ -908,6 +908,14 @@ std::unique_ptr<Media> MediaWebPage::clone(not_null<HistoryItem*> parent) {
 	return std::make_unique<MediaWebPage>(parent, _page);
 }
 
+DocumentData *MediaWebPage::document() const {
+	return _page->document;
+}
+
+PhotoData *MediaWebPage::photo() const {
+	return _page->photo;
+}
+
 WebPageData *MediaWebPage::webpage() const {
 	return _page;
 }
