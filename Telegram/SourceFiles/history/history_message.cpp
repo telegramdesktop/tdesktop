@@ -732,6 +732,8 @@ void HistoryMessage::refreshSentMedia(const MTPMessageMedia *media) {
 	refreshMedia(media);
 	if (wasGrouped) {
 		Auth().data().groups().refreshMessage(this);
+	} else {
+		Auth().data().requestItemViewRefresh(this);
 	}
 }
 
