@@ -2563,6 +2563,15 @@ void HistoryGif::updateStatusText() const {
 	}
 }
 
+void HistoryGif::refreshParentId(not_null<HistoryItem*> realParent) {
+	HistoryFileMedia::refreshParentId(realParent);
+
+	const auto fullId = realParent->fullId();
+	if (_openInMediaviewLink) {
+		_openInMediaviewLink->setMessageId(fullId);
+	}
+}
+
 QString HistoryGif::additionalInfoString() const {
 	if (_data->isVideoMessage()) {
 		updateStatusText();

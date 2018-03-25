@@ -389,6 +389,8 @@ public:
 		return MediaTypeGif;
 	}
 
+	void refreshParentId(not_null<HistoryItem*> realParent) override;
+
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
@@ -466,7 +468,7 @@ private:
 	bool isSeparateRoundVideo() const;
 
 	not_null<DocumentData*> _data;
-	ClickHandlerPtr _openInMediaviewLink;
+	FileClickHandlerPtr _openInMediaviewLink;
 	int _thumbw = 1;
 	int _thumbh = 1;
 	Text _caption;
