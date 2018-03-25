@@ -10,12 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 
 namespace Ui {
+class LinkButton;
 class InputField;
 } // namespace Ui
 
 namespace Passport {
 
 class FormController;
+struct ScanInfo;
+class ScanButton;
 
 struct IdentityData {
 	QString name;
@@ -28,7 +31,8 @@ public:
 		QWidget*,
 		not_null<FormController*> controller,
 		int fieldIndex,
-		const IdentityData &data);
+		const IdentityData &data,
+		std::vector<ScanInfo> &&files);
 
 protected:
 	void prepare() override;
@@ -37,11 +41,19 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	void chooseScan();
+	void encryptScan(const QString &path);
+	void encryptScanContent(QByteArray &&content);
+	void updateScan(ScanInfo &&info);
 	void save();
 
 	not_null<FormController*> _controller;
 	int _fieldIndex = -1;
 
+	std::vector<ScanInfo> _files;
+
+	std::vector<object_ptr<ScanButton>> _scans;
+	object_ptr<Ui::LinkButton> _uploadScan;
 	object_ptr<Ui::InputField> _name;
 	object_ptr<Ui::InputField> _surname;
 

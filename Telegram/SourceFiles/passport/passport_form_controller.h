@@ -8,8 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/sender.h"
+#include "base/weak_ptr.h"
 
 class BoxContent;
+
+namespace Storage {
+struct UploadedSecure;
+} // namespace Storage
 
 namespace Window {
 class Controller;
@@ -33,7 +38,39 @@ struct FormRequest {
 
 struct IdentityData;
 
-class FormController : private MTP::Sender {
+struct FileKey {
+	uint64 id = 0;
+	int32 dcId = 0;
+
+	inline bool operator==(const FileKey &other) const {
+		return (id == other.id) && (dcId == other.dcId);
+	}
+	inline bool operator!=(const FileKey &other) const {
+		return !(*this == other);
+	}
+	inline bool operator<(const FileKey &other) const {
+		return (id < other.id) || ((id == other.id) && (dcId < other.dcId));
+	}
+	inline bool operator>(const FileKey &other) const {
+		return (other < *this);
+	}
+	inline bool operator<=(const FileKey &other) const {
+		return !(other < *this);
+	}
+	inline bool operator>=(const FileKey &other) const {
+		return !(*this < other);
+	}
+
+};
+
+struct ScanInfo {
+	FileKey key;
+	QString date;
+	QImage thumb;
+
+};
+
+class FormController : private MTP::Sender, public base::has_weak_ptr {
 public:
 	FormController(
 		not_null<Window::Controller*> controller,
@@ -45,10 +82,13 @@ public:
 	rpl::producer<QString> passwordError() const;
 	QString passwordHint() const;
 
+	void uploadScan(int index, QByteArray &&content);
+
 	rpl::producer<> secretReadyEvents() const;
 
 	QString defaultEmail() const;
 	QString defaultPhoneNumber() const;
+	rpl::producer<ScanInfo> scanUpdated() const;
 
 	void fillRows(
 		base::lambda<void(
@@ -59,20 +99,41 @@ public:
 
 	void saveFieldIdentity(int index, const IdentityData &data);
 
+	~FormController();
+
 private:
+	struct UploadedScan {
+		~UploadedScan();
+
+		FullMsgId fullId;
+		uint64 fileId = 0;
+		int partsCount = 0;
+		QByteArray md5checksum;
+		base::byte_vector hash;
+		base::byte_vector bytes;
+	};
 	struct File {
 		uint64 id = 0;
 		uint64 accessHash = 0;
 		int32 size = 0;
 		int32 dcId = 0;
-		QByteArray fileHash;
+		base::byte_vector fileHash;
+		base::byte_vector bytes;
+	};
+	struct EditFile {
+		EditFile(
+			const File &fields,
+			std::unique_ptr<UploadedScan> &&uploaded);
+
+		File fields;
+		std::unique_ptr<UploadedScan> uploaded;
 	};
 	struct Value {
 		QString name;
 
-		QByteArray data;
+		QByteArray dataEncrypted;
 		QByteArray dataHash;
-		QByteArray dataSecret;
+		QByteArray dataSecretEncrypted;
 		std::map<QString, QString> values;
 
 		QString text;
@@ -80,7 +141,10 @@ private:
 
 		std::vector<File> files;
 		QByteArray filesHash;
-		QByteArray filesSecret;
+		QByteArray filesSecretEncrypted;
+		base::byte_vector filesSecret;
+
+		std::vector<EditFile> filesInEdit;
 	};
 	struct Field {
 		enum class Type {
@@ -90,6 +154,7 @@ private:
 			Email,
 		};
 		explicit Field(Type type);
+		Field(Field &&other) = default;
 
 		Type type;
 		Value data;
@@ -107,6 +172,8 @@ private:
 		bool hasRecovery = false;
 	};
 	Value convertValue(const MTPSecureValue &value) const;
+	EditFile *findEditFile(const FullMsgId &fullId);
+	std::pair<Field*, File*> findFile(const FileKey &key);
 
 	void requestForm();
 	void requestPassword();
@@ -122,10 +189,23 @@ private:
 	void parsePassword(const MTPDaccount_password &settings);
 
 	IdentityData fieldDataIdentity(const Field &field) const;
+	std::vector<ScanInfo> fieldFilesIdentity(const Field &field) const;
 
+	void loadFiles(const std::vector<File> &files);
+	void fileLoaded(FileKey key, const QByteArray &bytes);
 	std::map<QString, QString> fillData(const Value &from) const;
 	void saveData(int index);
+	void saveFiles(int index);
 	void generateSecret(base::lambda<void()> callback);
+
+	template <typename FileHashes>
+	base::byte_vector computeFilesHash(
+		FileHashes fileHashes,
+		base::const_byte_span valueHash);
+
+	void subscribeToUploader();
+	void uploadEncryptedScan(int index, UploadedScan &&data);
+	void scanUploaded(const Storage::UploadedSecure &data);
 
 	not_null<Window::Controller*> _controller;
 	FormRequest _request;
@@ -138,16 +218,21 @@ private:
 
 	PasswordSettings _password;
 	Form _form;
+	std::map<FileKey, std::unique_ptr<mtpFileLoader>> _fileLoaders;
+	rpl::event_stream<ScanInfo> _scanUpdated;
 
 	base::byte_vector _passwordHashForSecret;
 	base::byte_vector _passwordHashForAuth;
 	base::byte_vector _secret;
+	std::vector<base::lambda<void()>> _secretCallbacks;
 	mtpRequestId _saveSecretRequestId = 0;
 	QString _passwordEmail;
 	rpl::event_stream<> _secretReady;
 	rpl::event_stream<QString> _passwordError;
 
 	QPointer<BoxContent> _editBox;
+
+	rpl::lifetime _uploaderSubscriptions;
 
 };
 

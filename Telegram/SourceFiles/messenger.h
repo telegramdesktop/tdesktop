@@ -199,8 +199,6 @@ signals:
 public slots:
 	void onAllKeysDestroyed();
 
-	void photoUpdated(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
-
 	void onSwitchDebugMode();
 	void onSwitchWorkMode();
 	void onSwitchTestMode();
@@ -216,6 +214,7 @@ private:
 	static void QuitAttempt();
 	void quitDelayed();
 
+	void photoUpdated(const FullMsgId &msgId, const MTPInputFile &file);
 	void loggedOut();
 
 	not_null<Core::Launcher*> _launcher;
@@ -243,6 +242,9 @@ private:
 	base::Observable<void> _authSessionChanged;
 	base::Observable<void> _passcodedChanged;
 	QPointer<BoxContent> _badProxyDisableBox;
+
+	// While profile photo uploading is not moved to apiwrap.
+	rpl::lifetime _uploaderSubscription;
 
 	std::unique_ptr<Media::Audio::Instance> _audio;
 	QImage _logo;

@@ -20,6 +20,7 @@ enum class SendMediaType {
 	Photo,
 	Audio,
 	File,
+	Secure,
 };
 
 struct SendMediaPrepare {

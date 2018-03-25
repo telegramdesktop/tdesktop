@@ -4339,6 +4339,45 @@ void HistoryWidget::uploadFile(
 	Auth().api().sendFile(fileContent, type, options);
 }
 
+void HistoryWidget::subscribeToUploader() {
+	if (_uploaderSubscriptions) {
+		return;
+	}
+	using namespace Storage;
+	Auth().uploader().photoReady(
+	) | rpl::start_with_next([=](const UploadedPhoto &data) {
+		photoUploaded(data.fullId, data.silent, data.file);
+	}, _uploaderSubscriptions);
+	Auth().uploader().photoProgress(
+	) | rpl::start_with_next([=](const FullMsgId &fullId) {
+		photoProgress(fullId);
+	}, _uploaderSubscriptions);
+	Auth().uploader().photoFailed(
+	) | rpl::start_with_next([=](const FullMsgId &fullId) {
+		photoFailed(fullId);
+	}, _uploaderSubscriptions);
+	Auth().uploader().documentReady(
+	) | rpl::start_with_next([=](const UploadedDocument &data) {
+		documentUploaded(data.fullId, data.silent, data.file);
+	}, _uploaderSubscriptions);
+	Auth().uploader().thumbDocumentReady(
+	) | rpl::start_with_next([=](const UploadedThumbDocument &data) {
+		thumbDocumentUploaded(
+			data.fullId,
+			data.silent,
+			data.file,
+			data.thumb);
+	}, _uploaderSubscriptions);
+	Auth().uploader().documentProgress(
+	) | rpl::start_with_next([=](const FullMsgId &fullId) {
+		documentProgress(fullId);
+	}, _uploaderSubscriptions);
+	Auth().uploader().documentFailed(
+	) | rpl::start_with_next([=](const FullMsgId &fullId) {
+		documentFailed(fullId);
+	}, _uploaderSubscriptions);
+}
+
 void HistoryWidget::sendFileConfirmed(
 		const std::shared_ptr<FileLoadResult> &file) {
 	const auto channelId = peerToChannel(file->to.peer);
@@ -4358,13 +4397,7 @@ void HistoryWidget::sendFileConfirmed(
 		it->msgId = newId;
 	}
 
-	connect(&Auth().uploader(), SIGNAL(photoReady(const FullMsgId&,bool,const MTPInputFile&)), this, SLOT(onPhotoUploaded(const FullMsgId&,bool,const MTPInputFile&)), Qt::UniqueConnection);
-	connect(&Auth().uploader(), SIGNAL(documentReady(const FullMsgId&,bool,const MTPInputFile&)), this, SLOT(onDocumentUploaded(const FullMsgId&,bool,const MTPInputFile&)), Qt::UniqueConnection);
-	connect(&Auth().uploader(), SIGNAL(thumbDocumentReady(const FullMsgId&,bool,const MTPInputFile&,const MTPInputFile&)), this, SLOT(onThumbDocumentUploaded(const FullMsgId&,bool,const MTPInputFile&, const MTPInputFile&)), Qt::UniqueConnection);
-	connect(&Auth().uploader(), SIGNAL(photoProgress(const FullMsgId&)), this, SLOT(onPhotoProgress(const FullMsgId&)), Qt::UniqueConnection);
-	connect(&Auth().uploader(), SIGNAL(documentProgress(const FullMsgId&)), this, SLOT(onDocumentProgress(const FullMsgId&)), Qt::UniqueConnection);
-	connect(&Auth().uploader(), SIGNAL(photoFailed(const FullMsgId&)), this, SLOT(onPhotoFailed(const FullMsgId&)), Qt::UniqueConnection);
-	connect(&Auth().uploader(), SIGNAL(documentFailed(const FullMsgId&)), this, SLOT(onDocumentFailed(const FullMsgId&)), Qt::UniqueConnection);
+	subscribeToUploader();
 
 	Auth().uploader().upload(newId, file);
 
@@ -4493,6 +4526,8 @@ void HistoryWidget::sendFileConfirmed(
 				MTP_string(messagePostAuthor),
 				MTP_long(groupId)),
 			NewMessageUnread);
+	} else {
+		Unexpected("Type in sendFilesConfirmed.");
 	}
 
 	Auth().data().sendHistoryChangeNotifications();
@@ -4502,21 +4537,21 @@ void HistoryWidget::sendFileConfirmed(
 	App::main()->dialogsToUp();
 }
 
-void HistoryWidget::onPhotoUploaded(
+void HistoryWidget::photoUploaded(
 		const FullMsgId &newId,
 		bool silent,
 		const MTPInputFile &file) {
 	Auth().api().sendUploadedPhoto(newId, file, silent);
 }
 
-void HistoryWidget::onDocumentUploaded(
+void HistoryWidget::documentUploaded(
 		const FullMsgId &newId,
 		bool silent,
 		const MTPInputFile &file) {
 	Auth().api().sendUploadedDocument(newId, file, base::none, silent);
 }
 
-void HistoryWidget::onThumbDocumentUploaded(
+void HistoryWidget::thumbDocumentUploaded(
 		const FullMsgId &newId,
 		bool silent,
 		const MTPInputFile &file,
@@ -4524,7 +4559,7 @@ void HistoryWidget::onThumbDocumentUploaded(
 	Auth().api().sendUploadedDocument(newId, file, thumb, silent);
 }
 
-void HistoryWidget::onPhotoProgress(const FullMsgId &newId) {
+void HistoryWidget::photoProgress(const FullMsgId &newId) {
 	if (const auto item = App::histItemById(newId)) {
 		const auto photo = item->media()
 			? item->media()->photo()
@@ -4534,7 +4569,7 @@ void HistoryWidget::onPhotoProgress(const FullMsgId &newId) {
 	}
 }
 
-void HistoryWidget::onDocumentProgress(const FullMsgId &newId) {
+void HistoryWidget::documentProgress(const FullMsgId &newId) {
 	if (const auto item = App::histItemById(newId)) {
 		const auto media = item->media();
 		const auto document = media ? media->document() : nullptr;
@@ -4552,7 +4587,7 @@ void HistoryWidget::onDocumentProgress(const FullMsgId &newId) {
 	}
 }
 
-void HistoryWidget::onPhotoFailed(const FullMsgId &newId) {
+void HistoryWidget::photoFailed(const FullMsgId &newId) {
 	if (const auto item = App::histItemById(newId)) {
 		updateSendAction(
 			item->history(),
@@ -4562,7 +4597,7 @@ void HistoryWidget::onPhotoFailed(const FullMsgId &newId) {
 	}
 }
 
-void HistoryWidget::onDocumentFailed(const FullMsgId &newId) {
+void HistoryWidget::documentFailed(const FullMsgId &newId) {
 	if (const auto item = App::histItemById(newId)) {
 		const auto media = item->media();
 		const auto document = media ? media->document() : nullptr;

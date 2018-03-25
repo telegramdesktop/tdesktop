@@ -288,6 +288,7 @@ enum LocationType {
 	DocumentFileLocation = 0x4e45abe9, // mtpc_inputDocumentFileLocation
 	AudioFileLocation = 0x74dc404d, // mtpc_inputAudioFileLocation
 	VideoFileLocation = 0x3d0364ec, // mtpc_inputVideoFileLocation
+	SecureFileLocation = 0xcbc7ee28, // mtpc_inputSecureFileLocation
 };
 
 enum FileStatus {

@@ -20,16 +20,22 @@ base::byte_vector DecryptSecretBytes(
 
 base::byte_vector PasswordHashForSecret(base::const_byte_span passwordUtf8);
 
+base::byte_vector SerializeData(const std::map<QString, QString> &data);
+std::map<QString, QString> DeserializeData(base::const_byte_span bytes);
+
 struct EncryptedData {
+	base::byte_vector secret;
 	base::byte_vector hash;
 	base::byte_vector bytes;
 };
 
-EncryptedData EncryptData(
-	base::const_byte_span dataSecret,
-	const std::map<QString, QString> &data);
+EncryptedData EncryptData(base::const_byte_span bytes);
 
-std::map<QString, QString> DecryptData(
+EncryptedData EncryptData(
+	base::const_byte_span bytes,
+	base::const_byte_span dataSecret);
+
+base::byte_vector DecryptData(
 	base::const_byte_span encrypted,
 	base::const_byte_span dataHash,
 	base::const_byte_span dataSecret);
@@ -47,5 +53,9 @@ base::byte_vector DecryptValueSecret(
 	base::const_byte_span encrypted,
 	base::const_byte_span secret,
 	base::const_byte_span valueHash);
+
+base::byte_vector PrepareFilesHash(
+	gsl::span<base::const_byte_span> fileHashes,
+	base::const_byte_span valueSecret);
 
 } // namespace Passport

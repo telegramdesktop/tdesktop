@@ -706,8 +706,8 @@ void Messenger::killDownloadSessions() {
 	}
 }
 
-void Messenger::photoUpdated(const FullMsgId &msgId, bool silent, const MTPInputFile &file) {
-	if (!AuthSession::Exists()) return;
+void Messenger::photoUpdated(const FullMsgId &msgId, const MTPInputFile &file) {
+	Expects(AuthSession::Exists());
 
 	auto i = photoUpdates.find(msgId);
 	if (i != photoUpdates.end()) {
@@ -770,6 +770,7 @@ void Messenger::authSessionCreate(UserId userId) {
 }
 
 void Messenger::authSessionDestroy() {
+	_uploaderSubscription = rpl::lifetime();
 	_authSession.reset();
 	_private->storedAuthSession.reset();
 	_private->authSessionUserId = 0;
@@ -961,7 +962,12 @@ void Messenger::uploadProfilePhoto(QImage &&tosend, const PeerId &peerId) {
 
 	SendMediaReady ready(SendMediaType::Photo, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, 0);
 
-	connect(&Auth().uploader(), SIGNAL(photoReady(const FullMsgId&, bool, const MTPInputFile&)), this, SLOT(photoUpdated(const FullMsgId&, bool, const MTPInputFile&)), Qt::UniqueConnection);
+	if (!_uploaderSubscription) {
+		_uploaderSubscription = Auth().uploader().photoReady(
+		) | rpl::start_with_next([=](const Storage::UploadedPhoto &data) {
+			photoUpdated(data.fullId, data.file);
+		});
+	}
 
 	FullMsgId newId(peerToChannel(peerId), clientMsgId());
 	regPhotoUpdate(peerId, newId);

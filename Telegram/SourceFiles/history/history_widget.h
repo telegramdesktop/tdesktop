@@ -68,6 +68,9 @@ class TabbedSelector;
 namespace Storage {
 enum class MimeDataState;
 struct PreparedList;
+struct UploadedPhoto;
+struct UploadedDocument;
+struct UploadedThumbDocument;
 } // namespace Storage
 
 namespace HistoryView {
@@ -378,16 +381,6 @@ public slots:
 	void onPinnedHide();
 	void onFieldBarCancel();
 
-	void onPhotoUploaded(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
-	void onDocumentUploaded(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
-	void onThumbDocumentUploaded(const FullMsgId &msgId, bool silent, const MTPInputFile &file, const MTPInputFile &thumb);
-
-	void onPhotoProgress(const FullMsgId &msgId);
-	void onDocumentProgress(const FullMsgId &msgId);
-
-	void onPhotoFailed(const FullMsgId &msgId);
-	void onDocumentFailed(const FullMsgId &msgId);
-
 	void onReportSpamClicked();
 	void onReportSpamHide();
 	void onReportSpamClear();
@@ -518,6 +511,26 @@ private:
 		TextWithTags &&caption,
 		MsgId replyTo,
 		std::shared_ptr<SendingAlbum> album = nullptr);
+
+	void subscribeToUploader();
+
+	void photoUploaded(
+		const FullMsgId &msgId,
+		bool silent,
+		const MTPInputFile &file);
+	void photoProgress(const FullMsgId &msgId);
+	void photoFailed(const FullMsgId &msgId);
+	void documentUploaded(
+		const FullMsgId &msgId,
+		bool silent,
+		const MTPInputFile &file);
+	void thumbDocumentUploaded(
+		const FullMsgId &msgId,
+		bool silent,
+		const MTPInputFile &file,
+		const MTPInputFile &thumb);
+	void documentProgress(const FullMsgId &msgId);
+	void documentFailed(const FullMsgId &msgId);
 
 	void itemRemoved(not_null<const HistoryItem*> item);
 
@@ -815,6 +828,8 @@ private:
 	bool _inClickable = false;
 	int _recordingSamples = 0;
 	int _recordCancelWidth;
+
+	rpl::lifetime _uploaderSubscriptions;
 
 	// This can animate for a very long time (like in music playing),
 	// so it should be a BasicAnimation, not an Animation.

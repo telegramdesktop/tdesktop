@@ -22,74 +22,6 @@ constexpr auto kMinPadding = 32;
 constexpr auto kMaxPadding = 255;
 constexpr auto kAlignTo = 16;
 
-base::byte_vector SerializeData(const std::map<QString, QString> &data) {
-	auto root = QJsonObject();
-	for (const auto &[key, value] : data) {
-		root.insert(key, value);
-	}
-	auto document = QJsonDocument(root);
-	const auto result = document.toJson(QJsonDocument::Compact);
-	const auto bytes = gsl::as_bytes(gsl::make_span(result));
-	return { bytes.begin(), bytes.end() };
-}
-
-std::map<QString, QString> DeserializeData(base::const_byte_span bytes) {
-	const auto serialized = QByteArray::fromRawData(
-		reinterpret_cast<const char*>(bytes.data()),
-		bytes.size());
-	auto error = QJsonParseError();
-	auto document = QJsonDocument::fromJson(serialized, &error);
-	if (error.error != QJsonParseError::NoError) {
-		LOG(("API Error: Could not deserialize decrypted JSON, error %1"
-			).arg(error.errorString()));
-		return {};
-	} else if (!document.isObject()) {
-		LOG(("API Error: decrypted JSON root is not an object."));
-		return {};
-	}
-	auto object = document.object();
-	auto result = std::map<QString, QString>();
-	for (auto i = object.constBegin(), e = object.constEnd(); i != e; ++i) {
-		const auto key = i.key();
-		switch (i->type()) {
-		case QJsonValue::Null: {
-			LOG(("API Error: null found inside decrypted JSON root. "
-				"Defaulting to empty string value."));
-			result[key] = QString();
-		} break;
-		case QJsonValue::Undefined: {
-			LOG(("API Error: undefined found inside decrypted JSON root. "
-				"Defaulting to empty string value."));
-			result[key] = QString();
-		} break;
-		case QJsonValue::Bool: {
-			LOG(("API Error: bool found inside decrypted JSON root. "
-				"Aborting."));
-			return {};
-		} break;
-		case QJsonValue::Double: {
-			LOG(("API Error: double found inside decrypted JSON root. "
-				"Converting to string."));
-			result[key] = QString::number(i->toDouble());
-		} break;
-		case QJsonValue::String: {
-			result[key] = i->toString();
-		} break;
-		case QJsonValue::Array: {
-			LOG(("API Error: array found inside decrypted JSON root. "
-				"Aborting."));
-			return {};
-		} break;
-		case QJsonValue::Object: {
-			LOG(("API Error: object found inside decrypted JSON root. "
-				"Aborting."));
-			return {};
-		} break;
-		}
-	}
-	return result;
-}
-
 } // namespace
 
 struct AesParams {
@@ -162,9 +94,8 @@ base::byte_vector PasswordHashForSecret(
 }
 
 bool CheckBytesMod255(base::const_byte_span bytes) {
-	const auto full = std::accumulate(
-		bytes.begin(),
-		bytes.end(),
+	const auto full = ranges::accumulate(
+		bytes,
 		0ULL,
 		[](uint64 sum, gsl::byte value) { return sum + uchar(value); });
 	const auto mod = (full % 255ULL);
@@ -178,9 +109,8 @@ bool CheckSecretBytes(base::const_byte_span secret) {
 base::byte_vector GenerateSecretBytes() {
 	auto result = base::byte_vector(kSecretSize);
 	memset_rand(result.data(), result.size());
-	const auto full = std::accumulate(
-		result.begin(),
-		result.end(),
+	const auto full = ranges::accumulate(
+		result,
 		0ULL,
 		[](uint64 sum, gsl::byte value) { return sum + uchar(value); });
 	const auto mod = (full % 255ULL);
@@ -228,13 +158,81 @@ base::byte_vector Concatenate(
 	return result;
 }
 
+base::byte_vector SerializeData(const std::map<QString, QString> &data) {
+	auto root = QJsonObject();
+	for (const auto &[key, value] : data) {
+		root.insert(key, value);
+	}
+	auto document = QJsonDocument(root);
+	const auto result = document.toJson(QJsonDocument::Compact);
+	const auto bytes = gsl::as_bytes(gsl::make_span(result));
+	return { bytes.begin(), bytes.end() };
+}
+
+std::map<QString, QString> DeserializeData(base::const_byte_span bytes) {
+	const auto serialized = QByteArray::fromRawData(
+		reinterpret_cast<const char*>(bytes.data()),
+		bytes.size());
+	auto error = QJsonParseError();
+	auto document = QJsonDocument::fromJson(serialized, &error);
+	if (error.error != QJsonParseError::NoError) {
+		LOG(("API Error: Could not deserialize decrypted JSON, error %1"
+			).arg(error.errorString()));
+		return {};
+	} else if (!document.isObject()) {
+		LOG(("API Error: decrypted JSON root is not an object."));
+		return {};
+	}
+	auto object = document.object();
+	auto result = std::map<QString, QString>();
+	for (auto i = object.constBegin(), e = object.constEnd(); i != e; ++i) {
+		const auto key = i.key();
+		switch (i->type()) {
+		case QJsonValue::Null: {
+			LOG(("API Error: null found inside decrypted JSON root. "
+				"Defaulting to empty string value."));
+			result[key] = QString();
+		} break;
+		case QJsonValue::Undefined: {
+			LOG(("API Error: undefined found inside decrypted JSON root. "
+				"Defaulting to empty string value."));
+			result[key] = QString();
+		} break;
+		case QJsonValue::Bool: {
+			LOG(("API Error: bool found inside decrypted JSON root. "
+				"Aborting."));
+			return {};
+		} break;
+		case QJsonValue::Double: {
+			LOG(("API Error: double found inside decrypted JSON root. "
+				"Converting to string."));
+			result[key] = QString::number(i->toDouble());
+		} break;
+		case QJsonValue::String: {
+			result[key] = i->toString();
+		} break;
+		case QJsonValue::Array: {
+			LOG(("API Error: array found inside decrypted JSON root. "
+				"Aborting."));
+			return {};
+		} break;
+		case QJsonValue::Object: {
+			LOG(("API Error: object found inside decrypted JSON root. "
+				"Aborting."));
+			return {};
+		} break;
+		}
+	}
+	return result;
+}
+
+EncryptedData EncryptData(base::const_byte_span bytes) {
+	return EncryptData(bytes, GenerateSecretBytes());
+}
+
 EncryptedData EncryptData(
-		base::const_byte_span dataSecret,
-		const std::map<QString, QString> &data) {
-	Expects(dataSecret.size() == kSecretSize);
-
-	const auto bytes = SerializeData(data);
-
+		base::const_byte_span bytes,
+		base::const_byte_span dataSecret) {
 	constexpr auto kFromPadding = kMinPadding + kAlignTo - 1;
 	constexpr auto kPaddingDelta = kMaxPadding - kFromPadding;
 	const auto randomPadding = kFromPadding
@@ -254,14 +252,16 @@ EncryptedData EncryptData(
 	const auto dataHash = openssl::Sha256(unencrypted);
 	const auto dataSecretHash = openssl::Sha512(
 		Concatenate(dataSecret, dataHash));
+
 	auto params = PrepareAesParams(dataSecretHash);
 	return {
+		{ dataSecret.begin(), dataSecret.end() },
 		{ dataHash.begin(), dataHash.end() },
 		Encrypt(unencrypted, std::move(params))
 	};
 }
 
-std::map<QString, QString> DecryptData(
+base::byte_vector DecryptData(
 		base::const_byte_span encrypted,
 		base::const_byte_span dataHash,
 		base::const_byte_span dataSecret) {
@@ -292,13 +292,27 @@ std::map<QString, QString> DecryptData(
 		return {};
 	}
 	const auto bytes = gsl::make_span(decrypted).subspan(padding);
-	return DeserializeData(bytes);
+	return { bytes.begin(), bytes.end() };
 }
 
 base::byte_vector PrepareValueHash(
 		base::const_byte_span dataHash,
 		base::const_byte_span valueSecret) {
 	const auto result = openssl::Sha256(Concatenate(dataHash, valueSecret));
+	return { result.begin(), result.end() };
+}
+
+base::byte_vector PrepareFilesHash(
+		gsl::span<base::const_byte_span> fileHashes,
+		base::const_byte_span valueSecret) {
+	auto resultInner = base::byte_vector{
+		valueSecret.begin(),
+		valueSecret.end()
+	};
+	for (const auto &hash : base::reversed(fileHashes)) {
+		resultInner = Concatenate(hash, resultInner);
+	}
+	const auto result = openssl::Sha256(resultInner);
 	return { result.begin(), result.end() };
 }
 

@@ -12,6 +12,31 @@ struct SendMediaReady;
 
 namespace Storage {
 
+struct UploadedPhoto {
+	FullMsgId fullId;
+	bool silent = false;
+	MTPInputFile file;
+};
+
+struct UploadedDocument {
+	FullMsgId fullId;
+	bool silent = false;
+	MTPInputFile file;
+};
+
+struct UploadedThumbDocument {
+	FullMsgId fullId;
+	bool silent = false;
+	MTPInputFile file;
+	MTPInputFile thumb;
+};
+
+struct UploadedSecure {
+	FullMsgId fullId;
+	uint64 fileId = 0;
+	int partsCount = 0;
+};
+
 class Uploader : public QObject, public RPCSender {
 	Q_OBJECT
 
@@ -31,23 +56,43 @@ public:
 
 	void clear();
 
+	rpl::producer<UploadedPhoto> photoReady() const {
+		return _photoReady.events();
+	}
+	rpl::producer<UploadedDocument> documentReady() const {
+		return _documentReady.events();
+	}
+	rpl::producer<UploadedThumbDocument> thumbDocumentReady() const {
+		return _thumbDocumentReady.events();
+	}
+	rpl::producer<UploadedSecure> secureReady() const {
+		return _secureReady.events();
+	}
+	rpl::producer<FullMsgId> photoProgress() const {
+		return _photoProgress.events();
+	}
+	rpl::producer<FullMsgId> documentProgress() const {
+		return _documentProgress.events();
+	}
+	rpl::producer<FullMsgId> secureProgress() const {
+		return _secureProgress.events();
+	}
+	rpl::producer<FullMsgId> photoFailed() const {
+		return _photoFailed.events();
+	}
+	rpl::producer<FullMsgId> documentFailed() const {
+		return _documentFailed.events();
+	}
+	rpl::producer<FullMsgId> secureFailed() const {
+		return _secureFailed.events();
+	}
+
 	~Uploader();
 
 public slots:
 	void unpause();
 	void sendNext();
 	void stopSessions();
-
-signals:
-	void photoReady(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
-	void documentReady(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
-	void thumbDocumentReady(const FullMsgId &msgId, bool silent, const MTPInputFile &file, const MTPInputFile &thumb);
-
-	void photoProgress(const FullMsgId &msgId);
-	void documentProgress(const FullMsgId &msgId);
-
-	void photoFailed(const FullMsgId &msgId);
-	void documentFailed(const FullMsgId &msgId);
 
 private:
 	struct File;
@@ -68,6 +113,17 @@ private:
 	std::map<FullMsgId, File> queue;
 	std::map<FullMsgId, File> uploaded;
 	QTimer nextTimer, stopSessionsTimer;
+
+	rpl::event_stream<UploadedPhoto> _photoReady;
+	rpl::event_stream<UploadedDocument> _documentReady;
+	rpl::event_stream<UploadedThumbDocument> _thumbDocumentReady;
+	rpl::event_stream<UploadedSecure> _secureReady;
+	rpl::event_stream<FullMsgId> _photoProgress;
+	rpl::event_stream<FullMsgId> _documentProgress;
+	rpl::event_stream<FullMsgId> _secureProgress;
+	rpl::event_stream<FullMsgId> _photoFailed;
+	rpl::event_stream<FullMsgId> _documentFailed;
+	rpl::event_stream<FullMsgId> _secureFailed;
 
 };
 

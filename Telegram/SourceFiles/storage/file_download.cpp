@@ -493,6 +493,8 @@ void mtpFileLoader::makeRequest(int offset) {
 MTPInputFileLocation mtpFileLoader::computeLocation() const {
 	if (_location) {
 		return MTP_inputFileLocation(MTP_long(_location->volume()), MTP_int(_location->local()), MTP_long(_location->secret()));
+	} else if (_locationType == SecureFileLocation) {
+		return MTP_inputSecureFileLocation(MTP_long(_id), MTP_long(_accessHash));
 	}
 	return MTP_inputDocumentFileLocation(MTP_long(_id), MTP_long(_accessHash), MTP_int(_version));
 }
