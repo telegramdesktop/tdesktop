@@ -467,8 +467,7 @@ void SuggestionsController::replaceCurrent(const QString &replacement) {
 		cursor.insertText(replacement);
 	}
 
-	auto emojiText = GetSuggestionEmoji(QStringToUTF16(replacement));
-	if (auto emoji = Find(QStringFromUTF16(emojiText))) {
+	if (auto emoji = Find(replacement)) {
 		if (emoji->hasVariants()) {
 			auto it = cEmojiVariants().constFind(emoji->nonColoredId());
 			if (it != cEmojiVariants().cend()) {
