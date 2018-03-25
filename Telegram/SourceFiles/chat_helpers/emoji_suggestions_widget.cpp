@@ -437,7 +437,7 @@ QString SuggestionsController::getEmojiQuery() {
 					_queryStartPosition += i + 2;
 					const auto length = position - i;
 					auto result = text.mid(i, length);
-					if (length == 2 && isUpperCaseLetter(text[1])) {
+					if (length == 2 && isUpperCaseLetter(result[1])) {
 						// No upper case single letter suggestions.
 						// We don't want to suggest emoji on :D and :P
 						return QString();
