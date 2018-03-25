@@ -63,7 +63,9 @@ public:
 	Footer(not_null<StickersListWidget*> parent);
 
 	void preloadImages();
-	void validateSelectedIcon(uint64 setId, ValidateIconAnimations animations);
+	void validateSelectedIcon(
+		uint64 setId,
+		ValidateIconAnimations animations);
 	void refreshIcons(ValidateIconAnimations animations);
 	bool hasOnlyFeaturedSets() const;
 
@@ -99,6 +101,7 @@ private:
 		int newSelected,
 		ValidateIconAnimations animations);
 
+	void refreshIconsGeometry(ValidateIconAnimations animations);
 	void updateSelected();
 	void finishDragging();
 	void paintStickerSettingsIcon(Painter &p) const;
@@ -389,6 +392,7 @@ void StickersListWidget::Footer::resizeEvent(QResizeEvent *e) {
 	if (_searchField) {
 		resizeSearchControls();
 	}
+	refreshIconsGeometry(ValidateIconAnimations::None);
 }
 
 void StickersListWidget::Footer::resizeSearchControls() {
@@ -543,10 +547,11 @@ void StickersListWidget::Footer::updateSelected() {
 		if (y >= _iconsTop
 			&& y < _iconsTop + st::emojiFooterHeight
 			&& x >= _iconsLeft
-			&& x < width() - _iconsRight
-			&& x < _icons.size() * st::stickerIconWidth) {
+			&& x < width() - _iconsRight) {
 			x += qRound(_iconsX.current()) - _iconsLeft;
-			newOver = qFloor(x / st::stickerIconWidth);
+			if (x < _icons.size() * st::stickerIconWidth) {
+				newOver = qFloor(x / st::stickerIconWidth);
+			}
 		}
 	}
 	if (newOver != _iconOver) {
@@ -561,8 +566,13 @@ void StickersListWidget::Footer::updateSelected() {
 
 void StickersListWidget::Footer::refreshIcons(
 		ValidateIconAnimations animations) {
-	_iconOver = SpecialOver::None;
 	_pan->fillIcons(_icons);
+	refreshIconsGeometry(animations);
+}
+
+void StickersListWidget::Footer::refreshIconsGeometry(
+		ValidateIconAnimations animations) {
+	_iconOver = _iconDown = SpecialOver::None;
 	_iconsX.finish();
 	_iconSelX.finish();
 	_iconsStartAnim = 0;
