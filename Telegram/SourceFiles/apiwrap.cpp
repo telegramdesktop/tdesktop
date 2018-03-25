@@ -3584,6 +3584,12 @@ void ApiWrap::sendSharedContact(
 		MTP_string(firstName),
 		MTP_string(lastName));
 	sendMedia(item, media, peer->notifySilentPosts());
+
+	if (const auto main = App::main()) {
+		_session->data().sendHistoryChangeNotifications();
+		main->historyToDown(history);
+		main->dialogsToUp();
+	}
 }
 
 void ApiWrap::sendVoiceMessage(
