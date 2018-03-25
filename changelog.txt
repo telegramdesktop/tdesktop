@@ -1,3 +1,7 @@
+1.2.15 (26.03.18)
+
+- Bug fixes and other minor improvements.
+
 1.2.14 (21.03.18)
 
 - Discover new stickers. Type one emoji to see suggestions from popular sticker sets. Suggestions from your installed sticker sets will come first.

@@ -25,8 +25,8 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,2,14,0
- PRODUCTVERSION 1,2,14,0
+ FILEVERSION 1,2,15,0
+ PRODUCTVERSION 1,2,15,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -43,10 +43,10 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Telegram Messenger LLP"
             VALUE "FileDescription", "Telegram Desktop Updater"
-            VALUE "FileVersion", "1.2.14.0"
+            VALUE "FileVersion", "1.2.15.0"
             VALUE "LegalCopyright", "Copyright (C) 2014-2018"
             VALUE "ProductName", "Telegram Desktop"
-            VALUE "ProductVersion", "1.2.14.0"
+            VALUE "ProductVersion", "1.2.15.0"
         END
     END
     BLOCK "VarFileInfo"
