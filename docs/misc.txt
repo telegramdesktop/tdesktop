@@ -1,0 +1,9 @@
+macOS:
+
+breakpad - clone breakpad like for msvc, including the patch, open breakpad/src/client/mac/Breakpad.xcodeproj and build Release
+dump_syms - open breakpad/src/tools/mac/dump_syms/dump_syms.xcodeproj and build Release, copy dump_syms from ~/Library/Developer/Xcode/DerivedData/dump_syms-[a-z0-9]+/Build/Products/Release/ to BuildPath/Libraries/breakpad/src/tools/mac/dump_syms/build/Release/
+
+Windows:
+
+install InnoSetup
+open brekpad/src/tools/windows/dump_syms/dump_syms.vcproj, upgrade, change SDK and build Debug and Release

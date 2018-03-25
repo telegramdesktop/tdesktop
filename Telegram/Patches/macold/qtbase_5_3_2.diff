@@ -1,5 +1,5 @@
 diff --git a/configure b/configure
-index cb8d78f..cadb3f0 100755
+index cb8d78fd3c..cadb3f0a88 100755
 --- a/configure
 +++ b/configure
 @@ -511,7 +511,8 @@ if [ "$BUILD_ON_MAC" = "yes" ]; then
@@ -13,7 +13,7 @@ index cb8d78f..cadb3f0 100755
          echo "   Xcode not set up properly. You may need to confirm the license" >&2
          echo "   agreement by running /usr/bin/xcodebuild without arguments." >&2
 diff --git a/mkspecs/common/g++-macx.conf b/mkspecs/common/g++-macx.conf
-index 086510d..c485967 100644
+index 086510dd96..c485967863 100644
 --- a/mkspecs/common/g++-macx.conf
 +++ b/mkspecs/common/g++-macx.conf
 @@ -14,7 +14,13 @@ QMAKE_CFLAGS_RELEASE_WITH_DEBUGINFO += -gdwarf-2
@@ -32,7 +32,7 @@ index 086510d..c485967 100644
  QMAKE_XCODE_GCC_VERSION = com.apple.compilers.llvmgcc42
  
 diff --git a/mkspecs/features/mac/default_pre.prf b/mkspecs/features/mac/default_pre.prf
-index 0cc8cd6..ca9725b 100644
+index 0cc8cd6dfd..ca9725b779 100644
 --- a/mkspecs/features/mac/default_pre.prf
 +++ b/mkspecs/features/mac/default_pre.prf
 @@ -12,7 +12,9 @@ isEmpty(QMAKE_XCODE_DEVELOPER_PATH) {
@@ -47,7 +47,7 @@ index 0cc8cd6..ca9725b 100644
  }
  
 diff --git a/src/gui/image/qbmphandler.cpp b/src/gui/image/qbmphandler.cpp
-index bb79a13..5d595bc 100644
+index bb79a139b3..5d595bc3b3 100644
 --- a/src/gui/image/qbmphandler.cpp
 +++ b/src/gui/image/qbmphandler.cpp
 @@ -220,6 +220,10 @@ static bool read_dib_body(QDataStream &s, const BMP_INFOHDR &bi, int offset, int
@@ -74,7 +74,7 @@ index bb79a13..5d595bc 100644
      if (ncols > 0) {                                // read color table
          uchar rgb[4];
 diff --git a/src/gui/painting/qpaintengine_p.h b/src/gui/painting/qpaintengine_p.h
-index ebff950..4300ca4 100644
+index ebff9509ab..4300ca4c0f 100644
 --- a/src/gui/painting/qpaintengine_p.h
 +++ b/src/gui/painting/qpaintengine_p.h
 @@ -87,8 +87,18 @@ public:
@@ -98,7 +98,7 @@ index ebff950..4300ca4 100644
  
          // Make sure we're inside the viewport.
 diff --git a/src/gui/text/qtextlayout.cpp b/src/gui/text/qtextlayout.cpp
-index 4879ae5..56cdcba 100644
+index 4879ae51d7..56cdcbaf01 100644
 --- a/src/gui/text/qtextlayout.cpp
 +++ b/src/gui/text/qtextlayout.cpp
 @@ -654,6 +654,9 @@ int QTextLayout::nextCursorPosition(int oldPos, CursorMode mode) const
@@ -175,7 +175,7 @@ index 4879ae5..56cdcba 100644
  
          inline void resetRightBearing()
 diff --git a/src/gui/text/qtextlayout.h b/src/gui/text/qtextlayout.h
-index cbe42c3..b273db7 100644
+index cbe42c3844..b273db7e78 100644
 --- a/src/gui/text/qtextlayout.h
 +++ b/src/gui/text/qtextlayout.h
 @@ -194,6 +194,9 @@ private:
@@ -189,7 +189,7 @@ index cbe42c3..b273db7 100644
  
  
 diff --git a/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm b/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
-index ca7afb7..25ae500 100644
+index ca7afb7d1b..25ae50008d 100644
 --- a/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
 +++ b/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
 @@ -256,6 +256,13 @@ static void getFontDescription(CTFontDescriptorRef font, FontDescription *fd)
@@ -207,7 +207,7 @@ index ca7afb7..25ae500 100644
      fd->weight = QFont::Normal;
      fd->style = QFont::StyleNormal;
 diff --git a/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm b/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
-index 92358ec..694fee7 100644
+index 92358ecc74..694fee7350 100644
 --- a/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
 +++ b/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
 @@ -213,7 +213,8 @@ static void cleanupCocoaApplicationDelegate()
@@ -244,7 +244,7 @@ index 92358ec..694fee7 100644
  
  - (void)appleEventQuit:(NSAppleEventDescriptor *)event withReplyEvent:(NSAppleEventDescriptor *)replyEvent
 diff --git a/src/plugins/platforms/cocoa/qcocoacursor.mm b/src/plugins/platforms/cocoa/qcocoacursor.mm
-index b81b9a0..4e59e83 100644
+index b81b9a0b1c..4e59e833b1 100644
 --- a/src/plugins/platforms/cocoa/qcocoacursor.mm
 +++ b/src/plugins/platforms/cocoa/qcocoacursor.mm
 @@ -81,7 +81,7 @@ void QCocoaCursor::setPos(const QPoint &position)
@@ -256,8 +256,41 @@ index b81b9a0..4e59e83 100644
      CGEventPost(kCGHIDEventTap, e);
      CFRelease(e);
  }
+diff --git a/src/plugins/platforms/cocoa/qcocoahelpers.mm b/src/plugins/platforms/cocoa/qcocoahelpers.mm
+index 9850f83dea..218ed7e81c 100644
+--- a/src/plugins/platforms/cocoa/qcocoahelpers.mm
++++ b/src/plugins/platforms/cocoa/qcocoahelpers.mm
+@@ -649,9 +649,10 @@ OSStatus qt_mac_drawCGImage(CGContextRef inContext, const CGRect *inBounds, CGIm
+     // Verbatim copy if HIViewDrawCGImage (as shown on Carbon-Dev)
+     OSStatus err = noErr;
+ 
+-    require_action(inContext != NULL, InvalidContext, err = paramErr);
+-    require_action(inBounds != NULL, InvalidBounds, err = paramErr);
+-    require_action(inImage != NULL, InvalidImage, err = paramErr);
++    // Patch: Fix build on latest Xcode.
++    //require_action(inContext != NULL, InvalidContext, err = paramErr);
++    //require_action(inBounds != NULL, InvalidBounds, err = paramErr);
++    //require_action(inImage != NULL, InvalidImage, err = paramErr);
+ 
+     CGContextSaveGState( inContext );
+     CGContextTranslateCTM (inContext, 0, inBounds->origin.y + CGRectGetMaxY(*inBounds));
+@@ -660,9 +661,11 @@ OSStatus qt_mac_drawCGImage(CGContextRef inContext, const CGRect *inBounds, CGIm
+     CGContextDrawImage(inContext, *inBounds, inImage);
+ 
+     CGContextRestoreGState(inContext);
+-InvalidImage:
+-InvalidBounds:
+-InvalidContext:
++
++// Patch: Fix build on latest Xcode.
++//InvalidImage:
++//InvalidBounds:
++//InvalidContext:
+         return err;
+ }
+ 
 diff --git a/src/plugins/platforms/cocoa/qcocoaintegration.mm b/src/plugins/platforms/cocoa/qcocoaintegration.mm
-index 9fd05a6..dea6072 100644
+index 9fd05a65ee..dea60720e7 100644
 --- a/src/plugins/platforms/cocoa/qcocoaintegration.mm
 +++ b/src/plugins/platforms/cocoa/qcocoaintegration.mm
 @@ -402,14 +402,24 @@ void QCocoaIntegration::updateScreens()
@@ -288,7 +321,7 @@ index 9fd05a6..dea6072 100644
  
  QCocoaScreen *QCocoaIntegration::screenAtIndex(int index)
 diff --git a/src/plugins/platforms/cocoa/qcocoakeymapper.mm b/src/plugins/platforms/cocoa/qcocoakeymapper.mm
-index e46eaff..c62db53 100644
+index e46eaff6be..c62db534a2 100644
 --- a/src/plugins/platforms/cocoa/qcocoakeymapper.mm
 +++ b/src/plugins/platforms/cocoa/qcocoakeymapper.mm
 @@ -382,6 +382,12 @@ bool QCocoaKeyMapper::updateKeyboard()
@@ -315,7 +348,7 @@ index e46eaff..c62db53 100644
      }
      return ret;
 diff --git a/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm b/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
-index 83c960d..03ae969 100755
+index 83c960d931..03ae9696af 100755
 --- a/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
 +++ b/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
 @@ -102,7 +102,10 @@ QT_USE_NAMESPACE
@@ -483,7 +516,7 @@ index 83c960d..03ae969 100755
  }
  @end
 diff --git a/src/plugins/platforms/cocoa/qcocoawindow.mm b/src/plugins/platforms/cocoa/qcocoawindow.mm
-index 4d0458a..3357a5e 100644
+index 4d0458a4aa..3357a5ef81 100644
 --- a/src/plugins/platforms/cocoa/qcocoawindow.mm
 +++ b/src/plugins/platforms/cocoa/qcocoawindow.mm
 @@ -167,7 +167,8 @@ static bool isMouseEvent(NSEvent *ev)
@@ -546,7 +579,7 @@ index 4d0458a..3357a5e 100644
          [iconButton setImage:image];
          [image release];
 diff --git a/src/plugins/platforms/cocoa/qnsview.mm b/src/plugins/platforms/cocoa/qnsview.mm
-index a18ee7f..1f91feb 100644
+index a18ee7ff71..1f91feb0ae 100644
 --- a/src/plugins/platforms/cocoa/qnsview.mm
 +++ b/src/plugins/platforms/cocoa/qnsview.mm
 @@ -393,7 +393,9 @@ static NSString *_q_NSWindowDidChangeOcclusionStateNotification = nil;
@@ -615,7 +648,7 @@ index a18ee7f..1f91feb 100644
      }
      return [super performKeyEquivalent:nsevent];
 diff --git a/src/tools/qlalr/lalr.cpp b/src/tools/qlalr/lalr.cpp
-index c680764..e2a7aaf 100644
+index c68076477f..e2a7aafa58 100644
 --- a/src/tools/qlalr/lalr.cpp
 +++ b/src/tools/qlalr/lalr.cpp
 @@ -246,11 +246,13 @@ void Grammar::buildExtendedGrammar ()
@@ -655,7 +688,7 @@ index c680764..e2a7aaf 100644
                      continue;
  
 diff --git a/src/widgets/kernel/qwidget.cpp b/src/widgets/kernel/qwidget.cpp
-index 7396808..7178aec 100644
+index 7396808442..7178aecf80 100644
 --- a/src/widgets/kernel/qwidget.cpp
 +++ b/src/widgets/kernel/qwidget.cpp
 @@ -4722,6 +4722,17 @@ void QWidget::render(QPainter *painter, const QPoint &targetOffset,
@@ -708,7 +741,7 @@ index 7396808..7178aec 100644
                  || (k->key() == Qt::Key_Tab && (k->modifiers() & Qt::ShiftModifier)))
                  res = focusNextPrevChild(false);
 diff --git a/src/widgets/styles/qmacstyle_mac.mm b/src/widgets/styles/qmacstyle_mac.mm
-index 0845a5e..5735cb6 100644
+index 0845a5eb02..5735cb6b39 100644
 --- a/src/widgets/styles/qmacstyle_mac.mm
 +++ b/src/widgets/styles/qmacstyle_mac.mm
 @@ -3667,9 +3667,11 @@ void QMacStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPainter
@@ -726,7 +759,7 @@ index 0845a5e..5735cb6 100644
              }
  
 diff --git a/src/widgets/util/qsystemtrayicon_qpa.cpp b/src/widgets/util/qsystemtrayicon_qpa.cpp
-index f98aeaf..00c0734 100644
+index f98aeaf678..00c0734129 100644
 --- a/src/widgets/util/qsystemtrayicon_qpa.cpp
 +++ b/src/widgets/util/qsystemtrayicon_qpa.cpp
 @@ -99,13 +99,18 @@ void QSystemTrayIconPrivate::updateIcon_sys()
@@ -755,7 +788,7 @@ index f98aeaf..00c0734 100644
  }
  
 diff --git a/src/widgets/widgets/qwidgetlinecontrol.cpp b/src/widgets/widgets/qwidgetlinecontrol.cpp
-index 75f3059..980f2be 100644
+index 75f30599be..980f2be1e9 100644
 --- a/src/widgets/widgets/qwidgetlinecontrol.cpp
 +++ b/src/widgets/widgets/qwidgetlinecontrol.cpp
 @@ -1867,7 +1867,8 @@ void QWidgetLineControl::processKeyEvent(QKeyEvent* event)
@@ -769,7 +802,7 @@ index 75f3059..980f2be 100644
  #ifndef QT_NO_COMPLETER
              complete(event->key());
 diff --git a/src/widgets/widgets/qwidgettextcontrol.cpp b/src/widgets/widgets/qwidgettextcontrol.cpp
-index 96438a0..b0b7206 100644
+index 96438a0bdf..b0b7206405 100644
 --- a/src/widgets/widgets/qwidgettextcontrol.cpp
 +++ b/src/widgets/widgets/qwidgettextcontrol.cpp
 @@ -1342,7 +1342,8 @@ void QWidgetTextControlPrivate::keyPressEvent(QKeyEvent *e)

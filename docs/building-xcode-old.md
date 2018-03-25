@@ -49,14 +49,15 @@ Go to ***BuildPath*** and run
     cmake -G "Unix Makefiles" -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.6 -DCMAKE_BUILD_TYPE:STRING=Release -DLIBCXX_ENABLE_SHARED:BOOL=NO -DCMAKE_INSTALL_PREFIX:PATH=/usr/local/macold -DLLVM_PATH=../llvm -DLIBCXXABI_LIBCXX_PATH=../llvm/projects/libcxx ../llvm/projects/libcxxabi/
     make -j4
     sudo make install
-
     cd ../
+
     mkdir libcxx
     cd libcxx
 
     cmake -G "Unix Makefiles" -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.6 -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_INSTALL_PREFIX:PATH=/usr/local/macold -DLIBCXX_ENABLE_SHARED:BOOL=NO -DLIBCXX_CXX_ABI:STRING=libstdc++ -DLIBCXX_CXX_ABI_INCLUDE_PATHS="/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/4.2.1/" -DLLVM_PATH=../llvm/ ../llvm/projects/libcxx/
     make -j4
     sudo make install
+    cd ../
 
     git clone https://github.com/telegramdesktop/zlib.git
     cd zlib
@@ -105,7 +106,7 @@ Go to ***BuildPath*** and run
     cmake -DLIBTYPE:STRING=STATIC -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.6 -DCMAKE_INSTALL_PREFIX:STRING=/usr/local/macold ..
     make -j4
     sudo make install
-    cd ..
+    cd ../..
 
     git clone https://github.com/telegramdesktop/libexif-0.6.20.git
     cd libexif-0.6.20
@@ -133,7 +134,7 @@ Go to ***BuildPath*** and run
     ninja -C out/Release
     cd ..
 
-    CurDir = `pwd`
+    CurDir=`pwd`
 
     git clone git://code.qt.io/qt/qt5.git qt5_3_2
     cd qt5_3_2
@@ -142,7 +143,7 @@ Go to ***BuildPath*** and run
     cd qtimageformats && git checkout v5.3.2 && git apply ../../../../tdesktop/Telegram/Patches/macold/qtimageformats_5_3_2.diff && cd ..
     cd qtbase && git checkout v5.3.2 && git apply ../../../../tdesktop/Telegram/Patches/macold/qtbase_5_3_2.diff && cd ..
 
-    OPENSSL_LIBS="$CurDir/macold/openssl/libssl.a $CurDir/macold/openssl/libcrypto.a" ./configure -prefix "/usr/local/macold/Qt-5.3.2" -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -openssl-linked -I "$CurDir/macold/openssl/include" -nomake examples -nomake tests -platform macx-g++
+    OPENSSL_LIBS="$CurDir/openssl/libssl.a $CurDir/openssl/libcrypto.a" ./configure -prefix "/usr/local/macold/Qt-5.3.2" -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -openssl-linked -I "$CurDir/openssl/include" -no-glib -nomake examples -nomake tests -platform macx-g++
 
     make -j4
     sudo make install
