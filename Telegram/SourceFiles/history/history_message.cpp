@@ -590,7 +590,7 @@ bool HistoryMessage::allowsEdit(TimeId now) const {
 	}();
 	const auto messageTooOld = (messageToMyself || canPinInMegagroup)
 		? false
-		: (now >= date() + Global::EditTimeLimit());
+		: (now - date() >= Global::EditTimeLimit());
 	if (id < 0 || messageTooOld) {
 		return false;
 	}
