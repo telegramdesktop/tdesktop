@@ -281,6 +281,8 @@ messageActionPhoneCall#80e11a7f flags:# call_id:long reason:flags.0?PhoneCallDis
 messageActionScreenshotTaken#4792929b = MessageAction;
 messageActionCustomAction#fae69f56 message:string = MessageAction;
 messageActionBotAllowed#abe9affe domain:string = MessageAction;
+messageActionSecureValuesSentMe#1b287353 values:Vector<SecureValue> credentials:SecureCredentialsEncrypted = MessageAction;
+messageActionSecureValuesSent#d95c6154 types:Vector<SecureValueType> = MessageAction;
 
 dialog#e4def5db flags:# pinned:flags.2?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage = Dialog;
 
@@ -584,12 +586,12 @@ authorization#7bf2e6f6 hash:long flags:int device_model:string platform:string s
 
 account.authorizations#1250abde authorizations:Vector<Authorization> = account.Authorizations;
 
-account.noPassword#c86371bd new_salt:bytes secret_random:bytes email_unconfirmed_pattern:string = account.Password;
-account.password#49efccf5 current_salt:bytes new_salt:bytes secret_random:bytes hint:string has_recovery:Bool email_unconfirmed_pattern:string = account.Password;
+account.noPassword#5ea182f6 new_salt:bytes new_secure_salt:bytes secure_random:bytes email_unconfirmed_pattern:string = account.Password;
+account.password#d06c5fc3 current_salt:bytes new_salt:bytes new_secure_salt:bytes secure_random:bytes hint:string has_recovery:Bool email_unconfirmed_pattern:string = account.Password;
 
-account.passwordSettings#f8ebfc3f email:string secure_secret:bytes = account.PasswordSettings;
+account.passwordSettings#48ec1750 email:string secure_salt:bytes secure_secret:bytes secure_secret_hash:long = account.PasswordSettings;
 
-account.passwordInputSettings#20ce9e59 flags:# new_salt:flags.0?bytes new_password_hash:flags.0?bytes hint:flags.0?string email:flags.1?string new_secure_secret:flags.2?bytes = account.PasswordInputSettings;
+account.passwordInputSettings#e553a6cf flags:# new_salt:flags.0?bytes new_password_hash:flags.0?bytes hint:flags.0?string email:flags.1?string new_secure_salt:flags.2?bytes new_secure_secret:flags.2?bytes new_secure_secret_hash:flags.2?long = account.PasswordInputSettings;
 
 auth.passwordRecovery#137948a5 email_pattern:string = auth.PasswordRecovery;
 
@@ -965,36 +967,40 @@ help.proxyDataPromo#2bf7ee23 expires:int peer:Peer chats:Vector<Chat> users:Vect
 help.termsOfServiceUpdateEmpty#e3309f7f expires:int = help.TermsOfServiceUpdate;
 help.termsOfServiceUpdate#28ecf961 expires:int terms_of_service:help.TermsOfService = help.TermsOfServiceUpdate;
 
-inputSecureFileUploaded#c53ed020 id:long parts:int md5_checksum:string file_hash:string = InputSecureFile;
+inputSecureFileUploaded#c53ed020 id:long parts:int md5_checksum:string file_hash:bytes = InputSecureFile;
 inputSecureFile#5367e5be id:long access_hash:long = InputSecureFile;
 
 secureFileEmpty#64199744 = SecureFile;
-secureFile#40ad69ba id:long access_hash:long size:int dc_id:int file_hash:string = SecureFile;
+secureFile#40ad69ba id:long access_hash:long size:int dc_id:int file_hash:bytes = SecureFile;
 
-secureValueEmpty#f0cec6e0 name:string = SecureValue;
-secureValueData#6c3bf275 name:string data:bytes hash:string secret:bytes = SecureValue;
-secureValueFile#a145a158 name:string file:Vector<SecureFile> hash:string secret:bytes = SecureValue;
-secureValueText#1bb37ce3 name:string text:string hash:string = SecureValue;
+secureData#262b0134 data:bytes data_hash:bytes = SecureData;
 
-inputSecureValueData#627bcf0d name:string data:bytes hash:string secret:bytes = InputSecureValue;
-inputSecureValueFile#e24f9466 name:string file:Vector<InputSecureFile> hash:string secret:bytes = InputSecureValue;
-inputSecureValueText#955a14bb name:string text:string hash:string = InputSecureValue;
+secureValueVerified#612d86df date:int provider:string = SecureValueVerified;
 
-secureValueHash#e4c2677 name:string hash:string = SecureValueHash;
+secureValueTypeIdentity#37da58ca = SecureValueType;
+secureValueTypeAddress#cbe31e26 = SecureValueType;
+secureValueTypePhone#b320aadb = SecureValueType;
+secureValueTypeEmail#8e3ca7ee = SecureValueType;
 
-authFieldTypeIdentity#4413b5d = AuthFieldType;
-authFieldTypeAddress#63bbccf3 = AuthFieldType;
-authFieldTypePhone#b56120ff = AuthFieldType;
-authFieldTypeEmail#4cc9fd06 = AuthFieldType;
+secureValueIdentity#a6c927ad flags:# data:SecureData files:Vector<SecureFile> secret:bytes hash:bytes verified:flags.0?SecureValueVerified = SecureValue;
+secureValueAddress#74a0d79c flags:# data:SecureData files:Vector<SecureFile> secret:bytes hash:bytes verified:flags.0?SecureValueVerified = SecureValue;
+secureValuePhone#a1ca84fe flags:# phone:string hash:bytes verified:flags.0?SecureValueVerified = SecureValue;
+secureValueEmail#c4db6579 flags:# email:string hash:bytes verified:flags.0?SecureValueVerified = SecureValue;
 
-authField#ed81c3dc flags:# type:AuthFieldType data:SecureValue document:flags.0?SecureValue = AuthField;
+inputSecureValueIdentity#ae27d606 data:SecureData files:Vector<InputSecureFile> secret:bytes hash:bytes = InputSecureValue;
+inputSecureValueAddress#c1f733e5 data:SecureData files:Vector<InputSecureFile> secret:bytes hash:bytes = InputSecureValue;
+inputSecureValuePhone#141e00b8 phone:string hash:bytes = InputSecureValue;
+inputSecureValueEmail#2dc15b9a email:string hash:bytes = InputSecureValue;
 
-account.secureValueResultSaved#f4e0ab11 = account.SecureValueResult;
-account.secureValueVerificationNeeded#9192a1db code_hash:string = account.SecureValueResult;
+secureValueHash#ed1ecdb0 type:SecureValueType hash:bytes = SecureValueHash;
 
-account.authorizationForm#40997b71 flags:# accepted:flags.0?true request_write:flags.1?true bot_id:int fields:Vector<AuthField> accepted_fields:Vector<AuthFieldType> users:Vector<User> = account.AuthorizationForm;
+secureValueSaved#c9147049 files:Vector<SecureFile> = SecureValueSaved;
 
-account.authorizationResult#836727ce user_data:DataJSON accepted_fields:Vector<AuthFieldType> = account.AuthorizationResult;
+secureCredentialsEncrypted#628fe12a data:bytes secret:bytes hash:bytes = SecureCredentialsEncrypted;
+
+account.authorizationForm#8d9dddeb flags:# accepted:flags.0?true required_types:Vector<SecureValueType> values:Vector<SecureValue> users:Vector<User> = account.AuthorizationForm;
+
+account.sentEmailCode#28b1633b email_pattern:string = account.SentEmailCode;
 
 ---functions---
 
@@ -1051,11 +1057,15 @@ account.getTmpPassword#4a82327e password_hash:bytes period:int = account.TmpPass
 account.getWebAuthorizations#182e6d6f = account.WebAuthorizations;
 account.resetWebAuthorization#2d01b9ef hash:long = Bool;
 account.resetWebAuthorizations#682d2594 = Bool;
-account.getSecureValue#d86fa683 user_id:InputUser name:Vector<string> = Vector<SecureValue>;
-account.saveSecureValue#9fc2a624 data:InputSecureValue = account.SecureValueResult;
-account.verifySecureValue#68367bed name:string code_hash:string code:string = Bool;
-account.getAuthorizationForm#2f003837 flags:# bot_id:int scope:Vector<string> origin:flags.0?string package_name:flags.1?string bundle_id:flags.2?string public_key:flags.3?string = account.AuthorizationForm;
-account.acceptAuthorization#df98a3f5 flags:# request_write:flags.4?true bot_id:int scope:Vector<string> origin:flags.0?string package_name:flags.1?string bundle_id:flags.2?string public_key:flags.3?string accepted_fields:Vector<AuthFieldType> value_hashes:Vector<secureValueHash> = account.AuthorizationResult;
+account.getSecureValue#d97e77cb user_id:InputUser types:Vector<SecureValueType> = Vector<SecureValue>;
+account.saveSecureValue#842659a5 value:InputSecureValue secure_secret_hash:long = SecureValueSaved;
+account.deleteSecureValue#b880bc4b types:Vector<SecureValueType> = Bool;
+account.getAuthorizationForm#b86ba8e1 bot_id:int scope:string public_key:string = account.AuthorizationForm;
+account.acceptAuthorization#e7027c94 bot_id:int scope:string public_key:string value_hashes:Vector<SecureValueHash> credentials:SecureCredentialsEncrypted = Bool;
+account.sendVerifyPhoneCode#823380b4 flags:# allow_flashcall:flags.0?true phone_number:string current_number:flags.0?Bool = auth.SentCode;
+account.verifyPhone#4dd3a7f6 phone_number:string phone_code_hash:string phone_code:string = Bool;
+account.sendVerifyEmailCode#7011509f email:string = account.SentEmailCode;
+account.verifyEmail#ecba39db email:string code:string = Bool;
 
 users.getUsers#d91a548 id:Vector<InputUser> = Vector<User>;
 users.getFullUser#ca30a5b1 id:InputUser = UserFull;

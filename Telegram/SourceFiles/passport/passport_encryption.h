@@ -18,6 +18,11 @@ bytes::vector DecryptSecretBytes(
 	bytes::const_span encryptedSecret,
 	bytes::const_span passwordHashForSecret);
 
+bytes::vector DecryptSecureSecret(
+	bytes::const_span salt,
+	bytes::const_span encryptedSecret,
+	bytes::const_span password);
+
 bytes::vector PasswordHashForSecret(bytes::const_span passwordUtf8);
 
 bytes::vector SerializeData(const std::map<QString, QString> &data);
@@ -57,5 +62,7 @@ bytes::vector DecryptValueSecret(
 bytes::vector PrepareFilesHash(
 	gsl::span<bytes::const_span> fileHashes,
 	bytes::const_span valueSecret);
+
+uint64 CountSecureSecretHash(bytes::const_span secret);
 
 } // namespace Passport

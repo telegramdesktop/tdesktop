@@ -85,12 +85,14 @@ void CloudPasswordState::onTurnOff() {
 			MTPaccount_UpdatePasswordSettings(
 				MTP_bytes(QByteArray()),
 				MTP_account_passwordInputSettings(
-			MTP_flags(MTPDaccount_passwordInputSettings::Flag::f_email),
-			MTP_bytes(QByteArray()),
-			MTP_bytes(QByteArray()),
-			MTP_string(QString()),
-			MTP_string(QString()),
-			MTP_bytes(QByteArray()))),
+					MTP_flags(MTPDaccount_passwordInputSettings::Flag::f_email),
+					MTP_bytes(QByteArray()), // new_salt
+					MTP_bytes(QByteArray()), // new_password_hash
+					MTP_string(QString()), // hint
+					MTP_string(QString()), // email
+					MTP_bytes(QByteArray()), // new_secure_salt
+					MTP_bytes(QByteArray()), // new_secure_secret
+					MTP_long(0))), // new_secure_secret_hash
 			rpcDone(&CloudPasswordState::offPasswordDone),
 			rpcFail(&CloudPasswordState::offPasswordFail));
 	} else {

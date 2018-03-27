@@ -914,7 +914,7 @@ bool Messenger::openLocalUrl(const QString &url) {
 			authMatch->captured(1),
 			UrlParamNameTransform::ToLower);
 		if (const auto botId = params.value("bot_id", QString()).toInt()) {
-			const auto scope = params.value("scope", QString()).split(',');
+			const auto scope = params.value("scope", QString());
 			const auto callback = params.value("callback_url", QString());
 			const auto publicKey = params.value("public_key", QString());
 			if (const auto window = App::wnd()) {

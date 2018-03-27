@@ -166,6 +166,11 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareSecureValuesSent = [&](const MTPDmessageActionSecureValuesSent &action) {
+		// #TODO passport
+		return PreparedText{ QString("Secure values sent.") };
+	};
+
 	auto messageText = PreparedText {};
 
 	switch (action.type()) {
@@ -187,6 +192,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	case mtpc_messageActionScreenshotTaken: messageText = prepareScreenshotTaken(); break;
 	case mtpc_messageActionCustomAction: messageText = prepareCustomAction(action.c_messageActionCustomAction()); break;
 	case mtpc_messageActionBotAllowed: messageText = prepareBotAllowed(action.c_messageActionBotAllowed()); break;
+	case mtpc_messageActionSecureValuesSent: messageText = prepareSecureValuesSent(action.c_messageActionSecureValuesSent()); break;
 	default: messageText.text = lang(lng_message_empty); break;
 	}
 

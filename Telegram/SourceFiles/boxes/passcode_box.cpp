@@ -331,6 +331,8 @@ void PasscodeBox::save(bool force) {
 				flags |= MTPDaccount_passwordInputSettings::Flag::f_email;
 			}
 			const auto newSecureSecret = bytes::vector();
+			const auto newSecureSalt = bytes::vector();
+			const auto newSecureSecretHash = 0ULL;
 			_setRequest = MTP::send(
 				MTPaccount_UpdatePasswordSettings(
 					MTP_bytes(oldPasswordHash),
@@ -340,7 +342,9 @@ void PasscodeBox::save(bool force) {
 						MTP_bytes(newPasswordHash),
 						MTP_string(hint),
 						MTP_string(email),
-						MTP_bytes(newSecureSecret))),
+						MTP_bytes(newSecureSalt),
+						MTP_bytes(newSecureSecret),
+						MTP_long(newSecureSecretHash))),
 				rpcDone(&PasscodeBox::setPasswordDone),
 				rpcFail(&PasscodeBox::setPasswordFail));
 		}

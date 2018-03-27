@@ -25,12 +25,12 @@ namespace Passport {
 struct FormRequest {
 	FormRequest(
 		UserId botId,
-		const QStringList &scope,
+		const QString &scope,
 		const QString &callbackUrl,
 		const QString &publicKey);
 
 	UserId botId;
-	QStringList scope;
+	QString scope;
 	QString callbackUrl;
 	QString publicKey;
 
@@ -128,23 +128,9 @@ private:
 		File fields;
 		std::unique_ptr<UploadedScan> uploaded;
 	};
-	struct Value {
-		QString name;
-
-		QByteArray dataEncrypted;
-		QByteArray dataHash;
-		QByteArray dataSecretEncrypted;
-		std::map<QString, QString> values;
-
-		QString text;
-		QByteArray textHash;
-
-		std::vector<File> files;
-		QByteArray filesHash;
-		QByteArray filesSecretEncrypted;
-		bytes::vector filesSecret;
-
-		std::vector<EditFile> filesInEdit;
+	struct Verification {
+		TimeId date;
+		QString provider;
 	};
 	struct Field {
 		enum class Type {
@@ -153,25 +139,36 @@ private:
 			Phone,
 			Email,
 		};
+
 		explicit Field(Type type);
 		Field(Field &&other) = default;
+		Field &operator=(Field &&other) = default;
 
 		Type type;
-		Value data;
-		base::optional<Value> document;
+		QByteArray originalData;
+		std::map<QString, QString> parsedData;
+		bytes::vector dataHash;
+		std::vector<File> files;
+		std::vector<EditFile> filesInEdit;
+		bytes::vector secret;
+		bytes::vector encryptedSecret;
+		bytes::vector hash;
+		base::optional<Verification> verification;
 	};
 	struct Form {
 		bool requestWrite = false;
 		std::vector<Field> fields;
 	};
 	struct PasswordSettings {
-		QByteArray salt;
-		QByteArray newSalt;
+		bytes::vector salt;
+		bytes::vector newSalt;
+		bytes::vector newSecureSalt;
 		QString hint;
 		QString unconfirmedPattern;
+		QString confirmedEmail;
 		bool hasRecovery = false;
 	};
-	Value convertValue(const MTPSecureValue &value) const;
+
 	EditFile *findEditFile(const FullMsgId &fullId);
 	std::pair<Field*, File*> findFile(const FileKey &key);
 
@@ -182,21 +179,39 @@ private:
 	void formFail(const RPCError &error);
 	void parseForm(const MTPaccount_AuthorizationForm &result);
 	void showForm();
+	Field parseValue(const MTPSecureValue &value) const;
+	template <typename DataType>
+	Field parseEncryptedField(
+		Field::Type type,
+		const DataType &data) const;
+	template <typename DataType>
+	Field parsePlainTextField(
+		Field::Type type,
+		const QByteArray &value,
+		const DataType &data) const;
+	Verification parseVerified(const MTPSecureValueVerified &data) const;
 
 	void passwordDone(const MTPaccount_Password &result);
 	void passwordFail(const RPCError &error);
 	void parsePassword(const MTPDaccount_noPassword &settings);
 	void parsePassword(const MTPDaccount_password &settings);
+	bytes::vector passwordHashForAuth(bytes::const_span password) const;
+	void validateSecureSecret(
+		bytes::const_span salt,
+		bytes::const_span encryptedSecret,
+		bytes::const_span password);
+	void decryptFields();
+	void decryptField(Field &field);
+	bool validateFieldSecret(Field &field);
+	void resetField(Field &field);
 
 	IdentityData fieldDataIdentity(const Field &field) const;
 	std::vector<ScanInfo> fieldFilesIdentity(const Field &field) const;
+	void saveIdentity(int index);
 
 	void loadFiles(const std::vector<File> &files);
 	void fileLoaded(FileKey key, const QByteArray &bytes);
-	std::map<QString, QString> fillData(const Value &from) const;
-	void saveData(int index);
-	void saveFiles(int index);
-	void generateSecret(base::lambda<void()> callback);
+	void generateSecret(bytes::const_span password);
 
 	template <typename FileHashes>
 	bytes::vector computeFilesHash(
@@ -210,7 +225,6 @@ private:
 	not_null<Window::Controller*> _controller;
 	FormRequest _request;
 	UserData *_bot = nullptr;
-	QString _origin;
 
 	mtpRequestId _formRequestId = 0;
 	mtpRequestId _passwordRequestId = 0;
@@ -221,12 +235,9 @@ private:
 	std::map<FileKey, std::unique_ptr<mtpFileLoader>> _fileLoaders;
 	rpl::event_stream<ScanInfo> _scanUpdated;
 
-	bytes::vector _passwordHashForSecret;
-	bytes::vector _passwordHashForAuth;
 	bytes::vector _secret;
 	std::vector<base::lambda<void()>> _secretCallbacks;
 	mtpRequestId _saveSecretRequestId = 0;
-	QString _passwordEmail;
 	rpl::event_stream<> _secretReady;
 	rpl::event_stream<QString> _passwordError;
 
