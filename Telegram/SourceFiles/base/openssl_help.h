@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <openssl/bn.h>
 #include <openssl/sha.h>
 #include <openssl/rand.h>
+#include <openssl/aes.h>
+#include <openssl/crypto.h>
 #include "base/bytes.h"
 
 namespace openssl {
@@ -61,7 +63,7 @@ public:
 	explicit BigNum(unsigned int word) : BigNum() {
 		setWord(word);
 	}
-	explicit BigNum(base::const_byte_span bytes) : BigNum() {
+	explicit BigNum(bytes::const_span bytes) : BigNum() {
 		setBytes(bytes);
 	}
 
@@ -70,7 +72,7 @@ public:
 			_failed = true;
 		}
 	}
-	void setBytes(base::const_byte_span bytes) {
+	void setBytes(bytes::const_span bytes) {
 		if (!BN_bin2bn(
 				reinterpret_cast<const unsigned char*>(bytes.data()),
 				bytes.size(),
@@ -162,12 +164,12 @@ public:
 		return failed() ? 0 : BN_num_bytes(raw());
 	}
 
-	base::byte_vector getBytes() const {
+	bytes::vector getBytes() const {
 		if (failed()) {
-			return base::byte_vector();
+			return {};
 		}
 		auto length = BN_num_bytes(raw());
-		auto result = base::byte_vector(length, gsl::byte());
+		auto result = bytes::vector(length);
 		auto resultSize = BN_bn2bin(
 			raw(),
 			reinterpret_cast<unsigned char*>(result.data()));
@@ -207,44 +209,35 @@ inline BigNum operator-(const BigNum &a, const BigNum &b) {
 	return result;
 }
 
-inline base::byte_array<SHA512_DIGEST_LENGTH> Sha512(
-		base::const_byte_span bytes) {
-	auto result = base::byte_array<SHA512_DIGEST_LENGTH>();
+inline bytes::vector Sha512(bytes::const_span data) {
+	auto result = bytes::vector(SHA512_DIGEST_LENGTH);
 	SHA512(
-		reinterpret_cast<const unsigned char*>(bytes.data()),
-		bytes.size(),
+		reinterpret_cast<const unsigned char*>(data.data()),
+		data.size(),
 		reinterpret_cast<unsigned char*>(result.data()));
 	return result;
 }
 
-inline base::byte_array<SHA256_DIGEST_LENGTH> Sha256(
-		base::const_byte_span bytes) {
-	auto result = base::byte_array<SHA256_DIGEST_LENGTH>();
+inline bytes::vector Sha256(bytes::const_span data) {
+	auto result = bytes::vector(SHA256_DIGEST_LENGTH);
 	SHA256(
-		reinterpret_cast<const unsigned char*>(bytes.data()),
-		bytes.size(),
+		reinterpret_cast<const unsigned char*>(data.data()),
+		data.size(),
 		reinterpret_cast<unsigned char*>(result.data()));
 	return result;
 }
 
-inline base::byte_array<SHA_DIGEST_LENGTH> Sha1(
-		base::const_byte_span bytes) {
-	auto result = base::byte_array<SHA_DIGEST_LENGTH>();
+inline bytes::vector Sha1(bytes::const_span data) {
+	auto result = bytes::vector(SHA_DIGEST_LENGTH);
 	SHA1(
-		reinterpret_cast<const unsigned char*>(bytes.data()),
-		bytes.size(),
+		reinterpret_cast<const unsigned char*>(data.data()),
+		data.size(),
 		reinterpret_cast<unsigned char*>(result.data()));
 	return result;
 }
 
-inline int FillRandom(base::byte_span bytes) {
-	return RAND_bytes(
-		reinterpret_cast<unsigned char*>(bytes.data()),
-		bytes.size());
-}
-
-inline void AddRandomSeed(base::const_byte_span bytes) {
-	RAND_seed(bytes.data(), bytes.size());
+inline void AddRandomSeed(bytes::const_span data) {
+	RAND_seed(data.data(), data.size());
 }
 
 } // namespace openssl

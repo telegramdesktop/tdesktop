@@ -109,16 +109,16 @@ private:
 		uint64 fileId = 0;
 		int partsCount = 0;
 		QByteArray md5checksum;
-		base::byte_vector hash;
-		base::byte_vector bytes;
+		bytes::vector hash;
+		bytes::vector bytes;
 	};
 	struct File {
 		uint64 id = 0;
 		uint64 accessHash = 0;
 		int32 size = 0;
 		int32 dcId = 0;
-		base::byte_vector fileHash;
-		base::byte_vector bytes;
+		bytes::vector fileHash;
+		bytes::vector bytes;
 	};
 	struct EditFile {
 		EditFile(
@@ -142,7 +142,7 @@ private:
 		std::vector<File> files;
 		QByteArray filesHash;
 		QByteArray filesSecretEncrypted;
-		base::byte_vector filesSecret;
+		bytes::vector filesSecret;
 
 		std::vector<EditFile> filesInEdit;
 	};
@@ -199,9 +199,9 @@ private:
 	void generateSecret(base::lambda<void()> callback);
 
 	template <typename FileHashes>
-	base::byte_vector computeFilesHash(
+	bytes::vector computeFilesHash(
 		FileHashes fileHashes,
-		base::const_byte_span valueHash);
+		bytes::const_span valueHash);
 
 	void subscribeToUploader();
 	void uploadEncryptedScan(int index, UploadedScan &&data);
@@ -221,9 +221,9 @@ private:
 	std::map<FileKey, std::unique_ptr<mtpFileLoader>> _fileLoaders;
 	rpl::event_stream<ScanInfo> _scanUpdated;
 
-	base::byte_vector _passwordHashForSecret;
-	base::byte_vector _passwordHashForAuth;
-	base::byte_vector _secret;
+	bytes::vector _passwordHashForSecret;
+	bytes::vector _passwordHashForAuth;
+	bytes::vector _secret;
 	std::vector<base::lambda<void()>> _secretCallbacks;
 	mtpRequestId _saveSecretRequestId = 0;
 	QString _passwordEmail;

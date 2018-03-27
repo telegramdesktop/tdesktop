@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/passcode_box.h"
 
+#include "base/bytes.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
 #include "mainwindow.h"
@@ -329,7 +330,7 @@ void PasscodeBox::save(bool force) {
 			if (_oldPasscode->isHidden() || _newPasscode->isHidden()) {
 				flags |= MTPDaccount_passwordInputSettings::Flag::f_email;
 			}
-			const auto newSecureSecret = base::byte_vector();
+			const auto newSecureSecret = bytes::vector();
 			_setRequest = MTP::send(
 				MTPaccount_UpdatePasswordSettings(
 					MTP_bytes(oldPasswordHash),

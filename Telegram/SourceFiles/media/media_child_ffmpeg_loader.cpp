@@ -38,7 +38,7 @@ ChildFFMpegLoader::ChildFFMpegLoader(std::unique_ptr<VideoSoundData> &&data)
 : AbstractAudioFFMpegLoader(
 	FileLocation(),
 	QByteArray(),
-	base::byte_vector())
+	bytes::vector())
 , _parentData(std::move(data)) {
 }
 

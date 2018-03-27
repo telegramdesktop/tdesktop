@@ -49,12 +49,13 @@ FormController::Field::Field(Type type) : type(type) {
 }
 
 template <typename FileHashes>
-base::byte_vector FormController::computeFilesHash(
+bytes::vector FormController::computeFilesHash(
 		FileHashes fileHashes,
-		base::const_byte_span valueSecret) {
-	auto hashesVector = std::vector<base::const_byte_span>();
+		bytes::const_span valueSecret) {
+	auto vec = bytes::concatenate(fileHashes);
+	auto hashesVector = std::vector<bytes::const_span>();
 	for (const auto &hash : fileHashes) {
-		hashesVector.push_back(gsl::as_bytes(gsl::make_span(hash)));
+		hashesVector.push_back(bytes::make_span(hash));
 	}
 	return PrepareFilesHash(hashesVector, valueSecret);
 }
@@ -82,9 +83,10 @@ void FormController::submitPassword(const QString &password) {
 		_passwordError.fire(QString());
 	}
 	const auto passwordBytes = password.toUtf8();
-	const auto data = _password.salt + passwordBytes + _password.salt;
-	const auto hash = openssl::Sha256(gsl::as_bytes(gsl::make_span(data)));
-	_passwordHashForAuth = { hash.begin(), hash.end() };
+	_passwordHashForAuth = openssl::Sha256(bytes::concatenate(
+		bytes::make_span(_password.salt),
+		bytes::make_span(passwordBytes),
+		bytes::make_span(_password.salt)));
 	_passwordCheckRequestId = request(MTPaccount_GetPasswordSettings(
 		MTP_bytes(_passwordHashForAuth)
 	)).handleFloodErrors(
@@ -94,17 +96,16 @@ void FormController::submitPassword(const QString &password) {
 		_passwordCheckRequestId = 0;
 		const auto &data = result.c_account_passwordSettings();
 		_passwordEmail = qs(data.vemail);
-		const auto hash = openssl::Sha512(gsl::as_bytes(gsl::make_span(passwordBytes)));
-		_passwordHashForSecret = { hash.begin(), hash.end() };
+		_passwordHashForSecret = openssl::Sha512(bytes::make_span(passwordBytes));
 		_secret = DecryptSecretBytes(
-			bytesFromMTP(data.vsecure_secret),
+			bytes::make_span(data.vsecure_secret.v),
 			_passwordHashForSecret);
 		for (auto &field : _form.fields) {
 			field.data.values = fillData(field.data);
 			if (auto &document = field.document) {
-				const auto filesHash = gsl::as_bytes(gsl::make_span(document->filesHash));
+				const auto filesHash = bytes::make_span(document->filesHash);
 				document->filesSecret = DecryptValueSecret(
-					gsl::as_bytes(gsl::make_span(document->filesSecretEncrypted)),
+					bytes::make_span(document->filesSecretEncrypted),
 					_secret,
 					filesHash);
 				if (document->filesSecret.empty()
@@ -154,7 +155,7 @@ void FormController::uploadScan(int index, QByteArray &&content) {
 		filesSecret = document.filesSecret
 	] {
 		auto data = EncryptData(
-			gsl::as_bytes(gsl::make_span(bytes)),
+			bytes::make_span(bytes),
 			filesSecret);
 		auto result = UploadedScan();
 		result.fileId = rand_value<uint64>();
@@ -350,7 +351,7 @@ void FormController::loadFiles(const std::vector<File> &files) {
 void FormController::fileLoaded(FileKey key, const QByteArray &bytes) {
 	if (const auto [field, file] = findFile(key); file != nullptr) {
 		const auto decrypted = DecryptData(
-			gsl::as_bytes(gsl::make_span(bytes)),
+			bytes::make_span(bytes),
 			file->fileHash,
 			field->document->filesSecret);
 		auto image = App::readImage(QByteArray::fromRawData(
@@ -413,13 +414,13 @@ std::map<QString, QString> FormController::fillData(
 	if (from.dataEncrypted.isEmpty()) {
 		return {};
 	}
-	const auto valueHash = gsl::as_bytes(gsl::make_span(from.dataHash));
+	const auto valueHash = bytes::make_span(from.dataHash);
 	const auto valueSecret = DecryptValueSecret(
-		gsl::as_bytes(gsl::make_span(from.dataSecretEncrypted)),
+		bytes::make_span(from.dataSecretEncrypted),
 		_secret,
 		valueHash);
 	return DeserializeData(DecryptData(
-		gsl::as_bytes(gsl::make_span(from.dataEncrypted)),
+		bytes::make_span(from.dataEncrypted),
 		valueHash,
 		valueSecret));
 }
@@ -490,7 +491,7 @@ void FormController::saveFiles(int index) {
 		ranges::view::all(
 			document.filesInEdit
 		) | ranges::view::transform([=](const EditFile &file) {
-			return gsl::as_bytes(gsl::make_span(file.fields.fileHash));
+			return bytes::make_span(file.fields.fileHash);
 		}),
 		document.filesSecret);
 
@@ -714,7 +715,7 @@ auto FormController::convertValue(
 				if (normal.fileHash.size() != 32) {
 					normal.fileHash.clear();
 				}
-//				normal.fileHash = byteVectorFromMTP(fields.vfile_hash);
+//				normal.fileHash = bytes::make_vector(fields.vfile_hash.v);
 				result.files.push_back(std::move(normal));
 			} break;
 			}
@@ -837,8 +838,7 @@ void FormController::passwordFail(const RPCError &error) {
 void FormController::parsePassword(const MTPDaccount_noPassword &result) {
 	_password.unconfirmedPattern = qs(result.vemail_unconfirmed_pattern);
 	_password.newSalt = result.vnew_salt.v;
-	openssl::AddRandomSeed(
-		gsl::as_bytes(gsl::make_span(result.vsecret_random.v)));
+	openssl::AddRandomSeed(bytes::make_span(result.vsecret_random.v));
 }
 
 void FormController::parsePassword(const MTPDaccount_password &result) {
@@ -847,8 +847,7 @@ void FormController::parsePassword(const MTPDaccount_password &result) {
 	_password.salt = result.vcurrent_salt.v;
 	_password.unconfirmedPattern = qs(result.vemail_unconfirmed_pattern);
 	_password.newSalt = result.vnew_salt.v;
-	openssl::AddRandomSeed(
-		gsl::as_bytes(gsl::make_span(result.vsecret_random.v)));
+	openssl::AddRandomSeed(bytes::make_span(result.vsecret_random.v));
 }
 
 FormController::~FormController() = default;

@@ -139,7 +139,7 @@ bool IsPrimeAndGoodCheck(const openssl::BigNum &prime, int g) {
 	return true;
 }
 
-bool IsPrimeAndGood(base::const_byte_span primeBytes, int g) {
+bool IsPrimeAndGood(bytes::const_span primeBytes, int g) {
 	static constexpr unsigned char GoodPrime[] = {
 		0xC7, 0x1C, 0xAE, 0xB9, 0xC6, 0xB1, 0xC9, 0x04, 0x8E, 0x6C, 0x52, 0x2F, 0x70, 0xF1, 0x3F, 0x73,
 		0x98, 0x0D, 0x40, 0x23, 0x8E, 0x3E, 0x21, 0xC1, 0x49, 0x34, 0xD0, 0x37, 0x56, 0x3D, 0x93, 0x0F,
@@ -158,7 +158,7 @@ bool IsPrimeAndGood(base::const_byte_span primeBytes, int g) {
 		0x0D, 0x81, 0x15, 0xF6, 0x35, 0xB1, 0x05, 0xEE, 0x2E, 0x4E, 0x15, 0xD0, 0x4B, 0x24, 0x54, 0xBF,
 		0x6F, 0x4F, 0xAD, 0xF0, 0x34, 0xB1, 0x04, 0x03, 0x11, 0x9C, 0xD8, 0xE3, 0xB9, 0x2F, 0xCC, 0x5B };
 
-	if (!base::compare_bytes(gsl::as_bytes(gsl::make_span(GoodPrime)), primeBytes)) {
+	if (!bytes::compare(bytes::make_span(GoodPrime), primeBytes)) {
 		if (g == 3 || g == 4 || g == 5 || g == 7) {
 			return true;
 		}
@@ -167,31 +167,32 @@ bool IsPrimeAndGood(base::const_byte_span primeBytes, int g) {
 	return IsPrimeAndGoodCheck(openssl::BigNum(primeBytes), g);
 }
 
-std::vector<gsl::byte> CreateAuthKey(
-		base::const_byte_span firstBytes,
-		base::const_byte_span randomBytes,
-		base::const_byte_span primeBytes) {
+bytes::vector CreateAuthKey(
+		bytes::const_span firstBytes,
+		bytes::const_span randomBytes,
+		bytes::const_span primeBytes) {
 	using openssl::BigNum;
 	BigNum first(firstBytes);
 	BigNum prime(primeBytes);
 	if (!IsGoodModExpFirst(first, prime)) {
 		LOG(("AuthKey Error: Bad first prime in CreateAuthKey()."));
-		return std::vector<gsl::byte>();
+		return {};
 	}
 	return BigNum::ModExp(first, BigNum(randomBytes), prime).getBytes();
 }
 
 ModExpFirst CreateModExp(
 		int g,
-		base::const_byte_span primeBytes,
-		base::const_byte_span randomSeed) {
+		bytes::const_span primeBytes,
+		bytes::const_span randomSeed) {
 	Expects(randomSeed.size() == ModExpFirst::kRandomPowerSize);
 
 	using namespace openssl;
 
 	BigNum prime(primeBytes);
-	ModExpFirst result;
+	auto result = ModExpFirst();
 	constexpr auto kMaxModExpFirstTries = 5;
+	result.randomPower.resize(ModExpFirst::kRandomPowerSize);
 	for (auto tries = 0; tries != kMaxModExpFirstTries; ++tries) {
 		bytes::set_random(result.randomPower);
 		for (auto i = 0; i != ModExpFirst::kRandomPowerSize; ++i) {
@@ -2606,7 +2607,9 @@ void ConnectionPrivate::pqAnswered() {
 	sendRequestNotSecure(req_DH_params);
 }
 
-base::byte_vector ConnectionPrivate::encryptPQInnerRSA(const MTPP_Q_inner_data &data, const MTP::internal::RSAPublicKey &key) {
+bytes::vector ConnectionPrivate::encryptPQInnerRSA(
+		const MTPP_Q_inner_data &data,
+		const MTP::internal::RSAPublicKey &key) {
 	auto p_q_inner_size = data.innerLength();
 	auto encSize = (p_q_inner_size >> 2) + 6;
 	if (encSize >= 65) {
@@ -2615,7 +2618,7 @@ base::byte_vector ConnectionPrivate::encryptPQInnerRSA(const MTPP_Q_inner_data &
 		data.write(tmp);
 		LOG(("AuthKey Error: too large data for RSA encrypt, size %1").arg(encSize * sizeof(mtpPrime)));
 		DEBUG_LOG(("AuthKey Error: bad data for RSA encrypt %1").arg(Logs::mb(&tmp[0], tmp.size() * 4).str()));
-		return base::byte_vector(); // can't be 255-byte string
+		return {}; // can't be 255-byte string
 	}
 
 	auto encBuffer = mtpBuffer();
@@ -2630,7 +2633,7 @@ base::byte_vector ConnectionPrivate::encryptPQInnerRSA(const MTPP_Q_inner_data &
 		memset_rand(&encBuffer[encSize], (65 - encSize) * sizeof(mtpPrime));
 	}
 
-	auto bytes = gsl::as_bytes(gsl::make_span(encBuffer));
+	auto bytes = bytes::make_span(encBuffer);
 	auto bytesToEncrypt = bytes.subspan(3, 256);
 	return key.encrypt(bytesToEncrypt);
 }
@@ -2710,14 +2713,15 @@ void ConnectionPrivate::dhParamsAnswered() {
 		unixtimeSet(dh_inner_data.vserver_time.v);
 
 		// check that dhPrime and (dhPrime - 1) / 2 are really prime
-		if (!IsPrimeAndGood(bytesFromMTP(dh_inner_data.vdh_prime), dh_inner_data.vg.v)) {
+		if (!IsPrimeAndGood(bytes::make_span(dh_inner_data.vdh_prime.v), dh_inner_data.vg.v)) {
 			LOG(("AuthKey Error: bad dh_prime primality!"));
 			return restart();
 		}
 
-		_authKeyStrings->dh_prime = byteVectorFromMTP(dh_inner_data.vdh_prime);
+		_authKeyStrings->dh_prime = bytes::make_vector(
+			dh_inner_data.vdh_prime.v);
 		_authKeyData->g = dh_inner_data.vg.v;
-		_authKeyStrings->g_a = byteVectorFromMTP(dh_inner_data.vg_a);
+		_authKeyStrings->g_a = bytes::make_vector(dh_inner_data.vg_a.v);
 		_authKeyData->retry_id = MTP_long(0);
 		_authKeyData->retries = 0;
 	} return dhClientParamsSend();
@@ -2755,7 +2759,7 @@ void ConnectionPrivate::dhClientParamsSend() {
 	}
 
 	// gen rand 'b'
-	auto randomSeed = std::array<gsl::byte, ModExpFirst::kRandomPowerSize>();
+	auto randomSeed = bytes::vector(ModExpFirst::kRandomPowerSize);
 	bytes::set_random(randomSeed);
 	auto g_b_data = CreateModExp(_authKeyData->g, _authKeyStrings->dh_prime, randomSeed);
 	if (g_b_data.modexp.empty()) {
@@ -2957,7 +2961,7 @@ void ConnectionPrivate::authKeyCreated() {
 }
 
 void ConnectionPrivate::clearAuthKeyData() {
-	auto zeroMemory = [](base::byte_span bytes) {
+	auto zeroMemory = [](bytes::span bytes) {
 #ifdef Q_OS_WIN2
 		SecureZeroMemory(bytes.data(), bytes.size());
 #else // Q_OS_WIN
@@ -3227,15 +3231,15 @@ void ConnectionPrivate::stop() {
 
 } // namespace internal
 
-bool IsPrimeAndGood(base::const_byte_span primeBytes, int g) {
+bool IsPrimeAndGood(bytes::const_span primeBytes, int g) {
 	return internal::IsPrimeAndGood(primeBytes, g);
 }
 
-ModExpFirst CreateModExp(int g, base::const_byte_span primeBytes, base::const_byte_span randomSeed) {
+ModExpFirst CreateModExp(int g, bytes::const_span primeBytes, bytes::const_span randomSeed) {
 	return internal::CreateModExp(g, primeBytes, randomSeed);
 }
 
-std::vector<gsl::byte> CreateAuthKey(base::const_byte_span firstBytes, base::const_byte_span randomBytes, base::const_byte_span primeBytes) {
+bytes::vector CreateAuthKey(bytes::const_span firstBytes, bytes::const_span randomBytes, bytes::const_span primeBytes) {
 	return internal::CreateAuthKey(firstBytes, randomBytes, primeBytes);
 }
 

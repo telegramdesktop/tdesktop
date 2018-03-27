@@ -9,9 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/openssl_help.h"
 
-#include <openssl/aes.h>
-#include <openssl/crypto.h>
-
 namespace Passport {
 namespace {
 
@@ -25,27 +22,27 @@ constexpr auto kAlignTo = 16;
 } // namespace
 
 struct AesParams {
-	base::byte_array<kAesKeyLength> key;
-	base::byte_array<kAesIvLength> iv;
+	bytes::vector key;
+	bytes::vector iv;
 };
 
-AesParams PrepareAesParams(base::const_byte_span secretHash) {
+AesParams PrepareAesParams(bytes::const_span secretHash) {
 	const auto hash = openssl::Sha512(secretHash);
 	const auto view = gsl::make_span(hash);
-	const auto key = view.subspan(0, kAesKeyLength);
-	const auto iv = view.subspan(kAesKeyLength, kAesIvLength);
 
 	auto result = AesParams();
-	base::copy_bytes(result.key, view.subspan(0, kAesKeyLength));
-	base::copy_bytes(result.iv, view.subspan(kAesKeyLength, kAesIvLength));
+	result.key = bytes::make_vector(view.subspan(0, kAesKeyLength));
+	result.iv = bytes::make_vector(view.subspan(kAesKeyLength, kAesIvLength));
 	return result;
 }
 
-base::byte_vector EncryptOrDecrypt(
-		base::const_byte_span initial,
+bytes::vector EncryptOrDecrypt(
+		bytes::const_span initial,
 		AesParams &&params,
 		int encryptOrDecrypt) {
 	Expects((initial.size() & 0x0F) == 0);
+	Expects(params.key.size() == kAesKeyLength);
+	Expects(params.iv.size() == kAesIvLength);
 
 	auto aesKey = AES_KEY();
 	const auto error = (encryptOrDecrypt == AES_ENCRYPT)
@@ -62,7 +59,7 @@ base::byte_vector EncryptOrDecrypt(
 			).arg(error));
 		return {};
 	}
-	auto result = base::byte_vector(initial.size());
+	auto result = bytes::vector(initial.size());
 	AES_cbc_encrypt(
 		reinterpret_cast<const uchar*>(initial.data()),
 		reinterpret_cast<uchar*>(result.data()),
@@ -73,27 +70,27 @@ base::byte_vector EncryptOrDecrypt(
 	return result;
 }
 
-base::byte_vector Encrypt(
-		base::const_byte_span decrypted,
+bytes::vector Encrypt(
+		bytes::const_span decrypted,
 		AesParams &&params) {
 	return EncryptOrDecrypt(decrypted, std::move(params), AES_ENCRYPT);
 }
 
-base::byte_vector Decrypt(
-		base::const_byte_span encrypted,
+bytes::vector Decrypt(
+		bytes::const_span encrypted,
 		AesParams &&params) {
 	return EncryptOrDecrypt(encrypted, std::move(params), AES_DECRYPT);
 }
 
-base::byte_vector PasswordHashForSecret(
-		base::const_byte_span passwordUtf8) {
+bytes::vector PasswordHashForSecret(
+		bytes::const_span passwordUtf8) {
 	//new_secure_salt = new_salt + random_bytes(8) // #TODO
 	//password_hash = SHA512(new_secure_salt + password + new_secure_salt)
 	const auto result = openssl::Sha512(passwordUtf8);
 	return { result.begin(), result.end() };
 }
 
-bool CheckBytesMod255(base::const_byte_span bytes) {
+bool CheckBytesMod255(bytes::const_span bytes) {
 	const auto full = ranges::accumulate(
 		bytes,
 		0ULL,
@@ -102,12 +99,12 @@ bool CheckBytesMod255(base::const_byte_span bytes) {
 	return (mod == 239);
 }
 
-bool CheckSecretBytes(base::const_byte_span secret) {
+bool CheckSecretBytes(bytes::const_span secret) {
 	return CheckBytesMod255(secret);
 }
 
-base::byte_vector GenerateSecretBytes() {
-	auto result = base::byte_vector(kSecretSize);
+bytes::vector GenerateSecretBytes() {
+	auto result = bytes::vector(kSecretSize);
 	memset_rand(result.data(), result.size());
 	const auto full = ranges::accumulate(
 		result,
@@ -120,9 +117,9 @@ base::byte_vector GenerateSecretBytes() {
 	return result;
 }
 
-base::byte_vector DecryptSecretBytes(
-		base::const_byte_span encryptedSecret,
-		base::const_byte_span passwordHashForSecret) {
+bytes::vector DecryptSecretBytes(
+		bytes::const_span encryptedSecret,
+		bytes::const_span passwordHashForSecret) {
 	if (encryptedSecret.empty()) {
 		return {};
 	} else if (encryptedSecret.size() != kSecretSize) {
@@ -139,9 +136,9 @@ base::byte_vector DecryptSecretBytes(
 	return result;
 }
 
-base::byte_vector EncryptSecretBytes(
-		base::const_byte_span secret,
-		base::const_byte_span passwordHashForSecret) {
+bytes::vector EncryptSecretBytes(
+		bytes::const_span secret,
+		bytes::const_span passwordHashForSecret) {
 	Expects(secret.size() == kSecretSize);
 	Expects(CheckSecretBytes(secret) == true);
 
@@ -149,27 +146,26 @@ base::byte_vector EncryptSecretBytes(
 	return Encrypt(secret, std::move(params));
 }
 
-base::byte_vector Concatenate(
-		base::const_byte_span a,
-		base::const_byte_span b) {
-	auto result = base::byte_vector(a.size() + b.size());
-	base::copy_bytes(result, a);
-	base::copy_bytes(gsl::make_span(result).subspan(a.size()), b);
+bytes::vector Concatenate(
+		bytes::const_span a,
+		bytes::const_span b) {
+	auto result = bytes::vector(a.size() + b.size());
+	bytes::copy(result, a);
+	bytes::copy(gsl::make_span(result).subspan(a.size()), b);
 	return result;
 }
 
-base::byte_vector SerializeData(const std::map<QString, QString> &data) {
+bytes::vector SerializeData(const std::map<QString, QString> &data) {
 	auto root = QJsonObject();
 	for (const auto &[key, value] : data) {
 		root.insert(key, value);
 	}
 	auto document = QJsonDocument(root);
 	const auto result = document.toJson(QJsonDocument::Compact);
-	const auto bytes = gsl::as_bytes(gsl::make_span(result));
-	return { bytes.begin(), bytes.end() };
+	return bytes::make_vector(result);
 }
 
-std::map<QString, QString> DeserializeData(base::const_byte_span bytes) {
+std::map<QString, QString> DeserializeData(bytes::const_span bytes) {
 	const auto serialized = QByteArray::fromRawData(
 		reinterpret_cast<const char*>(bytes.data()),
 		bytes.size());
@@ -226,13 +222,13 @@ std::map<QString, QString> DeserializeData(base::const_byte_span bytes) {
 	return result;
 }
 
-EncryptedData EncryptData(base::const_byte_span bytes) {
+EncryptedData EncryptData(bytes::const_span bytes) {
 	return EncryptData(bytes, GenerateSecretBytes());
 }
 
 EncryptedData EncryptData(
-		base::const_byte_span bytes,
-		base::const_byte_span dataSecret) {
+		bytes::const_span bytes,
+		bytes::const_span dataSecret) {
 	constexpr auto kFromPadding = kMinPadding + kAlignTo - 1;
 	constexpr auto kPaddingDelta = kMaxPadding - kFromPadding;
 	const auto randomPadding = kFromPadding
@@ -241,12 +237,12 @@ EncryptedData EncryptData(
 		- ((bytes.size() + randomPadding) % kAlignTo);
 	Assert(padding >= kMinPadding && padding <= kMaxPadding);
 
-	auto unencrypted = base::byte_vector(padding + bytes.size());
+	auto unencrypted = bytes::vector(padding + bytes.size());
 	Assert(unencrypted.size() % kAlignTo == 0);
 
 	unencrypted[0] = static_cast<gsl::byte>(padding);
 	memset_rand(unencrypted.data() + 1, padding - 1);
-	base::copy_bytes(
+	bytes::copy(
 		gsl::make_span(unencrypted).subspan(padding),
 		bytes);
 	const auto dataHash = openssl::Sha256(unencrypted);
@@ -261,10 +257,10 @@ EncryptedData EncryptData(
 	};
 }
 
-base::byte_vector DecryptData(
-		base::const_byte_span encrypted,
-		base::const_byte_span dataHash,
-		base::const_byte_span dataSecret) {
+bytes::vector DecryptData(
+		bytes::const_span encrypted,
+		bytes::const_span dataHash,
+		bytes::const_span dataSecret) {
 	constexpr auto kDataHashSize = 32;
 	if (encrypted.empty()) {
 		return {};
@@ -280,7 +276,7 @@ base::byte_vector DecryptData(
 		Concatenate(dataSecret, dataHash));
 	auto params = PrepareAesParams(dataSecretHash);
 	const auto decrypted = Decrypt(encrypted, std::move(params));
-	if (base::compare_bytes(openssl::Sha256(decrypted), dataHash) != 0) {
+	if (bytes::compare(openssl::Sha256(decrypted), dataHash) != 0) {
 		LOG(("API Error: Bad data hash."));
 		return {};
 	}
@@ -295,17 +291,17 @@ base::byte_vector DecryptData(
 	return { bytes.begin(), bytes.end() };
 }
 
-base::byte_vector PrepareValueHash(
-		base::const_byte_span dataHash,
-		base::const_byte_span valueSecret) {
+bytes::vector PrepareValueHash(
+		bytes::const_span dataHash,
+		bytes::const_span valueSecret) {
 	const auto result = openssl::Sha256(Concatenate(dataHash, valueSecret));
 	return { result.begin(), result.end() };
 }
 
-base::byte_vector PrepareFilesHash(
-		gsl::span<base::const_byte_span> fileHashes,
-		base::const_byte_span valueSecret) {
-	auto resultInner = base::byte_vector{
+bytes::vector PrepareFilesHash(
+		gsl::span<bytes::const_span> fileHashes,
+		bytes::const_span valueSecret) {
+	auto resultInner = bytes::vector{
 		valueSecret.begin(),
 		valueSecret.end()
 	};
@@ -316,19 +312,19 @@ base::byte_vector PrepareFilesHash(
 	return { result.begin(), result.end() };
 }
 
-base::byte_vector EncryptValueSecret(
-		base::const_byte_span valueSecret,
-		base::const_byte_span secret,
-		base::const_byte_span valueHash) {
+bytes::vector EncryptValueSecret(
+		bytes::const_span valueSecret,
+		bytes::const_span secret,
+		bytes::const_span valueHash) {
 	const auto valueSecretHash = openssl::Sha512(
 		Concatenate(secret, valueHash));
 	return EncryptSecretBytes(valueSecret, valueSecretHash);
 }
 
-base::byte_vector DecryptValueSecret(
-		base::const_byte_span encrypted,
-		base::const_byte_span secret,
-		base::const_byte_span valueHash) {
+bytes::vector DecryptValueSecret(
+		bytes::const_span encrypted,
+		bytes::const_span secret,
+		bytes::const_span valueHash) {
 	const auto valueSecretHash = openssl::Sha512(
 		Concatenate(secret, valueHash));
 	return DecryptSecretBytes(encrypted, valueSecretHash);

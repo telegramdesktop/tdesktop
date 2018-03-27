@@ -126,26 +126,26 @@ void Instance::refreshDhConfig() {
 	Expects(_currentCall != nullptr);
 	request(MTPmessages_GetDhConfig(
 		MTP_int(_dhConfig.version),
-		MTP_int(Call::kRandomPowerSize)
+		MTP_int(MTP::ModExpFirst::kRandomPowerSize)
 	)).done([this, call = base::make_weak(_currentCall)](
 			const MTPmessages_DhConfig &result) {
-		auto random = base::const_byte_span();
+		auto random = bytes::const_span();
 		switch (result.type()) {
 		case mtpc_messages_dhConfig: {
 			auto &config = result.c_messages_dhConfig();
-			if (!MTP::IsPrimeAndGood(bytesFromMTP(config.vp), config.vg.v)) {
+			if (!MTP::IsPrimeAndGood(bytes::make_span(config.vp.v), config.vg.v)) {
 				LOG(("API Error: bad p/g received in dhConfig."));
 				callFailed(call.get());
 				return;
 			}
 			_dhConfig.g = config.vg.v;
-			_dhConfig.p = byteVectorFromMTP(config.vp);
-			random = bytesFromMTP(config.vrandom);
+			_dhConfig.p = bytes::make_vector(config.vp.v);
+			random = bytes::make_span(config.vrandom.v);
 		} break;
 
 		case mtpc_messages_dhConfigNotModified: {
 			auto &config = result.c_messages_dhConfigNotModified();
-			random = bytesFromMTP(config.vrandom);
+			random = bytes::make_span(config.vrandom.v);
 			if (!_dhConfig.g || _dhConfig.p.empty()) {
 				LOG(("API Error: dhConfigNotModified on zero version."));
 				callFailed(call.get());
@@ -156,7 +156,7 @@ void Instance::refreshDhConfig() {
 		default: Unexpected("Type in messages.getDhConfig");
 		}
 
-		if (random.size() != Call::kRandomPowerSize) {
+		if (random.size() != MTP::ModExpFirst::kRandomPowerSize) {
 			LOG(("API Error: dhConfig random bytes wrong size: %1").arg(random.size()));
 			callFailed(call.get());
 			return;
@@ -186,7 +186,7 @@ void Instance::refreshServerConfig() {
 		_lastServerConfigUpdateTime = getms(true);
 
 		auto configUpdate = std::map<std::string, std::string>();
-		auto bytes = bytesFromMTP(result.c_dataJSON().vdata);
+		auto bytes = bytes::make_span(result.c_dataJSON().vdata.v);
 		auto error = QJsonParseError { 0, QJsonParseError::NoError };
 		auto document = QJsonDocument::fromJson(QByteArray::fromRawData(reinterpret_cast<const char*>(bytes.data()), bytes.size()), &error);
 		if (error.error != QJsonParseError::NoError) {

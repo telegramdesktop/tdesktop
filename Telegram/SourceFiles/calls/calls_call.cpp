@@ -62,8 +62,9 @@ void ConvertEndpoint(
 }
 
 constexpr auto kFingerprintDataSize = 256;
-uint64 ComputeFingerprint(
-		const std::array<gsl::byte, kFingerprintDataSize> &authKey) {
+uint64 ComputeFingerprint(bytes::const_span authKey) {
+	Expects(authKey.size() == kFingerprintDataSize);
+
 	auto hash = openssl::Sha1(authKey);
 	return (gsl::to_integer<uint64>(hash[19]) << 56)
 		| (gsl::to_integer<uint64>(hash[18]) << 48)
@@ -133,7 +134,7 @@ Call::Call(
 	}
 }
 
-void Call::generateModExpFirst(base::const_byte_span randomSeed) {
+void Call::generateModExpFirst(bytes::const_span randomSeed) {
 	auto first = MTP::CreateModExp(_dhConfig.g, _dhConfig.p, randomSeed);
 	if (first.modexp.empty()) {
 		LOG(("Call Error: Could not compute mod-exp first."));
@@ -141,7 +142,7 @@ void Call::generateModExpFirst(base::const_byte_span randomSeed) {
 		return;
 	}
 
-	_randomPower = first.randomPower;
+	_randomPower = std::move(first.randomPower);
 	if (_type == Type::Incoming) {
 		_gb = std::move(first.modexp);
 	} else {
@@ -157,7 +158,7 @@ bool Call::isIncomingWaiting() const {
 	return (_state == State::Starting) || (_state == State::WaitingIncoming);
 }
 
-void Call::start(base::const_byte_span random) {
+void Call::start(bytes::const_span random) {
 	// Save config here, because it is possible that it changes between
 	// different usages inside the same call.
 	_dhConfig = _delegate->getDhConfig();
@@ -312,7 +313,7 @@ void Call::redial() {
 
 QString Call::getDebugLog() const {
 	constexpr auto kDebugLimit = 4096;
-	auto bytes = base::byte_vector(kDebugLimit, gsl::byte {});
+	auto bytes = bytes::vector(kDebugLimit, gsl::byte {});
 	_controller->GetDebugString(reinterpret_cast<char*>(bytes.data()), bytes.size());
 	auto end = std::find(bytes.begin(), bytes.end(), gsl::byte {});
 	auto size = (end - bytes.begin());
@@ -342,12 +343,13 @@ bool Call::isKeyShaForFingerprintReady() const {
 	return (_keyFingerprint != 0);
 }
 
-base::byte_array<Call::kSha256Size> Call::getKeyShaForFingerprint() const {
+bytes::vector Call::getKeyShaForFingerprint() const {
 	Expects(isKeyShaForFingerprintReady());
 	Expects(!_ga.empty());
-	auto encryptedChatAuthKey = base::byte_vector(_authKey.size() + _ga.size(), gsl::byte {});
-	base::copy_bytes(gsl::make_span(encryptedChatAuthKey).subspan(0, _authKey.size()), _authKey);
-	base::copy_bytes(gsl::make_span(encryptedChatAuthKey).subspan(_authKey.size(), _ga.size()), _ga);
+
+	auto encryptedChatAuthKey = bytes::vector(_authKey.size() + _ga.size(), gsl::byte {});
+	bytes::copy(gsl::make_span(encryptedChatAuthKey).subspan(0, _authKey.size()), _authKey);
+	bytes::copy(gsl::make_span(encryptedChatAuthKey).subspan(_authKey.size(), _ga.size()), _ga);
 	return openssl::Sha256(encryptedChatAuthKey);
 }
 
@@ -367,13 +369,13 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 		}
 		_id = data.vid.v;
 		_accessHash = data.vaccess_hash.v;
-		auto gaHashBytes = bytesFromMTP(data.vg_a_hash);
+		auto gaHashBytes = bytes::make_span(data.vg_a_hash.v);
 		if (gaHashBytes.size() != _gaHash.size()) {
 			LOG(("Call Error: Wrong g_a_hash size %1, expected %2.").arg(gaHashBytes.size()).arg(_gaHash.size()));
 			finish(FinishType::Failed);
 			return true;
 		}
-		base::copy_bytes(gsl::make_span(_gaHash), gaHashBytes);
+		bytes::copy(_gaHash, gaHashBytes);
 	} return true;
 
 	case mtpc_phoneCallEmpty: {
@@ -453,7 +455,7 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 	Expects(_type == Type::Outgoing);
 
-	auto firstBytes = bytesFromMTP(call.vg_b);
+	auto firstBytes = bytes::make_span(call.vg_b.v);
 	auto computedAuthKey = MTP::CreateAuthKey(firstBytes, _randomPower, _dhConfig.p);
 	if (computedAuthKey.empty()) {
 		LOG(("Call Error: Could not compute mod-exp final."));
@@ -493,13 +495,13 @@ void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 void Call::startConfirmedCall(const MTPDphoneCall &call) {
 	Expects(_type == Type::Incoming);
 
-	auto firstBytes = bytesFromMTP(call.vg_a_or_b);
+	auto firstBytes = bytes::make_span(call.vg_a_or_b.v);
 	if (_gaHash != openssl::Sha256(firstBytes)) {
 		LOG(("Call Error: Wrong g_a hash received."));
 		finish(FinishType::Failed);
 		return;
 	}
-	_ga = base::byte_vector(firstBytes.begin(), firstBytes.end());
+	_ga = bytes::vector(firstBytes.begin(), firstBytes.end());
 
 	auto computedAuthKey = MTP::CreateAuthKey(firstBytes, _randomPower, _dhConfig.p);
 	if (computedAuthKey.empty()) {
@@ -535,12 +537,12 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		auto callLogFolder = cWorkingDir() + qsl("DebugLogs");
 		auto callLogPath = callLogFolder + qsl("/last_call_log.txt");
 		auto callLogNative = QFile::encodeName(QDir::toNativeSeparators(callLogPath));
-		auto callLogBytesSrc = gsl::as_bytes(gsl::make_span(callLogNative));
-		auto callLogBytesDst = gsl::as_writeable_bytes(gsl::make_span(config.logFilePath));
+		auto callLogBytesSrc = bytes::make_span(callLogNative);
+		auto callLogBytesDst = bytes::make_span(config.logFilePath);
 		if (callLogBytesSrc.size() + 1 <= callLogBytesDst.size()) { // +1 - zero-terminator
 			QFile(callLogPath).remove();
 			QDir().mkpath(callLogFolder);
-			base::copy_bytes(callLogBytesDst, callLogBytesSrc);
+			bytes::copy(callLogBytesDst, callLogBytesSrc);
 		}
 	}
 

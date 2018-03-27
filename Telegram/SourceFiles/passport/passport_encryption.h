@@ -9,53 +9,53 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Passport {
 
-base::byte_vector GenerateSecretBytes();
+bytes::vector GenerateSecretBytes();
 
-base::byte_vector EncryptSecretBytes(
-	base::const_byte_span secret,
-	base::const_byte_span passwordHashForSecret);
-base::byte_vector DecryptSecretBytes(
-	base::const_byte_span encryptedSecret,
-	base::const_byte_span passwordHashForSecret);
+bytes::vector EncryptSecretBytes(
+	bytes::const_span secret,
+	bytes::const_span passwordHashForSecret);
+bytes::vector DecryptSecretBytes(
+	bytes::const_span encryptedSecret,
+	bytes::const_span passwordHashForSecret);
 
-base::byte_vector PasswordHashForSecret(base::const_byte_span passwordUtf8);
+bytes::vector PasswordHashForSecret(bytes::const_span passwordUtf8);
 
-base::byte_vector SerializeData(const std::map<QString, QString> &data);
-std::map<QString, QString> DeserializeData(base::const_byte_span bytes);
+bytes::vector SerializeData(const std::map<QString, QString> &data);
+std::map<QString, QString> DeserializeData(bytes::const_span bytes);
 
 struct EncryptedData {
-	base::byte_vector secret;
-	base::byte_vector hash;
-	base::byte_vector bytes;
+	bytes::vector secret;
+	bytes::vector hash;
+	bytes::vector bytes;
 };
 
-EncryptedData EncryptData(base::const_byte_span bytes);
+EncryptedData EncryptData(bytes::const_span bytes);
 
 EncryptedData EncryptData(
-	base::const_byte_span bytes,
-	base::const_byte_span dataSecret);
+	bytes::const_span bytes,
+	bytes::const_span dataSecret);
 
-base::byte_vector DecryptData(
-	base::const_byte_span encrypted,
-	base::const_byte_span dataHash,
-	base::const_byte_span dataSecret);
+bytes::vector DecryptData(
+	bytes::const_span encrypted,
+	bytes::const_span dataHash,
+	bytes::const_span dataSecret);
 
-base::byte_vector PrepareValueHash(
-	base::const_byte_span dataHash,
-	base::const_byte_span valueSecret);
+bytes::vector PrepareValueHash(
+	bytes::const_span dataHash,
+	bytes::const_span valueSecret);
 
-base::byte_vector EncryptValueSecret(
-	base::const_byte_span valueSecret,
-	base::const_byte_span secret,
-	base::const_byte_span valueHash);
+bytes::vector EncryptValueSecret(
+	bytes::const_span valueSecret,
+	bytes::const_span secret,
+	bytes::const_span valueHash);
 
-base::byte_vector DecryptValueSecret(
-	base::const_byte_span encrypted,
-	base::const_byte_span secret,
-	base::const_byte_span valueHash);
+bytes::vector DecryptValueSecret(
+	bytes::const_span encrypted,
+	bytes::const_span secret,
+	bytes::const_span valueHash);
 
-base::byte_vector PrepareFilesHash(
-	gsl::span<base::const_byte_span> fileHashes,
-	base::const_byte_span valueSecret);
+bytes::vector PrepareFilesHash(
+	gsl::span<bytes::const_span> fileHashes,
+	bytes::const_span valueSecret);
 
 } // namespace Passport
