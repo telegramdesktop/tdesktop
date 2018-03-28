@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "auth_session.h"
 #include "storage/localimageloader.h"
+#include "storage/localstorage.h"
 #include "storage/file_upload.h"
 #include "storage/file_download.h"
 
@@ -323,21 +324,21 @@ void FormController::uploadEncryptedScan(
 	auto &file = _form.fields[fieldIndex].filesInEdit[fileIndex];
 	file.uploaded = std::make_unique<UploadedScan>(std::move(data));
 
-	auto uploaded = std::make_shared<FileLoadResult>(
+	auto prepared = std::make_shared<FileLoadResult>(
 		TaskId(),
 		file.uploaded->fileId,
 		FileLoadTo(PeerId(0), false, MsgId(0)),
 		TextWithTags(),
 		std::shared_ptr<SendingAlbum>(nullptr));
-	uploaded->type = SendMediaType::Secure;
-	uploaded->content = QByteArray::fromRawData(
+	prepared->type = SendMediaType::Secure;
+	prepared->content = QByteArray::fromRawData(
 		reinterpret_cast<char*>(file.uploaded->bytes.data()),
 		file.uploaded->bytes.size());
-	uploaded->setFileData(uploaded->content);
-	uploaded->filemd5 = file.uploaded->md5checksum;
+	prepared->setFileData(prepared->content);
+	prepared->filemd5 = file.uploaded->md5checksum;
 
 	file.uploaded->fullId = FullMsgId(0, clientMsgId());
-	Auth().uploader().upload(file.uploaded->fullId, std::move(uploaded));
+	Auth().uploader().upload(file.uploaded->fullId, std::move(prepared));
 }
 
 void FormController::scanUploadDone(const Storage::UploadSecureDone &data) {
@@ -790,6 +791,18 @@ auto FormController::parseFiles(
 			if (i != editData.end()) {
 				normal.image = i->fields.image;
 				normal.downloadOffset = i->fields.downloadOffset;
+				if (i->uploaded) {
+					Local::writeImage(
+						StorageKey(
+							storageMix32To64(
+								SecureFileLocation,
+								normal.dcId),
+							normal.id),
+						StorageImageSaved(QByteArray::fromRawData(
+							reinterpret_cast<const char*>(
+								i->uploaded->bytes.data()),
+							i->uploaded->bytes.size())));
+				}
 			}
 			result.push_back(std::move(normal));
 		} break;

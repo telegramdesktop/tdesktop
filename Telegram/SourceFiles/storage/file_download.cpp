@@ -773,6 +773,12 @@ bool mtpFileLoader::feedPart(int offset, bytes::const_span buffer) {
 						Local::writeStickerImage(mkey, _data);
 					} else if (_locationType == AudioFileLocation) {
 						Local::writeAudio(mkey, _data);
+					} else if (_locationType == SecureFileLocation) {
+						Local::writeImage(
+							StorageKey(
+								storageMix32To64(_locationType, _dcId),
+								_id),
+							StorageImageSaved(_data));
 					}
 				}
 			} else {
@@ -896,6 +902,10 @@ bool mtpFileLoader::tryLoadLocal() {
 				_localTaskId = Local::startStickerImageLoad(mkey, this);
 			} else if (_locationType == AudioFileLocation) {
 				_localTaskId = Local::startAudioLoad(mkey, this);
+			} else if (_locationType == SecureFileLocation) {
+				_localTaskId = Local::startImageLoad(StorageKey(
+					storageMix32To64(_locationType, _dcId),
+					_id), this);
 			}
 		}
 	}
