@@ -29,8 +29,8 @@ struct Uploader::File {
 
 	std::shared_ptr<FileLoadResult> file;
 	SendMediaReady media;
-	int32 partsCount;
-	mutable int32 fileSentSize;
+	int32 partsCount = 0;
+	mutable int32 fileSentSize = 0;
 
 	uint64 id() const;
 	SendMediaType type() const;
@@ -483,7 +483,11 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 				}
 				_documentProgress.fire_copy(fullId);
 			} else if (file.type() == SendMediaType::Secure) {
-				_secureProgress.fire_copy(fullId);
+				file.fileSentSize += sentPartSize;
+				_secureProgress.fire_copy({
+					fullId,
+					file.fileSentSize,
+					file.file->partssize });
 			}
 		}
 	}

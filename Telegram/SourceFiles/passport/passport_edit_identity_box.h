@@ -45,6 +45,8 @@ private:
 	void encryptScan(const QString &path);
 	void encryptScanContent(QByteArray &&content);
 	void updateScan(ScanInfo &&info);
+	int countHeight() const;
+	void updateControlsPosition();
 	void save();
 
 	not_null<FormController*> _controller;

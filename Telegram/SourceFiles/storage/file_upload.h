@@ -31,7 +31,13 @@ struct UploadedThumbDocument {
 	MTPInputFile thumb;
 };
 
-struct UploadedSecure {
+struct UploadSecureProgress {
+	FullMsgId fullId;
+	int offset = 0;
+	int size = 0;
+};
+
+struct UploadSecureDone {
 	FullMsgId fullId;
 	uint64 fileId = 0;
 	int partsCount = 0;
@@ -65,7 +71,7 @@ public:
 	rpl::producer<UploadedThumbDocument> thumbDocumentReady() const {
 		return _thumbDocumentReady.events();
 	}
-	rpl::producer<UploadedSecure> secureReady() const {
+	rpl::producer<UploadSecureDone> secureReady() const {
 		return _secureReady.events();
 	}
 	rpl::producer<FullMsgId> photoProgress() const {
@@ -74,7 +80,7 @@ public:
 	rpl::producer<FullMsgId> documentProgress() const {
 		return _documentProgress.events();
 	}
-	rpl::producer<FullMsgId> secureProgress() const {
+	rpl::producer<UploadSecureProgress> secureProgress() const {
 		return _secureProgress.events();
 	}
 	rpl::producer<FullMsgId> photoFailed() const {
@@ -117,10 +123,10 @@ private:
 	rpl::event_stream<UploadedPhoto> _photoReady;
 	rpl::event_stream<UploadedDocument> _documentReady;
 	rpl::event_stream<UploadedThumbDocument> _thumbDocumentReady;
-	rpl::event_stream<UploadedSecure> _secureReady;
+	rpl::event_stream<UploadSecureDone> _secureReady;
 	rpl::event_stream<FullMsgId> _photoProgress;
 	rpl::event_stream<FullMsgId> _documentProgress;
-	rpl::event_stream<FullMsgId> _secureProgress;
+	rpl::event_stream<UploadSecureProgress> _secureProgress;
 	rpl::event_stream<FullMsgId> _photoFailed;
 	rpl::event_stream<FullMsgId> _documentFailed;
 	rpl::event_stream<FullMsgId> _secureFailed;

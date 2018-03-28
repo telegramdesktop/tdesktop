@@ -13,7 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class BoxContent;
 
 namespace Storage {
-struct UploadedSecure;
+struct UploadSecureDone;
+struct UploadSecureProgress;
 } // namespace Storage
 
 namespace Window {
@@ -65,7 +66,7 @@ struct FileKey {
 
 struct ScanInfo {
 	FileKey key;
-	QString date;
+	QString status;
 	QImage thumb;
 
 };
@@ -82,7 +83,8 @@ public:
 	rpl::producer<QString> passwordError() const;
 	QString passwordHint() const;
 
-	void uploadScan(int index, QByteArray &&content);
+	void uploadScan(int fieldIndex, QByteArray &&content);
+	void deleteScan(int fieldIndex, int fileIndex);
 
 	rpl::producer<> secretReadyEvents() const;
 
@@ -111,6 +113,8 @@ private:
 		QByteArray md5checksum;
 		bytes::vector hash;
 		bytes::vector bytes;
+
+		int offset = 0;
 	};
 	struct File {
 		uint64 id = 0;
@@ -118,7 +122,9 @@ private:
 		int32 size = 0;
 		int32 dcId = 0;
 		bytes::vector fileHash;
-		bytes::vector bytes;
+
+		int downloadOffset = 0;
+		QImage image;
 	};
 	struct EditFile {
 		EditFile(
@@ -127,6 +133,7 @@ private:
 
 		File fields;
 		std::unique_ptr<UploadedScan> uploaded;
+		bool deleted = false;
 	};
 	struct Verification {
 		TimeId date;
@@ -170,6 +177,7 @@ private:
 	};
 
 	EditFile *findEditFile(const FullMsgId &fullId);
+	EditFile *findEditFile(const FileKey &key);
 	std::pair<Field*, File*> findFile(const FileKey &key);
 
 	void requestForm();
@@ -190,6 +198,9 @@ private:
 		const QByteArray &value,
 		const DataType &data) const;
 	Verification parseVerified(const MTPSecureValueVerified &data) const;
+	std::vector<File> parseFiles(
+		const QVector<MTPSecureFile> &data,
+		const std::vector<EditFile> &editData = {}) const;
 
 	void passwordDone(const MTPaccount_Password &result);
 	void passwordFail(const RPCError &error);
@@ -209,8 +220,10 @@ private:
 	std::vector<ScanInfo> fieldFilesIdentity(const Field &field) const;
 	void saveIdentity(int index);
 
-	void loadFiles(const std::vector<File> &files);
-	void fileLoaded(FileKey key, const QByteArray &bytes);
+	void loadFiles(std::vector<File> &files);
+	void fileLoadDone(FileKey key, const QByteArray &bytes);
+	void fileLoadProgress(FileKey key, int offset);
+	void fileLoadFail(FileKey key);
 	void generateSecret(bytes::const_span password);
 
 	template <typename FileHashes>
@@ -219,8 +232,15 @@ private:
 		bytes::const_span valueHash);
 
 	void subscribeToUploader();
-	void uploadEncryptedScan(int index, UploadedScan &&data);
-	void scanUploaded(const Storage::UploadedSecure &data);
+	void encryptScan(
+		int fieldIndex,
+		int fileIndex,
+		QByteArray &&content);
+	void uploadEncryptedScan(int fieldIndex, int fileIndex, UploadedScan &&data);
+	void scanUploadDone(const Storage::UploadSecureDone &data);
+	void scanUploadProgress(const Storage::UploadSecureProgress &data);
+	void scanUploadFail(const FullMsgId &fullId);
+	ScanInfo collectScanInfo(const EditFile &file) const;
 
 	not_null<Window::Controller*> _controller;
 	FormRequest _request;

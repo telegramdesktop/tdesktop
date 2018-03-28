@@ -27,6 +27,11 @@ public:
 		const QString &description);
 
 	void setImage(const QImage &image);
+	void setDescription(const QString &description);
+
+	rpl::producer<> deleteClicks() const {
+		return _delete->clicks();
+	}
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -54,13 +59,11 @@ ScanButton::ScanButton(
 , _title(
 	st::semiboldTextStyle,
 	title,
-	Ui::NameTextOptions(),
-	st::boxWideWidth / 2)
+	Ui::NameTextOptions())
 , _description(
 	st::defaultTextStyle,
 	description,
-	Ui::NameTextOptions(),
-	st::boxWideWidth / 2)
+	Ui::NameTextOptions())
 , _delete(this, st::passportRowCheckbox) {
 }
 
@@ -69,10 +72,18 @@ void ScanButton::setImage(const QImage &image) {
 	update();
 }
 
+void ScanButton::setDescription(const QString &description) {
+	_description.setText(
+		st::defaultTextStyle,
+		description,
+		Ui::NameTextOptions());
+	update();
+}
+
 int ScanButton::resizeGetHeight(int newWidth) {
 	const auto availableWidth = countAvailableWidth(newWidth);
-	_titleHeight = _title.countHeight(availableWidth);
-	_descriptionHeight = _description.countHeight(availableWidth);
+	_titleHeight = st::semiboldFont->height;
+	_descriptionHeight = st::normalFont->height;
 	const auto result = st::passportRowPadding.top()
 		+ _titleHeight
 		+ st::passportRowSkip
@@ -122,10 +133,10 @@ void ScanButton::paintEvent(QPaintEvent *e) {
 	left += size + st::passportRowPadding.left();
 	availableWidth -= size + st::passportRowPadding.left();
 
-	_title.drawLeft(p, left, top, availableWidth, width());
+	_title.drawLeftElided(p, left, top, availableWidth, width());
 	top += _titleHeight + st::passportRowSkip;
 
-	_description.drawLeft(p, left, top, availableWidth, width());
+	_description.drawLeftElided(p, left, top, availableWidth, width());
 	top += _descriptionHeight + st::passportRowPadding.bottom();
 }
 
@@ -155,21 +166,18 @@ void IdentityBox::prepare() {
 	setTitle(langFactory(lng_passport_identity_title));
 
 	auto index = 0;
-	auto height = st::contactPadding.top();
 	for (const auto &scan : _files) {
-		_scans.push_back(object_ptr<ScanButton>(this, QString("Scan %1").arg(++index), scan.date));
+		_scans.push_back(object_ptr<ScanButton>(
+			this,
+			QString("Scan %1").arg(++index), // #TODO langs
+			scan.status));
 		_scans.back()->setImage(scan.thumb);
 		_scans.back()->resizeToWidth(st::boxWideWidth);
-		height += _scans.back()->height();
+		_scans.back()->deleteClicks(
+		) | rpl::start_with_next([=] {
+			_controller->deleteScan(_fieldIndex, index - 1);
+		}, lifetime());
 	}
-	height += st::contactPadding.top()
-		+ _uploadScan->height()
-		+ st::contactSkip
-		+ _name->height()
-		+ st::contactSkip
-		+ _surname->height()
-		+ st::contactPadding.bottom()
-		+ st::boxPadding.bottom();
 
 	addButton(langFactory(lng_settings_save), [=] {
 		save();
@@ -185,7 +193,23 @@ void IdentityBox::prepare() {
 	_uploadScan->addClickHandler([=] {
 		chooseScan();
 	});
-	setDimensions(st::boxWideWidth, height);
+	setDimensions(st::boxWideWidth, countHeight());
+}
+
+int IdentityBox::countHeight() const {
+	auto height = st::contactPadding.top();
+	for (const auto &scan : _scans) {
+		height += scan->height();
+	}
+	height += st::contactPadding.top()
+		+ _uploadScan->height()
+		+ st::contactSkip
+		+ _name->height()
+		+ st::contactSkip
+		+ _surname->height()
+		+ st::contactPadding.bottom()
+		+ st::boxPadding.bottom();
+	return height;
 }
 
 void IdentityBox::updateScan(ScanInfo &&info) {
@@ -194,8 +218,21 @@ void IdentityBox::updateScan(ScanInfo &&info) {
 	});
 	if (i != _files.end()) {
 		*i = info;
+		_scans[i - _files.begin()]->setDescription(i->status);
 		_scans[i - _files.begin()]->setImage(i->thumb);
+	} else {
+		_files.push_back(std::move(info));
+		_scans.push_back(object_ptr<ScanButton>(
+			this,
+			QString("Scan %1").arg(_files.size()),
+			_files.back().status));
+		_scans.back()->setImage(_files.back().thumb);
+		_scans.back()->resizeToWidth(st::boxWideWidth);
+		_scans.back()->show();
+		updateControlsPosition();
+		setDimensions(st::boxWideWidth, countHeight());
 	}
+	update();
 }
 
 void IdentityBox::setInnerFocus() {
@@ -211,6 +248,10 @@ void IdentityBox::resizeEvent(QResizeEvent *e) {
 		_name->height());
 	_surname->resize(_name->width(), _surname->height());
 
+	updateControlsPosition();
+}
+
+void IdentityBox::updateControlsPosition() {
 	auto top = st::contactPadding.top();
 	for (const auto &scan : _scans) {
 		scan->moveToLeft(0, top);
@@ -253,7 +294,6 @@ void IdentityBox::encryptScan(const QString &path) {
 }
 
 void IdentityBox::encryptScanContent(QByteArray &&content) {
-	_uploadScan->hide();
 	_controller->uploadScan(_fieldIndex, std::move(content));
 }
 

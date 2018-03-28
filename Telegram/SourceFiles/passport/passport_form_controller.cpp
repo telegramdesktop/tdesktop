@@ -20,6 +20,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download.h"
 
 namespace Passport {
+namespace {
+
+QImage ReadImage(bytes::const_span buffer) {
+	return App::readImage(QByteArray::fromRawData(
+		reinterpret_cast<const char*>(buffer.data()),
+		buffer.size()));
+}
+
+} // namespace
 
 FormRequest::FormRequest(
 	UserId botId,
@@ -203,18 +212,45 @@ QString FormController::passwordHint() const {
 	return _password.hint;
 }
 
-void FormController::uploadScan(int index, QByteArray &&content) {
+void FormController::uploadScan(int fieldIndex, QByteArray &&content) {
 	Expects(_editBox != nullptr);
-	Expects(index >= 0 && index < _form.fields.size());
+	Expects(fieldIndex >= 0 && fieldIndex < _form.fields.size());
 
-	auto &field = _form.fields[index];
+	auto &field = _form.fields[fieldIndex];
 	if (field.secret.empty()) {
 		field.secret = GenerateSecretBytes();
 	}
+	auto fileIndex = int(field.filesInEdit.size());
+	field.filesInEdit.emplace_back(
+		File(),
+		nullptr);
+	const auto fileId = rand_value<uint64>();
+	auto &file = field.filesInEdit.back();
+	file.fields.size = content.size();
+	file.fields.id = fileId;
+	file.fields.dcId = MTP::maindc();
+	file.fields.image = ReadImage(bytes::make_span(content));
+	file.fields.downloadOffset = file.fields.size;
 
+	_scanUpdated.fire(collectScanInfo(file));
+
+	encryptScan(fieldIndex, fileIndex, std::move(content));
+}
+
+void FormController::encryptScan(
+		int fieldIndex,
+		int fileIndex,
+		QByteArray &&content) {
+	Expects(_editBox != nullptr);
+	Expects(fieldIndex >= 0 && fieldIndex < _form.fields.size());
+	Expects(fileIndex >= 0
+		&& fileIndex < _form.fields[fieldIndex].filesInEdit.size());
+
+	auto &field = _form.fields[fieldIndex];
 	const auto weak = _editBox;
 	crl::async([
 		=,
+		fileId = field.filesInEdit[fileIndex].fields.id,
 		bytes = std::move(content),
 		valueSecret = field.secret
 	] {
@@ -222,7 +258,7 @@ void FormController::uploadScan(int index, QByteArray &&content) {
 			bytes::make_span(bytes),
 			valueSecret);
 		auto result = UploadedScan();
-		result.fileId = rand_value<uint64>();
+		result.fileId = fileId;
 		result.hash = std::move(data.hash);
 		result.bytes = std::move(data.bytes);
 		result.md5checksum.resize(32);
@@ -232,38 +268,60 @@ void FormController::uploadScan(int index, QByteArray &&content) {
 			result.md5checksum.data());
 		crl::on_main([=, encrypted = std::move(result)]() mutable {
 			if (weak) {
-				uploadEncryptedScan(index, std::move(encrypted));
+				uploadEncryptedScan(
+					fieldIndex,
+					fileIndex,
+					std::move(encrypted));
 			}
 		});
 	});
+}
+
+void FormController::deleteScan(
+		int fieldIndex,
+		int fileIndex) {
+	Expects(fieldIndex >= 0 && fieldIndex < _form.fields.size());
+	Expects(fileIndex >= 0
+		&& fileIndex < _form.fields[fieldIndex].filesInEdit.size());
+
+	auto &file = _form.fields[fieldIndex].filesInEdit[fileIndex];
+	file.deleted = !file.deleted;
+	_scanUpdated.fire(collectScanInfo(file));
 }
 
 void FormController::subscribeToUploader() {
 	if (_uploaderSubscriptions) {
 		return;
 	}
+
+	using namespace Storage;
 	Auth().uploader().secureReady(
-	) | rpl::start_with_next([=](const Storage::UploadedSecure &data) {
-		scanUploaded(data);
+	) | rpl::start_with_next([=](const UploadSecureDone &data) {
+		scanUploadDone(data);
 	}, _uploaderSubscriptions);
 	Auth().uploader().secureProgress(
-	) | rpl::start_with_next([=](const FullMsgId &fullId) {
+	) | rpl::start_with_next([=](const UploadSecureProgress &data) {
+		scanUploadProgress(data);
 	}, _uploaderSubscriptions);
 	Auth().uploader().secureFailed(
 	) | rpl::start_with_next([=](const FullMsgId &fullId) {
+		scanUploadFail(fullId);
 	}, _uploaderSubscriptions);
 }
 
-void FormController::uploadEncryptedScan(int index, UploadedScan &&data) {
+void FormController::uploadEncryptedScan(
+		int fieldIndex,
+		int fileIndex,
+		UploadedScan &&data) {
 	Expects(_editBox != nullptr);
-	Expects(index >= 0 && index < _form.fields.size());
+	Expects(fieldIndex >= 0 && fieldIndex < _form.fields.size());
+	Expects(fileIndex >= 0
+		&& fileIndex < _form.fields[fieldIndex].filesInEdit.size());
 
 	subscribeToUploader();
 
-	_form.fields[index].filesInEdit.emplace_back(
-		File(),
-		std::make_unique<UploadedScan>(std::move(data)));
-	auto &file = _form.fields[index].filesInEdit.back();
+	auto &file = _form.fields[fieldIndex].filesInEdit[fileIndex];
+	file.uploaded = std::make_unique<UploadedScan>(std::move(data));
 
 	auto uploaded = std::make_shared<FileLoadResult>(
 		TaskId(),
@@ -282,17 +340,37 @@ void FormController::uploadEncryptedScan(int index, UploadedScan &&data) {
 	Auth().uploader().upload(file.uploaded->fullId, std::move(uploaded));
 }
 
-void FormController::scanUploaded(const Storage::UploadedSecure &data) {
-	if (const auto edit = findEditFile(data.fullId)) {
-		Assert(edit->uploaded != nullptr);
+void FormController::scanUploadDone(const Storage::UploadSecureDone &data) {
+	if (const auto file = findEditFile(data.fullId)) {
+		Assert(file->uploaded != nullptr);
+		Assert(file->uploaded->fileId == data.fileId);
 
-		edit->fields.id = edit->uploaded->fileId = data.fileId;
-		edit->fields.size = edit->uploaded->bytes.size();
-		edit->fields.dcId = MTP::maindc();
-		edit->uploaded->partsCount = data.partsCount;
-		edit->fields.bytes = std::move(edit->uploaded->bytes);
-		edit->fields.fileHash = std::move(edit->uploaded->hash);
-		edit->uploaded->fullId = FullMsgId();
+		file->uploaded->partsCount = data.partsCount;
+		file->fields.fileHash = std::move(file->uploaded->hash);
+		file->uploaded->fullId = FullMsgId();
+
+		_scanUpdated.fire(collectScanInfo(*file));
+	}
+}
+
+void FormController::scanUploadProgress(
+		const Storage::UploadSecureProgress &data) {
+	if (const auto file = findEditFile(data.fullId)) {
+		Assert(file->uploaded != nullptr);
+
+		file->uploaded->offset = data.offset;
+
+		_scanUpdated.fire(collectScanInfo(*file));
+	}
+}
+
+void FormController::scanUploadFail(const FullMsgId &fullId) {
+	if (const auto file = findEditFile(fullId)) {
+		Assert(file->uploaded != nullptr);
+
+		file->uploaded->offset = -1;
+
+		_scanUpdated.fire(collectScanInfo(*file));
 	}
 }
 
@@ -376,11 +454,17 @@ void FormController::editField(int index) {
 	}
 }
 
-void FormController::loadFiles(const std::vector<File> &files) {
-	for (const auto &file : files) {
+void FormController::loadFiles(std::vector<File> &files) {
+	for (auto &file : files) {
+		if (!file.image.isNull()) {
+			file.downloadOffset = file.size;
+			continue;
+		}
+
 		const auto key = FileKey{ file.id, file.dcId };
 		const auto i = _fileLoaders.find(key);
 		if (i == _fileLoaders.end()) {
+			file.downloadOffset = 0;
 			const auto [i, ok] = _fileLoaders.emplace(
 				key,
 				std::make_unique<mtpFileLoader>(
@@ -397,33 +481,89 @@ void FormController::loadFiles(const std::vector<File> &files) {
 			const auto loader = i->second.get();
 			loader->connect(loader, &mtpFileLoader::progress, [=] {
 				if (loader->finished()) {
-					fileLoaded(key, loader->bytes());
+					fileLoadDone(key, loader->bytes());
+				} else {
+					fileLoadProgress(key, loader->currentOffset());
 				}
 			});
 			loader->connect(loader, &mtpFileLoader::failed, [=] {
+				fileLoadFail(key);
 			});
 			loader->start();
 		}
 	}
 }
 
-void FormController::fileLoaded(FileKey key, const QByteArray &bytes) {
+void FormController::fileLoadDone(FileKey key, const QByteArray &bytes) {
 	if (const auto [field, file] = findFile(key); file != nullptr) {
 		const auto decrypted = DecryptData(
 			bytes::make_span(bytes),
 			file->fileHash,
 			field->secret);
-		auto image = App::readImage(QByteArray::fromRawData(
+		file->downloadOffset = file->size;
+		file->image = App::readImage(QByteArray::fromRawData(
 			reinterpret_cast<const char*>(decrypted.data()),
 			decrypted.size()));
-		if (!image.isNull()) {
-			_scanUpdated.fire({
-				FileKey{ file->id, file->dcId },
-				QString("loaded"),
-				std::move(image),
-			});
+		if (const auto fileInEdit = findEditFile(key)) {
+			fileInEdit->fields.image = file->image;
+			fileInEdit->fields.downloadOffset = file->downloadOffset;
+			_scanUpdated.fire(collectScanInfo(*fileInEdit));
 		}
 	}
+}
+
+void FormController::fileLoadProgress(FileKey key, int offset) {
+	if (const auto [field, file] = findFile(key); file != nullptr) {
+		file->downloadOffset = offset;
+		if (const auto fileInEdit = findEditFile(key)) {
+			fileInEdit->fields.downloadOffset = file->downloadOffset;
+			_scanUpdated.fire(collectScanInfo(*fileInEdit));
+		}
+	}
+}
+
+void FormController::fileLoadFail(FileKey key) {
+	if (const auto [field, file] = findFile(key); file != nullptr) {
+		file->downloadOffset = -1;
+		if (const auto fileInEdit = findEditFile(key)) {
+			fileInEdit->fields.downloadOffset = file->downloadOffset;
+			_scanUpdated.fire(collectScanInfo(*fileInEdit));
+		}
+	}
+}
+
+ScanInfo FormController::collectScanInfo(const EditFile &file) const {
+	const auto status = [&] {
+		if (file.deleted) {
+			return QString("deleted");
+		} else if (file.fields.accessHash) {
+			if (file.fields.downloadOffset < 0) {
+				return QString("download failed");
+			} else if (file.fields.downloadOffset < file.fields.size) {
+				return QString("downloading %1 / %2"
+				).arg(file.fields.downloadOffset
+				).arg(file.fields.size);
+			} else {
+				return QString("download ready");
+			}
+		} else if (file.uploaded) {
+			if (file.uploaded->offset < 0) {
+				return QString("upload failed");
+			} else if (file.uploaded->fullId) {
+				return QString("uploading %1 / %2"
+				).arg(file.uploaded->offset
+				).arg(file.uploaded->bytes.size());
+			} else {
+				return QString("upload ready");
+			}
+		} else {
+			return QString("preparing");
+		}
+	}();
+	return {
+		FileKey{ file.fields.id, file.fields.dcId },
+		status,
+		file.fields.image };
 }
 
 IdentityData FormController::fieldDataIdentity(const Field &field) const {
@@ -442,10 +582,7 @@ std::vector<ScanInfo> FormController::fieldFilesIdentity(
 		const Field &field) const {
 	auto result = std::vector<ScanInfo>();
 	for (const auto &file : field.filesInEdit) {
-		result.push_back({
-			FileKey{ file.fields.id, file.fields.dcId },
-			langDateTime(QDateTime::currentDateTime()),
-			QImage() });
+		result.push_back(collectScanInfo(file));
 	}
 	return result;
 }
@@ -481,7 +618,9 @@ void FormController::saveIdentity(int index) {
 	auto inputFiles = QVector<MTPInputSecureFile>();
 	inputFiles.reserve(field.filesInEdit.size());
 	for (const auto &file : field.filesInEdit) {
-		if (const auto uploaded = file.uploaded.get()) {
+		if (file.deleted) {
+			continue;
+		} else if (const auto uploaded = file.uploaded.get()) {
 			inputFiles.push_back(MTP_inputSecureFileUploaded(
 				MTP_long(file.fields.id),
 				MTP_int(uploaded->partsCount),
@@ -501,7 +640,9 @@ void FormController::saveIdentity(int index) {
 		field.secret);
 	const auto fileHashes = ranges::view::all(
 		field.filesInEdit
-	) | ranges::view::transform([](const EditFile &file) {
+	) | ranges::view::filter([](const EditFile &file) {
+		return !file.deleted;
+	}) | ranges::view::transform([](const EditFile &file) {
 		return bytes::make_span(file.fields.fileHash);
 	});
 	const auto valueHash = openssl::Sha256(bytes::concatenate(
@@ -523,6 +664,13 @@ void FormController::saveIdentity(int index) {
 			MTP_bytes(valueHash)),
 		MTP_long(CountSecureSecretHash(_secret))
 	)).done([=](const MTPSecureValueSaved &result) {
+		Expects(result.type() == mtpc_secureValueSaved);
+
+		const auto &data = result.c_secureValueSaved();
+		_form.fields[index].files = parseFiles(
+			data.vfiles.v,
+			base::take(_form.fields[index].filesInEdit));
+
 		Ui::show(Box<InformBox>("Saved"), LayerOption::KeepOther);
 	}).fail([=](const RPCError &error) {
 		Ui::show(Box<InformBox>("Error saving value."));
@@ -610,10 +758,22 @@ auto FormController::parseEncryptedField(
 	const auto &fields = data.vdata.c_secureData();
 	result.originalData = fields.vdata.v;
 	result.dataHash = bytes::make_vector(fields.vdata_hash.v);
-	for (const auto &file : data.vfiles.v) {
+	result.files = parseFiles(data.vfiles.v);
+	return result;
+}
+
+auto FormController::parseFiles(
+	const QVector<MTPSecureFile> &data,
+	const std::vector<EditFile> &editData) const
+-> std::vector<File> {
+	auto result = std::vector<File>();
+	result.reserve(data.size());
+
+	auto index = 0;
+	for (const auto &file : data) {
 		switch (file.type()) {
 		case mtpc_secureFileEmpty: {
-			result.files.push_back(File());
+
 		} break;
 		case mtpc_secureFile: {
 			const auto &fields = file.c_secureFile();
@@ -623,10 +783,20 @@ auto FormController::parseEncryptedField(
 			normal.size = fields.vsize.v;
 			normal.dcId = fields.vdc_id.v;
 			normal.fileHash = bytes::make_vector(fields.vfile_hash.v);
-			result.files.push_back(std::move(normal));
+			const auto i = ranges::find(
+				editData,
+				normal.fileHash,
+				[](const EditFile &file) { return file.fields.fileHash; });
+			if (i != editData.end()) {
+				normal.image = i->fields.image;
+				normal.downloadOffset = i->fields.downloadOffset;
+			}
+			result.push_back(std::move(normal));
 		} break;
 		}
+		++index;
 	}
+
 	return result;
 }
 
@@ -698,6 +868,17 @@ auto FormController::findEditFile(const FullMsgId &fullId) -> EditFile* {
 	for (auto &field : _form.fields) {
 		for (auto &file : field.filesInEdit) {
 			if (file.uploaded && file.uploaded->fullId == fullId) {
+				return &file;
+			}
+		}
+	}
+	return nullptr;
+}
+
+auto FormController::findEditFile(const FileKey &key) -> EditFile* {
+	for (auto &field : _form.fields) {
+		for (auto &file : field.filesInEdit) {
+			if (file.fields.dcId == key.dcId && file.fields.id == key.id) {
 				return &file;
 			}
 		}
