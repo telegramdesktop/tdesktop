@@ -617,11 +617,13 @@ void SetupChannelBox::prepare() {
 			rtlupdate(_invitationLink);
 		}
 	}));
-	subscribe(boxClosing, [this] {
+
+	boxClosing() | rpl::start_with_next([=] {
 		if (!_existing) {
 			AddParticipantsBoxController::Start(_channel);
 		}
-	});
+	}, lifetime());
+
 	updateMaxHeight();
 }
 

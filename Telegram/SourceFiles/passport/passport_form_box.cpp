@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "passport/passport_form_box.h"
 
-#include "passport/passport_form_controller.h"
+#include "passport/passport_form_view_separate.h"
 #include "passport/passport_form_row.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/input_fields.h"
@@ -22,7 +22,7 @@ namespace Passport {
 
 class FormBox::CheckWidget : public Ui::RpWidget {
 public:
-	CheckWidget(QWidget *parent, not_null<FormController*> controller);
+	CheckWidget(QWidget *parent, not_null<ViewSeparate*> controller);
 
 	void setInnerFocus();
 	void submit();
@@ -34,7 +34,7 @@ private:
 	void showError(const QString &error);
 	void hideError();
 
-	not_null<FormController*> _controller;
+	not_null<ViewSeparate*> _controller;
 
 	object_ptr<Ui::PasswordInput> _password;
 	object_ptr<Ui::FlatLabel> _hint = { nullptr };
@@ -46,7 +46,7 @@ private:
 
 class FormBox::Inner : public Ui::RpWidget {
 public:
-	Inner(QWidget *parent, not_null<FormController*> controller);
+	Inner(QWidget *parent, not_null<ViewSeparate*> controller);
 
 	void refresh();
 
@@ -56,14 +56,14 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	not_null<FormController*> _controller;
+	not_null<ViewSeparate*> _controller;
 	std::vector<object_ptr<FormRow>> _rows;
 
 };
 
 FormBox::CheckWidget::CheckWidget(
 	QWidget *parent,
-	not_null<FormController*> controller)
+	not_null<ViewSeparate*> controller)
 : RpWidget(parent)
 , _controller(controller)
 , _password(
@@ -157,7 +157,7 @@ int FormBox::CheckWidget::resizeGetHeight(int newWidth) {
 
 FormBox::Inner::Inner(
 	QWidget *parent,
-	not_null<FormController*> controller)
+	not_null<ViewSeparate*> controller)
 : RpWidget(parent)
 , _controller(controller) {
 	refresh();
@@ -198,7 +198,7 @@ void FormBox::Inner::paintEvent(QPaintEvent *e) {
 
 }
 
-FormBox::FormBox(QWidget*, not_null<FormController*> controller)
+FormBox::FormBox(QWidget*, not_null<ViewSeparate*> controller)
 : _controller(controller) {
 }
 

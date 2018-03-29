@@ -111,11 +111,13 @@ void ConfirmBox::prepare() {
 	if (!_informative) {
 		addButton([this] { return _cancelText; }, [this] { _cancelled = true; closeBox(); });
 	}
-	subscribe(boxClosing, [this] {
+
+	boxClosing() | rpl::start_with_next([=] {
 		if (!_confirmed && (!_strictCancel || _cancelled) && _cancelledCallback) {
 			_cancelledCallback();
 		}
-	});
+	}, lifetime());
+
 	textUpdated();
 }
 

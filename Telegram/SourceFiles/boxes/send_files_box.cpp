@@ -1431,11 +1431,11 @@ void SendFilesBox::prepare() {
 	setupCaption();
 	initSendWay();
 	preparePreview();
-	subscribe(boxClosing, [this] {
+	boxClosing() | rpl::start_with_next([=] {
 		if (!_confirmed && _cancelledCallback) {
 			_cancelledCallback();
 		}
-	});
+	}, lifetime());
 }
 
 void SendFilesBox::initSendWay() {

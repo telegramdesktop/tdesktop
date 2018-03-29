@@ -11,11 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Passport {
 
-class FormController;
+class ViewSeparate;
 
 class FormBox : public BoxContent {
 public:
-	FormBox(QWidget*, not_null<FormController*> controller);
+	FormBox(QWidget*, not_null<ViewSeparate*> controller);
 
 protected:
 	void prepare() override;
@@ -29,7 +29,7 @@ private:
 	void showForm();
 	void submitForm();
 
-	not_null<FormController*> _controller;
+	not_null<ViewSeparate*> _controller;
 	object_ptr<Inner> _innerCached = { nullptr };
 	QPointer<CheckWidget> _passwordCheck;
 	QPointer<Inner> _inner;

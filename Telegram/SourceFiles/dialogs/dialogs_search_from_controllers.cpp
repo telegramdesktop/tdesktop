@@ -41,11 +41,13 @@ void ShowSearchFromBox(
 		return nullptr;
 	};
 	if (auto controller = createController()) {
-		auto subscription = std::make_shared<base::Subscription>();
+		auto subscription = std::make_shared<rpl::lifetime>();
 		auto box = Ui::show(Box<PeerListBox>(std::move(controller), [subscription](not_null<PeerListBox*> box) {
 			box->addButton(langFactory(lng_cancel), [box, subscription] { box->closeBox(); });
 		}), LayerOption::KeepOther);
-		*subscription = box->boxClosing.add_subscription(std::move(closedCallback));
+		box->boxClosing() | rpl::start_with_next(
+			std::move(closedCallback),
+			*subscription);
 	}
 }
 

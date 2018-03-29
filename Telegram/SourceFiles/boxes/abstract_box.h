@@ -94,7 +94,12 @@ public:
 		setFocus();
 	}
 
-	base::Observable<void> boxClosing;
+	rpl::producer<> boxClosing() const {
+		return _boxClosingStream.events();
+	}
+	void notifyBoxClosing() {
+		_boxClosingStream.fire({});
+	}
 
 	void setDelegate(BoxContentDelegate *newDelegate) {
 		_delegate = newDelegate;
@@ -201,6 +206,8 @@ private:
 	object_ptr<QTimer> _draggingScrollTimer = { nullptr };
 	int _draggingScrollDelta = 0;
 
+	rpl::event_stream<> _boxClosingStream;
+
 };
 
 class AbstractBox
@@ -249,7 +256,7 @@ protected:
 		_content->setInnerFocus();
 	}
 	void closeHook() override {
-		_content->boxClosing.notify(true);
+		_content->notifyBoxClosing();
 	}
 
 private:

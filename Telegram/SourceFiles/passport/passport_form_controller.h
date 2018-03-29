@@ -23,6 +23,8 @@ class Controller;
 
 namespace Passport {
 
+class ViewController;
+
 struct FormRequest {
 	FormRequest(
 		UserId botId,
@@ -37,7 +39,104 @@ struct FormRequest {
 
 };
 
-struct IdentityData;
+struct UploadScanData {
+	FullMsgId fullId;
+	uint64 fileId = 0;
+	int partsCount = 0;
+	QByteArray md5checksum;
+	bytes::vector hash;
+	bytes::vector bytes;
+
+	int offset = 0;
+};
+
+class UploadScanDataPointer {
+public:
+	UploadScanDataPointer(std::unique_ptr<UploadScanData> &&value);
+	UploadScanDataPointer(UploadScanDataPointer &&other);
+	UploadScanDataPointer &operator=(UploadScanDataPointer &&other);
+	~UploadScanDataPointer();
+
+	UploadScanData *get() const;
+	operator UploadScanData*() const;
+	explicit operator bool() const;
+	UploadScanData *operator->() const;
+
+private:
+	std::unique_ptr<UploadScanData> _value;
+
+};
+
+struct File {
+	uint64 id = 0;
+	uint64 accessHash = 0;
+	int32 size = 0;
+	int32 dcId = 0;
+	TimeId date = 0;
+	bytes::vector hash;
+	bytes::vector secret;
+	bytes::vector encryptedSecret;
+
+	int downloadOffset = 0;
+	QImage image;
+};
+
+struct EditFile {
+	EditFile(
+		const File &fields,
+		std::unique_ptr<UploadScanData> &&uploadData);
+
+	File fields;
+	UploadScanDataPointer uploadData;
+	std::shared_ptr<bool> guard;
+	bool deleted = false;
+};
+
+struct Verification {
+	TimeId date;
+};
+
+struct ValueData {
+	QByteArray original;
+	std::map<QString, QString> parsed;
+	bytes::vector hash;
+	bytes::vector secret;
+	bytes::vector encryptedSecret;
+};
+
+struct Value {
+	enum class Type {
+		Identity,
+		Address,
+		Phone,
+		Email,
+	};
+
+	explicit Value(Type type);
+	Value(Value &&other) = default;
+	Value &operator=(Value &&other) = default;
+
+	Type type;
+	ValueData data;
+	std::vector<File> files;
+	std::vector<EditFile> filesInEdit;
+	bytes::vector consistencyHash;
+	base::optional<Verification> verification;
+};
+
+struct Form {
+	std::vector<Value> rows;
+};
+
+struct PasswordSettings {
+	bytes::vector salt;
+	bytes::vector newSalt;
+	bytes::vector newSecureSalt;
+	QString hint;
+	QString unconfirmedPattern;
+	QString confirmedEmail;
+	bool hasRecovery = false;
+};
 
 struct FileKey {
 	uint64 id = 0;
@@ -64,13 +163,6 @@ struct FileKey {
 
 };
 
-struct ScanInfo {
-	FileKey key;
-	QString status;
-	QImage thumb;
-
-};
-
 class FormController : private MTP::Sender, public base::has_weak_ptr {
 public:
 	FormController(
@@ -78,6 +170,7 @@ public:
 		const FormRequest &request);
 
 	void show();
+	UserData *bot() const;
 
 	void submitPassword(const QString &password);
 	rpl::producer<QString> passwordError() const;
@@ -90,96 +183,21 @@ public:
 
 	QString defaultEmail() const;
 	QString defaultPhoneNumber() const;
-	rpl::producer<ScanInfo> scanUpdated() const;
 
-	void fillRows(
-		base::lambda<void(
-			QString title,
-			QString description,
-			bool ready)> callback);
-	void editValue(int index);
+	rpl::producer<not_null<const EditFile*>> scanUpdated() const;
 
-	void saveValueIdentity(int index, const IdentityData &data);
+	void enumerateRows(base::lambda<void(const Value &value)> callback);
+	not_null<Value*> startValueEdit(int index);
+	void cancelValueEdit(int index);
+	void saveValueEdit(int index);
+
+	rpl::lifetime &lifetime() {
+		return _lifetime;
+	}
 
 	~FormController();
 
 private:
-	struct UploadScanData {
-		~UploadScanData();
-
-		FullMsgId fullId;
-		uint64 fileId = 0;
-		int partsCount = 0;
-		QByteArray md5checksum;
-		bytes::vector hash;
-		bytes::vector bytes;
-
-		int offset = 0;
-	};
-	struct File {
-		uint64 id = 0;
-		uint64 accessHash = 0;
-		int32 size = 0;
-		int32 dcId = 0;
-		TimeId date = 0;
-		bytes::vector hash;
-		bytes::vector secret;
-		bytes::vector encryptedSecret;
-
-		int downloadOffset = 0;
-		QImage image;
-	};
-	struct EditFile {
-		EditFile(
-			const File &fields,
-			std::unique_ptr<UploadScanData> &&uploadData);
-
-		File fields;
-		std::unique_ptr<UploadScanData> uploadData;
-		bool deleted = false;
-	};
-	struct Verification {
-		TimeId date;
-	};
-	struct ValueData {
-		QByteArray original;
-		std::map<QString, QString> parsed;
-		bytes::vector hash;
-		bytes::vector secret;
-		bytes::vector encryptedSecret;
-	};
-	struct Value {
-		enum class Type {
-			Identity,
-			Address,
-			Phone,
-			Email,
-		};
-
-		explicit Value(Type type);
-		Value(Value &&other) = default;
-		Value &operator=(Value &&other) = default;
-
-		Type type;
-		ValueData data;
-		std::vector<File> files;
-		std::vector<EditFile> filesInEdit;
-		bytes::vector consistencyHash;
-		base::optional<Verification> verification;
-	};
-	struct Form {
-		std::vector<Value> rows;
-	};
-	struct PasswordSettings {
-		bytes::vector salt;
-		bytes::vector newSalt;
-		bytes::vector newSecureSalt;
-		QString hint;
-		QString unconfirmedPattern;
-		QString confirmedEmail;
-		bool hasRecovery = false;
-	};
-
 	EditFile *findEditFile(const FullMsgId &fullId);
 	EditFile *findEditFile(const FileKey &key);
 	std::pair<Value*, File*> findFile(const FileKey &key);
@@ -223,10 +241,6 @@ private:
 	bool validateValueSecrets(Value &value);
 	void resetValue(Value &value);
 
-	IdentityData valueDataIdentity(const Value &value) const;
-	std::vector<ScanInfo> valueFilesIdentity(const Value &value) const;
-	void saveIdentity(int index);
-
 	void loadFiles(std::vector<File> &files);
 	void fileLoadDone(FileKey key, const QByteArray &bytes);
 	void fileLoadProgress(FileKey key, int offset);
@@ -245,9 +259,14 @@ private:
 	void scanUploadDone(const Storage::UploadSecureDone &data);
 	void scanUploadProgress(const Storage::UploadSecureProgress &data);
 	void scanUploadFail(const FullMsgId &fullId);
-	ScanInfo collectScanInfo(const EditFile &file) const;
+
+	bool isEncryptedValue(Value::Type type) const;
+	void saveEncryptedValue(int index);
+	void savePlainTextValue(int index);
+	void sendSaveRequest(int index, const MTPInputSecureValue &value);
 
 	not_null<Window::Controller*> _controller;
+	std::unique_ptr<ViewController> _view;
 	FormRequest _request;
 	UserData *_bot = nullptr;
 
@@ -258,7 +277,8 @@ private:
 	PasswordSettings _password;
 	Form _form;
 	std::map<FileKey, std::unique_ptr<mtpFileLoader>> _fileLoaders;
-	rpl::event_stream<ScanInfo> _scanUpdated;
+
+	rpl::event_stream<not_null<const EditFile*>> _scanUpdated;
 
 	bytes::vector _secret;
 	uint64 _secretId = 0;
@@ -267,9 +287,8 @@ private:
 	rpl::event_stream<> _secretReady;
 	rpl::event_stream<QString> _passwordError;
 
-	QPointer<BoxContent> _editBox;
-
 	rpl::lifetime _uploaderSubscriptions;
+	rpl::lifetime _lifetime;
 
 };
 

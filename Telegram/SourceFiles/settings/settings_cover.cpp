@@ -377,7 +377,9 @@ void CoverWidget::showSetPhotoBox(const QImage &img) {
 			std::move(image),
 			peer->id);
 	}, box->lifetime());
-	subscribe(box->boxClosing, [this] { onPhotoUploadStatusChanged(); });
+	box->boxClosing() | rpl::start_with_next([=] {
+		onPhotoUploadStatusChanged();
+	}, lifetime());
 }
 
 void CoverWidget::onPhotoUploadStatusChanged(PeerId peerId) {
