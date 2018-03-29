@@ -909,7 +909,7 @@ bool Messenger::openLocalUrl(const QString &url) {
 		auto params = url_parse_params(proxyMatch->captured(1), UrlParamNameTransform::ToLower);
 		ProxiesBoxController::ShowApplyConfirmation(ProxyData::Type::Mtproto, params);
 		return true;
-	} else if (auto authMatch = regex_match(qsl("^auth/?\\?(.+)(#|$)"), command, matchOptions)) {
+	} else if (auto authMatch = regex_match(qsl("^secureid/?\\?(.+)(#|$)"), command, matchOptions)) {
 		const auto params = url_parse_params(
 			authMatch->captured(1),
 			UrlParamNameTransform::ToLower);

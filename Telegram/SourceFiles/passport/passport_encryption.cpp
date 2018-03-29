@@ -26,8 +26,8 @@ struct AesParams {
 	bytes::vector iv;
 };
 
-AesParams PrepareAesParams(bytes::const_span secretHash) {
-	const auto hash = openssl::Sha512(secretHash);
+AesParams PrepareAesParams(bytes::const_span bytesForEncryptionKey) {
+	const auto hash = openssl::Sha512(bytesForEncryptionKey);
 	const auto view = gsl::make_span(hash);
 
 	auto result = AesParams();
@@ -82,14 +82,6 @@ bytes::vector Decrypt(
 	return EncryptOrDecrypt(encrypted, std::move(params), AES_DECRYPT);
 }
 
-bytes::vector PasswordHashForSecret(
-		bytes::const_span passwordUtf8) {
-	//new_secure_salt = new_salt + random_bytes(8) // #TODO
-	//password_hash = SHA512(new_secure_salt + password + new_secure_salt)
-	const auto result = openssl::Sha512(passwordUtf8);
-	return { result.begin(), result.end() };
-}
-
 bool CheckBytesMod255(bytes::const_span bytes) {
 	const auto full = ranges::accumulate(
 		bytes,
@@ -119,7 +111,7 @@ bytes::vector GenerateSecretBytes() {
 
 bytes::vector DecryptSecretBytes(
 		bytes::const_span encryptedSecret,
-		bytes::const_span passwordHashForSecret) {
+		bytes::const_span bytesForEncryptionKey) {
 	if (encryptedSecret.empty()) {
 		return {};
 	} else if (encryptedSecret.size() != kSecretSize) {
@@ -127,7 +119,7 @@ bytes::vector DecryptSecretBytes(
 			).arg(encryptedSecret.size()));
 		return {};
 	}
-	auto params = PrepareAesParams(passwordHashForSecret);
+	auto params = PrepareAesParams(bytesForEncryptionKey);
 	auto result = Decrypt(encryptedSecret, std::move(params));
 	if (!CheckSecretBytes(result)) {
 		LOG(("API Error: Bad secret bytes."));
@@ -138,11 +130,11 @@ bytes::vector DecryptSecretBytes(
 
 bytes::vector EncryptSecretBytes(
 		bytes::const_span secret,
-		bytes::const_span passwordHashForSecret) {
+		bytes::const_span bytesForEncryptionKey) {
 	Expects(secret.size() == kSecretSize);
 	Expects(CheckSecretBytes(secret) == true);
 
-	auto params = PrepareAesParams(passwordHashForSecret);
+	auto params = PrepareAesParams(bytesForEncryptionKey);
 	return Encrypt(secret, std::move(params));
 }
 
@@ -154,11 +146,26 @@ bytes::vector DecryptSecureSecret(
 	Expects(!encryptedSecret.empty());
 	Expects(!password.empty());
 
-	const auto hash = openssl::Sha512(bytes::concatenate(
+	const auto bytesForEncryptionKey = bytes::concatenate(
 		salt,
 		password,
-		salt));
-	return DecryptSecretBytes(encryptedSecret, hash);
+		salt);
+	return DecryptSecretBytes(encryptedSecret, bytesForEncryptionKey);
+}
+
+bytes::vector EncryptSecureSecret(
+		bytes::const_span salt,
+		bytes::const_span secret,
+		bytes::const_span password) {
+	Expects(!salt.empty());
+	Expects(secret.size() == kSecretSize);
+	Expects(!password.empty());
+
+	const auto bytesForEncryptionKey = bytes::concatenate(
+		salt,
+		password,
+		salt);
+	return EncryptSecretBytes(secret, bytesForEncryptionKey);
 }
 
 bytes::vector SerializeData(const std::map<QString, QString> &data) {
@@ -252,11 +259,11 @@ EncryptedData EncryptData(
 		gsl::make_span(unencrypted).subspan(padding),
 		bytes);
 	const auto dataHash = openssl::Sha256(unencrypted);
-	const auto dataSecretHash = openssl::Sha512(bytes::concatenate(
+	const auto bytesForEncryptionKey = bytes::concatenate(
 		dataSecret,
-		dataHash));
+		dataHash);
 
-	auto params = PrepareAesParams(dataSecretHash);
+	auto params = PrepareAesParams(bytesForEncryptionKey);
 	return {
 		{ dataSecret.begin(), dataSecret.end() },
 		{ dataHash.begin(), dataHash.end() },
@@ -279,10 +286,10 @@ bytes::vector DecryptData(
 		return {};
 	}
 
-	const auto dataSecretHash = openssl::Sha512(bytes::concatenate(
+	const auto bytesForEncryptionKey = bytes::concatenate(
 		dataSecret,
-		dataHash));
-	auto params = PrepareAesParams(dataSecretHash);
+		dataHash);
+	auto params = PrepareAesParams(bytesForEncryptionKey);
 	const auto decrypted = Decrypt(encrypted, std::move(params));
 	if (bytes::compare(openssl::Sha256(decrypted), dataHash) != 0) {
 		LOG(("API Error: Bad data hash."));
@@ -317,19 +324,20 @@ bytes::vector EncryptValueSecret(
 		bytes::const_span valueSecret,
 		bytes::const_span secret,
 		bytes::const_span valueHash) {
-	const auto valueSecretHash = openssl::Sha512(
-		bytes::concatenate(secret, valueHash));
-	return EncryptSecretBytes(valueSecret, valueSecretHash);
+	const auto bytesForEncryptionKey = bytes::concatenate(
+		secret,
+		valueHash);
+	return EncryptSecretBytes(valueSecret, bytesForEncryptionKey);
 }
 
 bytes::vector DecryptValueSecret(
 		bytes::const_span encrypted,
 		bytes::const_span secret,
 		bytes::const_span valueHash) {
-	const auto valueSecretHash = openssl::Sha512(bytes::concatenate(
+	const auto bytesForEncryptionKey = bytes::concatenate(
 		secret,
-		valueHash));
-	return DecryptSecretBytes(encrypted, valueSecretHash);
+		valueHash);
+	return DecryptSecretBytes(encrypted, bytesForEncryptionKey);
 }
 
 uint64 CountSecureSecretHash(bytes::const_span secret) {

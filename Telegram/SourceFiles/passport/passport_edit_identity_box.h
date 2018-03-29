@@ -30,7 +30,7 @@ public:
 	IdentityBox(
 		QWidget*,
 		not_null<FormController*> controller,
-		int fieldIndex,
+		int valueIndex,
 		const IdentityData &data,
 		std::vector<ScanInfo> &&files);
 
@@ -50,7 +50,7 @@ private:
 	void save();
 
 	not_null<FormController*> _controller;
-	int _fieldIndex = -1;
+	int _valueIndex = -1;
 
 	std::vector<ScanInfo> _files;
 

@@ -42,7 +42,7 @@ FormRequest::FormRequest(
 , publicKey(publicKey) {
 }
 
-FormController::UploadedScan::~UploadedScan() {
+FormController::UploadScanData::~UploadScanData() {
 	if (fullId) {
 		Auth().uploader().cancel(fullId);
 	}
@@ -50,24 +50,12 @@ FormController::UploadedScan::~UploadedScan() {
 
 FormController::EditFile::EditFile(
 	const File &fields,
-	std::unique_ptr<UploadedScan> &&uploaded)
+	std::unique_ptr<UploadScanData> &&uploadData)
 : fields(std::move(fields))
-, uploaded(std::move(uploaded)) {
+, uploadData(std::move(uploadData)) {
 }
 
-FormController::Field::Field(Type type) : type(type) {
-}
-
-template <typename FileHashes>
-bytes::vector FormController::computeFilesHash(
-		FileHashes fileHashes,
-		bytes::const_span valueSecret) {
-	auto vec = bytes::concatenate(fileHashes);
-	auto hashesVector = std::vector<bytes::const_span>();
-	for (const auto &hash : fileHashes) {
-		hashesVector.push_back(bytes::make_span(hash));
-	}
-	return PrepareFilesHash(hashesVector, valueSecret);
+FormController::Value::Value(Type type) : type(type) {
 }
 
 FormController::FormController(
@@ -131,15 +119,17 @@ void FormController::validateSecureSecret(
 	if (!salt.empty() && !encryptedSecret.empty()) {
 		_secret = DecryptSecureSecret(salt, encryptedSecret, password);
 		if (_secret.empty()) {
+			_secretId = 0;
 			LOG(("API Error: Failed to decrypt secure secret. "
 				"Forgetting all files and data :("));
-			for (auto &field : _form.fields) {
-				if (!field.encryptedSecret.empty()) {
-					resetField(field);
+			for (auto &value : _form.rows) {
+				if (!value.data.original.isEmpty()) {
+					resetValue(value);
 				}
 			}
 		} else {
-			decryptFields();
+			_secretId = CountSecureSecretHash(_secret);
+			decryptValues();
 		}
 	}
 	if (_secret.empty()) {
@@ -148,61 +138,71 @@ void FormController::validateSecureSecret(
 	_secretReady.fire({});
 }
 
-void FormController::decryptFields() {
+void FormController::decryptValues() {
 	Expects(!_secret.empty());
 
-	for (auto &field : _form.fields) {
-		if (field.encryptedSecret.empty()) {
+	for (auto &value : _form.rows) {
+		if (value.data.original.isEmpty()) {
 			continue;
 		}
-		decryptField(field);
+		decryptValue(value);
 	}
 }
 
-void FormController::decryptField(Field &field) {
+void FormController::decryptValue(Value &value) {
 	Expects(!_secret.empty());
-	Expects(!field.encryptedSecret.empty());
+	Expects(!value.data.original.isEmpty());
 
-	if (!validateFieldSecret(field)) {
-		resetField(field);
+	if (!validateValueSecrets(value)) {
+		resetValue(value);
 		return;
 	}
-	const auto dataHash = bytes::make_span(field.dataHash);
-	field.parsedData = DeserializeData(DecryptData(
-		bytes::make_span(field.originalData),
-		field.dataHash,
-		field.secret));
+	value.data.parsed = DeserializeData(DecryptData(
+		bytes::make_span(value.data.original),
+		value.data.hash,
+		value.data.secret));
 }
 
-bool FormController::validateFieldSecret(Field &field) {
-	field.secret = DecryptValueSecret(
-		field.encryptedSecret,
+bool FormController::validateValueSecrets(Value &value) {
+	value.data.secret = DecryptValueSecret(
+		value.data.encryptedSecret,
 		_secret,
-		field.hash);
-	if (field.secret.empty()) {
-		LOG(("API Error: Could not decrypt value secret. "
+		value.data.hash);
+	if (value.data.secret.empty()) {
+		LOG(("API Error: Could not decrypt data secret. "
 			"Forgetting files and data :("));
 		return false;
 	}
-	const auto fileHashes = ranges::view::all(
-		field.files
+	for (auto &file : value.files) {
+		file.secret = DecryptValueSecret(
+			file.encryptedSecret,
+			_secret,
+			file.hash);
+		if (file.secret.empty()) {
+			LOG(("API Error: Could not decrypt file secret. "
+				"Forgetting files and data :("));
+			return false;
+		}
+	}
+	const auto fileHashesSecrets = ranges::view::all(
+		value.files
 	) | ranges::view::transform([](File &file) {
-		return bytes::make_span(file.fileHash);
+		return bytes::concatenate(file.hash, file.encryptedSecret);
 	});
 	const auto countedHash = openssl::Sha256(bytes::concatenate(
-		field.dataHash,
-		bytes::concatenate(fileHashes),
-		field.secret));
-	if (field.hash != countedHash) {
-		LOG(("API Error: Wrong hash after decrypting value secret. "
+		value.data.hash,
+		value.data.encryptedSecret,
+		bytes::concatenate(fileHashesSecrets)));
+	if (value.consistencyHash != countedHash) {
+		LOG(("API Error: Wrong hash after decrypting value secrets. "
 			"Forgetting files and data :("));
 		return false;
 	}
 	return true;
 }
 
-void FormController::resetField(Field &field) {
-	field = Field(field.type);
+void FormController::resetValue(Value &value) {
+	value = Value(value.type);
 }
 
 rpl::producer<QString> FormController::passwordError() const {
@@ -213,52 +213,52 @@ QString FormController::passwordHint() const {
 	return _password.hint;
 }
 
-void FormController::uploadScan(int fieldIndex, QByteArray &&content) {
+void FormController::uploadScan(int valueIndex, QByteArray &&content) {
 	Expects(_editBox != nullptr);
-	Expects(fieldIndex >= 0 && fieldIndex < _form.fields.size());
+	Expects(valueIndex >= 0 && valueIndex < _form.rows.size());
 
-	auto &field = _form.fields[fieldIndex];
-	if (field.secret.empty()) {
-		field.secret = GenerateSecretBytes();
-	}
-	auto fileIndex = int(field.filesInEdit.size());
-	field.filesInEdit.emplace_back(
+	auto &value = _form.rows[valueIndex];
+	auto fileIndex = int(value.filesInEdit.size());
+	value.filesInEdit.emplace_back(
 		File(),
 		nullptr);
 	const auto fileId = rand_value<uint64>();
-	auto &file = field.filesInEdit.back();
+	auto &file = value.filesInEdit.back();
 	file.fields.size = content.size();
 	file.fields.id = fileId;
 	file.fields.dcId = MTP::maindc();
+	file.fields.secret = GenerateSecretBytes();
+	file.fields.date = unixtime();
 	file.fields.image = ReadImage(bytes::make_span(content));
 	file.fields.downloadOffset = file.fields.size;
 
 	_scanUpdated.fire(collectScanInfo(file));
 
-	encryptScan(fieldIndex, fileIndex, std::move(content));
+	encryptScan(valueIndex, fileIndex, std::move(content));
 }
 
 void FormController::encryptScan(
-		int fieldIndex,
+		int valueIndex,
 		int fileIndex,
 		QByteArray &&content) {
 	Expects(_editBox != nullptr);
-	Expects(fieldIndex >= 0 && fieldIndex < _form.fields.size());
+	Expects(valueIndex >= 0 && valueIndex < _form.rows.size());
 	Expects(fileIndex >= 0
-		&& fileIndex < _form.fields[fieldIndex].filesInEdit.size());
+		&& fileIndex < _form.rows[valueIndex].filesInEdit.size());
 
-	auto &field = _form.fields[fieldIndex];
+	const auto &value = _form.rows[valueIndex];
+	const auto &file = value.filesInEdit[fileIndex].fields;
 	const auto weak = _editBox;
 	crl::async([
 		=,
-		fileId = field.filesInEdit[fileIndex].fields.id,
+		fileId = file.id,
 		bytes = std::move(content),
-		valueSecret = field.secret
+		fileSecret = file.secret
 	] {
 		auto data = EncryptData(
 			bytes::make_span(bytes),
-			valueSecret);
-		auto result = UploadedScan();
+			fileSecret);
+		auto result = UploadScanData();
 		result.fileId = fileId;
 		result.hash = std::move(data.hash);
 		result.bytes = std::move(data.bytes);
@@ -270,7 +270,7 @@ void FormController::encryptScan(
 		crl::on_main([=, encrypted = std::move(result)]() mutable {
 			if (weak) {
 				uploadEncryptedScan(
-					fieldIndex,
+					valueIndex,
 					fileIndex,
 					std::move(encrypted));
 			}
@@ -279,13 +279,13 @@ void FormController::encryptScan(
 }
 
 void FormController::deleteScan(
-		int fieldIndex,
+		int valueIndex,
 		int fileIndex) {
-	Expects(fieldIndex >= 0 && fieldIndex < _form.fields.size());
+	Expects(valueIndex >= 0 && valueIndex < _form.rows.size());
 	Expects(fileIndex >= 0
-		&& fileIndex < _form.fields[fieldIndex].filesInEdit.size());
+		&& fileIndex < _form.rows[valueIndex].filesInEdit.size());
 
-	auto &file = _form.fields[fieldIndex].filesInEdit[fileIndex];
+	auto &file = _form.rows[valueIndex].filesInEdit[fileIndex];
 	file.deleted = !file.deleted;
 	_scanUpdated.fire(collectScanInfo(file));
 }
@@ -296,14 +296,17 @@ void FormController::subscribeToUploader() {
 	}
 
 	using namespace Storage;
+
 	Auth().uploader().secureReady(
 	) | rpl::start_with_next([=](const UploadSecureDone &data) {
 		scanUploadDone(data);
 	}, _uploaderSubscriptions);
+
 	Auth().uploader().secureProgress(
 	) | rpl::start_with_next([=](const UploadSecureProgress &data) {
 		scanUploadProgress(data);
 	}, _uploaderSubscriptions);
+
 	Auth().uploader().secureFailed(
 	) | rpl::start_with_next([=](const FullMsgId &fullId) {
 		scanUploadFail(fullId);
@@ -311,44 +314,48 @@ void FormController::subscribeToUploader() {
 }
 
 void FormController::uploadEncryptedScan(
-		int fieldIndex,
+		int valueIndex,
 		int fileIndex,
-		UploadedScan &&data) {
+		UploadScanData &&data) {
 	Expects(_editBox != nullptr);
-	Expects(fieldIndex >= 0 && fieldIndex < _form.fields.size());
+	Expects(valueIndex >= 0 && valueIndex < _form.rows.size());
 	Expects(fileIndex >= 0
-		&& fileIndex < _form.fields[fieldIndex].filesInEdit.size());
+		&& fileIndex < _form.rows[valueIndex].filesInEdit.size());
 
 	subscribeToUploader();
 
-	auto &file = _form.fields[fieldIndex].filesInEdit[fileIndex];
-	file.uploaded = std::make_unique<UploadedScan>(std::move(data));
+	auto &file = _form.rows[valueIndex].filesInEdit[fileIndex];
+	file.uploadData = std::make_unique<UploadScanData>(std::move(data));
 
 	auto prepared = std::make_shared<FileLoadResult>(
 		TaskId(),
-		file.uploaded->fileId,
+		file.uploadData->fileId,
 		FileLoadTo(PeerId(0), false, MsgId(0)),
 		TextWithTags(),
 		std::shared_ptr<SendingAlbum>(nullptr));
 	prepared->type = SendMediaType::Secure;
 	prepared->content = QByteArray::fromRawData(
-		reinterpret_cast<char*>(file.uploaded->bytes.data()),
-		file.uploaded->bytes.size());
+		reinterpret_cast<char*>(file.uploadData->bytes.data()),
+		file.uploadData->bytes.size());
 	prepared->setFileData(prepared->content);
-	prepared->filemd5 = file.uploaded->md5checksum;
+	prepared->filemd5 = file.uploadData->md5checksum;
 
-	file.uploaded->fullId = FullMsgId(0, clientMsgId());
-	Auth().uploader().upload(file.uploaded->fullId, std::move(prepared));
+	file.uploadData->fullId = FullMsgId(0, clientMsgId());
+	Auth().uploader().upload(file.uploadData->fullId, std::move(prepared));
 }
 
 void FormController::scanUploadDone(const Storage::UploadSecureDone &data) {
 	if (const auto file = findEditFile(data.fullId)) {
-		Assert(file->uploaded != nullptr);
-		Assert(file->uploaded->fileId == data.fileId);
+		Assert(file->uploadData != nullptr);
+		Assert(file->uploadData->fileId == data.fileId);
 
-		file->uploaded->partsCount = data.partsCount;
-		file->fields.fileHash = std::move(file->uploaded->hash);
-		file->uploaded->fullId = FullMsgId();
+		file->uploadData->partsCount = data.partsCount;
+		file->fields.hash = std::move(file->uploadData->hash);
+		file->fields.encryptedSecret = EncryptValueSecret(
+			file->fields.secret,
+			_secret,
+			file->fields.hash);
+		file->uploadData->fullId = FullMsgId();
 
 		_scanUpdated.fire(collectScanInfo(*file));
 	}
@@ -357,9 +364,9 @@ void FormController::scanUploadDone(const Storage::UploadSecureDone &data) {
 void FormController::scanUploadProgress(
 		const Storage::UploadSecureProgress &data) {
 	if (const auto file = findEditFile(data.fullId)) {
-		Assert(file->uploaded != nullptr);
+		Assert(file->uploadData != nullptr);
 
-		file->uploaded->offset = data.offset;
+		file->uploadData->offset = data.offset;
 
 		_scanUpdated.fire(collectScanInfo(*file));
 	}
@@ -367,9 +374,9 @@ void FormController::scanUploadProgress(
 
 void FormController::scanUploadFail(const FullMsgId &fullId) {
 	if (const auto file = findEditFile(fullId)) {
-		Assert(file->uploaded != nullptr);
+		Assert(file->uploadData != nullptr);
 
-		file->uploaded->offset = -1;
+		file->uploadData->offset = -1;
 
 		_scanUpdated.fire(collectScanInfo(*file));
 	}
@@ -399,27 +406,27 @@ void FormController::fillRows(
 		QString title,
 		QString description,
 		bool ready)> callback) {
-	for (const auto &field : _form.fields) {
-		switch (field.type) {
-		case Field::Type::Identity:
+	for (const auto &value : _form.rows) {
+		switch (value.type) {
+		case Value::Type::Identity:
 			callback(
 				lang(lng_passport_identity_title),
 				lang(lng_passport_identity_description),
 				false);
 			break;
-		case Field::Type::Address:
+		case Value::Type::Address:
 			callback(
 				lang(lng_passport_address_title),
 				lang(lng_passport_address_description),
 				false);
 			break;
-		case Field::Type::Phone:
+		case Value::Type::Phone:
 			callback(
 				lang(lng_passport_phone_title),
 				App::self()->phone(),
 				true);
 			break;
-		case Field::Type::Email:
+		case Value::Type::Email:
 			callback(
 				lang(lng_passport_email_title),
 				lang(lng_passport_email_description),
@@ -429,24 +436,25 @@ void FormController::fillRows(
 	}
 }
 
-void FormController::editField(int index) {
-	Expects(index >= 0 && index < _form.fields.size());
+void FormController::editValue(int index) {
+	Expects(index >= 0 && index < _form.rows.size());
+
+	auto &value = _form.rows[index];
+	loadFiles(value.files);
+	value.filesInEdit = ranges::view::all(
+		value.files
+	) | ranges::view::transform([](const File &file) {
+		return EditFile(file, nullptr);
+	}) | ranges::to_vector;
 
 	auto box = [&]() -> object_ptr<BoxContent> {
-		auto &field = _form.fields[index];
-		switch (field.type) {
-		case Field::Type::Identity:
-			loadFiles(field.files);
-			field.filesInEdit = ranges::view::all(
-				field.files
-			) | ranges::view::transform([](const File &file) {
-				return EditFile(file, nullptr);
-			}) | ranges::to_vector;
+		switch (value.type) {
+		case Value::Type::Identity:
 			return Box<IdentityBox>(
 				this,
 				index,
-				fieldDataIdentity(field),
-				fieldFilesIdentity(field));
+				valueDataIdentity(value),
+				valueFilesIdentity(value));
 		}
 		return { nullptr };
 	}();
@@ -496,11 +504,15 @@ void FormController::loadFiles(std::vector<File> &files) {
 }
 
 void FormController::fileLoadDone(FileKey key, const QByteArray &bytes) {
-	if (const auto [field, file] = findFile(key); file != nullptr) {
+	if (const auto [value, file] = findFile(key); file != nullptr) {
 		const auto decrypted = DecryptData(
 			bytes::make_span(bytes),
-			file->fileHash,
-			field->secret);
+			file->hash,
+			file->secret);
+		if (decrypted.empty()) {
+			fileLoadFail(key);
+			return;
+		}
 		file->downloadOffset = file->size;
 		file->image = App::readImage(QByteArray::fromRawData(
 			reinterpret_cast<const char*>(decrypted.data()),
@@ -514,7 +526,7 @@ void FormController::fileLoadDone(FileKey key, const QByteArray &bytes) {
 }
 
 void FormController::fileLoadProgress(FileKey key, int offset) {
-	if (const auto [field, file] = findFile(key); file != nullptr) {
+	if (const auto [value, file] = findFile(key); file != nullptr) {
 		file->downloadOffset = offset;
 		if (const auto fileInEdit = findEditFile(key)) {
 			fileInEdit->fields.downloadOffset = file->downloadOffset;
@@ -524,7 +536,7 @@ void FormController::fileLoadProgress(FileKey key, int offset) {
 }
 
 void FormController::fileLoadFail(FileKey key) {
-	if (const auto [field, file] = findFile(key); file != nullptr) {
+	if (const auto [value, file] = findFile(key); file != nullptr) {
 		file->downloadOffset = -1;
 		if (const auto fileInEdit = findEditFile(key)) {
 			fileInEdit->fields.downloadOffset = file->downloadOffset;
@@ -545,15 +557,16 @@ ScanInfo FormController::collectScanInfo(const EditFile &file) const {
 				).arg(file.fields.downloadOffset
 				).arg(file.fields.size);
 			} else {
-				return QString("download ready");
+				return QString("uploaded ")
+					+ langDateTimeFull(ParseDateTime(file.fields.date));
 			}
-		} else if (file.uploaded) {
-			if (file.uploaded->offset < 0) {
+		} else if (file.uploadData) {
+			if (file.uploadData->offset < 0) {
 				return QString("upload failed");
-			} else if (file.uploaded->fullId) {
+			} else if (file.uploadData->fullId) {
 				return QString("uploading %1 / %2"
-				).arg(file.uploaded->offset
-				).arg(file.uploaded->bytes.size());
+				).arg(file.uploadData->offset
+				).arg(file.uploadData->bytes.size());
 			} else {
 				return QString("upload ready");
 			}
@@ -567,8 +580,8 @@ ScanInfo FormController::collectScanInfo(const EditFile &file) const {
 		file.fields.image };
 }
 
-IdentityData FormController::fieldDataIdentity(const Field &field) const {
-	const auto &map = field.parsedData;
+IdentityData FormController::valueDataIdentity(const Value &value) const {
+	const auto &map = value.data.parsed;
 	auto result = IdentityData();
 	if (const auto i = map.find(qsl("first_name")); i != map.cend()) {
 		result.name = i->second;
@@ -579,31 +592,31 @@ IdentityData FormController::fieldDataIdentity(const Field &field) const {
 	return result;
 }
 
-std::vector<ScanInfo> FormController::fieldFilesIdentity(
-		const Field &field) const {
+std::vector<ScanInfo> FormController::valueFilesIdentity(
+		const Value &value) const {
 	auto result = std::vector<ScanInfo>();
-	for (const auto &file : field.filesInEdit) {
+	for (const auto &file : value.filesInEdit) {
 		result.push_back(collectScanInfo(file));
 	}
 	return result;
 }
 
-void FormController::saveFieldIdentity(
+void FormController::saveValueIdentity(
 		int index,
 		const IdentityData &data) {
 	Expects(_editBox != nullptr);
-	Expects(index >= 0 && index < _form.fields.size());
-	Expects(_form.fields[index].type == Field::Type::Identity);
+	Expects(index >= 0 && index < _form.rows.size());
+	Expects(_form.rows[index].type == Value::Type::Identity);
 
-	_form.fields[index].parsedData[qsl("first_name")] = data.name;
-	_form.fields[index].parsedData[qsl("last_name")] = data.surname;
+	_form.rows[index].data.parsed[qsl("first_name")] = data.name;
+	_form.rows[index].data.parsed[qsl("last_name")] = data.surname;
 
 	saveIdentity(index);
 }
 
 void FormController::saveIdentity(int index) {
-	Expects(index >= 0 && index < _form.fields.size());
-	Expects(_form.fields[index].type == Field::Type::Identity);
+	Expects(index >= 0 && index < _form.rows.size());
+	Expects(_form.rows[index].type == Value::Type::Identity);
 
 	if (_secret.empty()) {
 		_secretCallbacks.push_back([=] {
@@ -614,63 +627,69 @@ void FormController::saveIdentity(int index) {
 
 	_editBox->closeBox();
 
-	auto &field = _form.fields[index];
+	auto &value = _form.rows[index];
 
 	auto inputFiles = QVector<MTPInputSecureFile>();
-	inputFiles.reserve(field.filesInEdit.size());
-	for (const auto &file : field.filesInEdit) {
+	inputFiles.reserve(value.filesInEdit.size());
+	for (const auto &file : value.filesInEdit) {
 		if (file.deleted) {
 			continue;
-		} else if (const auto uploaded = file.uploaded.get()) {
+		} else if (const auto uploadData = file.uploadData.get()) {
 			inputFiles.push_back(MTP_inputSecureFileUploaded(
 				MTP_long(file.fields.id),
-				MTP_int(uploaded->partsCount),
-				MTP_bytes(uploaded->md5checksum),
-				MTP_bytes(file.fields.fileHash)));
+				MTP_int(uploadData->partsCount),
+				MTP_bytes(uploadData->md5checksum),
+				MTP_bytes(file.fields.hash),
+				MTP_bytes(file.fields.encryptedSecret)));
 		} else {
 			inputFiles.push_back(MTP_inputSecureFile(
 				MTP_long(file.fields.id),
 				MTP_long(file.fields.accessHash)));
 		}
 	}
-	if (field.secret.empty()) {
-		field.secret = GenerateSecretBytes();
+
+	if (value.data.secret.empty()) {
+		value.data.secret = GenerateSecretBytes();
 	}
 	const auto encryptedData = EncryptData(
-		SerializeData(field.parsedData),
-		field.secret);
-	const auto fileHashes = ranges::view::all(
-		field.filesInEdit
+		SerializeData(value.data.parsed),
+		value.data.secret);
+	value.data.hash = encryptedData.hash;
+	value.data.encryptedSecret = EncryptValueSecret(
+		value.data.secret,
+		_secret,
+		value.data.hash);
+
+	const auto fileHashesSecrets = ranges::view::all(
+		value.filesInEdit
 	) | ranges::view::filter([](const EditFile &file) {
 		return !file.deleted;
 	}) | ranges::view::transform([](const EditFile &file) {
-		return bytes::make_span(file.fields.fileHash);
+		return bytes::concatenate(
+			file.fields.hash,
+			file.fields.encryptedSecret);
 	});
-	const auto valueHash = openssl::Sha256(bytes::concatenate(
-		encryptedData.hash,
-		bytes::concatenate(fileHashes),
-		field.secret));
+	value.consistencyHash = openssl::Sha256(bytes::concatenate(
+		value.data.hash,
+		value.data.encryptedSecret,
+		bytes::concatenate(fileHashesSecrets)));
 
-	field.encryptedSecret = EncryptValueSecret(
-		field.secret,
-		_secret,
-		valueHash);
 	request(MTPaccount_SaveSecureValue(
 		MTP_inputSecureValueIdentity(
 			MTP_secureData(
 				MTP_bytes(encryptedData.bytes),
-				MTP_bytes(encryptedData.hash)),
+				MTP_bytes(value.data.hash),
+				MTP_bytes(value.data.encryptedSecret)),
 			MTP_vector<MTPInputSecureFile>(inputFiles),
-			MTP_bytes(field.encryptedSecret),
-			MTP_bytes(valueHash)),
+			MTP_bytes(value.consistencyHash)),
 		MTP_long(CountSecureSecretHash(_secret))
 	)).done([=](const MTPSecureValueSaved &result) {
 		Expects(result.type() == mtpc_secureValueSaved);
 
 		const auto &data = result.c_secureValueSaved();
-		_form.fields[index].files = parseFiles(
+		_form.rows[index].files = parseFiles(
 			data.vfiles.v,
-			base::take(_form.fields[index].filesInEdit));
+			base::take(_form.rows[index].filesInEdit));
 
 		Ui::show(Box<InformBox>("Saved"), LayerOption::KeepOther);
 	}).fail([=](const RPCError &error) {
@@ -690,19 +709,17 @@ void FormController::generateSecret(bytes::const_span password) {
 		_password.newSecureSalt,
 		randomSaltPart);
 
-	const auto hashForSecret = openssl::Sha512(bytes::concatenate(
+	auto secureSecretId = CountSecureSecretHash(secret);
+	auto encryptedSecret = EncryptSecureSecret(
 		newSecureSaltFull,
-		password,
-		newSecureSaltFull));
+		secret,
+		password);
+
 	const auto hashForAuth = openssl::Sha256(bytes::concatenate(
 		_password.salt,
 		password,
 		_password.salt));
 
-	auto secureSecretHash = CountSecureSecretHash(secret);
-	auto encryptedSecret = EncryptSecretBytes(
-		secret,
-		hashForSecret);
 	using Flag = MTPDaccount_passwordInputSettings::Flag;
 	_saveSecretRequestId = request(MTPaccount_UpdatePasswordSettings(
 		MTP_bytes(hashForAuth),
@@ -714,10 +731,11 @@ void FormController::generateSecret(bytes::const_span password) {
 			MTPstring(), // email
 			MTP_bytes(newSecureSaltFull),
 			MTP_bytes(encryptedSecret),
-			MTP_long(secureSecretHash))
+			MTP_long(secureSecretId))
 	)).done([=](const MTPBool &result) {
 		_saveSecretRequestId = 0;
 		_secret = secret;
+		_secretId = secureSecretId;
 		//_password.salt = newPasswordSaltFull;
 		for (const auto &callback : base::take(_secretCallbacks)) {
 			callback();
@@ -745,20 +763,20 @@ void FormController::requestForm() {
 }
 
 template <typename DataType>
-auto FormController::parseEncryptedField(
-		Field::Type type,
-		const DataType &data) const -> Field {
+auto FormController::parseEncryptedValue(
+		Value::Type type,
+		const DataType &data) const -> Value {
 	Expects(data.vdata.type() == mtpc_secureData);
 
-	auto result = Field(type);
+	auto result = Value(type);
 	if (data.has_verified()) {
 		result.verification = parseVerified(data.vverified);
 	}
-	result.encryptedSecret = bytes::make_vector(data.vsecret.v);
-	result.hash = bytes::make_vector(data.vhash.v);
+	result.consistencyHash = bytes::make_vector(data.vhash.v);
 	const auto &fields = data.vdata.c_secureData();
-	result.originalData = fields.vdata.v;
-	result.dataHash = bytes::make_vector(fields.vdata_hash.v);
+	result.data.original = fields.vdata.v;
+	result.data.hash = bytes::make_vector(fields.vdata_hash.v);
+	result.data.encryptedSecret = bytes::make_vector(fields.vsecret.v);
 	result.files = parseFiles(data.vfiles.v);
 	return result;
 }
@@ -782,28 +800,11 @@ auto FormController::parseFiles(
 			normal.id = fields.vid.v;
 			normal.accessHash = fields.vaccess_hash.v;
 			normal.size = fields.vsize.v;
+			normal.date = fields.vdate.v;
 			normal.dcId = fields.vdc_id.v;
-			normal.fileHash = bytes::make_vector(fields.vfile_hash.v);
-			const auto i = ranges::find(
-				editData,
-				normal.fileHash,
-				[](const EditFile &file) { return file.fields.fileHash; });
-			if (i != editData.end()) {
-				normal.image = i->fields.image;
-				normal.downloadOffset = i->fields.downloadOffset;
-				if (i->uploaded) {
-					Local::writeImage(
-						StorageKey(
-							storageMix32To64(
-								SecureFileLocation,
-								normal.dcId),
-							normal.id),
-						StorageImageSaved(QByteArray::fromRawData(
-							reinterpret_cast<const char*>(
-								i->uploaded->bytes.data()),
-							i->uploaded->bytes.size())));
-				}
-			}
+			normal.hash = bytes::make_vector(fields.vfile_hash.v);
+			normal.encryptedSecret = bytes::make_vector(fields.vsecret.v);
+			fillDownloadedFile(normal, editData);
 			result.push_back(std::move(normal));
 		} break;
 		}
@@ -813,12 +814,39 @@ auto FormController::parseFiles(
 	return result;
 }
 
+void FormController::fillDownloadedFile(
+		File &destination,
+		const std::vector<EditFile> &source) const {
+	const auto i = ranges::find(
+		source,
+		destination.hash,
+		[](const EditFile &file) { return file.fields.hash; });
+	if (i == source.end()) {
+		return;
+	}
+	destination.image = i->fields.image;
+	destination.downloadOffset = i->fields.downloadOffset;
+	if (!i->uploadData) {
+		return;
+	}
+	Local::writeImage(
+		StorageKey(
+			storageMix32To64(
+				SecureFileLocation,
+				destination.dcId),
+			destination.id),
+		StorageImageSaved(QByteArray::fromRawData(
+			reinterpret_cast<const char*>(
+				i->uploadData->bytes.data()),
+			i->uploadData->bytes.size())));
+}
+
 template <typename DataType>
-auto FormController::parsePlainTextField(
-		Field::Type type,
+auto FormController::parsePlainTextValue(
+		Value::Type type,
 		const QByteArray &value,
-		const DataType &data) const -> Field {
-	auto result = Field(type);
+		const DataType &data) const -> Value {
+	auto result = Value(type);
 	const auto check = bytes::compare(
 		bytes::make_span(data.vhash.v),
 		openssl::Sha256(bytes::make_span(value)));
@@ -830,38 +858,38 @@ auto FormController::parsePlainTextField(
 			));
 		return result;
 	}
-	result.parsedData[QString("value")] = QString::fromUtf8(value);
+	result.data.parsed[QString("value")] = QString::fromUtf8(value);
 	if (data.has_verified()) {
 		result.verification = parseVerified(data.vverified);
 	}
-	result.hash = bytes::make_vector(data.vhash.v);
+	result.consistencyHash = bytes::make_vector(data.vhash.v);
 	return result;
 }
 
 auto FormController::parseValue(
-		const MTPSecureValue &value) const -> Field {
+		const MTPSecureValue &value) const -> Value {
 	switch (value.type()) {
 	case mtpc_secureValueIdentity: {
-		return parseEncryptedField(
-			Field::Type::Identity,
+		return parseEncryptedValue(
+			Value::Type::Identity,
 			value.c_secureValueIdentity());
 	} break;
 	case mtpc_secureValueAddress: {
-		return parseEncryptedField(
-			Field::Type::Address,
+		return parseEncryptedValue(
+			Value::Type::Address,
 			value.c_secureValueAddress());
 	} break;
 	case mtpc_secureValuePhone: {
 		const auto &data = value.c_secureValuePhone();
-		return parsePlainTextField(
-			Field::Type::Phone,
+		return parsePlainTextValue(
+			Value::Type::Phone,
 			data.vphone.v,
 			data);
 	} break;
 	case mtpc_secureValueEmail: {
 		const auto &data = value.c_secureValueEmail();
-		return parsePlainTextField(
-			Field::Type::Phone,
+		return parsePlainTextValue(
+			Value::Type::Phone,
 			data.vemail.v,
 			data);
 	} break;
@@ -874,13 +902,13 @@ auto FormController::parseVerified(const MTPSecureValueVerified &data) const
 	Expects(data.type() == mtpc_secureValueVerified);
 
 	const auto &fields = data.c_secureValueVerified();
-	return Verification{ fields.vdate.v, qs(fields.vprovider) };
+	return Verification{ fields.vdate.v };
 }
 
 auto FormController::findEditFile(const FullMsgId &fullId) -> EditFile* {
-	for (auto &field : _form.fields) {
-		for (auto &file : field.filesInEdit) {
-			if (file.uploaded && file.uploaded->fullId == fullId) {
+	for (auto &value : _form.rows) {
+		for (auto &file : value.filesInEdit) {
+			if (file.uploadData && file.uploadData->fullId == fullId) {
 				return &file;
 			}
 		}
@@ -889,8 +917,8 @@ auto FormController::findEditFile(const FullMsgId &fullId) -> EditFile* {
 }
 
 auto FormController::findEditFile(const FileKey &key) -> EditFile* {
-	for (auto &field : _form.fields) {
-		for (auto &file : field.filesInEdit) {
+	for (auto &value : _form.rows) {
+		for (auto &file : value.filesInEdit) {
 			if (file.fields.dcId == key.dcId && file.fields.id == key.id) {
 				return &file;
 			}
@@ -900,11 +928,11 @@ auto FormController::findEditFile(const FileKey &key) -> EditFile* {
 }
 
 auto FormController::findFile(const FileKey &key)
--> std::pair<Field*, File*> {
-	for (auto &field : _form.fields) {
-		for (auto &file : field.files) {
+-> std::pair<Value*, File*> {
+	for (auto &value : _form.rows) {
+		for (auto &file : value.files) {
 			if (file.dcId == key.dcId && file.id == key.id) {
-				return { &field, &file };
+				return { &value, &file };
 			}
 		}
 	}
@@ -923,11 +951,11 @@ void FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 
 	const auto &data = result.c_account_authorizationForm();
 
-	auto values = std::vector<Field>();
+	auto values = std::vector<Value>();
 	for (const auto &value : data.vvalues.v) {
 		values.push_back(parseValue(value));
 	}
-	const auto findValue = [&](Field::Type type) -> Field* {
+	const auto findValue = [&](Value::Type type) -> Value* {
 		for (auto &value : values) {
 			if (value.type == type) {
 				return &value;
@@ -936,10 +964,9 @@ void FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 		return nullptr;
 	};
 
-	_form.requestWrite = false;
 	App::feedUsers(data.vusers);
 	for (const auto &required : data.vrequired_types.v) {
-		using Type = Field::Type;
+		using Type = Value::Type;
 
 		const auto type = [&] {
 			switch (required.type()) {
@@ -951,10 +978,10 @@ void FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 			Unexpected("Type in secureValueType type.");
 		}();
 
-		if (auto field = findValue(type)) {
-			_form.fields.push_back(std::move(*field));
+		if (auto value = findValue(type)) {
+			_form.rows.push_back(std::move(*value));
 		} else {
-			_form.fields.push_back(Field(type));
+			_form.rows.push_back(Value(type));
 		}
 	}
 	_bot = App::userLoaded(_request.botId);

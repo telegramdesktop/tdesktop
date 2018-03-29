@@ -83,8 +83,8 @@ public:
 	rpl::producer<QString> passwordError() const;
 	QString passwordHint() const;
 
-	void uploadScan(int fieldIndex, QByteArray &&content);
-	void deleteScan(int fieldIndex, int fileIndex);
+	void uploadScan(int valueIndex, QByteArray &&content);
+	void deleteScan(int valueIndex, int fileIndex);
 
 	rpl::producer<> secretReadyEvents() const;
 
@@ -97,15 +97,15 @@ public:
 			QString title,
 			QString description,
 			bool ready)> callback);
-	void editField(int index);
+	void editValue(int index);
 
-	void saveFieldIdentity(int index, const IdentityData &data);
+	void saveValueIdentity(int index, const IdentityData &data);
 
 	~FormController();
 
 private:
-	struct UploadedScan {
-		~UploadedScan();
+	struct UploadScanData {
+		~UploadScanData();
 
 		FullMsgId fullId;
 		uint64 fileId = 0;
@@ -121,7 +121,10 @@ private:
 		uint64 accessHash = 0;
 		int32 size = 0;
 		int32 dcId = 0;
-		bytes::vector fileHash;
+		TimeId date = 0;
+		bytes::vector hash;
+		bytes::vector secret;
+		bytes::vector encryptedSecret;
 
 		int downloadOffset = 0;
 		QImage image;
@@ -129,17 +132,23 @@ private:
 	struct EditFile {
 		EditFile(
 			const File &fields,
-			std::unique_ptr<UploadedScan> &&uploaded);
+			std::unique_ptr<UploadScanData> &&uploadData);
 
 		File fields;
-		std::unique_ptr<UploadedScan> uploaded;
+		std::unique_ptr<UploadScanData> uploadData;
 		bool deleted = false;
 	};
 	struct Verification {
 		TimeId date;
-		QString provider;
 	};
-	struct Field {
+	struct ValueData {
+		QByteArray original;
+		std::map<QString, QString> parsed;
+		bytes::vector hash;
+		bytes::vector secret;
+		bytes::vector encryptedSecret;
+	};
+	struct Value {
 		enum class Type {
 			Identity,
 			Address,
@@ -147,24 +156,19 @@ private:
 			Email,
 		};
 
-		explicit Field(Type type);
-		Field(Field &&other) = default;
-		Field &operator=(Field &&other) = default;
+		explicit Value(Type type);
+		Value(Value &&other) = default;
+		Value &operator=(Value &&other) = default;
 
 		Type type;
-		QByteArray originalData;
-		std::map<QString, QString> parsedData;
-		bytes::vector dataHash;
+		ValueData data;
 		std::vector<File> files;
 		std::vector<EditFile> filesInEdit;
-		bytes::vector secret;
-		bytes::vector encryptedSecret;
-		bytes::vector hash;
+		bytes::vector consistencyHash;
 		base::optional<Verification> verification;
 	};
 	struct Form {
-		bool requestWrite = false;
-		std::vector<Field> fields;
+		std::vector<Value> rows;
 	};
 	struct PasswordSettings {
 		bytes::vector salt;
@@ -178,7 +182,7 @@ private:
 
 	EditFile *findEditFile(const FullMsgId &fullId);
 	EditFile *findEditFile(const FileKey &key);
-	std::pair<Field*, File*> findFile(const FileKey &key);
+	std::pair<Value*, File*> findFile(const FileKey &key);
 
 	void requestForm();
 	void requestPassword();
@@ -187,20 +191,23 @@ private:
 	void formFail(const RPCError &error);
 	void parseForm(const MTPaccount_AuthorizationForm &result);
 	void showForm();
-	Field parseValue(const MTPSecureValue &value) const;
+	Value parseValue(const MTPSecureValue &value) const;
 	template <typename DataType>
-	Field parseEncryptedField(
-		Field::Type type,
+	Value parseEncryptedValue(
+		Value::Type type,
 		const DataType &data) const;
 	template <typename DataType>
-	Field parsePlainTextField(
-		Field::Type type,
-		const QByteArray &value,
+	Value parsePlainTextValue(
+		Value::Type type,
+		const QByteArray &text,
 		const DataType &data) const;
 	Verification parseVerified(const MTPSecureValueVerified &data) const;
 	std::vector<File> parseFiles(
 		const QVector<MTPSecureFile> &data,
 		const std::vector<EditFile> &editData = {}) const;
+	void fillDownloadedFile(
+		File &destination,
+		const std::vector<EditFile> &source) const;
 
 	void passwordDone(const MTPaccount_Password &result);
 	void passwordFail(const RPCError &error);
@@ -211,13 +218,13 @@ private:
 		bytes::const_span salt,
 		bytes::const_span encryptedSecret,
 		bytes::const_span password);
-	void decryptFields();
-	void decryptField(Field &field);
-	bool validateFieldSecret(Field &field);
-	void resetField(Field &field);
+	void decryptValues();
+	void decryptValue(Value &value);
+	bool validateValueSecrets(Value &value);
+	void resetValue(Value &value);
 
-	IdentityData fieldDataIdentity(const Field &field) const;
-	std::vector<ScanInfo> fieldFilesIdentity(const Field &field) const;
+	IdentityData valueDataIdentity(const Value &value) const;
+	std::vector<ScanInfo> valueFilesIdentity(const Value &value) const;
 	void saveIdentity(int index);
 
 	void loadFiles(std::vector<File> &files);
@@ -226,17 +233,15 @@ private:
 	void fileLoadFail(FileKey key);
 	void generateSecret(bytes::const_span password);
 
-	template <typename FileHashes>
-	bytes::vector computeFilesHash(
-		FileHashes fileHashes,
-		bytes::const_span valueHash);
-
 	void subscribeToUploader();
 	void encryptScan(
-		int fieldIndex,
+		int valueIndex,
 		int fileIndex,
 		QByteArray &&content);
-	void uploadEncryptedScan(int fieldIndex, int fileIndex, UploadedScan &&data);
+	void uploadEncryptedScan(
+		int valueIndex,
+		int fileIndex,
+		UploadScanData &&data);
 	void scanUploadDone(const Storage::UploadSecureDone &data);
 	void scanUploadProgress(const Storage::UploadSecureProgress &data);
 	void scanUploadFail(const FullMsgId &fullId);
@@ -256,6 +261,7 @@ private:
 	rpl::event_stream<ScanInfo> _scanUpdated;
 
 	bytes::vector _secret;
+	uint64 _secretId = 0;
 	std::vector<base::lambda<void()>> _secretCallbacks;
 	mtpRequestId _saveSecretRequestId = 0;
 	rpl::event_stream<> _secretReady;

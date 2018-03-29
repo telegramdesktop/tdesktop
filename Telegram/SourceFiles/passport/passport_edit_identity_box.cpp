@@ -143,11 +143,11 @@ void ScanButton::paintEvent(QPaintEvent *e) {
 IdentityBox::IdentityBox(
 	QWidget*,
 	not_null<FormController*> controller,
-	int fieldIndex,
+	int valueIndex,
 	const IdentityData &data,
 	std::vector<ScanInfo> &&files)
 : _controller(controller)
-, _fieldIndex(fieldIndex)
+, _valueIndex(valueIndex)
 , _files(std::move(files))
 , _uploadScan(this, "Upload scans") // #TODO langs
 , _name(
@@ -175,7 +175,7 @@ void IdentityBox::prepare() {
 		_scans.back()->resizeToWidth(st::boxWideWidth);
 		_scans.back()->deleteClicks(
 		) | rpl::start_with_next([=] {
-			_controller->deleteScan(_fieldIndex, index - 1);
+			_controller->deleteScan(_valueIndex, index - 1);
 		}, lifetime());
 	}
 
@@ -294,14 +294,14 @@ void IdentityBox::encryptScan(const QString &path) {
 }
 
 void IdentityBox::encryptScanContent(QByteArray &&content) {
-	_controller->uploadScan(_fieldIndex, std::move(content));
+	_controller->uploadScan(_valueIndex, std::move(content));
 }
 
 void IdentityBox::save() {
 	auto data = IdentityData();
 	data.name = _name->getLastText();
 	data.surname = _surname->getLastText();
-	_controller->saveFieldIdentity(_fieldIndex, data);
+	_controller->saveValueIdentity(_valueIndex, data);
 }
 
 } // namespace Passport

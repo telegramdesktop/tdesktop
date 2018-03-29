@@ -281,7 +281,7 @@ messageActionPhoneCall#80e11a7f flags:# call_id:long reason:flags.0?PhoneCallDis
 messageActionScreenshotTaken#4792929b = MessageAction;
 messageActionCustomAction#fae69f56 message:string = MessageAction;
 messageActionBotAllowed#abe9affe domain:string = MessageAction;
-messageActionSecureValuesSentMe#1b287353 values:Vector<SecureValue> credentials:SecureCredentialsEncrypted = MessageAction;
+messageActionSecureValuesSentMe#9bc8ec4 values:Vector<SecureValue> credentials:SecureCredentialsEncrypted payload:bytes = MessageAction;
 messageActionSecureValuesSent#d95c6154 types:Vector<SecureValueType> = MessageAction;
 
 dialog#e4def5db flags:# pinned:flags.2?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage = Dialog;
@@ -589,9 +589,9 @@ account.authorizations#1250abde authorizations:Vector<Authorization> = account.A
 account.noPassword#5ea182f6 new_salt:bytes new_secure_salt:bytes secure_random:bytes email_unconfirmed_pattern:string = account.Password;
 account.password#d06c5fc3 current_salt:bytes new_salt:bytes new_secure_salt:bytes secure_random:bytes hint:string has_recovery:Bool email_unconfirmed_pattern:string = account.Password;
 
-account.passwordSettings#48ec1750 email:string secure_salt:bytes secure_secret:bytes secure_secret_hash:long = account.PasswordSettings;
+account.passwordSettings#7bd9c3f1 email:string secure_salt:bytes secure_secret:bytes secure_secret_id:long = account.PasswordSettings;
 
-account.passwordInputSettings#e553a6cf flags:# new_salt:flags.0?bytes new_password_hash:flags.0?bytes hint:flags.0?string email:flags.1?string new_secure_salt:flags.2?bytes new_secure_secret:flags.2?bytes new_secure_secret_hash:flags.2?long = account.PasswordInputSettings;
+account.passwordInputSettings#21ffa60d flags:# new_salt:flags.0?bytes new_password_hash:flags.0?bytes hint:flags.0?string email:flags.1?string new_secure_salt:flags.2?bytes new_secure_secret:flags.2?bytes new_secure_secret_id:flags.2?long = account.PasswordInputSettings;
 
 auth.passwordRecovery#137948a5 email_pattern:string = auth.PasswordRecovery;
 
@@ -967,28 +967,28 @@ help.proxyDataPromo#2bf7ee23 expires:int peer:Peer chats:Vector<Chat> users:Vect
 help.termsOfServiceUpdateEmpty#e3309f7f expires:int = help.TermsOfServiceUpdate;
 help.termsOfServiceUpdate#28ecf961 expires:int terms_of_service:help.TermsOfService = help.TermsOfServiceUpdate;
 
-inputSecureFileUploaded#c53ed020 id:long parts:int md5_checksum:string file_hash:bytes = InputSecureFile;
+inputSecureFileUploaded#3334b0f0 id:long parts:int md5_checksum:string file_hash:bytes secret:bytes = InputSecureFile;
 inputSecureFile#5367e5be id:long access_hash:long = InputSecureFile;
 
 secureFileEmpty#64199744 = SecureFile;
-secureFile#40ad69ba id:long access_hash:long size:int dc_id:int file_hash:bytes = SecureFile;
+secureFile#e0277a62 id:long access_hash:long size:int dc_id:int date:int file_hash:bytes secret:bytes = SecureFile;
 
-secureData#262b0134 data:bytes data_hash:bytes = SecureData;
+secureData#8aeabec3 data:bytes data_hash:bytes secret:bytes = SecureData;
 
-secureValueVerified#612d86df date:int provider:string = SecureValueVerified;
+secureValueVerified#2c8e61e2 date:int = SecureValueVerified;
 
 secureValueTypeIdentity#37da58ca = SecureValueType;
 secureValueTypeAddress#cbe31e26 = SecureValueType;
 secureValueTypePhone#b320aadb = SecureValueType;
 secureValueTypeEmail#8e3ca7ee = SecureValueType;
 
-secureValueIdentity#a6c927ad flags:# data:SecureData files:Vector<SecureFile> secret:bytes hash:bytes verified:flags.0?SecureValueVerified = SecureValue;
-secureValueAddress#74a0d79c flags:# data:SecureData files:Vector<SecureFile> secret:bytes hash:bytes verified:flags.0?SecureValueVerified = SecureValue;
+secureValueIdentity#4838ff84 flags:# data:SecureData files:Vector<SecureFile> hash:bytes verified:flags.0?SecureValueVerified = SecureValue;
+secureValueAddress#2b9f6bef flags:# data:SecureData files:Vector<SecureFile> hash:bytes verified:flags.0?SecureValueVerified = SecureValue;
 secureValuePhone#a1ca84fe flags:# phone:string hash:bytes verified:flags.0?SecureValueVerified = SecureValue;
 secureValueEmail#c4db6579 flags:# email:string hash:bytes verified:flags.0?SecureValueVerified = SecureValue;
 
-inputSecureValueIdentity#ae27d606 data:SecureData files:Vector<InputSecureFile> secret:bytes hash:bytes = InputSecureValue;
-inputSecureValueAddress#c1f733e5 data:SecureData files:Vector<InputSecureFile> secret:bytes hash:bytes = InputSecureValue;
+inputSecureValueIdentity#df93404 data:SecureData files:Vector<InputSecureFile> hash:bytes = InputSecureValue;
+inputSecureValueAddress#5589502 data:SecureData files:Vector<InputSecureFile> hash:bytes = InputSecureValue;
 inputSecureValuePhone#141e00b8 phone:string hash:bytes = InputSecureValue;
 inputSecureValueEmail#2dc15b9a email:string hash:bytes = InputSecureValue;
 
@@ -996,9 +996,9 @@ secureValueHash#ed1ecdb0 type:SecureValueType hash:bytes = SecureValueHash;
 
 secureValueSaved#c9147049 files:Vector<SecureFile> = SecureValueSaved;
 
-secureCredentialsEncrypted#628fe12a data:bytes secret:bytes hash:bytes = SecureCredentialsEncrypted;
+secureCredentialsEncrypted#33f0ea47 data:bytes hash:bytes secret:bytes = SecureCredentialsEncrypted;
 
-account.authorizationForm#8d9dddeb flags:# accepted:flags.0?true required_types:Vector<SecureValueType> values:Vector<SecureValue> users:Vector<User> = account.AuthorizationForm;
+account.authorizationForm#4cace8c4 required_types:Vector<SecureValueType> values:Vector<SecureValue> users:Vector<User> = account.AuthorizationForm;
 
 account.sentEmailCode#28b1633b email_pattern:string = account.SentEmailCode;
 
@@ -1058,10 +1058,10 @@ account.getWebAuthorizations#182e6d6f = account.WebAuthorizations;
 account.resetWebAuthorization#2d01b9ef hash:long = Bool;
 account.resetWebAuthorizations#682d2594 = Bool;
 account.getSecureValue#d97e77cb user_id:InputUser types:Vector<SecureValueType> = Vector<SecureValue>;
-account.saveSecureValue#842659a5 value:InputSecureValue secure_secret_hash:long = SecureValueSaved;
+account.saveSecureValue#78969d0b value:InputSecureValue secure_secret_id:long = SecureValueSaved;
 account.deleteSecureValue#b880bc4b types:Vector<SecureValueType> = Bool;
 account.getAuthorizationForm#b86ba8e1 bot_id:int scope:string public_key:string = account.AuthorizationForm;
-account.acceptAuthorization#e7027c94 bot_id:int scope:string public_key:string value_hashes:Vector<SecureValueHash> credentials:SecureCredentialsEncrypted = Bool;
+account.acceptAuthorization#8d5e02e6 bot_id:int scope:string public_key:string value_hashes:Vector<SecureValueHash> credentials:SecureCredentialsEncrypted payload:bytes = Bool;
 account.sendVerifyPhoneCode#823380b4 flags:# allow_flashcall:flags.0?true phone_number:string current_number:flags.0?Bool = auth.SentCode;
 account.verifyPhone#4dd3a7f6 phone_number:string phone_code_hash:string phone_code:string = Bool;
 account.sendVerifyEmailCode#7011509f email:string = account.SentEmailCode;
