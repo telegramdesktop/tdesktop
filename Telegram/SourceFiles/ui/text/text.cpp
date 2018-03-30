@@ -31,7 +31,20 @@ bool chIsBad(QChar ch) {
 		return true;
 	}
 #endif // OS_MAC_OLD
-	return (ch == 0) || (ch >= 8232 && ch < 8237) || (ch >= 65024 && ch < 65040 && ch != 65039) || (ch >= 127 && ch < 160 && ch != 156) || (cPlatform() == dbipMac && ch >= 0x0B00 && ch <= 0x0B7F && chIsDiac(ch) && cIsElCapitan()); // tmp hack see https://bugreports.qt.io/browse/QTBUG-48910
+	return (ch == 0)
+        || (ch >= 8232 && ch < 8237)
+        || (ch >= 65024 && ch < 65040 && ch != 65039)
+        || (ch >= 127 && ch < 160 && ch != 156)
+
+        // qt harfbuzz crash see https://github.com/telegramdesktop/tdesktop/issues/4551
+        || (cPlatform() == dbipMac && ch == 6158)
+
+        // tmp hack see https://bugreports.qt.io/browse/QTBUG-48910
+        || (cPlatform() == dbipMac
+            && ch >= 0x0B00
+            && ch <= 0x0B7F
+            && chIsDiac(ch)
+            && cIsElCapitan());
 }
 
 QString textcmdSkipBlock(ushort w, ushort h) {
