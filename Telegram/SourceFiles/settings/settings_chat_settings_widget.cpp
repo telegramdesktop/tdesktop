@@ -141,7 +141,7 @@ void ChatSettingsWidget::createControls() {
 	style::margins slidedPadding(0, marginSub.bottom() / 2, 0, marginSub.bottom() - (marginSub.bottom() / 2));
 
 	createChildRow(_replaceEmoji, marginSmall, lang(lng_settings_replace_emojis), [this](bool) { toggleReplaceEmoji(); }, cReplaceEmojis());
-	createChildRow(_messageFormat, marginSkip, lang(lng_settings_message_formatting), [this](bool) { toggleMessageFormat(); }, cMessageFormatting());
+	createChildRow(_messageFormat, marginSmall, lang(lng_settings_message_formatting), [this](bool) { toggleMessageFormat(); }, cMessageFormatting());
 	createChildRow(_suggestByEmoji, marginSkip, lang(lng_settings_suggest_by_emoji), [this](bool) { toggleSuggestStickersByEmoji(); }, Global::SuggestStickersByEmoji());
 
 #ifndef OS_WIN_STORE
