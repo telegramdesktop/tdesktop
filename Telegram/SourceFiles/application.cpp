@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_regex.h"
 #include "core/update_checker.h"
 #include "core/crash_report_window.h"
+#include "base/qthelp_regex.h"
 
 namespace {
 
@@ -140,11 +141,11 @@ void Application::socketConnected() {
 	const QStringList &lst(cSendPaths());
 	for (QStringList::const_iterator i = lst.cbegin(), e = lst.cend(); i != e; ++i) {
 		commands += qsl("SEND:") + _escapeTo7bit(*i) + ';';
+		commands += qsl("CMD:show;");
 	}
 	if (!cStartUrl().isEmpty()) {
 		commands += qsl("OPEN:") + _escapeTo7bit(cStartUrl()) + ';';
 	}
-	commands += qsl("CMD:show;");
 
 	DEBUG_LOG(("Application Info: writing commands %1").arg(commands));
 	_localSocket.write(commands.toLatin1());
@@ -169,7 +170,9 @@ void Application::socketReading() {
 	_localSocketReadData.append(_localSocket.readAll());
 	if (QRegularExpression("RES:(\\d+);").match(_localSocketReadData).hasMatch()) {
 		uint64 pid = _localSocketReadData.mid(4, _localSocketReadData.length() - 5).toULongLong();
-		psActivateProcess(pid);
+		if (pid != kEmptyPidForCommandResponse) {
+			psActivateProcess(pid);
+		}
 		LOG(("Show command response received, pid = %1, activating and quitting...").arg(pid));
 		return App::quit();
 	}
@@ -270,16 +273,26 @@ void Application::readClients() {
 				QStringRef cmd(&cmds, from, to - from);
 				if (cmd.startsWith(qsl("CMD:"))) {
 					Sandbox::execExternal(cmds.mid(from + 4, to - from - 4));
-					QByteArray response(qsl("RES:%1;").arg(QCoreApplication::applicationPid()).toLatin1());
+					const auto response = qsl("RES:%1;").arg(QCoreApplication::applicationPid()).toLatin1();
 					i->first->write(response.data(), response.size());
 				} else if (cmd.startsWith(qsl("SEND:"))) {
 					if (cSendPaths().isEmpty()) {
 						toSend.append(_escapeFrom7bit(cmds.mid(from + 5, to - from - 5)));
 					}
 				} else if (cmd.startsWith(qsl("OPEN:"))) {
+					auto activateRequired = true;
 					if (cStartUrl().isEmpty()) {
 						startUrl = _escapeFrom7bit(cmds.mid(from + 5, to - from - 5)).mid(0, 8192);
+						activateRequired = StartUrlRequiresActivate(startUrl);
 					}
+					if (activateRequired) {
+						Sandbox::execExternal("show");
+					}
+					const auto responsePid = activateRequired
+						? QCoreApplication::applicationPid()
+						: kEmptyPidForCommandResponse;
+					const auto response = qsl("RES:%1;").arg(responsePid).toLatin1();
+					i->first->write(response.data(), response.size());
 				} else {
 					LOG(("Application Error: unknown command %1 passed in local socket").arg(QString(cmd.constData(), cmd.length())));
 				}
