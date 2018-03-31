@@ -438,11 +438,13 @@ void AbstractBox::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-BoxContentDivider::BoxContentDivider(QWidget *parent) : RpWidget(parent) {
+BoxContentDivider::BoxContentDivider(QWidget *parent)
+: BoxContentDivider(parent, st::rightsDividerHeight) {
 }
 
-int BoxContentDivider::resizeGetHeight(int newWidth) {
-	return st::rightsDividerHeight;
+BoxContentDivider::BoxContentDivider(QWidget *parent, int height)
+: RpWidget(parent) {
+	resize(width(), height);
 }
 
 void BoxContentDivider::paintEvent(QPaintEvent *e) {

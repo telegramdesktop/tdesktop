@@ -183,4 +183,24 @@ private:
 
 };
 
+class IgnoreNaturalWidth : public Wrap<RpWidget> {
+	using Parent = Wrap<RpWidget>;
+
+public:
+	IgnoreNaturalWidth(QWidget *parent, object_ptr<RpWidget> &&child)
+	: Parent(parent, std::move(child)) {
+		if (auto weak = wrapped()) {
+			auto margins = weak->getMargins();
+			resizeToWidth(weak->width()
+				- margins.left()
+				- margins.right());
+		}
+	}
+
+	int naturalWidth() const override {
+		return -1;
+	}
+
+};
+
 } // namespace Ui

@@ -5,12 +5,13 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "passport/passport_form_view_separate.h"
+#include "passport/passport_panel_controller.h"
 
 #include "lang/lang_keys.h"
-#include "passport/passport_edit_identity_box.h"
-#include "passport/passport_form_box.h"
+#include "passport/passport_panel_edit_identity.h"
+#include "passport/passport_panel.h"
 #include "boxes/confirm_box.h"
+#include "layout.h"
 
 namespace Passport {
 
@@ -49,15 +50,21 @@ BoxContent *BoxPointer::operator->() const {
 	return get();
 }
 
-ViewSeparate::ViewSeparate(not_null<FormController*> form)
+PanelController::PanelController(not_null<FormController*> form)
 : _form(form) {
+	_form->secretReadyEvents(
+	) | rpl::start_with_next([=] {
+		if (_panel) {
+			_panel->showForm();
+		}
+	}, lifetime());
 }
 
-not_null<UserData*> ViewSeparate::bot() const {
+not_null<UserData*> PanelController::bot() const {
 	return _form->bot();
 }
 
-void ViewSeparate::fillRows(
+void PanelController::fillRows(
 	base::lambda<void(
 		QString title,
 		QString description,
@@ -92,130 +99,143 @@ void ViewSeparate::fillRows(
 	});
 }
 
-void ViewSeparate::submitPassword(const QString &password) {
+void PanelController::submitPassword(const QString &password) {
 	_form->submitPassword(password);
 }
 
-rpl::producer<QString> ViewSeparate::passwordError() const {
+rpl::producer<QString> PanelController::passwordError() const {
 	return _form->passwordError();
 }
 
-QString ViewSeparate::passwordHint() const {
+QString PanelController::passwordHint() const {
 	return _form->passwordHint();
 }
 
-rpl::producer<> ViewSeparate::secretReadyEvents() const {
-	return _form->secretReadyEvents();
-}
-
-QString ViewSeparate::defaultEmail() const {
+QString PanelController::defaultEmail() const {
 	return _form->defaultEmail();
 }
 
-QString ViewSeparate::defaultPhoneNumber() const {
+QString PanelController::defaultPhoneNumber() const {
 	return _form->defaultPhoneNumber();
 }
 
-void ViewSeparate::uploadScan(int valueIndex, QByteArray &&content) {
-	Expects(_editBox != nullptr);
+void PanelController::uploadScan(int valueIndex, QByteArray &&content) {
+	Expects(_panel != nullptr);
 
 	_form->uploadScan(valueIndex, std::move(content));
 }
 
-void ViewSeparate::deleteScan(int valueIndex, int fileIndex) {
-	Expects(_editBox != nullptr);
+void PanelController::deleteScan(int valueIndex, int fileIndex) {
+	Expects(_panel != nullptr);
 
 	_form->deleteScan(valueIndex, fileIndex);
 }
 
-rpl::producer<ScanInfo> ViewSeparate::scanUpdated() const {
+void PanelController::restoreScan(int valueIndex, int fileIndex) {
+	Expects(_panel != nullptr);
+
+	_form->restoreScan(valueIndex, fileIndex);
+}
+
+rpl::producer<ScanInfo> PanelController::scanUpdated() const {
 	return _form->scanUpdated(
 	) | rpl::map([=](not_null<const EditFile*> file) {
 		return collectScanInfo(*file);
 	});
 }
 
-ScanInfo ViewSeparate::collectScanInfo(const EditFile &file) const {
+ScanInfo PanelController::collectScanInfo(const EditFile &file) const {
 	const auto status = [&] {
-		if (file.deleted) {
-			return QString("deleted");
-		} else if (file.fields.accessHash) {
+		if (file.fields.accessHash) {
 			if (file.fields.downloadOffset < 0) {
-				return QString("download failed");
+				return lang(lng_attach_failed);
 			} else if (file.fields.downloadOffset < file.fields.size) {
-				return QString("downloading %1 / %2"
-				).arg(file.fields.downloadOffset
-				).arg(file.fields.size);
+				return formatDownloadText(
+					file.fields.downloadOffset,
+					file.fields.size);
 			} else {
-				return QString("uploaded ")
-					+ langDateTimeFull(ParseDateTime(file.fields.date));
+				return lng_passport_scan_uploaded(
+					lt_date,
+					langDateTimeFull(ParseDateTime(file.fields.date)));
 			}
 		} else if (file.uploadData) {
 			if (file.uploadData->offset < 0) {
-				return QString("upload failed");
+				return lang(lng_attach_failed);
 			} else if (file.uploadData->fullId) {
-				return QString("uploading %1 / %2"
-				).arg(file.uploadData->offset
-				).arg(file.uploadData->bytes.size());
+				return formatDownloadText(
+					file.uploadData->offset,
+					file.uploadData->bytes.size());
 			} else {
-				return QString("upload ready");
+				return lng_passport_scan_uploaded(
+					lt_date,
+					langDateTimeFull(ParseDateTime(file.fields.date)));
 			}
 		} else {
-			return QString("preparing");
+			return formatDownloadText(0, file.fields.size);
 		}
 	}();
 	return {
 		FileKey{ file.fields.id, file.fields.dcId },
 		status,
-		file.fields.image };
+		file.fields.image,
+		file.deleted };
 }
 
-void ViewSeparate::showForm() {
-	if (!_form->bot()) {
-		Ui::show(Box<InformBox>("Could not get authorization bot."));
-		return;
+void PanelController::showAskPassword() {
+	ensurePanelCreated();
+	_panel->showAskPassword();
+}
+
+void PanelController::showNoPassword() {
+	ensurePanelCreated();
+	_panel->showNoPassword();
+}
+
+void PanelController::showPasswordUnconfirmed() {
+	ensurePanelCreated();
+	_panel->showPasswordUnconfirmed();
+}
+
+void PanelController::ensurePanelCreated() {
+	if (!_panel) {
+		_panel = std::make_unique<Panel>(this);
 	}
-	Ui::show(Box<FormBox>(this));
 }
 
-void ViewSeparate::editValue(int index) {
+void PanelController::editValue(int index) {
+	ensurePanelCreated(); // #TODO passport testing
+	Expects(_panel != nullptr);
+
 	_editValue = _form->startValueEdit(index);
 	Assert(_editValue != nullptr);
 
-	auto box = [&]() -> object_ptr<BoxContent> {
+	auto content = [&]() -> object_ptr<Ui::RpWidget> {
 		switch (_editValue->type) {
 		case Value::Type::Identity:
-			return Box<IdentityBox>(
+			return object_ptr<PanelEditIdentity>(
+				_panel.get(),
 				this,
 				index,
-				valueDataIdentity(*_editValue),
+				_editValue->data.parsed,
 				valueFiles(*_editValue));
 		}
 		return { nullptr };
 	}();
-	if (box) {
-		_editBox = Ui::show(std::move(box), LayerOption::KeepOther);
-		_editBox->boxClosing() | rpl::start_with_next([=] {
+	if (content) {
+		_panel->setBackAllowed(true);
+		_panel->backRequests(
+		) | rpl::start_with_next([=] {
 			cancelValueEdit(index);
-		}, _form->lifetime());
+			_panel->setBackAllowed(false);
+			_panel->showForm();
+		}, content->lifetime());
+		_panel->showEditValue(std::move(content));
 	} else {
 		cancelValueEdit(index);
 	}
 }
 
-IdentityData ViewSeparate::valueDataIdentity(const Value &value) const {
-	const auto &map = value.data.parsed;
-	auto result = IdentityData();
-	if (const auto i = map.find(qsl("first_name")); i != map.cend()) {
-		result.name = i->second;
-	}
-	if (const auto i = map.find(qsl("last_name")); i != map.cend()) {
-		result.surname = i->second;
-	}
-	return result;
-}
-
-std::vector<ScanInfo> ViewSeparate::valueFiles(const Value &value) const {
+std::vector<ScanInfo> PanelController::valueFiles(const Value &value) const {
 	auto result = std::vector<ScanInfo>();
 	for (const auto &file : value.filesInEdit) {
 		result.push_back(collectScanInfo(file));
@@ -223,26 +243,30 @@ std::vector<ScanInfo> ViewSeparate::valueFiles(const Value &value) const {
 	return result;
 }
 
-void ViewSeparate::cancelValueEdit(int index) {
+void PanelController::cancelValueEdit(int index) {
 	if (base::take(_editValue)) {
 		_form->cancelValueEdit(index);
 	}
 }
 
-void ViewSeparate::saveValueIdentity(
-		int index,
-		const IdentityData &data) {
-	Expects(_editBox != nullptr);
+void PanelController::saveValue(int index, ValueMap &&data) {
+	Expects(_panel != nullptr);
 	Expects(_editValue != nullptr);
-	Expects(_editValue->type == Value::Type::Identity);
 
-	_editValue->data.parsed[qsl("first_name")] = data.name;
-	_editValue->data.parsed[qsl("last_name")] = data.surname;
+	_editValue->data.parsed = std::move(data);
 	_editValue = nullptr;
 
-	_editBox->closeBox();
+	_panel->showForm();
 
 	_form->saveValueEdit(index);
+}
+
+void PanelController::cancelAuth() {
+	_form->cancel();
+}
+
+rpl::lifetime &PanelController::lifetime() {
+	return _lifetime;
 }
 
 } // namespace Passport

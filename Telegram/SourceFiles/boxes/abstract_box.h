@@ -298,9 +298,9 @@ private:
 class BoxContentDivider : public Ui::RpWidget {
 public:
 	BoxContentDivider(QWidget *parent);
+	BoxContentDivider(QWidget *parent, int height);
 
 protected:
-	int resizeGetHeight(int newWidth) override;
 	void paintEvent(QPaintEvent *e) override;
 
 };

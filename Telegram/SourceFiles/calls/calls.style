@@ -20,6 +20,7 @@ CallSignalBars {
 
 callWidth: 300px;
 callHeight: 470px;
+callRadius: 6px;
 callShadow: Shadow {
 	left: icon {{ "call_shadow_left", windowShadowFg }};
 	topLeft: icon {{ "call_shadow_top_left", windowShadowFg }};

@@ -16,7 +16,7 @@ class InputField;
 
 namespace Passport {
 
-class ViewSeparate;
+class PanelController;
 struct ScanInfo;
 class ScanButton;
 
@@ -29,7 +29,7 @@ class IdentityBox : public BoxContent {
 public:
 	IdentityBox(
 		QWidget*,
-		not_null<ViewSeparate*> controller,
+		not_null<PanelController*> controller,
 		int valueIndex,
 		const IdentityData &data,
 		std::vector<ScanInfo> &&files);
@@ -49,7 +49,7 @@ private:
 	void updateControlsPosition();
 	void save();
 
-	not_null<ViewSeparate*> _controller;
+	not_null<PanelController*> _controller;
 	int _valueIndex = -1;
 
 	std::vector<ScanInfo> _files;

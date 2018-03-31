@@ -13,13 +13,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Passport {
 
 class FormController;
-
-struct IdentityData;
+class Panel;
 
 struct ScanInfo {
 	FileKey key;
 	QString status;
 	QImage thumb;
+	bool deleted = false;
 
 };
 
@@ -40,9 +40,9 @@ private:
 
 };
 
-class ViewSeparate : public ViewController {
+class PanelController : public ViewController {
 public:
-	ViewSeparate(not_null<FormController*> form);
+	PanelController(not_null<FormController*> form);
 
 	not_null<UserData*> bot() const;
 
@@ -52,14 +52,16 @@ public:
 
 	void uploadScan(int valueIndex, QByteArray &&content);
 	void deleteScan(int valueIndex, int fileIndex);
+	void restoreScan(int valueIndex, int fileIndex);
 	rpl::producer<ScanInfo> scanUpdated() const;
-
-	rpl::producer<> secretReadyEvents() const;
 
 	QString defaultEmail() const;
 	QString defaultPhoneNumber() const;
 
-	void showForm() override;
+	void showAskPassword() override;
+	void showNoPassword() override;
+	void showPasswordUnconfirmed() override;
+
 	void fillRows(
 		base::lambda<void(
 			QString title,
@@ -67,19 +69,26 @@ public:
 			bool ready)> callback);
 
 	void editValue(int index) override;
-	void saveValueIdentity(int index, const IdentityData &data);
+	void saveValue(int index, ValueMap &&data);
+
+	void cancelAuth();
+
+	rpl::lifetime &lifetime();
 
 private:
+	void ensurePanelCreated();
+
 	void cancelValueEdit(int index);
-	IdentityData valueDataIdentity(const Value &value) const;
 	std::vector<ScanInfo> valueFiles(const Value &value) const;
 
 	ScanInfo collectScanInfo(const EditFile &file) const;
 
 	not_null<FormController*> _form;
 
+	std::unique_ptr<Panel> _panel;
 	Value *_editValue = nullptr;
-	BoxPointer _editBox;
+
+	rpl::lifetime _lifetime;
 
 };
 

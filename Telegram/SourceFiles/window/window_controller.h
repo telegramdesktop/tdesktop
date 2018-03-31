@@ -206,6 +206,7 @@ public:
 		QDate requestedDate);
 
 	void showAuthForm(const Passport::FormRequest &request);
+	void clearAuthForm();
 
 	base::Variable<bool> &dialogsListFocused() {
 		return _dialogsListFocused;

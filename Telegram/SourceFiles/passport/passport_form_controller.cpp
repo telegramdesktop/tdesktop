@@ -7,14 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "passport/passport_form_controller.h"
 
-#include "passport/passport_form_box.h"
-#include "passport/passport_edit_identity_box.h"
 #include "passport/passport_encryption.h"
-#include "passport/passport_form_view_separate.h"
+#include "passport/passport_panel_controller.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "base/openssl_help.h"
 #include "mainwindow.h"
+#include "window/window_controller.h"
 #include "auth_session.h"
 #include "storage/localimageloader.h"
 #include "storage/localstorage.h"
@@ -93,8 +92,8 @@ FormController::FormController(
 	not_null<Window::Controller*> controller,
 	const FormRequest &request)
 : _controller(controller)
-, _view(std::make_unique<ViewSeparate>(this))
-, _request(request) {
+, _request(request)
+, _view(std::make_unique<PanelController>(this)) {
 }
 
 void FormController::show() {
@@ -193,7 +192,7 @@ void FormController::decryptValue(Value &value) {
 		resetValue(value);
 		return;
 	}
-	value.data.parsed = DeserializeData(DecryptData(
+	value.data.parsed.fields = DeserializeData(DecryptData(
 		bytes::make_span(value.data.original),
 		value.data.hash,
 		value.data.secret));
@@ -219,20 +218,6 @@ bool FormController::validateValueSecrets(Value &value) {
 				"Forgetting files and data :("));
 			return false;
 		}
-	}
-	const auto fileHashesSecrets = ranges::view::all(
-		value.files
-	) | ranges::view::transform([](File &file) {
-		return bytes::concatenate(file.hash, file.encryptedSecret);
-	});
-	const auto countedHash = openssl::Sha256(bytes::concatenate(
-		value.data.hash,
-		value.data.encryptedSecret,
-		bytes::concatenate(fileHashesSecrets)));
-	if (value.consistencyHash != countedHash) {
-		LOG(("API Error: Wrong hash after decrypting value secrets. "
-			"Forgetting files and data :("));
-		return false;
 	}
 	return true;
 }
@@ -312,15 +297,24 @@ void FormController::encryptScan(
 	});
 }
 
-void FormController::deleteScan(
+void FormController::deleteScan(int valueIndex, int fileIndex) {
+	scanDeleteRestore(valueIndex, fileIndex, true);
+}
+
+void FormController::restoreScan(int valueIndex, int fileIndex) {
+	scanDeleteRestore(valueIndex, fileIndex, false);
+}
+
+void FormController::scanDeleteRestore(
 		int valueIndex,
-		int fileIndex) {
+		int fileIndex,
+		bool deleted) {
 	Expects(valueIndex >= 0 && valueIndex < _form.rows.size());
 	Expects(fileIndex >= 0
 		&& fileIndex < _form.rows[valueIndex].filesInEdit.size());
 
 	auto &file = _form.rows[valueIndex].filesInEdit[fileIndex];
-	file.deleted = !file.deleted;
+	file.deleted = deleted;
 	_scanUpdated.fire(&file);
 }
 
@@ -590,27 +584,13 @@ void FormController::saveEncryptedValue(int index) {
 		value.data.secret = GenerateSecretBytes();
 	}
 	const auto encryptedData = EncryptData(
-		SerializeData(value.data.parsed),
+		SerializeData(value.data.parsed.fields),
 		value.data.secret);
 	value.data.hash = encryptedData.hash;
 	value.data.encryptedSecret = EncryptValueSecret(
 		value.data.secret,
 		_secret,
 		value.data.hash);
-
-	const auto fileHashesSecrets = ranges::view::all(
-		value.filesInEdit
-	) | ranges::view::filter([](const EditFile &file) {
-		return !file.deleted;
-	}) | ranges::view::transform([](const EditFile &file) {
-		return bytes::concatenate(
-			file.fields.hash,
-			file.fields.encryptedSecret);
-	});
-	value.consistencyHash = openssl::Sha256(bytes::concatenate(
-		value.data.hash,
-		value.data.encryptedSecret,
-		bytes::concatenate(fileHashesSecrets)));
 
 	const auto wrap = [&] {
 		switch (value.type) {
@@ -624,8 +604,7 @@ void FormController::saveEncryptedValue(int index) {
 			MTP_bytes(encryptedData.bytes),
 			MTP_bytes(value.data.hash),
 			MTP_bytes(value.data.encryptedSecret)),
-		MTP_vector<MTPInputSecureFile>(inputFiles),
-		MTP_bytes(value.consistencyHash)));
+		MTP_vector<MTPInputSecureFile>(inputFiles)));
 }
 
 void FormController::savePlainTextValue(int index) {
@@ -633,11 +612,7 @@ void FormController::savePlainTextValue(int index) {
 	Expects(!isEncryptedValue(_form.rows[index].type));
 
 	auto &value = _form.rows[index];
-	const auto text = value.data.parsed[QString("value")];
-	QVector<MTPInputSecureFile>();
-	value.consistencyHash = openssl::Sha256(
-		bytes::make_span(text.toUtf8()));
-
+	const auto text = value.data.parsed.fields[QString("value")];
 	const auto wrap = [&] {
 		switch (value.type) {
 		case Value::Type::Phone: return MTP_inputSecureValuePhone;
@@ -645,9 +620,7 @@ void FormController::savePlainTextValue(int index) {
 		}
 		Unexpected("Value type in savePlainTextValue().");
 	}();
-	sendSaveRequest(index, wrap(
-		MTP_string(text),
-		MTP_bytes(value.consistencyHash)));
+	sendSaveRequest(index, wrap(MTP_string(text)));
 }
 
 void FormController::sendSaveRequest(
@@ -747,7 +720,6 @@ auto FormController::parseEncryptedValue(
 	if (data.has_verified()) {
 		result.verification = parseVerified(data.vverified);
 	}
-	result.consistencyHash = bytes::make_vector(data.vhash.v);
 	const auto &fields = data.vdata.c_secureData();
 	result.data.original = fields.vdata.v;
 	result.data.hash = bytes::make_vector(fields.vdata_hash.v);
@@ -822,22 +794,10 @@ auto FormController::parsePlainTextValue(
 		const QByteArray &text,
 		const DataType &data) const -> Value {
 	auto result = Value(type);
-	const auto check = bytes::compare(
-		bytes::make_span(data.vhash.v),
-		openssl::Sha256(bytes::make_span(text)));
-	if (check != 0) {
-		LOG(("API Error: Bad hash for plain text value. "
-			"Value '%1', hash '%2'"
-			).arg(QString::fromUtf8(text)
-			).arg(Logs::mb(data.vhash.v.data(), data.vhash.v.size()).str()
-			));
-		return result;
-	}
-	result.data.parsed[QString("value")] = QString::fromUtf8(text);
+	result.data.parsed.fields[QString("value")] = QString::fromUtf8(text);
 	if (data.has_verified()) {
 		result.verification = parseVerified(data.vverified);
 	}
-	result.consistencyHash = bytes::make_vector(data.vhash.v);
 	return result;
 }
 
@@ -917,7 +877,7 @@ auto FormController::findFile(const FileKey &key)
 void FormController::formDone(const MTPaccount_AuthorizationForm &result) {
 	parseForm(result);
 	if (!_passwordRequestId) {
-		_view->showForm();
+		showForm();
 	}
 }
 
@@ -963,7 +923,12 @@ void FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 }
 
 void FormController::formFail(const RPCError &error) {
-	Ui::show(Box<InformBox>(lang(lng_passport_form_error)));
+	// #TODO passport testing
+	_form.rows.push_back(Value(Value::Type::Identity));
+	_form.rows.back().data.parsed.fields["first_name"] = "test1";
+	_form.rows.back().data.parsed.fields["last_name"] = "test2";
+	_view->editValue(0);
+//	Ui::show(Box<InformBox>(lang(lng_passport_form_error)));
 }
 
 void FormController::requestPassword() {
@@ -987,7 +952,21 @@ void FormController::passwordDone(const MTPaccount_Password &result) {
 		break;
 	}
 	if (!_formRequestId) {
-		_view->showForm();
+		showForm();
+	}
+}
+
+void FormController::showForm() {
+	if (!_bot) {
+		Ui::show(Box<InformBox>("Could not get authorization bot."));
+		return;
+	}
+	if (!_password.salt.empty()) {
+		_view->showAskPassword();
+	} else if (!_password.unconfirmedPattern.isEmpty()) {
+		_view->showPasswordUnconfirmed();
+	} else {
+		_view->showNoPassword();
 	}
 }
 
@@ -1010,6 +989,19 @@ void FormController::parsePassword(const MTPDaccount_password &result) {
 	_password.newSalt = bytes::make_vector(result.vnew_salt.v);
 	_password.newSecureSalt = bytes::make_vector(result.vnew_secure_salt.v);
 	openssl::AddRandomSeed(bytes::make_span(result.vsecure_random.v));
+}
+
+void FormController::cancel() {
+	if (!_cancelled) {
+		_cancelled = true;
+		crl::on_main(this, [=] {
+			_controller->clearAuthForm();
+		});
+	}
+}
+
+rpl::lifetime &FormController::lifetime() {
+	return _lifetime;
 }
 
 FormController::~FormController() = default;

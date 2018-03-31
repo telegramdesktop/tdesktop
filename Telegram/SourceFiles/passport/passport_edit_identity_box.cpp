@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "passport/passport_edit_identity_box.h"
 
-#include "passport/passport_form_view_separate.h"
+#include "passport/passport_panel_controller.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/buttons.h"
 #include "ui/text_options.h"
@@ -64,7 +64,7 @@ ScanButton::ScanButton(
 	st::defaultTextStyle,
 	description,
 	Ui::NameTextOptions())
-, _delete(this, st::passportRowCheckbox) {
+, _delete(this, st::passportScanDelete) {
 }
 
 void ScanButton::setImage(const QImage &image) {
@@ -142,7 +142,7 @@ void ScanButton::paintEvent(QPaintEvent *e) {
 
 IdentityBox::IdentityBox(
 	QWidget*,
-	not_null<ViewSeparate*> controller,
+	not_null<PanelController*> controller,
 	int valueIndex,
 	const IdentityData &data,
 	std::vector<ScanInfo> &&files)

@@ -96,9 +96,13 @@ struct Verification {
 	TimeId date;
 };
 
+struct ValueMap {
+	std::map<QString, QString> fields;
+};
+
 struct ValueData {
 	QByteArray original;
-	std::map<QString, QString> parsed;
+	ValueMap parsed;
 	bytes::vector hash;
 	bytes::vector secret;
 	bytes::vector encryptedSecret;
@@ -120,7 +124,6 @@ struct Value {
 	ValueData data;
 	std::vector<File> files;
 	std::vector<EditFile> filesInEdit;
-	bytes::vector consistencyHash;
 	base::optional<Verification> verification;
 };
 
@@ -178,6 +181,7 @@ public:
 
 	void uploadScan(int valueIndex, QByteArray &&content);
 	void deleteScan(int valueIndex, int fileIndex);
+	void restoreScan(int valueIndex, int fileIndex);
 
 	rpl::producer<> secretReadyEvents() const;
 
@@ -191,9 +195,9 @@ public:
 	void cancelValueEdit(int index);
 	void saveValueEdit(int index);
 
-	rpl::lifetime &lifetime() {
-		return _lifetime;
-	}
+	void cancel();
+
+	rpl::lifetime &lifetime();
 
 	~FormController();
 
@@ -259,6 +263,7 @@ private:
 	void scanUploadDone(const Storage::UploadSecureDone &data);
 	void scanUploadProgress(const Storage::UploadSecureProgress &data);
 	void scanUploadFail(const FullMsgId &fullId);
+	void scanDeleteRestore(int valueIndex, int fileIndex, bool deleted);
 
 	bool isEncryptedValue(Value::Type type) const;
 	void saveEncryptedValue(int index);
@@ -266,7 +271,6 @@ private:
 	void sendSaveRequest(int index, const MTPInputSecureValue &value);
 
 	not_null<Window::Controller*> _controller;
-	std::unique_ptr<ViewController> _view;
 	FormRequest _request;
 	UserData *_bot = nullptr;
 
@@ -276,6 +280,7 @@ private:
 
 	PasswordSettings _password;
 	Form _form;
+	bool _cancelled = false;
 	std::map<FileKey, std::unique_ptr<mtpFileLoader>> _fileLoaders;
 
 	rpl::event_stream<not_null<const EditFile*>> _scanUpdated;
@@ -289,6 +294,8 @@ private:
 
 	rpl::lifetime _uploaderSubscriptions;
 	rpl::lifetime _lifetime;
+
+	std::unique_ptr<ViewController> _view;
 
 };
 

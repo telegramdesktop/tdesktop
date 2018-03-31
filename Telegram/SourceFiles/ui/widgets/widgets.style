@@ -525,6 +525,18 @@ InfoProfileButton {
 	ripple: RippleAnimation;
 }
 
+PassportScanRow {
+	padding: margins;
+	size: pixels;
+	textLeft: pixels;
+	nameTop: pixels;
+	statusTop: pixels;
+	border: pixels;
+	borderFg: color;
+	remove: IconButton;
+	restore: RoundButton;
+}
+
 defaultLabelSimple: LabelSimple {
 	font: normalFont;
 	maxWidth: 0px;

@@ -162,6 +162,11 @@ public:
 		not_null<PeerData*> peer,
 		Role role,
 		const style::UserpicButton &st);
+	UserpicButton(
+		QWidget *parent,
+		not_null<PeerData*> peer,
+		Role role,
+		const style::UserpicButton &st);
 
 	void switchChangePhotoOverlay(bool enabled);
 	void showSavedMessagesOnSelf(bool enabled);

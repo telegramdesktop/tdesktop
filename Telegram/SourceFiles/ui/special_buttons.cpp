@@ -416,6 +416,22 @@ UserpicButton::UserpicButton(
 	setupPeerViewers();
 }
 
+UserpicButton::UserpicButton(
+	QWidget *parent,
+	not_null<PeerData*> peer,
+	Role role,
+	const style::UserpicButton &st)
+: RippleButton(parent, st.changeButton.ripple)
+, _st(st)
+, _peer(peer)
+, _peerForCrop(_peer->id)
+, _role(role) {
+	Expects(_role == Role::Custom);
+
+	_waiting = false;
+	prepare();
+}
+
 void UserpicButton::prepare() {
 	resize(_st.size);
 	_notShownYet = _waiting;

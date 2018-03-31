@@ -281,7 +281,7 @@ messageActionPhoneCall#80e11a7f flags:# call_id:long reason:flags.0?PhoneCallDis
 messageActionScreenshotTaken#4792929b = MessageAction;
 messageActionCustomAction#fae69f56 message:string = MessageAction;
 messageActionBotAllowed#abe9affe domain:string = MessageAction;
-messageActionSecureValuesSentMe#9bc8ec4 values:Vector<SecureValue> credentials:SecureCredentialsEncrypted payload:bytes = MessageAction;
+messageActionSecureValuesSentMe#1b287353 values:Vector<SecureValue> credentials:SecureCredentialsEncrypted = MessageAction;
 messageActionSecureValuesSent#d95c6154 types:Vector<SecureValueType> = MessageAction;
 
 dialog#e4def5db flags:# pinned:flags.2?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage = Dialog;
@@ -982,15 +982,15 @@ secureValueTypeAddress#cbe31e26 = SecureValueType;
 secureValueTypePhone#b320aadb = SecureValueType;
 secureValueTypeEmail#8e3ca7ee = SecureValueType;
 
-secureValueIdentity#4838ff84 flags:# data:SecureData files:Vector<SecureFile> hash:bytes verified:flags.0?SecureValueVerified = SecureValue;
-secureValueAddress#2b9f6bef flags:# data:SecureData files:Vector<SecureFile> hash:bytes verified:flags.0?SecureValueVerified = SecureValue;
-secureValuePhone#a1ca84fe flags:# phone:string hash:bytes verified:flags.0?SecureValueVerified = SecureValue;
-secureValueEmail#c4db6579 flags:# email:string hash:bytes verified:flags.0?SecureValueVerified = SecureValue;
+secureValueIdentity#15fe72a2 flags:# data:SecureData files:Vector<SecureFile> verified:flags.0?SecureValueVerified = SecureValue;
+secureValueAddress#88109b79 flags:# data:SecureData files:Vector<SecureFile> verified:flags.0?SecureValueVerified = SecureValue;
+secureValuePhone#e39470bf flags:# phone:string verified:flags.0?SecureValueVerified = SecureValue;
+secureValueEmail#35d804cd flags:# email:string verified:flags.0?SecureValueVerified = SecureValue;
 
-inputSecureValueIdentity#df93404 data:SecureData files:Vector<InputSecureFile> hash:bytes = InputSecureValue;
-inputSecureValueAddress#5589502 data:SecureData files:Vector<InputSecureFile> hash:bytes = InputSecureValue;
-inputSecureValuePhone#141e00b8 phone:string hash:bytes = InputSecureValue;
-inputSecureValueEmail#2dc15b9a email:string hash:bytes = InputSecureValue;
+inputSecureValueIdentity#94fa65b data:SecureData files:Vector<InputSecureFile> = InputSecureValue;
+inputSecureValueAddress#96689355 data:SecureData files:Vector<InputSecureFile> = InputSecureValue;
+inputSecureValuePhone#9d623d96 phone:string = InputSecureValue;
+inputSecureValueEmail#9e885359 email:string = InputSecureValue;
 
 secureValueHash#ed1ecdb0 type:SecureValueType hash:bytes = SecureValueHash;
 
@@ -1061,7 +1061,7 @@ account.getSecureValue#d97e77cb user_id:InputUser types:Vector<SecureValueType> 
 account.saveSecureValue#78969d0b value:InputSecureValue secure_secret_id:long = SecureValueSaved;
 account.deleteSecureValue#b880bc4b types:Vector<SecureValueType> = Bool;
 account.getAuthorizationForm#b86ba8e1 bot_id:int scope:string public_key:string = account.AuthorizationForm;
-account.acceptAuthorization#8d5e02e6 bot_id:int scope:string public_key:string value_hashes:Vector<SecureValueHash> credentials:SecureCredentialsEncrypted payload:bytes = Bool;
+account.acceptAuthorization#e7027c94 bot_id:int scope:string public_key:string value_hashes:Vector<SecureValueHash> credentials:SecureCredentialsEncrypted = Bool;
 account.sendVerifyPhoneCode#823380b4 flags:# allow_flashcall:flags.0?true phone_number:string current_number:flags.0?Bool = auth.SentCode;
 account.verifyPhone#4dd3a7f6 phone_number:string phone_code_hash:string phone_code:string = Bool;
 account.sendVerifyEmailCode#7011509f email:string = account.SentEmailCode;

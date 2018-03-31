@@ -13,7 +13,9 @@ struct Value;
 
 class ViewController {
 public:
-	virtual void showForm() = 0;
+	virtual void showAskPassword() = 0;
+	virtual void showNoPassword() = 0;
+	virtual void showPasswordUnconfirmed() = 0;
 	virtual void editValue(int index) = 0;
 
 	virtual ~ViewController() {

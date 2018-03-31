@@ -32,18 +32,9 @@ FormRow::FormRow(
 }
 
 void FormRow::setReady(bool ready) {
-	if (ready) {
-		_checkbox.create(this, object_ptr<Ui::IconButton>(
-			this,
-			st::passportRowCheckbox));
-		_checkbox->show(anim::type::instant);
-		_checkbox->entity()->addClickHandler([=] {
-			_checkbox->hide(anim::type::normal);
-		});
-	} else {
-		_checkbox.destroy();
-	}
+	_ready = ready;
 	resizeToWidth(width());
+	update();
 }
 
 int FormRow::resizeGetHeight(int newWidth) {
@@ -55,13 +46,6 @@ int FormRow::resizeGetHeight(int newWidth) {
 		+ st::passportRowSkip
 		+ _descriptionHeight
 		+ st::passportRowPadding.bottom();
-	if (_checkbox) {
-		const auto right = st::passportRowPadding.right();
-		_checkbox->moveToRight(
-			right,
-			(result - _checkbox->height()) / 2,
-			newWidth);
-	}
 	return result;
 }
 
@@ -69,7 +53,7 @@ int FormRow::countAvailableWidth(int newWidth) const {
 	return newWidth
 		- st::passportRowPadding.left()
 		- st::passportRowPadding.right()
-		- (_checkbox ? _checkbox->width() : 0);
+		- (_ready ? st::passportRowReadyIcon : st::passportRowEmptyIcon).width();
 }
 
 int FormRow::countAvailableWidth() const {
@@ -86,11 +70,22 @@ void FormRow::paintEvent(QPaintEvent *e) {
 	const auto availableWidth = countAvailableWidth();
 	auto top = st::passportRowPadding.top();
 
+	p.setPen(st::passportRowTitleFg);
 	_title.drawLeft(p, left, top, availableWidth, width());
 	top += _titleHeight + st::passportRowSkip;
 
+	p.setPen(st::passportRowDescriptionFg);
 	_description.drawLeft(p, left, top, availableWidth, width());
 	top += _descriptionHeight + st::passportRowPadding.bottom();
+
+	const auto &icon = _ready
+		? st::passportRowReadyIcon
+		: st::passportRowEmptyIcon;
+	icon.paint(
+		p,
+		width() - st::passportRowPadding.right() - icon.width(),
+		(height() - icon.height()) / 2,
+		width());
 }
 
 } // namespace Passport

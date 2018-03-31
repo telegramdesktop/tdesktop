@@ -410,6 +410,10 @@ void Controller::showAuthForm(const Passport::FormRequest &request) {
 	_authForm->show();
 }
 
+void Controller::clearAuthForm() {
+	_authForm = nullptr;
+}
+
 void Controller::updateColumnLayout() {
 	App::main()->updateColumnLayout();
 }
