@@ -17,7 +17,7 @@ PanelDetailsRow::PanelDetailsRow(
 	const QString &label,
 	const QString &value)
 : _label(label)
-, _field(this, st::passportDetailsField) {
+, _field(this, st::passportDetailsField, nullptr, value) {
 }
 
 QPointer<Ui::InputField> PanelDetailsRow::field() const {

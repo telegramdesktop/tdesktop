@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_panel_controller.h"
 #include "lang/lang_keys.h"
 #include "boxes/abstract_box.h"
+#include "core/click_handler_types.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
@@ -221,27 +222,30 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 			title,
 			description)));
 		_rows.back()->addClickHandler([=] {
-			_controller->editValue(index);
+			_controller->editScope(index);
 		});
 		_rows.back()->setReady(ready);
+		++index;
 	});
+	const auto policyUrl = _controller->privacyPolicyUrl();
 	const auto policy = inner->add(
 		object_ptr<Ui::FlatLabel>(
 			inner,
-			lng_passport_accept_allow(
-				lt_policy,
-				textcmdLink(
-					1,
-					lng_passport_policy(lt_bot, App::peerName(bot))),
-				lt_bot,
-				'@' + bot->username),
+			(policyUrl.isEmpty()
+				? lng_passport_allow(lt_bot, '@' + bot->username)
+				: lng_passport_accept_allow(
+					lt_policy,
+					textcmdLink(
+						1,
+						lng_passport_policy(lt_bot, App::peerName(bot))),
+					lt_bot,
+					'@' + bot->username)),
 			Ui::FlatLabel::InitType::Rich,
 			st::passportFormPolicy),
 		st::passportFormPolicyPadding);
-	policy->setLink(1, std::make_shared<LambdaClickHandler>([=] {
-		_controller->cancelAuth();
-		// #TODO passport policy
-	}));
+	if (!policyUrl.isEmpty()) {
+		policy->setLink(1, std::make_shared<UrlClickHandler>(policyUrl));
+	}
 
 	return inner;
 }

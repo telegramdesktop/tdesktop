@@ -1521,6 +1521,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_email_title" = "Email";
 "lng_passport_email_description" = "Enter your email address";
 "lng_passport_accept_allow" = "You accept {policy} and allow their {bot} to send messages to you.";
+"lng_passport_allow" = "You allow {bot} to send messages to you.";
 "lng_passport_policy" = "{bot} privacy policy";
 "lng_passport_authorize" = "Authorize";
 "lng_passport_form_error" = "Could not get authorization form.";

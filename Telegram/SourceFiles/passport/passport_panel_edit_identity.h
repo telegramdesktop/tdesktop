@@ -41,8 +41,8 @@ public:
 	PanelEditIdentity(
 		QWidget *parent,
 		not_null<PanelController*> controller,
-		int valueIndex,
 		const ValueMap &data,
+		const ValueMap &scanData,
 		std::vector<ScanInfo> &&files);
 
 protected:
@@ -50,8 +50,10 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	void setupControls(const ValueMap &data);
-	not_null<Ui::RpWidget*> setupContent(const ValueMap &data);
+	void setupControls(const ValueMap &data, const ValueMap &scanData);
+	not_null<Ui::RpWidget*> setupContent(
+		const ValueMap &data,
+		const ValueMap &scanData);
 	void updateControlsGeometry();
 
 	void chooseScan();
@@ -64,8 +66,6 @@ private:
 	void save();
 
 	not_null<PanelController*> _controller;
-	int _valueIndex = -1;
-
 	std::vector<ScanInfo> _files;
 
 	object_ptr<Ui::ScrollArea> _scroll;
@@ -77,6 +77,7 @@ private:
 	QPointer<Ui::VerticalLayout> _scansWrap;
 	std::vector<base::unique_qptr<Ui::SlideWrap<ScanButton>>> _scans;
 	QPointer<Info::Profile::Button> _scansUpload;
+	rpl::event_stream<rpl::producer<QString>> _scansUploadTexts;
 
 	QPointer<Ui::InputField> _firstName;
 	QPointer<Ui::InputField> _lastName;

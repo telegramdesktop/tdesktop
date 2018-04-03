@@ -190,11 +190,10 @@ void ScanButton::paintEvent(QPaintEvent *e) {
 PanelEditIdentity::PanelEditIdentity(
 	QWidget*,
 	not_null<PanelController*> controller,
-	int valueIndex,
 	const ValueMap &data,
+	const ValueMap &scanData,
 	std::vector<ScanInfo> &&files)
 : _controller(controller)
-, _valueIndex(valueIndex)
 , _files(std::move(files))
 , _scroll(this, st::passportPanelScroll)
 , _topShadow(this)
@@ -203,11 +202,13 @@ PanelEditIdentity::PanelEditIdentity(
 		this,
 		langFactory(lng_passport_save_value),
 		st::passportPanelSaveValue) {
-	setupControls(data);
+	setupControls(data, scanData);
 }
 
-void PanelEditIdentity::setupControls(const ValueMap &data) {
-	const auto inner = setupContent(data);
+void PanelEditIdentity::setupControls(
+		const ValueMap &data,
+		const ValueMap &scanData) {
+	const auto inner = setupContent(data, scanData);
 
 	using namespace rpl::mappers;
 
@@ -225,7 +226,8 @@ void PanelEditIdentity::setupControls(const ValueMap &data) {
 }
 
 not_null<Ui::RpWidget*> PanelEditIdentity::setupContent(
-		const ValueMap &data) {
+		const ValueMap &data,
+		const ValueMap &scanData) {
 	const auto inner = _scroll->setOwnedWidget(
 		object_ptr<Ui::VerticalLayout>(this));
 	_scroll->widthValue(
@@ -261,7 +263,9 @@ not_null<Ui::RpWidget*> PanelEditIdentity::setupContent(
 	_scansUpload = inner->add(
 		object_ptr<Info::Profile::Button>(
 			inner,
-			uploadButtonText(),
+			_scansUploadTexts.events_starting_with(
+				uploadButtonText()
+			) | rpl::flatten_latest(),
 			st::passportUploadButton),
 		st::passportUploadButtonPadding);
 	_scansUpload->addClickHandler([=] {
@@ -315,6 +319,7 @@ void PanelEditIdentity::updateScan(ScanInfo &&info) {
 		_scans.back()->show(anim::type::normal);
 		_scansDivider->hide(anim::type::normal);
 		_scansHeader->show(anim::type::normal);
+		_scansUploadTexts.fire(uploadButtonText());
 	}
 }
 
@@ -335,12 +340,12 @@ void PanelEditIdentity::pushScan(const ScanInfo &info) {
 
 	scan->deleteClicks(
 	) | rpl::start_with_next([=] {
-		_controller->deleteScan(_valueIndex, index);
+		_controller->deleteScan(index);
 	}, scan->lifetime());
 
 	scan->restoreClicks(
 	) | rpl::start_with_next([=] {
-		_controller->restoreScan(_valueIndex, index);
+		_controller->restoreScan(index);
 	}, scan->lifetime());
 }
 
@@ -394,14 +399,15 @@ void PanelEditIdentity::encryptScan(const QString &path) {
 }
 
 void PanelEditIdentity::encryptScanContent(QByteArray &&content) {
-	_controller->uploadScan(_valueIndex, std::move(content));
+	_controller->uploadScan(std::move(content));
 }
 
 void PanelEditIdentity::save() {
 	auto data = ValueMap();
 	data.fields["first_name"] = _firstName->getLastText();
 	data.fields["last_name"] = _lastName->getLastText();
-	_controller->saveValue(_valueIndex, std::move(data));
+	auto scanData = ValueMap();
+	_controller->saveScope(std::move(data), std::move(scanData));
 }
 
 rpl::producer<QString> PanelEditIdentity::uploadButtonText() const {

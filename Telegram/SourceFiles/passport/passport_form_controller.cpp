@@ -29,6 +29,23 @@ QImage ReadImage(bytes::const_span buffer) {
 		buffer.size()));
 }
 
+Value::Type ConvertType(const MTPSecureValueType &type) {
+	using Type = Value::Type;
+	switch (type.type()) {
+	case mtpc_secureValueTypePersonalDetails: return Type::PersonalDetails;
+	case mtpc_secureValueTypePassport: return Type::Passport;
+	case mtpc_secureValueTypeDriverLicense: return Type::DriverLicense;
+	case mtpc_secureValueTypeIdentityCard: return Type::IdentityCard;
+	case mtpc_secureValueTypeAddress: return Type::Address;
+	case mtpc_secureValueTypeUtilityBill: return Type::UtilityBill;
+	case mtpc_secureValueTypeBankStatement: return Type::BankStatement;
+	case mtpc_secureValueTypeRentalAgreement: return Type::RentalAgreement;
+	case mtpc_secureValueTypePhone: return Type::Phone;
+	case mtpc_secureValueTypeEmail: return Type::Email;
+	}
+	Unexpected("Type in secureValueType type.");
+};
+
 } // namespace
 
 FormRequest::FormRequest(
@@ -43,9 +60,11 @@ FormRequest::FormRequest(
 }
 
 EditFile::EditFile(
+	not_null<const Value*> value,
 	const File &fields,
 	std::unique_ptr<UploadScanData> &&uploadData)
-: fields(std::move(fields))
+: value(value)
+, fields(std::move(fields))
 , uploadData(std::move(uploadData))
 , guard(std::make_shared<bool>(true)) {
 }
@@ -105,6 +124,10 @@ UserData *FormController::bot() const {
 	return _bot;
 }
 
+QString FormController::privacyPolicyUrl() const {
+	return _form.privacyPolicyUrl;
+}
+
 bytes::vector FormController::passwordHashForAuth(
 		bytes::const_span password) const {
 	return openssl::Sha256(bytes::concatenate(
@@ -157,7 +180,7 @@ void FormController::validateSecureSecret(
 			_secretId = 0;
 			LOG(("API Error: Failed to decrypt secure secret. "
 				"Forgetting all files and data :("));
-			for (auto &value : _form.rows) {
+			for (auto &[type, value] : _form.values) {
 				if (!value.data.original.isEmpty()) {
 					resetValue(value);
 				}
@@ -176,7 +199,7 @@ void FormController::validateSecureSecret(
 void FormController::decryptValues() {
 	Expects(!_secret.empty());
 
-	for (auto &value : _form.rows) {
+	for (auto &[type, value] : _form.values) {
 		if (value.data.original.isEmpty()) {
 			continue;
 		}
@@ -234,16 +257,17 @@ QString FormController::passwordHint() const {
 	return _password.hint;
 }
 
-void FormController::uploadScan(int valueIndex, QByteArray &&content) {
-	Expects(valueIndex >= 0 && valueIndex < _form.rows.size());
-
-	auto &value = _form.rows[valueIndex];
-	auto fileIndex = int(value.filesInEdit.size());
-	value.filesInEdit.emplace_back(
+void FormController::uploadScan(
+		not_null<const Value*> value,
+		QByteArray &&content) {
+	const auto nonconst = findValue(value);
+	auto fileIndex = int(nonconst->filesInEdit.size());
+	nonconst->filesInEdit.emplace_back(
+		nonconst,
 		File(),
 		nullptr);
 	const auto fileId = rand_value<uint64>();
-	auto &file = value.filesInEdit.back();
+	auto &file = nonconst->filesInEdit.back();
 	file.fields.size = content.size();
 	file.fields.id = fileId;
 	file.fields.dcId = MTP::maindc();
@@ -254,19 +278,16 @@ void FormController::uploadScan(int valueIndex, QByteArray &&content) {
 
 	_scanUpdated.fire(&file);
 
-	encryptScan(valueIndex, fileIndex, std::move(content));
+	encryptScan(nonconst, fileIndex, std::move(content));
 }
 
 void FormController::encryptScan(
-		int valueIndex,
+		not_null<Value*> value,
 		int fileIndex,
 		QByteArray &&content) {
-	Expects(valueIndex >= 0 && valueIndex < _form.rows.size());
-	Expects(fileIndex >= 0
-		&& fileIndex < _form.rows[valueIndex].filesInEdit.size());
+	Expects(fileIndex >= 0 && fileIndex < value->filesInEdit.size());
 
-	const auto &value = _form.rows[valueIndex];
-	const auto &file = value.filesInEdit[fileIndex];
+	const auto &file = value->filesInEdit[fileIndex];
 	const auto weak = std::weak_ptr<bool>(file.guard);
 	crl::async([
 		=,
@@ -289,7 +310,7 @@ void FormController::encryptScan(
 		crl::on_main([=, encrypted = std::move(result)]() mutable {
 			if (weak.lock()) {
 				uploadEncryptedScan(
-					valueIndex,
+					value ,
 					fileIndex,
 					std::move(encrypted));
 			}
@@ -297,23 +318,26 @@ void FormController::encryptScan(
 	});
 }
 
-void FormController::deleteScan(int valueIndex, int fileIndex) {
-	scanDeleteRestore(valueIndex, fileIndex, true);
+void FormController::deleteScan(
+		not_null<const Value*> value,
+		int fileIndex) {
+	scanDeleteRestore(value, fileIndex, true);
 }
 
-void FormController::restoreScan(int valueIndex, int fileIndex) {
-	scanDeleteRestore(valueIndex, fileIndex, false);
+void FormController::restoreScan(
+		not_null<const Value*> value,
+		int fileIndex) {
+	scanDeleteRestore(value, fileIndex, false);
 }
 
 void FormController::scanDeleteRestore(
-		int valueIndex,
+		not_null<const Value*> value,
 		int fileIndex,
 		bool deleted) {
-	Expects(valueIndex >= 0 && valueIndex < _form.rows.size());
-	Expects(fileIndex >= 0
-		&& fileIndex < _form.rows[valueIndex].filesInEdit.size());
+	Expects(fileIndex >= 0 && fileIndex < value->filesInEdit.size());
 
-	auto &file = _form.rows[valueIndex].filesInEdit[fileIndex];
+	const auto nonconst = findValue(value);
+	auto &file = nonconst->filesInEdit[fileIndex];
 	file.deleted = deleted;
 	_scanUpdated.fire(&file);
 }
@@ -342,16 +366,14 @@ void FormController::subscribeToUploader() {
 }
 
 void FormController::uploadEncryptedScan(
-		int valueIndex,
+		not_null<Value*> value,
 		int fileIndex,
 		UploadScanData &&data) {
-	Expects(valueIndex >= 0 && valueIndex < _form.rows.size());
-	Expects(fileIndex >= 0
-		&& fileIndex < _form.rows[valueIndex].filesInEdit.size());
+	Expects(fileIndex >= 0 && fileIndex < value->filesInEdit.size());
 
 	subscribeToUploader();
 
-	auto &file = _form.rows[valueIndex].filesInEdit[fileIndex];
+	auto &file = value->filesInEdit[fileIndex];
 	file.uploadData = std::make_unique<UploadScanData>(std::move(data));
 
 	auto prepared = std::make_shared<FileLoadResult>(
@@ -424,27 +446,32 @@ QString FormController::defaultPhoneNumber() const {
 	return QString();
 }
 
-rpl::producer<not_null<const EditFile*>> FormController::scanUpdated() const {
+auto FormController::scanUpdated() const
+-> rpl::producer<not_null<const EditFile*>> {
 	return _scanUpdated.events();
 }
 
-void FormController::enumerateRows(
-		base::lambda<void(const Value &value)> callback) {
-	ranges::for_each(_form.rows, callback);
+const Form &FormController::form() const {
+	return _form;
 }
 
-not_null<Value*> FormController::startValueEdit(int index) {
-	Expects(index >= 0 && index < _form.rows.size());
+not_null<Value*> FormController::findValue(not_null<const Value*> value) {
+	const auto i = _form.values.find(value->type);
+	Assert(i != end(_form.values));
+	const auto result = &i->second;
 
-	auto &value = _form.rows[index];
-	loadFiles(value.files);
-	value.filesInEdit = ranges::view::all(
-		value.files
-	) | ranges::view::transform([](const File &file) {
-		return EditFile(file, nullptr);
+	Ensures(result == value);
+	return result;
+}
+
+void FormController::startValueEdit(not_null<const Value*> value) {
+	const auto nonconst = findValue(value);
+	loadFiles(nonconst->files);
+	nonconst->filesInEdit = ranges::view::all(
+		value->files
+	) | ranges::view::transform([=](const File &file) {
+		return EditFile(value, file, nullptr);
 	}) | ranges::to_vector;
-
-	return &value;
 }
 
 void FormController::loadFiles(std::vector<File> &files) {
@@ -529,119 +556,169 @@ void FormController::fileLoadFail(FileKey key) {
 	}
 }
 
-void FormController::cancelValueEdit(int index) {
-	Expects(index >= 0 && index < _form.rows.size());
-
-	_form.rows[index].filesInEdit.clear();
+void FormController::cancelValueEdit(not_null<const Value*> value) {
+	const auto nonconst = findValue(value);
+	nonconst->filesInEdit.clear();
 }
 
 bool FormController::isEncryptedValue(Value::Type type) const {
-	return (type == Value::Type::Identity || type == Value::Type::Address);
+	return (type != Value::Type::Phone && type != Value::Type::Email);
 }
 
-void FormController::saveValueEdit(int index) {
-	Expects(index >= 0 && index < _form.rows.size());
+void FormController::saveValueEdit(
+		not_null<const Value*> value,
+		ValueMap &&data) {
+	const auto nonconst = findValue(value);
+	nonconst->data.parsed = std::move(data);
 
-	if (isEncryptedValue(_form.rows[index].type)) {
-		saveEncryptedValue(index);
+	if (isEncryptedValue(nonconst->type)) {
+		saveEncryptedValue(nonconst);
 	} else {
-		savePlainTextValue(index);
+		savePlainTextValue(nonconst);
 	}
 }
 
-void FormController::saveEncryptedValue(int index) {
-	Expects(index >= 0 && index < _form.rows.size());
-	Expects(isEncryptedValue(_form.rows[index].type));
+void FormController::saveEncryptedValue(not_null<Value*> value) {
+	Expects(isEncryptedValue(value->type));
 
-	auto &value = _form.rows[index];
 	if (_secret.empty()) {
 		_secretCallbacks.push_back([=] {
-			saveEncryptedValue(index);
+			saveEncryptedValue(value);
 		});
 		return;
 	}
 
-	auto inputFiles = QVector<MTPInputSecureFile>();
-	inputFiles.reserve(value.filesInEdit.size());
-	for (const auto &file : value.filesInEdit) {
-		if (file.deleted) {
-			continue;
-		} else if (const auto uploadData = file.uploadData.get()) {
-			inputFiles.push_back(MTP_inputSecureFileUploaded(
+	const auto inputFile = [](const EditFile &file) {
+		if (const auto uploadData = file.uploadData.get()) {
+			return MTP_inputSecureFileUploaded(
 				MTP_long(file.fields.id),
 				MTP_int(uploadData->partsCount),
 				MTP_bytes(uploadData->md5checksum),
 				MTP_bytes(file.fields.hash),
-				MTP_bytes(file.fields.encryptedSecret)));
-		} else {
-			inputFiles.push_back(MTP_inputSecureFile(
-				MTP_long(file.fields.id),
-				MTP_long(file.fields.accessHash)));
+				MTP_bytes(file.fields.encryptedSecret));
 		}
+		return MTP_inputSecureFile(
+			MTP_long(file.fields.id),
+			MTP_long(file.fields.accessHash));
+	};
+
+	auto inputFiles = QVector<MTPInputSecureFile>();
+	inputFiles.reserve(value->filesInEdit.size());
+	for (const auto &file : value->filesInEdit) {
+		if (file.deleted) {
+			continue;
+		}
+		inputFiles.push_back(inputFile(file));
 	}
 
-	if (value.data.secret.empty()) {
-		value.data.secret = GenerateSecretBytes();
+
+	if (value->data.secret.empty()) {
+		value->data.secret = GenerateSecretBytes();
 	}
 	const auto encryptedData = EncryptData(
-		SerializeData(value.data.parsed.fields),
-		value.data.secret);
-	value.data.hash = encryptedData.hash;
-	value.data.encryptedSecret = EncryptValueSecret(
-		value.data.secret,
+		SerializeData(value->data.parsed.fields),
+		value->data.secret);
+	value->data.hash = encryptedData.hash;
+	value->data.encryptedSecret = EncryptValueSecret(
+		value->data.secret,
 		_secret,
-		value.data.hash);
+		value->data.hash);
 
-	const auto wrap = [&] {
-		switch (value.type) {
-		case Value::Type::Identity: return MTP_inputSecureValueIdentity;
-		case Value::Type::Address: return MTP_inputSecureValueAddress;
+	const auto selfie = value->selfieInEdit
+		? inputFile(*value->selfieInEdit)
+		: MTPInputSecureFile();
+
+	const auto type = [&] {
+		switch (value->type) {
+		case Value::Type::PersonalDetails:
+			return MTP_secureValueTypePersonalDetails();
+		case Value::Type::Passport:
+			return MTP_secureValueTypePassport();
+		case Value::Type::DriverLicense:
+			return MTP_secureValueTypeDriverLicense();
+		case Value::Type::IdentityCard:
+			return MTP_secureValueTypeIdentityCard();
+		case Value::Type::Address:
+			return MTP_secureValueTypeAddress();
+		case Value::Type::UtilityBill:
+			return MTP_secureValueTypeUtilityBill();
+		case Value::Type::BankStatement:
+			return MTP_secureValueTypeBankStatement();
+		case Value::Type::RentalAgreement:
+			return MTP_secureValueTypeRentalAgreement();
 		}
 		Unexpected("Value type in saveEncryptedValue().");
 	}();
-	sendSaveRequest(index, wrap(
-		MTP_secureData(
-			MTP_bytes(encryptedData.bytes),
-			MTP_bytes(value.data.hash),
-			MTP_bytes(value.data.encryptedSecret)),
-		MTP_vector<MTPInputSecureFile>(inputFiles)));
+	const auto flags = ((value->filesInEdit.empty()
+		&& value->data.parsed.fields.empty())
+			? MTPDinputSecureValue::Flag(0)
+			: MTPDinputSecureValue::Flag::f_data)
+		| (value->filesInEdit.empty()
+			? MTPDinputSecureValue::Flag(0)
+			: MTPDinputSecureValue::Flag::f_files)
+		| (value->selfieInEdit
+			? MTPDinputSecureValue::Flag::f_selfie
+			: MTPDinputSecureValue::Flag(0));
+	if (!flags) {
+		request(MTPaccount_DeleteSecureValue(MTP_vector<MTPSecureValueType>(1, type))).send();
+	} else {
+		sendSaveRequest(value, MTP_inputSecureValue(
+			MTP_flags(flags),
+			type,
+			MTP_secureData(
+				MTP_bytes(encryptedData.bytes),
+				MTP_bytes(value->data.hash),
+				MTP_bytes(value->data.encryptedSecret)),
+			MTP_vector<MTPInputSecureFile>(inputFiles),
+			MTPSecurePlainData(),
+			selfie));
+	}
 }
 
-void FormController::savePlainTextValue(int index) {
-	Expects(index >= 0 && index < _form.rows.size());
-	Expects(!isEncryptedValue(_form.rows[index].type));
+void FormController::savePlainTextValue(not_null<Value*> value) {
+	Expects(!isEncryptedValue(value->type));
 
-	auto &value = _form.rows[index];
-	const auto text = value.data.parsed.fields[QString("value")];
-	const auto wrap = [&] {
-		switch (value.type) {
-		case Value::Type::Phone: return MTP_inputSecureValuePhone;
-		case Value::Type::Email: return MTP_inputSecureValueEmail;
+	const auto text = value->data.parsed.fields[QString("value")];
+	const auto type = [&] {
+		switch (value->type) {
+		case Value::Type::Phone: return MTP_secureValueTypePhone();
+		case Value::Type::Email: return MTP_secureValueTypeEmail();
 		}
 		Unexpected("Value type in savePlainTextValue().");
 	}();
-	sendSaveRequest(index, wrap(MTP_string(text)));
+	const auto plain = [&] {
+		switch (value->type) {
+		case Value::Type::Phone: return MTP_securePlainPhone;
+		case Value::Type::Email: return MTP_securePlainEmail;
+		}
+		Unexpected("Value type in savePlainTextValue().");
+	}();
+	sendSaveRequest(value, MTP_inputSecureValue(
+		MTP_flags(MTPDinputSecureValue::Flag::f_plain_data),
+		type,
+		MTPSecureData(),
+		MTPVector<MTPInputSecureFile>(),
+		plain(MTP_string(text)),
+		MTPInputSecureFile()));
 }
 
 void FormController::sendSaveRequest(
-		int index,
-		const MTPInputSecureValue &value) {
-	Expects(index >= 0 && index < _form.rows.size());
-
+		not_null<Value*> value,
+		const MTPInputSecureValue &data) {
 	request(MTPaccount_SaveSecureValue(
-		value,
+		data,
 		MTP_long(_secretId)
-	)).done([=](const MTPSecureValueSaved &result) {
-		Expects(result.type() == mtpc_secureValueSaved);
+	)).done([=](const MTPSecureValue &result) {
+		Expects(result.type() == mtpc_secureValue);
 
-		const auto &data = result.c_secureValueSaved();
-		_form.rows[index].files = parseFiles(
+		const auto &data = result.c_secureValue();
+		value->files = parseFiles(
 			data.vfiles.v,
-			base::take(_form.rows[index].filesInEdit));
+			base::take(value->filesInEdit));
 
 		Ui::show(Box<InformBox>("Saved"), LayerOption::KeepOther);
 	}).fail([=](const RPCError &error) {
-		Ui::show(Box<InformBox>("Error saving value."));
+		Ui::show(Box<InformBox>("Error saving value"));
 	}).send();
 }
 
@@ -710,24 +787,6 @@ void FormController::requestForm() {
 	}).send();
 }
 
-template <typename DataType>
-auto FormController::parseEncryptedValue(
-		Value::Type type,
-		const DataType &data) const -> Value {
-	Expects(data.vdata.type() == mtpc_secureData);
-
-	auto result = Value(type);
-	if (data.has_verified()) {
-		result.verification = parseVerified(data.vverified);
-	}
-	const auto &fields = data.vdata.c_secureData();
-	result.data.original = fields.vdata.v;
-	result.data.hash = bytes::make_vector(fields.vdata_hash.v);
-	result.data.encryptedSecret = bytes::make_vector(fields.vsecret.v);
-	result.files = parseFiles(data.vfiles.v);
-	return result;
-}
-
 auto FormController::parseFiles(
 	const QVector<MTPSecureFile> &data,
 	const std::vector<EditFile> &editData) const
@@ -788,60 +847,41 @@ void FormController::fillDownloadedFile(
 			i->uploadData->bytes.size())));
 }
 
-template <typename DataType>
-auto FormController::parsePlainTextValue(
-		Value::Type type,
-		const QByteArray &text,
-		const DataType &data) const -> Value {
+auto FormController::parseValue(
+		const MTPSecureValue &value) const -> Value {
+	Expects(value.type() == mtpc_secureValue);
+
+	const auto &data = value.c_secureValue();
+	const auto type = ConvertType(data.vtype);
 	auto result = Value(type);
-	result.data.parsed.fields[QString("value")] = QString::fromUtf8(text);
-	if (data.has_verified()) {
-		result.verification = parseVerified(data.vverified);
+	if (data.has_data()) {
+		Assert(data.vdata.type() == mtpc_secureData);
+		const auto &fields = data.vdata.c_secureData();
+		result.data.original = fields.vdata.v;
+		result.data.hash = bytes::make_vector(fields.vdata_hash.v);
+		result.data.encryptedSecret = bytes::make_vector(fields.vsecret.v);
 	}
+	if (data.has_files()) {
+		result.files = parseFiles(data.vfiles.v);
+	}
+	if (data.has_plain_data()) {
+		switch (data.vplain_data.type()) {
+		case mtpc_securePlainPhone: {
+			const auto &fields = data.vplain_data.c_securePlainPhone();
+			result.data.parsed.fields["value"] = qs(fields.vphone);
+		} break;
+		case mtpc_securePlainEmail: {
+			const auto &fields = data.vplain_data.c_securePlainEmail();
+			result.data.parsed.fields["value"] = qs(fields.vemail);
+		} break;
+		}
+	}
+	// #TODO passport selfie
 	return result;
 }
 
-auto FormController::parseValue(
-		const MTPSecureValue &value) const -> Value {
-	switch (value.type()) {
-	case mtpc_secureValueIdentity: {
-		return parseEncryptedValue(
-			Value::Type::Identity,
-			value.c_secureValueIdentity());
-	} break;
-	case mtpc_secureValueAddress: {
-		return parseEncryptedValue(
-			Value::Type::Address,
-			value.c_secureValueAddress());
-	} break;
-	case mtpc_secureValuePhone: {
-		const auto &data = value.c_secureValuePhone();
-		return parsePlainTextValue(
-			Value::Type::Phone,
-			data.vphone.v,
-			data);
-	} break;
-	case mtpc_secureValueEmail: {
-		const auto &data = value.c_secureValueEmail();
-		return parsePlainTextValue(
-			Value::Type::Phone,
-			data.vemail.v,
-			data);
-	} break;
-	}
-	Unexpected("secureValue type.");
-}
-
-auto FormController::parseVerified(const MTPSecureValueVerified &data) const
--> Verification {
-	Expects(data.type() == mtpc_secureValueVerified);
-
-	const auto &fields = data.c_secureValueVerified();
-	return Verification{ fields.vdate.v };
-}
-
 auto FormController::findEditFile(const FullMsgId &fullId) -> EditFile* {
-	for (auto &value : _form.rows) {
+	for (auto &[type, value] : _form.values) {
 		for (auto &file : value.filesInEdit) {
 			if (file.uploadData && file.uploadData->fullId == fullId) {
 				return &file;
@@ -852,7 +892,7 @@ auto FormController::findEditFile(const FullMsgId &fullId) -> EditFile* {
 }
 
 auto FormController::findEditFile(const FileKey &key) -> EditFile* {
-	for (auto &value : _form.rows) {
+	for (auto &[type, value] : _form.values) {
 		for (auto &file : value.filesInEdit) {
 			if (file.fields.dcId == key.dcId && file.fields.id == key.id) {
 				return &file;
@@ -864,7 +904,7 @@ auto FormController::findEditFile(const FileKey &key) -> EditFile* {
 
 auto FormController::findFile(const FileKey &key)
 -> std::pair<Value*, File*> {
-	for (auto &value : _form.rows) {
+	for (auto &[type, value] : _form.values) {
 		for (auto &file : value.files) {
 			if (file.dcId == key.dcId && file.id == key.id) {
 				return { &value, &file };
@@ -886,49 +926,33 @@ void FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 
 	const auto &data = result.c_account_authorizationForm();
 
-	auto values = std::vector<Value>();
-	for (const auto &value : data.vvalues.v) {
-		values.push_back(parseValue(value));
-	}
-	const auto findValue = [&](Value::Type type) -> Value* {
-		for (auto &value : values) {
-			if (value.type == type) {
-				return &value;
-			}
-		}
-		return nullptr;
-	};
-
 	App::feedUsers(data.vusers);
-	for (const auto &required : data.vrequired_types.v) {
-		using Type = Value::Type;
 
-		const auto type = [&] {
-			switch (required.type()) {
-			case mtpc_secureValueTypeIdentity: return Type::Identity;
-			case mtpc_secureValueTypeAddress: return Type::Address;
-			case mtpc_secureValueTypeEmail: return Type::Email;
-			case mtpc_secureValueTypePhone: return Type::Phone;
-			}
-			Unexpected("Type in secureValueType type.");
-		}();
-
-		if (auto value = findValue(type)) {
-			_form.rows.push_back(std::move(*value));
-		} else {
-			_form.rows.push_back(Value(type));
+	for (const auto &value : data.vvalues.v) {
+		auto parsed = parseValue(value);
+		const auto type = parsed.type;
+		const auto alreadyIt = _form.values.find(type);
+		if (alreadyIt != _form.values.end()) {
+			LOG(("API Error: Two values for type %1 in authorization form"
+				"%1").arg(int(type)));
+			continue;
 		}
+		_form.values.emplace(type, std::move(parsed));
+	}
+	_form.identitySelfieRequired = data.is_selfie_required();
+	if (data.has_privacy_policy_url()) {
+		_form.privacyPolicyUrl = qs(data.vprivacy_policy_url);
+	}
+	for (const auto &required : data.vrequired_types.v) {
+		const auto type = ConvertType(required);
+		_form.request.push_back(type);
+		_form.values.emplace(type, Value(type));
 	}
 	_bot = App::userLoaded(_request.botId);
 }
 
 void FormController::formFail(const RPCError &error) {
-	// #TODO passport testing
-	_form.rows.push_back(Value(Value::Type::Identity));
-	_form.rows.back().data.parsed.fields["first_name"] = "test1";
-	_form.rows.back().data.parsed.fields["last_name"] = "test2";
-	_view->editValue(0);
-//	Ui::show(Box<InformBox>(lang(lng_passport_form_error)));
+	Ui::show(Box<InformBox>(lang(lng_passport_form_error)));
 }
 
 void FormController::requestPassword() {

@@ -458,6 +458,7 @@
 <(src_loc)/passport/passport_encryption.h
 <(src_loc)/passport/passport_form_controller.cpp
 <(src_loc)/passport/passport_form_controller.h
+<(src_loc)/passport/passport_form_view_controller.cpp
 <(src_loc)/passport/passport_form_view_controller.h
 <(src_loc)/passport/passport_panel.cpp
 <(src_loc)/passport/passport_panel.h

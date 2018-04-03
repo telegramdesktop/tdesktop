@@ -975,30 +975,29 @@ secureFile#e0277a62 id:long access_hash:long size:int dc_id:int date:int file_ha
 
 secureData#8aeabec3 data:bytes data_hash:bytes secret:bytes = SecureData;
 
-secureValueVerified#2c8e61e2 date:int = SecureValueVerified;
+securePlainPhone#7d6099dd phone:string = SecurePlainData;
+securePlainEmail#21ec5a5f email:string = SecurePlainData;
 
-secureValueTypeIdentity#37da58ca = SecureValueType;
+secureValueTypePersonalDetails#9d2a81e3 = SecureValueType;
+secureValueTypePassport#3dac6a00 = SecureValueType;
+secureValueTypeDriverLicense#6e425c4 = SecureValueType;
+secureValueTypeIdentityCard#a0d0744b = SecureValueType;
 secureValueTypeAddress#cbe31e26 = SecureValueType;
+secureValueTypeUtilityBill#fc36954e = SecureValueType;
+secureValueTypeBankStatement#89137c0d = SecureValueType;
+secureValueTypeRentalAgreement#8b883488 = SecureValueType;
 secureValueTypePhone#b320aadb = SecureValueType;
 secureValueTypeEmail#8e3ca7ee = SecureValueType;
 
-secureValueIdentity#15fe72a2 flags:# data:SecureData files:Vector<SecureFile> verified:flags.0?SecureValueVerified = SecureValue;
-secureValueAddress#88109b79 flags:# data:SecureData files:Vector<SecureFile> verified:flags.0?SecureValueVerified = SecureValue;
-secureValuePhone#e39470bf flags:# phone:string verified:flags.0?SecureValueVerified = SecureValue;
-secureValueEmail#35d804cd flags:# email:string verified:flags.0?SecureValueVerified = SecureValue;
+secureValue#ec4134c8 flags:# type:SecureValueType data:flags.0?SecureData files:flags.1?Vector<SecureFile> plain_data:flags.2?SecurePlainData selfie:flags.3?SecureFile hash:bytes = SecureValue;
 
-inputSecureValueIdentity#94fa65b data:SecureData files:Vector<InputSecureFile> = InputSecureValue;
-inputSecureValueAddress#96689355 data:SecureData files:Vector<InputSecureFile> = InputSecureValue;
-inputSecureValuePhone#9d623d96 phone:string = InputSecureValue;
-inputSecureValueEmail#9e885359 email:string = InputSecureValue;
+inputSecureValue#c0da30f0 flags:# type:SecureValueType data:flags.0?SecureData files:flags.1?Vector<InputSecureFile> plain_data:flags.2?SecurePlainData selfie:flags.3?InputSecureFile = InputSecureValue;
 
 secureValueHash#ed1ecdb0 type:SecureValueType hash:bytes = SecureValueHash;
 
-secureValueSaved#c9147049 files:Vector<SecureFile> = SecureValueSaved;
-
 secureCredentialsEncrypted#33f0ea47 data:bytes hash:bytes secret:bytes = SecureCredentialsEncrypted;
 
-account.authorizationForm#4cace8c4 required_types:Vector<SecureValueType> values:Vector<SecureValue> users:Vector<User> = account.AuthorizationForm;
+account.authorizationForm#b9d3d1f0 flags:# selfie_required:flags.1?true required_types:Vector<SecureValueType> values:Vector<SecureValue> users:Vector<User> privacy_policy_url:flags.0?string = account.AuthorizationForm;
 
 account.sentEmailCode#28b1633b email_pattern:string = account.SentEmailCode;
 
@@ -1057,8 +1056,8 @@ account.getTmpPassword#4a82327e password_hash:bytes period:int = account.TmpPass
 account.getWebAuthorizations#182e6d6f = account.WebAuthorizations;
 account.resetWebAuthorization#2d01b9ef hash:long = Bool;
 account.resetWebAuthorizations#682d2594 = Bool;
-account.getSecureValue#d97e77cb user_id:InputUser types:Vector<SecureValueType> = Vector<SecureValue>;
-account.saveSecureValue#78969d0b value:InputSecureValue secure_secret_id:long = SecureValueSaved;
+account.getSecureValue#73665bc2 types:Vector<SecureValueType> = Vector<SecureValue>;
+account.saveSecureValue#899fe31d value:InputSecureValue secure_secret_id:long = SecureValue;
 account.deleteSecureValue#b880bc4b types:Vector<SecureValueType> = Bool;
 account.getAuthorizationForm#b86ba8e1 bot_id:int scope:string public_key:string = account.AuthorizationForm;
 account.acceptAuthorization#e7027c94 bot_id:int scope:string public_key:string value_hashes:Vector<SecureValueHash> credentials:SecureCredentialsEncrypted = Bool;

@@ -67,6 +67,8 @@ private:
 
 };
 
+struct Value;
+
 struct File {
 	uint64 id = 0;
 	uint64 accessHash = 0;
@@ -83,17 +85,15 @@ struct File {
 
 struct EditFile {
 	EditFile(
+		not_null<const Value*> value,
 		const File &fields,
 		std::unique_ptr<UploadScanData> &&uploadData);
 
+	not_null<const Value*> value;
 	File fields;
 	UploadScanDataPointer uploadData;
 	std::shared_ptr<bool> guard;
 	bool deleted = false;
-};
-
-struct Verification {
-	TimeId date;
 };
 
 struct ValueMap {
@@ -110,8 +110,14 @@ struct ValueData {
 
 struct Value {
 	enum class Type {
-		Identity,
+		PersonalDetails,
+		Passport,
+		DriverLicense,
+		IdentityCard,
 		Address,
+		UtilityBill,
+		BankStatement,
+		RentalAgreement,
 		Phone,
 		Email,
 	};
@@ -124,11 +130,15 @@ struct Value {
 	ValueData data;
 	std::vector<File> files;
 	std::vector<EditFile> filesInEdit;
-	base::optional<Verification> verification;
+	base::optional<File> selfie;
+	base::optional<EditFile> selfieInEdit;
 };
 
 struct Form {
-	std::vector<Value> rows;
+	std::map<Value::Type, Value> values;
+	std::vector<Value::Type> request;
+	bool identitySelfieRequired = false;
+	QString privacyPolicyUrl;
 };
 
 struct PasswordSettings {
@@ -174,14 +184,15 @@ public:
 
 	void show();
 	UserData *bot() const;
+	QString privacyPolicyUrl() const;
 
 	void submitPassword(const QString &password);
 	rpl::producer<QString> passwordError() const;
 	QString passwordHint() const;
 
-	void uploadScan(int valueIndex, QByteArray &&content);
-	void deleteScan(int valueIndex, int fileIndex);
-	void restoreScan(int valueIndex, int fileIndex);
+	void uploadScan(not_null<const Value*> value, QByteArray &&content);
+	void deleteScan(not_null<const Value*> value, int fileIndex);
+	void restoreScan(not_null<const Value*> value, int fileIndex);
 
 	rpl::producer<> secretReadyEvents() const;
 
@@ -190,10 +201,10 @@ public:
 
 	rpl::producer<not_null<const EditFile*>> scanUpdated() const;
 
-	void enumerateRows(base::lambda<void(const Value &value)> callback);
-	not_null<Value*> startValueEdit(int index);
-	void cancelValueEdit(int index);
-	void saveValueEdit(int index);
+	const Form &form() const;
+	void startValueEdit(not_null<const Value*> value);
+	void cancelValueEdit(not_null<const Value*> value);
+	void saveValueEdit(not_null<const Value*> value, ValueMap &&data);
 
 	void cancel();
 
@@ -205,6 +216,7 @@ private:
 	EditFile *findEditFile(const FullMsgId &fullId);
 	EditFile *findEditFile(const FileKey &key);
 	std::pair<Value*, File*> findFile(const FileKey &key);
+	not_null<Value*> findValue(not_null<const Value*> value);
 
 	void requestForm();
 	void requestPassword();
@@ -214,16 +226,6 @@ private:
 	void parseForm(const MTPaccount_AuthorizationForm &result);
 	void showForm();
 	Value parseValue(const MTPSecureValue &value) const;
-	template <typename DataType>
-	Value parseEncryptedValue(
-		Value::Type type,
-		const DataType &data) const;
-	template <typename DataType>
-	Value parsePlainTextValue(
-		Value::Type type,
-		const QByteArray &text,
-		const DataType &data) const;
-	Verification parseVerified(const MTPSecureValueVerified &data) const;
 	std::vector<File> parseFiles(
 		const QVector<MTPSecureFile> &data,
 		const std::vector<EditFile> &editData = {}) const;
@@ -253,22 +255,24 @@ private:
 
 	void subscribeToUploader();
 	void encryptScan(
-		int valueIndex,
+		not_null<Value*> value,
 		int fileIndex,
 		QByteArray &&content);
 	void uploadEncryptedScan(
-		int valueIndex,
+		not_null<Value*> value,
 		int fileIndex,
 		UploadScanData &&data);
 	void scanUploadDone(const Storage::UploadSecureDone &data);
 	void scanUploadProgress(const Storage::UploadSecureProgress &data);
 	void scanUploadFail(const FullMsgId &fullId);
-	void scanDeleteRestore(int valueIndex, int fileIndex, bool deleted);
+	void scanDeleteRestore(not_null<const Value*> value, int fileIndex, bool deleted);
 
 	bool isEncryptedValue(Value::Type type) const;
-	void saveEncryptedValue(int index);
-	void savePlainTextValue(int index);
-	void sendSaveRequest(int index, const MTPInputSecureValue &value);
+	void saveEncryptedValue(not_null<Value*> value);
+	void savePlainTextValue(not_null<Value*> value);
+	void sendSaveRequest(
+		not_null<Value*> value,
+		const MTPInputSecureValue &data);
 
 	not_null<Window::Controller*> _controller;
 	FormRequest _request;

@@ -51,17 +51,23 @@ BoxContent *BoxPointer::operator->() const {
 }
 
 PanelController::PanelController(not_null<FormController*> form)
-: _form(form) {
+: _form(form)
+, _scopes(ComputeScopes(_form)) {
 	_form->secretReadyEvents(
 	) | rpl::start_with_next([=] {
 		if (_panel) {
 			_panel->showForm();
 		}
 	}, lifetime());
+	_scopes = ComputeScopes(_form);
 }
 
 not_null<UserData*> PanelController::bot() const {
 	return _form->bot();
+}
+
+QString PanelController::privacyPolicyUrl() const {
+	return _form->privacyPolicyUrl();
 }
 
 void PanelController::fillRows(
@@ -69,34 +75,37 @@ void PanelController::fillRows(
 		QString title,
 		QString description,
 		bool ready)> callback) {
-	_form->enumerateRows([&](const Value &value) {
-		switch (value.type) {
-		case Value::Type::Identity:
+	if (_scopes.empty()) {
+		_scopes = ComputeScopes(_form);
+	}
+	for (const auto &scope : _scopes) {
+		switch (scope.type) {
+		case Scope::Type::Identity:
 			callback(
 				lang(lng_passport_identity_title),
 				lang(lng_passport_identity_description),
 				false);
 			break;
-		case Value::Type::Address:
+		case Scope::Type::Address:
 			callback(
 				lang(lng_passport_address_title),
 				lang(lng_passport_address_description),
 				false);
 			break;
-		case Value::Type::Phone:
+		case Scope::Type::Phone:
 			callback(
 				lang(lng_passport_phone_title),
-				App::self()->phone(),
-				true);
+				lang(lng_passport_phone_description),
+				false);
 			break;
-		case Value::Type::Email:
+		case Scope::Type::Email:
 			callback(
 				lang(lng_passport_email_title),
 				lang(lng_passport_email_description),
 				false);
 			break;
 		}
-	});
+	}
 }
 
 void PanelController::submitPassword(const QString &password) {
@@ -119,27 +128,40 @@ QString PanelController::defaultPhoneNumber() const {
 	return _form->defaultPhoneNumber();
 }
 
-void PanelController::uploadScan(int valueIndex, QByteArray &&content) {
-	Expects(_panel != nullptr);
+void PanelController::uploadScan(QByteArray &&content) {
+	Expects(_editScope != nullptr);
+	Expects(_editScopeFilesIndex >= 0);
 
-	_form->uploadScan(valueIndex, std::move(content));
+	_form->uploadScan(
+		_editScope->files[_editScopeFilesIndex],
+		std::move(content));
 }
 
-void PanelController::deleteScan(int valueIndex, int fileIndex) {
-	Expects(_panel != nullptr);
+void PanelController::deleteScan(int fileIndex) {
+	Expects(_editScope != nullptr);
+	Expects(_editScopeFilesIndex >= 0);
 
-	_form->deleteScan(valueIndex, fileIndex);
+	_form->deleteScan(
+		_editScope->files[_editScopeFilesIndex],
+		fileIndex);
 }
 
-void PanelController::restoreScan(int valueIndex, int fileIndex) {
-	Expects(_panel != nullptr);
+void PanelController::restoreScan(int fileIndex) {
+	Expects(_editScope != nullptr);
+	Expects(_editScopeFilesIndex >= 0);
 
-	_form->restoreScan(valueIndex, fileIndex);
+	_form->restoreScan(
+		_editScope->files[_editScopeFilesIndex],
+		fileIndex);
 }
 
 rpl::producer<ScanInfo> PanelController::scanUpdated() const {
 	return _form->scanUpdated(
-	) | rpl::map([=](not_null<const EditFile*> file) {
+	) | rpl::filter([=](not_null<const EditFile*> file) {
+		return (_editScope != nullptr)
+			&& (_editScopeFilesIndex >= 0)
+			&& (file->value == _editScope->files[_editScopeFilesIndex]);
+	}) | rpl::map([=](not_null<const EditFile*> file) {
 		return collectScanInfo(*file);
 	});
 }
@@ -202,22 +224,29 @@ void PanelController::ensurePanelCreated() {
 	}
 }
 
-void PanelController::editValue(int index) {
-	ensurePanelCreated(); // #TODO passport testing
+void PanelController::editScope(int index) {
 	Expects(_panel != nullptr);
+	Expects(index >= 0 && index < _scopes.size());
 
-	_editValue = _form->startValueEdit(index);
-	Assert(_editValue != nullptr);
+	_editScope = &_scopes[index];
+
+	// #TODO select type for files index
+	_editScopeFilesIndex = _scopes[index].files.empty() ? -1 : 0;
+
+	_form->startValueEdit(_editScope->fields);
+	if (_editScopeFilesIndex >= 0) {
+		_form->startValueEdit(_editScope->files[_editScopeFilesIndex]);
+	}
 
 	auto content = [&]() -> object_ptr<Ui::RpWidget> {
-		switch (_editValue->type) {
-		case Value::Type::Identity:
+		switch (_editScope->type) {
+		case Scope::Type::Identity:
 			return object_ptr<PanelEditIdentity>(
 				_panel.get(),
 				this,
-				index,
-				_editValue->data.parsed,
-				valueFiles(*_editValue));
+				_editScope->fields->data.parsed,
+				_editScope->files[_editScopeFilesIndex]->data.parsed,
+				valueFiles(*_editScope->files[_editScopeFilesIndex]));
 		}
 		return { nullptr };
 	}();
@@ -244,21 +273,29 @@ std::vector<ScanInfo> PanelController::valueFiles(const Value &value) const {
 }
 
 void PanelController::cancelValueEdit(int index) {
-	if (base::take(_editValue)) {
-		_form->cancelValueEdit(index);
+	if (const auto scope = base::take(_editScope)) {
+		_form->startValueEdit(scope->fields);
+		const auto index = std::exchange(_editScopeFilesIndex, -1);
+		if (index >= 0) {
+			_form->startValueEdit(scope->files[index]);
+		}
 	}
 }
 
-void PanelController::saveValue(int index, ValueMap &&data) {
+void PanelController::saveScope(ValueMap &&data, ValueMap &&filesData) {
 	Expects(_panel != nullptr);
-	Expects(_editValue != nullptr);
+	Expects(_editScope != nullptr);
 
-	_editValue->data.parsed = std::move(data);
-	_editValue = nullptr;
+	const auto scope = base::take(_editScope);
+	_form->saveValueEdit(scope->fields, std::move(data));
+	const auto index = std::exchange(_editScopeFilesIndex, -1);
+	if (index >= 0) {
+		_form->saveValueEdit(scope->files[index], std::move(filesData));
+	} else {
+		Assert(filesData.fields.empty());
+	}
 
 	_panel->showForm();
-
-	_form->saveValueEdit(index);
 }
 
 void PanelController::cancelAuth() {

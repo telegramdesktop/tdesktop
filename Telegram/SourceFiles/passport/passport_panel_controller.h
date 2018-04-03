@@ -45,14 +45,15 @@ public:
 	PanelController(not_null<FormController*> form);
 
 	not_null<UserData*> bot() const;
+	QString privacyPolicyUrl() const;
 
 	void submitPassword(const QString &password);
 	rpl::producer<QString> passwordError() const;
 	QString passwordHint() const;
 
-	void uploadScan(int valueIndex, QByteArray &&content);
-	void deleteScan(int valueIndex, int fileIndex);
-	void restoreScan(int valueIndex, int fileIndex);
+	void uploadScan(QByteArray &&content);
+	void deleteScan(int fileIndex);
+	void restoreScan(int fileIndex);
 	rpl::producer<ScanInfo> scanUpdated() const;
 
 	QString defaultEmail() const;
@@ -68,8 +69,8 @@ public:
 			QString description,
 			bool ready)> callback);
 
-	void editValue(int index) override;
-	void saveValue(int index, ValueMap &&data);
+	void editScope(int index) override;
+	void saveScope(ValueMap &&data, ValueMap &&filesData);
 
 	void cancelAuth();
 
@@ -84,9 +85,11 @@ private:
 	ScanInfo collectScanInfo(const EditFile &file) const;
 
 	not_null<FormController*> _form;
+	std::vector<Scope> _scopes;
 
 	std::unique_ptr<Panel> _panel;
-	Value *_editValue = nullptr;
+	Scope *_editScope = nullptr;
+	int _editScopeFilesIndex = -1;
 
 	rpl::lifetime _lifetime;
 
