@@ -336,12 +336,13 @@ parts:
       - -qt-pcre
       - -qt-xcb
       - -qt-xkbcommon-x11
-      - -no-opengl
+      - -no-gstreamer
       - -no-gtkstyle
+      - -no-mirclient
+      - -no-opengl
       - -static
       - -dbus-runtime
       - -openssl-linked
-      - -no-mirclient
       - -nomake
       - examples
       - -nomake
