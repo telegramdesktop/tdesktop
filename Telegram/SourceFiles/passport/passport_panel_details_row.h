@@ -22,7 +22,8 @@ public:
 		const QString &label,
 		const QString &value);
 
-	QPointer<Ui::InputField> field() const;
+	bool setFocusFast();
+	QString getValue() const;
 
 protected:
 	int resizeGetHeight(int newWidth) override;

@@ -20,8 +20,13 @@ PanelDetailsRow::PanelDetailsRow(
 , _field(this, st::passportDetailsField, nullptr, value) {
 }
 
-QPointer<Ui::InputField> PanelDetailsRow::field() const {
-	return _field.data();
+bool PanelDetailsRow::setFocusFast() {
+	_field->setFocusFast();
+	return true;
+}
+
+QString PanelDetailsRow::getValue() const {
+	return _field->getLastText();
 }
 
 int PanelDetailsRow::resizeGetHeight(int newWidth) {

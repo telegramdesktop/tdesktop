@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "passport/passport_panel_edit_identity.h"
+#include "passport/passport_panel_edit_document.h"
 
 #include "passport/passport_panel_controller.h"
 #include "passport/passport_panel_details_row.h"
@@ -25,13 +25,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Passport {
 
-PanelEditIdentity::PanelEditIdentity(
+PanelEditDocument::PanelEditDocument(
 	QWidget*,
 	not_null<PanelController*> controller,
+	Scheme scheme,
 	const ValueMap &data,
 	const ValueMap &scanData,
 	std::vector<ScanInfo> &&files)
 : _controller(controller)
+, _scheme(std::move(scheme))
 , _scroll(this, st::passportPanelScroll)
 , _topShadow(this)
 , _bottomShadow(this)
@@ -39,12 +41,29 @@ PanelEditIdentity::PanelEditIdentity(
 		this,
 		langFactory(lng_passport_save_value),
 		st::passportPanelSaveValue) {
-	setupControls(data, scanData, std::move(files));
+	setupControls(data, &scanData, std::move(files));
 }
 
-void PanelEditIdentity::setupControls(
+PanelEditDocument::PanelEditDocument(
+	QWidget*,
+	not_null<PanelController*> controller,
+	Scheme scheme,
+	const ValueMap &data)
+: _controller(controller)
+, _scheme(std::move(scheme))
+, _scroll(this, st::passportPanelScroll)
+, _topShadow(this)
+, _bottomShadow(this)
+, _done(
+		this,
+		langFactory(lng_passport_save_value),
+		st::passportPanelSaveValue) {
+	setupControls(data, nullptr, {});
+}
+
+void PanelEditDocument::setupControls(
 		const ValueMap &data,
-		const ValueMap &scanData,
+		const ValueMap *scanData,
 		std::vector<ScanInfo> &&files) {
 	const auto inner = setupContent(data, scanData, std::move(files));
 
@@ -59,9 +78,9 @@ void PanelEditIdentity::setupControls(
 	});
 }
 
-not_null<Ui::RpWidget*> PanelEditIdentity::setupContent(
+not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 		const ValueMap &data,
-		const ValueMap &scanData,
+		const ValueMap *scanData,
 		std::vector<ScanInfo> &&files) {
 	const auto inner = _scroll->setOwnedWidget(
 		object_ptr<Ui::VerticalLayout>(this));
@@ -70,8 +89,10 @@ not_null<Ui::RpWidget*> PanelEditIdentity::setupContent(
 		inner->resizeToWidth(width);
 	}, inner->lifetime());
 
-	_editScans = inner->add(
-		object_ptr<EditScans>(inner, _controller, std::move(files)));
+	if (scanData) {
+		_editScans = inner->add(
+			object_ptr<EditScans>(inner, _controller, std::move(files)));
+	}
 
 	inner->add(object_ptr<BoxContentDivider>(
 		inner,
@@ -84,34 +105,45 @@ not_null<Ui::RpWidget*> PanelEditIdentity::setupContent(
 			st::passportFormHeader),
 		st::passportDetailsHeaderPadding);
 
-	const auto valueOrEmpty = [&](const QString &key) {
-		if (const auto i = data.fields.find(key); i != data.fields.end()) {
+	const auto valueOrEmpty = [&](
+			const ValueMap &values,
+			const QString &key) {
+		const auto &fields = values.fields;
+		if (const auto i = fields.find(key); i != fields.end()) {
 			return i->second;
 		}
 		return QString();
 	};
 
-	_firstName = inner->add(object_ptr<PanelDetailsRow>(
-		inner,
-		lang(lng_passport_first_name),
-		valueOrEmpty("first_name")))->field();
-	_lastName = inner->add(object_ptr<PanelDetailsRow>(
-		inner,
-		lang(lng_passport_last_name),
-		valueOrEmpty("last_name")))->field();
+	for (const auto &row : _scheme.rows) {
+		auto fields = (row.type == Scheme::ValueType::Fields)
+			? &data
+			: scanData;
+		if (!fields) {
+			continue;
+		}
+		_details.push_back(inner->add(object_ptr<PanelDetailsRow>(
+			inner,
+			row.label,
+			valueOrEmpty(*fields, row.key))));
+	}
 
 	return inner;
 }
 
-void PanelEditIdentity::focusInEvent(QFocusEvent *e) {
-	_firstName->setFocusFast();
+void PanelEditDocument::focusInEvent(QFocusEvent *e) {
+	for (const auto row : _details) {
+		if (row->setFocusFast()) {
+			return;
+		}
+	}
 }
 
-void PanelEditIdentity::resizeEvent(QResizeEvent *e) {
+void PanelEditDocument::resizeEvent(QResizeEvent *e) {
 	updateControlsGeometry();
 }
 
-void PanelEditIdentity::updateControlsGeometry() {
+void PanelEditDocument::updateControlsGeometry() {
 	const auto submitTop = height() - _done->height();
 	_scroll->setGeometry(0, 0, width(), submitTop);
 	_topShadow->resizeToWidth(width());
@@ -124,11 +156,18 @@ void PanelEditIdentity::updateControlsGeometry() {
 	_scroll->updateBars();
 }
 
-void PanelEditIdentity::save() {
+void PanelEditDocument::save() {
+	Expects(_details.size() == _scheme.rows.size());
+
 	auto data = ValueMap();
-	data.fields["first_name"] = _firstName->getLastText();
-	data.fields["last_name"] = _lastName->getLastText();
 	auto scanData = ValueMap();
+	for (auto i = 0, count = int(_details.size()); i != count; ++i) {
+		const auto &row = _scheme.rows[i];
+		auto &fields = (row.type == Scheme::ValueType::Fields)
+			? data
+			: scanData;
+		fields.fields[row.key] = _details[i]->getValue();
+	}
 	_controller->saveScope(std::move(data), std::move(scanData));
 }
 

@@ -8,12 +8,133 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_panel_controller.h"
 
 #include "lang/lang_keys.h"
-#include "passport/passport_panel_edit_identity.h"
+#include "passport/passport_panel_edit_document.h"
 #include "passport/passport_panel.h"
 #include "boxes/confirm_box.h"
 #include "layout.h"
 
 namespace Passport {
+namespace {
+
+PanelEditDocument::Scheme GetDocumentScheme(Scope::Type type) {
+	using Scheme = PanelEditDocument::Scheme;
+
+	const auto DontValidate = nullptr;
+	const auto NotEmptyValidate = [](const QString &value) {
+		return !value.isEmpty();
+	};
+	const auto DateValidate = [](const QString &value) {
+		return QRegularExpression(
+			"^\\d{2}\\.\\d{2}\\.\\d{4}$"
+		).match(value).hasMatch();
+	};
+	const auto DateOrEmptyValidate = [=](const QString &value) {
+		return value.isEmpty() || DateValidate(value);
+	};
+	const auto GenderValidate = [](const QString &value) {
+		return value == qstr("male") || value == qstr("female");
+	};
+	const auto CountryValidate = [](const QString &value) {
+		return QRegularExpression("^[A-Z]{2}$").match(value).hasMatch();
+	};
+
+	switch (type) {
+	case Scope::Type::Identity: {
+		auto result = Scheme();
+		result.rows = {
+			{
+				Scheme::ValueType::Fields,
+				qsl("first_name"),
+				lang(lng_passport_first_name),
+				NotEmptyValidate
+			},
+			{
+				Scheme::ValueType::Fields,
+				qsl("last_name"),
+				lang(lng_passport_last_name),
+				DontValidate
+			},
+			{
+				Scheme::ValueType::Fields,
+				qsl("birth_date"),
+				lang(lng_passport_birth_date),
+				DateValidate,
+			},
+			{
+				Scheme::ValueType::Fields,
+				qsl("gender"),
+				lang(lng_passport_gender),
+				GenderValidate,
+			},
+			{
+				Scheme::ValueType::Fields,
+				qsl("country_code"),
+				lang(lng_passport_country),
+				CountryValidate,
+			},
+			{
+				Scheme::ValueType::Scans,
+				qsl("document_no"),
+				lang(lng_passport_document_number),
+				NotEmptyValidate,
+			},
+			{
+				Scheme::ValueType::Scans,
+				qsl("expiry_date"),
+				lang(lng_passport_expiry_date),
+				DateOrEmptyValidate,
+			},
+		};
+		return result;
+	} break;
+
+	case Scope::Type::Address: {
+		auto result = Scheme();
+		result.rows = {
+			{
+				Scheme::ValueType::Fields,
+				qsl("street_line1"),
+				lang(lng_passport_street),
+				NotEmptyValidate
+			},
+			{
+				Scheme::ValueType::Fields,
+				qsl("street_line2"),
+				lang(lng_passport_street),
+				DontValidate
+			},
+			{
+				Scheme::ValueType::Fields,
+				qsl("city"),
+				lang(lng_passport_city),
+				NotEmptyValidate
+			},
+			{
+				Scheme::ValueType::Fields,
+				qsl("state"),
+				lang(lng_passport_state),
+				DontValidate
+			},
+			{
+				Scheme::ValueType::Fields,
+				qsl("country_code"),
+				lang(lng_passport_country),
+				CountryValidate
+			},
+			{
+				Scheme::ValueType::Fields,
+				qsl("post_code"),
+				lang(lng_passport_postcode),
+				NotEmptyValidate
+			},
+		};
+		return result;
+	} break;
+	}
+	Unexpected("Type in GetDocumentScheme().");
+}
+
+} // namespace
 
 BoxPointer::BoxPointer(QPointer<BoxContent> value)
 : _value(value) {
@@ -241,12 +362,20 @@ void PanelController::editScope(int index) {
 	auto content = [&]() -> object_ptr<Ui::RpWidget> {
 		switch (_editScope->type) {
 		case Scope::Type::Identity:
-			return object_ptr<PanelEditIdentity>(
-				_panel.get(),
-				this,
-				_editScope->fields->data.parsed,
-				_editScope->files[_editScopeFilesIndex]->data.parsed,
-				valueFiles(*_editScope->files[_editScopeFilesIndex]));
+		case Scope::Type::Address:
+			return (_editScopeFilesIndex >= 0)
+				? object_ptr<PanelEditDocument>(
+					_panel.get(),
+					this,
+					std::move(GetDocumentScheme(_editScope->type)),
+					_editScope->fields->data.parsed,
+					_editScope->files[_editScopeFilesIndex]->data.parsed,
+					valueFiles(*_editScope->files[_editScopeFilesIndex]))
+				: object_ptr<PanelEditDocument>(
+					_panel.get(),
+					this,
+					std::move(GetDocumentScheme(_editScope->type)),
+					_editScope->fields->data.parsed);
 		}
 		return { nullptr };
 	}();

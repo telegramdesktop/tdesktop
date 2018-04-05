@@ -1507,7 +1507,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_request2" = "to sign you up for their services";
 "lng_passport_password_placeholder" = "Your password";
 "lng_passport_next" = "Next";
-"lng_passport_password_wrong" = "Wrong password";
+"lng_passport_password_wrong" = "The password you entered is not valid.";
 "lng_passport_header" = "Requested information";
 "lng_passport_identity_title" = "Identity document";
 "lng_passport_identity_description" = "Upload a scan of your passport or other ID";
@@ -1534,8 +1534,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_choose_image" = "Choose scan image";
 "lng_passport_delete_scan_undo" = "Undo";
 "lng_passport_scan_uploaded" = "Uploaded on {date}";
-"lng_passport_first_name" = "First name";
-"lng_passport_last_name" = "Last name";
+"lng_passport_first_name" = "Name";
+"lng_passport_last_name" = "Surname";
+"lng_passport_birth_date" = "Date of birth";
+"lng_passport_gender" = "Gender";
+"lng_passport_country" = "Country";
+"lng_passport_document_number" = "Card Number";
+"lng_passport_expiry_date" = "Expiry date";
+"lng_passport_street" = "Street";
+"lng_passport_city" = "City";
+"lng_passport_state" = "State";
+"lng_passport_postcode" = "Postcode";
 
 // Wnd specific
 
