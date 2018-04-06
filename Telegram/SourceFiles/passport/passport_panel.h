@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "boxes/abstract_box.h"
 
 namespace Ui {
 class IconButton;
@@ -15,6 +16,10 @@ class FlatLabel;
 template <typename Widget>
 class FadeWrapScaled;
 } // namespace Ui
+
+namespace Window {
+class LayerStackWidget;
+} // namespace Window
 
 namespace Passport {
 
@@ -35,6 +40,7 @@ public:
 	void showPasswordUnconfirmed();
 	void showForm();
 	void showEditValue(object_ptr<Ui::RpWidget> form);
+	void showBox(object_ptr<BoxContent> box);
 
 	rpl::producer<> backRequests() const;
 	void setBackAllowed(bool allowed);
@@ -43,6 +49,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void closeEvent(QCloseEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
+	void focusInEvent(QFocusEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -59,6 +66,7 @@ private:
 	void createBorderImage();
 	void opacityCallback();
 	void showInner(base::unique_qptr<Ui::RpWidget> inner);
+	void ensureLayerCreated();
 
 	void updateTitlePosition();
 	void paintShadowBorder(Painter &p) const;
@@ -72,7 +80,9 @@ private:
 	object_ptr<Ui::IconButton> _close;
 	object_ptr<Ui::FlatLabel> _title;
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _back;
+	object_ptr<Ui::RpWidget> _body;
 	base::unique_qptr<Ui::RpWidget> _inner;
+	object_ptr<Window::LayerStackWidget> _layer = { nullptr };
 
 	bool _useTransparency = true;
 	style::margins _padding;

@@ -77,29 +77,24 @@ private:
 
 };
 
-class LayerStackWidget : public TWidget {
+class LayerStackWidget : public Ui::RpWidget {
 	Q_OBJECT
 
 public:
-	LayerStackWidget(QWidget *parent, Controller *controller);
+	LayerStackWidget(QWidget *parent);
 
-	Controller *controller() const {
-		return _controller;
-	}
 	void finishAnimating();
+	rpl::producer<> hideFinishEvents() const;
 
 	void showBox(
 		object_ptr<BoxContent> box,
+		LayerOptions options,
 		anim::type animated);
 	void showSpecialLayer(
 		object_ptr<LayerWidget> layer,
 		anim::type animated);
-	void showMainMenu(anim::type animated);
-	void appendBox(
-		object_ptr<BoxContent> box,
-		anim::type animated);
-	void prependBox(
-		object_ptr<BoxContent> box,
+	void showMainMenu(
+		not_null<Window::Controller*> controller,
 		anim::type animated);
 	bool takeToThirdSection();
 
@@ -132,6 +127,16 @@ private slots:
 	void onLayerResized();
 
 private:
+	void appendBox(
+		object_ptr<BoxContent> box,
+		anim::type animated);
+	void prependBox(
+		object_ptr<BoxContent> box,
+		anim::type animated);
+	void replaceBox(
+		object_ptr<BoxContent> box,
+		anim::type animated);
+
 	LayerWidget *pushBox(
 		object_ptr<BoxContent> box,
 		anim::type animated);
@@ -171,8 +176,6 @@ private:
 		return const_cast<LayerStackWidget*>(this)->currentLayer();
 	}
 
-	Controller *_controller = nullptr;
-
 	QList<LayerWidget*> _layers;
 
 	object_ptr<LayerWidget> _specialLayer = { nullptr };
@@ -180,6 +183,8 @@ private:
 
 	class BackgroundWidget;
 	object_ptr<BackgroundWidget> _background;
+
+	rpl::event_stream<> _hideFinishStream;
 
 };
 

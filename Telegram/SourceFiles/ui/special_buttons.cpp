@@ -426,7 +426,7 @@ UserpicButton::UserpicButton(
 , _peer(peer)
 , _peerForCrop(_peer->id)
 , _role(role) {
-	Expects(_role == Role::Custom);
+	Expects(_role != Role::OpenProfile);
 
 	_waiting = false;
 	prepare();

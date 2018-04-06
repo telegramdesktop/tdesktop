@@ -23,14 +23,8 @@ class FlatLabel;
 class FadeShadow;
 } // namespace Ui
 
-namespace Window {
-class Controller;
-} // namespace Window
-
 class BoxContentDelegate {
 public:
-	virtual Window::Controller *controller() const = 0;
-
 	virtual void setLayerType(bool layerType) = 0;
 	virtual void setTitle(base::lambda<TextWithEntities()> titleFactory) = 0;
 	virtual void setAdditionalTitle(base::lambda<QString()> additionalFactory) = 0;
@@ -106,10 +100,6 @@ public:
 		_preparing = true;
 		prepare();
 		finishPrepare();
-	}
-
-	Window::Controller *controller() {
-		return getDelegate()->controller();
 	}
 
 public slots:
@@ -215,11 +205,8 @@ class AbstractBox
 	, public BoxContentDelegate
 	, protected base::Subscriber {
 public:
-	AbstractBox(QWidget *parent, Window::Controller *controller, object_ptr<BoxContent> content);
+	AbstractBox(QWidget *parent, object_ptr<BoxContent> content);
 
-	Window::Controller *controller() const override {
-		return _controller;
-	}
 	void parentResized() override;
 
 	void setLayerType(bool layerType) override;
@@ -275,7 +262,6 @@ private:
 	int countRealHeight() const;
 	void updateSize();
 
-	Window::Controller *_controller = nullptr;
 	int _fullHeight = 0;
 
 	bool _noContentMargin = false;

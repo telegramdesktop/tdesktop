@@ -35,7 +35,16 @@ public:
 	virtual void showPasswordUnconfirmed() = 0;
 	virtual void editScope(int index) = 0;
 
+	virtual void showBox(object_ptr<BoxContent> box) = 0;
+
 	virtual ~ViewController() {
+	}
+
+	template <typename BoxType>
+	QPointer<BoxType> show(object_ptr<BoxType> content) {
+		auto result = QPointer<BoxType>(content.data());
+		showBox(std::move(content));
+		return result;
 	}
 
 };

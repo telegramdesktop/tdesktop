@@ -1361,7 +1361,7 @@ void SendFilesBox::prepareSingleFilePreview() {
 	Expects(_list.files.size() == 1);
 
 	const auto &file = _list.files[0];
-	const auto media = SingleMediaPreview::Create(this, controller(), file);
+	const auto media = SingleMediaPreview::Create(this, _controller, file);
 	if (media) {
 		if (!media->canSendAsPhoto()) {
 			_compressConfirm = CompressConfirm::None;
@@ -1424,8 +1424,6 @@ void SendFilesBox::setupShadows(
 }
 
 void SendFilesBox::prepare() {
-	Expects(controller() != nullptr);
-
 	_send = addButton(langFactory(lng_send_button), [this] { send(); });
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 	setupCaption();

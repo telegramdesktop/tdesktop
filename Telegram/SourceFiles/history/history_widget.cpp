@@ -4703,15 +4703,20 @@ void HistoryWidget::handleHistoryChange(not_null<const History*> history) {
 	}
 }
 
-void HistoryWidget::grapWithoutTopBarShadow() {
-	grabStart();
-	_topShadow->hide();
-}
-
-void HistoryWidget::grabFinish() {
+QPixmap HistoryWidget::grabForShowAnimation(
+		const Window::SectionSlideParams &params) {
+	if (params.withTopBarShadow) {
+		_topShadow->hide();
+	}
+	_inGrab = true;
+	updateControlsGeometry();
+	auto result = Ui::GrabWidget(this);
 	_inGrab = false;
 	updateControlsGeometry();
-	_topShadow->show();
+	if (params.withTopBarShadow) {
+		_topShadow->show();
+	}
+	return result;
 }
 
 bool HistoryWidget::skipItemRepaint() {
@@ -5894,7 +5899,10 @@ void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
 	}
 	if (!_editMsgId) {
 		if (_replyToId || !_field->empty()) {
-			_history->setLocalDraft(std::make_unique<Data::Draft>(_field, _replyToId, _previewCancelled));
+			_history->setLocalDraft(std::make_unique<Data::Draft>(
+				_field,
+				_replyToId,
+				_previewCancelled));
 		} else {
 			_history->clearLocalDraft();
 		}

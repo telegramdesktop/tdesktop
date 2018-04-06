@@ -450,7 +450,6 @@ void PanelController::editScope(int index) {
 		_panel->backRequests(
 		) | rpl::start_with_next([=] {
 			cancelValueEdit(index);
-			_panel->setBackAllowed(false);
 			_panel->showForm();
 		}, content->lifetime());
 		_panel->showEditValue(std::move(content));
@@ -495,6 +494,10 @@ void PanelController::saveScope(ValueMap &&data, ValueMap &&filesData) {
 
 void PanelController::cancelAuth() {
 	_form->cancel();
+}
+
+void PanelController::showBox(object_ptr<BoxContent> box) {
+	_panel->showBox(std::move(box));
 }
 
 rpl::lifetime &PanelController::lifetime() {

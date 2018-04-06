@@ -26,6 +26,10 @@ class InputField;
 struct GroupMediaLayout;
 } // namespace Ui
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 enum class SendFilesWay {
 	Album,
 	Photos,

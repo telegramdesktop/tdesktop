@@ -327,12 +327,7 @@ public:
 
 	bool contentOverlapped(const QRect &globalRect);
 
-	void grabStart() override {
-		_inGrab = true;
-		updateControlsGeometry();
-	}
-	void grapWithoutTopBarShadow();
-	void grabFinish() override;
+	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params);
 
 	void forwardSelected();
 	void confirmDeleteSelected();

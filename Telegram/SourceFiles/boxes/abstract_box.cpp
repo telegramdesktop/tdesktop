@@ -227,8 +227,8 @@ void BoxContent::paintEvent(QPaintEvent *e) {
 	}
 }
 
-AbstractBox::AbstractBox(QWidget *parent, Window::Controller *controller, object_ptr<BoxContent> content) : LayerWidget(parent)
-, _controller(controller)
+AbstractBox::AbstractBox(QWidget *parent, object_ptr<BoxContent> content)
+: LayerWidget(parent)
 , _content(std::move(content)) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 	_content->setParent(this);

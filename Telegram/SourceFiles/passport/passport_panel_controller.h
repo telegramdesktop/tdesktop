@@ -72,6 +72,8 @@ public:
 	void editScope(int index) override;
 	void saveScope(ValueMap &&data, ValueMap &&filesData);
 
+	void showBox(object_ptr<BoxContent> box) override;
+
 	void cancelAuth();
 
 	rpl::lifetime &lifetime();

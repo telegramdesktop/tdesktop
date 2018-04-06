@@ -49,11 +49,11 @@ inline ChildWidget *AttachParentChild(
 void SendPendingMoveResizeEvents(not_null<QWidget*> target);
 
 QPixmap GrabWidget(
-	not_null<TWidget*> target,
+	not_null<QWidget*> target,
 	QRect rect = QRect(),
 	QColor bg = QColor(255, 255, 255, 0));
 QImage GrabWidgetToImage(
-	not_null<TWidget*> target,
+	not_null<QWidget*> target,
 	QRect rect = QRect(),
 	QColor bg = QColor(255, 255, 255, 0));
 
@@ -325,10 +325,6 @@ class TWidget : public TWidgetHelper<QWidget> {
 
 public:
 	TWidget(QWidget *parent = nullptr) : TWidgetHelper<QWidget>(parent) {
-	}
-	virtual void grabStart() {
-	}
-	virtual void grabFinish() {
 	}
 
 	bool inFocusChain() const {

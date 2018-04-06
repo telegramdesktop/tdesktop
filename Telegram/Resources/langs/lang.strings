@@ -1525,7 +1525,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_policy" = "{bot} privacy policy";
 "lng_passport_authorize" = "Authorize";
 "lng_passport_form_error" = "Could not get authorization form.";
-"lng_passport_save_value" = "Done";
+"lng_passport_save_value" = "Save";
+"lng_passport_saving" = "Saving...";
+"lng_passport_uploading" = "Uploading...";
 "lng_passport_upload_header" = "Scans";
 "lng_passport_scan_index" = "Scan {index}";
 "lng_passport_upload_scans" = "Upload scans";

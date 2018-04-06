@@ -2285,33 +2285,7 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 	} else if (_mainSection) {
 		result.oldContentCache = _mainSection->grabForShowAnimation(result);
 	} else {
-		if (result.withTopBarShadow) {
-			_history->grapWithoutTopBarShadow();
-		} else {
-			_history->grabStart();
-		}
-		if (Adaptive::OneColumn()) {
-			result.oldContentCache = Ui::GrabWidget(this, QRect(
-				0,
-				sectionTop,
-				_dialogsWidth,
-				height() - sectionTop));
-		} else {
-			_sideShadow->hide();
-			if (_thirdShadow) {
-				_thirdShadow->hide();
-			}
-			result.oldContentCache = Ui::GrabWidget(this, QRect(
-				_dialogsWidth,
-				sectionTop,
-				width() - _dialogsWidth,
-				height() - sectionTop));
-			_sideShadow->show();
-			if (_thirdShadow) {
-				_thirdShadow->show();
-			}
-		}
-		_history->grabFinish();
+		result.oldContentCache = _history->grabForShowAnimation(result);
 	}
 
 	if (playerVolumeVisible) {

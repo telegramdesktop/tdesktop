@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
 #include "lang/lang_keys.h"
+#include "window/layer_widget.h"
 #include "messenger.h"
 #include "styles/style_passport.h"
 #include "styles/style_widgets.h"
@@ -32,7 +33,8 @@ Panel::Panel(not_null<PanelController*> controller)
 	lang(lng_passport_title),
 	Ui::FlatLabel::InitType::Simple,
 	st::passportPanelTitle)
-, _back(this, object_ptr<Ui::IconButton>(this, st::passportPanelBack)) {
+, _back(this, object_ptr<Ui::IconButton>(this, st::passportPanelBack))
+, _body(this) {
 	setMouseTracking(true);
 	setWindowIcon(Window::CreateIcon());
 	initControls();
@@ -209,42 +211,78 @@ void Panel::hideAndDestroy() {
 }
 
 void Panel::showAskPassword() {
-	showInner(base::make_unique_q<PanelAskPassword>(this, _controller));
+	showInner(base::make_unique_q<PanelAskPassword>(_body, _controller));
+	setBackAllowed(false);
 }
 
 void Panel::showNoPassword() {
-	showInner(base::make_unique_q<PanelNoPassword>(this, _controller));
+	showInner(base::make_unique_q<PanelNoPassword>(_body, _controller));
+	setBackAllowed(false);
 }
 
 void Panel::showPasswordUnconfirmed() {
-	showInner(base::make_unique_q<PanelPasswordUnconfirmed>(this, _controller));
+	showInner(
+		base::make_unique_q<PanelPasswordUnconfirmed>(_body, _controller));
+	setBackAllowed(false);
 }
 
 void Panel::showForm() {
-	showInner(base::make_unique_q<PanelForm>(this, _controller));
+	showInner(base::make_unique_q<PanelForm>(_body, _controller));
+	setBackAllowed(false);
 }
 
 void Panel::showEditValue(object_ptr<Ui::RpWidget> from) {
 	showInner(base::unique_qptr<Ui::RpWidget>(from.data()));
 }
 
+void Panel::showBox(object_ptr<BoxContent> box) {
+	ensureLayerCreated();
+	_layer->showBox(
+		std::move(box),
+		LayerOption::KeepOther,
+		anim::type::normal);
+}
+
+void Panel::ensureLayerCreated() {
+	if (_layer) {
+		return;
+	}
+	_layer.create(_body);
+	_layer->move(0, 0);
+	_body->sizeValue(
+	) | rpl::start_with_next([=](QSize size) {
+		_layer->resize(size);
+	}, _layer->lifetime());
+	_layer->hideFinishEvents(
+	) | rpl::start_with_next([=, pointer = _layer.data()]{
+		if (_layer != pointer) {
+			return;
+		}
+		auto saved = std::exchange(_layer, nullptr);
+		if (Ui::InFocusChain(saved)) {
+			setFocus();
+		}
+		saved.destroyDelayed();
+	}, _layer->lifetime());
+}
+
 void Panel::showInner(base::unique_qptr<Ui::RpWidget> inner) {
 	_inner = std::move(inner);
-	_inner->setParent(this);
+	_inner->setParent(_body);
+	_inner->move(0, 0);
+	_body->sizeValue(
+	) | rpl::start_with_next([=](QSize size) {
+		_inner->resize(size);
+	}, _inner->lifetime());
 	_inner->show();
 
-	sizeValue(
-	) | rpl::start_with_next([=] {
-		const auto top = _padding.top() + st::passportPanelTitleHeight;
-		_inner->setGeometry(
-			_padding.left(),
-			top,
-			width() - _padding.left() - _padding.right(),
-			height() - top - _padding.bottom());
-	}, _inner->lifetime());
-
 	showAndActivate();
-	if (!_inner->isHidden()) {
+}
+
+void Panel::focusInEvent(QFocusEvent *e) {
+	if (_layer) {
+		_layer->setInnerFocus();
+	} else if (!_inner->isHidden()) {
 		_inner->setFocus();
 	}
 }
@@ -271,6 +309,12 @@ void Panel::resizeEvent(QResizeEvent *e) {
 }
 
 void Panel::updateControlsGeometry() {
+	const auto top = _padding.top() + st::passportPanelTitleHeight;
+	_body->setGeometry(
+		_padding.left(),
+		top,
+		width() - _padding.left() - _padding.right(),
+		height() - top - _padding.bottom());
 }
 
 void Panel::paintEvent(QPaintEvent *e) {

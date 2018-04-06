@@ -314,11 +314,8 @@ void LayerStackWidget::BackgroundWidget::animationCallback() {
 	checkIfDone();
 }
 
-LayerStackWidget::LayerStackWidget(
-	QWidget *parent,
-	Controller *controller)
-: TWidget(parent)
-, _controller(controller)
+LayerStackWidget::LayerStackWidget(QWidget *parent)
+: RpWidget(parent)
 , _background(this) {
 	setGeometry(parentWidget()->rect());
 	hide();
@@ -326,7 +323,7 @@ LayerStackWidget::LayerStackWidget(
 }
 
 void LayerWidget::setInnerFocus() {
-	if (!isAncestorOf(App::wnd()->focusWidget())) {
+	if (!isAncestorOf(window()->focusWidget())) {
 		doSetInnerFocus();
 	}
 }
@@ -406,13 +403,13 @@ void LayerStackWidget::setCacheImages() {
 	if (auto layer = currentLayer()) {
 		layerCache = Ui::Shadow::grab(layer, st::boxRoundShadow);
 	}
-	if (isAncestorOf(App::wnd()->focusWidget())) {
+	if (isAncestorOf(window()->focusWidget())) {
 		setFocus();
 	}
 	if (_mainMenu) {
 		setAttribute(Qt::WA_OpaquePaintEvent, false);
 		hideChildren();
-		bodyCache = Ui::GrabWidget(App::wnd()->bodyWidget());
+		bodyCache = Ui::GrabWidget(parentWidget());
 		showChildren();
 		mainMenuCache = Ui::Shadow::grab(_mainMenu, st::boxRoundShadow, RectPart::Right);
 	}
@@ -542,6 +539,21 @@ void LayerStackWidget::resizeEvent(QResizeEvent *e) {
 
 void LayerStackWidget::showBox(
 		object_ptr<BoxContent> box,
+		LayerOptions options,
+		anim::type animated) {
+	if (options & LayerOption::KeepOther) {
+		if (options & LayerOption::ShowAfterOther) {
+			prependBox(std::move(box), animated);
+		} else {
+			appendBox(std::move(box), animated);
+		}
+	} else {
+		replaceBox(std::move(box), animated);
+	}
+}
+
+void LayerStackWidget::replaceBox(
+		object_ptr<BoxContent> box,
 		anim::type animated) {
 	auto pointer = pushBox(std::move(box), animated);
 	while (!_layers.isEmpty() && _layers.front() != pointer) {
@@ -585,11 +597,15 @@ void LayerStackWidget::animationDone() {
 		hidden = false;
 	}
 	if (hidden) {
-		App::wnd()->layerFinishedHide(this);
+		_hideFinishStream.fire({});
 	} else {
 		showFinished();
 	}
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
+}
+
+rpl::producer<> LayerStackWidget::hideFinishEvents() const {
+	return _hideFinishStream.events();
 }
 
 void LayerStackWidget::showFinished() {
@@ -602,8 +618,8 @@ void LayerStackWidget::showFinished() {
 	if (auto layer = currentLayer()) {
 		layer->showFinished();
 	}
-	if (auto window = App::wnd()) {
-		window->setInnerFocus();
+	if (canSetFocus()) {
+		setInnerFocus();
 	}
 }
 
@@ -635,9 +651,11 @@ void LayerStackWidget::hideSpecialLayer(anim::type animated) {
 	}, Action::HideSpecialLayer, animated);
 }
 
-void LayerStackWidget::showMainMenu(anim::type animated) {
-	startAnimation([this] {
-		_mainMenu.create(this, _controller);
+void LayerStackWidget::showMainMenu(
+		not_null<Window::Controller*> controller,
+		anim::type animated) {
+	startAnimation([&] {
+		_mainMenu.create(this, controller);
 		_mainMenu->setGeometryToLeft(0, 0, _mainMenu->width(), height());
 		_mainMenu->setParent(this);
 	}, [this] {
@@ -662,7 +680,6 @@ LayerWidget *LayerStackWidget::pushBox(
 	}
 	auto layer = object_ptr<AbstractBox>(
 		this,
-		_controller,
 		std::move(box));
 	_layers.push_back(layer);
 	initChildLayer(layer);
@@ -685,9 +702,10 @@ void LayerStackWidget::prependBox(
 		object_ptr<BoxContent> box,
 		anim::type animated) {
 	if (_layers.empty()) {
-		return showBox(std::move(box), animated);
+		replaceBox(std::move(box), animated);
+		return;
 	}
-	auto layer = object_ptr<AbstractBox>(this, _controller, std::move(box));
+	auto layer = object_ptr<AbstractBox>(this, std::move(box));
 	layer->hide();
 	_layers.push_front(layer);
 	initChildLayer(layer);
@@ -775,7 +793,6 @@ LayerStackWidget::~LayerStackWidget() {
 		layer->hide();
 		delete layer;
 	}
-	if (App::wnd()) App::wnd()->noLayerStack(this);
 }
 
 } // namespace Window

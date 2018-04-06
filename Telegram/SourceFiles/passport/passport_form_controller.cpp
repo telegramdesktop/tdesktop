@@ -716,9 +716,9 @@ void FormController::sendSaveRequest(
 			data.vfiles.v,
 			base::take(value->filesInEdit));
 
-		Ui::show(Box<InformBox>("Saved"), LayerOption::KeepOther);
+		_view->show(Box<InformBox>("Saved"));
 	}).fail([=](const RPCError &error) {
-		Ui::show(Box<InformBox>("Error saving value"));
+		_view->show(Box<InformBox>("Error saving value:\n" + error.type()));
 	}).send();
 }
 
