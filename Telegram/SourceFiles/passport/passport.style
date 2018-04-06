@@ -115,10 +115,13 @@ passportFormUserpic: UserpicButton(passportPasswordUserpic) {
 }
 passportFormUserpicPadding: margins(0px, 5px, 0px, 10px);
 passportFormDividerHeight: 13px;
-passportFormPolicy: FlatLabel(defaultFlatLabel) {
+passportFormLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 285px;
 	align: align(topleft);
 	textFg: windowSubTextFg;
+}
+passportFormLabelPadding: margins(22px, 7px, 22px, 14px);
+passportFormPolicy: FlatLabel(passportFormLabel) {
 	style: TextStyle(defaultTextStyle) {
 		linkFont: font(fsize semibold underline);
 		linkFontOver: font(fsize semibold underline);
@@ -128,6 +131,8 @@ passportFormPolicy: FlatLabel(defaultFlatLabel) {
 	}
 }
 passportFormPolicyPadding: margins(22px, 7px, 22px, 28px);
+passportContactNewFieldPadding: margins(22px, 0px, 22px, 28px);
+passportContactFieldPadding: margins(22px, 14px, 22px, 28px);
 
 passportRowPadding: margins(22px, 8px, 25px, 8px);
 passportRowSkip: 2px;
@@ -178,6 +183,9 @@ passportDetailsField: InputField(defaultInputField) {
 	textMargins: margins(2px, 7px, 2px, 0px);
 	placeholderScale: 0.;
 	heightMin: 32px;
+	font: normalFont;
+}
+passportContactField: InputField(defaultInputField) {
 	font: normalFont;
 }
 passportDetailsFieldLeft: 116px;

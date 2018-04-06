@@ -83,6 +83,7 @@ private:
 	std::vector<ScanInfo> valueFiles(const Value &value) const;
 
 	ScanInfo collectScanInfo(const EditFile &file) const;
+	QString getDefaultContactValue(Scope::Type type) const;
 
 	not_null<FormController*> _form;
 	std::vector<Scope> _scopes;

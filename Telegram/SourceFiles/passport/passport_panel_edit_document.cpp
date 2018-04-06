@@ -100,7 +100,7 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 	inner->add(
 		object_ptr<Ui::FlatLabel>(
 			inner,
-			lang(lng_passport_personal_details),
+			_scheme.rowsHeader,
 			Ui::FlatLabel::InitType::Simple,
 			st::passportFormHeader),
 		st::passportDetailsHeaderPadding);

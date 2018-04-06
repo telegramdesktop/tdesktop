@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "passport/passport_panel_edit_document.h"
+#include "passport/passport_panel_edit_contact.h"
 #include "passport/passport_panel.h"
 #include "boxes/confirm_box.h"
 #include "layout.h"
@@ -41,6 +42,7 @@ PanelEditDocument::Scheme GetDocumentScheme(Scope::Type type) {
 	switch (type) {
 	case Scope::Type::Identity: {
 		auto result = Scheme();
+		result.rowsHeader = lang(lng_passport_personal_details);
 		result.rows = {
 			{
 				Scheme::ValueType::Fields,
@@ -90,6 +92,7 @@ PanelEditDocument::Scheme GetDocumentScheme(Scope::Type type) {
 
 	case Scope::Type::Address: {
 		auto result = Scheme();
+		result.rowsHeader = lang(lng_passport_address);
 		result.rows = {
 			{
 				Scheme::ValueType::Fields,
@@ -132,6 +135,48 @@ PanelEditDocument::Scheme GetDocumentScheme(Scope::Type type) {
 	} break;
 	}
 	Unexpected("Type in GetDocumentScheme().");
+}
+
+PanelEditContact::Scheme GetContactScheme(Scope::Type type) {
+	using Scheme = PanelEditContact::Scheme;
+	switch (type) {
+	case Scope::Type::Phone: {
+		auto result = Scheme();
+		result.aboutExisting = lang(lng_passport_use_existing_phone);
+		result.newHeader = lang(lng_passport_new_phone);
+		result.aboutNew = lang(lng_passport_new_phone_code);
+		result.validate = [](const QString &value) {
+			return QRegularExpression(
+				"^\\d{2,12}$"
+			).match(value).hasMatch();
+		};
+		result.preprocess = [](const QString &value) {
+			return App::formatPhone(value);
+		};
+		result.postprocess = [](QString value) {
+			return value.replace(QRegularExpression("[^\\d]"), QString());
+		};
+		return result;
+	} break;
+
+	case Scope::Type::Email: {
+		auto result = Scheme();
+		result.aboutExisting = lang(lng_passport_use_existing_email);
+		result.newHeader = lang(lng_passport_new_email);
+		result.newPlaceholder = langFactory(lng_passport_email_title);
+		result.aboutNew = lang(lng_passport_new_email_code);
+		result.validate = [](const QString &value) {
+			const auto at = value.indexOf('@');
+			const auto dot = value.lastIndexOf('.');
+			return (at > 0) && (dot > at);
+		};
+		result.preprocess = result.postprocess = [](const QString &value) {
+			return value.trimmed();
+		};
+		return result;
+	} break;
+	}
+	Unexpected("Type in GetContactScheme().");
 }
 
 } // namespace
@@ -324,6 +369,16 @@ ScanInfo PanelController::collectScanInfo(const EditFile &file) const {
 		file.deleted };
 }
 
+QString PanelController::getDefaultContactValue(Scope::Type type) const {
+	switch (type) {
+	case Scope::Type::Phone:
+		return _form->defaultPhoneNumber();
+	case Scope::Type::Email:
+		return _form->defaultEmail();
+	}
+	Unexpected("Type in PanelController::getDefaultContactValue().");
+}
+
 void PanelController::showAskPassword() {
 	ensurePanelCreated();
 	_panel->showAskPassword();
@@ -376,8 +431,19 @@ void PanelController::editScope(int index) {
 					this,
 					std::move(GetDocumentScheme(_editScope->type)),
 					_editScope->fields->data.parsed);
+		case Scope::Type::Phone:
+		case Scope::Type::Email: {
+			const auto &fields = _editScope->fields->data.parsed.fields;
+			const auto valueIt = fields.find("value");
+			return object_ptr<PanelEditContact>(
+				_panel.get(),
+				this,
+				std::move(GetContactScheme(_editScope->type)),
+				(valueIt == end(fields)) ? QString() : valueIt->second,
+				getDefaultContactValue(_editScope->type));
+		} break;
 		}
-		return { nullptr };
+		Unexpected("Type in PanelController::editScope().");
 	}();
 	if (content) {
 		_panel->setBackAllowed(true);

@@ -466,6 +466,8 @@
 <(src_loc)/passport/passport_panel_controller.h
 <(src_loc)/passport/passport_panel_details_row.cpp
 <(src_loc)/passport/passport_panel_details_row.h
+<(src_loc)/passport/passport_panel_edit_contact.cpp
+<(src_loc)/passport/passport_panel_edit_contact.h
 <(src_loc)/passport/passport_panel_edit_document.cpp
 <(src_loc)/passport/passport_panel_edit_document.h
 <(src_loc)/passport/passport_panel_edit_scans.cpp

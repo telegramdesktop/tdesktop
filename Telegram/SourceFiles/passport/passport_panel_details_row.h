@@ -8,12 +8,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/wrap/padding_wrap.h"
+#include "ui/widgets/labels.h"
+#include "boxes/abstract_box.h"
 
 namespace Ui {
 class InputField;
 } // namespace Ui
 
 namespace Passport {
+
+class PanelLabel : public Ui::PaddingWrap<Ui::FlatLabel> {
+public:
+	using PaddingWrap::PaddingWrap;
+
+	int naturalWidth() const override;
+
+protected:
+	void resizeEvent(QResizeEvent *e) override;
+
+private:
+	object_ptr<BoxContentDivider> _background = object_ptr<BoxContentDivider>(this);
+
+};
 
 class PanelDetailsRow : public Ui::RpWidget {
 public:

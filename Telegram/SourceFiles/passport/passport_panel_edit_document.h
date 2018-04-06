@@ -39,6 +39,7 @@ public:
 			base::lambda<bool(const QString &value)> validate;
 		};
 		std::vector<Row> rows;
+		QString rowsHeader;
 
 	};
 

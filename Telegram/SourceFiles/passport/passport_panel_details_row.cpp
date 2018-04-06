@@ -12,6 +12,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Passport {
 
+int PanelLabel::naturalWidth() const {
+	return -1;
+}
+
+void PanelLabel::resizeEvent(QResizeEvent *e) {
+	_background->lower();
+	_background->setGeometry(rect());
+	return PaddingWrap::resizeEvent(e);
+}
+
 PanelDetailsRow::PanelDetailsRow(
 	QWidget *parent,
 	const QString &label,
