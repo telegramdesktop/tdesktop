@@ -81,8 +81,10 @@ public:
 private:
 	void ensurePanelCreated();
 
-	void cancelValueEdit(int index);
+	void cancelValueEdit();
 	std::vector<ScanInfo> valueFiles(const Value &value) const;
+	void processValueSaved(not_null<const Value*> value);
+	void processVerificationNeeded(not_null<const Value*> value);
 
 	ScanInfo collectScanInfo(const EditFile &file) const;
 	QString getDefaultContactValue(Scope::Type type) const;

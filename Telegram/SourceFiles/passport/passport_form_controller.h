@@ -102,10 +102,13 @@ struct ValueMap {
 
 struct ValueData {
 	QByteArray original;
+	bytes::vector secret;
 	ValueMap parsed;
 	bytes::vector hash;
-	bytes::vector secret;
 	bytes::vector encryptedSecret;
+	ValueMap parsedInEdit;
+	bytes::vector hashInEdit;
+	bytes::vector encryptedSecretInEdit;
 };
 
 struct Value {
@@ -132,6 +135,8 @@ struct Value {
 	std::vector<EditFile> filesInEdit;
 	base::optional<File> selfie;
 	base::optional<EditFile> selfieInEdit;
+	mtpRequestId saveRequestId = 0;
+
 };
 
 struct Form {
@@ -200,6 +205,8 @@ public:
 	QString defaultPhoneNumber() const;
 
 	rpl::producer<not_null<const EditFile*>> scanUpdated() const;
+	rpl::producer<not_null<const Value*>> valueSaved() const;
+	rpl::producer<not_null<const Value*>> verificationNeeded() const;
 
 	const Form &form() const;
 	void startValueEdit(not_null<const Value*> value);
@@ -288,6 +295,8 @@ private:
 	std::map<FileKey, std::unique_ptr<mtpFileLoader>> _fileLoaders;
 
 	rpl::event_stream<not_null<const EditFile*>> _scanUpdated;
+	rpl::event_stream<not_null<const Value*>> _valueSaved;
+	rpl::event_stream<not_null<const Value*>> _verificationNeeded;
 
 	bytes::vector _secret;
 	uint64 _secretId = 0;

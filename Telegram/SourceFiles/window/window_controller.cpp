@@ -405,13 +405,15 @@ void Controller::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 	Ui::show(std::move(box));
 }
 
-void Controller::showAuthForm(const Passport::FormRequest &request) {
-	_authForm = std::make_unique<Passport::FormController>(this, request);
-	_authForm->show();
+void Controller::showPassportForm(const Passport::FormRequest &request) {
+	_passportForm = std::make_unique<Passport::FormController>(
+		this,
+		request);
+	_passportForm->show();
 }
 
-void Controller::clearAuthForm() {
-	_authForm = nullptr;
+void Controller::clearPassportForm() {
+	_passportForm = nullptr;
 }
 
 void Controller::updateColumnLayout() {

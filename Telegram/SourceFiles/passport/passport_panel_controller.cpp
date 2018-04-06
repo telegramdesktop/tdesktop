@@ -423,42 +423,77 @@ void PanelController::editScope(int index) {
 					_panel.get(),
 					this,
 					std::move(GetDocumentScheme(_editScope->type)),
-					_editScope->fields->data.parsed,
-					_editScope->files[_editScopeFilesIndex]->data.parsed,
+					_editScope->fields->data.parsedInEdit,
+					_editScope->files[_editScopeFilesIndex]->data.parsedInEdit,
 					valueFiles(*_editScope->files[_editScopeFilesIndex]))
 				: object_ptr<PanelEditDocument>(
 					_panel.get(),
 					this,
 					std::move(GetDocumentScheme(_editScope->type)),
-					_editScope->fields->data.parsed);
+					_editScope->fields->data.parsedInEdit);
 		case Scope::Type::Phone:
 		case Scope::Type::Email: {
-			const auto &fields = _editScope->fields->data.parsed.fields;
-			const auto valueIt = fields.find("value");
+			const auto &parsed = _editScope->fields->data.parsedInEdit;
+			const auto valueIt = parsed.fields.find("value");
 			return object_ptr<PanelEditContact>(
 				_panel.get(),
 				this,
 				std::move(GetContactScheme(_editScope->type)),
-				(valueIt == end(fields)) ? QString() : valueIt->second,
+				(valueIt == end(parsed.fields)
+					? QString()
+					: valueIt->second),
 				getDefaultContactValue(_editScope->type));
 		} break;
 		}
 		Unexpected("Type in PanelController::editScope().");
 	}();
-	if (content) {
-		_panel->setBackAllowed(true);
-		_panel->backRequests(
-		) | rpl::start_with_next([=] {
-			cancelValueEdit(index);
+
+	_panel->setBackAllowed(true);
+
+	_panel->backRequests(
+	) | rpl::start_with_next([=] {
+		_panel->showForm();
+	}, content->lifetime());
+
+	content->lifetime().add([=] {
+		cancelValueEdit();
+	});
+
+	_form->valueSaved(
+	) | rpl::start_with_next([=](not_null<const Value*> value) {
+		processValueSaved(value);
+	}, content->lifetime());
+
+	_form->verificationNeeded(
+	) | rpl::start_with_next([=](not_null<const Value*> value) {
+		processVerificationNeeded(value);
+	}, content->lifetime());
+
+	_panel->showEditValue(std::move(content));
+}
+
+void PanelController::processValueSaved(not_null<const Value*> value) {
+	Expects(_editScope != nullptr);
+
+	const auto value1 = _editScope->fields;
+	const auto value2 = (_editScopeFilesIndex >= 0)
+		? _editScope->files[_editScopeFilesIndex].get()
+		: nullptr;
+	if (value == value1 || value == value2) {
+		if (!value1->saveRequestId && (!value2 || !value2->saveRequestId)) {
 			_panel->showForm();
-		}, content->lifetime());
-		_panel->showEditValue(std::move(content));
-	} else {
-		cancelValueEdit(index);
+			show(Box<InformBox>("Saved"));
+		}
 	}
 }
 
-std::vector<ScanInfo> PanelController::valueFiles(const Value &value) const {
+void PanelController::processVerificationNeeded(
+		not_null<const Value*> value) {
+	show(Box<InformBox>("Verification needed :("));
+}
+
+std::vector<ScanInfo> PanelController::valueFiles(
+		const Value &value) const {
 	auto result = std::vector<ScanInfo>();
 	for (const auto &file : value.filesInEdit) {
 		result.push_back(collectScanInfo(file));
@@ -466,12 +501,12 @@ std::vector<ScanInfo> PanelController::valueFiles(const Value &value) const {
 	return result;
 }
 
-void PanelController::cancelValueEdit(int index) {
+void PanelController::cancelValueEdit() {
 	if (const auto scope = base::take(_editScope)) {
-		_form->startValueEdit(scope->fields);
+		_form->cancelValueEdit(scope->fields);
 		const auto index = std::exchange(_editScopeFilesIndex, -1);
 		if (index >= 0) {
-			_form->startValueEdit(scope->files[index]);
+			_form->cancelValueEdit(scope->files[index]);
 		}
 	}
 }
@@ -480,16 +515,14 @@ void PanelController::saveScope(ValueMap &&data, ValueMap &&filesData) {
 	Expects(_panel != nullptr);
 	Expects(_editScope != nullptr);
 
-	const auto scope = base::take(_editScope);
-	_form->saveValueEdit(scope->fields, std::move(data));
-	const auto index = std::exchange(_editScopeFilesIndex, -1);
-	if (index >= 0) {
-		_form->saveValueEdit(scope->files[index], std::move(filesData));
+	_form->saveValueEdit(_editScope->fields, std::move(data));
+	if (_editScopeFilesIndex >= 0) {
+		_form->saveValueEdit(
+			_editScope->files[_editScopeFilesIndex],
+			std::move(filesData));
 	} else {
 		Assert(filesData.fields.empty());
 	}
-
-	_panel->showForm();
 }
 
 void PanelController::cancelAuth() {

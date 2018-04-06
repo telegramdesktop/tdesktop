@@ -200,36 +200,36 @@ void FormController::decryptValues() {
 	Expects(!_secret.empty());
 
 	for (auto &[type, value] : _form.values) {
-		if (value.data.original.isEmpty()) {
-			continue;
-		}
 		decryptValue(value);
 	}
 }
 
 void FormController::decryptValue(Value &value) {
 	Expects(!_secret.empty());
-	Expects(!value.data.original.isEmpty());
 
 	if (!validateValueSecrets(value)) {
 		resetValue(value);
 		return;
 	}
-	value.data.parsed.fields = DeserializeData(DecryptData(
-		bytes::make_span(value.data.original),
-		value.data.hash,
-		value.data.secret));
+	if (!value.data.original.isEmpty()) {
+		value.data.parsed.fields = DeserializeData(DecryptData(
+			bytes::make_span(value.data.original),
+			value.data.hash,
+			value.data.secret));
+	}
 }
 
 bool FormController::validateValueSecrets(Value &value) {
-	value.data.secret = DecryptValueSecret(
-		value.data.encryptedSecret,
-		_secret,
-		value.data.hash);
-	if (value.data.secret.empty()) {
-		LOG(("API Error: Could not decrypt data secret. "
-			"Forgetting files and data :("));
-		return false;
+	if (!value.data.original.isEmpty()) {
+		value.data.secret = DecryptValueSecret(
+			value.data.encryptedSecret,
+			_secret,
+			value.data.hash);
+		if (value.data.secret.empty()) {
+			LOG(("API Error: Could not decrypt data secret. "
+				"Forgetting files and data :("));
+			return false;
+		}
 	}
 	for (auto &file : value.files) {
 		file.secret = DecryptValueSecret(
@@ -451,6 +451,16 @@ auto FormController::scanUpdated() const
 	return _scanUpdated.events();
 }
 
+auto FormController::valueSaved() const
+->rpl::producer<not_null<const Value*>> {
+	return _valueSaved.events();
+}
+
+auto FormController::verificationNeeded() const
+->rpl::producer<not_null<const Value*>> {
+	return _verificationNeeded.events();
+}
+
 const Form &FormController::form() const {
 	return _form;
 }
@@ -465,6 +475,9 @@ not_null<Value*> FormController::findValue(not_null<const Value*> value) {
 }
 
 void FormController::startValueEdit(not_null<const Value*> value) {
+	if (value->saveRequestId) {
+		return;
+	}
 	const auto nonconst = findValue(value);
 	loadFiles(nonconst->files);
 	nonconst->filesInEdit = ranges::view::all(
@@ -472,6 +485,7 @@ void FormController::startValueEdit(not_null<const Value*> value) {
 	) | ranges::view::transform([=](const File &file) {
 		return EditFile(value, file, nullptr);
 	}) | ranges::to_vector;
+	nonconst->data.parsedInEdit = nonconst->data.parsed;
 }
 
 void FormController::loadFiles(std::vector<File> &files) {
@@ -557,8 +571,14 @@ void FormController::fileLoadFail(FileKey key) {
 }
 
 void FormController::cancelValueEdit(not_null<const Value*> value) {
+	if (value->saveRequestId) {
+		return;
+	}
 	const auto nonconst = findValue(value);
 	nonconst->filesInEdit.clear();
+	nonconst->data.encryptedSecretInEdit.clear();
+	nonconst->data.hashInEdit.clear();
+	nonconst->data.parsedInEdit = ValueMap();
 }
 
 bool FormController::isEncryptedValue(Value::Type type) const {
@@ -568,8 +588,11 @@ bool FormController::isEncryptedValue(Value::Type type) const {
 void FormController::saveValueEdit(
 		not_null<const Value*> value,
 		ValueMap &&data) {
+	if (value->saveRequestId) {
+		return;
+	}
 	const auto nonconst = findValue(value);
-	nonconst->data.parsed = std::move(data);
+	nonconst->data.parsedInEdit = std::move(data);
 
 	if (isEncryptedValue(nonconst->type)) {
 		saveEncryptedValue(nonconst);
@@ -616,13 +639,13 @@ void FormController::saveEncryptedValue(not_null<Value*> value) {
 		value->data.secret = GenerateSecretBytes();
 	}
 	const auto encryptedData = EncryptData(
-		SerializeData(value->data.parsed.fields),
+		SerializeData(value->data.parsedInEdit.fields),
 		value->data.secret);
-	value->data.hash = encryptedData.hash;
-	value->data.encryptedSecret = EncryptValueSecret(
+	value->data.hashInEdit = encryptedData.hash;
+	value->data.encryptedSecretInEdit = EncryptValueSecret(
 		value->data.secret,
 		_secret,
-		value->data.hash);
+		value->data.hashInEdit);
 
 	const auto selfie = value->selfieInEdit
 		? inputFile(*value->selfieInEdit)
@@ -650,7 +673,7 @@ void FormController::saveEncryptedValue(not_null<Value*> value) {
 		Unexpected("Value type in saveEncryptedValue().");
 	}();
 	const auto flags = ((value->filesInEdit.empty()
-		&& value->data.parsed.fields.empty())
+		&& value->data.parsedInEdit.fields.empty())
 			? MTPDinputSecureValue::Flag(0)
 			: MTPDinputSecureValue::Flag::f_data)
 		| (value->filesInEdit.empty()
@@ -659,26 +682,24 @@ void FormController::saveEncryptedValue(not_null<Value*> value) {
 		| (value->selfieInEdit
 			? MTPDinputSecureValue::Flag::f_selfie
 			: MTPDinputSecureValue::Flag(0));
-	if (!flags) {
-		request(MTPaccount_DeleteSecureValue(MTP_vector<MTPSecureValueType>(1, type))).send();
-	} else {
-		sendSaveRequest(value, MTP_inputSecureValue(
-			MTP_flags(flags),
-			type,
-			MTP_secureData(
-				MTP_bytes(encryptedData.bytes),
-				MTP_bytes(value->data.hash),
-				MTP_bytes(value->data.encryptedSecret)),
-			MTP_vector<MTPInputSecureFile>(inputFiles),
-			MTPSecurePlainData(),
-			selfie));
-	}
+	Assert(flags != MTPDinputSecureValue::Flags(0));
+
+	sendSaveRequest(value, MTP_inputSecureValue(
+		MTP_flags(flags),
+		type,
+		MTP_secureData(
+			MTP_bytes(encryptedData.bytes),
+			MTP_bytes(value->data.hashInEdit),
+			MTP_bytes(value->data.encryptedSecretInEdit)),
+		MTP_vector<MTPInputSecureFile>(inputFiles),
+		MTPSecurePlainData(),
+		selfie));
 }
 
 void FormController::savePlainTextValue(not_null<Value*> value) {
 	Expects(!isEncryptedValue(value->type));
 
-	const auto text = value->data.parsed.fields[QString("value")];
+	const auto text = value->data.parsedInEdit.fields["value"];
 	const auto type = [&] {
 		switch (value->type) {
 		case Value::Type::Phone: return MTP_secureValueTypePhone();
@@ -705,7 +726,9 @@ void FormController::savePlainTextValue(not_null<Value*> value) {
 void FormController::sendSaveRequest(
 		not_null<Value*> value,
 		const MTPInputSecureValue &data) {
-	request(MTPaccount_SaveSecureValue(
+	Expects(value->saveRequestId == 0);
+
+	value->saveRequestId = request(MTPaccount_SaveSecureValue(
 		data,
 		MTP_long(_secretId)
 	)).done([=](const MTPSecureValue &result) {
@@ -715,9 +738,27 @@ void FormController::sendSaveRequest(
 		value->files = parseFiles(
 			data.vfiles.v,
 			base::take(value->filesInEdit));
+		value->data.encryptedSecret = std::move(
+			value->data.encryptedSecretInEdit);
+		value->data.parsed = std::move(value->data.parsedInEdit);
+		value->data.hash = std::move(value->data.hashInEdit);
 
-		_view->show(Box<InformBox>("Saved"));
+		value->saveRequestId = 0;
+
+		_valueSaved.fire_copy(value);
 	}).fail([=](const RPCError &error) {
+		value->saveRequestId = 0;
+		if (error.type() == qstr("PHONE_VERIFICATION_NEEDED")) {
+			if (value->type == Value::Type::Phone) {
+				_verificationNeeded.fire_copy(value);
+				return;
+			}
+		} else if (error.type() == qstr("EMAIL_VERIFICATION_NEEDED")) {
+			if (value->type == Value::Type::Email) {
+				_verificationNeeded.fire_copy(value);
+				return;
+			}
+		}
 		_view->show(Box<InformBox>("Error saving value:\n" + error.type()));
 	}).send();
 }
@@ -1019,7 +1060,7 @@ void FormController::cancel() {
 	if (!_cancelled) {
 		_cancelled = true;
 		crl::on_main(this, [=] {
-			_controller->clearAuthForm();
+			_controller->clearPassportForm();
 		});
 	}
 }

@@ -836,6 +836,25 @@ bool Messenger::openLocalUrl(const QString &url) {
 	}
 	auto command = urlTrimmed.midRef(qstr("tg://").size());
 
+	const auto showPassportForm = [](const QMap<QString, QString> &params) {
+		if (const auto botId = params.value("bot_id", QString()).toInt()) {
+			const auto scope = params.value("scope", QString());
+			const auto callback = params.value("callback_url", QString());
+			const auto publicKey = params.value("public_key", QString());
+			if (const auto window = App::wnd()) {
+				if (const auto controller = window->controller()) {
+					controller->showPassportForm(Passport::FormRequest(
+						botId,
+						scope,
+						callback,
+						publicKey));
+					return true;
+				}
+			}
+		}
+		return false;
+	};
+
 	using namespace qthelp;
 	auto matchOptions = RegExOption::CaseInsensitive;
 	if (auto joinChatMatch = regex_match(qsl("^join/?\\?invite=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"), command, matchOptions)) {
@@ -871,7 +890,9 @@ bool Messenger::openLocalUrl(const QString &url) {
 		if (auto main = App::main()) {
 			auto params = url_parse_params(usernameMatch->captured(1), UrlParamNameTransform::ToLower);
 			auto domain = params.value(qsl("domain"));
-			if (regex_match(qsl("^[a-zA-Z0-9\\.\\_]+$"), domain, matchOptions)) {
+			if (domain == qsl("telegrampassport")) {
+				return showPassportForm(params);
+			} else if (regex_match(qsl("^[a-zA-Z0-9\\.\\_]+$"), domain, matchOptions)) {
 				auto start = qsl("start");
 				auto startToken = params.value(start);
 				if (startToken.isEmpty()) {
@@ -909,25 +930,10 @@ bool Messenger::openLocalUrl(const QString &url) {
 		auto params = url_parse_params(proxyMatch->captured(1), UrlParamNameTransform::ToLower);
 		ProxiesBoxController::ShowApplyConfirmation(ProxyData::Type::Mtproto, params);
 		return true;
-	} else if (auto authMatch = regex_match(qsl("^secureid/?\\?(.+)(#|$)"), command, matchOptions)) {
-		const auto params = url_parse_params(
+	} else if (auto authMatch = regex_match(qsl("^passport/?\\?(.+)(#|$)"), command, matchOptions)) {
+		return showPassportForm(url_parse_params(
 			authMatch->captured(1),
-			UrlParamNameTransform::ToLower);
-		if (const auto botId = params.value("bot_id", QString()).toInt()) {
-			const auto scope = params.value("scope", QString());
-			const auto callback = params.value("callback_url", QString());
-			const auto publicKey = params.value("public_key", QString());
-			if (const auto window = App::wnd()) {
-				if (const auto controller = window->controller()) {
-					controller->showAuthForm(Passport::FormRequest(
-						botId,
-						scope,
-						callback,
-						publicKey));
-					return true;
-				}
-			}
-		}
+			UrlParamNameTransform::ToLower));
 	}
 	return false;
 }

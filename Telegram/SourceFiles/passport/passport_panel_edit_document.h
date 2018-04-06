@@ -81,7 +81,7 @@ private:
 	object_ptr<Ui::PlainShadow> _bottomShadow;
 
 	QPointer<EditScans> _editScans;
-	std::vector<QPointer<PanelDetailsRow>> _details;
+	std::map<int, QPointer<PanelDetailsRow>> _details;
 
 	object_ptr<Ui::RoundButton> _done;
 

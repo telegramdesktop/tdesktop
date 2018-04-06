@@ -205,8 +205,8 @@ public:
 		Dialogs::Key chat,
 		QDate requestedDate);
 
-	void showAuthForm(const Passport::FormRequest &request);
-	void clearAuthForm();
+	void showPassportForm(const Passport::FormRequest &request);
+	void clearPassportForm();
 
 	base::Variable<bool> &dialogsListFocused() {
 		return _dialogsListFocused;
@@ -254,7 +254,7 @@ private:
 
 	not_null<MainWindow*> _window;
 
-	std::unique_ptr<Passport::FormController> _authForm;
+	std::unique_ptr<Passport::FormController> _passportForm;
 
 	GifPauseReasons _gifPauseReasons = 0;
 	base::Observable<void> _gifPauseLevelChanged;

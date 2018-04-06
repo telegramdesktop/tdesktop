@@ -115,14 +115,15 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 		return QString();
 	};
 
-	for (const auto &row : _scheme.rows) {
+	for (auto i = 0, count = int(_scheme.rows.size()); i != count; ++i) {
+		const auto &row = _scheme.rows[i];
 		auto fields = (row.type == Scheme::ValueType::Fields)
 			? &data
 			: scanData;
 		if (!fields) {
 			continue;
 		}
-		_details.push_back(inner->add(object_ptr<PanelDetailsRow>(
+		_details.emplace(i, inner->add(object_ptr<PanelDetailsRow>(
 			inner,
 			row.label,
 			valueOrEmpty(*fields, row.key))));
@@ -132,7 +133,7 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 }
 
 void PanelEditDocument::focusInEvent(QFocusEvent *e) {
-	for (const auto row : _details) {
+	for (const auto [index, row] : _details) {
 		if (row->setFocusFast()) {
 			return;
 		}
@@ -157,11 +158,9 @@ void PanelEditDocument::updateControlsGeometry() {
 }
 
 void PanelEditDocument::save() {
-	Expects(_details.size() == _scheme.rows.size());
-
 	auto data = ValueMap();
 	auto scanData = ValueMap();
-	for (auto i = 0, count = int(_details.size()); i != count; ++i) {
+	for (const auto [i, field] : _details) {
 		const auto &row = _scheme.rows[i];
 		auto &fields = (row.type == Scheme::ValueType::Fields)
 			? data
