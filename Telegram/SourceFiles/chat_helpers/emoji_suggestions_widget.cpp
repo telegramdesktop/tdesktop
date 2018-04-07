@@ -414,6 +414,11 @@ QString SuggestionsController::getEmojiQuery() {
 	const auto isUpperCaseLetter = [](QChar ch) {
 		return (ch >= 'A' && ch <= 'Z');
 	};
+	const auto isLetter = [](QChar ch) {
+		return (ch >= 'a' && ch <= 'z')
+			|| (ch >= 'A' && ch <= 'Z')
+			|| (ch >= '0' && ch <= '9');
+	};
 	const auto isSuggestionChar = [](QChar ch) {
 		return (ch >= 'a' && ch <= 'z')
 			|| (ch >= 'A' && ch <= 'Z')
@@ -437,9 +442,17 @@ QString SuggestionsController::getEmojiQuery() {
 					_queryStartPosition += i + 2;
 					const auto length = position - i;
 					auto result = text.mid(i, length);
-					if (length == 2 && isUpperCaseLetter(result[1])) {
+					const auto upperCaseLetters = std::count_if(
+						result.begin(),
+						result.end(),
+						isUpperCaseLetter);
+					const auto letters = std::count_if(
+						result.begin(),
+						result.end(),
+						isLetter);
+					if (letters == upperCaseLetters && letters == 1) {
 						// No upper case single letter suggestions.
-						// We don't want to suggest emoji on :D and :P
+						// We don't want to suggest emoji on :D and :-P
 						return QString();
 					}
 					return result.toLower();
