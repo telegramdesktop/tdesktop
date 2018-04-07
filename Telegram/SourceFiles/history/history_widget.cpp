@@ -1778,6 +1778,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 	if (_peer) {
 		App::forgetMedia();
+		Auth().data().forgetMedia();
 		_serviceImageCacheSize = imageCacheSize();
 		Auth().downloader().clearPriorities();
 

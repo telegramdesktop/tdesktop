@@ -1628,6 +1628,7 @@ namespace {
 		int64 nowImageCacheSize = imageCacheSize();
 		if (nowImageCacheSize > serviceImageCacheSize + MemoryForImageCache) {
 			App::forgetMedia();
+			Auth().data().forgetMedia();
 			serviceImageCacheSize = imageCacheSize();
 		}
 	}

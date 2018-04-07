@@ -95,6 +95,7 @@ FileLocation readFileLocation(MediaKey location, bool check = true);
 void writeImage(const StorageKey &location, const ImagePtr &img);
 void writeImage(const StorageKey &location, const StorageImageSaved &jpeg, bool overwrite = true);
 TaskId startImageLoad(const StorageKey &location, mtpFileLoader *loader);
+bool willImageLoad(const StorageKey &location);
 int32 hasImages();
 qint64 storageImagesSize();
 
@@ -107,12 +108,14 @@ qint64 storageStickersSize();
 
 void writeAudio(const StorageKey &location, const QByteArray &data, bool overwrite = true);
 TaskId startAudioLoad(const StorageKey &location, mtpFileLoader *loader);
+bool willAudioLoad(const StorageKey &location);
 bool copyAudio(const StorageKey &oldLocation, const StorageKey &newLocation);
 int32 hasAudios();
 qint64 storageAudiosSize();
 
 void writeWebFile(const QString &url, const QByteArray &data, bool overwrite = true);
 TaskId startWebFileLoad(const QString &url, webFileLoader *loader);
+bool willWebFileLoad(const QString &url);
 int32 hasWebFiles();
 qint64 storageWebFilesSize();
 

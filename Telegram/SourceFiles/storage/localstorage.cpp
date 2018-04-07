@@ -2880,6 +2880,10 @@ TaskId startImageLoad(const StorageKey &location, mtpFileLoader *loader) {
 		std::make_unique<ImageLoadTask>(j->first, location, loader));
 }
 
+bool willImageLoad(const StorageKey &location) {
+	return _imagesMap.constFind(location) != _imagesMap.cend();
+}
+
 int32 hasImages() {
 	return _imagesMap.size();
 }
@@ -3024,6 +3028,10 @@ bool copyAudio(const StorageKey &oldLocation, const StorageKey &newLocation) {
 	return true;
 }
 
+bool willAudioLoad(const StorageKey &location) {
+	return _audiosMap.constFind(location) != _audiosMap.cend();
+}
+
 int32 hasAudios() {
 	return _audiosMap.size();
 }
@@ -3128,6 +3136,10 @@ TaskId startWebFileLoad(const QString &url, webFileLoader *loader) {
 	}
 	return _localLoader->addTask(
 		std::make_unique<WebFileLoadTask>(j->first, url, loader));
+}
+
+bool willWebFileLoad(const QString &url) {
+	return _webFilesMap.constFind(url) != _webFilesMap.cend();
 }
 
 int32 hasWebFiles() {

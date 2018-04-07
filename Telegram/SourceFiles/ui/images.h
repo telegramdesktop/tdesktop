@@ -324,6 +324,10 @@ protected:
 		return _data.height();
 	}
 
+	virtual bool hasLocalCopy() const {
+		return false;
+	}
+
 	mutable QByteArray _saved, _format;
 	mutable bool _forgot;
 	mutable QPixmap _data;
@@ -413,6 +417,8 @@ protected:
 	void setInformation(int32 size, int32 width, int32 height) override;
 	FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) override;
 
+	bool hasLocalCopy() const override;
+
 	StorageImageLocation _location;
 	int32 _size;
 
@@ -433,6 +439,8 @@ protected:
 	QSize shrinkBox() const override {
 		return _box;
 	}
+
+	bool hasLocalCopy() const override;
 
 	WebFileLocation _location;
 	QSize _box;
@@ -495,6 +503,8 @@ protected:
 
 	int32 countWidth() const override;
 	int32 countHeight() const override;
+
+	bool hasLocalCopy() const override;
 
 private:
 	QString _url;
