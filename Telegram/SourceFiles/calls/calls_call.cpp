@@ -124,7 +124,16 @@ void Call::startOutgoing() {
 	Expects(_type == Type::Outgoing);
 	Expects(_state == State::Requesting);
 
-	request(MTPphone_RequestCall(_user->inputUser, MTP_int(rand_value<int32>()), MTP_bytes(_gaHash), MTP_phoneCallProtocol(MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p | MTPDphoneCallProtocol::Flag::f_udp_reflector), MTP_int(kMinLayer), MTP_int(kMaxLayer)))).done([this](const MTPphone_PhoneCall &result) {
+	request(MTPphone_RequestCall(
+		_user->inputUser,
+		MTP_int(rand_value<int32>()),
+		MTP_bytes(_gaHash),
+		MTP_phoneCallProtocol(
+			MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p
+				| MTPDphoneCallProtocol::Flag::f_udp_reflector),
+			MTP_int(kMinLayer),
+			MTP_int(kMaxLayer))
+	)).done([this](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 
 		setState(State::Waiting);
@@ -185,7 +194,15 @@ void Call::answer() {
 	} else {
 		_answerAfterDhConfigReceived = false;
 	}
-	request(MTPphone_AcceptCall(MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)), MTP_bytes(_gb), _protocol)).done([this](const MTPphone_PhoneCall &result) {
+	request(MTPphone_AcceptCall(
+		MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)),
+		MTP_bytes(_gb),
+		MTP_phoneCallProtocol(
+			MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p
+				| MTPDphoneCallProtocol::Flag::f_udp_reflector),
+			MTP_int(kMinLayer),
+			MTP_int(kMaxLayer))
+	)).done([this](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 		auto &call = result.c_phone_phoneCall();
 		App::feedUsers(call.vusers);
@@ -294,7 +311,6 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 		}
 		_id = data.vid.v;
 		_accessHash = data.vaccess_hash.v;
-		_protocol = data.vprotocol;
 		auto gaHashBytes = bytesFromMTP(data.vg_a_hash);
 		if (gaHashBytes.size() != _gaHash.size()) {
 			LOG(("Call Error: Wrong g_a_hash size %1, expected %2.").arg(gaHashBytes.size()).arg(_gaHash.size()));
@@ -393,7 +409,16 @@ void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 	_keyFingerprint = ComputeFingerprint(_authKey);
 
 	setState(State::ExchangingKeys);
-	request(MTPphone_ConfirmCall(MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)), MTP_bytes(_ga), MTP_long(_keyFingerprint), MTP_phoneCallProtocol(MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p | MTPDphoneCallProtocol::Flag::f_udp_reflector), MTP_int(kMinLayer), MTP_int(kMaxLayer)))).done([this](const MTPphone_PhoneCall &result) {
+	request(MTPphone_ConfirmCall(
+		MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)),
+		MTP_bytes(_ga),
+		MTP_long(_keyFingerprint),
+		MTP_phoneCallProtocol(
+			MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p
+				| MTPDphoneCallProtocol::Flag::f_udp_reflector),
+			MTP_int(kMinLayer),
+			MTP_int(kMaxLayer))
+	)).done([this](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 		auto &call = result.c_phone_phoneCall();
 		App::feedUsers(call.vusers);
