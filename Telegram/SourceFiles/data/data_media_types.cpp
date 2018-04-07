@@ -205,6 +205,10 @@ bool Media::consumeMessageText(const TextWithEntities &text) {
 	return false;
 }
 
+TextWithEntities Media::consumedMessageText() const {
+	return {};
+}
+
 std::unique_ptr<HistoryMedia> Media::createView(
 		not_null<HistoryView::Element*> message) {
 	return createView(message, message->data());
@@ -1039,6 +1043,10 @@ QString MediaGame::errorTextForForward(
 bool MediaGame::consumeMessageText(const TextWithEntities &text) {
 	_consumedText = text;
 	return true;
+}
+
+TextWithEntities MediaGame::consumedMessageText() const {
+	return _consumedText;
 }
 
 bool MediaGame::updateInlineResultMedia(const MTPMessageMedia &media) {

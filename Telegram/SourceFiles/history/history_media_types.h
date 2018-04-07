@@ -805,6 +805,8 @@ public:
 		return _attach.get();
 	}
 
+	void parentTextUpdated() override;
+
 	~HistoryGame();
 
 private:

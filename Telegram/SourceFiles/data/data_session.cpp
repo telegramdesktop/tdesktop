@@ -1258,7 +1258,7 @@ void Session::gameApplyFields(
 		const QString &description,
 		PhotoData *photo,
 		DocumentData *document) {
-	if (game->accessHash || !accessHash) {
+	if (game->accessHash) {
 		return;
 	}
 	game->accessHash = accessHash;

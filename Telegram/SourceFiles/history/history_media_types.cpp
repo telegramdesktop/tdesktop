@@ -4221,6 +4221,21 @@ int HistoryGame::bottomInfoPadding() const {
 	return result;
 }
 
+void HistoryGame::parentTextUpdated() {
+	if (const auto media = _parent->data()->media()) {
+		const auto consumed = media->consumedMessageText();
+		if (!consumed.text.isEmpty()) {
+			_description.setMarkedText(
+				st::webPageDescriptionStyle,
+				consumed,
+				Ui::ItemTextOptions(_parent->data()));
+		} else {
+			_description = Text(st::msgMinWidth - st::webPageLeft);
+		}
+		Auth().data().requestViewResize(_parent);
+	}
+}
+
 HistoryGame::~HistoryGame() {
 	Auth().data().unregisterGameView(_data, _parent);
 }

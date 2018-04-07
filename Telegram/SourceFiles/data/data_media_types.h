@@ -100,6 +100,7 @@ public:
 
 	[[nodiscard]] virtual bool consumeMessageText(
 		const TextWithEntities &text);
+	[[nodiscard]] virtual TextWithEntities consumedMessageText() const;
 
 	// After sending an inline result we may want to completely recreate
 	// the media (all media that was generated on client side, for example).
@@ -334,6 +335,7 @@ public:
 		not_null<ChannelData*> channel) const override;
 
 	bool consumeMessageText(const TextWithEntities &text) override;
+	TextWithEntities consumedMessageText() const override;
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;

@@ -890,10 +890,10 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 	if (message.has_entities()) {
 		textWithEntities.entities = TextUtilities::EntitiesFromMTP(message.ventities.v);
 	}
-	setText(textWithEntities);
 	setReplyMarkup(message.has_reply_markup() ? (&message.vreply_markup) : nullptr);
 	refreshMedia(message.has_media() ? (&message.vmedia) : nullptr);
 	setViewsCount(message.has_views() ? message.vviews.v : -1);
+	setText(textWithEntities);
 
 	finishEdition(keyboardTop);
 }
@@ -905,9 +905,9 @@ void HistoryMessage::applyEdition(const MTPDmessageService &message) {
 }
 
 void HistoryMessage::applyEditionToEmpty() {
-	setEmptyText();
-	refreshMedia(nullptr);
 	setReplyMarkup(nullptr);
+	refreshMedia(nullptr);
+	setEmptyText();
 	setViewsCount(-1);
 
 	finishEditionToEmpty();
