@@ -1193,7 +1193,7 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 						MTP_int(0));
 					editRestrictions(hasAdminRights, bannedRights);
 				}
-			}).fail([this, editRestrictions](const RPCError &error) {
+			}).fail([=](const RPCError &error) {
 				auto bannedRights = MTP_channelBannedRights(
 					MTP_flags(0),
 					MTP_int(0));

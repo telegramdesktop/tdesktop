@@ -908,7 +908,7 @@ void ApiWrap::requestPeers(const QList<PeerData*> &peers) {
 			channels.push_back((*i)->asChannel()->inputChannel);
 		}
 	}
-	auto handleChats = [this](const MTPmessages_Chats &result) {
+	auto handleChats = [=](const MTPmessages_Chats &result) {
 		if (auto chats = Api::getChatsFromMessagesChats(result)) {
 			App::feedChats(*chats);
 		}
@@ -920,7 +920,7 @@ void ApiWrap::requestPeers(const QList<PeerData*> &peers) {
 		request(MTPchannels_GetChannels(MTP_vector<MTPInputChannel>(channels))).done(handleChats).send();
 	}
 	if (!users.isEmpty()) {
-		request(MTPusers_GetUsers(MTP_vector<MTPInputUser>(users))).done([this](const MTPVector<MTPUser> &result) {
+		request(MTPusers_GetUsers(MTP_vector<MTPInputUser>(users))).done([=](const MTPVector<MTPUser> &result) {
 			App::feedUsers(result);
 		}).send();
 	}
@@ -1702,7 +1702,7 @@ void ApiWrap::handlePrivacyChange(mtpTypeId keyTypeId, const MTPVector<MTPPrivac
 		}
 
 		auto now = unixtime();
-		App::enumerateUsers([&userRules, contactsRule, everyoneRule, now](UserData *user) {
+		App::enumerateUsers([&](UserData *user) {
 			if (user->isSelf() || user->loadedStatus != PeerData::FullLoaded) {
 				return;
 			}
@@ -2033,7 +2033,7 @@ void ApiWrap::requestParticipantsCountDelayed(
 		not_null<ChannelData*> channel) {
 	_participantsCountRequestTimer.call(
 		kReloadChannelMembersTimeout,
-		[this, channel] { channel->updateFullForced(); });
+		[=] { channel->updateFullForced(); });
 }
 
 void ApiWrap::requestChannelRangeDifference(not_null<History*> history) {
@@ -2296,7 +2296,7 @@ void ApiWrap::requestStickers(TimeId now) {
 	};
 	_stickersUpdateRequest = request(MTPmessages_GetAllStickers(
 		MTP_int(Local::countStickersHash(true))
-	)).done(onDone).fail([this, onDone](const RPCError &error) {
+	)).done(onDone).fail([=](const RPCError &error) {
 		LOG(("App Fail: Failed to get stickers!"));
 		onDone(MTP_messages_allStickersNotModified());
 	}).send();
@@ -3738,7 +3738,7 @@ void ApiWrap::uploadAlbumMedia(
 		const MessageGroupId &groupId,
 		const MTPInputMedia &media) {
 	const auto localId = item->fullId();
-	const auto failed = [this] {
+	const auto failed = [=] {
 
 	};
 	request(MTPmessages_UploadMedia(

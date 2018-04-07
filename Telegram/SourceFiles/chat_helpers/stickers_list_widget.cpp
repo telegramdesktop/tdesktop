@@ -256,7 +256,7 @@ void StickersListWidget::Footer::enumerateVisibleIcons(Callback callback) {
 }
 
 void StickersListWidget::Footer::preloadImages() {
-	enumerateVisibleIcons([this](const StickerIcon &icon, int x) {
+	enumerateVisibleIcons([](const StickerIcon &icon, int x) {
 		if (auto sticker = icon.sticker) {
 			sticker->thumb->load();
 		}

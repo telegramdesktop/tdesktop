@@ -41,13 +41,13 @@ void AdvancedWidget::createControls() {
 	style::margins marginSmall(0, 0, 0, st::settingsSmallSkip);
 	style::margins marginLarge(0, 0, 0, st::settingsLargeSkip);
 
-	style::margins marginLocalStorage = ([&marginSmall, &marginLarge]() {
+	style::margins marginLocalStorage = [&] {
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 		return marginSmall;
 #else // !TDESKTOP_DISABLE_NETWORK_PROXY
 		return marginLarge;
 #endif // TDESKTOP_DISABLE_NETWORK_PROXY
-	})();
+	}();
 	if (self()) {
 		createChildRow(_manageLocalStorage, marginLocalStorage, lang(lng_settings_manage_local_storage), SLOT(onManageLocalStorage()));
 	}

@@ -469,7 +469,7 @@ void EditRestrictedBox::createUntilVariants() {
 			_untilVariants.back()->setDisabled(true);
 		}
 	};
-	auto addCustomVariant = [this, addVariant](TimeId until, TimeId from, TimeId to) {
+	auto addCustomVariant = [addVariant](TimeId until, TimeId from, TimeId to) {
 		if (!ChannelData::IsRestrictedForever(until) && until > from && until <= to) {
 			addVariant(
 				until,

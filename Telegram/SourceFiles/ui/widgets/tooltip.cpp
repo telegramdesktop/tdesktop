@@ -40,8 +40,8 @@ Tooltip::Tooltip() : TWidget(nullptr) {
 	setAttribute(Qt::WA_NoSystemBackground, true);
 	setAttribute(Qt::WA_TranslucentBackground, true);
 
-	_showTimer.setCallback([this] { performShow(); });
-	_hideByLeaveTimer.setCallback([this] { Hide(); });
+	_showTimer.setCallback([=] { performShow(); });
+	_hideByLeaveTimer.setCallback([=] { Hide(); });
 
 	connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWndActiveChanged()));
 }

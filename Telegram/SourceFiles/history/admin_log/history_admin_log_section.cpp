@@ -261,7 +261,7 @@ Widget::Widget(QWidget *parent, not_null<Window::Controller*> controller, not_nu
 
 	connect(_scroll, &Ui::ScrollArea::scrolled, this, [this] { onScroll(); });
 
-	_whatIsThis->setClickedCallback([this] { Ui::show(Box<InformBox>(lang(lng_admin_log_about_text))); });
+	_whatIsThis->setClickedCallback([=] { Ui::show(Box<InformBox>(lang(lng_admin_log_about_text))); });
 }
 
 void Widget::showFilter() {

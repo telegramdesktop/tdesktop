@@ -214,7 +214,7 @@ void prepareRound(
 	auto intsTopRight = ints + target.x() + target.width() - cornerWidth + target.y() * imageWidth;
 	auto intsBottomLeft = ints + target.x() + (target.y() + target.height() - cornerHeight) * imageWidth;
 	auto intsBottomRight = ints + target.x() + target.width() - cornerWidth + (target.y() + target.height() - cornerHeight) * imageWidth;
-	auto maskCorner = [imageWidth, imageHeight, imageIntsPerPixel, imageIntsPerLine](uint32 *imageInts, const QImage &mask) {
+	auto maskCorner = [&](uint32 *imageInts, const QImage &mask) {
 		auto maskWidth = mask.width();
 		auto maskHeight = mask.height();
 		auto maskBytesPerPixel = (mask.depth() >> 3);

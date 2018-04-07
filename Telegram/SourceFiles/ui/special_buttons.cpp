@@ -302,7 +302,7 @@ void SendButton::paintEvent(QPaintEvent *e) {
 		auto rippleColor = anim::color(st::historyAttachEmoji.ripple.color, st::historyRecordVoiceRippleBgActive, recordActive);
 		paintRipple(p, (width() - st::historyAttachEmoji.rippleAreaSize) / 2, st::historyAttachEmoji.rippleAreaPosition.y(), ms, &rippleColor);
 
-		auto fastIcon = [recordActive, over, this] {
+		auto fastIcon = [&] {
 			if (recordActive == 1.) {
 				return &st::historyRecordVoiceActive;
 			} else if (over) {
