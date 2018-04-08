@@ -154,6 +154,18 @@ public:
 	void parseWords(QFixed minResizeWidth, int32 blockFrom) {
 		LineBreakHelper lbh;
 
+// Helper for debugging crashes in text processing.
+//
+//		auto debugChars = QString();
+//		debugChars.reserve(str.size() * 7);
+//		for (const auto ch : str) {
+//			debugChars.append(
+//				"0x").append(
+//				QString::number(ch.unicode(), 16).toUpper()).append(
+//				' ');
+//		}
+//		LOG(("Text: %1, chars: %2").arg(str).arg(debugChars));
+
 		int item = -1;
 		int newItem = eng->findItem(0);
 

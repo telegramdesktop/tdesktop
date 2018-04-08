@@ -27,7 +27,7 @@ inline int32 countBlockHeight(const ITextBlock *b, const style::TextStyle *st) {
 
 bool chIsBad(QChar ch) {
 #ifdef OS_MAC_OLD
-	if (cIsSnowLeopard() && (ch == 8207 || ch == 8206)) {
+	if (cIsSnowLeopard() && (ch == 8207 || ch == 8206 || ch == 8288)) {
 		return true;
 	}
 #endif // OS_MAC_OLD
