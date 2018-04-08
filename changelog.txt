@@ -1,3 +1,7 @@
+1.2.17 (08.04.18)
+
+- Bug fixes and other minor improvements.
+
 1.2.16 (07.04.18)
 
 - Bug fixes and other minor improvements.
