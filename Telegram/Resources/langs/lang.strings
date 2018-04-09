@@ -1555,7 +1555,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_use_existing_email" = "Use the same email as on Telegram.";
 "lng_passport_new_email" = "Or enter a new email";
 "lng_passport_new_email_code" = "Note: You will receive a confirmation code on the email address you provide.";
-"lng_passport_email_enter_code" = "Please enter the confirmation code we've just sent to {email}.";
+"lng_passport_confirm_phone" = "We've sent an SMS with a confirmation code to your phone {phone}.";
+"lng_passport_confirm_email" = "We've sent a confirmation code to your email {email}.";
+"lng_passport_sure_cancel" = "If you continue your changes will be lost.";
 
 // Wnd specific
 

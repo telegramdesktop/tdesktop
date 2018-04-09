@@ -55,7 +55,7 @@ protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
-	bool eventHook(QEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 private:
 	void initControls();
@@ -83,6 +83,7 @@ private:
 	object_ptr<Ui::RpWidget> _body;
 	base::unique_qptr<Ui::RpWidget> _inner;
 	object_ptr<Window::LayerStackWidget> _layer = { nullptr };
+	rpl::event_stream<> _synteticBackRequests;
 
 	bool _useTransparency = true;
 	style::margins _padding;

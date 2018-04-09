@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
+#include "base/timer.h"
 #include "ui/widgets/input_fields.h"
 
 namespace Ui {
@@ -43,7 +44,9 @@ private:
 
 class SentCodeCall {
 public:
-	SentCodeCall(QObject *parent, base::lambda_once<void()> callCallback, base::lambda<void()> updateCallback);
+	SentCodeCall(
+		base::lambda_once<void()> callCallback,
+		base::lambda<void()> updateCallback);
 
 	enum class State {
 		Waiting,
@@ -75,7 +78,7 @@ public:
 
 private:
 	Status _status;
-	object_ptr<QTimer> _timer;
+	base::Timer _timer;
 	base::lambda_once<void()> _call;
 	base::lambda<void()> _update;
 

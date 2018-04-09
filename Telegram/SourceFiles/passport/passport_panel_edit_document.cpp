@@ -18,12 +18,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/fade_wrap.h"
 #include "boxes/abstract_box.h"
+#include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "styles/style_widgets.h"
 #include "styles/style_boxes.h"
 #include "styles/style_passport.h"
 
 namespace Passport {
+
+struct PanelEditDocument::Result {
+	ValueMap data;
+	ValueMap filesData;
+};
 
 PanelEditDocument::PanelEditDocument(
 	QWidget*,
@@ -144,6 +150,11 @@ void PanelEditDocument::resizeEvent(QResizeEvent *e) {
 	updateControlsGeometry();
 }
 
+bool PanelEditDocument::hasUnsavedChanges() const {
+	const auto result = collect();
+	return _controller->editScopeChanged(result.data, result.filesData);
+}
+
 void PanelEditDocument::updateControlsGeometry() {
 	const auto submitTop = height() - _done->height();
 	_scroll->setGeometry(0, 0, width(), submitTop);
@@ -157,17 +168,23 @@ void PanelEditDocument::updateControlsGeometry() {
 	_scroll->updateBars();
 }
 
-void PanelEditDocument::save() {
-	auto data = ValueMap();
-	auto scanData = ValueMap();
+PanelEditDocument::Result PanelEditDocument::collect() const {
+	auto result = Result();
 	for (const auto [i, field] : _details) {
 		const auto &row = _scheme.rows[i];
 		auto &fields = (row.type == Scheme::ValueType::Fields)
-			? data
-			: scanData;
-		fields.fields[row.key] = _details[i]->getValue();
+			? result.data
+			: result.filesData;
+		fields.fields[row.key] = field->getValue();
 	}
-	_controller->saveScope(std::move(data), std::move(scanData));
+	return result;
+}
+
+void PanelEditDocument::save() {
+	auto result = collect();
+	_controller->saveScope(
+		std::move(result.data),
+		std::move(result.filesData));
 }
 
 } // namespace Passport

@@ -451,14 +451,82 @@ auto FormController::scanUpdated() const
 	return _scanUpdated.events();
 }
 
-auto FormController::valueSaved() const
-->rpl::producer<not_null<const Value*>> {
-	return _valueSaved.events();
+auto FormController::valueSaveFinished() const
+-> rpl::producer<not_null<const Value*>> {
+	return _valueSaveFinished.events();
 }
 
 auto FormController::verificationNeeded() const
-->rpl::producer<not_null<const Value*>> {
+-> rpl::producer<not_null<const Value*>> {
 	return _verificationNeeded.events();
+}
+
+auto FormController::verificationUpdate() const
+-> rpl::producer<not_null<const Value*>> {
+	return _verificationUpdate.events();
+}
+
+void FormController::verify(
+		not_null<const Value*> value,
+		const QString &code) {
+	if (value->verification.requestId) {
+		return;
+	}
+	const auto nonconst = findValue(value);
+	const auto prepared = code.trimmed();
+	Assert(nonconst->verification.codeLength != 0);
+	verificationError(nonconst, QString());
+	if (nonconst->verification.codeLength > 0
+		&& nonconst->verification.codeLength != prepared.size()) {
+		verificationError(nonconst, lang(lng_signin_wrong_code));
+		return;
+	} else if (prepared.isEmpty()) {
+		verificationError(nonconst, lang(lng_signin_wrong_code));
+		return;
+	}
+	nonconst->verification.requestId = [&] {
+		switch (nonconst->type) {
+		case Value::Type::Phone:
+			return request(MTPaccount_VerifyPhone(
+				MTP_string(getPhoneFromValue(nonconst)),
+				MTP_string(nonconst->verification.phoneCodeHash),
+				MTP_string(prepared)
+			)).done([=](const MTPBool &result) {
+				savePlainTextValue(nonconst);
+				clearValueVerification(nonconst);
+			}).fail([=](const RPCError &error) {
+				nonconst->verification.requestId = 0;
+				if (error.type() == qstr("PHONE_CODE_INVALID")) {
+					verificationError(nonconst, lang(lng_signin_wrong_code));
+				} else {
+					verificationError(nonconst, error.type());
+				}
+			}).send();
+		case Value::Type::Email:
+			return request(MTPaccount_VerifyEmail(
+				MTP_string(getEmailFromValue(nonconst)),
+				MTP_string(prepared)
+			)).done([=](const MTPBool &result) {
+				savePlainTextValue(nonconst);
+				clearValueVerification(nonconst);
+			}).fail([=](const RPCError &error) {
+				nonconst->verification.requestId = 0;
+				if (error.type() == qstr("CODE_INVALID")) {
+					verificationError(nonconst, lang(lng_signin_wrong_code));
+				} else {
+					verificationError(nonconst, error.type());
+				}
+			}).send();
+		}
+		Unexpected("Type in FormController::verify().");
+	}();
+}
+
+void FormController::verificationError(
+		not_null<Value*> value,
+		const QString &text) {
+	value->verification.error = text;
+	_verificationUpdate.fire_copy(value);
 }
 
 const Form &FormController::form() const {
@@ -475,15 +543,16 @@ not_null<Value*> FormController::findValue(not_null<const Value*> value) {
 }
 
 void FormController::startValueEdit(not_null<const Value*> value) {
-	if (value->saveRequestId) {
+	const auto nonconst = findValue(value);
+	++nonconst->editScreens;
+	if (savingValue(nonconst)) {
 		return;
 	}
-	const auto nonconst = findValue(value);
 	loadFiles(nonconst->files);
 	nonconst->filesInEdit = ranges::view::all(
-		value->files
+		nonconst->files
 	) | ranges::view::transform([=](const File &file) {
-		return EditFile(value, file, nullptr);
+		return EditFile(nonconst, file, nullptr);
 	}) | ranges::to_vector;
 	nonconst->data.parsedInEdit = nonconst->data.parsed;
 }
@@ -570,28 +639,112 @@ void FormController::fileLoadFail(FileKey key) {
 	}
 }
 
+bool FormController::savingValue(not_null<const Value*> value) const {
+	return (value->saveRequestId != 0)
+		|| (value->verification.requestId != 0)
+		|| (value->verification.codeLength != 0);
+}
+
 void FormController::cancelValueEdit(not_null<const Value*> value) {
-	if (value->saveRequestId) {
+	Expects(value->editScreens > 0);
+
+	const auto nonconst = findValue(value);
+	--nonconst->editScreens;
+	clearValueEdit(nonconst);
+}
+
+void FormController::valueEditFailed(not_null<Value*> value) {
+	Expects(!savingValue(value));
+
+	if (value->editScreens == 0) {
+		clearValueEdit(value);
+	}
+}
+
+void FormController::clearValueEdit(not_null<Value*> value) {
+	if (savingValue(value)) {
 		return;
 	}
+	value->filesInEdit.clear();
+	value->data.encryptedSecretInEdit.clear();
+	value->data.hashInEdit.clear();
+	value->data.parsedInEdit = ValueMap();
+}
+
+void FormController::cancelValueVerification(not_null<const Value*> value) {
 	const auto nonconst = findValue(value);
-	nonconst->filesInEdit.clear();
-	nonconst->data.encryptedSecretInEdit.clear();
-	nonconst->data.hashInEdit.clear();
-	nonconst->data.parsedInEdit = ValueMap();
+	clearValueVerification(nonconst);
+	if (!savingValue(nonconst)) {
+		valueEditFailed(nonconst);
+	}
+}
+
+void FormController::clearValueVerification(not_null<Value*> value) {
+	const auto was = (value->verification.codeLength != 0);
+	if (const auto requestId = base::take(value->verification.requestId)) {
+		request(requestId).cancel();
+	}
+	value->verification = Verification();
+	if (was) {
+		_verificationUpdate.fire_copy(value);
+	}
 }
 
 bool FormController::isEncryptedValue(Value::Type type) const {
 	return (type != Value::Type::Phone && type != Value::Type::Email);
 }
 
+bool FormController::editFileChanged(const EditFile &file) const {
+	if (file.uploadData) {
+		return !file.deleted;
+	}
+	return file.deleted;
+}
+
+bool FormController::editValueChanged(
+		not_null<const Value*> value,
+		const ValueMap &data) const {
+	auto filesCount = 0;
+	for (const auto &file : value->filesInEdit) {
+		if (editFileChanged(file)) {
+			return true;
+		}
+	}
+	if (value->selfieInEdit && editFileChanged(*value->selfieInEdit)) {
+		return true;
+	}
+	auto existing = value->data.parsed.fields;
+	for (const auto &[key, value] : data.fields) {
+		const auto i = existing.find(key);
+		if (i != existing.end()) {
+			if (i->second != value) {
+				return true;
+			}
+			existing.erase(i);
+		} else if (!value.isEmpty()) {
+			return true;
+		}
+	}
+	return !existing.empty();
+}
+
 void FormController::saveValueEdit(
 		not_null<const Value*> value,
 		ValueMap &&data) {
-	if (value->saveRequestId) {
+	if (savingValue(value)) {
 		return;
 	}
+
 	const auto nonconst = findValue(value);
+	if (!editValueChanged(nonconst, data)) {
+		base::take(nonconst->filesInEdit);
+		base::take(nonconst->selfieInEdit);
+		base::take(nonconst->data.encryptedSecretInEdit);
+		base::take(nonconst->data.hashInEdit);
+		base::take(nonconst->data.parsedInEdit);
+		_valueSaveFinished.fire_copy(nonconst);
+		return;
+	}
 	nonconst->data.parsedInEdit = std::move(data);
 
 	if (isEncryptedValue(nonconst->type)) {
@@ -699,7 +852,7 @@ void FormController::saveEncryptedValue(not_null<Value*> value) {
 void FormController::savePlainTextValue(not_null<Value*> value) {
 	Expects(!isEncryptedValue(value->type));
 
-	const auto text = value->data.parsedInEdit.fields["value"];
+	const auto text = getPlainTextFromValue(value);
 	const auto type = [&] {
 		switch (value->type) {
 		case Value::Type::Phone: return MTP_secureValueTypePhone();
@@ -734,6 +887,8 @@ void FormController::sendSaveRequest(
 	)).done([=](const MTPSecureValue &result) {
 		Expects(result.type() == mtpc_secureValue);
 
+		value->saveRequestId = 0;
+
 		const auto &data = result.c_secureValue();
 		value->files = parseFiles(
 			data.vfiles.v,
@@ -743,24 +898,144 @@ void FormController::sendSaveRequest(
 		value->data.parsed = std::move(value->data.parsedInEdit);
 		value->data.hash = std::move(value->data.hashInEdit);
 
-		value->saveRequestId = 0;
-
-		_valueSaved.fire_copy(value);
+		_valueSaveFinished.fire_copy(value);
 	}).fail([=](const RPCError &error) {
 		value->saveRequestId = 0;
 		if (error.type() == qstr("PHONE_VERIFICATION_NEEDED")) {
 			if (value->type == Value::Type::Phone) {
-				_verificationNeeded.fire_copy(value);
+				startPhoneVerification(value);
 				return;
 			}
 		} else if (error.type() == qstr("EMAIL_VERIFICATION_NEEDED")) {
 			if (value->type == Value::Type::Email) {
-				_verificationNeeded.fire_copy(value);
+				startEmailVerification(value);
 				return;
 			}
 		}
-		_view->show(Box<InformBox>("Error saving value:\n" + error.type()));
+		valueSaveFailed(value, error);
 	}).send();
+}
+
+QString FormController::getPhoneFromValue(
+		not_null<const Value*> value) const {
+	Expects(value->type == Value::Type::Phone);
+
+	return getPlainTextFromValue(value);
+}
+
+QString FormController::getEmailFromValue(
+		not_null<const Value*> value) const {
+	Expects(value->type == Value::Type::Email);
+
+	return getPlainTextFromValue(value);
+}
+
+QString FormController::getPlainTextFromValue(
+		not_null<const Value*> value) const {
+	Expects(value->type == Value::Type::Phone
+		|| value->type == Value::Type::Email);
+
+	const auto i = value->data.parsedInEdit.fields.find("value");
+	Assert(i != end(value->data.parsedInEdit.fields));
+	return i->second;
+}
+
+void FormController::startPhoneVerification(not_null<Value*> value) {
+	value->verification.requestId = request(MTPaccount_SendVerifyPhoneCode(
+		MTP_flags(MTPaccount_SendVerifyPhoneCode::Flag(0)),
+		MTP_string(getPhoneFromValue(value)),
+		MTPBool()
+	)).done([=](const MTPauth_SentCode &result) {
+		Expects(result.type() == mtpc_auth_sentCode);
+
+		value->verification.requestId = 0;
+
+		const auto &data = result.c_auth_sentCode();
+		value->verification.phoneCodeHash = qs(data.vphone_code_hash);
+		switch (data.vtype.type()) {
+		case mtpc_auth_sentCodeTypeApp:
+			LOG(("API Error: sentCodeTypeApp not expected "
+				"in FormController::startPhoneVerification."));
+			return;
+		case mtpc_auth_sentCodeTypeFlashCall:
+			LOG(("API Error: sentCodeTypeFlashCall not expected "
+				"in FormController::startPhoneVerification."));
+			return;
+		case mtpc_auth_sentCodeTypeCall: {
+			const auto &type = data.vtype.c_auth_sentCodeTypeCall();
+			value->verification.codeLength = (type.vlength.v > 0)
+				? type.vlength.v
+				: -1;
+			value->verification.call = std::make_unique<SentCodeCall>(
+				[=] { requestPhoneCall(value); },
+				[=] { _verificationUpdate.fire_copy(value); });
+			value->verification.call->setStatus(
+				{ SentCodeCall::State::Called, 0 });
+			if (data.has_next_type()) {
+				LOG(("API Error: next_type is not supported for calls."));
+			}
+		} break;
+		case mtpc_auth_sentCodeTypeSms: {
+			const auto &type = data.vtype.c_auth_sentCodeTypeSms();
+			value->verification.codeLength = (type.vlength.v > 0)
+				? type.vlength.v
+				: -1;
+			const auto &next = data.vnext_type;
+			if (data.has_next_type()
+				&& next.type() == mtpc_auth_codeTypeCall) {
+				value->verification.call = std::make_unique<SentCodeCall>(
+					[=] { requestPhoneCall(value); },
+					[=] { _verificationUpdate.fire_copy(value); });
+				value->verification.call->setStatus({
+					SentCodeCall::State::Waiting,
+					data.has_timeout() ? data.vtimeout.v : 60 });
+			}
+		} break;
+		}
+		_verificationNeeded.fire_copy(value);
+	}).fail([=](const RPCError &error) {
+		value->verification.requestId = 0;
+		valueSaveFailed(value, error);
+	}).send();
+}
+
+void FormController::startEmailVerification(not_null<Value*> value) {
+	value->verification.requestId = request(MTPaccount_SendVerifyEmailCode(
+		MTP_string(getEmailFromValue(value))
+	)).done([=](const MTPaccount_SentEmailCode &result) {
+		Expects(result.type() == mtpc_account_sentEmailCode);
+
+		value->verification.requestId = 0;
+		const auto &data = result.c_account_sentEmailCode();
+		value->verification.codeLength = (data.vlength.v > 0)
+			? data.vlength.v
+			: -1;
+		_verificationNeeded.fire_copy(value);
+	}).fail([=](const RPCError &error) {
+		valueSaveFailed(value, error);
+	}).send();
+}
+
+
+void FormController::requestPhoneCall(not_null<Value*> value) {
+	Expects(value->verification.call != nullptr);
+
+	value->verification.call->setStatus(
+		{ SentCodeCall::State::Calling, 0 });
+	request(MTPauth_ResendCode(
+		MTP_string(getPhoneFromValue(value)),
+		MTP_string(value->verification.phoneCodeHash)
+	)).done([=](const MTPauth_SentCode &code) {
+		value->verification.call->callDone();
+	}).send();
+}
+
+void FormController::valueSaveFailed(
+		not_null<Value*> value,
+		const RPCError &error) {
+	_view->show(Box<InformBox>("Error saving value:\n" + error.type()));
+	valueEditFailed(value);
+	_valueSaveFinished.fire_copy(value);
 }
 
 void FormController::generateSecret(bytes::const_span password) {

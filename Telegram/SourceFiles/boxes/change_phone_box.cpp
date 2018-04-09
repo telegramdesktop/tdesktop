@@ -213,7 +213,7 @@ ChangePhoneBox::EnterCode::EnterCode(QWidget*, const QString &phone, const QStri
 , _hash(hash)
 , _codeLength(codeLength)
 , _callTimeout(callTimeout)
-, _call(this, [this] { sendCall(); }, [this] { updateCall(); }) {
+, _call([this] { sendCall(); }, [this] { updateCall(); }) {
 }
 
 void ChangePhoneBox::EnterCode::prepare() {

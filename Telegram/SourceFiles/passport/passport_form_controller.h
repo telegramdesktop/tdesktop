@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/sender.h"
+#include "boxes/confirm_phone_box.h"
 #include "base/weak_ptr.h"
 
 class BoxContent;
@@ -111,6 +112,16 @@ struct ValueData {
 	bytes::vector encryptedSecretInEdit;
 };
 
+struct Verification {
+	mtpRequestId requestId = 0;
+	QString phoneCodeHash;
+	int codeLength = 0;
+	std::unique_ptr<SentCodeCall> call;
+
+	QString error;
+
+};
+
 struct Value {
 	enum class Type {
 		PersonalDetails,
@@ -135,6 +146,9 @@ struct Value {
 	std::vector<EditFile> filesInEdit;
 	base::optional<File> selfie;
 	base::optional<EditFile> selfieInEdit;
+	Verification verification;
+
+	int editScreens = 0;
 	mtpRequestId saveRequestId = 0;
 
 };
@@ -205,13 +219,20 @@ public:
 	QString defaultPhoneNumber() const;
 
 	rpl::producer<not_null<const EditFile*>> scanUpdated() const;
-	rpl::producer<not_null<const Value*>> valueSaved() const;
+	rpl::producer<not_null<const Value*>> valueSaveFinished() const;
 	rpl::producer<not_null<const Value*>> verificationNeeded() const;
+	rpl::producer<not_null<const Value*>> verificationUpdate() const;
+	void verify(not_null<const Value*> value, const QString &code);
 
 	const Form &form() const;
 	void startValueEdit(not_null<const Value*> value);
 	void cancelValueEdit(not_null<const Value*> value);
+	void cancelValueVerification(not_null<const Value*> value);
+	bool editValueChanged(
+		not_null<const Value*> value,
+		const ValueMap &data) const;
 	void saveValueEdit(not_null<const Value*> value, ValueMap &&data);
+	bool savingValue(not_null<const Value*> value) const;
 
 	void cancel();
 
@@ -274,6 +295,21 @@ private:
 	void scanUploadFail(const FullMsgId &fullId);
 	void scanDeleteRestore(not_null<const Value*> value, int fileIndex, bool deleted);
 
+	QString getPhoneFromValue(not_null<const Value*> value) const;
+	QString getEmailFromValue(not_null<const Value*> value) const;
+	QString getPlainTextFromValue(not_null<const Value*> value) const;
+	void startPhoneVerification(not_null<Value*> value);
+	void startEmailVerification(not_null<Value*> value);
+	void valueSaveFailed(not_null<Value*> value, const RPCError &error);
+	void requestPhoneCall(not_null<Value*> value);
+	void verificationError(
+		not_null<Value*> value,
+		const QString &text);
+	void valueEditFailed(not_null<Value*> value);
+	void clearValueEdit(not_null<Value*> value);
+	void clearValueVerification(not_null<Value*> value);
+	bool editFileChanged(const EditFile &file) const;
+
 	bool isEncryptedValue(Value::Type type) const;
 	void saveEncryptedValue(not_null<Value*> value);
 	void savePlainTextValue(not_null<Value*> value);
@@ -295,8 +331,9 @@ private:
 	std::map<FileKey, std::unique_ptr<mtpFileLoader>> _fileLoaders;
 
 	rpl::event_stream<not_null<const EditFile*>> _scanUpdated;
-	rpl::event_stream<not_null<const Value*>> _valueSaved;
+	rpl::event_stream<not_null<const Value*>> _valueSaveFinished;
 	rpl::event_stream<not_null<const Value*>> _verificationNeeded;
+	rpl::event_stream<not_null<const Value*>> _verificationUpdate;
 
 	bytes::vector _secret;
 	uint64 _secretId = 0;

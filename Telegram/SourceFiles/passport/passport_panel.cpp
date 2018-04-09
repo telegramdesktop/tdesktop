@@ -83,7 +83,9 @@ void Panel::updateTitlePosition() {
 }
 
 rpl::producer<> Panel::backRequests() const {
-	return _back->entity()->clicks();
+	return rpl::merge(
+		_back->entity()->clicks(),
+		_synteticBackRequests.events());
 }
 
 void Panel::setBackAllowed(bool allowed) {
@@ -100,10 +102,11 @@ void Panel::showAndActivate() {
 	setFocus();
 }
 
-bool Panel::eventHook(QEvent *e) {
-	if (e->type() == QEvent::WindowDeactivate) {
+void Panel::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Escape && _back->toggled()) {
+		_synteticBackRequests.fire({});
 	}
-	return RpWidget::eventHook(e);
+	return RpWidget::keyPressEvent(e);
 }
 
 void Panel::initLayout() {
@@ -275,6 +278,10 @@ void Panel::showInner(base::unique_qptr<Ui::RpWidget> inner) {
 		_inner->resize(size);
 	}, _inner->lifetime());
 	_inner->show();
+
+	if (_layer) {
+		_layer->raise();
+	}
 
 	showAndActivate();
 }

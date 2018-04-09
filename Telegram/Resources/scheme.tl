@@ -999,7 +999,7 @@ secureCredentialsEncrypted#33f0ea47 data:bytes hash:bytes secret:bytes = SecureC
 
 account.authorizationForm#b9d3d1f0 flags:# selfie_required:flags.1?true required_types:Vector<SecureValueType> values:Vector<SecureValue> users:Vector<User> privacy_policy_url:flags.0?string = account.AuthorizationForm;
 
-account.sentEmailCode#28b1633b email_pattern:string = account.SentEmailCode;
+account.sentEmailCode#811f854f email_pattern:string length:int = account.SentEmailCode;
 
 ---functions---
 

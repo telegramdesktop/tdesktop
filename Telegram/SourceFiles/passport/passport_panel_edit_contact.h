@@ -69,4 +69,16 @@ private:
 
 };
 
+object_ptr<BoxContent> VerifyPhoneBox(
+	const QString &phone,
+	int codeLength,
+	base::lambda<void(QString code)> submit,
+	rpl::producer<QString> call,
+	rpl::producer<QString> error);
+object_ptr<BoxContent> VerifyEmailBox(
+	const QString &email,
+	int codeLength,
+	base::lambda<void(QString code)> submit,
+	rpl::producer<QString> error);
+
 } // namespace Passport

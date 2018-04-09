@@ -225,6 +225,19 @@ PanelController::PanelController(not_null<FormController*> form)
 			_panel->showForm();
 		}
 	}, lifetime());
+
+	_form->verificationNeeded(
+	) | rpl::start_with_next([=](not_null<const Value*> value) {
+		processVerificationNeeded(value);
+	}, lifetime());
+
+	_form->verificationUpdate(
+	) | rpl::filter([=](not_null<const Value*> field) {
+		return (field->verification.codeLength == 0);
+	}) | rpl::start_with_next([=](not_null<const Value*> field) {
+		_verificationBoxes.erase(field);
+	}, lifetime());
+
 	_scopes = ComputeScopes(_form);
 }
 
@@ -417,8 +430,8 @@ void PanelController::editScope(int index) {
 	auto content = [&]() -> object_ptr<Ui::RpWidget> {
 		switch (_editScope->type) {
 		case Scope::Type::Identity:
-		case Scope::Type::Address:
-			return (_editScopeFilesIndex >= 0)
+		case Scope::Type::Address: {
+			auto result = (_editScopeFilesIndex >= 0)
 				? object_ptr<PanelEditDocument>(
 					_panel.get(),
 					this,
@@ -431,10 +444,17 @@ void PanelController::editScope(int index) {
 					this,
 					std::move(GetDocumentScheme(_editScope->type)),
 					_editScope->fields->data.parsedInEdit);
+			const auto weak = make_weak(result.data());
+			_panelHasUnsavedChanges = [=] {
+				return weak ? weak->hasUnsavedChanges() : false;
+			};
+			return std::move(result);
+		} break;
 		case Scope::Type::Phone:
 		case Scope::Type::Email: {
 			const auto &parsed = _editScope->fields->data.parsedInEdit;
 			const auto valueIt = parsed.fields.find("value");
+			_panelHasUnsavedChanges = nullptr;
 			return object_ptr<PanelEditContact>(
 				_panel.get(),
 				this,
@@ -448,48 +468,106 @@ void PanelController::editScope(int index) {
 		Unexpected("Type in PanelController::editScope().");
 	}();
 
-	_panel->setBackAllowed(true);
-
-	_panel->backRequests(
-	) | rpl::start_with_next([=] {
-		_panel->showForm();
-	}, content->lifetime());
-
 	content->lifetime().add([=] {
 		cancelValueEdit();
 	});
 
-	_form->valueSaved(
-	) | rpl::start_with_next([=](not_null<const Value*> value) {
-		processValueSaved(value);
+	_panel->setBackAllowed(true);
+
+	_panel->backRequests(
+	) | rpl::start_with_next([=] {
+		cancelEditScope();
 	}, content->lifetime());
 
-	_form->verificationNeeded(
+	_form->valueSaveFinished(
 	) | rpl::start_with_next([=](not_null<const Value*> value) {
-		processVerificationNeeded(value);
+		processValueSaveFinished(value);
 	}, content->lifetime());
 
 	_panel->showEditValue(std::move(content));
 }
 
-void PanelController::processValueSaved(not_null<const Value*> value) {
+void PanelController::processValueSaveFinished(
+		not_null<const Value*> value) {
 	Expects(_editScope != nullptr);
+
+	const auto boxIt = _verificationBoxes.find(value);
+	if (boxIt != end(_verificationBoxes)) {
+		const auto saved = std::move(boxIt->second);
+		_verificationBoxes.erase(boxIt);
+	}
 
 	const auto value1 = _editScope->fields;
 	const auto value2 = (_editScopeFilesIndex >= 0)
 		? _editScope->files[_editScopeFilesIndex].get()
 		: nullptr;
 	if (value == value1 || value == value2) {
-		if (!value1->saveRequestId && (!value2 || !value2->saveRequestId)) {
+		if (!_form->savingValue(value1)
+			&& (!value2 || !_form->savingValue(value2))) {
 			_panel->showForm();
-			show(Box<InformBox>("Saved"));
 		}
 	}
 }
 
 void PanelController::processVerificationNeeded(
 		not_null<const Value*> value) {
-	show(Box<InformBox>("Verification needed :("));
+	const auto i = _verificationBoxes.find(value);
+	if (i != _verificationBoxes.end()) {
+		LOG(("API Error: Requesting for verification repeatedly."));
+		return;
+	}
+	const auto textIt = value->data.parsedInEdit.fields.find("value");
+	Assert(textIt != end(value->data.parsedInEdit.fields));
+	const auto text = textIt->second;
+	const auto type = value->type;
+	const auto update = _form->verificationUpdate(
+	) | rpl::filter([=](not_null<const Value*> field) {
+		return (field == value);
+	});
+	const auto box = [&] {
+		if (type == Value::Type::Phone) {
+			return show(VerifyPhoneBox(
+				text,
+				value->verification.codeLength,
+				[=](const QString &code) { _form->verify(value, code); },
+
+				value->verification.call ? rpl::single(
+					value->verification.call->getText()
+				) | rpl::then(rpl::duplicate(
+					update
+				) | rpl::filter([=](not_null<const Value*> field) {
+					return field->verification.call != nullptr;
+				}) | rpl::map([=](not_null<const Value*> field) {
+					return field->verification.call->getText();
+				})) : (rpl::single(QString()) | rpl::type_erased()),
+
+				rpl::duplicate(
+					update
+				) | rpl::map([=](not_null<const Value*> field) {
+					return field->verification.error;
+				}) | rpl::distinct_until_changed()));
+		} else if (type == Value::Type::Email) {
+			return show(VerifyEmailBox(
+				text,
+				value->verification.codeLength,
+				[=](const QString &code) { _form->verify(value, code); },
+
+				rpl::duplicate(
+					update
+				) | rpl::map([=](not_null<const Value*> field) {
+					return field->verification.error;
+				}) | rpl::distinct_until_changed()));
+		} else {
+			Unexpected("Type in processVerificationNeeded.");
+		}
+	}();
+
+	box->boxClosing(
+	) | rpl::start_with_next([=] {
+		_form->cancelValueVerification(value);
+	}, lifetime());
+
+	_verificationBoxes.emplace(value, box);
 }
 
 std::vector<ScanInfo> PanelController::valueFiles(
@@ -522,6 +600,36 @@ void PanelController::saveScope(ValueMap &&data, ValueMap &&filesData) {
 			std::move(filesData));
 	} else {
 		Assert(filesData.fields.empty());
+	}
+}
+
+bool PanelController::editScopeChanged(
+		const ValueMap &data,
+		const ValueMap &filesData) const {
+	Expects(_editScope != nullptr);
+
+	if (_form->editValueChanged(_editScope->fields, data)) {
+		return true;
+	} else if (_editScopeFilesIndex >= 0) {
+		return _form->editValueChanged(
+			_editScope->files[_editScopeFilesIndex],
+			filesData);
+	}
+	return false;
+}
+
+void PanelController::cancelEditScope() {
+	Expects(_editScope != nullptr);
+
+	if (_panelHasUnsavedChanges && _panelHasUnsavedChanges()) {
+		if (!_confirmForgetChangesBox) {
+			_confirmForgetChangesBox = BoxPointer(show(Box<ConfirmBox>(
+				lang(lng_passport_sure_cancel),
+				lang(lng_continue),
+				[=] { _panel->showForm(); })).data());
+		}
+	} else {
+		_panel->showForm();
 	}
 }
 

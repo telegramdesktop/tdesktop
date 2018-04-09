@@ -30,6 +30,9 @@ passportPasswordHintLabel: passportPasswordLabel;
 passportErrorLabel: FlatLabel(passportPasswordLabel) {
 	textFg: boxTextFgError;
 }
+passportVerifyErrorLabel: FlatLabel(passportErrorLabel) {
+	align: align(topleft);
+}
 
 passportPanelWidth: 392px;
 passportPanelHeight: 600px;

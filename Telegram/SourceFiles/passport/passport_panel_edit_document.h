@@ -56,11 +56,14 @@ public:
 		Scheme scheme,
 		const ValueMap &data);
 
+	bool hasUnsavedChanges() const;
+
 protected:
 	void focusInEvent(QFocusEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	struct Result;
 	void setupControls(
 		const ValueMap &data,
 		const ValueMap *scanData,
@@ -71,6 +74,7 @@ private:
 		std::vector<ScanInfo> &&files);
 	void updateControlsGeometry();
 
+	Result collect() const;
 	void save();
 
 	not_null<PanelController*> _controller;

@@ -71,6 +71,10 @@ public:
 
 	void editScope(int index) override;
 	void saveScope(ValueMap &&data, ValueMap &&filesData);
+	bool editScopeChanged(
+		const ValueMap &data,
+		const ValueMap &filesData) const;
+	void cancelEditScope();
 
 	void showBox(object_ptr<BoxContent> box) override;
 
@@ -83,7 +87,7 @@ private:
 
 	void cancelValueEdit();
 	std::vector<ScanInfo> valueFiles(const Value &value) const;
-	void processValueSaved(not_null<const Value*> value);
+	void processValueSaveFinished(not_null<const Value*> value);
 	void processVerificationNeeded(not_null<const Value*> value);
 
 	ScanInfo collectScanInfo(const EditFile &file) const;
@@ -93,8 +97,11 @@ private:
 	std::vector<Scope> _scopes;
 
 	std::unique_ptr<Panel> _panel;
+	base::lambda<bool()> _panelHasUnsavedChanges;
+	BoxPointer _confirmForgetChangesBox;
 	Scope *_editScope = nullptr;
 	int _editScopeFilesIndex = -1;
+	std::map<not_null<const Value*>, BoxPointer> _verificationBoxes;
 
 	rpl::lifetime _lifetime;
 
