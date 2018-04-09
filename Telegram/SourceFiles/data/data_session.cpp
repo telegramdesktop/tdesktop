@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "apiwrap.h"
+#include "window/notifications_manager.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
 #include "history/history_media.h"
@@ -25,6 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 namespace {
+
+constexpr auto kMaxNotifyCheckDelay = 24 * 3600 * TimeMs(1000);
 
 using ViewElement = HistoryView::Element;
 
@@ -59,7 +62,8 @@ void UpdateImage(ImagePtr &old, ImagePtr now) {
 
 Session::Session(not_null<AuthSession*> session)
 : _session(session)
-, _groups(this) {
+, _groups(this)
+, _unmuteByFinishedTimer([=] { unmuteByFinished(); }) {
 	setupContactViewsViewer();
 	setupChannelLeavingViewer();
 }
@@ -542,6 +546,77 @@ void Session::setIsPinned(const Dialogs::Key &key, bool pinned) {
 		for (const auto &pinned : _pinnedDialogs) {
 			pinned.entry()->cachePinnedIndex(++index);
 		}
+	}
+}
+
+NotifySettings &Session::defaultNotifySettings(
+		not_null<const PeerData*> peer) {
+	return peer->isUser()
+		? _defaultUserNotifySettings
+		: _defaultChatNotifySettings;
+}
+
+const NotifySettings &Session::defaultNotifySettings(
+		not_null<const PeerData*> peer) const {
+	return peer->isUser()
+		? _defaultUserNotifySettings
+		: _defaultChatNotifySettings;
+}
+
+void Session::updateNotifySettingsLocal(not_null<PeerData*> peer) {
+	const auto history = App::historyLoaded(peer->id);
+	auto changesIn = TimeMs(0);
+	const auto muted = notifyIsMuted(peer, &changesIn);
+	if (history && history->changeMute(muted)) {
+		// Notification already sent.
+	} else {
+		Notify::peerUpdatedDelayed(
+			peer,
+			Notify::PeerUpdate::Flag::NotificationsEnabled);
+	}
+
+	if (muted) {
+		_mutedPeers.emplace(peer);
+		unmuteByFinishedDelayed(changesIn);
+		if (history) {
+			_session->notifications().clearFromHistory(history);
+		}
+	} else {
+		_mutedPeers.erase(peer);
+	}
+}
+
+void Session::unmuteByFinishedDelayed(TimeMs delay) {
+	accumulate_max(delay, kMaxNotifyCheckDelay);
+	if (!_unmuteByFinishedTimer.isActive()
+		|| _unmuteByFinishedTimer.remainingTime() > delay) {
+		_unmuteByFinishedTimer.callOnce(delay);
+	}
+}
+
+void Session::unmuteByFinished() {
+	auto changesInMin = TimeMs(0);
+	for (auto i = begin(_mutedPeers); i != end(_mutedPeers);) {
+		const auto history = App::historyLoaded((*i)->id);
+		auto changesIn = TimeMs(0);
+		const auto muted = notifyIsMuted(*i, &changesIn);
+		if (muted) {
+			if (history) {
+				history->changeMute(true);
+			}
+			if (!changesInMin || changesInMin > changesIn) {
+				changesInMin = changesIn;
+			}
+			++i;
+		} else {
+			if (history) {
+				history->changeMute(false);
+			}
+			i = _mutedPeers.erase(i);
+		}
+	}
+	if (changesInMin) {
+		unmuteByFinishedDelayed(changesInMin);
 	}
 }
 
@@ -1577,6 +1652,148 @@ FeedId Session::defaultFeedId() const {
 
 rpl::producer<FeedId> Session::defaultFeedIdValue() const {
 	return _defaultFeedId.value();
+}
+
+void Session::requestNotifySettings(not_null<PeerData*> peer) {
+	if (peer->notifySettingsUnknown()) {
+		_session->api().requestNotifySettings(
+			MTP_inputNotifyPeer(peer->input));
+	}
+	if (defaultNotifySettings(peer).settingsUnknown()) {
+		_session->api().requestNotifySettings(peer->isUser()
+			? MTP_inputNotifyUsers()
+			: MTP_inputNotifyChats());
+	}
+}
+
+void Session::applyNotifySetting(
+		const MTPNotifyPeer &notifyPeer,
+		const MTPPeerNotifySettings &settings) {
+	switch (notifyPeer.type()) {
+	case mtpc_notifyUsers: {
+		if (_defaultUserNotifySettings.change(settings)) {
+			_defaultUserNotifyUpdates.fire({});
+
+			App::enumerateUsers([&](not_null<UserData*> user) {
+				if (!user->notifySettingsUnknown()
+					&& ((!user->notifyMuteUntil()
+						&& _defaultUserNotifySettings.muteUntil())
+						|| (!user->notifySilentPosts()
+							&& _defaultUserNotifySettings.silentPosts()))) {
+					updateNotifySettingsLocal(user);
+				}
+			});
+		}
+	} break;
+	case mtpc_notifyChats: {
+		if (_defaultChatNotifySettings.change(settings)) {
+			_defaultChatNotifyUpdates.fire({});
+
+			App::enumerateChatsChannels([&](not_null<PeerData*> peer) {
+				if (!peer->notifySettingsUnknown()
+					&& ((!peer->notifyMuteUntil()
+						&& _defaultUserNotifySettings.muteUntil())
+						|| (!peer->notifySilentPosts()
+							&& _defaultUserNotifySettings.silentPosts()))) {
+					if (!peer->notifyMuteUntil()) {
+						int a = 0;
+					}
+					updateNotifySettingsLocal(peer);
+				}
+			});
+		}
+	} break;
+	case mtpc_notifyPeer: {
+		const auto &data = notifyPeer.c_notifyPeer();
+		if (const auto peer = App::peerLoaded(peerFromMTP(data.vpeer))) {
+			if (peer->notifyChange(settings)) {
+				updateNotifySettingsLocal(peer);
+			}
+		}
+	} break;
+	}
+}
+
+void Session::updateNotifySettings(
+		not_null<PeerData*> peer,
+		base::optional<int> muteForSeconds,
+		base::optional<bool> silentPosts) {
+	if (peer->notifyChange(muteForSeconds, silentPosts)) {
+		updateNotifySettingsLocal(peer);
+		_session->api().updateNotifySettingsDelayed(peer);
+	}
+}
+
+bool Session::notifyIsMuted(
+		not_null<const PeerData*> peer,
+		TimeMs *changesIn) const {
+	const auto resultFromUntil = [&](TimeId until) {
+		const auto now = unixtime();
+		const auto result = (until > now) ? (until - now) : 0;
+		if (changesIn) {
+			*changesIn = (result > 0)
+				? std::min(result * TimeMs(1000), kMaxNotifyCheckDelay)
+				: kMaxNotifyCheckDelay;
+		}
+		return (result > 0);
+	};
+	if (const auto until = peer->notifyMuteUntil()) {
+		return resultFromUntil(*until);
+	}
+	const auto &settings = defaultNotifySettings(peer);
+	if (const auto until = settings.muteUntil()) {
+		return resultFromUntil(*until);
+	}
+	return false;
+}
+
+bool Session::notifySilentPosts(not_null<const PeerData*> peer) const {
+	if (const auto silent = peer->notifySilentPosts()) {
+		return *silent;
+	}
+	const auto &settings = defaultNotifySettings(peer);
+	if (const auto silent = settings.silentPosts()) {
+		return *silent;
+	}
+	return false;
+}
+
+bool Session::notifyMuteUnknown(not_null<const PeerData*> peer) const {
+	if (peer->notifySettingsUnknown()) {
+		return true;
+	} else if (const auto nonDefault = peer->notifyMuteUntil()) {
+		return false;
+	}
+	return defaultNotifySettings(peer).settingsUnknown();
+}
+
+bool Session::notifySilentPostsUnknown(
+		not_null<const PeerData*> peer) const {
+	if (peer->notifySettingsUnknown()) {
+		return true;
+	} else if (const auto nonDefault = peer->notifySilentPosts()) {
+		return false;
+	}
+	return defaultNotifySettings(peer).settingsUnknown();
+}
+
+bool Session::notifySettingsUnknown(not_null<const PeerData*> peer) const {
+	return notifyMuteUnknown(peer) || notifySilentPostsUnknown(peer);
+}
+
+rpl::producer<> Session::defaultUserNotifyUpdates() const {
+	return _defaultUserNotifyUpdates.events();
+}
+
+rpl::producer<> Session::defaultChatNotifyUpdates() const {
+	return _defaultChatNotifyUpdates.events();
+}
+
+rpl::producer<> Session::defaultNotifyUpdates(
+		not_null<const PeerData*> peer) const {
+	return peer->isUser()
+		? defaultUserNotifyUpdates()
+		: defaultChatNotifyUpdates();
 }
 
 void Session::forgetMedia() {

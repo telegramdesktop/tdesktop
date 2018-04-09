@@ -48,18 +48,18 @@ private:
 	void updateSignupGeometry();
 	void countryChanged();
 
-	void phoneCheckDone(const MTPauth_CheckedPhone &result);
+	//void phoneCheckDone(const MTPauth_CheckedPhone &result);
 	void phoneSubmitDone(const MTPauth_SentCode &result);
 	bool phoneSubmitFail(const RPCError &error);
 
-	void toSignUp();
+	//void toSignUp();
 
 	QString fullNumber() const;
 	void stopCheck();
 
 	void showPhoneError(base::lambda<QString()> textFactory);
 	void hidePhoneError();
-	void showSignup();
+	//void showSignup();
 
 	bool _changed = false;
 

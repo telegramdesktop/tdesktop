@@ -610,7 +610,7 @@ bool HistoryMessage::allowsEdit(TimeId now) const {
 			return true;
 		}
 		if (out()) {
-			return !isPost() || channel->canPublish();
+			return isPost() ? channel->canPublish() : channel->canWrite();
 		}
 	}
 	return out();

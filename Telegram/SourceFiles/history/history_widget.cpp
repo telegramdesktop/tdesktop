@@ -665,7 +665,7 @@ HistoryWidget::HistoryWidget(
 				}
 			}
 			if (update.flags & UpdateFlag::NotificationsEnabled) {
-				updateNotifySettings();
+				updateNotifyControls();
 			}
 			if (update.flags & UpdateFlag::RestrictionReasonChanged) {
 				auto restriction = _peer->restrictionReason();
@@ -699,6 +699,12 @@ HistoryWidget::HistoryWidget(
 			}
 		}
 	}));
+	rpl::merge(
+		Auth().data().defaultUserNotifyUpdates(),
+		Auth().data().defaultChatNotifyUpdates()
+	) | rpl::start_with_next([=] {
+		updateNotifyControls();
+	}, lifetime());
 	subscribe(Auth().data().queryItemVisibility(), [this](const Data::Session::ItemVisibilityQuery &query) {
 		if (_a_show.animating()
 			|| _history != query.item->history()
@@ -1848,10 +1854,8 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		updateTopBarSelection();
 
 		if (_channel) {
-			updateNotifySettings();
-			if (_peer->notifySettingsUnknown()) {
-				Auth().api().requestNotifySetting(_peer);
-			}
+			updateNotifyControls();
+			Auth().data().requestNotifySettings(_peer);
 			refreshSilentToggle();
 		}
 
@@ -1955,15 +1959,15 @@ void HistoryWidget::updateFieldSubmitSettings() {
 	_field->setSubmitSettings(settings);
 }
 
-void HistoryWidget::updateNotifySettings() {
+void HistoryWidget::updateNotifyControls() {
 	if (!_peer || !_peer->isChannel()) return;
 
 	_muteUnmute->setText(lang(_history->mute()
 		? lng_channel_unmute
 		: lng_channel_mute).toUpper());
-	if (!_peer->notifySettingsUnknown()) {
+	if (!Auth().data().notifySilentPostsUnknown(_peer)) {
 		if (_silent) {
-			_silent->setChecked(_peer->notifySilentPosts());
+			_silent->setChecked(Auth().data().notifySilentPosts(_peer));
 		} else if (hasSilentToggle()) {
 			refreshSilentToggle();
 			updateControlsGeometry();
@@ -2925,6 +2929,7 @@ void HistoryWidget::saveEditMsg() {
 			_history->peer->input,
 			MTP_int(_editMsgId),
 			MTP_string(sending.text),
+			MTPInputMedia(),
 			MTPnullMarkup,
 			sentEntities,
 			MTP_inputGeoPointEmpty()),
@@ -3078,10 +3083,10 @@ void HistoryWidget::onJoinChannel() {
 }
 
 void HistoryWidget::onMuteUnmute() {
-	const auto muteState = _history->mute()
-		? Data::NotifySettings::MuteChange::Unmute
-		: Data::NotifySettings::MuteChange::Mute;
-	App::main()->updateNotifySettings(_peer, muteState);
+	const auto muteForSeconds = _history->mute()
+		? 0
+		: Data::NotifySettings::kDefaultMutePeriod;
+	Auth().data().updateNotifySettings(_peer, muteForSeconds);
 }
 
 void HistoryWidget::onBroadcastSilentChange() {
@@ -3633,7 +3638,7 @@ bool HistoryWidget::hasSilentToggle() const {
 		&& _peer->isChannel()
 		&& !_peer->isMegagroup()
 		&& _peer->canWrite()
-		&& !_peer->notifySettingsUnknown();
+		&& !Auth().data().notifySilentPostsUnknown(_peer);
 }
 
 void HistoryWidget::inlineBotResolveDone(
@@ -4094,7 +4099,7 @@ void HistoryWidget::updateFieldPlaceholder() {
 			const auto peer = _history ? _history->peer.get() : nullptr;
 			_field->setPlaceholder(langFactory(
 				(peer && peer->isChannel() && !peer->isMegagroup())
-				? (peer->notifySilentPosts()
+				? (Auth().data().notifySilentPosts(peer)
 					? lng_broadcast_silent_ph
 					: lng_broadcast_ph)
 				: lng_message_ph));
@@ -4412,7 +4417,9 @@ void HistoryWidget::sendFileConfirmed(
 		flags |= MTPDmessage::Flag::f_grouped_id;
 	}
 	auto messageFromId = channelPost ? 0 : Auth().userId();
-	auto messagePostAuthor = channelPost ? (Auth().user()->firstName + ' ' + Auth().user()->lastName) : QString();
+	auto messagePostAuthor = channelPost
+		? App::peerName(Auth().user())
+		: QString();
 	if (file->type == SendMediaType::Photo) {
 		auto photoFlags = MTPDmessageMediaPhoto::Flag::f_photo | 0;
 		auto photo = MTP_messageMediaPhoto(
@@ -5385,7 +5392,7 @@ void HistoryWidget::onInlineResultSend(
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_reply_to_msg_id;
 	}
 	bool channelPost = _peer->isChannel() && !_peer->isMegagroup();
-	bool silentPost = channelPost && _peer->notifySilentPosts();
+	bool silentPost = channelPost && Auth().data().notifySilentPosts(_peer);
 	if (channelPost) {
 		flags |= MTPDmessage::Flag::f_views;
 		flags |= MTPDmessage::Flag::f_post;
@@ -5403,7 +5410,9 @@ void HistoryWidget::onInlineResultSend(
 	}
 
 	auto messageFromId = channelPost ? 0 : Auth().userId();
-	auto messagePostAuthor = channelPost ? (Auth().user()->firstName + ' ' + Auth().user()->lastName) : QString();
+	auto messagePostAuthor = channelPost
+		? App::peerName(Auth().user())
+		: QString();
 	MTPint messageDate = MTP_int(unixtime());
 	UserId messageViaBotId = bot ? peerToUser(bot->id) : 0;
 	MsgId messageId = newId.msg;
@@ -5594,7 +5603,7 @@ bool HistoryWidget::sendExistingDocument(
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
 	}
 	bool channelPost = _peer->isChannel() && !_peer->isMegagroup();
-	bool silentPost = channelPost && _peer->notifySilentPosts();
+	bool silentPost = channelPost && Auth().data().notifySilentPosts(_peer);
 	if (channelPost) {
 		flags |= MTPDmessage::Flag::f_views;
 		flags |= MTPDmessage::Flag::f_post;
@@ -5608,7 +5617,8 @@ bool HistoryWidget::sendExistingDocument(
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
 	auto messageFromId = channelPost ? 0 : Auth().userId();
-	auto messagePostAuthor = channelPost ? (Auth().user()->firstName + ' ' + Auth().user()->lastName) : QString();
+	auto messagePostAuthor = channelPost
+		? App::peerName(Auth().user()) : QString();
 
 	TextUtilities::Trim(caption);
 	auto sentEntities = TextUtilities::EntitiesToMTP(
@@ -5690,7 +5700,7 @@ void HistoryWidget::sendExistingPhoto(
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
 	}
 	bool channelPost = _peer->isChannel() && !_peer->isMegagroup();
-	bool silentPost = channelPost && _peer->notifySilentPosts();
+	bool silentPost = channelPost && Auth().data().notifySilentPosts(_peer);
 	if (channelPost) {
 		flags |= MTPDmessage::Flag::f_views;
 		flags |= MTPDmessage::Flag::f_post;
@@ -5704,7 +5714,9 @@ void HistoryWidget::sendExistingPhoto(
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
 	auto messageFromId = channelPost ? 0 : Auth().userId();
-	auto messagePostAuthor = channelPost ? (Auth().user()->firstName + ' ' + Auth().user()->lastName) : QString();
+	auto messagePostAuthor = channelPost
+		? App::peerName(Auth().user())
+		: QString();
 
 	TextUtilities::Trim(caption);
 	auto sentEntities = TextUtilities::EntitiesToMTP(

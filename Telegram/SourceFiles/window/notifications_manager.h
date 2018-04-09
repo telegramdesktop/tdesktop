@@ -83,14 +83,14 @@ private:
 	QMap<History*, QMap<MsgId, TimeMs>> _whenMaps;
 
 	struct Waiter {
-		Waiter(MsgId msg, TimeMs when, PeerData *notifyByFrom)
-			: msg(msg)
-			, when(when)
-			, notifyByFrom(notifyByFrom) {
+		Waiter(MsgId msg, TimeMs when, PeerData *notifyBy)
+		: msg(msg)
+		, when(when)
+		, notifyBy(notifyBy) {
 		}
 		MsgId msg;
 		TimeMs when;
-		PeerData *notifyByFrom;
+		PeerData *notifyBy;
 	};
 	using Waiters = QMap<History*, Waiter>;
 	Waiters _waiters;

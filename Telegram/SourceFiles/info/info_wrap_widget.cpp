@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "boxes/peer_list_box.h"
 #include "auth_session.h"
+#include "data/data_session.h"
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
@@ -449,10 +450,10 @@ void WrapWidget::addProfileNotificationsButton() {
 				? st::infoLayerTopBarNotifications
 				: st::infoTopBarNotifications)));
 	notifications->addClickHandler([peer] {
-		const auto muteState = peer->isMuted()
-			? Data::NotifySettings::MuteChange::Unmute
-			: Data::NotifySettings::MuteChange::Mute;
-		App::main()->updateNotifySettings(peer, muteState);
+		const auto muteForSeconds = Auth().data().notifyIsMuted(peer)
+			? 0
+			: Data::NotifySettings::kDefaultMutePeriod;
+		Auth().data().updateNotifySettings(peer, muteForSeconds);
 	});
 	Profile::NotificationsEnabledValue(
 		peer

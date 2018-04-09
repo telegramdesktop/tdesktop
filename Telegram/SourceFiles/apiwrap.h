@@ -137,13 +137,13 @@ public:
 	void joinChannel(not_null<ChannelData*> channel);
 	void leaveChannel(not_null<ChannelData*> channel);
 
-	void blockUser(UserData *user);
-	void unblockUser(UserData *user);
+	void blockUser(not_null<UserData*> user);
+	void unblockUser(not_null<UserData*> user);
 
-	void exportInviteLink(PeerData *peer);
-	void requestNotifySetting(PeerData *peer);
-
-	void saveDraftToCloudDelayed(History *history);
+	void exportInviteLink(not_null<PeerData*> peer);
+	void requestNotifySettings(const MTPInputNotifyPeer &peer);
+	void updateNotifySettingsDelayed(not_null<const PeerData*> peer);
+	void saveDraftToCloudDelayed(not_null<History*> history);
 
 	void savePrivacy(const MTPInputPrivacyKey &key, QVector<MTPInputPrivacyRule> &&rules);
 	void handlePrivacyChange(mtpTypeId keyTypeId, const MTPVector<MTPPrivacyRule> &rules);
@@ -285,7 +285,7 @@ private:
 
 	struct StickersByEmoji {
 		std::vector<not_null<DocumentData*>> list;
-		QString hash;
+		int32 hash = 0;
 		TimeMs received = 0;
 	};
 
@@ -338,7 +338,7 @@ private:
 		MsgRange range,
 		const MTPupdates_ChannelDifference &result);
 
-	PeerData *notifySettingReceived(
+	void notifySettingReceived(
 		MTPInputNotifyPeer peer,
 		const MTPPeerNotifySettings &settings);
 
@@ -440,6 +440,8 @@ private:
 	void getProxyPromotionDelayed(TimeId now, TimeId next);
 	void proxyPromotionDone(const MTPhelp_ProxyData &proxy);
 
+	void sendNotifySettingsUpdates();
+
 	not_null<AuthSession*> _session;
 
 	MessageDataRequests _messageDataRequests;
@@ -480,12 +482,10 @@ private:
 	QMap<uint64, QPair<uint64, mtpRequestId> > _stickerSetRequests;
 
 	QMap<ChannelData*, mtpRequestId> _channelAmInRequests;
-	QMap<UserData*, mtpRequestId> _blockRequests;
-	QMap<PeerData*, mtpRequestId> _exportInviteRequests;
-
-	QMap<PeerData*, mtpRequestId> _notifySettingRequests;
-
-	QMap<History*, mtpRequestId> _draftsSaveRequestIds;
+	std::map<not_null<UserData*>, mtpRequestId> _blockRequests;
+	std::map<not_null<PeerData*>, mtpRequestId> _exportInviteRequests;
+	std::map<PeerId, mtpRequestId> _notifySettingRequests;
+	std::map<not_null<History*>, mtpRequestId> _draftsSaveRequestIds;
 	base::Timer _draftsSaveTimer;
 
 	base::flat_set<mtpRequestId> _stickerSetDisenableRequests;
@@ -575,5 +575,7 @@ private:
 	TimeId _proxyPromotionNextRequestTime = TimeId(0);
 	base::Timer _proxyPromotionTimer;
 
+	base::flat_set<not_null<const PeerData*>> _updateNotifySettingsPeers;
+	base::Timer _updateNotifySettingsTimer;
 
 };

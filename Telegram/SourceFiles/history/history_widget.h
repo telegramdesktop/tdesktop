@@ -318,7 +318,7 @@ public:
 
 	void setInnerFocus();
 
-	void updateNotifySettings();
+	void updateNotifyControls();
 
 	void saveGif(DocumentData *doc);
 

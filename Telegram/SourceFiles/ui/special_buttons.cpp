@@ -918,8 +918,8 @@ QPoint FeedUserpicButton::countInnerPosition() const {
 SilentToggle::SilentToggle(QWidget *parent, not_null<ChannelData*> channel)
 : IconButton(parent, st::historySilentToggle)
 , _channel(channel)
-, _checked(_channel->notifySilentPosts()) {
-	Expects(!_channel->notifySettingsUnknown());
+, _checked(Auth().data().notifySilentPosts(_channel)) {
+	Expects(!Auth().data().notifySilentPostsUnknown(_channel));
 
 	if (_checked) {
 		refreshIconOverrides();
@@ -962,13 +962,10 @@ void SilentToggle::mouseReleaseEvent(QMouseEvent *e) {
 	setChecked(!_checked);
 	IconButton::mouseReleaseEvent(e);
 	Ui::Tooltip::Show(0, this);
-	const auto silentState = _checked
-		? Data::NotifySettings::SilentPostsChange::Silent
-		: Data::NotifySettings::SilentPostsChange::Notify;
-	App::main()->updateNotifySettings(
+	Auth().data().updateNotifySettings(
 		_channel,
-		Data::NotifySettings::MuteChange::Ignore,
-		silentState);
+		base::none,
+		_checked);
 }
 
 QString SilentToggle::tooltipText() const {

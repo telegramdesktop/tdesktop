@@ -224,7 +224,7 @@ History::History(const PeerId &peerId)
 : Entry(this)
 , peer(App::peer(peerId))
 , cloudDraftTextCache(st::dialogsTextWidthMin)
-, _mute(peer->isMuted())
+, _mute(Auth().data().notifyIsMuted(peer))
 , _sendActionText(st::dialogsTextWidthMin) {
 	if (const auto user = peer->asUser()) {
 		if (user->botInfo) {
@@ -2194,10 +2194,9 @@ void History::applyDialog(const MTPDdialog &data) {
 			}
 		}
 	}
-	App::main()->applyNotifySetting(
+	Auth().data().applyNotifySetting(
 		MTP_notifyPeer(data.vpeer),
-		data.vnotify_settings,
-		this);
+		data.vnotify_settings);
 	if (data.has_draft() && data.vdraft.type() == mtpc_draftMessage) {
 		Data::applyPeerCloudDraft(peer->id, data.vdraft.c_draftMessage());
 	}

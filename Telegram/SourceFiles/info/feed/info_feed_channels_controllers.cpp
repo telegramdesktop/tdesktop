@@ -212,18 +212,17 @@ base::unique_qptr<Ui::PopupMenu> ChannelsController::rowContextMenu(
 void NotificationsController::Start(not_null<Data::Feed*> feed) {
 	const auto initBox = [=](not_null<PeerListBox*> box) {
 		box->addButton(langFactory(lng_settings_save), [=] {
-			const auto main = App::main();
 			const auto count = box->peerListFullRowsCount();
 			for (auto i = 0; i != count; ++i) {
 				const auto row = box->peerListRowAt(i);
 				const auto peer = row->peer();
 				const auto muted = !row->checked();
-				if (muted != peer->isMuted()) {
-					main->updateNotifySettings(
+				if (muted != Auth().data().notifyIsMuted(peer)) {
+					Auth().data().updateNotifySettings(
 						peer,
 						(muted
-							? Data::NotifySettings::MuteChange::Mute
-							: Data::NotifySettings::MuteChange::Unmute));
+							? Data::NotifySettings::kDefaultMutePeriod
+							: 0));
 				}
 			}
 			box->closeBox();
@@ -320,7 +319,7 @@ void NotificationsController::applyFeedDialogs(
 		auto notMutedChannels = ranges::view::all(
 			channels
 		) | ranges::view::filter([](not_null<ChannelData*> channel) {
-			return !channel->isMuted();
+			return !Auth().data().notifyIsMuted(channel);
 		});
 		delegate()->peerListAddSelectedRows(notMutedChannels);
 		for (const auto channel : channels) {

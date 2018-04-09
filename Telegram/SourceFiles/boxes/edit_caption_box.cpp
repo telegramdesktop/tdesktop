@@ -372,6 +372,7 @@ void EditCaptionBox::save() {
 			item->history()->peer->input,
 			MTP_int(item->id),
 			MTP_string(sending.text),
+			MTPInputMedia(),
 			MTPnullMarkup,
 			sentEntities,
 			MTP_inputGeoPointEmpty()),

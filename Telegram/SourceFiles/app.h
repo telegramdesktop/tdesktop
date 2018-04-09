@@ -135,7 +135,9 @@ namespace App {
 	inline ChannelData *channelLoaded(ChannelId channelId) {
 		return channel(channelId, PeerData::FullLoaded);
 	}
-	void enumerateUsers(base::lambda<void(UserData*)> action);
+	void enumerateUsers(base::lambda<void(not_null<UserData*>)> action);
+	void enumerateChatsChannels(
+		base::lambda<void(not_null<PeerData*>)> action);
 
 	UserData *self();
 	PeerData *peerByName(const QString &username);
@@ -220,10 +222,6 @@ namespace App {
 	QImage readImage(QByteArray data, QByteArray *format = nullptr, bool opaque = true, bool *animated = nullptr);
 	QImage readImage(const QString &file, QByteArray *format = nullptr, bool opaque = true, bool *animated = nullptr, QByteArray *content = 0);
 	QPixmap pixmapFromImageInPlace(QImage &&image);
-
-	void regMuted(not_null<PeerData*> peer, TimeMs changeIn);
-	void unregMuted(not_null<PeerData*> peer);
-	void updateMuted();
 
 	void complexOverlayRect(Painter &p, QRect rect, ImageRoundRadius radius, RectParts corners);
 	void complexLocationRect(Painter &p, QRect rect, ImageRoundRadius radius, RectParts corners);

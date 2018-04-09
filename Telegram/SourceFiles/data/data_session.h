@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers.h"
 #include "dialogs/dialogs_key.h"
 #include "data/data_groups.h"
+#include "base/timer.h"
 
 class HistoryItem;
 
@@ -358,6 +359,26 @@ public:
 	FeedId defaultFeedId() const;
 	rpl::producer<FeedId> defaultFeedIdValue() const;
 
+	void requestNotifySettings(not_null<PeerData*> peer);
+	void applyNotifySetting(
+		const MTPNotifyPeer &notifyPeer,
+		const MTPPeerNotifySettings &settings);
+	void updateNotifySettings(
+		not_null<PeerData*> peer,
+		base::optional<int> muteForSeconds,
+		base::optional<bool> silentPosts = base::none);
+	bool notifyIsMuted(
+		not_null<const PeerData*> peer,
+		TimeMs *changesIn = nullptr) const;
+	bool notifySilentPosts(not_null<const PeerData*> peer) const;
+	bool notifyMuteUnknown(not_null<const PeerData*> peer) const;
+	bool notifySilentPostsUnknown(not_null<const PeerData*> peer) const;
+	bool notifySettingsUnknown(not_null<const PeerData*> peer) const;
+	rpl::producer<> defaultUserNotifyUpdates() const;
+	rpl::producer<> defaultChatNotifyUpdates() const;
+	rpl::producer<> defaultNotifyUpdates(
+		not_null<const PeerData*> peer) const;
+
 	void forgetMedia();
 
 	void setMimeForwardIds(MessageIdsList &&list);
@@ -453,6 +474,14 @@ private:
 	void clearPinnedDialogs();
 	void setIsPinned(const Dialogs::Key &key, bool pinned);
 
+	NotifySettings &defaultNotifySettings(not_null<const PeerData*> peer);
+	const NotifySettings &defaultNotifySettings(
+		not_null<const PeerData*> peer) const;
+	void unmuteByFinished();
+	void unmuteByFinishedDelayed(TimeMs delay);
+	void updateNotifySettingsLocal(not_null<PeerData*> peer);
+	void sendNotifySettingsUpdates();
+
 	template <typename Method>
 	void enumerateItemViews(
 		not_null<const HistoryItem*> item,
@@ -547,6 +576,13 @@ private:
 		std::vector<not_null<ViewElement*>>> _views;
 
 	PeerData *_proxyPromoted = nullptr;
+
+	NotifySettings _defaultUserNotifySettings;
+	NotifySettings _defaultChatNotifySettings;
+	rpl::event_stream<> _defaultUserNotifyUpdates;
+	rpl::event_stream<> _defaultChatNotifyUpdates;
+	std::unordered_set<not_null<const PeerData*>> _mutedPeers;
+	base::Timer _unmuteByFinishedTimer;
 
 	MessageIdsList _mimeForwardIds;
 

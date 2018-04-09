@@ -8,7 +8,8 @@ Copyright (C) 2017, Nicholas Guriev <guriev-ns@ya.ru>
 #include "boxes/mute_settings_box.h"
 
 #include "lang/lang_keys.h"
-#include "mainwidget.h"
+#include "auth_session.h"
+#include "data/data_session.h"
 #include "styles/style_boxes.h"
 #include "ui/special_buttons.h"
 #include "ui/widgets/checkbox.h"
@@ -69,10 +70,8 @@ void MuteSettingsBox::prepare() {
 
 	addButton(langFactory(lng_box_ok), [this, group] {
 		auto muteForSeconds = group->value() * 3600;
-		App::main()->updateNotifySettings(
+		Auth().data().updateNotifySettings(
 			_peer,
-			Data::NotifySettings::MuteChange::Mute,
-			Data::NotifySettings::SilentPostsChange::Ignore,
 			muteForSeconds);
 		closeBox();
 	});

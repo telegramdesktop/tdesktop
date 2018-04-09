@@ -106,22 +106,22 @@ void PhoneWidget::hidePhoneError() {
 	}
 }
 
-void PhoneWidget::showSignup() {
-	showPhoneError(langFactory(lng_bad_phone_noreg));
-	if (!_signup) {
-		auto signupText = lng_phone_notreg(lt_link_start, textcmdStartLink(1), lt_link_end, textcmdStopLink(), lt_signup_start, textcmdStartLink(2), lt_signup_end, textcmdStopLink());
-		auto inner = object_ptr<Ui::FlatLabel>(this, signupText, Ui::FlatLabel::InitType::Rich, st::introDescription);
-		_signup.create(this, std::move(inner));
-		_signup->entity()->setLink(1, std::make_shared<UrlClickHandler>(qsl("https://telegram.org"), false));
-		_signup->entity()->setLink(2, std::make_shared<LambdaClickHandler>([this] {
-			toSignUp();
-		}));
-		_signup->hide(anim::type::instant);
-		updateSignupGeometry();
-	}
-	_signup->show(anim::type::normal);
-	hideDescription();
-}
+//void PhoneWidget::showSignup() {
+//	showPhoneError(langFactory(lng_bad_phone_noreg));
+//	if (!_signup) {
+//		auto signupText = lng_phone_notreg(lt_link_start, textcmdStartLink(1), lt_link_end, textcmdStopLink(), lt_signup_start, textcmdStartLink(2), lt_signup_end, textcmdStopLink());
+//		auto inner = object_ptr<Ui::FlatLabel>(this, signupText, Ui::FlatLabel::InitType::Rich, st::introDescription);
+//		_signup.create(this, std::move(inner));
+//		_signup->entity()->setLink(1, std::make_shared<UrlClickHandler>(qsl("https://telegram.org"), false));
+//		_signup->entity()->setLink(2, std::make_shared<LambdaClickHandler>([this] {
+//			toSignUp();
+//		}));
+//		_signup->hide(anim::type::instant);
+//		updateSignupGeometry();
+//	}
+//	_signup->show(anim::type::normal);
+//	hideDescription();
+//}
 
 void PhoneWidget::countryChanged() {
 	if (!_changed) {
@@ -149,7 +149,8 @@ void PhoneWidget::submit() {
 
 	_sentPhone = fullNumber();
 	Messenger::Instance().mtp()->setUserPhone(_sentPhone);
-	_sentRequest = MTP::send(MTPauth_CheckPhone(MTP_string(_sentPhone)), rpcDone(&PhoneWidget::phoneCheckDone), rpcFail(&PhoneWidget::phoneSubmitFail));
+	//_sentRequest = MTP::send(MTPauth_CheckPhone(MTP_string(_sentPhone)), rpcDone(&PhoneWidget::phoneCheckDone), rpcFail(&PhoneWidget::phoneSubmitFail));
+	_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(0), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&PhoneWidget::phoneSubmitDone), rpcFail(&PhoneWidget::phoneSubmitFail));
 }
 
 void PhoneWidget::stopCheck() {
@@ -168,22 +169,22 @@ void PhoneWidget::onCheckRequest() {
 		stopCheck();
 	}
 }
-
-void PhoneWidget::phoneCheckDone(const MTPauth_CheckedPhone &result) {
-	stopCheck();
-
-	auto &d = result.c_auth_checkedPhone();
-	if (mtpIsTrue(d.vphone_registered)) {
-		hidePhoneError();
-
-		_checkRequest->start(1000);
-
-		_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(0), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&PhoneWidget::phoneSubmitDone), rpcFail(&PhoneWidget::phoneSubmitFail));
-	} else {
-		showSignup();
-		_sentRequest = 0;
-	}
-}
+//
+//void PhoneWidget::phoneCheckDone(const MTPauth_CheckedPhone &result) {
+//	stopCheck();
+//
+//	auto &d = result.c_auth_checkedPhone();
+//	if (mtpIsTrue(d.vphone_registered)) {
+//		hidePhoneError();
+//
+//		_checkRequest->start(1000);
+//
+//		_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(0), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&PhoneWidget::phoneSubmitDone), rpcFail(&PhoneWidget::phoneSubmitFail));
+//	} else {
+//		showSignup();
+//		_sentRequest = 0;
+//	}
+//}
 
 void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 	stopCheck();
@@ -209,13 +210,13 @@ void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 	goNext(new Intro::CodeWidget(parentWidget(), getData()));
 }
 
-void PhoneWidget::toSignUp() {
-	hideError(); // Hide error, but leave the signup label visible.
-
-	_checkRequest->start(1000);
-
-	_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(0), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&PhoneWidget::phoneSubmitDone), rpcFail(&PhoneWidget::phoneSubmitFail));
-}
+//void PhoneWidget::toSignUp() {
+//	hideError(); // Hide error, but leave the signup label visible.
+//
+//	_checkRequest->start(1000);
+//
+//	_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(0), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&PhoneWidget::phoneSubmitDone), rpcFail(&PhoneWidget::phoneSubmitFail));
+//}
 
 bool PhoneWidget::phoneSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {

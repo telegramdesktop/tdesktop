@@ -310,10 +310,10 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 	result->toggleOn(
 		NotificationsEnabledValue(peer)
 	)->addClickHandler([=] {
-		const auto muteState = peer->isMuted()
-			? Data::NotifySettings::MuteChange::Unmute
-			: Data::NotifySettings::MuteChange::Mute;
-		App::main()->updateNotifySettings(peer, muteState);
+		const auto muteForSeconds = Auth().data().notifyIsMuted(peer)
+			? 0
+			: Data::NotifySettings::kDefaultMutePeriod;
+		Auth().data().updateNotifySettings(peer, muteForSeconds);
 	});
 	object_ptr<FloatingIcon>(
 		result,

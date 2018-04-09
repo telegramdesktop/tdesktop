@@ -55,8 +55,8 @@ addChildParentFlags('MTPDchannelForbidden', 'MTPDchannel');
 parentFlagsCheck = {};
 
 countedTypeIdExceptions = {};
-countedTypeIdExceptions[77] = countedTypeIdExceptions[78] = {}
-countedTypeIdExceptions[77]['channel'] = countedTypeIdExceptions[78]['channel'] = True
+countedTypeIdExceptions[77] = countedTypeIdExceptions[78] = countedTypeIdExceptions[79] = {}
+countedTypeIdExceptions[77]['channel'] = countedTypeIdExceptions[78]['channel'] = countedTypeIdExceptions[79]['channel'] = True
 countedTypeIdExceptions['ipPortSecret'] = True
 countedTypeIdExceptions['accessPointRule'] = True
 countedTypeIdExceptions['help_configSimple'] = True

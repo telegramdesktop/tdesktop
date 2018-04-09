@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "info/feed/info_feed_channels_controllers.h"
+#include "info/profile/info_profile_values.h"
 #include "data/data_session.h"
 #include "data/data_feed.h"
 #include "dialogs/dialogs_key.h"
@@ -634,32 +635,24 @@ void PeerMenuAddChannelMembers(not_null<ChannelData*> channel) {
 void PeerMenuAddMuteAction(
 		not_null<PeerData*> peer,
 		const PeerMenuCallback &addAction) {
-	if (peer->notifySettingsUnknown()) {
-		Auth().api().requestNotifySetting(peer);
-	}
-	auto muteText = [](bool isMuted) {
+	Auth().data().requestNotifySettings(peer);
+	const auto muteText = [](bool isMuted) {
 		return lang(isMuted
 			? lng_enable_notifications_from_tray
 			: lng_disable_notifications_from_tray);
 	};
-	auto muteAction = addAction(muteText(peer->isMuted()), [=] {
-		if (!peer->isMuted()) {
+	const auto muteAction = addAction(QString("-"), [=] {
+		if (!Auth().data().notifyIsMuted(peer)) {
 			Ui::show(Box<MuteSettingsBox>(peer));
 		} else {
-			App::main()->updateNotifySettings(
-				peer,
-				Data::NotifySettings::MuteChange::Unmute);
+			Auth().data().updateNotifySettings(peer, 0);
 		}
 	});
 
-	auto lifetime = Notify::PeerUpdateViewer(
-		peer,
-		Notify::PeerUpdate::Flag::NotificationsEnabled
-	) | rpl::map([=] {
-		return peer->isMuted();
-	}) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](bool muted) {
-		muteAction->setText(muteText(muted));
+	auto lifetime = Info::Profile::NotificationsEnabledValue(
+		peer
+	) | rpl::start_with_next([=](bool enabled) {
+		muteAction->setText(muteText(!enabled));
 	});
 
 	Ui::AttachAsChild(muteAction, std::move(lifetime));

@@ -53,9 +53,6 @@ namespace {
 	using PeersData = QHash<PeerId, PeerData*>;
 	PeersData peersData;
 
-	using MutedPeers = QMap<not_null<PeerData*>, bool>;
-	MutedPeers mutedPeers;
-
 	using LocationsData = QHash<LocationCoords, LocationData*>;
 	LocationsData locationsData;
 
@@ -1153,10 +1150,19 @@ namespace {
 		return i.value();
 	}
 
-	void enumerateUsers(base::lambda<void(UserData*)> action) {
-		for_const (auto peer, peersData) {
-			if (auto user = peer->asUser()) {
+	void enumerateUsers(base::lambda<void(not_null<UserData*>)> action) {
+		for_const (const auto peer, peersData) {
+			if (const auto user = peer->asUser()) {
 				action(user);
+			}
+		}
+	}
+
+	void enumerateChatsChannels(
+			base::lambda<void(not_null<PeerData*>)> action) {
+		for_const (const auto peer, peersData) {
+			if (!peer->isUser()) {
+				action(peer);
 			}
 		}
 	}
@@ -1309,7 +1315,6 @@ namespace {
 	void historyClearItems() {
 		randomData.clear();
 		sentData.clear();
-		mutedPeers.clear();
 		cSetSavedPeers(SavedPeers());
 		cSetSavedPeersByTime(SavedPeersByTime());
 		cSetRecentInlineBots(RecentInlineBots());
@@ -1746,38 +1751,6 @@ namespace {
 
 	QPixmap pixmapFromImageInPlace(QImage &&image) {
 		return QPixmap::fromImage(std::move(image), Qt::ColorOnly);
-	}
-
-	void regMuted(not_null<PeerData*> peer, TimeMs changeIn) {
-		::mutedPeers.insert(peer, true);
-		App::main()->updateMutedIn(changeIn);
-	}
-
-	void unregMuted(not_null<PeerData*> peer) {
-		::mutedPeers.remove(peer);
-	}
-
-	void updateMuted() {
-		auto changeInMin = TimeMs(0);
-		for (auto i = ::mutedPeers.begin(); i != ::mutedPeers.end();) {
-			const auto history = App::historyLoaded(i.key()->id);
-			const auto muteFinishesIn = i.key()->notifyMuteFinishesIn();
-			if (muteFinishesIn > 0) {
-				if (history) {
-					history->changeMute(true);
-				}
-				if (!changeInMin || muteFinishesIn < changeInMin) {
-					changeInMin = muteFinishesIn;
-				}
-				++i;
-			} else {
-				if (history) {
-					history->changeMute(false);
-				}
-				i = ::mutedPeers.erase(i);
-			}
-		}
-		if (changeInMin) App::main()->updateMutedIn(changeInMin);
 	}
 
 	void rectWithCorners(Painter &p, QRect rect, const style::color &bg, RoundCorners index, RectParts corners) {
