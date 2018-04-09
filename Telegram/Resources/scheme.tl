@@ -1064,6 +1064,7 @@ account.getTmpPassword#4a82327e password_hash:bytes period:int = account.TmpPass
 account.getWebAuthorizations#182e6d6f = account.WebAuthorizations;
 account.resetWebAuthorization#2d01b9ef hash:long = Bool;
 account.resetWebAuthorizations#682d2594 = Bool;
+account.getAllSecureValues#b288bc7d = Vector<SecureValue>;
 account.getSecureValue#73665bc2 types:Vector<SecureValueType> = Vector<SecureValue>;
 account.saveSecureValue#899fe31d value:InputSecureValue secure_secret_id:long = SecureValue;
 account.deleteSecureValue#b880bc4b types:Vector<SecureValueType> = Bool;

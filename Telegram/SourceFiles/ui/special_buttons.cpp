@@ -96,8 +96,8 @@ void SuggestPhotoFile(
 
 template <typename Callback>
 void ShowChoosePhotoBox(
-		QPointer<QWidget> parent, 
-		PeerId peerForCrop, 
+		QPointer<QWidget> parent,
+		PeerId peerForCrop,
 		Callback &&callback) {
 	auto imgExtensions = cImgExtensions();
 	auto filter = qsl("Image files (*")

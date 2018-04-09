@@ -164,7 +164,6 @@ private:
 	Scope *_editScope = nullptr;
 	const Value *_editValue = nullptr;
 	const Value *_editDocument = nullptr;
-	int _editDocumentIndex = -1;
 	BoxPointer _scopeDocumentTypeBox;
 	std::map<not_null<const Value*>, BoxPointer> _verificationBoxes;
 
