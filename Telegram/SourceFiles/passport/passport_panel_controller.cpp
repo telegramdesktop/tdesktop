@@ -542,13 +542,11 @@ void PanelController::requestScopeFilesType(int index) {
 	Expects(index >= 0 && index < _scopes.size());
 
 	const auto type = _scopes[index].type;
-	const auto box = std::make_shared<QPointer<BoxContent>>();
-	*box = [&] {
+	_scopeFilesTypeBox = [&] {
 		if (type == Scope::Type::Identity) {
 			return show(RequestIdentityType(
 				[=](int filesIndex) {
 					editWithUpload(index, filesIndex);
-					(*box)->closeBox();
 				},
 				ranges::view::all(
 					_scopes[index].files
@@ -570,7 +568,6 @@ void PanelController::requestScopeFilesType(int index) {
 			return show(RequestAddressType(
 				[=](int filesIndex) {
 					editWithUpload(index, filesIndex);
-					(*box)->closeBox();
 				},
 				ranges::view::all(
 					_scopes[index].files
@@ -602,6 +599,7 @@ void PanelController::editWithUpload(int index, int filesIndex) {
 	EditScans::ChooseScan(
 		base::lambda_guarded(_panel.get(),
 		[=](QByteArray &&content) {
+			base::take(_scopeFilesTypeBox);
 			editScope(index, filesIndex);
 			uploadScan(std::move(content));
 		}));

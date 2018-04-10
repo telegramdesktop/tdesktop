@@ -798,12 +798,16 @@ void FormController::saveValueEdit(
 
 	const auto nonconst = findValue(value);
 	if (!editValueChanged(nonconst, data)) {
-		base::take(nonconst->filesInEdit);
-		base::take(nonconst->selfieInEdit);
-		base::take(nonconst->data.encryptedSecretInEdit);
-		base::take(nonconst->data.hashInEdit);
-		base::take(nonconst->data.parsedInEdit);
-		_valueSaveFinished.fire_copy(nonconst);
+		nonconst->saveRequestId = -1;
+		crl::on_main(this, [=] {
+			base::take(nonconst->filesInEdit);
+			base::take(nonconst->selfieInEdit);
+			base::take(nonconst->data.encryptedSecretInEdit);
+			base::take(nonconst->data.hashInEdit);
+			base::take(nonconst->data.parsedInEdit);
+			nonconst->saveRequestId = 0;
+			_valueSaveFinished.fire_copy(nonconst);
+		});
 		return;
 	}
 	nonconst->data.parsedInEdit = std::move(data);

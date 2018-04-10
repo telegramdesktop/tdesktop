@@ -111,6 +111,7 @@ private:
 	BoxPointer _confirmForgetChangesBox;
 	Scope *_editScope = nullptr;
 	int _editScopeFilesIndex = -1;
+	BoxPointer _scopeFilesTypeBox;
 	std::map<not_null<const Value*>, BoxPointer> _verificationBoxes;
 
 	rpl::lifetime _lifetime;
