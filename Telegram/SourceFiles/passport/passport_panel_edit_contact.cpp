@@ -29,7 +29,7 @@ namespace {
 class VerifyBox : public BoxContent {
 public:
 	VerifyBox(
-		QWidget *parent,
+		QWidget*,
 		const QString &title,
 		const QString &text,
 		int codeLength,
@@ -58,7 +58,7 @@ private:
 };
 
 VerifyBox::VerifyBox(
-	QWidget *parent,
+	QWidget*,
 	const QString &title,
 	const QString &text,
 	int codeLength,
@@ -124,6 +124,7 @@ void VerifyBox::setupControls(
 	waiter->resizeToWidth(innerWidth);
 	waiter->moveToLeft(st::boxPadding.left(), y);
 	y += waiter->height() + st::boxPadding.bottom();
+	_height = y;
 
 	_submit = [=] {
 		submit(_code->getLastText());
@@ -136,7 +137,6 @@ void VerifyBox::setupControls(
 	connect(_code, &SentCodeField::changed, [=] {
 		problem->hide(anim::type::normal);
 	});
-	_height = y;
 }
 
 void VerifyBox::setInnerFocus() {

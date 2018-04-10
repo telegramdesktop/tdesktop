@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "passport/passport_panel_edit_document.h"
 #include "passport/passport_panel_edit_contact.h"
+#include "passport/passport_panel_edit_scans.h"
 #include "passport/passport_panel.h"
 #include "boxes/confirm_box.h"
 #include "layout.h"
@@ -17,7 +18,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Passport {
 namespace {
 
-PanelEditDocument::Scheme GetDocumentScheme(Scope::Type type) {
+PanelEditDocument::Scheme GetDocumentScheme(
+		Scope::Type type,
+		base::optional<Value::Type> scansType = base::none) {
 	using Scheme = PanelEditDocument::Scheme;
 
 	const auto DontValidate = nullptr;
@@ -43,6 +46,21 @@ PanelEditDocument::Scheme GetDocumentScheme(Scope::Type type) {
 	case Scope::Type::Identity: {
 		auto result = Scheme();
 		result.rowsHeader = lang(lng_passport_personal_details);
+		if (scansType) {
+			switch (*scansType) {
+			case Value::Type::Passport:
+				result.scansHeader = lang(lng_passport_identity_passport);
+				break;
+			case Value::Type::DriverLicense:
+				result.scansHeader = lang(lng_passport_identity_license);
+				break;
+			case Value::Type::IdentityCard:
+				result.scansHeader = lang(lng_passport_identity_card);
+				break;
+			default:
+				Unexpected("scansType in GetDocumentScheme:Identity.");
+			}
+		}
 		result.rows = {
 			{
 				Scheme::ValueType::Fields,
@@ -93,6 +111,21 @@ PanelEditDocument::Scheme GetDocumentScheme(Scope::Type type) {
 	case Scope::Type::Address: {
 		auto result = Scheme();
 		result.rowsHeader = lang(lng_passport_address);
+		if (scansType) {
+			switch (*scansType) {
+			case Value::Type::UtilityBill:
+				result.scansHeader = lang(lng_passport_address_bill);
+				break;
+			case Value::Type::BankStatement:
+				result.scansHeader = lang(lng_passport_address_statement);
+				break;
+			case Value::Type::RentalAgreement:
+				result.scansHeader = lang(lng_passport_address_agreement);
+				break;
+			default:
+				Unexpected("scansType in GetDocumentScheme:Identity.");
+			}
+		}
 		result.rows = {
 			{
 				Scheme::ValueType::Fields,
@@ -413,14 +446,121 @@ void PanelController::ensurePanelCreated() {
 	}
 }
 
+int PanelController::findNonEmptyIndex(
+		const std::vector<not_null<const Value*>> &files) const {
+	const auto i = ranges::find_if(files, [](not_null<const Value*> file) {
+		return !file->files.empty();
+	});
+	if (i != end(files)) {
+		return (i - begin(files));
+	}
+	// Only an uploaded scan counts as non-empty value.
+	//const auto j = ranges::find_if(files, [](not_null<const Value*> file) {
+	//	return !file->data.parsed.fields.empty();
+	//});
+	//if (j != end(files)) {
+	//	return (j - begin(files));
+	//}
+	return -1;
+}
+
+
 void PanelController::editScope(int index) {
 	Expects(_panel != nullptr);
 	Expects(index >= 0 && index < _scopes.size());
 
-	_editScope = &_scopes[index];
+	if (_scopes[index].files.size() > 1) {
+		const auto filesIndex = findNonEmptyIndex(_scopes[index].files);
+		if (filesIndex >= 0) {
+			editScope(index, filesIndex);
+		} else {
+			requestScopeFilesType(index);
+		}
+	} else if (_scopes[index].files.empty()) {
+		editScope(index, -1);
+	} else {
+		editWithUpload(index, 0);
+	}
+}
 
-	// #TODO select type for files index
-	_editScopeFilesIndex = _scopes[index].files.empty() ? -1 : 0;
+void PanelController::requestScopeFilesType(int index) {
+	Expects(_panel != nullptr);
+	Expects(index >= 0 && index < _scopes.size());
+
+	const auto type = _scopes[index].type;
+	const auto box = std::make_shared<QPointer<BoxContent>>();
+	*box = [&] {
+		if (type == Scope::Type::Identity) {
+			return show(RequestIdentityType(
+				[=](int filesIndex) {
+					editWithUpload(index, filesIndex);
+					(*box)->closeBox();
+				},
+				ranges::view::all(
+					_scopes[index].files
+				) | ranges::view::transform([](auto value) {
+					return value->type;
+				}) | ranges::view::transform([](Value::Type type) {
+					switch (type) {
+					case Value::Type::Passport:
+						return lang(lng_passport_identity_passport);
+					case Value::Type::IdentityCard:
+						return lang(lng_passport_identity_card);
+					case Value::Type::DriverLicense:
+						return lang(lng_passport_identity_license);
+					default:
+						Unexpected("IdentityType in requestScopeFilesType");
+					}
+				}) | ranges::to_vector));
+		} else if (type == Scope::Type::Address) {
+			return show(RequestAddressType(
+				[=](int filesIndex) {
+					editWithUpload(index, filesIndex);
+					(*box)->closeBox();
+				},
+				ranges::view::all(
+					_scopes[index].files
+				) | ranges::view::transform([](auto value) {
+					return value->type;
+				}) | ranges::view::transform([](Value::Type type) {
+					switch (type) {
+					case Value::Type::UtilityBill:
+						return lang(lng_passport_address_bill);
+					case Value::Type::BankStatement:
+						return lang(lng_passport_address_statement);
+					case Value::Type::RentalAgreement:
+						return lang(lng_passport_address_agreement);
+					default:
+						Unexpected("AddressType in requestScopeFilesType");
+					}
+				}) | ranges::to_vector));
+		} else {
+			Unexpected("Type in processVerificationNeeded.");
+		}
+	}();
+}
+
+void PanelController::editWithUpload(int index, int filesIndex) {
+	Expects(_panel != nullptr);
+	Expects(index >= 0 && index < _scopes.size());
+	Expects(filesIndex >= 0 && filesIndex < _scopes[index].files.size());
+
+	EditScans::ChooseScan(
+		base::lambda_guarded(_panel.get(),
+		[=](QByteArray &&content) {
+			editScope(index, filesIndex);
+			uploadScan(std::move(content));
+		}));
+}
+
+void PanelController::editScope(int index, int filesIndex) {
+	Expects(_panel != nullptr);
+	Expects(index >= 0 && index < _scopes.size());
+	Expects((filesIndex < 0)
+		|| (filesIndex >= 0 && filesIndex < _scopes[index].files.size()));
+
+	_editScope = &_scopes[index];
+	_editScopeFilesIndex = filesIndex;
 
 	_form->startValueEdit(_editScope->fields);
 	if (_editScopeFilesIndex >= 0) {
@@ -435,14 +575,16 @@ void PanelController::editScope(int index) {
 				? object_ptr<PanelEditDocument>(
 					_panel.get(),
 					this,
-					std::move(GetDocumentScheme(_editScope->type)),
+					GetDocumentScheme(
+						_editScope->type,
+						_editScope->files[_editScopeFilesIndex]->type),
 					_editScope->fields->data.parsedInEdit,
 					_editScope->files[_editScopeFilesIndex]->data.parsedInEdit,
 					valueFiles(*_editScope->files[_editScopeFilesIndex]))
 				: object_ptr<PanelEditDocument>(
 					_panel.get(),
 					this,
-					std::move(GetDocumentScheme(_editScope->type)),
+					GetDocumentScheme(_editScope->type),
 					_editScope->fields->data.parsedInEdit);
 			const auto weak = make_weak(result.data());
 			_panelHasUnsavedChanges = [=] {

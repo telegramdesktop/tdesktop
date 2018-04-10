@@ -40,6 +40,7 @@ public:
 		};
 		std::vector<Row> rows;
 		QString rowsHeader;
+		QString scansHeader;
 
 	};
 
@@ -90,5 +91,12 @@ private:
 	object_ptr<Ui::RoundButton> _done;
 
 };
+
+object_ptr<BoxContent> RequestIdentityType(
+	base::lambda<void(int index)> submit,
+	std::vector<QString> labels);
+object_ptr<BoxContent> RequestAddressType(
+	base::lambda<void(int index)> submit,
+	std::vector<QString> labels);
 
 } // namespace Passport

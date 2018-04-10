@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/fade_wrap.h"
 #include "boxes/abstract_box.h"
@@ -25,6 +26,103 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_passport.h"
 
 namespace Passport {
+namespace {
+
+class RequestTypeBox : public BoxContent {
+public:
+	RequestTypeBox(
+		QWidget*,
+		const QString &title,
+		const QString &about,
+		std::vector<QString> labels,
+		base::lambda<void(int index)> submit);
+
+protected:
+	void prepare() override;
+
+private:
+	void setupControls(
+		const QString &about,
+		std::vector<QString> labels,
+		base::lambda<void(int index)> submit);
+
+	QString _title;
+	base::lambda<void()> _submit;
+	int _height = 0;
+
+};
+
+RequestTypeBox::RequestTypeBox(
+	QWidget*,
+	const QString &title,
+	const QString &about,
+	std::vector<QString> labels,
+	base::lambda<void(int index)> submit)
+: _title(title) {
+	setupControls(about, std::move(labels), submit);
+}
+
+void RequestTypeBox::prepare() {
+	setTitle([=] { return _title; });
+	addButton(langFactory(lng_passport_upload_document), [=] { _submit(); });
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	setDimensions(st::boxWidth, _height);
+}
+
+void RequestTypeBox::setupControls(
+		const QString &about,
+		std::vector<QString> labels,
+		base::lambda<void(int index)> submit) {
+	const auto header = Ui::CreateChild<Ui::FlatLabel>(
+		this,
+		lang(lng_passport_document_type),
+		Ui::FlatLabel::InitType::Simple,
+		st::passportFormLabel);
+
+	const auto group = std::make_shared<Ui::RadiobuttonGroup>(0);
+	auto buttons = std::vector<QPointer<Ui::Radiobutton>>();
+	auto index = 0;
+	for (const auto &label : labels) {
+		buttons.push_back(Ui::CreateChild<Ui::Radiobutton>(
+			this,
+			group,
+			index++,
+			label,
+			st::defaultBoxCheckbox));
+	}
+
+	const auto description = Ui::CreateChild<Ui::FlatLabel>(
+		this,
+		about,
+		Ui::FlatLabel::InitType::Simple,
+		st::passportFormLabel);
+
+	auto y = 0;
+	const auto innerWidth = st::boxWidth
+		- st::boxPadding.left()
+		- st::boxPadding.right();
+	header->resizeToWidth(innerWidth);
+	header->moveToLeft(st::boxPadding.left(), y);
+	y += header->height() + st::passportRequestTypeSkip;
+	for (const auto &button : buttons) {
+		button->resizeToNaturalWidth(innerWidth);
+		button->moveToLeft(st::boxPadding.left(), y);
+		y += button->heightNoMargins() + st::passportRequestTypeSkip;
+	}
+	description->resizeToWidth(innerWidth);
+	description->moveToLeft(st::boxPadding.left(), y);
+	y += description->height() + st::passportRequestTypeSkip;
+	_height = y;
+
+	_submit = [=] {
+		const auto value = group->hasValue() ? group->value() : -1;
+		if (value >= 0) {
+			submit(value);
+		}
+	};
+}
+
+} // namespace
 
 struct PanelEditDocument::Result {
 	ValueMap data;
@@ -97,7 +195,11 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 
 	if (scanData) {
 		_editScans = inner->add(
-			object_ptr<EditScans>(inner, _controller, std::move(files)));
+			object_ptr<EditScans>(
+				inner,
+				_controller,
+				_scheme.scansHeader,
+				std::move(files)));
 	}
 
 	inner->add(object_ptr<BoxContentDivider>(
@@ -185,6 +287,26 @@ void PanelEditDocument::save() {
 	_controller->saveScope(
 		std::move(result.data),
 		std::move(result.filesData));
+}
+
+object_ptr<BoxContent> RequestIdentityType(
+		base::lambda<void(int index)> submit,
+		std::vector<QString> labels) {
+	return Box<RequestTypeBox>(
+		lang(lng_passport_identity_title),
+		lang(lng_passport_identity_about),
+		std::move(labels),
+		submit);
+}
+
+object_ptr<BoxContent> RequestAddressType(
+		base::lambda<void(int index)> submit,
+		std::vector<QString> labels) {
+	return Box<RequestTypeBox>(
+		lang(lng_passport_address_title),
+		lang(lng_passport_address_about),
+		std::move(labels),
+		submit);
 }
 
 } // namespace Passport

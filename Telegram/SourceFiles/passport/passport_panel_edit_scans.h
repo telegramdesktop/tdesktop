@@ -35,13 +35,14 @@ public:
 	EditScans(
 		QWidget *parent,
 		not_null<PanelController*> controller,
+		const QString &header,
 		std::vector<ScanInfo> &&files);
 
+	static void ChooseScan(base::lambda<void(QByteArray&&)> callback);
+
 private:
-	void setupContent();
+	void setupContent(const QString &header);
 	void chooseScan();
-	void encryptScan(const QString &path);
-	void encryptScanContent(QByteArray &&content);
 	void updateScan(ScanInfo &&info);
 	void pushScan(const ScanInfo &info);
 

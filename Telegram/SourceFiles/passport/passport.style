@@ -119,7 +119,7 @@ passportFormUserpic: UserpicButton(passportPasswordUserpic) {
 passportFormUserpicPadding: margins(0px, 5px, 0px, 10px);
 passportFormDividerHeight: 13px;
 passportFormLabel: FlatLabel(defaultFlatLabel) {
-	minWidth: 285px;
+	minWidth: 245px;
 	align: align(topleft);
 	textFg: windowSubTextFg;
 }
@@ -194,3 +194,5 @@ passportContactField: InputField(defaultInputField) {
 passportDetailsFieldLeft: 116px;
 passportDetailsFieldTop: 2px;
 passportDetailsFieldSkipMin: 12px;
+
+passportRequestTypeSkip: 16px;

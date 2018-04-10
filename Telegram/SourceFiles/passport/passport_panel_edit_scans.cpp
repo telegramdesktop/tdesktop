@@ -184,15 +184,16 @@ void ScanButton::paintEvent(QPaintEvent *e) {
 EditScans::EditScans(
 	QWidget *parent,
 	not_null<PanelController*> controller,
+	const QString &header,
 	std::vector<ScanInfo> &&files)
 : RpWidget(parent)
 , _controller(controller)
 , _files(std::move(files))
 , _content(this) {
-	setupContent();
+	setupContent(header);
 }
 
-void EditScans::setupContent() {
+void EditScans::setupContent(const QString &header) {
 	const auto inner = _content.data();
 	inner->move(0, 0);
 
@@ -209,7 +210,7 @@ void EditScans::setupContent() {
 			inner,
 			object_ptr<Ui::FlatLabel>(
 				inner,
-				lang(lng_passport_upload_header),
+				header,
 				Ui::FlatLabel::InitType::Simple,
 				st::passportFormHeader),
 			st::passportUploadHeaderPadding));
@@ -296,35 +297,36 @@ void EditScans::pushScan(const ScanInfo &info) {
 }
 
 void EditScans::chooseScan() {
+	ChooseScan(base::lambda_guarded(this, [=](QByteArray &&content) {
+		_controller->uploadScan(std::move(content));
+	}));
+}
+
+void EditScans::ChooseScan(base::lambda<void(QByteArray&&)> callback) {
 	const auto filter = FileDialog::AllFilesFilter()
 		+ qsl(";;Image files (*")
 		+ cImgExtensions().join(qsl(" *"))
 		+ qsl(")");
-	const auto callback = [=](FileDialog::OpenResult &&result) {
+	const auto processFile = [=](FileDialog::OpenResult &&result) {
 		if (result.paths.size() == 1) {
-			encryptScan(result.paths.front());
+			auto content = [&] {
+				QFile f(result.paths.front());
+				if (!f.open(QIODevice::ReadOnly)) {
+					return QByteArray();
+				}
+				return f.readAll();
+			}();
+			if (!content.isEmpty()) {
+				callback(std::move(content));
+			}
 		} else if (!result.remoteContent.isEmpty()) {
-			encryptScanContent(std::move(result.remoteContent));
+			callback(std::move(result.remoteContent));
 		}
 	};
 	FileDialog::GetOpenPath(
 		lang(lng_passport_choose_image),
 		filter,
-		base::lambda_guarded(this, callback));
-}
-
-void EditScans::encryptScan(const QString &path) {
-	encryptScanContent([&] {
-		QFile f(path);
-		if (!f.open(QIODevice::ReadOnly)) {
-			return QByteArray();
-		}
-		return f.readAll();
-	}());
-}
-
-void EditScans::encryptScanContent(QByteArray &&content) {
-	_controller->uploadScan(std::move(content));
+		processFile);
 }
 
 rpl::producer<QString> EditScans::uploadButtonText() const {

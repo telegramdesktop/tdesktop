@@ -85,6 +85,11 @@ public:
 private:
 	void ensurePanelCreated();
 
+	void editScope(int index, int filesIndex);
+	void editWithUpload(int index, int filesIndex);
+	int findNonEmptyIndex(
+		const std::vector<not_null<const Value*>> &files) const;
+	void requestScopeFilesType(int index);
 	void cancelValueEdit();
 	std::vector<ScanInfo> valueFiles(const Value &value) const;
 	void processValueSaveFinished(not_null<const Value*> value);
