@@ -210,5 +210,6 @@ passportDetailsFieldLeft: 116px;
 passportDetailsFieldTop: 2px;
 passportDetailsFieldSkipMin: 12px;
 passportDetailsSkip: 30px;
+passportDetailsGenderSkip: 30px;
 
 passportRequestTypeSkip: 16px;

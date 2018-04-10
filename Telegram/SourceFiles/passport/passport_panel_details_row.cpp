@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/countryinput.h"
 #include "styles/style_boxes.h"
@@ -145,9 +146,33 @@ private:
 
 };
 
-class GenderRow : public TextRow {
+class GenderRow : public PanelDetailsRow {
 public:
-	using TextRow::TextRow;
+	GenderRow(
+		QWidget *parent,
+		const QString &label,
+		const QString &value);
+
+	rpl::producer<QString> value() const override;
+	QString valueCurrent() const override;
+
+private:
+	enum class Gender {
+		Male,
+		Female,
+	};
+
+	static base::optional<Gender> StringToGender(const QString &value);
+	static QString GenderToString(Gender gender);
+
+	int resizeInner(int left, int top, int width) override;
+	void showInnerError() override;
+	void finishInnerAnimating() override;
+
+	std::shared_ptr<Ui::RadioenumGroup<Gender>> _group;
+	object_ptr<Ui::Radioenum<Gender>> _male;
+	object_ptr<Ui::Radioenum<Gender>> _female;
+	rpl::variable<QString> _value;
 
 };
 
@@ -708,6 +733,69 @@ void DateRow::startBorderAnimation() {
 			_a_borderOpacity.start([=] { update(); }, 1., 0., duration);
 		}
 	}
+}
+
+GenderRow::GenderRow(
+	QWidget *parent,
+	const QString &label,
+	const QString &value)
+: PanelDetailsRow(parent, label)
+, _group(StringToGender(value).has_value()
+	? std::make_shared<Ui::RadioenumGroup<Gender>>(*StringToGender(value))
+	: std::make_shared<Ui::RadioenumGroup<Gender>>())
+, _male(
+	this,
+	_group,
+	Gender::Male,
+	lang(lng_passport_gender_male),
+	st::defaultCheckbox)
+, _female(
+	this,
+	_group,
+	Gender::Female,
+	lang(lng_passport_gender_female),
+	st::defaultCheckbox)
+, _value(StringToGender(value) ? value : QString()) {
+	_group->setChangedCallback([=](Gender gender) {
+		_value = GenderToString(gender);
+	});
+}
+
+auto GenderRow::StringToGender(const QString &value)
+-> base::optional<Gender> {
+	if (value == qstr("male")) {
+		return Gender::Male;
+	} else if (value == qstr("female")) {
+		return Gender::Female;
+	}
+	return base::none;
+}
+
+QString GenderRow::GenderToString(Gender gender) {
+	return (gender == Gender::Male) ? "male" : "female";
+}
+
+QString GenderRow::valueCurrent() const {
+	return _value.current();
+}
+
+rpl::producer<QString> GenderRow::value() const {
+	return _value.value();
+}
+
+int GenderRow::resizeInner(int left, int top, int width) {
+	top += st::passportDetailsField.textMargins.top();
+	top -= st::defaultCheckbox.textPosition.y();
+	_male->moveToLeft(left, top);
+	left += _male->widthNoMargins() + st::passportDetailsGenderSkip;
+	_female->moveToLeft(left, top);
+	return st::semiboldFont->height;
+}
+
+void GenderRow::showInnerError() {
+}
+
+void GenderRow::finishInnerAnimating() {
 }
 
 } // namespace
