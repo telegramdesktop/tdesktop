@@ -188,7 +188,7 @@ PanelEditContact::Scheme GetContactScheme(Scope::Type type) {
 	using Scheme = PanelEditContact::Scheme;
 	switch (type) {
 	case Scope::Type::Phone: {
-		auto result = Scheme();
+		auto result = Scheme(Scheme::ValueType::Phone);
 		result.aboutExisting = lang(lng_passport_use_existing_phone);
 		result.newHeader = lang(lng_passport_new_phone);
 		result.aboutNew = lang(lng_passport_new_phone_code);
@@ -207,7 +207,7 @@ PanelEditContact::Scheme GetContactScheme(Scope::Type type) {
 	} break;
 
 	case Scope::Type::Email: {
-		auto result = Scheme();
+		auto result = Scheme(Scheme::ValueType::Text);
 		result.aboutExisting = lang(lng_passport_use_existing_email);
 		result.newHeader = lang(lng_passport_new_email);
 		result.newPlaceholder = langFactory(lng_passport_email_title);

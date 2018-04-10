@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 
 namespace Ui {
-class InputField;
+class MaskedInputField;
 class PlainShadow;
 class RoundButton;
 class VerticalLayout;
@@ -27,7 +27,9 @@ public:
 			Phone,
 			Text,
 		};
-		ValueType type = ValueType::Phone;
+		explicit Scheme(ValueType type);
+
+		ValueType type;
 
 		QString aboutExisting;
 		QString newHeader;
@@ -63,7 +65,7 @@ private:
 	Scheme _scheme;
 
 	object_ptr<Ui::VerticalLayout> _content;
-	QPointer<Ui::InputField> _field;
+	QPointer<Ui::MaskedInputField> _field;
 	object_ptr<Ui::PlainShadow> _bottomShadow;
 	object_ptr<Ui::RoundButton> _done;
 

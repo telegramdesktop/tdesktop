@@ -154,6 +154,9 @@ void VerifyBox::prepare() {
 
 } // namespace
 
+PanelEditContact::Scheme::Scheme(ValueType type) : type(type) {
+}
+
 PanelEditContact::PanelEditContact(
 	QWidget*,
 	not_null<PanelController*> controller,
@@ -216,22 +219,42 @@ void PanelEditContact::setupControls(
 				Ui::FlatLabel::InitType::Simple,
 				st::passportFormHeader),
 			st::passportDetailsHeaderPadding);
-		_field = _content->add(
-			object_ptr<Ui::InputField>(
-				_content,
-				st::passportDetailsField,
-				nullptr,
-				data),
-			st::passportContactNewFieldPadding);
-	} else {
-		_field = _content->add(
-			object_ptr<Ui::InputField>(
-				_content,
-				st::passportContactField,
-				_scheme.newPlaceholder,
-				data),
-			st::passportContactFieldPadding);
 	}
+	const auto &fieldStyle = existing.isEmpty()
+		? st::passportContactField
+		: st::passportDetailsField;
+	const auto fieldPadding = existing.isEmpty()
+		? st::passportContactFieldPadding
+		: st::passportContactNewFieldPadding;
+	const auto fieldPlaceholder = existing.isEmpty()
+		? _scheme.newPlaceholder
+		: nullptr;
+	auto wrap = object_ptr<Ui::RpWidget>(_content);
+	if (_scheme.type == Scheme::ValueType::Phone) {
+		_field = Ui::CreateChild<Ui::PhoneInput>(
+			wrap.data(),
+			fieldStyle,
+			fieldPlaceholder,
+			data);
+	} else {
+		_field = Ui::CreateChild<Ui::MaskedInputField>(
+			wrap.data(),
+			fieldStyle,
+			fieldPlaceholder,
+			data);
+	}
+
+	_field->move(0, 0);
+	_field->heightValue(
+	) | rpl::start_with_next([=, pointer = wrap.data()](int height) {
+		pointer->resize(pointer->width(), height);
+	}, _field->lifetime());
+	wrap->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		_field->resize(width, _field->height());
+	}, _field->lifetime());
+
+	_content->add(std::move(wrap), fieldPadding);
 	_content->add(
 		object_ptr<PanelLabel>(
 			_content,
@@ -247,7 +270,7 @@ void PanelEditContact::setupControls(
 			save();
 		});
 	};
-	connect(_field, &Ui::InputField::submitted, submit);
+	connect(_field, &Ui::MaskedInputField::submitted, submit);
 	_done->addClickHandler(submit);
 }
 
