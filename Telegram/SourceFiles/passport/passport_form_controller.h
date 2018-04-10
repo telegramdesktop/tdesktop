@@ -212,6 +212,9 @@ public:
 	void uploadScan(not_null<const Value*> value, QByteArray &&content);
 	void deleteScan(not_null<const Value*> value, int fileIndex);
 	void restoreScan(not_null<const Value*> value, int fileIndex);
+	void uploadSelfie(not_null<const Value*> value, QByteArray &&content);
+	void deleteSelfie(not_null<const Value*> value);
+	void restoreSelfie(not_null<const Value*> value);
 
 	rpl::producer<> secretReadyEvents() const;
 
@@ -257,6 +260,9 @@ private:
 	std::vector<File> parseFiles(
 		const QVector<MTPSecureFile> &data,
 		const std::vector<EditFile> &editData = {}) const;
+	base::optional<File> parseFile(
+		const MTPSecureFile &data,
+		const std::vector<EditFile> &editData = {}) const;
 	void fillDownloadedFile(
 		File &destination,
 		const std::vector<EditFile> &source) const;
@@ -275,25 +281,33 @@ private:
 	bool validateValueSecrets(Value &value);
 	void resetValue(Value &value);
 
-	void loadFiles(std::vector<File> &files);
+	void loadFile(File &file);
 	void fileLoadDone(FileKey key, const QByteArray &bytes);
 	void fileLoadProgress(FileKey key, int offset);
 	void fileLoadFail(FileKey key);
 	void generateSecret(bytes::const_span password);
 
 	void subscribeToUploader();
-	void encryptScan(
-		not_null<Value*> value,
-		int fileIndex,
-		QByteArray &&content);
-	void uploadEncryptedScan(
-		not_null<Value*> value,
-		int fileIndex,
+	void encryptFile(
+		EditFile &file,
+		QByteArray &&content,
+		base::lambda<void(UploadScanData &&result)> callback);
+	void prepareFile(
+		EditFile &file,
+		const QByteArray &content);
+	void uploadEncryptedFile(
+		EditFile &file,
 		UploadScanData &&data);
 	void scanUploadDone(const Storage::UploadSecureDone &data);
 	void scanUploadProgress(const Storage::UploadSecureProgress &data);
 	void scanUploadFail(const FullMsgId &fullId);
-	void scanDeleteRestore(not_null<const Value*> value, int fileIndex, bool deleted);
+	void scanDeleteRestore(
+		not_null<const Value*> value,
+		int fileIndex,
+		bool deleted);
+	void selfieDeleteRestore(
+		not_null<const Value*> value,
+		bool deleted);
 
 	QString getPhoneFromValue(not_null<const Value*> value) const;
 	QString getEmailFromValue(not_null<const Value*> value) const;

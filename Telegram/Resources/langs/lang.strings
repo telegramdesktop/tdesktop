@@ -1548,6 +1548,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_scan_index" = "Scan {index}";
 "lng_passport_upload_scans" = "Upload scans";
 "lng_passport_upload_more" = "Upload additional scans";
+"lng_passport_selfie_title" = "Selfie";
+"lng_passport_selfie_name" = "Photo";
+"lng_passport_selfie_description" = "Take a picture of yourself holding hour document.";
+"lng_passport_upload_selfie" = "Upload selfie";
 "lng_passport_personal_details" = "Personal details";
 "lng_passport_choose_image" = "Choose scan image";
 "lng_passport_delete_scan_undo" = "Undo";

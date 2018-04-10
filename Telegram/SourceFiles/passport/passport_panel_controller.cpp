@@ -356,7 +356,8 @@ QString PanelController::defaultPhoneNumber() const {
 
 void PanelController::uploadScan(QByteArray &&content) {
 	Expects(_editScope != nullptr);
-	Expects(_editScopeFilesIndex >= 0);
+	Expects(_editScopeFilesIndex >= 0
+		&& _editScopeFilesIndex < _editScope->files.size());
 
 	_form->uploadScan(
 		_editScope->files[_editScopeFilesIndex],
@@ -365,7 +366,8 @@ void PanelController::uploadScan(QByteArray &&content) {
 
 void PanelController::deleteScan(int fileIndex) {
 	Expects(_editScope != nullptr);
-	Expects(_editScopeFilesIndex >= 0);
+	Expects(_editScopeFilesIndex >= 0
+		&& _editScopeFilesIndex < _editScope->files.size());
 
 	_form->deleteScan(
 		_editScope->files[_editScopeFilesIndex],
@@ -374,11 +376,43 @@ void PanelController::deleteScan(int fileIndex) {
 
 void PanelController::restoreScan(int fileIndex) {
 	Expects(_editScope != nullptr);
-	Expects(_editScopeFilesIndex >= 0);
+	Expects(_editScopeFilesIndex >= 0
+		&& _editScopeFilesIndex < _editScope->files.size());
 
 	_form->restoreScan(
 		_editScope->files[_editScopeFilesIndex],
 		fileIndex);
+}
+
+void PanelController::uploadSelfie(QByteArray &&content) {
+	Expects(_editScope != nullptr);
+	Expects(_editScopeFilesIndex >= 0
+		&& _editScopeFilesIndex < _editScope->files.size());
+	Expects(_editScope->selfieRequired);
+
+	_form->uploadSelfie(
+		_editScope->files[_editScopeFilesIndex],
+		std::move(content));
+}
+
+void PanelController::deleteSelfie() {
+	Expects(_editScope != nullptr);
+	Expects(_editScopeFilesIndex >= 0
+		&& _editScopeFilesIndex < _editScope->files.size());
+	Expects(_editScope->selfieRequired);
+
+	_form->deleteSelfie(
+		_editScope->files[_editScopeFilesIndex]);
+}
+
+void PanelController::restoreSelfie() {
+	Expects(_editScope != nullptr);
+	Expects(_editScopeFilesIndex >= 0
+		&& _editScopeFilesIndex < _editScope->files.size());
+	Expects(_editScope->selfieRequired);
+
+	_form->restoreSelfie(
+		_editScope->files[_editScopeFilesIndex]);
 }
 
 rpl::producer<ScanInfo> PanelController::scanUpdated() const {
@@ -422,11 +456,17 @@ ScanInfo PanelController::collectScanInfo(const EditFile &file) const {
 			return formatDownloadText(0, file.fields.size);
 		}
 	}();
+	auto isSelfie = (_editScope != nullptr)
+		&& (_editScopeFilesIndex >= 0)
+		&& (file.value == _editScope->files[_editScopeFilesIndex])
+		&& (_editScope->files[_editScopeFilesIndex]->selfieInEdit.has_value())
+		&& (&file == &*_editScope->files[_editScopeFilesIndex]->selfieInEdit);
 	return {
 		FileKey{ file.fields.id, file.fields.dcId },
 		status,
 		file.fields.image,
-		file.deleted };
+		file.deleted,
+		isSelfie };
 }
 
 QString PanelController::getDefaultContactValue(Scope::Type type) const {
@@ -594,7 +634,10 @@ void PanelController::editScope(int index, int filesIndex) {
 						_editScope->files[_editScopeFilesIndex]->type),
 					_editScope->fields->data.parsedInEdit,
 					_editScope->files[_editScopeFilesIndex]->data.parsedInEdit,
-					valueFiles(*_editScope->files[_editScopeFilesIndex]))
+					valueFiles(*_editScope->files[_editScopeFilesIndex]),
+					(_editScope->selfieRequired
+						? valueSelfie(*_editScope->files[_editScopeFilesIndex])
+						: nullptr))
 				: object_ptr<PanelEditDocument>(
 					_panel.get(),
 					this,
@@ -733,6 +776,15 @@ std::vector<ScanInfo> PanelController::valueFiles(
 		result.push_back(collectScanInfo(file));
 	}
 	return result;
+}
+
+std::unique_ptr<ScanInfo> PanelController::valueSelfie(
+		const Value &value) const {
+	if (value.selfieInEdit) {
+		return std::make_unique<ScanInfo>(
+			collectScanInfo(*value.selfieInEdit));
+	}
+	return std::make_unique<ScanInfo>();
 }
 
 void PanelController::cancelValueEdit() {

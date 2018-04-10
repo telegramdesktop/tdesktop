@@ -52,7 +52,8 @@ public:
 		Scheme scheme,
 		const ValueMap &data,
 		const ValueMap &scanData,
-		std::vector<ScanInfo> &&files);
+		std::vector<ScanInfo> &&files,
+		std::unique_ptr<ScanInfo> &&selfie);
 	PanelEditDocument(
 		QWidget *parent,
 		not_null<PanelController*> controller,
@@ -70,11 +71,13 @@ private:
 	void setupControls(
 		const ValueMap &data,
 		const ValueMap *scanData,
-		std::vector<ScanInfo> &&files);
+		std::vector<ScanInfo> &&files,
+		std::unique_ptr<ScanInfo> &&selfie);
 	not_null<Ui::RpWidget*> setupContent(
 		const ValueMap &data,
 		const ValueMap *scanData,
-		std::vector<ScanInfo> &&files);
+		std::vector<ScanInfo> &&files,
+		std::unique_ptr<ScanInfo> &&selfie);
 	void updateControlsGeometry();
 
 	Result collect() const;

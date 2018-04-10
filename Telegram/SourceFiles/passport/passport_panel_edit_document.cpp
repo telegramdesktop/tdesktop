@@ -135,7 +135,8 @@ PanelEditDocument::PanelEditDocument(
 	Scheme scheme,
 	const ValueMap &data,
 	const ValueMap &scanData,
-	std::vector<ScanInfo> &&files)
+	std::vector<ScanInfo> &&files,
+	std::unique_ptr<ScanInfo> &&selfie)
 : _controller(controller)
 , _scheme(std::move(scheme))
 , _scroll(this, st::passportPanelScroll)
@@ -145,7 +146,7 @@ PanelEditDocument::PanelEditDocument(
 		this,
 		langFactory(lng_passport_save_value),
 		st::passportPanelSaveValue) {
-	setupControls(data, &scanData, std::move(files));
+	setupControls(data, &scanData, std::move(files), std::move(selfie));
 }
 
 PanelEditDocument::PanelEditDocument(
@@ -162,14 +163,19 @@ PanelEditDocument::PanelEditDocument(
 		this,
 		langFactory(lng_passport_save_value),
 		st::passportPanelSaveValue) {
-	setupControls(data, nullptr, {});
+	setupControls(data, nullptr, {}, nullptr);
 }
 
 void PanelEditDocument::setupControls(
 		const ValueMap &data,
 		const ValueMap *scanData,
-		std::vector<ScanInfo> &&files) {
-	const auto inner = setupContent(data, scanData, std::move(files));
+		std::vector<ScanInfo> &&files,
+		std::unique_ptr<ScanInfo> &&selfie) {
+	const auto inner = setupContent(
+		data,
+		scanData,
+		std::move(files),
+		std::move(selfie));
 
 	using namespace rpl::mappers;
 
@@ -185,7 +191,8 @@ void PanelEditDocument::setupControls(
 not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 		const ValueMap &data,
 		const ValueMap *scanData,
-		std::vector<ScanInfo> &&files) {
+		std::vector<ScanInfo> &&files,
+		std::unique_ptr<ScanInfo> &&selfie) {
 	const auto inner = _scroll->setOwnedWidget(
 		object_ptr<Ui::VerticalLayout>(this));
 	_scroll->widthValue(
@@ -199,12 +206,14 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 				inner,
 				_controller,
 				_scheme.scansHeader,
-				std::move(files)));
+				std::move(files),
+				std::move(selfie)));
+	} else {
+		inner->add(object_ptr<BoxContentDivider>(
+			inner,
+			st::passportFormDividerHeight));
 	}
 
-	inner->add(object_ptr<BoxContentDivider>(
-		inner,
-		st::passportFormDividerHeight));
 	inner->add(
 		object_ptr<Ui::FlatLabel>(
 			inner,

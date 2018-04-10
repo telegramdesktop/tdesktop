@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_panel_edit_scans.h"
 
 #include "passport/passport_panel_controller.h"
+#include "passport/passport_panel_details_row.h"
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_values.h"
 #include "ui/widgets/buttons.h"
@@ -185,10 +186,12 @@ EditScans::EditScans(
 	QWidget *parent,
 	not_null<PanelController*> controller,
 	const QString &header,
-	std::vector<ScanInfo> &&files)
+	std::vector<ScanInfo> &&files,
+	std::unique_ptr<ScanInfo> &&selfie)
 : RpWidget(parent)
 , _controller(controller)
 , _files(std::move(files))
+, _selfie(std::move(selfie))
 , _content(this) {
 	setupContent(header);
 }
@@ -233,6 +236,48 @@ void EditScans::setupContent(const QString &header) {
 	_upload->addClickHandler([=] {
 		chooseScan();
 	});
+
+	inner->add(object_ptr<BoxContentDivider>(
+		inner,
+		st::passportFormDividerHeight));
+
+	if (_selfie) {
+		_selfieHeader = inner->add(
+			object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+				inner,
+				object_ptr<Ui::FlatLabel>(
+					inner,
+					lang(lng_passport_selfie_title),
+					Ui::FlatLabel::InitType::Simple,
+					st::passportFormHeader),
+				st::passportUploadHeaderPadding));
+		_selfieHeader->toggle(_selfie->key.id != 0, anim::type::instant);
+		_selfieWrap = inner->add(object_ptr<Ui::VerticalLayout>(inner));
+		if (_selfie->key.id) {
+			createSelfieRow(*_selfie);
+		}
+		_selfieUpload = inner->add(
+			object_ptr<Info::Profile::Button>(
+				inner,
+				Lang::Viewer(
+					lng_passport_upload_selfie
+				) | Info::Profile::ToUpperValue(),
+				st::passportUploadButton),
+			st::passportUploadButtonPadding);
+		_selfieUpload->addClickHandler([=] {
+			chooseSelfie();
+		});
+
+		inner->add(object_ptr<PanelLabel>(
+			inner,
+			object_ptr<Ui::FlatLabel>(
+				_content,
+				lang(lng_passport_selfie_description),
+				Ui::FlatLabel::InitType::Simple,
+				st::passportFormLabel),
+			st::passportFormLabelPadding));
+	}
+
 	_controller->scanUpdated(
 	) | rpl::start_with_next([=](ScanInfo &&info) {
 		updateScan(std::move(info));
@@ -250,11 +295,32 @@ void EditScans::setupContent(const QString &header) {
 }
 
 void EditScans::updateScan(ScanInfo &&info) {
+	const auto updateRow = [&](
+			not_null<ScanButton*> button,
+			const ScanInfo &info) {
+		button->setStatus(info.status);
+		button->setImage(info.thumb);
+		button->setDeleted(info.deleted);
+	};
+	if (info.selfie) {
+		Assert(info.key.id != 0);
+		Assert(_selfie != nullptr);
+		if (_selfie->key.id) {
+			updateRow(_selfieRow->entity(), info);
+		} else {
+			createSelfieRow(info);
+			_selfieWrap->resizeToWidth(width());
+			_selfieRow->show(anim::type::normal);
+			_selfieHeader->show(anim::type::normal);
+		}
+		*_selfie = std::move(info);
+		return;
+	}
 	const auto i = ranges::find(_files, info.key, [](const ScanInfo &file) {
 		return file.key;
 	});
 	if (i != _files.end()) {
-		*i = info;
+		*i = std::move(info);
 		const auto scan = _rows[i - _files.begin()]->entity();
 		scan->setStatus(i->status);
 		scan->setImage(i->thumb);
@@ -270,20 +336,33 @@ void EditScans::updateScan(ScanInfo &&info) {
 	}
 }
 
+void EditScans::createSelfieRow(const ScanInfo &info) {
+	_selfieRow = createScan(
+		_selfieWrap,
+		info,
+		lang(lng_passport_selfie_name));
+	const auto row = _selfieRow->entity();
+
+	row->deleteClicks(
+	) | rpl::start_with_next([=] {
+		_controller->deleteSelfie();
+	}, row->lifetime());
+
+	row->restoreClicks(
+	) | rpl::start_with_next([=] {
+		_controller->restoreSelfie();
+	}, row->lifetime());
+}
+
 void EditScans::pushScan(const ScanInfo &info) {
 	const auto index = _rows.size();
-	_rows.push_back(base::unique_qptr<Ui::SlideWrap<ScanButton>>(
-		_wrap->add(object_ptr<Ui::SlideWrap<ScanButton>>(
-			_wrap,
-			object_ptr<ScanButton>(
-				_wrap,
-				st::passportScanRow,
-				lng_passport_scan_index(lt_index, QString::number(index + 1)),
-				info.status,
-				info.deleted)))));
+	_rows.push_back(createScan(
+		_wrap,
+		info,
+		lng_passport_scan_index(lt_index, QString::number(index + 1))));
 	_rows.back()->hide(anim::type::instant);
+
 	const auto scan = _rows.back()->entity();
-	scan->setImage(info.thumb);
 
 	scan->deleteClicks(
 	) | rpl::start_with_next([=] {
@@ -296,9 +375,32 @@ void EditScans::pushScan(const ScanInfo &info) {
 	}, scan->lifetime());
 }
 
+base::unique_qptr<Ui::SlideWrap<ScanButton>> EditScans::createScan(
+		not_null<Ui::VerticalLayout*> parent,
+		const ScanInfo &info,
+		const QString &name) {
+	auto result = base::unique_qptr<Ui::SlideWrap<ScanButton>>(
+		parent->add(object_ptr<Ui::SlideWrap<ScanButton>>(
+			parent,
+			object_ptr<ScanButton>(
+				parent,
+				st::passportScanRow,
+				name,
+				info.status,
+				info.deleted))));
+	result->entity()->setImage(info.thumb);
+	return result;
+}
+
 void EditScans::chooseScan() {
 	ChooseScan(base::lambda_guarded(this, [=](QByteArray &&content) {
 		_controller->uploadScan(std::move(content));
+	}));
+}
+
+void EditScans::chooseSelfie() {
+	ChooseScan(base::lambda_guarded(this, [=](QByteArray &&content) {
+		_controller->uploadSelfie(std::move(content));
 	}));
 }
 

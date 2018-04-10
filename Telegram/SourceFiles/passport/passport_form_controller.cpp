@@ -242,6 +242,18 @@ bool FormController::validateValueSecrets(Value &value) {
 			return false;
 		}
 	}
+	if (value.selfie) {
+		auto &file = *value.selfie;
+		file.secret = DecryptValueSecret(
+			file.encryptedSecret,
+			_secret,
+			file.hash);
+		if (file.secret.empty()) {
+			LOG(("API Error: Could not decrypt selfie secret. "
+				"Forgetting files and data :("));
+			return false;
+		}
+	}
 	return true;
 }
 
@@ -266,8 +278,53 @@ void FormController::uploadScan(
 		nonconst,
 		File(),
 		nullptr);
-	const auto fileId = rand_value<uint64>();
 	auto &file = nonconst->filesInEdit.back();
+	encryptFile(file, std::move(content), [=](UploadScanData &&result) {
+		Expects(fileIndex >= 0 && fileIndex < nonconst->filesInEdit.size());
+
+		uploadEncryptedFile(
+			nonconst->filesInEdit[fileIndex],
+			std::move(result));
+	});
+}
+
+void FormController::deleteScan(
+		not_null<const Value*> value,
+		int fileIndex) {
+	scanDeleteRestore(value, fileIndex, true);
+}
+
+void FormController::restoreScan(
+		not_null<const Value*> value,
+		int fileIndex) {
+	scanDeleteRestore(value, fileIndex, false);
+}
+
+void FormController::uploadSelfie(
+		not_null<const Value*> value,
+		QByteArray &&content) {
+	const auto nonconst = findValue(value);
+	nonconst->selfieInEdit = EditFile{ nonconst, File(), nullptr };
+	auto &file = *nonconst->selfieInEdit;
+	encryptFile(file, std::move(content), [=](UploadScanData &&result) {
+		uploadEncryptedFile(
+			*nonconst->selfieInEdit,
+			std::move(result));
+	});
+}
+
+void FormController::deleteSelfie(not_null<const Value*> value) {
+	selfieDeleteRestore(value, true);
+}
+
+void FormController::restoreSelfie(not_null<const Value*> value) {
+	selfieDeleteRestore(value, false);
+}
+
+void FormController::prepareFile(
+		EditFile &file,
+		const QByteArray &content) {
+	const auto fileId = rand_value<uint64>();
 	file.fields.size = content.size();
 	file.fields.id = fileId;
 	file.fields.dcId = MTP::maindc();
@@ -277,17 +334,14 @@ void FormController::uploadScan(
 	file.fields.downloadOffset = file.fields.size;
 
 	_scanUpdated.fire(&file);
-
-	encryptScan(nonconst, fileIndex, std::move(content));
 }
 
-void FormController::encryptScan(
-		not_null<Value*> value,
-		int fileIndex,
-		QByteArray &&content) {
-	Expects(fileIndex >= 0 && fileIndex < value->filesInEdit.size());
+void FormController::encryptFile(
+		EditFile &file,
+		QByteArray &&content,
+		base::lambda<void(UploadScanData &&result)> callback) {
+	prepareFile(file, content);
 
-	const auto &file = value->filesInEdit[fileIndex];
 	const auto weak = std::weak_ptr<bool>(file.guard);
 	crl::async([
 		=,
@@ -309,25 +363,10 @@ void FormController::encryptScan(
 			result.md5checksum.data());
 		crl::on_main([=, encrypted = std::move(result)]() mutable {
 			if (weak.lock()) {
-				uploadEncryptedScan(
-					value ,
-					fileIndex,
-					std::move(encrypted));
+				callback(std::move(encrypted));
 			}
 		});
 	});
-}
-
-void FormController::deleteScan(
-		not_null<const Value*> value,
-		int fileIndex) {
-	scanDeleteRestore(value, fileIndex, true);
-}
-
-void FormController::restoreScan(
-		not_null<const Value*> value,
-		int fileIndex) {
-	scanDeleteRestore(value, fileIndex, false);
 }
 
 void FormController::scanDeleteRestore(
@@ -338,6 +377,17 @@ void FormController::scanDeleteRestore(
 
 	const auto nonconst = findValue(value);
 	auto &file = nonconst->filesInEdit[fileIndex];
+	file.deleted = deleted;
+	_scanUpdated.fire(&file);
+}
+
+void FormController::selfieDeleteRestore(
+		not_null<const Value*> value,
+		bool deleted) {
+	Expects(value->selfieInEdit.has_value());
+
+	const auto nonconst = findValue(value);
+	auto &file = *nonconst->selfieInEdit;
 	file.deleted = deleted;
 	_scanUpdated.fire(&file);
 }
@@ -365,15 +415,11 @@ void FormController::subscribeToUploader() {
 	}, _uploaderSubscriptions);
 }
 
-void FormController::uploadEncryptedScan(
-		not_null<Value*> value,
-		int fileIndex,
+void FormController::uploadEncryptedFile(
+		EditFile &file,
 		UploadScanData &&data) {
-	Expects(fileIndex >= 0 && fileIndex < value->filesInEdit.size());
-
 	subscribeToUploader();
 
-	auto &file = value->filesInEdit[fileIndex];
 	file.uploadData = std::make_unique<UploadScanData>(std::move(data));
 
 	auto prepared = std::make_shared<FileLoadResult>(
@@ -548,53 +594,67 @@ void FormController::startValueEdit(not_null<const Value*> value) {
 	if (savingValue(nonconst)) {
 		return;
 	}
-	loadFiles(nonconst->files);
+	for (auto &file : nonconst->files) {
+		loadFile(file);
+	}
+	if (nonconst->selfie) {
+		loadFile(*nonconst->selfie);
+	}
 	nonconst->filesInEdit = ranges::view::all(
 		nonconst->files
 	) | ranges::view::transform([=](const File &file) {
 		return EditFile(nonconst, file, nullptr);
 	}) | ranges::to_vector;
+
+	if (nonconst->selfie) {
+		nonconst->selfieInEdit = EditFile(
+			nonconst,
+			*nonconst->selfie,
+			nullptr);
+	} else {
+		nonconst->selfieInEdit = base::none;
+	}
+
 	nonconst->data.parsedInEdit = nonconst->data.parsed;
 }
 
-void FormController::loadFiles(std::vector<File> &files) {
-	for (auto &file : files) {
-		if (!file.image.isNull()) {
-			file.downloadOffset = file.size;
-			continue;
-		}
-
-		const auto key = FileKey{ file.id, file.dcId };
-		const auto i = _fileLoaders.find(key);
-		if (i == _fileLoaders.end()) {
-			file.downloadOffset = 0;
-			const auto [i, ok] = _fileLoaders.emplace(
-				key,
-				std::make_unique<mtpFileLoader>(
-					file.dcId,
-					file.id,
-					file.accessHash,
-					0,
-					SecureFileLocation,
-					QString(),
-					file.size,
-					LoadToCacheAsWell,
-					LoadFromCloudOrLocal,
-					false));
-			const auto loader = i->second.get();
-			loader->connect(loader, &mtpFileLoader::progress, [=] {
-				if (loader->finished()) {
-					fileLoadDone(key, loader->bytes());
-				} else {
-					fileLoadProgress(key, loader->currentOffset());
-				}
-			});
-			loader->connect(loader, &mtpFileLoader::failed, [=] {
-				fileLoadFail(key);
-			});
-			loader->start();
-		}
+void FormController::loadFile(File &file) {
+	if (!file.image.isNull()) {
+		file.downloadOffset = file.size;
+		return;
 	}
+
+	const auto key = FileKey{ file.id, file.dcId };
+	const auto i = _fileLoaders.find(key);
+	if (i != _fileLoaders.end()) {
+		return;
+	}
+	file.downloadOffset = 0;
+	const auto [j, ok] = _fileLoaders.emplace(
+		key,
+		std::make_unique<mtpFileLoader>(
+			file.dcId,
+			file.id,
+			file.accessHash,
+			0,
+			SecureFileLocation,
+			QString(),
+			file.size,
+			LoadToCacheAsWell,
+			LoadFromCloudOrLocal,
+			false));
+	const auto loader = j->second.get();
+	loader->connect(loader, &mtpFileLoader::progress, [=] {
+		if (loader->finished()) {
+			fileLoadDone(key, loader->bytes());
+		} else {
+			fileLoadProgress(key, loader->currentOffset());
+		}
+	});
+	loader->connect(loader, &mtpFileLoader::failed, [=] {
+		fileLoadFail(key);
+	});
+	loader->start();
 }
 
 void FormController::fileLoadDone(FileKey key, const QByteArray &bytes) {
@@ -666,6 +726,7 @@ void FormController::clearValueEdit(not_null<Value*> value) {
 		return;
 	}
 	value->filesInEdit.clear();
+	value->selfieInEdit = base::none;
 	value->data.encryptedSecretInEdit.clear();
 	value->data.hashInEdit.clear();
 	value->data.parsedInEdit = ValueMap();
@@ -787,7 +848,6 @@ void FormController::saveEncryptedValue(not_null<Value*> value) {
 		inputFiles.push_back(inputFile(file));
 	}
 
-
 	if (value->data.secret.empty()) {
 		value->data.secret = GenerateSecretBytes();
 	}
@@ -890,9 +950,18 @@ void FormController::sendSaveRequest(
 		value->saveRequestId = 0;
 
 		const auto &data = result.c_secureValue();
-		value->files = parseFiles(
-			data.vfiles.v,
-			base::take(value->filesInEdit));
+		value->files = data.has_files()
+			? parseFiles(
+				data.vfiles.v,
+				base::take(value->filesInEdit))
+			: std::vector<File>();
+		auto selfiesInEdit = std::vector<EditFile>();
+		if (auto selfie = base::take(value->selfieInEdit)) {
+			selfiesInEdit.push_back(std::move(*selfie));
+		}
+		value->selfie = data.has_selfie()
+			? parseFile(data.vselfie, selfiesInEdit)
+			: base::none;
 		value->data.encryptedSecret = std::move(
 			value->data.encryptedSecretInEdit);
 		value->data.parsed = std::move(value->data.parsedInEdit);
@@ -1110,30 +1179,38 @@ auto FormController::parseFiles(
 	auto result = std::vector<File>();
 	result.reserve(data.size());
 
-	auto index = 0;
 	for (const auto &file : data) {
-		switch (file.type()) {
-		case mtpc_secureFileEmpty: {
-
-		} break;
-		case mtpc_secureFile: {
-			const auto &fields = file.c_secureFile();
-			auto normal = File();
-			normal.id = fields.vid.v;
-			normal.accessHash = fields.vaccess_hash.v;
-			normal.size = fields.vsize.v;
-			normal.date = fields.vdate.v;
-			normal.dcId = fields.vdc_id.v;
-			normal.hash = bytes::make_vector(fields.vfile_hash.v);
-			normal.encryptedSecret = bytes::make_vector(fields.vsecret.v);
-			fillDownloadedFile(normal, editData);
-			result.push_back(std::move(normal));
-		} break;
+		if (auto normal = parseFile(file, editData)) {
+			result.push_back(std::move(*normal));
 		}
-		++index;
 	}
 
 	return result;
+}
+
+auto FormController::parseFile(
+	const MTPSecureFile &data,
+	const std::vector<EditFile> &editData) const
+-> base::optional<File> {
+	switch (data.type()) {
+	case mtpc_secureFileEmpty:
+		return base::none;
+
+	case mtpc_secureFile: {
+		const auto &fields = data.c_secureFile();
+		auto result = File();
+		result.id = fields.vid.v;
+		result.accessHash = fields.vaccess_hash.v;
+		result.size = fields.vsize.v;
+		result.date = fields.vdate.v;
+		result.dcId = fields.vdc_id.v;
+		result.hash = bytes::make_vector(fields.vfile_hash.v);
+		result.encryptedSecret = bytes::make_vector(fields.vsecret.v);
+		fillDownloadedFile(result, editData);
+		return result;
+	} break;
+	}
+	Unexpected("Type in FormController::parseFile.");
 }
 
 void FormController::fillDownloadedFile(
@@ -1180,6 +1257,9 @@ auto FormController::parseValue(
 	if (data.has_files()) {
 		result.files = parseFiles(data.vfiles.v);
 	}
+	if (data.has_selfie()) {
+		result.selfie = parseFile(data.vselfie);
+	}
 	if (data.has_plain_data()) {
 		switch (data.vplain_data.type()) {
 		case mtpc_securePlainPhone: {
@@ -1197,22 +1277,34 @@ auto FormController::parseValue(
 }
 
 auto FormController::findEditFile(const FullMsgId &fullId) -> EditFile* {
+	const auto found = [&](const EditFile &file) {
+		return (file.uploadData && file.uploadData->fullId == fullId);
+	};
 	for (auto &[type, value] : _form.values) {
 		for (auto &file : value.filesInEdit) {
-			if (file.uploadData && file.uploadData->fullId == fullId) {
+			if (found(file)) {
 				return &file;
 			}
+		}
+		if (value.selfieInEdit && found(*value.selfieInEdit)) {
+			return &*value.selfieInEdit;
 		}
 	}
 	return nullptr;
 }
 
 auto FormController::findEditFile(const FileKey &key) -> EditFile* {
+	const auto found = [&](const EditFile &file) {
+		return (file.fields.dcId == key.dcId && file.fields.id == key.id);
+	};
 	for (auto &[type, value] : _form.values) {
 		for (auto &file : value.filesInEdit) {
-			if (file.fields.dcId == key.dcId && file.fields.id == key.id) {
+			if (found(file)) {
 				return &file;
 			}
+		}
+		if (value.selfieInEdit && found(*value.selfieInEdit)) {
+			return &*value.selfieInEdit;
 		}
 	}
 	return nullptr;
@@ -1220,11 +1312,17 @@ auto FormController::findEditFile(const FileKey &key) -> EditFile* {
 
 auto FormController::findFile(const FileKey &key)
 -> std::pair<Value*, File*> {
+	const auto found = [&](const File &file) {
+		return (file.dcId == key.dcId) && (file.id == key.id);
+	};
 	for (auto &[type, value] : _form.values) {
 		for (auto &file : value.files) {
-			if (file.dcId == key.dcId && file.id == key.id) {
+			if (found(file)) {
 				return { &value, &file };
 			}
+		}
+		if (value.selfie && found(*value.selfie)) {
+			return { &value, &*value.selfie };
 		}
 	}
 	return { nullptr, nullptr };

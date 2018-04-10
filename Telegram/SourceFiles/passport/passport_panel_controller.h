@@ -20,6 +20,7 @@ struct ScanInfo {
 	QString status;
 	QImage thumb;
 	bool deleted = false;
+	bool selfie = false;
 
 };
 
@@ -54,6 +55,9 @@ public:
 	void uploadScan(QByteArray &&content);
 	void deleteScan(int fileIndex);
 	void restoreScan(int fileIndex);
+	void uploadSelfie(QByteArray &&content);
+	void deleteSelfie();
+	void restoreSelfie();
 	rpl::producer<ScanInfo> scanUpdated() const;
 
 	QString defaultEmail() const;
@@ -92,6 +96,7 @@ private:
 	void requestScopeFilesType(int index);
 	void cancelValueEdit();
 	std::vector<ScanInfo> valueFiles(const Value &value) const;
+	std::unique_ptr<ScanInfo> valueSelfie(const Value &value) const;
 	void processValueSaveFinished(not_null<const Value*> value);
 	void processVerificationNeeded(not_null<const Value*> value);
 
