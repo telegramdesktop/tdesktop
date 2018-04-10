@@ -785,7 +785,7 @@ void PanelController::cancelEditScope() {
 				[=] {
 					_panel->showForm();
 					base::take(_confirmForgetChangesBox);
-			})).data());
+				})).data());
 		}
 	} else {
 		_panel->showForm();

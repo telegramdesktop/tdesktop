@@ -1530,7 +1530,11 @@ void InputField::paintEvent(QPaintEvent *e) {
 
 			auto placeholderLeft = anim::interpolate(0, -_st.placeholderShift, placeholderHiddenDegree);
 
-			p.setFont(_st.font);
+			QRect r(rect().marginsRemoved(_st.textMargins + _st.placeholderMargins));
+			r.moveLeft(r.left() + placeholderLeft);
+			if (rtl()) r.moveLeft(width() - r.left() - r.width());
+
+			p.setFont(_st.placeholderFont);
 			p.setPen(anim::pen(_st.placeholderFg, _st.placeholderFgActive, focusedDegree));
 
 			if (_st.placeholderAlign == style::al_topleft && _placeholderAfterSymbols > 0) {
@@ -1581,7 +1585,9 @@ void InputField::startBorderAnimation() {
 }
 
 void InputField::focusInEvent(QFocusEvent *e) {
-	_borderAnimationStart = (e->reason() == Qt::MouseFocusReason) ? mapFromGlobal(QCursor::pos()).x() : (width() / 2);
+	_borderAnimationStart = (e->reason() == Qt::MouseFocusReason)
+		? mapFromGlobal(QCursor::pos()).x()
+		: (width() / 2);
 	QTimer::singleShot(0, this, SLOT(onFocusInner()));
 }
 
@@ -1594,6 +1600,10 @@ void InputField::onFocusInner() {
 	auto borderStart = _borderAnimationStart;
 	_inner->setFocus();
 	_borderAnimationStart = borderStart;
+}
+
+int InputField::borderAnimationStart() const {
+	return _borderAnimationStart;
 }
 
 void InputField::contextMenuEvent(QContextMenuEvent *e) {
@@ -3374,6 +3384,10 @@ void MaskedInputField::customUpDown(bool custom) {
 	_customUpDown = custom;
 }
 
+int MaskedInputField::borderAnimationStart() const {
+	return _borderAnimationStart;
+}
+
 void MaskedInputField::setTextMargins(const QMargins &mrg) {
 	_textMargins = mrg;
 	refreshPlaceholder();
@@ -3505,7 +3519,7 @@ void MaskedInputField::paintEvent(QPaintEvent *e) {
 			r.moveLeft(r.left() + placeholderLeft);
 			if (rtl()) r.moveLeft(width() - r.left() - r.width());
 
-			p.setFont(_st.font);
+			p.setFont(_st.placeholderFont);
 			p.setPen(anim::pen(_st.placeholderFg, _st.placeholderFgActive, focusedDegree));
 			p.drawText(r, _placeholder, _st.placeholderAlign);
 

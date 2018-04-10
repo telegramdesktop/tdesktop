@@ -1502,6 +1502,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_terms_decline" = "Decline";
 "lng_terms_signup_sorry" = "We're very sorry, but this means you can't sign up for Telegram.\n\nUnlike others, we don't use your data for ad targeting or other commercial purposes. Telegram only stores the information it needs to function as a feature-rich cloud service. You can adjust how we use your data in Privacy & Security settings.\n\nBut if you're generally not OK with Telegram's modest needs, it won't be possible for us to provide this service.";
 
+"lng_date_input_day" = "Day";
+"lng_date_input_month" = "Month";
+"lng_date_input_year" = "Year";
+
 "lng_passport_title" = "Telegram passport";
 "lng_passport_request1" = "{bot} requests access to your personal data";
 "lng_passport_request2" = "to sign you up for their services";

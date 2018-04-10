@@ -240,6 +240,9 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 			QString())));
 	}
 
+	inner->add(
+		object_ptr<Ui::FixedHeightWidget>(inner, st::passportDetailsSkip));
+
 	return inner;
 }
 

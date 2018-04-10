@@ -261,6 +261,7 @@ public:
 	void setSubmitSettings(SubmitSettings settings);
 	void customUpDown(bool isCustom);
 	void customTab(bool isCustom);
+	int borderAnimationStart() const;
 
 	not_null<QTextDocument*> document();
 	not_null<const QTextDocument*> document() const;
@@ -493,6 +494,8 @@ public:
 	QSize minimumSizeHint() const override;
 
 	void customUpDown(bool isCustom);
+	int borderAnimationStart() const;
+
 	const QString &getLastText() const {
 		return _oldtext;
 	}
