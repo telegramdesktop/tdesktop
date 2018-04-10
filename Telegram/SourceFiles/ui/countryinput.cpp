@@ -203,6 +203,22 @@ CountrySelectBox::CountrySelectBox(QWidget*)
 : _select(this, st::contactsMultiSelect, langFactory(lng_country_ph)) {
 }
 
+CountrySelectBox::CountrySelectBox(QWidget*, const QString &iso, Type type)
+: _type(type)
+, _select(this, st::contactsMultiSelect, langFactory(lng_country_ph)) {
+	lastValidISO = iso;
+}
+
+QString CountrySelectBox::NameByISO(const QString &iso) {
+	if (_countriesByISO2.isEmpty()) {
+		initCountries();
+	}
+	const auto i = _countriesByISO2.constFind(iso);
+	return (i == _countriesByISO2.cend())
+		? QString()
+		: QString::fromUtf8((*i)->name);
+}
+
 void CountrySelectBox::prepare() {
 	setTitle(langFactory(lng_country_select));
 
@@ -210,7 +226,10 @@ void CountrySelectBox::prepare() {
 	_select->setQueryChangedCallback([this](const QString &query) { onFilterUpdate(query); });
 	_select->setSubmittedCallback([this](Qt::KeyboardModifiers) { onSubmit(); });
 
-	_inner = setInnerWidget(object_ptr<Inner>(this), st::countriesScroll, _select->height());
+	_inner = setInnerWidget(
+		object_ptr<Inner>(this, _type),
+		st::countriesScroll,
+		_select->height());
 
 	addButton(langFactory(lng_close), [this] { closeBox(); });
 
@@ -256,9 +275,15 @@ void CountrySelectBox::setInnerFocus() {
 	_select->setInnerFocus();
 }
 
-CountrySelectBox::Inner::Inner(QWidget *parent) : TWidget(parent)
+CountrySelectBox::Inner::Inner(QWidget *parent, Type type)
+: TWidget(parent)
+, _type(type)
 , _rowHeight(st::countryRowHeight) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
+
+	if (countriesNames.isEmpty()) {
+		initCountries();
+	}
 
 	CountriesByISO2::const_iterator l = _countriesByISO2.constFind(lastValidISO);
 	bool seenLastValid = false;
@@ -341,9 +366,11 @@ void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
 			p.setPen(st::countryRowNameFg);
 			p.drawTextLeft(st::countryRowPadding.left(), y + st::countryRowPadding.top(), width(), name);
 
-			p.setFont(st::countryRowCodeFont);
-			p.setPen(selected ? st::countryRowCodeFgOver : st::countryRowCodeFg);
-			p.drawTextLeft(st::countryRowPadding.left() + nameWidth + st::countryRowPadding.right(), y + st::countryRowPadding.top(), width(), code);
+			if (_type == Type::Phones) {
+				p.setFont(st::countryRowCodeFont);
+				p.setPen(selected ? st::countryRowCodeFgOver : st::countryRowCodeFg);
+				p.drawTextLeft(st::countryRowPadding.left() + nameWidth + st::countryRowPadding.right(), y + st::countryRowPadding.top(), width(), code);
+			}
 		}
 	} else {
 		p.fillRect(r, st::boxBg);

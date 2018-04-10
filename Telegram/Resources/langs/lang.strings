@@ -1552,7 +1552,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_last_name" = "Surname";
 "lng_passport_birth_date" = "Date of birth";
 "lng_passport_gender" = "Gender";
+"lng_passport_gender_male" = "Male";
+"lng_passport_gender_female" = "Female";
 "lng_passport_country" = "Country";
+"lng_passport_country_choose" = "Choose country";
 "lng_passport_document_number" = "Card Number";
 "lng_passport_expiry_date" = "Expiry date";
 "lng_passport_address" = "Address";

@@ -231,10 +231,13 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 		if (!fields) {
 			continue;
 		}
-		_details.emplace(i, inner->add(object_ptr<PanelDetailsRow>(
+		_details.emplace(i, inner->add(PanelDetailsRow::Create(
 			inner,
+			row.inputType,
+			_controller,
 			row.label,
-			valueOrEmpty(*fields, row.key))));
+			valueOrEmpty(*fields, row.key),
+			QString())));
 	}
 
 	return inner;
@@ -277,7 +280,7 @@ PanelEditDocument::Result PanelEditDocument::collect() const {
 		auto &fields = (row.type == Scheme::ValueType::Fields)
 			? result.data
 			: result.filesData;
-		fields.fields[row.key] = field->getValue();
+		fields.fields[row.key] = field->valueCurrent();
 	}
 	return result;
 }

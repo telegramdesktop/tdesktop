@@ -24,6 +24,7 @@ struct ValueMap;
 struct ScanInfo;
 class EditScans;
 class PanelDetailsRow;
+enum class PanelDetailsType;
 
 class PanelEditDocument : public Ui::RpWidget {
 public:
@@ -34,6 +35,7 @@ public:
 		};
 		struct Row {
 			ValueType type = ValueType::Fields;
+			PanelDetailsType inputType = PanelDetailsType();
 			QString key;
 			QString label;
 			base::lambda<bool(const QString &value)> validate;

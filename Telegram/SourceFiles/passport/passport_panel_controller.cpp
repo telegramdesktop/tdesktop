@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "passport/passport_panel_edit_document.h"
+#include "passport/passport_panel_details_row.h"
 #include "passport/passport_panel_edit_contact.h"
 #include "passport/passport_panel_edit_scans.h"
 #include "passport/passport_panel.h"
@@ -64,42 +65,49 @@ PanelEditDocument::Scheme GetDocumentScheme(
 		result.rows = {
 			{
 				Scheme::ValueType::Fields,
+				PanelDetailsType::Text,
 				qsl("first_name"),
 				lang(lng_passport_first_name),
 				NotEmptyValidate
 			},
 			{
 				Scheme::ValueType::Fields,
+				PanelDetailsType::Text,
 				qsl("last_name"),
 				lang(lng_passport_last_name),
 				DontValidate
 			},
 			{
 				Scheme::ValueType::Fields,
+				PanelDetailsType::Date,
 				qsl("birth_date"),
 				lang(lng_passport_birth_date),
 				DateValidate,
 			},
 			{
 				Scheme::ValueType::Fields,
+				PanelDetailsType::Gender,
 				qsl("gender"),
 				lang(lng_passport_gender),
 				GenderValidate,
 			},
 			{
 				Scheme::ValueType::Fields,
+				PanelDetailsType::Country,
 				qsl("country_code"),
 				lang(lng_passport_country),
 				CountryValidate,
 			},
 			{
 				Scheme::ValueType::Scans,
+				PanelDetailsType::Text,
 				qsl("document_no"),
 				lang(lng_passport_document_number),
 				NotEmptyValidate,
 			},
 			{
 				Scheme::ValueType::Scans,
+				PanelDetailsType::Date,
 				qsl("expiry_date"),
 				lang(lng_passport_expiry_date),
 				DateOrEmptyValidate,
@@ -129,36 +137,42 @@ PanelEditDocument::Scheme GetDocumentScheme(
 		result.rows = {
 			{
 				Scheme::ValueType::Fields,
+				PanelDetailsType::Text,
 				qsl("street_line1"),
 				lang(lng_passport_street),
 				NotEmptyValidate
 			},
 			{
 				Scheme::ValueType::Fields,
+				PanelDetailsType::Text,
 				qsl("street_line2"),
 				lang(lng_passport_street),
 				DontValidate
 			},
 			{
 				Scheme::ValueType::Fields,
+				PanelDetailsType::Text,
 				qsl("city"),
 				lang(lng_passport_city),
 				NotEmptyValidate
 			},
 			{
 				Scheme::ValueType::Fields,
+				PanelDetailsType::Text,
 				qsl("state"),
 				lang(lng_passport_state),
 				DontValidate
 			},
 			{
 				Scheme::ValueType::Fields,
+				PanelDetailsType::Country,
 				qsl("country_code"),
 				lang(lng_passport_country),
 				CountryValidate
 			},
 			{
 				Scheme::ValueType::Fields,
+				PanelDetailsType::Text,
 				qsl("post_code"),
 				lang(lng_passport_postcode),
 				NotEmptyValidate
@@ -768,7 +782,10 @@ void PanelController::cancelEditScope() {
 			_confirmForgetChangesBox = BoxPointer(show(Box<ConfirmBox>(
 				lang(lng_passport_sure_cancel),
 				lang(lng_continue),
-				[=] { _panel->showForm(); })).data());
+				[=] {
+					_panel->showForm();
+					base::take(_confirmForgetChangesBox);
+			})).data());
 		}
 	} else {
 		_panel->showForm();

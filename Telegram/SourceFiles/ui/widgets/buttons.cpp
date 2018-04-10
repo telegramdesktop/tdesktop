@@ -35,8 +35,12 @@ int LinkButton::naturalWidth() const {
 void LinkButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto &font = (isOver() ? _st.overFont : _st.font);
-	auto &pen = (isOver() ? _st.overColor : _st.color);
+	const auto &font = (isOver() ? _st.overFont : _st.font);
+	const auto pen = _textFgOverride.has_value()
+		? QPen(*_textFgOverride)
+		: isOver()
+		? _st.overColor
+		: _st.color;
 	p.setFont(font);
 	p.setPen(pen);
 	const auto left = _st.padding.left();
@@ -53,6 +57,11 @@ void LinkButton::setText(const QString &text) {
 	_text = text;
 	_textWidth = _st.font->width(_text);
 	resize(naturalWidth(), _st.font->height);
+	update();
+}
+
+void LinkButton::setColorOverride(base::optional<QColor> textFg) {
+	_textFgOverride = textFg;
 	update();
 }
 

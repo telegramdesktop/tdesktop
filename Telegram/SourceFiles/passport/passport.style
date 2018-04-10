@@ -183,7 +183,7 @@ passportScanDeletedOpacity: stickersRowDisabledOpacity;
 passportDetailsHeaderPadding: margins(22px, 20px, 33px, 10px);
 passportDetailsPadding: margins(22px, 10px, 28px, 10px);
 passportDetailsField: InputField(defaultInputField) {
-	textMargins: margins(2px, 7px, 2px, 0px);
+	textMargins: margins(2px, 8px, 2px, 0px);
 	placeholderScale: 0.;
 	heightMin: 32px;
 	font: normalFont;

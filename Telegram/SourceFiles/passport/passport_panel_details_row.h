@@ -14,9 +14,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 class InputField;
+class FlatLabel;
+template <typename Widget>
+class SlideWrap;
 } // namespace Ui
 
 namespace Passport {
+
+class PanelController;
+
+enum class PanelDetailsType {
+	Text,
+	Country,
+	Date,
+	Gender,
+};
 
 class PanelLabel : public Ui::PaddingWrap<Ui::FlatLabel> {
 public:
@@ -34,13 +46,26 @@ private:
 
 class PanelDetailsRow : public Ui::RpWidget {
 public:
+	using Type = PanelDetailsType;
+
 	PanelDetailsRow(
 		QWidget *parent,
-		const QString &label,
-		const QString &value);
+		const QString &label);
 
-	bool setFocusFast();
-	QString getValue() const;
+	static object_ptr<PanelDetailsRow> Create(
+		QWidget *parent,
+		Type type,
+		not_null<PanelController*> controller,
+		const QString &label,
+		const QString &value,
+		const QString &error);
+
+	virtual bool setFocusFast();
+	virtual rpl::producer<QString> value() const = 0;
+	virtual QString valueCurrent() const = 0;
+	void showError(const QString &error);
+	void hideError();
+	void finishAnimating();
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -48,8 +73,16 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	virtual int resizeInner(int left, int top, int width) = 0;
+	virtual void showInnerError() = 0;
+	virtual void finishInnerAnimating() = 0;
+
+	void startErrorAnimation(bool shown);
+
 	QString _label;
-	object_ptr<Ui::InputField> _field;
+	object_ptr<Ui::SlideWrap<Ui::FlatLabel>> _error = { nullptr };
+	bool _errorShown = false;
+	Animation _errorAnimation;
 
 };
 
