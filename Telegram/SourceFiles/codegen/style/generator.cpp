@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "codegen/style/generator.h"
 
@@ -470,7 +457,7 @@ public:\n\
 	inline const color &get_transparent() const { return _colors[0]; }; // special color\n";
 
 	int indexInPalette = 1;
-	if (!module_.enumVariables([this, &indexInPalette](const Variable &variable) -> bool {
+	if (!module_.enumVariables([&](const Variable &variable) -> bool {
 		auto name = variable.name.back();
 		if (variable.value.type().tag != structure::TypeTag::Color) {
 			return false;
@@ -597,7 +584,7 @@ QList<row> data();\n\
 }
 
 bool Generator::writeStructsForwardDeclarations() {
-	bool hasNoExternalStructs = module_.enumVariables([this](const Variable &value) -> bool {
+	bool hasNoExternalStructs = module_.enumVariables([&](const Variable &value) -> bool {
 		if (value.value.type().tag == structure::TypeTag::Struct) {
 			if (!module_.findStructInModule(value.value.type().name, module_)) {
 				return false;
@@ -611,7 +598,7 @@ bool Generator::writeStructsForwardDeclarations() {
 
 	header_->newline();
 	std::set<QString> alreadyDeclaredTypes;
-	bool result = module_.enumVariables([this, &alreadyDeclaredTypes](const Variable &value) -> bool {
+	bool result = module_.enumVariables([&](const Variable &value) -> bool {
 		if (value.value.type().tag == structure::TypeTag::Struct) {
 			if (!module_.findStructInModule(value.value.type().name, module_)) {
 				if (alreadyDeclaredTypes.find(value.value.type().name.back()) == alreadyDeclaredTypes.end()) {
@@ -631,7 +618,7 @@ bool Generator::writeStructsDefinitions() {
 		return true;
 	}
 
-	bool result = module_.enumStructs([this](const Struct &value) -> bool {
+	bool result = module_.enumStructs([&](const Struct &value) -> bool {
 		header_->stream() << "\
 struct " << value.name.back() << " {\n";
 		for (auto &field : value.fields) {
@@ -659,7 +646,7 @@ bool Generator::writeRefsDeclarations() {
 	if (isPalette_) {
 		header_->stream() << "extern const style::color &transparent; // special color\n";
 	}
-	bool result = module_.enumVariables([this](const Variable &value) -> bool {
+	bool result = module_.enumVariables([&](const Variable &value) -> bool {
 		auto name = value.name.back();
 		auto type = typeToString(value.value.type());
 		if (type.isEmpty()) {
@@ -681,7 +668,7 @@ bool Generator::writeIncludesInSource() {
 	}
 
 	auto includes = QStringList();
-	std::function<bool(const Module&)> collector = [this, &collector, &includes](const Module &module) {
+	std::function<bool(const Module&)> collector = [&](const Module &module) {
 		module.enumIncludes(collector);
 		auto base = moduleBaseName(module);
 		if (!includes.contains(base)) {
@@ -703,7 +690,7 @@ bool Generator::writeVariableDefinitions() {
 	}
 
 	source_->newline();
-	bool result = module_.enumVariables([this](const Variable &variable) -> bool {
+	bool result = module_.enumVariables([&](const Variable &variable) -> bool {
 		auto name = variable.name.back();
 		auto type = typeToString(variable.value.type());
 		if (type.isEmpty()) {
@@ -723,7 +710,7 @@ bool Generator::writeRefsDefinition() {
 	if (isPalette_) {
 		source_->stream() << "const style::color &transparent(_palette.get_transparent()); // special color\n";
 	}
-	bool result = module_.enumVariables([this](const Variable &variable) -> bool {
+	bool result = module_.enumVariables([&](const Variable &variable) -> bool {
 		auto name = variable.name.back();
 		auto type = typeToString(variable.value.type());
 		if (type.isEmpty()) {
@@ -765,7 +752,7 @@ void palette::finalize() {\n\
 	compute(0, -1, { 255, 255, 255, 0}); // special color\n";
 
 	QList<structure::FullName> names;
-	module_.enumVariables([this, &names](const Variable &variable) -> bool {
+	module_.enumVariables([&](const Variable &variable) -> bool {
 		names.push_back(variable.name);
 		return true;
 	});
@@ -774,7 +761,7 @@ void palette::finalize() {\n\
 	int indexInPalette = 1;
 	QByteArray checksumString;
 	checksumString.append("&transparent:{ 255, 255, 255, 0 }");
-	auto result = module_.enumVariables([this, &indexInPalette, &checksumString, &dataRows, &names](const Variable &variable) -> bool {
+	auto result = module_.enumVariables([&](const Variable &variable) -> bool {
 		auto name = variable.name.back();
 		auto index = indexInPalette++;
 		paletteIndices_.emplace(name, index);
@@ -839,7 +826,7 @@ int getPaletteIndex(QLatin1String name) {\n\
 	auto tabsUsed = 1;
 
 	// Returns true if at least one check was finished.
-	auto finishChecksTillKey = [this, &chars, &checkTypes, &checkLengthHistory, &tabsUsed, tabs](const QString &key) {
+	auto finishChecksTillKey = [&](const QString &key) {
 		auto result = false;
 		while (!chars.isEmpty() && key.midRef(0, chars.size()) != chars) {
 			result = true;
@@ -1082,7 +1069,7 @@ void init_" << baseName_ << "() {\n\
 
 	if (module_.hasIncludes()) {
 		bool writtenAtLeastOne = false;
-		bool result = module_.enumIncludes([this,&writtenAtLeastOne](const Module &module) -> bool {
+		bool result = module_.enumIncludes([&](const Module &module) -> bool {
 			if (module.hasVariables()) {
 				source_->stream() << "\tinit_" + moduleBaseName(module) + "();\n";
 				writtenAtLeastOne = true;
@@ -1109,7 +1096,7 @@ void init_" << baseName_ << "() {\n\
 
 	if (isPalette_) {
 		source_->stream() << "\t_palette.finalize();\n";
-	} else if (!module_.enumVariables([this](const Variable &variable) -> bool {
+	} else if (!module_.enumVariables([&](const Variable &variable) -> bool {
 		auto name = variable.name.back();
 		auto value = valueAssignmentCode(variable.value);
 		if (value.isEmpty()) {

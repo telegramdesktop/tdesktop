@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/special_config_request.h"
 
@@ -42,14 +29,20 @@ Y1hZCxdv6cs5UnW9+PWvS+WIbkh+GaWYxwIDAQAB\n\
 
 } // namespace
 
-SpecialConfigRequest::SpecialConfigRequest(base::lambda<void(DcId dcId, const std::string &ip, int port)> callback) : _callback(std::move(callback)) {
+SpecialConfigRequest::SpecialConfigRequest(
+	base::lambda<void(
+		DcId dcId,
+		const std::string &ip,
+		int port)> callback)
+: _callback(std::move(callback)) {
 	App::setProxySettings(_manager);
 
-	performAppRequest();
+	performApp1Request();
+	performApp2Request();
 	performDnsRequest();
 }
 
-void SpecialConfigRequest::performAppRequest() {
+void SpecialConfigRequest::performApp1Request() {
 	auto appUrl = QUrl();
 	appUrl.setScheme(qsl("https"));
 	appUrl.setHost(qsl("google.com"));
@@ -58,8 +51,25 @@ void SpecialConfigRequest::performAppRequest() {
 	}
 	auto appRequest = QNetworkRequest(appUrl);
 	appRequest.setRawHeader("Host", "dns-telegram.appspot.com");
-	_appReply.reset(_manager.get(appRequest));
-	connect(_appReply.get(), &QNetworkReply::finished, this, [this] { appFinished(); });
+	_app1Reply.reset(_manager.get(appRequest));
+	connect(_app1Reply.get(), &QNetworkReply::finished, this, [=] {
+		app1Finished();
+	});
+}
+
+void SpecialConfigRequest::performApp2Request() {
+	auto appUrl = QUrl();
+	appUrl.setScheme(qsl("https"));
+	appUrl.setHost(qsl("software-download.microsoft.com"));
+	appUrl.setPath(cTestMode()
+		? qsl("/test/config.txt")
+		: qsl("/prod/config.txt"));
+	auto appRequest = QNetworkRequest(appUrl);
+	appRequest.setRawHeader("Host", "tcdnb.azureedge.net");
+	_app2Reply.reset(_manager.get(appRequest));
+	connect(_app2Reply.get(), &QNetworkReply::finished, this, [=] {
+		app2Finished();
+	});
 }
 
 void SpecialConfigRequest::performDnsRequest() {
@@ -67,19 +77,32 @@ void SpecialConfigRequest::performDnsRequest() {
 	dnsUrl.setScheme(qsl("https"));
 	dnsUrl.setHost(qsl("google.com"));
 	dnsUrl.setPath(qsl("/resolve"));
-	dnsUrl.setQuery(qsl("name=%1.stel.com&type=16").arg(cTestMode() ? qsl("tap") : qsl("ap")));
+	dnsUrl.setQuery(
+		qsl("name=%1.stel.com&type=16").arg(
+			cTestMode() ? qsl("tap") : qsl("ap")));
 	auto dnsRequest = QNetworkRequest(QUrl(dnsUrl));
 	dnsRequest.setRawHeader("Host", "dns.google.com");
 	_dnsReply.reset(_manager.get(dnsRequest));
-	connect(_dnsReply.get(), &QNetworkReply::finished, this, [this] { dnsFinished(); });
+	connect(_dnsReply.get(), &QNetworkReply::finished, this, [this] {
+		dnsFinished();
+	});
 }
 
-void SpecialConfigRequest::appFinished() {
-	if (!_appReply) {
+void SpecialConfigRequest::app1Finished() {
+	if (!_app1Reply) {
 		return;
 	}
-	auto result = _appReply->readAll();
-	_appReply.release()->deleteLater();
+	auto result = _app1Reply->readAll();
+	_app1Reply.release()->deleteLater();
+	handleResponse(result);
+}
+
+void SpecialConfigRequest::app2Finished() {
+	if (!_app2Reply) {
+		return;
+	}
+	auto result = _app2Reply->readAll();
+	_app2Reply.release()->deleteLater();
 	handleResponse(result);
 }
 
@@ -230,8 +253,11 @@ void SpecialConfigRequest::handleResponse(const QByteArray &bytes) {
 }
 
 SpecialConfigRequest::~SpecialConfigRequest() {
-	if (_appReply) {
-		_appReply->abort();
+	if (_app1Reply) {
+		_app1Reply->abort();
+	}
+	if (_app2Reply) {
+		_app2Reply->abort();
 	}
 	if (_dnsReply) {
 		_dnsReply->abort();

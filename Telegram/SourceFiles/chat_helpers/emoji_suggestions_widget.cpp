@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/emoji_suggestions_widget.h"
 
@@ -424,10 +411,23 @@ QString SuggestionsController::getEmojiQuery() {
 		return QString();
 	}
 
-	auto isSuggestionChar = [](QChar ch) {
-		return (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || (ch == '_') || (ch == '-') || (ch == '+');
+	const auto isUpperCaseLetter = [](QChar ch) {
+		return (ch >= 'A' && ch <= 'Z');
 	};
-	auto isGoodCharBeforeSuggestion = [isSuggestionChar](QChar ch) {
+	const auto isLetter = [](QChar ch) {
+		return (ch >= 'a' && ch <= 'z')
+			|| (ch >= 'A' && ch <= 'Z')
+			|| (ch >= '0' && ch <= '9');
+	};
+	const auto isSuggestionChar = [](QChar ch) {
+		return (ch >= 'a' && ch <= 'z')
+			|| (ch >= 'A' && ch <= 'Z')
+			|| (ch >= '0' && ch <= '9')
+			|| (ch == '_')
+			|| (ch == '-')
+			|| (ch == '+');
+	};
+	const auto isGoodCharBeforeSuggestion = [&](QChar ch) {
 		return !isSuggestionChar(ch) || (ch == 0);
 	};
 	Assert(position > 0 && position <= text.size());
@@ -440,7 +440,22 @@ QString SuggestionsController::getEmojiQuery() {
 				if (position > i + 1) {
 					// Skip colon and the first letter.
 					_queryStartPosition += i + 2;
-					return text.mid(i, position - i);
+					const auto length = position - i;
+					auto result = text.mid(i, length);
+					const auto upperCaseLetters = std::count_if(
+						result.begin(),
+						result.end(),
+						isUpperCaseLetter);
+					const auto letters = std::count_if(
+						result.begin(),
+						result.end(),
+						isLetter);
+					if (letters == upperCaseLetters && letters == 1) {
+						// No upper case single letter suggestions.
+						// We don't want to suggest emoji on :D and :-P
+						return QString();
+					}
+					return result.toLower();
 				}
 			}
 			return QString();
@@ -465,8 +480,7 @@ void SuggestionsController::replaceCurrent(const QString &replacement) {
 		cursor.insertText(replacement);
 	}
 
-	auto emojiText = GetSuggestionEmoji(QStringToUTF16(replacement));
-	if (auto emoji = Find(QStringFromUTF16(emojiText))) {
+	if (auto emoji = Find(replacement)) {
 		if (emoji->hasVariants()) {
 			auto it = cEmojiVariants().constFind(emoji->nonColoredId());
 			if (it != cEmojiVariants().cend()) {

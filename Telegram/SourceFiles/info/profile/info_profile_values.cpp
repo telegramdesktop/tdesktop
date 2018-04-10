@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_values.h"
 
@@ -26,9 +13,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/combine.h>
 #include "observer_peer.h"
 #include "messenger.h"
+#include "auth_session.h"
 #include "ui/wrap/slide_wrap.h"
 #include "data/data_peer_values.h"
 #include "data/data_shared_media.h"
+#include "data/data_feed.h"
+#include "data/data_session.h"
 
 namespace Info {
 namespace Profile {
@@ -304,6 +294,23 @@ rpl::producer<bool> VerifiedValue(
 	}
 	return rpl::single(false);
 }
+
+rpl::producer<int> FeedChannelsCountValue(
+		not_null<Data::Feed*> feed) {
+	using Flag = Data::FeedUpdateFlag;
+	return rpl::single(
+		Data::FeedUpdate{ feed, Flag::Channels }
+	) | rpl::then(
+		Auth().data().feedUpdated()
+	) | rpl::filter([=](const Data::FeedUpdate &update) {
+		return (update.feed == feed) && (update.flag == Flag::Channels);
+	}) | rpl::filter([=] {
+		return feed->channelsLoaded();
+	}) | rpl::map([=] {
+		return int(feed->channels().size());
+	}) | rpl::distinct_until_changed();
+}
+
 
 } // namespace Profile
 } // namespace Info

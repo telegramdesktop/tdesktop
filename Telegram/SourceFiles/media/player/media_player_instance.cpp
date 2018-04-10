@@ -1,32 +1,24 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/player/media_player_instance.h"
 
 #include "data/data_document.h"
+#include "data/data_session.h"
 #include "media/media_audio.h"
 #include "media/media_audio_capture.h"
-#include "messenger.h"
-#include "auth_session.h"
 #include "calls/calls_instance.h"
-#include "history/history_media.h"
+#include "history/history.h"
+#include "history/history_item.h"
+#include "data/data_media_types.h"
+#include "window/window_controller.h"
+#include "messenger.h"
+#include "mainwindow.h"
+#include "auth_session.h"
 
 namespace Media {
 namespace Player {
@@ -110,7 +102,9 @@ void Instance::setCurrent(const AudioMsgId &audioId) {
 
 			auto history = data->history;
 			auto migrated = data->migrated;
-			auto item = data->current ? App::histItemById(data->current.contextId()) : nullptr;
+			auto item = data->current
+				? App::histItemById(data->current.contextId())
+				: nullptr;
 			if (item) {
 				data->history = item->history()->migrateToOrMe();
 				data->migrated = data->history->migrateFrom();
@@ -231,21 +225,23 @@ bool Instance::moveInPlaylist(
 	}
 	const auto newIndex = *data->playlistIndex + delta;
 	if (const auto item = itemByIndex(data, newIndex)) {
-		if (const auto media = item->getMedia()) {
-			if (const auto document = media->getDocument()) {
+		if (const auto media = item->media()) {
+			if (const auto document = media->document()) {
 				if (autonext) {
 					_switchToNextNotifier.notify({
 						data->current,
 						item->fullId()
 					});
 				}
-				if (document->isAudioFile()) {
+				if (document->isAudioFile()
+					|| document->isVoiceMessage()
+					|| document->isVideoMessage()) {
 					play(AudioMsgId(document, item->fullId()));
 				} else {
-					DocumentOpenClickHandler::doOpen(
-						document,
-						item,
-						ActionOnLoadPlayInline);
+					//DocumentOpenClickHandler::doOpen(
+					//	document,
+					//	item,
+					//	ActionOnLoadPlayInline);
 				}
 				return true;
 			}
@@ -310,10 +306,11 @@ void Instance::play(const AudioMsgId &audioId) {
 		}
 	} else if (document->isVideoMessage()) {
 		if (const auto item = App::histItemById(audioId.contextId())) {
-			if (const auto media = item->getMedia()) {
-				media->playInline();
-			}
+			App::wnd()->controller()->startRoundVideo(item);
 		}
+	}
+	if (document->isVoiceMessage() || document->isVideoMessage()) {
+		document->session()->data().markMediaRead(document);
 	}
 }
 
@@ -438,8 +435,8 @@ void Instance::preloadNext(not_null<Data*> data) {
 	}
 	const auto nextIndex = *data->playlistIndex + 1;
 	if (const auto item = itemByIndex(data, nextIndex)) {
-		if (const auto media = item->getMedia()) {
-			if (const auto document = media->getDocument()) {
+		if (const auto media = item->media()) {
+			if (const auto document = media->document()) {
 				const auto isLoaded = document->loaded(
 					DocumentData::FilePathResolveSaveFromDataSilent);
 				if (!isLoaded) {

@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "basic.style";
 
@@ -152,6 +139,9 @@ dialogsChatIconActive: icon {{ "dialogs_chat", dialogsChatIconFgActive, point(1p
 dialogsChannelIcon: icon {{ "dialogs_channel", dialogsChatIconFg, point(3px, 4px) }};
 dialogsChannelIconOver: icon {{ "dialogs_channel", dialogsChatIconFgOver, point(3px, 4px) }};
 dialogsChannelIconActive: icon {{ "dialogs_channel", dialogsChatIconFgActive, point(3px, 4px) }};
+dialogsFeedIcon: icon {{ "dialogs_feed", dialogsChatIconFg, point(4px, 4px) }};
+dialogsFeedIconOver: icon {{ "dialogs_feed", dialogsChatIconFgOver, point(4px, 4px) }};
+dialogsFeedIconActive: icon {{ "dialogs_feed", dialogsChatIconFgActive, point(4px, 4px) }};
 
 dialogsSendStateSkip: 20px;
 dialogsSendingIcon: icon {{ "dialogs_sending", dialogsSendingIconFg, point(8px, 4px) }};

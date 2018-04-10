@@ -1,90 +1,56 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/edit_caption_box.h"
 
 #include "ui/widgets/input_fields.h"
 #include "ui/text_options.h"
 #include "media/media_clip_reader.h"
-#include "history/history_media_types.h"
+#include "history/history.h"
+#include "history/history_item.h"
+#include "data/data_media_types.h"
+#include "data/data_photo.h"
+#include "data/data_document.h"
 #include "lang/lang_keys.h"
 #include "window/window_controller.h"
 #include "mainwidget.h"
+#include "layout.h"
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
 
 EditCaptionBox::EditCaptionBox(
 	QWidget*,
-	not_null<HistoryMedia*> media,
-	FullMsgId msgId)
-: _msgId(msgId) {
-	Expects(media->canEditCaption());
+	not_null<HistoryItem*> item)
+: _msgId(item->fullId()) {
+	Expects(item->media() != nullptr);
+	Expects(item->media()->allowsEditCaption());
 
 	QSize dimensions;
 	ImagePtr image;
-	QString caption;
 	DocumentData *doc = nullptr;
 
-	switch (media->type()) {
-	case MediaTypeGif: {
-		_animated = true;
-		doc = static_cast<HistoryGif*>(media.get())->getDocument();
-		dimensions = doc->dimensions;
-		image = doc->thumb;
-	} break;
-
-	case MediaTypePhoto: {
+	const auto media = item->media();
+	if (const auto photo = media->photo()) {
 		_photo = true;
-		auto photo = static_cast<HistoryPhoto*>(media.get())->getPhoto();
 		dimensions = QSize(photo->full->width(), photo->full->height());
 		image = photo->full;
-	} break;
-
-	case MediaTypeVideo: {
-		_animated = true;
-		doc = static_cast<HistoryVideo*>(media.get())->getDocument();
-		dimensions = doc->dimensions;
-		image = doc->thumb;
-	} break;
-
-	case MediaTypeGrouped: {
-		if (const auto photo = media->getPhoto()) {
-			dimensions = QSize(photo->full->width(), photo->full->height());
-			image = photo->full;
-			_photo = true;
-		} else if (const auto doc = media->getDocument()) {
-			dimensions = doc->dimensions;
-			image = doc->thumb;
+	} else if (const auto document = media->document()) {
+		dimensions = document->dimensions;
+		image = document->thumb;
+		if (document->isAnimation()) {
 			_animated = true;
+		} else if (document->isVideoFile()) {
+			_animated = true;
+		} else {
+			_doc = true;
 		}
-	} break;
-
-	case MediaTypeFile:
-	case MediaTypeMusicFile:
-	case MediaTypeVoiceFile: {
-		_doc = true;
-		doc = static_cast<HistoryDocument*>(media.get())->getDocument();
-		image = doc->thumb;
-	} break;
+		doc = document;
 	}
-	caption = media->getCaption().text;
+	auto caption = item->originalText().text;
 
 	if (!_animated && (dimensions.isEmpty() || doc || image->isNull())) {
 		if (image->isNull()) {

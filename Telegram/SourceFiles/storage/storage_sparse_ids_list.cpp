@@ -1,32 +1,19 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/storage_sparse_ids_list.h"
 
 namespace Storage {
 
 SparseIdsList::Slice::Slice(
-		base::flat_set<MsgId> &&messages,
-		MsgRange range)
-	: messages(std::move(messages))
-	, range(range) {
+	base::flat_set<MsgId> &&messages,
+	MsgRange range)
+: messages(std::move(messages))
+, range(range) {
 }
 
 template <typename Range>
@@ -169,6 +156,20 @@ void SparseIdsList::removeAll() {
 	_slices.clear();
 	_slices.emplace(base::flat_set<MsgId>{}, MsgRange { 0, ServerMaxMsgId });
 	_count = 0;
+}
+
+void SparseIdsList::invalidateBottom() {
+	if (!_slices.empty()) {
+		const auto &last = _slices.back();
+		if (last.range.till == ServerMaxMsgId) {
+			_slices.modify(_slices.end() - 1, [](Slice &slice) {
+				slice.range.till = slice.messages.empty()
+					? slice.range.from
+					: slice.messages.back();
+			});
+		}
+	}
+	_count = base::none;
 }
 
 rpl::producer<SparseIdsListResult> SparseIdsList::query(

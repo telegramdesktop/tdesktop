@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_advanced_widget.h"
 
@@ -54,13 +41,13 @@ void AdvancedWidget::createControls() {
 	style::margins marginSmall(0, 0, 0, st::settingsSmallSkip);
 	style::margins marginLarge(0, 0, 0, st::settingsLargeSkip);
 
-	style::margins marginLocalStorage = ([&marginSmall, &marginLarge]() {
+	style::margins marginLocalStorage = [&] {
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 		return marginSmall;
 #else // !TDESKTOP_DISABLE_NETWORK_PROXY
 		return marginLarge;
 #endif // TDESKTOP_DISABLE_NETWORK_PROXY
-	})();
+	}();
 	if (self()) {
 		createChildRow(_manageLocalStorage, marginLocalStorage, lang(lng_settings_manage_local_storage), SLOT(onManageLocalStorage()));
 	}

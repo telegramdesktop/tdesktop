@@ -1,28 +1,23 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
 #include <rpl/variable.h>
 #include <rpl/event_stream.h>
 #include "window/section_widget.h"
+
+namespace Storage {
+enum class SharedMediaType : signed char;
+} // namespace Storage
+
+namespace Data {
+class Feed;
+} // namespace Data
 
 namespace Ui {
 class SettingsSlider;
@@ -45,6 +40,7 @@ namespace Media {
 class Widget;
 } // namespace Media
 
+class Key;
 class Controller;
 class Section;
 class Memento;
@@ -86,10 +82,8 @@ public:
 		Wrap wrap,
 		not_null<Memento*> memento);
 
-	not_null<PeerData*> peer() const;
-	PeerData *activePeer() const override {
-		return peer();
-	}
+	Key key() const;
+	Dialogs::RowDescriptor activeChat() const override;
 	Wrap wrap() const {
 		return _wrap.current();
 	}
@@ -149,7 +143,11 @@ private:
 	struct StackItem;
 
 	void startInjectingActivePeerProfiles();
+	void injectActiveProfile(Dialogs::Key key);
 	void injectActivePeerProfile(not_null<PeerData*> peer);
+	void injectActiveFeedProfile(not_null<Data::Feed*> feed);
+	void injectActiveProfileMemento(
+		std::unique_ptr<ContentMemento> memento);
 	void restoreHistoryStack(
 		std::vector<std::unique_ptr<ContentMemento>> stack);
 	bool hasStackHistory() const {

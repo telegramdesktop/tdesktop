@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/linux_desktop_environment.h"
 
@@ -51,6 +38,9 @@ Type Compute() {
 		} else if (list.contains("pantheon")) {
 			return Type::Pantheon;
 		} else if (list.contains("gnome")) {
+			if (list.contains("ubuntu"))
+				return Type::Ubuntu;
+
 			return Type::Gnome;
 		} else if (list.contains("kde")) {
 			if (kdeSession == qstr("5")) {
@@ -101,6 +91,7 @@ Type ComputeAndLog() {
 		case Type::KDE3: return "KDE3";
 		case Type::KDE4: return "KDE4";
 		case Type::KDE5: return "KDE5";
+		case Type::Ubuntu: return "Ubuntu";
 		case Type::Unity: return "Unity";
 		case Type::XFCE: return "XFCE";
 		case Type::Pantheon: return "Pantheon";
@@ -125,12 +116,12 @@ bool TryQtTrayIcon() {
 }
 
 bool PreferAppIndicatorTrayIcon() {
-	return IsXFCE() || IsUnity() ||
+	return IsXFCE() || IsUnity() || IsUbuntu() ||
 	       (IsGnome() && QDBusInterface("org.kde.StatusNotifierWatcher", "/").isValid());
 }
 
 bool TryUnityCounter() {
-	return IsUnity() || IsPantheon();
+	return IsUnity() || IsPantheon() || IsUbuntu();
 }
 
 } // namespace DesktopEnvironment

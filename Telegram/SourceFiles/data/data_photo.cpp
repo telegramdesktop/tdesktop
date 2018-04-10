@@ -1,25 +1,13 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_photo.h"
 
+#include "data/data_session.h"
 #include "mainwidget.h"
 #include "history/history_media_types.h"
 #include "auth_session.h"
@@ -44,14 +32,14 @@ void PhotoData::automaticLoadSettingsChanged() {
 
 void PhotoData::download() {
 	full->loadEvenCancelled();
-	notifyLayoutChanged();
+	Auth().data().notifyPhotoLayoutChanged(this);
 }
 
 bool PhotoData::loaded() const {
 	bool wasLoading = loading();
 	if (full->loaded()) {
 		if (wasLoading) {
-			notifyLayoutChanged();
+			Auth().data().notifyPhotoLayoutChanged(this);
 		}
 		return true;
 	}
@@ -70,17 +58,7 @@ bool PhotoData::displayLoading() const {
 
 void PhotoData::cancel() {
 	full->cancel();
-	notifyLayoutChanged();
-}
-
-void PhotoData::notifyLayoutChanged() const {
-	auto &items = App::photoItems();
-	auto i = items.constFind(const_cast<PhotoData*>(this));
-	if (i != items.cend()) {
-		for_const (auto item, i.value()) {
-			Auth().data().markItemLayoutChanged(item);
-		}
-	}
+	Auth().data().notifyPhotoLayoutChanged(this);
 }
 
 float64 PhotoData::progress() const {
@@ -149,8 +127,7 @@ void PhotoCancelClickHandler::onClickImpl() const {
 
 	if (data->uploading()) {
 		if (const auto item = App::histItemById(context())) {
-			App::contextItem(item);
-			App::main()->cancelUploadLayer();
+			App::main()->cancelUploadLayer(item);
 		}
 	} else {
 		data->cancel();

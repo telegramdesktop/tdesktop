@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/confirm_box.h"
 
@@ -26,6 +13,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "application.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -33,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/empty_userpic.h"
 #include "core/click_handler_types.h"
 #include "storage/localstorage.h"
+#include "data/data_session.h"
 #include "auth_session.h"
 #include "observer_peer.h"
 
@@ -470,7 +460,7 @@ void DeleteMessagesBox::prepare() {
 	} else {
 		text = _singleItem ? lang(lng_selected_delete_sure_this) : lng_selected_delete_sure(lt_count, _ids.size());
 		auto canDeleteAllForEveryone = true;
-		auto now = ::date(unixtime());
+		auto now = unixtime();
 		auto deleteForUser = (UserData*)nullptr;
 		auto peer = (PeerData*)nullptr;
 		auto forEveryoneText = lang(lng_delete_for_everyone_check);
@@ -578,28 +568,28 @@ void DeleteMessagesBox::deleteAndClear() {
 					MTP_vector<MTPint>(1, MTP_int(_ids[0].msg))));
 		}
 		if (_deleteAll && _deleteAll->checked()) {
-			App::main()->deleteAllFromUser(
+			Auth().api().deleteAllFromUser(
 				_moderateInChannel,
 				_moderateFrom);
 		}
 	}
 
-	if (!_singleItem) {
-		App::main()->clearSelectedItems();
+	if (_deleteConfirmedCallback) {
+		_deleteConfirmedCallback();
 	}
 
 	QMap<PeerData*, QVector<MTPint>> idsByPeer;
-	for_const (auto fullId, _ids) {
-		if (auto item = App::histItemById(fullId)) {
+	for (const auto itemId : _ids) {
+		if (auto item = App::histItemById(itemId)) {
 			auto history = item->history();
 			auto wasOnServer = (item->id > 0);
-			auto wasLast = (history->lastMsg == item);
+			auto wasLast = (history->lastMessage() == item);
 			item->destroy();
 
 			if (wasOnServer) {
-				idsByPeer[history->peer].push_back(MTP_int(fullId.msg));
-			} else if (wasLast) {
-				App::main()->checkPeerHistory(history->peer);
+				idsByPeer[history->peer].push_back(MTP_int(itemId.msg));
+			} else if (wasLast && !history->lastMessageKnown()) {
+				Auth().api().requestDialogEntry(history);
 			}
 		}
 	}
@@ -609,6 +599,7 @@ void DeleteMessagesBox::deleteAndClear() {
 		App::main()->deleteMessages(i.key(), i.value(), forEveryone);
 	}
 	Ui::hideLayer();
+	Auth().data().sendHistoryChangeNotifications();
 }
 
 ConfirmInviteBox::ConfirmInviteBox(QWidget*, const QString &title, bool isChannel, const MTPChatPhoto &photo, int count, const QVector<UserData*> &participants)
@@ -650,7 +641,7 @@ ConfirmInviteBox::ConfirmInviteBox(QWidget*, const QString &title, bool isChanne
 }
 
 void ConfirmInviteBox::prepare() {
-	addButton(langFactory(lng_group_invite_join), [this] {
+	addButton(langFactory(lng_group_invite_join), [] {
 		if (auto main = App::main()) {
 			main->onInviteImport();
 		}

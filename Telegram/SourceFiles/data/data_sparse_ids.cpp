@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_sparse_ids.h"
 
@@ -250,6 +237,9 @@ bool SparseIdsSliceBuilder::removeOne(MsgId messageId) {
 			changed = true;
 		}
 	}
+	if (changed) {
+		checkInsufficient();
+	}
 	return changed;
 }
 
@@ -259,6 +249,15 @@ bool SparseIdsSliceBuilder::removeAll() {
 	_fullCount = 0;
 	_skippedBefore = 0;
 	_skippedAfter = 0;
+	return true;
+}
+
+bool SparseIdsSliceBuilder::invalidateBottom() {
+	_fullCount = _skippedAfter = base::none;
+	if (_range.till == ServerMaxMsgId) {
+		_range.till = _ids.empty() ? _range.from : _ids.back();
+	}
+	checkInsufficient();
 	return true;
 }
 
@@ -374,17 +373,17 @@ void SparseIdsSliceBuilder::requestMessages(
 		RequestDirection direction) {
 	auto requestAroundData = [&]() -> AroundData {
 		if (_ids.empty()) {
-			return { _key, SparseIdsLoadDirection::Around };
+			return { _key, Data::LoadDirection::Around };
 		} else if (direction == RequestDirection::Before) {
-			return { _ids.front(), SparseIdsLoadDirection::Before };
+			return { _ids.front(), Data::LoadDirection::Before };
 		}
-		return { _ids.back(), SparseIdsLoadDirection::After };
+		return { _ids.back(), Data::LoadDirection::After };
 	};
 	_insufficientAround.fire(requestAroundData());
 }
 
 void SparseIdsSliceBuilder::requestMessagesCount() {
-	_insufficientAround.fire({ 0, SparseIdsLoadDirection::Around });
+	_insufficientAround.fire({ 0, Data::LoadDirection::Around });
 }
 
 SparseIdsSlice SparseIdsSliceBuilder::snapshot() const {

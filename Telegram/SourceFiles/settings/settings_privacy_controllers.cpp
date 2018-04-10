@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_privacy_controllers.h"
 
@@ -26,6 +13,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "auth_session.h"
 #include "storage/localstorage.h"
+#include "history/history.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/confirm_box.h"
 
@@ -269,14 +257,14 @@ QString LastSeenPrivacyController::exceptionsDescription() {
 }
 
 void LastSeenPrivacyController::confirmSave(bool someAreDisallowed, base::lambda_once<void()> saveCallback) {
-	if (someAreDisallowed && !Auth().data().lastSeenWarningSeen()) {
+	if (someAreDisallowed && !Auth().settings().lastSeenWarningSeen()) {
 		auto weakBox = std::make_shared<QPointer<ConfirmBox>>();
 		auto callback = [weakBox, saveCallback = std::move(saveCallback)]() mutable {
 			if (auto box = *weakBox) {
 				box->closeBox();
 			}
 			saveCallback();
-			Auth().data().setLastSeenWarningSeen(true);
+			Auth().settings().setLastSeenWarningSeen(true);
 			Local::writeUserSettings();
 		};
 		auto box = Box<ConfirmBox>(lang(lng_edit_privacy_lastseen_warning), lang(lng_continue), lang(lng_cancel), std::move(callback));

@@ -1,26 +1,15 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
 #include "data/data_types.h"
+
+class AuthSession;
 
 inline uint64 mediaMix32To64(int32 a, int32 b) {
 	return (uint64(*reinterpret_cast<uint32*>(&a)) << 32)
@@ -55,10 +44,7 @@ struct DocumentAdditionalData {
 struct StickerData : public DocumentAdditionalData {
 	ImagePtr img;
 	QString alt;
-
 	MTPInputStickerSet set = MTP_inputStickerSetEmpty();
-	bool setInstalled() const;
-
 	StorageImageLocation loc; // doc thumb location
 
 };
@@ -85,17 +71,9 @@ class Document;
 
 class DocumentData {
 public:
-	static DocumentData *create(DocumentId id);
-	static DocumentData *create(
-		DocumentId id,
-		int32 dc,
-		uint64 accessHash,
-		int32 version,
-		const QVector<MTPDocumentAttribute> &attributes);
-	static DocumentData *create(
-		DocumentId id,
-		const QString &url,
-		const QVector<MTPDocumentAttribute> &attributes);
+	DocumentData(DocumentId id, not_null<AuthSession*> session);
+
+	not_null<AuthSession*> session() const;
 
 	void setattributes(
 		const QVector<MTPDocumentAttribute> &attributes);
@@ -143,44 +121,14 @@ public:
 	void forget();
 	ImagePtr makeReplyPreview();
 
-	StickerData *sticker() {
-		return (type == StickerDocument)
-			? static_cast<StickerData*>(_additional.get())
-			: nullptr;
-	}
-	void checkSticker() {
-		StickerData *s = sticker();
-		if (!s) return;
+	StickerData *sticker() const;
+	void checkSticker();
+	bool isStickerSetInstalled() const;
+	SongData *song();
+	const SongData *song() const;
+	VoiceData *voice();
+	const VoiceData *voice() const;
 
-		automaticLoad(nullptr);
-		if (s->img->isNull() && loaded()) {
-			if (_data.isEmpty()) {
-				const FileLocation &loc(location(true));
-				if (loc.accessEnable()) {
-					s->img = ImagePtr(loc.name());
-					loc.accessDisable();
-				}
-			} else {
-				s->img = ImagePtr(_data);
-			}
-		}
-	}
-	SongData *song() {
-		return isSong()
-			? static_cast<SongData*>(_additional.get())
-			: nullptr;
-	}
-	const SongData *song() const {
-		return const_cast<DocumentData*>(this)->song();
-	}
-	VoiceData *voice() {
-		return isVoiceMessage()
-			? static_cast<VoiceData*>(_additional.get())
-			: nullptr;
-	}
-	const VoiceData *voice() const {
-		return const_cast<DocumentData*>(this)->voice();
-	}
 	bool isVoiceMessage() const;
 	bool isVideoMessage() const;
 	bool isSong() const;
@@ -200,20 +148,11 @@ public:
 	bool setRemoteVersion(int32 version); // Returns true if version has changed.
 	void setRemoteLocation(int32 dc, uint64 access);
 	void setContentUrl(const QString &url);
-	bool hasRemoteLocation() const {
-		return (_dc != 0 && _access != 0);
-	}
-	bool isValid() const {
-		return hasRemoteLocation() || !_url.isEmpty();
-	}
-	MTPInputDocument mtpInput() const {
-		if (_access) {
-			return MTP_inputDocument(
-				MTP_long(id),
-				MTP_long(_access));
-		}
-		return MTP_inputDocumentEmpty();
-	}
+	void setWebLocation(const WebFileLocation &location);
+	bool hasRemoteLocation() const;
+	bool hasWebLocation() const;
+	bool isValid() const;
+	MTPInputDocument mtpInput() const;
 
 	// When we have some client-side generated document
 	// (for example for displaying an external inline bot result)
@@ -221,18 +160,18 @@ public:
 	// to (this) received from the server "same" document.
 	void collectLocalData(DocumentData *local);
 
-	QString filename() const {
-		return _filename;
-	}
-	QString mimeString() const {
-		return _mimeString;
-	}
-	bool hasMimeType(QLatin1String mime) const {
-		return !_mimeString.compare(mime, Qt::CaseInsensitive);
-	}
-	void setMimeString(const QString &mime) {
-		_mimeString = mime;
-	}
+	QString filename() const;
+	QString mimeString() const;
+	bool hasMimeType(QLatin1String mime) const;
+	void setMimeString(const QString &mime);
+
+	MediaKey mediaKey() const;
+
+	static QString ComposeNameString(
+		const QString &filename,
+		const QString &songTitle,
+		const QString &songPerformer);
+	QString composeNameString() const;
 
 	~DocumentData();
 
@@ -247,44 +186,12 @@ public:
 
 	std::unique_ptr<Data::UploadState> uploadingData;
 
-	int32 md5[8];
-
-	MediaKey mediaKey() const {
-		return ::mediaKey(locationType(), _dc, id, _version);
-	}
-
-	static QString ComposeNameString(
-		const QString &filename,
-		const QString &songTitle,
-		const QString &songPerformer);
-	QString composeNameString() const {
-		if (auto songData = song()) {
-			return ComposeNameString(
-				_filename,
-				songData->title,
-				songData->performer);
-		}
-		return ComposeNameString(_filename, QString(), QString());
-	}
-
 private:
-	DocumentData(
-		DocumentId id,
-		int32 dc,
-		uint64 accessHash,
-		int32 version,
-		const QString &url,
-		const QVector<MTPDocumentAttribute> &attributes);
-
 	friend class Serialize::Document;
 
-	LocationType locationType() const {
-		return isVoiceMessage()
-			? AudioFileLocation
-			: isVideoFile()
-				? VideoFileLocation
-				: DocumentFileLocation;
-	}
+	LocationType locationType() const;
+
+	void destroyLoaderDelayed(mtpFileLoader *newValue = nullptr) const;
 
 	// Two types of location: from MTProto by dc+access+version or from web by url
 	int32 _dc = 0;
@@ -293,6 +200,9 @@ private:
 	QString _url;
 	QString _filename;
 	QString _mimeString;
+	WebFileLocation _urlLocation;
+
+	not_null<AuthSession*> _session;
 
 	FileLocation _location;
 	QByteArray _data;
@@ -302,11 +212,6 @@ private:
 	ActionOnLoad _actionOnLoad = ActionOnLoadNone;
 	FullMsgId _actionOnLoadMsgId;
 	mutable FileLoader *_loader = nullptr;
-
-	void notifyLayoutChanged() const;
-
-	void destroyLoaderDelayed(
-		mtpFileLoader *newValue = nullptr) const;
 
 };
 
@@ -383,7 +288,7 @@ protected:
 
 };
 
-QString saveFileName(
+QString FileNameForSave(
 	const QString &title,
 	const QString &filter,
 	const QString &prefix,

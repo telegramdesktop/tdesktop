@@ -121,6 +121,11 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
     Error "Dropbox path not found!"
   fi
 
+  BackupPath="/media/psf/backup/$AppVersionStrMajor/$AppVersionStrFull/t$BuildTarget"
+  if [ ! -d "/media/psf/backup" ]; then
+    Error "Backup folder not found!"
+  fi
+
   gyp/refresh.sh
 
   cd $ReleasePath
@@ -226,6 +231,13 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
   fi
   cd "$DeployPath"
   tar -cJvf "$SetupFile" "$BinaryName/"
+
+  mkdir -p $BackupPath
+  cp "$SetupFile" "$BackupPath/"
+  cp "$UpdateFile" "$BackupPath/"
+  if [ "$BetaVersion" != "0" ]; then
+    cp -v "$BetaKeyFile" "$BackupPath/"
+  fi
 fi
 
 if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarget" == "macstore" ]; then
@@ -233,6 +245,11 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
   DropboxSymbolsPath="$HOME/Dropbox/Telegram/symbols"
   if [ ! -d "$DropboxSymbolsPath" ]; then
     Error "Dropbox path not found!"
+  fi
+
+  BackupPath="$HOME/Telegram/backup/$AppVersionStrMajor/$AppVersionStrFull"
+  if [ ! -d "$HOME/Telegram/backup" ]; then
+    Error "Backup path not found!"
   fi
 
   gyp/refresh.sh
@@ -368,21 +385,20 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     mv "$ReleasePath/$UpdateFile" "$DeployPath/"
     mv "$ReleasePath/$SetupFile" "$DeployPath/"
 
-    if [ "$BuildTarget" == "mac32" ]; then
-      ReleaseToPath="$HomePath/../../deploy_temp/tmac32"
-      DeployToPath="$ReleaseToPath/$AppVersionStrMajor/$AppVersionStrFull"
-      if [ ! -d "$ReleaseToPath/$AppVersionStrMajor" ]; then
-        mkdir "$ReleaseToPath/$AppVersionStrMajor"
-      fi
-
-      if [ ! -d "$DeployToPath" ]; then
-        mkdir "$DeployToPath"
-      fi
-
-      cp -v "$DeployPath/$UpdateFile" "$DeployToPath/"
-      cp -v "$DeployPath/$SetupFile" "$DeployToPath/"
+    if [ "$BuildTarget" == "mac" ]; then
+      mkdir -p "$BackupPath/tmac"
+      cp "$DeployPath/$UpdateFile" "$BackupPath/tmac/"
+      cp "$DeployPath/$SetupFile" "$BackupPath/tmac/"
       if [ "$BetaVersion" != "0" ]; then
-        cp -v "$DeployPath/$BetaKeyFile" "$DeployToPath/"
+        cp -v "$DeployPath/$BetaKeyFile" "$BackupPath/tmac/"
+      fi
+    fi
+    if [ "$BuildTarget" == "mac32" ]; then
+      mkdir -p "$BackupPath/tmac32"
+      cp "$DeployPath/$UpdateFile" "$BackupPath/tmac32/"
+      cp "$DeployPath/$SetupFile" "$BackupPath/tmac32/"
+      if [ "$BetaVersion" != "0" ]; then
+        cp -v "$DeployPath/$BetaKeyFile" "$BackupPath/tmac32/"
       fi
     fi
   elif [ "$BuildTarget" == "macstore" ]; then

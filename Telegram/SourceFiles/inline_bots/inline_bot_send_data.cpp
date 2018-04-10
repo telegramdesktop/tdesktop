@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "inline_bots/inline_bot_send_data.h"
 
@@ -24,6 +11,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "inline_bots/inline_bot_result.h"
 #include "storage/localstorage.h"
 #include "lang/lang_keys.h"
+#include "history/history.h"
 
 namespace InlineBots {
 namespace internal {
@@ -143,11 +131,11 @@ void SendPhoto::addToHistory(
 		flags,
 		viaBotId,
 		replyToId,
-		date(mtpDate),
+		mtpDate.v,
 		fromId,
 		postAuthor,
 		_photo,
-		_caption,
+		{ _message, _entities },
 		markup);
 }
 
@@ -178,11 +166,11 @@ void SendFile::addToHistory(
 		flags,
 		viaBotId,
 		replyToId,
-		date(mtpDate),
+		mtpDate.v,
 		fromId,
 		postAuthor,
 		_document,
-		_caption,
+		{ _message, _entities },
 		markup);
 }
 
@@ -220,7 +208,7 @@ void SendGame::addToHistory(
 		flags,
 		viaBotId,
 		replyToId,
-		date(mtpDate),
+		mtpDate.v,
 		fromId,
 		postAuthor,
 		_game,

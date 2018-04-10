@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
@@ -27,7 +14,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Storage {
 
 // Allow forward declarations.
-enum class SharedMediaType : char {
+enum class SharedMediaType : signed char {
 	Photo,
 	Video,
 	PhotoVideo,
@@ -126,6 +113,14 @@ struct SharedMediaRemoveAll {
 
 };
 
+struct SharedMediaInvalidateBottom {
+	SharedMediaInvalidateBottom(PeerId peerId) : peerId(peerId) {
+	}
+
+	PeerId peerId = 0;
+
+};
+
 struct SharedMediaKey {
 	SharedMediaKey(
 		PeerId peerId,
@@ -193,11 +188,13 @@ public:
 	void add(SharedMediaAddSlice &&query);
 	void remove(SharedMediaRemoveOne &&query);
 	void remove(SharedMediaRemoveAll &&query);
+	void invalidate(SharedMediaInvalidateBottom &&query);
 
 	rpl::producer<SharedMediaResult> query(SharedMediaQuery &&query) const;
 	rpl::producer<SharedMediaSliceUpdate> sliceUpdated() const;
 	rpl::producer<SharedMediaRemoveOne> oneRemoved() const;
 	rpl::producer<SharedMediaRemoveAll> allRemoved() const;
+	rpl::producer<SharedMediaInvalidateBottom> bottomInvalidated() const;
 
 private:
 	using Lists = std::array<SparseIdsList, kSharedMediaTypeCount>;
@@ -209,6 +206,7 @@ private:
 	rpl::event_stream<SharedMediaSliceUpdate> _sliceUpdated;
 	rpl::event_stream<SharedMediaRemoveOne> _oneRemoved;
 	rpl::event_stream<SharedMediaRemoveAll> _allRemoved;
+	rpl::event_stream<SharedMediaInvalidateBottom> _bottomInvalidated;
 
 	rpl::lifetime _lifetime;
 

@@ -1,26 +1,16 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "overview/overview_layout.h"
 
 #include "data/data_document.h"
+#include "data/data_session.h"
+#include "data/data_web_page.h"
+#include "data/data_media_types.h"
 #include "styles/style_overview.h"
 #include "styles/style_history.h"
 #include "core/file_utilities.h"
@@ -34,14 +24,17 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "storage/localstorage.h"
-#include "history/history_media_types.h"
+#include "history/history_item.h"
 #include "history/history_item_components.h"
+#include "history/view/history_view_cursor_state.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/text_options.h"
 
 namespace Overview {
 namespace Layout {
 namespace {
+
+using TextState = HistoryView::TextState;
 
 TextParseOptions _documentNameOptions = {
 	TextParseMultiline | TextParseRichText | TextParseLinks | TextParseMarkdown, // flags
@@ -126,13 +119,23 @@ void Checkbox::startAnimation() {
 	_pression.start(_updateCallback, showPressed ? 0. : 1., showPressed ? 1. : 0., st::overviewCheck.duration);
 }
 
-ItemBase::ItemBase(not_null<HistoryItem*> parent) : _parent(parent) {
+MsgId AbstractItem::msgId() const {
+	auto item = getItem();
+	return item ? item->id : 0;
+}
+
+ItemBase::ItemBase(not_null<HistoryItem*> parent)
+: _parent(parent)
+, _dateTime(ItemDateTime(parent)) {
+}
+
+QDateTime ItemBase::dateTime() const {
+	return _dateTime;
 }
 
 void ItemBase::clickHandlerActiveChanged(
 		const ClickHandlerPtr &action,
 		bool active) {
-	App::hoveredLinkItem(active ? _parent.get() : nullptr);
 	Auth().data().requestItemRepaint(_parent);
 	if (_check) {
 		_check->setActive(active);
@@ -142,7 +145,6 @@ void ItemBase::clickHandlerActiveChanged(
 void ItemBase::clickHandlerPressedChanged(
 		const ClickHandlerPtr &action,
 		bool pressed) {
-	App::pressedLinkItem(pressed ? _parent.get() : nullptr);
 	Auth().data().requestItemRepaint(_parent);
 	if (_check) {
 		_check->setPressed(pressed);
@@ -175,7 +177,7 @@ const style::RoundCheckbox &ItemBase::checkboxStyle() const {
 void ItemBase::ensureCheckboxCreated() {
 	if (!_check) {
 		_check = std::make_unique<Checkbox>(
-			[this] { Auth().data().requestItemRepaint(_parent); },
+			[=] { Auth().data().requestItemRepaint(_parent); },
 			checkboxStyle());
 	}
 }
@@ -184,18 +186,25 @@ ItemBase::~ItemBase() = default;
 
 void RadialProgressItem::setDocumentLinks(
 		not_null<DocumentData*> document) {
-	auto createSaveHandler = [](
-		not_null<DocumentData*> document
-	) -> ClickHandlerPtr {
+	const auto context = parent()->fullId();
+	const auto createSaveHandler = [&]() -> ClickHandlerPtr {
 		if (document->isVoiceMessage()) {
-			return std::make_shared<DocumentOpenClickHandler>(document);
+			return std::make_shared<DocumentOpenClickHandler>(
+				document,
+				context);
 		}
-		return std::make_shared<DocumentSaveClickHandler>(document);
+		return std::make_shared<DocumentSaveClickHandler>(
+			document,
+			context);
 	};
 	setLinks(
-		std::make_shared<DocumentOpenClickHandler>(document),
-		createSaveHandler(document),
-		std::make_shared<DocumentCancelClickHandler>(document));
+		std::make_shared<DocumentOpenClickHandler>(
+			document,
+			context),
+		createSaveHandler(),
+		std::make_shared<DocumentCancelClickHandler>(
+			document,
+			context));
 }
 
 void RadialProgressItem::clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) {
@@ -203,7 +212,7 @@ void RadialProgressItem::clickHandlerActiveChanged(const ClickHandlerPtr &action
 	if (action == _openl || action == _savel || action == _cancell) {
 		if (iconAnimated()) {
 			_a_iconOver.start(
-				[this] { Auth().data().requestItemRepaint(parent()); },
+				[=] { Auth().data().requestItemRepaint(parent()); },
 				active ? 0. : 1.,
 				active ? 1. : 0.,
 				st::msgFileOverDuration);
@@ -350,9 +359,9 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	paintCheckbox(p, { checkLeft, checkTop }, selected, context);
 }
 
-HistoryTextState Photo::getState(
+TextState Photo::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	if (hasPoint(point)) {
 		return { parent(), _link };
 	}
@@ -367,6 +376,7 @@ Video::Video(
 , _duration(formatDurationText(_data->duration()))
 , _thumbLoaded(false) {
 	setDocumentLinks(_data);
+	_data->thumb->load();
 }
 
 void Video::initDimensions() {
@@ -504,9 +514,9 @@ bool Video::iconAnimated() const {
 	return true;
 }
 
-HistoryTextState Video::getState(
+TextState Video::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	bool loaded = _data->loaded();
 
 	if (hasPoint(point)) {
@@ -551,7 +561,7 @@ Voice::Voice(
 	const style::OverviewFileLayout &st)
 : RadialProgressItem(parent)
 , _data(voice)
-, _namel(std::make_shared<DocumentOpenClickHandler>(_data))
+, _namel(std::make_shared<DocumentOpenClickHandler>(_data, parent->fullId()))
 , _st(st) {
 	AddComponents(Info::Bit());
 
@@ -560,9 +570,19 @@ Voice::Voice(
 	setDocumentLinks(_data);
 
 	updateName();
-	QString d = textcmdLink(1, TextUtilities::EscapeForRichParsing(langDateTime(date(_data->date))));
+	const auto dateText = textcmdLink(
+		1,
+		TextUtilities::EscapeForRichParsing(
+			langDateTime(ParseDateTime(_data->date))));
 	TextParseOptions opts = { TextParseRichText, 0, 0, Qt::LayoutDirectionAuto };
-	_details.setText(st::defaultTextStyle, lng_date_and_duration(lt_date, d, lt_duration, formatDurationText(_data->voice()->duration)), opts);
+	_details.setText(
+		st::defaultTextStyle,
+		lng_date_and_duration(
+			lt_date,
+			dateText,
+			lt_duration,
+			formatDurationText(_data->voice()->duration)),
+		opts);
 	_details.setLink(1, goToMessageClickHandler(parent));
 }
 
@@ -675,9 +695,9 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	paintCheckbox(p, { checkLeft, checkTop }, selected, context);
 }
 
-HistoryTextState Voice::getState(
+TextState Voice::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	const auto loaded = _data->loaded();
 
 	const auto nameleft = _st.songPadding.left()
@@ -701,7 +721,7 @@ HistoryTextState Voice::getState(
 			: _openl;
 		return { parent(), link };
 	}
-	auto result = HistoryTextState(parent());
+	auto result = TextState(parent());
 	const auto statusmaxwidth = _width - nameleft - nameright;
 	const auto statusrect = rtlrect(
 		nameleft,
@@ -713,7 +733,9 @@ HistoryTextState Voice::getState(
 		if (_status.size() == FileStatusSizeLoaded || _status.size() == FileStatusSizeReady) {
 			auto textState = _details.getStateLeft(point - QPoint(nameleft, statustop), _width, _width);
 			result.link = textState.link;
-			result.cursor = textState.uponSymbol ? HistoryInTextCursorState : HistoryDefaultCursorState;
+			result.cursor = textState.uponSymbol
+				? HistoryView::CursorState::Text
+				: HistoryView::CursorState::None;
 		}
 	}
 	const auto namewidth = std::min(
@@ -796,9 +818,9 @@ Document::Document(
 : RadialProgressItem(parent)
 , _data(document)
 , _msgl(goToMessageClickHandler(parent))
-, _namel(std::make_shared<DocumentOpenClickHandler>(_data))
+, _namel(std::make_shared<DocumentOpenClickHandler>(_data, parent->fullId()))
 , _st(st)
-, _date(langDateTime(date(_data->date)))
+, _date(langDateTime(ParseDateTime(_data->date)))
 , _datew(st::normalFont->width(_date))
 , _colorIndex(documentColorIndex(_data, _ext)) {
 	_name.setMarkedText(st::defaultTextStyle, ComposeNameWithEntities(_data), _documentNameOptions);
@@ -999,9 +1021,9 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 	paintCheckbox(p, { checkLeft, checkTop }, selected, context);
 }
 
-HistoryTextState Document::getState(
+TextState Document::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	const auto loaded = _data->loaded()
 		|| Local::willStickerImageLoad(_data->mediaKey());
 	const auto wthumb = withThumb();
@@ -1165,7 +1187,7 @@ bool Document::updateStatusText() {
 
 Link::Link(
 	not_null<HistoryItem*> parent,
-	HistoryMedia *media)
+	Data::Media *media)
 : ItemBase(parent) {
 	AddComponents(Info::Bit());
 
@@ -1211,13 +1233,13 @@ Link::Link(
 		}
 	}
 
-	_page = (media && media->type() == MediaTypeWebPage)
-		? static_cast<HistoryWebPage*>(media)->webpage().get()
-		: nullptr;
+	_page = media ? media->webpage() : nullptr;
 	if (_page) {
 		mainUrl = _page->url;
 		if (_page->document) {
-			_photol = std::make_shared<DocumentOpenClickHandler>(_page->document);
+			_photol = std::make_shared<DocumentOpenClickHandler>(
+				_page->document,
+				parent->fullId());
 		} else if (_page->photo) {
 			if (_page->type == WebPageProfile || _page->type == WebPageVideo) {
 				_photol = std::make_shared<UrlClickHandler>(_page->url);
@@ -1422,9 +1444,9 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 	paintCheckbox(p, { checkLeft, checkTop }, selected, context);
 }
 
-HistoryTextState Link::getState(
+TextState Link::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	int32 left = st::linksPhotoSize + st::linksPhotoPadding, top = st::linksMargin.top() + st::linksBorder, w = _width - left;
 	if (rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width).contains(point)) {
 		return { parent(), _photol };

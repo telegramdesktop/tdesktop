@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/win/main_window_win.h"
 
@@ -31,6 +18,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/localstorage.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/themes/window_theme.h"
+#include "history/history.h"
 
 #include <qpa/qplatformnativeinterface.h>
 
@@ -885,7 +873,9 @@ void MainWindow::updateSystemMenu(Qt::WindowState state) {
 }
 
 void MainWindow::psUpdateMargins() {
-	if (!ps_hWnd) return;
+	if (!ps_hWnd || _inUpdateMargins) return;
+
+	_inUpdateMargins = true;
 
 	RECT r, a;
 
@@ -910,13 +900,18 @@ void MainWindow::psUpdateMargins() {
 
 		_deltaLeft = w.left - m.left;
 		_deltaTop = w.top - m.top;
+		_deltaRight = m.right - w.right;
+		_deltaBottom = m.bottom - w.bottom;
 
-		margins.setLeft(margins.left() - w.left + m.left);
-		margins.setRight(margins.right() - m.right + w.right);
-		margins.setBottom(margins.bottom() - m.bottom + w.bottom);
-		margins.setTop(margins.top() - w.top + m.top);
-	} else {
-		_deltaLeft = _deltaTop = 0;
+		margins.setLeft(margins.left() - _deltaLeft);
+		margins.setRight(margins.right() - _deltaRight);
+		margins.setBottom(margins.bottom() - _deltaBottom);
+		margins.setTop(margins.top() - _deltaTop);
+	} else if (_deltaLeft != 0 || _deltaTop != 0 || _deltaRight != 0 || _deltaBottom != 0) {
+		RECT w;
+		GetWindowRect(ps_hWnd, &w);
+		SetWindowPos(ps_hWnd, 0, 0, 0, w.right - w.left - _deltaLeft - _deltaRight, w.bottom - w.top - _deltaBottom - _deltaTop, SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOREPOSITION);
+		_deltaLeft = _deltaTop = _deltaRight = _deltaBottom = 0;
 	}
 
 	QPlatformNativeInterface *i = QGuiApplication::platformNativeInterface();
@@ -930,6 +925,7 @@ void MainWindow::psUpdateMargins() {
 			}
 		}
 	}
+	_inUpdateMargins = false;
 }
 
 HWND MainWindow::psHwnd() const {

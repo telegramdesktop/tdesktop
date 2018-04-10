@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/add_contact_box.h"
 
@@ -46,8 +33,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace {
 
 constexpr auto kMaxGroupChannelTitle = 255;
-constexpr auto kMaxChannelDescription = 255;
+constexpr auto kMaxChannelDescription = 255; // See also edit_peer_info_box.
 constexpr auto kMaxBioLength = 70;
+constexpr auto kMinUsernameLength = 5;
 
 style::InputField CreateBioFieldStyle() {
 	auto result = st::newGroupDescription;
@@ -254,19 +242,23 @@ bool AddContactBox::onSaveUserFail(const RPCError &error) {
 void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 	if (!isBoxShown() || !App::main()) return;
 
-	auto &d = res.c_contacts_importedContacts();
+	const auto &d = res.c_contacts_importedContacts();
 	App::feedUsers(d.vusers);
 
-	auto &v = d.vimported.v;
-	UserData *user = nullptr;
-	if (!v.isEmpty()) {
-		auto &c = v.front().c_importedContact();
-		if (c.vclient_id.v != _contactId) return;
-
-		user = App::userLoaded(c.vuser_id.v);
-	}
+	const auto &v = d.vimported.v;
+	const auto user = [&]() -> UserData* {
+		if (!v.isEmpty()) {
+			auto &c = v.front().c_importedContact();
+			if (c.vclient_id.v == _contactId) {
+				return App::userLoaded(c.vuser_id.v);
+			}
+		}
+		return nullptr;
+	}();
 	if (user) {
-		Notify::userIsContactChanged(user, true);
+		if (user->contactStatus() == UserData::ContactStatus::Contact) {
+			Ui::showPeerHistory(user, ShowAtTheEndMsgId);
+		}
 		Ui::hideLayer();
 	} else {
 		hideChildren();
@@ -776,7 +768,7 @@ void SetupChannelBox::onChange() {
 				return;
 			}
 		}
-		if (name.size() < MinUsernameLength) {
+		if (name.size() < kMinUsernameLength) {
 			if (_errorText != lang(lng_create_channel_link_too_short)) {
 				_errorText = lang(lng_create_channel_link_too_short);
 				update();
@@ -797,9 +789,14 @@ void SetupChannelBox::onCheck() {
 		MTP::cancel(_checkRequestId);
 	}
 	QString link = _link->text().trimmed();
-	if (link.size() >= MinUsernameLength) {
+	if (link.size() >= kMinUsernameLength) {
 		_checkUsername = link;
-		_checkRequestId = MTP::send(MTPchannels_CheckUsername(_channel->inputChannel, MTP_string(link)), rpcDone(&SetupChannelBox::onCheckDone), rpcFail(&SetupChannelBox::onCheckFail));
+		_checkRequestId = MTP::send(
+			MTPchannels_CheckUsername(
+				_channel->inputChannel,
+				MTP_string(link)),
+			rpcDone(&SetupChannelBox::onCheckDone),
+			rpcFail(&SetupChannelBox::onCheckFail));
 	}
 }
 

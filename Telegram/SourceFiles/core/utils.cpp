@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/utils.h"
 
@@ -93,7 +80,7 @@ namespace {
 	}
 }
 
-TimeId myunixtime() {
+TimeId LocalUnixtime() {
 	return (TimeId)time(NULL);
 }
 
@@ -116,31 +103,25 @@ void unixtimeSet(int32 serverTime, bool force) {
 			DEBUG_LOG(("MTP Info: setting client unixtime to %1").arg(serverTime));
 		}
 		unixtimeWasSet = true;
-		unixtimeDelta = serverTime + 1 - myunixtime();
+		unixtimeDelta = serverTime + 1 - LocalUnixtime();
 		DEBUG_LOG(("MTP Info: now unixtimeDelta is %1").arg(unixtimeDelta));
 	}
 	_initMsgIdConstants();
 }
 
 TimeId unixtime() {
-	auto result = myunixtime();
+	auto result = LocalUnixtime();
 
 	QReadLocker locker(&unixtimeLock);
 	return result + unixtimeDelta;
 }
 
-TimeId fromServerTime(const MTPint &serverTime) {
+QDateTime ParseDateTime(TimeId serverTime) {
+	if (serverTime <= 0) {
+		return QDateTime();
+	}
 	QReadLocker locker(&unixtimeLock);
-	return serverTime.v - unixtimeDelta;
-}
-
-MTPint toServerTime(const TimeId &clientTime) {
-	QReadLocker locker(&unixtimeLock);
-	return MTP_int(clientTime + unixtimeDelta);
-}
-
-QDateTime dateFromServerTime(TimeId time) {
-	return dateFromServerTime(MTP_int(time));
+	return QDateTime::fromTime_t(serverTime - unixtimeDelta);
 }
 
 // Precise timing functions / rand init
@@ -237,7 +218,7 @@ namespace {
             _msgIdCoef = float64(0xFFFF0000L) / 1000000000.;
             _msStart = 1000LL * static_cast<TimeMs>(ts.tv_sec) + (static_cast<TimeMs>(ts.tv_nsec) / 1000000LL);
 #endif
-			_timeStart = myunixtime();
+			_timeStart = LocalUnixtime();
 			srand((uint32)(_msStart & 0xFFFFFFFFL));
 		}
 	};
@@ -308,7 +289,9 @@ namespace ThirdParty {
 		av_lockmgr_register(nullptr);
 
 		CRYPTO_cleanup_all_ex_data();
+#ifndef LIBRESSL_VERSION_NUMBER
 		FIPS_mode_set(0);
+#endif
 		ENGINE_cleanup();
 		CONF_modules_unload(1);
 		ERR_remove_state(0);
@@ -323,7 +306,7 @@ namespace ThirdParty {
 }
 
 bool checkms() {
-	auto unixms = (myunixtime() - _timeStart) * 1000LL + _msAddToUnixtime;
+	auto unixms = (LocalUnixtime() - _timeStart) * 1000LL + _msAddToUnixtime;
 	auto ms = getms(true);
 	if (ms > unixms + 1000LL) {
 		_msAddToUnixtime = ((ms - unixms) / 1000LL) * 1000LL;

@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_members_controllers.h"
 
@@ -52,7 +39,7 @@ public:
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void rowActionClicked(not_null<PeerListRow*> row) override;
-	Ui::PopupMenu *rowContextMenu(
+	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
 		not_null<PeerListRow*> row) override;
 
 	rpl::producer<int> onlineCountValue() const override {
@@ -278,13 +265,13 @@ void ChatMembersController::rowActionClicked(
 	removeMember(row->peer()->asUser());
 }
 
-Ui::PopupMenu *ChatMembersController::rowContextMenu(
+base::unique_qptr<Ui::PopupMenu> ChatMembersController::rowContextMenu(
 		not_null<PeerListRow*> row) {
 	auto my = static_cast<MemberListRow*>(row.get());
 	auto user = my->user();
 	auto canRemoveMember = my->canRemove();
 
-	auto result = new Ui::PopupMenu(nullptr);
+	auto result = base::make_unique_q<Ui::PopupMenu>(nullptr);
 	result->addAction(
 		lang(lng_context_view_profile),
 		[weak = base::make_weak(this), user] {

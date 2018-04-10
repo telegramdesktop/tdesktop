@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/crash_reports.h"
 
@@ -506,6 +493,31 @@ void SetAnnotation(const std::string &key, const QString &value) {
 	}
 }
 
+void SetAnnotationHex(const std::string &key, const QString &value) {
+	if (value.isEmpty()) {
+		return SetAnnotation(key, value);
+	}
+	const auto utf = value.toUtf8();
+	auto buffer = std::string();
+	buffer.reserve(4 * utf.size());
+	const auto hexDigit = [](std::uint8_t value) {
+		if (value >= 10) {
+			return 'A' + (value - 10);
+		}
+		return '0' + value;
+	};
+	const auto appendHex = [&](std::uint8_t value) {
+		buffer.push_back('\\');
+		buffer.push_back('x');
+		buffer.push_back(hexDigit(value / 16));
+		buffer.push_back(hexDigit(value % 16));
+	};
+	for (const auto ch : utf) {
+		appendHex(ch);
+	}
+	ProcessAnnotations[key] = std::move(buffer);
+}
+
 void SetAnnotationRef(const std::string &key, const QString *valuePtr) {
 	if (valuePtr) {
 		ProcessAnnotationRefs[key] = valuePtr;
@@ -533,7 +545,11 @@ const dump &operator<<(const dump &stream, const wchar_t *str) {
     if (!ReportFile) return stream;
 
     for (int i = 0, l = wcslen(str); i < l; ++i) {
-        if (str[i] >= 0 && str[i] < 128) {
+        if (
+#if !defined(__WCHAR_UNSIGNED__)
+            str[i] >= 0 &&
+#endif
+            str[i] < 128) {
 			SafeWriteChar(char(str[i]));
         } else {
 			SafeWriteChar('?');

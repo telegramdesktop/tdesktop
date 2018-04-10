@@ -1,27 +1,15 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/changelogs.h"
 
 #include "storage/localstorage.h"
 #include "lang/lang_keys.h"
+#include "data/data_session.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
 
@@ -84,6 +72,15 @@ std::map<int, const char*> AlphaLogs() {
 		"\xE2\x80\x94 Select a message you want to reply to by "
 		"pressing Ctrl+Up and Ctrl+Down."
 	},
+	{
+		1002009,
+		"\xE2\x80\x94 Quick Reply. "
+		"Double click next to any message for a quick reply.\n"
+
+		"\xE2\x80\x94 Search for Stickers. "
+		"Click on the new search icon to access "
+		"your sticker sets or find new ones."
+	}
 	};
 }
 

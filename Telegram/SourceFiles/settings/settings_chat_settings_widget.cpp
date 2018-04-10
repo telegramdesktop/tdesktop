@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_chat_settings_widget.h"
 
@@ -153,7 +140,8 @@ void ChatSettingsWidget::createControls() {
 	style::margins marginSub(0, 0, 0, st::settingsSubSkip);
 	style::margins slidedPadding(0, marginSub.bottom() / 2, 0, marginSub.bottom() - (marginSub.bottom() / 2));
 
-	createChildRow(_replaceEmoji, marginSkip, lang(lng_settings_replace_emojis), [this](bool) { onReplaceEmoji(); }, cReplaceEmojis());
+	createChildRow(_replaceEmoji, marginSmall, lang(lng_settings_replace_emojis), [this](bool) { toggleReplaceEmoji(); }, cReplaceEmojis());
+	createChildRow(_suggestByEmoji, marginSkip, lang(lng_settings_suggest_by_emoji), [this](bool) { toggleSuggestStickersByEmoji(); }, Global::SuggestStickersByEmoji());
 
 #ifndef OS_WIN_STORE
 	auto pathMargin = marginSub;
@@ -181,8 +169,13 @@ void ChatSettingsWidget::createControls() {
 	createChildRow(_manageStickerSets, marginSmall, lang(lng_stickers_you_have), SLOT(onManageStickerSets()));
 }
 
-void ChatSettingsWidget::onReplaceEmoji() {
+void ChatSettingsWidget::toggleReplaceEmoji() {
 	cSetReplaceEmojis(_replaceEmoji->checked());
+	Local::writeUserSettings();
+}
+
+void ChatSettingsWidget::toggleSuggestStickersByEmoji() {
+	Global::SetSuggestStickersByEmoji(_suggestByEmoji->checked());
 	Local::writeUserSettings();
 }
 

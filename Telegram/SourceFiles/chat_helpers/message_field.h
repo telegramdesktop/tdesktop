@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
@@ -30,8 +17,13 @@ class Controller;
 QString ConvertTagToMimeTag(const QString &tagId);
 
 EntitiesInText ConvertTextTagsToEntities(const TextWithTags::Tags &tags);
-TextWithTags::Tags ConvertEntitiesToTextTags(const EntitiesInText &entities);
-std::unique_ptr<QMimeData> MimeDataFromTextWithEntities(const TextWithEntities &forClipboard);
+TextWithTags::Tags ConvertEntitiesToTextTags(
+	const EntitiesInText &entities);
+std::unique_ptr<QMimeData> MimeDataFromTextWithEntities(
+	const TextWithEntities &forClipboard);
+void SetClipboardWithEntities(
+	const TextWithEntities &forClipboard,
+	QClipboard::Mode mode = QClipboard::Clipboard);
 
 class MessageField final : public Ui::FlatTextarea {
 	Q_OBJECT

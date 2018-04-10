@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_box_controller.h"
 
@@ -26,9 +13,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "ui/effects/ripple_animation.h"
 #include "calls/calls_instance.h"
-#include "history/history_media_types.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "mainwidget.h"
 #include "auth_session.h"
+#include "data/data_session.h"
+#include "data/data_media_types.h"
 
 namespace Calls {
 namespace {
@@ -49,7 +39,8 @@ public:
 	};
 
 	bool canAddItem(not_null<const HistoryItem*> item) const {
-		return (ComputeType(item) == _type && item->date.date() == _date);
+		return (ComputeType(item) == _type)
+			&& (ItemDateTime(item).date() == _date);
 	}
 	void addItem(not_null<HistoryItem*> item) {
 		Expects(canAddItem(item));
@@ -127,7 +118,7 @@ private:
 BoxController::Row::Row(not_null<HistoryItem*> item)
 : PeerListRow(item->history()->peer, item->id)
 , _items(1, item)
-, _date(item->date.date())
+, _date(ItemDateTime(item).date())
 , _type(ComputeType(item)) {
 	refreshStatus();
 }
@@ -172,7 +163,7 @@ void BoxController::Row::refreshStatus() {
 		return;
 	}
 	auto text = [this] {
-		auto time = _items.front()->date.time().toString(cTimeFormat());
+		auto time = ItemDateTime(_items.front()).time().toString(cTimeFormat());
 		auto today = QDateTime::currentDateTime().date();
 		if (_date == today) {
 			return lng_call_box_status_today(lt_time, time);
@@ -188,10 +179,11 @@ BoxController::Row::Type BoxController::Row::ComputeType(
 		not_null<const HistoryItem*> item) {
 	if (item->out()) {
 		return Type::Out;
-	} else if (auto media = item->getMedia()) {
-		if (media->type() == MediaTypeCall) {
-			auto reason = static_cast<HistoryCall*>(media)->reason();
-			if (reason == HistoryCall::FinishReason::Busy || reason == HistoryCall::FinishReason::Missed) {
+	} else if (auto media = item->media()) {
+		if (const auto call = media->call()) {
+			const auto reason = call->finishReason;
+			if (reason == Data::Call::FinishReason::Busy
+				|| reason == Data::Call::FinishReason::Missed) {
 				return Type::Missed;
 			}
 		}
@@ -256,6 +248,7 @@ void BoxController::loadMoreRows() {
 		MTP_int(_offsetId),
 		MTP_int(0),
 		MTP_int(_offsetId ? kFirstPageCount : kPerPageCount),
+		MTP_int(0),
 		MTP_int(0),
 		MTP_int(0)
 	)).done([this](const MTPmessages_Messages &result) {

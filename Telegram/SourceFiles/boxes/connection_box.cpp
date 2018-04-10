@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/connection_box.h"
 
@@ -27,6 +14,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/localstorage.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "auth_session.h"
+#include "data/data_session.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -304,55 +293,63 @@ void AutoDownloadBox::resizeEvent(QResizeEvent *e) {
 }
 
 void AutoDownloadBox::onSave() {
-	bool changed = false;
-	int32 autoDownloadPhoto = (_photoPrivate->checked() ? 0 : dbiadNoPrivate) | (_photoGroups->checked() ? 0 : dbiadNoGroups);
+	auto photosChanged = false;
+	auto documentsChanged = false;
+	auto autoplayChanged = false;
+	auto photosEnabled = false;
+	auto voiceEnabled = false;
+	auto animationsEnabled = false;
+	auto autoDownloadPhoto = (_photoPrivate->checked() ? 0 : dbiadNoPrivate)
+		| (_photoGroups->checked() ? 0 : dbiadNoGroups);
 	if (cAutoDownloadPhoto() != autoDownloadPhoto) {
-		bool enabledPrivate = ((cAutoDownloadPhoto() & dbiadNoPrivate) && !(autoDownloadPhoto & dbiadNoPrivate));
-		bool enabledGroups = ((cAutoDownloadPhoto() & dbiadNoGroups) && !(autoDownloadPhoto & dbiadNoGroups));
+		const auto enabledPrivate = (cAutoDownloadPhoto() & dbiadNoPrivate)
+			&& !(autoDownloadPhoto & dbiadNoPrivate);
+		const auto enabledGroups = (cAutoDownloadPhoto() & dbiadNoGroups)
+			&& !(autoDownloadPhoto & dbiadNoGroups);
+		photosEnabled = enabledPrivate || enabledGroups;
+		photosChanged = true;
 		cSetAutoDownloadPhoto(autoDownloadPhoto);
-		if (enabledPrivate || enabledGroups) {
-			const PhotosData &data(App::photosData());
-			for (PhotosData::const_iterator i = data.cbegin(), e = data.cend(); i != e; ++i) {
-				i.value()->automaticLoadSettingsChanged();
-			}
-		}
-		changed = true;
 	}
-	int32 autoDownloadAudio = (_audioPrivate->checked() ? 0 : dbiadNoPrivate) | (_audioGroups->checked() ? 0 : dbiadNoGroups);
+	auto autoDownloadAudio = (_audioPrivate->checked() ? 0 : dbiadNoPrivate)
+		| (_audioGroups->checked() ? 0 : dbiadNoGroups);
 	if (cAutoDownloadAudio() != autoDownloadAudio) {
-		bool enabledPrivate = ((cAutoDownloadAudio() & dbiadNoPrivate) && !(autoDownloadAudio & dbiadNoPrivate));
-		bool enabledGroups = ((cAutoDownloadAudio() & dbiadNoGroups) && !(autoDownloadAudio & dbiadNoGroups));
+		const auto enabledPrivate = (cAutoDownloadAudio() & dbiadNoPrivate)
+			&& !(autoDownloadAudio & dbiadNoPrivate);
+		const auto enabledGroups = (cAutoDownloadAudio() & dbiadNoGroups)
+			&& !(autoDownloadAudio & dbiadNoGroups);
+		voiceEnabled = enabledPrivate || enabledGroups;
+		documentsChanged = true;
 		cSetAutoDownloadAudio(autoDownloadAudio);
-		if (enabledPrivate || enabledGroups) {
-			for (auto document : App::documentsData()) {
-				if (document->isVoiceMessage()) {
-					document->automaticLoadSettingsChanged();
-				}
-			}
-		}
-		changed = true;
 	}
-	int32 autoDownloadGif = (_gifPrivate->checked() ? 0 : dbiadNoPrivate) | (_gifGroups->checked() ? 0 : dbiadNoGroups);
+	auto autoDownloadGif = (_gifPrivate->checked() ? 0 : dbiadNoPrivate)
+		| (_gifGroups->checked() ? 0 : dbiadNoGroups);
 	if (cAutoDownloadGif() != autoDownloadGif) {
-		bool enabledPrivate = ((cAutoDownloadGif() & dbiadNoPrivate) && !(autoDownloadGif & dbiadNoPrivate));
-		bool enabledGroups = ((cAutoDownloadGif() & dbiadNoGroups) && !(autoDownloadGif & dbiadNoGroups));
+		const auto enabledPrivate = (cAutoDownloadGif() & dbiadNoPrivate)
+			&& !(autoDownloadGif & dbiadNoPrivate);
+		const auto enabledGroups = (cAutoDownloadGif() & dbiadNoGroups)
+			&& !(autoDownloadGif & dbiadNoGroups);
+		animationsEnabled = enabledPrivate || enabledGroups;
+		documentsChanged = true;
 		cSetAutoDownloadGif(autoDownloadGif);
-		if (enabledPrivate || enabledGroups) {
-			for (auto document : App::documentsData()) {
-				if (document->isAnimation()) {
-					document->automaticLoadSettingsChanged();
-				}
-			}
-		}
-		changed = true;
 	}
 	if (cAutoPlayGif() != _gifPlay->checked()) {
 		cSetAutoPlayGif(_gifPlay->checked());
 		if (!cAutoPlayGif()) {
-			App::stopGifItems();
+			Auth().data().stopAutoplayAnimations();
 		}
-		changed = true;
+		autoplayChanged = true;
 	}
-	if (changed) Local::writeUserSettings();
+	if (photosChanged || documentsChanged || autoplayChanged) {
+		Local::writeUserSettings();
+	}
+	if (photosEnabled) {
+		Auth().data().photoLoadSettingsChanged();
+	}
+	if (voiceEnabled) {
+		Auth().data().voiceLoadSettingsChanged();
+	}
+	if (animationsEnabled) {
+		Auth().data().animationLoadSettingsChanged();
+	}
 	closeBox();
 }

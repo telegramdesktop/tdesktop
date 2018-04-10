@@ -1,28 +1,17 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/file_upload.h"
 
 #include "storage/localimageloader.h"
 #include "data/data_document.h"
 #include "data/data_photo.h"
+#include "data/data_session.h"
+#include "auth_session.h"
 
 namespace Storage {
 namespace {
@@ -129,14 +118,11 @@ Uploader::Uploader() {
 
 void Uploader::uploadMedia(const FullMsgId &msgId, const SendMediaReady &media) {
 	if (media.type == SendMediaType::Photo) {
-		App::feedPhoto(media.photo, media.photoThumbs);
+		Auth().data().photo(media.photo, media.photoThumbs);
 	} else if (media.type == SendMediaType::File || media.type == SendMediaType::Audio) {
-		DocumentData *document;
-		if (media.photoThumbs.isEmpty()) {
-			document = App::feedDocument(media.document);
-		} else {
-			document = App::feedDocument(media.document, media.photoThumbs.begin().value());
-		}
+		const auto document = media.photoThumbs.isEmpty()
+			? Auth().data().document(media.document)
+			: Auth().data().document(media.document, media.photoThumbs.begin().value());
 		if (!media.data.isEmpty()) {
 			document->setData(media.data);
 		}
@@ -152,10 +138,12 @@ void Uploader::upload(
 		const FullMsgId &msgId,
 		const std::shared_ptr<FileLoadResult> &file) {
 	if (file->type == SendMediaType::Photo) {
-		auto photo = App::feedPhoto(file->photo, file->photoThumbs);
+		auto photo = Auth().data().photo(file->photo, file->photoThumbs);
 		photo->uploadingData = std::make_unique<Data::UploadState>(file->partssize);
 	} else if (file->type == SendMediaType::File || file->type == SendMediaType::Audio) {
-		auto document = file->thumb.isNull() ? App::feedDocument(file->document) : App::feedDocument(file->document, file->thumb);
+		auto document = file->thumb.isNull()
+			? Auth().data().document(file->document)
+			: Auth().data().document(file->document, file->thumb);
 		document->uploadingData = std::make_unique<Data::UploadState>(document->size);
 		if (!file->content.isEmpty()) {
 			document->setData(file->content);
@@ -174,7 +162,7 @@ void Uploader::currentFailed() {
 		if (j->second.type() == SendMediaType::Photo) {
 			emit photoFailed(j->first);
 		} else if (j->second.type() == SendMediaType::File) {
-			const auto document = App::document(j->second.id());
+			const auto document = Auth().data().document(j->second.id());
 			if (document->uploading()) {
 				document->status = FileUploadFailed;
 			}
@@ -464,7 +452,7 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 			sentSizes[dc] -= sentPartSize;
 			if (file.type() == SendMediaType::Photo) {
 				file.fileSentSize += sentPartSize;
-				const auto photo = App::photo(file.id());
+				const auto photo = Auth().data().photo(file.id());
 				if (photo->uploading() && file.file) {
 					photo->uploadingData->size = file.file->partssize;
 					photo->uploadingData->offset = file.fileSentSize;
@@ -472,7 +460,7 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 				emit photoProgress(fullId);
 			} else if (file.type() == SendMediaType::File
 				|| file.type() == SendMediaType::Audio) {
-				const auto document = App::document(file.id());
+				const auto document = Auth().data().document(file.id());
 				if (document->uploading()) {
 					const auto doneParts = file.docSentParts
 						- int(docRequestsSent.size());

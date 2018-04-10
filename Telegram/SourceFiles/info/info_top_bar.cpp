@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/info_top_bar.h"
 
@@ -522,11 +509,13 @@ void TopBar::performForward() {
 		_cancelSelectionClicks.fire({});
 		return;
 	}
-	Window::ShowForwardMessagesBox(std::move(items), [weak = make_weak(this)]{
-		if (weak) {
-			weak->_cancelSelectionClicks.fire({});
-		}
-	});
+	Window::ShowForwardMessagesBox(
+		std::move(items),
+		[weak = make_weak(this)] {
+			if (weak) {
+				weak->_cancelSelectionClicks.fire({});
+			}
+		});
 }
 
 void TopBar::performDelete() {
@@ -534,18 +523,27 @@ void TopBar::performDelete() {
 	if (items.empty()) {
 		_cancelSelectionClicks.fire({});
 	} else {
-		Ui::show(Box<DeleteMessagesBox>(std::move(items)));
+		const auto box = Ui::show(Box<DeleteMessagesBox>(std::move(items)));
+		box->setDeleteConfirmedCallback([weak = make_weak(this)] {
+			if (weak) {
+				weak->_cancelSelectionClicks.fire({});
+			}
+		});
 	}
 }
 
 rpl::producer<QString> TitleValue(
 		const Section &section,
-		not_null<PeerData*> peer,
+		Key key,
 		bool isStackBottom) {
 	return Lang::Viewer([&] {
+		const auto peer = key.peer();
+
 		switch (section.type()) {
 		case Section::Type::Profile:
-			if (auto user = peer->asUser()) {
+			if (const auto feed = key.feed()) {
+				return lng_info_feed_title;
+			} else if (auto user = peer->asUser()) {
 				return user->botInfo
 					? lng_info_bot_title
 					: lng_info_user_title;
@@ -585,6 +583,9 @@ rpl::producer<QString> TitleValue(
 
 		case Section::Type::Members:
 			return lng_profile_participants_section;
+
+		case Section::Type::Channels:
+			return lng_info_feed_channels;
 
 		}
 		Unexpected("Bad section type in Info::TitleValue()");

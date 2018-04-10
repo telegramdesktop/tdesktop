@@ -1,26 +1,14 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/sticker_set_box.h"
 
 #include "data/data_document.h"
+#include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -134,8 +122,8 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 		_pack.reserve(v.size());
 		_packOvers.reserve(v.size());
 		for (int i = 0, l = v.size(); i < l; ++i) {
-			auto doc = App::feedDocument(v.at(i));
-			if (!doc || !doc->sticker()) continue;
+			auto doc = Auth().data().document(v.at(i));
+			if (!doc->sticker()) continue;
 
 			_pack.push_back(doc);
 			_packOvers.push_back(Animation());
@@ -151,7 +139,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 				Stickers::Pack p;
 				p.reserve(stickers.size());
 				for (auto j = 0, c = stickers.size(); j != c; ++j) {
-					auto doc = App::document(stickers[j].v);
+					auto doc = Auth().data().document(stickers[j].v);
 					if (!doc || !doc->sticker()) continue;
 
 					p.push_back(doc);
@@ -168,12 +156,16 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 			_setCount = s.vcount.v;
 			_setHash = s.vhash.v;
 			_setFlags = s.vflags.v;
+			_setInstallDate = s.has_installed_date()
+				? s.vinstalled_date.v
+				: TimeId(0);
 			auto &sets = Auth().data().stickerSetsRef();
 			auto it = sets.find(_setId);
 			if (it != sets.cend()) {
 				auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_not_loaded | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_special);
 				_setFlags |= clientFlags;
 				it->flags = _setFlags;
+				it->installDate = _setInstallDate;
 				it->stickers = _pack;
 				it->emoji = _emoji;
 			}
@@ -213,13 +205,25 @@ void StickerSetBox::Inner::installDone(const MTPmessages_StickerSetInstallResult
 			Auth().data().archivedStickerSetsOrderRef().removeAt(index);
 		}
 	}
+	_setInstallDate = unixtime();
 	_setFlags &= ~MTPDstickerSet::Flag::f_archived;
-	_setFlags |= MTPDstickerSet::Flag::f_installed;
+	_setFlags |= MTPDstickerSet::Flag::f_installed_date;
 	auto it = sets.find(_setId);
 	if (it == sets.cend()) {
-		it = sets.insert(_setId, Stickers::Set(_setId, _setAccess, _setTitle, _setShortName, _setCount, _setHash, _setFlags));
+		it = sets.insert(
+			_setId,
+			Stickers::Set(
+				_setId,
+				_setAccess,
+				_setTitle,
+				_setShortName,
+				_setCount,
+				_setHash,
+				_setFlags,
+				_setInstallDate));
 	} else {
 		it->flags = _setFlags;
+		it->installDate = _setInstallDate;
 	}
 	it->stickers = _pack;
 	it->emoji = _emoji;
@@ -251,7 +255,7 @@ void StickerSetBox::Inner::installDone(const MTPmessages_StickerSetInstallResult
 			Local::writeArchivedStickers();
 		}
 		Local::writeInstalledStickers();
-		Auth().data().markStickersUpdated();
+		Auth().data().notifyStickersUpdated();
 	}
 	_setInstalled.fire_copy(_setId);
 }
@@ -408,11 +412,17 @@ bool StickerSetBox::Inner::loaded() const {
 	return _loaded && !_pack.isEmpty();
 }
 
-int32 StickerSetBox::Inner::notInstalled() const {
-	if (!_loaded) return 0;
-	auto it = Auth().data().stickerSets().constFind(_setId);
-	if (it == Auth().data().stickerSets().cend() || !(it->flags & MTPDstickerSet::Flag::f_installed) || (it->flags & MTPDstickerSet::Flag::f_archived)) return _pack.size();
-	return 0;
+bool StickerSetBox::Inner::notInstalled() const {
+	if (!_loaded) {
+		return false;
+	}
+	const auto it = Auth().data().stickerSets().constFind(_setId);
+	if ((it == Auth().data().stickerSets().cend())
+		|| !(it->flags & MTPDstickerSet::Flag::f_installed_date)
+		|| (it->flags & MTPDstickerSet::Flag::f_archived)) {
+		return _pack.size() > 0;
+	}
+	return false;
 }
 
 bool StickerSetBox::Inner::official() const {

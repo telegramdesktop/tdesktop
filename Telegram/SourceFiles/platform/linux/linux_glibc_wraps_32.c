@@ -1,28 +1,23 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include <time.h>
 #include <stdint.h>
 
+#if defined(_M_IX86) || defined(__i386__)
+#define GETTIME_GLIBC_VERSION "2.2"
+#elif defined(_M_ARM) || defined(__arm__)
+#define GETTIME_GLIBC_VERSION "2.4"
+#else
+#error Please add glibc wraps for your architecture
+#endif
+
 int __clock_gettime_glibc_old(clockid_t clk_id, struct timespec *tp);
-__asm__(".symver __clock_gettime_glibc_old,clock_gettime@GLIBC_2.2");
+__asm__(".symver __clock_gettime_glibc_old,clock_gettime@GLIBC_" GETTIME_GLIBC_VERSION);
 
 int __wrap_clock_gettime(clockid_t clk_id, struct timespec *tp) {
         return __clock_gettime_glibc_old(clk_id, tp);

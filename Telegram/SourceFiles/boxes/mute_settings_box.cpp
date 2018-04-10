@@ -1,10 +1,10 @@
-/* This file is part of Telegram Desktop, the official desktop version of
- * Telegram messaging app, see https://desktop.telegram.org
- *
- * This code is in Public Domain, see license terms in .github/CONTRIBUTING.md
- * Copyright (C) 2017, Nicholas Guriev <guriev-ns@ya.ru>
- */
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
 
+This code is in Public Domain, see license terms in .github/CONTRIBUTING.md
+Copyright (C) 2017, Nicholas Guriev <guriev-ns@ya.ru>
+*/
 #include "boxes/mute_settings_box.h"
 
 #include "lang/lang_keys.h"

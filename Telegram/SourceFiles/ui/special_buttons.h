@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
@@ -26,6 +13,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_widgets.h"
 
 class PeerData;
+
+namespace Data {
+class Feed;
+} // namespace Data
 
 namespace Window {
 class Controller;
@@ -228,6 +219,33 @@ private:
 	bool _cursorInChangeOverlay = false;
 	bool _changeOverlayEnabled = false;
 	Animation _changeOverlayShown;
+
+};
+
+class FeedUserpicButton : public AbstractButton {
+public:
+	FeedUserpicButton(
+		QWidget *parent,
+		not_null<Window::Controller*> controller,
+		not_null<Data::Feed*> feed,
+		const style::FeedUserpicButton &st);
+
+private:
+	struct Part {
+		not_null<ChannelData*> channel;
+		base::unique_qptr<UserpicButton> button;
+	};
+
+	void prepare();
+	void checkParts();
+	bool partsAreValid() const;
+	void refreshParts();
+	QPoint countInnerPosition() const;
+
+	const style::FeedUserpicButton &_st;
+	not_null<Window::Controller*> _controller;
+	not_null<Data::Feed*> _feed;
+	std::vector<Part> _parts;
 
 };
 

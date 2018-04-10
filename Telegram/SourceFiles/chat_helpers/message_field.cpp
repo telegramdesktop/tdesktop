@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/message_field.h"
 
@@ -94,7 +81,8 @@ TextWithTags::Tags ConvertEntitiesToTextTags(const EntitiesInText &entities) {
 	return result;
 }
 
-std::unique_ptr<QMimeData> MimeDataFromTextWithEntities(const TextWithEntities &forClipboard) {
+std::unique_ptr<QMimeData> MimeDataFromTextWithEntities(
+		const TextWithEntities &forClipboard) {
 	if (forClipboard.text.isEmpty()) {
 		return nullptr;
 	}
@@ -106,9 +94,19 @@ std::unique_ptr<QMimeData> MimeDataFromTextWithEntities(const TextWithEntities &
 		for (auto &tag : tags) {
 			tag.id = ConvertTagToMimeTag(tag.id);
 		}
-		result->setData(Ui::FlatTextarea::tagsMimeType(), Ui::FlatTextarea::serializeTagsList(tags));
+		result->setData(
+			Ui::FlatTextarea::tagsMimeType(),
+			Ui::FlatTextarea::serializeTagsList(tags));
 	}
 	return result;
+}
+
+void SetClipboardWithEntities(
+		const TextWithEntities &forClipboard,
+		QClipboard::Mode mode) {
+	if (auto data = MimeDataFromTextWithEntities(forClipboard)) {
+		QApplication::clipboard()->setMimeData(data.release(), mode);
+	}
 }
 
 MessageField::MessageField(QWidget *parent, not_null<Window::Controller*> controller, const style::FlatTextarea &st, base::lambda<QString()> placeholderFactory, const QString &val) : Ui::FlatTextarea(parent, st, std::move(placeholderFactory), val)

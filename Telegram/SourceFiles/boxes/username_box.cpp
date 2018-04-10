@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/username_box.h"
 
@@ -29,6 +16,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/toast/toast.h"
 #include "styles/style_boxes.h"
 #include "messenger.h"
+
+namespace {
+
+constexpr auto kMinUsernameLength = 5;
+
+} // namespace
 
 UsernameBox::UsernameBox(QWidget*)
 : _username(this, st::defaultInputField, [] { return qsl("@username"); }, App::self()->username, false)
@@ -115,9 +108,13 @@ void UsernameBox::onCheck() {
 		MTP::cancel(_checkRequestId);
 	}
 	QString name = getName();
-	if (name.size() >= MinUsernameLength) {
+	if (name.size() >= kMinUsernameLength) {
 		_checkUsername = name;
-		_checkRequestId = MTP::send(MTPaccount_CheckUsername(MTP_string(name)), rpcDone(&UsernameBox::onCheckDone), rpcFail(&UsernameBox::onCheckFail));
+		_checkRequestId = MTP::send(
+			MTPaccount_CheckUsername(
+				MTP_string(name)),
+			rpcDone(&UsernameBox::onCheckDone),
+			rpcFail(&UsernameBox::onCheckFail));
 	}
 }
 
@@ -143,7 +140,7 @@ void UsernameBox::onChanged() {
 				return;
 			}
 		}
-		if (name.size() < MinUsernameLength) {
+		if (name.size() < kMinUsernameLength) {
 			if (_errorText != lang(lng_username_too_short)) {
 				_errorText = lang(lng_username_too_short);
 				update();

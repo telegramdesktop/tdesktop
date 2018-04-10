@@ -1,26 +1,14 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_panel.h"
 
 #include "data/data_photo.h"
+#include "data/data_session.h"
 #include "calls/calls_emoji_fingerprint.h"
 #include "styles/style_calls.h"
 #include "styles/style_history.h"
@@ -38,6 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "platform/platform_specific.h"
 #include "window/main_window.h"
+#include "layout.h"
 
 namespace Calls {
 namespace {
@@ -442,7 +431,7 @@ void Panel::processUserPhoto() {
 		_user->loadUserpic(true);
 	}
 	const auto photo = _user->userpicPhotoId()
-		? App::photo(_user->userpicPhotoId())
+		? Auth().data().photo(_user->userpicPhotoId()).get()
 		: nullptr;
 	if (isGoodUserPhoto(photo)) {
 		photo->full->load(true);
@@ -454,7 +443,7 @@ void Panel::processUserPhoto() {
 
 void Panel::refreshUserPhoto() {
 	const auto photo = _user->userpicPhotoId()
-		? App::photo(_user->userpicPhotoId())
+		? Auth().data().photo(_user->userpicPhotoId()).get()
 		: nullptr;
 	const auto isNewPhoto = [&](not_null<PhotoData*> photo) {
 		return photo->full->loaded()

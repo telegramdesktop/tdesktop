@@ -1,26 +1,14 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "stickers_box.h"
 
 #include "data/data_document.h"
+#include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "chat_helpers/stickers.h"
@@ -175,8 +163,7 @@ void StickersBox::getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedSti
 
 	auto addedSet = false;
 	auto changedSets = false;
-	auto &v = stickers.vsets.v;
-	for_const (auto &stickerSet, v) {
+	for_const (const auto &stickerSet, stickers.vsets.v) {
 		const MTPDstickerSet *setData = nullptr;
 		switch (stickerSet.type()) {
 		case mtpc_stickerSetCovered: {
@@ -214,7 +201,8 @@ void StickersBox::getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedSti
 	if (addedSet) {
 		_archived.widget()->updateSize();
 	} else {
-		_allArchivedLoaded = v.isEmpty() || (!changedSets && offsetId != 0);
+		_allArchivedLoaded = stickers.vsets.v.isEmpty()
+			|| (!changedSets && offsetId != 0);
 		if (changedSets) {
 			loadMoreArchived();
 		}
@@ -458,8 +446,14 @@ void StickersBox::installSet(uint64 setId) {
 		if (_featured.widget()) _featured.widget()->setRemovedSets(_localRemoved);
 		_archived.widget()->setRemovedSets(_localRemoved);
 	}
-	if (!(it->flags & MTPDstickerSet::Flag::f_installed) || (it->flags & MTPDstickerSet::Flag::f_archived)) {
-		MTP::send(MTPmessages_InstallStickerSet(Stickers::inputSetId(*it), MTP_boolFalse()), rpcDone(&StickersBox::installDone), rpcFail(&StickersBox::installFail, setId));
+	if (!(it->flags & MTPDstickerSet::Flag::f_installed_date)
+		|| (it->flags & MTPDstickerSet::Flag::f_archived)) {
+		MTP::send(
+			MTPmessages_InstallStickerSet(
+				Stickers::inputSetId(*it),
+				MTP_boolFalse()),
+			rpcDone(&StickersBox::installDone),
+			rpcFail(&StickersBox::installFail, setId));
 
 		Stickers::InstallLocally(setId);
 	}
@@ -467,7 +461,8 @@ void StickersBox::installSet(uint64 setId) {
 
 void StickersBox::installDone(const MTPmessages_StickerSetInstallResult &result) {
 	if (result.type() == mtpc_messages_stickerSetInstallResultArchive) {
-		Stickers::ApplyArchivedResult(result.c_messages_stickerSetInstallResultArchive());
+		Stickers::ApplyArchivedResult(
+			result.c_messages_stickerSetInstallResultArchive());
 	}
 }
 
@@ -1576,8 +1571,13 @@ QString StickersBox::Inner::fillSetTitle(const Stickers::Set &set, int maxNameWi
 	return result;
 }
 
-void StickersBox::Inner::fillSetFlags(const Stickers::Set &set, bool *outInstalled, bool *outOfficial, bool *outUnread, bool *outArchived) {
-	*outInstalled = (set.flags & MTPDstickerSet::Flag::f_installed);
+void StickersBox::Inner::fillSetFlags(
+		const Stickers::Set &set,
+		bool *outInstalled,
+		bool *outOfficial,
+		bool *outUnread,
+		bool *outArchived) {
+	*outInstalled = (set.flags & MTPDstickerSet::Flag::f_installed_date);
 	*outOfficial = (set.flags & MTPDstickerSet::Flag::f_official);
 	*outArchived = (set.flags & MTPDstickerSet::Flag::f_archived);
 	if (_section == Section::Featured) {

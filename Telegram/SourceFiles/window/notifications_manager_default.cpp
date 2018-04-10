@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/notifications_manager_default.h"
 
@@ -33,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_window.h"
 #include "storage/file_download.h"
 #include "auth_session.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "platform/platform_specific.h"
 
 namespace Window {
@@ -74,6 +63,16 @@ Manager::Manager(System *system) : Notifications::Manager(system) {
 		settingsChanged(change);
 	});
 	_inputCheckTimer.setTimeoutHandler([this] { checkLastInput(); });
+}
+
+Manager::QueuedNotification::QueuedNotification(
+	not_null<HistoryItem*> item
+	, int forwardedCount)
+: history(item->history())
+, peer(history->peer)
+, author((!peer->isUser() && !item->isPost()) ? item->author().get() : nullptr)
+, item((forwardedCount < 2) ? item.get() : nullptr)
+, forwardedCount(forwardedCount) {
 }
 
 QPixmap Manager::hiddenUserpicPlaceholder() const {
@@ -652,7 +651,7 @@ void Notification::updateNotifyDisplay() {
 
 		QRect rectForName(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height);
 		if (!options.hideNameAndPhoto) {
-			if (auto chatTypeIcon = Dialogs::Layout::ChatTypeIcon(_history->peer, false, false)) {
+			if (const auto chatTypeIcon = Dialogs::Layout::ChatTypeIcon(_history->peer, false, false)) {
 				chatTypeIcon->paint(p, rectForName.topLeft(), w);
 				rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
 			}
@@ -677,7 +676,7 @@ void Notification::updateNotifyDisplay() {
 				if (_author) {
 					itemTextCache.setText(st::dialogsTextStyle, _author->name);
 					p.setPen(st::dialogsTextFgService);
-					itemTextCache.drawElided(p, r.left(), r.top(), r.width(), st::dialogsTextFont->height);
+					itemTextCache.drawElided(p, r.left(), r.top(), r.width());
 					r.setTop(r.top() + st::dialogsTextFont->height);
 				}
 				p.setPen(st::dialogsTextFg);

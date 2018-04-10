@@ -1,27 +1,15 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "inline_bots/inline_bot_layout_internal.h"
 
 #include "data/data_photo.h"
 #include "data/data_document.h"
+#include "data/data_session.h"
 #include "styles/style_overview.h"
 #include "styles/style_history.h"
 #include "styles/style_chat_helpers.h"
@@ -31,6 +19,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/media_clip_reader.h"
 #include "media/player/media_player_instance.h"
 #include "history/history_location_manager.h"
+#include "history/view/history_view_cursor_state.h"
 #include "storage/localstorage.h"
 #include "auth_session.h"
 #include "lang/lang_keys.h"
@@ -38,6 +27,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace InlineBots {
 namespace Layout {
 namespace internal {
+
+using TextState = HistoryView::TextState;
 
 FileBase::FileBase(not_null<Context*> context, Result *result) : ItemBase(context, result) {
 }
@@ -131,7 +122,7 @@ void DeleteSavedGifClickHandler::onClickImpl() const {
 
 		MTP::send(MTPmessages_SaveGif(_data->mtpInput(), MTP_bool(true)));
 	}
-	Auth().data().markSavedGifsUpdated();
+	Auth().data().notifySavedGifsUpdated();
 }
 
 int Gif::resizeGetHeight(int width) {
@@ -219,9 +210,9 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 	}
 }
 
-HistoryTextState Gif::getState(
+TextState Gif::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	if (QRect(0, 0, _width, st::inlineMediaHeight).contains(point)) {
 		if (_delete && rtlpoint(point, _width).x() >= _width - st::stickerPanDeleteIconBg.width() && point.y() < st::stickerPanDeleteIconBg.height()) {
 			return { nullptr, _delete };
@@ -413,9 +404,9 @@ void Sticker::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 	}
 }
 
-HistoryTextState Sticker::getState(
+TextState Sticker::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	if (QRect(0, 0, _width, st::inlineMediaHeight).contains(point)) {
 		return { nullptr, _send };
 	}
@@ -503,9 +494,9 @@ void Photo::paint(Painter &p, const QRect &clip, const PaintContext *context) co
 	}
 }
 
-HistoryTextState Photo::getState(
+TextState Photo::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	if (QRect(0, 0, _width, st::inlineMediaHeight).contains(point)) {
 		return { nullptr, _send };
 	}
@@ -648,9 +639,9 @@ void Video::paint(Painter &p, const QRect &clip, const PaintContext *context) co
 	}
 }
 
-HistoryTextState Video::getState(
+TextState Video::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	if (QRect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize).contains(point)) {
 		return { nullptr, _link };
 	}
@@ -789,9 +780,9 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 	}
 }
 
-HistoryTextState File::getState(
+TextState File::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	if (QRect(0, st::inlineRowMargin, st::msgFileSize, st::msgFileSize).contains(point)) {
 		return { nullptr, getShownDocument()->loading() ? _cancel : _open };
 	} else {
@@ -949,9 +940,9 @@ void Contact::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 	}
 }
 
-HistoryTextState Contact::getState(
+TextState Contact::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	if (!QRect(0, st::inlineRowMargin, st::msgFileSize, st::inlineThumbSize).contains(point)) {
 		auto left = (st::msgFileSize + st::inlineThumbSkip);
 		if (QRect(left, 0, _width - left, _height).contains(point)) {
@@ -1086,9 +1077,9 @@ void Article::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 	}
 }
 
-HistoryTextState Article::getState(
+TextState Article::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	if (_withThumb && QRect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize).contains(point)) {
 		return { nullptr, _link };
 	}
@@ -1270,9 +1261,9 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 	}
 }
 
-HistoryTextState Game::getState(
+TextState Game::getState(
 		QPoint point,
-		HistoryStateRequest request) const {
+		StateRequest request) const {
 	int left = st::inlineThumbSize + st::inlineThumbSkip;
 	if (QRect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize).contains(point)) {
 		return { nullptr, _send };

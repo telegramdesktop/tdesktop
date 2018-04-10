@@ -1,3 +1,46 @@
+1.2.17 (08.04.18)
+
+- Bug fixes and other minor improvements.
+
+1.2.16 (07.04.18)
+
+- Bug fixes and other minor improvements.
+
+1.2.15 (26.03.18)
+
+- Bug fixes and other minor improvements.
+
+1.2.14 (21.03.18)
+
+- Discover new stickers. Type one emoji to see suggestions from popular sticker sets. Suggestions from your installed sticker sets will come first.
+- Search for Stickers. Click on the new search icon to access your sticker sets or find new ones.
+- Quick Reply. Double click near a message for a quick reply.
+
+1.2.13 alpha (21.03.18)
+
+- Bug fixes and other minor improvements.
+
+1.2.12 alpha (12.03.18)
+
+- Bug fixes and other minor improvements.
+
+1.2.11 alpha (10.03.18)
+
+- Bug fixes and other minor improvements.
+
+1.2.10 alpha (09.03.18)
+
+- Bug fixes and other minor improvements.
+
+1.2.9 alpha (07.03.18)
+
+- Quick Reply. Double click near a message for a quick reply.
+- Search for Stickers. Click on the new search icon to access your sticker sets or find new ones.
+
+1.2.8 alpha (03.01.18)
+
+- Bug fixes and other minor improvements.
+
 1.2.7 alpha (31.12.17)
 
 - Use fast reply button in group chats.

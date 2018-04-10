@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/field_autocomplete.h"
 
@@ -114,7 +101,7 @@ void FieldAutocomplete::showStickers(EmojiPtr emoji) {
 	_emoji = emoji;
 	_type = Type::Stickers;
 	if (!emoji) {
-		rowsUpdated(_mrows, _hrows, _brows, Stickers::Pack(), false);
+		rowsUpdated(_mrows, _hrows, _brows, internal::StickerRows(), false);
 		return;
 	}
 
@@ -148,9 +135,9 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 	internal::MentionRows mrows;
 	internal::HashtagRows hrows;
 	internal::BotCommandRows brows;
-	Stickers::Pack srows;
+	internal::StickerRows srows;
 	if (_emoji) {
-		srows = Stickers::GetListByEmoji(_emoji);
+		srows = Stickers::GetListByEmoji(_emoji, _stickersSeed);
 	} else if (_type == Type::Mentions) {
 		int maxListSize = _addInlineBots ? cRecentInlineBots().size() : 0;
 		if (_chat) {
@@ -172,8 +159,8 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 			}
 			return true;
 		};
-		auto filterNotPassedByName = [this, &filterNotPassedByUsername](UserData *user) -> bool {
-			for (auto &nameWord : user->nameWords()) {
+		auto filterNotPassedByName = [&](UserData *user) -> bool {
+			for (const auto &nameWord : user->nameWords()) {
 				if (nameWord.startsWith(_filter, Qt::CaseInsensitive)) {
 					auto exactUsername = (user->username.compare(_filter, Qt::CaseInsensitive) == 0);
 					return exactUsername;
@@ -332,11 +319,12 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 	_inner->setRecentInlineBotsInRows(recentInlineBots);
 }
 
-void FieldAutocomplete::rowsUpdated(const internal::MentionRows &mrows, const internal::HashtagRows &hrows, const internal::BotCommandRows &brows, const Stickers::Pack &srows, bool resetScroll) {
-	if (mrows.isEmpty() && hrows.isEmpty() && brows.isEmpty() && srows.isEmpty()) {
+void FieldAutocomplete::rowsUpdated(const internal::MentionRows &mrows, const internal::HashtagRows &hrows, const internal::BotCommandRows &brows, const internal::StickerRows &srows, bool resetScroll) {
+	if (mrows.isEmpty() && hrows.isEmpty() && brows.isEmpty() && srows.empty()) {
 		if (!isHidden()) {
 			hideAnimated();
 		}
+		_scroll->scrollToY(0);
 		_mrows.clear();
 		_hrows.clear();
 		_brows.clear();
@@ -368,7 +356,7 @@ void FieldAutocomplete::setBoundings(QRect boundings) {
 
 void FieldAutocomplete::recount(bool resetScroll) {
 	int32 h = 0, oldst = _scroll->scrollTop(), st = oldst, maxh = 4.5 * st::mentionHeight;
-	if (!_srows.isEmpty()) {
+	if (!_srows.empty()) {
 		int32 stickersPerRow = qMax(1, int32(_boundings.width() - 2 * st::stickerPanPadding) / int32(st::stickerPanSize.width()));
 		int32 rows = rowscount(_srows.size(), stickersPerRow);
 		h = st::stickerPanPadding + rows * st::stickerPanSize.height();
@@ -428,6 +416,7 @@ void FieldAutocomplete::showAnimated() {
 		return;
 	}
 	if (_cache.isNull()) {
+		_stickersSeed = rand_value<uint64>();
 		_scroll->show();
 		_cache = Ui::GrabWidget(this);
 	}
@@ -489,7 +478,7 @@ bool FieldAutocomplete::eventFilter(QObject *obj, QEvent *e) {
 		QKeyEvent *ev = static_cast<QKeyEvent*>(e);
 		if (!(ev->modifiers() & (Qt::AltModifier | Qt::ControlModifier | Qt::ShiftModifier | Qt::MetaModifier))) {
 			if (!hidden) {
-				if (ev->key() == Qt::Key_Up || ev->key() == Qt::Key_Down || (!_srows.isEmpty() && (ev->key() == Qt::Key_Left || ev->key() == Qt::Key_Right))) {
+				if (ev->key() == Qt::Key_Up || ev->key() == Qt::Key_Down || (!_srows.empty() && (ev->key() == Qt::Key_Left || ev->key() == Qt::Key_Right))) {
 					return _inner->moveSel(ev->key());
 				} else if (ev->key() == Qt::Key_Enter || ev->key() == Qt::Key_Return) {
 					return _inner->chooseSelected(ChooseMethod::ByEnter);
@@ -510,7 +499,7 @@ FieldAutocomplete::~FieldAutocomplete() {
 
 namespace internal {
 
-FieldAutocompleteInner::FieldAutocompleteInner(FieldAutocomplete *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows, Stickers::Pack *srows)
+FieldAutocompleteInner::FieldAutocompleteInner(FieldAutocomplete *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows, StickerRows *srows)
 : _parent(parent)
 , _mrows(mrows)
 , _hrows(hrows)
@@ -539,7 +528,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 	int32 mentionwidth = width() - mentionleft - 2 * st::mentionPadding.right();
 	int32 htagleft = st::historyAttach.width + st::historyComposeField.textMrg.left() - st::lineWidth, htagwidth = width() - st::mentionPadding.right() - htagleft - st::mentionScroll.width;
 
-	if (!_srows->isEmpty()) {
+	if (!_srows->empty()) {
 		int32 rows = rowscount(_srows->size(), _stickersPerRow);
 		int32 fromrow = floorclamp(r.y() - st::stickerPanPadding, st::stickerPanSize.height(), 0, rows);
 		int32 torow = ceilclamp(r.y() + r.height() - st::stickerPanPadding, st::stickerPanSize.height(), 0, rows);
@@ -709,7 +698,7 @@ bool FieldAutocompleteInner::moveSel(int key) {
 	_mouseSel = false;
 	int32 maxSel = (_mrows->isEmpty() ? (_hrows->isEmpty() ? (_brows->isEmpty() ? _srows->size() : _brows->size()) : _hrows->size()) : _mrows->size());
 	int32 direction = (key == Qt::Key_Up) ? -1 : (key == Qt::Key_Down ? 1 : 0);
-	if (!_srows->isEmpty()) {
+	if (!_srows->empty()) {
 		if (key == Qt::Key_Left) {
 			direction = -1;
 		} else if (key == Qt::Key_Right) {
@@ -733,7 +722,7 @@ bool FieldAutocompleteInner::moveSel(int key) {
 }
 
 bool FieldAutocompleteInner::chooseSelected(FieldAutocomplete::ChooseMethod method) const {
-	if (!_srows->isEmpty()) {
+	if (!_srows->empty()) {
 		if (_sel >= 0 && _sel < _srows->size()) {
 			emit stickerChosen(_srows->at(_sel), method);
 			return true;
@@ -803,7 +792,7 @@ void FieldAutocompleteInner::mousePressEvent(QMouseEvent *e) {
 
 			_mouseSel = true;
 			onUpdateSelected(true);
-		} else if (_srows->isEmpty()) {
+		} else if (_srows->empty()) {
 			chooseSelected(FieldAutocomplete::ChooseMethod::ByClick);
 		} else {
 			_down = _sel;
@@ -827,7 +816,7 @@ void FieldAutocompleteInner::mouseReleaseEvent(QMouseEvent *e) {
 		return;
 	}
 
-	if (_sel < 0 || _sel != pressed || _srows->isEmpty()) return;
+	if (_sel < 0 || _sel != pressed || _srows->empty()) return;
 
 	chooseSelected(FieldAutocomplete::ChooseMethod::ByClick);
 }
@@ -847,7 +836,7 @@ void FieldAutocompleteInner::leaveEventHook(QEvent *e) {
 
 void FieldAutocompleteInner::updateSelectedRow() {
 	if (_sel >= 0) {
-		if (_srows->isEmpty()) {
+		if (_srows->empty()) {
 			update(0, _sel * st::mentionHeight, width(), st::mentionHeight);
 		} else {
 			int32 row = _sel / _stickersPerRow, col = _sel % _stickersPerRow;
@@ -862,7 +851,7 @@ void FieldAutocompleteInner::setSel(int sel, bool scroll) {
 	updateSelectedRow();
 
 	if (scroll && _sel >= 0) {
-		if (_srows->isEmpty()) {
+		if (_srows->empty()) {
 			emit mustScrollTo(_sel * st::mentionHeight, (_sel + 1) * st::mentionHeight);
 		} else {
 			int32 row = _sel / _stickersPerRow;
@@ -878,7 +867,7 @@ void FieldAutocompleteInner::onUpdateSelected(bool force) {
 	if (_down >= 0 && !_previewShown) return;
 
 	int32 sel = -1, maxSel = 0;
-	if (!_srows->isEmpty()) {
+	if (!_srows->empty()) {
 		int32 rows = rowscount(_srows->size(), _stickersPerRow);
 		int32 row = (mouse.y() >= st::stickerPanPadding) ? ((mouse.y() - st::stickerPanPadding) / st::stickerPanSize.height()) : -1;
 		int32 col = (mouse.x() >= st::stickerPanPadding) ? ((mouse.x() - st::stickerPanPadding) / st::stickerPanSize.width()) : -1;

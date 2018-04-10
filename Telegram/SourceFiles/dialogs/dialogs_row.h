@@ -1,26 +1,14 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
 #include "ui/text/text.h"
+#include "dialogs/dialogs_key.h"
 
 class History;
 class HistoryItem;
@@ -52,36 +40,51 @@ private:
 class List;
 class Row : public RippleRow {
 public:
-	Row(History *history, Row *prev, Row *next, int pos)
-		: _history(history)
-		, _prev(prev)
-		, _next(next)
-		, _pos(pos) {
+	explicit Row(std::nullptr_t) {
 	}
-	void *attached = nullptr; // for any attached data, for example View in contacts list
+	Row(Key key, Row *prev, Row *next, int pos)
+	: _id(key)
+	, _prev(prev)
+	, _next(next)
+	, _pos(pos) {
+	}
 
+	Key key() const {
+		return _id;
+	}
 	History *history() const {
-		return _history;
+		return _id.history();
+	}
+	Data::Feed *feed() const {
+		return _id.feed();
+	}
+	not_null<Entry*> entry() const {
+		return _id.entry();
 	}
 	int pos() const {
 		return _pos;
 	}
+	uint64 sortKey() const;
+
+	// for any attached data, for example View in contacts list
+	void *attached = nullptr;
 
 private:
 	friend class List;
 
-	History *_history;
-	Row *_prev, *_next;
-	int _pos;
+	Key _id;
+	Row *_prev = nullptr;
+	Row *_next = nullptr;
+	int _pos = 0;
 
 };
 
 class FakeRow : public RippleRow {
 public:
-	FakeRow(PeerData *searchInPeer, not_null<HistoryItem*> item);
+	FakeRow(Key searchInChat, not_null<HistoryItem*> item);
 
-	PeerData *searchInPeer() const {
-		return _searchInPeer;
+	Key searchInChat() const {
+		return _searchInChat;
 	}
 	not_null<HistoryItem*> item() const {
 		return _item;
@@ -90,7 +93,7 @@ public:
 private:
 	friend class Layout::RowPainter;
 
-	PeerData *_searchInPeer = nullptr;
+	Key _searchInChat;
 	not_null<HistoryItem*> _item;
 	mutable const HistoryItem *_cacheFor = nullptr;
 	mutable Text _cache;

@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/storage_shared_media.h"
 
@@ -69,6 +56,7 @@ void SharedMedia::add(SharedMediaAddExisting &&query) {
 
 void SharedMedia::add(SharedMediaAddSlice &&query) {
 	Expects(IsValidSharedMediaType(query.type));
+
 	auto peerIt = enforceLists(query.peerId);
 	auto index = static_cast<int>(query.type);
 	peerIt->second[index].addSlice(
@@ -100,6 +88,16 @@ void SharedMedia::remove(SharedMediaRemoveAll &&query) {
 	}
 }
 
+void SharedMedia::invalidate(SharedMediaInvalidateBottom &&query) {
+	auto peerIt = _lists.find(query.peerId);
+	if (peerIt != _lists.end()) {
+		for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
+			peerIt->second[index].invalidateBottom();
+		}
+		_bottomInvalidated.fire(std::move(query));
+	}
+}
+
 rpl::producer<SharedMediaResult> SharedMedia::query(SharedMediaQuery &&query) const {
 	Expects(IsValidSharedMediaType(query.key.type));
 	auto peerIt = _lists.find(query.key.peerId);
@@ -126,6 +124,10 @@ rpl::producer<SharedMediaRemoveOne> SharedMedia::oneRemoved() const {
 
 rpl::producer<SharedMediaRemoveAll> SharedMedia::allRemoved() const {
 	return _allRemoved.events();
+}
+
+rpl::producer<SharedMediaInvalidateBottom> SharedMedia::bottomInvalidated() const {
+	return _bottomInvalidated.events();
 }
 
 } // namespace Storage

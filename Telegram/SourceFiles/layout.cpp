@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "layout.h"
 
@@ -31,6 +18,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/confirm_box.h"
 #include "media/media_audio.h"
 #include "storage/localstorage.h"
+#include "history/view/history_view_cursor_state.h"
 
 QString formatSizeText(qint64 size) {
 	if (size >= 1024 * 1024) { // more than 1 mb
@@ -233,4 +221,16 @@ msp mst paf pif ps1 reg rgs sct shb shs u3p vb vbe vbs vbscript ws wsf\
 
 	auto lastDotIndex = filename.lastIndexOf('.');
 	return (lastDotIndex >= 0) && (executableTypes->indexOf(filename.mid(lastDotIndex + 1).toLower()) >= 0);
+}
+
+[[nodiscard]] HistoryView::TextState LayoutItemBase::getState(
+		QPoint point,
+		StateRequest request) const {
+	return {};
+}
+
+[[nodiscard]] TextSelection LayoutItemBase::adjustSelection(
+		TextSelection selection,
+		TextSelectType type) const {
+	return selection;
 }

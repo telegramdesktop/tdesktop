@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
@@ -66,8 +53,8 @@ struct TextSelection {
 	constexpr bool empty() const {
 		return from == to;
 	}
-	uint16 from : 16;
-	uint16 to : 16;
+	uint16 from;
+	uint16 to;
 };
 inline bool operator==(TextSelection a, TextSelection b) {
 	return a.from == b.from && a.to == b.to;
@@ -102,8 +89,8 @@ public:
 	bool hasLinks() const;
 
 	bool hasSkipBlock() const;
-	void setSkipBlock(int32 width, int32 height);
-	void removeSkipBlock();
+	bool updateSkipBlock(int width, int height);
+	bool removeSkipBlock();
 
 	int32 maxWidth() const {
 		return _maxWidth.ceil().toInt();

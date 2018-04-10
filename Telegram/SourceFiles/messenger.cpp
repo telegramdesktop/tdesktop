@@ -1,32 +1,22 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "messenger.h"
 
 #include <rpl/complete.h>
 #include "data/data_photo.h"
 #include "data/data_document.h"
+#include "data/data_session.h"
 #include "base/timer.h"
 #include "storage/localstorage.h"
 #include "platform/platform_specific.h"
 #include "mainwindow.h"
+#include "dialogs/dialogs_entry.h"
+#include "history/history.h"
 #include "application.h"
 #include "shortcuts.h"
 #include "auth_session.h"
@@ -70,7 +60,7 @@ Messenger *Messenger::InstancePointer() {
 
 struct Messenger::Private {
 	UserId authSessionUserId = 0;
-	std::unique_ptr<AuthSessionData> storedAuthSession;
+	std::unique_ptr<AuthSessionSettings> storedAuthSession;
 	MTP::Instance::Config mtpConfig;
 	MTP::AuthKeysList mtpKeysToDestroy;
 	base::Timer quitTimer;
@@ -345,16 +335,18 @@ void Messenger::setAuthSessionUserId(UserId userId) {
 	_private->authSessionUserId = userId;
 }
 
-void Messenger::setAuthSessionFromStorage(std::unique_ptr<AuthSessionData> data) {
+void Messenger::setAuthSessionFromStorage(std::unique_ptr<AuthSessionSettings> data) {
 	Expects(!authSession());
 	_private->storedAuthSession = std::move(data);
 }
 
-AuthSessionData *Messenger::getAuthSessionData() {
+AuthSessionSettings *Messenger::getAuthSessionSettings() {
 	if (_private->authSessionUserId) {
-		return _private->storedAuthSession ? _private->storedAuthSession.get() : nullptr;
+		return _private->storedAuthSession
+			? _private->storedAuthSession.get()
+			: nullptr;
 	} else if (_authSession) {
-		return &_authSession->data();
+		return &_authSession->settings();
 	}
 	return nullptr;
 }
@@ -422,7 +414,7 @@ void Messenger::startMtp() {
 	}
 	if (_private->storedAuthSession) {
 		if (_authSession) {
-			_authSession->data().moveFrom(
+			_authSession->settings().moveFrom(
 				std::move(*_private->storedAuthSession));
 		}
 		_private->storedAuthSession.reset();
@@ -539,8 +531,8 @@ void Messenger::chatPhotoCleared(PeerId peer, const MTPUpdates &updates) {
 
 void Messenger::selfPhotoDone(const MTPphotos_Photo &result) {
 	if (!App::self()) return;
-	const auto &photo(result.c_photos_photo());
-	App::feedPhoto(photo.vphoto);
+	const auto &photo = result.c_photos_photo();
+	Auth().data().photo(photo.vphoto);
 	App::feedUsers(photo.vusers);
 	cancelPhotoUpdate(App::self()->id);
 	emit peerPhotoDone(App::self()->id);
@@ -617,10 +609,6 @@ void Messenger::handleAppDeactivated() {
 		_window->updateIsActive(Global::OfflineBlurTimeout());
 	}
 	Ui::Tooltip::Hide();
-}
-
-void Messenger::call_handleHistoryUpdate() {
-	Notify::handlePendingHistoryUpdate();
 }
 
 void Messenger::call_handleUnreadCounterUpdate() {

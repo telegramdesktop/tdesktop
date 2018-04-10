@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "basic.style";
 
@@ -34,17 +21,17 @@ stickersRestrictedLabel: FlatLabel(defaultFlatLabel) {
 	textFg: noContactsColor;
 }
 
-stickersTrendingHeader: 45px;
-stickersTrendingSkip: 15px;
+stickersTrendingHeader: 56px;
+stickersTrendingSkip: 4px;
 
 stickersTrendingHeaderFont: semiboldFont;
 stickersTrendingHeaderFg: windowFg;
-stickersTrendingHeaderTop: 0px;
+stickersTrendingHeaderTop: 11px;
 stickersTrendingSubheaderFont: normalFont;
 stickersTrendingSubheaderFg: windowSubTextFg;
-stickersTrendingSubheaderTop: 20px;
+stickersTrendingSubheaderTop: 31px;
 
-stickersTrendingAddTop: 3px;
+stickersTrendingAddTop: 14px;
 stickersTrendingAdd: RoundButton(defaultActiveButton) {
 	width: -16px;
 	height: 26px;
@@ -103,7 +90,7 @@ stickersRowDuration: 200;
 
 stickersSettings: icon {{ "emoji_settings", emojiIconFg }};
 stickersTrending: icon {{ "emoji_trending", emojiIconFg }};
-stickersFaved: icon {{ "emoji_faved", emojiIconFg }};
+stickersSearch: icon {{ "stickers_search", emojiIconFg, point(0px, 1px) }};
 
 stickersSettingsUnreadSize: 17px;
 stickersSettingsUnreadPosition: point(4px, 5px);
@@ -221,6 +208,8 @@ stickerGroupCategoryAdd: stickersTrendingAdd;
 
 stickersToastMaxWidth: 340px;
 stickersToastPadding: margins(16px, 13px, 16px, 12px);
+
+stickersEmpty: icon {{ "stickers_empty", windowSubTextFg }};
 
 inlineBotsScroll: ScrollArea(defaultSolidScroll) {
 	deltat: stickerPanPadding;

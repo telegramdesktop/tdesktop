@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mediaview.h"
 
@@ -32,13 +19,17 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/view/media_clip_controller.h"
 #include "media/view/media_view_group_thumbs.h"
 #include "media/media_audio.h"
+#include "history/history.h"
 #include "history/history_message.h"
 #include "history/history_media_types.h"
+#include "data/data_media_types.h"
+#include "data/data_session.h"
 #include "window/themes/window_theme_preview.h"
 #include "window/window_peer_menu.h"
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "messenger.h"
+#include "layout.h"
 #include "storage/file_download.h"
 #include "calls/calls_instance.h"
 #include "styles/style_mediaview.h"
@@ -161,7 +152,7 @@ void MediaView::refreshLang() {
 }
 
 void MediaView::moveToScreen() {
-	auto widgetScreen = [this](auto &&widget) -> QScreen* {
+	auto widgetScreen = [&](auto &&widget) -> QScreen* {
 		if (auto handle = widget ? widget->windowHandle() : nullptr) {
 			return handle->screen();
 		}
@@ -334,14 +325,17 @@ void MediaView::updateControls() {
 	_moreNav = myrtlrect(width() - st::mediaviewIconSize.width(), height() - st::mediaviewIconSize.height(), st::mediaviewIconSize.width(), st::mediaviewIconSize.height());
 	_moreNavIcon = centerrect(_moreNav, st::mediaviewMore);
 
-	QDateTime d, dNow(date(unixtime()));
-	if (_photo) {
-		d = date(_photo->date);
-	} else if (_doc) {
-		d = date(_doc->date);
-	} else if (auto item = App::histItemById(_msgid)) {
-		d = item->date;
-	}
+	const auto dNow = QDateTime::currentDateTime();
+	const auto d = [&] {
+		if (_photo) {
+			return ParseDateTime(_photo->date);
+		} else if (_doc) {
+			return ParseDateTime(_doc->date);
+		} else if (const auto item = App::histItemById(_msgid)) {
+			return ItemDateTime(item);
+		}
+		return dNow;
+	}();
 	if (d.date() == dNow.date()) {
 		_dateText = lng_mediaview_today(lt_time, d.time().toString(cTimeFormat()));
 	} else if (d.date().addDays(1) == dNow.date()) {
@@ -827,7 +821,7 @@ void MediaView::onSaveAs() {
 			}
 
 			psBringToBack(this);
-			file = saveFileName(lang(lng_save_file), filter, qsl("doc"), name, true, alreadyDir);
+			file = FileNameForSave(lang(lng_save_file), filter, qsl("doc"), name, true, alreadyDir);
 			psShowOverAll(this);
 			if (!file.isEmpty() && file != location.name()) {
 				if (_doc->data().isEmpty()) {
@@ -856,14 +850,23 @@ void MediaView::onSaveAs() {
 
 		psBringToBack(this);
 		auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
-		FileDialog::GetWritePath(lang(lng_save_photo), filter, filedialogDefaultName(qsl("photo"), qsl(".jpg"), QString(), false, _photo->date), base::lambda_guarded(this, [this, photo = _photo](const QString &result) {
-			if (!result.isEmpty() && _photo == photo && photo->loaded()) {
-				photo->full->pix().toImage().save(result, "JPG");
-			}
-			psShowOverAll(this);
-		}), base::lambda_guarded(this, [this] {
-			psShowOverAll(this);
-		}));
+		FileDialog::GetWritePath(
+			lang(lng_save_photo),
+			filter,
+			filedialogDefaultName(
+				qsl("photo"),
+				qsl(".jpg"),
+				QString(),
+				false,
+				_photo->date),
+			base::lambda_guarded(this, [this, photo = _photo](const QString &result) {
+				if (!result.isEmpty() && _photo == photo && photo->loaded()) {
+					photo->full->pix().toImage().save(result, "JPG");
+				}
+				psShowOverAll(this);
+			}), base::lambda_guarded(this, [this] {
+				psShowOverAll(this);
+			}));
 	}
 	activateWindow();
 	Sandbox::setActiveWindow(this);
@@ -927,7 +930,7 @@ void MediaView::clipCallback(Media::Clip::Notification notification) {
 }
 
 PeerData *MediaView::ui_getPeerForMouseAction() {
-	return _history ? _history->peer : nullptr;
+	return _history ? _history->peer.get() : nullptr;
 }
 
 void MediaView::onDownload() {
@@ -1016,8 +1019,10 @@ void MediaView::onForward() {
 
 void MediaView::onDelete() {
 	close();
-	auto deletingPeerPhoto = [this]() {
-		if (!_msgid) return true;
+	const auto deletingPeerPhoto = [this] {
+		if (!_msgid) {
+			return true;
+		}
 		if (_photo && _history) {
 			if (_history->peer->userpicPhotoId() == _photo->id) {
 				return _firstOpenedPeerPhoto;
@@ -1028,9 +1033,8 @@ void MediaView::onDelete() {
 
 	if (deletingPeerPhoto()) {
 		App::main()->deletePhotoLayer(_photo);
-	} else if (auto item = App::histItemById(_msgid)) {
-		App::contextItem(item);
-		App::main()->deleteLayer();
+	} else {
+		App::main()->deleteLayer(_msgid);
 	}
 }
 
@@ -1245,13 +1249,10 @@ void MediaView::refreshMediaViewer() {
 
 void MediaView::refreshCaption(HistoryItem *item) {
 	_caption = Text();
-
-	const auto media = item ? item->getMedia() : nullptr;
-	if (!media) {
+	if (!item) {
 		return;
 	}
-
-	const auto caption = media->getCaption();
+	const auto caption = item->originalText();
 	if (caption.text.isEmpty()) {
 		return;
 	}
@@ -1308,7 +1309,7 @@ void MediaView::initGroupThumbs() {
 	_groupThumbs->activateRequests(
 	) | rpl::start_with_next([this](Media::View::GroupThumbs::Key key) {
 		if (const auto photoId = base::get_if<PhotoId>(&key)) {
-			const auto photo = App::photo(*photoId);
+			const auto photo = Auth().data().photo(*photoId);
 			moveToEntity({ photo, nullptr });
 		} else if (const auto itemId = base::get_if<FullMsgId>(&key)) {
 			moveToEntity(entityForItemId(*itemId));
@@ -1710,14 +1711,16 @@ void MediaView::initThemePreview() {
 
 		Window::Theme::CurrentData current;
 		current.backgroundId = Window::Theme::Background()->id();
-		current.backgroundImage = Window::Theme::Background()->pixmap();
+		current.backgroundImage = Window::Theme::Background()->pixmap().toImage();
 		current.backgroundTiled = Window::Theme::Background()->tile();
 
 		const auto path = _doc->location().name();
 		const auto id = _themePreviewId = rand_value<uint64>();
 		const auto weak = make_weak(this);
-		crl::async([=] {
-			auto preview = Window::Theme::GeneratePreview(path, current);
+		crl::async([=, data = std::move(current)]() mutable {
+			auto preview = Window::Theme::GeneratePreview(
+				path,
+				std::move(data));
 			crl::on_main(weak, [=, result = std::move(preview)]() mutable {
 				if (id != _themePreviewId) {
 					return;
@@ -1881,7 +1884,7 @@ void MediaView::onVideoPlayProgress(const AudioMsgId &audioId) {
 		if (state.length) {
 			updateVideoPlaybackState(state);
 		}
-		Auth().data().setLastTimeVideoPlayedAt(getms(true));
+		Auth().settings().setLastTimeVideoPlayedAt(getms(true));
 	}
 }
 
@@ -2242,9 +2245,9 @@ void MediaView::paintDocRadialLoading(Painter &p, bool radial, float64 radialOpa
 		p.setOpacity(1.);
 		auto icon = ([radial, this]() -> const style::icon* {
 			if (radial || _doc->loading()) {
-				return &st::historyFileInCancel;
+				return &st::historyFileThumbCancel;
 			}
-			return &st::historyFileInDownload;
+			return &st::historyFileThumbDownload;
 		})();
 		if (icon) {
 			icon->paintInCenter(p, inner);
@@ -2261,16 +2264,23 @@ void MediaView::paintThemePreview(Painter &p, QRect clip) {
 	auto fill = _themePreviewRect.intersected(clip);
 	if (!fill.isEmpty()) {
 		if (_themePreview) {
-			p.drawPixmapLeft(_themePreviewRect.x(), _themePreviewRect.y(), width(), _themePreview->preview);
+			p.drawImage(
+				myrtlrect(_themePreviewRect).topLeft(),
+				_themePreview->preview);
 		} else {
 			p.fillRect(fill, st::themePreviewBg);
 			p.setFont(st::themePreviewLoadingFont);
 			p.setPen(st::themePreviewLoadingFg);
-			p.drawText(_themePreviewRect, lang(_themePreviewId ? lng_theme_preview_generating : lng_theme_preview_invalid), QTextOption(style::al_center));
+			p.drawText(
+				_themePreviewRect,
+				lang(_themePreviewId
+					? lng_theme_preview_generating
+					: lng_theme_preview_invalid),
+				QTextOption(style::al_center));
 		}
 	}
 
-	auto fillOverlay = [this, &p, clip](QRect fill) {
+	auto fillOverlay = [&](QRect fill) {
 		auto clipped = fill.intersected(clip);
 		if (!clipped.isEmpty()) {
 			p.setOpacity(st::themePreviewOverlayOpacity);
@@ -2425,7 +2435,7 @@ MediaView::Entity MediaView::entityForUserPhotos(int index) const {
 	if (index < 0 || index >= _userPhotosData->size()) {
 		return { base::none, nullptr };
 	}
-	if (auto photo = App::photo((*_userPhotosData)[index])) {
+	if (auto photo = Auth().data().photo((*_userPhotosData)[index])) {
 		return { photo, nullptr };
 	}
 	return { base::none, nullptr };
@@ -2449,10 +2459,10 @@ MediaView::Entity MediaView::entityForSharedMedia(int index) const {
 
 MediaView::Entity MediaView::entityForItemId(const FullMsgId &itemId) const {
 	if (const auto item = App::histItemById(itemId)) {
-		if (const auto media = item->getMedia()) {
-			if (const auto photo = media->getPhoto()) {
+		if (const auto media = item->media()) {
+			if (const auto photo = media->photo()) {
 				return { photo, item };
-			} else if (const auto document = media->getDocument()) {
+			} else if (const auto document = media->document()) {
 				return { document, item };
 			}
 		}
@@ -2475,7 +2485,7 @@ void MediaView::setContext(base::optional_variant<
 		not_null<PeerData*>> context) {
 	if (auto item = base::get_if<not_null<HistoryItem*>>(&context)) {
 		_msgid = (*item)->fullId();
-		_canForwardItem = (*item)->canForward();
+		_canForwardItem = (*item)->allowsForward();
 		_canDeleteItem = (*item)->canDelete();
 		_history = (*item)->history();
 		_peer = _history->peer;
@@ -2838,7 +2848,7 @@ void MediaView::contextMenuEvent(QContextMenuEvent *e) {
 		_menu = new Ui::PopupMenu(nullptr, st::mediaviewPopupMenu);
 		updateActions();
 		for_const (auto &action, _actions) {
-			_menu->addAction(action.text, this, action.member)->setEnabled(true);
+			_menu->addAction(action.text, this, action.member);
 		}
 		connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
 		_menu->popup(e->globalPos());

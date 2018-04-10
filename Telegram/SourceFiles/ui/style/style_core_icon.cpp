@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/style/style_core_icon.h"
 
@@ -184,28 +171,53 @@ void MonoIcon::fill(QPainter &p, const QRect &rect, QColor colorOverride) const 
 	}
 }
 
-void MonoIcon::paint(QPainter &p, const QPoint &pos, int outerw, const style::palette &paletteOverride) const {
-	int w = width(), h = height();
-	QPoint fullOffset = pos + offset();
-	int partPosX = rtl() ? (outerw - fullOffset.x() - w) : fullOffset.x();
-	int partPosY = fullOffset.y();
+void MonoIcon::paint(
+		QPainter &p,
+		const QPoint &pos,
+		int outerw,
+		const style::palette &paletteOverride) const {
+	auto size = readGeneratedSize(_mask, cScale());
+	auto maskImage = QImage();
+	if (size.isEmpty()) {
+		maskImage = createIconMask(_mask, cScale());
+		size = maskImage.size() / cIntRetinaFactor();
+	}
 
-	ensureLoaded();
-	if (_pixmap.isNull()) {
-		p.fillRect(partPosX, partPosY, w, h, _color[paletteOverride]);
+	const auto w = size.width();
+	const auto h = size.height();
+	const auto fullOffset = pos + offset();
+	const auto partPosX = rtl() ? (outerw - fullOffset.x() - w) : fullOffset.x();
+	const auto partPosY = fullOffset.y();
+
+	if (!maskImage.isNull()) {
+		auto colorizedImage = QImage(
+			maskImage.size(),
+			QImage::Format_ARGB32_Premultiplied);
+		colorizeImage(maskImage, _color[paletteOverride]->c, &colorizedImage);
+		p.drawImage(partPosX, partPosY, colorizedImage);
 	} else {
-		ensureColorizedImage(_color[paletteOverride]->c);
-		p.drawImage(partPosX, partPosY, _colorizedImage);
+		p.fillRect(partPosX, partPosY, w, h, _color[paletteOverride]);
 	}
 }
 
-void MonoIcon::fill(QPainter &p, const QRect &rect, const style::palette &paletteOverride) const {
-	ensureLoaded();
-	if (_pixmap.isNull()) {
-		p.fillRect(rect, _color[paletteOverride]);
+void MonoIcon::fill(
+		QPainter &p,
+		const QRect &rect,
+		const style::palette &paletteOverride) const {
+	auto size = readGeneratedSize(_mask, cScale());
+	auto maskImage = QImage();
+	if (size.isEmpty()) {
+		maskImage = createIconMask(_mask, cScale());
+		size = maskImage.size() / cIntRetinaFactor();
+	}
+	if (!maskImage.isNull()) {
+		auto colorizedImage = QImage(
+			maskImage.size(),
+			QImage::Format_ARGB32_Premultiplied);
+		colorizeImage(maskImage, _color[paletteOverride]->c, &colorizedImage);
+		p.drawImage(rect, colorizedImage, colorizedImage.rect());
 	} else {
-		ensureColorizedImage(_color[paletteOverride]->c);
-		p.drawImage(rect, _colorizedImage, _colorizedImage.rect());
+		p.fillRect(rect, _color[paletteOverride]);
 	}
 }
 

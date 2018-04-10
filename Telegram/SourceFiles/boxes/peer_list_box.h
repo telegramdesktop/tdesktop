@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
@@ -190,11 +177,11 @@ public:
 		int outerWidth);
 	float64 checkedRatio();
 
-	void setNameFirstChars(const base::flat_set<QChar> &nameFirstChars) {
-		_nameFirstChars = nameFirstChars;
+	void setNameFirstLetters(const base::flat_set<QChar> &firstLetters) {
+		_nameFirstLetters = firstLetters;
 	}
-	const base::flat_set<QChar> &nameFirstChars() const {
-		return _nameFirstChars;
+	const base::flat_set<QChar> &nameFirstLetters() const {
+		return _nameFirstLetters;
 	}
 
 	virtual void lazyInitialize(const style::PeerListItem &st);
@@ -231,7 +218,7 @@ private:
 	Text _status;
 	StatusType _statusType = StatusType::Online;
 	TimeMs _statusValidTill = 0;
-	base::flat_set<QChar> _nameFirstChars;
+	base::flat_set<QChar> _nameFirstLetters;
 	int _absoluteIndex = -1;
 	State _disabledState = State::Active;
 	bool _initialized : 1;
@@ -357,10 +344,8 @@ public:
 	}
 	virtual void itemDeselectedHook(not_null<PeerData*> peer) {
 	}
-	virtual Ui::PopupMenu *rowContextMenu(
-			not_null<PeerListRow*> row) {
-		return nullptr;
-	}
+	virtual base::unique_qptr<Ui::PopupMenu> rowContextMenu(
+		not_null<PeerListRow*> row);
 	bool isSearchLoading() const {
 		return _searchController ? _searchController->isLoading() : false;
 	}
@@ -373,7 +358,7 @@ public:
 		return nullptr;
 	}
 
-	virtual std::unique_ptr<PeerListState> saveState() const ;
+	virtual std::unique_ptr<PeerListState> saveState() const;
 	virtual void restoreState(
 		std::unique_ptr<PeerListState> state);
 
@@ -638,7 +623,7 @@ private:
 
 	std::vector<std::unique_ptr<PeerListRow>> _searchRows;
 	base::Timer _repaintByStatus;
-	QPointer<Ui::PopupMenu> _contextMenu;
+	base::unique_qptr<Ui::PopupMenu> _contextMenu;
 
 };
 

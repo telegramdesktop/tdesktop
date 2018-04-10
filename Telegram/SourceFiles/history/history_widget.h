@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
@@ -43,6 +30,10 @@ class Widget;
 } // namespace Layout
 class Result;
 } // namespace InlineBots
+
+namespace Data {
+struct Draft;
+} // namespace Data
 
 namespace Ui {
 class AbstractButton;
@@ -78,12 +69,15 @@ enum class MimeDataState;
 struct PreparedList;
 } // namespace Storage
 
+namespace HistoryView {
+class TopBarWidget;
+} // namespace HistoryView
+
 class DragArea;
 class SendFilesBox;
 class BotKeyboard;
 class MessageField;
 class HistoryInner;
-class HistoryTopBarWidget;
 struct HistoryMessageMarkupButton;
 
 class ReportSpamPanel : public TWidget {
@@ -192,6 +186,7 @@ public:
 	void windowShown();
 	bool doWeReadServerHistory() const;
 	bool doWeReadMentions() const;
+	bool skipItemRepaint();
 
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 	void dragEnterEvent(QDragEnterEvent *e) override;
@@ -205,17 +200,15 @@ public:
 	void loadMessagesDown();
 	void firstLoadMessages();
 	void delayedShowAt(MsgId showAtMsgId);
-	void peerMessagesUpdated(PeerId peer);
-	void peerMessagesUpdated();
 
-	void newUnreadMsg(History *history, HistoryItem *item);
+	void newUnreadMsg(
+		not_null<History*> history,
+		not_null<HistoryItem*> item);
 	void historyToDown(History *history);
-	void unreadCountChanged(History *history);
+	void unreadCountChanged(not_null<History*> history);
 
 	QRect historyRect() const;
 	void pushTabbedSelectorToThirdSection(
-		const Window::SectionShow &params);
-	void pushInfoToThirdSection(
 		const Window::SectionShow &params);
 
 	void updateRecentStickers();
@@ -252,13 +245,22 @@ public:
 
 	bool touchScroll(const QPoint &delta);
 
-	void enqueueMessageHighlight(not_null<HistoryItem*> item);
+	void enqueueMessageHighlight(not_null<HistoryView::Element*> view);
 	TimeMs highlightStartTime(not_null<const HistoryItem*> item) const;
+	bool inSelectionMode() const;
 
 	MessageIdsList getSelectedItems() const;
 	void itemEdited(HistoryItem *item);
 
 	void updateScrollColors();
+
+	void replyToMessage(FullMsgId itemId);
+	void replyToMessage(not_null<HistoryItem*> item);
+	void editMessage(FullMsgId itemId);
+	void editMessage(not_null<HistoryItem*> item);
+	void pinMessage(FullMsgId itemId);
+	void unpinMessage(FullMsgId itemId);
+	void copyPostLink(FullMsgId itemId);
 
 	MsgId replyToId() const;
 	void messageDataReceived(ChannelData *channel, MsgId msgId);
@@ -270,7 +272,7 @@ public:
 	void updateForwardingTexts();
 
 	void clearReplyReturns();
-	void pushReplyReturn(HistoryItem *item);
+	void pushReplyReturn(not_null<HistoryItem*> item);
 	QList<MsgId> replyReturns();
 	void setReplyReturns(PeerId peer, const QList<MsgId> &replyReturns);
 	void calcNextReplyReturn();
@@ -325,10 +327,9 @@ public:
 	void grapWithoutTopBarShadow();
 	void grabFinish() override;
 
-	bool isItemVisible(HistoryItem *item);
-
-	void confirmDeleteSelectedItems();
-	void deleteSelectedItems(bool forEveryone);
+	void forwardSelected();
+	void confirmDeleteSelected();
+	void clearSelected();
 
 	// Float player interface.
 	bool wheelEventFromFloatPlayer(QEvent *e) override;
@@ -367,16 +368,10 @@ protected:
 
 signals:
 	void cancelled();
-	void historyShown(History *history, MsgId atMsgId);
 
 public slots:
 	void onCancel();
-	void onReplyToMessage();
-	void onEditMessage();
-	void onPinMessage();
-	void onUnpinMessage();
 	void onPinnedHide();
-	void onCopyPostLink();
 	void onFieldBarCancel();
 
 	void onPreviewParse();
@@ -423,9 +418,6 @@ public slots:
 	void onCheckFieldAutocomplete();
 	void onScrollTimer();
 
-	void onForwardSelected();
-	void onClearSelected();
-
 	void onDraftSaveDelayed();
 	void onDraftSave(bool delayed = false);
 	void onCloudDraftSave();
@@ -457,7 +449,6 @@ private:
 	using TabbedSelector = ChatHelpers::TabbedSelector;
 	using DragState = Storage::MimeDataState;
 
-	void repaintHistoryItem(not_null<const HistoryItem*> item);
 	void handlePendingHistoryUpdate();
 	void fullPeerUpdated(PeerData *peer);
 	void toggleTabbedSelectorMode();
@@ -469,6 +460,7 @@ private:
 	void handlePeerUpdate();
 	void setMembersShowAreaActive(bool active);
 	void forwardItems(MessageIdsList &&items);
+	void handleHistoryChange(not_null<const History*> history);
 
 	void highlightMessage(MsgId universalMessageId);
 	void adjustHighlightedMessageToMigrated();
@@ -497,10 +489,6 @@ private:
 	void unreadMentionsAnimationFinish();
 	void sendButtonClicked();
 
-	bool confirmSendingFiles(
-		const QList<QUrl> &files,
-		CompressConfirm compressed,
-		const QString &insertTextOnCancel = QString());
 	bool confirmSendingFiles(
 		const QStringList &files,
 		CompressConfirm compressed,
@@ -539,7 +527,6 @@ private:
 	void updateTabbedSelectorToggleTooltipGeometry();
 	void checkTabbedSelectorToggleTooltip();
 
-	bool historyHasNotFreezedUnreadBar(History *history) const;
 	bool canWriteMessage() const;
 	bool isRestrictedWrite() const;
 	void orderWidgets();
@@ -554,6 +541,8 @@ private:
 	void applyInlineBotQuery(UserData *bot, const QString &query);
 
 	void cancelReplyAfterMediaSend(bool lastKeyboardUsed);
+	void replyToPreviousMessage();
+	void replyToNextMessage();
 
 	void hideSelectorControlsAnimated();
 	int countMembersDropdownHeightMax() const;
@@ -597,14 +586,15 @@ private:
 	void destroyPinnedBar();
 	void unpinDone(const MTPUpdates &updates);
 
-	bool sendExistingDocument(DocumentData *doc, const QString &caption);
-	void sendExistingPhoto(PhotoData *photo, const QString &caption);
+	bool sendExistingDocument(DocumentData *doc, TextWithEntities caption);
+	void sendExistingPhoto(PhotoData *photo, TextWithEntities caption);
 
 	void drawField(Painter &p, const QRect &rect);
 	void paintEditHeader(Painter &p, const QRect &rect, int left, int top) const;
 	void drawRecording(Painter &p, float64 recordActive);
 	void drawPinnedBar(Painter &p);
 	void drawRestrictedWrite(Painter &p);
+	bool paintShowAnimationFrame(TimeMs ms);
 
 	void updateMouseTracking();
 
@@ -670,15 +660,14 @@ private:
 	void updateListSize();
 
 	// Does any of the shown histories has this flag set.
-	bool hasPendingResizedItems() const {
-		return (_history && _history->hasPendingResizedItems()) || (_migrated && _migrated->hasPendingResizedItems());
-	}
+	bool hasPendingResizedItems() const;
 
 	// Counts scrollTop for placing the scroll right at the unread
 	// messages bar, choosing from _history and _migrated unreadBar.
-	int unreadBarTop() const;
-	int itemTopForHighlight(not_null<HistoryItem*> item) const;
+	base::optional<int> unreadBarTop() const;
+	int itemTopForHighlight(not_null<HistoryView::Element*> view) const;
 	void scrollToCurrentVoiceMessage(FullMsgId fromId, FullMsgId toId);
+	HistoryView::Element *firstUnreadMessage() const;
 
 	// Scroll to current y without updating the _lastUserScrolled time.
 	// Used to distinguish between user scrolls and syntetic scrolls.
@@ -693,9 +682,6 @@ private:
 	void unblockDone(PeerData *peer, const MTPBool &result, mtpRequestId req);
 	bool unblockFail(const RPCError &error, mtpRequestId req);
 	void blockDone(PeerData *peer, const MTPBool &result);
-
-	void joinDone(const MTPUpdates &result, mtpRequestId req);
-	bool joinFail(const RPCError &error, mtpRequestId req);
 
 	void countHistoryShowFrom();
 
@@ -741,25 +727,18 @@ private:
 	mtpRequestId _preloadRequest = 0;
 	mtpRequestId _preloadDownRequest = 0;
 
-	MsgId _debug_preloadOffsetId = 0;
-	int32 _debug_preloadAddOffset = 0;
-	int32 _debug_preloadLoadCount = 0;
-	PeerId _debug_preloadPeer = 0;
-	MsgId _debug_preloadDownOffsetId = 0;
-	int32 _debug_preloadDownAddOffset = 0;
-	int32 _debug_preloadDownLoadCount = 0;
-	PeerId _debug_preloadDownPeer = 0;
-
-	MsgId _delayedShowAtMsgId = -1; // wtf?
+	MsgId _delayedShowAtMsgId = -1;
 	mtpRequestId _delayedShowAtRequest = 0;
 
-	object_ptr<HistoryTopBarWidget> _topBar;
+	object_ptr<HistoryView::TopBarWidget> _topBar;
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<HistoryInner> _list;
 	History *_migrated = nullptr;
 	History *_history = nullptr;
-	bool _historyInited = false; // Initial updateHistoryGeometry() was called.
-	bool _updateHistoryGeometryRequired = false; // If updateListSize() was called without updateHistoryGeometry().
+	// Initial updateHistoryGeometry() was called.
+	bool _historyInited = false;
+	// If updateListSize() was called without updateHistoryGeometry().
+	bool _updateHistoryGeometryRequired = false;
 	int _addToScroll = 0;
 
 	int _lastScrollTop = 0; // gifs optimization

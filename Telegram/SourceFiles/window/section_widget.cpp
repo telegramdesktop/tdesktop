@@ -1,29 +1,18 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/section_widget.h"
 
 #include <rpl/range.h>
 #include "application.h"
+#include "mainwidget.h"
 #include "window/section_memento.h"
 #include "window/window_slide_animation.h"
+#include "window/themes/window_theme.h"
 
 namespace Window {
 
@@ -82,6 +71,46 @@ std::unique_ptr<SectionMemento> SectionWidget::createMemento() {
 void SectionWidget::showFast() {
 	show();
 	showFinished();
+}
+
+void SectionWidget::PaintBackground(QWidget *widget, QPaintEvent *event) {
+	Painter p(widget);
+
+	auto clip = event->rect();
+	auto fill = QRect(0, 0, widget->width(), App::main()->height());
+	auto fromy = App::main()->backgroundFromY();
+	auto x = 0, y = 0;
+	auto cached = App::main()->cachedBackground(fill, x, y);
+	if (cached.isNull()) {
+		if (Window::Theme::Background()->tile()) {
+			auto &pix = Window::Theme::Background()->pixmapForTiled();
+			auto left = clip.left();
+			auto top = clip.top();
+			auto right = clip.left() + clip.width();
+			auto bottom = clip.top() + clip.height();
+			auto w = pix.width() / cRetinaFactor();
+			auto h = pix.height() / cRetinaFactor();
+			auto sx = qFloor(left / w);
+			auto sy = qFloor((top - fromy) / h);
+			auto cx = qCeil(right / w);
+			auto cy = qCeil((bottom - fromy) / h);
+			for (auto i = sx; i < cx; ++i) {
+				for (auto j = sy; j < cy; ++j) {
+					p.drawPixmap(QPointF(i * w, fromy + j * h), pix);
+				}
+			}
+		} else {
+			PainterHighQualityEnabler hq(p);
+
+			auto &pix = Window::Theme::Background()->pixmap();
+			QRect to, from;
+			Window::Theme::ComputeBackgroundRects(fill, pix.size(), to, from);
+			to.moveTop(to.top() + fromy);
+			p.drawPixmap(to, pix, from);
+		}
+	} else {
+		p.drawPixmap(x, fromy + y, cached);
+	}
 }
 
 void SectionWidget::paintEvent(QPaintEvent *e) {

@@ -1,30 +1,18 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/info_memento.h"
 
 #include "info/profile/info_profile_widget.h"
-#include "info/profile/info_profile_members.h"
 #include "info/media/info_media_widget.h"
 #include "info/members/info_members_widget.h"
+#include "info/channels/info_channels_widget.h"
 #include "info/common_groups/info_common_groups_widget.h"
+#include "info/feed/info_feed_profile_widget.h"
 #include "info/info_section_widget.h"
 #include "info/info_layer_widget.h"
 #include "info/info_controller.h"
@@ -40,6 +28,10 @@ Memento::Memento(PeerId peerId, Section section)
 : Memento(DefaultStack(peerId, section)) {
 }
 
+Memento::Memento(not_null<Data::Feed*> feed, Section section)
+: Memento(DefaultStack(feed, section)) {
+}
+
 Memento::Memento(std::vector<std::unique_ptr<ContentMemento>> stack)
 : _stack(std::move(stack)) {
 }
@@ -52,14 +44,28 @@ std::vector<std::unique_ptr<ContentMemento>> Memento::DefaultStack(
 	return result;
 }
 
-Section Memento::DefaultSection(not_null<PeerData*> peer) {
-	return peer->isSelf()
-		? Section(Section::MediaType::Photo)
-		: Section(Section::Type::Profile);
+std::vector<std::unique_ptr<ContentMemento>> Memento::DefaultStack(
+		not_null<Data::Feed*> feed,
+		Section section) {
+	auto result = std::vector<std::unique_ptr<ContentMemento>>();
+	result.push_back(DefaultContent(feed, section));
+	return result;
 }
 
-Memento Memento::Default(not_null<PeerData*> peer) {
-	return Memento(peer->id, DefaultSection(peer));
+Section Memento::DefaultSection(Dialogs::Key key) {
+	if (const auto peer = key.peer()) {
+		if (peer->isSelf()) {
+			return Section(Section::MediaType::Photo);
+		}
+	}
+	return Section(Section::Type::Profile);
+}
+
+Memento Memento::Default(Dialogs::Key key) {
+	if (const auto peer = key.peer()) {
+		return Memento(peer->id, DefaultSection(key));
+	}
+	return Memento(key.feed(), DefaultSection(key));
 }
 
 std::unique_ptr<ContentMemento> Memento::DefaultContent(
@@ -95,6 +101,18 @@ std::unique_ptr<ContentMemento> Memento::DefaultContent(
 			migratedPeerId);
 	}
 	Unexpected("Wrong section type in Info::Memento::DefaultContent()");
+}
+
+std::unique_ptr<ContentMemento> Memento::DefaultContent(
+		not_null<Data::Feed*> feed,
+		Section section) {
+	switch (section.type()) {
+	case Section::Type::Profile:
+		return std::make_unique<FeedProfile::Memento>(feed);
+	case Section::Type::Channels:
+		return std::make_unique<Channels::Memento>(feed);
+	}
+	Unexpected("Wrong feed section in Info::Memento::DefaultContent()");
 }
 
 object_ptr<Window::SectionWidget> Memento::createWidget(

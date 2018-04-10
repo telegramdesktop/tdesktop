@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
@@ -34,7 +21,11 @@ extern "C" {
 
 class AbstractFFMpegLoader : public AudioPlayerLoader {
 public:
-	AbstractFFMpegLoader(const FileLocation &file, const QByteArray &data, base::byte_vector &&bytes) : AudioPlayerLoader(file, data, std::move(bytes)) {
+	AbstractFFMpegLoader(
+		const FileLocation &file,
+		const QByteArray &data,
+		base::byte_vector &&bytes)
+	: AudioPlayerLoader(file, data, std::move(bytes)) {
 	}
 
 	bool open(TimeMs positionMs) override;
@@ -43,14 +34,20 @@ public:
 		return _samplesCount;
 	}
 
-	int32 samplesFrequency() override {
+	int samplesFrequency() override {
 		return _samplesFrequency;
 	}
+
+	static uint64_t ComputeChannelLayout(
+		uint64_t channel_layout,
+		int channels);
 
 	~AbstractFFMpegLoader();
 
 protected:
-	int32 _samplesFrequency = Media::Player::kDefaultFrequency;
+	static int64 Mul(int64 value, AVRational rational);
+
+	int _samplesFrequency = Media::Player::kDefaultFrequency;
 	int64 _samplesCount = 0;
 
 	uchar *ioBuffer = nullptr;
@@ -71,37 +68,92 @@ private:
 
 };
 
-class FFMpegLoader : public AbstractFFMpegLoader {
+class AbstractAudioFFMpegLoader : public AbstractFFMpegLoader {
 public:
-	FFMpegLoader(const FileLocation &file, const QByteArray &data, base::byte_vector &&bytes);
+	AbstractAudioFFMpegLoader(
+		const FileLocation &file,
+		const QByteArray &data,
+		base::byte_vector &&bytes);
+
+	int64 samplesCount() override {
+		return _outputSamplesCount;
+	}
+
+	int samplesFrequency() override {
+		return _swrDstRate;
+	}
+
+	int format() override {
+		return _outputFormat;
+	}
+
+	~AbstractAudioFFMpegLoader();
+
+protected:
+	bool initUsingContext(
+		not_null<AVCodecContext*> context,
+		int64 initialCount,
+		int initialFrequency);
+	ReadResult readFromReadyContext(
+		not_null<AVCodecContext*> context,
+		QByteArray &result,
+		int64 &samplesAdded);
+
+	int sampleSize() const {
+		return _outputSampleSize;
+	}
+
+private:
+	ReadResult readFromReadyFrame(QByteArray &result, int64 &samplesAdded);
+	bool frameHasDesiredFormat() const;
+	bool initResampleForFrame();
+	bool initResampleUsingFormat();
+	bool ensureResampleSpaceAvailable(int samples);
+
+	void appendSamples(
+		QByteArray &result,
+		int64 &samplesAdded,
+		uint8_t **data,
+		int count) const;
+
+	AVFrame *_frame = nullptr;
+	int _outputFormat = AL_FORMAT_STEREO16;
+	int _outputChannels = 2;
+	int _outputSampleSize = 2 * sizeof(uint16);
+	int64 _outputSamplesCount = 0;
+
+	SwrContext *_swrContext = nullptr;
+
+	int _swrSrcRate = 0;
+	AVSampleFormat _swrSrcSampleFormat = AV_SAMPLE_FMT_NONE;
+	uint64_t _swrSrcChannelLayout = 0;
+
+	const int _swrDstRate = Media::Player::kDefaultFrequency;
+	AVSampleFormat _swrDstSampleFormat = AV_SAMPLE_FMT_S16;
+	uint64_t _swrDstChannelLayout = AV_CH_LAYOUT_STEREO;
+	uint8_t **_swrDstData = nullptr;
+	int _swrDstDataCapacity = 0;
+
+};
+
+class FFMpegLoader : public AbstractAudioFFMpegLoader {
+public:
+	FFMpegLoader(
+		const FileLocation &file,
+		const QByteArray &data,
+		base::byte_vector &&bytes);
 
 	bool open(TimeMs positionMs) override;
-
-	int32 format() override {
-		return fmt;
-	}
 
 	ReadResult readMore(QByteArray &result, int64 &samplesAdded) override;
 
 	~FFMpegLoader();
 
-protected:
-	int32 sampleSize = 2 * sizeof(uint16);
-
 private:
-	ReadResult readFromReadyFrame(QByteArray &result, int64 &samplesAdded);
+	bool openCodecContext();
+	bool seekTo(TimeMs positionMs);
 
-	int32 fmt = AL_FORMAT_STEREO16;
-	int32 srcRate = Media::Player::kDefaultFrequency;
-	int32 dstRate = Media::Player::kDefaultFrequency;
-	int32 maxResampleSamples = 1024;
-	uint8_t **dstSamplesData = nullptr;
-
-	AVCodecContext *codecContext = nullptr;
-	AVPacket avpkt;
-	AVSampleFormat inputFormat;
-	AVFrame *frame = nullptr;
-
-	SwrContext *swrContext = nullptr;
+	AVCodecContext *_codecContext = nullptr;
+	AVPacket _packet;
 
 };

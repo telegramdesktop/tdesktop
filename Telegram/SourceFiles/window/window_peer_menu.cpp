@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_peer_menu.h"
 
@@ -36,18 +23,17 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "observer_peer.h"
 #include "styles/style_boxes.h"
+#include "history/history.h"
 #include "window/window_controller.h"
+#include "info/info_memento.h"
+#include "info/info_controller.h"
+#include "info/feed/info_feed_channels_controllers.h"
+#include "data/data_session.h"
+#include "data/data_feed.h"
+#include "dialogs/dialogs_key.h"
 
 namespace Window {
 namespace {
-
-void AddChatMembers(not_null<ChatData*> chat) {
-	if (chat->count >= Global::ChatSizeMax() && chat->amCreator()) {
-		Ui::show(Box<ConvertToSupergroupBox>(chat));
-	} else {
-		AddParticipantsBoxController::Start(chat);
-	}
-}
 
 class Filler {
 public:
@@ -62,7 +48,6 @@ private:
 	bool showInfo();
 	void addPinToggle();
 	void addInfo();
-	void addNotifications();
 	void addSearch();
 	void addUserActions(not_null<UserData*> user);
 	void addBlockUser(not_null<UserData*> user);
@@ -76,16 +61,99 @@ private:
 
 };
 
+class FeedFiller {
+public:
+	FeedFiller(
+		not_null<Controller*> controller,
+		not_null<Data::Feed*> feed,
+		const PeerMenuCallback &addAction,
+		PeerMenuSource source);
+	void fill();
+
+private:
+	bool showInfo();
+	void addPinToggle();
+	void addInfo();
+	void addSearch();
+	void addNotifications();
+	void addUngroup();
+
+	not_null<Controller*> _controller;
+	not_null<Data::Feed*> _feed;
+	const PeerMenuCallback &_addAction;
+	PeerMenuSource _source;
+
+};
+
 History *FindWastedPin() {
-	auto order = App::histories().getPinnedOrder();
-	for_const (auto pinned, order) {
-		if (pinned->peer->isChat()
-			&& pinned->peer->asChat()->isDeactivated()
-			&& !pinned->inChatList(Dialogs::Mode::All)) {
-			return pinned;
+	const auto &order = Auth().data().pinnedDialogsOrder();
+	for (const auto pinned : order) {
+		if (const auto history = pinned.history()) {
+			if (history->peer->isChat()
+				&& history->peer->asChat()->isDeactivated()
+				&& !history->inChatList(Dialogs::Mode::All)) {
+				return history;
+			}
 		}
 	}
 	return nullptr;
+}
+
+void AddChatMembers(not_null<ChatData*> chat) {
+	if (chat->count >= Global::ChatSizeMax() && chat->amCreator()) {
+		Ui::show(Box<ConvertToSupergroupBox>(chat));
+	} else {
+		AddParticipantsBoxController::Start(chat);
+	}
+}
+
+bool PinnedLimitReached(Dialogs::Key key) {
+	const auto pinnedCount = Auth().data().pinnedDialogsCount();
+	const auto pinnedMax = Global::PinnedDialogsCountMax();
+	if (pinnedCount < pinnedMax) {
+		return false;
+	}
+	// Some old chat, that was converted, maybe is still pinned.
+	if (auto wasted = FindWastedPin()) {
+		Auth().data().setPinnedDialog(wasted, false);
+		Auth().data().setPinnedDialog(key, true);
+		Auth().api().savePinnedOrder();
+	} else {
+		auto errorText = lng_error_pinned_max(
+			lt_count,
+			pinnedMax);
+		Ui::show(Box<InformBox>(errorText));
+	}
+	return true;
+}
+
+void TogglePinnedDialog(Dialogs::Key key) {
+	const auto isPinned = !key.entry()->isPinnedDialog();
+	if (isPinned && PinnedLimitReached(key)) {
+		return;
+	}
+
+	Auth().data().setPinnedDialog(key, isPinned);
+	auto flags = MTPmessages_ToggleDialogPin::Flags(0);
+	if (isPinned) {
+		flags |= MTPmessages_ToggleDialogPin::Flag::f_pinned;
+	}
+	//MTP::send(MTPmessages_ToggleDialogPin( // #feed
+	//	MTP_flags(flags),
+	//	key.history()
+	//		? MTP_inputDialogPeer(key.history()->peer->input)
+	//		: MTP_inputDialogPeerFeed(MTP_int(key.feed()->id()))));
+	if (key.history()) {
+		MTP::send(MTPmessages_ToggleDialogPin(
+			MTP_flags(flags),
+			MTP_inputDialogPeer(key.history()->peer->input)));
+	}
+	if (isPinned) {
+		if (const auto main = App::main()) {
+			main->dialogsToUp();
+		}
+	}
+
 }
 
 Filler::Filler(
@@ -102,13 +170,13 @@ Filler::Filler(
 bool Filler::showInfo() {
 	if (_source == PeerMenuSource::Profile || _peer->isSelf()) {
 		return false;
-	} else if (_controller->activePeer.current() != _peer) {
+	} else if (_controller->activeChatCurrent().peer() != _peer) {
 		return true;
 	} else if (!Adaptive::ThreeColumn()) {
 		return true;
 	} else if (
-		!Auth().data().thirdSectionInfoEnabled() &&
-		!Auth().data().tabbedReplacedWithInfo()) {
+		!Auth().settings().thirdSectionInfoEnabled() &&
+		!Auth().settings().tabbedReplacedWithInfo()) {
 		return true;
 	}
 	return false;
@@ -125,37 +193,8 @@ void Filler::addPinToggle() {
 			? lng_context_unpin_from_top
 			: lng_context_pin_to_top);
 	};
-	auto pinToggle = [peer] {
-		auto history = App::history(peer);
-		auto isPinned = !history->isPinnedDialog();
-		auto pinnedCount = App::histories().pinnedCount();
-		auto pinnedMax = Global::PinnedDialogsCountMax();
-		if (isPinned && pinnedCount >= pinnedMax) {
-			// Some old chat, that was converted to supergroup, maybe is still pinned.
-			if (auto wasted = FindWastedPin()) {
-				wasted->setPinnedDialog(false);
-				history->setPinnedDialog(isPinned);
-				App::histories().savePinnedToServer();
-			} else {
-				auto errorText = lng_error_pinned_max(
-					lt_count,
-					pinnedMax);
-				Ui::show(Box<InformBox>(errorText));
-			}
-			return;
-		}
-
-		history->setPinnedDialog(isPinned);
-		auto flags = MTPmessages_ToggleDialogPin::Flags(0);
-		if (isPinned) {
-			flags |= MTPmessages_ToggleDialogPin::Flag::f_pinned;
-		}
-		MTP::send(MTPmessages_ToggleDialogPin(MTP_flags(flags), peer->input));
-		if (isPinned) {
-			if (auto main = App::main()) {
-				main->dialogsToUp();
-			}
-		}
+	auto pinToggle = [=] {
+		TogglePinnedDialog(App::history(peer));
 	};
 	auto pinAction = _addAction(pinText(isPinned), pinToggle);
 
@@ -183,39 +222,9 @@ void Filler::addInfo() {
 	});
 }
 
-void Filler::addNotifications() {
-	auto peer = _peer;
-	auto muteText = [](bool isMuted) {
-		return lang(isMuted
-			? lng_enable_notifications_from_tray
-			: lng_disable_notifications_from_tray);
-	};
-	auto muteAction = _addAction(muteText(peer->isMuted()), [peer] {
-		if (!peer->isMuted()) {
-			Ui::show(Box<MuteSettingsBox>(peer));
-		} else {
-			App::main()->updateNotifySettings(
-				peer,
-				Data::NotifySettings::MuteChange::Unmute);
-		}
-	});
-
-	auto lifetime = Notify::PeerUpdateViewer(
-		_peer,
-		Notify::PeerUpdate::Flag::NotificationsEnabled
-	) | rpl::map([=] {
-		return peer->isMuted();
-	}) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](bool muted) {
-		muteAction->setText(muteText(muted));
-	});
-
-	Ui::AttachAsChild(muteAction, std::move(lifetime));
-}
-
 void Filler::addSearch() {
 	_addAction(lang(lng_profile_search_messages), [peer = _peer] {
-		App::main()->searchInPeer(peer);
+		App::main()->searchInChat(App::history(peer));
 	});
 }
 
@@ -322,6 +331,15 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 
 void Filler::addChannelActions(not_null<ChannelData*> channel) {
 	auto isGroup = channel->isMegagroup();
+	if (!isGroup) {
+		const auto feed = channel->feed();
+		const auto grouped = (feed != nullptr);
+		if (!grouped || feed->channels().size() > 1) {
+			//_addAction( // #feed
+			//	lang(grouped ? lng_feed_ungroup : lng_feed_group),
+			//	[=] { ToggleChannelGrouping(channel, !grouped); });
+		}
+	}
 	if (_source != PeerMenuSource::ChatsList) {
 		if (ManagePeerBox::Available(channel)) {
 			auto text = lang(isGroup
@@ -374,19 +392,103 @@ void Filler::fill() {
 		addInfo();
 	}
 	if (_source != PeerMenuSource::Profile && !_peer->isSelf()) {
-		addNotifications();
+		PeerMenuAddMuteAction(_peer, _addAction);
 	}
 	if (_source == PeerMenuSource::ChatsList) {
 		addSearch();
 	}
 
-	if (auto user = _peer->asUser()) {
+	if (const auto user = _peer->asUser()) {
 		addUserActions(user);
-	} else if (auto chat = _peer->asChat()) {
+	} else if (const auto chat = _peer->asChat()) {
 		addChatActions(chat);
-	} else if (auto channel = _peer->asChannel()) {
+	} else if (const auto channel = _peer->asChannel()) {
 		addChannelActions(channel);
 	}
+}
+
+FeedFiller::FeedFiller(
+	not_null<Controller*> controller,
+	not_null<Data::Feed*> feed,
+	const PeerMenuCallback &addAction,
+	PeerMenuSource source)
+	: _controller(controller)
+	, _feed(feed)
+	, _addAction(addAction)
+	, _source(source) {
+}
+
+void FeedFiller::fill() {
+	if (_source == PeerMenuSource::ChatsList) {
+		addPinToggle();
+	}
+	if (showInfo()) {
+		addInfo();
+	}
+	addNotifications();
+	if (_source == PeerMenuSource::ChatsList) {
+		addSearch();
+	}
+	addUngroup();
+}
+
+bool FeedFiller::showInfo() {
+	if (_source == PeerMenuSource::Profile) {
+		return false;
+	} else if (_controller->activeChatCurrent().feed() != _feed) {
+		return true;
+	} else if (!Adaptive::ThreeColumn()) {
+		return true;
+	} else if (
+		!Auth().settings().thirdSectionInfoEnabled() &&
+		!Auth().settings().tabbedReplacedWithInfo()) {
+		return true;
+	}
+	return false;
+}
+
+void FeedFiller::addPinToggle() {
+	const auto feed = _feed;
+	const auto isPinned = feed->isPinnedDialog();
+	const auto pinText = [](bool isPinned) {
+		return lang(isPinned
+			? lng_context_unpin_from_top
+			: lng_context_pin_to_top);
+	};
+	_addAction(pinText(isPinned), [=] {
+		TogglePinnedDialog(feed);
+	});
+}
+
+void FeedFiller::addInfo() {
+	auto controller = _controller;
+	auto feed = _feed;
+	_addAction(lang(lng_context_view_feed_info), [=] {
+		controller->showSection(Info::Memento(
+			feed,
+			Info::Section(Info::Section::Type::Profile)));
+	});
+}
+
+void FeedFiller::addNotifications() {
+	const auto feed = _feed;
+	_addAction(lang(lng_feed_notifications), [=] {
+		Info::FeedProfile::NotificationsController::Start(feed);
+	});
+}
+
+void FeedFiller::addSearch() {
+	const auto feed = _feed;
+	_addAction(lang(lng_profile_search_messages), [=] {
+		App::main()->searchInChat(feed);
+	});
+}
+
+void FeedFiller::addUngroup() {
+	const auto feed = _feed;
+	//_addAction(lang(lng_feed_ungroup_all), [=] { // #feed
+	//	PeerMenuUngroupFeed(feed);
+	//});
 }
 
 } // namespace
@@ -411,12 +513,10 @@ void PeerMenuDeleteContact(not_null<UserData*> user) {
 }
 
 void PeerMenuAddContact(not_null<UserData*> user) {
-	auto firstName = user->firstName;
-	auto lastName = user->lastName;
-	auto phone = user->phone().isEmpty()
-		? App::phoneFromSharedContact(user->bareId())
-		: user->phone();
-	Ui::show(Box<AddContactBox>(firstName, lastName, phone));
+	Ui::show(Box<AddContactBox>(
+		user->firstName,
+		user->lastName,
+		Auth().data().findContactPhone(user)));
 }
 
 void PeerMenuShareContactBox(not_null<UserData*> user) {
@@ -527,6 +627,66 @@ void PeerMenuAddChannelMembers(not_null<ChannelData*> channel) {
 	Auth().api().requestChannelMembersForAdd(channel, callback);
 }
 
+void PeerMenuAddMuteAction(
+		not_null<PeerData*> peer,
+		const PeerMenuCallback &addAction) {
+	if (peer->notifySettingsUnknown()) {
+		Auth().api().requestNotifySetting(peer);
+	}
+	auto muteText = [](bool isMuted) {
+		return lang(isMuted
+			? lng_enable_notifications_from_tray
+			: lng_disable_notifications_from_tray);
+	};
+	auto muteAction = addAction(muteText(peer->isMuted()), [=] {
+		if (!peer->isMuted()) {
+			Ui::show(Box<MuteSettingsBox>(peer));
+		} else {
+			App::main()->updateNotifySettings(
+				peer,
+				Data::NotifySettings::MuteChange::Unmute);
+		}
+	});
+
+	auto lifetime = Notify::PeerUpdateViewer(
+		peer,
+		Notify::PeerUpdate::Flag::NotificationsEnabled
+	) | rpl::map([=] {
+		return peer->isMuted();
+	}) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](bool muted) {
+		muteAction->setText(muteText(muted));
+	});
+
+	Ui::AttachAsChild(muteAction, std::move(lifetime));
+}
+// #feed
+//void PeerMenuUngroupFeed(not_null<Data::Feed*> feed) {
+//	Ui::show(Box<ConfirmBox>(
+//		lang(lng_feed_sure_ungroup_all),
+//		lang(lng_feed_ungroup_sure),
+//		[=] { Ui::hideLayer(); Auth().api().ungroupAllFromFeed(feed); }));
+//}
+//
+//void ToggleChannelGrouping(not_null<ChannelData*> channel, bool group) {
+//	const auto callback = [=] {
+//		Ui::Toast::Show(lang(group
+//			? lng_feed_channel_added
+//			: lng_feed_channel_removed));
+//	};
+//	if (group) {
+//		const auto feed = Auth().data().feed(Data::Feed::kId);
+//		if (feed->channels().size() < 2) {
+//			Info::FeedProfile::EditController::Start(feed, channel);
+//			return;
+//		}
+//	}
+//	Auth().api().toggleChannelGrouping(
+//		channel,
+//		group,
+//		callback);
+//}
+
 base::lambda<void()> ClearHistoryHandler(not_null<PeerData*> peer) {
 	return [peer] {
 		const auto weak = std::make_shared<QPointer<ConfirmBox>>();
@@ -570,14 +730,15 @@ base::lambda<void()> DeleteAndLeaveHandler(not_null<PeerData*> peer) {
 			: st::attentionBoxButton;
 		auto callback = [peer] {
 			Ui::hideLayer();
-			if (App::wnd()->controller()->activePeer.current() == peer) {
+			const auto controller = App::wnd()->controller();
+			if (controller->activeChatCurrent().peer() == peer) {
 				Ui::showChatsList();
 			}
 			if (peer->isUser()) {
 				App::main()->deleteConversation(peer);
-			} else if (auto chat = peer->asChat()) {
+			} else if (const auto chat = peer->asChat()) {
 				App::main()->deleteAndExit(chat);
-			} else if (auto channel = peer->asChannel()) {
+			} else if (const auto channel = peer->asChannel()) {
 				// Don't delete old history by default,
 				// because Android app doesn't.
 				//
@@ -603,6 +764,15 @@ void FillPeerMenu(
 		const PeerMenuCallback &callback,
 		PeerMenuSource source) {
 	Filler filler(controller, peer, callback, source);
+	filler.fill();
+}
+
+void FillFeedMenu(
+		not_null<Controller*> controller,
+		not_null<Data::Feed*> feed,
+		const PeerMenuCallback &callback,
+		PeerMenuSource source) {
+	FeedFiller filler(controller, feed, callback, source);
 	filler.fill();
 }
 

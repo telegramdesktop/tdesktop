@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/info_wrap_widget.h"
 
@@ -24,7 +11,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/take.h>
 #include <rpl/combine.h>
 #include "info/profile/info_profile_widget.h"
-#include "info/profile/info_profile_members.h"
 #include "info/profile/info_profile_values.h"
 #include "info/media/info_media_widget.h"
 #include "info/info_content_widget.h"
@@ -117,15 +103,23 @@ void WrapWidget::startInjectingActivePeerProfiles() {
 	using namespace rpl::mappers;
 	rpl::combine(
 		_wrap.value(),
-		_controller->parentController()->activePeer.value()
+		_controller->parentController()->activeChatValue()
 	) | rpl::filter(
-		(_1 == Wrap::Side) && (_2 != nullptr)
+		(_1 == Wrap::Side) && _2
 	) | rpl::map(
 		_2
-	) | rpl::start_with_next([this](not_null<PeerData*> peer) {
-		injectActivePeerProfile(peer);
+	) | rpl::start_with_next([this](Dialogs::Key key) {
+		injectActiveProfile(key);
 	}, lifetime());
 
+}
+
+void WrapWidget::injectActiveProfile(Dialogs::Key key) {
+	if (const auto peer = key.peer()) {
+		injectActivePeerProfile(peer);
+	} else if (const auto feed = key.feed()) {
+		injectActiveFeedProfile(feed);
+	}
 }
 
 void WrapWidget::injectActivePeerProfile(not_null<PeerData*> peer) {
@@ -152,19 +146,40 @@ void WrapWidget::injectActivePeerProfile(not_null<PeerData*> peer) {
 	if (firstSectionType != expectedType
 		|| firstSectionMediaType != expectedMediaType
 		|| firstPeerId != peer->id) {
-		auto injected = StackItem();
 		auto section = peer->isSelf()
 			? Section(Section::MediaType::Photo)
 			: Section(Section::Type::Profile);
-		injected.section = std::move(
-			Memento(peer->id, section).takeStack().front());
-		_historyStack.insert(
-			_historyStack.begin(),
-			std::move(injected));
-		if (_content) {
-			setupTop();
-			finishShowContent();
-		}
+		injectActiveProfileMemento(std::move(
+			Memento(peer->id, section).takeStack().front()));
+	}
+}
+
+void WrapWidget::injectActiveFeedProfile(not_null<Data::Feed*> feed) {
+	const auto firstFeed = hasStackHistory()
+		? _historyStack.front().section->feed()
+		: _controller->feed();
+	const auto firstSectionType = hasStackHistory()
+		? _historyStack.front().section->section().type()
+		: _controller->section().type();
+	const auto expectedType = Section::Type::Profile;
+	if (firstSectionType != expectedType
+		|| firstFeed != feed) {
+		auto section = Section(Section::Type::Profile);
+		injectActiveProfileMemento(std::move(
+			Memento(feed, section).takeStack().front()));
+	}
+}
+
+void WrapWidget::injectActiveProfileMemento(
+		std::unique_ptr<ContentMemento> memento) {
+	auto injected = StackItem();
+	injected.section = std::move(memento);
+	_historyStack.insert(
+		_historyStack.begin(),
+		std::move(injected));
+	if (_content) {
+		setupTop();
+		finishShowContent();
 	}
 }
 
@@ -178,8 +193,17 @@ std::unique_ptr<Controller> WrapWidget::createController(
 	return result;
 }
 
-not_null<PeerData*> WrapWidget::peer() const {
-	return _controller->peer();
+Key WrapWidget::key() const {
+	return _controller->key();
+}
+
+Dialogs::RowDescriptor WrapWidget::activeChat() const {
+	if (const auto peer = key().peer()) {
+		return Dialogs::RowDescriptor(App::history(peer), FullMsgId());
+	} else if (const auto feed = key().feed()) {
+		return Dialogs::RowDescriptor(feed, FullMsgId());
+	}
+	Unexpected("Owner in WrapWidget::activeChat().");
 }
 
 // This was done for tabs support.
@@ -321,7 +345,7 @@ void WrapWidget::createTopBar() {
 
 	_topBar->setTitle(TitleValue(
 		_controller->section(),
-		_controller->peer(),
+		_controller->key(),
 		!hasStackHistory()));
 	if (wrapValue == Wrap::Narrow || hasStackHistory()) {
 		_topBar->enableBackButton();
@@ -384,7 +408,8 @@ void WrapWidget::addProfileMenuButton() {
 void WrapWidget::addProfileCallsButton() {
 	Expects(_topBar != nullptr);
 
-	const auto user = _controller->peer()->asUser();
+	const auto peer = key().peer();
+	const auto user = peer ? peer->asUser() : nullptr;
 	if (!user || user->isSelf() || !Global::PhoneCallsEnabled()) {
 		return;
 	}
@@ -416,7 +441,10 @@ void WrapWidget::addProfileCallsButton() {
 void WrapWidget::addProfileNotificationsButton() {
 	Expects(_topBar != nullptr);
 
-	const auto peer = _controller->peer();
+	const auto peer = key().peer();
+	if (!peer) {
+		return;
+	}
 	auto notifications = _topBar->addButton(
 		base::make_unique_q<Ui::IconButton>(
 			_topBar,
@@ -469,13 +497,27 @@ void WrapWidget::showProfileMenu() {
 	});
 	_topBarMenuToggle->installEventFilter(_topBarMenu.get());
 
-	Window::FillPeerMenu(
-		_controller->parentController(),
-		_controller->peer(),
-		[this](const QString &text, base::lambda<void()> callback) {
-			return _topBarMenu->addAction(text, std::move(callback));
-		},
-		Window::PeerMenuSource::Profile);
+	const auto addAction = [=](
+			const QString &text,
+			base::lambda<void()> callback) {
+		return _topBarMenu->addAction(text, std::move(callback));
+	};
+	if (const auto peer = key().peer()) {
+		Window::FillPeerMenu(
+			_controller->parentController(),
+			peer,
+			addAction,
+			Window::PeerMenuSource::Profile);
+	} else if (const auto feed = key().feed()) {
+		Window::FillFeedMenu(
+			_controller->parentController(),
+			feed,
+			addAction,
+			Window::PeerMenuSource::Profile);
+	} else {
+		_topBarMenu = nullptr;
+		return;
+	}
 	auto position = (wrap() == Wrap::Layer)
 		? st::infoLayerTopBarMenuPosition
 		: st::infoTopBarMenuPosition;

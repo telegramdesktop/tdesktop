@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/player/media_player_widget.h"
 
@@ -34,6 +21,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/player/media_player_volume_controller.h"
 #include "styles/style_media_player.h"
 #include "styles/style_mediaview.h"
+#include "history/history_item.h"
+#include "layout.h"
 
 namespace Media {
 namespace Player {
@@ -127,7 +116,7 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 	});
 
 	updateVolumeToggleIcon();
-	_volumeToggle->setClickedCallback([this] {
+	_volumeToggle->setClickedCallback([=] {
 		Global::SetSongVolume((Global::SongVolume() > 0) ? 0. : Global::RememberedSongVolume());
 		mixer()->setSongVolume(Global::SongVolume());
 		Global::RefSongVolumeChanged().notify();
@@ -135,7 +124,7 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 	subscribe(Global::RefSongVolumeChanged(), [this] { updateVolumeToggleIcon(); });
 
 	updateRepeatTrackIcon();
-	_repeatTrack->setClickedCallback([this] {
+	_repeatTrack->setClickedCallback([=] {
 		instance()->toggleRepeat(AudioMsgId::Type::Song);
 	});
 
@@ -479,22 +468,31 @@ void Widget::handleSongChange() {
 
 	TextWithEntities textWithEntities;
 	if (document->isVoiceMessage() || document->isVideoMessage()) {
-		if (auto item = App::histItemById(current.contextId())) {
-			auto name = App::peerName(item->fromOriginal());
-			auto date = [item] {
-				auto date = item->date.date();
-				auto time = item->date.time().toString(cTimeFormat());
-				auto today = QDateTime::currentDateTime().date();
+		if (const auto item = App::histItemById(current.contextId())) {
+			const auto name = App::peerName(item->fromOriginal());
+			const auto date = [item] {
+				const auto parsed = ItemDateTime(item);
+				const auto date = parsed.date();
+				const auto time = parsed.time().toString(cTimeFormat());
+				const auto today = QDateTime::currentDateTime().date();
 				if (date == today) {
 					return lng_player_message_today(lt_time, time);
 				} else if (date.addDays(1) == today) {
 					return lng_player_message_yesterday(lt_time, time);
 				}
-				return lng_player_message_date(lt_date, langDayOfMonthFull(date), lt_time, time);
+				return lng_player_message_date(
+					lt_date,
+					langDayOfMonthFull(date),
+					lt_time,
+					time);
 			};
 
 			textWithEntities.text = name + ' ' + date();
-			textWithEntities.entities.append({ EntityInTextBold, 0, name.size(), QString() });
+			textWithEntities.entities.append(EntityInText(
+				EntityInTextBold,
+				0,
+				name.size(),
+				QString()));
 		} else {
 			textWithEntities.text = lang(lng_media_audio);
 		}
@@ -540,12 +538,12 @@ void Widget::createPrevNextButtons() {
 	if (!_previousTrack) {
 		_previousTrack.create(this, st::mediaPlayerPreviousButton);
 		_previousTrack->show();
-		_previousTrack->setClickedCallback([this]() {
+		_previousTrack->setClickedCallback([=]() {
 			instance()->previous();
 		});
 		_nextTrack.create(this, st::mediaPlayerNextButton);
 		_nextTrack->show();
-		_nextTrack->setClickedCallback([this]() {
+		_nextTrack->setClickedCallback([=]() {
 			instance()->next();
 		});
 		updatePlayPrevNextPositions();

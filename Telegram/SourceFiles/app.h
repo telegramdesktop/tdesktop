@@ -1,47 +1,67 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
 #include "core/basic_types.h"
-#include "history/history.h"
-#include "history/history_item.h"
-#include "layout.h"
+#include "data/data_types.h"
+#include "data/data_peer.h"
 
+enum NewMessageType : char;
 class Messenger;
 class MainWindow;
 class MainWidget;
-
-using HistoryItemsMap = OrderedSet<HistoryItem*>;
-using PhotoItems = QHash<PhotoData*, HistoryItemsMap>;
-using DocumentItems = QHash<DocumentData*, HistoryItemsMap>;
-using WebPageItems = QHash<WebPageData*, HistoryItemsMap>;
-using GameItems = QHash<GameData*, HistoryItemsMap>;
-using SharedContactItems = QHash<int32, HistoryItemsMap>;
-using GifItems = QHash<Media::Clip::Reader*, HistoryItem*>;
-
-using PhotosData = QHash<PhotoId, PhotoData*>;
-using DocumentsData = QHash<DocumentId, DocumentData*>;
-
 class LocationCoords;
 struct LocationData;
+class HistoryItem;
+class History;
+class Histories;
+namespace HistoryView {
+class Element;
+} // namespace HistoryView
+
+using HistoryItemsMap = base::flat_set<not_null<HistoryItem*>>;
+using GifItems = QHash<Media::Clip::Reader*, HistoryItem*>;
+
+enum RoundCorners {
+	SmallMaskCorners = 0x00, // for images
+	LargeMaskCorners,
+
+	BoxCorners,
+	MenuCorners,
+	BotKbOverCorners,
+	StickerCorners,
+	StickerSelectedCorners,
+	SelectedOverlaySmallCorners,
+	SelectedOverlayLargeCorners,
+	DateCorners,
+	DateSelectedCorners,
+	ForwardCorners,
+	MediaviewSaveCorners,
+	EmojiHoverCorners,
+	StickerHoverCorners,
+	BotKeyboardCorners,
+	PhotoSelectOverlayCorners,
+
+	Doc1Corners,
+	Doc2Corners,
+	Doc3Corners,
+	Doc4Corners,
+
+	InShadowCorners, // for photos without bg
+	InSelectedShadowCorners,
+
+	MessageInCorners, // with shadow
+	MessageInSelectedCorners,
+	MessageOutCorners,
+	MessageOutSelectedCorners,
+
+	RoundCornersCount
+};
 
 namespace App {
 	MainWindow *wnd();
@@ -74,18 +94,6 @@ namespace App {
 	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink);
 
 	ImagePtr image(const MTPPhotoSize &size);
-
-	PhotoData *feedPhoto(const MTPPhoto &photo, const PreparedPhotoThumbs &thumbs);
-	PhotoData *feedPhoto(const MTPPhoto &photo, PhotoData *convert = nullptr);
-	PhotoData *feedPhoto(const MTPDphoto &photo, PhotoData *convert = nullptr);
-	DocumentData *feedDocument(const MTPdocument &document, const QPixmap &thumb);
-	DocumentData *feedDocument(const MTPdocument &document, DocumentData *convert = nullptr);
-	DocumentData *feedDocument(const MTPDdocument &document, DocumentData *convert = nullptr);
-	WebPageData *feedWebPage(const MTPDwebPage &webpage, WebPageData *convert = nullptr);
-	WebPageData *feedWebPage(const MTPDwebPagePending &webpage, WebPageData *convert = nullptr);
-	WebPageData *feedWebPage(const MTPWebPage &webpage);
-	WebPageData *feedWebPage(WebPageId webPageId, const QString &siteName, const TextWithEntities &content);
-	GameData *feedGame(const MTPDgame &game, GameData *convert = nullptr);
 
 	PeerData *peer(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded);
 	inline UserData *user(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
@@ -132,53 +140,7 @@ namespace App {
 	UserData *self();
 	PeerData *peerByName(const QString &username);
 	QString peerName(const PeerData *peer, bool forDialogs = false);
-	PhotoData *photo(const PhotoId &photo);
-	PhotoData *photoSet(
-		const PhotoId &photo,
-		PhotoData *convert,
-		const uint64 &access,
-		int32 date,
-		const ImagePtr &thumb,
-		const ImagePtr &medium,
-		const ImagePtr &full);
-	DocumentData *document(const DocumentId &document);
-	DocumentData *documentSet(
-		const DocumentId &document,
-		DocumentData *convert,
-		const uint64 &access,
-		int32 version,
-		int32 date,
-		const QVector<MTPDocumentAttribute> &attributes,
-		const QString &mime,
-		const ImagePtr &thumb,
-		int32 dc,
-		int32 size,
-		const StorageImageLocation &thumbLocation);
-	WebPageData *webPage(const WebPageId &webPage);
-	WebPageData *webPageSet(
-		const WebPageId &webPage,
-		WebPageData *convert,
-		const QString &type,
-		const QString &url,
-		const QString &displayUrl,
-		const QString &siteName,
-		const QString &title,
-		const TextWithEntities &description,
-		PhotoData *photo,
-		DocumentData *document,
-		int duration,
-		const QString &author,
-		int pendingTill);
-	GameData *game(const GameId &game);
-	GameData *gameSet(
-		const GameId &game,
-		GameData *convert,
-		const uint64 &accessHash,
-		const QString &shortName,
-		const QString &title,
-		const QString &description,
-		PhotoData *photo,
-		DocumentData *document);
+
 	LocationData *location(const LocationCoords &coords);
 	void forgetMedia();
 
@@ -186,7 +148,6 @@ namespace App {
 
 	Histories &histories();
 	not_null<History*> history(const PeerId &peer);
-	History *historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead, int32 maxOutboxRead);
 	History *historyLoaded(const PeerId &peer);
 	HistoryItem *histItemById(ChannelId channelId, MsgId itemId);
 	inline not_null<History*> history(const PeerData *peer) {
@@ -202,10 +163,9 @@ namespace App {
 	inline HistoryItem *histItemById(const FullMsgId &msgId) {
 		return histItemById(msgId.channel, msgId.msg);
 	}
-	void historyRegItem(HistoryItem *item);
-	void historyItemDetached(HistoryItem *item);
-	void historyUnregItem(HistoryItem *item);
-	void historyUpdateDependent(HistoryItem *item);
+	void historyRegItem(not_null<HistoryItem*> item);
+	void historyUnregItem(not_null<HistoryItem*> item);
+	void historyUpdateDependent(not_null<HistoryItem*> item);
 	void historyClearMsgs();
 	void historyClearItems();
 	void historyRegDependency(HistoryItem *dependent, HistoryItem *dependency);
@@ -218,18 +178,16 @@ namespace App {
 	void historyUnregSentData(uint64 randomId);
 	void histSentDataByItem(uint64 randomId, PeerId &peerId, QString &text);
 
-	void hoveredItem(HistoryItem *item);
-	HistoryItem *hoveredItem();
-	void pressedItem(HistoryItem *item);
-	HistoryItem *pressedItem();
-	void hoveredLinkItem(HistoryItem *item);
-	HistoryItem *hoveredLinkItem();
-	void pressedLinkItem(HistoryItem *item);
-	HistoryItem *pressedLinkItem();
-	void contextItem(HistoryItem *item);
-	HistoryItem *contextItem();
-	void mousedItem(HistoryItem *item);
-	HistoryItem *mousedItem();
+	void hoveredItem(HistoryView::Element *item);
+	HistoryView::Element *hoveredItem();
+	void pressedItem(HistoryView::Element *item);
+	HistoryView::Element *pressedItem();
+	void hoveredLinkItem(HistoryView::Element *item);
+	HistoryView::Element *hoveredLinkItem();
+	void pressedLinkItem(HistoryView::Element *item);
+	HistoryView::Element *pressedLinkItem();
+	void mousedItem(HistoryView::Element *item);
+	HistoryView::Element *mousedItem();
 	void clearMousedItems();
 
 	const style::font &monofont();
@@ -262,34 +220,6 @@ namespace App {
 	QImage readImage(QByteArray data, QByteArray *format = nullptr, bool opaque = true, bool *animated = nullptr);
 	QImage readImage(const QString &file, QByteArray *format = nullptr, bool opaque = true, bool *animated = nullptr, QByteArray *content = 0);
 	QPixmap pixmapFromImageInPlace(QImage &&image);
-
-	void regPhotoItem(PhotoData *data, HistoryItem *item);
-	void unregPhotoItem(PhotoData *data, HistoryItem *item);
-	const PhotoItems &photoItems();
-	const PhotosData &photosData();
-
-	void regDocumentItem(DocumentData *data, HistoryItem *item);
-	void unregDocumentItem(DocumentData *data, HistoryItem *item);
-	const DocumentItems &documentItems();
-	const DocumentsData &documentsData();
-
-	void regWebPageItem(WebPageData *data, HistoryItem *item);
-	void unregWebPageItem(WebPageData *data, HistoryItem *item);
-	const WebPageItems &webPageItems();
-
-	void regGameItem(GameData *data, HistoryItem *item);
-	void unregGameItem(GameData *data, HistoryItem *item);
-	const GameItems &gameItems();
-
-	void regSharedContactItem(int32 userId, HistoryItem *item);
-	void unregSharedContactItem(int32 userId, HistoryItem *item);
-	const SharedContactItems &sharedContactItems();
-	QString phoneFromSharedContact(int32 userId);
-
-	void regGifItem(Media::Clip::Reader *reader, HistoryItem *item);
-	void unregGifItem(Media::Clip::Reader *reader);
-	void stopRoundVideoPlayback();
-	void stopGifItems();
 
 	void regMuted(not_null<PeerData*> peer, TimeMs changeIn);
 	void unregMuted(not_null<PeerData*> peer);

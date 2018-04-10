@@ -1,29 +1,25 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
 #include <rpl/variable.h>
 #include "base/flags.h"
+#include "dialogs/dialogs_key.h"
 
 class MainWidget;
+class HistoryMessage;
+class HistoryService;
+
+namespace Media {
+namespace Player {
+class RoundController;
+} // namespace Player
+} // namespace Media
 
 namespace Window {
 
@@ -41,6 +37,19 @@ enum class GifPauseReason {
 };
 using GifPauseReasons = base::flags<GifPauseReason>;
 inline constexpr bool is_flag_type(GifPauseReason) { return true; };
+
+class DateClickHandler : public ClickHandler {
+public:
+	DateClickHandler(Dialogs::Key chat, QDate date);
+
+	void setDate(QDate date);
+	void onClick(Qt::MouseButton) const override;
+
+private:
+	Dialogs::Key _chat;
+	QDate _date;
+
+};
 
 struct SectionShow {
 	enum class Way {
@@ -100,30 +109,30 @@ public:
 		not_null<History*> history,
 		const SectionShow &params = SectionShow());
 
+	virtual ~Navigation() = default;
+
 };
 
 class Controller : public Navigation {
 public:
-	Controller(not_null<MainWindow*> window) : _window(window) {
-	}
+	Controller(not_null<MainWindow*> window);
 
 	not_null<MainWindow*> window() const {
 		return _window;
 	}
 
-	// This is needed for History TopBar updating when searchInPeer
+	// This is needed for History TopBar updating when searchInChat
 	// is changed in the DialogsWidget of the current window.
-	rpl::variable<PeerData*> searchInPeer;
+	rpl::variable<Dialogs::Key> searchInChat;
 
-	// This is needed while we have one HistoryWidget and one TopBarWidget
-	// for all histories we show in a window. Once each history is shown
-	// in its own HistoryWidget with its own TopBarWidget this can be removed.
-	//
-	// Also used in the Info::Profile to toggle Send Message button.
-	rpl::variable<PeerData*> historyPeer;
-
-	// This is used for auto-switch in third column Info::Profile.
-	rpl::variable<PeerData*> activePeer;
+	void setActiveChatEntry(Dialogs::RowDescriptor row);
+	void setActiveChatEntry(Dialogs::Key key);
+	Dialogs::RowDescriptor activeChatEntryCurrent() const;
+	Dialogs::Key activeChatCurrent() const;
+	rpl::producer<Dialogs::RowDescriptor> activeChatEntryChanges() const;
+	rpl::producer<Dialogs::Key> activeChatChanges() const;
+	rpl::producer<Dialogs::RowDescriptor> activeChatEntryValue() const;
+	rpl::producer<Dialogs::Key> activeChatValue() const;
 
 	void enableGifPauseReason(GifPauseReason reason);
 	void disableGifPauseReason(GifPauseReason reason);
@@ -188,7 +197,7 @@ public:
 	}
 
 	void showJumpToDate(
-		not_null<PeerData*> peer,
+		Dialogs::Key chat,
 		QDate requestedDate);
 
 	base::Variable<bool> &dialogsListFocused() {
@@ -207,6 +216,19 @@ public:
 	not_null<Controller*> parentController() override {
 		return this;
 	}
+
+	using RoundController = Media::Player::RoundController;
+	bool startRoundVideo(not_null<HistoryItem*> context);
+	RoundController *currentRoundVideo() const;
+	RoundController *roundVideo(not_null<const HistoryItem*> context) const;
+	RoundController *roundVideo(FullMsgId contextId) const;
+	void roundVideoFinished(not_null<RoundController*> video);
+
+	rpl::lifetime &lifetime() {
+		return _lifetime;
+	}
+
+	~Controller();
 
 private:
 	int minimalThreeColumnWidth() const;
@@ -228,8 +250,13 @@ private:
 	base::Observable<void> _gifPauseLevelChanged;
 	base::Observable<void> _floatPlayerAreaUpdated;
 
+	rpl::variable<Dialogs::RowDescriptor> _activeChatEntry;
 	base::Variable<bool> _dialogsListFocused = { false };
 	base::Variable<bool> _dialogsListDisplayForced = { false };
+
+	std::unique_ptr<RoundController> _roundVideo;
+
+	rpl::lifetime _lifetime;
 
 };
 

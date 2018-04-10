@@ -1,27 +1,17 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+template <typename Base>
 class RuntimeComposer;
-typedef void(*RuntimeComponentConstruct)(void *location, RuntimeComposer *composer);
+
+class RuntimeComposerBase;
+typedef void(*RuntimeComponentConstruct)(void *location, RuntimeComposerBase *composer);
 typedef void(*RuntimeComponentDestruct)(void *location);
 typedef void(*RuntimeComponentMove)(void *location, void *waslocation);
 
@@ -51,8 +41,10 @@ struct CeilDivideMinimumOne {
 extern RuntimeComponentWrapStruct RuntimeComponentWraps[64];
 extern QAtomicInt RuntimeComponentIndexLast;
 
-template <typename Type>
+template <typename Type, typename Base>
 struct RuntimeComponent {
+	using RuntimeComponentBase = Base;
+
 	RuntimeComponent() {
 		// While there is no std::aligned_alloc().
 		static_assert(alignof(Type) <= alignof(std::max_align_t), "Components should align to std::max_align_t!");
@@ -89,7 +81,7 @@ struct RuntimeComponent {
 	}
 
 protected:
-	static void RuntimeComponentConstruct(void *location, RuntimeComposer *composer) {
+	static void RuntimeComponentConstruct(void *location, RuntimeComposerBase *composer) {
 		new (location) Type();
 	}
 	static void RuntimeComponentDestruct(void *location) {
@@ -147,9 +139,9 @@ private:
 
 const RuntimeComposerMetadata *GetRuntimeComposerMetadata(uint64 mask);
 
-class RuntimeComposer {
+class RuntimeComposerBase {
 public:
-	RuntimeComposer(uint64 mask = 0) : _data(zerodata()) {
+	RuntimeComposerBase(uint64 mask = 0) : _data(zerodata()) {
 		if (mask) {
 			auto meta = GetRuntimeComposerMetadata(mask);
 
@@ -182,9 +174,9 @@ public:
 			}
 		}
 	}
-	RuntimeComposer(const RuntimeComposer &other) = delete;
-	RuntimeComposer &operator=(const RuntimeComposer &other) = delete;
-	~RuntimeComposer() {
+	RuntimeComposerBase(const RuntimeComposerBase &other) = delete;
+	RuntimeComposerBase &operator=(const RuntimeComposerBase &other) = delete;
+	~RuntimeComposerBase() {
 		if (_data != zerodata()) {
 			auto meta = _meta();
 			for (int i = 0; i < meta->last; ++i) {
@@ -197,45 +189,40 @@ public:
 		}
 	}
 
-	template <typename Type>
-	bool Has() const {
-		return (_meta()->offsets[Type::Index()] >= sizeof(_meta()));
-	}
-
-	template <typename Type>
-	Type *Get() {
-		return static_cast<Type*>(_dataptr(_meta()->offsets[Type::Index()]));
-	}
-	template <typename Type>
-	const Type *Get() const {
-		return static_cast<const Type*>(_dataptr(_meta()->offsets[Type::Index()]));
-	}
-
 protected:
-	void UpdateComponents(uint64 mask = 0) {
-		if (!_meta()->equals(mask)) {
-			RuntimeComposer tmp(mask);
-			tmp.swap(*this);
-			if (_data != zerodata() && tmp._data != zerodata()) {
-				auto meta = _meta(), wasmeta = tmp._meta();
-				for (int i = 0; i < meta->last; ++i) {
-					auto offset = meta->offsets[i];
-					auto wasoffset = wasmeta->offsets[i];
-					if (offset >= sizeof(_meta()) && wasoffset >= sizeof(_meta())) {
-						RuntimeComponentWraps[i].Move(_dataptrunsafe(offset), tmp._dataptrunsafe(wasoffset));
-					}
+	bool UpdateComponents(uint64 mask = 0) {
+		if (_meta()->equals(mask)) {
+			return false;
+		}
+		RuntimeComposerBase result(mask);
+		result.swap(*this);
+		if (_data != zerodata() && result._data != zerodata()) {
+			const auto meta = _meta();
+			const auto wasmeta = result._meta();
+			for (auto i = 0; i != meta->last; ++i) {
+				const auto offset = meta->offsets[i];
+				const auto wasoffset = wasmeta->offsets[i];
+				if (offset >= sizeof(_meta())
+					&& wasoffset >= sizeof(_meta())) {
+					RuntimeComponentWraps[i].Move(
+						_dataptrunsafe(offset),
+						result._dataptrunsafe(wasoffset));
 				}
 			}
 		}
+		return true;
 	}
-	void AddComponents(uint64 mask = 0) {
-		UpdateComponents(_meta()->maskadd(mask));
+	bool AddComponents(uint64 mask = 0) {
+		return UpdateComponents(_meta()->maskadd(mask));
 	}
-	void RemoveComponents(uint64 mask = 0) {
-		UpdateComponents(_meta()->maskremove(mask));
+	bool RemoveComponents(uint64 mask = 0) {
+		return UpdateComponents(_meta()->maskremove(mask));
 	}
 
 private:
+	template <typename Base>
+	friend class RuntimeComposer;
+
 	static const RuntimeComposerMetadata *ZeroRuntimeComposerMetadata;
 	static void *zerodata() {
 		return &ZeroRuntimeComposerMetadata;
@@ -252,8 +239,41 @@ private:
 	}
 	void *_data = nullptr;
 
-	void swap(RuntimeComposer &other) {
+	void swap(RuntimeComposerBase &other) {
 		std::swap(_data, other._data);
+	}
+
+};
+
+template <typename Base>
+class RuntimeComposer : public RuntimeComposerBase {
+public:
+	using RuntimeComposerBase::RuntimeComposerBase;
+
+	template <
+		typename Type,
+		typename = std::enable_if_t<std::is_same_v<
+			typename Type::RuntimeComponentBase,
+			Base>>>
+	bool Has() const {
+		return (_meta()->offsets[Type::Index()] >= sizeof(_meta()));
+	}
+
+	template <
+		typename Type,
+		typename = std::enable_if_t<std::is_same_v<
+			typename Type::RuntimeComponentBase,
+			Base>>>
+	Type *Get() {
+		return static_cast<Type*>(_dataptr(_meta()->offsets[Type::Index()]));
+	}
+	template <
+		typename Type,
+		typename = std::enable_if_t<std::is_same_v<
+			typename Type::RuntimeComponentBase,
+			Base>>>
+	const Type *Get() const {
+		return static_cast<const Type*>(_dataptr(_meta()->offsets[Type::Index()]));
 	}
 
 };

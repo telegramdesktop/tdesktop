@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_instance.h"
 
@@ -73,7 +60,8 @@ void Instance::playSound(Sound sound) {
 	case Sound::Busy: {
 		if (!_callBusyTrack) {
 			_callBusyTrack = Media::Audio::Current().createTrack();
-			_callBusyTrack->fillFromFile(Auth().data().getSoundPath(qsl("call_busy")));
+			_callBusyTrack->fillFromFile(
+				Auth().settings().getSoundPath(qsl("call_busy")));
 		}
 		_callBusyTrack->playOnce();
 	} break;
@@ -81,7 +69,8 @@ void Instance::playSound(Sound sound) {
 	case Sound::Ended: {
 		if (!_callEndedTrack) {
 			_callEndedTrack = Media::Audio::Current().createTrack();
-			_callEndedTrack->fillFromFile(Auth().data().getSoundPath(qsl("call_end")));
+			_callEndedTrack->fillFromFile(
+				Auth().settings().getSoundPath(qsl("call_end")));
 		}
 		_callEndedTrack->playOnce();
 	} break;
@@ -89,7 +78,8 @@ void Instance::playSound(Sound sound) {
 	case Sound::Connecting: {
 		if (!_callConnectingTrack) {
 			_callConnectingTrack = Media::Audio::Current().createTrack();
-			_callConnectingTrack->fillFromFile(Auth().data().getSoundPath(qsl("call_connect")));
+			_callConnectingTrack->fillFromFile(
+				Auth().settings().getSoundPath(qsl("call_connect")));
 		}
 		_callConnectingTrack->playOnce();
 	} break;

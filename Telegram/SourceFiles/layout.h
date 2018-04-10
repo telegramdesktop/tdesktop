@@ -1,26 +1,18 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
 #include "base/runtime_composer.h"
+
+namespace HistoryView {
+struct TextState;
+struct StateRequest;
+} // namespace HistoryView
 
 constexpr auto FullSelection = TextSelection { 0xFFFF, 0xFFFF };
 
@@ -58,42 +50,6 @@ inline bool IsGroupItemSelection(
 		: selection;
 }
 
-enum RoundCorners {
-	SmallMaskCorners = 0x00, // for images
-	LargeMaskCorners,
-
-	BoxCorners,
-	MenuCorners,
-	BotKbOverCorners,
-	StickerCorners,
-	StickerSelectedCorners,
-	SelectedOverlaySmallCorners,
-	SelectedOverlayLargeCorners,
-	DateCorners,
-	DateSelectedCorners,
-	ForwardCorners,
-	MediaviewSaveCorners,
-	EmojiHoverCorners,
-	StickerHoverCorners,
-	BotKeyboardCorners,
-	PhotoSelectOverlayCorners,
-
-	Doc1Corners,
-	Doc2Corners,
-	Doc3Corners,
-	Doc4Corners,
-
-	InShadowCorners, // for photos without bg
-	InSelectedShadowCorners,
-
-	MessageInCorners, // with shadow
-	MessageInSelectedCorners,
-	MessageOutCorners,
-	MessageOutSelectedCorners,
-
-	RoundCornersCount
-};
-
 static const int32 FileStatusSizeReady = 0x7FFFFFF0;
 static const int32 FileStatusSizeLoaded = 0x7FFFFFF1;
 static const int32 FileStatusSizeFailed = 0x7FFFFFF2;
@@ -124,8 +80,13 @@ public:
 
 };
 
-class LayoutItemBase : public RuntimeComposer, public ClickHandlerHost {
+class LayoutItemBase
+	: public RuntimeComposer<LayoutItemBase>
+	, public ClickHandlerHost {
 public:
+	using TextState = HistoryView::TextState;
+	using StateRequest = HistoryView::StateRequest;
+
 	LayoutItemBase() {
 	}
 
@@ -145,16 +106,12 @@ public:
 		return _height;
 	}
 
-	[[nodiscard]] virtual HistoryTextState getState(
-			QPoint point,
-			HistoryStateRequest request) const {
-		return {};
-	}
+	[[nodiscard]] virtual TextState getState(
+		QPoint point,
+		StateRequest request) const;
 	[[nodiscard]] virtual TextSelection adjustSelection(
-			TextSelection selection,
-			TextSelectType type) const {
-		return selection;
-	}
+		TextSelection selection,
+		TextSelectType type) const;
 
 	int width() const {
 		return _width;

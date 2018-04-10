@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
@@ -152,6 +139,11 @@ reversion_wrapper<Container> reversed(Container &&container) {
 	return { container };
 }
 
+template <typename Value, typename From, typename Till>
+inline bool in_range(Value &&value, From &&from, Till &&till) {
+	return (value >= from) && (value < till);
+}
+
 } // namespace base
 
 // using for_const instead of plain range-based for loop to ensure usage of const_iterator
@@ -233,32 +225,14 @@ private:
 
 };
 
-class MTPint;
 using TimeId = int32;
-TimeId myunixtime();
 void unixtimeInit();
-void unixtimeSet(TimeId servertime, bool force = false);
+void unixtimeSet(TimeId serverTime, bool force = false);
 TimeId unixtime();
-TimeId fromServerTime(const MTPint &serverTime);
-MTPint toServerTime(const TimeId &clientTime);
 uint64 msgid();
 int32 reqid();
 
-inline QDateTime date(int32 time = -1) {
-	QDateTime result;
-	if (time >= 0) result.setTime_t(time);
-	return result;
-}
-
-inline QDateTime dateFromServerTime(const MTPint &time) {
-	return date(fromServerTime(time));
-}
-
-inline QDateTime date(const MTPint &time) {
-	return dateFromServerTime(time);
-}
-
-QDateTime dateFromServerTime(TimeId time);
+QDateTime ParseDateTime(TimeId serverTime);
 
 inline void mylocaltime(struct tm * _Tm, const time_t * _Time) {
 #ifdef Q_OS_WIN
@@ -532,13 +506,6 @@ inline int ceilclamp(int value, int step, int lowest, int highest) {
 inline int ceilclamp(float64 value, int32 step, int32 lowest, int32 highest) {
 	return qMax(qMin(static_cast<int>(std::ceil(value / step)), highest), lowest);
 }
-
-enum ForwardWhatMessages {
-	ForwardSelectedMessages,
-	ForwardContextMessage,
-	ForwardPressedMessage,
-	ForwardPressedLinkMessage
-};
 
 static int32 FullArcLength = 360 * 16;
 static int32 QuarterArcLength = (FullArcLength / 4);

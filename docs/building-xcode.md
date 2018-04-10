@@ -16,6 +16,11 @@ Go to ***BuildPath*** and run
 
     MACOSX_DEPLOYMENT_TARGET=10.8
 
+    ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+    brew install automake fdk-aac git lame libass libtool libvorbis libvpx opus sdl shtool texi2html theora wget x264 xvid yasm automake libtool
+
+    sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
     git clone --recursive https://github.com/telegramdesktop/tdesktop.git
 
     cd Libraries
@@ -23,7 +28,7 @@ Go to ***BuildPath*** and run
     git clone https://github.com/ericniebler/range-v3
 
     cd xz-5.0.5
-    ./configure
+    CFLAGS="-mmacosx-version-min=10.8" LDFLAGS="-mmacosx-version-min=10.8" ./configure
     make
     sudo make install
     cd ..
@@ -64,9 +69,6 @@ Go to ***BuildPath*** and run
     sudo make install
     cd ..
 
-    ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-    brew install automake fdk-aac git lame libass libtool libvorbis libvpx opus sdl shtool texi2html theora wget x264 xvid yasm
-
     git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
     git checkout release/3.4
@@ -85,10 +87,11 @@ Go to ***BuildPath*** and run
     cmake -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.8 ..
     make -j4
     sudo make install
-    cd ..
+    cd ../..
 
     git clone https://chromium.googlesource.com/external/gyp
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+    export PATH="$PWD/depot_tools:$PATH" 
     cd gyp
     git checkout 702ac58e47
     git apply ../../tdesktop/Telegram/Patches/gyp.diff
@@ -99,6 +102,7 @@ Go to ***BuildPath*** and run
     git clone https://chromium.googlesource.com/crashpad/crashpad.git
     cd crashpad
     git checkout feb3aa3923
+    git apply ../../tdesktop/Telegram/Patches/crashpad.diff
     cd third_party/mini_chromium
     git clone https://chromium.googlesource.com/chromium/mini_chromium
     cd mini_chromium

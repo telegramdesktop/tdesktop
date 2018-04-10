@@ -1,24 +1,17 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
+
+#include "history/history_item.h"
+
+namespace HistoryView {
+class Service;
+} // namespace HistoryView
 
 struct HistoryServiceDependentData {
 	MsgId msgId = 0;
@@ -26,18 +19,25 @@ struct HistoryServiceDependentData {
 	ClickHandlerPtr lnk;
 };
 
-struct HistoryServicePinned : public RuntimeComponent<HistoryServicePinned>, public HistoryServiceDependentData {
+struct HistoryServicePinned
+	: public RuntimeComponent<HistoryServicePinned, HistoryItem>
+	, public HistoryServiceDependentData {
 };
 
-struct HistoryServiceGameScore : public RuntimeComponent<HistoryServiceGameScore>, public HistoryServiceDependentData {
+struct HistoryServiceGameScore
+	: public RuntimeComponent<HistoryServiceGameScore, HistoryItem>
+	, public HistoryServiceDependentData {
 	int score = 0;
 };
 
-struct HistoryServicePayment : public RuntimeComponent<HistoryServicePayment>, public HistoryServiceDependentData {
+struct HistoryServicePayment
+	: public RuntimeComponent<HistoryServicePayment, HistoryItem>
+	, public HistoryServiceDependentData {
 	QString amount;
 };
 
-struct HistoryServiceSelfDestruct : public RuntimeComponent<HistoryServiceSelfDestruct> {
+struct HistoryServiceSelfDestruct
+	: public RuntimeComponent<HistoryServiceSelfDestruct, HistoryItem> {
 	enum class Type {
 		Photo,
 		Video,
@@ -47,26 +47,29 @@ struct HistoryServiceSelfDestruct : public RuntimeComponent<HistoryServiceSelfDe
 	TimeMs destructAt = 0;
 };
 
-namespace HistoryLayout {
+namespace HistoryView {
 class ServiceMessagePainter;
-} // namespace HistoryLayout
+} // namespace HistoryView
 
-class HistoryService : public HistoryItem, private HistoryItemInstantiated<HistoryService> {
+class HistoryService : public HistoryItem {
 public:
 	struct PreparedText {
 		QString text;
 		QList<ClickHandlerPtr> links;
 	};
 
-	static not_null<HistoryService*> create(not_null<History*> history, const MTPDmessage &message) {
-		return _create(history, message);
-	}
-	static not_null<HistoryService*> create(not_null<History*> history, const MTPDmessageService &message) {
-		return _create(history, message);
-	}
-	static not_null<HistoryService*> create(not_null<History*> history, MsgId msgId, QDateTime date, const PreparedText &message, MTPDmessage::Flags flags = 0, UserId from = 0, PhotoData *photo = nullptr) {
-		return _create(history, msgId, date, message, flags, from, photo);
-	}
+	HistoryService(not_null<History*> history, const MTPDmessage &data);
+	HistoryService(
+		not_null<History*> history,
+		const MTPDmessageService &data);
+	HistoryService(
+		not_null<History*> history,
+		MsgId id,
+		TimeId date,
+		const PreparedText &message,
+		MTPDmessage::Flags flags = 0,
+		UserId from = 0,
+		PhotoData *photo = nullptr);
 
 	bool updateDependencyItem() override;
 	MsgId dependencyMsgId() const override {
@@ -82,21 +85,6 @@ public:
 		return true;
 	}
 
-	QRect countGeometry() const;
-
-	void draw(Painter &p, QRect clip, TextSelection selection, TimeMs ms) const override;
-	bool hasPoint(QPoint point) const override;
-	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
-
-	[[nodiscard]] TextSelection adjustSelection(
-			TextSelection selection,
-			TextSelectType type) const override {
-		return _text.adjustSelection(selection, type);
-	}
-
-	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
-	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
-
 	void applyEdition(const MTPDmessageService &message) override;
 	TimeMs getSelfDestructIn(TimeMs now) override;
 
@@ -108,22 +96,16 @@ public:
 	bool serviceMsg() const override {
 		return true;
 	}
-	TextWithEntities selectedText(TextSelection selection) const override;
 	QString inDialogsText(DrawInDialog way) const override;
 	QString inReplyText() const override;
+
+	std::unique_ptr<HistoryView::Element> createView(
+		not_null<HistoryView::ElementDelegate*> delegate) override;
 
 	~HistoryService();
 
 protected:
-	friend class HistoryLayout::ServiceMessagePainter;
-
-	HistoryService(not_null<History*> history, const MTPDmessage &message);
-	HistoryService(not_null<History*> history, const MTPDmessageService &message);
-	HistoryService(not_null<History*> history, MsgId msgId, QDateTime date, const PreparedText &message, MTPDmessage::Flags flags = 0, UserId from = 0, PhotoData *photo = 0);
-	friend class HistoryItemInstantiated<HistoryService>;
-
-	void initDimensions() override;
-	int resizeContentGetHeight() override;
+	friend class HistoryView::ServiceMessagePainter;
 
 	void markMediaAsReadHook() override;
 
@@ -165,20 +147,12 @@ private:
 	PreparedText prepareGameScoreText();
 	PreparedText preparePaymentSentText();
 
-};
-
-class HistoryJoined : public HistoryService, private HistoryItemInstantiated<HistoryJoined> {
-public:
-	static not_null<HistoryJoined*> create(not_null<History*> history, const QDateTime &inviteDate, not_null<UserData*> inviter, MTPDmessage::Flags flags) {
-		return _create(history, inviteDate, inviter, flags);
-	}
-
-protected:
-	HistoryJoined(not_null<History*> history, const QDateTime &inviteDate, not_null<UserData*> inviter, MTPDmessage::Flags flags);
-	using HistoryItemInstantiated<HistoryJoined>::_create;
-	friend class HistoryItemInstantiated<HistoryJoined>;
-
-private:
-	static PreparedText GenerateText(not_null<History*> history, not_null<UserData*> inviter);
+	friend class HistoryView::Service;
 
 };
+
+HistoryService *GenerateJoinedMessage(
+	not_null<History*> history,
+	TimeId inviteDate,
+	not_null<UserData*> inviter,
+	MTPDmessage::Flags flags);

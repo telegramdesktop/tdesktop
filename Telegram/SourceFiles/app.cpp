@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "app.h"
 
@@ -31,10 +18,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_boxes.h"
 #include "lang/lang_keys.h"
 #include "data/data_abstract_structure.h"
-#include "history/history_service_layout.h"
+#include "data/data_media_types.h"
+#include "data/data_session.h"
+#include "history/history.h"
 #include "history/history_location_manager.h"
 #include "history/history_media_types.h"
 #include "history/history_item_components.h"
+#include "history/view/history_view_service_message.h"
 #include "media/media_audio.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "messenger.h"
@@ -65,24 +55,8 @@ namespace {
 	using MutedPeers = QMap<not_null<PeerData*>, bool>;
 	MutedPeers mutedPeers;
 
-	PhotosData photosData;
-	DocumentsData documentsData;
-
 	using LocationsData = QHash<LocationCoords, LocationData*>;
 	LocationsData locationsData;
-
-	using WebPagesData = QHash<WebPageId, WebPageData*>;
-	WebPagesData webPagesData;
-
-	using GamesData = QHash<GameId, GameData*>;
-	GamesData gamesData;
-
-	PhotoItems photoItems;
-	DocumentItems documentItems;
-	WebPageItems webPageItems;
-	GameItems gameItems;
-	SharedContactItems sharedContactItems;
-	GifItems gifItems;
 
 	using DependentItemsSet = OrderedSet<HistoryItem*>;
 	using DependentItems = QMap<HistoryItem*, DependentItemsSet>;
@@ -101,11 +75,10 @@ namespace {
 	using SentData = QMap<uint64, QPair<PeerId, QString>>;
 	SentData sentData;
 
-	HistoryItem *hoveredItem = nullptr,
+	HistoryView::Element *hoveredItem = nullptr,
 		*pressedItem = nullptr,
 		*hoveredLinkItem = nullptr,
 		*pressedLinkItem = nullptr,
-		*contextItem = nullptr,
 		*mousedItem = nullptr;
 
 	QPixmap *emoji = nullptr, *emojiLarge = nullptr;
@@ -124,11 +97,6 @@ namespace {
 	QMap<int, EmojiImagesMap> OtherEmojiMap;
 
 	int32 serviceImageCacheSize = 0;
-
-	using LastPhotosList = QLinkedList<PhotoData*>;
-	LastPhotosList lastPhotos;
-	using LastPhotosMap = QHash<PhotoData*, LastPhotosList::iterator>;
-	LastPhotosMap lastPhotosMap;
 
 } // namespace
 
@@ -247,7 +215,7 @@ namespace {
 
 	UserData *feedUser(const MTPUser &user) {
 		UserData *data = nullptr;
-		bool wasContact = false, minimal = false;
+		bool minimal = false;
 		const MTPUserStatus *status = 0, emptyStatus = MTP_userStatusEmpty();
 
 		Notify::PeerUpdate update;
@@ -260,7 +228,6 @@ namespace {
 			auto peer = peerFromUser(d.vid.v);
 			data = App::user(peer);
 			auto canShareThisContact = data->canShareThisContactFast();
-			wasContact = data->isContact();
 
 			data->input = MTP_inputPeerUser(d.vid, MTP_long(0));
 			data->inputUser = MTP_inputUser(d.vid, MTP_long(0));
@@ -268,12 +235,17 @@ namespace {
 			data->setPhoto(MTP_userProfilePhotoEmpty());
 			//data->setFlags(MTPDuser_ClientFlag::f_inaccessible | 0);
 			data->setFlags(MTPDuser::Flag::f_deleted);
+			if (!data->phone().isEmpty()) {
+				data->setPhone(QString());
+				update.flags |= UpdateFlag::UserPhoneChanged;
+			}
 			data->setBotInfoVersion(-1);
 			status = &emptyStatus;
-			data->contact = -1;
+			data->setContactStatus(UserData::ContactStatus::PhoneUnknown);
 
-			if (canShareThisContact != data->canShareThisContactFast()) update.flags |= UpdateFlag::UserCanShareContact;
-			if (wasContact != data->isContact()) update.flags |= UpdateFlag::UserIsContact;
+			if (canShareThisContact != data->canShareThisContactFast()) {
+				update.flags |= UpdateFlag::UserCanShareContact;
+			}
 		} break;
 		case mtpc_user: {
 			auto &d = user.c_user();
@@ -282,7 +254,6 @@ namespace {
 			auto peer = peerFromUser(d.vid.v);
 			data = App::user(peer);
 			auto canShareThisContact = data->canShareThisContactFast();
-			wasContact = data->isContact();
 			if (minimal) {
 				auto mask = 0
 					//| MTPDuser_ClientFlag::f_inaccessible
@@ -331,16 +302,30 @@ namespace {
 				}
 				bool nameChanged = (data->firstName != fname) || (data->lastName != lname);
 
-				bool showPhone = !isServiceUser(data->id) && !d.is_self() && !d.is_contact() && !d.is_mutual_contact();
-				bool showPhoneChanged = !isServiceUser(data->id) && !d.is_self() && ((showPhone && data->contact) || (!showPhone && !data->contact));
+				bool showPhone = !isServiceUser(data->id)
+					&& !d.is_self()
+					&& !d.is_contact()
+					&& !d.is_mutual_contact();
+				bool showPhoneChanged = !isServiceUser(data->id)
+					&& !d.is_self()
+					&& ((showPhone
+						&& data->contactStatus() == UserData::ContactStatus::Contact)
+						|| (!showPhone
+							&& data->contactStatus() == UserData::ContactStatus::CanAdd));
 				if (minimal) {
 					showPhoneChanged = false;
-					showPhone = !isServiceUser(data->id) && (data->id != Auth().userPeerId()) && !data->contact;
+					showPhone = !isServiceUser(data->id)
+						&& (data->id != Auth().userPeerId())
+						&& (data->contactStatus() == UserData::ContactStatus::CanAdd);
 				}
 
 				// see also Local::readPeer
 
-				QString pname = (showPhoneChanged || phoneChanged || nameChanged) ? ((showPhone && !phone.isEmpty()) ? formatPhone(phone) : QString()) : data->nameOrPhone;
+				const auto pname = (showPhoneChanged || phoneChanged || nameChanged)
+					? ((showPhone && !phone.isEmpty())
+						? formatPhone(phone)
+						: QString())
+					: data->nameOrPhone;
 
 				if (!minimal && d.is_self() && uname != data->username) {
 					CrashReports::SetAnnotation("Username", uname);
@@ -368,19 +353,20 @@ namespace {
 				} else {
 					data->setBotInfoVersion(-1);
 				}
-				data->contact = (d.is_contact() || d.is_mutual_contact()) ? 1 : (data->phone().isEmpty() ? -1 : 0);
-				if (data->contact == 1 && cReportSpamStatuses().value(data->id, dbiprsHidden) != dbiprsHidden) {
-					cRefReportSpamStatuses().insert(data->id, dbiprsHidden);
-					Local::writeReportSpamStatuses();
-				}
+				data->setContactStatus((d.is_contact() || d.is_mutual_contact())
+					? UserData::ContactStatus::Contact
+					: data->phone().isEmpty()
+					? UserData::ContactStatus::PhoneUnknown
+					: UserData::ContactStatus::CanAdd);
 				if (d.is_self() && ::self != data) {
 					::self = data;
 					Global::RefSelfChanged().notify();
 				}
 			}
 
-			if (canShareThisContact != data->canShareThisContactFast()) update.flags |= UpdateFlag::UserCanShareContact;
-			if (wasContact != data->isContact()) update.flags |= UpdateFlag::UserIsContact;
+			if (canShareThisContact != data->canShareThisContactFast()) {
+				update.flags |= UpdateFlag::UserCanShareContact;
+			}
 		} break;
 		}
 
@@ -405,13 +391,12 @@ namespace {
 			}
 		}
 
-		if (data->contact < 0 && !data->phone().isEmpty() && data->id != Auth().userPeerId()) {
-			data->contact = 0;
+		if (data->contactStatus() == UserData::ContactStatus::PhoneUnknown
+			&& !data->phone().isEmpty()
+			&& data->id != Auth().userPeerId()) {
+			data->setContactStatus(UserData::ContactStatus::CanAdd);
 		}
 		if (App::main()) {
-			if ((data->contact > 0 && !wasContact) || (wasContact && data->contact < 1)) {
-				Notify::userIsContactChanged(data);
-			}
 			if (update.flags) {
 				update.peer = data;
 				Notify::peerUpdatedDelayed(update);
@@ -474,10 +459,10 @@ namespace {
 					if (auto h = App::historyLoaded(cdata->id)) {
 						if (auto hto = App::historyLoaded(channel->id)) {
 							if (!h->isEmpty()) {
-								h->clear(true);
+								h->unloadBlocks();
 							}
 							if (hto->inChatList(Dialogs::Mode::All) && h->inChatList(Dialogs::Mode::All)) {
-								App::removeDialog(h);
+								App::main()->removeDialog(h);
 							}
 						}
 					}
@@ -578,6 +563,11 @@ namespace {
 					cdata->setRestrictionReason(QString());
 				}
 				cdata->setFlags(d.vflags.v);
+				//if (d.has_feed_id()) { // #feed
+				//	cdata->setFeed(Auth().data().feed(d.vfeed_id.v));
+				//} else {
+				//	cdata->clearFeed();
+				//}
 			}
 
 			QString uname = d.has_username() ? TextUtilities::SingleLine(qs(d.vusername)) : QString();
@@ -585,10 +575,14 @@ namespace {
 
 			cdata->setPhoto(d.vphoto);
 
-			if (wasInChannel != cdata->amIn()) update.flags |= UpdateFlag::ChannelAmIn;
+			if (wasInChannel != cdata->amIn()) {
+				update.flags |= UpdateFlag::ChannelAmIn;
+			}
 			if (canViewAdmins != cdata->canViewAdmins()
 				|| canViewMembers != cdata->canViewMembers()
-				|| canAddMembers != cdata->canAddMembers()) update.flags |= UpdateFlag::ChannelRightsChanged;
+				|| canAddMembers != cdata->canAddMembers()) {
+				update.flags |= UpdateFlag::ChannelRightsChanged;
+			}
 		} break;
 		case mtpc_channelForbidden: {
 			auto &d(chat.c_channelForbidden());
@@ -622,10 +616,14 @@ namespace {
 			cdata->date = 0;
 			cdata->setMembersCount(0);
 
-			if (wasInChannel != cdata->amIn()) update.flags |= UpdateFlag::ChannelAmIn;
+			if (wasInChannel != cdata->amIn()) {
+				update.flags |= UpdateFlag::ChannelAmIn;
+			}
 			if (canViewAdmins != cdata->canViewAdmins()
 				|| canViewMembers != cdata->canViewMembers()
-				|| canAddMembers != cdata->canAddMembers()) update.flags |= UpdateFlag::ChannelRightsChanged;
+				|| canAddMembers != cdata->canAddMembers()) {
+				update.flags |= UpdateFlag::ChannelRightsChanged;
+			}
 		} break;
 		}
 		if (!data) {
@@ -917,14 +915,16 @@ namespace {
 			auto entities = m.has_entities()
 				? TextUtilities::EntitiesFromMTP(m.ventities.v)
 				: EntitiesInText();
+			const auto media = m.has_media() ? &m.vmedia : nullptr;
 			existing->setText({ text, entities });
-			existing->updateMedia(m.has_media() ? (&m.vmedia) : nullptr);
+			existing->updateSentMedia(m.has_media() ? &m.vmedia : nullptr);
 			existing->updateReplyMarkup(m.has_reply_markup()
 				? (&m.vreply_markup)
 				: nullptr);
 			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
 			existing->indexAsNewItem();
-			if (!existing->detached()) {
+			Auth().data().requestItemTextRefresh(existing);
+			if (existing->mainView()) {
 				App::checkSavedGif(existing);
 				return true;
 			}
@@ -960,7 +960,7 @@ namespace {
 			if (saved.size() > Global::SavedGifsLimit()) saved.pop_back();
 			Local::writeSavedGifs();
 
-			Auth().data().markSavedGifsUpdated();
+			Auth().data().notifySavedGifsUpdated();
 			Auth().data().setLastSavedGifsUpdate(0);
 			Auth().api().updateStickers();
 		}
@@ -968,10 +968,10 @@ namespace {
 
 	void checkSavedGif(HistoryItem *item) {
 		if (!item->Has<HistoryMessageForwarded>() && (item->out() || item->history()->peer == App::self())) {
-			if (auto media = item->getMedia()) {
-				if (auto doc = media->getDocument()) {
-					if (doc->isGifv()) {
-						addSavedGif(doc);
+			if (const auto media = item->media()) {
+				if (const auto document = media->document()) {
+					if (document->isGifv()) {
+						addSavedGif(document);
 					}
 				}
 			}
@@ -1028,7 +1028,7 @@ namespace {
 	}
 
 	void feedInboxRead(const PeerId &peer, MsgId upTo) {
-		if (auto history = App::historyLoaded(peer)) {
+		if (const auto history = App::historyLoaded(peer)) {
 			history->inboxRead(upTo);
 		}
 	}
@@ -1036,13 +1036,8 @@ namespace {
 	void feedOutboxRead(const PeerId &peer, MsgId upTo, TimeId when) {
 		if (auto history = App::historyLoaded(peer)) {
 			history->outboxRead(upTo);
-			if (history->lastMsg && history->lastMsg->out() && history->lastMsg->id <= upTo) {
-				if (App::main()) App::main()->dlgUpdated(history->peer, history->lastMsg->id);
-			}
-			history->updateChatListEntry();
-
-			if (history->peer->isUser()) {
-				history->peer->asUser()->madeAction(when);
+			if (const auto user = history->peer->asUser()) {
+				user->madeAction(when);
 			}
 		}
 	}
@@ -1060,275 +1055,71 @@ namespace {
 		return &(*i);
 	}
 
-	void feedWereDeleted(ChannelId channelId, const QVector<MTPint> &msgsIds) {
-		MsgsData *data = fetchMsgsData(channelId, false);
+	void feedWereDeleted(
+			ChannelId channelId,
+			const QVector<MTPint> &msgsIds) {
+		const auto data = fetchMsgsData(channelId, false);
 		if (!data) return;
 
-		ChannelHistory *channelHistory = (channelId == NoChannel) ? 0 : App::historyLoaded(peerFromChannel(channelId))->asChannelHistory();
+		const auto affectedHistory = (channelId != NoChannel)
+			? App::history(peerFromChannel(channelId)).get()
+			: nullptr;
 
-		QMap<History*, bool> historiesToCheck;
-		for (QVector<MTPint>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
-			MsgsData::const_iterator j = data->constFind(i->v);
+		auto historiesToCheck = base::flat_set<not_null<History*>>();
+		for (const auto msgId : msgsIds) {
+			auto j = data->constFind(msgId.v);
 			if (j != data->cend()) {
-				History *h = (*j)->history();
+				const auto history = (*j)->history();
 				(*j)->destroy();
-				if (!h->lastMsg) historiesToCheck.insert(h, true);
-			} else {
-				if (channelHistory) {
-					if (channelHistory->unreadCount() > 0 && i->v >= channelHistory->inboxReadBefore) {
-						channelHistory->setUnreadCount(channelHistory->unreadCount() - 1);
-					}
+				if (!history->lastMessageKnown()) {
+					historiesToCheck.emplace(history);
 				}
+			} else if (affectedHistory) {
+				affectedHistory->unknownMessageDeleted(msgId.v);
 			}
 		}
-		if (main()) {
-			for (QMap<History*, bool>::const_iterator i = historiesToCheck.cbegin(), e = historiesToCheck.cend(); i != e; ++i) {
-				main()->checkPeerHistory(i.key()->peer);
-			}
+		for (const auto history : historiesToCheck) {
+			Auth().api().requestDialogEntry(history);
 		}
 	}
 
 	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink) {
-		UserData *user = userLoaded(userId.v);
-		if (user) {
-			auto wasContact = user->isContact();
-			bool wasShowPhone = !user->contact;
+		if (const auto user = userLoaded(userId.v)) {
+			const auto wasShowPhone = (user->contactStatus() == UserData::ContactStatus::CanAdd);
 			switch (myLink.type()) {
 			case mtpc_contactLinkContact:
-				user->contact = 1;
-				if (user->contact == 1 && cReportSpamStatuses().value(user->id, dbiprsHidden) != dbiprsHidden) {
-					cRefReportSpamStatuses().insert(user->id, dbiprsHidden);
-					Local::writeReportSpamStatuses();
-				}
+				user->setContactStatus(UserData::ContactStatus::Contact);
 			break;
 			case mtpc_contactLinkHasPhone:
-				user->contact = 0;
+				user->setContactStatus(UserData::ContactStatus::CanAdd);
 			break;
 			case mtpc_contactLinkNone:
 			case mtpc_contactLinkUnknown:
-				user->contact = -1;
+				user->setContactStatus(UserData::ContactStatus::PhoneUnknown);
 			break;
 			}
-			if (user->contact < 1) {
-				if (user->contact < 0 && !user->phone().isEmpty() && user->id != Auth().userPeerId()) {
-					user->contact = 0;
-				}
+			if (user->contactStatus() == UserData::ContactStatus::PhoneUnknown
+				&& !user->phone().isEmpty()
+				&& user->id != Auth().userPeerId()) {
+				user->setContactStatus(UserData::ContactStatus::CanAdd);
 			}
 
-			if (wasContact != user->isContact()) {
-				Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserIsContact);
-			}
-			if ((user->contact > 0 && !wasContact) || (wasContact && user->contact < 1)) {
-				Notify::userIsContactChanged(user);
-			}
-
-			bool showPhone = !isServiceUser(user->id) && !user->isSelf() && !user->contact;
-			bool showPhoneChanged = !isServiceUser(user->id) && !user->isSelf() && ((showPhone && !wasShowPhone) || (!showPhone && wasShowPhone));
+			const auto showPhone = !isServiceUser(user->id)
+				&& !user->isSelf()
+				&& user->contactStatus() == UserData::ContactStatus::CanAdd;
+			const auto showPhoneChanged = !isServiceUser(user->id)
+				&& !user->isSelf()
+				&& (showPhone != wasShowPhone);
 			if (showPhoneChanged) {
-				user->setName(TextUtilities::SingleLine(user->firstName), TextUtilities::SingleLine(user->lastName), showPhone ? App::formatPhone(user->phone()) : QString(), TextUtilities::SingleLine(user->username));
+				user->setName(
+					TextUtilities::SingleLine(user->firstName),
+					TextUtilities::SingleLine(user->lastName),
+					showPhone
+						? App::formatPhone(user->phone())
+						: QString(),
+					TextUtilities::SingleLine(user->username));
 			}
 		}
-	}
-
-	PhotoData *feedPhoto(const MTPPhoto &photo, PhotoData *convert) {
-		switch (photo.type()) {
-		case mtpc_photo: {
-			return feedPhoto(photo.c_photo(), convert);
-		} break;
-		case mtpc_photoEmpty: {
-			return App::photoSet(photo.c_photoEmpty().vid.v, convert, 0, 0, ImagePtr(), ImagePtr(), ImagePtr());
-		} break;
-		}
-		return App::photo(0);
-	}
-
-	PhotoData *feedPhoto(const MTPPhoto &photo, const PreparedPhotoThumbs &thumbs) {
-		const QPixmap *thumb = 0, *medium = 0, *full = 0;
-		int32 thumbLevel = -1, mediumLevel = -1, fullLevel = -1;
-		for (PreparedPhotoThumbs::const_iterator i = thumbs.cbegin(), e = thumbs.cend(); i != e; ++i) {
-			int32 newThumbLevel = -1, newMediumLevel = -1, newFullLevel = -1;
-			switch (i.key()) {
-			case 's': newThumbLevel = 0; newMediumLevel = 5; newFullLevel = 4; break; // box 100x100
-			case 'm': newThumbLevel = 2; newMediumLevel = 0; newFullLevel = 3; break; // box 320x320
-			case 'x': newThumbLevel = 5; newMediumLevel = 3; newFullLevel = 1; break; // box 800x800
-			case 'y': newThumbLevel = 6; newMediumLevel = 6; newFullLevel = 0; break; // box 1280x1280
-			case 'w': newThumbLevel = 8; newMediumLevel = 8; newFullLevel = 2; break; // box 2560x2560 // if loading this fix HistoryPhoto::updateFrom
-			case 'a': newThumbLevel = 1; newMediumLevel = 4; newFullLevel = 8; break; // crop 160x160
-			case 'b': newThumbLevel = 3; newMediumLevel = 1; newFullLevel = 7; break; // crop 320x320
-			case 'c': newThumbLevel = 4; newMediumLevel = 2; newFullLevel = 6; break; // crop 640x640
-			case 'd': newThumbLevel = 7; newMediumLevel = 7; newFullLevel = 5; break; // crop 1280x1280
-			}
-			if (newThumbLevel < 0 || newMediumLevel < 0 || newFullLevel < 0) {
-				continue;
-			}
-			if (thumbLevel < 0 || newThumbLevel < thumbLevel) {
-				thumbLevel = newThumbLevel;
-				thumb = &i.value();
-			}
-			if (mediumLevel < 0 || newMediumLevel < mediumLevel) {
-				mediumLevel = newMediumLevel;
-				medium = &i.value();
-			}
-			if (fullLevel < 0 || newFullLevel < fullLevel) {
-				fullLevel = newFullLevel;
-				full = &i.value();
-			}
-		}
-		if (!thumb || !medium || !full) {
-			return App::photo(0);
-		}
-		switch (photo.type()) {
-		case mtpc_photo: {
-			const auto &ph(photo.c_photo());
-			return App::photoSet(ph.vid.v, 0, ph.vaccess_hash.v, ph.vdate.v, ImagePtr(*thumb, "JPG"), ImagePtr(*medium, "JPG"), ImagePtr(*full, "JPG"));
-		} break;
-		case mtpc_photoEmpty: return App::photo(photo.c_photoEmpty().vid.v);
-		}
-		return App::photo(0);
-	}
-
-	PhotoData *feedPhoto(const MTPDphoto &photo, PhotoData *convert) {
-		auto &sizes = photo.vsizes.v;
-		const MTPPhotoSize *thumb = 0, *medium = 0, *full = 0;
-		int32 thumbLevel = -1, mediumLevel = -1, fullLevel = -1;
-		for (QVector<MTPPhotoSize>::const_iterator i = sizes.cbegin(), e = sizes.cend(); i != e; ++i) {
-			char size = 0;
-			switch (i->type()) {
-			case mtpc_photoSize: {
-				auto &s = i->c_photoSize().vtype.v;
-				if (s.size()) size = s[0];
-			} break;
-
-			case mtpc_photoCachedSize: {
-				auto &s = i->c_photoCachedSize().vtype.v;
-				if (s.size()) size = s[0];
-			} break;
-			}
-			if (!size) continue;
-
-			int32 newThumbLevel = -1, newMediumLevel = -1, newFullLevel = -1;
-			switch (size) {
-			case 's': newThumbLevel = 0; newMediumLevel = 5; newFullLevel = 4; break; // box 100x100
-			case 'm': newThumbLevel = 2; newMediumLevel = 0; newFullLevel = 3; break; // box 320x320
-			case 'x': newThumbLevel = 5; newMediumLevel = 3; newFullLevel = 1; break; // box 800x800
-			case 'y': newThumbLevel = 6; newMediumLevel = 6; newFullLevel = 0; break; // box 1280x1280
-			case 'w': newThumbLevel = 8; newMediumLevel = 8; newFullLevel = 2; break; // box 2560x2560
-			case 'a': newThumbLevel = 1; newMediumLevel = 4; newFullLevel = 8; break; // crop 160x160
-			case 'b': newThumbLevel = 3; newMediumLevel = 1; newFullLevel = 7; break; // crop 320x320
-			case 'c': newThumbLevel = 4; newMediumLevel = 2; newFullLevel = 6; break; // crop 640x640
-			case 'd': newThumbLevel = 7; newMediumLevel = 7; newFullLevel = 5; break; // crop 1280x1280
-			}
-			if (newThumbLevel < 0 || newMediumLevel < 0 || newFullLevel < 0) {
-				continue;
-			}
-			if (thumbLevel < 0 || newThumbLevel < thumbLevel) {
-				thumbLevel = newThumbLevel;
-				thumb = &(*i);
-			}
-			if (mediumLevel < 0 || newMediumLevel < mediumLevel) {
-				mediumLevel = newMediumLevel;
-				medium = &(*i);
-			}
-			if (fullLevel < 0 || newFullLevel < fullLevel) {
-				fullLevel = newFullLevel;
-				full = &(*i);
-			}
-		}
-		if (thumb && medium && full) {
-			return App::photoSet(photo.vid.v, convert, photo.vaccess_hash.v, photo.vdate.v, App::image(*thumb), App::image(*medium), App::image(*full));
-		}
-		return App::photoSet(photo.vid.v, convert, 0, 0, ImagePtr(), ImagePtr(), ImagePtr());
-	}
-
-	DocumentData *feedDocument(const MTPdocument &document, const QPixmap &thumb) {
-		switch (document.type()) {
-		case mtpc_document: {
-			auto &d = document.c_document();
-			return App::documentSet(d.vid.v, 0, d.vaccess_hash.v, d.vversion.v, d.vdate.v, d.vattributes.v, qs(d.vmime_type), ImagePtr(thumb, "JPG"), d.vdc_id.v, d.vsize.v, StorageImageLocation());
-		} break;
-		case mtpc_documentEmpty: return App::document(document.c_documentEmpty().vid.v);
-		}
-		return App::document(0);
-	}
-
-	DocumentData *feedDocument(const MTPdocument &document, DocumentData *convert) {
-		switch (document.type()) {
-		case mtpc_document: {
-			return feedDocument(document.c_document(), convert);
-		} break;
-		case mtpc_documentEmpty: {
-			return App::documentSet(document.c_documentEmpty().vid.v, convert, 0, 0, 0, QVector<MTPDocumentAttribute>(), QString(), ImagePtr(), 0, 0, StorageImageLocation());
-		} break;
-		}
-		return App::document(0);
-	}
-
-	DocumentData *feedDocument(const MTPDdocument &document, DocumentData *convert) {
-		return App::documentSet(
-			document.vid.v,
-			convert,
-			document.vaccess_hash.v,
-			document.vversion.v,
-			document.vdate.v,
-			document.vattributes.v,
-			qs(document.vmime_type),
-			App::image(document.vthumb),
-			document.vdc_id.v,
-			document.vsize.v,
-			StorageImageLocation::FromMTP(document.vthumb));
-	}
-
-	WebPageData *feedWebPage(const MTPDwebPage &webpage, WebPageData *convert) {
-		auto description = TextWithEntities { webpage.has_description() ? TextUtilities::Clean(qs(webpage.vdescription)) : QString() };
-		auto siteName = webpage.has_site_name() ? qs(webpage.vsite_name) : QString();
-		auto parseFlags = TextParseLinks | TextParseMultiline | TextParseRichText;
-		if (siteName == qstr("Twitter") || siteName == qstr("Instagram")) {
-			parseFlags |= TextParseHashtags | TextParseMentions;
-		}
-		TextUtilities::ParseEntities(description, parseFlags);
-		return App::webPageSet(webpage.vid.v, convert, webpage.has_type() ? qs(webpage.vtype) : qsl("article"), qs(webpage.vurl), qs(webpage.vdisplay_url), siteName, webpage.has_title() ? qs(webpage.vtitle) : QString(), description, webpage.has_photo() ? App::feedPhoto(webpage.vphoto) : nullptr, webpage.has_document() ? App::feedDocument(webpage.vdocument) : nullptr, webpage.has_duration() ? webpage.vduration.v : 0, webpage.has_author() ? qs(webpage.vauthor) : QString(), 0);
-	}
-
-	WebPageData *feedWebPage(const MTPDwebPagePending &webpage, WebPageData *convert) {
-		constexpr auto kDefaultPendingTimeout = 60;
-		return App::webPageSet(
-			webpage.vid.v,
-			convert,
-			QString(),
-			QString(),
-			QString(),
-			QString(),
-			QString(),
-			TextWithEntities(),
-			nullptr,
-			nullptr,
-			0,
-			QString(),
-			webpage.vdate.v
-				? webpage.vdate.v
-				: (unixtime() + kDefaultPendingTimeout));
-	}
-
-	WebPageData *feedWebPage(const MTPWebPage &webpage) {
-		switch (webpage.type()) {
-		case mtpc_webPage: return App::feedWebPage(webpage.c_webPage());
-		case mtpc_webPageEmpty: {
-			WebPageData *page = App::webPage(webpage.c_webPageEmpty().vid.v);
-			if (page->pendingTill > 0) page->pendingTill = -1; // failed
-			return page;
-		} break;
-		case mtpc_webPagePending: return App::feedWebPage(webpage.c_webPagePending());
-		case mtpc_webPageNotModified: LOG(("API Error: webPageNotModified is unexpected in feedWebPage().")); break;
-		}
-		return nullptr;
-	}
-
-	WebPageData *feedWebPage(WebPageId webPageId, const QString &siteName, const TextWithEntities &content) {
-		return App::webPageSet(webPageId, nullptr, qsl("article"), QString(), QString(), siteName, QString(), content, nullptr, nullptr, 0, QString(), 0);
-	}
-
-	GameData *feedGame(const MTPDgame &game, GameData *convert) {
-		return App::gameSet(game.vid.v, convert, game.vaccess_hash.v, qs(game.vshort_name), qs(game.vtitle), qs(game.vdescription), App::feedPhoto(game.vphoto), game.has_document() ? App::feedDocument(game.vdocument) : nullptr);
 	}
 
 	PeerData *peer(const PeerId &id, PeerData::LoadedStatus restriction) {
@@ -1386,361 +1177,6 @@ namespace {
 		return nullptr;
 	}
 
-	void updateImage(ImagePtr &old, ImagePtr now) {
-		if (now->isNull()) return;
-		if (old->isNull()) {
-			old = now;
-		} else if (DelayedStorageImage *img = old->toDelayedStorageImage()) {
-			StorageImageLocation loc = now->location();
-			if (!loc.isNull()) {
-				img->setStorageLocation(loc);
-			}
-		}
-	}
-
-	PhotoData *photo(const PhotoId &photo) {
-		auto i = ::photosData.constFind(photo);
-		if (i == ::photosData.cend()) {
-			i = ::photosData.insert(photo, new PhotoData(photo));
-		}
-		return i.value();
-	}
-
-	PhotoData *photoSet(
-			const PhotoId &photo,
-			PhotoData *convert,
-			const uint64 &access,
-			int32 date,
-			const ImagePtr &thumb,
-			const ImagePtr &medium,
-			const ImagePtr &full) {
-		if (convert) {
-			if (convert->id != photo) {
-				const auto i = ::photosData.find(convert->id);
-				if (i != ::photosData.cend() && i.value() == convert) {
-					::photosData.erase(i);
-				}
-				convert->id = photo;
-				convert->uploadingData = nullptr;
-			}
-			if (date) {
-				convert->access = access;
-				convert->date = date;
-				updateImage(convert->thumb, thumb);
-				updateImage(convert->medium, medium);
-				updateImage(convert->full, full);
-			}
-		}
-		const auto i = ::photosData.constFind(photo);
-		PhotoData *result;
-		auto inLastIter = lastPhotosMap.end();
-		if (i == ::photosData.cend()) {
-			if (convert) {
-				result = convert;
-			} else {
-				result = new PhotoData(photo, access, date, thumb, medium, full);
-			}
-			::photosData.insert(photo, result);
-		} else {
-			result = i.value();
-			if (result != convert && date) {
-				result->access = access;
-				result->date = date;
-				updateImage(result->thumb, thumb);
-				updateImage(result->medium, medium);
-				updateImage(result->full, full);
-			}
-			inLastIter = lastPhotosMap.find(result);
-		}
-		if (inLastIter == lastPhotosMap.end()) { // insert new one
-			if (lastPhotos.size() == MaxPhotosInMemory) {
-				lastPhotos.front()->forget();
-				lastPhotosMap.remove(lastPhotos.front());
-				lastPhotos.pop_front();
-			}
-			lastPhotosMap.insert(result, lastPhotos.insert(lastPhotos.end(), result));
-		} else {
-			lastPhotos.erase(inLastIter.value()); // move to back
-			(*inLastIter) = lastPhotos.insert(lastPhotos.end(), result);
-		}
-		return result;
-	}
-
-	DocumentData *document(const DocumentId &document) {
-		auto i = ::documentsData.constFind(document);
-		if (i == ::documentsData.cend()) {
-			i = ::documentsData.insert(document, DocumentData::create(document));
-		}
-		return i.value();
-	}
-
-	DocumentData *documentSet(
-			const DocumentId &document,
-			DocumentData *convert,
-			const uint64 &access,
-			int32 version,
-			int32 date,
-			const QVector<MTPDocumentAttribute> &attributes,
-			const QString &mime,
-			const ImagePtr &thumb,
-			int32 dc,
-			int32 size,
-			const StorageImageLocation &thumbLocation) {
-		bool versionChanged = false;
-		bool sentSticker = false;
-		if (convert) {
-			const auto oldKey = convert->mediaKey();
-			const auto idChanged = (convert->id != document);
-			if (idChanged) {
-				const auto i = ::documentsData.find(convert->id);
-				if (i != ::documentsData.cend() && i.value() == convert) {
-					::documentsData.erase(i);
-				}
-
-				convert->id = document;
-				convert->status = FileReady;
-				convert->uploadingData = nullptr;
-				sentSticker = (convert->sticker() != 0);
-			}
-			if (date) {
-				convert->setattributes(attributes);
-				versionChanged = convert->setRemoteVersion(version);
-				convert->setRemoteLocation(dc, access);
-				convert->date = date;
-				convert->setMimeString(mime);
-				if (!thumb->isNull() && (convert->thumb->isNull() || convert->thumb->width() < thumb->width() || convert->thumb->height() < thumb->height() || versionChanged)) {
-					updateImage(convert->thumb, thumb);
-				}
-				convert->size = size;
-				convert->recountIsImage();
-				if (convert->sticker() && convert->sticker()->loc.isNull() && !thumbLocation.isNull()) {
-					convert->sticker()->loc = thumbLocation;
-				}
-
-				const auto newKey = convert->mediaKey();
-				if (idChanged) {
-					if (convert->isVoiceMessage()) {
-						Local::copyAudio(oldKey, newKey);
-					} else if (convert->sticker() || convert->isAnimation()) {
-						Local::copyStickerImage(oldKey, newKey);
-					}
-				}
-			}
-
-			if (Auth().data().savedGifs().indexOf(convert) >= 0) { // id changed
-				Local::writeSavedGifs();
-			}
-		}
-		const auto i = ::documentsData.constFind(document);
-		DocumentData *result;
-		if (i == ::documentsData.cend()) {
-			if (convert) {
-				result = convert;
-			} else {
-				result = DocumentData::create(document, dc, access, version, attributes);
-				result->date = date;
-				result->setMimeString(mime);
-				result->thumb = thumb;
-				result->size = size;
-				result->recountIsImage();
-				if (result->sticker()) {
-					result->sticker()->loc = thumbLocation;
-				}
-			}
-			::documentsData.insert(document, result);
-		} else {
-			result = i.value();
-			if (result != convert && date) {
-				result->setattributes(attributes);
-				versionChanged = result->setRemoteVersion(version);
-				if (!result->isValid()) {
-					result->setRemoteLocation(dc, access);
-				}
-				result->date = date;
-				result->setMimeString(mime);
-				if (!thumb->isNull() && (result->thumb->isNull() || result->thumb->width() < thumb->width() || result->thumb->height() < thumb->height() || versionChanged)) {
-					result->thumb = thumb;
-				}
-				result->size = size;
-				result->recountIsImage();
-				if (result->sticker() && result->sticker()->loc.isNull() && !thumbLocation.isNull()) {
-					result->sticker()->loc = thumbLocation;
-				}
-			}
-		}
-		if (sentSticker && App::main()) {
-			App::main()->incrementSticker(result);
-		}
-		if (versionChanged) {
-			if (result->sticker() && result->sticker()->set.type() == mtpc_inputStickerSetID) {
-				auto it = Auth().data().stickerSets().constFind(result->sticker()->set.c_inputStickerSetID().vid.v);
-				if (it != Auth().data().stickerSets().cend()) {
-					if (it->id == Stickers::CloudRecentSetId) {
-						Local::writeRecentStickers();
-					} else if (it->id == Stickers::FavedSetId) {
-						Local::writeFavedStickers();
-					} else if (it->flags & MTPDstickerSet::Flag::f_archived) {
-						Local::writeArchivedStickers();
-					} else if (it->flags & MTPDstickerSet::Flag::f_installed) {
-						Local::writeInstalledStickers();
-					}
-					if (it->flags & MTPDstickerSet_ClientFlag::f_featured) {
-						Local::writeFeaturedStickers();
-					}
-				}
-			}
-			auto &items = App::documentItems();
-			auto i = items.constFind(result);
-			if (i != items.cend()) {
-				for_const (auto item, i.value()) {
-					item->setPendingInitDimensions();
-				}
-			}
-		}
-		return result;
-	}
-
-	WebPageData *webPage(const WebPageId &webPage) {
-		auto i = webPagesData.constFind(webPage);
-		if (i == webPagesData.cend()) {
-			i = webPagesData.insert(webPage, new WebPageData(webPage));
-		}
-		return i.value();
-	}
-
-	WebPageData *webPageSet(
-			const WebPageId &webPage,
-			WebPageData *convert,
-			const QString &type,
-			const QString &url,
-			const QString &displayUrl,
-			const QString &siteName,
-			const QString &title,
-			const TextWithEntities &description,
-			PhotoData *photo,
-			DocumentData *document,
-			int duration,
-			const QString &author,
-			int pendingTill) {
-		if (convert) {
-			if (convert->id != webPage) {
-				const auto i = webPagesData.find(convert->id);
-				if (i != webPagesData.cend() && i.value() == convert) {
-					webPagesData.erase(i);
-				}
-				convert->id = webPage;
-			}
-			convert->applyChanges(
-				type,
-				url,
-				displayUrl,
-				siteName,
-				title,
-				description,
-				photo,
-				document,
-				duration,
-				author,
-				pendingTill);
-		}
-		const auto i = webPagesData.constFind(webPage);
-		WebPageData *result;
-		if (i == webPagesData.cend()) {
-			if (convert) {
-				result = convert;
-			} else {
-				result = new WebPageData(
-					webPage,
-					toWebPageType(type),
-					url,
-					displayUrl,
-					siteName,
-					title,
-					description,
-					document,
-					photo,
-					duration,
-					author,
-					(pendingTill >= -1) ? pendingTill : -1);
-				if (pendingTill > 0) {
-					Auth().api().requestWebPageDelayed(result);
-				}
-			}
-			webPagesData.insert(webPage, result);
-		} else {
-			result = i.value();
-			if (result != convert) {
-				result->applyChanges(
-					type,
-					url,
-					displayUrl,
-					siteName,
-					title,
-					description,
-					photo,
-					document,
-					duration,
-					author,
-					pendingTill);
-			}
-		}
-		return result;
-	}
-
-	GameData *game(const GameId &game) {
-		auto i = gamesData.constFind(game);
-		if (i == gamesData.cend()) {
-			i = gamesData.insert(game, new GameData(game));
-		}
-		return i.value();
-	}
-
-	GameData *gameSet(const GameId &game, GameData *convert, const uint64 &accessHash, const QString &shortName, const QString &title, const QString &description, PhotoData *photo, DocumentData *document) {
-		if (convert) {
-			if (convert->id != game) {
-				auto i = gamesData.find(convert->id);
-				if (i != gamesData.cend() && i.value() == convert) {
-					gamesData.erase(i);
-				}
-				convert->id = game;
-				convert->accessHash = 0;
-			}
-			if (!convert->accessHash && accessHash) {
-				convert->accessHash = accessHash;
-				convert->shortName = TextUtilities::Clean(shortName);
-				convert->title = TextUtilities::SingleLine(title);
-				convert->description = TextUtilities::Clean(description);
-				convert->photo = photo;
-				convert->document = document;
-				if (App::main()) App::main()->gameUpdated(convert);
-			}
-		}
-		auto i = gamesData.constFind(game);
-		GameData *result;
-		if (i == gamesData.cend()) {
-			if (convert) {
-				result = convert;
-			} else {
-				result = new GameData(game, accessHash, shortName, title, description, photo, document);
-			}
-			gamesData.insert(game, result);
-		} else {
-			result = i.value();
-			if (result != convert) {
-				if (!result->accessHash && accessHash) {
-					result->accessHash = accessHash;
-					result->shortName = TextUtilities::Clean(shortName);
-					result->title = TextUtilities::SingleLine(title);
-					result->description = TextUtilities::Clean(description);
-					result->photo = photo;
-					result->document = document;
-					if (App::main()) App::main()->gameUpdated(result);
-				}
-			}
-		}
-		return result;
-	}
-
 	LocationData *location(const LocationCoords &coords) {
 		auto i = locationsData.constFind(coords);
 		if (i == locationsData.cend()) {
@@ -1750,14 +1186,6 @@ namespace {
 	}
 
 	void forgetMedia() {
-		lastPhotos.clear();
-		lastPhotosMap.clear();
-		for_const (auto photo, ::photosData) {
-			photo->forget();
-		}
-		for_const (auto document, ::documentsData) {
-			document->forget();
-		}
 		for_const (auto location, ::locationsData) {
 			location->thumb->forget();
 		}
@@ -1788,11 +1216,10 @@ namespace {
 		return ::histories.findOrInsert(peer);
 	}
 
-	History *historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead, int32 maxOutboxRead) {
-		return ::histories.findOrInsert(peer, unreadCnt, maxInboxRead, maxOutboxRead);
-	}
-
 	History *historyLoaded(const PeerId &peer) {
+		if (!peer) {
+			return nullptr;
+		}
 		return ::histories.find(peer);
 	}
 
@@ -1809,9 +1236,9 @@ namespace {
 		return nullptr;
 	}
 
-	void historyRegItem(HistoryItem *item) {
-		MsgsData *data = fetchMsgsData(item->channelId());
-		MsgsData::const_iterator i = data->constFind(item->id);
+	void historyRegItem(not_null<HistoryItem*> item) {
+		const auto data = fetchMsgsData(item->channelId());
+		const auto i = data->constFind(item->id);
 		if (i == data->cend()) {
 			data->insert(item->id, item);
 		} else if (i.value() != item) {
@@ -1821,39 +1248,17 @@ namespace {
 		}
 	}
 
-	void historyItemDetached(HistoryItem *item) {
-		if (::hoveredItem == item) {
-			hoveredItem(nullptr);
-		}
-		if (::pressedItem == item) {
-			pressedItem(nullptr);
-		}
-		if (::hoveredLinkItem == item) {
-			hoveredLinkItem(nullptr);
-		}
-		if (::pressedLinkItem == item) {
-			pressedLinkItem(nullptr);
-		}
-		if (::contextItem == item) {
-			contextItem(nullptr);
-		}
-		if (::mousedItem == item) {
-			mousedItem(nullptr);
-		}
-	}
-
-	void historyUnregItem(HistoryItem *item) {
-		auto data = fetchMsgsData(item->channelId(), false);
+	void historyUnregItem(not_null<HistoryItem*> item) {
+		const auto data = fetchMsgsData(item->channelId(), false);
 		if (!data) return;
 
-		auto i = data->find(item->id);
+		const auto i = data->find(item->id);
 		if (i != data->cend()) {
 			if (i.value() == item) {
 				data->erase(i);
 			}
 		}
-		historyItemDetached(item);
-		auto j = ::dependentItems.find(item);
+		const auto j = ::dependentItems.find(item);
 		if (j != ::dependentItems.cend()) {
 			DependentItemsSet items;
 			std::swap(items, j.value());
@@ -1864,17 +1269,12 @@ namespace {
 			}
 		}
 		Auth().notifications().clearFromItem(item);
-		if (Global::started()
-			&& !App::quitting()
-			&& AuthSession::Exists()) {
-			Auth().data().markItemRemoved(item);
-		}
 	}
 
-	void historyUpdateDependent(HistoryItem *item) {
-		DependentItems::iterator j = ::dependentItems.find(item);
+	void historyUpdateDependent(not_null<HistoryItem*> item) {
+		const auto j = ::dependentItems.find(item);
 		if (j != ::dependentItems.cend()) {
-			for_const (HistoryItem *dependent, j.value()) {
+			for_const (const auto dependent, j.value()) {
 				dependent->updateDependencyItem();
 			}
 		}
@@ -1888,13 +1288,13 @@ namespace {
 
 		QVector<HistoryItem*> toDelete;
 		for_const (auto item, msgsData) {
-			if (item->detached()) {
+			if (!item->mainView()) {
 				toDelete.push_back(item);
 			}
 		}
 		for_const (auto &chMsgsData, channelMsgsData) {
 			for_const (auto item, chMsgsData) {
-				if (item->detached()) {
+				if (!item->mainView()) {
 					toDelete.push_back(item);
 				}
 			}
@@ -1920,22 +1320,6 @@ namespace {
 			delete peer;
 		}
 		::peersData.clear();
-		for_const (auto game, ::gamesData) {
-			delete game;
-		}
-		::gamesData.clear();
-		for_const (auto webpage, ::webPagesData) {
-			delete webpage;
-		}
-		::webPagesData.clear();
-		for_const (auto photo, ::photosData) {
-			delete photo;
-		}
-		::photosData.clear();
-		for_const (auto document, ::documentsData) {
-			delete document;
-		}
-		::documentsData.clear();
 
 		if (AuthSession::Exists()) {
 			Auth().api().clearWebPageRequests();
@@ -1945,14 +1329,6 @@ namespace {
 		cSetAutoDownloadPhoto(0);
 		cSetAutoDownloadAudio(0);
 		cSetAutoDownloadGif(0);
-		::photoItems.clear();
-		::documentItems.clear();
-		::webPageItems.clear();
-		::gameItems.clear();
-		::sharedContactItems.clear();
-		::gifItems.clear();
-		lastPhotos.clear();
-		lastPhotosMap.clear();
 		::self = nullptr;
 		Global::RefSelfChanged().notify(true);
 	}
@@ -2126,7 +1502,7 @@ namespace {
 				if (App::main()) {
 					App::main()->updateScrollColors();
 				}
-				HistoryLayout::serviceColorsUpdated();
+				HistoryView::serviceColorsUpdated();
 			} else if (update.type == Update::Type::New) {
 				prepareCorners(StickerCorners, st::dateRadius, st::msgServiceBg);
 				prepareCorners(StickerSelectedCorners, st::dateRadius, st::msgServiceBgSelected);
@@ -2134,7 +1510,7 @@ namespace {
 				if (App::main()) {
 					App::main()->updateScrollColors();
 				}
-				HistoryLayout::serviceColorsUpdated();
+				HistoryView::serviceColorsUpdated();
 			}
 		});
 	}
@@ -2172,51 +1548,43 @@ namespace {
 		clearAllImages();
 	}
 
-	void hoveredItem(HistoryItem *item) {
+	void hoveredItem(HistoryView::Element *item) {
 		::hoveredItem = item;
 	}
 
-	HistoryItem *hoveredItem() {
+	HistoryView::Element *hoveredItem() {
 		return ::hoveredItem;
 	}
 
-	void pressedItem(HistoryItem *item) {
+	void pressedItem(HistoryView::Element *item) {
 		::pressedItem = item;
 	}
 
-	HistoryItem *pressedItem() {
+	HistoryView::Element *pressedItem() {
 		return ::pressedItem;
 	}
 
-	void hoveredLinkItem(HistoryItem *item) {
+	void hoveredLinkItem(HistoryView::Element *item) {
 		::hoveredLinkItem = item;
 	}
 
-	HistoryItem *hoveredLinkItem() {
+	HistoryView::Element *hoveredLinkItem() {
 		return ::hoveredLinkItem;
 	}
 
-	void pressedLinkItem(HistoryItem *item) {
+	void pressedLinkItem(HistoryView::Element *item) {
 		::pressedLinkItem = item;
 	}
 
-	HistoryItem *pressedLinkItem() {
+	HistoryView::Element *pressedLinkItem() {
 		return ::pressedLinkItem;
 	}
 
-	void contextItem(HistoryItem *item) {
-		::contextItem = item;
-	}
-
-	HistoryItem *contextItem() {
-		return ::contextItem;
-	}
-
-	void mousedItem(HistoryItem *item) {
+	void mousedItem(HistoryView::Element *item) {
 		::mousedItem = item;
 	}
 
-	HistoryItem *mousedItem() {
+	HistoryView::Element *mousedItem() {
 		return ::mousedItem;
 	}
 
@@ -2225,7 +1593,6 @@ namespace {
 		pressedItem(nullptr);
 		hoveredLinkItem(nullptr);
 		pressedLinkItem(nullptr);
-		contextItem(nullptr);
 		mousedItem(nullptr);
 	}
 
@@ -2261,6 +1628,7 @@ namespace {
 		int64 nowImageCacheSize = imageCacheSize();
 		if (nowImageCacheSize > serviceImageCacheSize + MemoryForImageCache) {
 			App::forgetMedia();
+			Auth().data().forgetMedia();
 			serviceImageCacheSize = imageCacheSize();
 		}
 	}
@@ -2380,117 +1748,6 @@ namespace {
 
 	QPixmap pixmapFromImageInPlace(QImage &&image) {
 		return QPixmap::fromImage(std::move(image), Qt::ColorOnly);
-	}
-
-	void regPhotoItem(PhotoData *data, HistoryItem *item) {
-		::photoItems[data].insert(item);
-	}
-
-	void unregPhotoItem(PhotoData *data, HistoryItem *item) {
-		::photoItems[data].remove(item);
-	}
-
-	const PhotoItems &photoItems() {
-		return ::photoItems;
-	}
-
-	const PhotosData &photosData() {
-		return ::photosData;
-	}
-
-	void regDocumentItem(DocumentData *data, HistoryItem *item) {
-		::documentItems[data].insert(item);
-	}
-
-	void unregDocumentItem(DocumentData *data, HistoryItem *item) {
-		::documentItems[data].remove(item);
-	}
-
-	const DocumentItems &documentItems() {
-		return ::documentItems;
-	}
-
-	const DocumentsData &documentsData() {
-		return ::documentsData;
-	}
-
-	void regWebPageItem(WebPageData *data, HistoryItem *item) {
-		::webPageItems[data].insert(item);
-	}
-
-	void unregWebPageItem(WebPageData *data, HistoryItem *item) {
-		::webPageItems[data].remove(item);
-	}
-
-	const WebPageItems &webPageItems() {
-		return ::webPageItems;
-	}
-
-	void regGameItem(GameData *data, HistoryItem *item) {
-		::gameItems[data].insert(item);
-	}
-
-	void unregGameItem(GameData *data, HistoryItem *item) {
-		::gameItems[data].remove(item);
-	}
-
-	const GameItems &gameItems() {
-		return ::gameItems;
-	}
-
-	void regSharedContactItem(int32 userId, HistoryItem *item) {
-		auto user = App::userLoaded(userId);
-		auto canShareThisContact = user ? user->canShareThisContact() : false;
-		::sharedContactItems[userId].insert(item);
-		if (canShareThisContact != (user ? user->canShareThisContact() : false)) {
-			Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserCanShareContact);
-		}
-	}
-
-	void unregSharedContactItem(int32 userId, HistoryItem *item) {
-		auto user = App::userLoaded(userId);
-		auto canShareThisContact = user ? user->canShareThisContact() : false;
-		::sharedContactItems[userId].remove(item);
-		if (canShareThisContact != (user ? user->canShareThisContact() : false)) {
-			Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserCanShareContact);
-		}
-	}
-
-	const SharedContactItems &sharedContactItems() {
-		return ::sharedContactItems;
-	}
-
-	void regGifItem(Media::Clip::Reader *reader, HistoryItem *item) {
-		::gifItems.insert(reader, item);
-	}
-
-	void unregGifItem(Media::Clip::Reader *reader) {
-		::gifItems.remove(reader);
-	}
-
-	void stopGifItems() {
-		if (!::gifItems.isEmpty()) {
-			auto gifs = ::gifItems;
-			for_const (auto item, gifs) {
-				if (auto media = item->getMedia()) {
-					if (!media->isRoundVideoPlaying()) {
-						media->stopInline();
-					}
-				}
-			}
-		}
-	}
-
-	QString phoneFromSharedContact(int32 userId) {
-		auto i = ::sharedContactItems.constFind(userId);
-		if (i != ::sharedContactItems.cend() && !i->isEmpty()) {
-			if (auto media = (*i->cbegin())->getMedia()) {
-				if (media->type() == MediaTypeContact) {
-					return static_cast<HistoryContact*>(media)->phone();
-				}
-			}
-		}
-		return QString();
 	}
 
 	void regMuted(not_null<PeerData*> peer, TimeMs changeIn) {

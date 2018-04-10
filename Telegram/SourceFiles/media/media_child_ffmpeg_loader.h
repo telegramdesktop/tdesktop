@@ -1,36 +1,13 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "media/media_audio_loader.h"
-#include "media/media_audio.h"
-
-extern "C" {
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libavutil/opt.h>
-#include <libswresample/swresample.h>
-} // extern "C"
-
-#include <AL/al.h>
+#include "media/media_audio_ffmpeg_loader.h"
 
 struct VideoSoundData {
 	AVCodecContext *context = nullptr;
@@ -81,7 +58,7 @@ inline void freePacket(AVPacket *packet) {
 
 } // namespace FFMpeg
 
-class ChildFFMpegLoader : public AudioPlayerLoader {
+class ChildFFMpegLoader : public AbstractAudioFFMpegLoader {
 public:
 	ChildFFMpegLoader(std::unique_ptr<VideoSoundData> &&data);
 
@@ -89,18 +66,6 @@ public:
 
 	bool check(const FileLocation &file, const QByteArray &data) override {
 		return true;
-	}
-
-	int32 format() override {
-		return _format;
-	}
-
-	int64 samplesCount() override {
-		return _parentData->length;
-	}
-
-	int32 samplesFrequency() override {
-		return _parentData->frequency;
 	}
 
 	ReadResult readMore(QByteArray &result, int64 &samplesAdded) override;
@@ -113,22 +78,8 @@ public:
 	~ChildFFMpegLoader();
 
 private:
-	ReadResult readFromReadyFrame(QByteArray &result, int64 &samplesAdded);
-
-	bool _eofReached = false;
-
-	int32 _sampleSize = 2 * sizeof(uint16);
-	int32 _format = AL_FORMAT_STEREO16;
-	int32 _srcRate = Media::Player::kDefaultFrequency;
-	int32 _dstRate = Media::Player::kDefaultFrequency;
-	int32 _maxResampleSamples = 1024;
-	uint8_t **_dstSamplesData = nullptr;
-
 	std::unique_ptr<VideoSoundData> _parentData;
-	AVSampleFormat _inputFormat;
-	AVFrame *_frame = nullptr;
-
-	SwrContext *_swrContext = nullptr;
 	QQueue<FFMpeg::AVPacketDataWrap> _queue;
+	bool _eofReached = false;
 
 };

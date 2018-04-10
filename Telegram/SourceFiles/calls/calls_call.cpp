@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_call.h"
 
@@ -137,7 +124,16 @@ void Call::startOutgoing() {
 	Expects(_type == Type::Outgoing);
 	Expects(_state == State::Requesting);
 
-	request(MTPphone_RequestCall(_user->inputUser, MTP_int(rand_value<int32>()), MTP_bytes(_gaHash), MTP_phoneCallProtocol(MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p | MTPDphoneCallProtocol::Flag::f_udp_reflector), MTP_int(kMinLayer), MTP_int(kMaxLayer)))).done([this](const MTPphone_PhoneCall &result) {
+	request(MTPphone_RequestCall(
+		_user->inputUser,
+		MTP_int(rand_value<int32>()),
+		MTP_bytes(_gaHash),
+		MTP_phoneCallProtocol(
+			MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p
+				| MTPDphoneCallProtocol::Flag::f_udp_reflector),
+			MTP_int(kMinLayer),
+			MTP_int(kMaxLayer))
+	)).done([this](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 
 		setState(State::Waiting);
@@ -198,7 +194,15 @@ void Call::answer() {
 	} else {
 		_answerAfterDhConfigReceived = false;
 	}
-	request(MTPphone_AcceptCall(MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)), MTP_bytes(_gb), _protocol)).done([this](const MTPphone_PhoneCall &result) {
+	request(MTPphone_AcceptCall(
+		MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)),
+		MTP_bytes(_gb),
+		MTP_phoneCallProtocol(
+			MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p
+				| MTPDphoneCallProtocol::Flag::f_udp_reflector),
+			MTP_int(kMinLayer),
+			MTP_int(kMaxLayer))
+	)).done([this](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 		auto &call = result.c_phone_phoneCall();
 		App::feedUsers(call.vusers);
@@ -261,7 +265,10 @@ QString Call::getDebugLog() const {
 
 void Call::startWaitingTrack() {
 	_waitingTrack = Media::Audio::Current().createTrack();
-	auto trackFileName = Auth().data().getSoundPath((_type == Type::Outgoing) ? qsl("call_outgoing") : qsl("call_incoming"));
+	auto trackFileName = Auth().settings().getSoundPath(
+		(_type == Type::Outgoing)
+		? qsl("call_outgoing")
+		: qsl("call_incoming"));
 	_waitingTrack->samplePeakEach(kSoundSampleMs);
 	_waitingTrack->fillFromFile(trackFileName);
 	_waitingTrack->playInLoop();
@@ -304,7 +311,6 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 		}
 		_id = data.vid.v;
 		_accessHash = data.vaccess_hash.v;
-		_protocol = data.vprotocol;
 		auto gaHashBytes = bytesFromMTP(data.vg_a_hash);
 		if (gaHashBytes.size() != _gaHash.size()) {
 			LOG(("Call Error: Wrong g_a_hash size %1, expected %2.").arg(gaHashBytes.size()).arg(_gaHash.size()));
@@ -403,7 +409,16 @@ void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 	_keyFingerprint = ComputeFingerprint(_authKey);
 
 	setState(State::ExchangingKeys);
-	request(MTPphone_ConfirmCall(MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)), MTP_bytes(_ga), MTP_long(_keyFingerprint), MTP_phoneCallProtocol(MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p | MTPDphoneCallProtocol::Flag::f_udp_reflector), MTP_int(kMinLayer), MTP_int(kMaxLayer)))).done([this](const MTPphone_PhoneCall &result) {
+	request(MTPphone_ConfirmCall(
+		MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)),
+		MTP_bytes(_ga),
+		MTP_long(_keyFingerprint),
+		MTP_phoneCallProtocol(
+			MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p
+				| MTPDphoneCallProtocol::Flag::f_udp_reflector),
+			MTP_int(kMinLayer),
+			MTP_int(kMaxLayer))
+	)).done([this](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 		auto &call = result.c_phone_phoneCall();
 		App::feedUsers(call.vusers);

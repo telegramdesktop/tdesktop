@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "intro/introwidget.h"
 
@@ -117,7 +104,7 @@ void Widget::createLanguageLink() {
 			this,
 			object_ptr<Ui::LinkButton>(this, text));
 		_changeLanguage->hide(anim::type::instant);
-		_changeLanguage->entity()->setClickedCallback([this, languageId] {
+		_changeLanguage->entity()->setClickedCallback([=] {
 			Lang::CurrentCloudManager().switchToLanguage(languageId);
 		});
 		_changeLanguage->toggle(!_resetAccount, anim::type::normal);
@@ -130,7 +117,10 @@ void Widget::createLanguageLink() {
 	if (!currentId.isEmpty() && currentId != defaultId) {
 		createLink(Lang::GetOriginalValue(lng_switch_to_this), defaultId);
 	} else if (!suggestedId.isEmpty() && suggestedId != currentId) {
-		request(MTPlangpack_GetStrings(MTP_string(suggestedId), MTP_vector<MTPstring>(1, MTP_string("lng_switch_to_this")))).done([this, suggestedId, createLink](const MTPVector<MTPLangPackString> &result) {
+		request(MTPlangpack_GetStrings(
+			MTP_string(suggestedId),
+			MTP_vector<MTPstring>(1, MTP_string("lng_switch_to_this"))
+		)).done([=](const MTPVector<MTPLangPackString> &result) {
 			auto strings = Lang::Instance::ParseStrings(result);
 			auto it = strings.find(lng_switch_to_this);
 			if (it != strings.end()) {
@@ -803,6 +793,7 @@ QPixmap Widget::Step::prepareSlideAnimation() {
 }
 
 void Widget::Step::showAnimated(Direction direction) {
+	setFocus();
 	show();
 	hideChildren();
 	if (_slideAnimation) {

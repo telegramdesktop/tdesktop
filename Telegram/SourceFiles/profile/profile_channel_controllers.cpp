@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "profile/profile_channel_controllers.h"
 
@@ -33,8 +20,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "dialogs/dialogs_indexed_list.h"
 #include "data/data_peer_values.h"
+#include "data/data_session.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
+#include "history/history.h"
 
 namespace Profile {
 namespace {
@@ -664,12 +653,12 @@ bool ParticipantsBoxController::canRestrictUser(
 	return _channel->adminRights() & ChannelAdminRight::f_ban_users;
 }
 
-Ui::PopupMenu *ParticipantsBoxController::rowContextMenu(
+base::unique_qptr<Ui::PopupMenu> ParticipantsBoxController::rowContextMenu(
 		not_null<PeerListRow*> row) {
 	Expects(row->peer()->isUser());
 
 	auto user = row->peer()->asUser();
-	auto result = new Ui::PopupMenu(nullptr);
+	auto result = base::make_unique_q<Ui::PopupMenu>(nullptr);
 	result->addAction(
 		lang(lng_context_view_profile),
 		[weak = base::make_weak(this), user] {
@@ -1840,15 +1829,18 @@ void AddParticipantBoxSearchController::searchParticipantsDone(mtpRequestId requ
 }
 
 void AddParticipantBoxSearchController::requestGlobal() {
-	if (_query.size() < MinUsernameLength) {
+	if (_query.isEmpty()) {
 		_globalLoaded = true;
 		return;
 	}
 
 	auto perPage = SearchPeopleLimit;
-	_requestId = request(MTPcontacts_Search(MTP_string(_query), MTP_int(perPage))).done([this](const MTPcontacts_Found &result, mtpRequestId requestId) {
+	_requestId = request(MTPcontacts_Search(
+		MTP_string(_query),
+		MTP_int(perPage)
+	)).done([=](const MTPcontacts_Found &result, mtpRequestId requestId) {
 		searchGlobalDone(requestId, result);
-	}).fail([this](const RPCError &error, mtpRequestId requestId) {
+	}).fail([=](const RPCError &error, mtpRequestId requestId) {
 		if (_requestId == requestId) {
 			_requestId = 0;
 			_globalLoaded = true;
@@ -1874,24 +1866,31 @@ void AddParticipantBoxSearchController::searchGlobalDone(mtpRequestId requestId,
 		}
 	}
 
-	if (_requestId == requestId) {
-		_requestId = 0;
-		_globalLoaded = true;
-		for_const (auto &mtpPeer, found.vresults.v) {
-			auto peerId = peerFromMTP(mtpPeer);
-			if (auto peer = App::peerLoaded(peerId)) {
-				if (auto user = peer->asUser()) {
-					if (_additional->adminRights.find(user) == _additional->adminRights.cend()
-						&& _additional->restrictedRights.find(user) == _additional->restrictedRights.cend()
-						&& _additional->external.find(user) == _additional->external.cend()
-						&& _additional->kicked.find(user) == _additional->kicked.cend()
-						&& _additional->creator != user) {
+	const auto feedList = [&](const MTPVector<MTPPeer> &list) {
+		const auto contains = [](const auto &map, const auto &value) {
+			return map.find(value) != map.end();
+		};
+		for (const auto &mtpPeer : list.v) {
+			const auto peerId = peerFromMTP(mtpPeer);
+			if (const auto peer = App::peerLoaded(peerId)) {
+				if (const auto user = peer->asUser()) {
+					if (_additional->creator != user
+						&& !contains(_additional->adminRights, user)
+						&& !contains(_additional->restrictedRights, user)
+						&& !contains(_additional->external, user)
+						&& !contains(_additional->kicked, user)) {
 						_additional->infoNotLoaded.emplace(user);
 					}
 					delegate()->peerListSearchAddRow(user);
 				}
 			}
 		}
+	};
+	if (_requestId == requestId) {
+		_requestId = 0;
+		_globalLoaded = true;
+		feedList(found.vmy_results);
+		feedList(found.vresults);
 		delegate()->peerListSearchRefreshRows();
 	}
 }
@@ -1946,10 +1945,12 @@ void AddParticipantBoxSearchController::addChatsContacts() {
 			return;
 		}
 
-		for_const (auto row, *list) {
-			if (auto user = row->history()->peer->asUser()) {
-				if (allWordsAreFound(user->nameWords())) {
-					delegate()->peerListSearchAddRow(user);
+		for (const auto row : *list) {
+			if (const auto history = row->history()) {
+				if (const auto user = history->peer->asUser()) {
+					if (allWordsAreFound(user->nameWords())) {
+						delegate()->peerListSearchAddRow(user);
+					}
 				}
 			}
 		}

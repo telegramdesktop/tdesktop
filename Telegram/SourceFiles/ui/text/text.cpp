@@ -1,28 +1,16 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/text/text.h"
 
 #include <private/qharfbuzz_p.h>
 
 #include "core/click_handler_types.h"
+#include "core/crash_reports.h"
 #include "ui/text/text_block.h"
 #include "lang/lang_keys.h"
 #include "platform/platform_specific.h"
@@ -39,11 +27,24 @@ inline int32 countBlockHeight(const ITextBlock *b, const style::TextStyle *st) {
 
 bool chIsBad(QChar ch) {
 #ifdef OS_MAC_OLD
-	if (cIsSnowLeopard() && (ch == 8207 || ch == 8206)) {
+	if (cIsSnowLeopard() && (ch == 8207 || ch == 8206 || ch == 8288)) {
 		return true;
 	}
 #endif // OS_MAC_OLD
-	return (ch == 0) || (ch >= 8232 && ch < 8237) || (ch >= 65024 && ch < 65040 && ch != 65039) || (ch >= 127 && ch < 160 && ch != 156) || (cPlatform() == dbipMac && ch >= 0x0B00 && ch <= 0x0B7F && chIsDiac(ch) && cIsElCapitan()); // tmp hack see https://bugreports.qt.io/browse/QTBUG-48910
+	return (ch == 0)
+        || (ch >= 8232 && ch < 8237)
+        || (ch >= 65024 && ch < 65040 && ch != 65039)
+        || (ch >= 127 && ch < 160 && ch != 156)
+
+        // qt harfbuzz crash see https://github.com/telegramdesktop/tdesktop/issues/4551
+        || (cPlatform() == dbipMac && ch == 6158)
+
+        // tmp hack see https://bugreports.qt.io/browse/QTBUG-48910
+        || (cPlatform() == dbipMac
+            && ch >= 0x0B00
+            && ch <= 0x0B7F
+            && chIsDiac(ch)
+            && cIsElCapitan());
 }
 
 QString textcmdSkipBlock(ushort w, ushort h) {
@@ -267,6 +268,7 @@ public:
 		        || type == EntityInTextEmail
 		        || type == EntityInTextMention
 		        || type == EntityInTextHashtag
+		        || type == EntityInTextCashtag
 		        || type == EntityInTextBotCommand) {
 			linkType = type;
 			linkData = QString(start + waitingEntity->offset(), waitingEntity->length());
@@ -306,19 +308,15 @@ public:
 
 		++waitingEntity;
 		if (links.size() >= 0x7FFF) {
-			while (waitingEntity != entitiesEnd && (
-				waitingEntity->type() == EntityInTextUrl ||
-				waitingEntity->type() == EntityInTextCustomUrl ||
-				waitingEntity->type() == EntityInTextEmail ||
-				waitingEntity->type() == EntityInTextHashtag ||
-				waitingEntity->type() == EntityInTextMention ||
-				waitingEntity->type() == EntityInTextMentionName ||
-				waitingEntity->type() == EntityInTextBotCommand ||
-				waitingEntity->length() <= 0)) {
+			while (waitingEntity != entitiesEnd
+				&& (isLinkEntity(*waitingEntity)
+					|| isInvalidEntity(*waitingEntity))) {
 				++waitingEntity;
 			}
 		} else {
-			while (waitingEntity != entitiesEnd && waitingEntity->length() <= 0) ++waitingEntity;
+			while (waitingEntity != entitiesEnd && isInvalidEntity(*waitingEntity)) {
+				++waitingEntity;
+			}
 		}
 		return true;
 	}
@@ -492,9 +490,13 @@ public:
 		for (int l = len - emojiLookback - 1; l > 0; --l) {
 			_t->_text.push_back(*++ptr);
 		}
-		if (e->hasPostfix() && _t->_text.at(_t->_text.size() - 1).unicode() != Ui::Emoji::kPostfix) {
-			_t->_text.push_back(QChar(Ui::Emoji::kPostfix));
-			++len;
+		if (e->hasPostfix()) {
+			Assert(!_t->_text.isEmpty());
+			const auto last = _t->_text[_t->_text.size() - 1];
+			if (last.unicode() != Ui::Emoji::kPostfix) {
+				_t->_text.push_back(QChar(Ui::Emoji::kPostfix));
+				++len;
+			}
 		}
 
 		createBlock(-len);
@@ -532,6 +534,7 @@ public:
 					auto type = preparsed.at(i).type();
 					if (((type == EntityInTextMention || type == EntityInTextMentionName) && !parseMentions) ||
 						(type == EntityInTextHashtag && !parseHashtags) ||
+						(type == EntityInTextCashtag && !parseHashtags) ||
 						(type == EntityInTextBotCommand && !parseBotCommands) ||
 						((type == EntityInTextBold || type == EntityInTextItalic || type == EntityInTextCode || type == EntityInTextPre) && !parseMarkdown)) {
 						continue;
@@ -541,6 +544,26 @@ public:
 			}
 		}
 		parse(options);
+	}
+
+	bool isInvalidEntity(const EntityInText &entity) const {
+		const auto length = entity.length();
+		return (start + entity.offset() + length > end) || (length <= 0);
+	}
+
+	bool isLinkEntity(const EntityInText &entity) const {
+		const auto type = entity.type();
+		const auto urls = {
+			EntityInTextUrl,
+			EntityInTextCustomUrl,
+			EntityInTextEmail,
+			EntityInTextHashtag,
+			EntityInTextCashtag,
+			EntityInTextMention,
+			EntityInTextMentionName,
+			EntityInTextBotCommand
+		};
+		return ranges::find(urls, type) != std::end(urls);
 	}
 
 	void parse(const TextParseOptions &options) {
@@ -553,7 +576,9 @@ public:
 
 		entitiesEnd = source.entities.cend();
 		waitingEntity = source.entities.cbegin();
-		while (waitingEntity != entitiesEnd && waitingEntity->length() <= 0) ++waitingEntity;
+		while (waitingEntity != entitiesEnd && isInvalidEntity(*waitingEntity)) {
+			++waitingEntity;
+		}
 		int firstMonospaceOffset = EntityInText::firstMonospaceOffset(source.entities, end - start);
 
 		ptr = start;
@@ -621,6 +646,9 @@ public:
 							handler = std::make_shared<HashtagClickHandler>(link.data);
 						}
 					break;
+					case EntityInTextCashtag:
+						handler = std::make_shared<CashtagClickHandler>(link.data);
+						break;
 					case EntityInTextMention:
 						if (options.flags & TextTwitterMentions) {
 							handler = std::make_shared<UrlClickHandler>(qsl("https://twitter.com/") + link.data.mid(1), true);
@@ -1175,12 +1203,16 @@ private:
 		auto currentBlock = _t->_blocks[blockIndex].get();
 		auto nextBlock = (++blockIndex < _blocksSize) ? _t->_blocks[blockIndex].get() : nullptr;
 
-		int32 delta = (currentBlock->from() < _lineStart ? qMin(_lineStart - currentBlock->from(), 2) : 0);
-		_localFrom = _lineStart - delta;
-		int32 lineEnd = (_endBlock && _endBlock->from() < trimmedLineEnd && !elidedLine) ? qMin(uint16(trimmedLineEnd + 2), _t->countBlockEnd(_endBlockIter, _end)) : trimmedLineEnd;
+		const auto extendLeft = (currentBlock->from() < _lineStart)
+			? qMin(_lineStart - currentBlock->from(), 2)
+			: 0;
+		_localFrom = _lineStart - extendLeft;
+		const auto extendedLineEnd = (_endBlock && _endBlock->from() < trimmedLineEnd && !elidedLine)
+			? qMin(uint16(trimmedLineEnd + 2), _t->countBlockEnd(_endBlockIter, _end))
+			: trimmedLineEnd;
 
-		auto lineText = _t->_text.mid(_localFrom, lineEnd - _localFrom);
-		auto lineStart = delta;
+		auto lineText = _t->_text.mid(_localFrom, extendedLineEnd - _localFrom);
+		auto lineStart = extendLeft;
 		auto lineLength = trimmedLineEnd - _lineStart;
 
 		if (elidedLine) {
@@ -1232,21 +1264,30 @@ private:
 		}
 
 		if (_fullWidthSelection) {
-			bool selectFromStart = (_selection.to > _lineStart) && (_lineStart > 0) && (_selection.from <= _lineStart);
-			bool selectTillEnd = (_selection.to >= _lineEnd) && (_lineEnd < _t->_text.size()) && (_selection.from < _lineEnd) && (!_endBlock || _endBlock->type() != TextBlockTSkip);
+			const auto selectFromStart = (_selection.to > _lineStart)
+				&& (_lineStart > 0)
+				&& (_selection.from <= _lineStart);
+			const auto selectTillEnd = (_selection.to > trimmedLineEnd)
+				&& (trimmedLineEnd < _t->_text.size())
+				&& (_selection.from <= trimmedLineEnd)
+				&& (!_endBlock || _endBlock->type() != TextBlockTSkip);
 
-			if ((selectFromStart && _parDirection == Qt::LeftToRight) || (selectTillEnd && _parDirection == Qt::RightToLeft)) {
+			if ((selectFromStart && _parDirection == Qt::LeftToRight)
+				|| (selectTillEnd && _parDirection == Qt::RightToLeft)) {
 				if (x > _x) {
 					fillSelectRange(_x, x);
 				}
 			}
-			if ((selectTillEnd && _parDirection == Qt::LeftToRight) || (selectFromStart && _parDirection == Qt::RightToLeft)) {
+			if ((selectTillEnd && _parDirection == Qt::LeftToRight)
+				|| (selectFromStart && _parDirection == Qt::RightToLeft)) {
 				if (x < _x + _wLeft) {
 					fillSelectRange(x + _w - _wLeft, _x + _w);
 				}
 			}
 		}
-		if (trimmedLineEnd == _lineStart && !elidedLine) return true;
+		if (trimmedLineEnd == _lineStart && !elidedLine) {
+			return true;
+		}
 
 		if (!elidedLine) initParagraphBidi(); // if was not inited
 
@@ -2689,24 +2730,35 @@ bool Text::hasSkipBlock() const {
 	return _blocks.empty() ? false : _blocks.back()->type() == TextBlockTSkip;
 }
 
-void Text::setSkipBlock(int32 width, int32 height) {
+bool Text::updateSkipBlock(int width, int height) {
 	if (!_blocks.empty() && _blocks.back()->type() == TextBlockTSkip) {
-		auto block = static_cast<SkipBlock*>(_blocks.back().get());
-		if (block->width() == width && block->height() == height) return;
+		const auto block = static_cast<SkipBlock*>(_blocks.back().get());
+		if (block->width() == width && block->height() == height) {
+			return false;
+		}
 		_text.resize(block->from());
 		_blocks.pop_back();
 	}
 	_text.push_back('_');
-	_blocks.push_back(std::make_unique<SkipBlock>(_st->font, _text, _text.size() - 1, width, height, 0));
+	_blocks.push_back(std::make_unique<SkipBlock>(
+		_st->font,
+		_text,
+		_text.size() - 1,
+		width,
+		height,
+		0));
 	recountNaturalSize(false);
+	return true;
 }
 
-void Text::removeSkipBlock() {
-	if (!_blocks.empty() && _blocks.back()->type() == TextBlockTSkip) {
-		_text.resize(_blocks.back()->from());
-		_blocks.pop_back();
-		recountNaturalSize(false);
+bool Text::removeSkipBlock() {
+	if (_blocks.empty() || _blocks.back()->type() != TextBlockTSkip) {
+		return false;
 	}
+	_text.resize(_blocks.back()->from());
+	_blocks.pop_back();
+	recountNaturalSize(false);
+	return true;
 }
 
 int Text::countWidth(int width) const {

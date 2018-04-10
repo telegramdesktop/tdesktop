@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
@@ -34,6 +21,8 @@ class ChatData;
 class ChannelData;
 
 namespace Data {
+
+class Feed;
 
 int PeerColorIndex(PeerId peerId);
 int PeerColorIndex(int32 bareId);
@@ -116,6 +105,7 @@ public:
 
 	ChatData *migrateFrom() const;
 	ChannelData *migrateTo() const;
+	Data::Feed *feed() const;
 
 	void updateFull();
 	void updateFullForced();
@@ -136,13 +126,11 @@ public:
 	QString name;
 	Text nameText;
 
-	using NameWords = base::flat_set<QString>;
-	using NameFirstChars = base::flat_set<QChar>;
-	const NameWords &nameWords() const {
+	const base::flat_set<QString> &nameWords() const {
 		return _nameWords;
 	}
-	const NameFirstChars &nameFirstChars() const {
-		return _nameFirstChars;
+	const base::flat_set<QChar> &nameFirstLetters() const {
+		return _nameFirstLetters;
 	}
 
 	enum LoadedStatus {
@@ -253,8 +241,8 @@ private:
 	Data::NotifySettings _notify;
 
 	ClickHandlerPtr _openLink;
-	NameWords _nameWords; // for filtering
-	NameFirstChars _nameFirstChars;
+	base::flat_set<QString> _nameWords; // for filtering
+	base::flat_set<QChar> _nameFirstLetters;
 
 	TimeMs _lastFullUpdate = 0;
 
@@ -397,7 +385,7 @@ public:
 		return !isInaccessible();
 	}
 	bool isContact() const {
-		return (contact > 0);
+		return (_contactStatus == ContactStatus::Contact);
 	}
 
 	bool canShareThisContact() const;
@@ -423,9 +411,18 @@ public:
 	QString nameOrPhone;
 	Text phoneText;
 	TimeId onlineTill = 0;
-	int32 contact = -1; // -1 - not contact, cant add (self, empty, deleted, foreign), 0 - not contact, can add (request), 1 - contact
 
-	enum class BlockStatus {
+	enum class ContactStatus : char {
+		PhoneUnknown,
+		CanAdd,
+		Contact,
+	};
+	ContactStatus contactStatus() const {
+		return _contactStatus;
+	}
+	void setContactStatus(ContactStatus status);
+
+	enum class BlockStatus : char {
 		Unknown,
 		Blocked,
 		NotBlocked,
@@ -438,7 +435,7 @@ public:
 	}
 	void setBlockStatus(BlockStatus blockStatus);
 
-	enum class CallsStatus {
+	enum class CallsStatus : char {
 		Unknown,
 		Enabled,
 		Disabled,
@@ -474,6 +471,7 @@ private:
 	QString _restrictionReason;
 	QString _about;
 	QString _phone;
+	ContactStatus _contactStatus = ContactStatus::PhoneUnknown;
 	BlockStatus _blockStatus = BlockStatus::Unknown;
 	CallsStatus _callsStatus = CallsStatus::Unknown;
 	int _commonChatsCount = 0;
@@ -948,8 +946,8 @@ public:
 			|| amCreator();
 	}
 
-	int32 inviter = 0; // > 0 - user who invited me to channel, < 0 - not in channel
-	QDateTime inviteDate;
+	UserId inviter = 0; // > 0 - user who invited me to channel, < 0 - not in channel
+	TimeId inviteDate = 0;
 
 	void ptsInit(int32 pts) {
 		_ptsWaiter.init(pts);
@@ -1012,11 +1010,19 @@ public:
 		setPinnedMessageId(0);
 	}
 
+	void setFeed(not_null<Data::Feed*> feed);
+	void clearFeed();
+
+	Data::Feed *feed() const {
+		return _feed;
+	}
+
 private:
 	void flagsUpdated(MTPDchannel::Flags diff);
 	void fullFlagsUpdated(MTPDchannelFull::Flags diff);
 
 	bool canEditLastAdmin(not_null<UserData*> user) const;
+	void setFeedPointer(Data::Feed *feed);
 
 	Flags _flags = Flags(MTPDchannel_ClientFlag::f_forbidden | 0);
 	FullFlags _fullFlags;
@@ -1038,6 +1044,7 @@ private:
 	QString _about;
 
 	QString _inviteLink;
+	Data::Feed *_feed = nullptr;
 
 	rpl::lifetime _lifetime;
 
@@ -1108,16 +1115,26 @@ inline bool isMegagroup(const PeerData *peer) {
 	return peer ? peer->isMegagroup() : false;
 }
 inline ChatData *PeerData::migrateFrom() const {
-	return (isMegagroup() && asChannel()->amIn())
-		? asChannel()->mgInfo->migrateFromPtr
-		: nullptr;
+	if (const auto megagroup = asMegagroup()) {
+		return megagroup->amIn()
+			? megagroup->mgInfo->migrateFromPtr
+			: nullptr;
+	}
+	return nullptr;
 }
 inline ChannelData *PeerData::migrateTo() const {
-	return (isChat()
-		&& asChat()->migrateToPtr
-		&& asChat()->migrateToPtr->amIn())
-		? asChat()->migrateToPtr
-		: nullptr;
+	if (const auto chat = asChat()) {
+		if (const auto migrateTo = chat->migrateToPtr) {
+			return migrateTo->amIn() ? migrateTo : nullptr;
+		}
+	}
+	return nullptr;
+}
+inline Data::Feed *PeerData::feed() const {
+	if (const auto channel = asChannel()) {
+		return channel->feed();
+	}
+	return nullptr;
 }
 inline const Text &PeerData::dialogName() const {
 	return migrateTo()

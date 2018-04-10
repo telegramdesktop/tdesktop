@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
@@ -95,16 +82,10 @@ private:
 	SingleTimer _inputCheckTimer;
 
 	struct QueuedNotification {
-		QueuedNotification(HistoryItem *item, int forwardedCount)
-		: history(item->history())
-		, peer(history->peer)
-		, author((!peer->isUser() && !item->isPost()) ? item->author() : nullptr)
-		, item((forwardedCount > 1) ? nullptr : item)
-		, forwardedCount(forwardedCount) {
-		}
+		QueuedNotification(not_null<HistoryItem*> item, int forwardedCount);
 
-		History *history;
-		PeerData *peer;
+		not_null<History*> history;
+		not_null<PeerData*> peer;
 		PeerData *author;
 		HistoryItem *item;
 		int forwardedCount;

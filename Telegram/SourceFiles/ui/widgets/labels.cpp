@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/labels.h"
 
@@ -549,19 +536,23 @@ void FlatLabel::showContextMenu(QContextMenuEvent *e, ContextMenuReason reason) 
 
 	_contextMenu = new Ui::PopupMenu(nullptr);
 
-	_contextMenuClickHandler = ClickHandler::getActive();
-
 	if (fullSelection && !_contextCopyText.isEmpty()) {
-		_contextMenu->addAction(_contextCopyText, this, SLOT(onCopyContextText()))->setEnabled(true);
+		_contextMenu->addAction(_contextCopyText, this, SLOT(onCopyContextText()));
 	} else if (uponSelection && !fullSelection) {
-		_contextMenu->addAction(lang(lng_context_copy_selected), this, SLOT(onCopySelectedText()))->setEnabled(true);
+		_contextMenu->addAction(lang(lng_context_copy_selected), this, SLOT(onCopySelectedText()));
 	} else if (!hasSelection && !_contextCopyText.isEmpty()) {
-		_contextMenu->addAction(_contextCopyText, this, SLOT(onCopyContextText()))->setEnabled(true);
+		_contextMenu->addAction(_contextCopyText, this, SLOT(onCopyContextText()));
 	}
 
-	QString linkCopyToClipboardText = _contextMenuClickHandler ? _contextMenuClickHandler->copyToClipboardContextItemText() : QString();
-	if (!linkCopyToClipboardText.isEmpty()) {
-		_contextMenu->addAction(linkCopyToClipboardText, this, SLOT(onCopyContextUrl()))->setEnabled(true);
+	if (const auto link = ClickHandler::getActive()) {
+		const auto actionText = link->copyToClipboardContextItemText();
+		if (!actionText.isEmpty()) {
+			_contextMenu->addAction(
+				actionText,
+				[text = link->copyToClipboardText()] {
+					QApplication::clipboard()->setText(text);
+				});
+		}
 	}
 
 	if (_contextMenu->actions().isEmpty()) {
@@ -583,12 +574,6 @@ void FlatLabel::onCopySelectedText() {
 
 void FlatLabel::onCopyContextText() {
 	QApplication::clipboard()->setText(_text.originalText({ 0, 0xFFFF }, _contextExpandLinksMode));
-}
-
-void FlatLabel::onCopyContextUrl() {
-	if (_contextMenuClickHandler) {
-		_contextMenuClickHandler->copyToClipboard();
-	}
 }
 
 void FlatLabel::onTouchSelect() {

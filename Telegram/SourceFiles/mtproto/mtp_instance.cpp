@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/mtp_instance.h"
 
@@ -76,15 +63,13 @@ public:
 		std::unique_ptr<internal::Connection> &&connection);
 	void connectionFinished(internal::Connection *connection);
 
-	void registerRequest(mtpRequestId requestId, int32 dcWithShift);
+	void registerRequest(mtpRequestId requestId, ShiftedDcId dcWithShift);
 	void unregisterRequest(mtpRequestId requestId);
 	mtpRequestId storeRequest(
 		mtpRequest &request,
 		RPCResponseHandler &&callbacks);
 	mtpRequest getRequest(mtpRequestId requestId);
-	void clearCallbacks(mtpRequestId requestId, int32 errorCode = RPCError::NoError); // 0 - do not toggle onError callback
-	void clearCallbacksDelayed(const RPCCallbackClears &requestIds);
-	void performDelayedClear();
+	void clearCallbacksDelayed(std::vector<RPCCallbackClear> &&ids);
 	void execCallback(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end);
 	bool hasCallbacks(mtpRequestId requestId);
 	void globalCallback(const mtpPrime *from, const mtpPrime *end);
@@ -140,6 +125,12 @@ private:
 	void cdnConfigLoadDone(const MTPCdnConfig &result);
 	bool cdnConfigLoadFail(const RPCError &error);
 
+	// RPCError::NoError means do not toggle onError callback.
+	void clearCallbacks(
+		mtpRequestId requestId,
+		int32 errorCode = RPCError::NoError);
+	void clearCallbacks(const std::vector<RPCCallbackClear> &ids);
+
 	void checkDelayedRequests();
 
 	not_null<Instance*> _instance;
@@ -184,9 +175,6 @@ private:
 	std::set<mtpRequestId> _badGuestDcRequests;
 
 	std::map<DcId, std::vector<mtpRequestId>> _authWaiters;
-
-	QMutex _toClearLock;
-	RPCCallbackClears _toClear;
 
 	RPCResponseHandler _globalHandler;
 	base::lambda<void(ShiftedDcId shiftedDcId, int32 state)> _stateChangedHandler;
@@ -610,11 +598,13 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 	Global::SetOnlineCloudTimeout(data.vonline_cloud_timeout_ms.v);
 	Global::SetNotifyCloudDelay(data.vnotify_cloud_delay_ms.v);
 	Global::SetNotifyDefaultDelay(data.vnotify_default_delay_ms.v);
-	Global::SetChatBigSize(data.vchat_big_size.v);
 	Global::SetPushChatPeriod(data.vpush_chat_period_ms.v);
 	Global::SetPushChatLimit(data.vpush_chat_limit.v);
 	Global::SetSavedGifsLimit(data.vsaved_gifs_limit.v);
 	Global::SetEditTimeLimit(data.vedit_time_limit.v);
+	Global::SetRevokeTimeLimit(data.vrevoke_time_limit.v);
+	Global::SetRevokePrivateTimeLimit(data.vrevoke_pm_time_limit.v);
+	Global::SetRevokePrivateInbox(data.is_revoke_pm_inbox());
 	Global::SetStickersRecentLimit(data.vstickers_recent_limit.v);
 	Global::SetStickersFavedLimit(data.vstickers_faved_limit.v);
 	Global::SetPinnedDialogsCountMax(data.vpinned_dialogs_count_max.v);
@@ -681,12 +671,11 @@ void Instance::Private::checkDelayedRequests() {
 	}
 }
 
-void Instance::Private::registerRequest(mtpRequestId requestId, int32 dcWithShift) {
-	{
-		QMutexLocker locker(&_requestByDcLock);
-		_requestsByDc.emplace(requestId, dcWithShift);
-	}
-	performDelayedClear(); // need to do it somewhere...
+void Instance::Private::registerRequest(
+		mtpRequestId requestId,
+		ShiftedDcId dcWithShift) {
+	QMutexLocker locker(&_requestByDcLock);
+	_requestsByDc.emplace(requestId, dcWithShift);
 }
 
 void Instance::Private::unregisterRequest(mtpRequestId requestId) {
@@ -748,46 +737,50 @@ void Instance::Private::clearCallbacks(mtpRequestId requestId, int32 errorCode) 
 	}
 }
 
-void Instance::Private::clearCallbacksDelayed(const RPCCallbackClears &requestIds) {
-	uint32 idsCount = requestIds.size();
-	if (!idsCount) return;
+void Instance::Private::clearCallbacksDelayed(
+		std::vector<RPCCallbackClear> &&ids) {
+	if (ids.empty()) {
+		return;
+	}
 
 	if (cDebug()) {
-		QString idsStr = QString("%1").arg(requestIds[0].requestId);
-		for (uint32 i = 1; i < idsCount; ++i) {
-			idsStr += QString(", %1").arg(requestIds[i].requestId);
+		auto idsString = QStringList();
+		idsString.reserve(ids.size());
+		for (auto &value : ids) {
+			idsString.push_back(QString::number(value.requestId));
 		}
-		DEBUG_LOG(("RPC Info: clear callbacks delayed, msgIds: %1").arg(idsStr));
+		DEBUG_LOG(("RPC Info: clear callbacks delayed, msgIds: %1"
+			).arg(idsString.join(", ")));
 	}
 
-	QMutexLocker lock(&_toClearLock);
-	uint32 toClearNow = _toClear.size();
-	if (toClearNow) {
-		_toClear.resize(toClearNow + idsCount);
-		memcpy(_toClear.data() + toClearNow, requestIds.constData(), idsCount * sizeof(RPCCallbackClear));
-	} else {
-		_toClear = requestIds;
-	}
+	crl::on_main(_instance, [this, list = std::move(ids)] {
+		clearCallbacks(list);
+	});
 }
 
-void Instance::Private::performDelayedClear() {
-	QMutexLocker lock(&_toClearLock);
-	if (!_toClear.isEmpty()) {
-		for (auto &clearRequest : _toClear) {
-			if (cDebug()) {
-				QMutexLocker locker(&_parserMapLock);
-				if (_parserMap.find(clearRequest.requestId) != _parserMap.end()) {
-					DEBUG_LOG(("RPC Info: clearing delayed callback %1, error code %2").arg(clearRequest.requestId).arg(clearRequest.errorCode));
-				}
+void Instance::Private::clearCallbacks(
+		const std::vector<RPCCallbackClear> &ids) {
+	Expects(!ids.empty());
+
+	for (const auto &clearRequest : ids) {
+		if (cDebug()) {
+			QMutexLocker locker(&_parserMapLock);
+			if (_parserMap.find(clearRequest.requestId) != _parserMap.end()) {
+				DEBUG_LOG(("RPC Info: "
+					"clearing delayed callback %1, error code %2"
+					).arg(clearRequest.requestId
+					).arg(clearRequest.errorCode));
 			}
-			clearCallbacks(clearRequest.requestId, clearRequest.errorCode);
-			unregisterRequest(clearRequest.requestId);
 		}
-		_toClear.clear();
+		clearCallbacks(clearRequest.requestId, clearRequest.errorCode);
+		unregisterRequest(clearRequest.requestId);
 	}
 }
 
-void Instance::Private::execCallback(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) {
+void Instance::Private::execCallback(
+		mtpRequestId requestId,
+		const mtpPrime *from,
+		const mtpPrime *end) {
 	RPCResponseHandler h;
 	{
 		QMutexLocker locker(&_parserMapLock);
@@ -1023,7 +1016,9 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 			request = it->second;
 		}
 		if (auto session = getSession(newdcWithShift)) {
-			registerRequest(requestId, (dcWithShift < 0) ? -newdcWithShift : newdcWithShift);
+			registerRequest(
+				requestId,
+				(dcWithShift < 0) ? -newdcWithShift : newdcWithShift);
 			session->sendPrepared(request);
 		}
 		return true;
@@ -1424,7 +1419,9 @@ void Instance::onSessionReset(ShiftedDcId dcWithShift) {
 	_private->onSessionReset(dcWithShift);
 }
 
-void Instance::registerRequest(mtpRequestId requestId, ShiftedDcId dcWithShift) {
+void Instance::registerRequest(
+		mtpRequestId requestId,
+		ShiftedDcId dcWithShift) {
 	_private->registerRequest(requestId, dcWithShift);
 }
 
@@ -1438,8 +1435,8 @@ mtpRequest Instance::getRequest(mtpRequestId requestId) {
 	return _private->getRequest(requestId);
 }
 
-void Instance::clearCallbacksDelayed(const RPCCallbackClears &requestIds) {
-	_private->clearCallbacksDelayed(requestIds);
+void Instance::clearCallbacksDelayed(std::vector<RPCCallbackClear> &&ids) {
+	_private->clearCallbacksDelayed(std::move(ids));
 }
 
 void Instance::execCallback(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) {

@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
@@ -24,6 +11,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/observer.h"
 
 class BoxContent;
+
+namespace Dialogs {
+enum class Mode;
+} // namespace Dialogs
 
 namespace InlineBots {
 namespace Layout {
@@ -146,7 +137,6 @@ void openPeerByName(
 	MsgId msgId = ShowAtUnreadMsgId,
 	const QString &startToken = QString());
 void joinGroupByHash(const QString &hash);
-void removeDialog(History *history);
 void showSettings();
 
 void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button);
@@ -192,29 +182,19 @@ void hideLayer(anim::type animated = anim::type::normal);
 void hideSettingsAndLayer(anim::type animated = anim::type::normal);
 bool isLayerShown();
 
-void autoplayMediaInlineAsync(const FullMsgId &msgId);
-
 void showPeerProfile(const PeerId &peer);
 inline void showPeerProfile(const PeerData *peer) {
 	showPeerProfile(peer->id);
 }
-inline void showPeerProfile(const History *history) {
-	showPeerProfile(history->peer->id);
-}
+void showPeerProfile(not_null<const History*> history);
 
 void showPeerHistory(const PeerId &peer, MsgId msgId);
+void showPeerHistoryAtItem(not_null<const HistoryItem*> item);
 
 inline void showPeerHistory(const PeerData *peer, MsgId msgId) {
 	showPeerHistory(peer->id, msgId);
 }
-inline void showPeerHistory(
-		const History *history,
-		MsgId msgId) {
-	showPeerHistory(history->peer->id, msgId);
-}
-inline void showPeerHistoryAtItem(const HistoryItem *item) {
-	showPeerHistory(item->history()->peer->id, item->id);
-}
+void showPeerHistory(not_null<const History*> history, MsgId msgId);
 inline void showChatsList() {
 	showPeerHistory(PeerId(0), 0);
 }
@@ -232,7 +212,6 @@ enum ClipStopperType {
 namespace Notify {
 
 void userIsBotChanged(UserData *user);
-void userIsContactChanged(UserData *user, bool fromThisApp = false);
 void botCommandsChanged(UserData *user);
 
 void inlineBotRequesting(bool requesting);
@@ -243,11 +222,7 @@ bool switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot =
 void migrateUpdated(PeerData *peer);
 
 void historyMuteUpdated(History *history);
-
-// handle pending resize() / paint() on history items
-void handlePendingHistoryUpdate();
 void unreadCounterUpdated();
-
 
 enum class ScreenCorner {
 	TopLeft     = 0,
@@ -317,7 +292,6 @@ bool started();
 void start();
 void finish();
 
-DeclareRefVar(SingleQueuedInvokation, HandleHistoryUpdate);
 DeclareRefVar(SingleQueuedInvokation, HandleUnreadCounterUpdate);
 DeclareRefVar(SingleQueuedInvokation, HandleDelayedPeerUpdates);
 DeclareRefVar(SingleQueuedInvokation, HandleObservables);
@@ -354,11 +328,13 @@ DeclareVar(int32, OnlineFocusTimeout); // not from config
 DeclareVar(int32, OnlineCloudTimeout);
 DeclareVar(int32, NotifyCloudDelay);
 DeclareVar(int32, NotifyDefaultDelay);
-DeclareVar(int32, ChatBigSize);
 DeclareVar(int32, PushChatPeriod);
 DeclareVar(int32, PushChatLimit);
 DeclareVar(int32, SavedGifsLimit);
 DeclareVar(int32, EditTimeLimit);
+DeclareVar(int32, RevokeTimeLimit);
+DeclareVar(int32, RevokePrivateTimeLimit);
+DeclareVar(bool, RevokePrivateInbox);
 DeclareVar(int32, StickersRecentLimit);
 DeclareVar(int32, StickersFavedLimit);
 DeclareVar(int32, PinnedDialogsCountMax);
@@ -374,9 +350,6 @@ DeclareRefVar(base::Observable<void>, PhoneCallsEnabledChanged);
 typedef QMap<PeerId, MsgId> HiddenPinnedMessagesMap;
 DeclareVar(HiddenPinnedMessagesMap, HiddenPinnedMessages);
 
-typedef OrderedSet<HistoryItem*> PendingItemsMap;
-DeclareRefVar(PendingItemsMap, PendingRepaintItems);
-
 typedef QMap<uint64, QPixmap> CircleMasksMap;
 DeclareRefVar(CircleMasksMap, CircleMasks);
 
@@ -387,6 +360,7 @@ DeclareVar(QString, DownloadPath);
 DeclareVar(QByteArray, DownloadPathBookmark);
 DeclareRefVar(base::Observable<void>, DownloadPathChanged);
 
+DeclareVar(bool, SuggestStickersByEmoji);
 DeclareVar(bool, SoundNotify);
 DeclareVar(bool, DesktopNotify);
 DeclareVar(bool, RestoreSoundNotifyFromTray);

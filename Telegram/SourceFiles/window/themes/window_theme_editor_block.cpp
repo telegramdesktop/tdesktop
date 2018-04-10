@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/themes/window_theme_editor_block.h"
 
@@ -140,14 +127,14 @@ void EditorBlock::Row::setValue(QColor value) {
 }
 
 void EditorBlock::Row::fillValueString() {
-	auto addHex = [this](int code) {
+	auto addHex = [=](int code) {
 		if (code >= 0 && code < 10) {
 			_valueString.append('0' + code);
 		} else if (code >= 10 && code < 16) {
 			_valueString.append('a' + (code - 10));
 		}
 	};
-	auto addCode = [this, addHex](int code) {
+	auto addCode = [=](int code) {
 		addHex(code / 16);
 		addHex(code % 16);
 	};
@@ -472,7 +459,7 @@ void EditorBlock::enumerateRowsFrom(int top, Callback callback) const {
 int EditorBlock::resizeGetHeight(int newWidth) {
 	auto result = 0;
 	auto descriptionWidth = newWidth - st::themeEditorMargin.left() - st::themeEditorMargin.right();
-	enumerateRows([this, &result, descriptionWidth](Row &row) {
+	enumerateRows([&](Row &row) {
 		row.setTop(result);
 
 		auto height = row.height();

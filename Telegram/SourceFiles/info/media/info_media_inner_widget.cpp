@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/media/info_media_inner_widget.h"
 
@@ -55,7 +42,7 @@ InnerWidget::InnerWidget(
 // Was done for top level tabs support.
 // Now used for shared media in Saved Messages.
 void InnerWidget::setupOtherTypes() {
-	if (_controller->peer()->isSelf() && _isStackBottom) {
+	if (_controller->key().peer()->isSelf() && _isStackBottom) {
 		createOtherTypes();
 	} else {
 		_otherTypes.destroy();
@@ -108,7 +95,7 @@ void InnerWidget::createTypeButtons() {
 		auto result = AddButton(
 			content,
 			_controller,
-			_controller->peer(),
+			_controller->key().peer(),
 			_controller->migrated(),
 			buttonType,
 			tracker);
@@ -136,7 +123,7 @@ void InnerWidget::createTypeButtons() {
 	addMediaButton(Type::File, st::infoIconMediaFile);
 	addMediaButton(Type::MusicFile, st::infoIconMediaAudio);
 	addMediaButton(Type::Link, st::infoIconMediaLink);
-	if (auto user = _controller->peer()->asUser()) {
+	if (auto user = _controller->key().peer()->asUser()) {
 //		addCommonGroupsButton(user, st::infoIconMediaGroup);
 	}
 	addMediaButton(Type::VoiceFile, st::infoIconMediaVoice);

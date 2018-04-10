@@ -1,22 +1,9 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
@@ -32,6 +19,7 @@ namespace internal {
 using MentionRows = QList<UserData*>;
 using HashtagRows = QList<QString>;
 using BotCommandRows = QList<QPair<UserData*, const BotCommand*>>;
+using StickerRows = std::vector<not_null<DocumentData*>>;
 
 class FieldAutocompleteInner;
 
@@ -66,7 +54,7 @@ public:
 	bool chooseSelected(ChooseMethod method) const;
 
 	bool stickersShown() const {
-		return !_srows.isEmpty();
+		return !_srows.empty();
 	}
 
 	bool overlaps(const QRect &globalRect) {
@@ -105,9 +93,9 @@ private:
 	internal::MentionRows _mrows;
 	internal::HashtagRows _hrows;
 	internal::BotCommandRows _brows;
-	Stickers::Pack _srows;
+	internal::StickerRows _srows;
 
-	void rowsUpdated(const internal::MentionRows &mrows, const internal::HashtagRows &hrows, const internal::BotCommandRows &brows, const Stickers::Pack &srows, bool resetScroll);
+	void rowsUpdated(const internal::MentionRows &mrows, const internal::HashtagRows &hrows, const internal::BotCommandRows &brows, const internal::StickerRows &srows, bool resetScroll);
 
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<internal::FieldAutocompleteInner> _inner;
@@ -116,6 +104,7 @@ private:
 	UserData *_user = nullptr;
 	ChannelData *_channel = nullptr;
 	EmojiPtr _emoji;
+	uint64 _stickersSeed = 0;
 	enum class Type {
 		Mentions,
 		Hashtags,
@@ -142,7 +131,7 @@ class FieldAutocompleteInner final : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	FieldAutocompleteInner(FieldAutocomplete *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows, Stickers::Pack *srows);
+	FieldAutocompleteInner(FieldAutocomplete *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows, StickerRows *srows);
 
 	void clearSel(bool hidden = false);
 	bool moveSel(int key);
@@ -180,7 +169,7 @@ private:
 	MentionRows *_mrows;
 	HashtagRows *_hrows;
 	BotCommandRows *_brows;
-	Stickers::Pack *_srows;
+	StickerRows *_srows;
 	int32 _stickersPerRow, _recentInlineBotsInRows;
 	int32 _sel, _down;
 	bool _mouseSel;
