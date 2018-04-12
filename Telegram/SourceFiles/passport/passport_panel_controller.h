@@ -15,6 +15,14 @@ namespace Passport {
 class FormController;
 class Panel;
 
+struct EditDocumentScheme;
+struct EditContactScheme;
+
+EditDocumentScheme GetDocumentScheme(
+	Scope::Type type,
+	base::optional<Value::Type> scansType = base::none);
+EditContactScheme GetContactScheme(Scope::Type type);
+
 struct ScanInfo {
 	FileKey key;
 	QString status;
@@ -47,7 +55,7 @@ public:
 
 	not_null<UserData*> bot() const;
 	QString privacyPolicyUrl() const;
-
+	void submitForm();
 	void submitPassword(const QString &password);
 	rpl::producer<QString> passwordError() const;
 	QString passwordHint() const;
@@ -87,14 +95,10 @@ public:
 	rpl::lifetime &lifetime();
 
 private:
-	struct Row {
-		QString title;
-		QString description;
-	};
 	void ensurePanelCreated();
 
-	void editScope(int index, int filesIndex);
-	void editWithUpload(int index, int filesIndex);
+	void editScope(int index, int documentIndex);
+	void editWithUpload(int index, int documentIndex);
 	int findNonEmptyIndex(
 		const std::vector<not_null<const Value*>> &files) const;
 	void requestScopeFilesType(int index);
@@ -104,8 +108,6 @@ private:
 	void processValueSaveFinished(not_null<const Value*> value);
 	void processVerificationNeeded(not_null<const Value*> value);
 
-	Row collectRowInfo(const Scope &scope) const;
-	QString collectRowReadyString(const Scope &scope) const;
 	ScanInfo collectScanInfo(const EditFile &file) const;
 	QString getDefaultContactValue(Scope::Type type) const;
 
@@ -116,8 +118,8 @@ private:
 	base::lambda<bool()> _panelHasUnsavedChanges;
 	BoxPointer _confirmForgetChangesBox;
 	Scope *_editScope = nullptr;
-	int _editScopeFilesIndex = -1;
-	BoxPointer _scopeFilesTypeBox;
+	int _editDocumentIndex = -1;
+	BoxPointer _scopeDocumentTypeBox;
 	std::map<not_null<const Value*>, BoxPointer> _verificationBoxes;
 
 	rpl::lifetime _lifetime;

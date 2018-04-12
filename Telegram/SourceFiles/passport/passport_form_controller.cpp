@@ -12,8 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "base/openssl_help.h"
+#include "base/qthelp_url.h"
 #include "mainwindow.h"
 #include "window/window_controller.h"
+#include "core/click_handler_types.h"
 #include "auth_session.h"
 #include "storage/localimageloader.h"
 #include "storage/localstorage.h"
@@ -46,17 +48,86 @@ Value::Type ConvertType(const MTPSecureValueType &type) {
 	Unexpected("Type in secureValueType type.");
 };
 
+MTPSecureValueType ConvertType(Value::Type type) {
+	switch (type) {
+	case Value::Type::PersonalDetails:
+		return MTP_secureValueTypePersonalDetails();
+	case Value::Type::Passport:
+		return MTP_secureValueTypePassport();
+	case Value::Type::DriverLicense:
+		return MTP_secureValueTypeDriverLicense();
+	case Value::Type::IdentityCard:
+		return MTP_secureValueTypeIdentityCard();
+	case Value::Type::Address:
+		return MTP_secureValueTypeAddress();
+	case Value::Type::UtilityBill:
+		return MTP_secureValueTypeUtilityBill();
+	case Value::Type::BankStatement:
+		return MTP_secureValueTypeBankStatement();
+	case Value::Type::RentalAgreement:
+		return MTP_secureValueTypeRentalAgreement();
+	case Value::Type::Phone:
+		return MTP_secureValueTypePhone();
+	case Value::Type::Email:
+		return MTP_secureValueTypeEmail();
+	}
+	Unexpected("Type in FormController::submit.");
+};
+
+QJsonObject GetJSONFromMap(
+		const std::map<QString, bytes::const_span> &map) {
+	auto result = QJsonObject();
+	for (const auto &[key, value] : map) {
+		const auto raw = QByteArray::fromRawData(
+			reinterpret_cast<const char*>(value.data()),
+			value.size());
+		result.insert(key, QString::fromUtf8(raw.toBase64()));
+	}
+	return result;
+}
+
+QJsonObject GetJSONFromFile(const File &file) {
+	return GetJSONFromMap({
+		{ "file_hash", file.hash },
+		{ "secret", file.secret }
+	});
+}
+
+FormRequest PreprocessRequest(const FormRequest &request) {
+	auto result = request;
+	result.publicKey.replace("\r\n", "\n");
+	return result;
+}
+
+QString ValueCredentialsKey(Value::Type type) {
+	switch (type) {
+	case Value::Type::PersonalDetails: return "personal_details";
+	case Value::Type::Passport: return "passport";
+	case Value::Type::DriverLicense: return "driver_license";
+	case Value::Type::IdentityCard: return "identity_card";
+	case Value::Type::Address: return "address";
+	case Value::Type::UtilityBill: return "utility_bill";
+	case Value::Type::BankStatement: return "bank_statement";
+	case Value::Type::RentalAgreement: return "rental_agreement";
+	case Value::Type::Phone:
+	case Value::Type::Email: return QString();
+	}
+	Unexpected("Type in ValueCredentialsKey.");
+}
+
 } // namespace
 
 FormRequest::FormRequest(
 	UserId botId,
 	const QString &scope,
 	const QString &callbackUrl,
-	const QString &publicKey)
+	const QString &publicKey,
+	const QString &payload)
 : botId(botId)
 , scope(scope)
 , callbackUrl(callbackUrl)
-, publicKey(publicKey) {
+, publicKey(publicKey)
+, payload(payload) {
 }
 
 EditFile::EditFile(
@@ -111,7 +182,7 @@ FormController::FormController(
 	not_null<Window::Controller*> controller,
 	const FormRequest &request)
 : _controller(controller)
-, _request(request)
+, _request(PreprocessRequest(request))
 , _view(std::make_unique<PanelController>(this)) {
 }
 
@@ -134,6 +205,99 @@ bytes::vector FormController::passwordHashForAuth(
 		_password.salt,
 		password,
 		_password.salt));
+}
+
+auto FormController::prepareFinalData() const -> FinalData {
+	auto hashes = QVector<MTPSecureValueHash>();
+	auto secureData = QJsonObject();
+	const auto addValueToJSON = [&](
+			const QString &key,
+			not_null<const Value*> value) {
+		auto object = QJsonObject();
+		if (!value->data.parsed.fields.empty()) {
+			object.insert("data", GetJSONFromMap({
+				{ "data_hash", value->data.hash },
+				{ "secret", value->data.secret }
+			}));
+		}
+		if (!value->scans.empty()) {
+			auto files = QJsonArray();
+			for (const auto &scan : value->scans) {
+				files.append(GetJSONFromFile(scan));
+			}
+			object.insert("files", files);
+		}
+		if (_form.identitySelfieRequired && value->selfie) {
+			object.insert("selfie", GetJSONFromFile(*value->selfie));
+		}
+		secureData.insert(key, object);
+	};
+	const auto addValue = [&](not_null<const Value*> value) {
+		hashes.push_back(MTP_secureValueHash(
+			ConvertType(value->type),
+			MTP_bytes(value->submitHash)));
+		const auto key = ValueCredentialsKey(value->type);
+		if (!key.isEmpty()) {
+			addValueToJSON(key, value);
+		}
+	};
+	const auto scopes = ComputeScopes(this);
+	for (const auto &scope : scopes) {
+		const auto ready = ComputeScopeRowReadyString(scope);
+		if (ready.isEmpty()) {
+			_valueError.fire_copy(scope.fields);
+		}
+		addValue(scope.fields);
+		if (!scope.documents.empty()) {
+			for (const auto &document : scope.documents) {
+				if (!document->scans.empty()) {
+					addValue(document);
+					break;
+				}
+			}
+		}
+	}
+
+	auto json = QJsonObject();
+	json.insert("secure_data", secureData);
+	json.insert("payload", _request.payload);
+
+	return {
+		hashes,
+		QJsonDocument(json).toJson(QJsonDocument::Compact)
+	};
+}
+
+void FormController::submit() {
+	if (_submitRequestId) {
+		return;
+	}
+
+	const auto prepared = prepareFinalData();
+	const auto credentialsEncryptedData = EncryptData(
+		bytes::make_span(prepared.credentials));
+	const auto credentialsEncryptedSecret = EncryptCredentialsSecret(
+		credentialsEncryptedData.secret,
+		bytes::make_span(_request.publicKey.toUtf8()));
+
+	_submitRequestId = request(MTPaccount_AcceptAuthorization(
+		MTP_int(_request.botId),
+		MTP_string(_request.scope),
+		MTP_string(_request.publicKey),
+		MTP_vector<MTPSecureValueHash>(prepared.hashes),
+		MTP_secureCredentialsEncrypted(
+			MTP_bytes(credentialsEncryptedData.bytes),
+			MTP_bytes(credentialsEncryptedData.hash),
+			MTP_bytes(credentialsEncryptedSecret))
+	)).done([=](const MTPBool &result) {
+		const auto url = qthelp::url_append_query(
+			_request.callbackUrl,
+			"tg_passport=success");
+		UrlClickHandler::doOpen(url);
+	}).fail([=](const RPCError &error) {
+		_view->show(Box<InformBox>(
+			"Failed sending data :(\n" + error.type()));
+	}).send();
 }
 
 void FormController::submitPassword(const QString &password) {
@@ -231,19 +395,7 @@ bool FormController::validateValueSecrets(Value &value) {
 			return false;
 		}
 	}
-	for (auto &file : value.files) {
-		file.secret = DecryptValueSecret(
-			file.encryptedSecret,
-			_secret,
-			file.hash);
-		if (file.secret.empty()) {
-			LOG(("API Error: Could not decrypt file secret. "
-				"Forgetting files and data :("));
-			return false;
-		}
-	}
-	if (value.selfie) {
-		auto &file = *value.selfie;
+	const auto validateFileSecret = [&](File &file) {
 		file.secret = DecryptValueSecret(
 			file.encryptedSecret,
 			_secret,
@@ -253,6 +405,15 @@ bool FormController::validateValueSecrets(Value &value) {
 				"Forgetting files and data :("));
 			return false;
 		}
+		return true;
+	};
+	for (auto &scan : value.scans) {
+		if (!validateFileSecret(scan)) {
+			return false;
+		}
+	}
+	if (value.selfie && !validateFileSecret(*value.selfie)) {
+		return false;
 	}
 	return true;
 }
@@ -273,31 +434,31 @@ void FormController::uploadScan(
 		not_null<const Value*> value,
 		QByteArray &&content) {
 	const auto nonconst = findValue(value);
-	auto fileIndex = int(nonconst->filesInEdit.size());
-	nonconst->filesInEdit.emplace_back(
+	auto scanIndex = int(nonconst->scansInEdit.size());
+	nonconst->scansInEdit.emplace_back(
 		nonconst,
 		File(),
 		nullptr);
-	auto &file = nonconst->filesInEdit.back();
-	encryptFile(file, std::move(content), [=](UploadScanData &&result) {
-		Expects(fileIndex >= 0 && fileIndex < nonconst->filesInEdit.size());
+	auto &scan = nonconst->scansInEdit.back();
+	encryptFile(scan, std::move(content), [=](UploadScanData &&result) {
+		Expects(scanIndex >= 0 && scanIndex < nonconst->scansInEdit.size());
 
 		uploadEncryptedFile(
-			nonconst->filesInEdit[fileIndex],
+			nonconst->scansInEdit[scanIndex],
 			std::move(result));
 	});
 }
 
 void FormController::deleteScan(
 		not_null<const Value*> value,
-		int fileIndex) {
-	scanDeleteRestore(value, fileIndex, true);
+		int scanIndex) {
+	scanDeleteRestore(value, scanIndex, true);
 }
 
 void FormController::restoreScan(
 		not_null<const Value*> value,
-		int fileIndex) {
-	scanDeleteRestore(value, fileIndex, false);
+		int scanIndex) {
+	scanDeleteRestore(value, scanIndex, false);
 }
 
 void FormController::uploadSelfie(
@@ -371,14 +532,14 @@ void FormController::encryptFile(
 
 void FormController::scanDeleteRestore(
 		not_null<const Value*> value,
-		int fileIndex,
+		int scanIndex,
 		bool deleted) {
-	Expects(fileIndex >= 0 && fileIndex < value->filesInEdit.size());
+	Expects(scanIndex >= 0 && scanIndex < value->scansInEdit.size());
 
 	const auto nonconst = findValue(value);
-	auto &file = nonconst->filesInEdit[fileIndex];
-	file.deleted = deleted;
-	_scanUpdated.fire(&file);
+	auto &scan = nonconst->scansInEdit[scanIndex];
+	scan.deleted = deleted;
+	_scanUpdated.fire(&scan);
 }
 
 void FormController::selfieDeleteRestore(
@@ -387,9 +548,9 @@ void FormController::selfieDeleteRestore(
 	Expects(value->selfieInEdit.has_value());
 
 	const auto nonconst = findValue(value);
-	auto &file = *nonconst->selfieInEdit;
-	file.deleted = deleted;
-	_scanUpdated.fire(&file);
+	auto &scan = *nonconst->selfieInEdit;
+	scan.deleted = deleted;
+	_scanUpdated.fire(&scan);
 }
 
 void FormController::subscribeToUploader() {
@@ -502,6 +663,11 @@ auto FormController::valueSaveFinished() const
 	return _valueSaveFinished.events();
 }
 
+auto FormController::valueError() const
+-> rpl::producer<not_null<const Value*>> {
+	return _valueError.events();
+}
+
 auto FormController::verificationNeeded() const
 -> rpl::producer<not_null<const Value*>> {
 	return _verificationNeeded.events();
@@ -598,14 +764,14 @@ void FormController::startValueEdit(not_null<const Value*> value) {
 	if (savingValue(nonconst)) {
 		return;
 	}
-	for (auto &file : nonconst->files) {
-		loadFile(file);
+	for (auto &scan : nonconst->scans) {
+		loadFile(scan);
 	}
 	if (nonconst->selfie) {
 		loadFile(*nonconst->selfie);
 	}
-	nonconst->filesInEdit = ranges::view::all(
-		nonconst->files
+	nonconst->scansInEdit = ranges::view::all(
+		nonconst->scans
 	) | ranges::view::transform([=](const File &file) {
 		return EditFile(nonconst, file, nullptr);
 	}) | ranges::to_vector;
@@ -729,7 +895,7 @@ void FormController::clearValueEdit(not_null<Value*> value) {
 	if (savingValue(value)) {
 		return;
 	}
-	value->filesInEdit.clear();
+	value->scansInEdit.clear();
 	value->selfieInEdit = base::none;
 	value->data.encryptedSecretInEdit.clear();
 	value->data.hashInEdit.clear();
@@ -770,8 +936,8 @@ bool FormController::editValueChanged(
 		not_null<const Value*> value,
 		const ValueMap &data) const {
 	auto filesCount = 0;
-	for (const auto &file : value->filesInEdit) {
-		if (editFileChanged(file)) {
+	for (const auto &scan : value->scansInEdit) {
+		if (editFileChanged(scan)) {
 			return true;
 		}
 	}
@@ -804,7 +970,7 @@ void FormController::saveValueEdit(
 	if (!editValueChanged(nonconst, data)) {
 		nonconst->saveRequestId = -1;
 		crl::on_main(this, [=] {
-			base::take(nonconst->filesInEdit);
+			base::take(nonconst->scansInEdit);
 			base::take(nonconst->selfieInEdit);
 			base::take(nonconst->data.encryptedSecretInEdit);
 			base::take(nonconst->data.hashInEdit);
@@ -848,12 +1014,12 @@ void FormController::saveEncryptedValue(not_null<Value*> value) {
 	};
 
 	auto inputFiles = QVector<MTPInputSecureFile>();
-	inputFiles.reserve(value->filesInEdit.size());
-	for (const auto &file : value->filesInEdit) {
-		if (file.deleted) {
+	inputFiles.reserve(value->scansInEdit.size());
+	for (const auto &scan : value->scansInEdit) {
+		if (scan.deleted) {
 			continue;
 		}
-		inputFiles.push_back(inputFile(file));
+		inputFiles.push_back(inputFile(scan));
 	}
 
 	if (value->data.secret.empty()) {
@@ -894,11 +1060,11 @@ void FormController::saveEncryptedValue(not_null<Value*> value) {
 		}
 		Unexpected("Value type in saveEncryptedValue().");
 	}();
-	const auto flags = ((value->filesInEdit.empty()
+	const auto flags = ((value->scansInEdit.empty()
 		&& value->data.parsedInEdit.fields.empty())
 			? MTPDinputSecureValue::Flag(0)
 			: MTPDinputSecureValue::Flag::f_data)
-		| (value->filesInEdit.empty()
+		| (value->scansInEdit.empty()
 			? MTPDinputSecureValue::Flag(0)
 			: MTPDinputSecureValue::Flag::f_files)
 		| ((value->selfieInEdit && !value->selfieInEdit->deleted)
@@ -954,27 +1120,15 @@ void FormController::sendSaveRequest(
 		data,
 		MTP_long(_secretId)
 	)).done([=](const MTPSecureValue &result) {
-		Expects(result.type() == mtpc_secureValue);
-
-		value->saveRequestId = 0;
-
-		const auto filesInEdit = base::take(value->filesInEdit);
-		auto selfiesInEdit = std::vector<EditFile>();
+		auto filesInEdit = base::take(value->scansInEdit);
 		if (auto selfie = base::take(value->selfieInEdit)) {
-			selfiesInEdit.push_back(std::move(*selfie));
+			filesInEdit.push_back(std::move(*selfie));
 		}
 
-		const auto &data = result.c_secureValue();
-		value->files = data.has_files()
-			? parseFiles(data.vfiles.v, filesInEdit)
-			: std::vector<File>();
-		value->selfie = data.has_selfie()
-			? parseFile(data.vselfie, selfiesInEdit)
-			: base::none;
-		value->data.encryptedSecret = std::move(
-			value->data.encryptedSecretInEdit);
-		value->data.parsed = std::move(value->data.parsedInEdit);
-		value->data.hash = std::move(value->data.hashInEdit);
+		const auto editScreens = value->editScreens;
+		*value = parseValue(result, filesInEdit);
+		decryptValue(*value);
+		value->editScreens = editScreens;
 
 		_valueSaveFinished.fire_copy(value);
 	}).fail([=](const RPCError &error) {
@@ -1167,12 +1321,15 @@ void FormController::generateSecret(bytes::const_span password) {
 }
 
 void FormController::requestForm() {
-	auto normalizedKey = _request.publicKey;
-	normalizedKey.replace("\r\n", "\n");
+	if (_request.payload.isEmpty()) {
+		_formRequestId = -1;
+		Ui::show(Box<InformBox>(lang(lng_passport_form_error)));
+		return;
+	}
 	_formRequestId = request(MTPaccount_GetAuthorizationForm(
 		MTP_int(_request.botId),
 		MTP_string(_request.scope),
-		MTP_bytes(normalizedKey.toUtf8())
+		MTP_string(_request.publicKey)
 	)).done([=](const MTPaccount_AuthorizationForm &result) {
 		_formRequestId = 0;
 		formDone(result);
@@ -1250,12 +1407,14 @@ void FormController::fillDownloadedFile(
 }
 
 auto FormController::parseValue(
-		const MTPSecureValue &value) const -> Value {
+		const MTPSecureValue &value,
+		const std::vector<EditFile> &editData) const -> Value {
 	Expects(value.type() == mtpc_secureValue);
 
 	const auto &data = value.c_secureValue();
 	const auto type = ConvertType(data.vtype);
 	auto result = Value(type);
+	result.submitHash = bytes::make_vector(data.vhash.v);
 	if (data.has_data()) {
 		Assert(data.vdata.type() == mtpc_secureData);
 		const auto &fields = data.vdata.c_secureData();
@@ -1264,10 +1423,10 @@ auto FormController::parseValue(
 		result.data.encryptedSecret = bytes::make_vector(fields.vsecret.v);
 	}
 	if (data.has_files()) {
-		result.files = parseFiles(data.vfiles.v);
+		result.scans = parseFiles(data.vfiles.v, editData);
 	}
 	if (data.has_selfie()) {
-		result.selfie = parseFile(data.vselfie);
+		result.selfie = parseFile(data.vselfie, editData);
 	}
 	if (data.has_plain_data()) {
 		switch (data.vplain_data.type()) {
@@ -1281,7 +1440,6 @@ auto FormController::parseValue(
 		} break;
 		}
 	}
-	// #TODO passport selfie
 	return result;
 }
 
@@ -1290,9 +1448,9 @@ auto FormController::findEditFile(const FullMsgId &fullId) -> EditFile* {
 		return (file.uploadData && file.uploadData->fullId == fullId);
 	};
 	for (auto &[type, value] : _form.values) {
-		for (auto &file : value.filesInEdit) {
-			if (found(file)) {
-				return &file;
+		for (auto &scan : value.scansInEdit) {
+			if (found(scan)) {
+				return &scan;
 			}
 		}
 		if (value.selfieInEdit && found(*value.selfieInEdit)) {
@@ -1307,9 +1465,9 @@ auto FormController::findEditFile(const FileKey &key) -> EditFile* {
 		return (file.fields.dcId == key.dcId && file.fields.id == key.id);
 	};
 	for (auto &[type, value] : _form.values) {
-		for (auto &file : value.filesInEdit) {
-			if (found(file)) {
-				return &file;
+		for (auto &scan : value.scansInEdit) {
+			if (found(scan)) {
+				return &scan;
 			}
 		}
 		if (value.selfieInEdit && found(*value.selfieInEdit)) {
@@ -1325,9 +1483,9 @@ auto FormController::findFile(const FileKey &key)
 		return (file.dcId == key.dcId) && (file.id == key.id);
 	};
 	for (auto &[type, value] : _form.values) {
-		for (auto &file : value.files) {
-			if (found(file)) {
-				return { &value, &file };
+		for (auto &scan : value.scans) {
+			if (found(scan)) {
+				return { &value, &scan };
 			}
 		}
 		if (value.selfie && found(*value.selfie)) {

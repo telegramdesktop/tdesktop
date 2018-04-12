@@ -37,6 +37,9 @@ public:
 	// data has exactly 256 chars to be decrypted
 	bytes::vector decrypt(bytes::const_span data) const;
 
+	// data has lequal than 215 chars to be decrypted
+	bytes::vector encryptOAEPpadding(bytes::const_span data) const;
+
 private:
 	class Private;
 	std::shared_ptr<Private> _private;

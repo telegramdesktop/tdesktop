@@ -22,11 +22,20 @@ struct Scope {
 
 	Type type;
 	not_null<const Value*> fields;
-	std::vector<not_null<const Value*>> files;
+	std::vector<not_null<const Value*>> documents;
 	bool selfieRequired = false;
 };
 
-std::vector<Scope> ComputeScopes(not_null<FormController*> controller);
+struct ScopeRow {
+	QString title;
+	QString description;
+	QString ready;
+};
+
+std::vector<Scope> ComputeScopes(
+	not_null<const FormController*> controller);
+QString ComputeScopeRowReadyString(const Scope &scope);
+ScopeRow ComputeScopeRow(const Scope &scope);
 
 class ViewController {
 public:

@@ -54,10 +54,10 @@ bytes::vector DecryptValueSecret(
 	bytes::const_span secret,
 	bytes::const_span valueHash);
 
-bytes::vector PrepareFilesHash(
-	gsl::span<bytes::const_span> fileHashes,
-	bytes::const_span valueSecret);
-
 uint64 CountSecureSecretHash(bytes::const_span secret);
+
+bytes::vector EncryptCredentialsSecret(
+	bytes::const_span secret,
+	bytes::const_span publicKey);
 
 } // namespace Passport

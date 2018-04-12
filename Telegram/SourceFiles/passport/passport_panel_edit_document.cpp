@@ -234,7 +234,7 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 
 	for (auto i = 0, count = int(_scheme.rows.size()); i != count; ++i) {
 		const auto &row = _scheme.rows[i];
-		auto fields = (row.type == Scheme::ValueType::Fields)
+		auto fields = (row.valueClass == Scheme::ValueClass::Fields)
 			? &data
 			: scanData;
 		if (!fields) {
@@ -289,7 +289,7 @@ PanelEditDocument::Result PanelEditDocument::collect() const {
 	auto result = Result();
 	for (const auto [i, field] : _details) {
 		const auto &row = _scheme.rows[i];
-		auto &fields = (row.type == Scheme::ValueType::Fields)
+		auto &fields = (row.valueClass == Scheme::ValueClass::Fields)
 			? result.data
 			: result.filesData;
 		fields.fields[row.key] = field->valueCurrent();

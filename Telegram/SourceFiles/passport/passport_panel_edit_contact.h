@@ -20,26 +20,28 @@ namespace Passport {
 
 class PanelController;
 
+struct EditContactScheme {
+	enum class ValueType {
+		Phone,
+		Text,
+	};
+	explicit EditContactScheme(ValueType type);
+
+	ValueType type;
+
+	QString aboutExisting;
+	QString newHeader;
+	base::lambda<QString()> newPlaceholder;
+	QString aboutNew;
+	base::lambda<bool(const QString &value)> validate;
+	base::lambda<QString(const QString &value)> format;
+	base::lambda<QString(const QString &value)> postprocess;
+
+};
+
 class PanelEditContact : public Ui::RpWidget {
 public:
-	struct Scheme {
-		enum class ValueType {
-			Phone,
-			Text,
-		};
-		explicit Scheme(ValueType type);
-
-		ValueType type;
-
-		QString aboutExisting;
-		QString newHeader;
-		base::lambda<QString()> newPlaceholder;
-		QString aboutNew;
-		base::lambda<bool(const QString &value)> validate;
-		base::lambda<QString(const QString &value)> format;
-		base::lambda<QString(const QString &value)> postprocess;
-
-	};
+	using Scheme = EditContactScheme;
 
 	PanelEditContact(
 		QWidget *parent,

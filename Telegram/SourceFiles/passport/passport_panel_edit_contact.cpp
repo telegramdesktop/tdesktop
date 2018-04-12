@@ -159,7 +159,7 @@ void VerifyBox::prepare() {
 
 } // namespace
 
-PanelEditContact::Scheme::Scheme(ValueType type) : type(type) {
+EditContactScheme::EditContactScheme(ValueType type) : type(type) {
 }
 
 PanelEditContact::PanelEditContact(

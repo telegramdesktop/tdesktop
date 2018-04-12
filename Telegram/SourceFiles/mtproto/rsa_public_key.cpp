@@ -164,6 +164,29 @@ public:
 		}
 		return result;
 	}
+	bytes::vector encryptOAEPpadding(bytes::const_span data) const {
+		Expects(isValid());
+
+		const auto resultSize = RSA_size(_rsa);
+		auto result = bytes::vector(resultSize, gsl::byte{});
+		const auto encryptedSize = RSA_public_encrypt(
+			data.size(),
+			reinterpret_cast<const unsigned char*>(data.data()),
+			reinterpret_cast<unsigned char*>(result.data()),
+			_rsa,
+			RSA_PKCS1_OAEP_PADDING);
+		if (encryptedSize != resultSize) {
+			ERR_load_crypto_strings();
+			LOG(("RSA Error: RSA_public_encrypt failed, "
+				"key fp: %1, result: %2, error: %3"
+				).arg(getFingerPrint()
+				).arg(encryptedSize
+				).arg(ERR_error_string(ERR_get_error(), 0)
+				));
+			return {};
+		}
+		return result;
+	}
 	~Private() {
 		RSA_free(_rsa);
 	}
@@ -234,6 +257,11 @@ bytes::vector RSAPublicKey::decrypt(bytes::const_span data) const {
 	Expects(isValid());
 
 	return _private->decrypt(data);
+}
+
+bytes::vector RSAPublicKey::encryptOAEPpadding(
+		bytes::const_span data) const {
+	return _private->encryptOAEPpadding(data);
 }
 
 } // namespace internal

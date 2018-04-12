@@ -26,26 +26,28 @@ class EditScans;
 class PanelDetailsRow;
 enum class PanelDetailsType;
 
+struct EditDocumentScheme {
+	enum class ValueClass {
+		Fields,
+		Scans,
+	};
+	struct Row {
+		ValueClass valueClass = ValueClass::Fields;
+		PanelDetailsType inputType = PanelDetailsType();
+		QString key;
+		QString label;
+		base::lambda<bool(const QString &value)> validate;
+		base::lambda<QString(const QString &value)> format;
+	};
+	std::vector<Row> rows;
+	QString rowsHeader;
+	QString scansHeader;
+
+};
+
 class PanelEditDocument : public Ui::RpWidget {
 public:
-	struct Scheme {
-		enum class ValueType {
-			Fields,
-			Scans,
-		};
-		struct Row {
-			ValueType type = ValueType::Fields;
-			PanelDetailsType inputType = PanelDetailsType();
-			QString key;
-			QString label;
-			base::lambda<bool(const QString &value)> validate;
-			base::lambda<QString(const QString &value)> format;
-		};
-		std::vector<Row> rows;
-		QString rowsHeader;
-		QString scansHeader;
-
-	};
+	using Scheme = EditDocumentScheme;
 
 	PanelEditDocument(
 		QWidget *parent,

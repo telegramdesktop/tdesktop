@@ -841,13 +841,15 @@ bool Messenger::openLocalUrl(const QString &url) {
 			const auto scope = params.value("scope", QString());
 			const auto callback = params.value("callback_url", QString());
 			const auto publicKey = params.value("public_key", QString());
+			const auto payload = params.value("payload", QString());
 			if (const auto window = App::wnd()) {
 				if (const auto controller = window->controller()) {
 					controller->showPassportForm(Passport::FormRequest(
 						botId,
 						scope,
 						callback,
-						publicKey));
+						publicKey,
+						payload));
 					return true;
 				}
 			}

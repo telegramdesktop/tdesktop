@@ -145,6 +145,10 @@ PanelForm::PanelForm(
 void PanelForm::setupControls() {
 	const auto inner = setupContent();
 
+	_submit->addClickHandler([=] {
+		_controller->submitForm();
+	});
+
 	using namespace rpl::mappers;
 
 	_topShadow->toggleOn(

@@ -31,12 +31,14 @@ struct FormRequest {
 		UserId botId,
 		const QString &scope,
 		const QString &callbackUrl,
-		const QString &publicKey);
+		const QString &publicKey,
+		const QString &payload);
 
 	UserId botId;
 	QString scope;
 	QString callbackUrl;
 	QString publicKey;
+	QString payload;
 
 };
 
@@ -142,11 +144,12 @@ struct Value {
 
 	Type type;
 	ValueData data;
-	std::vector<File> files;
-	std::vector<EditFile> filesInEdit;
+	std::vector<File> scans;
+	std::vector<EditFile> scansInEdit;
 	base::optional<File> selfie;
 	base::optional<EditFile> selfieInEdit;
 	Verification verification;
+	bytes::vector submitHash;
 
 	int editScreens = 0;
 	mtpRequestId saveRequestId = 0;
@@ -204,7 +207,7 @@ public:
 	void show();
 	UserData *bot() const;
 	QString privacyPolicyUrl() const;
-
+	void submit();
 	void submitPassword(const QString &password);
 	rpl::producer<QString> passwordError() const;
 	QString passwordHint() const;
@@ -223,6 +226,7 @@ public:
 
 	rpl::producer<not_null<const EditFile*>> scanUpdated() const;
 	rpl::producer<not_null<const Value*>> valueSaveFinished() const;
+	rpl::producer<not_null<const Value*>> valueError() const;
 	rpl::producer<not_null<const Value*>> verificationNeeded() const;
 	rpl::producer<not_null<const Value*>> verificationUpdate() const;
 	void verify(not_null<const Value*> value, const QString &code);
@@ -244,6 +248,10 @@ public:
 	~FormController();
 
 private:
+	struct FinalData {
+		QVector<MTPSecureValueHash> hashes;
+		QByteArray credentials;
+	};
 	EditFile *findEditFile(const FullMsgId &fullId);
 	EditFile *findEditFile(const FileKey &key);
 	std::pair<Value*, File*> findFile(const FileKey &key);
@@ -256,13 +264,15 @@ private:
 	void formFail(const RPCError &error);
 	void parseForm(const MTPaccount_AuthorizationForm &result);
 	void showForm();
-	Value parseValue(const MTPSecureValue &value) const;
+	Value parseValue(
+		const MTPSecureValue &value,
+		const std::vector<EditFile> &editData = {}) const;
 	std::vector<File> parseFiles(
 		const QVector<MTPSecureFile> &data,
-		const std::vector<EditFile> &editData = {}) const;
+		const std::vector<EditFile> &editData) const;
 	base::optional<File> parseFile(
 		const MTPSecureFile &data,
-		const std::vector<EditFile> &editData = {}) const;
+		const std::vector<EditFile> &editData) const;
 	void fillDownloadedFile(
 		File &destination,
 		const std::vector<EditFile> &source) const;
@@ -330,6 +340,7 @@ private:
 	void sendSaveRequest(
 		not_null<Value*> value,
 		const MTPInputSecureValue &data);
+	FinalData prepareFinalData() const;
 
 	not_null<Window::Controller*> _controller;
 	FormRequest _request;
@@ -346,6 +357,7 @@ private:
 
 	rpl::event_stream<not_null<const EditFile*>> _scanUpdated;
 	rpl::event_stream<not_null<const Value*>> _valueSaveFinished;
+	rpl::event_stream<not_null<const Value*>> _valueError;
 	rpl::event_stream<not_null<const Value*>> _verificationNeeded;
 	rpl::event_stream<not_null<const Value*>> _verificationUpdate;
 
@@ -355,6 +367,7 @@ private:
 	mtpRequestId _saveSecretRequestId = 0;
 	rpl::event_stream<> _secretReady;
 	rpl::event_stream<QString> _passwordError;
+	mtpRequestId _submitRequestId = 0;
 
 	rpl::lifetime _uploaderSubscriptions;
 	rpl::lifetime _lifetime;

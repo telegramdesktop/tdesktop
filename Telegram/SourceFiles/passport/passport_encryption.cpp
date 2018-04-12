@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_encryption.h"
 
 #include "base/openssl_help.h"
+#include "mtproto/rsa_public_key.h"
 
 namespace Passport {
 namespace {
@@ -314,14 +315,6 @@ bytes::vector PrepareValueHash(
 	return openssl::Sha256(bytes::concatenate(dataHash, valueSecret));
 }
 
-bytes::vector PrepareFilesHash(
-		gsl::span<bytes::const_span> fileHashes,
-		bytes::const_span valueSecret) {
-	return openssl::Sha256(bytes::concatenate(
-		bytes::concatenate(fileHashes),
-		valueSecret));
-}
-
 bytes::vector EncryptValueSecret(
 		bytes::const_span valueSecret,
 		bytes::const_span secret,
@@ -348,6 +341,13 @@ uint64 CountSecureSecretHash(bytes::const_span secret) {
 		full.size() - sizeof(uint64),
 		sizeof(uint64));
 	return *reinterpret_cast<const uint64*>(part.data());
+}
+
+bytes::vector EncryptCredentialsSecret(
+		bytes::const_span secret,
+		bytes::const_span publicKey) {
+	const auto key = MTP::internal::RSAPublicKey(publicKey);
+	return key.encryptOAEPpadding(secret);
 }
 
 } // namespace Passport
