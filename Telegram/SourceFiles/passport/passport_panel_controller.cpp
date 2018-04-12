@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_panel_edit_scans.h"
 #include "passport/passport_panel.h"
 #include "boxes/confirm_box.h"
+#include "ui/countryinput.h"
 #include "layout.h"
 
 namespace Passport {
@@ -24,6 +25,19 @@ PanelEditDocument::Scheme GetDocumentScheme(
 		base::optional<Value::Type> scansType = base::none) {
 	using Scheme = PanelEditDocument::Scheme;
 
+	const auto DontFormat = nullptr;
+	const auto CountryFormat = [](const QString &value) {
+		const auto result = CountrySelectBox::NameByISO(value);
+		return result.isEmpty() ? value : result;
+	};
+	const auto GenderFormat = [](const QString &value) {
+		if (value == qstr("male")) {
+			return lang(lng_passport_gender_male);
+		} else if (value == qstr("female")) {
+			return lang(lng_passport_gender_female);
+		}
+		return value;
+	};
 	const auto DontValidate = nullptr;
 	const auto NotEmptyValidate = [](const QString &value) {
 		return !value.isEmpty();
@@ -39,8 +53,8 @@ PanelEditDocument::Scheme GetDocumentScheme(
 	const auto GenderValidate = [](const QString &value) {
 		return value == qstr("male") || value == qstr("female");
 	};
-	const auto CountryValidate = [](const QString &value) {
-		return QRegularExpression("^[A-Z]{2}$").match(value).hasMatch();
+	const auto CountryValidate = [=](const QString &value) {
+		return !CountryFormat(value).isEmpty();
 	};
 
 	switch (type) {
@@ -68,14 +82,16 @@ PanelEditDocument::Scheme GetDocumentScheme(
 				PanelDetailsType::Text,
 				qsl("first_name"),
 				lang(lng_passport_first_name),
-				NotEmptyValidate
+				NotEmptyValidate,
+				DontFormat,
 			},
 			{
 				Scheme::ValueType::Fields,
 				PanelDetailsType::Text,
 				qsl("last_name"),
 				lang(lng_passport_last_name),
-				DontValidate
+				DontValidate,
+				DontFormat,
 			},
 			{
 				Scheme::ValueType::Fields,
@@ -83,6 +99,7 @@ PanelEditDocument::Scheme GetDocumentScheme(
 				qsl("birth_date"),
 				lang(lng_passport_birth_date),
 				DateValidate,
+				DontFormat,
 			},
 			{
 				Scheme::ValueType::Fields,
@@ -90,6 +107,7 @@ PanelEditDocument::Scheme GetDocumentScheme(
 				qsl("gender"),
 				lang(lng_passport_gender),
 				GenderValidate,
+				GenderFormat,
 			},
 			{
 				Scheme::ValueType::Fields,
@@ -97,6 +115,7 @@ PanelEditDocument::Scheme GetDocumentScheme(
 				qsl("country_code"),
 				lang(lng_passport_country),
 				CountryValidate,
+				CountryFormat,
 			},
 			{
 				Scheme::ValueType::Scans,
@@ -104,6 +123,7 @@ PanelEditDocument::Scheme GetDocumentScheme(
 				qsl("document_no"),
 				lang(lng_passport_document_number),
 				NotEmptyValidate,
+				DontFormat,
 			},
 			{
 				Scheme::ValueType::Scans,
@@ -111,6 +131,7 @@ PanelEditDocument::Scheme GetDocumentScheme(
 				qsl("expiry_date"),
 				lang(lng_passport_expiry_date),
 				DateOrEmptyValidate,
+				DontFormat,
 			},
 		};
 		return result;
@@ -131,7 +152,7 @@ PanelEditDocument::Scheme GetDocumentScheme(
 				result.scansHeader = lang(lng_passport_address_agreement);
 				break;
 			default:
-				Unexpected("scansType in GetDocumentScheme:Identity.");
+				Unexpected("scansType in GetDocumentScheme:Address.");
 			}
 		}
 		result.rows = {
@@ -140,42 +161,48 @@ PanelEditDocument::Scheme GetDocumentScheme(
 				PanelDetailsType::Text,
 				qsl("street_line1"),
 				lang(lng_passport_street),
-				NotEmptyValidate
+				NotEmptyValidate,
+				DontFormat,
 			},
 			{
 				Scheme::ValueType::Fields,
 				PanelDetailsType::Text,
 				qsl("street_line2"),
 				lang(lng_passport_street),
-				DontValidate
+				DontValidate,
+				DontFormat,
 			},
 			{
 				Scheme::ValueType::Fields,
 				PanelDetailsType::Text,
 				qsl("city"),
 				lang(lng_passport_city),
-				NotEmptyValidate
+				NotEmptyValidate,
+				DontFormat,
 			},
 			{
 				Scheme::ValueType::Fields,
 				PanelDetailsType::Text,
 				qsl("state"),
 				lang(lng_passport_state),
-				DontValidate
+				DontValidate,
+				DontFormat,
 			},
 			{
 				Scheme::ValueType::Fields,
 				PanelDetailsType::Country,
 				qsl("country_code"),
 				lang(lng_passport_country),
-				CountryValidate
+				CountryValidate,
+				CountryFormat,
 			},
 			{
 				Scheme::ValueType::Fields,
 				PanelDetailsType::Text,
 				qsl("post_code"),
 				lang(lng_passport_postcode),
-				NotEmptyValidate
+				NotEmptyValidate,
+				DontFormat,
 			},
 		};
 		return result;
@@ -197,7 +224,7 @@ PanelEditContact::Scheme GetContactScheme(Scope::Type type) {
 				"^\\d{2,12}$"
 			).match(value).hasMatch();
 		};
-		result.preprocess = [](const QString &value) {
+		result.format = [](const QString &value) {
 			return App::formatPhone(value);
 		};
 		result.postprocess = [](QString value) {
@@ -217,7 +244,7 @@ PanelEditContact::Scheme GetContactScheme(Scope::Type type) {
 			const auto dot = value.lastIndexOf('.');
 			return (at > 0) && (dot > at);
 		};
-		result.preprocess = result.postprocess = [](const QString &value) {
+		result.format = result.postprocess = [](const QString &value) {
 			return value.trimmed();
 		};
 		return result;
@@ -296,6 +323,158 @@ QString PanelController::privacyPolicyUrl() const {
 	return _form->privacyPolicyUrl();
 }
 
+auto PanelController::collectRowInfo(const Scope &scope) const -> Row {
+	switch (scope.type) {
+	case Scope::Type::Identity:
+		if (scope.files.empty()) {
+			return {
+				lang(lng_passport_personal_details),
+				lang(lng_passport_personal_details_enter)
+			};
+		} else if (scope.files.size() == 1) {
+			switch (scope.files.front()->type) {
+			case Value::Type::Passport:
+				return {
+					lang(lng_passport_identity_passport),
+					lang(lng_passport_identity_passport_upload)
+				};
+			case Value::Type::IdentityCard:
+				return {
+					lang(lng_passport_identity_card),
+					lang(lng_passport_identity_card_upload)
+				};
+			case Value::Type::DriverLicense:
+				return {
+					lang(lng_passport_identity_license),
+					lang(lng_passport_identity_license_upload)
+				};
+			default: Unexpected("Identity type in collectRowInfo.");
+			}
+		}
+		return {
+			lang(lng_passport_identity_title),
+			lang(lng_passport_identity_description)
+		};
+	case Scope::Type::Address:
+		if (scope.files.empty()) {
+			return {
+				lang(lng_passport_address),
+				lang(lng_passport_address_enter)
+			};
+		} else if (scope.files.size() == 1) {
+			switch (scope.files.front()->type) {
+			case Value::Type::BankStatement:
+				return {
+					lang(lng_passport_address_statement),
+					lang(lng_passport_address_statement_upload)
+				};
+			case Value::Type::UtilityBill:
+				return {
+					lang(lng_passport_address_bill),
+					lang(lng_passport_address_bill_upload)
+				};
+			case Value::Type::RentalAgreement:
+				return {
+					lang(lng_passport_address_agreement),
+					lang(lng_passport_address_agreement_upload)
+				};
+			default: Unexpected("Address type in collectRowInfo.");
+			}
+		}
+		return {
+			lang(lng_passport_address_title),
+			lang(lng_passport_address_description)
+		};
+	case Scope::Type::Phone:
+		return {
+			lang(lng_passport_phone_title),
+			lang(lng_passport_phone_description)
+		};
+	case Scope::Type::Email:
+		return {
+			lang(lng_passport_email_title),
+			lang(lng_passport_email_description)
+		};
+	default: Unexpected("Scope type in collectRowInfo.");
+	}
+}
+
+QString PanelController::collectRowReadyString(const Scope &scope) const {
+	switch (scope.type) {
+	case Scope::Type::Identity:
+	case Scope::Type::Address: {
+		auto list = QStringList();
+		const auto &fields = scope.fields->data.parsed.fields;
+		const auto files = [&]() -> const Value* {
+			for (const auto &files : scope.files) {
+				if (!files->files.empty()) {
+					return files;
+				}
+			}
+			return nullptr;
+		}();
+		if (files && scope.files.size() > 1) {
+			list.push_back([&] {
+				switch (files->type) {
+				case Value::Type::Passport:
+					return lang(lng_passport_identity_passport);
+				case Value::Type::DriverLicense:
+					return lang(lng_passport_identity_license);
+				case Value::Type::IdentityCard:
+					return lang(lng_passport_identity_card);
+				case Value::Type::BankStatement:
+					return lang(lng_passport_address_statement);
+				case Value::Type::UtilityBill:
+					return lang(lng_passport_address_bill);
+				case Value::Type::RentalAgreement:
+					return lang(lng_passport_address_agreement);
+				default: Unexpected("Files type in collectRowReadyString.");
+				}
+			}());
+		}
+		if (files
+			&& (files->files.empty()
+				|| (scope.selfieRequired && !files->selfie))) {
+			return QString();
+		}
+		const auto scheme = GetDocumentScheme(scope.type);
+		for (const auto &row : scheme.rows) {
+			const auto format = row.format;
+			if (row.type == PanelEditDocument::Scheme::ValueType::Fields) {
+				const auto i = fields.find(row.key);
+				if (i == end(fields)) {
+					return QString();
+				} else if (row.validate && !row.validate(i->second)) {
+					return QString();
+				}
+				list.push_back(format ? format(i->second) : i->second);
+			} else if (!files) {
+				return QString();
+			} else {
+				const auto i = files->data.parsed.fields.find(row.key);
+				if (i == end(files->data.parsed.fields)) {
+					return QString();
+				} else if (row.validate && !row.validate(i->second)) {
+					return QString();
+				}
+				list.push_back(i->second);
+			}
+		}
+		return list.join(", ");
+	} break;
+	case Scope::Type::Phone:
+	case Scope::Type::Email: {
+		const auto format = GetContactScheme(scope.type).format;
+		const auto &fields = scope.fields->data.parsed.fields;
+		const auto i = fields.find("value");
+		return (i != end(fields))
+			? (format ? format(i->second) : i->second)
+			: QString();
+	} break;
+	}
+	Unexpected("Scope type in collectRowReadyString.");
+}
+
 void PanelController::fillRows(
 	base::lambda<void(
 		QString title,
@@ -305,32 +484,12 @@ void PanelController::fillRows(
 		_scopes = ComputeScopes(_form);
 	}
 	for (const auto &scope : _scopes) {
-		switch (scope.type) {
-		case Scope::Type::Identity:
-			callback(
-				lang(lng_passport_identity_title),
-				lang(lng_passport_identity_description),
-				false);
-			break;
-		case Scope::Type::Address:
-			callback(
-				lang(lng_passport_address_title),
-				lang(lng_passport_address_description),
-				false);
-			break;
-		case Scope::Type::Phone:
-			callback(
-				lang(lng_passport_phone_title),
-				lang(lng_passport_phone_description),
-				false);
-			break;
-		case Scope::Type::Email:
-			callback(
-				lang(lng_passport_email_title),
-				lang(lng_passport_email_description),
-				false);
-			break;
-		}
+		const auto row = collectRowInfo(scope);
+		const auto ready = collectRowReadyString(scope);
+		callback(
+			row.title,
+			ready.isEmpty() ? row.description : ready,
+			!ready.isEmpty());
 	}
 }
 
@@ -427,6 +586,9 @@ rpl::producer<ScanInfo> PanelController::scanUpdated() const {
 }
 
 ScanInfo PanelController::collectScanInfo(const EditFile &file) const {
+	Expects(_editScope != nullptr);
+	Expects(_editScopeFilesIndex >= 0);
+
 	const auto status = [&] {
 		if (file.fields.accessHash) {
 			if (file.fields.downloadOffset < 0) {
@@ -456,11 +618,10 @@ ScanInfo PanelController::collectScanInfo(const EditFile &file) const {
 			return formatDownloadText(0, file.fields.size);
 		}
 	}();
-	auto isSelfie = (_editScope != nullptr)
-		&& (_editScopeFilesIndex >= 0)
-		&& (file.value == _editScope->files[_editScopeFilesIndex])
-		&& (_editScope->files[_editScopeFilesIndex]->selfieInEdit.has_value())
-		&& (&file == &*_editScope->files[_editScopeFilesIndex]->selfieInEdit);
+	const auto &files = _editScope->files;
+	auto isSelfie = (file.value == files[_editScopeFilesIndex])
+		&& (files[_editScopeFilesIndex]->selfieInEdit.has_value())
+		&& (&file == &*files[_editScopeFilesIndex]->selfieInEdit);
 	return {
 		FileKey{ file.fields.id, file.fields.dcId },
 		status,
@@ -508,13 +669,6 @@ int PanelController::findNonEmptyIndex(
 	if (i != end(files)) {
 		return (i - begin(files));
 	}
-	// Only an uploaded scan counts as non-empty value.
-	//const auto j = ranges::find_if(files, [](not_null<const Value*> file) {
-	//	return !file->data.parsed.fields.empty();
-	//});
-	//if (j != end(files)) {
-	//	return (j - begin(files));
-	//}
 	return -1;
 }
 
@@ -523,17 +677,17 @@ void PanelController::editScope(int index) {
 	Expects(_panel != nullptr);
 	Expects(index >= 0 && index < _scopes.size());
 
-	if (_scopes[index].files.size() > 1) {
+	if (_scopes[index].files.empty()) {
+		editScope(index, -1);
+	} else {
 		const auto filesIndex = findNonEmptyIndex(_scopes[index].files);
 		if (filesIndex >= 0) {
 			editScope(index, filesIndex);
-		} else {
+		} else if (_scopes[index].files.size() > 1) {
 			requestScopeFilesType(index);
+		} else {
+			editWithUpload(index, 0);
 		}
-	} else if (_scopes[index].files.empty()) {
-		editScope(index, -1);
-	} else {
-		editWithUpload(index, 0);
 	}
 }
 
@@ -623,18 +777,19 @@ void PanelController::editScope(int index, int filesIndex) {
 		switch (_editScope->type) {
 		case Scope::Type::Identity:
 		case Scope::Type::Address: {
+			const auto &files = _editScope->files;
 			auto result = (_editScopeFilesIndex >= 0)
 				? object_ptr<PanelEditDocument>(
 					_panel.get(),
 					this,
 					GetDocumentScheme(
 						_editScope->type,
-						_editScope->files[_editScopeFilesIndex]->type),
+						files[_editScopeFilesIndex]->type),
 					_editScope->fields->data.parsedInEdit,
-					_editScope->files[_editScopeFilesIndex]->data.parsedInEdit,
-					valueFiles(*_editScope->files[_editScopeFilesIndex]),
+					files[_editScopeFilesIndex]->data.parsedInEdit,
+					valueFiles(*files[_editScopeFilesIndex]),
 					(_editScope->selfieRequired
-						? valueSelfie(*_editScope->files[_editScopeFilesIndex])
+						? valueSelfie(*files[_editScopeFilesIndex])
 						: nullptr))
 				: object_ptr<PanelEditDocument>(
 					_panel.get(),

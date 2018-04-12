@@ -64,7 +64,7 @@ RequestTypeBox::RequestTypeBox(
 
 void RequestTypeBox::prepare() {
 	setTitle([=] { return _title; });
-	addButton(langFactory(lng_passport_upload_document), [=] { _submit(); });
+	addButton(langFactory(lng_passport_upload_document), _submit);
 	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 	setDimensions(st::boxWidth, _height);
 }

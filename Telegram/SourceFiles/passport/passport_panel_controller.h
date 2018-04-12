@@ -87,6 +87,10 @@ public:
 	rpl::lifetime &lifetime();
 
 private:
+	struct Row {
+		QString title;
+		QString description;
+	};
 	void ensurePanelCreated();
 
 	void editScope(int index, int filesIndex);
@@ -100,6 +104,8 @@ private:
 	void processValueSaveFinished(not_null<const Value*> value);
 	void processVerificationNeeded(not_null<const Value*> value);
 
+	Row collectRowInfo(const Scope &scope) const;
+	QString collectRowReadyString(const Scope &scope) const;
 	ScanInfo collectScanInfo(const EditFile &file) const;
 	QString getDefaultContactValue(Scope::Type type) const;
 

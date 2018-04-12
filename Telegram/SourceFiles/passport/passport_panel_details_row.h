@@ -40,7 +40,8 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	object_ptr<BoxContentDivider> _background = object_ptr<BoxContentDivider>(this);
+	object_ptr<BoxContentDivider> _background
+		= object_ptr<BoxContentDivider>(this);
 
 };
 

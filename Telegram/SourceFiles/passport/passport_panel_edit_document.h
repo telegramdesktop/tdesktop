@@ -39,6 +39,7 @@ public:
 			QString key;
 			QString label;
 			base::lambda<bool(const QString &value)> validate;
+			base::lambda<QString(const QString &value)> format;
 		};
 		std::vector<Row> rows;
 		QString rowsHeader;

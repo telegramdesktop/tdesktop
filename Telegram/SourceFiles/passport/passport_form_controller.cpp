@@ -543,7 +543,9 @@ void FormController::verify(
 			}).fail([=](const RPCError &error) {
 				nonconst->verification.requestId = 0;
 				if (error.type() == qstr("PHONE_CODE_INVALID")) {
-					verificationError(nonconst, lang(lng_signin_wrong_code));
+					verificationError(
+						nonconst,
+						lang(lng_signin_wrong_code));
 				} else {
 					verificationError(nonconst, error.type());
 				}
@@ -558,7 +560,9 @@ void FormController::verify(
 			}).fail([=](const RPCError &error) {
 				nonconst->verification.requestId = 0;
 				if (error.type() == qstr("CODE_INVALID")) {
-					verificationError(nonconst, lang(lng_signin_wrong_code));
+					verificationError(
+						nonconst,
+						lang(lng_signin_wrong_code));
 				} else {
 					verificationError(nonconst, error.type());
 				}
@@ -864,7 +868,8 @@ void FormController::saveEncryptedValue(not_null<Value*> value) {
 		_secret,
 		value->data.hashInEdit);
 
-	const auto selfie = value->selfieInEdit
+	const auto selfie = (value->selfieInEdit
+		&& !value->selfieInEdit->deleted)
 		? inputFile(*value->selfieInEdit)
 		: MTPInputSecureFile();
 
@@ -896,7 +901,7 @@ void FormController::saveEncryptedValue(not_null<Value*> value) {
 		| (value->filesInEdit.empty()
 			? MTPDinputSecureValue::Flag(0)
 			: MTPDinputSecureValue::Flag::f_files)
-		| (value->selfieInEdit
+		| ((value->selfieInEdit && !value->selfieInEdit->deleted)
 			? MTPDinputSecureValue::Flag::f_selfie
 			: MTPDinputSecureValue::Flag(0));
 	Assert(flags != MTPDinputSecureValue::Flags(0));
@@ -953,16 +958,16 @@ void FormController::sendSaveRequest(
 
 		value->saveRequestId = 0;
 
-		const auto &data = result.c_secureValue();
-		value->files = data.has_files()
-			? parseFiles(
-				data.vfiles.v,
-				base::take(value->filesInEdit))
-			: std::vector<File>();
+		const auto filesInEdit = base::take(value->filesInEdit);
 		auto selfiesInEdit = std::vector<EditFile>();
 		if (auto selfie = base::take(value->selfieInEdit)) {
 			selfiesInEdit.push_back(std::move(*selfie));
 		}
+
+		const auto &data = result.c_secureValue();
+		value->files = data.has_files()
+			? parseFiles(data.vfiles.v, filesInEdit)
+			: std::vector<File>();
 		value->selfie = data.has_selfie()
 			? parseFile(data.vselfie, selfiesInEdit)
 			: base::none;

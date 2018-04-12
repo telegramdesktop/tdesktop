@@ -94,6 +94,7 @@ RoundButton {
 	textTop: pixels;
 
 	icon: icon;
+	iconPosition: point;
 
 	font: font;
 
@@ -583,6 +584,8 @@ defaultActiveButton: RoundButton {
 	padding: margins(0px, 0px, 0px, 0px);
 
 	textTop: 8px;
+
+	iconPosition: point(0px, 0px);
 
 	font: semiboldFont;
 

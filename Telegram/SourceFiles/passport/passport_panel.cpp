@@ -295,7 +295,7 @@ void Panel::focusInEvent(QFocusEvent *e) {
 }
 
 void Panel::initGeometry() {
-	auto center = Messenger::Instance().getPointForCallPanelCenter();
+	const auto center = Messenger::Instance().getPointForCallPanelCenter();
 	_useTransparency = Platform::TranslucentWindowsSupported(center);
 	setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
 	_padding = _useTransparency
@@ -305,9 +305,14 @@ void Panel::initGeometry() {
 			st::lineWidth,
 			st::lineWidth,
 			st::lineWidth);
-	auto screen = QApplication::desktop()->screenGeometry(center);
-	auto rect = QRect(0, 0, st::passportPanelWidth, st::passportPanelHeight);
-	setGeometry(rect.translated(center - rect.center()).marginsAdded(_padding));
+	const auto screen = QApplication::desktop()->screenGeometry(center);
+	const auto rect = QRect(
+		0,
+		0,
+		st::passportPanelWidth,
+		st::passportPanelHeight);
+	setGeometry(
+		rect.translated(center - rect.center()).marginsAdded(_padding));
 	updateControlsGeometry();
 }
 
@@ -368,34 +373,110 @@ void Panel::paintShadowBorder(Painter &p) const {
 	const auto part1 = size / 3;
 	const auto part2 = size - part1;
 	const auto corner = QSize(part1, part1) * factor;
+
 	const auto topleft = QRect(QPoint(0, 0), corner);
 	p.drawPixmap(QRect(0, 0, part1, part1), _borderParts, topleft);
-	const auto topright = QRect(QPoint(part2, 0) * factor, corner);
-	p.drawPixmap(QRect(width() - part1, 0, part1, part1), _borderParts, topright);
-	const auto bottomleft = QRect(QPoint(0, part2) * factor, corner);
-	p.drawPixmap(QRect(0, height() - part1, part1, part1), _borderParts, bottomleft);
-	const auto bottomright = QRect(QPoint(part2, part2) * factor, corner);
-	p.drawPixmap(QRect(width() - part1, height() - part1, part1, part1), _borderParts, bottomright);
-	const auto left = QRect(QPoint(0, part1) * factor, QSize(_padding.left(), part2 - part1) * factor);
-	p.drawPixmap(QRect(0, part1, _padding.left(), height() - 2 * part1), _borderParts, left);
-	const auto top = QRect(QPoint(part1, 0) * factor, QSize(part2 - part1, _padding.top() + st::callRadius) * factor);
-	p.drawPixmap(QRect(part1, 0, width() - 2 * part1, _padding.top() + st::callRadius), _borderParts, top);
-	const auto right = QRect(QPoint(size - _padding.right(), part1) * factor, QSize(_padding.right(), part2 - part1) * factor);
-	p.drawPixmap(QRect(width() - _padding.right(), part1, _padding.right(), height() - 2 * part1), _borderParts, right);
-	const auto bottom = QRect(QPoint(part1, size - _padding.bottom() - st::callRadius) * factor, QSize(part2 - part1, _padding.bottom() + st::callRadius) * factor);
-	p.drawPixmap(QRect(part1, height() - _padding.bottom() - st::callRadius, width() - 2 * part1, _padding.bottom() + st::callRadius), _borderParts, bottom);
 
-	p.fillRect(_padding.left(), _padding.top() + st::callRadius, width() - _padding.left() - _padding.right(), height() - _padding.top() - _padding.bottom() - 2 * st::callRadius, st::windowBg);
+	const auto topright = QRect(QPoint(part2, 0) * factor, corner);
+	p.drawPixmap(
+		QRect(width() - part1, 0, part1, part1),
+		_borderParts,
+		topright);
+
+	const auto bottomleft = QRect(QPoint(0, part2) * factor, corner);
+	p.drawPixmap(
+		QRect(0, height() - part1, part1, part1),
+		_borderParts,
+		bottomleft);
+
+	const auto bottomright = QRect(QPoint(part2, part2) * factor, corner);
+	p.drawPixmap(
+		QRect(width() - part1, height() - part1, part1, part1),
+		_borderParts,
+		bottomright);
+
+	const auto left = QRect(
+		QPoint(0, part1) * factor,
+		QSize(_padding.left(), part2 - part1) * factor);
+	p.drawPixmap(
+		QRect(0, part1, _padding.left(), height() - 2 * part1),
+		_borderParts,
+		left);
+
+	const auto top = QRect(
+		QPoint(part1, 0) * factor,
+		QSize(part2 - part1, _padding.top() + st::callRadius) * factor);
+	p.drawPixmap(
+		QRect(
+			part1,
+			0,
+			width() - 2 * part1,
+			_padding.top() + st::callRadius),
+		_borderParts,
+		top);
+
+	const auto right = QRect(
+		QPoint(size - _padding.right(), part1) * factor,
+		QSize(_padding.right(), part2 - part1) * factor);
+	p.drawPixmap(
+		QRect(
+			width() - _padding.right(),
+			part1,
+			_padding.right(),
+			height() - 2 * part1),
+		_borderParts,
+		right);
+
+	const auto bottom = QRect(
+		QPoint(part1, size - _padding.bottom() - st::callRadius) * factor,
+		QSize(part2 - part1, _padding.bottom() + st::callRadius) * factor);
+	p.drawPixmap(
+		QRect(
+			part1,
+			height() - _padding.bottom() - st::callRadius,
+			width() - 2 * part1,
+			_padding.bottom() + st::callRadius),
+		_borderParts,
+		bottom);
+
+	p.fillRect(
+		_padding.left(),
+		_padding.top() + st::callRadius,
+		width() - _padding.left() - _padding.right(),
+		height() - _padding.top() - _padding.bottom() - 2 * st::callRadius,
+		st::windowBg);
 }
 
 void Panel::paintOpaqueBorder(Painter &p) const {
 	const auto border = st::windowShadowFgFallback;
 	p.fillRect(0, 0, width(), _padding.top(), border);
-	p.fillRect(myrtlrect(0, _padding.top(), _padding.left(), height() - _padding.top()), border);
-	p.fillRect(myrtlrect(width() - _padding.right(), _padding.top(), _padding.right(), height() - _padding.top()), border);
-	p.fillRect(_padding.left(), height() - _padding.bottom(), width() - _padding.left() - _padding.right(), _padding.bottom(), border);
+	p.fillRect(
+		myrtlrect(
+			0,
+			_padding.top(),
+			_padding.left(),
+			height() - _padding.top()),
+		border);
+	p.fillRect(
+		myrtlrect(
+			width() - _padding.right(),
+			_padding.top(),
+			_padding.right(),
+			height() - _padding.top()),
+		border);
+	p.fillRect(
+		_padding.left(),
+		height() - _padding.bottom(),
+		width() - _padding.left() - _padding.right(),
+		_padding.bottom(),
+		border);
 
-	p.fillRect(_padding.left(), _padding.top(), width() - _padding.left() - _padding.right(), height() - _padding.top() - _padding.bottom(), st::windowBg);
+	p.fillRect(
+		_padding.left(),
+		_padding.top(),
+		width() - _padding.left() - _padding.right(),
+		height() - _padding.top() - _padding.bottom(),
+		st::windowBg);
 }
 
 void Panel::closeEvent(QCloseEvent *e) {
@@ -423,7 +504,8 @@ void Panel::mouseMoveEvent(QMouseEvent *e) {
 		if (!(e->buttons() & Qt::LeftButton)) {
 			_dragging = false;
 		} else {
-			move(_dragStartMyPosition + (e->globalPos() - _dragStartMousePosition));
+			move(_dragStartMyPosition
+				+ (e->globalPos() - _dragStartMousePosition));
 		}
 	}
 }

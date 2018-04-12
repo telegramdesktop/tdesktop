@@ -97,6 +97,8 @@ passportPanelAuthorize: RoundButton(passportPasswordSubmit) {
 	height: 49px;
 	padding: margins(0px, -3px, 0px, 0px);
 	textTop: 16px;
+	icon: icon {{ "passport_authorize", activeButtonFg }};
+	iconPosition: point(-8px, 9px);
 }
 passportPanelSaveValue: RoundButton(passportPanelAuthorize) {
 	textFg: windowActiveTextFg;
@@ -104,6 +106,7 @@ passportPanelSaveValue: RoundButton(passportPanelAuthorize) {
 	textBg: windowBg;
 	textBgOver: windowBgOver;
 	ripple: defaultRippleAnimation;
+	icon: icon {};
 }
 passportFormAbout1Padding: margins(10px, 4px, 10px, 0px);
 passportFormAbout2Padding: margins(10px, 0px, 10px, 22px);
@@ -142,8 +145,8 @@ passportRowSkip: 2px;
 passportRowRipple: RippleAnimation(defaultRippleAnimation) {
 	color: windowBgOver;
 }
-passportRowReadyIcon: icon {{ "send_control_save", windowActiveTextFg }};
-passportRowEmptyIcon: icon {{ "title_back-flip_horizontal", menuIconFgOver }};
+passportRowReadyIcon: icon {{ "passport_ready", windowActiveTextFg }};
+passportRowEmptyIcon: icon {{ "passport_empty", menuIconFgOver }};
 passportRowTitleFg: windowFg;
 passportRowDescriptionFg: windowSubTextFg;
 

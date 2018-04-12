@@ -66,7 +66,12 @@ VerifyBox::VerifyBox(
 	rpl::producer<QString> call,
 	rpl::producer<QString> error)
 : _title(title) {
-	setupControls(text, codeLength, submit, std::move(call), std::move(error));
+	setupControls(
+		text,
+		codeLength,
+		submit,
+		std::move(call),
+		std::move(error));
 }
 
 void VerifyBox::setupControls(
@@ -194,8 +199,8 @@ void PanelEditContact::setupControls(
 				) | rpl::map([=] {
 					return lng_passport_use_existing(
 						lt_existing,
-						(_scheme.preprocess
-							? _scheme.preprocess(existing)
+						(_scheme.format
+							? _scheme.format(existing)
 							: existing));
 				}),
 				st::passportUploadButton),

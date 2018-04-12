@@ -36,7 +36,7 @@ public:
 		base::lambda<QString()> newPlaceholder;
 		QString aboutNew;
 		base::lambda<bool(const QString &value)> validate;
-		base::lambda<QString(const QString &value)> preprocess;
+		base::lambda<QString(const QString &value)> format;
 		base::lambda<QString(const QString &value)> postprocess;
 
 	};

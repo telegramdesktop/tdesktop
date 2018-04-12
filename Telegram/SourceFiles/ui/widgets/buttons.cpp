@@ -299,6 +299,9 @@ int RoundButton::contentWidth() const {
 	if (_numbers) {
 		result += (result ? _st.numbersSkip : 0) + _numbers->countWidth();
 	}
+	if (!_st.icon.empty() && _st.iconPosition.x() < 0) {
+		result += _st.icon.width() - _st.iconPosition.x();
+	}
 	return result;
 }
 
@@ -322,11 +325,24 @@ void RoundButton::paintEvent(QPaintEvent *e) {
 	paintRipple(p, rounded.x(), rounded.y(), ms);
 
 	p.setFont(_st.font);
-	int textLeft = _st.padding.left() + ((width() - innerWidth - _st.padding.left() - _st.padding.right()) / 2);
+	const auto textTop = _st.padding.top() + _st.textTop;
+	auto textLeft = _st.padding.left()
+		+ ((width()
+			- innerWidth
+			- _st.padding.left()
+			- _st.padding.right()) / 2);
 	if (_fullWidthOverride < 0) {
 		textLeft = -_fullWidthOverride / 2;
 	}
-	int textTop = _st.padding.top() + _st.textTop;
+	if (!_st.icon.empty() && _st.iconPosition.x() < 0) {
+		textLeft += _st.icon.width() - _st.iconPosition.x();
+	}
+	const auto iconLeft = (_st.iconPosition.x() >= 0)
+		? _st.iconPosition.x()
+		: (textLeft + _st.iconPosition.x() - _st.icon.width());
+	const auto iconTop = (_st.iconPosition.y() >= 0)
+		? _st.iconPosition.y()
+		: (textTop + _st.iconPosition.y());
 	if (!_text.isEmpty()) {
 		p.setPen((over || down) ? _st.textFgOver : _st.textFg);
 		p.drawTextLeft(textLeft, textTop, width(), _text);
@@ -336,7 +352,9 @@ void RoundButton::paintEvent(QPaintEvent *e) {
 		p.setPen((over || down) ? _st.numbersTextFgOver : _st.numbersTextFg);
 		_numbers->paint(p, textLeft, textTop, width());
 	}
-	_st.icon.paint(p, QPoint(_st.padding.left(), _st.padding.top()), width());
+	if (!_st.icon.empty()) {
+		_st.icon.paint(p, QPoint(iconLeft, iconTop), width());
+	}
 }
 
 QImage RoundButton::prepareRippleMask() const {

@@ -31,8 +31,10 @@ AesParams PrepareAesParams(bytes::const_span bytesForEncryptionKey) {
 	const auto view = gsl::make_span(hash);
 
 	auto result = AesParams();
-	result.key = bytes::make_vector(view.subspan(0, kAesKeyLength));
-	result.iv = bytes::make_vector(view.subspan(kAesKeyLength, kAesIvLength));
+	result.key = bytes::make_vector(
+		view.subspan(0, kAesKeyLength));
+	result.iv = bytes::make_vector(
+		view.subspan(kAesKeyLength, kAesIvLength));
 	return result;
 }
 
