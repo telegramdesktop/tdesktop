@@ -84,6 +84,7 @@ private:
 	void updateControlsGeometry();
 
 	Result collect() const;
+	bool validate();
 	void save();
 
 	not_null<PanelController*> _controller;

@@ -83,6 +83,7 @@ private:
 	QString _label;
 	object_ptr<Ui::SlideWrap<Ui::FlatLabel>> _error = { nullptr };
 	bool _errorShown = false;
+	bool _errorHideSubscription = false;
 	Animation _errorAnimation;
 
 };

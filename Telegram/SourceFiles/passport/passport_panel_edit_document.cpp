@@ -299,7 +299,29 @@ PanelEditDocument::Result PanelEditDocument::collect() const {
 	return result;
 }
 
+bool PanelEditDocument::validate() {
+	auto first = QPointer<PanelDetailsRow>();
+	for (const auto [i, field] : base::reversed(_details)) {
+		const auto &row = _scheme.rows[i];
+		if (row.validate && !row.validate(field->valueCurrent())) {
+			field->showError(QString());
+			first = field;
+		}
+	}
+	if (!first) {
+		return true;
+	}
+	const auto firsttop = first->mapToGlobal(QPoint(0, 0));
+	const auto scrolltop = _scroll->mapToGlobal(QPoint(0, 0));
+	const auto scrolldelta = firsttop.y() - scrolltop.y();
+	_scroll->scrollToY(_scroll->scrollTop() + scrolldelta);
+	return false;
+}
+
 void PanelEditDocument::save() {
+	if (!validate()) {
+		return;
+	}
 	auto result = collect();
 	_controller->saveScope(
 		std::move(result.data),

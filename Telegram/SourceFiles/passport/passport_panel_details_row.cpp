@@ -166,13 +166,25 @@ private:
 	static QString GenderToString(Gender gender);
 
 	int resizeInner(int left, int top, int width) override;
+
 	void showInnerError() override;
 	void finishInnerAnimating() override;
+	void toggleError(bool shown);
+	void hideGenderError();
+	void errorAnimationCallback();
+
+	std::unique_ptr<Ui::AbstractCheckView> createRadioView(
+		Ui::RadioView* &weak) const;
 
 	std::shared_ptr<Ui::RadioenumGroup<Gender>> _group;
+	Ui::RadioView *_maleRadio = nullptr;
+	Ui::RadioView *_femaleRadio = nullptr;
 	object_ptr<Ui::Radioenum<Gender>> _male;
 	object_ptr<Ui::Radioenum<Gender>> _female;
 	rpl::variable<QString> _value;
+
+	bool _errorShown = false;
+	Animation _errorAnimation;
 
 };
 
@@ -280,7 +292,7 @@ void CountryRow::toggleError(bool shown) {
 void CountryRow::errorAnimationCallback() {
 	const auto error = _errorAnimation.current(_errorShown ? 1. : 0.);
 	if (error == 0.) {
-		_link->setColorOverride(nullptr);
+		_link->setColorOverride(base::none);
 	} else {
 		_link->setColorOverride(anim::color(
 			st::boxLinkButton.color,
@@ -365,7 +377,7 @@ rpl::producer<QChar> DateInput::putNext() const {
 void DateInput::keyPressEvent(QKeyEvent *e) {
 	const auto isBackspace = (e->key() == Qt::Key_Backspace);
 	const auto isBeginning = (cursorPosition() == 0);
-	if (isBackspace && isBeginning) {
+	if (isBackspace && isBeginning && !hasSelectedText()) {
 		_erasePrevious.fire({});
 	} else {
 		MaskedInputField::keyPressEvent(e);
@@ -470,12 +482,18 @@ DateRow::DateRow(
 	const auto blurred = [=] {
 		setFocused(false);
 	};
+	const auto changed = [=] {
+		_value = valueCurrent();
+	};
 	connect(_day, &Ui::MaskedInputField::focused, focused(_day));
 	connect(_month, &Ui::MaskedInputField::focused, focused(_month));
 	connect(_year, &Ui::MaskedInputField::focused, focused(_year));
 	connect(_day, &Ui::MaskedInputField::blurred, blurred);
 	connect(_month, &Ui::MaskedInputField::blurred, blurred);
 	connect(_year, &Ui::MaskedInputField::blurred, blurred);
+	connect(_day, &Ui::MaskedInputField::changed, changed);
+	connect(_month, &Ui::MaskedInputField::changed, changed);
+	connect(_year, &Ui::MaskedInputField::changed, changed);
 	_day->setMaxValue(31);
 	_day->putNext() | rpl::start_with_next([=](QChar ch) {
 		putNext(_month, ch);
@@ -494,6 +512,11 @@ DateRow::DateRow(
 	_separator1->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_separator2->setAttribute(Qt::WA_TransparentForMouseEvents);
 	setMouseTracking(true);
+
+	_value.changes(
+	) | rpl::start_with_next([=] {
+		setErrorShown(false);
+	}, lifetime());
 }
 
 void DateRow::putNext(const object_ptr<DateInput> &field, QChar ch) {
@@ -748,17 +771,27 @@ GenderRow::GenderRow(
 	_group,
 	Gender::Male,
 	lang(lng_passport_gender_male),
-	st::defaultCheckbox)
+	st::defaultCheckbox,
+	createRadioView(_maleRadio))
 , _female(
 	this,
 	_group,
 	Gender::Female,
 	lang(lng_passport_gender_female),
-	st::defaultCheckbox)
+	st::defaultCheckbox,
+	createRadioView(_femaleRadio))
 , _value(StringToGender(value) ? value : QString()) {
 	_group->setChangedCallback([=](Gender gender) {
 		_value = GenderToString(gender);
+		hideGenderError();
 	});
+}
+
+std::unique_ptr<Ui::AbstractCheckView> GenderRow::createRadioView(
+		Ui::RadioView* &weak) const {
+	auto result = std::make_unique<Ui::RadioView>(st::defaultRadio, false);
+	weak = result.get();
+	return result;
 }
 
 auto GenderRow::StringToGender(const QString &value)
@@ -793,9 +826,44 @@ int GenderRow::resizeInner(int left, int top, int width) {
 }
 
 void GenderRow::showInnerError() {
+	toggleError(true);
 }
 
 void GenderRow::finishInnerAnimating() {
+	if (_errorAnimation.animating()) {
+		_errorAnimation.finish();
+		errorAnimationCallback();
+	}
+}
+
+void GenderRow::hideGenderError() {
+	toggleError(false);
+}
+
+void GenderRow::toggleError(bool shown) {
+	if (_errorShown != shown) {
+		_errorShown = shown;
+		_errorAnimation.start(
+			[=] { errorAnimationCallback(); },
+			_errorShown ? 0. : 1.,
+			_errorShown ? 1. : 0.,
+			st::passportDetailsField.duration);
+	}
+}
+
+void GenderRow::errorAnimationCallback() {
+	const auto error = _errorAnimation.current(_errorShown ? 1. : 0.);
+	if (error == 0.) {
+		_maleRadio->setUntoggledOverride(base::none);
+		_femaleRadio->setUntoggledOverride(base::none);
+	} else {
+		const auto color = anim::color(
+			st::defaultRadio.untoggledFg,
+			st::boxTextFgError,
+			error);
+		_maleRadio->setUntoggledOverride(color);
+		_femaleRadio->setUntoggledOverride(color);
+	}
 }
 
 } // namespace
@@ -862,6 +930,14 @@ int PanelDetailsRow::resizeGetHeight(int newWidth) {
 }
 
 void PanelDetailsRow::showError(const QString &error) {
+	if (!_errorHideSubscription) {
+		_errorHideSubscription = true;
+
+		value(
+		) | rpl::start_with_next([=] {
+			hideError();
+		}, lifetime());
+	}
 	showInnerError();
 	startErrorAnimation(true);
 	if (!error.isEmpty()) {
@@ -873,10 +949,6 @@ void PanelDetailsRow::showError(const QString &error) {
 					error,
 					Ui::FlatLabel::InitType::Simple,
 					st::passportVerifyErrorLabel));
-			value(
-			) | rpl::start_with_next([=] {
-				hideError();
-			}, lifetime());
 		} else {
 			_error->entity()->setText(error);
 		}
