@@ -39,6 +39,8 @@ public:
 		std::vector<ScanInfo> &&files,
 		std::unique_ptr<ScanInfo> &&selfie);
 
+	base::optional<int> validateGetErrorTop();
+
 	static void ChooseScan(base::lambda<void(QByteArray&&)> callback);
 
 private:
@@ -55,6 +57,14 @@ private:
 
 	rpl::producer<QString> uploadButtonText() const;
 
+	void toggleError(bool shown);
+	void hideError();
+	void errorAnimationCallback();
+
+	void toggleSelfieError(bool shown);
+	void hideSelfieError();
+	void selfieErrorAnimationCallback();
+
 	not_null<PanelController*> _controller;
 	std::vector<ScanInfo> _files;
 	std::unique_ptr<ScanInfo> _selfie;
@@ -66,11 +76,15 @@ private:
 	std::vector<base::unique_qptr<Ui::SlideWrap<ScanButton>>> _rows;
 	QPointer<Info::Profile::Button> _upload;
 	rpl::event_stream<rpl::producer<QString>> _uploadTexts;
+	bool _errorShown = false;
+	Animation _errorAnimation;
 
 	QPointer<Ui::SlideWrap<Ui::FlatLabel>> _selfieHeader;
 	QPointer<Ui::VerticalLayout> _selfieWrap;
 	base::unique_qptr<Ui::SlideWrap<ScanButton>> _selfieRow;
 	QPointer<Info::Profile::Button> _selfieUpload;
+	bool _selfieErrorShown = false;
+	Animation _selfieErrorAnimation;
 
 };
 

@@ -212,6 +212,7 @@ public:
 	rpl::producer<QString> passwordError() const;
 	QString passwordHint() const;
 
+	bool canAddScan(not_null<const Value*> value) const;
 	void uploadScan(not_null<const Value*> value, QByteArray &&content);
 	void deleteScan(not_null<const Value*> value, int fileIndex);
 	void restoreScan(not_null<const Value*> value, int fileIndex);

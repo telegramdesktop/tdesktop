@@ -45,6 +45,7 @@ public:
 	virtual void editScope(int index) = 0;
 
 	virtual void showBox(object_ptr<BoxContent> box) = 0;
+	virtual void showToast(const QString &text) = 0;
 
 	virtual ~ViewController() {
 	}

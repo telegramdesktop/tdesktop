@@ -1583,6 +1583,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_confirm_phone" = "We've sent an SMS with a confirmation code to your phone {phone}.";
 "lng_passport_confirm_email" = "We've sent a confirmation code to your email {email}.";
 "lng_passport_sure_cancel" = "If you continue your changes will be lost.";
+"lng_passport_scans_limit_reached" = "Scans limit reached.";
 
 // Wnd specific
 

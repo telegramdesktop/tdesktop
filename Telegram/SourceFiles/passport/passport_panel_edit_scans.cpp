@@ -196,6 +196,22 @@ EditScans::EditScans(
 	setupContent(header);
 }
 
+base::optional<int> EditScans::validateGetErrorTop() {
+	const auto exists = ranges::find(
+		_files,
+		false,
+		[](const ScanInfo &file) { return file.deleted; }) != end(_files);
+	if (!exists) {
+		toggleError(true);
+		return (_files.size() > 5) ? _upload->y() : _header->y();
+	}
+	if (_selfie && (!_selfie->key.id || _selfie->deleted)) {
+		toggleSelfieError(true);
+		return _selfieHeader->y();
+	}
+	return base::none;
+}
+
 void EditScans::setupContent(const QString &header) {
 	const auto inner = _content.data();
 	inner->move(0, 0);
@@ -307,6 +323,9 @@ void EditScans::updateScan(ScanInfo &&info) {
 		Assert(_selfie != nullptr);
 		if (_selfie->key.id) {
 			updateRow(_selfieRow->entity(), info);
+			if (!info.deleted) {
+				hideSelfieError();
+			}
 		} else {
 			createSelfieRow(info);
 			_selfieWrap->resizeToWidth(width());
@@ -325,6 +344,9 @@ void EditScans::updateScan(ScanInfo &&info) {
 		scan->setStatus(i->status);
 		scan->setImage(i->thumb);
 		scan->setDeleted(i->deleted);
+		if (!i->deleted) {
+			hideError();
+		}
 	} else {
 		_files.push_back(std::move(info));
 		pushScan(_files.back());
@@ -352,6 +374,8 @@ void EditScans::createSelfieRow(const ScanInfo &info) {
 	) | rpl::start_with_next([=] {
 		_controller->restoreSelfie();
 	}, row->lifetime());
+
+	hideSelfieError();
 }
 
 void EditScans::pushScan(const ScanInfo &info) {
@@ -373,6 +397,8 @@ void EditScans::pushScan(const ScanInfo &info) {
 	) | rpl::start_with_next([=] {
 		_controller->restoreScan(index);
 	}, scan->lifetime());
+
+	hideError();
 }
 
 base::unique_qptr<Ui::SlideWrap<ScanButton>> EditScans::createScan(
@@ -393,6 +419,10 @@ base::unique_qptr<Ui::SlideWrap<ScanButton>> EditScans::createScan(
 }
 
 void EditScans::chooseScan() {
+	if (!_controller->canAddScan()) {
+		_controller->showToast(lang(lng_passport_scans_limit_reached));
+		return;
+	}
 	ChooseScan(base::lambda_guarded(this, [=](QByteArray &&content) {
 		_controller->uploadScan(std::move(content));
 	}));
@@ -435,6 +465,61 @@ rpl::producer<QString> EditScans::uploadButtonText() const {
 	return Lang::Viewer(_files.empty()
 		? lng_passport_upload_scans
 		: lng_passport_upload_more) | Info::Profile::ToUpperValue();
+}
+
+void EditScans::hideError() {
+	toggleError(false);
+}
+
+void EditScans::toggleError(bool shown) {
+	if (_errorShown != shown) {
+		_errorShown = shown;
+		_errorAnimation.start(
+			[=] { errorAnimationCallback(); },
+			_errorShown ? 0. : 1.,
+			_errorShown ? 1. : 0.,
+			st::passportDetailsField.duration);
+	}
+}
+
+void EditScans::errorAnimationCallback() {
+	const auto error = _errorAnimation.current(_errorShown ? 1. : 0.);
+	if (error == 0.) {
+		_upload->setColorOverride(base::none);
+	} else {
+		_upload->setColorOverride(anim::color(
+			st::passportUploadButton.textFg,
+			st::boxTextFgError,
+			error));
+	}
+}
+
+void EditScans::hideSelfieError() {
+	toggleSelfieError(false);
+}
+
+void EditScans::toggleSelfieError(bool shown) {
+	if (_selfieErrorShown != shown) {
+		_selfieErrorShown = shown;
+		_selfieErrorAnimation.start(
+			[=] { selfieErrorAnimationCallback(); },
+			_selfieErrorShown ? 0. : 1.,
+			_selfieErrorShown ? 1. : 0.,
+			st::passportDetailsField.duration);
+	}
+}
+
+void EditScans::selfieErrorAnimationCallback() {
+	const auto error = _selfieErrorAnimation.current(
+		_selfieErrorShown ? 1. : 0.);
+	if (error == 0.) {
+		_selfieUpload->setColorOverride(base::none);
+	} else {
+		_selfieUpload->setColorOverride(anim::color(
+			st::passportUploadButton.textFg,
+			st::boxTextFgError,
+			error));
+	}
 }
 
 } // namespace Passport

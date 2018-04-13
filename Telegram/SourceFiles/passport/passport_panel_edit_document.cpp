@@ -300,6 +300,13 @@ PanelEditDocument::Result PanelEditDocument::collect() const {
 }
 
 bool PanelEditDocument::validate() {
+	if (const auto error = _editScans->validateGetErrorTop()) {
+		const auto errortop = _editScans->mapToGlobal(QPoint(0, *error));
+		const auto scrolltop = _scroll->mapToGlobal(QPoint(0, 0));
+		const auto scrolldelta = errortop.y() - scrolltop.y();
+		_scroll->scrollToY(_scroll->scrollTop() + scrolldelta);
+		return false;
+	}
 	auto first = QPointer<PanelDetailsRow>();
 	for (const auto [i, field] : base::reversed(_details)) {
 		const auto &row = _scheme.rows[i];

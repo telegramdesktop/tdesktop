@@ -60,6 +60,7 @@ public:
 	rpl::producer<QString> passwordError() const;
 	QString passwordHint() const;
 
+	bool canAddScan() const;
 	void uploadScan(QByteArray &&content);
 	void deleteScan(int fileIndex);
 	void restoreScan(int fileIndex);
@@ -89,6 +90,7 @@ public:
 	void cancelEditScope();
 
 	void showBox(object_ptr<BoxContent> box) override;
+	void showToast(const QString &text) override;
 
 	void cancelAuth();
 

@@ -29,6 +29,8 @@ public:
 	Button *toggleOn(rpl::producer<bool> &&toggled);
 	rpl::producer<bool> toggledValue() const;
 
+	void setColorOverride(base::optional<QColor> textColorOverride);
+
 protected:
 	int resizeGetHeight(int newWidth) override;
 	void onStateChanged(
@@ -48,6 +50,7 @@ private:
 	int _originalWidth = 0;
 	int _textWidth = 0;
 	std::unique_ptr<Ui::ToggleView> _toggle;
+	base::optional<QColor> _textColorOverride;
 
 };
 

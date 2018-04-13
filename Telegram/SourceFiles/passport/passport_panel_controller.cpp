@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_panel_edit_scans.h"
 #include "passport/passport_panel.h"
 #include "boxes/confirm_box.h"
+#include "ui/toast/toast.h"
 #include "ui/countryinput.h"
 #include "layout.h"
 
@@ -361,6 +362,14 @@ QString PanelController::defaultEmail() const {
 
 QString PanelController::defaultPhoneNumber() const {
 	return _form->defaultPhoneNumber();
+}
+
+bool PanelController::canAddScan() const {
+	Expects(_editScope != nullptr);
+	Expects(_editDocumentIndex >= 0
+		&& _editDocumentIndex < _editScope->documents.size());
+
+	return _form->canAddScan(_editScope->documents[_editDocumentIndex]);
 }
 
 void PanelController::uploadScan(QByteArray &&content) {
@@ -856,6 +865,14 @@ void PanelController::cancelAuth() {
 
 void PanelController::showBox(object_ptr<BoxContent> box) {
 	_panel->showBox(std::move(box));
+}
+
+void PanelController::showToast(const QString &text) {
+	Expects(_panel != nullptr);
+
+	auto toast = Ui::Toast::Config();
+	toast.text = text;
+	Ui::Toast::Show(_panel.get(), toast);
 }
 
 rpl::lifetime &PanelController::lifetime() {

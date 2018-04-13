@@ -25,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Passport {
 namespace {
 
+constexpr auto kDocumentScansLimit = 20;
+
 QImage ReadImage(bytes::const_span buffer) {
 	return App::readImage(QByteArray::fromRawData(
 		reinterpret_cast<const char*>(buffer.data()),
@@ -241,11 +243,14 @@ auto FormController::prepareFinalData() const -> FinalData {
 			addValueToJSON(key, value);
 		}
 	};
+	auto hasErrors = false;
 	const auto scopes = ComputeScopes(this);
 	for (const auto &scope : scopes) {
 		const auto ready = ComputeScopeRowReadyString(scope);
 		if (ready.isEmpty()) {
+			hasErrors = true;
 			_valueError.fire_copy(scope.fields);
+			continue;
 		}
 		addValue(scope.fields);
 		if (!scope.documents.empty()) {
@@ -256,6 +261,9 @@ auto FormController::prepareFinalData() const -> FinalData {
 				}
 			}
 		}
+	}
+	if (hasErrors) {
+		return {};
 	}
 
 	auto json = QJsonObject();
@@ -274,6 +282,9 @@ void FormController::submit() {
 	}
 
 	const auto prepared = prepareFinalData();
+	if (prepared.hashes.empty()) {
+		return;
+	}
 	const auto credentialsEncryptedData = EncryptData(
 		bytes::make_span(prepared.credentials));
 	const auto credentialsEncryptedSecret = EncryptCredentialsSecret(
@@ -433,6 +444,10 @@ QString FormController::passwordHint() const {
 void FormController::uploadScan(
 		not_null<const Value*> value,
 		QByteArray &&content) {
+	if (!canAddScan(value)) {
+		_view->showToast(lang(lng_passport_scans_limit_reached));
+		return;
+	}
 	const auto nonconst = findValue(value);
 	auto scanIndex = int(nonconst->scansInEdit.size());
 	nonconst->scansInEdit.emplace_back(
@@ -538,6 +553,12 @@ void FormController::scanDeleteRestore(
 
 	const auto nonconst = findValue(value);
 	auto &scan = nonconst->scansInEdit[scanIndex];
+	if (scan.deleted && !deleted) {
+		if (!canAddScan(value)) {
+			_view->showToast(lang(lng_passport_scans_limit_reached));
+			return;
+		}
+	}
 	scan.deleted = deleted;
 	_scanUpdated.fire(&scan);
 }
@@ -551,6 +572,13 @@ void FormController::selfieDeleteRestore(
 	auto &scan = *nonconst->selfieInEdit;
 	scan.deleted = deleted;
 	_scanUpdated.fire(&scan);
+}
+
+bool FormController::canAddScan(not_null<const Value*> value) const {
+	const auto scansCount = ranges::count_if(
+		value->scansInEdit,
+		[](const EditFile &scan) { return !scan.deleted; });
+	return (scansCount < kDocumentScansLimit);
 }
 
 void FormController::subscribeToUploader() {
