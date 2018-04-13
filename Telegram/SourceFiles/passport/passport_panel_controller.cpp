@@ -975,6 +975,13 @@ void PanelController::cancelEditScope() {
 	}
 }
 
+int PanelController::closeGetDuration() {
+	if (_panel) {
+		return _panel->hideAndDestroyGetDuration();
+	}
+	return 0;
+}
+
 void PanelController::cancelAuth() {
 	_form->cancel();
 }

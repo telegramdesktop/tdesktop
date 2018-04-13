@@ -97,6 +97,8 @@ public:
 	void showBox(object_ptr<BoxContent> box) override;
 	void showToast(const QString &text) override;
 
+	int closeGetDuration() override;
+
 	void cancelAuth();
 
 	rpl::lifetime &lifetime();

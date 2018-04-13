@@ -54,7 +54,7 @@ bytes::vector DecryptValueSecret(
 	bytes::const_span secret,
 	bytes::const_span valueHash);
 
-uint64 CountSecureSecretHash(bytes::const_span secret);
+uint64 CountSecureSecretId(bytes::const_span secret);
 
 bytes::vector EncryptCredentialsSecret(
 	bytes::const_span secret,

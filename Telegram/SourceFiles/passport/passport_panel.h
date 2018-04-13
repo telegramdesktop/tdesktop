@@ -33,7 +33,7 @@ public:
 	Panel(not_null<PanelController*> controller);
 
 	void showAndActivate();
-	void hideAndDestroy();
+	int hideAndDestroyGetDuration();
 
 	void showAskPassword();
 	void showNoPassword();

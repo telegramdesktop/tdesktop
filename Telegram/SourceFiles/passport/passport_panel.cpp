@@ -53,7 +53,7 @@ void Panel::initControls() {
 	}, lifetime());
 
 	_close->addClickHandler([=] {
-		hideAndDestroy();
+		_controller->cancelAuth();
 	});
 
 	_back->toggledValue(
@@ -206,11 +206,13 @@ void Panel::destroyDelayed() {
 	_controller->cancelAuth();
 }
 
-void Panel::hideAndDestroy() {
+int Panel::hideAndDestroyGetDuration() {
 	toggleOpacityAnimation(false);
 	if (_animationCache.isNull()) {
 		destroyDelayed();
+		return 0;
 	}
+	return st::callPanelDuration;
 }
 
 void Panel::showAskPassword() {

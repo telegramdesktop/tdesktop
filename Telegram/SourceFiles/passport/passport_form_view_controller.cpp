@@ -103,6 +103,11 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 	case Scope::Type::Identity:
 	case Scope::Type::Address: {
 		auto list = QStringList();
+		const auto pushListValue = [&](const QString &value) {
+			if (const auto trimmed = value.trimmed(); !trimmed.isEmpty()) {
+				list.push_back(trimmed);
+			}
+		};
 		const auto &fields = scope.fields->data.parsed.fields;
 		const auto document = [&]() -> const Value* {
 			for (const auto &document : scope.documents) {
@@ -113,7 +118,7 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 			return nullptr;
 		}();
 		if (document && scope.documents.size() > 1) {
-			list.push_back([&] {
+			pushListValue([&] {
 				switch (document->type) {
 				case Value::Type::Passport:
 					return lang(lng_passport_identity_passport);
@@ -145,7 +150,7 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 				} else if (row.validate && !row.validate(i->second)) {
 					return QString();
 				}
-				list.push_back(format ? format(i->second) : i->second);
+				pushListValue(format ? format(i->second) : i->second);
 			} else if (!document) {
 				return QString();
 			} else {
@@ -155,7 +160,7 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 				} else if (row.validate && !row.validate(i->second)) {
 					return QString();
 				}
-				list.push_back(i->second);
+				pushListValue(i->second);
 			}
 		}
 		return list.join(", ");

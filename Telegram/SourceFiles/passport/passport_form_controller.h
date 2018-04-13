@@ -287,7 +287,8 @@ private:
 	void validateSecureSecret(
 		bytes::const_span salt,
 		bytes::const_span encryptedSecret,
-		bytes::const_span password);
+		bytes::const_span password,
+		uint64 serverSecretId);
 	void decryptValues();
 	void decryptValue(Value &value);
 	bool validateValueSecrets(Value &value);
@@ -344,6 +345,8 @@ private:
 		const MTPInputSecureValue &data);
 	FinalData prepareFinalData();
 
+	void cancelSure();
+
 	not_null<Window::Controller*> _controller;
 	FormRequest _request;
 	UserData *_bot = nullptr;
@@ -369,6 +372,7 @@ private:
 	rpl::event_stream<> _secretReady;
 	rpl::event_stream<QString> _passwordError;
 	mtpRequestId _submitRequestId = 0;
+	bool _submitSuccess = false;
 
 	rpl::lifetime _uploaderSubscriptions;
 	rpl::lifetime _lifetime;

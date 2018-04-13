@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "window/window_controller.h"
 #include "core/click_handler_types.h"
+#include "ui/toast/toast.h"
 #include "auth_session.h"
 #include "storage/localimageloader.h"
 #include "storage/localstorage.h"
@@ -77,7 +78,7 @@ MTPSecureValueType ConvertType(Value::Type type) {
 };
 
 QJsonObject GetJSONFromMap(
-		const std::map<QString, bytes::const_span> &map) {
+	const std::map<QString, bytes::const_span> &map) {
 	auto result = QJsonObject();
 	for (const auto &[key, value] : map) {
 		const auto raw = QByteArray::fromRawData(
@@ -92,7 +93,7 @@ QJsonObject GetJSONFromFile(const File &file) {
 	return GetJSONFromMap({
 		{ "file_hash", file.hash },
 		{ "secret", file.secret }
-	});
+		});
 }
 
 FormRequest PreprocessRequest(const FormRequest &request) {
@@ -125,26 +126,26 @@ FormRequest::FormRequest(
 	const QString &callbackUrl,
 	const QString &publicKey,
 	const QString &payload)
-: botId(botId)
-, scope(scope)
-, callbackUrl(callbackUrl)
-, publicKey(publicKey)
-, payload(payload) {
+	: botId(botId)
+	, scope(scope)
+	, callbackUrl(callbackUrl)
+	, publicKey(publicKey)
+	, payload(payload) {
 }
 
 EditFile::EditFile(
 	not_null<const Value*> value,
 	const File &fields,
 	std::unique_ptr<UploadScanData> &&uploadData)
-: value(value)
-, fields(std::move(fields))
-, uploadData(std::move(uploadData))
-, guard(std::make_shared<bool>(true)) {
+	: value(value)
+	, fields(std::move(fields))
+	, uploadData(std::move(uploadData))
+	, guard(std::make_shared<bool>(true)) {
 }
 
 UploadScanDataPointer::UploadScanDataPointer(
 	std::unique_ptr<UploadScanData> &&value)
-: _value(std::move(value)) {
+	: _value(std::move(value)) {
 }
 
 UploadScanDataPointer::UploadScanDataPointer(
@@ -183,9 +184,9 @@ Value::Value(Type type) : type(type) {
 FormController::FormController(
 	not_null<Window::Controller*> controller,
 	const FormRequest &request)
-: _controller(controller)
-, _request(PreprocessRequest(request))
-, _view(std::make_unique<PanelController>(this)) {
+	: _controller(controller)
+	, _request(PreprocessRequest(request))
+	, _view(std::make_unique<PanelController>(this)) {
 }
 
 void FormController::show() {
@@ -202,7 +203,7 @@ QString FormController::privacyPolicyUrl() const {
 }
 
 bytes::vector FormController::passwordHashForAuth(
-		bytes::const_span password) const {
+	bytes::const_span password) const {
 	return openssl::Sha256(bytes::concatenate(
 		_password.salt,
 		password,
@@ -213,14 +214,14 @@ auto FormController::prepareFinalData() -> FinalData {
 	auto hashes = QVector<MTPSecureValueHash>();
 	auto secureData = QJsonObject();
 	const auto addValueToJSON = [&](
-			const QString &key,
-			not_null<const Value*> value) {
+		const QString &key,
+		not_null<const Value*> value) {
 		auto object = QJsonObject();
 		if (!value->data.parsed.fields.empty()) {
 			object.insert("data", GetJSONFromMap({
 				{ "data_hash", value->data.hash },
 				{ "secret", value->data.secret }
-			}));
+				}));
 		}
 		if (!value->scans.empty()) {
 			auto files = QJsonArray();
@@ -277,7 +278,7 @@ auto FormController::prepareFinalData() -> FinalData {
 }
 
 bool FormController::submit() {
-	if (_submitRequestId) {
+	if (_submitRequestId || _submitSuccess|| _cancelled) {
 		return true;
 	}
 
@@ -301,11 +302,17 @@ bool FormController::submit() {
 			MTP_bytes(credentialsEncryptedData.hash),
 			MTP_bytes(credentialsEncryptedSecret))
 	)).done([=](const MTPBool &result) {
-		const auto url = qthelp::url_append_query(
-			_request.callbackUrl,
-			"tg_passport=success");
-		UrlClickHandler::doOpen(url);
+		_submitRequestId = 0;
+		_submitSuccess = true;
+
+		_view->showToast(lang(lng_passport_success));
+
+		App::CallDelayed(
+			Ui::Toast::DefaultDuration + st::toastFadeOutDuration,
+			this,
+			[=] { cancel(); });
 	}).fail([=](const RPCError &error) {
+		_submitRequestId = 0;
 		_view->show(Box<InformBox>(
 			"Failed sending data :(\n" + error.type()));
 	}).send();
@@ -333,7 +340,8 @@ void FormController::submitPassword(const QString &password) {
 		validateSecureSecret(
 			bytes::make_span(data.vsecure_salt.v),
 			bytes::make_span(data.vsecure_secret.v),
-			bytes::make_span(passwordBytes));
+			bytes::make_span(passwordBytes),
+			data.vsecure_secret_id.v);
 	}).fail([=](const RPCError &error) {
 		_passwordCheckRequestId = 0;
 		if (MTP::isFloodError(error)) {
@@ -349,7 +357,8 @@ void FormController::submitPassword(const QString &password) {
 void FormController::validateSecureSecret(
 		bytes::const_span salt,
 		bytes::const_span encryptedSecret,
-		bytes::const_span password) {
+		bytes::const_span password,
+		uint64 serverSecretId) {
 	if (!salt.empty() && !encryptedSecret.empty()) {
 		_secret = DecryptSecureSecret(salt, encryptedSecret, password);
 		if (_secret.empty()) {
@@ -361,8 +370,18 @@ void FormController::validateSecureSecret(
 					resetValue(value);
 				}
 			}
+		} else if (CountSecureSecretId(_secret) != serverSecretId) {
+			_secret.clear();
+			_secretId = 0;
+			LOG(("API Error: Wrong secure secret id. "
+				"Forgetting all files and data :("));
+			for (auto &[type, value] : _form.values) {
+				if (!value.data.original.isEmpty()) {
+					resetValue(value);
+				}
+			}
 		} else {
-			_secretId = CountSecureSecretHash(_secret);
+			_secretId = serverSecretId;
 			decryptValues();
 		}
 	}
@@ -1327,7 +1346,7 @@ void FormController::generateSecret(bytes::const_span password) {
 		_password.newSecureSalt,
 		randomSaltPart);
 
-	auto secureSecretId = CountSecureSecretHash(secret);
+	auto secureSecretId = CountSecureSecretId(secret);
 	auto encryptedSecret = EncryptSecureSecret(
 		newSecureSaltFull,
 		secret,
@@ -1642,9 +1661,27 @@ void FormController::parsePassword(const MTPDaccount_password &result) {
 }
 
 void FormController::cancel() {
+	if (!_submitSuccess) {
+		_view->show(Box<ConfirmBox>(
+			lang(lng_passport_stop_sure),
+			lang(lng_passport_stop),
+			[=] { cancelSure(); }));
+	} else {
+		cancelSure();
+	}
+}
+
+void FormController::cancelSure() {
 	if (!_cancelled) {
 		_cancelled = true;
-		crl::on_main(this, [=] {
+
+		const auto url = qthelp::url_append_query(
+			_request.callbackUrl,
+			_submitSuccess ? "tg_passport=success" : "tg_passport=cancel");
+		UrlClickHandler::doOpen(url);
+
+		const auto timeout = _view->closeGetDuration();
+		App::CallDelayed(timeout, this, [=] {
 			_controller->clearPassportForm();
 		});
 	}

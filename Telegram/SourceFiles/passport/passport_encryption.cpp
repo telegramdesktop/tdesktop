@@ -335,7 +335,7 @@ bytes::vector DecryptValueSecret(
 	return DecryptSecretBytes(encrypted, bytesForEncryptionKey);
 }
 
-uint64 CountSecureSecretHash(bytes::const_span secret) {
+uint64 CountSecureSecretId(bytes::const_span secret) {
 	const auto full = openssl::Sha256(secret);
 	return *reinterpret_cast<const uint64*>(full.data());
 }
