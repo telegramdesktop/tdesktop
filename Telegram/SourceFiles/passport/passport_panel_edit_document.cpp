@@ -246,7 +246,8 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 			_controller,
 			row.label,
 			valueOrEmpty(*fields, row.key),
-			QString())));
+			QString(),
+			row.lengthLimit)));
 	}
 
 	inner->add(

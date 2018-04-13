@@ -38,6 +38,7 @@ struct EditDocumentScheme {
 		QString label;
 		base::lambda<bool(const QString &value)> validate;
 		base::lambda<QString(const QString &value)> format;
+		int lengthLimit = 0;
 	};
 	std::vector<Row> rows;
 	QString rowsHeader;

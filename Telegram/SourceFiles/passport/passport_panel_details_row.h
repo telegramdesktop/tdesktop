@@ -59,7 +59,8 @@ public:
 		not_null<PanelController*> controller,
 		const QString &label,
 		const QString &value,
-		const QString &error);
+		const QString &error,
+		int limit = 0);
 
 	virtual bool setFocusFast();
 	virtual rpl::producer<QString> value() const = 0;

@@ -24,7 +24,11 @@ namespace {
 
 class TextRow : public PanelDetailsRow {
 public:
-	TextRow(QWidget *parent, const QString &label, const QString &value);
+	TextRow(
+		QWidget *parent,
+		const QString &label,
+		const QString &value,
+		int limit);
 
 	bool setFocusFast() override;
 	rpl::producer<QString> value() const override;
@@ -191,10 +195,12 @@ private:
 TextRow::TextRow(
 	QWidget *parent,
 	const QString &label,
-	const QString &value)
+	const QString &value,
+	int limit)
 : PanelDetailsRow(parent, label)
 , _field(this, st::passportDetailsField, nullptr, value)
 , _value(value) {
+	_field->setMaxLength(limit);
 	connect(_field, &Ui::InputField::changed, [=] {
 		_value = valueCurrent();
 	});
@@ -890,11 +896,12 @@ object_ptr<PanelDetailsRow> PanelDetailsRow::Create(
 		not_null<PanelController*> controller,
 		const QString &label,
 		const QString &value,
-		const QString &error) {
+		const QString &error,
+		int limit) {
 	auto result = [&]() -> object_ptr<PanelDetailsRow> {
 		switch (type) {
 		case Type::Text:
-			return object_ptr<TextRow>(parent, label, value);
+			return object_ptr<TextRow>(parent, label, value, limit);
 		case Type::Country:
 			return object_ptr<CountryRow>(parent, controller, label, value);
 		case Type::Gender:

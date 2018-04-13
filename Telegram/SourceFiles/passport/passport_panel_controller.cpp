@@ -20,6 +20,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Passport {
 
+constexpr auto kMaxNameSize = 255;
+constexpr auto kMaxDocumentSize = 24;
+constexpr auto kMaxStreetSize = 64;
+constexpr auto kMinCitySize = 2;
+constexpr auto kMaxCitySize = 64;
+constexpr auto kMinPostcodeSize = 2;
+constexpr auto kMaxPostcodeSize = 12;
+
 EditDocumentScheme GetDocumentScheme(
 		Scope::Type type,
 		base::optional<Value::Type> scansType) {
@@ -39,9 +47,18 @@ EditDocumentScheme GetDocumentScheme(
 		return value;
 	};
 	const auto DontValidate = nullptr;
-	const auto NotEmptyValidate = [](const QString &value) {
-		return !value.isEmpty();
+	const auto LimitedValidate = [](int max, int min = 1) {
+		return [=](const QString &value) {
+			return (value.size() >= min) && (value.size() <= max);
+		};
 	};
+	const auto NameValidate = LimitedValidate(kMaxNameSize);
+	const auto DocumentValidate = LimitedValidate(kMaxDocumentSize);
+	const auto StreetValidate = LimitedValidate(kMaxStreetSize);
+	const auto CityValidate = LimitedValidate(kMaxCitySize, kMinCitySize);
+	const auto PostcodeValidate = LimitedValidate(
+		kMaxPostcodeSize,
+		kMinPostcodeSize);
 	const auto DateValidate = [](const QString &value) {
 		return QRegularExpression(
 			"^\\d{2}\\.\\d{2}\\.\\d{4}$"
@@ -82,16 +99,18 @@ EditDocumentScheme GetDocumentScheme(
 				PanelDetailsType::Text,
 				qsl("first_name"),
 				lang(lng_passport_first_name),
-				NotEmptyValidate,
+				NameValidate,
 				DontFormat,
+				kMaxNameSize,
 			},
 			{
 				ValueClass::Fields,
 				PanelDetailsType::Text,
 				qsl("last_name"),
 				lang(lng_passport_last_name),
-				DontValidate,
+				NameValidate,
 				DontFormat,
+				kMaxNameSize,
 			},
 			{
 				ValueClass::Fields,
@@ -122,8 +141,9 @@ EditDocumentScheme GetDocumentScheme(
 				PanelDetailsType::Text,
 				qsl("document_no"),
 				lang(lng_passport_document_number),
-				NotEmptyValidate,
+				DocumentValidate,
 				DontFormat,
+				kMaxDocumentSize,
 			},
 			{
 				ValueClass::Scans,
@@ -161,8 +181,9 @@ EditDocumentScheme GetDocumentScheme(
 				PanelDetailsType::Text,
 				qsl("street_line1"),
 				lang(lng_passport_street),
-				NotEmptyValidate,
+				StreetValidate,
 				DontFormat,
+				kMaxStreetSize,
 			},
 			{
 				ValueClass::Fields,
@@ -171,14 +192,16 @@ EditDocumentScheme GetDocumentScheme(
 				lang(lng_passport_street),
 				DontValidate,
 				DontFormat,
+				kMaxStreetSize,
 			},
 			{
 				ValueClass::Fields,
 				PanelDetailsType::Text,
 				qsl("city"),
 				lang(lng_passport_city),
-				NotEmptyValidate,
+				CityValidate,
 				DontFormat,
+				kMaxStreetSize,
 			},
 			{
 				ValueClass::Fields,
@@ -187,6 +210,7 @@ EditDocumentScheme GetDocumentScheme(
 				lang(lng_passport_state),
 				DontValidate,
 				DontFormat,
+				kMaxStreetSize,
 			},
 			{
 				ValueClass::Fields,
@@ -201,8 +225,9 @@ EditDocumentScheme GetDocumentScheme(
 				PanelDetailsType::Text,
 				qsl("post_code"),
 				lang(lng_passport_postcode),
-				NotEmptyValidate,
+				PostcodeValidate,
 				DontFormat,
+				kMaxPostcodeSize,
 			},
 		};
 		return result;
