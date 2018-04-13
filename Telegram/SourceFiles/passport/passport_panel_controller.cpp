@@ -352,7 +352,8 @@ void PanelController::fillRows(
 	base::lambda<void(
 		QString title,
 		QString description,
-		bool ready)> callback) {
+		bool ready,
+		bool error)> callback) {
 	if (_scopes.empty()) {
 		_scopes = ComputeScopes(_form);
 	}
@@ -360,13 +361,28 @@ void PanelController::fillRows(
 		const auto row = ComputeScopeRow(scope);
 		callback(
 			row.title,
-			row.ready.isEmpty() ? row.description : row.ready,
-			!row.ready.isEmpty());
+			(!row.error.isEmpty()
+				? row.error
+				: !row.ready.isEmpty()
+				? row.ready
+				: row.description),
+			!row.ready.isEmpty(),
+			!row.error.isEmpty());
 	}
 }
 
+rpl::producer<> PanelController::refillRows() const {
+	return rpl::merge(
+		_submitFailed.events(),
+		_form->valueSaveFinished() | rpl::map([] {
+			return rpl::empty_value();
+		}));
+}
+
 void PanelController::submitForm() {
-	_form->submit();
+	if (!_form->submit()) {
+		_submitFailed.fire({});
+	}
 }
 
 void PanelController::submitPassword(const QString &password) {
@@ -812,7 +828,7 @@ void PanelController::processValueSaveFinished(
 		_verificationBoxes.erase(boxIt);
 	}
 
-	if (!savingScope()) {
+	if ((_editValue == value || _editDocument == value) && !savingScope()) {
 		_panel->showForm();
 	}
 }

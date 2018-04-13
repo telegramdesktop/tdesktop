@@ -30,6 +30,7 @@ struct ScopeRow {
 	QString title;
 	QString description;
 	QString ready;
+	QString error;
 };
 
 std::vector<Scope> ComputeScopes(

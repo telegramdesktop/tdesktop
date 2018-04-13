@@ -27,12 +27,14 @@ namespace Passport {
 
 class PanelForm::Row : public Ui::RippleButton {
 public:
-	Row(
-		QWidget *parent,
-		const QString &title,
-		const QString &description);
+	explicit Row(QWidget *parent);
 
-	void setReady(bool ready);
+	void updateContent(
+		const QString &title,
+		const QString &description,
+		bool ready,
+		bool error,
+		anim::type animated);
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -48,28 +50,44 @@ private:
 	int _titleHeight = 0;
 	int _descriptionHeight = 0;
 	bool _ready = false;
+	bool _error = false;
+	Animation _errorAnimation;
 
 };
 
-PanelForm::Row::Row(
-	QWidget *parent,
-	const QString &title,
-	const QString &description)
+PanelForm::Row::Row(QWidget *parent)
 : RippleButton(parent, st::passportRowRipple)
-, _title(
-	st::semiboldTextStyle,
-	title,
-	Ui::NameTextOptions(),
-	st::boxWideWidth / 2)
-, _description(
-	st::defaultTextStyle,
-	description,
-	Ui::NameTextOptions(),
-	st::boxWideWidth / 2) {
+, _title(st::boxWideWidth / 2)
+, _description(st::boxWideWidth / 2) {
 }
 
-void PanelForm::Row::setReady(bool ready) {
+void PanelForm::Row::updateContent(
+		const QString &title,
+		const QString &description,
+		bool ready,
+		bool error,
+		anim::type animated) {
+	_title.setText(
+		st::semiboldTextStyle,
+		title,
+		Ui::NameTextOptions());
+	_description.setText(
+		st::defaultTextStyle,
+		description,
+		Ui::NameTextOptions());
 	_ready = ready;
+	if (_error != error) {
+		_error = error;
+		if (animated == anim::type::instant) {
+			_errorAnimation.finish();
+		} else {
+			_errorAnimation.start(
+				[=] { update(); },
+				_error ? 0. : 1.,
+				_error ? 1. : 0.,
+				st::fadeWrapDuration);
+		}
+	}
 	resizeToWidth(width());
 	update();
 }
@@ -110,22 +128,36 @@ void PanelForm::Row::paintEvent(QPaintEvent *e) {
 	const auto availableWidth = countAvailableWidth();
 	auto top = st::passportRowPadding.top();
 
+	const auto error = _errorAnimation.current(ms, _error ? 1. : 0.);
+
 	p.setPen(st::passportRowTitleFg);
 	_title.drawLeft(p, left, top, availableWidth, width());
 	top += _titleHeight + st::passportRowSkip;
 
-	p.setPen(st::passportRowDescriptionFg);
+	p.setPen(anim::pen(
+		st::passportRowDescriptionFg,
+		st::boxTextFgError,
+		error));
 	_description.drawLeft(p, left, top, availableWidth, width());
 	top += _descriptionHeight + st::passportRowPadding.bottom();
 
 	const auto &icon = _ready
 		? st::passportRowReadyIcon
 		: st::passportRowEmptyIcon;
-	icon.paint(
-		p,
-		width() - st::passportRowPadding.right() - icon.width(),
-		(height() - icon.height()) / 2,
-		width());
+	if (error > 0. && !_ready) {
+		icon.paint(
+			p,
+			width() - st::passportRowPadding.right() - icon.width(),
+			(height() - icon.height()) / 2,
+			width(),
+			anim::color(st::menuIconFgOver, st::boxTextFgError, error));
+	} else {
+		icon.paint(
+			p,
+			width() - st::passportRowPadding.right() - icon.width(),
+			(height() - icon.height()) / 2,
+			width());
+	}
 }
 
 PanelForm::PanelForm(
@@ -223,17 +255,38 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 	_controller->fillRows([&](
 			QString title,
 			QString description,
-			bool ready) {
-		_rows.push_back(inner->add(object_ptr<Row>(
-			this,
-			title,
-			description)));
+			bool ready,
+			bool error) {
+		_rows.push_back(inner->add(object_ptr<Row>(this)));
 		_rows.back()->addClickHandler([=] {
 			_controller->editScope(index);
 		});
-		_rows.back()->setReady(ready);
+		_rows.back()->updateContent(
+			title,
+			description,
+			ready,
+			error,
+			anim::type::instant);
 		++index;
 	});
+	_controller->refillRows(
+	) | rpl::start_with_next([=] {
+		auto index = 0;
+		_controller->fillRows([&](
+				QString title,
+				QString description,
+				bool ready,
+				bool error) {
+			Expects(index < _rows.size());
+
+			_rows[index++]->updateContent(
+				title,
+				description,
+				ready,
+				error,
+				anim::type::normal);
+		});
+	}, lifetime());
 	const auto policyUrl = _controller->privacyPolicyUrl();
 	const auto policy = inner->add(
 		object_ptr<Ui::FlatLabel>(

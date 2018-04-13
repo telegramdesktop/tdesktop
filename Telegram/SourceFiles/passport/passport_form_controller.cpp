@@ -209,7 +209,7 @@ bytes::vector FormController::passwordHashForAuth(
 		_password.salt));
 }
 
-auto FormController::prepareFinalData() const -> FinalData {
+auto FormController::prepareFinalData() -> FinalData {
 	auto hashes = QVector<MTPSecureValueHash>();
 	auto secureData = QJsonObject();
 	const auto addValueToJSON = [&](
@@ -249,7 +249,7 @@ auto FormController::prepareFinalData() const -> FinalData {
 		const auto ready = ComputeScopeRowReadyString(scope);
 		if (ready.isEmpty()) {
 			hasErrors = true;
-			_valueError.fire_copy(scope.fields);
+			findValue(scope.fields)->error = QString();
 			continue;
 		}
 		addValue(scope.fields);
@@ -276,14 +276,14 @@ auto FormController::prepareFinalData() const -> FinalData {
 	};
 }
 
-void FormController::submit() {
+bool FormController::submit() {
 	if (_submitRequestId) {
-		return;
+		return true;
 	}
 
 	const auto prepared = prepareFinalData();
 	if (prepared.hashes.empty()) {
-		return;
+		return false;
 	}
 	const auto credentialsEncryptedData = EncryptData(
 		bytes::make_span(prepared.credentials));
@@ -309,6 +309,7 @@ void FormController::submit() {
 		_view->show(Box<InformBox>(
 			"Failed sending data :(\n" + error.type()));
 	}).send();
+	return true;
 }
 
 void FormController::submitPassword(const QString &password) {
@@ -691,11 +692,6 @@ auto FormController::valueSaveFinished() const
 	return _valueSaveFinished.events();
 }
 
-auto FormController::valueError() const
--> rpl::producer<not_null<const Value*>> {
-	return _valueError.events();
-}
-
 auto FormController::verificationNeeded() const
 -> rpl::producer<not_null<const Value*>> {
 	return _verificationNeeded.events();
@@ -990,7 +986,7 @@ bool FormController::editValueChanged(
 void FormController::saveValueEdit(
 		not_null<const Value*> value,
 		ValueMap &&data) {
-	if (savingValue(value)) {
+	if (savingValue(value) || _submitRequestId) {
 		return;
 	}
 
@@ -1003,6 +999,7 @@ void FormController::saveValueEdit(
 			base::take(nonconst->data.encryptedSecretInEdit);
 			base::take(nonconst->data.hashInEdit);
 			base::take(nonconst->data.parsedInEdit);
+			base::take(nonconst->error);
 			nonconst->saveRequestId = 0;
 			_valueSaveFinished.fire_copy(nonconst);
 		});
@@ -1018,7 +1015,7 @@ void FormController::saveValueEdit(
 }
 
 void FormController::deleteValueEdit(not_null<const Value*> value) {
-	if (savingValue(value)) {
+	if (savingValue(value) || _submitRequestId) {
 		return;
 	}
 

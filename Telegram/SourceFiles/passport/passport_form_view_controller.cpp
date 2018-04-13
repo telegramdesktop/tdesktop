@@ -174,89 +174,89 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 }
 
 ScopeRow ComputeScopeRow(const Scope &scope) {
+	const auto addReadyError = [&](ScopeRow &&row) {
+		const auto ready = ComputeScopeRowReadyString(scope);
+		row.ready = ready;
+		row.error = scope.fields->error.has_value()
+			? (!scope.fields->error->isEmpty()
+				? *scope.fields->error
+				: !ready.isEmpty()
+				? ready
+				: row.description)
+			: QString();
+		return row;
+	};
 	switch (scope.type) {
 	case Scope::Type::Identity:
 		if (scope.documents.empty()) {
-			return {
+			return addReadyError({
 				lang(lng_passport_personal_details),
 				lang(lng_passport_personal_details_enter),
-				ComputeScopeRowReadyString(scope)
-			};
+			});
 		} else if (scope.documents.size() == 1) {
 			switch (scope.documents.front()->type) {
 			case Value::Type::Passport:
-				return {
+				return addReadyError({
 					lang(lng_passport_identity_passport),
 					lang(lng_passport_identity_passport_upload),
-					ComputeScopeRowReadyString(scope)
-				};
+				});
 			case Value::Type::IdentityCard:
-				return {
+				return addReadyError({
 					lang(lng_passport_identity_card),
 					lang(lng_passport_identity_card_upload),
-					ComputeScopeRowReadyString(scope)
-				};
+				});
 			case Value::Type::DriverLicense:
-				return {
+				return addReadyError({
 					lang(lng_passport_identity_license),
 					lang(lng_passport_identity_license_upload),
-					ComputeScopeRowReadyString(scope)
-				};
+				});
 			default: Unexpected("Identity type in ComputeScopeRow.");
 			}
 		}
-		return {
+		return addReadyError({
 			lang(lng_passport_identity_title),
 			lang(lng_passport_identity_description),
-			ComputeScopeRowReadyString(scope)
-		};
+		});
 	case Scope::Type::Address:
 		if (scope.documents.empty()) {
-			return {
+			return addReadyError({
 				lang(lng_passport_address),
 				lang(lng_passport_address_enter),
-				ComputeScopeRowReadyString(scope)
-			};
+			});
 		} else if (scope.documents.size() == 1) {
 			switch (scope.documents.front()->type) {
 			case Value::Type::BankStatement:
-				return {
+				return addReadyError({
 					lang(lng_passport_address_statement),
 					lang(lng_passport_address_statement_upload),
-					ComputeScopeRowReadyString(scope)
-				};
+				});
 			case Value::Type::UtilityBill:
-				return {
+				return addReadyError({
 					lang(lng_passport_address_bill),
 					lang(lng_passport_address_bill_upload),
-					ComputeScopeRowReadyString(scope)
-				};
+				});
 			case Value::Type::RentalAgreement:
-				return {
+				return addReadyError({
 					lang(lng_passport_address_agreement),
 					lang(lng_passport_address_agreement_upload),
-					ComputeScopeRowReadyString(scope)
-				};
+				});
 			default: Unexpected("Address type in ComputeScopeRow.");
 			}
 		}
-		return {
+		return addReadyError({
 			lang(lng_passport_address_title),
 			lang(lng_passport_address_description),
-			ComputeScopeRowReadyString(scope)
-		};
+		});
 	case Scope::Type::Phone:
-		return {
+		return addReadyError({
 			lang(lng_passport_phone_title),
 			lang(lng_passport_phone_description),
-			ComputeScopeRowReadyString(scope)
-		};
+		});
 	case Scope::Type::Email:
-		return {
+		return addReadyError({
 			lang(lng_passport_email_title),
 			lang(lng_passport_email_description),
-			ComputeScopeRowReadyString(scope)
-		};
+		});
 	default: Unexpected("Scope type in ComputeScopeRow.");
 	}
 }

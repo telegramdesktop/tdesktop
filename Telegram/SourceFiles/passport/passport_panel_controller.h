@@ -83,7 +83,9 @@ public:
 		base::lambda<void(
 			QString title,
 			QString description,
-			bool ready)> callback);
+			bool ready,
+			bool error)> callback);
+	rpl::producer<> refillRows() const;
 
 	void editScope(int index) override;
 	void saveScope(ValueMap &&data, ValueMap &&filesData);
@@ -124,6 +126,7 @@ private:
 
 	not_null<FormController*> _form;
 	std::vector<Scope> _scopes;
+	rpl::event_stream<> _submitFailed;
 
 	std::unique_ptr<Panel> _panel;
 	base::lambda<bool()> _panelHasUnsavedChanges;

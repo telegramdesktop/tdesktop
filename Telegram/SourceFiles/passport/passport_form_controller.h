@@ -152,6 +152,7 @@ struct Value {
 	bytes::vector submitHash;
 
 	int editScreens = 0;
+	base::optional<QString> error;
 	mtpRequestId saveRequestId = 0;
 
 };
@@ -207,7 +208,7 @@ public:
 	void show();
 	UserData *bot() const;
 	QString privacyPolicyUrl() const;
-	void submit();
+	bool submit();
 	void submitPassword(const QString &password);
 	rpl::producer<QString> passwordError() const;
 	QString passwordHint() const;
@@ -227,7 +228,6 @@ public:
 
 	rpl::producer<not_null<const EditFile*>> scanUpdated() const;
 	rpl::producer<not_null<const Value*>> valueSaveFinished() const;
-	rpl::producer<not_null<const Value*>> valueError() const;
 	rpl::producer<not_null<const Value*>> verificationNeeded() const;
 	rpl::producer<not_null<const Value*>> verificationUpdate() const;
 	void verify(not_null<const Value*> value, const QString &code);
@@ -342,7 +342,7 @@ private:
 	void sendSaveRequest(
 		not_null<Value*> value,
 		const MTPInputSecureValue &data);
-	FinalData prepareFinalData() const;
+	FinalData prepareFinalData();
 
 	not_null<Window::Controller*> _controller;
 	FormRequest _request;
@@ -359,7 +359,6 @@ private:
 
 	rpl::event_stream<not_null<const EditFile*>> _scanUpdated;
 	rpl::event_stream<not_null<const Value*>> _valueSaveFinished;
-	rpl::event_stream<not_null<const Value*>> _valueError;
 	rpl::event_stream<not_null<const Value*>> _verificationNeeded;
 	rpl::event_stream<not_null<const Value*>> _verificationUpdate;
 
