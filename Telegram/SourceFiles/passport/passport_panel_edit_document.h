@@ -17,6 +17,12 @@ class PlainShadow;
 class RoundButton;
 } // namespace Ui
 
+namespace Info {
+namespace Profile {
+class Button;
+} // namespace Profile
+} // namespace Info
+
 namespace Passport {
 
 class PanelController;
@@ -98,6 +104,8 @@ private:
 	QPointer<EditScans> _editScans;
 	std::map<int, QPointer<PanelDetailsRow>> _details;
 
+	QPointer<Info::Profile::Button> _delete;
+
 	object_ptr<Ui::RoundButton> _done;
 
 };
@@ -108,5 +116,10 @@ object_ptr<BoxContent> RequestIdentityType(
 object_ptr<BoxContent> RequestAddressType(
 	base::lambda<void(int index)> submit,
 	std::vector<QString> labels);
+
+object_ptr<BoxContent> ConfirmDeleteDocument(
+	base::lambda<void(bool withDetails)> submit,
+	const QString &text,
+	const QString &detailsCheckbox = QString());
 
 } // namespace Passport

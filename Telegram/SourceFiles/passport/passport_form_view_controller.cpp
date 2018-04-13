@@ -131,9 +131,8 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 				}
 			}());
 		}
-		if (document
-			&& (document->scans.empty()
-				|| (scope.selfieRequired && !document->selfie))) {
+		if (!scope.documents.empty()
+			&& (!document || (scope.selfieRequired && !document->selfie))) {
 			return QString();
 		}
 		const auto scheme = GetDocumentScheme(scope.type);

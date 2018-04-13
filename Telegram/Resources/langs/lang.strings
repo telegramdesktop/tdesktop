@@ -1584,6 +1584,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_confirm_email" = "We've sent a confirmation code to your email {email}.";
 "lng_passport_sure_cancel" = "If you continue your changes will be lost.";
 "lng_passport_scans_limit_reached" = "Scans limit reached.";
+"lng_passport_delete_document" = "Delete document";
+"lng_passport_delete_document_sure" = "Are you sure you want to delete this document?";
+"lng_passport_delete_details" = "Delete personal details";
+"lng_passport_delete_details_sure" = "Are you sure you want to delete your personal details?";
+"lng_passport_delete_address" = "Delete address information";
+"lng_passport_delete_address_sure" = "Are you sure you wnat to delete your address information?";
+"lng_passport_delete_email" = "Delete email";
+"lng_passport_delete_email_sure" = "Are you sure you want to delete your email?";
+"lng_passport_delete_phone" = "Delete phone number";
+"lng_passport_delete_phone_sure" = "Are you sure you want to delete your phone number?";
 
 // Wnd specific
 

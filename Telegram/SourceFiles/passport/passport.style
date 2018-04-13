@@ -141,6 +141,7 @@ passportContactNewFieldPadding: margins(22px, 0px, 22px, 28px);
 passportContactFieldPadding: margins(22px, 14px, 22px, 28px);
 
 passportRowPadding: margins(22px, 8px, 25px, 8px);
+passportRowIconSkip: 10px;
 passportRowSkip: 2px;
 passportRowRipple: RippleAnimation(defaultRippleAnimation) {
 	color: windowBgOver;
@@ -166,6 +167,10 @@ passportUploadButton: InfoProfileButton {
 }
 passportUploadButtonPadding: margins(0px, 10px, 0px, 10px);
 passportUploadHeaderPadding: margins(22px, 14px, 22px, 3px);
+passportDeleteButton: InfoProfileButton(passportUploadButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+}
 
 passportScanNameStyle: TextStyle(defaultTextStyle) {
 	font: font(boxFontSize semibold);

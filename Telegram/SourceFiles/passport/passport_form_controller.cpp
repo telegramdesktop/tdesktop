@@ -1017,6 +1017,26 @@ void FormController::saveValueEdit(
 	}
 }
 
+void FormController::deleteValueEdit(not_null<const Value*> value) {
+	if (savingValue(value)) {
+		return;
+	}
+
+	const auto nonconst = findValue(value);
+	nonconst->saveRequestId = request(MTPaccount_DeleteSecureValue(
+		MTP_vector<MTPSecureValueType>(1, ConvertType(nonconst->type))
+	)).done([=](const MTPBool &result) {
+		const auto editScreens = value->editScreens;
+		*nonconst = Value(nonconst->type);
+		nonconst->editScreens = editScreens;
+
+		_valueSaveFinished.fire_copy(value);
+	}).fail([=](const RPCError &error) {
+		nonconst->saveRequestId = 0;
+		valueSaveFailed(nonconst, error);
+	}).send();
+}
+
 void FormController::saveEncryptedValue(not_null<Value*> value) {
 	Expects(isEncryptedValue(value->type));
 

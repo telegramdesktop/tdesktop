@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_panel_controller.h"
 #include "passport/passport_panel_details_row.h"
 #include "passport/passport_panel_edit_scans.h"
+#include "info/profile/info_profile_button.h"
+#include "info/profile/info_profile_values.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/labels.h"
@@ -47,6 +49,28 @@ private:
 		base::lambda<void(int index)> submit);
 
 	QString _title;
+	base::lambda<void()> _submit;
+	int _height = 0;
+
+};
+
+class DeleteDocumentBox : public BoxContent {
+public:
+	DeleteDocumentBox(
+		QWidget*,
+		const QString &text,
+		const QString &detailsCheckbox,
+		base::lambda<void(bool withDetails)> submit);
+
+protected:
+	void prepare() override;
+
+private:
+	void setupControls(
+		const QString &text,
+		const QString &detailsCheckbox,
+		base::lambda<void(bool withDetails)> submit);
+
 	base::lambda<void()> _submit;
 	int _height = 0;
 
@@ -119,6 +143,58 @@ void RequestTypeBox::setupControls(
 		if (value >= 0) {
 			submit(value);
 		}
+	};
+}
+
+DeleteDocumentBox::DeleteDocumentBox(
+		QWidget*,
+		const QString &text,
+		const QString &detailsCheckbox,
+		base::lambda<void(bool withDetails)> submit) {
+	setupControls(text, detailsCheckbox, submit);
+}
+
+void DeleteDocumentBox::prepare() {
+	addButton(langFactory(lng_box_delete), _submit);
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+
+	setDimensions(st::boxWidth, _height);
+}
+
+void DeleteDocumentBox::setupControls(
+		const QString &text,
+		const QString &detailsCheckbox,
+		base::lambda<void(bool withDetails)> submit) {
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		this,
+		text,
+		Ui::FlatLabel::InitType::Simple,
+		st::boxLabel);
+	const auto details = !detailsCheckbox.isEmpty()
+		? Ui::CreateChild<Ui::Checkbox>(
+			this,
+			detailsCheckbox,
+			false,
+			st::defaultBoxCheckbox)
+		: nullptr;
+
+	_height = st::boxPadding.top();
+	const auto availableWidth = st::boxWidth
+		- st::boxPadding.left()
+		- st::boxPadding.right();
+	label->resizeToWidth(availableWidth);
+	label->moveToLeft(st::boxPadding.left(), _height);
+	_height += label->height();
+
+	if (details) {
+		_height += st::boxPadding.bottom();
+		details->moveToLeft(st::boxPadding.left(), _height);
+		_height += details->heightNoMargins();
+	}
+	_height += st::boxPadding.bottom();
+
+	_submit = [=] {
+		submit(details ? details->checked() : false);
 	};
 }
 
@@ -252,6 +328,17 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 
 	inner->add(
 		object_ptr<Ui::FixedHeightWidget>(inner, st::passportDetailsSkip));
+	if (auto text = _controller->deleteValueLabel()) {
+		_delete = inner->add(
+			object_ptr<Info::Profile::Button>(
+				inner,
+				std::move(*text) | Info::Profile::ToUpperValue(),
+				st::passportDeleteButton),
+			st::passportUploadButtonPadding);
+		_delete->addClickHandler([=] {
+			_controller->deleteValue();
+		});
+	}
 
 	return inner;
 }
@@ -301,12 +388,14 @@ PanelEditDocument::Result PanelEditDocument::collect() const {
 }
 
 bool PanelEditDocument::validate() {
-	if (const auto error = _editScans->validateGetErrorTop()) {
+	const auto error = _editScans
+		? _editScans->validateGetErrorTop()
+		: base::none;
+	if (error) {
 		const auto errortop = _editScans->mapToGlobal(QPoint(0, *error));
 		const auto scrolltop = _scroll->mapToGlobal(QPoint(0, 0));
 		const auto scrolldelta = errortop.y() - scrolltop.y();
 		_scroll->scrollToY(_scroll->scrollTop() + scrolldelta);
-		return false;
 	}
 	auto first = QPointer<PanelDetailsRow>();
 	for (const auto [i, field] : base::reversed(_details)) {
@@ -317,7 +406,7 @@ bool PanelEditDocument::validate() {
 		}
 	}
 	if (!first) {
-		return true;
+		return !error;
 	}
 	const auto firsttop = first->mapToGlobal(QPoint(0, 0));
 	const auto scrolltop = _scroll->mapToGlobal(QPoint(0, 0));
@@ -354,6 +443,13 @@ object_ptr<BoxContent> RequestAddressType(
 		lang(lng_passport_address_about),
 		std::move(labels),
 		submit);
+}
+
+object_ptr<BoxContent> ConfirmDeleteDocument(
+		base::lambda<void(bool withDetails)> submit,
+		const QString &text,
+		const QString &detailsCheckbox) {
+	return Box<DeleteDocumentBox>(text, detailsCheckbox, submit);
 }
 
 } // namespace Passport

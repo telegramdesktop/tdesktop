@@ -240,6 +240,7 @@ public:
 		not_null<const Value*> value,
 		const ValueMap &data) const;
 	void saveValueEdit(not_null<const Value*> value, ValueMap &&data);
+	void deleteValueEdit(not_null<const Value*> value);
 	bool savingValue(not_null<const Value*> value) const;
 
 	void cancel();

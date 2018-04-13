@@ -69,6 +69,9 @@ public:
 	void restoreSelfie();
 	rpl::producer<ScanInfo> scanUpdated() const;
 
+	base::optional<rpl::producer<QString>> deleteValueLabel() const;
+	void deleteValue();
+
 	QString defaultEmail() const;
 	QString defaultPhoneNumber() const;
 
@@ -112,16 +115,23 @@ private:
 	void processValueSaveFinished(not_null<const Value*> value);
 	void processVerificationNeeded(not_null<const Value*> value);
 
+	bool savingScope() const;
+	bool hasValueDocument() const;
+	bool hasValueFields() const;
 	ScanInfo collectScanInfo(const EditFile &file) const;
 	QString getDefaultContactValue(Scope::Type type) const;
+	void deleteValueSure(bool withDetails);
 
 	not_null<FormController*> _form;
 	std::vector<Scope> _scopes;
 
 	std::unique_ptr<Panel> _panel;
 	base::lambda<bool()> _panelHasUnsavedChanges;
-	BoxPointer _confirmForgetChangesBox;
+	QPointer<BoxContent> _confirmForgetChangesBox;
+	std::vector<BoxPointer> _editScopeBoxes;
 	Scope *_editScope = nullptr;
+	const Value *_editValue = nullptr;
+	const Value *_editDocument = nullptr;
 	int _editDocumentIndex = -1;
 	BoxPointer _scopeDocumentTypeBox;
 	std::map<not_null<const Value*>, BoxPointer> _verificationBoxes;

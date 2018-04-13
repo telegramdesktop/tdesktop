@@ -391,79 +391,60 @@ QString PanelController::defaultPhoneNumber() const {
 
 bool PanelController::canAddScan() const {
 	Expects(_editScope != nullptr);
-	Expects(_editDocumentIndex >= 0
-		&& _editDocumentIndex < _editScope->documents.size());
+	Expects(_editDocument != nullptr);
 
-	return _form->canAddScan(_editScope->documents[_editDocumentIndex]);
+	return _form->canAddScan(_editDocument);
 }
 
 void PanelController::uploadScan(QByteArray &&content) {
 	Expects(_editScope != nullptr);
-	Expects(_editDocumentIndex >= 0
-		&& _editDocumentIndex < _editScope->documents.size());
+	Expects(_editDocument != nullptr);
 
-	_form->uploadScan(
-		_editScope->documents[_editDocumentIndex],
-		std::move(content));
+	_form->uploadScan(_editDocument, std::move(content));
 }
 
 void PanelController::deleteScan(int fileIndex) {
 	Expects(_editScope != nullptr);
-	Expects(_editDocumentIndex >= 0
-		&& _editDocumentIndex < _editScope->documents.size());
+	Expects(_editDocument != nullptr);
 
-	_form->deleteScan(
-		_editScope->documents[_editDocumentIndex],
-		fileIndex);
+	_form->deleteScan(_editDocument, fileIndex);
 }
 
 void PanelController::restoreScan(int fileIndex) {
 	Expects(_editScope != nullptr);
-	Expects(_editDocumentIndex >= 0
-		&& _editDocumentIndex < _editScope->documents.size());
+	Expects(_editDocument != nullptr);
 
-	_form->restoreScan(
-		_editScope->documents[_editDocumentIndex],
-		fileIndex);
+	_form->restoreScan(_editDocument, fileIndex);
 }
 
 void PanelController::uploadSelfie(QByteArray &&content) {
 	Expects(_editScope != nullptr);
-	Expects(_editDocumentIndex >= 0
-		&& _editDocumentIndex < _editScope->documents.size());
+	Expects(_editDocument != nullptr);
 	Expects(_editScope->selfieRequired);
 
-	_form->uploadSelfie(
-		_editScope->documents[_editDocumentIndex],
-		std::move(content));
+	_form->uploadSelfie(_editDocument, std::move(content));
 }
 
 void PanelController::deleteSelfie() {
 	Expects(_editScope != nullptr);
-	Expects(_editDocumentIndex >= 0
-		&& _editDocumentIndex < _editScope->documents.size());
+	Expects(_editDocument != nullptr);
 	Expects(_editScope->selfieRequired);
 
-	_form->deleteSelfie(
-		_editScope->documents[_editDocumentIndex]);
+	_form->deleteSelfie(_editDocument);
 }
 
 void PanelController::restoreSelfie() {
 	Expects(_editScope != nullptr);
-	Expects(_editDocumentIndex >= 0
-		&& _editDocumentIndex < _editScope->documents.size());
+	Expects(_editDocument != nullptr);
 	Expects(_editScope->selfieRequired);
 
-	_form->restoreSelfie(
-		_editScope->documents[_editDocumentIndex]);
+	_form->restoreSelfie(_editDocument);
 }
 
 rpl::producer<ScanInfo> PanelController::scanUpdated() const {
 	return _form->scanUpdated(
 	) | rpl::filter([=](not_null<const EditFile*> file) {
-		return (_editScope != nullptr)
-			&& (_editDocumentIndex >= 0)
-			&& (file->value == _editScope->documents[_editDocumentIndex]);
+		return (file->value == _editDocument);
 	}) | rpl::map([=](not_null<const EditFile*> file) {
 		return collectScanInfo(*file);
 	});
@@ -471,7 +452,7 @@ rpl::producer<ScanInfo> PanelController::scanUpdated() const {
 
 ScanInfo PanelController::collectScanInfo(const EditFile &file) const {
 	Expects(_editScope != nullptr);
-	Expects(_editDocumentIndex >= 0);
+	Expects(_editDocument != nullptr);
 
 	const auto status = [&] {
 		if (file.fields.accessHash) {
@@ -502,16 +483,105 @@ ScanInfo PanelController::collectScanInfo(const EditFile &file) const {
 			return formatDownloadText(0, file.fields.size);
 		}
 	}();
-	const auto &documents = _editScope->documents;
-	auto isSelfie = (file.value == documents[_editDocumentIndex])
-		&& (documents[_editDocumentIndex]->selfieInEdit.has_value())
-		&& (&file == &*documents[_editDocumentIndex]->selfieInEdit);
+	auto isSelfie = (file.value == _editDocument)
+		&& (_editDocument->selfieInEdit.has_value())
+		&& (&file == &*_editDocument->selfieInEdit);
 	return {
 		FileKey{ file.fields.id, file.fields.dcId },
 		status,
 		file.fields.image,
 		file.deleted,
 		isSelfie };
+}
+
+auto PanelController::deleteValueLabel() const
+-> base::optional<rpl::producer<QString>> {
+	Expects(_editScope != nullptr);
+
+	if (hasValueDocument()) {
+		return Lang::Viewer(lng_passport_delete_document);
+	}
+	if (!hasValueFields()) {
+		return base::none;
+	}
+	switch (_editScope->type) {
+	case Scope::Type::Identity:
+		return Lang::Viewer(lng_passport_delete_details);
+	case Scope::Type::Address:
+		return Lang::Viewer(lng_passport_delete_address);
+	case Scope::Type::Email:
+		return Lang::Viewer(lng_passport_delete_email);
+	case Scope::Type::Phone:
+		return Lang::Viewer(lng_passport_delete_phone);
+	}
+	Unexpected("Type in PanelController::deleteValueLabel.");
+}
+
+bool PanelController::hasValueDocument() const {
+	Expects(_editScope != nullptr);
+
+	if (!_editDocument) {
+		return false;
+	}
+	return !_editDocument->data.parsed.fields.empty()
+		|| !_editDocument->scans.empty()
+		|| _editDocument->selfie.has_value();
+}
+
+bool PanelController::hasValueFields() const {
+	Expects(_editValue != nullptr);
+
+	return !_editValue->data.parsed.fields.empty();
+}
+
+void PanelController::deleteValue() {
+	Expects(_editScope != nullptr);
+
+	if (savingScope()) {
+		return;
+	}
+	const auto text = [&] {
+		switch (_editScope->type) {
+		case Scope::Type::Identity:
+			return lang(hasValueDocument()
+				? lng_passport_delete_document_sure
+				: lng_passport_delete_details_sure);
+		case Scope::Type::Address:
+			return lang(hasValueDocument()
+				? lng_passport_delete_document_sure
+				: lng_passport_delete_address_sure);
+		case Scope::Type::Phone:
+			return lang(lng_passport_delete_phone_sure);
+		case Scope::Type::Email:
+			return lang(lng_passport_delete_email_sure);
+		}
+		Unexpected("Type in deleteValue.");
+	}();
+	const auto checkbox = (hasValueDocument() && hasValueFields()) ? [&] {
+		switch (_editScope->type) {
+		case Scope::Type::Identity:
+			return lang(lng_passport_delete_details);
+		case Scope::Type::Address:
+			return lang(lng_passport_delete_address);
+		}
+		Unexpected("Type in deleteValue.");
+	}() : QString();
+
+	_editScopeBoxes.emplace_back(show(ConfirmDeleteDocument(
+		[=](bool withDetails) { deleteValueSure(withDetails); },
+		text,
+		checkbox)));
+}
+
+void PanelController::deleteValueSure(bool withDetails) {
+	Expects(_editValue != nullptr);
+
+	if (hasValueDocument()) {
+		_form->deleteValueEdit(_editDocument);
+	}
+	if (withDetails || !hasValueDocument()) {
+		_form->deleteValueEdit(_editValue);
+	}
 }
 
 QString PanelController::getDefaultContactValue(Scope::Type type) const {
@@ -653,36 +723,38 @@ void PanelController::editScope(int index, int documentIndex) {
 			&& documentIndex < _scopes[index].documents.size()));
 
 	_editScope = &_scopes[index];
-	_editDocumentIndex = documentIndex;
+	_editValue = _editScope->fields;
+	_editDocument = (documentIndex >= 0)
+		? _scopes[index].documents[documentIndex].get()
+		: nullptr;
 
-	_form->startValueEdit(_editScope->fields);
-	if (_editDocumentIndex >= 0) {
-		_form->startValueEdit(_editScope->documents[_editDocumentIndex]);
+	_form->startValueEdit(_editValue);
+	if (_editDocument) {
+		_form->startValueEdit(_editDocument);
 	}
 
 	auto content = [&]() -> object_ptr<Ui::RpWidget> {
 		switch (_editScope->type) {
 		case Scope::Type::Identity:
 		case Scope::Type::Address: {
-			const auto &documents = _editScope->documents;
-			auto result = (_editDocumentIndex >= 0)
+			auto result = _editDocument
 				? object_ptr<PanelEditDocument>(
 					_panel.get(),
 					this,
 					GetDocumentScheme(
 						_editScope->type,
-						documents[_editDocumentIndex]->type),
-					_editScope->fields->data.parsedInEdit,
-					documents[_editDocumentIndex]->data.parsedInEdit,
-					valueFiles(*documents[_editDocumentIndex]),
+						_editDocument->type),
+					_editValue->data.parsedInEdit,
+					_editDocument->data.parsedInEdit,
+					valueFiles(*_editDocument),
 					(_editScope->selfieRequired
-						? valueSelfie(*documents[_editDocumentIndex])
+						? valueSelfie(*_editDocument)
 						: nullptr))
 				: object_ptr<PanelEditDocument>(
 					_panel.get(),
 					this,
 					GetDocumentScheme(_editScope->type),
-					_editScope->fields->data.parsedInEdit);
+					_editValue->data.parsedInEdit);
 			const auto weak = make_weak(result.data());
 			_panelHasUnsavedChanges = [=] {
 				return weak ? weak->hasUnsavedChanges() : false;
@@ -691,7 +763,7 @@ void PanelController::editScope(int index, int documentIndex) {
 		} break;
 		case Scope::Type::Phone:
 		case Scope::Type::Email: {
-			const auto &parsed = _editScope->fields->data.parsedInEdit;
+			const auto &parsed = _editValue->data.parsedInEdit;
 			const auto valueIt = parsed.fields.find("value");
 			_panelHasUnsavedChanges = nullptr;
 			return object_ptr<PanelEditContact>(
@@ -736,16 +808,16 @@ void PanelController::processValueSaveFinished(
 		_verificationBoxes.erase(boxIt);
 	}
 
-	const auto value1 = _editScope->fields;
-	const auto value2 = (_editDocumentIndex >= 0)
-		? _editScope->documents[_editDocumentIndex].get()
-		: nullptr;
-	if (value == value1 || value == value2) {
-		if (!_form->savingValue(value1)
-			&& (!value2 || !_form->savingValue(value2))) {
-			_panel->showForm();
-		}
+	if (!savingScope()) {
+		_panel->showForm();
 	}
+}
+
+bool PanelController::savingScope() const {
+	Expects(_editValue != nullptr);
+
+	return _form->savingValue(_editValue)
+		|| (_editDocument && _form->savingValue(_editDocument));
 }
 
 void PanelController::processVerificationNeeded(
@@ -828,24 +900,27 @@ std::unique_ptr<ScanInfo> PanelController::valueSelfie(
 }
 
 void PanelController::cancelValueEdit() {
-	if (const auto scope = base::take(_editScope)) {
-		_form->cancelValueEdit(scope->fields);
-		const auto index = std::exchange(_editDocumentIndex, -1);
-		if (index >= 0) {
-			_form->cancelValueEdit(scope->documents[index]);
-		}
+	Expects(_editScope != nullptr);
+
+	_editScopeBoxes.clear();
+	_form->cancelValueEdit(base::take(_editValue));
+	if (const auto document = base::take(_editDocument)) {
+		_form->cancelValueEdit(document);
 	}
+	_editScope = nullptr;
 }
 
 void PanelController::saveScope(ValueMap &&data, ValueMap &&filesData) {
 	Expects(_panel != nullptr);
-	Expects(_editScope != nullptr);
+	Expects(_editValue != nullptr);
 
-	_form->saveValueEdit(_editScope->fields, std::move(data));
-	if (_editDocumentIndex >= 0) {
-		_form->saveValueEdit(
-			_editScope->documents[_editDocumentIndex],
-			std::move(filesData));
+	if (savingScope()) {
+		return;
+	}
+
+	_form->saveValueEdit(_editValue, std::move(data));
+	if (_editDocument) {
+		_form->saveValueEdit(_editDocument, std::move(filesData));
 	} else {
 		Assert(filesData.fields.empty());
 	}
@@ -854,14 +929,12 @@ void PanelController::saveScope(ValueMap &&data, ValueMap &&filesData) {
 bool PanelController::editScopeChanged(
 		const ValueMap &data,
 		const ValueMap &filesData) const {
-	Expects(_editScope != nullptr);
+	Expects(_editValue != nullptr);
 
-	if (_form->editValueChanged(_editScope->fields, data)) {
+	if (_form->editValueChanged(_editValue, data)) {
 		return true;
-	} else if (_editDocumentIndex >= 0) {
-		return _form->editValueChanged(
-			_editScope->documents[_editDocumentIndex],
-			filesData);
+	} else if (_editDocument) {
+		return _form->editValueChanged(_editDocument, filesData);
 	}
 	return false;
 }
@@ -871,13 +944,11 @@ void PanelController::cancelEditScope() {
 
 	if (_panelHasUnsavedChanges && _panelHasUnsavedChanges()) {
 		if (!_confirmForgetChangesBox) {
-			_confirmForgetChangesBox = BoxPointer(show(Box<ConfirmBox>(
+			_confirmForgetChangesBox = show(Box<ConfirmBox>(
 				lang(lng_passport_sure_cancel),
 				lang(lng_continue),
-				[=] {
-					_panel->showForm();
-					base::take(_confirmForgetChangesBox);
-				})).data());
+				[=] { _panel->showForm(); }));
+			_editScopeBoxes.emplace_back(_confirmForgetChangesBox);
 		}
 	} else {
 		_panel->showForm();

@@ -92,7 +92,8 @@ int PanelForm::Row::countAvailableWidth(int newWidth) const {
 		- st::passportRowPadding.right()
 		- (_ready
 			? st::passportRowReadyIcon
-			: st::passportRowEmptyIcon).width();
+			: st::passportRowEmptyIcon).width()
+		- st::passportRowIconSkip;
 }
 
 int PanelForm::Row::countAvailableWidth() const {

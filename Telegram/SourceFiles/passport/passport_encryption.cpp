@@ -337,10 +337,7 @@ bytes::vector DecryptValueSecret(
 
 uint64 CountSecureSecretHash(bytes::const_span secret) {
 	const auto full = openssl::Sha256(secret);
-	const auto part = bytes::make_span(full).subspan(
-		full.size() - sizeof(uint64),
-		sizeof(uint64));
-	return *reinterpret_cast<const uint64*>(part.data());
+	return *reinterpret_cast<const uint64*>(full.data());
 }
 
 bytes::vector EncryptCredentialsSecret(
