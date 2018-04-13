@@ -280,7 +280,9 @@ void PanelEditContact::setupControls(
 }
 
 void PanelEditContact::focusInEvent(QFocusEvent *e) {
-	_field->setFocusFast();
+	crl::on_main(this, [=] {
+		_field->setFocusFast();
+	});
 }
 
 void PanelEditContact::resizeEvent(QResizeEvent *e) {

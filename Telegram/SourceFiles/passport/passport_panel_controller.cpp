@@ -663,7 +663,7 @@ void PanelController::editScope(int index, int documentIndex) {
 			return object_ptr<PanelEditContact>(
 				_panel.get(),
 				this,
-				std::move(GetContactScheme(_editScope->type)),
+				GetContactScheme(_editScope->type),
 				(valueIt == end(parsed.fields)
 					? QString()
 					: valueIt->second),
@@ -861,5 +861,7 @@ void PanelController::showBox(object_ptr<BoxContent> box) {
 rpl::lifetime &PanelController::lifetime() {
 	return _lifetime;
 }
+
+PanelController::~PanelController() = default;
 
 } // namespace Passport

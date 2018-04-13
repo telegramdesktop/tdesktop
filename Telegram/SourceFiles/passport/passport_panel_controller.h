@@ -94,6 +94,8 @@ public:
 
 	rpl::lifetime &lifetime();
 
+	~PanelController();
+
 private:
 	void ensurePanelCreated();
 

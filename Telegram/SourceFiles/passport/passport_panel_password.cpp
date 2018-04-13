@@ -89,16 +89,14 @@ void PanelAskPassword::submit() {
 	_controller->submitPassword(_password->getLastText());
 }
 
-void PanelAskPassword::setInnerFocus() {
-	_password->setFocusFast();
-}
-
 void PanelAskPassword::resizeEvent(QResizeEvent *e) {
 	updateControlsGeometry();
 }
 
 void PanelAskPassword::focusInEvent(QFocusEvent *e) {
-	_password->setFocusFast();
+	crl::on_main(this, [=] {
+		_password->setFocusFast();
+	});
 }
 
 void PanelAskPassword::updateControlsGeometry() {

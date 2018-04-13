@@ -22,6 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+constexpr auto kEmptyPidForCommandResponse = 0ULL;
+
 QChar _toHex(ushort v) {
 	v = v & 0x000F;
 	return QChar::fromLatin1((v >= 10) ? ('a' + (v - 10)) : ('0' + v));
@@ -61,6 +63,26 @@ QString _escapeFrom7bit(const QString &str) {
 }
 
 } // namespace
+
+bool StartUrlRequiresActivate(const QString &url) {
+	const auto urlTrimmed = url.trimmed();
+	if (!urlTrimmed.startsWith(qstr("tg://"), Qt::CaseInsensitive) || App::passcoded()) {
+		return true;
+	}
+	const auto command = urlTrimmed.midRef(qstr("tg://").size());
+
+	using namespace qthelp;
+	const auto matchOptions = RegExOption::CaseInsensitive;
+	const auto authMatch = regex_match(
+		qsl("^passport/?\\?(.+)(#|$)"),
+		command,
+		matchOptions);
+	const auto authLegacyMatch = regex_match(
+		qsl("^resolve/?\\?domain=telegrampassport&(.+)(#|$)"),
+		command,
+		matchOptions);
+	return !authMatch->hasMatch() && !authLegacyMatch->hasMatch();
+}
 
 Application::Application(
 		not_null<Core::Launcher*> launcher,

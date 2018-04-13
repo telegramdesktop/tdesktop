@@ -256,11 +256,13 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 }
 
 void PanelEditDocument::focusInEvent(QFocusEvent *e) {
-	for (const auto [index, row] : _details) {
-		if (row->setFocusFast()) {
-			return;
+	crl::on_main(this, [=] {
+		for (const auto [index, row] : _details) {
+			if (row->setFocusFast()) {
+				return;
+			}
 		}
-	}
+	});
 }
 
 void PanelEditDocument::resizeEvent(QResizeEvent *e) {

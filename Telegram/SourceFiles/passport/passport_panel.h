@@ -92,8 +92,6 @@ private:
 	QPoint _dragStartMousePosition;
 	QPoint _dragStartMyPosition;
 
-	int _stateChangedSubscription = 0;
-
 	Animation _titleLeft;
 	bool _visible = false;
 

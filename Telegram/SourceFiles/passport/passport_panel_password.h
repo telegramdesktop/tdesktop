@@ -27,7 +27,6 @@ public:
 		QWidget *parent,
 		not_null<PanelController*> controller);
 
-	void setInnerFocus();
 	void submit();
 
 protected:

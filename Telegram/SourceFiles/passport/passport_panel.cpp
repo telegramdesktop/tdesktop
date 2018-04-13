@@ -287,11 +287,13 @@ void Panel::showInner(base::unique_qptr<Ui::RpWidget> inner) {
 }
 
 void Panel::focusInEvent(QFocusEvent *e) {
-	if (_layer) {
-		_layer->setInnerFocus();
-	} else if (!_inner->isHidden()) {
-		_inner->setFocus();
-	}
+	crl::on_main(this, [=] {
+		if (_layer) {
+			_layer->setInnerFocus();
+		} else if (!_inner->isHidden()) {
+			_inner->setFocus();
+		}
+	});
 }
 
 void Panel::initGeometry() {

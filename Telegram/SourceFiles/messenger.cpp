@@ -274,7 +274,9 @@ bool Messenger::eventFilter(QObject *object, QEvent *e) {
 				cSetStartUrl(url.mid(0, 8192));
 				checkStartUrl();
 			}
-			_window->activate();
+			if (StartUrlRequiresActivate(url)) {
+				_window->activate();
+			}
 		}
 	} break;
 	}

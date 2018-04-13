@@ -12,6 +12,8 @@ class Launcher;
 class UpdateChecker;
 } // namespace Core
 
+bool StartUrlRequiresActivate(const QString &url);
+
 class Application : public QApplication {
 	Q_OBJECT
 
