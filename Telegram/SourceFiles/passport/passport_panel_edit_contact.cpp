@@ -270,6 +270,18 @@ void PanelEditContact::setupControls(
 				st::passportFormLabel),
 			st::passportFormLabelPadding));
 
+	if (auto text = _controller->deleteValueLabel()) {
+		_content->add(
+			object_ptr<Info::Profile::Button>(
+				_content,
+				std::move(*text) | Info::Profile::ToUpperValue(),
+				st::passportDeleteButton),
+			st::passportUploadButtonPadding
+		)->addClickHandler([=] {
+			_controller->deleteValue();
+		});
+	}
+
 	const auto submit = [=] {
 		crl::on_main(this, [=] {
 			save();

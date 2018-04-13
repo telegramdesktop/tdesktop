@@ -329,13 +329,13 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 	inner->add(
 		object_ptr<Ui::FixedHeightWidget>(inner, st::passportDetailsSkip));
 	if (auto text = _controller->deleteValueLabel()) {
-		_delete = inner->add(
+		inner->add(
 			object_ptr<Info::Profile::Button>(
 				inner,
 				std::move(*text) | Info::Profile::ToUpperValue(),
 				st::passportDeleteButton),
-			st::passportUploadButtonPadding);
-		_delete->addClickHandler([=] {
+			st::passportUploadButtonPadding
+		)->addClickHandler([=] {
 			_controller->deleteValue();
 		});
 	}

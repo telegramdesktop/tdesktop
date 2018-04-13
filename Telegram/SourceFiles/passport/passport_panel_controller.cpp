@@ -765,15 +765,19 @@ void PanelController::editScope(int index, int documentIndex) {
 		case Scope::Type::Email: {
 			const auto &parsed = _editValue->data.parsedInEdit;
 			const auto valueIt = parsed.fields.find("value");
+			const auto value = (valueIt == end(parsed.fields)
+				? QString()
+				: valueIt->second);
+			const auto existing = getDefaultContactValue(_editScope->type);
 			_panelHasUnsavedChanges = nullptr;
 			return object_ptr<PanelEditContact>(
 				_panel.get(),
 				this,
 				GetContactScheme(_editScope->type),
-				(valueIt == end(parsed.fields)
-					? QString()
-					: valueIt->second),
-				getDefaultContactValue(_editScope->type));
+				value,
+				(existing.toLower().trimmed() != value.toLower().trimmed()
+					? existing
+					: QString()));
 		} break;
 		}
 		Unexpected("Type in PanelController::editScope().");
