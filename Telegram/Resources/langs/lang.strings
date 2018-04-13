@@ -825,6 +825,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_took_screenshot" = "{from} took a screenshot!";
 "lng_action_you_took_screenshot" = "You took a screenshot!";
 "lng_action_bot_allowed_from_domain" = "You allowed this bot to message you when you logged in on {domain}.";
+"lng_action_secure_values_sent" = "{user} received the following documents: {documents}";
+"lng_action_secure_personal_details" = "personal details";
+"lng_action_secure_proof_of_identity" = "proof of identity";
+"lng_action_secure_address" = "address";
+"lng_action_secure_proof_of_address" = "proof of address";
+"lng_action_secure_phone" = "phone number";
+"lng_action_secure_email" = "email address";
 
 "lng_ttl_photo_received" = "{from} sent you a self-destructing photo. Please view it on your mobile.";
 "lng_ttl_photo_sent" = "You sent a self-destructing photo.";

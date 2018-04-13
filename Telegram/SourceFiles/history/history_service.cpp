@@ -167,8 +167,38 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	};
 
 	auto prepareSecureValuesSent = [&](const MTPDmessageActionSecureValuesSent &action) {
-		// #TODO passport
-		return PreparedText{ QString("Secure values sent.") };
+		auto result = PreparedText{};
+		auto documents = QStringList();
+		for (const auto &type : action.vtypes.v) {
+			documents.push_back([&] {
+				switch (type.type()) {
+				case mtpc_secureValueTypePersonalDetails:
+					return lang(lng_action_secure_personal_details);
+				case mtpc_secureValueTypePassport:
+				case mtpc_secureValueTypeDriverLicense:
+				case mtpc_secureValueTypeIdentityCard:
+					return lang(lng_action_secure_proof_of_identity);
+				case mtpc_secureValueTypeAddress:
+					return lang(lng_action_secure_address);
+				case mtpc_secureValueTypeUtilityBill:
+				case mtpc_secureValueTypeBankStatement:
+				case mtpc_secureValueTypeRentalAgreement:
+					return lang(lng_action_secure_proof_of_address);
+				case mtpc_secureValueTypePhone:
+					return lang(lng_action_secure_phone);
+				case mtpc_secureValueTypeEmail:
+					return lang(lng_action_secure_email);
+				}
+				Unexpected("Type in prepareSecureValuesSent.");
+			}());
+		};
+		result.links.push_back(history()->peer->createOpenLink());
+		result.text = lng_action_secure_values_sent(
+			lt_user,
+			textcmdLink(1, App::peerName(history()->peer)),
+			lt_documents,
+			documents.join(", "));
+		return result;
 	};
 
 	auto messageText = PreparedText {};
