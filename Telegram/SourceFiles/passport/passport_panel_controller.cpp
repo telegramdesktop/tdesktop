@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/countryinput.h"
 #include "layout.h"
+#include "styles/style_boxes.h"
 
 namespace Passport {
 
@@ -637,6 +638,29 @@ void PanelController::deleteValueSure(bool withDetails) {
 	if (withDetails || !hasValueDocument()) {
 		_form->deleteValueEdit(_editValue);
 	}
+}
+
+void PanelController::suggestReset(base::lambda<void()> callback) {
+	_resetBox = BoxPointer(show(Box<ConfirmBox>(
+		Lang::Hard::PassportCorrupted(),
+		Lang::Hard::PassportCorruptedReset(),
+		[=] { resetPassport(callback); },
+		[=] { cancelReset(); })).data()); // #TODO passport no need for confirmation?
+}
+
+void PanelController::resetPassport(base::lambda<void()> callback) {
+	const auto box = show(Box<ConfirmBox>(
+		Lang::Hard::PassportCorruptedResetSure(),
+		Lang::Hard::PassportCorruptedReset(),
+		st::attentionBoxButton,
+		[=] { base::take(_resetBox); callback(); },
+		[=] { suggestReset(callback); }));
+	_resetBox = BoxPointer(box.data());
+}
+
+void PanelController::cancelReset() {
+	const auto weak = base::take(_resetBox);
+	_form->cancelSure();
 }
 
 QString PanelController::getDefaultContactValue(Scope::Type type) const {

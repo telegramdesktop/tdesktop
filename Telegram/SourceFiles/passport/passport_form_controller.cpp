@@ -397,23 +397,15 @@ void FormController::validateSecureSecret(
 		_secret = DecryptSecureSecret(salt, encryptedSecret, password);
 		if (_secret.empty()) {
 			_secretId = 0;
-			LOG(("API Error: Failed to decrypt secure secret. "
-				"Forgetting all files and data :("));
-			for (auto &[type, value] : _form.values) {
-				if (!value.data.original.isEmpty()) {
-					resetValue(value);
-				}
-			}
+			LOG(("API Error: Failed to decrypt secure secret."));
+			suggestReset(bytes::make_vector(password));
+			return;
 		} else if (CountSecureSecretId(_secret) != serverSecretId) {
 			_secret.clear();
 			_secretId = 0;
-			LOG(("API Error: Wrong secure secret id. "
-				"Forgetting all files and data :("));
-			for (auto &[type, value] : _form.values) {
-				if (!value.data.original.isEmpty()) {
-					resetValue(value);
-				}
-			}
+			LOG(("API Error: Wrong secure secret id."));
+			suggestReset(bytes::make_vector(password));
+			return;
 		} else {
 			_secretId = serverSecretId;
 			decryptValues();
@@ -423,6 +415,40 @@ void FormController::validateSecureSecret(
 		generateSecret(password);
 	}
 	_secretReady.fire({});
+}
+
+void FormController::suggestReset(bytes::vector password) {
+	for (auto &[type, value] : _form.values) {
+//		if (!value.data.original.isEmpty()) {
+		resetValue(value);
+//		}
+	}
+	_view->suggestReset([=] {
+		const auto hashForAuth = openssl::Sha256(bytes::concatenate(
+			_password.salt,
+			password,
+			_password.salt));
+		using Flag = MTPDaccount_passwordInputSettings::Flag;
+		_saveSecretRequestId = request(MTPaccount_UpdatePasswordSettings(
+			MTP_bytes(hashForAuth),
+			MTP_account_passwordInputSettings(
+				MTP_flags(Flag::f_new_secure_secret),
+				MTPbytes(), // new_salt
+				MTPbytes(), // new_password_hash
+				MTPstring(), // hint
+				MTPstring(), // email
+			MTP_bytes(QByteArray()), // new_secure_salt
+			MTP_bytes(QByteArray()), // new_secure_secret
+			MTP_long(0)) // new_secure_secret_id
+		)).done([=](const MTPBool &result) {
+			_saveSecretRequestId = 0;
+			generateSecret(password);
+		}).fail([=](const RPCError &error) {
+			_saveSecretRequestId = 0;
+			formFail(error.type());
+		}).send();
+		_secretReady.fire({});
+	});
 }
 
 void FormController::decryptValues() {
@@ -441,10 +467,16 @@ void FormController::decryptValue(Value &value) {
 		return;
 	}
 	if (!value.data.original.isEmpty()) {
-		const auto fields = DeserializeData(DecryptData(
+		const auto decrypted = DecryptData(
 			bytes::make_span(value.data.original),
 			value.data.hash,
-			value.data.secret));
+			value.data.secret);
+		if (decrypted.empty()) {
+			LOG(("API Error: Could not decrypt value fields."));
+			resetValue(value);
+			return;
+		}
+		const auto fields = DeserializeData(decrypted);
 		value.data.parsed.fields.clear();
 		for (const auto [key, text] : fields) {
 			value.data.parsed.fields[key] = { text };
@@ -459,8 +491,7 @@ bool FormController::validateValueSecrets(Value &value) {
 			_secret,
 			value.data.hash);
 		if (value.data.secret.empty()) {
-			LOG(("API Error: Could not decrypt data secret. "
-				"Forgetting files and data :("));
+			LOG(("API Error: Could not decrypt data secret."));
 			return false;
 		}
 	}
@@ -470,8 +501,7 @@ bool FormController::validateValueSecrets(Value &value) {
 			_secret,
 			file.hash);
 		if (file.secret.empty()) {
-			LOG(("API Error: Could not decrypt selfie secret. "
-				"Forgetting files and data :("));
+			LOG(("API Error: Could not decrypt file secret."));
 			return false;
 		}
 		return true;

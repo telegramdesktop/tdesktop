@@ -108,6 +108,7 @@ public:
 
 	void showBox(object_ptr<BoxContent> box) override;
 	void showToast(const QString &text) override;
+	void suggestReset(base::lambda<void()> callback) override;
 
 	int closeGetDuration() override;
 
@@ -140,6 +141,9 @@ private:
 	QString getDefaultContactValue(Scope::Type type) const;
 	void deleteValueSure(bool withDetails);
 
+	void resetPassport(base::lambda<void()> callback);
+	void cancelReset();
+
 	not_null<FormController*> _form;
 	std::vector<Scope> _scopes;
 	rpl::event_stream<> _submitFailed;
@@ -156,6 +160,8 @@ private:
 	int _editDocumentIndex = -1;
 	BoxPointer _scopeDocumentTypeBox;
 	std::map<not_null<const Value*>, BoxPointer> _verificationBoxes;
+
+	BoxPointer _resetBox;
 
 	rpl::lifetime _lifetime;
 

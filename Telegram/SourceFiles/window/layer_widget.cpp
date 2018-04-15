@@ -789,7 +789,6 @@ LayerStackWidget::~LayerStackWidget() {
 	// other layers, that call methods of LayerStackWidget and access
 	// its fields, so if it is destroyed already everything crashes.
 	for (auto layer : base::take(_layers)) {
-		layer->setClosing();
 		layer->hide();
 		delete layer;
 	}

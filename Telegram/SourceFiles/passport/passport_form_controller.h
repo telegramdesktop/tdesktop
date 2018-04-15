@@ -250,6 +250,7 @@ public:
 	bool savingValue(not_null<const Value*> value) const;
 
 	void cancel();
+	void cancelSure();
 
 	rpl::lifetime &lifetime();
 
@@ -352,8 +353,8 @@ private:
 		const MTPInputSecureValue &data);
 	FinalData prepareFinalData();
 
+	void suggestReset(bytes::vector password);
 	void suggestRestart();
-	void cancelSure();
 	void cancelAbort();
 
 	not_null<Window::Controller*> _controller;
