@@ -126,11 +126,11 @@ FormRequest::FormRequest(
 	const QString &callbackUrl,
 	const QString &publicKey,
 	const QString &payload)
-	: botId(botId)
-	, scope(scope)
-	, callbackUrl(callbackUrl)
-	, publicKey(publicKey)
-	, payload(payload) {
+: botId(botId)
+, scope(scope)
+, callbackUrl(callbackUrl)
+, publicKey(publicKey)
+, payload(payload) {
 }
 
 EditFile::EditFile(
@@ -184,9 +184,9 @@ Value::Value(Type type) : type(type) {
 FormController::FormController(
 	not_null<Window::Controller*> controller,
 	const FormRequest &request)
-	: _controller(controller)
-	, _request(PreprocessRequest(request))
-	, _view(std::make_unique<PanelController>(this)) {
+: _controller(controller)
+, _request(PreprocessRequest(request))
+, _view(std::make_unique<PanelController>(this)) {
 }
 
 void FormController::show() {
@@ -203,7 +203,7 @@ QString FormController::privacyPolicyUrl() const {
 }
 
 bytes::vector FormController::passwordHashForAuth(
-	bytes::const_span password) const {
+		bytes::const_span password) const {
 	return openssl::Sha256(bytes::concatenate(
 		_password.salt,
 		password,
@@ -221,7 +221,7 @@ auto FormController::prepareFinalData() -> FinalData {
 			object.insert("data", GetJSONFromMap({
 				{ "data_hash", value->data.hash },
 				{ "secret", value->data.secret }
-				}));
+			}));
 		}
 		if (!value->scans.empty()) {
 			auto files = QJsonArray();

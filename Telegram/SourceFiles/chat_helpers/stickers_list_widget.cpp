@@ -266,16 +266,23 @@ void StickersListWidget::Footer::preloadImages() {
 void StickersListWidget::Footer::validateSelectedIcon(
 		uint64 setId,
 		ValidateIconAnimations animations) {
-	auto newSelected = 0;
+	auto favedIconIndex = -1;
+	auto newSelected = -1;
 	for (auto i = 0, l = _icons.size(); i != l; ++i) {
 		if (_icons[i].setId == setId
 			|| (_icons[i].setId == Stickers::FavedSetId
 				&& setId == Stickers::RecentSetId)) {
 			newSelected = i;
 			break;
+		} else if (_icons[i].setId == Stickers::FavedSetId) {
+			favedIconIndex = i;
 		}
 	}
-	setSelectedIcon(newSelected, animations);
+	setSelectedIcon(
+		(newSelected >= 0
+			? newSelected
+			: (favedIconIndex >= 0) ? favedIconIndex : 0),
+		animations);
 }
 
 void StickersListWidget::Footer::setSelectedIcon(
