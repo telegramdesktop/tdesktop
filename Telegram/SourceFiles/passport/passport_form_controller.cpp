@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_panel_controller.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
+#include "lang/lang_hardcoded.h"
 #include "base/openssl_help.h"
 #include "base/qthelp_url.h"
 #include "mainwindow.h"
@@ -27,6 +28,35 @@ namespace Passport {
 namespace {
 
 constexpr auto kDocumentScansLimit = 20;
+
+bool ForwardServiceErrorRequired(const QString &error) {
+	return (error == qstr("BOT_INVALID"))
+		|| (error == qstr("PUBLIC_KEY_REQUIRED"))
+		|| (error == qstr("PUBLIC_KEY_INVALID"))
+		|| (error == qstr("SCOPE_EMPTY"))
+		|| (error == qstr("PAYLOAD_EMPTY"));
+}
+
+bool SaveErrorRequiresRestart(const QString &error) {
+	return (error == qstr("PASSWORD_REQUIRED"))
+		|| (error == qstr("SECURE_SECRET_REQUIRED"))
+		|| (error == qstr("SECURE_SECRET_INVALID"));
+}
+
+bool AcceptErrorRequiresRestart(const QString &error) {
+	return (error == qstr("PASSWORD_REQUIRED"))
+		|| (error == qstr("SECURE_SECRET_REQUIRED"))
+		|| (error == qstr("SECURE_VALUE_EMPTY"))
+		|| (error == qstr("SECURE_VALUE_HASH_INVALID"));
+}
+
+std::map<QString, QString> GetTexts(const ValueMap &map) {
+	auto result = std::map<QString, QString>();
+	for (const auto &[key, value] : map.fields) {
+		result[key] = value.text;
+	}
+	return result;
+}
 
 QImage ReadImage(bytes::const_span buffer) {
 	return App::readImage(QByteArray::fromRawData(
@@ -137,15 +167,15 @@ EditFile::EditFile(
 	not_null<const Value*> value,
 	const File &fields,
 	std::unique_ptr<UploadScanData> &&uploadData)
-	: value(value)
-	, fields(std::move(fields))
-	, uploadData(std::move(uploadData))
-	, guard(std::make_shared<bool>(true)) {
+: value(value)
+, fields(std::move(fields))
+, uploadData(std::move(uploadData))
+, guard(std::make_shared<bool>(true)) {
 }
 
 UploadScanDataPointer::UploadScanDataPointer(
 	std::unique_ptr<UploadScanData> &&value)
-	: _value(std::move(value)) {
+: _value(std::move(value)) {
 }
 
 UploadScanDataPointer::UploadScanDataPointer(
@@ -211,6 +241,7 @@ bytes::vector FormController::passwordHashForAuth(
 }
 
 auto FormController::prepareFinalData() -> FinalData {
+	auto errors = std::vector<not_null<const Value*>>();
 	auto hashes = QVector<MTPSecureValueHash>();
 	auto secureData = QJsonObject();
 	const auto addValueToJSON = [&](
@@ -244,13 +275,11 @@ auto FormController::prepareFinalData() -> FinalData {
 			addValueToJSON(key, value);
 		}
 	};
-	auto hasErrors = false;
 	const auto scopes = ComputeScopes(this);
 	for (const auto &scope : scopes) {
 		const auto ready = ComputeScopeRowReadyString(scope);
 		if (ready.isEmpty()) {
-			hasErrors = true;
-			findValue(scope.fields)->error = QString();
+			errors.push_back(scope.fields);
 			continue;
 		}
 		addValue(scope.fields);
@@ -263,28 +292,28 @@ auto FormController::prepareFinalData() -> FinalData {
 			}
 		}
 	}
-	if (hasErrors) {
-		return {};
-	}
 
 	auto json = QJsonObject();
-	json.insert("secure_data", secureData);
-	json.insert("payload", _request.payload);
+	if (errors.empty()) {
+		json.insert("secure_data", secureData);
+		json.insert("payload", _request.payload);
+	}
 
 	return {
 		hashes,
-		QJsonDocument(json).toJson(QJsonDocument::Compact)
+		QJsonDocument(json).toJson(QJsonDocument::Compact),
+		errors
 	};
 }
 
-bool FormController::submit() {
+std::vector<not_null<const Value*>> FormController::submitGetErrors() {
 	if (_submitRequestId || _submitSuccess|| _cancelled) {
-		return true;
+		return {};
 	}
 
 	const auto prepared = prepareFinalData();
-	if (prepared.hashes.empty()) {
-		return false;
+	if (!prepared.errors.empty()) {
+		return prepared.errors;
 	}
 	const auto credentialsEncryptedData = EncryptData(
 		bytes::make_span(prepared.credentials));
@@ -313,10 +342,15 @@ bool FormController::submit() {
 			[=] { cancel(); });
 	}).fail([=](const RPCError &error) {
 		_submitRequestId = 0;
-		_view->show(Box<InformBox>(
-			"Failed sending data :(\n" + error.type()));
+		if (AcceptErrorRequiresRestart(error.type())) {
+			suggestRestart();
+		} else {
+			_view->show(Box<InformBox>(
+				Lang::Hard::SecureAcceptError() + "\n" + error.type()));
+		}
 	}).send();
-	return true;
+
+	return {};
 }
 
 void FormController::submitPassword(const QString &password) {
@@ -407,10 +441,14 @@ void FormController::decryptValue(Value &value) {
 		return;
 	}
 	if (!value.data.original.isEmpty()) {
-		value.data.parsed.fields = DeserializeData(DecryptData(
+		const auto fields = DeserializeData(DecryptData(
 			bytes::make_span(value.data.original),
 			value.data.hash,
 			value.data.secret));
+		value.data.parsed.fields.clear();
+		for (const auto [key, text] : fields) {
+			value.data.parsed.fields[key] = { text };
+		}
 	}
 }
 
@@ -991,11 +1029,11 @@ bool FormController::editValueChanged(
 	for (const auto &[key, value] : data.fields) {
 		const auto i = existing.find(key);
 		if (i != existing.end()) {
-			if (i->second != value) {
+			if (i->second.text != value.text) {
 				return true;
 			}
 			existing.erase(i);
-		} else if (!value.isEmpty()) {
+		} else if (!value.text.isEmpty()) {
 			return true;
 		}
 	}
@@ -1018,7 +1056,6 @@ void FormController::saveValueEdit(
 			base::take(nonconst->data.encryptedSecretInEdit);
 			base::take(nonconst->data.hashInEdit);
 			base::take(nonconst->data.parsedInEdit);
-			base::take(nonconst->error);
 			nonconst->saveRequestId = 0;
 			_valueSaveFinished.fire_copy(nonconst);
 		});
@@ -1049,7 +1086,7 @@ void FormController::deleteValueEdit(not_null<const Value*> value) {
 		_valueSaveFinished.fire_copy(value);
 	}).fail([=](const RPCError &error) {
 		nonconst->saveRequestId = 0;
-		valueSaveFailed(nonconst, error);
+		valueSaveShowError(nonconst, error);
 	}).send();
 }
 
@@ -1090,7 +1127,7 @@ void FormController::saveEncryptedValue(not_null<Value*> value) {
 		value->data.secret = GenerateSecretBytes();
 	}
 	const auto encryptedData = EncryptData(
-		SerializeData(value->data.parsedInEdit.fields),
+		SerializeData(GetTexts(value->data.parsedInEdit)),
 		value->data.secret);
 	value->data.hashInEdit = encryptedData.hash;
 	value->data.encryptedSecretInEdit = EncryptValueSecret(
@@ -1197,18 +1234,37 @@ void FormController::sendSaveRequest(
 		_valueSaveFinished.fire_copy(value);
 	}).fail([=](const RPCError &error) {
 		value->saveRequestId = 0;
-		if (error.type() == qstr("PHONE_VERIFICATION_NEEDED")) {
+		const auto code = error.type();
+		if (code == qstr("PHONE_VERIFICATION_NEEDED")) {
 			if (value->type == Value::Type::Phone) {
 				startPhoneVerification(value);
 				return;
 			}
-		} else if (error.type() == qstr("EMAIL_VERIFICATION_NEEDED")) {
+		} else if (code == qstr("PHONE_NUMBER_INVALID")) {
+			if (value->type == Value::Type::Phone) {
+				value->data.parsedInEdit.fields["value"].error
+					= lang(lng_bad_phone);
+				valueSaveFailed(value);
+				return;
+			}
+		} else if (code == qstr("EMAIL_VERIFICATION_NEEDED")) {
 			if (value->type == Value::Type::Email) {
 				startEmailVerification(value);
 				return;
 			}
+		} else if (code == qstr("EMAIL_INVALID")) {
+			if (value->type == Value::Type::Email) {
+				value->data.parsedInEdit.fields["value"].error
+					= lang(lng_cloud_password_bad_email);
+				valueSaveFailed(value);
+				return;
+			}
 		}
-		valueSaveFailed(value, error);
+		if (SaveErrorRequiresRestart(code)) {
+			suggestRestart();
+		} else {
+			valueSaveShowError(value, error);
+		}
 	}).send();
 }
 
@@ -1233,7 +1289,7 @@ QString FormController::getPlainTextFromValue(
 
 	const auto i = value->data.parsedInEdit.fields.find("value");
 	Assert(i != end(value->data.parsedInEdit.fields));
-	return i->second;
+	return i->second.text;
 }
 
 void FormController::startPhoneVerification(not_null<Value*> value) {
@@ -1291,7 +1347,7 @@ void FormController::startPhoneVerification(not_null<Value*> value) {
 		_verificationNeeded.fire_copy(value);
 	}).fail([=](const RPCError &error) {
 		value->verification.requestId = 0;
-		valueSaveFailed(value, error);
+		valueSaveShowError(value, error);
 	}).send();
 }
 
@@ -1308,7 +1364,7 @@ void FormController::startEmailVerification(not_null<Value*> value) {
 			: -1;
 		_verificationNeeded.fire_copy(value);
 	}).fail([=](const RPCError &error) {
-		valueSaveFailed(value, error);
+		valueSaveShowError(value, error);
 	}).send();
 }
 
@@ -1326,10 +1382,15 @@ void FormController::requestPhoneCall(not_null<Value*> value) {
 	}).send();
 }
 
-void FormController::valueSaveFailed(
+void FormController::valueSaveShowError(
 		not_null<Value*> value,
 		const RPCError &error) {
-	_view->show(Box<InformBox>("Error saving value:\n" + error.type()));
+	_view->show(Box<InformBox>(
+		Lang::Hard::SecureSaveError() + "\n" + error.type()));
+	valueSaveFailed(value);
+}
+
+void FormController::valueSaveFailed(not_null<Value*> value) {
 	valueEditFailed(value);
 	_valueSaveFinished.fire_copy(value);
 }
@@ -1378,16 +1439,24 @@ void FormController::generateSecret(bytes::const_span password) {
 			callback();
 		}
 	}).fail([=](const RPCError &error) {
-		// #TODO wrong password hash error?
-		Ui::show(Box<InformBox>("Saving encrypted value failed."));
 		_saveSecretRequestId = 0;
+		suggestRestart();
 	}).send();
+}
+
+void FormController::suggestRestart() {
+	_suggestingRestart = true;
+	_view->show(Box<ConfirmBox>(
+		lang(lng_passport_restart_sure),
+		lang(lng_passport_restart),
+		[=] { _controller->showPassportForm(_request); },
+		[=] { cancel(); }));
 }
 
 void FormController::requestForm() {
 	if (_request.payload.isEmpty()) {
 		_formRequestId = -1;
-		Ui::show(Box<InformBox>(lang(lng_passport_form_error)));
+		formFail("PAYLOAD_EMPTY");
 		return;
 	}
 	_formRequestId = request(MTPaccount_GetAuthorizationForm(
@@ -1398,7 +1467,7 @@ void FormController::requestForm() {
 		_formRequestId = 0;
 		formDone(result);
 	}).fail([=](const RPCError &error) {
-		formFail(error);
+		formFail(error.type());
 	}).send();
 }
 
@@ -1496,11 +1565,11 @@ auto FormController::parseValue(
 		switch (data.vplain_data.type()) {
 		case mtpc_securePlainPhone: {
 			const auto &fields = data.vplain_data.c_securePlainPhone();
-			result.data.parsed.fields["value"] = qs(fields.vphone);
+			result.data.parsed.fields["value"].text = qs(fields.vphone);
 		} break;
 		case mtpc_securePlainEmail: {
 			const auto &fields = data.vplain_data.c_securePlainEmail();
-			result.data.parsed.fields["value"] = qs(fields.vemail);
+			result.data.parsed.fields["value"].text = qs(fields.vemail);
 		} break;
 		}
 	}
@@ -1596,8 +1665,10 @@ void FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 	_bot = App::userLoaded(_request.botId);
 }
 
-void FormController::formFail(const RPCError &error) {
-	Ui::show(Box<InformBox>(lang(lng_passport_form_error)));
+void FormController::formFail(const QString &error) {
+	_serviceErrorText = error;
+	_view->showCriticalError(
+		lang(lng_passport_form_error) + "\n" + error);
 }
 
 void FormController::requestPassword() {
@@ -1606,7 +1677,7 @@ void FormController::requestPassword() {
 		_passwordRequestId = 0;
 		passwordDone(result);
 	}).fail([=](const RPCError &error) {
-		formFail(error);
+		formFail(error.type());
 	}).send();
 }
 
@@ -1627,7 +1698,7 @@ void FormController::passwordDone(const MTPaccount_Password &result) {
 
 void FormController::showForm() {
 	if (!_bot) {
-		Ui::show(Box<InformBox>("Could not get authorization bot."));
+		formFail(Lang::Hard::NoAuthorizationBot());
 		return;
 	}
 	if (!_password.salt.empty()) {
@@ -1637,10 +1708,6 @@ void FormController::showForm() {
 	} else {
 		_view->showNoPassword();
 	}
-}
-
-void FormController::passwordFail(const RPCError &error) {
-	Ui::show(Box<InformBox>("Could not get authorization form."));
 }
 
 void FormController::parsePassword(const MTPDaccount_noPassword &result) {
@@ -1661,13 +1728,22 @@ void FormController::parsePassword(const MTPDaccount_password &result) {
 }
 
 void FormController::cancel() {
-	if (!_submitSuccess) {
+	if (!_submitSuccess && _serviceErrorText.isEmpty()) {
 		_view->show(Box<ConfirmBox>(
 			lang(lng_passport_stop_sure),
 			lang(lng_passport_stop),
-			[=] { cancelSure(); }));
+			[=] { cancelSure(); },
+			[=] { cancelAbort(); }));
 	} else {
 		cancelSure();
+	}
+}
+
+void FormController::cancelAbort() {
+	if (_cancelled || _submitSuccess) {
+		return;
+	} else if (_suggestingRestart) {
+		suggestRestart();
 	}
 }
 
@@ -1675,11 +1751,18 @@ void FormController::cancelSure() {
 	if (!_cancelled) {
 		_cancelled = true;
 
-		const auto url = qthelp::url_append_query(
-			_request.callbackUrl,
-			_submitSuccess ? "tg_passport=success" : "tg_passport=cancel");
-		UrlClickHandler::doOpen(url);
-
+		if (!_request.callbackUrl.isEmpty()
+			&& (_serviceErrorText.isEmpty()
+				|| ForwardServiceErrorRequired(_serviceErrorText))) {
+			const auto url = qthelp::url_append_query(
+				_request.callbackUrl,
+				(_submitSuccess
+					? "tg_passport=success"
+					: (_serviceErrorText.isEmpty()
+						? "tg_passport=cancel"
+						: "tg_passport=error&error=" + _serviceErrorText)));
+			UrlClickHandler::doOpen(url);
+		}
 		const auto timeout = _view->closeGetDuration();
 		App::CallDelayed(timeout, this, [=] {
 			_controller->clearPassportForm();

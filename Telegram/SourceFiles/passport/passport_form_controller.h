@@ -84,6 +84,7 @@ struct File {
 
 	int downloadOffset = 0;
 	QImage image;
+	QString error;
 };
 
 struct EditFile {
@@ -99,8 +100,13 @@ struct EditFile {
 	bool deleted = false;
 };
 
+struct ValueField {
+	QString text;
+	QString error;
+};
+
 struct ValueMap {
-	std::map<QString, QString> fields;
+	std::map<QString, ValueField> fields;
 };
 
 struct ValueData {
@@ -146,13 +152,13 @@ struct Value {
 	ValueData data;
 	std::vector<File> scans;
 	std::vector<EditFile> scansInEdit;
+	QString scanMissingError;
 	base::optional<File> selfie;
 	base::optional<EditFile> selfieInEdit;
 	Verification verification;
 	bytes::vector submitHash;
 
 	int editScreens = 0;
-	base::optional<QString> error;
 	mtpRequestId saveRequestId = 0;
 
 };
@@ -208,7 +214,7 @@ public:
 	void show();
 	UserData *bot() const;
 	QString privacyPolicyUrl() const;
-	bool submit();
+	std::vector<not_null<const Value*>> submitGetErrors();
 	void submitPassword(const QString &password);
 	rpl::producer<QString> passwordError() const;
 	QString passwordHint() const;
@@ -253,6 +259,7 @@ private:
 	struct FinalData {
 		QVector<MTPSecureValueHash> hashes;
 		QByteArray credentials;
+		std::vector<not_null<const Value*>> errors;
 	};
 	EditFile *findEditFile(const FullMsgId &fullId);
 	EditFile *findEditFile(const FileKey &key);
@@ -263,7 +270,7 @@ private:
 	void requestPassword();
 
 	void formDone(const MTPaccount_AuthorizationForm &result);
-	void formFail(const RPCError &error);
+	void formFail(const QString &error);
 	void parseForm(const MTPaccount_AuthorizationForm &result);
 	void showForm();
 	Value parseValue(
@@ -280,7 +287,6 @@ private:
 		const std::vector<EditFile> &source) const;
 
 	void passwordDone(const MTPaccount_Password &result);
-	void passwordFail(const RPCError &error);
 	void parsePassword(const MTPDaccount_noPassword &settings);
 	void parsePassword(const MTPDaccount_password &settings);
 	bytes::vector passwordHashForAuth(bytes::const_span password) const;
@@ -327,7 +333,8 @@ private:
 	QString getPlainTextFromValue(not_null<const Value*> value) const;
 	void startPhoneVerification(not_null<Value*> value);
 	void startEmailVerification(not_null<Value*> value);
-	void valueSaveFailed(not_null<Value*> value, const RPCError &error);
+	void valueSaveShowError(not_null<Value*> value, const RPCError &error);
+	void valueSaveFailed(not_null<Value*> value);
 	void requestPhoneCall(not_null<Value*> value);
 	void verificationError(
 		not_null<Value*> value,
@@ -345,7 +352,9 @@ private:
 		const MTPInputSecureValue &data);
 	FinalData prepareFinalData();
 
+	void suggestRestart();
 	void cancelSure();
+	void cancelAbort();
 
 	not_null<Window::Controller*> _controller;
 	FormRequest _request;
@@ -373,6 +382,8 @@ private:
 	rpl::event_stream<QString> _passwordError;
 	mtpRequestId _submitRequestId = 0;
 	bool _submitSuccess = false;
+	bool _suggestingRestart = false;
+	QString _serviceErrorText;
 
 	rpl::lifetime _uploaderSubscriptions;
 	rpl::lifetime _lifetime;

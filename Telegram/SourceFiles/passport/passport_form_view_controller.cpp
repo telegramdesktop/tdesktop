@@ -147,20 +147,26 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 				const auto i = fields.find(row.key);
 				if (i == end(fields)) {
 					return QString();
-				} else if (row.validate && !row.validate(i->second)) {
+				}
+				const auto text = i->second.text;
+				if (row.validate && !row.validate(text)) {
 					return QString();
 				}
-				pushListValue(format ? format(i->second) : i->second);
+				pushListValue(format ? format(text) : text);
+			} else if (scope.documents.empty()) {
+				continue;
 			} else if (!document) {
 				return QString();
 			} else {
 				const auto i = document->data.parsed.fields.find(row.key);
 				if (i == end(document->data.parsed.fields)) {
 					return QString();
-				} else if (row.validate && !row.validate(i->second)) {
+				}
+				const auto text = i->second.text;
+				if (row.validate && !row.validate(text)) {
 					return QString();
 				}
-				pushListValue(i->second);
+				pushListValue(text);
 			}
 		}
 		return list.join(", ");
@@ -171,7 +177,7 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 		const auto &fields = scope.fields->data.parsed.fields;
 		const auto i = fields.find("value");
 		return (i != end(fields))
-			? (format ? format(i->second) : i->second)
+			? (format ? format(i->second.text) : i->second.text)
 			: QString();
 	} break;
 	}
@@ -182,13 +188,14 @@ ScopeRow ComputeScopeRow(const Scope &scope) {
 	const auto addReadyError = [&](ScopeRow &&row) {
 		const auto ready = ComputeScopeRowReadyString(scope);
 		row.ready = ready;
-		row.error = scope.fields->error.has_value()
-			? (!scope.fields->error->isEmpty()
-				? *scope.fields->error
-				: !ready.isEmpty()
-				? ready
-				: row.description)
-			: QString();
+		// #TODO passport bot errors
+		//row.error = scope.fields->error.has_value()
+		//	? (!scope.fields->error->isEmpty()
+		//		? *scope.fields->error
+		//		: !ready.isEmpty()
+		//		? ready
+		//		: row.description)
+		//	: QString();
 		return row;
 	};
 	switch (scope.type) {

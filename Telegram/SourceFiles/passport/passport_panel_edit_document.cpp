@@ -305,7 +305,7 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 		if (const auto i = fields.find(key); i != fields.end()) {
 			return i->second;
 		}
-		return QString();
+		return ValueField();
 	};
 
 	for (auto i = 0, count = int(_scheme.rows.size()); i != count; ++i) {
@@ -316,13 +316,14 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 		if (!fields) {
 			continue;
 		}
+		const auto current = valueOrEmpty(*fields, row.key);
 		_details.emplace(i, inner->add(PanelDetailsRow::Create(
 			inner,
 			row.inputType,
 			_controller,
 			row.label,
-			valueOrEmpty(*fields, row.key),
-			QString(),
+			current.text,
+			current.error,
 			row.lengthLimit)));
 	}
 
@@ -382,7 +383,7 @@ PanelEditDocument::Result PanelEditDocument::collect() const {
 		auto &fields = (row.valueClass == Scheme::ValueClass::Fields)
 			? result.data
 			: result.filesData;
-		fields.fields[row.key] = field->valueCurrent();
+		fields.fields[row.key].text = field->valueCurrent();
 	}
 	return result;
 }

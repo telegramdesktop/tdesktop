@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/fade_wrap.h"
 #include "boxes/abstract_box.h"
 #include "boxes/confirm_phone_box.h"
@@ -260,6 +261,18 @@ void PanelEditContact::setupControls(
 	}, _field->lifetime());
 
 	_content->add(std::move(wrap), fieldPadding);
+	const auto errorWrap = _content->add(
+		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+			_content,
+			object_ptr<Ui::FlatLabel>(
+				_content,
+				QString(),
+				Ui::FlatLabel::InitType::Simple,
+				st::passportVerifyErrorLabel),
+			st::passportContactErrorPadding),
+		st::passportContactErrorMargin);
+	errorWrap->hide(anim::type::instant);
+
 	_content->add(
 		object_ptr<PanelLabel>(
 			_content,
@@ -282,12 +295,24 @@ void PanelEditContact::setupControls(
 		});
 	}
 
+	_controller->saveErrors(
+	) | rpl::start_with_next([=](const ScopeError &error) {
+		if (error.key == QString("value")) {
+			_field->showError();
+			errorWrap->entity()->setText(error.text);
+			errorWrap->show(anim::type::normal);
+		}
+	}, lifetime());
+
 	const auto submit = [=] {
 		crl::on_main(this, [=] {
 			save();
 		});
 	};
 	connect(_field, &Ui::MaskedInputField::submitted, submit);
+	connect(_field, &Ui::MaskedInputField::changed, [=] {
+		errorWrap->hide(anim::type::normal);
+	});
 	_done->addClickHandler(submit);
 }
 
@@ -323,7 +348,7 @@ void PanelEditContact::save() {
 
 void PanelEditContact::save(const QString &value) {
 	auto data = ValueMap();
-	data.fields["value"] = value;
+	data.fields["value"].text = value;
 	_controller->saveScope(std::move(data), {});
 }
 

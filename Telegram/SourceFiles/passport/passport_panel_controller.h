@@ -29,6 +29,16 @@ struct ScanInfo {
 	QImage thumb;
 	bool deleted = false;
 	bool selfie = false;
+	QString error;
+
+};
+
+struct ScopeError {
+	// FileKey:id != 0 - file_hash error (bad scan / selfie)
+	// FileKey:id == 0 - vector<file_hash> error (scan missing)
+	// QString - data_hash with such key error (bad value)
+	base::variant<FileKey, QString> key;
+	QString text;
 
 };
 
@@ -68,6 +78,7 @@ public:
 	void deleteSelfie();
 	void restoreSelfie();
 	rpl::producer<ScanInfo> scanUpdated() const;
+	rpl::producer<ScopeError> saveErrors() const;
 
 	base::optional<rpl::producer<QString>> deleteValueLabel() const;
 	void deleteValue();
@@ -78,6 +89,7 @@ public:
 	void showAskPassword() override;
 	void showNoPassword() override;
 	void showPasswordUnconfirmed() override;
+	void showCriticalError(const QString &error) override;
 
 	void fillRows(
 		base::lambda<void(
@@ -123,12 +135,16 @@ private:
 	bool hasValueDocument() const;
 	bool hasValueFields() const;
 	ScanInfo collectScanInfo(const EditFile &file) const;
+	std::vector<ScopeError> collectErrors(
+		not_null<const Value*> value) const;
 	QString getDefaultContactValue(Scope::Type type) const;
 	void deleteValueSure(bool withDetails);
 
 	not_null<FormController*> _form;
 	std::vector<Scope> _scopes;
 	rpl::event_stream<> _submitFailed;
+	std::vector<not_null<const Value*>> _submitErrors;
+	rpl::event_stream<ScopeError> _saveErrors;
 
 	std::unique_ptr<Panel> _panel;
 	base::lambda<bool()> _panelHasUnsavedChanges;

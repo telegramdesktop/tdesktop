@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/fade_wrap.h"
 #include "lang/lang_keys.h"
 #include "window/layer_widget.h"
@@ -228,6 +229,23 @@ void Panel::showNoPassword() {
 void Panel::showPasswordUnconfirmed() {
 	showInner(
 		base::make_unique_q<PanelPasswordUnconfirmed>(_body, _controller));
+	setBackAllowed(false);
+}
+
+void Panel::showCriticalError(const QString &error) {
+	auto container = base::make_unique_q<Ui::PaddingWrap<Ui::FlatLabel>>(
+		_body,
+		object_ptr<Ui::FlatLabel>(
+			_body,
+			error,
+			Ui::FlatLabel::InitType::Simple,
+			st::passportErrorLabel),
+		style::margins(0, st::passportPanelHeight / 3, 0, 0));
+	container->widthValue(
+	) | rpl::start_with_next([label = container->entity()](int width) {
+		label->resize(width, label->height());
+	}, container->lifetime());
+	showInner(std::move(container));
 	setBackAllowed(false);
 }
 
@@ -484,7 +502,7 @@ void Panel::paintOpaqueBorder(Painter &p) const {
 }
 
 void Panel::closeEvent(QCloseEvent *e) {
-	// #TODO
+	// #TODO passport
 }
 
 void Panel::mousePressEvent(QMouseEvent *e) {

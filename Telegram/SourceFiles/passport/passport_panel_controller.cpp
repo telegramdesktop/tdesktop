@@ -359,6 +359,13 @@ void PanelController::fillRows(
 	}
 	for (const auto &scope : _scopes) {
 		const auto row = ComputeScopeRow(scope);
+		const auto main = scope.fields;
+		if (!row.ready.isEmpty()) {
+			_submitErrors.erase(
+				ranges::remove(_submitErrors, main),
+				_submitErrors.end());
+		}
+		const auto submitError = base::contains(_submitErrors, main);
 		callback(
 			row.title,
 			(!row.error.isEmpty()
@@ -367,7 +374,7 @@ void PanelController::fillRows(
 				? row.ready
 				: row.description),
 			!row.ready.isEmpty(),
-			!row.error.isEmpty());
+			!row.error.isEmpty() || submitError);
 	}
 }
 
@@ -380,7 +387,8 @@ rpl::producer<> PanelController::refillRows() const {
 }
 
 void PanelController::submitForm() {
-	if (!_form->submit()) {
+	_submitErrors = _form->submitGetErrors();
+	if (!_submitErrors.empty()) {
 		_submitFailed.fire({});
 	}
 }
@@ -466,6 +474,10 @@ rpl::producer<ScanInfo> PanelController::scanUpdated() const {
 	});
 }
 
+rpl::producer<ScopeError> PanelController::saveErrors() const {
+	return _saveErrors.events();
+}
+
 ScanInfo PanelController::collectScanInfo(const EditFile &file) const {
 	Expects(_editScope != nullptr);
 	Expects(_editDocument != nullptr);
@@ -507,7 +519,34 @@ ScanInfo PanelController::collectScanInfo(const EditFile &file) const {
 		status,
 		file.fields.image,
 		file.deleted,
-		isSelfie };
+		isSelfie,
+		file.fields.error };
+}
+
+std::vector<ScopeError> PanelController::collectErrors(
+		not_null<const Value*> value) const {
+	auto result = std::vector<ScopeError>();
+	if (!value->scanMissingError.isEmpty()) {
+		result.push_back({ FileKey(), value->scanMissingError });
+	}
+	const auto addFileError = [&](const EditFile &file) {
+		if (!file.fields.error.isEmpty()) {
+			const auto key = FileKey{ file.fields.id, file.fields.dcId };
+			result.push_back({ key, file.fields.error });
+		}
+	};
+	for (const auto &scan : value->scansInEdit) {
+		addFileError(scan);
+	}
+	if (value->selfieInEdit) {
+		addFileError(*value->selfieInEdit);
+	}
+	for (const auto &[key, value] : value->data.parsedInEdit.fields) {
+		if (!value.error.isEmpty()) {
+			result.push_back({ key, value.error });
+		}
+	}
+	return result;
 }
 
 auto PanelController::deleteValueLabel() const
@@ -623,6 +662,11 @@ void PanelController::showNoPassword() {
 void PanelController::showPasswordUnconfirmed() {
 	ensurePanelCreated();
 	_panel->showPasswordUnconfirmed();
+}
+
+void PanelController::showCriticalError(const QString &error) {
+	ensurePanelCreated();
+	_panel->showCriticalError(error);
 }
 
 void PanelController::ensurePanelCreated() {
@@ -783,7 +827,7 @@ void PanelController::editScope(int index, int documentIndex) {
 			const auto valueIt = parsed.fields.find("value");
 			const auto value = (valueIt == end(parsed.fields)
 				? QString()
-				: valueIt->second);
+				: valueIt->second.text);
 			const auto existing = getDefaultContactValue(_editScope->type);
 			_panelHasUnsavedChanges = nullptr;
 			return object_ptr<PanelEditContact>(
@@ -829,7 +873,13 @@ void PanelController::processValueSaveFinished(
 	}
 
 	if ((_editValue == value || _editDocument == value) && !savingScope()) {
-		_panel->showForm();
+		if (auto errors = collectErrors(value); !errors.empty()) {
+			for (auto &&error : errors) {
+				_saveErrors.fire(std::move(error));
+			}
+		} else {
+			_panel->showForm();
+		}
 	}
 }
 
@@ -849,7 +899,7 @@ void PanelController::processVerificationNeeded(
 	}
 	const auto textIt = value->data.parsedInEdit.fields.find("value");
 	Assert(textIt != end(value->data.parsedInEdit.fields));
-	const auto text = textIt->second;
+	const auto text = textIt->second.text;
 	const auto type = value->type;
 	const auto update = _form->verificationUpdate(
 	) | rpl::filter([=](not_null<const Value*> field) {
