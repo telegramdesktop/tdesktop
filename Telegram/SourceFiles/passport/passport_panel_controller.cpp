@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_panel_edit_contact.h"
 #include "passport/passport_panel_edit_scans.h"
 #include "passport/passport_panel.h"
+#include "base/openssl_help.h"
+#include "boxes/passcode_box.h"
 #include "boxes/confirm_box.h"
 #include "ui/toast/toast.h"
 #include "ui/countryinput.h"
@@ -403,7 +405,11 @@ rpl::producer<QString> PanelController::passwordError() const {
 }
 
 QString PanelController::passwordHint() const {
-	return _form->passwordHint();
+	return _form->passwordSettings().hint;
+}
+
+QString PanelController::unconfirmedEmailPattern() const {
+	return _form->passwordSettings().unconfirmedPattern;
 }
 
 QString PanelController::defaultEmail() const {
@@ -412,6 +418,40 @@ QString PanelController::defaultEmail() const {
 
 QString PanelController::defaultPhoneNumber() const {
 	return _form->defaultPhoneNumber();
+}
+
+void PanelController::setupPassword() {
+	Expects(_panel != nullptr);
+
+	const auto &settings = _form->passwordSettings();
+	Assert(settings.salt.empty());
+
+	constexpr auto kRandomPart = 8;
+	auto newSalt = QByteArray(
+		reinterpret_cast<const char*>(settings.newSalt.data()),
+		settings.newSalt.size());
+	newSalt.resize(newSalt.size() + kRandomPart);
+	bytes::set_random(
+		bytes::make_span(newSalt).subspan(settings.newSalt.size()));
+	const auto currentSalt = QByteArray();
+	const auto hasRecovery = false;
+	const auto hint = QString();
+	auto box = show(Box<PasscodeBox>(
+		newSalt,
+		currentSalt,
+		hasRecovery,
+		hint));
+	box->connect(box, &PasscodeBox::reloadPassword, _panel.get(), [=] {
+		_form->reloadPassword();
+	});
+}
+
+void PanelController::cancelPasswordSubmit() {
+	const auto box = std::make_shared<QPointer<BoxContent>>();
+	*box = show(Box<ConfirmBox>(
+		lang(lng_passport_stop_password_sure),
+		lang(lng_passport_stop),
+		[=] { if (*box) (*box)->closeBox(); _form->cancelPassword(); }));
 }
 
 bool PanelController::canAddScan() const {
@@ -681,11 +721,6 @@ void PanelController::showAskPassword() {
 void PanelController::showNoPassword() {
 	ensurePanelCreated();
 	_panel->showNoPassword();
-}
-
-void PanelController::showPasswordUnconfirmed() {
-	ensurePanelCreated();
-	_panel->showPasswordUnconfirmed();
 }
 
 void PanelController::showCriticalError(const QString &error) {
@@ -1060,8 +1095,11 @@ void PanelController::cancelAuth() {
 	_form->cancel();
 }
 
-void PanelController::showBox(object_ptr<BoxContent> box) {
-	_panel->showBox(std::move(box));
+void PanelController::showBox(
+		object_ptr<BoxContent> box,
+		LayerOptions options,
+		anim::type animated) {
+	_panel->showBox(std::move(box), options, animated);
 }
 
 void PanelController::showToast(const QString &text) {

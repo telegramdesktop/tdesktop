@@ -15,6 +15,7 @@ class FlatLabel;
 class LinkButton;
 class RoundButton;
 class UserpicButton;
+class VerticalLayout;
 } // namespace Ui
 
 namespace Passport {
@@ -58,18 +59,14 @@ public:
 		not_null<PanelController*> controller);
 
 private:
+	void setupContent();
+	void refreshBottom();
+
 	not_null<PanelController*> _controller;
 
-};
-
-class PanelPasswordUnconfirmed : public Ui::RpWidget {
-public:
-	PanelPasswordUnconfirmed(
-		QWidget *parent,
-		not_null<PanelController*> controller);
-
-private:
-	not_null<PanelController*> _controller;
+	not_null<Ui::VerticalLayout*> _inner;
+	base::unique_qptr<Ui::RpWidget> _about;
+	base::unique_qptr<Ui::RpWidget> _button;
 
 };
 

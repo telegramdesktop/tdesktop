@@ -37,11 +37,13 @@ public:
 
 	void showAskPassword();
 	void showNoPassword();
-	void showPasswordUnconfirmed();
 	void showForm();
 	void showCriticalError(const QString &error);
 	void showEditValue(object_ptr<Ui::RpWidget> form);
-	void showBox(object_ptr<BoxContent> box);
+	void showBox(
+		object_ptr<BoxContent> box,
+		LayerOptions options,
+		anim::type animated);
 
 	rpl::producer<> backRequests() const;
 	void setBackAllowed(bool allowed);

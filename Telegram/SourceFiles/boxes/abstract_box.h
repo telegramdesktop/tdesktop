@@ -23,6 +23,8 @@ class FlatLabel;
 class FadeShadow;
 } // namespace Ui
 
+class BoxContent;
+
 class BoxContentDelegate {
 public:
 	virtual void setLayerType(bool layerType) = 0;
@@ -34,10 +36,24 @@ public:
 	virtual QPointer<Ui::RoundButton> addLeftButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback, const style::RoundButton &st) = 0;
 	virtual void updateButtonsPositions() = 0;
 
+	virtual void showBox(
+		object_ptr<BoxContent> box,
+		LayerOptions options,
+		anim::type animated) = 0;
 	virtual void setDimensions(int newWidth, int maxHeight) = 0;
 	virtual void setNoContentMargin(bool noContentMargin) = 0;
 	virtual bool isBoxShown() const = 0;
 	virtual void closeBox() = 0;
+
+	template <typename BoxType>
+	QPointer<BoxType> show(
+			object_ptr<BoxType> content,
+			LayerOptions options = LayerOption::KeepOther,
+			anim::type animated = anim::type::normal) {
+		auto result = QPointer<BoxType>(content.data());
+		showBox(std::move(content), options, animated);
+		return result;
+	}
 
 };
 
@@ -163,6 +179,10 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
+	not_null<BoxContentDelegate*> getDelegate() const {
+		return _delegate;
+	}
+
 private slots:
 	void onScroll();
 	void onInnerResize();
@@ -179,10 +199,6 @@ private:
 	void updateShadowsVisibility();
 	object_ptr<TWidget> doTakeInnerWidget();
 
-	BoxContentDelegate *getDelegate() const {
-		Expects(_delegate != nullptr);
-		return _delegate;
-	}
 	BoxContentDelegate *_delegate = nullptr;
 
 	bool _preparing = false;
@@ -205,13 +221,19 @@ class AbstractBox
 	, public BoxContentDelegate
 	, protected base::Subscriber {
 public:
-	AbstractBox(QWidget *parent, object_ptr<BoxContent> content);
+	AbstractBox(
+		not_null<Window::LayerStackWidget*> layer,
+		object_ptr<BoxContent> content);
 
 	void parentResized() override;
 
 	void setLayerType(bool layerType) override;
 	void setTitle(base::lambda<TextWithEntities()> titleFactory) override;
 	void setAdditionalTitle(base::lambda<QString()> additionalFactory) override;
+	void showBox(
+		object_ptr<BoxContent> box,
+		LayerOptions options,
+		anim::type animated) override;
 
 	void clearButtons() override;
 	QPointer<Ui::RoundButton> addButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback, const style::RoundButton &st) override;
@@ -262,6 +284,7 @@ private:
 	int countRealHeight() const;
 	void updateSize();
 
+	not_null<Window::LayerStackWidget*> _layer;
 	int _fullHeight = 0;
 
 	bool _noContentMargin = false;

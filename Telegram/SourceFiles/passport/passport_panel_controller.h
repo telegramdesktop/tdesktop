@@ -69,6 +69,10 @@ public:
 	void submitPassword(const QString &password);
 	rpl::producer<QString> passwordError() const;
 	QString passwordHint() const;
+	QString unconfirmedEmailPattern() const;
+
+	void setupPassword();
+	void cancelPasswordSubmit();
 
 	bool canAddScan() const;
 	void uploadScan(QByteArray &&content);
@@ -88,7 +92,6 @@ public:
 
 	void showAskPassword() override;
 	void showNoPassword() override;
-	void showPasswordUnconfirmed() override;
 	void showCriticalError(const QString &error) override;
 
 	void fillRows(
@@ -106,7 +109,10 @@ public:
 		const ValueMap &filesData) const;
 	void cancelEditScope();
 
-	void showBox(object_ptr<BoxContent> box) override;
+	void showBox(
+		object_ptr<BoxContent> box,
+		LayerOptions options,
+		anim::type animated) override;
 	void showToast(const QString &text) override;
 	void suggestReset(base::lambda<void()> callback) override;
 

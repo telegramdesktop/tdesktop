@@ -686,7 +686,7 @@ LayerWidget *LayerStackWidget::pushBox(
 
 	if (_layers.size() > 1) {
 		if (!_background->animating()) {
-			layer->show();
+			layer->setVisible(true);
 			showFinished();
 		}
 	} else {

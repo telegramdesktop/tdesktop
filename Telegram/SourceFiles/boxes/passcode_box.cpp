@@ -190,7 +190,7 @@ void PasscodeBox::setPasswordDone(const MTPBool &result) {
 	_setRequest = 0;
 	emit reloadPassword();
 	auto text = lang(_reenterPasscode->isHidden() ? lng_cloud_password_removed : (_oldPasscode->isHidden() ? lng_cloud_password_was_set : lng_cloud_password_updated));
-	Ui::show(Box<InformBox>(text));
+	getDelegate()->show(Box<InformBox>(text), LayerOption::CloseOther);
 }
 
 void PasscodeBox::closeReplacedBy() {
@@ -244,7 +244,9 @@ bool PasscodeBox::setPasswordFail(const RPCError &error) {
 		_recoverEmail->showError();
 		update();
 	} else if (err == qstr("EMAIL_UNCONFIRMED")) {
-		Ui::show(Box<InformBox>(lang(lng_cloud_password_almost)));
+		getDelegate()->show(
+			Box<InformBox>(lang(lng_cloud_password_almost)),
+			LayerOption::CloseOther);
 		emit reloadPassword();
 	}
 	return true;
@@ -307,9 +309,9 @@ void PasscodeBox::save(bool force) {
 		}
 		if (!_recoverEmail->isHidden() && email.isEmpty() && !force) {
 			_skipEmailWarning = true;
-			_replacedBy = Ui::show(Box<ConfirmBox>(lang(lng_cloud_password_about_recover), lang(lng_cloud_password_skip_email), st::attentionBoxButton, base::lambda_guarded(this, [this] {
+			_replacedBy = getDelegate()->show(Box<ConfirmBox>(lang(lng_cloud_password_about_recover), lang(lng_cloud_password_skip_email), st::attentionBoxButton, base::lambda_guarded(this, [this] {
 				save(true);
-			})), LayerOption::KeepOther);
+			})));
 		} else {
 			QByteArray newPasswordData = pwd.isEmpty() ? QByteArray() : (_newSalt + pwd.toUtf8() + _newSalt);
 			QByteArray newPasswordHash = pwd.isEmpty() ? QByteArray() : QByteArray(32, Qt::Uninitialized);
@@ -407,9 +409,7 @@ void PasscodeBox::recoverExpired() {
 void PasscodeBox::recover() {
 	if (_pattern == "-") return;
 
-	const auto box = Ui::show(
-		Box<RecoverBox>(_pattern),
-		LayerOption::KeepOther);
+	const auto box = getDelegate()->show(Box<RecoverBox>(_pattern));
 	connect(box, &RecoverBox::reloadPassword, this, &PasscodeBox::reloadPassword);
 	connect(box, &RecoverBox::recoveryExpired, this, &PasscodeBox::recoverExpired);
 	_replacedBy = box;
@@ -494,7 +494,9 @@ void RecoverBox::codeSubmitDone(bool recover, const MTPauth_Authorization &resul
 	_submitRequest = 0;
 
 	emit reloadPassword();
-	Ui::show(Box<InformBox>(lang(lng_cloud_password_removed)));
+	getDelegate()->show(
+		Box<InformBox>(lang(lng_cloud_password_removed)),
+		LayerOption::CloseOther);
 }
 
 bool RecoverBox::codeSubmitFail(const RPCError &error) {
@@ -512,7 +514,9 @@ bool RecoverBox::codeSubmitFail(const RPCError &error) {
 	const QString &err = error.type();
 	if (err == qstr("PASSWORD_EMPTY")) {
 		emit reloadPassword();
-		Ui::show(Box<InformBox>(lang(lng_cloud_password_removed)));
+		getDelegate()->show(
+			Box<InformBox>(lang(lng_cloud_password_removed)),
+			LayerOption::CloseOther);
 		return true;
 	} else if (err == qstr("PASSWORD_RECOVERY_NA")) {
 		closeBox();

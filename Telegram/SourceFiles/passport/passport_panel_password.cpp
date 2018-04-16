@@ -11,8 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/wrap/vertical_layout.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/special_buttons.h"
 #include "lang/lang_keys.h"
+#include "info/profile/info_profile_icon.h"
 #include "styles/style_passport.h"
 #include "styles/style_boxes.h"
 
@@ -148,14 +151,96 @@ PanelNoPassword::PanelNoPassword(
 	QWidget *parent,
 	not_null<PanelController*> controller)
 : RpWidget(parent)
-, _controller(controller) {
+, _controller(controller)
+, _inner(Ui::CreateChild<Ui::VerticalLayout>(this)) {
+	setupContent();
 }
 
-PanelPasswordUnconfirmed::PanelPasswordUnconfirmed(
-	QWidget *parent,
-	not_null<PanelController*> controller)
-: RpWidget(parent)
-, _controller(controller) {
+void PanelNoPassword::setupContent() {
+	widthValue(
+	) | rpl::start_with_next([=](int newWidth) {
+		_inner->resizeToWidth(newWidth);
+	}, _inner->lifetime());
+
+	const auto about1 = _inner->add(
+		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			_inner,
+			object_ptr<Ui::FlatLabel>(
+				_inner,
+				lng_passport_request1(
+					lt_bot,
+					App::peerName(_controller->bot())),
+				Ui::FlatLabel::InitType::Simple,
+				st::passportPasswordLabelBold)),
+		st::passportPasswordAbout1Padding)->entity();
+
+	const auto about2 = _inner->add(
+		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			_inner,
+			object_ptr<Ui::FlatLabel>(
+				_inner,
+				lang(lng_passport_request2),
+				Ui::FlatLabel::InitType::Simple,
+				st::passportPasswordLabel)),
+		st::passportPasswordAbout2Padding)->entity();
+
+	const auto iconWrap = _inner->add(
+		object_ptr<Ui::CenterWrap<Ui::FixedHeightWidget>>(
+			_inner,
+			object_ptr<Ui::FixedHeightWidget>(
+				_inner,
+				st::passportPasswordIconHeight)));
+	iconWrap->entity()->resizeToWidth(st::passportPasswordIcon.width());
+	Ui::CreateChild<Info::Profile::FloatingIcon>(
+		iconWrap->entity(),
+		st::passportPasswordIcon,
+		QPoint(0, 0));
+
+	const auto about3 = _inner->add(
+		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			_inner,
+			object_ptr<Ui::FlatLabel>(
+				_inner,
+				lang(lng_passport_create_password),
+				Ui::FlatLabel::InitType::Simple,
+				st::passportPasswordSetupLabel)),
+		st::passportFormAbout2Padding)->entity();
+
+	refreshBottom();
+}
+
+void PanelNoPassword::refreshBottom() {
+	const auto pattern = _controller->unconfirmedEmailPattern();
+	_about.reset(_inner->add(
+		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			_inner,
+			object_ptr<Ui::FlatLabel>(
+				_inner,
+				(pattern.isEmpty()
+					? lang(lng_passport_about_password)
+					: lng_passport_link_sent(lt_email, pattern)),
+				Ui::FlatLabel::InitType::Simple,
+				st::passportPasswordSetupLabel)),
+		st::passportFormAbout2Padding)->entity());
+	const auto button = _inner->add(
+		object_ptr<Ui::CenterWrap<Ui::RoundButton>>(
+			_inner,
+			object_ptr<Ui::RoundButton>(
+				_inner,
+				langFactory(pattern.isEmpty()
+					? lng_passport_password_create
+					: lng_cancel),
+				st::defaultBoxButton)));
+	if (pattern.isEmpty()) {
+		button->entity()->addClickHandler([=] {
+			_controller->setupPassword();
+		});
+	} else {
+		button->entity()->addClickHandler([=] {
+			_controller->cancelPasswordSubmit();
+		});
+	}
+	_button.reset(button);
 }
 
 } // namespace Passport

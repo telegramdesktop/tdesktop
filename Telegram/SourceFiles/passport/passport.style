@@ -26,6 +26,9 @@ passportPasswordLabelBold: FlatLabel(passportPasswordLabel) {
 		linkFontOver: font(boxFontSize semibold underline);
 	}
 }
+passportPasswordSetupLabel: FlatLabel(passportPasswordLabel) {
+	minWidth: 0px;
+}
 passportPasswordHintLabel: passportPasswordLabel;
 passportErrorLabel: FlatLabel(passportPasswordLabel) {
 	textFg: boxTextFgError;
@@ -223,3 +226,8 @@ passportDetailsSkip: 30px;
 passportDetailsGenderSkip: 30px;
 
 passportRequestTypeSkip: 16px;
+
+passportPasswordAbout1Padding: margins(10px, 28px, 10px, 0px);
+passportPasswordAbout2Padding: margins(10px, 0px, 10px, 28px);
+passportPasswordIconHeight: 224px;
+passportPasswordIcon: icon {{ "passport_password_setup", windowSubTextFg }};

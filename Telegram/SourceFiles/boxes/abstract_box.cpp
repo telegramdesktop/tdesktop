@@ -227,8 +227,9 @@ void BoxContent::paintEvent(QPaintEvent *e) {
 	}
 }
 
-AbstractBox::AbstractBox(QWidget *parent, object_ptr<BoxContent> content)
-: LayerWidget(parent)
+AbstractBox::AbstractBox(not_null<Window::LayerStackWidget*> layer, object_ptr<BoxContent> content)
+: LayerWidget(layer)
+, _layer(layer)
 , _content(std::move(content)) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 	_content->setParent(this);
@@ -328,6 +329,13 @@ void AbstractBox::refreshLang() {
 
 bool AbstractBox::hasTitle() const {
 	return (_title != nullptr) || !_additionalTitle.isEmpty();
+}
+
+void AbstractBox::showBox(
+		object_ptr<BoxContent> box,
+		LayerOptions options,
+		anim::type animated) {
+	_layer->showBox(std::move(box), options, animated);
 }
 
 void AbstractBox::updateSize() {

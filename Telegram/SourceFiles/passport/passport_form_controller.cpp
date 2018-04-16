@@ -388,6 +388,34 @@ void FormController::submitPassword(const QString &password) {
 	}).send();
 }
 
+void FormController::reloadPassword() {
+	requestPassword();
+}
+
+void FormController::cancelPassword() {
+	if (_passwordRequestId) {
+		return;
+	}
+	_passwordRequestId = request(MTPaccount_UpdatePasswordSettings(
+		MTP_bytes(QByteArray()),
+		MTP_account_passwordInputSettings(
+			MTP_flags(MTPDaccount_passwordInputSettings::Flag::f_email),
+			MTP_bytes(QByteArray()), // new_salt
+			MTP_bytes(QByteArray()), // new_password_hash
+			MTP_string(QString()), // hint
+			MTP_string(QString()), // email
+			MTP_bytes(QByteArray()), // new_secure_salt
+			MTP_bytes(QByteArray()), // new_secure_secret
+			MTP_long(0)) // new_secure_secret_hash
+	)).done([=](const MTPBool &result) {
+		_passwordRequestId = 0;
+		reloadPassword();
+	}).fail([=](const RPCError &error) {
+		_passwordRequestId = 0;
+		reloadPassword();
+	}).send();
+}
+
 void FormController::validateSecureSecret(
 		bytes::const_span salt,
 		bytes::const_span encryptedSecret,
@@ -525,8 +553,8 @@ rpl::producer<QString> FormController::passwordError() const {
 	return _passwordError.events();
 }
 
-QString FormController::passwordHint() const {
-	return _password.hint;
+const PasswordSettings &FormController::passwordSettings() const {
+	return _password;
 }
 
 void FormController::uploadScan(
@@ -1702,6 +1730,9 @@ void FormController::formFail(const QString &error) {
 }
 
 void FormController::requestPassword() {
+	if (_passwordRequestId) {
+		return;
+	}
 	_passwordRequestId = request(MTPaccount_GetPassword(
 	)).done([=](const MTPaccount_Password &result) {
 		_passwordRequestId = 0;
@@ -1733,14 +1764,13 @@ void FormController::showForm() {
 	}
 	if (!_password.salt.empty()) {
 		_view->showAskPassword();
-	} else if (!_password.unconfirmedPattern.isEmpty()) {
-		_view->showPasswordUnconfirmed();
 	} else {
 		_view->showNoPassword();
 	}
 }
 
 void FormController::parsePassword(const MTPDaccount_noPassword &result) {
+	_password = PasswordSettings();
 	_password.unconfirmedPattern = qs(result.vemail_unconfirmed_pattern);
 	_password.newSalt = bytes::make_vector(result.vnew_salt.v);
 	_password.newSecureSalt = bytes::make_vector(result.vnew_secure_salt.v);
@@ -1748,6 +1778,7 @@ void FormController::parsePassword(const MTPDaccount_noPassword &result) {
 }
 
 void FormController::parsePassword(const MTPDaccount_password &result) {
+	_password = PasswordSettings();
 	_password.hint = qs(result.vhint);
 	_password.hasRecovery = mtpIsTrue(result.vhas_recovery);
 	_password.salt = bytes::make_vector(result.vcurrent_salt.v);

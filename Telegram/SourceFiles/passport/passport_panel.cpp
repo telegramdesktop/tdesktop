@@ -226,12 +226,6 @@ void Panel::showNoPassword() {
 	setBackAllowed(false);
 }
 
-void Panel::showPasswordUnconfirmed() {
-	showInner(
-		base::make_unique_q<PanelPasswordUnconfirmed>(_body, _controller));
-	setBackAllowed(false);
-}
-
 void Panel::showCriticalError(const QString &error) {
 	auto container = base::make_unique_q<Ui::PaddingWrap<Ui::FlatLabel>>(
 		_body,
@@ -258,12 +252,12 @@ void Panel::showEditValue(object_ptr<Ui::RpWidget> from) {
 	showInner(base::unique_qptr<Ui::RpWidget>(from.data()));
 }
 
-void Panel::showBox(object_ptr<BoxContent> box) {
+void Panel::showBox(
+		object_ptr<BoxContent> box,
+		LayerOptions options,
+		anim::type animated) {
 	ensureLayerCreated();
-	_layer->showBox(
-		std::move(box),
-		LayerOption::KeepOther,
-		anim::type::normal);
+	_layer->showBox(std::move(box), options, animated);
 }
 
 void Panel::ensureLayerCreated() {

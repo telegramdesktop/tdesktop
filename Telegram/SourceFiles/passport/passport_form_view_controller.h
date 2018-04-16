@@ -42,11 +42,13 @@ class ViewController {
 public:
 	virtual void showAskPassword() = 0;
 	virtual void showNoPassword() = 0;
-	virtual void showPasswordUnconfirmed() = 0;
 	virtual void showCriticalError(const QString &error) = 0;
 	virtual void editScope(int index) = 0;
 
-	virtual void showBox(object_ptr<BoxContent> box) = 0;
+	virtual void showBox(
+		object_ptr<BoxContent> box,
+		LayerOptions options,
+		anim::type animated) = 0;
 	virtual void showToast(const QString &text) = 0;
 	virtual void suggestReset(base::lambda<void()> callback) = 0;
 
@@ -56,9 +58,12 @@ public:
 	}
 
 	template <typename BoxType>
-	QPointer<BoxType> show(object_ptr<BoxType> content) {
-		auto result = QPointer<BoxType>(content.data());
-		showBox(std::move(content));
+	QPointer<BoxType> show(
+			object_ptr<BoxType> box,
+			LayerOptions options = LayerOption::KeepOther,
+			anim::type animated = anim::type::normal) {
+		auto result = QPointer<BoxType>(box.data());
+		showBox(std::move(box), options, animated);
 		return result;
 	}
 

@@ -217,7 +217,9 @@ public:
 	std::vector<not_null<const Value*>> submitGetErrors();
 	void submitPassword(const QString &password);
 	rpl::producer<QString> passwordError() const;
-	QString passwordHint() const;
+	const PasswordSettings &passwordSettings() const;
+	void reloadPassword();
+	void cancelPassword();
 
 	bool canAddScan(not_null<const Value*> value) const;
 	void uploadScan(not_null<const Value*> value, QByteArray &&content);

@@ -1516,6 +1516,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_title" = "Telegram passport";
 "lng_passport_request1" = "{bot} requests access to your personal data";
 "lng_passport_request2" = "to sign you up for their services";
+"lng_passport_create_password" = "Please create a password which will be used\nto encrypt your personal data.";
+"lng_passport_about_password" = "This password will also be required whenever\nyou log in to a new device.";
+"lng_passport_password_create" = "Create a password";
+"lng_passport_link_sent" = "Confirmation link was sent to your email\n{email}";
+"lng_passport_stop_password_sure" = "Are you sure you want to stop your password setup?";
 "lng_passport_password_placeholder" = "Your password";
 "lng_passport_next" = "Next";
 "lng_passport_password_wrong" = "The password you entered is not valid.";

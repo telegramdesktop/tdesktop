@@ -220,25 +220,25 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 		_userpic->move((width - _userpic->width()) / 2, _userpic->y());
 	}, _userpic->lifetime());
 
-	auto about1 = object_ptr<Ui::FlatLabel>(
-		inner,
-		lng_passport_request1(lt_bot, App::peerName(bot)),
-		Ui::FlatLabel::InitType::Simple,
-		st::passportPasswordLabelBold);
-	_about1 = about1.data();
-	inner->add(
-		object_ptr<Ui::IgnoreNaturalWidth>(inner, std::move(about1)),
-		st::passportFormAbout1Padding);
+	_about1 = inner->add(
+		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			inner,
+			object_ptr<Ui::FlatLabel>(
+				inner,
+				lng_passport_request1(lt_bot, App::peerName(bot)),
+				Ui::FlatLabel::InitType::Simple,
+				st::passportPasswordLabelBold)),
+		st::passportFormAbout1Padding)->entity();
 
-	auto about2 = object_ptr<Ui::FlatLabel>(
-		inner,
-		lang(lng_passport_request2),
-		Ui::FlatLabel::InitType::Simple,
-		st::passportPasswordLabel);
-	_about2 = about2.data();
-	inner->add(
-		object_ptr<Ui::IgnoreNaturalWidth>(inner, std::move(about2)),
-		st::passportFormAbout2Padding);
+	_about2 = inner->add(
+		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			inner,
+			object_ptr<Ui::FlatLabel>(
+				inner,
+				lang(lng_passport_request2),
+				Ui::FlatLabel::InitType::Simple,
+				st::passportPasswordLabel)),
+		st::passportFormAbout2Padding)->entity();
 
 	inner->add(object_ptr<BoxContentDivider>(
 		inner,
