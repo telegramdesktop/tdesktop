@@ -1015,7 +1015,27 @@ void FormController::fileLoadFail(FileKey key) {
 bool FormController::savingValue(not_null<const Value*> value) const {
 	return (value->saveRequestId != 0)
 		|| (value->verification.requestId != 0)
-		|| (value->verification.codeLength != 0);
+		|| (value->verification.codeLength != 0)
+		|| uploadingScan(value);
+}
+
+bool FormController::uploadingScan(not_null<const Value*> value) const {
+	for (const auto &scan : value->scansInEdit) {
+		if (scan.uploadData
+			&& scan.uploadData->fullId
+			&& !scan.deleted) {
+			return true;
+		}
+	}
+	if (value->selfieInEdit) {
+		const auto &selfie = *value->selfieInEdit;
+		if (selfie.uploadData
+			&& selfie.uploadData->fullId
+			&& !selfie.deleted) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void FormController::cancelValueEdit(not_null<const Value*> value) {

@@ -345,6 +345,10 @@ bool LayerWidget::overlaps(const QRect &globalRect) {
 	return false;
 }
 
+void LayerStackWidget::setHideByBackgroundClick(bool hide) {
+	_hideByBackgroundClick = hide;
+}
+
 void LayerStackWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		hideCurrent(anim::type::normal);
@@ -352,7 +356,9 @@ void LayerStackWidget::keyPressEvent(QKeyEvent *e) {
 }
 
 void LayerStackWidget::mousePressEvent(QMouseEvent *e) {
-	hideCurrent(anim::type::normal);
+	if (_hideByBackgroundClick) {
+		hideCurrent(anim::type::normal);
+	}
 }
 
 void LayerStackWidget::hideCurrent(anim::type animated) {

@@ -107,6 +107,7 @@ public:
 	void hideLayers(anim::type animated);
 	void hideAll(anim::type animated);
 	void hideTopLayer(anim::type animated);
+	void setHideByBackgroundClick(bool hide);
 
 	bool showSectionInternal(
 		not_null<SectionMemento*> memento,
@@ -183,6 +184,7 @@ private:
 
 	class BackgroundWidget;
 	object_ptr<BackgroundWidget> _background;
+	bool _hideByBackgroundClick = true;
 
 	rpl::event_stream<> _hideFinishStream;
 

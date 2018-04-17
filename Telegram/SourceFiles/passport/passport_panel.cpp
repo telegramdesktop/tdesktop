@@ -265,6 +265,7 @@ void Panel::ensureLayerCreated() {
 		return;
 	}
 	_layer.create(_body);
+	_layer->setHideByBackgroundClick(false);
 	_layer->move(0, 0);
 	_body->sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
