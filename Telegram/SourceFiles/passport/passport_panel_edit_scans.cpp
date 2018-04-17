@@ -31,11 +31,13 @@ public:
 		const style::PassportScanRow &st,
 		const QString &name,
 		const QString &status,
-		bool deleted);
+		bool deleted,
+		bool error);
 
 	void setImage(const QImage &image);
 	void setStatus(const QString &status);
 	void setDeleted(bool deleted);
+	void setError(bool error);
 
 	rpl::producer<> deleteClicks() const {
 		return _delete->entity()->clicks();
@@ -57,6 +59,7 @@ private:
 	Text _status;
 	int _nameHeight = 0;
 	int _statusHeight = 0;
+	bool _error = false;
 	QImage _image;
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _delete;
 	object_ptr<Ui::FadeWrapScaled<Ui::RoundButton>> _restore;
@@ -68,7 +71,8 @@ ScanButton::ScanButton(
 	const style::PassportScanRow &st,
 	const QString &name,
 	const QString &status,
-	bool deleted)
+	bool deleted,
+	bool error)
 : AbstractButton(parent)
 , _st(st)
 , _name(
@@ -79,6 +83,7 @@ ScanButton::ScanButton(
 	st::defaultTextStyle,
 	status,
 	Ui::NameTextOptions())
+, _error(error)
 , _delete(this, object_ptr<Ui::IconButton>(this, _st.remove))
 , _restore(
 	this,
@@ -106,6 +111,11 @@ void ScanButton::setStatus(const QString &status) {
 void ScanButton::setDeleted(bool deleted) {
 	_delete->toggle(!deleted, anim::type::instant);
 	_restore->toggle(deleted, anim::type::instant);
+	update();
+}
+
+void ScanButton::setError(bool error) {
+	_error = error;
 	update();
 }
 
@@ -145,7 +155,8 @@ void ScanButton::paintEvent(QPaintEvent *e) {
 		_st.border,
 		_st.borderFg);
 
-	if (_restore->toggled()) {
+	const auto deleted = _restore->toggled();
+	if (deleted) {
 		p.setOpacity(st::passportScanDeletedOpacity);
 	}
 
@@ -173,7 +184,9 @@ void ScanButton::paintEvent(QPaintEvent *e) {
 		top + _st.nameTop,
 		availableWidth,
 		width());
-	p.setPen(st::windowSubTextFg);
+	p.setPen((_error && !deleted)
+		? st::boxTextFgError
+		: st::windowSubTextFg);
 	_status.drawLeftElided(
 		p,
 		left + _st.textLeft,
@@ -186,26 +199,56 @@ EditScans::EditScans(
 	QWidget *parent,
 	not_null<PanelController*> controller,
 	const QString &header,
+	const QString &errorMissing,
 	std::vector<ScanInfo> &&files,
 	std::unique_ptr<ScanInfo> &&selfie)
 : RpWidget(parent)
 , _controller(controller)
 , _files(std::move(files))
 , _selfie(std::move(selfie))
+, _initialCount(_files.size())
+, _errorMissing(errorMissing)
 , _content(this) {
 	setupContent(header);
 }
 
+bool EditScans::uploadedSomeMore() const {
+	const auto from = begin(_files) + _initialCount;
+	const auto till = end(_files);
+	return std::find_if(from, till, [](const ScanInfo &file) {
+		return !file.deleted;
+	}) != till;
+}
+
 base::optional<int> EditScans::validateGetErrorTop() {
-	const auto exists = ranges::find(
+	const auto exists = ranges::find_if(
 		_files,
-		false,
-		[](const ScanInfo &file) { return file.deleted; }) != end(_files);
-	if (!exists) {
+		[](const ScanInfo &file) { return !file.deleted; }) != end(_files);
+	const auto errorExists = ranges::find_if(
+		_files,
+		[](const ScanInfo &file) { return !file.error.isEmpty(); }
+	) != end(_files);
+
+	if (!exists
+		|| ((errorExists || _uploadMoreError) && !uploadedSomeMore())) {
 		toggleError(true);
 		return (_files.size() > 5) ? _upload->y() : _header->y();
 	}
-	if (_selfie && (!_selfie->key.id || _selfie->deleted)) {
+
+	const auto nonDeletedErrorIt = ranges::find_if(
+		_files,
+		[](const ScanInfo &file) {
+			return !file.error.isEmpty() && !file.deleted;
+		});
+	if (nonDeletedErrorIt != end(_files)) {
+		const auto index = (nonDeletedErrorIt - begin(_files));
+		toggleError(true);
+		return _rows[index]->y();
+	}
+	if (_selfie
+		&& (!_selfie->key.id
+			|| _selfie->deleted
+			|| !_selfie->error.isEmpty())) {
 		toggleSelfieError(true);
 		return _selfieHeader->y();
 	}
@@ -234,7 +277,18 @@ void EditScans::setupContent(const QString &header) {
 				st::passportFormHeader),
 			st::passportUploadHeaderPadding));
 	_header->toggle(!_files.empty(), anim::type::instant);
-
+	if (!_errorMissing.isEmpty()) {
+		_uploadMoreError = inner->add(
+			object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+				inner,
+				object_ptr<Ui::FlatLabel>(
+					inner,
+					_errorMissing,
+					Ui::FlatLabel::InitType::Simple,
+					st::passportVerifyErrorLabel),
+				st::passportUploadErrorPadding));
+		_uploadMoreError->toggle(true, anim::type::instant);
+	}
 	_wrap = inner->add(object_ptr<Ui::VerticalLayout>(inner));
 	for (const auto &scan : _files) {
 		pushScan(scan);
@@ -317,6 +371,7 @@ void EditScans::updateScan(ScanInfo &&info) {
 		button->setStatus(info.status);
 		button->setImage(info.thumb);
 		button->setDeleted(info.deleted);
+		button->setError(!info.error.isEmpty());
 	};
 	if (info.selfie) {
 		Assert(info.key.id != 0);
@@ -413,7 +468,8 @@ base::unique_qptr<Ui::SlideWrap<ScanButton>> EditScans::createScan(
 				st::passportScanRow,
 				name,
 				info.status,
-				info.deleted))));
+				info.deleted,
+				!info.error.isEmpty()))));
 	result->entity()->setImage(info.thumb);
 	return result;
 }

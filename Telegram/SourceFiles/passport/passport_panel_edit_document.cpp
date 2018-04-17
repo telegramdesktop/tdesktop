@@ -211,6 +211,7 @@ PanelEditDocument::PanelEditDocument(
 	Scheme scheme,
 	const ValueMap &data,
 	const ValueMap &scanData,
+	const QString &missingScansError,
 	std::vector<ScanInfo> &&files,
 	std::unique_ptr<ScanInfo> &&selfie)
 : _controller(controller)
@@ -222,7 +223,12 @@ PanelEditDocument::PanelEditDocument(
 		this,
 		langFactory(lng_passport_save_value),
 		st::passportPanelSaveValue) {
-	setupControls(data, &scanData, std::move(files), std::move(selfie));
+	setupControls(
+		data,
+		&scanData,
+		missingScansError,
+		std::move(files),
+		std::move(selfie));
 }
 
 PanelEditDocument::PanelEditDocument(
@@ -239,17 +245,19 @@ PanelEditDocument::PanelEditDocument(
 		this,
 		langFactory(lng_passport_save_value),
 		st::passportPanelSaveValue) {
-	setupControls(data, nullptr, {}, nullptr);
+	setupControls(data, nullptr, QString(), {}, nullptr);
 }
 
 void PanelEditDocument::setupControls(
 		const ValueMap &data,
 		const ValueMap *scanData,
+		const QString &missingScansError,
 		std::vector<ScanInfo> &&files,
 		std::unique_ptr<ScanInfo> &&selfie) {
 	const auto inner = setupContent(
 		data,
 		scanData,
+		missingScansError,
 		std::move(files),
 		std::move(selfie));
 
@@ -267,6 +275,7 @@ void PanelEditDocument::setupControls(
 not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 		const ValueMap &data,
 		const ValueMap *scanData,
+		const QString &missingScansError,
 		std::vector<ScanInfo> &&files,
 		std::unique_ptr<ScanInfo> &&selfie) {
 	const auto inner = _scroll->setOwnedWidget(
@@ -282,6 +291,7 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 				inner,
 				_controller,
 				_scheme.scansHeader,
+				missingScansError,
 				std::move(files),
 				std::move(selfie)));
 	} else {
@@ -401,13 +411,16 @@ bool PanelEditDocument::validate() {
 	auto first = QPointer<PanelDetailsRow>();
 	for (const auto [i, field] : base::reversed(_details)) {
 		const auto &row = _scheme.rows[i];
-		if (row.validate && !row.validate(field->valueCurrent())) {
+		if (field->errorShown()
+			|| (row.validate && !row.validate(field->valueCurrent()))) {
 			field->showError(QString());
 			first = field;
 		}
 	}
-	if (!first) {
-		return !error;
+	if (error) {
+		return false;
+	} else if (!first) {
+		return true;
 	}
 	const auto firsttop = first->mapToGlobal(QPoint(0, 0));
 	const auto scrolltop = _scroll->mapToGlobal(QPoint(0, 0));

@@ -188,14 +188,28 @@ ScopeRow ComputeScopeRow(const Scope &scope) {
 	const auto addReadyError = [&](ScopeRow &&row) {
 		const auto ready = ComputeScopeRowReadyString(scope);
 		row.ready = ready;
-		// #TODO passport bot errors
-		//row.error = scope.fields->error.has_value()
-		//	? (!scope.fields->error->isEmpty()
-		//		? *scope.fields->error
-		//		: !ready.isEmpty()
-		//		? ready
-		//		: row.description)
-		//	: QString();
+		auto errors = QStringList();
+		const auto addValueErrors = [&](not_null<const Value*> value) {
+			for (const auto &scan : value->scans) {
+				if (!scan.error.isEmpty()) {
+					errors.push_back(scan.error);
+				}
+			}
+			if (value->selfie && !value->selfie->error.isEmpty()) {
+				errors.push_back(value->selfie->error);
+			}
+			if (!value->scanMissingError.isEmpty()) {
+				errors.push_back(value->scanMissingError);
+			}
+			for (const auto &[key, value] : value->data.parsed.fields) {
+				if (!value.error.isEmpty()) {
+					errors.push_back(value.error);
+				}
+			}
+		};
+		ranges::for_each(scope.documents, addValueErrors);
+		addValueErrors(scope.fields);
+		row.error = errors.join('\n');
 		return row;
 	};
 	switch (scope.type) {

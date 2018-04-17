@@ -844,6 +844,7 @@ bool Messenger::openLocalUrl(const QString &url) {
 			const auto callback = params.value("callback_url", QString());
 			const auto publicKey = params.value("public_key", QString());
 			const auto payload = params.value("payload", QString());
+			const auto errors = params.value("errors", QString());
 			if (const auto window = App::wnd()) {
 				if (const auto controller = window->controller()) {
 					controller->showPassportForm(Passport::FormRequest(
@@ -851,7 +852,8 @@ bool Messenger::openLocalUrl(const QString &url) {
 						scope,
 						callback,
 						publicKey,
-						payload));
+						payload,
+						errors));
 					return true;
 				}
 			}

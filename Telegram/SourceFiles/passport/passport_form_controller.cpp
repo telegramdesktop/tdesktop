@@ -156,12 +156,14 @@ FormRequest::FormRequest(
 	const QString &scope,
 	const QString &callbackUrl,
 	const QString &publicKey,
-	const QString &payload)
+	const QString &payload,
+	const QString &errors)
 : botId(botId)
 , scope(scope)
 , callbackUrl(callbackUrl)
 , publicKey(publicKey)
-, payload(payload) {
+, payload(payload)
+, errors(errors) {
 }
 
 EditFile::EditFile(
@@ -247,8 +249,8 @@ auto FormController::prepareFinalData() -> FinalData {
 	auto hashes = QVector<MTPSecureValueHash>();
 	auto secureData = QJsonObject();
 	const auto addValueToJSON = [&](
-		const QString &key,
-		not_null<const Value*> value) {
+			const QString &key,
+			not_null<const Value*> value) {
 		auto object = QJsonObject();
 		if (!value->data.parsed.fields.empty()) {
 			object.insert("data", GetJSONFromMap({
@@ -279,8 +281,8 @@ auto FormController::prepareFinalData() -> FinalData {
 	};
 	const auto scopes = ComputeScopes(this);
 	for (const auto &scope : scopes) {
-		const auto ready = ComputeScopeRowReadyString(scope);
-		if (ready.isEmpty()) {
+		const auto row = ComputeScopeRow(scope);
+		if (row.ready.isEmpty() || !row.error.isEmpty()) {
 			errors.push_back(scope.fields);
 			continue;
 		}
@@ -488,6 +490,43 @@ void FormController::decryptValues() {
 
 	for (auto &[type, value] : _form.values) {
 		decryptValue(value);
+	}
+	fillErrors();
+}
+
+void FormController::fillErrors() {
+	const auto errors = _request.errors.toUtf8();
+	const auto list = DeserializeErrors(bytes::make_span(errors));
+	for (const auto &error : list) {
+		for (auto &[type, value] : _form.values) {
+			if (ValueCredentialsKey(type) != error.type) {
+				continue;
+			}
+			if (!error.key.has_value()) {
+				value.scanMissingError = error.text;
+			} else if (const auto key = base::get_if<QString>(&error.key)) {
+				value.data.parsed.fields[(*key)].error = error.text;
+			} else if (auto hash = base::get_if<QByteArray>(&error.key)) {
+				const auto check = [&](const File &file) {
+					return *hash == QByteArray::fromRawData(
+						reinterpret_cast<const char*>(file.hash.data()),
+						file.hash.size());
+				};
+				for (auto &scan : value.scans) {
+					if (check(scan)) {
+						scan.error = error.text;
+						break;
+					}
+				}
+				if (value.selfie) {
+					if (check(*value.selfie) || hash->isEmpty()) {
+						value.selfie->error = error.text;
+					}
+				}
+			}
+			break;
+		}
+
 	}
 }
 

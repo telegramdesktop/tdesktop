@@ -565,7 +565,7 @@ ScanInfo PanelController::collectScanInfo(const EditFile &file) const {
 		&& (&file == &*_editDocument->selfieInEdit);
 	return {
 		FileKey{ file.fields.id, file.fields.dcId },
-		status,
+		!file.fields.error.isEmpty() ? file.fields.error : status,
 		file.fields.image,
 		file.deleted,
 		isSelfie,
@@ -871,6 +871,7 @@ void PanelController::editScope(int index, int documentIndex) {
 						_editDocument->type),
 					_editValue->data.parsedInEdit,
 					_editDocument->data.parsedInEdit,
+					_editDocument->scanMissingError,
 					valueFiles(*_editDocument),
 					(_editScope->selfieRequired
 						? valueSelfie(*_editDocument)

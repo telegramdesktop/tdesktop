@@ -66,6 +66,7 @@ public:
 	virtual rpl::producer<QString> value() const = 0;
 	virtual QString valueCurrent() const = 0;
 	void showError(const QString &error);
+	bool errorShown() const;
 	void hideError();
 	void finishAnimating();
 

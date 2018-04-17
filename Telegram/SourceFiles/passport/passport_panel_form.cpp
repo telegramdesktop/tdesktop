@@ -74,8 +74,13 @@ void PanelForm::Row::updateContent(
 	_description.setText(
 		st::defaultTextStyle,
 		description,
-		Ui::NameTextOptions());
-	_ready = ready;
+		TextParseOptions {
+			TextParseMultiline,
+			0,
+			0,
+			Qt::LayoutDirectionAuto
+		});
+	_ready = ready && !error;
 	if (_error != error) {
 		_error = error;
 		if (animated == anim::type::instant) {

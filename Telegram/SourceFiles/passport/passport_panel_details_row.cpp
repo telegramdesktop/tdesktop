@@ -930,10 +930,14 @@ int PanelDetailsRow::resizeGetHeight(int newWidth) {
 	const auto inputRight = padding.right();
 	const auto inputWidth = std::max(newWidth - inputLeft - inputRight, 0);
 	const auto innerHeight = resizeInner(inputLeft, inputTop, inputWidth);
-	return padding.top()
+	const auto result = padding.top()
 		+ innerHeight
 		+ (_error ? _error->height() : 0)
 		+ padding.bottom();
+	if (_error) {
+		_error->moveToLeft(inputLeft, result - _error->height());
+	}
+	return result;
 }
 
 void PanelDetailsRow::showError(const QString &error) {
@@ -959,10 +963,16 @@ void PanelDetailsRow::showError(const QString &error) {
 		} else {
 			_error->entity()->setText(error);
 		}
+		_error->heightValue(
+		) | rpl::start_with_next([=] {
+			resizeToWidth(width());
+		}, _error->lifetime());
 		_error->show(anim::type::normal);
-	} else if (_error) {
-		_error->hide(anim::type::normal);
 	}
+}
+
+bool PanelDetailsRow::errorShown() const {
+	return _errorShown;
 }
 
 void PanelDetailsRow::hideError() {

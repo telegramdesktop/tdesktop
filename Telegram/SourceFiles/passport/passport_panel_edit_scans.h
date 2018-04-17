@@ -36,6 +36,7 @@ public:
 		QWidget *parent,
 		not_null<PanelController*> controller,
 		const QString &header,
+		const QString &errorMissing,
 		std::vector<ScanInfo> &&files,
 		std::unique_ptr<ScanInfo> &&selfie);
 
@@ -62,6 +63,7 @@ private:
 	void toggleError(bool shown);
 	void hideError();
 	void errorAnimationCallback();
+	bool uploadedSomeMore() const;
 
 	void toggleSelfieError(bool shown);
 	void hideSelfieError();
@@ -70,10 +72,13 @@ private:
 	not_null<PanelController*> _controller;
 	std::vector<ScanInfo> _files;
 	std::unique_ptr<ScanInfo> _selfie;
+	int _initialCount = 0;
+	QString _errorMissing;
 
 	object_ptr<Ui::VerticalLayout> _content;
 	QPointer<Ui::SlideWrap<BoxContentDivider>> _divider;
 	QPointer<Ui::SlideWrap<Ui::FlatLabel>> _header;
+	QPointer<Ui::SlideWrap<Ui::FlatLabel>> _uploadMoreError;
 	QPointer<Ui::VerticalLayout> _wrap;
 	std::vector<base::unique_qptr<Ui::SlideWrap<ScanButton>>> _rows;
 	QPointer<Info::Profile::Button> _upload;

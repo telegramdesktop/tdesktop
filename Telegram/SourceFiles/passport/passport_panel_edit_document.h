@@ -62,6 +62,7 @@ public:
 		Scheme scheme,
 		const ValueMap &data,
 		const ValueMap &scanData,
+		const QString &missingScansError,
 		std::vector<ScanInfo> &&files,
 		std::unique_ptr<ScanInfo> &&selfie);
 	PanelEditDocument(
@@ -81,11 +82,13 @@ private:
 	void setupControls(
 		const ValueMap &data,
 		const ValueMap *scanData,
+		const QString &missingScansError,
 		std::vector<ScanInfo> &&files,
 		std::unique_ptr<ScanInfo> &&selfie);
 	not_null<Ui::RpWidget*> setupContent(
 		const ValueMap &data,
 		const ValueMap *scanData,
+		const QString &missingScansError,
 		std::vector<ScanInfo> &&files,
 		std::unique_ptr<ScanInfo> &&selfie);
 	void updateControlsGeometry();

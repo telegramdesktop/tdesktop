@@ -32,13 +32,15 @@ struct FormRequest {
 		const QString &scope,
 		const QString &callbackUrl,
 		const QString &publicKey,
-		const QString &payload);
+		const QString &payload,
+		const QString &errors);
 
 	UserId botId;
 	QString scope;
 	QString callbackUrl;
 	QString publicKey;
 	QString payload;
+	QString errors;
 
 };
 
@@ -317,6 +319,7 @@ private:
 	void decryptValue(Value &value);
 	bool validateValueSecrets(Value &value);
 	void resetValue(Value &value);
+	void fillErrors();
 
 	void loadFile(File &file);
 	void fileLoadDone(FileKey key, const QByteArray &bytes);

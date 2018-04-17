@@ -172,6 +172,7 @@ passportUploadButton: InfoProfileButton {
 }
 passportUploadButtonPadding: margins(0px, 10px, 0px, 10px);
 passportUploadHeaderPadding: margins(22px, 14px, 22px, 3px);
+passportUploadErrorPadding: margins(22px, 5px, 22px, 5px);
 passportDeleteButton: InfoProfileButton(passportUploadButton) {
 	textFg: attentionButtonFg;
 	textFgOver: attentionButtonFgOver;
