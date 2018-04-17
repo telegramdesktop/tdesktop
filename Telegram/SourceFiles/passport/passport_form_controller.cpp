@@ -28,6 +28,7 @@ namespace Passport {
 namespace {
 
 constexpr auto kDocumentScansLimit = 20;
+constexpr auto kShortPollTimeout = TimeMs(3000);
 
 bool ForwardServiceErrorRequired(const QString &error) {
 	return (error == qstr("BOT_INVALID"))
@@ -216,6 +217,7 @@ FormController::FormController(
 	const FormRequest &request)
 : _controller(controller)
 , _request(PreprocessRequest(request))
+, _shortPollTimer([=] { reloadPassword(); })
 , _view(std::make_unique<PanelController>(this)) {
 }
 
@@ -1743,18 +1745,27 @@ void FormController::requestPassword() {
 }
 
 void FormController::passwordDone(const MTPaccount_Password &result) {
-	switch (result.type()) {
-	case mtpc_account_noPassword:
-		parsePassword(result.c_account_noPassword());
-		break;
-
-	case mtpc_account_password:
-		parsePassword(result.c_account_password());
-		break;
-	}
-	if (!_formRequestId) {
+	const auto changed = [&] {
+		switch (result.type()) {
+		case mtpc_account_noPassword:
+			return applyPassword(result.c_account_noPassword());
+		case mtpc_account_password:
+			return applyPassword(result.c_account_password());
+		}
+		Unexpected("Type in FormController::passwordDone.");
+	}();
+	if (changed && !_formRequestId) {
 		showForm();
 	}
+	shortPollEmailConfirmation();
+}
+
+void FormController::shortPollEmailConfirmation() {
+	if (_password.unconfirmedPattern.isEmpty()) {
+		_shortPollTimer.cancel();
+		return;
+	}
+	_shortPollTimer.callOnce(kShortPollTimeout);
 }
 
 void FormController::showForm() {
@@ -1769,23 +1780,33 @@ void FormController::showForm() {
 	}
 }
 
-void FormController::parsePassword(const MTPDaccount_noPassword &result) {
-	_password = PasswordSettings();
-	_password.unconfirmedPattern = qs(result.vemail_unconfirmed_pattern);
-	_password.newSalt = bytes::make_vector(result.vnew_salt.v);
-	_password.newSecureSalt = bytes::make_vector(result.vnew_secure_salt.v);
+bool FormController::applyPassword(const MTPDaccount_noPassword &result) {
+	auto settings = PasswordSettings();
+	settings.unconfirmedPattern = qs(result.vemail_unconfirmed_pattern);
+	settings.newSalt = bytes::make_vector(result.vnew_salt.v);
+	settings.newSecureSalt = bytes::make_vector(result.vnew_secure_salt.v);
 	openssl::AddRandomSeed(bytes::make_span(result.vsecure_random.v));
+	return applyPassword(std::move(settings));
 }
 
-void FormController::parsePassword(const MTPDaccount_password &result) {
-	_password = PasswordSettings();
-	_password.hint = qs(result.vhint);
-	_password.hasRecovery = mtpIsTrue(result.vhas_recovery);
-	_password.salt = bytes::make_vector(result.vcurrent_salt.v);
-	_password.unconfirmedPattern = qs(result.vemail_unconfirmed_pattern);
-	_password.newSalt = bytes::make_vector(result.vnew_salt.v);
-	_password.newSecureSalt = bytes::make_vector(result.vnew_secure_salt.v);
+bool FormController::applyPassword(const MTPDaccount_password &result) {
+	auto settings = PasswordSettings();
+	settings.hint = qs(result.vhint);
+	settings.hasRecovery = mtpIsTrue(result.vhas_recovery);
+	settings.salt = bytes::make_vector(result.vcurrent_salt.v);
+	settings.unconfirmedPattern = qs(result.vemail_unconfirmed_pattern);
+	settings.newSalt = bytes::make_vector(result.vnew_salt.v);
+	settings.newSecureSalt = bytes::make_vector(result.vnew_secure_salt.v);
 	openssl::AddRandomSeed(bytes::make_span(result.vsecure_random.v));
+	return applyPassword(std::move(settings));
+}
+
+bool FormController::applyPassword(PasswordSettings &&settings) {
+	if (_password != settings) {
+		_password = std::move(settings);
+		return true;
+	}
+	return false;
 }
 
 void FormController::cancel() {

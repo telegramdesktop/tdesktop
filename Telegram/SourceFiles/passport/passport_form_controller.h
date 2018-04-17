@@ -178,6 +178,19 @@ struct PasswordSettings {
 	QString unconfirmedPattern;
 	QString confirmedEmail;
 	bool hasRecovery = false;
+
+	bool operator==(const PasswordSettings &other) const {
+		return (salt == other.salt)
+			&& (newSalt == other.newSalt)
+			&& (newSecureSalt == other.newSecureSalt)
+			&& (hint == other.hint)
+			&& (unconfirmedPattern == other.unconfirmedPattern)
+			&& (confirmedEmail == other.confirmedEmail)
+			&& (hasRecovery == other.hasRecovery);
+	}
+	bool operator!=(const PasswordSettings &other) const {
+		return !(*this == other);
+	}
 };
 
 struct FileKey {
@@ -290,8 +303,9 @@ private:
 		const std::vector<EditFile> &source) const;
 
 	void passwordDone(const MTPaccount_Password &result);
-	void parsePassword(const MTPDaccount_noPassword &settings);
-	void parsePassword(const MTPDaccount_password &settings);
+	bool applyPassword(const MTPDaccount_noPassword &settings);
+	bool applyPassword(const MTPDaccount_password &settings);
+	bool applyPassword(PasswordSettings &&settings);
 	bytes::vector passwordHashForAuth(bytes::const_span password) const;
 	void validateSecureSecret(
 		bytes::const_span salt,
@@ -358,6 +372,7 @@ private:
 	void suggestReset(bytes::vector password);
 	void suggestRestart();
 	void cancelAbort();
+	void shortPollEmailConfirmation();
 
 	not_null<Window::Controller*> _controller;
 	FormRequest _request;
@@ -387,6 +402,7 @@ private:
 	bool _submitSuccess = false;
 	bool _suggestingRestart = false;
 	QString _serviceErrorText;
+	base::Timer _shortPollTimer;
 
 	rpl::lifetime _uploaderSubscriptions;
 	rpl::lifetime _lifetime;
