@@ -495,38 +495,60 @@ void FormController::decryptValues() {
 }
 
 void FormController::fillErrors() {
-	const auto errors = _request.errors.toUtf8();
-	const auto list = DeserializeErrors(bytes::make_span(errors));
-	for (const auto &error : list) {
-		for (auto &[type, value] : _form.values) {
-			if (ValueCredentialsKey(type) != error.type) {
-				continue;
-			}
-			if (!error.key.has_value()) {
-				value.scanMissingError = error.text;
-			} else if (const auto key = base::get_if<QString>(&error.key)) {
-				value.data.parsed.fields[(*key)].error = error.text;
-			} else if (auto hash = base::get_if<QByteArray>(&error.key)) {
-				const auto check = [&](const File &file) {
-					return *hash == QByteArray::fromRawData(
-						reinterpret_cast<const char*>(file.hash.data()),
-						file.hash.size());
-				};
-				for (auto &scan : value.scans) {
-					if (check(scan)) {
-						scan.error = error.text;
-						break;
-					}
-				}
-				if (value.selfie) {
-					if (check(*value.selfie) || hash->isEmpty()) {
-						value.selfie->error = error.text;
-					}
-				}
-			}
-			break;
+	const auto find = [&](const MTPSecureValueType &type) -> Value* {
+		const auto converted = ConvertType(type);
+		const auto i = _form.values.find(ConvertType(type));
+		if (i != end(_form.values)) {
+			return &i->second;
 		}
-
+		LOG(("API Error: Value not found for error type."));
+		return nullptr;
+	};
+	const auto scan = [&](Value &value, bytes::const_span hash) -> File* {
+		const auto i = ranges::find_if(value.scans, [&](const File &scan) {
+			return !bytes::compare(hash, scan.hash);
+		});
+		if (i != end(value.scans)) {
+			return &*i;
+		}
+		LOG(("API Error: File not found for error value."));
+		return nullptr;
+	};
+	for (const auto &error : _form.pendingErrors) {
+		switch (error.type()) {
+		case mtpc_secureValueErrorData: {
+			const auto &data = error.c_secureValueErrorData();
+			if (const auto value = find(data.vtype)) {
+				const auto key = qs(data.vfield);
+				value->data.parsed.fields[key].error = qs(data.vtext);
+			}
+		} break;
+		case mtpc_secureValueErrorFile: {
+			const auto &data = error.c_secureValueErrorFile();
+			const auto hash = bytes::make_span(data.vfile_hash.v);
+			if (const auto value = find(data.vtype)) {
+				if (const auto file = scan(*value, hash)) {
+					file->error = qs(data.vtext);
+				}
+			}
+		} break;
+		case mtpc_secureValueErrorFiles: {
+			const auto &data = error.c_secureValueErrorFiles();
+			if (const auto value = find(data.vtype)) {
+				value->scanMissingError = qs(data.vtext);
+			}
+		} break;
+		case mtpc_secureValueErrorSelfie: {
+			const auto &data = error.c_secureValueErrorSelfie();
+			if (const auto value = find(data.vtype)) {
+				if (value->selfie) {
+					value->selfie->error = qs(data.vtext);
+				} else {
+					LOG(("API Error: Selfie not found for error value."));
+				}
+			}
+		} break;
+		}
 	}
 }
 
@@ -1786,6 +1808,7 @@ void FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 		_form.values.emplace(type, Value(type));
 	}
 	_bot = App::userLoaded(_request.botId);
+	_form.pendingErrors = data.verrors.v;
 }
 
 void FormController::formFail(const QString &error) {

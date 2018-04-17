@@ -411,6 +411,9 @@ void EditScans::updateScan(ScanInfo &&info) {
 		_header->show(anim::type::normal);
 		_uploadTexts.fire(uploadButtonText());
 	}
+	if (_uploadMoreError) {
+		_uploadMoreError->toggle(!uploadedSomeMore(), anim::type::normal);
+	}
 }
 
 void EditScans::createSelfieRow(const ScanInfo &info) {

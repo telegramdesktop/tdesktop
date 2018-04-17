@@ -170,6 +170,8 @@ struct Form {
 	std::vector<Value::Type> request;
 	bool identitySelfieRequired = false;
 	QString privacyPolicyUrl;
+	QVector<MTPSecureValueError> pendingErrors;
+
 };
 
 struct PasswordSettings {

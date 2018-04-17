@@ -995,9 +995,14 @@ inputSecureValue#c0da30f0 flags:# type:SecureValueType data:flags.0?SecureData f
 
 secureValueHash#ed1ecdb0 type:SecureValueType hash:bytes = SecureValueHash;
 
+secureValueErrorData#e8a40bd9 type:SecureValueType data_hash:bytes field:string text:string = SecureValueError;
+secureValueErrorFile#7a700873 type:SecureValueType file_hash:bytes text:string = SecureValueError;
+secureValueErrorFiles#666220e9 type:SecureValueType file_hash:Vector<bytes> text:string = SecureValueError;
+secureValueErrorSelfie#e537ced6 type:SecureValueType file_hash:bytes text:string = SecureValueError;
+
 secureCredentialsEncrypted#33f0ea47 data:bytes hash:bytes secret:bytes = SecureCredentialsEncrypted;
 
-account.authorizationForm#b9d3d1f0 flags:# selfie_required:flags.1?true required_types:Vector<SecureValueType> values:Vector<SecureValue> users:Vector<User> privacy_policy_url:flags.0?string = account.AuthorizationForm;
+account.authorizationForm#cb976d53 flags:# selfie_required:flags.1?true required_types:Vector<SecureValueType> values:Vector<SecureValue> errors:Vector<SecureValueError> users:Vector<User> privacy_policy_url:flags.0?string = account.AuthorizationForm;
 
 account.sentEmailCode#811f854f email_pattern:string length:int = account.SentEmailCode;
 
@@ -1059,6 +1064,7 @@ account.resetWebAuthorizations#682d2594 = Bool;
 account.getSecureValue#73665bc2 types:Vector<SecureValueType> = Vector<SecureValue>;
 account.saveSecureValue#899fe31d value:InputSecureValue secure_secret_id:long = SecureValue;
 account.deleteSecureValue#b880bc4b types:Vector<SecureValueType> = Bool;
+account.setSecureValueErrors#d0093ce4 user_id:InputUser errors:Vector<SecureValueError> = Bool;
 account.getAuthorizationForm#b86ba8e1 bot_id:int scope:string public_key:string = account.AuthorizationForm;
 account.acceptAuthorization#e7027c94 bot_id:int scope:string public_key:string value_hashes:Vector<SecureValueHash> credentials:SecureCredentialsEncrypted = Bool;
 account.sendVerifyPhoneCode#823380b4 flags:# allow_flashcall:flags.0?true phone_number:string current_number:flags.0?Bool = auth.SentCode;
