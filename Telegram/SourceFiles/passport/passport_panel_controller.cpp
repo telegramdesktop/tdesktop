@@ -427,20 +427,28 @@ void PanelController::setupPassword() {
 	Assert(settings.salt.empty());
 
 	constexpr auto kRandomPart = 8;
-	auto newSalt = QByteArray(
+	auto newPasswordSalt = QByteArray(
 		reinterpret_cast<const char*>(settings.newSalt.data()),
 		settings.newSalt.size());
-	newSalt.resize(newSalt.size() + kRandomPart);
+	newPasswordSalt.resize(newPasswordSalt.size() + kRandomPart);
 	bytes::set_random(
-		bytes::make_span(newSalt).subspan(settings.newSalt.size()));
+		bytes::make_span(newPasswordSalt).subspan(settings.newSalt.size()));
+	auto newSecureSecretSalt = QByteArray(
+		reinterpret_cast<const char*>(settings.newSecureSalt.data()),
+		settings.newSecureSalt.size());
+	newSecureSecretSalt.resize(newSecureSecretSalt.size() + kRandomPart);
+	bytes::set_random(
+		bytes::make_span(
+			newSecureSecretSalt).subspan(settings.newSecureSalt.size()));
 	const auto currentSalt = QByteArray();
 	const auto hasRecovery = false;
 	const auto hint = QString();
 	auto box = show(Box<PasscodeBox>(
-		newSalt,
+		newPasswordSalt,
 		currentSalt,
 		hasRecovery,
-		hint));
+		hint,
+		newSecureSecretSalt));
 	box->connect(box, &PasscodeBox::reloadPassword, _panel.get(), [=] {
 		_form->reloadPassword();
 	});

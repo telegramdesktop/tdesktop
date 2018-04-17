@@ -65,6 +65,7 @@ private:
 	bool _hasPasswordRecovery = false;
 	QString _curPasswordHint;
 	QByteArray _newPasswordSalt;
+	QByteArray _newSecureSecretSalt;
 
 };
 

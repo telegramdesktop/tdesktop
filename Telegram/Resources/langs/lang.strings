@@ -406,6 +406,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_cloud_password_differ" = "Passwords do not match";
 "lng_cloud_password_wrong" = "Wrong cloud password";
 "lng_cloud_password_is_same" = "Password was not changed";
+"lng_cloud_password_passport_losing" = "Warning! All data saved in your Telegram Passport will be lost!";
 
 "lng_connection_type" = "Connection type:";
 "lng_connection_auto_connecting" = "Default (connecting...)";

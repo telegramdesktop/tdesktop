@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "application.h"
 #include "platform/platform_specific.h"
+#include "base/openssl_help.h"
 #include "boxes/sessions_box.h"
 #include "boxes/passcode_box.h"
 #include "boxes/autolock_box.h"
@@ -73,7 +74,12 @@ int CloudPasswordState::resizeGetHeight(int newWidth) {
 }
 
 void CloudPasswordState::onEdit() {
-	auto box = Ui::show(Box<PasscodeBox>(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint));
+	auto box = Ui::show(Box<PasscodeBox>(
+		_newPasswordSalt,
+		_curPasswordSalt,
+		_hasPasswordRecovery,
+		_curPasswordHint,
+		_newSecureSecretSalt));
 	connect(box, SIGNAL(reloadPassword()), this, SLOT(onReloadPassword()));
 }
 
@@ -96,7 +102,13 @@ void CloudPasswordState::onTurnOff() {
 			rpcDone(&CloudPasswordState::offPasswordDone),
 			rpcFail(&CloudPasswordState::offPasswordFail));
 	} else {
-		auto box = Ui::show(Box<PasscodeBox>(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint, true));
+		auto box = Ui::show(Box<PasscodeBox>(
+			_newPasswordSalt,
+			_curPasswordSalt,
+			_hasPasswordRecovery,
+			_curPasswordHint,
+			_newSecureSecretSalt,
+			true));
 		connect(box, SIGNAL(reloadPassword()), this, SLOT(onReloadPassword()));
 	}
 }
@@ -117,10 +129,12 @@ void CloudPasswordState::getPasswordDone(const MTPaccount_Password &result) {
 		_hasPasswordRecovery = false;
 		_curPasswordHint = QString();
 		_newPasswordSalt = qba(d.vnew_salt);
+		_newSecureSecretSalt = qba(d.vnew_secure_salt);
 		auto pattern = qs(d.vemail_unconfirmed_pattern);
 		if (!pattern.isEmpty()) {
 			_waitingConfirm = lng_cloud_password_waiting(lt_email, pattern);
 		}
+		openssl::AddRandomSeed(bytes::make_span(d.vsecure_random.v));
 	} break;
 
 	case mtpc_account_password: {
@@ -129,10 +143,12 @@ void CloudPasswordState::getPasswordDone(const MTPaccount_Password &result) {
 		_hasPasswordRecovery = mtpIsTrue(d.vhas_recovery);
 		_curPasswordHint = qs(d.vhint);
 		_newPasswordSalt = qba(d.vnew_salt);
+		_newSecureSecretSalt = qba(d.vnew_secure_salt);
 		auto pattern = qs(d.vemail_unconfirmed_pattern);
 		if (!pattern.isEmpty()) {
 			_waitingConfirm = lng_cloud_password_waiting(lt_email, pattern);
 		}
+		openssl::AddRandomSeed(bytes::make_span(d.vsecure_random.v));
 	} break;
 	}
 	_edit->setText(lang(_curPasswordSalt.isEmpty() ? lng_cloud_password_set : lng_cloud_password_edit));
@@ -141,7 +157,13 @@ void CloudPasswordState::getPasswordDone(const MTPaccount_Password &result) {
 	update();
 
 	_newPasswordSalt.resize(_newPasswordSalt.size() + 8);
-	memset_rand(_newPasswordSalt.data() + _newPasswordSalt.size() - 8, 8);
+	memset_rand(
+		_newPasswordSalt.data() + _newPasswordSalt.size() - 8,
+		8);
+	_newSecureSecretSalt.resize(_newSecureSecretSalt.size() + 8);
+	memset_rand(
+		_newSecureSecretSalt.data() + _newSecureSecretSalt.size() - 8,
+		8);
 }
 
 void CloudPasswordState::paintEvent(QPaintEvent *e) {

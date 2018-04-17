@@ -462,7 +462,9 @@ void FormController::suggestReset(bytes::vector password) {
 		_saveSecretRequestId = request(MTPaccount_UpdatePasswordSettings(
 			MTP_bytes(hashForAuth),
 			MTP_account_passwordInputSettings(
-				MTP_flags(Flag::f_new_secure_secret),
+				MTP_flags(Flag::f_new_secure_salt
+					| Flag::f_new_secure_secret
+					| Flag::f_new_secure_secret_id),
 				MTPbytes(), // new_salt
 				MTPbytes(), // new_password_hash
 				MTPstring(), // hint
@@ -1482,7 +1484,9 @@ void FormController::generateSecret(bytes::const_span password) {
 	_saveSecretRequestId = request(MTPaccount_UpdatePasswordSettings(
 		MTP_bytes(hashForAuth),
 		MTP_account_passwordInputSettings(
-			MTP_flags(Flag::f_new_secure_secret),
+			MTP_flags(Flag::f_new_secure_salt
+				| Flag::f_new_secure_secret
+				| Flag::f_new_secure_secret_id),
 			MTPbytes(), // new_salt
 			MTPbytes(), // new_password_hash
 			MTPstring(), // hint
