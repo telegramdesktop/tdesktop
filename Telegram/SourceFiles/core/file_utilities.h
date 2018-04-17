@@ -54,22 +54,26 @@ struct OpenResult {
 	QByteArray remoteContent;
 };
 void GetOpenPath(
+	QPointer<QWidget> parent,
 	const QString &caption,
 	const QString &filter,
 	base::lambda<void(OpenResult &&result)> callback,
 	base::lambda<void()> failed = base::lambda<void()>());
 void GetOpenPaths(
+	QPointer<QWidget> parent,
 	const QString &caption,
 	const QString &filter,
 	base::lambda<void(OpenResult &&result)> callback,
 	base::lambda<void()> failed = base::lambda<void()>());
 void GetWritePath(
+	QPointer<QWidget> parent,
 	const QString &caption,
 	const QString &filter,
 	const QString &initialPath,
 	base::lambda<void(QString &&result)> callback,
 	base::lambda<void()> failed = base::lambda<void()>());
 void GetFolder(
+	QPointer<QWidget> parent,
 	const QString &caption,
 	const QString &initialPath,
 	base::lambda<void(QString &&result)> callback,
@@ -89,6 +93,7 @@ enum class Type {
 void InitLastPathDefault();
 
 bool GetDefault(
+	QPointer<QWidget> parent,
 	QStringList &files,
 	QByteArray &remoteContent,
 	const QString &caption,

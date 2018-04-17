@@ -851,6 +851,7 @@ void MediaView::onSaveAs() {
 		psBringToBack(this);
 		auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
 		FileDialog::GetWritePath(
+			this,
 			lang(lng_save_photo),
 			filter,
 			filedialogDefaultName(

@@ -13,15 +13,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "messenger.h"
 
 bool filedialogGetSaveFile(
+		QPointer<QWidget> parent,
 		QString &file,
 		const QString &caption,
 		const QString &filter,
 		const QString &initialPath) {
 	QStringList files;
 	QByteArray remoteContent;
-	bool result = Platform::FileDialog::Get(files, remoteContent, caption, filter, FileDialog::internal::Type::WriteFile, initialPath);
+	bool result = Platform::FileDialog::Get(
+		parent,
+		files,
+		remoteContent,
+		caption,
+		filter,
+		FileDialog::internal::Type::WriteFile,
+		initialPath);
 	file = files.isEmpty() ? QString() : files.at(0);
 	return result;
+}
+
+bool filedialogGetSaveFile(
+		QString &file,
+		const QString &caption,
+		const QString &filter,
+		const QString &initialPath) {
+	return filedialogGetSaveFile(
+		Messenger::Instance().getFileDialogParent(),
+		file,
+		caption,
+		filter,
+		initialPath);
 }
 
 QString filedialogDefaultName(
@@ -130,6 +151,7 @@ void UnsafeLaunchDefault(const QString &filepath) {
 namespace FileDialog {
 
 void GetOpenPath(
+		QPointer<QWidget> parent,
 		const QString &caption,
 		const QString &filter,
 		base::lambda<void(OpenResult &&result)> callback,
@@ -138,6 +160,7 @@ void GetOpenPath(
 		auto files = QStringList();
 		auto remoteContent = QByteArray();
 		const auto success = Platform::FileDialog::Get(
+			parent,
 			files,
 			remoteContent,
 			caption,
@@ -161,6 +184,7 @@ void GetOpenPath(
 }
 
 void GetOpenPaths(
+		QPointer<QWidget> parent,
 		const QString &caption,
 		const QString &filter,
 		base::lambda<void(OpenResult &&result)> callback,
@@ -169,6 +193,7 @@ void GetOpenPaths(
 		auto files = QStringList();
 		auto remoteContent = QByteArray();
 		const auto success = Platform::FileDialog::Get(
+			parent,
 			files,
 			remoteContent,
 			caption,
@@ -188,6 +213,7 @@ void GetOpenPaths(
 }
 
 void GetWritePath(
+		QPointer<QWidget> parent,
 		const QString &caption,
 		const QString &filter,
 		const QString &initialPath,
@@ -195,7 +221,7 @@ void GetWritePath(
 		base::lambda<void()> failed) {
 	InvokeQueued(QApplication::instance(), [=] {
 		auto file = QString();
-		if (filedialogGetSaveFile(file, caption, filter, initialPath)) {
+		if (filedialogGetSaveFile(parent, file, caption, filter, initialPath)) {
 			if (callback) {
 				callback(std::move(file));
 			}
@@ -206,6 +232,7 @@ void GetWritePath(
 }
 
 void GetFolder(
+		QPointer<QWidget> parent,
 		const QString &caption,
 		const QString &initialPath,
 		base::lambda<void(QString &&result)> callback,
@@ -214,6 +241,7 @@ void GetFolder(
 		auto files = QStringList();
 		auto remoteContent = QByteArray();
 		const auto success = Platform::FileDialog::Get(
+			parent,
 			files,
 			remoteContent,
 			caption,
@@ -244,7 +272,14 @@ void InitLastPathDefault() {
 	cSetDialogLastPath(QStandardPaths::writableLocation(QStandardPaths::DownloadLocation));
 }
 
-bool GetDefault(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, FileDialog::internal::Type type, QString startFile = QString()) {
+bool GetDefault(
+		QPointer<QWidget> parent,
+		QStringList &files,
+		QByteArray &remoteContent,
+		const QString &caption,
+		const QString &filter,
+		FileDialog::internal::Type type,
+		QString startFile = QString()) {
 	if (cDialogLastPath().isEmpty()) {
 		Platform::FileDialog::InitLastPath();
 	}

@@ -1738,6 +1738,7 @@ void HistoryInner::savePhotoToFile(not_null<PhotoData*> photo) {
 
 	auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
 	FileDialog::GetWritePath(
+		this,
 		lang(lng_save_photo),
 		filter,
 		filedialogDefaultName(

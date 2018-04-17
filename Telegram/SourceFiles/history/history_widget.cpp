@@ -3221,7 +3221,7 @@ void HistoryWidget::chooseAttach() {
 
 	auto filter = FileDialog::AllFilesFilter() + qsl(";;Image files (*") + cImgExtensions().join(qsl(" *")) + qsl(")");
 
-	FileDialog::GetOpenPaths(lang(lng_choose_files), filter, base::lambda_guarded(this, [this](FileDialog::OpenResult &&result) {
+	FileDialog::GetOpenPaths(this, lang(lng_choose_files), filter, base::lambda_guarded(this, [this](FileDialog::OpenResult &&result) {
 		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
 			return;
 		}

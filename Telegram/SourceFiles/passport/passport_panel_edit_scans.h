@@ -41,7 +41,9 @@ public:
 
 	base::optional<int> validateGetErrorTop();
 
-	static void ChooseScan(base::lambda<void(QByteArray&&)> callback);
+	static void ChooseScan(
+		QPointer<QWidget> parent,
+		base::lambda<void(QByteArray&&)> callback);
 
 private:
 	void setupContent(const QString &header);

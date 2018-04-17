@@ -95,7 +95,10 @@ void SuggestPhotoFile(
 }
 
 template <typename Callback>
-void ShowChoosePhotoBox(PeerId peerForCrop, Callback &&callback) {
+void ShowChoosePhotoBox(
+		QPointer<QWidget> parent, 
+		PeerId peerForCrop, 
+		Callback &&callback) {
 	auto imgExtensions = cImgExtensions();
 	auto filter = qsl("Image files (*")
 		+ imgExtensions.join(qsl(" *"))
@@ -108,6 +111,7 @@ void ShowChoosePhotoBox(PeerId peerForCrop, Callback &&callback) {
 		SuggestPhotoFile(result, peerForCrop, std::move(callback));
 	};
 	FileDialog::GetOpenPath(
+		parent,
 		lang(lng_choose_image),
 		filter,
 		std::move(handleChosenPhoto));
@@ -470,7 +474,7 @@ void UserpicButton::changePhotoLazy() {
 	auto callback = base::lambda_guarded(
 		this,
 		[this](QImage &&image) { setImage(std::move(image)); });
-	ShowChoosePhotoBox(_peerForCrop, std::move(callback));
+	ShowChoosePhotoBox(this, _peerForCrop, std::move(callback));
 }
 
 void UserpicButton::uploadNewPeerPhoto() {
@@ -482,7 +486,7 @@ void UserpicButton::uploadNewPeerPhoto() {
 				_peer->id
 			);
 		});
-	ShowChoosePhotoBox(_peerForCrop, std::move(callback));
+	ShowChoosePhotoBox(this, _peerForCrop, std::move(callback));
 }
 
 void UserpicButton::openPeerPhoto() {

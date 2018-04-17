@@ -90,7 +90,7 @@ void fillCodes() {
 		}
 	});
 	Codes.insert(qsl("loadcolors"), [] {
-		FileDialog::GetOpenPath("Open palette file", "Palette (*.tdesktop-palette)", [](const FileDialog::OpenResult &result) {
+		FileDialog::GetOpenPath(Messenger::Instance().getFileDialogParent(), "Open palette file", "Palette (*.tdesktop-palette)", [](const FileDialog::OpenResult &result) {
 			if (!result.paths.isEmpty()) {
 				Window::Theme::Apply(result.paths.front());
 			}
@@ -108,7 +108,7 @@ void fillCodes() {
 		}));
 	});
 	Codes.insert(qsl("endpoints"), [] {
-		FileDialog::GetOpenPath("Open DC endpoints", "DC Endpoints (*.tdesktop-endpoints)", [](const FileDialog::OpenResult &result) {
+		FileDialog::GetOpenPath(Messenger::Instance().getFileDialogParent(), "Open DC endpoints", "DC Endpoints (*.tdesktop-endpoints)", [](const FileDialog::OpenResult &result) {
 			if (!result.paths.isEmpty()) {
 				if (!Messenger::Instance().mtp()->dcOptions()->loadFromFile(result.paths.front())) {
 					Ui::show(Box<InformBox>("Could not load endpoints :( Errors in 'log.txt'."));
@@ -136,7 +136,7 @@ void fillCodes() {
 				return;
 			}
 
-			FileDialog::GetOpenPath("Open audio file", audioFilters, [key](const FileDialog::OpenResult &result) {
+			FileDialog::GetOpenPath(Messenger::Instance().getFileDialogParent(), "Open audio file", audioFilters, [key](const FileDialog::OpenResult &result) {
 				if (AuthSession::Exists() && !result.paths.isEmpty()) {
 					auto track = Media::Audio::Current().createTrack();
 					track->fillFromFile(result.paths.front());

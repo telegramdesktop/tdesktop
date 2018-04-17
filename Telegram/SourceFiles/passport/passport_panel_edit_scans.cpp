@@ -423,22 +423,27 @@ void EditScans::chooseScan() {
 		_controller->showToast(lang(lng_passport_scans_limit_reached));
 		return;
 	}
-	ChooseScan(base::lambda_guarded(this, [=](QByteArray &&content) {
+	ChooseScan(this, [=](QByteArray &&content) {
 		_controller->uploadScan(std::move(content));
-	}));
+	});
 }
 
 void EditScans::chooseSelfie() {
-	ChooseScan(base::lambda_guarded(this, [=](QByteArray &&content) {
+	ChooseScan(this, [=](QByteArray &&content) {
 		_controller->uploadSelfie(std::move(content));
-	}));
+	});
 }
 
-void EditScans::ChooseScan(base::lambda<void(QByteArray&&)> callback) {
+void EditScans::ChooseScan(
+		QPointer<QWidget> parent,
+		base::lambda<void(QByteArray&&)> callback) {
+	Expects(parent != nullptr);
+
 	const auto filter = FileDialog::AllFilesFilter()
 		+ qsl(";;Image files (*")
 		+ cImgExtensions().join(qsl(" *"))
 		+ qsl(")");
+	const auto guardedCallback = base::lambda_guarded(parent, callback);
 	const auto processFile = [=](FileDialog::OpenResult &&result) {
 		if (result.paths.size() == 1) {
 			auto content = [&] {
@@ -449,13 +454,14 @@ void EditScans::ChooseScan(base::lambda<void(QByteArray&&)> callback) {
 				return f.readAll();
 			}();
 			if (!content.isEmpty()) {
-				callback(std::move(content));
+				guardedCallback(std::move(content));
 			}
 		} else if (!result.remoteContent.isEmpty()) {
-			callback(std::move(result.remoteContent));
+			guardedCallback(std::move(result.remoteContent));
 		}
 	};
 	FileDialog::GetOpenPath(
+		parent,
 		lang(lng_passport_choose_image),
 		filter,
 		processFile);

@@ -333,7 +333,14 @@ void InitLastPath() {
 	}
 }
 
-bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, ::FileDialog::internal::Type type, QString startFile) {
+bool Get(
+		QPointer<QWidget> parent,
+		QStringList &files,
+		QByteArray &remoteContent,
+		const QString &caption,
+		const QString &filter,
+		::FileDialog::internal::Type type,
+		QString startFile) {
 	if (cDialogLastPath().isEmpty()) {
 		Platform::FileDialog::InitLastPath();
 	}
@@ -344,7 +351,6 @@ bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, 
 	// that forced file icon and maybe other properties being resolved and this was
 	// a blocking operation.
 	auto helperPath = cDialogHelperPathFinal();
-	auto parent = Messenger::Instance().getFileDialogParent();
 	QFileDialog dialog(parent, caption, helperPath, filter);
 
 	dialog.setModal(true);

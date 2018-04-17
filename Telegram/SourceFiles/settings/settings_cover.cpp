@@ -343,7 +343,7 @@ void CoverWidget::refreshStatusText() {
 void CoverWidget::chooseNewPhoto() {
 	auto imageExtensions = cImgExtensions();
 	auto filter = qsl("Image files (*") + imageExtensions.join(qsl(" *")) + qsl(");;") + FileDialog::AllFilesFilter();
-	FileDialog::GetOpenPath(lang(lng_choose_image), filter, base::lambda_guarded(this, [this](const FileDialog::OpenResult &result) {
+	const auto callback = [=](const FileDialog::OpenResult &result) {
 		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
 			return;
 		}
@@ -356,7 +356,12 @@ void CoverWidget::chooseNewPhoto() {
 		}
 
 		showSetPhotoBox(img);
-	}));
+	};
+	FileDialog::GetOpenPath(
+		this,
+		lang(lng_choose_image),
+		filter,
+		base::lambda_guarded(this, callback));
 }
 
 void CoverWidget::editName() {

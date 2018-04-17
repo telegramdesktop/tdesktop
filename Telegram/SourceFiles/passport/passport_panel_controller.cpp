@@ -833,13 +833,11 @@ void PanelController::editWithUpload(int index, int documentIndex) {
 	Expects(documentIndex >= 0
 		&& documentIndex < _scopes[index].documents.size());
 
-	EditScans::ChooseScan(
-		base::lambda_guarded(_panel.get(),
-		[=](QByteArray &&content) {
-			base::take(_scopeDocumentTypeBox);
-			editScope(index, documentIndex);
-			uploadScan(std::move(content));
-		}));
+	EditScans::ChooseScan(_panel.get(), [=](QByteArray &&content) {
+		base::take(_scopeDocumentTypeBox);
+		editScope(index, documentIndex);
+		uploadScan(std::move(content));
+	});
 }
 
 void PanelController::editScope(int index, int documentIndex) {

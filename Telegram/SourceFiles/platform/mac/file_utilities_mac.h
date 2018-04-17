@@ -27,8 +27,22 @@ inline void InitLastPath() {
 	::FileDialog::internal::InitLastPathDefault();
 }
 
-inline bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, ::FileDialog::internal::Type type, QString startFile) {
-	return ::FileDialog::internal::GetDefault(files, remoteContent, caption, filter, type, startFile);
+inline bool Get(
+		QPointer<QWidget> parent,
+		QStringList &files,
+		QByteArray &remoteContent,
+		const QString &caption,
+		const QString &filter,
+		::FileDialog::internal::Type type,
+		QString startFile) {
+	return ::FileDialog::internal::GetDefault(
+		parent,
+		files,
+		remoteContent,
+		caption,
+		filter,
+		type,
+		startFile);
 }
 
 } // namespace FileDialog

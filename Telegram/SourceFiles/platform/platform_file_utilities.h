@@ -29,7 +29,14 @@ namespace FileDialog {
 
 void InitLastPath();
 
-bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, ::FileDialog::internal::Type type, QString startFile = QString());
+bool Get(
+	QPointer<QWidget> parent,
+	QStringList &files,
+	QByteArray &remoteContent,
+	const QString &caption,
+	const QString &filter,
+	::FileDialog::internal::Type type,
+	QString startFile = QString());
 
 } // namespace FileDialog
 } // namespace Platform

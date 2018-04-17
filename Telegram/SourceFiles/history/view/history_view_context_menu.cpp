@@ -49,6 +49,7 @@ void SavePhotoToFile(not_null<PhotoData*> photo) {
 	}
 
 	FileDialog::GetWritePath(
+		Messenger::Instance().getFileDialogParent(),
 		lang(lng_save_photo),
 		qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter(),
 		filedialogDefaultName(qsl("photo"), qsl(".jpg")),

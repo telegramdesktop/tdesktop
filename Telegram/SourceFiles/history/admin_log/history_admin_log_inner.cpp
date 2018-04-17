@@ -1085,6 +1085,7 @@ void InnerWidget::savePhotoToFile(PhotoData *photo) {
 
 	auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
 	FileDialog::GetWritePath(
+		this,
 		lang(lng_save_photo),
 		filter,
 		filedialogDefaultName(qsl("photo"), qsl(".jpg")),
