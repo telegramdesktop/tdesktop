@@ -370,29 +370,8 @@ void EditScans::setupContent(const QString &header) {
 }
 
 void EditScans::updateScan(ScanInfo &&info) {
-	const auto updateRow = [&](
-			not_null<ScanButton*> button,
-			const ScanInfo &info) {
-		button->setStatus(info.status);
-		button->setImage(info.thumb);
-		button->setDeleted(info.deleted);
-		button->setError(!info.error.isEmpty());
-	};
 	if (info.selfie) {
-		Assert(info.key.id != 0);
-		Assert(_selfie != nullptr);
-		if (_selfie->key.id) {
-			updateRow(_selfieRow->entity(), info);
-			if (!info.deleted) {
-				hideSelfieError();
-			}
-		} else {
-			createSelfieRow(info);
-			_selfieWrap->resizeToWidth(width());
-			_selfieRow->show(anim::type::normal);
-			_selfieHeader->show(anim::type::normal);
-		}
-		*_selfie = std::move(info);
+		updateSelfie(std::move(info));
 		return;
 	}
 	const auto i = ranges::find(_files, info.key, [](const ScanInfo &file) {
@@ -401,9 +380,7 @@ void EditScans::updateScan(ScanInfo &&info) {
 	if (i != _files.end()) {
 		*i = std::move(info);
 		const auto scan = _rows[i - _files.begin()]->entity();
-		scan->setStatus(i->status);
-		scan->setImage(i->thumb);
-		scan->setDeleted(i->deleted);
+		updateFileRow(scan, *i);
 		if (!i->deleted) {
 			hideError();
 		}
@@ -420,6 +397,36 @@ void EditScans::updateScan(ScanInfo &&info) {
 		_uploadMoreError->toggle(!uploadedSomeMore(), anim::type::normal);
 	}
 }
+
+void EditScans::updateSelfie(ScanInfo &&info) {
+	Expects(info.key.id != 0);
+
+	if (!_selfie) {
+		return;
+	}
+	if (_selfie->key.id) {
+		updateFileRow(_selfieRow->entity(), info);
+		if (!info.deleted) {
+			hideSelfieError();
+		}
+	} else {
+		createSelfieRow(info);
+		_selfieWrap->resizeToWidth(width());
+		_selfieRow->show(anim::type::normal);
+		_selfieHeader->show(anim::type::normal);
+	}
+	*_selfie = std::move(info);
+}
+
+void EditScans::updateFileRow(
+		not_null<ScanButton*> button,
+		const ScanInfo &info) {
+	button->setStatus(info.status);
+	button->setImage(info.thumb);
+	button->setDeleted(info.deleted);
+	button->setError(!info.error.isEmpty());
+};
+
 
 void EditScans::createSelfieRow(const ScanInfo &info) {
 	_selfieRow = createScan(

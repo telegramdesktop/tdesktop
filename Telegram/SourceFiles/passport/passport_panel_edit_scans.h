@@ -51,6 +51,10 @@ private:
 	void chooseScan();
 	void chooseSelfie();
 	void updateScan(ScanInfo &&info);
+	void updateSelfie(ScanInfo &&info);
+	void updateFileRow(
+		not_null<ScanButton*> button,
+		const ScanInfo &info);
 	void pushScan(const ScanInfo &info);
 	void createSelfieRow(const ScanInfo &info);
 	base::unique_qptr<Ui::SlideWrap<ScanButton>> createScan(

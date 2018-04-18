@@ -1004,7 +1004,7 @@ void FormController::startValueEdit(not_null<const Value*> value) {
 	for (auto &scan : nonconst->scans) {
 		loadFile(scan);
 	}
-	if (nonconst->selfie) {
+	if (nonconst->selfie && _form.identitySelfieRequired) {
 		loadFile(*nonconst->selfie);
 	}
 	nonconst->scansInEdit = ranges::view::all(
