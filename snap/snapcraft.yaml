@@ -265,6 +265,7 @@ parts:
   openal:
     source: https://github.com/kcat/openal-soft.git
     source-depth: 1
+    source-branch: v1.18
     plugin: cmake
     build-packages:
       - oss4-dev
