@@ -24,7 +24,7 @@ QString ExpressionDomainExplicit() {
 }
 
 QString ExpressionMailNameAtEnd() {
-	// Matches e-mail first part (before '@') at the end of the string.
+	// Matches email first part (before '@') at the end of the string.
 	// First we find a domain without protocol (like "gmail.com"), then
 	// we find '@' before it and then we look for the name before '@'.
 	return qsl("[a-zA-Z\\-_\\.0-9]{1,256}$");

@@ -193,19 +193,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_signin_title" = "Contraseña";
 "lng_signin_desc" = "Por favor, pon tu contraseña.";
-"lng_signin_recover_desc" = "Por favor, pon el código desde el e-mail\n{email}";
+"lng_signin_recover_desc" = "Por favor, pon el código desde el email\n{email}";
 "lng_signin_password" = "Tu contraseña";
-"lng_signin_code" = "Código desde el e-mail";
+"lng_signin_code" = "Código desde el email";
 "lng_signin_recover" = "¿Olvidaste la contraseña?";
 "lng_signin_recover_title" = "Restablecer contraseña";
 "lng_signin_hint" = "Pista: {password_hint}";
 "lng_signin_recover_hint" = "El código fue enviado a {recover_email}";
 "lng_signin_bad_password" = "Pusiste la contraseña equivocada.";
 "lng_signin_wrong_code" = "Has ingresado un código inválido.";
-"lng_signin_try_password" = "¿Tienes problemas para acceder a tu e-mail?";
+"lng_signin_try_password" = "¿Tienes problemas para acceder a tu email?";
 "lng_signin_password_removed" = "Tu contraseña fue desactivada.\nPuedes configurar una nueva en Ajustes.";
-"lng_signin_no_email_forgot" = "Como no estableciste un e-mail de recuperación \ncuando configuraste tu contraseña, las opciones restantes son recordar tu contraseña o restablecer tu cuenta.";
-"lng_signin_cant_email_forgot" = "Si no puedes acceder a tu e-mail, las opciones restantes son recordar tu contraseña o restablecer tu cuenta.";
+"lng_signin_no_email_forgot" = "Como no estableciste un email de recuperación \ncuando configuraste tu contraseña, las opciones restantes son recordar tu contraseña o restablecer tu cuenta.";
+"lng_signin_cant_email_forgot" = "Si no puedes acceder a tu email, las opciones restantes son recordar tu contraseña o restablecer tu cuenta.";
 "lng_signin_reset_account" = "Restablecer tu cuenta";
 "lng_signin_sure_reset" = "¡Advertencia!\n\n¡Perderás todos tus chats y mensajes, junto con la multimedia y archivos compartidos!\n\n¿Quieres restablecer tu cuenta?";
 "lng_signin_reset" = "Restablecer";
@@ -406,12 +406,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_cloud_password_hint" = "Pon una pista para la contraseña";
 "lng_cloud_password_change_hint" = "Pon una pista para la contraseña";
 "lng_cloud_password_bad" = "La contraseña y la pista no pueden ser iguales.";
-"lng_cloud_password_email" = "Pon un e-mail de recuperación";
-"lng_cloud_password_bad_email" = "E-mail incorrecto. Por favor, prueba otro.";
+"lng_cloud_password_email" = "Pon un email de recuperación";
+"lng_cloud_password_bad_email" = "email incorrecto. Por favor, prueba otro.";
 "lng_cloud_password_about" = "Necesitarás la contraseña al iniciar sesión, además del código de activación.";
-"lng_cloud_password_about_recover" = "¡Advertencia! ¿No quieres añadir un e-mail \nde recuperación para la contraseña?\n\nSi olvidas tu contraseña, perderás\nel acceso a tu cuenta de Telegram.";
-"lng_cloud_password_skip_email" = "Omitir e-mail";
-"lng_cloud_password_almost" = "Un enlace de confirmación fue enviado \nal e-mail que estableciste. La verificación en dos pasos se activará en cuanto sigas ese enlace.";
+"lng_cloud_password_about_recover" = "¡Advertencia! ¿No quieres añadir un email \nde recuperación para la contraseña?\n\nSi olvidas tu contraseña, perderás\nel acceso a tu cuenta de Telegram.";
+"lng_cloud_password_skip_email" = "Omitir email";
+"lng_cloud_password_almost" = "Un enlace de confirmación fue enviado \nal email que estableciste. La verificación en dos pasos se activará en cuanto sigas ese enlace.";
 "lng_cloud_password_was_set" = "Verificación en dos pasos activada.";
 "lng_cloud_password_updated" = "Tu contraseña fue actualizada.";
 "lng_cloud_password_removed" = "Verificación en dos pasos desactivada.";
@@ -1044,7 +1044,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_context_copy_link" = "Copiar enlace";
 "lng_context_copy_post_link" = "Copiar enlace de la publicación";
-"lng_context_copy_email" = "Copiar e-mail";
+"lng_context_copy_email" = "Copiar email";
 "lng_context_copy_hashtag" = "Copiar hashtag";
 "lng_context_copy_mention" = "Copiar alias";
 "lng_context_save_image" = "Guardar como...";
