@@ -38,6 +38,7 @@ private:
 	void updateControlsGeometry();
 	void showError(const QString &error);
 	void hideError();
+	void recover();
 
 	not_null<PanelController*> _controller;
 

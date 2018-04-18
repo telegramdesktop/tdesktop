@@ -65,6 +65,10 @@ PanelAskPassword::PanelAskPassword(
 		showError(error);
 	}, lifetime());
 
+	_forgot->addClickHandler([=] {
+		recover();
+	});
+
 	_password->setFocusFast();
 	_userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
 
@@ -90,6 +94,10 @@ void PanelAskPassword::hideError() {
 
 void PanelAskPassword::submit() {
 	_controller->submitPassword(_password->getLastText());
+}
+
+void PanelAskPassword::recover() {
+	_controller->recoverPassword();
 }
 
 void PanelAskPassword::resizeEvent(QResizeEvent *e) {

@@ -400,6 +400,10 @@ void PanelController::submitPassword(const QString &password) {
 	_form->submitPassword(password);
 }
 
+void PanelController::recoverPassword() {
+	_form->recoverPassword();
+}
+
 rpl::producer<QString> PanelController::passwordError() const {
 	return _form->passwordError();
 }

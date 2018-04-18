@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_encryption.h"
 #include "passport/passport_panel_controller.h"
 #include "boxes/confirm_box.h"
+#include "boxes/passcode_box.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_hardcoded.h"
 #include "base/openssl_help.h"
@@ -389,6 +390,38 @@ void FormController::submitPassword(const QString &password) {
 		} else {
 			_passwordError.fire_copy(error.type());
 		}
+	}).send();
+}
+
+void FormController::recoverPassword() {
+	if (!_password.hasRecovery) {
+		_view->show(Box<InformBox>(lang(lng_signin_no_email_forgot)));
+		return;
+	} else if (_recoverRequestId) {
+		return;
+	}
+	_recoverRequestId = request(MTPauth_RequestPasswordRecovery(
+	)).done([=](const MTPauth_PasswordRecovery &result) {
+		Expects(result.type() == mtpc_auth_passwordRecovery);
+
+		_recoverRequestId = 0;
+
+		const auto &data = result.c_auth_passwordRecovery();
+		const auto pattern = qs(data.vemail_pattern);
+		const auto box = _view->show(Box<RecoverBox>(pattern));
+		box->connect(box, &RecoverBox::reloadPassword, [=] {
+			reloadPassword();
+		});
+		box->connect(box, &RecoverBox::recoveryExpired, [=] {
+			if (box) {
+				box->closeBox();
+			}
+		});
+	}).fail([=](const RPCError &error) {
+		_recoverRequestId = 0;
+		_view->show(Box<InformBox>(Lang::Hard::ServerError()
+			+ '\n'
+			+ error.type()));
 	}).send();
 }
 

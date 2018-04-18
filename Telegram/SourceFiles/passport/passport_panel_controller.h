@@ -67,6 +67,7 @@ public:
 	QString privacyPolicyUrl() const;
 	void submitForm();
 	void submitPassword(const QString &password);
+	void recoverPassword();
 	rpl::producer<QString> passwordError() const;
 	QString passwordHint() const;
 	QString unconfirmedEmailPattern() const;

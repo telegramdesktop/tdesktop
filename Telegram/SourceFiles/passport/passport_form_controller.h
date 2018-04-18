@@ -233,6 +233,7 @@ public:
 	QString privacyPolicyUrl() const;
 	std::vector<not_null<const Value*>> submitGetErrors();
 	void submitPassword(const QString &password);
+	void recoverPassword();
 	rpl::producer<QString> passwordError() const;
 	const PasswordSettings &passwordSettings() const;
 	void reloadPassword();
@@ -391,6 +392,7 @@ private:
 	PasswordSettings _password;
 	Form _form;
 	bool _cancelled = false;
+	mtpRequestId _recoverRequestId = 0;
 	std::map<FileKey, std::unique_ptr<mtpFileLoader>> _fileLoaders;
 
 	rpl::event_stream<not_null<const EditFile*>> _scanUpdated;
