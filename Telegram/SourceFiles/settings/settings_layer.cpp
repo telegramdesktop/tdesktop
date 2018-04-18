@@ -113,4 +113,8 @@ void Layer::setTitle(const QString &title) {
 	_fixedBar->setText(title);
 }
 
+void Layer::scrollToY(int y) {
+	_scroll->scrollToY(y);
+}
+
 } // namespace Settings

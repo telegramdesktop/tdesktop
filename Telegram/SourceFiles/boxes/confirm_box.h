@@ -23,6 +23,7 @@ public:
 	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, base::lambda_once<void()> confirmedCallback = base::lambda_once<void()>(), base::lambda_once<void()> cancelledCallback = base::lambda_once<void()>());
 	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const QString &cancelText, base::lambda_once<void()> confirmedCallback = base::lambda_once<void()>(), base::lambda_once<void()> cancelledCallback = base::lambda_once<void()>());
 	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, const QString &cancelText, base::lambda_once<void()> confirmedCallback = base::lambda_once<void()>(), base::lambda_once<void()> cancelledCallback = base::lambda_once<void()>());
+	ConfirmBox(QWidget*, const TextWithEntities &text, const QString &confirmText, base::lambda_once<void()> confirmedCallback = nullptr, base::lambda_once<void()> cancelledCallback = nullptr);
 
 	void updateLink();
 
@@ -51,11 +52,13 @@ private:
 	struct InformBoxTag {
 	};
 	ConfirmBox(const InformBoxTag &, const QString &text, const QString &doneText, base::lambda<void()> closedCallback);
+	ConfirmBox(const InformBoxTag &, const TextWithEntities &text, const QString &doneText, base::lambda<void()> closedCallback);
 	base::lambda_once<void()> generateInformCallback(base::lambda<void()> closedCallback);
 	friend class InformBox;
 
 	void confirmed();
 	void init(const QString &text);
+	void init(const TextWithEntities &text);
 	void textUpdated();
 	void updateHover();
 
@@ -81,8 +84,9 @@ private:
 
 class InformBox : public ConfirmBox {
 public:
-	InformBox(QWidget*, const QString &text, base::lambda<void()> closedCallback = base::lambda<void()>());
-	InformBox(QWidget*, const QString &text, const QString &doneText, base::lambda<void()> closedCallback = base::lambda<void()>());
+	InformBox(QWidget*, const QString &text, base::lambda<void()> closedCallback = nullptr);
+	InformBox(QWidget*, const QString &text, const QString &doneText, base::lambda<void()> closedCallback = nullptr);
+	InformBox(QWidget*, const TextWithEntities &text, base::lambda<void()> closedCallback = nullptr);
 
 };
 

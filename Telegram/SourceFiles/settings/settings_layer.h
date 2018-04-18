@@ -52,6 +52,7 @@ protected:
 	void setRoundedCorners(bool roundedCorners) {
 		_roundedCorners = roundedCorners;
 	}
+	void scrollToY(int y);
 
 private:
 	void doSetInnerWidget(object_ptr<LayerInner> widget);

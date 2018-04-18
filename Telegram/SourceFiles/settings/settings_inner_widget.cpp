@@ -35,6 +35,10 @@ void InnerWidget::fullRebuild() {
 	refreshBlocks();
 }
 
+int InnerWidget::getUpdateTop() const {
+	return _getUpdateTop ? _getUpdateTop() : -1;
+}
+
 void InnerWidget::refreshBlocks() {
 	if (App::quitting()) {
 		_cover.destroy();
@@ -51,7 +55,17 @@ void InnerWidget::refreshBlocks() {
 		_blocks->add(object_ptr<InfoWidget>(this, _self));
 		_blocks->add(object_ptr<NotificationsWidget>(this, _self));
 	}
-	_blocks->add(object_ptr<GeneralWidget>(this, _self));
+	const auto general = make_weak(_blocks->add(object_ptr<GeneralWidget>(
+		this,
+		_self)));
+	_getUpdateTop = [=] {
+		if (!general) {
+			return -1;
+		} else if (const auto top = general->getUpdateTop(); top >= 0) {
+			return _blocks->y() + general->y() + top;
+		}
+		return -1;
+	};
 	if (!cRetina()) {
 		_blocks->add(object_ptr<ScaleWidget>(this, _self));
 	}

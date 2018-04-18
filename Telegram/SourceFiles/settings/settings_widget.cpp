@@ -208,6 +208,12 @@ void Widget::refreshLang() {
 	update();
 }
 
+void Widget::scrollToUpdateRow() {
+	if (const auto top = _inner->getUpdateTop(); top >= 0) {
+		scrollToY(top);
+	}
+}
+
 void Widget::keyPressEvent(QKeyEvent *e) {
 	codesFeedString(e->text());
 	return LayerWidget::keyPressEvent(e);

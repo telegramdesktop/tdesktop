@@ -233,6 +233,22 @@ void ApiWrap::proxyPromotionDone(const MTPhelp_ProxyData &proxy) {
 	}
 }
 
+void ApiWrap::requestDeepLinkInfo(
+		const QString &path,
+		base::lambda<void(const MTPDhelp_deepLinkInfo &result)> callback) {
+	request(_deepLinkInfoRequestId).cancel();
+	_deepLinkInfoRequestId = request(MTPhelp_GetDeepLinkInfo(
+		MTP_string(path)
+	)).done([=](const MTPhelp_DeepLinkInfo &result) {
+		_deepLinkInfoRequestId = 0;
+		if (result.type() == mtpc_help_deepLinkInfo) {
+			callback(result.c_help_deepLinkInfo());
+		}
+	}).fail([=](const RPCError &error) {
+		_deepLinkInfoRequestId = 0;
+	}).send();
+}
+
 void ApiWrap::applyUpdates(
 		const MTPUpdates &updates,
 		uint64 sentMessageRandomId) {

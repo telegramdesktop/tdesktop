@@ -18,6 +18,7 @@ public:
 	Widget(QWidget*);
 
 	void refreshLang();
+	void scrollToUpdateRow();
 
 	void parentResized() override;
 

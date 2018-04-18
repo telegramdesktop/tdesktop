@@ -94,6 +94,9 @@ public:
 		const QString &sinceVersion,
 		base::lambda<void(const MTPUpdates &result)> callback);
 	void refreshProxyPromotion();
+	void requestDeepLinkInfo(
+		const QString &path,
+		base::lambda<void(const MTPDhelp_deepLinkInfo &result)> callback);
 
 	void requestChannelMembersForAdd(
 		not_null<ChannelData*> channel,
@@ -577,5 +580,7 @@ private:
 
 	base::flat_set<not_null<const PeerData*>> _updateNotifySettingsPeers;
 	base::Timer _updateNotifySettingsTimer;
+
+	mtpRequestId _deepLinkInfoRequestId = 0;
 
 };

@@ -14,6 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "messenger.h"
 #include "mtproto/session.h"
+#include "mainwindow.h"
+#include "core/click_handler_types.h"
+#include "settings/settings_widget.h"
 
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
@@ -2092,6 +2095,34 @@ bool checkReadyUpdate() {
 	}
 #endif // Q_OS_LINUX
 	return true;
+}
+
+void UpdateApplication() {
+	cSetLastUpdateCheck(0);
+	Core::UpdateChecker().start();
+	if (const auto window = App::wnd()) {
+		auto settings = Box<Settings::Widget>();
+		const auto weak = make_weak(settings.data());
+		window->showSpecialLayer(std::move(settings), anim::type::normal);
+		if (weak) {
+			weak->scrollToUpdateRow();
+		}
+	}
+}
+
+#else // !TDESKTOP_DISABLE_AUTOUPDATE
+
+void UpdateApplication() {
+	const auto url = [&] {
+#ifdef OS_WIN_STORE
+		return "https://www.microsoft.com/en-us/store/p/telegram-desktop/9nztwsqntd0s";
+#elif defined OS_MAC_STORE // OS_WIN_STORE
+		return "https://itunes.apple.com/ae/app/telegram-desktop/id946399090";
+#else // OS_WIN_STORE || OS_MAC_STORE
+		return "https://desktop.telegram.org";
+#endif // OS_WIN_STORE || OS_MAC_STORE
+	}();
+	UrlClickHandler::doOpen(url);
 }
 
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE

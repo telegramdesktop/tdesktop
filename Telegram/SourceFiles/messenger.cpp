@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "messenger.h"
 
-#include <rpl/complete.h>
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "base/timer.h"
+#include "core/update_checker.h"
 #include "storage/localstorage.h"
 #include "platform/platform_specific.h"
 #include "mainwindow.h"
@@ -940,6 +940,28 @@ bool Messenger::openLocalUrl(const QString &url) {
 		return showPassportForm(url_parse_params(
 			authMatch->captured(1),
 			UrlParamNameTransform::ToLower));
+	} else if (auto unknownMatch = regex_match(qsl("^([^\\?]+)(\\?|#|$)"), command, matchOptions)) {
+		if (_authSession) {
+			const auto request = unknownMatch->captured(1);
+			const auto callback = [=](const MTPDhelp_deepLinkInfo &result) {
+				const auto text = TextWithEntities{
+					qs(result.vmessage),
+					(result.has_entities()
+						? TextUtilities::EntitiesFromMTP(result.ventities.v)
+						: EntitiesInText())
+				};
+				if (result.is_update_app()) {
+					const auto box = std::make_shared<QPointer<BoxContent>>();
+					*box = Ui::show(Box<ConfirmBox>(
+						text,
+						lang(lng_menu_update),
+						[=] { Core::UpdateApplication(); if (*box) (*box)->closeBox(); }));
+				} else {
+					Ui::show(Box<InformBox>(text));
+				}
+			};
+			_authSession->api().requestDeepLinkInfo(request, callback);
+		}
 	}
 	return false;
 }
