@@ -1337,8 +1337,7 @@ void FormController::saveEncryptedValue(not_null<Value*> value) {
 		}
 		Unexpected("Value type in saveEncryptedValue().");
 	}();
-	const auto flags = ((value->scansInEdit.empty()
-		&& value->data.parsedInEdit.fields.empty())
+	const auto flags = (value->data.parsedInEdit.fields.empty()
 			? MTPDinputSecureValue::Flag(0)
 			: MTPDinputSecureValue::Flag::f_data)
 		| (value->scansInEdit.empty()
