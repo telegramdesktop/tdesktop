@@ -229,10 +229,11 @@ base::optional<int> EditScans::validateGetErrorTop() {
 		[](const ScanInfo &file) { return !file.error.isEmpty(); }
 	) != end(_files);
 
+	auto result = base::optional<int>();
 	if (!exists
 		|| ((errorExists || _uploadMoreError) && !uploadedSomeMore())) {
 		toggleError(true);
-		return (_files.size() > 5) ? _upload->y() : _header->y();
+		result = (_files.size() > 5) ? _upload->y() : _header->y();
 	}
 
 	const auto nonDeletedErrorIt = ranges::find_if(
@@ -243,16 +244,20 @@ base::optional<int> EditScans::validateGetErrorTop() {
 	if (nonDeletedErrorIt != end(_files)) {
 		const auto index = (nonDeletedErrorIt - begin(_files));
 		toggleError(true);
-		return _rows[index]->y();
+		if (!result) {
+			result = _rows[index]->y();
+		}
 	}
 	if (_selfie
 		&& (!_selfie->key.id
 			|| _selfie->deleted
 			|| !_selfie->error.isEmpty())) {
 		toggleSelfieError(true);
-		return _selfieHeader->y();
+		if (!result) {
+			result = _selfieHeader->y();
+		}
 	}
-	return base::none;
+	return result;
 }
 
 void EditScans::setupContent(const QString &header) {
