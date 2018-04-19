@@ -119,8 +119,13 @@ class QtBuilderPlugin(make.MakePlugin):
         self.options.source_depth = self.options.qt_source_depth
 
         if self.options.qt_version:
-            self.options.source_branch = '.'.join(
-                self.options.qt_version.split('.')[:-1])
+            if self.options.qt_version[0] == 'v':
+                self.options.source_branch = self.options.qt_version
+                self.options.qt_version = self.options.qt_version[1:]
+            else:
+                self.options.source_branch = '.'.join(
+                    self.options.qt_version.split('.')[:-1])
+
 
     def pull(self):
         if not os.path.exists(os.path.join(self.sourcedir, '.git')) or \
