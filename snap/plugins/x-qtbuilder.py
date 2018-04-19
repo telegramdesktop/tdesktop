@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import shutil
 import snapcraft
 
 from snapcraft.plugins import make
@@ -130,7 +131,7 @@ class QtBuilderPlugin(make.MakePlugin):
     def pull(self):
         if not os.path.exists(os.path.join(self.sourcedir, '.git')) or \
            not os.path.exists(os.path.join(self.sourcedir, 'init-repository')):
-            self.run('rm -rf {}'.format(self.sourcedir).split())
+            shutil.rmtree(self.sourcedir, ignore_errors=True)
             command = 'git clone {} {}'.format(
                 self.options.qt_source_git, self.sourcedir).split()
             if self.options.source_branch:
