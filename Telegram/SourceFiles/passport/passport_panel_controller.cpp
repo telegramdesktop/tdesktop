@@ -843,7 +843,25 @@ void PanelController::editWithUpload(int index, int documentIndex) {
 		base::take(_scopeDocumentTypeBox);
 		editScope(index, documentIndex);
 		uploadScan(std::move(content));
+	}, [=](ReadScanError error) {
+		readScanError(error);
 	});
+}
+
+void PanelController::readScanError(ReadScanError error) {
+	show(Box<InformBox>([&] {
+		switch (error) {
+		case ReadScanError::FileTooLarge:
+			return lang(lng_passport_error_too_large);
+		case ReadScanError::BadImageSize:
+			return lang(lng_passport_error_bad_size);
+		case ReadScanError::CantReadImage:
+			return lang(lng_passport_error_cant_read);
+		case ReadScanError::Unknown:
+			return Lang::Hard::UnknownSecureScanError();
+		}
+		Unexpected("Error type in PanelController::readScanError.");
+	}()));
 }
 
 void PanelController::editScope(int index, int documentIndex) {

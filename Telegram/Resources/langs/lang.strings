@@ -1612,6 +1612,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_stop" = "Stop";
 "lng_passport_restart_sure" = "Unexpected error has occurred. Perhaps some changes were done from a different Telegram application. Would you like to restart this authorization?";
 "lng_passport_restart" = "Restart";
+"lng_passport_error_too_large" = "This file is too large.";
+"lng_passport_error_bad_size" = "This image has bad dimensions.";
+"lng_passport_error_cant_read" = "Can't read this file. Please choose an image.";
 
 // Wnd specific
 

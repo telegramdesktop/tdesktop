@@ -18,6 +18,8 @@ class Panel;
 struct EditDocumentScheme;
 struct EditContactScheme;
 
+enum class ReadScanError;
+
 EditDocumentScheme GetDocumentScheme(
 	Scope::Type type,
 	base::optional<Value::Type> scansType = base::none);
@@ -84,6 +86,7 @@ public:
 	void restoreSelfie();
 	rpl::producer<ScanInfo> scanUpdated() const;
 	rpl::producer<ScopeError> saveErrors() const;
+	void readScanError(ReadScanError error);
 
 	base::optional<rpl::producer<QString>> deleteValueLabel() const;
 	void deleteValue();

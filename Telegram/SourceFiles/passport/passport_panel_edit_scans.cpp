@@ -20,9 +20,49 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "lang/lang_keys.h"
 #include "boxes/abstract_box.h"
+#include "storage/storage_media_prepare.h"
 #include "styles/style_passport.h"
 
 namespace Passport {
+namespace {
+
+constexpr auto kMaxDimensions = 2048;
+constexpr auto kMaxSize = 10 * 1024 * 1024;
+constexpr auto kJpegQuality = 89;
+
+static_assert(kMaxSize <= UseBigFilesFrom);
+
+base::variant<ReadScanError, QByteArray> ProcessImage(QByteArray &&bytes) {
+	auto image = App::readImage(base::take(bytes));
+	if (image.isNull()) {
+		return ReadScanError::CantReadImage;
+	} else if (!Storage::ValidateThumbDimensions(image.width(), image.height())) {
+		return ReadScanError::BadImageSize;
+	}
+	if (std::max(image.width(), image.height()) > kMaxDimensions) {
+		image = std::move(image).scaled(
+			kMaxDimensions,
+			kMaxDimensions,
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation);
+	}
+	auto result = QByteArray();
+	{
+		QBuffer buffer(&result);
+		if (!image.save(&buffer, QByteArray("JPG"), kJpegQuality)) {
+			return ReadScanError::Unknown;
+		}
+		base::take(image);
+	}
+	if (result.isEmpty()) {
+		return ReadScanError::Unknown;
+	} else if (result.size() > kMaxSize) {
+		return ReadScanError::FileTooLarge;
+	}
+	return result;
+}
+
+} // namespace
 
 class ScanButton : public Ui::AbstractButton {
 public:
@@ -496,39 +536,71 @@ void EditScans::chooseScan() {
 	}
 	ChooseScan(this, [=](QByteArray &&content) {
 		_controller->uploadScan(std::move(content));
+	}, [=](ReadScanError error) {
+		_controller->readScanError(error);
 	});
 }
 
 void EditScans::chooseSelfie() {
 	ChooseScan(this, [=](QByteArray &&content) {
 		_controller->uploadSelfie(std::move(content));
+	}, [=](ReadScanError error) {
+		_controller->readScanError(error);
 	});
 }
 
 void EditScans::ChooseScan(
 		QPointer<QWidget> parent,
-		base::lambda<void(QByteArray&&)> callback) {
+		base::lambda<void(QByteArray&&)> doneCallback,
+		base::lambda<void(ReadScanError)> errorCallback) {
 	Expects(parent != nullptr);
 
 	const auto filter = FileDialog::AllFilesFilter()
 		+ qsl(";;Image files (*")
 		+ cImgExtensions().join(qsl(" *"))
 		+ qsl(")");
-	const auto guardedCallback = base::lambda_guarded(parent, callback);
+	const auto guardedCallback = base::lambda_guarded(parent, doneCallback);
+	const auto guardedError = base::lambda_guarded(parent, errorCallback);
+	const auto onMainCallback = [=](QByteArray content) {
+		crl::on_main([=, bytes = std::move(content)]() mutable {
+			guardedCallback(std::move(bytes));
+		});
+	};
+	const auto onMainError = [=](ReadScanError error) {
+		crl::on_main([=] {
+			guardedError(error);
+		});
+	};
+	const auto processImage = [=](QByteArray &&content) {
+		crl::async([=, bytes = std::move(content)]() mutable {
+			auto result = ProcessImage(std::move(bytes));
+			if (const auto error = base::get_if<ReadScanError>(&result)) {
+				onMainError(*error);
+			} else {
+				auto content = base::get_if<QByteArray>(&result);
+				Assert(content != nullptr);
+				onMainCallback(std::move(*content));
+			}
+		});
+	};
 	const auto processFile = [=](FileDialog::OpenResult &&result) {
 		if (result.paths.size() == 1) {
 			auto content = [&] {
 				QFile f(result.paths.front());
-				if (!f.open(QIODevice::ReadOnly)) {
+				if (f.size() > App::kImageSizeLimit) {
+					guardedError(ReadScanError::FileTooLarge);
+					return QByteArray();
+				} else if (!f.open(QIODevice::ReadOnly)) {
+					guardedError(ReadScanError::CantReadImage);
 					return QByteArray();
 				}
 				return f.readAll();
 			}();
 			if (!content.isEmpty()) {
-				guardedCallback(std::move(content));
+				processImage(std::move(content));
 			}
 		} else if (!result.remoteContent.isEmpty()) {
-			guardedCallback(std::move(result.remoteContent));
+			processImage(std::move(result.remoteContent));
 		}
 	};
 	FileDialog::GetOpenPath(

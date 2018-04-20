@@ -30,6 +30,13 @@ class PanelController;
 class ScanButton;
 struct ScanInfo;
 
+enum class ReadScanError {
+	FileTooLarge,
+	CantReadImage,
+	BadImageSize,
+	Unknown,
+};
+
 class EditScans : public Ui::RpWidget {
 public:
 	EditScans(
@@ -44,7 +51,8 @@ public:
 
 	static void ChooseScan(
 		QPointer<QWidget> parent,
-		base::lambda<void(QByteArray&&)> callback);
+		base::lambda<void(QByteArray&&)> doneCallback,
+		base::lambda<void(ReadScanError)> errorCallback);
 
 private:
 	void setupContent(const QString &header);

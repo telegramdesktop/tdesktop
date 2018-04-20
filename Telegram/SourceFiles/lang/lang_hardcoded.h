@@ -54,5 +54,9 @@ inline QString PassportCorruptedResetSure() {
 	return qsl("Are you sure you want to reset your Telegram Passport data?");
 }
 
+inline QString UnknownSecureScanError() {
+	return qsl("Unknown scan read error.");
+}
+
 } // namespace Hard
 } // namespace Lang
