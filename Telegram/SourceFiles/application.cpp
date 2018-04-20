@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_regex.h"
 #include "core/update_checker.h"
 #include "core/crash_report_window.h"
-#include "base/qthelp_regex.h"
 
 namespace {
 
