@@ -78,6 +78,7 @@ void CloudPasswordState::onEdit() {
 		_newPasswordSalt,
 		_curPasswordSalt,
 		_hasPasswordRecovery,
+		_notEmptyPassport,
 		_curPasswordHint,
 		_newSecureSecretSalt));
 	connect(box, SIGNAL(reloadPassword()), this, SLOT(onReloadPassword()));
@@ -106,6 +107,7 @@ void CloudPasswordState::onTurnOff() {
 			_newPasswordSalt,
 			_curPasswordSalt,
 			_hasPasswordRecovery,
+			_notEmptyPassport,
 			_curPasswordHint,
 			_newSecureSecretSalt,
 			true));
@@ -113,13 +115,21 @@ void CloudPasswordState::onTurnOff() {
 	}
 }
 
+void CloudPasswordState::onReloadPassword() {
+	if (_reloadRequestId) {
+		return;
+	}
+	_reloadRequestId = MTP::send(MTPaccount_GetPassword(), rpcDone(&CloudPasswordState::getPasswordDone), rpcFail(&CloudPasswordState::getPasswordFail));
+}
+
 void CloudPasswordState::onReloadPassword(Qt::ApplicationState state) {
-	if (state == Qt::ApplicationActive) {
-		MTP::send(MTPaccount_GetPassword(), rpcDone(&CloudPasswordState::getPasswordDone));
+	if (!_waitingConfirm.isEmpty() && state == Qt::ApplicationActive) {
+		onReloadPassword();
 	}
 }
 
 void CloudPasswordState::getPasswordDone(const MTPaccount_Password &result) {
+	_reloadRequestId = 0;
 	_waitingConfirm = QString();
 
 	switch (result.type()) {
@@ -127,6 +137,7 @@ void CloudPasswordState::getPasswordDone(const MTPaccount_Password &result) {
 		auto &d = result.c_account_noPassword();
 		_curPasswordSalt = QByteArray();
 		_hasPasswordRecovery = false;
+		_notEmptyPassport = false;
 		_curPasswordHint = QString();
 		_newPasswordSalt = qba(d.vnew_salt);
 		_newSecureSecretSalt = qba(d.vnew_secure_salt);
@@ -140,7 +151,8 @@ void CloudPasswordState::getPasswordDone(const MTPaccount_Password &result) {
 	case mtpc_account_password: {
 		auto &d = result.c_account_password();
 		_curPasswordSalt = qba(d.vcurrent_salt);
-		_hasPasswordRecovery = mtpIsTrue(d.vhas_recovery);
+		_hasPasswordRecovery = d.is_has_recovery();
+		_notEmptyPassport = d.is_has_secure_values();
 		_curPasswordHint = qs(d.vhint);
 		_newPasswordSalt = qba(d.vnew_salt);
 		_newSecureSecretSalt = qba(d.vnew_secure_salt);
@@ -164,6 +176,14 @@ void CloudPasswordState::getPasswordDone(const MTPaccount_Password &result) {
 	memset_rand(
 		_newSecureSecretSalt.data() + _newSecureSecretSalt.size() - 8,
 		8);
+}
+
+bool CloudPasswordState::getPasswordFail(const RPCError &error) {
+	if (MTP::isDefaultHandledError(error)) {
+		return false;
+	}
+	_reloadRequestId = 0;
+	return true;
 }
 
 void CloudPasswordState::paintEvent(QPaintEvent *e) {

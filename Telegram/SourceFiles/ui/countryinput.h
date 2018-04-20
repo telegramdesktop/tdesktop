@@ -65,6 +65,7 @@ public:
 	CountrySelectBox(QWidget*, const QString &iso, Type type);
 
 	static QString NameByISO(const QString &iso);
+	static QString ISOByPhone(const QString &phone);
 
 signals:
 	void countryChosen(const QString &iso);

@@ -182,6 +182,7 @@ struct PasswordSettings {
 	QString unconfirmedPattern;
 	QString confirmedEmail;
 	bool hasRecovery = false;
+	bool notEmptyPassport = false;
 
 	bool operator==(const PasswordSettings &other) const {
 		return (salt == other.salt)

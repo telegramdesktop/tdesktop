@@ -587,7 +587,7 @@ authorization#7bf2e6f6 hash:long flags:int device_model:string platform:string s
 account.authorizations#1250abde authorizations:Vector<Authorization> = account.Authorizations;
 
 account.noPassword#5ea182f6 new_salt:bytes new_secure_salt:bytes secure_random:bytes email_unconfirmed_pattern:string = account.Password;
-account.password#d06c5fc3 current_salt:bytes new_salt:bytes new_secure_salt:bytes secure_random:bytes hint:string has_recovery:Bool email_unconfirmed_pattern:string = account.Password;
+account.password#ca39b447 flags:# has_recovery:flags.0?true has_secure_values:flags.1?true current_salt:bytes new_salt:bytes new_secure_salt:bytes secure_random:bytes hint:string email_unconfirmed_pattern:string = account.Password;
 
 account.passwordSettings#7bd9c3f1 email:string secure_salt:bytes secure_secret:bytes secure_secret_id:long = account.PasswordSettings;
 

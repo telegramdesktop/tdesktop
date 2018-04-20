@@ -310,8 +310,12 @@ void CountryRow::errorAnimationCallback() {
 void CountryRow::chooseCountry() {
 	const auto top = _value.current();
 	const auto name = CountrySelectBox::NameByISO(top);
-	const auto box = _controller->show(Box<CountrySelectBox>(
-		(name.isEmpty() ? Platform::SystemCountry() : top),
+	const auto isoByPhone = CountrySelectBox::ISOByPhone(App::self()->phone());
+	const auto box = _controller->show(Box<CountrySelectBox>(!name.isEmpty()
+		? top
+		: !isoByPhone.isEmpty()
+		? isoByPhone
+		: Platform::SystemCountry(),
 		CountrySelectBox::Type::Countries));
 	connect(box, &CountrySelectBox::countryChosen, this, [=](QString iso) {
 		_value = iso;

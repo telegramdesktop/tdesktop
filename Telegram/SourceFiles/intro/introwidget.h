@@ -76,6 +76,7 @@ public:
 		QByteArray pwdSalt;
 		bool hasRecovery = false;
 		QString pwdHint;
+		bool pwdNotEmptyPassport = false;
 
 		TextWithEntities termsText;
 		bool termsPopup = false;

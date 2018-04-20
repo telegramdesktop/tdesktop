@@ -296,8 +296,9 @@ void CodeWidget::gotPassword(const MTPaccount_Password &result) {
 	case mtpc_account_password: {
 		auto &d = result.c_account_password();
 		getData()->pwdSalt = qba(d.vcurrent_salt);
-		getData()->hasRecovery = mtpIsTrue(d.vhas_recovery);
+		getData()->hasRecovery = d.is_has_recovery();
 		getData()->pwdHint = qs(d.vhint);
+		getData()->pwdNotEmptyPassport = d.is_has_secure_values();
 		goReplace(new Intro::PwdCheckWidget(parentWidget(), getData()));
 	} break;
 	}
@@ -314,6 +315,7 @@ void CodeWidget::submit() {
 	getData()->pwdSalt = QByteArray();
 	getData()->hasRecovery = false;
 	getData()->pwdHint = QString();
+	getData()->pwdNotEmptyPassport = false;
 	_sentRequest = MTP::send(MTPauth_SignIn(MTP_string(getData()->phone), MTP_bytes(getData()->phoneHash), MTP_string(_sentCode)), rpcDone(&CodeWidget::codeSubmitDone), rpcFail(&CodeWidget::codeSubmitFail));
 }
 

@@ -408,7 +408,9 @@ void FormController::recoverPassword() {
 
 		const auto &data = result.c_auth_passwordRecovery();
 		const auto pattern = qs(data.vemail_pattern);
-		const auto box = _view->show(Box<RecoverBox>(pattern));
+		const auto box = _view->show(Box<RecoverBox>(
+			pattern,
+			_password.notEmptyPassport));
 		box->connect(box, &RecoverBox::reloadPassword, [=] {
 			reloadPassword();
 		});
@@ -1910,7 +1912,8 @@ bool FormController::applyPassword(const MTPDaccount_noPassword &result) {
 bool FormController::applyPassword(const MTPDaccount_password &result) {
 	auto settings = PasswordSettings();
 	settings.hint = qs(result.vhint);
-	settings.hasRecovery = mtpIsTrue(result.vhas_recovery);
+	settings.hasRecovery = result.is_has_recovery();
+	settings.notEmptyPassport = result.is_has_secure_values();
 	settings.salt = bytes::make_vector(result.vcurrent_salt.v);
 	settings.unconfirmedPattern = qs(result.vemail_unconfirmed_pattern);
 	settings.newSalt = bytes::make_vector(result.vnew_salt.v);

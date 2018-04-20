@@ -219,6 +219,17 @@ QString CountrySelectBox::NameByISO(const QString &iso) {
 		: QString::fromUtf8((*i)->name);
 }
 
+QString CountrySelectBox::ISOByPhone(const QString &phone) {
+	if (_countriesByCode.isEmpty()) {
+		initCountries();
+	}
+	const auto code = findValidCode(phone);
+	const auto i = _countriesByCode.find(code);
+	return (i == _countriesByCode.cend())
+		? QString()
+		: QString::fromUtf8((*i)->iso2);
+}
+
 void CountrySelectBox::prepare() {
 	setTitle(langFactory(lng_country_select));
 

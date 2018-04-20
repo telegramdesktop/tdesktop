@@ -446,11 +446,13 @@ void PanelController::setupPassword() {
 			newSecureSecretSalt).subspan(settings.newSecureSalt.size()));
 	const auto currentSalt = QByteArray();
 	const auto hasRecovery = false;
+	const auto notEmptyPassport = false;
 	const auto hint = QString();
 	auto box = show(Box<PasscodeBox>(
 		newPasswordSalt,
 		currentSalt,
 		hasRecovery,
+		notEmptyPassport,
 		hint,
 		newSecureSecretSalt));
 	box->connect(box, &PasscodeBox::reloadPassword, _panel.get(), [=] {
@@ -697,7 +699,7 @@ void PanelController::suggestReset(base::lambda<void()> callback) {
 		Lang::Hard::PassportCorrupted(),
 		Lang::Hard::PassportCorruptedReset(),
 		[=] { resetPassport(callback); },
-		[=] { cancelReset(); })).data()); // #TODO passport no need for confirmation?
+		[=] { cancelReset(); })).data());
 }
 
 void PanelController::resetPassport(base::lambda<void()> callback) {

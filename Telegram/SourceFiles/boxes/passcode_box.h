@@ -26,6 +26,7 @@ public:
 		const QByteArray &newSalt,
 		const QByteArray &curSalt,
 		bool hasRecovery,
+		bool notEmptyPassport,
 		const QString &hint,
 		const QByteArray &newSecureSecretSalt,
 		bool turningOff = false);
@@ -73,8 +74,7 @@ private:
 	void resetSecretAndChangePassword(
 		const QByteArray &oldPasswordHash,
 		const QString &newPassword);
-	void sendClearCloudPassword(const QByteArray &oldPasswordHash);
-	void warnPassportLoss(const QByteArray &oldPasswordHash);
+	void sendClearCloudPassword(const QString &oldPassword);
 
 	QString _pattern;
 
@@ -85,6 +85,7 @@ private:
 
 	QByteArray _newSalt, _curSalt, _newSecureSecretSalt;
 	bool _hasRecovery = false;
+	bool _notEmptyPassport = false;
 	bool _skipEmailWarning = false;
 
 	int _aboutHeight = 0;
@@ -106,7 +107,7 @@ class RecoverBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	RecoverBox(QWidget*, const QString &pattern);
+	RecoverBox(QWidget*, const QString &pattern, bool notEmptyPassport);
 
 signals:
 	void reloadPassword();
@@ -128,6 +129,7 @@ private:
 	mtpRequestId _submitRequest = 0;
 
 	QString _pattern;
+	bool _notEmptyPassport = false;
 
 	object_ptr<Ui::InputField> _recoverCode;
 

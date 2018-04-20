@@ -33,6 +33,7 @@ PasscodeBox::PasscodeBox(
 	const QByteArray &newSalt,
 	const QByteArray &curSalt,
 	bool hasRecovery,
+	bool notEmptyPassport,
 	const QString &hint,
 	const QByteArray &newSecureSecretSalt,
 	bool turningOff)
@@ -42,6 +43,7 @@ PasscodeBox::PasscodeBox(
 , _curSalt(curSalt)
 , _newSecureSecretSalt(newSecureSecretSalt)
 , _hasRecovery(hasRecovery)
+, _notEmptyPassport(notEmptyPassport)
 , _about(st::boxWidth - st::boxPadding.left() * 1.5)
 , _oldPasscode(this, st::defaultInputField, langFactory(lng_cloud_password_enter_old))
 , _newPasscode(this, st::defaultInputField, langFactory(curSalt.isEmpty() ? lng_cloud_password_enter_first : lng_cloud_password_enter_new))
@@ -339,30 +341,31 @@ void PasscodeBox::save(bool force) {
 void PasscodeBox::clearCloudPassword(const QString &oldPassword) {
 	Expects(!_oldPasscode->isHidden());
 
+	const auto send = [=] {
+		sendClearCloudPassword(oldPassword);
+	};
+	if (_notEmptyPassport) {
+		const auto box = std::make_shared<QPointer<BoxContent>>();
+		const auto confirmed = [=] {
+			send();
+			if (*box) {
+				(*box)->closeBox();
+			}
+		};
+		*box = getDelegate()->show(Box<ConfirmBox>(
+			lang(lng_cloud_password_passport_losing),
+			lang(lng_continue),
+			confirmed));
+	} else {
+		send();
+	}
+}
+
+void PasscodeBox::sendClearCloudPassword(const QString &oldPassword) {
 	const auto passwordUtf = oldPassword.toUtf8();
 	const auto oldPasswordData = (_curSalt + passwordUtf + _curSalt);
 	auto oldPasswordHash = QByteArray(32, Qt::Uninitialized);
 	hashSha256(oldPasswordData.constData(), oldPasswordData.size(), oldPasswordHash.data());
-	_setRequest = request(MTPaccount_GetPasswordSettings(
-		MTP_bytes(oldPasswordHash)
-	)).done([=](const MTPaccount_PasswordSettings &result) {
-		_setRequest = 0;
-
-		Expects(result.type() == mtpc_account_passwordSettings);
-		const auto &data = result.c_account_passwordSettings();
-
-		if (data.vsecure_secret.v.isEmpty()) {
-			sendClearCloudPassword(oldPasswordHash);
-			return;
-		}
-		warnPassportLoss(oldPasswordHash);
-	}).fail([=](const RPCError &error) {
-		setPasswordFail(error);
-	}).send();
-}
-
-void PasscodeBox::sendClearCloudPassword(
-		const QByteArray &oldPasswordHash) {
 	const auto newPasswordData = QByteArray();
 	const auto newPasswordHash = QByteArray();
 	const auto hint = QString();
@@ -387,20 +390,6 @@ void PasscodeBox::sendClearCloudPassword(
 	}).fail([=](const RPCError &error) {
 		setPasswordFail(error);
 	}).send();
-}
-
-void PasscodeBox::warnPassportLoss(const QByteArray &oldPasswordHash) {
-	const auto box = std::make_shared<QPointer<BoxContent>>();
-	const auto sendAndClose = [=] {
-		sendClearCloudPassword(oldPasswordHash);
-		if (*box) {
-			(*box)->closeBox();
-		}
-	};
-	*box = getDelegate()->show(Box<ConfirmBox>(
-		lang(lng_cloud_password_passport_losing),
-		lang(lng_continue),
-		sendAndClose));
 }
 
 void PasscodeBox::setNewCloudPassword(const QString &newPassword) {
@@ -611,7 +600,9 @@ void PasscodeBox::recoverExpired() {
 void PasscodeBox::recover() {
 	if (_pattern == "-") return;
 
-	const auto box = getDelegate()->show(Box<RecoverBox>(_pattern));
+	const auto box = getDelegate()->show(Box<RecoverBox>(
+		_pattern,
+		_notEmptyPassport));
 	connect(box, &RecoverBox::reloadPassword, this, &PasscodeBox::reloadPassword);
 	connect(box, &RecoverBox::recoveryExpired, this, &PasscodeBox::recoverExpired);
 	_replacedBy = box;
@@ -630,8 +621,12 @@ bool PasscodeBox::recoverStartFail(const RPCError &error) {
 	return true;
 }
 
-RecoverBox::RecoverBox(QWidget*, const QString &pattern)
+RecoverBox::RecoverBox(
+	QWidget*,
+	const QString &pattern,
+	bool notEmptyPassport)
 : _pattern(st::normalFont->elided(lng_signin_recover_hint(lt_recover_email, pattern), st::boxWidth - st::boxPadding.left() * 1.5))
+, _notEmptyPassport(notEmptyPassport)
 , _recoverCode(this, st::defaultInputField, langFactory(lng_signin_code)) {
 }
 
@@ -684,7 +679,27 @@ void RecoverBox::submit() {
 		return;
 	}
 
-	_submitRequest = MTP::send(MTPauth_RecoverPassword(MTP_string(code)), rpcDone(&RecoverBox::codeSubmitDone, true), rpcFail(&RecoverBox::codeSubmitFail));
+	const auto send = base::lambda_guarded(this, [=] {
+		_submitRequest = MTP::send(
+			MTPauth_RecoverPassword(MTP_string(code)),
+			rpcDone(&RecoverBox::codeSubmitDone, true),
+			rpcFail(&RecoverBox::codeSubmitFail));
+	});
+	if (_notEmptyPassport) {
+		const auto box = std::make_shared<QPointer<BoxContent>>();
+		const auto confirmed = [=] {
+			send();
+			if (*box) {
+				(*box)->closeBox();
+			}
+		};
+		*box = getDelegate()->show(Box<ConfirmBox>(
+			lang(lng_cloud_password_passport_losing),
+			lang(lng_continue),
+			confirmed));
+	} else {
+		send();
+	}
 }
 
 void RecoverBox::codeChanged() {
