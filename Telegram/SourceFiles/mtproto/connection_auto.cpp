@@ -20,9 +20,6 @@ AutoConnection::AutoConnection(QThread *thread) : AbstractTCPConnection(thread)
 , _flagsHttp(0)
 , _tcpTimeout(MTPMinReceiveDelay) {
 	manager.moveToThread(thread);
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-	manager.setProxy(QNetworkProxy(QNetworkProxy::DefaultProxy));
-#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 
 	httpStartTimer.moveToThread(thread);
 	httpStartTimer.setSingleShot(true);
@@ -33,9 +30,6 @@ AutoConnection::AutoConnection(QThread *thread) : AbstractTCPConnection(thread)
 	connect(&tcpTimeoutTimer, SIGNAL(timeout()), this, SLOT(onTcpTimeoutTimer()));
 
 	sock.moveToThread(thread);
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-	sock.setProxy(QNetworkProxy(QNetworkProxy::NoProxy));
-#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	connect(&sock, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(socketError(QAbstractSocket::SocketError)));
 	connect(&sock, SIGNAL(connected()), this, SLOT(onSocketConnected()));
 	connect(&sock, SIGNAL(disconnected()), this, SLOT(onSocketDisconnected()));

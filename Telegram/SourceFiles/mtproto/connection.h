@@ -156,7 +156,8 @@ private:
 	void handleError(int errorCode);
 
 	void createConn(bool createIPv4, bool createIPv6);
-	void destroyConn(AbstractConnection **conn = 0); // 0 - destory all
+	void destroyAllConnections();
+	void destroyConnection(AbstractConnection *&connection);
 
 	mtpMsgId placeToContainer(mtpRequest &toSendRequest, mtpMsgId &bigMsgId, mtpMsgId *&haveSentArr, mtpRequest &req);
 	mtpMsgId prepareToSend(mtpRequest &request, mtpMsgId currentLastId);
@@ -195,7 +196,7 @@ private:
 	Connection *_owner = nullptr;
 	AbstractConnection *_conn = nullptr;
 	AbstractConnection *_conn4 = nullptr;
-	AbstractConnection *_conn6 = nullptr;;
+	AbstractConnection *_conn6 = nullptr;
 
 	SingleTimer retryTimer; // exp retry timer
 	int retryTimeout = 1;

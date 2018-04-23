@@ -434,7 +434,6 @@ void LastCrashedWindow::onSendReport() {
 		_sendReply->deleteLater();
 		_sendReply = nullptr;
 	}
-	App::setProxySettings(_sendManager);
 
 	QString apiid = getReportField(qstr("apiid"), qstr("ApiId:")), version = getReportField(qstr("version"), qstr("Version:"));
 	_checkReply = _sendManager.get(QNetworkRequest(qsl("https://tdesktop.com/crash.php?act=query_report&apiid=%1&version=%2&dmp=%3&platform=%4").arg(apiid).arg(version).arg(minidumpFileName().isEmpty() ? 0 : 1).arg(cPlatformString())));
@@ -756,17 +755,39 @@ void LastCrashedWindow::updateControls() {
 }
 
 void LastCrashedWindow::onNetworkSettings() {
-	auto &p = Sandbox::PreLaunchProxy();
-	NetworkSettingsWindow *box = new NetworkSettingsWindow(this, p.host, p.port ? p.port : 80, p.user, p.password);
-	connect(box, SIGNAL(saved(QString, quint32, QString, QString)), this, SLOT(onNetworkSettingsSaved(QString, quint32, QString, QString)));
+	const auto &proxy = Sandbox::PreLaunchProxy();
+	const auto box = new NetworkSettingsWindow(
+		this,
+		proxy.host,
+		proxy.port ? proxy.port : 80,
+		proxy.user,
+		proxy.password);
+	connect(
+		box,
+		SIGNAL(saved(QString,quint32,QString,QString)),
+		this,
+		SLOT(onNetworkSettingsSaved(QString,quint32,QString,QString)));
 	box->show();
 }
 
-void LastCrashedWindow::onNetworkSettingsSaved(QString host, quint32 port, QString username, QString password) {
-	Sandbox::RefPreLaunchProxy().host = host;
-	Sandbox::RefPreLaunchProxy().port = port ? port : 80;
-	Sandbox::RefPreLaunchProxy().user = username;
-	Sandbox::RefPreLaunchProxy().password = password;
+void LastCrashedWindow::onNetworkSettingsSaved(
+		QString host,
+		quint32 port,
+		QString username,
+		QString password) {
+	Expects(host.isEmpty() || port != 0);
+
+	auto &proxy = Sandbox::RefPreLaunchProxy();
+	proxy.type = host.isEmpty()
+		? ProxyData::Type::None
+		: ProxyData::Type::Http;
+	proxy.host = host;
+	proxy.port = port;
+	proxy.user = username;
+	proxy.password = password;
+
+	Sandbox::refreshGlobalProxy();
+
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	if ((_updatingState == UpdatingFail && (_sendingState == SendingNoReport || _sendingState == SendingUpdateCheck)) || (_updatingState == UpdatingCheck)) {
 		Sandbox::stopUpdate();

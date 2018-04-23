@@ -49,6 +49,7 @@ private:
 	object_ptr<Ui::PortInput> _portInput;
 	object_ptr<Ui::InputField> _userInput;
 	object_ptr<Ui::PasswordInput> _passwordInput;
+	ProxyData::Type _currentProxyType;
 	std::shared_ptr<Ui::RadioenumGroup<DBIConnectionType>> _typeGroup;
 	object_ptr<Ui::Radioenum<DBIConnectionType>> _autoRadio;
 	object_ptr<Ui::Radioenum<DBIConnectionType>> _httpProxyRadio;

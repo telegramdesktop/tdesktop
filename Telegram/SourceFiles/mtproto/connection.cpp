@@ -306,7 +306,7 @@ Connection::~Connection() {
 }
 
 void ConnectionPrivate::createConn(bool createIPv4, bool createIPv6) {
-	destroyConn();
+	destroyAllConnections();
 	if (createIPv4) {
 		QWriteLocker lock(&stateConnMutex);
 		_conn4 = AbstractConnection::create(_dcType, thread());
@@ -327,30 +327,27 @@ void ConnectionPrivate::createConn(bool createIPv4, bool createIPv6) {
 	oldConnectionTimer.start(MTPConnectionOldTimeout);
 }
 
-void ConnectionPrivate::destroyConn(AbstractConnection **conn) {
-	if (conn) {
-		AbstractConnection *toDisconnect = nullptr;
+void ConnectionPrivate::destroyAllConnections() {
+	destroyConnection(_conn4);
+	destroyConnection(_conn6);
+	_conn = nullptr;
+}
 
-		{
-			QWriteLocker lock(&stateConnMutex);
-			if (*conn) {
-				toDisconnect = *conn;
-				disconnect(*conn, SIGNAL(connected()), nullptr, nullptr);
-				disconnect(*conn, SIGNAL(disconnected()), nullptr, nullptr);
-				disconnect(*conn, SIGNAL(error(qint32)), nullptr, nullptr);
-				disconnect(*conn, SIGNAL(receivedData()), nullptr, nullptr);
-				disconnect(*conn, SIGNAL(receivedSome()), nullptr, nullptr);
-				*conn = nullptr;
-			}
+void ConnectionPrivate::destroyConnection(AbstractConnection *&connection) {
+	const auto taken = [&] {
+		QWriteLocker lock(&stateConnMutex);
+		if (connection) {
+			disconnect(connection, SIGNAL(connected()), nullptr, nullptr);
+			disconnect(connection, SIGNAL(disconnected()), nullptr, nullptr);
+			disconnect(connection, SIGNAL(error(qint32)), nullptr, nullptr);
+			disconnect(connection, SIGNAL(receivedData()), nullptr, nullptr);
+			disconnect(connection, SIGNAL(receivedSome()), nullptr, nullptr);
 		}
-		if (toDisconnect) {
-			toDisconnect->disconnectFromServer();
-			toDisconnect->deleteLater();
-		}
-	} else {
-		destroyConn(&_conn4);
-		destroyConn(&_conn6);
-		_conn = nullptr;
+		return base::take(connection);
+	}();
+	if (taken) {
+		taken->disconnectFromServer();
+		taken->deleteLater();
 	}
 }
 
@@ -1198,7 +1195,7 @@ void ConnectionPrivate::onWaitConnectedFailed() {
 
 void ConnectionPrivate::onWaitIPv4Failed() {
 	_conn = _conn6;
-	destroyConn(&_conn4);
+	destroyConnection(_conn4);
 
 	if (_conn) {
 		DEBUG_LOG(("MTP Info: can't connect through IPv4, using IPv6 connection."));
@@ -1210,7 +1207,7 @@ void ConnectionPrivate::onWaitIPv4Failed() {
 }
 
 void ConnectionPrivate::doDisconnect() {
-	destroyConn();
+	destroyAllConnections();
 
 	{
 		QReadLocker lockFinished(&sessionDataMutex);
@@ -2289,7 +2286,7 @@ void ConnectionPrivate::onConnected4() {
 	}
 
 	_conn = _conn4;
-	destroyConn(&_conn6);
+	destroyConnection(_conn6);
 
 	DEBUG_LOG(("MTP Info: connection through IPv4 succeed."));
 
@@ -2321,10 +2318,10 @@ void ConnectionPrivate::onDisconnected4() {
 	if (_conn && _conn == _conn6) return; // disconnected the unused
 
 	if (_conn || !_conn6) {
-		destroyConn();
+		destroyAllConnections();
 		restart();
 	} else {
-		destroyConn(&_conn4);
+		destroyConnection(_conn4);
 	}
 }
 
@@ -2332,10 +2329,10 @@ void ConnectionPrivate::onDisconnected6() {
 	if (_conn && _conn == _conn4) return; // disconnected the unused
 
 	if (_conn || !_conn4) {
-		destroyConn();
+		destroyAllConnections();
 		restart();
 	} else {
-		destroyConn(&_conn6);
+		destroyConnection(_conn6);
 	}
 }
 
@@ -2844,7 +2841,7 @@ void ConnectionPrivate::onError4(qint32 errorCode) {
 	if (_conn || !_conn6) {
 		handleError(errorCode);
 	} else {
-		destroyConn(&_conn4);
+		destroyConnection(_conn4);
 	}
 }
 
@@ -2857,12 +2854,12 @@ void ConnectionPrivate::onError6(qint32 errorCode) {
 	if (_conn || !_conn4) {
 		handleError(errorCode);
 	} else {
-		destroyConn(&_conn6);
+		destroyConnection(_conn6);
 	}
 }
 
 void ConnectionPrivate::handleError(int errorCode) {
-	destroyConn();
+	destroyAllConnections();
 	_waitForConnectedTimer.stop();
 
 	if (errorCode == -404) {

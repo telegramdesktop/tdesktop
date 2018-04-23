@@ -77,12 +77,14 @@ Messenger::Messenger(not_null<Core::Launcher*> launcher)
 	Expects(!_logo.isNull());
 	Expects(!_logoNoMargin.isNull());
 	Expects(SingleInstance == nullptr);
+
 	SingleInstance = this;
 
 	Fonts::Start();
 
 	ThirdParty::start();
 	Global::start();
+	Sandbox::refreshGlobalProxy(); // Depends on Global::started().
 
 	startLocalStorage();
 
@@ -166,10 +168,6 @@ Messenger::Messenger(not_null<Core::Launcher*> launcher)
 	if (cStartToSettings()) {
 		_window->showSettings();
 	}
-
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-	QNetworkProxyFactory::setUseSystemConfiguration(true);
-#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 
 	_window->updateIsActive(Global::OnlineFocusTimeout());
 
@@ -391,6 +389,7 @@ void Messenger::setMtpAuthorization(const QByteArray &serialized) {
 
 void Messenger::startMtp() {
 	Expects(!_mtproto);
+
 	_mtproto = std::make_unique<MTP::Instance>(_dcOptions.get(), MTP::Instance::Mode::Normal, base::take(_private->mtpConfig));
 	_private->mtpConfig.mainDcId = _mtproto->mainDcId();
 

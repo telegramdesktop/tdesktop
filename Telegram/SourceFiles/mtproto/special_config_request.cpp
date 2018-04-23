@@ -35,8 +35,6 @@ SpecialConfigRequest::SpecialConfigRequest(
 		const std::string &ip,
 		int port)> callback)
 : _callback(std::move(callback)) {
-	App::setProxySettings(_manager);
-
 	performApp1Request();
 	performApp2Request();
 	performDnsRequest();

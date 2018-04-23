@@ -1782,38 +1782,6 @@ namespace {
 		if (changeInMin) App::main()->updateMutedIn(changeInMin);
 	}
 
-	void setProxySettings(QNetworkAccessManager &manager) {
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-		manager.setProxy(getHttpProxySettings());
-#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
-	}
-
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-	QNetworkProxy getHttpProxySettings() {
-		const ProxyData *proxy = nullptr;
-		if (Global::started()) {
-			proxy = (Global::ConnectionType() == dbictHttpProxy) ? (&Global::ConnectionProxy()) : nullptr;
-		} else {
-			proxy = Sandbox::PreLaunchProxy().host.isEmpty() ? nullptr : (&Sandbox::PreLaunchProxy());
-		}
-		if (proxy) {
-			return QNetworkProxy(QNetworkProxy::HttpProxy, proxy->host, proxy->port, proxy->user, proxy->password);
-		}
-		return QNetworkProxy(QNetworkProxy::DefaultProxy);
-	}
-#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
-
-	void setProxySettings(QTcpSocket &socket) {
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-		if (Global::ConnectionType() == dbictTcpProxy) {
-			auto &p = Global::ConnectionProxy();
-			socket.setProxy(QNetworkProxy(QNetworkProxy::Socks5Proxy, p.host, p.port, p.user, p.password));
-		} else {
-			socket.setProxy(QNetworkProxy(QNetworkProxy::NoProxy));
-		}
-#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
-	}
-
 	void rectWithCorners(Painter &p, QRect rect, const style::color &bg, RoundCorners index, RectParts corners) {
 		auto parts = RectPart::Top
 			| RectPart::NoTopBottom

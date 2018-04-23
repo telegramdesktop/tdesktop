@@ -428,6 +428,12 @@ enum DBIConnectionType {
 };
 
 struct ProxyData {
+	enum class Type {
+		None,
+		Socks5,
+		Http,
+	};
+	Type type = Type::None;
 	QString host;
 	uint32 port = 0;
 	QString user, password;

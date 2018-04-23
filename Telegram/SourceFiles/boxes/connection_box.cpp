@@ -20,30 +20,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "history/history_location_manager.h"
+#include "application.h"
 #include "styles/style_boxes.h"
 
 void ConnectionBox::ShowApplyProxyConfirmation(const QMap<QString, QString> &fields) {
 	auto server = fields.value(qsl("server"));
-	auto port = fields.value(qsl("port")).toInt();
+	auto port = fields.value(qsl("port")).toUInt();
 	if (!server.isEmpty() && port != 0) {
-		auto weakBox = std::make_shared<QPointer<ConfirmBox>>(nullptr);
-		auto box = Ui::show(Box<ConfirmBox>(lng_sure_enable_socks(lt_server, server, lt_port, QString::number(port)), lang(lng_sure_enable), [fields, weakBox] {
-			auto p = ProxyData();
-			p.host = fields.value(qsl("server"));
-			p.user = fields.value(qsl("user"));
-			p.password = fields.value(qsl("pass"));
-			p.port = fields.value(qsl("port")).toInt();
+		const auto box = std::make_shared<QPointer<ConfirmBox>>();
+		*box = Ui::show(Box<ConfirmBox>(lng_sure_enable_socks(lt_server, server, lt_port, QString::number(port)), lang(lng_sure_enable), [=] {
+			auto proxy = ProxyData();
+			proxy.type = ProxyData::Type::Socks5;
+			proxy.host = server;
+			proxy.user = fields.value(qsl("user"));
+			proxy.password = fields.value(qsl("pass"));
+			proxy.port = port;
 			Global::SetConnectionType(dbictTcpProxy);
-			Global::SetLastProxyType(dbictTcpProxy);
-			Global::SetConnectionProxy(p);
+			Global::SetConnectionProxy(proxy);
 			Local::writeSettings();
+			Sandbox::refreshGlobalProxy();
 			Global::RefConnectionTypeChanged().notify();
 			MTP::restart();
-			reinitLocationManager();
-			reinitWebLoadManager();
-			if (*weakBox) (*weakBox)->closeBox();
+			if (const auto strong = box->data()) {
+				strong->closeBox();
+			}
 		}), LayerOption::KeepOther);
-		*weakBox = box;
 	}
 }
 
@@ -52,6 +53,7 @@ ConnectionBox::ConnectionBox(QWidget *parent)
 , _portInput(this, st::connectionPortInputField, langFactory(lng_connection_port_ph), QString::number(Global::ConnectionProxy().port))
 , _userInput(this, st::connectionUserInputField, langFactory(lng_connection_user_ph), Global::ConnectionProxy().user)
 , _passwordInput(this, st::connectionPasswordInputField, langFactory(lng_connection_password_ph), Global::ConnectionProxy().password)
+, _currentProxyType(Global::ConnectionProxy().type)
 , _typeGroup(std::make_shared<Ui::RadioenumGroup<DBIConnectionType>>(Global::ConnectionType()))
 , _autoRadio(this, _typeGroup, dbictAuto, lang(lng_connection_auto_rb), st::defaultBoxCheckbox)
 , _httpProxyRadio(this, _typeGroup, dbictHttpProxy, lang(lng_connection_http_proxy_rb), st::defaultBoxCheckbox)
@@ -122,9 +124,9 @@ void ConnectionBox::updateControlsPosition() {
 	_httpProxyRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _autoRadio->bottomNoMargins() + st::boxOptionListSkip);
 
 	auto inputy = 0;
-	auto fieldsVisible = (type != dbictAuto) || (!badProxyValue() && Global::LastProxyType() != dbictAuto);
-	auto fieldsBelowHttp = fieldsVisible && (type == dbictHttpProxy || (type == dbictAuto && Global::LastProxyType() == dbictHttpProxy));
-	auto fieldsBelowTcp = fieldsVisible && (type == dbictTcpProxy || (type == dbictAuto && Global::LastProxyType() == dbictTcpProxy));
+	auto fieldsVisible = (type != dbictAuto) || (!badProxyValue() && _currentProxyType != ProxyData::Type::None);
+	auto fieldsBelowHttp = fieldsVisible && (type == dbictHttpProxy || (type == dbictAuto && _currentProxyType == ProxyData::Type::Http));
+	auto fieldsBelowTcp = fieldsVisible && (type == dbictTcpProxy || (type == dbictAuto && _currentProxyType == ProxyData::Type::Socks5));
 	if (fieldsBelowHttp) {
 		inputy = _httpProxyRadio->bottomNoMargins() + st::boxOptionInputSkip;
 		_tcpProxyRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), inputy + st::boxOptionInputSkip + 2 * _hostInput->height() + st::boxOptionListSkip);
@@ -152,7 +154,11 @@ void ConnectionBox::typeChanged(DBIConnectionType type) {
 	}
 	updateControlsVisibility();
 	if (type != dbictAuto) {
-		Global::SetLastProxyType(type);
+		_currentProxyType = (type == dbictTcpProxy)
+			? ProxyData::Type::Socks5
+			: (type == dbictHttpProxy)
+			? ProxyData::Type::Http
+			: ProxyData::Type::None;
 		if (!_hostInput->hasFocus() && !_portInput->hasFocus() && !_userInput->hasFocus() && !_passwordInput->hasFocus()) {
 			_hostInput->setFocusFast();
 		}
@@ -165,9 +171,9 @@ void ConnectionBox::typeChanged(DBIConnectionType type) {
 }
 
 void ConnectionBox::onFieldFocus() {
-	if (Global::LastProxyType() == dbictHttpProxy) {
+	if (_currentProxyType == ProxyData::Type::Http) {
 		_typeGroup->setValue(dbictHttpProxy);
-	} else if (Global::LastProxyType() == dbictTcpProxy) {
+	} else if (_currentProxyType == ProxyData::Type::Socks5) {
 		_typeGroup->setValue(dbictTcpProxy);
 	}
 }
@@ -202,33 +208,33 @@ void ConnectionBox::onSubmit() {
 }
 
 void ConnectionBox::onSave() {
-	auto p = ProxyData();
-	p.host = _hostInput->getLastText().trimmed();
-	p.user = _userInput->getLastText().trimmed();
-	p.password = _passwordInput->getLastText().trimmed();
-	p.port = _portInput->getLastText().toInt();
+	auto proxy = ProxyData();
+	proxy.host = _hostInput->getLastText().trimmed();
+	proxy.user = _userInput->getLastText().trimmed();
+	proxy.password = _passwordInput->getLastText().trimmed();
+	proxy.port = _portInput->getLastText().toUInt();
 
 	auto type = _typeGroup->value();
 	if (type == dbictAuto) {
-		if (p.host.isEmpty() || !p.port) {
-			p = ProxyData();
+		if (proxy.host.isEmpty() || !proxy.port) {
+			proxy = ProxyData();
+		} else {
+			proxy.type = _currentProxyType;
 		}
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-		QNetworkProxyFactory::setUseSystemConfiguration(false);
-		QNetworkProxyFactory::setUseSystemConfiguration(true);
-#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	} else {
-		if (p.host.isEmpty()) {
+		if (proxy.host.isEmpty()) {
 			_hostInput->showError();
 			return;
-		} else if (!p.port) {
+		} else if (!proxy.port) {
 			_portInput->showError();
 			return;
 		}
-		Global::SetLastProxyType(type);
+		proxy.type = (type == dbictTcpProxy)
+			? ProxyData::Type::Socks5
+			: ProxyData::Type::Http;
 	}
 	Global::SetConnectionType(type);
-	Global::SetConnectionProxy(p);
+	Global::SetConnectionProxy(proxy);
 	if (cPlatform() == dbipWindows && Global::TryIPv6() != _tryIPv6->checked()) {
 		Global::SetTryIPv6(_tryIPv6->checked());
 		Local::writeSettings();
@@ -238,11 +244,10 @@ void ConnectionBox::onSave() {
 	} else {
 		Global::SetTryIPv6(_tryIPv6->checked());
 		Local::writeSettings();
+		Sandbox::refreshGlobalProxy();
 		Global::RefConnectionTypeChanged().notify();
 
 		MTP::restart();
-		reinitLocationManager();
-		reinitWebLoadManager();
 		closeBox();
 	}
 }

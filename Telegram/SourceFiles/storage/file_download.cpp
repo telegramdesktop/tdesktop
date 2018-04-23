@@ -1080,14 +1080,6 @@ private:
 	friend class WebLoadManager;
 };
 
-void reinitWebLoadManager() {
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-	if (webLoadManager()) {
-		webLoadManager()->setProxySettings(App::getHttpProxySettings());
-	}
-#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
-}
-
 void stopWebLoadManager() {
 	if (webLoadManager()) {
 		_webLoadThread->quit();
@@ -1102,21 +1094,12 @@ void stopWebLoadManager() {
 	}
 }
 
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-void WebLoadManager::setProxySettings(const QNetworkProxy &proxy) {
-	QMutexLocker lock(&_loaderPointersMutex);
-	_proxySettings = proxy;
-	emit proxyApplyDelayed();
-}
-#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
-
 WebLoadManager::WebLoadManager(QThread *thread) {
 	moveToThread(thread);
 	_manager.moveToThread(thread);
 	connect(thread, SIGNAL(started()), this, SLOT(process()));
 	connect(thread, SIGNAL(finished()), this, SLOT(finish()));
 	connect(this, SIGNAL(processDelayed()), this, SLOT(process()), Qt::QueuedConnection);
-	connect(this, SIGNAL(proxyApplyDelayed()), this, SLOT(proxyApply()), Qt::QueuedConnection);
 
 	connect(this, SIGNAL(progress(webFileLoader*,qint64,qint64)), _webLoadMainManager, SLOT(progress(webFileLoader*,qint64,qint64)));
 	connect(this, SIGNAL(finished(webFileLoader*,QByteArray)), _webLoadMainManager, SLOT(finished(webFileLoader*,QByteArray)));
@@ -1334,13 +1317,6 @@ void WebLoadManager::sendRequest(webFileLoaderPrivate *loader, const QString &re
 	connect(r, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onFailed(QNetworkReply::NetworkError)));
 	connect(r, SIGNAL(metaDataChanged()), this, SLOT(onMeta()));
 	_replies.insert(r, loader);
-}
-
-void WebLoadManager::proxyApply() {
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-	QMutexLocker lock(&_loaderPointersMutex);
-	_manager.setProxy(_proxySettings);
-#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 }
 
 void WebLoadManager::finish() {

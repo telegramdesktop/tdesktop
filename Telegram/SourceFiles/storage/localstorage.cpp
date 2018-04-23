@@ -38,6 +38,7 @@ namespace {
 constexpr auto kThemeFileSizeLimit = 5 * 1024 * 1024;
 constexpr auto kFileLoaderQueueStopTimeout = TimeMs(5000);
 constexpr auto kDefaultStickerInstallDate = TimeId(1);
+constexpr auto kProxyTypeShift = 1024;
 
 using FileKey = quint64;
 
@@ -1147,51 +1148,55 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
+		ProxyData proxy;
 		switch (v) {
 		case dbictHttpProxy:
 		case dbictTcpProxy: {
-			ProxyData p;
 			qint32 port;
-			stream >> p.host >> port >> p.user >> p.password;
+			stream >> proxy.host >> port >> proxy.user >> proxy.password;
 			if (!_checkStreamStatus(stream)) return false;
 
-			p.port = uint32(port);
-			Global::SetConnectionProxy(p);
+			proxy.port = uint32(port);
+			proxy.type = (v == dbictTcpProxy)
+				? ProxyData::Type::Socks5
+				: ProxyData::Type::Http;
 			Global::SetConnectionType(DBIConnectionType(v));
 		} break;
 		case dbictHttpAuto:
 		default: Global::SetConnectionType(dbictAuto); break;
 		};
-		Global::SetLastProxyType(Global::ConnectionType());
+		Global::SetConnectionProxy(proxy);
+		Sandbox::refreshGlobalProxy();
 	} break;
 
 	case dbiConnectionType: {
-		ProxyData p;
-		qint32 connectionType, lastProxyType, port;
-		stream >> connectionType >> lastProxyType >> p.host >> port >> p.user >> p.password;
-		if (!_checkStreamStatus(stream)) return false;
+		ProxyData proxy;
+		qint32 connectionType, proxyType, port;
+		stream >> connectionType >> proxyType >> proxy.host >> port >> proxy.user >> proxy.password;
+		if (!_checkStreamStatus(stream)) {
+			return false;
+		}
 
-		p.port = port;
+		proxy.port = port;
+		proxy.type = (proxyType == kProxyTypeShift + int(ProxyData::Type::Socks5))
+			? ProxyData::Type::Socks5
+			: (proxyType == kProxyTypeShift + int(ProxyData::Type::Http))
+			? ProxyData::Type::Http
+			: (proxyType == dbictTcpProxy)
+			? ProxyData::Type::Socks5
+			: (proxyType == dbictHttpProxy)
+			? ProxyData::Type::Http
+			: ProxyData::Type::None;
 		switch (connectionType) {
 		case dbictHttpProxy:
 		case dbictTcpProxy: {
-			Global::SetConnectionType(DBIConnectionType(lastProxyType));
+			Global::SetConnectionType(DBIConnectionType(connectionType));
 		} break;
 		case dbictHttpAuto:
 		default: Global::SetConnectionType(dbictAuto); break;
 		};
-		switch (lastProxyType) {
-		case dbictHttpProxy:
-		case dbictTcpProxy: {
-			Global::SetLastProxyType(DBIConnectionType(lastProxyType));
-			Global::SetConnectionProxy(p);
-		} break;
-		case dbictHttpAuto:
-		default: {
-			Global::SetLastProxyType(dbictAuto);
-			Global::SetConnectionProxy(ProxyData());
-		} break;
-		}
+		Global::SetConnectionProxy(proxy);
+		Sandbox::refreshGlobalProxy();
 	} break;
 
 	case dbiThemeKey: {
@@ -2403,7 +2408,7 @@ void writeSettings() {
 	data.stream << quint32(dbiScale) << qint32(cConfigScale());
 	data.stream << quint32(dbiDcOptions) << dcOptionsSerialized;
 
-	data.stream << quint32(dbiConnectionType) << qint32(Global::ConnectionType()) << qint32(Global::LastProxyType());
+	data.stream << quint32(dbiConnectionType) << qint32(Global::ConnectionType()) << qint32(kProxyTypeShift + int(proxy.type));
 	data.stream << proxy.host << qint32(proxy.port) << proxy.user << proxy.password;
 
 	data.stream << quint32(dbiTryIPv6) << qint32(Global::TryIPv6());

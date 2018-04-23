@@ -22,6 +22,7 @@ public:
 	bool event(QEvent *e) override;
 
 	void createMessenger();
+	void refreshGlobalProxy();
 
 	~Application();
 
@@ -127,6 +128,8 @@ void updateFailed();
 void updateReady();
 
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
+
+void refreshGlobalProxy();
 
 void connect(const char *signal, QObject *object, const char *method);
 

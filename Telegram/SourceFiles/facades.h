@@ -372,7 +372,6 @@ DeclareVar(Notify::ScreenCorner, NotificationsCorner);
 DeclareVar(bool, NotificationsDemoIsShown);
 
 DeclareVar(DBIConnectionType, ConnectionType);
-DeclareVar(DBIConnectionType, LastProxyType);
 DeclareVar(bool, TryIPv6);
 DeclareVar(ProxyData, ConnectionProxy);
 DeclareRefVar(base::Observable<void>, ConnectionTypeChanged);

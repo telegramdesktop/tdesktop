@@ -196,6 +196,7 @@ void Application::singleInstanceChecked() {
 	}
 
 	Sandbox::start();
+	refreshGlobalProxy();
 
 	if (!Logs::started() || (!cManyInstance() && !Logs::instanceChecked())) {
 		new NotStartedWindow();
@@ -307,7 +308,33 @@ void Application::startApplication() {
 
 void Application::createMessenger() {
 	Expects(!App::quitting());
+
 	_messengerInstance = std::make_unique<Messenger>(_launcher);
+}
+
+void Application::refreshGlobalProxy() {
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
+	const auto proxy = [&] {
+		if (Global::started()) {
+			return Global::ConnectionType() == dbictAuto
+				? ProxyData()
+				: Global::ConnectionProxy();
+		}
+		return Sandbox::PreLaunchProxy();
+	}();
+	if (proxy.type != ProxyData::Type::None) {
+		QNetworkProxy::setApplicationProxy(QNetworkProxy(
+			(proxy.type == ProxyData::Type::Socks5
+				? QNetworkProxy::Socks5Proxy
+				: QNetworkProxy::HttpProxy),
+			proxy.host,
+			proxy.port,
+			proxy.user,
+			proxy.password));
+	} else {
+		QNetworkProxyFactory::setUseSystemConfiguration(true);
+	}
+#endif // TDESKTOP_DISABLE_NETWORK_PROXY
 }
 
 void Application::closeApplication() {
@@ -479,7 +506,6 @@ void Application::startUpdateCheck(bool forceWait) {
 		QNetworkRequest checkVersion(url);
 		if (_updateReply) _updateReply->deleteLater();
 
-		App::setProxySettings(_updateManager);
 		_updateReply = _updateManager.get(checkVersion);
 		connect(_updateReply, SIGNAL(finished()), this, SLOT(updateGotCurrent()));
 		connect(_updateReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(updateFailedCurrent(QNetworkReply::NetworkError)));
@@ -646,6 +672,12 @@ void launch() {
 	}
 
 	application()->createMessenger();
+}
+
+void refreshGlobalProxy() {
+	if (const auto instance = application()) {
+		instance->refreshGlobalProxy();
+	}
 }
 
 } // namespace Sandbox

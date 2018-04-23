@@ -225,12 +225,6 @@ namespace App {
 	void unregMuted(not_null<PeerData*> peer);
 	void updateMuted();
 
-	void setProxySettings(QNetworkAccessManager &manager);
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-	QNetworkProxy getHttpProxySettings();
-#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
-	void setProxySettings(QTcpSocket &socket);
-
 	void complexOverlayRect(Painter &p, QRect rect, ImageRoundRadius radius, RectParts corners);
 	void complexLocationRect(Painter &p, QRect rect, ImageRoundRadius radius, RectParts corners);
 

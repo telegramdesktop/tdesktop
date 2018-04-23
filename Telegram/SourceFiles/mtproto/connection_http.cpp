@@ -54,7 +54,7 @@ qint32 HTTPConnection::handleError(QNetworkReply *reply) { // returnes "maybe ba
 	case QNetworkReply::ProxyNotFoundError:
 	case QNetworkReply::ProxyTimeoutError:
 	case QNetworkReply::ProxyAuthenticationRequiredError:
-	case QNetworkReply::UnknownProxyError:LOG(("HTTP Error: proxy error %1 - %2").arg(reply->error()).arg(reply->errorString())); break;
+	case QNetworkReply::UnknownProxyError: LOG(("HTTP Error: proxy error %1 - %2").arg(reply->error()).arg(reply->errorString())); break;
 
 	// content errors (201-299):
 	case QNetworkReply::ContentAccessDenied:
@@ -79,7 +79,6 @@ HTTPConnection::HTTPConnection(QThread *thread) : AbstractConnection(thread)
 , httpNonce(rand_value<MTPint128>())
 , _flags(0) {
 	manager.moveToThread(thread);
-	App::setProxySettings(manager);
 }
 
 void HTTPConnection::sendData(mtpBuffer &buffer) {

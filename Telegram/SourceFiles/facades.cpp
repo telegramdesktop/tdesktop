@@ -564,7 +564,6 @@ struct Data {
 	bool NotificationsDemoIsShown = false;
 
 	DBIConnectionType ConnectionType = dbictAuto;
-	DBIConnectionType LastProxyType = dbictAuto;
 	bool TryIPv6 = (cPlatform() == dbipWindows) ? false : true;
 	ProxyData ConnectionProxy;
 	base::Observable<void> ConnectionTypeChanged;
@@ -687,7 +686,6 @@ DefineVar(Global, Notify::ScreenCorner, NotificationsCorner);
 DefineVar(Global, bool, NotificationsDemoIsShown);
 
 DefineVar(Global, DBIConnectionType, ConnectionType);
-DefineVar(Global, DBIConnectionType, LastProxyType);
 DefineVar(Global, bool, TryIPv6);
 DefineVar(Global, ProxyData, ConnectionProxy);
 DefineRefVar(Global, base::Observable<void>, ConnectionTypeChanged);

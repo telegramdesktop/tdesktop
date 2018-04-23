@@ -36,7 +36,6 @@ UpdateChecker::UpdateChecker(QThread *thread, const QString &url) : reply(0), al
 	updateUrl = url;
 	moveToThread(thread);
 	manager.moveToThread(thread);
-	App::setProxySettings(manager);
 
 	connect(thread, SIGNAL(started()), this, SLOT(start()));
 	initOutput();

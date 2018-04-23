@@ -201,7 +201,6 @@ TCPConnection::TCPConnection(QThread *thread) : AbstractTCPConnection(thread)
 	connect(&tcpTimeoutTimer, SIGNAL(timeout()), this, SLOT(onTcpTimeoutTimer()));
 
 	sock.moveToThread(thread);
-	App::setProxySettings(sock);
 	connect(&sock, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(socketError(QAbstractSocket::SocketError)));
 	connect(&sock, SIGNAL(connected()), this, SLOT(onSocketConnected()));
 	connect(&sock, SIGNAL(disconnected()), this, SLOT(onSocketDisconnected()));
@@ -327,6 +326,7 @@ void TCPConnection::connectTcp(const DcOptions::Endpoint &endpoint) {
 
 	connect(&sock, SIGNAL(readyRead()), this, SLOT(socketRead()));
 	sock.connectToHost(QHostAddress(_addr), _port);
+	auto proxy = sock.proxy();
 }
 
 void TCPConnection::socketPacket(const char *packet, uint32 length) {
