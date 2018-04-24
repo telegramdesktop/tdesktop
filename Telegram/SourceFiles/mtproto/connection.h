@@ -197,6 +197,7 @@ private:
 	AbstractConnection *_conn = nullptr;
 	AbstractConnection *_conn4 = nullptr;
 	AbstractConnection *_conn6 = nullptr;
+	TimeMs _configWasFineAt = 0;
 
 	SingleTimer retryTimer; // exp retry timer
 	int retryTimeout = 1;

@@ -23,6 +23,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 namespace MTP {
+namespace {
+
+constexpr auto kConfigBecomesOldIn = 2 * 60 * TimeMs(1000);
+
+} // namespace
 
 class Instance::Private : private Sender {
 public:
@@ -41,6 +46,7 @@ public:
 	not_null<DcOptions*> dcOptions();
 
 	void requestConfig();
+	void requestConfigIfOld();
 	void requestCDNConfig();
 
 	void restart();
@@ -149,6 +155,7 @@ private:
 
 	std::unique_ptr<internal::ConfigLoader> _configLoader;
 	mtpRequestId _cdnConfigLoadRequestId = 0;
+	TimeMs _lastConfigLoadedTime = 0;
 
 	std::map<DcId, AuthKeyPtr> _keysForWrite;
 	mutable QReadWriteLock _keysForWriteLock;
@@ -282,6 +289,12 @@ void Instance::Private::requestConfig() {
 		return configLoadFail(error);
 	}));
 	_configLoader->load();
+}
+
+void Instance::Private::requestConfigIfOld() {
+	if (getms(true) - _lastConfigLoadedTime >= kConfigBecomesOldIn) {
+		requestConfig();
+	}
 }
 
 void Instance::Private::requestCDNConfig() {
@@ -580,6 +593,7 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 	Expects(result.type() == mtpc_config);
 
 	_configLoader.reset();
+	_lastConfigLoadedTime = getms(true);
 
 	auto &data = result.c_config();
 	DEBUG_LOG(("MTP Info: got config, chat_size_max: %1, date: %2, test_mode: %3, this_dc: %4, dc_options.length: %5").arg(data.vchat_size_max.v).arg(data.vdate.v).arg(mtpIsTrue(data.vtest_mode)).arg(data.vthis_dc.v).arg(data.vdc_options.v.size()));
@@ -1308,6 +1322,10 @@ QString Instance::cloudLangCode() const {
 
 void Instance::requestConfig() {
 	_private->requestConfig();
+}
+
+void Instance::requestConfigIfOld() {
+	_private->requestConfigIfOld();
 }
 
 void Instance::requestCDNConfig() {

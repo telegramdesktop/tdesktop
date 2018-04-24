@@ -30,6 +30,9 @@ constexpr auto kRecreateKeyId = AuthKey::KeyId(0xFFFFFFFFFFFFFFFFULL);
 constexpr auto kIntSize = static_cast<int>(sizeof(mtpPrime));
 constexpr auto kMaxModExpSize = 256;
 
+// If we can't connect for this time we will ask _instance to update config.
+constexpr auto kRequestConfigTimeout = TimeMs(8000);
+
 // Don't try to handle messages larger than this size.
 constexpr auto kMaxMessageLength = 16 * 1024 * 1024;
 
@@ -356,6 +359,7 @@ ConnectionPrivate::ConnectionPrivate(Instance *instance, QThread *thread, Connec
 , _state(DisconnectedState)
 , _shiftedDcId(shiftedDcId)
 , _owner(owner)
+, _configWasFineAt(getms(true))
 , _waitForReceived(MTPMinReceiveDelay)
 , _waitForConnected(MTPMinConnectDelay)
 //, sessionDataMutex(QReadWriteLock::Recursive)
@@ -1031,11 +1035,21 @@ void ConnectionPrivate::connectToServer(bool afterConfig) {
 		DEBUG_LOG(("MTP Info: DC %1 options for IPv4 over HTTP not found, waiting for config").arg(_shiftedDcId));
 		if (Global::TryIPv6() && noIPv6) DEBUG_LOG(("MTP Info: DC %1 options for IPv6 over HTTP not found, waiting for config").arg(_shiftedDcId));
 		connect(_instance, SIGNAL(configLoaded()), this, SLOT(onConfigLoaded()), Qt::UniqueConnection);
-		InvokeQueued(_instance, [instance = _instance] { instance->requestConfig(); });
+		InvokeQueued(_instance, [instance = _instance] {
+			instance->requestConfig();
+		});
 		return;
 	}
 
-	if (afterConfig && (_conn4 || _conn6)) return;
+	if (afterConfig) {
+		if (_conn4 || _conn6) {
+			return;
+		}
+	} else if (getms(true) - _configWasFineAt > kRequestConfigTimeout) {
+		InvokeQueued(_instance, [instance = _instance] {
+			instance->requestConfigIfOld();
+		});
+	}
 
 	createConn(!noIPv4, !noIPv6);
 	retryTimer.stop();
@@ -2339,6 +2353,8 @@ void ConnectionPrivate::onDisconnected6() {
 void ConnectionPrivate::updateAuthKey() 	{
 	QReadLocker lockFinished(&sessionDataMutex);
 	if (!sessionData || !_conn) return;
+
+	_configWasFineAt = getms(true);
 
 	DEBUG_LOG(("AuthKey Info: Connection updating key from Session, dc %1").arg(_shiftedDcId));
 	uint64 newKeyId = 0;

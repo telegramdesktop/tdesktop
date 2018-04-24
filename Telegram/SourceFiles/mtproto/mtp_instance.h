@@ -135,6 +135,7 @@ public:
 	void scheduleKeyDestroy(ShiftedDcId shiftedDcId);
 
 	void requestConfig();
+	void requestConfigIfOld();
 	void requestCDNConfig();
 
 	~Instance();
