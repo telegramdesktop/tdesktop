@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace MTP {
 namespace internal {
 
+struct ConnectionOptions;
+
 class AbstractConnection : public QObject {
 	Q_OBJECT
 
@@ -24,7 +26,11 @@ public:
 	virtual ~AbstractConnection() = 0;
 
 	// virtual constructor
-	static AbstractConnection *create(DcType type, QThread *thread);
+	static AbstractConnection *create(
+		const ConnectionOptions &options,
+		ShiftedDcId shiftedDcId,
+		DcType type,
+		QThread *thread);
 
 	void setSentEncrypted() {
 		_sentEncrypted = true;

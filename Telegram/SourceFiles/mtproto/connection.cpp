@@ -180,7 +180,7 @@ ModExpFirst CreateModExp(
 	ModExpFirst result;
 	constexpr auto kMaxModExpFirstTries = 5;
 	for (auto tries = 0; tries != kMaxModExpFirstTries; ++tries) {
-		FillRandom(result.randomPower);
+		bytes::set_random(result.randomPower);
 		for (auto i = 0; i != ModExpFirst::kRandomPowerSize; ++i) {
 			result.randomPower[i] ^= randomSeed[i];
 		}
@@ -303,6 +303,7 @@ QString Connection::transport() const {
 
 Connection::~Connection() {
 	Expects(data == nullptr);
+
 	if (thread) {
 		waitTillFinish();
 	}
@@ -312,13 +313,21 @@ void ConnectionPrivate::createConn(bool createIPv4, bool createIPv6) {
 	destroyAllConnections();
 	if (createIPv4) {
 		QWriteLocker lock(&stateConnMutex);
-		_conn4 = AbstractConnection::create(_dcType, thread());
+		_conn4 = AbstractConnection::create(
+			*_connectionOptions,
+			_shiftedDcId,
+			_dcType,
+			thread());
 		connect(_conn4, SIGNAL(error(qint32)), this, SLOT(onError4(qint32)));
 		connect(_conn4, SIGNAL(receivedSome()), this, SLOT(onReceivedSome()));
 	}
 	if (createIPv6) {
 		QWriteLocker lock(&stateConnMutex);
-		_conn6 = AbstractConnection::create(_dcType, thread());
+		_conn6 = AbstractConnection::create(
+			*_connectionOptions,
+			_shiftedDcId,
+			_dcType,
+			thread());
 		connect(_conn6, SIGNAL(error(qint32)), this, SLOT(onError6(qint32)));
 		connect(_conn6, SIGNAL(receivedSome()), this, SLOT(onReceivedSome()));
 	}
@@ -440,8 +449,12 @@ QString ConnectionPrivate::transport() const {
 	if ((!_conn4 && !_conn6) || (_conn4 && _conn6) || (_state < 0)) {
 		return QString();
 	}
-	QString result = (_conn4 ? _conn4 : _conn6)->transport();
-	if (!result.isEmpty() && Global::TryIPv6()) result += (_conn4 ? "/IPv4" : "/IPv6");
+
+	Assert(_connectionOptions != nullptr);
+	auto result = (_conn4 ? _conn4 : _conn6)->transport();
+	if (!result.isEmpty() && _connectionOptions->useIPv6) {
+		result += (_conn4 ? "/IPv4" : "/IPv6");
+	}
 	return result;
 }
 
@@ -783,8 +796,9 @@ void ConnectionPrivate::tryToSend() {
 	MTPInitConnection<mtpRequest> initWrapper;
 	int32 initSize = 0, initSizeInInts = 0;
 	if (needsLayer) {
-		auto systemLangCode = sessionData->systemLangCode();
-		auto cloudLangCode = sessionData->cloudLangCode();
+		Assert(_connectionOptions != nullptr);
+		auto systemLangCode = _connectionOptions->systemLangCode;
+		auto cloudLangCode = _connectionOptions->cloudLangCode;
 		auto langPack = "tdesktop";
 		auto deviceModel = (_dcType == DcType::Cdn) ? "n/a" : cApiDeviceModel();
 		auto systemVersion = (_dcType == DcType::Cdn) ? "n/a" : cApiSystemVersion();
@@ -996,16 +1010,28 @@ void ConnectionPrivate::restartNow() {
 
 void ConnectionPrivate::connectToServer(bool afterConfig) {
 	if (_finished) {
-		DEBUG_LOG(("MTP Error: connectToServer() called for finished connection!"));
+		DEBUG_LOG(("MTP Error: "
+			"connectToServer() called for finished connection!"));
 		return;
+	}
+	auto hasKey = true;
+	{
+		QReadLocker lockFinished(&sessionDataMutex);
+		if (!sessionData) {
+			DEBUG_LOG(("MTP Error: "
+				"connectToServer() called for stopped connection!"));
+			return;
+		}
+		_connectionOptions = std::make_unique<ConnectionOptions>(
+			sessionData->connectionOptions());
+		hasKey = (sessionData->getKey() != nullptr);
 	}
 	auto bareDc = bareDcId(_shiftedDcId);
 	_dcType = _instance->dcOptions()->dcType(_shiftedDcId);
-	if (_dcType == DcType::MediaDownload) { // using media_only addresses only if key for this dc is already created
-		QReadLocker lockFinished(&sessionDataMutex);
-		if (!sessionData || !sessionData->getKey()) {
-			_dcType = DcType::Regular;
-		}
+
+	// Use media_only addresses only if key for this dc is already created.
+	if (_dcType == DcType::MediaDownload && !hasKey) {
+		_dcType = DcType::Regular;
 	} else if (_dcType == DcType::Cdn && !_instance->isKeysDestroyer()) {
 		if (!_instance->dcOptions()->hasCDNKeysForDc(bareDc)) {
 			requestCDNConfig();
@@ -1014,26 +1040,30 @@ void ConnectionPrivate::connectToServer(bool afterConfig) {
 	}
 
 	using Variants = DcOptions::Variants;
-	auto kIPv4 = Variants::IPv4;
-	auto kIPv6 = Variants::IPv6;
-	auto kTcp = Variants::Tcp;
-	auto kHttp = Variants::Http;
-	auto variants = _instance->dcOptions()->lookup(bareDc, _dcType);
-	auto noIPv4 = (_dcType == DcType::Temporary) ? (variants.data[kIPv4][kTcp].port == 0) : (variants.data[kIPv4][kHttp].port == 0);
-	auto noIPv6 = (_dcType == DcType::Temporary) ? true : (!Global::TryIPv6() || (variants.data[kIPv6][kHttp].port == 0));
+	const auto kIPv4 = Variants::IPv4;
+	const auto kIPv6 = Variants::IPv6;
+	const auto kTcp = Variants::Tcp;
+	const auto kHttp = Variants::Http;
+	const auto variants = _instance->dcOptions()->lookup(bareDc, _dcType);
+	const auto useIPv4 = (_dcType == DcType::Temporary) ? true : _connectionOptions->useIPv4;
+	const auto useIPv6 = (_dcType == DcType::Temporary) ? false : _connectionOptions->useIPv6;
+	const auto useTcp = (_dcType == DcType::Temporary) ? true : _connectionOptions->useTcp;
+	const auto useHttp = (_dcType == DcType::Temporary) ? false : _connectionOptions->useHttp;
+	auto noIPv4 = (_dcType == DcType::Temporary) ? (variants.data[kIPv4][kTcp].port == 0) : (!useIPv4 || (variants.data[kIPv4][kHttp].port == 0));
+	auto noIPv6 = (_dcType == DcType::Temporary) ? true : (!useIPv6 || (variants.data[kIPv6][kHttp].port == 0));
 	if (noIPv4 && noIPv6) {
 		if (_instance->isKeysDestroyer()) {
 			LOG(("MTP Error: DC %1 options for IPv4 over HTTP not found for auth key destruction!").arg(_shiftedDcId));
-			if (Global::TryIPv6() && noIPv6) LOG(("MTP Error: DC %1 options for IPv6 over HTTP not found for auth key destruction!").arg(_shiftedDcId));
+			if (useIPv6 && noIPv6) LOG(("MTP Error: DC %1 options for IPv6 over HTTP not found for auth key destruction!").arg(_shiftedDcId));
 			emit _instance->keyDestroyed(_shiftedDcId);
 			return;
 		} else if (afterConfig) {
 			LOG(("MTP Error: DC %1 options for IPv4 over HTTP not found right after config load!").arg(_shiftedDcId));
-			if (Global::TryIPv6() && noIPv6) LOG(("MTP Error: DC %1 options for IPv6 over HTTP not found right after config load!").arg(_shiftedDcId));
+			if (useIPv6 && noIPv6) LOG(("MTP Error: DC %1 options for IPv6 over HTTP not found right after config load!").arg(_shiftedDcId));
 			return restart();
 		}
 		DEBUG_LOG(("MTP Info: DC %1 options for IPv4 over HTTP not found, waiting for config").arg(_shiftedDcId));
-		if (Global::TryIPv6() && noIPv6) DEBUG_LOG(("MTP Info: DC %1 options for IPv6 over HTTP not found, waiting for config").arg(_shiftedDcId));
+		if (useIPv6 && noIPv6) DEBUG_LOG(("MTP Info: DC %1 options for IPv6 over HTTP not found, waiting for config").arg(_shiftedDcId));
 		connect(_instance, SIGNAL(configLoaded()), this, SLOT(onConfigLoaded()), Qt::UniqueConnection);
 		InvokeQueued(_instance, [instance = _instance] {
 			instance->requestConfig();
@@ -1064,9 +1094,17 @@ void ConnectionPrivate::connectToServer(bool afterConfig) {
 
 	_waitForConnectedTimer.start(_waitForConnected);
 	if (auto conn = _conn4) {
+		auto endpoint = DcOptions::Endpoint();
+		if (_connectionOptions->proxy.type == ProxyData::Type::Mtproto) {
+			endpoint.ip = _connectionOptions->proxy.host.toStdString();
+			endpoint.port = _connectionOptions->proxy.port;
+			endpoint.flags = MTPDdcOption::Flag::f_tcpo_only;
+		} else {
+			endpoint = variants.data[kIPv4][kTcp];
+		}
 		connect(conn, SIGNAL(connected()), this, SLOT(onConnected4()));
 		connect(conn, SIGNAL(disconnected()), this, SLOT(onDisconnected4()));
-		conn->connectTcp(variants.data[kIPv4][kTcp]);
+		conn->connectTcp(endpoint);
 		conn->connectHttp(variants.data[kIPv4][kHttp]);
 	}
 	if (auto conn = _conn6) {
@@ -1180,7 +1218,9 @@ void ConnectionPrivate::onPingSendForce() {
 }
 
 void ConnectionPrivate::onWaitReceivedFailed() {
-	if (Global::ConnectionType() != dbictAuto && Global::ConnectionType() != dbictTcpProxy) {
+	Expects(_connectionOptions != nullptr);
+
+	if (!_connectionOptions->useTcp) {
 		return;
 	}
 
@@ -2625,7 +2665,7 @@ void ConnectionPrivate::dhClientParamsSend() {
 
 	// gen rand 'b'
 	auto randomSeed = std::array<gsl::byte, ModExpFirst::kRandomPowerSize>();
-	openssl::FillRandom(randomSeed);
+	bytes::set_random(randomSeed);
 	auto g_b_data = CreateModExp(_authKeyData->g, _authKeyStrings->dh_prime, randomSeed);
 	if (g_b_data.modexp.empty()) {
 		LOG(("AuthKey Error: could not generate good g_b."));

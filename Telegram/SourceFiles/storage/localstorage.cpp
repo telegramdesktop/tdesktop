@@ -1178,14 +1178,16 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		}
 
 		proxy.port = port;
-		proxy.type = (proxyType == kProxyTypeShift + int(ProxyData::Type::Socks5))
-			? ProxyData::Type::Socks5
-			: (proxyType == kProxyTypeShift + int(ProxyData::Type::Http))
-			? ProxyData::Type::Http
-			: (proxyType == dbictTcpProxy)
+		proxy.type = (proxyType == dbictTcpProxy)
 			? ProxyData::Type::Socks5
 			: (proxyType == dbictHttpProxy)
 			? ProxyData::Type::Http
+			: (proxyType == kProxyTypeShift + int(ProxyData::Type::Socks5))
+			? ProxyData::Type::Socks5
+			: (proxyType == kProxyTypeShift + int(ProxyData::Type::Http))
+			? ProxyData::Type::Http
+			: (proxyType == kProxyTypeShift + int(ProxyData::Type::Mtproto))
+			? ProxyData::Type::Mtproto
 			: ProxyData::Type::None;
 		switch (connectionType) {
 		case dbictHttpProxy:

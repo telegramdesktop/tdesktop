@@ -322,7 +322,8 @@ void Application::refreshGlobalProxy() {
 		}
 		return Sandbox::PreLaunchProxy();
 	}();
-	if (proxy.type != ProxyData::Type::None) {
+	if (proxy.type == ProxyData::Type::Socks5
+		|| proxy.type == ProxyData::Type::Http) {
 		QNetworkProxy::setApplicationProxy(QNetworkProxy(
 			(proxy.type == ProxyData::Type::Socks5
 				? QNetworkProxy::Socks5Proxy

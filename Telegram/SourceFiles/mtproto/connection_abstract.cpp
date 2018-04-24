@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/connection_tcp.h"
 #include "mtproto/connection_http.h"
 #include "mtproto/connection_auto.h"
+#include "mtproto/session.h"
 
 namespace MTP {
 namespace internal {
@@ -62,13 +63,20 @@ MTPResPQ AbstractConnection::readPQFakeReply(const mtpBuffer &buffer) {
 	return response;
 }
 
-AbstractConnection *AbstractConnection::create(DcType type, QThread *thread) {
-	if ((type == DcType::Temporary) || (Global::ConnectionType() == dbictTcpProxy)) {
-		return new TCPConnection(thread);
-	} else if (Global::ConnectionType() == dbictHttpProxy) {
+AbstractConnection *AbstractConnection::create(
+		const ConnectionOptions &options,
+		ShiftedDcId shiftedDcId,
+		DcType type,
+		QThread *thread) {
+	const auto protocolDcId = (type == DcType::MediaDownload)
+		? -MTP::bareDcId(shiftedDcId)
+		: MTP::bareDcId(shiftedDcId);
+	if ((type == DcType::Temporary) || (!options.useHttp)) {
+		return new TCPConnection(thread, protocolDcId);
+	} else if (!options.useTcp) {
 		return new HTTPConnection(thread);
 	}
-	return new AutoConnection(thread);
+	return new AutoConnection(thread, protocolDcId);
 }
 
 } // namespace internal

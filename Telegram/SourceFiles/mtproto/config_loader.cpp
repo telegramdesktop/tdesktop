@@ -100,7 +100,7 @@ void ConfigLoader::enumerate() {
 }
 
 void ConfigLoader::createSpecialLoader() {
-	if (Global::ConnectionType() != dbictAuto) {
+	if (Global::ConnectionProxy().type != ProxyData::Type::None) {
 		_specialLoader.reset();
 		return;
 	}

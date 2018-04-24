@@ -85,6 +85,29 @@ inline bool ResponseNeedsAck(const SerializedMessage &response) {
 	return (seqNo & 0x01) ? true : false;
 }
 
+struct ConnectionOptions {
+	ConnectionOptions() = default;
+	ConnectionOptions(
+		const QString &systemLangCode,
+		const QString &cloudLangCode,
+		const ProxyData &proxy,
+		bool useIPv4,
+		bool useIPv6,
+		bool useHttp,
+		bool useTcp);
+	ConnectionOptions(const ConnectionOptions &other) = default;
+	ConnectionOptions &operator=(const ConnectionOptions &other) = default;
+
+	QString systemLangCode;
+	QString cloudLangCode;
+	ProxyData proxy;
+	bool useIPv4 = true;
+	bool useIPv6 = true;
+	bool useHttp = true;
+	bool useTcp = true;
+
+};
+
 class Session;
 class SessionData {
 public:
@@ -113,21 +136,13 @@ public:
 		_layerInited = was;
 	}
 
-	QString systemLangCode() const {
-		QReadLocker locker(&_lock);
-		return _systemLangCode;
-	}
-	void setSystemLangCode(const QString &code) {
+	void setConnectionOptions(ConnectionOptions options) {
 		QWriteLocker locker(&_lock);
-		_systemLangCode = code;
+		_options = options;
 	}
-	QString cloudLangCode() const {
+	ConnectionOptions connectionOptions() const {
 		QReadLocker locker(&_lock);
-		return _cloudLangCode;
-	}
-	void setCloudLangCode(const QString &code) {
-		QWriteLocker locker(&_lock);
-		_cloudLangCode = code;
+		return _options;
 	}
 
 	void setSalt(uint64 salt) {
@@ -253,8 +268,7 @@ private:
 	AuthKeyPtr _authKey;
 	bool _keyChecked = false;
 	bool _layerInited = false;
-	QString _systemLangCode;
-	QString _cloudLangCode;
+	ConnectionOptions _options;
 
 	mtpPreRequestMap _toSend; // map of request_id -> request, that is waiting to be sent
 	mtpRequestMap _haveSent; // map of msg_id -> request, that was sent, msDate = 0 for msgs_state_req (no resend / state req), msDate = 0, seqNo = 0 for containers
@@ -347,6 +361,7 @@ public slots:
 
 private:
 	void createDcData();
+	void refreshDataFields();
 
 	void registerRequest(mtpRequestId requestId, ShiftedDcId dcWithShift);
 	mtpRequestId storeRequest(

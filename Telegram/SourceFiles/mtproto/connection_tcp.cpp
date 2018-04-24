@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/connection_tcp.h"
 
+#include "base/bytes.h"
+#include "base/openssl_help.h"
 #include <openssl/aes.h>
 
 namespace MTP {
@@ -26,7 +28,11 @@ uint32 tcpPacketSize(const char *packet) { // must have at least 4 bytes readabl
 
 } // namespace
 
-AbstractTCPConnection::AbstractTCPConnection(QThread *thread) : AbstractConnection(thread)
+AbstractTCPConnection::AbstractTCPConnection(
+	QThread *thread,
+	int16 protocolDcId)
+: AbstractConnection(thread)
+, _protocolDcId(protocolDcId)
 , packetNum(0)
 , packetRead(0)
 , packetLeft(0)
@@ -191,7 +197,8 @@ void AbstractTCPConnection::handleError(QAbstractSocket::SocketError e, QTcpSock
 	TCP_LOG(("TCP Error %1, restarting! - %2").arg(e).arg(sock.errorString()));
 }
 
-TCPConnection::TCPConnection(QThread *thread) : AbstractTCPConnection(thread)
+TCPConnection::TCPConnection(QThread *thread, int16 protocolDcId)
+: AbstractTCPConnection(thread, protocolDcId)
 , status(WaitingTcp)
 , tcpNonce(rand_value<MTPint128>())
 , _tcpTimeout(MTPMinReceiveDelay)
@@ -259,35 +266,65 @@ void TCPConnection::sendData(mtpBuffer &buffer) {
 	tcpSend(buffer);
 }
 
+void AbstractTCPConnection::writeConnectionStart() {
+	// prepare random part
+	auto nonceBytes = bytes::vector(64);
+	const auto nonce = bytes::make_span(nonceBytes);
+
+	const auto zero = reinterpret_cast<uchar*>(nonce.data());
+	const auto first = reinterpret_cast<uint32*>(nonce.data());
+	const auto second = first + 1;
+	const auto reserved01 = 0x000000EFU;
+	const auto reserved11 = 0x44414548U;
+	const auto reserved12 = 0x54534F50U;
+	const auto reserved13 = 0x20544547U;
+	const auto reserved14 = 0x20544547U;
+	const auto reserved15 = 0xEEEEEEEEU;
+	const auto reserved21 = 0x00000000U;
+	do {
+		bytes::set_random(nonce);
+	} while (*zero == reserved01
+		|| *first == reserved11
+		|| *first == reserved12
+		|| *first == reserved13
+		|| *first == reserved14
+		|| *first == reserved15
+		|| *second == reserved21);
+
+	// prepare encryption key/iv
+	bytes::copy(
+		bytes::make_span(_sendKey),
+		nonce.subspan(8, CTRState::KeySize));
+	bytes::copy(
+		bytes::make_span(_sendState.ivec),
+		nonce.subspan(8 + CTRState::KeySize, CTRState::IvecSize));
+
+	// prepare decryption key/iv
+	auto reversedBytes = bytes::vector(48);
+	const auto reversed = bytes::make_span(reversedBytes);
+	bytes::copy(reversed, nonce.subspan(8, reversed.size()));
+	std::reverse(reversed.begin(), reversed.end());
+	bytes::copy(
+		bytes::make_span(_receiveKey),
+		reversed.subspan(0, CTRState::KeySize));
+	bytes::copy(
+		bytes::make_span(_receiveState.ivec),
+		reversed.subspan(CTRState::KeySize, CTRState::IvecSize));
+
+	// write protocol and dc ids
+	const auto protocol = reinterpret_cast<uint32*>(nonce.data() + 56);
+	*protocol = 0xEFEFEFEFU;
+	const auto dcId = reinterpret_cast<int16*>(nonce.data() + 60);
+	*dcId = _protocolDcId;
+
+	sock.write(reinterpret_cast<const char*>(nonce.data()), 56);
+	aesCtrEncrypt(nonce.data(), 64, _sendKey, &_sendState);
+	sock.write(reinterpret_cast<const char*>(nonce.subspan(56).data()), 8);
+}
+
 void AbstractTCPConnection::tcpSend(mtpBuffer &buffer) {
 	if (!packetNum) {
-		// prepare random part
-		char nonce[64];
-		uint32 *first = reinterpret_cast<uint32*>(nonce), *second = first + 1;
-		uint32 first1 = 0x44414548U, first2 = 0x54534f50U, first3 = 0x20544547U, first4 = 0x20544547U, first5 = 0xeeeeeeeeU;
-		uint32 second1 = 0;
-		do {
-			memset_rand(nonce, sizeof(nonce));
-		} while (*first == first1 || *first == first2 || *first == first3 || *first == first4 || *first == first5 || *second == second1 || *reinterpret_cast<uchar*>(nonce) == 0xef);
-		//sock.write(nonce, 64);
-
-		// prepare encryption key/iv
-		memcpy(_sendKey, nonce + 8, CTRState::KeySize);
-		memcpy(_sendState.ivec, nonce + 8 + CTRState::KeySize, CTRState::IvecSize);
-
-		// prepare decryption key/iv
-		char reversed[48];
-		memcpy(reversed, nonce + 8, sizeof(reversed));
-		std::reverse(reversed, reversed + base::array_size(reversed));
-		memcpy(_receiveKey, reversed, CTRState::KeySize);
-		memcpy(_receiveState.ivec, reversed + CTRState::KeySize, CTRState::IvecSize);
-
-		// write protocol identifier
-		*reinterpret_cast<uint32*>(nonce + 56) = 0xefefefefU;
-
-		sock.write(nonce, 56);
-		aesCtrEncrypt(nonce, 64, _sendKey, &_sendState);
-		sock.write(nonce + 56, 8);
+		writeConnectionStart();
 	}
 	++packetNum;
 

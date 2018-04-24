@@ -17,15 +17,14 @@ class AbstractTCPConnection : public AbstractConnection {
 	Q_OBJECT
 
 public:
-
-	AbstractTCPConnection(QThread *thread);
+	AbstractTCPConnection(QThread *thread, int16 protocolDcId);
 	virtual ~AbstractTCPConnection() = 0;
 
 public slots:
-
 	void socketRead();
 
 protected:
+	void writeConnectionStart();
 
 	QTcpSocket sock;
 	uint32 packetNum; // sent packet number
@@ -49,6 +48,7 @@ protected:
 	CTRState _sendState;
 	uchar _receiveKey[CTRState::KeySize];
 	CTRState _receiveState;
+	int16 _protocolDcId = 0;
 
 };
 
@@ -56,8 +56,7 @@ class TCPConnection : public AbstractTCPConnection {
 	Q_OBJECT
 
 public:
-
-	TCPConnection(QThread *thread);
+	TCPConnection(QThread *thread, int16 protocolDcId);
 
 	void sendData(mtpBuffer &buffer) override;
 	void disconnectFromServer() override;

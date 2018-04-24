@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <openssl/bn.h>
 #include <openssl/sha.h>
 #include <openssl/rand.h>
+#include "base/bytes.h"
 
 namespace openssl {
 
@@ -223,3 +224,13 @@ inline int FillRandom(base::byte_span bytes) {
 }
 
 } // namespace openssl
+
+namespace bytes {
+
+inline void set_random(span destination) {
+	RAND_bytes(
+		reinterpret_cast<unsigned char*>(destination.data()),
+		destination.size());
+}
+
+} // namespace bytes

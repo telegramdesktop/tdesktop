@@ -31,6 +31,7 @@ class AbstractConnection;
 class ConnectionPrivate;
 class SessionData;
 class RSAPublicKey;
+struct ConnectionOptions;
 
 class Thread : public QThread {
 	Q_OBJECT
@@ -239,6 +240,7 @@ private:
 	uint64 keyId = 0;
 	QReadWriteLock sessionDataMutex;
 	SessionData *sessionData = nullptr;
+	std::unique_ptr<ConnectionOptions> _connectionOptions;
 
 	bool myKeyLock = false;
 	void lockKey();

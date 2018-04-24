@@ -12,7 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace MTP {
 namespace internal {
 
-AutoConnection::AutoConnection(QThread *thread) : AbstractTCPConnection(thread)
+AutoConnection::AutoConnection(QThread *thread, int16 protocolDcId)
+: AbstractTCPConnection(thread, protocolDcId)
 , status(WaitingBoth)
 , tcpNonce(rand_value<MTPint128>())
 , httpNonce(rand_value<MTPint128>())

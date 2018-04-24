@@ -432,6 +432,7 @@ struct ProxyData {
 		None,
 		Socks5,
 		Http,
+		Mtproto,
 	};
 	Type type = Type::None;
 	QString host;

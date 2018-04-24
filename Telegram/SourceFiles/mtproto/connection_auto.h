@@ -16,8 +16,7 @@ class AutoConnection : public AbstractTCPConnection {
 	Q_OBJECT
 
 public:
-
-	AutoConnection(QThread *thread);
+	AutoConnection(QThread *thread, int16 protocolDcId);
 
 	void sendData(mtpBuffer &buffer) override;
 	void disconnectFromServer() override;
@@ -32,7 +31,6 @@ public:
 	QString transport() const override;
 
 public slots:
-
 	void socketError(QAbstractSocket::SocketError e);
 	void requestFinished(QNetworkReply *reply);
 
@@ -43,11 +41,9 @@ public slots:
 	void onTcpTimeoutTimer();
 
 protected:
-
 	void socketPacket(const char *packet, uint32 length) override;
 
 private:
-
 	void httpSend(mtpBuffer &buffer);
 	enum Status {
 		WaitingBoth = 0,
