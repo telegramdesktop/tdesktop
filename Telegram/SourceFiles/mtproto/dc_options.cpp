@@ -105,22 +105,36 @@ void DcOptions::constructFromBuiltIn() {
 
 	auto bdcs = builtInDcs();
 	for (auto i = 0, l = builtInDcsCount(); i != l; ++i) {
-		auto flags = MTPDdcOption::Flags(0);
-		auto idWithShift = MTP::shiftDcId(bdcs[i].id, flags);
-		_data.emplace(idWithShift, Option(bdcs[i].id, flags, bdcs[i].ip, bdcs[i].port));
-		DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
+		const auto flags = MTPDdcOption::Flags(0);
+		const auto bdc = bdcs[i];
+		const auto idWithShift = MTP::shiftDcId(bdc.id, flags);
+		_data.emplace(
+			idWithShift,
+			std::vector<Option>(
+				1,
+				Option(bdc.id, flags, bdc.ip, bdc.port)));
+		DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: "
+			"%2:%3").arg(bdc.id).arg(bdc.ip).arg(bdc.port));
 	}
 
 	auto bdcsipv6 = builtInDcsIPv6();
 	for (auto i = 0, l = builtInDcsCountIPv6(); i != l; ++i) {
-		auto flags = MTPDdcOption::Flags(MTPDdcOption::Flag::f_ipv6);
-		auto idWithShift = MTP::shiftDcId(bdcsipv6[i].id, flags);
-		_data.emplace(idWithShift, Option(bdcsipv6[i].id, flags, bdcsipv6[i].ip, bdcsipv6[i].port));
-		DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: %2:%3").arg(bdcsipv6[i].id).arg(bdcsipv6[i].ip).arg(bdcsipv6[i].port));
+		const auto flags = MTPDdcOption::Flags(MTPDdcOption::Flag::f_ipv6);
+		const auto bdc = bdcsipv6[i];
+		const auto idWithShift = MTP::shiftDcId(bdc.id, flags);
+		_data.emplace(
+			idWithShift,
+			std::vector<Option>(
+				1,
+				Option(bdc.id, flags, bdc.ip, bdc.port)));
+		DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: "
+			"%2:%3").arg(bdc.id).arg(bdc.ip).arg(bdc.port));
 	}
 }
 
-void DcOptions::processFromList(const QVector<MTPDcOption> &options, bool overwrite) {
+void DcOptions::processFromList(
+		const QVector<MTPDcOption> &options,
+		bool overwrite) {
 	if (options.empty() || _immutable) {
 		return;
 	}
@@ -144,12 +158,15 @@ void DcOptions::processFromList(const QVector<MTPDcOption> &options, bool overwr
 			auto dcId = option.vid.v;
 			auto flags = option.vflags.v;
 			auto dcIdWithShift = MTP::shiftDcId(dcId, flags);
-			if (base::contains(shiftedIdsProcessed, dcIdWithShift)) {
-				continue;
+			if (overwrite) {
+				if (!base::contains(shiftedIdsProcessed, dcIdWithShift)) {
+					shiftedIdsProcessed.push_back(dcIdWithShift);
+					_data.erase(dcIdWithShift);
+				}
 			}
-
-			shiftedIdsProcessed.push_back(dcIdWithShift);
-			auto ip = std::string(option.vip_address.v.constData(), option.vip_address.v.size());
+			auto ip = std::string(
+				option.vip_address.v.constData(),
+				option.vip_address.v.size());
 			auto port = option.vport.v;
 			if (applyOneGuarded(dcId, flags, ip, port)) {
 				if (!base::contains(idsChanged, dcId)) {
@@ -162,8 +179,10 @@ void DcOptions::processFromList(const QVector<MTPDcOption> &options, bool overwr
 				if (base::contains(shiftedIdsProcessed, i->first)) {
 					++i;
 				} else {
-					if (!base::contains(idsChanged, i->second.id)) {
-						idsChanged.push_back(i->second.id);
+					const auto &options = i->second;
+					Assert(!options.empty());
+					if (!base::contains(idsChanged, options.front().id)) {
+						idsChanged.push_back(options.front().id);
 					}
 					i = _data.erase(i);
 				}
@@ -199,14 +218,16 @@ void DcOptions::addFromOther(DcOptions &&options) {
 		idsChanged.reserve(options._data.size());
 		{
 			WriteLocker lock(this);
-			for (auto &item : base::take(options._data)) {
-				auto dcId = item.second.id;
-				auto flags = item.second.flags;
-				auto &ip = item.second.ip;
-				auto port = item.second.port;
-				if (applyOneGuarded(dcId, flags, ip, port)) {
-					if (!base::contains(idsChanged, dcId)) {
-						idsChanged.push_back(dcId);
+			for (const auto &item : base::take(options._data)) {
+				for (const auto &option : item.second) {
+					auto dcId = option.id;
+					auto flags = option.flags;
+					auto &ip = option.ip;
+					auto port = option.port;
+					if (applyOneGuarded(dcId, flags, ip, port)) {
+						if (!base::contains(idsChanged, dcId)) {
+							idsChanged.push_back(dcId);
+						}
 					}
 				}
 			}
@@ -228,17 +249,24 @@ void DcOptions::constructAddOne(int id, MTPDdcOption::Flags flags, const std::st
 	applyOneGuarded(bareDcId(id), flags, ip, port);
 }
 
-bool DcOptions::applyOneGuarded(DcId dcId, MTPDdcOption::Flags flags, const std::string &ip, int port) {
+bool DcOptions::applyOneGuarded(
+		DcId dcId,
+		MTPDdcOption::Flags flags,
+		const std::string &ip,
+		int port) {
 	auto dcIdWithShift = MTP::shiftDcId(dcId, flags);
 	auto i = _data.find(dcIdWithShift);
 	if (i != _data.cend()) {
-		if (i->second.ip == ip && i->second.port == port) {
-			return false;
+		for (auto &option : i->second) {
+			if (option.ip == ip && option.port == port) {
+				return false;
+			}
 		}
-		i->second.ip = ip;
-		i->second.port = port;
+		i->second.push_back(Option(dcId, flags, ip, port));
 	} else {
-		_data.emplace(dcIdWithShift, Option(dcId, flags, ip, port));
+		_data.emplace(dcIdWithShift, std::vector<Option>(
+			1,
+			Option(dcId, flags, ip, port)));
 	}
 	return true;
 }
@@ -252,12 +280,14 @@ QByteArray DcOptions::serialize() const {
 	ReadLocker lock(this);
 
 	auto size = sizeof(qint32);
-	for (auto &item : _data) {
+	for (const auto &item : _data) {
 		if (isTemporaryDcId(item.first)) {
 			continue;
 		}
-		size += sizeof(qint32) + sizeof(qint32) + sizeof(qint32); // id + flags + port
-		size += sizeof(qint32) + item.second.ip.size();
+		for (const auto &option : item.second) {
+			size += sizeof(qint32) + sizeof(qint32) + sizeof(qint32); // id + flags + port
+			size += sizeof(qint32) + option.ip.size();
+		}
 	}
 
 	auto count = 0;
@@ -271,8 +301,8 @@ QByteArray DcOptions::serialize() const {
 	};
 	std::vector<SerializedPublicKey> publicKeys;
 	publicKeys.reserve(count);
-	for (auto &keysInDc : _cdnPublicKeys) {
-		for (auto &entry : keysInDc.second) {
+	for (const auto &keysInDc : _cdnPublicKeys) {
+		for (const auto &entry : keysInDc.second) {
 			publicKeys.push_back({ keysInDc.first, entry.second.getN(), entry.second.getE() });
 			size += sizeof(qint32) + Serialize::bytesSize(publicKeys.back().n) + Serialize::bytesSize(publicKeys.back().e);
 		}
@@ -284,13 +314,15 @@ QByteArray DcOptions::serialize() const {
 		QDataStream stream(&result, QIODevice::WriteOnly);
 		stream.setVersion(QDataStream::Qt_5_1);
 		stream << qint32(_data.size());
-		for (auto &item : _data) {
+		for (const auto &item : _data) {
 			if (isTemporaryDcId(item.first)) {
 				continue;
 			}
-			stream << qint32(item.second.id) << qint32(item.second.flags) << qint32(item.second.port);
-			stream << qint32(item.second.ip.size());
-			stream.writeRawData(item.second.ip.data(), item.second.ip.size());
+			for (const auto &option : item.second) {
+				stream << qint32(option.id) << qint32(option.flags) << qint32(option.port);
+				stream << qint32(option.ip.size());
+				stream.writeRawData(option.ip.data(), option.ip.size());
+			}
 		}
 		stream << qint32(publicKeys.size());
 		for (auto &key : publicKeys) {
@@ -368,10 +400,12 @@ DcOptions::Ids DcOptions::configEnumDcIds() const {
 		ReadLocker lock(this);
 		result.reserve(_data.size());
 		for (auto &item : _data) {
-			if (!isCdnDc(item.second.flags)
+			const auto dcId = bareDcId(item.first);
+			Assert(!item.second.empty());
+			if (!isCdnDc(item.second.front().flags)
 				&& !isTemporaryDcId(item.first)
-				&& !base::contains(result, item.second.id)) {
-				result.push_back(item.second.id);
+				&& !base::contains(result, dcId)) {
+				result.push_back(dcId);
 			}
 		}
 	}
@@ -438,10 +472,11 @@ bool DcOptions::getDcRSAKey(DcId dcId, const QVector<MTPlong> &fingerprints, int
 	return findKey(_publicKeys);
 }
 
-DcOptions::Variants DcOptions::lookup(DcId dcId, DcType type) const {
-	auto lookupDesiredFlags = [type](int address, int protocol) -> std::vector<MTPDdcOption::Flags> {
-		auto throughProxy = (Global::ConnectionType() != dbictAuto);
-
+DcOptions::Variants DcOptions::lookup(
+		DcId dcId,
+		DcType type,
+		bool throughProxy) const {
+	auto lookupDesiredFlags = [&](int address, int protocol) -> std::vector<MTPDdcOption::Flags> {
 		switch (type) {
 		case DcType::Regular:
 		case DcType::Temporary: {
@@ -575,14 +610,15 @@ DcOptions::Variants DcOptions::lookup(DcId dcId, DcType type) const {
 			for (auto protocol = 0; protocol != Variants::ProtocolCount; ++protocol) {
 				auto desiredFlags = lookupDesiredFlags(address, protocol);
 				for (auto flags : desiredFlags) {
-					auto shift = static_cast<int>(flags);
-					if (shift < 0) continue;
-
-					auto it = _data.find(shiftDcId(dcId, shift));
+					const auto shift = static_cast<int>(flags);
+					const auto it = _data.find(shiftDcId(dcId, shift));
 					if (it != _data.cend()) {
-						result.data[address][protocol].ip = it->second.ip;
-						result.data[address][protocol].flags = it->second.flags;
-						result.data[address][protocol].port = it->second.port;
+						for (const auto &option : it->second) {
+							result.data[address][protocol].push_back({
+								option.ip,
+								option.port
+							});
+						}
 						break;
 					}
 				}
@@ -595,8 +631,9 @@ DcOptions::Variants DcOptions::lookup(DcId dcId, DcType type) const {
 void DcOptions::computeCdnDcIds() {
 	_cdnDcIds.clear();
 	for (auto &item : _data) {
-		if (item.second.flags & MTPDdcOption::Flag::f_cdn) {
-			_cdnDcIds.insert(item.second.id);
+		Assert(!item.second.empty());
+		if (item.second.front().flags & MTPDdcOption::Flag::f_cdn) {
+			_cdnDcIds.insert(bareDcId(item.first));
 		}
 	}
 }
@@ -670,16 +707,21 @@ bool DcOptions::writeToFile(const QString &path) const {
 	stream.setCodec("UTF-8");
 
 	ReadLocker lock(this);
-	for (auto &item : _data) {
-		auto &endpoint = item.second;
-		stream << endpoint.id << ' ' << QString::fromStdString(endpoint.ip) << ' ' << endpoint.port;
-		if (endpoint.flags & MTPDdcOption::Flag::f_tcpo_only) {
-			stream << " tcpo_only";
+	for (const auto &item : _data) {
+		for (const auto &option : item.second) {
+			stream
+				<< option.id
+				<< ' '
+				<< QString::fromStdString(option.ip)
+				<< ' ' << option.port;
+			if (option.flags & MTPDdcOption::Flag::f_tcpo_only) {
+				stream << " tcpo_only";
+			}
+			if (option.flags & MTPDdcOption::Flag::f_media_only) {
+				stream << " media_only";
+			}
+			stream << '\n';
 		}
-		if (endpoint.flags & MTPDdcOption::Flag::f_media_only) {
-			stream << " media_only";
-		}
-		stream << '\n';
 	}
 	return true;
 }

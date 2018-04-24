@@ -178,8 +178,7 @@ void Session::refreshDataFields() {
 		(connectionType == dbictAuto
 			|| connectionType == dbictHttpProxy);
 	const auto useIPv4 = true;
-	const auto useIPv6 = (proxyType != ProxyData::Type::Mtproto) &&
-		Global::TryIPv6();
+	const auto useIPv6 = Global::TryIPv6();
 	data.setConnectionOptions(ConnectionOptions(
 		_instance->systemLangCode(),
 		_instance->cloudLangCode(),

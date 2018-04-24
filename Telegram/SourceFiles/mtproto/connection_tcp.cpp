@@ -9,12 +9,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/bytes.h"
 #include "base/openssl_help.h"
+#include "base/qthelp_url.h"
 #include <openssl/aes.h>
 
 namespace MTP {
 namespace internal {
-
 namespace {
+
+constexpr auto kMinReceiveTimeout = TimeMs(2000);
+constexpr auto kMaxReceiveTimeout = TimeMs(8000);
 
 uint32 tcpPacketSize(const char *packet) { // must have at least 4 bytes readable
 	uint32 result = (packet[0] > 0) ? packet[0] : 0;
@@ -29,14 +32,8 @@ uint32 tcpPacketSize(const char *packet) { // must have at least 4 bytes readabl
 } // namespace
 
 AbstractTCPConnection::AbstractTCPConnection(
-	QThread *thread,
-	int16 protocolDcId)
+	QThread *thread)
 : AbstractConnection(thread)
-, _protocolDcId(protocolDcId)
-, packetNum(0)
-, packetRead(0)
-, packetLeft(0)
-, readingToShort(true)
 , currentPos((char*)shortBuffer) {
 }
 
@@ -197,12 +194,11 @@ void AbstractTCPConnection::handleError(QAbstractSocket::SocketError e, QTcpSock
 	TCP_LOG(("TCP Error %1, restarting! - %2").arg(e).arg(sock.errorString()));
 }
 
-TCPConnection::TCPConnection(QThread *thread, int16 protocolDcId)
-: AbstractTCPConnection(thread, protocolDcId)
+TCPConnection::TCPConnection(QThread *thread)
+: AbstractTCPConnection(thread)
 , status(WaitingTcp)
 , tcpNonce(rand_value<MTPint128>())
-, _tcpTimeout(MTPMinReceiveDelay)
-, _flags(0) {
+, _tcpTimeout(kMinReceiveTimeout) {
 	tcpTimeoutTimer.moveToThread(thread);
 	tcpTimeoutTimer.setSingleShot(true);
 	connect(&tcpTimeoutTimer, SIGNAL(timeout()), this, SLOT(onTcpTimeoutTimer()));
@@ -217,7 +213,7 @@ void TCPConnection::onSocketConnected() {
 	if (status == WaitingTcp) {
 		mtpBuffer buffer(preparePQFake(tcpNonce));
 
-		DEBUG_LOG(("Connection Info: sending fake req_pq through TCP/%1 transport").arg((_flags & MTPDdcOption::Flag::f_ipv6) ? "IPv6" : "IPv4"));
+		DEBUG_LOG(("Connection Info: sending fake req_pq through TCP transport to %1").arg(_address));
 
 		if (_tcpTimeout < 0) _tcpTimeout = -_tcpTimeout;
 		tcpTimeoutTimer.start(_tcpTimeout);
@@ -228,14 +224,16 @@ void TCPConnection::onSocketConnected() {
 
 void TCPConnection::onTcpTimeoutTimer() {
 	if (status == WaitingTcp) {
-		if (_tcpTimeout < MTPMaxReceiveDelay) _tcpTimeout *= 2;
+		if (_tcpTimeout < kMaxReceiveTimeout) {
+			_tcpTimeout *= 2;
+		}
 		_tcpTimeout = -_tcpTimeout;
 
 		QAbstractSocket::SocketState state = sock.state();
 		if (state == QAbstractSocket::ConnectedState || state == QAbstractSocket::ConnectingState || state == QAbstractSocket::HostLookupState) {
 			sock.disconnectFromHost();
 		} else if (state != QAbstractSocket::ClosingState) {
-			sock.connectToHost(QHostAddress(_addr), _port);
+			sock.connectToHost(QHostAddress(_address), _port);
 		}
 	}
 }
@@ -244,7 +242,7 @@ void TCPConnection::onSocketDisconnected() {
 	if (_tcpTimeout < 0) {
 		_tcpTimeout = -_tcpTimeout;
 		if (status == WaitingTcp) {
-			sock.connectToHost(QHostAddress(_addr), _port);
+			sock.connectToHost(QHostAddress(_address), _port);
 			return;
 		}
 	}
@@ -291,8 +289,19 @@ void AbstractTCPConnection::writeConnectionStart() {
 		|| *first == reserved15
 		|| *second == reserved21);
 
+	const auto prepareKey = [&](bytes::span key, bytes::const_span from) {
+		if (_protocolSecret.size() == 16) {
+			const auto payload = bytes::concatenate(from, _protocolSecret);
+			bytes::copy(key, openssl::Sha256(payload));
+		} else if (_protocolSecret.empty()) {
+			bytes::copy(key, from);
+		} else {
+			bytes::set_with_const(key, gsl::byte{});
+		}
+	};
+
 	// prepare encryption key/iv
-	bytes::copy(
+	prepareKey(
 		bytes::make_span(_sendKey),
 		nonce.subspan(8, CTRState::KeySize));
 	bytes::copy(
@@ -304,7 +313,7 @@ void AbstractTCPConnection::writeConnectionStart() {
 	const auto reversed = bytes::make_span(reversedBytes);
 	bytes::copy(reversed, nonce.subspan(8, reversed.size()));
 	std::reverse(reversed.begin(), reversed.end());
-	bytes::copy(
+	prepareKey(
 		bytes::make_span(_receiveKey),
 		reversed.subspan(0, CTRState::KeySize));
 	bytes::copy(
@@ -356,14 +365,18 @@ void TCPConnection::disconnectFromServer() {
 	sock.close();
 }
 
-void TCPConnection::connectTcp(const DcOptions::Endpoint &endpoint) {
-	_addr = QString::fromStdString(endpoint.ip);
-	_port = endpoint.port;
-	_flags = endpoint.flags;
+void TCPConnection::connectToServer(
+		const QString &ip,
+		int port,
+		const bytes::vector &protocolSecret,
+		int16 protocolDcId) {
+	_address = ip;
+	_port = port;
+	_protocolSecret = protocolSecret;
+	_protocolDcId = protocolDcId;
 
 	connect(&sock, SIGNAL(readyRead()), this, SLOT(socketRead()));
-	sock.connectToHost(QHostAddress(_addr), _port);
-	auto proxy = sock.proxy();
+	sock.connectToHost(QHostAddress(_address), _port);
 }
 
 void TCPConnection::socketPacket(const char *packet, uint32 length) {
@@ -381,7 +394,7 @@ void TCPConnection::socketPacket(const char *packet, uint32 length) {
 			auto res_pq = readPQFakeReply(data);
 			const auto &res_pq_data(res_pq.c_resPQ());
 			if (res_pq_data.vnonce == tcpNonce) {
-				DEBUG_LOG(("Connection Info: TCP/%1-transport chosen by pq-response").arg((_flags & MTPDdcOption::Flag::f_ipv6) ? "IPv6" : "IPv4"));
+				DEBUG_LOG(("Connection Info: TCP-transport to %1 chosen by pq-response").arg(_address));
 				status = UsingTcp;
 				emit connected();
 			}
@@ -401,7 +414,24 @@ int32 TCPConnection::debugState() const {
 }
 
 QString TCPConnection::transport() const {
-	return isConnected() ? qsl("TCP") : QString();
+	if (!isConnected()) {
+		return QString();
+	}
+	auto result = qsl("TCP");
+	if (qthelp::is_ipv6(_address)) {
+		result += qsl("/IPv6");
+	}
+	return result;
+}
+
+QString TCPConnection::tag() const {
+	auto result = qsl("TCP");
+	if (qthelp::is_ipv6(_address)) {
+		result += qsl("/IPv6");
+	} else {
+		result += qsl("/IPv4");
+	}
+	return result;
 }
 
 void TCPConnection::socketError(QAbstractSocket::SocketError e) {

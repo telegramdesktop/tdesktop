@@ -44,6 +44,7 @@ private:
 	void updateControlsVisibility();
 	void updateControlsPosition();
 	bool badProxyValue() const;
+	bool proxyFieldsVisible() const;
 
 	object_ptr<Ui::InputField> _hostInput;
 	object_ptr<Ui::PortInput> _portInput;

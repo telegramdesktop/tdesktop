@@ -8,11 +8,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/dc_options.h"
+#include "base/bytes.h"
 
 namespace MTP {
 namespace internal {
 
 struct ConnectionOptions;
+
+class AbstractConnection;
+
+class ConnectionPointer {
+public:
+	ConnectionPointer();
+	ConnectionPointer(std::nullptr_t);
+	explicit ConnectionPointer(AbstractConnection *value);
+	ConnectionPointer(ConnectionPointer &&other);
+	ConnectionPointer &operator=(ConnectionPointer &&other);
+
+	AbstractConnection *get() const;
+	void reset(AbstractConnection *value = nullptr);
+	operator AbstractConnection*() const;
+	AbstractConnection *operator->() const;
+	AbstractConnection &operator*() const;
+	explicit operator bool() const;
+
+	~ConnectionPointer();
+
+private:
+	AbstractConnection *_value = nullptr;
+
+};
 
 class AbstractConnection : public QObject {
 	Q_OBJECT
@@ -26,10 +51,8 @@ public:
 	virtual ~AbstractConnection() = 0;
 
 	// virtual constructor
-	static AbstractConnection *create(
-		const ConnectionOptions &options,
-		ShiftedDcId shiftedDcId,
-		DcType type,
+	static ConnectionPointer create(
+		DcOptions::Variants::Protocol protocol,
 		QThread *thread);
 
 	void setSentEncrypted() {
@@ -38,8 +61,11 @@ public:
 
 	virtual void sendData(mtpBuffer &buffer) = 0; // has size + 3, buffer[0] = len, buffer[1] = packetnum, buffer[last] = crc32
 	virtual void disconnectFromServer() = 0;
-	virtual void connectTcp(const DcOptions::Endpoint &endpoint) = 0;
-	virtual void connectHttp(const DcOptions::Endpoint &endpoint) = 0;
+	virtual void connectToServer(
+		const QString &ip,
+		int port,
+		const bytes::vector &protocolSecret,
+		int16 protocolDcId) = 0;
 	virtual bool isConnected() const = 0;
 	virtual bool usingHttpWait() {
 		return false;
@@ -51,6 +77,7 @@ public:
 	virtual int32 debugState() const = 0;
 
 	virtual QString transport() const = 0;
+	virtual QString tag() const = 0;
 
 	using BuffersQueue = std::deque<mtpBuffer>;
 	BuffersQueue &received() {

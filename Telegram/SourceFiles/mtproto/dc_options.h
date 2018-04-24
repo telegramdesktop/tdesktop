@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/observer.h"
+#include "base/bytes.h"
 #include "mtproto/rsa_public_key.h"
 #include <string>
 #include <vector>
@@ -26,7 +27,11 @@ public:
 	// construct methods don't notify "changed" subscribers.
 	void constructFromSerialized(const QByteArray &serialized);
 	void constructFromBuiltIn();
-	void constructAddOne(int id, MTPDdcOption::Flags flags, const std::string &ip, int port);
+	void constructAddOne(
+		int id,
+		MTPDdcOption::Flags flags,
+		const std::string &ip,
+		int port);
 	QByteArray serialize() const;
 
 	using Ids = std::vector<DcId>;
@@ -42,22 +47,22 @@ public:
 	struct Endpoint {
 		std::string ip;
 		int port = 0;
-		MTPDdcOption::Flags flags = 0;
+		bytes::vector protocolSecret;
 	};
 	struct Variants {
-		enum {
+		enum Address {
 			IPv4 = 0,
 			IPv6 = 1,
 			AddressTypeCount = 2,
 		};
-		enum {
+		enum Protocol {
 			Tcp = 0,
 			Http = 1,
 			ProtocolCount = 2,
 		};
-		Endpoint data[AddressTypeCount][ProtocolCount];
+		std::vector<Endpoint> data[AddressTypeCount][ProtocolCount];
 	};
-	Variants lookup(DcId dcId, DcType type) const;
+	Variants lookup(DcId dcId, DcType type, bool throughProxy) const;
 	DcType dcType(ShiftedDcId shiftedDcId) const;
 
 	void setCDNConfig(const MTPDcdnConfig &config);
@@ -91,7 +96,7 @@ private:
 	class ReadLocker;
 	friend class ReadLocker;
 
-	std::map<ShiftedDcId, Option> _data;
+	std::map<ShiftedDcId, std::vector<Option>> _data;
 	std::set<DcId> _cdnDcIds;
 	std::map<uint64, internal::RSAPublicKey> _publicKeys;
 	std::map<DcId, std::map<uint64, internal::RSAPublicKey>> _cdnPublicKeys;

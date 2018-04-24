@@ -87,7 +87,7 @@ bool ConnectionBox::badProxyValue() const {
 
 void ConnectionBox::updateControlsVisibility() {
 	auto newHeight = st::boxOptionListPadding.top() + _autoRadio->heightNoMargins() + st::boxOptionListSkip + _httpProxyRadio->heightNoMargins() + st::boxOptionListSkip + _tcpProxyRadio->heightNoMargins() + st::boxOptionListSkip + st::connectionIPv6Skip + _tryIPv6->heightNoMargins() + st::defaultCheckbox.margin.bottom() + st::boxOptionListPadding.bottom() + st::boxPadding.bottom();
-	if (_typeGroup->value() == dbictAuto && badProxyValue()) {
+	if (!proxyFieldsVisible()) {
 		_hostInput->hide();
 		_portInput->hide();
 		_userInput->hide();
@@ -102,6 +102,13 @@ void ConnectionBox::updateControlsVisibility() {
 
 	setDimensions(st::boxWidth, newHeight);
 	updateControlsPosition();
+}
+
+bool ConnectionBox::proxyFieldsVisible() const {
+	return (_typeGroup->value() != dbictAuto)
+		|| (!badProxyValue()
+			&& (_currentProxyType == ProxyData::Type::Http
+				|| _currentProxyType == ProxyData::Type::Socks5));
 }
 
 void ConnectionBox::setInnerFocus() {
@@ -124,7 +131,7 @@ void ConnectionBox::updateControlsPosition() {
 	_httpProxyRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _autoRadio->bottomNoMargins() + st::boxOptionListSkip);
 
 	auto inputy = 0;
-	auto fieldsVisible = (type != dbictAuto) || (!badProxyValue() && _currentProxyType != ProxyData::Type::None);
+	auto fieldsVisible = proxyFieldsVisible();
 	auto fieldsBelowHttp = fieldsVisible && (type == dbictHttpProxy || (type == dbictAuto && _currentProxyType == ProxyData::Type::Http));
 	auto fieldsBelowTcp = fieldsVisible && (type == dbictTcpProxy || (type == dbictAuto && _currentProxyType == ProxyData::Type::Socks5));
 	if (fieldsBelowHttp) {

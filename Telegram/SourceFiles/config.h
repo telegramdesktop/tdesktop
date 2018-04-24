@@ -25,23 +25,12 @@ enum {
 	MTPAckSendWaiting = 10000, // how much time to wait for some more requests, when sending msg acks
 	MTPResendThreshold = 1, // how much ints should message contain for us not to resend, but to check it's state
 	MTPContainerLives = 600, // container lives 10 minutes in haveSent map
-	MTPMinReceiveDelay = 4000, // 4 seconds
-	MTPMaxReceiveDelay = 64000, // 64 seconds
-	MTPMinConnectDelay = 1000, // tcp connect should take less then 1 second
-	MTPMaxConnectDelay = 8000, // tcp connect should take 8 seconds max
-	MTPConnectionOldTimeout = 192000, // 192 seconds
-	MTPTcpConnectionWaitTimeout = 2000, // 2 seconds waiting for tcp, until we accept http
-	MTPIPv4ConnectionWaitTimeout = 1000, // 1 seconds waiting for ipv4, until we accept ipv6
 
 	MTPKillFileSessionTimeout = 5000, // how much time without upload / download causes additional session kill
 
 	MTPDebugBufferSize = 1024 * 1024, // 1 mb start size
 
 	MaxUsersPerInvite = 100, // max users in one super group invite request
-
-	MTPPingDelayDisconnect = 60, // 1 min
-	MTPPingSendAfterAuto = 30, // send new ping starting from 30 seconds (add to existing container)
-	MTPPingSendAfter = 45, // send new ping after 45 seconds without ping
 
 	MTPChannelGetDifferenceLimit = 100,
 

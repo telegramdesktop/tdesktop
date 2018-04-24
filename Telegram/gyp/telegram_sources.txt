@@ -422,8 +422,6 @@
 <(src_loc)/mtproto/connection.h
 <(src_loc)/mtproto/connection_abstract.cpp
 <(src_loc)/mtproto/connection_abstract.h
-<(src_loc)/mtproto/connection_auto.cpp
-<(src_loc)/mtproto/connection_auto.h
 <(src_loc)/mtproto/connection_http.cpp
 <(src_loc)/mtproto/connection_http.h
 <(src_loc)/mtproto/connection_tcp.cpp
