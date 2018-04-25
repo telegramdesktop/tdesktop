@@ -872,7 +872,12 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> dcId >> host >> ip >> port;
 		if (!_checkStreamStatus(stream)) return false;
 
-		context.dcOptions.constructAddOne(dcId, 0, ip.toStdString(), port);
+		context.dcOptions.constructAddOne(
+			dcId,
+			0,
+			ip.toStdString(),
+			port,
+			{});
 	} break;
 
 	case dbiDcOptionOld: {
@@ -882,7 +887,12 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> dcIdWithShift >> flags >> ip >> port;
 		if (!_checkStreamStatus(stream)) return false;
 
-		context.dcOptions.constructAddOne(dcIdWithShift, MTPDdcOption::Flags::from_raw(flags), ip.toStdString(), port);
+		context.dcOptions.constructAddOne(
+			dcIdWithShift,
+			MTPDdcOption::Flags::from_raw(flags),
+			ip.toStdString(),
+			port,
+			{});
 	} break;
 
 	case dbiDcOptions: {

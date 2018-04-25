@@ -1623,7 +1623,10 @@ void ApiWrap::requestNotifySetting(PeerData *peer) {
 		notifySettingReceived(notifyPeer, result);
 		_notifySettingRequests.remove(peer);
 	}).fail([this, notifyPeer, peer](const RPCError &error) {
-		notifySettingReceived(notifyPeer, MTP_peerNotifySettingsEmpty());
+		notifySettingReceived(notifyPeer, MTP_peerNotifySettings(
+			MTP_flags(MTPDpeerNotifySettings::Flag::f_show_previews),
+			MTP_int(0),
+			MTP_string("default")));
 		_notifySettingRequests.remove(peer);
 	}).send();
 

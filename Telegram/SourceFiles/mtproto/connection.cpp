@@ -362,7 +362,8 @@ void ConnectionPrivate::appendTestConnection(
 	QWriteLocker lock(&stateConnMutex);
 
 	const auto priority = (qthelp::is_ipv6(ip) ? 0 : 1)
-		+ (protocol == DcOptions::Variants::Tcp ? 1 : 0);
+		+ (protocol == DcOptions::Variants::Tcp ? 1 : 0)
+		+ (protocolSecret.empty() ? 0 : 1);
 	_testConnections.push_back({
 		AbstractConnection::create(protocol, thread()),
 		priority

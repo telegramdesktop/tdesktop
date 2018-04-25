@@ -114,28 +114,15 @@ MTPinputPeerNotifySettings NotifySettingsValue::serialize() const {
 }
 
 bool NotifySettings::change(const MTPPeerNotifySettings &settings) {
-	switch (settings.type()) {
-	case mtpc_peerNotifySettingsEmpty: {
-		if (!_known || _value) {
-			_known = true;
-			_value = nullptr;
-			return true;
-		}
-		return false;
-	} break;
+	Expects(settings.type() == mtpc_peerNotifySettings);
 
-	case mtpc_peerNotifySettings: {
-		auto &data = settings.c_peerNotifySettings();
-		if (_value) {
-			return _value->change(data);
-		}
-		_known = true;
-		_value = std::make_unique<NotifySettingsValue>(data);
-		return true;
-	} break;
+	auto &data = settings.c_peerNotifySettings();
+	if (_value) {
+		return _value->change(data);
 	}
-
-	Unexpected("Type in NotifySettings::change()");
+	_known = true;
+	_value = std::make_unique<NotifySettingsValue>(data);
+	return true;
 }
 
 NotifySettings::NotifySettings() = default;
@@ -151,18 +138,6 @@ bool NotifySettings::change(
 	}
 	if (_value) {
 		return _value->change(mute, silent, muteForSeconds);
-	}
-	const auto asEmpty = [&] {
-		if (mute == MuteChange::Mute) {
-			return false;
-		}
-		if (silent == SilentPostsChange::Silent) {
-			return false;
-		}
-		return true;
-	}();
-	if (asEmpty) {
-		return change(MTP_peerNotifySettingsEmpty());
 	}
 	const auto flags = MTPDpeerNotifySettings::Flag::f_show_previews
 		| ((silent == SilentPostsChange::Silent)

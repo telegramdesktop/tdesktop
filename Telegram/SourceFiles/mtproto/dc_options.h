@@ -31,7 +31,8 @@ public:
 		int id,
 		MTPDdcOption::Flags flags,
 		const std::string &ip,
-		int port);
+		int port,
+		const bytes::vector &secret);
 	QByteArray serialize() const;
 
 	using Ids = std::vector<DcId>;
@@ -75,15 +76,32 @@ public:
 
 private:
 	struct Option {
-		Option(DcId id, MTPDdcOption::Flags flags, const std::string &ip, int port) : id(id), flags(flags), ip(ip), port(port) {
+		Option(
+			DcId id,
+			MTPDdcOption::Flags flags,
+			const std::string &ip,
+			int port,
+			const bytes::vector &secret)
+		: id(id)
+		, flags(flags)
+		, ip(ip)
+		, port(port)
+		, secret(secret) {
 		}
 
 		DcId id;
 		MTPDdcOption::Flags flags;
 		std::string ip;
 		int port;
+		bytes::vector secret;
+
 	};
-	bool applyOneGuarded(DcId dcId, MTPDdcOption::Flags flags, const std::string &ip, int port);
+	bool applyOneGuarded(
+		DcId dcId,
+		MTPDdcOption::Flags flags,
+		const std::string &ip,
+		int port,
+		const bytes::vector &secret);
 
 	void processFromList(const QVector<MTPDcOption> &options, bool overwrite);
 	void computeCdnDcIds();
