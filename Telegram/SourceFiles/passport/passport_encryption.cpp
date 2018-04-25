@@ -370,7 +370,7 @@ bytes::vector DecryptData(
 		LOG(("API Error: Bad data hash."));
 		return {};
 	}
-	const auto padding = static_cast<uchar>(decrypted[0]);
+	const auto padding = static_cast<uint32>(decrypted[0]);
 	if (padding < kMinPadding
 		|| padding > kMaxPadding
 		|| padding > decrypted.size()) {
