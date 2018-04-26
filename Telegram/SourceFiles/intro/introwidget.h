@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/sender.h"
+#include "ui/rp_widget.h"
 
 namespace Ui {
 class IconButton;
@@ -22,7 +23,7 @@ class FadeWrap;
 
 namespace Intro {
 
-class Widget : public TWidget, private MTP::Sender, private base::Subscriber {
+class Widget : public Ui::RpWidget, private MTP::Sender, private base::Subscriber {
 	Q_OBJECT
 
 public:

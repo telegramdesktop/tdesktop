@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "autoupdater.h"
 #include "boxes/confirm_box.h"
 #include "application.h"
 #include "ui/widgets/buttons.h"
@@ -18,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "platform/platform_file_utilities.h"
 #include "core/click_handler_types.h"
+#include "core/update_checker.h"
 
 AboutBox::AboutBox(QWidget *parent)
 : _version(this, lng_about_version(lt_version, QString::fromLatin1(AppVersionStr.c_str()) + (cAlphaVersion() ? " alpha" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString())), st::aboutVersionLink)
@@ -68,7 +68,7 @@ void AboutBox::showVersionHistory() {
 		case dbipLinux32: url += qsl("linux32/%1.tar.xz"); break;
 		case dbipLinux64: url += qsl("linux/%1.tar.xz"); break;
 		}
-		url = url.arg(qsl("tbeta%1_%2").arg(cRealBetaVersion()).arg(countBetaVersionSignature(cRealBetaVersion())));
+		url = url.arg(qsl("tbeta%1_%2").arg(cRealBetaVersion()).arg(Core::countBetaVersionSignature(cRealBetaVersion())));
 
 		Application::clipboard()->setText(url);
 

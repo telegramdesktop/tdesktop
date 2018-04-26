@@ -158,6 +158,8 @@
 <(src_loc)/core/single_timer.cpp
 <(src_loc)/core/single_timer.h
 <(src_loc)/core/tl_help.h
+<(src_loc)/core/update_checker.cpp
+<(src_loc)/core/update_checker.h
 <(src_loc)/core/utils.cpp
 <(src_loc)/core/utils.h
 <(src_loc)/core/version.h
@@ -725,8 +727,6 @@
 <(src_loc)/application.h
 <(src_loc)/auth_session.cpp
 <(src_loc)/auth_session.h
-<(src_loc)/autoupdater.cpp
-<(src_loc)/autoupdater.h
 <(src_loc)/config.h
 <(src_loc)/countries.h
 <(src_loc)/facades.cpp

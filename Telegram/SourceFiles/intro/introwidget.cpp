@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/effects/slide_animation.h"
-#include "autoupdater.h"
+#include "core/update_checker.h"
 #include "window/window_slide_animation.h"
 #include "styles/style_boxes.h"
 #include "styles/style_intro.h"
@@ -42,7 +42,7 @@ constexpr str_const kDefaultCountry = "US";
 
 } // namespace
 
-Widget::Widget(QWidget *parent) : TWidget(parent)
+Widget::Widget(QWidget *parent) : RpWidget(parent)
 , _back(this, object_ptr<Ui::IconButton>(this, st::introBackButton))
 , _settings(
 	this,
@@ -82,10 +82,17 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 	cSetPasswordRecovered(false);
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	Sandbox::connect(SIGNAL(updateLatest()), this, SLOT(onCheckUpdateStatus()));
-	Sandbox::connect(SIGNAL(updateFailed()), this, SLOT(onCheckUpdateStatus()));
-	Sandbox::connect(SIGNAL(updateReady()), this, SLOT(onCheckUpdateStatus()));
-	Sandbox::startUpdateCheck();
+	Core::UpdateChecker checker;
+	checker.isLatest() | rpl::start_with_next([=] {
+		onCheckUpdateStatus();
+	}, lifetime());
+	checker.failed() | rpl::start_with_next([=] {
+		onCheckUpdateStatus();
+	}, lifetime());
+	checker.ready() | rpl::start_with_next([=] {
+		onCheckUpdateStatus();
+	}, lifetime());
+	checker.start();
 	onCheckUpdateStatus();
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
 }
@@ -132,7 +139,7 @@ void Widget::createLanguageLink() {
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 void Widget::onCheckUpdateStatus() {
-	if (Sandbox::updatingState() == Application::UpdatingReady) {
+	if (Core::UpdateChecker().state() == Core::UpdateChecker::State::Ready) {
 		if (_update) return;
 		_update.create(
 			this,
@@ -144,7 +151,7 @@ void Widget::onCheckUpdateStatus() {
 			_update->setVisible(true);
 		}
 		_update->entity()->setClickedCallback([] {
-			checkReadyUpdate();
+			Core::checkReadyUpdate();
 			App::restart();
 		});
 	} else {

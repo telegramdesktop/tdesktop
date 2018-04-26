@@ -74,6 +74,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "mtproto/dc_options.h"
 #include "core/file_utilities.h"
+#include "core/update_checker.h"
 #include "calls/calls_instance.h"
 #include "calls/calls_top_bar.h"
 #include "auth_session.h"
@@ -323,7 +324,8 @@ MainWidget::MainWidget(
 	orderWidgets();
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	Sandbox::startUpdateCheck();
+	Core::UpdateChecker checker;
+	checker.start();
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
 }
 
@@ -704,7 +706,7 @@ void MainWidget::finishForwarding(not_null<History*> history) {
 }
 
 void MainWidget::updateMutedIn(TimeMs delay) {
-	accumulate_max(delay, 24 * 3600 * 1000LL);
+	accumulate_min(delay, 24 * 3600 * 1000LL);
 	if (!_updateMutedTimer.isActive()
 		|| _updateMutedTimer.remainingTime() > delay) {
 		_updateMutedTimer.start(delay);

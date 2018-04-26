@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "application.h"
 #include "base/zlib_help.h"
-#include "autoupdater.h"
+#include "core/update_checker.h"
 
 PreLaunchWindow *PreLaunchWindowInstance = nullptr;
 
@@ -299,23 +299,36 @@ LastCrashedWindow::LastCrashedWindow()
 	_updatingSkip.setText(qsl("SKIP"));
 	connect(&_updatingSkip, SIGNAL(clicked()), this, SLOT(onUpdateSkip()));
 
-	Sandbox::connect(SIGNAL(updateChecking()), this, SLOT(onUpdateChecking()));
-	Sandbox::connect(SIGNAL(updateLatest()), this, SLOT(onUpdateLatest()));
-	Sandbox::connect(SIGNAL(updateProgress(qint64,qint64)), this, SLOT(onUpdateDownloading(qint64,qint64)));
-	Sandbox::connect(SIGNAL(updateFailed()), this, SLOT(onUpdateFailed()));
-	Sandbox::connect(SIGNAL(updateReady()), this, SLOT(onUpdateReady()));
+	Core::UpdateChecker checker;
+	using Progress = Core::UpdateChecker::Progress;
+	checker.checking(
+	) | rpl::start_with_next([=] { onUpdateChecking(); }, _lifetime);
+	checker.isLatest(
+	) | rpl::start_with_next([=] { onUpdateLatest(); }, _lifetime);
+	checker.progress(
+	) | rpl::start_with_next([=](const Progress &result) {
+		onUpdateDownloading(result.already, result.size);
+	}, _lifetime);
+	checker.failed(
+	) | rpl::start_with_next([=] { onUpdateFailed(); }, _lifetime);
+	checker.ready(
+	) | rpl::start_with_next([=] { onUpdateReady(); }, _lifetime);
 
-	switch (Sandbox::updatingState()) {
-	case Application::UpdatingDownload:
+	switch (checker.state()) {
+	case Core::UpdateChecker::State::Download:
 		setUpdatingState(UpdatingDownload, true);
-		setDownloadProgress(Sandbox::updatingReady(), Sandbox::updatingSize());
-	break;
-	case Application::UpdatingReady: setUpdatingState(UpdatingReady, true); break;
-	default: setUpdatingState(UpdatingCheck, true); break;
+		setDownloadProgress(checker.already(), checker.size());
+		break;
+	case Core::UpdateChecker::State::Ready:
+		setUpdatingState(UpdatingReady, true);
+		break;
+	default:
+		setUpdatingState(UpdatingCheck, true);
+		break;
 	}
 
 	cSetLastUpdateCheck(0);
-	Sandbox::startUpdateCheck();
+	checker.start();
 #else // !TDESKTOP_DISABLE_AUTOUPDATE
 	_updating.setText(qsl("Please check if there is a new version available."));
 	if (_sendingState != SendingNoReport) {
@@ -790,9 +803,10 @@ void LastCrashedWindow::onNetworkSettingsSaved(
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	if ((_updatingState == UpdatingFail && (_sendingState == SendingNoReport || _sendingState == SendingUpdateCheck)) || (_updatingState == UpdatingCheck)) {
-		Sandbox::stopUpdate();
+		Core::UpdateChecker checker;
+		checker.stop();
 		cSetLastUpdateCheck(0);
-		Sandbox::startUpdateCheck();
+		checker.start();
 	} else
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
 	if (_sendingState == SendingFail || _sendingState == SendingProgress) {
@@ -815,7 +829,7 @@ void LastCrashedWindow::setUpdatingState(UpdatingState state, bool force) {
 			}
 		break;
 		case UpdatingReady:
-			if (checkReadyUpdate()) {
+			if (Core::checkReadyUpdate()) {
 				cSetRestartingUpdate(true);
 				App::quit();
 				return;
@@ -849,7 +863,8 @@ void LastCrashedWindow::setDownloadProgress(qint64 ready, qint64 total) {
 
 void LastCrashedWindow::onUpdateRetry() {
 	cSetLastUpdateCheck(0);
-	Sandbox::startUpdateCheck();
+	Core::UpdateChecker checker;
+	checker.start();
 }
 
 void LastCrashedWindow::onUpdateSkip() {
@@ -857,7 +872,8 @@ void LastCrashedWindow::onUpdateSkip() {
 		onContinue();
 	} else {
 		if (_updatingState == UpdatingCheck || _updatingState == UpdatingDownload) {
-			Sandbox::stopUpdate();
+			Core::UpdateChecker checker;
+			checker.stop();
 			setUpdatingState(UpdatingFail);
 		}
 		_sendingState = SendingNone;

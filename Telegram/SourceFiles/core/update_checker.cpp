@@ -5,8 +5,12 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#include "core/update_checker.h"
 
-#include "autoupdater.h"
+#include "application.h"
+#include "platform/platform_specific.h"
+#include "base/timer.h"
+#include "storage/localstorage.h"
 
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
@@ -19,131 +23,554 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <lzma.h>
 #endif // else of Q_OS_WIN
 
-#include "application.h"
-#include "platform/platform_specific.h"
+namespace Core {
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 
+namespace {
+
+constexpr auto kCheckTimeout = TimeMs(10000);
+
 #ifdef Q_OS_WIN
-typedef DWORD VerInt;
-typedef WCHAR VerChar;
+using VersionInt = DWORD;
+using VersionChar = WCHAR;
 #else // Q_OS_WIN
-typedef int VerInt;
-typedef wchar_t VerChar;
+using VersionInt = int;
+using VersionChar = wchar_t;
 #endif // Q_OS_WIN
 
-UpdateChecker::UpdateChecker(QThread *thread, const QString &url) : reply(0), already(0), full(0) {
-	updateUrl = url;
-	moveToThread(thread);
-	manager.moveToThread(thread);
+using ErrorSignal = void(QNetworkReply::*)(QNetworkReply::NetworkError);
+const auto QNetworkReply_error = ErrorSignal(&QNetworkReply::error);
 
-	connect(thread, SIGNAL(started()), this, SLOT(start()));
+std::weak_ptr<Updater> UpdaterInstance;
+
+std::shared_ptr<Updater> GetUpdaterInstance() {
+	if (const auto result = UpdaterInstance.lock()) {
+		return result;
+	}
+	const auto result = std::make_shared<Updater>();
+	UpdaterInstance = result;
+	return result;
+}
+
+void ClearAll() {
+	psDeleteDir(cWorkingDir() + qsl("tupdates"));
+}
+
+QString FindUpdateFile() {
+	QDir updates(cWorkingDir() + "tupdates");
+	if (!updates.exists()) {
+		return QString();
+	}
+	const auto list = updates.entryInfoList(QDir::Files);
+	for (const auto &info : list) {
+		if (QRegularExpression(
+			"^("
+			"tupdate|"
+			"tmacupd|"
+			"tmac32upd|"
+			"tlinuxupd|"
+			"tlinux32upd"
+			")\\d+(_[a-z\\d]+)?$",
+			QRegularExpression::CaseInsensitiveOption
+		).match(info.fileName()).hasMatch()) {
+			return info.absoluteFilePath();
+		}
+	}
+	return QString();
+}
+
+} // namespace
+
+class Updater : public base::has_weak_ptr {
+public:
+	using Progress = UpdateChecker::Progress;
+	using State = UpdateChecker::State;
+
+	Updater();
+
+	rpl::producer<> checking() const;
+	rpl::producer<> isLatest() const;
+	rpl::producer<Progress> progress() const;
+	rpl::producer<> failed() const;
+	rpl::producer<> ready() const;
+
+	void start(bool forceWait);
+	void stop();
+
+	State state() const;
+	int already() const;
+	int size() const;
+
+	// Thread-safe methods.
+	void onProgress(Progress progress);
+	void onFailed();
+	void onReady();
+
+	~Updater();
+
+private:
+	class Private;
+
+	void check();
+	void handleFailed();
+	void handleReady();
+	void gotResponse();
+	void gotFailure(QNetworkReply::NetworkError e);
+	void clearSentRequest();
+	void requestTimeout();
+
+	bool _isReady = false;
+	base::Timer _timer;
+	base::Timer _retryTimer;
+	rpl::event_stream<> _checking;
+	rpl::event_stream<> _isLatest;
+	rpl::event_stream<Progress> _progress;
+	rpl::event_stream<> _failed;
+	rpl::event_stream<> _ready;
+	std::unique_ptr<QNetworkAccessManager> _manager;
+	QNetworkReply *_reply = nullptr;
+	std::unique_ptr<QThread> _thread;
+	Private *_private = nullptr;
+
+	rpl::lifetime _lifetime;
+
+};
+
+class Updater::Private : public QObject {
+public:
+	Private(
+		not_null<Updater*> parent,
+		not_null<QThread*> thread,
+		const QString &url);
+
+	void unpackUpdate();
+
+	// Thread-safe methods.
+	int already() const;
+	int size() const;
+
+private:
+	void start();
+	void sendRequest();
+	void initOutput();
+
+	void gotMetaData();
+	void partFinished(qint64 got, qint64 total);
+	void partFailed(QNetworkReply::NetworkError e);
+
+	void fatalFail();
+
+	not_null<Updater*> _parent;
+	QString _url;
+	QNetworkAccessManager _manager;
+	std::unique_ptr<QNetworkReply> _reply;
+	int _already = 0;
+	int _size = 0;
+	QFile _output;
+
+	mutable QMutex _mutex;
+
+};
+
+Updater::Updater()
+: _timer([=] { check(); })
+, _retryTimer([=] { requestTimeout(); }) {
+	failed() | rpl::start_with_next([=] {
+		handleFailed();
+	}, _lifetime);
+	ready() | rpl::start_with_next([=] {
+		handleReady();
+	}, _lifetime);
+}
+
+rpl::producer<> Updater::checking() const {
+	return _checking.events();
+}
+
+rpl::producer<> Updater::isLatest() const {
+	return _isLatest.events();
+}
+
+auto Updater::progress() const
+-> rpl::producer<Progress> {
+	return _progress.events();
+}
+
+rpl::producer<> Updater::failed() const {
+	return _failed.events();
+}
+
+rpl::producer<> Updater::ready() const {
+	return _ready.events();
+}
+
+void Updater::onProgress(Progress progress) {
+	crl::on_main(this, [=] {
+		_progress.fire_copy(progress);
+	});
+}
+
+void Updater::onFailed() {
+	crl::on_main(this, [=] {
+		_failed.fire({});
+	});
+}
+
+void Updater::onReady() {
+	crl::on_main(this, [=] {
+		_ready.fire({});
+	});
+}
+
+void Updater::check() {
+	start(false);
+}
+
+void Updater::gotResponse() {
+	if (!_reply || _thread) {
+		return;
+	}
+
+	cSetLastUpdateCheck(unixtime());
+	const auto m = QRegularExpression(qsl("^\\s*(\\d+)\\s*:\\s*([\\x21-\\x7f]+)\\s*$")).match(QString::fromLatin1(_reply->readAll()));
+	if (m.hasMatch()) {
+		uint64 currentVersion = m.captured(1).toULongLong();
+		QString url = m.captured(2);
+		bool betaVersion = false;
+		if (url.startsWith(qstr("beta_"))) {
+			betaVersion = true;
+			url = url.mid(5) + '_' + Core::countBetaVersionSignature(currentVersion);
+		}
+		if ((!betaVersion || cBetaVersion()) && currentVersion > (betaVersion ? cBetaVersion() : uint64(AppVersion))) {
+			_thread = std::make_unique<QThread>();
+			_private = new Private(this, _thread.get(), url);
+			_thread->start();
+		}
+	}
+	clearSentRequest();
+	if (!_thread) {
+		if (const auto update = FindUpdateFile(); !update.isEmpty()) {
+			QFile(update).remove();
+		}
+		_isLatest.fire({});
+	}
+	start(true);
+	Local::writeSettings();
+}
+
+void Updater::gotFailure(QNetworkReply::NetworkError e) {
+	LOG(("App Error: could not get current version (update check): %1").arg(e));
+	if (const auto reply = base::take(_reply)) {
+		reply->deleteLater();
+	}
+
+	_failed.fire({});
+	start(true);
+}
+
+void Updater::handleReady() {
+	_isReady = true;
+	stop();
+
+	cSetLastUpdateCheck(unixtime());
+	Local::writeSettings();
+}
+
+void Updater::handleFailed() {
+	stop();
+
+	cSetLastUpdateCheck(unixtime());
+	Local::writeSettings();
+}
+
+auto Updater::state() const -> State {
+	if (_isReady) {
+		return State::Ready;
+	} else if (!_thread) {
+		return State::None;
+	}
+	return State::Download;
+}
+
+int Updater::size() const {
+	return _private ? _private->size() : 0;
+}
+
+int Updater::already() const {
+	return _private ? _private->already() : 0;
+}
+
+void Updater::clearSentRequest() {
+	const auto reply = base::take(_reply);
+	if (!reply) {
+		return;
+	}
+	reply->disconnect(reply, &QNetworkReply::finished, nullptr, nullptr);
+	reply->disconnect(reply, QNetworkReply_error, nullptr, nullptr);
+	reply->abort();
+	reply->deleteLater();
+	_manager = nullptr;
+}
+
+void Updater::stop() {
+	clearSentRequest();
+	if (const auto checker = base::take(_private)) {
+		InvokeQueued(checker, [=] { checker->deleteLater(); });
+		if (const auto thread = base::take(_thread)) {
+			thread->quit();
+			thread->wait();
+		}
+	}
+}
+
+void Updater::start(bool forceWait) {
+	if (!Sandbox::started() || _isReady) {
+		return;
+	}
+
+	_timer.cancel();
+	if (_thread || _reply || !cAutoUpdate() || cExeName().isEmpty()) {
+		return;
+	}
+
+	_retryTimer.cancel();
+	const auto constDelay = cBetaVersion() ? 600 : UpdateDelayConstPart;
+	const auto randDelay = cBetaVersion() ? 300 : UpdateDelayRandPart;
+	const auto updateInSecs = cLastUpdateCheck()
+		+ constDelay
+		+ int(rand() % randDelay)
+		- unixtime();
+	auto sendRequest = (updateInSecs <= 0)
+		|| (updateInSecs > constDelay + randDelay);
+	if (!sendRequest && !forceWait) {
+		if (!FindUpdateFile().isEmpty()) {
+			sendRequest = true;
+		}
+	}
+	if (cManyInstance() && !cDebug()) {
+		// Only main instance is updating.
+		return;
+	}
+
+	if (sendRequest) {
+		clearSentRequest();
+
+		auto url = QUrl(cUpdateURL());
+		if (cBetaVersion()) {
+			url.setQuery(qsl("version=%1&beta=%2"
+			).arg(AppVersion
+			).arg(cBetaVersion()));
+		} else if (cAlphaVersion()) {
+			url.setQuery(qsl("version=%1&alpha=1").arg(AppVersion));
+		} else {
+			url.setQuery(qsl("version=%1").arg(AppVersion));
+		}
+		DEBUG_LOG(("App Info: requesting update state from '%1'"
+			).arg(url.toDisplayString()));
+		const auto request = QNetworkRequest(url);
+		_manager = std::make_unique<QNetworkAccessManager>();
+		_reply = _manager->get(request);
+		_reply->connect(_reply, &QNetworkReply::finished, [=] {
+			gotResponse();
+		});
+		_reply->connect(_reply, QNetworkReply_error, [=](auto e) {
+			gotFailure(e);
+		});
+		_checking.fire({});
+		_retryTimer.callOnce(kCheckTimeout);
+	} else {
+		_timer.callOnce((updateInSecs + 5) * TimeMs(1000));
+	}
+}
+
+void Updater::requestTimeout() {
+	if (_reply) {
+		stop();
+		_failed.fire({});
+		cSetLastUpdateCheck(0);
+		_timer.callOnce(kCheckTimeout);
+	}
+}
+
+Updater::~Updater() {
+	stop();
+}
+
+UpdateChecker::UpdateChecker()
+: _updater(GetUpdaterInstance()) {
+}
+
+rpl::producer<> UpdateChecker::checking() const {
+	return _updater->checking();
+}
+
+rpl::producer<> UpdateChecker::isLatest() const {
+	return _updater->isLatest();
+}
+
+auto UpdateChecker::progress() const
+-> rpl::producer<Progress> {
+	return _updater->progress();
+}
+
+rpl::producer<> UpdateChecker::failed() const {
+	return _updater->failed();
+}
+
+rpl::producer<> UpdateChecker::ready() const {
+	return _updater->ready();
+}
+
+void UpdateChecker::start(bool forceWait) {
+	_updater->start(forceWait);
+}
+
+void UpdateChecker::stop() {
+	_updater->stop();
+}
+
+auto UpdateChecker::state() const
+-> State {
+	return _updater->state();
+}
+
+int UpdateChecker::already() const {
+	return _updater->already();
+}
+
+int UpdateChecker::size() const {
+	return _updater->size();
+}
+
+Updater::Private::Private(
+		not_null<Updater*> parent,
+		not_null<QThread*> thread,
+		const QString &url)
+: _parent(parent) {
+	_url = url;
+	moveToThread(thread);
+	_manager.moveToThread(thread);
+
+	connect(thread, &QThread::started, this, [=] { start(); });
 	initOutput();
 }
 
-void UpdateChecker::initOutput() {
-	QString fileName;
-	QRegularExpressionMatch m = QRegularExpression(qsl("/([^/\\?]+)(\\?|$)")).match(updateUrl);
-	if (m.hasMatch()) {
-		fileName = m.captured(1).replace(QRegularExpression(qsl("[^a-zA-Z0-9_\\-]")), QString());
-	}
-	if (fileName.isEmpty()) {
-		fileName = qsl("tupdate-%1").arg(rand_value<uint32>() % 1000000);
-	}
-	QString dirStr = cWorkingDir() + qsl("tupdates/");
-	fileName = dirStr + fileName;
-	QFileInfo file(fileName);
+void Updater::Private::initOutput() {
+	auto fileName = QString();
+	const auto nameRegExp = QRegularExpression(qsl("/([^/\\?]+)(\\?|$)"));
+	const auto nameMatch = nameRegExp.match(_url);
 
-	QDir dir(dirStr);
+	if (nameMatch.hasMatch()) {
+		fileName = nameMatch.captured(1).replace(
+			QRegularExpression(qsl("[^a-zA-Z0-9_\\-]")),
+			QString());
+	} else if (fileName.isEmpty()) {
+		fileName = qsl("tupdate-%1").arg(rand() % 1000000);
+	}
+	const auto folder = cWorkingDir() + qsl("tupdates/");
+	const auto finalName = folder + fileName;
+
+	QFileInfo info(finalName);
+	QDir dir(folder);
 	if (dir.exists()) {
-		QFileInfoList all = dir.entryInfoList(QDir::Files);
-		for (QFileInfoList::iterator i = all.begin(), e = all.end(); i != e; ++i) {
-			if (i->absoluteFilePath() != file.absoluteFilePath()) {
+		const auto all = dir.entryInfoList(QDir::Files);
+		for (auto i = all.begin(), e = all.end(); i != e; ++i) {
+			if (i->absoluteFilePath() != info.absoluteFilePath()) {
 				QFile::remove(i->absoluteFilePath());
 			}
 		}
 	} else {
 		dir.mkdir(dir.absolutePath());
 	}
-	outputFile.setFileName(fileName);
-	if (file.exists()) {
-		uint64 fullSize = file.size();
+	_output.setFileName(finalName);
+	if (info.exists()) {
+		uint64 fullSize = info.size();
 		if (fullSize < INT_MAX) {
 			int32 goodSize = (int32)fullSize;
 			if (goodSize % UpdateChunk) {
 				goodSize = goodSize - (goodSize % UpdateChunk);
 				if (goodSize) {
-					if (outputFile.open(QIODevice::ReadOnly)) {
-						QByteArray goodData = outputFile.readAll().mid(0, goodSize);
-						outputFile.close();
-						if (outputFile.open(QIODevice::WriteOnly)) {
-							outputFile.write(goodData);
-							outputFile.close();
+					if (_output.open(QIODevice::ReadOnly)) {
+						QByteArray goodData = _output.readAll().mid(0, goodSize);
+						_output.close();
+						if (_output.open(QIODevice::WriteOnly)) {
+							_output.write(goodData);
+							_output.close();
 
-							QMutexLocker lock(&mutex);
-							already = goodSize;
+							QMutexLocker lock(&_mutex);
+							_already = goodSize;
 						}
 					}
 				}
 			} else {
-				QMutexLocker lock(&mutex);
-				already = goodSize;
+				QMutexLocker lock(&_mutex);
+				_already = goodSize;
 			}
 		}
-		if (!already) {
-			QFile::remove(fileName);
+		if (!_already) {
+			QFile::remove(finalName);
 		}
 	}
 }
 
-void UpdateChecker::start() {
+void Updater::Private::start() {
 	sendRequest();
 }
 
-void UpdateChecker::sendRequest() {
-	QNetworkRequest req(updateUrl);
-	QByteArray rangeHeaderValue = "bytes=" + QByteArray::number(already) + "-";
-	req.setRawHeader("Range", rangeHeaderValue);
-	req.setAttribute(QNetworkRequest::HttpPipeliningAllowedAttribute, true);
-	if (reply) reply->deleteLater();
-	reply = manager.get(req);
-	connect(reply, SIGNAL(downloadProgress(qint64,qint64)), this, SLOT(partFinished(qint64,qint64)));
-	connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(partFailed(QNetworkReply::NetworkError)));
-	connect(reply, SIGNAL(metaDataChanged()), this, SLOT(partMetaGot()));
+void Updater::Private::sendRequest() {
+	auto request = QNetworkRequest(_url);
+	const auto rangeHeaderValue = "bytes="
+		+ QByteArray::number(_already)
+		+ "-";
+	request.setRawHeader("Range", rangeHeaderValue);
+	request.setAttribute(
+		QNetworkRequest::HttpPipeliningAllowedAttribute,
+		true);
+	_reply.reset(_manager.get(request));
+	connect(
+		_reply.get(),
+		&QNetworkReply::downloadProgress,
+		this,
+		&Private::partFinished);
+	connect(_reply.get(), QNetworkReply_error, [=](auto error) {
+		partFailed(error);
+	});
+	connect(_reply.get(), &QNetworkReply::metaDataChanged, [=] {
+		gotMetaData();
+	});
 }
 
-void UpdateChecker::partMetaGot() {
-	typedef QList<QNetworkReply::RawHeaderPair> Pairs;
-	Pairs pairs = reply->rawHeaderPairs();
-	for (Pairs::iterator i = pairs.begin(), e = pairs.end(); i != e; ++i) {
-		if (QString::fromUtf8(i->first).toLower() == "content-range") {
-			QRegularExpressionMatch m = QRegularExpression(qsl("/(\\d+)([^\\d]|$)")).match(QString::fromUtf8(i->second));
+void Updater::Private::gotMetaData() {
+	const auto pairs = _reply->rawHeaderPairs();
+	for (const auto pair : pairs) {
+		if (QString::fromUtf8(pair.first).toLower() == "content-range") {
+			const auto m = QRegularExpression(qsl("/(\\d+)([^\\d]|$)")).match(QString::fromUtf8(pair.second));
 			if (m.hasMatch()) {
 				{
-					QMutexLocker lock(&mutex);
-					full = m.captured(1).toInt();
+					QMutexLocker lock(&_mutex);
+					_size = m.captured(1).toInt();
 				}
-
-				Sandbox::updateProgress(already, full);
+				_parent->onProgress({ _already, _size });
 			}
 		}
 	}
 }
 
-int32 UpdateChecker::ready() {
-	QMutexLocker lock(&mutex);
-	return already;
+int Updater::Private::already() const {
+	QMutexLocker lock(&_mutex);
+	return _already;
 }
 
-int32 UpdateChecker::size() {
-	QMutexLocker lock(&mutex);
-	return full;
+int Updater::Private::size() const {
+	QMutexLocker lock(&_mutex);
+	return _size;
 }
 
-void UpdateChecker::partFinished(qint64 got, qint64 total) {
-	if (!reply) return;
+void Updater::Private::partFinished(qint64 got, qint64 total) {
+	if (!_reply) return;
 
-	QVariant statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
+	QVariant statusCode = _reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
 	if (statusCode.isValid()) {
 		int status = statusCode.toInt();
 		if (status != 200 && status != 206 && status != 416) {
@@ -152,60 +579,55 @@ void UpdateChecker::partFinished(qint64 got, qint64 total) {
 		}
 	}
 
-	if (!already && !full) {
-		QMutexLocker lock(&mutex);
-		full = total;
+	if (!_already && !_size) {
+		QMutexLocker lock(&_mutex);
+		_size = total;
 	}
 	DEBUG_LOG(("Update Info: part %1 of %2").arg(got).arg(total));
 
-	if (!outputFile.isOpen()) {
-		if (!outputFile.open(QIODevice::Append)) {
-			LOG(("Update Error: Could not open output file '%1' for appending").arg(outputFile.fileName()));
+	if (!_output.isOpen()) {
+		if (!_output.open(QIODevice::Append)) {
+			LOG(("Update Error: Could not open output file '%1' for appending").arg(_output.fileName()));
 			return fatalFail();
 		}
 	}
-	QByteArray r = reply->readAll();
+	QByteArray r = _reply->readAll();
 	if (!r.isEmpty()) {
-		outputFile.write(r);
+		_output.write(r);
 
-		QMutexLocker lock(&mutex);
-		already += r.size();
+		QMutexLocker lock(&_mutex);
+		_already += r.size();
 	}
 	if (got >= total) {
-		reply->deleteLater();
-		reply = 0;
-		outputFile.close();
+		_reply.release()->deleteLater();
+		_output.close();
 		unpackUpdate();
 	} else {
-		Sandbox::updateProgress(already, full);
+		_parent->onProgress({ _already, _size });
 	}
 }
 
-void UpdateChecker::partFailed(QNetworkReply::NetworkError e) {
-	if (!reply) return;
+void Updater::Private::partFailed(QNetworkReply::NetworkError e) {
+	if (!_reply) return;
 
-	QVariant statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
-	reply->deleteLater();
-	reply = 0;
+	const auto statusCode = _reply->attribute(
+		QNetworkRequest::HttpStatusCodeAttribute);
+	_reply.release()->deleteLater();
 	if (statusCode.isValid()) {
 		int status = statusCode.toInt();
 		if (status == 416) { // Requested range not satisfiable
-			outputFile.close();
+			_output.close();
 			unpackUpdate();
 			return;
 		}
 	}
-	LOG(("Update Error: failed to download part starting from %1, error %2").arg(already).arg(e));
-	Sandbox::updateFailed();
+	LOG(("Update Error: failed to download part starting from %1, error %2").arg(_already).arg(e));
+	_parent->onFailed();
 }
 
-void UpdateChecker::fatalFail() {
-	clearAll();
-	Sandbox::updateFailed();
-}
-
-void UpdateChecker::clearAll() {
-	psDeleteDir(cWorkingDir() + qsl("tupdates"));
+void Updater::Private::fatalFail() {
+	ClearAll();
+	_parent->onFailed();
 }
 
 //QString winapiErrorWrap() {
@@ -223,9 +645,9 @@ void UpdateChecker::clearAll() {
 //	return QString::fromWCharArray(errMsg);
 //}
 
-void UpdateChecker::unpackUpdate() {
+void Updater::Private::unpackUpdate() {
 	QByteArray packed;
-	if (!outputFile.open(QIODevice::ReadOnly)) {
+	if (!_output.open(QIODevice::ReadOnly)) {
 		LOG(("Update Error: cant read updates file!"));
 		return fatalFail();
 	}
@@ -236,13 +658,13 @@ void UpdateChecker::unpackUpdate() {
 	const int32 hSigLen = 128, hShaLen = 20, hPropsLen = 0, hOriginalSizeLen = sizeof(int32), hSize = hSigLen + hShaLen + hOriginalSizeLen; // header
 #endif // Q_OS_WIN
 
-	QByteArray compressed = outputFile.readAll();
+	QByteArray compressed = _output.readAll();
 	int32 compressedLen = compressed.size() - hSize;
 	if (compressedLen <= 0) {
 		LOG(("Update Error: bad compressed size: %1").arg(compressed.size()));
 		return fatalFail();
 	}
-	outputFile.close();
+	_output.close();
 
 	QString tempDirPath = cWorkingDir() + qsl("tupdates/temp"), readyFilePath = cWorkingDir() + qsl("tupdates/temp/ready");
 	psDeleteDir(tempDirPath);
@@ -429,8 +851,9 @@ void UpdateChecker::unpackUpdate() {
 		tempDir.mkdir(QDir(tempDirPath + qsl("/tdata")).absolutePath());
 		std::wstring versionString = ((version % 1000) ? QString("%1.%2.%3").arg(int(version / 1000000)).arg(int((version % 1000000) / 1000)).arg(int(version % 1000)) : QString("%1.%2").arg(int(version / 1000000)).arg(int((version % 1000000) / 1000))).toStdWString();
 
-		VerInt versionNum = VerInt(version), versionLen = VerInt(versionString.size() * sizeof(VerChar));
-		VerChar versionStr[32];
+		const auto versionNum = VersionInt(version);
+		const auto versionLen = VersionInt(versionString.size() * sizeof(VersionChar));
+		VersionChar versionStr[32];
 		memcpy(versionStr, versionString.c_str(), versionLen);
 
 		QFile fVersion(tempDirPath + qsl("/tdata/version"));
@@ -438,11 +861,11 @@ void UpdateChecker::unpackUpdate() {
 			LOG(("Update Error: cant write version file '%1'").arg(tempDirPath + qsl("/version")));
 			return fatalFail();
 		}
-		fVersion.write((const char*)&versionNum, sizeof(VerInt));
+		fVersion.write((const char*)&versionNum, sizeof(VersionInt));
 		if (versionNum == 0x7FFFFFFF) { // beta version
 			fVersion.write((const char*)&betaVersion, sizeof(quint64));
 		} else {
-			fVersion.write((const char*)&versionLen, sizeof(VerInt));
+			fVersion.write((const char*)&versionLen, sizeof(VersionInt));
 			fVersion.write((const char*)&versionStr[0], versionLen);
 		}
 		fVersion.close();
@@ -460,21 +883,16 @@ void UpdateChecker::unpackUpdate() {
 		LOG(("Update Error: cant create ready file '%1'").arg(readyFilePath));
 		return fatalFail();
 	}
-	outputFile.remove();
+	_output.remove();
 
-	Sandbox::updateReady();
-}
-
-UpdateChecker::~UpdateChecker() {
-	delete reply;
-	reply = 0;
+	_parent->onReady();
 }
 
 bool checkReadyUpdate() {
 	QString readyFilePath = cWorkingDir() + qsl("tupdates/temp/ready"), readyPath = cWorkingDir() + qsl("tupdates/temp");
 	if (!QFile(readyFilePath).exists() || cExeName().isEmpty()) {
 		if (QDir(cWorkingDir() + qsl("tupdates/ready")).exists() || QDir(cWorkingDir() + qsl("tupdates/temp")).exists()) {
-			UpdateChecker::clearAll();
+			ClearAll();
 		}
 		return false;
 	}
@@ -485,30 +903,30 @@ bool checkReadyUpdate() {
 		QFile fVersion(versionPath);
 		if (!fVersion.open(QIODevice::ReadOnly)) {
 			LOG(("Update Error: cant read version file '%1'").arg(versionPath));
-			UpdateChecker::clearAll();
+			ClearAll();
 			return false;
 		}
-		VerInt versionNum;
-		if (fVersion.read((char*)&versionNum, sizeof(VerInt)) != sizeof(VerInt)) {
+		auto versionNum = VersionInt();
+		if (fVersion.read((char*)&versionNum, sizeof(VersionInt)) != sizeof(VersionInt)) {
 			LOG(("Update Error: cant read version from file '%1'").arg(versionPath));
-			UpdateChecker::clearAll();
+			ClearAll();
 			return false;
 		}
 		if (versionNum == 0x7FFFFFFF) { // beta version
 			quint64 betaVersion = 0;
 			if (fVersion.read((char*)&betaVersion, sizeof(quint64)) != sizeof(quint64)) {
 				LOG(("Update Error: cant read beta version from file '%1'").arg(versionPath));
-				UpdateChecker::clearAll();
+				ClearAll();
 				return false;
 			}
 			if (!cBetaVersion() || betaVersion <= cBetaVersion()) {
 				LOG(("Update Error: cant install beta version %1 having beta version %2").arg(betaVersion).arg(cBetaVersion()));
-				UpdateChecker::clearAll();
+				ClearAll();
 				return false;
 			}
 		} else if (versionNum <= AppVersion) {
 			LOG(("Update Error: cant install version %1 having version %2").arg(versionNum).arg(AppVersion));
-			UpdateChecker::clearAll();
+			ClearAll();
 			return false;
 		}
 		fVersion.close();
@@ -527,11 +945,11 @@ bool checkReadyUpdate() {
 	if (!updater.exists()) {
 		QFileInfo current(curUpdater);
 		if (!current.exists()) {
-			UpdateChecker::clearAll();
+			ClearAll();
 			return false;
 		}
 		if (!QFile(current.absoluteFilePath()).copy(updater.absoluteFilePath())) {
-			UpdateChecker::clearAll();
+			ClearAll();
 			return false;
 		}
 	}
@@ -542,24 +960,24 @@ bool checkReadyUpdate() {
 			cSetWriteProtected(true);
 			return true;
 		} else {
-			UpdateChecker::clearAll();
+			ClearAll();
 			return false;
 		}
 	}
 	if (DeleteFile(updater.absoluteFilePath().toStdWString().c_str()) == FALSE) {
-		UpdateChecker::clearAll();
+		ClearAll();
 		return false;
 	}
 #elif defined Q_OS_MAC // Q_OS_WIN
 	QDir().mkpath(QFileInfo(curUpdater).absolutePath());
 	DEBUG_LOG(("Update Info: moving %1 to %2...").arg(updater.absoluteFilePath()).arg(curUpdater));
 	if (!objc_moveFile(updater.absoluteFilePath(), curUpdater)) {
-		UpdateChecker::clearAll();
+		ClearAll();
 		return false;
 	}
 #elif defined Q_OS_LINUX // Q_OS_MAC
 	if (!linuxMoveFile(QFile::encodeName(updater.absoluteFilePath()).constData(), QFile::encodeName(curUpdater).constData())) {
-		UpdateChecker::clearAll();
+		ClearAll();
 		return false;
 	}
 #endif // Q_OS_LINUX
@@ -611,3 +1029,5 @@ QString countBetaVersionSignature(uint64 version) { // duplicated in packer.cpp
 	signature = signature.replace('-', '8').replace('_', 'B');
 	return QString::fromUtf8(signature.mid(19, 32));
 }
+
+} // namespace Core

@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "application.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "autoupdater.h"
+#include "core/update_checker.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "messenger.h"
@@ -119,10 +119,15 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 	connect(_filter, SIGNAL(cursorPositionChanged(int,int)), this, SLOT(onFilterCursorMoved(int,int)));
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	Sandbox::connect(SIGNAL(updateLatest()), this, SLOT(onCheckUpdateStatus()));
-	Sandbox::connect(SIGNAL(updateFailed()), this, SLOT(onCheckUpdateStatus()));
-	Sandbox::connect(SIGNAL(updateReady()), this, SLOT(onCheckUpdateStatus()));
-	onCheckUpdateStatus();
+	Core::UpdateChecker checker;
+	rpl::merge(
+		rpl::single(rpl::empty_value()),
+		checker.isLatest(),
+		checker.failed(),
+		checker.ready()
+	) | rpl::start_with_next([=] {
+		checkUpdateStatus();
+	}, lifetime());
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 	subscribe(Adaptive::Changed(), [this] { updateForwardBar(); });
@@ -168,13 +173,14 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-void DialogsWidget::onCheckUpdateStatus() {
-	if (Sandbox::updatingState() == Application::UpdatingReady) {
+void DialogsWidget::checkUpdateStatus() {
+	using Checker = Core::UpdateChecker;
+	if (Checker().state() == Checker::State::Ready) {
 		if (_updateTelegram) return;
 		_updateTelegram.create(this);
 		_updateTelegram->show();
 		_updateTelegram->setClickedCallback([] {
-			checkReadyUpdate();
+			Core::checkReadyUpdate();
 			App::restart();
 		});
 	} else {

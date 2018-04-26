@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/send_files_box.h"
 #include "window/themes/window_theme.h"
 #include "core/crash_reports.h"
+#include "core/update_checker.h"
 #include "observer_peer.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -1251,7 +1252,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		cSetAutoUpdate(v == 1);
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 		if (!cAutoUpdate()) {
-			Sandbox::stopUpdate();
+			Core::UpdateChecker().stop();
 		}
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
 	} break;

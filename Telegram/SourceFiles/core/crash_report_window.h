@@ -114,6 +114,11 @@ private:
 	QString minidumpFileName();
 	void updateControls();
 
+	void excludeReportUsername();
+
+	QString getReportField(const QLatin1String &name, const QLatin1String &prefix);
+	void addReportFieldPart(const QLatin1String &name, const QLatin1String &prefix, QHttpMultiPart *multipart);
+
 	QString _host, _username, _password;
 	quint32 _port;
 
@@ -127,8 +132,6 @@ private:
 	QByteArray getCrashReportRaw() const;
 
 	bool _reportShown, _reportSaved;
-
-	void excludeReportUsername();
 
 	enum SendingState {
 		SendingNoReport,
@@ -167,8 +170,7 @@ private:
 	void setDownloadProgress(qint64 ready, qint64 total);
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
-	QString getReportField(const QLatin1String &name, const QLatin1String &prefix);
-	void addReportFieldPart(const QLatin1String &name, const QLatin1String &prefix, QHttpMultiPart *multipart);
+	rpl::lifetime _lifetime;
 
 };
 

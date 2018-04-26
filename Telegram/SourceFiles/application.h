@@ -7,10 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-class UpdateChecker;
-
 namespace Core {
 class Launcher;
+class UpdateChecker;
 } // namespace Core
 
 class Application : public QApplication {
@@ -59,46 +58,11 @@ private:
 
 	void singleInstanceChecked();
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-
-// Autoupdating
-public:
-	void startUpdateCheck(bool forceWait);
-	void stopUpdate();
-
-	enum UpdatingState {
-		UpdatingNone,
-		UpdatingDownload,
-		UpdatingReady,
-	};
-	UpdatingState updatingState();
-	int32 updatingSize();
-	int32 updatingReady();
-
-signals:
-	void updateChecking();
-	void updateLatest();
-	void updateProgress(qint64 ready, qint64 total);
-	void updateReady();
-	void updateFailed();
-
-public slots:
-	void updateCheck();
-
-	void updateGotCurrent();
-	void updateFailedCurrent(QNetworkReply::NetworkError e);
-
-	void onUpdateReady();
-	void onUpdateFailed();
-
 private:
-	object_ptr<SingleTimer> _updateCheckTimer = { nullptr };
-	QNetworkReply *_updateReply = nullptr;
-	QNetworkAccessManager _updateManager;
-	QThread *_updateThread = nullptr;
-	UpdateChecker *_updateChecker = nullptr;
-
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	std::unique_ptr<Core::UpdateChecker> _updateChecker;
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
+
 };
 
 namespace Sandbox {
@@ -111,23 +75,6 @@ bool isSavingSession();
 void execExternal(const QString &cmd);
 
 void adjustSingleTimers();
-
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-
-void startUpdateCheck();
-void stopUpdate();
-
-Application::UpdatingState updatingState();
-int32 updatingSize();
-int32 updatingReady();
-
-void updateChecking();
-void updateLatest();
-void updateProgress(qint64 ready, qint64 total);
-void updateFailed();
-void updateReady();
-
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 void refreshGlobalProxy();
 

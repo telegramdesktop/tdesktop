@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "core/crash_reports.h"
+#include "core/update_checker.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "window/themes/window_theme.h"
@@ -1667,7 +1668,7 @@ namespace {
 
 	void restart() {
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-		bool updateReady = (Sandbox::updatingState() == Application::UpdatingReady);
+		bool updateReady = (Core::UpdateChecker().state() == Core::UpdateChecker::State::Ready);
 #else // !TDESKTOP_DISABLE_AUTOUPDATE
 		bool updateReady = false;
 #endif // else for !TDESKTOP_DISABLE_AUTOUPDATE
