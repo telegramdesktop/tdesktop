@@ -30,6 +30,8 @@ namespace Core {
 namespace {
 
 constexpr auto kCheckTimeout = TimeMs(10000);
+constexpr auto kMaxResponseSize = 1024 * 1024;
+const auto kUpdateUrl = "http://updates.tdesktop.com";
 
 #ifdef Q_OS_WIN
 using VersionInt = DWORD;
@@ -97,6 +99,7 @@ public:
 
 	void start(bool forceWait);
 	void stop();
+	void test();
 
 	State state() const;
 	int already() const;
@@ -119,7 +122,14 @@ private:
 	void gotFailure(QNetworkReply::NetworkError e);
 	void clearSentRequest();
 	void requestTimeout();
+	void startDownloadThread(
+		uint64 availableVersion,
+		bool isAvailableBeta,
+		QString url);
+	bool checkOldResponse(const QByteArray &response);
+	bool checkResponse(const QByteArray &response);
 
+	bool _testing = false;
 	bool _isReady = false;
 	base::Timer _timer;
 	base::Timer _retryTimer;
@@ -233,21 +243,19 @@ void Updater::gotResponse() {
 	}
 
 	cSetLastUpdateCheck(unixtime());
-	const auto m = QRegularExpression(qsl("^\\s*(\\d+)\\s*:\\s*([\\x21-\\x7f]+)\\s*$")).match(QString::fromLatin1(_reply->readAll()));
-	if (m.hasMatch()) {
-		uint64 currentVersion = m.captured(1).toULongLong();
-		QString url = m.captured(2);
-		bool betaVersion = false;
-		if (url.startsWith(qstr("beta_"))) {
-			betaVersion = true;
-			url = url.mid(5) + '_' + Core::countBetaVersionSignature(currentVersion);
-		}
-		if ((!betaVersion || cBetaVersion()) && currentVersion > (betaVersion ? cBetaVersion() : uint64(AppVersion))) {
-			_thread = std::make_unique<QThread>();
-			_private = new Private(this, _thread.get(), url);
-			_thread->start();
+	const auto response = _reply->readAll();
+	if (response.size() >= kMaxResponseSize) {
+		LOG(("App Error: Bad update map size: %1").arg(response.size()));
+		gotFailure(QNetworkReply::UnknownContentError);
+		return;
+	}
+	if (!checkOldResponse(response)) {
+		if (!checkResponse(response)) {
+			gotFailure(QNetworkReply::UnknownContentError);
+			return;
 		}
 	}
+
 	clearSentRequest();
 	if (!_thread) {
 		if (const auto update = FindUpdateFile(); !update.isEmpty()) {
@@ -267,6 +275,157 @@ void Updater::gotFailure(QNetworkReply::NetworkError e) {
 
 	_failed.fire({});
 	start(true);
+}
+
+bool Updater::checkOldResponse(const QByteArray &response) {
+	const auto string = QString::fromLatin1(response);
+	const auto old = QRegularExpression(
+		qsl("^\\s*(\\d+)\\s*:\\s*([\\x21-\\x7f]+)\\s*$")
+	).match(string);
+	if (!old.hasMatch()) {
+		return false;
+	}
+	const auto availableVersion = old.captured(1).toULongLong();
+	const auto url = old.captured(2);
+	const auto isAvailableBeta = url.startsWith(qstr("beta_"));
+	startDownloadThread(
+		availableVersion,
+		isAvailableBeta,
+		isAvailableBeta ? url.mid(5) + "_{signature}" : url);
+	return true;
+}
+
+bool Updater::checkResponse(const QByteArray &response) {
+	auto error = QJsonParseError{ 0, QJsonParseError::NoError };
+	const auto document = QJsonDocument::fromJson(response, &error);
+	if (error.error != QJsonParseError::NoError) {
+		LOG(("Update Error: Failed to parse response JSON, error: %1"
+			).arg(error.errorString()));
+		return false;
+	} else if (!document.isObject()) {
+		LOG(("Update Error: Not an object received in response JSON."));
+		return false;
+	}
+	const auto platforms = document.object();
+	const auto platform = [&] {
+		switch (cPlatform()) {
+		case dbipWindows: return "win";
+		case dbipMac: return "mac";
+		case dbipMacOld: return "mac32";
+		case dbipLinux64: return "linux";
+		case dbipLinux32: return "linux32";
+		}
+		Unexpected("Platform in Updater::checkResponse.");
+	}();
+	const auto it = platforms.constFind(platform);
+	if (it == platforms.constEnd()) {
+		LOG(("Update Error: Platform '%1' not found in response."
+			).arg(platform));
+		return false;
+	} else if (!it->isObject()) {
+		LOG(("Update Error: Not an object found for platform '%1'."
+			).arg(platform));
+		return false;
+	}
+	const auto types = it->toObject();
+	const auto list = [&]() -> std::vector<QString> {
+		if (cBetaVersion()) {
+			return { "alpha", "beta", "stable" };
+		} else if (cAlphaVersion()) {
+			return { "beta", "stable" };
+		}
+		return { "stable" };
+	}();
+	auto bestIsAvailableBeta = false;
+	auto bestAvailableVersion = 0ULL;
+	auto bestLink = QString();
+	for (const auto &type : list) {
+		const auto it = types.constFind(type);
+		if (it == types.constEnd()) {
+			continue;
+		} else if (!it->isObject()) {
+			LOG(("Update Error: Not an object found for '%1:%2'."
+				).arg(platform).arg(type));
+			return false;
+		}
+		const auto map = it->toObject();
+		const auto key = _testing ? "testing" : "released";
+		const auto version = map.constFind(key);
+		const auto link = map.constFind("link");
+		if (version == map.constEnd()) {
+			continue;
+		} else if (link == map.constEnd()) {
+			LOG(("Update Error: Link not found for '%1:%2'."
+				).arg(platform).arg(type));
+			return false;
+		} else if (!link->isString()) {
+			LOG(("Update Error: Link is not a string for '%1:%2'."
+				).arg(platform).arg(type));
+			return false;
+		}
+		const auto isAvailableBeta = (type == "alpha");
+		const auto availableVersion = [&] {
+			if (version->isString()) {
+				return version->toString().toULongLong();
+			} else if (version->isDouble()) {
+				return uint64(std::round(version->toDouble()));
+			}
+			return 0ULL;
+		}();
+		if (!availableVersion) {
+			LOG(("Update Error: Version is not valid for '%1:%2:%3'."
+				).arg(platform).arg(type).arg(key));
+			return false;
+		}
+		const auto compare = isAvailableBeta
+			? availableVersion
+			: availableVersion * 1000;
+		const auto bestCompare = bestIsAvailableBeta
+			? bestAvailableVersion
+			: bestAvailableVersion * 1000;
+		if (compare > bestCompare) {
+			bestAvailableVersion = availableVersion;
+			bestIsAvailableBeta = isAvailableBeta;
+			bestLink = link->toString();
+		}
+	}
+	if (!bestAvailableVersion) {
+		LOG(("Update Error: No valid entry found for platform '%1'."
+			).arg(platform));
+		return false;
+	}
+	startDownloadThread(
+		bestAvailableVersion,
+		bestIsAvailableBeta,
+		kUpdateUrl + bestLink);
+	return true;
+}
+
+void Updater::startDownloadThread(
+		uint64 availableVersion,
+		bool isAvailableBeta,
+		QString url) {
+	const auto myVersion = isAvailableBeta
+		? cBetaVersion()
+		: uint64(AppVersion);
+	const auto validVersion = (cBetaVersion() || !isAvailableBeta);
+	if (!validVersion || availableVersion <= myVersion) {
+		return;
+	}
+	const auto versionUrl = url.replace(
+		"{version}",
+		QString::number(availableVersion));
+	const auto finalUrl = isAvailableBeta
+		? QString(versionUrl).replace(
+			"{signature}",
+			countBetaVersionSignature(availableVersion))
+		: versionUrl;
+	_thread = std::make_unique<QThread>();
+	_private = new Private(
+		this,
+		_thread.get(),
+		finalUrl);
+	_thread->start();
 }
 
 void Updater::handleReady() {
@@ -356,17 +515,8 @@ void Updater::start(bool forceWait) {
 	if (sendRequest) {
 		clearSentRequest();
 
-		auto url = QUrl(cUpdateURL());
-		if (cBetaVersion()) {
-			url.setQuery(qsl("version=%1&beta=%2"
-			).arg(AppVersion
-			).arg(cBetaVersion()));
-		} else if (cAlphaVersion()) {
-			url.setQuery(qsl("version=%1&alpha=1").arg(AppVersion));
-		} else {
-			url.setQuery(qsl("version=%1").arg(AppVersion));
-		}
-		DEBUG_LOG(("App Info: requesting update state from '%1'"
+		auto url = QUrl(kUpdateUrl + QString("/current"));
+		DEBUG_LOG(("Update Info: requesting update state from '%1'"
 			).arg(url.toDisplayString()));
 		const auto request = QNetworkRequest(url);
 		_manager = std::make_unique<QNetworkAccessManager>();
@@ -382,6 +532,12 @@ void Updater::start(bool forceWait) {
 	} else {
 		_timer.callOnce((updateInSecs + 5) * TimeMs(1000));
 	}
+}
+
+void Updater::test() {
+	_testing = true;
+	cSetLastUpdateCheck(0);
+	start(false);
 }
 
 void Updater::requestTimeout() {
@@ -424,6 +580,10 @@ rpl::producer<> UpdateChecker::ready() const {
 
 void UpdateChecker::start(bool forceWait) {
 	_updater->start(forceWait);
+}
+
+void UpdateChecker::test() {
+	_updater->test();
 }
 
 void UpdateChecker::stop() {

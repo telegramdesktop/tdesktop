@@ -87,7 +87,6 @@ DBIPlatform gPlatform = dbipLinux32;
 #error Unknown platform
 #endif
 QString gPlatformString;
-QUrl gUpdateURL;
 bool gIsElCapitan = false;
 bool gIsSnowLeopard = false;
 

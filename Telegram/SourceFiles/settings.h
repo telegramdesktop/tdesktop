@@ -194,7 +194,6 @@ DeclareReadSetting(DBIPlatform, Platform);
 DeclareReadSetting(QString, PlatformString);
 DeclareReadSetting(bool, IsElCapitan);
 DeclareReadSetting(bool, IsSnowLeopard);
-DeclareReadSetting(QUrl, UpdateURL);
 
 DeclareSetting(int, OtherOnline);
 

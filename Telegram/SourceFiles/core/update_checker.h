@@ -35,6 +35,7 @@ public:
 
 	void start(bool forceWait = false);
 	void stop();
+	void test();
 
 	State state() const;
 	int already() const;

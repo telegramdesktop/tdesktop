@@ -109,7 +109,6 @@ void Launcher::prepareSettings() {
 
 	switch (cPlatform()) {
 	case dbipWindows:
-		gUpdateURL = QUrl(qsl("http://tdesktop.com/win/tupdates/current"));
 #ifndef OS_WIN_STORE
 		gPlatformString = qsl("Windows");
 #else // OS_WIN_STORE
@@ -117,7 +116,6 @@ void Launcher::prepareSettings() {
 #endif // OS_WIN_STORE
 	break;
 	case dbipMac:
-		gUpdateURL = QUrl(qsl("http://tdesktop.com/mac/tupdates/current"));
 #ifndef OS_MAC_STORE
 		gPlatformString = qsl("MacOS");
 #else // OS_MAC_STORE
@@ -125,15 +123,12 @@ void Launcher::prepareSettings() {
 #endif // OS_MAC_STORE
 	break;
 	case dbipMacOld:
-		gUpdateURL = QUrl(qsl("http://tdesktop.com/mac32/tupdates/current"));
 		gPlatformString = qsl("MacOSold");
 	break;
 	case dbipLinux64:
-		gUpdateURL = QUrl(qsl("http://tdesktop.com/linux/tupdates/current"));
 		gPlatformString = qsl("Linux64bit");
 	break;
 	case dbipLinux32:
-		gUpdateURL = QUrl(qsl("http://tdesktop.com/linux32/tupdates/current"));
 		gPlatformString = qsl("Linux32bit");
 	break;
 	}
