@@ -236,6 +236,10 @@ namespace {
 	_MsStarter _msStarter;
 }
 
+bool ProxyData::ValidSecret(const QString &secret) {
+	return QRegularExpression("^[a-fA-F0-9]{32}$").match(secret).hasMatch();
+}
+
 namespace ThirdParty {
 
 	void start() {

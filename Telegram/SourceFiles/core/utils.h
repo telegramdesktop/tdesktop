@@ -434,10 +434,14 @@ struct ProxyData {
 		Http,
 		Mtproto,
 	};
+
 	Type type = Type::None;
 	QString host;
 	uint32 port = 0;
 	QString user, password;
+
+	static bool ValidSecret(const QString &secret);
+
 };
 
 enum DBIScale {

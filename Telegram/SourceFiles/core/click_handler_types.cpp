@@ -50,6 +50,8 @@ QString tryConvertUrlToLocal(QString url) {
 			return url;
 		} else if (auto socksMatch = regex_match(qsl("socks/?\\?(.+)(#|$)"), query, matchOptions)) {
 			return qsl("tg://socks?") + socksMatch->captured(1);
+		} else if (auto proxyMatch = regex_match(qsl("proxy/?\\?(.+)(#|$)"), query, matchOptions)) {
+			return qsl("tg://proxy?") + proxyMatch->captured(1);
 		} else if (auto usernameMatch = regex_match(qsl("^([a-zA-Z0-9\\.\\_]+)(/?\\?|/?$|/(\\d+)/?(?:\\?|$))"), query, matchOptions)) {
 			auto params = query.mid(usernameMatch->captured(0).size()).toString();
 			auto postParam = QString();

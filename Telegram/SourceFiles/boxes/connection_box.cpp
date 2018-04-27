@@ -23,18 +23,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "application.h"
 #include "styles/style_boxes.h"
 
-void ConnectionBox::ShowApplyProxyConfirmation(const QMap<QString, QString> &fields) {
-	auto server = fields.value(qsl("server"));
-	auto port = fields.value(qsl("port")).toUInt();
-	if (!server.isEmpty() && port != 0) {
+void ConnectionBox::ShowApplyProxyConfirmation(
+		ProxyData::Type type,
+		const QMap<QString, QString> &fields) {
+	const auto server = fields.value(qsl("server"));
+	const auto port = fields.value(qsl("port")).toUInt();
+	const auto secret = fields.value(qsl("secret"));
+	const auto valid = !server.isEmpty()
+		&& (port != 0)
+		&& (type != ProxyData::Type::Mtproto
+			|| ProxyData::ValidSecret(secret))
+		&& (type == ProxyData::Type::Socks5
+			|| type == ProxyData::Type::Mtproto);
+	if (valid) {
 		const auto box = std::make_shared<QPointer<ConfirmBox>>();
-		*box = Ui::show(Box<ConfirmBox>(lng_sure_enable_socks(lt_server, server, lt_port, QString::number(port)), lang(lng_sure_enable), [=] {
+		const auto text = lng_sure_enable_socks(
+			lt_server,
+			server,
+			lt_port,
+			QString::number(port));
+		*box = Ui::show(Box<ConfirmBox>(text, lang(lng_sure_enable), [=] {
 			auto proxy = ProxyData();
-			proxy.type = ProxyData::Type::Socks5;
+			proxy.type = type;
 			proxy.host = server;
-			proxy.user = fields.value(qsl("user"));
-			proxy.password = fields.value(qsl("pass"));
 			proxy.port = port;
+			if (type == ProxyData::Type::Socks5) {
+				proxy.user = fields.value(qsl("user"));
+				proxy.password = fields.value(qsl("pass"));
+			} else if (type == ProxyData::Type::Mtproto) {
+				proxy.password = secret;
+			}
 			Global::SetConnectionType(dbictTcpProxy);
 			Global::SetConnectionProxy(proxy);
 			Local::writeSettings();

@@ -26,7 +26,9 @@ class ConnectionBox : public BoxContent {
 public:
 	ConnectionBox(QWidget *parent);
 
-	static void ShowApplyProxyConfirmation(const QMap<QString, QString> &fields);
+	static void ShowApplyProxyConfirmation(
+		ProxyData::Type type,
+		const QMap<QString, QString> &fields);
 
 protected:
 	void prepare() override;
