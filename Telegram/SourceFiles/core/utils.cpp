@@ -236,6 +236,34 @@ namespace {
 	_MsStarter _msStarter;
 }
 
+bool ProxyData::valid() const {
+	if (type == Type::None || host.isEmpty() || !port) {
+		return false;
+	} else if (type == Type::Mtproto && !ValidSecret(password)) {
+		return false;
+	}
+	return true;
+}
+
+ProxyData::operator bool() const {
+	return valid();
+}
+
+bool ProxyData::operator==(const ProxyData &other) const {
+	if (!valid()) {
+		return !other.valid();
+	}
+	return (type == other.type)
+		&& (host == other.host)
+		&& (port == other.port)
+		&& (user == other.user)
+		&& (password == other.password);
+}
+
+bool ProxyData::operator!=(const ProxyData &other) const {
+	return !(*this == other);
+}
+
 bool ProxyData::ValidSecret(const QString &secret) {
 	return QRegularExpression("^[a-fA-F0-9]{32}$").match(secret).hasMatch();
 }

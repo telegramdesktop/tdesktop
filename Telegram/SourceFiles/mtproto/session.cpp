@@ -168,21 +168,18 @@ void Session::restart() {
 }
 
 void Session::refreshDataFields() {
-	const auto connectionType = Global::ConnectionType();
-	const auto proxyType = Global::ConnectionProxy().type;
-	const auto useTcp = (proxyType != ProxyData::Type::Http) &&
-		(connectionType == dbictAuto
-			|| connectionType == dbictTcpProxy
-			|| proxyType == ProxyData::Type::Mtproto);
-	const auto useHttp = (proxyType != ProxyData::Type::Mtproto) &&
-		(connectionType == dbictAuto
-			|| connectionType == dbictHttpProxy);
+	const auto &proxy = Global::SelectedProxy();
+	const auto proxyType = Global::UseProxy()
+		? proxy.type
+		: ProxyData::Type::None;
+	const auto useTcp = (proxyType != ProxyData::Type::Http);
+	const auto useHttp = (proxyType != ProxyData::Type::Mtproto);
 	const auto useIPv4 = true;
 	const auto useIPv6 = Global::TryIPv6();
 	data.setConnectionOptions(ConnectionOptions(
 		_instance->systemLangCode(),
 		_instance->cloudLangCode(),
-		Global::ConnectionProxy(),
+		Global::UseProxy() ? proxy : ProxyData(),
 		useIPv4,
 		useIPv6,
 		useHttp,

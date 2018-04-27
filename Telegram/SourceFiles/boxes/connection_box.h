@@ -42,7 +42,9 @@ private slots:
 	void onSave();
 
 private:
-	void typeChanged(DBIConnectionType type);
+	using Type = ProxyData::Type;
+
+	void typeChanged(Type type);
 	void updateControlsVisibility();
 	void updateControlsPosition();
 	bool badProxyValue() const;
@@ -52,11 +54,10 @@ private:
 	object_ptr<Ui::PortInput> _portInput;
 	object_ptr<Ui::InputField> _userInput;
 	object_ptr<Ui::PasswordInput> _passwordInput;
-	ProxyData::Type _currentProxyType;
-	std::shared_ptr<Ui::RadioenumGroup<DBIConnectionType>> _typeGroup;
-	object_ptr<Ui::Radioenum<DBIConnectionType>> _autoRadio;
-	object_ptr<Ui::Radioenum<DBIConnectionType>> _httpProxyRadio;
-	object_ptr<Ui::Radioenum<DBIConnectionType>> _tcpProxyRadio;
+	std::shared_ptr<Ui::RadioenumGroup<Type>> _typeGroup;
+	object_ptr<Ui::Radioenum<Type>> _autoRadio;
+	object_ptr<Ui::Radioenum<Type>> _httpProxyRadio;
+	object_ptr<Ui::Radioenum<Type>> _tcpProxyRadio;
 	object_ptr<Ui::Checkbox> _tryIPv6;
 
 };

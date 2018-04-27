@@ -100,7 +100,7 @@ void ConfigLoader::enumerate() {
 }
 
 void ConfigLoader::createSpecialLoader() {
-	if (Global::ConnectionProxy().type != ProxyData::Type::None) {
+	if (Global::UseProxy()) {
 		_specialLoader.reset();
 		return;
 	}
@@ -128,7 +128,7 @@ void ConfigLoader::addSpecialEndpoint(DcId dcId, const std::string &ip, int port
 
 void ConfigLoader::sendSpecialRequest() {
 	terminateSpecialRequest();
-	if (Global::ConnectionType() != dbictAuto) {
+	if (Global::UseProxy()) {
 		_specialLoader.reset();
 		return;
 	}

@@ -313,9 +313,9 @@ void Application::refreshGlobalProxy() {
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	const auto proxy = [&] {
 		if (Global::started()) {
-			return Global::ConnectionType() == dbictAuto
-				? ProxyData()
-				: Global::ConnectionProxy();
+			return Global::UseProxy()
+				? Global::SelectedProxy()
+				: ProxyData();
 		}
 		return Sandbox::PreLaunchProxy();
 	}();

@@ -563,9 +563,10 @@ struct Data {
 	Notify::ScreenCorner NotificationsCorner = Notify::ScreenCorner::BottomRight;
 	bool NotificationsDemoIsShown = false;
 
-	DBIConnectionType ConnectionType = dbictAuto;
 	bool TryIPv6 = (cPlatform() == dbipWindows) ? false : true;
-	ProxyData ConnectionProxy;
+	std::vector<ProxyData> ProxiesList;
+	ProxyData SelectedProxy;
+	bool UseProxy = false;
 	base::Observable<void> ConnectionTypeChanged;
 
 	int AutoLock = 3600;
@@ -685,9 +686,10 @@ DefineVar(Global, int, NotificationsCount);
 DefineVar(Global, Notify::ScreenCorner, NotificationsCorner);
 DefineVar(Global, bool, NotificationsDemoIsShown);
 
-DefineVar(Global, DBIConnectionType, ConnectionType);
 DefineVar(Global, bool, TryIPv6);
-DefineVar(Global, ProxyData, ConnectionProxy);
+DefineVar(Global, std::vector<ProxyData>, ProxiesList);
+DefineVar(Global, ProxyData, SelectedProxy);
+DefineVar(Global, bool, UseProxy);
 DefineRefVar(Global, base::Observable<void>, ConnectionTypeChanged);
 
 DefineVar(Global, int, AutoLock);

@@ -94,21 +94,19 @@ void AdvancedWidget::onManageLocalStorage() {
 
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 void AdvancedWidget::connectionTypeUpdated() {
-	auto connection = [] {
-		switch (Global::ConnectionType()) {
-		case dbictHttpProxy:
-		case dbictTcpProxy: {
-			auto transport = MTP::dctransport();
-			return transport.isEmpty() ? lang(lng_connection_proxy_connecting) : lng_connection_proxy(lt_transport, transport);
-		} break;
-		case dbictAuto:
-		default: {
-			auto transport = MTP::dctransport();
-			return transport.isEmpty() ? lang(lng_connection_auto_connecting) : lng_connection_auto(lt_transport, transport);
-		} break;
+	const auto connection = [] {
+		const auto transport = MTP::dctransport();
+		if (!Global::UseProxy()) {
+			return transport.isEmpty()
+				? lang(lng_connection_auto_connecting)
+				: lng_connection_auto(lt_transport, transport);
+		} else {
+			return transport.isEmpty()
+				? lang(lng_connection_proxy_connecting)
+				: lng_connection_proxy(lt_transport, transport);
 		}
-	};
-	_connectionType->link()->setText(connection());
+	}();
+	_connectionType->link()->setText(connection);
 	resizeToWidth(width());
 }
 

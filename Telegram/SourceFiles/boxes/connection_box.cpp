@@ -28,14 +28,17 @@ void ConnectionBox::ShowApplyProxyConfirmation(
 		const QMap<QString, QString> &fields) {
 	const auto server = fields.value(qsl("server"));
 	const auto port = fields.value(qsl("port")).toUInt();
-	const auto secret = fields.value(qsl("secret"));
-	const auto valid = !server.isEmpty()
-		&& (port != 0)
-		&& (type != ProxyData::Type::Mtproto
-			|| ProxyData::ValidSecret(secret))
-		&& (type == ProxyData::Type::Socks5
-			|| type == ProxyData::Type::Mtproto);
-	if (valid) {
+	auto proxy = ProxyData();
+	proxy.type = type;
+	proxy.host = server;
+	proxy.port = port;
+	if (type == ProxyData::Type::Socks5) {
+		proxy.user = fields.value(qsl("user"));
+		proxy.password = fields.value(qsl("pass"));
+	} else if (type == ProxyData::Type::Mtproto) {
+		proxy.password = fields.value(qsl("secret"));
+	}
+	if (proxy) {
 		const auto box = std::make_shared<QPointer<ConfirmBox>>();
 		const auto text = lng_sure_enable_socks(
 			lt_server,
@@ -43,18 +46,12 @@ void ConnectionBox::ShowApplyProxyConfirmation(
 			lt_port,
 			QString::number(port));
 		*box = Ui::show(Box<ConfirmBox>(text, lang(lng_sure_enable), [=] {
-			auto proxy = ProxyData();
-			proxy.type = type;
-			proxy.host = server;
-			proxy.port = port;
-			if (type == ProxyData::Type::Socks5) {
-				proxy.user = fields.value(qsl("user"));
-				proxy.password = fields.value(qsl("pass"));
-			} else if (type == ProxyData::Type::Mtproto) {
-				proxy.password = secret;
+			auto &proxies = Global::RefProxiesList();
+			if (ranges::find(proxies, proxy) == end(proxies)) {
+				proxies.insert(begin(proxies), proxy);
 			}
-			Global::SetConnectionType(dbictTcpProxy);
-			Global::SetConnectionProxy(proxy);
+			Global::SetSelectedProxy(proxy);
+			Global::SetUseProxy(true);
 			Local::writeSettings();
 			Sandbox::refreshGlobalProxy();
 			Global::RefConnectionTypeChanged().notify();
@@ -67,15 +64,14 @@ void ConnectionBox::ShowApplyProxyConfirmation(
 }
 
 ConnectionBox::ConnectionBox(QWidget *parent)
-: _hostInput(this, st::connectionHostInputField, langFactory(lng_connection_host_ph), Global::ConnectionProxy().host)
-, _portInput(this, st::connectionPortInputField, langFactory(lng_connection_port_ph), QString::number(Global::ConnectionProxy().port))
-, _userInput(this, st::connectionUserInputField, langFactory(lng_connection_user_ph), Global::ConnectionProxy().user)
-, _passwordInput(this, st::connectionPasswordInputField, langFactory(lng_connection_password_ph), Global::ConnectionProxy().password)
-, _currentProxyType(Global::ConnectionProxy().type)
-, _typeGroup(std::make_shared<Ui::RadioenumGroup<DBIConnectionType>>(Global::ConnectionType()))
-, _autoRadio(this, _typeGroup, dbictAuto, lang(lng_connection_auto_rb), st::defaultBoxCheckbox)
-, _httpProxyRadio(this, _typeGroup, dbictHttpProxy, lang(lng_connection_http_proxy_rb), st::defaultBoxCheckbox)
-, _tcpProxyRadio(this, _typeGroup, dbictTcpProxy, lang(lng_connection_tcp_proxy_rb), st::defaultBoxCheckbox)
+: _hostInput(this, st::connectionHostInputField, langFactory(lng_connection_host_ph), Global::SelectedProxy().host)
+, _portInput(this, st::connectionPortInputField, langFactory(lng_connection_port_ph), QString::number(Global::SelectedProxy().port))
+, _userInput(this, st::connectionUserInputField, langFactory(lng_connection_user_ph), Global::SelectedProxy().user)
+, _passwordInput(this, st::connectionPasswordInputField, langFactory(lng_connection_password_ph), Global::SelectedProxy().password)
+, _typeGroup(std::make_shared<Ui::RadioenumGroup<Type>>(Global::SelectedProxy().type))
+, _autoRadio(this, _typeGroup, Type::None, lang(lng_connection_auto_rb), st::defaultBoxCheckbox)
+, _httpProxyRadio(this, _typeGroup, Type::Http, lang(lng_connection_http_proxy_rb), st::defaultBoxCheckbox)
+, _tcpProxyRadio(this, _typeGroup, Type::Socks5, lang(lng_connection_tcp_proxy_rb), st::defaultBoxCheckbox)
 , _tryIPv6(this, lang(lng_connection_try_ipv6), Global::TryIPv6(), st::defaultBoxCheckbox) {
 }
 
@@ -85,7 +81,7 @@ void ConnectionBox::prepare() {
 	addButton(langFactory(lng_connection_save), [this] { onSave(); });
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
-	_typeGroup->setChangedCallback([this](DBIConnectionType value) { typeChanged(value); });
+	_typeGroup->setChangedCallback([this](Type value) { typeChanged(value); });
 
 	connect(_hostInput, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	connect(_portInput, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
@@ -123,17 +119,15 @@ void ConnectionBox::updateControlsVisibility() {
 }
 
 bool ConnectionBox::proxyFieldsVisible() const {
-	return (_typeGroup->value() != dbictAuto)
-		|| (!badProxyValue()
-			&& (_currentProxyType == ProxyData::Type::Http
-				|| _currentProxyType == ProxyData::Type::Socks5));
+	return (_typeGroup->value() == ProxyData::Type::Http
+		|| _typeGroup->value() == ProxyData::Type::Socks5);
 }
 
 void ConnectionBox::setInnerFocus() {
-	if (_typeGroup->value() == dbictAuto) {
-		setFocus();
-	} else {
+	if (proxyFieldsVisible()) {
 		_hostInput->setFocusFast();
+	} else {
+		setFocus();
 	}
 }
 
@@ -150,8 +144,8 @@ void ConnectionBox::updateControlsPosition() {
 
 	auto inputy = 0;
 	auto fieldsVisible = proxyFieldsVisible();
-	auto fieldsBelowHttp = fieldsVisible && (type == dbictHttpProxy || (type == dbictAuto && _currentProxyType == ProxyData::Type::Http));
-	auto fieldsBelowTcp = fieldsVisible && (type == dbictTcpProxy || (type == dbictAuto && _currentProxyType == ProxyData::Type::Socks5));
+	auto fieldsBelowHttp = fieldsVisible && (type == ProxyData::Type::Http);
+	auto fieldsBelowTcp = fieldsVisible && (type == ProxyData::Type::Socks5);
 	if (fieldsBelowHttp) {
 		inputy = _httpProxyRadio->bottomNoMargins() + st::boxOptionInputSkip;
 		_tcpProxyRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), inputy + st::boxOptionInputSkip + 2 * _hostInput->height() + st::boxOptionListSkip);
@@ -173,21 +167,16 @@ void ConnectionBox::updateControlsPosition() {
 	_tryIPv6->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), tryipv6y);
 }
 
-void ConnectionBox::typeChanged(DBIConnectionType type) {
-	if (type == dbictAuto) {
+void ConnectionBox::typeChanged(Type type) {
+	if (!proxyFieldsVisible()) {
 		setFocus();
 	}
 	updateControlsVisibility();
-	if (type != dbictAuto) {
-		_currentProxyType = (type == dbictTcpProxy)
-			? ProxyData::Type::Socks5
-			: (type == dbictHttpProxy)
-			? ProxyData::Type::Http
-			: ProxyData::Type::None;
+	if (proxyFieldsVisible()) {
 		if (!_hostInput->hasFocus() && !_portInput->hasFocus() && !_userInput->hasFocus() && !_passwordInput->hasFocus()) {
 			_hostInput->setFocusFast();
 		}
-		if ((type == dbictHttpProxy) && !_portInput->getLastText().toInt()) {
+		if ((type == Type::Http) && !_portInput->getLastText().toInt()) {
 			_portInput->setText(qsl("80"));
 			_portInput->finishAnimating();
 		}
@@ -196,11 +185,6 @@ void ConnectionBox::typeChanged(DBIConnectionType type) {
 }
 
 void ConnectionBox::onFieldFocus() {
-	if (_currentProxyType == ProxyData::Type::Http) {
-		_typeGroup->setValue(dbictHttpProxy);
-	} else if (_currentProxyType == ProxyData::Type::Socks5) {
-		_typeGroup->setValue(dbictTcpProxy);
-	}
 }
 
 void ConnectionBox::onSubmit() {
@@ -240,12 +224,10 @@ void ConnectionBox::onSave() {
 	proxy.port = _portInput->getLastText().toUInt();
 
 	auto type = _typeGroup->value();
-	if (type == dbictAuto) {
-		if (proxy.host.isEmpty() || !proxy.port) {
-			proxy = ProxyData();
-		} else {
-			proxy.type = _currentProxyType;
-		}
+	if (type == Type::None) {
+		proxy = ProxyData();
+	} else if (type == Type::Mtproto) {
+		proxy = Global::SelectedProxy();
 	} else {
 		if (proxy.host.isEmpty()) {
 			_hostInput->showError();
@@ -254,12 +236,10 @@ void ConnectionBox::onSave() {
 			_portInput->showError();
 			return;
 		}
-		proxy.type = (type == dbictTcpProxy)
-			? ProxyData::Type::Socks5
-			: ProxyData::Type::Http;
+		proxy.type = type;
 	}
-	Global::SetConnectionType(type);
-	Global::SetConnectionProxy(proxy);
+	Global::SetSelectedProxy(proxy ? proxy : ProxyData());
+	Global::SetUseProxy(proxy ? true : false);
 	if (cPlatform() == dbipWindows && Global::TryIPv6() != _tryIPv6->checked()) {
 		Global::SetTryIPv6(_tryIPv6->checked());
 		Local::writeSettings();

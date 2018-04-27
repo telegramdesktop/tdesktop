@@ -371,9 +371,10 @@ DeclareVar(int, NotificationsCount);
 DeclareVar(Notify::ScreenCorner, NotificationsCorner);
 DeclareVar(bool, NotificationsDemoIsShown);
 
-DeclareVar(DBIConnectionType, ConnectionType);
+DeclareVar(std::vector<ProxyData>, ProxiesList);
+DeclareVar(ProxyData, SelectedProxy);
+DeclareVar(bool, UseProxy);
 DeclareVar(bool, TryIPv6);
-DeclareVar(ProxyData, ConnectionProxy);
 DeclareRefVar(base::Observable<void>, ConnectionTypeChanged);
 
 DeclareVar(int, AutoLock);

@@ -584,6 +584,13 @@ enum {
 	dbiVersion = 666,
 };
 
+enum {
+	dbictAuto = 0,
+	dbictHttpAuto = 1, // not used
+	dbictHttpProxy = 2,
+	dbictTcpProxy = 3,
+	dbictProxiesList = 4,
+};
 
 typedef QMap<PeerId, FileKey> DraftsMap;
 DraftsMap _draftsMap, _draftCursorsMap;
@@ -1171,44 +1178,77 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 			proxy.type = (v == dbictTcpProxy)
 				? ProxyData::Type::Socks5
 				: ProxyData::Type::Http;
-			Global::SetConnectionType(DBIConnectionType(v));
 		} break;
-		case dbictHttpAuto:
-		default: Global::SetConnectionType(dbictAuto); break;
 		};
-		Global::SetConnectionProxy(proxy);
+		Global::SetSelectedProxy(proxy ? proxy : ProxyData());
+		Global::SetUseProxy(proxy ? true : false);
+		if (proxy) {
+			Global::SetProxiesList({ 1, proxy });
+		}
 		Sandbox::refreshGlobalProxy();
 	} break;
 
 	case dbiConnectionType: {
-		ProxyData proxy;
-		qint32 connectionType, proxyType, port;
-		stream >> connectionType >> proxyType >> proxy.host >> port >> proxy.user >> proxy.password;
+		qint32 connectionType;
+		stream >> connectionType;
 		if (!_checkStreamStatus(stream)) {
 			return false;
 		}
 
-		proxy.port = port;
-		proxy.type = (proxyType == dbictTcpProxy)
-			? ProxyData::Type::Socks5
-			: (proxyType == dbictHttpProxy)
-			? ProxyData::Type::Http
-			: (proxyType == kProxyTypeShift + int(ProxyData::Type::Socks5))
-			? ProxyData::Type::Socks5
-			: (proxyType == kProxyTypeShift + int(ProxyData::Type::Http))
-			? ProxyData::Type::Http
-			: (proxyType == kProxyTypeShift + int(ProxyData::Type::Mtproto))
-			? ProxyData::Type::Mtproto
-			: ProxyData::Type::None;
-		switch (connectionType) {
-		case dbictHttpProxy:
-		case dbictTcpProxy: {
-			Global::SetConnectionType(DBIConnectionType(connectionType));
-		} break;
-		case dbictHttpAuto:
-		default: Global::SetConnectionType(dbictAuto); break;
+		const auto readProxy = [&] {
+			qint32 proxyType, port;
+			ProxyData proxy;
+			stream >> proxyType >> proxy.host >> port >> proxy.user >> proxy.password;
+			proxy.port = port;
+			proxy.type = (proxyType == dbictTcpProxy)
+				? ProxyData::Type::Socks5
+				: (proxyType == dbictHttpProxy)
+				? ProxyData::Type::Http
+				: (proxyType == kProxyTypeShift + int(ProxyData::Type::Socks5))
+				? ProxyData::Type::Socks5
+				: (proxyType == kProxyTypeShift + int(ProxyData::Type::Http))
+				? ProxyData::Type::Http
+				: (proxyType == kProxyTypeShift + int(ProxyData::Type::Mtproto))
+				? ProxyData::Type::Mtproto
+				: ProxyData::Type::None;
+			return proxy;
 		};
-		Global::SetConnectionProxy(proxy);
+		if (connectionType == dbictProxiesList) {
+			qint32 count = 0, index = 0;
+			stream >> count >> index;
+			auto list = std::vector<ProxyData>();
+			for (auto i = 0; i < count; ++i) {
+				const auto proxy = readProxy();
+				if (proxy) {
+					list.push_back(proxy);
+				}
+			}
+			if (!_checkStreamStatus(stream)) {
+				return false;
+			}
+			Global::SetProxiesList(list);
+			Global::SetUseProxy(index >= 0 && index < count);
+			index = std::abs(index);
+			if (index >= 0 && index < count) {
+				Global::SetSelectedProxy(list[index]);
+			} else {
+				Global::SetSelectedProxy(ProxyData());
+			}
+		} else {
+			const auto proxy = readProxy();
+			if (!_checkStreamStatus(stream)) {
+				return false;
+			}
+			Global::SetProxiesList({ 1, proxy });
+			if (connectionType == dbictTcpProxy
+				|| connectionType == dbictHttpProxy) {
+				Global::SetSelectedProxy(proxy);
+				Global::SetUseProxy(true);
+			} else {
+				Global::SetSelectedProxy(ProxyData());
+				Global::SetUseProxy(false);
+			}
+		}
 		Sandbox::refreshGlobalProxy();
 	} break;
 
@@ -2393,9 +2433,18 @@ void writeSettings() {
 	quint32 size = 12 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::bytearraySize(dcOptionsSerialized);
 
-	auto &proxy = Global::ConnectionProxy();
-	size += sizeof(quint32) + sizeof(qint32) + sizeof(qint32);
-	size += Serialize::stringSize(proxy.host) + sizeof(qint32) + Serialize::stringSize(proxy.user) + Serialize::stringSize(proxy.password);
+	auto &proxies = Global::RefProxiesList();
+	const auto &proxy = Global::SelectedProxy();
+	auto proxyIt = ranges::find(proxies, proxy);
+	if (proxy.type != ProxyData::Type::None
+		&& proxyIt == end(proxies)) {
+		proxies.insert(begin(proxies), proxy);
+		proxyIt = begin(proxies);
+	}
+	size += sizeof(quint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
+	for (const auto &proxy : proxies) {
+		size += sizeof(qint32) + Serialize::stringSize(proxy.host) + sizeof(qint32) + Serialize::stringSize(proxy.user) + Serialize::stringSize(proxy.password);
+	}
 
 	if (_themeKey) {
 		size += sizeof(quint32) + sizeof(quint64);
@@ -2421,8 +2470,14 @@ void writeSettings() {
 	data.stream << quint32(dbiScale) << qint32(cConfigScale());
 	data.stream << quint32(dbiDcOptions) << dcOptionsSerialized;
 
-	data.stream << quint32(dbiConnectionType) << qint32(Global::ConnectionType()) << qint32(kProxyTypeShift + int(proxy.type));
-	data.stream << proxy.host << qint32(proxy.port) << proxy.user << proxy.password;
+	data.stream << quint32(dbiConnectionType) << qint32(dbictProxiesList);
+	data.stream << qint32(proxies.size());
+	const auto index = qint32(proxyIt - begin(proxies));
+	data.stream << (Global::UseProxy() ? index : -index);
+	for (const auto &proxy : proxies) {
+		data.stream << qint32(kProxyTypeShift + int(proxy.type));
+		data.stream << proxy.host << qint32(proxy.port) << proxy.user << proxy.password;
+	}
 
 	data.stream << quint32(dbiTryIPv6) << qint32(Global::TryIPv6());
 	if (_themeKey) {
