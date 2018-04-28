@@ -130,19 +130,29 @@ protected:
 		getDelegate()->setDimensions(newWidth, maxHeight);
 	}
 	void setInnerTopSkip(int topSkip, bool scrollBottomFixed = false);
+	void setInnerBottomSkip(int bottomSkip);
 
 	template <typename Widget>
-	QPointer<Widget> setInnerWidget(object_ptr<Widget> inner, const style::ScrollArea &st, int topSkip = 0) {
+	QPointer<Widget> setInnerWidget(
+			object_ptr<Widget> inner,
+			const style::ScrollArea &st,
+			int topSkip = 0,
+			int bottomSkip = 0) {
 		auto result = QPointer<Widget>(inner.data());
 		setInnerTopSkip(topSkip);
+		setInnerBottomSkip(bottomSkip);
 		setInner(std::move(inner), st);
 		return result;
 	}
 
 	template <typename Widget>
-	QPointer<Widget> setInnerWidget(object_ptr<Widget> inner, int topSkip = 0) {
+	QPointer<Widget> setInnerWidget(
+			object_ptr<Widget> inner,
+			int topSkip = 0,
+			int bottomSkip = 0) {
 		auto result = QPointer<Widget>(inner.data());
 		setInnerTopSkip(topSkip);
+		setInnerBottomSkip(bottomSkip);
 		setInner(std::move(inner));
 		return result;
 	}
@@ -183,6 +193,7 @@ private:
 	bool _preparing = false;
 	bool _noContentMargin = false;
 	int _innerTopSkip = 0;
+	int _innerBottomSkip = 0;
 	object_ptr<Ui::ScrollArea> _scroll = { nullptr };
 	object_ptr<Ui::FadeShadow> _topShadow = { nullptr };
 	object_ptr<Ui::FadeShadow> _bottomShadow = { nullptr };

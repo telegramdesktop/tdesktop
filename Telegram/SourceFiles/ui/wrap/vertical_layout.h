@@ -19,12 +19,24 @@ public:
 		typename Widget,
 		typename = std::enable_if_t<
 			std::is_base_of_v<RpWidget, Widget>>>
+	Widget *insert(
+			int atPosition,
+			object_ptr<Widget> &&child,
+			const style::margins &margin = style::margins()) {
+		return static_cast<Widget*>(insertChild(
+			atPosition,
+			std::move(child),
+			margin));
+	}
+
+	template <
+		typename Widget,
+		typename = std::enable_if_t<
+			std::is_base_of_v<RpWidget, Widget>>>
 	Widget *add(
 			object_ptr<Widget> &&child,
 			const style::margins &margin = style::margins()) {
-		return static_cast<Widget*>(addChild(
-			std::move(child),
-			margin));
+		return insert(_rows.size(), std::move(child), margin);
 	}
 
 	QMargins getMargins() const override;
@@ -37,7 +49,8 @@ protected:
 		int visibleBottom) override;
 
 private:
-	RpWidget *addChild(
+	RpWidget *insertChild(
+		int addPosition,
 		object_ptr<RpWidget> child,
 		const style::margins &margin);
 	void childHeightUpdated(RpWidget *child);

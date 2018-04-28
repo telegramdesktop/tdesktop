@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/text_options.h"
 #include "history/history_location_manager.h"
@@ -28,6 +29,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 
 namespace {
+
+constexpr auto kSaveSettingsDelayedTimeout = TimeMs(1000);
 
 class ProxyRow : public Ui::RippleButton {
 public:
@@ -72,12 +75,16 @@ protected:
 
 private:
 	void setupContent();
+	void addNewProxy();
 	void applyView(View &&view);
 	void setupButtons(int id, not_null<ProxyRow*> button);
 
 	not_null<ProxiesBoxController*> _controller;
-	object_ptr<Ui::VerticalLayout> _initialInner;
-	QPointer<Ui::VerticalLayout> _inner;
+	object_ptr<Ui::PaddingWrap<Ui::Checkbox>> _useProxy;
+	object_ptr<Ui::PaddingWrap<Ui::Checkbox>> _tryIPv6;
+	object_ptr<Ui::VerticalLayout> _initialWrap;
+	QPointer<Ui::VerticalLayout> _wrap;
+
 	base::flat_map<int, QPointer<ProxyRow>> _rows;
 
 };
@@ -145,6 +152,8 @@ void ProxyRow::updateFields(View &&view) {
 	_edit->toggle(!_view.deleted, anim::type::instant);
 	_restore->toggle(_view.deleted, anim::type::instant);
 
+	setPointerCursor(!_view.deleted);
+
 	update();
 }
 
@@ -171,7 +180,6 @@ int ProxyRow::resizeGetHeight(int newWidth) {
 	right -= _edit->width();
 	_skipRight = right;
 	_skipLeft = st::proxyRowPadding.left()
-		+ st::proxyRowSelectedIcon.width()
 		+ st::proxyRowIconSkip;
 	return result;
 }
@@ -240,7 +248,21 @@ ProxiesBox::ProxiesBox(
 	QWidget*,
 	not_null<ProxiesBoxController*> controller)
 : _controller(controller)
-, _initialInner(this) {
+, _useProxy(
+	this,
+	object_ptr<Ui::Checkbox>(
+		this,
+		lang(lng_proxy_use),
+		Global::UseProxy()),
+	st::proxyUsePadding)
+, _tryIPv6(
+	this,
+	object_ptr<Ui::Checkbox>(
+		this,
+		lang(lng_connection_try_ipv6),
+		Global::TryIPv6()),
+	st::proxyTryIPv6Padding)
+, _initialWrap(this) {
 	_controller->views(
 	) | rpl::start_with_next([=](View &&view) {
 		applyView(std::move(view));
@@ -250,40 +272,73 @@ ProxiesBox::ProxiesBox(
 void ProxiesBox::prepare() {
 	setTitle(langFactory(lng_proxy_settings));
 
-	addButton(langFactory(lng_proxy_add), [=] {
-		Ui::show(_controller->addNewItemBox(), LayerOption::KeepOther);
-	});
-	addButton(langFactory(lng_close), [=] {
-		closeBox();
-	});
+	addButton(langFactory(lng_proxy_add), [=] { addNewProxy(); });
+	addButton(langFactory(lng_close), [=] { closeBox(); });
 
 	setupContent();
 }
 
 void ProxiesBox::setupContent() {
-	_inner = setInnerWidget(std::move(_initialInner));
+	_useProxy->resizeToWidth(st::boxWideWidth);
+	_useProxy->moveToLeft(0, 0);
+	subscribe(_useProxy->entity()->checkedChanged, [=](bool checked) {
+		if (!_controller->setProxyEnabled(checked)) {
+			addNewProxy();
+		}
+	});
+	subscribe(Global::RefConnectionTypeChanged(), [=] {
+		_useProxy->entity()->setChecked(Global::UseProxy());
+	});
 
-	_inner->resizeToWidth(st::boxWideWidth);
+	_tryIPv6->resizeToWidth(st::boxWideWidth);
 
-	_inner->heightValue(
-	) | rpl::map([](int height) {
-		return std::min(height, st::boxMaxListHeight);
+	const auto topSkip = _useProxy->heightNoMargins();
+	const auto bottomSkip = _tryIPv6->heightNoMargins();
+	const auto inner = setInnerWidget(
+		object_ptr<Ui::VerticalLayout>(this),
+		topSkip,
+		bottomSkip);
+	inner->add(object_ptr<Ui::FixedHeightWidget>(
+		inner,
+		st::proxyRowPadding.top()));
+	_wrap = inner->add(std::move(_initialWrap));
+	inner->add(object_ptr<Ui::FixedHeightWidget>(
+		inner,
+		st::proxyRowPadding.bottom()));
+
+	inner->resizeToWidth(st::boxWideWidth);
+
+	inner->heightValue(
+	) | rpl::map([=](int height) {
+		return std::min(
+			topSkip + height + bottomSkip,
+			st::boxMaxListHeight);
 	}) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](int height) {
 		setDimensions(st::boxWideWidth, height);
-	}, lifetime());
+	}, inner->lifetime());
+
+	heightValue(
+	) | rpl::start_with_next([=](int height) {
+		_tryIPv6->moveToLeft(0, height - _tryIPv6->heightNoMargins());
+	}, _tryIPv6->lifetime());
+}
+
+void ProxiesBox::addNewProxy() {
+	Ui::show(_controller->addNewItemBox(), LayerOption::KeepOther);
 }
 
 void ProxiesBox::applyView(View &&view) {
 	const auto id = view.id;
 	const auto i = _rows.find(id);
 	if (i == _rows.end()) {
-		const auto inner = _inner
-			? _inner.data()
-			: _initialInner.data();
-		const auto [i, ok] = _rows.emplace(id, inner->add(
+		const auto wrap = _wrap
+			? _wrap.data()
+			: _initialWrap.data();
+		const auto [i, ok] = _rows.emplace(id, wrap->insert(
+			0,
 			object_ptr<ProxyRow>(
-				inner,
+				wrap,
 				std::move(view))));
 		setupButtons(id, i->second);
 	} else {
@@ -305,6 +360,11 @@ void ProxiesBox::setupButtons(int id, not_null<ProxyRow*> button) {
 	button->editClicks(
 	) | rpl::start_with_next([=] {
 		Ui::show(_controller->editItemBox(id), LayerOption::KeepOther);
+	}, button->lifetime());
+
+	button->clicks(
+	) | rpl::start_with_next([=] {
+		_controller->applyItem(id);
 	}, button->lifetime());
 }
 
@@ -346,7 +406,7 @@ void ConnectionBox::ShowApplyProxyConfirmation(
 		*box = Ui::show(Box<ConfirmBox>(text, lang(lng_sure_enable), [=] {
 			auto &proxies = Global::RefProxiesList();
 			if (ranges::find(proxies, proxy) == end(proxies)) {
-				proxies.insert(begin(proxies), proxy);
+				proxies.push_back(proxy);
 			}
 			Global::SetSelectedProxy(proxy);
 			Global::SetUseProxy(true);
@@ -662,7 +722,8 @@ void AutoDownloadBox::onSave() {
 	closeBox();
 }
 
-ProxiesBoxController::ProxiesBoxController() {
+ProxiesBoxController::ProxiesBoxController()
+: _saveTimer([] { Local::writeSettings(); }) {
 	_list = ranges::view::all(
 		Global::ProxiesList()
 	) | ranges::view::transform([&](const ProxyData &proxy) {
@@ -679,7 +740,7 @@ object_ptr<BoxContent> ProxiesBoxController::CreateOwningBox() {
 
 object_ptr<BoxContent> ProxiesBoxController::create() {
 	auto result = Box<ProxiesBox>(this);
-	for (const auto &item : _list) {
+	for (const auto &item : base::reversed(_list)) {
 		updateView(item);
 	}
 	return std::move(result);
@@ -694,6 +755,14 @@ auto ProxiesBoxController::findById(int id) -> std::vector<Item>::iterator {
 	return result;
 }
 
+auto ProxiesBoxController::findByProxy(const ProxyData &proxy)
+->std::vector<Item>::iterator {
+	return ranges::find(
+		_list,
+		proxy,
+		[](const Item &item) { return item.data; });
+}
+
 void ProxiesBoxController::deleteItem(int id) {
 	setDeleted(id, true);
 }
@@ -702,9 +771,68 @@ void ProxiesBoxController::restoreItem(int id) {
 	setDeleted(id, false);
 }
 
+void ProxiesBoxController::applyItem(int id) {
+	auto item = findById(id);
+	if (Global::UseProxy() && Global::SelectedProxy() == item->data) {
+		return;
+	} else if (item->deleted) {
+		return;
+	}
+
+	auto j = findByProxy(Global::SelectedProxy());
+
+	Global::SetSelectedProxy(item->data);
+	Global::SetUseProxy(true);
+	applyChanges();
+
+	if (j != end(_list)) {
+		updateView(*j);
+	}
+	updateView(*item);
+}
+
 void ProxiesBoxController::setDeleted(int id, bool deleted) {
 	auto item = findById(id);
 	item->deleted = deleted;
+
+	if (deleted) {
+		auto &proxies = Global::RefProxiesList();
+		proxies.erase(ranges::remove(proxies, item->data), end(proxies));
+
+		if (item->data == Global::SelectedProxy()) {
+			_lastSelectedProxy = base::take(Global::RefSelectedProxy());
+			if (Global::UseProxy()) {
+				_lastSelectedProxyUsed = true;
+				Global::SetUseProxy(false);
+				applyChanges();
+			} else {
+				_lastSelectedProxyUsed = false;
+			}
+		}
+	} else {
+		auto &proxies = Global::RefProxiesList();
+		if (ranges::find(proxies, item->data) == end(proxies)) {
+			auto insertBefore = item + 1;
+			while (insertBefore != end(_list) && insertBefore->deleted) {
+				++insertBefore;
+			}
+			auto insertBeforeIt = (insertBefore == end(_list))
+				? end(proxies)
+				: ranges::find(proxies, insertBefore->data);
+			proxies.insert(insertBeforeIt, item->data);
+		}
+
+		if (!Global::SelectedProxy() && _lastSelectedProxy == item->data) {
+			Assert(!Global::UseProxy());
+
+			Global::SetSelectedProxy(base::take(_lastSelectedProxy));
+			if (base::take(_lastSelectedProxyUsed)) {
+				Global::SetUseProxy(true);
+				applyChanges();
+			}
+		}
+	}
+	saveDelayed();
 	updateView(*item);
 }
 
@@ -749,6 +877,34 @@ object_ptr<BoxContent> ProxiesBoxController::addNewItemBox() {
 	});
 }
 
+bool ProxiesBoxController::setProxyEnabled(bool enabled) {
+	if (enabled) {
+		if (Global::ProxiesList().empty()) {
+			return false;
+		} else if (!Global::SelectedProxy()) {
+			Global::SetSelectedProxy(Global::ProxiesList().back());
+			auto j = findByProxy(Global::SelectedProxy());
+			if (j != end(_list)) {
+				updateView(*j);
+			}
+		}
+	}
+	Global::SetUseProxy(enabled);
+	applyChanges();
+	return true;
+}
+
+void ProxiesBoxController::applyChanges() {
+	Sandbox::refreshGlobalProxy();
+	Global::RefConnectionTypeChanged().notify();
+	MTP::restart();
+	saveDelayed();
+}
+
+void ProxiesBoxController::saveDelayed() {
+	_saveTimer.callOnce(kSaveSettingsDelayedTimeout);
+}
+
 auto ProxiesBoxController::views() const -> rpl::producer<ItemView> {
 	return _views.events();
 }
@@ -778,4 +934,13 @@ void ProxiesBoxController::updateView(const Item &item) {
 		!deleted && selected,
 		deleted,
 		state });
+}
+
+ProxiesBoxController::~ProxiesBoxController() {
+	if (_saveTimer.isActive()) {
+		App::CallDelayed(
+			kSaveSettingsDelayedTimeout,
+			QApplication::instance(),
+			[] { Local::writeSettings(); });
+	}
 }

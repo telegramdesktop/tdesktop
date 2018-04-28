@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
+#include "base/timer.h"
 
 namespace Ui {
 class InputField;
@@ -119,10 +120,14 @@ public:
 
 	void deleteItem(int id);
 	void restoreItem(int id);
+	void applyItem(int id);
 	object_ptr<BoxContent> editItemBox(int id);
 	object_ptr<BoxContent> addNewItemBox();
+	bool setProxyEnabled(bool enabled);
 
 	rpl::producer<ItemView> views() const;
+
+	~ProxiesBoxController();
 
 private:
 	struct Item {
@@ -132,12 +137,19 @@ private:
 	};
 
 	std::vector<Item>::iterator findById(int id);
+	std::vector<Item>::iterator findByProxy(const ProxyData &proxy);
 	void setDeleted(int id, bool deleted);
 	void updateView(const Item &item);
+	void applyChanges();
+	void saveDelayed();
 
 	int _idCounter = 0;
 	int _selected = -1;
 	std::vector<Item> _list;
 	rpl::event_stream<ItemView> _views;
+	base::Timer _saveTimer;
+
+	ProxyData _lastSelectedProxy;
+	bool _lastSelectedProxyUsed = false;
 
 };
