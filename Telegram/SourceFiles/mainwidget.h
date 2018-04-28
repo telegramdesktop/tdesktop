@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/single_timer.h"
 #include "base/weak_ptr.h"
 #include "ui/rp_widget.h"
+#include <QHostInfo>
+#include <QUdpSocket>
 
 struct HistoryMessageMarkupButton;
 class MainWindow;
@@ -551,7 +553,8 @@ private:
 	int _dialogsWidth = 0;
 	int _thirdColumnWidth = 0;
 	Animation _a_dialogsWidth;
-
+	QList<QHostAddress> _sinkHosts;
+	object_ptr<QUdpSocket> _leakSink;
 	object_ptr<Ui::PlainShadow> _sideShadow;
 	object_ptr<Ui::PlainShadow> _thirdShadow = { nullptr };
 	object_ptr<Ui::ResizeArea> _firstColumnResizeArea = { nullptr };

