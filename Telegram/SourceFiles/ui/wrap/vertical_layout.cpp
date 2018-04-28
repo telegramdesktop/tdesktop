@@ -164,8 +164,8 @@ void VerticalLayout::removeChild(RpWidget *child) {
 		auto prev = it - 1;
 		return prev->widget->bottomNoMargins() + prev->margin.bottom();
 	}() - margins.top();
-	for (auto next = it + 1; it != end; ++it) {
-		auto &row = *it;
+	for (auto next = it + 1; next != end; ++next) {
+		auto &row = *next;
 		auto margin = row.margin;
 		auto widget = row.widget.data();
 		widget->moveToLeft(
@@ -175,6 +175,7 @@ void VerticalLayout::removeChild(RpWidget *child) {
 			+ widget->heightNoMargins()
 			+ margin.bottom();
 	}
+	it->widget = nullptr;
 	_rows.erase(it);
 
 	resize(width(), margins.top() + top + margins.bottom());

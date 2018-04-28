@@ -747,3 +747,20 @@ proxyRowEdit: IconButton(defaultIconButton) {
 		color: windowBgOver;
 	}
 }
+
+proxyEditTitle: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: autoDownloadTitleFont;
+	}
+	textFg: boxTitleFg;
+}
+proxyEditTitlePadding: margins(22px, 16px, 22px, 0px);
+proxyEditTypePadding: margins(22px, 4px, 22px, 8px);
+proxyEditInputPadding: margins(22px, 0px, 22px, 0px);
+proxyEditSkip: 16px;
+
+proxyEmptyListLabel: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	textFg: windowSubTextFg;
+}
+proxyEmptyListPadding: margins(22px, 48px, 22px, 0px);

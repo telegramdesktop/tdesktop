@@ -424,6 +424,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_proxy_settings" = "Proxy settings";
 "lng_proxy_use" = "Use proxy";
 "lng_proxy_add" = "Add proxy";
+"lng_proxy_share" = "Share";
 "lng_proxy_online" = "online";
 "lng_proxy_checking" = "checking";
 "lng_proxy_connecting" = "connecting";
@@ -431,10 +432,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_proxy_unavailable" = "unavailable";
 "lng_proxy_edit" = "Edit proxy";
 "lng_proxy_undo_delete" = "Undo";
-"lng_proxy_type_http" = "HTTP";
-"lng_proxy_type_socks5" = "SOCKS5";
-"lng_proxy_type_mtproto" = "MTPROTO";
+"lng_proxy_address_label" = "Socket address";
+"lng_proxy_credentials_optional" = "Credentials (optional)";
+"lng_proxy_credentials" = "Credentials";
 "lng_proxy_edit_share" = "Share";
+"lng_proxy_description" = "Your saved proxy list will be here.";
 
 "lng_settings_blocked_users" = "Blocked users";
 "lng_settings_last_seen_privacy" = "Last seen privacy";

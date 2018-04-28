@@ -906,6 +906,19 @@ protected:
 
 };
 
+class HexInput : public MaskedInputField {
+public:
+	HexInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val);
+
+protected:
+	void correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) override;
+
+};
+
 class UsernameInput : public MaskedInputField {
 public:
 	UsernameInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val, bool isLink);

@@ -3944,6 +3944,33 @@ void PortInput::correctValue(
 	setCorrectedText(now, nowCursor, newText, newPos);
 }
 
+HexInput::HexInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
+	if (!QRegularExpression("^[a-fA-F0-9]+$").match(val).hasMatch()) {
+		setText(QString());
+	}
+}
+
+void HexInput::correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) {
+	QString newText;
+	newText.reserve(now.size());
+	auto newPos = nowCursor;
+	for (auto i = 0, l = now.size(); i < l; ++i) {
+		const auto ch = now[i];
+		if ((ch >= '0' && ch <= '9')
+			|| (ch >= 'a' && ch <= 'f')
+			|| (ch >= 'A' && ch <= 'F')) {
+			newText.append(ch);
+		} else if (i < nowCursor) {
+			--newPos;
+		}
+	}
+	setCorrectedText(now, nowCursor, newText, newPos);
+}
+
 UsernameInput::UsernameInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val, bool isLink) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
 	setLinkPlaceholder(isLink ? Messenger::Instance().createInternalLink(QString()) : QString());
 }

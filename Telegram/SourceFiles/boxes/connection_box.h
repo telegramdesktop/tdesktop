@@ -124,6 +124,7 @@ public:
 	object_ptr<BoxContent> editItemBox(int id);
 	object_ptr<BoxContent> addNewItemBox();
 	bool setProxyEnabled(bool enabled);
+	void setTryIPv6(bool enabled);
 
 	rpl::producer<ItemView> views() const;
 
@@ -142,6 +143,14 @@ private:
 	void updateView(const Item &item);
 	void applyChanges();
 	void saveDelayed();
+
+	void replaceItemWith(
+		std::vector<Item>::iterator which,
+		std::vector<Item>::iterator with);
+	void replaceItemValue(
+		std::vector<Item>::iterator which,
+		const ProxyData &proxy);
+	void addNewItem(const ProxyData &proxy);
 
 	int _idCounter = 0;
 	int _selected = -1;
