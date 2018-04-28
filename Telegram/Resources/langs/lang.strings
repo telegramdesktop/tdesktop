@@ -418,7 +418,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_connection_port_ph" = "Port";
 "lng_connection_user_ph" = "Username";
 "lng_connection_password_ph" = "Password";
+"lng_connection_proxy_secret_ph" = "Secret";
 "lng_connection_save" = "Save";
+
+"lng_proxy_settings" = "Proxy settings";
+"lng_proxy_use" = "Use proxy";
+"lng_proxy_add" = "Add proxy";
+"lng_proxy_online" = "online";
+"lng_proxy_checking" = "checking";
+"lng_proxy_connecting" = "connecting";
+"lng_proxy_available" = "available";
+"lng_proxy_unavailable" = "unavailable";
+"lng_proxy_edit" = "Edit proxy";
+"lng_proxy_undo_delete" = "Undo";
+"lng_proxy_type_http" = "HTTP";
+"lng_proxy_type_socks5" = "SOCKS5";
+"lng_proxy_type_mtproto" = "MTPROTO";
+"lng_proxy_edit_share" = "Share";
 
 "lng_settings_blocked_users" = "Blocked users";
 "lng_settings_last_seen_privacy" = "Last seen privacy";

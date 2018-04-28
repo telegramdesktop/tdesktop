@@ -89,3 +89,55 @@ private:
 	int _sectionHeight = 0;
 
 };
+
+class ProxiesBoxController {
+public:
+	ProxiesBoxController();
+
+	static object_ptr<BoxContent> CreateOwningBox();
+	object_ptr<BoxContent> create();
+
+	struct ItemView {
+		enum class State {
+			Connecting,
+			Online,
+			Checking,
+			Available,
+			Unavailable
+		};
+
+		int id = 0;
+		QString type;
+		QString host;
+		uint32 port = 0;
+		int ping = 0;
+		bool selected = false;
+		bool deleted = false;
+		State state = State::Checking;
+
+	};
+
+	void deleteItem(int id);
+	void restoreItem(int id);
+	object_ptr<BoxContent> editItemBox(int id);
+	object_ptr<BoxContent> addNewItemBox();
+
+	rpl::producer<ItemView> views() const;
+
+private:
+	struct Item {
+		int id = 0;
+		ProxyData data;
+		bool deleted = false;
+	};
+
+	std::vector<Item>::iterator findById(int id);
+	void setDeleted(int id, bool deleted);
+	void updateView(const Item &item);
+
+	int _idCounter = 0;
+	int _selected = -1;
+	std::vector<Item> _list;
+	rpl::event_stream<ItemView> _views;
+
+};

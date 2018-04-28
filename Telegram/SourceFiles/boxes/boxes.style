@@ -711,3 +711,37 @@ sendMediaFileThumbSize: 64px;
 sendMediaFileThumbSkip: 10px;
 sendMediaFileNameTop: 7px;
 sendMediaFileStatusTop: 37px;
+
+proxyRowPadding: margins(22px, 8px, 8px, 8px);
+proxyRowIconSkip: 16px;
+proxyRowSkip: 2px;
+proxyRowRipple: RippleAnimation(defaultRippleAnimation) {
+	color: windowBgOver;
+}
+proxyRowSelectedIcon: icon {{ "mediaview_save_check", windowActiveTextFg }};
+proxyRowTitleFg: windowFg;
+proxyRowTitlePalette: TextPalette(defaultTextPalette) {
+	linkFg: windowSubTextFg;
+}
+proxyRowTitleStyle: TextStyle(defaultTextStyle) {
+	font: semiboldFont;
+	linkFont: normalFont;
+	linkFontOver: normalFont;
+}
+proxyRowStatusFg: windowSubTextFg;
+proxyRowStatusFgOnline: windowActiveTextFg;
+proxyRowStatusFgOffline: attentionButtonFg;
+proxyRowEdit: IconButton(defaultIconButton) {
+	width: 40px;
+	height: 40px;
+
+	icon: icon {{ "settings_edit_name", menuIconFg }};
+	iconOver: icon {{ "settings_edit_name", menuIconFgOver }};
+	iconPosition: point(12px, 13px);
+
+	rippleAreaSize: 40px;
+	rippleAreaPosition: point(0px, 0px);
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}

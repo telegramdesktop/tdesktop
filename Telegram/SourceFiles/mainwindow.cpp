@@ -100,7 +100,8 @@ void ConnectingWidget::paintEvent(QPaintEvent *e) {
 
 void ConnectingWidget::onReconnect() {
 	if (Global::UseProxy()) {
-		Ui::show(Box<ConnectionBox>());
+		//Ui::show(Box<ConnectionBox>());
+		Ui::show(ProxiesBoxController::CreateOwningBox());
 	} else {
 		MTP::restart();
 	}

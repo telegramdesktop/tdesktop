@@ -19,9 +19,307 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/wrap/fade_wrap.h"
+#include "ui/wrap/vertical_layout.h"
+#include "ui/text_options.h"
 #include "history/history_location_manager.h"
 #include "application.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
+
+namespace {
+
+class ProxyRow : public Ui::RippleButton {
+public:
+	using View = ProxiesBoxController::ItemView;
+
+	ProxyRow(QWidget *parent, View &&view);
+
+	void updateFields(View &&view);
+
+	rpl::producer<> deleteClicks() const;
+	rpl::producer<> restoreClicks() const;
+	rpl::producer<> editClicks() const;
+
+protected:
+	int resizeGetHeight(int newWidth) override;
+
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	void setupControls(View &&view);
+	int countAvailableWidth() const;
+
+	View _view;
+
+	Text _title;
+	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _edit;
+	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _delete;
+	object_ptr<Ui::FadeWrapScaled<Ui::RoundButton>> _restore;
+	int _skipLeft = 0;
+	int _skipRight = 0;
+
+};
+
+class ProxiesBox : public BoxContent {
+public:
+	using View = ProxiesBoxController::ItemView;
+
+	ProxiesBox(QWidget*, not_null<ProxiesBoxController*> controller);
+
+protected:
+	void prepare() override;
+
+private:
+	void setupContent();
+	void applyView(View &&view);
+	void setupButtons(int id, not_null<ProxyRow*> button);
+
+	not_null<ProxiesBoxController*> _controller;
+	object_ptr<Ui::VerticalLayout> _initialInner;
+	QPointer<Ui::VerticalLayout> _inner;
+	base::flat_map<int, QPointer<ProxyRow>> _rows;
+
+};
+
+class ProxyBox : public BoxContent {
+public:
+	ProxyBox(
+		QWidget*,
+		const ProxyData &data,
+		base::lambda<void(ProxyData)> callback);
+
+protected:
+	void prepare() override;
+
+private:
+	base::lambda<void(ProxyData)> _callback;
+
+};
+
+ProxyRow::ProxyRow(QWidget *parent, View &&view)
+: RippleButton(parent, st::proxyRowRipple)
+, _edit(this, object_ptr<Ui::IconButton>(this, st::proxyRowEdit))
+, _delete(this, object_ptr<Ui::IconButton>(this, st::stickersRemove))
+, _restore(
+	this,
+	object_ptr<Ui::RoundButton>(
+		this,
+		langFactory(lng_proxy_undo_delete),
+		st::stickersUndoRemove)) {
+	setupControls(std::move(view));
+}
+
+rpl::producer<> ProxyRow::deleteClicks() const {
+	return _delete->entity()->clicks();
+}
+
+rpl::producer<> ProxyRow::restoreClicks() const {
+	return _restore->entity()->clicks();
+}
+
+rpl::producer<> ProxyRow::editClicks() const {
+	return _edit->entity()->clicks();
+}
+
+void ProxyRow::setupControls(View &&view) {
+	updateFields(std::move(view));
+
+	_delete->finishAnimating();
+	_restore->finishAnimating();
+	_edit->finishAnimating();
+}
+
+int ProxyRow::countAvailableWidth() const {
+	return width() - _skipLeft - _skipRight;
+}
+
+void ProxyRow::updateFields(View &&view) {
+	_view = std::move(view);
+	const auto endpoint = _view.host + ':' + QString::number(_view.port);
+	_title.setText(
+		st::proxyRowTitleStyle,
+		_view.type + ' ' + textcmdLink(1, endpoint),
+		Ui::ItemTextDefaultOptions());
+	_delete->toggle(!_view.deleted, anim::type::instant);
+	_edit->toggle(!_view.deleted, anim::type::instant);
+	_restore->toggle(_view.deleted, anim::type::instant);
+
+	update();
+}
+
+int ProxyRow::resizeGetHeight(int newWidth) {
+	const auto result = st::proxyRowPadding.top()
+		+ st::semiboldFont->height
+		+ st::proxyRowSkip
+		+ st::normalFont->height
+		+ st::proxyRowPadding.bottom();
+	auto right = st::proxyRowPadding.right();
+	_delete->moveToRight(
+		right,
+		(result - _delete->height()) / 2,
+		newWidth);
+	_restore->moveToRight(
+		right,
+		(result - _restore->height()) / 2,
+		newWidth);
+	right += _delete->width();
+	_edit->moveToRight(
+		right,
+		(result - _edit->height()) / 2,
+		newWidth);
+	right -= _edit->width();
+	_skipRight = right;
+	_skipLeft = st::proxyRowPadding.left()
+		+ st::proxyRowSelectedIcon.width()
+		+ st::proxyRowIconSkip;
+	return result;
+}
+
+void ProxyRow::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	if (!_view.deleted) {
+		const auto ms = getms();
+		paintRipple(p, 0, 0, ms);
+	}
+
+	const auto left = _skipLeft;
+	const auto availableWidth = countAvailableWidth();
+	auto top = st::proxyRowPadding.top();
+
+	if (_view.deleted) {
+		p.setOpacity(st::stickersRowDisabledOpacity);
+	} else if (_view.selected) {
+		st::proxyRowSelectedIcon.paint(
+			p,
+			st::proxyRowPadding.left(),
+			(height() - st::proxyRowSelectedIcon.height()) / 2,
+			width());
+	}
+
+	p.setPen(st::proxyRowTitleFg);
+	p.setFont(st::semiboldFont);
+	p.setTextPalette(st::proxyRowTitlePalette);
+	_title.drawLeftElided(p, left, top, availableWidth, width());
+	top += st::semiboldFont->height + st::proxyRowSkip;
+
+	const auto statusFg = [&] {
+		switch (_view.state) {
+		case View::State::Online:
+			return st::proxyRowStatusFgOnline;
+		case View::State::Unavailable:
+			return st::proxyRowStatusFgOffline;
+		default:
+			return st::proxyRowStatusFg;
+		}
+	}();
+	const auto status = [&] {
+		switch (_view.state) {
+		case View::State::Available:
+			return lang(lng_proxy_available);
+		case View::State::Checking:
+			return lang(lng_proxy_available);
+		case View::State::Connecting:
+			return lang(lng_proxy_connecting);
+		case View::State::Online:
+			return lang(lng_proxy_online);
+		case View::State::Unavailable:
+			return lang(lng_proxy_unavailable);
+		}
+		Unexpected("State in ProxyRow::paintEvent.");
+	}();
+	p.setPen(statusFg);
+	p.setFont(st::normalFont);
+	p.drawTextLeft(left, top, width(), status);
+	top += st::normalFont->height + st::proxyRowPadding.bottom();
+
+}
+
+ProxiesBox::ProxiesBox(
+	QWidget*,
+	not_null<ProxiesBoxController*> controller)
+: _controller(controller)
+, _initialInner(this) {
+	_controller->views(
+	) | rpl::start_with_next([=](View &&view) {
+		applyView(std::move(view));
+	}, lifetime());
+}
+
+void ProxiesBox::prepare() {
+	setTitle(langFactory(lng_proxy_settings));
+
+	addButton(langFactory(lng_proxy_add), [=] {
+		Ui::show(_controller->addNewItemBox(), LayerOption::KeepOther);
+	});
+	addButton(langFactory(lng_close), [=] {
+		closeBox();
+	});
+
+	setupContent();
+}
+
+void ProxiesBox::setupContent() {
+	_inner = setInnerWidget(std::move(_initialInner));
+
+	_inner->resizeToWidth(st::boxWideWidth);
+
+	_inner->heightValue(
+	) | rpl::map([](int height) {
+		return std::min(height, st::boxMaxListHeight);
+	}) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](int height) {
+		setDimensions(st::boxWideWidth, height);
+	}, lifetime());
+}
+
+void ProxiesBox::applyView(View &&view) {
+	const auto id = view.id;
+	const auto i = _rows.find(id);
+	if (i == _rows.end()) {
+		const auto inner = _inner
+			? _inner.data()
+			: _initialInner.data();
+		const auto [i, ok] = _rows.emplace(id, inner->add(
+			object_ptr<ProxyRow>(
+				inner,
+				std::move(view))));
+		setupButtons(id, i->second);
+	} else {
+		i->second->updateFields(std::move(view));
+	}
+}
+
+void ProxiesBox::setupButtons(int id, not_null<ProxyRow*> button) {
+	button->deleteClicks(
+	) | rpl::start_with_next([=] {
+		_controller->deleteItem(id);
+	}, button->lifetime());
+
+	button->restoreClicks(
+	) | rpl::start_with_next([=] {
+		_controller->restoreItem(id);
+	}, button->lifetime());
+
+	button->editClicks(
+	) | rpl::start_with_next([=] {
+		Ui::show(_controller->editItemBox(id), LayerOption::KeepOther);
+	}, button->lifetime());
+}
+
+ProxyBox::ProxyBox(
+	QWidget*,
+	const ProxyData &data,
+	base::lambda<void(ProxyData)> callback)
+: _callback(std::move(callback)) {
+}
+
+void ProxyBox::prepare() {
+
+}
+
+} // namespace
 
 void ConnectionBox::ShowApplyProxyConfirmation(
 		ProxyData::Type type,
@@ -362,4 +660,122 @@ void AutoDownloadBox::onSave() {
 		Auth().data().animationLoadSettingsChanged();
 	}
 	closeBox();
+}
+
+ProxiesBoxController::ProxiesBoxController() {
+	_list = ranges::view::all(
+		Global::ProxiesList()
+	) | ranges::view::transform([&](const ProxyData &proxy) {
+		return Item{ ++_idCounter, proxy };
+	}) | ranges::to_vector;
+}
+
+object_ptr<BoxContent> ProxiesBoxController::CreateOwningBox() {
+	auto controller = std::make_unique<ProxiesBoxController>();
+	auto box = controller->create();
+	Ui::AttachAsChild(box, std::move(controller));
+	return box;
+}
+
+object_ptr<BoxContent> ProxiesBoxController::create() {
+	auto result = Box<ProxiesBox>(this);
+	for (const auto &item : _list) {
+		updateView(item);
+	}
+	return std::move(result);
+}
+
+auto ProxiesBoxController::findById(int id) -> std::vector<Item>::iterator {
+	const auto result = ranges::find(
+		_list,
+		id,
+		[](const Item &item) { return item.id; });
+	Assert(result != end(_list));
+	return result;
+}
+
+void ProxiesBoxController::deleteItem(int id) {
+	setDeleted(id, true);
+}
+
+void ProxiesBoxController::restoreItem(int id) {
+	setDeleted(id, false);
+}
+
+void ProxiesBoxController::setDeleted(int id, bool deleted) {
+	auto item = findById(id);
+	item->deleted = deleted;
+	updateView(*item);
+}
+
+object_ptr<BoxContent> ProxiesBoxController::editItemBox(int id) {
+	return Box<ProxyBox>(findById(id)->data, [=](const ProxyData &result) {
+		auto i = findById(id);
+		auto j = ranges::find(
+			_list,
+			result,
+			[](const Item &item) { return item.data; });
+		if (j != end(_list) && j != i) {
+			_views.fire({ i->id });
+			_list.erase(i);
+			if (j->deleted) {
+				restoreItem(j->id);
+			}
+		} else {
+			i->data = result;
+			if (i->deleted) {
+				restoreItem(i->id);
+			} else {
+				updateView(*i);
+			}
+		}
+	});
+}
+
+object_ptr<BoxContent> ProxiesBoxController::addNewItemBox() {
+	return Box<ProxyBox>(ProxyData(), [=](const ProxyData &result) {
+		auto j = ranges::find(
+			_list,
+			result,
+			[](const Item &item) { return item.data; });
+		if (j != end(_list)) {
+			if (j->deleted) {
+				restoreItem(j->id);
+			}
+		} else {
+			_list.push_back({ ++_idCounter, result });
+			updateView(_list.back());
+		}
+	});
+}
+
+auto ProxiesBoxController::views() const -> rpl::producer<ItemView> {
+	return _views.events();
+}
+
+void ProxiesBoxController::updateView(const Item &item) {
+	const auto state = ItemView::State::Checking;
+	const auto ping = 0;
+	const auto selected = (Global::SelectedProxy() == item.data);
+	const auto deleted = item.deleted;
+	const auto type = [&] {
+		switch (item.data.type) {
+		case ProxyData::Type::Http:
+			return qsl("HTTP");
+		case ProxyData::Type::Socks5:
+			return qsl("SOCKS5");
+		case ProxyData::Type::Mtproto:
+			return qsl("MTPROTO");
+		}
+		Unexpected("Proxy type in ProxiesBoxController::updateView.");
+	}();
+	_views.fire({
+		item.id,
+		type,
+		item.data.host,
+		item.data.port,
+		ping,
+		!deleted && selected,
+		deleted,
+		state });
 }
