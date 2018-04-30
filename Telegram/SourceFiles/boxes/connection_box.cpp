@@ -295,8 +295,7 @@ ProxiesBox::ProxiesBox(
 	this,
 	object_ptr<Ui::Checkbox>(
 		this,
-		lang(lng_proxy_use),
-		Global::UseProxy()),
+		lang(lng_proxy_use)),
 	st::proxyUsePadding)
 , _tryIPv6(
 	this,
@@ -333,9 +332,10 @@ void ProxiesBox::setupContent() {
 	subscribe(_tryIPv6->entity()->checkedChanged, [=](bool checked) {
 		_controller->setTryIPv6(checked);
 	});
-	subscribe(Global::RefConnectionTypeChanged(), [=] {
-		_useProxy->entity()->setChecked(Global::UseProxy());
-	});
+	_controller->proxyEnabledValue(
+	) | rpl::start_with_next([=](bool enabled) {
+		_useProxy->entity()->setChecked(enabled);
+	}, _useProxy->entity()->lifetime());
 
 	_tryIPv6->resizeToWidth(st::boxWideWidth);
 
@@ -1037,14 +1037,27 @@ ProxiesBoxController::ProxiesBoxController()
 	) | ranges::view::transform([&](const ProxyData &proxy) {
 		return Item{ ++_idCounter, proxy };
 	}) | ranges::to_vector;
-	for (auto &item : _list) {
-		if (!Global::UseProxy() || item.data != Global::SelectedProxy()) {
-			createChecker(item);
+
+	subscribe(Global::RefConnectionTypeChanged(), [=] {
+		_proxyEnabledChanges.fire_copy(Global::UseProxy());
+		const auto i = findByProxy(Global::SelectedProxy());
+		if (i != end(_list)) {
+			updateView(*i);
 		}
+	});
+
+	for (auto &item : _list) {
+		refreshChecker(item);
 	}
 }
 
-void ProxiesBoxController::createChecker(Item &item) {
+rpl::producer<bool> ProxiesBoxController::proxyEnabledValue() const {
+	return _proxyEnabledChanges.events_starting_with_copy(
+		Global::UseProxy()
+	) | rpl::distinct_until_changed();
+}
+
+void ProxiesBoxController::refreshChecker(Item &item) {
 	using Variants = MTP::DcOptions::Variants;
 	const auto type = (item.data.type == ProxyData::Type::Http)
 		? Variants::Http
@@ -1062,6 +1075,7 @@ void ProxiesBoxController::createChecker(Item &item) {
 	setup(item.checker);
 	if (item.data.type == ProxyData::Type::Mtproto) {
 		item.checkerv6 = nullptr;
+		item.checker->setProxyOverride(item.data);
 		item.checker->connectToServer(
 			item.data.host,
 			item.data.port,
@@ -1281,6 +1295,7 @@ void ProxiesBoxController::replaceItemValue(
 	Assert(i != end(proxies));
 	*i = proxy;
 	which->data = proxy;
+	refreshChecker(*which);
 
 	applyItem(which->id);
 	saveDelayed();
@@ -1308,7 +1323,7 @@ void ProxiesBoxController::addNewItem(const ProxyData &proxy) {
 	proxies.push_back(proxy);
 
 	_list.push_back({ ++_idCounter, proxy });
-	createChecker(_list.back());
+	refreshChecker(_list.back());
 	applyItem(_list.back().id);
 }
 
@@ -1367,6 +1382,14 @@ void ProxiesBoxController::updateView(const Item &item) {
 		}
 		Unexpected("Proxy type in ProxiesBoxController::updateView.");
 	}();
+	const auto state = [&] {
+		if (!selected || !Global::UseProxy()) {
+			return item.state;
+		} else if (MTP::dcstate() == MTP::ConnectedState) {
+			return ItemState::Online;
+		}
+		return ItemState::Connecting;
+	}();
 	_views.fire({
 		item.id,
 		type,
@@ -1375,7 +1398,7 @@ void ProxiesBoxController::updateView(const Item &item) {
 		item.ping,
 		!deleted && selected,
 		deleted,
-		item.state });
+		state });
 }
 
 ProxiesBoxController::~ProxiesBoxController() {

@@ -269,9 +269,8 @@ bool ProxyData::ValidSecret(const QString &secret) {
 }
 
 QNetworkProxy ToNetworkProxy(const ProxyData &proxy) {
-	Expects(proxy.type != ProxyData::Type::Mtproto);
-
-	if (proxy.type == ProxyData::Type::None) {
+	if (proxy.type == ProxyData::Type::None
+		|| proxy.type == ProxyData::Type::Mtproto) {
 		return QNetworkProxy::NoProxy;
 	}
 	return QNetworkProxy(

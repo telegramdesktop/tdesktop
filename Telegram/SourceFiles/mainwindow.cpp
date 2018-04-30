@@ -408,7 +408,7 @@ void MainWindow::mtpStateChanged(int32 dc, int32 state) {
 }
 
 void MainWindow::updateConnectingStatus() {
-	auto state = MTP::dcstate();
+	const auto state = MTP::dcstate();
 	const auto throughProxy = Global::UseProxy();
 	if (state == MTP::ConnectingState || state == MTP::DisconnectedState || (state < 0 && state > -600)) {
 		if (_main || getms() > 5000 || _connecting) {

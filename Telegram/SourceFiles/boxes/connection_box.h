@@ -92,7 +92,7 @@ private:
 
 };
 
-class ProxiesBoxController {
+class ProxiesBoxController : public base::Subscriber {
 public:
 	ProxiesBoxController();
 
@@ -125,6 +125,7 @@ public:
 	object_ptr<BoxContent> addNewItemBox();
 	bool setProxyEnabled(bool enabled);
 	void setTryIPv6(bool enabled);
+	rpl::producer<bool> proxyEnabledValue() const;
 
 	rpl::producer<ItemView> views() const;
 
@@ -149,7 +150,7 @@ private:
 	void updateView(const Item &item);
 	void applyChanges();
 	void saveDelayed();
-	void createChecker(Item &item);
+	void refreshChecker(Item &item);
 	void setupChecker(int id, const Checker &checker);
 
 	void replaceItemWith(
@@ -165,6 +166,7 @@ private:
 	std::vector<Item> _list;
 	rpl::event_stream<ItemView> _views;
 	base::Timer _saveTimer;
+	rpl::event_stream<bool> _proxyEnabledChanges;
 
 	ProxyData _lastSelectedProxy;
 	bool _lastSelectedProxyUsed = false;
