@@ -3215,4 +3215,8 @@ std::vector<gsl::byte> CreateAuthKey(base::const_byte_span firstBytes, base::con
 	return internal::CreateAuthKey(firstBytes, randomBytes, primeBytes);
 }
 
+bytes::vector ProtocolSecretFromPassword(const QString &password) {
+	return internal::ProtocolSecretFromPassword(password);
+}
+
 } // namespace MTP

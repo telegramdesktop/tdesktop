@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 #include "base/timer.h"
+#include "mtproto/connection_abstract.h"
 
 namespace Ui {
 class InputField;
@@ -98,15 +99,14 @@ public:
 	static object_ptr<BoxContent> CreateOwningBox();
 	object_ptr<BoxContent> create();
 
+	enum class ItemState {
+		Connecting,
+		Online,
+		Checking,
+		Available,
+		Unavailable
+	};
 	struct ItemView {
-		enum class State {
-			Connecting,
-			Online,
-			Checking,
-			Available,
-			Unavailable
-		};
-
 		int id = 0;
 		QString type;
 		QString host;
@@ -114,7 +114,7 @@ public:
 		int ping = 0;
 		bool selected = false;
 		bool deleted = false;
-		State state = State::Checking;
+		ItemState state = ItemState::Checking;
 
 	};
 
@@ -131,10 +131,16 @@ public:
 	~ProxiesBoxController();
 
 private:
+	using Checker = MTP::internal::ConnectionPointer;
 	struct Item {
 		int id = 0;
 		ProxyData data;
 		bool deleted = false;
+		Checker checker;
+		Checker checkerv6;
+		ItemState state = ItemState::Checking;
+		int ping = 0;
+
 	};
 
 	std::vector<Item>::iterator findById(int id);
@@ -143,6 +149,8 @@ private:
 	void updateView(const Item &item);
 	void applyChanges();
 	void saveDelayed();
+	void createChecker(Item &item);
+	void setupChecker(int id, const Checker &checker);
 
 	void replaceItemWith(
 		std::vector<Item>::iterator which,

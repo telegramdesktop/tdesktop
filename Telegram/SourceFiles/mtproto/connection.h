@@ -26,6 +26,8 @@ struct ModExpFirst {
 ModExpFirst CreateModExp(int g, base::const_byte_span primeBytes, base::const_byte_span randomSeed);
 std::vector<gsl::byte> CreateAuthKey(base::const_byte_span firstBytes, base::const_byte_span randomBytes, base::const_byte_span primeBytes);
 
+bytes::vector ProtocolSecretFromPassword(const QString &password);
+
 namespace internal {
 
 class AbstractConnection;

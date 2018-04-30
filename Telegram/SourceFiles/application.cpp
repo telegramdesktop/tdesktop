@@ -321,14 +321,7 @@ void Application::refreshGlobalProxy() {
 	}();
 	if (proxy.type == ProxyData::Type::Socks5
 		|| proxy.type == ProxyData::Type::Http) {
-		QNetworkProxy::setApplicationProxy(QNetworkProxy(
-			(proxy.type == ProxyData::Type::Socks5
-				? QNetworkProxy::Socks5Proxy
-				: QNetworkProxy::HttpProxy),
-			proxy.host,
-			proxy.port,
-			proxy.user,
-			proxy.password));
+		QNetworkProxy::setApplicationProxy(ToNetworkProxy(proxy));
 	} else {
 		QNetworkProxyFactory::setUseSystemConfiguration(true);
 	}

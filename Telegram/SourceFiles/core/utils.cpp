@@ -268,6 +268,22 @@ bool ProxyData::ValidSecret(const QString &secret) {
 	return QRegularExpression("^[a-fA-F0-9]{32}$").match(secret).hasMatch();
 }
 
+QNetworkProxy ToNetworkProxy(const ProxyData &proxy) {
+	Expects(proxy.type != ProxyData::Type::Mtproto);
+
+	if (proxy.type == ProxyData::Type::None) {
+		return QNetworkProxy::NoProxy;
+	}
+	return QNetworkProxy(
+		(proxy.type == ProxyData::Type::Socks5
+			? QNetworkProxy::Socks5Proxy
+			: QNetworkProxy::HttpProxy),
+		proxy.host,
+		proxy.port,
+		proxy.user,
+		proxy.password);
+}
+
 namespace ThirdParty {
 
 	void start() {

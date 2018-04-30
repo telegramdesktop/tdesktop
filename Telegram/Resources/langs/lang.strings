@@ -428,7 +428,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_proxy_online" = "online";
 "lng_proxy_checking" = "checking";
 "lng_proxy_connecting" = "connecting";
-"lng_proxy_available" = "available";
+"lng_proxy_available" = "available (ping: {ping}ms)";
 "lng_proxy_unavailable" = "unavailable";
 "lng_proxy_edit" = "Edit proxy";
 "lng_proxy_undo_delete" = "Undo";

@@ -43,9 +43,7 @@ class AbstractConnection : public QObject {
 	Q_OBJECT
 
 public:
-	AbstractConnection(QThread *thread) : _sentEncrypted(false) {
-		moveToThread(thread);
-	}
+	AbstractConnection(QThread *thread);
 	AbstractConnection(const AbstractConnection &other) = delete;
 	AbstractConnection &operator=(const AbstractConnection &other) = delete;
 	virtual ~AbstractConnection() = 0;
@@ -59,6 +57,8 @@ public:
 		_sentEncrypted = true;
 	}
 
+	virtual void setProxyOverride(const ProxyData &proxy) = 0;
+	virtual TimeMs pingTime() const = 0;
 	virtual void sendData(mtpBuffer &buffer) = 0; // has size + 3, buffer[0] = len, buffer[1] = packetnum, buffer[last] = crc32
 	virtual void disconnectFromServer() = 0;
 	virtual void connectToServer(
@@ -98,7 +98,8 @@ signals:
 
 protected:
 	BuffersQueue _receivedQueue; // list of received packets, not processed yet
-	bool _sentEncrypted;
+	bool _sentEncrypted = false;
+	int _pingTime = 0;
 
 	// first we always send fake MTPReq_pq to see if connection works at all
 	// we send them simultaneously through TCP/HTTP/IPv4/IPv6 to choose the working one

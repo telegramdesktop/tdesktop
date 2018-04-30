@@ -732,7 +732,8 @@ proxyRowTitleStyle: TextStyle(defaultTextStyle) {
 }
 proxyRowStatusFg: windowSubTextFg;
 proxyRowStatusFgOnline: windowActiveTextFg;
-proxyRowStatusFgOffline: attentionButtonFg;
+proxyRowStatusFgOffline: boxTextFgError;
+proxyRowStatusFgAvailable: boxTextFgGood;
 proxyRowEdit: IconButton(defaultIconButton) {
 	width: 40px;
 	height: 40px;

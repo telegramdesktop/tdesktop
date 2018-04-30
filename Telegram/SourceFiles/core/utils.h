@@ -442,6 +442,8 @@ struct ProxyData {
 
 };
 
+QNetworkProxy ToNetworkProxy(const ProxyData &proxy);
+
 enum DBIScale {
 	dbisAuto = 0,
 	dbisOne = 1,

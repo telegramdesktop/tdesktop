@@ -14,9 +14,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "base/qthelp_url.h"
 #include "mainwidget.h"
+#include "messenger.h"
 #include "mainwindow.h"
 #include "auth_session.h"
 #include "data/data_session.h"
+#include "mtproto/connection.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -39,6 +41,7 @@ constexpr auto kSaveSettingsDelayedTimeout = TimeMs(1000);
 class ProxyRow : public Ui::RippleButton {
 public:
 	using View = ProxiesBoxController::ItemView;
+	using State = ProxiesBoxController::ItemState;
 
 	ProxyRow(QWidget *parent, View &&view);
 
@@ -250,25 +253,29 @@ void ProxyRow::paintEvent(QPaintEvent *e) {
 
 	const auto statusFg = [&] {
 		switch (_view.state) {
-		case View::State::Online:
+		case State::Online:
 			return st::proxyRowStatusFgOnline;
-		case View::State::Unavailable:
+		case State::Unavailable:
 			return st::proxyRowStatusFgOffline;
+		case State::Available:
+			return st::proxyRowStatusFgAvailable;
 		default:
 			return st::proxyRowStatusFg;
 		}
 	}();
 	const auto status = [&] {
 		switch (_view.state) {
-		case View::State::Available:
-			return lang(lng_proxy_available);
-		case View::State::Checking:
-			return lang(lng_proxy_available);
-		case View::State::Connecting:
+		case State::Available:
+			return lng_proxy_available(
+				lt_ping,
+				QString::number(_view.ping));
+		case State::Checking:
+			return lang(lng_proxy_checking);
+		case State::Connecting:
 			return lang(lng_proxy_connecting);
-		case View::State::Online:
+		case State::Online:
 			return lang(lng_proxy_online);
-		case View::State::Unavailable:
+		case State::Unavailable:
 			return lang(lng_proxy_unavailable);
 		}
 		Unexpected("State in ProxyRow::paintEvent.");
@@ -1030,6 +1037,100 @@ ProxiesBoxController::ProxiesBoxController()
 	) | ranges::view::transform([&](const ProxyData &proxy) {
 		return Item{ ++_idCounter, proxy };
 	}) | ranges::to_vector;
+	for (auto &item : _list) {
+		if (!Global::UseProxy() || item.data != Global::SelectedProxy()) {
+			createChecker(item);
+		}
+	}
+}
+
+void ProxiesBoxController::createChecker(Item &item) {
+	using Variants = MTP::DcOptions::Variants;
+	const auto type = (item.data.type == ProxyData::Type::Http)
+		? Variants::Http
+		: Variants::Tcp;
+	const auto mtproto = Messenger::Instance().mtp();
+	const auto dcId = mtproto->mainDcId();
+
+	item.state = ItemState::Checking;
+	const auto setup = [&](Checker &checker) {
+		checker = MTP::internal::AbstractConnection::create(
+			type,
+			QThread::currentThread());
+		setupChecker(item.id, checker);
+	};
+	setup(item.checker);
+	if (item.data.type == ProxyData::Type::Mtproto) {
+		item.checkerv6 = nullptr;
+		item.checker->connectToServer(
+			item.data.host,
+			item.data.port,
+			MTP::ProtocolSecretFromPassword(item.data.password),
+			dcId);
+	} else {
+		const auto options = mtproto->dcOptions()->lookup(
+			dcId,
+			MTP::DcType::Regular,
+			true);
+		const auto endpoint = options.data[Variants::IPv4][type];
+		const auto endpointv6 = options.data[Variants::IPv6][type];
+		if (endpoint.empty()) {
+			item.checker = nullptr;
+		}
+		if (Global::TryIPv6() && !endpointv6.empty()) {
+			setup(item.checkerv6);
+		} else {
+			item.checkerv6 = nullptr;
+		}
+		if (!item.checker && !item.checkerv6) {
+			item.state = ItemState::Unavailable;
+			return;
+		}
+		const auto connect = [&](
+				const Checker &checker,
+				const std::vector<MTP::DcOptions::Endpoint> &endpoints) {
+			if (checker) {
+				checker->setProxyOverride(item.data);
+				checker->connectToServer(
+					QString::fromStdString(endpoints.front().ip),
+					endpoints.front().port,
+					endpoints.front().protocolSecret,
+					dcId);
+			}
+		};
+		connect(item.checker, endpoint);
+		connect(item.checkerv6, endpointv6);
+	}
+}
+
+void ProxiesBoxController::setupChecker(int id, const Checker &checker) {
+	using Connection = MTP::internal::AbstractConnection;
+	const auto pointer = checker.get();
+	pointer->connect(pointer, &Connection::connected, [=] {
+		const auto item = findById(id);
+		const auto pingTime = pointer->pingTime();
+		item->checker = nullptr;
+		item->checkerv6 = nullptr;
+		if (item->state == ItemState::Checking) {
+			item->state = ItemState::Available;
+			item->ping = pingTime;
+			updateView(*item);
+		}
+	});
+	const auto failed = [=] {
+		const auto item = findById(id);
+		if (item->checker == pointer) {
+			item->checker = nullptr;
+		} else if (item->checkerv6 == pointer) {
+			item->checkerv6 = nullptr;
+		}
+		if (!item->checker && !item->checkerv6 && item->state == ItemState::Checking) {
+			item->state = ItemState::Unavailable;
+			updateView(*item);
+		}
+	};
+	pointer->connect(pointer, &Connection::disconnected, failed);
+	pointer->connect(pointer, &Connection::error, failed);
 }
 
 object_ptr<BoxContent> ProxiesBoxController::CreateOwningBox() {
@@ -1207,6 +1308,7 @@ void ProxiesBoxController::addNewItem(const ProxyData &proxy) {
 	proxies.push_back(proxy);
 
 	_list.push_back({ ++_idCounter, proxy });
+	createChecker(_list.back());
 	applyItem(_list.back().id);
 }
 
@@ -1251,7 +1353,6 @@ auto ProxiesBoxController::views() const -> rpl::producer<ItemView> {
 }
 
 void ProxiesBoxController::updateView(const Item &item) {
-	const auto state = ItemView::State::Checking;
 	const auto ping = 0;
 	const auto selected = (Global::SelectedProxy() == item.data);
 	const auto deleted = item.deleted;
@@ -1271,10 +1372,10 @@ void ProxiesBoxController::updateView(const Item &item) {
 		type,
 		item.data.host,
 		item.data.port,
-		ping,
+		item.ping,
 		!deleted && selected,
 		deleted,
-		state });
+		item.state });
 }
 
 ProxiesBoxController::~ProxiesBoxController() {

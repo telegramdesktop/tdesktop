@@ -87,6 +87,10 @@ HTTPConnection::HTTPConnection(QThread *thread) : AbstractConnection(thread)
 	manager.moveToThread(thread);
 }
 
+void HTTPConnection::setProxyOverride(const ProxyData &proxy) {
+	manager.setProxy(ToNetworkProxy(proxy));
+}
+
 void HTTPConnection::sendData(mtpBuffer &buffer) {
 	if (status == FinishedWork) return;
 
@@ -134,6 +138,7 @@ void HTTPConnection::connectToServer(
 
 	DEBUG_LOG(("Connection Info: sending fake req_pq through HTTP transport to %1").arg(ip));
 
+	_pingTime = getms();
 	sendData(buffer);
 }
 
@@ -162,6 +167,7 @@ void HTTPConnection::requestFinished(QNetworkReply *reply) {
 					if (res_pq_data.vnonce == httpNonce) {
 						DEBUG_LOG(("Connection Info: HTTP-transport to %1 connected by pq-response").arg(_address));
 						status = UsingHttp;
+						_pingTime = getms() - _pingTime;
 						emit connected();
 					}
 				} catch (Exception &e) {
@@ -177,6 +183,10 @@ void HTTPConnection::requestFinished(QNetworkReply *reply) {
 
 		emit error(handleError(reply));
 	}
+}
+
+TimeMs HTTPConnection::pingTime() const {
+	return isConnected() ? _pingTime : TimeMs(0);
 }
 
 bool HTTPConnection::usingHttpWait() {

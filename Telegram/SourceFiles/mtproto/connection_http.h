@@ -18,6 +18,8 @@ class HTTPConnection : public AbstractConnection {
 public:
 	HTTPConnection(QThread *thread);
 
+	void setProxyOverride(const ProxyData &proxy) override;
+	TimeMs pingTime() const override;
 	void sendData(mtpBuffer &buffer) override;
 	void disconnectFromServer() override;
 	void connectToServer(
@@ -56,6 +58,8 @@ private:
 
 	typedef QSet<QNetworkReply*> Requests;
 	Requests requests;
+
+	TimeMs _pingTime = 0;
 
 };
 

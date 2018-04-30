@@ -122,6 +122,10 @@ MTPResPQ AbstractConnection::readPQFakeReply(const mtpBuffer &buffer) {
 	return response;
 }
 
+AbstractConnection::AbstractConnection(QThread *thread) {
+	moveToThread(thread);
+}
+
 ConnectionPointer AbstractConnection::create(
 		DcOptions::Variants::Protocol protocol,
 		QThread *thread) {

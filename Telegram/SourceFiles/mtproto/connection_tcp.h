@@ -18,6 +18,8 @@ class AbstractTCPConnection : public AbstractConnection {
 
 public:
 	AbstractTCPConnection(QThread *thread);
+
+	void setProxyOverride(const ProxyData &proxy) override;
 	virtual ~AbstractTCPConnection() = 0;
 
 public slots:
@@ -60,6 +62,7 @@ class TCPConnection : public AbstractTCPConnection {
 public:
 	TCPConnection(QThread *thread);
 
+	TimeMs pingTime() const override;
 	void sendData(mtpBuffer &buffer) override;
 	void disconnectFromServer() override;
 	void connectToServer(
@@ -97,6 +100,7 @@ private:
 	QString _address;
 	int32 _port, _tcpTimeout;
 	QTimer tcpTimeoutTimer;
+	TimeMs _pingTime = 0;
 
 };
 

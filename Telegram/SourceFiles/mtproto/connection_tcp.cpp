@@ -37,8 +37,11 @@ AbstractTCPConnection::AbstractTCPConnection(
 , currentPos((char*)shortBuffer) {
 }
 
-AbstractTCPConnection::~AbstractTCPConnection() {
+void AbstractTCPConnection::setProxyOverride(const ProxyData &proxy) {
+	sock.setProxy(ToNetworkProxy(proxy));
 }
+
+AbstractTCPConnection::~AbstractTCPConnection() = default;
 
 void AbstractTCPConnection::socketRead() {
 	if (sock.state() != QAbstractSocket::ConnectedState) {
@@ -218,6 +221,7 @@ void TCPConnection::onSocketConnected() {
 		if (_tcpTimeout < 0) _tcpTimeout = -_tcpTimeout;
 		tcpTimeoutTimer.start(_tcpTimeout);
 
+		_pingTime = getms();
 		sendData(buffer);
 	}
 }
@@ -379,6 +383,10 @@ void TCPConnection::connectToServer(
 	sock.connectToHost(QHostAddress(_address), _port);
 }
 
+TimeMs TCPConnection::pingTime() const {
+	return isConnected() ? _pingTime : TimeMs(0);
+}
+
 void TCPConnection::socketPacket(const char *packet, uint32 length) {
 	if (status == FinishedWork) return;
 
@@ -396,6 +404,7 @@ void TCPConnection::socketPacket(const char *packet, uint32 length) {
 			if (res_pq_data.vnonce == tcpNonce) {
 				DEBUG_LOG(("Connection Info: TCP-transport to %1 chosen by pq-response").arg(_address));
 				status = UsingTcp;
+				_pingTime = (getms() - _pingTime);
 				emit connected();
 			}
 		} catch (Exception &e) {
