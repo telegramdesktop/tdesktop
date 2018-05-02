@@ -415,7 +415,6 @@ ConnectionPrivate::ConnectionPrivate(
 , _state(DisconnectedState)
 , _shiftedDcId(shiftedDcId)
 , _owner(owner)
-, _configWasFineAt(getms(true))
 , _retryTimer(thread, [=] { retryByTimer(); })
 , _oldConnectionTimer(thread, [=] { markConnectionOld(); })
 , _waitForConnectedTimer(thread, [=] { waitConnectedFailed(); })
@@ -1120,7 +1119,7 @@ void ConnectionPrivate::connectToServer(bool afterConfig) {
 						static_cast<Variants::Protocol>(protocol),
 						QString::fromStdString(endpoint.ip),
 						endpoint.port,
-						endpoint.protocolSecret);
+						endpoint.secret);
 				}
 			}
 		}
@@ -1142,7 +1141,9 @@ void ConnectionPrivate::connectToServer(bool afterConfig) {
 		return;
 	}
 
-	if (getms(true) - _configWasFineAt > kRequestConfigTimeout) {
+	if (!_startedConnectingAt) {
+		_startedConnectingAt = getms(true);
+	} else if (getms(true) - _startedConnectingAt > kRequestConfigTimeout) {
 		InvokeQueued(_instance, [instance = _instance] {
 			instance->requestConfigIfOld();
 		});
@@ -1549,6 +1550,7 @@ void ConnectionPrivate::handleReceived() {
 			DEBUG_LOG(("MTP Info: marked auth key as checked"));
 			sessionData->setCheckedKey(true);
 		}
+		_startedConnectingAt = TimeMs(0);
 
 		if (!wasConnected) {
 			if (getState() == ConnectedState) {
@@ -2455,8 +2457,6 @@ void ConnectionPrivate::removeTestConnection(
 void ConnectionPrivate::updateAuthKey() 	{
 	QReadLocker lockFinished(&sessionDataMutex);
 	if (!sessionData || !_connection) return;
-
-	_configWasFineAt = getms(true);
 
 	DEBUG_LOG(("AuthKey Info: Connection updating key from Session, dc %1").arg(_shiftedDcId));
 	uint64 newKeyId = 0;

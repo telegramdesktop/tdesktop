@@ -227,7 +227,7 @@ private:
 	not_null<Connection*> _owner;
 	ConnectionPointer _connection;
 	std::vector<TestConnection> _testConnections;
-	TimeMs _configWasFineAt = 0;
+	TimeMs _startedConnectingAt = 0;
 
 	base::Timer _retryTimer; // exp retry timer
 	int _retryTimeout = 1;

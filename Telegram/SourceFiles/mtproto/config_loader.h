@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "base/weak_ptr.h"
+#include "base/bytes.h"
 #include "mtproto/rpc_sender.h"
 
 namespace MTP {
@@ -45,6 +46,7 @@ private:
 		DcId dcId;
 		std::string ip;
 		int port;
+		bytes::vector secret;
 	};
 	friend bool operator==(const SpecialEndpoint &a, const SpecialEndpoint &b);
 	std::unique_ptr<SpecialConfigRequest> _specialLoader;

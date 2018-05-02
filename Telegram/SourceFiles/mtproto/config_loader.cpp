@@ -52,7 +52,7 @@ mtpRequestId ConfigLoader::sendRequest(ShiftedDcId shiftedDcId) {
 }
 
 DcId ConfigLoader::specialToRealDcId(DcId specialDcId) {
-	return Instance::Config::kTemporaryMainDc + specialDcId;
+	return getTemporaryIdFromRealDcId(specialDcId);
 }
 
 void ConfigLoader::terminateRequest() {
@@ -139,15 +139,18 @@ void ConfigLoader::sendSpecialRequest() {
 
 	const auto weak = base::make_weak(this);
 	const auto index = rand_value<uint32>() % _specialEndpoints.size();
-	const auto secret = bytes::vector();
 	const auto endpoint = _specialEndpoints.begin() + index;
 	_specialEnumCurrent = specialToRealDcId(endpoint->dcId);
+
+	using Flag = MTPDdcOption::Flag;
+	const auto flags = Flag::f_tcpo_only
+		| (endpoint->secret.empty() ? Flag(0) : Flag::f_secret);
 	_instance->dcOptions()->constructAddOne(
 		_specialEnumCurrent,
-		MTPDdcOption::Flag::f_tcpo_only,
+		flags,
 		endpoint->ip,
 		endpoint->port,
-		secret);
+		endpoint->secret);
 	_specialEnumRequest = _instance->send(
 		MTPhelp_GetConfig(),
 		rpcDone([weak](const MTPConfig &result) {

@@ -62,7 +62,9 @@ AQIDAQAB\n\
 
 class DcOptions::WriteLocker {
 public:
-	WriteLocker(DcOptions *that) : _that(that), _lock(&_that->_useThroughLockers) {
+	WriteLocker(not_null<DcOptions*> that)
+	: _that(that)
+	, _lock(&_that->_useThroughLockers) {
 	}
 	~WriteLocker() {
 		_that->computeCdnDcIds();
@@ -76,7 +78,8 @@ private:
 
 class DcOptions::ReadLocker {
 public:
-	ReadLocker(const DcOptions *that) : _lock(&that->_useThroughLockers) {
+	ReadLocker(not_null<const DcOptions*> that)
+	: _lock(&that->_useThroughLockers) {
 	}
 
 private:
@@ -105,28 +108,18 @@ void DcOptions::constructFromBuiltIn() {
 
 	auto bdcs = builtInDcs();
 	for (auto i = 0, l = builtInDcsCount(); i != l; ++i) {
-		const auto flags = MTPDdcOption::Flags(0);
+		const auto flags = Flag::f_static | 0;
 		const auto bdc = bdcs[i];
-		const auto idWithShift = MTP::shiftDcId(bdc.id, flags);
-		_data.emplace(
-			idWithShift,
-			std::vector<Option>(
-				1,
-				Option(bdc.id, flags, bdc.ip, bdc.port, {})));
+		applyOneGuarded(bdc.id, flags, bdc.ip, bdc.port, {});
 		DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: "
 			"%2:%3").arg(bdc.id).arg(bdc.ip).arg(bdc.port));
 	}
 
 	auto bdcsipv6 = builtInDcsIPv6();
 	for (auto i = 0, l = builtInDcsCountIPv6(); i != l; ++i) {
-		const auto flags = MTPDdcOption::Flags(MTPDdcOption::Flag::f_ipv6);
+		const auto flags = Flag::f_static | Flag::f_ipv6;
 		const auto bdc = bdcsipv6[i];
-		const auto idWithShift = MTP::shiftDcId(bdc.id, flags);
-		_data.emplace(
-			idWithShift,
-			std::vector<Option>(
-				1,
-				Option(bdc.id, flags, bdc.ip, bdc.port, {})));
+		applyOneGuarded(bdc.id, flags, bdc.ip, bdc.port, {});
 		DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: "
 			"%2:%3").arg(bdc.id).arg(bdc.ip).arg(bdc.port));
 	}
@@ -139,62 +132,42 @@ void DcOptions::processFromList(
 		return;
 	}
 
-	auto idsChanged = std::vector<DcId>();
-	idsChanged.reserve(options.size());
-	auto shiftedIdsProcessed = std::vector<ShiftedDcId>();
-	shiftedIdsProcessed.reserve(options.size());
-	{
-		WriteLocker lock(this);
+	auto data = [&] {
 		if (overwrite) {
-			idsChanged.reserve(_data.size());
+			return std::map<DcId, std::vector<Endpoint>>();
 		}
-		for (auto &mtpOption : options) {
-			if (mtpOption.type() != mtpc_dcOption) {
-				LOG(("Wrong type in DcOptions: %1").arg(mtpOption.type()));
-				continue;
-			}
+		ReadLocker lock(this);
+		return _data;
+	}();
+	for (auto &mtpOption : options) {
+		if (mtpOption.type() != mtpc_dcOption) {
+			LOG(("Wrong type in DcOptions: %1").arg(mtpOption.type()));
+			continue;
+		}
 
-			auto &option = mtpOption.c_dcOption();
-			auto dcId = option.vid.v;
-			auto flags = option.vflags.v;
-			auto dcIdWithShift = MTP::shiftDcId(dcId, flags);
-			if (overwrite) {
-				if (!base::contains(shiftedIdsProcessed, dcIdWithShift)) {
-					shiftedIdsProcessed.push_back(dcIdWithShift);
-					_data.erase(dcIdWithShift);
-				}
-			}
-			auto ip = std::string(
-				option.vip_address.v.constData(),
-				option.vip_address.v.size());
-			auto port = option.vport.v;
-			auto secret = option.has_secret()
-				? bytes::make_vector(option.vsecret.v)
-				: bytes::vector();
-			if (applyOneGuarded(dcId, flags, ip, port, secret)) {
-				if (!base::contains(idsChanged, dcId)) {
-					idsChanged.push_back(dcId);
-				}
-			}
-		}
-		if (overwrite && shiftedIdsProcessed.size() < _data.size()) {
-			for (auto i = _data.begin(); i != _data.end();) {
-				if (base::contains(shiftedIdsProcessed, i->first)) {
-					++i;
-				} else {
-					const auto &options = i->second;
-					Assert(!options.empty());
-					if (!base::contains(idsChanged, options.front().id)) {
-						idsChanged.push_back(options.front().id);
-					}
-					i = _data.erase(i);
-				}
-			}
-		}
+		auto &option = mtpOption.c_dcOption();
+		auto dcId = option.vid.v;
+		auto flags = option.vflags.v;
+		auto ip = std::string(
+			option.vip_address.v.constData(),
+			option.vip_address.v.size());
+		auto port = option.vport.v;
+		auto secret = option.has_secret()
+			? bytes::make_vector(option.vsecret.v)
+			: bytes::vector();
+		ApplyOneOption(data, dcId, flags, ip, port, secret);
 	}
 
-	if (!idsChanged.empty()) {
-		_changed.notify(std::move(idsChanged));
+	auto difference = [&] {
+		WriteLocker lock(this);
+		auto result = CountOptionsDifference(_data, data);
+		if (!result.empty()) {
+			_data = std::move(data);
+		}
+		return result;
+	}();
+	if (!difference.empty()) {
+		_changed.notify(std::move(difference));
 	}
 }
 
@@ -221,23 +194,28 @@ void DcOptions::addFromOther(DcOptions &&options) {
 		idsChanged.reserve(options._data.size());
 		{
 			WriteLocker lock(this);
-			for (const auto &item : base::take(options._data)) {
-				for (const auto &option : item.second) {
-					const auto dcId = option.id;
-					const auto flags = option.flags;
-					const auto &ip = option.ip;
-					const auto port = option.port;
-					const auto &secret = option.secret;
+			const auto changed = [&](const std::vector<Endpoint> &list) {
+				auto result = false;
+				for (const auto &endpoint : list) {
+					const auto dcId = endpoint.id;
+					const auto flags = endpoint.flags;
+					const auto &ip = endpoint.ip;
+					const auto port = endpoint.port;
+					const auto &secret = endpoint.secret;
 					if (applyOneGuarded(dcId, flags, ip, port, secret)) {
-						if (!base::contains(idsChanged, dcId)) {
-							idsChanged.push_back(dcId);
-						}
+						result = true;
 					}
 				}
+				return result;
+			};
+			for (const auto &item : base::take(options._data)) {
+				if (changed(item.second)) {
+					idsChanged.push_back(item.first);
+				}
 			}
-			for (auto &keysForDc : options._cdnPublicKeys) {
-				for (auto &entry : keysForDc.second) {
-					_cdnPublicKeys[keysForDc.first].insert(std::move(entry));
+			for (auto &item : options._cdnPublicKeys) {
+				for (auto &entry : item.second) {
+					_cdnPublicKeys[item.first].insert(std::move(entry));
 				}
 			}
 		}
@@ -250,7 +228,7 @@ void DcOptions::addFromOther(DcOptions &&options) {
 
 void DcOptions::constructAddOne(
 		int id,
-		MTPDdcOption::Flags flags,
+		Flags flags,
 		const std::string &ip,
 		int port,
 		const bytes::vector &secret) {
@@ -260,25 +238,85 @@ void DcOptions::constructAddOne(
 
 bool DcOptions::applyOneGuarded(
 		DcId dcId,
-		MTPDdcOption::Flags flags,
+		Flags flags,
 		const std::string &ip,
 		int port,
 		const bytes::vector &secret) {
-	auto dcIdWithShift = MTP::shiftDcId(dcId, flags);
-	auto i = _data.find(dcIdWithShift);
-	if (i != _data.cend()) {
-		for (auto &option : i->second) {
-			if (option.ip == ip && option.port == port) {
+	return ApplyOneOption(_data, dcId, flags, ip, port, secret);
+}
+
+bool DcOptions::ApplyOneOption(
+		std::map<DcId, std::vector<Endpoint>> &data,
+		DcId dcId,
+		Flags flags,
+		const std::string &ip,
+		int port,
+		const bytes::vector &secret) {
+	auto i = data.find(dcId);
+	if (i != data.cend()) {
+		for (auto &endpoint : i->second) {
+			if (endpoint.ip == ip && endpoint.port == port) {
 				return false;
 			}
 		}
-		i->second.push_back(Option(dcId, flags, ip, port, secret));
+		i->second.push_back(Endpoint(dcId, flags, ip, port, secret));
 	} else {
-		_data.emplace(dcIdWithShift, std::vector<Option>(
+		data.emplace(dcId, std::vector<Endpoint>(
 			1,
-			Option(dcId, flags, ip, port, secret)));
+			Endpoint(dcId, flags, ip, port, secret)));
 	}
 	return true;
+}
+
+auto DcOptions::CountOptionsDifference(
+		const std::map<DcId, std::vector<Endpoint>> &a,
+		const std::map<DcId, std::vector<Endpoint>> &b) -> Ids {
+	auto result = Ids();
+	const auto find = [](
+			const std::vector<Endpoint> &where,
+			const Endpoint &what) {
+		for (const auto &endpoint : where) {
+			if (endpoint.ip == what.ip && endpoint.port == what.port) {
+				return true;
+			}
+		}
+		return false;
+	};
+	const auto equal = [&](
+			const std::vector<Endpoint> &m,
+			const std::vector<Endpoint> &n) {
+		if (m.size() != n.size()) {
+			return false;
+		}
+		for (const auto &endpoint : m) {
+			if (!find(n, endpoint)) {
+				return false;
+			}
+		}
+		return true;
+	};
+
+	auto i = begin(a);
+	auto j = begin(b);
+	const auto max = std::numeric_limits<DcId>::max();
+	while (i != end(a) || j != end(b)) {
+		const auto aId = (i == end(a)) ? max : i->first;
+		const auto bId = (j == end(b)) ? max : j->first;
+		if (aId < bId) {
+			result.push_back(aId);
+			++i;
+		} else if (bId < aId) {
+			result.push_back(bId);
+			++j;
+		} else {
+			if (!equal(i->second, j->second)) {
+				result.push_back(aId);
+			}
+			++i;
+			++j;
+		}
+	}
+	return result;
 }
 
 QByteArray DcOptions::serialize() const {
@@ -298,12 +336,12 @@ QByteArray DcOptions::serialize() const {
 		if (isTemporaryDcId(item.first)) {
 			continue;
 		}
-		for (const auto &option : item.second) {
+		for (const auto &endpoint : item.second) {
 			++optionsCount;
 			// id + flags + port
 			size += sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
-			size += sizeof(qint32) + option.ip.size();
-			size += sizeof(qint32) + option.secret.size();
+			size += sizeof(qint32) + endpoint.ip.size();
+			size += sizeof(qint32) + endpoint.secret.size();
 		}
 	}
 
@@ -348,16 +386,16 @@ QByteArray DcOptions::serialize() const {
 			if (isTemporaryDcId(item.first)) {
 				continue;
 			}
-			for (const auto &option : item.second) {
-				stream << qint32(option.id)
-					<< qint32(option.flags)
-					<< qint32(option.port)
-					<< qint32(option.ip.size());
-				stream.writeRawData(option.ip.data(), option.ip.size());
-				stream << qint32(option.secret.size());
+			for (const auto &endpoint : item.second) {
+				stream << qint32(endpoint.id)
+					<< qint32(endpoint.flags)
+					<< qint32(endpoint.port)
+					<< qint32(endpoint.ip.size());
+				stream.writeRawData(endpoint.ip.data(), endpoint.ip.size());
+				stream << qint32(endpoint.secret.size());
 				stream.writeRawData(
-					reinterpret_cast<const char*>(option.secret.data()),
-					option.secret.size());
+					reinterpret_cast<const char*>(endpoint.secret.data()),
+					endpoint.secret.size());
 			}
 		}
 
@@ -404,7 +442,7 @@ void DcOptions::constructFromSerialized(const QByteArray &serialized) {
 			return;
 		}
 
-		std::string ip(ipSize, ' ');
+		auto ip = std::string(ipSize, ' ');
 		stream.readRawData(ip.data(), ipSize);
 
 		constexpr auto kMaxSecretSize = 32;
@@ -430,7 +468,7 @@ void DcOptions::constructFromSerialized(const QByteArray &serialized) {
 
 		applyOneGuarded(
 			DcId(id),
-			MTPDdcOption::Flags::from_raw(flags),
+			Flags::from_raw(flags),
 			ip,
 			port,
 			secret);
@@ -470,11 +508,10 @@ DcOptions::Ids DcOptions::configEnumDcIds() const {
 		ReadLocker lock(this);
 		result.reserve(_data.size());
 		for (auto &item : _data) {
-			const auto dcId = bareDcId(item.first);
+			const auto dcId = item.first;
 			Assert(!item.second.empty());
 			if (!isCdnDc(item.second.front().flags)
-				&& !isTemporaryDcId(item.first)
-				&& !base::contains(result, dcId)) {
+				&& !isTemporaryDcId(dcId)) {
 				result.push_back(dcId);
 			}
 		}
@@ -542,186 +579,72 @@ bool DcOptions::getDcRSAKey(DcId dcId, const QVector<MTPlong> &fingerprints, int
 	return findKey(_publicKeys);
 }
 
-DcOptions::Variants DcOptions::lookup(
+auto DcOptions::lookup(
 		DcId dcId,
 		DcType type,
-		bool throughProxy) const {
-	auto lookupDesiredFlags = [&](int address, int protocol) -> std::vector<MTPDdcOption::Flags> {
-		switch (type) {
-		case DcType::Regular:
-		case DcType::Temporary: {
-			switch (address) {
-			case Variants::IPv4: {
-				switch (protocol) {
-				case Variants::Tcp: return {
-					// Regular TCP IPv4
-					throughProxy ? (MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only),
-					throughProxy ? (MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_tcpo_only | 0),
-					throughProxy ? (MTPDdcOption::Flag::f_static | 0) : MTPDdcOption::Flags(0),
-					(MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only),
-					(MTPDdcOption::Flag::f_tcpo_only | 0),
-					0
-				};
-				case Variants::Http: return {
-					// Regular HTTP IPv4
-					throughProxy ? (MTPDdcOption::Flag::f_static | 0) : MTPDdcOption::Flags(0),
-					0,
-				};
-				}
-			} break;
-			case Variants::IPv6: {
-				switch (protocol) {
-				case Variants::Tcp: return {
-					// Regular TCP IPv6
-					throughProxy ? (MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6),
-					throughProxy ? (MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6),
-					throughProxy ? (MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_ipv6 | 0),
-					(MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6),
-					(MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6),
-					(MTPDdcOption::Flag::f_ipv6 | 0),
-				};
-				case Variants::Http: return {
-					// Regular HTTP IPv6
-					throughProxy ? (MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_ipv6 | 0),
-					(MTPDdcOption::Flag::f_ipv6 | 0),
-				};
-				}
-			} break;
-			}
-		} break;
-		case DcType::MediaDownload: {
-			switch (address) {
-			case Variants::IPv4: {
-				switch (protocol) {
-				case Variants::Tcp: return {
-					// Media download TCP IPv4
-					throughProxy ? (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only),
-					throughProxy ? (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_tcpo_only),
-					throughProxy ? (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only),
-					throughProxy ? (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_tcpo_only | 0),
-					(MTPDdcOption::Flag::f_media_only | 0),
-					throughProxy ? (MTPDdcOption::Flag::f_static | 0) : MTPDdcOption::Flags(0),
-					(MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only),
-					(MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_tcpo_only),
-					throughProxy ? (MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only),
-					throughProxy ? (MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_tcpo_only | 0),
-					throughProxy ? (MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only) : (MTPDdcOption::Flag::f_media_only | 0),
-					throughProxy ? (MTPDdcOption::Flag::f_tcpo_only | 0) : (MTPDdcOption::Flag::f_media_only | 0),
-					0,
-				};
-				case Variants::Http: return {
-					// Media download HTTP IPv4
-					throughProxy ? (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_media_only | 0),
-					(MTPDdcOption::Flag::f_media_only | 0),
-					throughProxy ? (MTPDdcOption::Flag::f_static | 0) : MTPDdcOption::Flags(0),
-					0,
-				};
-				}
-			} break;
-			case Variants::IPv6: {
-				switch (protocol) {
-				case Variants::Tcp: return {
-					// Media download TCP IPv6
-					throughProxy ? (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6),
-					throughProxy ? (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6),
-					throughProxy ? (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6),
-					throughProxy ? (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6),
-					(MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_ipv6),
-					throughProxy ? (MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_ipv6 | 0),
-					(MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6),
-					(MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6),
-					throughProxy ? (MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6),
-					throughProxy ? (MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6),
-					throughProxy ? (MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6) : (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_ipv6),
-					throughProxy ? (MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6) : (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_ipv6),
-					(MTPDdcOption::Flag::f_ipv6 | 0)
-				};
-				case Variants::Http: return {
-					// Media download HTTP IPv6
-					throughProxy ? (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_ipv6),
-					(MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_ipv6),
-					throughProxy ? (MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_ipv6 | 0),
-					(MTPDdcOption::Flag::f_ipv6 | 0),
-				};
-				}
-			} break;
-			}
-		} break;
-		case DcType::Cdn: {
-			switch (address) {
-			case Variants::IPv4: {
-				switch (protocol) {
-				case Variants::Tcp: return {
-					// CDN TCP IPv4
-					throughProxy ? (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only),
-					throughProxy ? (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_tcpo_only),
-					throughProxy ? (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_cdn | 0),
-					(MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only),
-					(MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_tcpo_only),
-					(MTPDdcOption::Flag::f_cdn | 0),
-				};
-				case Variants::Http: return {
-					// CDN HTTP IPv4
-					throughProxy ? (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_cdn | 0),
-					(MTPDdcOption::Flag::f_cdn | 0),
-				};
-				}
-			} break;
-			case Variants::IPv6: {
-				switch (protocol) {
-				case Variants::Tcp: return {
-					// CDN TCP IPv6
-					throughProxy ? (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only),
-					throughProxy ? (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_tcpo_only),
-					throughProxy ? (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_ipv6),
-					(MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_secret | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6),
-					(MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6),
-					(MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_ipv6),
-				};
-				case Variants::Http: return {
-					// CDN HTTP IPv6
-					throughProxy ? (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_ipv6),
-					(MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_ipv6),
-				};
-				}
-			} break;
-			}
-		} break;
-		}
-		Unexpected("Bad type / address / protocol");
-	};
-
+		bool throughProxy) const -> Variants {
+	using Flag = Flag;
 	auto result = Variants();
 	{
 		ReadLocker lock(this);
-		for (auto address = 0; address != Variants::AddressTypeCount; ++address) {
-			for (auto protocol = 0; protocol != Variants::ProtocolCount; ++protocol) {
-				auto desiredFlags = lookupDesiredFlags(address, protocol);
-				for (auto flags : desiredFlags) {
-					const auto shift = static_cast<int>(flags);
-					const auto it = _data.find(shiftDcId(dcId, shift));
-					if (it != _data.cend()) {
-						for (const auto &option : it->second) {
-							result.data[address][protocol].push_back({
-								option.ip,
-								option.port,
-								option.secret
-							});
-						}
-						break;
-					}
-				}
+		const auto i = _data.find(dcId);
+		if (i == end(_data)) {
+			return result;
+		}
+		for (const auto &endpoint : i->second) {
+			const auto flags = endpoint.flags;
+			if (type == DcType::Cdn && !(flags & Flag::f_cdn)) {
+				continue;
+			} else if (throughProxy && !(flags & Flag::f_static)) {
+				continue;
 			}
+			if (type != DcType::MediaDownload
+				&& (flags & Flag::f_media_only)) {
+				continue;
+			}
+			const auto address = (flags & Flag::f_ipv6)
+				? Variants::IPv6
+				: Variants::IPv4;
+			result.data[address][Variants::Tcp].push_back(endpoint);
+			if (!(flags & (Flag::f_tcpo_only | Flag::f_secret))) {
+				result.data[address][Variants::Http].push_back(endpoint);
+			}
+		}
+		if (type == DcType::MediaDownload) {
+			FilterIfHasWithFlag(result, Flag::f_media_only);
+		}
+		if (throughProxy) {
+			FilterIfHasWithFlag(result, Flag::f_static);
 		}
 	}
 	return result;
+}
+
+void DcOptions::FilterIfHasWithFlag(Variants &variants, Flag flag) {
+	const auto is = [&](const Endpoint &endpoint) {
+		return (endpoint.flags & flag) != 0;
+	};
+	const auto has = [&](const std::vector<Endpoint> &list) {
+		return ranges::find_if(list, is) != end(list);
+	};
+	for (auto &byAddress : variants.data) {
+		for (auto &list : byAddress) {
+			if (has(list)) {
+				list = ranges::view::all(
+					list
+				) | ranges::view::filter(
+					is
+				) | ranges::to_vector;
+			}
+		}
+	}
 }
 
 void DcOptions::computeCdnDcIds() {
 	_cdnDcIds.clear();
 	for (auto &item : _data) {
 		Assert(!item.second.empty());
-		if (item.second.front().flags & MTPDdcOption::Flag::f_cdn) {
+		if (item.second.front().flags & Flag::f_cdn) {
 			_cdnDcIds.insert(bareDcId(item.first));
 		}
 	}
@@ -758,17 +681,17 @@ bool DcOptions::loadFromFile(const QString &path) {
 		if (dcId <= 0 || dcId >= internal::kDcShift || !host.setAddress(ip) || port <= 0) {
 			return error();
 		}
-		auto flags = MTPDdcOption::Flags(0);
+		auto flags = Flags(0);
 		if (host.protocol() == QAbstractSocket::IPv6Protocol) {
-			flags |= MTPDdcOption::Flag::f_ipv6;
+			flags |= Flag::f_ipv6;
 		}
 		for (auto &option : components.mid(3)) {
 			if (option.startsWith('#')) {
 				break;
 			} else if (option == qstr("tcpo_only")) {
-				flags |= MTPDdcOption::Flag::f_tcpo_only;
+				flags |= Flag::f_tcpo_only;
 			} else if (option == qstr("media_only")) {
-				flags |= MTPDdcOption::Flag::f_media_only;
+				flags |= Flag::f_media_only;
 			} else {
 				return error();
 			}
@@ -808,10 +731,10 @@ bool DcOptions::writeToFile(const QString &path) const {
 				<< ' '
 				<< QString::fromStdString(option.ip)
 				<< ' ' << option.port;
-			if (option.flags & MTPDdcOption::Flag::f_tcpo_only) {
+			if (option.flags & Flag::f_tcpo_only) {
 				stream << " tcpo_only";
 			}
-			if (option.flags & MTPDdcOption::Flag::f_media_only) {
+			if (option.flags & Flag::f_media_only) {
 				stream << " media_only";
 			}
 			stream << '\n';

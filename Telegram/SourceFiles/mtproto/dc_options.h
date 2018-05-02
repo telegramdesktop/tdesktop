@@ -24,12 +24,36 @@ enum class DcType {
 };
 class DcOptions {
 public:
+	using Flag = MTPDdcOption::Flag;
+	using Flags = MTPDdcOption::Flags;
+	struct Endpoint {
+		Endpoint(
+			DcId id,
+			Flags flags,
+			const std::string &ip,
+			int port,
+			const bytes::vector &secret)
+			: id(id)
+			, flags(flags)
+			, ip(ip)
+			, port(port)
+			, secret(secret) {
+		}
+
+		DcId id;
+		Flags flags;
+		std::string ip;
+		int port;
+		bytes::vector secret;
+
+	};
+
 	// construct methods don't notify "changed" subscribers.
 	void constructFromSerialized(const QByteArray &serialized);
 	void constructFromBuiltIn();
 	void constructAddOne(
 		int id,
-		MTPDdcOption::Flags flags,
+		Flags flags,
 		const std::string &ip,
 		int port,
 		const bytes::vector &secret);
@@ -45,11 +69,6 @@ public:
 
 	Ids configEnumDcIds() const;
 
-	struct Endpoint {
-		std::string ip;
-		int port = 0;
-		bytes::vector protocolSecret;
-	};
 	struct Variants {
 		enum Address {
 			IPv4 = 0,
@@ -75,33 +94,23 @@ public:
 	bool writeToFile(const QString &path) const;
 
 private:
-	struct Option {
-		Option(
-			DcId id,
-			MTPDdcOption::Flags flags,
-			const std::string &ip,
-			int port,
-			const bytes::vector &secret)
-		: id(id)
-		, flags(flags)
-		, ip(ip)
-		, port(port)
-		, secret(secret) {
-		}
-
-		DcId id;
-		MTPDdcOption::Flags flags;
-		std::string ip;
-		int port;
-		bytes::vector secret;
-
-	};
 	bool applyOneGuarded(
 		DcId dcId,
-		MTPDdcOption::Flags flags,
+		Flags flags,
 		const std::string &ip,
 		int port,
 		const bytes::vector &secret);
+	static bool ApplyOneOption(
+		std::map<DcId, std::vector<Endpoint>> &data,
+		DcId dcId,
+		Flags flags,
+		const std::string &ip,
+		int port,
+		const bytes::vector &secret);
+	static Ids CountOptionsDifference(
+		const std::map<DcId, std::vector<Endpoint>> &a,
+		const std::map<DcId, std::vector<Endpoint>> &b);
+	static void FilterIfHasWithFlag(Variants &variants, Flag flag);
 
 	void processFromList(const QVector<MTPDcOption> &options, bool overwrite);
 	void computeCdnDcIds();
@@ -114,7 +123,7 @@ private:
 	class ReadLocker;
 	friend class ReadLocker;
 
-	std::map<ShiftedDcId, std::vector<Option>> _data;
+	std::map<DcId, std::vector<Endpoint>> _data;
 	std::set<DcId> _cdnDcIds;
 	std::map<uint64, internal::RSAPublicKey> _publicKeys;
 	std::map<DcId, std::map<uint64, internal::RSAPublicKey>> _cdnPublicKeys;

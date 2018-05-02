@@ -1108,7 +1108,7 @@ void ProxiesBoxController::refreshChecker(Item &item) {
 				checker->connectToServer(
 					QString::fromStdString(endpoints.front().ip),
 					endpoints.front().port,
-					endpoints.front().protocolSecret,
+					endpoints.front().secret,
 					dcId);
 			}
 		};
