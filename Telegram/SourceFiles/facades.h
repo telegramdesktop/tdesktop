@@ -345,6 +345,7 @@ DeclareVar(int32, CallRingTimeoutMs);
 DeclareVar(int32, CallConnectTimeoutMs);
 DeclareVar(int32, CallPacketTimeoutMs);
 DeclareVar(bool, PhoneCallsEnabled);
+DeclareVar(bool, BlockedMode);
 DeclareRefVar(base::Observable<void>, PhoneCallsEnabledChanged);
 
 typedef QMap<PeerId, MsgId> HiddenPinnedMessagesMap;

@@ -528,6 +528,7 @@ struct Data {
 	int32 CallConnectTimeoutMs = 30000;
 	int32 CallPacketTimeoutMs = 10000;
 	bool PhoneCallsEnabled = true;
+	bool BlockedMode = false;
 	base::Observable<void> PhoneCallsEnabledChanged;
 
 	HiddenPinnedMessagesMap HiddenPinnedMessages;
@@ -651,6 +652,7 @@ DefineVar(Global, int32, CallRingTimeoutMs);
 DefineVar(Global, int32, CallConnectTimeoutMs);
 DefineVar(Global, int32, CallPacketTimeoutMs);
 DefineVar(Global, bool, PhoneCallsEnabled);
+DefineVar(Global, bool, BlockedMode);
 DefineRefVar(Global, base::Observable<void>, PhoneCallsEnabledChanged);
 
 DefineVar(Global, HiddenPinnedMessagesMap, HiddenPinnedMessages);

@@ -26,6 +26,7 @@ namespace MTP {
 namespace {
 
 constexpr auto kConfigBecomesOldIn = 2 * 60 * TimeMs(1000);
+constexpr auto kConfigBecomesOldForBlockedIn = 8 * TimeMs(1000);
 
 } // namespace
 
@@ -126,6 +127,7 @@ private:
 	void logoutGuestDcs();
 	bool logoutGuestDone(mtpRequestId requestId);
 
+	void requestConfigIfExpired();
 	void configLoadDone(const MTPConfig &result);
 	bool configLoadFail(const RPCError &error);
 
@@ -160,6 +162,7 @@ private:
 	QString _userPhone;
 	mtpRequestId _cdnConfigLoadRequestId = 0;
 	TimeMs _lastConfigLoadedTime = 0;
+	TimeMs _configExpiresAt = 0;
 
 	std::map<DcId, AuthKeyPtr> _keysForWrite;
 	mutable QReadWriteLock _keysForWriteLock;
@@ -303,7 +306,22 @@ void Instance::Private::setUserPhone(const QString &phone) {
 }
 
 void Instance::Private::requestConfigIfOld() {
-	if (getms(true) - _lastConfigLoadedTime >= kConfigBecomesOldIn) {
+	const auto timeout = Global::BlockedMode()
+		? kConfigBecomesOldForBlockedIn
+		: kConfigBecomesOldIn;
+	if (getms(true) - _lastConfigLoadedTime >= timeout) {
+		requestConfig();
+	}
+}
+
+void Instance::Private::requestConfigIfExpired() {
+	const auto requestIn = (_configExpiresAt - getms(true));
+	if (requestIn > 0) {
+		App::CallDelayed(
+			std::min(requestIn, 3600 * TimeMs(1000)),
+			_instance,
+			[=] { requestConfigIfExpired(); });
+	} else {
 		requestConfig();
 	}
 }
@@ -639,9 +657,15 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 		Global::SetPhoneCallsEnabled(data.is_phonecalls_enabled());
 		Global::RefPhoneCallsEnabledChanged().notify();
 	}
+	Global::SetBlockedMode(data.is_blocked_mode());
+
 	Lang::CurrentCloudManager().setSuggestedLanguage(data.has_suggested_lang_code() ? qs(data.vsuggested_lang_code) : QString());
 
 	Local::writeSettings();
+
+	_configExpiresAt = getms(true)
+		+ (data.vexpires.v - unixtime()) * TimeMs(1000);
+	requestConfigIfExpired();
 
 	emit _instance->configLoaded();
 }
