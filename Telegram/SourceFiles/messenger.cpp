@@ -390,7 +390,11 @@ void Messenger::setMtpAuthorization(const QByteArray &serialized) {
 void Messenger::startMtp() {
 	Expects(!_mtproto);
 
-	_mtproto = std::make_unique<MTP::Instance>(_dcOptions.get(), MTP::Instance::Mode::Normal, base::take(_private->mtpConfig));
+	_mtproto = std::make_unique<MTP::Instance>(
+		_dcOptions.get(),
+		MTP::Instance::Mode::Normal,
+		base::take(_private->mtpConfig));
+	_mtproto->setUserPhone(cLoggedPhoneNumber());
 	_private->mtpConfig.mainDcId = _mtproto->mainDcId();
 
 	_mtproto->setStateChangedHandler([](MTP::ShiftedDcId shiftedDcId, int32 state) {
@@ -486,6 +490,20 @@ void Messenger::startLocalStorage() {
 		InvokeQueued(this, [this] {
 			if (_mtproto) {
 				_mtproto->requestConfig();
+			}
+		});
+	});
+	subscribe(Global::RefSelfChanged(), [=] {
+		InvokeQueued(this, [=] {
+			const auto phone = App::self()
+				? App::self()->phone()
+				: QString();
+			if (cLoggedPhoneNumber() != phone) {
+				cSetLoggedPhoneNumber(phone);
+				if (_mtproto) {
+					_mtproto->setUserPhone(phone);
+				}
+				Local::writeSettings();
 			}
 		});
 	});

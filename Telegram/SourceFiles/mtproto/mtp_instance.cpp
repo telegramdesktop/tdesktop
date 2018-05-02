@@ -48,6 +48,7 @@ public:
 	void requestConfig();
 	void requestConfigIfOld();
 	void requestCDNConfig();
+	void setUserPhone(const QString &phone);
 
 	void restart();
 	void restart(ShiftedDcId shiftedDcId);
@@ -156,6 +157,7 @@ private:
 	base::set_of_unique_ptr<internal::Connection> _quittingConnections;
 
 	std::unique_ptr<internal::ConfigLoader> _configLoader;
+	QString _userPhone;
 	mtpRequestId _cdnConfigLoadRequestId = 0;
 	TimeMs _lastConfigLoadedTime = 0;
 
@@ -283,12 +285,21 @@ void Instance::Private::requestConfig() {
 	if (_configLoader || isKeysDestroyer()) {
 		return;
 	}
-	_configLoader = std::make_unique<internal::ConfigLoader>(_instance, rpcDone([this](const MTPConfig &result) {
-		configLoadDone(result);
-	}), rpcFail([this](const RPCError &error) {
-		return configLoadFail(error);
-	}));
+	_configLoader = std::make_unique<internal::ConfigLoader>(
+		_instance,
+		_userPhone,
+		rpcDone([=](const MTPConfig &result) { configLoadDone(result); }),
+		rpcFail([=](const RPCError &error) { return configLoadFail(error); }));
 	_configLoader->load();
+}
+
+void Instance::Private::setUserPhone(const QString &phone) {
+	if (_userPhone != phone) {
+		_userPhone = phone;
+		if (_configLoader) {
+			_configLoader->setPhone(_userPhone);
+		}
+	}
 }
 
 void Instance::Private::requestConfigIfOld() {
@@ -1316,6 +1327,10 @@ QString Instance::cloudLangCode() const {
 
 void Instance::requestConfig() {
 	_private->requestConfig();
+}
+
+void Instance::setUserPhone(const QString &phone) {
+	_private->setUserPhone(phone);
 }
 
 void Instance::requestConfigIfOld() {

@@ -27,57 +27,58 @@ Y1hZCxdv6cs5UnW9+PWvS+WIbkh+GaWYxwIDAQAB\n\
 -----END RSA PUBLIC KEY-----\
 ");
 
+bool CheckPhoneByPrefixesRules(const QString &phone, const QString &rules) {
+	auto result = false;
+	for (const auto &prefix : rules.split(',')) {
+		if (prefix.isEmpty()) {
+			result = true;
+		} else if (prefix[0] == '+' && phone.startsWith(prefix.mid(1))) {
+			result = true;
+		} else if (prefix[0] == '-' && phone.startsWith(prefix.mid(1))) {
+			return false;
+		}
+	}
+	return result;
+}
+
 } // namespace
 
 SpecialConfigRequest::SpecialConfigRequest(
 	base::lambda<void(
 		DcId dcId,
 		const std::string &ip,
-		int port)> callback)
-: _callback(std::move(callback)) {
-	performApp1Request();
-	performApp2Request();
+		int port,
+		bytes::const_span secret)> callback,
+	const QString &phone)
+: _callback(std::move(callback))
+, _phone(phone) {
+	performAppRequest();
 	performDnsRequest();
 }
 
-void SpecialConfigRequest::performApp1Request() {
-	auto appUrl = QUrl();
-	appUrl.setScheme(qsl("https"));
-	appUrl.setHost(qsl("google.com"));
-	if (cTestMode()) {
-		appUrl.setPath(qsl("/test/"));
-	}
-	auto appRequest = QNetworkRequest(appUrl);
-	appRequest.setRawHeader("Host", "dns-telegram.appspot.com");
-	_app1Reply.reset(_manager.get(appRequest));
-	connect(_app1Reply.get(), &QNetworkReply::finished, this, [=] {
-		app1Finished();
-	});
-}
-
-void SpecialConfigRequest::performApp2Request() {
+void SpecialConfigRequest::performAppRequest() {
 	auto appUrl = QUrl();
 	appUrl.setScheme(qsl("https"));
 	appUrl.setHost(qsl("software-download.microsoft.com"));
 	appUrl.setPath(cTestMode()
 		? qsl("/test/config.txt")
-		: qsl("/prod/config.txt"));
+		: qsl("/prodv2/config.txt"));
 	auto appRequest = QNetworkRequest(appUrl);
 	appRequest.setRawHeader("Host", "tcdnb.azureedge.net");
-	_app2Reply.reset(_manager.get(appRequest));
-	connect(_app2Reply.get(), &QNetworkReply::finished, this, [=] {
-		app2Finished();
+	_appReply.reset(_manager.get(appRequest));
+	connect(_appReply.get(), &QNetworkReply::finished, this, [=] {
+		appFinished();
 	});
 }
 
 void SpecialConfigRequest::performDnsRequest() {
 	auto dnsUrl = QUrl();
 	dnsUrl.setScheme(qsl("https"));
-	dnsUrl.setHost(qsl("google.com"));
+	dnsUrl.setHost(qsl("www.google.com"));
 	dnsUrl.setPath(qsl("/resolve"));
 	dnsUrl.setQuery(
 		qsl("name=%1.stel.com&type=16").arg(
-			cTestMode() ? qsl("tap") : qsl("ap")));
+			cTestMode() ? qsl("tap") : qsl("apv2")));
 	auto dnsRequest = QNetworkRequest(QUrl(dnsUrl));
 	dnsRequest.setRawHeader("Host", "dns.google.com");
 	_dnsReply.reset(_manager.get(dnsRequest));
@@ -86,21 +87,12 @@ void SpecialConfigRequest::performDnsRequest() {
 	});
 }
 
-void SpecialConfigRequest::app1Finished() {
-	if (!_app1Reply) {
+void SpecialConfigRequest::appFinished() {
+	if (!_appReply) {
 		return;
 	}
-	auto result = _app1Reply->readAll();
-	_app1Reply.release()->deleteLater();
-	handleResponse(result);
-}
-
-void SpecialConfigRequest::app2Finished() {
-	if (!_app2Reply) {
-		return;
-	}
-	auto result = _app2Reply->readAll();
-	_app2Reply.release()->deleteLater();
+	auto result = _appReply->readAll();
+	_appReply.release()->deleteLater();
 	handleResponse(result);
 }
 
@@ -237,25 +229,50 @@ void SpecialConfigRequest::handleResponse(const QByteArray &bytes) {
 		LOG(("Config Error: Bad date frame for simple config: %1-%2, our time is %3.").arg(config.vdate.v).arg(config.vexpires.v).arg(now));
 		return;
 	}
-	if (config.vip_port_list.v.empty()) {
+	if (config.vrules.v.empty()) {
 		LOG(("Config Error: Empty simple config received."));
 		return;
 	}
-	for (auto &entry : config.vip_port_list.v) {
-		Assert(entry.type() == mtpc_ipPort);
-		auto &ipPort = entry.c_ipPort();
-		auto ip = *reinterpret_cast<const uint32*>(&ipPort.vipv4.v);
-		auto ipString = qsl("%1.%2.%3.%4").arg((ip >> 24) & 0xFF).arg((ip >> 16) & 0xFF).arg((ip >> 8) & 0xFF).arg(ip & 0xFF);
-		_callback(config.vdc_id.v, ipString.toStdString(), ipPort.vport.v);
+	for (auto &rule : config.vrules.v) {
+		Assert(rule.type() == mtpc_accessPointRule);
+		auto &data = rule.c_accessPointRule();
+		const auto phoneRules = qs(data.vphone_prefix_rules);
+		if (!CheckPhoneByPrefixesRules(_phone, phoneRules)) {
+			continue;
+		}
+
+		const auto dcId = data.vdc_id.v;
+		for (const auto &address : data.vips.v) {
+			const auto parseIp = [](const MTPint &ipv4) {
+				const auto ip = *reinterpret_cast<const uint32*>(&ipv4.v);
+				return qsl("%1.%2.%3.%4"
+				).arg((ip >> 24) & 0xFF
+				).arg((ip >> 16) & 0xFF
+				).arg((ip >> 8) & 0xFF
+				).arg(ip & 0xFF).toStdString();
+			};
+			switch (address.type()) {
+			case mtpc_ipPort: {
+				const auto &fields = address.c_ipPort();
+				_callback(dcId, parseIp(fields.vipv4), fields.vport.v, {});
+			} break;
+			case mtpc_ipPortSecret: {
+				const auto &fields = address.c_ipPortSecret();
+				_callback(
+					dcId,
+					parseIp(fields.vipv4),
+					fields.vport.v,
+					bytes::make_span(fields.vsecret.v));
+			} break;
+			default: Unexpected("Type in simpleConfig ips.");
+			}
+		}
 	}
 }
 
 SpecialConfigRequest::~SpecialConfigRequest() {
-	if (_app1Reply) {
-		_app1Reply->abort();
-	}
-	if (_app2Reply) {
-		_app2Reply->abort();
+	if (_appReply) {
+		_appReply->abort();
 	}
 	if (_dnsReply) {
 		_dnsReply->abort();

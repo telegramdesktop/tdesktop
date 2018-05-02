@@ -57,6 +57,9 @@ parentFlagsCheck = {};
 countedTypeIdExceptions = {};
 countedTypeIdExceptions[77] = countedTypeIdExceptions[78] = {}
 countedTypeIdExceptions[77]['channel'] = countedTypeIdExceptions[78]['channel'] = True
+countedTypeIdExceptions['ipPortSecret'] = True
+countedTypeIdExceptions['accessPointRule'] = True
+countedTypeIdExceptions['help_configSimple'] = True
 
 lines = [];
 layer = '';
@@ -143,8 +146,9 @@ for line in lines:
       typeid = '0x' + typeid;
       if (typeid != countTypeId):
         if (not layerIndex in countedTypeIdExceptions or not name in countedTypeIdExceptions[layerIndex]):
-          print('Warning: counted ' + countTypeId + ' mismatch with provided ' + typeid + ' (' + cleanline + ')');
-          continue;
+          if (not name in countedTypeIdExceptions):
+            print('Warning: counted ' + countTypeId + ' mismatch with provided ' + typeid + ' (' + cleanline + ')');
+            continue;
     else:
       typeid = countTypeId;
 
@@ -519,7 +523,9 @@ def addTextSerialize(lst, dct, dataLetter):
                 if (not vtypeget):
                   result += '); vtypes.push_back(0';
             else:
-              result += '0); vtypes.push_back(0';
+              if (not vtypeget):
+                result += '0';
+              result += '); vtypes.push_back(0';
             result += '); stages.push_back(0); flags.push_back(0); ';
             if (k in conditions):
               result += '} else { to.add("[ SKIPPED BY BIT ' + conditions[k] + ' IN FIELD ' + hasFlags + ' ]"); } ';

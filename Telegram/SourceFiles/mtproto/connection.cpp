@@ -388,9 +388,13 @@ void ConnectionPrivate::appendTestConnection(
 		onDisconnected(weak);
 	});
 
+	const auto dcId = MTP::bareDcId(_shiftedDcId);
+	const auto simpleDcId = MTP::isTemporaryDcId(dcId)
+		? MTP::getRealIdFromTemporaryDcId(dcId)
+		: dcId;
 	const auto protocolDcId = (_dcType == DcType::MediaDownload)
-		? -MTP::bareDcId(_shiftedDcId)
-		: MTP::bareDcId(_shiftedDcId);
+		? -simpleDcId
+		: simpleDcId;
 	InvokeQueued(_testConnections.back().data, [=] {
 		weak->connectToServer(ip, port, protocolSecret, protocolDcId);
 	});

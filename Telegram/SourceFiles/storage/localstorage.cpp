@@ -2443,6 +2443,7 @@ void writeSettings() {
 
 	quint32 size = 12 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::bytearraySize(dcOptionsSerialized);
+	size += sizeof(quint32) + Serialize::stringSize(cLoggedPhoneNumber());
 
 	auto &proxies = Global::RefProxiesList();
 	const auto &proxy = Global::SelectedProxy();
@@ -2480,6 +2481,7 @@ void writeSettings() {
 	data.stream << quint32(dbiLastUpdateCheck) << qint32(cLastUpdateCheck());
 	data.stream << quint32(dbiScale) << qint32(cConfigScale());
 	data.stream << quint32(dbiDcOptions) << dcOptionsSerialized;
+	data.stream << quint32(dbiLoggedPhoneNumber) << cLoggedPhoneNumber();
 
 	data.stream << quint32(dbiConnectionType) << qint32(dbictProxiesList);
 	data.stream << qint32(proxies.size());

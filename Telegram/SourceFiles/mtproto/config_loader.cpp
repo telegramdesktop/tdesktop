@@ -22,9 +22,11 @@ constexpr auto kSpecialRequestTimeoutMs = 6000; // 4 seconds timeout for it to w
 
 ConfigLoader::ConfigLoader(
 	not_null<Instance*> instance,
+	const QString &phone,
 	RPCDoneHandlerPtr onDone,
 	RPCFailHandlerPtr onFail)
 : _instance(instance)
+, _phone(phone)
 , _doneHandler(onDone)
 , _failHandler(onFail) {
 	_enumDCTimer.setCallback([this] { enumerate(); });
@@ -96,24 +98,51 @@ void ConfigLoader::enumerate() {
 
 	_enumDCTimer.callOnce(kEnumerateDcTimeout);
 
-	createSpecialLoader();
+	refreshSpecialLoader();
 }
 
-void ConfigLoader::createSpecialLoader() {
+void ConfigLoader::refreshSpecialLoader() {
 	if (Global::UseProxy()) {
 		_specialLoader.reset();
 		return;
 	}
-	if (!_specialLoader || (!_specialEnumRequest && _specialEndpoints.empty())) {
-		_specialLoader = std::make_unique<SpecialConfigRequest>([this](DcId dcId, const std::string &ip, int port) {
-			addSpecialEndpoint(dcId, ip, port);
-		});
-		_triedSpecialEndpoints.clear();
+	if (!_specialLoader
+		|| (!_specialEnumRequest && _specialEndpoints.empty())) {
+		createSpecialLoader();
 	}
 }
 
-void ConfigLoader::addSpecialEndpoint(DcId dcId, const std::string &ip, int port) {
-	auto endpoint = SpecialEndpoint { dcId, ip, port };
+void ConfigLoader::setPhone(const QString &phone) {
+	if (_phone != phone) {
+		_phone = phone;
+		if (_specialLoader) {
+			createSpecialLoader();
+		}
+	}
+}
+
+void ConfigLoader::createSpecialLoader() {
+	_triedSpecialEndpoints.clear();
+	_specialLoader = std::make_unique<SpecialConfigRequest>([=](
+			DcId dcId,
+			const std::string &ip,
+			int port,
+			bytes::const_span secret) {
+		addSpecialEndpoint(dcId, ip, port, secret);
+	}, _phone);
+}
+
+void ConfigLoader::addSpecialEndpoint(
+		DcId dcId,
+		const std::string &ip,
+		int port,
+		bytes::const_span secret) {
+	auto endpoint = SpecialEndpoint {
+		dcId,
+		ip,
+		port,
+		bytes::make_vector(secret)
+	};
 	if (base::contains(_specialEndpoints, endpoint)
 		|| base::contains(_triedSpecialEndpoints, endpoint)) {
 		return;
@@ -133,7 +162,7 @@ void ConfigLoader::sendSpecialRequest() {
 		return;
 	}
 	if (_specialEndpoints.empty()) {
-		createSpecialLoader();
+		refreshSpecialLoader();
 		return;
 	}
 

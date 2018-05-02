@@ -107,8 +107,13 @@ new_session_created#9ec20908 first_msg_id:long unique_id:long server_salt:long =
 
 http_wait#9299359f max_delay:int wait_after:int max_wait:int = HttpWait;
 
-ipPort ipv4:int port:int = IpPort;
-help.configSimple#d997c3c5 date:int expires:int dc_id:int ip_port_list:Vector<ipPort> = help.ConfigSimple;
+//ipPort ipv4:int port:int = IpPort;
+//help.configSimple#d997c3c5 date:int expires:int dc_id:int ip_port_list:Vector<ipPort> = help.ConfigSimple;
+
+ipPort#d433ad73 ipv4:int port:int = IpPort;
+ipPortSecret#37982646 ipv4:int port:int secret:bytes = IpPort;
+accessPointRule#4679b65f phone_prefix_rules:string dc_id:int ips:vector<IpPort> = AccessPointRule;
+help.configSimple#5a592a6c date:int expires:int rules:vector<AccessPointRule> = help.ConfigSimple;
 
 ---functions---
 
