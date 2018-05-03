@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace MTP {
 namespace {
 
+constexpr auto kSendNextTimeout = TimeMs(1000);
+
 constexpr auto kPublicKey = str_const("\
 -----BEGIN RSA PUBLIC KEY-----\n\
 MIIBCgKCAQEAyr+18Rex2ohtVy8sroGPBwXD3DOoKCSpjDqYoXgCqB7ioln4eDCF\n\
@@ -26,6 +28,9 @@ fDK/NWcvGqa0w/nriMD6mDjKOryamw0OP9QuYgMN0C9xMW9y8SmP4h92OAWodTYg\n\
 Y1hZCxdv6cs5UnW9+PWvS+WIbkh+GaWYxwIDAQAB\n\
 -----END RSA PUBLIC KEY-----\
 ");
+
+constexpr auto kUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+"AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.117 Safari/537.36";
 
 bool CheckPhoneByPrefixesRules(const QString &phone, const QString &rules) {
 	auto result = false;
@@ -41,7 +46,84 @@ bool CheckPhoneByPrefixesRules(const QString &phone, const QString &rules) {
 	return result;
 }
 
+QByteArray ParseDnsResponse(const QByteArray &response) {
+	// Read and store to "entries" map all the data bytes from the response:
+	// { ..,
+	//   "Answer": [
+	//     { .., "data": "bytes1", .. },
+	//     { .., "data": "bytes2", .. }
+	//   ],
+	// .. }
+	auto entries = QMap<int, QString>();
+	auto error = QJsonParseError{ 0, QJsonParseError::NoError };
+	auto document = QJsonDocument::fromJson(response, &error);
+	if (error.error != QJsonParseError::NoError) {
+		LOG(("Config Error: Failed to parse dns response JSON, error: %1"
+			).arg(error.errorString()));
+	} else if (!document.isObject()) {
+		LOG(("Config Error: Not an object received in dns response JSON."));
+	} else {
+		auto response = document.object();
+		auto answerIt = response.find(qsl("Answer"));
+		if (answerIt == response.constEnd()) {
+			LOG(("Config Error: Could not find Answer "
+				"in dns response JSON."));
+		} else if (!(*answerIt).isArray()) {
+			LOG(("Config Error: Not an array received "
+				"in Answer in dns response JSON."));
+		} else {
+			for (auto elem : (*answerIt).toArray()) {
+				if (!elem.isObject()) {
+					LOG(("Config Error: Not an object found "
+						"in Answer array in dns response JSON."));
+				} else {
+					auto object = elem.toObject();
+					auto dataIt = object.find(qsl("data"));
+					if (dataIt == object.constEnd()) {
+						LOG(("Config Error: Could not find data "
+							"in Answer array entry in dns response JSON."));
+					} else if (!(*dataIt).isString()) {
+						LOG(("Config Error: Not a string data found "
+							"in Answer array entry in dns response JSON."));
+					} else {
+						auto data = (*dataIt).toString();
+						entries.insertMulti(INT_MAX - data.size(), data);
+					}
+				}
+			}
+		}
+	}
+	return QStringList(entries.values()).join(QString()).toLatin1();
+}
+
 } // namespace
+
+SpecialConfigRequest::Request::Request(not_null<QNetworkReply*> reply)
+: reply(reply.get()) {
+}
+
+SpecialConfigRequest::Request::Request(Request &&other)
+: reply(base::take(other.reply)) {
+}
+
+auto SpecialConfigRequest::Request::operator=(Request &&other) -> Request& {
+	if (reply != other.reply) {
+		destroy();
+		reply = base::take(other.reply);
+	}
+	return *this;
+}
+
+void SpecialConfigRequest::Request::destroy() {
+	if (const auto value = base::take(reply)) {
+		value->deleteLater();
+		value->abort();
+	}
+}
+
+SpecialConfigRequest::Request::~Request() {
+	destroy();
+}
 
 SpecialConfigRequest::SpecialConfigRequest(
 	base::lambda<void(
@@ -52,97 +134,89 @@ SpecialConfigRequest::SpecialConfigRequest(
 	const QString &phone)
 : _callback(std::move(callback))
 , _phone(phone) {
-	performAppRequest();
-	performDnsRequest();
+	_attempts = {
+		{ Type::App, qsl("software-download.microsoft.com") },
+		{ Type::Dns, qsl("google.com") },
+		{ Type::Dns, qsl("www.google.com") },
+		{ Type::Dns, qsl("google.ru") },
+		{ Type::Dns, qsl("www.google.ru") },
+	};
+	std::random_device rd;
+	ranges::shuffle(_attempts, std::mt19937(rd()));
+	sendNextRequest();
 }
 
-void SpecialConfigRequest::performAppRequest() {
-	auto appUrl = QUrl();
-	appUrl.setScheme(qsl("https"));
-	appUrl.setHost(qsl("software-download.microsoft.com"));
-	appUrl.setPath(cTestMode()
-		? qsl("/test/config.txt")
-		: qsl("/prodv2/config.txt"));
-	auto appRequest = QNetworkRequest(appUrl);
-	appRequest.setRawHeader("Host", "tcdnb.azureedge.net");
-	_appReply.reset(_manager.get(appRequest));
-	connect(_appReply.get(), &QNetworkReply::finished, this, [=] {
-		appFinished();
+void SpecialConfigRequest::sendNextRequest() {
+	Expects(!_attempts.empty());
+
+	const auto attempt = _attempts.back();
+	_attempts.pop_back();
+	if (!_attempts.empty()) {
+		App::CallDelayed(kSendNextTimeout, this, [=] {
+			sendNextRequest();
+		});
+	}
+	performRequest(attempt);
+}
+
+void SpecialConfigRequest::performRequest(const Attempt &attempt) {
+	const auto type = attempt.type;
+	auto url = QUrl();
+	url.setScheme(qsl("https"));
+	url.setHost(attempt.domain);
+	auto request = QNetworkRequest();
+	switch (type) {
+	case Type::App: {
+		url.setPath(cTestMode()
+			? qsl("/test/config.txt")
+			: qsl("/prodv2/config.txt"));
+		request.setRawHeader("Host", "tcdnb.azureedge.net");
+	} break;
+	case Type::Dns: {
+		url.setPath(qsl("/resolve"));
+		url.setQuery(
+			qsl("name=%1.stel.com&type=16").arg(
+				cTestMode() ? qsl("tap") : qsl("apv2")));
+		request.setRawHeader("Host", "dns.google.com");
+	} break;
+	default: Unexpected("Type in SpecialConfigRequest::performRequest.");
+	}
+	request.setUrl(url);
+	request.setRawHeader("User-Agent", kUserAgent);
+	const auto reply = _requests.emplace_back(
+		_manager.get(request)
+	).reply;
+	connect(reply, &QNetworkReply::finished, this, [=] {
+		requestFinished(type, reply);
 	});
 }
 
-void SpecialConfigRequest::performDnsRequest() {
-	auto dnsUrl = QUrl();
-	dnsUrl.setScheme(qsl("https"));
-	dnsUrl.setHost(qsl("www.google.com"));
-	dnsUrl.setPath(qsl("/resolve"));
-	dnsUrl.setQuery(
-		qsl("name=%1.stel.com&type=16").arg(
-			cTestMode() ? qsl("tap") : qsl("apv2")));
-	auto dnsRequest = QNetworkRequest(QUrl(dnsUrl));
-	dnsRequest.setRawHeader("Host", "dns.google.com");
-	_dnsReply.reset(_manager.get(dnsRequest));
-	connect(_dnsReply.get(), &QNetworkReply::finished, this, [this] {
-		dnsFinished();
-	});
+void SpecialConfigRequest::requestFinished(
+		Type type,
+		not_null<QNetworkReply*> reply) {
+	const auto result = finalizeRequest(reply);
+	switch (type) {
+	case Type::App: handleResponse(result); break;
+	case Type::Dns: handleResponse(ParseDnsResponse(result)); break;
+	default: Unexpected("Type in SpecialConfigRequest::requestFinished.");
+	}
 }
 
-void SpecialConfigRequest::appFinished() {
-	if (!_appReply) {
-		return;
+QByteArray SpecialConfigRequest::finalizeRequest(
+		not_null<QNetworkReply*> reply) {
+	if (reply->error() != QNetworkReply::NoError) {
+		LOG(("Config Error: Failed to get response from %1, error: %2 (%3)"
+			).arg(reply->request().url().toDisplayString()
+			).arg(reply->errorString()
+			).arg(reply->error()));
 	}
-	auto result = _appReply->readAll();
-	_appReply.release()->deleteLater();
-	handleResponse(result);
-}
-
-void SpecialConfigRequest::dnsFinished() {
-	if (!_dnsReply) {
-		return;
-	}
-	if (_dnsReply->error() != QNetworkReply::NoError) {
-		LOG(("Config Error: Failed to get dns response JSON, error: %1 (%2)").arg(_dnsReply->errorString()).arg(_dnsReply->error()));
-	}
-	auto result = _dnsReply->readAll();
-	_dnsReply.release()->deleteLater();
-
-	// Read and store to "entries" map all the data bytes from this response:
-	// { .., "Answer": [ { .., "data": "bytes1", .. }, { .., "data": "bytes2", .. } ], .. }
-	auto entries = QMap<int, QString>();
-	auto error = QJsonParseError { 0, QJsonParseError::NoError };
-	auto document = QJsonDocument::fromJson(result, &error);
-	if (error.error != QJsonParseError::NoError) {
-		LOG(("Config Error: Failed to parse dns response JSON, error: %1").arg(error.errorString()));
-	} else if (!document.isObject()) {
-		LOG(("Config Error: Not an object received in dns response JSON."));
-	} else {
-		auto response = document.object();
-		auto answerIt = response.find(qsl("Answer"));
-		if (answerIt == response.constEnd()) {
-			LOG(("Config Error: Could not find Answer in dns response JSON."));
-		} else if (!(*answerIt).isArray()) {
-			LOG(("Config Error: Not an array received in Answer in dns response JSON."));
-		} else {
-			for (auto elem : (*answerIt).toArray()) {
-				if (!elem.isObject()) {
-					LOG(("Config Error: Not an object found in Answer array in dns response JSON."));
-				} else {
-					auto object = elem.toObject();
-					auto dataIt = object.find(qsl("data"));
-					if (dataIt == object.constEnd()) {
-						LOG(("Config Error: Could not find data in Answer array entry in dns response JSON."));
-					} else if (!(*dataIt).isString()) {
-						LOG(("Config Error: Not a string data found in Answer array entry in dns response JSON."));
-					} else {
-						auto data = (*dataIt).toString();
-						entries.insertMulti(INT_MAX - data.size(), data);
-					}
-				}
-			}
-		}
-	}
-	auto text = QStringList(entries.values()).join(QString());
-	handleResponse(text.toLatin1());
+	const auto result = reply->readAll();
+	const auto from = ranges::remove(
+		_requests,
+		reply,
+		[](const Request &request) { return request.reply; });
+	_requests.erase(from, end(_requests));
+	return result;
 }
 
 bool SpecialConfigRequest::decryptSimpleConfig(const QByteArray &bytes) {
@@ -267,15 +341,6 @@ void SpecialConfigRequest::handleResponse(const QByteArray &bytes) {
 			default: Unexpected("Type in simpleConfig ips.");
 			}
 		}
-	}
-}
-
-SpecialConfigRequest::~SpecialConfigRequest() {
-	if (_appReply) {
-		_appReply->abort();
-	}
-	if (_dnsReply) {
-		_dnsReply->abort();
 	}
 }
 
