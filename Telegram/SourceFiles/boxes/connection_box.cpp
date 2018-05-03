@@ -470,7 +470,7 @@ void ProxiesBox::createNoRowsLabel() {
 	) | rpl::start_with_next([=](int width) {
 		label->resizeToWidth(width);
 		label->moveToLeft(0, 0);
-	});
+	}, label->lifetime());
 }
 
 void ProxiesBox::setupButtons(int id, not_null<ProxyRow*> button) {
