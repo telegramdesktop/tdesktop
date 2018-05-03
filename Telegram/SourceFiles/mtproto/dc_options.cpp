@@ -595,10 +595,7 @@ auto DcOptions::lookup(
 			const auto flags = endpoint.flags;
 			if (type == DcType::Cdn && !(flags & Flag::f_cdn)) {
 				continue;
-			} else if (throughProxy && !(flags & Flag::f_static)) {
-				continue;
-			}
-			if (type != DcType::MediaDownload
+			} else if (type != DcType::MediaDownload
 				&& (flags & Flag::f_media_only)) {
 				continue;
 			}
