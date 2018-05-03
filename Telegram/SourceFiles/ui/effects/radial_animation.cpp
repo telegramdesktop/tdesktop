@@ -7,11 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/radial_animation.h"
 
+#include "styles/style_widgets.h"
+
 namespace Ui {
 
 RadialAnimation::RadialAnimation(AnimationCallbacks &&callbacks)
-	: a_arcStart(0, FullArcLength)
-	, _animation(std::move(callbacks)) {
+: a_arcStart(0, FullArcLength)
+, _animation(std::move(callbacks)) {
 }
 
 void RadialAnimation::start(float64 prg) {
@@ -76,6 +78,98 @@ void RadialAnimation::draw(Painter &p, const QRect &inner, int32 thickness, styl
 	{
 		PainterHighQualityEnabler hq(p);
 		p.drawArc(inner, from, len);
+	}
+
+	p.setPen(was);
+	p.setOpacity(o);
+}
+
+InfiniteRadialAnimation::InfiniteRadialAnimation(AnimationCallbacks &&callbacks)
+: _animation(std::move(callbacks)) {
+}
+
+void InfiniteRadialAnimation::start() {
+	_start = _changed = getms();
+	_finished = false;
+	_animation.start();
+}
+
+void InfiniteRadialAnimation::update(bool finished, TimeMs ms) {
+	if (_finished != finished) {
+		_finished = finished;
+		_changed = ms;
+	}
+
+	auto dt = float64(ms - _changed);
+	auto fulldt = float64(ms - _start);
+	_opacity = qMin(fulldt / st::radialDuration, 1.);
+	if (!finished) {
+	} else if (dt >= st::radialDuration) {
+		stop();
+	} else {
+		auto r = dt / st::radialDuration;
+		_opacity *= 1 - r;
+	}
+}
+
+void InfiniteRadialAnimation::stop() {
+	_start = _changed = 0;
+	_animation.stop();
+}
+
+void InfiniteRadialAnimation::step(TimeMs ms) {
+	_animation.step(ms);
+}
+
+void InfiniteRadialAnimation::draw(
+		Painter &p,
+		QPoint position,
+		int outerWidth,
+		const style::InfiniteRadialAnimation &st) {
+	auto o = p.opacity();
+	p.setOpacity(o * _opacity);
+
+	auto pen = st.color->p;
+	auto was = p.pen();
+	pen.setWidth(st.thickness);
+	pen.setCapStyle(Qt::RoundCap);
+	p.setPen(pen);
+
+	const auto time = (getms() - _start);
+	const auto linear = (time * FullArcLength) / st.linearPeriod;
+	const auto frontPeriods = time / st.sinePeriod;
+	const auto frontCurrent = time % st.sinePeriod;
+	const auto frontProgress = anim::sineInOut(
+		st.arcMax - st.arcMin,
+		std::min(frontCurrent, TimeMs(st.sineDuration))
+			/ float64(st.sineDuration));
+	const auto backTime = std::max(time - st.sineShift, 0LL);
+	const auto backPeriods = backTime / st.sinePeriod;
+	const auto backCurrent = backTime % st.sinePeriod;
+	const auto backProgress = anim::sineInOut(
+		st.arcMax - st.arcMin,
+		std::min(backCurrent, TimeMs(st.sineDuration))
+			/ float64(st.sineDuration));
+	const auto front = linear + std::round((st.arcMin + frontProgress + frontPeriods * (st.arcMax - st.arcMin)) * FullArcLength);
+	const auto from = linear + std::round((backProgress + backPeriods * (st.arcMax - st.arcMin)) * FullArcLength);
+	const auto len = (front - from);
+
+	//if (rtl()) {
+	//	from = QuarterArcLength - (from - QuarterArcLength) - len;
+	//	if (from < 0) from += FullArcLength;
+	//}
+
+	{
+		PainterHighQualityEnabler hq(p);
+		p.drawArc(
+			rtlrect(
+				position.x(),
+				position.y(),
+				st.size.width(),
+				st.size.height(),
+				outerWidth),
+			from,
+			len);
 	}
 
 	p.setPen(was);

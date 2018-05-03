@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/toast/toast.h"
+#include "ui/effects/radial_animation.h"
 #include "ui/text_options.h"
 #include "history/history_location_manager.h"
 #include "application.h"
@@ -59,6 +60,7 @@ protected:
 private:
 	void setupControls(View &&view);
 	int countAvailableWidth() const;
+	void step_radial(TimeMs ms, bool timer);
 
 	View _view;
 
@@ -66,6 +68,7 @@ private:
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _edit;
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _delete;
 	object_ptr<Ui::FadeWrapScaled<Ui::RoundButton>> _restore;
+	std::unique_ptr<Ui::InfiniteRadialAnimation> _progress;
 	int _skipLeft = 0;
 	int _skipRight = 0;
 
@@ -191,9 +194,31 @@ void ProxyRow::updateFields(View &&view) {
 	_edit->toggle(!_view.deleted, anim::type::instant);
 	_restore->toggle(_view.deleted, anim::type::instant);
 
+	const auto state = _view.state;
+	if (state == State::Connecting || state == State::Checking) {
+		if (!_progress) {
+			_progress = std::make_unique<Ui::InfiniteRadialAnimation>(
+				animation(this, &ProxyRow::step_radial));
+			_progress->start();
+		}
+	} else {
+		_progress = nullptr;
+	}
+
 	setPointerCursor(!_view.deleted);
 
 	update();
+}
+
+void ProxyRow::step_radial(TimeMs ms, bool timer) {
+	if (timer) {
+		update();
+	} else if (_progress) {
+		_progress->update(false, ms);
+		if (!_progress->animating()) {
+			_progress = nullptr;
+		}
+	}
 }
 
 int ProxyRow::resizeGetHeight(int newWidth) {
@@ -226,8 +251,8 @@ int ProxyRow::resizeGetHeight(int newWidth) {
 void ProxyRow::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
+	const auto ms = getms();
 	if (!_view.deleted) {
-		const auto ms = getms();
 		paintRipple(p, 0, 0, ms);
 	}
 
@@ -282,9 +307,25 @@ void ProxyRow::paintEvent(QPaintEvent *e) {
 	}();
 	p.setPen(statusFg);
 	p.setFont(st::normalFont);
-	p.drawTextLeft(left, top, width(), status);
-	top += st::normalFont->height + st::proxyRowPadding.bottom();
 
+	auto statusLeft = left;
+	if (_progress) {
+		_progress->step(ms);
+		if (_progress) {
+			_progress->draw(
+				p,
+				{
+					st::proxyCheckingPosition.x() + statusLeft,
+					st::proxyCheckingPosition.y() + top },
+				width(),
+				st::proxyCheckingAnimation);
+			statusLeft += st::proxyCheckingPosition.x()
+				+ st::proxyCheckingAnimation.size.width()
+				+ st::proxyCheckingSkip;
+		}
+	}
+	p.drawTextLeft(statusLeft, top, width(), status);
+	top += st::normalFont->height + st::proxyRowPadding.bottom();
 }
 
 ProxiesBox::ProxiesBox(

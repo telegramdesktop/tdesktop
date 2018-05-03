@@ -720,7 +720,7 @@ proxyRowSkip: 2px;
 proxyRowRipple: RippleAnimation(defaultRippleAnimation) {
 	color: windowBgOver;
 }
-proxyRowSelectedIcon: icon {{ "mediaview_save_check", windowActiveTextFg }};
+proxyRowSelectedIcon: icon {{ "passport_ready", windowActiveTextFg }};
 proxyRowTitleFg: windowFg;
 proxyRowTitlePalette: TextPalette(defaultTextPalette) {
 	linkFg: windowSubTextFg;
@@ -765,3 +765,10 @@ proxyEmptyListLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 proxyEmptyListPadding: margins(22px, 48px, 22px, 0px);
+proxyCheckingPosition: point(2px, 5px);
+proxyCheckingSkip: 6px;
+proxyCheckingAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	color: windowSubTextFg;
+	thickness: 1px;
+	size: size(8px, 8px);
+}

@@ -37,6 +37,27 @@ RippleAnimation {
 	hideDuration: int;
 }
 
+InfiniteRadialAnimation {
+	color: color;
+	thickness: pixels;
+	size: size;
+	linearPeriod: int;
+	sinePeriod: int;
+	sineDuration: int;
+	sineShift: int;
+	arcMin: double;
+	arcMax: double;
+}
+
+defaultInfiniteRadialAnimation: InfiniteRadialAnimation {
+	linearPeriod: 1000;
+	sinePeriod: 3000;
+	sineDuration: 1000;
+	sineShift: 1500;
+	arcMin: 0.0625;
+	arcMax: 0.75;
+}
+
 FlatButton {
 	color: color;
 	overColor: color;
