@@ -27,6 +27,9 @@ void writeSettings();
 void writeUserSettings();
 void writeMtpData();
 
+void writeAutoupdatePrefix(const QString &prefix);
+QString readAutoupdatePrefix();
+
 void reset();
 
 bool checkPasscode(const QByteArray &passcode);

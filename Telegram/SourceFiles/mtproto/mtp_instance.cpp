@@ -620,7 +620,7 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 	_configLoader.reset();
 	_lastConfigLoadedTime = getms(true);
 
-	auto &data = result.c_config();
+	const auto &data = result.c_config();
 	DEBUG_LOG(("MTP Info: got config, chat_size_max: %1, date: %2, test_mode: %3, this_dc: %4, dc_options.length: %5").arg(data.vchat_size_max.v).arg(data.vdate.v).arg(mtpIsTrue(data.vtest_mode)).arg(data.vthis_dc.v).arg(data.vdc_options.v.size()));
 	if (data.vdc_options.v.empty()) {
 		LOG(("MTP Error: config with empty dc_options received!"));
@@ -659,8 +659,14 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 	}
 	Global::SetBlockedMode(data.is_blocked_mode());
 
-	Lang::CurrentCloudManager().setSuggestedLanguage(data.has_suggested_lang_code() ? qs(data.vsuggested_lang_code) : QString());
+	const auto lang = data.has_suggested_lang_code()
+		? qs(data.vsuggested_lang_code)
+		: QString();
+	Lang::CurrentCloudManager().setSuggestedLanguage(lang);
 
+	if (data.has_autoupdate_url_prefix()) {
+		Local::writeAutoupdatePrefix(qs(data.vautoupdate_url_prefix));
+	}
 	Local::writeSettings();
 
 	_configExpiresAt = getms(true)

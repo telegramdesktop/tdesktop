@@ -31,7 +31,6 @@ namespace {
 
 constexpr auto kCheckTimeout = TimeMs(10000);
 constexpr auto kMaxResponseSize = 1024 * 1024;
-const auto kUpdateUrl = "http://updates.tdesktop.com";
 
 #ifdef Q_OS_WIN
 using VersionInt = DWORD;
@@ -397,7 +396,7 @@ bool Updater::checkResponse(const QByteArray &response) {
 	startDownloadThread(
 		bestAvailableVersion,
 		bestIsAvailableBeta,
-		kUpdateUrl + bestLink);
+		Local::readAutoupdatePrefix() + bestLink);
 	return true;
 }
 
@@ -515,7 +514,7 @@ void Updater::start(bool forceWait) {
 	if (sendRequest) {
 		clearSentRequest();
 
-		auto url = QUrl(kUpdateUrl + QString("/current"));
+		auto url = QUrl(Local::readAutoupdatePrefix() + qstr("/current"));
 		DEBUG_LOG(("Update Info: requesting update state from '%1'"
 			).arg(url.toDisplayString()));
 		const auto request = QNetworkRequest(url);

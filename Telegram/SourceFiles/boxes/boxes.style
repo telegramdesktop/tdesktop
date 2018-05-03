@@ -712,8 +712,8 @@ sendMediaFileThumbSkip: 10px;
 sendMediaFileNameTop: 7px;
 sendMediaFileStatusTop: 37px;
 
-proxyUsePadding: margins(22px, 0px, 22px, 12px);
-proxyTryIPv6Padding: margins(22px, 12px, 22px, 0px);
+proxyUsePadding: margins(22px, 8px, 22px, 12px);
+proxyTryIPv6Padding: margins(22px, 12px, 22px, 8px);
 proxyRowPadding: margins(22px, 8px, 8px, 8px);
 proxyRowIconSkip: 32px;
 proxyRowSkip: 2px;

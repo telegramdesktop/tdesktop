@@ -2517,6 +2517,54 @@ void writeMtpData() {
 	_writeMtpData();
 }
 
+const QString &AutoupdatePrefix(const QString &replaceWith = {}) {
+	static auto value = QString();
+	if (!replaceWith.isEmpty()) {
+		value = replaceWith;
+	}
+	return value;
+}
+
+QString autoupdatePrefixFile() {
+	return cWorkingDir() + "tdata/prefix";
+}
+
+const QString &readAutoupdatePrefixRaw() {
+	const auto &result = AutoupdatePrefix();
+	if (!result.isEmpty()) {
+		return result;
+	}
+	QFile f(autoupdatePrefixFile());
+	if (f.open(QIODevice::ReadOnly)) {
+		const auto value = QString::fromUtf8(f.readAll());
+		if (!value.isEmpty()) {
+			return AutoupdatePrefix(value);
+		}
+	}
+	return AutoupdatePrefix("http://updates.tdesktop.com");
+}
+
+void writeAutoupdatePrefix(const QString &prefix) {
+	const auto current = readAutoupdatePrefixRaw();
+	if (current != prefix) {
+		AutoupdatePrefix(prefix);
+		QFile f(autoupdatePrefixFile());
+		if (f.open(QIODevice::WriteOnly)) {
+			f.write(prefix.toUtf8());
+			f.close();
+		}
+		if (cAutoUpdate()) {
+			Core::UpdateChecker checker;
+			checker.start();
+		}
+	}
+}
+
+QString readAutoupdatePrefix() {
+	auto result = readAutoupdatePrefixRaw();
+	return result.replace(QRegularExpression("/+$"), QString());
+}
+
 void reset() {
 	if (_localLoader) {
 		_localLoader->stop();
