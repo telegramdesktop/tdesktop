@@ -61,6 +61,7 @@ private:
 	void setupControls(View &&view);
 	int countAvailableWidth() const;
 	void step_radial(TimeMs ms, bool timer);
+	void paintCheck(Painter &p, TimeMs ms);
 
 	View _view;
 
@@ -68,7 +69,13 @@ private:
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _edit;
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _delete;
 	object_ptr<Ui::FadeWrapScaled<Ui::RoundButton>> _restore;
+
+	bool _set = false;
+	Animation _toggled;
+	Animation _setAnimation;
 	std::unique_ptr<Ui::InfiniteRadialAnimation> _progress;
+	std::unique_ptr<Ui::InfiniteRadialAnimation> _checking;
+
 	int _skipLeft = 0;
 	int _skipRight = 0;
 
@@ -173,6 +180,8 @@ rpl::producer<> ProxyRow::editClicks() const {
 
 void ProxyRow::setupControls(View &&view) {
 	updateFields(std::move(view));
+	_toggled.finish();
+	_setAnimation.finish();
 
 	_delete->finishAnimating();
 	_restore->finishAnimating();
@@ -184,6 +193,13 @@ int ProxyRow::countAvailableWidth() const {
 }
 
 void ProxyRow::updateFields(View &&view) {
+	if (_view.selected != view.selected) {
+		_toggled.start(
+			[=] { update(); },
+			view.selected ? 0. : 1.,
+			view.selected ? 1. : 0.,
+			st::defaultRadio.duration);
+	}
 	_view = std::move(view);
 	const auto endpoint = _view.host + ':' + QString::number(_view.port);
 	_title.setText(
@@ -195,15 +211,34 @@ void ProxyRow::updateFields(View &&view) {
 	_restore->toggle(_view.deleted, anim::type::instant);
 
 	const auto state = _view.state;
-	if (state == State::Connecting || state == State::Checking) {
+	if (state == State::Connecting) {
 		if (!_progress) {
 			_progress = std::make_unique<Ui::InfiniteRadialAnimation>(
 				animation(this, &ProxyRow::step_radial),
 				st::proxyCheckingAnimation);
-			_progress->start();
+		}
+		_progress->start();
+	} else if (_progress) {
+		_progress->stop();
+	}
+	if (state == State::Checking) {
+		if (!_checking) {
+			_checking = std::make_unique<Ui::InfiniteRadialAnimation>(
+				animation(this, &ProxyRow::step_radial),
+				st::proxyCheckingAnimation);
+			_checking->start();
 		}
 	} else {
-		_progress = nullptr;
+		_checking = nullptr;
+	}
+	const auto set = (state == State::Connecting || state == State::Online);
+	if (_set != set) {
+		_set = set;
+		_setAnimation.start(
+			[=] { update(); },
+			_set ? 0. : 1.,
+			_set ? 1. : 0.,
+			st::defaultRadio.duration);
 	}
 
 	setPointerCursor(!_view.deleted);
@@ -214,8 +249,6 @@ void ProxyRow::updateFields(View &&view) {
 void ProxyRow::step_radial(TimeMs ms, bool timer) {
 	if (timer) {
 		update();
-	} else if (_progress && !_progress->animating()) {
-		_progress = nullptr;
 	}
 }
 
@@ -260,13 +293,9 @@ void ProxyRow::paintEvent(QPaintEvent *e) {
 
 	if (_view.deleted) {
 		p.setOpacity(st::stickersRowDisabledOpacity);
-	} else if (_view.selected) {
-		st::proxyRowSelectedIcon.paint(
-			p,
-			st::proxyRowPadding.left(),
-			(height() - st::proxyRowSelectedIcon.height()) / 2,
-			width());
 	}
+
+	paintCheck(p, ms);
 
 	p.setPen(st::proxyRowTitleFg);
 	p.setFont(st::semiboldFont);
@@ -307,14 +336,15 @@ void ProxyRow::paintEvent(QPaintEvent *e) {
 	p.setFont(st::normalFont);
 
 	auto statusLeft = left;
-	if (_progress) {
-		_progress->step(ms);
-		if (_progress) {
-			_progress->draw(
+	if (_checking) {
+		_checking->step(ms);
+		if (_checking) {
+			_checking->draw(
 				p,
 				{
 					st::proxyCheckingPosition.x() + statusLeft,
-					st::proxyCheckingPosition.y() + top },
+					st::proxyCheckingPosition.y() + top
+				},
 				width());
 			statusLeft += st::proxyCheckingPosition.x()
 				+ st::proxyCheckingAnimation.size.width()
@@ -323,6 +353,44 @@ void ProxyRow::paintEvent(QPaintEvent *e) {
 	}
 	p.drawTextLeft(statusLeft, top, width(), status);
 	top += st::normalFont->height + st::proxyRowPadding.bottom();
+}
+
+void ProxyRow::paintCheck(Painter &p, TimeMs ms) {
+	if (_progress) {
+		_progress->step(ms);
+	}
+	const auto loading = _progress
+		? _progress->computeState()
+		: Ui::InfiniteRadialAnimation::State{ 0., 0, FullArcLength };
+	const auto toggled = _toggled.current(ms, _view.selected ? 1. : 0.)
+		* (1. - loading.shown);
+	const auto _st = &st::defaultRadio;
+	const auto set = _setAnimation.current(ms, _set ? 1. : 0.);
+
+	PainterHighQualityEnabler hq(p);
+
+	const auto left = st::proxyRowPadding.left();
+	const auto top = (height() - _st->diameter - _st->thickness) / 2;
+	const auto outerWidth = width();
+
+	auto pen = anim::pen(_st->untoggledFg, _st->toggledFg, toggled * set);
+	pen.setWidth(_st->thickness);
+	p.setPen(pen);
+	p.setBrush(_st->bg);
+	const auto rect = rtlrect(QRectF(left, top, _st->diameter, _st->diameter).marginsRemoved(QMarginsF(_st->thickness / 2., _st->thickness / 2., _st->thickness / 2., _st->thickness / 2.)), outerWidth);
+	if (loading.arcLength < FullArcLength) {
+		p.drawArc(rect, loading.arcFrom, loading.arcLength);
+	} else {
+		p.drawEllipse(rect);
+	}
+
+	if (toggled > 0) {
+		p.setPen(Qt::NoPen);
+		p.setBrush(anim::brush(_st->untoggledFg, _st->toggledFg, toggled * set));
+
+		auto skip0 = _st->diameter / 2., skip1 = _st->skip / 10., checkSkip = skip0 * (1. - toggled) + skip1 * toggled;
+		p.drawEllipse(rtlrect(QRectF(left, top, _st->diameter, _st->diameter).marginsRemoved(QMarginsF(checkSkip, checkSkip, checkSkip, checkSkip)), outerWidth));
+	}
 }
 
 ProxiesBox::ProxiesBox(
@@ -374,6 +442,7 @@ void ProxiesBox::setupContent() {
 	) | rpl::start_with_next([=](bool enabled) {
 		_useProxy->entity()->setChecked(enabled);
 	}, _useProxy->entity()->lifetime());
+	_useProxy->entity()->finishAnimating();
 
 	_tryIPv6->resizeToWidth(st::boxWideWidth);
 
@@ -1176,7 +1245,9 @@ void ProxiesBoxController::setupChecker(int id, const Checker &checker) {
 		} else if (item->checkerv6 == pointer) {
 			item->checkerv6 = nullptr;
 		}
-		if (!item->checker && !item->checkerv6 && item->state == ItemState::Checking) {
+		if (!item->checker
+			&& !item->checkerv6
+			&& item->state == ItemState::Checking) {
 			item->state = ItemState::Unavailable;
 			updateView(*item);
 		}
@@ -1366,7 +1437,9 @@ void ProxiesBoxController::addNewItem(const ProxyData &proxy) {
 }
 
 bool ProxiesBoxController::setProxyEnabled(bool enabled) {
-	if (enabled) {
+	if (Global::UseProxy() == enabled) {
+		return true;
+	} else if (enabled) {
 		if (Global::ProxiesList().empty()) {
 			return false;
 		} else if (!Global::SelectedProxy()) {

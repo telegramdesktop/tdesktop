@@ -93,7 +93,7 @@ InfiniteRadialAnimation::InfiniteRadialAnimation(
 
 void InfiniteRadialAnimation::start() {
 	const auto now = getms();
-	if (_workFinished <= now) {
+	if (_workFinished <= now && (_workFinished || !_workStarted)) {
 		_workStarted = now + _st.sineDuration;
 		_workFinished = 0;
 	}
