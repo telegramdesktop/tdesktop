@@ -198,7 +198,8 @@ void ProxyRow::updateFields(View &&view) {
 	if (state == State::Connecting || state == State::Checking) {
 		if (!_progress) {
 			_progress = std::make_unique<Ui::InfiniteRadialAnimation>(
-				animation(this, &ProxyRow::step_radial));
+				animation(this, &ProxyRow::step_radial),
+				st::proxyCheckingAnimation);
 			_progress->start();
 		}
 	} else {
@@ -213,11 +214,8 @@ void ProxyRow::updateFields(View &&view) {
 void ProxyRow::step_radial(TimeMs ms, bool timer) {
 	if (timer) {
 		update();
-	} else if (_progress) {
-		_progress->update(false, ms);
-		if (!_progress->animating()) {
-			_progress = nullptr;
-		}
+	} else if (_progress && !_progress->animating()) {
+		_progress = nullptr;
 	}
 }
 
@@ -317,8 +315,7 @@ void ProxyRow::paintEvent(QPaintEvent *e) {
 				{
 					st::proxyCheckingPosition.x() + statusLeft,
 					st::proxyCheckingPosition.y() + top },
-				width(),
-				st::proxyCheckingAnimation);
+				width());
 			statusLeft += st::proxyCheckingPosition.x()
 				+ st::proxyCheckingAnimation.size.width()
 				+ st::proxyCheckingSkip;

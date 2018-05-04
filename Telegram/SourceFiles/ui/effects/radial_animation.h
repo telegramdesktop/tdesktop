@@ -48,17 +48,20 @@ private:
 
 class InfiniteRadialAnimation {
 public:
-	InfiniteRadialAnimation(AnimationCallbacks &&callbacks);
+	struct State {
+		float64 shown = 0.;
+		int arcFrom = 0;
+		int arcLength = FullArcLength;
+	};
+	InfiniteRadialAnimation(
+		AnimationCallbacks &&callbacks,
+		const style::InfiniteRadialAnimation &st);
 
-	float64 opacity() const {
-		return _opacity;
-	}
 	bool animating() const {
 		return _animation.animating();
 	}
 
 	void start();
-	void update(bool finished, TimeMs ms);
 	void stop();
 
 	void step(TimeMs ms);
@@ -69,14 +72,15 @@ public:
 	void draw(
 		Painter &p,
 		QPoint position,
-		int outerWidth,
-		const style::InfiniteRadialAnimation &st);
+		int outerWidth);
+
+	State computeState();
 
 private:
-	float64 _opacity = 0.;
-	TimeMs _start = 0;
-	TimeMs _changed = 0;
-	bool _finished = false;
+	const style::InfiniteRadialAnimation &_st;
+	float64 _shown = 0.;
+	TimeMs _workStarted = 0;
+	TimeMs _workFinished = 0;
 	BasicAnimation _animation;
 
 };
