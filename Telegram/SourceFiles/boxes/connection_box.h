@@ -167,7 +167,6 @@ private:
 	void addNewItem(const ProxyData &proxy);
 
 	int _idCounter = 0;
-	int _selected = -1;
 	std::vector<Item> _list;
 	rpl::event_stream<ItemView> _views;
 	base::Timer _saveTimer;

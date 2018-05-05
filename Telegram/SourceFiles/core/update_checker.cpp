@@ -321,12 +321,12 @@ bool Updater::checkResponse(const QByteArray &response) {
 		LOG(("Update Error: Platform '%1' not found in response."
 			).arg(platform));
 		return false;
-	} else if (!it->isObject()) {
+	} else if (!(*it).isObject()) {
 		LOG(("Update Error: Not an object found for platform '%1'."
 			).arg(platform));
 		return false;
 	}
-	const auto types = it->toObject();
+	const auto types = (*it).toObject();
 	const auto list = [&]() -> std::vector<QString> {
 		if (cBetaVersion()) {
 			return { "alpha", "beta", "stable" };
@@ -342,12 +342,12 @@ bool Updater::checkResponse(const QByteArray &response) {
 		const auto it = types.constFind(type);
 		if (it == types.constEnd()) {
 			continue;
-		} else if (!it->isObject()) {
+		} else if (!(*it).isObject()) {
 			LOG(("Update Error: Not an object found for '%1:%2'."
 				).arg(platform).arg(type));
 			return false;
 		}
-		const auto map = it->toObject();
+		const auto map = (*it).toObject();
 		const auto key = _testing ? "testing" : "released";
 		const auto version = map.constFind(key);
 		const auto link = map.constFind("link");
@@ -357,17 +357,17 @@ bool Updater::checkResponse(const QByteArray &response) {
 			LOG(("Update Error: Link not found for '%1:%2'."
 				).arg(platform).arg(type));
 			return false;
-		} else if (!link->isString()) {
+		} else if (!(*link).isString()) {
 			LOG(("Update Error: Link is not a string for '%1:%2'."
 				).arg(platform).arg(type));
 			return false;
 		}
 		const auto isAvailableBeta = (type == "alpha");
 		const auto availableVersion = [&] {
-			if (version->isString()) {
-				return version->toString().toULongLong();
-			} else if (version->isDouble()) {
-				return uint64(std::round(version->toDouble()));
+			if ((*version).isString()) {
+				return (*version).toString().toULongLong();
+			} else if ((*version).isDouble()) {
+				return uint64(std::round((*version).toDouble()));
 			}
 			return 0ULL;
 		}();
@@ -385,7 +385,7 @@ bool Updater::checkResponse(const QByteArray &response) {
 		if (compare > bestCompare) {
 			bestAvailableVersion = availableVersion;
 			bestIsAvailableBeta = isAvailableBeta;
-			bestLink = link->toString();
+			bestLink = (*link).toString();
 		}
 	}
 	if (!bestAvailableVersion) {

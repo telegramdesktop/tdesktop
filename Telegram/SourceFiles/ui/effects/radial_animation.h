@@ -78,7 +78,6 @@ public:
 
 private:
 	const style::InfiniteRadialAnimation &_st;
-	float64 _shown = 0.;
 	TimeMs _workStarted = 0;
 	TimeMs _workFinished = 0;
 	BasicAnimation _animation;
