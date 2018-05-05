@@ -1,3 +1,8 @@
+1.2.18 alpha (05.05.18)
+
+- Improve working through proxy servers.
+- Bug fixes and other minor improvements.
+
 1.2.17 (08.04.18)
 
 - Bug fixes and other minor improvements.
