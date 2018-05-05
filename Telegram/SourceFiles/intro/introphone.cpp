@@ -148,6 +148,7 @@ void PhoneWidget::submit() {
 	_checkRequest->start(1000);
 
 	_sentPhone = fullNumber();
+	Messenger::Instance().mtp()->setUserPhone(_sentPhone);
 	_sentRequest = MTP::send(MTPauth_CheckPhone(MTP_string(_sentPhone)), rpcDone(&PhoneWidget::phoneCheckDone), rpcFail(&PhoneWidget::phoneSubmitFail));
 }
 

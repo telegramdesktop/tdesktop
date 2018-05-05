@@ -33,13 +33,16 @@ constexpr auto kUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
 "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.117 Safari/537.36";
 
 bool CheckPhoneByPrefixesRules(const QString &phone, const QString &rules) {
+	const auto check = QString(phone).replace(
+		QRegularExpression("[^0-9]"),
+		QString());
 	auto result = false;
 	for (const auto &prefix : rules.split(',')) {
 		if (prefix.isEmpty()) {
 			result = true;
-		} else if (prefix[0] == '+' && phone.startsWith(prefix.mid(1))) {
+		} else if (prefix[0] == '+' && check.startsWith(prefix.mid(1))) {
 			result = true;
-		} else if (prefix[0] == '-' && phone.startsWith(prefix.mid(1))) {
+		} else if (prefix[0] == '-' && check.startsWith(prefix.mid(1))) {
 			return false;
 		}
 	}
