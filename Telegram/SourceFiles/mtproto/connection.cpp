@@ -1082,8 +1082,7 @@ void ConnectionPrivate::connectToServer(bool afterConfig) {
 	}
 
 	destroyAllConnections();
-	if (_connectionOptions->proxy.type == ProxyData::Type::Mtproto
-		&& _dcType != DcType::Cdn) {
+	if (_connectionOptions->proxy.type == ProxyData::Type::Mtproto) {
 		appendTestConnection(
 			DcOptions::Variants::Tcp,
 			_connectionOptions->proxy.host,
