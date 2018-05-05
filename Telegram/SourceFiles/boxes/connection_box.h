@@ -26,10 +26,12 @@ class ConnectionBox : public BoxContent {
 	Q_OBJECT
 
 public:
+	using Type = ProxyData::Type;
+
 	ConnectionBox(QWidget *parent);
 
 	static void ShowApplyProxyConfirmation(
-		ProxyData::Type type,
+		Type type,
 		const QMap<QString, QString> &fields);
 
 protected:
@@ -44,8 +46,6 @@ private slots:
 	void onSave();
 
 private:
-	using Type = ProxyData::Type;
-
 	void typeChanged(Type type);
 	void updateControlsVisibility();
 	void updateControlsPosition();
@@ -94,6 +94,8 @@ private:
 
 class ProxiesBoxController : public base::Subscriber {
 public:
+	using Type = ProxyData::Type;
+
 	ProxiesBoxController();
 
 	static object_ptr<BoxContent> CreateOwningBox();
@@ -114,12 +116,14 @@ public:
 		int ping = 0;
 		bool selected = false;
 		bool deleted = false;
+		bool canShare = false;
 		ItemState state = ItemState::Checking;
 
 	};
 
 	void deleteItem(int id);
 	void restoreItem(int id);
+	void shareItem(int id);
 	void applyItem(int id);
 	object_ptr<BoxContent> editItemBox(int id);
 	object_ptr<BoxContent> addNewItemBox();
@@ -148,6 +152,7 @@ private:
 	std::vector<Item>::iterator findByProxy(const ProxyData &proxy);
 	void setDeleted(int id, bool deleted);
 	void updateView(const Item &item);
+	void share(const ProxyData &proxy);
 	void applyChanges();
 	void saveDelayed();
 	void refreshChecker(Item &item);

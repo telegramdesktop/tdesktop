@@ -772,3 +772,5 @@ proxyCheckingAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) 
 	thickness: 1px;
 	size: size(8px, 8px);
 }
+proxyDropdownDownPosition: point(-2px, 35px);
+proxyDropdownUpPosition: point(-2px, 20px);

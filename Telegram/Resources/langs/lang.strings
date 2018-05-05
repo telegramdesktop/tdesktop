@@ -431,11 +431,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_proxy_available" = "available (ping: {ping}ms)";
 "lng_proxy_unavailable" = "not available";
 "lng_proxy_edit" = "Edit proxy";
-"lng_proxy_undo_delete" = "Undo";
+"lng_proxy_menu_edit" = "Edit";
+"lng_proxy_menu_delete" = "Delete";
+"lng_proxy_menu_restore" = "Restore";
+"lng_proxy_edit_share" = "Share";
 "lng_proxy_address_label" = "Socket address";
 "lng_proxy_credentials_optional" = "Credentials (optional)";
 "lng_proxy_credentials" = "Credentials";
-"lng_proxy_edit_share" = "Share";
 "lng_proxy_description" = "Your saved proxy list will be here.";
 
 "lng_settings_blocked_users" = "Blocked users";
