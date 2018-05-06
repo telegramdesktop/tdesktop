@@ -40,17 +40,30 @@ constexpr auto kHangupTimeoutMs = 5000;
 
 using tgvoip::Endpoint;
 
-void ConvertEndpoint(std::vector<tgvoip::Endpoint> &ep, const MTPDphoneConnection &mtc) {
+void ConvertEndpoint(
+		std::vector<tgvoip::Endpoint> &ep,
+		const MTPDphoneConnection &mtc) {
 	if (mtc.vpeer_tag.v.length() != 16) {
 		return;
 	}
-	auto ipv4 = tgvoip::IPv4Address(std::string(mtc.vip.v.constData(), mtc.vip.v.size()));
-	auto ipv6 = tgvoip::IPv6Address(std::string(mtc.vipv6.v.constData(), mtc.vipv6.v.size()));
-	ep.push_back(Endpoint((int64_t)mtc.vid.v, (uint16_t)mtc.vport.v, ipv4, ipv6, EP_TYPE_UDP_RELAY, (unsigned char*)mtc.vpeer_tag.v.data()));
+	auto ipv4 = tgvoip::IPv4Address(std::string(
+		mtc.vip.v.constData(),
+		mtc.vip.v.size()));
+	auto ipv6 = tgvoip::IPv6Address(std::string(
+		mtc.vipv6.v.constData(),
+		mtc.vipv6.v.size()));
+	ep.push_back(Endpoint(
+		(int64_t)mtc.vid.v,
+		(uint16_t)mtc.vport.v,
+		ipv4,
+		ipv6,
+		EP_TYPE_UDP_RELAY,
+		(unsigned char*)mtc.vpeer_tag.v.data()));
 }
 
 constexpr auto kFingerprintDataSize = 256;
-uint64 ComputeFingerprint(const std::array<gsl::byte, kFingerprintDataSize> &authKey) {
+uint64 ComputeFingerprint(
+		const std::array<gsl::byte, kFingerprintDataSize> &authKey) {
 	auto hash = openssl::Sha1(authKey);
 	return (gsl::to_integer<uint64>(hash[19]) << 56)
 		| (gsl::to_integer<uint64>(hash[18]) << 48)
@@ -64,7 +77,10 @@ uint64 ComputeFingerprint(const std::array<gsl::byte, kFingerprintDataSize> &aut
 
 } // namespace
 
-Call::Call(not_null<Delegate*> delegate, not_null<UserData*> user, Type type)
+Call::Call(
+	not_null<Delegate*> delegate,
+	not_null<UserData*> user,
+	Type type)
 : _delegate(delegate)
 , _user(user)
 , _type(type) {
@@ -505,6 +521,18 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	_controller->SetStateCallback([](tgvoip::VoIPController *controller, int state) {
 		static_cast<Call*>(controller->implData)->handleControllerStateChange(controller, state);
 	});
+	if (Global::UseProxy() && Global::UseProxyForCalls()) {
+		const auto proxy = Global::SelectedProxy();
+		if (proxy.supportsCalls()) {
+			Assert(proxy.type == ProxyData::Type::Socks5);
+			_controller->SetProxy(
+				tgvoip::PROXY_SOCKS5,
+				proxy.host.toStdString(),
+				proxy.port,
+				proxy.user.toStdString(),
+				proxy.password.toStdString());
+		}
+	}
 	_controller->Start();
 	_controller->Connect();
 }

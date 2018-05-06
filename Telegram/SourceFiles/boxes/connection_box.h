@@ -116,7 +116,8 @@ public:
 		int ping = 0;
 		bool selected = false;
 		bool deleted = false;
-		bool canShare = false;
+		bool supportsShare = false;
+		bool supportsCalls = false;
 		ItemState state = ItemState::Checking;
 
 	};
@@ -128,6 +129,7 @@ public:
 	object_ptr<BoxContent> editItemBox(int id);
 	object_ptr<BoxContent> addNewItemBox();
 	bool setProxyEnabled(bool enabled);
+	void setProxyForCalls(bool enabled);
 	void setTryIPv6(bool enabled);
 	rpl::producer<bool> proxyEnabledValue() const;
 

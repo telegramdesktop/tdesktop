@@ -372,10 +372,11 @@ DeclareVar(int, NotificationsCount);
 DeclareVar(Notify::ScreenCorner, NotificationsCorner);
 DeclareVar(bool, NotificationsDemoIsShown);
 
+DeclareVar(bool, TryIPv6);
 DeclareVar(std::vector<ProxyData>, ProxiesList);
 DeclareVar(ProxyData, SelectedProxy);
 DeclareVar(bool, UseProxy);
-DeclareVar(bool, TryIPv6);
+DeclareVar(bool, UseProxyForCalls);
 DeclareRefVar(base::Observable<void>, ConnectionTypeChanged);
 
 DeclareVar(int, AutoLock);

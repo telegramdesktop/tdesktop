@@ -1218,6 +1218,13 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		if (connectionType == dbictProxiesList) {
 			qint32 count = 0, index = 0;
 			stream >> count >> index;
+			if (std::abs(index) > count) {
+				Global::SetUseProxyForCalls(true);
+				index -= (index > 0 ? count : -count);
+			} else {
+				Global::SetUseProxyForCalls(false);
+			}
+
 			auto list = std::vector<ProxyData>();
 			for (auto i = 0; i < count; ++i) {
 				const auto proxy = readProxy();
@@ -2485,7 +2492,9 @@ void writeSettings() {
 
 	data.stream << quint32(dbiConnectionType) << qint32(dbictProxiesList);
 	data.stream << qint32(proxies.size());
-	const auto index = qint32(proxyIt - begin(proxies)) + 1;
+	const auto index = qint32(proxyIt - begin(proxies))
+		+ qint32(Global::UseProxyForCalls() ? proxies.size() : 0)
+		+ 1;
 	data.stream << (Global::UseProxy() ? index : -index);
 	for (const auto &proxy : proxies) {
 		data.stream << qint32(kProxyTypeShift + int(proxy.type));

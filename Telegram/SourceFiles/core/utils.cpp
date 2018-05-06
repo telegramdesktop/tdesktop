@@ -245,6 +245,10 @@ bool ProxyData::valid() const {
 	return true;
 }
 
+bool ProxyData::supportsCalls() const {
+	return (type == Type::Socks5);
+}
+
 ProxyData::operator bool() const {
 	return valid();
 }

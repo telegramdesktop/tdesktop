@@ -871,7 +871,8 @@ void LastCrashedWindow::onUpdateSkip() {
 	if (_sendingState == SendingNoReport) {
 		onContinue();
 	} else {
-		if (_updatingState == UpdatingCheck || _updatingState == UpdatingDownload) {
+		if (_updatingState == UpdatingCheck
+			|| _updatingState == UpdatingDownload) {
 			Core::UpdateChecker checker;
 			checker.stop();
 			setUpdatingState(UpdatingFail);

@@ -117,6 +117,11 @@ boxLabel: FlatLabel(defaultFlatLabel) {
 	align: align(topleft);
 	style: boxLabelStyle;
 }
+boxDividerLabel: FlatLabel(boxLabel) {
+	minWidth: 245px;
+	textFg: windowSubTextFg;
+	style: defaultTextStyle;
+}
 
 countryRowHeight: 36px;
 countryRowNameFont: semiboldFont;
@@ -712,8 +717,8 @@ sendMediaFileThumbSkip: 10px;
 sendMediaFileNameTop: 7px;
 sendMediaFileStatusTop: 37px;
 
-proxyUsePadding: margins(22px, 8px, 22px, 12px);
-proxyTryIPv6Padding: margins(22px, 12px, 22px, 8px);
+proxyUsePadding: margins(22px, 6px, 22px, 5px);
+proxyTryIPv6Padding: margins(22px, 8px, 22px, 5px);
 proxyRowPadding: margins(22px, 8px, 8px, 8px);
 proxyRowIconSkip: 32px;
 proxyRowSkip: 2px;
@@ -774,3 +779,5 @@ proxyCheckingAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) 
 }
 proxyDropdownDownPosition: point(-2px, 35px);
 proxyDropdownUpPosition: point(-2px, 20px);
+
+proxyAboutPadding: margins(22px, 7px, 22px, 14px);

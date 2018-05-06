@@ -104,13 +104,17 @@ private:
 	void applyView(View &&view);
 	void setupButtons(int id, not_null<ProxyRow*> button);
 	int rowHeight() const;
+	void refreshProxyForCalls();
 
 	not_null<ProxiesBoxController*> _controller;
-	object_ptr<Ui::PaddingWrap<Ui::Checkbox>> _useProxy;
-	object_ptr<Ui::PaddingWrap<Ui::Checkbox>> _tryIPv6;
+	QPointer<Ui::Checkbox> _tryIPv6;
+	QPointer<Ui::Checkbox> _useProxy;
+	QPointer<Ui::SlideWrap<Ui::Checkbox>> _proxyForCalls;
+	QPointer<Ui::DividerLabel> _about;
 	base::unique_qptr<Ui::RpWidget> _noRows;
 	object_ptr<Ui::VerticalLayout> _initialWrap;
 	QPointer<Ui::VerticalLayout> _wrap;
+	int _currentProxySupportsCallsId = 0;
 
 	base::flat_map<int, base::unique_qptr<ProxyRow>> _rows;
 
@@ -416,7 +420,7 @@ void ProxyRow::showMenu() {
 	addAction(lang(lng_proxy_menu_edit), [=] {
 		_editClicks.fire({});
 	});
-	if (_view.canShare) {
+	if (_view.supportsShare) {
 		addAction(lang(lng_proxy_edit_share), [=] {
 			_shareClicks.fire({});
 		});
@@ -465,19 +469,6 @@ ProxiesBox::ProxiesBox(
 	QWidget*,
 	not_null<ProxiesBoxController*> controller)
 : _controller(controller)
-, _useProxy(
-	this,
-	object_ptr<Ui::Checkbox>(
-		this,
-		lang(lng_proxy_use)),
-	st::proxyUsePadding)
-, _tryIPv6(
-	this,
-	object_ptr<Ui::Checkbox>(
-		this,
-		lang(lng_connection_try_ipv6),
-		Global::TryIPv6()),
-	st::proxyTryIPv6Padding)
 , _initialWrap(this) {
 	_controller->views(
 	) | rpl::start_with_next([=](View &&view) {
@@ -495,59 +486,100 @@ void ProxiesBox::prepare() {
 }
 
 void ProxiesBox::setupContent() {
-	_useProxy->resizeToWidth(st::boxWideWidth);
-	_useProxy->moveToLeft(0, 0);
-	subscribe(_useProxy->entity()->checkedChanged, [=](bool checked) {
-		if (!_controller->setProxyEnabled(checked)) {
-			_useProxy->entity()->setChecked(false);
-			addNewProxy();
-		}
-	});
-	subscribe(_tryIPv6->entity()->checkedChanged, [=](bool checked) {
-		_controller->setTryIPv6(checked);
-	});
-	_controller->proxyEnabledValue(
-	) | rpl::start_with_next([=](bool enabled) {
-		_useProxy->entity()->setChecked(enabled);
-	}, _useProxy->entity()->lifetime());
-	_useProxy->entity()->finishAnimating();
+	const auto inner = setInnerWidget(object_ptr<Ui::VerticalLayout>(this));
 
-	_tryIPv6->resizeToWidth(st::boxWideWidth);
+	_tryIPv6 = inner->add(
+		object_ptr<Ui::Checkbox>(
+			inner,
+			lang(lng_connection_try_ipv6),
+			Global::TryIPv6()),
+		st::proxyTryIPv6Padding);
+	_useProxy = inner->add(
+		object_ptr<Ui::Checkbox>(
+			inner,
+			lang(lng_proxy_use)),
+		st::proxyUsePadding);
+	_proxyForCalls = inner->add(
+		object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
+			inner,
+			object_ptr<Ui::Checkbox>(
+				inner,
+				lang(lng_proxy_use_for_calls),
+				Global::UseProxyForCalls()),
+			style::margins(
+				0,
+				st::proxyUsePadding.top(),
+				0,
+				st::proxyUsePadding.bottom())),
+		style::margins(
+			st::proxyTryIPv6Padding.left(),
+			0,
+			st::proxyTryIPv6Padding.right(),
+			st::proxyTryIPv6Padding.top()));
 
-	const auto topSkip = _useProxy->heightNoMargins();
-	const auto bottomSkip = _tryIPv6->heightNoMargins();
-	const auto inner = setInnerWidget(
-		object_ptr<Ui::VerticalLayout>(this),
-		topSkip,
-		bottomSkip);
-	inner->add(object_ptr<Ui::FixedHeightWidget>(
-		inner,
-		st::proxyRowPadding.top()));
+	_about = inner->add(
+		object_ptr<Ui::DividerLabel>(
+			inner,
+			object_ptr<Ui::FlatLabel>(
+				inner,
+				lang(lng_proxy_about),
+				Ui::FlatLabel::InitType::Simple,
+				st::boxDividerLabel),
+			st::proxyAboutPadding),
+		style::margins(0, 0, 0, st::proxyRowPadding.top()));
+
 	_wrap = inner->add(std::move(_initialWrap));
 	inner->add(object_ptr<Ui::FixedHeightWidget>(
 		inner,
 		st::proxyRowPadding.bottom()));
 
+	subscribe(_useProxy->checkedChanged, [=](bool checked) {
+		if (!_controller->setProxyEnabled(checked)) {
+			_useProxy->setChecked(false);
+			addNewProxy();
+		}
+		refreshProxyForCalls();
+	});
+	subscribe(_tryIPv6->checkedChanged, [=](bool checked) {
+		_controller->setTryIPv6(checked);
+	});
+	_controller->proxyEnabledValue(
+	) | rpl::start_with_next([=](bool enabled) {
+		_useProxy->setChecked(enabled);
+	}, _useProxy->lifetime());
+	_useProxy->finishAnimating();
+	subscribe(_proxyForCalls->entity()->checkedChanged, [=](bool checked) {
+		_controller->setProxyForCalls(checked);
+	});
+
 	if (_rows.empty()) {
 		createNoRowsLabel();
 	}
+	refreshProxyForCalls();
+	_proxyForCalls->finishAnimating();
 
 	inner->resizeToWidth(st::boxWideWidth);
 
 	inner->heightValue(
 	) | rpl::map([=](int height) {
 		return std::min(
-			topSkip + std::max(height, 3 * rowHeight()) + bottomSkip,
+			std::max(height, _about->y()
+				+ _about->height()
+				+ 3 * rowHeight()),
 			st::boxMaxListHeight);
 	}) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](int height) {
 		setDimensions(st::boxWideWidth, height);
 	}, inner->lifetime());
+}
 
-	heightValue(
-	) | rpl::start_with_next([=](int height) {
-		_tryIPv6->moveToLeft(0, height - _tryIPv6->heightNoMargins());
-	}, _tryIPv6->lifetime());
+void ProxiesBox::refreshProxyForCalls() {
+	if (!_proxyForCalls) {
+		return;
+	}
+	_proxyForCalls->toggle(
+		_useProxy->checked() && _currentProxySupportsCallsId != 0,
+		anim::type::normal);
 }
 
 int ProxiesBox::rowHeight() const {
@@ -563,6 +595,13 @@ void ProxiesBox::addNewProxy() {
 }
 
 void ProxiesBox::applyView(View &&view) {
+	if (view.selected) {
+		_currentProxySupportsCallsId = view.supportsCalls ? view.id : 0;
+	} else if (view.id == _currentProxySupportsCallsId) {
+		_currentProxySupportsCallsId = 0;
+	}
+	refreshProxyForCalls();
+
 	const auto id = view.id;
 	const auto i = _rows.find(id);
 	if (i == _rows.end()) {
@@ -652,7 +691,7 @@ void ProxyBox::prepare() {
 
 	_content->heightValue(
 	) | rpl::start_with_next([=](int height) {
-		setDimensions(st::boxWidth, height);
+		setDimensions(st::boxWideWidth, height);
 	}, _content->lifetime());
 }
 
@@ -819,7 +858,7 @@ void ProxyBox::setupControls(const ProxyData &data) {
 			? Type::Socks5
 			: data.type));
 	_content.create(this);
-	_content->resizeToWidth(st::boxWidth);
+	_content->resizeToWidth(st::boxWideWidth);
 	_content->moveToLeft(0, 0);
 
 	setupTypes();
@@ -827,7 +866,7 @@ void ProxyBox::setupControls(const ProxyData &data) {
 	setupCredentials(data);
 	setupMtprotoCredentials(data);
 
-	_content->resizeToWidth(st::boxWidth);
+	_content->resizeToWidth(st::boxWideWidth);
 
 	const auto handleType = [=](Type type) {
 		_credentials->toggle(
@@ -1525,6 +1564,17 @@ bool ProxiesBoxController::setProxyEnabled(bool enabled) {
 	return true;
 }
 
+void ProxiesBoxController::setProxyForCalls(bool enabled) {
+	if (Global::UseProxyForCalls() == enabled) {
+		return;
+	}
+	Global::SetUseProxyForCalls(enabled);
+	if (Global::UseProxy() && Global::SelectedProxy().supportsCalls()) {
+		Global::RefConnectionTypeChanged().notify();
+	}
+	saveDelayed();
+}
+
 void ProxiesBoxController::setTryIPv6(bool enabled) {
 	if (Global::TryIPv6() == enabled) {
 		return;
@@ -1571,8 +1621,9 @@ void ProxiesBoxController::updateView(const Item &item) {
 		}
 		return ItemState::Connecting;
 	}();
-	const auto canShare = (item.data.type == Type::Socks5)
+	const auto supportsShare = (item.data.type == Type::Socks5)
 		|| (item.data.type == Type::Mtproto);
+	const auto supportsCalls = item.data.supportsCalls();
 	_views.fire({
 		item.id,
 		type,
@@ -1581,7 +1632,8 @@ void ProxiesBoxController::updateView(const Item &item) {
 		item.ping,
 		!deleted && selected,
 		deleted,
-		!deleted && canShare,
+		!deleted && supportsShare,
+		supportsCalls,
 		state });
 }
 

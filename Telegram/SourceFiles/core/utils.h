@@ -434,6 +434,7 @@ struct ProxyData {
 	QString user, password;
 
 	bool valid() const;
+	bool supportsCalls() const;
 	explicit operator bool() const;
 	bool operator==(const ProxyData &other) const;
 	bool operator!=(const ProxyData &other) const;
