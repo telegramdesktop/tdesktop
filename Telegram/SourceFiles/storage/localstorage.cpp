@@ -2526,6 +2526,7 @@ void writeMtpData() {
 	_writeMtpData();
 }
 
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 const QString &AutoupdatePrefix(const QString &replaceWith = {}) {
 	static auto value = QString();
 	if (!replaceWith.isEmpty()) {
@@ -2552,8 +2553,10 @@ const QString &readAutoupdatePrefixRaw() {
 	}
 	return AutoupdatePrefix("http://updates.tdesktop.com");
 }
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
 
 void writeAutoupdatePrefix(const QString &prefix) {
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	const auto current = readAutoupdatePrefixRaw();
 	if (current != prefix) {
 		AutoupdatePrefix(prefix);
@@ -2567,12 +2570,15 @@ void writeAutoupdatePrefix(const QString &prefix) {
 			checker.start();
 		}
 	}
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
 }
 
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 QString readAutoupdatePrefix() {
 	auto result = readAutoupdatePrefixRaw();
 	return result.replace(QRegularExpression("/+$"), QString());
 }
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
 
 void reset() {
 	if (_localLoader) {
