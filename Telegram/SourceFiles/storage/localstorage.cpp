@@ -519,7 +519,7 @@ enum {
 	dbiLastUpdateCheck = 0x0d,
 	dbiWindowPosition = 0x0e,
 	dbiConnectionTypeOld = 0x0f,
-	// 0x10 reserved
+	dbiStartInTray = 0x10,
 	dbiDefaultAttach = 0x11,
 	dbiCatsAndDogs = 0x12,
 	dbiReplaceEmojis = 0x13,
@@ -993,6 +993,14 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		if (!_checkStreamStatus(stream)) return false;
 
 		cSetStartMinimized(v == 1);
+	} break;
+
+	case dbiStartInTray: {
+		qint32 v;
+		stream >> v;
+		if (!_checkStreamStatus(stream)) return false;
+
+		cSetStartInTray(v == 1);
 	} break;
 
 	case dbiSendToMenu: {
@@ -2474,6 +2482,7 @@ void writeSettings() {
 	data.stream << quint32(dbiStickersFavedLimit) << qint32(Global::StickersFavedLimit());
 	data.stream << quint32(dbiAutoStart) << qint32(cAutoStart());
 	data.stream << quint32(dbiStartMinimized) << qint32(cStartMinimized());
+	data.stream << quint32(dbiStartInTray) << qint32(cStartInTray());
 	data.stream << quint32(dbiSendToMenu) << qint32(cSendToMenu());
 	data.stream << quint32(dbiWorkMode) << qint32(Global::WorkMode().value());
 	data.stream << quint32(dbiSeenTrayTooltip) << qint32(cSeenTrayTooltip());

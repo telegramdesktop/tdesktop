@@ -290,6 +290,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_workmode_window" = "Show taskbar icon";
 "lng_settings_auto_start" = "Launch Telegram when system starts";
 "lng_settings_start_min" = "Launch minimized";
+"lng_settings_start_in_tray" = "Launch in system tray";
 "lng_settings_add_sendto" = "Place Telegram in \"Send to\" menu";
 "lng_settings_section_scale" = "Interface Scale";
 "lng_settings_scale_auto" = "Auto ({cur})";
