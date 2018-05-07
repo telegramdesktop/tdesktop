@@ -49,6 +49,7 @@ apps:
       - network-bind
       - network-manager
       - pulseaudio
+      - removable-media
       - unity7
 
 parts:
