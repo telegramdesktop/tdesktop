@@ -38,7 +38,6 @@ apps:
     environment:
       DISABLE_WAYLAND: 1
       WAYLAND_DISPLAY: no-display
-      QT_IM_MODULE: xim
       QTCOMPOSE: $SNAP/usr/share/X11/locale
       HOME: "$SNAP_USER_COMMON"
     plugs:

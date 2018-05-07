@@ -13,4 +13,8 @@ if [ -d "$default_downloaddir" ] && [ ! -L "$default_downloaddir" ]; then
   ln -sv "$dest_downloaddir" "$default_downloaddir"
 fi
 
+if [ -z "$QT_IM_MODULE" ]; then
+  export QT_IM_MODULE="xim"
+fi
+
 exec desktop-launch Telegram $*
