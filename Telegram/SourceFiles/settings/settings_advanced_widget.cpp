@@ -111,7 +111,6 @@ void AdvancedWidget::connectionTypeUpdated() {
 }
 
 void AdvancedWidget::onConnectionType() {
-	//Ui::show(Box<ConnectionBox>());
 	Ui::show(ProxiesBoxController::CreateOwningBox());
 }
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY

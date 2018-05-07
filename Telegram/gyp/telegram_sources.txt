@@ -701,6 +701,8 @@
 <(src_loc)/window/section_memento.h
 <(src_loc)/window/section_widget.cpp
 <(src_loc)/window/section_widget.h
+<(src_loc)/window/window_connecting_widget.cpp
+<(src_loc)/window/window_connecting_widget.h
 <(src_loc)/window/window_controller.cpp
 <(src_loc)/window/window_controller.h
 <(src_loc)/window/window_main_menu.cpp

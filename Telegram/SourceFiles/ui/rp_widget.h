@@ -135,7 +135,7 @@ public:
 
 	void setVisible(bool visible) final override {
 		auto wasVisible = !this->isHidden();
-		Parent::setVisible(visible);
+		setVisibleHook(visible);
 		visibilityChangedHook(wasVisible, !this->isHidden());
 	}
 
@@ -150,6 +150,9 @@ protected:
 	}
 	bool eventHook(QEvent *event) override {
 		return Parent::event(event);
+	}
+	virtual void setVisibleHook(bool visible) {
+		Parent::setVisible(visible);
 	}
 
 private:

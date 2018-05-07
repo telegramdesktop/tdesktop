@@ -31,9 +31,9 @@ protected:
 	void onStateChanged(State was, StateChangeSource source) override;
 
 private:
+	const style::LinkButton &_st;
 	QString _text;
 	int _textWidth = 0;
-	const style::LinkButton &_st;
 
 };
 

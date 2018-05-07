@@ -168,9 +168,6 @@ namespace {
 
 		cSetOtherOnline(0);
 		clearStorageImages();
-		if (auto w = wnd()) {
-			w->updateConnectingStatus();
-		}
 		return true;
 	}
 } // namespace

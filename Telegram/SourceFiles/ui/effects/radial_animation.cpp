@@ -125,6 +125,14 @@ void InfiniteRadialAnimation::draw(
 		Painter &p,
 		QPoint position,
 		int outerWidth) {
+	draw(p, position, _st.size, outerWidth);
+}
+
+void InfiniteRadialAnimation::draw(
+		Painter &p,
+		QPoint position,
+		QSize size,
+		int outerWidth) {
 	const auto state = computeState();
 
 	auto o = p.opacity();
@@ -142,8 +150,8 @@ void InfiniteRadialAnimation::draw(
 			rtlrect(
 				position.x(),
 				position.y(),
-				_st.size.width(),
-				_st.size.height(),
+				size.width(),
+				size.height(),
 				outerWidth),
 			state.arcFrom,
 			state.arcLength);

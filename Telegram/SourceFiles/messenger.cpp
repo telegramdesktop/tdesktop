@@ -397,9 +397,9 @@ void Messenger::startMtp() {
 	_mtproto->setUserPhone(cLoggedPhoneNumber());
 	_private->mtpConfig.mainDcId = _mtproto->mainDcId();
 
-	_mtproto->setStateChangedHandler([](MTP::ShiftedDcId shiftedDcId, int32 state) {
-		if (App::wnd()) {
-			App::wnd()->mtpStateChanged(shiftedDcId, state);
+	_mtproto->setStateChangedHandler([](MTP::ShiftedDcId dc, int32 state) {
+		if (dc == MTP::maindc()) {
+			Global::RefConnectionTypeChanged().notify();
 		}
 	});
 	_mtproto->setSessionResetHandler([](MTP::ShiftedDcId shiftedDcId) {

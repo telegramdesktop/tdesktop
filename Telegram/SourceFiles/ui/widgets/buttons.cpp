@@ -14,35 +14,45 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
-LinkButton::LinkButton(QWidget *parent, const QString &text, const style::LinkButton &st) : AbstractButton(parent)
+LinkButton::LinkButton(
+	QWidget *parent,
+	const QString &text,
+	const style::LinkButton &st)
+: AbstractButton(parent)
+, _st(st)
 , _text(text)
-, _textWidth(st.font->width(_text))
-, _st(st) {
-	resize(_textWidth, _st.font->height);
+, _textWidth(st.font->width(_text)) {
+	resize(
+		naturalWidth(),
+		_st.padding.top() + _st.font->height + _st.padding.bottom());
 	setCursor(style::cur_pointer);
 }
 
 int LinkButton::naturalWidth() const {
-	return _textWidth;
+	return _st.padding.left() + _textWidth + _st.padding.right();
 }
 
 void LinkButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
+
 	auto &font = (isOver() ? _st.overFont : _st.font);
 	auto &pen = (isOver() ? _st.overColor : _st.color);
 	p.setFont(font);
 	p.setPen(pen);
-	if (_textWidth > width()) {
-		p.drawText(0, font->ascent, font->elided(_text, width()));
+	const auto left = _st.padding.left();
+	const auto top = _st.padding.top() + font->ascent;
+	if (width() > naturalWidth()) {
+		const auto available = width() - left - _st.padding.right();
+		p.drawText(left, top, font->elided(_text, available));
 	} else {
-		p.drawText(0, font->ascent, _text);
+		p.drawText(left, top, _text);
 	}
 }
 
 void LinkButton::setText(const QString &text) {
 	_text = text;
 	_textWidth = _st.font->width(_text);
-	resize(_textWidth, _st.font->height);
+	resize(naturalWidth(), _st.font->height);
 	update();
 }
 

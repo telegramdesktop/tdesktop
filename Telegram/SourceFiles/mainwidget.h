@@ -54,6 +54,7 @@ class PlayerWrapWidget;
 class SectionMemento;
 class SectionWidget;
 class AbstractSectionWidget;
+class ConnectingWidget;
 struct SectionSlideParams;
 struct SectionShow;
 enum class Column;
@@ -426,6 +427,7 @@ private:
 		-> std::unique_ptr<Window::SectionMemento>;
 	void userIsContactUpdated(not_null<UserData*> user);
 
+	void setupConnectingWidget();
 	void createPlayer();
 	void switchToPanelPlayer();
 	void switchToFixedPlayer();
@@ -561,6 +563,7 @@ private:
 	object_ptr<Window::SectionWidget> _mainSection = { nullptr };
 	object_ptr<Window::SectionWidget> _thirdSection = { nullptr };
 	std::unique_ptr<Window::SectionMemento> _thirdSectionFromStack;
+	base::unique_qptr<Window::ConnectingWidget> _connecting;
 
 	base::weak_ptr<Calls::Call> _currentCall;
 	object_ptr<Ui::SlideWrap<Calls::TopBar>> _callTopBar = { nullptr };

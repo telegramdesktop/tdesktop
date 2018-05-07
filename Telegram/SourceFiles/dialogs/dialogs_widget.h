@@ -34,6 +34,7 @@ class FadeWrapScaled;
 
 namespace Window {
 class Controller;
+class ConnectingWidget;
 } // namespace Window
 
 enum DialogsSearchRequestType {
@@ -151,6 +152,7 @@ private:
 		const QVector<MTPDialog> &dialogs,
 		const QVector<MTPMessage> &messages);
 
+	void setupConnectingWidget();
 	bool searchForPeersRequired(const QString &query) const;
 	void setSearchInChat(Dialogs::Key chat, UserData *from = nullptr);
 	void showJumpToDate();
@@ -194,6 +196,7 @@ private:
 	QPointer<DialogsInner> _inner;
 	class UpdateButton;
 	object_ptr<UpdateButton> _updateTelegram = { nullptr };
+	base::unique_qptr<Window::ConnectingWidget> _connecting;
 
 	Animation _a_show;
 	Window::SlideDirection _showDirection;

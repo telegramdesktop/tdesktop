@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_box.h"
 #include "window/window_controller.h"
 #include "window/window_slide_animation.h"
+#include "window/window_connecting_widget.h"
 #include "profile/profile_channel_controllers.h"
 #include "storage/storage_media_prepare.h"
 #include "data/data_session.h"
@@ -170,6 +171,13 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 
 	updateJumpToDateVisibility(true);
 	updateSearchFromVisibility(true);
+	setupConnectingWidget();
+}
+
+void DialogsWidget::setupConnectingWidget() {
+	_connecting = Window::ConnectingWidget::CreateDefaultWidget(
+		this,
+		Window::AdaptiveIsOneColumn());
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -282,6 +290,7 @@ void DialogsWidget::showAnimated(Window::SlideDirection direction, const Window:
 	_jumpToDate->hide(anim::type::instant);
 	_chooseFromUser->hide(anim::type::instant);
 	_lockUnlock->hide();
+	_connecting->setForceHidden(true);
 
 	int delta = st::slideShift;
 	if (_showDirection == Window::SlideDirection::FromLeft) {
@@ -307,6 +316,7 @@ void DialogsWidget::animationCallback() {
 		_mainMenuToggle->show();
 		if (_forwardCancel) _forwardCancel->show();
 		_filter->show();
+		_connecting->setForceHidden(false);
 		updateLockUnlockVisibility();
 		updateJumpToDateVisibility(true);
 		updateSearchFromVisibility(true);

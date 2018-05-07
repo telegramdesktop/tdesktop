@@ -29,6 +29,7 @@ LinkButton {
 	overColor: color;
 	font: font;
 	overFont: font;
+	padding: margins;
 }
 
 RippleAnimation {

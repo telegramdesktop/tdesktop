@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/slide_animation.h"
 #include "core/update_checker.h"
 #include "window/window_slide_animation.h"
+#include "window/window_connecting_widget.h"
 #include "styles/style_boxes.h"
 #include "styles/style_intro.h"
 #include "styles/style_window.h"
@@ -65,6 +66,7 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 	_settings->entity()->setClickedCallback([] { App::wnd()->showSettings(); });
 
 	getNearestDC();
+	setupConnectingWidget();
 
 	appendStep(new StartWidget(this, getData()));
 	fixOrder();
@@ -95,6 +97,12 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 	checker.start();
 	onCheckUpdateStatus();
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
+}
+
+void Widget::setupConnectingWidget() {
+	_connecting = Window::ConnectingWidget::CreateDefaultWidget(
+		this,
+		rpl::single(true));
 }
 
 void Widget::refreshLang() {
@@ -212,6 +220,7 @@ void Widget::fixOrder() {
 	if (_update) _update->raise();
 	_settings->raise();
 	_back->raise();
+	_connecting->raise();
 }
 
 void Widget::moveToStep(Step *step, Direction direction) {
@@ -221,6 +230,7 @@ void Widget::moveToStep(Step *step, Direction direction) {
 	if (_update) {
 		_update->raise();
 	}
+	_connecting->raise();
 
 	historyMove(direction);
 }
@@ -310,6 +320,7 @@ void Widget::showControls() {
 	getStep()->show();
 	_next->show();
 	_next->setText([this] { return getStep()->nextButtonText(); });
+	_connecting->setForceHidden(false);
 	auto hasCover = getStep()->hasCover();
 	_settings->toggle(!hasCover, anim::type::instant);
 	if (_update) _update->toggle(!hasCover, anim::type::instant);
@@ -320,6 +331,7 @@ void Widget::showControls() {
 void Widget::hideControls() {
 	getStep()->hide();
 	_next->hide();
+	_connecting->setForceHidden(true);
 	_settings->hide(anim::type::instant);
 	if (_update) _update->hide(anim::type::instant);
 	if (_changeLanguage) _changeLanguage->hide(anim::type::instant);

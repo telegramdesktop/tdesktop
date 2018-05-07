@@ -73,6 +73,11 @@ public:
 		Painter &p,
 		QPoint position,
 		int outerWidth);
+	void draw(
+		Painter &p,
+		QPoint position,
+		QSize size,
+		int outerWidth);
 
 	State computeState();
 

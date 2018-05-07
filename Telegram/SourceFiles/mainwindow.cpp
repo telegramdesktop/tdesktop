@@ -63,50 +63,6 @@ void FeedLangTestingKey(int key) {
 
 } // namespace
 
-ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : TWidget(parent)
-, _reconnect(this, QString()) {
-	set(text, reconnect);
-	connect(_reconnect, SIGNAL(clicked()), this, SLOT(onReconnect()));
-}
-
-void ConnectingWidget::set(const QString &text, const QString &reconnect) {
-	_text = text;
-	_textWidth = st::linkFont->width(_text) + st::linkFont->spacew;
-	int32 _reconnectWidth = 0;
-	if (reconnect.isEmpty()) {
-		_reconnect->hide();
-	} else {
-		_reconnect->setText(reconnect);
-		_reconnect->show();
-		_reconnect->move(st::connectingPadding.left() + _textWidth, st::boxRoundShadow.extend.top() + st::connectingPadding.top());
-		_reconnectWidth = _reconnect->width();
-	}
-	resize(st::connectingPadding.left() + _textWidth + _reconnectWidth + st::connectingPadding.right() + st::boxRoundShadow.extend.right(), st::boxRoundShadow.extend.top() + st::connectingPadding.top() + st::normalFont->height + st::connectingPadding.bottom());
-	update();
-}
-
-void ConnectingWidget::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-
-	auto sides = RectPart::Top | RectPart::Right;
-	Ui::Shadow::paint(p, QRect(0, st::boxRoundShadow.extend.top(), width() - st::boxRoundShadow.extend.right(), height() - st::boxRoundShadow.extend.top()), width(), st::boxRoundShadow, sides);
-	auto parts = RectPart::Top | RectPart::TopRight | RectPart::Center | RectPart::Right;
-	App::roundRect(p, QRect(-st::boxRadius, st::boxRoundShadow.extend.top(), width() - st::boxRoundShadow.extend.right() + st::boxRadius, height() - st::boxRoundShadow.extend.top() + st::boxRadius), st::boxBg, BoxCorners, nullptr, parts);
-
-	p.setFont(st::normalFont);
-	p.setPen(st::windowSubTextFg);
-	p.drawText(st::connectingPadding.left(), st::boxRoundShadow.extend.top() + st::connectingPadding.top() + st::normalFont->ascent, _text);
-}
-
-void ConnectingWidget::onReconnect() {
-	if (Global::UseProxy()) {
-		//Ui::show(Box<ConnectionBox>());
-		Ui::show(ProxiesBoxController::CreateOwningBox());
-	} else {
-		MTP::restart();
-	}
-}
-
 MainWindow::MainWindow() {
 	auto logo = Messenger::Instance().logo();
 	icon16 = logo.scaledToWidth(16, Qt::SmoothTransformation);
@@ -244,8 +200,6 @@ void MainWindow::setupIntro() {
 
 	fixOrder();
 
-	updateConnectingStatus();
-
 	_delayedServiceMsgs.clear();
 	if (_serviceHistoryRequest) {
 		MTP::cancel(_serviceHistoryRequest);
@@ -332,8 +286,6 @@ void MainWindow::setupMain(const MTPUser *self) {
 	_main->start(self);
 
 	fixOrder();
-
-	updateConnectingStatus();
 }
 
 void MainWindow::showSettings() {
@@ -397,28 +349,6 @@ void MainWindow::ui_hideSettingsAndLayer(anim::type animated) {
 		if (animated == anim::type::instant) {
 			destroyLayerDelayed();
 		}
-	}
-}
-
-void MainWindow::mtpStateChanged(int32 dc, int32 state) {
-	if (dc == MTP::maindc()) {
-		updateConnectingStatus();
-		Global::RefConnectionTypeChanged().notify();
-	}
-}
-
-void MainWindow::updateConnectingStatus() {
-	const auto state = MTP::dcstate();
-	const auto throughProxy = Global::UseProxy();
-	if (state == MTP::ConnectingState || state == MTP::DisconnectedState || (state < 0 && state > -600)) {
-		if (_main || getms() > 5000 || _connecting) {
-			showConnecting(lang(throughProxy ? lng_connecting_to_proxy : lng_connecting), throughProxy ? lang(lng_connecting_settings) : QString());
-		}
-	} else if (state < 0) {
-		showConnecting(lng_reconnecting(lt_count, ((-state) / 1000) + 1), lang(throughProxy ? lng_connecting_settings : lng_reconnecting_try_now));
-		QTimer::singleShot((-state) % 1000, this, SLOT(updateConnectingStatus()));
-	} else {
-		hideConnecting();
 	}
 }
 
@@ -491,24 +421,6 @@ void MainWindow::ui_showMediaPreview(PhotoData *photo) {
 void MainWindow::ui_hideMediaPreview() {
 	if (!_mediaPreview) return;
 	_mediaPreview->hidePreview();
-}
-
-void MainWindow::showConnecting(const QString &text, const QString &reconnect) {
-	if (_connecting) {
-		_connecting->set(text, reconnect);
-		_connecting->show();
-	} else {
-		_connecting.create(bodyWidget(), text, reconnect);
-		_connecting->show();
-		updateControlsGeometry();
-		fixOrder();
-	}
-}
-
-void MainWindow::hideConnecting() {
-	if (_connecting) {
-		_connecting->hide();
-	}
 }
 
 void MainWindow::themeUpdated(const Window::Theme::BackgroundUpdate &data) {
@@ -758,7 +670,6 @@ bool MainWindow::takeThirdSectionFromLayer() {
 void MainWindow::fixOrder() {
 	if (_layerBg) _layerBg->raise();
 	if (_mediaPreview) _mediaPreview->raise();
-	if (_connecting) _connecting->raise();
 	if (_testingThemeWarning) _testingThemeWarning->raise();
 }
 
@@ -850,7 +761,6 @@ void MainWindow::updateControlsGeometry() {
 	if (_intro) _intro->setGeometry(body);
 	if (_layerBg) _layerBg->setGeometry(body);
 	if (_mediaPreview) _mediaPreview->setGeometry(body);
-	if (_connecting) _connecting->moveToLeft(0, body.height() - _connecting->height());
 	if (_testingThemeWarning) _testingThemeWarning->setGeometry(body);
 
 	if (_main) _main->checkMainSectionToLayer();

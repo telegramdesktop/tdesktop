@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "window/section_memento.h"
 #include "window/section_widget.h"
+#include "window/window_connecting_widget.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/focus_persister.h"
 #include "ui/resize_area.h"
@@ -56,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/mute_settings_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/download_path_box.h"
+#include "boxes/connection_box.h"
 #include "storage/localstorage.h"
 #include "shortcuts.h"
 #include "media/media_audio.h"
@@ -214,6 +216,7 @@ MainWidget::MainWidget(
 
 	_ptsWaiter.setRequesting(true);
 	updateScrollColors();
+	setupConnectingWidget();
 
 	connect(_dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
 	connect(this, SIGNAL(dialogsUpdated()), _dialogs, SLOT(onListScroll()));
@@ -327,6 +330,13 @@ MainWidget::MainWidget(
 	Core::UpdateChecker checker;
 	checker.start();
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
+}
+
+void MainWidget::setupConnectingWidget() {
+	using namespace rpl::mappers;
+	_connecting = Window::ConnectingWidget::CreateDefaultWidget(
+		this,
+		Window::AdaptiveIsOneColumn() | rpl::map(!_1));
 }
 
 void MainWidget::checkCurrentFloatPlayer() {
@@ -2567,6 +2577,7 @@ void MainWidget::orderWidgets() {
 	if (_thirdColumnResizeArea) {
 		_thirdColumnResizeArea->raise();
 	}
+	_connecting->raise();
 	_playerPlaylist->raise();
 	_playerPanel->raise();
 	for (auto &instance : _playerFloats) {
