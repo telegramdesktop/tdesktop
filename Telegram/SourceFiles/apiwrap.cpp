@@ -3751,6 +3751,7 @@ void ApiWrap::uploadAlbumMedia(
 		const auto item = App::histItemById(localId);
 		if (!item) {
 			failed();
+			return;
 		}
 		if (const auto media = item->media()) {
 			if (const auto photo = media->photo()) {

@@ -210,7 +210,7 @@ void EmojiButton::setLoading(bool loading) {
 	}
 	if (loading) {
 		_loading->start();
-	} else {
+	} else if (_loading) {
 		_loading->stop();
 	}
 }
