@@ -1,3 +1,8 @@
+1.2.19 alpha (08.05.18)
+
+- Enable proxy for calls in Settings.
+- Bug fixes and other minor improvements.
+
 1.2.18 alpha (05.05.18)
 
 - Improve working through proxy servers.
