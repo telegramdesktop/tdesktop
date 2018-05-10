@@ -24,13 +24,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wreturn-stack-address"
-#endif // __clang__
+#elif defined _MSC_VER && _MSC_VER >= 1914 // __clang__
+#pragma warning(push)
+#pragma warning(disable:4180)
+#endif // __clang__ || _MSC_VER >= 1914
 
 #include <QtCore/QtCore>
 
 #ifdef __clang__
 #pragma clang diagnostic pop
-#endif // __clang__
+#elif defined _MSC_VER && _MSC_VER >= 1914 // __clang__
+#pragma warning(pop)
+#endif // __clang__ || _MSC_VER >= 1914
 
 #if QT_VERSION < QT_VERSION_CHECK(5, 5, 0)
 #define OS_MAC_OLD
