@@ -205,10 +205,9 @@ base::unique_qptr<ConnectingWidget> ConnectingWidget::CreateDefaultWidget(
 	const auto weak = result.get();
 	rpl::combine(
 		result->visibility(),
-		parent->heightValue(),
-		std::move(shown)
-	) | rpl::start_with_next([=](float64 visible, int height, bool shown) {
-		const auto hidden = (visible == 0.) || !shown;
+		parent->heightValue()
+	) | rpl::start_with_next([=](float64 visible, int height) {
+		const auto hidden = (visible == 0.);
 		if (weak->isHidden() != hidden) {
 			weak->setVisible(!hidden);
 		}
@@ -217,6 +216,11 @@ base::unique_qptr<ConnectingWidget> ConnectingWidget::CreateDefaultWidget(
 			height - st::connectingMargin.top(),
 			height - weak->height(),
 			visible));
+	}, weak->lifetime());
+	std::move(
+		shown
+	) | rpl::start_with_next([=](bool shown) {
+		weak->setForceHidden(!shown);
 	}, weak->lifetime());
 	result->finishAnimating();
 	return result;
