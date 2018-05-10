@@ -1731,11 +1731,14 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		_membersDropdown.destroy();
 		_scrollToAnimation.finish();
 		_history = _migrated = nullptr;
+		_list = nullptr;
 		_peer = nullptr;
 		_channel = NoChannel;
 		_canSendMessages = false;
 		_silent.destroy();
 		updateBotKeyboard();
+	} else {
+		Assert(_list == nullptr);
 	}
 
 	App::clearMousedItems();
@@ -1750,7 +1753,6 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 	_membersDropdownShowTimer.stop();
 	_scroll->takeWidget<HistoryInner>().destroy();
-	_list = nullptr;
 
 	clearInlineBot();
 
