@@ -690,6 +690,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_report_title" = "Report channel";
 "lng_report_group_title" = "Report group";
 "lng_report_bot_title" = "Report bot";
+"lng_report_message_title" = "Report message";
 "lng_report_reason_spam" = "Spam";
 "lng_report_reason_violence" = "Violence";
 "lng_report_reason_pornography" = "Pornography";
@@ -1105,6 +1106,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_forward_msg" = "Forward Message";
 "lng_context_delete_msg" = "Delete Message";
 "lng_context_select_msg" = "Select Message";
+"lng_context_report_msg" = "Report Message";
 "lng_context_pin_msg" = "Pin Message";
 "lng_context_unpin_msg" = "Unpin Message";
 "lng_context_cancel_upload" = "Cancel Upload";

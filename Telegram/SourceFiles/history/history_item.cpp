@@ -407,6 +407,17 @@ bool HistoryItem::canDeleteForEveryone(TimeId now) const {
 	return true;
 }
 
+bool HistoryItem::suggestReport() const {
+	if (out() || serviceMsg() || !IsServerMsgId(id)) {
+		return false;
+	} else if (const auto channel = history()->peer->asChannel()) {
+		return true;
+	} else if (const auto user = history()->peer->asUser()) {
+		return user->botInfo != nullptr;
+	}
+	return false;
+}
+
 bool HistoryItem::suggestBanReport() const {
 	auto channel = history()->peer->asChannel();
 	auto fromUser = from()->asUser();

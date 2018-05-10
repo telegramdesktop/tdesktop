@@ -215,6 +215,7 @@ public:
 	virtual bool allowsEdit(TimeId now) const;
 	bool canDelete() const;
 	bool canDeleteForEveryone(TimeId now) const;
+	bool suggestReport() const;
 	bool suggestBanReport() const;
 	bool suggestDeleteAllReport() const;
 

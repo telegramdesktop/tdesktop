@@ -281,6 +281,8 @@ private:
 	void deleteItem(not_null<HistoryItem*> item);
 	void deleteItem(FullMsgId itemId);
 	void deleteAsGroup(FullMsgId itemId);
+	void reportItem(FullMsgId itemId);
+	void reportAsGroup(FullMsgId itemId);
 	void copySelectedText();
 
 	// Does any of the shown histories has this flag set.
