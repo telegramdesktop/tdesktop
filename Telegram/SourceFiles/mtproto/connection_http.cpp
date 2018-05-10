@@ -46,9 +46,9 @@ qint32 HTTPConnection::handleError(QNetworkReply *reply) { // returnes "maybe ba
 	switch (reply->error()) {
 	case QNetworkReply::ConnectionRefusedError: LOG(("HTTP Error: connection refused - %1").arg(reply->errorString())); break;
 	case QNetworkReply::RemoteHostClosedError: LOG(("HTTP Error: remote host closed - %1").arg(reply->errorString())); break;
-	case QNetworkReply::HostNotFoundError: LOG(("HTTP Error: host not found - %2").arg(reply->error()).arg(reply->errorString())); break;
-	case QNetworkReply::TimeoutError: LOG(("HTTP Error: timeout - %2").arg(reply->error()).arg(reply->errorString())); break;
-	case QNetworkReply::OperationCanceledError: LOG(("HTTP Error: cancelled - %2").arg(reply->error()).arg(reply->errorString())); break;
+	case QNetworkReply::HostNotFoundError: LOG(("HTTP Error: host not found - %1").arg(reply->errorString())); break;
+	case QNetworkReply::TimeoutError: LOG(("HTTP Error: timeout - %1").arg(reply->errorString())); break;
+	case QNetworkReply::OperationCanceledError: LOG(("HTTP Error: cancelled - %1").arg(reply->errorString())); break;
 	case QNetworkReply::SslHandshakeFailedError:
 	case QNetworkReply::TemporaryNetworkFailureError:
 	case QNetworkReply::NetworkSessionFailedError:
