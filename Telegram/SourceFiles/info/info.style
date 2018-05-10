@@ -704,5 +704,12 @@ topBarFeedInfoButton: FeedUserpicButton(defaultFeedUserpicButton) {
 		photoSize: 20px;
 	}
 }
+topBarConnectingPosition: point(2px, 5px);
+topBarConnectingSkip: 6px;
+topBarConnectingAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	color: windowSubTextFg;
+	thickness: 1px;
+	size: size(8px, 8px);
+}
 
 infoFeedLeaveIconMargins: margins(10px, 12px, 20px, 10px);

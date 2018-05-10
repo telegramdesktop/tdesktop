@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/unread_badge.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/dropdown_menu.h"
+#include "ui/effects/radial_animation.h"
 #include "window/window_controller.h"
 #include "window/window_peer_menu.h"
 #include "calls/calls_instance.h"
@@ -124,8 +125,36 @@ TopBarWidget::TopBarWidget(
 		[this] { updateInfoToggleActive(); },
 		lifetime());
 
+	rpl::single(rpl::empty_value()) | rpl::then(
+		base::ObservableViewer(Global::RefConnectionTypeChanged())
+	) | rpl::start_with_next(
+		[=] { updateConnectingState(); },
+		lifetime());
+
 	setCursor(style::cur_pointer);
 	updateControlsVisibility();
+}
+
+void TopBarWidget::updateConnectingState() {
+	const auto mtp = MTP::dcstate();
+	if (mtp == MTP::ConnectedState) {
+		if (_connecting) {
+			_connecting = nullptr;
+			update();
+		}
+	} else if (!_connecting) {
+		_connecting = std::make_unique<Ui::InfiniteRadialAnimation>(
+			animation(this, &TopBarWidget::step_connecting),
+			st::topBarConnectingAnimation);
+		_connecting->start();
+		update();
+	}
+}
+
+void TopBarWidget::step_connecting(TimeMs ms, bool timer) {
+	if (timer) {
+		update();
+	}
 }
 
 void TopBarWidget::refreshLang() {
@@ -300,22 +329,69 @@ void TopBarWidget::paintTopBar(Painter &p, TimeMs ms) {
 		history->peer->dialogName().drawElided(p, nameleft, nametop, namewidth);
 
 		p.setFont(st::dialogsTextFont);
-		if (!history->paintSendAction(p, nameleft, statustop, namewidth, width(), st::historyStatusFgTyping, ms)) {
-			auto statustext = _titlePeerText;
-			auto statuswidth = _titlePeerTextWidth;
-			if (statuswidth > namewidth) {
-				statustext = st::dialogsTextFont->elided(
-					statustext,
-					namewidth,
-					Qt::ElideLeft);
-				statuswidth = st::dialogsTextFont->width(statustext);
-			}
-			p.setPen(_titlePeerTextOnline
-				? st::historyStatusFgActive
-				: st::historyStatusFg);
-			p.drawTextLeft(nameleft, statustop, width(), statustext, statuswidth);
+		if (paintConnectingState(p, nameleft, statustop, width(), ms)) {
+			return;
+		} else if (history->paintSendAction(
+			p,
+			nameleft,
+			statustop,
+			namewidth,
+			width(),
+			st::historyStatusFgTyping,
+			ms)) {
+			return;
+		} else {
+			paintStatus(p, nameleft, statustop, namewidth, width());
 		}
 	}
+}
+
+bool TopBarWidget::paintConnectingState(
+		Painter &p,
+		int left,
+		int top,
+		int outerWidth,
+		TimeMs ms) {
+	if (_connecting) {
+		_connecting->step(ms);
+	}
+	if (!_connecting) {
+		return false;
+	}
+	_connecting->draw(
+		p,
+		{
+			st::topBarConnectingPosition.x() + left,
+			st::topBarConnectingPosition.y() + top
+		},
+		outerWidth);
+	left += st::topBarConnectingPosition.x()
+		+ st::topBarConnectingAnimation.size.width()
+		+ st::topBarConnectingSkip;
+	p.setPen(st::historyStatusFg);
+	p.drawTextLeft(left, top, outerWidth, lang(lng_status_connecting));
+	return true;
+}
+
+void TopBarWidget::paintStatus(
+		Painter &p,
+		int left,
+		int top,
+		int availableWidth,
+		int outerWidth) {
+	auto statustext = _titlePeerText;
+	auto statuswidth = _titlePeerTextWidth;
+	if (statuswidth > availableWidth) {
+		statustext = st::dialogsTextFont->elided(
+			statustext,
+			availableWidth,
+			Qt::ElideLeft);
+		statuswidth = st::dialogsTextFont->width(statustext);
+	}
+	p.setPen(_titlePeerTextOnline
+		? st::historyStatusFgActive
+		: st::historyStatusFg);
+	p.drawTextLeft(left, top, outerWidth, statustext, statuswidth);
 }
 
 QRect TopBarWidget::getMembersShowAreaGeometry() const {
@@ -764,5 +840,7 @@ void TopBarWidget::updateOnlineDisplayTimer() {
 void TopBarWidget::updateOnlineDisplayIn(TimeMs timeout) {
 	_onlineUpdater.callOnce(timeout);
 }
+
+TopBarWidget::~TopBarWidget() = default;
 
 } // namespace HistoryView
