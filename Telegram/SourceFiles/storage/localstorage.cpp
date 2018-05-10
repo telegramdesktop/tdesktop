@@ -1861,7 +1861,7 @@ void _writeUserSettings() {
 	}
 
 	size += sizeof(quint32) + sizeof(qint32) + cEmojiVariants().size() * (sizeof(uint32) + sizeof(uint64));
-	size += sizeof(quint32) + sizeof(qint32) + (Stickers::GetRecentPack().isEmpty() ? Stickers::GetRecentPack().size() : cRecentStickersPreload().size()) * (sizeof(uint64) + sizeof(ushort));
+	size += sizeof(quint32) + sizeof(qint32) + (cRecentStickersPreload().isEmpty() ? Stickers::GetRecentPack().size() : cRecentStickersPreload().size()) * (sizeof(uint64) + sizeof(ushort));
 	size += sizeof(quint32) + Serialize::stringSize(cDialogLastPath());
 	size += sizeof(quint32) + 3 * sizeof(qint32);
 	size += sizeof(quint32) + 2 * sizeof(qint32);
