@@ -429,7 +429,7 @@ for line in lines:
         funcsList.append(restype);
         funcsDict[restype] = [];
 #        TypesDict[restype] = resType;
-      funcsDict[restype].append([name, typeid, prmsList, prms, hasFlags, conditionsList, conditions, trivialConditions]);
+      funcsDict[restype].append([name, typeid, prmsList, prms, hasFlags, conditionsList, conditions, trivialConditions, isTemplate]);
     else:
       if (isTemplate != ''):
         print('Template types not allowed: "' + resType + '" in line: ' + line);
@@ -438,7 +438,7 @@ for line in lines:
         typesList.append(restype);
         typesDict[restype] = [];
       TypesDict[restype] = resType;
-      typesDict[restype].append([name, typeid, prmsList, prms, hasFlags, conditionsList, conditions, trivialConditions]);
+      typesDict[restype].append([name, typeid, prmsList, prms, hasFlags, conditionsList, conditions, trivialConditions, isTemplate]);
 
       consts = consts + 1;
 
@@ -455,10 +455,15 @@ def addTextSerialize(lst, dct, dataLetter):
       conditionsList = data[5];
       conditions = data[6];
       trivialConditions = data[7];
+      isTemplate = data[8];
+
+      templateArgument = ''
+      if (isTemplate != ''):
+          templateArgument = '<mtpRequest>'
 
       result += 'void Serialize_' + name + '(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, uint32 iflag) {\n';
       if (len(conditions)):
-        result += '\tauto flag = MTP' + dataLetter + name + '::Flags::from_raw(iflag);\n\n';
+        result += '\tauto flag = MTP' + dataLetter + name + templateArgument + '::Flags::from_raw(iflag);\n\n';
       if (len(prms)):
         result += '\tif (stage) {\n';
         result += '\t\tto.add(",\\n").addSpaces(lev);\n';
@@ -474,12 +479,12 @@ def addTextSerialize(lst, dct, dataLetter):
           if (k == hasFlags):
             result += 'if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; ';
           if (k in trivialConditions):
-            result += 'if (flag & MTP' + dataLetter + name + '::Flag::f_' + k + ') { ';
+            result += 'if (flag & MTP' + dataLetter + name + templateArgument + '::Flag::f_' + k + ') { ';
             result += 'to.add("YES [ BY BIT ' + conditions[k] + ' IN FIELD ' + hasFlags + ' ]"); ';
             result += '} else { to.add("[ SKIPPED BY BIT ' + conditions[k] + ' IN FIELD ' + hasFlags + ' ]"); } ';
           else:
             if (k in conditions):
-              result += 'if (flag & MTP' + dataLetter + name + '::Flag::f_' + k + ') { ';
+              result += 'if (flag & MTP' + dataLetter + name + templateArgument + '::Flag::f_' + k + ') { ';
             result += 'types.push_back(';
             vtypeget = re.match(r'^[Vv]ector<MTP([A-Za-z0-9\._]+)>', v);
             if (vtypeget):

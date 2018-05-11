@@ -386,7 +386,11 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 
 void Filler::fill() {
 	if (_source == PeerMenuSource::ChatsList) {
-		addPinToggle();
+		if (const auto history = App::historyLoaded(_peer)) {
+			if (!history->useProxyPromotion()) {
+				addPinToggle();
+			}
+		}
 	}
 	if (showInfo()) {
 		addInfo();

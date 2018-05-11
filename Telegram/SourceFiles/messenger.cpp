@@ -856,11 +856,11 @@ bool Messenger::openLocalUrl(const QString &url) {
 		}
 	} else if (auto socksMatch = regex_match(qsl("^socks/?\\?(.+)(#|$)"), command, matchOptions)) {
 		auto params = url_parse_params(socksMatch->captured(1), UrlParamNameTransform::ToLower);
-		ConnectionBox::ShowApplyProxyConfirmation(ProxyData::Type::Socks5, params);
+		ProxiesBoxController::ShowApplyConfirmation(ProxyData::Type::Socks5, params);
 		return true;
 	} else if (auto proxyMatch = regex_match(qsl("^proxy/?\\?(.+)(#|$)"), command, matchOptions)) {
 		auto params = url_parse_params(proxyMatch->captured(1), UrlParamNameTransform::ToLower);
-		ConnectionBox::ShowApplyProxyConfirmation(ProxyData::Type::Mtproto, params);
+		ProxiesBoxController::ShowApplyConfirmation(ProxyData::Type::Mtproto, params);
 		return true;
 	}
 	return false;

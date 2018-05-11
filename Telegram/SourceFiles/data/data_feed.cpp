@@ -443,6 +443,10 @@ bool Feed::toImportant() const {
 	return false; // TODO feeds workmode
 }
 
+bool Feed::useProxyPromotion() const {
+	return false;
+}
+
 bool Feed::shouldBeInChatList() const {
 	return _channels.size() > 1;
 }

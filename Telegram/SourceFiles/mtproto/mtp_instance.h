@@ -46,6 +46,7 @@ public:
 	Instance(const Instance &other) = delete;
 	Instance &operator=(const Instance &other) = delete;
 
+	void setCurrentProxy(const ProxyData &proxy, bool enabled);
 	void suggestMainDcId(DcId mainDcId);
 	void setMainDcId(DcId mainDcId);
 	DcId mainDcId() const;

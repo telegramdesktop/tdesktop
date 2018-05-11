@@ -285,6 +285,9 @@ AuthSession::AuthSession(UserId userId)
 		_shouldLockAt = 0;
 		notifications().updateAll();
 	});
+	subscribe(Global::RefConnectionTypeChanged(), [=] {
+		_api->refreshProxyPromotion();
+	});
 	Window::Theme::Background()->start();
 }
 

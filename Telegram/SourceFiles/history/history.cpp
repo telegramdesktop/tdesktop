@@ -2134,6 +2134,15 @@ void History::updateChatListExistence() {
 	}
 }
 
+bool History::useProxyPromotion() const {
+	if (!isProxyPromoted()) {
+		return false;
+	} else if (const auto channel = peer->asChannel()) {
+		return !isPinnedDialog() && !channel->amIn();
+	}
+	return false;
+}
+
 bool History::shouldBeInChatList() const {
 	if (peer->migrateTo()) {
 		return false;
@@ -2141,7 +2150,7 @@ bool History::shouldBeInChatList() const {
 		return true;
 	} else if (const auto channel = peer->asChannel()) {
 		if (!channel->amIn()) {
-			return false;
+			return isProxyPromoted();
 		} else if (const auto feed = channel->feed()) {
 			return !feed->needUpdateInChatList();
 		}
@@ -2471,6 +2480,12 @@ void History::checkJoinedMessage(bool createUnread) {
 				setLastMessage(_joinedMessage);
 			}
 		}
+	}
+}
+
+void History::removeJoinedMessage() {
+	if (_joinedMessage) {
+		base::take(_joinedMessage)->destroy();
 	}
 }
 

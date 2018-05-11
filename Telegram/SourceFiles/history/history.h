@@ -123,6 +123,7 @@ public:
 	MsgRange rangeForDifferenceRequest() const;
 	HistoryService *insertJoinedMessage(bool unread);
 	void checkJoinedMessage(bool createUnread = false);
+	void removeJoinedMessage();
 
 	bool isEmpty() const;
 	bool isDisplayedEmpty() const;
@@ -318,6 +319,7 @@ public:
 	HistoryItemsList validateForwardDraft();
 	void setForwardDraft(MessageIdsList &&items);
 
+	bool useProxyPromotion() const override;
 	void updateChatListExistence() override;
 	bool shouldBeInChatList() const override;
 	bool toImportant() const override {

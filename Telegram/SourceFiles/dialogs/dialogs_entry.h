@@ -56,6 +56,11 @@ public:
 		return _pinnedIndex > 0;
 	}
 	void cachePinnedIndex(int index);
+	bool isProxyPromoted() const {
+		return _isProxyPromoted;
+	}
+	virtual bool useProxyPromotion() const = 0;
+	void cacheProxyPromoted(bool promoted);
 	uint64 sortKeyInChatList() const {
 		return _sortKeyInChatList;
 	}
@@ -111,6 +116,7 @@ private:
 	RowsByLetter _chatListLinks[2];
 	uint64 _sortKeyInChatList = 0;
 	int _pinnedIndex = 0;
+	bool _isProxyPromoted = false;
 	QDateTime _lastMessageDate;
 
 };

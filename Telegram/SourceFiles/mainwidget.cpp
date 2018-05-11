@@ -5095,11 +5095,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		auto &d = update.c_updateChannel();
 		if (const auto channel = App::channelLoaded(d.vchannel_id.v)) {
 			channel->inviter = UserId(0);
-			if (!channel->amIn()) {
-				if (const auto history = App::historyLoaded(channel->id)) {
-					history->updateChatListExistence();
-				}
-			} else if (!channel->amCreator() && App::history(channel->id)) {
+			if (channel->amIn()
+				&& !channel->amCreator()
+				&& App::history(channel->id)) {
 				_updatedChannels.insert(channel, true);
 				Auth().api().requestSelfParticipant(channel);
 			}

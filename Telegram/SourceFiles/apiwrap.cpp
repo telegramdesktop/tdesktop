@@ -50,6 +50,8 @@ namespace {
 constexpr auto kReloadChannelMembersTimeout = 1000; // 1 second wait before reload members in channel after adding
 constexpr auto kSaveCloudDraftTimeout = 1000; // save draft to the cloud with 1 sec extra delay
 constexpr auto kSaveDraftBeforeQuitTimeout = 1500; // give the app 1.5 secs to save drafts to cloud when quitting
+constexpr auto kProxyPromotionInterval = TimeId(60 * 60);
+constexpr auto kProxyPromotionMinDelay = TimeId(10);
 constexpr auto kSmallDelayMs = 5;
 constexpr auto kUnreadMentionsPreloadIfLess = 5;
 constexpr auto kUnreadMentionsFirstRequestLimit = 10;
@@ -134,12 +136,13 @@ FileLoadTo FileLoadTaskOptions(const ApiWrap::SendOptions &options) {
 
 ApiWrap::ApiWrap(not_null<AuthSession*> session)
 : _session(session)
-, _messageDataResolveDelayed([this] { resolveMessageDatas(); })
-, _webPagesTimer([this] { resolveWebPages(); })
-, _draftsSaveTimer([this] { saveDraftsToCloud(); })
-, _featuredSetsReadTimer([this] { readFeaturedSets(); })
+, _messageDataResolveDelayed([=] { resolveMessageDatas(); })
+, _webPagesTimer([=] { resolveWebPages(); })
+, _draftsSaveTimer([=] { saveDraftsToCloud(); })
+, _featuredSetsReadTimer([=] { readFeaturedSets(); })
 , _fileLoader(std::make_unique<TaskQueue>(kFileLoaderQueueStopTimeout))
-, _feedReadTimer([this] { readFeeds(); }) {
+, _feedReadTimer([=] { readFeeds(); })
+, _proxyPromotionTimer([=] { refreshProxyPromotion(); }) {
 }
 
 void ApiWrap::requestChangelog(
@@ -150,6 +153,78 @@ void ApiWrap::requestChangelog(
 	)).done(
 		callback
 	).send();
+}
+
+void ApiWrap::refreshProxyPromotion() {
+	const auto now = unixtime();
+	const auto next = (_proxyPromotionNextRequestTime != 0)
+		? _proxyPromotionNextRequestTime
+		: now;
+	if (_proxyPromotionRequestId) {
+		getProxyPromotionDelayed(now, next);
+		return;
+	}
+	const auto proxy = Global::UseProxy()
+		? Global::SelectedProxy()
+		: ProxyData();
+	const auto key = [&]() -> std::pair<QString, uint32> {
+		if (!Global::UseProxy()) {
+			return {};
+		}
+		const auto &proxy = Global::SelectedProxy();
+		if (proxy.type != ProxyData::Type::Mtproto) {
+			return {};
+		}
+		return { proxy.host, proxy.port };
+	}();
+	if (_proxyPromotionKey == key && now < next) {
+		getProxyPromotionDelayed(now, next);
+		return;
+	}
+	_proxyPromotionKey = key;
+	if (key.first.isEmpty() || !key.second) {
+		proxyPromotionDone(MTP_help_proxyDataEmpty(
+			MTP_int(unixtime() + kProxyPromotionInterval)));
+		return;
+	}
+	_proxyPromotionRequestId = request(MTPhelp_GetProxyData(
+	)).done([=](const MTPhelp_ProxyData &result) {
+		_proxyPromotionRequestId = 0;
+		proxyPromotionDone(result);
+	}).fail([=](const RPCError &error) {
+		_proxyPromotionRequestId = 0;
+		const auto now = unixtime();
+		const auto next = _proxyPromotionNextRequestTime = now
+			+ kProxyPromotionInterval;
+		if (!_proxyPromotionTimer.isActive()) {
+			getProxyPromotionDelayed(now, next);
+		}
+	}).send();
+}
+
+void ApiWrap::getProxyPromotionDelayed(TimeId now, TimeId next) {
+	_proxyPromotionTimer.callOnce(std::min(
+		std::max(next - now, kProxyPromotionMinDelay),
+		kProxyPromotionInterval) * TimeMs(1000));
+};
+
+void ApiWrap::proxyPromotionDone(const MTPhelp_ProxyData &proxy) {
+	if (proxy.type() == mtpc_help_proxyDataEmpty) {
+		const auto &data = proxy.c_help_proxyDataEmpty();
+		const auto next = _proxyPromotionNextRequestTime = data.vexpires.v;
+		getProxyPromotionDelayed(unixtime(), next);
+		_session->data().setProxyPromoted(nullptr);
+		return;
+	}
+	Assert(proxy.type() == mtpc_help_proxyDataPromo);
+	const auto &data = proxy.c_help_proxyDataPromo();
+	const auto next = _proxyPromotionNextRequestTime = data.vexpires.v;
+	getProxyPromotionDelayed(unixtime(), next);
+
+	App::feedChats(data.vchats);
+	App::feedUsers(data.vusers);
+	const auto peerId = peerFromMTP(data.vpeer);
+	_session->data().setProxyPromoted(App::peer(peerId));
 }
 
 void ApiWrap::applyUpdates(

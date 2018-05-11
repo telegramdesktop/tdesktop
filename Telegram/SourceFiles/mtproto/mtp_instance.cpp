@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/rsa_public_key.h"
 #include "storage/localstorage.h"
 #include "auth_session.h"
+#include "application.h"
 #include "apiwrap.h"
 #include "messenger.h"
 #include "lang/lang_instance.h"
@@ -36,6 +37,7 @@ public:
 
 	void start(Config &&config);
 
+	void setCurrentProxy(const ProxyData &proxy, bool enabled);
 	void suggestMainDcId(DcId mainDcId);
 	void setMainDcId(DcId mainDcId);
 	DcId mainDcId() const;
@@ -257,6 +259,28 @@ void Instance::Private::start(Config &&config) {
 
 	Assert((_mainDcId == Config::kNoneMainDc) == isKeysDestroyer());
 	requestConfig();
+}
+
+void Instance::Private::setCurrentProxy(
+		const ProxyData &proxy,
+		bool enabled) {
+	const auto key = [&](const ProxyData &proxy) {
+		if (proxy.type == ProxyData::Type::Mtproto) {
+			return std::make_pair(proxy.host, proxy.port);
+		}
+		return std::make_pair(QString(), uint32(0));
+	};
+	const auto previousKey = key(Global::UseProxy()
+		? Global::SelectedProxy()
+		: ProxyData());
+	Global::SetSelectedProxy(proxy);
+	Global::SetUseProxy(enabled);
+	Sandbox::refreshGlobalProxy();
+	restart();
+	if (previousKey != key(proxy)) {
+		reInitConnection(mainDcId());
+	}
+	Global::RefConnectionTypeChanged().notify();
 }
 
 void Instance::Private::suggestMainDcId(DcId mainDcId) {
@@ -1342,9 +1366,14 @@ void Instance::Private::prepareToDestroy() {
 	MustNotCreateSessions = true;
 }
 
-Instance::Instance(not_null<DcOptions*> options, Mode mode, Config &&config) : QObject()
+Instance::Instance(not_null<DcOptions*> options, Mode mode, Config &&config)
+: QObject()
 , _private(std::make_unique<Private>(this, options, mode)) {
 	_private->start(std::move(config));
+}
+
+void Instance::setCurrentProxy(const ProxyData &proxy, bool enabled) {
+	_private->setCurrentProxy(proxy, enabled);
 }
 
 void Instance::suggestMainDcId(DcId mainDcId) {

@@ -363,6 +363,9 @@ public:
 	void setMimeForwardIds(MessageIdsList &&list);
 	MessageIdsList takeMimeForwardIds();
 
+	void setProxyPromoted(PeerData *promoted);
+	PeerData *proxyPromoted() const;
+
 	Groups &groups() {
 		return _groups;
 	}
@@ -542,6 +545,8 @@ private:
 	std::map<
 		not_null<const HistoryItem*>,
 		std::vector<not_null<ViewElement*>>> _views;
+
+	PeerData *_proxyPromoted = nullptr;
 
 	MessageIdsList _mimeForwardIds;
 

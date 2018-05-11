@@ -93,6 +93,7 @@ public:
 	void requestChangelog(
 		const QString &sinceVersion,
 		base::lambda<void(const MTPUpdates &result)> callback);
+	void refreshProxyPromotion();
 
 	void requestChannelMembersForAdd(
 		not_null<ChannelData*> channel,
@@ -359,7 +360,6 @@ private:
 		not_null<ChannelData*> channel,
 		const QVector<MTPChannelParticipant> &participants);
 
-
 	void jumpToHistoryDate(not_null<PeerData*> peer, const QDate &date);
 	void jumpToFeedDate(not_null<Data::Feed*> feed, const QDate &date);
 	template <typename Callback>
@@ -436,6 +436,9 @@ private:
 		uint64 randomId);
 
 	void readFeeds();
+
+	void getProxyPromotionDelayed(TimeId now, TimeId next);
+	void proxyPromotionDone(const MTPhelp_ProxyData &proxy);
 
 	not_null<AuthSession*> _session;
 
@@ -566,5 +569,11 @@ private:
 	base::flat_map<not_null<Data::Feed*>, TimeMs> _feedReadsDelayed;
 	base::flat_map<not_null<Data::Feed*>, mtpRequestId> _feedReadRequests;
 	base::Timer _feedReadTimer;
+
+	mtpRequestId _proxyPromotionRequestId = 0;
+	std::pair<QString, uint32> _proxyPromotionKey;
+	TimeId _proxyPromotionNextRequestTime = TimeId(0);
+	base::Timer _proxyPromotionTimer;
+
 
 };

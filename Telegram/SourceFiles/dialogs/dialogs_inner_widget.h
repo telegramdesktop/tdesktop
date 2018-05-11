@@ -213,19 +213,13 @@ private:
 		UpdateRowSections sections = UpdateRowSection::All);
 
 	int dialogsOffset() const;
+	int proxyPromotedCount() const;
+	int pinnedOffset() const;
 	int filteredOffset() const;
 	int peerSearchOffset() const;
 	int searchedOffset() const;
 	int searchInChatSkip() const;
 
-	void paintDialog(
-		Painter &p,
-		not_null<Dialogs::Row*> row,
-		int fullWidth,
-		Dialogs::Key active,
-		Dialogs::Key selected,
-		bool onlyBackground,
-		TimeMs ms);
 	void paintPeerSearchResult(
 		Painter &p,
 		not_null<const PeerSearchResult*> result,

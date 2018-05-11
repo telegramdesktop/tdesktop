@@ -171,7 +171,7 @@ void SpecialConfigRequest::performRequest(const Attempt &attempt) {
 	switch (type) {
 	case Type::App: {
 		url.setPath(cTestMode()
-			? qsl("/test/config.txt")
+			? qsl("/testv2/config.txt")
 			: qsl("/prodv2/config.txt"));
 		request.setRawHeader("Host", "tcdnb.azureedge.net");
 	} break;
@@ -179,7 +179,7 @@ void SpecialConfigRequest::performRequest(const Attempt &attempt) {
 		url.setPath(qsl("/resolve"));
 		url.setQuery(
 			qsl("name=%1.stel.com&type=16").arg(
-				cTestMode() ? qsl("tap") : qsl("apv2")));
+				cTestMode() ? qsl("testapv2") : qsl("apv2")));
 		request.setRawHeader("Host", "dns.google.com");
 	} break;
 	default: Unexpected("Type in SpecialConfigRequest::performRequest.");

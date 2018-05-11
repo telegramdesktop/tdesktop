@@ -835,12 +835,34 @@ void ConnectionPrivate::tryToSend() {
 	int32 initSize = 0, initSizeInInts = 0;
 	if (needsLayer) {
 		Assert(_connectionOptions != nullptr);
-		auto systemLangCode = _connectionOptions->systemLangCode;
-		auto cloudLangCode = _connectionOptions->cloudLangCode;
-		auto langPack = "tdesktop";
-		auto deviceModel = (_dcType == DcType::Cdn) ? "n/a" : cApiDeviceModel();
-		auto systemVersion = (_dcType == DcType::Cdn) ? "n/a" : cApiSystemVersion();
-		initWrapper = MTPInitConnection<mtpRequest>(MTP_int(ApiId), MTP_string(deviceModel), MTP_string(systemVersion), MTP_string(str_const_toString(AppVersionStr)), MTP_string(systemLangCode), MTP_string(langPack), MTP_string(cloudLangCode), mtpRequest());
+		const auto systemLangCode = _connectionOptions->systemLangCode;
+		const auto cloudLangCode = _connectionOptions->cloudLangCode;
+		const auto langPack = "tdesktop";
+		const auto deviceModel = (_dcType == DcType::Cdn)
+			? "n/a"
+			: cApiDeviceModel();
+		const auto systemVersion = (_dcType == DcType::Cdn)
+			? "n/a"
+			: cApiSystemVersion();
+		const auto proxyType = _connectionOptions->proxy.type;
+		const auto mtprotoProxy = (proxyType == ProxyData::Type::Mtproto);
+		const auto clientProxyFields = mtprotoProxy
+			? MTP_inputClientProxy(
+				MTP_string(_connectionOptions->proxy.host),
+				MTP_int(_connectionOptions->proxy.port))
+			: MTPInputClientProxy();
+		using Flag = MTPInitConnection<mtpRequest>::Flag;
+		initWrapper = MTPInitConnection<mtpRequest>(
+			MTP_flags(mtprotoProxy ? Flag::f_proxy : Flag(0)),
+			MTP_int(ApiId),
+			MTP_string(deviceModel),
+			MTP_string(systemVersion),
+			MTP_string(str_const_toString(AppVersionStr)),
+			MTP_string(systemLangCode),
+			MTP_string(langPack),
+			MTP_string(cloudLangCode),
+			clientProxyFields,
+			mtpRequest());
 		initSizeInInts = (initWrapper.innerLength() >> 2) + 2;
 		initSize = initSizeInInts * sizeof(mtpPrime);
 	}

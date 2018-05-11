@@ -165,6 +165,22 @@ int DialogsInner::dialogsOffset() const {
 	return _dialogsImportant ? st::dialogsImportantBarHeight : 0;
 }
 
+int DialogsInner::proxyPromotedCount() const {
+	auto result = 0;
+	for_const (auto row, *shownDialogs()) {
+		if (row->entry()->useProxyPromotion()) {
+			++result;
+		} else {
+			break;
+		}
+	}
+	return result;
+}
+
+int DialogsInner::pinnedOffset() const {
+	return dialogsOffset() + proxyPromotedCount() * st::dialogsRowHeight;
+}
+
 int DialogsInner::filteredOffset() const {
 	return _hashtagResults.size() * st::mentionHeight;
 }
@@ -231,13 +247,39 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 				dialogsClip = dialogsClip.marginsAdded(QMargins(0, st::dialogsRowHeight, 0, st::dialogsRowHeight));
 			}
 
+			const auto promoted = proxyPromotedCount();
+			const auto paintDialog = [&](not_null<Dialogs::Row*> row) {
+				const auto pinned = row->pos() - promoted;
+				const auto count = _pinnedRows.size();
+				const auto xadd = 0;
+				const auto yadd = base::in_range(pinned, 0, count)
+					? qRound(_pinnedRows[pinned].yadd.current())
+					: 0;
+				if (xadd || yadd) {
+					p.translate(xadd, yadd);
+				}
+				const auto isActive = (row->key() == active);
+				const auto isSelected = (row->key() == selected);
+				Dialogs::Layout::RowPainter::paint(
+					p,
+					row,
+					fullWidth,
+					isActive,
+					isSelected,
+					paintingOther,
+					ms);
+				if (xadd || yadd) {
+					p.translate(-xadd, -yadd);
+				}
+			};
+
 			auto i = list.cfind(dialogsClip.top(), st::dialogsRowHeight);
 			if (i != list.cend()) {
 				auto lastPaintedPos = (*i)->pos();
 
 				// If we're reordering pinned chats we need to fill this area background first.
 				if (reorderingPinned) {
-					p.fillRect(0, 0, fullWidth, st::dialogsRowHeight * _pinnedRows.size(), st::dialogsBg);
+					p.fillRect(0, promoted * st::dialogsRowHeight, fullWidth, st::dialogsRowHeight * _pinnedRows.size(), st::dialogsBg);
 				}
 
 				p.translate(0, lastPaintedPos * st::dialogsRowHeight);
@@ -248,15 +290,9 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 					}
 
 					// Skip currently dragged chat to paint it above others after.
-					if (lastPaintedPos != _aboveIndex) {
-						paintDialog(
-							p,
-							row,
-							fullWidth,
-							active,
-							selected,
-							paintingOther,
-							ms);
+					if (lastPaintedPos != promoted + _aboveIndex
+						|| _aboveIndex < 0) {
+						paintDialog(row);
 					}
 
 					p.translate(0, st::dialogsRowHeight);
@@ -265,11 +301,11 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 
 				// Paint the dragged chat above all others.
 				if (_aboveIndex >= 0) {
-					auto i = list.cfind(_aboveIndex, 1);
+					auto i = list.cfind(promoted + _aboveIndex, 1);
 					auto pos = (i == list.cend()) ? -1 : (*i)->pos();
-					if (pos == _aboveIndex) {
+					if (pos == promoted + _aboveIndex) {
 						p.translate(0, (pos - lastPaintedPos) * st::dialogsRowHeight);
-						paintDialog(p, *i, fullWidth, active, selected, paintingOther, ms);
+						paintDialog(*i);
 						p.translate(0, (lastPaintedPos - pos) * st::dialogsRowHeight);
 					}
 				}
@@ -457,33 +493,6 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 			}
 		}
 	}
-}
-
-void DialogsInner::paintDialog(
-		Painter &p,
-		not_null<Dialogs::Row*> row,
-		int fullWidth,
-		Dialogs::Key active,
-		Dialogs::Key selected,
-		bool onlyBackground,
-		TimeMs ms) {
-	auto pos = row->pos();
-	auto xadd = 0, yadd = 0;
-	if (pos < _pinnedRows.size()) {
-		yadd = qRound(_pinnedRows[pos].yadd.current());
-	}
-	if (xadd || yadd) p.translate(xadd, yadd);
-	const auto isActive = (row->key() == active);
-	const auto isSelected = (row->key() == selected);
-	Dialogs::Layout::RowPainter::paint(
-		p,
-		row,
-		fullWidth,
-		isActive,
-		isSelected,
-		onlyBackground,
-		ms);
-	if (xadd || yadd) p.translate(-xadd, -yadd);
 }
 
 void DialogsInner::paintPeerSearchResult(
@@ -846,7 +855,9 @@ void DialogsInner::checkReorderPinnedStart(QPoint localPosition) {
 int DialogsInner::shownPinnedCount() const {
 	auto result = 0;
 	for_const (auto row, *shownDialogs()) {
-		if (!row->entry()->isPinnedDialog()) {
+		if (row->entry()->useProxyPromotion()) {
+			continue;
+		} else if (!row->entry()->isPinnedDialog()) {
 			break;
 		}
 		++result;
@@ -860,7 +871,9 @@ int DialogsInner::countPinnedIndex(Dialogs::Row *ofRow) {
 	}
 	auto result = 0;
 	for_const (auto row, *shownDialogs()) {
-		if (!row->entry()->isPinnedDialog()) {
+		if (row->entry()->useProxyPromotion()) {
+			continue;
+		} else if (!row->entry()->isPinnedDialog()) {
 			break;
 		} else if (row == ofRow) {
 			return result;
@@ -1013,7 +1026,7 @@ void DialogsInner::step_pinnedShifting(TimeMs ms, bool timer) {
 			if (updateMax < _draggingIndex) updateMax = _draggingIndex;
 		}
 		if (updateMin >= 0) {
-			auto top = _dialogsImportant ? st::dialogsImportantBarHeight : 0;
+			auto top = pinnedOffset();
 			auto updateFrom = top + st::dialogsRowHeight * (updateMin - 1);
 			auto updateHeight = st::dialogsRowHeight * (updateMax - updateMin + 3);
 			if (base::in_range(_aboveIndex, 0, _pinnedRows.size())) {
@@ -1770,7 +1783,7 @@ void DialogsInner::applyDialog(const MTPDdialog &dialog) {
 	const auto history = App::history(peerId);
 	history->applyDialog(dialog);
 
-	if (!history->isPinnedDialog()) {
+	if (!history->useProxyPromotion() && !history->isPinnedDialog()) {
 		const auto date = history->chatsListDate();
 		if (!date.isNull()) {
 			addSavedPeersAfter(date);
@@ -1793,7 +1806,7 @@ void DialogsInner::applyDialog(const MTPDdialog &dialog) {
 //	const auto feed = Auth().data().feed(feedId);
 //	feed->applyDialog(dialog);
 //
-//	if (!feed->isPinnedDialog()) {
+//	if (!feed->useProxyPromotion() && !feed->isPinnedDialog()) {
 //		const auto date = feed->chatsListDate();
 //		if (!date.isNull()) {
 //			addSavedPeersAfter(date);
