@@ -545,6 +545,7 @@ enum {
 	dbiDcOptionOld = 0x27,
 	dbiTryIPv6 = 0x28,
 	dbiSongVolume = 0x29,
+	dbiMessageFormatting = 0x2a,
 	dbiWindowsNotificationsOld = 0x30,
 	dbiIncludeMuted = 0x31,
 	dbiMegagroupSizeMax = 0x32,
@@ -1442,6 +1443,14 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		cSetReplaceEmojis(v == 1);
 	} break;
 
+	case dbiMessageFormatting: {
+		qint32 v;
+		stream >> v;
+		if (!_checkStreamStatus(stream)) return false;
+
+		cSetMessageFormatting(v == 1);
+	} break;
+
 	case dbiDefaultAttach: {
 		qint32 v;
 		stream >> v;
@@ -1878,6 +1887,7 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiAdaptiveForWide) << qint32(Global::AdaptiveForWide() ? 1 : 0);
 	data.stream << quint32(dbiAutoLock) << qint32(Global::AutoLock());
 	data.stream << quint32(dbiReplaceEmojis) << qint32(cReplaceEmojis() ? 1 : 0);
+	data.stream << quint32(dbiMessageFormatting) << qint32(cMessageFormatting() ? 1 : 0);
 	data.stream << quint32(dbiSoundNotify) << qint32(Global::SoundNotify());
 	data.stream << quint32(dbiIncludeMuted) << qint32(Global::IncludeMuted());
 	data.stream << quint32(dbiDesktopNotify) << qint32(Global::DesktopNotify());
