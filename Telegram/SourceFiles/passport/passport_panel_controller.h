@@ -30,7 +30,7 @@ struct ScanInfo {
 	QString status;
 	QImage thumb;
 	bool deleted = false;
-	bool selfie = false;
+	base::optional<SpecialFile> special;
 	QString error;
 
 };
@@ -81,9 +81,9 @@ public:
 	void uploadScan(QByteArray &&content);
 	void deleteScan(int fileIndex);
 	void restoreScan(int fileIndex);
-	void uploadSelfie(QByteArray &&content);
-	void deleteSelfie();
-	void restoreSelfie();
+	void uploadSpecialScan(SpecialFile type, QByteArray &&content);
+	void deleteSpecialScan(SpecialFile type);
+	void restoreSpecialScan(SpecialFile type);
 	rpl::producer<ScanInfo> scanUpdated() const;
 	rpl::producer<ScopeError> saveErrors() const;
 	void readScanError(ReadScanError error);
@@ -133,12 +133,12 @@ private:
 
 	void editScope(int index, int documentIndex);
 	void editWithUpload(int index, int documentIndex);
-	int findNonEmptyIndex(
-		const std::vector<not_null<const Value*>> &files) const;
+	int findNonEmptyDocumentIndex(const Scope &scope) const;
 	void requestScopeFilesType(int index);
 	void cancelValueEdit();
 	std::vector<ScanInfo> valueFiles(const Value &value) const;
-	std::unique_ptr<ScanInfo> valueSelfie(const Value &value) const;
+	std::map<SpecialFile, ScanInfo> valueSpecialFiles(
+		const Value &value) const;
 	void processValueSaveFinished(not_null<const Value*> value);
 	void processVerificationNeeded(not_null<const Value*> value);
 

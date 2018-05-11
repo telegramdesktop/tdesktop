@@ -22,10 +22,13 @@ std::map<Value::Type, Scope::Type> ScopeTypesMap() {
 		{ Value::Type::Passport, Scope::Type::Identity },
 		{ Value::Type::DriverLicense, Scope::Type::Identity },
 		{ Value::Type::IdentityCard, Scope::Type::Identity },
+		{ Value::Type::InternalPassport, Scope::Type::Identity },
 		{ Value::Type::Address, Scope::Type::Address },
 		{ Value::Type::UtilityBill, Scope::Type::Address },
 		{ Value::Type::BankStatement, Scope::Type::Address },
 		{ Value::Type::RentalAgreement, Scope::Type::Address },
+		{ Value::Type::PassportRegistration, Scope::Type::Address },
+		{ Value::Type::TemporaryRegistration, Scope::Type::Address },
 		{ Value::Type::Phone, Scope::Type::Phone },
 		{ Value::Type::Email, Scope::Type::Email },
 	};
@@ -111,7 +114,7 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 		const auto &fields = scope.fields->data.parsed.fields;
 		const auto document = [&]() -> const Value* {
 			for (const auto &document : scope.documents) {
-				if (!document->scans.empty()) {
+				if (document->scansAreFilled(scope.selfieRequired)) {
 					return document;
 				}
 			}
@@ -119,25 +122,31 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 		}();
 		if (document && scope.documents.size() > 1) {
 			pushListValue([&] {
+				using Type = Value::Type;
 				switch (document->type) {
-				case Value::Type::Passport:
+				case Type::Passport:
 					return lang(lng_passport_identity_passport);
-				case Value::Type::DriverLicense:
+				case Type::DriverLicense:
 					return lang(lng_passport_identity_license);
-				case Value::Type::IdentityCard:
+				case Type::IdentityCard:
 					return lang(lng_passport_identity_card);
-				case Value::Type::BankStatement:
+				case Type::InternalPassport:
+					return lang(lng_passport_identity_internal);
+				case Type::BankStatement:
 					return lang(lng_passport_address_statement);
-				case Value::Type::UtilityBill:
+				case Type::UtilityBill:
 					return lang(lng_passport_address_bill);
-				case Value::Type::RentalAgreement:
+				case Type::RentalAgreement:
 					return lang(lng_passport_address_agreement);
+				case Type::PassportRegistration:
+					return lang(lng_passport_address_registration);
+				case Type::TemporaryRegistration:
+					return lang(lng_passport_address_temporary);
 				default: Unexpected("Files type in ComputeScopeRowReadyString.");
 				}
 			}());
 		}
-		if (!scope.documents.empty()
-			&& (!document || (scope.selfieRequired && !document->selfie))) {
+		if (!scope.documents.empty() && !document) {
 			return QString();
 		}
 		const auto scheme = GetDocumentScheme(scope.type);
@@ -155,8 +164,6 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 				pushListValue(format ? format(text) : text);
 			} else if (scope.documents.empty()) {
 				continue;
-			} else if (!document) {
-				return QString();
 			} else {
 				const auto i = document->data.parsed.fields.find(row.key);
 				if (i == end(document->data.parsed.fields)) {
@@ -195,8 +202,10 @@ ScopeRow ComputeScopeRow(const Scope &scope) {
 					errors.push_back(scan.error);
 				}
 			}
-			if (value->selfie && !value->selfie->error.isEmpty()) {
-				errors.push_back(value->selfie->error);
+			for (const auto &[type, scan] : value->specialScans) {
+				if (!scan.error.isEmpty()) {
+					errors.push_back(scan.error);
+				}
 			}
 			if (!value->scanMissingError.isEmpty()) {
 				errors.push_back(value->scanMissingError);
@@ -236,6 +245,11 @@ ScopeRow ComputeScopeRow(const Scope &scope) {
 					lang(lng_passport_identity_license),
 					lang(lng_passport_identity_license_upload),
 				});
+			case Value::Type::InternalPassport:
+				return addReadyError({
+					lang(lng_passport_identity_internal),
+					lang(lng_passport_identity_internal_upload),
+				});
 			default: Unexpected("Identity type in ComputeScopeRow.");
 			}
 		}
@@ -265,6 +279,16 @@ ScopeRow ComputeScopeRow(const Scope &scope) {
 				return addReadyError({
 					lang(lng_passport_address_agreement),
 					lang(lng_passport_address_agreement_upload),
+				});
+			case Value::Type::PassportRegistration:
+				return addReadyError({
+					lang(lng_passport_address_registration),
+					lang(lng_passport_address_registration_upload),
+				});
+			case Value::Type::TemporaryRegistration:
+				return addReadyError({
+					lang(lng_passport_address_temporary),
+					lang(lng_passport_address_temporary_upload),
 				});
 			default: Unexpected("Address type in ComputeScopeRow.");
 			}

@@ -982,23 +982,28 @@ secureValueTypePersonalDetails#9d2a81e3 = SecureValueType;
 secureValueTypePassport#3dac6a00 = SecureValueType;
 secureValueTypeDriverLicense#6e425c4 = SecureValueType;
 secureValueTypeIdentityCard#a0d0744b = SecureValueType;
+secureValueTypeInternalPassport#99a48f23 = SecureValueType;
 secureValueTypeAddress#cbe31e26 = SecureValueType;
 secureValueTypeUtilityBill#fc36954e = SecureValueType;
 secureValueTypeBankStatement#89137c0d = SecureValueType;
 secureValueTypeRentalAgreement#8b883488 = SecureValueType;
+secureValueTypePassportRegistration#99e3806a = SecureValueType;
+secureValueTypeTemporaryRegistration#ea02ec33 = SecureValueType;
 secureValueTypePhone#b320aadb = SecureValueType;
 secureValueTypeEmail#8e3ca7ee = SecureValueType;
 
-secureValue#ec4134c8 flags:# type:SecureValueType data:flags.0?SecureData files:flags.1?Vector<SecureFile> plain_data:flags.2?SecurePlainData selfie:flags.3?SecureFile hash:bytes = SecureValue;
+secureValue#b4b4b699 flags:# type:SecureValueType data:flags.0?SecureData front_side:flags.1?SecureFile reverse_side:flags.2?SecureFile selfie:flags.3?SecureFile files:flags.4?Vector<SecureFile> plain_data:flags.5?SecurePlainData hash:bytes = SecureValue;
 
-inputSecureValue#c0da30f0 flags:# type:SecureValueType data:flags.0?SecureData files:flags.1?Vector<InputSecureFile> plain_data:flags.2?SecurePlainData selfie:flags.3?InputSecureFile = InputSecureValue;
+inputSecureValue#67872e8 flags:# type:SecureValueType data:flags.0?SecureData front_side:flags.1?InputSecureFile reverse_side:flags.2?InputSecureFile selfie:flags.3?InputSecureFile files:flags.4?Vector<InputSecureFile> plain_data:flags.5?SecurePlainData = InputSecureValue;
 
 secureValueHash#ed1ecdb0 type:SecureValueType hash:bytes = SecureValueHash;
 
 secureValueErrorData#e8a40bd9 type:SecureValueType data_hash:bytes field:string text:string = SecureValueError;
+secureValueErrorFrontSide#be3dfa type:SecureValueType file_hash:bytes text:string = SecureValueError;
+secureValueErrorReverseSide#868a2aa5 type:SecureValueType file_hash:bytes text:string = SecureValueError;
+secureValueErrorSelfie#e537ced6 type:SecureValueType file_hash:bytes text:string = SecureValueError;
 secureValueErrorFile#7a700873 type:SecureValueType file_hash:bytes text:string = SecureValueError;
 secureValueErrorFiles#666220e9 type:SecureValueType file_hash:Vector<bytes> text:string = SecureValueError;
-secureValueErrorSelfie#e537ced6 type:SecureValueType file_hash:bytes text:string = SecureValueError;
 
 secureCredentialsEncrypted#33f0ea47 data:bytes hash:bytes secret:bytes = SecureCredentialsEncrypted;
 
@@ -1287,4 +1292,4 @@ langpack.getStrings#2e1ee318 lang_code:string keys:Vector<string> = Vector<LangP
 langpack.getDifference#b2e4d7d from_version:int = LangPackDifference;
 langpack.getLanguages#800fd57d = Vector<LangPackLanguage>;
 
-// LAYER 80
+// LAYER 81

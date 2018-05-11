@@ -30,6 +30,7 @@ struct ValueMap;
 struct ScanInfo;
 class EditScans;
 class PanelDetailsRow;
+enum class SpecialFile;
 enum class PanelDetailsType;
 
 struct EditDocumentScheme {
@@ -64,7 +65,7 @@ public:
 		const ValueMap &scanData,
 		const QString &missingScansError,
 		std::vector<ScanInfo> &&files,
-		std::unique_ptr<ScanInfo> &&selfie);
+		std::map<SpecialFile, ScanInfo> &&specialFiles);
 	PanelEditDocument(
 		QWidget *parent,
 		not_null<PanelController*> controller,
@@ -84,13 +85,13 @@ private:
 		const ValueMap *scanData,
 		const QString &missingScansError,
 		std::vector<ScanInfo> &&files,
-		std::unique_ptr<ScanInfo> &&selfie);
+		std::map<SpecialFile, ScanInfo> &&specialFiles);
 	not_null<Ui::RpWidget*> setupContent(
 		const ValueMap &data,
 		const ValueMap *scanData,
 		const QString &missingScansError,
 		std::vector<ScanInfo> &&files,
-		std::unique_ptr<ScanInfo> &&selfie);
+		std::map<SpecialFile, ScanInfo> &&specialFiles);
 	void updateControlsGeometry();
 
 	Result collect() const;

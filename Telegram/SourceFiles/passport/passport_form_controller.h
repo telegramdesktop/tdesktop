@@ -132,16 +132,27 @@ struct Verification {
 
 };
 
+struct Form;
+
+enum class SpecialFile {
+	FrontSide,
+	ReverseSide,
+	Selfie,
+};
+
 struct Value {
 	enum class Type {
 		PersonalDetails,
 		Passport,
 		DriverLicense,
 		IdentityCard,
+		InternalPassport,
 		Address,
 		UtilityBill,
 		BankStatement,
 		RentalAgreement,
+		PassportRegistration,
+		TemporaryRegistration,
 		Phone,
 		Email,
 	};
@@ -150,13 +161,16 @@ struct Value {
 	Value(Value &&other) = default;
 	Value &operator=(Value &&other) = default;
 
+	bool requiresSpecialScan(SpecialFile type, bool selfieRequired) const;
+	bool scansAreFilled(bool selfieRequired) const;
+
 	Type type;
 	ValueData data;
 	std::vector<File> scans;
-	std::vector<EditFile> scansInEdit;
+	std::map<SpecialFile, File> specialScans;
 	QString scanMissingError;
-	base::optional<File> selfie;
-	base::optional<EditFile> selfieInEdit;
+	std::vector<EditFile> scansInEdit;
+	std::map<SpecialFile, EditFile> specialScansInEdit;
 	Verification verification;
 	bytes::vector submitHash;
 
@@ -244,9 +258,16 @@ public:
 	void uploadScan(not_null<const Value*> value, QByteArray &&content);
 	void deleteScan(not_null<const Value*> value, int fileIndex);
 	void restoreScan(not_null<const Value*> value, int fileIndex);
-	void uploadSelfie(not_null<const Value*> value, QByteArray &&content);
-	void deleteSelfie(not_null<const Value*> value);
-	void restoreSelfie(not_null<const Value*> value);
+	void uploadSpecialScan(
+		not_null<const Value*> value,
+		SpecialFile type,
+		QByteArray &&content);
+	void deleteSpecialScan(
+		not_null<const Value*> value,
+		SpecialFile type);
+	void restoreSpecialScan(
+		not_null<const Value*> value,
+		SpecialFile type);
 
 	rpl::producer<> secretReadyEvents() const;
 
@@ -349,8 +370,9 @@ private:
 		not_null<const Value*> value,
 		int fileIndex,
 		bool deleted);
-	void selfieDeleteRestore(
+	void specialScanDeleteRestore(
 		not_null<const Value*> value,
+		SpecialFile type,
 		bool deleted);
 
 	QString getPhoneFromValue(not_null<const Value*> value) const;

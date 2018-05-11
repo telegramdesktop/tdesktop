@@ -92,6 +92,9 @@ EditDocumentScheme GetDocumentScheme(
 			case Value::Type::IdentityCard:
 				result.scansHeader = lang(lng_passport_identity_card);
 				break;
+			case Value::Type::InternalPassport:
+				result.scansHeader = lang(lng_passport_identity_internal);
+				break;
 			default:
 				Unexpected("scansType in GetDocumentScheme:Identity.");
 			}
@@ -173,6 +176,12 @@ EditDocumentScheme GetDocumentScheme(
 				break;
 			case Value::Type::RentalAgreement:
 				result.scansHeader = lang(lng_passport_address_agreement);
+				break;
+			case Value::Type::PassportRegistration:
+				result.scansHeader = lang(lng_passport_address_registration);
+				break;
+			case Value::Type::TemporaryRegistration:
+				result.scansHeader = lang(lng_passport_address_temporary);
 				break;
 			default:
 				Unexpected("scansType in GetDocumentScheme:Address.");
@@ -496,28 +505,30 @@ void PanelController::restoreScan(int fileIndex) {
 	_form->restoreScan(_editDocument, fileIndex);
 }
 
-void PanelController::uploadSelfie(QByteArray &&content) {
+void PanelController::uploadSpecialScan(
+		SpecialFile type,
+		QByteArray &&content) {
 	Expects(_editScope != nullptr);
 	Expects(_editDocument != nullptr);
 	Expects(_editScope->selfieRequired);
 
-	_form->uploadSelfie(_editDocument, std::move(content));
+	_form->uploadSpecialScan(_editDocument, type, std::move(content));
 }
 
-void PanelController::deleteSelfie() {
+void PanelController::deleteSpecialScan(SpecialFile type) {
 	Expects(_editScope != nullptr);
 	Expects(_editDocument != nullptr);
 	Expects(_editScope->selfieRequired);
 
-	_form->deleteSelfie(_editDocument);
+	_form->deleteSpecialScan(_editDocument, type);
 }
 
-void PanelController::restoreSelfie() {
+void PanelController::restoreSpecialScan(SpecialFile type) {
 	Expects(_editScope != nullptr);
 	Expects(_editDocument != nullptr);
 	Expects(_editScope->selfieRequired);
 
-	_form->restoreSelfie(_editDocument);
+	_form->restoreSpecialScan(_editDocument, type);
 }
 
 rpl::producer<ScanInfo> PanelController::scanUpdated() const {
@@ -566,15 +577,23 @@ ScanInfo PanelController::collectScanInfo(const EditFile &file) const {
 			return formatDownloadText(0, file.fields.size);
 		}
 	}();
-	auto isSelfie = (file.value == _editDocument)
-		&& (_editDocument->selfieInEdit.has_value())
-		&& (&file == &*_editDocument->selfieInEdit);
+	const auto specialType = [&]() -> base::optional<SpecialFile> {
+		if (file.value != _editDocument) {
+			return base::none;
+		}
+		for (const auto &[type, scan] : _editDocument->specialScansInEdit) {
+			if (&file == &scan) {
+				return type;
+			}
+		}
+		return base::none;
+	}();
 	return {
 		FileKey{ file.fields.id, file.fields.dcId },
 		!file.fields.error.isEmpty() ? file.fields.error : status,
 		file.fields.image,
 		file.deleted,
-		isSelfie,
+		specialType,
 		file.fields.error };
 }
 
@@ -593,8 +612,8 @@ std::vector<ScopeError> PanelController::collectErrors(
 	for (const auto &scan : value->scansInEdit) {
 		addFileError(scan);
 	}
-	if (value->selfieInEdit) {
-		addFileError(*value->selfieInEdit);
+	for (const auto &[type, scan] : value->specialScansInEdit) {
+		addFileError(scan);
 	}
 	for (const auto &[key, value] : value->data.parsedInEdit.fields) {
 		if (!value.error.isEmpty()) {
@@ -635,7 +654,7 @@ bool PanelController::hasValueDocument() const {
 	}
 	return !_editDocument->data.parsed.fields.empty()
 		|| !_editDocument->scans.empty()
-		|| _editDocument->selfie.has_value();
+		|| !_editDocument->specialScans.empty();
 }
 
 bool PanelController::hasValueFields() const {
@@ -748,13 +767,15 @@ void PanelController::ensurePanelCreated() {
 	}
 }
 
-int PanelController::findNonEmptyIndex(
-		const std::vector<not_null<const Value*>> &files) const {
-	const auto i = ranges::find_if(files, [](not_null<const Value*> file) {
-		return !file->scans.empty();
-	});
-	if (i != end(files)) {
-		return (i - begin(files));
+int PanelController::findNonEmptyDocumentIndex(const Scope &scope) const {
+	const auto &documents = scope.documents;
+	const auto i = ranges::find_if(
+		documents,
+		[&](not_null<const Value*> document) {
+			return document->scansAreFilled(scope.selfieRequired);
+		});
+	if (i != end(documents)) {
+		return (i - begin(documents));
 	}
 	return -1;
 }
@@ -764,14 +785,14 @@ void PanelController::editScope(int index) {
 	Expects(_panel != nullptr);
 	Expects(index >= 0 && index < _scopes.size());
 
-	if (_scopes[index].documents.empty()) {
+	const auto &scope = _scopes[index];
+	if (scope.documents.empty()) {
 		editScope(index, -1);
 	} else {
-		const auto documentIndex = findNonEmptyIndex(
-			_scopes[index].documents);
+		const auto documentIndex = findNonEmptyDocumentIndex(scope);
 		if (documentIndex >= 0) {
 			editScope(index, documentIndex);
-		} else if (_scopes[index].documents.size() > 1) {
+		} else if (scope.documents.size() > 1) {
 			requestScopeFilesType(index);
 		} else {
 			editWithUpload(index, 0);
@@ -802,6 +823,8 @@ void PanelController::requestScopeFilesType(int index) {
 						return lang(lng_passport_identity_card);
 					case Value::Type::DriverLicense:
 						return lang(lng_passport_identity_license);
+					case Value::Type::InternalPassport:
+						return lang(lng_passport_identity_internal);
 					default:
 						Unexpected("IdentityType in requestScopeFilesType");
 					}
@@ -823,6 +846,10 @@ void PanelController::requestScopeFilesType(int index) {
 						return lang(lng_passport_address_statement);
 					case Value::Type::RentalAgreement:
 						return lang(lng_passport_address_agreement);
+					case Value::Type::PassportRegistration:
+						return lang(lng_passport_address_registration);
+					case Value::Type::TemporaryRegistration:
+						return lang(lng_passport_address_temporary);
 					default:
 						Unexpected("AddressType in requestScopeFilesType");
 					}
@@ -842,7 +869,13 @@ void PanelController::editWithUpload(int index, int documentIndex) {
 	EditScans::ChooseScan(_panel.get(), [=](QByteArray &&content) {
 		base::take(_scopeDocumentTypeBox);
 		editScope(index, documentIndex);
-		uploadScan(std::move(content));
+		if (_scopes[index].documents[documentIndex]->requiresSpecialScan(
+				SpecialFile::FrontSide,
+				false)) {
+			uploadSpecialScan(SpecialFile::FrontSide, std::move(content));
+		} else {
+			uploadScan(std::move(content));
+		}
 	}, [=](ReadScanError error) {
 		readScanError(error);
 	});
@@ -897,9 +930,7 @@ void PanelController::editScope(int index, int documentIndex) {
 					_editDocument->data.parsedInEdit,
 					_editDocument->scanMissingError,
 					valueFiles(*_editDocument),
-					(_editScope->selfieRequired
-						? valueSelfie(*_editDocument)
-						: nullptr))
+					valueSpecialFiles(*_editDocument))
 				: object_ptr<PanelEditDocument>(
 					_panel.get(),
 					this,
@@ -1050,13 +1081,26 @@ std::vector<ScanInfo> PanelController::valueFiles(
 	return result;
 }
 
-std::unique_ptr<ScanInfo> PanelController::valueSelfie(
+std::map<SpecialFile, ScanInfo> PanelController::valueSpecialFiles(
 		const Value &value) const {
-	if (value.selfieInEdit) {
-		return std::make_unique<ScanInfo>(
-			collectScanInfo(*value.selfieInEdit));
+	auto result = std::map<SpecialFile, ScanInfo>();
+	const auto types = {
+		SpecialFile::FrontSide,
+		SpecialFile::ReverseSide,
+		SpecialFile::Selfie
+	};
+	for (const auto type : types) {
+		if (value.requiresSpecialScan(type, _editScope->selfieRequired)) {
+			const auto i = value.specialScansInEdit.find(type);
+			const auto j = result.emplace(
+				type,
+				(i != end(value.specialScansInEdit)
+					? collectScanInfo(i->second)
+					: ScanInfo())).first;
+			j->second.special = type;
+		}
 	}
-	return std::make_unique<ScanInfo>();
+	return result;
 }
 
 void PanelController::cancelValueEdit() {

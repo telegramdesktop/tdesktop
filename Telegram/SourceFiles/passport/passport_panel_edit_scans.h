@@ -26,6 +26,7 @@ class Button;
 
 namespace Passport {
 
+enum class SpecialFile;
 class PanelController;
 class ScanButton;
 struct ScanInfo;
@@ -44,8 +45,11 @@ public:
 		not_null<PanelController*> controller,
 		const QString &header,
 		const QString &errorMissing,
-		std::vector<ScanInfo> &&files,
-		std::unique_ptr<ScanInfo> &&selfie);
+		std::vector<ScanInfo> &&files);
+	EditScans(
+		QWidget *parent,
+		not_null<PanelController*> controller,
+		std::map<SpecialFile, ScanInfo> &&specialFiles);
 
 	base::optional<int> validateGetErrorTop();
 
@@ -54,21 +58,31 @@ public:
 		base::lambda<void(QByteArray&&)> doneCallback,
 		base::lambda<void(ReadScanError)> errorCallback);
 
+	~EditScans();
+
 private:
-	void setupContent(const QString &header);
+	struct SpecialScan;
+
+	void setupScans(const QString &header);
+	void setupSpecialScans(std::map<SpecialFile, ScanInfo> &&files);
+	void init();
+
 	void chooseScan();
-	void chooseSelfie();
+	void chooseSpecialScan(SpecialFile type);
 	void updateScan(ScanInfo &&info);
-	void updateSelfie(ScanInfo &&info);
+	void updateSpecialScan(SpecialFile type, ScanInfo &&info);
 	void updateFileRow(
 		not_null<ScanButton*> button,
 		const ScanInfo &info);
 	void pushScan(const ScanInfo &info);
-	void createSelfieRow(const ScanInfo &info);
+	void createSpecialScanRow(
+		SpecialScan &scan,
+		const ScanInfo &info);
 	base::unique_qptr<Ui::SlideWrap<ScanButton>> createScan(
 		not_null<Ui::VerticalLayout*> parent,
 		const ScanInfo &info,
 		const QString &name);
+	SpecialScan &findSpecialScan(SpecialFile type);
 
 	rpl::producer<QString> uploadButtonText() const;
 
@@ -77,13 +91,12 @@ private:
 	void errorAnimationCallback();
 	bool uploadedSomeMore() const;
 
-	void toggleSelfieError(bool shown);
-	void hideSelfieError();
-	void selfieErrorAnimationCallback();
+	void toggleSpecialScanError(SpecialFile type, bool shown);
+	void hideSpecialScanError(SpecialFile type);
+	void specialScanErrorAnimationCallback(SpecialFile type);
 
 	not_null<PanelController*> _controller;
 	std::vector<ScanInfo> _files;
-	std::unique_ptr<ScanInfo> _selfie;
 	int _initialCount = 0;
 	QString _errorMissing;
 
@@ -98,12 +111,7 @@ private:
 	bool _errorShown = false;
 	Animation _errorAnimation;
 
-	QPointer<Ui::SlideWrap<Ui::FlatLabel>> _selfieHeader;
-	QPointer<Ui::VerticalLayout> _selfieWrap;
-	base::unique_qptr<Ui::SlideWrap<ScanButton>> _selfieRow;
-	QPointer<Info::Profile::Button> _selfieUpload;
-	bool _selfieErrorShown = false;
-	Animation _selfieErrorAnimation;
+	std::map<SpecialFile, SpecialScan> _specialScans;
 
 };
 

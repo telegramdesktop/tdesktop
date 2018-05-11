@@ -177,12 +177,15 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 				case mtpc_secureValueTypePassport:
 				case mtpc_secureValueTypeDriverLicense:
 				case mtpc_secureValueTypeIdentityCard:
+				case mtpc_secureValueTypeInternalPassport:
 					return lang(lng_action_secure_proof_of_identity);
 				case mtpc_secureValueTypeAddress:
 					return lang(lng_action_secure_address);
 				case mtpc_secureValueTypeUtilityBill:
 				case mtpc_secureValueTypeBankStatement:
 				case mtpc_secureValueTypeRentalAgreement:
+				case mtpc_secureValueTypePassportRegistration:
+				case mtpc_secureValueTypeTemporaryRegistration:
 					return lang(lng_action_secure_proof_of_address);
 				case mtpc_secureValueTypePhone:
 					return lang(lng_action_secure_phone);

@@ -213,7 +213,7 @@ PanelEditDocument::PanelEditDocument(
 	const ValueMap &scanData,
 	const QString &missingScansError,
 	std::vector<ScanInfo> &&files,
-	std::unique_ptr<ScanInfo> &&selfie)
+	std::map<SpecialFile, ScanInfo> &&specialFiles)
 : _controller(controller)
 , _scheme(std::move(scheme))
 , _scroll(this, st::passportPanelScroll)
@@ -228,7 +228,7 @@ PanelEditDocument::PanelEditDocument(
 		&scanData,
 		missingScansError,
 		std::move(files),
-		std::move(selfie));
+		std::move(specialFiles));
 }
 
 PanelEditDocument::PanelEditDocument(
@@ -245,7 +245,7 @@ PanelEditDocument::PanelEditDocument(
 		this,
 		langFactory(lng_passport_save_value),
 		st::passportPanelSaveValue) {
-	setupControls(data, nullptr, QString(), {}, nullptr);
+	setupControls(data, nullptr, QString(), {}, {});
 }
 
 void PanelEditDocument::setupControls(
@@ -253,13 +253,13 @@ void PanelEditDocument::setupControls(
 		const ValueMap *scanData,
 		const QString &missingScansError,
 		std::vector<ScanInfo> &&files,
-		std::unique_ptr<ScanInfo> &&selfie) {
+		std::map<SpecialFile, ScanInfo> &&specialFiles) {
 	const auto inner = setupContent(
 		data,
 		scanData,
 		missingScansError,
 		std::move(files),
-		std::move(selfie));
+		std::move(specialFiles));
 
 	using namespace rpl::mappers;
 
@@ -277,7 +277,7 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 		const ValueMap *scanData,
 		const QString &missingScansError,
 		std::vector<ScanInfo> &&files,
-		std::unique_ptr<ScanInfo> &&selfie) {
+		std::map<SpecialFile, ScanInfo> &&specialFiles) {
 	const auto inner = _scroll->setOwnedWidget(
 		object_ptr<Ui::VerticalLayout>(this));
 	_scroll->widthValue(
@@ -285,15 +285,23 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 		inner->resizeToWidth(width);
 	}, inner->lifetime());
 
-	if (scanData) {
+	if (!specialFiles.empty()) {
+		_editScans = inner->add(
+			object_ptr<EditScans>(
+				inner,
+				_controller,
+//				_scheme.scansHeader,
+//				missingScansError,
+//				std::move(files),
+				std::move(specialFiles)));
+	} else if (scanData) {
 		_editScans = inner->add(
 			object_ptr<EditScans>(
 				inner,
 				_controller,
 				_scheme.scansHeader,
 				missingScansError,
-				std::move(files),
-				std::move(selfie)));
+				std::move(files)));
 	} else {
 		inner->add(object_ptr<BoxContentDivider>(
 			inner,

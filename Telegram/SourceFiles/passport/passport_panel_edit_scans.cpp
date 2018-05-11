@@ -106,6 +106,19 @@ private:
 
 };
 
+struct EditScans::SpecialScan {
+	SpecialScan(ScanInfo &&file);
+
+	ScanInfo file;
+	QPointer<Ui::SlideWrap<Ui::FlatLabel>> header;
+	QPointer<Ui::VerticalLayout> wrap;
+	base::unique_qptr<Ui::SlideWrap<ScanButton>> row;
+	QPointer<Info::Profile::Button> upload;
+	bool errorShown = false;
+	Animation errorAnimation;
+
+};
+
 ScanButton::ScanButton(
 	QWidget *parent,
 	const style::PassportScanRow &st,
@@ -235,21 +248,34 @@ void ScanButton::paintEvent(QPaintEvent *e) {
 		width());
 }
 
+EditScans::SpecialScan::SpecialScan(ScanInfo &&file)
+: file(std::move(file)) {
+}
+
 EditScans::EditScans(
 	QWidget *parent,
 	not_null<PanelController*> controller,
 	const QString &header,
 	const QString &errorMissing,
-	std::vector<ScanInfo> &&files,
-	std::unique_ptr<ScanInfo> &&selfie)
+	std::vector<ScanInfo> &&files)
 : RpWidget(parent)
 , _controller(controller)
 , _files(std::move(files))
-, _selfie(std::move(selfie))
 , _initialCount(_files.size())
 , _errorMissing(errorMissing)
 , _content(this) {
-	setupContent(header);
+	setupScans(header);
+}
+
+EditScans::EditScans(
+	QWidget *parent,
+	not_null<PanelController*> controller,
+	std::map<SpecialFile, ScanInfo> &&specialFiles)
+: RpWidget(parent)
+, _controller(controller)
+, _initialCount(-1)
+, _content(this) {
+	setupSpecialScans(std::move(specialFiles));
 }
 
 bool EditScans::uploadedSomeMore() const {
@@ -261,6 +287,13 @@ bool EditScans::uploadedSomeMore() const {
 }
 
 base::optional<int> EditScans::validateGetErrorTop() {
+	auto result = base::optional<int>();
+	const auto suggestResult = [&](int value) {
+		if (!result || *result > value) {
+			result = value;
+		}
+	};
+
 	const auto exists = ranges::find_if(
 		_files,
 		[](const ScanInfo &file) { return !file.deleted; }) != end(_files);
@@ -269,11 +302,10 @@ base::optional<int> EditScans::validateGetErrorTop() {
 		[](const ScanInfo &file) { return !file.error.isEmpty(); }
 	) != end(_files);
 
-	auto result = base::optional<int>();
-	if (!exists
-		|| ((errorExists || _uploadMoreError) && !uploadedSomeMore())) {
+	if (_upload && (!exists
+		|| ((errorExists || _uploadMoreError) && !uploadedSomeMore()))) {
 		toggleError(true);
-		result = (_files.size() > 5) ? _upload->y() : _header->y();
+		suggestResult((_files.size() > 5) ? _upload->y() : _header->y());
 	}
 
 	const auto nonDeletedErrorIt = ranges::find_if(
@@ -283,24 +315,21 @@ base::optional<int> EditScans::validateGetErrorTop() {
 		});
 	if (nonDeletedErrorIt != end(_files)) {
 		const auto index = (nonDeletedErrorIt - begin(_files));
-		toggleError(true);
-		if (!result) {
-			result = _rows[index]->y();
-		}
+//		toggleError(true);
+		suggestResult(_rows[index]->y());
 	}
-	if (_selfie
-		&& (!_selfie->key.id
-			|| _selfie->deleted
-			|| !_selfie->error.isEmpty())) {
-		toggleSelfieError(true);
-		if (!result) {
-			result = _selfieHeader->y();
+	for (const auto &[type, scan] : _specialScans) {
+		if (!scan.file.key.id
+			|| scan.file.deleted
+			|| !scan.file.error.isEmpty()) {
+			toggleSpecialScanError(type, true);
+			suggestResult(scan.header->y());
 		}
 	}
 	return result;
 }
 
-void EditScans::setupContent(const QString &header) {
+void EditScans::setupScans(const QString &header) {
 	const auto inner = _content.data();
 	inner->move(0, 0);
 
@@ -356,43 +385,92 @@ void EditScans::setupContent(const QString &header) {
 		inner,
 		st::passportFormDividerHeight));
 
-	if (_selfie) {
-		_selfieHeader = inner->add(
+	init();
+}
+
+void EditScans::setupSpecialScans(std::map<SpecialFile, ScanInfo> &&files) {
+	const auto title = [](SpecialFile type) {
+		switch (type) {
+		case SpecialFile::FrontSide:
+			return lang(lng_passport_front_side_title);
+		case SpecialFile::ReverseSide:
+			return lang(lng_passport_reverse_side_title);
+		case SpecialFile::Selfie:
+			return lang(lng_passport_selfie_title);
+		}
+		Unexpected("Type in special row title.");
+	};
+	const auto uploadKey = [](SpecialFile type) {
+		switch (type) {
+		case SpecialFile::FrontSide:
+			return lng_passport_upload_front_side;
+		case SpecialFile::ReverseSide:
+			return lng_passport_upload_reverse_side;
+		case SpecialFile::Selfie:
+			return lng_passport_upload_selfie;
+		}
+		Unexpected("Type in special row upload key.");
+	};
+	const auto description = [](SpecialFile type) {
+		switch (type) {
+		case SpecialFile::FrontSide:
+			return lang(lng_passport_front_side_description);
+		case SpecialFile::ReverseSide:
+			return lang(lng_passport_reverse_side_description);
+		case SpecialFile::Selfie:
+			return lang(lng_passport_selfie_description);
+		}
+		Unexpected("Type in special row upload key.");
+	};
+
+	const auto inner = _content.data();
+	inner->move(0, 0);
+	for (auto &[type, info] : files) {
+		const auto i = _specialScans.emplace(
+			type,
+			SpecialScan(std::move(info))).first;
+		auto &scan = i->second;
+
+		scan.header = inner->add(
 			object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
 				inner,
 				object_ptr<Ui::FlatLabel>(
 					inner,
-					lang(lng_passport_selfie_title),
+					title(type),
 					Ui::FlatLabel::InitType::Simple,
 					st::passportFormHeader),
 				st::passportUploadHeaderPadding));
-		_selfieHeader->toggle(_selfie->key.id != 0, anim::type::instant);
-		_selfieWrap = inner->add(object_ptr<Ui::VerticalLayout>(inner));
-		if (_selfie->key.id) {
-			createSelfieRow(*_selfie);
+		scan.header->toggle(scan.file.key.id != 0, anim::type::instant);
+		scan.wrap = inner->add(object_ptr<Ui::VerticalLayout>(inner));
+		if (scan.file.key.id) {
+			createSpecialScanRow(scan, scan.file);
 		}
-		_selfieUpload = inner->add(
+		scan.upload = inner->add(
 			object_ptr<Info::Profile::Button>(
 				inner,
 				Lang::Viewer(
-					lng_passport_upload_selfie
+					uploadKey(type)
 				) | Info::Profile::ToUpperValue(),
 				st::passportUploadButton),
 			st::passportUploadButtonPadding);
-		_selfieUpload->addClickHandler([=] {
-			chooseSelfie();
+		scan.upload->addClickHandler([=] {
+			chooseSpecialScan(type);
 		});
 
 		inner->add(object_ptr<PanelLabel>(
 			inner,
 			object_ptr<Ui::FlatLabel>(
 				_content,
-				lang(lng_passport_selfie_description),
+				description(type),
 				Ui::FlatLabel::InitType::Simple,
 				st::passportFormLabel),
 			st::passportFormLabelPadding));
 	}
 
+	init();
+}
+
+void EditScans::init() {
 	_controller->scanUpdated(
 	) | rpl::start_with_next([=](ScanInfo &&info) {
 		updateScan(std::move(info));
@@ -410,8 +488,8 @@ void EditScans::setupContent(const QString &header) {
 }
 
 void EditScans::updateScan(ScanInfo &&info) {
-	if (info.selfie) {
-		updateSelfie(std::move(info));
+	if (info.special) {
+		updateSpecialScan(*info.special, std::move(info));
 		return;
 	}
 	const auto i = ranges::find(_files, info.key, [](const ScanInfo &file) {
@@ -438,24 +516,26 @@ void EditScans::updateScan(ScanInfo &&info) {
 	}
 }
 
-void EditScans::updateSelfie(ScanInfo &&info) {
+void EditScans::updateSpecialScan(SpecialFile type, ScanInfo &&info) {
 	Expects(info.key.id != 0);
 
-	if (!_selfie) {
+	const auto i = _specialScans.find(type);
+	if (i == end(_specialScans)) {
 		return;
 	}
-	if (_selfie->key.id) {
-		updateFileRow(_selfieRow->entity(), info);
+	auto &scan = i->second;
+	if (scan.file.key.id) {
+		updateFileRow(scan.row->entity(), info);
 		if (!info.deleted) {
-			hideSelfieError();
+			hideSpecialScanError(type);
 		}
 	} else {
-		createSelfieRow(info);
-		_selfieWrap->resizeToWidth(width());
-		_selfieRow->show(anim::type::normal);
-		_selfieHeader->show(anim::type::normal);
+		createSpecialScanRow(scan, info);
+		scan.wrap->resizeToWidth(width());
+		scan.row->show(anim::type::normal);
+		scan.header->show(anim::type::normal);
 	}
-	*_selfie = std::move(info);
+	scan.file = std::move(info);
 }
 
 void EditScans::updateFileRow(
@@ -468,24 +548,37 @@ void EditScans::updateFileRow(
 };
 
 
-void EditScans::createSelfieRow(const ScanInfo &info) {
-	_selfieRow = createScan(
-		_selfieWrap,
-		info,
-		lang(lng_passport_selfie_name));
-	const auto row = _selfieRow->entity();
+void EditScans::createSpecialScanRow(
+		SpecialScan &scan,
+		const ScanInfo &info) {
+	Expects(scan.file.special.has_value());
+
+	const auto type = *scan.file.special;
+	const auto name = [&] {
+		switch (type) {
+		case SpecialFile::FrontSide:
+			return lang(lng_passport_front_side_name);
+		case SpecialFile::ReverseSide:
+			return lang(lng_passport_reverse_side_name);
+		case SpecialFile::Selfie:
+			return lang(lng_passport_selfie_name);
+		}
+		Unexpected("Type in special file name.");
+	}();
+	scan.row = createScan(scan.wrap, info, name);
+	const auto row = scan.row->entity();
 
 	row->deleteClicks(
 	) | rpl::start_with_next([=] {
-		_controller->deleteSelfie();
+		_controller->deleteSpecialScan(type);
 	}, row->lifetime());
 
 	row->restoreClicks(
 	) | rpl::start_with_next([=] {
-		_controller->restoreSelfie();
+		_controller->restoreSpecialScan(type);
 	}, row->lifetime());
 
-	hideSelfieError();
+	hideSpecialScanError(type);
 }
 
 void EditScans::pushScan(const ScanInfo &info) {
@@ -541,9 +634,9 @@ void EditScans::chooseScan() {
 	});
 }
 
-void EditScans::chooseSelfie() {
+void EditScans::chooseSpecialScan(SpecialFile type) {
 	ChooseScan(this, [=](QByteArray &&content) {
-		_controller->uploadSelfie(std::move(content));
+		_controller->uploadSpecialScan(type, std::move(content));
 	}, [=](ReadScanError error) {
 		_controller->readScanError(error);
 	});
@@ -643,32 +736,42 @@ void EditScans::errorAnimationCallback() {
 	}
 }
 
-void EditScans::hideSelfieError() {
-	toggleSelfieError(false);
+void EditScans::hideSpecialScanError(SpecialFile type) {
+	toggleSpecialScanError(type, false);
 }
 
-void EditScans::toggleSelfieError(bool shown) {
-	if (_selfieErrorShown != shown) {
-		_selfieErrorShown = shown;
-		_selfieErrorAnimation.start(
-			[=] { selfieErrorAnimationCallback(); },
-			_selfieErrorShown ? 0. : 1.,
-			_selfieErrorShown ? 1. : 0.,
+auto EditScans::findSpecialScan(SpecialFile type) -> SpecialScan& {
+	const auto i = _specialScans.find(type);
+	Assert(i != end(_specialScans));
+	return i->second;
+}
+
+void EditScans::toggleSpecialScanError(SpecialFile type, bool shown) {
+	auto &scan = findSpecialScan(type);
+	if (scan.errorShown != shown) {
+		scan.errorShown = shown;
+		scan.errorAnimation.start(
+			[=] { specialScanErrorAnimationCallback(type); },
+			scan.errorShown ? 0. : 1.,
+			scan.errorShown ? 1. : 0.,
 			st::passportDetailsField.duration);
 	}
 }
 
-void EditScans::selfieErrorAnimationCallback() {
-	const auto error = _selfieErrorAnimation.current(
-		_selfieErrorShown ? 1. : 0.);
+void EditScans::specialScanErrorAnimationCallback(SpecialFile type) {
+	auto &scan = findSpecialScan(type);
+	const auto error = scan.errorAnimation.current(
+		scan.errorShown ? 1. : 0.);
 	if (error == 0.) {
-		_selfieUpload->setColorOverride(base::none);
+		scan.upload->setColorOverride(base::none);
 	} else {
-		_selfieUpload->setColorOverride(anim::color(
+		scan.upload->setColorOverride(anim::color(
 			st::passportUploadButton.textFg,
 			st::boxTextFgError,
 			error));
 	}
 }
+
+EditScans::~EditScans() = default;
 
 } // namespace Passport
