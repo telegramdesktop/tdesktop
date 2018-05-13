@@ -942,10 +942,13 @@ void Instance::Private::importDone(const MTPauth_Authorization &result, mtpReque
 	const auto shiftedDcId = queryRequestByDc(requestId);
 	if (!shiftedDcId) {
 		LOG(("MTP Error: auth import request not found in requestsByDC, requestId: %1").arg(requestId));
-		RPCError error(internal::rpcClientError("AUTH_IMPORT_FAIL", QString("did not find import request in requestsByDC, request %1").arg(requestId)));
-		if (_globalHandler.onFail && hasAuthorization()) {
-			(*_globalHandler.onFail)(requestId, error); // auth failed in main dc
-		}
+		//
+		// Don't log out on export/import problems, perhaps this is a server side error.
+		//
+		//RPCError error(internal::rpcClientError("AUTH_IMPORT_FAIL", QString("did not find import request in requestsByDC, request %1").arg(requestId)));
+		//if (_globalHandler.onFail && hasAuthorization()) {
+		//	(*_globalHandler.onFail)(requestId, error); // auth failed in main dc
+		//}
 		return;
 	}
 	auto newdc = bareDcId(*shiftedDcId);
@@ -980,9 +983,12 @@ void Instance::Private::importDone(const MTPauth_Authorization &result, mtpReque
 bool Instance::Private::importFail(const RPCError &error, mtpRequestId requestId) {
 	if (isDefaultHandledError(error)) return false;
 
-	if (_globalHandler.onFail && hasAuthorization()) {
-		(*_globalHandler.onFail)(requestId, error); // auth import failed
-	}
+	//
+	// Don't log out on export/import problems, perhaps this is a server side error.
+	//
+	//if (_globalHandler.onFail && hasAuthorization()) {
+	//	(*_globalHandler.onFail)(requestId, error); // auth import failed
+	//}
 	return true;
 }
 
@@ -990,10 +996,13 @@ void Instance::Private::exportDone(const MTPauth_ExportedAuthorization &result, 
 	auto it = _authExportRequests.find(requestId);
 	if (it == _authExportRequests.cend()) {
 		LOG(("MTP Error: auth export request target dcWithShift not found, requestId: %1").arg(requestId));
-		RPCError error(internal::rpcClientError("AUTH_IMPORT_FAIL", QString("did not find target dcWithShift, request %1").arg(requestId)));
-		if (_globalHandler.onFail && hasAuthorization()) {
-			(*_globalHandler.onFail)(requestId, error); // auth failed in main dc
-		}
+		//
+		// Don't log out on export/import problems, perhaps this is a server side error.
+		//
+		//RPCError error(internal::rpcClientError("AUTH_IMPORT_FAIL", QString("did not find target dcWithShift, request %1").arg(requestId)));
+		//if (_globalHandler.onFail && hasAuthorization()) {
+		//	(*_globalHandler.onFail)(requestId, error); // auth failed in main dc
+		//}
 		return;
 	}
 
@@ -1013,9 +1022,12 @@ bool Instance::Private::exportFail(const RPCError &error, mtpRequestId requestId
 	if (it != _authExportRequests.cend()) {
 		_authWaiters[bareDcId(it->second)].clear();
 	}
-	if (_globalHandler.onFail && hasAuthorization()) {
-		(*_globalHandler.onFail)(requestId, error); // auth failed in main dc
-	}
+	//
+	// Don't log out on export/import problems, perhaps this is a server side error.
+	//
+	//if (_globalHandler.onFail && hasAuthorization()) {
+	//	(*_globalHandler.onFail)(requestId, error); // auth failed in main dc
+	//}
 	return true;
 }
 

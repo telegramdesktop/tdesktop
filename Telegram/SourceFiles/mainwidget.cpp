@@ -3717,8 +3717,11 @@ void MainWidget::start(const MTPUser *self) {
 	if (!self) {
 		MTP::send(MTPusers_GetFullUser(MTP_inputUserSelf()), rpcDone(&MainWidget::startWithSelf));
 		return;
-	}
-	if (!Auth().validateSelf(*self)) {
+	} else if (!Auth().validateSelf(*self)) {
+		constexpr auto kRequestUserAgainTimeout = TimeMs(10000);
+		App::CallDelayed(kRequestUserAgainTimeout, this, [=] {
+			MTP::send(MTPusers_GetFullUser(MTP_inputUserSelf()), rpcDone(&MainWidget::startWithSelf));
+		});
 		return;
 	}
 
