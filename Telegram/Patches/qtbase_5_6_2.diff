@@ -221,6 +221,19 @@ index f74d4d4229..8ad672c9fe 100644
  };
  
  
+diff --git a/src/network/access/qhttpnetworkconnection.cpp b/src/network/access/qhttpnetworkconnection.cpp
+index c4cb8e65c0..45793e364f 100644
+--- a/src/network/access/qhttpnetworkconnection.cpp
++++ b/src/network/access/qhttpnetworkconnection.cpp
+@@ -110,6 +110,8 @@ QHttpNetworkConnectionPrivate::~QHttpNetworkConnectionPrivate()
+ {
+     for (int i = 0; i < channelCount; ++i) {
+         if (channels[i].socket) {
++            // Patch: backport critical bugfix from '4f959b6b30' commit.
++            QObject::disconnect(channels[i].socket, Q_NULLPTR, &channels[i], Q_NULLPTR);
+             channels[i].socket->close();
+             delete channels[i].socket;
+         }
 diff --git a/src/network/socket/qnativesocketengine_win.cpp b/src/network/socket/qnativesocketengine_win.cpp
 index 41834b21ae..8cdf4ab145 100644
 --- a/src/network/socket/qnativesocketengine_win.cpp
