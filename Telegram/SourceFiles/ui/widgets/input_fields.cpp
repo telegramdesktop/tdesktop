@@ -204,8 +204,8 @@ void FlatTextarea::addInstantReplace(
 		const QString &what,
 		const QString &with) {
 	auto node = &_reverseInstantReplaces;
-	for (const auto ch : base::reversed(what)) {
-		node = &node->tail.emplace(ch, InstantReplaceNode()).first->second;
+	for (auto i = what.end(), b = what.begin(); i != b;) {
+		node = &node->tail.emplace(*--i, InstantReplaceNode()).first->second;
 	}
 	node->text = with;
 	accumulate_max(_instantReplaceMaxLength, int(what.size()));

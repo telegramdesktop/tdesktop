@@ -219,6 +219,20 @@ index ca7afb7d1b9..25ae50008db 100644
      fd->styleName = (CFStringRef)CTFontDescriptorCopyAttribute(font, kCTFontStyleNameAttribute);
      fd->weight = QFont::Normal;
      fd->style = QFont::StyleNormal;
+diff --git a/src/platformsupport/fontdatabases/mac/qfontengine_coretext.mm b/src/platformsupport/fontdatabases/mac/qfontengine_coretext.mm
+index 6e2c8a2a9af..3cace8abcbc 100644
+--- a/src/platformsupport/fontdatabases/mac/qfontengine_coretext.mm
++++ b/src/platformsupport/fontdatabases/mac/qfontengine_coretext.mm
+@@ -717,7 +717,8 @@ void QCoreTextFontEngine::getUnscaledGlyph(glyph_t, QPainterPath *, glyph_metric
+ 
+ QFixed QCoreTextFontEngine::emSquareSize() const
+ {
+-    return QFixed::QFixed(int(CTFontGetUnitsPerEm(ctfont)));
++    // Patch: Fix build for Xcode 9.3.1.
++    return QFixed(int(CTFontGetUnitsPerEm(ctfont)));
+ }
+ 
+ QFontEngine *QCoreTextFontEngine::cloneWithSize(qreal pixelSize) const
 diff --git a/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm b/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
 index 92358ecc745..694fee73507 100644
 --- a/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
