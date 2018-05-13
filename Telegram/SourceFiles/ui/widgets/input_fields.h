@@ -16,7 +16,7 @@ namespace Ui {
 
 static UserData * const LookingUpInlineBot = SharedMemoryLocation<UserData, 0>();
 
-class FlatTextarea : public TWidgetHelper<QTextEdit>, private base::Subscriber {
+class FlatTextarea : public TWidgetHelper<QTextEdit>, protected base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -32,7 +32,13 @@ public:
 	void setMinHeight(int minHeight);
 	void setMaxHeight(int maxHeight);
 
+	void enableInstantReplaces(bool enabled);
 	void addInstantReplace(const QString &what, const QString &with);
+	void commmitInstantReplacement(
+		int from,
+		int till,
+		const QString &with,
+		base::optional<QString> checkOriginal = base::none);
 
 	void setPlaceholder(base::lambda<QString()> placeholderFactory, int afterSymbols = 0);
 	void updatePlaceholder();
@@ -230,6 +236,7 @@ private:
 
 	int _instantReplaceMaxLength = 0;
 	InstantReplaceNode _reverseInstantReplaces;
+	bool _instantReplacesEnabled = true;
 
 };
 

@@ -361,7 +361,10 @@ DeclareVar(QString, DownloadPath);
 DeclareVar(QByteArray, DownloadPathBookmark);
 DeclareRefVar(base::Observable<void>, DownloadPathChanged);
 
+DeclareVar(bool, ReplaceEmoji);
+DeclareVar(bool, SuggestEmoji);
 DeclareVar(bool, SuggestStickersByEmoji);
+DeclareRefVar(base::Observable<void>, ReplaceEmojiChanged);
 DeclareVar(bool, SoundNotify);
 DeclareVar(bool, DesktopNotify);
 DeclareVar(bool, RestoreSoundNotifyFromTray);

@@ -346,11 +346,14 @@ void SuggestionsWidget::leaveEventHook(QEvent *e) {
 	return TWidget::leaveEventHook(e);
 }
 
-SuggestionsController::SuggestionsController(QWidget *parent, not_null<QTextEdit*> field) : QObject(nullptr)
+SuggestionsController::SuggestionsController(QWidget *parent, not_null<QTextEdit*> field)
+: QObject(nullptr)
 , _field(field)
 , _container(parent, st::emojiSuggestionsDropdown)
 , _suggestions(_container->setOwnedWidget(object_ptr<Ui::Emoji::SuggestionsWidget>(parent, st::emojiSuggestionsMenu))) {
 	_container->setAutoHiding(false);
+
+	setReplaceCallback(nullptr);
 
 	_field->installEventFilter(this);
 	connect(_field, &QTextEdit::textChanged, this, [this] { handleTextChange(); });
@@ -361,6 +364,23 @@ SuggestionsController::SuggestionsController(QWidget *parent, not_null<QTextEdit
 	updateForceHidden();
 
 	handleTextChange();
+}
+
+void SuggestionsController::setReplaceCallback(
+	base::lambda<void(
+		int from,
+		int till,
+		const QString &replacement)> callback) {
+	if (callback) {
+		_replaceCallback = std::move(callback);
+	} else {
+		_replaceCallback = [=](int from, int till, const QString &replacement) {
+			auto cursor = _field->textCursor();
+			cursor.setPosition(from);
+			cursor.setPosition(till, QTextCursor::KeepAnchor);
+			cursor.insertText(replacement);
+		};
+	}
 }
 
 void SuggestionsController::handleTextChange() {
@@ -374,7 +394,7 @@ void SuggestionsController::handleTextChange() {
 }
 
 QString SuggestionsController::getEmojiQuery() {
-	if (!cReplaceEmojis()) {
+	if (!Global::SuggestEmoji()) {
 		return QString();
 	}
 
@@ -471,23 +491,14 @@ QString SuggestionsController::getEmojiQuery() {
 }
 
 void SuggestionsController::replaceCurrent(const QString &replacement) {
-	auto cursor = _field->textCursor();
 	auto suggestion = getEmojiQuery();
 	if (suggestion.isEmpty()) {
 		_suggestions->showWithQuery(QString());
 	} else {
-		cursor.setPosition(cursor.position() - suggestion.size(), QTextCursor::KeepAnchor);
-		cursor.insertText(replacement);
-	}
-
-	if (auto emoji = Find(replacement)) {
-		if (emoji->hasVariants()) {
-			auto it = cEmojiVariants().constFind(emoji->nonColoredId());
-			if (it != cEmojiVariants().cend()) {
-				emoji = emoji->variant(it.value());
-			}
-		}
-		AddRecent(emoji);
+		const auto cursor = _field->textCursor();
+		const auto position = cursor.position();
+		const auto from = position - suggestion.size();
+		_replaceCallback(from, position, replacement);
 	}
 }
 

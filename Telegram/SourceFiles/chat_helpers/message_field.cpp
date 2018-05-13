@@ -133,6 +133,10 @@ MessageField::MessageField(QWidget *parent, not_null<Window::Controller*> contro
 		Assert(emoji != nullptr);
 		addInstantReplace(what, emoji->text());
 	}
+	enableInstantReplaces(Global::ReplaceEmoji());
+	subscribe(Global::RefReplaceEmojiChanged(), [=] {
+		enableInstantReplaces(Global::ReplaceEmoji());
+	});
 }
 
 bool MessageField::hasSendText() const {

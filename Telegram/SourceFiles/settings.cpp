@@ -40,7 +40,6 @@ bool gRestartingUpdate = false, gRestarting = false, gRestartingToSettings = fal
 int32 gLastUpdateCheck = 0;
 bool gNoStartUpdate = false;
 bool gStartToSettings = false;
-bool gReplaceEmojis = true;
 
 bool gCtrlEnter = false;
 

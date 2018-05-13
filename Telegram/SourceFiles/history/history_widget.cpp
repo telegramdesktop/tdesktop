@@ -512,6 +512,12 @@ HistoryWidget::HistoryWidget(
 			data->text());
 	});
 	_emojiSuggestions.create(this, _field.data());
+	_emojiSuggestions->setReplaceCallback([=](
+			int from,
+			int till,
+			const QString &replacement) {
+		_field->commmitInstantReplacement(from, till, replacement);
+	});
 	updateFieldSubmitSettings();
 
 	_field->hide();

@@ -211,6 +211,10 @@ void FlatTextarea::addInstantReplace(
 	accumulate_max(_instantReplaceMaxLength, int(what.size()));
 }
 
+void FlatTextarea::enableInstantReplaces(bool enabled) {
+	_instantReplacesEnabled = enabled;
+}
+
 void FlatTextarea::updatePalette() {
 	auto p = palette();
 	p.setColor(QPalette::Text, _st.textColor->c);
@@ -1499,7 +1503,9 @@ void FlatTextarea::keyPressEvent(QKeyEvent *e) {
 }
 
 void FlatTextarea::processInstantReplaces(const QString &text) {
-	if (text.size() != 1 || !_instantReplaceMaxLength) {
+	if (text.size() != 1
+		|| !_instantReplaceMaxLength
+		|| !_instantReplacesEnabled) {
 		return;
 	}
 	const auto it = _reverseInstantReplaces.tail.find(text[0]);
@@ -1540,9 +1546,18 @@ void FlatTextarea::applyInstantReplace(
 	} else if (position < length) {
 		return;
 	}
+	commmitInstantReplacement(position - length, position, with, what);
+}
+
+void FlatTextarea::commmitInstantReplacement(
+		int from,
+		int till,
+		const QString &with,
+		base::optional<QString> checkOriginal) {
 	auto tags = QVector<TextWithTags::Tag>();
-	const auto original = getTextPart(position - length, position, &tags);
-	if (what.compare(original, Qt::CaseInsensitive) != 0) {
+	const auto original = getTextPart(from, till, &tags);
+	if (checkOriginal
+		&& checkOriginal->compare(original, Qt::CaseInsensitive) != 0) {
 		return;
 	}
 
@@ -1550,7 +1565,7 @@ void FlatTextarea::applyInstantReplace(
 		auto emojiLength = 0;
 		const auto emoji = Ui::Emoji::Find(with, &emojiLength);
 		if (!emoji || with.size() != emojiLength) {
-			return cursor.charFormat();
+			return _defaultCharFormat;
 		}
 		const auto use = [&] {
 			if (!emoji->hasVariants()) {
@@ -1562,6 +1577,7 @@ void FlatTextarea::applyInstantReplace(
 				? emoji->variant(it.value())
 				: emoji;
 		}();
+		Ui::Emoji::AddRecent(use);
 		return PrepareEmojiFormat(use, _st.font);
 	}();
 	const auto replacement = format.isImageFormat()
@@ -1570,12 +1586,10 @@ void FlatTextarea::applyInstantReplace(
 	format.setProperty(kInstantReplaceWhatId, original);
 	format.setProperty(kInstantReplaceWithId, replacement);
 	format.setProperty(kInstantReplaceRandomId, rand_value<uint32>());
-	auto replaceCursor = cursor;
-	replaceCursor.setPosition(position - length);
-	replaceCursor.setPosition(position, QTextCursor::KeepAnchor);
-	replaceCursor.insertText(
-		replacement,
-		format);
+	auto cursor = textCursor();
+	cursor.setPosition(from);
+	cursor.setPosition(till, QTextCursor::KeepAnchor);
+	cursor.insertText(replacement, format);
 }
 
 bool FlatTextarea::revertInstantReplace() {
