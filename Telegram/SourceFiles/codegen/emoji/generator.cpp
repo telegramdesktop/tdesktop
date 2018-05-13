@@ -335,6 +335,10 @@ EmojiPtr FindReplace(const QChar *start, const QChar *end, int *outLength) {\n\
 	return index ? &Items[index - 1] : nullptr;\n\
 }\n\
 \n\
+const std::vector<std::pair<QString, int>> GetReplacementPairs() {\n\
+	return ReplacementPairs;\n\
+}\n\
+\n\
 EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {\n\
 	auto index = FindIndex(start, end, outLength);\n\
 	return index ? &Items[index - 1] : nullptr;\n\
@@ -389,6 +393,7 @@ inline bool IsReplaceEdge(const QChar *ch) {\n\
 //	return false;\n\
 }\n\
 \n\
+const std::vector<std::pair<QString, int>> GetReplacementPairs();\n\
 EmojiPtr FindReplace(const QChar *ch, const QChar *end, int *outLength = nullptr);\n\
 \n";
 	header->popNamespace().stream() << "\
@@ -591,6 +596,14 @@ EmojiPack GetSection(Section section) {\n\
 bool Generator::writeFindReplace() {
 	source_->stream() << "\
 \n\
+const std::vector<std::pair<QString, int>> ReplacementPairs = {\n";
+	for (const auto &[what, index] : data_.replaces) {
+		source_->stream() << "\
+	{ qsl(\"" << what << "\"), " << index << " },\n";
+	}
+	source_->stream() << "\
+};\n\
+\n\
 int FindReplaceIndex(const QChar *start, const QChar *end, int *outLength) {\n\
 	auto ch = start;\n\
 \n";
@@ -783,6 +796,7 @@ struct Replacement {\n\
 constexpr auto kReplacementMaxLength = " << maxLength << ";\n\
 \n\
 void InitReplacements();\n\
+const std::vector<Replacement> &GetAllReplacements();\n\
 const std::vector<const Replacement*> *GetReplacements(utf16char first);\n\
 utf16string GetReplacementEmoji(utf16string replacement);\n\
 \n";
@@ -921,6 +935,10 @@ const std::vector<const Replacement*> *GetReplacements(utf16char first) {\n\
 	}\n\
 	auto it = ReplacementsMap.find(first);\n\
 	return (it == ReplacementsMap.cend()) ? nullptr : &it->second;\n\
+}\n\
+\n\
+const std::vector<Replacement> &GetAllReplacements() {\n\
+	return Replacements;\n\
 }\n\
 \n\
 utf16string GetReplacementEmoji(utf16string replacement) {\n\

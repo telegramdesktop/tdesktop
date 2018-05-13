@@ -19,6 +19,13 @@ namespace Ui {
 namespace {
 
 constexpr auto kMaxUsernameLength = 32;
+constexpr auto kInstantReplaceRandomId = QTextFormat::UserProperty;
+constexpr auto kInstantReplaceWhatId = QTextFormat::UserProperty + 1;
+constexpr auto kInstantReplaceWithId = QTextFormat::UserProperty + 2;
+const auto kObjectReplacementCh = QChar(QChar::ObjectReplacementCharacter);
+const auto kObjectReplacement = QString::fromRawData(
+	&kObjectReplacementCh,
+	1);
 
 template <typename InputClass>
 class InputStyle : public QCommonStyle {
@@ -60,6 +67,28 @@ private:
 
 template <typename InputClass>
 InputStyle<InputClass> *InputStyle<InputClass>::_instance = nullptr;
+
+template <typename Iterator>
+QString AccumulateText(Iterator begin, Iterator end) {
+	auto result = QString();
+	result.reserve(end - begin);
+	for (auto i = end; i != begin;) {
+		result.push_back(*--i);
+	}
+	return result;
+}
+
+QTextImageFormat PrepareEmojiFormat(EmojiPtr emoji, const style::font &f) {
+	const auto factor = cIntRetinaFactor();
+	const auto width = Ui::Emoji::Size() + st::emojiPadding * factor * 2;
+	const auto height = f->height * factor;
+	auto result = QTextImageFormat();
+	result.setWidth(width / factor);
+	result.setHeight(height / factor);
+	result.setName(emoji->toUrl());
+	result.setVerticalAlignment(QTextCharFormat::AlignBaseline);
+	return result;
+}
 
 } // namespace
 
@@ -122,6 +151,7 @@ FlatTextarea::FlatTextarea(QWidget *parent, const style::FlatTextarea &st, base:
 , _placeholderVisible(!v.length())
 , _lastTextWithTags { v, tags }
 , _st(st) {
+	_defaultCharFormat = textCursor().charFormat();
 
 	setCursor(style::cur_text);
 	setAcceptRichText(false);
@@ -168,6 +198,17 @@ FlatTextarea::FlatTextarea(QWidget *parent, const style::FlatTextarea &st, base:
 	if (!_lastTextWithTags.text.isEmpty()) {
 		setTextWithTags(_lastTextWithTags, ClearUndoHistory);
 	}
+}
+
+void FlatTextarea::addInstantReplace(
+		const QString &what,
+		const QString &with) {
+	auto node = &_reverseInstantReplaces;
+	for (const auto ch : base::reversed(what)) {
+		node = &node->tail.emplace(ch, InstantReplaceNode()).first->second;
+	}
+	node->text = with;
+	accumulate_max(_instantReplaceMaxLength, int(what.size()));
 }
 
 void FlatTextarea::updatePalette() {
@@ -472,7 +513,7 @@ QString FlatTextarea::getMentionHashtagBotCommandPart(bool &start) const {
 		int32 p = fr.position(), e = (p + fr.length());
 		if (p >= pos || e < pos) continue;
 
-		QTextCharFormat f = fr.charFormat();
+		const auto f = fr.charFormat();
 		if (f.isImageFormat()) continue;
 
 		bool mentionInCommand = false;
@@ -559,11 +600,7 @@ void FlatTextarea::insertTag(const QString &text, QString tagId) {
 		break;
 	}
 	if (tagId.isEmpty()) {
-		QTextCharFormat format = cursor.charFormat();
-		format.setAnchor(false);
-		format.setAnchorName(QString());
-		format.clearForeground();
-		cursor.insertText(text + ' ', format);
+		cursor.insertText(text + ' ', _defaultCharFormat);
 	} else {
 		_insertedTags.clear();
 		_insertedTags.push_back({ 0, text.size(), tagId });
@@ -597,15 +634,18 @@ void FlatTextarea::getSingleEmojiFragment(QString &text, QTextFragment &fragment
 				continue;
 			}
 
-			QTextCharFormat f = fr.charFormat();
-			QString t(fr.text());
+			const auto f = fr.charFormat();
+			auto t = fr.text();
 			if (p < start) {
 				t = t.mid(start - p, end - start);
 			} else if (e > end) {
 				t = t.mid(0, end - p);
 			}
-			if (f.isImageFormat() && !t.isEmpty() && t.at(0).unicode() == QChar::ObjectReplacementCharacter) {
-				auto imageName = static_cast<QTextImageFormat*>(&f)->name();
+			if (f.isImageFormat()
+				&& !t.isEmpty()
+				&& t[0] == kObjectReplacementCh) {
+				const auto imageName = static_cast<const QTextImageFormat*>(
+					&f)->name();
 				if (Ui::Emoji::FromUrl(imageName)) {
 					fragment = fr;
 					text = t;
@@ -743,9 +783,9 @@ QString FlatTextarea::getTextPart(int start, int end, TagList *outTagsList, bool
 				tagAccumulator.feed(fragment.charFormat().anchorName(), result.size());
 			}
 
-			QTextCharFormat f = fragment.charFormat();
+			const auto f = fragment.charFormat();
 			QString emojiText;
-			QString t(fragment.text());
+			auto t = fragment.text();
 			if (!full) {
 				if (p < start) {
 					t = t.mid(start - p, end - start);
@@ -767,8 +807,8 @@ QString FlatTextarea::getTextPart(int start, int end, TagList *outTagsList, bool
 				} break;
 				case QChar::ObjectReplacementCharacter: {
 					if (emojiText.isEmpty() && f.isImageFormat()) {
-						auto imageName = static_cast<QTextImageFormat*>(&f)->name();
-						if (auto emoji = Ui::Emoji::FromUrl(imageName)) {
+						const auto imageName = static_cast<const QTextImageFormat*>(&f)->name();
+						if (const auto emoji = Ui::Emoji::FromUrl(imageName)) {
 							emojiText = emoji->text();
 						}
 					}
@@ -929,20 +969,13 @@ void FlatTextarea::insertFromMimeData(const QMimeData *source) {
 }
 
 void FlatTextarea::insertEmoji(EmojiPtr emoji, QTextCursor c) {
-	QTextImageFormat imageFormat;
-	auto ew = Ui::Emoji::Size() + st::emojiPadding * cIntRetinaFactor() * 2;
-	auto eh = _st.font->height * cIntRetinaFactor();
-	imageFormat.setWidth(ew / cIntRetinaFactor());
-	imageFormat.setHeight(eh / cIntRetinaFactor());
-	imageFormat.setName(emoji->toUrl());
-	imageFormat.setVerticalAlignment(QTextCharFormat::AlignBaseline);
+	auto format = PrepareEmojiFormat(emoji, _st.font);
 	if (c.charFormat().isAnchor()) {
-		imageFormat.setAnchor(true);
-		imageFormat.setAnchorName(c.charFormat().anchorName());
-		imageFormat.setForeground(st::defaultTextPalette.linkFg);
+		format.setAnchor(true);
+		format.setAnchorName(c.charFormat().anchorName());
+		format.setForeground(st::defaultTextPalette.linkFg);
 	}
-	static QString objectReplacement(QChar::ObjectReplacementCharacter);
-	c.insertText(objectReplacement, imageFormat);
+	c.insertText(kObjectReplacement, format);
 }
 
 QVariant FlatTextarea::loadResource(int type, const QUrl &name) {
@@ -1054,6 +1087,7 @@ struct FormattingAction {
 		InsertEmoji,
 		TildeFont,
 		RemoveTag,
+		ClearInstantReplace,
 	};
 	Type type = Type::Invalid;
 	EmojiPtr emoji = nullptr;
@@ -1104,18 +1138,33 @@ void FlatTextarea::processFormatting(int insertPosition, int insertEnd) {
 					break;
 				}
 
-				auto charFormat = fragment.charFormat();
+				auto format = fragment.charFormat();
 				if (tildeFormatting) {
-					isTildeFragment = (charFormat.fontFamily() == tildeFixedFont);
+					isTildeFragment = (format.fontFamily() == tildeFixedFont);
 				}
 
 				auto fragmentText = fragment.text();
 				auto *textStart = fragmentText.constData();
 				auto *textEnd = textStart + fragmentText.size();
 
+				const auto with = format.property(kInstantReplaceWithId);
+				if (with.isValid()) {
+					const auto string = with.toString();
+					if (fragmentText != string) {
+						action.type = ActionType::ClearInstantReplace;
+						action.intervalStart = fragmentPosition
+							+ (fragmentText.startsWith(string)
+								? string.size()
+								: 0);
+						action.intervalEnd = fragmentPosition
+							+ fragmentText.size();
+						break;
+					}
+				}
+
 				if (!startTagFound) {
 					startTagFound = true;
-					auto tagName = charFormat.anchorName();
+					auto tagName = format.anchorName();
 					if (!tagName.isEmpty()) {
 						breakTagOnNotLetter = wasInsertTillTheEndOfTag(block, fragmentIt, insertEnd);
 					}
@@ -1193,6 +1242,8 @@ void FlatTextarea::processFormatting(int insertPosition, int insertEnd) {
 				format.setFontFamily(action.isTilde ? tildeFixedFont : tildeRegularFont);
 				c.mergeCharFormat(format);
 				insertPosition = action.intervalEnd;
+			} else if (action.type == ActionType::ClearInstantReplace) {
+				c.setCharFormat(_defaultCharFormat);
 			}
 		} else {
 			break;
@@ -1372,6 +1423,10 @@ void FlatTextarea::keyPressEvent(QKeyEvent *e) {
 		start.movePosition(QTextCursor::StartOfLine);
 		tc.setPosition(start.position(), QTextCursor::KeepAnchor);
 		tc.removeSelectedText();
+	} else if (e->key() == Qt::Key_Backspace
+		&& e->modifiers() == 0
+		&& revertInstantReplace()) {
+		e->accept();
 	} else if (enter && enterSubmit) {
 		emit submitted(ctrl && shift);
 	} else if (e->key() == Qt::Key_Escape) {
@@ -1394,37 +1449,172 @@ void FlatTextarea::keyPressEvent(QKeyEvent *e) {
 		}
 #endif // Q_OS_MAC
 	} else {
-		QTextCursor tc(textCursor());
+		const auto text = e->text();
+		const auto key = e->key();
+		auto cursor = textCursor();
 		if (enter && ctrl) {
 			e->setModifiers(e->modifiers() & ~Qt::ControlModifier);
 		}
 		bool spaceOrReturn = false;
-		QString t(e->text());
-		if (!t.isEmpty() && t.size() < 3) {
-			if (t.at(0) == '\n' || t.at(0) == '\r' || t.at(0).isSpace() || t.at(0) == QChar::LineSeparator) {
+		if (!text.isEmpty() && text.size() < 3) {
+			const auto ch = text[0];
+			if (ch == '\n'
+				|| ch == '\r'
+				|| ch.isSpace()
+				|| ch == QChar::LineSeparator) {
 				spaceOrReturn = true;
 			}
 		}
 		QTextEdit::keyPressEvent(e);
-		if (tc == textCursor()) {
+		if (cursor == textCursor()) {
 			bool check = false;
-			if (e->key() == Qt::Key_PageUp || e->key() == Qt::Key_Up) {
-				tc.movePosition(QTextCursor::Start, e->modifiers().testFlag(Qt::ShiftModifier) ? QTextCursor::KeepAnchor : QTextCursor::MoveAnchor);
+			if (key == Qt::Key_PageUp || key == Qt::Key_Up) {
+				cursor.movePosition(
+					QTextCursor::Start,
+					(e->modifiers().testFlag(Qt::ShiftModifier)
+						? QTextCursor::KeepAnchor
+						: QTextCursor::MoveAnchor));
 				check = true;
-			} else if (e->key() == Qt::Key_PageDown || e->key() == Qt::Key_Down) {
-				tc.movePosition(QTextCursor::End, e->modifiers().testFlag(Qt::ShiftModifier) ? QTextCursor::KeepAnchor : QTextCursor::MoveAnchor);
+			} else if (key == Qt::Key_PageDown || key == Qt::Key_Down) {
+				cursor.movePosition(
+					QTextCursor::End,
+					(e->modifiers().testFlag(Qt::ShiftModifier)
+						? QTextCursor::KeepAnchor
+						: QTextCursor::MoveAnchor));
 				check = true;
 			}
 			if (check) {
-				if (tc == textCursor()) {
+				if (cursor == textCursor()) {
 					e->ignore();
 				} else {
-					setTextCursor(tc);
+					setTextCursor(cursor);
 				}
 			}
 		}
-		if (spaceOrReturn) emit spacedReturnedPasted();
+		processInstantReplaces(text);
+		if (spaceOrReturn) {
+			emit spacedReturnedPasted();
+		}
 	}
+}
+
+void FlatTextarea::processInstantReplaces(const QString &text) {
+	if (text.size() != 1 || !_instantReplaceMaxLength) {
+		return;
+	}
+	const auto it = _reverseInstantReplaces.tail.find(text[0]);
+	if (it == end(_reverseInstantReplaces.tail)) {
+		return;
+	}
+	const auto position = textCursor().position();
+	auto tags = QVector<TextWithTags::Tag>();
+	const auto typed = getTextPart(
+		std::max(position - _instantReplaceMaxLength, 0),
+		position - 1,
+		&tags);
+	auto node = &it->second;
+	auto i = typed.size();
+	do {
+		if (!node->text.isEmpty()) {
+			applyInstantReplace(typed.mid(i) + text, node->text);
+			return;
+		} else if (!i) {
+			return;
+		}
+		const auto it = node->tail.find(typed[--i]);
+		if (it == end(node->tail)) {
+			return;
+		}
+		node = &it->second;
+	} while (true);
+}
+
+void FlatTextarea::applyInstantReplace(
+		const QString &what,
+		const QString &with) {
+	const auto length = int(what.size());
+	const auto cursor = textCursor();
+	const auto position = cursor.position();
+	if (cursor.anchor() != position) {
+		return;
+	} else if (position < length) {
+		return;
+	}
+	auto tags = QVector<TextWithTags::Tag>();
+	const auto original = getTextPart(position - length, position, &tags);
+	if (what.compare(original, Qt::CaseInsensitive) != 0) {
+		return;
+	}
+
+	auto format = [&]() -> QTextCharFormat {
+		auto emojiLength = 0;
+		const auto emoji = Ui::Emoji::Find(with, &emojiLength);
+		if (!emoji || with.size() != emojiLength) {
+			return cursor.charFormat();
+		}
+		const auto use = [&] {
+			if (!emoji->hasVariants()) {
+				return emoji;
+			}
+			const auto nonColored = emoji->nonColoredId();
+			const auto it = cEmojiVariants().constFind(nonColored);
+			return (it != cEmojiVariants().cend())
+				? emoji->variant(it.value())
+				: emoji;
+		}();
+		return PrepareEmojiFormat(use, _st.font);
+	}();
+	const auto replacement = format.isImageFormat()
+		? kObjectReplacement
+		: with;
+	format.setProperty(kInstantReplaceWhatId, original);
+	format.setProperty(kInstantReplaceWithId, replacement);
+	format.setProperty(kInstantReplaceRandomId, rand_value<uint32>());
+	auto replaceCursor = cursor;
+	replaceCursor.setPosition(position - length);
+	replaceCursor.setPosition(position, QTextCursor::KeepAnchor);
+	replaceCursor.insertText(
+		replacement,
+		format);
+}
+
+bool FlatTextarea::revertInstantReplace() {
+	const auto cursor = textCursor();
+	const auto position = cursor.position();
+	if (position <= 0 || cursor.anchor() != position) {
+		return false;
+	}
+	const auto inside = position - 1;
+	const auto block = document()->findBlock(inside);
+	if (block == document()->end()) {
+		return false;
+	}
+	for (auto i = block.begin(); !i.atEnd(); ++i) {
+		const auto fragment = i.fragment();
+		const auto fragmentStart = fragment.position();
+		const auto fragmentEnd = fragmentStart + fragment.length();
+		if (fragmentEnd <= inside) {
+			continue;
+		} else if (fragmentStart > inside || fragmentEnd != position) {
+			return false;
+		}
+		const auto format = fragment.charFormat();
+		const auto with = format.property(kInstantReplaceWithId);
+		if (!with.isValid()) {
+			return false;
+		}
+		const auto string = with.toString();
+		if (fragment.text() != string) {
+			return false;
+		}
+		auto replaceCursor = cursor;
+		replaceCursor.setPosition(fragmentStart);
+		replaceCursor.setPosition(fragmentEnd, QTextCursor::KeepAnchor);
+		const auto what = format.property(kInstantReplaceWhatId).toString();
+		replaceCursor.insertText(what, _defaultCharFormat);
+		return true;
+	}
+	return false;
 }
 
 void FlatTextarea::resizeEvent(QResizeEvent *e) {
@@ -2135,16 +2325,8 @@ bool InputArea::isRedoAvailable() const {
 }
 
 void InputArea::insertEmoji(EmojiPtr emoji, QTextCursor c) {
-	QTextImageFormat imageFormat;
-	auto ew = Ui::Emoji::Size() + st::emojiPadding * cIntRetinaFactor() * 2;
-	auto eh = _st.font->height * cIntRetinaFactor();
-	imageFormat.setWidth(ew / cIntRetinaFactor());
-	imageFormat.setHeight(eh / cIntRetinaFactor());
-	imageFormat.setName(emoji->toUrl());
-	imageFormat.setVerticalAlignment(QTextCharFormat::AlignBaseline);
-
-	static QString objectReplacement(QChar::ObjectReplacementCharacter);
-	c.insertText(objectReplacement, imageFormat);
+	const auto format = PrepareEmojiFormat(emoji, _st.font);
+	c.insertText(kObjectReplacement, format);
 }
 
 QVariant InputArea::Inner::loadResource(int type, const QUrl &name) {
@@ -2905,15 +3087,8 @@ bool InputField::isRedoAvailable() const {
 }
 
 void InputField::insertEmoji(EmojiPtr emoji, QTextCursor c) {
-	QTextImageFormat imageFormat;
-	auto ew = Ui::Emoji::Size() + st::emojiPadding * cIntRetinaFactor() * 2, eh = _st.font->height * cIntRetinaFactor();
-	imageFormat.setWidth(ew / cIntRetinaFactor());
-	imageFormat.setHeight(eh / cIntRetinaFactor());
-	imageFormat.setName(emoji->toUrl());
-	imageFormat.setVerticalAlignment(QTextCharFormat::AlignBaseline);
-
-	static QString objectReplacement(QChar::ObjectReplacementCharacter);
-	c.insertText(objectReplacement, imageFormat);
+	const auto format = PrepareEmojiFormat(emoji, _st.font);
+	c.insertText(kObjectReplacement, format);
 }
 
 QVariant InputField::Inner::loadResource(int type, const QUrl &name) {

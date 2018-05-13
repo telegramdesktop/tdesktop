@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_regex.h"
 #include "styles/style_history.h"
 #include "window/window_controller.h"
+#include "emoji_suggestions_data.h"
+#include "chat_helpers/emoji_suggestions_helper.h"
 #include "mainwindow.h"
 #include "auth_session.h"
 
@@ -115,6 +117,22 @@ MessageField::MessageField(QWidget *parent, not_null<Window::Controller*> contro
 	setMaxHeight(st::historyComposeFieldMaxHeight);
 
 	setTagMimeProcessor(std::make_unique<FieldTagMimeProcessor>());
+
+	addInstantReplace("--", QString(1, QChar(8212)));
+	addInstantReplace("<<", QString(1, QChar(171)));
+	addInstantReplace(">>", QString(1, QChar(187)));
+	const auto &replacements = Ui::Emoji::internal::GetAllReplacements();
+	for (const auto &one : replacements) {
+		const auto with = Ui::Emoji::QStringFromUTF16(one.emoji);
+		const auto what = Ui::Emoji::QStringFromUTF16(one.replacement);
+		addInstantReplace(what, with);
+	}
+	const auto &pairs = Ui::Emoji::internal::GetReplacementPairs();
+	for (const auto &[what, index] : pairs) {
+		const auto emoji = Ui::Emoji::internal::ByIndex(index);
+		Assert(emoji != nullptr);
+		addInstantReplace(what, emoji->text());
+	}
 }
 
 bool MessageField::hasSendText() const {

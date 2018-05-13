@@ -2153,60 +2153,11 @@ void MovePartAndGoForward(TextWithEntities &result, int &to, int &from, int coun
 	from += count;
 }
 
-void ReplaceStringWithChar(const QLatin1String &from, QChar to, TextWithEntities &result, bool checkSpace = false) {
-	Expects(from.size() > 1);
-	auto len = from.size(), s = result.text.size(), offset = 0, length = 0;
-	auto i = result.entities.begin(), e = result.entities.end();
-	for (auto start = result.text.data(); offset < s;) {
-		auto nextOffset = result.text.indexOf(from, offset);
-		if (nextOffset < 0) {
-			MovePartAndGoForward(result, length, offset, s - offset);
-			break;
-		}
-
-		if (checkSpace) {
-			bool spaceBefore = (nextOffset > 0) && (start + nextOffset - 1)->isSpace();
-			bool spaceAfter = (nextOffset + len < s) && (start + nextOffset + len)->isSpace();
-			if (!spaceBefore && !spaceAfter) {
-				MovePartAndGoForward(result, length, offset, nextOffset - offset + len + 1);
-				continue;
-			}
-		}
-
-		auto skip = false;
-		for (; i != e; ++i) { // find and check next finishing entity
-			if (i->offset() + i->length() > nextOffset) {
-				skip = (i->offset() < nextOffset + len);
-				break;
-			}
-		}
-		if (skip) {
-			MovePartAndGoForward(result, length, offset, nextOffset - offset + len);
-			continue;
-		}
-
-		MovePartAndGoForward(result, length, offset, nextOffset - offset);
-
-		*(start + length) = to;
-		++length;
-		offset += len;
-	}
-	if (length < s) result.text.resize(length);
-}
-
 void PrepareForSending(TextWithEntities &result, int32 flags) {
 	ApplyServerCleaning(result);
 
 	if (flags) {
 		ParseEntities(result, flags);
-	}
-
-	ReplaceStringWithChar(qstr("--"), QChar(8212), result, true);
-	ReplaceStringWithChar(qstr("<<"), QChar(171), result);
-	ReplaceStringWithChar(qstr(">>"), QChar(187), result);
-
-	if (cReplaceEmojis()) {
-		Ui::Emoji::ReplaceInText(result);
 	}
 
 	Trim(result);

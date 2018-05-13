@@ -57,7 +57,7 @@ Replace Replaces[] = {
 	{ { 0xD83DDE22U }, ":'(" },
 	{ { 0xD83DDE2DU }, ":_(" },
 	{ { 0xD83DDE29U }, ":((" },
-	{ { 0xD83DDE28U }, ":o" },
+//	{ { 0xD83DDE28U }, ":o" }, // Conflicts with typing :ok...
 	{ { 0xD83DDE10U }, ":|" },
 	{ { 0xD83DDE0CU }, "3-)" },
 	{ { 0xD83DDE20U }, ">(" },
