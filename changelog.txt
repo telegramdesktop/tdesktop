@@ -1,3 +1,10 @@
+1.2.20 alpha (13.05.18)
+
+- Emoji and text replacements are done while you type the message.
+- Revert emoji and text replacements by pressing backspace.
+- Disable emoji replacements or suggestions in Settings.
+- Some critical bug fixes.
+
 1.2.19 alpha (08.05.18)
 
 - Enable proxy for calls in Settings.

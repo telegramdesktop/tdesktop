@@ -61,6 +61,19 @@ std::map<int, const char*> AlphaLogs() {
 		"\xE2\x80\x94 Enable proxy for calls in Settings.\n"
 
 		"\xE2\x80\x94 Bug fixes and other minor improvements."
+	},
+	{
+		1002020,
+		"\xE2\x80\x94 Emoji and text replacements are done "
+		"while you type the message.\n"
+
+		"\xE2\x80\x94 Revert emoji and text replacements "
+		"by pressing backspace.\n"
+
+		"\xE2\x80\x94 Disable emoji replacements or suggestions "
+		"in Settings.\n"
+
+		"\xE2\x80\x94 Some critical bug fixes."
 	}
 	};
 }
