@@ -781,3 +781,4 @@ proxyDropdownDownPosition: point(-2px, 35px);
 proxyDropdownUpPosition: point(-2px, 20px);
 
 proxyAboutPadding: margins(22px, 7px, 22px, 14px);
+proxyAboutSponsorPadding: margins(22px, 7px, 22px, 0px);

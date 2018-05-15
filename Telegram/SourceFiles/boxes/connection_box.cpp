@@ -155,6 +155,7 @@ private:
 
 	std::shared_ptr<Ui::RadioenumGroup<Type>> _type;
 
+	QPointer<Ui::SlideWrap<>> _aboutSponsored;
 	QPointer<Ui::InputField> _host;
 	QPointer<Ui::PortInput> _port;
 	QPointer<Ui::InputField> _user;
@@ -763,6 +764,16 @@ void ProxyBox::setupTypes() {
 				label),
 			st::proxyEditTypePadding);
 	}
+	_aboutSponsored = _content->add(object_ptr<Ui::SlideWrap<>>(
+		_content,
+		object_ptr<Ui::PaddingWrap<>>(
+			_content,
+			object_ptr<Ui::FlatLabel>(
+				_content,
+				lang(lng_proxy_sponsor_warning),
+				Ui::FlatLabel::InitType::Simple,
+				st::boxDividerLabel),
+			st::proxyAboutSponsorPadding)));
 }
 
 void ProxyBox::setupSocketAddress(const ProxyData &data) {
@@ -873,6 +884,9 @@ void ProxyBox::setupControls(const ProxyData &data) {
 			type == Type::Http || type == Type::Socks5,
 			anim::type::instant);
 		_mtprotoCredentials->toggle(
+			type == Type::Mtproto,
+			anim::type::instant);
+		_aboutSponsored->toggle(
 			type == Type::Mtproto,
 			anim::type::instant);
 	};
@@ -1046,7 +1060,10 @@ void ProxiesBoxController::ShowApplyConfirmation(
 			lt_server,
 			server,
 			lt_port,
-			QString::number(port));
+			QString::number(port))
+			+ (proxy.type == Type::Mtproto
+				? "\n\n" + lang(lng_proxy_sponsor_warning)
+				: QString());
 		*box = Ui::show(Box<ConfirmBox>(text, lang(lng_sure_enable), [=] {
 			auto &proxies = Global::RefProxiesList();
 			if (ranges::find(proxies, proxy) == end(proxies)) {
