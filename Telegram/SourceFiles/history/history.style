@@ -456,3 +456,9 @@ historyGroupWidthMin: minPhotoSize;
 historyGroupSkip: 4px;
 historyGroupRadialSize: 44px;
 historyGroupRadialLine: 3px;
+
+historyAboutProxy: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	textFg: windowSubTextFg;
+}
+historyAboutProxyPadding: margins(20px, 10px, 20px, 10px);

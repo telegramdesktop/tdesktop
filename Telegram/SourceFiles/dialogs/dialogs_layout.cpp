@@ -138,7 +138,7 @@ void paintRow(
 
 	const auto promoted = chat.entry()->useProxyPromotion();
 	if (promoted) {
-		const auto text = QString("Proxy sponsor");
+		const auto text = lang(lng_proxy_sponsor);
 		paintRowTopRight(p, text, rectForName, active, selected);
 	} else if (from && !(flags & Flag::FeedSearchResult)) {
 		if (const auto chatTypeIcon = ChatTypeIcon(from, active, selected)) {

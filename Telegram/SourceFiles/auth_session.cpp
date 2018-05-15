@@ -288,6 +288,8 @@ AuthSession::AuthSession(UserId userId)
 	subscribe(Global::RefConnectionTypeChanged(), [=] {
 		_api->refreshProxyPromotion();
 	});
+	_api->refreshProxyPromotion();
+
 	Window::Theme::Background()->start();
 }
 

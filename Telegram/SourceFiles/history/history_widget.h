@@ -461,6 +461,7 @@ private:
 	void setMembersShowAreaActive(bool active);
 	void forwardItems(MessageIdsList &&items);
 	void handleHistoryChange(not_null<const History*> history);
+	void refreshAboutProxyPromotion();
 
 	void highlightMessage(MsgId universalMessageId);
 	void adjustHighlightedMessageToMigrated();
@@ -783,6 +784,7 @@ private:
 	object_ptr<Ui::FlatButton> _botStart;
 	object_ptr<Ui::FlatButton> _joinChannel;
 	object_ptr<Ui::FlatButton> _muteUnmute;
+	object_ptr<Ui::RpWidget> _aboutProxyPromotion = { nullptr };
 	mtpRequestId _unblockRequest = 0;
 	mtpRequestId _reportSpamRequest = 0;
 	object_ptr<Ui::IconButton> _attachToggle;

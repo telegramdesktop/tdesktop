@@ -1601,13 +1601,21 @@ void Session::setProxyPromoted(PeerData *promoted) {
 		if (const auto history = App::historyLoaded(_proxyPromoted)) {
 			history->cacheProxyPromoted(false);
 		}
-		_proxyPromoted = promoted;
+		const auto old = std::exchange(_proxyPromoted, promoted);
 		if (_proxyPromoted) {
 			const auto history = App::history(_proxyPromoted);
 			history->cacheProxyPromoted(true);
 			if (!history->lastMessageKnown()) {
 				_session->api().requestDialogEntry(history);
 			}
+			Notify::peerUpdatedDelayed(
+				_proxyPromoted,
+				Notify::PeerUpdate::Flag::ChannelPromotedChanged);
+		}
+		if (old) {
+			Notify::peerUpdatedDelayed(
+				old,
+				Notify::PeerUpdate::Flag::ChannelPromotedChanged);
 		}
 	}
 }

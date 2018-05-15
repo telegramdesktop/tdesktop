@@ -58,6 +58,9 @@ void Entry::cacheProxyPromoted(bool promoted) {
 		_isProxyPromoted = promoted;
 		updateChatListSortPosition();
 		updateChatListEntry();
+		if (!_isProxyPromoted) {
+			updateChatListExistence();
+		}
 	}
 }
 
