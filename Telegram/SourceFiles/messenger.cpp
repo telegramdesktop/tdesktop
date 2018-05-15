@@ -839,23 +839,22 @@ bool Messenger::openLocalUrl(const QString &url) {
 	auto command = urlTrimmed.midRef(qstr("tg://").size());
 
 	const auto showPassportForm = [](const QMap<QString, QString> &params) {
-		if (const auto botId = params.value("bot_id", QString()).toInt()) {
-			const auto scope = params.value("scope", QString());
-			const auto callback = params.value("callback_url", QString());
-			const auto publicKey = params.value("public_key", QString());
-			const auto payload = params.value("payload", QString());
-			const auto errors = params.value("errors", QString());
-			if (const auto window = App::wnd()) {
-				if (const auto controller = window->controller()) {
-					controller->showPassportForm(Passport::FormRequest(
-						botId,
-						scope,
-						callback,
-						publicKey,
-						payload,
-						errors));
-					return true;
-				}
+		const auto botId = params.value("bot_id", QString()).toInt();
+		const auto scope = params.value("scope", QString());
+		const auto callback = params.value("callback_url", QString());
+		const auto publicKey = params.value("public_key", QString());
+		const auto payload = params.value("payload", QString());
+		const auto errors = params.value("errors", QString());
+		if (const auto window = App::wnd()) {
+			if (const auto controller = window->controller()) {
+				controller->showPassportForm(Passport::FormRequest(
+					botId,
+					scope,
+					callback,
+					publicKey,
+					payload,
+					errors));
+				return true;
 			}
 		}
 		return false;

@@ -28,8 +28,7 @@ constexpr auto kMaxDocumentSize = 24;
 constexpr auto kMaxStreetSize = 64;
 constexpr auto kMinCitySize = 2;
 constexpr auto kMaxCitySize = 64;
-constexpr auto kMinPostcodeSize = 2;
-constexpr auto kMaxPostcodeSize = 12;
+constexpr auto kMaxPostcodeSize = 10;
 
 EditDocumentScheme GetDocumentScheme(
 		Scope::Type type,
@@ -50,32 +49,53 @@ EditDocumentScheme GetDocumentScheme(
 		return value;
 	};
 	const auto DontValidate = nullptr;
-	const auto LimitedValidate = [](int max, int min = 1) {
+	const auto FromBoolean = [](auto validation) {
 		return [=](const QString &value) {
-			return (value.size() >= min) && (value.size() <= max);
+			return validation(value)
+				? base::none
+				: base::make_optional(QString());
 		};
 	};
-	const auto NameValidate = LimitedValidate(kMaxNameSize);
+	const auto LimitedValidate = [=](int max, int min = 1) {
+		return FromBoolean([=](const QString &value) {
+			return (value.size() >= min) && (value.size() <= max);
+		});
+	};
+	using Result = base::optional<QString>;
+	const auto NameValidate = [](const QString &value) -> Result {
+		if (value.isEmpty() || value.size() > kMaxNameSize) {
+			return QString();
+		} else if (!QRegularExpression(
+			"^[a-zA-Z\\- ]+$"
+		).match(value).hasMatch()) {
+			return "Use latin characters only.";// lang(lng_passport_bad_name);
+		}
+		return base::none;
+	};
+
 	const auto DocumentValidate = LimitedValidate(kMaxDocumentSize);
 	const auto StreetValidate = LimitedValidate(kMaxStreetSize);
 	const auto CityValidate = LimitedValidate(kMaxCitySize, kMinCitySize);
-	const auto PostcodeValidate = LimitedValidate(
-		kMaxPostcodeSize,
-		kMinPostcodeSize);
-	const auto DateValidate = [](const QString &value) {
+	const auto PostcodeValidate = FromBoolean([](const QString &value) {
+		return QRegularExpression(
+			QString("^[a-zA-Z0-9\\-]{2,%1}$").arg(kMaxPostcodeSize)
+		).match(value).hasMatch();
+	});
+	const auto DateValidateBoolean = [](const QString &value) {
 		return QRegularExpression(
 			"^\\d{2}\\.\\d{2}\\.\\d{4}$"
 		).match(value).hasMatch();
 	};
-	const auto DateOrEmptyValidate = [=](const QString &value) {
-		return value.isEmpty() || DateValidate(value);
-	};
-	const auto GenderValidate = [](const QString &value) {
+	const auto DateValidate = FromBoolean(DateValidateBoolean);
+	const auto DateOrEmptyValidate = FromBoolean([=](const QString &value) {
+		return value.isEmpty() || DateValidateBoolean(value);
+	});
+	const auto GenderValidate = FromBoolean([](const QString &value) {
 		return value == qstr("male") || value == qstr("female");
-	};
-	const auto CountryValidate = [=](const QString &value) {
+	});
+	const auto CountryValidate = FromBoolean([=](const QString &value) {
 		return !CountryFormat(value).isEmpty();
-	};
+	});
 
 	switch (type) {
 	case Scope::Type::Identity: {
@@ -139,6 +159,14 @@ EditDocumentScheme GetDocumentScheme(
 				PanelDetailsType::Country,
 				qsl("country_code"),
 				lang(lng_passport_country),
+				CountryValidate,
+				CountryFormat,
+			},
+			{
+				ValueClass::Fields,
+				PanelDetailsType::Country,
+				qsl("residence_country_code"),
+				lang(lng_passport_residence_country),
 				CountryValidate,
 				CountryFormat,
 			},
@@ -234,7 +262,7 @@ EditDocumentScheme GetDocumentScheme(
 			},
 			{
 				ValueClass::Fields,
-				PanelDetailsType::Text,
+				PanelDetailsType::Postcode,
 				qsl("post_code"),
 				lang(lng_passport_postcode),
 				PostcodeValidate,

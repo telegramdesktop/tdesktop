@@ -158,7 +158,7 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 					return QString();
 				}
 				const auto text = i->second.text;
-				if (row.validate && !row.validate(text)) {
+				if (row.error && row.error(text).has_value()) {
 					return QString();
 				}
 				pushListValue(format ? format(text) : text);
@@ -170,7 +170,7 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 					return QString();
 				}
 				const auto text = i->second.text;
-				if (row.validate && !row.validate(text)) {
+				if (row.error && row.error(text).has_value()) {
 					return QString();
 				}
 				pushListValue(text);

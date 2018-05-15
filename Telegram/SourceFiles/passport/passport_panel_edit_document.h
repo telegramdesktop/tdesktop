@@ -43,7 +43,7 @@ struct EditDocumentScheme {
 		PanelDetailsType inputType = PanelDetailsType();
 		QString key;
 		QString label;
-		base::lambda<bool(const QString &value)> validate;
+		base::lambda<base::optional<QString>(const QString &value)> error;
 		base::lambda<QString(const QString &value)> format;
 		int lengthLimit = 0;
 	};

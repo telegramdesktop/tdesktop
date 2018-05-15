@@ -25,6 +25,7 @@ class PanelController;
 
 enum class PanelDetailsType {
 	Text,
+	Postcode,
 	Country,
 	Date,
 	Gender,
@@ -65,7 +66,7 @@ public:
 	virtual bool setFocusFast();
 	virtual rpl::producer<QString> value() const = 0;
 	virtual QString valueCurrent() const = 0;
-	void showError(const QString &error);
+	void showError(base::optional<QString> error = base::none);
 	bool errorShown() const;
 	void hideError();
 	void finishAnimating();

@@ -419,10 +419,14 @@ bool PanelEditDocument::validate() {
 	auto first = QPointer<PanelDetailsRow>();
 	for (const auto [i, field] : base::reversed(_details)) {
 		const auto &row = _scheme.rows[i];
-		if (field->errorShown()
-			|| (row.validate && !row.validate(field->valueCurrent()))) {
-			field->showError(QString());
+		if (field->errorShown()) {
+			field->showError();
 			first = field;
+		} else if (row.error) {
+			if (const auto error = row.error(field->valueCurrent())) {
+				field->showError(error);
+				first = field;
+			}
 		}
 	}
 	if (error) {

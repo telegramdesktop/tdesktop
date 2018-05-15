@@ -1591,6 +1591,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_gender_male" = "Male";
 "lng_passport_gender_female" = "Female";
 "lng_passport_country" = "Country";
+"lng_passport_residence_country" = "Residence";
 "lng_passport_country_choose" = "Choose country";
 "lng_passport_document_number" = "Card Number";
 "lng_passport_expiry_date" = "Expiry date";

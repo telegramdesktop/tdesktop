@@ -22,9 +22,60 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Passport {
 namespace {
 
-class TextRow : public PanelDetailsRow {
+class PostcodeInput : public Ui::MaskedInputField {
 public:
-	TextRow(
+	PostcodeInput(
+		QWidget *parent,
+		const style::InputField &st,
+		base::lambda<QString()> placeholderFactory,
+		const QString &val);
+
+protected:
+	void correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) override;
+
+};
+
+PostcodeInput::PostcodeInput(
+	QWidget *parent,
+	const style::InputField &st,
+	base::lambda<QString()> placeholderFactory,
+	const QString &val)
+: MaskedInputField(parent, st, std::move(placeholderFactory), val) {
+	if (!QRegularExpression("^[a-zA-Z0-9\\-]+$").match(val).hasMatch()) {
+		setText(QString());
+	}
+}
+
+void PostcodeInput::correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) {
+	QString newText;
+	newText.reserve(now.size());
+	auto newPos = nowCursor;
+	for (auto i = 0, l = now.size(); i < l; ++i) {
+		const auto ch = now[i];
+		if ((ch >= '0' && ch <= '9')
+			|| (ch >= 'a' && ch <= 'z')
+			|| (ch >= 'A' && ch <= 'Z')
+			|| (ch == '-')) {
+			newText.append(ch);
+		} else if (i < nowCursor) {
+			--newPos;
+		}
+	}
+	setCorrectedText(now, nowCursor, newText, newPos);
+}
+
+template <typename Input>
+class AbstractTextRow : public PanelDetailsRow {
+public:
+	AbstractTextRow(
 		QWidget *parent,
 		const QString &label,
 		const QString &value,
@@ -39,7 +90,7 @@ private:
 	void showInnerError() override;
 	void finishInnerAnimating() override;
 
-	object_ptr<Ui::InputField> _field;
+	object_ptr<Input> _field;
 	rpl::variable<QString> _value;
 
 };
@@ -192,7 +243,8 @@ private:
 
 };
 
-TextRow::TextRow(
+template <typename Input>
+AbstractTextRow<Input>::AbstractTextRow(
 	QWidget *parent,
 	const QString &label,
 	const QString &value,
@@ -201,34 +253,40 @@ TextRow::TextRow(
 , _field(this, st::passportDetailsField, nullptr, value)
 , _value(value) {
 	_field->setMaxLength(limit);
-	connect(_field, &Ui::InputField::changed, [=] {
+	connect(_field, &Input::changed, [=] {
 		_value = valueCurrent();
 	});
 }
 
-bool TextRow::setFocusFast() {
+template <typename Input>
+bool AbstractTextRow<Input>::setFocusFast() {
 	_field->setFocusFast();
 	return true;
 }
 
-QString TextRow::valueCurrent() const {
+template <typename Input>
+QString AbstractTextRow<Input>::valueCurrent() const {
 	return _field->getLastText();
 }
 
-rpl::producer<QString> TextRow::value() const {
+template <typename Input>
+rpl::producer<QString> AbstractTextRow<Input>::value() const {
 	return _value.value();
 }
 
-int TextRow::resizeInner(int left, int top, int width) {
+template <typename Input>
+int AbstractTextRow<Input>::resizeInner(int left, int top, int width) {
 	_field->setGeometry(left, top, width, _field->height());
 	return st::semiboldFont->height;
 }
 
-void TextRow::showInnerError() {
+template <typename Input>
+void AbstractTextRow<Input>::showInnerError() {
 	_field->showError();
 }
 
-void TextRow::finishInnerAnimating() {
+template <typename Input>
+void AbstractTextRow<Input>::finishInnerAnimating() {
 	_field->finishAnimating();
 }
 
@@ -905,7 +963,17 @@ object_ptr<PanelDetailsRow> PanelDetailsRow::Create(
 	auto result = [&]() -> object_ptr<PanelDetailsRow> {
 		switch (type) {
 		case Type::Text:
-			return object_ptr<TextRow>(parent, label, value, limit);
+			return object_ptr<AbstractTextRow<Ui::InputField>>(
+				parent,
+				label,
+				value,
+				limit);
+		case Type::Postcode:
+			return object_ptr<AbstractTextRow<PostcodeInput>>(
+				parent,
+				label,
+				value,
+				limit);
 		case Type::Country:
 			return object_ptr<CountryRow>(parent, controller, label, value);
 		case Type::Gender:
@@ -944,7 +1012,7 @@ int PanelDetailsRow::resizeGetHeight(int newWidth) {
 	return result;
 }
 
-void PanelDetailsRow::showError(const QString &error) {
+void PanelDetailsRow::showError(base::optional<QString> error) {
 	if (!_errorHideSubscription) {
 		_errorHideSubscription = true;
 
@@ -955,17 +1023,24 @@ void PanelDetailsRow::showError(const QString &error) {
 	}
 	showInnerError();
 	startErrorAnimation(true);
-	if (!error.isEmpty()) {
+	if (!error.has_value()) {
+		return;
+	}
+	if (error->isEmpty()) {
+		if (_error) {
+			_error->hide(anim::type::normal);
+		}
+	} else {
 		if (!_error) {
 			_error.create(
 				this,
 				object_ptr<Ui::FlatLabel>(
 					this,
-					error,
+					*error,
 					Ui::FlatLabel::InitType::Simple,
 					st::passportVerifyErrorLabel));
 		} else {
-			_error->entity()->setText(error);
+			_error->entity()->setText(*error);
 		}
 		_error->heightValue(
 		) | rpl::start_with_next([=] {
