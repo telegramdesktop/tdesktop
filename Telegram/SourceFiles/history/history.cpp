@@ -2284,7 +2284,8 @@ HistoryItem *History::lastSentMessage() const {
 	for (const auto &block : base::reversed(blocks)) {
 		for (const auto &message : base::reversed(block->messages)) {
 			const auto item = message->data();
-			if (IsServerMsgId(item->id) && item->out()) {
+			if (IsServerMsgId(item->id)
+				&& (item->out() || peer->isSelf())) {
 				return item;
 			}
 		}

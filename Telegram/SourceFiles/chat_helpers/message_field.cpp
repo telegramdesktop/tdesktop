@@ -121,6 +121,9 @@ MessageField::MessageField(QWidget *parent, not_null<Window::Controller*> contro
 	addInstantReplace("--", QString(1, QChar(8212)));
 	addInstantReplace("<<", QString(1, QChar(171)));
 	addInstantReplace(">>", QString(1, QChar(187)));
+	addInstantReplace(
+		":shrug:",
+		QChar(175) + QString("\\_(") + QChar(12484) + ")_/" + QChar(175));
 	const auto &replacements = Ui::Emoji::internal::GetAllReplacements();
 	for (const auto &one : replacements) {
 		const auto with = Ui::Emoji::QStringFromUTF16(one.emoji);
