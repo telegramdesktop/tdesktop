@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace MTP {
 
+struct ServiceWebRequest;
+
 class SpecialConfigRequest : public QObject {
 public:
 	SpecialConfigRequest(
@@ -30,17 +32,6 @@ private:
 		Type type;
 		QString domain;
 	};
-	struct Request {
-		Request(not_null<QNetworkReply*> reply);
-		Request(Request &&other);
-		Request &operator=(Request &&other);
-		~Request();
-
-		void destroy();
-
-		QPointer<QNetworkReply> reply;
-
-	};
 
 	void sendNextRequest();
 	void performRequest(const Attempt &attempt);
@@ -59,7 +50,60 @@ private:
 
 	QNetworkAccessManager _manager;
 	std::vector<Attempt> _attempts;
-	std::vector<Request> _requests;
+	std::vector<ServiceWebRequest> _requests;
+
+};
+
+class DomainResolver : public QObject {
+public:
+	DomainResolver(base::lambda<void(
+		const QString &domain,
+		const QStringList &ips,
+		TimeMs expireAt)> callback);
+
+	void resolve(const QString &domain);
+
+private:
+	struct AttemptKey {
+		QString domain;
+		bool ipv6 = false;
+
+		inline bool operator<(const AttemptKey &other) const {
+			return (domain < other.domain)
+				|| (domain == other.domain && !ipv6 && other.ipv6);
+		}
+		inline bool operator==(const AttemptKey &other) const {
+			return (domain == other.domain) && (ipv6 == other.ipv6);
+		}
+
+	};
+	struct CacheEntry {
+		QStringList ips;
+		TimeMs expireAt = 0;
+
+	};
+
+	void resolve(const AttemptKey &key);
+	void sendNextRequest(const AttemptKey &key);
+	void performRequest(const AttemptKey &key, const QString &host);
+	void checkExpireAndPushResult(const QString &domain);
+	void requestFinished(
+		const AttemptKey &key,
+		not_null<QNetworkReply*> reply);
+	QByteArray finalizeRequest(
+		const AttemptKey &key,
+		not_null<QNetworkReply*> reply);
+
+	base::lambda<void(
+		const QString &domain,
+		const QStringList &ips,
+		TimeMs expireAt)> _callback;
+
+	QNetworkAccessManager _manager;
+	std::map<AttemptKey, std::vector<QString>> _attempts;
+	std::map<AttemptKey, std::vector<ServiceWebRequest>> _requests;
+	std::map<AttemptKey, CacheEntry> _cache;
+	TimeMs _lastTimestamp = 0;
 
 };
 

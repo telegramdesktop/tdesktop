@@ -433,8 +433,12 @@ struct ProxyData {
 	uint32 port = 0;
 	QString user, password;
 
+	std::vector<QString> resolvedIPs;
+	TimeMs resolvedExpireAt = 0;
+
 	bool valid() const;
 	bool supportsCalls() const;
+	bool tryCustomResolve() const;
 	explicit operator bool() const;
 	bool operator==(const ProxyData &other) const;
 	bool operator!=(const ProxyData &other) const;
@@ -443,6 +447,7 @@ struct ProxyData {
 
 };
 
+ProxyData ToDirectIpProxy(const ProxyData &proxy, int ipIndex = 0);
 QNetworkProxy ToNetworkProxy(const ProxyData &proxy);
 
 enum DBIScale {

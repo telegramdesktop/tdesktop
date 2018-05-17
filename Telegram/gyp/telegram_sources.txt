@@ -427,6 +427,8 @@
 <(src_loc)/mtproto/connection_abstract.h
 <(src_loc)/mtproto/connection_http.cpp
 <(src_loc)/mtproto/connection_http.h
+<(src_loc)/mtproto/connection_resolving.cpp
+<(src_loc)/mtproto/connection_resolving.h
 <(src_loc)/mtproto/connection_tcp.cpp
 <(src_loc)/mtproto/connection_tcp.h
 <(src_loc)/mtproto/core_types.cpp

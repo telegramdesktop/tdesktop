@@ -36,7 +36,7 @@ public:
 public slots:
 	void unpause();
 	void sendNext();
-	void killSessions();
+	void stopSessions();
 
 signals:
 	void photoReady(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
@@ -67,7 +67,7 @@ private:
 	FullMsgId _pausedId;
 	std::map<FullMsgId, File> queue;
 	std::map<FullMsgId, File> uploaded;
-	QTimer nextTimer, killSessionsTimer;
+	QTimer nextTimer, stopSessionsTimer;
 
 };
 

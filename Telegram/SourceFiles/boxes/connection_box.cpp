@@ -1094,15 +1094,16 @@ void ProxiesBoxController::refreshChecker(Item &item) {
 
 	item.state = ItemState::Checking;
 	const auto setup = [&](Checker &checker) {
-		checker = MTP::internal::AbstractConnection::create(
+		checker = MTP::internal::AbstractConnection::Create(
+			mtproto,
 			type,
-			QThread::currentThread());
+			QThread::currentThread(),
+			item.data);
 		setupChecker(item.id, checker);
 	};
 	setup(item.checker);
 	if (item.data.type == Type::Mtproto) {
 		item.checkerv6 = nullptr;
-		item.checker->setProxyOverride(item.data);
 		item.checker->connectToServer(
 			item.data.host,
 			item.data.port,
@@ -1131,7 +1132,6 @@ void ProxiesBoxController::refreshChecker(Item &item) {
 				const Checker &checker,
 				const std::vector<MTP::DcOptions::Endpoint> &endpoints) {
 			if (checker) {
-				checker->setProxyOverride(item.data);
 				checker->connectToServer(
 					QString::fromStdString(endpoints.front().ip),
 					endpoints.front().port,
@@ -1185,7 +1185,7 @@ object_ptr<BoxContent> ProxiesBoxController::CreateOwningBox() {
 
 object_ptr<BoxContent> ProxiesBoxController::create() {
 	auto result = Box<ProxiesBox>(this);
-	for (const auto &item : base::reversed(_list)) {
+	for (const auto &item : _list) {
 		updateView(item);
 	}
 	return std::move(result);

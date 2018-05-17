@@ -11,6 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/bytes.h"
 
 namespace MTP {
+
+bytes::vector ProtocolSecretFromPassword(const QString &password);
+
 namespace internal {
 
 struct ConnectionOptions;
@@ -21,9 +24,15 @@ class ConnectionPointer {
 public:
 	ConnectionPointer();
 	ConnectionPointer(std::nullptr_t);
-	explicit ConnectionPointer(AbstractConnection *value);
 	ConnectionPointer(ConnectionPointer &&other);
 	ConnectionPointer &operator=(ConnectionPointer &&other);
+
+	template <typename ConnectionType, typename ...Args>
+	static ConnectionPointer New(Args &&...args) {
+		return ConnectionPointer(new ConnectionType(
+			std::forward<Args>(args)...
+		));
+	}
 
 	AbstractConnection *get() const;
 	void reset(AbstractConnection *value = nullptr);
@@ -35,6 +44,8 @@ public:
 	~ConnectionPointer();
 
 private:
+	explicit ConnectionPointer(AbstractConnection *value);
+
 	AbstractConnection *_value = nullptr;
 
 };
@@ -43,22 +54,24 @@ class AbstractConnection : public QObject {
 	Q_OBJECT
 
 public:
-	AbstractConnection(QThread *thread);
+	AbstractConnection(
+		QThread *thread,
+		const ProxyData &proxy);
 	AbstractConnection(const AbstractConnection &other) = delete;
 	AbstractConnection &operator=(const AbstractConnection &other) = delete;
 	virtual ~AbstractConnection() = 0;
 
 	// virtual constructor
-	static ConnectionPointer create(
+	static ConnectionPointer Create(
+		not_null<Instance*> instance,
 		DcOptions::Variants::Protocol protocol,
-		QThread *thread);
+		QThread *thread,
+		const ProxyData &proxy);
 
-	void setSentEncrypted() {
-		_sentEncrypted = true;
-	}
+	virtual ConnectionPointer clone(const ProxyData &proxy) = 0;
 
-	virtual void setProxyOverride(const ProxyData &proxy) = 0;
 	virtual TimeMs pingTime() const = 0;
+	virtual TimeMs fullConnectTimeout() const = 0;
 	virtual void sendData(mtpBuffer &buffer) = 0; // has size + 3, buffer[0] = len, buffer[1] = packetnum, buffer[last] = crc32
 	virtual void disconnectFromServer() = 0;
 	virtual void connectToServer(
@@ -78,6 +91,10 @@ public:
 
 	virtual QString transport() const = 0;
 	virtual QString tag() const = 0;
+
+	void setSentEncrypted() {
+		_sentEncrypted = true;
+	}
 
 	using BuffersQueue = std::deque<mtpBuffer>;
 	BuffersQueue &received() {
@@ -100,6 +117,7 @@ protected:
 	BuffersQueue _receivedQueue; // list of received packets, not processed yet
 	bool _sentEncrypted = false;
 	int _pingTime = 0;
+	ProxyData _proxy;
 
 	// first we always send fake MTPReq_pq to see if connection works at all
 	// we send them simultaneously through TCP/HTTP/IPv4/IPv6 to choose the working one

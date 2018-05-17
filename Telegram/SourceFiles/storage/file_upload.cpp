@@ -112,8 +112,8 @@ const QString &Uploader::File::filename() const {
 Uploader::Uploader() {
 	nextTimer.setSingleShot(true);
 	connect(&nextTimer, SIGNAL(timeout()), this, SLOT(sendNext()));
-	killSessionsTimer.setSingleShot(true);
-	connect(&killSessionsTimer, SIGNAL(timeout()), this, SLOT(killSessions()));
+	stopSessionsTimer.setSingleShot(true);
+	connect(&stopSessionsTimer, SIGNAL(timeout()), this, SLOT(stopSessions()));
 }
 
 void Uploader::uploadMedia(const FullMsgId &msgId, const SendMediaReady &media) {
@@ -183,7 +183,7 @@ void Uploader::currentFailed() {
 	sendNext();
 }
 
-void Uploader::killSessions() {
+void Uploader::stopSessions() {
 	for (int i = 0; i < MTP::kUploadSessionsCount; ++i) {
 		MTP::stopSession(MTP::uploadDcId(i));
 	}
@@ -192,16 +192,16 @@ void Uploader::killSessions() {
 void Uploader::sendNext() {
 	if (sentSize >= kMaxUploadFileParallelSize || _pausedId.msg) return;
 
-	bool killing = killSessionsTimer.isActive();
+	bool stopping = stopSessionsTimer.isActive();
 	if (queue.empty()) {
-		if (!killing) {
-			killSessionsTimer.start(MTPAckSendWaiting + MTPKillFileSessionTimeout);
+		if (!stopping) {
+			stopSessionsTimer.start(MTPAckSendWaiting + MTPKillFileSessionTimeout);
 		}
 		return;
 	}
 
-	if (killing) {
-		killSessionsTimer.stop();
+	if (stopping) {
+		stopSessionsTimer.stop();
 	}
 	auto i = uploadingId.msg ? queue.find(uploadingId) : queue.begin();
 	if (!uploadingId.msg) {
@@ -415,7 +415,7 @@ void Uploader::clear() {
 		MTP::stopSession(MTP::uploadDcId(i));
 		sentSizes[i] = 0;
 	}
-	killSessionsTimer.stop();
+	stopSessionsTimer.stop();
 }
 
 void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {

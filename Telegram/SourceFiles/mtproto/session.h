@@ -105,6 +105,7 @@ struct ConnectionOptions {
 	bool useIPv6 = true;
 	bool useHttp = true;
 	bool useTcp = true;
+	bool inited = false;
 
 };
 
@@ -127,18 +128,16 @@ public:
 		QReadLocker locker(&_lock);
 		return _session;
 	}
-	bool layerWasInited() const {
-		QReadLocker locker(&_lock);
-		return _layerInited;
-	}
-	void setLayerWasInited(bool was) {
+	void setConnectionInited(bool inited = true) {
 		QWriteLocker locker(&_lock);
-		_layerInited = was;
+		_options.inited = inited;
 	}
-
-	void setConnectionOptions(ConnectionOptions options) {
+	void notifyConnectionInited(const ConnectionOptions &options);
+	void applyConnectionOptions(ConnectionOptions options) {
 		QWriteLocker locker(&_lock);
+		const auto inited = _options.inited;
 		_options = options;
+		_options.inited = inited;
 	}
 	ConnectionOptions connectionOptions() const {
 		QReadLocker locker(&_lock);
@@ -300,6 +299,8 @@ public:
 
 	void start();
 	void restart();
+	void refreshOptions();
+	void reInitConnection();
 	void stop();
 	void kill();
 
@@ -310,7 +311,7 @@ public:
 	QReadWriteLock *keyMutex() const;
 	void notifyKeyCreated(AuthKeyPtr &&key);
 	void destroyKey();
-	void notifyLayerInited(bool wasInited);
+	void notifyDcConnectionInited();
 
 	void ping();
 	void cancel(mtpRequestId requestId, mtpMsgId msgId);
@@ -348,7 +349,7 @@ public slots:
 	void resendAll(); // after connection restart
 
 	void authKeyCreatedForDC();
-	void layerWasInitedForDC(bool wasInited);
+	void connectionWasInitedForDC();
 
 	void tryToReceive();
 	void checkRequestsByTimer();
@@ -361,7 +362,6 @@ public slots:
 
 private:
 	void createDcData();
-	void refreshDataFields();
 
 	void registerRequest(mtpRequestId requestId, ShiftedDcId dcWithShift);
 	mtpRequestId storeRequest(

@@ -35,13 +35,14 @@ const auto QTcpSocket_error = ErrorSignal(&QAbstractSocket::error);
 
 } // namespace
 
-TcpConnection::TcpConnection(QThread *thread)
-: AbstractConnection(thread)
+TcpConnection::TcpConnection(QThread *thread, const ProxyData &proxy)
+: AbstractConnection(thread, proxy)
 , _currentPosition(reinterpret_cast<char*>(_shortBuffer))
 , _checkNonce(rand_value<MTPint128>())
 , _timeout(kMinReceiveTimeout)
 , _timeoutTimer(thread, [=] { handleTimeout(); }) {
 	_socket.moveToThread(thread);
+	_socket.setProxy(ToNetworkProxy(proxy));
 	connect(&_socket, QTcpSocket_error, this, &TcpConnection::socketError);
 	connect(
 		&_socket,
@@ -55,8 +56,8 @@ TcpConnection::TcpConnection(QThread *thread)
 		&TcpConnection::socketDisconnected);
 }
 
-void TcpConnection::setProxyOverride(const ProxyData &proxy) {
-	_socket.setProxy(ToNetworkProxy(proxy));
+ConnectionPointer TcpConnection::clone(const ProxyData &proxy) {
+	return ConnectionPointer::New<TcpConnection>(thread(), proxy);
 }
 
 void TcpConnection::socketRead() {
@@ -378,17 +379,27 @@ void TcpConnection::connectToServer(
 		int port,
 		const bytes::vector &protocolSecret,
 		int16 protocolDcId) {
-	_address = address;
-	_port = port;
-	_protocolSecret = protocolSecret;
+	if (_proxy.type == ProxyData::Type::Mtproto) {
+		_address = _proxy.host;
+		_port = _proxy.port;
+		_protocolSecret = ProtocolSecretFromPassword(_proxy.password);
+	} else {
+		_address = address;
+		_port = port;
+		_protocolSecret = protocolSecret;
+	}
 	_protocolDcId = protocolDcId;
 
-	connect(&_socket, &QTcpSocket::readyRead, this, &TcpConnection::socketRead);
+	connect(&_socket, &QTcpSocket::readyRead, this, [=] { socketRead(); });
 	_socket.connectToHost(_address, _port);
 }
 
 TimeMs TcpConnection::pingTime() const {
 	return isConnected() ? _pingTime : TimeMs(0);
+}
+
+TimeMs TcpConnection::fullConnectTimeout() const {
+	return kMaxReceiveTimeout;
 }
 
 void TcpConnection::socketPacket(const char *packet, uint32 length) {

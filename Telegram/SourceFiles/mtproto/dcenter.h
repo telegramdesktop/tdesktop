@@ -28,8 +28,7 @@ public:
 
 	bool connectionInited() const {
 		QMutexLocker lock(&initLock);
-		bool res = _connectionInited;
-		return res;
+		return _connectionInited;
 	}
 	void setConnectionInited(bool connectionInited = true) {
 		QMutexLocker lock(&initLock);
@@ -38,7 +37,7 @@ public:
 
 signals:
 	void authKeyCreated();
-	void layerWasInited(bool was);
+	void connectionWasInited();
 
 private slots:
 	void authKeyWrite();

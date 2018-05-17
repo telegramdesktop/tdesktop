@@ -39,6 +39,7 @@ constexpr auto kMarkConnectionOldTimeout = TimeMs(192000);
 constexpr auto kPingDelayDisconnect = 60;
 constexpr auto kPingSendAfter = TimeMs(30000);
 constexpr auto kPingSendAfterForce = TimeMs(45000);
+constexpr auto kTestModeDcIdShift = 10000;
 
 // If we can't connect for this time we will ask _instance to update config.
 constexpr auto kRequestConfigTimeout = TimeMs(8000);
@@ -53,35 +54,6 @@ QString LogIdsVector(const QVector<MTPlong> &ids) {
 		idsStr += QString(", %2").arg(id.v);
 	}
 	return idsStr + "]";
-}
-
-bytes::vector ProtocolSecretFromPassword(const QString &password) {
-	const auto size = password.size();
-	if (size % 2) {
-		return {};
-	}
-	const auto length = size / 2;
-	const auto fromHex = [](QChar ch) -> int {
-		const auto code = int(ch.unicode());
-		if (code >= '0' && code <= '9') {
-			return (code - '0');
-		} else if (code >= 'A' && code <= 'F') {
-			return 10 + (code - 'A');
-		} else if (ch >= 'a' && ch <= 'f') {
-			return 10 + (code - 'a');
-		}
-		return -1;
-	};
-	auto result = bytes::vector(length);
-	for (auto i = 0; i != length; ++i) {
-		const auto high = fromHex(password[2 * i]);
-		const auto low = fromHex(password[2 * i + 1]);
-		if (high < 0 || low < 0) {
-			return {};
-		}
-		result[i] = static_cast<gsl::byte>(high * 16 + low);
-	}
-	return result;
 }
 
 bool IsGoodModExpFirst(const openssl::BigNum &modexp, const openssl::BigNum &prime) {
@@ -365,7 +337,11 @@ void ConnectionPrivate::appendTestConnection(
 		+ (protocol == DcOptions::Variants::Tcp ? 1 : 0)
 		+ (protocolSecret.empty() ? 0 : 1);
 	_testConnections.push_back({
-		AbstractConnection::create(protocol, thread()),
+		AbstractConnection::Create(
+			_instance,
+			protocol,
+			thread(),
+			_connectionOptions->proxy),
 		priority
 	});
 	auto weak = _testConnections.back().data.get();
@@ -388,16 +364,22 @@ void ConnectionPrivate::appendTestConnection(
 		onDisconnected(weak);
 	});
 
+	InvokeQueued(_testConnections.back().data, [=] {
+		weak->connectToServer(ip, port, protocolSecret, getProtocolDcId());
+	});
+}
+
+int16 ConnectionPrivate::getProtocolDcId() const {
 	const auto dcId = MTP::bareDcId(_shiftedDcId);
 	const auto simpleDcId = MTP::isTemporaryDcId(dcId)
 		? MTP::getRealIdFromTemporaryDcId(dcId)
 		: dcId;
-	const auto protocolDcId = (_dcType == DcType::MediaDownload)
-		? -simpleDcId
+	const auto testedDcId = cTestMode()
+		? (kTestModeDcIdShift + simpleDcId)
 		: simpleDcId;
-	InvokeQueued(_testConnections.back().data, [=] {
-		weak->connectToServer(ip, port, protocolSecret, protocolDcId);
-	});
+	return (_dcType == DcType::MediaDownload)
+		? -testedDcId
+		: testedDcId;
 }
 
 void ConnectionPrivate::destroyAllConnections() {
@@ -732,7 +714,7 @@ void ConnectionPrivate::tryToSend() {
 		return;
 	}
 
-	bool needsLayer = !sessionData->layerWasInited();
+	bool needsLayer = !_connectionOptions->inited;
 	int32 state = getState();
 	bool prependOnly = (state != ConnectedState);
 	mtpRequest pingRequest;
@@ -1105,11 +1087,8 @@ void ConnectionPrivate::connectToServer(bool afterConfig) {
 
 	destroyAllConnections();
 	if (_connectionOptions->proxy.type == ProxyData::Type::Mtproto) {
-		appendTestConnection(
-			DcOptions::Variants::Tcp,
-			_connectionOptions->proxy.host,
-			_connectionOptions->proxy.port,
-			ProtocolSecretFromPassword(_connectionOptions->proxy.password));
+		// host, port, secret for mtproto proxy are taken from proxy.
+		appendTestConnection(DcOptions::Variants::Tcp, {}, 0, {});
 	} else {
 		using Variants = DcOptions::Variants;
 		const auto special = (_dcType == DcType::Temporary);
@@ -1252,11 +1231,11 @@ void ConnectionPrivate::onReceivedSome() {
 	_oldConnectionTimer.callOnce(kMarkConnectionOldTimeout);
 	_waitForReceivedTimer.cancel();
 	if (firstSentAt > 0) {
-		int32 ms = getms(true) - firstSentAt;
+		const auto ms = getms(true) - firstSentAt;
 		DEBUG_LOG(("MTP Info: response in %1ms, _waitForReceived: %2ms").arg(ms).arg(_waitForReceived));
 
-		if (ms > 0 && ms * 2 < int32(_waitForReceived)) {
-			_waitForReceived = qMax(ms * 2, int32(kMinReceiveTimeout));
+		if (ms > 0 && ms * 2 < _waitForReceived) {
+			_waitForReceived = qMax(ms * 2, kMinReceiveTimeout);
 		}
 		firstSentAt = -1;
 	}
@@ -1307,20 +1286,24 @@ void ConnectionPrivate::waitReceivedFailed() {
 	}
 
 	DEBUG_LOG(("MTP Info: immediate restart!"));
-	InvokeQueued(this, [this] { connectToServer(); });
+	InvokeQueued(this, [=] { connectToServer(); });
 }
 
 void ConnectionPrivate::waitConnectedFailed() {
 	DEBUG_LOG(("MTP Info: can't connect in %1ms").arg(_waitForConnected));
-	if (_waitForConnected < kMaxConnectedTimeout) {
-		_waitForConnected *= 2;
+	auto maxTimeout = kMaxConnectedTimeout;
+	for (const auto &connection : _testConnections) {
+		accumulate_max(maxTimeout, connection.data->fullConnectTimeout());
+	}
+	if (_waitForConnected < maxTimeout) {
+		_waitForConnected = std::min(maxTimeout, 2 * _waitForConnected);
 	}
 
 	doDisconnect();
 	restarted = true;
 
 	DEBUG_LOG(("MTP Info: immediate restart!"));
-	InvokeQueued(this, [this] { connectToServer(); });
+	InvokeQueued(this, [=] { connectToServer(); });
 }
 
 void ConnectionPrivate::waitBetterFailed() {
@@ -1351,8 +1334,15 @@ void ConnectionPrivate::finishAndDestroy() {
 }
 
 void ConnectionPrivate::requestCDNConfig() {
-	connect(_instance, SIGNAL(cdnConfigLoaded()), this, SLOT(onCDNConfigLoaded()), Qt::UniqueConnection);
-	InvokeQueued(_instance, [instance = _instance] { instance->requestCDNConfig(); });
+	connect(
+		_instance,
+		SIGNAL(cdnConfigLoaded()),
+		this,
+		SLOT(onCDNConfigLoaded()),
+		Qt::UniqueConnection);
+	InvokeQueued(_instance, [instance = _instance] {
+		instance->requestCDNConfig();
+	});
 }
 
 void ConnectionPrivate::handleReceived() {
@@ -2038,9 +2028,9 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 			// An error could be some RPC_CALL_FAIL or other error inside
 			// the initConnection, so we're not sure yet that it was inited.
 			// Wait till a good response is received.
-			if (!sessionData->layerWasInited()) {
-				sessionData->setLayerWasInited(true);
-				sessionData->owner()->notifyLayerInited(true);
+			if (!_connectionOptions->inited) {
+				_connectionOptions->inited = true;
+				sessionData->notifyConnectionInited(*_connectionOptions);
 			}
 		}
 
@@ -2436,10 +2426,8 @@ void ConnectionPrivate::onDisconnected(
 	removeTestConnection(connection);
 
 	if (_testConnections.empty()) {
-		if (!_connection || _connection == connection.get()) {
-			destroyAllConnections();
-			restart();
-		}
+		destroyAllConnections();
+		restart();
 	} else {
 		confirmBestConnection();
 	}
@@ -2584,7 +2572,22 @@ void ConnectionPrivate::pqAnswered() {
 		return restart();
 	}
 
-	auto p_q_inner = MTP_p_q_inner_data(res_pq_data.vpq, MTP_bytes(std::move(p)), MTP_bytes(std::move(q)), _authKeyData->nonce, _authKeyData->server_nonce, _authKeyData->new_nonce);
+	// #TODO checked key creation
+	//auto p_q_inner = MTP_p_q_inner_data_dc(
+	//	res_pq_data.vpq,
+	//	MTP_bytes(std::move(p)),
+	//	MTP_bytes(std::move(q)),
+	//	_authKeyData->nonce,
+	//	_authKeyData->server_nonce,
+	//	_authKeyData->new_nonce,
+	//	MTP_int(getProtocolDcId()));
+	auto p_q_inner = MTP_p_q_inner_data(
+		res_pq_data.vpq,
+		MTP_bytes(std::move(p)),
+		MTP_bytes(std::move(q)),
+		_authKeyData->nonce,
+		_authKeyData->server_nonce,
+		_authKeyData->new_nonce);
 	auto dhEncString = encryptPQInnerRSA(p_q_inner, rsaKey);
 	if (dhEncString.empty()) {
 		return restart();
@@ -2600,6 +2603,9 @@ void ConnectionPrivate::pqAnswered() {
 	req_DH_params.vnonce = _authKeyData->nonce;
 	req_DH_params.vserver_nonce = _authKeyData->server_nonce;
 	req_DH_params.vpublic_key_fingerprint = MTP_long(rsaKey.getFingerPrint());
+	// #TODO checked key creation
+	//req_DH_params.vp = p_q_inner.c_p_q_inner_data_dc().vp;
+	//req_DH_params.vq = p_q_inner.c_p_q_inner_data_dc().vq;
 	req_DH_params.vp = p_q_inner.c_p_q_inner_data().vp;
 	req_DH_params.vq = p_q_inner.c_p_q_inner_data().vq;
 	req_DH_params.vencrypted_data = MTP_bytes(dhEncString);
@@ -2986,19 +2992,13 @@ void ConnectionPrivate::clearAuthKeyData() {
 void ConnectionPrivate::onError(
 		not_null<AbstractConnection*> connection,
 		qint32 errorCode) {
-	if (_connection) {
-		return;
-	}
-
 	if (errorCode == -429) {
 		LOG(("Protocol Error: -429 flood code returned!"));
 	}
 	removeTestConnection(connection);
 
 	if (_testConnections.empty()) {
-		if (!_connection || _connection == connection.get()) {
-			handleError(errorCode);
-		}
+		handleError(errorCode);
 	} else {
 		confirmBestConnection();
 	}
@@ -3238,10 +3238,6 @@ ModExpFirst CreateModExp(int g, base::const_byte_span primeBytes, base::const_by
 
 std::vector<gsl::byte> CreateAuthKey(base::const_byte_span firstBytes, base::const_byte_span randomBytes, base::const_byte_span primeBytes) {
 	return internal::CreateAuthKey(firstBytes, randomBytes, primeBytes);
-}
-
-bytes::vector ProtocolSecretFromPassword(const QString &password) {
-	return internal::ProtocolSecretFromPassword(password);
 }
 
 } // namespace MTP

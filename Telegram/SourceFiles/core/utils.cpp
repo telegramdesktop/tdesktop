@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/utils.h"
 
+#include "base/qthelp_url.h"
+#include "application.h"
+#include "platform/platform_specific.h"
+
 #include <openssl/crypto.h>
 #include <openssl/sha.h>
 #include <openssl/err.h>
@@ -14,16 +18,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <openssl/engine.h>
 #include <openssl/conf.h>
 #include <openssl/ssl.h>
+#include <openssl/rand.h>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
-}
-
-#include "application.h"
-#include "platform/platform_specific.h"
-
-uint64 _SharedMemoryLocation[4] = { 0x00, 0x01, 0x02, 0x03 };
+} // extern "C"
 
 #ifdef Q_OS_WIN
 #elif defined Q_OS_MAC
@@ -32,7 +32,7 @@ uint64 _SharedMemoryLocation[4] = { 0x00, 0x01, 0x02, 0x03 };
 #include <time.h>
 #endif
 
-#include <openssl/rand.h>
+uint64 _SharedMemoryLocation[4] = { 0x00, 0x01, 0x02, 0x03 };
 
 // Base types compile-time check
 static_assert(sizeof(char) == 1, "Basic types size check failed");
@@ -249,6 +249,14 @@ bool ProxyData::supportsCalls() const {
 	return (type == Type::Socks5);
 }
 
+bool ProxyData::tryCustomResolve() const {
+	return (type == Type::Socks5 || type == Type::Mtproto)
+		&& !qthelp::is_ipv6(host)
+		&& !QRegularExpression(
+			qsl("^\\d+\\.\\d+\\.\\d+\\.\\d+$")
+		).match(host).hasMatch();
+}
+
 ProxyData::operator bool() const {
 	return valid();
 }
@@ -272,9 +280,25 @@ bool ProxyData::ValidSecret(const QString &secret) {
 	return QRegularExpression("^[a-fA-F0-9]{32}$").match(secret).hasMatch();
 }
 
+ProxyData ToDirectIpProxy(const ProxyData &proxy, int ipIndex) {
+	if (!proxy.tryCustomResolve()
+		|| ipIndex < 0
+		|| ipIndex >= proxy.resolvedIPs.size()) {
+		return proxy;
+	}
+	return {
+		proxy.type,
+		proxy.resolvedIPs[ipIndex],
+		proxy.port,
+		proxy.user,
+		proxy.password
+	};
+}
+
 QNetworkProxy ToNetworkProxy(const ProxyData &proxy) {
-	if (proxy.type == ProxyData::Type::None
-		|| proxy.type == ProxyData::Type::Mtproto) {
+	if (proxy.type == ProxyData::Type::None) {
+		return QNetworkProxy::DefaultProxy;
+	} else if (proxy.type == ProxyData::Type::Mtproto) {
 		return QNetworkProxy::NoProxy;
 	}
 	return QNetworkProxy(

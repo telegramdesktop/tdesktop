@@ -9,10 +9,43 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/connection_tcp.h"
 #include "mtproto/connection_http.h"
+#include "mtproto/connection_resolving.h"
 #include "mtproto/session.h"
 
 namespace MTP {
 namespace internal {
+namespace {
+
+bytes::vector ProtocolSecretFromPassword(const QString &password) {
+	const auto size = password.size();
+	if (size % 2) {
+		return {};
+	}
+	const auto length = size / 2;
+	const auto fromHex = [](QChar ch) -> int {
+		const auto code = int(ch.unicode());
+		if (code >= '0' && code <= '9') {
+			return (code - '0');
+		} else if (code >= 'A' && code <= 'F') {
+			return 10 + (code - 'A');
+		} else if (ch >= 'a' && ch <= 'f') {
+			return 10 + (code - 'a');
+		}
+		return -1;
+	};
+	auto result = bytes::vector(length);
+	for (auto i = 0; i != length; ++i) {
+		const auto high = fromHex(password[2 * i]);
+		const auto low = fromHex(password[2 * i + 1]);
+		if (high < 0 || low < 0) {
+			return {};
+		}
+		result[i] = static_cast<gsl::byte>(high * 16 + low);
+	}
+	return result;
+}
+
+} // namespace
 
 ConnectionPointer::ConnectionPointer() = default;
 
@@ -122,19 +155,39 @@ MTPResPQ AbstractConnection::readPQFakeReply(const mtpBuffer &buffer) {
 	return response;
 }
 
-AbstractConnection::AbstractConnection(QThread *thread) {
+AbstractConnection::AbstractConnection(
+	QThread *thread,
+	const ProxyData &proxy)
+: _proxy(proxy) {
 	moveToThread(thread);
 }
 
-ConnectionPointer AbstractConnection::create(
+ConnectionPointer AbstractConnection::Create(
+		not_null<Instance*> instance,
 		DcOptions::Variants::Protocol protocol,
-		QThread *thread) {
-	if (protocol == DcOptions::Variants::Tcp) {
-		return ConnectionPointer(new TcpConnection(thread));
-	} else {
-		return ConnectionPointer(new HttpConnection(thread));
+		QThread *thread,
+		const ProxyData &proxy) {
+	auto result = [&] {
+		if (protocol == DcOptions::Variants::Tcp) {
+			return ConnectionPointer::New<TcpConnection>(thread, proxy);
+		} else {
+			return ConnectionPointer::New<HttpConnection>(thread, proxy);
+		}
+	}();
+	if (proxy.tryCustomResolve()) {
+		return ConnectionPointer::New<ResolvingConnection>(
+			instance,
+			thread,
+			proxy,
+			std::move(result));
 	}
+	return result;
 }
 
 } // namespace internal
+
+bytes::vector ProtocolSecretFromPassword(const QString &password) {
+	return internal::ProtocolSecretFromPassword(password);
+}
+
 } // namespace MTP

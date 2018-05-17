@@ -26,8 +26,6 @@ struct ModExpFirst {
 ModExpFirst CreateModExp(int g, base::const_byte_span primeBytes, base::const_byte_span randomSeed);
 std::vector<gsl::byte> CreateAuthKey(base::const_byte_span firstBytes, base::const_byte_span randomBytes, base::const_byte_span primeBytes);
 
-bytes::vector ProtocolSecretFromPassword(const QString &password);
-
 namespace internal {
 
 class AbstractConnection;
@@ -169,6 +167,7 @@ private:
 	void destroyAllConnections();
 	void confirmBestConnection();
 	void removeTestConnection(not_null<AbstractConnection*> connection);
+	int16 getProtocolDcId() const;
 
 	mtpMsgId placeToContainer(mtpRequest &toSendRequest, mtpMsgId &bigMsgId, mtpMsgId *&haveSentArr, mtpRequest &req);
 	mtpMsgId prepareToSend(mtpRequest &request, mtpMsgId currentLastId);
@@ -214,7 +213,7 @@ private:
 	template <typename TResponse>
 	bool readResponseNotSecure(TResponse &response);
 
-	Instance *_instance = nullptr;
+	not_null<Instance*> _instance;
 	DcType _dcType = DcType::Regular;
 
 	mutable QReadWriteLock stateConnMutex;
@@ -239,8 +238,8 @@ private:
 	base::Timer _waitForConnectedTimer;
 	base::Timer _waitForReceivedTimer;
 	base::Timer _waitForBetterTimer;
-	uint32 _waitForReceived = 0;
-	uint32 _waitForConnected = 0;
+	TimeMs _waitForReceived = 0;
+	TimeMs _waitForConnected = 0;
 	TimeMs firstSentAt = -1;
 
 	QVector<MTPlong> ackRequestData, resendRequestData;

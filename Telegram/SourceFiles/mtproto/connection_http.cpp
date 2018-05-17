@@ -14,17 +14,19 @@ namespace internal {
 namespace {
 
 constexpr auto kForceHttpPort = 80;
+constexpr auto kFullConnectionTimeout = TimeMs(8000);
 
 } // namespace
 
-HttpConnection::HttpConnection(QThread *thread)
-: AbstractConnection(thread)
+HttpConnection::HttpConnection(QThread *thread, const ProxyData &proxy)
+: AbstractConnection(thread, proxy)
 , _checkNonce(rand_value<MTPint128>()) {
 	_manager.moveToThread(thread);
+	_manager.setProxy(ToNetworkProxy(proxy));
 }
 
-void HttpConnection::setProxyOverride(const ProxyData &proxy) {
-	_manager.setProxy(ToNetworkProxy(proxy));
+ConnectionPointer HttpConnection::clone(const ProxyData &proxy) {
+	return ConnectionPointer::New<HttpConnection>(thread(), proxy);
 }
 
 void HttpConnection::sendData(mtpBuffer &buffer) {
@@ -43,7 +45,7 @@ void HttpConnection::sendData(mtpBuffer &buffer) {
 	request.setHeader(QNetworkRequest::ContentLengthHeader, QVariant(requestSize));
 	request.setHeader(QNetworkRequest::ContentTypeHeader, QVariant(qsl("application/x-www-form-urlencoded")));
 
-	TCP_LOG(("HTTP Info: sending %1 len request %2").arg(requestSize).arg(Logs::mb(&buffer[2], requestSize).str()));
+	TCP_LOG(("HTTP Info: sending %1 len request").arg(requestSize));
 	_requests.insert(_manager.post(request, QByteArray((const char*)(&buffer[2]), requestSize)));
 }
 
@@ -194,6 +196,10 @@ void HttpConnection::requestFinished(QNetworkReply *reply) {
 
 TimeMs HttpConnection::pingTime() const {
 	return isConnected() ? _pingTime : TimeMs(0);
+}
+
+TimeMs HttpConnection::fullConnectTimeout() const {
+	return kFullConnectionTimeout;
 }
 
 bool HttpConnection::usingHttpWait() {

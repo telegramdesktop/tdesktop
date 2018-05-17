@@ -16,11 +16,14 @@ namespace internal {
 
 class TcpConnection : public AbstractConnection {
 public:
-	TcpConnection(QThread *thread);
+	TcpConnection(
+		QThread *thread,
+		const ProxyData &proxy);
 
-	void setProxyOverride(const ProxyData &proxy) override;
+	ConnectionPointer clone(const ProxyData &proxy) override;
 
 	TimeMs pingTime() const override;
+	TimeMs fullConnectTimeout() const override;
 	void sendData(mtpBuffer &buffer) override;
 	void disconnectFromServer() override;
 	void connectToServer(

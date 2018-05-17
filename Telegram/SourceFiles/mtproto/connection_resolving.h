@@ -7,14 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "mtproto/auth_key.h"
 #include "mtproto/connection_abstract.h"
+#include "base/timer.h"
 
 namespace MTP {
 namespace internal {
 
-class HttpConnection : public AbstractConnection {
+class ResolvingConnection : public AbstractConnection {
 public:
-	HttpConnection(QThread *thread, const ProxyData &proxy);
+	ResolvingConnection(
+		not_null<Instance*> instance,
+		QThread *thread,
+		const ProxyData &proxy,
+		ConnectionPointer &&child);
 
 	ConnectionPointer clone(const ProxyData &proxy) override;
 
@@ -28,36 +34,35 @@ public:
 		const bytes::vector &protocolSecret,
 		int16 protocolDcId) override;
 	bool isConnected() const override;
-	bool usingHttpWait() override;
-	bool needHttpWait() override;
 
 	int32 debugState() const override;
 
 	QString transport() const override;
 	QString tag() const override;
 
-	static mtpBuffer handleResponse(QNetworkReply *reply);
-	static qint32 handleError(QNetworkReply *reply); // returnes error code
-
 private:
-	QUrl url() const;
+	void setChild(ConnectionPointer &&child);
+	void refreshChild();
+	void emitError();
 
-	void requestFinished(QNetworkReply *reply);
+	void domainResolved(
+		const QString &host,
+		const QStringList &ips,
+		qint64 expireAt);
+	void handleError();
+	void handleConnected();
+	void handleDisconnected();
+	void handleReceivedData();
 
-	enum class Status {
-		Waiting = 0,
-		Ready,
-		Finished,
-	};
-	Status _status = Status::Waiting;
-	MTPint128 _checkNonce;
-
-	QNetworkAccessManager _manager;
+	not_null<Instance*> _instance;
+	ConnectionPointer _child;
+	bool _connected = false;
+	int _ipIndex = -1;
 	QString _address;
-
-	QSet<QNetworkReply*> _requests;
-
-	TimeMs _pingTime = 0;
+	int _port = 0;
+	bytes::vector _protocolSecret;
+	int16 _protocolDcId = 0;
+	base::Timer _timeoutTimer;
 
 };
 

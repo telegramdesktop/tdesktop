@@ -321,7 +321,8 @@ void Application::refreshGlobalProxy() {
 	}();
 	if (proxy.type == ProxyData::Type::Socks5
 		|| proxy.type == ProxyData::Type::Http) {
-		QNetworkProxy::setApplicationProxy(ToNetworkProxy(proxy));
+		QNetworkProxy::setApplicationProxy(
+			ToNetworkProxy(ToDirectIpProxy(proxy)));
 	} else {
 		QNetworkProxyFactory::setUseSystemConfiguration(true);
 	}

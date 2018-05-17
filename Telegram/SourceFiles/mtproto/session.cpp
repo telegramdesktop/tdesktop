@@ -59,6 +59,19 @@ void SessionData::setKey(const AuthKeyPtr &key) {
 	}
 }
 
+void SessionData::notifyConnectionInited(const ConnectionOptions &options) {
+	QWriteLocker locker(&_lock);
+	if (options.cloudLangCode == _options.cloudLangCode
+		&& options.systemLangCode == _options.systemLangCode
+		&& options.proxy == _options.proxy
+		&& !_options.inited) {
+		_options.inited = true;
+
+		locker.unlock();
+		owner()->notifyDcConnectionInited();
+	}
+}
+
 void SessionData::clear(Instance *instance) {
 	auto clearCallbacks = std::vector<RPCCallbackClear>();
 	{
@@ -110,7 +123,7 @@ Session::Session(not_null<Instance*> instance, ShiftedDcId shiftedDcId) : QObjec
 	connect(&timeouter, SIGNAL(timeout()), this, SLOT(checkRequestsByTimer()));
 	timeouter.start(1000);
 
-	refreshDataFields();
+	refreshOptions();
 
 	connect(&sender, SIGNAL(timeout()), this, SLOT(needToResumeAndSend()));
 }
@@ -133,11 +146,11 @@ void Session::createDcData() {
 	if (auto lock = ReadLockerAttempt(keyMutex())) {
 		data.setKey(dc->getKey());
 		if (dc->connectionInited()) {
-			data.setLayerWasInited(true);
+			data.setConnectionInited();
 		}
 	}
 	connect(dc.get(), SIGNAL(authKeyCreated()), this, SLOT(authKeyCreatedForDC()), Qt::QueuedConnection);
-	connect(dc.get(), SIGNAL(layerWasInited(bool)), this, SLOT(layerWasInitedForDC(bool)), Qt::QueuedConnection);
+	connect(dc.get(), SIGNAL(connectionWasInited()), this, SLOT(connectionWasInitedForDC()), Qt::QueuedConnection);
 }
 
 void Session::registerRequest(mtpRequestId requestId, ShiftedDcId dcWithShift) {
@@ -163,11 +176,11 @@ void Session::restart() {
 		DEBUG_LOG(("Session Error: can't restart a killed session"));
 		return;
 	}
-	refreshDataFields();
+	refreshOptions();
 	emit needToRestart();
 }
 
-void Session::refreshDataFields() {
+void Session::refreshOptions() {
 	const auto &proxy = Global::SelectedProxy();
 	const auto proxyType = Global::UseProxy()
 		? proxy.type
@@ -176,7 +189,7 @@ void Session::refreshDataFields() {
 	const auto useHttp = (proxyType != ProxyData::Type::Mtproto);
 	const auto useIPv4 = true;
 	const auto useIPv6 = Global::TryIPv6();
-	data.setConnectionOptions(ConnectionOptions(
+	data.applyConnectionOptions(ConnectionOptions(
 		_instance->systemLangCode(),
 		_instance->cloudLangCode(),
 		Global::UseProxy() ? proxy : ProxyData(),
@@ -184,6 +197,12 @@ void Session::refreshDataFields() {
 		useIPv6,
 		useHttp,
 		useTcp));
+}
+
+void Session::reInitConnection() {
+	dc->setConnectionInited(false);
+	data.setConnectionInited(false);
+	restart();
 }
 
 void Session::stop() {
@@ -548,15 +567,15 @@ void Session::notifyKeyCreated(AuthKeyPtr &&key) {
 	dc->setKey(std::move(key));
 }
 
-void Session::layerWasInitedForDC(bool wasInited) {
-	DEBUG_LOG(("MTP Info: Session::layerWasInitedForDC slot, dcWithShift %1").arg(dcWithShift));
-	data.setLayerWasInited(wasInited);
+void Session::connectionWasInitedForDC() {
+	DEBUG_LOG(("MTP Info: Session::connectionWasInitedForDC slot, dcWithShift %1").arg(dcWithShift));
+	data.setConnectionInited();
 }
 
-void Session::notifyLayerInited(bool wasInited) {
-	DEBUG_LOG(("MTP Info: emitting MTProtoDC::layerWasInited(%1), dcWithShift %2").arg(Logs::b(wasInited)).arg(dcWithShift));
-	dc->setConnectionInited(wasInited);
-	emit dc->layerWasInited(wasInited);
+void Session::notifyDcConnectionInited() {
+	DEBUG_LOG(("MTP Info: emitting MTProtoDC::connectionWasInited(), dcWithShift %1").arg(dcWithShift));
+	dc->setConnectionInited();
+	emit dc->connectionWasInited();
 }
 
 void Session::destroyKey() {
