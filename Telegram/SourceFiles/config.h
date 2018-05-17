@@ -17,8 +17,6 @@ constexpr str_const AppId = "{53F49750-6209-4FBF-9CA8-7A333C87D1ED}"; // used in
 constexpr str_const AppFile = "Telegram";
 
 enum {
-	MTPShortBufferSize = 65535, // of ints, 256 kb
-	MTPPacketSizeMax = 67108864, // 64 mb
 	MTPIdsBufferSize = 400, // received msgIds and wereAcked msgIds count stored
 	MTPCheckResendTimeout = 10000, // how much time passed from send till we resend request or check it's state, in ms
 	MTPCheckResendWaiting = 1000, // how much time to wait for some more requests, when resending request or checking it's state, in ms

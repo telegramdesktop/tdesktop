@@ -130,9 +130,9 @@ ConnectionPointer AbstractConnection::create(
 		DcOptions::Variants::Protocol protocol,
 		QThread *thread) {
 	if (protocol == DcOptions::Variants::Tcp) {
-		return ConnectionPointer(new TCPConnection(thread));
+		return ConnectionPointer(new TcpConnection(thread));
 	} else {
-		return ConnectionPointer(new HTTPConnection(thread));
+		return ConnectionPointer(new HttpConnection(thread));
 	}
 }
 

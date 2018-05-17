@@ -18,8 +18,9 @@ namespace {
 
 constexpr auto kMinReceiveTimeout = TimeMs(2000);
 constexpr auto kMaxReceiveTimeout = TimeMs(8000);
+constexpr auto kPacketSizeMax = 64 * 1024 * 1024U;
 
-uint32 tcpPacketSize(const char *packet) { // must have at least 4 bytes readable
+uint32 CountTcpPacketSize(const char *packet) { // must have at least 4 bytes readable
 	uint32 result = (packet[0] > 0) ? packet[0] : 0;
 	if (result == 0x7f) {
 		const uchar *bytes = reinterpret_cast<const uchar*>(packet);
@@ -29,92 +30,113 @@ uint32 tcpPacketSize(const char *packet) { // must have at least 4 bytes readabl
 	return (result << 2) + 1;
 }
 
+using ErrorSignal = void(QTcpSocket::*)(QAbstractSocket::SocketError);
+const auto QTcpSocket_error = ErrorSignal(&QAbstractSocket::error);
+
 } // namespace
 
-AbstractTCPConnection::AbstractTCPConnection(
-	QThread *thread)
+TcpConnection::TcpConnection(QThread *thread)
 : AbstractConnection(thread)
-, currentPos((char*)shortBuffer) {
+, _currentPosition(reinterpret_cast<char*>(_shortBuffer))
+, _checkNonce(rand_value<MTPint128>())
+, _timeout(kMinReceiveTimeout)
+, _timeoutTimer(thread, [=] { handleTimeout(); }) {
+	_socket.moveToThread(thread);
+	connect(&_socket, QTcpSocket_error, this, &TcpConnection::socketError);
+	connect(
+		&_socket,
+		&QTcpSocket::connected,
+		this,
+		&TcpConnection::socketConnected);
+	connect(
+		&_socket,
+		&QTcpSocket::disconnected,
+		this,
+		&TcpConnection::socketDisconnected);
 }
 
-void AbstractTCPConnection::setProxyOverride(const ProxyData &proxy) {
-	sock.setProxy(ToNetworkProxy(proxy));
+void TcpConnection::setProxyOverride(const ProxyData &proxy) {
+	_socket.setProxy(ToNetworkProxy(proxy));
 }
 
-AbstractTCPConnection::~AbstractTCPConnection() = default;
-
-void AbstractTCPConnection::socketRead() {
-	if (sock.state() != QAbstractSocket::ConnectedState) {
-		LOG(("MTP error: socket not connected in socketRead(), state: %1").arg(sock.state()));
+void TcpConnection::socketRead() {
+	if (_socket.state() != QAbstractSocket::ConnectedState) {
+		LOG(("MTP error: "
+			"socket not connected in socketRead(), state: %1"
+			).arg(_socket.state()));
 		emit error(kErrorCodeOther);
 		return;
 	}
 
 	do {
-		uint32 toRead = packetLeft ? packetLeft : (readingToShort ? (MTPShortBufferSize * sizeof(mtpPrime) - packetRead) : 4);
-		if (readingToShort) {
-			if (currentPos + toRead > ((char*)shortBuffer) + MTPShortBufferSize * sizeof(mtpPrime)) {
-				longBuffer.resize(((packetRead + toRead) >> 2) + 1);
-				memcpy(&longBuffer[0], shortBuffer, packetRead);
-				currentPos = ((char*)&longBuffer[0]) + packetRead;
-				readingToShort = false;
+		uint32 toRead = _packetLeft
+			? _packetLeft
+			: (_readingToShort
+				? (kShortBufferSize * sizeof(mtpPrime) - _packetRead)
+				: 4);
+		if (_readingToShort) {
+			if (_currentPosition + toRead > ((char*)_shortBuffer) + kShortBufferSize * sizeof(mtpPrime)) {
+				_longBuffer.resize(((_packetRead + toRead) >> 2) + 1);
+				memcpy(&_longBuffer[0], _shortBuffer, _packetRead);
+				_currentPosition = ((char*)&_longBuffer[0]) + _packetRead;
+				_readingToShort = false;
 			}
 		} else {
-			if (longBuffer.size() * sizeof(mtpPrime) < packetRead + toRead) {
-				longBuffer.resize(((packetRead + toRead) >> 2) + 1);
-				currentPos = ((char*)&longBuffer[0]) + packetRead;
+			if (_longBuffer.size() * sizeof(mtpPrime) < _packetRead + toRead) {
+				_longBuffer.resize(((_packetRead + toRead) >> 2) + 1);
+				_currentPosition = ((char*)&_longBuffer[0]) + _packetRead;
 			}
 		}
-		int32 bytes = (int32)sock.read(currentPos, toRead);
+		int32 bytes = (int32)_socket.read(_currentPosition, toRead);
 		if (bytes > 0) {
-			aesCtrEncrypt(currentPos, bytes, _receiveKey, &_receiveState);
+			aesCtrEncrypt(_currentPosition, bytes, _receiveKey, &_receiveState);
 			TCP_LOG(("TCP Info: read %1 bytes").arg(bytes));
 
-			packetRead += bytes;
-			currentPos += bytes;
-			if (packetLeft) {
-				packetLeft -= bytes;
-				if (!packetLeft) {
-					socketPacket(currentPos - packetRead, packetRead);
-					currentPos = (char*)shortBuffer;
-					packetRead = packetLeft = 0;
-					readingToShort = true;
-					longBuffer.clear();
+			_packetRead += bytes;
+			_currentPosition += bytes;
+			if (_packetLeft) {
+				_packetLeft -= bytes;
+				if (!_packetLeft) {
+					socketPacket(_currentPosition - _packetRead, _packetRead);
+					_currentPosition = (char*)_shortBuffer;
+					_packetRead = _packetLeft = 0;
+					_readingToShort = true;
+					_longBuffer.clear();
 				} else {
-					TCP_LOG(("TCP Info: not enough %1 for packet! read %2").arg(packetLeft).arg(packetRead));
+					TCP_LOG(("TCP Info: not enough %1 for packet! read %2").arg(_packetLeft).arg(_packetRead));
 					emit receivedSome();
 				}
 			} else {
 				bool move = false;
-				while (packetRead >= 4) {
-					uint32 packetSize = tcpPacketSize(currentPos - packetRead);
-					if (packetSize < 5 || packetSize > MTPPacketSizeMax) {
+				while (_packetRead >= 4) {
+					uint32 packetSize = CountTcpPacketSize(_currentPosition - _packetRead);
+					if (packetSize < 5 || packetSize > kPacketSizeMax) {
 						LOG(("TCP Error: packet size = %1").arg(packetSize));
 						emit error(kErrorCodeOther);
 						return;
 					}
-					if (packetRead >= packetSize) {
-						socketPacket(currentPos - packetRead, packetSize);
-						packetRead -= packetSize;
-						packetLeft = 0;
+					if (_packetRead >= packetSize) {
+						socketPacket(_currentPosition - _packetRead, packetSize);
+						_packetRead -= packetSize;
+						_packetLeft = 0;
 						move = true;
 					} else {
-						packetLeft = packetSize - packetRead;
-						TCP_LOG(("TCP Info: not enough %1 for packet! size %2 read %3").arg(packetLeft).arg(packetSize).arg(packetRead));
+						_packetLeft = packetSize - _packetRead;
+						TCP_LOG(("TCP Info: not enough %1 for packet! size %2 read %3").arg(_packetLeft).arg(packetSize).arg(_packetRead));
 						emit receivedSome();
 						break;
 					}
 				}
 				if (move) {
-					if (!packetRead) {
-						currentPos = (char*)shortBuffer;
-						readingToShort = true;
-						longBuffer.clear();
-					} else if (!readingToShort && packetRead < MTPShortBufferSize * sizeof(mtpPrime)) {
-						memcpy(shortBuffer, currentPos - packetRead, packetRead);
-						currentPos = (char*)shortBuffer + packetRead;
-						readingToShort = true;
-						longBuffer.clear();
+					if (!_packetRead) {
+						_currentPosition = (char*)_shortBuffer;
+						_readingToShort = true;
+						_longBuffer.clear();
+					} else if (!_readingToShort && _packetRead < kShortBufferSize * sizeof(mtpPrime)) {
+						memcpy(_shortBuffer, _currentPosition - _packetRead, _packetRead);
+						_currentPosition = (char*)_shortBuffer + _packetRead;
+						_readingToShort = true;
+						_longBuffer.clear();
 					}
 				}
 			}
@@ -126,11 +148,11 @@ void AbstractTCPConnection::socketRead() {
 			TCP_LOG(("TCP Info: no bytes read, but bytes available was true..."));
 			break;
 		}
-	} while (sock.state() == QAbstractSocket::ConnectedState && sock.bytesAvailable());
+	} while (_socket.state() == QAbstractSocket::ConnectedState && _socket.bytesAvailable());
 }
 
-mtpBuffer AbstractTCPConnection::handleResponse(const char *packet, uint32 length) {
-	if (length < 5 || length > MTPPacketSizeMax) {
+mtpBuffer TcpConnection::handleResponse(const char *packet, uint32 length) {
+	if (length < 5 || length > kPacketSizeMax) {
 		LOG(("TCP Error: bad packet size %1").arg(length));
 		return mtpBuffer(1, -500);
 	}
@@ -158,26 +180,26 @@ mtpBuffer AbstractTCPConnection::handleResponse(const char *packet, uint32 lengt
 	return data;
 }
 
-void AbstractTCPConnection::handleError(QAbstractSocket::SocketError e, QTcpSocket &sock) {
+void TcpConnection::handleError(QAbstractSocket::SocketError e, QTcpSocket &socket) {
 	switch (e) {
 	case QAbstractSocket::ConnectionRefusedError:
-	LOG(("TCP Error: socket connection refused - %1").arg(sock.errorString()));
+	LOG(("TCP Error: socket connection refused - %1").arg(socket.errorString()));
 	break;
 
 	case QAbstractSocket::RemoteHostClosedError:
-	TCP_LOG(("TCP Info: remote host closed socket connection - %1").arg(sock.errorString()));
+	TCP_LOG(("TCP Info: remote host closed socket connection - %1").arg(socket.errorString()));
 	break;
 
 	case QAbstractSocket::HostNotFoundError:
-	LOG(("TCP Error: host not found - %1").arg(sock.errorString()));
+	LOG(("TCP Error: host not found - %1").arg(socket.errorString()));
 	break;
 
 	case QAbstractSocket::SocketTimeoutError:
-	LOG(("TCP Error: socket timeout - %1").arg(sock.errorString()));
+	LOG(("TCP Error: socket timeout - %1").arg(socket.errorString()));
 	break;
 
 	case QAbstractSocket::NetworkError:
-	LOG(("TCP Error: network - %1").arg(sock.errorString()));
+	LOG(("TCP Error: network - %1").arg(socket.errorString()));
 	break;
 
 	case QAbstractSocket::ProxyAuthenticationRequiredError:
@@ -186,77 +208,62 @@ void AbstractTCPConnection::handleError(QAbstractSocket::SocketError e, QTcpSock
 	case QAbstractSocket::ProxyConnectionTimeoutError:
 	case QAbstractSocket::ProxyNotFoundError:
 	case QAbstractSocket::ProxyProtocolError:
-	LOG(("TCP Error: proxy (%1) - %2").arg(e).arg(sock.errorString()));
+	LOG(("TCP Error: proxy (%1) - %2").arg(e).arg(socket.errorString()));
 	break;
 
 	default:
-	LOG(("TCP Error: other (%1) - %2").arg(e).arg(sock.errorString()));
+	LOG(("TCP Error: other (%1) - %2").arg(e).arg(socket.errorString()));
 	break;
 	}
 
-	TCP_LOG(("TCP Error %1, restarting! - %2").arg(e).arg(sock.errorString()));
+	TCP_LOG(("TCP Error %1, restarting! - %2").arg(e).arg(socket.errorString()));
 }
 
-TCPConnection::TCPConnection(QThread *thread)
-: AbstractTCPConnection(thread)
-, status(WaitingTcp)
-, tcpNonce(rand_value<MTPint128>())
-, _tcpTimeout(kMinReceiveTimeout) {
-	tcpTimeoutTimer.moveToThread(thread);
-	tcpTimeoutTimer.setSingleShot(true);
-	connect(&tcpTimeoutTimer, SIGNAL(timeout()), this, SLOT(onTcpTimeoutTimer()));
-
-	sock.moveToThread(thread);
-	connect(&sock, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(socketError(QAbstractSocket::SocketError)));
-	connect(&sock, SIGNAL(connected()), this, SLOT(onSocketConnected()));
-	connect(&sock, SIGNAL(disconnected()), this, SLOT(onSocketDisconnected()));
-}
-
-void TCPConnection::onSocketConnected() {
-	if (status == WaitingTcp) {
-		mtpBuffer buffer(preparePQFake(tcpNonce));
+void TcpConnection::socketConnected() {
+	if (_status == Status::Waiting) {
+		mtpBuffer buffer(preparePQFake(_checkNonce));
 
 		DEBUG_LOG(("Connection Info: sending fake req_pq through TCP transport to %1").arg(_address));
 
-		if (_tcpTimeout < 0) _tcpTimeout = -_tcpTimeout;
-		tcpTimeoutTimer.start(_tcpTimeout);
+		if (_timeout < 0) _timeout = -_timeout;
+		_timeoutTimer.callOnce(_timeout);
 
 		_pingTime = getms();
 		sendData(buffer);
 	}
 }
 
-void TCPConnection::onTcpTimeoutTimer() {
-	if (status == WaitingTcp) {
-		if (_tcpTimeout < kMaxReceiveTimeout) {
-			_tcpTimeout *= 2;
+void TcpConnection::handleTimeout() {
+	if (_status == Status::Waiting) {
+		if (_timeout < kMaxReceiveTimeout) {
+			_timeout *= 2;
 		}
-		_tcpTimeout = -_tcpTimeout;
+		_timeout = -_timeout;
 
-		QAbstractSocket::SocketState state = sock.state();
+		QAbstractSocket::SocketState state = _socket.state();
 		if (state == QAbstractSocket::ConnectedState || state == QAbstractSocket::ConnectingState || state == QAbstractSocket::HostLookupState) {
-			sock.disconnectFromHost();
+			_socket.disconnectFromHost();
 		} else if (state != QAbstractSocket::ClosingState) {
-			sock.connectToHost(QHostAddress(_address), _port);
+			_socket.connectToHost(_address, _port);
 		}
 	}
 }
 
-void TCPConnection::onSocketDisconnected() {
-	if (_tcpTimeout < 0) {
-		_tcpTimeout = -_tcpTimeout;
-		if (status == WaitingTcp) {
-			sock.connectToHost(QHostAddress(_address), _port);
+void TcpConnection::socketDisconnected() {
+	if (_timeout < 0) {
+		_timeout = -_timeout;
+		if (_status == Status::Waiting) {
+			_socket.connectToHost(_address, _port);
 			return;
 		}
 	}
-	if (status == WaitingTcp || status == UsingTcp) {
+	if (_status == Status::Waiting || _status == Status::Ready) {
 		emit disconnected();
 	}
 }
 
-void TCPConnection::sendData(mtpBuffer &buffer) {
-	if (status == FinishedWork) return;
+void TcpConnection::sendData(mtpBuffer &buffer) {
+	if (_status == Status::Finished) return;
 
 	if (buffer.size() < 3) {
 		LOG(("TCP Error: writing bad packet, len = %1").arg(buffer.size() * sizeof(mtpPrime)));
@@ -265,10 +272,10 @@ void TCPConnection::sendData(mtpBuffer &buffer) {
 		return;
 	}
 
-	tcpSend(buffer);
+	sendBuffer(buffer);
 }
 
-void AbstractTCPConnection::writeConnectionStart() {
+void TcpConnection::writeConnectionStart() {
 	// prepare random part
 	auto nonceBytes = bytes::vector(64);
 	const auto nonce = bytes::make_span(nonceBytes);
@@ -280,8 +287,7 @@ void AbstractTCPConnection::writeConnectionStart() {
 	const auto reserved11 = 0x44414548U;
 	const auto reserved12 = 0x54534F50U;
 	const auto reserved13 = 0x20544547U;
-	const auto reserved14 = 0x20544547U;
-	const auto reserved15 = 0xEEEEEEEEU;
+	const auto reserved14 = 0xEEEEEEEEU;
 	const auto reserved21 = 0x00000000U;
 	do {
 		bytes::set_random(nonce);
@@ -290,7 +296,6 @@ void AbstractTCPConnection::writeConnectionStart() {
 		|| *first == reserved12
 		|| *first == reserved13
 		|| *first == reserved14
-		|| *first == reserved15
 		|| *second == reserved21);
 
 	const auto prepareKey = [&](bytes::span key, bytes::const_span from) {
@@ -330,80 +335,79 @@ void AbstractTCPConnection::writeConnectionStart() {
 	const auto dcId = reinterpret_cast<int16*>(nonce.data() + 60);
 	*dcId = _protocolDcId;
 
-	sock.write(reinterpret_cast<const char*>(nonce.data()), 56);
+	_socket.write(reinterpret_cast<const char*>(nonce.data()), 56);
 	aesCtrEncrypt(nonce.data(), 64, _sendKey, &_sendState);
-	sock.write(reinterpret_cast<const char*>(nonce.subspan(56).data()), 8);
+	_socket.write(reinterpret_cast<const char*>(nonce.subspan(56).data()), 8);
 }
 
-void AbstractTCPConnection::tcpSend(mtpBuffer &buffer) {
-	if (!packetNum) {
+void TcpConnection::sendBuffer(mtpBuffer &buffer) {
+	if (!_packetIndex++) {
 		writeConnectionStart();
 	}
-	++packetNum;
 
 	uint32 size = buffer.size() - 3, len = size * 4;
 	char *data = reinterpret_cast<char*>(&buffer[0]);
 	if (size < 0x7f) {
 		data[7] = char(size);
-		TCP_LOG(("TCP Info: write %1 packet %2").arg(packetNum).arg(len + 1));
+		TCP_LOG(("TCP Info: write %1 packet %2").arg(_packetIndex).arg(len + 1));
 
 		aesCtrEncrypt(data + 7, len + 1, _sendKey, &_sendState);
-		sock.write(data + 7, len + 1);
+		_socket.write(data + 7, len + 1);
 	} else {
 		data[4] = 0x7f;
 		reinterpret_cast<uchar*>(data)[5] = uchar(size & 0xFF);
 		reinterpret_cast<uchar*>(data)[6] = uchar((size >> 8) & 0xFF);
 		reinterpret_cast<uchar*>(data)[7] = uchar((size >> 16) & 0xFF);
-		TCP_LOG(("TCP Info: write %1 packet %2").arg(packetNum).arg(len + 4));
+		TCP_LOG(("TCP Info: write %1 packet %2").arg(_packetIndex).arg(len + 4));
 
 		aesCtrEncrypt(data + 4, len + 4, _sendKey, &_sendState);
-		sock.write(data + 4, len + 4);
+		_socket.write(data + 4, len + 4);
 	}
 }
 
-void TCPConnection::disconnectFromServer() {
-	if (status == FinishedWork) return;
-	status = FinishedWork;
+void TcpConnection::disconnectFromServer() {
+	if (_status == Status::Finished) return;
+	_status = Status::Finished;
 
-	disconnect(&sock, SIGNAL(readyRead()), 0, 0);
-	sock.close();
+	disconnect(&_socket, &QTcpSocket::readyRead, nullptr, nullptr);
+	_socket.close();
 }
 
-void TCPConnection::connectToServer(
-		const QString &ip,
+void TcpConnection::connectToServer(
+		const QString &address,
 		int port,
 		const bytes::vector &protocolSecret,
 		int16 protocolDcId) {
-	_address = ip;
+	_address = address;
 	_port = port;
 	_protocolSecret = protocolSecret;
 	_protocolDcId = protocolDcId;
 
-	connect(&sock, SIGNAL(readyRead()), this, SLOT(socketRead()));
-	sock.connectToHost(QHostAddress(_address), _port);
+	connect(&_socket, &QTcpSocket::readyRead, this, &TcpConnection::socketRead);
+	_socket.connectToHost(_address, _port);
 }
 
-TimeMs TCPConnection::pingTime() const {
+TimeMs TcpConnection::pingTime() const {
 	return isConnected() ? _pingTime : TimeMs(0);
 }
 
-void TCPConnection::socketPacket(const char *packet, uint32 length) {
-	if (status == FinishedWork) return;
+void TcpConnection::socketPacket(const char *packet, uint32 length) {
+	if (_status == Status::Finished) return;
 
 	mtpBuffer data = handleResponse(packet, length);
 	if (data.size() == 1) {
 		emit error(data[0]);
-	} else if (status == UsingTcp) {
+	} else if (_status == Status::Ready) {
 		_receivedQueue.push_back(data);
 		emit receivedData();
-	} else if (status == WaitingTcp) {
-		tcpTimeoutTimer.stop();
+	} else if (_status == Status::Waiting) {
+		_timeoutTimer.cancel();
 		try {
 			auto res_pq = readPQFakeReply(data);
 			const auto &res_pq_data(res_pq.c_resPQ());
-			if (res_pq_data.vnonce == tcpNonce) {
+			if (res_pq_data.vnonce == _checkNonce) {
 				DEBUG_LOG(("Connection Info: TCP-transport to %1 chosen by pq-response").arg(_address));
-				status = UsingTcp;
+				_status = Status::Ready;
 				_pingTime = (getms() - _pingTime);
 				emit connected();
 			}
@@ -414,15 +418,15 @@ void TCPConnection::socketPacket(const char *packet, uint32 length) {
 	}
 }
 
-bool TCPConnection::isConnected() const {
-	return (status == UsingTcp);
+bool TcpConnection::isConnected() const {
+	return (_status == Status::Ready);
 }
 
-int32 TCPConnection::debugState() const {
-	return sock.state();
+int32 TcpConnection::debugState() const {
+	return _socket.state();
 }
 
-QString TCPConnection::transport() const {
+QString TcpConnection::transport() const {
 	if (!isConnected()) {
 		return QString();
 	}
@@ -433,7 +437,7 @@ QString TCPConnection::transport() const {
 	return result;
 }
 
-QString TCPConnection::tag() const {
+QString TcpConnection::tag() const {
 	auto result = qsl("TCP");
 	if (qthelp::is_ipv6(_address)) {
 		result += qsl("/IPv6");
@@ -443,10 +447,10 @@ QString TCPConnection::tag() const {
 	return result;
 }
 
-void TCPConnection::socketError(QAbstractSocket::SocketError e) {
-	if (status == FinishedWork) return;
+void TcpConnection::socketError(QAbstractSocket::SocketError e) {
+	if (_status == Status::Finished) return;
 
-	handleError(e, sock);
+	handleError(e, _socket);
 	emit error(kErrorCodeOther);
 }
 

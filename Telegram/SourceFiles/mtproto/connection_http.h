@@ -12,18 +12,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace MTP {
 namespace internal {
 
-class HTTPConnection : public AbstractConnection {
-	Q_OBJECT
-
+class HttpConnection : public AbstractConnection {
 public:
-	HTTPConnection(QThread *thread);
+	HttpConnection(QThread *thread);
 
 	void setProxyOverride(const ProxyData &proxy) override;
 	TimeMs pingTime() const override;
 	void sendData(mtpBuffer &buffer) override;
 	void disconnectFromServer() override;
 	void connectToServer(
-		const QString &ip,
+		const QString &address,
 		int port,
 		const bytes::vector &protocolSecret,
 		int16 protocolDcId) override;
@@ -39,25 +37,23 @@ public:
 	static mtpBuffer handleResponse(QNetworkReply *reply);
 	static qint32 handleError(QNetworkReply *reply); // returnes error code
 
-public slots:
-	void requestFinished(QNetworkReply *reply);
-
 private:
 	QUrl url() const;
 
-	enum Status {
-		WaitingHttp = 0,
-		UsingHttp,
-		FinishedWork
-	};
-	Status status;
-	MTPint128 httpNonce;
+	void requestFinished(QNetworkReply *reply);
 
-	QNetworkAccessManager manager;
+	enum class Status {
+		Waiting = 0,
+		Ready,
+		Finished,
+	};
+	Status _status = Status::Waiting;
+	MTPint128 _checkNonce;
+
+	QNetworkAccessManager _manager;
 	QString _address;
 
-	typedef QSet<QNetworkReply*> Requests;
-	Requests requests;
+	QSet<QNetworkReply*> _requests;
 
 	TimeMs _pingTime = 0;
 
