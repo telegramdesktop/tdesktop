@@ -11,7 +11,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace MTP {
 
-struct ServiceWebRequest;
+struct ServiceWebRequest {
+        ServiceWebRequest(not_null<QNetworkReply*> reply);
+        ServiceWebRequest(ServiceWebRequest &&other);
+        ServiceWebRequest &operator=(ServiceWebRequest &&other);
+        ~ServiceWebRequest();
+
+        void destroy();
+
+        QPointer<QNetworkReply> reply;
+
+};
 
 class SpecialConfigRequest : public QObject {
 public:

@@ -129,18 +129,6 @@ QByteArray ConcatenateDnsTxtFields(const std::vector<DnsEntry> &response) {
 
 } // namespace
 
-struct ServiceWebRequest {
-	ServiceWebRequest(not_null<QNetworkReply*> reply);
-	ServiceWebRequest(ServiceWebRequest &&other);
-	ServiceWebRequest &operator=(ServiceWebRequest &&other);
-	~ServiceWebRequest();
-
-	void destroy();
-
-	QPointer<QNetworkReply> reply;
-
-};
-
 ServiceWebRequest::ServiceWebRequest(not_null<QNetworkReply*> reply)
 : reply(reply.get()) {
 }

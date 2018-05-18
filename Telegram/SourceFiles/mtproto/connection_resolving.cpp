@@ -178,7 +178,7 @@ TimeMs ResolvingConnection::pingTime() const {
 }
 
 TimeMs ResolvingConnection::fullConnectTimeout() const {
-	return kOneConnectionTimeout * std::max(_proxy.resolvedIPs.size(), 1U);
+	return kOneConnectionTimeout * qMax(int(_proxy.resolvedIPs.size()), 1);
 }
 
 void ResolvingConnection::sendData(mtpBuffer &buffer) {
