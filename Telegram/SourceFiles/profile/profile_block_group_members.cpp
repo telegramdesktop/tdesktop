@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "boxes/confirm_box.h"
 #include "boxes/edit_participant_box.h"
+#include "profile/profile_channel_controllers.h"
 #include "ui/widgets/popup_menu.h"
 #include "data/data_peer_values.h"
 #include "mainwidget.h"
@@ -67,16 +68,19 @@ void GroupMembersWidget::editAdmin(not_null<UserData*> user) {
 	auto currentRightsIt = megagroup->mgInfo->lastAdmins.find(user);
 	auto hasAdminRights = (currentRightsIt != megagroup->mgInfo->lastAdmins.cend());
 	auto currentRights = hasAdminRights ? currentRightsIt->second.rights : MTP_channelAdminRights(MTP_flags(0));
-	auto weak = QPointer<GroupMembersWidget>(this);
+	auto weak = std::make_shared<QPointer<EditAdminBox>>(nullptr);
 	auto box = Box<EditAdminBox>(megagroup, user, currentRights);
-	box->setSaveCallback([weak, megagroup, user](const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights) {
-		Ui::hideLayer();
-		MTP::send(MTPchannels_EditAdmin(megagroup->inputChannel, user->inputUser, newRights), rpcDone([weak, megagroup, user, oldRights, newRights](const MTPUpdates &result) {
-			if (App::main()) App::main()->sentUpdatesReceived(result);
-			megagroup->applyEditAdmin(user, oldRights, newRights);
-		}));
-	});
-	Ui::show(std::move(box));
+	box->setSaveCallback(SaveAdminCallback(megagroup, user, [=](
+			const MTPChannelAdminRights &newRights) {
+		if (*weak) {
+			(*weak)->closeBox();
+		}
+	}, [=] {
+		if (*weak) {
+			(*weak)->closeBox();
+		}
+	}));
+	*weak = Ui::show(std::move(box));
 }
 
 void GroupMembersWidget::restrictUser(not_null<UserData*> user) {

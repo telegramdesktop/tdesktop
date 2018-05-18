@@ -53,6 +53,56 @@ void RemoveAdmin(
 
 } // namespace
 
+base::lambda<void(
+	const MTPChannelAdminRights &oldRights,
+	const MTPChannelAdminRights &newRights)> SaveAdminCallback(
+		not_null<ChannelData*> channel,
+		not_null<UserData*> user,
+		base::lambda<void(const MTPChannelAdminRights &newRights)> onDone,
+		base::lambda<void()> onFail) {
+	return [=](
+			const MTPChannelAdminRights &oldRights,
+			const MTPChannelAdminRights &newRights) {
+		auto done = [=](const MTPUpdates &result) {
+			Auth().api().applyUpdates(result);
+			channel->applyEditAdmin(user, oldRights, newRights);
+			onDone(newRights);
+		};
+		auto fail = [=](const RPCError &error) {
+			if (MTP::isDefaultHandledError(error)) {
+				return false;
+			}
+			if (error.type() == qstr("USER_NOT_MUTUAL_CONTACT")) {
+				Ui::show(
+					Box<InformBox>(PeerFloodErrorText(
+						channel->isMegagroup()
+						? PeerFloodType::InviteGroup
+						: PeerFloodType::InviteChannel)),
+					LayerOption::KeepOther);
+			} else if (error.type() == qstr("BOT_GROUPS_BLOCKED")) {
+				Ui::show(
+					Box<InformBox>(lang(lng_error_cant_add_bot)),
+					LayerOption::KeepOther);
+			} else if (error.type() == qstr("ADMINS_TOO_MUCH")) {
+				Ui::show(
+					Box<InformBox>(lang(channel->isMegagroup()
+						? lng_error_admin_limit
+						: lng_error_admin_limit_channel)),
+					LayerOption::KeepOther);
+			}
+			onFail();
+			return true;
+		};
+		MTP::send(
+			MTPchannels_EditAdmin(
+				channel->inputChannel,
+				user->inputUser,
+				newRights),
+			rpcDone(std::move(done)),
+			rpcFail(std::move(fail)));
+	};
+}
+
 ParticipantsBoxController::ParticipantsBoxController(
 	not_null<Window::Navigation*> navigation,
 	not_null<ChannelData*> channel,
@@ -717,15 +767,16 @@ void ParticipantsBoxController::showAdmin(not_null<UserData*> user) {
 	auto canEdit = (_additional.adminCanEdit.find(user) != _additional.adminCanEdit.end());
 	auto canSave = notAdmin ? _channel->canAddAdmins() : canEdit;
 	if (canSave) {
-		box->setSaveCallback([channel = _channel.get(), user, weak](const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights) {
-			MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, newRights), rpcDone([channel, user, weak, oldRights, newRights](const MTPUpdates &result) {
-				Auth().api().applyUpdates(result);
-				channel->applyEditAdmin(user, oldRights, newRights);
-				if (weak) {
-					weak->editAdminDone(user, newRights);
-				}
-			}));
-		});
+		box->setSaveCallback(SaveAdminCallback(_channel, user, [=](
+				const MTPChannelAdminRights &newRights) {
+			if (weak) {
+				weak->editAdminDone(user, newRights);
+			}
+		}, [=] {
+			if (weak && weak->_editBox) {
+				weak->_editBox->closeBox();
+			}
+		}));
 	}
 	_editBox = Ui::show(std::move(box), LayerOption::KeepOther);
 }
@@ -1389,35 +1440,16 @@ void AddParticipantBoxController::showAdmin(not_null<UserData*> user, bool sure)
 			&& (_additional.adminCanEdit.find(user) == _additional.adminCanEdit.end()));
 	auto box = Box<EditAdminBox>(_channel, user, currentRights);
 	if (!canNotEdit) {
-		box->setSaveCallback([channel = _channel.get(), user, weak](const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights) {
-			MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, newRights), rpcDone([channel, user, weak, oldRights, newRights](const MTPUpdates &result) {
-				Auth().api().applyUpdates(result);
-				channel->applyEditAdmin(user, oldRights, newRights);
-				if (weak) {
-					weak->editAdminDone(user, newRights);
-				}
-			}), rpcFail([channel, weak](const RPCError &error) {
-				if (MTP::isDefaultHandledError(error)) {
-					return false;
-				}
-				if (error.type() == qstr("USER_NOT_MUTUAL_CONTACT")) {
-					Ui::show(
-						Box<InformBox>(PeerFloodErrorText(
-							channel->isMegagroup()
-								? PeerFloodType::InviteGroup
-								: PeerFloodType::InviteChannel)),
-						LayerOption::KeepOther);
-				} else if (error.type() == qstr("BOT_GROUPS_BLOCKED")) {
-					Ui::show(
-						Box<InformBox>(lang(lng_error_cant_add_bot)),
-						LayerOption::KeepOther);
-				}
-				if (weak && weak->_editBox) {
-					weak->_editBox->closeBox();
-				}
-				return true;
-			}));
-		});
+		box->setSaveCallback(SaveAdminCallback(_channel, user, [=](
+				const MTPChannelAdminRights &newRights) {
+			if (weak) {
+				weak->editAdminDone(user, newRights);
+			}
+		}, [=] {
+			if (weak && weak->_editBox) {
+				weak->_editBox->closeBox();
+			}
+		}));
 	}
 	_editBox = Ui::show(std::move(box), LayerOption::KeepOther);
 }
