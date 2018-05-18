@@ -46,7 +46,6 @@ public:
 	Instance(const Instance &other) = delete;
 	Instance &operator=(const Instance &other) = delete;
 
-	void setCurrentProxy(const ProxyData &proxy, bool enabled);
 	void resolveProxyDomain(const QString &host);
 	void setGoodProxyDomain(const QString &host, const QString &ip);
 	void suggestMainDcId(DcId mainDcId);

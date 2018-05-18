@@ -1069,7 +1069,7 @@ void ProxiesBoxController::ShowApplyConfirmation(
 			if (ranges::find(proxies, proxy) == end(proxies)) {
 				proxies.push_back(proxy);
 			}
-			Messenger::Instance().mtp()->setCurrentProxy(proxy, true);
+			Messenger::Instance().setCurrentProxy(proxy, true);
 			Local::writeSettings();
 			if (const auto strong = box->data()) {
 				strong->closeBox();
@@ -1230,7 +1230,7 @@ void ProxiesBoxController::applyItem(int id) {
 
 	auto j = findByProxy(Global::SelectedProxy());
 
-	Messenger::Instance().mtp()->setCurrentProxy(item->data, true);
+	Messenger::Instance().setCurrentProxy(item->data, true);
 	saveDelayed();
 
 	if (j != end(_list)) {
@@ -1251,7 +1251,7 @@ void ProxiesBoxController::setDeleted(int id, bool deleted) {
 			_lastSelectedProxy = base::take(Global::RefSelectedProxy());
 			if (Global::UseProxy()) {
 				_lastSelectedProxyUsed = true;
-				Messenger::Instance().mtp()->setCurrentProxy(
+				Messenger::Instance().setCurrentProxy(
 					ProxyData(),
 					false);
 				saveDelayed();
@@ -1276,7 +1276,7 @@ void ProxiesBoxController::setDeleted(int id, bool deleted) {
 			Assert(!Global::UseProxy());
 
 			if (base::take(_lastSelectedProxyUsed)) {
-				Messenger::Instance().mtp()->setCurrentProxy(
+				Messenger::Instance().setCurrentProxy(
 					base::take(_lastSelectedProxy),
 					true);
 			} else {
@@ -1381,7 +1381,7 @@ bool ProxiesBoxController::setProxyEnabled(bool enabled) {
 			}
 		}
 	}
-	Messenger::Instance().mtp()->setCurrentProxy(
+	Messenger::Instance().setCurrentProxy(
 		Global::SelectedProxy(),
 		enabled);
 	saveDelayed();

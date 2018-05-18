@@ -98,6 +98,7 @@ public:
 	MTP::DcOptions *dcOptions() {
 		return _dcOptions.get();
 	}
+	void setCurrentProxy(const ProxyData &proxy, bool enabled);
 
 	// Set from legacy storage.
 	void setMtpMainDcId(MTP::DcId mainDcId);

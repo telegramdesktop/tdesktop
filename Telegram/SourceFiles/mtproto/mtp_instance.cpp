@@ -38,7 +38,6 @@ public:
 
 	void start(Config &&config);
 
-	void setCurrentProxy(const ProxyData &proxy, bool enabled);
 	void resolveProxyDomain(const QString &host);
 	void setGoodProxyDomain(const QString &host, const QString &ip);
 	void suggestMainDcId(DcId mainDcId);
@@ -272,28 +271,6 @@ void Instance::Private::start(Config &&config) {
 
 	Assert((_mainDcId == Config::kNoneMainDc) == isKeysDestroyer());
 	requestConfig();
-}
-
-void Instance::Private::setCurrentProxy(
-		const ProxyData &proxy,
-		bool enabled) {
-	const auto key = [&](const ProxyData &proxy) {
-		if (proxy.type == ProxyData::Type::Mtproto) {
-			return std::make_pair(proxy.host, proxy.port);
-		}
-		return std::make_pair(QString(), uint32(0));
-	};
-	const auto previousKey = key(Global::UseProxy()
-		? Global::SelectedProxy()
-		: ProxyData());
-	Global::SetSelectedProxy(proxy);
-	Global::SetUseProxy(enabled);
-	Sandbox::refreshGlobalProxy();
-	restart();
-	if (previousKey != key(proxy)) {
-		reInitConnection(mainDcId());
-	}
-	Global::RefConnectionTypeChanged().notify();
 }
 
 void Instance::Private::resolveProxyDomain(const QString &host) {
@@ -1465,10 +1442,6 @@ Instance::Instance(not_null<DcOptions*> options, Mode mode, Config &&config)
 : QObject()
 , _private(std::make_unique<Private>(this, options, mode)) {
 	_private->start(std::move(config));
-}
-
-void Instance::setCurrentProxy(const ProxyData &proxy, bool enabled) {
-	_private->setCurrentProxy(proxy, enabled);
 }
 
 void Instance::resolveProxyDomain(const QString &host) {
