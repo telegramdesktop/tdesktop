@@ -26,7 +26,7 @@ QMap<QString, QString> url_parse_params(
 	const QString &params,
 	UrlParamNameTransform transform = UrlParamNameTransform::NoTransform);
 
-QString url_append_query(const QString &url, const QString &add);
+QString url_append_query_or_hash(const QString &url, const QString &add);
 
 bool is_ipv6(const QString &ip);
 

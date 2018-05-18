@@ -44,16 +44,15 @@ bool is_ipv6(const QString &ip) {
 	return ip.indexOf('.') < 0 && ip.indexOf(':') >= 0;
 }
 
-QString url_append_query(const QString &url, const QString &add) {
-	const auto query = ranges::find(url, '?');
-	const auto hash = ranges::find(url, '#');
-	const auto base = url.mid(0, hash - url.begin());
-	const auto added = base
-		+ (hash <= query ? '?' : '&')
+QString url_append_query_or_hash(const QString &url, const QString &add) {
+	const auto query = url.lastIndexOf('?');
+	if (query < 0) {
+		return url + '?' + add;
+	}
+	const auto hash = url.lastIndexOf('#');
+	return url
+		+ (query >= 0 && query > url.lastIndexOf('#') ? '&' : '?')
 		+ add;
-	const auto result = added
-		+ (hash < url.end() ? url.mid(hash - url.begin()) : QString());
-	return result;
 }
 
 } // namespace qthelp

@@ -2099,7 +2099,7 @@ void FormController::cancelSure() {
 		if (!_request.callbackUrl.isEmpty()
 			&& (_serviceErrorText.isEmpty()
 				|| ForwardServiceErrorRequired(_serviceErrorText))) {
-			const auto url = qthelp::url_append_query(
+			const auto url = qthelp::url_append_query_or_hash(
 				_request.callbackUrl,
 				(_submitSuccess
 					? "tg_passport=success"

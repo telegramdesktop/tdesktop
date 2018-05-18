@@ -68,7 +68,7 @@ EditDocumentScheme GetDocumentScheme(
 		} else if (!QRegularExpression(
 			"^[a-zA-Z\\- ]+$"
 		).match(value).hasMatch()) {
-			return "Use latin characters only.";// lang(lng_passport_bad_name);
+			return lang(lng_passport_bad_name);
 		}
 		return base::none;
 	};

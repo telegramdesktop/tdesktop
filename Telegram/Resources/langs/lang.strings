@@ -1630,6 +1630,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_error_too_large" = "This file is too large.";
 "lng_passport_error_bad_size" = "This image has bad dimensions.";
 "lng_passport_error_cant_read" = "Can't read this file. Please choose an image.";
+"lng_passport_bad_name" = "Use latin characters only.";
 
 // Wnd specific
 
