@@ -1,3 +1,8 @@
+1.2.21 alpha (18.05.18)
+
+- Support domain names in mtproto proxy.
+- Bug fixes and other minor improvements.
+
 1.2.20 alpha (13.05.18)
 
 - Emoji and text replacements are done while you type the message.
