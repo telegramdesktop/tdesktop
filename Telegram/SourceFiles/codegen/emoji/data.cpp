@@ -40,7 +40,7 @@ Replace Replaces[] = {
 //	{ { 0xD83DDE01U }, ":grin:" },
 //	{ { 0xD83DDE02U }, ":joy:" },
 	{ { 0xD83DDE1AU }, ":-*" },
-	{ { 0xD83DDE06U }, "xD" },
+//	{ { 0xD83DDE06U }, "xD" }, // Conflicts with typing xDDD...
 //	{ { 0xD83DDC4DU }, ":like:" },
 //	{ { 0xD83DDC4EU }, ":dislike:" },
 //	{ { 0x261DU }, ":up:" },
