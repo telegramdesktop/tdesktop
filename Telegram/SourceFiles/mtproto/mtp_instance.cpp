@@ -1358,13 +1358,17 @@ internal::Session *Instance::Private::getSession(ShiftedDcId shiftedDcId) {
 void Instance::Private::scheduleKeyDestroy(ShiftedDcId shiftedDcId) {
 	Expects(isKeysDestroyer());
 
-	_instance->send(MTPauth_LogOut(), rpcDone([this, shiftedDcId](const MTPBool &result) {
+	if (dcOptions()->dcType(shiftedDcId) == DcType::Cdn) {
 		performKeyDestroy(shiftedDcId);
-	}), rpcFail([this, shiftedDcId](const RPCError &error) {
-		if (isDefaultHandledError(error)) return false;
-		performKeyDestroy(shiftedDcId);
-		return true;
-	}), shiftedDcId);
+	} else {
+		_instance->send(MTPauth_LogOut(), rpcDone([=](const MTPBool &) {
+			performKeyDestroy(shiftedDcId);
+		}), rpcFail([=](const RPCError &error) {
+			if (isDefaultHandledError(error)) return false;
+			performKeyDestroy(shiftedDcId);
+			return true;
+		}), shiftedDcId);
+	}
 }
 
 void Instance::Private::performKeyDestroy(ShiftedDcId shiftedDcId) {
