@@ -14,7 +14,7 @@ template <typename Enum>
 class RadioenumGroup;
 template <typename Enum>
 class Radioenum;
-class InputArea;
+class InputField;
 } // namespace Ui
 
 class ReportBox : public BoxContent, public RPCSender {
@@ -58,7 +58,7 @@ private:
 	object_ptr<Ui::Radioenum<Reason>> _reasonViolence = { nullptr };
 	object_ptr<Ui::Radioenum<Reason>> _reasonPornography = { nullptr };
 	object_ptr<Ui::Radioenum<Reason>> _reasonOther = { nullptr };
-	object_ptr<Ui::InputArea> _reasonOtherText = { nullptr };
+	object_ptr<Ui::InputField> _reasonOtherText = { nullptr };
 
 	mtpRequestId _requestId = 0;
 

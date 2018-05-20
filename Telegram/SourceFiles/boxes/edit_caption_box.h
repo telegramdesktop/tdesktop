@@ -14,7 +14,7 @@ class Media;
 } // namespace Data
 
 namespace Ui {
-class InputArea;
+class InputField;
 } // namespace Ui
 
 class EditCaptionBox : public BoxContent, public RPCSender {
@@ -49,7 +49,7 @@ private:
 	QPixmap _thumb;
 	Media::Clip::ReaderPointer _gifPreview;
 
-	object_ptr<Ui::InputArea> _field = { nullptr };
+	object_ptr<Ui::InputField> _field = { nullptr };
 
 	int _thumbx = 0;
 	int _thumbw = 0;

@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 class IconButton;
 class RoundButton;
-class InputArea;
+class InputField;
 } // namespace Ui
 
 namespace Window {
@@ -233,7 +233,7 @@ private:
 	object_ptr<Ui::IconButton> _close;
 	object_ptr<Ui::RoundButton> _reply;
 	object_ptr<Background> _background = { nullptr };
-	object_ptr<Ui::InputArea> _replyArea = { nullptr };
+	object_ptr<Ui::InputField> _replyArea = { nullptr };
 	object_ptr<Ui::IconButton> _replySend = { nullptr };
 	bool _waitingForInput = true;
 

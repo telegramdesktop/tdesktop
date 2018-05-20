@@ -322,7 +322,11 @@ void GroupInfoBox::prepare() {
 	_title->setMaxLength(kMaxGroupChannelTitle);
 
 	if (_creating == CreatingGroupChannel) {
-		_description.create(this, st::newGroupDescription, langFactory(lng_create_group_description));
+		_description.create(
+			this,
+			st::newGroupDescription,
+			Ui::InputField::Mode::MultiLine,
+			langFactory(lng_create_group_description));
 		_description->show();
 		_description->setMaxLength(kMaxChannelDescription);
 
@@ -1052,7 +1056,12 @@ bool EditNameBox::saveSelfFail(const RPCError &error) {
 EditBioBox::EditBioBox(QWidget*, not_null<UserData*> self) : BoxContent()
 , _dynamicFieldStyle(CreateBioFieldStyle())
 , _self(self)
-, _bio(this, _dynamicFieldStyle, langFactory(lng_bio_placeholder), _self->about())
+, _bio(
+	this,
+	_dynamicFieldStyle,
+	Ui::InputField::Mode::MultiLine,
+	langFactory(lng_bio_placeholder),
+	_self->about())
 , _countdown(this, QString(), Ui::FlatLabel::InitType::Simple, st::editBioCountdownLabel)
 , _about(this, lang(lng_bio_about), Ui::FlatLabel::InitType::Simple, st::aboutRevokePublicLabel) {
 }
@@ -1067,9 +1076,10 @@ void EditBioBox::prepare() {
 	auto cursor = _bio->textCursor();
 	cursor.setPosition(_bio->getLastText().size());
 	_bio->setTextCursor(cursor);
-	connect(_bio, &Ui::InputArea::submitted, this, [this](bool ctrlShiftEnter) { save(); });
-	connect(_bio, &Ui::InputArea::resized, this, [this] { updateMaxHeight(); });
-	connect(_bio, &Ui::InputArea::changed, this, [this] { handleBioUpdated(); });
+	connect(_bio, &Ui::InputField::submitted, this, [this](bool ctrlShiftEnter) { save(); });
+	connect(_bio, &Ui::InputField::resized, this, [this] { updateMaxHeight(); });
+	connect(_bio, &Ui::InputField::changed, this, [this] { handleBioUpdated(); });
+	_bio->setInstantReplaces(Ui::InstantReplaces::Default());
 	handleBioUpdated();
 	updateMaxHeight();
 }
@@ -1122,7 +1132,12 @@ void EditBioBox::save() {
 EditChannelBox::EditChannelBox(QWidget*, not_null<ChannelData*> channel)
 : _channel(channel)
 , _title(this, st::defaultInputField, langFactory(_channel->isMegagroup() ? lng_dlg_new_group_name : lng_dlg_new_channel_name), _channel->name)
-, _description(this, st::newGroupDescription, langFactory(lng_create_group_description), _channel->about())
+, _description(
+	this,
+	st::newGroupDescription,
+	Ui::InputField::Mode::MultiLine,
+	langFactory(lng_create_group_description),
+	_channel->about())
 , _sign(this, lang(lng_edit_sign_messages), channel->addsSignature(), st::defaultBoxCheckbox)
 , _inviteGroup(std::make_shared<Ui::RadioenumGroup<Invites>>(channel->anyoneCanAddMembers() ? Invites::Everybody : Invites::OnlyAdmins))
 , _inviteEverybody(this, _inviteGroup, Invites::Everybody, lang(lng_edit_group_invites_everybody))

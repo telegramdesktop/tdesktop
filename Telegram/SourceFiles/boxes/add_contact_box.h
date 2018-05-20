@@ -18,7 +18,6 @@ namespace Ui {
 class FlatLabel;
 class InputField;
 class PhoneInput;
-class InputArea;
 class UsernameInput;
 class Checkbox;
 template <typename Enum>
@@ -111,7 +110,7 @@ private:
 
 	object_ptr<Ui::UserpicButton> _photo = { nullptr };
 	object_ptr<Ui::InputField> _title = { nullptr };
-	object_ptr<Ui::InputArea> _description = { nullptr };
+	object_ptr<Ui::InputField> _description = { nullptr };
 
 	// group / channel creation
 	mtpRequestId _creationRequestId = 0;
@@ -231,7 +230,7 @@ private:
 	style::InputField _dynamicFieldStyle;
 	not_null<UserData*> _self;
 
-	object_ptr<Ui::InputArea> _bio;
+	object_ptr<Ui::InputField> _bio;
 	object_ptr<Ui::FlatLabel> _countdown;
 	object_ptr<Ui::FlatLabel> _about;
 	mtpRequestId _requestId = 0;
@@ -280,7 +279,7 @@ private:
 	not_null<ChannelData*> _channel;
 
 	object_ptr<Ui::InputField> _title;
-	object_ptr<Ui::InputArea> _description;
+	object_ptr<Ui::InputField> _description;
 	object_ptr<Ui::Checkbox> _sign;
 
 	enum class Invites {

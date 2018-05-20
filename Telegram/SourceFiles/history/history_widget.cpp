@@ -516,7 +516,7 @@ HistoryWidget::HistoryWidget(
 			int from,
 			int till,
 			const QString &replacement) {
-		_field->commmitInstantReplacement(from, till, replacement);
+		_field->commitInstantReplacement(from, till, replacement);
 	});
 	updateFieldSubmitSettings();
 

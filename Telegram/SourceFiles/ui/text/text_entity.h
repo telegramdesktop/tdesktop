@@ -237,6 +237,10 @@ inline QString PrepareForSending(const QString &text, PrepareTextOption option =
 // Replace bad symbols with space and remove '\r'.
 void ApplyServerCleaning(TextWithEntities &result);
 
+QByteArray SerializeTags(const TextWithTags::Tags &tags);
+TextWithTags::Tags DeserializeTags(QByteArray data, int textLength);
+QString TagsMimeType();
+
 } // namespace TextUtilities
 
 namespace Lang {

@@ -2241,6 +2241,60 @@ void Trim(TextWithEntities &result) {
 	}
 }
 
+QByteArray SerializeTags(const TextWithTags::Tags &tags) {
+	if (tags.isEmpty()) {
+		return QByteArray();
+	}
+
+	QByteArray tagsSerialized;
+	{
+		QDataStream stream(&tagsSerialized, QIODevice::WriteOnly);
+		stream.setVersion(QDataStream::Qt_5_1);
+		stream << qint32(tags.size());
+		for (const auto &tag : tags) {
+			stream << qint32(tag.offset) << qint32(tag.length) << tag.id;
+		}
+	}
+	return tagsSerialized;
+}
+
+TextWithTags::Tags DeserializeTags(QByteArray data, int textLength) {
+	auto result = TextWithTags::Tags();
+	if (data.isEmpty()) {
+		return result;
+	}
+
+	QDataStream stream(data);
+	stream.setVersion(QDataStream::Qt_5_1);
+
+	qint32 tagCount = 0;
+	stream >> tagCount;
+	if (stream.status() != QDataStream::Ok) {
+		return result;
+	}
+	if (tagCount <= 0 || tagCount > textLength) {
+		return result;
+	}
+
+	for (auto i = 0; i != tagCount; ++i) {
+		qint32 offset = 0, length = 0;
+		QString id;
+		stream >> offset >> length >> id;
+		if (stream.status() != QDataStream::Ok) {
+			return result;
+		}
+		if (offset < 0 || length <= 0 || offset + length > textLength) {
+			return result;
+		}
+		result.push_back({ offset, length, id });
+	}
+	return result;
+}
+
+QString TagsMimeType() {
+	return qsl("application/x-td-field-tags");
+}
+
 } // namespace TextUtilities
 
 namespace Lang {

@@ -18,7 +18,7 @@ class Radioenum;
 template <typename Enum>
 class RadioenumGroup;
 class RoundButton;
-class InputArea;
+class InputField;
 struct GroupMediaLayout;
 } // namespace Ui
 
@@ -103,7 +103,7 @@ private:
 	base::lambda<void()> _cancelledCallback;
 	bool _confirmed = false;
 
-	object_ptr<Ui::InputArea> _caption = { nullptr };
+	object_ptr<Ui::InputField> _caption = { nullptr };
 	object_ptr<Ui::Radioenum<SendFilesWay>> _sendAlbum = { nullptr };
 	object_ptr<Ui::Radioenum<SendFilesWay>> _sendPhotos = { nullptr };
 	object_ptr<Ui::Radioenum<SendFilesWay>> _sendFiles = { nullptr };

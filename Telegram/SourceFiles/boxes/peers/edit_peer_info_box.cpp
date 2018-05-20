@@ -71,7 +71,7 @@ private:
 	};
 	struct Controls {
 		Ui::InputField *title = nullptr;
-		Ui::InputArea *description = nullptr;
+		Ui::InputField *description = nullptr;
 		Ui::UserpicButton *photo = nullptr;
 		rpl::lifetime initialPhotoImageWaiting;
 
@@ -317,19 +317,21 @@ object_ptr<Ui::RpWidget> Controller::createDescriptionEdit() {
 		return nullptr;
 	}
 
-	auto result = object_ptr<Ui::PaddingWrap<Ui::InputArea>>(
+	auto result = object_ptr<Ui::PaddingWrap<Ui::InputField>>(
 		_wrap,
-		object_ptr<Ui::InputArea>(
+		object_ptr<Ui::InputField>(
 			_wrap,
 			st::editPeerDescription,
+			Ui::InputField::Mode::MultiLine,
 			langFactory(lng_create_group_description),
 			channel->about()),
 		st::editPeerDescriptionMargins);
 	result->entity()->setMaxLength(kMaxChannelDescription);
+	result->entity()->setInstantReplaces(Ui::InstantReplaces::Default());
 
 	QObject::connect(
 		result->entity(),
-		&Ui::InputArea::submitted,
+		&Ui::InputField::submitted,
 		[this] { submitDescription(); });
 
 	_controls.description = result->entity();

@@ -1550,29 +1550,34 @@ void SendFilesBox::setupCaption() {
 		return;
 	}
 
-	_caption.create(this, st::confirmCaptionArea, FieldPlaceholder(_list));
+	_caption.create(
+		this,
+		st::confirmCaptionArea,
+		Ui::InputField::Mode::MultiLine,
+		FieldPlaceholder(_list));
 	_caption->setMaxLength(MaxPhotoCaption);
 	_caption->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
-	connect(_caption, &Ui::InputArea::resized, this, [this] {
+	connect(_caption, &Ui::InputField::resized, this, [this] {
 		captionResized();
 	});
-	connect(_caption, &Ui::InputArea::submitted, this, [this](
+	connect(_caption, &Ui::InputField::submitted, this, [this](
 		bool ctrlShiftEnter) {
 		send(ctrlShiftEnter);
 	});
-	connect(_caption, &Ui::InputArea::cancelled, this, [this] {
+	connect(_caption, &Ui::InputField::cancelled, this, [this] {
 		closeBox();
 	});
 	_caption->setMimeDataHook([this](
 			not_null<const QMimeData*> data,
-			Ui::InputArea::MimeAction action) {
-		if (action == Ui::InputArea::MimeAction::Check) {
+			Ui::InputField::MimeAction action) {
+		if (action == Ui::InputField::MimeAction::Check) {
 			return canAddFiles(data);
-		} else if (action == Ui::InputArea::MimeAction::Insert) {
+		} else if (action == Ui::InputField::MimeAction::Insert) {
 			return addFiles(data);
 		}
 		Unexpected("action in MimeData hook.");
 	});
+	_caption->setInstantReplaces(Ui::InstantReplaces::Default());
 }
 
 void SendFilesBox::captionResized() {

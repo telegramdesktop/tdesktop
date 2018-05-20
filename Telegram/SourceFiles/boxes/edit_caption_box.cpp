@@ -130,9 +130,15 @@ EditCaptionBox::EditCaptionBox(
 	}
 	Assert(_animated || _photo || _doc);
 
-	_field.create(this, st::confirmCaptionArea, langFactory(lng_photo_caption), caption);
+	_field.create(
+		this,
+		st::confirmCaptionArea,
+		Ui::InputField::Mode::MultiLine,
+		langFactory(lng_photo_caption),
+		caption);
 	_field->setMaxLength(MaxPhotoCaption);
 	_field->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
+	_field->setInstantReplaces(Ui::InstantReplaces::Default());
 }
 
 void EditCaptionBox::prepareGifPreview(DocumentData *document) {
@@ -177,11 +183,11 @@ void EditCaptionBox::prepare() {
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	updateBoxSize();
-	connect(_field, &Ui::InputArea::submitted, this, [this] { save(); });
-	connect(_field, &Ui::InputArea::cancelled, this, [this] {
+	connect(_field, &Ui::InputField::submitted, this, [this] { save(); });
+	connect(_field, &Ui::InputField::cancelled, this, [this] {
 		closeBox();
 	});
-	connect(_field, &Ui::InputArea::resized, this, [this] {
+	connect(_field, &Ui::InputField::resized, this, [this] {
 		captionResized();
 	});
 

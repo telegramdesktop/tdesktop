@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 
 namespace Ui {
-class InputArea;
+class InputField;
 class FlatLabel;
 class IconButton;
 } // namespace Ui
@@ -44,7 +44,7 @@ private:
 	int _rating = 0;
 
 	std::vector<object_ptr<Ui::IconButton>> _stars;
-	object_ptr<Ui::InputArea> _comment = { nullptr };
+	object_ptr<Ui::InputField> _comment = { nullptr };
 
 	mtpRequestId _requestId = 0;
 

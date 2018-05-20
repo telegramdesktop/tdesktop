@@ -16,15 +16,26 @@ namespace Ui {
 
 static UserData * const LookingUpInlineBot = SharedMemoryLocation<UserData, 0>();
 
+struct InstantReplaces {
+	struct Node {
+		QString text;
+		std::map<QChar, Node> tail;
+	};
+
+	void add(const QString &what, const QString &with);
+
+	static const InstantReplaces &Default();
+
+	int maxLength = 0;
+	Node reverseMap;
+
+};
+
 class FlatTextarea : public TWidgetHelper<QTextEdit>, protected base::Subscriber {
 	Q_OBJECT
 
 public:
 	using TagList = TextWithTags::Tags;
-
-	static QByteArray serializeTagsList(const TagList &tags);
-	static TagList deserializeTagsList(QByteArray data, int textLength);
-	static QString tagsMimeType();
 
 	FlatTextarea(QWidget *parent, const style::FlatTextarea &st, base::lambda<QString()> placeholderFactory = base::lambda<QString()>(), const QString &val = QString(), const TagList &tags = TagList());
 
@@ -32,9 +43,9 @@ public:
 	void setMinHeight(int minHeight);
 	void setMaxHeight(int maxHeight);
 
+	void setInstantReplaces(const InstantReplaces &replaces);
 	void enableInstantReplaces(bool enabled);
-	void addInstantReplace(const QString &what, const QString &with);
-	void commmitInstantReplacement(
+	void commitInstantReplacement(
 		int from,
 		int till,
 		const QString &with,
@@ -150,10 +161,6 @@ protected:
 	void checkContentHeight();
 
 private:
-	struct InstantReplaceNode {
-		QString text;
-		std::map<QChar, InstantReplaceNode> tail;
-	};
 	void updatePalette();
 	void refreshPlaceholder();
 
@@ -172,6 +179,9 @@ private:
 	// Rule 4 applies only if we inserted chars not in the middle of a tag (but at the end).
 	void processFormatting(int changedPosition, int changedEnd);
 
+	// We don't want accidentally detach InstantReplaces map.
+	// So we access it only by const reference from this method.
+	const InstantReplaces &instantReplaces() const;
 	void processInstantReplaces(const QString &text);
 	void applyInstantReplace(const QString &what, const QString &with);
 	bool revertInstantReplace();
@@ -234,8 +244,7 @@ private:
 
 	QTextCharFormat _defaultCharFormat;
 
-	int _instantReplaceMaxLength = 0;
-	InstantReplaceNode _reverseInstantReplaces;
+	InstantReplaces _mutableInstantReplaces;
 	bool _instantReplacesEnabled = true;
 
 };
@@ -334,15 +343,33 @@ enum class CtrlEnterSubmit {
 	Both,
 };
 
-class InputArea : public RpWidget, private base::Subscriber {
+class InputField : public RpWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	InputArea(
+	enum class Mode {
+		SingleLine,
+		MultiLine,
+	};
+	using TagList = TextWithTags::Tags;
+
+	InputField(
 		QWidget *parent,
 		const style::InputField &st,
-		base::lambda<QString()> placeholderFactory = base::lambda<QString()>(),
-		const QString &val = QString());
+		base::lambda<QString()> placeholderFactory,
+		const QString &value = QString());
+	InputField(
+		QWidget *parent,
+		const style::InputField &st,
+		Mode mode,
+		base::lambda<QString()> placeholderFactory,
+		const QString &value);
+	InputField(
+		QWidget *parent,
+		const style::InputField &st,
+		Mode mode = Mode::SingleLine,
+		base::lambda<QString()> placeholderFactory = nullptr,
+		const TextWithTags &value = TextWithTags());
 
 	void showError();
 
@@ -350,10 +377,28 @@ public:
 		_maxLength = maxLength;
 	}
 
+	enum class HistoryAction {
+		NewEntry,
+		MergeEntry,
+		Clear,
+	};
+	void setTextWithTags(
+		const TextWithTags &textWithTags,
+		HistoryAction historyAction = HistoryAction::NewEntry);
+
+	void setInstantReplaces(const InstantReplaces &replaces);
+	void enableInstantReplaces(bool enabled);
+	void commitInstantReplacement(
+		int from,
+		int till,
+		const QString &with,
+		base::optional<QString> checkOriginal = base::none);
+
 	const QString &getLastText() const {
-		return _oldtext;
+		return _lastTextWithTags.text;
 	}
 	void setPlaceholder(base::lambda<QString()> placeholderFactory);
+	void setPlaceholderHidden(bool forcePlaceholderHidden);
 	void setDisplayFocused(bool focused);
 	void finishAnimating();
 	void setFocusFast() {
@@ -366,6 +411,7 @@ public:
 
 	QString getText(int start = 0, int end = -1) const;
 	bool hasText() const;
+	void selectAll();
 
 	bool isUndoAvailable() const;
 	bool isRedoAvailable() const;
@@ -373,29 +419,14 @@ public:
 	void customUpDown(bool isCustom);
 	void setCtrlEnterSubmit(CtrlEnterSubmit ctrlEnterSubmit);
 
-	void setTextCursor(const QTextCursor &cursor) {
-		return _inner->setTextCursor(cursor);
-	}
-	QTextCursor textCursor() const {
-		return _inner->textCursor();
-	}
-	void setText(const QString &text) {
-		_inner->setText(text);
-		startPlaceholderAnimation();
-	}
-	void clear() {
-		_inner->clear();
-		startPlaceholderAnimation();
-	}
-	bool hasFocus() const {
-		return _inner->hasFocus();
-	}
-	void setFocus() {
-		_inner->setFocus();
-	}
-	void clearFocus() {
-		_inner->clearFocus();
-	}
+	void setTextCursor(const QTextCursor &cursor);
+	void setCursorPosition(int position);
+	QTextCursor textCursor() const;
+	void setText(const QString &text);
+	void clear();
+	bool hasFocus() const;
+	void setFocus();
+	void clearFocus();
 
 	enum class MimeAction {
 		Check,
@@ -441,7 +472,6 @@ protected:
 		return qobject_cast<const TWidget*>(parentWidget());
 	}
 
-	void touchEvent(QTouchEvent *e);
 	void paintEvent(QPaintEvent *e) override;
 	void focusInEvent(QFocusEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
@@ -449,31 +479,12 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	class Inner : public QTextEdit {
-	public:
-		Inner(InputArea *parent);
-
-		QVariant loadResource(int type, const QUrl &name) override;
-
-	protected:
-		bool viewportEvent(QEvent *e) override;
-		void focusInEvent(QFocusEvent *e) override;
-		void focusOutEvent(QFocusEvent *e) override;
-		void keyPressEvent(QKeyEvent *e) override;
-		void contextMenuEvent(QContextMenuEvent *e) override;
-
-		bool canInsertFromMimeData(const QMimeData *source) const override;
-		void insertFromMimeData(const QMimeData *source) override;
-		QMimeData *createMimeDataFromSelection() const override;
-
-	private:
-		InputArea *f() const {
-			return static_cast<InputArea*>(parentWidget());
-		}
-		friend class InputArea;
-
-	};
+	class Inner;
 	friend class Inner;
+
+	bool viewportEventInner(QEvent *e);
+	QVariant loadResource(int type, const QUrl &name);
+	void handleTouchEvent(QTouchEvent *e);
 
 	void updatePalette();
 	void refreshPlaceholder();
@@ -482,19 +493,34 @@ private:
 	void checkContentHeight();
 	void setErrorShown(bool error);
 
-	void focusInInner(bool focusByMouse);
-	void focusOutInner();
+	void focusInEventInner(QFocusEvent *e);
+	void focusOutEventInner(QFocusEvent *e);
 	void setFocused(bool focused);
+	void keyPressEventInner(QKeyEvent *e);
+	void contextMenuEventInner(QContextMenuEvent *e);
+
+	QMimeData *createMimeDataFromSelectionInner() const;
+	bool canInsertFromMimeDataInner(const QMimeData *source) const;
+	void insertFromMimeDataInner(const QMimeData *source);
 
 	void processDocumentContentsChange(int position, int charsAdded);
 
+	// We don't want accidentally detach InstantReplaces map.
+	// So we access it only by const reference from this method.
+	const InstantReplaces &instantReplaces() const;
+	void processInstantReplaces(const QString &text);
+	void applyInstantReplace(const QString &what, const QString &with);
+	bool revertInstantReplace();
+
 	const style::InputField &_st;
 
+	Mode _mode = Mode::SingleLine;
 	int _maxLength = -1;
+	bool _forcePlaceholderHidden = false;
 
 	object_ptr<Inner> _inner;
 
-	QString _oldtext;
+	TextWithTags _lastTextWithTags;
 
 	CtrlEnterSubmit _ctrlEnterSubmit = CtrlEnterSubmit::CtrlEnter;
 	bool _undoAvailable = false;
@@ -529,190 +555,11 @@ private:
 	bool _correcting = false;
 	MimeDataHook _mimeDataHook;
 
-};
+	QTextCharFormat _defaultCharFormat;
 
-class InputField : public RpWidget, private base::Subscriber {
-	Q_OBJECT
+	InstantReplaces _mutableInstantReplaces;
+	bool _instantReplacesEnabled = true;
 
-public:
-	InputField(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory = base::lambda<QString()>(), const QString &val = QString());
-
-	void setMaxLength(int maxLength) {
-		_maxLength = maxLength;
-	}
-
-	void showError();
-
-	const QString &getLastText() const {
-		return _oldtext;
-	}
-	void setPlaceholder(base::lambda<QString()> placeholderFactory);
-	void setPlaceholderHidden(bool forcePlaceholderHidden);
-	void setDisplayFocused(bool focused);
-	void finishAnimating();
-	void setFocusFast() {
-		setDisplayFocused(true);
-		setFocus();
-	}
-
-	QSize sizeHint() const override;
-	QSize minimumSizeHint() const override;
-
-	QString getText(int start = 0, int end = -1) const;
-	bool hasText() const;
-
-	bool isUndoAvailable() const;
-	bool isRedoAvailable() const;
-
-	void customUpDown(bool isCustom);
-
-	void setTextCursor(const QTextCursor &cursor) {
-		return _inner->setTextCursor(cursor);
-	}
-	QTextCursor textCursor() const {
-		return _inner->textCursor();
-	}
-	void setText(const QString &text) {
-		_inner->setText(text);
-		startPlaceholderAnimation();
-	}
-	void clear() {
-		_inner->clear();
-		startPlaceholderAnimation();
-	}
-	bool hasFocus() const {
-		return _inner->hasFocus();
-	}
-	void setFocus() {
-		_inner->setFocus();
-		auto cursor = _inner->textCursor();
-		cursor.movePosition(QTextCursor::End);
-		_inner->setTextCursor(cursor);
-	}
-	void clearFocus() {
-		_inner->clearFocus();
-	}
-	void setCursorPosition(int pos) {
-		auto cursor = _inner->textCursor();
-		cursor.setPosition(pos);
-		_inner->setTextCursor(cursor);
-	}
-
-public slots:
-	void selectAll();
-
-private slots:
-	void onTouchTimer();
-
-	void onDocumentContentsChange(int position, int charsRemoved, int charsAdded);
-	void onDocumentContentsChanged();
-
-	void onUndoAvailable(bool avail);
-	void onRedoAvailable(bool avail);
-
-	void onFocusInner();
-
-signals:
-	void changed();
-	void submitted(bool ctrlShiftEnter);
-	void cancelled();
-	void tabbed();
-
-	void focused();
-	void blurred();
-
-protected:
-	void startPlaceholderAnimation();
-	void startBorderAnimation();
-
-	void insertEmoji(EmojiPtr emoji, QTextCursor c);
-	TWidget *tparent() {
-		return qobject_cast<TWidget*>(parentWidget());
-	}
-	const TWidget *tparent() const {
-		return qobject_cast<const TWidget*>(parentWidget());
-	}
-
-	void touchEvent(QTouchEvent *e);
-	void paintEvent(QPaintEvent *e) override;
-	void focusInEvent(QFocusEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void contextMenuEvent(QContextMenuEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-private:
-	class Inner : public QTextEdit {
-	public:
-		Inner(InputField *parent);
-
-		QVariant loadResource(int type, const QUrl &name) override;
-
-	protected:
-		bool viewportEvent(QEvent *e) override;
-		void focusInEvent(QFocusEvent *e) override;
-		void focusOutEvent(QFocusEvent *e) override;
-		void keyPressEvent(QKeyEvent *e) override;
-		void contextMenuEvent(QContextMenuEvent *e) override;
-
-		QMimeData *createMimeDataFromSelection() const override;
-
-	private:
-		InputField *f() const {
-			return static_cast<InputField*>(parentWidget());
-		}
-		friend class InputField;
-
-	};
-	friend class Inner;
-
-	void updatePalette();
-	void refreshPlaceholder();
-	void setErrorShown(bool error);
-
-	void focusInInner(bool focusByMouse);
-	void focusOutInner();
-	void setFocused(bool focused);
-
-	void processDocumentContentsChange(int position, int charsAdded);
-
-	const style::InputField &_st;
-
-	std::unique_ptr<Inner> _inner;
-
-	int _maxLength = -1;
-	bool _forcePlaceholderHidden = false;
-
-	QString _oldtext;
-
-	bool _undoAvailable = false;
-	bool _redoAvailable = false;
-
-	bool _customUpDown = true;
-
-	QString _placeholder;
-	base::lambda<QString()> _placeholderFactory;
-	Animation _a_placeholderShifted;
-	bool _placeholderShifted = false;
-	QPainterPath _placeholderPath;
-
-	Animation _a_borderShown;
-	int _borderAnimationStart = 0;
-	Animation _a_borderOpacity;
-	bool _borderVisible = false;
-
-	Animation _a_focused;
-	Animation _a_error;
-
-	bool _focused = false;
-	bool _error = false;
-
-	QTimer _touchTimer;
-	bool _touchPress = false;
-	bool _touchRightButton = false;
-	bool _touchMove = false;
-	QPoint _touchStart;
-
-	bool _correcting = false;
 };
 
 class MaskedInputField

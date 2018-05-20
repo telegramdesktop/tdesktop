@@ -9,12 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history_widget.h"
 #include "base/qthelp_regex.h"
-#include "styles/style_history.h"
 #include "window/window_controller.h"
-#include "emoji_suggestions_data.h"
-#include "chat_helpers/emoji_suggestions_helper.h"
 #include "mainwindow.h"
 #include "auth_session.h"
+#include "styles/style_history.h"
 
 namespace {
 
@@ -28,7 +26,8 @@ public:
 	QString tagFromMimeTag(const QString &mimeTag) override {
 		if (mimeTag.startsWith(qstr("mention://"))) {
 			auto match = QRegularExpression(":(\\d+)$").match(mimeTag);
-			if (!match.hasMatch() || match.capturedRef(1).toInt() != Auth().userId()) {
+			if (!match.hasMatch()
+				|| match.capturedRef(1).toInt() != Auth().userId()) {
 				return QString();
 			}
 			return mimeTag.mid(0, mimeTag.size() - match.capturedLength());
@@ -97,8 +96,8 @@ std::unique_ptr<QMimeData> MimeDataFromTextWithEntities(
 			tag.id = ConvertTagToMimeTag(tag.id);
 		}
 		result->setData(
-			Ui::FlatTextarea::tagsMimeType(),
-			Ui::FlatTextarea::serializeTagsList(tags));
+			TextUtilities::TagsMimeType(),
+			TextUtilities::SerializeTags(tags));
 	}
 	return result;
 }
@@ -111,33 +110,15 @@ void SetClipboardWithEntities(
 	}
 }
 
-MessageField::MessageField(QWidget *parent, not_null<Window::Controller*> controller, const style::FlatTextarea &st, base::lambda<QString()> placeholderFactory, const QString &val) : Ui::FlatTextarea(parent, st, std::move(placeholderFactory), val)
+MessageField::MessageField(QWidget *parent, not_null<Window::Controller*> controller, const style::FlatTextarea &st, base::lambda<QString()> placeholderFactory)
+: FlatTextarea(parent, st, std::move(placeholderFactory))
 , _controller(controller) {
 	setMinHeight(st::historySendSize.height() - 2 * st::historySendPadding);
 	setMaxHeight(st::historyComposeFieldMaxHeight);
 
 	setTagMimeProcessor(std::make_unique<FieldTagMimeProcessor>());
 
-	addInstantReplace("--", QString(1, QChar(8212)));
-	addInstantReplace("<<", QString(1, QChar(171)));
-	addInstantReplace(">>", QString(1, QChar(187)));
-	addInstantReplace(
-		":shrug:",
-		QChar(175) + QString("\\_(") + QChar(12484) + ")_/" + QChar(175));
-	addInstantReplace(":o ", QString(1, QChar(0xD83D)) + QChar(0xDE28));
-	addInstantReplace("xD ", QString(1, QChar(0xD83D)) + QChar(0xDE06));
-	const auto &replacements = Ui::Emoji::internal::GetAllReplacements();
-	for (const auto &one : replacements) {
-		const auto with = Ui::Emoji::QStringFromUTF16(one.emoji);
-		const auto what = Ui::Emoji::QStringFromUTF16(one.replacement);
-		addInstantReplace(what, with);
-	}
-	const auto &pairs = Ui::Emoji::internal::GetReplacementPairs();
-	for (const auto &[what, index] : pairs) {
-		const auto emoji = Ui::Emoji::internal::ByIndex(index);
-		Assert(emoji != nullptr);
-		addInstantReplace(what, emoji->text());
-	}
+	setInstantReplaces(Ui::InstantReplaces::Default());
 	enableInstantReplaces(Global::ReplaceEmoji());
 	subscribe(Global::RefReplaceEmojiChanged(), [=] {
 		enableInstantReplaces(Global::ReplaceEmoji());

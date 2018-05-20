@@ -71,7 +71,11 @@ void RateCallBox::ratingChanged(int value) {
 	}
 	if (value < kMaxRating) {
 		if (!_comment) {
-			_comment.create(this, st::callRatingComment, langFactory(lng_call_rate_comment));
+			_comment.create(
+				this,
+				st::callRatingComment,
+				Ui::InputField::Mode::MultiLine,
+				langFactory(lng_call_rate_comment));
 			_comment->show();
 			_comment->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
 			_comment->setMaxLength(MaxPhotoCaption);
