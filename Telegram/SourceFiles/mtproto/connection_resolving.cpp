@@ -22,7 +22,7 @@ ResolvingConnection::ResolvingConnection(
 	ConnectionPointer &&child)
 : AbstractConnection(thread, proxy)
 , _instance(instance)
-, _timeoutTimer([=] { handleError(); }) {
+, _timeoutTimer([=] { handleError(kErrorCodeOther); }) {
 	setChild(std::move(child));
 	if (proxy.resolvedExpireAt < getms(true)) {
 		const auto host = proxy.host;
@@ -104,7 +104,7 @@ void ResolvingConnection::domainResolved(
 	if (index < _proxy.resolvedIPs.size()) {
 		_proxy.resolvedIPs.resize(index);
 		if (_ipIndex >= index) {
-			emitError();
+			emitError(kErrorCodeOther);
 		}
 	}
 	if (_ipIndex < 0) {
@@ -112,28 +112,30 @@ void ResolvingConnection::domainResolved(
 	}
 }
 
-void ResolvingConnection::refreshChild() {
+bool ResolvingConnection::refreshChild() {
 	if (!_child) {
-		return;
+		return true;
 	} else if (++_ipIndex >= _proxy.resolvedIPs.size()) {
-		emitError();
-		return;
+		return false;
 	}
 	setChild(_child->clone(ToDirectIpProxy(_proxy, _ipIndex)));
 	_timeoutTimer.callOnce(kOneConnectionTimeout);
+	return true;
 }
 
-void ResolvingConnection::emitError() {
+void ResolvingConnection::emitError(int errorCode) {
 	_ipIndex = -1;
 	_child = nullptr;
-	emit error(kErrorCodeOther);
+	emit error(errorCode);
 }
 
-void ResolvingConnection::handleError() {
+void ResolvingConnection::handleError(int errorCode) {
 	if (_connected) {
-		emitError();
+		emitError(errorCode);
 	} else if (!_proxy.resolvedIPs.empty()) {
-		refreshChild();
+		if (!refreshChild()) {
+			emitError(errorCode);
+		}
 	} else {
 		// Wait for the domain to be resolved.
 	}
@@ -143,7 +145,7 @@ void ResolvingConnection::handleDisconnected() {
 	if (_connected) {
 		emit disconnected();
 	} else {
-		handleError();
+		handleError(kErrorCodeOther);
 	}
 }
 
@@ -204,7 +206,7 @@ void ResolvingConnection::connectToServer(
 		const bytes::vector &protocolSecret,
 		int16 protocolDcId) {
 	if (!_child) {
-		InvokeQueued(this, [=] { emitError(); });
+		InvokeQueued(this, [=] { emitError(kErrorCodeOther); });
 		return;
 	}
 	_address = address;

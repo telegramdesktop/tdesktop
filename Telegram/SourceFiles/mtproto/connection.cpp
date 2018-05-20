@@ -2572,22 +2572,14 @@ void ConnectionPrivate::pqAnswered() {
 		return restart();
 	}
 
-	// #TODO checked key creation
-	//auto p_q_inner = MTP_p_q_inner_data_dc(
-	//	res_pq_data.vpq,
-	//	MTP_bytes(std::move(p)),
-	//	MTP_bytes(std::move(q)),
-	//	_authKeyData->nonce,
-	//	_authKeyData->server_nonce,
-	//	_authKeyData->new_nonce,
-	//	MTP_int(getProtocolDcId()));
-	auto p_q_inner = MTP_p_q_inner_data(
+	auto p_q_inner = MTP_p_q_inner_data_dc(
 		res_pq_data.vpq,
 		MTP_bytes(std::move(p)),
 		MTP_bytes(std::move(q)),
 		_authKeyData->nonce,
 		_authKeyData->server_nonce,
-		_authKeyData->new_nonce);
+		_authKeyData->new_nonce,
+		MTP_int(getProtocolDcId()));
 	auto dhEncString = encryptPQInnerRSA(p_q_inner, rsaKey);
 	if (dhEncString.empty()) {
 		return restart();
@@ -2603,11 +2595,8 @@ void ConnectionPrivate::pqAnswered() {
 	req_DH_params.vnonce = _authKeyData->nonce;
 	req_DH_params.vserver_nonce = _authKeyData->server_nonce;
 	req_DH_params.vpublic_key_fingerprint = MTP_long(rsaKey.getFingerPrint());
-	// #TODO checked key creation
-	//req_DH_params.vp = p_q_inner.c_p_q_inner_data_dc().vp;
-	//req_DH_params.vq = p_q_inner.c_p_q_inner_data_dc().vq;
-	req_DH_params.vp = p_q_inner.c_p_q_inner_data().vp;
-	req_DH_params.vq = p_q_inner.c_p_q_inner_data().vq;
+	req_DH_params.vp = p_q_inner.c_p_q_inner_data_dc().vp;
+	req_DH_params.vq = p_q_inner.c_p_q_inner_data_dc().vq;
 	req_DH_params.vencrypted_data = MTP_bytes(dhEncString);
 	sendRequestNotSecure(req_DH_params);
 }

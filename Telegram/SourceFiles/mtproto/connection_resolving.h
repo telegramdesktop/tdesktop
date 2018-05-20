@@ -42,14 +42,14 @@ public:
 
 private:
 	void setChild(ConnectionPointer &&child);
-	void refreshChild();
-	void emitError();
+	bool refreshChild();
+	void emitError(int errorCode);
 
 	void domainResolved(
 		const QString &host,
 		const QStringList &ips,
 		qint64 expireAt);
-	void handleError();
+	void handleError(int errorCode);
 	void handleConnected();
 	void handleDisconnected();
 	void handleReceivedData();
