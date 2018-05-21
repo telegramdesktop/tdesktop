@@ -88,7 +88,7 @@ void ReportBox::reasonChanged(Reason reason) {
 				Ui::InputField::Mode::MultiLine,
 				langFactory(lng_report_reason_description));
 			_reasonOtherText->show();
-			_reasonOtherText->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
+			_reasonOtherText->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 			_reasonOtherText->setMaxLength(MaxPhotoCaption);
 			_reasonOtherText->resize(width() - (st::boxPadding.left() + st::boxOptionListPadding.left() + st::boxPadding.right()), _reasonOtherText->height());
 

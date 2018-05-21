@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/widgets/input_fields.h"
+#include "base/timer.h"
 
 class HistoryWidget;
 namespace Window {
@@ -25,32 +26,66 @@ void SetClipboardWithEntities(
 	const TextWithEntities &forClipboard,
 	QClipboard::Mode mode = QClipboard::Clipboard);
 
-class MessageField final : public Ui::FlatTextarea {
-	Q_OBJECT
+void InitMessageField(not_null<Ui::InputField*> field);
+bool HasSendText(not_null<const Ui::InputField*> field);
 
+struct InlineBotQuery {
+	QString query;
+	QString username;
+	UserData *bot = nullptr;
+	bool lookingUpBot = false;
+};
+InlineBotQuery ParseInlineBotQuery(not_null<const Ui::InputField*> field);
+
+struct AutocompleteQuery {
+	QString query;
+	bool fromStart = false;
+};
+AutocompleteQuery ParseMentionHashtagBotCommandQuery(
+	not_null<const Ui::InputField*> field);
+
+class QtConnectionOwner {
 public:
-	MessageField(QWidget *parent, not_null<Window::Controller*> controller, const style::FlatTextarea &st, base::lambda<QString()> placeholderFactory = nullptr);
-
-	bool hasSendText() const;
-
-	void setInsertFromMimeDataHook(base::lambda<bool(const QMimeData *data)> hook) {
-		_insertFromMimeDataHook = std::move(hook);
-	}
-
-public slots:
-	void onEmojiInsert(EmojiPtr emoji);
-
-signals:
-	void focused();
-
-protected:
-	void focusInEvent(QFocusEvent *e) override;
-	void dropEvent(QDropEvent *e) override;
-	bool canInsertFromMimeData(const QMimeData *source) const override;
-	void insertFromMimeData(const QMimeData *source) override;
+	QtConnectionOwner(QMetaObject::Connection connection = {});
+	QtConnectionOwner(QtConnectionOwner &&other);
+	QtConnectionOwner &operator=(QtConnectionOwner &&other);
+	~QtConnectionOwner();
 
 private:
-	not_null<Window::Controller*> _controller;
-	base::lambda<bool(const QMimeData *data)> _insertFromMimeDataHook;
+	void disconnect();
+
+	QMetaObject::Connection _data;
+
+};
+
+class MessageLinksParser : private QObject {
+public:
+	MessageLinksParser(not_null<Ui::InputField*> field);
+
+	const rpl::variable<QStringList> &list() const;
+
+protected:
+	bool eventFilter(QObject *object, QEvent *event) override;
+
+private:
+	struct LinkRange {
+		int start;
+		int length;
+	};
+	friend inline bool operator==(const LinkRange &a, const LinkRange &b) {
+		return (a.start == b.start) && (a.length == b.length);
+	}
+	friend inline bool operator!=(const LinkRange &a, const LinkRange &b) {
+		return !(a == b);
+	}
+
+	void parse();
+	void apply(const QString &text, const QVector<LinkRange> &ranges);
+
+	not_null<Ui::InputField*> _field;
+	rpl::variable<QStringList> _list;
+	int _lastLength = 0;
+	base::Timer _timer;
+	QtConnectionOwner _connection;
 
 };

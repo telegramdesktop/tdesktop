@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/never.h>
 
 #include <rpl/take.h>
+#include <rpl/skip.h>
 #include <rpl/then.h>
 #include <rpl/deferred.h>
 #include <rpl/map.h>

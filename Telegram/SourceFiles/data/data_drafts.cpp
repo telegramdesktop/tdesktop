@@ -33,7 +33,7 @@ Draft::Draft(
 }
 
 Draft::Draft(
-	not_null<const Ui::FlatTextarea*> field,
+	not_null<const Ui::InputField*> field,
 	MsgId msgId,
 	bool previewCancelled,
 	mtpRequestId saveRequestId)

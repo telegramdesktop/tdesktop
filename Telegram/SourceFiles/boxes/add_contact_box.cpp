@@ -1072,7 +1072,7 @@ void EditBioBox::prepare() {
 	addButton(langFactory(lng_settings_save), [this] { save(); });
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 	_bio->setMaxLength(kMaxBioLength);
-	_bio->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
+	_bio->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 	auto cursor = _bio->textCursor();
 	cursor.setPosition(_bio->getLastText().size());
 	_bio->setTextCursor(cursor);

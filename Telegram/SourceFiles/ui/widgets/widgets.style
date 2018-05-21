@@ -180,22 +180,6 @@ ScrollArea {
 	hiding: int;
 }
 
-FlatTextarea {
-	textColor: color;
-	bgColor: color;
-	width: pixels;
-	textMrg: margins;
-	align: align;
-	font: font;
-
-	phColor: color;
-	phFocusColor: color;
-	phPos: point;
-	phAlign: align;
-	phShift: pixels;
-	phDuration: int;
-}
-
 FlatInput {
 	textColor: color;
 	bgColor: color;

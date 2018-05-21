@@ -461,4 +461,36 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 		}
 		REQUIRE(*sum == "012done012done012done");
 	}
+
+	SECTION("skip test") {
+		auto sum = std::make_shared<std::string>("");
+		{
+			rpl::lifetime lifetime;
+			ints(10) | skip(5)
+				| start_with_next_done([=](int value) {
+					*sum += std::to_string(value);
+				}, [=] {
+					*sum += "done";
+				}, lifetime);
+		}
+		{
+			rpl::lifetime lifetime;
+			ints(3) | skip(3)
+				| start_with_next_done([=](int value) {
+					*sum += std::to_string(value);
+				}, [=] {
+					*sum += "done";
+				}, lifetime);
+		}
+		{
+			rpl::lifetime lifetime;
+			ints(3) | skip(10)
+				| start_with_next_done([=](int value) {
+					*sum += std::to_string(value);
+				}, [=] {
+					*sum += "done";
+				}, lifetime);
+		}
+		REQUIRE(*sum == "56789donedonedone");
+	}
 }

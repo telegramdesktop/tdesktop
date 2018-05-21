@@ -1556,7 +1556,7 @@ void SendFilesBox::setupCaption() {
 		Ui::InputField::Mode::MultiLine,
 		FieldPlaceholder(_list));
 	_caption->setMaxLength(MaxPhotoCaption);
-	_caption->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
+	_caption->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 	connect(_caption, &Ui::InputField::resized, this, [this] {
 		captionResized();
 	});

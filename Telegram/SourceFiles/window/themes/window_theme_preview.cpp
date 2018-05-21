@@ -501,15 +501,19 @@ void Generator::paintComposeArea() {
 	auto fieldWidth = _composeArea.width() - st::historyAttach.width - st::historySendSize.width() - st::historySendRight - st::historyAttachEmoji.width - 2 * fakeMargin;
 	auto fieldHeight = st::historySendSize.height() - 2 * st::historySendPadding - 2 * fakeMargin;
 	auto field = QRect(fieldLeft, fieldTop, fieldWidth, fieldHeight);
-	_p->fillRect(field, st::historyComposeField.bgColor[_palette]);
+	_p->fillRect(field, st::historyComposeField.textBg[_palette]);
 
 	_p->save();
 	_p->setClipRect(field);
 	_p->setFont(st::historyComposeField.font);
-	_p->setPen(st::historyComposeField.phColor[_palette]);
+	_p->setPen(st::historyComposeField.placeholderFg[_palette]);
 
-	auto phRect = QRect(field.x() + st::historyComposeField.textMrg.left() - fakeMargin + st::historyComposeField.phPos.x(), field.y() + st::historyComposeField.textMrg.top() - fakeMargin + st::historyComposeField.phPos.y(), field.width() - st::historyComposeField.textMrg.left() - st::historyComposeField.textMrg.right(), field.height() - st::historyComposeField.textMrg.top() - st::historyComposeField.textMrg.bottom());
-	_p->drawText(phRect, lang(lng_message_ph), QTextOption(st::historyComposeField.phAlign));
+	auto placeholderRect = QRect(
+		field.x() + st::historyComposeField.textMargins.left() - fakeMargin + st::historyComposeField.placeholderMargins.left(),
+		field.y() + st::historyComposeField.textMargins.top() - fakeMargin + st::historyComposeField.placeholderMargins.top(),
+		field.width() - st::historyComposeField.textMargins.left() - st::historyComposeField.textMargins.right(),
+		field.height() - st::historyComposeField.textMargins.top() - st::historyComposeField.textMargins.bottom());
+	_p->drawText(placeholderRect, lang(lng_message_ph), QTextOption(st::historyComposeField.textAlign));
 
 	_p->restore();
 	_p->setClipping(false);

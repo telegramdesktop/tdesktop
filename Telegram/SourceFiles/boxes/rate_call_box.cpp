@@ -77,7 +77,7 @@ void RateCallBox::ratingChanged(int value) {
 				Ui::InputField::Mode::MultiLine,
 				langFactory(lng_call_rate_comment));
 			_comment->show();
-			_comment->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
+			_comment->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 			_comment->setMaxLength(MaxPhotoCaption);
 			_comment->resize(width() - (st::callRatingPadding.left() + st::callRatingPadding.right()), _comment->height());
 

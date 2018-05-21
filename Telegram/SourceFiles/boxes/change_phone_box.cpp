@@ -7,9 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/change_phone_box.h"
 
-#include <rpl/filter.h>
-#include <rpl/mappers.h>
-#include <rpl/take.h>
 #include "lang/lang_keys.h"
 #include "styles/style_boxes.h"
 #include "ui/widgets/labels.h"

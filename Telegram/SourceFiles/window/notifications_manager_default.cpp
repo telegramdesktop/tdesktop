@@ -770,7 +770,7 @@ void Notification::showReplyField() {
 	_replyArea->show();
 	_replyArea->setFocus();
 	_replyArea->setMaxLength(MaxMessageSize);
-	_replyArea->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
+	_replyArea->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 	_replyArea->setInstantReplaces(Ui::InstantReplaces::Default());
 
 	// Catch mouse press event to activate the window.

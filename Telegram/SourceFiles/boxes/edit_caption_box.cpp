@@ -137,7 +137,7 @@ EditCaptionBox::EditCaptionBox(
 		langFactory(lng_photo_caption),
 		caption);
 	_field->setMaxLength(MaxPhotoCaption);
-	_field->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
+	_field->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 	_field->setInstantReplaces(Ui::InstantReplaces::Default());
 }
 

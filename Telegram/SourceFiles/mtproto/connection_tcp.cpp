@@ -171,7 +171,14 @@ mtpBuffer TcpConnection::handleResponse(const char *packet, uint32 length) {
 	const mtpPrime *packetdata = reinterpret_cast<const mtpPrime*>(packet + (length - len));
 	TCP_LOG(("TCP Info: packet received, size = %1").arg(size * sizeof(mtpPrime)));
 	if (size == 1) {
-		LOG(("TCP Error: error packet received, code = %1").arg(*packetdata));
+		LOG(("TCP Error: "
+			"error packet received, endpoint: '%1:%2', "
+			"protocolDcId: %3, secret_len: %4, code = %5"
+			).arg(_address.isEmpty() ? ("proxy_" + _proxy.host) : _address
+			).arg(_address.isEmpty() ? _proxy.port : _port
+			).arg(_protocolDcId
+			).arg(_protocolSecret.size()
+			).arg(*packetdata));
 		return mtpBuffer(1, *packetdata);
 	}
 

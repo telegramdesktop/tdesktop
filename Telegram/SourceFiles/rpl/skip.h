@@ -10,9 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace rpl {
 namespace details {
 
-class take_helper {
+class skip_helper {
 public:
-	take_helper(int count) : _count(count) {
+	skip_helper(int count) : _count(count) {
 	}
 
 	template <
@@ -22,19 +22,16 @@ public:
 	auto operator()(producer<Value, Error, Generator> &&initial) {
 		return make_producer<Value, Error>([
 			initial = std::move(initial),
-			limit = _count
+			skipping = _count
 		](const auto &consumer) mutable {
-			auto count = consumer.template make_state<int>(limit);
+			auto count = consumer.template make_state<int>(skipping);
 			auto initial_consumer = make_consumer<Value, Error>(
 			[consumer, count](auto &&value) {
-				auto left = (*count)--;
-				if (left) {
+				if (*count) {
+					--*count;
+				} else {
 					consumer.put_next_forward(
 						std::forward<decltype(value)>(value));
-					--left;
-				}
-				if (!left) {
-					consumer.put_done();
 				}
 			}, [consumer](auto &&error) {
 				consumer.put_error_forward(
@@ -54,11 +51,11 @@ private:
 
 } // namespace details
 
-inline auto take(int count)
--> details::take_helper {
+inline auto skip(int count)
+-> details::skip_helper {
 	Expects(count >= 0);
 
-	return details::take_helper(count);
+	return details::skip_helper(count);
 }
 
 } // namespace rpl

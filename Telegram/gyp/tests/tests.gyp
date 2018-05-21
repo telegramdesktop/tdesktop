@@ -109,6 +109,7 @@
       '<(src_loc)/rpl/producer_tests.cpp',
       '<(src_loc)/rpl/range.h',
       '<(src_loc)/rpl/rpl.h',
+	  '<(src_loc)/rpl/skip.h',
       '<(src_loc)/rpl/take.h',
       '<(src_loc)/rpl/then.h',
       '<(src_loc)/rpl/type_erased.h',

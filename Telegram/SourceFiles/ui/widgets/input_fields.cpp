@@ -29,6 +29,67 @@ const auto kObjectReplacement = QString::fromRawData(
 	&kObjectReplacementCh,
 	1);
 
+class TagAccumulator {
+public:
+	TagAccumulator(TextWithTags::Tags &tags) : _tags(tags) {
+	}
+
+	bool changed() const {
+		return _changed;
+	}
+
+	void feed(const QString &randomTagId, int currentPosition) {
+		if (randomTagId == _currentTagId) return;
+
+		if (!_currentTagId.isEmpty()) {
+			int randomPartPosition = _currentTagId.lastIndexOf('/');
+			Assert(randomPartPosition > 0);
+
+			bool tagChanged = true;
+			if (_currentTag < _tags.size()) {
+				auto &alreadyTag = _tags[_currentTag];
+				if (alreadyTag.offset == _currentStart &&
+					alreadyTag.length == currentPosition - _currentStart &&
+					alreadyTag.id == _currentTagId.midRef(0, randomPartPosition)) {
+					tagChanged = false;
+				}
+			}
+			if (tagChanged) {
+				_changed = true;
+				const auto tag = TextWithTags::Tag {
+					_currentStart,
+					currentPosition - _currentStart,
+					_currentTagId.mid(0, randomPartPosition),
+				};
+				if (_currentTag < _tags.size()) {
+					_tags[_currentTag] = tag;
+				} else {
+					_tags.push_back(tag);
+				}
+			}
+			++_currentTag;
+		}
+		_currentTagId = randomTagId;
+		_currentStart = currentPosition;
+	};
+
+	void finish() {
+		if (_currentTag < _tags.size()) {
+			_tags.resize(_currentTag);
+			_changed = true;
+		}
+	}
+
+private:
+	TextWithTags::Tags &_tags;
+	bool _changed = false;
+
+	int _currentTag = 0;
+	int _currentStart = 0;
+	QString _currentTagId;
+
+};
+
 template <typename InputClass>
 class InputStyle : public QCommonStyle {
 public:
@@ -80,10 +141,10 @@ QString AccumulateText(Iterator begin, Iterator end) {
 	return result;
 }
 
-QTextImageFormat PrepareEmojiFormat(EmojiPtr emoji, const style::font &f) {
+QTextImageFormat PrepareEmojiFormat(EmojiPtr emoji, const QFont &font) {
 	const auto factor = cIntRetinaFactor();
 	const auto width = Ui::Emoji::Size() + st::emojiPadding * factor * 2;
-	const auto height = f->height * factor;
+	const auto height = QFontMetrics(font).height() * factor;
 	auto result = QTextImageFormat();
 	result.setWidth(width / factor);
 	result.setHeight(height / factor);
@@ -91,6 +152,123 @@ QTextImageFormat PrepareEmojiFormat(EmojiPtr emoji, const style::font &f) {
 	result.setVerticalAlignment(QTextCharFormat::AlignBaseline);
 	return result;
 }
+
+// Optimization: with null page size document does not re-layout
+// on each insertText / mergeCharFormat.
+void PrepareFormattingOptimization(not_null<QTextDocument*> document) {
+	if (!document->pageSize().isNull()) {
+		document->setPageSize(QSizeF(0, 0));
+	}
+}
+
+void RemoveDocumentTags(
+		style::color textFg,
+		not_null<QTextDocument*> document,
+		int from,
+		int end) {
+	auto cursor = QTextCursor(document->docHandle(), from);
+	cursor.setPosition(end, QTextCursor::KeepAnchor);
+
+	QTextCharFormat format;
+	format.setAnchor(false);
+	format.setAnchorName(QString());
+	format.setForeground(textFg);
+	cursor.mergeCharFormat(format);
+}
+
+// Returns the position of the first inserted tag or "changedEnd" value if none found.
+int ProcessInsertedTags(
+		style::color textFg,
+		QTextDocument *document,
+		int changedPosition,
+		int changedEnd,
+		const TextWithTags::Tags &tags,
+		InputField::TagMimeProcessor *processor) {
+	int firstTagStart = changedEnd;
+	int applyNoTagFrom = changedEnd;
+	for (const auto &tag : tags) {
+		int tagFrom = changedPosition + tag.offset;
+		int tagTo = tagFrom + tag.length;
+		accumulate_max(tagFrom, changedPosition);
+		accumulate_min(tagTo, changedEnd);
+		auto tagId = processor ? processor->tagFromMimeTag(tag.id) : tag.id;
+		if (tagTo > tagFrom && !tagId.isEmpty()) {
+			accumulate_min(firstTagStart, tagFrom);
+
+			PrepareFormattingOptimization(document);
+
+			if (applyNoTagFrom < tagFrom) {
+				RemoveDocumentTags(textFg, document, applyNoTagFrom, tagFrom);
+			}
+			QTextCursor c(document->docHandle(), 0);
+			c.setPosition(tagFrom);
+			c.setPosition(tagTo, QTextCursor::KeepAnchor);
+
+			QTextCharFormat format;
+			format.setAnchor(true);
+			format.setAnchorName(tagId + '/' + QString::number(rand_value<uint32>()));
+			format.setForeground(st::defaultTextPalette.linkFg);
+			c.mergeCharFormat(format);
+
+			applyNoTagFrom = tagTo;
+		}
+	}
+	if (applyNoTagFrom < changedEnd) {
+		RemoveDocumentTags(textFg, document, applyNoTagFrom, changedEnd);
+	}
+
+	return firstTagStart;
+}
+
+// When inserting a part of text inside a tag we need to have
+// a way to know if the insertion replaced the end of the tag
+// or it was strictly inside (in the middle) of the tag.
+bool WasInsertTillTheEndOfTag(
+		QTextBlock block,
+		QTextBlock::iterator fragmentIt,
+		int insertionEnd) {
+	auto insertTagName = fragmentIt.fragment().charFormat().anchorName();
+	while (true) {
+		for (; !fragmentIt.atEnd(); ++fragmentIt) {
+			auto fragment = fragmentIt.fragment();
+			bool fragmentOutsideInsertion = (fragment.position() >= insertionEnd);
+			if (fragmentOutsideInsertion) {
+				return (fragment.charFormat().anchorName() != insertTagName);
+			}
+			int fragmentEnd = fragment.position() + fragment.length();
+			bool notFullFragmentInserted = (fragmentEnd > insertionEnd);
+			if (notFullFragmentInserted) {
+				return false;
+			}
+		}
+		if (block.isValid()) {
+			fragmentIt = block.begin();
+			block = block.next();
+		} else {
+			break;
+		}
+	}
+	// Insertion goes till the end of the text => not strictly inside a tag.
+	return true;
+}
+
+struct FormattingAction {
+	enum class Type {
+		Invalid,
+		InsertEmoji,
+		TildeFont,
+		RemoveTag,
+		RemoveNewline,
+		ClearInstantReplace,
+	};
+
+	Type type = Type::Invalid;
+	EmojiPtr emoji = nullptr;
+	bool isTilde = false;
+	int intervalStart = 0;
+	int intervalEnd = 0;
+
+};
 
 } // namespace
 
@@ -119,6 +297,9 @@ protected:
 	void contextMenuEvent(QContextMenuEvent *e) override {
 		return outer()->contextMenuEventInner(e);
 	}
+	void dropEvent(QDropEvent *e) override {
+		return outer()->dropEventInner(e);
+	}
 
 	bool canInsertFromMimeData(const QMimeData *source) const override {
 		return outer()->canInsertFromMimeDataInner(source);
@@ -137,6 +318,17 @@ private:
 	friend class InputField;
 
 };
+
+void InsertEmojiAtCursor(QTextCursor cursor, EmojiPtr emoji) {
+	const auto currentFormat = cursor.charFormat();
+	auto format = PrepareEmojiFormat(emoji, currentFormat.font());
+	if (currentFormat.isAnchor()) {
+		format.setAnchor(true);
+		format.setAnchorName(currentFormat.anchorName());
+		format.setForeground(st::defaultTextPalette.linkFg);
+	}
+	cursor.insertText(kObjectReplacement, format);
+}
 
 void InstantReplaces::add(const QString &what, const QString &with) {
 	auto node = &reverseMap;
@@ -173,1519 +365,6 @@ const InstantReplaces &InstantReplaces::Default() {
 		return result;
 	}();
 	return result;
-}
-
-FlatTextarea::FlatTextarea(QWidget *parent, const style::FlatTextarea &st, base::lambda<QString()> placeholderFactory, const QString &v, const TagList &tags) : TWidgetHelper<QTextEdit>(parent)
-, _placeholderFactory(std::move(placeholderFactory))
-, _placeholderVisible(!v.length())
-, _lastTextWithTags { v, tags }
-, _st(st) {
-	_defaultCharFormat = textCursor().charFormat();
-
-	setCursor(style::cur_text);
-	setAcceptRichText(false);
-	resize(_st.width, _st.font->height);
-
-	setFont(_st.font->f);
-	setAlignment(_st.align);
-
-	subscribe(Lang::Current().updated(), [this] { refreshPlaceholder(); });
-	refreshPlaceholder();
-
-	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
-		if (update.paletteChanged()) {
-			updatePalette();
-		}
-	});
-	updatePalette();
-
-	setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-	setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-
-	setFrameStyle(QFrame::NoFrame | QFrame::Plain);
-	viewport()->setAutoFillBackground(false);
-
-	setContentsMargins(0, 0, 0, 0);
-
-	switch (cScale()) {
-	case dbisOneAndQuarter: _fakeMargin = 1; break;
-	case dbisOneAndHalf: _fakeMargin = 2; break;
-	case dbisTwo: _fakeMargin = 4; break;
-	}
-	setStyleSheet(qsl("QTextEdit { margin: %1px; }").arg(_fakeMargin));
-
-	viewport()->setAttribute(Qt::WA_AcceptTouchEvents);
-	_touchTimer.setSingleShot(true);
-	connect(&_touchTimer, SIGNAL(timeout()), this, SLOT(onTouchTimer()));
-
-	connect(document(), SIGNAL(contentsChange(int, int, int)), this, SLOT(onDocumentContentsChange(int, int, int)));
-	connect(document(), SIGNAL(contentsChanged()), this, SLOT(onDocumentContentsChanged()));
-	connect(this, SIGNAL(undoAvailable(bool)), this, SLOT(onUndoAvailable(bool)));
-	connect(this, SIGNAL(redoAvailable(bool)), this, SLOT(onRedoAvailable(bool)));
-	if (App::wnd()) connect(this, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
-
-	if (!_lastTextWithTags.text.isEmpty()) {
-		setTextWithTags(_lastTextWithTags, ClearUndoHistory);
-	}
-}
-
-void FlatTextarea::setInstantReplaces(const InstantReplaces &replaces) {
-	_mutableInstantReplaces = replaces;
-}
-
-void FlatTextarea::enableInstantReplaces(bool enabled) {
-	_instantReplacesEnabled = enabled;
-}
-
-void FlatTextarea::updatePalette() {
-	auto p = palette();
-	p.setColor(QPalette::Text, _st.textColor->c);
-	setPalette(p);
-}
-
-TextWithTags FlatTextarea::getTextWithTagsPart(int start, int end) {
-	TextWithTags result;
-	result.text = getTextPart(start, end, &result.tags);
-	return result;
-}
-
-void FlatTextarea::setTextWithTags(const TextWithTags &textWithTags, UndoHistoryAction undoHistoryAction) {
-	_insertedTags = textWithTags.tags;
-	_insertedTagsAreFromMime = false;
-	_realInsertPosition = 0;
-	_realCharsAdded = textWithTags.text.size();
-	auto doc = document();
-	auto cursor = QTextCursor(doc->docHandle(), 0);
-	if (undoHistoryAction == ClearUndoHistory) {
-		doc->setUndoRedoEnabled(false);
-		cursor.beginEditBlock();
-	} else if (undoHistoryAction == MergeWithUndoHistory) {
-		cursor.joinPreviousEditBlock();
-	} else {
-		cursor.beginEditBlock();
-	}
-	cursor.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
-	cursor.insertText(textWithTags.text);
-	cursor.movePosition(QTextCursor::End);
-	cursor.endEditBlock();
-	if (undoHistoryAction == ClearUndoHistory) {
-		doc->setUndoRedoEnabled(true);
-	}
-	_insertedTags.clear();
-	_realInsertPosition = -1;
-	finishPlaceholder();
-}
-
-void FlatTextarea::finishPlaceholder() {
-	_a_placeholderFocused.finish();
-	_a_placeholderVisible.finish();
-	update();
-}
-
-void FlatTextarea::setMaxLength(int32 maxLength) {
-	_maxLength = maxLength;
-}
-
-void FlatTextarea::setMinHeight(int32 minHeight) {
-	_minHeight = minHeight;
-	heightAutoupdated();
-}
-
-void FlatTextarea::setMaxHeight(int32 maxHeight) {
-	_maxHeight = maxHeight;
-	heightAutoupdated();
-}
-
-bool FlatTextarea::heightAutoupdated() {
-	if (_minHeight < 0 || _maxHeight < 0 || _inHeightCheck) return false;
-	_inHeightCheck = true;
-
-	SendPendingMoveResizeEvents(this);
-
-	int newh = ceil(document()->size().height()) + 2 * fakeMargin();
-	if (newh > _maxHeight) {
-		newh = _maxHeight;
-	} else if (newh < _minHeight) {
-		newh = _minHeight;
-	}
-	if (height() != newh) {
-		resize(width(), newh);
-		_inHeightCheck = false;
-		return true;
-	}
-	_inHeightCheck = false;
-	return false;
-}
-
-void FlatTextarea::onTouchTimer() {
-	_touchRightButton = true;
-}
-
-bool FlatTextarea::viewportEvent(QEvent *e) {
-	if (e->type() == QEvent::TouchBegin || e->type() == QEvent::TouchUpdate || e->type() == QEvent::TouchEnd || e->type() == QEvent::TouchCancel) {
-		QTouchEvent *ev = static_cast<QTouchEvent*>(e);
-		if (ev->device()->type() == QTouchDevice::TouchScreen) {
-			touchEvent(ev);
-			return QTextEdit::viewportEvent(e);
-		}
-	}
-	return QTextEdit::viewportEvent(e);
-}
-
-void FlatTextarea::touchEvent(QTouchEvent *e) {
-	switch (e->type()) {
-	case QEvent::TouchBegin: {
-		if (_touchPress || e->touchPoints().isEmpty()) return;
-		_touchTimer.start(QApplication::startDragTime());
-		_touchPress = true;
-		_touchMove = _touchRightButton = false;
-		_touchStart = e->touchPoints().cbegin()->screenPos().toPoint();
-	} break;
-
-	case QEvent::TouchUpdate: {
-		if (!_touchPress || e->touchPoints().isEmpty()) return;
-		if (!_touchMove && (e->touchPoints().cbegin()->screenPos().toPoint() - _touchStart).manhattanLength() >= QApplication::startDragDistance()) {
-			_touchMove = true;
-		}
-	} break;
-
-	case QEvent::TouchEnd: {
-		if (!_touchPress) return;
-		auto weak = make_weak(this);
-		if (!_touchMove && window()) {
-			Qt::MouseButton btn(_touchRightButton ? Qt::RightButton : Qt::LeftButton);
-			QPoint mapped(mapFromGlobal(_touchStart)), winMapped(window()->mapFromGlobal(_touchStart));
-
-			if (_touchRightButton) {
-				QContextMenuEvent contextEvent(QContextMenuEvent::Mouse, mapped, _touchStart);
-				contextMenuEvent(&contextEvent);
-			}
-		}
-		if (weak) {
-			_touchTimer.stop();
-			_touchPress = _touchMove = _touchRightButton = false;
-		}
-	} break;
-
-	case QEvent::TouchCancel: {
-		_touchPress = false;
-		_touchTimer.stop();
-	} break;
-	}
-}
-
-QRect FlatTextarea::getTextRect() const {
-	return rect().marginsRemoved(_st.textMrg + st::textRectMargins);
-}
-
-int32 FlatTextarea::fakeMargin() const {
-	return _fakeMargin;
-}
-
-void FlatTextarea::paintEvent(QPaintEvent *e) {
-	Painter p(viewport());
-	auto ms = getms();
-	auto r = rect().intersected(e->rect());
-	p.fillRect(r, _st.bgColor);
-	auto placeholderOpacity = _a_placeholderVisible.current(ms, _placeholderVisible ? 1. : 0.);
-	if (placeholderOpacity > 0.) {
-		p.setOpacity(placeholderOpacity);
-
-		auto placeholderLeft = anim::interpolate(_st.phShift, 0, placeholderOpacity);
-
-		p.save();
-		p.setClipRect(r);
-		p.setFont(_st.font);
-		p.setPen(anim::pen(_st.phColor, _st.phFocusColor, _a_placeholderFocused.current(ms, _focused ? 1. : 0.)));
-		if (_st.phAlign == style::al_topleft && _placeholderAfterSymbols > 0) {
-			int skipWidth = placeholderSkipWidth();
-			p.drawText(_st.textMrg.left() - _fakeMargin + placeholderLeft + skipWidth, _st.textMrg.top() - _fakeMargin - st::lineWidth + _st.font->ascent, _placeholder);
-		} else {
-			QRect phRect(_st.textMrg.left() - _fakeMargin + _st.phPos.x() + placeholderLeft, _st.textMrg.top() - _fakeMargin + _st.phPos.y(), width() - _st.textMrg.left() - _st.textMrg.right(), height() - _st.textMrg.top() - _st.textMrg.bottom());
-			p.drawText(phRect, _placeholder, QTextOption(_st.phAlign));
-		}
-		p.restore();
-		p.setOpacity(1);
-	}
-	QTextEdit::paintEvent(e);
-}
-
-int FlatTextarea::placeholderSkipWidth() const {
-	if (!_placeholderAfterSymbols) {
-		return 0;
-	}
-	auto text = getTextWithTags().text;
-	auto result = _st.font->width(text.mid(0, _placeholderAfterSymbols));
-	if (_placeholderAfterSymbols > text.size()) {
-		result += _st.font->spacew;
-	}
-	return result;
-}
-
-void FlatTextarea::focusInEvent(QFocusEvent *e) {
-	if (!_focused) {
-		_focused = true;
-		_a_placeholderFocused.start([this] { update(); }, 0., 1., _st.phDuration);
-		update();
-	}
-	QTextEdit::focusInEvent(e);
-}
-
-void FlatTextarea::focusOutEvent(QFocusEvent *e) {
-	if (_focused) {
-		_focused = false;
-		_a_placeholderFocused.start([this] { update(); }, 1., 0., _st.phDuration);
-		update();
-	}
-	QTextEdit::focusOutEvent(e);
-}
-
-QSize FlatTextarea::sizeHint() const {
-	return geometry().size();
-}
-
-QSize FlatTextarea::minimumSizeHint() const {
-	return geometry().size();
-}
-
-EmojiPtr FlatTextarea::getSingleEmoji() const {
-	QString text;
-	QTextFragment fragment;
-
-	getSingleEmojiFragment(text, fragment);
-
-	if (!text.isEmpty()) {
-		auto format = fragment.charFormat();
-		auto imageName = static_cast<QTextImageFormat*>(&format)->name();
-		return Ui::Emoji::FromUrl(imageName);
-	}
-	return nullptr;
-}
-
-QString FlatTextarea::getInlineBotQuery(UserData **outInlineBot, QString *outInlineBotUsername) const {
-	Assert(outInlineBot != nullptr);
-	Assert(outInlineBotUsername != nullptr);
-
-	auto &text = getTextWithTags().text;
-	auto textLength = text.size();
-
-	int inlineUsernameStart = 1, inlineUsernameLength = 0;
-	if (textLength > 2 && text.at(0) == '@' && text.at(1).isLetter()) {
-		inlineUsernameLength = 1;
-		for (int i = inlineUsernameStart + 1; i != textLength; ++i) {
-			if (text.at(i).isLetterOrNumber() || text.at(i).unicode() == '_') {
-				++inlineUsernameLength;
-				continue;
-			}
-			if (!text.at(i).isSpace()) {
-				inlineUsernameLength = 0;
-			}
-			break;
-		}
-		auto inlineUsernameEnd = inlineUsernameStart + inlineUsernameLength;
-		auto inlineUsernameEqualsText = (inlineUsernameEnd == textLength);
-		auto validInlineUsername = false;
-		if (inlineUsernameEqualsText) {
-			validInlineUsername = text.endsWith(qstr("bot"));
-		} else if (inlineUsernameEnd < textLength && inlineUsernameLength) {
-			validInlineUsername = text.at(inlineUsernameEnd).isSpace();
-		}
-		if (validInlineUsername) {
-			auto username = text.midRef(inlineUsernameStart, inlineUsernameLength);
-			if (username != *outInlineBotUsername) {
-				*outInlineBotUsername = username.toString();
-				auto peer = App::peerByName(*outInlineBotUsername);
-				if (peer) {
-					if (peer->isUser()) {
-						*outInlineBot = peer->asUser();
-					} else {
-						*outInlineBot = nullptr;
-					}
-				} else {
-					*outInlineBot = LookingUpInlineBot;
-				}
-			}
-			if (*outInlineBot == LookingUpInlineBot) return QString();
-
-			if (*outInlineBot && (!(*outInlineBot)->botInfo || (*outInlineBot)->botInfo->inlinePlaceholder.isEmpty())) {
-				*outInlineBot = nullptr;
-			} else {
-				return inlineUsernameEqualsText ? QString() : text.mid(inlineUsernameEnd + 1);
-			}
-		} else {
-			inlineUsernameLength = 0;
-		}
-	}
-	if (inlineUsernameLength < 3) {
-		*outInlineBot = nullptr;
-		*outInlineBotUsername = QString();
-	}
-	return QString();
-}
-
-QString FlatTextarea::getMentionHashtagBotCommandPart(bool &start) const {
-	start = false;
-
-	int32 pos = textCursor().position();
-	if (textCursor().anchor() != pos) return QString();
-
-	// check mention / hashtag / bot command
-	QTextDocument *doc(document());
-	QTextBlock block = doc->findBlock(pos);
-	for (QTextBlock::Iterator iter = block.begin(); !iter.atEnd(); ++iter) {
-		QTextFragment fr(iter.fragment());
-		if (!fr.isValid()) continue;
-
-		int32 p = fr.position(), e = (p + fr.length());
-		if (p >= pos || e < pos) continue;
-
-		const auto f = fr.charFormat();
-		if (f.isImageFormat()) continue;
-
-		bool mentionInCommand = false;
-		QString t(fr.text());
-		for (int i = pos - p; i > 0; --i) {
-			if (t.at(i - 1) == '@') {
-				if ((pos - p - i < 1 || t.at(i).isLetter()) && (i < 2 || !(t.at(i - 2).isLetterOrNumber() || t.at(i - 2) == '_'))) {
-					start = (i == 1) && (p == 0);
-					return t.mid(i - 1, pos - p - i + 1);
-				} else if ((pos - p - i < 1 || t.at(i).isLetter()) && i > 2 && (t.at(i - 2).isLetterOrNumber() || t.at(i - 2) == '_') && !mentionInCommand) {
-					mentionInCommand = true;
-					--i;
-					continue;
-				}
-				return QString();
-			} else if (t.at(i - 1) == '#') {
-				if (i < 2 || !(t.at(i - 2).isLetterOrNumber() || t.at(i - 2) == '_')) {
-					start = (i == 1) && (p == 0);
-					return t.mid(i - 1, pos - p - i + 1);
-				}
-				return QString();
-			} else if (t.at(i - 1) == '/') {
-				if (i < 2) {
-					start = (i == 1) && (p == 0);
-					return t.mid(i - 1, pos - p - i + 1);
-				}
-				return QString();
-			}
-			if (pos - p - i > 127 || (!mentionInCommand && (pos - p - i > 63))) break;
-			if (!t.at(i - 1).isLetterOrNumber() && t.at(i - 1) != '_') break;
-		}
-		break;
-	}
-	return QString();
-}
-
-void FlatTextarea::insertTag(const QString &text, QString tagId) {
-	auto cursor = textCursor();
-	int32 pos = cursor.position();
-
-	auto doc = document();
-	auto block = doc->findBlock(pos);
-	for (auto iter = block.begin(); !iter.atEnd(); ++iter) {
-		auto fragment = iter.fragment();
-		Assert(fragment.isValid());
-
-		int fragmentPosition = fragment.position();
-		int fragmentEnd = (fragmentPosition + fragment.length());
-		if (fragmentPosition >= pos || fragmentEnd < pos) continue;
-
-		auto format = fragment.charFormat();
-		if (format.isImageFormat()) continue;
-
-		bool mentionInCommand = false;
-		auto fragmentText = fragment.text();
-		for (int i = pos - fragmentPosition; i > 0; --i) {
-			auto previousChar = fragmentText.at(i - 1);
-			if (previousChar == '@' || previousChar == '#' || previousChar == '/') {
-				if ((i == pos - fragmentPosition || (previousChar == '/' ? fragmentText.at(i).isLetterOrNumber() : fragmentText.at(i).isLetter()) || previousChar == '#') &&
-					(i < 2 || !(fragmentText.at(i - 2).isLetterOrNumber() || fragmentText.at(i - 2) == '_'))) {
-					cursor.setPosition(fragmentPosition + i - 1);
-					int till = fragmentPosition + i;
-					for (; (till < fragmentEnd && till < pos); ++till) {
-						auto ch = fragmentText.at(till - fragmentPosition);
-						if (!ch.isLetterOrNumber() && ch != '_' && ch != '@') {
-							break;
-						}
-					}
-					if (till < fragmentEnd && fragmentText.at(till - fragmentPosition) == ' ') {
-						++till;
-					}
-					cursor.setPosition(till, QTextCursor::KeepAnchor);
-					break;
-				} else if ((i == pos - fragmentPosition || fragmentText.at(i).isLetter()) && fragmentText.at(i - 1) == '@' && i > 2 && (fragmentText.at(i - 2).isLetterOrNumber() || fragmentText.at(i - 2) == '_') && !mentionInCommand) {
-					mentionInCommand = true;
-					--i;
-					continue;
-				}
-				break;
-			}
-			if (pos - fragmentPosition - i > 127 || (!mentionInCommand && (pos - fragmentPosition - i > 63))) break;
-			if (!fragmentText.at(i - 1).isLetterOrNumber() && fragmentText.at(i - 1) != '_') break;
-		}
-		break;
-	}
-	if (tagId.isEmpty()) {
-		cursor.insertText(text + ' ', _defaultCharFormat);
-	} else {
-		_insertedTags.clear();
-		_insertedTags.push_back({ 0, text.size(), tagId });
-		_insertedTagsAreFromMime = false;
-		cursor.insertText(text + ' ');
-		_insertedTags.clear();
-	}
-}
-
-void FlatTextarea::setTagMimeProcessor(std::unique_ptr<TagMimeProcessor> &&processor) {
-	_tagMimeProcessor = std::move(processor);
-}
-
-void FlatTextarea::getSingleEmojiFragment(QString &text, QTextFragment &fragment) const {
-	int32 end = textCursor().position(), start = end - 1;
-	if (textCursor().anchor() != end) return;
-
-	if (start < 0) start = 0;
-
-	QTextDocument *doc(document());
-	QTextBlock from = doc->findBlock(start), till = doc->findBlock(end);
-	if (till.isValid()) till = till.next();
-
-	for (QTextBlock b = from; b != till; b = b.next()) {
-		for (QTextBlock::Iterator iter = b.begin(); !iter.atEnd(); ++iter) {
-			QTextFragment fr(iter.fragment());
-			if (!fr.isValid()) continue;
-
-			int32 p = fr.position(), e = (p + fr.length());
-			if (p >= end || e <= start) {
-				continue;
-			}
-
-			const auto f = fr.charFormat();
-			auto t = fr.text();
-			if (p < start) {
-				t = t.mid(start - p, end - start);
-			} else if (e > end) {
-				t = t.mid(0, end - p);
-			}
-			if (f.isImageFormat()
-				&& !t.isEmpty()
-				&& t[0] == kObjectReplacementCh) {
-				const auto imageName = static_cast<const QTextImageFormat*>(
-					&f)->name();
-				if (Ui::Emoji::FromUrl(imageName)) {
-					fragment = fr;
-					text = t;
-					return;
-				}
-			}
-			return;
-		}
-	}
-	return;
-}
-
-void FlatTextarea::removeSingleEmoji() {
-	QString text;
-	QTextFragment fragment;
-
-	getSingleEmojiFragment(text, fragment);
-
-	if (!text.isEmpty()) {
-		QTextCursor t(textCursor());
-		t.setPosition(fragment.position());
-		t.setPosition(fragment.position() + fragment.length(), QTextCursor::KeepAnchor);
-		t.removeSelectedText();
-		setTextCursor(t);
-	}
-}
-
-namespace {
-
-class TagAccumulator {
-public:
-	TagAccumulator(FlatTextarea::TagList *tags) : _tags(tags) {
-	}
-
-	bool changed() const {
-		return _changed;
-	}
-
-	void feed(const QString &randomTagId, int currentPosition) {
-		if (randomTagId == _currentTagId) return;
-
-		if (!_currentTagId.isEmpty()) {
-			int randomPartPosition = _currentTagId.lastIndexOf('/');
-			Assert(randomPartPosition > 0);
-
-			bool tagChanged = true;
-			if (_currentTag < _tags->size()) {
-				auto &alreadyTag = _tags->at(_currentTag);
-				if (alreadyTag.offset == _currentStart &&
-					alreadyTag.length == currentPosition - _currentStart &&
-					alreadyTag.id == _currentTagId.midRef(0, randomPartPosition)) {
-					tagChanged = false;
-				}
-			}
-			if (tagChanged) {
-				_changed = true;
-				TextWithTags::Tag tag = {
-					_currentStart,
-					currentPosition - _currentStart,
-					_currentTagId.mid(0, randomPartPosition),
-				};
-				if (_currentTag < _tags->size()) {
-					(*_tags)[_currentTag] = tag;
-				} else {
-					_tags->push_back(tag);
-				}
-			}
-			++_currentTag;
-		}
-		_currentTagId = randomTagId;
-		_currentStart = currentPosition;
-	};
-
-	void finish() {
-		if (_currentTag < _tags->size()) {
-			_tags->resize(_currentTag);
-			_changed = true;
-		}
-	}
-
-private:
-	FlatTextarea::TagList *_tags;
-	bool _changed = false;
-
-	int _currentTag = 0;
-	int _currentStart = 0;
-	QString _currentTagId;
-
-};
-
-} // namespace
-
-QString FlatTextarea::getTextPart(int start, int end, TagList *outTagsList, bool *outTagsChanged) const {
-	if (end >= 0 && end <= start) return QString();
-
-	if (start < 0) start = 0;
-	bool full = (start == 0) && (end < 0);
-
-	TagAccumulator tagAccumulator(outTagsList);
-
-	QTextDocument *doc(document());
-	QTextBlock from = full ? doc->begin() : doc->findBlock(start), till = (end < 0) ? doc->end() : doc->findBlock(end);
-	if (till.isValid()) till = till.next();
-
-	int32 possibleLen = 0;
-	for (QTextBlock b = from; b != till; b = b.next()) {
-		possibleLen += b.length();
-	}
-	QString result;
-	result.reserve(possibleLen + 1);
-	if (!full && end < 0) {
-		end = possibleLen;
-	}
-
-	bool tillFragmentEnd = full;
-	for (auto b = from; b != till; b = b.next()) {
-		for (auto iter = b.begin(); !iter.atEnd(); ++iter) {
-			QTextFragment fragment(iter.fragment());
-			if (!fragment.isValid()) continue;
-
-			int32 p = full ? 0 : fragment.position(), e = full ? 0 : (p + fragment.length());
-			if (!full) {
-				tillFragmentEnd = (e <= end);
-				if (p == end) {
-					tagAccumulator.feed(fragment.charFormat().anchorName(), result.size());
-				}
-				if (p >= end) {
-					break;
-				}
-				if (e <= start) {
-					continue;
-				}
-			}
-			if (full || p >= start) {
-				tagAccumulator.feed(fragment.charFormat().anchorName(), result.size());
-			}
-
-			const auto f = fragment.charFormat();
-			QString emojiText;
-			auto t = fragment.text();
-			if (!full) {
-				if (p < start) {
-					t = t.mid(start - p, end - start);
-				} else if (e > end) {
-					t = t.mid(0, end - p);
-				}
-			}
-			QChar *ub = t.data(), *uc = ub, *ue = uc + t.size();
-			for (; uc != ue; ++uc) {
-				switch (uc->unicode()) {
-				case 0xfdd0: // QTextBeginningOfFrame
-				case 0xfdd1: // QTextEndOfFrame
-				case QChar::ParagraphSeparator:
-				case QChar::LineSeparator: {
-					*uc = QLatin1Char('\n');
-				} break;
-				case QChar::Nbsp: {
-					*uc = QLatin1Char(' ');
-				} break;
-				case QChar::ObjectReplacementCharacter: {
-					if (emojiText.isEmpty() && f.isImageFormat()) {
-						const auto imageName = static_cast<const QTextImageFormat*>(&f)->name();
-						if (const auto emoji = Ui::Emoji::FromUrl(imageName)) {
-							emojiText = emoji->text();
-						}
-					}
-					if (uc > ub) result.append(ub, uc - ub);
-					if (!emojiText.isEmpty()) result.append(emojiText);
-					ub = uc + 1;
-				} break;
-				}
-			}
-			if (uc > ub) result.append(ub, uc - ub);
-		}
-		result.append('\n');
-	}
-	result.chop(1);
-
-	if (tillFragmentEnd) tagAccumulator.feed(QString(), result.size());
-	tagAccumulator.finish();
-
-	if (outTagsChanged) {
-		*outTagsChanged = tagAccumulator.changed();
-	}
-	return result;
-}
-
-bool FlatTextarea::hasText() const {
-	QTextDocument *doc(document());
-	QTextBlock from = doc->begin(), till = doc->end();
-
-	if (from == till) return false;
-
-	for (QTextBlock::Iterator iter = from.begin(); !iter.atEnd(); ++iter) {
-		QTextFragment fragment(iter.fragment());
-		if (!fragment.isValid()) continue;
-		if (!fragment.text().isEmpty()) return true;
-	}
-	return (from.next() != till);
-}
-
-bool FlatTextarea::isUndoAvailable() const {
-	return _undoAvailable;
-}
-
-bool FlatTextarea::isRedoAvailable() const {
-	return _redoAvailable;
-}
-
-void FlatTextarea::parseLinks() { // some code is duplicated in text.cpp!
-	LinkRanges newLinks;
-
-	QString text(toPlainText());
-	if (text.isEmpty()) {
-		if (!_links.isEmpty()) {
-			_links.clear();
-			emit linksChanged();
-		}
-		return;
-	}
-
-	auto len = text.size();
-	const QChar *start = text.unicode(), *end = start + text.size();
-	for (auto offset = 0, matchOffset = offset; offset < len;) {
-		auto m = TextUtilities::RegExpDomain().match(text, matchOffset);
-		if (!m.hasMatch()) break;
-
-		auto domainOffset = m.capturedStart();
-
-		auto protocol = m.captured(1).toLower();
-		auto topDomain = m.captured(3).toLower();
-		auto isProtocolValid = protocol.isEmpty() || TextUtilities::IsValidProtocol(protocol);
-		auto isTopDomainValid = !protocol.isEmpty() || TextUtilities::IsValidTopDomain(topDomain);
-
-		if (protocol.isEmpty() && domainOffset > offset + 1 && *(start + domainOffset - 1) == QChar('@')) {
-			auto forMailName = text.mid(offset, domainOffset - offset - 1);
-			auto mMailName = TextUtilities::RegExpMailNameAtEnd().match(forMailName);
-			if (mMailName.hasMatch()) {
-				offset = matchOffset = m.capturedEnd();
-				continue;
-			}
-		}
-		if (!isProtocolValid || !isTopDomainValid) {
-			offset = matchOffset = m.capturedEnd();
-			continue;
-		}
-
-		QStack<const QChar*> parenth;
-		const QChar *domainEnd = start + m.capturedEnd(), *p = domainEnd;
-		for (; p < end; ++p) {
-			QChar ch(*p);
-			if (chIsLinkEnd(ch)) break; // link finished
-			if (chIsAlmostLinkEnd(ch)) {
-				const QChar *endTest = p + 1;
-				while (endTest < end && chIsAlmostLinkEnd(*endTest)) {
-					++endTest;
-				}
-				if (endTest >= end || chIsLinkEnd(*endTest)) {
-					break; // link finished at p
-				}
-				p = endTest;
-				ch = *p;
-			}
-			if (ch == '(' || ch == '[' || ch == '{' || ch == '<') {
-				parenth.push(p);
-			} else if (ch == ')' || ch == ']' || ch == '}' || ch == '>') {
-				if (parenth.isEmpty()) break;
-				const QChar *q = parenth.pop(), open(*q);
-				if ((ch == ')' && open != '(') || (ch == ']' && open != '[') || (ch == '}' && open != '{') || (ch == '>' && open != '<')) {
-					p = q;
-					break;
-				}
-			}
-		}
-		if (p > domainEnd) { // check, that domain ended
-			if (domainEnd->unicode() != '/' && domainEnd->unicode() != '?') {
-				matchOffset = domainEnd - start;
-				continue;
-			}
-		}
-		newLinks.push_back({ domainOffset - 1, static_cast<int>(p - start - domainOffset + 2) });
-		offset = matchOffset = p - start;
-	}
-
-	if (newLinks != _links) {
-		_links = newLinks;
-		emit linksChanged();
-	}
-}
-
-QStringList FlatTextarea::linksList() const {
-	QStringList result;
-	if (!_links.isEmpty()) {
-		QString text(toPlainText());
-		for_const (auto &link, _links) {
-			result.push_back(text.mid(link.start + 1, link.length - 2));
-		}
-	}
-	return result;
-}
-
-void FlatTextarea::insertFromMimeData(const QMimeData *source) {
-	auto mime = TextUtilities::TagsMimeType();
-	auto text = source->text();
-	if (source->hasFormat(mime)) {
-		auto tagsData = source->data(mime);
-		_insertedTags = TextUtilities::DeserializeTags(
-			tagsData,
-			text.size());
-		_insertedTagsAreFromMime = true;
-	} else {
-		_insertedTags.clear();
-	}
-	auto cursor = textCursor();
-	_realInsertPosition = qMin(cursor.position(), cursor.anchor());
-	_realCharsAdded = text.size();
-	QTextEdit::insertFromMimeData(source);
-	if (!_inDrop) {
-		emit spacedReturnedPasted();
-		_insertedTags.clear();
-		_realInsertPosition = -1;
-	}
-}
-
-void FlatTextarea::insertEmoji(EmojiPtr emoji, QTextCursor c) {
-	auto format = PrepareEmojiFormat(emoji, _st.font);
-	if (c.charFormat().isAnchor()) {
-		format.setAnchor(true);
-		format.setAnchorName(c.charFormat().anchorName());
-		format.setForeground(st::defaultTextPalette.linkFg);
-	}
-	c.insertText(kObjectReplacement, format);
-}
-
-QVariant FlatTextarea::loadResource(int type, const QUrl &name) {
-	auto imageName = name.toDisplayString();
-	if (auto emoji = Ui::Emoji::FromUrl(imageName)) {
-		return QVariant(App::emojiSingle(emoji, _st.font->height));
-	}
-	return QVariant();
-}
-
-void FlatTextarea::checkContentHeight() {
-	if (heightAutoupdated()) {
-		emit resized();
-	}
-}
-
-namespace {
-
-// Optimization: with null page size document does not re-layout
-// on each insertText / mergeCharFormat.
-void prepareFormattingOptimization(QTextDocument *document) {
-	if (!document->pageSize().isNull()) {
-		document->setPageSize(QSizeF(0, 0));
-	}
-}
-
-void removeTags(style::color textFg, QTextDocument *document, int from, int end) {
-	QTextCursor c(document->docHandle(), 0);
-	c.setPosition(from);
-	c.setPosition(end, QTextCursor::KeepAnchor);
-
-	QTextCharFormat format;
-	format.setAnchor(false);
-	format.setAnchorName(QString());
-	format.setForeground(textFg);
-	c.mergeCharFormat(format);
-}
-
-// Returns the position of the first inserted tag or "changedEnd" value if none found.
-int processInsertedTags(style::color textFg, QTextDocument *document, int changedPosition, int changedEnd, const FlatTextarea::TagList &tags, FlatTextarea::TagMimeProcessor *processor) {
-	int firstTagStart = changedEnd;
-	int applyNoTagFrom = changedEnd;
-	for_const (auto &tag, tags) {
-		int tagFrom = changedPosition + tag.offset;
-		int tagTo = tagFrom + tag.length;
-		accumulate_max(tagFrom, changedPosition);
-		accumulate_min(tagTo, changedEnd);
-		auto tagId = processor ? processor->tagFromMimeTag(tag.id) : tag.id;
-		if (tagTo > tagFrom && !tagId.isEmpty()) {
-			accumulate_min(firstTagStart, tagFrom);
-
-			prepareFormattingOptimization(document);
-
-			if (applyNoTagFrom < tagFrom) {
-				removeTags(textFg, document, applyNoTagFrom, tagFrom);
-			}
-			QTextCursor c(document->docHandle(), 0);
-			c.setPosition(tagFrom);
-			c.setPosition(tagTo, QTextCursor::KeepAnchor);
-
-			QTextCharFormat format;
-			format.setAnchor(true);
-			format.setAnchorName(tagId + '/' + QString::number(rand_value<uint32>()));
-			format.setForeground(st::defaultTextPalette.linkFg);
-			c.mergeCharFormat(format);
-
-			applyNoTagFrom = tagTo;
-		}
-	}
-	if (applyNoTagFrom < changedEnd) {
-		removeTags(textFg, document, applyNoTagFrom, changedEnd);
-	}
-
-	return firstTagStart;
-}
-
-// When inserting a part of text inside a tag we need to have
-// a way to know if the insertion replaced the end of the tag
-// or it was strictly inside (in the middle) of the tag.
-bool wasInsertTillTheEndOfTag(QTextBlock block, QTextBlock::iterator fragmentIt, int insertionEnd) {
-	auto insertTagName = fragmentIt.fragment().charFormat().anchorName();
-	while (true) {
-		for (; !fragmentIt.atEnd(); ++fragmentIt) {
-			auto fragment = fragmentIt.fragment();
-			bool fragmentOutsideInsertion = (fragment.position() >= insertionEnd);
-			if (fragmentOutsideInsertion) {
-				return (fragment.charFormat().anchorName() != insertTagName);
-			}
-			int fragmentEnd = fragment.position() + fragment.length();
-			bool notFullFragmentInserted = (fragmentEnd > insertionEnd);
-			if (notFullFragmentInserted) {
-				return false;
-			}
-		}
-		if (block.isValid()) {
-			fragmentIt = block.begin();
-			block = block.next();
-		} else {
-			break;
-		}
-	}
-	// Insertion goes till the end of the text => not strictly inside a tag.
-	return true;
-}
-
-struct FormattingAction {
-	enum class Type {
-		Invalid,
-		InsertEmoji,
-		TildeFont,
-		RemoveTag,
-		ClearInstantReplace,
-	};
-	Type type = Type::Invalid;
-	EmojiPtr emoji = nullptr;
-	bool isTilde = false;
-	int intervalStart = 0;
-	int intervalEnd = 0;
-};
-
-} // namespace
-
-void FlatTextarea::processFormatting(int insertPosition, int insertEnd) {
-	// Tilde formatting.
-	auto tildeFormatting = !cRetina() && (font().pixelSize() == 13) && (font().family() == qstr("Open Sans"));
-	auto isTildeFragment = false;
-	auto tildeRegularFont = tildeFormatting ? qsl("Open Sans") : QString();
-	auto tildeFixedFont = tildeFormatting ? Fonts::GetOverride(qsl("Open Sans Semibold")) : QString();
-
-	// First tag handling (the one we inserted text to).
-	bool startTagFound = false;
-	bool breakTagOnNotLetter = false;
-
-	auto doc = document();
-
-	// Apply inserted tags.
-	auto insertedTagsProcessor = _insertedTagsAreFromMime ? _tagMimeProcessor.get() : nullptr;
-	int breakTagOnNotLetterTill = processInsertedTags(_st.textColor, doc, insertPosition, insertEnd,
-		_insertedTags, insertedTagsProcessor);
-	using ActionType = FormattingAction::Type;
-	while (true) {
-		FormattingAction action;
-
-		auto fromBlock = doc->findBlock(insertPosition);
-		auto tillBlock = doc->findBlock(insertEnd);
-		if (tillBlock.isValid()) tillBlock = tillBlock.next();
-
-		for (auto block = fromBlock; block != tillBlock; block = block.next()) {
-			for (auto fragmentIt = block.begin(); !fragmentIt.atEnd(); ++fragmentIt) {
-				auto fragment = fragmentIt.fragment();
-				Assert(fragment.isValid());
-
-				int fragmentPosition = fragment.position();
-				if (insertPosition >= fragmentPosition + fragment.length()) {
-					continue;
-				}
-				int changedPositionInFragment = insertPosition - fragmentPosition; // Can be negative.
-				int changedEndInFragment = insertEnd - fragmentPosition;
-				if (changedEndInFragment <= 0) {
-					break;
-				}
-
-				auto format = fragment.charFormat();
-				if (tildeFormatting) {
-					isTildeFragment = (format.fontFamily() == tildeFixedFont);
-				}
-
-				auto fragmentText = fragment.text();
-				auto *textStart = fragmentText.constData();
-				auto *textEnd = textStart + fragmentText.size();
-
-				const auto with = format.property(kInstantReplaceWithId);
-				if (with.isValid()) {
-					const auto string = with.toString();
-					if (fragmentText != string) {
-						action.type = ActionType::ClearInstantReplace;
-						action.intervalStart = fragmentPosition
-							+ (fragmentText.startsWith(string)
-								? string.size()
-								: 0);
-						action.intervalEnd = fragmentPosition
-							+ fragmentText.size();
-						break;
-					}
-				}
-
-				if (!startTagFound) {
-					startTagFound = true;
-					auto tagName = format.anchorName();
-					if (!tagName.isEmpty()) {
-						breakTagOnNotLetter = wasInsertTillTheEndOfTag(block, fragmentIt, insertEnd);
-					}
-				}
-
-				auto *ch = textStart + qMax(changedPositionInFragment, 0);
-				for (; ch < textEnd; ++ch) {
-					int emojiLength = 0;
-					if (auto emoji = Ui::Emoji::Find(ch, textEnd, &emojiLength)) {
-						// Replace emoji if no current action is prepared.
-						if (action.type == ActionType::Invalid) {
-							action.type = ActionType::InsertEmoji;
-							action.emoji = emoji;
-							action.intervalStart = fragmentPosition + (ch - textStart);
-							action.intervalEnd = action.intervalStart + emojiLength;
-						}
-						break;
-					}
-
-					if (breakTagOnNotLetter && !ch->isLetter()) {
-						// Remove tag name till the end if no current action is prepared.
-						if (action.type != ActionType::Invalid) {
-							break;
-						}
-						breakTagOnNotLetter = false;
-						if (fragmentPosition + (ch - textStart) < breakTagOnNotLetterTill) {
-							action.type = ActionType::RemoveTag;
-							action.intervalStart = fragmentPosition + (ch - textStart);
-							action.intervalEnd = breakTagOnNotLetterTill;
-							break;
-						}
-					}
-					if (tildeFormatting) { // Tilde symbol fix in OpenSans.
-						bool tilde = (ch->unicode() == '~');
-						if ((tilde && !isTildeFragment) || (!tilde && isTildeFragment)) {
-							if (action.type == ActionType::Invalid) {
-								action.type = ActionType::TildeFont;
-								action.intervalStart = fragmentPosition + (ch - textStart);
-								action.intervalEnd = action.intervalStart + 1;
-								action.isTilde = tilde;
-							} else {
-								++action.intervalEnd;
-							}
-						} else if (action.type == ActionType::TildeFont) {
-							break;
-						}
-					}
-
-					if (ch + 1 < textEnd && ch->isHighSurrogate() && (ch + 1)->isLowSurrogate()) {
-						++ch;
-						++fragmentPosition;
-					}
-				}
-				if (action.type != ActionType::Invalid) break;
-			}
-			if (action.type != ActionType::Invalid) break;
-		}
-		if (action.type != ActionType::Invalid) {
-			prepareFormattingOptimization(doc);
-
-			QTextCursor c(doc->docHandle(), 0);
-			c.setPosition(action.intervalStart);
-			c.setPosition(action.intervalEnd, QTextCursor::KeepAnchor);
-			if (action.type == ActionType::InsertEmoji) {
-				insertEmoji(action.emoji, c);
-				insertPosition = action.intervalStart + 1;
-			} else if (action.type == ActionType::RemoveTag) {
-				QTextCharFormat format;
-				format.setAnchor(false);
-				format.setAnchorName(QString());
-				format.setForeground(_st.textColor);
-				c.mergeCharFormat(format);
-			} else if (action.type == ActionType::TildeFont) {
-				QTextCharFormat format;
-				format.setFontFamily(action.isTilde ? tildeFixedFont : tildeRegularFont);
-				c.mergeCharFormat(format);
-				insertPosition = action.intervalEnd;
-			} else if (action.type == ActionType::ClearInstantReplace) {
-				c.setCharFormat(_defaultCharFormat);
-			}
-		} else {
-			break;
-		}
-	}
-}
-
-void FlatTextarea::onDocumentContentsChange(int position, int charsRemoved, int charsAdded) {
-	if (_correcting) return;
-
-	int insertPosition = (_realInsertPosition >= 0) ? _realInsertPosition : position;
-	int insertLength = (_realInsertPosition >= 0) ? _realCharsAdded : charsAdded;
-
-	int removePosition = position;
-	int removeLength = charsRemoved;
-
-	QTextCursor(document()->docHandle(), 0).joinPreviousEditBlock();
-
-	_correcting = true;
-	if (_maxLength >= 0) {
-		QTextCursor c(document()->docHandle(), 0);
-		c.movePosition(QTextCursor::End);
-		int32 fullSize = c.position(), toRemove = fullSize - _maxLength;
-		if (toRemove > 0) {
-			if (toRemove > insertLength) {
-				if (insertLength) {
-					c.setPosition(insertPosition);
-					c.setPosition((insertPosition + insertLength), QTextCursor::KeepAnchor);
-					c.removeSelectedText();
-				}
-				c.setPosition(fullSize - (toRemove - insertLength));
-				c.setPosition(fullSize, QTextCursor::KeepAnchor);
-				c.removeSelectedText();
-			} else {
-				c.setPosition(insertPosition + (insertLength - toRemove));
-				c.setPosition(insertPosition + insertLength, QTextCursor::KeepAnchor);
-				c.removeSelectedText();
-			}
-		}
-	}
-	_correcting = false;
-
-	if (insertPosition == removePosition) {
-		if (!_links.isEmpty()) {
-			bool changed = false;
-			for (auto i = _links.begin(); i != _links.end();) {
-				if (i->start + i->length <= insertPosition) {
-					++i;
-				} else if (i->start >= removePosition + removeLength) {
-					i->start += insertLength - removeLength;
-					++i;
-				} else {
-					i = _links.erase(i);
-					changed = true;
-				}
-			}
-			if (changed) emit linksChanged();
-		}
-	} else {
-		parseLinks();
-	}
-
-	if (document()->availableRedoSteps() > 0) {
-		QTextCursor(document()->docHandle(), 0).endEditBlock();
-		return;
-	}
-
-	if (insertLength <= 0) {
-		QTextCursor(document()->docHandle(), 0).endEditBlock();
-		return;
-	}
-
-	_correcting = true;
-	auto pageSize = document()->pageSize();
-	processFormatting(insertPosition, insertPosition + insertLength);
-	if (document()->pageSize() != pageSize) {
-		document()->setPageSize(pageSize);
-	}
-	_correcting = false;
-
-	QTextCursor(document()->docHandle(), 0).endEditBlock();
-}
-
-void FlatTextarea::onDocumentContentsChanged() {
-	if (_correcting) return;
-
-	auto tagsChanged = false;
-	auto curText = getTextPart(0, -1, &_lastTextWithTags.tags, &tagsChanged);
-
-	_correcting = true;
-	correctValue(_lastTextWithTags.text, curText, _lastTextWithTags.tags);
-	_correcting = false;
-
-	bool textOrTagsChanged = tagsChanged || (_lastTextWithTags.text != curText);
-	if (textOrTagsChanged) {
-		_lastTextWithTags.text = curText;
-		emit changed();
-		checkContentHeight();
-	}
-	updatePlaceholder();
-	if (App::wnd()) App::wnd()->updateGlobalMenu();
-}
-
-void FlatTextarea::onUndoAvailable(bool avail) {
-	_undoAvailable = avail;
-	if (App::wnd()) App::wnd()->updateGlobalMenu();
-}
-
-void FlatTextarea::onRedoAvailable(bool avail) {
-	_redoAvailable = avail;
-	if (App::wnd()) App::wnd()->updateGlobalMenu();
-}
-
-void FlatTextarea::setPlaceholder(base::lambda<QString()> placeholderFactory, int afterSymbols) {
-	_placeholderFactory = std::move(placeholderFactory);
-	if (_placeholderAfterSymbols != afterSymbols) {
-		_placeholderAfterSymbols = afterSymbols;
-		updatePlaceholder();
-	}
-	refreshPlaceholder();
-}
-
-void FlatTextarea::refreshPlaceholder() {
-	auto skipWidth = placeholderSkipWidth();
-	auto placeholderText = _placeholderFactory ? _placeholderFactory() : QString();
-	_placeholder = _st.font->elided(placeholderText, width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1 - skipWidth);
-	update();
-}
-
-void FlatTextarea::updatePlaceholder() {
-	auto textSize = (getTextWithTags().text.size() + textCursor().block().layout()->preeditAreaText().size());
-	auto placeholderVisible = (textSize <= _placeholderAfterSymbols);
-	if (_placeholderVisible != placeholderVisible) {
-		_placeholderVisible = placeholderVisible;
-		_a_placeholderVisible.start([this] { update(); }, _placeholderVisible ? 0. : 1., _placeholderVisible ? 1. : 0., _st.phDuration);
-	}
-}
-
-QMimeData *FlatTextarea::createMimeDataFromSelection() const {
-	QMimeData *result = new QMimeData();
-	QTextCursor c(textCursor());
-	int32 start = c.selectionStart(), end = c.selectionEnd();
-	if (end > start) {
-		TagList tags;
-		result->setText(getTextPart(start, end, &tags));
-		if (!tags.isEmpty()) {
-			if (_tagMimeProcessor) {
-				for (auto &tag : tags) {
-					tag.id = _tagMimeProcessor->mimeTagFromTag(tag.id);
-				}
-			}
-			result->setData(
-				TextUtilities::TagsMimeType(),
-				TextUtilities::SerializeTags(tags));
-		}
-	}
-	return result;
-}
-
-void FlatTextarea::setSubmitSettings(SubmitSettings settings) {
-	_submitSettings = settings;
-}
-
-void FlatTextarea::keyPressEvent(QKeyEvent *e) {
-	bool shift = e->modifiers().testFlag(Qt::ShiftModifier);
-	bool macmeta = (cPlatform() == dbipMac || cPlatform() == dbipMacOld) && e->modifiers().testFlag(Qt::ControlModifier) && !e->modifiers().testFlag(Qt::MetaModifier) && !e->modifiers().testFlag(Qt::AltModifier);
-	bool ctrl = e->modifiers().testFlag(Qt::ControlModifier) || e->modifiers().testFlag(Qt::MetaModifier);
-	bool enterSubmit = (ctrl && shift);
-	if (ctrl && _submitSettings != SubmitSettings::None && _submitSettings != SubmitSettings::Enter) {
-		enterSubmit = true;
-	}
-	if (!ctrl && !shift && _submitSettings != SubmitSettings::None && _submitSettings != SubmitSettings::CtrlEnter) {
-		enterSubmit = true;
-	}
-	bool enter = (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return);
-
-	if (macmeta && e->key() == Qt::Key_Backspace) {
-		QTextCursor tc(textCursor()), start(tc);
-		start.movePosition(QTextCursor::StartOfLine);
-		tc.setPosition(start.position(), QTextCursor::KeepAnchor);
-		tc.removeSelectedText();
-	} else if (e->key() == Qt::Key_Backspace
-		&& e->modifiers() == 0
-		&& revertInstantReplace()) {
-		e->accept();
-	} else if (enter && enterSubmit) {
-		emit submitted(ctrl && shift);
-	} else if (e->key() == Qt::Key_Escape) {
-		emit cancelled();
-	} else if (e->key() == Qt::Key_Tab || (ctrl && e->key() == Qt::Key_Backtab)) {
-		if (ctrl) {
-			e->ignore();
-		} else {
-			emit tabbed();
-		}
-	} else if (e->key() == Qt::Key_Search || e == QKeySequence::Find) {
-		e->ignore();
-#ifdef Q_OS_MAC
-	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
-		auto cursor = textCursor();
-		int start = cursor.selectionStart(), end = cursor.selectionEnd();
-		if (end > start) {
-			TagList tags;
-			QApplication::clipboard()->setText(getTextPart(start, end, &tags), QClipboard::FindBuffer);
-		}
-#endif // Q_OS_MAC
-	} else {
-		const auto text = e->text();
-		const auto key = e->key();
-		auto cursor = textCursor();
-		if (enter && ctrl) {
-			e->setModifiers(e->modifiers() & ~Qt::ControlModifier);
-		}
-		bool spaceOrReturn = false;
-		if (!text.isEmpty() && text.size() < 3) {
-			const auto ch = text[0];
-			if (ch == '\n'
-				|| ch == '\r'
-				|| ch.isSpace()
-				|| ch == QChar::LineSeparator) {
-				spaceOrReturn = true;
-			}
-		}
-		QTextEdit::keyPressEvent(e);
-		if (cursor == textCursor()) {
-			bool check = false;
-			if (key == Qt::Key_PageUp || key == Qt::Key_Up) {
-				cursor.movePosition(
-					QTextCursor::Start,
-					(e->modifiers().testFlag(Qt::ShiftModifier)
-						? QTextCursor::KeepAnchor
-						: QTextCursor::MoveAnchor));
-				check = true;
-			} else if (key == Qt::Key_PageDown || key == Qt::Key_Down) {
-				cursor.movePosition(
-					QTextCursor::End,
-					(e->modifiers().testFlag(Qt::ShiftModifier)
-						? QTextCursor::KeepAnchor
-						: QTextCursor::MoveAnchor));
-				check = true;
-			}
-			if (check) {
-				if (cursor == textCursor()) {
-					e->ignore();
-				} else {
-					setTextCursor(cursor);
-				}
-			}
-		}
-		processInstantReplaces(text);
-		if (spaceOrReturn) {
-			emit spacedReturnedPasted();
-		}
-	}
-}
-
-const InstantReplaces &FlatTextarea::instantReplaces() const {
-	return _mutableInstantReplaces;
-}
-
-void FlatTextarea::processInstantReplaces(const QString &text) {
-	const auto &replaces = instantReplaces();
-	if (text.size() != 1
-		|| !_instantReplacesEnabled
-		|| !replaces.maxLength) {
-		return;
-	}
-	const auto it = replaces.reverseMap.tail.find(text[0]);
-	if (it == end(replaces.reverseMap.tail)) {
-		return;
-	}
-	const auto position = textCursor().position();
-	auto tags = QVector<TextWithTags::Tag>();
-	const auto typed = getTextPart(
-		std::max(position - replaces.maxLength, 0),
-		position - 1,
-		&tags);
-	auto node = &it->second;
-	auto i = typed.size();
-	do {
-		if (!node->text.isEmpty()) {
-			applyInstantReplace(typed.mid(i) + text, node->text);
-			return;
-		} else if (!i) {
-			return;
-		}
-		const auto it = node->tail.find(typed[--i]);
-		if (it == end(node->tail)) {
-			return;
-		}
-		node = &it->second;
-	} while (true);
-}
-
-void FlatTextarea::applyInstantReplace(
-		const QString &what,
-		const QString &with) {
-	const auto length = int(what.size());
-	const auto cursor = textCursor();
-	const auto position = cursor.position();
-	if (cursor.anchor() != position) {
-		return;
-	} else if (position < length) {
-		return;
-	}
-	commitInstantReplacement(position - length, position, with, what);
-}
-
-void FlatTextarea::commitInstantReplacement(
-		int from,
-		int till,
-		const QString &with,
-		base::optional<QString> checkOriginal) {
-	auto tags = QVector<TextWithTags::Tag>();
-	const auto original = getTextPart(from, till, &tags);
-	if (checkOriginal
-		&& checkOriginal->compare(original, Qt::CaseInsensitive) != 0) {
-		return;
-	}
-
-	auto format = [&]() -> QTextCharFormat {
-		auto emojiLength = 0;
-		const auto emoji = Ui::Emoji::Find(with, &emojiLength);
-		if (!emoji || with.size() != emojiLength) {
-			return _defaultCharFormat;
-		}
-		const auto use = [&] {
-			if (!emoji->hasVariants()) {
-				return emoji;
-			}
-			const auto nonColored = emoji->nonColoredId();
-			const auto it = cEmojiVariants().constFind(nonColored);
-			return (it != cEmojiVariants().cend())
-				? emoji->variant(it.value())
-				: emoji;
-		}();
-		Ui::Emoji::AddRecent(use);
-		return PrepareEmojiFormat(use, _st.font);
-	}();
-	const auto replacement = format.isImageFormat()
-		? kObjectReplacement
-		: with;
-	format.setProperty(kInstantReplaceWhatId, original);
-	format.setProperty(kInstantReplaceWithId, replacement);
-	format.setProperty(kInstantReplaceRandomId, rand_value<uint32>());
-	auto cursor = textCursor();
-	cursor.setPosition(from);
-	cursor.setPosition(till, QTextCursor::KeepAnchor);
-	cursor.insertText(replacement, format);
-}
-
-bool FlatTextarea::revertInstantReplace() {
-	const auto cursor = textCursor();
-	const auto position = cursor.position();
-	if (position <= 0 || cursor.anchor() != position) {
-		return false;
-	}
-	const auto inside = position - 1;
-	const auto block = document()->findBlock(inside);
-	if (block == document()->end()) {
-		return false;
-	}
-	for (auto i = block.begin(); !i.atEnd(); ++i) {
-		const auto fragment = i.fragment();
-		const auto fragmentStart = fragment.position();
-		const auto fragmentEnd = fragmentStart + fragment.length();
-		if (fragmentEnd <= inside) {
-			continue;
-		} else if (fragmentStart > inside || fragmentEnd != position) {
-			return false;
-		}
-		const auto format = fragment.charFormat();
-		const auto with = format.property(kInstantReplaceWithId);
-		if (!with.isValid()) {
-			return false;
-		}
-		const auto string = with.toString();
-		if (fragment.text() != string) {
-			return false;
-		}
-		auto replaceCursor = cursor;
-		replaceCursor.setPosition(fragmentStart);
-		replaceCursor.setPosition(fragmentEnd, QTextCursor::KeepAnchor);
-		const auto what = format.property(kInstantReplaceWhatId).toString();
-		replaceCursor.insertText(what, _defaultCharFormat);
-		return true;
-	}
-	return false;
-}
-
-void FlatTextarea::resizeEvent(QResizeEvent *e) {
-	refreshPlaceholder();
-	QTextEdit::resizeEvent(e);
-	checkContentHeight();
-}
-
-void FlatTextarea::mousePressEvent(QMouseEvent *e) {
-	QTextEdit::mousePressEvent(e);
-}
-
-void FlatTextarea::dropEvent(QDropEvent *e) {
-	_inDrop = true;
-	QTextEdit::dropEvent(e);
-	_inDrop = false;
-	_insertedTags.clear();
-	_realInsertPosition = -1;
-
-	emit spacedReturnedPasted();
-}
-
-void FlatTextarea::contextMenuEvent(QContextMenuEvent *e) {
-	if (auto menu = createStandardContextMenu()) {
-		(new Ui::PopupMenu(nullptr, menu))->popup(e->globalPos());
-	}
 }
 
 FlatInput::FlatInput(QWidget *parent, const style::FlatInput &st, base::lambda<QString()> placeholderFactory, const QString &v) : TWidgetHelper<QLineEdit>(v, parent)
@@ -2010,11 +689,13 @@ InputField::InputField(
 : RpWidget(parent)
 , _st(st)
 , _mode(mode)
+, _minHeight(st.heightMin)
+, _maxHeight(st.heightMax)
 , _inner(this)
 , _lastTextWithTags(value)
 , _placeholderFactory(std::move(placeholderFactory)) {
 	_inner->setAcceptRichText(false);
-	resize(_st.width, _st.heightMin);
+	resize(_st.width, _minHeight);
 
 	if (_st.textBg->c.alphaF() >= 1.) {
 		setAttribute(Qt::WA_OpaquePaintEvent);
@@ -2057,6 +738,12 @@ InputField::InputField(
 	connect(_inner, SIGNAL(redoAvailable(bool)), this, SLOT(onRedoAvailable(bool)));
 	if (App::wnd()) connect(_inner, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
 
+	const auto bar = _inner->verticalScrollBar();
+	_scrollTop = bar->value();
+	connect(bar, &QScrollBar::valueChanged, [=] {
+		_scrollTop = bar->value();
+	});
+
 	setCursor(style::cur_text);
 	heightAutoupdated();
 
@@ -2069,6 +756,18 @@ InputField::InputField(
 	startBorderAnimation();
 	startPlaceholderAnimation();
 	finishAnimating();
+}
+
+const rpl::variable<int> &InputField::scrollTop() const {
+	return _scrollTop;
+}
+
+int InputField::scrollTopMax() const {
+	return _inner->verticalScrollBar()->maximum();
+}
+
+void InputField::scrollTo(int top) {
+	_inner->verticalScrollBar()->setValue(top);
 }
 
 bool InputField::viewportEventInner(QEvent *e) {
@@ -2110,9 +809,107 @@ void InputField::enableInstantReplaces(bool enabled) {
 	_instantReplacesEnabled = enabled;
 }
 
+void InputField::setTagMimeProcessor(
+		std::unique_ptr<TagMimeProcessor> &&processor) {
+	_tagMimeProcessor = std::move(processor);
+}
+
+void InputField::setMaxLength(int length) {
+	_maxLength = length;
+}
+
+void InputField::setMinHeight(int height) {
+	_minHeight = height;
+}
+
+void InputField::setMaxHeight(int height) {
+	_maxHeight = height;
+}
+
+void InputField::insertTag(const QString &text, QString tagId) {
+	auto cursor = textCursor();
+	const auto position = cursor.position();
+
+	const auto document = _inner->document();
+	auto block = document->findBlock(position);
+	for (auto iter = block.begin(); !iter.atEnd(); ++iter) {
+		auto fragment = iter.fragment();
+		Assert(fragment.isValid());
+
+		const auto fragmentPosition = fragment.position();
+		const auto fragmentEnd = (fragmentPosition + fragment.length());
+		if (fragmentPosition >= position || fragmentEnd < position) {
+			continue;
+		}
+
+		const auto format = fragment.charFormat();
+		if (format.isImageFormat()) {
+			continue;
+		}
+
+		auto mentionInCommand = false;
+		const auto fragmentText = fragment.text();
+		for (auto i = position - fragmentPosition; i > 0; --i) {
+			const auto previous = fragmentText[i - 1];
+			if (previous == '@' || previous == '#' || previous == '/') {
+				if ((i == position - fragmentPosition
+					|| (previous == '/'
+						? fragmentText[i].isLetterOrNumber()
+						: fragmentText[i].isLetter())
+					|| previous == '#') &&
+					(i < 2 || !(fragmentText[i - 2].isLetterOrNumber()
+						|| fragmentText[i - 2] == '_'))) {
+					cursor.setPosition(fragmentPosition + i - 1);
+					auto till = fragmentPosition + i;
+					for (; (till < fragmentEnd && till < position); ++till) {
+						const auto ch = fragmentText[till - fragmentPosition];
+						if (!ch.isLetterOrNumber() && ch != '_' && ch != '@') {
+							break;
+						}
+					}
+					if (till < fragmentEnd
+						&& fragmentText[till - fragmentPosition] == ' ') {
+						++till;
+					}
+					cursor.setPosition(till, QTextCursor::KeepAnchor);
+					break;
+				} else if ((i == position - fragmentPosition
+					|| fragmentText[i].isLetter())
+					&& fragmentText[i - 1] == '@'
+					&& (i > 2)
+					&& (fragmentText[i - 2].isLetterOrNumber()
+						|| fragmentText[i - 2] == '_')
+					&& !mentionInCommand) {
+					mentionInCommand = true;
+					--i;
+					continue;
+				}
+				break;
+			}
+			if (position - fragmentPosition - i > 127
+				|| (!mentionInCommand
+					&& (position - fragmentPosition - i > 63))
+				|| (!fragmentText[i - 1].isLetterOrNumber()
+					&& fragmentText[i - 1] != '_')) {
+				break;
+			}
+		}
+		break;
+	}
+	if (tagId.isEmpty()) {
+		cursor.insertText(text + ' ', _defaultCharFormat);
+	} else {
+		_insertedTags.clear();
+		_insertedTags.push_back({ 0, text.size(), tagId });
+		_insertedTagsAreFromMime = false;
+		cursor.insertText(text + ' ');
+		_insertedTags.clear();
+	}
+}
+
 bool InputField::heightAutoupdated() {
-	if (_st.heightMin < 0
-		|| _st.heightMax < 0
+	if (_minHeight < 0
+		|| _maxHeight < 0
 		|| _inHeightCheck
 		|| _mode == Mode::SingleLine) {
 		return false;
@@ -2122,11 +919,11 @@ bool InputField::heightAutoupdated() {
 
 	SendPendingMoveResizeEvents(this);
 
-	int newh = qCeil(_inner->document()->size().height()) + _st.textMargins.top() + _st.textMargins.bottom();
-	if (newh > _st.heightMax) {
-		newh = _st.heightMax;
-	} else if (newh < _st.heightMin) {
-		newh = _st.heightMin;
+	int newh = ceil(document()->size().height()) + _st.textMargins.top() + _st.textMargins.bottom() + 2 * _fakeMargin;
+	if (newh > _maxHeight) {
+		newh = _maxHeight;
+	} else if (newh < _minHeight) {
+		newh = _minHeight;
 	}
 	if (height() != newh) {
 		resize(width(), newh);
@@ -2242,18 +1039,38 @@ void InputField::paintEvent(QPaintEvent *e) {
 
 			auto placeholderLeft = anim::interpolate(0, -_st.placeholderShift, placeholderHiddenDegree);
 
-			auto r = rect().marginsRemoved(_st.textMargins + _st.placeholderMargins);
-			r.moveLeft(r.left() + placeholderLeft);
-			if (rtl()) r.moveLeft(width() - r.left() - r.width());
-
 			p.setFont(_st.font);
 			p.setPen(anim::pen(_st.placeholderFg, _st.placeholderFgActive, focusedDegree));
-			p.drawText(r, _placeholder, _st.placeholderAlign);
+
+			if (_st.placeholderAlign == style::al_topleft && _placeholderAfterSymbols > 0) {
+				const auto skipWidth = placeholderSkipWidth();
+				p.drawText(
+					_st.textMargins.left() + _st.placeholderMargins.left() + skipWidth,
+					_st.textMargins.top() + _st.placeholderMargins.top() + _st.placeholderFont->ascent,
+					_placeholder);
+			} else {
+				auto r = rect().marginsRemoved(_st.textMargins + _st.placeholderMargins);
+				r.moveLeft(r.left() + placeholderLeft);
+				if (rtl()) r.moveLeft(width() - r.left() - r.width());
+				p.drawText(r, _placeholder, _st.placeholderAlign);
+			}
 
 			p.restore();
 		}
 	}
 	TWidget::paintEvent(e);
+}
+
+int InputField::placeholderSkipWidth() const {
+	if (!_placeholderAfterSymbols) {
+		return 0;
+	}
+	const auto &text = getTextWithTags().text;
+	auto result = _st.font->width(text.mid(0, _placeholderAfterSymbols));
+	if (_placeholderAfterSymbols > text.size()) {
+		result += _st.font->spacew;
+	}
+	return result;
 }
 
 void InputField::startBorderAnimation() {
@@ -2324,46 +1141,94 @@ QSize InputField::minimumSizeHint() const {
 	return geometry().size();
 }
 
-QString InputField::getText(int32 start, int32 end) const {
-	if (end >= 0 && end <= start) return QString();
+bool InputField::hasText() const {
+	const auto document = _inner->document();
+	const auto from = document->begin();
+	const auto till = document->end();
+
+	if (from == till) {
+		return false;
+	}
+
+	for (auto item = from.begin(); !item.atEnd(); ++item) {
+		const auto fragment = item.fragment();
+		if (!fragment.isValid()) {
+			continue;
+		} else if (!fragment.text().isEmpty()) {
+			return true;
+		}
+	}
+	return (from.next() != till);
+}
+
+QString InputField::getTextPart(
+		int start,
+		int end,
+		TagList &outTagsList,
+		bool &outTagsChanged) const {
+	if (end >= 0 && end <= start) {
+		outTagsChanged = !outTagsList.isEmpty();
+		outTagsList.clear();
+		return QString();
+	}
 
 	if (start < 0) start = 0;
-	bool full = (start == 0) && (end < 0);
+	const auto full = (start == 0 && end < 0);
 
-	QTextDocument *doc(_inner->document());
-	QTextBlock from = full ? doc->begin() : doc->findBlock(start), till = (end < 0) ? doc->end() : doc->findBlock(end);
-	if (till.isValid()) till = till.next();
+	TagAccumulator tagAccumulator(outTagsList);
 
-	int32 possibleLen = 0;
-	for (QTextBlock b = from; b != till; b = b.next()) {
-		possibleLen += b.length();
+	const auto document = _inner->document();
+	const auto from = full ? document->begin() : document->findBlock(start);
+	auto till = (end < 0) ? document->end() : document->findBlock(end);
+	if (till.isValid()) {
+		till = till.next();
 	}
-	QString result;
-	result.reserve(possibleLen + 1);
+
+	auto possibleLength = 0;
+	for (auto block = from; block != till; block = block.next()) {
+		possibleLength += block.length();
+	}
+	auto result = QString();
+	result.reserve(possibleLength + 1);
 	if (!full && end < 0) {
-		end = possibleLen;
+		end = possibleLength;
 	}
 
-	for (QTextBlock b = from; b != till; b = b.next()) {
-		for (QTextBlock::Iterator iter = b.begin(); !iter.atEnd(); ++iter) {
-			QTextFragment fragment(iter.fragment());
-			if (!fragment.isValid()) continue;
+	bool tillFragmentEnd = full;
+	for (auto block = from; block != till; block = block.next()) {
+		for (auto item = block.begin(); !item.atEnd(); ++item) {
+			const auto fragment = item.fragment();
+			if (!fragment.isValid()) {
+				continue;
+			}
 
-			int32 p = full ? 0 : fragment.position(), e = full ? 0 : (p + fragment.length());
+			const auto fragmentPosition = full ? 0 : fragment.position();
+			const auto fragmentEnd = full
+				? 0
+				: (fragmentPosition + fragment.length());
+			const auto format = fragment.charFormat();
 			if (!full) {
-				if (p >= end || e <= start) {
+				tillFragmentEnd = (fragmentEnd <= end);
+				if (fragmentPosition == end) {
+					tagAccumulator.feed(format.anchorName(), result.size());
+				}
+				if (fragmentPosition >= end) {
+					break;
+				} else if (fragmentEnd <= start) {
 					continue;
 				}
 			}
+			if (full || fragmentPosition >= start) {
+				tagAccumulator.feed(format.anchorName(), result.size());
+			}
 
-			QTextCharFormat f = fragment.charFormat();
 			QString emojiText;
-			QString t(fragment.text());
+			auto t = fragment.text();
 			if (!full) {
-				if (p < start) {
-					t = t.mid(start - p, end - start);
-				} else if (e > end) {
-					t = t.mid(0, end - p);
+				if (fragmentPosition < start) {
+					t = t.mid(start - fragmentPosition, end - start);
+				} else if (fragmentEnd > end) {
+					t = t.mid(0, end - fragmentPosition);
 				}
 			}
 			QChar *ub = t.data(), *uc = ub, *ue = uc + t.size();
@@ -2379,9 +1244,9 @@ QString InputField::getText(int32 start, int32 end) const {
 					*uc = QLatin1Char(' ');
 				} break;
 				case QChar::ObjectReplacementCharacter: {
-					if (emojiText.isEmpty() && f.isImageFormat()) {
-						auto imageName = static_cast<QTextImageFormat*>(&f)->name();
-						if (auto emoji = Ui::Emoji::FromUrl(imageName)) {
+					if (emojiText.isEmpty() && format.isImageFormat()) {
+						const auto imageName = format.toImageFormat().name();
+						if (const auto emoji = Ui::Emoji::FromUrl(imageName)) {
 							emojiText = emoji->text();
 						}
 					}
@@ -2396,21 +1261,14 @@ QString InputField::getText(int32 start, int32 end) const {
 		result.append('\n');
 	}
 	result.chop(1);
-	return result;
-}
 
-bool InputField::hasText() const {
-	QTextDocument *doc(_inner->document());
-	QTextBlock from = doc->begin(), till = doc->end();
-
-	if (from == till) return false;
-
-	for (QTextBlock::Iterator iter = from.begin(); !iter.atEnd(); ++iter) {
-		QTextFragment fragment(iter.fragment());
-		if (!fragment.isValid()) continue;
-		if (!fragment.text().isEmpty()) return true;
+	if (tillFragmentEnd) {
+		tagAccumulator.feed(QString(), result.size());
 	}
-	return (from.next() != till);
+	tagAccumulator.finish();
+
+	outTagsChanged = tagAccumulator.changed();
+	return result;
 }
 
 bool InputField::isUndoAvailable() const {
@@ -2421,42 +1279,49 @@ bool InputField::isRedoAvailable() const {
 	return _redoAvailable;
 }
 
-void InputField::insertEmoji(EmojiPtr emoji, QTextCursor c) {
-	const auto format = PrepareEmojiFormat(emoji, _st.font);
-	c.insertText(kObjectReplacement, format);
-}
-
-void InputField::processDocumentContentsChange(int position, int charsAdded) {
+void InputField::processFormatting(int insertPosition, int insertEnd) {
 	// Tilde formatting.
 	auto tildeFormatting = !cRetina() && (font().pixelSize() == 13) && (font().family() == qstr("Open Sans"));
 	auto isTildeFragment = false;
 	auto tildeRegularFont = tildeFormatting ? qsl("Open Sans") : QString();
 	auto tildeFixedFont = tildeFormatting ? Fonts::GetOverride(qsl("Open Sans Semibold")) : QString();
 
-	QTextDocument *doc(_inner->document());
-	QTextCursor c(_inner->textCursor());
-	c.joinPreviousEditBlock();
+	// First tag handling (the one we inserted text to).
+	bool startTagFound = false;
+	bool breakTagOnNotLetter = false;
 
+	auto document = _inner->document();
+
+	// Apply inserted tags.
+	auto insertedTagsProcessor = _insertedTagsAreFromMime ? _tagMimeProcessor.get() : nullptr;
+	const auto breakTagOnNotLetterTill = ProcessInsertedTags(
+		_st.textFg,
+		document,
+		insertPosition,
+		insertEnd,
+		_insertedTags,
+		insertedTagsProcessor);
 	using ActionType = FormattingAction::Type;
 	while (true) {
 		FormattingAction action;
-		int32 replacePosition = -1, replaceLen = 0;
-		EmojiPtr emoji = nullptr;
-		bool removeNewline = false;
 
-		int32 start = position, end = position + charsAdded;
-		QTextBlock from = doc->findBlock(start), till = doc->findBlock(end);
-		if (till.isValid()) till = till.next();
+		auto fromBlock = document->findBlock(insertPosition);
+		auto tillBlock = document->findBlock(insertEnd);
+		if (tillBlock.isValid()) tillBlock = tillBlock.next();
 
-		for (auto b = from; b != till; b = b.next()) {
-			for (auto iter = b.begin(); !iter.atEnd(); ++iter) {
-				const auto fragment = iter.fragment();
-				if (!fragment.isValid()) continue;
+		for (auto block = fromBlock; block != tillBlock; block = block.next()) {
+			for (auto fragmentIt = block.begin(); !fragmentIt.atEnd(); ++fragmentIt) {
+				auto fragment = fragmentIt.fragment();
+				Assert(fragment.isValid());
 
-				auto fp = fragment.position();
-				auto fe = fp + fragment.length();
-				if (fp >= end || fe <= start) {
+				int fragmentPosition = fragment.position();
+				if (insertPosition >= fragmentPosition + fragment.length()) {
 					continue;
+				}
+				int changedPositionInFragment = insertPosition - fragmentPosition; // Can be negative.
+				int changedEndInFragment = insertEnd - fragmentPosition;
+				if (changedEndInFragment <= 0) {
+					break;
 				}
 
 				auto format = fragment.charFormat();
@@ -2473,178 +1338,238 @@ void InputField::processDocumentContentsChange(int position, int charsAdded) {
 					const auto string = with.toString();
 					if (fragmentText != string) {
 						action.type = ActionType::ClearInstantReplace;
-						action.intervalStart = fp
+						action.intervalStart = fragmentPosition
 							+ (fragmentText.startsWith(string)
 								? string.size()
 								: 0);
-						action.intervalEnd = fp
+						action.intervalEnd = fragmentPosition
 							+ fragmentText.size();
 						break;
 					}
 				}
-				auto *ch = textStart;// +qMax(changedPositionInFragment, 0);
-				for (; ch != textEnd; ++ch, ++fp) {
-					// QTextBeginningOfFrame // QTextEndOfFrame
-					removeNewline = (_mode == Mode::SingleLine)
-						&& (ch->unicode() == 0xfdd0
-							|| ch->unicode() == 0xfdd1
+
+				if (!startTagFound) {
+					startTagFound = true;
+					auto tagName = format.anchorName();
+					if (!tagName.isEmpty()) {
+						breakTagOnNotLetter = WasInsertTillTheEndOfTag(
+							block,
+							fragmentIt,
+							insertEnd);
+					}
+				}
+
+				auto *ch = textStart + qMax(changedPositionInFragment, 0);
+				for (; ch < textEnd; ++ch) {
+					const auto removeNewline = (_mode == Mode::SingleLine)
+						&& (false
+							|| ch->unicode() == 0xfdd0 // QTextBeginningOfFrame
+							|| ch->unicode() == 0xfdd1 // QTextEndOfFrame
 							|| ch->unicode() == QChar::ParagraphSeparator
 							|| ch->unicode() == QChar::LineSeparator
 							|| ch->unicode() == '\n'
 							|| ch->unicode() == '\r');
 					if (removeNewline) {
-						if (replacePosition >= 0) {
-							removeNewline = false; // replace tilde char format first
-						} else {
-							replacePosition = fp;
-							replaceLen = 1;
+						if (action.type == ActionType::Invalid) {
+							action.type = ActionType::RemoveNewline;
+							action.intervalStart = fragmentPosition + (ch - textStart);
+							action.intervalEnd = action.intervalStart + 1;
 						}
 						break;
 					}
 
-					auto emojiLen = 0;
-					emoji = Ui::Emoji::Find(ch, textEnd, &emojiLen);
-					if (emoji) {
-						if (replacePosition >= 0) {
-							emoji = 0; // replace tilde char format first
-						} else {
-							replacePosition = fp;
-							replaceLen = emojiLen;
+					auto emojiLength = 0;
+					if (const auto emoji = Ui::Emoji::Find(ch, textEnd, &emojiLength)) {
+						// Replace emoji if no current action is prepared.
+						if (action.type == ActionType::Invalid) {
+							action.type = ActionType::InsertEmoji;
+							action.emoji = emoji;
+							action.intervalStart = fragmentPosition + (ch - textStart);
+							action.intervalEnd = action.intervalStart + emojiLength;
 						}
 						break;
 					}
 
-					if (tildeFormatting && fp >= position) { // tilde fix in OpenSans
+					if (breakTagOnNotLetter && !ch->isLetter()) {
+						// Remove tag name till the end if no current action is prepared.
+						if (action.type != ActionType::Invalid) {
+							break;
+						}
+						breakTagOnNotLetter = false;
+						if (fragmentPosition + (ch - textStart) < breakTagOnNotLetterTill) {
+							action.type = ActionType::RemoveTag;
+							action.intervalStart = fragmentPosition + (ch - textStart);
+							action.intervalEnd = breakTagOnNotLetterTill;
+							break;
+						}
+					}
+					if (tildeFormatting) { // Tilde symbol fix in OpenSans.
 						bool tilde = (ch->unicode() == '~');
 						if ((tilde && !isTildeFragment) || (!tilde && isTildeFragment)) {
-							if (replacePosition < 0) {
-								replacePosition = fp;
-								replaceLen = 1;
+							if (action.type == ActionType::Invalid) {
+								action.type = ActionType::TildeFont;
+								action.intervalStart = fragmentPosition + (ch - textStart);
+								action.intervalEnd = action.intervalStart + 1;
+								action.isTilde = tilde;
 							} else {
-								++replaceLen;
+								++action.intervalEnd;
 							}
-						} else if (replacePosition >= 0) {
+						} else if (action.type == ActionType::TildeFont) {
 							break;
 						}
 					}
 
 					if (ch + 1 < textEnd && ch->isHighSurrogate() && (ch + 1)->isLowSurrogate()) {
 						++ch;
-						++fp;
+						++fragmentPosition;
 					}
 				}
-				if (replacePosition >= 0) break;
+				if (action.type != ActionType::Invalid) {
+					break;
+				}
 			}
-			if (replacePosition >= 0 || action.type != ActionType::Invalid) {
+			if (action.type != ActionType::Invalid) {
 				break;
-			}
-
-			if (_mode == Mode::SingleLine && b.next() != doc->end()) {
-				removeNewline = true;
-				replacePosition = b.next().position() - 1;
-				replaceLen = 1;
+			} else if (_mode == Mode::SingleLine
+				&& block.next() != document->end()) {
+				action.type = ActionType::RemoveNewline;
+				action.intervalStart = block.next().position() - 1;
+				action.intervalEnd = action.intervalStart + 1;
 				break;
 			}
 		}
+		if (action.type != ActionType::Invalid) {
+			PrepareFormattingOptimization(document);
 
-		if (action.type == ActionType::ClearInstantReplace) {
-			prepareFormattingOptimization(doc);
-
-			QTextCursor c(doc->docHandle(), action.intervalStart);
-			c.setPosition(action.intervalEnd, QTextCursor::KeepAnchor);
-			c.setCharFormat(_defaultCharFormat);
-		} else if (replacePosition >= 0) {
-			prepareFormattingOptimization(doc);
-
-			QTextCursor c(doc->docHandle(), replacePosition);
-			c.setPosition(replacePosition + replaceLen, QTextCursor::KeepAnchor);
-			if (removeNewline) {
+			auto cursor = QTextCursor(
+				document->docHandle(),
+				action.intervalStart);
+			cursor.setPosition(action.intervalEnd, QTextCursor::KeepAnchor);
+			if (action.type == ActionType::InsertEmoji) {
+				InsertEmojiAtCursor(cursor, action.emoji);
+				insertPosition = action.intervalStart + 1;
+				if (insertEnd >= action.intervalEnd) {
+					insertEnd -= action.intervalEnd
+						- action.intervalStart
+						- 1;
+				}
+			} else if (action.type == ActionType::RemoveTag) {
 				QTextCharFormat format;
-				format.setFontFamily(font().family());
-				c.mergeCharFormat(format);
-				c.insertText(" ");
-			} else if (emoji) {
-				insertEmoji(emoji, c);
-			} else {
+				format.setAnchor(false);
+				format.setAnchorName(QString());
+				format.setForeground(_st.textFg);
+				cursor.mergeCharFormat(format);
+			} else if (action.type == ActionType::TildeFont) {
 				QTextCharFormat format;
-				format.setFontFamily(isTildeFragment ? tildeRegularFont : tildeFixedFont);
-				c.mergeCharFormat(format);
+				format.setFontFamily(action.isTilde ? tildeFixedFont : tildeRegularFont);
+				cursor.mergeCharFormat(format);
+				insertPosition = action.intervalEnd;
+			} else if (action.type == ActionType::ClearInstantReplace) {
+				auto format = _defaultCharFormat;
+				const auto current = cursor.charFormat();
+				if (current.isAnchor()) {
+					format.setAnchor(true);
+					format.setAnchorName(current.anchorName());
+					format.setForeground(st::defaultTextPalette.linkFg);
+				}
+				cursor.setCharFormat(format);
+			} else if (action.type == ActionType::RemoveNewline) {
+				cursor.removeSelectedText();
+				insertPosition = action.intervalStart;
+				if (insertEnd >= action.intervalEnd) {
+					insertEnd -= action.intervalEnd - action.intervalStart;
+				}
 			}
-			charsAdded -= replacePosition + replaceLen - position;
-			position = replacePosition + ((emoji || removeNewline) ? 1 : replaceLen);
 		} else {
 			break;
 		}
 	}
-	c.endEditBlock();
 }
 
-void InputField::onDocumentContentsChange(int position, int charsRemoved, int charsAdded) {
+void InputField::onDocumentContentsChange(
+		int position,
+		int charsRemoved,
+		int charsAdded) {
 	if (_correcting) return;
 
-	QTextCursor(_inner->document()->docHandle(), 0).joinPreviousEditBlock();
+	const auto document = _inner->document();
 
-	if (!position) { // Qt bug workaround https://bugreports.qt.io/browse/QTBUG-49062
-		QTextCursor c(_inner->document()->docHandle(), 0);
-		c.movePosition(QTextCursor::End);
-		if (position + charsAdded > c.position()) {
-			int32 toSubstract = position + charsAdded - c.position();
-			if (charsRemoved >= toSubstract) {
-				charsAdded -= toSubstract;
-				charsRemoved -= toSubstract;
+	// Qt bug workaround https://bugreports.qt.io/browse/QTBUG-49062
+	if (!position) {
+		auto cursor = QTextCursor(document->docHandle(), 0);
+		cursor.movePosition(QTextCursor::End);
+		if (position + charsAdded > cursor.position()) {
+			const auto delta = position + charsAdded - cursor.position();
+			if (charsRemoved >= delta) {
+				charsAdded -= delta;
+				charsRemoved -= delta;
 			}
 		}
 	}
 
+	const auto insertPosition = (_realInsertPosition >= 0)
+		? _realInsertPosition
+		: position;
+	const auto insertLength = (_realInsertPosition >= 0)
+		? _realCharsAdded
+		: charsAdded;
+
+	const auto removePosition = position;
+	const auto removeLength = charsRemoved;
+
+	QTextCursor(document->docHandle(), 0).joinPreviousEditBlock();
+	const auto guard = gsl::finally([&] {
+		QTextCursor(document->docHandle(), 0).endEditBlock();
+	});
+
+	chopByMaxLength(insertPosition, insertLength);
+
+	if (document->availableRedoSteps() > 0 || insertLength <= 0) {
+		return;
+	}
+
 	_correcting = true;
-	if (_maxLength >= 0) {
-		QTextCursor c(_inner->document()->docHandle(), 0);
-		c.movePosition(QTextCursor::End);
-		int32 fullSize = c.position(), toRemove = fullSize - _maxLength;
-		if (toRemove > 0) {
-			if (toRemove > charsAdded) {
-				if (charsAdded) {
-					c.setPosition(position);
-					c.setPosition((position + charsAdded), QTextCursor::KeepAnchor);
-					c.removeSelectedText();
-				}
-				c.setPosition(fullSize - (toRemove - charsAdded));
-				c.setPosition(fullSize, QTextCursor::KeepAnchor);
-				c.removeSelectedText();
-				position = _maxLength;
-				charsAdded = 0;
-				charsRemoved += toRemove;
-			} else {
-				c.setPosition(position + (charsAdded - toRemove));
-				c.setPosition(position + charsAdded, QTextCursor::KeepAnchor);
-				c.removeSelectedText();
-				charsAdded -= toRemove;
+	auto pageSize = document->pageSize();
+	processFormatting(insertPosition, insertPosition + insertLength);
+	if (document->pageSize() != pageSize) {
+		document->setPageSize(pageSize);
+	}
+	_correcting = false;
+}
+
+void InputField::chopByMaxLength(int insertPosition, int insertLength) {
+	if (_maxLength < 0) {
+		return;
+	}
+
+	_correcting = true;
+	const auto guard = gsl::finally([&] { _correcting = false; });
+
+	auto cursor = QTextCursor(document()->docHandle(), 0);
+	cursor.movePosition(QTextCursor::End);
+	const auto fullSize = cursor.position();
+	const auto toRemove = fullSize - _maxLength;
+	if (toRemove > 0) {
+		if (toRemove > insertLength) {
+			if (insertLength) {
+				cursor.setPosition(insertPosition);
+				cursor.setPosition(
+					(insertPosition + insertLength),
+					QTextCursor::KeepAnchor);
+				cursor.removeSelectedText();
 			}
+			cursor.setPosition(fullSize - (toRemove - insertLength));
+			cursor.setPosition(fullSize, QTextCursor::KeepAnchor);
+			cursor.removeSelectedText();
+		} else {
+			cursor.setPosition(
+				insertPosition + (insertLength - toRemove));
+			cursor.setPosition(
+				insertPosition + insertLength,
+				QTextCursor::KeepAnchor);
+			cursor.removeSelectedText();
 		}
 	}
-	_correcting = false;
-
-	QTextCursor(_inner->document()->docHandle(), 0).endEditBlock();
-
-	if (_inner->document()->availableRedoSteps() > 0) return;
-
-	const int takeBack = 3;
-
-	position -= takeBack;
-	charsAdded += takeBack;
-	if (position < 0) {
-		charsAdded += position;
-		position = 0;
-	}
-	if (charsAdded <= 0) return;
-
-	_correcting = true;
-	QSizeF s = _inner->document()->pageSize();
-	processDocumentContentsChange(position, charsAdded);
-	if (_inner->document()->pageSize() != s) {
-		_inner->document()->setPageSize(s);
-	}
-	_correcting = false;
 }
 
 void InputField::onDocumentContentsChanged() {
@@ -2652,9 +1577,15 @@ void InputField::onDocumentContentsChanged() {
 
 	setErrorShown(false);
 
-	auto curText = getText();
-	if (_lastTextWithTags.text != curText) {
-		_lastTextWithTags.text = curText;
+	auto tagsChanged = false;
+	const auto currentText = getTextPart(
+		0,
+		-1,
+		_lastTextWithTags.tags,
+		tagsChanged);
+
+	if (tagsChanged || (_lastTextWithTags.text != currentText)) {
+		_lastTextWithTags.text = currentText;
 		emit changed();
 		checkContentHeight();
 	}
@@ -2699,12 +1630,21 @@ void InputField::setPlaceholderHidden(bool forcePlaceholderHidden) {
 }
 
 void InputField::startPlaceholderAnimation() {
-	auto placeholderShifted = _forcePlaceholderHidden
+	const auto textLength = [&] {
+		const auto layout = textCursor().block().layout();
+		return getTextWithTags().text.size()
+			+ (layout ? layout->preeditAreaText().size() : 0);
+	};
+	const auto placeholderShifted = _forcePlaceholderHidden
 		|| (_focused && _st.placeholderScale > 0.)
-		|| !getLastText().isEmpty();
+		|| (textLength() > _placeholderAfterSymbols);
 	if (_placeholderShifted != placeholderShifted) {
 		_placeholderShifted = placeholderShifted;
-		_a_placeholderShifted.start([this] { update(); }, _placeholderShifted ? 0. : 1., _placeholderShifted ? 1. : 0., _st.duration);
+		_a_placeholderShifted.start(
+			[=] { update(); },
+			_placeholderShifted ? 0. : 1.,
+			_placeholderShifted ? 1. : 0.,
+			_st.duration);
 	}
 }
 
@@ -2714,7 +1654,18 @@ QMimeData *InputField::createMimeDataFromSelectionInner() const {
 	const auto start = cursor.selectionStart();
 	const auto end = cursor.selectionEnd();
 	if (end > start) {
-		result->setText(getText(start, end));
+		auto textWithTags = getTextWithTagsPart(start, end);
+		result->setText(textWithTags.text);
+		if (!textWithTags.tags.isEmpty()) {
+			if (_tagMimeProcessor) {
+				for (auto &tag : textWithTags.tags) {
+					tag.id = _tagMimeProcessor->mimeTagFromTag(tag.id);
+				}
+			}
+			result->setData(
+				TextUtilities::TagsMimeType(),
+				TextUtilities::SerializeTags(textWithTags.tags));
+		}
 	}
 	return result.release();
 }
@@ -2723,8 +1674,16 @@ void InputField::customUpDown(bool custom) {
 	_customUpDown = custom;
 }
 
-void InputField::setCtrlEnterSubmit(CtrlEnterSubmit ctrlEnterSubmit) {
-	_ctrlEnterSubmit = ctrlEnterSubmit;
+void InputField::setSubmitSettings(SubmitSettings settings) {
+	_submitSettings = settings;
+}
+
+not_null<QTextDocument*> InputField::document() {
+	return _inner->document();
+}
+
+not_null<const QTextDocument*> InputField::document() const {
+	return _inner->document();
 }
 
 void InputField::setTextCursor(const QTextCursor &cursor) {
@@ -2748,11 +1707,37 @@ void InputField::setText(const QString &text) {
 void InputField::setTextWithTags(
 		const TextWithTags &textWithTags,
 		HistoryAction historyAction) {
-	_inner->setPlainText(textWithTags.text); // #TODO
-	startPlaceholderAnimation();
+	_insertedTags = textWithTags.tags;
+	_insertedTagsAreFromMime = false;
+	_realInsertPosition = 0;
+	_realCharsAdded = textWithTags.text.size();
+	const auto document = _inner->document();
+	auto cursor = QTextCursor(document->docHandle(), 0);
 	if (historyAction == HistoryAction::Clear) {
-		_inner->document()->clearUndoRedoStacks();
+		document->setUndoRedoEnabled(false);
+		cursor.beginEditBlock();
+	} else if (historyAction == HistoryAction::MergeEntry) {
+		cursor.joinPreviousEditBlock();
+	} else {
+		cursor.beginEditBlock();
 	}
+	cursor.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+	cursor.insertText(textWithTags.text);
+	cursor.movePosition(QTextCursor::End);
+	cursor.endEditBlock();
+	if (historyAction == HistoryAction::Clear) {
+		document->setUndoRedoEnabled(true);
+	}
+	_insertedTags.clear();
+	_realInsertPosition = -1;
+	finishAnimating();
+}
+
+TextWithTags InputField::getTextWithTagsPart(int start, int end) const {
+	auto changed = false;
+	auto result = TextWithTags();
+	result.text = getTextPart(start, end, result.tags, changed);
+	return result;
 }
 
 void InputField::clear() {
@@ -2772,14 +1757,27 @@ void InputField::clearFocus() {
 	_inner->clearFocus();
 }
 
+not_null<QTextEdit*> InputField::rawTextEdit() {
+	return _inner;
+}
+
+not_null<const QTextEdit*> InputField::rawTextEdit() const {
+	return _inner;
+}
+
 void InputField::keyPressEventInner(QKeyEvent *e) {
 	bool shift = e->modifiers().testFlag(Qt::ShiftModifier), alt = e->modifiers().testFlag(Qt::AltModifier);
 	bool macmeta = (cPlatform() == dbipMac || cPlatform() == dbipMacOld) && e->modifiers().testFlag(Qt::ControlModifier) && !e->modifiers().testFlag(Qt::MetaModifier) && !e->modifiers().testFlag(Qt::AltModifier);
 	bool ctrl = e->modifiers().testFlag(Qt::ControlModifier) || e->modifiers().testFlag(Qt::MetaModifier);
-	bool ctrlGood = (_mode == Mode::SingleLine)
+	bool enterSubmit = (_mode == Mode::SingleLine)
 		|| (ctrl && shift)
-		|| (ctrl && (_ctrlEnterSubmit == CtrlEnterSubmit::CtrlEnter || _ctrlEnterSubmit == CtrlEnterSubmit::Both))
-		|| (!ctrl && !shift && (_ctrlEnterSubmit == CtrlEnterSubmit::Enter || _ctrlEnterSubmit == CtrlEnterSubmit::Both));
+		|| (ctrl
+			&& _submitSettings != SubmitSettings::None
+			&& _submitSettings != SubmitSettings::Enter)
+		|| (!ctrl
+			&& !shift
+			&& _submitSettings != SubmitSettings::None
+			&& _submitSettings != SubmitSettings::CtrlEnter);
 	bool enter = (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return);
 
 	if (macmeta && e->key() == Qt::Key_Backspace) {
@@ -2791,18 +1789,16 @@ void InputField::keyPressEventInner(QKeyEvent *e) {
 		&& e->modifiers() == 0
 		&& revertInstantReplace()) {
 		e->accept();
-	} else if (enter && ctrlGood) {
+	} else if (enter && enterSubmit) {
 		emit submitted(ctrl && shift);
 	} else if (e->key() == Qt::Key_Escape) {
 		e->ignore();
 		emit cancelled();
-	} else if (e->key() == Qt::Key_Tab || e->key() == Qt::Key_Backtab) {
+	} else if (e->key() == Qt::Key_Tab || (ctrl && e->key() == Qt::Key_Backtab)) {
 		if (alt || ctrl) {
 			e->ignore();
 		} else {
-			if (!focusNextPrevChild(e->key() == Qt::Key_Tab && !shift)) {
-				e->ignore();
-			}
+			emit tabbed();
 		}
 	} else if (e->key() == Qt::Key_Search || e == QKeySequence::Find) {
 		e->ignore();
@@ -2810,10 +1806,13 @@ void InputField::keyPressEventInner(QKeyEvent *e) {
 		e->ignore();
 #ifdef Q_OS_MAC
 	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
-		auto cursor = textCursor();
-		int start = cursor.selectionStart(), end = cursor.selectionEnd();
+		const auto cursor = textCursor();
+		const auto start = cursor.selectionStart();
+		const auto end = cursor.selectionEnd();
 		if (end > start) {
-			QApplication::clipboard()->setText(f()->getText(start, end), QClipboard::FindBuffer);
+			QApplication::clipboard()->setText(
+				getTextWithTagsPart(start, end).text,
+				QClipboard::FindBuffer);
 		}
 #endif // Q_OS_MAC
 	} else {
@@ -2863,9 +1862,9 @@ void InputField::processInstantReplaces(const QString &text) {
 		return;
 	}
 	const auto position = textCursor().position();
-	const auto typed = getText(
+	const auto typed = getTextWithTagsPart(
 		std::max(position - replaces.maxLength, 0),
-		position - 1);
+		position - 1).text;
 	auto node = &it->second;
 	auto i = typed.size();
 	do {
@@ -2902,7 +1901,7 @@ void InputField::commitInstantReplacement(
 		int till,
 		const QString &with,
 		base::optional<QString> checkOriginal) {
-	const auto original = getText(from, till);
+	const auto original = getTextWithTagsPart(from, till).text;
 	if (checkOriginal
 		&& checkOriginal->compare(original, Qt::CaseInsensitive) != 0) {
 		return;
@@ -2936,6 +1935,12 @@ void InputField::commitInstantReplacement(
 	auto cursor = textCursor();
 	cursor.setPosition(from);
 	cursor.setPosition(till, QTextCursor::KeepAnchor);
+	const auto current = cursor.charFormat();
+	if (current.isAnchor()) {
+		format.setAnchor(true);
+		format.setAnchorName(current.anchorName());
+		format.setForeground(st::defaultTextPalette.linkFg);
+	}
 	cursor.insertText(replacement, format);
 }
 
@@ -2972,7 +1977,13 @@ bool InputField::revertInstantReplace() {
 		replaceCursor.setPosition(fragmentStart);
 		replaceCursor.setPosition(fragmentEnd, QTextCursor::KeepAnchor);
 		const auto what = format.property(kInstantReplaceWhatId).toString();
-		replaceCursor.insertText(what, _defaultCharFormat);
+		auto replaceFormat = _defaultCharFormat;
+		if (format.isAnchor()) {
+			replaceFormat.setAnchor(true);
+			replaceFormat.setAnchorName(format.anchorName());
+			replaceFormat.setForeground(st::defaultTextPalette.linkFg);
+		}
+		replaceCursor.insertText(what, replaceFormat);
 		return true;
 	}
 	return false;
@@ -2982,6 +1993,14 @@ void InputField::contextMenuEventInner(QContextMenuEvent *e) {
 	if (const auto menu = _inner->createStandardContextMenu()) {
 		(new Ui::PopupMenu(nullptr, menu))->popup(e->globalPos());
 	}
+}
+
+void InputField::dropEventInner(QDropEvent *e) {
+	_inDrop = true;
+	_inner->QTextEdit::dropEvent(e);
+	_inDrop = false;
+	_insertedTags.clear();
+	_realInsertPosition = -1;
 }
 
 bool InputField::canInsertFromMimeDataInner(const QMimeData *source) const {
@@ -2999,7 +2018,25 @@ void InputField::insertFromMimeDataInner(const QMimeData *source) {
 		&& _mimeDataHook(source, MimeAction::Insert)) {
 		return;
 	}
-	return _inner->QTextEdit::insertFromMimeData(source);
+	auto mime = TextUtilities::TagsMimeType();
+	auto text = source->text();
+	if (source->hasFormat(mime)) {
+		auto tagsData = source->data(mime);
+		_insertedTags = TextUtilities::DeserializeTags(
+			tagsData,
+			text.size());
+		_insertedTagsAreFromMime = true;
+	} else {
+		_insertedTags.clear();
+	}
+	auto cursor = textCursor();
+	_realInsertPosition = qMin(cursor.position(), cursor.anchor());
+	_realCharsAdded = text.size();
+	_inner->QTextEdit::insertFromMimeData(source);
+	if (!_inDrop) {
+		_insertedTags.clear();
+		_realInsertPosition = -1;
+	}
 }
 
 void InputField::resizeEvent(QResizeEvent *e) {
@@ -3028,8 +2065,14 @@ void InputField::refreshPlaceholder() {
 	update();
 }
 
-void InputField::setPlaceholder(base::lambda<QString()> placeholderFactory) {
+void InputField::setPlaceholder(
+		base::lambda<QString()> placeholderFactory,
+		int afterSymbols) {
 	_placeholderFactory = std::move(placeholderFactory);
+	if (_placeholderAfterSymbols != afterSymbols) {
+		_placeholderAfterSymbols = afterSymbols;
+		startPlaceholderAnimation();
+	}
 	refreshPlaceholder();
 }
 

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_types.h"
 
 #include "data/data_document.h"
+#include "ui/widgets/input_fields.h"
 
 void AudioMsgId::setTypeFromAudio() {
 	if (_audio->isVoiceMessage() || _audio->isVideoMessage()) {
@@ -21,24 +22,20 @@ void AudioMsgId::setTypeFromAudio() {
 	}
 }
 
-void MessageCursor::fillFrom(const QTextEdit *edit) {
-	QTextCursor c = edit->textCursor();
-	position = c.position();
-	anchor = c.anchor();
-	QScrollBar *s = edit->verticalScrollBar();
-	scroll = (s && (s->value() != s->maximum()))
-		? s->value()
-		: QFIXED_MAX;
+void MessageCursor::fillFrom(not_null<const Ui::InputField*> field) {
+	const auto cursor = field->textCursor();
+	position = cursor.position();
+	anchor = cursor.anchor();
+	const auto top = field->scrollTop().current();
+	scroll = (top != field->scrollTopMax()) ? top : QFIXED_MAX;
 }
 
-void MessageCursor::applyTo(QTextEdit *edit) {
-	auto cursor = edit->textCursor();
+void MessageCursor::applyTo(not_null<Ui::InputField*> field) {
+	auto cursor = field->textCursor();
 	cursor.setPosition(anchor, QTextCursor::MoveAnchor);
 	cursor.setPosition(position, QTextCursor::KeepAnchor);
-	edit->setTextCursor(cursor);
-	if (auto scrollbar = edit->verticalScrollBar()) {
-		scrollbar->setValue(scroll);
-	}
+	field->setTextCursor(cursor);
+	field->scrollTo(scroll);
 }
 
 HistoryItem *FileClickHandler::getActionItem() const {

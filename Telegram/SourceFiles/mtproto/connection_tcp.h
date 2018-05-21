@@ -56,7 +56,7 @@ private:
 	void socketError(QAbstractSocket::SocketError e);
 	void handleTimeout();
 
-	static mtpBuffer handleResponse(const char *packet, uint32 length);
+	mtpBuffer handleResponse(const char *packet, uint32 length);
 	static void handleError(QAbstractSocket::SocketError e, QTcpSocket &sock);
 	static uint32 fourCharsToUInt(char ch1, char ch2, char ch3, char ch4) {
 		char ch[4] = { ch1, ch2, ch3, ch4 };
