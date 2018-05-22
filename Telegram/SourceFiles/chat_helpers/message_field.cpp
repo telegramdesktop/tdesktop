@@ -56,11 +56,25 @@ EntitiesInText ConvertTextTagsToEntities(const TextWithTags::Tags &tags) {
 
 	result.reserve(tags.size());
 	auto mentionStart = qstr("mention://user.");
-	for_const (auto &tag, tags) {
+	for (const auto &tag : tags) {
+		const auto push = [&](
+				EntityInTextType type,
+				const QString &data = QString()) {
+			result.push_back(
+				EntityInText(type, tag.offset, tag.length, data));
+		};
 		if (tag.id.startsWith(mentionStart)) {
 			if (auto match = qthelp::regex_match("^(\\d+\\.\\d+)(/|$)", tag.id.midRef(mentionStart.size()))) {
-				result.push_back(EntityInText(EntityInTextMentionName, tag.offset, tag.length, match->captured(1)));
+				push(EntityInTextMentionName, match->captured(1));
 			}
+		} else if (tag.id == Ui::InputField::kTagBold) {
+			push(EntityInTextBold);
+		} else if (tag.id == Ui::InputField::kTagItalic) {
+			push(EntityInTextItalic);
+		} else if (tag.id == Ui::InputField::kTagCode) {
+			push(EntityInTextCode);
+		} else if (tag.id == Ui::InputField::kTagPre) {
+			push(EntityInTextPre);
 		}
 	}
 	return result;
@@ -73,12 +87,21 @@ TextWithTags::Tags ConvertEntitiesToTextTags(const EntitiesInText &entities) {
 	}
 
 	result.reserve(entities.size());
-	for_const (auto &entity, entities) {
-		if (entity.type() == EntityInTextMentionName) {
+	for (const auto &entity : entities) {
+		const auto push = [&](const QString &tag) {
+			result.push_back({ entity.offset(), entity.length(), tag });
+		};
+		switch (entity.type()) {
+		case EntityInTextMentionName: {
 			auto match = QRegularExpression("^(\\d+\\.\\d+)$").match(entity.data());
 			if (match.hasMatch()) {
-				result.push_back({ entity.offset(), entity.length(), qstr("mention://user.") + entity.data() });
+				push(qstr("mention://user.") + entity.data());
 			}
+		} break;
+		case EntityInTextBold: push(Ui::InputField::kTagBold); break;
+		case EntityInTextItalic: push(Ui::InputField::kTagItalic); break;
+		case EntityInTextCode: push(Ui::InputField::kTagCode); break;
+		case EntityInTextPre: push(Ui::InputField::kTagPre); break;
 		}
 	}
 	return result;
@@ -119,15 +142,16 @@ void InitMessageField(not_null<Ui::InputField*> field) {
 	field->setTagMimeProcessor(std::make_unique<FieldTagMimeProcessor>());
 
 	field->document()->setDocumentMargin(4.);
-	const auto additional = convertScale(4) - 4;
-	field->rawTextEdit()->setStyleSheet(
-		qsl("QTextEdit { margin: %1px; }").arg(additional));
+	field->setAdditionalMargin(convertScale(4) - 4);
 
+	field->customTab(true);
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
 	field->enableInstantReplaces(Global::ReplaceEmoji());
+	field->enableMarkdownSupport(Global::ReplaceEmoji());
 	auto &changed = Global::RefReplaceEmojiChanged();
 	Ui::AttachAsChild(field, changed.add_subscription([=] {
 		field->enableInstantReplaces(Global::ReplaceEmoji());
+		field->enableMarkdownSupport(Global::ReplaceEmoji());
 	}));
 	field->window()->activateWindow();
 }

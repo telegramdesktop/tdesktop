@@ -24,10 +24,25 @@ constexpr auto kMaxUsernameLength = 32;
 constexpr auto kInstantReplaceRandomId = QTextFormat::UserProperty;
 constexpr auto kInstantReplaceWhatId = QTextFormat::UserProperty + 1;
 constexpr auto kInstantReplaceWithId = QTextFormat::UserProperty + 2;
+constexpr auto kReplaceTagId = QTextFormat::UserProperty + 3;
+constexpr auto kTagProperty = QTextFormat::UserProperty + 4;
 const auto kObjectReplacementCh = QChar(QChar::ObjectReplacementCharacter);
 const auto kObjectReplacement = QString::fromRawData(
 	&kObjectReplacementCh,
 	1);
+const auto &kTagBold = InputField::kTagBold;
+const auto &kTagItalic = InputField::kTagItalic;
+const auto &kTagCode = InputField::kTagCode;
+const auto &kTagPre = InputField::kTagPre;
+const auto kNewlineChars = QString("\r\n")
+	+ QChar(0xfdd0) // QTextBeginningOfFrame
+	+ QChar(0xfdd1) // QTextEndOfFrame
+	+ QChar(QChar::ParagraphSeparator)
+	+ QChar(QChar::LineSeparator);
+
+bool IsNewline(QChar ch) {
+	return (kNewlineChars.indexOf(ch) >= 0);
+}
 
 class TagAccumulator {
 public:
@@ -39,18 +54,24 @@ public:
 	}
 
 	void feed(const QString &randomTagId, int currentPosition) {
-		if (randomTagId == _currentTagId) return;
+		if (randomTagId == _currentTagId) {
+			return;
+		}
 
 		if (!_currentTagId.isEmpty()) {
-			int randomPartPosition = _currentTagId.lastIndexOf('/');
-			Assert(randomPartPosition > 0);
+			const auto randomPartPosition = _currentTagId.lastIndexOf('/');
+			const auto tagId = _currentTagId.midRef(
+				0,
+				(randomPartPosition > 0
+					? randomPartPosition
+					: _currentTagId.size()));
 
 			bool tagChanged = true;
 			if (_currentTag < _tags.size()) {
 				auto &alreadyTag = _tags[_currentTag];
 				if (alreadyTag.offset == _currentStart &&
 					alreadyTag.length == currentPosition - _currentStart &&
-					alreadyTag.id == _currentTagId.midRef(0, randomPartPosition)) {
+					alreadyTag.id == tagId) {
 					tagChanged = false;
 				}
 			}
@@ -59,7 +80,7 @@ public:
 				const auto tag = TextWithTags::Tag {
 					_currentStart,
 					currentPosition - _currentStart,
-					_currentTagId.mid(0, randomPartPosition),
+					tagId.toString()
 				};
 				if (_currentTag < _tags.size()) {
 					_tags[_currentTag] = tag;
@@ -87,6 +108,297 @@ private:
 	int _currentTag = 0;
 	int _currentStart = 0;
 	QString _currentTagId;
+
+};
+
+struct TagStartExpression {
+	QString tag;
+	QString goodBefore;
+	QString badAfter;
+};
+
+struct TagStartItem {
+	int offset = 0;
+	int position = -1;
+};
+
+constexpr auto kTagBoldIndex = 0;
+constexpr auto kTagItalicIndex = 1;
+constexpr auto kTagCodeIndex = 2;
+constexpr auto kTagPreIndex = 3;
+constexpr auto kInvalidPosition = std::numeric_limits<int>::max() / 2;
+
+const std::vector<TagStartExpression> &TagStartExpressions() {
+	static auto cached = std::vector<TagStartExpression> {
+		{
+			kTagBold,
+			TextUtilities::MarkdownBoldGoodBefore(),
+			TextUtilities::MarkdownBoldBadAfter()
+		},
+		{
+			kTagItalic,
+			TextUtilities::MarkdownItalicGoodBefore(),
+			TextUtilities::MarkdownItalicBadAfter()
+		},
+		{
+			kTagCode,
+			TextUtilities::MarkdownCodeGoodBefore(),
+			TextUtilities::MarkdownCodeBadAfter()
+		},
+		{
+			kTagPre,
+			TextUtilities::MarkdownPreGoodBefore(),
+			TextUtilities::MarkdownPreBadAfter()
+		},
+	};
+	return cached;
+}
+
+const std::map<QString, std::vector<int>> &TagFinishIndices() {
+	static auto cached = std::map<QString, std::vector<int>> {
+		{ kTagBold, { kTagBoldIndex, kTagCodeIndex, kTagPreIndex } },
+		{ kTagItalic, { kTagItalicIndex, kTagCodeIndex, kTagPreIndex } },
+		{ kTagCode, { kTagCodeIndex, kTagPreIndex } },
+		{ kTagPre, { kTagCodeIndex, kTagPreIndex } },
+	};
+	return cached;
+}
+
+bool DoesTagFinishByNewline(const QString &tag) {
+	return (tag == kTagCode);
+}
+
+class PossibleTagAccumulator {
+public:
+	PossibleTagAccumulator(std::vector<InputField::PossibleTag> *tags)
+	: _tags(tags)
+	, _expressions(TagStartExpressions())
+	, _finishIndices(TagFinishIndices())
+	, _items(_expressions.size()) {
+	}
+
+	void feed(const QString &text, const QString &textTag) {
+		if (!_tags) {
+			return;
+		}
+		const auto guard = gsl::finally([&] {
+			_currentLength += text.size();
+		});
+		if (!textTag.isEmpty()) {
+			finishTags();
+			return;
+		}
+		for (auto &item : _items) {
+			item = TagStartItem();
+		}
+		auto tagIndex = _currentTag;
+		while (true) {
+			for (; tagIndex != _currentFreeTag; ++tagIndex) {
+				auto &tag = (*_tags)[tagIndex];
+				bumpOffsetByTag(tag, tag.start + 1);
+
+				const auto finishIt = _finishIndices.find(tag.tag);
+				Assert(finishIt != end(_finishIndices));
+				const auto &finishingIndices = finishIt->second;
+				for (const auto index : finishingIndices) {
+					fillItem(index, text);
+				}
+				if (finishByNewline(tagIndex, text, finishingIndices)) {
+					continue;
+				}
+				const auto min = minIndex(finishingIndices);
+				if (min >= 0) {
+					const auto minPosition = matchPosition(min);
+					finishTag(tagIndex, _currentLength + minPosition);
+				} else if (tag.tag == kTagPre || tag.tag == kTagCode) {
+					// We can't finish a mono tag, so we ignore all others.
+					return;
+				}
+			}
+			for (auto i = 0, count = int(_items.size()); i != count; ++i) {
+				fillItem(i, text);
+			}
+			const auto min = minIndex();
+			if (min < 0) {
+				return;
+			}
+			startTag(
+				_currentLength + matchPosition(min),
+				_expressions[min].tag);
+		}
+	}
+
+	void finish() {
+		if (!_tags) {
+			return;
+		}
+		finishTags();
+		if (_currentTag < _tags->size()) {
+			_tags->resize(_currentTag);
+		}
+	}
+
+private:
+	void finishTag(int index, int end) {
+		Expects(_tags != nullptr);
+		Expects(index >= 0 && index < _tags->size());
+
+		auto &tag = (*_tags)[index];
+		if (tag.length < 0) {
+			tag.length = end - tag.start;
+		}
+		if (index == _currentTag) {
+			++_currentTag;
+		}
+	}
+	bool finishByNewline(
+			int index,
+			const QString &text,
+			const std::vector<int> &finishingIndices) {
+		Expects(_tags != nullptr);
+		Expects(index >= 0 && index < _tags->size());
+
+		auto &tag = (*_tags)[index];
+
+		if (!DoesTagFinishByNewline(tag.tag)) {
+			return false;
+		}
+		const auto endPosition = newlinePosition(
+			text,
+			std::max(0, tag.start + 1 - _currentLength));
+		for (const auto finishingIndex : finishingIndices) {
+			if (matchPosition(finishingIndex) <= endPosition) {
+				return false;
+			}
+		}
+		finishTag(index, _currentLength + endPosition);
+		return true;
+	}
+	void bumpOffsetByTag(const InputField::PossibleTag &tag, int end) {
+		const auto offset = end - _currentLength;
+		if (tag.tag == kTagPre || tag.tag == kTagCode) {
+			for (auto &item : _items) {
+				applyOffset(item, offset);
+			}
+		} else if (tag.tag == kTagBold) {
+			applyOffset(_items[kTagBoldIndex], offset);
+		} else if (tag.tag == kTagItalic) {
+			applyOffset(_items[kTagItalicIndex], offset);
+		} else {
+			Unexpected("Unsupported tag.");
+		}
+	}
+	void applyOffset(TagStartItem &item, int offset) {
+		if (matchPosition(item) < offset) {
+			item.position = -1;
+		}
+		accumulate_max(item.offset, offset);
+	}
+	void finishTags() {
+		while (_currentTag != _currentFreeTag) {
+			finishTag(_currentTag, _currentLength);
+		}
+	}
+	void startTag(int offset, const QString &tag) {
+		Expects(_tags != nullptr);
+
+		if (_currentFreeTag < _tags->size()) {
+			(*_tags)[_currentFreeTag] = { offset, -1, tag };
+		} else {
+			_tags->push_back({ offset, -1, tag });
+		}
+		++_currentFreeTag;
+	}
+	void fillItem(int index, const QString &text) {
+		Expects(index >= 0 && index < _items.size());
+
+		auto &item = _items[index];
+		if (item.position >= 0) {
+			return;
+		}
+		const auto length = text.size();
+		const auto &expression = _expressions[index];
+		const auto &tag = expression.tag;
+		const auto &goodBefore = expression.goodBefore;
+		const auto &badAfter = expression.badAfter;
+		const auto tagLength = tag.size();
+		while (true) {
+			item.position = text.indexOf(tag, item.offset);
+			if (item.position < 0) {
+				item.offset = item.position = kInvalidPosition;
+				break;
+			}
+			item.offset = item.position + tagLength;
+			if (item.position > 0) {
+				const auto before = text[item.position - 1];
+				if (expression.goodBefore.indexOf(before) < 0) {
+					continue;
+				}
+			}
+			if (item.position + tagLength + 1 < length) {
+				const auto after = text[item.position + tagLength + 1];
+				if (expression.badAfter.indexOf(after) >= 0) {
+					continue;
+				}
+			}
+			break;
+		}
+		item.offset = item.position + tagLength;
+	}
+	int matchPosition(int index) const {
+		Expects(index >= 0 && index < _items.size());
+
+		return matchPosition(_items[index]);
+	}
+	int matchPosition(const TagStartItem &item) const {
+		const auto position = item.position;
+		return (item.position >= 0) ? item.position : kInvalidPosition;
+	}
+	int newlinePosition(const QString &text, int offset) const {
+		const auto length = text.size();
+		if (offset < length) {
+			auto ch = text.data() + offset;
+			for (const auto e = ch + length; ch != e; ++ch) {
+				if (IsNewline(*ch)) {
+					return (ch - text.data());
+				}
+			}
+		}
+		return kInvalidPosition;
+	}
+	int minIndex() const {
+		auto result = -1;
+		auto minPosition = kInvalidPosition;
+		for (auto i = 0, count = int(_items.size()); i != count; ++i) {
+			const auto position = matchPosition(i);
+			if (position < minPosition) {
+				minPosition = position;
+				result = i;
+			}
+		}
+		return result;
+	}
+	int minIndex(const std::vector<int> &indices) const {
+		auto result = -1;
+		auto minPosition = kInvalidPosition;
+		for (auto i : indices) {
+			const auto position = matchPosition(i);
+			if (position < minPosition) {
+				minPosition = position;
+				result = i;
+			}
+		}
+		return result;
+	}
+
+	std::vector<InputField::PossibleTag> *_tags = nullptr;
+	const std::vector<TagStartExpression> &_expressions;
+	const std::map<QString, std::vector<int>> &_finishIndices;
+	std::vector<TagStartItem> _items;
+
+	int _currentTag = 0;
+	int _currentFreeTag = 0;
+	int _currentLength = 0;
 
 };
 
@@ -162,7 +474,7 @@ void PrepareFormattingOptimization(not_null<QTextDocument*> document) {
 }
 
 void RemoveDocumentTags(
-		style::color textFg,
+		const style::InputField &st,
 		not_null<QTextDocument*> document,
 		int from,
 		int end) {
@@ -170,16 +482,66 @@ void RemoveDocumentTags(
 	cursor.setPosition(end, QTextCursor::KeepAnchor);
 
 	QTextCharFormat format;
-	format.setAnchor(false);
-	format.setAnchorName(QString());
-	format.setForeground(textFg);
+	format.setProperty(kTagProperty, QString());
+	format.setProperty(kReplaceTagId, QString());
+	format.setForeground(st.textFg);
+	format.setFont(st.font);
 	cursor.mergeCharFormat(format);
+}
+
+style::font AdjustFont(
+		const style::font &font,
+		const style::font &original) {
+	return (font->size() != original->size()
+		|| font->flags() != original->flags())
+		? style::font(original->size(), original->flags(), font->family())
+		: font;
+}
+
+QTextCharFormat PrepareTagFormat(
+		const style::InputField &st,
+		QString tag) {
+	auto result = QTextCharFormat();
+	if (tag.indexOf(':') >= 0) {
+		tag += '/' + QString::number(rand_value<uint32>());
+		result.setForeground(st::defaultTextPalette.linkFg);
+		result.setFont(st.font);
+	} else if (tag == kTagBold) {
+		auto semibold = st::semiboldFont;
+		if (semibold->size() != st.font->size()
+			|| semibold->flags() != st.font->flags()) {
+			semibold = style::font(
+				st.font->size(),
+				st.font->flags(),
+				semibold->family());
+		}
+		result.setForeground(st.textFg);
+		result.setFont(AdjustFont(st::semiboldFont, st.font));
+	} else if (tag == kTagItalic) {
+		result.setForeground(st.textFg);
+		result.setFont(st.font->italic());
+	} else if (tag == kTagCode || tag == kTagPre) {
+		result.setForeground(st::defaultTextPalette.monoFg);
+		result.setFont(AdjustFont(App::monofont(), st.font));
+	} else {
+		result.setForeground(st.textFg);
+		result.setFont(st.font);
+	}
+	result.setProperty(kTagProperty, tag);
+	return result;
+}
+
+void ApplyTagFormat(QTextCharFormat &to, const QTextCharFormat &from) {
+	to.setProperty(kTagProperty, from.property(kTagProperty));
+	to.setProperty(kReplaceTagId, from.property(kReplaceTagId));
+	to.setFont(from.font());
+	to.setForeground(from.foreground());
 }
 
 // Returns the position of the first inserted tag or "changedEnd" value if none found.
 int ProcessInsertedTags(
-		style::color textFg,
-		QTextDocument *document,
+		const style::InputField &st,
+		not_null<QTextDocument*> document,
 		int changedPosition,
 		int changedEnd,
 		const TextWithTags::Tags &tags,
@@ -198,23 +560,23 @@ int ProcessInsertedTags(
 			PrepareFormattingOptimization(document);
 
 			if (applyNoTagFrom < tagFrom) {
-				RemoveDocumentTags(textFg, document, applyNoTagFrom, tagFrom);
+				RemoveDocumentTags(
+					st,
+					document,
+					applyNoTagFrom,
+					tagFrom);
 			}
 			QTextCursor c(document->docHandle(), 0);
 			c.setPosition(tagFrom);
 			c.setPosition(tagTo, QTextCursor::KeepAnchor);
 
-			QTextCharFormat format;
-			format.setAnchor(true);
-			format.setAnchorName(tagId + '/' + QString::number(rand_value<uint32>()));
-			format.setForeground(st::defaultTextPalette.linkFg);
-			c.mergeCharFormat(format);
+			c.mergeCharFormat(PrepareTagFormat(st, tagId));
 
 			applyNoTagFrom = tagTo;
 		}
 	}
 	if (applyNoTagFrom < changedEnd) {
-		RemoveDocumentTags(textFg, document, applyNoTagFrom, changedEnd);
+		RemoveDocumentTags(st, document, applyNoTagFrom, changedEnd);
 	}
 
 	return firstTagStart;
@@ -227,16 +589,19 @@ bool WasInsertTillTheEndOfTag(
 		QTextBlock block,
 		QTextBlock::iterator fragmentIt,
 		int insertionEnd) {
-	auto insertTagName = fragmentIt.fragment().charFormat().anchorName();
+	const auto format = fragmentIt.fragment().charFormat();
+	const auto insertTagName = format.property(kTagProperty);
 	while (true) {
 		for (; !fragmentIt.atEnd(); ++fragmentIt) {
-			auto fragment = fragmentIt.fragment();
-			bool fragmentOutsideInsertion = (fragment.position() >= insertionEnd);
-			if (fragmentOutsideInsertion) {
-				return (fragment.charFormat().anchorName() != insertTagName);
+			const auto fragment = fragmentIt.fragment();
+			const auto position = fragment.position();
+			const auto outsideInsertion = (position >= insertionEnd);
+			if (outsideInsertion) {
+				const auto format = fragment.charFormat();
+				return (format.property(kTagProperty) != insertTagName);
 			}
-			int fragmentEnd = fragment.position() + fragment.length();
-			bool notFullFragmentInserted = (fragmentEnd > insertionEnd);
+			const auto end = position + fragment.length();
+			const auto notFullFragmentInserted = (end > insertionEnd);
 			if (notFullFragmentInserted) {
 				return false;
 			}
@@ -265,12 +630,18 @@ struct FormattingAction {
 	Type type = Type::Invalid;
 	EmojiPtr emoji = nullptr;
 	bool isTilde = false;
+	QString tildeTag;
 	int intervalStart = 0;
 	int intervalEnd = 0;
 
 };
 
 } // namespace
+
+const QString InputField::kTagBold = qsl("**");
+const QString InputField::kTagItalic = qsl("__");
+const QString InputField::kTagCode = qsl("`");
+const QString InputField::kTagPre = qsl("```");
 
 class InputField::Inner final : public QTextEdit {
 public:
@@ -322,11 +693,7 @@ private:
 void InsertEmojiAtCursor(QTextCursor cursor, EmojiPtr emoji) {
 	const auto currentFormat = cursor.charFormat();
 	auto format = PrepareEmojiFormat(emoji, currentFormat.font());
-	if (currentFormat.isAnchor()) {
-		format.setAnchor(true);
-		format.setAnchorName(currentFormat.anchorName());
-		format.setForeground(st::defaultTextPalette.linkFg);
-	}
+	ApplyTagFormat(format, currentFormat);
 	cursor.insertText(kObjectReplacement, format);
 }
 
@@ -703,6 +1070,9 @@ InputField::InputField(
 
 	_inner->setFont(_st.font->f);
 	_inner->setAlignment(_st.textAlign);
+	_defaultCharFormat = _inner->textCursor().charFormat();
+	_defaultCharFormat.merge(PrepareTagFormat(_st, QString()));
+	_inner->textCursor().setCharFormat(_defaultCharFormat);
 	if (_mode == Mode::SingleLine) {
 		_inner->setWordWrapMode(QTextOption::NoWrap);
 	}
@@ -733,7 +1103,6 @@ InputField::InputField(
 	connect(&_touchTimer, SIGNAL(timeout()), this, SLOT(onTouchTimer()));
 
 	connect(_inner->document(), SIGNAL(contentsChange(int,int,int)), this, SLOT(onDocumentContentsChange(int,int,int)));
-	connect(_inner->document(), SIGNAL(contentsChanged()), this, SLOT(onDocumentContentsChanged()));
 	connect(_inner, SIGNAL(undoAvailable(bool)), this, SLOT(onUndoAvailable(bool)));
 	connect(_inner, SIGNAL(redoAvailable(bool)), this, SLOT(onRedoAvailable(bool)));
 	if (App::wnd()) connect(_inner, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
@@ -750,8 +1119,6 @@ InputField::InputField(
 	if (!_lastTextWithTags.text.isEmpty()) {
 		setTextWithTags(_lastTextWithTags, HistoryAction::Clear);
 	}
-
-	_defaultCharFormat = _inner->textCursor().charFormat();
 
 	startBorderAnimation();
 	startPlaceholderAnimation();
@@ -801,6 +1168,10 @@ void InputField::onTouchTimer() {
 	_touchRightButton = true;
 }
 
+void InputField::enableMarkdownSupport(bool enabled) {
+	_markdownEnabled = enabled;
+}
+
 void InputField::setInstantReplaces(const InstantReplaces &replaces) {
 	_mutableInstantReplaces = replaces;
 }
@@ -812,6 +1183,12 @@ void InputField::enableInstantReplaces(bool enabled) {
 void InputField::setTagMimeProcessor(
 		std::unique_ptr<TagMimeProcessor> &&processor) {
 	_tagMimeProcessor = std::move(processor);
+}
+
+void InputField::setAdditionalMargin(int margin) {
+	_inner->setStyleSheet(qsl("QTextEdit { margin: %1px; }").arg(margin));
+	_additionalMargin = margin;
+	checkContentHeight();
 }
 
 void InputField::setMaxLength(int length) {
@@ -919,14 +1296,13 @@ bool InputField::heightAutoupdated() {
 
 	SendPendingMoveResizeEvents(this);
 
-	int newh = ceil(document()->size().height()) + _st.textMargins.top() + _st.textMargins.bottom() + 2 * _fakeMargin;
-	if (newh > _maxHeight) {
-		newh = _maxHeight;
-	} else if (newh < _minHeight) {
-		newh = _minHeight;
-	}
-	if (height() != newh) {
-		resize(width(), newh);
+	const auto contentHeight = int(std::ceil(document()->size().height()))
+		+ _st.textMargins.top()
+		+ _st.textMargins.bottom()
+		+ 2 * _additionalMargin;
+	const auto newHeight = snap(contentHeight, _minHeight, _maxHeight);
+	if (height() != newHeight) {
+		resize(width(), newHeight);
 		return true;
 	}
 	return false;
@@ -1165,17 +1541,25 @@ QString InputField::getTextPart(
 		int start,
 		int end,
 		TagList &outTagsList,
-		bool &outTagsChanged) const {
+		bool &outTagsChanged,
+		std::vector<PossibleTag> *outPossibleTags) const {
+	Expects((start == 0 && end < 0) || outPossibleTags == nullptr);
+
 	if (end >= 0 && end <= start) {
 		outTagsChanged = !outTagsList.isEmpty();
 		outTagsList.clear();
 		return QString();
 	}
 
-	if (start < 0) start = 0;
+	if (start < 0) {
+		start = 0;
+	}
 	const auto full = (start == 0 && end < 0);
 
+	auto lastTag = QString();
 	TagAccumulator tagAccumulator(outTagsList);
+	PossibleTagAccumulator possibleTagAccumulator(outPossibleTags);
+	const auto newline = outPossibleTags ? QString(1, '\n') : QString();
 
 	const auto document = _inner->document();
 	const auto from = full ? document->begin() : document->findBlock(start);
@@ -1189,13 +1573,13 @@ QString InputField::getTextPart(
 		possibleLength += block.length();
 	}
 	auto result = QString();
-	result.reserve(possibleLength + 1);
+	result.reserve(possibleLength);
 	if (!full && end < 0) {
 		end = possibleLength;
 	}
 
 	bool tillFragmentEnd = full;
-	for (auto block = from; block != till; block = block.next()) {
+	for (auto block = from; block != till;) {
 		for (auto item = block.begin(); !item.atEnd(); ++item) {
 			const auto fragment = item.fragment();
 			if (!fragment.isValid()) {
@@ -1210,62 +1594,81 @@ QString InputField::getTextPart(
 			if (!full) {
 				tillFragmentEnd = (fragmentEnd <= end);
 				if (fragmentPosition == end) {
-					tagAccumulator.feed(format.anchorName(), result.size());
-				}
-				if (fragmentPosition >= end) {
+					tagAccumulator.feed(
+						format.property(kTagProperty).toString(),
+						result.size());
+					break;
+				} else if (fragmentPosition > end) {
 					break;
 				} else if (fragmentEnd <= start) {
 					continue;
 				}
 			}
+
+			const auto emojiText = [&] {
+				if (format.isImageFormat()) {
+					const auto imageName = format.toImageFormat().name();
+					if (const auto emoji = Ui::Emoji::FromUrl(imageName)) {
+						return emoji->text();
+					}
+				}
+				return QString();
+			}();
+			auto text = [&] {
+				const auto result = fragment.text();
+				if (!full) {
+					if (fragmentPosition < start) {
+						return result.mid(start - fragmentPosition, end - start);
+					} else if (fragmentEnd > end) {
+						return result.mid(0, end - fragmentPosition);
+					}
+				}
+				return result;
+			}();
+
 			if (full || fragmentPosition >= start) {
-				tagAccumulator.feed(format.anchorName(), result.size());
+				lastTag = format.property(kTagProperty).toString();
+				tagAccumulator.feed(lastTag, result.size());
+				possibleTagAccumulator.feed(text, lastTag);
 			}
 
-			QString emojiText;
-			auto t = fragment.text();
-			if (!full) {
-				if (fragmentPosition < start) {
-					t = t.mid(start - fragmentPosition, end - start);
-				} else if (fragmentEnd > end) {
-					t = t.mid(0, end - fragmentPosition);
-				}
-			}
-			QChar *ub = t.data(), *uc = ub, *ue = uc + t.size();
-			for (; uc != ue; ++uc) {
-				switch (uc->unicode()) {
-				case 0xfdd0: // QTextBeginningOfFrame
-				case 0xfdd1: // QTextEndOfFrame
-				case QChar::ParagraphSeparator:
-				case QChar::LineSeparator: {
-					*uc = QLatin1Char('\n');
-				} break;
+			auto begin = text.data();
+			auto ch = begin;
+			for (const auto end = begin + text.size(); ch != end; ++ch) {
+				if (IsNewline(*ch) && ch->unicode() != '\r') {
+					*ch = QLatin1Char('\n');
+				} else switch (ch->unicode()) {
 				case QChar::Nbsp: {
-					*uc = QLatin1Char(' ');
+					*ch = QLatin1Char(' ');
 				} break;
 				case QChar::ObjectReplacementCharacter: {
-					if (emojiText.isEmpty() && format.isImageFormat()) {
-						const auto imageName = format.toImageFormat().name();
-						if (const auto emoji = Ui::Emoji::FromUrl(imageName)) {
-							emojiText = emoji->text();
-						}
+					if (ch > begin) {
+						result.append(begin, ch - begin);
 					}
-					if (uc > ub) result.append(ub, uc - ub);
-					if (!emojiText.isEmpty()) result.append(emojiText);
-					ub = uc + 1;
+					if (!emojiText.isEmpty()) {
+						result.append(emojiText);
+					}
+					begin = ch + 1;
 				} break;
 				}
 			}
-			if (uc > ub) result.append(ub, uc - ub);
+			if (ch > begin) {
+				result.append(begin, ch - begin);
+			}
 		}
-		result.append('\n');
+
+		block = block.next();
+		if (block != till) {
+			result.append('\n');
+			possibleTagAccumulator.feed(newline, lastTag);
+		}
 	}
-	result.chop(1);
 
 	if (tillFragmentEnd) {
 		tagAccumulator.feed(QString(), result.size());
 	}
 	tagAccumulator.finish();
+	possibleTagAccumulator.finish();
 
 	outTagsChanged = tagAccumulator.changed();
 	return result;
@@ -1281,10 +1684,11 @@ bool InputField::isRedoAvailable() const {
 
 void InputField::processFormatting(int insertPosition, int insertEnd) {
 	// Tilde formatting.
-	auto tildeFormatting = !cRetina() && (font().pixelSize() == 13) && (font().family() == qstr("Open Sans"));
+	const auto tildeFormatting = !cRetina()
+		&& (font().pixelSize() == 13)
+		&& (font().family() == qstr("Open Sans"));
 	auto isTildeFragment = false;
-	auto tildeRegularFont = tildeFormatting ? qsl("Open Sans") : QString();
-	auto tildeFixedFont = tildeFormatting ? Fonts::GetOverride(qsl("Open Sans Semibold")) : QString();
+	const auto tildeFixedFont = AdjustFont(st::semiboldFont, _st.font);
 
 	// First tag handling (the one we inserted text to).
 	bool startTagFound = false;
@@ -1293,9 +1697,11 @@ void InputField::processFormatting(int insertPosition, int insertEnd) {
 	auto document = _inner->document();
 
 	// Apply inserted tags.
-	auto insertedTagsProcessor = _insertedTagsAreFromMime ? _tagMimeProcessor.get() : nullptr;
+	auto insertedTagsProcessor = _insertedTagsAreFromMime
+		? _tagMimeProcessor.get()
+		: nullptr;
 	const auto breakTagOnNotLetterTill = ProcessInsertedTags(
-		_st.textFg,
+		_st,
 		document,
 		insertPosition,
 		insertEnd,
@@ -1325,8 +1731,14 @@ void InputField::processFormatting(int insertPosition, int insertEnd) {
 				}
 
 				auto format = fragment.charFormat();
+				if (!format.hasProperty(kTagProperty)) {
+					action.type = ActionType::RemoveTag;
+					action.intervalStart = fragmentPosition;
+					action.intervalEnd = fragmentPosition + fragment.length();
+					break;
+				}
 				if (tildeFormatting) {
-					isTildeFragment = (format.fontFamily() == tildeFixedFont);
+					isTildeFragment = (format.font() == tildeFixedFont);
 				}
 
 				auto fragmentText = fragment.text();
@@ -1350,7 +1762,7 @@ void InputField::processFormatting(int insertPosition, int insertEnd) {
 
 				if (!startTagFound) {
 					startTagFound = true;
-					auto tagName = format.anchorName();
+					auto tagName = format.property(kTagProperty).toString();
 					if (!tagName.isEmpty()) {
 						breakTagOnNotLetter = WasInsertTillTheEndOfTag(
 							block,
@@ -1362,13 +1774,7 @@ void InputField::processFormatting(int insertPosition, int insertEnd) {
 				auto *ch = textStart + qMax(changedPositionInFragment, 0);
 				for (; ch < textEnd; ++ch) {
 					const auto removeNewline = (_mode == Mode::SingleLine)
-						&& (false
-							|| ch->unicode() == 0xfdd0 // QTextBeginningOfFrame
-							|| ch->unicode() == 0xfdd1 // QTextEndOfFrame
-							|| ch->unicode() == QChar::ParagraphSeparator
-							|| ch->unicode() == QChar::LineSeparator
-							|| ch->unicode() == '\n'
-							|| ch->unicode() == '\r');
+						&& (IsNewline(*ch));
 					if (removeNewline) {
 						if (action.type == ActionType::Invalid) {
 							action.type = ActionType::RemoveNewline;
@@ -1410,6 +1816,7 @@ void InputField::processFormatting(int insertPosition, int insertEnd) {
 								action.type = ActionType::TildeFont;
 								action.intervalStart = fragmentPosition + (ch - textStart);
 								action.intervalEnd = action.intervalStart + 1;
+								action.tildeTag = format.property(kTagProperty).toString();
 								action.isTilde = tilde;
 							} else {
 								++action.intervalEnd;
@@ -1454,24 +1861,21 @@ void InputField::processFormatting(int insertPosition, int insertEnd) {
 						- 1;
 				}
 			} else if (action.type == ActionType::RemoveTag) {
-				QTextCharFormat format;
-				format.setAnchor(false);
-				format.setAnchorName(QString());
-				format.setForeground(_st.textFg);
-				cursor.mergeCharFormat(format);
+				RemoveDocumentTags(
+					_st,
+					document,
+					action.intervalStart,
+					action.intervalEnd);
 			} else if (action.type == ActionType::TildeFont) {
-				QTextCharFormat format;
-				format.setFontFamily(action.isTilde ? tildeFixedFont : tildeRegularFont);
+				auto format = QTextCharFormat();
+				format.setFont(action.isTilde
+					? tildeFixedFont
+					: PrepareTagFormat(_st, action.tildeTag).font());
 				cursor.mergeCharFormat(format);
 				insertPosition = action.intervalEnd;
 			} else if (action.type == ActionType::ClearInstantReplace) {
 				auto format = _defaultCharFormat;
-				const auto current = cursor.charFormat();
-				if (current.isAnchor()) {
-					format.setAnchor(true);
-					format.setAnchorName(current.anchorName());
-					format.setForeground(st::defaultTextPalette.linkFg);
-				}
+				ApplyTagFormat(format, cursor.charFormat());
 				cursor.setCharFormat(format);
 			} else if (action.type == ActionType::RemoveNewline) {
 				cursor.removeSelectedText();
@@ -1490,7 +1894,9 @@ void InputField::onDocumentContentsChange(
 		int position,
 		int charsRemoved,
 		int charsAdded) {
-	if (_correcting) return;
+	if (_correcting) {
+		return;
+	}
 
 	const auto document = _inner->document();
 
@@ -1517,33 +1923,31 @@ void InputField::onDocumentContentsChange(
 	const auto removePosition = position;
 	const auto removeLength = charsRemoved;
 
+	_correcting = true;
 	QTextCursor(document->docHandle(), 0).joinPreviousEditBlock();
 	const auto guard = gsl::finally([&] {
+		_correcting = false;
 		QTextCursor(document->docHandle(), 0).endEditBlock();
+		handleContentsChanged();
 	});
 
 	chopByMaxLength(insertPosition, insertLength);
 
-	if (document->availableRedoSteps() > 0 || insertLength <= 0) {
-		return;
+	if (document->availableRedoSteps() == 0 && insertLength > 0) {
+		const auto pageSize = document->pageSize();
+		processFormatting(insertPosition, insertPosition + insertLength);
+		if (document->pageSize() != pageSize) {
+			document->setPageSize(pageSize);
+		}
 	}
-
-	_correcting = true;
-	auto pageSize = document->pageSize();
-	processFormatting(insertPosition, insertPosition + insertLength);
-	if (document->pageSize() != pageSize) {
-		document->setPageSize(pageSize);
-	}
-	_correcting = false;
 }
 
 void InputField::chopByMaxLength(int insertPosition, int insertLength) {
+	Expects(_correcting);
+
 	if (_maxLength < 0) {
 		return;
 	}
-
-	_correcting = true;
-	const auto guard = gsl::finally([&] { _correcting = false; });
 
 	auto cursor = QTextCursor(document()->docHandle(), 0);
 	cursor.movePosition(QTextCursor::End);
@@ -1572,9 +1976,7 @@ void InputField::chopByMaxLength(int insertPosition, int insertLength) {
 	}
 }
 
-void InputField::onDocumentContentsChanged() {
-	if (_correcting) return;
-
+void InputField::handleContentsChanged() {
 	setErrorShown(false);
 
 	auto tagsChanged = false;
@@ -1582,7 +1984,8 @@ void InputField::onDocumentContentsChanged() {
 		0,
 		-1,
 		_lastTextWithTags.tags,
-		tagsChanged);
+		tagsChanged,
+		_markdownEnabled ? &_textAreaPossibleTags : nullptr);
 
 	if (tagsChanged || (_lastTextWithTags.text != currentText)) {
 		_lastTextWithTags.text = currentText;
@@ -1670,8 +2073,12 @@ QMimeData *InputField::createMimeDataFromSelectionInner() const {
 	return result.release();
 }
 
-void InputField::customUpDown(bool custom) {
-	_customUpDown = custom;
+void InputField::customUpDown(bool isCustom) {
+	_customUpDown = isCustom;
+}
+
+void InputField::customTab(bool isCustom) {
+	_customTab = isCustom;
 }
 
 void InputField::setSubmitSettings(SubmitSettings settings) {
@@ -1787,18 +2194,20 @@ void InputField::keyPressEventInner(QKeyEvent *e) {
 		tc.removeSelectedText();
 	} else if (e->key() == Qt::Key_Backspace
 		&& e->modifiers() == 0
-		&& revertInstantReplace()) {
+		&& revertFormatReplace()) {
 		e->accept();
 	} else if (enter && enterSubmit) {
 		emit submitted(ctrl && shift);
 	} else if (e->key() == Qt::Key_Escape) {
 		e->ignore();
 		emit cancelled();
-	} else if (e->key() == Qt::Key_Tab || (ctrl && e->key() == Qt::Key_Backtab)) {
+	} else if (e->key() == Qt::Key_Tab || e->key() == Qt::Key_Backtab) {
 		if (alt || ctrl) {
 			e->ignore();
-		} else {
+		} else if (_customTab) {
 			emit tabbed();
+		} else if (!focusNextPrevChild(e->key() == Qt::Key_Tab && !shift)) {
+			e->ignore();
 		}
 	} else if (e->key() == Qt::Key_Search || e == QKeySequence::Find) {
 		e->ignore();
@@ -1842,7 +2251,9 @@ void InputField::keyPressEventInner(QKeyEvent *e) {
 				}
 			}
 		}
-		processInstantReplaces(text);
+		if (!processMarkdownReplaces(text)) {
+			processInstantReplaces(text);
+		}
 	}
 }
 
@@ -1850,14 +2261,53 @@ const InstantReplaces &InputField::instantReplaces() const {
 	return _mutableInstantReplaces;
 }
 
-void InputField::processInstantReplaces(const QString &text) {
+bool InputField::processMarkdownReplaces(const QString &appended) {
+	if (appended.size() != 1
+		|| !_markdownEnabled) {
+		return false;
+	}
+	const auto ch = appended[0];
+	if (ch == '`') {
+		return processMarkdownReplace(kTagCode)
+			|| processMarkdownReplace(kTagPre);
+	} else if (ch == '*') {
+		return processMarkdownReplace(kTagBold);
+	} else if (ch == '_') {
+		return processMarkdownReplace(kTagItalic);
+	}
+	return false;
+}
+
+bool InputField::processMarkdownReplace(const QString &tag) {
+	const auto position = textCursor().position();
+	const auto tagLength = tag.size();
+	const auto start = [&] {
+		for (const auto &possible : _textAreaPossibleTags) {
+			const auto end = possible.start + possible.length;
+			if (possible.start + 2 * tagLength >= position) {
+				return PossibleTag();
+			} else if (end >= position || end + tagLength == position) {
+				if (possible.tag == tag) {
+					return possible;
+				}
+			}
+		}
+		return PossibleTag();
+	}();
+	if (start.tag.isEmpty()) {
+		return false;
+	}
+	return commitMarkdownReplacement(start.start, position, tag, tag);
+}
+
+void InputField::processInstantReplaces(const QString &appended) {
 	const auto &replaces = instantReplaces();
-	if (text.size() != 1
+	if (appended.size() != 1
 		|| !_instantReplacesEnabled
 		|| !replaces.maxLength) {
 		return;
 	}
-	const auto it = replaces.reverseMap.tail.find(text[0]);
+	const auto it = replaces.reverseMap.tail.find(appended[0]);
 	if (it == end(replaces.reverseMap.tail)) {
 		return;
 	}
@@ -1869,7 +2319,7 @@ void InputField::processInstantReplaces(const QString &text) {
 	auto i = typed.size();
 	do {
 		if (!node->text.isEmpty()) {
-			applyInstantReplace(typed.mid(i) + text, node->text);
+			applyInstantReplace(typed.mid(i) + appended, node->text);
 			return;
 		} else if (!i) {
 			return;
@@ -1907,6 +2357,10 @@ void InputField::commitInstantReplacement(
 		return;
 	}
 
+	auto cursor = textCursor();
+	cursor.setPosition(from);
+	cursor.setPosition(till, QTextCursor::KeepAnchor);
+
 	auto format = [&]() -> QTextCharFormat {
 		auto emojiLength = 0;
 		const auto emoji = Ui::Emoji::Find(with, &emojiLength);
@@ -1932,27 +2386,124 @@ void InputField::commitInstantReplacement(
 	format.setProperty(kInstantReplaceWhatId, original);
 	format.setProperty(kInstantReplaceWithId, replacement);
 	format.setProperty(kInstantReplaceRandomId, rand_value<uint32>());
-	auto cursor = textCursor();
-	cursor.setPosition(from);
-	cursor.setPosition(till, QTextCursor::KeepAnchor);
-	const auto current = cursor.charFormat();
-	if (current.isAnchor()) {
-		format.setAnchor(true);
-		format.setAnchorName(current.anchorName());
-		format.setForeground(st::defaultTextPalette.linkFg);
-	}
+	ApplyTagFormat(format, cursor.charFormat());
 	cursor.insertText(replacement, format);
 }
 
-bool InputField::revertInstantReplace() {
+bool InputField::commitMarkdownReplacement(
+		int from,
+		int till,
+		const QString &tag,
+		const QString &edge) {
+	const auto end = [&] {
+		auto cursor = QTextCursor(document()->docHandle(), 0);
+		cursor.movePosition(QTextCursor::End);
+		return cursor.position();
+	}();
+
+	// In case of 'pre' tag extend checked text by one symbol.
+	// So that we'll know if we need to insert additional newlines.
+	// "Test ```test``` Test" should become three-line text.
+	const auto blocktag = (tag == kTagPre);
+	const auto extendLeft = (blocktag && from > 0) ? 1 : 0;
+	const auto extendRight = (blocktag && till < end) ? 1 : 0;
+	const auto extended = getTextWithTagsPart(
+		from - extendLeft,
+		till + extendRight).text;
+	const auto outer = extended.midRef(
+		extendLeft,
+		extended.size() - extendLeft - extendRight);
+	if ((outer.size() <= 2 * edge.size())
+		|| (!edge.isEmpty()
+			&& !(outer.startsWith(edge) && outer.endsWith(edge)))) {
+		return false;
+	}
+
+	// In case of 'pre' tag check if we need to remove one of two newlines.
+	// "Test\n```\ntest\n```" should become two-line text + newline.
+	const auto innerRight = edge.size();
+	const auto checkIfTwoNewlines = blocktag
+		&& (extendLeft > 0)
+		&& IsNewline(extended[0]);
+	const auto innerLeft = [&] {
+		const auto simple = edge.size();
+		if (!checkIfTwoNewlines) {
+			return simple;
+		}
+		const auto last = outer.size() - innerRight;
+		for (auto check = simple; check != last; ++check) {
+			const auto ch = outer.at(check);
+			if (IsNewline(ch)) {
+				return check + 1;
+			} else if (!chIsSpace(ch)) {
+				break;
+			}
+		}
+		return simple;
+	}();
+	const auto innerLength = outer.size() - innerLeft - innerRight;
+
+	// Prepare the final "insert" replacement for the "outer" text part.
+	const auto newlineleft = blocktag
+		&& (extendLeft > 0)
+		&& !IsNewline(extended[0])
+		&& !IsNewline(outer.at(innerLeft));
+	const auto newlineright = blocktag
+		&& (!extendRight || !IsNewline(extended[extended.size() - 1]))
+		&& !IsNewline(outer.at(outer.size() - innerRight - 1));
+	const auto insert = (newlineleft ? "\n" : "")
+		+ outer.mid(innerLeft, innerLength).toString()
+		+ (newlineright ? "\n" : "");
+
+	// Trim inserted tag, so that all spaces and newlines are left outside.
+	_insertedTags.clear();
+	auto tagFrom = newlineleft ? 1 : 0;
+	auto tagTill = insert.size() - (newlineright ? 1 : 0);
+	for (; tagFrom != tagTill; ++tagFrom) {
+		const auto ch = insert.at(tagFrom);
+		if (!IsNewline(ch) && !chIsSpace(ch)) {
+			break;
+		}
+	}
+	for (; tagTill != tagFrom; --tagTill) {
+		const auto ch = insert.at(tagTill - 1);
+		if (!IsNewline(ch) && !chIsSpace(ch)) {
+			break;
+		}
+	}
+	if (tagTill > tagFrom) {
+		_insertedTags.push_back({
+			tagFrom,
+			tagTill - tagFrom,
+			tag,
+		});
+	}
+
+	// Replace.
+	auto cursor = _inner->textCursor();
+	cursor.setPosition(from);
+	cursor.setPosition(till, QTextCursor::KeepAnchor);
+	auto format = _defaultCharFormat;
+	format.setProperty(kReplaceTagId, tag);
+	_insertedTagsAreFromMime = false;
+	cursor.insertText(insert, format);
+	_insertedTags.clear();
+
+	cursor.setCharFormat(_defaultCharFormat);
+	_inner->setTextCursor(cursor);
+	return true;
+}
+
+bool InputField::revertFormatReplace() {
 	const auto cursor = textCursor();
 	const auto position = cursor.position();
 	if (position <= 0 || cursor.anchor() != position) {
 		return false;
 	}
 	const auto inside = position - 1;
-	const auto block = _inner->document()->findBlock(inside);
-	if (block == _inner->document()->end()) {
+	const auto document = _inner->document();
+	const auto block = document->findBlock(inside);
+	if (block == document->end()) {
 		return false;
 	}
 	for (auto i = block.begin(); !i.atEnd(); ++i) {
@@ -1964,27 +2515,69 @@ bool InputField::revertInstantReplace() {
 		} else if (fragmentStart > inside || fragmentEnd != position) {
 			return false;
 		}
-		const auto format = fragment.charFormat();
-		const auto with = format.property(kInstantReplaceWithId);
-		if (!with.isValid()) {
-			return false;
+		const auto current = fragment.charFormat();
+		if (current.hasProperty(kInstantReplaceWithId)) {
+			const auto with = current.property(kInstantReplaceWithId);
+			const auto string = with.toString();
+			if (fragment.text() != string) {
+				return false;
+			}
+			auto replaceCursor = cursor;
+			replaceCursor.setPosition(fragmentStart);
+			replaceCursor.setPosition(fragmentEnd, QTextCursor::KeepAnchor);
+			const auto what = current.property(kInstantReplaceWhatId);
+			auto format = _defaultCharFormat;
+			ApplyTagFormat(format, current);
+			replaceCursor.insertText(what.toString(), format);
+			return true;
+		} else if (current.hasProperty(kReplaceTagId)) {
+			const auto tag = current.property(kReplaceTagId).toString();
+			if (tag.isEmpty()) {
+				return false;
+			} else if (auto test = i; !(++test).atEnd()) {
+				const auto format = test.fragment().charFormat();
+				if (format.property(kReplaceTagId).toString() == tag) {
+					return false;
+				}
+			} else if (auto test = block; test.next() != document->end()) {
+				const auto begin = test.begin();
+				if (begin != test.end()) {
+					const auto format = begin.fragment().charFormat();
+					if (format.property(kReplaceTagId).toString() == tag) {
+						return false;
+					}
+				}
+			}
+
+			const auto first = [&] {
+				auto checkBlock = block;
+				auto checkLast = i;
+				while (true) {
+					for (auto j = checkLast; j != checkBlock.begin();) {
+						--j;
+						const auto format = j.fragment().charFormat();
+						if (format.property(kReplaceTagId) != tag) {
+							return ++j;
+						}
+					}
+					if (checkBlock == document->begin()) {
+						return checkBlock.begin();
+					}
+					checkBlock = checkBlock.previous();
+					checkLast = checkBlock.end();
+				}
+			}();
+			const auto from = first.fragment().position();
+			const auto till = fragmentEnd;
+			auto replaceCursor = cursor;
+			replaceCursor.setPosition(from);
+			replaceCursor.setPosition(till, QTextCursor::KeepAnchor);
+			replaceCursor.insertText(
+				tag + getTextWithTagsPart(from, till).text + tag,
+				_defaultCharFormat);
+			return true;
 		}
-		const auto string = with.toString();
-		if (fragment.text() != string) {
-			return false;
-		}
-		auto replaceCursor = cursor;
-		replaceCursor.setPosition(fragmentStart);
-		replaceCursor.setPosition(fragmentEnd, QTextCursor::KeepAnchor);
-		const auto what = format.property(kInstantReplaceWhatId).toString();
-		auto replaceFormat = _defaultCharFormat;
-		if (format.isAnchor()) {
-			replaceFormat.setAnchor(true);
-			replaceFormat.setAnchorName(format.anchorName());
-			replaceFormat.setForeground(st::defaultTextPalette.linkFg);
-		}
-		replaceCursor.insertText(what, replaceFormat);
-		return true;
+		return false;
 	}
 	return false;
 }

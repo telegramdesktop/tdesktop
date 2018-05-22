@@ -30,10 +30,37 @@ QString ExpressionMailNameAtEnd() {
 	return qsl("[a-zA-Z\\-_\\.0-9]{1,256}$");
 }
 
-QString ExpressionSeparators(const QString &additional) {
+QString Quotes() {
 	// UTF8 quotes and ellipsis
-	const auto quotes = QString::fromUtf8("\xC2\xAB\xC2\xBB\xE2\x80\x9C\xE2\x80\x9D\xE2\x80\x98\xE2\x80\x99\xE2\x80\xA6");
+	return QString::fromUtf8("\xC2\xAB\xC2\xBB\xE2\x80\x9C\xE2\x80\x9D\xE2\x80\x98\xE2\x80\x99\xE2\x80\xA6");
+}
+
+QString ExpressionSeparators(const QString &additional) {
+	static const auto quotes = Quotes();
 	return qsl("\\s\\.,:;<>|'\"\\[\\]\\{\\}\\~\\!\\?\\%\\^\\(\\)\\-\\+=\\x10") + quotes + additional;
+}
+
+QString Separators(const QString &additional) {
+	static const auto quotes = Quotes();
+	return qsl(" \x10\n\r\t.,:;<>|'\"[]{}~!?%^()-+=")
+		+ QChar(0xfdd0) // QTextBeginningOfFrame
+		+ QChar(0xfdd1) // QTextEndOfFrame
+		+ QChar(QChar::ParagraphSeparator)
+		+ QChar(QChar::LineSeparator)
+		+ quotes
+		+ additional;
+}
+
+QString SeparatorsBold() {
+	return Separators(qsl("`/"));
+}
+
+QString SeparatorsItalic() {
+	return Separators(qsl("`*/"));
+}
+
+QString SeparatorsMono() {
+	return Separators(qsl("*/"));
 }
 
 QString ExpressionHashtag() {
@@ -52,28 +79,12 @@ QString ExpressionBotCommand() {
 	return qsl("(^|[") + ExpressionSeparators(qsl("`\\*")) + qsl("])/[A-Za-z_0-9]{1,64}(@[A-Za-z_0-9]{5,32})?([\\W]|$)");
 }
 
-QString ExpressionMarkdownBold() {
-	auto separators = ExpressionSeparators(qsl("`/"));
-	return qsl("(^|[") + separators + qsl("])(\\*\\*)[\\s\\S]+?(\\*\\*)([") + separators + qsl("]|$)");
-}
-
-QString ExpressionMarkdownItalic() {
-	auto separators = ExpressionSeparators(qsl("`\\*/"));
-	return qsl("(^|[") + separators + qsl("])(__)[\\s\\S]+?(__)([") + separators + qsl("]|$)");
-}
-
-QString ExpressionMarkdownMonoInline() { // code
-	auto separators = ExpressionSeparators(qsl("\\*/"));
-	return qsl("(^|[") + separators + qsl("])(`)[^\\n]+?(`)([") + separators + qsl("]|$)");
-}
-
-QString ExpressionMarkdownMonoBlock() { // pre
-	auto separators = ExpressionSeparators(qsl("\\*/"));
-	return qsl("(^|[") + separators + qsl("])(````?)[\\s\\S]+?(````?)([") + separators + qsl("]|$)");
-}
-
 QRegularExpression CreateRegExp(const QString &expression) {
-	return QRegularExpression(expression, QRegularExpression::UseUnicodePropertiesOption);
+	auto result = QRegularExpression(
+		expression,
+		QRegularExpression::UseUnicodePropertiesOption);
+	result.optimize();
+	return result;
 }
 
 QSet<int32> CreateValidProtocols() {
@@ -1160,24 +1171,36 @@ const QRegularExpression &RegExpBotCommand() {
 	return result;
 }
 
-const QRegularExpression &RegExpMarkdownBold() {
-	static const auto result = CreateRegExp(ExpressionMarkdownBold());
-	return result;
+QString MarkdownBoldGoodBefore() {
+	return SeparatorsBold();
 }
 
-const QRegularExpression &RegExpMarkdownItalic() {
-	static const auto result = CreateRegExp(ExpressionMarkdownItalic());
-	return result;
+QString MarkdownBoldBadAfter() {
+	return qsl("*");
 }
 
-const QRegularExpression &RegExpMarkdownMonoInline() {
-	static const auto result = CreateRegExp(ExpressionMarkdownMonoInline());
-	return result;
+QString MarkdownItalicGoodBefore() {
+	return SeparatorsItalic();
 }
 
-const QRegularExpression &RegExpMarkdownMonoBlock() {
-	static const auto result = CreateRegExp(ExpressionMarkdownMonoBlock());
-	return result;
+QString MarkdownItalicBadAfter() {
+	return qsl("_");
+}
+
+QString MarkdownCodeGoodBefore() {
+	return SeparatorsMono();
+}
+
+QString MarkdownCodeBadAfter() {
+	return qsl("`\n\r");
+}
+
+QString MarkdownPreGoodBefore() {
+	return SeparatorsMono();
+}
+
+QString MarkdownPreBadAfter() {
+	return qsl("`");
 }
 
 bool IsValidProtocol(const QString &protocol) {
@@ -1546,252 +1569,6 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &entities, Conver
 	return MTP_vector<MTPMessageEntity>(std::move(v));
 }
 
-struct MarkdownPart {
-	MarkdownPart() = default;
-	MarkdownPart(EntityInTextType type) : type(type), outerStart(-1) {
-	}
-	EntityInTextType type = EntityInTextInvalid;
-	int outerStart = 0;
-	int innerStart = 0;
-	int innerEnd = 0;
-	int outerEnd = 0;
-	bool addNewlineBefore = false;
-	bool addNewlineAfter = false;
-};
-
-MarkdownPart GetMarkdownPart(EntityInTextType type, const QString &text, int matchFromOffset, bool rich) {
-	auto result = MarkdownPart();
-	auto regexp = [type] {
-		switch (type) {
-		case EntityInTextBold: return RegExpMarkdownBold();
-		case EntityInTextItalic: return RegExpMarkdownItalic();
-		case EntityInTextCode: return RegExpMarkdownMonoInline();
-		case EntityInTextPre: return RegExpMarkdownMonoBlock();
-		}
-		Unexpected("Type in GetMardownPart()");
-	};
-
-	if (matchFromOffset > 1) {
-		// If matchFromOffset is after some separator that is allowed to
-		// start our markdown tag the tag itself will start where we want it.
-		// So we allow to see this separator and make a match.
-		--matchFromOffset;
-	}
-	auto match = regexp().match(text, matchFromOffset);
-	if (!match.hasMatch()) {
-		return result;
-	}
-
-	result.outerStart = match.capturedStart();
-	result.outerEnd = match.capturedEnd();
-	if (!match.capturedRef(1).isEmpty()) {
-		++result.outerStart;
-	}
-	if (!match.capturedRef(4).isEmpty()) {
-		--result.outerEnd;
-	}
-	result.innerStart = result.outerStart + match.capturedLength(2);
-	result.innerEnd = result.outerEnd - match.capturedLength(3);
-	result.type = type;
-	return result;
-}
-
-void AdjustMarkdownPrePart(MarkdownPart &result, const TextWithEntities &text, bool rich) {
-	auto start = text.text.constData();
-	auto length = text.text.size();
-	auto lastEntityBeforeEnd = 0;
-	auto firstEntityInsideStart = result.innerEnd;
-	auto lastEntityInsideEnd = result.innerStart;
-	auto firstEntityAfterStart = length;
-	for_const (auto &entity, text.entities) {
-		if (entity.offset() < result.outerStart) {
-			lastEntityBeforeEnd = entity.offset() + entity.length();
-		} else if (entity.offset() >= result.outerEnd) {
-			firstEntityAfterStart = entity.offset();
-			break;
-		} else if (entity.offset() >= result.innerStart) {
-			accumulate_min(firstEntityInsideStart, entity.offset());
-			lastEntityInsideEnd = entity.offset() + entity.length();
-		}
-	}
-	while (result.outerStart > lastEntityBeforeEnd
-		&& chIsSpace(*(start + result.outerStart - 1), rich)
-		&& !chIsNewline(*(start + result.outerStart - 1))) {
-		--result.outerStart;
-	}
-	result.addNewlineBefore = (result.outerStart > 0 && !chIsNewline(*(start + result.outerStart - 1)));
-
-	for (auto testInnerStart = result.innerStart; testInnerStart < firstEntityInsideStart; ++testInnerStart) {
-		if (chIsNewline(*(start + testInnerStart))) {
-			result.innerStart = testInnerStart + 1;
-			break;
-		} else if (!chIsSpace(*(start + testInnerStart))) {
-			break;
-		}
-	}
-	for (auto testInnerEnd = result.innerEnd; lastEntityInsideEnd < testInnerEnd;) {
-		--testInnerEnd;
-		if (chIsNewline(*(start + testInnerEnd))) {
-			result.innerEnd = testInnerEnd;
-			break;
-		} else if (!chIsSpace(*(start + testInnerEnd))) {
-			break;
-		}
-	}
-
-	while (result.outerEnd < firstEntityAfterStart
-		&& chIsSpace(*(start + result.outerEnd))
-		&& !chIsNewline(*(start + result.outerEnd))) {
-		++result.outerEnd;
-	}
-	result.addNewlineAfter = (result.outerEnd < length && !chIsNewline(*(start + result.outerEnd)));
-}
-
-void ParseMarkdown(
-		TextWithEntities &result,
-		const EntitiesInText &linkEntities,
-		bool rich) {
-	if (result.empty()) {
-		return;
-	}
-	auto newResult = TextWithEntities();
-
-	MarkdownPart computedParts[4] = {
-		{ EntityInTextBold },
-		{ EntityInTextItalic },
-		{ EntityInTextPre },
-		{ EntityInTextCode },
-	};
-
-	auto existingEntityIndex = 0;
-	auto existingEntitiesCount = result.entities.size();
-	auto existingEntityShiftLeft = 0;
-
-	auto copyFromOffset = 0;
-	auto matchFromOffset = 0;
-	auto length = result.text.size();
-	auto nextCommandOffset = rich ? 0 : length;
-	auto inLink = false;
-	auto commandIsLink = false;
-	const auto start = result.text.constData();
-	for (; matchFromOffset < length;) {
-		if (nextCommandOffset <= matchFromOffset) {
-			for (nextCommandOffset = matchFromOffset; nextCommandOffset != length; ++nextCommandOffset) {
-				if (*(start + nextCommandOffset) == TextCommand) {
-					inLink = commandIsLink;
-					commandIsLink = textcmdStartsLink(start, length, nextCommandOffset);
-					break;
-				}
-			}
-			if (nextCommandOffset >= length) {
-				inLink = commandIsLink;
-				commandIsLink = false;
-			}
-		}
-		auto part = MarkdownPart();
-		auto checkType = [&part, &result, matchFromOffset, rich](MarkdownPart &computedPart) {
-			if (computedPart.type == EntityInTextInvalid) {
-				return;
-			}
-			if (matchFromOffset > computedPart.outerStart) {
-				computedPart = GetMarkdownPart(computedPart.type, result.text, matchFromOffset, rich);
-				if (computedPart.type == EntityInTextInvalid) {
-					return;
-				}
-			}
-			if (part.type == EntityInTextInvalid || part.outerStart > computedPart.outerStart) {
-				part = computedPart;
-			}
-		};
-		for (auto &computedPart : computedParts) {
-			checkType(computedPart);
-		}
-		if (part.type == EntityInTextInvalid) {
-			break;
-		}
-
-		// Check if start sequence intersects a command.
-		auto inCommand = checkTagStartInCommand(
-			start,
-			length,
-			part.outerStart,
-			nextCommandOffset,
-			commandIsLink,
-			inLink);
-		if (inCommand || inLink) {
-			matchFromOffset = nextCommandOffset;
-			continue;
-		}
-
-		// Check if start or end sequences intersect any existing entity.
-		auto intersectedEntityEnd = 0;
-		for_const (auto &entity, result.entities) {
-			if (qMin(part.innerStart, entity.offset() + entity.length()) > qMax(part.outerStart, entity.offset()) ||
-				qMin(part.outerEnd, entity.offset() + entity.length()) > qMax(part.innerEnd, entity.offset())) {
-				intersectedEntityEnd = entity.offset() + entity.length();
-				break;
-			}
-		}
-
-		// Check if any of sequence outer edges are inside a link.
-		for_const (auto &entity, linkEntities) {
-			const auto startIntersects = (part.outerStart >= entity.offset())
-				&& (part.outerStart < entity.offset() + entity.length());
-			const auto endIntersects = (part.outerEnd > entity.offset())
-				&& (part.outerEnd <= entity.offset() + entity.length());
-			if (startIntersects || endIntersects) {
-				intersectedEntityEnd = entity.offset() + entity.length();
-				break;
-			}
-		}
-
-		if (intersectedEntityEnd > 0) {
-			matchFromOffset = qMax(part.innerStart, intersectedEntityEnd);
-			continue;
-		}
-
-		if (part.type == EntityInTextPre) {
-			AdjustMarkdownPrePart(part, result, rich);
-		}
-
-		if (newResult.text.isEmpty()) newResult.text.reserve(result.text.size());
-		for (; existingEntityIndex < existingEntitiesCount && result.entities[existingEntityIndex].offset() < part.innerStart; ++existingEntityIndex) {
-			auto &entity = result.entities[existingEntityIndex];
-			newResult.entities.push_back(entity);
-			newResult.entities.back().shiftLeft(existingEntityShiftLeft);
-		}
-		if (part.outerStart > copyFromOffset) {
-			newResult.text.append(start + copyFromOffset, part.outerStart - copyFromOffset);
-		}
-		if (part.addNewlineBefore) newResult.text.append('\n');
-		existingEntityShiftLeft += (part.innerStart - part.outerStart) - (part.addNewlineBefore ? 1 : 0);
-
-		auto entityStart = newResult.text.size();
-		auto entityLength = part.innerEnd - part.innerStart;
-		newResult.entities.push_back(EntityInText(part.type, entityStart, entityLength));
-
-		for (; existingEntityIndex < existingEntitiesCount && result.entities[existingEntityIndex].offset() <= part.innerEnd; ++existingEntityIndex) {
-			auto &entity = result.entities[existingEntityIndex];
-			newResult.entities.push_back(entity);
-			newResult.entities.back().shiftLeft(existingEntityShiftLeft);
-		}
-		newResult.text.append(start + part.innerStart, entityLength);
-		if (part.addNewlineAfter) newResult.text.append('\n');
-		existingEntityShiftLeft += (part.outerEnd - part.innerEnd) - (part.addNewlineAfter ? 1 : 0);
-
-		copyFromOffset = matchFromOffset = part.outerEnd;
-	}
-	if (!newResult.empty()) {
-		newResult.text.append(start + copyFromOffset, length - copyFromOffset);
-		for (; existingEntityIndex < existingEntitiesCount; ++existingEntityIndex) {
-			auto &entity = result.entities[existingEntityIndex];
-			newResult.entities.push_back(entity);
-			newResult.entities.back().shiftLeft(existingEntityShiftLeft);
-		}
-		result = std::move(newResult);
-	}
-}
-
 TextWithEntities ParseEntities(const QString &text, int32 flags) {
 	const auto rich = ((flags & TextParseRichText) != 0);
 	auto result = TextWithEntities{ text, EntitiesInText() };
@@ -1801,12 +1578,6 @@ TextWithEntities ParseEntities(const QString &text, int32 flags) {
 
 // Some code is duplicated in flattextarea.cpp!
 void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
-	if (flags & TextParseMarkdown) { // parse markdown entities (bold, italic, code and pre)
-		auto copy = TextWithEntities{ result.text, EntitiesInText() };
-		ParseEntities(copy, TextParseLinks, false);
-		ParseMarkdown(result, copy.entities, rich);
-	}
-
 	constexpr auto kNotFound = std::numeric_limits<int>::max();
 
 	auto newEntities = EntitiesInText();
@@ -2057,74 +1828,6 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 		}
 		result.entities = newEntities;
 	}
-}
-
-QString ApplyEntities(const TextWithEntities &text) {
-	if (text.entities.isEmpty()) return text.text;
-
-	QMultiMap<int32, QString> closingTags;
-	QMap<EntityInTextType, QString> tags;
-	tags.insert(EntityInTextCode, qsl("`"));
-	tags.insert(EntityInTextPre, qsl("```"));
-	tags.insert(EntityInTextBold, qsl("**"));
-	tags.insert(EntityInTextItalic, qsl("__"));
-	constexpr auto kLargestOpenCloseLength = 6;
-
-	QString result;
-	int32 size = text.text.size();
-	const QChar *b = text.text.constData(), *already = b, *e = b + size;
-	auto entity = text.entities.cbegin(), end = text.entities.cend();
-	auto skipTillRelevantAndGetTag = [&entity, &end, size, &tags] {
-		while (entity != end) {
-			if (entity->length() <= 0 || entity->offset() >= size) {
-				++entity;
-				continue;
-			}
-			auto it = tags.constFind(entity->type());
-			if (it == tags.cend()) {
-				++entity;
-				continue;
-			}
-			return it.value();
-		}
-		return QString();
-	};
-
-	auto tag = skipTillRelevantAndGetTag();
-	while (entity != end || !closingTags.isEmpty()) {
-		auto nextOpenEntity = (entity == end) ? (size + 1) : entity->offset();
-		auto nextCloseEntity = closingTags.isEmpty() ? (size + 1) : closingTags.cbegin().key();
-		if (nextOpenEntity <= nextCloseEntity) {
-			if (result.isEmpty()) result.reserve(text.text.size() + text.entities.size() * kLargestOpenCloseLength);
-
-			const QChar *offset = b + nextOpenEntity;
-			if (offset > already) {
-				result.append(already, offset - already);
-				already = offset;
-			}
-			result.append(tag);
-			closingTags.insert(qMin(entity->offset() + entity->length(), size), tag);
-
-			++entity;
-			tag = skipTillRelevantAndGetTag();
-		} else {
-			const QChar *offset = b + nextCloseEntity;
-			if (offset > already) {
-				result.append(already, offset - already);
-				already = offset;
-			}
-			result.append(closingTags.cbegin().value());
-			closingTags.erase(closingTags.begin());
-		}
-	}
-	if (result.isEmpty()) {
-		return text.text;
-	}
-	const QChar *offset = b + size;
-	if (offset > already) {
-		result.append(already, offset - already);
-	}
-	return result;
 }
 
 void MoveStringPart(TextWithEntities &result, int to, int from, int count) {

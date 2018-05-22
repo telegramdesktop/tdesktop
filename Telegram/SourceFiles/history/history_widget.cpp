@@ -5836,7 +5836,7 @@ void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
 
 	const auto original = item->originalText();
 	const auto editData = TextWithTags {
-		TextUtilities::ApplyEntities(original),
+		original.text,
 		ConvertEntitiesToTextTags(original.entities)
 	};
 	const auto cursor = MessageCursor {
@@ -6235,7 +6235,10 @@ void HistoryWidget::onCancel() {
 		onInlineBotCancel();
 	} else if (_editMsgId) {
 		auto original = _replyEditMsg ? _replyEditMsg->originalText() : TextWithEntities();
-		auto editData = TextWithTags { TextUtilities::ApplyEntities(original), ConvertEntitiesToTextTags(original.entities) };
+		auto editData = TextWithTags {
+			original.text,
+			ConvertEntitiesToTextTags(original.entities)
+		};
 		if (_replyEditMsg && editData != _field->getTextWithTags()) {
 			Ui::show(Box<ConfirmBox>(
 				lang(lng_cancel_edit_post_sure),

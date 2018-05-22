@@ -234,7 +234,9 @@ public:
 				if (flags & flag) {
 					createBlock();
 					flags &= ~flag;
-					if (flag == TextBlockFPre) {
+					if (flag == TextBlockFPre
+						&& !_t->_blocks.empty()
+						&& _t->_blocks.back()->type() != TextBlockTNewline) {
 						newlineAwaited = true;
 					}
 				}

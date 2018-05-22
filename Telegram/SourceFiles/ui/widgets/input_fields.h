@@ -122,6 +122,16 @@ public:
 	};
 	using TagList = TextWithTags::Tags;
 
+	struct PossibleTag {
+		int start = 0;
+		int length = 0;
+		QString tag;
+	};
+	static const QString kTagBold;
+	static const QString kTagItalic;
+	static const QString kTagCode;
+	static const QString kTagPre;
+
 	InputField(
 		QWidget *parent,
 		const style::InputField &st,
@@ -174,6 +184,8 @@ public:
 	};
 	void setTagMimeProcessor(std::unique_ptr<TagMimeProcessor> &&processor);
 
+	void setAdditionalMargin(int margin);
+
 	void setInstantReplaces(const InstantReplaces &replaces);
 	void enableInstantReplaces(bool enabled);
 	void commitInstantReplacement(
@@ -181,6 +193,11 @@ public:
 		int till,
 		const QString &with,
 		base::optional<QString> checkOriginal = base::none);
+	bool commitMarkdownReplacement(
+		int from,
+		int till,
+		const QString &tag,
+		const QString &edge = QString());
 
 	const QString &getLastText() const {
 		return _lastTextWithTags.text;
@@ -212,6 +229,7 @@ public:
 		Both,
 	};
 	void setSubmitSettings(SubmitSettings settings);
+	void enableMarkdownSupport(bool enabled = true);
 	void customUpDown(bool isCustom);
 
 	not_null<QTextDocument*> document();
@@ -246,7 +264,6 @@ private slots:
 	void onTouchTimer();
 
 	void onDocumentContentsChange(int position, int charsRemoved, int charsAdded);
-	void onDocumentContentsChanged();
 
 	void onUndoAvailable(bool avail);
 	void onRedoAvailable(bool avail);
@@ -276,6 +293,7 @@ private:
 	class Inner;
 	friend class Inner;
 
+	void handleContentsChanged();
 	bool viewportEventInner(QEvent *e);
 	QVariant loadResource(int type, const QUrl &name);
 	void handleTouchEvent(QTouchEvent *e);
@@ -305,7 +323,8 @@ private:
 		int start,
 		int end,
 		TagList &outTagsList,
-		bool &outTagsChanged) const;
+		bool &outTagsChanged,
+		std::vector<PossibleTag> *outPossibleTags = nullptr) const;
 
 	// After any characters added we must postprocess them. This includes:
 	// 1. Replacing font family to semibold for ~ characters, if we used Open Sans 13px.
@@ -318,12 +337,16 @@ private:
 
 	void chopByMaxLength(int insertPosition, int insertLength);
 
+	bool processMarkdownReplaces(const QString &appended);
+	bool processMarkdownReplace(const QString &tag);
+
 	// We don't want accidentally detach InstantReplaces map.
 	// So we access it only by const reference from this method.
 	const InstantReplaces &instantReplaces() const;
-	void processInstantReplaces(const QString &text);
+	void processInstantReplaces(const QString &appended);
 	void applyInstantReplace(const QString &what, const QString &with);
-	bool revertInstantReplace();
+
+	bool revertFormatReplace();
 
 	const style::InputField &_st;
 
@@ -336,6 +359,7 @@ private:
 	object_ptr<Inner> _inner;
 
 	TextWithTags _lastTextWithTags;
+	std::vector<PossibleTag> _textAreaPossibleTags;
 
 	// Tags list which we should apply while setText() call or insert from mime data.
 	TagList _insertedTags;
@@ -349,11 +373,12 @@ private:
 	std::unique_ptr<TagMimeProcessor> _tagMimeProcessor;
 
 	SubmitSettings _submitSettings = SubmitSettings::Enter;
+	bool _markdownEnabled = false;
 	bool _undoAvailable = false;
 	bool _redoAvailable = false;
 	bool _inDrop = false;
 	bool _inHeightCheck = false;
-	int _fakeMargin = 0;
+	int _additionalMargin = 0;
 
 	bool _customUpDown = false;
 
