@@ -648,7 +648,7 @@ public:
 	Inner(not_null<InputField*> parent) : QTextEdit(parent) {
 	}
 
-	QVariant loadResource(int type, const QUrl &name) {
+	QVariant loadResource(int type, const QUrl &name) override {
 		return outer()->loadResource(type, name);
 	}
 

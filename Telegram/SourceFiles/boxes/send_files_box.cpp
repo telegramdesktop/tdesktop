@@ -1323,14 +1323,14 @@ SendFilesBox::SendFilesBox(
 	const TextWithTags &caption,
 	CompressConfirm compressed)
 : _list(std::move(list))
+, _compressConfirmInitial(compressed)
+, _compressConfirm(compressed)
 , _caption(
 	this,
 	st::confirmCaptionArea,
 	Ui::InputField::Mode::MultiLine,
 	FieldPlaceholder(_list),
-	caption)
-, _compressConfirmInitial(compressed)
-, _compressConfirm(compressed) {
+	caption) {
 }
 
 void SendFilesBox::initPreview(rpl::producer<int> desiredPreviewHeight) {
