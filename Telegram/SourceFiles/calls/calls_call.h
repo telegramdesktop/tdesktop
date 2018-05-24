@@ -116,6 +116,23 @@ public:
 	~Call();
 
 private:
+	class ControllerPointer {
+	public:
+		void create();
+		void reset();
+		bool empty() const;
+
+		bool operator==(std::nullptr_t) const;
+		explicit operator bool() const;
+		tgvoip::VoIPController *operator->() const;
+		tgvoip::VoIPController &operator*() const;
+
+		~ControllerPointer();
+
+	private:
+		std::unique_ptr<tgvoip::VoIPController> _data;
+
+	};
 	enum class FinishType {
 		None,
 		Ended,
@@ -170,7 +187,7 @@ private:
 	uint64 _accessHash = 0;
 	uint64 _keyFingerprint = 0;
 
-	std::unique_ptr<tgvoip::VoIPController> _controller;
+	ControllerPointer _controller;
 
 	std::unique_ptr<Media::Audio::Track> _waitingTrack;
 

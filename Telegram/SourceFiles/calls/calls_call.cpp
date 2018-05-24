@@ -35,7 +35,7 @@ namespace Calls {
 namespace {
 
 constexpr auto kMinLayer = 65;
-constexpr auto kMaxLayer = 65; // MTP::CurrentLayer?
+constexpr auto kMaxLayer = 75;
 constexpr auto kHangupTimeoutMs = 5000;
 
 using tgvoip::Endpoint;
@@ -57,7 +57,7 @@ void ConvertEndpoint(
 		(uint16_t)mtc.vport.v,
 		ipv4,
 		ipv6,
-		EP_TYPE_UDP_RELAY,
+		tgvoip::Endpoint::TYPE_UDP_RELAY,
 		(unsigned char*)mtc.vpeer_tag.v.data()));
 }
 
@@ -76,6 +76,46 @@ uint64 ComputeFingerprint(
 }
 
 } // namespace
+
+void Call::ControllerPointer::create() {
+	Expects(_data == nullptr);
+
+	_data = std::make_unique<tgvoip::VoIPController>();
+}
+
+void Call::ControllerPointer::reset() {
+	if (const auto controller = base::take(_data)) {
+		controller->Stop();
+	}
+}
+
+bool Call::ControllerPointer::empty() const {
+	return (_data == nullptr);
+}
+
+bool Call::ControllerPointer::operator==(std::nullptr_t) const {
+	return empty();
+}
+
+Call::ControllerPointer::operator bool() const {
+	return !empty();
+}
+
+tgvoip::VoIPController *Call::ControllerPointer::operator->() const {
+	Expects(!empty());
+
+	return _data.get();
+}
+
+tgvoip::VoIPController &Call::ControllerPointer::operator*() const {
+	Expects(!empty());
+
+	return *_data;
+}
+
+Call::ControllerPointer::~ControllerPointer() {
+	reset();
+}
 
 Call::Call(
 	not_null<Delegate*> delegate,
@@ -481,7 +521,7 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	}
 
 	voip_config_t config = { 0 };
-	config.data_saving = DATA_SAVING_NEVER;
+	config.data_saving = tgvoip::DATA_SAVING_NEVER;
 #ifdef Q_OS_MAC
 	config.enableAEC = (QSysInfo::macVersion() < QSysInfo::MV_10_7);
 #else // Q_OS_MAC
@@ -504,23 +544,30 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		}
 	}
 
-	std::vector<Endpoint> endpoints;
+	const auto &protocol = call.vprotocol.c_phoneCallProtocol();
+	auto endpoints = std::vector<Endpoint>();
 	ConvertEndpoint(endpoints, call.vconnection.c_phoneConnection());
 	for (int i = 0; i < call.valternative_connections.v.length(); i++) {
 		ConvertEndpoint(endpoints, call.valternative_connections.v[i].c_phoneConnection());
 	}
 
-	_controller = std::make_unique<tgvoip::VoIPController>();
+	auto callbacks = tgvoip::VoIPController::Callbacks();
+	callbacks.connectionStateChanged = [](
+			tgvoip::VoIPController *controller,
+			int state) {
+		const auto call = static_cast<Call*>(controller->implData);
+		call->handleControllerStateChange(controller, state);
+	};
+
+	_controller.create();
 	if (_mute) {
 		_controller->SetMicMute(_mute);
 	}
 	_controller->implData = static_cast<void*>(this);
-	_controller->SetRemoteEndpoints(endpoints, true);
+	_controller->SetRemoteEndpoints(endpoints, true, protocol.vmax_layer.v);
 	_controller->SetConfig(&config);
 	_controller->SetEncryptionKey(reinterpret_cast<char*>(_authKey.data()), (_type == Type::Outgoing));
-	_controller->SetStateCallback([](tgvoip::VoIPController *controller, int state) {
-		static_cast<Call*>(controller->implData)->handleControllerStateChange(controller, state);
-	});
+	_controller->SetCallbacks(callbacks);
 	if (Global::UseProxy() && Global::UseProxyForCalls()) {
 		const auto proxy = Global::SelectedProxy();
 		if (proxy.supportsCalls()) {
@@ -543,22 +590,22 @@ void Call::handleControllerStateChange(tgvoip::VoIPController *controller, int s
 	Expects(controller->implData == static_cast<void*>(this));
 
 	switch (state) {
-	case STATE_WAIT_INIT: {
+	case tgvoip::STATE_WAIT_INIT: {
 		DEBUG_LOG(("Call Info: State changed to WaitingInit."));
 		setStateQueued(State::WaitingInit);
 	} break;
 
-	case STATE_WAIT_INIT_ACK: {
+	case tgvoip::STATE_WAIT_INIT_ACK: {
 		DEBUG_LOG(("Call Info: State changed to WaitingInitAck."));
 		setStateQueued(State::WaitingInitAck);
 	} break;
 
-	case STATE_ESTABLISHED: {
+	case tgvoip::STATE_ESTABLISHED: {
 		DEBUG_LOG(("Call Info: State changed to Established."));
 		setStateQueued(State::Established);
 	} break;
 
-	case STATE_FAILED: {
+	case tgvoip::STATE_FAILED: {
 		auto error = controller->GetLastError();
 		LOG(("Call Info: State changed to Failed, error: %1.").arg(error));
 		setFailedQueued(error);
@@ -714,9 +761,12 @@ void Call::handleRequestError(const RPCError &error) {
 }
 
 void Call::handleControllerError(int error) {
-	if (error == TGVOIP_ERROR_INCOMPATIBLE) {
-		Ui::show(Box<InformBox>(Lang::Hard::CallErrorIncompatible().replace("{user}", App::peerName(_user))));
-	} else if (error == TGVOIP_ERROR_AUDIO_IO) {
+	if (error == tgvoip::ERROR_INCOMPATIBLE) {
+		Ui::show(Box<InformBox>(
+			Lang::Hard::CallErrorIncompatible().replace(
+				"{user}",
+				App::peerName(_user))));
+	} else if (error == tgvoip::ERROR_AUDIO_IO) {
 		Ui::show(Box<InformBox>(lang(lng_call_error_audio_io)));
 	}
 	finish(FinishType::Failed);
