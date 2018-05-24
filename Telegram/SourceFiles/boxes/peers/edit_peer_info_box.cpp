@@ -38,6 +38,7 @@ namespace {
 
 constexpr auto kUsernameCheckTimeout = TimeMs(200);
 constexpr auto kMinUsernameLength = 5;
+constexpr auto kMaxGroupChannelTitle = 255; // See also add_contact_box.
 constexpr auto kMaxChannelDescription = 255; // See also add_contact_box.
 
 class Controller
@@ -299,6 +300,10 @@ object_ptr<Ui::RpWidget> Controller::createTitleEdit() {
 				: lng_dlg_new_channel_name),
 			_peer->name),
 		st::editPeerTitleMargins);
+	result->entity()->setMaxLength(kMaxGroupChannelTitle);
+	result->entity()->setInstantReplaces(Ui::InstantReplaces::Default());
+	result->entity()->setInstantReplacesEnabled(
+		Global::ReplaceEmojiValue());
 
 	QObject::connect(
 		result->entity(),

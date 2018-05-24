@@ -32,7 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kMaxGroupChannelTitle = 255;
+constexpr auto kMaxGroupChannelTitle = 255; // See also edit_peer_info_box.
 constexpr auto kMaxChannelDescription = 255; // See also edit_peer_info_box.
 constexpr auto kMaxBioLength = 70;
 constexpr auto kMinUsernameLength = 5;
@@ -320,6 +320,8 @@ void GroupInfoBox::prepare() {
 			? lng_dlg_new_channel_name
 			: lng_dlg_new_group_name));
 	_title->setMaxLength(kMaxGroupChannelTitle);
+	_title->setInstantReplaces(Ui::InstantReplaces::Default());
+	_title ->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
 
 	if (_creating == CreatingGroupChannel) {
 		_description.create(
@@ -1164,6 +1166,8 @@ void EditChannelBox::prepare() {
 	setMouseTracking(true);
 
 	_title->setMaxLength(kMaxGroupChannelTitle);
+	_title->setInstantReplaces(Ui::InstantReplaces::Default());
+	_title->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
 	_description->setMaxLength(kMaxChannelDescription);
 	_description->setInstantReplaces(Ui::InstantReplaces::Default());
 	_description->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
