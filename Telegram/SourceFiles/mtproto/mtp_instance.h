@@ -140,6 +140,7 @@ public:
 	void requestConfigIfOld();
 	void requestCDNConfig();
 	void setUserPhone(const QString &phone);
+	void badConfigurationError();
 
 	~Instance();
 

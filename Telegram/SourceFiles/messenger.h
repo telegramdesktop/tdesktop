@@ -17,6 +17,7 @@ class MainWidget;
 class FileUploader;
 class Translator;
 class MediaView;
+class BoxContent;
 
 namespace Core {
 class Launcher;
@@ -99,6 +100,7 @@ public:
 		return _dcOptions.get();
 	}
 	void setCurrentProxy(const ProxyData &proxy, bool enabled);
+	void badMtprotoConfigurationError();
 
 	// Set from legacy storage.
 	void setMtpMainDcId(MTP::DcId mainDcId);
@@ -240,6 +242,7 @@ private:
 	std::unique_ptr<AuthSession> _authSession;
 	base::Observable<void> _authSessionChanged;
 	base::Observable<void> _passcodedChanged;
+	QPointer<BoxContent> _badProxyDisableBox;
 
 	std::unique_ptr<Media::Audio::Instance> _audio;
 	QImage _logo;

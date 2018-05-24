@@ -26,5 +26,9 @@ inline QString ClearPathFailed() {
 	return qsl("Clear failed :(");
 }
 
+inline QString ProxyConfigError() {
+	return qsl("The proxy you are using is not configured correctly and will be disabled. Please find another one.");
+}
+
 } // namespace Hard
 } // namespace Lang

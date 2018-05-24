@@ -54,6 +54,7 @@ public:
 	void requestConfigIfOld();
 	void requestCDNConfig();
 	void setUserPhone(const QString &phone);
+	void badConfigurationError();
 
 	void restart();
 	void restart(ShiftedDcId shiftedDcId);
@@ -395,6 +396,12 @@ void Instance::Private::setUserPhone(const QString &phone) {
 		if (_configLoader) {
 			_configLoader->setPhone(_userPhone);
 		}
+	}
+}
+
+void Instance::Private::badConfigurationError() {
+	if (_mode == Mode::Normal) {
+		Messenger::Instance().badMtprotoConfigurationError();
 	}
 }
 
@@ -1482,6 +1489,10 @@ void Instance::requestConfig() {
 
 void Instance::setUserPhone(const QString &phone) {
 	_private->setUserPhone(phone);
+}
+
+void Instance::badConfigurationError() {
+	_private->badConfigurationError();
 }
 
 void Instance::requestConfigIfOld() {

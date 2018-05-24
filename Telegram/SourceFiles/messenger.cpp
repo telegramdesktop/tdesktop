@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_file_parser.h"
 #include "lang/lang_translator.h"
 #include "lang/lang_cloud_manager.h"
+#include "lang/lang_hardcoded.h"
 #include "observer_peer.h"
 #include "storage/file_upload.h"
 #include "mainwidget.h"
@@ -44,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "boxes/connection_box.h"
 #include "boxes/confirm_phone_box.h"
+#include "boxes/confirm_box.h"
 #include "boxes/share_box.h"
 
 namespace {
@@ -303,6 +305,14 @@ void Messenger::setCurrentProxy(
 		_mtprotoForKeysDestroy->restart();
 	}
 	Global::RefConnectionTypeChanged().notify();
+}
+
+void Messenger::badMtprotoConfigurationError() {
+	if (Global::UseProxy() && !_badProxyDisableBox) {
+		_badProxyDisableBox = Ui::show(Box<InformBox>(
+			Lang::Hard::ProxyConfigError(),
+			[=] { setCurrentProxy(Global::SelectedProxy(), false); }));
+	}
 }
 
 void Messenger::setMtpMainDcId(MTP::DcId mainDcId) {
