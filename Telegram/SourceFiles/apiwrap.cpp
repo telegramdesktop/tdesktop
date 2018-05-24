@@ -224,7 +224,11 @@ void ApiWrap::proxyPromotionDone(const MTPhelp_ProxyData &proxy) {
 	App::feedChats(data.vchats);
 	App::feedUsers(data.vusers);
 	const auto peerId = peerFromMTP(data.vpeer);
-	_session->data().setProxyPromoted(App::peer(peerId));
+	const auto peer = App::peer(peerId);
+	_session->data().setProxyPromoted(peer);
+	if (const auto history = App::historyLoaded(peer)) {
+		_session->api().requestDialogEntry(history);
+	}
 }
 
 void ApiWrap::applyUpdates(
