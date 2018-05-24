@@ -4163,7 +4163,15 @@ bool HistoryWidget::confirmSendingFiles(
 		? CompressConfirm::None
 		: compressed;
 
-	auto box = Box<SendFilesBox>(std::move(list), boxCompressConfirm);
+	const auto cursor = _field->textCursor();
+	const auto position = cursor.position();
+	const auto anchor = cursor.anchor();
+	const auto text = _field->getTextWithTags();
+	auto box = Box<SendFilesBox>(
+		std::move(list),
+		text,
+		boxCompressConfirm);
+	_field->setTextWithTags({});
 	box->setConfirmedCallback(base::lambda_guarded(this, [=](
 			Storage::PreparedList &&list,
 			SendFilesWay way,
@@ -4185,11 +4193,18 @@ bool HistoryWidget::confirmSendingFiles(
 			replyToId(),
 			album);
 	}));
-	if (!insertTextOnCancel.isEmpty()) {
-		box->setCancelledCallback(base::lambda_guarded(this, [=] {
+	box->setCancelledCallback(base::lambda_guarded(this, [=] {
+		_field->setTextWithTags(text);
+		auto cursor = _field->textCursor();
+		cursor.setPosition(anchor);
+		if (position != anchor) {
+			cursor.setPosition(position, QTextCursor::KeepAnchor);
+		}
+		_field->setTextCursor(cursor);
+		if (!insertTextOnCancel.isEmpty()) {
 			_field->textCursor().insertText(insertTextOnCancel);
-		}));
-	}
+		}
+	}));
 
 	ActivateWindowDelayed(controller());
 	Ui::show(std::move(box));

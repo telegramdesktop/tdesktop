@@ -1320,8 +1320,15 @@ void SendFilesBox::AlbumPreview::mouseReleaseEvent(QMouseEvent *e) {
 SendFilesBox::SendFilesBox(
 	QWidget*,
 	Storage::PreparedList &&list,
+	const TextWithTags &caption,
 	CompressConfirm compressed)
 : _list(std::move(list))
+, _caption(
+	this,
+	st::confirmCaptionArea,
+	Ui::InputField::Mode::MultiLine,
+	FieldPlaceholder(_list),
+	caption)
 , _compressConfirmInitial(compressed)
 , _compressConfirm(compressed) {
 }
@@ -1418,6 +1425,7 @@ void SendFilesBox::prepare() {
 
 	_send = addButton(langFactory(lng_send_button), [this] { send(); });
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	setupCaption();
 	initSendWay();
 	preparePreview();
 	subscribe(boxClosing, [this] {
@@ -1489,7 +1497,7 @@ void SendFilesBox::preparePreview() {
 void SendFilesBox::setupControls() {
 	setupTitleText();
 	setupSendWayControls();
-	setupCaption();
+	_caption->setPlaceholder(FieldPlaceholder(_list));
 }
 
 void SendFilesBox::setupSendWayControls() {
@@ -1546,23 +1554,13 @@ void SendFilesBox::applyAlbumOrder() {
 }
 
 void SendFilesBox::setupCaption() {
-	if (_caption) {
-		_caption->setPlaceholder(FieldPlaceholder(_list));
-		return;
-	}
-
-	_caption.create(
-		this,
-		st::confirmCaptionArea,
-		Ui::InputField::Mode::MultiLine,
-		FieldPlaceholder(_list));
 	_caption->setMaxLength(MaxPhotoCaption);
 	_caption->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 	connect(_caption, &Ui::InputField::resized, this, [this] {
 		captionResized();
 	});
 	connect(_caption, &Ui::InputField::submitted, this, [this](
-		bool ctrlShiftEnter) {
+			bool ctrlShiftEnter) {
 		send(ctrlShiftEnter);
 	});
 	connect(_caption, &Ui::InputField::cancelled, this, [this] {

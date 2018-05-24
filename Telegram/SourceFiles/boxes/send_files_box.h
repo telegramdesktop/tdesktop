@@ -33,6 +33,7 @@ public:
 	SendFilesBox(
 		QWidget*,
 		Storage::PreparedList &&list,
+		const TextWithTags &caption,
 		CompressConfirm compressed);
 
 	void setConfirmedCallback(
