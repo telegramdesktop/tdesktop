@@ -39,7 +39,7 @@ public:
 		base::lambda<void(
 			Storage::PreparedList &&list,
 			SendFilesWay way,
-			const QString &caption,
+			TextWithTags &&caption,
 			bool ctrlShiftEnter)> callback) {
 		_confirmedCallback = std::move(callback);
 	}
@@ -98,7 +98,7 @@ private:
 	base::lambda<void(
 		Storage::PreparedList &&list,
 		SendFilesWay way,
-		const QString &caption,
+		TextWithTags &&caption,
 		bool ctrlShiftEnter)> _confirmedCallback;
 	base::lambda<void()> _cancelledCallback;
 	bool _confirmed = false;

@@ -711,4 +711,14 @@ DefineRefVar(Global, base::Variable<DBIWorkMode>, WorkMode);
 DefineRefVar(Global, base::Observable<void>, UnreadCounterUpdate);
 DefineRefVar(Global, base::Observable<void>, PeerChooseCancel);
 
+rpl::producer<bool> ReplaceEmojiValue() {
+	return rpl::single(
+		Global::ReplaceEmoji()
+	) | rpl::then(base::ObservableViewer(
+		Global::RefReplaceEmojiChanged()
+	) | rpl::map([] {
+		return Global::ReplaceEmoji();
+	}));
+}
+
 } // namespace Global

@@ -3675,7 +3675,7 @@ void ApiWrap::sendVoiceMessage(
 		VoiceWaveform waveform,
 		int duration,
 		const SendOptions &options) {
-	const auto caption = QString();
+	const auto caption = TextWithTags();
 	const auto to = FileLoadTaskOptions(options);
 	_fileLoader->addTask(std::make_unique<FileLoadTask>(
 		result,
@@ -3688,16 +3688,16 @@ void ApiWrap::sendVoiceMessage(
 void ApiWrap::sendFiles(
 		Storage::PreparedList &&list,
 		SendMediaType type,
-		QString caption,
+		TextWithTags &&caption,
 		std::shared_ptr<SendingAlbum> album,
 		const SendOptions &options) {
-	if (list.files.size() > 1 && !caption.isEmpty()) {
+	if (list.files.size() > 1 && !caption.text.isEmpty()) {
 		auto message = MainWidget::MessageToSend(options.history);
-		message.textWithTags = { caption, TextWithTags::Tags() };
+		message.textWithTags = std::move(caption);
 		message.replyTo = options.replyTo;
 		message.clearDraft = false;
 		App::main()->sendMessage(message);
-		caption = QString();
+		caption = TextWithTags();
 	}
 
 	const auto to = FileLoadTaskOptions(options);
@@ -3742,7 +3742,7 @@ void ApiWrap::sendFile(
 		SendMediaType type,
 		const SendOptions &options) {
 	auto to = FileLoadTaskOptions(options);
-	auto caption = QString();
+	auto caption = TextWithTags();
 	_fileLoader->addTask(std::make_unique<FileLoadTask>(
 		QString(),
 		fileContent,

@@ -772,6 +772,8 @@ void Notification::showReplyField() {
 	_replyArea->setMaxLength(MaxMessageSize);
 	_replyArea->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 	_replyArea->setInstantReplaces(Ui::InstantReplaces::Default());
+	_replyArea->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	_replyArea->setMarkdownReplacesEnabled(Global::ReplaceEmojiValue());
 
 	// Catch mouse press event to activate the window.
 	QCoreApplication::instance()->installEventFilter(this);
@@ -795,7 +797,10 @@ void Notification::sendReply() {
 
 	auto peerId = _history->peer->id;
 	auto msgId = _item ? _item->id : ShowAtUnreadMsgId;
-	manager()->notificationReplied(peerId, msgId, _replyArea->getLastText());
+	manager()->notificationReplied(
+		peerId,
+		msgId,
+		_replyArea->getTextWithTags());
 
 	manager()->startAllHiding();
 }

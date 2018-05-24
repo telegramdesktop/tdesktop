@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "lang/lang_keys.h"
+#include "chat_helpers/message_field.h"
 #include "window/window_controller.h"
 #include "mainwidget.h"
 #include "layout.h"
@@ -50,7 +51,11 @@ EditCaptionBox::EditCaptionBox(
 		}
 		doc = document;
 	}
-	auto caption = item->originalText().text;
+	const auto original = item->originalText();
+	const auto editData = TextWithTags {
+		original.text,
+		ConvertEntitiesToTextTags(original.entities)
+	};
 
 	if (!_animated && (dimensions.isEmpty() || doc || image->isNull())) {
 		if (image->isNull()) {
@@ -135,10 +140,12 @@ EditCaptionBox::EditCaptionBox(
 		st::confirmCaptionArea,
 		Ui::InputField::Mode::MultiLine,
 		langFactory(lng_photo_caption),
-		caption);
+		editData);
 	_field->setMaxLength(MaxPhotoCaption);
 	_field->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 	_field->setInstantReplaces(Ui::InstantReplaces::Default());
+	_field->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	_field->setMarkdownReplacesEnabled(Global::ReplaceEmojiValue());
 }
 
 void EditCaptionBox::prepareGifPreview(DocumentData *document) {
@@ -338,17 +345,29 @@ void EditCaptionBox::save() {
 	if (_previewCancelled) {
 		flags |= MTPmessages_EditMessage::Flag::f_no_webpage;
 	}
-	MTPVector<MTPMessageEntity> sentEntities;
+	const auto textWithTags = _field->getTextWithTags();
+	auto sending = TextWithEntities{
+		textWithTags.text,
+		ConvertTextTagsToEntities(textWithTags.tags)
+	};
+	const auto prepareFlags = Ui::ItemTextOptions(
+		item->history(),
+		App::self()).flags;
+	TextUtilities::PrepareForSending(sending, prepareFlags);
+	TextUtilities::Trim(sending);
+
+	const auto sentEntities = TextUtilities::EntitiesToMTP(
+		sending.entities,
+		TextUtilities::ConvertOption::SkipLocal);
 	if (!sentEntities.v.isEmpty()) {
 		flags |= MTPmessages_EditMessage::Flag::f_entities;
 	}
-	auto text = TextUtilities::PrepareForSending(_field->getLastText(), TextUtilities::PrepareTextOption::CheckLinks);
 	_saveRequestId = MTP::send(
 		MTPmessages_EditMessage(
 			MTP_flags(flags),
 			item->history()->peer->input,
 			MTP_int(item->id),
-			MTP_string(text),
+			MTP_string(sending.text),
 			MTPnullMarkup,
 			sentEntities,
 			MTP_inputGeoPointEmpty()),

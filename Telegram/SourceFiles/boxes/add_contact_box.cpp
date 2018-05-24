@@ -329,6 +329,9 @@ void GroupInfoBox::prepare() {
 			langFactory(lng_create_group_description));
 		_description->show();
 		_description->setMaxLength(kMaxChannelDescription);
+		_description->setInstantReplaces(Ui::InstantReplaces::Default());
+		_description->setInstantReplacesEnabled(
+			Global::ReplaceEmojiValue());
 
 		connect(_description, SIGNAL(resized()), this, SLOT(onDescriptionResized()));
 		connect(_description, SIGNAL(submitted(bool)), this, SLOT(onNext()));
@@ -1080,6 +1083,7 @@ void EditBioBox::prepare() {
 	connect(_bio, &Ui::InputField::resized, this, [this] { updateMaxHeight(); });
 	connect(_bio, &Ui::InputField::changed, this, [this] { handleBioUpdated(); });
 	_bio->setInstantReplaces(Ui::InstantReplaces::Default());
+	_bio->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
 	handleBioUpdated();
 	updateMaxHeight();
 }
@@ -1161,6 +1165,8 @@ void EditChannelBox::prepare() {
 
 	_title->setMaxLength(kMaxGroupChannelTitle);
 	_description->setMaxLength(kMaxChannelDescription);
+	_description->setInstantReplaces(Ui::InstantReplaces::Default());
+	_description->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
 
 	connect(_description, SIGNAL(resized()), this, SLOT(onDescriptionResized()));
 	connect(_description, SIGNAL(submitted(bool)), this, SLOT(onSave()));

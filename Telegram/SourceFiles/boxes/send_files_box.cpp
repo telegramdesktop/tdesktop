@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_media_prepare.h"
 #include "mainwidget.h"
 #include "history/history_media_types.h"
+#include "chat_helpers/message_field.h"
 #include "core/file_utilities.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
@@ -1578,6 +1579,8 @@ void SendFilesBox::setupCaption() {
 		Unexpected("action in MimeData hook.");
 	});
 	_caption->setInstantReplaces(Ui::InstantReplaces::Default());
+	_caption->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	_caption->setMarkdownReplacesEnabled(Global::ReplaceEmojiValue());
 }
 
 void SendFilesBox::captionResized() {
@@ -1789,10 +1792,8 @@ void SendFilesBox::send(bool ctrlShiftEnter) {
 	_confirmed = true;
 	if (_confirmedCallback) {
 		auto caption = _caption
-			? TextUtilities::PrepareForSending(
-				_caption->getLastText(),
-				TextUtilities::PrepareTextOption::CheckLinks)
-			: QString();
+			? _caption->getTextWithTags()
+			: TextWithTags();
 		_confirmedCallback(
 			std::move(_list),
 			way,

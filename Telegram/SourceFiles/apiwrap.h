@@ -253,7 +253,7 @@ public:
 	void sendFiles(
 		Storage::PreparedList &&list,
 		SendMediaType type,
-		QString caption,
+		TextWithTags &&caption,
 		std::shared_ptr<SendingAlbum> album,
 		const SendOptions &options);
 	void sendFile(

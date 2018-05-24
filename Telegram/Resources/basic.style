@@ -40,7 +40,7 @@ lineWidth: 1px;
 
 defaultTextPalette: TextPalette {
 	linkFg: windowActiveTextFg;
-	monoFg: windowSubTextFg;
+	monoFg: msgInMonoFg;
 	selectBg: msgInBgSelected;
 	selectFg: transparent; // use painter current pen instead
 	selectLinkFg: historyLinkInFgSelected;

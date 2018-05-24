@@ -1168,16 +1168,24 @@ void InputField::onTouchTimer() {
 	_touchRightButton = true;
 }
 
-void InputField::enableMarkdownSupport(bool enabled) {
-	_markdownEnabled = enabled;
-}
-
 void InputField::setInstantReplaces(const InstantReplaces &replaces) {
 	_mutableInstantReplaces = replaces;
 }
 
-void InputField::enableInstantReplaces(bool enabled) {
-	_instantReplacesEnabled = enabled;
+void InputField::setInstantReplacesEnabled(rpl::producer<bool> enabled) {
+	std::move(
+		enabled
+	) | rpl::start_with_next([=](bool value) {
+		_instantReplacesEnabled = value;
+	}, lifetime());
+}
+
+void InputField::setMarkdownReplacesEnabled(rpl::producer<bool> enabled) {
+	std::move(
+		enabled
+	) | rpl::start_with_next([=](bool value) {
+		_markdownEnabled = value;
+	}, lifetime());
 }
 
 void InputField::setTagMimeProcessor(

@@ -328,6 +328,8 @@ object_ptr<Ui::RpWidget> Controller::createDescriptionEdit() {
 		st::editPeerDescriptionMargins);
 	result->entity()->setMaxLength(kMaxChannelDescription);
 	result->entity()->setInstantReplaces(Ui::InstantReplaces::Default());
+	result->entity()->setInstantReplacesEnabled(
+		Global::ReplaceEmojiValue());
 
 	QObject::connect(
 		result->entity(),

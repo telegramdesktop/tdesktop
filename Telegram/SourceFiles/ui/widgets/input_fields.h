@@ -187,7 +187,8 @@ public:
 	void setAdditionalMargin(int margin);
 
 	void setInstantReplaces(const InstantReplaces &replaces);
-	void enableInstantReplaces(bool enabled);
+	void setInstantReplacesEnabled(rpl::producer<bool> enabled);
+	void setMarkdownReplacesEnabled(rpl::producer<bool> enabled);
 	void commitInstantReplacement(
 		int from,
 		int till,
@@ -229,8 +230,8 @@ public:
 		Both,
 	};
 	void setSubmitSettings(SubmitSettings settings);
-	void enableMarkdownSupport(bool enabled = true);
 	void customUpDown(bool isCustom);
+	void customTab(bool isCustom);
 
 	not_null<QTextDocument*> document();
 	not_null<const QTextDocument*> document() const;
@@ -381,6 +382,7 @@ private:
 	int _additionalMargin = 0;
 
 	bool _customUpDown = false;
+	bool _customTab = false;
 
 	QString _placeholder;
 	base::lambda<QString()> _placeholderFactory;

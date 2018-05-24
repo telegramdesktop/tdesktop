@@ -440,13 +440,13 @@ void Manager::openNotificationMessage(
 void Manager::notificationReplied(
 		PeerId peerId,
 		MsgId msgId,
-		const QString &reply) {
+		const TextWithTags &reply) {
 	if (!peerId) return;
 
 	auto history = App::history(peerId);
 
 	auto message = MainWidget::MessageToSend(history);
-	message.textWithTags = { reply, TextWithTags::Tags() };
+	message.textWithTags = reply;
 	message.replyTo = (msgId > 0 && !history->peer->isUser()) ? msgId : 0;
 	message.clearDraft = false;
 	if (auto main = App::main()) {

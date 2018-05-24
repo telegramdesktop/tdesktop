@@ -391,6 +391,8 @@ DeclareRefVar(base::Variable<DBIWorkMode>, WorkMode);
 DeclareRefVar(base::Observable<void>, UnreadCounterUpdate);
 DeclareRefVar(base::Observable<void>, PeerChooseCancel);
 
+rpl::producer<bool> ReplaceEmojiValue();
+
 } // namespace Global
 
 namespace Adaptive {

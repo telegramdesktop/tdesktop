@@ -4167,7 +4167,7 @@ bool HistoryWidget::confirmSendingFiles(
 	box->setConfirmedCallback(base::lambda_guarded(this, [=](
 			Storage::PreparedList &&list,
 			SendFilesWay way,
-			const QString &caption,
+			TextWithTags &&caption,
 			bool ctrlShiftEnter) {
 		if (showSendingFilesError(list)) {
 			return;
@@ -4181,7 +4181,7 @@ bool HistoryWidget::confirmSendingFiles(
 		uploadFilesAfterConfirmation(
 			std::move(list),
 			type,
-			caption,
+			std::move(caption),
 			replyToId(),
 			album);
 	}));
@@ -4282,18 +4282,17 @@ void HistoryWidget::uploadFiles(
 		SendMediaType type) {
 	ActivateWindowDelayed(controller());
 
-	auto caption = QString();
 	uploadFilesAfterConfirmation(
 		std::move(list),
 		type,
-		caption,
+		TextWithTags(),
 		replyToId());
 }
 
 void HistoryWidget::uploadFilesAfterConfirmation(
 		Storage::PreparedList &&list,
 		SendMediaType type,
-		QString caption,
+		TextWithTags &&caption,
 		MsgId replyTo,
 		std::shared_ptr<SendingAlbum> album) {
 	Assert(canWriteMessage());
@@ -4303,7 +4302,7 @@ void HistoryWidget::uploadFilesAfterConfirmation(
 	Auth().api().sendFiles(
 		std::move(list),
 		type,
-		caption,
+		std::move(caption),
 		album,
 		options);
 }
@@ -4356,8 +4355,23 @@ void HistoryWidget::sendFileConfirmed(
 	options.generateLocal = true;
 	Auth().api().sendAction(options);
 
-	auto flags = NewMessageFlags(peer) | MTPDmessage::Flag::f_media;
-	if (file->to.replyTo) flags |= MTPDmessage::Flag::f_reply_to_msg_id;
+	auto caption = TextWithEntities{
+		file->caption.text,
+		ConvertTextTagsToEntities(file->caption.tags)
+	};
+	const auto prepareFlags = Ui::ItemTextOptions(
+		history,
+		App::self()).flags;
+	TextUtilities::PrepareForSending(caption, prepareFlags);
+	TextUtilities::Trim(caption);
+	auto localEntities = TextUtilities::EntitiesToMTP(caption.entities);
+
+	auto flags = NewMessageFlags(peer)
+		| MTPDmessage::Flag::f_entities
+		| MTPDmessage::Flag::f_media;
+	if (file->to.replyTo) {
+		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
+	}
 	bool channelPost = peer->isChannel() && !peer->isMegagroup();
 	bool silentPost = channelPost && file->to.silent;
 	if (channelPost) {
@@ -4393,10 +4407,10 @@ void HistoryWidget::sendFileConfirmed(
 				MTPint(),
 				MTP_int(file->to.replyTo),
 				MTP_int(unixtime()),
-				MTP_string(file->caption),
+				MTP_string(caption.text),
 				photo,
 				MTPnullMarkup,
-				MTPnullEntities, // #TODO caption entities
+				localEntities,
 				MTP_int(1),
 				MTPint(),
 				MTP_string(messagePostAuthor),
@@ -4418,10 +4432,10 @@ void HistoryWidget::sendFileConfirmed(
 				MTPint(),
 				MTP_int(file->to.replyTo),
 				MTP_int(unixtime()),
-				MTP_string(file->caption),
+				MTP_string(caption.text),
 				document,
 				MTPnullMarkup,
-				MTPnullEntities, // #TODO caption entities
+				localEntities,
 				MTP_int(1),
 				MTPint(),
 				MTP_string(messagePostAuthor),
@@ -4446,10 +4460,10 @@ void HistoryWidget::sendFileConfirmed(
 				MTPint(),
 				MTP_int(file->to.replyTo),
 				MTP_int(unixtime()),
-				MTP_string(file->caption),
+				MTP_string(caption.text),
 				document,
 				MTPnullMarkup,
-				MTPnullEntities, // #TODO caption entities
+				localEntities,
 				MTP_int(1),
 				MTPint(),
 				MTP_string(messagePostAuthor),

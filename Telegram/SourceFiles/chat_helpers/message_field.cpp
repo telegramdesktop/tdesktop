@@ -146,14 +146,8 @@ void InitMessageField(not_null<Ui::InputField*> field) {
 
 	field->customTab(true);
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
-	field->enableInstantReplaces(Global::ReplaceEmoji());
-	field->enableMarkdownSupport(Global::ReplaceEmoji());
-	auto &changed = Global::RefReplaceEmojiChanged();
-	Ui::AttachAsChild(field, changed.add_subscription([=] {
-		field->enableInstantReplaces(Global::ReplaceEmoji());
-		field->enableMarkdownSupport(Global::ReplaceEmoji());
-	}));
-	field->window()->activateWindow();
+	field->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	field->setMarkdownReplacesEnabled(Global::ReplaceEmojiValue());
 }
 
 bool HasSendText(not_null<const Ui::InputField*> field) {

@@ -516,7 +516,7 @@ private:
 	void uploadFilesAfterConfirmation(
 		Storage::PreparedList &&list,
 		SendMediaType type,
-		QString caption,
+		TextWithTags &&caption,
 		MsgId replyTo,
 		std::shared_ptr<SendingAlbum> album = nullptr);
 

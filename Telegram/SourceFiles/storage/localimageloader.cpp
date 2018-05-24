@@ -178,7 +178,7 @@ FileLoadResult::FileLoadResult(
 	TaskId taskId,
 	uint64 id,
 	const FileLoadTo &to,
-	const QString &caption,
+	const TextWithTags &caption,
 	std::shared_ptr<SendingAlbum> album)
 : taskId(taskId)
 , id(id)
@@ -193,7 +193,7 @@ FileLoadTask::FileLoadTask(
 	std::unique_ptr<FileMediaInformation> information,
 	SendMediaType type,
 	const FileLoadTo &to,
-	const QString &caption,
+	const TextWithTags &caption,
 	std::shared_ptr<SendingAlbum> album)
 : _id(rand_value<uint64>())
 , _to(to)
@@ -210,7 +210,7 @@ FileLoadTask::FileLoadTask(
 	int32 duration,
 	const VoiceWaveform &waveform,
 	const FileLoadTo &to,
-	const QString &caption)
+	const TextWithTags &caption)
 : _id(rand_value<uint64>())
 , _to(to)
 , _content(voice)

@@ -189,7 +189,7 @@ struct FileLoadResult {
 		TaskId taskId,
 		uint64 id,
 		const FileLoadTo &to,
-		const QString &caption,
+		const TextWithTags &caption,
 		std::shared_ptr<SendingAlbum> album);
 
 	TaskId taskId;
@@ -217,7 +217,7 @@ struct FileLoadResult {
 	MTPDocument document;
 
 	PreparedPhotoThumbs photoThumbs;
-	QString caption;
+	TextWithTags caption;
 
 	void setFileData(const QByteArray &filedata) {
 		if (filedata.isEmpty()) {
@@ -281,14 +281,14 @@ public:
 		std::unique_ptr<FileMediaInformation> information,
 		SendMediaType type,
 		const FileLoadTo &to,
-		const QString &caption,
+		const TextWithTags &caption,
 		std::shared_ptr<SendingAlbum> album = nullptr);
 	FileLoadTask(
 		const QByteArray &voice,
 		int32 duration,
 		const VoiceWaveform &waveform,
 		const FileLoadTo &to,
-		const QString &caption);
+		const TextWithTags &caption);
 
 	uint64 fileid() const {
 		return _id;
@@ -328,7 +328,7 @@ private:
 	int32 _duration = 0;
 	VoiceWaveform _waveform;
 	SendMediaType _type;
-	QString _caption;
+	TextWithTags _caption;
 
 	std::shared_ptr<FileLoadResult> _result;
 
