@@ -1,3 +1,9 @@
+1.2.22 alpha (24.05.18)
+
+- Use markdown in media captions (**bold**, __italic__, `tag` and ```code```).
+- Use emoji replacement in media captions, group and channel titles and descriptions (:like: etc.)
+- Markdown replacement now happens immediately after typing (instead of after sending) and can be rolled back using Backspace or Ctrl/Cmd + Z. Replacement no longer happens when pasting text.
+
 1.2.21 alpha (18.05.18)
 
 - Support domain names in mtproto proxy.
