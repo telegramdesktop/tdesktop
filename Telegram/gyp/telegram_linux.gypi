@@ -63,6 +63,7 @@
     ],
     'cflags_cc': [
       '-Wno-strict-overflow',
+      '-Wno-maybe-uninitialized',
     ],
     'ldflags': [
       '-Wl,-wrap,aligned_alloc',
