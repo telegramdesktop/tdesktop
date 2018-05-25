@@ -1159,9 +1159,9 @@ QVariant InputField::loadResource(int type, const QUrl &name) {
 }
 
 void InputField::updatePalette() {
-	auto p = palette();
+	auto p = _inner->palette();
 	p.setColor(QPalette::Text, _st.textFg->c);
-	setPalette(p);
+	_inner->setPalette(p);
 }
 
 void InputField::onTouchTimer() {
