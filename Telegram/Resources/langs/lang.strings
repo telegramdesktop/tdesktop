@@ -430,10 +430,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_proxy_about" = "Proxy servers may be helpful in accessing Telegram if there is no connection in a specific region.";
 "lng_proxy_add" = "Add proxy";
 "lng_proxy_share" = "Share";
-"lng_proxy_online" = "online";
+"lng_proxy_online" = "connected";
 "lng_proxy_checking" = "checking";
 "lng_proxy_connecting" = "connecting";
-"lng_proxy_available" = "available (ping: {ping}ms)";
+"lng_proxy_available" = "available, {ping} ms ping";
 "lng_proxy_unavailable" = "not available";
 "lng_proxy_edit" = "Edit proxy";
 "lng_proxy_menu_edit" = "Edit";
