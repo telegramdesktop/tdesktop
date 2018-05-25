@@ -216,7 +216,18 @@ void Menu::paintEvent(QPaintEvent *e) {
 				p.setPen(selected ? _st.itemFgOver : (enabled ? _st.itemFg : _st.itemFgDisabled));
 				p.drawTextLeft(_st.itemPadding.left(), _st.itemPadding.top(), width(), data.text);
 				if (data.hasSubmenu) {
-					_st.arrow.paint(p, width() - _st.itemPadding.right() - _st.arrow.width(), (_itemHeight - _st.arrow.height()) / 2, width());
+					const auto left = width() - _st.itemPadding.right() - _st.arrow.width();
+					const auto top = (_itemHeight - _st.arrow.height()) / 2;
+					if (enabled) {
+						_st.arrow.paint(p, left, top, width());
+					} else {
+						_st.arrow.paint(
+							p,
+							left,
+							top,
+							width(),
+							_st.itemFgDisabled->c);
+					}
 				} else if (!data.shortcut.isEmpty()) {
 					p.setPen(selected ? _st.itemFgShortcutOver : (enabled ? _st.itemFgShortcut : _st.itemFgShortcutDisabled));
 					p.drawTextRight(_st.itemPadding.right(), _st.itemPadding.top(), width(), data.shortcut);

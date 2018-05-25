@@ -588,7 +588,7 @@ buildCustomQt() {
     sudo rm -rf "$EXTERNAL/qt${QT_VERSION}"
   fi
   cd $QT_PATH
-  rm -rf *
+  sudo rm -rf *
 
   cd "$EXTERNAL"
   git clone git://code.qt.io/qt/qt5.git qt${QT_VERSION}

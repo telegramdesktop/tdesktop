@@ -1255,6 +1255,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
+"lng_menu_formatting" = "Formatting";
+"lng_menu_formatting_bold" = "Bold";
+"lng_menu_formatting_italic" = "Italic";
+"lng_menu_formatting_monospace" = "Monospace";
+//"lng_menu_formatting_link" = "Create link";
+"lng_menu_formatting_clear" = "Plain text";
 
 "lng_full_name" = "{first_name} {last_name}";
 
