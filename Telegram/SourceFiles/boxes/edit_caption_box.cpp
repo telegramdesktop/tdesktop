@@ -145,7 +145,7 @@ EditCaptionBox::EditCaptionBox(
 	_field->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 	_field->setInstantReplaces(Ui::InstantReplaces::Default());
 	_field->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
-	_field->setMarkdownReplacesEnabled(Global::ReplaceEmojiValue());
+	_field->setMarkdownReplacesEnabled(rpl::single(true));
 }
 
 void EditCaptionBox::prepareGifPreview(DocumentData *document) {

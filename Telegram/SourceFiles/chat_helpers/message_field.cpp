@@ -147,7 +147,7 @@ void InitMessageField(not_null<Ui::InputField*> field) {
 	field->customTab(true);
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
 	field->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
-	field->setMarkdownReplacesEnabled(Global::ReplaceEmojiValue());
+	field->setMarkdownReplacesEnabled(rpl::single(true));
 }
 
 bool HasSendText(not_null<const Ui::InputField*> field) {
