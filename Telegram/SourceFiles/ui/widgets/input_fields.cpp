@@ -159,7 +159,7 @@ const std::map<QString, std::vector<int>> &TagFinishIndices() {
 		{ kTagBold, { kTagBoldIndex, kTagCodeIndex, kTagPreIndex } },
 		{ kTagItalic, { kTagItalicIndex, kTagCodeIndex, kTagPreIndex } },
 		{ kTagCode, { kTagCodeIndex, kTagPreIndex } },
-		{ kTagPre, { kTagCodeIndex, kTagPreIndex } },
+		{ kTagPre, { kTagPreIndex } },
 	};
 	return cached;
 }
