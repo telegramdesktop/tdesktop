@@ -696,6 +696,9 @@ protected:
 	void dropEvent(QDropEvent *e) override {
 		return outer()->dropEventInner(e);
 	}
+	void inputMethodEvent(QInputMethodEvent *e) override {
+		return outer()->inputMethodEventInner(e);
+	}
 
 	bool canInsertFromMimeData(const QMimeData *source) const override {
 		return outer()->canInsertFromMimeDataInner(source);
@@ -2067,9 +2070,7 @@ void InputField::setPlaceholderHidden(bool forcePlaceholderHidden) {
 
 void InputField::startPlaceholderAnimation() {
 	const auto textLength = [&] {
-		const auto layout = textCursor().block().layout();
-		return getTextWithTags().text.size()
-			+ (layout ? layout->preeditAreaText().size() : 0);
+		return getTextWithTags().text.size() + _lastPreEditText.size();
 	};
 	const auto placeholderShifted = _forcePlaceholderHidden
 		|| (_focused && _st.placeholderScale > 0.)
@@ -2324,6 +2325,19 @@ bool InputField::handleMarkdownKey(QKeyEvent *e) {
 	return true;
 }
 
+void InputField::inputMethodEventInner(QInputMethodEvent *e) {
+	const auto preedit = e->preeditString();
+	if (_lastPreEditText != preedit) {
+		_lastPreEditText = preedit;
+		startPlaceholderAnimation();
+	}
+	const auto text = e->commitString();
+	_inner->QTextEdit::inputMethodEvent(e);
+	if (!processMarkdownReplaces(text)) {
+		processInstantReplaces(text);
+	}
+}
+
 const InstantReplaces &InputField::instantReplaces() const {
 	return _mutableInstantReplaces;
 }
@@ -2378,6 +2392,13 @@ void InputField::processInstantReplaces(const QString &appended) {
 		return;
 	}
 	const auto position = textCursor().position();
+	for (const auto &tag : _textAreaPossibleTags) {
+		if (tag.start < position
+			&& tag.start + tag.length >= position
+			&& (tag.tag == kTagCode || tag.tag == kTagPre)) {
+			return;
+		}
+	}
 	const auto typed = getTextWithTagsPart(
 		std::max(position - replaces.maxLength, 0),
 		position - 1).text;

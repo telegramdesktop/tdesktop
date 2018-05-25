@@ -317,6 +317,7 @@ private:
 	void keyPressEventInner(QKeyEvent *e);
 	void contextMenuEventInner(QContextMenuEvent *e);
 	void dropEventInner(QDropEvent *e);
+	void inputMethodEventInner(QInputMethodEvent *e);
 
 	QMimeData *createMimeDataFromSelectionInner() const;
 	bool canInsertFromMimeDataInner(const QMimeData *source) const;
@@ -371,6 +372,7 @@ private:
 
 	TextWithTags _lastTextWithTags;
 	std::vector<PossibleTag> _textAreaPossibleTags;
+	QString _lastPreEditText;
 
 	// Tags list which we should apply while setText() call or insert from mime data.
 	TagList _insertedTags;
