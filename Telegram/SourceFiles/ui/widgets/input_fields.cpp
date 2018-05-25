@@ -335,8 +335,8 @@ private:
 					continue;
 				}
 			}
-			if (item.position + tagLength + 1 < length) {
-				const auto after = text[item.position + tagLength + 1];
+			if (item.position + tagLength < length) {
+				const auto after = text[item.position + tagLength];
 				if (expression.badAfter.indexOf(after) >= 0) {
 					continue;
 				}
@@ -2194,6 +2194,14 @@ void InputField::keyPressEventInner(QKeyEvent *e) {
 			&& _submitSettings != SubmitSettings::None
 			&& _submitSettings != SubmitSettings::CtrlEnter);
 	bool enter = (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return);
+	if (e->key() == Qt::Key_Left
+		|| e->key() == Qt::Key_Right
+		|| e->key() == Qt::Key_Up
+		|| e->key() == Qt::Key_Down
+		|| e->key() == Qt::Key_Home
+		|| e->key() == Qt::Key_End) {
+		_reverseMarkdownReplacement = false;
+	}
 
 	if (macmeta && e->key() == Qt::Key_Backspace) {
 		QTextCursor tc(textCursor()), start(tc);
@@ -2492,7 +2500,10 @@ bool InputField::commitMarkdownReplacement(
 	cursor.setPosition(from);
 	cursor.setPosition(till, QTextCursor::KeepAnchor);
 	auto format = _defaultCharFormat;
-	format.setProperty(kReplaceTagId, tag);
+	if (!edge.isEmpty()) {
+		format.setProperty(kReplaceTagId, edge);
+		_reverseMarkdownReplacement = true;
+	}
 	_insertedTagsAreFromMime = false;
 	cursor.insertText(insert, format);
 	_insertedTags.clear();
@@ -2538,7 +2549,8 @@ bool InputField::revertFormatReplace() {
 			ApplyTagFormat(format, current);
 			replaceCursor.insertText(what.toString(), format);
 			return true;
-		} else if (current.hasProperty(kReplaceTagId)) {
+		} else if (_reverseMarkdownReplacement
+			&& current.hasProperty(kReplaceTagId)) {
 			const auto tag = current.property(kReplaceTagId).toString();
 			if (tag.isEmpty()) {
 				return false;

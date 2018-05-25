@@ -356,6 +356,7 @@ private:
 	int _minHeight = -1;
 	int _maxHeight = -1;
 	bool _forcePlaceholderHidden = false;
+	bool _reverseMarkdownReplacement = false;
 
 	object_ptr<Inner> _inner;
 
