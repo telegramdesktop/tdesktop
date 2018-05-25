@@ -87,6 +87,14 @@ std::map<int, const char*> AlphaLogs() {
 		"after typing (instead of after sending) and can be "
 		"rolled back using Backspace or Ctrl/Cmd + Z. "
 		"Replacement no longer happens when pasting text."
+	},
+	{
+		1002023,
+		"\xE2\x80\x94 Apply formatting from input field context menu.\n"
+
+		"\xE2\x80\x94 Apply formatting by hotkeys.\n"
+
+		"\xE2\x80\x94 Bug fixes and other minor improvements."
 	}
 	};
 }

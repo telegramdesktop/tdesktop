@@ -1,3 +1,9 @@
+1.2.23 alpha (25.05.18)
+
+- Apply formatting from input field context menu.
+- Apply formatting by hotkeys.
+- Bug fixes and other minor improvements.
+
 1.2.22 alpha (24.05.18)
 
 - Use markdown in media captions (**bold**, __italic__, `tag` and ```code```).
