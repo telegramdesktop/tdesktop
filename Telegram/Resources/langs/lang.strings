@@ -1259,8 +1259,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_menu_formatting_bold" = "Bold";
 "lng_menu_formatting_italic" = "Italic";
 "lng_menu_formatting_monospace" = "Monospace";
-//"lng_menu_formatting_link" = "Create link";
+"lng_menu_formatting_link_create" = "Create link";
+"lng_menu_formatting_link_edit" = "Edit link";
 "lng_menu_formatting_clear" = "Plain text";
+"lng_formatting_link_create_title" = "Create link";
+"lng_formatting_link_edit_title" = "Create link";
+"lng_formatting_link_text" = "Text";
+"lng_formatting_link_url" = "URL";
+"lng_formatting_link_create" = "Create";
 
 "lng_full_name" = "{first_name} {last_name}";
 

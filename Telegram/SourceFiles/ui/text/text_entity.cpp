@@ -1534,7 +1534,8 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &entities, Conver
 			&& entity.type() != EntityInTextItalic
 			&& entity.type() != EntityInTextCode
 			&& entity.type() != EntityInTextPre
-			&& entity.type() != EntityInTextMentionName) {
+			&& entity.type() != EntityInTextMentionName
+			&& entity.type() != EntityInTextCustomUrl) {
 			continue;
 		}
 

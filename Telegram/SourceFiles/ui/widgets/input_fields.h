@@ -186,6 +186,21 @@ public:
 	};
 	void setTagMimeProcessor(std::unique_ptr<TagMimeProcessor> &&processor);
 
+	struct EditLinkSelection {
+		int from = 0;
+		int till = 0;
+	};
+	enum class EditLinkAction {
+		Check,
+		Edit,
+	};
+	void setEditLinkCallback(
+		base::lambda<bool(
+			EditLinkSelection selection,
+			QString text,
+			QString link,
+			EditLinkAction action)> callback);
+
 	void setAdditionalMargin(int margin);
 
 	void setInstantReplaces(const InstantReplaces &replaces);
@@ -201,8 +216,13 @@ public:
 		int till,
 		const QString &tag,
 		const QString &edge = QString());
+	void commitMarkdownLinkEdit(
+		EditLinkSelection selection,
+		const QString &text,
+		const QString &link);
 	void toggleSelectionMarkdown(const QString &tag);
 	void clearSelectionMarkdown();
+	static bool IsValidMarkdownLink(const QString &link);
 
 	const QString &getLastText() const {
 		return _lastTextWithTags.text;
@@ -322,6 +342,7 @@ private:
 	QMimeData *createMimeDataFromSelectionInner() const;
 	bool canInsertFromMimeDataInner(const QMimeData *source) const;
 	void insertFromMimeDataInner(const QMimeData *source);
+	TextWithTags getTextWithTagsSelected() const;
 
 	// "start" and "end" are in coordinates of text where emoji are replaced
 	// by ObjectReplacementCharacter. If "end" = -1 means get text till the end.
@@ -345,7 +366,7 @@ private:
 
 	bool processMarkdownReplaces(const QString &appended);
 	bool processMarkdownReplace(const QString &tag);
-	void addMarkdownActions(not_null<QMenu*> menu);
+	void addMarkdownActions(not_null<QMenu*> menu, QContextMenuEvent *e);
 	void addMarkdownMenuAction(
 		not_null<QMenu*> menu,
 		not_null<QAction*> action);
@@ -356,6 +377,15 @@ private:
 	const InstantReplaces &instantReplaces() const;
 	void processInstantReplaces(const QString &appended);
 	void applyInstantReplace(const QString &what, const QString &with);
+
+	struct EditLinkData {
+		int from = 0;
+		int till = 0;
+		QString link;
+	};
+	EditLinkData selectionEditLinkData(EditLinkSelection selection) const;
+	EditLinkSelection editLinkSelection(QContextMenuEvent *e) const;
+	void editMarkdownLink(EditLinkSelection selection);
 
 	bool revertFormatReplace();
 
@@ -373,6 +403,11 @@ private:
 	TextWithTags _lastTextWithTags;
 	std::vector<PossibleTag> _textAreaPossibleTags;
 	QString _lastPreEditText;
+	base::lambda<bool(
+		EditLinkSelection selection,
+		QString text,
+		QString link,
+		EditLinkAction action)> _editLinkCallback;
 
 	// Tags list which we should apply while setText() call or insert from mime data.
 	TagList _insertedTags;

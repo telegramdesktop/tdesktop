@@ -25,8 +25,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 EditCaptionBox::EditCaptionBox(
 	QWidget*,
+	not_null<Window::Controller*> controller,
 	not_null<HistoryItem*> item)
-: _msgId(item->fullId()) {
+: _controller(controller)
+, _msgId(item->fullId()) {
 	Expects(item->media() != nullptr);
 	Expects(item->media()->allowsEditCaption());
 
@@ -146,6 +148,8 @@ EditCaptionBox::EditCaptionBox(
 	_field->setInstantReplaces(Ui::InstantReplaces::Default());
 	_field->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
 	_field->setMarkdownReplacesEnabled(rpl::single(true));
+	_field->setEditLinkCallback(
+		DefaultEditLinkCallback(_controller, _field));
 }
 
 void EditCaptionBox::prepareGifPreview(DocumentData *document) {

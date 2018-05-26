@@ -16,6 +16,7 @@ class Controller;
 } // namespace Window
 
 QString ConvertTagToMimeTag(const QString &tagId);
+QString PrepareMentionTag(not_null<UserData*> user);
 
 EntitiesInText ConvertTextTagsToEntities(const TextWithTags::Tags &tags);
 TextWithTags::Tags ConvertEntitiesToTextTags(
@@ -26,7 +27,16 @@ void SetClipboardWithEntities(
 	const TextWithEntities &forClipboard,
 	QClipboard::Mode mode = QClipboard::Clipboard);
 
-void InitMessageField(not_null<Ui::InputField*> field);
+base::lambda<bool(
+	Ui::InputField::EditLinkSelection selection,
+	QString text,
+	QString link,
+	Ui::InputField::EditLinkAction action)> DefaultEditLinkCallback(
+		not_null<Window::Controller*> controller,
+		not_null<Ui::InputField*> field);
+void InitMessageField(
+	not_null<Window::Controller*> controller,
+	not_null<Ui::InputField*> field);
 bool HasSendText(not_null<const Ui::InputField*> field);
 
 struct InlineBotQuery {
@@ -71,9 +81,12 @@ private:
 	struct LinkRange {
 		int start;
 		int length;
+		QString custom;
 	};
 	friend inline bool operator==(const LinkRange &a, const LinkRange &b) {
-		return (a.start == b.start) && (a.length == b.length);
+		return (a.start == b.start)
+			&& (a.length == b.length)
+			&& (a.custom == b.custom);
 	}
 	friend inline bool operator!=(const LinkRange &a, const LinkRange &b) {
 		return !(a == b);

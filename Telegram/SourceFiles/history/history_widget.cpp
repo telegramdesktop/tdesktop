@@ -513,7 +513,7 @@ HistoryWidget::HistoryWidget(
 	_historyDown->installEventFilter(this);
 	_unreadMentions->installEventFilter(this);
 
-	InitMessageField(_field);
+	InitMessageField(controller, _field);
 	_fieldAutocomplete->hide();
 	connect(_fieldAutocomplete, SIGNAL(mentionChosen(UserData*,FieldAutocomplete::ChooseMethod)), this, SLOT(onMentionInsert(UserData*)));
 	connect(_fieldAutocomplete, SIGNAL(hashtagChosen(QString,FieldAutocomplete::ChooseMethod)), this, SLOT(onHashtagOrBotCommandInsert(QString,FieldAutocomplete::ChooseMethod)));
@@ -997,10 +997,7 @@ void HistoryWidget::onMentionInsert(UserData *user) {
 		if (replacement.isEmpty()) {
 			replacement = App::peerName(user);
 		}
-		entityTag = qsl("mention://user.")
-			+ QString::number(user->bareId())
-			+ '.'
-			+ QString::number(user->accessHash());
+		entityTag = PrepareMentionTag(user);
 	} else {
 		replacement = '@' + user->username;
 	}
@@ -1172,8 +1169,8 @@ void HistoryWidget::onDraftSaveDelayed() {
 	if (!_peer || !(_textUpdateEvents & TextUpdateEvent::SaveDraft)) {
 		return;
 	}
-	if (!_field->textCursor().anchor()
-		&& !_field->textCursor().position()
+	if (!_field->textCursor().position()
+		&& !_field->textCursor().anchor()
 		&& !_field->scrollTop().current()) {
 		if (!Local::hasDraftCursors(_peer->id)) {
 			return;
@@ -4168,6 +4165,7 @@ bool HistoryWidget::confirmSendingFiles(
 	const auto anchor = cursor.anchor();
 	const auto text = _field->getTextWithTags();
 	auto box = Box<SendFilesBox>(
+		controller(),
 		std::move(list),
 		text,
 		boxCompressConfirm);
@@ -5846,7 +5844,7 @@ void HistoryWidget::editMessage(FullMsgId itemId) {
 void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
 	if (const auto media = item->media()) {
 		if (media->allowsEditCaption()) {
-			Ui::show(Box<EditCaptionBox>(item));
+			Ui::show(Box<EditCaptionBox>(controller(), item));
 			return;
 		}
 	}

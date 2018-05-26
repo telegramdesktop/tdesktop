@@ -1319,10 +1319,12 @@ void SendFilesBox::AlbumPreview::mouseReleaseEvent(QMouseEvent *e) {
 
 SendFilesBox::SendFilesBox(
 	QWidget*,
+	not_null<Window::Controller*> controller,
 	Storage::PreparedList &&list,
 	const TextWithTags &caption,
 	CompressConfirm compressed)
-: _list(std::move(list))
+: _controller(controller)
+, _list(std::move(list))
 , _compressConfirmInitial(compressed)
 , _compressConfirm(compressed)
 , _caption(
@@ -1579,6 +1581,8 @@ void SendFilesBox::setupCaption() {
 	_caption->setInstantReplaces(Ui::InstantReplaces::Default());
 	_caption->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
 	_caption->setMarkdownReplacesEnabled(rpl::single(true));
+	_caption->setEditLinkCallback(
+		DefaultEditLinkCallback(_controller, _caption));
 }
 
 void SendFilesBox::captionResized() {

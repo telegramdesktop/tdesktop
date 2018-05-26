@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 namespace Data {
 class Media;
 } // namespace Data
@@ -19,7 +23,10 @@ class InputField;
 
 class EditCaptionBox : public BoxContent, public RPCSender {
 public:
-	EditCaptionBox(QWidget*, not_null<HistoryItem*> item);
+	EditCaptionBox(
+		QWidget*,
+		not_null<Window::Controller*> controller,
+		not_null<HistoryItem*> item);
 
 protected:
 	void prepare() override;
@@ -41,6 +48,7 @@ private:
 
 	int errorTopSkip() const;
 
+	not_null<Window::Controller*> _controller;
 	FullMsgId _msgId;
 	bool _animated = false;
 	bool _photo = false;

@@ -399,11 +399,11 @@ QString SuggestionsController::getEmojiQuery() {
 	}
 
 	auto cursor = _field->textCursor();
-	auto position = _field->textCursor().position();
-	if (cursor.anchor() != position) {
+	if (cursor.hasSelection()) {
 		return QString();
 	}
 
+	auto position = cursor.position();
 	auto findTextPart = [this, &position] {
 		auto document = _field->document();
 		auto block = document->findBlock(position);

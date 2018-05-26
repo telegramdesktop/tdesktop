@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localimageloader.h"
 #include "storage/storage_media_prepare.h"
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 namespace Ui {
 template <typename Enum>
 class Radioenum;
@@ -32,6 +36,7 @@ class SendFilesBox : public BoxContent {
 public:
 	SendFilesBox(
 		QWidget*,
+		not_null<Window::Controller*> controller,
 		Storage::PreparedList &&list,
 		const TextWithTags &caption,
 		CompressConfirm compressed);
@@ -87,6 +92,8 @@ private:
 	bool canAddFiles(not_null<const QMimeData*> data) const;
 	bool canAddUrls(const QList<QUrl> &urls) const;
 	bool addFiles(not_null<const QMimeData*> data);
+
+	not_null<Window::Controller*> _controller;
 
 	QString _titleText;
 	int _titleHeight = 0;
