@@ -1,3 +1,7 @@
+1.2.24 alpha (26.05.18)
+
+- Add links with custom text from context menu or by Ctrl/Cmd + K keyboard shortcut.
+
 1.2.23 alpha (25.05.18)
 
 - Apply formatting from input field context menu.

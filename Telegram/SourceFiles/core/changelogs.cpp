@@ -95,6 +95,11 @@ std::map<int, const char*> AlphaLogs() {
 		"\xE2\x80\x94 Apply formatting by hotkeys.\n"
 
 		"\xE2\x80\x94 Bug fixes and other minor improvements."
+	},
+	{
+		1002024,
+		"\xE2\x80\x94 Add links with custom text from context menu "
+		"or by Ctrl/Cmd + K keyboard shortcut."
 	}
 	};
 }
