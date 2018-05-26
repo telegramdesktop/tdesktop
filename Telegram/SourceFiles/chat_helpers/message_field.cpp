@@ -675,6 +675,7 @@ void MessageLinksParser::parse() {
 		}
 		offset = matchOffset = p - start;
 	}
+	processTagsBefore(QFIXED_MAX);
 
 	apply(text, ranges);
 }
