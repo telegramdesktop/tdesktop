@@ -109,6 +109,7 @@ QMap<QString, ChoosePluralMethod> GeneratePluralRulesMap() {
 //	result.insert(qsl("nl"), ChoosePluralEn);
 	result.insert(qsl("pt"), ChoosePluralPt);
 	result.insert(qsl("ru"), ChoosePluralRu);
+	result.insert(qsl("uk"), ChoosePluralRu);
 	return result;
 }
 
