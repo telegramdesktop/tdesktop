@@ -1217,7 +1217,23 @@ void InputField::setAdditionalMargin(int margin) {
 }
 
 void InputField::setMaxLength(int length) {
-	_maxLength = length;
+	if (_maxLength != length) {
+		_maxLength = length;
+		if (_maxLength > 0) {
+			const auto document = _inner->document();
+			_correcting = true;
+			QTextCursor(document->docHandle(), 0).joinPreviousEditBlock();
+			const auto guard = gsl::finally([&] {
+				_correcting = false;
+				QTextCursor(document->docHandle(), 0).endEditBlock();
+				handleContentsChanged();
+			});
+
+			auto cursor = QTextCursor(document->docHandle(), 0);
+			cursor.movePosition(QTextCursor::End);
+			chopByMaxLength(0, cursor.position());
+		}
+	}
 }
 
 void InputField::setMinHeight(int height) {
