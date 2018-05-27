@@ -2560,7 +2560,7 @@ const QString &readAutoupdatePrefixRaw() {
 			return AutoupdatePrefix(value);
 		}
 	}
-	return AutoupdatePrefix("http://updates.tdesktop.com");
+	return AutoupdatePrefix("https://updates.tdesktop.com");
 }
 #endif // TDESKTOP_DISABLE_AUTOUPDATE
 
