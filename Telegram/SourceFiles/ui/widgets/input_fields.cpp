@@ -1122,6 +1122,7 @@ InputField::InputField(
 	connect(_inner->document(), SIGNAL(contentsChange(int,int,int)), this, SLOT(onDocumentContentsChange(int,int,int)));
 	connect(_inner, SIGNAL(undoAvailable(bool)), this, SLOT(onUndoAvailable(bool)));
 	connect(_inner, SIGNAL(redoAvailable(bool)), this, SLOT(onRedoAvailable(bool)));
+	connect(_inner, SIGNAL(cursorPositionChanged()), this, SLOT(onCursorPositionChanged()));
 	if (App::wnd()) connect(_inner, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
 
 	const auto bar = _inner->verticalScrollBar();
@@ -1976,6 +1977,14 @@ void InputField::onDocumentContentsChange(
 		if (document->pageSize() != pageSize) {
 			document->setPageSize(pageSize);
 		}
+	}
+}
+
+void InputField::onCursorPositionChanged() {
+	auto cursor = textCursor();
+	if (!cursor.hasSelection() && !cursor.position()) {
+		cursor.setCharFormat(_defaultCharFormat);
+		setTextCursor(cursor);
 	}
 }
 

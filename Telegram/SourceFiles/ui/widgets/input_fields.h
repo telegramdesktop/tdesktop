@@ -289,6 +289,7 @@ private slots:
 	void onTouchTimer();
 
 	void onDocumentContentsChange(int position, int charsRemoved, int charsAdded);
+	void onCursorPositionChanged();
 
 	void onUndoAvailable(bool avail);
 	void onRedoAvailable(bool avail);
