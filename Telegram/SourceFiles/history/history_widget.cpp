@@ -1136,8 +1136,10 @@ void HistoryWidget::updateStickersByEmoji() {
 }
 
 void HistoryWidget::onTextChange() {
-	updateInlineBotQuery();
-	updateStickersByEmoji();
+	InvokeQueued(this, [=] {
+		updateInlineBotQuery();
+		updateStickersByEmoji();
+	});
 
 	if (_history) {
 		if (!_inlineBot
@@ -1634,6 +1636,8 @@ void HistoryWidget::fastShowAtEnd(not_null<History*> history) {
 }
 
 void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
+	InvokeQueued(this, [=] { updateStickersByEmoji(); });
+
 	auto draft = _history ? _history->draft() : nullptr;
 	auto fieldAvailable = canWriteMessage();
 	if (!draft || (!_history->editDraft() && !fieldAvailable)) {
@@ -6272,10 +6276,13 @@ void HistoryWidget::onCancel() {
 				lang(lng_cancel_edit_post_yes),
 				lang(lng_cancel_edit_post_no),
 				base::lambda_guarded(this, [this] {
-				onFieldBarCancel();
-			})));
+					if (_editMsgId) {
+						cancelEdit();
+						Ui::hideLayer();
+					}
+				})));
 		} else {
-			onFieldBarCancel();
+			cancelEdit();
 		}
 	} else if (!_fieldAutocomplete->isHidden()) {
 		_fieldAutocomplete->hideAnimated();
