@@ -67,6 +67,66 @@ private:
 
 };
 
+SignalBars::SignalBars(
+	QWidget *parent,
+	not_null<Call*> call,
+	const style::CallSignalBars &st,
+	base::lambda<void()> displayedChangedCallback)
+: RpWidget(parent)
+, _st(st)
+, _displayedChangedCallback(std::move(displayedChangedCallback)) {
+	resize(
+		_st.width + (_st.width + _st.skip) * (Call::kSignalBarCount - 1),
+		_st.width * Call::kSignalBarCount);
+	subscribe(call->signalBarCountChanged(), [=](int count) {
+		changed(count);
+	});
+}
+
+bool SignalBars::isDisplayed() const {
+	return (_count >= 0);
+}
+
+void SignalBars::paintEvent(QPaintEvent *e) {
+	if (!isDisplayed()) {
+		return;
+	}
+
+	Painter p(this);
+
+	PainterHighQualityEnabler hq(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(_st.color);
+	for (auto i = 0; i < Call::kSignalBarCount; ++i) {
+		p.setOpacity((i < _count) ? 1. : _st.inactiveOpacity);
+		const auto barHeight = (i + 1) * _st.width;
+		const auto barLeft = i * (_st.width + _st.skip);
+		const auto barTop = height() - barHeight;
+		p.drawRoundedRect(
+			barLeft,
+			barTop,
+			_st.width,
+			barHeight,
+			_st.radius,
+			_st.radius);
+	}
+	p.setOpacity(1.);
+}
+
+void SignalBars::changed(int count) {
+	if (_count == Call::kSignalBarFinished) {
+		return;
+	}
+	if (_count != count) {
+		const auto wasDisplayed = isDisplayed();
+		_count = count;
+		if (isDisplayed() != wasDisplayed && _displayedChangedCallback) {
+			_displayedChangedCallback();
+		}
+		update();
+	}
+}
+
 Panel::Button::Button(QWidget *parent, const style::CallButton &stFrom, const style::CallButton *stTo) : Ui::RippleButton(parent, stFrom.button.ripple)
 , _stFrom(&stFrom)
 , _stTo(stTo) {
@@ -238,7 +298,8 @@ Panel::Panel(not_null<Call*> call)
 , _cancel(this, object_ptr<Button>(this, st::callCancel))
 , _mute(this, st::callMuteToggle)
 , _name(this, st::callName)
-, _status(this, st::callStatus) {
+, _status(this, st::callStatus)
+, _signalBars(this, call, st::callPanelSignalBars) {
 	_decline->setDuration(st::callPanelDuration);
 	_cancel->setDuration(st::callPanelDuration);
 
@@ -337,9 +398,17 @@ void Panel::initControls() {
 void Panel::reinitControls() {
 	Expects(_call != nullptr);
 
-	unsubscribe(_stateChangedSubscription);
-	_stateChangedSubscription = subscribe(_call->stateChanged(), [this](State state) { stateChanged(state); });
+	unsubscribe(base::take(_stateChangedSubscription));
+	_stateChangedSubscription = subscribe(
+		_call->stateChanged(),
+		[=](State state) { stateChanged(state); });
 	stateChanged(_call->state());
+
+	_signalBars.create(
+		this,
+		_call,
+		st::callPanelSignalBars,
+		[=] { rtlupdate(signalBarsRect()); });
 
 	_name->setText(App::peerName(_call->user()));
 	updateStatusText(_call->state());
@@ -585,6 +654,12 @@ void Panel::updateControlsGeometry() {
 	updateHangupGeometry();
 
 	_mute->moveToRight(_padding.right() + st::callMuteRight, controlsTop);
+
+	const auto skip = st::callSignalMargin + st::callSignalPadding;
+	const auto delta = (_signalBars->width() - _signalBars->height());
+	_signalBars->moveToLeft(
+		_padding.left() + skip,
+		_padding.top() + skip + delta / 2);
 }
 
 void Panel::updateHangupGeometry() {
@@ -637,6 +712,10 @@ void Panel::paintEvent(QPaintEvent *e) {
 		p.fillRect(0, _contentTop, width(), height() - _contentTop, brush);
 	}
 
+	if (_signalBars->isDisplayed()) {
+		paintSignalBarsBg(p);
+	}
+
 	if (!_fingerprint.empty()) {
 		App::roundRect(p, _fingerprintArea, st::callFingerprintBg, ImageRoundRadius::Small);
 
@@ -649,6 +728,23 @@ void Panel::paintEvent(QPaintEvent *e) {
 			left += st::callFingerprintSkip + size;
 		}
 	}
+}
+
+QRect Panel::signalBarsRect() const {
+	const auto size = 2 * st::callSignalPadding + _signalBars->width();
+	return QRect(
+		_padding.left() + st::callSignalMargin,
+		_padding.top() + st::callSignalMargin,
+		size,
+		size);
+}
+
+void Panel::paintSignalBarsBg(Painter &p) {
+	App::roundRect(
+		p,
+		signalBarsRect(),
+		st::callFingerprintBg,
+		ImageRoundRadius::Small);
 }
 
 void Panel::closeEvent(QCloseEvent *e) {

@@ -93,6 +93,13 @@ public:
 		return _stateChanged;
 	}
 
+	static constexpr auto kSignalBarStarting = -1;
+	static constexpr auto kSignalBarFinished = -2;
+	static constexpr auto kSignalBarCount = 4;
+	base::Observable<int> &signalBarCountChanged() {
+		return _signalBarCountChanged;
+	}
+
 	void setMute(bool mute);
 	bool isMute() const {
 		return _mute;
@@ -146,7 +153,12 @@ private:
 	void startWaitingTrack();
 
 	void generateModExpFirst(base::const_byte_span randomSeed);
-	void handleControllerStateChange(tgvoip::VoIPController *controller, int state);
+	void handleControllerStateChange(
+		tgvoip::VoIPController *controller,
+		int state);
+	void handleControllerBarCountChange(
+		tgvoip::VoIPController *controller,
+		int count);
 	void createAndStartController(const MTPDphoneCall &call);
 
 	template <typename T>
@@ -159,6 +171,7 @@ private:
 	void setState(State state);
 	void setStateQueued(State state);
 	void setFailedQueued(int error);
+	void setSignalBarCount(int count);
 	void destroyController();
 
 	not_null<Delegate*> _delegate;
@@ -168,6 +181,8 @@ private:
 	FinishType _finishAfterRequestingCall = FinishType::None;
 	bool _answerAfterDhConfigReceived = false;
 	base::Observable<State> _stateChanged;
+	int _signalBarCount = kSignalBarStarting;
+	base::Observable<int> _signalBarCountChanged;
 	TimeMs _startTime = 0;
 	base::DelayedCallTimer _finishByTimeoutTimer;
 	base::Timer _discardByTimeoutTimer;

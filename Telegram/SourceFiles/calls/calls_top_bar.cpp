@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "calls/calls_call.h"
 #include "calls/calls_instance.h"
+#include "calls/calls_panel.h"
 #include "styles/style_boxes.h"
 #include "observer_peer.h"
 #include "boxes/abstract_box.h"
@@ -75,6 +76,7 @@ TopBar::TopBar(
 : RpWidget(parent)
 , _call(call)
 , _durationLabel(this, st::callBarLabel)
+, _signalBars(this, _call.get(), st::callBarSignalBars)
 , _fullInfoLabel(this, st::callBarInfoLabel)
 , _shortInfoLabel(this, st::callBarInfoLabel)
 , _hangupLabel(this, st::callBarLabel, lang(lng_call_bar_hangup).toUpper())
@@ -169,14 +171,23 @@ void TopBar::resizeEvent(QResizeEvent *e) {
 
 void TopBar::updateControlsGeometry() {
 	auto left = 0;
-	_mute->moveToLeft(left, 0); left += _mute->width();
-	_durationLabel->moveToLeft(left, st::callBarLabelTop); left += _durationLabel->width() + st::callBarSkip;
+	_mute->moveToLeft(left, 0);
+	left += _mute->width();
+	_durationLabel->moveToLeft(left, st::callBarLabelTop);
+	left += _durationLabel->width() + st::callBarSkip;
+	_signalBars->moveToLeft(left, (height() - _signalBars->height()) / 2);
+	left += _signalBars->width() + st::callBarSkip;
 
 	auto right = st::callBarRightSkip;
-	_hangupLabel->moveToRight(right, st::callBarLabelTop); right += _hangupLabel->width();
+	_hangupLabel->moveToRight(right, st::callBarLabelTop);
+	right += _hangupLabel->width();
 	right += st::callBarHangup.width;
 	_hangup->setGeometryToRight(0, 0, right, height());
-	_info->setGeometryToLeft(_mute->width(), 0, width() - _mute->width() - _hangup->width(), height());
+	_info->setGeometryToLeft(
+		_mute->width(),
+		0,
+		width() - _mute->width() - _hangup->width(),
+		height());
 
 	auto fullWidth = _fullInfoLabel->naturalWidth();
 	auto showFull = (left + fullWidth + right <= width());

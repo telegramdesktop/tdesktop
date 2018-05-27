@@ -20,7 +20,33 @@ template <typename Widget>
 class FadeWrap;
 } // namespace Ui
 
+namespace style {
+struct CallSignalBars;
+} // namespace style
+
 namespace Calls {
+
+class SignalBars : public Ui::RpWidget, private base::Subscriber {
+public:
+	SignalBars(
+		QWidget *parent,
+		not_null<Call*> call,
+		const style::CallSignalBars &st,
+		base::lambda<void()> displayedChangedCallback = nullptr);
+
+	bool isDisplayed() const;
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	void changed(int count);
+
+	const style::CallSignalBars &_st;
+	int _count = Call::kSignalBarStarting;
+	base::lambda<void()> _displayedChangedCallback;
+
+};
 
 class Panel
 	: public Ui::RpWidget
@@ -67,6 +93,8 @@ private:
 	void refreshUserPhoto();
 	bool isGoodUserPhoto(PhotoData *photo);
 	void createUserpicCache(ImagePtr image);
+	QRect signalBarsRect() const;
+	void paintSignalBarsBg(Painter &p);
 
 	void updateControlsGeometry();
 	void updateHangupGeometry();
@@ -102,6 +130,7 @@ private:
 	object_ptr<Ui::IconButton> _mute;
 	object_ptr<Ui::FlatLabel> _name;
 	object_ptr<Ui::FlatLabel> _status;
+	object_ptr<SignalBars> _signalBars;
 	std::vector<EmojiPtr> _fingerprint;
 	QRect _fingerprintArea;
 

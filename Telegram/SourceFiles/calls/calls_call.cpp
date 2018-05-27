@@ -558,6 +558,12 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		const auto call = static_cast<Call*>(controller->implData);
 		call->handleControllerStateChange(controller, state);
 	};
+	callbacks.signalBarCountChanged = [](
+			tgvoip::VoIPController *controller,
+			int count) {
+		const auto call = static_cast<Call*>(controller->implData);
+		call->handleControllerBarCountChange(controller, count);
+	};
 
 	_controller.create();
 	if (_mute) {
@@ -584,9 +590,12 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	_controller->Connect();
 }
 
-void Call::handleControllerStateChange(tgvoip::VoIPController *controller, int state) {
+void Call::handleControllerStateChange(
+		tgvoip::VoIPController *controller,
+		int state) {
 	// NB! Can be called from an arbitrary thread!
-	// Expects(controller == _controller.get()); This can be called from ~VoIPController()!
+	// This can be called from ~VoIPController()!
+	// Expects(controller == _controller.get());
 	Expects(controller->implData == static_cast<void*>(this));
 
 	switch (state) {
@@ -612,6 +621,26 @@ void Call::handleControllerStateChange(tgvoip::VoIPController *controller, int s
 	} break;
 
 	default: LOG(("Call Error: Unexpected state in handleStateChange: %1").arg(state));
+	}
+}
+
+void Call::handleControllerBarCountChange(
+		tgvoip::VoIPController *controller,
+		int count) {
+	// NB! Can be called from an arbitrary thread!
+	// This can be called from ~VoIPController()!
+	// Expects(controller == _controller.get());
+	Expects(controller->implData == static_cast<void*>(this));
+
+	InvokeQueued(this, [=] {
+		setSignalBarCount(count);
+	});
+}
+
+void Call::setSignalBarCount(int count) {
+	if (_signalBarCount != count) {
+		_signalBarCount = count;
+		_signalBarCountChanged.notify(count);
 	}
 }
 
@@ -708,6 +737,9 @@ void Call::setState(State state) {
 
 void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 	Expects(type != FinishType::None);
+
+	setSignalBarCount(kSignalBarFinished);
+
 	auto finalState = (type == FinishType::Ended) ? State::Ended : State::Failed;
 	auto hangupState = (type == FinishType::Ended) ? State::HangingUp : State::FailedHangingUp;
 	if (_state == State::Requesting) {
@@ -742,11 +774,15 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 }
 
 void Call::setStateQueued(State state) {
-	InvokeQueued(this, [this, state] { setState(state); });
+	InvokeQueued(this, [=] {
+		setState(state);
+	});
 }
 
 void Call::setFailedQueued(int error) {
-	InvokeQueued(this, [this, error] { handleControllerError(error); });
+	InvokeQueued(this, [=] {
+		handleControllerError(error);
+	});
 }
 
 void Call::handleRequestError(const RPCError &error) {
@@ -778,6 +814,7 @@ void Call::destroyController() {
 		_controller.reset();
 		DEBUG_LOG(("Call Info: Call controller destroyed."));
 	}
+	setSignalBarCount(kSignalBarFinished);
 }
 
 Call::~Call() {

@@ -10,6 +10,14 @@ using "basic.style";
 using "ui/widgets/widgets.style";
 using "window/window.style";
 
+CallSignalBars {
+	width: pixels;
+	radius: pixels;
+	skip: pixels;
+	color: color;
+	inactiveOpacity: double;
+}
+
 callWidth: 300px;
 callHeight: 470px;
 callShadow: Shadow {
@@ -189,3 +197,16 @@ callDebugLabel: FlatLabel(defaultFlatLabel) {
 	margin: callDebugPadding;
 }
 callPanelDuration: 150;
+
+callPanelSignalBars: CallSignalBars {
+	width: 3px;
+	radius: 1px;
+	skip: 1px;
+	color: callNameFg;
+	inactiveOpacity: 0.5;
+}
+callBarSignalBars: CallSignalBars(callPanelSignalBars) {
+	color: callBarFg;
+}
+callSignalMargin: 8px;
+callSignalPadding: 4px;

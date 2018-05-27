@@ -21,6 +21,7 @@ class FlatLabel;
 namespace Calls {
 
 class Call;
+class SignalBars;
 
 class TopBar : public Ui::RpWidget, private base::Subscriber {
 public:
@@ -45,6 +46,7 @@ private:
 
 	bool _muted = false;
 	object_ptr<Ui::LabelSimple> _durationLabel;
+	object_ptr<SignalBars> _signalBars;
 	object_ptr<Ui::FlatLabel> _fullInfoLabel;
 	object_ptr<Ui::FlatLabel> _shortInfoLabel;
 	object_ptr<Ui::LabelSimple> _hangupLabel;
