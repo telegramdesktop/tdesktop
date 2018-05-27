@@ -2991,18 +2991,13 @@ void Text::enumerateText(TextSelection selection, AppendPartCallback appendPartC
 		uint16 blockFrom = (i == e) ? _text.size() : (*i)->from();
 		int32 blockFlags = (i == e) ? 0 : (*i)->flags();
 
-		bool checkBlockFlags = (blockFrom >= selection.from) && (blockFrom <= selection.to);
-		if (checkBlockFlags && blockFlags != flags) {
-			flagsChangeCallback(flags, blockFlags);
-			flags = blockFlags;
-		}
 		if (blockLnkIndex && !_links.at(blockLnkIndex - 1)) { // ignore empty links
 			blockLnkIndex = 0;
 		}
 		if (blockLnkIndex != lnkIndex) {
 			if (lnkIndex) {
 				auto rangeFrom = qMax(selection.from, lnkFrom);
-				auto rangeTo = qMin(blockFrom, selection.to);
+				auto rangeTo = qMin(selection.to, blockFrom);
 				if (rangeTo > rangeFrom) { // handle click handler
 					QStringRef r = _text.midRef(rangeFrom, rangeTo - rangeFrom);
 					if (lnkFrom != rangeFrom || blockFrom != rangeTo) {
@@ -3018,7 +3013,16 @@ void Text::enumerateText(TextSelection selection, AppendPartCallback appendPartC
 				clickHandlerStartCallback();
 			}
 		}
-		if (i == e || blockFrom >= selection.to) break;
+
+		const auto checkBlockFlags = (blockFrom >= selection.from)
+			&& (blockFrom <= selection.to);
+		if (checkBlockFlags && blockFlags != flags) {
+			flagsChangeCallback(flags, blockFlags);
+			flags = blockFlags;
+		}
+		if (i == e || blockFrom >= selection.to) {
+			break;
+		}
 
 		if ((*i)->type() == TextBlockTSkip) continue;
 
