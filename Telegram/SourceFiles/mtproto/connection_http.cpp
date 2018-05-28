@@ -71,7 +71,6 @@ void HttpConnection::connectToServer(
 		const bytes::vector &protocolSecret,
 		int16 protocolDcId) {
 	_address = address;
-	TCP_LOG(("HTTP Info: address is %1").arg(url().toDisplayString()));
 	connect(
 		&_manager,
 		&QNetworkAccessManager::finished,
@@ -80,8 +79,10 @@ void HttpConnection::connectToServer(
 
 	mtpBuffer buffer(preparePQFake(_checkNonce));
 
-	DEBUG_LOG(("Connection Info: "
-		"sending fake req_pq through HTTP transport to '%1'").arg(address));
+	DEBUG_LOG(("HTTP Info: "
+		"dc:%1 - Sending fake req_pq to '%2'"
+		).arg(protocolDcId
+		).arg(url().toDisplayString()));
 
 	_pingTime = getms();
 	sendData(buffer);

@@ -231,7 +231,10 @@ void TcpConnection::socketConnected() {
 	if (_status == Status::Waiting) {
 		mtpBuffer buffer(preparePQFake(_checkNonce));
 
-		DEBUG_LOG(("Connection Info: sending fake req_pq through TCP transport to %1").arg(_address));
+		DEBUG_LOG(("TCP Info: "
+			"dc:%1 - Sending fake req_pq to '%2'"
+			).arg(_protocolDcId
+			).arg(_address + ':' + QString::number(_port)));
 
 		if (_timeout < 0) _timeout = -_timeout;
 		_timeoutTimer.callOnce(_timeout);
@@ -390,10 +393,20 @@ void TcpConnection::connectToServer(
 		_address = _proxy.host;
 		_port = _proxy.port;
 		_protocolSecret = ProtocolSecretFromPassword(_proxy.password);
+
+		DEBUG_LOG(("TCP Info: "
+			"dc:%1 - Connecting to proxy '%2'"
+			).arg(protocolDcId
+			).arg(_address + ':' + QString::number(_port)));
 	} else {
 		_address = address;
 		_port = port;
 		_protocolSecret = protocolSecret;
+
+		DEBUG_LOG(("TCP Info: "
+			"dc:%1 - Connecting to '%2'"
+			).arg(protocolDcId
+			).arg(_address + ':' + QString::number(_port)));
 	}
 	_protocolDcId = protocolDcId;
 

@@ -1144,6 +1144,9 @@ void ConnectionPrivate::connectToServer(bool afterConfig) {
 		});
 		return;
 	}
+	DEBUG_LOG(("Connection Info: Connecting to %1 with %2 test connections."
+		).arg(_shiftedDcId
+		).arg(_testConnections.size()));
 
 	if (!_startedConnectingAt) {
 		_startedConnectingAt = getms(true);
