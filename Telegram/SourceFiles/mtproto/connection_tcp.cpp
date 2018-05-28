@@ -16,9 +16,8 @@ namespace MTP {
 namespace internal {
 namespace {
 
-constexpr auto kMinReceiveTimeout = TimeMs(2000);
-constexpr auto kMaxReceiveTimeout = TimeMs(8000);
 constexpr auto kPacketSizeMax = 64 * 1024 * 1024U;
+constexpr auto kFullConnectionTimeout = 8 * TimeMs(1000);
 
 uint32 CountTcpPacketSize(const char *packet) { // must have at least 4 bytes readable
 	uint32 result = (packet[0] > 0) ? packet[0] : 0;
@@ -38,12 +37,9 @@ const auto QTcpSocket_error = ErrorSignal(&QAbstractSocket::error);
 TcpConnection::TcpConnection(QThread *thread, const ProxyData &proxy)
 : AbstractConnection(thread, proxy)
 , _currentPosition(reinterpret_cast<char*>(_shortBuffer))
-, _checkNonce(rand_value<MTPint128>())
-, _timeout(kMinReceiveTimeout)
-, _timeoutTimer(thread, [=] { handleTimeout(); }) {
+, _checkNonce(rand_value<MTPint128>()) {
 	_socket.moveToThread(thread);
 	_socket.setProxy(ToNetworkProxy(proxy));
-	connect(&_socket, QTcpSocket_error, this, &TcpConnection::socketError);
 	connect(
 		&_socket,
 		&QTcpSocket::connected,
@@ -54,6 +50,16 @@ TcpConnection::TcpConnection(QThread *thread, const ProxyData &proxy)
 		&QTcpSocket::disconnected,
 		this,
 		&TcpConnection::socketDisconnected);
+	connect(
+		&_socket,
+		&QTcpSocket::readyRead,
+		this,
+		&TcpConnection::socketRead);
+	connect(
+		&_socket,
+		QTcpSocket_error,
+		this,
+		&TcpConnection::socketError);
 }
 
 ConnectionPointer TcpConnection::clone(const ProxyData &proxy) {
@@ -228,46 +234,20 @@ void TcpConnection::handleError(QAbstractSocket::SocketError e, QTcpSocket &sock
 }
 
 void TcpConnection::socketConnected() {
-	if (_status == Status::Waiting) {
-		mtpBuffer buffer(preparePQFake(_checkNonce));
+	Expects(_status == Status::Waiting);
 
-		DEBUG_LOG(("TCP Info: "
-			"dc:%1 - Sending fake req_pq to '%2'"
-			).arg(_protocolDcId
-			).arg(_address + ':' + QString::number(_port)));
+	auto buffer = preparePQFake(_checkNonce);
 
-		if (_timeout < 0) _timeout = -_timeout;
-		_timeoutTimer.callOnce(_timeout);
+	DEBUG_LOG(("TCP Info: "
+		"dc:%1 - Sending fake req_pq to '%2'"
+		).arg(_protocolDcId
+		).arg(_address + ':' + QString::number(_port)));
 
-		_pingTime = getms();
-		sendData(buffer);
-	}
-}
-
-void TcpConnection::handleTimeout() {
-	if (_status == Status::Waiting) {
-		if (_timeout < kMaxReceiveTimeout) {
-			_timeout *= 2;
-		}
-		_timeout = -_timeout;
-
-		QAbstractSocket::SocketState state = _socket.state();
-		if (state == QAbstractSocket::ConnectedState || state == QAbstractSocket::ConnectingState || state == QAbstractSocket::HostLookupState) {
-			_socket.disconnectFromHost();
-		} else if (state != QAbstractSocket::ClosingState) {
-			_socket.connectToHost(_address, _port);
-		}
-	}
+	_pingTime = getms();
+	sendData(buffer);
 }
 
 void TcpConnection::socketDisconnected() {
-	if (_timeout < 0) {
-		_timeout = -_timeout;
-		if (_status == Status::Waiting) {
-			_socket.connectToHost(_address, _port);
-			return;
-		}
-	}
 	if (_status == Status::Waiting || _status == Status::Ready) {
 		emit disconnected();
 	}
@@ -380,7 +360,10 @@ void TcpConnection::disconnectFromServer() {
 	if (_status == Status::Finished) return;
 	_status = Status::Finished;
 
+	disconnect(&_socket, &QTcpSocket::connected, nullptr, nullptr);
+	disconnect(&_socket, &QTcpSocket::disconnected, nullptr, nullptr);
 	disconnect(&_socket, &QTcpSocket::readyRead, nullptr, nullptr);
+	disconnect(&_socket, QTcpSocket_error, nullptr, nullptr);
 	_socket.close();
 }
 
@@ -389,6 +372,11 @@ void TcpConnection::connectToServer(
 		int port,
 		const bytes::vector &protocolSecret,
 		int16 protocolDcId) {
+	Expects(_address.isEmpty());
+	Expects(_port == 0);
+	Expects(_protocolSecret.empty());
+	Expects(_protocolDcId == 0);
+
 	if (_proxy.type == ProxyData::Type::Mtproto) {
 		_address = _proxy.host;
 		_port = _proxy.port;
@@ -410,7 +398,6 @@ void TcpConnection::connectToServer(
 	}
 	_protocolDcId = protocolDcId;
 
-	connect(&_socket, &QTcpSocket::readyRead, this, [=] { socketRead(); });
 	_socket.connectToHost(_address, _port);
 }
 
@@ -419,26 +406,30 @@ TimeMs TcpConnection::pingTime() const {
 }
 
 TimeMs TcpConnection::fullConnectTimeout() const {
-	return kMaxReceiveTimeout;
+	return kFullConnectionTimeout;
 }
 
 void TcpConnection::socketPacket(const char *packet, uint32 length) {
 	if (_status == Status::Finished) return;
 
-	mtpBuffer data = handleResponse(packet, length);
+	const auto data = handleResponse(packet, length);
 	if (data.size() == 1) {
 		emit error(data[0]);
 	} else if (_status == Status::Ready) {
 		_receivedQueue.push_back(data);
 		emit receivedData();
 	} else if (_status == Status::Waiting) {
-		_timeoutTimer.cancel();
 		try {
-			auto res_pq = readPQFakeReply(data);
-			const auto &res_pq_data(res_pq.c_resPQ());
-			if (res_pq_data.vnonce == _checkNonce) {
-				DEBUG_LOG(("Connection Info: TCP-transport to %1 chosen by pq-response").arg(_address));
+			const auto res_pq = readPQFakeReply(data);
+			const auto &data = res_pq.c_resPQ();
+			if (data.vnonce == _checkNonce) {
+				DEBUG_LOG(("Connection Info: Valid pq response by TCP."));
 				_status = Status::Ready;
+				disconnect(
+					&_socket,
+					&QTcpSocket::connected,
+					nullptr,
+					nullptr);
 				_pingTime = (getms() - _pingTime);
 				emit connected();
 			}

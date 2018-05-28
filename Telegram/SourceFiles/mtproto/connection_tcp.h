@@ -54,7 +54,6 @@ private:
 	void socketConnected();
 	void socketDisconnected();
 	void socketError(QAbstractSocket::SocketError e);
-	void handleTimeout();
 
 	mtpBuffer handleResponse(const char *packet, uint32 length);
 	static void handleError(QAbstractSocket::SocketError e, QTcpSocket &sock);
@@ -87,8 +86,6 @@ private:
 
 	QString _address;
 	int32 _port = 0;
-	int32 _timeout = 0;
-	base::Timer _timeoutTimer;
 	TimeMs _pingTime = 0;
 
 };
