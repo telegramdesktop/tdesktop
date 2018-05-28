@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace MTP {
+class Instance;
+} // namespace MTP
+
 namespace Core {
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -36,6 +40,8 @@ public:
 	void start(bool forceWait = false);
 	void stop();
 	void test();
+
+	void setMtproto(const QPointer<MTP::Instance> &mtproto);
 
 	State state() const;
 	int already() const;

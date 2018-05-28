@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_translator.h"
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_hardcoded.h"
+#include "core/update_checker.h"
 #include "observer_peer.h"
 #include "storage/file_upload.h"
 #include "mainwidget.h"
@@ -462,7 +463,10 @@ void Messenger::startMtp() {
 		_private->storedAuthSession.reset();
 	}
 
-	_langCloudManager = std::make_unique<Lang::CloudManager>(langpack(), mtp());
+	_langCloudManager = std::make_unique<Lang::CloudManager>(
+		langpack(),
+		mtp());
+	Core::UpdateChecker().setMtproto(mtp());
 }
 
 void Messenger::destroyMtpKeys(MTP::AuthKeysList &&keys) {

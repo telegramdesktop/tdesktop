@@ -10,7 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "application.h"
 #include "platform/platform_specific.h"
 #include "base/timer.h"
+#include "base/bytes.h"
 #include "storage/localstorage.h"
+#include "messenger.h"
 
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
@@ -29,8 +31,17 @@ namespace Core {
 
 namespace {
 
-constexpr auto kCheckTimeout = TimeMs(10000);
+constexpr auto kUpdaterTimeout = 10 * TimeMs(1000);
 constexpr auto kMaxResponseSize = 1024 * 1024;
+constexpr auto kMaxUpdateSize = 256 * 1024 * 1024;
+
+std::weak_ptr<Updater> UpdaterInstance;
+
+using ErrorSignal = void(QNetworkReply::*)(QNetworkReply::NetworkError);
+const auto QNetworkReply_error = ErrorSignal(&QNetworkReply::error);
+
+using Progress = UpdateChecker::Progress;
+using State = UpdateChecker::State;
 
 #ifdef Q_OS_WIN
 using VersionInt = DWORD;
@@ -40,10 +51,163 @@ using VersionInt = int;
 using VersionChar = wchar_t;
 #endif // Q_OS_WIN
 
-using ErrorSignal = void(QNetworkReply::*)(QNetworkReply::NetworkError);
-const auto QNetworkReply_error = ErrorSignal(&QNetworkReply::error);
+class Loader : public base::has_weak_ptr {
+public:
+	Loader(const QString &filename, int chunkSize);
 
-std::weak_ptr<Updater> UpdaterInstance;
+	virtual void start() = 0;
+
+	int alreadySize() const;
+	int totalSize() const;
+
+	rpl::producer<Progress> progress() const;
+	rpl::producer<QString> ready() const;
+	rpl::producer<> failed() const;
+
+	rpl::lifetime &lifetime();
+
+	virtual ~Loader() = default;
+
+protected:
+	bool startOutput();
+	void threadSafeFailed();
+
+	// Single threaded.
+	void writeChunk(bytes::const_span data, int totalSize);
+
+private:
+	bool validateOutput();
+	void threadSafeProgress(Progress progress);
+	void threadSafeReady();
+
+	QString _filename;
+	QString _filepath;
+	int _chunkSize = 0;
+
+	QFile _output;
+	int _alreadySize = 0;
+	int _totalSize = 0;
+	mutable QMutex _sizesMutex;
+	rpl::event_stream<Progress> _progress;
+	rpl::event_stream<QString> _ready;
+	rpl::event_stream<> _failed;
+
+	rpl::lifetime _lifetime;
+
+};
+
+class Checker : public base::has_weak_ptr {
+public:
+	Checker(bool testing);
+
+	virtual void start() = 0;
+
+	rpl::producer<std::shared_ptr<Loader>> ready() const;
+	rpl::producer<> failed() const;
+
+	rpl::lifetime &lifetime();
+
+	virtual ~Checker() = default;
+
+protected:
+	bool testing() const;
+	void done(std::shared_ptr<Loader> result);
+	void fail();
+
+private:
+	bool _testing = false;
+	rpl::event_stream<std::shared_ptr<Loader>> _ready;
+	rpl::event_stream<> _failed;
+
+	rpl::lifetime _lifetime;
+
+};
+
+struct Implementation {
+	std::unique_ptr<Checker> checker;
+	std::shared_ptr<Loader> loader;
+	bool failed = false;
+
+};
+
+class HttpChecker : public Checker {
+public:
+	HttpChecker(bool testing);
+
+	void start() override;
+
+	~HttpChecker();
+
+private:
+	void gotResponse();
+	void gotFailure(QNetworkReply::NetworkError e);
+	void clearSentRequest();
+	bool handleResponse(const QByteArray &response);
+	base::optional<QString> parseOldResponse(
+		const QByteArray &response) const;
+	base::optional<QString> parseResponse(const QByteArray &response) const;
+	QString validateLastestUrl(
+		uint64 availableVersion,
+		bool isAvailableBeta,
+		QString url) const;
+
+	std::unique_ptr<QNetworkAccessManager> _manager;
+	QNetworkReply *_reply = nullptr;
+
+};
+
+class HttpLoaderActor;
+
+class HttpLoader : public Loader {
+public:
+	HttpLoader(const QString &url);
+
+	void start() override;
+
+	~HttpLoader();
+
+private:
+	friend class HttpLoaderActor;
+
+	QString _url;
+	std::unique_ptr<QThread> _thread;
+	HttpLoaderActor *_actor = nullptr;
+
+};
+
+class HttpLoaderActor : public QObject {
+public:
+	HttpLoaderActor(
+		not_null<HttpLoader*> parent,
+		not_null<QThread*> thread,
+		const QString &url);
+
+private:
+	void start();
+	void sendRequest();
+
+	void gotMetaData();
+	void partFinished(qint64 got, qint64 total);
+	void partFailed(QNetworkReply::NetworkError e);
+
+	not_null<HttpLoader*> _parent;
+	QString _url;
+	QNetworkAccessManager _manager;
+	std::unique_ptr<QNetworkReply> _reply;
+
+};
+
+class MtpChecker : public Checker {
+public:
+	MtpChecker(bool testing);
+
+	void start() override;
+
+	~MtpChecker();
+
+private:
+
+};
 
 std::shared_ptr<Updater> GetUpdaterInstance() {
 	if (const auto result = UpdaterInstance.lock()) {
@@ -81,13 +245,769 @@ QString FindUpdateFile() {
 	return QString();
 }
 
+QString ExtractFilename(const QString &url) {
+	const auto expression = QRegularExpression(qsl("/([^/\\?]+)(\\?|$)"));
+	if (const auto match = expression.match(url); match.hasMatch()) {
+		return match.captured(1).replace(
+			QRegularExpression(qsl("[^a-zA-Z0-9_\\-]")),
+			QString());
+	}
+	return QString();
+}
+
+bool UnpackUpdate(const QString &filepath) {
+	QFile input(filepath);
+	QByteArray packed;
+	if (!input.open(QIODevice::ReadOnly)) {
+		LOG(("Update Error: cant read updates file!"));
+		return false;
+	}
+
+#ifdef Q_OS_WIN // use Lzma SDK for win
+	const int32 hSigLen = 128, hShaLen = 20, hPropsLen = LZMA_PROPS_SIZE, hOriginalSizeLen = sizeof(int32), hSize = hSigLen + hShaLen + hPropsLen + hOriginalSizeLen; // header
+#else // Q_OS_WIN
+	const int32 hSigLen = 128, hShaLen = 20, hPropsLen = 0, hOriginalSizeLen = sizeof(int32), hSize = hSigLen + hShaLen + hOriginalSizeLen; // header
+#endif // Q_OS_WIN
+
+	QByteArray compressed = input.readAll();
+	int32 compressedLen = compressed.size() - hSize;
+	if (compressedLen <= 0) {
+		LOG(("Update Error: bad compressed size: %1").arg(compressed.size()));
+		return false;
+	}
+	input.close();
+
+	QString tempDirPath = cWorkingDir() + qsl("tupdates/temp"), readyFilePath = cWorkingDir() + qsl("tupdates/temp/ready");
+	psDeleteDir(tempDirPath);
+
+	QDir tempDir(tempDirPath);
+	if (tempDir.exists() || QFile(readyFilePath).exists()) {
+		LOG(("Update Error: cant clear tupdates/temp dir!"));
+		return false;
+	}
+
+	uchar sha1Buffer[20];
+	bool goodSha1 = !memcmp(compressed.constData() + hSigLen, hashSha1(compressed.constData() + hSigLen + hShaLen, compressedLen + hPropsLen + hOriginalSizeLen, sha1Buffer), hShaLen);
+	if (!goodSha1) {
+		LOG(("Update Error: bad SHA1 hash of update file!"));
+		return false;
+	}
+
+	RSA *pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>(AppAlphaVersion ? UpdatesPublicAlphaKey : UpdatesPublicKey), -1), 0, 0, 0);
+	if (!pbKey) {
+		LOG(("Update Error: cant read public rsa key!"));
+		return false;
+	}
+	if (RSA_verify(NID_sha1, (const uchar*)(compressed.constData() + hSigLen), hShaLen, (const uchar*)(compressed.constData()), hSigLen, pbKey) != 1) { // verify signature
+		RSA_free(pbKey);
+		if (cAlphaVersion() || cBetaVersion()) { // try other public key, if we are in alpha or beta version
+			pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>(AppAlphaVersion ? UpdatesPublicKey : UpdatesPublicAlphaKey), -1), 0, 0, 0);
+			if (!pbKey) {
+				LOG(("Update Error: cant read public rsa key!"));
+				return false;
+			}
+			if (RSA_verify(NID_sha1, (const uchar*)(compressed.constData() + hSigLen), hShaLen, (const uchar*)(compressed.constData()), hSigLen, pbKey) != 1) { // verify signature
+				RSA_free(pbKey);
+				LOG(("Update Error: bad RSA signature of update file!"));
+				return false;
+			}
+		} else {
+			LOG(("Update Error: bad RSA signature of update file!"));
+			return false;
+		}
+	}
+	RSA_free(pbKey);
+
+	QByteArray uncompressed;
+
+	int32 uncompressedLen;
+	memcpy(&uncompressedLen, compressed.constData() + hSigLen + hShaLen + hPropsLen, hOriginalSizeLen);
+	uncompressed.resize(uncompressedLen);
+
+	size_t resultLen = uncompressed.size();
+#ifdef Q_OS_WIN // use Lzma SDK for win
+	SizeT srcLen = compressedLen;
+	int uncompressRes = LzmaUncompress((uchar*)uncompressed.data(), &resultLen, (const uchar*)(compressed.constData() + hSize), &srcLen, (const uchar*)(compressed.constData() + hSigLen + hShaLen), LZMA_PROPS_SIZE);
+	if (uncompressRes != SZ_OK) {
+		LOG(("Update Error: could not uncompress lzma, code: %1").arg(uncompressRes));
+		return false;
+	}
+#else // Q_OS_WIN
+	lzma_stream stream = LZMA_STREAM_INIT;
+
+	lzma_ret ret = lzma_stream_decoder(&stream, UINT64_MAX, LZMA_CONCATENATED);
+	if (ret != LZMA_OK) {
+		const char *msg;
+		switch (ret) {
+		case LZMA_MEM_ERROR: msg = "Memory allocation failed"; break;
+		case LZMA_OPTIONS_ERROR: msg = "Specified preset is not supported"; break;
+		case LZMA_UNSUPPORTED_CHECK: msg = "Specified integrity check is not supported"; break;
+		default: msg = "Unknown error, possibly a bug"; break;
+		}
+		LOG(("Error initializing the decoder: %1 (error code %2)").arg(msg).arg(ret));
+		return false;
+	}
+
+	stream.avail_in = compressedLen;
+	stream.next_in = (uint8_t*)(compressed.constData() + hSize);
+	stream.avail_out = resultLen;
+	stream.next_out = (uint8_t*)uncompressed.data();
+
+	lzma_ret res = lzma_code(&stream, LZMA_FINISH);
+	if (stream.avail_in) {
+		LOG(("Error in decompression, %1 bytes left in _in of %2 whole.").arg(stream.avail_in).arg(compressedLen));
+		return false;
+	} else if (stream.avail_out) {
+		LOG(("Error in decompression, %1 bytes free left in _out of %2 whole.").arg(stream.avail_out).arg(resultLen));
+		return false;
+	}
+	lzma_end(&stream);
+	if (res != LZMA_OK && res != LZMA_STREAM_END) {
+		const char *msg;
+		switch (res) {
+		case LZMA_MEM_ERROR: msg = "Memory allocation failed"; break;
+		case LZMA_FORMAT_ERROR: msg = "The input data is not in the .xz format"; break;
+		case LZMA_OPTIONS_ERROR: msg = "Unsupported compression options"; break;
+		case LZMA_DATA_ERROR: msg = "Compressed file is corrupt"; break;
+		case LZMA_BUF_ERROR: msg = "Compressed data is truncated or otherwise corrupt"; break;
+		default: msg = "Unknown error, possibly a bug"; break;
+		}
+		LOG(("Error in decompression: %1 (error code %2)").arg(msg).arg(res));
+		return false;
+	}
+#endif // Q_OS_WIN
+
+	tempDir.mkdir(tempDir.absolutePath());
+
+	quint32 version;
+	{
+		QDataStream stream(uncompressed);
+		stream.setVersion(QDataStream::Qt_5_1);
+
+		stream >> version;
+		if (stream.status() != QDataStream::Ok) {
+			LOG(("Update Error: cant read version from downloaded stream, status: %1").arg(stream.status()));
+			return false;
+		}
+
+		quint64 betaVersion = 0;
+		if (version == 0x7FFFFFFF) { // beta version
+			stream >> betaVersion;
+			if (stream.status() != QDataStream::Ok) {
+				LOG(("Update Error: cant read beta version from downloaded stream, status: %1").arg(stream.status()));
+				return false;
+			}
+			if (!cBetaVersion() || betaVersion <= cBetaVersion()) {
+				LOG(("Update Error: downloaded beta version %1 is not greater, than mine %2").arg(betaVersion).arg(cBetaVersion()));
+				return false;
+			}
+		} else if (int32(version) <= AppVersion) {
+			LOG(("Update Error: downloaded version %1 is not greater, than mine %2").arg(version).arg(AppVersion));
+			return false;
+		}
+
+		quint32 filesCount;
+		stream >> filesCount;
+		if (stream.status() != QDataStream::Ok) {
+			LOG(("Update Error: cant read files count from downloaded stream, status: %1").arg(stream.status()));
+			return false;
+		}
+		if (!filesCount) {
+			LOG(("Update Error: update is empty!"));
+			return false;
+		}
+		for (uint32 i = 0; i < filesCount; ++i) {
+			QString relativeName;
+			quint32 fileSize;
+			QByteArray fileInnerData;
+			bool executable = false;
+
+			stream >> relativeName >> fileSize >> fileInnerData;
+#if defined Q_OS_MAC || defined Q_OS_LINUX
+			stream >> executable;
+#endif // Q_OS_MAC || Q_OS_LINUX
+			if (stream.status() != QDataStream::Ok) {
+				LOG(("Update Error: cant read file from downloaded stream, status: %1").arg(stream.status()));
+				return false;
+			}
+			if (fileSize != quint32(fileInnerData.size())) {
+				LOG(("Update Error: bad file size %1 not matching data size %2").arg(fileSize).arg(fileInnerData.size()));
+				return false;
+			}
+
+			QFile f(tempDirPath + '/' + relativeName);
+			if (!QDir().mkpath(QFileInfo(f).absolutePath())) {
+				LOG(("Update Error: cant mkpath for file '%1'").arg(tempDirPath + '/' + relativeName));
+				return false;
+			}
+			if (!f.open(QIODevice::WriteOnly)) {
+				LOG(("Update Error: cant open file '%1' for writing").arg(tempDirPath + '/' + relativeName));
+				return false;
+			}
+			auto writtenBytes = f.write(fileInnerData);
+			if (writtenBytes != fileSize) {
+				f.close();
+				LOG(("Update Error: cant write file '%1', desiredSize: %2, write result: %3").arg(tempDirPath + '/' + relativeName).arg(fileSize).arg(writtenBytes));
+				return false;
+			}
+			f.close();
+			if (executable) {
+				QFileDevice::Permissions p = f.permissions();
+				p |= QFileDevice::ExeOwner | QFileDevice::ExeUser | QFileDevice::ExeGroup | QFileDevice::ExeOther;
+				f.setPermissions(p);
+			}
+		}
+
+		// create tdata/version file
+		tempDir.mkdir(QDir(tempDirPath + qsl("/tdata")).absolutePath());
+		std::wstring versionString = ((version % 1000) ? QString("%1.%2.%3").arg(int(version / 1000000)).arg(int((version % 1000000) / 1000)).arg(int(version % 1000)) : QString("%1.%2").arg(int(version / 1000000)).arg(int((version % 1000000) / 1000))).toStdWString();
+
+		const auto versionNum = VersionInt(version);
+		const auto versionLen = VersionInt(versionString.size() * sizeof(VersionChar));
+		VersionChar versionStr[32];
+		memcpy(versionStr, versionString.c_str(), versionLen);
+
+		QFile fVersion(tempDirPath + qsl("/tdata/version"));
+		if (!fVersion.open(QIODevice::WriteOnly)) {
+			LOG(("Update Error: cant write version file '%1'").arg(tempDirPath + qsl("/version")));
+			return false;
+		}
+		fVersion.write((const char*)&versionNum, sizeof(VersionInt));
+		if (versionNum == 0x7FFFFFFF) { // beta version
+			fVersion.write((const char*)&betaVersion, sizeof(quint64));
+		} else {
+			fVersion.write((const char*)&versionLen, sizeof(VersionInt));
+			fVersion.write((const char*)&versionStr[0], versionLen);
+		}
+		fVersion.close();
+	}
+
+	QFile readyFile(readyFilePath);
+	if (readyFile.open(QIODevice::WriteOnly)) {
+		if (readyFile.write("1", 1)) {
+			readyFile.close();
+		} else {
+			LOG(("Update Error: cant write ready file '%1'").arg(readyFilePath));
+			return false;
+		}
+	} else {
+		LOG(("Update Error: cant create ready file '%1'").arg(readyFilePath));
+		return false;
+	}
+	input.remove();
+
+	return true;
+}
+
+Loader::Loader(const QString &filename, int chunkSize)
+: _filename(filename)
+, _chunkSize(chunkSize) {
+}
+
+int Loader::alreadySize() const {
+	QMutexLocker lock(&_sizesMutex);
+	return _alreadySize;
+}
+
+int Loader::totalSize() const {
+	QMutexLocker lock(&_sizesMutex);
+	return _totalSize;
+}
+
+rpl::producer<QString> Loader::ready() const {
+	return _ready.events();
+}
+
+rpl::producer<Progress> Loader::progress() const {
+	return _progress.events();
+}
+
+rpl::producer<> Loader::failed() const {
+	return _failed.events();
+}
+
+bool Loader::startOutput() {
+	if (!validateOutput()
+		|| (!_output.isOpen() && !_output.open(QIODevice::Append))) {
+		QFile(_filepath).remove();
+		threadSafeFailed();
+		return false;
+	}
+	return true;
+}
+
+bool Loader::validateOutput() {
+	if (_filename.isEmpty()) {
+		return false;
+	}
+	const auto folder = cWorkingDir() + qsl("tupdates/");
+	_filepath = folder + _filename;
+
+	QFileInfo info(_filepath);
+	QDir dir(folder);
+	if (dir.exists()) {
+		const auto all = dir.entryInfoList(QDir::Files);
+		for (auto i = all.begin(), e = all.end(); i != e; ++i) {
+			if (i->absoluteFilePath() != info.absoluteFilePath()) {
+				QFile::remove(i->absoluteFilePath());
+			}
+		}
+	} else {
+		dir.mkdir(dir.absolutePath());
+	}
+	_output.setFileName(_filepath);
+
+	if (!info.exists()) {
+		return true;
+	}
+	const auto fullSize = info.size();
+	if (fullSize < _chunkSize || fullSize > kMaxUpdateSize) {
+		return _output.remove();
+	}
+	const auto goodSize = int((fullSize % _chunkSize)
+		? (fullSize - (fullSize % _chunkSize))
+		: fullSize);
+	if (_output.resize(goodSize)) {
+		_alreadySize = goodSize;
+		return true;
+	}
+	return false;
+}
+
+void Loader::threadSafeProgress(Progress progress) {
+	crl::on_main(this, [=] {
+		_progress.fire_copy(progress);
+	});
+}
+
+void Loader::threadSafeReady() {
+	crl::on_main(this, [=] {
+		_ready.fire_copy(_filepath);
+	});
+}
+
+void Loader::threadSafeFailed() {
+	crl::on_main(this, [=] {
+		_failed.fire({});
+	});
+}
+
+void Loader::writeChunk(bytes::const_span data, int totalSize) {
+	const auto size = data.size();
+	if (size > 0) {
+		const auto written = _output.write(QByteArray::fromRawData(
+			reinterpret_cast<const char*>(data.data()),
+			size));
+		if (written != size) {
+			threadSafeFailed();
+			return;
+		}
+	}
+
+	const auto progress = [&] {
+		QMutexLocker lock(&_sizesMutex);
+		if (!_totalSize) {
+			_totalSize = totalSize;
+		}
+		_alreadySize += size;
+		return Progress { _alreadySize, _totalSize };
+	}();
+
+	if (progress.size > 0 && progress.already >= progress.size) {
+		_output.close();
+		threadSafeReady();
+	} else {
+		threadSafeProgress(progress);
+	}
+}
+
+rpl::lifetime &Loader::lifetime() {
+	return _lifetime;
+}
+
+Checker::Checker(bool testing) : _testing(testing) {
+}
+
+rpl::producer<std::shared_ptr<Loader>> Checker::ready() const {
+	return _ready.events();
+}
+
+rpl::producer<> Checker::failed() const {
+	return _failed.events();
+}
+
+bool Checker::testing() const {
+	return _testing;
+}
+
+void Checker::done(std::shared_ptr<Loader> result) {
+	_ready.fire(std::move(result));
+}
+
+void Checker::fail() {
+	_failed.fire({});
+}
+
+rpl::lifetime &Checker::lifetime() {
+	return _lifetime;
+}
+
+HttpChecker::HttpChecker(bool testing) : Checker(testing) {
+}
+
+void HttpChecker::start() {
+	auto url = QUrl(Local::readAutoupdatePrefix() + qstr("/current"));
+	DEBUG_LOG(("Update Info: requesting update state from '%1'"
+		).arg(url.toDisplayString()));
+	const auto request = QNetworkRequest(url);
+	_manager = std::make_unique<QNetworkAccessManager>();
+	_reply = _manager->get(request);
+	_reply->connect(_reply, &QNetworkReply::finished, [=] {
+		gotResponse();
+	});
+	_reply->connect(_reply, QNetworkReply_error, [=](auto e) {
+		gotFailure(e);
+	});
+}
+
+void HttpChecker::gotResponse() {
+	if (!_reply) {
+		return;
+	}
+
+	cSetLastUpdateCheck(unixtime());
+	const auto response = _reply->readAll();
+	clearSentRequest();
+
+	if (response.size() >= kMaxResponseSize || !handleResponse(response)) {
+		LOG(("App Error: Bad update map size: %1").arg(response.size()));
+		gotFailure(QNetworkReply::UnknownContentError);
+	}
+}
+
+bool HttpChecker::handleResponse(const QByteArray &response) {
+	const auto handle = [&](const QString &url) {
+		done(url.isEmpty() ? nullptr : std::make_shared<HttpLoader>(url));
+		return true;
+	};
+	if (const auto url = parseOldResponse(response)) {
+		return handle(*url);
+	} else if (const auto url = parseResponse(response)) {
+		return handle(*url);
+	}
+	return false;
+}
+
+void HttpChecker::clearSentRequest() {
+	const auto reply = base::take(_reply);
+	if (!reply) {
+		return;
+	}
+	reply->disconnect(reply, &QNetworkReply::finished, nullptr, nullptr);
+	reply->disconnect(reply, QNetworkReply_error, nullptr, nullptr);
+	reply->abort();
+	reply->deleteLater();
+	_manager = nullptr;
+}
+
+void HttpChecker::gotFailure(QNetworkReply::NetworkError e) {
+	LOG(("App Error: "
+		"could not get current version (update check): %1").arg(e));
+	if (const auto reply = base::take(_reply)) {
+		reply->deleteLater();
+	}
+
+	fail();
+}
+
+base::optional<QString> HttpChecker::parseOldResponse(
+		const QByteArray &response) const {
+	const auto string = QString::fromLatin1(response);
+	const auto old = QRegularExpression(
+		qsl("^\\s*(\\d+)\\s*:\\s*([\\x21-\\x7f]+)\\s*$")
+	).match(string);
+	if (!old.hasMatch()) {
+		return base::none;
+	}
+	const auto availableVersion = old.captured(1).toULongLong();
+	const auto url = old.captured(2);
+	const auto isAvailableBeta = url.startsWith(qstr("beta_"));
+	return validateLastestUrl(
+		availableVersion,
+		isAvailableBeta,
+		isAvailableBeta ? url.mid(5) + "_{signature}" : url);
+}
+
+base::optional<QString> HttpChecker::parseResponse(
+		const QByteArray &response) const {
+	auto error = QJsonParseError{ 0, QJsonParseError::NoError };
+	const auto document = QJsonDocument::fromJson(response, &error);
+	if (error.error != QJsonParseError::NoError) {
+		LOG(("Update Error: Failed to parse response JSON, error: %1"
+			).arg(error.errorString()));
+		return base::none;
+	} else if (!document.isObject()) {
+		LOG(("Update Error: Not an object received in response JSON."));
+		return base::none;
+	}
+	const auto platforms = document.object();
+	const auto platform = [&] {
+		switch (cPlatform()) {
+		case dbipWindows: return "win";
+		case dbipMac: return "mac";
+		case dbipMacOld: return "mac32";
+		case dbipLinux64: return "linux";
+		case dbipLinux32: return "linux32";
+		}
+		Unexpected("Platform in HttpChecker::parseResponse.");
+	}();
+	const auto it = platforms.constFind(platform);
+	if (it == platforms.constEnd()) {
+		LOG(("Update Error: Platform '%1' not found in response."
+			).arg(platform));
+		return base::none;
+	} else if (!(*it).isObject()) {
+		LOG(("Update Error: Not an object found for platform '%1'."
+			).arg(platform));
+		return base::none;
+	}
+	const auto types = (*it).toObject();
+	const auto list = [&]() -> std::vector<QString> {
+		if (cBetaVersion()) {
+			return { "alpha", "beta", "stable" };
+		} else if (cAlphaVersion()) {
+			return { "beta", "stable" };
+		}
+		return { "stable" };
+	}();
+	auto bestIsAvailableBeta = false;
+	auto bestAvailableVersion = 0ULL;
+	auto bestLink = QString();
+	for (const auto &type : list) {
+		const auto it = types.constFind(type);
+		if (it == types.constEnd()) {
+			continue;
+		} else if (!(*it).isObject()) {
+			LOG(("Update Error: Not an object found for '%1:%2'."
+				).arg(platform).arg(type));
+			return base::none;
+		}
+		const auto map = (*it).toObject();
+		const auto key = testing() ? "testing" : "released";
+		const auto version = map.constFind(key);
+		const auto link = map.constFind("link");
+		if (version == map.constEnd()) {
+			continue;
+		} else if (link == map.constEnd()) {
+			LOG(("Update Error: Link not found for '%1:%2'."
+				).arg(platform).arg(type));
+			return base::none;
+		} else if (!(*link).isString()) {
+			LOG(("Update Error: Link is not a string for '%1:%2'."
+				).arg(platform).arg(type));
+			return base::none;
+		}
+		const auto isAvailableBeta = (type == "alpha");
+		const auto availableVersion = [&] {
+			if ((*version).isString()) {
+				return (*version).toString().toULongLong();
+			} else if ((*version).isDouble()) {
+				return uint64(std::round((*version).toDouble()));
+			}
+			return 0ULL;
+		}();
+		if (!availableVersion) {
+			LOG(("Update Error: Version is not valid for '%1:%2:%3'."
+				).arg(platform).arg(type).arg(key));
+			return base::none;
+		}
+		const auto compare = isAvailableBeta
+			? availableVersion
+			: availableVersion * 1000;
+		const auto bestCompare = bestIsAvailableBeta
+			? bestAvailableVersion
+			: bestAvailableVersion * 1000;
+		if (compare > bestCompare) {
+			bestAvailableVersion = availableVersion;
+			bestIsAvailableBeta = isAvailableBeta;
+			bestLink = (*link).toString();
+		}
+	}
+	if (!bestAvailableVersion) {
+		LOG(("Update Error: No valid entry found for platform '%1'."
+			).arg(platform));
+		return base::none;
+	}
+	return validateLastestUrl(
+		bestAvailableVersion,
+		bestIsAvailableBeta,
+		Local::readAutoupdatePrefix() + bestLink);
+}
+
+QString HttpChecker::validateLastestUrl(
+		uint64 availableVersion,
+		bool isAvailableBeta,
+		QString url) const {
+	const auto myVersion = isAvailableBeta
+		? cBetaVersion()
+		: uint64(AppVersion);
+	const auto validVersion = (cBetaVersion() || !isAvailableBeta);
+	if (!validVersion || availableVersion <= myVersion) {
+		return QString();
+	}
+	const auto versionUrl = url.replace(
+		"{version}",
+		QString::number(availableVersion));
+	const auto finalUrl = isAvailableBeta
+		? QString(versionUrl).replace(
+			"{signature}",
+			countBetaVersionSignature(availableVersion))
+		: versionUrl;
+	return finalUrl;
+}
+
+HttpChecker::~HttpChecker() {
+	clearSentRequest();
+}
+
+HttpLoader::HttpLoader(const QString &url)
+: Loader(ExtractFilename(url), UpdateChunk)
+, _url(url) {
+}
+
+void HttpLoader::start() {
+	if (!startOutput()) {
+		return;
+	}
+	_thread = std::make_unique<QThread>();
+	_actor = new HttpLoaderActor(this, _thread.get(), _url);
+	_thread->start();
+}
+
+HttpLoader::~HttpLoader() {
+	if (const auto thread = base::take(_thread)) {
+		if (const auto actor = base::take(_actor)) {
+			QObject::connect(
+				thread.get(),
+				&QThread::finished,
+				actor,
+				&QObject::deleteLater);
+		}
+		thread->quit();
+		thread->wait();
+	}
+}
+
+HttpLoaderActor::HttpLoaderActor(
+		not_null<HttpLoader*> parent,
+		not_null<QThread*> thread,
+		const QString &url)
+: _parent(parent) {
+	_url = url;
+	moveToThread(thread);
+	_manager.moveToThread(thread);
+
+	connect(thread, &QThread::started, this, [=] { start(); });
+}
+
+void HttpLoaderActor::start() {
+	sendRequest();
+}
+
+void HttpLoaderActor::sendRequest() {
+	auto request = QNetworkRequest(_url);
+	const auto rangeHeaderValue = "bytes="
+		+ QByteArray::number(_parent->alreadySize())
+		+ "-";
+	request.setRawHeader("Range", rangeHeaderValue);
+	request.setAttribute(
+		QNetworkRequest::HttpPipeliningAllowedAttribute,
+		true);
+	_reply.reset(_manager.get(request));
+	connect(
+		_reply.get(),
+		&QNetworkReply::downloadProgress,
+		this,
+		&HttpLoaderActor::partFinished);
+	connect(
+		_reply.get(),
+		QNetworkReply_error,
+		this,
+		&HttpLoaderActor::partFailed);
+	connect(
+		_reply.get(),
+		&QNetworkReply::metaDataChanged,
+		this,
+		&HttpLoaderActor::gotMetaData);
+}
+
+void HttpLoaderActor::gotMetaData() {
+	const auto pairs = _reply->rawHeaderPairs();
+	for (const auto pair : pairs) {
+		if (QString::fromUtf8(pair.first).toLower() == "content-range") {
+			const auto m = QRegularExpression(qsl("/(\\d+)([^\\d]|$)")).match(QString::fromUtf8(pair.second));
+			if (m.hasMatch()) {
+				_parent->writeChunk({}, m.captured(1).toInt());
+			}
+		}
+	}
+}
+
+void HttpLoaderActor::partFinished(qint64 got, qint64 total) {
+	if (!_reply) return;
+
+	const auto statusCode = _reply->attribute(
+		QNetworkRequest::HttpStatusCodeAttribute);
+	if (statusCode.isValid()) {
+		const auto status = statusCode.toInt();
+		if (status != 200 && status != 206 && status != 416) {
+			LOG(("Update Error: "
+				"Bad HTTP status received in partFinished(): %1"
+				).arg(status));
+			_parent->threadSafeFailed();
+			return;
+		}
+	}
+
+	DEBUG_LOG(("Update Info: part %1 of %2").arg(got).arg(total));
+
+	const auto data = _reply->readAll();
+	_parent->writeChunk(bytes::make_span(data), total);
+}
+
+void HttpLoaderActor::partFailed(QNetworkReply::NetworkError e) {
+	if (!_reply) return;
+
+	const auto statusCode = _reply->attribute(
+		QNetworkRequest::HttpStatusCodeAttribute);
+	_reply.release()->deleteLater();
+	if (statusCode.isValid()) {
+		const auto status = statusCode.toInt();
+		if (status == 416) { // Requested range not satisfiable
+			_parent->writeChunk({}, _parent->alreadySize());
+			return;
+		}
+	}
+	LOG(("Update Error: failed to download part after %1, error %2"
+		).arg(_parent->alreadySize()
+		).arg(e));
+	_parent->threadSafeFailed();
+}
+
+MtpChecker::MtpChecker(bool testing) : Checker(testing) {
+}
+
+void MtpChecker::start() {
+	fail();
+}
+
+MtpChecker::~MtpChecker() {
+}
+
 } // namespace
 
 class Updater : public base::has_weak_ptr {
 public:
-	using Progress = UpdateChecker::Progress;
-	using State = UpdateChecker::State;
-
 	Updater();
 
 	rpl::producer<> checking() const;
@@ -104,32 +1024,40 @@ public:
 	int already() const;
 	int size() const;
 
-	// Thread-safe methods.
-	void onProgress(Progress progress);
-	void onFailed();
-	void onReady();
+	void setMtproto(const QPointer<MTP::Instance> &mtproto);
 
 	~Updater();
 
 private:
-	class Private;
-
+	enum class Action {
+		Waiting,
+		Checking,
+		Loading,
+		Unpacking,
+		Ready,
+	};
 	void check();
+	void startImplementation(
+		not_null<Implementation*> which,
+		std::unique_ptr<Checker> checker);
+	void tryLoaders();
+	void handleTimeout();
+	void checkerDone(
+		not_null<Implementation*> which,
+		std::shared_ptr<Loader> loader);
+	void checkerFail(not_null<Implementation*> which);
+
+	void finalize(QString filepath);
+	void unpackDone(bool ready);
+	void handleChecking();
+	void handleProgress();
+	void handleLatest();
 	void handleFailed();
 	void handleReady();
-	void gotResponse();
-	void gotFailure(QNetworkReply::NetworkError e);
-	void clearSentRequest();
-	void requestTimeout();
-	void startDownloadThread(
-		uint64 availableVersion,
-		bool isAvailableBeta,
-		QString url);
-	bool checkOldResponse(const QByteArray &response);
-	bool checkResponse(const QByteArray &response);
+	void scheduleNext();
 
 	bool _testing = false;
-	bool _isReady = false;
+	Action _action = Action::Waiting;
 	base::Timer _timer;
 	base::Timer _retryTimer;
 	rpl::event_stream<> _checking;
@@ -137,59 +1065,33 @@ private:
 	rpl::event_stream<Progress> _progress;
 	rpl::event_stream<> _failed;
 	rpl::event_stream<> _ready;
-	std::unique_ptr<QNetworkAccessManager> _manager;
-	QNetworkReply *_reply = nullptr;
-	std::unique_ptr<QThread> _thread;
-	Private *_private = nullptr;
+	Implementation _httpImplementation;
+	Implementation _mtpImplementation;
+	std::shared_ptr<Loader> _activeLoader;
+	bool _usingMtprotoLoader = false;
+	QPointer<MTP::Instance> _mtproto;
 
 	rpl::lifetime _lifetime;
 
 };
 
-class Updater::Private : public QObject {
-public:
-	Private(
-		not_null<Updater*> parent,
-		not_null<QThread*> thread,
-		const QString &url);
-
-	void unpackUpdate();
-
-	// Thread-safe methods.
-	int already() const;
-	int size() const;
-
-private:
-	void start();
-	void sendRequest();
-	void initOutput();
-
-	void gotMetaData();
-	void partFinished(qint64 got, qint64 total);
-	void partFailed(QNetworkReply::NetworkError e);
-
-	void fatalFail();
-
-	not_null<Updater*> _parent;
-	QString _url;
-	QNetworkAccessManager _manager;
-	std::unique_ptr<QNetworkReply> _reply;
-	int _already = 0;
-	int _size = 0;
-	QFile _output;
-
-	mutable QMutex _mutex;
-
-};
-
 Updater::Updater()
 : _timer([=] { check(); })
-, _retryTimer([=] { requestTimeout(); }) {
+, _retryTimer([=] { handleTimeout(); }) {
+	checking() | rpl::start_with_next([=] {
+		handleChecking();
+	}, _lifetime);
+	progress() | rpl::start_with_next([=] {
+		handleProgress();
+	}, _lifetime);
 	failed() | rpl::start_with_next([=] {
 		handleFailed();
 	}, _lifetime);
 	ready() | rpl::start_with_next([=] {
 		handleReady();
+	}, _lifetime);
+	isLatest() | rpl::start_with_next([=] {
+		handleLatest();
 	}, _lifetime);
 }
 
@@ -214,287 +1116,83 @@ rpl::producer<> Updater::ready() const {
 	return _ready.events();
 }
 
-void Updater::onProgress(Progress progress) {
-	crl::on_main(this, [=] {
-		_progress.fire_copy(progress);
-	});
-}
-
-void Updater::onFailed() {
-	crl::on_main(this, [=] {
-		_failed.fire({});
-	});
-}
-
-void Updater::onReady() {
-	crl::on_main(this, [=] {
-		_ready.fire({});
-	});
-}
-
 void Updater::check() {
 	start(false);
 }
 
-void Updater::gotResponse() {
-	if (!_reply || _thread) {
-		return;
-	}
-
-	cSetLastUpdateCheck(unixtime());
-	const auto response = _reply->readAll();
-	if (response.size() >= kMaxResponseSize) {
-		LOG(("App Error: Bad update map size: %1").arg(response.size()));
-		gotFailure(QNetworkReply::UnknownContentError);
-		return;
-	}
-	if (!checkOldResponse(response)) {
-		if (!checkResponse(response)) {
-			gotFailure(QNetworkReply::UnknownContentError);
-			return;
-		}
-	}
-
-	clearSentRequest();
-	if (!_thread) {
-		if (const auto update = FindUpdateFile(); !update.isEmpty()) {
-			QFile(update).remove();
-		}
-		_isLatest.fire({});
-	}
-	start(true);
-	Local::writeSettings();
-}
-
-void Updater::gotFailure(QNetworkReply::NetworkError e) {
-	LOG(("App Error: could not get current version (update check): %1").arg(e));
-	if (const auto reply = base::take(_reply)) {
-		reply->deleteLater();
-	}
-
-	_failed.fire({});
-	start(true);
-}
-
-bool Updater::checkOldResponse(const QByteArray &response) {
-	const auto string = QString::fromLatin1(response);
-	const auto old = QRegularExpression(
-		qsl("^\\s*(\\d+)\\s*:\\s*([\\x21-\\x7f]+)\\s*$")
-	).match(string);
-	if (!old.hasMatch()) {
-		return false;
-	}
-	const auto availableVersion = old.captured(1).toULongLong();
-	const auto url = old.captured(2);
-	const auto isAvailableBeta = url.startsWith(qstr("beta_"));
-	startDownloadThread(
-		availableVersion,
-		isAvailableBeta,
-		isAvailableBeta ? url.mid(5) + "_{signature}" : url);
-	return true;
-}
-
-bool Updater::checkResponse(const QByteArray &response) {
-	auto error = QJsonParseError{ 0, QJsonParseError::NoError };
-	const auto document = QJsonDocument::fromJson(response, &error);
-	if (error.error != QJsonParseError::NoError) {
-		LOG(("Update Error: Failed to parse response JSON, error: %1"
-			).arg(error.errorString()));
-		return false;
-	} else if (!document.isObject()) {
-		LOG(("Update Error: Not an object received in response JSON."));
-		return false;
-	}
-	const auto platforms = document.object();
-	const auto platform = [&] {
-		switch (cPlatform()) {
-		case dbipWindows: return "win";
-		case dbipMac: return "mac";
-		case dbipMacOld: return "mac32";
-		case dbipLinux64: return "linux";
-		case dbipLinux32: return "linux32";
-		}
-		Unexpected("Platform in Updater::checkResponse.");
-	}();
-	const auto it = platforms.constFind(platform);
-	if (it == platforms.constEnd()) {
-		LOG(("Update Error: Platform '%1' not found in response."
-			).arg(platform));
-		return false;
-	} else if (!(*it).isObject()) {
-		LOG(("Update Error: Not an object found for platform '%1'."
-			).arg(platform));
-		return false;
-	}
-	const auto types = (*it).toObject();
-	const auto list = [&]() -> std::vector<QString> {
-		if (cBetaVersion()) {
-			return { "alpha", "beta", "stable" };
-		} else if (cAlphaVersion()) {
-			return { "beta", "stable" };
-		}
-		return { "stable" };
-	}();
-	auto bestIsAvailableBeta = false;
-	auto bestAvailableVersion = 0ULL;
-	auto bestLink = QString();
-	for (const auto &type : list) {
-		const auto it = types.constFind(type);
-		if (it == types.constEnd()) {
-			continue;
-		} else if (!(*it).isObject()) {
-			LOG(("Update Error: Not an object found for '%1:%2'."
-				).arg(platform).arg(type));
-			return false;
-		}
-		const auto map = (*it).toObject();
-		const auto key = _testing ? "testing" : "released";
-		const auto version = map.constFind(key);
-		const auto link = map.constFind("link");
-		if (version == map.constEnd()) {
-			continue;
-		} else if (link == map.constEnd()) {
-			LOG(("Update Error: Link not found for '%1:%2'."
-				).arg(platform).arg(type));
-			return false;
-		} else if (!(*link).isString()) {
-			LOG(("Update Error: Link is not a string for '%1:%2'."
-				).arg(platform).arg(type));
-			return false;
-		}
-		const auto isAvailableBeta = (type == "alpha");
-		const auto availableVersion = [&] {
-			if ((*version).isString()) {
-				return (*version).toString().toULongLong();
-			} else if ((*version).isDouble()) {
-				return uint64(std::round((*version).toDouble()));
-			}
-			return 0ULL;
-		}();
-		if (!availableVersion) {
-			LOG(("Update Error: Version is not valid for '%1:%2:%3'."
-				).arg(platform).arg(type).arg(key));
-			return false;
-		}
-		const auto compare = isAvailableBeta
-			? availableVersion
-			: availableVersion * 1000;
-		const auto bestCompare = bestIsAvailableBeta
-			? bestAvailableVersion
-			: bestAvailableVersion * 1000;
-		if (compare > bestCompare) {
-			bestAvailableVersion = availableVersion;
-			bestIsAvailableBeta = isAvailableBeta;
-			bestLink = (*link).toString();
-		}
-	}
-	if (!bestAvailableVersion) {
-		LOG(("Update Error: No valid entry found for platform '%1'."
-			).arg(platform));
-		return false;
-	}
-	startDownloadThread(
-		bestAvailableVersion,
-		bestIsAvailableBeta,
-		Local::readAutoupdatePrefix() + bestLink);
-	return true;
-}
-
-void Updater::startDownloadThread(
-		uint64 availableVersion,
-		bool isAvailableBeta,
-		QString url) {
-	const auto myVersion = isAvailableBeta
-		? cBetaVersion()
-		: uint64(AppVersion);
-	const auto validVersion = (cBetaVersion() || !isAvailableBeta);
-	if (!validVersion || availableVersion <= myVersion) {
-		return;
-	}
-	const auto versionUrl = url.replace(
-		"{version}",
-		QString::number(availableVersion));
-	const auto finalUrl = isAvailableBeta
-		? QString(versionUrl).replace(
-			"{signature}",
-			countBetaVersionSignature(availableVersion))
-		: versionUrl;
-	_thread = std::make_unique<QThread>();
-	_private = new Private(
-		this,
-		_thread.get(),
-		finalUrl);
-	_thread->start();
-}
-
 void Updater::handleReady() {
-	_isReady = true;
 	stop();
+	_action = Action::Ready;
 
 	cSetLastUpdateCheck(unixtime());
 	Local::writeSettings();
 }
 
 void Updater::handleFailed() {
+	scheduleNext();
+}
+
+void Updater::handleLatest() {
+	if (const auto update = FindUpdateFile(); !update.isEmpty()) {
+		QFile(update).remove();
+	}
+	scheduleNext();
+}
+
+void Updater::handleChecking() {
+	_action = Action::Checking;
+	_retryTimer.callOnce(kUpdaterTimeout);
+}
+
+void Updater::handleProgress() {
+	_retryTimer.callOnce(kUpdaterTimeout);
+}
+
+void Updater::scheduleNext() {
 	stop();
 
 	cSetLastUpdateCheck(unixtime());
 	Local::writeSettings();
+	start(true);
 }
 
 auto Updater::state() const -> State {
-	if (_isReady) {
+	if (_action == Action::Ready) {
 		return State::Ready;
-	} else if (!_thread) {
-		return State::None;
+	} else if (_action == Action::Loading) {
+		return State::Download;
 	}
-	return State::Download;
+	return State::None;
 }
 
 int Updater::size() const {
-	return _private ? _private->size() : 0;
+	return _activeLoader ? _activeLoader->totalSize() : 0;
 }
 
 int Updater::already() const {
-	return _private ? _private->already() : 0;
-}
-
-void Updater::clearSentRequest() {
-	const auto reply = base::take(_reply);
-	if (!reply) {
-		return;
-	}
-	reply->disconnect(reply, &QNetworkReply::finished, nullptr, nullptr);
-	reply->disconnect(reply, QNetworkReply_error, nullptr, nullptr);
-	reply->abort();
-	reply->deleteLater();
-	_manager = nullptr;
+	return _activeLoader ? _activeLoader->alreadySize() : 0;
 }
 
 void Updater::stop() {
-	clearSentRequest();
-	if (const auto checker = base::take(_private)) {
-		InvokeQueued(checker, [=] { checker->deleteLater(); });
-		if (const auto thread = base::take(_thread)) {
-			thread->quit();
-			thread->wait();
-		}
-	}
+	_httpImplementation = Implementation();
+	_mtpImplementation = Implementation();
+	_activeLoader = nullptr;
+	_action = Action::Waiting;
 }
 
 void Updater::start(bool forceWait) {
-	if (!Sandbox::started() || _isReady) {
+	if (!Sandbox::started() || cExeName().isEmpty()) {
 		return;
 	}
 
 	_timer.cancel();
-	if (_thread || _reply || !cAutoUpdate() || cExeName().isEmpty()) {
+	if (!cAutoUpdate() || _action != Action::Waiting) {
 		return;
 	}
 
 	_retryTimer.cancel();
-	const auto constDelay = cBetaVersion() ? 600 : UpdateDelayConstPart;
-	const auto randDelay = cBetaVersion() ? 300 : UpdateDelayRandPart;
+	const auto constDelay = cBetaVersion() ? 60 : UpdateDelayConstPart;
+	const auto randDelay = cBetaVersion() ? 30 : UpdateDelayRandPart;
 	const auto updateInSecs = cLastUpdateCheck()
 		+ constDelay
 		+ int(rand() % randDelay)
@@ -512,25 +1210,54 @@ void Updater::start(bool forceWait) {
 	}
 
 	if (sendRequest) {
-		clearSentRequest();
+		startImplementation(
+			&_httpImplementation,
+			std::make_unique<HttpChecker>(_testing));
+		startImplementation(
+			&_mtpImplementation,
+			std::make_unique<MtpChecker>(_testing));
 
-		auto url = QUrl(Local::readAutoupdatePrefix() + qstr("/current"));
-		DEBUG_LOG(("Update Info: requesting update state from '%1'"
-			).arg(url.toDisplayString()));
-		const auto request = QNetworkRequest(url);
-		_manager = std::make_unique<QNetworkAccessManager>();
-		_reply = _manager->get(request);
-		_reply->connect(_reply, &QNetworkReply::finished, [=] {
-			gotResponse();
-		});
-		_reply->connect(_reply, QNetworkReply_error, [=](auto e) {
-			gotFailure(e);
-		});
 		_checking.fire({});
-		_retryTimer.callOnce(kCheckTimeout);
 	} else {
 		_timer.callOnce((updateInSecs + 5) * TimeMs(1000));
 	}
+}
+
+void Updater::startImplementation(
+		not_null<Implementation*> which,
+		std::unique_ptr<Checker> checker) {
+	Expects(checker != nullptr);
+
+	checker->ready(
+	) | rpl::start_with_next([=](std::shared_ptr<Loader> &&loader) {
+		checkerDone(which, std::move(loader));
+	}, checker->lifetime());
+	checker->failed(
+	) | rpl::start_with_next([=] {
+		checkerFail(which);
+	}, checker->lifetime());
+
+	*which = Implementation{ std::move(checker) };
+
+	crl::on_main(which->checker.get(), [=] {
+		which->checker->start();
+	});
+}
+
+void Updater::checkerDone(
+		not_null<Implementation*> which,
+		std::shared_ptr<Loader> loader) {
+	which->checker = nullptr;
+	which->loader = std::move(loader);
+
+	tryLoaders();
+}
+
+void Updater::checkerFail(not_null<Implementation*> which) {
+	which->checker = nullptr;
+	which->failed = true;
+
+	tryLoaders();
 }
 
 void Updater::test() {
@@ -539,12 +1266,94 @@ void Updater::test() {
 	start(false);
 }
 
-void Updater::requestTimeout() {
-	if (_reply) {
-		stop();
+void Updater::setMtproto(const QPointer<MTP::Instance> &mtproto) {
+	_mtproto = mtproto;
+
+}
+
+void Updater::handleTimeout() {
+	if (_action == Action::Checking) {
+		const auto reset = [&](Implementation &which) {
+			if (base::take(which.checker)) {
+				which.failed = true;
+			}
+		};
+		reset(_httpImplementation);
+		reset(_mtpImplementation);
+		tryLoaders();
+	} else if (_action == Action::Loading) {
 		_failed.fire({});
+	}
+	if (_action == Action::Waiting) {
 		cSetLastUpdateCheck(0);
-		_timer.callOnce(kCheckTimeout);
+		_timer.callOnce(kUpdaterTimeout);
+	}
+}
+
+void Updater::tryLoaders() {
+	if (_httpImplementation.checker || _mtpImplementation.checker) {
+		// Some checkers didn't finish yet.
+		return;
+	}
+	_retryTimer.cancel();
+
+	const auto tryOne = [&](Implementation &which) {
+		_activeLoader = std::move(which.loader);
+		if (const auto loader = _activeLoader.get()) {
+			_action = Action::Loading;
+
+			loader->progress(
+			) | rpl::start_to_stream(_progress, loader->lifetime());
+			loader->ready(
+			) | rpl::start_with_next([=](QString &&filepath) {
+				finalize(std::move(filepath));
+			}, loader->lifetime());
+			loader->failed(
+			) | rpl::start_with_next([=] {
+				_failed.fire({});
+			}, loader->lifetime());
+
+			_retryTimer.callOnce(kUpdaterTimeout);
+			loader->start();
+		} else {
+			_isLatest.fire({});
+		}
+	};
+	if (_mtpImplementation.failed && _httpImplementation.failed) {
+		_failed.fire({});
+	} else if (!_mtpImplementation.loader) {
+		tryOne(_httpImplementation);
+	} else if (!_httpImplementation.loader) {
+		tryOne(_mtpImplementation);
+	} else {
+		tryOne(_usingMtprotoLoader
+			? _mtpImplementation
+			: _httpImplementation);
+		_usingMtprotoLoader = !_usingMtprotoLoader;
+	}
+}
+
+void Updater::finalize(QString filepath) {
+	if (_action != Action::Loading) {
+		return;
+	}
+	_retryTimer.cancel();
+	_activeLoader = nullptr;
+	_action = Action::Unpacking;
+	crl::async([=] {
+		const auto ready = UnpackUpdate(filepath);
+		crl::on_main([=] {
+			GetUpdaterInstance()->unpackDone(ready);
+		});
+	});
+}
+
+void Updater::unpackDone(bool ready) {
+	if (ready) {
+		_ready.fire({});
+	} else {
+		ClearAll();
+		_failed.fire({});
 	}
 }
 
@@ -554,6 +1363,11 @@ Updater::~Updater() {
 
 UpdateChecker::UpdateChecker()
 : _updater(GetUpdaterInstance()) {
+	if (const auto messenger = Messenger::InstancePointer()) {
+		if (const auto mtproto = messenger->mtp()) {
+			_updater->setMtproto(mtproto);
+		}
+	}
 }
 
 rpl::producer<> UpdateChecker::checking() const {
@@ -585,6 +1399,10 @@ void UpdateChecker::test() {
 	_updater->test();
 }
 
+void UpdateChecker::setMtproto(const QPointer<MTP::Instance> &mtproto) {
+	_updater->setMtproto(mtproto);
+}
+
 void UpdateChecker::stop() {
 	_updater->stop();
 }
@@ -602,193 +1420,6 @@ int UpdateChecker::size() const {
 	return _updater->size();
 }
 
-Updater::Private::Private(
-		not_null<Updater*> parent,
-		not_null<QThread*> thread,
-		const QString &url)
-: _parent(parent) {
-	_url = url;
-	moveToThread(thread);
-	_manager.moveToThread(thread);
-
-	connect(thread, &QThread::started, this, [=] { start(); });
-	initOutput();
-}
-
-void Updater::Private::initOutput() {
-	auto fileName = QString();
-	const auto nameRegExp = QRegularExpression(qsl("/([^/\\?]+)(\\?|$)"));
-	const auto nameMatch = nameRegExp.match(_url);
-
-	if (nameMatch.hasMatch()) {
-		fileName = nameMatch.captured(1).replace(
-			QRegularExpression(qsl("[^a-zA-Z0-9_\\-]")),
-			QString());
-	} else if (fileName.isEmpty()) {
-		fileName = qsl("tupdate-%1").arg(rand() % 1000000);
-	}
-	const auto folder = cWorkingDir() + qsl("tupdates/");
-	const auto finalName = folder + fileName;
-
-	QFileInfo info(finalName);
-	QDir dir(folder);
-	if (dir.exists()) {
-		const auto all = dir.entryInfoList(QDir::Files);
-		for (auto i = all.begin(), e = all.end(); i != e; ++i) {
-			if (i->absoluteFilePath() != info.absoluteFilePath()) {
-				QFile::remove(i->absoluteFilePath());
-			}
-		}
-	} else {
-		dir.mkdir(dir.absolutePath());
-	}
-	_output.setFileName(finalName);
-	if (info.exists()) {
-		uint64 fullSize = info.size();
-		if (fullSize < INT_MAX) {
-			int32 goodSize = (int32)fullSize;
-			if (goodSize % UpdateChunk) {
-				goodSize = goodSize - (goodSize % UpdateChunk);
-				if (goodSize) {
-					if (_output.open(QIODevice::ReadOnly)) {
-						QByteArray goodData = _output.readAll().mid(0, goodSize);
-						_output.close();
-						if (_output.open(QIODevice::WriteOnly)) {
-							_output.write(goodData);
-							_output.close();
-
-							QMutexLocker lock(&_mutex);
-							_already = goodSize;
-						}
-					}
-				}
-			} else {
-				QMutexLocker lock(&_mutex);
-				_already = goodSize;
-			}
-		}
-		if (!_already) {
-			QFile::remove(finalName);
-		}
-	}
-}
-
-void Updater::Private::start() {
-	sendRequest();
-}
-
-void Updater::Private::sendRequest() {
-	auto request = QNetworkRequest(_url);
-	const auto rangeHeaderValue = "bytes="
-		+ QByteArray::number(_already)
-		+ "-";
-	request.setRawHeader("Range", rangeHeaderValue);
-	request.setAttribute(
-		QNetworkRequest::HttpPipeliningAllowedAttribute,
-		true);
-	_reply.reset(_manager.get(request));
-	connect(
-		_reply.get(),
-		&QNetworkReply::downloadProgress,
-		this,
-		&Private::partFinished);
-	connect(_reply.get(), QNetworkReply_error, [=](auto error) {
-		partFailed(error);
-	});
-	connect(_reply.get(), &QNetworkReply::metaDataChanged, [=] {
-		gotMetaData();
-	});
-}
-
-void Updater::Private::gotMetaData() {
-	const auto pairs = _reply->rawHeaderPairs();
-	for (const auto pair : pairs) {
-		if (QString::fromUtf8(pair.first).toLower() == "content-range") {
-			const auto m = QRegularExpression(qsl("/(\\d+)([^\\d]|$)")).match(QString::fromUtf8(pair.second));
-			if (m.hasMatch()) {
-				{
-					QMutexLocker lock(&_mutex);
-					_size = m.captured(1).toInt();
-				}
-				_parent->onProgress({ _already, _size });
-			}
-		}
-	}
-}
-
-int Updater::Private::already() const {
-	QMutexLocker lock(&_mutex);
-	return _already;
-}
-
-int Updater::Private::size() const {
-	QMutexLocker lock(&_mutex);
-	return _size;
-}
-
-void Updater::Private::partFinished(qint64 got, qint64 total) {
-	if (!_reply) return;
-
-	QVariant statusCode = _reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
-	if (statusCode.isValid()) {
-		int status = statusCode.toInt();
-		if (status != 200 && status != 206 && status != 416) {
-			LOG(("Update Error: Bad HTTP status received in partFinished(): %1").arg(status));
-			return fatalFail();
-		}
-	}
-
-	if (!_already && !_size) {
-		QMutexLocker lock(&_mutex);
-		_size = total;
-	}
-	DEBUG_LOG(("Update Info: part %1 of %2").arg(got).arg(total));
-
-	if (!_output.isOpen()) {
-		if (!_output.open(QIODevice::Append)) {
-			LOG(("Update Error: Could not open output file '%1' for appending").arg(_output.fileName()));
-			return fatalFail();
-		}
-	}
-	QByteArray r = _reply->readAll();
-	if (!r.isEmpty()) {
-		_output.write(r);
-
-		QMutexLocker lock(&_mutex);
-		_already += r.size();
-	}
-	if (got >= total) {
-		_reply.release()->deleteLater();
-		_output.close();
-		unpackUpdate();
-	} else {
-		_parent->onProgress({ _already, _size });
-	}
-}
-
-void Updater::Private::partFailed(QNetworkReply::NetworkError e) {
-	if (!_reply) return;
-
-	const auto statusCode = _reply->attribute(
-		QNetworkRequest::HttpStatusCodeAttribute);
-	_reply.release()->deleteLater();
-	if (statusCode.isValid()) {
-		int status = statusCode.toInt();
-		if (status == 416) { // Requested range not satisfiable
-			_output.close();
-			unpackUpdate();
-			return;
-		}
-	}
-	LOG(("Update Error: failed to download part starting from %1, error %2").arg(_already).arg(e));
-	_parent->onFailed();
-}
-
-void Updater::Private::fatalFail() {
-	ClearAll();
-	_parent->onFailed();
-}
-
 //QString winapiErrorWrap() {
 //	WCHAR errMsg[2048];
 //	DWORD errorCode = GetLastError();
@@ -803,249 +1434,6 @@ void Updater::Private::fatalFail() {
 //	}
 //	return QString::fromWCharArray(errMsg);
 //}
-
-void Updater::Private::unpackUpdate() {
-	QByteArray packed;
-	if (!_output.open(QIODevice::ReadOnly)) {
-		LOG(("Update Error: cant read updates file!"));
-		return fatalFail();
-	}
-
-#ifdef Q_OS_WIN // use Lzma SDK for win
-	const int32 hSigLen = 128, hShaLen = 20, hPropsLen = LZMA_PROPS_SIZE, hOriginalSizeLen = sizeof(int32), hSize = hSigLen + hShaLen + hPropsLen + hOriginalSizeLen; // header
-#else // Q_OS_WIN
-	const int32 hSigLen = 128, hShaLen = 20, hPropsLen = 0, hOriginalSizeLen = sizeof(int32), hSize = hSigLen + hShaLen + hOriginalSizeLen; // header
-#endif // Q_OS_WIN
-
-	QByteArray compressed = _output.readAll();
-	int32 compressedLen = compressed.size() - hSize;
-	if (compressedLen <= 0) {
-		LOG(("Update Error: bad compressed size: %1").arg(compressed.size()));
-		return fatalFail();
-	}
-	_output.close();
-
-	QString tempDirPath = cWorkingDir() + qsl("tupdates/temp"), readyFilePath = cWorkingDir() + qsl("tupdates/temp/ready");
-	psDeleteDir(tempDirPath);
-
-	QDir tempDir(tempDirPath);
-	if (tempDir.exists() || QFile(readyFilePath).exists()) {
-		LOG(("Update Error: cant clear tupdates/temp dir!"));
-		return fatalFail();
-	}
-
-	uchar sha1Buffer[20];
-	bool goodSha1 = !memcmp(compressed.constData() + hSigLen, hashSha1(compressed.constData() + hSigLen + hShaLen, compressedLen + hPropsLen + hOriginalSizeLen, sha1Buffer), hShaLen);
-	if (!goodSha1) {
-		LOG(("Update Error: bad SHA1 hash of update file!"));
-		return fatalFail();
-	}
-
-	RSA *pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>(AppAlphaVersion ? UpdatesPublicAlphaKey : UpdatesPublicKey), -1), 0, 0, 0);
-	if (!pbKey) {
-		LOG(("Update Error: cant read public rsa key!"));
-		return fatalFail();
-	}
-	if (RSA_verify(NID_sha1, (const uchar*)(compressed.constData() + hSigLen), hShaLen, (const uchar*)(compressed.constData()), hSigLen, pbKey) != 1) { // verify signature
-		RSA_free(pbKey);
-		if (cAlphaVersion() || cBetaVersion()) { // try other public key, if we are in alpha or beta version
-			pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>(AppAlphaVersion ? UpdatesPublicKey : UpdatesPublicAlphaKey), -1), 0, 0, 0);
-			if (!pbKey) {
-				LOG(("Update Error: cant read public rsa key!"));
-				return fatalFail();
-			}
-			if (RSA_verify(NID_sha1, (const uchar*)(compressed.constData() + hSigLen), hShaLen, (const uchar*)(compressed.constData()), hSigLen, pbKey) != 1) { // verify signature
-				RSA_free(pbKey);
-				LOG(("Update Error: bad RSA signature of update file!"));
-				return fatalFail();
-			}
-		} else {
-			LOG(("Update Error: bad RSA signature of update file!"));
-			return fatalFail();
-		}
-	}
-	RSA_free(pbKey);
-
-	QByteArray uncompressed;
-
-	int32 uncompressedLen;
-	memcpy(&uncompressedLen, compressed.constData() + hSigLen + hShaLen + hPropsLen, hOriginalSizeLen);
-	uncompressed.resize(uncompressedLen);
-
-	size_t resultLen = uncompressed.size();
-#ifdef Q_OS_WIN // use Lzma SDK for win
-	SizeT srcLen = compressedLen;
-	int uncompressRes = LzmaUncompress((uchar*)uncompressed.data(), &resultLen, (const uchar*)(compressed.constData() + hSize), &srcLen, (const uchar*)(compressed.constData() + hSigLen + hShaLen), LZMA_PROPS_SIZE);
-	if (uncompressRes != SZ_OK) {
-		LOG(("Update Error: could not uncompress lzma, code: %1").arg(uncompressRes));
-		return fatalFail();
-	}
-#else // Q_OS_WIN
-	lzma_stream stream = LZMA_STREAM_INIT;
-
-	lzma_ret ret = lzma_stream_decoder(&stream, UINT64_MAX, LZMA_CONCATENATED);
-	if (ret != LZMA_OK) {
-		const char *msg;
-		switch (ret) {
-		case LZMA_MEM_ERROR: msg = "Memory allocation failed"; break;
-		case LZMA_OPTIONS_ERROR: msg = "Specified preset is not supported"; break;
-		case LZMA_UNSUPPORTED_CHECK: msg = "Specified integrity check is not supported"; break;
-		default: msg = "Unknown error, possibly a bug"; break;
-		}
-		LOG(("Error initializing the decoder: %1 (error code %2)").arg(msg).arg(ret));
-		return fatalFail();
-	}
-
-	stream.avail_in = compressedLen;
-	stream.next_in = (uint8_t*)(compressed.constData() + hSize);
-	stream.avail_out = resultLen;
-	stream.next_out = (uint8_t*)uncompressed.data();
-
-	lzma_ret res = lzma_code(&stream, LZMA_FINISH);
-	if (stream.avail_in) {
-		LOG(("Error in decompression, %1 bytes left in _in of %2 whole.").arg(stream.avail_in).arg(compressedLen));
-		return fatalFail();
-	} else if (stream.avail_out) {
-		LOG(("Error in decompression, %1 bytes free left in _out of %2 whole.").arg(stream.avail_out).arg(resultLen));
-		return fatalFail();
-	}
-	lzma_end(&stream);
-	if (res != LZMA_OK && res != LZMA_STREAM_END) {
-		const char *msg;
-		switch (res) {
-		case LZMA_MEM_ERROR: msg = "Memory allocation failed"; break;
-		case LZMA_FORMAT_ERROR: msg = "The input data is not in the .xz format"; break;
-		case LZMA_OPTIONS_ERROR: msg = "Unsupported compression options"; break;
-		case LZMA_DATA_ERROR: msg = "Compressed file is corrupt"; break;
-		case LZMA_BUF_ERROR: msg = "Compressed data is truncated or otherwise corrupt"; break;
-		default: msg = "Unknown error, possibly a bug"; break;
-		}
-		LOG(("Error in decompression: %1 (error code %2)").arg(msg).arg(res));
-		return fatalFail();
-	}
-#endif // Q_OS_WIN
-
-	tempDir.mkdir(tempDir.absolutePath());
-
-	quint32 version;
-	{
-		QDataStream stream(uncompressed);
-		stream.setVersion(QDataStream::Qt_5_1);
-
-		stream >> version;
-		if (stream.status() != QDataStream::Ok) {
-			LOG(("Update Error: cant read version from downloaded stream, status: %1").arg(stream.status()));
-			return fatalFail();
-		}
-
-		quint64 betaVersion = 0;
-		if (version == 0x7FFFFFFF) { // beta version
-			stream >> betaVersion;
-			if (stream.status() != QDataStream::Ok) {
-				LOG(("Update Error: cant read beta version from downloaded stream, status: %1").arg(stream.status()));
-				return fatalFail();
-			}
-			if (!cBetaVersion() || betaVersion <= cBetaVersion()) {
-				LOG(("Update Error: downloaded beta version %1 is not greater, than mine %2").arg(betaVersion).arg(cBetaVersion()));
-				return fatalFail();
-			}
-		} else if (int32(version) <= AppVersion) {
-			LOG(("Update Error: downloaded version %1 is not greater, than mine %2").arg(version).arg(AppVersion));
-			return fatalFail();
-		}
-
-		quint32 filesCount;
-		stream >> filesCount;
-		if (stream.status() != QDataStream::Ok) {
-			LOG(("Update Error: cant read files count from downloaded stream, status: %1").arg(stream.status()));
-			return fatalFail();
-		}
-		if (!filesCount) {
-			LOG(("Update Error: update is empty!"));
-			return fatalFail();
-		}
-		for (uint32 i = 0; i < filesCount; ++i) {
-			QString relativeName;
-			quint32 fileSize;
-			QByteArray fileInnerData;
-			bool executable = false;
-
-			stream >> relativeName >> fileSize >> fileInnerData;
-#if defined Q_OS_MAC || defined Q_OS_LINUX
-			stream >> executable;
-#endif // Q_OS_MAC || Q_OS_LINUX
-			if (stream.status() != QDataStream::Ok) {
-				LOG(("Update Error: cant read file from downloaded stream, status: %1").arg(stream.status()));
-				return fatalFail();
-			}
-			if (fileSize != quint32(fileInnerData.size())) {
-				LOG(("Update Error: bad file size %1 not matching data size %2").arg(fileSize).arg(fileInnerData.size()));
-				return fatalFail();
-			}
-
-			QFile f(tempDirPath + '/' + relativeName);
-			if (!QDir().mkpath(QFileInfo(f).absolutePath())) {
-				LOG(("Update Error: cant mkpath for file '%1'").arg(tempDirPath + '/' + relativeName));
-				return fatalFail();
-			}
-			if (!f.open(QIODevice::WriteOnly)) {
-				LOG(("Update Error: cant open file '%1' for writing").arg(tempDirPath + '/' + relativeName));
-				return fatalFail();
-			}
-			auto writtenBytes = f.write(fileInnerData);
-			if (writtenBytes != fileSize) {
-				f.close();
-				LOG(("Update Error: cant write file '%1', desiredSize: %2, write result: %3").arg(tempDirPath + '/' + relativeName).arg(fileSize).arg(writtenBytes));
-				return fatalFail();
-			}
-			f.close();
-			if (executable) {
-				QFileDevice::Permissions p = f.permissions();
-				p |= QFileDevice::ExeOwner | QFileDevice::ExeUser | QFileDevice::ExeGroup | QFileDevice::ExeOther;
-				f.setPermissions(p);
-			}
-		}
-
-		// create tdata/version file
-		tempDir.mkdir(QDir(tempDirPath + qsl("/tdata")).absolutePath());
-		std::wstring versionString = ((version % 1000) ? QString("%1.%2.%3").arg(int(version / 1000000)).arg(int((version % 1000000) / 1000)).arg(int(version % 1000)) : QString("%1.%2").arg(int(version / 1000000)).arg(int((version % 1000000) / 1000))).toStdWString();
-
-		const auto versionNum = VersionInt(version);
-		const auto versionLen = VersionInt(versionString.size() * sizeof(VersionChar));
-		VersionChar versionStr[32];
-		memcpy(versionStr, versionString.c_str(), versionLen);
-
-		QFile fVersion(tempDirPath + qsl("/tdata/version"));
-		if (!fVersion.open(QIODevice::WriteOnly)) {
-			LOG(("Update Error: cant write version file '%1'").arg(tempDirPath + qsl("/version")));
-			return fatalFail();
-		}
-		fVersion.write((const char*)&versionNum, sizeof(VersionInt));
-		if (versionNum == 0x7FFFFFFF) { // beta version
-			fVersion.write((const char*)&betaVersion, sizeof(quint64));
-		} else {
-			fVersion.write((const char*)&versionLen, sizeof(VersionInt));
-			fVersion.write((const char*)&versionStr[0], versionLen);
-		}
-		fVersion.close();
-	}
-
-	QFile readyFile(readyFilePath);
-	if (readyFile.open(QIODevice::WriteOnly)) {
-		if (readyFile.write("1", 1)) {
-			readyFile.close();
-		} else {
-			LOG(("Update Error: cant write ready file '%1'").arg(readyFilePath));
-			return fatalFail();
-		}
-	} else {
-		LOG(("Update Error: cant create ready file '%1'").arg(readyFilePath));
-		return fatalFail();
-	}
-	_output.remove();
-
-	_parent->onReady();
-}
 
 bool checkReadyUpdate() {
 	QString readyFilePath = cWorkingDir() + qsl("tupdates/temp/ready"), readyPath = cWorkingDir() + qsl("tupdates/temp");
