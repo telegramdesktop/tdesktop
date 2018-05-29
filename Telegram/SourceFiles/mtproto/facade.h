@@ -21,6 +21,7 @@ void unpause();
 constexpr auto kDcShift = ShiftedDcId(10000);
 constexpr auto kConfigDcShift = 0x01;
 constexpr auto kLogoutDcShift = 0x02;
+constexpr auto kUpdaterDcShift = 0x03;
 constexpr auto kMaxMediaDcCount = 0x10;
 constexpr auto kBaseDownloadDcShift = 0x10;
 constexpr auto kBaseUploadDcShift = 0x20;
@@ -70,6 +71,11 @@ constexpr ShiftedDcId configDcId(DcId dcId) {
 // send(MTPauth_LogOut(), MTP::logoutDcId(dc)) - for logout of guest dcs enumeration
 constexpr ShiftedDcId logoutDcId(DcId dcId) {
 	return shiftDcId(dcId, internal::kLogoutDcShift);
+}
+
+// send(MTPupload_GetFile(), MTP::updaterDcId(dc)) - for autoupdater
+constexpr ShiftedDcId updaterDcId(DcId dcId) {
+	return shiftDcId(dcId, internal::kUpdaterDcShift);
 }
 
 constexpr auto kDownloadSessionsCount = 2;

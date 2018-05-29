@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/bytes.h"
 #include "storage/localstorage.h"
 #include "messenger.h"
+#include "mtproto/session.h"
 
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
@@ -34,6 +35,7 @@ namespace {
 constexpr auto kUpdaterTimeout = 10 * TimeMs(1000);
 constexpr auto kMaxResponseSize = 1024 * 1024;
 constexpr auto kMaxUpdateSize = 256 * 1024 * 1024;
+constexpr auto kChunkSize = 128 * 1024;
 
 std::weak_ptr<Updater> UpdaterInstance;
 
@@ -55,7 +57,7 @@ class Loader : public base::has_weak_ptr {
 public:
 	Loader(const QString &filename, int chunkSize);
 
-	virtual void start() = 0;
+	void start();
 
 	int alreadySize() const;
 	int totalSize() const;
@@ -76,6 +78,8 @@ protected:
 	void writeChunk(bytes::const_span data, int totalSize);
 
 private:
+	virtual void startLoading() = 0;
+
 	bool validateOutput();
 	void threadSafeProgress(Progress progress);
 	void threadSafeReady();
@@ -146,7 +150,7 @@ private:
 	base::optional<QString> parseOldResponse(
 		const QByteArray &response) const;
 	base::optional<QString> parseResponse(const QByteArray &response) const;
-	QString validateLastestUrl(
+	QString validateLatestUrl(
 		uint64 availableVersion,
 		bool isAvailableBeta,
 		QString url) const;
@@ -162,11 +166,11 @@ class HttpLoader : public Loader {
 public:
 	HttpLoader(const QString &url);
 
-	void start() override;
-
 	~HttpLoader();
 
 private:
+	void startLoading() override;
+
 	friend class HttpLoaderActor;
 
 	QString _url;
@@ -197,15 +201,99 @@ private:
 
 };
 
+class MtpWeak : private QObject, private base::Subscriber {
+public:
+	MtpWeak(QPointer<MTP::Instance> instance);
+
+	template <typename T>
+	void send(
+		const T &request,
+		base::lambda<void(const typename T::ResponseType &result)> done,
+		base::lambda<void(const RPCError &error)> fail,
+		MTP::ShiftedDcId dcId = 0);
+
+	bool valid() const;
+	QPointer<MTP::Instance> instance() const;
+
+	~MtpWeak();
+
+private:
+	void die();
+	bool removeRequest(mtpRequestId requestId);
+
+	QPointer<MTP::Instance> _instance;
+	std::map<mtpRequestId, base::lambda<void(const RPCError &)>> _requests;
+
+};
+
 class MtpChecker : public Checker {
 public:
-	MtpChecker(bool testing);
+	MtpChecker(QPointer<MTP::Instance> instance, bool testing);
 
 	void start() override;
 
-	~MtpChecker();
+private:
+	struct FileLocation {
+		QString username;
+		int32 postId = 0;
+	};
+	struct ParsedFile {
+		QString name;
+		int32 size = 0;
+		MTP::DcId dcId = 0;
+		MTPInputFileLocation location;
+	};
+
+	using Checker::fail;
+	base::lambda<void(const RPCError &error)> failHandler();
+
+	void gotFeed(const MTPcontacts_ResolvedPeer &result);
+	void gotMessage(const MTPmessages_Messages &result);
+	base::optional<FileLocation> parseMessage(
+		const MTPmessages_Messages &result) const;
+	base::optional<FileLocation> parseText(const QByteArray &text) const;
+	FileLocation validateLatestLocation(
+		uint64 availableVersion,
+		const FileLocation &location) const;
+	void resolvedFiles(
+		const MTPcontacts_ResolvedPeer &result,
+		const FileLocation &location);
+	void gotFile(const MTPmessages_Messages &result);
+	base::optional<ParsedFile> parseFile(
+		const MTPmessages_Messages &result) const;
+
+	MtpWeak _mtp;
+
+};
+
+class MtpLoader : public Loader {
+public:
+	MtpLoader(
+		QPointer<MTP::Instance> instance,
+		const QString &name,
+		int32 size,
+		MTP::DcId dcId,
+		const MTPInputFileLocation &location);
 
 private:
+	struct Request {
+		int offset = 0;
+		QByteArray bytes;
+	};
+	void startLoading() override;
+	void sendRequest();
+	void gotPart(int offset, const MTPupload_File &result);
+	base::lambda<void(const RPCError &)> failHandler();
+
+	static constexpr auto kRequestsCount = 2;
+	static constexpr auto kNextRequestDelay = TimeMs(20);
+
+	std::deque<Request> _requests;
+	int32 _size = 0;
+	int _offset = 0;
+	MTP::DcId _dcId = 0;
+	MTPInputFileLocation _location;
+	MtpWeak _mtp;
 
 };
 
@@ -499,9 +587,163 @@ bool UnpackUpdate(const QString &filepath) {
 	return true;
 }
 
+base::optional<MTPInputChannel> ExtractChannel(
+		const MTPcontacts_ResolvedPeer &result) {
+	const auto &data = result.c_contacts_resolvedPeer();
+	if (const auto peer = peerFromMTP(data.vpeer)) {
+		for (const auto &chat : data.vchats.v) {
+			if (chat.type() == mtpc_channel) {
+				const auto &channel = chat.c_channel();
+				if (peer == peerFromChannel(channel.vid)) {
+					return MTP_inputChannel(
+						channel.vid,
+						channel.vaccess_hash);
+				}
+			}
+		}
+	}
+	return base::none;
+}
+
+template <typename Callback>
+bool ParseCommonMap(
+		const QByteArray &json,
+		bool testing,
+		Callback &&callback) {
+	auto error = QJsonParseError{ 0, QJsonParseError::NoError };
+	const auto document = QJsonDocument::fromJson(json, &error);
+	if (error.error != QJsonParseError::NoError) {
+		LOG(("Update Error: MTP failed to parse JSON, error: %1"
+			).arg(error.errorString()));
+		return false;
+	} else if (!document.isObject()) {
+		LOG(("Update Error: MTP not an object received in JSON."));
+		return false;
+	}
+	const auto platforms = document.object();
+	const auto platform = [&] {
+		switch (cPlatform()) {
+		case dbipWindows: return "win";
+		case dbipMac: return "mac";
+		case dbipMacOld: return "mac32";
+		case dbipLinux64: return "linux";
+		case dbipLinux32: return "linux32";
+		}
+		Unexpected("Platform in ParseCommonMap.");
+	}();
+	const auto it = platforms.constFind(platform);
+	if (it == platforms.constEnd()) {
+		LOG(("Update Error: MTP platform '%1' not found in response."
+			).arg(platform));
+		return false;
+	} else if (!(*it).isObject()) {
+		LOG(("Update Error: MTP not an object found for platform '%1'."
+			).arg(platform));
+		return false;
+	}
+	const auto types = (*it).toObject();
+	const auto list = [&]() -> std::vector<QString> {
+		if (cBetaVersion()) {
+			return { "alpha", "beta", "stable" };
+		} else if (cAlphaVersion()) {
+			return { "beta", "stable" };
+		}
+		return { "stable" };
+	}();
+	auto bestIsAvailableBeta = false;
+	auto bestAvailableVersion = 0ULL;
+	for (const auto &type : list) {
+		const auto it = types.constFind(type);
+		if (it == types.constEnd()) {
+			continue;
+		} else if (!(*it).isObject()) {
+			LOG(("Update Error: Not an object found for '%1:%2'."
+				).arg(platform).arg(type));
+			return false;
+		}
+		const auto map = (*it).toObject();
+		const auto key = testing ? "testing" : "released";
+		const auto version = map.constFind(key);
+		if (version == map.constEnd()) {
+			continue;
+		}
+		const auto isAvailableBeta = (type == "alpha");
+		const auto availableVersion = [&] {
+			if ((*version).isString()) {
+				const auto string = (*version).toString();
+				if (const auto index = string.indexOf(':'); index > 0) {
+					return string.midRef(0, index).toULongLong();
+				}
+				return string.toULongLong();
+			} else if ((*version).isDouble()) {
+				return uint64(std::round((*version).toDouble()));
+			}
+			return 0ULL;
+		}();
+		if (!availableVersion) {
+			LOG(("Update Error: Version is not valid for '%1:%2:%3'."
+				).arg(platform).arg(type).arg(key));
+			return false;
+		}
+		const auto compare = isAvailableBeta
+			? availableVersion
+			: availableVersion * 1000;
+		const auto bestCompare = bestIsAvailableBeta
+			? bestAvailableVersion
+			: bestAvailableVersion * 1000;
+		if (compare > bestCompare) {
+			bestAvailableVersion = availableVersion;
+			bestIsAvailableBeta = isAvailableBeta;
+			if (!callback(availableVersion, isAvailableBeta, map)) {
+				return false;
+			}
+		}
+	}
+	if (!bestAvailableVersion) {
+		LOG(("Update Error: No valid entry found for platform '%1'."
+			).arg(platform));
+		return false;
+	}
+	return true;
+}
+
+base::optional<MTPMessage> GetMessagesElement(
+		const MTPmessages_Messages &list) {
+	const auto get = [](auto &&data) -> base::optional<MTPMessage> {
+		return data.vmessages.v.isEmpty()
+			? base::none
+			: base::make_optional(data.vmessages.v[0]);
+	};
+	switch (list.type()) {
+	case mtpc_messages_messages:
+		return get(list.c_messages_messages());
+	case mtpc_messages_messagesSlice:
+		return get(list.c_messages_messagesSlice());
+	case mtpc_messages_channelMessages:
+		return get(list.c_messages_channelMessages());
+	case mtpc_messages_messagesNotModified:
+		return base::none;
+	default: Unexpected("Type of messages.Messages (GetMessagesElement)");
+	}
+}
+
 Loader::Loader(const QString &filename, int chunkSize)
 : _filename(filename)
 , _chunkSize(chunkSize) {
+}
+
+void Loader::start() {
+	if (!validateOutput()
+		|| (!_output.isOpen() && !_output.open(QIODevice::Append))) {
+		QFile(_filepath).remove();
+		threadSafeFailed();
+		return;
+	}
+
+	LOG(("Update Info: Starting loading '%1' from %2 offset."
+		).arg(_filename
+		).arg(alreadySize()));
+	startLoading();
 }
 
 int Loader::alreadySize() const {
@@ -524,16 +766,6 @@ rpl::producer<Progress> Loader::progress() const {
 
 rpl::producer<> Loader::failed() const {
 	return _failed.events();
-}
-
-bool Loader::startOutput() {
-	if (!validateOutput()
-		|| (!_output.isOpen() && !_output.open(QIODevice::Append))) {
-		QFile(_filepath).remove();
-		threadSafeFailed();
-		return false;
-	}
-	return true;
 }
 
 bool Loader::validateOutput() {
@@ -680,7 +912,7 @@ void HttpChecker::gotResponse() {
 	clearSentRequest();
 
 	if (response.size() >= kMaxResponseSize || !handleResponse(response)) {
-		LOG(("App Error: Bad update map size: %1").arg(response.size()));
+		LOG(("Update Error: Bad update map size: %1").arg(response.size()));
 		gotFailure(QNetworkReply::UnknownContentError);
 	}
 }
@@ -711,8 +943,8 @@ void HttpChecker::clearSentRequest() {
 }
 
 void HttpChecker::gotFailure(QNetworkReply::NetworkError e) {
-	LOG(("App Error: "
-		"could not get current version (update check): %1").arg(e));
+	LOG(("Update Error: "
+		"could not get current version %1").arg(e));
 	if (const auto reply = base::take(_reply)) {
 		reply->deleteLater();
 	}
@@ -732,7 +964,7 @@ base::optional<QString> HttpChecker::parseOldResponse(
 	const auto availableVersion = old.captured(1).toULongLong();
 	const auto url = old.captured(2);
 	const auto isAvailableBeta = url.startsWith(qstr("beta_"));
-	return validateLastestUrl(
+	return validateLatestUrl(
 		availableVersion,
 		isAvailableBeta,
 		isAvailableBeta ? url.mid(5) + "_{signature}" : url);
@@ -740,111 +972,39 @@ base::optional<QString> HttpChecker::parseOldResponse(
 
 base::optional<QString> HttpChecker::parseResponse(
 		const QByteArray &response) const {
-	auto error = QJsonParseError{ 0, QJsonParseError::NoError };
-	const auto document = QJsonDocument::fromJson(response, &error);
-	if (error.error != QJsonParseError::NoError) {
-		LOG(("Update Error: Failed to parse response JSON, error: %1"
-			).arg(error.errorString()));
-		return base::none;
-	} else if (!document.isObject()) {
-		LOG(("Update Error: Not an object received in response JSON."));
-		return base::none;
-	}
-	const auto platforms = document.object();
-	const auto platform = [&] {
-		switch (cPlatform()) {
-		case dbipWindows: return "win";
-		case dbipMac: return "mac";
-		case dbipMacOld: return "mac32";
-		case dbipLinux64: return "linux";
-		case dbipLinux32: return "linux32";
-		}
-		Unexpected("Platform in HttpChecker::parseResponse.");
-	}();
-	const auto it = platforms.constFind(platform);
-	if (it == platforms.constEnd()) {
-		LOG(("Update Error: Platform '%1' not found in response."
-			).arg(platform));
-		return base::none;
-	} else if (!(*it).isObject()) {
-		LOG(("Update Error: Not an object found for platform '%1'."
-			).arg(platform));
-		return base::none;
-	}
-	const auto types = (*it).toObject();
-	const auto list = [&]() -> std::vector<QString> {
-		if (cBetaVersion()) {
-			return { "alpha", "beta", "stable" };
-		} else if (cAlphaVersion()) {
-			return { "beta", "stable" };
-		}
-		return { "stable" };
-	}();
-	auto bestIsAvailableBeta = false;
 	auto bestAvailableVersion = 0ULL;
+	auto bestIsAvailableBeta = false;
 	auto bestLink = QString();
-	for (const auto &type : list) {
-		const auto it = types.constFind(type);
-		if (it == types.constEnd()) {
-			continue;
-		} else if (!(*it).isObject()) {
-			LOG(("Update Error: Not an object found for '%1:%2'."
-				).arg(platform).arg(type));
-			return base::none;
-		}
-		const auto map = (*it).toObject();
-		const auto key = testing() ? "testing" : "released";
-		const auto version = map.constFind(key);
+	const auto accumulate = [&](
+			uint64 version,
+			bool isBeta,
+			const QJsonObject &map) {
+		bestAvailableVersion = version;
+		bestIsAvailableBeta = isBeta;
 		const auto link = map.constFind("link");
-		if (version == map.constEnd()) {
-			continue;
-		} else if (link == map.constEnd()) {
-			LOG(("Update Error: Link not found for '%1:%2'."
-				).arg(platform).arg(type));
-			return base::none;
+		if (link == map.constEnd()) {
+			LOG(("Update Error: Link not found for version %1."
+				).arg(version));
+			return false;
 		} else if (!(*link).isString()) {
-			LOG(("Update Error: Link is not a string for '%1:%2'."
-				).arg(platform).arg(type));
-			return base::none;
+			LOG(("Update Error: Link is not a string for version %1."
+				).arg(version));
+			return false;
 		}
-		const auto isAvailableBeta = (type == "alpha");
-		const auto availableVersion = [&] {
-			if ((*version).isString()) {
-				return (*version).toString().toULongLong();
-			} else if ((*version).isDouble()) {
-				return uint64(std::round((*version).toDouble()));
-			}
-			return 0ULL;
-		}();
-		if (!availableVersion) {
-			LOG(("Update Error: Version is not valid for '%1:%2:%3'."
-				).arg(platform).arg(type).arg(key));
-			return base::none;
-		}
-		const auto compare = isAvailableBeta
-			? availableVersion
-			: availableVersion * 1000;
-		const auto bestCompare = bestIsAvailableBeta
-			? bestAvailableVersion
-			: bestAvailableVersion * 1000;
-		if (compare > bestCompare) {
-			bestAvailableVersion = availableVersion;
-			bestIsAvailableBeta = isAvailableBeta;
-			bestLink = (*link).toString();
-		}
-	}
-	if (!bestAvailableVersion) {
-		LOG(("Update Error: No valid entry found for platform '%1'."
-			).arg(platform));
+		bestLink = (*link).toString();
+		return true;
+	};
+	const auto result = ParseCommonMap(response, testing(), accumulate);
+	if (!result) {
 		return base::none;
 	}
-	return validateLastestUrl(
+	return validateLatestUrl(
 		bestAvailableVersion,
 		bestIsAvailableBeta,
 		Local::readAutoupdatePrefix() + bestLink);
 }
 
-QString HttpChecker::validateLastestUrl(
+QString HttpChecker::validateLatestUrl(
 		uint64 availableVersion,
 		bool isAvailableBeta,
 		QString url) const {
@@ -871,14 +1031,13 @@ HttpChecker::~HttpChecker() {
 }
 
 HttpLoader::HttpLoader(const QString &url)
-: Loader(ExtractFilename(url), UpdateChunk)
+: Loader(ExtractFilename(url), kChunkSize)
 , _url(url) {
 }
 
-void HttpLoader::start() {
-	if (!startOutput()) {
-		return;
-	}
+void HttpLoader::startLoading() {
+	LOG(("Update Info: Loading using HTTP from '%1'.").arg(_url));
+
 	_thread = std::make_unique<QThread>();
 	_actor = new HttpLoaderActor(this, _thread.get(), _url);
 	_thread->start();
@@ -994,14 +1153,391 @@ void HttpLoaderActor::partFailed(QNetworkReply::NetworkError e) {
 	_parent->threadSafeFailed();
 }
 
-MtpChecker::MtpChecker(bool testing) : Checker(testing) {
+MtpWeak::MtpWeak(QPointer<MTP::Instance> instance)
+: _instance(instance) {
+	if (!valid()) {
+		return;
+	}
+
+	connect(_instance, &QObject::destroyed, this, [=] {
+		_instance = nullptr;
+		die();
+	});
+	subscribe(Messenger::Instance().authSessionChanged(), [=] {
+		if (!AuthSession::Exists()) {
+			die();
+		}
+	});
+}
+
+bool MtpWeak::valid() const {
+	return (_instance != nullptr) && AuthSession::Exists();
+}
+
+QPointer<MTP::Instance> MtpWeak::instance() const {
+	return _instance;
+}
+
+void MtpWeak::die() {
+	const auto instance = _instance.data();
+	for (const auto &[requestId, fail] : base::take(_requests)) {
+		if (instance) {
+			instance->cancel(requestId);
+		}
+		fail(MTP::internal::rpcClientError("UNAVAILABLE"));
+	}
+}
+
+template <typename T>
+void MtpWeak::send(
+		const T &request,
+		base::lambda<void(const typename T::ResponseType &result)> done,
+		base::lambda<void(const RPCError &error)> fail,
+		MTP::ShiftedDcId dcId) {
+	using Response = typename T::ResponseType;
+	if (!valid()) {
+		InvokeQueued(this, [=] {
+			fail(MTP::internal::rpcClientError("UNAVAILABLE"));
+		});
+		return;
+	}
+	const auto onDone = base::lambda_guarded(this, [=](
+			const Response &result,
+			mtpRequestId requestId) {
+		if (removeRequest(requestId)) {
+			done(result);
+		}
+	});
+	const auto onFail = base::lambda_guarded(this, [=](
+			const RPCError &error,
+			mtpRequestId requestId) {
+		if (MTP::isDefaultHandledError(error)) {
+			return false;
+		}
+		if (removeRequest(requestId)) {
+			fail(error);
+		}
+		return true;
+	});
+	const auto requestId = _instance->send(
+		request,
+		rpcDone(onDone),
+		rpcFail(onFail),
+		dcId);
+	_requests.emplace(requestId, fail);
+}
+
+bool MtpWeak::removeRequest(mtpRequestId requestId) {
+	if (const auto i = _requests.find(requestId); i != end(_requests)) {
+		_requests.erase(i);
+		return true;
+	}
+	return false;
+}
+
+MtpWeak::~MtpWeak() {
+	if (const auto instance = _instance.data()) {
+		for (const auto &[requestId, fail] : base::take(_requests)) {
+			instance->cancel(requestId);
+		}
+	}
+}
+
+MtpChecker::MtpChecker(QPointer<MTP::Instance> instance, bool testing)
+: Checker(testing)
+, _mtp(instance) {
 }
 
 void MtpChecker::start() {
-	fail();
+	if (!_mtp.valid()) {
+		LOG(("Update Info: MTP is unavailable."));
+		InvokeQueued(this, [=] { fail(); });
+		return;
+	}
+	constexpr auto kFeedUsername = "tdhbcfeed";
+
+	_mtp.send(
+		MTPcontacts_ResolveUsername(MTP_string(kFeedUsername)),
+		[=](const MTPcontacts_ResolvedPeer &result) { gotFeed(result); },
+		failHandler());
 }
 
-MtpChecker::~MtpChecker() {
+void MtpChecker::gotFeed(const MTPcontacts_ResolvedPeer &result) {
+	Expects(result.type() == mtpc_contacts_resolvedPeer);
+
+	if (const auto channel = ExtractChannel(result)) {
+		_mtp.send(
+			MTPmessages_GetHistory(
+				MTP_inputPeerChannel(
+					channel->c_inputChannel().vchannel_id,
+					channel->c_inputChannel().vaccess_hash),
+				MTP_int(0),  // offset_id
+				MTP_int(0),  // offset_date
+				MTP_int(0),  // add_offset
+				MTP_int(1),  // limit
+				MTP_int(0),  // max_id
+				MTP_int(0),  // min_id
+				MTP_int(0)), // hash
+			[=](const MTPmessages_Messages &result) { gotMessage(result); },
+			failHandler());
+	} else {
+		LOG(("Update Error: MTP feed channel not found."));
+		fail();
+	}
+}
+
+void MtpChecker::gotMessage(const MTPmessages_Messages &result) {
+	if (const auto location = parseMessage(result)) {
+		if (location->username.isEmpty()) {
+			done(nullptr);
+		} else {
+			const auto got = [=](const MTPcontacts_ResolvedPeer &result) {
+				resolvedFiles(result, *location);
+			};
+			_mtp.send(
+				MTPcontacts_ResolveUsername(MTP_string(location->username)),
+				got,
+				failHandler());
+		}
+	} else {
+		fail();
+	}
+}
+
+auto MtpChecker::parseMessage(const MTPmessages_Messages &result) const
+-> base::optional<FileLocation> {
+	const auto message = GetMessagesElement(result);
+	if (!message || message->type() != mtpc_message) {
+		LOG(("Update Error: MTP feed message not found."));
+		return base::none;
+	}
+	return parseText(message->c_message().vmessage.v);
+}
+
+auto MtpChecker::parseText(const QByteArray &text) const
+-> base::optional<FileLocation> {
+	auto bestAvailableVersion = 0ULL;
+	auto bestLocation = FileLocation();
+	const auto accumulate = [&](
+			uint64 version,
+			bool isBeta,
+			const QJsonObject &map) {
+		if (isBeta) {
+			LOG(("Update Error: MTP closed beta found."));
+			return false;
+		}
+		bestAvailableVersion = version;
+		const auto key = testing() ? "testing" : "released";
+		const auto entry = map.constFind(key);
+		if (entry == map.constEnd()) {
+			LOG(("Update Error: MTP entry not found for version %1."
+				).arg(version));
+			return false;
+		} else if (!(*entry).isString()) {
+			LOG(("Update Error: MTP entry is not a string for version %1."
+				).arg(version));
+			return false;
+		}
+		const auto full = (*entry).toString();
+		const auto start = full.indexOf(':');
+		const auto post = full.indexOf('#');
+		if (start <= 0 || post < start) {
+			LOG(("Update Error: MTP entry '%1' is bad for version %2."
+				).arg(full
+				).arg(version));
+			return false;
+		}
+		bestLocation.username = full.mid(start + 1, post - start - 1);
+		bestLocation.postId = full.mid(post + 1).toInt();
+		if (bestLocation.username.isEmpty() || !bestLocation.postId) {
+			LOG(("Update Error: MTP entry '%1' is bad for version %2."
+				).arg(full
+				).arg(version));
+			return false;
+		}
+		return true;
+	};
+	const auto result = ParseCommonMap(text, testing(), accumulate);
+	if (!result) {
+		return base::none;
+	}
+	return validateLatestLocation(bestAvailableVersion, bestLocation);
+}
+
+auto MtpChecker::validateLatestLocation(
+		uint64 availableVersion,
+		const FileLocation &location) const -> FileLocation {
+	const auto myVersion = uint64(AppVersion);
+	return (availableVersion <= myVersion) ? FileLocation() : location;
+}
+
+void MtpChecker::resolvedFiles(
+		const MTPcontacts_ResolvedPeer &result,
+		const FileLocation &location) {
+	Expects(result.type() == mtpc_contacts_resolvedPeer);
+
+	if (const auto channel = ExtractChannel(result)) {
+		_mtp.send(
+			MTPchannels_GetMessages(
+				*channel,
+				MTP_vector<MTPInputMessage>(
+					1,
+					MTP_inputMessageID(MTP_int(location.postId)))),
+			[=](const MTPmessages_Messages &result) { gotFile(result); },
+			failHandler());
+	} else {
+		LOG(("Update Error: MTP files channel not found: '%1'."
+			).arg(location.username));
+		fail();
+	}
+}
+
+void MtpChecker::gotFile(const MTPmessages_Messages &result) {
+	if (const auto file = parseFile(result)) {
+		done(std::make_shared<MtpLoader>(
+			_mtp.instance(),
+			file->name,
+			file->size,
+			file->dcId,
+			file->location));
+	} else {
+		fail();
+	}
+}
+
+auto MtpChecker::parseFile(const MTPmessages_Messages &result) const
+-> base::optional<ParsedFile> {
+	const auto message = GetMessagesElement(result);
+	if (!message || message->type() != mtpc_message) {
+		LOG(("Update Error: MTP file message not found."));
+		return base::none;
+	}
+	const auto &data = message->c_message();
+	if (!data.has_media()
+		|| data.vmedia.type() != mtpc_messageMediaDocument) {
+		LOG(("Update Error: MTP file media not found."));
+		return base::none;
+	}
+	const auto &document = data.vmedia.c_messageMediaDocument();
+	if (!document.has_document()
+		|| document.vdocument.type() != mtpc_document) {
+		LOG(("Update Error: MTP file not found."));
+		return base::none;
+	}
+	const auto &fields = document.vdocument.c_document();
+	const auto name = [&] {
+		for (const auto &attribute : fields.vattributes.v) {
+			if (attribute.type() == mtpc_documentAttributeFilename) {
+				const auto &data = attribute.c_documentAttributeFilename();
+				return qs(data.vfile_name);
+			}
+		}
+		return QString();
+	}();
+	if (name.isEmpty()) {
+		LOG(("Update Error: MTP file name not found."));
+		return base::none;
+	}
+	const auto size = fields.vsize.v;
+	if (size <= 0) {
+		LOG(("Update Error: MTP file size is invalid."));
+		return base::none;
+	}
+	const auto location = MTP_inputDocumentFileLocation(
+		fields.vid,
+		fields.vaccess_hash,
+		fields.vversion);
+	return ParsedFile { name, size, fields.vdc_id.v, location };
+}
+
+base::lambda<void(const RPCError &error)> MtpChecker::failHandler() {
+	return [=](const RPCError &error) {
+		LOG(("Update Error: MTP check failed with '%1'"
+			).arg(QString::number(error.code()) + ':' + error.type()));
+		fail();
+	};
+}
+
+MtpLoader::MtpLoader(
+	QPointer<MTP::Instance> instance,
+	const QString &name,
+	int32 size,
+	MTP::DcId dcId,
+	const MTPInputFileLocation &location)
+: Loader(name, kChunkSize)
+, _size(size)
+, _dcId(dcId)
+, _location(location)
+, _mtp(instance) {
+	Expects(_size > 0);
+}
+
+void MtpLoader::startLoading() {
+	if (!_mtp.valid()) {
+		LOG(("Update Error: MTP is unavailable."));
+		threadSafeFailed();
+		return;
+	}
+
+	LOG(("Update Info: Loading using MTP from '%1'.").arg(_dcId));
+	_offset = alreadySize();
+	writeChunk({}, _size);
+	sendRequest();
+}
+
+void MtpLoader::sendRequest() {
+	if (_requests.size() >= kRequestsCount || _offset >= _size) {
+		return;
+	}
+	const auto offset = _offset;
+	_requests.push_back({ offset });
+	_mtp.send(
+		MTPupload_GetFile(_location, MTP_int(offset), MTP_int(kChunkSize)),
+		[=](const MTPupload_File &result) { gotPart(offset, result); },
+		failHandler(),
+		MTP::updaterDcId(_dcId));
+	_offset += kChunkSize;
+
+	if (_requests.size() < kRequestsCount) {
+		App::CallDelayed(kNextRequestDelay, this, [=] { sendRequest(); });
+	}
+}
+
+void MtpLoader::gotPart(int offset, const MTPupload_File &result) {
+	Expects(!_requests.empty());
+
+	if (result.type() == mtpc_upload_fileCdnRedirect) {
+		LOG(("Update Error: MTP does not support cdn right now."));
+		threadSafeFailed();
+		return;
+	}
+	const auto &data = result.c_upload_file();
+	if (data.vbytes.v.isEmpty()) {
+		LOG(("Update Error: MTP empty part received."));
+		threadSafeFailed();
+		return;
+	}
+
+	const auto i = ranges::find(
+		_requests,
+		offset,
+		[](const Request &request) { return request.offset; });
+	Assert(i != end(_requests));
+
+	i->bytes = data.vbytes.v;
+	while (!_requests.empty() && !_requests.front().bytes.isEmpty()) {
+		writeChunk(bytes::make_span(_requests.front().bytes), _size);
+		_requests.pop_front();
+	}
+	sendRequest();
+}
+
+base::lambda<void(const RPCError &)> MtpLoader::failHandler() {
+	return [=](const RPCError &error) {
+		LOG(("Update Error: MTP load failed with '%1'"
+			).arg(QString::number(error.code()) + ':' + error.type()));
+		threadSafeFailed();
+	};
 }
 
 } // namespace
@@ -1068,7 +1604,7 @@ private:
 	Implementation _httpImplementation;
 	Implementation _mtpImplementation;
 	std::shared_ptr<Loader> _activeLoader;
-	bool _usingMtprotoLoader = false;
+	bool _usingMtprotoLoader = (cBetaVersion() != 0);
 	QPointer<MTP::Instance> _mtproto;
 
 	rpl::lifetime _lifetime;
@@ -1215,7 +1751,9 @@ void Updater::start(bool forceWait) {
 			std::make_unique<HttpChecker>(_testing));
 		startImplementation(
 			&_mtpImplementation,
-			std::make_unique<MtpChecker>(_testing));
+			(cBetaVersion()
+				? std::make_unique<MtpChecker>(_mtproto, _testing)
+				: nullptr));
 
 		_checking.fire({});
 	} else {
@@ -1226,7 +1764,19 @@ void Updater::start(bool forceWait) {
 void Updater::startImplementation(
 		not_null<Implementation*> which,
 		std::unique_ptr<Checker> checker) {
-	Expects(checker != nullptr);
+	if (!checker) {
+		class EmptyChecker : public Checker {
+		public:
+			EmptyChecker() : Checker(false) {
+			}
+
+			void start() override {
+				crl::on_main(this, [=] { fail(); });
+			}
+
+		};
+		checker = std::make_unique<EmptyChecker>();
+	}
 
 	checker->ready(
 	) | rpl::start_with_next([=](std::shared_ptr<Loader> &&loader) {
