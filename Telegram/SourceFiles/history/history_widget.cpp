@@ -2896,8 +2896,13 @@ void HistoryWidget::saveEditMsg() {
 	TextUtilities::PrepareForSending(left, prepareFlags);
 
 	if (!TextUtilities::CutPart(sending, left, MaxMessageSize)) {
-		_field->selectAll();
-		_field->setFocus();
+		if (const auto item = App::histItemById(_channel, _editMsgId)) {
+			const auto suggestModerateActions = false;
+			Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
+		} else {
+			_field->selectAll();
+			_field->setFocus();
+		}
 		return;
 	} else if (!left.text.isEmpty()) {
 		Ui::show(Box<InformBox>(lang(lng_edit_too_long)));
