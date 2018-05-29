@@ -254,7 +254,7 @@ int main(int argc, const char * argv[]) {
 								   forKey:NSWorkspaceLaunchConfigurationArguments]
 					error:&error];
 	if (!result) {
-		writeLog([@"Could not run application, error: " stringByAppendingString:error ? [error localizedDescription] : @"(nil)"]);
+		writeLog([[NSString stringWithFormat:@"Could not run application, error %ld: ", (long)[error code]] stringByAppendingString: error ? [error localizedDescription] : @"(nil)"]);
 	}
 	closeLog();
 	return result ? 0 : -1;
