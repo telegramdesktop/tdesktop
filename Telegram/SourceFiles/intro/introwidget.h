@@ -94,8 +94,14 @@ public:
 			setFocus();
 		}
 
-		void setGoCallback(base::lambda<void(Step *step, Direction direction)> callback);
+		void setGoCallback(
+			base::lambda<void(Step *step, Direction direction)> callback);
 		void setShowResetCallback(base::lambda<void()> callback);
+		void setToggleTermsCallback(
+			base::lambda<void(QString countryCode)> callback);
+		void setAcceptTermsCallback(base::lambda<void(
+			QString countryCode,
+			base::lambda<void()> callback)> callback);
 
 		void prepareShowAnimated(Step *after);
 		void showAnimated(Direction direction);
@@ -153,6 +159,16 @@ public:
 		void showResetButton() {
 			if (_showResetCallback) _showResetCallback();
 		}
+		void toggleTerms(const QString &countryCode) {
+			if (_toggleTermsCallback) _toggleTermsCallback(countryCode);
+		}
+		void acceptTerms(
+				const QString &countryCode,
+				base::lambda<void()> callback) {
+			if (_acceptTermsCallback) {
+				_acceptTermsCallback(countryCode, callback);
+			}
+		}
 
 	private:
 		struct CoverAnimation {
@@ -187,6 +203,10 @@ public:
 		bool _hasCover = false;
 		base::lambda<void(Step *step, Direction direction)> _goCallback;
 		base::lambda<void()> _showResetCallback;
+		base::lambda<void(QString countryCode)> _toggleTermsCallback;
+		base::lambda<void(
+			QString countryCode,
+			base::lambda<void()> callback)> _acceptTermsCallback;
 
 		object_ptr<Ui::FlatLabel> _title;
 		base::lambda<QString()> _titleTextFactory;
@@ -224,6 +244,12 @@ private:
 	void showResetButton();
 	void resetAccount();
 
+	void toggleTerms(const QString &countryCode);
+	void acceptTerms(
+		const QString &countryCode,
+		base::lambda<void()> callback);
+	void hideAndDestroy(object_ptr<Ui::FadeWrap<Ui::RpWidget>> widget);
+
 	Step *getStep(int skip = 0) {
 		Assert(_stepHistory.size() + skip > 0);
 		return _stepHistory.at(_stepHistory.size() - skip - 1);
@@ -233,6 +259,7 @@ private:
 	void appendStep(Step *step);
 
 	void getNearestDC();
+	void showTerms(base::lambda<void()> callback = nullptr);
 
 	Animation _a_show;
 	bool _showBack = false;
@@ -253,6 +280,11 @@ private:
 	object_ptr<Ui::RoundButton> _next;
 	object_ptr<Ui::FadeWrap<Ui::LinkButton>> _changeLanguage = { nullptr };
 	object_ptr<Ui::FadeWrap<Ui::RoundButton>> _resetAccount = { nullptr };
+	object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _terms = { nullptr };
+	QString _termsCountryCode;
+	QString _termsLastCountryCode;
+	QString _termsLastLangPack;
+	QString _termsLastText;
 
 	base::unique_qptr<Window::ConnectingWidget> _connecting;
 

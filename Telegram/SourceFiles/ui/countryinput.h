@@ -23,6 +23,10 @@ class CountryInput : public TWidget {
 public:
 	CountryInput(QWidget *parent, const style::InputField &st);
 
+	QString iso() const {
+		return _chosenIso;
+	}
+
 public slots:
 	void onChooseCode(const QString &code);
 	bool onChooseCountry(const QString &country);
@@ -43,6 +47,7 @@ private:
 	const style::InputField &_st;
 	bool _active = false;
 	QString _text;
+	QString _chosenIso;
 	QPainterPath _placeholderPath;
 
 };

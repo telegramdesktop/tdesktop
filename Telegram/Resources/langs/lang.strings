@@ -1493,6 +1493,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_info_feed_is_default" = "Group new channels";
 "lng_info_feed_channels" = "Channels";
 
+"lng_terms_signup" = "By signing up,\nyou agree to the {link}.";
+"lng_terms_signup_link" = "Terms of Service";
+"lng_terms_header" = "Terms of Service";
+"lng_terms_agree" = "Agree & Continue";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";

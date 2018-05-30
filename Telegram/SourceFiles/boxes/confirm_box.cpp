@@ -119,9 +119,19 @@ void ConfirmBox::prepare() {
 	textUpdated();
 }
 
+void ConfirmBox::setMaxLineCount(int count) {
+	if (_maxLineCount != count) {
+		_maxLineCount = count;
+		textUpdated();
+	}
+}
+
 void ConfirmBox::textUpdated() {
 	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right();
-	_textHeight = qMin(_text.countHeight(_textWidth), 16 * st::boxLabelStyle.lineHeight);
+	_textHeight = _text.countHeight(_textWidth);
+	if (_maxLineCount > 0) {
+		accumulate_min(_textHeight, _maxLineCount * st::boxLabelStyle.lineHeight);
+	}
 	setDimensions(st::boxWidth, st::boxPadding.top() + _textHeight + st::boxPadding.bottom());
 
 	setMouseTracking(_text.hasLinks());
@@ -198,7 +208,11 @@ void ConfirmBox::paintEvent(QPaintEvent *e) {
 
 	// draw box title / text
 	p.setPen(st::boxTextFg);
-	_text.drawLeftElided(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, width(), 16, style::al_left);
+	if (_maxLineCount > 0) {
+		_text.drawLeftElided(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, width(), _maxLineCount, style::al_left);
+	} else {
+		_text.drawLeft(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, width(), style::al_left);
+	}
 }
 
 InformBox::InformBox(QWidget*, const QString &text, base::lambda<void()> closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, lang(lng_box_ok), std::move(closedCallback)) {

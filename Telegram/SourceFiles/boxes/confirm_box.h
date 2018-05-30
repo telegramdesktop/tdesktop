@@ -31,6 +31,8 @@ public:
 		_strictCancel = strictCancel;
 	}
 
+	void setMaxLineCount(int count);
+
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
@@ -55,6 +57,7 @@ private:
 	void confirmed();
 	void init(const QString &text);
 	void textUpdated();
+	void updateHover();
 
 	QString _confirmText;
 	QString _cancelText;
@@ -64,8 +67,7 @@ private:
 	Text _text;
 	int _textWidth = 0;
 	int _textHeight = 0;
-
-	void updateHover();
+	int _maxLineCount = 16;
 
 	QPoint _lastMousePos;
 

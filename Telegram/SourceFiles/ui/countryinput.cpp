@@ -162,11 +162,12 @@ void CountryInput::leaveEventHook(QEvent *e) {
 
 void CountryInput::onChooseCode(const QString &code) {
 	Ui::hideLayer();
+	_chosenIso = QString();
 	if (code.length()) {
 		CountriesByCode::const_iterator i = _countriesByCode.constFind(code);
 		if (i != _countriesByCode.cend()) {
 			const CountryInfo *info = *i;
-			lastValidISO = info->iso2;
+			_chosenIso = lastValidISO = info->iso2;
 			setText(QString::fromUtf8(info->name));
 		} else {
 			setText(lang(lng_bad_country_code));
@@ -183,8 +184,9 @@ bool CountryInput::onChooseCountry(const QString &iso) {
 	CountriesByISO2::const_iterator i = _countriesByISO2.constFind(iso);
 	const CountryInfo *info = (i == _countriesByISO2.cend()) ? 0 : (*i);
 
+	_chosenIso = QString();
 	if (info) {
-		lastValidISO = info->iso2;
+		_chosenIso = lastValidISO = info->iso2;
 		setText(QString::fromUtf8(info->name));
 		emit codeChanged(info->code);
 		update();
