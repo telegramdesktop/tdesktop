@@ -537,6 +537,7 @@ void ActionsFiller::addBotCommandActions(not_null<UserData*> user) {
 	};
 	addBotCommand(lng_profile_bot_help, qsl("help"));
 	addBotCommand(lng_profile_bot_settings, qsl("settings"));
+	addBotCommand(lng_profile_bot_privacy, qsl("privacy"));
 }
 
 void ActionsFiller::addReportAction() {

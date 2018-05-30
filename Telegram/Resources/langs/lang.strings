@@ -557,6 +557,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_actions_section" = "Actions";
 "lng_profile_bot_settings" = "Bot Settings";
 "lng_profile_bot_help" = "Bot Help";
+"lng_profile_bot_privacy" = "Bot Privacy Policy";
 "lng_profile_invite_link_section" = "Invite link";
 "lng_profile_create_public_link" = "Create public link";
 "lng_profile_edit_public_link" = "Edit public link";
