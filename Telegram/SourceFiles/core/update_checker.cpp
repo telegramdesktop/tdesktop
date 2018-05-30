@@ -247,7 +247,9 @@ private:
 	using Checker::fail;
 	base::lambda<void(const RPCError &error)> failHandler();
 
-	void gotFeed(const MTPcontacts_ResolvedPeer &result);
+	void resolveChannel(
+		const QString &username,
+		base::lambda<void(const MTPInputChannel &channel)> callback);
 	void gotMessage(const MTPmessages_Messages &result);
 	base::optional<FileLocation> parseMessage(
 		const MTPmessages_Messages &result) const;
@@ -255,9 +257,6 @@ private:
 	FileLocation validateLatestLocation(
 		uint64 availableVersion,
 		const FileLocation &location) const;
-	void resolvedFiles(
-		const MTPcontacts_ResolvedPeer &result,
-		const FileLocation &location);
 	void gotFile(const MTPmessages_Messages &result);
 	base::optional<ParsedFile> parseFile(
 		const MTPmessages_Messages &result) const;
@@ -1255,22 +1254,12 @@ void MtpChecker::start() {
 		return;
 	}
 	constexpr auto kFeedUsername = "tdhbcfeed";
-
-	_mtp.send(
-		MTPcontacts_ResolveUsername(MTP_string(kFeedUsername)),
-		[=](const MTPcontacts_ResolvedPeer &result) { gotFeed(result); },
-		failHandler());
-}
-
-void MtpChecker::gotFeed(const MTPcontacts_ResolvedPeer &result) {
-	Expects(result.type() == mtpc_contacts_resolvedPeer);
-
-	if (const auto channel = ExtractChannel(result)) {
+	resolveChannel(kFeedUsername, [=](const MTPInputChannel &channel) {
 		_mtp.send(
 			MTPmessages_GetHistory(
 				MTP_inputPeerChannel(
-					channel->c_inputChannel().vchannel_id,
-					channel->c_inputChannel().vaccess_hash),
+					channel.c_inputChannel().vchannel_id,
+					channel.c_inputChannel().vaccess_hash),
 				MTP_int(0),  // offset_id
 				MTP_int(0),  // offset_date
 				MTP_int(0),  // add_offset
@@ -1280,28 +1269,74 @@ void MtpChecker::gotFeed(const MTPcontacts_ResolvedPeer &result) {
 				MTP_int(0)), // hash
 			[=](const MTPmessages_Messages &result) { gotMessage(result); },
 			failHandler());
-	} else {
-		LOG(("Update Error: MTP feed channel not found."));
+	});
+}
+
+void MtpChecker::resolveChannel(
+		const QString &username,
+		base::lambda<void(const MTPInputChannel &channel)> callback) {
+	const auto failed = [&] {
+		LOG(("Update Error: MTP channel '%1' resolve failed."
+			).arg(username));
 		fail();
+	};
+	if (!AuthSession::Exists()) {
+		failed();
+		return;
 	}
+
+	struct ResolveResult {
+		base::weak_ptr<AuthSession> auth;
+		MTPInputChannel channel;
+	};
+	static std::map<QString, ResolveResult> ResolveCache;
+
+	const auto i = ResolveCache.find(username);
+	if (i != end(ResolveCache)) {
+		if (i->second.auth.get() == &Auth()) {
+			callback(i->second.channel);
+			return;
+		}
+		ResolveCache.erase(i);
+	}
+
+	const auto doneHandler = [=](const MTPcontacts_ResolvedPeer &result) {
+		Expects(result.type() == mtpc_contacts_resolvedPeer);
+
+		if (const auto channel = ExtractChannel(result)) {
+			ResolveCache.emplace(
+				username,
+				ResolveResult { base::make_weak(&Auth()), *channel });
+			callback(*channel);
+		} else {
+			failed();
+		}
+	};
+	_mtp.send(
+		MTPcontacts_ResolveUsername(MTP_string(username)),
+		doneHandler,
+		failHandler());
 }
 
 void MtpChecker::gotMessage(const MTPmessages_Messages &result) {
-	if (const auto location = parseMessage(result)) {
-		if (location->username.isEmpty()) {
-			done(nullptr);
-		} else {
-			const auto got = [=](const MTPcontacts_ResolvedPeer &result) {
-				resolvedFiles(result, *location);
-			};
-			_mtp.send(
-				MTPcontacts_ResolveUsername(MTP_string(location->username)),
-				got,
-				failHandler());
-		}
-	} else {
+	const auto location = parseMessage(result);
+	if (!location) {
 		fail();
+		return;
+	} else if (location->username.isEmpty()) {
+		done(nullptr);
+		return;
 	}
+	resolveChannel(location->username, [=](const MTPInputChannel &channel) {
+		_mtp.send(
+			MTPchannels_GetMessages(
+				channel,
+				MTP_vector<MTPInputMessage>(
+					1,
+					MTP_inputMessageID(MTP_int(location->postId)))),
+			[=](const MTPmessages_Messages &result) { gotFile(result); },
+			failHandler());
+	});
 }
 
 auto MtpChecker::parseMessage(const MTPmessages_Messages &result) const
@@ -1369,27 +1404,6 @@ auto MtpChecker::validateLatestLocation(
 		const FileLocation &location) const -> FileLocation {
 	const auto myVersion = uint64(AppVersion);
 	return (availableVersion <= myVersion) ? FileLocation() : location;
-}
-
-void MtpChecker::resolvedFiles(
-		const MTPcontacts_ResolvedPeer &result,
-		const FileLocation &location) {
-	Expects(result.type() == mtpc_contacts_resolvedPeer);
-
-	if (const auto channel = ExtractChannel(result)) {
-		_mtp.send(
-			MTPchannels_GetMessages(
-				*channel,
-				MTP_vector<MTPInputMessage>(
-					1,
-					MTP_inputMessageID(MTP_int(location.postId)))),
-			[=](const MTPmessages_Messages &result) { gotFile(result); },
-			failHandler());
-	} else {
-		LOG(("Update Error: MTP files channel not found: '%1'."
-			).arg(location.username));
-		fail();
-	}
 }
 
 void MtpChecker::gotFile(const MTPmessages_Messages &result) {
@@ -1576,7 +1590,7 @@ private:
 	void startImplementation(
 		not_null<Implementation*> which,
 		std::unique_ptr<Checker> checker);
-	void tryLoaders();
+	bool tryLoaders();
 	void handleTimeout();
 	void checkerDone(
 		not_null<Implementation*> which,
@@ -1830,20 +1844,19 @@ void Updater::handleTimeout() {
 		};
 		reset(_httpImplementation);
 		reset(_mtpImplementation);
-		tryLoaders();
+		if (!tryLoaders()) {
+			cSetLastUpdateCheck(0);
+			_timer.callOnce(kUpdaterTimeout);
+		}
 	} else if (_action == Action::Loading) {
 		_failed.fire({});
 	}
-	if (_action == Action::Waiting) {
-		cSetLastUpdateCheck(0);
-		_timer.callOnce(kUpdaterTimeout);
-	}
 }
 
-void Updater::tryLoaders() {
+bool Updater::tryLoaders() {
 	if (_httpImplementation.checker || _mtpImplementation.checker) {
 		// Some checkers didn't finish yet.
-		return;
+		return true;
 	}
 	_retryTimer.cancel();
 
@@ -1871,6 +1884,7 @@ void Updater::tryLoaders() {
 	};
 	if (_mtpImplementation.failed && _httpImplementation.failed) {
 		_failed.fire({});
+		return false;
 	} else if (!_mtpImplementation.loader) {
 		tryOne(_httpImplementation);
 	} else if (!_httpImplementation.loader) {
@@ -1881,6 +1895,7 @@ void Updater::tryLoaders() {
 			: _httpImplementation);
 		_usingMtprotoLoader = !_usingMtprotoLoader;
 	}
+	return true;
 }
 
 void Updater::finalize(QString filepath) {
