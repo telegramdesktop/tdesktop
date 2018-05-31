@@ -190,7 +190,7 @@ public:
 				_checked[edgeIndex] = true;
 				return;
 			} else {
-				_checked = { false, false };
+				_checked = { { false, false } };
 			}
 		}
 		while (true) {
@@ -207,9 +207,9 @@ public:
 			}
 		}
 		if (_position == kInvalidPosition) {
-			_checked = { true, true };
+			_checked = { { true, true } };
 		} else {
-			_checked = { false, false };
+			_checked = { { false, false } };
 			_checked[edgeIndex] = true;
 		}
 	}
@@ -217,7 +217,7 @@ public:
 private:
 	int _offset = 0;
 	int _position = -1;
-	std::array<bool, 2> _checked = { false, false };
+	std::array<bool, 2> _checked = { { false, false } };
 
 };
 
