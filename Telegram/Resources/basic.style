@@ -172,6 +172,21 @@ inFwdTextPaletteSelected: TextPalette(defaultTextPalette) {
 outFwdTextPaletteSelected: TextPalette(defaultTextPalette) {
 	linkFg: msgOutServiceFgSelected;
 }
+inReplyTextPalette: TextPalette(inTextPalette) {
+	linkFg: msgInDateFg;
+}
+inReplyTextPaletteSelected: TextPalette(inTextPaletteSelected) {
+	linkFg: msgInDateFgSelected;
+}
+outReplyTextPalette: TextPalette(outTextPalette) {
+	linkFg: msgOutDateFg;
+}
+outReplyTextPaletteSelected: TextPalette(outTextPaletteSelected) {
+	linkFg: msgOutDateFgSelected;
+}
+imgReplyTextPalette: TextPalette(defaultTextPalette) {
+	linkFg: msgImgReplyBarColor;
+}
 inSemiboldPalette: TextPalette(inTextPalette) {
 	linkFg: msgInServiceFg;
 	selectFg: msgInServiceFgSelected;
@@ -181,6 +196,9 @@ outSemiboldPalette: TextPalette(outTextPalette) {
 	linkFg: msgOutServiceFg;
 	selectFg: msgOutServiceFgSelected;
 	selectLinkFg: msgOutServiceFgSelected;
+}
+historyComposeAreaPalette: TextPalette(defaultTextPalette) {
+	linkFg: historyComposeAreaFgService;
 }
 
 mediaCaptionSkip: 5px;

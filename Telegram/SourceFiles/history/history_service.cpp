@@ -464,8 +464,11 @@ QString HistoryService::inDialogsText(DrawInDialog way) const {
 }
 
 QString HistoryService::inReplyText() const {
-	QString result = HistoryService::notificationText();
-	return result.trimmed().startsWith(author()->name) ? result.trimmed().mid(author()->name.size()).trimmed() : result;
+	const auto result = HistoryService::notificationText();
+	const auto text = result.trimmed().startsWith(author()->name)
+		? result.trimmed().mid(author()->name.size()).trimmed()
+		: result;
+	return textcmdLink(1, text);
 }
 
 std::unique_ptr<HistoryView::Element> HistoryService::createView(

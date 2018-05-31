@@ -183,7 +183,7 @@ public:
 	// Example: "[link1-start]You:[link1-end] [link1-start]Photo,[link1-end] caption text"
 	virtual QString inDialogsText(DrawInDialog way) const;
 	virtual QString inReplyText() const {
-		return notificationText();
+		return inDialogsText(DrawInDialog::WithoutSender);
 	}
 	virtual TextWithEntities originalText() const {
 		return { QString(), EntitiesInText() };

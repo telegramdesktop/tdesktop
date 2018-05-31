@@ -3798,12 +3798,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 		_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard->forceReply()) ? App::histItemById(_keyboard->forMsgId()) : 0;
 		if (_kbReplyTo && !_editMsgId && !_replyToId && fieldEnabled) {
 			updateReplyToName();
-			_replyEditMsgText.setText(
-				st::messageTextStyle,
-				TextUtilities::Clean(_kbReplyTo->inReplyText()),
-				Ui::DialogTextOptions());
-			_fieldBarCancel->show();
-			updateMouseTracking();
+			updateReplyEditText(_kbReplyTo);
 		}
 		if (manual && _history) {
 			_history->lastKeyboardHiddenId = 0;
@@ -3820,12 +3815,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 		_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard->forceReply()) ? App::histItemById(_keyboard->forMsgId()) : 0;
 		if (_kbReplyTo && !_editMsgId && !_replyToId) {
 			updateReplyToName();
-			_replyEditMsgText.setText(
-				st::messageTextStyle,
-				TextUtilities::Clean(_kbReplyTo->inReplyText()),
-				Ui::DialogTextOptions());
-			_fieldBarCancel->show();
-			updateMouseTracking();
+			updateReplyEditText(_kbReplyTo);
 		}
 		if (manual && _history) {
 			_history->lastKeyboardHiddenId = 0;
@@ -5103,12 +5093,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 			_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard->forceReply()) ? App::histItemById(_keyboard->forMsgId()) : 0;
 			if (_kbReplyTo && !_replyToId) {
 				updateReplyToName();
-				_replyEditMsgText.setText(
-					st::messageTextStyle,
-					TextUtilities::Clean(_kbReplyTo->inReplyText()),
-					Ui::DialogTextOptions());
-				_fieldBarCancel->show();
-				updateMouseTracking();
+				updateReplyEditText(_kbReplyTo);
 			}
 		} else {
 			if (!_a_show.animating()) {
@@ -5835,15 +5820,8 @@ void HistoryWidget::replyToMessage(not_null<HistoryItem*> item) {
 	} else {
 		_replyEditMsg = item;
 		_replyToId = item->id;
-		_replyEditMsgText.setText(
-			st::messageTextStyle,
-			TextUtilities::Clean(_replyEditMsg->inReplyText()),
-			Ui::DialogTextOptions());
-
+		updateReplyEditText(_replyEditMsg);
 		updateBotKeyboard();
-
-		if (!_field->isHidden()) _fieldBarCancel->show();
-		updateMouseTracking();
 		updateReplyToName();
 		updateControlsGeometry();
 		updateField();
@@ -6467,6 +6445,17 @@ void HistoryWidget::messageDataReceived(ChannelData *channel, MsgId msgId) {
 	}
 }
 
+void HistoryWidget::updateReplyEditText(not_null<HistoryItem*> item) {
+	_replyEditMsgText.setText(
+		st::messageTextStyle,
+		item->inReplyText(),
+		Ui::DialogTextOptions());
+	if (!_field->isHidden() || _recording) {
+		_fieldBarCancel->show();
+		updateMouseTracking();
+	}
+}
+
 void HistoryWidget::updateReplyEditTexts(bool force) {
 	if (!force) {
 		if (_replyEditMsg || (!_editMsgId && !_replyToId)) {
@@ -6477,17 +6466,8 @@ void HistoryWidget::updateReplyEditTexts(bool force) {
 		_replyEditMsg = App::histItemById(_channel, _editMsgId ? _editMsgId : _replyToId);
 	}
 	if (_replyEditMsg) {
-		_replyEditMsgText.setText(
-			st::messageTextStyle,
-			TextUtilities::Clean(_replyEditMsg->inReplyText()),
-			Ui::DialogTextOptions());
-
+		updateReplyEditText(_replyEditMsg);
 		updateBotKeyboard();
-
-		if (!_field->isHidden() || _recording) {
-			_fieldBarCancel->show();
-			updateMouseTracking();
-		}
 		updateReplyToName();
 		updateField();
 	} else if (force) {
@@ -6536,13 +6516,13 @@ void HistoryWidget::updateForwardingTexts() {
 		if (count < 2) {
 			text = _toForward.front()->inReplyText();
 		} else {
-			text = lng_forward_messages(lt_count, count);
+			text = textcmdLink(1, lng_forward_messages(lt_count, count));
 		}
 	}
 	_toForwardFrom.setText(st::msgNameStyle, from, Ui::NameTextOptions());
 	_toForwardText.setText(
 		st::messageTextStyle,
-		TextUtilities::Clean(text),
+		text,
 		Ui::DialogTextOptions());
 	_toForwardNameVersion = version;
 }
@@ -6614,8 +6594,10 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 				} else {
 					_replyToName.drawElided(p, replyLeft, backy + st::msgReplyPadding.top(), width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
 				}
-				p.setPen(!drawMsgText->toHistoryMessage() ? st::historyComposeAreaFgService : st::historyComposeAreaFg);
+				p.setPen(st::historyComposeAreaFg);
+				p.setTextPalette(st::historyComposeAreaPalette);
 				_replyEditMsgText.drawElided(p, replyLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
+				p.restoreTextPalette();
 			} else {
 				p.setFont(st::msgDateFont);
 				p.setPen(st::historyComposeAreaFgService);
@@ -6646,8 +6628,10 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 			}
 			p.setPen(st::historyReplyNameFg);
 			_toForwardFrom.drawElided(p, forwardLeft, backy + st::msgReplyPadding.top(), width() - forwardLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
-			p.setPen(serviceColor ? st::historyComposeAreaFgService : st::historyComposeAreaFg);
+			p.setPen(st::historyComposeAreaFg);
+			p.setTextPalette(st::historyComposeAreaPalette);
 			_toForwardText.drawElided(p, forwardLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - forwardLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
+			p.restoreTextPalette();
 		}
 	}
 	if (drawWebPagePreview) {

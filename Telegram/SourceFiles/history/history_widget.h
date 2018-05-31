@@ -571,6 +571,7 @@ private:
 
 	object_ptr<Ui::IconButton> _fieldBarCancel;
 	void updateReplyEditTexts(bool force = false);
+	void updateReplyEditText(not_null<HistoryItem*> item);
 
 	struct PinnedBar {
 		PinnedBar(MsgId msgId, HistoryWidget *parent);
