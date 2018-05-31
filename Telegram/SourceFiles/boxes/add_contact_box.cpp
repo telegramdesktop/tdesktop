@@ -464,7 +464,11 @@ void GroupInfoBox::submit() {
 	if (_creationRequestId) return;
 
 	auto title = TextUtilities::PrepareForSending(_title->getLastText());
-	auto description = _description ? TextUtilities::PrepareForSending(_description->getLastText(), TextUtilities::PrepareTextOption::CheckLinks) : QString();
+	auto description = _description
+		? TextUtilities::PrepareForSending(
+			_description->getLastText(),
+			TextUtilities::PrepareTextOption::CheckLinks)
+		: QString();
 	if (title.isEmpty()) {
 		_title->setFocus();
 		_title->showError();

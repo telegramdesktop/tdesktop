@@ -1579,7 +1579,7 @@ TextWithEntities ParseEntities(const QString &text, int32 flags) {
 	return result;
 }
 
-// Some code is duplicated in flattextarea.cpp!
+// Some code is duplicated in message_field.cpp!
 void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 	constexpr auto kNotFound = std::numeric_limits<int>::max();
 

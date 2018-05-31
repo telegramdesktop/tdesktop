@@ -126,7 +126,8 @@ enum {
 
 struct TextWithTags {
 	struct Tag {
-		int offset, length;
+		int offset = 0;
+		int length = 0;
 		QString id;
 	};
 	using Tags = QVector<Tag>;

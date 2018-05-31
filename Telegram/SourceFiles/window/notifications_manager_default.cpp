@@ -796,7 +796,7 @@ void Notification::sendReply() {
 	manager()->notificationReplied(
 		peerId,
 		msgId,
-		_replyArea->getTextWithTags());
+		_replyArea->getTextWithAppliedMarkdown());
 
 	manager()->startAllHiding();
 }

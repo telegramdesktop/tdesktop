@@ -2891,10 +2891,14 @@ void HistoryWidget::showNextUnreadMention() {
 void HistoryWidget::saveEditMsg() {
 	if (_saveEditMsgRequestId) return;
 
-	WebPageId webPageId = _previewCancelled ? CancelledWebPageId : ((_previewData && _previewData->pendingTill >= 0) ? _previewData->id : 0);
+	const auto webPageId = _previewCancelled
+		? CancelledWebPageId
+		: ((_previewData && _previewData->pendingTill >= 0)
+			? _previewData->id
+			: WebPageId(0));
 
-	auto &textWithTags = _field->getTextWithTags();
-	auto prepareFlags = Ui::ItemTextOptions(_history, App::self()).flags;
+	const auto textWithTags = _field->getTextWithAppliedMarkdown();
+	const auto prepareFlags = Ui::ItemTextOptions(_history, App::self()).flags;
 	auto sending = TextWithEntities();
 	auto left = TextWithEntities { textWithTags.text, ConvertTextTagsToEntities(textWithTags.tags) };
 	TextUtilities::PrepareForSending(left, prepareFlags);
@@ -3000,7 +3004,7 @@ void HistoryWidget::send() {
 	WebPageId webPageId = _previewCancelled ? CancelledWebPageId : ((_previewData && _previewData->pendingTill >= 0) ? _previewData->id : 0);
 
 	auto message = MainWidget::MessageToSend(_history);
-	message.textWithTags = _field->getTextWithTags();
+	message.textWithTags = _field->getTextWithAppliedMarkdown();
 	message.replyTo = replyToId();
 	message.webPageId = webPageId;
 	App::main()->sendMessage(message);

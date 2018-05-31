@@ -128,16 +128,98 @@ struct TagStartExpression {
 	QString badAfter;
 };
 
-struct TagStartItem {
-	int offset = 0;
-	int position = -1;
-};
-
 constexpr auto kTagBoldIndex = 0;
 constexpr auto kTagItalicIndex = 1;
 constexpr auto kTagCodeIndex = 2;
 constexpr auto kTagPreIndex = 3;
 constexpr auto kInvalidPosition = std::numeric_limits<int>::max() / 2;
+
+class TagSearchItem {
+public:
+	enum class Edge {
+		Open,
+		Close,
+	};
+
+	int matchPosition(Edge edge) const {
+		return (_position >= 0) ? _position : kInvalidPosition;
+	}
+
+	void applyOffset(int offset) {
+		if (_position < offset) {
+			_position = -1;
+		}
+		accumulate_max(_offset, offset);
+	}
+
+	void fill(
+			const QString &text,
+			Edge edge,
+			const TagStartExpression &expression) {
+		const auto length = text.size();
+		const auto &tag = expression.tag;
+		const auto tagLength = tag.size();
+		const auto isGood = [&](QChar ch) {
+			return (expression.goodBefore.indexOf(ch) >= 0);
+		};
+		const auto isBad = [&](QChar ch) {
+			return (expression.badAfter.indexOf(ch) >= 0);
+		};
+		const auto check = [&](Edge edge) {
+			if (_position > 0) {
+				const auto before = text[_position - 1];
+				if ((edge == Edge::Open && !isGood(before))
+					|| (edge == Edge::Close && isBad(before))) {
+					return false;
+				}
+			}
+			if (_position + tagLength < length) {
+				const auto after = text[_position + tagLength];
+				if ((edge == Edge::Open && isBad(after))
+					|| (edge == Edge::Close && !isGood(after))) {
+					return false;
+				}
+			}
+			return true;
+		};
+		const auto edgeIndex = static_cast<int>(edge);
+		if (_position >= 0) {
+			if (_checked[edgeIndex]) {
+				return;
+			} else if (check(edge)) {
+				_checked[edgeIndex] = true;
+				return;
+			} else {
+				_checked = { false, false };
+			}
+		}
+		while (true) {
+			_position = text.indexOf(tag, _offset);
+			if (_position < 0) {
+				_offset = _position = kInvalidPosition;
+				break;
+			}
+			_offset = _position + tagLength;
+			if (check(edge)) {
+				break;
+			} else {
+				continue;
+			}
+		}
+		if (_position == kInvalidPosition) {
+			_checked = { true, true };
+		} else {
+			_checked = { false, false };
+			_checked[edgeIndex] = true;
+		}
+	}
+
+private:
+	int _offset = 0;
+	int _position = -1;
+	std::array<bool, 2> _checked = { false, false };
+
+};
 
 const std::vector<TagStartExpression> &TagStartExpressions() {
 	static auto cached = std::vector<TagStartExpression> {
@@ -165,12 +247,12 @@ const std::vector<TagStartExpression> &TagStartExpressions() {
 	return cached;
 }
 
-const std::map<QString, std::vector<int>> &TagFinishIndices() {
-	static auto cached = std::map<QString, std::vector<int>> {
-		{ kTagBold, { kTagBoldIndex, kTagCodeIndex, kTagPreIndex } },
-		{ kTagItalic, { kTagItalicIndex, kTagCodeIndex, kTagPreIndex } },
-		{ kTagCode, { kTagCodeIndex, kTagPreIndex } },
-		{ kTagPre, { kTagPreIndex } },
+const std::map<QString, int> &TagIndices() {
+	static auto cached = std::map<QString, int> {
+		{ kTagBold, kTagBoldIndex },
+		{ kTagItalic, kTagItalicIndex },
+		{ kTagCode, kTagCodeIndex },
+		{ kTagPre, kTagPreIndex },
 	};
 	return cached;
 }
@@ -179,12 +261,14 @@ bool DoesTagFinishByNewline(const QString &tag) {
 	return (tag == kTagCode);
 }
 
-class PossibleTagAccumulator {
+class MarkdownTagAccumulator {
 public:
-	PossibleTagAccumulator(std::vector<InputField::PossibleTag> *tags)
+	using Edge = TagSearchItem::Edge;
+
+	MarkdownTagAccumulator(std::vector<InputField::MarkdownTag> *tags)
 	: _tags(tags)
 	, _expressions(TagStartExpressions())
-	, _finishIndices(TagFinishIndices())
+	, _tagIndices(TagIndices())
 	, _items(_expressions.size()) {
 	}
 
@@ -200,41 +284,49 @@ public:
 			return;
 		}
 		for (auto &item : _items) {
-			item = TagStartItem();
+			item = TagSearchItem();
 		}
-		auto tagIndex = _currentTag;
+		auto tryFinishTag = _currentTag;
 		while (true) {
-			for (; tagIndex != _currentFreeTag; ++tagIndex) {
-				auto &tag = (*_tags)[tagIndex];
-				bumpOffsetByTag(tag, tag.start + 1);
-
-				const auto finishIt = _finishIndices.find(tag.tag);
-				Assert(finishIt != end(_finishIndices));
-				const auto &finishingIndices = finishIt->second;
-				for (const auto index : finishingIndices) {
-					fillItem(index, text);
-				}
-				if (finishByNewline(tagIndex, text, finishingIndices)) {
+			for (; tryFinishTag != _currentFreeTag; ++tryFinishTag) {
+				auto &tag = (*_tags)[tryFinishTag];
+				if (tag.length >= 0) {
 					continue;
 				}
-				const auto min = minIndex(finishingIndices);
-				if (min >= 0) {
-					const auto minPosition = matchPosition(min);
-					finishTag(tagIndex, _currentLength + minPosition);
-				} else if (tag.tag == kTagPre || tag.tag == kTagCode) {
-					// We can't finish a mono tag, so we ignore all others.
-					return;
+
+				const auto i = _tagIndices.find(tag.tag);
+				Assert(i != end(_tagIndices));
+				const auto tagIndex = i->second;
+
+				_items[tagIndex].applyOffset(
+					tag.start + tag.tag.size() + 1 - _currentLength);
+
+				fillItem(
+					tagIndex,
+					text,
+					Edge::Close);
+				if (finishByNewline(tryFinishTag, text, tagIndex)) {
+					continue;
+				}
+				const auto position = matchPosition(tagIndex, Edge::Close);
+				if (position < kInvalidPosition) {
+					const auto till = position + tag.tag.size();
+					finishTag(
+						tryFinishTag,
+						_currentLength + till,
+						true);
+					_items[tagIndex].applyOffset(till);
 				}
 			}
 			for (auto i = 0, count = int(_items.size()); i != count; ++i) {
-				fillItem(i, text);
+				fillItem(i, text, Edge::Open);
 			}
-			const auto min = minIndex();
+			const auto min = minIndex(Edge::Open);
 			if (min < 0) {
 				return;
 			}
 			startTag(
-				_currentLength + matchPosition(min),
+				_currentLength + matchPosition(min, Edge::Open),
 				_expressions[min].tag);
 		}
 	}
@@ -250,13 +342,14 @@ public:
 	}
 
 private:
-	void finishTag(int index, int end) {
+	void finishTag(int index, int end, bool closed) {
 		Expects(_tags != nullptr);
 		Expects(index >= 0 && index < _tags->size());
 
 		auto &tag = (*_tags)[index];
 		if (tag.length < 0) {
 			tag.length = end - tag.start;
+			tag.closed = closed;
 		}
 		if (index == _currentTag) {
 			++_currentTag;
@@ -265,7 +358,7 @@ private:
 	bool finishByNewline(
 			int index,
 			const QString &text,
-			const std::vector<int> &finishingIndices) {
+			int tagIndex) {
 		Expects(_tags != nullptr);
 		Expects(index >= 0 && index < _tags->size());
 
@@ -277,93 +370,36 @@ private:
 		const auto endPosition = newlinePosition(
 			text,
 			std::max(0, tag.start + 1 - _currentLength));
-		for (const auto finishingIndex : finishingIndices) {
-			if (matchPosition(finishingIndex) <= endPosition) {
-				return false;
-			}
+		if (matchPosition(tagIndex, Edge::Close) <= endPosition) {
+			return false;
 		}
-		finishTag(index, _currentLength + endPosition);
+		finishTag(index, _currentLength + endPosition, false);
 		return true;
-	}
-	void bumpOffsetByTag(const InputField::PossibleTag &tag, int end) {
-		const auto offset = end - _currentLength;
-		if (tag.tag == kTagPre || tag.tag == kTagCode) {
-			for (auto &item : _items) {
-				applyOffset(item, offset);
-			}
-		} else if (tag.tag == kTagBold) {
-			applyOffset(_items[kTagBoldIndex], offset);
-		} else if (tag.tag == kTagItalic) {
-			applyOffset(_items[kTagItalicIndex], offset);
-		} else {
-			Unexpected("Unsupported tag.");
-		}
-	}
-	void applyOffset(TagStartItem &item, int offset) {
-		if (matchPosition(item) < offset) {
-			item.position = -1;
-		}
-		accumulate_max(item.offset, offset);
 	}
 	void finishTags() {
 		while (_currentTag != _currentFreeTag) {
-			finishTag(_currentTag, _currentLength);
+			finishTag(_currentTag, _currentLength, false);
 		}
 	}
 	void startTag(int offset, const QString &tag) {
 		Expects(_tags != nullptr);
 
 		if (_currentFreeTag < _tags->size()) {
-			(*_tags)[_currentFreeTag] = { offset, -1, tag };
+			(*_tags)[_currentFreeTag] = { offset, -1, false, tag };
 		} else {
-			_tags->push_back({ offset, -1, tag });
+			_tags->push_back({ offset, -1, false, tag });
 		}
 		++_currentFreeTag;
 	}
-	void fillItem(int index, const QString &text) {
+	void fillItem(int index, const QString &text, Edge edge) {
 		Expects(index >= 0 && index < _items.size());
 
-		auto &item = _items[index];
-		if (item.position >= 0) {
-			return;
-		}
-		const auto length = text.size();
-		const auto &expression = _expressions[index];
-		const auto &tag = expression.tag;
-		const auto &goodBefore = expression.goodBefore;
-		const auto &badAfter = expression.badAfter;
-		const auto tagLength = tag.size();
-		while (true) {
-			item.position = text.indexOf(tag, item.offset);
-			if (item.position < 0) {
-				item.offset = item.position = kInvalidPosition;
-				break;
-			}
-			item.offset = item.position + tagLength;
-			if (item.position > 0) {
-				const auto before = text[item.position - 1];
-				if (expression.goodBefore.indexOf(before) < 0) {
-					continue;
-				}
-			}
-			if (item.position + tagLength < length) {
-				const auto after = text[item.position + tagLength];
-				if (expression.badAfter.indexOf(after) >= 0) {
-					continue;
-				}
-			}
-			break;
-		}
-		item.offset = item.position + tagLength;
+		_items[index].fill(text, edge, _expressions[index]);
 	}
-	int matchPosition(int index) const {
+	int matchPosition(int index, Edge edge) const {
 		Expects(index >= 0 && index < _items.size());
 
-		return matchPosition(_items[index]);
-	}
-	int matchPosition(const TagStartItem &item) const {
-		const auto position = item.position;
-		return (item.position >= 0) ? item.position : kInvalidPosition;
+		return _items[index].matchPosition(edge);
 	}
 	int newlinePosition(const QString &text, int offset) const {
 		const auto length = text.size();
@@ -377,11 +413,11 @@ private:
 		}
 		return kInvalidPosition;
 	}
-	int minIndex() const {
+	int minIndex(Edge edge) const {
 		auto result = -1;
 		auto minPosition = kInvalidPosition;
 		for (auto i = 0, count = int(_items.size()); i != count; ++i) {
-			const auto position = matchPosition(i);
+			const auto position = matchPosition(i, edge);
 			if (position < minPosition) {
 				minPosition = position;
 				result = i;
@@ -389,11 +425,13 @@ private:
 		}
 		return result;
 	}
-	int minIndex(const std::vector<int> &indices) const {
+	int minIndexForFinish(const std::vector<int> &indices) const {
+		const auto tagIndex = indices[0];
 		auto result = -1;
 		auto minPosition = kInvalidPosition;
 		for (auto i : indices) {
-			const auto position = matchPosition(i);
+			const auto edge = (i == tagIndex) ? Edge::Close : Edge::Open;
+			const auto position = matchPosition(i, edge);
 			if (position < minPosition) {
 				minPosition = position;
 				result = i;
@@ -402,10 +440,10 @@ private:
 		return result;
 	}
 
-	std::vector<InputField::PossibleTag> *_tags = nullptr;
+	std::vector<InputField::MarkdownTag> *_tags = nullptr;
 	const std::vector<TagStartExpression> &_expressions;
-	const std::map<QString, std::vector<int>> &_finishIndices;
-	std::vector<TagStartItem> _items;
+	const std::map<QString, int> &_tagIndices;
+	std::vector<TagSearchItem> _items;
 
 	int _currentTag = 0;
 	int _currentFreeTag = 0;
@@ -1202,7 +1240,14 @@ void InputField::setMarkdownReplacesEnabled(rpl::producer<bool> enabled) {
 	std::move(
 		enabled
 	) | rpl::start_with_next([=](bool value) {
-		_markdownEnabled = value;
+		if (_markdownEnabled != value) {
+			_markdownEnabled = value;
+			if (_markdownEnabled) {
+				handleContentsChanged();
+			} else {
+				_lastMarkdownTags = {};
+			}
+		}
 	}, lifetime());
 }
 
@@ -1584,8 +1629,8 @@ QString InputField::getTextPart(
 		int end,
 		TagList &outTagsList,
 		bool &outTagsChanged,
-		std::vector<PossibleTag> *outPossibleTags) const {
-	Expects((start == 0 && end < 0) || outPossibleTags == nullptr);
+		std::vector<MarkdownTag> *outMarkdownTags) const {
+	Expects((start == 0 && end < 0) || outMarkdownTags == nullptr);
 
 	if (end >= 0 && end <= start) {
 		outTagsChanged = !outTagsList.isEmpty();
@@ -1600,8 +1645,8 @@ QString InputField::getTextPart(
 
 	auto lastTag = QString();
 	TagAccumulator tagAccumulator(outTagsList);
-	PossibleTagAccumulator possibleTagAccumulator(outPossibleTags);
-	const auto newline = outPossibleTags ? QString(1, '\n') : QString();
+	MarkdownTagAccumulator markdownTagAccumulator(outMarkdownTags);
+	const auto newline = outMarkdownTags ? QString(1, '\n') : QString();
 
 	const auto document = _inner->document();
 	const auto from = full ? document->begin() : document->findBlock(start);
@@ -1669,7 +1714,7 @@ QString InputField::getTextPart(
 			if (full || !text.isEmpty()) {
 				lastTag = format.property(kTagProperty).toString();
 				tagAccumulator.feed(lastTag, result.size());
-				possibleTagAccumulator.feed(text, lastTag);
+				markdownTagAccumulator.feed(text, lastTag);
 			}
 
 			auto begin = text.data();
@@ -1700,13 +1745,13 @@ QString InputField::getTextPart(
 		block = block.next();
 		if (block != till) {
 			result.append('\n');
-			possibleTagAccumulator.feed(newline, lastTag);
+			markdownTagAccumulator.feed(newline, lastTag);
 		}
 	}
 
 	tagAccumulator.feed(QString(), result.size());
 	tagAccumulator.finish();
-	possibleTagAccumulator.finish();
+	markdownTagAccumulator.finish();
 
 	outTagsChanged = tagAccumulator.changed();
 	return result;
@@ -2031,7 +2076,9 @@ void InputField::handleContentsChanged() {
 		-1,
 		_lastTextWithTags.tags,
 		tagsChanged,
-		_markdownEnabled ? &_textAreaPossibleTags : nullptr);
+		_markdownEnabled ? &_lastMarkdownTags : nullptr);
+
+	//highlightMarkdown();
 
 	if (tagsChanged || (_lastTextWithTags.text != currentText)) {
 		_lastTextWithTags.text = currentText;
@@ -2040,6 +2087,36 @@ void InputField::handleContentsChanged() {
 	}
 	startPlaceholderAnimation();
 	if (App::wnd()) App::wnd()->updateGlobalMenu();
+}
+
+void InputField::highlightMarkdown() {
+	// Highlighting may interfere with markdown parsing -> inaccurate.
+	// For debug.
+	auto from = 0;
+	auto applyColor = [&](int a, int b, QColor color) {
+		auto cursor = textCursor();
+		cursor.setPosition(a);
+		cursor.setPosition(b, QTextCursor::KeepAnchor);
+		auto format = QTextCharFormat();
+		format.setForeground(color);
+		cursor.mergeCharFormat(format);
+		from = b;
+	};
+	for (const auto &tag : _lastMarkdownTags) {
+		if (tag.start > from) {
+			applyColor(from, tag.start, QColor(0, 0, 0));
+		} else if (tag.start < from) {
+			continue;
+		}
+		applyColor(tag.start, tag.start + tag.length, tag.closed
+			? QColor(0, 128, 0)
+			: QColor(128, 0, 0));
+	}
+	auto cursor = textCursor();
+	cursor.movePosition(QTextCursor::End);
+	if (const auto till = cursor.position(); till > from) {
+		applyColor(from, till, QColor(0, 0, 0));
+	}
 }
 
 void InputField::onUndoAvailable(bool avail) {
@@ -2188,6 +2265,74 @@ TextWithTags InputField::getTextWithTagsPart(int start, int end) const {
 	auto changed = false;
 	auto result = TextWithTags();
 	result.text = getTextPart(start, end, result.tags, changed);
+	return result;
+}
+
+TextWithTags InputField::getTextWithAppliedMarkdown() const {
+	if (!_markdownEnabled || _lastMarkdownTags.empty()) {
+		return getTextWithTags();
+	}
+	const auto &originalText = _lastTextWithTags.text;
+	const auto &originalTags = _lastTextWithTags.tags;
+
+	// Ignore tags that partially intersect some http-links.
+	// This will allow sending http://test.com/__test__/test correctly.
+	const auto links = TextUtilities::ParseEntities(
+		originalText,
+		0).entities;
+
+	auto result = TextWithTags();
+	result.text.reserve(originalText.size());
+	result.tags.reserve(originalTags.size() + _lastMarkdownTags.size());
+	auto from = 0;
+	auto removed = 0;
+	auto originalTag = originalTags.begin();
+	const auto originalTagsEnd = originalTags.end();
+	auto link = links.begin();
+	const auto linksEnd = links.end();
+	for (const auto &tag : _lastMarkdownTags) {
+		const auto tagLength = int(tag.tag.size());
+		if (!tag.closed || tag.start < from) {
+			continue;
+		}
+		const auto entityLength = tag.length - 2 * tagLength;
+		if (entityLength <= 0) {
+			continue;
+		}
+		while (originalTag != originalTagsEnd
+			&& originalTag->offset + originalTag->length <= tag.start) {
+			result.tags.push_back(*originalTag++);
+			result.tags.back().offset -= removed;
+		}
+		if (originalTag != originalTagsEnd
+			&& originalTag->offset < tag.start + tag.length) {
+			continue;
+		}
+		while (link != linksEnd
+			&& link->offset() + link->length() <= tag.start) {
+			++link;
+		}
+		if (link != linksEnd
+			&& link->offset() < tag.start + tag.length
+			&& (link->offset() + link->length() > tag.start + tag.length
+				|| link->offset() < tag.start)) {
+			continue;
+		}
+		if (tag.start > from) {
+			result.text.append(originalText.midRef(from, tag.start - from));
+		}
+		result.tags.push_back(TextWithTags::Tag{
+			int(result.text.size()),
+			entityLength,
+			tag.tag });
+		result.text.append(
+			originalText.midRef(tag.start + tagLength, entityLength));
+		from = tag.start + tag.length;
+		removed += 2 * tagLength;
+	}
+	if (originalText.size() > from) {
+		result.text.append(originalText.midRef(from));
+	}
 	return result;
 }
 
@@ -2499,43 +2644,44 @@ const InstantReplaces &InputField::instantReplaces() const {
 	return _mutableInstantReplaces;
 }
 
+// Disable markdown instant replacement.
 bool InputField::processMarkdownReplaces(const QString &appended) {
-	if (appended.size() != 1 || !_markdownEnabled) {
-		return false;
-	}
-	const auto ch = appended[0];
-	if (ch == '`') {
-		return processMarkdownReplace(kTagCode)
-			|| processMarkdownReplace(kTagPre);
-	} else if (ch == '*') {
-		return processMarkdownReplace(kTagBold);
-	} else if (ch == '_') {
-		return processMarkdownReplace(kTagItalic);
-	}
+	//if (appended.size() != 1 || !_markdownEnabled) {
+	//	return false;
+	//}
+	//const auto ch = appended[0];
+	//if (ch == '`') {
+	//	return processMarkdownReplace(kTagCode)
+	//		|| processMarkdownReplace(kTagPre);
+	//} else if (ch == '*') {
+	//	return processMarkdownReplace(kTagBold);
+	//} else if (ch == '_') {
+	//	return processMarkdownReplace(kTagItalic);
+	//}
 	return false;
 }
 
-bool InputField::processMarkdownReplace(const QString &tag) {
-	const auto position = textCursor().position();
-	const auto tagLength = tag.size();
-	const auto start = [&] {
-		for (const auto &possible : _textAreaPossibleTags) {
-			const auto end = possible.start + possible.length;
-			if (possible.start + 2 * tagLength >= position) {
-				return PossibleTag();
-			} else if (end >= position || end + tagLength == position) {
-				if (possible.tag == tag) {
-					return possible;
-				}
-			}
-		}
-		return PossibleTag();
-	}();
-	if (start.tag.isEmpty()) {
-		return false;
-	}
-	return commitMarkdownReplacement(start.start, position, tag, tag);
-}
+//bool InputField::processMarkdownReplace(const QString &tag) {
+//	const auto position = textCursor().position();
+//	const auto tagLength = tag.size();
+//	const auto start = [&] {
+//		for (const auto &possible : _lastMarkdownTags) {
+//			const auto end = possible.start + possible.length;
+//			if (possible.start + 2 * tagLength >= position) {
+//				return MarkdownTag();
+//			} else if (end >= position || end + tagLength == position) {
+//				if (possible.tag == tag) {
+//					return possible;
+//				}
+//			}
+//		}
+//		return MarkdownTag();
+//	}();
+//	if (start.tag.isEmpty()) {
+//		return false;
+//	}
+//	return commitMarkdownReplacement(start.start, position, tag, tag);
+//}
 
 void InputField::processInstantReplaces(const QString &appended) {
 	const auto &replaces = instantReplaces();
@@ -2549,7 +2695,7 @@ void InputField::processInstantReplaces(const QString &appended) {
 		return;
 	}
 	const auto position = textCursor().position();
-	for (const auto &tag : _textAreaPossibleTags) {
+	for (const auto &tag : _lastMarkdownTags) {
 		if (tag.start < position
 			&& tag.start + tag.length >= position
 			&& (tag.tag == kTagCode || tag.tag == kTagPre)) {

@@ -1249,7 +1249,10 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 	saveRecentHashtags(textWithTags.text);
 
 	auto sending = TextWithEntities();
-	auto left = TextWithEntities { textWithTags.text, ConvertTextTagsToEntities(textWithTags.tags) };
+	auto left = TextWithEntities {
+		textWithTags.text,
+		ConvertTextTagsToEntities(textWithTags.tags)
+	};
 	auto prepareFlags = Ui::ItemTextOptions(history, App::self()).flags;
 	TextUtilities::PrepareForSending(left, prepareFlags);
 

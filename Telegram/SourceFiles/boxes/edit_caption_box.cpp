@@ -345,7 +345,7 @@ void EditCaptionBox::save() {
 	if (_previewCancelled) {
 		flags |= MTPmessages_EditMessage::Flag::f_no_webpage;
 	}
-	const auto textWithTags = _field->getTextWithTags();
+	const auto textWithTags = _field->getTextWithAppliedMarkdown();
 	auto sending = TextWithEntities{
 		textWithTags.text,
 		ConvertTextTagsToEntities(textWithTags.tags)

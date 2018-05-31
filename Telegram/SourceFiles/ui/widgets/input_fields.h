@@ -124,9 +124,10 @@ public:
 	};
 	using TagList = TextWithTags::Tags;
 
-	struct PossibleTag {
+	struct MarkdownTag {
 		int start = 0;
 		int length = 0;
+		bool closed = false;
 		QString tag;
 	};
 	static const QString kTagBold;
@@ -161,7 +162,11 @@ public:
 	const TextWithTags &getTextWithTags() const {
 		return _lastTextWithTags;
 	}
+	const std::vector<MarkdownTag> &getMarkdownTags() const {
+		return _lastMarkdownTags;
+	}
 	TextWithTags getTextWithTagsPart(int start, int end = -1) const;
+	TextWithTags getTextWithAppliedMarkdown() const;
 	void insertTag(const QString &text, QString tagId = QString());
 	bool empty() const {
 		return _lastTextWithTags.text.isEmpty();
@@ -352,7 +357,7 @@ private:
 		int end,
 		TagList &outTagsList,
 		bool &outTagsChanged,
-		std::vector<PossibleTag> *outPossibleTags = nullptr) const;
+		std::vector<MarkdownTag> *outMarkdownTags = nullptr) const;
 
 	// After any characters added we must postprocess them. This includes:
 	// 1. Replacing font family to semibold for ~ characters, if we used Open Sans 13px.
@@ -366,7 +371,7 @@ private:
 	void chopByMaxLength(int insertPosition, int insertLength);
 
 	bool processMarkdownReplaces(const QString &appended);
-	bool processMarkdownReplace(const QString &tag);
+	//bool processMarkdownReplace(const QString &tag);
 	void addMarkdownActions(not_null<QMenu*> menu, QContextMenuEvent *e);
 	void addMarkdownMenuAction(
 		not_null<QMenu*> menu,
@@ -390,6 +395,8 @@ private:
 
 	bool revertFormatReplace();
 
+	void highlightMarkdown();
+
 	const style::InputField &_st;
 
 	Mode _mode = Mode::SingleLine;
@@ -402,7 +409,7 @@ private:
 	object_ptr<Inner> _inner;
 
 	TextWithTags _lastTextWithTags;
-	std::vector<PossibleTag> _textAreaPossibleTags;
+	std::vector<MarkdownTag> _lastMarkdownTags;
 	QString _lastPreEditText;
 	base::lambda<bool(
 		EditLinkSelection selection,

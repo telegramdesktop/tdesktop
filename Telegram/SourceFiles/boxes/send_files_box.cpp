@@ -1795,7 +1795,7 @@ void SendFilesBox::send(bool ctrlShiftEnter) {
 	_confirmed = true;
 	if (_confirmedCallback) {
 		auto caption = _caption
-			? _caption->getTextWithTags()
+			? _caption->getTextWithAppliedMarkdown()
 			: TextWithTags();
 		_confirmedCallback(
 			std::move(_list),

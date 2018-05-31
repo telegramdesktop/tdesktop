@@ -571,6 +571,7 @@ void MessageLinksParser::parse() {
 	const auto &textWithTags = _field->getTextWithTags();
 	const auto &text = textWithTags.text;
 	const auto &tags = textWithTags.tags;
+	const auto &markdownTags = _field->getMarkdownTags();
 	if (text.isEmpty()) {
 		_list = QStringList();
 		return;
@@ -578,9 +579,8 @@ void MessageLinksParser::parse() {
 
 	auto ranges = QVector<LinkRange>();
 
-	const auto tagsBegin = tags.begin();
+	auto tag = tags.begin();
 	const auto tagsEnd = tags.end();
-	auto tag = tagsBegin;
 	const auto processTag = [&] {
 		Expects(tag != tagsEnd);
 
@@ -603,6 +603,25 @@ void MessageLinksParser::parse() {
 			processTag();
 		}
 		return true;
+	};
+
+	auto markdownTag = markdownTags.begin();
+	const auto markdownTagsEnd = markdownTags.end();
+	const auto markdownTagsAllow = [&](int from, int length) {
+		while (markdownTag != markdownTagsEnd
+			&& (markdownTag->start + markdownTag->length <= from
+				|| !markdownTag->closed)) {
+			++markdownTag;
+			continue;
+		}
+		if (markdownTag == markdownTagsEnd
+			|| markdownTag->start >= from + length) {
+			return true;
+		}
+		// Ignore http-links that are completely inside some tags.
+		// This will allow sending http://test.com/__test__/test correctly.
+		return (markdownTag->start > from
+			|| markdownTag->start + markdownTag->length < from + length);
 	};
 
 	const auto len = text.size();
@@ -671,7 +690,9 @@ void MessageLinksParser::parse() {
 		};
 		processTagsBefore(domainOffset);
 		if (!hasTagsIntersection(range.start + range.length)) {
-			ranges.push_back(range);
+			if (markdownTagsAllow(range.start, range.length)) {
+				ranges.push_back(range);
+			}
 		}
 		offset = matchOffset = p - start;
 	}
