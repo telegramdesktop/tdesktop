@@ -3021,6 +3021,7 @@ void InputField::dropEventInner(QDropEvent *e) {
 	_inDrop = false;
 	_insertedTags.clear();
 	_realInsertPosition = -1;
+	window()->activateWindow();
 }
 
 bool InputField::canInsertFromMimeDataInner(const QMimeData *source) const {
