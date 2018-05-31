@@ -1741,8 +1741,8 @@ void Updater::start(bool forceWait) {
 	}
 
 	_retryTimer.cancel();
-	const auto constDelay = cBetaVersion() ? 60 : UpdateDelayConstPart;
-	const auto randDelay = cBetaVersion() ? 30 : UpdateDelayRandPart;
+	const auto constDelay = cBetaVersion() ? 600 : UpdateDelayConstPart;
+	const auto randDelay = cBetaVersion() ? 300 : UpdateDelayRandPart;
 	const auto updateInSecs = cLastUpdateCheck()
 		+ constDelay
 		+ int(rand() % randDelay)
@@ -1765,9 +1765,7 @@ void Updater::start(bool forceWait) {
 			std::make_unique<HttpChecker>(_testing));
 		startImplementation(
 			&_mtpImplementation,
-			(cBetaVersion()
-				? std::make_unique<MtpChecker>(_mtproto, _testing)
-				: nullptr));
+			std::make_unique<MtpChecker>(_mtproto, _testing));
 
 		_checking.fire({});
 	} else {

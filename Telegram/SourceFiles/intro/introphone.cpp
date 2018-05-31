@@ -192,7 +192,7 @@ void PhoneWidget::submit() {
 			rpcFail(&PhoneWidget::phoneSubmitFail));
 	};
 	const auto code = _country->iso();
-	if (!TermsAcceptRequired(code) || _termsAccepted) {
+	if (true || !TermsAcceptRequired(code) || _termsAccepted) {
 		sendCode();
 	} else {
 		acceptTerms(code, base::lambda_guarded(this, [=] {

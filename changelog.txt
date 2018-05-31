@@ -1,3 +1,10 @@
+1.2.25 alpha (31.05.18)
+
+- Apply markdown formatting (```, `, **, __) only when sending the message.
+- Display connection quality bars in calls.
+- Telegram Desktop can update itself through MTProto.
+- Bug fixes and other minor improvements.
+
 1.2.24 alpha (26.05.18)
 
 - Add links with custom text from context menu or by Ctrl/Cmd + K keyboard shortcut.

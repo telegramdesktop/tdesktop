@@ -100,6 +100,17 @@ std::map<int, const char*> AlphaLogs() {
 		1002024,
 		"\xE2\x80\x94 Add links with custom text from context menu "
 		"or by Ctrl/Cmd + K keyboard shortcut."
+	},
+	{
+		1002025,
+		"\xE2\x80\x94 Apply markdown formatting (```, `, **, __) "
+		"only when sending the message.\n"
+
+		"\xE2\x80\x94 Display connection quality bars in calls.\n"
+
+		"\xE2\x80\x94 Telegram Desktop can update itself through MTProto.\n"
+
+		"\xE2\x80\x94 Bug fixes and other minor improvements."
 	}
 	};
 }
