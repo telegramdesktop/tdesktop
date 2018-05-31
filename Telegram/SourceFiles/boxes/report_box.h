@@ -18,18 +18,9 @@ class InputField;
 } // namespace Ui
 
 class ReportBox : public BoxContent, public RPCSender {
-	Q_OBJECT
-
 public:
 	ReportBox(QWidget*, not_null<PeerData*> peer);
 	ReportBox(QWidget*, not_null<PeerData*> peer, MessageIdsList ids);
-
-private slots:
-	void onReport();
-	void onReasonResized();
-	void onClose() {
-		closeBox();
-	}
 
 protected:
 	void prepare() override;
@@ -45,7 +36,9 @@ private:
 		Other,
 	};
 	void reasonChanged(Reason reason);
+	void reasonResized();
 	void updateMaxHeight();
+	void report();
 
 	void reportDone(const MTPBool &result);
 	bool reportFail(const RPCError &error);

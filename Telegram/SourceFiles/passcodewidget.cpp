@@ -23,16 +23,16 @@ PasscodeWidget::PasscodeWidget(QWidget *parent) : TWidget(parent)
 , _passcode(this, st::passcodeInput, langFactory(lng_passcode_ph))
 , _submit(this, langFactory(lng_passcode_submit), st::passcodeSubmit)
 , _logout(this, lang(lng_passcode_logout)) {
-	connect(_passcode, SIGNAL(changed()), this, SLOT(onChanged()));
-	connect(_passcode, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
+	connect(_passcode, &Ui::MaskedInputField::changed, [=] { changed(); });
+	connect(_passcode, &Ui::MaskedInputField::submitted, [=] { submit(); });
 
-	_submit->setClickedCallback([this] { onSubmit(); });
+	_submit->setClickedCallback([=] { submit(); });
 	_logout->setClickedCallback([] { App::wnd()->onLogout(); });
 
 	show();
 }
 
-void PasscodeWidget::onSubmit() {
+void PasscodeWidget::submit() {
 	if (_passcode->text().isEmpty()) {
 		_passcode->showError();
 		return;
@@ -51,7 +51,7 @@ void PasscodeWidget::onSubmit() {
 		} else {
 			cSetPasscodeBadTries(cPasscodeBadTries() + 1);
 			cSetPasscodeLastTry(getms(true));
-			onError();
+			error();
 			return;
 		}
 	} else {
@@ -67,20 +67,20 @@ void PasscodeWidget::onSubmit() {
 		} else {
 			cSetPasscodeBadTries(cPasscodeBadTries() + 1);
 			cSetPasscodeLastTry(getms(true));
-			onError();
+			error();
 			return;
 		}
 	}
 }
 
-void PasscodeWidget::onError() {
+void PasscodeWidget::error() {
 	_error = lang(lng_passcode_wrong);
 	_passcode->selectAll();
 	_passcode->showError();
 	update();
 }
 
-void PasscodeWidget::onChanged() {
+void PasscodeWidget::changed() {
 	if (!_error.isEmpty()) {
 		_error = QString();
 		update();

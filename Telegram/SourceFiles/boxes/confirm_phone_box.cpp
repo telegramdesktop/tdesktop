@@ -198,17 +198,17 @@ void ConfirmPhoneBox::prepare() {
 	_about->setMarkedText(aboutText);
 
 	_code.create(this, st::confirmPhoneCodeField, langFactory(lng_code_ph));
-	_code->setAutoSubmit(_sentCodeLength, [this] { onSendCode(); });
-	_code->setChangedCallback([this] { showError(QString()); });
+	_code->setAutoSubmit(_sentCodeLength, [=] { sendCode(); });
+	_code->setChangedCallback([=] { showError(QString()); });
 
 	setTitle(langFactory(lng_confirm_phone_title));
 
-	addButton(langFactory(lng_confirm_phone_send), [this] { onSendCode(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_confirm_phone_send), [=] { sendCode(); });
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 
 	setDimensions(st::boxWidth, st::usernamePadding.top() + _code->height() + st::usernameSkip + _about->height() + st::usernameSkip);
 
-	connect(_code, SIGNAL(submitted(bool)), this, SLOT(onSendCode()));
+	connect(_code, &Ui::InputField::submitted, [=] { sendCode(); });
 
 	showChildren();
 }
@@ -217,7 +217,7 @@ void ConfirmPhoneBox::callDone(const MTPauth_SentCode &result) {
 	_call.callDone();
 }
 
-void ConfirmPhoneBox::onSendCode() {
+void ConfirmPhoneBox::sendCode() {
 	if (_sendCodeRequestId) {
 		return;
 	}

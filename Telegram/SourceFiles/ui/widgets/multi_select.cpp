@@ -289,7 +289,7 @@ void MultiSelect::setQueryChangedCallback(base::lambda<void(const QString &query
 	_queryChangedCallback = std::move(callback);
 }
 
-void MultiSelect::setSubmittedCallback(base::lambda<void(bool ctrlShiftEnter)> callback) {
+void MultiSelect::setSubmittedCallback(base::lambda<void(Qt::KeyboardModifiers)> callback) {
 	_inner->setSubmittedCallback(std::move(callback));
 }
 
@@ -359,17 +359,17 @@ MultiSelect::Inner::Inner(QWidget *parent, const style::MultiSelect &st, base::l
 , _field(this, _st.field, std::move(placeholder))
 , _cancel(this, _st.fieldCancel) {
 	_field->customUpDown(true);
-	connect(_field, SIGNAL(focused()), this, SLOT(onFieldFocused()));
-	connect(_field, SIGNAL(changed()), this, SLOT(onQueryChanged()));
-	connect(_field, SIGNAL(submitted(bool)), this, SLOT(onSubmitted(bool)));
-	_cancel->setClickedCallback([this] {
+	connect(_field, &Ui::InputField::focused, [=] { fieldFocused(); });
+	connect(_field, &Ui::InputField::changed, [=] { queryChanged(); });
+	connect(_field, &Ui::InputField::submitted, this, &Inner::submitted);
+	_cancel->setClickedCallback([=] {
 		clearQuery();
 		_field->setFocus();
 	});
 	setMouseTracking(true);
 }
 
-void MultiSelect::Inner::onQueryChanged() {
+void MultiSelect::Inner::queryChanged() {
 	auto query = getQuery();
 	_cancel->toggle(!query.isEmpty(), anim::type::normal);
 	updateFieldGeometry();
@@ -400,7 +400,8 @@ void MultiSelect::Inner::setQueryChangedCallback(base::lambda<void(const QString
 	_queryChangedCallback = std::move(callback);
 }
 
-void MultiSelect::Inner::setSubmittedCallback(base::lambda<void(bool ctrlShiftEnter)> callback) {
+void MultiSelect::Inner::setSubmittedCallback(
+		base::lambda<void(Qt::KeyboardModifiers)> callback) {
 	_submittedCallback = std::move(callback);
 }
 
@@ -563,7 +564,13 @@ void MultiSelect::Inner::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-void MultiSelect::Inner::onFieldFocused() {
+void MultiSelect::Inner::submitted(Qt::KeyboardModifiers modifiers) {
+	if (_submittedCallback) {
+		_submittedCallback(modifiers);
+	}
+}
+
+void MultiSelect::Inner::fieldFocused() {
 	setActiveItem(-1, ChangeActiveWay::SkipSetFocus);
 }
 

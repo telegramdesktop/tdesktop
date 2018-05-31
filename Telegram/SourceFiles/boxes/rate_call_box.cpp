@@ -60,7 +60,7 @@ void RateCallBox::ratingChanged(int value) {
 	Expects(value > 0 && value <= kMaxRating);
 	if (!_rating) {
 		clearButtons();
-		addButton(langFactory(lng_send_button), [this] { onSend(); });
+		addButton(langFactory(lng_send_button), [this] { send(); });
 		addButton(langFactory(lng_cancel), [this] { closeBox(); });
 	}
 	_rating = value;
@@ -82,9 +82,9 @@ void RateCallBox::ratingChanged(int value) {
 			_comment->resize(width() - (st::callRatingPadding.left() + st::callRatingPadding.right()), _comment->height());
 
 			updateMaxHeight();
-			connect(_comment, SIGNAL(resized()), this, SLOT(onCommentResized()));
-			connect(_comment, SIGNAL(submitted(bool)), this, SLOT(onSend()));
-			connect(_comment, SIGNAL(cancelled()), this, SLOT(onClose()));
+			connect(_comment, &Ui::InputField::resized, [=] { commentResized(); });
+			connect(_comment, &Ui::InputField::submitted, [=] { send(); });
+			connect(_comment, &Ui::InputField::cancelled, [=] { closeBox(); });
 		}
 		_comment->setFocusFast();
 	} else if (_comment) {
@@ -101,13 +101,14 @@ void RateCallBox::setInnerFocus() {
 	}
 }
 
-void RateCallBox::onCommentResized() {
+void RateCallBox::commentResized() {
 	updateMaxHeight();
 	update();
 }
 
-void RateCallBox::onSend() {
+void RateCallBox::send() {
 	Expects(_rating > 0 && _rating <= kMaxRating);
+
 	if (_requestId) {
 		return;
 	}

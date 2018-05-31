@@ -35,18 +35,18 @@ void UsernameBox::prepare() {
 
 	setTitle(langFactory(lng_username_title));
 
-	addButton(langFactory(lng_settings_save), [this] { onSave(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_settings_save), [=] { save(); });
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 
-	connect(_username, SIGNAL(changed()), this, SLOT(onChanged()));
-	connect(_username, SIGNAL(submitted(bool)), this, SLOT(onSave()));
-	connect(_link, SIGNAL(clicked()), this, SLOT(onLinkClick()));
+	connect(_username, &Ui::MaskedInputField::changed, [=] { changed(); });
+	connect(_username, &Ui::MaskedInputField::submitted, [=] { save(); });
+	_link->addClickHandler([=] { linkClick(); });
 
 	_about.setRichText(st::usernameTextStyle, lang(lng_username_about));
 	setDimensions(st::boxWidth, st::usernamePadding.top() + _username->height() + st::usernameSkip + _about.countHeight(st::boxWidth - st::usernamePadding.left()) + 3 * st::usernameTextStyle.lineHeight + st::usernamePadding.bottom());
 
 	_checkTimer->setSingleShot(true);
-	connect(_checkTimer, SIGNAL(timeout()), this, SLOT(onCheck()));
+	connect(_checkTimer, &QTimer::timeout, [=] { check(); });
 
 	updateLinkText();
 }
@@ -96,14 +96,14 @@ void UsernameBox::resizeEvent(QResizeEvent *e) {
 	_link->moveToLeft(st::usernamePadding.left(), linky + st::usernameTextStyle.lineHeight + ((st::usernameTextStyle.lineHeight - st::boxTextFont->height) / 2));
 }
 
-void UsernameBox::onSave() {
+void UsernameBox::save() {
 	if (_saveRequestId) return;
 
 	_sentUsername = getName();
 	_saveRequestId = MTP::send(MTPaccount_UpdateUsername(MTP_string(_sentUsername)), rpcDone(&UsernameBox::onUpdateDone), rpcFail(&UsernameBox::onUpdateFail));
 }
 
-void UsernameBox::onCheck() {
+void UsernameBox::check() {
 	if (_checkRequestId) {
 		MTP::cancel(_checkRequestId);
 	}
@@ -118,7 +118,7 @@ void UsernameBox::onCheck() {
 	}
 }
 
-void UsernameBox::onChanged() {
+void UsernameBox::changed() {
 	updateLinkText();
 	QString name = getName();
 	if (name.isEmpty()) {
@@ -156,7 +156,7 @@ void UsernameBox::onChanged() {
 	}
 }
 
-void UsernameBox::onLinkClick() {
+void UsernameBox::linkClick() {
 	Application::clipboard()->setText(Messenger::Instance().createInternalLinkFull(getName()));
 	Ui::Toast::Show(lang(lng_username_copied));
 }

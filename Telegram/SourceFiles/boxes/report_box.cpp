@@ -39,8 +39,8 @@ void ReportBox::prepare() {
 		}
 	}()));
 
-	addButton(langFactory(lng_report_button), [this] { onReport(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_report_button), [=] { report(); });
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 
 	_reasonGroup = std::make_shared<Ui::RadioenumGroup<Reason>>(
 		Reason::Spam);
@@ -93,9 +93,9 @@ void ReportBox::reasonChanged(Reason reason) {
 			_reasonOtherText->resize(width() - (st::boxPadding.left() + st::boxOptionListPadding.left() + st::boxPadding.right()), _reasonOtherText->height());
 
 			updateMaxHeight();
-			connect(_reasonOtherText, SIGNAL(resized()), this, SLOT(onReasonResized()));
-			connect(_reasonOtherText, SIGNAL(submitted(bool)), this, SLOT(onReport()));
-			connect(_reasonOtherText, SIGNAL(cancelled()), this, SLOT(onClose()));
+			connect(_reasonOtherText, &Ui::InputField::resized, [=] { reasonResized(); });
+			connect(_reasonOtherText, &Ui::InputField::submitted, [=] { report(); });
+			connect(_reasonOtherText, &Ui::InputField::cancelled, [=] { closeBox(); });
 		}
 		_reasonOtherText->setFocusFast();
 	} else if (_reasonOtherText) {
@@ -112,12 +112,12 @@ void ReportBox::setInnerFocus() {
 	}
 }
 
-void ReportBox::onReasonResized() {
+void ReportBox::reasonResized() {
 	updateMaxHeight();
 	update();
 }
 
-void ReportBox::onReport() {
+void ReportBox::report() {
 	if (_requestId) return;
 
 	if (_reasonOtherText && _reasonOtherText->getLastText().trimmed().isEmpty()) {

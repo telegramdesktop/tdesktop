@@ -63,23 +63,23 @@ GifsListWidget::Footer::Footer(not_null<GifsListWidget*> parent) : InnerFooter(p
 , _pan(parent)
 , _field(this, st::gifsSearchField, langFactory(lng_gifs_search))
 , _cancel(this, st::gifsSearchCancel) {
-	connect(_field, &Ui::InputField::submitted, this, [this](bool ctrlShiftEnter) {
+	connect(_field, &Ui::InputField::submitted, [=] {
 		_pan->sendInlineRequest();
 	});
-	connect(_field, &Ui::InputField::cancelled, this, [this] {
+	connect(_field, &Ui::InputField::cancelled, [=] {
 		if (_field->getLastText().isEmpty()) {
 			emit _pan->cancelled();
 		} else {
 			_field->setText(QString());
 		}
 	});
-	connect(_field, &Ui::InputField::changed, this, [this] {
+	connect(_field, &Ui::InputField::changed, [=] {
 		_cancel->toggle(
 			!_field->getLastText().isEmpty(),
 			anim::type::normal);
 		_pan->searchForGifs(_field->getLastText());
 	});
-	_cancel->setClickedCallback([this] {
+	_cancel->setClickedCallback([=] {
 		_field->setText(QString());
 	});
 }

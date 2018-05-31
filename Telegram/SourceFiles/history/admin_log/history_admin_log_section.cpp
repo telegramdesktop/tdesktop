@@ -106,15 +106,15 @@ FixedBar::FixedBar(
 , _cancel(this, st::historyAdminLogCancelSearch)
 , _filter(this, langFactory(lng_admin_log_filter), st::topBarButton) {
 	_backButton->moveToLeft(0, 0);
-	_backButton->setClickedCallback([this] { goBack(); });
-	_filter->setClickedCallback([this] { showFilterSignal.notify(); });
-	_search->setClickedCallback([this] { showSearch(); });
-	_cancel->setClickedCallback([this] { cancelSearch(); });
+	_backButton->setClickedCallback([=] { goBack(); });
+	_filter->setClickedCallback([=] { showFilterSignal.notify(); });
+	_search->setClickedCallback([=] { showSearch(); });
+	_cancel->setClickedCallback([=] { cancelSearch(); });
 	_field->hide();
-	connect(_field, &Ui::FlatInput::cancelled, this, [this] { cancelSearch(); });
-	connect(_field, &Ui::FlatInput::changed, this, [this] { searchUpdated(); });
-	connect(_field, &Ui::FlatInput::submitted, this, [this] { applySearch(); });
-	_searchTimer.setCallback([this] { applySearch(); });
+	connect(_field, &Ui::FlatInput::cancelled, [=] { cancelSearch(); });
+	connect(_field, &Ui::FlatInput::changed, [=] { searchUpdated(); });
+	connect(_field, &Ui::FlatInput::submitted, [=] { applySearch(); });
+	_searchTimer.setCallback([=] { applySearch(); });
 
 	_cancel->hide(anim::type::instant);
 }

@@ -308,7 +308,7 @@ object_ptr<Ui::RpWidget> Controller::createTitleEdit() {
 	QObject::connect(
 		result->entity(),
 		&Ui::InputField::submitted,
-		[this] { submitTitle(); });
+		[=] { submitTitle(); });
 
 	_controls.title = result->entity();
 	return std::move(result);
@@ -339,7 +339,7 @@ object_ptr<Ui::RpWidget> Controller::createDescriptionEdit() {
 	QObject::connect(
 		result->entity(),
 		&Ui::InputField::submitted,
-		[this] { submitDescription(); });
+		[=] { submitDescription(); });
 
 	_controls.description = result->entity();
 	return std::move(result);

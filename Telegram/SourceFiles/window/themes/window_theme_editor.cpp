@@ -720,7 +720,7 @@ Editor::Editor(QWidget*, const QString &path)
 
 	_select->resizeToWidth(st::windowMinWidth);
 	_select->setQueryChangedCallback([this](const QString &query) { _inner->filterRows(query); _scroll->scrollToY(0); });
-	_select->setSubmittedCallback([this](bool) { _inner->chooseRow(); });
+	_select->setSubmittedCallback([this](Qt::KeyboardModifiers) { _inner->chooseRow(); });
 
 	_inner->prepare();
 	resizeToWidth(st::windowMinWidth);

@@ -46,7 +46,7 @@ void PeerListBox::createMultiSelect() {
 	) | rpl::start_with_next(
 		[this] { updateScrollSkips(); },
 		lifetime());
-	_select->entity()->setSubmittedCallback([this](bool chtrlShiftEnter) { content()->submitted(); });
+	_select->entity()->setSubmittedCallback([this](Qt::KeyboardModifiers) { content()->submitted(); });
 	_select->entity()->setQueryChangedCallback([this](const QString &query) { searchQueryChanged(query); });
 	_select->entity()->setItemRemovedCallback([this](uint64 itemId) {
 		if (auto peer = App::peerLoaded(itemId)) {

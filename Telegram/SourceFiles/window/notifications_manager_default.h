@@ -164,8 +164,6 @@ protected:
 };
 
 class Notification : public Widget {
-	Q_OBJECT
-
 public:
 	Notification(Manager *manager, History *history, PeerData *peer, PeerData *author, HistoryItem *item, int forwardedCount, QPoint startPosition, int shift, Direction shiftDirection);
 
@@ -194,16 +192,12 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	bool eventFilter(QObject *o, QEvent *e) override;
 
-private slots:
-	void onHideByTimer();
-	void onReplyResize();
-	void onReplySubmit(bool ctrlShiftEnter);
-	void onReplyCancel();
-
 private:
 	void refreshLang();
 	void updateReplyGeometry();
 	bool canReply() const;
+	void replyResized();
+	void replyCancel();
 
 	void unlinkHistoryInManager();
 	void toggleActionButtons(bool visible);

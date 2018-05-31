@@ -17,17 +17,8 @@ class IconButton;
 } // namespace Ui
 
 class RateCallBox : public BoxContent, private MTP::Sender {
-	Q_OBJECT
-
 public:
 	RateCallBox(QWidget*, uint64 callId, uint64 callAccessHash);
-
-private slots:
-	void onSend();
-	void onCommentResized();
-	void onClose() {
-		closeBox();
-	}
 
 protected:
 	void prepare() override;
@@ -38,6 +29,8 @@ protected:
 private:
 	void updateMaxHeight();
 	void ratingChanged(int value);
+	void send();
+	void commentResized();
 
 	uint64 _callId = 0;
 	uint64 _callAccessHash = 0;

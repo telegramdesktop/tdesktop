@@ -610,14 +610,14 @@ StickersBox::Inner::Inner(QWidget *parent, not_null<ChannelData*> megagroup) : T
 	connect(
 		_megagroupSetField,
 		&Ui::MaskedInputField::changed,
-		[this] {
+		[=] {
 			_megagroupSetAddressChangedTimer.callOnce(
 				kHandleMegagroupSetAddressChangeTimeout);
 		});
 	connect(
 		_megagroupSetField,
 		&Ui::MaskedInputField::submitted,
-		[this] {
+		[=] {
 			_megagroupSetAddressChangedTimer.cancel();
 			handleMegagroupSetAddressChange();
 		});

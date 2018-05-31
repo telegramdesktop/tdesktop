@@ -495,7 +495,7 @@ Notification::Notification(Manager *manager, History *history, PeerData *peer, P
 	updateNotifyDisplay();
 
 	_hideTimer.setSingleShot(true);
-	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(onHideByTimer()));
+	connect(&_hideTimer, &QTimer::timeout, [=] { startHiding(); });
 
 	_close->setClickedCallback([this] {
 		unlinkHistoryInManager();
@@ -576,15 +576,11 @@ bool Notification::checkLastInput(bool hasReplyingNotifications) {
 	return false;
 }
 
-void Notification::onReplyResize() {
+void Notification::replyResized() {
 	changeHeight(st::notifyMinHeight + _replyArea->height() + st::notifyBorderWidth);
 }
 
-void Notification::onReplySubmit(bool ctrlShiftEnter) {
-	sendReply();
-}
-
-void Notification::onReplyCancel() {
+void Notification::replyCancel() {
 	unlinkHistoryInManager();
 }
 
@@ -777,9 +773,9 @@ void Notification::showReplyField() {
 
 	// Catch mouse press event to activate the window.
 	QCoreApplication::instance()->installEventFilter(this);
-	connect(_replyArea, SIGNAL(resized()), this, SLOT(onReplyResize()));
-	connect(_replyArea, SIGNAL(submitted(bool)), this, SLOT(onReplySubmit(bool)));
-	connect(_replyArea, SIGNAL(cancelled()), this, SLOT(onReplyCancel()));
+	connect(_replyArea, &Ui::InputField::resized, [=] { replyResized(); });
+	connect(_replyArea, &Ui::InputField::submitted, [=] { sendReply(); });
+	connect(_replyArea, &Ui::InputField::cancelled, [=] { replyCancel(); });
 
 	_replySend.create(this, st::notifySendReply);
 	_replySend->moveToRight(st::notifyBorderWidth, st::notifyMinHeight);
@@ -788,7 +784,7 @@ void Notification::showReplyField() {
 
 	toggleActionButtons(false);
 
-	onReplyResize();
+	replyResized();
 	update();
 }
 
@@ -866,10 +862,6 @@ void Notification::stopHiding() {
 	if (!_history) return;
 	_hideTimer.stop();
 	Widget::hideStop();
-}
-
-void Notification::onHideByTimer() {
-	startHiding();
 }
 
 HideAllButton::HideAllButton(Manager *manager, QPoint startPosition, int shift, Direction shiftDirection) : Widget(manager, startPosition, shift, shiftDirection) {

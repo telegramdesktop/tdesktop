@@ -43,8 +43,8 @@ PasscodeBox::PasscodeBox(QWidget*, const QByteArray &newSalt, const QByteArray &
 }
 
 void PasscodeBox::prepare() {
-	addButton(langFactory(_turningOff ? lng_passcode_remove_button : lng_settings_save), [this] { onSave(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(_turningOff ? lng_passcode_remove_button : lng_settings_save), [=] { save(); });
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 
 	_about.setRichText(st::passcodeTextStyle, lang(_cloudPwd ? lng_cloud_password_about : lng_passcode_about));
 	_aboutHeight = _about.countHeight(st::boxWidth - st::boxPadding.left() * 1.5);
@@ -65,19 +65,20 @@ void PasscodeBox::prepare() {
 		}
 	}
 
-	connect(_oldPasscode, SIGNAL(changed()), this, SLOT(onOldChanged()));
-	connect(_newPasscode, SIGNAL(changed()), this, SLOT(onNewChanged()));
-	connect(_reenterPasscode, SIGNAL(changed()), this, SLOT(onNewChanged()));
-	connect(_passwordHint, SIGNAL(changed()), this, SLOT(onNewChanged()));
-	connect(_recoverEmail, SIGNAL(changed()), this, SLOT(onEmailChanged()));
+	connect(_oldPasscode, &Ui::MaskedInputField::changed, [=] { oldChanged(); });
+	connect(_newPasscode, &Ui::MaskedInputField::changed, [=] { newChanged(); });
+	connect(_reenterPasscode, &Ui::MaskedInputField::changed, [=] { newChanged(); });
+	connect(_passwordHint, &Ui::InputField::changed, [=] { newChanged(); });
+	connect(_recoverEmail, &Ui::InputField::changed, [=] { emailChanged(); });
 
-	connect(_oldPasscode, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
-	connect(_newPasscode, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
-	connect(_reenterPasscode, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
-	connect(_passwordHint, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
-	connect(_recoverEmail, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
+	const auto fieldSubmit = [=] { submit(); };
+	connect(_oldPasscode, &Ui::MaskedInputField::submitted, fieldSubmit);
+	connect(_newPasscode, &Ui::MaskedInputField::submitted, fieldSubmit);
+	connect(_reenterPasscode, &Ui::MaskedInputField::submitted, fieldSubmit);
+	connect(_passwordHint, &Ui::InputField::submitted, fieldSubmit);
+	connect(_recoverEmail, &Ui::InputField::submitted, fieldSubmit);
 
-	connect(_recover, SIGNAL(clicked()), this, SLOT(onRecoverByEmail()));
+	_recover->addClickHandler([=] { recoverByEmail(); });
 
 	bool has = _cloudPwd ? (!_curSalt.isEmpty()) : Global::LocalPasscode();
 	_oldPasscode->setVisible(_turningOff || has);
@@ -88,11 +89,11 @@ void PasscodeBox::prepare() {
 	_recoverEmail->setVisible(!_turningOff && _cloudPwd && _curSalt.isEmpty());
 }
 
-void PasscodeBox::onSubmit() {
+void PasscodeBox::submit() {
 	bool has = _cloudPwd ? (!_curSalt.isEmpty()) : Global::LocalPasscode();
 	if (_oldPasscode->hasFocus()) {
 		if (_turningOff) {
-			onSave();
+			save();
 		} else {
 			_newPasscode->setFocus();
 		}
@@ -110,16 +111,16 @@ void PasscodeBox::onSubmit() {
 		} else if (!_passwordHint->isHidden()) {
 			_passwordHint->setFocus();
 		} else {
-			onSave();
+			save();
 		}
 	} else if (_passwordHint->hasFocus()) {
 		if (_recoverEmail->isHidden()) {
-			onSave();
+			save();
 		} else {
 			_recoverEmail->setFocus();
 		}
 	} else if (_recoverEmail->hasFocus()) {
-		onSave();
+		save();
 	}
 }
 
@@ -226,7 +227,7 @@ bool PasscodeBox::setPasswordFail(const RPCError &error) {
 			emit reloadPassword();
 			closeBox();
 		} else {
-			onBadOldPasscode();
+			badOldPasscode();
 		}
 	} else if (err == qstr("NEW_PASSWORD_BAD")) {
 		_newPasscode->setFocus();
@@ -248,7 +249,7 @@ bool PasscodeBox::setPasswordFail(const RPCError &error) {
 	return true;
 }
 
-void PasscodeBox::onSave(bool force) {
+void PasscodeBox::save(bool force) {
 	if (_setRequest) return;
 
 	QString old = _oldPasscode->text(), pwd = _newPasscode->text(), conf = _reenterPasscode->text();
@@ -268,7 +269,7 @@ void PasscodeBox::onSave(bool force) {
 		} else {
 			cSetPasscodeBadTries(cPasscodeBadTries() + 1);
 			cSetPasscodeLastTry(getms(true));
-			onBadOldPasscode();
+			badOldPasscode();
 			return;
 		}
 	}
@@ -306,7 +307,7 @@ void PasscodeBox::onSave(bool force) {
 		if (!_recoverEmail->isHidden() && email.isEmpty() && !force) {
 			_skipEmailWarning = true;
 			_replacedBy = Ui::show(Box<ConfirmBox>(lang(lng_cloud_password_about_recover), lang(lng_cloud_password_skip_email), st::attentionBoxButton, base::lambda_guarded(this, [this] {
-				onSave(true);
+				save(true);
 			})), LayerOption::KeepOther);
 		} else {
 			QByteArray newPasswordData = pwd.isEmpty() ? QByteArray() : (_newSalt + pwd.toUtf8() + _newSalt);
@@ -337,7 +338,7 @@ void PasscodeBox::onSave(bool force) {
 	}
 }
 
-void PasscodeBox::onBadOldPasscode() {
+void PasscodeBox::badOldPasscode() {
 	_oldPasscode->selectAll();
 	_oldPasscode->setFocus();
 	_oldPasscode->showError();
@@ -348,7 +349,7 @@ void PasscodeBox::onBadOldPasscode() {
 	update();
 }
 
-void PasscodeBox::onOldChanged() {
+void PasscodeBox::oldChanged() {
 	if (!_oldError.isEmpty()) {
 		_oldError = QString();
 		if (_hasRecovery && _hintText.isEmpty()) {
@@ -358,21 +359,21 @@ void PasscodeBox::onOldChanged() {
 	}
 }
 
-void PasscodeBox::onNewChanged() {
+void PasscodeBox::newChanged() {
 	if (!_newError.isEmpty()) {
 		_newError = QString();
 		update();
 	}
 }
 
-void PasscodeBox::onEmailChanged() {
+void PasscodeBox::emailChanged() {
 	if (!_emailError.isEmpty()) {
 		_emailError = QString();
 		update();
 	}
 }
 
-void PasscodeBox::onRecoverByEmail() {
+void PasscodeBox::recoverByEmail() {
 	if (_pattern.isEmpty()) {
 		_pattern = "-";
 		MTP::send(MTPauth_RequestPasswordRecovery(), rpcDone(&PasscodeBox::recoverStarted), rpcFail(&PasscodeBox::recoverStartFail));
@@ -381,18 +382,19 @@ void PasscodeBox::onRecoverByEmail() {
 	}
 }
 
-void PasscodeBox::onRecoverExpired() {
+void PasscodeBox::recoverExpired() {
 	_pattern = QString();
 }
 
 void PasscodeBox::recover() {
 	if (_pattern == "-") return;
 
-	_replacedBy = Ui::show(
+	const auto box = Ui::show(
 		Box<RecoverBox>(_pattern),
 		LayerOption::KeepOther);
-	connect(_replacedBy, SIGNAL(reloadPassword()), this, SIGNAL(reloadPassword()));
-	connect(_replacedBy, SIGNAL(recoveryExpired()), this, SLOT(onRecoverExpired()));
+	connect(box, &RecoverBox::reloadPassword, this, &PasscodeBox::reloadPassword);
+	connect(box, &RecoverBox::recoveryExpired, this, &PasscodeBox::recoverExpired);
+	_replacedBy = box;
 }
 
 void PasscodeBox::recoverStarted(const MTPauth_PasswordRecovery &result) {
@@ -416,13 +418,13 @@ RecoverBox::RecoverBox(QWidget*, const QString &pattern)
 void RecoverBox::prepare() {
 	setTitle(langFactory(lng_signin_recover_title));
 
-	addButton(langFactory(lng_passcode_submit), [this] { onSubmit(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_passcode_submit), [=] { submit(); });
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 
 	setDimensions(st::boxWidth, st::passcodePadding.top() + st::passcodePadding.bottom() + st::passcodeTextLine + _recoverCode->height() + st::passcodeTextLine);
 
-	connect(_recoverCode, SIGNAL(changed()), this, SLOT(onCodeChanged()));
-	connect(_recoverCode, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
+	connect(_recoverCode, &Ui::InputField::changed, [=] { codeChanged(); });
+	connect(_recoverCode, &Ui::InputField::submitted, [=] { submit(); });
 }
 
 void RecoverBox::paintEvent(QPaintEvent *e) {
@@ -452,7 +454,7 @@ void RecoverBox::setInnerFocus() {
 	_recoverCode->setFocusFast();
 }
 
-void RecoverBox::onSubmit() {
+void RecoverBox::submit() {
 	if (_submitRequest) return;
 
 	QString code = _recoverCode->getLastText().trimmed();
@@ -465,7 +467,7 @@ void RecoverBox::onSubmit() {
 	_submitRequest = MTP::send(MTPauth_RecoverPassword(MTP_string(code)), rpcDone(&RecoverBox::codeSubmitDone, true), rpcFail(&RecoverBox::codeSubmitFail));
 }
 
-void RecoverBox::onCodeChanged() {
+void RecoverBox::codeChanged() {
 	_error = QString();
 	update();
 }

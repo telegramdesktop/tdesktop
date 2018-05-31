@@ -455,7 +455,7 @@ HistoryWidget::HistoryWidget(
 	connect(_botStart, SIGNAL(clicked()), this, SLOT(onBotStart()));
 	connect(_joinChannel, SIGNAL(clicked()), this, SLOT(onJoinChannel()));
 	connect(_muteUnmute, SIGNAL(clicked()), this, SLOT(onMuteUnmute()));
-	connect(_field, SIGNAL(submitted(bool)), this, SLOT(onSend()));
+	connect(_field, &Ui::InputField::submitted, [=] { send(); });
 	connect(_field, SIGNAL(cancelled()), this, SLOT(onCancel()));
 	connect(_field, SIGNAL(tabbed()), this, SLOT(onFieldTabbed()));
 	connect(_field, SIGNAL(resized()), this, SLOT(onFieldResize()));
@@ -2989,7 +2989,7 @@ void HistoryWidget::hideSelectorControlsAnimated() {
 	}
 }
 
-void HistoryWidget::onSend() {
+void HistoryWidget::send() {
 	if (!_history) return;
 
 	if (_editMsgId) {
@@ -3254,7 +3254,7 @@ void HistoryWidget::sendButtonClicked() {
 	if (type == Ui::SendButton::Type::Cancel) {
 		onInlineBotCancel();
 	} else if (type != Ui::SendButton::Type::Record) {
-		onSend();
+		send();
 	}
 }
 

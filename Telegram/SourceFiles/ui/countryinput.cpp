@@ -208,7 +208,7 @@ void CountrySelectBox::prepare() {
 
 	_select->resizeToWidth(st::boxWidth);
 	_select->setQueryChangedCallback([this](const QString &query) { onFilterUpdate(query); });
-	_select->setSubmittedCallback([this](bool) { onSubmit(); });
+	_select->setSubmittedCallback([this](Qt::KeyboardModifiers) { onSubmit(); });
 
 	_inner = setInnerWidget(object_ptr<Inner>(this), st::countriesScroll, _select->height());
 

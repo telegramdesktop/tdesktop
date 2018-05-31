@@ -14,8 +14,6 @@ class RoundButton;
 } // namespace Ui
 
 class PasscodeWidget : public TWidget {
-	Q_OBJECT
-
 public:
 	PasscodeWidget(QWidget *parent);
 
@@ -27,13 +25,11 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-public slots:
-	void onError();
-	void onChanged();
-	void onSubmit();
-
 private:
 	void animationCallback();
+	void changed();
+	void submit();
+	void error();
 
 	void showAll();
 	void hideAll();

@@ -194,13 +194,9 @@ void EditCaptionBox::prepare() {
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	updateBoxSize();
-	connect(_field, &Ui::InputField::submitted, this, [this] { save(); });
-	connect(_field, &Ui::InputField::cancelled, this, [this] {
-		closeBox();
-	});
-	connect(_field, &Ui::InputField::resized, this, [this] {
-		captionResized();
-	});
+	connect(_field, &Ui::InputField::submitted, [=] { save(); });
+	connect(_field, &Ui::InputField::cancelled, [=] { closeBox(); });
+	connect(_field, &Ui::InputField::resized, [=] { captionResized(); });
 
 	auto cursor = _field->textCursor();
 	cursor.movePosition(QTextCursor::End);

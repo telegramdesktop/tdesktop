@@ -82,15 +82,10 @@ private:
 };
 
 class ConfirmPhoneBox : public BoxContent, public RPCSender {
-	Q_OBJECT
-
 public:
 	static void start(const QString &phone, const QString &hash);
 
 	~ConfirmPhoneBox();
-
-private slots:
-	void onSendCode();
 
 protected:
 	void prepare() override;
@@ -103,6 +98,7 @@ private:
 	ConfirmPhoneBox(QWidget*, const QString &phone, const QString &hash);
 	friend class object_ptr<ConfirmPhoneBox>;
 
+	void sendCode();
 	void sendCall();
 	void checkPhoneAndHash();
 

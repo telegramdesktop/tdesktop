@@ -195,11 +195,11 @@ void StickersListWidget::Footer::initSearch() {
 			_searchField->setText(QString());
 		}
 	};
-	connect(_searchField, &Ui::InputField::submitted, this, [this](bool ctrlShiftEnter) {
+	connect(_searchField, &Ui::InputField::submitted, [=] {
 		_pan->sendSearchRequest();
 	});
-	connect(_searchField, &Ui::InputField::cancelled, this, cancelSearch);
-	connect(_searchField, &Ui::InputField::changed, this, [this] {
+	connect(_searchField, &Ui::InputField::cancelled, cancelSearch);
+	connect(_searchField, &Ui::InputField::changed, [=] {
 		_pan->searchForSets(_searchField->getLastText());
 	});
 	_searchCancel->setClickedCallback(cancelSearch);

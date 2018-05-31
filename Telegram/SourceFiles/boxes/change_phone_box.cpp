@@ -125,7 +125,7 @@ void ChangePhoneBox::EnterPhone::prepare() {
 
 	_phone->resize(st::boxWidth - 2 * st::boxPadding.left(), _phone->height());
 	_phone->moveToLeft(st::boxPadding.left(), st::boxLittleSkip);
-	connect(_phone, &Ui::PhoneInput::submitted, this, [this] { submit(); });
+	connect(_phone, &Ui::PhoneInput::submitted, [=] { submit(); });
 
 	auto description = object_ptr<Ui::FlatLabel>(this, lang(lng_change_phone_new_description), Ui::FlatLabel::InitType::Simple, st::changePhoneLabel);
 	auto errorSkip = st::boxLittleSkip + st::changePhoneError.style.font->height;
@@ -225,12 +225,12 @@ void ChangePhoneBox::EnterCode::prepare() {
 
 	auto phoneValue = QString();
 	_code.create(this, st::defaultInputField, langFactory(lng_change_phone_code_title), phoneValue);
-	_code->setAutoSubmit(_codeLength, [this] { submit(); });
-	_code->setChangedCallback([this] { hideError(); });
+	_code->setAutoSubmit(_codeLength, [=] { submit(); });
+	_code->setChangedCallback([=] { hideError(); });
 
 	_code->resize(st::boxWidth - 2 * st::boxPadding.left(), _code->height());
 	_code->moveToLeft(st::boxPadding.left(), description->bottomNoMargins());
-	connect(_code, &Ui::InputField::submitted, this, [this] { submit(); });
+	connect(_code, &Ui::InputField::submitted, [=] { submit(); });
 
 	setDimensions(st::boxWidth, countHeight());
 
@@ -239,8 +239,8 @@ void ChangePhoneBox::EnterCode::prepare() {
 		updateCall();
 	}
 
-	addButton(langFactory(lng_change_phone_new_submit), [this] { submit(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_change_phone_new_submit), [=] { submit(); });
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 }
 
 int ChangePhoneBox::EnterCode::countHeight() {

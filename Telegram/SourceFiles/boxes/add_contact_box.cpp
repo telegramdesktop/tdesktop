@@ -122,9 +122,9 @@ void AddContactBox::prepare() {
 	}
 	updateButtons();
 
-	connect(_first, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
-	connect(_last, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
-	connect(_phone, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
+	connect(_first, &Ui::InputField::submitted, [=] { submit(); });
+	connect(_last, &Ui::InputField::submitted, [=] { submit(); });
+	connect(_phone, &Ui::PhoneInput::submitted, [=] { submit(); });
 
 	setDimensions(st::boxWideWidth, st::contactPadding.top() + _first->height() + st::contactSkip + _last->height() + st::contactPhoneSkip + _phone->height() + st::contactPadding.bottom() + st::boxPadding.bottom());
 }
@@ -170,21 +170,21 @@ void AddContactBox::resizeEvent(QResizeEvent *e) {
 	}
 }
 
-void AddContactBox::onSubmit() {
+void AddContactBox::submit() {
 	if (_first->hasFocus()) {
 		_last->setFocus();
 	} else if (_last->hasFocus()) {
 		if (_phone->isEnabled()) {
 			_phone->setFocus();
 		} else {
-			onSave();
+			save();
 		}
 	} else if (_phone->hasFocus()) {
-		onSave();
+		save();
 	}
 }
 
-void AddContactBox::onSave() {
+void AddContactBox::save() {
 	if (_addRequest) return;
 
 	auto firstName = TextUtilities::PrepareForSending(_first->getLastText());
@@ -274,7 +274,7 @@ void AddContactBox::onSaveUserDone(const MTPcontacts_ImportedContacts &res) {
 	closeBox();
 }
 
-void AddContactBox::onRetry() {
+void AddContactBox::retry() {
 	_addRequest = 0;
 	_contactId = 0;
 	showChildren();
@@ -291,9 +291,9 @@ void AddContactBox::onRetry() {
 void AddContactBox::updateButtons() {
 	clearButtons();
 	if (_retrying) {
-		addButton(langFactory(lng_try_other_contact), [this] { onRetry(); });
+		addButton(langFactory(lng_try_other_contact), [this] { retry(); });
 	} else {
-		addButton(langFactory(_user ? lng_settings_save : lng_add_contact), [this] { onSave(); });
+		addButton(langFactory(_user ? lng_settings_save : lng_add_contact), [this] { save(); });
 		addButton(langFactory(lng_cancel), [this] { closeBox(); });
 	}
 }
@@ -335,14 +335,14 @@ void GroupInfoBox::prepare() {
 		_description->setInstantReplacesEnabled(
 			Global::ReplaceEmojiValue());
 
-		connect(_description, SIGNAL(resized()), this, SLOT(onDescriptionResized()));
-		connect(_description, SIGNAL(submitted(bool)), this, SLOT(onNext()));
-		connect(_description, SIGNAL(cancelled()), this, SLOT(onClose()));
+		connect(_description, &Ui::InputField::resized, [=] { descriptionResized(); });
+		connect(_description, &Ui::InputField::submitted, [=] { submit(); });
+		connect(_description, &Ui::InputField::cancelled, [=] { closeBox(); });
 	}
 
-	connect(_title, SIGNAL(submitted(bool)), this, SLOT(onNameSubmit()));
+	connect(_title, &Ui::InputField::submitted, [=] { submitName(); });
 
-	addButton(langFactory(_creating == CreatingGroupChannel ? lng_create_group_create : lng_create_group_next), [this] { onNext(); });
+	addButton(langFactory(_creating == CreatingGroupChannel ? lng_create_group_create : lng_create_group_next), [this] { submit(); });
 	addButton(langFactory(_fromTypeChoose ? lng_create_group_back : lng_cancel), [this] { closeBox(); });
 
 	updateMaxHeight();
@@ -373,14 +373,14 @@ void GroupInfoBox::resizeEvent(QResizeEvent *e) {
 	}
 }
 
-void GroupInfoBox::onNameSubmit() {
+void GroupInfoBox::submitName() {
 	if (_title->getLastText().trimmed().isEmpty()) {
 		_title->setFocus();
 		_title->showError();
 	} else if (_description) {
 		_description->setFocus();
 	} else {
-		onNext();
+		submit();
 	}
 }
 
@@ -460,7 +460,7 @@ void GroupInfoBox::createGroup(not_null<PeerListBox*> selectUsersBox, const QStr
 	}).send();
 }
 
-void GroupInfoBox::onNext() {
+void GroupInfoBox::submit() {
 	if (_creationRequestId) return;
 
 	auto title = TextUtilities::PrepareForSending(_title->getLastText());
@@ -560,7 +560,7 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 	}).send();
 }
 
-void GroupInfoBox::onDescriptionResized() {
+void GroupInfoBox::descriptionResized() {
 	updateMaxHeight();
 	update();
 }
@@ -598,14 +598,14 @@ void SetupChannelBox::prepare() {
 
 	_checkRequestId = MTP::send(MTPchannels_CheckUsername(_channel->inputChannel, MTP_string("preston")), RPCDoneHandlerPtr(), rpcFail(&SetupChannelBox::onFirstCheckFail));
 
-	addButton(langFactory(lng_settings_save), [this] { onSave(); });
-	addButton(langFactory(_existing ? lng_cancel : lng_create_group_skip), [this] { closeBox(); });
+	addButton(langFactory(lng_settings_save), [=] { save(); });
+	addButton(langFactory(_existing ? lng_cancel : lng_create_group_skip), [=] { closeBox(); });
 
-	connect(_link, SIGNAL(changed()), this, SLOT(onChange()));
+	connect(_link, &Ui::MaskedInputField::changed, [=] { handleChange(); });
 	_link->setVisible(_privacyGroup->value() == Privacy::Public);
 
 	_checkTimer.setSingleShot(true);
-	connect(&_checkTimer, SIGNAL(timeout()), this, SLOT(onCheck()));
+	connect(&_checkTimer, &QTimer::timeout, [=] { check(); });
 
 	_privacyGroup->setChangedCallback([this](Privacy value) { privacyChanged(value); });
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::InviteLinkChanged, [this](const Notify::PeerUpdate &update) {
@@ -644,7 +644,7 @@ void SetupChannelBox::keyPressEvent(QKeyEvent *e) {
 				_link->setFocus();
 				_link->showError();
 			} else {
-				onSave();
+				save();
 			}
 		}
 	} else {
@@ -733,7 +733,7 @@ void SetupChannelBox::updateSelected(const QPoint &cursorGlobalPosition) {
 	}
 }
 
-void SetupChannelBox::onSave() {
+void SetupChannelBox::save() {
 	if (_privacyGroup->value() == Privacy::Private) {
 		if (_existing) {
 			_sentUsername = QString();
@@ -756,7 +756,7 @@ void SetupChannelBox::onSave() {
 	_saveRequestId = MTP::send(MTPchannels_UpdateUsername(_channel->inputChannel, MTP_string(_sentUsername)), rpcDone(&SetupChannelBox::onUpdateDone), rpcFail(&SetupChannelBox::onUpdateFail));
 }
 
-void SetupChannelBox::onChange() {
+void SetupChannelBox::handleChange() {
 	QString name = _link->text().trimmed();
 	if (name.isEmpty()) {
 		if (!_errorText.isEmpty() || !_goodText.isEmpty()) {
@@ -793,7 +793,7 @@ void SetupChannelBox::onChange() {
 	}
 }
 
-void SetupChannelBox::onCheck() {
+void SetupChannelBox::check() {
 	if (_checkRequestId) {
 		MTP::cancel(_checkRequestId);
 	}
@@ -816,7 +816,7 @@ void SetupChannelBox::privacyChanged(Privacy value) {
 			Ui::show(Box<RevokePublicLinkBox>(base::lambda_guarded(this, [this] {
 				_tooMuchUsernames = false;
 				_privacyGroup->setValue(Privacy::Public);
-				onCheck();
+				check();
 			})), LayerOption::KeepOther);
 			return;
 		}
@@ -952,16 +952,16 @@ void EditNameBox::prepare() {
 	newHeight += st::boxPadding.bottom() + st::contactPadding.bottom();
 	setDimensions(st::boxWideWidth, newHeight);
 
-	addButton(langFactory(lng_settings_save), [this] { save(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_settings_save), [=] { save(); });
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 	if (_invertOrder) {
 		setTabOrder(_last, _first);
 	}
 	_first->setMaxLength(kMaxGroupChannelTitle);
 	_last->setMaxLength(kMaxGroupChannelTitle);
 
-	connect(_first, &Ui::InputField::submitted, this, [this] { submit(); });
-	connect(_last, &Ui::InputField::submitted, this, [this] { submit(); });
+	connect(_first, &Ui::InputField::submitted, [=] { submit(); });
+	connect(_last, &Ui::InputField::submitted, [=] { submit(); });
 }
 
 void EditNameBox::setInnerFocus() {
@@ -1081,9 +1081,9 @@ void EditBioBox::prepare() {
 	auto cursor = _bio->textCursor();
 	cursor.setPosition(_bio->getLastText().size());
 	_bio->setTextCursor(cursor);
-	connect(_bio, &Ui::InputField::submitted, this, [this](bool ctrlShiftEnter) { save(); });
-	connect(_bio, &Ui::InputField::resized, this, [this] { updateMaxHeight(); });
-	connect(_bio, &Ui::InputField::changed, this, [this] { handleBioUpdated(); });
+	connect(_bio, &Ui::InputField::submitted, [=] { save(); });
+	connect(_bio, &Ui::InputField::resized, [=] { updateMaxHeight(); });
+	connect(_bio, &Ui::InputField::changed, [=] { handleBioUpdated(); });
 	_bio->setInstantReplaces(Ui::InstantReplaces::Default());
 	_bio->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
 	handleBioUpdated();
@@ -1154,7 +1154,7 @@ EditChannelBox::EditChannelBox(QWidget*, not_null<ChannelData*> channel)
 void EditChannelBox::prepare() {
 	setTitle(langFactory(_channel->isMegagroup() ? lng_edit_group : lng_edit_channel_title));
 
-	addButton(langFactory(lng_settings_save), [this] { onSave(); });
+	addButton(langFactory(lng_settings_save), [this] { save(); });
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::NameChanged, [this](const Notify::PeerUpdate &update) {
@@ -1172,11 +1172,11 @@ void EditChannelBox::prepare() {
 	_description->setInstantReplaces(Ui::InstantReplaces::Default());
 	_description->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
 
-	connect(_description, SIGNAL(resized()), this, SLOT(onDescriptionResized()));
-	connect(_description, SIGNAL(submitted(bool)), this, SLOT(onSave()));
-	connect(_description, SIGNAL(cancelled()), this, SLOT(onClose()));
+	connect(_description, &Ui::InputField::resized, [=] { descriptionResized(); });
+	connect(_description, &Ui::InputField::submitted, [=] { save(); });
+	connect(_description, &Ui::InputField::cancelled, [=] { closeBox(); });
 
-	connect(_publicLink, SIGNAL(clicked()), this, SLOT(onPublicLink()));
+	_publicLink->addClickHandler([=] { setupPublicLink(); });
 	_publicLink->setVisible(_channel->canEditUsername());
 	_sign->setVisible(canEditSignatures());
 	_inviteEverybody->setVisible(canEditInvites());
@@ -1192,7 +1192,7 @@ void EditChannelBox::setInnerFocus() {
 void EditChannelBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
 		if (_title->hasFocus()) {
-			onSave();
+			save();
 		}
 	} else {
 		BoxContent::keyPressEvent(e);
@@ -1204,7 +1204,7 @@ void EditChannelBox::handleChannelNameChange() {
 	_sign->setChecked(_channel->addsSignature());
 }
 
-void EditChannelBox::onDescriptionResized() {
+void EditChannelBox::descriptionResized() {
 	updateMaxHeight();
 	update();
 }
@@ -1268,7 +1268,7 @@ void EditChannelBox::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void EditChannelBox::onSave() {
+void EditChannelBox::save() {
 	if (_saveTitleRequestId || _saveDescriptionRequestId || _saveSignRequestId || _saveInvitesRequestId) return;
 
 	auto title = TextUtilities::PrepareForSending(_title->getLastText());
@@ -1287,7 +1287,7 @@ void EditChannelBox::onSave() {
 	}
 }
 
-void EditChannelBox::onPublicLink() {
+void EditChannelBox::setupPublicLink() {
 	Ui::show(
 		Box<SetupChannelBox>(_channel, true),
 		LayerOption::KeepOther);

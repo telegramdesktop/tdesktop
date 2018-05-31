@@ -61,7 +61,14 @@ void ShareBox::prepare() {
 		}
 	});
 	_select->setResizedCallback([this] { updateScrollSkips(); });
-	_select->setSubmittedCallback([this](bool) { _inner->onSelectActive(); });
+	_select->setSubmittedCallback([this](Qt::KeyboardModifiers modifiers) {
+		if (modifiers.testFlag(Qt::ControlModifier)
+			|| modifiers.testFlag(Qt::MetaModifier)) {
+			onSubmit();
+		} else {
+			_inner->onSelectActive();
+		}
+	});
 	connect(_inner, SIGNAL(searchByUsername()), this, SLOT(onNeedSearchByUsername()));
 	_inner->setPeerSelectedChangedCallback([this](PeerData *peer, bool checked) {
 		onPeerSelectedChanged(peer, checked);

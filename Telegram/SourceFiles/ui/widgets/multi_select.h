@@ -25,7 +25,7 @@ public:
 	void clearQuery();
 
 	void setQueryChangedCallback(base::lambda<void(const QString &query)> callback);
-	void setSubmittedCallback(base::lambda<void(bool ctrlShiftEnter)> callback);
+	void setSubmittedCallback(base::lambda<void(Qt::KeyboardModifiers)> callback);
 	void setResizedCallback(base::lambda<void()> callback);
 
 	enum class AddItemWay {
@@ -79,7 +79,7 @@ public:
 	void clearQuery();
 
 	void setQueryChangedCallback(base::lambda<void(const QString &query)> callback);
-	void setSubmittedCallback(base::lambda<void(bool ctrlShiftEnter)> callback);
+	void setSubmittedCallback(base::lambda<void(Qt::KeyboardModifiers)> callback);
 
 	void addItemInBunch(std::unique_ptr<Item> item);
 	void finishItemsBunch(AddItemWay way);
@@ -105,16 +105,10 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 
-private slots:
-	void onQueryChanged();
-	void onSubmitted(bool ctrlShiftEnter) {
-		if (_submittedCallback) {
-			_submittedCallback(ctrlShiftEnter);
-		}
-	}
-	void onFieldFocused();
-
 private:
+	void submitted(Qt::KeyboardModifiers modifiers);
+	void queryChanged();
+	void fieldFocused();
 	void computeItemsGeometry(int newWidth);
 	void updateItemsGeometry();
 	void updateFieldGeometry();
@@ -159,7 +153,7 @@ private:
 	Animation _height;
 
 	base::lambda<void(const QString &query)> _queryChangedCallback;
-	base::lambda<void(bool ctrlShiftEnter)> _submittedCallback;
+	base::lambda<void(Qt::KeyboardModifiers)> _submittedCallback;
 	base::lambda<void(uint64 itemId)> _itemRemovedCallback;
 	base::lambda<void(int heightDelta)> _resizedCallback;
 

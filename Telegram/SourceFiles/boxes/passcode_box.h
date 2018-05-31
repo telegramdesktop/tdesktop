@@ -22,16 +22,6 @@ public:
 	PasscodeBox(QWidget*, bool turningOff);
 	PasscodeBox(QWidget*, const QByteArray &newSalt, const QByteArray &curSalt, bool hasRecovery, const QString &hint, bool turningOff = false);
 
-private slots:
-	void onSave(bool force = false);
-	void onBadOldPasscode();
-	void onOldChanged();
-	void onNewChanged();
-	void onEmailChanged();
-	void onRecoverByEmail();
-	void onRecoverExpired();
-	void onSubmit();
-
 signals:
 	void reloadPassword();
 
@@ -43,7 +33,15 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	void submit();
 	void closeReplacedBy();
+	void oldChanged();
+	void newChanged();
+	void emailChanged();
+	void save(bool force = false);
+	void badOldPasscode();
+	void recoverByEmail();
+	void recoverExpired();
 
 	void setPasswordDone(const MTPBool &result);
 	bool setPasswordFail(const RPCError &error);
@@ -84,10 +82,6 @@ class RecoverBox : public BoxContent, public RPCSender {
 public:
 	RecoverBox(QWidget*, const QString &pattern);
 
-public slots:
-	void onSubmit();
-	void onCodeChanged();
-
 signals:
 	void reloadPassword();
 	void recoveryExpired();
@@ -100,6 +94,8 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	void submit();
+	void codeChanged();
 	void codeSubmitDone(bool recover, const MTPauth_Authorization &result);
 	bool codeSubmitFail(const RPCError &error);
 

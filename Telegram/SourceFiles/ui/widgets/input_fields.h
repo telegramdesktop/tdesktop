@@ -67,7 +67,7 @@ public slots:
 signals:
 	void changed();
 	void cancelled();
-	void submitted(bool ctrlShiftEnter);
+	void submitted(Qt::KeyboardModifiers);
 	void focused();
 	void blurred();
 
@@ -298,7 +298,7 @@ private slots:
 
 signals:
 	void changed();
-	void submitted(bool ctrlShiftEnter);
+	void submitted(Qt::KeyboardModifiers);
 	void cancelled();
 	void tabbed();
 	void focused();
@@ -518,7 +518,7 @@ public slots:
 signals:
 	void changed();
 	void cancelled();
-	void submitted(bool ctrlShiftEnter);
+	void submitted(Qt::KeyboardModifiers);
 	void focused();
 	void blurred();
 

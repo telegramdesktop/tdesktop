@@ -10,8 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 
 class EditColorBox : public BoxContent {
-	Q_OBJECT
-
 public:
 	EditColorBox(QWidget*, const QString &title, QColor current = QColor(255, 255, 255));
 
@@ -37,12 +35,10 @@ protected:
 
 	void setInnerFocus() override;
 
-private slots:
-	void onFieldChanged();
-	void onFieldSubmitted();
-
 private:
 	void saveColor();
+	void fieldChanged();
+	void fieldSubmitted();
 
 	void updateFromColor(QColor color);
 	void updateControlsFromColor();

@@ -1010,7 +1010,7 @@ void FlatInput::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		emit cancelled();
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
-		emit submitted(ctrl && shift);
+		emit submitted(e->modifiers());
 #ifdef Q_OS_MAC
 	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
 		auto selected = selectedText();
@@ -2249,7 +2249,7 @@ void InputField::keyPressEventInner(QKeyEvent *e) {
 		&& revertFormatReplace()) {
 		e->accept();
 	} else if (enter && enterSubmit) {
-		emit submitted(ctrl && shift);
+		emit submitted(e->modifiers());
 	} else if (e->key() == Qt::Key_Escape) {
 		e->ignore();
 		emit cancelled();
@@ -3505,7 +3505,7 @@ void MaskedInputField::keyPressEvent(QKeyEvent *e) {
 		e->ignore();
 		emit cancelled();
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
-		emit submitted(ctrl && shift);
+		emit submitted(e->modifiers());
 #ifdef Q_OS_MAC
 	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
 		auto selected = selectedText();

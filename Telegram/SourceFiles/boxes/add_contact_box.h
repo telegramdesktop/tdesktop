@@ -36,8 +36,6 @@ enum class PeerFloodType {
 QString PeerFloodErrorText(PeerFloodType type);
 
 class AddContactBox : public BoxContent, public RPCSender {
-	Q_OBJECT
-
 public:
 	AddContactBox(QWidget*, QString fname = QString(), QString lname = QString(), QString phone = QString());
 	AddContactBox(QWidget*, UserData *user);
@@ -50,12 +48,10 @@ protected:
 
 	void setInnerFocus() override;
 
-private slots:
-	void onSubmit();
-	void onSave();
-	void onRetry();
-
 private:
+	void submit();
+	void retry();
+	void save();
 	void updateButtons();
 	void onImportDone(const MTPcontacts_ImportedContacts &res);
 
@@ -79,8 +75,6 @@ private:
 };
 
 class GroupInfoBox : public BoxContent, private MTP::Sender {
-	Q_OBJECT
-
 public:
 	GroupInfoBox(QWidget*, CreatingGroupType creating, bool fromTypeChoose);
 
@@ -90,18 +84,13 @@ protected:
 
 	void resizeEvent(QResizeEvent *e) override;
 
-private slots:
-	void onNext();
-	void onNameSubmit();
-	void onDescriptionResized();
-	void onClose() {
-		closeBox();
-	}
-
 private:
 	void createChannel(const QString &title, const QString &description);
 	void createGroup(not_null<PeerListBox*> selectUsersBox, const QString &title, const std::vector<not_null<PeerData*>> &users);
+	void submitName();
+	void submit();
 
+	void descriptionResized();
 	void updateMaxHeight();
 	void updateSelected(const QPoint &cursorGlobalPosition);
 
@@ -119,8 +108,6 @@ private:
 };
 
 class SetupChannelBox : public BoxContent, public RPCSender {
-	Q_OBJECT
-
 public:
 	SetupChannelBox(QWidget*, ChannelData *channel, bool existing = false);
 
@@ -136,11 +123,6 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 
-private slots:
-	void onSave();
-	void onChange();
-	void onCheck();
-
 private:
 	enum class Privacy {
 		Public,
@@ -149,6 +131,9 @@ private:
 	void privacyChanged(Privacy value);
 	void updateSelected(const QPoint &cursorGlobalPosition);
 	void showAddContactsToChannelBox() const;
+	void handleChange();
+	void check();
+	void save();
 
 	void onUpdateDone(const MTPBool &result);
 	bool onUpdateFail(const RPCError &error);
@@ -239,8 +224,6 @@ private:
 };
 
 class EditChannelBox : public BoxContent, public RPCSender {
-	Q_OBJECT
-
 public:
 	EditChannelBox(QWidget*, not_null<ChannelData*> channel);
 
@@ -252,19 +235,14 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
-private slots:
-	void onSave();
-	void onDescriptionResized();
-	void onPublicLink();
-	void onClose() {
-		closeBox();
-	}
-
 private:
 	void updateMaxHeight();
 	bool canEditSignatures() const;
 	bool canEditInvites() const;
 	void handleChannelNameChange();
+	void descriptionResized();
+	void setupPublicLink();
+	void save();
 
 	void onSaveTitleDone(const MTPUpdates &result);
 	void onSaveDescriptionDone(const MTPBool &result);

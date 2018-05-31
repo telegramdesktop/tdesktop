@@ -1558,17 +1558,18 @@ void SendFilesBox::applyAlbumOrder() {
 void SendFilesBox::setupCaption() {
 	_caption->setMaxLength(MaxPhotoCaption);
 	_caption->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
-	connect(_caption, &Ui::InputField::resized, this, [this] {
+	connect(_caption, &Ui::InputField::resized, [=] {
 		captionResized();
 	});
-	connect(_caption, &Ui::InputField::submitted, this, [this](
-			bool ctrlShiftEnter) {
+	connect(_caption, &Ui::InputField::submitted, [=](
+			Qt::KeyboardModifiers modifiers) {
+		const auto ctrlShiftEnter = modifiers.testFlag(Qt::ShiftModifier)
+			&& (modifiers.testFlag(Qt::ControlModifier)
+				|| modifiers.testFlag(Qt::MetaModifier));
 		send(ctrlShiftEnter);
 	});
-	connect(_caption, &Ui::InputField::cancelled, this, [this] {
-		closeBox();
-	});
-	_caption->setMimeDataHook([this](
+	connect(_caption, &Ui::InputField::cancelled, [=] { closeBox(); });
+	_caption->setMimeDataHook([=](
 			not_null<const QMimeData*> data,
 			Ui::InputField::MimeAction action) {
 		if (action == Ui::InputField::MimeAction::Check) {
