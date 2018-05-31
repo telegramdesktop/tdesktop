@@ -2284,10 +2284,22 @@ TextWithTags InputField::getTextWithAppliedMarkdown() const {
 	auto result = TextWithTags();
 	result.text.reserve(originalText.size());
 	result.tags.reserve(originalTags.size() + _lastMarkdownTags.size());
-	auto from = 0;
 	auto removed = 0;
 	auto originalTag = originalTags.begin();
 	const auto originalTagsEnd = originalTags.end();
+	const auto addOriginalTagsUpTill = [&](int offset) {
+		while (originalTag != originalTagsEnd
+			&& originalTag->offset + originalTag->length <= offset) {
+			result.tags.push_back(*originalTag++);
+			result.tags.back().offset -= removed;
+		}
+	};
+	auto from = 0;
+	const auto addOriginalTextUpTill = [&](int offset) {
+		if (offset > from) {
+			result.text.append(originalText.midRef(from, offset - from));
+		}
+	};
 	auto link = links.begin();
 	const auto linksEnd = links.end();
 	for (const auto &tag : _lastMarkdownTags) {
@@ -2299,11 +2311,7 @@ TextWithTags InputField::getTextWithAppliedMarkdown() const {
 		if (entityLength <= 0) {
 			continue;
 		}
-		while (originalTag != originalTagsEnd
-			&& originalTag->offset + originalTag->length <= tag.start) {
-			result.tags.push_back(*originalTag++);
-			result.tags.back().offset -= removed;
-		}
+		addOriginalTagsUpTill(tag.start);
 		if (originalTag != originalTagsEnd
 			&& originalTag->offset < tag.start + tag.length) {
 			continue;
@@ -2318,9 +2326,7 @@ TextWithTags InputField::getTextWithAppliedMarkdown() const {
 				|| link->offset() < tag.start)) {
 			continue;
 		}
-		if (tag.start > from) {
-			result.text.append(originalText.midRef(from, tag.start - from));
-		}
+		addOriginalTextUpTill(tag.start);
 		result.tags.push_back(TextWithTags::Tag{
 			int(result.text.size()),
 			entityLength,
@@ -2330,9 +2336,8 @@ TextWithTags InputField::getTextWithAppliedMarkdown() const {
 		from = tag.start + tag.length;
 		removed += 2 * tagLength;
 	}
-	if (originalText.size() > from) {
-		result.text.append(originalText.midRef(from));
-	}
+	addOriginalTagsUpTill(originalText.size());
+	addOriginalTextUpTill(originalText.size());
 	return result;
 }
 
