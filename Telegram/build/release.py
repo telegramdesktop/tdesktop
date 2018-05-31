@@ -178,9 +178,7 @@ if r.status_code == 404:
     for line in f:
       if started == 1:
         if re.match(r'^\d+\.\d+', line):
-          break;
-        if re.match(r'^\s+$', line):
-          continue
+          break
         changelog += line
       else:
         if re.match(r'^\d+\.\d+', line):
