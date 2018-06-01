@@ -48,15 +48,6 @@ Locale: ") + Platform::SystemLanguage();
 	UrlClickHandler::doOpen(url);
 }
 
-bool TermsAcceptRequired(const QString &countryCode) {
-	const auto codes = std::vector<QString>{
-		"AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE",
-		"GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT",
-		"RO", "SK", "SI", "ES", "SE", "GB"
-	};
-	return ranges::find(codes, countryCode.toUpper()) != end(codes);
-}
-
 } // namespace
 
 PhoneWidget::PhoneWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
@@ -73,16 +64,6 @@ PhoneWidget::PhoneWidget(QWidget *parent, Widget::Data *data) : Step(parent, dat
 	connect(_phone, SIGNAL(changed()), this, SLOT(onInputChange()));
 	connect(_code, SIGNAL(changed()), this, SLOT(onInputChange()));
 	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
-	connect(
-		_code,
-		&Ui::CountryCodeInput::codeChanged,
-		this,
-		&PhoneWidget::toggleTerms);
-	connect(
-		_country,
-		&CountryInput::codeChanged,
-		this,
-		&PhoneWidget::toggleTerms);
 
 	setTitleText(langFactory(lng_phone_title));
 	setDescriptionText(langFactory(lng_phone_desc));
@@ -93,10 +74,6 @@ PhoneWidget::PhoneWidget(QWidget *parent, Widget::Data *data) : Step(parent, dat
 		_country->onChooseCountry(qsl("US"));
 	}
 	_changed = false;
-
-	subscribe(Lang::Current().updated(), [this] {
-		_termsAccepted = false;
-	});
 
 	Messenger::Instance().destroyStaleAuthorizationKeys();
 }
@@ -152,13 +129,6 @@ void PhoneWidget::countryChanged() {
 	}
 }
 
-void PhoneWidget::toggleTerms() {
-	_termsAccepted = false;
-	InvokeQueued(this, [=] {
-		Step::toggleTerms(_country->iso());
-	});
-}
-
 void PhoneWidget::onInputChange() {
 	_changed = true;
 	hidePhoneError();
@@ -173,33 +143,22 @@ void PhoneWidget::submit() {
 		return;
 	}
 
-	const auto sendCode = [=] {
-		hidePhoneError();
+	hidePhoneError();
 
-		_checkRequest->start(1000);
+	_checkRequest->start(1000);
 
-		_sentPhone = fullNumber();
-		Messenger::Instance().mtp()->setUserPhone(_sentPhone);
-		//_sentRequest = MTP::send(MTPauth_CheckPhone(MTP_string(_sentPhone)), rpcDone(&PhoneWidget::phoneCheckDone), rpcFail(&PhoneWidget::phoneSubmitFail));
-		_sentRequest = MTP::send(
-			MTPauth_SendCode(
-				MTP_flags(0),
-				MTP_string(_sentPhone),
-				MTPBool(),
-				MTP_int(ApiId),
-				MTP_string(ApiHash)),
-			rpcDone(&PhoneWidget::phoneSubmitDone),
-			rpcFail(&PhoneWidget::phoneSubmitFail));
-	};
-	const auto code = _country->iso();
-	if (true || !TermsAcceptRequired(code) || _termsAccepted) {
-		sendCode();
-	} else {
-		acceptTerms(code, base::lambda_guarded(this, [=] {
-			_termsAccepted = true;
-			sendCode();
-		}));
-	}
+	_sentPhone = fullNumber();
+	Messenger::Instance().mtp()->setUserPhone(_sentPhone);
+	//_sentRequest = MTP::send(MTPauth_CheckPhone(MTP_string(_sentPhone)), rpcDone(&PhoneWidget::phoneCheckDone), rpcFail(&PhoneWidget::phoneSubmitFail));
+	_sentRequest = MTP::send(
+		MTPauth_SendCode(
+			MTP_flags(0),
+			MTP_string(_sentPhone),
+			MTPBool(),
+			MTP_int(ApiId),
+			MTP_string(ApiHash)),
+		rpcDone(&PhoneWidget::phoneSubmitDone),
+		rpcFail(&PhoneWidget::phoneSubmitFail));
 }
 
 void PhoneWidget::stopCheck() {
@@ -244,8 +203,8 @@ void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 		return;
 	}
 
-	auto &d = result.c_auth_sentCode();
-	fillSentCodeData(d.vtype);
+	const auto &d = result.c_auth_sentCode();
+	fillSentCodeData(d);
 	getData()->phone = _sentPhone;
 	getData()->phoneHash = qba(d.vphone_code_hash);
 	getData()->phoneIsRegistered = d.is_phone_registered();

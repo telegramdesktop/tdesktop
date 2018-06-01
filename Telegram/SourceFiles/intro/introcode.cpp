@@ -274,7 +274,7 @@ void CodeWidget::onSendCall() {
 
 void CodeWidget::callDone(const MTPauth_SentCode &v) {
 	if (v.type() == mtpc_auth_sentCode) {
-		fillSentCodeData(v.c_auth_sentCode().vtype);
+		fillSentCodeData(v.c_auth_sentCode());
 		_code->setDigitsCountMax(getData()->codeLength);
 	}
 	if (_callStatus == Widget::Data::CallStatus::Calling) {
@@ -328,8 +328,8 @@ void CodeWidget::noTelegramCodeDone(const MTPauth_SentCode &result) {
 		return;
 	}
 
-	auto &d = result.c_auth_sentCode();
-	fillSentCodeData(d.vtype);
+	const auto &d = result.c_auth_sentCode();
+	fillSentCodeData(d);
 	_code->setDigitsCountMax(getData()->codeLength);
 	if (d.has_next_type() && d.vnext_type.type() == mtpc_auth_codeTypeCall) {
 		getData()->callStatus = Widget::Data::CallStatus::Waiting;

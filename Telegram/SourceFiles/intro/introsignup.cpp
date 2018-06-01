@@ -47,6 +47,10 @@ SignupWidget::SignupWidget(QWidget *parent, Widget::Data *data) : Step(parent, d
 	setMouseTracking(true);
 }
 
+void SignupWidget::finishInit() {
+	showTerms();
+}
+
 void SignupWidget::refreshLang() {
 	_invertOrder = langFirstNameGoesSecond();
 	if (_invertOrder) {
@@ -176,7 +180,9 @@ void SignupWidget::onInputChange() {
 }
 
 void SignupWidget::submit() {
-	if (_sentRequest) return;
+	if (_sentRequest) {
+		return;
+	}
 	if (_invertOrder) {
 		if ((_last->hasFocus() || _last->getLastText().trimmed().length()) && !_first->getLastText().trimmed().length()) {
 			_first->setFocus();
@@ -195,11 +201,31 @@ void SignupWidget::submit() {
 		}
 	}
 
-	hideError();
+	const auto send = [&] {
+		hideError();
 
-	_firstName = _first->getLastText().trimmed();
-	_lastName = _last->getLastText().trimmed();
-	_sentRequest = MTP::send(MTPauth_SignUp(MTP_string(getData()->phone), MTP_bytes(getData()->phoneHash), MTP_string(getData()->code), MTP_string(_firstName), MTP_string(_lastName)), rpcDone(&SignupWidget::nameSubmitDone), rpcFail(&SignupWidget::nameSubmitFail));
+		_firstName = _first->getLastText().trimmed();
+		_lastName = _last->getLastText().trimmed();
+		_sentRequest = MTP::send(
+			MTPauth_SignUp(
+				MTP_string(getData()->phone),
+				MTP_bytes(getData()->phoneHash),
+				MTP_string(getData()->code),
+				MTP_string(_firstName),
+				MTP_string(_lastName)),
+			rpcDone(&SignupWidget::nameSubmitDone),
+			rpcFail(&SignupWidget::nameSubmitFail));
+	};
+	if (_termsAccepted
+		|| getData()->termsText.text.isEmpty()
+		|| !getData()->termsPopup) {
+		send();
+	} else {
+		acceptTerms(base::lambda_guarded(this, [=] {
+			_termsAccepted = true;
+			send();
+		}));
+	}
 }
 
 QString SignupWidget::nextButtonText() const {

@@ -23,6 +23,7 @@ class SignupWidget : public Widget::Step {
 public:
 	SignupWidget(QWidget *parent, Widget::Data *data);
 
+	void finishInit() override;
 	void setInnerFocus() override;
 	void activate() override;
 	void cancelled() override;
@@ -53,6 +54,7 @@ private:
 
 	bool _invertOrder = false;
 
+	bool _termsAccepted = false;
 	object_ptr<QTimer> _checkRequest;
 
 };

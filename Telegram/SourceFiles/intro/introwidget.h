@@ -77,6 +77,10 @@ public:
 		bool hasRecovery = false;
 		QString pwdHint;
 
+		TextWithEntities termsText;
+		bool termsPopup = false;
+		int termsAge = 0;
+
 		base::Observable<void> updated;
 
 	};
@@ -90,6 +94,8 @@ public:
 	public:
 		Step(QWidget *parent, Data *data, bool hasCover = false);
 
+		virtual void finishInit() {
+		}
 		virtual void setInnerFocus() {
 			setFocus();
 		}
@@ -97,11 +103,10 @@ public:
 		void setGoCallback(
 			base::lambda<void(Step *step, Direction direction)> callback);
 		void setShowResetCallback(base::lambda<void()> callback);
-		void setToggleTermsCallback(
-			base::lambda<void(QString countryCode)> callback);
-		void setAcceptTermsCallback(base::lambda<void(
-			QString countryCode,
-			base::lambda<void()> callback)> callback);
+		void setShowTermsCallback(
+			base::lambda<void()> callback);
+		void setAcceptTermsCallback(
+			base::lambda<void(base::lambda<void()> callback)> callback);
 
 		void prepareShowAnimated(Step *after);
 		void showAnimated(Direction direction);
@@ -137,7 +142,7 @@ public:
 		void setDescriptionText(base::lambda<QString()> richDescriptionTextFactory);
 		bool paintAnimated(Painter &p, QRect clip);
 
-		void fillSentCodeData(const MTPauth_SentCodeType &type);
+		void fillSentCodeData(const MTPDauth_sentCode &type);
 
 		void showDescription();
 		void hideDescription();
@@ -159,14 +164,12 @@ public:
 		void showResetButton() {
 			if (_showResetCallback) _showResetCallback();
 		}
-		void toggleTerms(const QString &countryCode) {
-			if (_toggleTermsCallback) _toggleTermsCallback(countryCode);
+		void showTerms() {
+			if (_showTermsCallback) _showTermsCallback();
 		}
-		void acceptTerms(
-				const QString &countryCode,
-				base::lambda<void()> callback) {
+		void acceptTerms(base::lambda<void()> callback) {
 			if (_acceptTermsCallback) {
-				_acceptTermsCallback(countryCode, callback);
+				_acceptTermsCallback(callback);
 			}
 		}
 
@@ -203,9 +206,8 @@ public:
 		bool _hasCover = false;
 		base::lambda<void(Step *step, Direction direction)> _goCallback;
 		base::lambda<void()> _showResetCallback;
-		base::lambda<void(QString countryCode)> _toggleTermsCallback;
+		base::lambda<void()> _showTermsCallback;
 		base::lambda<void(
-			QString countryCode,
 			base::lambda<void()> callback)> _acceptTermsCallback;
 
 		object_ptr<Ui::FlatLabel> _title;
@@ -244,10 +246,8 @@ private:
 	void showResetButton();
 	void resetAccount();
 
-	void toggleTerms(const QString &countryCode);
-	void acceptTerms(
-		const QString &countryCode,
-		base::lambda<void()> callback);
+	void showTerms();
+	void acceptTerms(base::lambda<void()> callback);
 	void hideAndDestroy(object_ptr<Ui::FadeWrap<Ui::RpWidget>> widget);
 
 	Step *getStep(int skip = 0) {
@@ -259,7 +259,7 @@ private:
 	void appendStep(Step *step);
 
 	void getNearestDC();
-	void showTerms(base::lambda<void()> callback = nullptr);
+	void showTerms(base::lambda<void()> callback);
 
 	Animation _a_show;
 	bool _showBack = false;
@@ -281,10 +281,6 @@ private:
 	object_ptr<Ui::FadeWrap<Ui::LinkButton>> _changeLanguage = { nullptr };
 	object_ptr<Ui::FadeWrap<Ui::RoundButton>> _resetAccount = { nullptr };
 	object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _terms = { nullptr };
-	QString _termsCountryCode;
-	QString _termsLastCountryCode;
-	QString _termsLastLangPack;
-	QString _termsLastText;
 
 	base::unique_qptr<Window::ConnectingWidget> _connecting;
 

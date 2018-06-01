@@ -1979,6 +1979,7 @@ void HistoryWidget::updateNotifyControls() {
 void HistoryWidget::refreshSilentToggle() {
 	if (!_silent && hasSilentToggle()) {
 		_silent.create(this, _peer->asChannel());
+		orderWidgets();
 	} else if (_silent && !hasSilentToggle()) {
 		_silent.destroy();
 	}
