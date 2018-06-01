@@ -1564,3 +1564,9 @@ void PeerListContent::handleNameChanged(const Notify::PeerUpdate &update) {
 		}
 	}
 }
+
+PeerListContent::~PeerListContent() {
+	if (_contextMenu) {
+		_contextMenu->setDestroyedCallback(nullptr);
+	}
+}

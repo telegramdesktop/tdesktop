@@ -484,6 +484,8 @@ public:
 		return _scrollToRequests.events();
 	}
 
+	~PeerListContent();
+
 protected:
 	int resizeGetHeight(int newWidth) override;
 	void visibleTopBottomUpdated(
