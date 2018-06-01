@@ -220,6 +220,7 @@ AlbumThumb::AlbumThumb(
 	if (_nameWidth > availableFileWidth) {
 		_name = st::semiboldFont->elided(
 			_name,
+			availableFileWidth,
 			Qt::ElideMiddle);
 		_nameWidth = st::semiboldFont->width(_name);
 	}
