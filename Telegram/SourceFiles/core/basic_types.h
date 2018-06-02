@@ -12,8 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <memory>
 #include <ctime>
 #include <functional>
+#include <gsl/gsl>
 
-#include <crl/crl.h>
 #include "base/build_config.h"
 #include "base/ordered_set.h"
 #include "base/unique_function.h"
@@ -38,6 +38,8 @@ using int64 = qint64;
 using uint64 = quint64;
 using float32 = float;
 using float64 = double;
+
+using TimeMs = int64;
 
 #define qsl(s) QStringLiteral(s)
 #define qstr(s) QLatin1String((s), sizeof(s) - 1)

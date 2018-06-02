@@ -30,6 +30,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"
 #include "media/media_audio_track.h"
+#include "mainwindow.h"
+#include "window/window_controller.h"
 
 namespace Settings {
 namespace {
@@ -124,6 +126,9 @@ void fillCodes() {
 	Codes.insert(qsl("registertg"), [] {
 		Platform::RegisterCustomScheme();
 		Ui::Toast::Show("Forced custom scheme register.");
+	});
+	Codes.insert(qsl("export"), [] {
+		App::wnd()->controller()->startDataExport();
 	});
 
 	auto audioFilters = qsl("Audio files (*.wav *.mp3);;") + FileDialog::AllFilesFilter();

@@ -7,8 +7,6 @@
 {
   'conditions': [[ 'build_mac', {
     'xcode_settings': {
-      'GCC_PREFIX_HEADER': '<(src_loc)/stdafx.h',
-      'GCC_PRECOMPILE_PREFIX_HEADER': 'YES',
       'INFOPLIST_FILE': '../Telegram.plist',
       'CURRENT_PROJECT_VERSION': '<!(./print_version.sh)',
       'ASSETCATALOG_COMPILER_APPICON_NAME': 'AppIcon',

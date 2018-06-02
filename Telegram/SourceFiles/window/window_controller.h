@@ -26,6 +26,13 @@ struct FormRequest;
 class FormController;
 } // namespace Passport
 
+namespace Export {
+class ControllerWrap;
+namespace View {
+class PanelController;
+} // namespace View
+} // namespace Export
+
 namespace Window {
 
 class LayerWidget;
@@ -208,6 +215,8 @@ public:
 	void showPassportForm(const Passport::FormRequest &request);
 	void clearPassportForm();
 
+	void startDataExport();
+
 	base::Variable<bool> &dialogsListFocused() {
 		return _dialogsListFocused;
 	}
@@ -251,10 +260,13 @@ private:
 		int dialogsWidth,
 		int thirdWidth,
 		int bodyWidth) const;
+	void clearDataExport();
 
 	not_null<MainWindow*> _window;
 
 	std::unique_ptr<Passport::FormController> _passportForm;
+	std::unique_ptr<Export::ControllerWrap> _export;
+	std::unique_ptr<Export::View::PanelController> _exportPanel;
 
 	GifPauseReasons _gifPauseReasons = 0;
 	base::Observable<void> _gifPauseLevelChanged;

@@ -113,7 +113,5 @@
         ],
       }]
     ],
-    'cmake_precompiled_header': '<(src_loc)/stdafx.h',
-    'cmake_precompiled_header_script': 'PrecompiledHeader.cmake',
   }]],
 }

@@ -123,6 +123,7 @@ public:
 	int closeGetDuration() override;
 
 	void cancelAuth();
+	void cancelAuthSure();
 
 	rpl::lifetime &lifetime();
 

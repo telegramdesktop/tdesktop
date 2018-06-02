@@ -69,13 +69,15 @@ endmacro()
 function(export_all_flags _filename _source_name_for_flags)
   set(_include_directories "$<TARGET_PROPERTY:${_target},INCLUDE_DIRECTORIES>")
   set(_compile_definitions "$<TARGET_PROPERTY:${_target},COMPILE_DEFINITIONS>")
-  get_source_file_property(_compile_flags "${_source_name_for_flags}" COMPILE_FLAGS)
+  get_source_file_property(_compile_file_flags "${_source_name_for_flags}" COMPILE_FLAGS)
+  set(_compile_flags "$<TARGET_PROPERTY:${_target},COMPILE_FLAGS>")
   set(_compile_options "$<TARGET_PROPERTY:${_target},COMPILE_OPTIONS>")
   set(_include_directories "$<$<BOOL:${_include_directories}>:-I$<JOIN:${_include_directories},\n-I>\n>")
   set(_compile_definitions "$<$<BOOL:${_compile_definitions}>:-D$<JOIN:${_compile_definitions},\n-D>\n>")
+  set(_compile_file_flags "$<$<BOOL:${_compile_file_flags}>:$<JOIN:${_compile_file_flags},\n>\n>")
   set(_compile_flags "$<$<BOOL:${_compile_flags}>:$<JOIN:${_compile_flags},\n>\n>")
   set(_compile_options "$<$<BOOL:${_compile_options}>:$<JOIN:${_compile_options},\n>\n>")
-  file(GENERATE OUTPUT "${_filename}" CONTENT "${_compile_definitions}${_include_directories}${_compile_flags}${_compile_options}\n")
+  file(GENERATE OUTPUT "${_filename}" CONTENT "${_compile_definitions}${_include_directories}${_compile_file_flags}${_compile_flags}${_compile_options}\n")
 endfunction()
 
 function(add_precompiled_header _target _input)
@@ -126,7 +128,7 @@ function(add_precompiled_header _target _input)
         COMMAND "${CMAKE_CXX_COMPILER}" ${_compiler_FLAGS} -x c++-header -o "${_output_cxx}" -c "${_pchfile}"
         DEPENDS "${_pchfile}" "${_pch_cpp_flags_file}"
         IMPLICIT_DEPENDS CXX "${_pch_header}"
-        COMMENT "Precompiling ${_name} for ${_target} (C++)")
+        COMMENT "Precompiling header ${_name} for ${_target} (C++)")
     endif()
 
     foreach(_source ${_sources})

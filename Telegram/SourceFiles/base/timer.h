@@ -7,7 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QtCore/QObject>
+#include <QtCore/QThread>
 #include "base/observer.h"
+#include "base/flat_map.h"
 
 namespace base {
 

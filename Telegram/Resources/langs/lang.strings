@@ -1653,6 +1653,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_error_cant_read" = "Can't read this file. Please choose an image.";
 "lng_passport_bad_name" = "Please use latin characters only.";
 
+"lng_export_title" = "Personal data export";
+"lng_export_option_info" = "Personal info";
+"lng_export_option_contacts" = "Contacts list";
+"lng_export_option_sessions" = "Sessions list";
+"lng_export_start" = "Export";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";

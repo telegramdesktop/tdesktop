@@ -11,7 +11,8 @@
   'targets': [{
     'target_name': 'crl',
     'type': 'static_library',
-    'dependencies': [],
+    'dependencies': [
+    ],
     'includes': [
       'common.gypi',
       'qt.gypi',

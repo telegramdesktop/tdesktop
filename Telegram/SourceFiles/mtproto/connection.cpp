@@ -445,7 +445,7 @@ ConnectionPrivate::ConnectionPrivate(
 	connect(this, SIGNAL(sendMsgsStateInfoAsync(quint64, QByteArray)), sessionData->owner(), SLOT(sendMsgsStateInfo(quint64,QByteArray)), Qt::QueuedConnection);
 	connect(this, SIGNAL(resendAsync(quint64,qint64,bool,bool)), sessionData->owner(), SLOT(resend(quint64,qint64,bool,bool)), Qt::QueuedConnection);
 	connect(this, SIGNAL(resendManyAsync(QVector<quint64>,qint64,bool,bool)), sessionData->owner(), SLOT(resendMany(QVector<quint64>,qint64,bool,bool)), Qt::QueuedConnection);
-	connect(this, SIGNAL(resendAllAsync()), sessionData->owner(), SLOT(resendAll()));
+	connect(this, SIGNAL(resendAllAsync()), sessionData->owner(), SLOT(resendAll()), Qt::QueuedConnection);
 }
 
 void ConnectionPrivate::onConfigLoaded() {
@@ -806,7 +806,7 @@ void ConnectionPrivate::tryToSend() {
 			req.write(*stateRequest);
 
 			stateRequest->msDate = getms(true); // > 0 - can send without container
-			stateRequest->requestId = reqid();// add to haveSent / wereAcked maps, but don't add to requestMap
+			stateRequest->requestId = GetNextRequestId();// add to haveSent / wereAcked maps, but don't add to requestMap
 		}
 		if (_connection->usingHttpWait()) {
 			MTPHttpWait req(MTP_http_wait(MTP_int(100), MTP_int(30), MTP_int(25000)));

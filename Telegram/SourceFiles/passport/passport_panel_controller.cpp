@@ -1206,6 +1206,10 @@ void PanelController::cancelAuth() {
 	_form->cancel();
 }
 
+void PanelController::cancelAuthSure() {
+	_form->cancelSure();
+}
+
 void PanelController::showBox(
 		object_ptr<BoxContent> box,
 		LayerOptions options,

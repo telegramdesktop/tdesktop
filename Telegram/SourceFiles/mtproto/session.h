@@ -319,14 +319,6 @@ public:
 	int32 getState() const;
 	QString transport() const;
 
-	mtpRequestId send(
-		mtpRequest &&request,
-		RPCResponseHandler &&callbacks = {},
-		TimeMs msCanWait = 0,
-		bool needsLayer = false,
-		bool toMainDC = false,
-		mtpRequestId after = 0);
-
 	// Nulls msgId and seqNo in request, if newRequest = true.
 	void sendPrepared(
 		const mtpRequest &request,
@@ -363,11 +355,6 @@ public slots:
 private:
 	void createDcData();
 
-	void registerRequest(mtpRequestId requestId, ShiftedDcId dcWithShift);
-	mtpRequestId storeRequest(
-		mtpRequest &request,
-		RPCResponseHandler &&callbacks);
-	mtpRequest getRequest(mtpRequestId requestId);
 	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err);
 
 	not_null<Instance*> _instance;

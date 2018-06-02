@@ -7,9 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <gsl/gsl>
+#include <QtCore/QVector>
+#include <QtCore/QString>
+#include <QtCore/QByteArray>
 #include "core/basic_types.h"
 #include "base/flags.h"
 #include "base/bytes.h"
+#include "base/algorithm.h"
+#include "base/assertion.h"
 
 namespace MTP {
 
@@ -47,7 +53,7 @@ class mtpRequestData : public mtpBuffer {
 public:
 	// in toSend: = 0 - must send in container, > 0 - can send without container
 	// in haveSent: = 0 - container with msgIds, > 0 - when was sent
-	TimeMs msDate = 0;
+	int64 msDate = 0;
 
 	mtpRequestId requestId = 0;
 	mtpRequest after;
@@ -103,24 +109,32 @@ public:
 	}
 };
 
+class Exception : public std::exception {
+public:
+	explicit Exception(const QString &msg) noexcept;
+
+	const char *what() const noexcept override;
+
+private:
+	QByteArray _msg;
+
+};
+
 class mtpErrorUnexpected : public Exception {
 public:
-	mtpErrorUnexpected(mtpTypeId typeId, const QString &type) : Exception(QString("MTP Unexpected type id #%1 read in %2").arg(uint32(typeId), 0, 16).arg(type), false) { // maybe api changed?..
-	}
+	mtpErrorUnexpected(mtpTypeId typeId, const QString &type) noexcept;
 
 };
 
 class mtpErrorInsufficient : public Exception {
 public:
-	mtpErrorInsufficient() : Exception("MTP Insufficient bytes in input buffer") {
-	}
+	mtpErrorInsufficient() noexcept;
 
 };
 
 class mtpErrorBadTypeId : public Exception {
 public:
-	mtpErrorBadTypeId(mtpTypeId typeId, const QString &type) : Exception(QString("MTP Bad type id %1 passed to constructor of %2").arg(typeId).arg(type)) {
-	}
+	mtpErrorBadTypeId(mtpTypeId typeId, const QString &type) noexcept;
 
 };
 
@@ -656,8 +670,8 @@ public:
 	MTPvector() = default;
 
 	uint32 innerLength() const {
-		uint32 result(sizeof(uint32));
-		for_const (auto &item, v) {
+		auto result = uint32(sizeof(uint32));
+		for (const auto &item : v) {
 			result += item.innerLength();
 		}
 		return result;
@@ -678,7 +692,7 @@ public:
 	}
 	void write(mtpBuffer &to) const {
 		to.push_back(v.size());
-		for_const (auto &item, v) {
+		for (const auto &item : v) {
 			item.write(to);
 		}
 	}
@@ -730,7 +744,11 @@ inline bool operator!=(const MTPvector<T> &a, const MTPvector<T> &b) {
 // Human-readable text serialization
 
 struct MTPStringLogger {
-	MTPStringLogger() : p(new char[MTPDebugBufferSize]), size(0), alloced(MTPDebugBufferSize) {
+	static constexpr auto kBufferSize = 1024 * 1024; // 1 mb start size
+
+	MTPStringLogger()
+	: p(new char[kBufferSize])
+	, alloced(kBufferSize) {
 	}
 	~MTPStringLogger() {
 		delete[] p;
@@ -767,15 +785,20 @@ struct MTPStringLogger {
 		if (size + add <= alloced) return;
 
 		int32 newsize = size + add;
-		if (newsize % MTPDebugBufferSize) newsize += MTPDebugBufferSize - (newsize % MTPDebugBufferSize);
+		if (newsize % kBufferSize) {
+			newsize += kBufferSize - (newsize % kBufferSize);
+		}
 		char *b = new char[newsize];
 		memcpy(b, p, size);
 		alloced = newsize;
 		delete[] p;
 		p = b;
 	}
-	char *p;
-	int32 size, alloced;
+
+	char *p = nullptr;
+	int size = 0;
+	int alloced = 0;
+
 };
 
 void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons = 0, uint32 level = 0, mtpPrime vcons = 0);

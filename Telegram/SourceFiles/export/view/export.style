@@ -1,0 +1,14 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "basic.style";
+
+using "ui/widgets/widgets.style";
+using "boxes/boxes.style";
+
+exportPanelSize: size(364px, 480px);
+exportSettingPadding: margins(22px, 8px, 22px, 8px);

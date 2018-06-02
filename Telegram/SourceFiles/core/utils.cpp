@@ -54,11 +54,13 @@ static_assert(sizeof(MTPdouble) == 8, "Basic types size check failed");
 // Unixtime functions
 
 namespace {
+
+std::atomic<int> GlobalAtomicRequestId = 0;
+
 	QReadWriteLock unixtimeLock;
 	volatile int32 unixtimeDelta = 0;
 	volatile bool unixtimeWasSet = false;
     volatile uint64 _msgIdStart, _msgIdLocal = 0, _msgIdMsStart;
-	int32 _reqId = 0;
 
 	void _initMsgIdConstants() {
 #ifdef Q_OS_WIN
@@ -433,12 +435,12 @@ uint64 msgid() {
 	return result + (_msgIdLocal += 4);
 }
 
-int32 reqid() {
-	QWriteLocker locker(&unixtimeLock);
-	if (_reqId == INT_MAX) {
-		_reqId = 0;
+int GetNextRequestId() {
+	const auto result = ++GlobalAtomicRequestId;
+	if (result == std::numeric_limits<int>::max() / 2) {
+		GlobalAtomicRequestId = 0;
 	}
-	return ++_reqId;
+	return result;
 }
 
 // crc32 hash, taken somewhere from the internet

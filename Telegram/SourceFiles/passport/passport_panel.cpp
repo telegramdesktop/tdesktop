@@ -26,11 +26,14 @@ Panel::Panel(not_null<PanelController*> controller)
 	_widget->setTitle(Lang::Viewer(lng_passport_title));
 	_widget->setInnerSize(st::passportPanelSize);
 
-	rpl::merge(
-		_widget->closeRequests(),
-		_widget->destroyRequests()
+	_widget->closeRequests(
 	) | rpl::start_with_next([=] {
 		_controller->cancelAuth();
+	}, _widget->lifetime());
+
+	_widget->closeEvents(
+	) | rpl::start_with_next([=] {
+		_controller->cancelAuthSure();
 	}, _widget->lifetime());
 }
 
@@ -47,7 +50,7 @@ not_null<Ui::RpWidget*> Panel::widget() const {
 }
 
 int Panel::hideAndDestroyGetDuration() {
-	return _widget->hideAndDestroyGetDuration();
+	return _widget->hideGetDuration();
 }
 
 void Panel::showAskPassword() {

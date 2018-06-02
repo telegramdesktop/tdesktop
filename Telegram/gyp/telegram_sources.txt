@@ -222,6 +222,12 @@
 <(src_loc)/dialogs/dialogs_search_from_controllers.h
 <(src_loc)/dialogs/dialogs_widget.cpp
 <(src_loc)/dialogs/dialogs_widget.h
+<(src_loc)/export/view/export_view_done.cpp
+<(src_loc)/export/view/export_view_done.h
+<(src_loc)/export/view/export_view_panel_controller.cpp
+<(src_loc)/export/view/export_view_panel_controller.h
+<(src_loc)/export/view/export_view_settings.cpp
+<(src_loc)/export/view/export_view_settings.h
 <(src_loc)/history/admin_log/history_admin_log_filter.cpp
 <(src_loc)/history/admin_log/history_admin_log_filter.h
 <(src_loc)/history/admin_log/history_admin_log_inner.cpp
@@ -417,6 +423,8 @@
 <(src_loc)/media/media_clip_reader.h
 <(src_loc)/mtproto/auth_key.cpp
 <(src_loc)/mtproto/auth_key.h
+<(src_loc)/mtproto/concurrent_sender.cpp
+<(src_loc)/mtproto/concurrent_sender.h
 <(src_loc)/mtproto/config_loader.cpp
 <(src_loc)/mtproto/config_loader.h
 <(src_loc)/mtproto/connection.cpp
@@ -780,8 +788,6 @@
 <(src_loc)/settings.h
 <(src_loc)/shortcuts.cpp
 <(src_loc)/shortcuts.h
-<(src_loc)/stdafx.cpp
-<(src_loc)/stdafx.h
 <(emoji_suggestions_loc)/emoji_suggestions.cpp
 <(emoji_suggestions_loc)/emoji_suggestions.h
 

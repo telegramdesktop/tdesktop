@@ -9,6 +9,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "zlib.h"
 
+Exception::Exception(const QString &msg) noexcept : _msg(msg.toUtf8()) {
+	LOG(("Exception: %1").arg(msg));
+}
+
+mtpErrorUnexpected::mtpErrorUnexpected(
+	mtpTypeId typeId,
+	const QString &type) noexcept
+: Exception(
+	QString("MTP Unexpected type id #%1 read in %2"
+	).arg(uint32(typeId), 0, 16
+	).arg(type)) {
+}
+
+mtpErrorInsufficient::mtpErrorInsufficient() noexcept
+: Exception("MTP Insufficient bytes in input buffer") {
+}
+
+mtpErrorBadTypeId::mtpErrorBadTypeId(
+	mtpTypeId typeId,
+	const QString &type) noexcept
+: Exception(
+	QString("MTP Bad type id #%1 passed to constructor of %2"
+	).arg(uint32(typeId), 0, 16
+	).arg(type)) {
+}
+
+const char *Exception::what() const noexcept {
+	return _msg.constData();
+}
+
 uint32 MTPstring::innerLength() const {
 	uint32 l = v.length();
 	if (l < 254) {

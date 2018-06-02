@@ -26,8 +26,6 @@ enum {
 
 	MTPKillFileSessionTimeout = 5000, // how much time without upload / download causes additional session kill
 
-	MTPDebugBufferSize = 1024 * 1024, // 1 mb start size
-
 	MaxUsersPerInvite = 100, // max users in one super group invite request
 
 	MTPChannelGetDifferenceLimit = 100,

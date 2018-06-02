@@ -85,11 +85,13 @@ rpl::producer<> SeparatePanel::backRequests() const {
 }
 
 rpl::producer<> SeparatePanel::closeRequests() const {
-	return _close->clicks();
+	return rpl::merge(
+		_close->clicks(),
+		_userCloseRequests.events());
 }
 
-rpl::producer<> SeparatePanel::destroyRequests() const {
-	return _destroyRequests.events();
+rpl::producer<> SeparatePanel::closeEvents() const {
+	return _closeEvents.events();
 }
 
 void SeparatePanel::setBackAllowed(bool allowed) {
@@ -191,7 +193,7 @@ void SeparatePanel::finishAnimating() {
 		showControls();
 		_inner->setFocus();
 	} else {
-		destroyDelayed();
+		finishClose();
 	}
 }
 
@@ -202,15 +204,15 @@ void SeparatePanel::showControls() {
 	}
 }
 
-void SeparatePanel::destroyDelayed() {
+void SeparatePanel::finishClose() {
 	hide();
-	_destroyRequests.fire({});
+	_closeEvents.fire({});
 }
 
-int SeparatePanel::hideAndDestroyGetDuration() {
+int SeparatePanel::hideGetDuration() {
 	toggleOpacityAnimation(false);
 	if (_animationCache.isNull()) {
-		destroyDelayed();
+		finishClose();
 		return 0;
 	}
 	return st::callPanelDuration;
@@ -485,7 +487,8 @@ void SeparatePanel::paintOpaqueBorder(Painter &p) const {
 }
 
 void SeparatePanel::closeEvent(QCloseEvent *e) {
-	// #TODO passport
+	e->ignore();
+	_userCloseRequests.fire({});
 }
 
 void SeparatePanel::mousePressEvent(QMouseEvent *e) {

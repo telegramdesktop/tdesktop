@@ -31,7 +31,7 @@ public:
 	void setInnerSize(QSize size);
 
 	void showAndActivate();
-	int hideAndDestroyGetDuration();
+	int hideGetDuration();
 
 	void showInner(base::unique_qptr<Ui::RpWidget> inner);
 	void showBox(
@@ -42,7 +42,7 @@ public:
 
 	rpl::producer<> backRequests() const;
 	rpl::producer<> closeRequests() const;
-	rpl::producer<> destroyRequests() const;
+	rpl::producer<> closeEvents() const;
 	void setBackAllowed(bool allowed);
 
 protected:
@@ -74,7 +74,7 @@ private:
 
 	void toggleOpacityAnimation(bool visible);
 	void finishAnimating();
-	void destroyDelayed();
+	void finishClose();
 
 	object_ptr<Ui::IconButton> _close;
 	object_ptr<Ui::FlatLabel> _title = { nullptr };
@@ -83,7 +83,8 @@ private:
 	base::unique_qptr<Ui::RpWidget> _inner;
 	object_ptr<Window::LayerStackWidget> _layer = { nullptr };
 	rpl::event_stream<> _synteticBackRequests;
-	rpl::event_stream<> _destroyRequests;
+	rpl::event_stream<> _userCloseRequests;
+	rpl::event_stream<> _closeEvents;
 
 	bool _useTransparency = true;
 	style::margins _padding;
