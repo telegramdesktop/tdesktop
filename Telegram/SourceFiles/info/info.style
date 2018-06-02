@@ -713,3 +713,33 @@ topBarConnectingAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimatio
 }
 
 infoFeedLeaveIconMargins: margins(10px, 12px, 20px, 10px);
+
+separatePanelBorderCacheSize: 60px;
+separatePanelTitleHeight: 62px;
+separatePanelClose: IconButton(boxTitleClose) {
+	width: 60px;
+	height: 60px;
+
+	rippleAreaPosition: point(8px, 8px);
+	rippleAreaSize: 44px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+separatePanelTitleFont: font(18px semibold);
+separatePanelTitle: FlatLabel(defaultFlatLabel) {
+	textFg: boxTitleFg;
+	maxHeight: 26px;
+	style: TextStyle(defaultTextStyle) {
+		font: separatePanelTitleFont;
+		linkFont: separatePanelTitleFont;
+		linkFontOver: font(18px semibold underline);
+	}
+}
+separatePanelTitleTop: 18px;
+separatePanelTitleLeft: 22px;
+separatePanelTitleSkip: 0px;
+separatePanelBack: IconButton(separatePanelClose) {
+	icon: infoTopBarBackIcon;
+	iconOver: infoTopBarBackIconOver;
+}

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/passcode_box.h"
 #include "boxes/confirm_box.h"
 #include "ui/toast/toast.h"
+#include "ui/rp_widget.h"
 #include "ui/countryinput.h"
 #include "layout.h"
 #include "styles/style_boxes.h"
@@ -492,7 +493,7 @@ void PanelController::setupPassword() {
 		notEmptyPassport,
 		hint,
 		newSecureSecretSalt));
-	box->connect(box, &PasscodeBox::reloadPassword, _panel.get(), [=] {
+	box->connect(box, &PasscodeBox::reloadPassword, [=] {
 		_form->reloadPassword();
 	});
 }
@@ -894,7 +895,8 @@ void PanelController::editWithUpload(int index, int documentIndex) {
 	Expects(documentIndex >= 0
 		&& documentIndex < _scopes[index].documents.size());
 
-	EditScans::ChooseScan(_panel.get(), [=](QByteArray &&content) {
+	const auto widget = _panel->widget();
+	EditScans::ChooseScan(widget.get(), [=](QByteArray &&content) {
 		base::take(_scopeDocumentTypeBox);
 		editScope(index, documentIndex);
 		if (_scopes[index].documents[documentIndex]->requiresSpecialScan(
@@ -949,7 +951,7 @@ void PanelController::editScope(int index, int documentIndex) {
 		case Scope::Type::Address: {
 			auto result = _editDocument
 				? object_ptr<PanelEditDocument>(
-					_panel.get(),
+					_panel->widget(),
 					this,
 					GetDocumentScheme(
 						_editScope->type,
@@ -960,7 +962,7 @@ void PanelController::editScope(int index, int documentIndex) {
 					valueFiles(*_editDocument),
 					valueSpecialFiles(*_editDocument))
 				: object_ptr<PanelEditDocument>(
-					_panel.get(),
+					_panel->widget(),
 					this,
 					GetDocumentScheme(_editScope->type),
 					_editValue->data.parsedInEdit);
@@ -980,7 +982,7 @@ void PanelController::editScope(int index, int documentIndex) {
 			const auto existing = getDefaultContactValue(_editScope->type);
 			_panelHasUnsavedChanges = nullptr;
 			return object_ptr<PanelEditContact>(
-				_panel.get(),
+				_panel->widget(),
 				this,
 				GetContactScheme(_editScope->type),
 				value,
@@ -1206,11 +1208,7 @@ void PanelController::showBox(
 }
 
 void PanelController::showToast(const QString &text) {
-	Expects(_panel != nullptr);
-
-	auto toast = Ui::Toast::Config();
-	toast.text = text;
-	Ui::Toast::Show(_panel.get(), toast);
+	_panel->showToast(text);
 }
 
 rpl::lifetime &PanelController::lifetime() {

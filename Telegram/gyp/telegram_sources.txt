@@ -667,6 +667,8 @@
 <(src_loc)/ui/widgets/multi_select.h
 <(src_loc)/ui/widgets/popup_menu.cpp
 <(src_loc)/ui/widgets/popup_menu.h
+<(src_loc)/ui/widgets/separate_panel.cpp
+<(src_loc)/ui/widgets/separate_panel.h
 <(src_loc)/ui/widgets/scroll_area.cpp
 <(src_loc)/ui/widgets/scroll_area.h
 <(src_loc)/ui/widgets/shadow.cpp

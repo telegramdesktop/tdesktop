@@ -37,37 +37,7 @@ passportVerifyErrorLabel: FlatLabel(passportErrorLabel) {
 	align: align(topleft);
 }
 
-passportPanelWidth: 392px;
-passportPanelHeight: 600px;
-passportPanelBorderCacheSize: 60px;
-passportPanelTitleHeight: 62px;
-passportPanelClose: IconButton(boxTitleClose) {
-	width: 60px;
-	height: 60px;
-
-	rippleAreaPosition: point(8px, 8px);
-	rippleAreaSize: 44px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
-}
-passportPanelTitleFont: font(18px semibold);
-passportPanelTitle: FlatLabel(defaultFlatLabel) {
-	textFg: boxTitleFg;
-	maxHeight: 26px;
-	style: TextStyle(defaultTextStyle) {
-		font: passportPanelTitleFont;
-		linkFont: passportPanelTitleFont;
-		linkFontOver: font(18px semibold underline);
-	}
-}
-passportPanelTitleTop: 18px;
-passportPanelTitleLeft: 22px;
-passportPanelTitleSkip: 0px;
-passportPanelBack: IconButton(passportPanelClose) {
-	icon: infoTopBarBackIcon;
-	iconOver: infoTopBarBackIconOver;
-}
+passportPanelSize: size(392px, 600px);
 
 passportPasswordFieldBottom: 306px;
 passportPasswordFieldSkip: 29px;

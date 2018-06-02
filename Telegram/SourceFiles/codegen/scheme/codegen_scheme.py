@@ -675,7 +675,9 @@ for restype in typesList:
 
       forwards += 'class MTPD' + name + ';\n'; # data class forward declaration
 
-      dataText += ', '.join(prmsStr) + ') : ' + ', '.join(prmsInit) + ' {\n\t}\n';
+      dataText += ', '.join(prmsStr) + ');\n';
+
+      constructsBodies += 'MTPD' + name + '::MTPD' + name + '(' + ', '.join(prmsStr) + ') : ' + ', '.join(prmsInit) + ' {\n}\n';
 
       dataText += '\n';
       for paramName in prmsList: # fields declaration
@@ -746,20 +748,11 @@ for restype in typesList:
   typesText += ' {\n';
   typesText += 'public:\n';
   typesText += '\tMTP' + restype + '()'; # default constructor
-  inits = [];
-  if not (withType):
-    if (withData):
-      inits.append('TypeDataOwner(' + newFast + ')');
   if (withData and not withType):
     typesText += ';\n';
-    methods += '\nMTP' + restype + '::MTP' + restype + '()';
-    if (inits):
-      methods += ' : ' + ', '.join(inits);
-    methods += ' {\n}\n';
+    methods += '\nMTP' + restype + '::MTP' + restype + '() : TypeDataOwner(' + newFast + ') {\n}\n';
   else:
-    if (inits):
-      typesText += ' : ' + ', '.join(inits);
-    typesText += ' {\n\t}\n';
+    typesText += ' = default;\n';
 
   if (withData):
     typesText += getters;
