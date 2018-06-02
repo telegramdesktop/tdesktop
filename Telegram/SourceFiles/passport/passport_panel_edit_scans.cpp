@@ -453,7 +453,7 @@ void EditScans::setupSpecialScans(std::map<SpecialFile, ScanInfo> &&files) {
 				) | Info::Profile::ToUpperValue(),
 				st::passportUploadButton),
 			st::passportUploadButtonPadding);
-		scan.upload->addClickHandler([=] {
+		scan.upload->addClickHandler([=, type = type] {
 			chooseSpecialScan(type);
 		});
 
