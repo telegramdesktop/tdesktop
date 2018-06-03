@@ -268,7 +268,9 @@ void StickersListWidget::Footer::validateSelectedIcon(
 		ValidateIconAnimations animations) {
 	auto newSelected = 0;
 	for (auto i = 0, l = _icons.size(); i != l; ++i) {
-		if (_icons[i].setId == setId) {
+		if (_icons[i].setId == setId
+			|| (_icons[i].setId == Stickers::FavedSetId
+				&& setId == Stickers::RecentSetId)) {
 			newSelected = i;
 			break;
 		}
@@ -2009,7 +2011,7 @@ void StickersListWidget::fillIcons(QList<StickerIcon> &icons) {
 	}
 	if (i != _mySets.size() && _mySets[i].id == Stickers::RecentSetId) {
 		++i;
-		if (!icons.empty() && icons.back().setId != Stickers::FavedSetId) {
+		if (icons.empty() || icons.back().setId != Stickers::FavedSetId) {
 			icons.push_back(StickerIcon(Stickers::RecentSetId));
 		}
 	}
