@@ -558,7 +558,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 					App::roundRect(p, QRect(tl, st::stickerPanSize), st::emojiPanHover, StickerHoverCorners);
 				}
 
-				bool goodThumb = !sticker->thumb->isNull() && ((sticker->thumb->width() >= 128) || (sticker->thumb->height() >= 128));
+				const auto goodThumb = sticker->hasGoodStickerThumb();
 				if (goodThumb) {
 					sticker->thumb->load();
 				} else {

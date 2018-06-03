@@ -1306,7 +1306,7 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int index, bo
 		App::roundRect(p, QRect(tl, _singleSize), st::emojiPanHover, StickerHoverCorners);
 	}
 
-	auto goodThumb = !sticker->thumb->isNull() && ((sticker->thumb->width() >= 128) || (sticker->thumb->height() >= 128));
+	const auto goodThumb = sticker->hasGoodStickerThumb();
 	if (goodThumb) {
 		sticker->thumb->load();
 	} else {
@@ -1755,9 +1755,7 @@ void StickersListWidget::preloadImages() {
 			auto sticker = sets[i].pack.at(j);
 			if (!sticker || !sticker->sticker()) continue;
 
-			bool goodThumb = !sticker->thumb->isNull()
-				&& ((sticker->thumb->width() >= 128)
-					|| (sticker->thumb->height() >= 128));
+			const auto goodThumb = sticker->hasGoodStickerThumb();
 			if (goodThumb) {
 				sticker->thumb->load();
 			} else {

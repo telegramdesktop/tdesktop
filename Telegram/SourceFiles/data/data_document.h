@@ -145,6 +145,8 @@ public:
 		_data = data;
 	}
 
+	bool hasGoodStickerThumb() const;
+
 	bool setRemoteVersion(int32 version); // Returns true if version has changed.
 	void setRemoteLocation(int32 dc, uint64 access);
 	void setContentUrl(const QString &url);
