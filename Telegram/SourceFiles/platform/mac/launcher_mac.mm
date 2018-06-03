@@ -12,8 +12,76 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <Cocoa/Cocoa.h>
 #include <CoreFoundation/CFURL.h>
+#include <sys/sysctl.h>
 
 namespace Platform {
+namespace {
+
+QString FromIdentifier(const QString &model) {
+	if (model.isEmpty() || model.toLower().indexOf("mac") < 0) {
+		return QString();
+	}
+	QStringList words;
+	QString word;
+	for (const QChar ch : model) {
+		if (!ch.isLetter()) {
+			continue;
+		}
+		if (ch.isUpper()) {
+			if (!word.isEmpty()) {
+				words.push_back(word);
+				word = QString();
+			}
+		}
+		word.append(ch);
+	}
+	if (!word.isEmpty()) {
+		words.push_back(word);
+	}
+	QString result;
+	for (const QString word : words) {
+		if (!result.isEmpty()
+			&& word != "Mac"
+			&& word != "Book") {
+			result.append(' ');
+		}
+		result.append(word);
+	}
+	return result;
+}
+
+QString DeviceModel() {
+	size_t length = 0;
+    sysctlbyname("hw.model", nullptr, &length, nullptr, 0);
+    if (length > 0) {
+        QByteArray bytes(length, Qt::Uninitialized);
+        sysctlbyname("hw.model", bytes.data(), &length, nullptr, 0);
+		const QString parsed = FromIdentifier(QString::fromUtf8(bytes));
+		if (!parsed.isEmpty()) {
+			return parsed;
+		}
+    }
+	return "Mac";
+}
+
+QString SystemVersion() {
+	const int version = QSysInfo::macVersion();
+	constexpr int kShift = 2;
+	if (version == QSysInfo::MV_None
+		|| version == QSysInfo::MV_Unknown
+		|| version < kShift + 6) {
+		return "OS X";
+	} else if (version < kShift + 12) {
+		return QString("OS X 10.%1").arg(version - kShift);
+	}
+	return QString("macOS 10.%1").arg(version - kShift);
+}
+
+} // namespace
+
+Launcher::Launcher(int argc, char *argv[])
+: Core::Launcher(argc, argv, DeviceModel(), SystemVersion()) {
+}
 
 void Launcher::initHook() {
 #ifndef OS_MAC_OLD

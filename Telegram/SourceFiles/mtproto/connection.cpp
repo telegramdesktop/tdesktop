@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/dc_options.h"
 #include "mtproto/connection_abstract.h"
 #include "zlib.h"
+#include "messenger.h"
+#include "core/launcher.h"
 #include "lang/lang_keys.h"
 #include "base/openssl_help.h"
 #include "base/qthelp_url.h"
@@ -822,10 +824,10 @@ void ConnectionPrivate::tryToSend() {
 		const auto langPack = "tdesktop";
 		const auto deviceModel = (_dcType == DcType::Cdn)
 			? "n/a"
-			: cApiDeviceModel();
+			: Messenger::Instance().launcher()->deviceModel();
 		const auto systemVersion = (_dcType == DcType::Cdn)
 			? "n/a"
-			: cApiSystemVersion();
+			: Messenger::Instance().launcher()->systemVersion();
 		const auto proxyType = _connectionOptions->proxy.type;
 		const auto mtprotoProxy = (proxyType == ProxyData::Type::Mtproto);
 		const auto clientProxyFields = mtprotoProxy

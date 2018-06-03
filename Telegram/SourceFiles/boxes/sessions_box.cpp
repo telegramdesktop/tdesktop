@@ -28,14 +28,14 @@ void SessionsBox::prepare() {
 
 	setDimensions(st::boxWideWidth, st::sessionsHeight);
 
+	_inner = setInnerWidget(object_ptr<Inner>(this, &_list, &_current), st::sessionsScroll);
+	_inner->resize(width(), st::noContactsHeight);
+
 	connect(_inner, SIGNAL(oneTerminated()), this, SLOT(onOneTerminated()));
 	connect(_inner, SIGNAL(allTerminated()), this, SLOT(onAllTerminated()));
 	connect(_inner, SIGNAL(terminateAll()), this, SLOT(onTerminateAll()));
 	connect(App::wnd(), SIGNAL(checkNewAuthorization()), this, SLOT(onCheckNewAuthorization()));
 	connect(_shortPollTimer, SIGNAL(timeout()), this, SLOT(onShortPollAuthorizations()));
-
-	_inner = setInnerWidget(object_ptr<Inner>(this, &_list, &_current), st::sessionsScroll);
-	_inner->resize(width(), st::noContactsHeight);
 
 	setLoading(true);
 
