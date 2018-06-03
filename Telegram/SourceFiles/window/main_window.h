@@ -7,22 +7,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <rpl/event_stream.h>
 #include "window/window_title.h"
+#include "ui/rp_widget.h"
 #include "base/timer.h"
 
+class BoxContent;
 class MediaView;
 
 namespace Window {
 
 class Controller;
 class TitleWidget;
+struct TermsLock;
 
 QImage LoadLogo();
 QImage LoadLogoNoMargin();
 QIcon CreateIcon();
 
-class MainWindow : public QWidget, protected base::Subscriber {
+class MainWindow : public Ui::RpWidget, protected base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -89,7 +91,7 @@ public slots:
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 
 	void savePosition(Qt::WindowState state = Qt::WindowActive);
 	void handleStateChanged(Qt::WindowState state);
@@ -149,6 +151,9 @@ private:
 	void initSize();
 
 	bool computeIsActive() const;
+	void checkLockByTerms();
+	void showTermsDecline();
+	void showTermsDelete();
 
 	base::Timer _positionUpdatedTimer;
 	bool _positionInited = false;
@@ -157,6 +162,7 @@ private:
 	object_ptr<TitleWidget> _title = { nullptr };
 	object_ptr<TWidget> _body;
 	object_ptr<TWidget> _rightColumn = { nullptr };
+	QPointer<BoxContent> _termsBox;
 
 	QIcon _icon;
 	QString _titleText;

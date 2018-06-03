@@ -217,8 +217,8 @@ void SignupWidget::submit() {
 			rpcFail(&SignupWidget::nameSubmitFail));
 	};
 	if (_termsAccepted
-		|| getData()->termsText.text.isEmpty()
-		|| !getData()->termsPopup) {
+		|| getData()->termsLock.text.text.isEmpty()
+		|| !getData()->termsLock.popup) {
 		send();
 	} else {
 		acceptTerms(crl::guard(this, [=] {

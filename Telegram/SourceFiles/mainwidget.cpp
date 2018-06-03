@@ -872,7 +872,7 @@ void MainWidget::noHider(HistoryHider *destroyed) {
 }
 
 void MainWidget::hiderLayer(object_ptr<HistoryHider> h) {
-	if (App::passcoded()) {
+	if (Messenger::Instance().locked()) {
 		return;
 	}
 
@@ -2082,7 +2082,7 @@ void MainWidget::ui_showPeerHistory(
 
 	auto animatedShow = [&] {
 		if (_a_show.animating()
-			|| App::passcoded()
+			|| Messenger::Instance().locked()
 			|| (params.animated == anim::type::instant)) {
 			return false;
 		}
@@ -2411,7 +2411,7 @@ void MainWidget::showNewSection(
 
 	auto animatedShow = [&] {
 		if (_a_show.animating()
-			|| App::passcoded()
+			|| Messenger::Instance().locked()
 			|| (params.animated == anim::type::instant)
 			|| memento.instant()) {
 			return false;

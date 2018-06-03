@@ -16,14 +16,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
-PopupMenu::PopupMenu(QWidget*, const style::PopupMenu &st) : TWidget(nullptr)
-, _st(st)
+PopupMenu::PopupMenu(QWidget*, const style::PopupMenu &st)
+: _st(st)
 , _menu(this, _st.menu) {
 	init();
 }
 
-PopupMenu::PopupMenu(QWidget*, QMenu *menu, const style::PopupMenu &st) : TWidget(nullptr)
-, _st(st)
+PopupMenu::PopupMenu(QWidget*, QMenu *menu, const style::PopupMenu &st)
+: _st(st)
 , _menu(this, menu, _st.menu) {
 	init();
 
@@ -36,11 +36,14 @@ PopupMenu::PopupMenu(QWidget*, QMenu *menu, const style::PopupMenu &st) : TWidge
 }
 
 void PopupMenu::init() {
-	subscribe(Messenger::Instance().passcodedChanged(), [this] {
-		if (App::passcoded()) {
-			hideMenu(true);
-		}
-	});
+	using namespace rpl::mappers;
+
+	rpl::merge(
+		Messenger::Instance().passcodeLockChanges(),
+		Messenger::Instance().termsLockChanges()
+	) | rpl::start_with_next([=] {
+		hideMenu(true);
+	}, lifetime());
 
 	_menu->setResizedCallback([this] { handleMenuResize(); });
 	_menu->setActivatedCallback([this](QAction *action, int actionTop, TriggeredSource source) {

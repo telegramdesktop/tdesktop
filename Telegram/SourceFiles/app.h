@@ -66,7 +66,6 @@ enum RoundCorners {
 namespace App {
 	MainWindow *wnd();
 	MainWidget *main();
-	bool passcoded();
 
 	QString formatPhone(QString phone);
 

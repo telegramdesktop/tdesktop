@@ -44,6 +44,7 @@ public:
 	}
 	void addItem(not_null<HistoryItem*> item) {
 		Expects(canAddItem(item));
+
 		_items.push_back(item);
 		ranges::sort(_items, [](not_null<HistoryItem*> a, auto b) {
 			return (a->id > b->id);

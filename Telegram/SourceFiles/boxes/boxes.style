@@ -785,3 +785,9 @@ proxyAboutPadding: margins(22px, 7px, 22px, 14px);
 proxyAboutSponsorPadding: margins(22px, 7px, 22px, 0px);
 
 markdownLinkFieldPadding: margins(22px, 0px, 22px, 10px);
+
+termsContent: FlatLabel(defaultFlatLabel) {
+	minWidth: 285px;
+}
+termsPadding: margins(23px, 4px, 16px, 16px);
+termsAgePadding: margins(23px, 16px, 16px, 0px);

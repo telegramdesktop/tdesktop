@@ -727,7 +727,10 @@ bool Notification::unlinkItem(HistoryItem *deleted) {
 }
 
 bool Notification::canReply() const {
-	return !_hideReplyButton && (_item != nullptr) && !App::passcoded() && (Global::NotifyView() <= dbinvShowPreview);
+	return !_hideReplyButton
+		&& (_item != nullptr)
+		&& !Messenger::Instance().locked()
+		&& (Global::NotifyView() <= dbinvShowPreview);
 }
 
 void Notification::unlinkHistoryInManager() {

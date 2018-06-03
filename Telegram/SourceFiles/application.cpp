@@ -66,7 +66,8 @@ QString _escapeFrom7bit(const QString &str) {
 
 bool StartUrlRequiresActivate(const QString &url) {
 	const auto urlTrimmed = url.trimmed();
-	if (!urlTrimmed.startsWith(qstr("tg://"), Qt::CaseInsensitive) || App::passcoded()) {
+	if (!urlTrimmed.startsWith(qstr("tg://"), Qt::CaseInsensitive)
+		|| Messenger::Instance().locked()) {
 		return true;
 	}
 	const auto command = urlTrimmed.midRef(qstr("tg://").size());

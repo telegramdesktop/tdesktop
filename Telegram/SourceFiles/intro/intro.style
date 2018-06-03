@@ -129,11 +129,6 @@ introTermsLabel: FlatLabel(defaultFlatLabel) {
 	align: align(top);
 }
 introTermsBottom: 20px;
-introTermsContent: FlatLabel(defaultFlatLabel) {
-	minWidth: 285px;
-}
-introTermsPadding: margins(23px, 0px, 16px, 0px);
-introTermsAgePadding: margins(23px, 8px, 16px, 8px);
 
 introCountryIcon: icon {{ "intro_country_dropdown", menuIconFg }};
 introCountryIconPosition: point(8px, 37px);

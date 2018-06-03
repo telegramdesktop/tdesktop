@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_widget.h"
 #include "core/crash_reports.h"
 #include "storage/localstorage.h"
-#include "passcodewidget.h"
 #include "mainwindow.h"
 #include "history/history_location_manager.h"
 #include "platform/mac/mac_utilities.h"

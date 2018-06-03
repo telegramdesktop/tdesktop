@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "boxes/confirm_box.h"
 #include "window/notifications_manager.h"
+#include "window/window_lock_widgets.h"
 #include "window/window_controller.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers.h"
@@ -246,6 +247,62 @@ void ApiWrap::requestDeepLinkInfo(
 		}
 	}).fail([=](const RPCError &error) {
 		_deepLinkInfoRequestId = 0;
+	}).send();
+}
+
+void ApiWrap::requestTermsUpdate() {
+	if (_termsUpdateRequestId) {
+		return;
+	}
+	const auto now = getms(true);
+	if (_termsUpdateSendAt && now < _termsUpdateSendAt) {
+		App::CallDelayed(_termsUpdateSendAt - now, _session, [=] {
+			requestTermsUpdate();
+		});
+		return;
+	}
+
+	constexpr auto kTermsUpdateTimeoutMin = 10 * TimeMs(1000);
+	constexpr auto kTermsUpdateTimeoutMax = 86400 * TimeMs(1000);
+
+	_termsUpdateRequestId = request(MTPhelp_GetTermsOfServiceUpdate(
+	)).done([=](const MTPhelp_TermsOfServiceUpdate &result) {
+		_termsUpdateRequestId = 0;
+
+		const auto requestNext = [&](auto &&data) {
+			_termsUpdateSendAt = getms(true) + snap(
+				TimeMs(data.vexpires.v - unixtime()),
+				kTermsUpdateTimeoutMin,
+				kTermsUpdateTimeoutMax);
+			requestTermsUpdate();
+		};
+		switch (result.type()) {
+		case mtpc_help_termsOfServiceUpdateEmpty: {
+			const auto &data = result.c_help_termsOfServiceUpdateEmpty();
+			requestNext(data);
+		} break;
+		case mtpc_help_termsOfServiceUpdate: {
+			const auto &data = result.c_help_termsOfServiceUpdate();
+			const auto &terms = data.vterms_of_service;
+			const auto &fields = terms.c_help_termsOfService();
+			Messenger::Instance().lockByTerms(
+				Window::TermsLock::FromMTP(fields));
+			requestNext(data);
+		} break;
+		default: Unexpected("Type in requestTermsUpdate().");
+		}
+	}).fail([=](const RPCError &error) {
+		_termsUpdateRequestId = 0;
+		_termsUpdateSendAt = getms(true) + kTermsUpdateTimeoutMin;
+		requestTermsUpdate();
+	}).send();
+}
+
+void ApiWrap::acceptTerms(bytes::const_span id) {
+	request(MTPhelp_AcceptTermsOfService(
+		MTP_dataJSON(MTP_bytes(id))
+	)).done([=](const MTPBool &result) {
+		requestTermsUpdate();
 	}).send();
 }
 

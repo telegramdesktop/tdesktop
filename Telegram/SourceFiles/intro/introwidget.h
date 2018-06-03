@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/sender.h"
 #include "ui/rp_widget.h"
+#include "window/window_lock_widgets.h"
 
 namespace Ui {
 class IconButton;
@@ -78,9 +79,7 @@ public:
 		QString pwdHint;
 		bool pwdNotEmptyPassport = false;
 
-		TextWithEntities termsText;
-		bool termsPopup = false;
-		int termsAge = 0;
+		Window::TermsLock termsLock;
 
 		base::Observable<void> updated;
 

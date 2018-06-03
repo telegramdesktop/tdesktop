@@ -8,12 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "styles/style_widgets.h"
+#include "ui/rp_widget.h"
 #include "ui/widgets/menu.h"
 #include "ui/effects/panel_animation.h"
 
 namespace Ui {
 
-class PopupMenu : public TWidget, private base::Subscriber {
+class PopupMenu : public Ui::RpWidget, private base::Subscriber {
 public:
 	PopupMenu(QWidget*, const style::PopupMenu &st = st::defaultPopupMenu);
 	PopupMenu(QWidget*, QMenu *menu, const style::PopupMenu &st = st::defaultPopupMenu);

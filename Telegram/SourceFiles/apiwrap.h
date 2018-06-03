@@ -97,6 +97,8 @@ public:
 	void requestDeepLinkInfo(
 		const QString &path,
 		Fn<void(const MTPDhelp_deepLinkInfo &result)> callback);
+	void requestTermsUpdate();
+	void acceptTerms(bytes::const_span termsId);
 
 	void requestChannelMembersForAdd(
 		not_null<ChannelData*> channel,
@@ -582,5 +584,8 @@ private:
 	base::Timer _updateNotifySettingsTimer;
 
 	mtpRequestId _deepLinkInfoRequestId = 0;
+
+	TimeMs _termsUpdateSendAt = 0;
+	mtpRequestId _termsUpdateRequestId = 0;
 
 };

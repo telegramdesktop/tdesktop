@@ -140,13 +140,6 @@ namespace App {
 		return nullptr;
 	}
 
-	bool passcoded() {
-		if (auto window = wnd()) {
-			return window->passcodeWidget();
-		}
-		return false;
-	}
-
 	namespace {
 		// we should get a full restriction in "{fulltype}: {reason}" format and we
 		// need to find a "-all" tag in {fulltype}, otherwise ignore this restriction

@@ -800,10 +800,14 @@ void MainWindow::psFirstShow() {
 		setWindowState(Qt::WindowMaximized);
 	}
 
-	if ((cLaunchMode() == LaunchModeAutoStart && cStartMinimized() && !App::passcoded()) || cStartInTray()) {
+	if (cStartInTray()
+		|| (cLaunchMode() == LaunchModeAutoStart
+			&& cStartMinimized()
+			&& !Messenger::Instance().passcodeLocked())) {
 		DEBUG_LOG(("Window Pos: First show, setting minimized after."));
 		setWindowState(Qt::WindowMinimized);
-		if (Global::WorkMode().value() == dbiwmTrayOnly || Global::WorkMode().value() == dbiwmWindowAndTray) {
+		if (Global::WorkMode().value() == dbiwmTrayOnly
+			|| Global::WorkMode().value() == dbiwmWindowAndTray) {
 			hide();
 		} else {
 			show();

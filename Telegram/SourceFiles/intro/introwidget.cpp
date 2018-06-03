@@ -24,13 +24,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
-#include "ui/widgets/checkbox.h"
 #include "ui/wrap/fade_wrap.h"
-#include "ui/wrap/vertical_layout.h"
 #include "ui/effects/slide_animation.h"
 #include "core/update_checker.h"
 #include "window/window_slide_animation.h"
 #include "window/window_connecting_widget.h"
+#include "window/window_lock_widgets.h"
 #include "styles/style_boxes.h"
 #include "styles/style_intro.h"
 #include "styles/style_window.h"
@@ -42,114 +41,6 @@ namespace Intro {
 namespace {
 
 constexpr str_const kDefaultCountry = "US";
-
-class TermsBox : public BoxContent {
-public:
-	TermsBox(
-		QWidget*,
-		const TextWithEntities &text,
-		Fn<QString()> agree,
-		Fn<QString()> cancel,
-		int age = 0);
-
-	rpl::producer<> agreeClicks() const;
-	rpl::producer<> cancelClicks() const;
-
-protected:
-	void prepare() override;
-
-	void keyPressEvent(QKeyEvent *e) override;
-
-private:
-	TextWithEntities _text;
-	Fn<QString()> _agree;
-	Fn<QString()> _cancel;
-	int _age = 0;
-	rpl::event_stream<> _agreeClicks;
-	rpl::event_stream<> _cancelClicks;
-
-};
-
-TermsBox::TermsBox(
-	QWidget*,
-	const TextWithEntities &text,
-	Fn<QString()> agree,
-	Fn<QString()> cancel,
-	int age)
-: _text(text)
-, _agree(agree)
-, _cancel(cancel)
-, _age(age) {
-}
-
-rpl::producer<> TermsBox::agreeClicks() const {
-	return _agreeClicks.events();
-}
-
-rpl::producer<> TermsBox::cancelClicks() const {
-	return _cancelClicks.events();
-}
-
-void TermsBox::prepare() {
-	setTitle(langFactory(lng_terms_header));
-
-	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
-	content->add(
-		object_ptr<Ui::FlatLabel> (
-			this,
-			rpl::single(_text),
-			st::introTermsContent),
-		st::introTermsPadding);
-	const auto age = (_age > 0)
-		? content->add(
-			object_ptr<Ui::Checkbox>(
-				this,
-				lng_terms_age(lt_count, _age)),
-			st::introTermsAgePadding)
-		: nullptr;
-
-	const auto refreshButtons = [=] {
-		clearButtons();
-		if (age && !age->checked()) {
-			addButton(langFactory(lng_cancel), [=] { closeBox(); });
-		} else {
-			addButton(_agree, [=] {})->clicks(
-			) | rpl::filter([=] {
-				if (age && !age->checked()) {
-					return false;
-				}
-				return true;
-			}) | rpl::start_to_stream(_agreeClicks, lifetime());
-
-			if (_cancel) {
-				addButton(_cancel, [=] {})->clicks(
-				) | rpl::start_to_stream(_cancelClicks, lifetime());
-			}
-		}
-	};
-	if (age) {
-		base::ObservableViewer(
-			age->checkedChanged
-		) | rpl::start_with_next([=] {
-			refreshButtons();
-		}, lifetime());
-	}
-	refreshButtons();
-
-	content->resizeToWidth(st::boxWideWidth);
-	content->heightValue(
-	) | rpl::start_with_next([=](int height) {
-		setDimensions(st::boxWideWidth, height);
-	}, content->lifetime());
-}
-
-void TermsBox::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-		_agreeClicks.fire({});
-	} else {
-		BoxContent::keyPressEvent(e);
-	}
-}
 
 } // namespace
 
@@ -412,7 +303,7 @@ void Widget::showResetButton() {
 }
 
 void Widget::showTerms() {
-	if (getData()->termsText.text.isEmpty()) {
+	if (getData()->termsLock.text.text.isEmpty()) {
 		_terms.destroy();
 	} else if (!_terms) {
 		auto entity = object_ptr<Ui::FlatLabel>(
@@ -498,15 +389,22 @@ void Widget::getNearestDC() {
 }
 
 void Widget::showTerms(Fn<void()> callback) {
-	if (getData()->termsText.text.isEmpty()) {
+	if (getData()->termsLock.text.text.isEmpty()) {
 		return;
 	}
 	const auto weak = make_weak(this);
-	const auto box = Ui::show(Box<TermsBox>(
-		getData()->termsText,
-		langFactory(callback ? lng_terms_agree : lng_box_ok),
-		callback ? langFactory(lng_terms_decline) : nullptr,
-		getData()->termsAge));
+	const auto box = Ui::show(callback
+		? Box<Window::TermsBox>(
+			getData()->termsLock,
+			langFactory(lng_terms_agree),
+			langFactory(lng_terms_decline))
+		: Box<Window::TermsBox>(
+			getData()->termsLock.text,
+			langFactory(lng_box_ok),
+			nullptr));
+
+	box->setCloseByEscape(false);
+	box->setCloseByOutsideClick(false);
 
 	box->agreeClicks(
 	) | rpl::start_with_next([=] {
@@ -520,7 +418,7 @@ void Widget::showTerms(Fn<void()> callback) {
 
 	box->cancelClicks(
 	) | rpl::start_with_next([=] {
-		const auto box = Ui::show(Box<TermsBox>(
+		const auto box = Ui::show(Box<Window::TermsBox>(
 			TextWithEntities{ lang(lng_terms_signup_sorry) },
 			langFactory(lng_intro_finish),
 			langFactory(lng_terms_decline)));
@@ -836,16 +734,9 @@ bool Widget::Step::paintAnimated(Painter &p, QRect clip) {
 void Widget::Step::fillSentCodeData(const MTPDauth_sentCode &data) {
 	if (data.has_terms_of_service()) {
 		const auto &terms = data.vterms_of_service.c_help_termsOfService();
-		getData()->termsText = TextWithEntities{
-			TextUtilities::Clean(qs(terms.vtext)),
-			TextUtilities::EntitiesFromMTP(terms.ventities.v) };
-		getData()->termsPopup = terms.is_popup();
-		getData()->termsAge = terms.has_min_age_confirm()
-			? terms.vmin_age_confirm.v
-			: 0;
+		getData()->termsLock = Window::TermsLock::FromMTP(terms);
 	} else {
-		getData()->termsText = TextWithEntities();
-		getData()->termsAge = 0;
+		getData()->termsLock = Window::TermsLock();
 	}
 
 	const auto &type = data.vtype;

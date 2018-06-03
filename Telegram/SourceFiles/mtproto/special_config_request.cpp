@@ -161,7 +161,9 @@ void ServiceWebRequest::destroy() {
 }
 
 ServiceWebRequest::~ServiceWebRequest() {
-	destroy();
+	if (reply) {
+		reply->deleteLater();
+	}
 }
 
 SpecialConfigRequest::SpecialConfigRequest(

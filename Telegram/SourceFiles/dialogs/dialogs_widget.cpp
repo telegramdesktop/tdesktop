@@ -140,7 +140,7 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 	subscribe(Global::RefLocalPasscodeChanged(), [this] { updateLockUnlockVisibility(); });
 	_lockUnlock->setClickedCallback([this] {
 		_lockUnlock->setIconOverride(&st::dialogsUnlockIcon, &st::dialogsUnlockIconOver);
-		Messenger::Instance().setupPasscode();
+		Messenger::Instance().lockByPasscode();
 		_lockUnlock->setIconOverride(nullptr);
 	});
 	_mainMenuToggle->setClickedCallback([this] { showMainMenu(); });

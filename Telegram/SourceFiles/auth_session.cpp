@@ -281,14 +281,19 @@ AuthSession::AuthSession(UserId userId)
 	_saveDataTimer.setCallback([=] {
 		Local::writeUserSettings();
 	});
-	subscribe(Messenger::Instance().passcodedChanged(), [=] {
+	Messenger::Instance().passcodeLockChanges(
+	) | rpl::start_with_next([=] {
 		_shouldLockAt = 0;
+	}, _lifetime);
+	Messenger::Instance().lockChanges(
+	) | rpl::start_with_next([=] {
 		notifications().updateAll();
-	});
+	}, _lifetime);
 	subscribe(Global::RefConnectionTypeChanged(), [=] {
 		_api->refreshProxyPromotion();
 	});
 	_api->refreshProxyPromotion();
+	_api->requestTermsUpdate();
 
 	Window::Theme::Background()->start();
 }
@@ -327,7 +332,10 @@ void AuthSession::saveSettingsDelayed(TimeMs delay) {
 }
 
 void AuthSession::checkAutoLock() {
-	if (!Global::LocalPasscode() || App::passcoded()) return;
+	if (!Global::LocalPasscode()
+		|| Messenger::Instance().passcodeLocked()) {
+		return;
+	}
 
 	Messenger::Instance().checkLocalTime();
 	auto now = getms(true);
@@ -336,7 +344,7 @@ void AuthSession::checkAutoLock() {
 	auto notPlayingVideoForMs = now - settings().lastTimeVideoPlayedAt();
 	auto checkTimeMs = qMin(idleForMs, notPlayingVideoForMs);
 	if (checkTimeMs >= shouldLockInMs || (_shouldLockAt > 0 && now > _shouldLockAt + kAutoLockTimeoutLateMs)) {
-		Messenger::Instance().setupPasscode();
+		Messenger::Instance().lockByPasscode();
 	} else {
 		_shouldLockAt = now + (shouldLockInMs - checkTimeMs);
 		_autoLockTimer.callOnce(shouldLockInMs - checkTimeMs);

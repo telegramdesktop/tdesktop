@@ -21,8 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "shortcuts.h"
 #include "messenger.h"
+#include "auth_session.h"
 #include "application.h"
-#include "passcodewidget.h"
 #include "intro/introwidget.h"
 #include "mainwidget.h"
 #include "boxes/confirm_box.h"
@@ -38,8 +38,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_warning.h"
+#include "window/window_lock_widgets.h"
 #include "window/window_main_menu.h"
-#include "auth_session.h"
 #include "window/window_controller.h"
 
 namespace {
@@ -82,7 +82,10 @@ MainWindow::MainWindow() {
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &data) {
 		themeUpdated(data);
 	});
-	subscribe(Messenger::Instance().passcodedChanged(), [this] { updateGlobalMenu(); });
+	Messenger::Instance().lockChanges(
+	) | rpl::start_with_next([=] {
+		updateGlobalMenu();
+	}, lifetime());
 
 	setAttribute(Qt::WA_NoSystemBackground);
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -126,7 +129,7 @@ void MainWindow::firstShow() {
 
 void MainWindow::clearWidgetsHook() {
 	auto wasMain = (_main != nullptr);
-	_passcode.destroyDelayed();
+	_passcodeLock.destroy();
 	_main.destroy();
 	_intro.destroy();
 	if (wasMain) {
@@ -135,46 +138,49 @@ void MainWindow::clearWidgetsHook() {
 }
 
 QPixmap MainWindow::grabInner() {
-	QPixmap result;
 	if (_intro) {
-		result = Ui::GrabWidget(_intro);
-	} else if (_passcode) {
-		result = Ui::GrabWidget(_passcode);
+		return Ui::GrabWidget(_intro);
+	} else if (_passcodeLock) {
+		return Ui::GrabWidget(_passcodeLock);
 	} else if (_main) {
-		result = Ui::GrabWidget(_main);
+		return Ui::GrabWidget(_main);
 	}
-	return result;
+	return {};
 }
 
-void MainWindow::clearPasscode() {
-	if (!_passcode) return;
+void MainWindow::setupPasscodeLock() {
+	auto animated = (_main || _intro);
+	auto bg = animated ? grabInner() : QPixmap();
+	_passcodeLock.create(bodyWidget());
+	updateControlsGeometry();
+
+	Messenger::Instance().hideMediaView();
+	Ui::hideSettingsAndLayer(anim::type::instant);
+	if (_main) {
+		_main->hide();
+	}
+	if (_intro) {
+		_intro->hide();
+	}
+	if (animated) {
+		_passcodeLock->showAnimated(bg);
+	} else {
+		setInnerFocus();
+	}
+}
+
+void MainWindow::clearPasscodeLock() {
+	if (!_passcodeLock) return;
 
 	auto bg = grabInner();
 
-	_passcode.destroy();
+	_passcodeLock.destroy();
 	if (_intro) {
 		_intro->showAnimated(bg, true);
 	} else {
 		Assert(_main != nullptr);
 		_main->showAnimated(bg, true);
 		Messenger::Instance().checkStartUrl();
-	}
-}
-
-void MainWindow::setupPasscode() {
-	auto animated = (_main || _intro);
-	auto bg = animated ? grabInner() : QPixmap();
-	_passcode.create(bodyWidget());
-	updateControlsGeometry();
-
-	if (_main) _main->hide();
-	Messenger::Instance().hideMediaView();
-	Ui::hideSettingsAndLayer(anim::type::instant);
-	if (_intro) _intro->hide();
-	if (animated) {
-		_passcode->showAnimated(bg);
-	} else {
-		setInnerFocus();
 	}
 }
 
@@ -185,7 +191,7 @@ void MainWindow::setupIntro() {
 
 	Ui::hideSettingsAndLayer(anim::type::instant);
 
-	auto animated = (_main || _passcode);
+	auto animated = (_main || _passcodeLock);
 	auto bg = animated ? grabInner() : QPixmap();
 
 	clearWidgets();
@@ -267,7 +273,7 @@ void MainWindow::sendServiceHistoryRequest() {
 }
 
 void MainWindow::setupMain(const MTPUser *self) {
-	auto animated = (_intro || _passcode);
+	auto animated = (_intro || _passcodeLock);
 	auto bg = animated ? grabInner() : QPixmap();
 
 	clearWidgets();
@@ -297,7 +303,7 @@ void MainWindow::showSettings() {
 void MainWindow::showSpecialLayer(
 		object_ptr<Window::LayerWidget> layer,
 		anim::type animated) {
-	if (_passcode) return;
+	if (_passcodeLock) return;
 
 	if (layer) {
 		ensureLayerCreated();
@@ -317,7 +323,7 @@ bool MainWindow::showSectionInExistingLayer(
 }
 
 void MainWindow::showMainMenu() {
-	if (_passcode) return;
+	if (_passcodeLock) return;
 
 	if (isHidden()) showFromTray();
 
@@ -358,10 +364,6 @@ void MainWindow::ui_hideSettingsAndLayer(anim::type animated) {
 
 MainWidget *MainWindow::mainWidget() {
 	return _main;
-}
-
-PasscodeWidget *MainWindow::passcodeWidget() {
-	return _passcode;
 }
 
 void MainWindow::ui_showBox(
@@ -481,8 +483,8 @@ void MainWindow::setInnerFocus() {
 		_testingThemeWarning->setFocus();
 	} else if (_layer && _layer->canSetFocus()) {
 		_layer->setInnerFocus();
-	} else if (_passcode) {
-		_passcode->setInnerFocus();
+	} else if (_passcodeLock) {
+		_passcodeLock->setInnerFocus();
 	} else if (_main) {
 		_main->setInnerFocus();
 	} else if (_intro) {
@@ -700,7 +702,7 @@ bool MainWindow::skipTrayClick() const {
 }
 
 void MainWindow::toggleDisplayNotifyFromTray() {
-	if (App::passcoded()) {
+	if (Messenger::Instance().locked()) {
 		if (!isActive()) showFromTray();
 		Ui::show(Box<InformBox>(lang(lng_passcode_need_unblock)));
 		return;
@@ -749,7 +751,7 @@ void MainWindow::updateControlsGeometry() {
 	Platform::MainWindow::updateControlsGeometry();
 
 	auto body = bodyWidget()->rect();
-	if (_passcode) _passcode->setGeometry(body);
+	if (_passcodeLock) _passcodeLock->setGeometry(body);
 	if (_main) _main->setGeometry(body);
 	if (_intro) _intro->setGeometry(body);
 	if (_layer) _layer->setGeometry(body);
@@ -911,7 +913,9 @@ QImage MainWindow::iconWithCounter(int size, int count, style::color bg, style::
 }
 
 void MainWindow::sendPaths() {
-	if (App::passcoded()) return;
+	if (Messenger::Instance().locked()) {
+		return;
+	}
 	Messenger::Instance().hideMediaView();
 	Ui::hideSettingsAndLayer(anim::type::instant);
 	if (_main) {

@@ -729,6 +729,8 @@
 <(src_loc)/window/window_connecting_widget.h
 <(src_loc)/window/window_controller.cpp
 <(src_loc)/window/window_controller.h
+<(src_loc)/window/window_lock_widgets.cpp
+<(src_loc)/window/window_lock_widgets.h
 <(src_loc)/window/window_main_menu.cpp
 <(src_loc)/window/window_main_menu.h
 <(src_loc)/window/window_peer_menu.cpp
@@ -773,8 +775,6 @@
 <(src_loc)/messenger.h
 <(src_loc)/observer_peer.cpp
 <(src_loc)/observer_peer.h
-<(src_loc)/passcodewidget.cpp
-<(src_loc)/passcodewidget.h
 <(src_loc)/qt_static_plugins.cpp
 <(src_loc)/settings.cpp
 <(src_loc)/settings.h

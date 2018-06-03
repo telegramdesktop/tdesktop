@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "history/history_location_manager.h"
 #include "storage/localstorage.h"
-#include "passcodewidget.h"
 #include "core/crash_reports.h"
 
 #include <Shobjidl.h>

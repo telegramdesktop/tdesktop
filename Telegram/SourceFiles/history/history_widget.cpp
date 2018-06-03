@@ -46,8 +46,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "application.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "passcodewidget.h"
-#include "mainwindow.h"
 #include "storage/localimageloader.h"
 #include "storage/localstorage.h"
 #include "storage/file_upload.h"
@@ -55,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/media_audio.h"
 #include "media/media_audio_capture.h"
 #include "media/player/media_player_instance.h"
+#include "messenger.h"
 #include "apiwrap.h"
 #include "history/view/history_view_top_bar_widget.h"
 #include "observer_peer.h"
@@ -6472,8 +6471,13 @@ void HistoryWidget::updateTopBarSelection() {
 	_topBar->showSelected(selectedState);
 	updateControlsVisibility();
 	updateHistoryGeometry();
-	if (!Ui::isLayerShown() && !App::passcoded()) {
-		if (_nonEmptySelection || (_list && _list->wasSelectedText()) || _recording || isBotStart() || isBlocked() || !_canSendMessages) {
+	if (!Ui::isLayerShown() && !Messenger::Instance().locked()) {
+		if (_nonEmptySelection
+			|| (_list && _list->wasSelectedText())
+			|| _recording
+			|| isBotStart()
+			|| isBlocked()
+			|| !_canSendMessages) {
 			_list->setFocus();
 		} else {
 			_field->setFocus();

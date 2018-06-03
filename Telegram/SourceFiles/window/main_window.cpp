@@ -8,14 +8,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/main_window.h"
 
 #include "storage/localstorage.h"
-#include "styles/style_window.h"
 #include "platform/platform_window_title.h"
 #include "history/history.h"
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
+#include "window/window_lock_widgets.h"
+#include "boxes/confirm_box.h"
+#include "core/click_handler_types.h"
+#include "lang/lang_keys.h"
 #include "mediaview.h"
+#include "auth_session.h"
+#include "apiwrap.h"
 #include "messenger.h"
 #include "mainwindow.h"
+#include "styles/style_window.h"
+#include "styles/style_boxes.h"
 
 namespace Window {
 
@@ -64,8 +71,92 @@ MainWindow::MainWindow()
 	subscribe(Messenger::Instance().authSessionChanged(), [this] { checkAuthSession(); });
 	checkAuthSession();
 
+	Messenger::Instance().termsLockValue(
+	) | rpl::start_with_next([=] {
+		checkLockByTerms();
+	}, lifetime());
+
 	_isActiveTimer.setCallback([this] { updateIsActive(0); });
 	_inactivePressTimer.setCallback([this] { setInactivePress(false); });
+}
+
+void MainWindow::checkLockByTerms() {
+	const auto data = Messenger::Instance().termsLocked();
+	if (!data || !AuthSession::Exists()) {
+		if (_termsBox) {
+			_termsBox->closeBox();
+		}
+		return;
+	}
+	Ui::hideSettingsAndLayer(anim::type::instant);
+	const auto box = Ui::show(Box<TermsBox>(
+		*data,
+		langFactory(lng_terms_agree),
+		langFactory(lng_terms_decline)));
+
+	box->setCloseByEscape(false);
+	box->setCloseByOutsideClick(false);
+
+	const auto id = data->id;
+	box->agreeClicks(
+	) | rpl::start_with_next([=] {
+		const auto mention = box ? box->lastClickedMention() : QString();
+		if (AuthSession::Exists()) {
+			Auth().api().acceptTerms(id);
+			if (!mention.isEmpty()) {
+				MentionClickHandler(mention).onClick(Qt::LeftButton);
+			}
+		}
+		Messenger::Instance().unlockTerms();
+	}, box->lifetime());
+
+	box->cancelClicks(
+	) | rpl::start_with_next([=] {
+		showTermsDecline();
+	}, box->lifetime());
+
+	connect(box, &QObject::destroyed, [=] {
+		crl::on_main(this, [=] { checkLockByTerms(); });
+	});
+
+	_termsBox = box;
+}
+
+void MainWindow::showTermsDecline() {
+	const auto box = Ui::show(
+		Box<Window::TermsBox>(
+			TextWithEntities{ lang(lng_terms_update_sorry) },
+			langFactory(lng_terms_decline_and_delete),
+			langFactory(lng_terms_back),
+			true),
+		LayerOption::KeepOther);
+
+	box->agreeClicks(
+	) | rpl::start_with_next([=] {
+		if (box) {
+			box->closeBox();
+		}
+		showTermsDelete();
+	}, box->lifetime());
+
+	box->cancelClicks(
+	) | rpl::start_with_next([=] {
+		if (box) {
+			box->closeBox();
+		}
+	}, box->lifetime());
+}
+
+void MainWindow::showTermsDelete() {
+	const auto box = std::make_shared<QPointer<BoxContent>>();
+	*box = Ui::show(
+		Box<ConfirmBox>(
+			lang(lng_terms_delete_warning),
+			lang(lng_terms_delete_now),
+			st::attentionBoxButton,
+			[=] { Messenger::Instance().termsDeleteNow(); },
+			[=] { if (*box) (*box)->closeBox(); }),
+		LayerOption::KeepOther);
 }
 
 bool MainWindow::hideNoQuit() {
@@ -238,7 +329,7 @@ rpl::producer<> MainWindow::leaveEvents() const {
 	return _leaveEvents.events();
 }
 
-void MainWindow::leaveEvent(QEvent *e) {
+void MainWindow::leaveEventHook(QEvent *e) {
 	_leaveEvents.fire({});
 }
 

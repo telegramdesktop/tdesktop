@@ -1524,6 +1524,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_terms_agree" = "Agree & Continue";
 "lng_terms_decline" = "Decline";
 "lng_terms_signup_sorry" = "We're very sorry, but this means you can't sign up for Telegram.\n\nUnlike others, we don't use your data for ad targeting or other commercial purposes. Telegram only stores the information it needs to function as a feature-rich cloud service. You can adjust how we use your data in Privacy & Security settings.\n\nBut if you're generally not OK with Telegram's modest needs, it won't be possible for us to provide this service.";
+"lng_terms_update_sorry" = "We're very sorry, but this means we must part ways here. Unlike others, we don't use your data for ad targeting or other commercial purposes. Telegram only stores the information it needs to function as a feature-rich cloud service. You can adjust how we use your data in Privacy & Security settings.\n\nBut if you're generally not OK with Telegram's modest needs, it won't be possible for us to provide this service. You can deactivate your account now — or look around some more and deactivate it later if you feel you're not happy with the way we use your data. How does that sound?";
+"lng_terms_decline_and_delete" = "Decline & Delete";
+"lng_terms_back" = "Back";
+"lng_terms_delete_warning" = "Warning, this will irreversibly delete your Telegram account along with all the data you store in the Telegram cloud.\n\nWe will provide a tool to download your data before June, 23 – so you may want to wait a little before deleting.";
+"lng_terms_delete_now" = "Delete now";
+"lng_terms_agree_to_proceed" = "Please agree and proceed to {bot}.";
 
 "lng_date_input_day" = "Day";
 "lng_date_input_month" = "Month";
