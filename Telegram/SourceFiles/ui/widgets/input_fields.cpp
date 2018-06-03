@@ -1125,9 +1125,6 @@ InputField::InputField(
 
 	_inner->setFont(_st.font->f);
 	_inner->setAlignment(_st.textAlign);
-	_defaultCharFormat = _inner->textCursor().charFormat();
-	_defaultCharFormat.merge(PrepareTagFormat(_st, QString()));
-	_inner->textCursor().setCharFormat(_defaultCharFormat);
 	if (_mode == Mode::SingleLine) {
 		_inner->setWordWrapMode(QTextOption::NoWrap);
 	}
@@ -1141,7 +1138,10 @@ InputField::InputField(
 			updatePalette();
 		}
 	});
+
+	_defaultCharFormat = _inner->textCursor().charFormat();
 	updatePalette();
+	_inner->textCursor().setCharFormat(_defaultCharFormat);
 
 	_inner->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	_inner->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -1218,6 +1218,34 @@ void InputField::updatePalette() {
 	auto p = _inner->palette();
 	p.setColor(QPalette::Text, _st.textFg->c);
 	_inner->setPalette(p);
+
+	_defaultCharFormat.merge(PrepareTagFormat(_st, QString()));
+	auto cursor = textCursor();
+
+	const auto document = _inner->document();
+	auto block = document->begin();
+	const auto end = document->end();
+	for (; block != end; block = block.next()) {
+		auto till = block.position();
+		for (auto i = block.begin(); !i.atEnd();) {
+			for (; !i.atEnd(); ++i) {
+				const auto fragment = i.fragment();
+				if (!fragment.isValid() || fragment.position() < till) {
+					continue;
+				}
+				till = fragment.position() + fragment.length();
+
+				auto format = fragment.charFormat();
+				const auto tag = format.property(kTagProperty).toString();
+				format.setForeground(PrepareTagFormat(_st, tag).foreground());
+				cursor.setPosition(fragment.position());
+				cursor.setPosition(till, QTextCursor::KeepAnchor);
+				cursor.mergeCharFormat(format);
+				i = block.begin();
+				break;
+			}
+		}
+	}
 }
 
 void InputField::onTouchTimer() {
