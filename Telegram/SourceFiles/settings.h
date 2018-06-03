@@ -50,6 +50,7 @@ DeclareSetting(QString, LoggedPhoneNumber);
 DeclareSetting(bool, AutoStart);
 DeclareSetting(bool, StartMinimized);
 DeclareSetting(bool, StartInTray);
+DeclareSetting(bool, StartInSystemTray);
 DeclareSetting(bool, SendToMenu);
 DeclareSetting(bool, UseExternalVideoPlayer);
 enum LaunchMode {

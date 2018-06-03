@@ -28,6 +28,7 @@ QString gDialogLastPath, gDialogHelperPath; // optimize QFileDialog
 
 bool gStartMinimized = false;
 bool gStartInTray = false;
+bool gStartInSystemTray = false;
 bool gAutoStart = false;
 bool gSendToMenu = false;
 bool gUseExternalVideoPlayer = false;
