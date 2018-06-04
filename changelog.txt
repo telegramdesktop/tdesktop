@@ -1,3 +1,7 @@
+1.3.1 (04.06.18)
+
+- Bug fixes and other minor improvements.
+
 1.3.0 (01.06.18)
 
 - Improved censorship circumvention.
