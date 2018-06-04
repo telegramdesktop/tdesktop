@@ -101,7 +101,7 @@ void VerifyBox::setupControls(
 	const auto waiter = Ui::CreateChild<Ui::FlatLabel>(
 		this,
 		std::move(call),
-		st::passportFormLabel);
+		st::boxDividerLabel);
 	std::move(
 		error
 	) | rpl::start_with_next([=](const QString &error) {
@@ -210,13 +210,13 @@ void PanelEditContact::setupControls(
 			save(existing);
 		});
 		_content->add(
-			object_ptr<PanelLabel>(
+			object_ptr<Ui::DividerLabel>(
 				_content,
 				object_ptr<Ui::FlatLabel>(
 					_content,
 					_scheme.aboutExisting,
 					Ui::FlatLabel::InitType::Simple,
-					st::passportFormLabel),
+					st::boxDividerLabel),
 				st::passportFormLabelPadding));
 		_content->add(
 			object_ptr<Ui::FlatLabel>(
@@ -274,13 +274,13 @@ void PanelEditContact::setupControls(
 	errorWrap->hide(anim::type::instant);
 
 	_content->add(
-		object_ptr<PanelLabel>(
+		object_ptr<Ui::DividerLabel>(
 			_content,
 			object_ptr<Ui::FlatLabel>(
 				_content,
 				_scheme.aboutNew,
 				Ui::FlatLabel::InitType::Simple,
-				st::passportFormLabel),
+				st::boxDividerLabel),
 			st::passportFormLabelPadding));
 
 	if (auto text = _controller->deleteValueLabel()) {

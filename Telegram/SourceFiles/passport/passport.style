@@ -94,13 +94,8 @@ passportFormUserpic: UserpicButton(passportPasswordUserpic) {
 }
 passportFormUserpicPadding: margins(0px, 5px, 0px, 10px);
 passportFormDividerHeight: 13px;
-passportFormLabel: FlatLabel(defaultFlatLabel) {
-	minWidth: 245px;
-	align: align(topleft);
-	textFg: windowSubTextFg;
-}
 passportFormLabelPadding: margins(22px, 7px, 22px, 14px);
-passportFormPolicy: FlatLabel(passportFormLabel) {
+passportFormPolicy: FlatLabel(boxDividerLabel) {
 	style: TextStyle(defaultTextStyle) {
 		linkFont: font(fsize semibold underline);
 		linkFontOver: font(fsize semibold underline);

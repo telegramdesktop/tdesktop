@@ -214,7 +214,7 @@ private:
 
 };
 
-class DividerLabel : public Ui::PaddingWrap<Ui::FlatLabel> {
+class DividerLabel : public PaddingWrap<Ui::FlatLabel> {
 public:
 	using PaddingWrap::PaddingWrap;
 

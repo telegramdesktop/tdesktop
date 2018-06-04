@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "boxes/abstract_box.h"
 #include "storage/storage_media_prepare.h"
+#include "styles/style_boxes.h"
 #include "styles/style_passport.h"
 
 namespace Passport {
@@ -457,13 +458,13 @@ void EditScans::setupSpecialScans(std::map<SpecialFile, ScanInfo> &&files) {
 			chooseSpecialScan(type);
 		});
 
-		inner->add(object_ptr<PanelLabel>(
+		inner->add(object_ptr<Ui::DividerLabel>(
 			inner,
 			object_ptr<Ui::FlatLabel>(
 				_content,
 				description(type),
 				Ui::FlatLabel::InitType::Simple,
-				st::passportFormLabel),
+				st::boxDividerLabel),
 			st::passportFormLabelPadding));
 	}
 

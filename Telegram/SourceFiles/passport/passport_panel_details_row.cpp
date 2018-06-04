@@ -936,16 +936,6 @@ void GenderRow::errorAnimationCallback() {
 
 } // namespace
 
-int PanelLabel::naturalWidth() const {
-	return -1;
-}
-
-void PanelLabel::resizeEvent(QResizeEvent *e) {
-	_background->lower();
-	_background->setGeometry(rect());
-	return PaddingWrap::resizeEvent(e);
-}
-
 PanelDetailsRow::PanelDetailsRow(
 	QWidget *parent,
 	const QString &label)

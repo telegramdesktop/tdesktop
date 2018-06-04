@@ -101,7 +101,7 @@ void RequestTypeBox::setupControls(
 		this,
 		lang(lng_passport_document_type),
 		Ui::FlatLabel::InitType::Simple,
-		st::passportFormLabel);
+		st::boxDividerLabel);
 
 	const auto group = std::make_shared<Ui::RadiobuttonGroup>(0);
 	auto buttons = std::vector<QPointer<Ui::Radiobutton>>();
@@ -119,7 +119,7 @@ void RequestTypeBox::setupControls(
 		this,
 		about,
 		Ui::FlatLabel::InitType::Simple,
-		st::passportFormLabel);
+		st::boxDividerLabel);
 
 	auto y = 0;
 	const auto innerWidth = st::boxWidth

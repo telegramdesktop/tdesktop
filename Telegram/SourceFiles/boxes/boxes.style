@@ -119,6 +119,7 @@ boxLabel: FlatLabel(defaultFlatLabel) {
 }
 boxDividerLabel: FlatLabel(boxLabel) {
 	minWidth: 245px;
+	align: align(topleft);
 	textFg: windowSubTextFg;
 	style: defaultTextStyle;
 }

@@ -592,7 +592,7 @@ int ProxiesBox::rowHeight() const {
 }
 
 void ProxiesBox::addNewProxy() {
-	Ui::show(_controller->addNewItemBox(), LayerOption::KeepOther);
+	getDelegate()->show(_controller->addNewItemBox());
 }
 
 void ProxiesBox::applyView(View &&view) {
@@ -660,7 +660,7 @@ void ProxiesBox::setupButtons(int id, not_null<ProxyRow*> button) {
 
 	button->editClicks(
 	) | rpl::start_with_next([=] {
-		Ui::show(_controller->editItemBox(id), LayerOption::KeepOther);
+		getDelegate()->show(_controller->editItemBox(id));
 	}, button->lifetime());
 
 	button->shareClicks(

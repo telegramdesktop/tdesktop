@@ -31,21 +31,6 @@ enum class PanelDetailsType {
 	Gender,
 };
 
-class PanelLabel : public Ui::PaddingWrap<Ui::FlatLabel> {
-public:
-	using PaddingWrap::PaddingWrap;
-
-	int naturalWidth() const override;
-
-protected:
-	void resizeEvent(QResizeEvent *e) override;
-
-private:
-	object_ptr<BoxContentDivider> _background
-		= object_ptr<BoxContentDivider>(this);
-
-};
-
 class PanelDetailsRow : public Ui::RpWidget {
 public:
 	using Type = PanelDetailsType;
