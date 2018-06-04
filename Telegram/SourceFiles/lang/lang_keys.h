@@ -14,7 +14,7 @@ inline QString lang(LangKey key) {
 	return Lang::Current().getValue(key);
 }
 
-inline base::lambda<QString()> langFactory(LangKey key) {
+inline Fn<QString()> langFactory(LangKey key) {
 	return [key] { return Lang::Current().getValue(key); };
 }
 

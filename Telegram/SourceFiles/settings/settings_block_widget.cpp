@@ -89,7 +89,7 @@ void BlockWidget::createChildWidget(
 		object_ptr<Ui::Checkbox> &child,
 		style::margins &margin,
 		const QString &text,
-		base::lambda<void(bool checked)> callback,
+		Fn<void(bool checked)> callback,
 		bool checked) {
 	child.create(this, text, checked, st::defaultBoxCheckbox);
 	subscribe(child->checkedChanged, std::move(callback));

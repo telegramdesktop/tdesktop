@@ -37,7 +37,7 @@ public:
 		const QString &title,
 		const QString &about,
 		std::vector<QString> labels,
-		base::lambda<void(int index)> submit);
+		Fn<void(int index)> submit);
 
 protected:
 	void prepare() override;
@@ -46,10 +46,10 @@ private:
 	void setupControls(
 		const QString &about,
 		std::vector<QString> labels,
-		base::lambda<void(int index)> submit);
+		Fn<void(int index)> submit);
 
 	QString _title;
-	base::lambda<void()> _submit;
+	Fn<void()> _submit;
 	int _height = 0;
 
 };
@@ -60,7 +60,7 @@ public:
 		QWidget*,
 		const QString &text,
 		const QString &detailsCheckbox,
-		base::lambda<void(bool withDetails)> submit);
+		Fn<void(bool withDetails)> submit);
 
 protected:
 	void prepare() override;
@@ -69,9 +69,9 @@ private:
 	void setupControls(
 		const QString &text,
 		const QString &detailsCheckbox,
-		base::lambda<void(bool withDetails)> submit);
+		Fn<void(bool withDetails)> submit);
 
-	base::lambda<void()> _submit;
+	Fn<void()> _submit;
 	int _height = 0;
 
 };
@@ -81,7 +81,7 @@ RequestTypeBox::RequestTypeBox(
 	const QString &title,
 	const QString &about,
 	std::vector<QString> labels,
-	base::lambda<void(int index)> submit)
+	Fn<void(int index)> submit)
 : _title(title) {
 	setupControls(about, std::move(labels), submit);
 }
@@ -96,7 +96,7 @@ void RequestTypeBox::prepare() {
 void RequestTypeBox::setupControls(
 		const QString &about,
 		std::vector<QString> labels,
-		base::lambda<void(int index)> submit) {
+		Fn<void(int index)> submit) {
 	const auto header = Ui::CreateChild<Ui::FlatLabel>(
 		this,
 		lang(lng_passport_document_type),
@@ -150,7 +150,7 @@ DeleteDocumentBox::DeleteDocumentBox(
 		QWidget*,
 		const QString &text,
 		const QString &detailsCheckbox,
-		base::lambda<void(bool withDetails)> submit) {
+		Fn<void(bool withDetails)> submit) {
 	setupControls(text, detailsCheckbox, submit);
 }
 
@@ -164,7 +164,7 @@ void DeleteDocumentBox::prepare() {
 void DeleteDocumentBox::setupControls(
 		const QString &text,
 		const QString &detailsCheckbox,
-		base::lambda<void(bool withDetails)> submit) {
+		Fn<void(bool withDetails)> submit) {
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		this,
 		text,
@@ -452,7 +452,7 @@ void PanelEditDocument::save() {
 }
 
 object_ptr<BoxContent> RequestIdentityType(
-		base::lambda<void(int index)> submit,
+		Fn<void(int index)> submit,
 		std::vector<QString> labels) {
 	return Box<RequestTypeBox>(
 		lang(lng_passport_identity_title),
@@ -462,7 +462,7 @@ object_ptr<BoxContent> RequestIdentityType(
 }
 
 object_ptr<BoxContent> RequestAddressType(
-		base::lambda<void(int index)> submit,
+		Fn<void(int index)> submit,
 		std::vector<QString> labels) {
 	return Box<RequestTypeBox>(
 		lang(lng_passport_address_title),
@@ -472,7 +472,7 @@ object_ptr<BoxContent> RequestAddressType(
 }
 
 object_ptr<BoxContent> ConfirmDeleteDocument(
-		base::lambda<void(bool withDetails)> submit,
+		Fn<void(bool withDetails)> submit,
 		const QString &text,
 		const QString &detailsCheckbox) {
 	return Box<DeleteDocumentBox>(text, detailsCheckbox, submit);

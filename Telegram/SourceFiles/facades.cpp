@@ -31,7 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace App {
 namespace internal {
 
-void CallDelayed(int duration, base::lambda_once<void()> &&lambda) {
+void CallDelayed(int duration, FnMut<void()> &&lambda) {
 	Messenger::Instance().callDelayed(duration, std::move(lambda));
 }
 

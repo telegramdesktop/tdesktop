@@ -390,7 +390,7 @@ QString PanelController::privacyPolicyUrl() const {
 }
 
 void PanelController::fillRows(
-	base::lambda<void(
+	Fn<void(
 		QString title,
 		QString description,
 		bool ready,
@@ -742,7 +742,7 @@ void PanelController::deleteValueSure(bool withDetails) {
 	}
 }
 
-void PanelController::suggestReset(base::lambda<void()> callback) {
+void PanelController::suggestReset(Fn<void()> callback) {
 	_resetBox = BoxPointer(show(Box<ConfirmBox>(
 		Lang::Hard::PassportCorrupted(),
 		Lang::Hard::PassportCorruptedReset(),
@@ -750,7 +750,7 @@ void PanelController::suggestReset(base::lambda<void()> callback) {
 		[=] { cancelReset(); })).data());
 }
 
-void PanelController::resetPassport(base::lambda<void()> callback) {
+void PanelController::resetPassport(Fn<void()> callback) {
 	const auto box = show(Box<ConfirmBox>(
 		Lang::Hard::PassportCorruptedResetSure(),
 		Lang::Hard::PassportCorruptedReset(),

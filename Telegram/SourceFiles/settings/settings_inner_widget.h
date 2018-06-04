@@ -43,7 +43,7 @@ private:
 	UserData *_self = nullptr;
 
 	int _contentLeft = 0;
-	base::lambda<int()> _getUpdateTop;
+	Fn<int()> _getUpdateTop;
 
 };
 

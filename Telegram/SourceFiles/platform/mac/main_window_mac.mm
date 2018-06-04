@@ -65,7 +65,7 @@ id FindClassInSubviews(NSView *parent, NSString *className) {
 
 class LayerCreationChecker : public QObject {
 public:
-	LayerCreationChecker(NSView * __weak view, base::lambda<void()> callback)
+	LayerCreationChecker(NSView * __weak view, Fn<void()> callback)
 	: _weakView(view)
 	, _callback(std::move(callback)) {
 		QCoreApplication::instance()->installEventFilter(this);
@@ -81,7 +81,7 @@ protected:
 
 private:
 	NSView * __weak _weakView = nil;
-	base::lambda<void()> _callback;
+	Fn<void()> _callback;
 
 };
 

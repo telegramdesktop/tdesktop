@@ -76,18 +76,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/variant.h"
 #include "base/optional.h"
 #include "base/algorithm.h"
-#include "base/functors.h"
-
-namespace func = base::functors;
-
 #include "base/flat_set.h"
 #include "base/flat_map.h"
+#include "base/weak_ptr.h"
 
 #include "core/basic_types.h"
 #include "logs.h"
 #include "core/utils.h"
-#include "base/lambda.h"
-#include "base/lambda_guard.h"
 #include "config.h"
 
 #include "mtproto/facade.h"

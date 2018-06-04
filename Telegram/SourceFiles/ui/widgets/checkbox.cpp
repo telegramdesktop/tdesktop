@@ -22,7 +22,7 @@ TextParseOptions _checkboxOptions = {
 
 } // namespace
 
-AbstractCheckView::AbstractCheckView(int duration, bool checked, base::lambda<void()> updateCallback)
+AbstractCheckView::AbstractCheckView(int duration, bool checked, Fn<void()> updateCallback)
 : _duration(duration)
 , _checked(checked)
 , _updateCallback(std::move(updateCallback)) {
@@ -36,7 +36,7 @@ void AbstractCheckView::setCheckedFast(bool checked) {
 	}
 }
 
-void AbstractCheckView::setUpdateCallback(base::lambda<void()> updateCallback) {
+void AbstractCheckView::setUpdateCallback(Fn<void()> updateCallback) {
 	_updateCallback = std::move(updateCallback);
 	if (_toggleAnimation.animating()) {
 		_toggleAnimation.setUpdateCallback(_updateCallback);
@@ -67,7 +67,7 @@ float64 AbstractCheckView::currentAnimationValue(TimeMs ms) {
 ToggleView::ToggleView(
 	const style::Toggle &st,
 	bool checked,
-	base::lambda<void()> updateCallback)
+	Fn<void()> updateCallback)
 : AbstractCheckView(st.duration, checked, std::move(updateCallback))
 , _st(&st) {
 }
@@ -204,7 +204,7 @@ bool ToggleView::checkRippleStartPosition(QPoint position) const {
 	return QRect(QPoint(0, 0), rippleSize()).contains(position);
 }
 
-CheckView::CheckView(const style::Check &st, bool checked, base::lambda<void()> updateCallback) : AbstractCheckView(st.duration, checked, std::move(updateCallback))
+CheckView::CheckView(const style::Check &st, bool checked, Fn<void()> updateCallback) : AbstractCheckView(st.duration, checked, std::move(updateCallback))
 , _st(&st) {
 }
 
@@ -261,7 +261,7 @@ void CheckView::setUntoggledOverride(
 RadioView::RadioView(
 	const style::Radio &st,
 	bool checked,
-	base::lambda<void()> updateCallback)
+	Fn<void()> updateCallback)
 : AbstractCheckView(st.duration, checked, std::move(updateCallback))
 , _st(&st) {
 }

@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/lambda.h"
 #include "base/observer.h"
 
 namespace base {
@@ -16,15 +15,15 @@ class Timer final : private QObject {
 public:
 	explicit Timer(
 		not_null<QThread*> thread,
-		base::lambda<void()> callback = nullptr);
-	explicit Timer(base::lambda<void()> callback = nullptr);
+		Fn<void()> callback = nullptr);
+	explicit Timer(Fn<void()> callback = nullptr);
 
 	static Qt::TimerType DefaultType(TimeMs timeout) {
 		constexpr auto kThreshold = TimeMs(1000);
 		return (timeout > kThreshold) ? Qt::CoarseTimer : Qt::PreciseTimer;
 	}
 
-	void setCallback(base::lambda<void()> callback) {
+	void setCallback(Fn<void()> callback) {
 		_callback = std::move(callback);
 	}
 
@@ -74,7 +73,7 @@ private:
 		return static_cast<Repeat>(_repeat);
 	}
 
-	base::lambda<void()> _callback;
+	Fn<void()> _callback;
 	TimeMs _next = 0;
 	int _timeout = 0;
 	int _timerId = 0;
@@ -87,7 +86,7 @@ private:
 
 class DelayedCallTimer final : private QObject {
 public:
-	int call(TimeMs timeout, lambda_once<void()> callback) {
+	int call(TimeMs timeout, FnMut<void()> callback) {
 		return call(
 			timeout,
 			std::move(callback),
@@ -96,7 +95,7 @@ public:
 
 	int call(
 		TimeMs timeout,
-		lambda_once<void()> callback,
+		FnMut<void()> callback,
 		Qt::TimerType type);
 	void cancel(int callId);
 
@@ -104,7 +103,7 @@ protected:
 	void timerEvent(QTimerEvent *e) override;
 
 private:
-	base::flat_map<int, lambda_once<void()>> _callbacks;
+	base::flat_map<int, FnMut<void()>> _callbacks;
 
 };
 

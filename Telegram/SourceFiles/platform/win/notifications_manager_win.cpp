@@ -212,7 +212,7 @@ public:
 	}
 	~ToastEventHandler() = default;
 
-	void performOnMainQueue(base::lambda_once<void(Manager *manager)> task) {
+	void performOnMainQueue(FnMut<void(Manager *manager)> task) {
 		const auto weak = _weak;
 		crl::on_main(weak, [=, task = std::move(task)]() mutable {
 			task(*weak.lock());

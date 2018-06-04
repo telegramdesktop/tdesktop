@@ -50,7 +50,7 @@ public:
 		LayerOptions options,
 		anim::type animated) = 0;
 	virtual void showToast(const QString &text) = 0;
-	virtual void suggestReset(base::lambda<void()> callback) = 0;
+	virtual void suggestReset(Fn<void()> callback) = 0;
 
 	virtual int closeGetDuration() = 0;
 

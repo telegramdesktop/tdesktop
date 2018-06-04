@@ -789,7 +789,7 @@ const InstantReplaces &InstantReplaces::Default() {
 	return result;
 }
 
-FlatInput::FlatInput(QWidget *parent, const style::FlatInput &st, base::lambda<QString()> placeholderFactory, const QString &v) : TWidgetHelper<QLineEdit>(v, parent)
+FlatInput::FlatInput(QWidget *parent, const style::FlatInput &st, Fn<QString()> placeholderFactory, const QString &v) : TWidgetHelper<QLineEdit>(v, parent)
 , _oldtext(v)
 , _placeholderFactory(std::move(placeholderFactory))
 , _placeholderVisible(!v.length())
@@ -962,7 +962,7 @@ void FlatInput::resizeEvent(QResizeEvent *e) {
 	return QLineEdit::resizeEvent(e);
 }
 
-void FlatInput::setPlaceholder(base::lambda<QString()> placeholderFactory) {
+void FlatInput::setPlaceholder(Fn<QString()> placeholderFactory) {
 	_placeholderFactory = std::move(placeholderFactory);
 	refreshPlaceholder();
 }
@@ -1078,7 +1078,7 @@ void FlatInput::onTextChange(const QString &text) {
 InputField::InputField(
 	QWidget *parent,
 	const style::InputField &st,
-	base::lambda<QString()> placeholderFactory,
+	Fn<QString()> placeholderFactory,
 	const QString &value)
 : InputField(
 	parent,
@@ -1092,7 +1092,7 @@ InputField::InputField(
 	QWidget *parent,
 	const style::InputField &st,
 	Mode mode,
-	base::lambda<QString()> placeholderFactory,
+	Fn<QString()> placeholderFactory,
 	const QString &value)
 : InputField(
 	parent,
@@ -1106,7 +1106,7 @@ InputField::InputField(
 	QWidget *parent,
 	const style::InputField &st,
 	Mode mode,
-	base::lambda<QString()> placeholderFactory,
+	Fn<QString()> placeholderFactory,
 	const TextWithTags &value)
 : RpWidget(parent)
 , _st(st)
@@ -3276,7 +3276,7 @@ void InputField::refreshPlaceholder() {
 }
 
 void InputField::setPlaceholder(
-		base::lambda<QString()> placeholderFactory,
+		Fn<QString()> placeholderFactory,
 		int afterSymbols) {
 	_placeholderFactory = std::move(placeholderFactory);
 	if (_placeholderAfterSymbols != afterSymbols) {
@@ -3287,7 +3287,7 @@ void InputField::setPlaceholder(
 }
 
 void InputField::setEditLinkCallback(
-	base::lambda<bool(
+	Fn<bool(
 		EditLinkSelection selection,
 		QString text,
 		QString link,
@@ -3313,7 +3313,7 @@ void InputField::setErrorShown(bool error) {
 MaskedInputField::MaskedInputField(
 	QWidget *parent,
 	const style::InputField &st,
-	base::lambda<QString()> placeholderFactory,
+	Fn<QString()> placeholderFactory,
 	const QString &val)
 : Parent(val, parent)
 , _st(st)
@@ -3597,7 +3597,7 @@ void MaskedInputField::refreshPlaceholder() {
 	update();
 }
 
-void MaskedInputField::setPlaceholder(base::lambda<QString()> placeholderFactory) {
+void MaskedInputField::setPlaceholder(Fn<QString()> placeholderFactory) {
 	_placeholderFactory = std::move(placeholderFactory);
 	refreshPlaceholder();
 }
@@ -3926,11 +3926,11 @@ void PhonePartInput::onChooseCode(const QString &code) {
 	startPlaceholderAnimation();
 }
 
-PasswordInput::PasswordInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
+PasswordInput::PasswordInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory, const QString &val) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
 	setEchoMode(QLineEdit::Password);
 }
 
-PortInput::PortInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
+PortInput::PortInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory, const QString &val) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
 	if (!val.toInt() || val.toInt() > 65535) {
 		setText(QString());
 	}
@@ -3961,7 +3961,7 @@ void PortInput::correctValue(
 	setCorrectedText(now, nowCursor, newText, newPos);
 }
 
-HexInput::HexInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
+HexInput::HexInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory, const QString &val) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
 	if (!QRegularExpression("^[a-fA-F0-9]+$").match(val).hasMatch()) {
 		setText(QString());
 	}
@@ -3988,7 +3988,7 @@ void HexInput::correctValue(
 	setCorrectedText(now, nowCursor, newText, newPos);
 }
 
-UsernameInput::UsernameInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val, bool isLink) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
+UsernameInput::UsernameInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory, const QString &val, bool isLink) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
 	setLinkPlaceholder(isLink ? Messenger::Instance().createInternalLink(QString()) : QString());
 }
 
@@ -4035,7 +4035,7 @@ void UsernameInput::correctValue(
 	setCorrectedText(now, nowCursor, now.mid(from, len), newPos);
 }
 
-PhoneInput::PhoneInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
+PhoneInput::PhoneInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory, const QString &val) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
 	QString phone(val);
 	if (phone.isEmpty()) {
 		clearText();

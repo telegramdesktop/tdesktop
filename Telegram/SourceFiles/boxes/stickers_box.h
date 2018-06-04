@@ -154,10 +154,10 @@ public:
 	void setFullOrder(const Stickers::Order &order);
 	void setRemovedSets(const Stickers::Order &removed);
 
-	void setInstallSetCallback(base::lambda<void(uint64 setId)> callback) {
+	void setInstallSetCallback(Fn<void(uint64 setId)> callback) {
 		_installSetCallback = std::move(callback);
 	}
-	void setLoadMoreCallback(base::lambda<void()> callback) {
+	void setLoadMoreCallback(Fn<void()> callback) {
 		_loadMoreCallback = std::move(callback);
 	}
 
@@ -280,8 +280,8 @@ private:
 	anim::value _aboveShadowFadeOpacity;
 	BasicAnimation _a_shifting;
 
-	base::lambda<void(uint64 setId)> _installSetCallback;
-	base::lambda<void()> _loadMoreCallback;
+	Fn<void(uint64 setId)> _installSetCallback;
+	Fn<void()> _loadMoreCallback;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;

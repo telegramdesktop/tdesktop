@@ -361,7 +361,7 @@ void CoverWidget::chooseNewPhoto() {
 		this,
 		lang(lng_choose_image),
 		filter,
-		base::lambda_guarded(this, callback));
+		crl::guard(this, callback));
 }
 
 void CoverWidget::editName() {

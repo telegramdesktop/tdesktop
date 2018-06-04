@@ -57,7 +57,7 @@ public:
 		QWidget*,
 		const QString &text,
 		const QString &link,
-		base::lambda<void(QString, QString)> callback);
+		Fn<void(QString, QString)> callback);
 
 	void setInnerFocus() override;
 
@@ -67,8 +67,8 @@ protected:
 private:
 	QString _startText;
 	QString _startLink;
-	base::lambda<void(QString, QString)> _callback;
-	base::lambda<void()> _setInnerFocus;
+	Fn<void(QString, QString)> _callback;
+	Fn<void()> _setInnerFocus;
 
 };
 
@@ -120,7 +120,7 @@ EditLinkBox::EditLinkBox(
 	QWidget*,
 	const QString &text,
 	const QString &link,
-	base::lambda<void(QString, QString)> callback)
+	Fn<void(QString, QString)> callback)
 : _startText(text)
 , _startLink(link)
 , _callback(std::move(callback)) {
@@ -307,7 +307,7 @@ void SetClipboardWithEntities(
 	}
 }
 
-base::lambda<bool(
+Fn<bool(
 	Ui::InputField::EditLinkSelection selection,
 	QString text,
 	QString link,

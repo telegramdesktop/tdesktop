@@ -221,7 +221,7 @@ void SignupWidget::submit() {
 		|| !getData()->termsPopup) {
 		send();
 	} else {
-		acceptTerms(base::lambda_guarded(this, [=] {
+		acceptTerms(crl::guard(this, [=] {
 			_termsAccepted = true;
 			send();
 		}));

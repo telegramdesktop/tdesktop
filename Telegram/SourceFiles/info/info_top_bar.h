@@ -134,7 +134,7 @@ private:
 	QPointer<Ui::FadeWrap<Ui::IconButton>> _delete;
 	rpl::event_stream<> _cancelSelectionClicks;
 
-	using UpdateCallback = base::lambda<bool(anim::type)>;
+	using UpdateCallback = Fn<bool(anim::type)>;
 	std::map<QObject*, UpdateCallback> _updateControlCallbacks;
 
 };

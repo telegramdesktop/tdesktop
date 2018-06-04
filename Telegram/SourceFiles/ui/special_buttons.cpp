@@ -471,14 +471,14 @@ void UserpicButton::setClickHandlerByRole() {
 }
 
 void UserpicButton::changePhotoLazy() {
-	auto callback = base::lambda_guarded(
+	auto callback = crl::guard(
 		this,
 		[this](QImage &&image) { setImage(std::move(image)); });
 	ShowChoosePhotoBox(this, _peerForCrop, std::move(callback));
 }
 
 void UserpicButton::uploadNewPeerPhoto() {
-	auto callback = base::lambda_guarded(
+	auto callback = crl::guard(
 		this,
 		[this](QImage &&image) {
 			Messenger::Instance().uploadProfilePhoto(

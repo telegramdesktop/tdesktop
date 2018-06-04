@@ -27,7 +27,7 @@ public:
 	PostcodeInput(
 		QWidget *parent,
 		const style::InputField &st,
-		base::lambda<QString()> placeholderFactory,
+		Fn<QString()> placeholderFactory,
 		const QString &val);
 
 protected:
@@ -42,7 +42,7 @@ protected:
 PostcodeInput::PostcodeInput(
 	QWidget *parent,
 	const style::InputField &st,
-	base::lambda<QString()> placeholderFactory,
+	Fn<QString()> placeholderFactory,
 	const QString &val)
 : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
 	if (!QRegularExpression("^[a-zA-Z0-9\\-]+$").match(val).hasMatch()) {

@@ -297,7 +297,7 @@ void SessionsBox::Inner::onTerminate() {
 	for (auto i = _terminateButtons.begin(), e = _terminateButtons.end(); i != e; ++i) {
 		if (i.value()->isOver()) {
 			if (_terminateBox) _terminateBox->deleteLater();
-			_terminateBox = Ui::show(Box<ConfirmBox>(lang(lng_settings_reset_one_sure), lang(lng_settings_reset_button), st::attentionBoxButton, base::lambda_guarded(this, [this, terminating = i.key()] {
+			_terminateBox = Ui::show(Box<ConfirmBox>(lang(lng_settings_reset_one_sure), lang(lng_settings_reset_button), st::attentionBoxButton, crl::guard(this, [this, terminating = i.key()] {
 				if (_terminateBox) {
 					_terminateBox->closeBox();
 					_terminateBox = nullptr;
@@ -315,7 +315,7 @@ void SessionsBox::Inner::onTerminate() {
 
 void SessionsBox::Inner::onTerminateAll() {
 	if (_terminateBox) _terminateBox->deleteLater();
-	_terminateBox = Ui::show(Box<ConfirmBox>(lang(lng_settings_reset_sure), lang(lng_settings_reset_button), st::attentionBoxButton, base::lambda_guarded(this, [this] {
+	_terminateBox = Ui::show(Box<ConfirmBox>(lang(lng_settings_reset_sure), lang(lng_settings_reset_button), st::attentionBoxButton, crl::guard(this, [this] {
 		if (_terminateBox) {
 			_terminateBox->closeBox();
 			_terminateBox = nullptr;

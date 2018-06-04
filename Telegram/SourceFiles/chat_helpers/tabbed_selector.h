@@ -63,10 +63,10 @@ public:
 		return _a_slide.animating();
 	}
 
-	void setAfterShownCallback(base::lambda<void(SelectorTab)> callback) {
+	void setAfterShownCallback(Fn<void(SelectorTab)> callback) {
 		_afterShownCallback = std::move(callback);
 	}
-	void setBeforeHidingCallback(base::lambda<void(SelectorTab)> callback) {
+	void setBeforeHidingCallback(Fn<void(SelectorTab)> callback) {
 		_beforeHidingCallback = std::move(callback);
 	}
 
@@ -187,8 +187,8 @@ private:
 	std::array<Tab, Tab::kCount> _tabs;
 	SelectorTab _currentTabType = SelectorTab::Emoji;
 
-	base::lambda<void(SelectorTab)> _afterShownCallback;
-	base::lambda<void(SelectorTab)> _beforeHidingCallback;
+	Fn<void(SelectorTab)> _afterShownCallback;
+	Fn<void(SelectorTab)> _beforeHidingCallback;
 
 	rpl::event_stream<> _showRequests;
 

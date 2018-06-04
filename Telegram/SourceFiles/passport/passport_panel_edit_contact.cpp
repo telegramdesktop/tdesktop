@@ -34,7 +34,7 @@ public:
 		const QString &title,
 		const QString &text,
 		int codeLength,
-		base::lambda<void(QString code)> submit,
+		Fn<void(QString code)> submit,
 		rpl::producer<QString> call,
 		rpl::producer<QString> error);
 
@@ -47,12 +47,12 @@ private:
 	void setupControls(
 		const QString &text,
 		int codeLength,
-		base::lambda<void(QString code)> submit,
+		Fn<void(QString code)> submit,
 		rpl::producer<QString> call,
 		rpl::producer<QString> error);
 
 	QString _title;
-	base::lambda<void()> _submit;
+	Fn<void()> _submit;
 	QPointer<SentCodeField> _code;
 	int _height = 0;
 
@@ -63,7 +63,7 @@ VerifyBox::VerifyBox(
 	const QString &title,
 	const QString &text,
 	int codeLength,
-	base::lambda<void(QString code)> submit,
+	Fn<void(QString code)> submit,
 	rpl::producer<QString> call,
 	rpl::producer<QString> error)
 : _title(title) {
@@ -78,7 +78,7 @@ VerifyBox::VerifyBox(
 void VerifyBox::setupControls(
 		const QString &text,
 		int codeLength,
-		base::lambda<void(QString code)> submit,
+		Fn<void(QString code)> submit,
 		rpl::producer<QString> call,
 		rpl::producer<QString> error) {
 	const auto description = Ui::CreateChild<Ui::FlatLabel>(
@@ -355,7 +355,7 @@ void PanelEditContact::save(const QString &value) {
 object_ptr<BoxContent> VerifyPhoneBox(
 		const QString &phone,
 		int codeLength,
-		base::lambda<void(QString code)> submit,
+		Fn<void(QString code)> submit,
 		rpl::producer<QString> call,
 		rpl::producer<QString> error) {
 	return Box<VerifyBox>(
@@ -370,7 +370,7 @@ object_ptr<BoxContent> VerifyPhoneBox(
 object_ptr<BoxContent> VerifyEmailBox(
 		const QString &email,
 		int codeLength,
-		base::lambda<void(QString code)> submit,
+		Fn<void(QString code)> submit,
 		rpl::producer<QString> error) {
 	return Box<VerifyBox>(
 		lang(lng_passport_email_title),

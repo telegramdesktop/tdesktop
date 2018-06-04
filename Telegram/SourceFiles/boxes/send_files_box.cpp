@@ -125,7 +125,7 @@ public:
 	bool isPointAfter(QPoint position) const;
 	void moveInAlbum(QPoint to);
 	QPoint center() const;
-	void suggestMove(float64 delta, base::lambda<void()> callback);
+	void suggestMove(float64 delta, Fn<void()> callback);
 	void finishAnimations();
 
 private:
@@ -520,7 +520,7 @@ QPoint AlbumThumb::center() const {
 	return realGeometry.center();
 }
 
-void AlbumThumb::suggestMove(float64 delta, base::lambda<void()> callback) {
+void AlbumThumb::suggestMove(float64 delta, Fn<void()> callback) {
 	if (_suggestedMove != delta) {
 		_suggestedMoveAnimation.start(
 			std::move(callback),
@@ -889,7 +889,7 @@ rpl::producer<int> SingleFilePreview::desiredHeightValue() const {
 	return rpl::single(st::boxPhotoPadding.top() + h + st::msgShadow);
 }
 
-base::lambda<QString()> FieldPlaceholder(const Storage::PreparedList &list) {
+Fn<QString()> FieldPlaceholder(const Storage::PreparedList &list) {
 	return langFactory(list.files.size() > 1
 		? lng_photos_comment
 		: lng_photo_caption);

@@ -281,7 +281,7 @@ private:
 
 class RevokePublicLinkBox : public BoxContent, public RPCSender {
 public:
-	RevokePublicLinkBox(QWidget*, base::lambda<void()> revokeCallback);
+	RevokePublicLinkBox(QWidget*, Fn<void()> revokeCallback);
 
 protected:
 	void prepare() override;
@@ -295,6 +295,6 @@ private:
 	QPointer<Inner> _inner;
 
 	int _innerTop = 0;
-	base::lambda<void()> _revokeCallback;
+	Fn<void()> _revokeCallback;
 
 };

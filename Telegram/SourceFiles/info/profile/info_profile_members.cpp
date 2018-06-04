@@ -409,11 +409,11 @@ void Members::visibleTopBottomUpdated(
 	setChildVisibleTopBottom(_list, visibleTop, visibleBottom);
 }
 
-void Members::peerListSetTitle(base::lambda<QString()> title) {
+void Members::peerListSetTitle(Fn<QString()> title) {
 }
 
 void Members::peerListSetAdditionalTitle(
-		base::lambda<QString()> title) {
+		Fn<QString()> title) {
 }
 
 bool Members::peerListIsRowSelected(not_null<PeerData*> peer) {

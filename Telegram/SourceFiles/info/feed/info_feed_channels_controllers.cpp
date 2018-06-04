@@ -195,7 +195,7 @@ base::unique_qptr<Ui::PopupMenu> ChannelsController::rowContextMenu(
 	auto result = base::make_unique_q<Ui::PopupMenu>(nullptr);
 	Window::PeerMenuAddMuteAction(channel, [&](
 			const QString &text,
-			base::lambda<void()> handler) {
+			Fn<void()> handler) {
 		return result->addAction(text, handler);
 	});
 	//result->addAction( // #feed

@@ -211,8 +211,8 @@ public:
 	template <typename T>
 	void send(
 		const T &request,
-		base::lambda<void(const typename T::ResponseType &result)> done,
-		base::lambda<void(const RPCError &error)> fail,
+		Fn<void(const typename T::ResponseType &result)> done,
+		Fn<void(const RPCError &error)> fail,
 		MTP::ShiftedDcId dcId = 0);
 
 	bool valid() const;
@@ -225,7 +225,7 @@ private:
 	bool removeRequest(mtpRequestId requestId);
 
 	QPointer<MTP::Instance> _instance;
-	std::map<mtpRequestId, base::lambda<void(const RPCError &)>> _requests;
+	std::map<mtpRequestId, Fn<void(const RPCError &)>> _requests;
 
 };
 
@@ -248,11 +248,11 @@ private:
 	};
 
 	using Checker::fail;
-	base::lambda<void(const RPCError &error)> failHandler();
+	Fn<void(const RPCError &error)> failHandler();
 
 	void resolveChannel(
 		const QString &username,
-		base::lambda<void(const MTPInputChannel &channel)> callback);
+		Fn<void(const MTPInputChannel &channel)> callback);
 	void gotMessage(const MTPmessages_Messages &result);
 	base::optional<FileLocation> parseMessage(
 		const MTPmessages_Messages &result) const;
@@ -285,7 +285,7 @@ private:
 	void startLoading() override;
 	void sendRequest();
 	void gotPart(int offset, const MTPupload_File &result);
-	base::lambda<void(const RPCError &)> failHandler();
+	Fn<void(const RPCError &)> failHandler();
 
 	static constexpr auto kRequestsCount = 2;
 	static constexpr auto kNextRequestDelay = TimeMs(20);
@@ -891,8 +891,7 @@ HttpChecker::HttpChecker(bool testing) : Checker(testing) {
 
 void HttpChecker::start() {
 	auto url = QUrl(Local::readAutoupdatePrefix() + qstr("/current"));
-	DEBUG_LOG(("Update Info: requesting update state from '%1'"
-		).arg(url.toDisplayString()));
+	DEBUG_LOG(("Update Info: requesting update state"));
 	const auto request = QNetworkRequest(url);
 	_manager = std::make_unique<QNetworkAccessManager>();
 	_reply = _manager->get(request);
@@ -1193,8 +1192,8 @@ void MtpWeak::die() {
 template <typename T>
 void MtpWeak::send(
 		const T &request,
-		base::lambda<void(const typename T::ResponseType &result)> done,
-		base::lambda<void(const RPCError &error)> fail,
+		Fn<void(const typename T::ResponseType &result)> done,
+		Fn<void(const RPCError &error)> fail,
 		MTP::ShiftedDcId dcId) {
 	using Response = typename T::ResponseType;
 	if (!valid()) {
@@ -1203,14 +1202,14 @@ void MtpWeak::send(
 		});
 		return;
 	}
-	const auto onDone = base::lambda_guarded(this, [=](
+	const auto onDone = crl::guard((QObject*)this, [=](
 			const Response &result,
 			mtpRequestId requestId) {
 		if (removeRequest(requestId)) {
 			done(result);
 		}
 	});
-	const auto onFail = base::lambda_guarded(this, [=](
+	const auto onFail = crl::guard((QObject*)this, [=](
 			const RPCError &error,
 			mtpRequestId requestId) {
 		if (MTP::isDefaultHandledError(error)) {
@@ -1277,7 +1276,7 @@ void MtpChecker::start() {
 
 void MtpChecker::resolveChannel(
 		const QString &username,
-		base::lambda<void(const MTPInputChannel &channel)> callback) {
+		Fn<void(const MTPInputChannel &channel)> callback) {
 	const auto failed = [&] {
 		LOG(("Update Error: MTP channel '%1' resolve failed."
 			).arg(username));
@@ -1467,7 +1466,7 @@ auto MtpChecker::parseFile(const MTPmessages_Messages &result) const
 	return ParsedFile { name, size, fields.vdc_id.v, location };
 }
 
-base::lambda<void(const RPCError &error)> MtpChecker::failHandler() {
+Fn<void(const RPCError &error)> MtpChecker::failHandler() {
 	return [=](const RPCError &error) {
 		LOG(("Update Error: MTP check failed with '%1'"
 			).arg(QString::number(error.code()) + ':' + error.type()));
@@ -1549,7 +1548,7 @@ void MtpLoader::gotPart(int offset, const MTPupload_File &result) {
 	sendRequest();
 }
 
-base::lambda<void(const RPCError &)> MtpLoader::failHandler() {
+Fn<void(const RPCError &)> MtpLoader::failHandler() {
 	return [=](const RPCError &error) {
 		LOG(("Update Error: MTP load failed with '%1'"
 			).arg(QString::number(error.code()) + ':' + error.type()));

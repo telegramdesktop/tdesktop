@@ -107,7 +107,7 @@ void DownloadPathState::onDownloadPath() {
 }
 
 void DownloadPathState::onClear() {
-	Ui::show(Box<ConfirmBox>(lang(lng_sure_clear_downloads), base::lambda_guarded(this, [this] {
+	Ui::show(Box<ConfirmBox>(lang(lng_sure_clear_downloads), crl::guard(this, [this] {
 		Ui::hideLayer();
 		App::wnd()->tempDirDelete(Local::ClearManagerDownloads);
 		_state = State::Clearing;

@@ -90,7 +90,7 @@ enum class activation {
 	background,
 };
 
-using transition = base::lambda<float64(float64 delta, float64 dt)>;
+using transition = Fn<float64(float64 delta, float64 dt)>;
 
 extern transition linear;
 extern transition sineInOut;
@@ -681,7 +681,7 @@ private:
 
 		anim::value value;
 		BasicAnimation a_animation;
-		base::lambda<void()> updateCallback;
+		Fn<void()> updateCallback;
 		float64 duration = 0.;
 		anim::transition transition = anim::linear;
 		MTP::PauseHolder pause;

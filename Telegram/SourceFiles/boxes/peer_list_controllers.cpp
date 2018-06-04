@@ -901,7 +901,7 @@ void AddBotToGroupBoxController::prepareViewHook() {
 }
 
 ChooseRecipientBoxController::ChooseRecipientBoxController(
-	base::lambda_once<void(not_null<PeerData*>)> callback)
+	FnMut<void(not_null<PeerData*>)> callback)
 : _callback(std::move(callback)) {
 }
 

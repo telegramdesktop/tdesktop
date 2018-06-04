@@ -99,7 +99,7 @@ public:
 	void showCriticalError(const QString &error) override;
 
 	void fillRows(
-		base::lambda<void(
+		Fn<void(
 			QString title,
 			QString description,
 			bool ready,
@@ -118,7 +118,7 @@ public:
 		LayerOptions options,
 		anim::type animated) override;
 	void showToast(const QString &text) override;
-	void suggestReset(base::lambda<void()> callback) override;
+	void suggestReset(Fn<void()> callback) override;
 
 	int closeGetDuration() override;
 
@@ -151,7 +151,7 @@ private:
 	QString getDefaultContactValue(Scope::Type type) const;
 	void deleteValueSure(bool withDetails);
 
-	void resetPassport(base::lambda<void()> callback);
+	void resetPassport(Fn<void()> callback);
 	void cancelReset();
 
 	not_null<FormController*> _form;
@@ -161,7 +161,7 @@ private:
 	rpl::event_stream<ScopeError> _saveErrors;
 
 	std::unique_ptr<Panel> _panel;
-	base::lambda<bool()> _panelHasUnsavedChanges;
+	Fn<bool()> _panelHasUnsavedChanges;
 	QPointer<BoxContent> _confirmForgetChangesBox;
 	std::vector<BoxPointer> _editScopeBoxes;
 	Scope *_editScope = nullptr;

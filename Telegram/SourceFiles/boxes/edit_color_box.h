@@ -13,11 +13,11 @@ class EditColorBox : public BoxContent {
 public:
 	EditColorBox(QWidget*, const QString &title, QColor current = QColor(255, 255, 255));
 
-	void setSaveCallback(base::lambda<void(QColor)> callback) {
+	void setSaveCallback(Fn<void(QColor)> callback) {
 		_saveCallback = std::move(callback);
 	}
 
-	void setCancelCallback(base::lambda<void()> callback) {
+	void setCancelCallback(Fn<void()> callback) {
 		_cancelCallback = std::move(callback);
 	}
 
@@ -86,7 +86,7 @@ private:
 	QRect _currentRect;
 	QRect _newRect;
 
-	base::lambda<void(QColor)> _saveCallback;
-	base::lambda<void()> _cancelCallback;
+	Fn<void(QColor)> _saveCallback;
+	Fn<void()> _cancelCallback;
 
 };

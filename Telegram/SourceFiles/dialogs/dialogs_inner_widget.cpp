@@ -1519,7 +1519,7 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 		Window::FillPeerMenu(
 			_controller,
 			history->peer,
-			[&](const QString &text, base::lambda<void()> callback) {
+			[&](const QString &text, Fn<void()> callback) {
 				return _menu->addAction(text, std::move(callback));
 			},
 			Window::PeerMenuSource::ChatsList);
@@ -1527,7 +1527,7 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 		Window::FillFeedMenu(
 			_controller,
 			feed,
-			[&](const QString &text, base::lambda<void()> callback) {
+			[&](const QString &text, Fn<void()> callback) {
 				return _menu->addAction(text, std::move(callback));
 			},
 			Window::PeerMenuSource::ChatsList);

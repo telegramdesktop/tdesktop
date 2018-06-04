@@ -187,12 +187,12 @@ void TopBarWidget::showMenu() {
 			weak->_menuToggle->setForceRippled(false);
 		}
 	});
-	_menu->setShowStartCallback(base::lambda_guarded(this, [this, menu = _menu.data()] {
+	_menu->setShowStartCallback(crl::guard(this, [this, menu = _menu.data()] {
 		if (_menu == menu) {
 			_menuToggle->setForceRippled(true);
 		}
 	}));
-	_menu->setHideStartCallback(base::lambda_guarded(this, [this, menu = _menu.data()] {
+	_menu->setHideStartCallback(crl::guard(this, [this, menu = _menu.data()] {
 		if (_menu == menu) {
 			_menuToggle->setForceRippled(false);
 		}
@@ -200,7 +200,7 @@ void TopBarWidget::showMenu() {
 	_menuToggle->installEventFilter(_menu);
 	const auto addAction = [&](
 			const QString &text,
-			base::lambda<void()> callback) {
+			Fn<void()> callback) {
 		return _menu->addAction(text, std::move(callback));
 	};
 	if (const auto peer = _activeChat.peer()) {

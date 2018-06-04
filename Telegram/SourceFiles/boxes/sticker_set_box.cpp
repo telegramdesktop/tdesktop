@@ -431,7 +431,7 @@ bool StickerSetBox::Inner::official() const {
 	return _loaded && _setShortName.isEmpty();
 }
 
-base::lambda<TextWithEntities()> StickerSetBox::Inner::title() const {
+Fn<TextWithEntities()> StickerSetBox::Inner::title() const {
 	auto text = TextWithEntities { _setTitle };
 	if (_loaded) {
 		if (_pack.isEmpty()) {

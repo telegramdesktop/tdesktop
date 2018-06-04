@@ -645,16 +645,16 @@ void EditScans::chooseSpecialScan(SpecialFile type) {
 
 void EditScans::ChooseScan(
 		QPointer<QWidget> parent,
-		base::lambda<void(QByteArray&&)> doneCallback,
-		base::lambda<void(ReadScanError)> errorCallback) {
+		Fn<void(QByteArray&&)> doneCallback,
+		Fn<void(ReadScanError)> errorCallback) {
 	Expects(parent != nullptr);
 
 	const auto filter = FileDialog::AllFilesFilter()
 		+ qsl(";;Image files (*")
 		+ cImgExtensions().join(qsl(" *"))
 		+ qsl(")");
-	const auto guardedCallback = base::lambda_guarded(parent, doneCallback);
-	const auto guardedError = base::lambda_guarded(parent, errorCallback);
+	const auto guardedCallback = crl::guard(parent, doneCallback);
+	const auto guardedError = crl::guard(parent, errorCallback);
 	const auto onMainCallback = [=](QByteArray content) {
 		crl::on_main([=, bytes = std::move(content)]() mutable {
 			guardedCallback(std::move(bytes));

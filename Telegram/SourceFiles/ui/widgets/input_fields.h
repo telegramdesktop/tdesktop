@@ -40,11 +40,11 @@ public:
 	FlatInput(
 		QWidget *parent,
 		const style::FlatInput &st,
-		base::lambda<QString()> placeholderFactory = nullptr,
+		Fn<QString()> placeholderFactory = nullptr,
 		const QString &val = QString());
 
 	void updatePlaceholder();
-	void setPlaceholder(base::lambda<QString()> placeholderFactory);
+	void setPlaceholder(Fn<QString()> placeholderFactory);
 	QRect placeholderRect() const;
 
 	void setTextMrg(const QMargins &textMrg);
@@ -96,7 +96,7 @@ private:
 
 	QString _oldtext;
 	QString _placeholder;
-	base::lambda<QString()> _placeholderFactory;
+	Fn<QString()> _placeholderFactory;
 
 	bool _customUpDown = false;
 
@@ -138,19 +138,19 @@ public:
 	InputField(
 		QWidget *parent,
 		const style::InputField &st,
-		base::lambda<QString()> placeholderFactory,
+		Fn<QString()> placeholderFactory,
 		const QString &value = QString());
 	InputField(
 		QWidget *parent,
 		const style::InputField &st,
 		Mode mode,
-		base::lambda<QString()> placeholderFactory,
+		Fn<QString()> placeholderFactory,
 		const QString &value);
 	InputField(
 		QWidget *parent,
 		const style::InputField &st,
 		Mode mode = Mode::SingleLine,
-		base::lambda<QString()> placeholderFactory = nullptr,
+		Fn<QString()> placeholderFactory = nullptr,
 		const TextWithTags &value = TextWithTags());
 
 	void showError();
@@ -200,7 +200,7 @@ public:
 		Edit,
 	};
 	void setEditLinkCallback(
-		base::lambda<bool(
+		Fn<bool(
 			EditLinkSelection selection,
 			QString text,
 			QString link,
@@ -233,7 +233,7 @@ public:
 		return _lastTextWithTags.text;
 	}
 	void setPlaceholder(
-		base::lambda<QString()> placeholderFactory,
+		Fn<QString()> placeholderFactory,
 		int afterSymbols = 0);
 	void setPlaceholderHidden(bool forcePlaceholderHidden);
 	void setDisplayFocused(bool focused);
@@ -280,7 +280,7 @@ public:
 		Check,
 		Insert,
 	};
-	using MimeDataHook = base::lambda<bool(
+	using MimeDataHook = Fn<bool(
 		not_null<const QMimeData*> data,
 		MimeAction action)>;
 	void setMimeDataHook(MimeDataHook hook) {
@@ -412,7 +412,7 @@ private:
 	TextWithTags _lastTextWithTags;
 	std::vector<MarkdownTag> _lastMarkdownTags;
 	QString _lastPreEditText;
-	base::lambda<bool(
+	Fn<bool(
 		EditLinkSelection selection,
 		QString text,
 		QString link,
@@ -441,7 +441,7 @@ private:
 	bool _customTab = false;
 
 	QString _placeholder;
-	base::lambda<QString()> _placeholderFactory;
+	Fn<QString()> _placeholderFactory;
 	int _placeholderAfterSymbols = 0;
 	Animation _a_placeholderShifted;
 	bool _placeholderShifted = false;
@@ -484,7 +484,7 @@ class MaskedInputField
 
 	using Parent = RpWidgetWrap<QLineEdit>;
 public:
-	MaskedInputField(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory = base::lambda<QString()>(), const QString &val = QString());
+	MaskedInputField(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory = Fn<QString()>(), const QString &val = QString());
 
 	void showError();
 
@@ -499,7 +499,7 @@ public:
 	const QString &getLastText() const {
 		return _oldtext;
 	}
-	void setPlaceholder(base::lambda<QString()> placeholderFactory);
+	void setPlaceholder(Fn<QString()> placeholderFactory);
 	void setPlaceholderHidden(bool forcePlaceholderHidden);
 	void setDisplayFocused(bool focused);
 	void finishAnimating();
@@ -594,7 +594,7 @@ private:
 	bool _customUpDown = false;
 
 	QString _placeholder;
-	base::lambda<QString()> _placeholderFactory;
+	Fn<QString()> _placeholderFactory;
 	Animation _a_placeholderShifted;
 	bool _placeholderShifted = false;
 	QPainterPath _placeholderPath;
@@ -676,13 +676,13 @@ private:
 
 class PasswordInput : public MaskedInputField {
 public:
-	PasswordInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory = base::lambda<QString()>(), const QString &val = QString());
+	PasswordInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory = Fn<QString()>(), const QString &val = QString());
 
 };
 
 class PortInput : public MaskedInputField {
 public:
-	PortInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val);
+	PortInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory, const QString &val);
 
 protected:
 	void correctValue(
@@ -695,7 +695,7 @@ protected:
 
 class HexInput : public MaskedInputField {
 public:
-	HexInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val);
+	HexInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory, const QString &val);
 
 protected:
 	void correctValue(
@@ -708,7 +708,7 @@ protected:
 
 class UsernameInput : public MaskedInputField {
 public:
-	UsernameInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val, bool isLink);
+	UsernameInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory, const QString &val, bool isLink);
 
 	void setLinkPlaceholder(const QString &placeholder);
 
@@ -727,7 +727,7 @@ private:
 
 class PhoneInput : public MaskedInputField {
 public:
-	PhoneInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val);
+	PhoneInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory, const QString &val);
 
 	void clearText();
 

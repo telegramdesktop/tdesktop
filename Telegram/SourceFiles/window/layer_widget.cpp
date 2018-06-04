@@ -38,7 +38,7 @@ public:
 	BackgroundWidget(QWidget *parent) : TWidget(parent) {
 	}
 
-	void setDoneCallback(base::lambda<void()> callback) {
+	void setDoneCallback(Fn<void()> callback) {
 		_doneCallback = std::move(callback);
 	}
 
@@ -72,7 +72,7 @@ private:
 	QPixmap _specialLayerCache;
 	QPixmap _layerCache;
 
-	base::lambda<void()> _doneCallback;
+	Fn<void()> _doneCallback;
 
 	bool _wasAnimating = false;
 	bool _inPaintEvent = false;

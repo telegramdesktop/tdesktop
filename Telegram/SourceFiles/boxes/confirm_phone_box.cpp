@@ -76,7 +76,7 @@ void SentCodeField::fix() {
 	}
 }
 
-SentCodeCall::SentCodeCall(base::lambda_once<void()> callCallback, base::lambda<void()> updateCallback)
+SentCodeCall::SentCodeCall(FnMut<void()> callCallback, Fn<void()> updateCallback)
 : _call(std::move(callCallback))
 , _update(std::move(updateCallback)) {
 	_timer.setCallback([=] {

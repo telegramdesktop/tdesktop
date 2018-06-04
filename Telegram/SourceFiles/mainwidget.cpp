@@ -910,7 +910,7 @@ void MainWidget::cancelUploadLayer(not_null<HistoryItem*> item) {
 
 void MainWidget::deletePhotoLayer(PhotoData *photo) {
 	if (!photo) return;
-	Ui::show(Box<ConfirmBox>(lang(lng_delete_photo_sure), lang(lng_box_delete), base::lambda_guarded(this, [=] {
+	Ui::show(Box<ConfirmBox>(lang(lng_delete_photo_sure), lang(lng_box_delete), crl::guard(this, [=] {
 		Ui::hideLayer();
 
 		auto me = App::self();
@@ -950,11 +950,11 @@ bool MainWidget::selectingPeerForInlineSwitch() {
 void MainWidget::offerPeer(PeerId peer) {
 	Ui::hideLayer();
 	if (_hider->offerPeer(peer) && Adaptive::OneColumn()) {
-		_forwardConfirm = Ui::show(Box<ConfirmBox>(_hider->offeredText(), lang(lng_forward_send), base::lambda_guarded(this, [this] {
+		_forwardConfirm = Ui::show(Box<ConfirmBox>(_hider->offeredText(), lang(lng_forward_send), crl::guard(this, [this] {
 			_hider->forward();
 			if (_forwardConfirm) _forwardConfirm->closeBox();
 			if (_hider) _hider->offerPeer(0);
-		}), base::lambda_guarded(this, [this] {
+		}), crl::guard(this, [this] {
 			if (_hider && _forwardConfirm) _hider->offerPeer(0);
 		})));
 	}
@@ -1670,12 +1670,12 @@ void MainWidget::documentLoadFailed(FileLoader *loader, bool started) {
 	auto document = Auth().data().document(documentId);
 	if (started) {
 		auto failedFileName = loader->fileName();
-		Ui::show(Box<ConfirmBox>(lang(lng_download_finish_failed), base::lambda_guarded(this, [=] {
+		Ui::show(Box<ConfirmBox>(lang(lng_download_finish_failed), crl::guard(this, [=] {
 			Ui::hideLayer();
 			if (document) document->save(failedFileName);
 		})));
 	} else {
-		Ui::show(Box<ConfirmBox>(lang(lng_download_path_failed), lang(lng_download_path_settings), base::lambda_guarded(this, [=] {
+		Ui::show(Box<ConfirmBox>(lang(lng_download_path_failed), lang(lng_download_path_settings), crl::guard(this, [=] {
 			Global::SetDownloadPath(QString());
 			Global::SetDownloadPathBookmark(QByteArray());
 			Ui::show(Box<DownloadPathBox>());
@@ -2771,11 +2771,11 @@ void MainWidget::showAll() {
 		if (_hider) {
 			_hider->hide();
 			if (!_forwardConfirm && _hider->wasOffered()) {
-				_forwardConfirm = Ui::show(Box<ConfirmBox>(_hider->offeredText(), lang(lng_forward_send), base::lambda_guarded(this, [this] {
+				_forwardConfirm = Ui::show(Box<ConfirmBox>(_hider->offeredText(), lang(lng_forward_send), crl::guard(this, [this] {
 					_hider->forward();
 					if (_forwardConfirm) _forwardConfirm->closeBox();
 					if (_hider) _hider->offerPeer(0);
-				}), base::lambda_guarded(this, [this] {
+				}), crl::guard(this, [this] {
 					if (_hider && _forwardConfirm) _hider->offerPeer(0);
 				})), LayerOption::CloseOther, anim::type::instant);
 			}

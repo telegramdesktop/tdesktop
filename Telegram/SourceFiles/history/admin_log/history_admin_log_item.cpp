@@ -327,7 +327,7 @@ void GenerateItems(
 		not_null<History*> history,
 		not_null<LocalIdManager*> idManager,
 		const MTPDchannelAdminLogEvent &event,
-		base::lambda<void(OwnedItem item)> callback) {
+		Fn<void(OwnedItem item)> callback) {
 	Expects(history->peer->isChannel());
 
 	auto id = event.vid.v;

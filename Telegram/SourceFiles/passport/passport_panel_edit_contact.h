@@ -31,11 +31,11 @@ struct EditContactScheme {
 
 	QString aboutExisting;
 	QString newHeader;
-	base::lambda<QString()> newPlaceholder;
+	Fn<QString()> newPlaceholder;
 	QString aboutNew;
-	base::lambda<bool(const QString &value)> validate;
-	base::lambda<QString(const QString &value)> format;
-	base::lambda<QString(const QString &value)> postprocess;
+	Fn<bool(const QString &value)> validate;
+	Fn<QString(const QString &value)> format;
+	Fn<QString(const QString &value)> postprocess;
 
 };
 
@@ -76,13 +76,13 @@ private:
 object_ptr<BoxContent> VerifyPhoneBox(
 	const QString &phone,
 	int codeLength,
-	base::lambda<void(QString code)> submit,
+	Fn<void(QString code)> submit,
 	rpl::producer<QString> call,
 	rpl::producer<QString> error);
 object_ptr<BoxContent> VerifyEmailBox(
 	const QString &email,
 	int codeLength,
-	base::lambda<void(QString code)> submit,
+	Fn<void(QString code)> submit,
 	rpl::producer<QString> error);
 
 } // namespace Passport

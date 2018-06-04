@@ -31,7 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 PeerListBox::PeerListBox(
 	QWidget*,
 	std::unique_ptr<PeerListController> controller,
-	base::lambda<void(not_null<PeerListBox*>)> init)
+	Fn<void(not_null<PeerListBox*>)> init)
 : _controller(std::move(controller))
 , _init(std::move(init)) {
 	Expects(_controller != nullptr);
@@ -525,7 +525,7 @@ void PeerListRow::lazyInitialize(const style::PeerListItem &st) {
 	refreshStatus();
 }
 
-void PeerListRow::createCheckbox(base::lambda<void()> updateCallback) {
+void PeerListRow::createCheckbox(Fn<void()> updateCallback) {
 	_checkbox = std::make_unique<Ui::RoundImageCheckbox>(
 		st::contactsPhotoCheckbox,
 		std::move(updateCallback),
@@ -1022,7 +1022,7 @@ void PeerListContent::contextMenuEvent(QContextMenuEvent *e) {
 	if (const auto row = getRow(_contexted.index)) {
 		_contextMenu = _controller->rowContextMenu(row);
 		if (_contextMenu) {
-			_contextMenu->setDestroyedCallback(base::lambda_guarded(
+			_contextMenu->setDestroyedCallback(crl::guard(
 				this,
 				[this] {
 					setContexted(Selected());

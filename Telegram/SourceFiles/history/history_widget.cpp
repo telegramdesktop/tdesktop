@@ -3221,7 +3221,7 @@ void HistoryWidget::chooseAttach() {
 
 	auto filter = FileDialog::AllFilesFilter() + qsl(";;Image files (*") + cImgExtensions().join(qsl(" *")) + qsl(")");
 
-	FileDialog::GetOpenPaths(this, lang(lng_choose_files), filter, base::lambda_guarded(this, [this](FileDialog::OpenResult &&result) {
+	FileDialog::GetOpenPaths(this, lang(lng_choose_files), filter, crl::guard(this, [this](FileDialog::OpenResult &&result) {
 		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
 			return;
 		}
@@ -3891,7 +3891,7 @@ void HistoryWidget::pushTabbedSelectorToThirdSection(
 	auto destroyingPanel = std::move(_tabbedPanel);
 	auto memento = ChatHelpers::TabbedMemento(
 		destroyingPanel->takeSelector(),
-		base::lambda_guarded(this, [this](
+		crl::guard(this, [this](
 				object_ptr<TabbedSelector> selector) {
 			returnTabbedSelector(std::move(selector));
 		}));
@@ -4179,7 +4179,7 @@ bool HistoryWidget::confirmSendingFiles(
 		text,
 		boxCompressConfirm);
 	_field->setTextWithTags({});
-	box->setConfirmedCallback(base::lambda_guarded(this, [=](
+	box->setConfirmedCallback(crl::guard(this, [=](
 			Storage::PreparedList &&list,
 			SendFilesWay way,
 			TextWithTags &&caption,
@@ -4200,7 +4200,7 @@ bool HistoryWidget::confirmSendingFiles(
 			replyToId(),
 			album);
 	}));
-	box->setCancelledCallback(base::lambda_guarded(this, [=] {
+	box->setCancelledCallback(crl::guard(this, [=] {
 		_field->setTextWithTags(text);
 		auto cursor = _field->textCursor();
 		cursor.setPosition(anchor);
@@ -4611,7 +4611,7 @@ void HistoryWidget::documentFailed(const FullMsgId &newId) {
 
 void HistoryWidget::onReportSpamClicked() {
 	auto text = lang(_peer->isUser() ? lng_report_spam_sure : ((_peer->isChat() || _peer->isMegagroup()) ? lng_report_spam_sure_group : lng_report_spam_sure_channel));
-	Ui::show(Box<ConfirmBox>(text, lang(lng_report_spam_ok), st::attentionBoxButton, base::lambda_guarded(this, [this, peer = _peer] {
+	Ui::show(Box<ConfirmBox>(text, lang(lng_report_spam_ok), st::attentionBoxButton, crl::guard(this, [this, peer = _peer] {
 		if (_reportSpamRequest) return;
 
 		Ui::hideLayer();
@@ -5840,7 +5840,7 @@ void HistoryWidget::replyToMessage(not_null<HistoryItem*> item) {
 				Ui::show(Box<InformBox>(lang(lng_reply_cant)));
 			} else {
 				const auto itemId = item->fullId();
-				Ui::show(Box<ConfirmBox>(lang(lng_reply_cant_forward), lang(lng_selected_forward), base::lambda_guarded(this, [=] {
+				Ui::show(Box<ConfirmBox>(lang(lng_reply_cant_forward), lang(lng_selected_forward), crl::guard(this, [=] {
 					App::main()->setForwardDraft(
 						_peer->id,
 						{ 1, itemId });
@@ -5965,7 +5965,7 @@ void HistoryWidget::unpinMessage(FullMsgId itemId) {
 		return;
 	}
 
-	Ui::show(Box<ConfirmBox>(lang(lng_pinned_unpin_sure), lang(lng_pinned_unpin), base::lambda_guarded(this, [=] {
+	Ui::show(Box<ConfirmBox>(lang(lng_pinned_unpin_sure), lang(lng_pinned_unpin), crl::guard(this, [=] {
 		channel->clearPinnedMessage();
 
 		Ui::hideLayer();
@@ -6318,7 +6318,7 @@ void HistoryWidget::onCancel() {
 				lang(lng_cancel_edit_post_sure),
 				lang(lng_cancel_edit_post_yes),
 				lang(lng_cancel_edit_post_no),
-				base::lambda_guarded(this, [this] {
+				crl::guard(this, [this] {
 					if (_editMsgId) {
 						cancelEdit();
 						Ui::hideLayer();

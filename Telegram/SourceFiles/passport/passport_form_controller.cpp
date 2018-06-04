@@ -841,7 +841,7 @@ void FormController::prepareFile(
 void FormController::encryptFile(
 		EditFile &file,
 		QByteArray &&content,
-		base::lambda<void(UploadScanData &&result)> callback) {
+		Fn<void(UploadScanData &&result)> callback) {
 	prepareFile(file, content);
 
 	const auto weak = std::weak_ptr<bool>(file.guard);

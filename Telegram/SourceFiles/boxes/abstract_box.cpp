@@ -20,8 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 
 QPointer<Ui::RoundButton> BoxContent::addButton(
-		base::lambda<QString()> textFactory,
-		base::lambda<void()> clickCallback) {
+		Fn<QString()> textFactory,
+		Fn<void()> clickCallback) {
 	return addButton(
 		std::move(textFactory),
 		std::move(clickCallback),
@@ -29,8 +29,8 @@ QPointer<Ui::RoundButton> BoxContent::addButton(
 }
 
 QPointer<Ui::RoundButton> BoxContent::addLeftButton(
-		base::lambda<QString()> textFactory,
-		base::lambda<void()> clickCallback) {
+		Fn<QString()> textFactory,
+		Fn<void()> clickCallback) {
 	return getDelegate()->addLeftButton(
 		std::move(textFactory), 
 		std::move(clickCallback), 
@@ -290,7 +290,7 @@ void AbstractBox::parentResized() {
 	update();
 }
 
-void AbstractBox::setTitle(base::lambda<TextWithEntities()> titleFactory) {
+void AbstractBox::setTitle(Fn<TextWithEntities()> titleFactory) {
 	_titleFactory = std::move(titleFactory);
 	refreshTitle();
 }
@@ -311,7 +311,7 @@ void AbstractBox::refreshTitle() {
 	}
 }
 
-void AbstractBox::setAdditionalTitle(base::lambda<QString()> additionalFactory) {
+void AbstractBox::setAdditionalTitle(Fn<QString()> additionalFactory) {
 	_additionalTitleFactory = std::move(additionalFactory);
 	refreshAdditionalTitle();
 }
@@ -373,7 +373,7 @@ void AbstractBox::clearButtons() {
 	_leftButton.destroy();
 }
 
-QPointer<Ui::RoundButton> AbstractBox::addButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback, const style::RoundButton &st) {
+QPointer<Ui::RoundButton> AbstractBox::addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) {
 	_buttons.push_back(object_ptr<Ui::RoundButton>(this, std::move(textFactory), st));
 	auto result = QPointer<Ui::RoundButton>(_buttons.back());
 	result->setClickedCallback(std::move(clickCallback));
@@ -382,7 +382,7 @@ QPointer<Ui::RoundButton> AbstractBox::addButton(base::lambda<QString()> textFac
 	return result;
 }
 
-QPointer<Ui::RoundButton> AbstractBox::addLeftButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback, const style::RoundButton &st) {
+QPointer<Ui::RoundButton> AbstractBox::addLeftButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) {
 	_leftButton = object_ptr<Ui::RoundButton>(this, std::move(textFactory), st);
 	auto result = QPointer<Ui::RoundButton>(_leftButton);
 	result->setClickedCallback(std::move(clickCallback));

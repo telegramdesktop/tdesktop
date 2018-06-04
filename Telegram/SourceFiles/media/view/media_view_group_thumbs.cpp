@@ -96,7 +96,7 @@ public:
 		Dying,
 	};
 
-	Thumb(Key key, ImagePtr image, base::lambda<void()> handler);
+	Thumb(Key key, ImagePtr image, Fn<void()> handler);
 
 	int leftToUpdate() const;
 	int rightToUpdate() const;
@@ -137,7 +137,7 @@ private:
 GroupThumbs::Thumb::Thumb(
 	Key key,
 	ImagePtr image,
-	base::lambda<void()> handler)
+	Fn<void()> handler)
 : _key(key)
 , _image(image) {
 	_link = std::make_shared<LambdaClickHandler>(std::move(handler));

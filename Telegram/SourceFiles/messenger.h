@@ -185,7 +185,7 @@ public:
 	void call_handleDelayedPeerUpdates();
 	void call_handleObservables();
 
-	void callDelayed(int duration, base::lambda_once<void()> &&lambda) {
+	void callDelayed(int duration, FnMut<void()> &&lambda) {
 		_callDelayedTimer.call(duration, std::move(lambda));
 	}
 

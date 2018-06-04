@@ -367,7 +367,7 @@ SuggestionsController::SuggestionsController(QWidget *parent, not_null<QTextEdit
 }
 
 void SuggestionsController::setReplaceCallback(
-	base::lambda<void(
+	Fn<void(
 		int from,
 		int till,
 		const QString &replacement)> callback) {

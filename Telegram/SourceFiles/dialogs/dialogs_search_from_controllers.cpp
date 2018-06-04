@@ -18,8 +18,8 @@ namespace Dialogs {
 void ShowSearchFromBox(
 		not_null<Window::Navigation*> navigation,
 		not_null<PeerData*> peer,
-		base::lambda<void(not_null<UserData*>)> callback,
-		base::lambda<void()> closedCallback) {
+		Fn<void(not_null<UserData*>)> callback,
+		Fn<void()> closedCallback) {
 	auto createController = [
 		navigation,
 		peer,
@@ -54,7 +54,7 @@ void ShowSearchFromBox(
 ChatSearchFromController::ChatSearchFromController(
 	not_null<Window::Navigation*> navigation,
 	not_null<ChatData*> chat,
-	base::lambda<void(not_null<UserData*>)> callback)
+	Fn<void(not_null<UserData*>)> callback)
 : PeerListController()
 , _chat(chat)
 , _callback(std::move(callback)) {
@@ -128,7 +128,7 @@ void ChatSearchFromController::appendRow(not_null<UserData*> user) {
 ChannelSearchFromController::ChannelSearchFromController(
 	not_null<Window::Navigation*> navigation,
 	not_null<ChannelData*> channel,
-	base::lambda<void(not_null<UserData*>)> callback)
+	Fn<void(not_null<UserData*>)> callback)
 : ParticipantsBoxController(
 	navigation,
 	channel,

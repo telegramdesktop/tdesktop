@@ -268,7 +268,7 @@ void BackgroundWidget::onChooseFromFile() {
 		this,
 		lang(lng_choose_image),
 		filters.join(qsl(";;")),
-		base::lambda_guarded(this, callback));
+		crl::guard(this, callback));
 }
 
 void BackgroundWidget::onEditTheme() {

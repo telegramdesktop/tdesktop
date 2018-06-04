@@ -30,8 +30,8 @@ Float::Float(
 	QWidget *parent,
 	not_null<Window::Controller*> controller,
 	not_null<HistoryItem*> item,
-	base::lambda<void(bool visible)> toggleCallback,
-	base::lambda<void(bool closed)> draggedCallback)
+	Fn<void(bool visible)> toggleCallback,
+	Fn<void(bool closed)> draggedCallback)
 : RpWidget(parent)
 , _controller(controller)
 , _item(item)

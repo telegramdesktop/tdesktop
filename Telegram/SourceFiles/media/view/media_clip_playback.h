@@ -20,10 +20,10 @@ class Playback {
 public:
 	Playback();
 
-	void setValueChangedCallback(base::lambda<void(float64)> callback) {
+	void setValueChangedCallback(Fn<void(float64)> callback) {
 		_valueChanged = std::move(callback);
 	}
-	void setInLoadingStateChangedCallback(base::lambda<void(bool)> callback) {
+	void setInLoadingStateChangedCallback(Fn<void(bool)> callback) {
 		_inLoadingStateChanged = std::move(callback);
 	}
 	void setValue(float64 value, bool animated);
@@ -40,10 +40,10 @@ private:
 	// so it should be a BasicAnimation, not an Animation.
 	anim::value a_value;
 	BasicAnimation _a_value;
-	base::lambda<void(float64)> _valueChanged;
+	Fn<void(float64)> _valueChanged;
 
 	bool _inLoadingState = false;
-	base::lambda<void(bool)> _inLoadingStateChanged;
+	Fn<void(bool)> _inLoadingStateChanged;
 
 	int64 _position = 0;
 	int64 _length = 0;

@@ -356,7 +356,7 @@ private:
 	void encryptFile(
 		EditFile &file,
 		QByteArray &&content,
-		base::lambda<void(UploadScanData &&result)> callback);
+		Fn<void(UploadScanData &&result)> callback);
 	void prepareFile(
 		EditFile &file,
 		const QByteArray &content);
@@ -425,7 +425,7 @@ private:
 
 	bytes::vector _secret;
 	uint64 _secretId = 0;
-	std::vector<base::lambda<void()>> _secretCallbacks;
+	std::vector<Fn<void()>> _secretCallbacks;
 	mtpRequestId _saveSecretRequestId = 0;
 	rpl::event_stream<> _secretReady;
 	rpl::event_stream<QString> _passwordError;

@@ -109,7 +109,7 @@ public:
 
 	void setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk);
 
-	using ClickHandlerHook = base::lambda<bool(const ClickHandlerPtr&, Qt::MouseButton)>;
+	using ClickHandlerHook = Fn<bool(const ClickHandlerPtr&, Qt::MouseButton)>;
 	void setClickHandlerHook(ClickHandlerHook &&hook);
 
 	// ClickHandlerHost interface

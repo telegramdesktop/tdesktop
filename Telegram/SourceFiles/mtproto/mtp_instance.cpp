@@ -98,8 +98,8 @@ public:
 
 	void setUpdatesHandler(RPCDoneHandlerPtr onDone);
 	void setGlobalFailHandler(RPCFailHandlerPtr onFail);
-	void setStateChangedHandler(base::lambda<void(ShiftedDcId shiftedDcId, int32 state)> handler);
-	void setSessionResetHandler(base::lambda<void(ShiftedDcId shiftedDcId)> handler);
+	void setStateChangedHandler(Fn<void(ShiftedDcId shiftedDcId, int32 state)> handler);
+	void setSessionResetHandler(Fn<void(ShiftedDcId shiftedDcId)> handler);
 	void clearGlobalHandlers();
 
 	internal::Session *getSession(ShiftedDcId shiftedDcId);
@@ -202,8 +202,8 @@ private:
 	std::map<DcId, std::vector<mtpRequestId>> _authWaiters;
 
 	RPCResponseHandler _globalHandler;
-	base::lambda<void(ShiftedDcId shiftedDcId, int32 state)> _stateChangedHandler;
-	base::lambda<void(ShiftedDcId shiftedDcId)> _sessionResetHandler;
+	Fn<void(ShiftedDcId shiftedDcId, int32 state)> _stateChangedHandler;
+	Fn<void(ShiftedDcId shiftedDcId)> _sessionResetHandler;
 
 	base::Timer _checkDelayedTimer;
 
@@ -1420,19 +1420,19 @@ void Instance::Private::setGlobalFailHandler(RPCFailHandlerPtr onFail) {
 	_globalHandler.onFail = onFail;
 }
 
-void Instance::Private::setStateChangedHandler(base::lambda<void(ShiftedDcId shiftedDcId, int32 state)> handler) {
+void Instance::Private::setStateChangedHandler(Fn<void(ShiftedDcId shiftedDcId, int32 state)> handler) {
 	_stateChangedHandler = std::move(handler);
 }
 
-void Instance::Private::setSessionResetHandler(base::lambda<void(ShiftedDcId shiftedDcId)> handler) {
+void Instance::Private::setSessionResetHandler(Fn<void(ShiftedDcId shiftedDcId)> handler) {
 	_sessionResetHandler = std::move(handler);
 }
 
 void Instance::Private::clearGlobalHandlers() {
 	setUpdatesHandler(RPCDoneHandlerPtr());
 	setGlobalFailHandler(RPCFailHandlerPtr());
-	setStateChangedHandler(base::lambda<void(ShiftedDcId,int32)>());
-	setSessionResetHandler(base::lambda<void(ShiftedDcId)>());
+	setStateChangedHandler(Fn<void(ShiftedDcId,int32)>());
+	setSessionResetHandler(Fn<void(ShiftedDcId)>());
 }
 
 void Instance::Private::prepareToDestroy() {
@@ -1588,11 +1588,11 @@ void Instance::setGlobalFailHandler(RPCFailHandlerPtr onFail) {
 	_private->setGlobalFailHandler(onFail);
 }
 
-void Instance::setStateChangedHandler(base::lambda<void(ShiftedDcId shiftedDcId, int32 state)> handler) {
+void Instance::setStateChangedHandler(Fn<void(ShiftedDcId shiftedDcId, int32 state)> handler) {
 	_private->setStateChangedHandler(std::move(handler));
 }
 
-void Instance::setSessionResetHandler(base::lambda<void(ShiftedDcId shiftedDcId)> handler) {
+void Instance::setSessionResetHandler(Fn<void(ShiftedDcId shiftedDcId)> handler) {
 	_private->setSessionResetHandler(std::move(handler));
 }
 

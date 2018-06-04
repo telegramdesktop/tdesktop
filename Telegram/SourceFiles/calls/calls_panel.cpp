@@ -71,7 +71,7 @@ SignalBars::SignalBars(
 	QWidget *parent,
 	not_null<Call*> call,
 	const style::CallSignalBars &st,
-	base::lambda<void()> displayedChangedCallback)
+	Fn<void()> displayedChangedCallback)
 : RpWidget(parent)
 , _st(st)
 , _displayedChangedCallback(std::move(displayedChangedCallback)) {

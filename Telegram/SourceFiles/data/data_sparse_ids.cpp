@@ -399,7 +399,7 @@ rpl::producer<SparseIdsMergedSlice> SparseIdsMergedSlice::CreateViewer(
 		SparseIdsMergedSlice::Key key,
 		int limitBefore,
 		int limitAfter,
-		base::lambda<SimpleViewerFunction> simpleViewer) {
+		Fn<SimpleViewerFunction> simpleViewer) {
 	Expects(IsServerMsgId(key.universalId)
 		|| (key.universalId == 0)
 		|| (IsServerMsgId(ServerMaxMsgId + key.universalId) && key.migratedPeerId != 0));

@@ -55,8 +55,8 @@ public:
 
 	static void ChooseScan(
 		QPointer<QWidget> parent,
-		base::lambda<void(QByteArray&&)> doneCallback,
-		base::lambda<void(ReadScanError)> errorCallback);
+		Fn<void(QByteArray&&)> doneCallback,
+		Fn<void(ReadScanError)> errorCallback);
 
 	~EditScans();
 

@@ -2343,7 +2343,7 @@ void StickersListWidget::removeMegagroupSet(bool locally) {
 		return;
 	}
 	_removingSetId = Stickers::MegagroupSetId;
-	Ui::show(Box<ConfirmBox>(lang(lng_stickers_remove_group_set), base::lambda_guarded(this, [this, group = _megagroupSet] {
+	Ui::show(Box<ConfirmBox>(lang(lng_stickers_remove_group_set), crl::guard(this, [this, group = _megagroupSet] {
 		Expects(group->mgInfo != nullptr);
 		if (group->mgInfo->stickerSet.type() != mtpc_inputStickerSetEmpty) {
 			Auth().api().setGroupStickerSet(group, MTP_inputStickerSetEmpty());
@@ -2351,7 +2351,7 @@ void StickersListWidget::removeMegagroupSet(bool locally) {
 		Ui::hideLayer();
 		_removingSetId = 0;
 		emit checkForHide();
-	}), base::lambda_guarded(this, [this] {
+	}), crl::guard(this, [this] {
 		_removingSetId = 0;
 		emit checkForHide();
 	})));
@@ -2363,7 +2363,7 @@ void StickersListWidget::removeSet(uint64 setId) {
 	if (it != sets.cend()) {
 		_removingSetId = it->id;
 		auto text = lng_stickers_remove_pack(lt_sticker_pack, it->title);
-		Ui::show(Box<ConfirmBox>(text, lang(lng_stickers_remove_pack_confirm), base::lambda_guarded(this, [this] {
+		Ui::show(Box<ConfirmBox>(text, lang(lng_stickers_remove_pack_confirm), crl::guard(this, [this] {
 			Ui::hideLayer();
 			auto &sets = Auth().data().stickerSetsRef();
 			auto it = sets.find(_removingSetId);
@@ -2400,7 +2400,7 @@ void StickersListWidget::removeSet(uint64 setId) {
 			}
 			_removingSetId = 0;
 			emit checkForHide();
-		}), base::lambda_guarded(this, [this] {
+		}), crl::guard(this, [this] {
 			_removingSetId = 0;
 			emit checkForHide();
 		})));

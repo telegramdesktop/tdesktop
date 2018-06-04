@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-base::lambda<QString()> ManagePeerTitle(
+Fn<QString()> ManagePeerTitle(
 		not_null<ChannelData*> channel) {
 	return langFactory(channel->isMegagroup()
 		? lng_manage_group_title

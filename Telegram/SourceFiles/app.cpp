@@ -1150,7 +1150,7 @@ namespace {
 		return i.value();
 	}
 
-	void enumerateUsers(base::lambda<void(not_null<UserData*>)> action) {
+	void enumerateUsers(Fn<void(not_null<UserData*>)> action) {
 		for_const (const auto peer, peersData) {
 			if (const auto user = peer->asUser()) {
 				action(user);
@@ -1159,7 +1159,7 @@ namespace {
 	}
 
 	void enumerateChatsChannels(
-			base::lambda<void(not_null<PeerData*>)> action) {
+			Fn<void(not_null<PeerData*>)> action) {
 		for_const (const auto peer, peersData) {
 			if (!peer->isUser()) {
 				action(peer);

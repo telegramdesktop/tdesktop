@@ -26,7 +26,7 @@ struct ServiceWebRequest {
 class SpecialConfigRequest : public QObject {
 public:
 	SpecialConfigRequest(
-		base::lambda<void(
+		Fn<void(
 			DcId dcId,
 			const std::string &ip,
 			int port,
@@ -50,7 +50,7 @@ private:
 	void handleResponse(const QByteArray &bytes);
 	bool decryptSimpleConfig(const QByteArray &bytes);
 
-	base::lambda<void(
+	Fn<void(
 		DcId dcId,
 		const std::string &ip,
 		int port,
@@ -66,7 +66,7 @@ private:
 
 class DomainResolver : public QObject {
 public:
-	DomainResolver(base::lambda<void(
+	DomainResolver(Fn<void(
 		const QString &domain,
 		const QStringList &ips,
 		TimeMs expireAt)> callback);
@@ -104,7 +104,7 @@ private:
 		const AttemptKey &key,
 		not_null<QNetworkReply*> reply);
 
-	base::lambda<void(
+	Fn<void(
 		const QString &domain,
 		const QStringList &ips,
 		TimeMs expireAt)> _callback;

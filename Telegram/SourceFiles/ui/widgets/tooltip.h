@@ -75,7 +75,7 @@ public:
 	void toggleFast(bool visible);
 	void hideAfter(TimeMs timeout);
 
-	void setHiddenCallback(base::lambda<void()> callback) {
+	void setHiddenCallback(Fn<void()> callback) {
 		_hiddenCallback = std::move(callback);
 	}
 
@@ -101,7 +101,7 @@ private:
 
 	Animation _visibleAnimation;
 	bool _visible = false;
-	base::lambda<void()> _hiddenCallback;
+	Fn<void()> _hiddenCallback;
 	bool _useTransparency = true;
 	QPixmap _cache;
 

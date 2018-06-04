@@ -43,8 +43,8 @@ struct EditDocumentScheme {
 		PanelDetailsType inputType = PanelDetailsType();
 		QString key;
 		QString label;
-		base::lambda<base::optional<QString>(const QString &value)> error;
-		base::lambda<QString(const QString &value)> format;
+		Fn<base::optional<QString>(const QString &value)> error;
+		Fn<QString(const QString &value)> format;
 		int lengthLimit = 0;
 	};
 	std::vector<Row> rows;
@@ -115,14 +115,14 @@ private:
 };
 
 object_ptr<BoxContent> RequestIdentityType(
-	base::lambda<void(int index)> submit,
+	Fn<void(int index)> submit,
 	std::vector<QString> labels);
 object_ptr<BoxContent> RequestAddressType(
-	base::lambda<void(int index)> submit,
+	Fn<void(int index)> submit,
 	std::vector<QString> labels);
 
 object_ptr<BoxContent> ConfirmDeleteDocument(
-	base::lambda<void(bool withDetails)> submit,
+	Fn<void(bool withDetails)> submit,
 	const QString &text,
 	const QString &detailsCheckbox = QString());
 

@@ -101,7 +101,7 @@ void DownloadPathBox::onEditPath() {
 		this,
 		lang(lng_download_path_choose),
 		initialPath,
-		base::lambda_guarded(this, handleFolder));
+		crl::guard(this, handleFolder));
 }
 
 void DownloadPathBox::save() {

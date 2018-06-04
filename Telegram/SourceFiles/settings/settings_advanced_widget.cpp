@@ -124,9 +124,9 @@ void AdvancedWidget::onToggleNightTheme() {
 }
 
 void AdvancedWidget::onAskQuestion() {
-	auto box = Box<ConfirmBox>(lang(lng_settings_ask_sure), lang(lng_settings_ask_ok), lang(lng_settings_faq_button), base::lambda_guarded(this, [this] {
+	auto box = Box<ConfirmBox>(lang(lng_settings_ask_sure), lang(lng_settings_ask_ok), lang(lng_settings_faq_button), crl::guard(this, [this] {
 		onAskQuestionSure();
-	}), base::lambda_guarded(this, [this] {
+	}), crl::guard(this, [this] {
 		onTelegramFAQ();
 	}));
 	box->setStrictCancel(true);

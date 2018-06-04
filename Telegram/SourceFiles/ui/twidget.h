@@ -450,7 +450,7 @@ QPointer<const Widget> make_weak(not_null<const Widget*> object) {
 
 class SingleQueuedInvokation : public QObject {
 public:
-	SingleQueuedInvokation(base::lambda<void()> callback) : _callback(callback) {
+	SingleQueuedInvokation(Fn<void()> callback) : _callback(callback) {
 	}
 	void call() {
 		if (_pending.testAndSetAcquire(0, 1)) {
@@ -463,7 +463,7 @@ public:
 	}
 
 private:
-	base::lambda<void()> _callback;
+	Fn<void()> _callback;
 	QAtomicInt _pending = { 0 };
 
 };

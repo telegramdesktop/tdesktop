@@ -157,7 +157,7 @@ ServiceWebRequest::~ServiceWebRequest() {
 }
 
 SpecialConfigRequest::SpecialConfigRequest(
-	base::lambda<void(
+	Fn<void(
 		DcId dcId,
 		const std::string &ip,
 		int port,
@@ -237,8 +237,7 @@ void SpecialConfigRequest::requestFinished(
 QByteArray SpecialConfigRequest::finalizeRequest(
 		not_null<QNetworkReply*> reply) {
 	if (reply->error() != QNetworkReply::NoError) {
-		LOG(("Config Error: Failed to get response from %1, error: %2 (%3)"
-			).arg(reply->request().url().toDisplayString()
+		LOG(("Config Error: Failed to get response, error: %2 (%3)"
 			).arg(reply->errorString()
 			).arg(reply->error()));
 	}
@@ -373,7 +372,7 @@ void SpecialConfigRequest::handleResponse(const QByteArray &bytes) {
 	}
 }
 
-DomainResolver::DomainResolver(base::lambda<void(
+DomainResolver::DomainResolver(Fn<void(
 	const QString &host,
 	const QStringList &ips,
 	TimeMs expireAt)> callback)
@@ -492,8 +491,7 @@ QByteArray DomainResolver::finalizeRequest(
 		const AttemptKey &key,
 		not_null<QNetworkReply*> reply) {
 	if (reply->error() != QNetworkReply::NoError) {
-		LOG(("Resolve Error: Failed to get response from %1, error: %2 (%3)"
-			).arg(reply->request().url().toDisplayString()
+		LOG(("Resolve Error: Failed to get response, error: %2 (%3)"
 			).arg(reply->errorString()
 			).arg(reply->error()));
 	}

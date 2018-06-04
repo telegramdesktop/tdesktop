@@ -277,7 +277,7 @@ void PwdCheckWidget::submit() {
 			_codeField->showError();
 			return;
 		}
-		const auto send = base::lambda_guarded(this, [=] {
+		const auto send = crl::guard(this, [=] {
 			_sentRequest = MTP::send(
 				MTPauth_RecoverPassword(MTP_string(code)),
 				rpcDone(&PwdCheckWidget::pwdSubmitDone, true),

@@ -13,18 +13,18 @@ class EventFilter : public QObject {
 public:
 	EventFilter(
 		not_null<QObject*> parent,
-		base::lambda<bool(not_null<QEvent*>)> filter);
+		Fn<bool(not_null<QEvent*>)> filter);
 
 protected:
 	bool eventFilter(QObject *watched, QEvent *event);
 
 private:
-	base::lambda<bool(not_null<QEvent*>)> _filter;
+	Fn<bool(not_null<QEvent*>)> _filter;
 
 };
 
 not_null<QObject*> InstallEventFilter(
 	not_null<QObject*> object,
-	base::lambda<bool(not_null<QEvent*>)> filter);
+	Fn<bool(not_null<QEvent*>)> filter);
 
 } // namespace Core

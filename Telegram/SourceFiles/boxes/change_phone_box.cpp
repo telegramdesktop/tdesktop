@@ -144,9 +144,9 @@ void ChangePhoneBox::EnterPhone::submit() {
 	hideError();
 
 	auto phoneNumber = _phone->getLastText().trimmed();
-	_requestId = MTP::send(MTPaccount_SendChangePhoneCode(MTP_flags(0), MTP_string(phoneNumber), MTP_bool(false)), rpcDone(base::lambda_guarded(this, [this, phoneNumber](const MTPauth_SentCode &result) {
+	_requestId = MTP::send(MTPaccount_SendChangePhoneCode(MTP_flags(0), MTP_string(phoneNumber), MTP_bool(false)), rpcDone(crl::guard(this, [this, phoneNumber](const MTPauth_SentCode &result) {
 		return sendPhoneDone(phoneNumber, result);
-	})), rpcFail(base::lambda_guarded(this, [this, phoneNumber](const RPCError &error) {
+	})), rpcFail(crl::guard(this, [this, phoneNumber](const RPCError &error) {
 		return sendPhoneFail(phoneNumber, error);
 	})));
 }
@@ -265,13 +265,13 @@ void ChangePhoneBox::EnterCode::submit() {
 			Ui::hideLayer();
 		}
 		Ui::Toast::Show(lang(lng_change_phone_success));
-	}), rpcFail(base::lambda_guarded(this, [this](const RPCError &error) {
+	}), rpcFail(crl::guard(this, [this](const RPCError &error) {
 		return sendCodeFail(error);
 	})));
 }
 
 void ChangePhoneBox::EnterCode::sendCall() {
-	MTP::send(MTPauth_ResendCode(MTP_string(_phone), MTP_string(_hash)), rpcDone(base::lambda_guarded(this, [this] {
+	MTP::send(MTPauth_ResendCode(MTP_string(_phone), MTP_string(_hash)), rpcDone(crl::guard(this, [this] {
 		_call.callDone();
 	})));
 }

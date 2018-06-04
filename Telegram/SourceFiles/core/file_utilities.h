@@ -57,27 +57,27 @@ void GetOpenPath(
 	QPointer<QWidget> parent,
 	const QString &caption,
 	const QString &filter,
-	base::lambda<void(OpenResult &&result)> callback,
-	base::lambda<void()> failed = base::lambda<void()>());
+	Fn<void(OpenResult &&result)> callback,
+	Fn<void()> failed = Fn<void()>());
 void GetOpenPaths(
 	QPointer<QWidget> parent,
 	const QString &caption,
 	const QString &filter,
-	base::lambda<void(OpenResult &&result)> callback,
-	base::lambda<void()> failed = base::lambda<void()>());
+	Fn<void(OpenResult &&result)> callback,
+	Fn<void()> failed = Fn<void()>());
 void GetWritePath(
 	QPointer<QWidget> parent,
 	const QString &caption,
 	const QString &filter,
 	const QString &initialPath,
-	base::lambda<void(QString &&result)> callback,
-	base::lambda<void()> failed = base::lambda<void()>());
+	Fn<void(QString &&result)> callback,
+	Fn<void()> failed = Fn<void()>());
 void GetFolder(
 	QPointer<QWidget> parent,
 	const QString &caption,
 	const QString &initialPath,
-	base::lambda<void(QString &&result)> callback,
-	base::lambda<void()> failed = base::lambda<void()>());
+	Fn<void(QString &&result)> callback,
+	Fn<void()> failed = Fn<void()>());
 
 QString AllFilesFilter();
 

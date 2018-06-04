@@ -320,7 +320,7 @@ void PasscodeBox::save(bool force) {
 		}
 		if (!_recoverEmail->isHidden() && email.isEmpty() && !force) {
 			_skipEmailWarning = true;
-			_replacedBy = getDelegate()->show(Box<ConfirmBox>(lang(lng_cloud_password_about_recover), lang(lng_cloud_password_skip_email), st::attentionBoxButton, base::lambda_guarded(this, [this] {
+			_replacedBy = getDelegate()->show(Box<ConfirmBox>(lang(lng_cloud_password_about_recover), lang(lng_cloud_password_skip_email), st::attentionBoxButton, crl::guard(this, [this] {
 				save(true);
 			})));
 		} else if (_newPasscode->isHidden()) {
@@ -679,7 +679,7 @@ void RecoverBox::submit() {
 		return;
 	}
 
-	const auto send = base::lambda_guarded(this, [=] {
+	const auto send = crl::guard(this, [=] {
 		_submitRequest = MTP::send(
 			MTPauth_RecoverPassword(MTP_string(code)),
 			rpcDone(&RecoverBox::codeSubmitDone, true),
