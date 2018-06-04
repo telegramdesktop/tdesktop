@@ -199,7 +199,7 @@ std::map<QString, QString> DeserializeData(bytes::const_span bytes) {
 	auto result = std::map<QString, QString>();
 	for (auto i = object.constBegin(), e = object.constEnd(); i != e; ++i) {
 		const auto key = i.key();
-		switch (i->type()) {
+		switch ((*i).type()) {
 		case QJsonValue::Null: {
 			LOG(("API Error: null found inside decrypted JSON root. "
 				"Defaulting to empty string value."));
@@ -218,10 +218,10 @@ std::map<QString, QString> DeserializeData(bytes::const_span bytes) {
 		case QJsonValue::Double: {
 			LOG(("API Error: double found inside decrypted JSON root. "
 				"Converting to string."));
-			result[key] = QString::number(i->toDouble());
+			result[key] = QString::number((*i).toDouble());
 		} break;
 		case QJsonValue::String: {
-			result[key] = i->toString();
+			result[key] = (*i).toString();
 		} break;
 		case QJsonValue::Array: {
 			LOG(("API Error: array found inside decrypted JSON root. "
@@ -264,7 +264,7 @@ std::vector<DataError> DeserializeErrors(bytes::const_span json) {
 		if (typeIt == fields.constEnd()) {
 			LOG(("API Error: type was not found in an error."));
 			continue;
-		} else if (!typeIt->isString()) {
+		} else if (!(*typeIt).isString()) {
 			LOG(("API Error: type was not a string in an error."));
 			continue;
 		}
@@ -272,7 +272,7 @@ std::vector<DataError> DeserializeErrors(bytes::const_span json) {
 		if (descriptionIt == fields.constEnd()) {
 			LOG(("API Error: description was not found in an error."));
 			continue;
-		} else if (!typeIt->isString()) {
+		} else if (!(*typeIt).isString()) {
 			LOG(("API Error: description was not a string in an error."));
 			continue;
 		}
@@ -280,29 +280,29 @@ std::vector<DataError> DeserializeErrors(bytes::const_span json) {
 		if (targetIt == fields.constEnd()) {
 			LOG(("API Error: target aws not found in an error."));
 			continue;
-		} else if (!targetIt->isString()) {
+		} else if (!(*targetIt).isString()) {
 			LOG(("API Error: target was not as string in an error."));
 			continue;
 		}
 		auto next = DataError();
-		next.type = typeIt->toString();
-		next.text = descriptionIt->toString();
+		next.type = (*typeIt).toString();
+		next.text = (*descriptionIt).toString();
 		const auto fieldIt = fields.constFind("field");
 		const auto fileHashIt = fields.constFind("file_hash");
 		if (fieldIt != fields.constEnd()) {
-			if (!fieldIt->isString()) {
+			if (!(*fieldIt).isString()) {
 				LOG(("API Error: field was not a string in an error."));
 				continue;
 			}
-			next.key = fieldIt->toString();
+			next.key = (*fieldIt).toString();
 		} else if (fileHashIt != fields.constEnd()) {
-			if (!fileHashIt->isString()) {
+			if (!(*fileHashIt).isString()) {
 				LOG(("API Error: file_hash was not a string in an error."));
 				continue;
 			}
 			next.key = QByteArray::fromBase64(
-				fileHashIt->toString().toUtf8());
-		} else if (targetIt->toString() == "selfie") {
+				(*fileHashIt).toString().toUtf8());
+		} else if ((*targetIt).toString() == "selfie") {
 			next.key = QByteArray();
 		}
 		result.push_back(std::move(next));

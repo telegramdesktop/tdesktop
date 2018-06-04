@@ -67,8 +67,10 @@ QString DeviceModel() {
 QString SystemVersion() {
 	const int version = QSysInfo::macVersion();
 	constexpr int kShift = 2;
-	if (version == QSysInfo::MV_None
-		|| version == QSysInfo::MV_Unknown
+	if (version == QSysInfo::MV_Unknown
+#ifndef OS_MAC_OLD
+		|| version == QSysInfo::MV_None
+#endif // OS_MAC_OLD
 		|| version < kShift + 6) {
 		return "OS X";
 	} else if (version < kShift + 12) {
