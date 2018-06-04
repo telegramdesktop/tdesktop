@@ -154,7 +154,7 @@ bool HistoryMessageReply::updateData(
 
 		updateName();
 
-		replyToLnk = goToMessageClickHandler(replyToMsg, holder->fullId());
+		setReplyToLinkFrom(holder);
 		if (!replyToMsg->Has<HistoryMessageForwarded>()) {
 			if (auto bot = replyToMsg->viaBot()) {
 				replyToVia = std::make_unique<HistoryMessageVia>();
@@ -168,6 +168,13 @@ bool HistoryMessageReply::updateData(
 		Auth().data().requestItemResize(holder);
 	}
 	return (replyToMsg || !replyToMsgId);
+}
+
+void HistoryMessageReply::setReplyToLinkFrom(
+		not_null<HistoryMessage*> holder) {
+	replyToLnk = replyToMsg
+		? goToMessageClickHandler(replyToMsg, holder->fullId())
+		: nullptr;
 }
 
 void HistoryMessageReply::clearData(not_null<HistoryMessage*> holder) {

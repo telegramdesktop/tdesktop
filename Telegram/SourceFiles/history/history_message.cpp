@@ -1082,6 +1082,11 @@ void HistoryMessage::setRealId(MsgId newId) {
 	HistoryItem::setRealId(newId);
 	Auth().data().groups().refreshMessage(this);
 	Auth().data().requestItemResize(this);
+	if (const auto reply = Get<HistoryMessageReply>()) {
+		if (reply->replyToLink()) {
+			reply->setReplyToLinkFrom(this);
+		}
+	}
 }
 
 void HistoryMessage::dependencyItemRemoved(HistoryItem *dependency) {
