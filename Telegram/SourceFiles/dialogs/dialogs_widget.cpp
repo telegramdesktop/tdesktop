@@ -999,7 +999,7 @@ void DialogsWidget::onFilterUpdate(bool force) {
 
 	auto filterText = _filter->getLastText();
 	_inner->onFilterUpdate(filterText, force);
-	if (filterText.isEmpty()) {
+	if (filterText.isEmpty() && !_searchFromUser) {
 		clearSearchCache();
 	}
 	_cancelSearch->toggle(!filterText.isEmpty(), anim::type::normal);
