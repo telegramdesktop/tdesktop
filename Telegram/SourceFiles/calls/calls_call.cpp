@@ -312,12 +312,8 @@ void Call::redial() {
 }
 
 QString Call::getDebugLog() const {
-	constexpr auto kDebugLimit = 4096;
-	auto bytes = bytes::vector(kDebugLimit, gsl::byte {});
-	_controller->GetDebugString(reinterpret_cast<char*>(bytes.data()), bytes.size());
-	auto end = std::find(bytes.begin(), bytes.end(), gsl::byte {});
-	auto size = (end - bytes.begin());
-	return QString::fromUtf8(reinterpret_cast<const char*>(bytes.data()), size);
+	const auto debug = _controller->GetDebugString();
+	return QString::fromUtf8(debug.data(), debug.size());
 }
 
 void Call::startWaitingTrack() {
@@ -522,8 +518,8 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		return;
 	}
 
-	voip_config_t config = { 0 };
-	config.data_saving = tgvoip::DATA_SAVING_NEVER;
+	tgvoip::VoIPController::Config config;
+	config.dataSaving = tgvoip::DATA_SAVING_NEVER;
 #ifdef Q_OS_MAC
 	config.enableAEC = (QSysInfo::macVersion() < QSysInfo::MV_10_7);
 #else // Q_OS_MAC
@@ -531,8 +527,8 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 #endif // Q_OS_MAC
 	config.enableNS = true;
 	config.enableAGC = true;
-	config.init_timeout = Global::CallConnectTimeoutMs() / 1000;
-	config.recv_timeout = Global::CallPacketTimeoutMs() / 1000;
+	config.initTimeout = Global::CallConnectTimeoutMs() / 1000;
+	config.recvTimeout = Global::CallPacketTimeoutMs() / 1000;
 	if (cDebug()) {
 		auto callLogFolder = cWorkingDir() + qsl("DebugLogs");
 		auto callLogPath = callLogFolder + qsl("/last_call_log.txt");
@@ -573,7 +569,7 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	}
 	_controller->implData = static_cast<void*>(this);
 	_controller->SetRemoteEndpoints(endpoints, true, protocol.vmax_layer.v);
-	_controller->SetConfig(&config);
+	_controller->SetConfig(config);
 	_controller->SetEncryptionKey(reinterpret_cast<char*>(_authKey.data()), (_type == Type::Outgoing));
 	_controller->SetCallbacks(callbacks);
 	if (Global::UseProxy() && Global::UseProxyForCalls()) {
