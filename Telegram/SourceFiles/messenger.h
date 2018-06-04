@@ -132,10 +132,10 @@ public:
 		return _langCloudManager.get();
 	}
 	void authSessionCreate(UserId userId);
-	void authSessionDestroy();
 	base::Observable<void> &authSessionChanged() {
 		return _authSessionChanged;
 	}
+	void logOut();
 
 	// Media component.
 	Media::Audio::Instance &audio() {
@@ -166,6 +166,7 @@ public:
 	void killDownloadSessionsStart(MTP::DcId dcId);
 	void killDownloadSessionsStop(MTP::DcId dcId);
 
+	void forceLogOut(const TextWithEntities &explanation);
 	void checkLocalTime();
 	void setupPasscode();
 	void clearPasscode();
@@ -215,6 +216,8 @@ private:
 	void quitDelayed();
 
 	void photoUpdated(const FullMsgId &msgId, const MTPInputFile &file);
+	void resetAuthorizationKeys();
+	void authSessionDestroy();
 	void loggedOut();
 
 	not_null<Core::Launcher*> _launcher;

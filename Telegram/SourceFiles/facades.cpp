@@ -183,12 +183,6 @@ void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
 	});
 }
 
-void logOutDelayed() {
-	InvokeQueued(QCoreApplication::instance(), [] {
-		App::logOut();
-	});
-}
-
 } // namespace App
 
 namespace Ui {

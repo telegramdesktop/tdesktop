@@ -147,43 +147,6 @@ namespace App {
 		return false;
 	}
 
-namespace {
-	bool loggedOut() {
-		if (Global::LocalPasscode()) {
-			Global::SetLocalPasscode(false);
-			Global::RefLocalPasscodeChanged().notify();
-		}
-		Media::Player::mixer()->stopAndClear();
-		if (auto w = wnd()) {
-			w->tempDirDelete(Local::ClearManagerAll);
-			w->setupIntro();
-		}
-		histories().clear();
-		Messenger::Instance().authSessionDestroy();
-		Local::reset();
-		Window::Theme::Background()->reset();
-
-		cSetOtherOnline(0);
-		clearStorageImages();
-		return true;
-	}
-} // namespace
-
-	void logOut() {
-		if (auto mtproto = Messenger::Instance().mtp()) {
-			mtproto->logout(rpcDone([] {
-				return loggedOut();
-			}), rpcFail([] {
-				return loggedOut();
-			}));
-		} else {
-			// We log out because we've forgotten passcode.
-			// So we just start mtproto from scratch.
-			Messenger::Instance().startMtp();
-			loggedOut();
-		}
-	}
-
 	namespace {
 		// we should get a full restriction in "{fulltype}: {reason}" format and we
 		// need to find a "-all" tag in {fulltype}, otherwise ignore this restriction

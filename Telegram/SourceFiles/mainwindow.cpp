@@ -606,11 +606,15 @@ void MainWindow::onShowNewChannel() {
 }
 
 void MainWindow::onLogout() {
-	if (isHidden()) showFromTray();
+	if (isHidden()) {
+		showFromTray();
+	}
 
-	Ui::show(Box<ConfirmBox>(lang(lng_sure_logout), lang(lng_settings_logout), st::attentionBoxButton, [] {
-		App::logOut();
-	}));
+	Ui::show(Box<ConfirmBox>(
+		lang(lng_sure_logout),
+		lang(lng_settings_logout),
+		st::attentionBoxButton,
+		[] { Messenger::Instance().logOut(); }));
 }
 
 void MainWindow::quitFromTray() {

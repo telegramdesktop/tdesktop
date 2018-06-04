@@ -76,8 +76,6 @@ void showSettings();
 
 void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button);
 
-void logOutDelayed();
-
 } // namespace App
 
 

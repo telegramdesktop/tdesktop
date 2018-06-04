@@ -314,7 +314,7 @@ bool AuthSession::validateSelf(const MTPUser &user) {
 		return false;
 	} else if (user.c_user().vid.v != userId()) {
 		LOG(("Auth Error: wrong self user received."));
-		App::logOutDelayed();
+		crl::on_main(this, [] { Messenger::Instance().logOut(); });
 		return false;
 	}
 	return true;

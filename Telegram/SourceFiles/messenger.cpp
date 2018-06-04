@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/dc_options.h"
 #include "mtproto/mtp_instance.h"
 #include "media/player/media_player_instance.h"
+#include "media/media_audio.h"
 #include "media/media_audio_track.h"
 #include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
@@ -508,18 +509,22 @@ void Messenger::suggestMainDcId(MTP::DcId mainDcId) {
 void Messenger::destroyStaleAuthorizationKeys() {
 	Assert(_mtproto != nullptr);
 
-	auto keys = _mtproto->getKeysForWrite();
-	for (auto &key : keys) {
+	for (const auto &key : _mtproto->getKeysForWrite()) {
 		// Disable this for now.
 		if (key->type() == MTP::AuthKey::Type::ReadFromFile) {
 			_private->mtpKeysToDestroy = _mtproto->getKeysForWrite();
-			_mtproto.reset();
-			LOG(("MTP Info: destroying stale keys, count: %1").arg(_private->mtpKeysToDestroy.size()));
-			startMtp();
-			Local::writeMtpData();
+			LOG(("MTP Info: destroying stale keys, count: %1"
+				).arg(_private->mtpKeysToDestroy.size()));
+			resetAuthorizationKeys();
 			return;
 		}
 	}
+}
+
+void Messenger::resetAuthorizationKeys() {
+	_mtproto.reset();
+	startMtp();
+	Local::writeMtpData();
 }
 
 void Messenger::startLocalStorage() {
@@ -650,6 +655,18 @@ void Messenger::killDownloadSessionsStop(MTP::DcId dcId) {
 	}
 }
 
+void Messenger::forceLogOut(const TextWithEntities &explanation) {
+	const auto box = Ui::show(Box<InformBox>(
+		explanation,
+		lang(lng_passcode_logout)));
+	connect(box, &QObject::destroyed, [=] {
+		InvokeQueued(this, [=] {
+			resetAuthorizationKeys();
+			loggedOut();
+		});
+	});
+}
+
 void Messenger::checkLocalTime() {
 	if (App::main()) App::main()->checkLastUpdate(checkms());
 }
@@ -777,8 +794,6 @@ void Messenger::authSessionDestroy() {
 	_private->storedAuthSession.reset();
 	_private->authSessionUserId = 0;
 	authSessionChanged().notify(true);
-
-	loggedOut();
 }
 
 void Messenger::setInternalLinkDomain(const QString &domain) const {
@@ -1097,11 +1112,43 @@ void Messenger::checkMediaViewActivation() {
 	}
 }
 
+void Messenger::logOut() {
+	if (_mtproto) {
+		_mtproto->logout(::rpcDone([=] {
+			loggedOut();
+		}), ::rpcFail([=] {
+			loggedOut();
+			return true;
+		}));
+	} else {
+		// We log out because we've forgotten passcode.
+		// So we just start mtproto from scratch.
+		startMtp();
+		loggedOut();
+	}
+}
+
 void Messenger::loggedOut() {
+	if (Global::LocalPasscode()) {
+		Global::SetLocalPasscode(false);
+		Global::RefLocalPasscodeChanged().notify();
+	}
+	Media::Player::mixer()->stopAndClear();
+	if (const auto w = getActiveWindow()) {
+		w->tempDirDelete(Local::ClearManagerAll);
+		w->setupIntro();
+	}
+	App::histories().clear();
+	authSessionDestroy();
 	if (_mediaView) {
 		hideMediaView();
 		_mediaView->clearData();
 	}
+	Local::reset();
+	Window::Theme::Background()->reset();
+
+	cSetOtherOnline(0);
+	clearStorageImages();
 }
 
 QPoint Messenger::getPointForCallPanelCenter() const {

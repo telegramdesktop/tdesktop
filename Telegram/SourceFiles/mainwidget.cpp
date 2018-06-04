@@ -87,6 +87,41 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
 
+namespace {
+
+bool IsForceLogoutNotification(const MTPDupdateServiceNotification &data) {
+	return qs(data.vtype).startsWith(qstr("AUTH_KEY_DROP_"));
+}
+
+bool HasForceLogoutNotification(const MTPUpdates &updates) {
+	const auto checkUpdate = [](const MTPUpdate &update) {
+		if (update.type() != mtpc_updateServiceNotification) {
+			return false;
+		}
+		return IsForceLogoutNotification(
+			update.c_updateServiceNotification());
+	};
+	const auto checkVector = [&](const MTPVector<MTPUpdate> &list) {
+		for (const auto &update : list.v) {
+			if (checkUpdate(update)) {
+				return true;
+			}
+		}
+		return false;
+	};
+	switch (updates.type()) {
+	case mtpc_updates:
+		return checkVector(updates.c_updates().vupdates);
+	case mtpc_updatesCombined:
+		return checkVector(updates.c_updatesCombined().vupdates);
+	case mtpc_updateShort:
+		return checkUpdate(updates.c_updateShort().vupdate);
+	}
+	return false;
+}
+
+} // namespace
+
 enum StackItemType {
 	HistoryStackItem,
 	SectionStackItem,
@@ -3293,7 +3328,7 @@ void MainWidget::feedMessageIds(const MTPVector<MTPUpdate> &updates) {
 }
 
 bool MainWidget::updateFail(const RPCError &e) {
-	App::logOutDelayed();
+	crl::on_main(this, [] { Messenger::Instance().logOut(); });
 	return true;
 }
 
@@ -4231,7 +4266,8 @@ void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 
 			_lastUpdateTime = getms(true);
 			noUpdatesTimer.start(NoUpdatesTimeout);
-			if (!requestingDifference()) {
+			if (!requestingDifference()
+				|| HasForceLogoutNotification(updates)) {
 				feedUpdates(updates);
 			}
 		} catch (mtpErrorUnexpected &) { // just some other type
@@ -4899,11 +4935,17 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateServiceNotification: {
-		auto &d = update.c_updateServiceNotification();
-		if (d.is_popup()) {
-			Ui::show(Box<InformBox>(qs(d.vmessage)));
+		const auto &d = update.c_updateServiceNotification();
+		const auto text = TextWithEntities {
+			qs(d.vmessage),
+			TextUtilities::EntitiesFromMTP(d.ventities.v)
+		};
+		if (IsForceLogoutNotification(d)) {
+			Messenger::Instance().forceLogOut(text);
+		} else if (d.is_popup()) {
+			Ui::show(Box<InformBox>(text));
 		} else {
-			App::wnd()->serviceNotification({ qs(d.vmessage), TextUtilities::EntitiesFromMTP(d.ventities.v) }, d.vmedia);
+			App::wnd()->serviceNotification(text, d.vmedia);
 			emit App::wnd()->checkNewAuthorization();
 		}
 	} break;

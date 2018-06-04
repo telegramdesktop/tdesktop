@@ -68,8 +68,6 @@ namespace App {
 	MainWidget *main();
 	bool passcoded();
 
-	void logOut();
-
 	QString formatPhone(QString phone);
 
 	UserData *feedUser(const MTPUser &user);

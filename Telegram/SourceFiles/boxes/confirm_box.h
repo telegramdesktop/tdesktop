@@ -87,6 +87,7 @@ public:
 	InformBox(QWidget*, const QString &text, Fn<void()> closedCallback = nullptr);
 	InformBox(QWidget*, const QString &text, const QString &doneText, Fn<void()> closedCallback = nullptr);
 	InformBox(QWidget*, const TextWithEntities &text, Fn<void()> closedCallback = nullptr);
+	InformBox(QWidget*, const TextWithEntities &text, const QString &doneText, Fn<void()> closedCallback = nullptr);
 
 };
 
