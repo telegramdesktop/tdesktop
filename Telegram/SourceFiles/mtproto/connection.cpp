@@ -829,6 +829,12 @@ void ConnectionPrivate::tryToSend() {
 		const auto systemVersion = (_dcType == DcType::Cdn)
 			? "n/a"
 			: Messenger::Instance().launcher()->systemVersion();
+#if defined OS_MAC_STORE || defined OS_WIN_STORE
+		const auto appVersion = str_const_toString(AppVersionStr)
+			+ " store";
+#else // OS_MAC_STORE || OS_WIN_STORE
+		const auto appVersion = str_const_toString(AppVersionStr);
+#endif // OS_MAC_STORE || OS_WIN_STORE
 		const auto proxyType = _connectionOptions->proxy.type;
 		const auto mtprotoProxy = (proxyType == ProxyData::Type::Mtproto);
 		const auto clientProxyFields = mtprotoProxy
@@ -842,7 +848,7 @@ void ConnectionPrivate::tryToSend() {
 			MTP_int(ApiId),
 			MTP_string(deviceModel),
 			MTP_string(systemVersion),
-			MTP_string(str_const_toString(AppVersionStr)),
+			MTP_string(appVersion),
 			MTP_string(systemLangCode),
 			MTP_string(langPack),
 			MTP_string(cloudLangCode),
