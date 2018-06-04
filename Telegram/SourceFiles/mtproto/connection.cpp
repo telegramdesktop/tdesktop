@@ -1261,11 +1261,17 @@ void ConnectionPrivate::markConnectionOld() {
 
 void ConnectionPrivate::sendPingByTimer() {
 	if (_pingId) {
-		if (_pingSendAt + kPingSendAfterForce - kPingSendAfter - TimeMs(1000) < getms(true)) {
+		// _pingSendAt: when to send next ping (lastPingAt + kPingSendAfter)
+		// could be equal to zero.
+		const auto now = getms(true);
+		const auto mustSendTill = _pingSendAt
+			+ kPingSendAfterForce
+			- kPingSendAfter;
+		if (mustSendTill < now + 1000) {
 			LOG(("Could not send ping for some seconds, restarting..."));
 			return restart();
 		} else {
-			_pingSender.callOnce(_pingSendAt + kPingSendAfterForce - kPingSendAfter - getms(true));
+			_pingSender.callOnce(mustSendTill - now);
 		}
 	} else {
 		emit needToSendAsync();

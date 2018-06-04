@@ -932,7 +932,7 @@ void StickersListWidget::refreshSearchRows() {
 }
 
 void StickersListWidget::refreshSearchRows(
-		const std::vector<Stickers::Set*> *cloudSets) {
+		const std::vector<uint64> *cloudSets) {
 	clearSelection();
 
 	_searchSets.clear();
@@ -997,9 +997,12 @@ void StickersListWidget::fillLocalSearchRows(const QString &query) {
 }
 
 void StickersListWidget::fillCloudSearchRows(
-		const std::vector<Stickers::Set*> &sets) {
-	for (const auto set : sets) {
-		addSearchRow(set);
+		const std::vector<uint64> &cloudSets) {
+	const auto &sets = Auth().data().stickerSets();
+	for (const auto setId : cloudSets) {
+		if (const auto it = sets.find(setId); it != sets.end()) {
+			addSearchRow(&*it);
+		}
 	}
 }
 
@@ -1049,7 +1052,7 @@ void StickersListWidget::searchResultsDone(
 	if (it == _searchCache.cend()) {
 		it = _searchCache.emplace(
 			_searchQuery,
-			std::vector<Stickers::Set*>()).first;
+			std::vector<uint64>()).first;
 	}
 	auto &d = result.c_messages_foundStickerSets();
 	for_const (const auto &stickerSet, d.vsets.v) {
@@ -1084,7 +1087,7 @@ void StickersListWidget::searchResultsDone(
 			if (set->stickers.empty() && set->covers.empty()) {
 				continue;
 			}
-			it->second.push_back(set);
+			it->second.push_back(set->id);
 		}
 	}
 	showSearchResults();

@@ -678,7 +678,7 @@ namespace App {
 					auto h = App::historyLoaded(chat->id);
 					bool found = !h || !h->lastKeyboardFrom;
 					auto botStatus = -1;
-					for (auto i = chat->participants.begin(), e = chat->participants.end(); i != e;) {
+					for (auto i = chat->participants.begin(); i != chat->participants.end();) {
 						auto [user, version] = *i;
 						if (version < pversion) {
 							i = chat->participants.erase(i);
