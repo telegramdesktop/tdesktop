@@ -56,12 +56,7 @@ public:
 		return _titleText;
 	}
 
-	void reActivateWindow() {
-#if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
-		onReActivate();
-		QTimer::singleShot(200, this, SLOT(onReActivate()));
-#endif // Q_OS_LINUX32 || Q_OS_LINUX64
-	}
+	void reActivateWindow();
 
 	void showRightColumn(object_ptr<TWidget> widget);
 	int maximalExtendBy() const;
@@ -147,12 +142,6 @@ protected:
 
 	void setPositionInited();
 
-private slots:
-	void savePositionByTimer() {
-		savePosition();
-	}
-	void onReActivate();
-
 private:
 	void checkAuthSession();
 	void updatePalette();
@@ -161,7 +150,7 @@ private:
 
 	bool computeIsActive() const;
 
-	object_ptr<QTimer> _positionUpdatedTimer;
+	base::Timer _positionUpdatedTimer;
 	bool _positionInited = false;
 
 	std::unique_ptr<Window::Controller> _controller;

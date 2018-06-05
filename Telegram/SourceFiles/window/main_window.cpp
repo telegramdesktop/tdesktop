@@ -19,7 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Window {
 
-constexpr auto kInactivePressTimeout = 200;
+constexpr auto kInactivePressTimeout = TimeMs(200);
+constexpr auto kSaveWindowPositionTimeout = TimeMs(1000);
 
 QImage LoadLogo() {
 	return QImage(qsl(":/gui/art/logo_256.png"));
@@ -45,8 +46,8 @@ QIcon CreateIcon() {
 	return result;
 }
 
-MainWindow::MainWindow() : QWidget()
-, _positionUpdatedTimer(this)
+MainWindow::MainWindow()
+: _positionUpdatedTimer([=] { savePosition(); })
 , _body(this)
 , _icon(CreateIcon())
 , _titleText(qsl("Telegram")) {
@@ -104,26 +105,13 @@ bool MainWindow::computeIsActive() const {
 	return isActiveWindow() && isVisible() && !(windowState() & Qt::WindowMinimized);
 }
 
-void MainWindow::onReActivate() {
-	if (auto w = App::wnd()) {
-		if (auto f = QApplication::focusWidget()) {
-			f->clearFocus();
-		}
-		w->windowHandle()->requestActivate();
-		w->activate();
-		if (auto f = QApplication::focusWidget()) {
-			f->clearFocus();
-		}
-		w->setInnerFocus();
-	}
-}
-
 void MainWindow::updateWindowIcon() {
 	setWindowIcon(_icon);
 }
 
 void MainWindow::init() {
 	Expects(!windowHandle());
+
 	createWinId();
 
 	initHook();
@@ -131,9 +119,6 @@ void MainWindow::init() {
 
 	connect(windowHandle(), &QWindow::activeChanged, this, [this] { handleActiveChanged(); }, Qt::QueuedConnection);
 	connect(windowHandle(), &QWindow::windowStateChanged, this, [this](Qt::WindowState state) { handleStateChanged(state); });
-
-	_positionUpdatedTimer->setSingleShot(true);
-	connect(_positionUpdatedTimer, SIGNAL(timeout()), this, SLOT(savePositionByTimer()));
 
 	updatePalette();
 
@@ -221,7 +206,7 @@ void MainWindow::initSize() {
 }
 
 void MainWindow::positionUpdated() {
-	_positionUpdatedTimer->start(SaveWindowPositionTimeout);
+	_positionUpdatedTimer.callOnce(kSaveWindowPositionTimeout);
 }
 
 bool MainWindow::titleVisible() const {
@@ -343,6 +328,26 @@ bool MainWindow::minimizeToTray() {
 	updateGlobalMenu();
 	showTrayTooltip();
 	return true;
+}
+
+void MainWindow::reActivateWindow() {
+#if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
+	const auto reActivate = [=] {
+		if (const auto w = App::wnd()) {
+			if (auto f = QApplication::focusWidget()) {
+				f->clearFocus();
+			}
+			windowHandle()->requestActivate();
+			w->activate();
+			if (auto f = QApplication::focusWidget()) {
+				f->clearFocus();
+			}
+			w->setInnerFocus();
+		}
+	};
+	crl::on_main(this, reActivate);
+	App::CallDelayed(200, this, reActivate);
+#endif // Q_OS_LINUX32 || Q_OS_LINUX64
 }
 
 void MainWindow::showRightColumn(object_ptr<TWidget> widget) {
