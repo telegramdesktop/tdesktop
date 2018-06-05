@@ -125,7 +125,7 @@ public:
 	bool isPointAfter(QPoint position) const;
 	void moveInAlbum(QPoint to);
 	QPoint center() const;
-	void suggestMove(float64 delta, base::lambda<void()> callback);
+	void suggestMove(float64 delta, Fn<void()> callback);
 	void finishAnimations();
 
 private:
@@ -520,7 +520,7 @@ QPoint AlbumThumb::center() const {
 	return realGeometry.center();
 }
 
-void AlbumThumb::suggestMove(float64 delta, base::lambda<void()> callback) {
+void AlbumThumb::suggestMove(float64 delta, Fn<void()> callback) {
 	if (_suggestedMove != delta) {
 		_suggestedMoveAnimation.start(
 			std::move(callback),
@@ -889,7 +889,7 @@ rpl::producer<int> SingleFilePreview::desiredHeightValue() const {
 	return rpl::single(st::boxPhotoPadding.top() + h + st::msgShadow);
 }
 
-base::lambda<QString()> FieldPlaceholder(const Storage::PreparedList &list) {
+Fn<QString()> FieldPlaceholder(const Storage::PreparedList &list) {
 	return langFactory(list.files.size() > 1
 		? lng_photos_comment
 		: lng_photo_caption);
@@ -1361,7 +1361,7 @@ void SendFilesBox::prepareSingleFilePreview() {
 	Expects(_list.files.size() == 1);
 
 	const auto &file = _list.files[0];
-	const auto media = SingleMediaPreview::Create(this, controller(), file);
+	const auto media = SingleMediaPreview::Create(this, _controller, file);
 	if (media) {
 		if (!media->canSendAsPhoto()) {
 			_compressConfirm = CompressConfirm::None;
@@ -1424,18 +1424,16 @@ void SendFilesBox::setupShadows(
 }
 
 void SendFilesBox::prepare() {
-	Expects(controller() != nullptr);
-
 	_send = addButton(langFactory(lng_send_button), [this] { send(); });
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 	setupCaption();
 	initSendWay();
 	preparePreview();
-	subscribe(boxClosing, [this] {
+	boxClosing() | rpl::start_with_next([=] {
 		if (!_confirmed && _cancelledCallback) {
 			_cancelledCallback();
 		}
-	});
+	}, lifetime());
 }
 
 void SendFilesBox::initSendWay() {

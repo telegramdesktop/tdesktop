@@ -87,7 +87,7 @@ private:
 	void createChildWidget(
 		object_ptr<Ui::Checkbox> &child,
 		style::margins &margin,
-		const QString &text, base::lambda<void(bool checked)> callback, bool checked);
+		const QString &text, Fn<void(bool checked)> callback, bool checked);
 	void createChildWidget(
 		object_ptr<Ui::LinkButton> &child,
 		style::margins &margin,

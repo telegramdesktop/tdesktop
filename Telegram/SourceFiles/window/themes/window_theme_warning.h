@@ -18,7 +18,7 @@ class WarningWidget : public TWidget {
 public:
 	WarningWidget(QWidget *parent);
 
-	void setHiddenCallback(base::lambda<void()> callback) {
+	void setHiddenCallback(Fn<void()> callback) {
 		_hiddenCallback = std::move(callback);
 	}
 
@@ -51,7 +51,7 @@ private:
 	object_ptr<Ui::RoundButton> _keepChanges;
 	object_ptr<Ui::RoundButton> _revert;
 
-	base::lambda<void()> _hiddenCallback;
+	Fn<void()> _hiddenCallback;
 
 };
 

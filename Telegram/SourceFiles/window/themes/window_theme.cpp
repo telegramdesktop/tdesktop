@@ -827,7 +827,7 @@ bool CopyColorsToPalette(const QString &path, const QByteArray &themeContent) {
 	return true;
 }
 
-bool ReadPaletteValues(const QByteArray &content, base::lambda<bool(QLatin1String name, QLatin1String value)> callback) {
+bool ReadPaletteValues(const QByteArray &content, Fn<bool(QLatin1String name, QLatin1String value)> callback) {
 	if (content.size() > kThemeSchemeSizeLimit) {
 		LOG(("Theme Error: color scheme file too large (should be less than 1 MB, got %2)").arg(content.size()));
 		return false;

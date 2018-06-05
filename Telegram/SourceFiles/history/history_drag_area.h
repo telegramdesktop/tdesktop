@@ -24,7 +24,7 @@ public:
 
 	void hideFast();
 
-	void setDroppedCallback(base::lambda<void(const QMimeData *data)> callback) {
+	void setDroppedCallback(Fn<void(const QMimeData *data)> callback) {
 		_droppedCallback = std::move(callback);
 	}
 
@@ -57,7 +57,7 @@ private:
 	bool _hiding = false;
 	bool _in = false;
 	QPixmap _cache;
-	base::lambda<void(const QMimeData *data)> _droppedCallback;
+	Fn<void(const QMimeData *data)> _droppedCallback;
 
 	Animation _a_opacity;
 	Animation _a_in;

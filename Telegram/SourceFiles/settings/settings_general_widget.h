@@ -68,6 +68,8 @@ class GeneralWidget : public BlockWidget {
 public:
 	GeneralWidget(QWidget *parent, UserData *self);
 
+	int getUpdateTop() const;
+
 protected:
 	int resizeGetHeight(int newWidth) override;
 

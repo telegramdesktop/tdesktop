@@ -234,7 +234,7 @@ void MultiSelect::Item::setOver(bool over) {
 MultiSelect::MultiSelect(
 	QWidget *parent,
 	const style::MultiSelect &st,
-	base::lambda<QString()> placeholderFactory)
+	Fn<QString()> placeholderFactory)
 : RpWidget(parent)
 , _st(st)
 , _scroll(this, _st.scroll) {
@@ -285,15 +285,15 @@ void MultiSelect::scrollTo(int activeTop, int activeBottom) {
 	}
 }
 
-void MultiSelect::setQueryChangedCallback(base::lambda<void(const QString &query)> callback) {
+void MultiSelect::setQueryChangedCallback(Fn<void(const QString &query)> callback) {
 	_queryChangedCallback = std::move(callback);
 }
 
-void MultiSelect::setSubmittedCallback(base::lambda<void(Qt::KeyboardModifiers)> callback) {
+void MultiSelect::setSubmittedCallback(Fn<void(Qt::KeyboardModifiers)> callback) {
 	_inner->setSubmittedCallback(std::move(callback));
 }
 
-void MultiSelect::setResizedCallback(base::lambda<void()> callback) {
+void MultiSelect::setResizedCallback(Fn<void()> callback) {
 	_resizedCallback = std::move(callback);
 }
 
@@ -324,7 +324,7 @@ void MultiSelect::finishItemsBunch() {
 	_inner->finishItemsBunch(AddItemWay::SkipAnimation);
 }
 
-void MultiSelect::setItemRemovedCallback(base::lambda<void(uint64 itemId)> callback) {
+void MultiSelect::setItemRemovedCallback(Fn<void(uint64 itemId)> callback) {
 	_inner->setItemRemovedCallback(std::move(callback));
 }
 
@@ -353,7 +353,7 @@ int MultiSelect::resizeGetHeight(int newWidth) {
 	return newHeight;
 }
 
-MultiSelect::Inner::Inner(QWidget *parent, const style::MultiSelect &st, base::lambda<QString()> placeholder, ScrollCallback callback) : TWidget(parent)
+MultiSelect::Inner::Inner(QWidget *parent, const style::MultiSelect &st, Fn<QString()> placeholder, ScrollCallback callback) : TWidget(parent)
 , _st(st)
 , _scrollCallback(std::move(callback))
 , _field(this, _st.field, std::move(placeholder))
@@ -396,12 +396,12 @@ void MultiSelect::Inner::clearQuery() {
 	_field->setText(QString());
 }
 
-void MultiSelect::Inner::setQueryChangedCallback(base::lambda<void(const QString &query)> callback) {
+void MultiSelect::Inner::setQueryChangedCallback(Fn<void(const QString &query)> callback) {
 	_queryChangedCallback = std::move(callback);
 }
 
 void MultiSelect::Inner::setSubmittedCallback(
-		base::lambda<void(Qt::KeyboardModifiers)> callback) {
+		Fn<void(Qt::KeyboardModifiers)> callback) {
 	_submittedCallback = std::move(callback);
 }
 
@@ -709,11 +709,11 @@ void MultiSelect::Inner::setItemText(uint64 itemId, const QString &text) {
 	}
 }
 
-void MultiSelect::Inner::setItemRemovedCallback(base::lambda<void(uint64 itemId)> callback) {
+void MultiSelect::Inner::setItemRemovedCallback(Fn<void(uint64 itemId)> callback) {
 	_itemRemovedCallback = std::move(callback);
 }
 
-void MultiSelect::Inner::setResizedCallback(base::lambda<void(int heightDelta)> callback) {
+void MultiSelect::Inner::setResizedCallback(Fn<void(int heightDelta)> callback) {
 	_resizedCallback = std::move(callback);
 }
 

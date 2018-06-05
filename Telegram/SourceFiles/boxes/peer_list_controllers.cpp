@@ -507,7 +507,7 @@ void AddParticipantsBoxController::Start(
 		base::flat_set<not_null<UserData*>> &&alreadyIn,
 		bool justCreated) {
 	auto initBox = [channel, justCreated](not_null<PeerListBox*> box) {
-		auto subscription = std::make_shared<base::Subscription>();
+		auto subscription = std::make_shared<rpl::lifetime>();
 		box->addButton(langFactory(lng_participant_invite), [box, channel, subscription] {
 			auto rows = box->peerListCollectSelectedRows();
 			if (!rows.empty()) {
@@ -528,9 +528,9 @@ void AddParticipantsBoxController::Start(
 		});
 		box->addButton(langFactory(justCreated ? lng_create_group_skip : lng_cancel), [box] { box->closeBox(); });
 		if (justCreated) {
-			*subscription = box->boxClosing.add_subscription([channel] {
+			box->boxClosing() | rpl::start_with_next([=] {
 				Ui::showPeerHistory(channel, ShowAtTheEndMsgId);
-			});
+			}, *subscription);
 		}
 	};
 	Ui::show(Box<PeerListBox>(std::make_unique<AddParticipantsBoxController>(channel, std::move(alreadyIn)), std::move(initBox)));
@@ -901,7 +901,7 @@ void AddBotToGroupBoxController::prepareViewHook() {
 }
 
 ChooseRecipientBoxController::ChooseRecipientBoxController(
-	base::lambda_once<void(not_null<PeerData*>)> callback)
+	FnMut<void(not_null<PeerData*>)> callback)
 : _callback(std::move(callback)) {
 }
 

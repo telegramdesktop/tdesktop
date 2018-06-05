@@ -1297,20 +1297,20 @@ void ListWidget::showContextMenu(
 		if (canForwardAll()) {
 			_contextMenu->addAction(
 				lang(lng_context_forward_selected),
-				base::lambda_guarded(this, [this] {
+				crl::guard(this, [this] {
 					forwardSelected();
 				}));
 		}
 		if (canDeleteAll()) {
 			_contextMenu->addAction(
 				lang(lng_context_delete_selected),
-				base::lambda_guarded(this, [this] {
+				crl::guard(this, [this] {
 					deleteSelected();
 				}));
 		}
 		_contextMenu->addAction(
 			lang(lng_context_clear_selection),
-			base::lambda_guarded(this, [this] {
+			crl::guard(this, [this] {
 				clearSelected();
 			}));
 	} else {
@@ -1318,21 +1318,21 @@ void ListWidget::showContextMenu(
 			if (item->allowsForward()) {
 				_contextMenu->addAction(
 					lang(lng_context_forward_msg),
-					base::lambda_guarded(this, [this, universalId] {
+					crl::guard(this, [this, universalId] {
 						forwardItem(universalId);
 					}));
 			}
 			if (item->canDelete()) {
 				_contextMenu->addAction(
 					lang(lng_context_delete_msg),
-					base::lambda_guarded(this, [this, universalId] {
+					crl::guard(this, [this, universalId] {
 						deleteItem(universalId);
 					}));
 			}
 		}
 		_contextMenu->addAction(
 			lang(lng_context_select_msg),
-			base::lambda_guarded(this, [this, universalId] {
+			crl::guard(this, [this, universalId] {
 				if (hasSelectedText()) {
 					clearSelected();
 				} else if (_selected.size() == MaxSelectedItems) {
@@ -1344,7 +1344,7 @@ void ListWidget::showContextMenu(
 			}));
 	}
 
-	_contextMenu->setDestroyedCallback(base::lambda_guarded(
+	_contextMenu->setDestroyedCallback(crl::guard(
 		this,
 		[this, universalId] {
 			_contextMenu = nullptr;

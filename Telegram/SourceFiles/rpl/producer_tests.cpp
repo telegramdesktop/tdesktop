@@ -14,8 +14,8 @@ using namespace rpl;
 
 class OnDestructor {
 public:
-	OnDestructor(base::lambda_once<void()> callback)
-		: _callback(std::move(callback)) {
+	OnDestructor(std::function<void()> callback)
+	: _callback(std::move(callback)) {
 	}
 	~OnDestructor() {
 		if (_callback) {
@@ -24,7 +24,7 @@ public:
 	}
 
 private:
-	base::lambda_once<void()> _callback;
+	std::function<void()> _callback;
 
 };
 

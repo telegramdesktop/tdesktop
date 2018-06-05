@@ -34,15 +34,33 @@ FadeWrap<RpWidget> *FadeWrap<RpWidget>::toggle(
 	auto changed = (shown != _animation.visible());
 	if (shown) {
 		if (animated == anim::type::normal) {
+			if (!_animation.animating()) {
+				wrapped()->show();
+			}
 			_animation.fadeIn(_duration);
+			if (_animation.animating()) {
+				wrapped()->hide();
+			}
 		} else {
 			_animation.show();
+			if (!_animation.animating()) {
+				wrapped()->show();
+			}
 		}
 	} else {
 		if (animated == anim::type::normal) {
+			if (!_animation.animating()) {
+				wrapped()->show();
+			}
 			_animation.fadeOut(_duration);
+			if (_animation.animating()) {
+				wrapped()->hide();
+			}
 		} else {
 			_animation.hide();
+			if (!_animation.animating()) {
+				wrapped()->show();
+			}
 		}
 	}
 	if (changed) {
@@ -53,6 +71,7 @@ FadeWrap<RpWidget> *FadeWrap<RpWidget>::toggle(
 
 FadeWrap<RpWidget> *FadeWrap<RpWidget>::finishAnimating() {
 	_animation.finish();
+	wrapped()->show();
 	return this;
 }
 
@@ -69,7 +88,19 @@ FadeWrap<RpWidget> *FadeWrap<RpWidget>::toggleOn(
 
 void FadeWrap<RpWidget>::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	_animation.paint(p);
+	if (_animation.paint(p)) {
+		if (!_animation.animating() && _animation.visible()) {
+			crl::on_main(this, [=] {
+				if (!_animation.animating() && _animation.visible()) {
+					wrapped()->show();
+				}
+			});
+		}
+		return;
+	}
+	if (!_animation.animating()) {
+		wrapped()->show();
+	}
 }
 
 FadeShadow::FadeShadow(QWidget *parent)

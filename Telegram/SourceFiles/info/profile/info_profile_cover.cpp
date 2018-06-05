@@ -34,7 +34,7 @@ public:
 	SectionToggle(
 		const style::InfoToggle &st,
 		bool checked,
-		base::lambda<void()> updateCallback);
+		Fn<void()> updateCallback);
 
 	QSize getSize() const override;
 	void paint(
@@ -56,7 +56,7 @@ private:
 SectionToggle::SectionToggle(
 		const style::InfoToggle &st,
 		bool checked,
-		base::lambda<void()> updateCallback)
+		Fn<void()> updateCallback)
 : AbstractCheckView(st.duration, checked, std::move(updateCallback))
 , _st(st) {
 }

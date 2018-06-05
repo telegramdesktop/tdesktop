@@ -21,6 +21,10 @@ namespace Ui {
 class InputField;
 } // namespace Ui
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 class EditCaptionBox : public BoxContent, public RPCSender {
 public:
 	EditCaptionBox(

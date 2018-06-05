@@ -11,16 +11,22 @@ namespace Core {
 
 class Launcher {
 public:
-	Launcher(int argc, char *argv[]);
+	Launcher(
+		int argc,
+		char *argv[],
+		const QString &deviceModel,
+		const QString &systemVersion);
 
 	static std::unique_ptr<Launcher> Create(int argc, char *argv[]);
 
 	int exec();
 
 	QString argumentsString() const;
-	bool customWorkingDir() const {
-		return _customWorkingDir;
-	}
+	bool customWorkingDir() const;
+
+	// Thread safe.
+	QString deviceModel() const;
+	QString systemVersion() const;
 
 	virtual ~Launcher() = default;
 
@@ -52,6 +58,9 @@ private:
 	int _argc;
 	char **_argv;
 	QStringList _arguments;
+
+	const QString _deviceModel;
+	const QString _systemVersion;
 
 	bool _customWorkingDir = false;
 

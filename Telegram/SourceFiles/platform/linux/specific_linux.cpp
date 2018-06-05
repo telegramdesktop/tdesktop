@@ -31,6 +31,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 using namespace Platform;
 using Platform::File::internal::EscapeShell;
 
+namespace {
+
+bool _psRunCommand(const QByteArray &command) {
+        auto result = system(command.constData());
+        if (result) {
+                DEBUG_LOG(("App Error: command failed, code: %1, command (in utf8): %2").arg(result).arg(command.constData()));
+                return false;
+        }
+        DEBUG_LOG(("App Info: command succeeded, command (in utf8): %1").arg(command.constData()));
+        return true;
+}
+
+} // namespace
+
 namespace Platform {
 
 QString CurrentExecutablePath(int argc, char *argv[]) {
@@ -389,35 +403,7 @@ QString SystemLanguage() {
 	return QString();
 }
 
-namespace ThirdParty {
-
-void start() {
-	Libs::start();
-	MainWindow::LibsLoaded();
-}
-
-void finish() {
-}
-
-} // namespace ThirdParty
-
-} // namespace Platform
-
-namespace {
-
-bool _psRunCommand(const QByteArray &command) {
-	auto result = system(command.constData());
-	if (result) {
-		DEBUG_LOG(("App Error: command failed, code: %1, command (in utf8): %2").arg(result).arg(command.constData()));
-		return false;
-	}
-	DEBUG_LOG(("App Info: command succeeded, command (in utf8): %1").arg(command.constData()));
-	return true;
-}
-
-} // namespace
-
-void psRegisterCustomScheme() {
+void RegisterCustomScheme() {
 #ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 	auto home = getHomeDir();
 	if (home.isEmpty() || cBetaVersion() || cExeName().isEmpty()) return; // don't update desktop file for beta version
@@ -517,8 +503,22 @@ void psRegisterCustomScheme() {
 #endif // !TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 }
 
+namespace ThirdParty {
+
+void start() {
+	Libs::start();
+	MainWindow::LibsLoaded();
+}
+
+void finish() {
+}
+
+} // namespace ThirdParty
+
+} // namespace Platform
+
 void psNewVersion() {
-	psRegisterCustomScheme();
+	Platform::RegisterCustomScheme();
 }
 
 bool psShowOpenWithMenu(int x, int y, const QString &file) {

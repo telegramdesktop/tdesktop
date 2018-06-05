@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/weak_ptr.h"
 #include "base/timer.h"
+#include "base/bytes.h"
 #include "mtproto/sender.h"
 #include "mtproto/auth_key.h"
 
@@ -27,7 +28,7 @@ namespace Calls {
 struct DhConfig {
 	int32 version = 0;
 	int32 g = 0;
-	std::vector<gsl::byte> p;
+	bytes::vector p;
 };
 
 class Call : public base::has_weak_ptr, private MTP::Sender {
@@ -48,8 +49,6 @@ public:
 
 	};
 
-	static constexpr auto kRandomPowerSize = 256;
-	static constexpr auto kSha256Size = 32;
 	static constexpr auto kSoundSampleMs = 100;
 
 	enum class Type {
@@ -66,7 +65,7 @@ public:
 	}
 	bool isIncomingWaiting() const;
 
-	void start(base::const_byte_span random);
+	void start(bytes::const_span random);
 	bool handleUpdate(const MTPPhoneCall &call);
 
 	enum State {
@@ -116,7 +115,7 @@ public:
 	void redial();
 
 	bool isKeyShaForFingerprintReady() const;
-	std::array<gsl::byte, kSha256Size> getKeyShaForFingerprint() const;
+	bytes::vector getKeyShaForFingerprint() const;
 
 	QString getDebugLog() const;
 
@@ -152,7 +151,7 @@ private:
 	void startIncoming();
 	void startWaitingTrack();
 
-	void generateModExpFirst(base::const_byte_span randomSeed);
+	void generateModExpFirst(bytes::const_span randomSeed);
 	void handleControllerStateChange(
 		tgvoip::VoIPController *controller,
 		int state);
@@ -191,10 +190,10 @@ private:
 	base::Observable<bool> _muteChanged;
 
 	DhConfig _dhConfig;
-	std::vector<gsl::byte> _ga;
-	std::vector<gsl::byte> _gb;
-	std::array<gsl::byte, kSha256Size> _gaHash;
-	std::array<gsl::byte, kRandomPowerSize> _randomPower;
+	bytes::vector _ga;
+	bytes::vector _gb;
+	bytes::vector _gaHash;
+	bytes::vector _randomPower;
 	MTP::AuthKey::Data _authKey;
 	MTPPhoneCallProtocol _protocol;
 

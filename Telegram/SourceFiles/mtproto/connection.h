@@ -16,15 +16,15 @@ namespace MTP {
 
 class Instance;
 
-bool IsPrimeAndGood(base::const_byte_span primeBytes, int g);
+bool IsPrimeAndGood(bytes::const_span primeBytes, int g);
 struct ModExpFirst {
 	static constexpr auto kRandomPowerSize = 256;
 
-	std::vector<gsl::byte> modexp;
-	std::array<gsl::byte, kRandomPowerSize> randomPower;
+	bytes::vector modexp;
+	bytes::vector randomPower;
 };
-ModExpFirst CreateModExp(int g, base::const_byte_span primeBytes, base::const_byte_span randomSeed);
-std::vector<gsl::byte> CreateAuthKey(base::const_byte_span firstBytes, base::const_byte_span randomBytes, base::const_byte_span primeBytes);
+ModExpFirst CreateModExp(int g, bytes::const_span primeBytes, bytes::const_span randomSeed);
+bytes::vector CreateAuthKey(bytes::const_span firstBytes, bytes::const_span randomBytes, bytes::const_span primeBytes);
 
 namespace internal {
 
@@ -190,7 +190,7 @@ private:
 
 	bool setState(int32 state, int32 ifState = Connection::UpdateAlways);
 
-	base::byte_vector encryptPQInnerRSA(const MTPP_Q_inner_data &data, const MTP::internal::RSAPublicKey &key);
+	bytes::vector encryptPQInnerRSA(const MTPP_Q_inner_data &data, const MTP::internal::RSAPublicKey &key);
 	std::string encryptClientDHInner(const MTPClient_DH_Inner_Data &data);
 	void appendTestConnection(
 		DcOptions::Variants::Protocol protocol,
@@ -286,8 +286,8 @@ private:
 		uint32 msgs_sent = 0;
 	};
 	struct AuthKeyCreateStrings {
-		std::vector<gsl::byte> dh_prime;
-		std::vector<gsl::byte> g_a;
+		bytes::vector dh_prime;
+		bytes::vector g_a;
 		AuthKey::Data auth_key = { { gsl::byte{} } };
 	};
 	std::unique_ptr<AuthKeyCreateData> _authKeyData;

@@ -50,10 +50,12 @@ protected:
 private slots:
 	void onEdit();
 	void onTurnOff();
-	void onReloadPassword(Qt::ApplicationState state = Qt::ApplicationActive);
+	void onReloadPassword();
+	void onReloadPassword(Qt::ApplicationState state);
 
 private:
 	void getPasswordDone(const MTPaccount_Password &result);
+	bool getPasswordFail(const RPCError &error);
 	void offPasswordDone(const MTPBool &result);
 	bool offPasswordFail(const RPCError &error);
 
@@ -63,8 +65,11 @@ private:
 	QString _waitingConfirm;
 	QByteArray _curPasswordSalt;
 	bool _hasPasswordRecovery = false;
+	bool _notEmptyPassport = false;
 	QString _curPasswordHint;
 	QByteArray _newPasswordSalt;
+	QByteArray _newSecureSecretSalt;
+	mtpRequestId _reloadRequestId = 0;
 
 };
 

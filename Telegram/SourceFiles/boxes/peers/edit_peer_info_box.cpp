@@ -42,8 +42,8 @@ constexpr auto kMaxGroupChannelTitle = 255; // See also add_contact_box.
 constexpr auto kMaxChannelDescription = 255; // See also add_contact_box.
 
 class Controller
-	: private MTP::Sender
-	, private base::has_weak_ptr {
+	: public base::has_weak_ptr
+	, private MTP::Sender {
 public:
 	Controller(
 		not_null<BoxContent*> box,
@@ -101,7 +101,7 @@ private:
 		base::optional<bool> everyoneInvites;
 	};
 
-	base::lambda<QString()> computeTitle() const;
+	Fn<QString()> computeTitle() const;
 	object_ptr<Ui::RpWidget> createPhotoAndTitleEdit();
 	object_ptr<Ui::RpWidget> createTitleEdit();
 	object_ptr<Ui::RpWidget> createPhotoEdit();
@@ -159,7 +159,7 @@ private:
 	void saveInvites();
 	void saveSignatures();
 	void savePhoto();
-	void pushSaveStage(base::lambda_once<void()> &&lambda);
+	void pushSaveStage(FnMut<void()> &&lambda);
 	void continueSave();
 	void cancelSave();
 
@@ -174,7 +174,7 @@ private:
 	UsernameState _usernameState = UsernameState::Normal;
 	rpl::event_stream<rpl::producer<QString>> _usernameResultTexts;
 
-	std::deque<base::lambda_once<void()>> _saveStagesQueue;
+	std::deque<FnMut<void()>> _saveStagesQueue;
 	Saving _savingData;
 
 };
@@ -195,7 +195,7 @@ Controller::Controller(
 	});
 }
 
-base::lambda<QString()> Controller::computeTitle() const {
+Fn<QString()> Controller::computeTitle() const {
 	return langFactory(_isGroup
 			? lng_edit_group
 			: lng_edit_channel_title);
@@ -277,7 +277,6 @@ object_ptr<Ui::RpWidget> Controller::createPhotoEdit() {
 		_wrap,
 		object_ptr<Ui::UserpicButton>(
 			_wrap,
-			_box->controller(),
 			_peer,
 			Ui::UserpicButton::Role::ChangePhoto,
 			st::defaultUserpicButton),
@@ -435,7 +434,7 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 		object_ptr<Ui::UsernameInput>(
 			container,
 			st::setupChannelLink,
-			base::lambda<QString()>(),
+			Fn<QString()>(),
 			channel->username,
 			true));
 	_controls.username->heightValue(
@@ -566,7 +565,7 @@ void Controller::checkUsernameAvailability() {
 
 void Controller::askUsernameRevoke() {
 	_controls.privacy->setValue(Privacy::Private);
-	auto revokeCallback = base::lambda_guarded(this, [this] {
+	auto revokeCallback = crl::guard(this, [this] {
 		_usernameState = UsernameState::Normal;
 		_controls.privacy->setValue(Privacy::Public);
 		checkUsernameAvailability();
@@ -645,7 +644,7 @@ void Controller::revokeInviteLink() {
 
 void Controller::exportInviteLink(const QString &confirmation) {
 	auto boxPointer = std::make_shared<QPointer<ConfirmBox>>();
-	auto callback = base::lambda_guarded(this, [=] {
+	auto callback = crl::guard(this, [=] {
 		if (auto strong = *boxPointer) {
 			strong->closeBox();
 		}
@@ -1186,7 +1185,7 @@ void Controller::save() {
 	}
 }
 
-void Controller::pushSaveStage(base::lambda_once<void()> &&lambda) {
+void Controller::pushSaveStage(FnMut<void()> &&lambda) {
 	_saveStagesQueue.push_back(std::move(lambda));
 }
 

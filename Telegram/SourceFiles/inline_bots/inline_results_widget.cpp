@@ -422,7 +422,7 @@ void Inner::refreshSwitchPmButton(const CacheEntry *entry) {
 		_switchPmStartToken.clear();
 	} else {
 		if (!_switchPmButton) {
-			_switchPmButton.create(this, base::lambda<QString()>(), st::switchPmButton);
+			_switchPmButton.create(this, Fn<QString()>(), st::switchPmButton);
 			_switchPmButton->show();
 			_switchPmButton->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 			connect(_switchPmButton, SIGNAL(clicked()), this, SLOT(onSwitchPm()));

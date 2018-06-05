@@ -11,7 +11,7 @@ namespace Platform {
 
 //class Launcher : public Core::Launcher {
 //public:
-//	using Core::Launcher::Launcher;
+//	Launcher(int argc, char *argv[]);
 //
 //	...
 //

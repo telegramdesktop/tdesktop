@@ -839,7 +839,7 @@ using MTPSessionResetHandler = void (*)(int32 dcId);
 template <typename Base, typename FunctionType>
 class RPCHandlerImplementation : public Base {
 protected:
-	using Lambda = base::lambda_once<FunctionType>;
+	using Lambda = FnMut<FunctionType>;
 	using Parent = RPCHandlerImplementation<Base, FunctionType>;
 
 public:
@@ -994,7 +994,7 @@ using rpcDone_returnType_t = typename rpcDone_returnType<Function>::type;
 
 template <
 	typename Lambda,
-	typename Function = base::lambda_call_type_t<Lambda>>
+	typename Function = crl::deduced_call_type<Lambda>>
 RPCDoneHandlerPtr rpcDone(Lambda lambda) {
 	using R = rpcDone_returnType_t<Function>;
 	if constexpr (rpcDone_canCallBare_v<Lambda>) {
@@ -1073,7 +1073,7 @@ constexpr bool rpcFail_canCallReq_v = rpl::details::is_callable_plain_v<
 
 template <
 	typename Lambda,
-	typename Function = base::lambda_call_type_t<Lambda>>
+	typename Function = crl::deduced_call_type<Lambda>>
 RPCFailHandlerPtr rpcFail(Lambda lambda) {
 	if constexpr (rpcFail_canCallNo_v<Lambda>) {
 		return RPCFailHandlerPtr(new RPCFailHandlerImplementationNo(std::move(lambda)));

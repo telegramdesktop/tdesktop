@@ -15,7 +15,7 @@ class Message;
 
 struct HistoryMessageEdited;
 
-base::lambda<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
+Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
 	const FullMsgId &msgId);
 MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer);
 QString GetErrorTextForForward(

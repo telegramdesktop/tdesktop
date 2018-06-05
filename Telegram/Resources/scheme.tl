@@ -191,6 +191,7 @@ inputPhoto#fb95c6c4 id:long access_hash:long = InputPhoto;
 inputFileLocation#14637196 volume_id:long local_id:int secret:long = InputFileLocation;
 inputEncryptedFileLocation#f5235d55 id:long access_hash:long = InputFileLocation;
 inputDocumentFileLocation#430f0724 id:long access_hash:long version:int = InputFileLocation;
+inputSecureFileLocation#cbc7ee28 id:long access_hash:long = InputFileLocation;
 
 inputAppEvent#770656a8 time:double type:string peer:long data:string = InputAppEvent;
 
@@ -280,6 +281,8 @@ messageActionPhoneCall#80e11a7f flags:# call_id:long reason:flags.0?PhoneCallDis
 messageActionScreenshotTaken#4792929b = MessageAction;
 messageActionCustomAction#fae69f56 message:string = MessageAction;
 messageActionBotAllowed#abe9affe domain:string = MessageAction;
+messageActionSecureValuesSentMe#1b287353 values:Vector<SecureValue> credentials:SecureCredentialsEncrypted = MessageAction;
+messageActionSecureValuesSent#d95c6154 types:Vector<SecureValueType> = MessageAction;
 
 dialog#e4def5db flags:# pinned:flags.2?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage = Dialog;
 
@@ -583,12 +586,12 @@ authorization#7bf2e6f6 hash:long flags:int device_model:string platform:string s
 
 account.authorizations#1250abde authorizations:Vector<Authorization> = account.Authorizations;
 
-account.noPassword#96dabc18 new_salt:bytes email_unconfirmed_pattern:string = account.Password;
-account.password#7c18141c current_salt:bytes new_salt:bytes hint:string has_recovery:Bool email_unconfirmed_pattern:string = account.Password;
+account.noPassword#5ea182f6 new_salt:bytes new_secure_salt:bytes secure_random:bytes email_unconfirmed_pattern:string = account.Password;
+account.password#ca39b447 flags:# has_recovery:flags.0?true has_secure_values:flags.1?true current_salt:bytes new_salt:bytes new_secure_salt:bytes secure_random:bytes hint:string email_unconfirmed_pattern:string = account.Password;
 
-account.passwordSettings#b7b72ab3 email:string = account.PasswordSettings;
+account.passwordSettings#7bd9c3f1 email:string secure_salt:bytes secure_secret:bytes secure_secret_id:long = account.PasswordSettings;
 
-account.passwordInputSettings#86916deb flags:# new_salt:flags.0?bytes new_password_hash:flags.0?bytes hint:flags.0?string email:flags.1?string = account.PasswordInputSettings;
+account.passwordInputSettings#21ffa60d flags:# new_salt:flags.0?bytes new_password_hash:flags.0?bytes hint:flags.0?string email:flags.1?string new_secure_salt:flags.2?bytes new_secure_secret:flags.2?bytes new_secure_secret_id:flags.2?long = account.PasswordInputSettings;
 
 auth.passwordRecovery#137948a5 email_pattern:string = auth.PasswordRecovery;
 
@@ -964,6 +967,53 @@ help.proxyDataPromo#2bf7ee23 expires:int peer:Peer chats:Vector<Chat> users:Vect
 help.termsOfServiceUpdateEmpty#e3309f7f expires:int = help.TermsOfServiceUpdate;
 help.termsOfServiceUpdate#28ecf961 expires:int terms_of_service:help.TermsOfService = help.TermsOfServiceUpdate;
 
+inputSecureFileUploaded#3334b0f0 id:long parts:int md5_checksum:string file_hash:bytes secret:bytes = InputSecureFile;
+inputSecureFile#5367e5be id:long access_hash:long = InputSecureFile;
+
+secureFileEmpty#64199744 = SecureFile;
+secureFile#e0277a62 id:long access_hash:long size:int dc_id:int date:int file_hash:bytes secret:bytes = SecureFile;
+
+secureData#8aeabec3 data:bytes data_hash:bytes secret:bytes = SecureData;
+
+securePlainPhone#7d6099dd phone:string = SecurePlainData;
+securePlainEmail#21ec5a5f email:string = SecurePlainData;
+
+secureValueTypePersonalDetails#9d2a81e3 = SecureValueType;
+secureValueTypePassport#3dac6a00 = SecureValueType;
+secureValueTypeDriverLicense#6e425c4 = SecureValueType;
+secureValueTypeIdentityCard#a0d0744b = SecureValueType;
+secureValueTypeInternalPassport#99a48f23 = SecureValueType;
+secureValueTypeAddress#cbe31e26 = SecureValueType;
+secureValueTypeUtilityBill#fc36954e = SecureValueType;
+secureValueTypeBankStatement#89137c0d = SecureValueType;
+secureValueTypeRentalAgreement#8b883488 = SecureValueType;
+secureValueTypePassportRegistration#99e3806a = SecureValueType;
+secureValueTypeTemporaryRegistration#ea02ec33 = SecureValueType;
+secureValueTypePhone#b320aadb = SecureValueType;
+secureValueTypeEmail#8e3ca7ee = SecureValueType;
+
+secureValue#b4b4b699 flags:# type:SecureValueType data:flags.0?SecureData front_side:flags.1?SecureFile reverse_side:flags.2?SecureFile selfie:flags.3?SecureFile files:flags.4?Vector<SecureFile> plain_data:flags.5?SecurePlainData hash:bytes = SecureValue;
+
+inputSecureValue#67872e8 flags:# type:SecureValueType data:flags.0?SecureData front_side:flags.1?InputSecureFile reverse_side:flags.2?InputSecureFile selfie:flags.3?InputSecureFile files:flags.4?Vector<InputSecureFile> plain_data:flags.5?SecurePlainData = InputSecureValue;
+
+secureValueHash#ed1ecdb0 type:SecureValueType hash:bytes = SecureValueHash;
+
+secureValueErrorData#e8a40bd9 type:SecureValueType data_hash:bytes field:string text:string = SecureValueError;
+secureValueErrorFrontSide#be3dfa type:SecureValueType file_hash:bytes text:string = SecureValueError;
+secureValueErrorReverseSide#868a2aa5 type:SecureValueType file_hash:bytes text:string = SecureValueError;
+secureValueErrorSelfie#e537ced6 type:SecureValueType file_hash:bytes text:string = SecureValueError;
+secureValueErrorFile#7a700873 type:SecureValueType file_hash:bytes text:string = SecureValueError;
+secureValueErrorFiles#666220e9 type:SecureValueType file_hash:Vector<bytes> text:string = SecureValueError;
+
+secureCredentialsEncrypted#33f0ea47 data:bytes hash:bytes secret:bytes = SecureCredentialsEncrypted;
+
+account.authorizationForm#cb976d53 flags:# selfie_required:flags.1?true required_types:Vector<SecureValueType> values:Vector<SecureValue> errors:Vector<SecureValueError> users:Vector<User> privacy_policy_url:flags.0?string = account.AuthorizationForm;
+
+account.sentEmailCode#811f854f email_pattern:string length:int = account.SentEmailCode;
+
+help.deepLinkInfoEmpty#66afa166 = help.DeepLinkInfo;
+help.deepLinkInfo#6a4ee832 flags:# update_app:flags.0?true message:string entities:flags.1?Vector<MessageEntity> = help.DeepLinkInfo;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -1019,9 +1069,20 @@ account.getTmpPassword#4a82327e password_hash:bytes period:int = account.TmpPass
 account.getWebAuthorizations#182e6d6f = account.WebAuthorizations;
 account.resetWebAuthorization#2d01b9ef hash:long = Bool;
 account.resetWebAuthorizations#682d2594 = Bool;
+account.getAllSecureValues#b288bc7d = Vector<SecureValue>;
+account.getSecureValue#73665bc2 types:Vector<SecureValueType> = Vector<SecureValue>;
+account.saveSecureValue#899fe31d value:InputSecureValue secure_secret_id:long = SecureValue;
+account.deleteSecureValue#b880bc4b types:Vector<SecureValueType> = Bool;
+account.getAuthorizationForm#b86ba8e1 bot_id:int scope:string public_key:string = account.AuthorizationForm;
+account.acceptAuthorization#e7027c94 bot_id:int scope:string public_key:string value_hashes:Vector<SecureValueHash> credentials:SecureCredentialsEncrypted = Bool;
+account.sendVerifyPhoneCode#823380b4 flags:# allow_flashcall:flags.0?true phone_number:string current_number:flags.0?Bool = auth.SentCode;
+account.verifyPhone#4dd3a7f6 phone_number:string phone_code_hash:string phone_code:string = Bool;
+account.sendVerifyEmailCode#7011509f email:string = account.SentEmailCode;
+account.verifyEmail#ecba39db email:string code:string = Bool;
 
 users.getUsers#d91a548 id:Vector<InputUser> = Vector<User>;
 users.getFullUser#ca30a5b1 id:InputUser = UserFull;
+users.setSecureValueErrors#90c894b5 id:InputUser errors:Vector<SecureValueError> = Bool;
 
 contacts.getStatuses#c4a353ee = Vector<ContactStatus>;
 contacts.getContacts#c023849f hash:int = contacts.Contacts;
@@ -1167,6 +1228,7 @@ help.getRecentMeUrls#3dc0f114 referer:string = help.RecentMeUrls;
 help.getProxyData#3d7758e1 = help.ProxyData;
 help.getTermsOfServiceUpdate#2ca51fd1 = help.TermsOfServiceUpdate;
 help.acceptTermsOfService#ee72f79a id:DataJSON = Bool;
+help.getDeepLinkInfo#3fedc75f path:string = help.DeepLinkInfo;
 
 channels.readHistory#cc104937 channel:InputChannel max_id:int = Bool;
 channels.deleteMessages#84c1fd4e channel:InputChannel id:Vector<int> = messages.AffectedMessages;
@@ -1230,4 +1292,4 @@ langpack.getStrings#2e1ee318 lang_code:string keys:Vector<string> = Vector<LangP
 langpack.getDifference#b2e4d7d from_version:int = LangPackDifference;
 langpack.getLanguages#800fd57d = Vector<LangPackLanguage>;
 
-// LAYER 80
+// LAYER 81

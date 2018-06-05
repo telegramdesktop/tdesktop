@@ -244,20 +244,20 @@ Ui::PopupMenu *GroupMembersWidget::fillPeerMenu(PeerData *selectedPeer) {
 			if (channel) {
 				if (channel->canEditAdmin(user)) {
 					auto label = lang((item->adminState != Item::AdminState::None) ? lng_context_edit_permissions : lng_context_promote_admin);
-					result->addAction(label, base::lambda_guarded(this, [this, user] {
+					result->addAction(label, crl::guard(this, [this, user] {
 						editAdmin(user);
 					}));
 				}
 				if (channel->canRestrictUser(user)) {
-					result->addAction(lang(lng_context_restrict_user), base::lambda_guarded(this, [this, user] {
+					result->addAction(lang(lng_context_restrict_user), crl::guard(this, [this, user] {
 						restrictUser(user);
 					}));
-					result->addAction(lang(lng_context_remove_from_group), base::lambda_guarded(this, [this, selectedPeer] {
+					result->addAction(lang(lng_context_remove_from_group), crl::guard(this, [this, selectedPeer] {
 						removePeer(selectedPeer);
 					}));
 				}
 			} else if (item->hasRemoveLink) {
-				result->addAction(lang(lng_context_remove_from_group), base::lambda_guarded(this, [this, selectedPeer] {
+				result->addAction(lang(lng_context_remove_from_group), crl::guard(this, [this, selectedPeer] {
 					removePeer(selectedPeer);
 				}));
 			}

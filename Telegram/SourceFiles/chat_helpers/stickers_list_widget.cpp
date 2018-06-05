@@ -266,14 +266,23 @@ void StickersListWidget::Footer::preloadImages() {
 void StickersListWidget::Footer::validateSelectedIcon(
 		uint64 setId,
 		ValidateIconAnimations animations) {
-	auto newSelected = 0;
+	auto favedIconIndex = -1;
+	auto newSelected = -1;
 	for (auto i = 0, l = _icons.size(); i != l; ++i) {
-		if (_icons[i].setId == setId) {
+		if (_icons[i].setId == setId
+			|| (_icons[i].setId == Stickers::FavedSetId
+				&& setId == Stickers::RecentSetId)) {
 			newSelected = i;
 			break;
+		} else if (_icons[i].setId == Stickers::FavedSetId) {
+			favedIconIndex = i;
 		}
 	}
-	setSelectedIcon(newSelected, animations);
+	setSelectedIcon(
+		(newSelected >= 0
+			? newSelected
+			: (favedIconIndex >= 0) ? favedIconIndex : 0),
+		animations);
 }
 
 void StickersListWidget::Footer::setSelectedIcon(
@@ -923,7 +932,7 @@ void StickersListWidget::refreshSearchRows() {
 }
 
 void StickersListWidget::refreshSearchRows(
-		const std::vector<Stickers::Set*> *cloudSets) {
+		const std::vector<uint64> *cloudSets) {
 	clearSelection();
 
 	_searchSets.clear();
@@ -988,9 +997,12 @@ void StickersListWidget::fillLocalSearchRows(const QString &query) {
 }
 
 void StickersListWidget::fillCloudSearchRows(
-		const std::vector<Stickers::Set*> &sets) {
-	for (const auto set : sets) {
-		addSearchRow(set);
+		const std::vector<uint64> &cloudSets) {
+	const auto &sets = Auth().data().stickerSets();
+	for (const auto setId : cloudSets) {
+		if (const auto it = sets.find(setId); it != sets.end()) {
+			addSearchRow(&*it);
+		}
 	}
 }
 
@@ -1040,7 +1052,7 @@ void StickersListWidget::searchResultsDone(
 	if (it == _searchCache.cend()) {
 		it = _searchCache.emplace(
 			_searchQuery,
-			std::vector<Stickers::Set*>()).first;
+			std::vector<uint64>()).first;
 	}
 	auto &d = result.c_messages_foundStickerSets();
 	for_const (const auto &stickerSet, d.vsets.v) {
@@ -1075,7 +1087,7 @@ void StickersListWidget::searchResultsDone(
 			if (set->stickers.empty() && set->covers.empty()) {
 				continue;
 			}
-			it->second.push_back(set);
+			it->second.push_back(set->id);
 		}
 	}
 	showSearchResults();
@@ -1306,7 +1318,7 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int index, bo
 		App::roundRect(p, QRect(tl, _singleSize), st::emojiPanHover, StickerHoverCorners);
 	}
 
-	auto goodThumb = !sticker->thumb->isNull() && ((sticker->thumb->width() >= 128) || (sticker->thumb->height() >= 128));
+	const auto goodThumb = sticker->hasGoodStickerThumb();
 	if (goodThumb) {
 		sticker->thumb->load();
 	} else {
@@ -1755,9 +1767,7 @@ void StickersListWidget::preloadImages() {
 			auto sticker = sets[i].pack.at(j);
 			if (!sticker || !sticker->sticker()) continue;
 
-			bool goodThumb = !sticker->thumb->isNull()
-				&& ((sticker->thumb->width() >= 128)
-					|| (sticker->thumb->height() >= 128));
+			const auto goodThumb = sticker->hasGoodStickerThumb();
 			if (goodThumb) {
 				sticker->thumb->load();
 			} else {
@@ -2011,7 +2021,7 @@ void StickersListWidget::fillIcons(QList<StickerIcon> &icons) {
 	}
 	if (i != _mySets.size() && _mySets[i].id == Stickers::RecentSetId) {
 		++i;
-		if (!icons.empty() && icons.back().setId != Stickers::FavedSetId) {
+		if (icons.empty() || icons.back().setId != Stickers::FavedSetId) {
 			icons.push_back(StickerIcon(Stickers::RecentSetId));
 		}
 	}
@@ -2336,7 +2346,7 @@ void StickersListWidget::removeMegagroupSet(bool locally) {
 		return;
 	}
 	_removingSetId = Stickers::MegagroupSetId;
-	Ui::show(Box<ConfirmBox>(lang(lng_stickers_remove_group_set), base::lambda_guarded(this, [this, group = _megagroupSet] {
+	Ui::show(Box<ConfirmBox>(lang(lng_stickers_remove_group_set), crl::guard(this, [this, group = _megagroupSet] {
 		Expects(group->mgInfo != nullptr);
 		if (group->mgInfo->stickerSet.type() != mtpc_inputStickerSetEmpty) {
 			Auth().api().setGroupStickerSet(group, MTP_inputStickerSetEmpty());
@@ -2344,7 +2354,7 @@ void StickersListWidget::removeMegagroupSet(bool locally) {
 		Ui::hideLayer();
 		_removingSetId = 0;
 		emit checkForHide();
-	}), base::lambda_guarded(this, [this] {
+	}), crl::guard(this, [this] {
 		_removingSetId = 0;
 		emit checkForHide();
 	})));
@@ -2356,7 +2366,7 @@ void StickersListWidget::removeSet(uint64 setId) {
 	if (it != sets.cend()) {
 		_removingSetId = it->id;
 		auto text = lng_stickers_remove_pack(lt_sticker_pack, it->title);
-		Ui::show(Box<ConfirmBox>(text, lang(lng_stickers_remove_pack_confirm), base::lambda_guarded(this, [this] {
+		Ui::show(Box<ConfirmBox>(text, lang(lng_stickers_remove_pack_confirm), crl::guard(this, [this] {
 			Ui::hideLayer();
 			auto &sets = Auth().data().stickerSetsRef();
 			auto it = sets.find(_removingSetId);
@@ -2393,7 +2403,7 @@ void StickersListWidget::removeSet(uint64 setId) {
 			}
 			_removingSetId = 0;
 			emit checkForHide();
-		}), base::lambda_guarded(this, [this] {
+		}), crl::guard(this, [this] {
 			_removingSetId = 0;
 			emit checkForHide();
 		})));

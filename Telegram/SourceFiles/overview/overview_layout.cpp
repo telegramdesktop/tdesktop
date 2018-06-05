@@ -83,7 +83,7 @@ public:
 private:
 	void startAnimation();
 
-	base::lambda<void()> _updateCallback;
+	Fn<void()> _updateCallback;
 	Ui::RoundCheckbox _check;
 
 	Animation _pression;

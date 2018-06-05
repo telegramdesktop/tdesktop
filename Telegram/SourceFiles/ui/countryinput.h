@@ -56,7 +56,16 @@ class CountrySelectBox : public BoxContent {
 	Q_OBJECT
 
 public:
+	enum class Type {
+		Phones,
+		Countries,
+	};
+
 	CountrySelectBox(QWidget*);
+	CountrySelectBox(QWidget*, const QString &iso, Type type);
+
+	static QString NameByISO(const QString &iso);
+	static QString ISOByPhone(const QString &phone);
 
 signals:
 	void countryChosen(const QString &iso);
@@ -74,6 +83,7 @@ private slots:
 private:
 	void onFilterUpdate(const QString &query);
 
+	Type _type = Type::Phones;
 	object_ptr<Ui::MultiSelect> _select;
 
 	class Inner;
@@ -86,7 +96,7 @@ class CountrySelectBox::Inner : public TWidget {
 	Q_OBJECT
 
 public:
-	Inner(QWidget *parent);
+	Inner(QWidget *parent, Type type);
 
 	void updateFilter(QString filter = QString());
 
@@ -120,7 +130,8 @@ private:
 	void updateRow(int index);
 	void setPressed(int pressed);
 
-	int _rowHeight;
+	Type _type = Type::Phones;
+	int _rowHeight = 0;
 
 	int _selected = -1;
 	int _pressed = -1;

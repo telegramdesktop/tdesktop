@@ -28,7 +28,7 @@ else
   #gyp --depth=. --generator-output=../.. -Goutput_dir=out Telegram.gyp --format=xcode-ninja
   #gyp --depth=. --generator-output=../.. -Goutput_dir=out Telegram.gyp --format=xcode
   # use patched gyp with Xcode project generator
-  ../../../Libraries/gyp/gyp --depth=. --generator-output=.. -Goutput_dir=../out -Gxcode_upgrade_check_project_version=930 -Dofficial_build_target=$BuildTarget Telegram.gyp --format=xcode
+  ../../../Libraries/gyp/gyp --depth=. --generator-output=.. -Goutput_dir=../out -Gxcode_upgrade_check_project_version=940 -Dofficial_build_target=$BuildTarget Telegram.gyp --format=xcode
 fi
 
 cd ../..

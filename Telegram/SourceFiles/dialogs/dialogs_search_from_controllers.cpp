@@ -18,8 +18,8 @@ namespace Dialogs {
 void ShowSearchFromBox(
 		not_null<Window::Navigation*> navigation,
 		not_null<PeerData*> peer,
-		base::lambda<void(not_null<UserData*>)> callback,
-		base::lambda<void()> closedCallback) {
+		Fn<void(not_null<UserData*>)> callback,
+		Fn<void()> closedCallback) {
 	auto createController = [
 		navigation,
 		peer,
@@ -41,18 +41,20 @@ void ShowSearchFromBox(
 		return nullptr;
 	};
 	if (auto controller = createController()) {
-		auto subscription = std::make_shared<base::Subscription>();
+		auto subscription = std::make_shared<rpl::lifetime>();
 		auto box = Ui::show(Box<PeerListBox>(std::move(controller), [subscription](not_null<PeerListBox*> box) {
 			box->addButton(langFactory(lng_cancel), [box, subscription] { box->closeBox(); });
 		}), LayerOption::KeepOther);
-		*subscription = box->boxClosing.add_subscription(std::move(closedCallback));
+		box->boxClosing() | rpl::start_with_next(
+			std::move(closedCallback),
+			*subscription);
 	}
 }
 
 ChatSearchFromController::ChatSearchFromController(
 	not_null<Window::Navigation*> navigation,
 	not_null<ChatData*> chat,
-	base::lambda<void(not_null<UserData*>)> callback)
+	Fn<void(not_null<UserData*>)> callback)
 : PeerListController()
 , _chat(chat)
 , _callback(std::move(callback)) {
@@ -126,7 +128,7 @@ void ChatSearchFromController::appendRow(not_null<UserData*> user) {
 ChannelSearchFromController::ChannelSearchFromController(
 	not_null<Window::Navigation*> navigation,
 	not_null<ChannelData*> channel,
-	base::lambda<void(not_null<UserData*>)> callback)
+	Fn<void(not_null<UserData*>)> callback)
 : ParticipantsBoxController(
 	navigation,
 	channel,

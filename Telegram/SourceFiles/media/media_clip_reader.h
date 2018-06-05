@@ -42,7 +42,7 @@ enum ReaderSteps {
 class ReaderPrivate;
 class Reader {
 public:
-	using Callback = base::lambda<void(Notification)>;
+	using Callback = Fn<void(Notification)>;
 	enum class Mode {
 		Gif,
 		Video,

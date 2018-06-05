@@ -32,7 +32,7 @@ public:
 		QWidget *parent,
 		not_null<Call*> call,
 		const style::CallSignalBars &st,
-		base::lambda<void()> displayedChangedCallback = nullptr);
+		Fn<void()> displayedChangedCallback = nullptr);
 
 	bool isDisplayed() const;
 
@@ -44,7 +44,7 @@ private:
 
 	const style::CallSignalBars &_st;
 	int _count = Call::kSignalBarStarting;
-	base::lambda<void()> _displayedChangedCallback;
+	Fn<void()> _displayedChangedCallback;
 
 };
 

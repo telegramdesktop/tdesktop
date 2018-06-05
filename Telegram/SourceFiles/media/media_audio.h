@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "storage/localimageloader.h"
+#include "base/bytes.h"
 
 struct VideoSoundData;
 struct VideoSoundPart;
@@ -332,7 +333,7 @@ FORCE_INLINE uint16 ReadOneSample(int16 data) {
 }
 
 template <typename SampleType, typename Callback>
-void IterateSamples(base::const_byte_span bytes, Callback &&callback) {
+void IterateSamples(bytes::const_span bytes, Callback &&callback) {
 	auto samplesPointer = reinterpret_cast<const SampleType*>(bytes.data());
 	auto samplesCount = bytes.size() / sizeof(SampleType);
 	auto samplesData = gsl::make_span(samplesPointer, samplesCount);

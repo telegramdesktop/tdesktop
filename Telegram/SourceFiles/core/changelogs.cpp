@@ -177,7 +177,7 @@ void Changelogs::requestCloudLogs() {
 	};
 	_session->api().requestChangelog(
 		FormatVersionPrecise(_oldVersion),
-		base::lambda_guarded(this, callback));
+		crl::guard(this, callback));
 }
 
 void Changelogs::addLocalLogs() {

@@ -15,15 +15,15 @@ namespace Dialogs {
 void ShowSearchFromBox(
 	not_null<Window::Navigation*> navigation,
 	not_null<PeerData*> peer,
-	base::lambda<void(not_null<UserData*>)> callback,
-	base::lambda<void()> closedCallback);
+	Fn<void(not_null<UserData*>)> callback,
+	Fn<void()> closedCallback);
 
 class ChatSearchFromController : public PeerListController, protected base::Subscriber {
 public:
 	ChatSearchFromController(
 		not_null<Window::Navigation*> navigation,
 		not_null<ChatData*> chat,
-		base::lambda<void(not_null<UserData*>)> callback);
+		Fn<void(not_null<UserData*>)> callback);
 
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
@@ -34,7 +34,7 @@ private:
 	void appendRow(not_null<UserData*> user);
 
 	not_null<ChatData*> _chat;
-	base::lambda<void(not_null<UserData*>)> _callback;
+	Fn<void(not_null<UserData*>)> _callback;
 
 };
 
@@ -43,7 +43,7 @@ public:
 	ChannelSearchFromController(
 		not_null<Window::Navigation*> navigation,
 		not_null<ChannelData*> channel,
-		base::lambda<void(not_null<UserData*>)> callback);
+		Fn<void(not_null<UserData*>)> callback);
 
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
@@ -52,7 +52,7 @@ protected:
 	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const override;
 
 private:
-	base::lambda<void(not_null<UserData*>)> _callback;
+	Fn<void(not_null<UserData*>)> _callback;
 
 };
 

@@ -60,6 +60,7 @@ class UpdateChecker {
 
 #endif // TDESKTOP_DISABLE_AUTOUPDATE
 
+void UpdateApplication();
 QString countBetaVersionSignature(uint64 version);
 
 } // namespace Core

@@ -8,9 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/auth_key.h"
 
 #include <openssl/aes.h>
-extern "C" {
 #include <openssl/modes.h>
-}
 
 namespace MTP {
 

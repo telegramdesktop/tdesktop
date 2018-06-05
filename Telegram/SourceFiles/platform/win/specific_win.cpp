@@ -576,6 +576,8 @@ namespace {
 	}
 }
 
+namespace Platform {
+
 void RegisterCustomScheme() {
 	if (cExeName().isEmpty()) {
 		return;
@@ -621,8 +623,10 @@ void RegisterCustomScheme() {
 #endif // !TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 }
 
+} // namespace Platform
+
 void psNewVersion() {
-	RegisterCustomScheme();
+	Platform::RegisterCustomScheme();
 	if (Local::oldSettingsVersion() < 8051) {
 		AppUserModelId::checkPinned();
 	}

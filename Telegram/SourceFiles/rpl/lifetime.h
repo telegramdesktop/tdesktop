@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/lambda.h"
+#include "base/unique_function.h"
 #include <deque>
 
 namespace rpl {
@@ -49,7 +49,7 @@ public:
 	~lifetime() { destroy(); }
 
 private:
-	std::deque<base::lambda_once<void()>> _callbacks;
+	std::deque<base::unique_function<void()>> _callbacks;
 
 };
 

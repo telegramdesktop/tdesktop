@@ -98,16 +98,16 @@ public:
 	void setRecordActive(bool recordActive);
 	void finishAnimating();
 
-	void setRecordStartCallback(base::lambda<void()> callback) {
+	void setRecordStartCallback(Fn<void()> callback) {
 		_recordStartCallback = std::move(callback);
 	}
-	void setRecordUpdateCallback(base::lambda<void(QPoint globalPos)> callback) {
+	void setRecordUpdateCallback(Fn<void(QPoint globalPos)> callback) {
 		_recordUpdateCallback = std::move(callback);
 	}
-	void setRecordStopCallback(base::lambda<void(bool active)> callback) {
+	void setRecordStopCallback(Fn<void(bool active)> callback) {
 		_recordStopCallback = std::move(callback);
 	}
-	void setRecordAnimationCallback(base::lambda<void()> callback) {
+	void setRecordAnimationCallback(Fn<void()> callback) {
 		_recordAnimationCallback = std::move(callback);
 	}
 
@@ -135,10 +135,10 @@ private:
 	Animation _a_recordActive;
 
 	bool _recording = false;
-	base::lambda<void()> _recordStartCallback;
-	base::lambda<void(bool active)> _recordStopCallback;
-	base::lambda<void(QPoint globalPos)> _recordUpdateCallback;
-	base::lambda<void()> _recordAnimationCallback;
+	Fn<void()> _recordStartCallback;
+	Fn<void(bool active)> _recordStopCallback;
+	Fn<void(QPoint globalPos)> _recordUpdateCallback;
+	Fn<void()> _recordAnimationCallback;
 
 };
 
@@ -159,6 +159,11 @@ public:
 	UserpicButton(
 		QWidget *parent,
 		not_null<Window::Controller*> controller,
+		not_null<PeerData*> peer,
+		Role role,
+		const style::UserpicButton &st);
+	UserpicButton(
+		QWidget *parent,
 		not_null<PeerData*> peer,
 		Role role,
 		const style::UserpicButton &st);

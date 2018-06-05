@@ -473,7 +473,7 @@ Data::MessagePosition HistoryItem::position() const {
 }
 
 MsgId HistoryItem::replyToId() const {
-	if (auto reply = Get<HistoryMessageReply>()) {
+	if (const auto reply = Get<HistoryMessageReply>()) {
 		return reply->replyToId();
 	}
 	return 0;

@@ -25,6 +25,8 @@ public:
 		return TWidget::resizeToWidth(newWidth);
 	}
 
+	int getUpdateTop() const;
+
 protected:
 	int resizeGetHeight(int newWidth) override;
 	void visibleTopBottomUpdated(
@@ -41,6 +43,7 @@ private:
 	UserData *_self = nullptr;
 
 	int _contentLeft = 0;
+	Fn<int()> _getUpdateTop;
 
 };
 

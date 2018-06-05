@@ -789,7 +789,7 @@ const InstantReplaces &InstantReplaces::Default() {
 	return result;
 }
 
-FlatInput::FlatInput(QWidget *parent, const style::FlatInput &st, base::lambda<QString()> placeholderFactory, const QString &v) : TWidgetHelper<QLineEdit>(v, parent)
+FlatInput::FlatInput(QWidget *parent, const style::FlatInput &st, Fn<QString()> placeholderFactory, const QString &v) : TWidgetHelper<QLineEdit>(v, parent)
 , _oldtext(v)
 , _placeholderFactory(std::move(placeholderFactory))
 , _placeholderVisible(!v.length())
@@ -962,7 +962,7 @@ void FlatInput::resizeEvent(QResizeEvent *e) {
 	return QLineEdit::resizeEvent(e);
 }
 
-void FlatInput::setPlaceholder(base::lambda<QString()> placeholderFactory) {
+void FlatInput::setPlaceholder(Fn<QString()> placeholderFactory) {
 	_placeholderFactory = std::move(placeholderFactory);
 	refreshPlaceholder();
 }
@@ -1078,7 +1078,7 @@ void FlatInput::onTextChange(const QString &text) {
 InputField::InputField(
 	QWidget *parent,
 	const style::InputField &st,
-	base::lambda<QString()> placeholderFactory,
+	Fn<QString()> placeholderFactory,
 	const QString &value)
 : InputField(
 	parent,
@@ -1092,7 +1092,7 @@ InputField::InputField(
 	QWidget *parent,
 	const style::InputField &st,
 	Mode mode,
-	base::lambda<QString()> placeholderFactory,
+	Fn<QString()> placeholderFactory,
 	const QString &value)
 : InputField(
 	parent,
@@ -1106,7 +1106,7 @@ InputField::InputField(
 	QWidget *parent,
 	const style::InputField &st,
 	Mode mode,
-	base::lambda<QString()> placeholderFactory,
+	Fn<QString()> placeholderFactory,
 	const TextWithTags &value)
 : RpWidget(parent)
 , _st(st)
@@ -1125,9 +1125,6 @@ InputField::InputField(
 
 	_inner->setFont(_st.font->f);
 	_inner->setAlignment(_st.textAlign);
-	_defaultCharFormat = _inner->textCursor().charFormat();
-	_defaultCharFormat.merge(PrepareTagFormat(_st, QString()));
-	_inner->textCursor().setCharFormat(_defaultCharFormat);
 	if (_mode == Mode::SingleLine) {
 		_inner->setWordWrapMode(QTextOption::NoWrap);
 	}
@@ -1141,7 +1138,10 @@ InputField::InputField(
 			updatePalette();
 		}
 	});
+
+	_defaultCharFormat = _inner->textCursor().charFormat();
 	updatePalette();
+	_inner->textCursor().setCharFormat(_defaultCharFormat);
 
 	_inner->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	_inner->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -1218,6 +1218,34 @@ void InputField::updatePalette() {
 	auto p = _inner->palette();
 	p.setColor(QPalette::Text, _st.textFg->c);
 	_inner->setPalette(p);
+
+	_defaultCharFormat.merge(PrepareTagFormat(_st, QString()));
+	auto cursor = textCursor();
+
+	const auto document = _inner->document();
+	auto block = document->begin();
+	const auto end = document->end();
+	for (; block != end; block = block.next()) {
+		auto till = block.position();
+		for (auto i = block.begin(); !i.atEnd();) {
+			for (; !i.atEnd(); ++i) {
+				const auto fragment = i.fragment();
+				if (!fragment.isValid() || fragment.position() < till) {
+					continue;
+				}
+				till = fragment.position() + fragment.length();
+
+				auto format = fragment.charFormat();
+				const auto tag = format.property(kTagProperty).toString();
+				format.setForeground(PrepareTagFormat(_st, tag).foreground());
+				cursor.setPosition(fragment.position());
+				cursor.setPosition(till, QTextCursor::KeepAnchor);
+				cursor.mergeCharFormat(format);
+				i = block.begin();
+				break;
+			}
+		}
+	}
 }
 
 void InputField::onTouchTimer() {
@@ -1502,7 +1530,11 @@ void InputField::paintEvent(QPaintEvent *e) {
 
 			auto placeholderLeft = anim::interpolate(0, -_st.placeholderShift, placeholderHiddenDegree);
 
-			p.setFont(_st.font);
+			QRect r(rect().marginsRemoved(_st.textMargins + _st.placeholderMargins));
+			r.moveLeft(r.left() + placeholderLeft);
+			if (rtl()) r.moveLeft(width() - r.left() - r.width());
+
+			p.setFont(_st.placeholderFont);
 			p.setPen(anim::pen(_st.placeholderFg, _st.placeholderFgActive, focusedDegree));
 
 			if (_st.placeholderAlign == style::al_topleft && _placeholderAfterSymbols > 0) {
@@ -1553,7 +1585,9 @@ void InputField::startBorderAnimation() {
 }
 
 void InputField::focusInEvent(QFocusEvent *e) {
-	_borderAnimationStart = (e->reason() == Qt::MouseFocusReason) ? mapFromGlobal(QCursor::pos()).x() : (width() / 2);
+	_borderAnimationStart = (e->reason() == Qt::MouseFocusReason)
+		? mapFromGlobal(QCursor::pos()).x()
+		: (width() / 2);
 	QTimer::singleShot(0, this, SLOT(onFocusInner()));
 }
 
@@ -1566,6 +1600,10 @@ void InputField::onFocusInner() {
 	auto borderStart = _borderAnimationStart;
 	_inner->setFocus();
 	_borderAnimationStart = borderStart;
+}
+
+int InputField::borderAnimationStart() const {
+	return _borderAnimationStart;
 }
 
 void InputField::contextMenuEvent(QContextMenuEvent *e) {
@@ -3238,7 +3276,7 @@ void InputField::refreshPlaceholder() {
 }
 
 void InputField::setPlaceholder(
-		base::lambda<QString()> placeholderFactory,
+		Fn<QString()> placeholderFactory,
 		int afterSymbols) {
 	_placeholderFactory = std::move(placeholderFactory);
 	if (_placeholderAfterSymbols != afterSymbols) {
@@ -3249,7 +3287,7 @@ void InputField::setPlaceholder(
 }
 
 void InputField::setEditLinkCallback(
-	base::lambda<bool(
+	Fn<bool(
 		EditLinkSelection selection,
 		QString text,
 		QString link,
@@ -3275,7 +3313,7 @@ void InputField::setErrorShown(bool error) {
 MaskedInputField::MaskedInputField(
 	QWidget *parent,
 	const style::InputField &st,
-	base::lambda<QString()> placeholderFactory,
+	Fn<QString()> placeholderFactory,
 	const QString &val)
 : Parent(val, parent)
 , _st(st)
@@ -3344,6 +3382,10 @@ void MaskedInputField::setCorrectedText(QString &now, int &nowCursor, const QStr
 
 void MaskedInputField::customUpDown(bool custom) {
 	_customUpDown = custom;
+}
+
+int MaskedInputField::borderAnimationStart() const {
+	return _borderAnimationStart;
 }
 
 void MaskedInputField::setTextMargins(const QMargins &mrg) {
@@ -3477,7 +3519,7 @@ void MaskedInputField::paintEvent(QPaintEvent *e) {
 			r.moveLeft(r.left() + placeholderLeft);
 			if (rtl()) r.moveLeft(width() - r.left() - r.width());
 
-			p.setFont(_st.font);
+			p.setFont(_st.placeholderFont);
 			p.setPen(anim::pen(_st.placeholderFg, _st.placeholderFgActive, focusedDegree));
 			p.drawText(r, _placeholder, _st.placeholderAlign);
 
@@ -3555,7 +3597,7 @@ void MaskedInputField::refreshPlaceholder() {
 	update();
 }
 
-void MaskedInputField::setPlaceholder(base::lambda<QString()> placeholderFactory) {
+void MaskedInputField::setPlaceholder(Fn<QString()> placeholderFactory) {
 	_placeholderFactory = std::move(placeholderFactory);
 	refreshPlaceholder();
 }
@@ -3884,11 +3926,11 @@ void PhonePartInput::onChooseCode(const QString &code) {
 	startPlaceholderAnimation();
 }
 
-PasswordInput::PasswordInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
+PasswordInput::PasswordInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory, const QString &val) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
 	setEchoMode(QLineEdit::Password);
 }
 
-PortInput::PortInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
+PortInput::PortInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory, const QString &val) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
 	if (!val.toInt() || val.toInt() > 65535) {
 		setText(QString());
 	}
@@ -3919,7 +3961,7 @@ void PortInput::correctValue(
 	setCorrectedText(now, nowCursor, newText, newPos);
 }
 
-HexInput::HexInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
+HexInput::HexInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory, const QString &val) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
 	if (!QRegularExpression("^[a-fA-F0-9]+$").match(val).hasMatch()) {
 		setText(QString());
 	}
@@ -3946,7 +3988,7 @@ void HexInput::correctValue(
 	setCorrectedText(now, nowCursor, newText, newPos);
 }
 
-UsernameInput::UsernameInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val, bool isLink) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
+UsernameInput::UsernameInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory, const QString &val, bool isLink) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
 	setLinkPlaceholder(isLink ? Messenger::Instance().createInternalLink(QString()) : QString());
 }
 
@@ -3993,7 +4035,7 @@ void UsernameInput::correctValue(
 	setCorrectedText(now, nowCursor, now.mid(from, len), newPos);
 }
 
-PhoneInput::PhoneInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
+PhoneInput::PhoneInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory, const QString &val) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
 	QString phone(val);
 	if (phone.isEmpty()) {
 		clearText();

@@ -20,11 +20,11 @@ public:
 	DropdownMenu(QWidget *parent, const style::DropdownMenu &st = st::defaultDropdownMenu);
 
 	QAction *addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
-	QAction *addAction(const QString &text, base::lambda<void()> callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
+	QAction *addAction(const QString &text, Fn<void()> callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
 	QAction *addSeparator();
 	void clearActions();
 
-	void setHiddenCallback(base::lambda<void()> callback) {
+	void setHiddenCallback(Fn<void()> callback) {
 		_hiddenCallback = std::move(callback);
 	}
 
@@ -88,7 +88,7 @@ private:
 	void showMenu(const QPoint &p, DropdownMenu *parent, TriggeredSource source);
 
 	const style::DropdownMenu &_st;
-	base::lambda<void()> _hiddenCallback;
+	Fn<void()> _hiddenCallback;
 
 	QPointer<Ui::Menu> _menu;
 

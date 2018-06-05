@@ -149,7 +149,7 @@ ApiWrap::ApiWrap(not_null<AuthSession*> session)
 
 void ApiWrap::requestChangelog(
 		const QString &sinceVersion,
-		base::lambda<void(const MTPUpdates &result)> callback) {
+		Fn<void(const MTPUpdates &result)> callback) {
 	request(MTPhelp_GetAppChangelog(
 		MTP_string(sinceVersion)
 	)).done(
@@ -233,6 +233,22 @@ void ApiWrap::proxyPromotionDone(const MTPhelp_ProxyData &proxy) {
 	}
 }
 
+void ApiWrap::requestDeepLinkInfo(
+		const QString &path,
+		Fn<void(const MTPDhelp_deepLinkInfo &result)> callback) {
+	request(_deepLinkInfoRequestId).cancel();
+	_deepLinkInfoRequestId = request(MTPhelp_GetDeepLinkInfo(
+		MTP_string(path)
+	)).done([=](const MTPhelp_DeepLinkInfo &result) {
+		_deepLinkInfoRequestId = 0;
+		if (result.type() == mtpc_help_deepLinkInfo) {
+			callback(result.c_help_deepLinkInfo());
+		}
+	}).fail([=](const RPCError &error) {
+		_deepLinkInfoRequestId = 0;
+	}).send();
+}
+
 void ApiWrap::applyUpdates(
 		const MTPUpdates &updates,
 		uint64 sentMessageRandomId) {
@@ -260,7 +276,7 @@ void ApiWrap::savePinnedOrder() {
 //void ApiWrap::toggleChannelGrouping(
 //		not_null<ChannelData*> channel,
 //		bool group,
-//		base::lambda<void()> callback) {
+//		Fn<void()> callback) {
 //	if (const auto already = _channelGroupingRequests.take(channel)) {
 //		request(already->first).cancel();
 //	}
@@ -1403,7 +1419,7 @@ void ApiWrap::deleteAllFromUserSend(
 
 void ApiWrap::requestChannelMembersForAdd(
 		not_null<ChannelData*> channel,
-		base::lambda<void(const MTPchannels_ChannelParticipants&)> callback) {
+		Fn<void(const MTPchannels_ChannelParticipants&)> callback) {
 	_channelMembersForAddCallback = std::move(callback);
 	if (_channelMembersForAdd == channel) {
 		return;
@@ -2397,12 +2413,6 @@ std::vector<not_null<DocumentData*>> *ApiWrap::stickersByEmoji(
 			auto &entry = _stickersByEmoji[emoji];
 			entry.list.clear();
 			entry.list.reserve(data.vstickers.v.size());
-			for (const auto &sticker : data.vstickers.v) {
-				const auto document = _session->data().document(sticker);
-				if (document->sticker()) {
-					entry.list.push_back(document);
-				}
-			}
 			entry.hash = data.vhash.v;
 			entry.received = getms(true);
 			_session->data().notifyStickersUpdated();
@@ -2607,10 +2617,10 @@ void ApiWrap::readFeaturedSets() {
 void ApiWrap::parseChannelParticipants(
 		not_null<ChannelData*> channel,
 		const MTPchannels_ChannelParticipants &result,
-		base::lambda<void(
+		Fn<void(
 			int availableCount,
 			const QVector<MTPChannelParticipant> &list)> callbackList,
-		base::lambda<void()> callbackNotModified) {
+		Fn<void()> callbackNotModified) {
 	TLHelp::VisitChannelParticipants(result, base::overload([&](
 			const MTPDchannels_channelParticipants &data) {
 		App::feedUsers(data.vusers);
@@ -2644,10 +2654,10 @@ void ApiWrap::refreshChannelAdmins(
 void ApiWrap::parseRecentChannelParticipants(
 		not_null<ChannelData*> channel,
 		const MTPchannels_ChannelParticipants &result,
-		base::lambda<void(
+		Fn<void(
 			int availableCount,
 			const QVector<MTPChannelParticipant> &list)> callbackList,
-		base::lambda<void()> callbackNotModified) {
+		Fn<void()> callbackNotModified) {
 	parseChannelParticipants(channel, result, [&](
 			int availableCount,
 			const QVector<MTPChannelParticipant> &list) {
@@ -3526,12 +3536,12 @@ void ApiWrap::sendAction(const SendOptions &options) {
 void ApiWrap::forwardMessages(
 		HistoryItemsList &&items,
 		const SendOptions &options,
-		base::lambda_once<void()> &&successCallback) {
+		FnMut<void()> &&successCallback) {
 	Expects(!items.empty());
 
 	struct SharedCallback {
 		int requestsLeft = 0;
-		base::lambda_once<void()> callback;
+		FnMut<void()> callback;
 	};
 	const auto shared = successCallback
 		? std::make_shared<SharedCallback>()

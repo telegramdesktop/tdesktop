@@ -23,27 +23,37 @@ class FlatLabel;
 class FadeShadow;
 } // namespace Ui
 
-namespace Window {
-class Controller;
-} // namespace Window
+class BoxContent;
 
 class BoxContentDelegate {
 public:
-	virtual Window::Controller *controller() const = 0;
-
 	virtual void setLayerType(bool layerType) = 0;
-	virtual void setTitle(base::lambda<TextWithEntities()> titleFactory) = 0;
-	virtual void setAdditionalTitle(base::lambda<QString()> additionalFactory) = 0;
+	virtual void setTitle(Fn<TextWithEntities()> titleFactory) = 0;
+	virtual void setAdditionalTitle(Fn<QString()> additionalFactory) = 0;
 
 	virtual void clearButtons() = 0;
-	virtual QPointer<Ui::RoundButton> addButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback, const style::RoundButton &st) = 0;
-	virtual QPointer<Ui::RoundButton> addLeftButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback, const style::RoundButton &st) = 0;
+	virtual QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) = 0;
+	virtual QPointer<Ui::RoundButton> addLeftButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) = 0;
 	virtual void updateButtonsPositions() = 0;
 
+	virtual void showBox(
+		object_ptr<BoxContent> box,
+		LayerOptions options,
+		anim::type animated) = 0;
 	virtual void setDimensions(int newWidth, int maxHeight) = 0;
 	virtual void setNoContentMargin(bool noContentMargin) = 0;
 	virtual bool isBoxShown() const = 0;
 	virtual void closeBox() = 0;
+
+	template <typename BoxType>
+	QPointer<BoxType> show(
+			object_ptr<BoxType> content,
+			LayerOptions options = LayerOption::KeepOther,
+			anim::type animated = anim::type::normal) {
+		auto result = QPointer<BoxType>(content.data());
+		showBox(std::move(content), options, animated);
+		return result;
+	}
 
 };
 
@@ -62,17 +72,17 @@ public:
 		getDelegate()->closeBox();
 	}
 
-	void setTitle(base::lambda<QString()> titleFactory) {
+	void setTitle(Fn<QString()> titleFactory) {
 		if (titleFactory) {
 			getDelegate()->setTitle([titleFactory] { return TextWithEntities { titleFactory(), EntitiesInText() }; });
 		} else {
-			getDelegate()->setTitle(base::lambda<TextWithEntities()>());
+			getDelegate()->setTitle(Fn<TextWithEntities()>());
 		}
 	}
-	void setTitle(base::lambda<TextWithEntities()> titleFactory) {
+	void setTitle(Fn<TextWithEntities()> titleFactory) {
 		getDelegate()->setTitle(std::move(titleFactory));
 	}
-	void setAdditionalTitle(base::lambda<QString()> additional) {
+	void setAdditionalTitle(Fn<QString()> additional) {
 		getDelegate()->setAdditionalTitle(std::move(additional));
 	}
 
@@ -81,9 +91,9 @@ public:
 	void clearButtons() {
 		getDelegate()->clearButtons();
 	}
-	QPointer<Ui::RoundButton> addButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback);
-	QPointer<Ui::RoundButton> addLeftButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback);
-	QPointer<Ui::RoundButton> addButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback, const style::RoundButton &st) {
+	QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback);
+	QPointer<Ui::RoundButton> addLeftButton(Fn<QString()> textFactory, Fn<void()> clickCallback);
+	QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) {
 		return getDelegate()->addButton(std::move(textFactory), std::move(clickCallback), st);
 	}
 	void updateButtonsGeometry() {
@@ -94,17 +104,18 @@ public:
 		setFocus();
 	}
 
-	base::Observable<void> boxClosing;
+	rpl::producer<> boxClosing() const {
+		return _boxClosingStream.events();
+	}
+	void notifyBoxClosing() {
+		_boxClosingStream.fire({});
+	}
 
 	void setDelegate(BoxContentDelegate *newDelegate) {
 		_delegate = newDelegate;
 		_preparing = true;
 		prepare();
 		finishPrepare();
-	}
-
-	Window::Controller *controller() {
-		return getDelegate()->controller();
 	}
 
 public slots:
@@ -168,6 +179,10 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
+	not_null<BoxContentDelegate*> getDelegate() const {
+		return _delegate;
+	}
+
 private slots:
 	void onScroll();
 	void onInnerResize();
@@ -184,10 +199,6 @@ private:
 	void updateShadowsVisibility();
 	object_ptr<TWidget> doTakeInnerWidget();
 
-	BoxContentDelegate *getDelegate() const {
-		Expects(_delegate != nullptr);
-		return _delegate;
-	}
 	BoxContentDelegate *_delegate = nullptr;
 
 	bool _preparing = false;
@@ -201,6 +212,8 @@ private:
 	object_ptr<QTimer> _draggingScrollTimer = { nullptr };
 	int _draggingScrollDelta = 0;
 
+	rpl::event_stream<> _boxClosingStream;
+
 };
 
 class AbstractBox
@@ -208,20 +221,23 @@ class AbstractBox
 	, public BoxContentDelegate
 	, protected base::Subscriber {
 public:
-	AbstractBox(QWidget *parent, Window::Controller *controller, object_ptr<BoxContent> content);
+	AbstractBox(
+		not_null<Window::LayerStackWidget*> layer,
+		object_ptr<BoxContent> content);
 
-	Window::Controller *controller() const override {
-		return _controller;
-	}
 	void parentResized() override;
 
 	void setLayerType(bool layerType) override;
-	void setTitle(base::lambda<TextWithEntities()> titleFactory) override;
-	void setAdditionalTitle(base::lambda<QString()> additionalFactory) override;
+	void setTitle(Fn<TextWithEntities()> titleFactory) override;
+	void setAdditionalTitle(Fn<QString()> additionalFactory) override;
+	void showBox(
+		object_ptr<BoxContent> box,
+		LayerOptions options,
+		anim::type animated) override;
 
 	void clearButtons() override;
-	QPointer<Ui::RoundButton> addButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback, const style::RoundButton &st) override;
-	QPointer<Ui::RoundButton> addLeftButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback, const style::RoundButton &st) override;
+	QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) override;
+	QPointer<Ui::RoundButton> addLeftButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) override;
 	void updateButtonsPositions() override;
 
 	void setDimensions(int newWidth, int maxHeight) override;
@@ -249,7 +265,7 @@ protected:
 		_content->setInnerFocus();
 	}
 	void closeHook() override {
-		_content->boxClosing.notify(true);
+		_content->notifyBoxClosing();
 	}
 
 private:
@@ -268,7 +284,7 @@ private:
 	int countRealHeight() const;
 	void updateSize();
 
-	Window::Controller *_controller = nullptr;
+	not_null<Window::LayerStackWidget*> _layer;
 	int _fullHeight = 0;
 
 	bool _noContentMargin = false;
@@ -276,9 +292,9 @@ private:
 	object_ptr<BoxContent> _content;
 
 	object_ptr<Ui::FlatLabel> _title = { nullptr };
-	base::lambda<TextWithEntities()> _titleFactory;
+	Fn<TextWithEntities()> _titleFactory;
 	QString _additionalTitle;
-	base::lambda<QString()> _additionalTitleFactory;
+	Fn<QString()> _additionalTitleFactory;
 	int _titleLeft = 0;
 	int _titleTop = 0;
 	bool _layerType = false;
@@ -291,9 +307,9 @@ private:
 class BoxContentDivider : public Ui::RpWidget {
 public:
 	BoxContentDivider(QWidget *parent);
+	BoxContentDivider(QWidget *parent, int height);
 
 protected:
-	int resizeGetHeight(int newWidth) override;
 	void paintEvent(QPaintEvent *e) override;
 
 };

@@ -87,6 +87,41 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
 
+namespace {
+
+bool IsForceLogoutNotification(const MTPDupdateServiceNotification &data) {
+	return qs(data.vtype).startsWith(qstr("AUTH_KEY_DROP_"));
+}
+
+bool HasForceLogoutNotification(const MTPUpdates &updates) {
+	const auto checkUpdate = [](const MTPUpdate &update) {
+		if (update.type() != mtpc_updateServiceNotification) {
+			return false;
+		}
+		return IsForceLogoutNotification(
+			update.c_updateServiceNotification());
+	};
+	const auto checkVector = [&](const MTPVector<MTPUpdate> &list) {
+		for (const auto &update : list.v) {
+			if (checkUpdate(update)) {
+				return true;
+			}
+		}
+		return false;
+	};
+	switch (updates.type()) {
+	case mtpc_updates:
+		return checkVector(updates.c_updates().vupdates);
+	case mtpc_updatesCombined:
+		return checkVector(updates.c_updatesCombined().vupdates);
+	case mtpc_updateShort:
+		return checkUpdate(updates.c_updateShort().vupdate);
+	}
+	return false;
+}
+
+} // namespace
+
 enum StackItemType {
 	HistoryStackItem,
 	SectionStackItem,
@@ -910,7 +945,7 @@ void MainWidget::cancelUploadLayer(not_null<HistoryItem*> item) {
 
 void MainWidget::deletePhotoLayer(PhotoData *photo) {
 	if (!photo) return;
-	Ui::show(Box<ConfirmBox>(lang(lng_delete_photo_sure), lang(lng_box_delete), base::lambda_guarded(this, [=] {
+	Ui::show(Box<ConfirmBox>(lang(lng_delete_photo_sure), lang(lng_box_delete), crl::guard(this, [=] {
 		Ui::hideLayer();
 
 		auto me = App::self();
@@ -950,11 +985,11 @@ bool MainWidget::selectingPeerForInlineSwitch() {
 void MainWidget::offerPeer(PeerId peer) {
 	Ui::hideLayer();
 	if (_hider->offerPeer(peer) && Adaptive::OneColumn()) {
-		_forwardConfirm = Ui::show(Box<ConfirmBox>(_hider->offeredText(), lang(lng_forward_send), base::lambda_guarded(this, [this] {
+		_forwardConfirm = Ui::show(Box<ConfirmBox>(_hider->offeredText(), lang(lng_forward_send), crl::guard(this, [this] {
 			_hider->forward();
 			if (_forwardConfirm) _forwardConfirm->closeBox();
 			if (_hider) _hider->offerPeer(0);
-		}), base::lambda_guarded(this, [this] {
+		}), crl::guard(this, [this] {
 			if (_hider && _forwardConfirm) _hider->offerPeer(0);
 		})));
 	}
@@ -1670,12 +1705,12 @@ void MainWidget::documentLoadFailed(FileLoader *loader, bool started) {
 	auto document = Auth().data().document(documentId);
 	if (started) {
 		auto failedFileName = loader->fileName();
-		Ui::show(Box<ConfirmBox>(lang(lng_download_finish_failed), base::lambda_guarded(this, [=] {
+		Ui::show(Box<ConfirmBox>(lang(lng_download_finish_failed), crl::guard(this, [=] {
 			Ui::hideLayer();
 			if (document) document->save(failedFileName);
 		})));
 	} else {
-		Ui::show(Box<ConfirmBox>(lang(lng_download_path_failed), lang(lng_download_path_settings), base::lambda_guarded(this, [=] {
+		Ui::show(Box<ConfirmBox>(lang(lng_download_path_failed), lang(lng_download_path_settings), crl::guard(this, [=] {
 			Global::SetDownloadPath(QString());
 			Global::SetDownloadPathBookmark(QByteArray());
 			Ui::show(Box<DownloadPathBox>());
@@ -2285,33 +2320,7 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 	} else if (_mainSection) {
 		result.oldContentCache = _mainSection->grabForShowAnimation(result);
 	} else {
-		if (result.withTopBarShadow) {
-			_history->grapWithoutTopBarShadow();
-		} else {
-			_history->grabStart();
-		}
-		if (Adaptive::OneColumn()) {
-			result.oldContentCache = Ui::GrabWidget(this, QRect(
-				0,
-				sectionTop,
-				_dialogsWidth,
-				height() - sectionTop));
-		} else {
-			_sideShadow->hide();
-			if (_thirdShadow) {
-				_thirdShadow->hide();
-			}
-			result.oldContentCache = Ui::GrabWidget(this, QRect(
-				_dialogsWidth,
-				sectionTop,
-				width() - _dialogsWidth,
-				height() - sectionTop));
-			_sideShadow->show();
-			if (_thirdShadow) {
-				_thirdShadow->show();
-			}
-		}
-		_history->grabFinish();
+		result.oldContentCache = _history->grabForShowAnimation(result);
 	}
 
 	if (playerVolumeVisible) {
@@ -2797,11 +2806,11 @@ void MainWidget::showAll() {
 		if (_hider) {
 			_hider->hide();
 			if (!_forwardConfirm && _hider->wasOffered()) {
-				_forwardConfirm = Ui::show(Box<ConfirmBox>(_hider->offeredText(), lang(lng_forward_send), base::lambda_guarded(this, [this] {
+				_forwardConfirm = Ui::show(Box<ConfirmBox>(_hider->offeredText(), lang(lng_forward_send), crl::guard(this, [this] {
 					_hider->forward();
 					if (_forwardConfirm) _forwardConfirm->closeBox();
 					if (_hider) _hider->offerPeer(0);
-				}), base::lambda_guarded(this, [this] {
+				}), crl::guard(this, [this] {
 					if (_hider && _forwardConfirm) _hider->offerPeer(0);
 				})), LayerOption::CloseOther, anim::type::instant);
 			}
@@ -3319,7 +3328,7 @@ void MainWidget::feedMessageIds(const MTPVector<MTPUpdate> &updates) {
 }
 
 bool MainWidget::updateFail(const RPCError &e) {
-	App::logOutDelayed();
+	crl::on_main(this, [] { Messenger::Instance().logOut(); });
 	return true;
 }
 
@@ -4257,7 +4266,8 @@ void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 
 			_lastUpdateTime = getms(true);
 			noUpdatesTimer.start(NoUpdatesTimeout);
-			if (!requestingDifference()) {
+			if (!requestingDifference()
+				|| HasForceLogoutNotification(updates)) {
 				feedUpdates(updates);
 			}
 		} catch (mtpErrorUnexpected &) { // just some other type
@@ -4925,11 +4935,17 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateServiceNotification: {
-		auto &d = update.c_updateServiceNotification();
-		if (d.is_popup()) {
-			Ui::show(Box<InformBox>(qs(d.vmessage)));
+		const auto &d = update.c_updateServiceNotification();
+		const auto text = TextWithEntities {
+			qs(d.vmessage),
+			TextUtilities::EntitiesFromMTP(d.ventities.v)
+		};
+		if (IsForceLogoutNotification(d)) {
+			Messenger::Instance().forceLogOut(text);
+		} else if (d.is_popup()) {
+			Ui::show(Box<InformBox>(text));
 		} else {
-			App::wnd()->serviceNotification({ qs(d.vmessage), TextUtilities::EntitiesFromMTP(d.ventities.v) }, d.vmedia);
+			App::wnd()->serviceNotification(text, d.vmedia);
 			emit App::wnd()->checkNewAuthorization();
 		}
 	} break;

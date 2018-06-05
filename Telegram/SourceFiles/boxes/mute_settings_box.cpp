@@ -32,7 +32,6 @@ void MuteSettingsBox::prepare() {
 
 	const auto icon = object_ptr<Ui::UserpicButton>(
 		this,
-		controller(),
 		_peer,
 		Ui::UserpicButton::Role::Custom,
 		st::mutePhotoButton);

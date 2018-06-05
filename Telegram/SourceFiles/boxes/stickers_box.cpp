@@ -274,7 +274,9 @@ void StickersBox::prepare() {
 	if (_installed.widget()) {
 		connect(_installed.widget(), SIGNAL(draggingScrollDelta(int)), this, SLOT(onDraggingScrollDelta(int)));
 		if (!_megagroupSet) {
-			subscribe(boxClosing, [this] { saveChanges(); });
+			boxClosing() | rpl::start_with_next([=] {
+				saveChanges();
+			}, lifetime());
 		}
 	}
 

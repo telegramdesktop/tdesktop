@@ -26,7 +26,7 @@ class BlockUserBoxController : public ChatsListBoxController {
 public:
 	void rowClicked(not_null<PeerListRow*> row) override;
 
-	void setBlockUserCallback(base::lambda<void(not_null<UserData*> user)> callback) {
+	void setBlockUserCallback(Fn<void(not_null<UserData*> user)> callback) {
 		_blockUserCallback = std::move(callback);
 	}
 
@@ -41,7 +41,7 @@ protected:
 private:
 	void updateIsBlocked(not_null<PeerListRow*> row, UserData *user) const;
 
-	base::lambda<void(not_null<UserData*> user)> _blockUserCallback;
+	Fn<void(not_null<UserData*> user)> _blockUserCallback;
 
 };
 
@@ -256,7 +256,7 @@ QString LastSeenPrivacyController::exceptionsDescription() {
 	return lang(lng_edit_privacy_lastseen_exceptions);
 }
 
-void LastSeenPrivacyController::confirmSave(bool someAreDisallowed, base::lambda_once<void()> saveCallback) {
+void LastSeenPrivacyController::confirmSave(bool someAreDisallowed, FnMut<void()> saveCallback) {
 	if (someAreDisallowed && !Auth().settings().lastSeenWarningSeen()) {
 		auto weakBox = std::make_shared<QPointer<ConfirmBox>>();
 		auto callback = [weakBox, saveCallback = std::move(saveCallback)]() mutable {

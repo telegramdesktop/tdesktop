@@ -68,7 +68,7 @@ public:
 	SuggestionsController(QWidget *parent, not_null<QTextEdit*> field);
 
 	void raise();
-	void setReplaceCallback(base::lambda<void(
+	void setReplaceCallback(Fn<void(
 		int from,
 		int till,
 		const QString &replacement)> callback);
@@ -91,7 +91,7 @@ private:
 	bool _ignoreCursorPositionChange = false;
 	bool _textChangeAfterKeyPress = false;
 	QPointer<QTextEdit> _field;
-	base::lambda<void(
+	Fn<void(
 		int from,
 		int till,
 		const QString &replacement)> _replaceCallback;

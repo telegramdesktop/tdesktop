@@ -551,7 +551,7 @@ void ShareBox::Inner::paintChat(
 	chat->name.drawLeftElided(p, x + nameLeft, y + nameTop, nameWidth, outerWidth, 2, style::al_top, 0, -1, 0, true);
 }
 
-ShareBox::Inner::Chat::Chat(PeerData *peer, base::lambda<void()> updateCallback)
+ShareBox::Inner::Chat::Chat(PeerData *peer, Fn<void()> updateCallback)
 : peer(peer)
 , checkbox(st::sharePhotoCheckbox, updateCallback, PaintUserpicCallback(peer, true))
 , name(st::sharePhotoCheckbox.imageRadius * 2) {
@@ -699,7 +699,7 @@ void ShareBox::Inner::peerUnselected(not_null<PeerData*> peer) {
 	}
 }
 
-void ShareBox::Inner::setPeerSelectedChangedCallback(base::lambda<void(PeerData *peer, bool selected)> callback) {
+void ShareBox::Inner::setPeerSelectedChangedCallback(Fn<void(PeerData *peer, bool selected)> callback) {
 	_peerSelectedChangedCallback = std::move(callback);
 }
 

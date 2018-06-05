@@ -194,19 +194,19 @@ class Editor::Inner : public TWidget, private base::Subscriber {
 public:
 	Inner(QWidget *parent, const QString &path);
 
-	void setErrorCallback(base::lambda<void()> callback) {
+	void setErrorCallback(Fn<void()> callback) {
 		_errorCallback = std::move(callback);
 	}
-	void setFocusCallback(base::lambda<void()> callback) {
+	void setFocusCallback(Fn<void()> callback) {
 		_focusCallback = std::move(callback);
 	}
-	void setScrollCallback(base::lambda<void(int top, int bottom)> callback) {
+	void setScrollCallback(Fn<void(int top, int bottom)> callback) {
 		_scrollCallback = std::move(callback);
 	}
 
 	void prepare();
 
-	base::lambda<void()> exportCallback();
+	Fn<void()> exportCallback();
 
 	void filterRows(const QString &query);
 	void chooseRow();
@@ -238,9 +238,9 @@ private:
 
 	QString _path;
 	QByteArray _paletteContent;
-	base::lambda<void()> _errorCallback;
-	base::lambda<void()> _focusCallback;
-	base::lambda<void(int top, int bottom)> _scrollCallback;
+	Fn<void()> _errorCallback;
+	Fn<void()> _focusCallback;
+	Fn<void(int top, int bottom)> _scrollCallback;
 
 	object_ptr<EditorBlock> _existingRows;
 	object_ptr<EditorBlock> _newRows;
@@ -318,7 +318,7 @@ void Editor::Inner::prepare() {
 	}
 }
 
-base::lambda<void()> Editor::Inner::exportCallback() {
+Fn<void()> Editor::Inner::exportCallback() {
 	return App::LambdaDelayed(st::defaultRippleAnimation.hideDuration, this, [this] {
 		auto background = Background()->pixmap().toImage();
 		auto backgroundContent = QByteArray();
@@ -621,7 +621,7 @@ void ThemeExportBox::updateThumbnail() {
 }
 
 void ThemeExportBox::chooseBackgroundFromFile() {
-	FileDialog::GetOpenPath(lang(lng_theme_editor_choose_image), "Image files (*.jpeg *.jpg *.png)", base::lambda_guarded(this, [this](const FileDialog::OpenResult &result) {
+	FileDialog::GetOpenPath(this, lang(lng_theme_editor_choose_image), "Image files (*.jpeg *.jpg *.png)", crl::guard(this, [this](const FileDialog::OpenResult &result) {
 		auto content = result.remoteContent;
 		if (!result.paths.isEmpty()) {
 			QFile f(result.paths.front());
@@ -651,7 +651,7 @@ void ThemeExportBox::exportTheme() {
 		auto caption = lang(lng_theme_editor_choose_name);
 		auto filter = "Themes (*.tdesktop-theme)";
 		auto name = "awesome.tdesktop-theme";
-		FileDialog::GetWritePath(caption, filter, name, base::lambda_guarded(this, [this](const QString &path) {
+		FileDialog::GetWritePath(this, caption, filter, name, crl::guard(this, [this](const QString &path) {
 			zlib::FileToWrite zip;
 
 			zip_fileinfo zfi = { { 0, 0, 0, 0, 0, 0 }, 0, 0, 0 };
@@ -787,7 +787,7 @@ void Editor::paintEvent(QPaintEvent *e) {
 void Editor::Start() {
 	auto palettePath = Local::themePaletteAbsolutePath();
 	if (palettePath.isEmpty()) {
-		FileDialog::GetWritePath(lang(lng_theme_editor_save_palette), "Palette (*.tdesktop-palette)", "colors.tdesktop-palette", [](const QString &path) {
+		FileDialog::GetWritePath(App::wnd(), lang(lng_theme_editor_save_palette), "Palette (*.tdesktop-palette)", "colors.tdesktop-palette", [](const QString &path) {
 			if (!Local::copyThemeColorsToPalette(path)) {
 				writeDefaultPalette(path);
 			}

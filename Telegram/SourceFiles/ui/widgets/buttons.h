@@ -24,6 +24,7 @@ public:
 	int naturalWidth() const override;
 
 	void setText(const QString &text);
+	void setColorOverride(base::optional<QColor> textFg);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -34,6 +35,7 @@ private:
 	const style::LinkButton &_st;
 	QString _text;
 	int _textWidth = 0;
+	base::optional<QColor> _textFgOverride;
 
 };
 
@@ -98,9 +100,9 @@ private:
 
 class RoundButton : public RippleButton, private base::Subscriber {
 public:
-	RoundButton(QWidget *parent, base::lambda<QString()> textFactory, const style::RoundButton &st);
+	RoundButton(QWidget *parent, Fn<QString()> textFactory, const style::RoundButton &st);
 
-	void setText(base::lambda<QString()> textFactory);
+	void setText(Fn<QString()> textFactory);
 
 	void setNumbersText(const QString &numbersText) {
 		setNumbersText(numbersText, numbersText.toInt());
@@ -108,7 +110,7 @@ public:
 	void setNumbersText(int numbers) {
 		setNumbersText(QString::number(numbers), numbers);
 	}
-	void setWidthChangedCallback(base::lambda<void()> callback);
+	void setWidthChangedCallback(Fn<void()> callback);
 	void stepNumbersAnimation(TimeMs ms);
 	void finishNumbersAnimation();
 
@@ -138,7 +140,7 @@ private:
 	void resizeToText();
 
 	QString _text;
-	base::lambda<QString()> _textFactory;
+	Fn<QString()> _textFactory;
 	int _textWidth;
 
 	std::unique_ptr<NumbersAnimation> _numbers;

@@ -102,7 +102,7 @@ public:
 
 	PeerData *updateFromParentDrag(QPoint globalPos);
 
-	void setLoadMoreCallback(base::lambda<void()> callback) {
+	void setLoadMoreCallback(Fn<void()> callback) {
 		_loadMoreCallback = std::move(callback);
 	}
 
@@ -357,7 +357,7 @@ private:
 	Text _searchFromUserText;
 	Dialogs::Key _menuKey;
 
-	base::lambda<void()> _loadMoreCallback;
+	Fn<void()> _loadMoreCallback;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 

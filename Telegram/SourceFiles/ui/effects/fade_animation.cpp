@@ -22,6 +22,7 @@ FadeAnimation::FadeAnimation(TWidget *widget, float64 scale)
 bool FadeAnimation::paint(Painter &p) {
 	if (_cache.isNull()) return false;
 
+	const auto cache = _cache;
 	auto opacity = _animation.current(getms(), _visible ? 1. : 0.);
 	p.setOpacity(opacity);
 	if (_scale < 1.) {
@@ -45,9 +46,9 @@ bool FadeAnimation::paint(Painter &p) {
 			shownHeight,
 			shownWidth,
 			shownHeight);
-		p.drawPixmap(targetRect.marginsAdded(margins), _cache);
+		p.drawPixmap(targetRect.marginsAdded(margins), cache);
 	} else {
-		p.drawPixmap(0, 0, _cache);
+		p.drawPixmap(0, 0, cache);
 	}
 	return true;
 }
@@ -94,10 +95,7 @@ void FadeAnimation::setUpdatedCallback(UpdatedCallback &&callback) {
 }
 
 void FadeAnimation::show() {
-	if (!_visible) {
-		_visible = true;
-		_widget->showChildren();
-	}
+	_visible = true;
 	stopAnimation();
 }
 
@@ -110,9 +108,6 @@ void FadeAnimation::stopAnimation() {
 	_animation.finish();
 	if (!_cache.isNull()) {
 		_cache = QPixmap();
-		if (_visible) {
-			_widget->showChildren();
-		}
 		if (_finishedCallback) {
 			_finishedCallback();
 		}
@@ -138,10 +133,8 @@ void FadeAnimation::fadeOut(int duration) {
 
 void FadeAnimation::startAnimation(int duration) {
 	if (_cache.isNull()) {
-		_widget->showChildren();
 		_cache = grabContent();
 		Assert(!_cache.isNull());
-		_widget->hideChildren();
 	}
 	auto from = _visible ? 0. : 1.;
 	auto to = _visible ? 1. : 0.;

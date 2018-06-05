@@ -659,11 +659,13 @@ void EditColorBox::prepare() {
 	subscribe(_picker->changed(), [=] { updateFromControls(); });
 	subscribe(_hueSlider->changed(), [=] { updateFromControls(); });
 	subscribe(_opacitySlider->changed(), [=] { updateFromControls(); });
-	subscribe(boxClosing, [=] {
+
+	boxClosing() | rpl::start_with_next([=] {
 		if (_cancelCallback) {
 			_cancelCallback();
 		}
-	});
+	}, lifetime());
+
 	updateFromControls();
 }
 
@@ -718,7 +720,7 @@ void EditColorBox::fieldSubmitted() {
 }
 
 void EditColorBox::saveColor() {
-	_cancelCallback = base::lambda<void()>();
+	_cancelCallback = Fn<void()>();
 	if (_saveCallback) {
 		_saveCallback(_new.toRgb());
 	}

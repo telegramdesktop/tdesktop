@@ -497,7 +497,7 @@ void WrapWidget::showProfileMenu() {
 
 	const auto addAction = [=](
 			const QString &text,
-			base::lambda<void()> callback) {
+			Fn<void()> callback) {
 		return _topBarMenu->addAction(text, std::move(callback));
 	};
 	if (const auto peer = key().peer()) {

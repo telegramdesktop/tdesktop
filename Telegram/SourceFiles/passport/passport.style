@@ -1,0 +1,199 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "basic.style";
+
+using "ui/widgets/widgets.style";
+using "boxes/boxes.style";
+using "info/info.style";
+using "chat_helpers/chat_helpers.style";
+
+passportPasswordPadding: margins(20px, 30px, 20px, 40px);
+passportPasswordForgotSkip: 5px;
+passportPasswordAboutSkip: 15px;
+passportPasswordLabel: FlatLabel(boxLabel) {
+	minWidth: 275px;
+	align: align(top);
+}
+passportPasswordLabelBold: FlatLabel(passportPasswordLabel) {
+	style: TextStyle(boxLabelStyle) {
+		font: font(boxFontSize semibold);
+		linkFont: font(boxFontSize semibold);
+		linkFontOver: font(boxFontSize semibold underline);
+	}
+}
+passportPasswordSetupLabel: FlatLabel(passportPasswordLabel) {
+	minWidth: 0px;
+}
+passportPasswordHintLabel: passportPasswordLabel;
+passportErrorLabel: FlatLabel(passportPasswordLabel) {
+	textFg: boxTextFgError;
+}
+passportVerifyErrorLabel: FlatLabel(passportErrorLabel) {
+	align: align(topleft);
+}
+
+passportPanelSize: size(392px, 600px);
+
+passportPasswordFieldBottom: 306px;
+passportPasswordFieldSkip: 29px;
+passportPasswordHintSkip: 10px;
+passportPasswordUserpicSkip: 14px;
+passportPasswordUserpic: UserpicButton(defaultUserpicButton) {
+	size: size(80px, 80px);
+	photoSize: 80px;
+	photoPosition: point(0px, 0px);
+}
+passportPasswordSubmit: RoundButton(defaultActiveButton) {
+	width: 200px;
+	height: 44px;
+	textTop: 12px;
+	font: font(semibold 15px);
+}
+passportPasswordSubmitBottom: 72px;
+passportPasswordForgotBottom: 36px;
+
+passportPanelScroll: ScrollArea(defaultScrollArea) {
+	deltat: 6px;
+	deltab: 6px;
+
+	topsh: 0px;
+	bottomsh: 0px;
+}
+
+passportPanelAuthorize: RoundButton(passportPasswordSubmit) {
+	width: 0px;
+	height: 49px;
+	padding: margins(0px, -3px, 0px, 0px);
+	textTop: 16px;
+	icon: icon {{ "passport_authorize", activeButtonFg }};
+	iconPosition: point(-8px, 9px);
+}
+passportPanelSaveValue: RoundButton(passportPanelAuthorize) {
+	textFg: windowActiveTextFg;
+	textFgOver: windowActiveTextFg;
+	textBg: windowBg;
+	textBgOver: windowBgOver;
+	ripple: defaultRippleAnimation;
+	icon: icon {};
+}
+passportFormAbout1Padding: margins(10px, 4px, 10px, 0px);
+passportFormAbout2Padding: margins(10px, 0px, 10px, 22px);
+passportFormHeader: FlatLabel(boxLabel) {
+	textFg: windowActiveTextFg;
+	style: semiboldTextStyle;
+}
+passportFormHeaderPadding: margins(22px, 20px, 22px, 9px);
+passportFormUserpic: UserpicButton(passportPasswordUserpic) {
+	size: size(60px, 60px);
+	photoSize: 60px;
+}
+passportFormUserpicPadding: margins(0px, 5px, 0px, 10px);
+passportFormDividerHeight: 13px;
+passportFormLabelPadding: margins(22px, 7px, 22px, 14px);
+passportFormPolicy: FlatLabel(boxDividerLabel) {
+	style: TextStyle(defaultTextStyle) {
+		linkFont: font(fsize semibold underline);
+		linkFontOver: font(fsize semibold underline);
+	}
+	palette: TextPalette(defaultTextPalette) {
+		linkFg: windowSubTextFg;
+	}
+}
+passportFormPolicyPadding: margins(22px, 7px, 22px, 28px);
+passportContactNewFieldPadding: margins(22px, 0px, 22px, 14px);
+passportContactFieldPadding: margins(22px, 14px, 22px, 14px);
+passportContactErrorPadding: margins(22px, 0px, 22px, 0px);
+passportContactErrorMargin: margins(0px, 0px, 0px, 14px);
+
+passportRowPadding: margins(22px, 8px, 25px, 8px);
+passportRowIconSkip: 10px;
+passportRowSkip: 2px;
+passportRowRipple: RippleAnimation(defaultRippleAnimation) {
+	color: windowBgOver;
+}
+passportRowReadyIcon: icon {{ "passport_ready", windowActiveTextFg }};
+passportRowEmptyIcon: icon {{ "passport_empty", menuIconFgOver }};
+passportRowTitleFg: windowFg;
+passportRowDescriptionFg: windowSubTextFg;
+
+passportScansHeaderPadding: margins(22px, 10px, 22px, 10px);
+passportUploadButton: InfoProfileButton {
+	textFg: windowActiveTextFg;
+	textFgOver: windowActiveTextFg;
+	textBg: windowBg;
+	textBgOver: windowBgOver;
+
+	font: semiboldFont;
+
+	height: 18px;
+	padding: margins(22px, 14px, 22px, 12px);
+
+	ripple: defaultRippleAnimation;
+}
+passportUploadButtonPadding: margins(0px, 10px, 0px, 10px);
+passportUploadHeaderPadding: margins(22px, 14px, 22px, 3px);
+passportUploadErrorPadding: margins(22px, 5px, 22px, 5px);
+passportDeleteButton: InfoProfileButton(passportUploadButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+}
+
+passportScanNameStyle: TextStyle(defaultTextStyle) {
+	font: font(boxFontSize semibold);
+}
+passportScanRow: PassportScanRow {
+	padding: margins(22px, 10px, 10px, 10px);
+	size: 40px;
+	textLeft: 53px;
+	nameTop: 1px;
+	statusTop: 22px;
+	border: 1px;
+	borderFg: inputBorderFg;
+	remove: stickersRemove;
+	restore: stickersUndoRemove;
+}
+passportScanDeletedOpacity: stickersRowDisabledOpacity;
+
+passportDetailsHeaderPadding: margins(22px, 20px, 33px, 10px);
+passportDetailsPadding: margins(22px, 10px, 28px, 10px);
+passportDetailsField: InputField(defaultInputField) {
+	textMargins: margins(2px, 8px, 2px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+	heightMin: 32px;
+	font: normalFont;
+}
+passportDetailsDateField: InputField(passportDetailsField) {
+	border: 0px;
+	borderActive: 0px;
+	heightMin: 30px;
+	placeholderFont: font(semibold 14px);
+	placeholderFgActive: placeholderFgActive;
+}
+passportDetailsSeparator: FlatLabel(passportPasswordLabelBold) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(semibold 14px);
+	}
+	textFg: windowSubTextFg;
+}
+passportDetailsSeparatorPadding: margins(5px, 8px, 5px, 0px);
+passportContactField: InputField(defaultInputField) {
+	font: normalFont;
+}
+passportDetailsFieldLeft: 116px;
+passportDetailsFieldTop: 2px;
+passportDetailsFieldSkipMin: 12px;
+passportDetailsSkip: 30px;
+passportDetailsGenderSkip: 30px;
+
+passportRequestTypeSkip: 16px;
+
+passportPasswordAbout1Padding: margins(10px, 28px, 10px, 0px);
+passportPasswordAbout2Padding: margins(10px, 0px, 10px, 28px);
+passportPasswordIconHeight: 224px;
+passportPasswordIcon: icon {{ "passport_password_setup", windowSubTextFg }};

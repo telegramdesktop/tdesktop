@@ -22,7 +22,7 @@ void GenerateItems(
 	not_null<History*> history,
 	not_null<LocalIdManager*> idManager,
 	const MTPDchannelAdminLogEvent &event,
-	base::lambda<void(OwnedItem item)> callback);
+	Fn<void(OwnedItem item)> callback);
 
 // Smart pointer wrapper for HistoryItem* that destroys the owned item.
 class OwnedItem {

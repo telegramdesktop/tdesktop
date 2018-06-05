@@ -381,7 +381,7 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 				p.setOpacity(1);
 
 			}
-			bool goodThumb = !doc->thumb->isNull() && ((doc->thumb->width() >= 128) || (doc->thumb->height() >= 128));
+			const auto goodThumb = doc->hasGoodStickerThumb();
 			if (goodThumb) {
 				doc->thumb->load();
 			} else {
@@ -389,7 +389,9 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 					doc->automaticLoad(0);
 				}
 				if (doc->sticker()->img->isNull() && doc->loaded(DocumentData::FilePathResolveChecked)) {
-					doc->sticker()->img = doc->data().isEmpty() ? ImagePtr(doc->filepath()) : ImagePtr(doc->data());
+					doc->sticker()->img = doc->data().isEmpty()
+						? ImagePtr(doc->filepath())
+						: ImagePtr(doc->data());
 				}
 			}
 
@@ -429,7 +431,7 @@ bool StickerSetBox::Inner::official() const {
 	return _loaded && _setShortName.isEmpty();
 }
 
-base::lambda<TextWithEntities()> StickerSetBox::Inner::title() const {
+Fn<TextWithEntities()> StickerSetBox::Inner::title() const {
 	auto text = TextWithEntities { _setTitle };
 	if (_loaded) {
 		if (_pack.isEmpty()) {

@@ -75,6 +75,23 @@ void Controller::handleSeekFinished(float64 progress) {
 	refreshTimeTexts();
 }
 
+template <typename Callback>
+void Controller::startFading(Callback start) {
+	if (!_fadeAnimation->animating()) {
+		showChildren();
+		_playbackSlider->hide();
+		_childrenHidden = false;
+	}
+	start();
+	if (_fadeAnimation->animating()) {
+		hideChildren();
+		_childrenHidden = true;
+	} else {
+		fadeFinished();
+	}
+	_playbackSlider->show();
+}
+
 void Controller::showAnimated() {
 	startFading([this]() {
 		_fadeAnimation->fadeIn(st::mediaviewShowDuration);
@@ -87,14 +104,8 @@ void Controller::hideAnimated() {
 	});
 }
 
-template <typename Callback>
-void Controller::startFading(Callback start) {
-	start();
-	_playbackSlider->show();
-}
-
 void Controller::fadeFinished() {
-	fadeUpdated(1.);
+	fadeUpdated(_fadeAnimation->visible() ? 1. : 0.);
 }
 
 void Controller::fadeUpdated(float64 opacity) {
@@ -160,7 +171,9 @@ void Controller::refreshTimeTexts() {
 	_toPlayLeft->setText(timeLeft, &leftChanged);
 	if (alreadyChanged || leftChanged) {
 		resizeEvent(nullptr);
-		_fadeAnimation->refreshCache();
+		startFading([this]() {
+			_fadeAnimation->refreshCache();
+		});
 	}
 }
 
@@ -171,16 +184,6 @@ void Controller::setInFullScreen(bool inFullScreen) {
 
 	auto handler = inFullScreen ? SIGNAL(fromFullScreenPressed()) : SIGNAL(toFullScreenPressed());
 	connect(_fullScreenToggle, SIGNAL(clicked()), this, handler);
-}
-
-void Controller::grabStart() {
-	showChildren();
-	_playbackSlider->hide();
-}
-
-void Controller::grabFinish() {
-	hideChildren();
-	_playbackSlider->show();
 }
 
 void Controller::resizeEvent(QResizeEvent *e) {
@@ -206,7 +209,11 @@ void Controller::paintEvent(QPaintEvent *e) {
 	if (_fadeAnimation->paint(p)) {
 		return;
 	}
-
+	if (_childrenHidden) {
+		showChildren();
+		_playbackSlider->setFadeOpacity(1.);
+		_childrenHidden = false;
+	}
 	App::roundRect(p, rect(), st::mediaviewSaveMsgBg, MediaviewSaveCorners);
 }
 

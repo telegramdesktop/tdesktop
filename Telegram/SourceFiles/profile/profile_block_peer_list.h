@@ -71,16 +71,16 @@ public:
 		qSort(_items.begin(), _items.end(), std::move(predicate));
 	}
 
-	void setPreloadMoreCallback(base::lambda<void()> callback) {
+	void setPreloadMoreCallback(Fn<void()> callback) {
 		_preloadMoreCallback = std::move(callback);
 	}
-	void setSelectedCallback(base::lambda<void(PeerData*)> callback) {
+	void setSelectedCallback(Fn<void(PeerData*)> callback) {
 		_selectedCallback = std::move(callback);
 	}
-	void setRemovedCallback(base::lambda<void(PeerData*)> callback) {
+	void setRemovedCallback(Fn<void(PeerData*)> callback) {
 		_removedCallback = std::move(callback);
 	}
-	void setUpdateItemCallback(base::lambda<void(Item*)> callback) {
+	void setUpdateItemCallback(Fn<void(Item*)> callback) {
 		_updateItemCallback = std::move(callback);
 	}
 
@@ -125,10 +125,10 @@ private:
 
 	const style::PeerListItem &_st;
 
-	base::lambda<void()> _preloadMoreCallback;
-	base::lambda<void(PeerData*)> _selectedCallback;
-	base::lambda<void(PeerData*)> _removedCallback;
-	base::lambda<void(Item*)> _updateItemCallback;
+	Fn<void()> _preloadMoreCallback;
+	Fn<void(PeerData*)> _selectedCallback;
+	Fn<void(PeerData*)> _removedCallback;
+	Fn<void(Item*)> _updateItemCallback;
 
 	QList<Item*> _items;
 

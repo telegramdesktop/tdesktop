@@ -222,25 +222,6 @@ static const char *ApiHash = "344583e45741c457fe1862106095a5eb";
 static const char *BetaPrivateKey = "";
 #endif
 
-inline const char *cApiDeviceModel() {
-#ifdef Q_OS_WIN
-	return "PC";
-#elif defined Q_OS_MAC
-	return "Mac";
-#elif defined Q_OS_LINUX
-	return "PC";
-#endif
-}
-inline const char *cApiSystemVersion() {
-#ifdef Q_OS_WIN
-	return "Windows";
-#elif defined Q_OS_MAC
-	return "OS X";
-#elif defined Q_OS_LINUX
-	return "Linux";
-#endif
-}
-
 extern QString gKeyFile;
 inline const QString &cDataFile() {
 	if (!gKeyFile.isEmpty()) return gKeyFile;

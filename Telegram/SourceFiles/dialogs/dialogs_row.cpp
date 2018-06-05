@@ -17,7 +17,7 @@ namespace Dialogs {
 RippleRow::RippleRow() = default;
 RippleRow::~RippleRow() = default;
 
-void RippleRow::addRipple(QPoint origin, QSize size, base::lambda<void()> updateCallback) {
+void RippleRow::addRipple(QPoint origin, QSize size, Fn<void()> updateCallback) {
 	if (!_ripple) {
 		auto mask = Ui::RippleAnimation::rectMask(size);
 		_ripple = std::make_unique<Ui::RippleAnimation>(st::dialogsRipple, std::move(mask), std::move(updateCallback));

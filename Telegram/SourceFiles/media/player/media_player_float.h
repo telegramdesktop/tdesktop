@@ -26,8 +26,8 @@ public:
 		QWidget *parent,
 		not_null<Window::Controller*> controller,
 		not_null<HistoryItem*> item,
-		base::lambda<void(bool visible)> toggleCallback,
-		base::lambda<void(bool closed)> draggedCallback);
+		Fn<void(bool visible)> toggleCallback,
+		Fn<void(bool closed)> draggedCallback);
 
 	HistoryItem *item() const {
 		return _item;
@@ -78,7 +78,7 @@ private:
 
 	not_null<Window::Controller*> _controller;
 	HistoryItem *_item = nullptr;
-	base::lambda<void(bool visible)> _toggleCallback;
+	Fn<void(bool visible)> _toggleCallback;
 
 	float64 _opacity = 1.;
 
@@ -89,7 +89,7 @@ private:
 
 	bool _drag = false;
 	QPoint _dragLocalPoint;
-	base::lambda<void(bool closed)> _draggedCallback;
+	Fn<void(bool closed)> _draggedCallback;
 
 };
 

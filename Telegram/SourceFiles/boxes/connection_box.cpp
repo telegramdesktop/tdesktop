@@ -125,8 +125,8 @@ public:
 	ProxyBox(
 		QWidget*,
 		const ProxyData &data,
-		base::lambda<void(ProxyData)> callback,
-		base::lambda<void(ProxyData)> shareCallback);
+		Fn<void(ProxyData)> callback,
+		Fn<void(ProxyData)> shareCallback);
 
 protected:
 	void prepare() override;
@@ -148,8 +148,8 @@ private:
 		not_null<Ui::VerticalLayout*> parent,
 		const QString &text) const;
 
-	base::lambda<void(ProxyData)> _callback;
-	base::lambda<void(ProxyData)> _shareCallback;
+	Fn<void(ProxyData)> _callback;
+	Fn<void(ProxyData)> _shareCallback;
 
 	object_ptr<Ui::VerticalLayout> _content;
 
@@ -415,7 +415,7 @@ void ProxyRow::showMenu() {
 	_menuToggle->installEventFilter(_menu);
 	const auto addAction = [&](
 			const QString &text,
-			base::lambda<void()> callback) {
+			Fn<void()> callback) {
 		return _menu->addAction(text, std::move(callback));
 	};
 	addAction(lang(lng_proxy_menu_edit), [=] {
@@ -592,7 +592,7 @@ int ProxiesBox::rowHeight() const {
 }
 
 void ProxiesBox::addNewProxy() {
-	Ui::show(_controller->addNewItemBox(), LayerOption::KeepOther);
+	getDelegate()->show(_controller->addNewItemBox());
 }
 
 void ProxiesBox::applyView(View &&view) {
@@ -660,7 +660,7 @@ void ProxiesBox::setupButtons(int id, not_null<ProxyRow*> button) {
 
 	button->editClicks(
 	) | rpl::start_with_next([=] {
-		Ui::show(_controller->editItemBox(id), LayerOption::KeepOther);
+		getDelegate()->show(_controller->editItemBox(id));
 	}, button->lifetime());
 
 	button->shareClicks(
@@ -677,8 +677,8 @@ void ProxiesBox::setupButtons(int id, not_null<ProxyRow*> button) {
 ProxyBox::ProxyBox(
 	QWidget*,
 	const ProxyData &data,
-	base::lambda<void(ProxyData)> callback,
-	base::lambda<void(ProxyData)> shareCallback)
+	Fn<void(ProxyData)> callback,
+	Fn<void(ProxyData)> shareCallback)
 : _callback(std::move(callback))
 , _shareCallback(std::move(shareCallback))
 , _content(this) {
