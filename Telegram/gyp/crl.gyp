@@ -32,6 +32,7 @@
     },
     'include_dirs': [
       '../ThirdParty/crl/src',
+      '../SourceFiles',
     ],
     'sources': [
       '<(crl_src_loc)/common/crl_common_config.h',
@@ -64,6 +65,7 @@
       '<(crl_src_loc)/winapi/crl_winapi_semaphore.h',
       '<(crl_src_loc)/crl.h',
       '<(crl_src_loc)/crl_async.h',
+      '<(crl_src_loc)/crl_object_on_queue.h',
       '<(crl_src_loc)/crl_on_main.h',
       '<(crl_src_loc)/crl_queue.h',
       '<(crl_src_loc)/crl_semaphore.h',
