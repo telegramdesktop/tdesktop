@@ -1738,12 +1738,13 @@ void HistoryInner::savePhotoToFile(not_null<PhotoData*> photo) {
 
 	auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
 	FileDialog::GetWritePath(
+		this,
 		lang(lng_save_photo),
 		filter,
 		filedialogDefaultName(
 			qsl("photo"),
 			qsl(".jpg")),
-		base::lambda_guarded(this, [=](const QString &result) {
+		crl::guard(this, [=](const QString &result) {
 			if (!result.isEmpty()) {
 				photo->full->pix().toImage().save(result, "JPG");
 			}

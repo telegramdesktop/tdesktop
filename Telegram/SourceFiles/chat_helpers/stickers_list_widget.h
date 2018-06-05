@@ -243,9 +243,9 @@ private:
 	void showSearchResults();
 	void searchResultsDone(const MTPmessages_FoundStickerSets &result);
 	void refreshSearchRows();
-	void refreshSearchRows(const std::vector<Stickers::Set*> *cloudSets);
+	void refreshSearchRows(const std::vector<uint64> *cloudSets);
 	void fillLocalSearchRows(const QString &query);
-	void fillCloudSearchRows(const std::vector<Stickers::Set*> &sets);
+	void fillCloudSearchRows(const std::vector<uint64> &cloudSets);
 	void addSearchRow(not_null<const Stickers::Set*> set);
 
 	ChannelData *_megagroupSet = nullptr;
@@ -284,7 +284,7 @@ private:
 	QTimer _previewTimer;
 	bool _previewShown = false;
 
-	std::map<QString, std::vector<Stickers::Set*>> _searchCache;
+	std::map<QString, std::vector<uint64>> _searchCache;
 	std::vector<std::pair<uint64, QStringList>> _searchIndex;
 	base::Timer _searchRequestTimer;
 	QString _searchQuery, _searchNextQuery;

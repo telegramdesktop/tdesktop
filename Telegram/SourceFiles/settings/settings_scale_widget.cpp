@@ -88,11 +88,11 @@ void ScaleWidget::setScale(DBIScale newScale) {
 	}
 
 	if (cEvalScale(newScale) != cEvalScale(cRealScale())) {
-		Ui::show(Box<ConfirmBox>(lang(lng_settings_need_restart), lang(lng_settings_restart_now), base::lambda_guarded(this, [this] {
+		Ui::show(Box<ConfirmBox>(lang(lng_settings_need_restart), lang(lng_settings_restart_now), crl::guard(this, [this] {
 			cSetConfigScale(_newScale);
 			Local::writeSettings();
 			App::restart();
-		}), base::lambda_guarded(this, [this] {
+		}), crl::guard(this, [this] {
 			App::CallDelayed(st::boxDuration, this, [this] {
 				setScale(cRealScale());
 			});

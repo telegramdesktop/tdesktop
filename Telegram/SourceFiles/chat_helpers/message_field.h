@@ -27,7 +27,7 @@ void SetClipboardWithEntities(
 	const TextWithEntities &forClipboard,
 	QClipboard::Mode mode = QClipboard::Clipboard);
 
-base::lambda<bool(
+Fn<bool(
 	Ui::InputField::EditLinkSelection selection,
 	QString text,
 	QString link,

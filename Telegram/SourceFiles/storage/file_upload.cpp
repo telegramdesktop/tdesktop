@@ -29,8 +29,8 @@ struct Uploader::File {
 
 	std::shared_ptr<FileLoadResult> file;
 	SendMediaReady media;
-	int32 partsCount;
-	mutable int32 fileSentSize;
+	int32 partsCount = 0;
+	mutable int32 fileSentSize = 0;
 
 	uint64 id() const;
 	SendMediaType type() const;
@@ -59,7 +59,8 @@ Uploader::File::File(const SendMediaReady &media) : media(media) {
 }
 Uploader::File::File(const std::shared_ptr<FileLoadResult> &file)
 : file(file) {
-	partsCount = (type() == SendMediaType::Photo)
+	partsCount = (type() == SendMediaType::Photo
+		|| type() == SendMediaType::Secure)
 		? file->fileparts.size()
 		: file->thumbparts.size();
 	if (type() == SendMediaType::File || type() == SendMediaType::Audio) {
@@ -160,13 +161,18 @@ void Uploader::currentFailed() {
 	auto j = queue.find(uploadingId);
 	if (j != queue.end()) {
 		if (j->second.type() == SendMediaType::Photo) {
-			emit photoFailed(j->first);
-		} else if (j->second.type() == SendMediaType::File) {
+			_photoFailed.fire_copy(j->first);
+		} else if (j->second.type() == SendMediaType::File
+			|| j->second.type() == SendMediaType::Audio) {
 			const auto document = Auth().data().document(j->second.id());
 			if (document->uploading()) {
 				document->status = FileUploadFailed;
 			}
-			emit documentFailed(j->first);
+			_documentFailed.fire_copy(j->first);
+		} else if (j->second.type() == SendMediaType::Secure) {
+			_secureFailed.fire_copy(j->first);
+		} else {
+			Unexpected("Type in Uploader::currentFailed.");
 		}
 		queue.erase(j);
 	}
@@ -220,12 +226,14 @@ void Uploader::sendNext() {
 	}
 
 	auto &parts = uploadingData.file
-		? (uploadingData.type() == SendMediaType::Photo
+		? ((uploadingData.type() == SendMediaType::Photo
+			|| uploadingData.type() == SendMediaType::Secure)
 			? uploadingData.file->fileparts
 			: uploadingData.file->thumbparts)
 		: uploadingData.media.parts;
 	const auto partsOfId = uploadingData.file
-		? (uploadingData.type() == SendMediaType::Photo
+		? ((uploadingData.type() == SendMediaType::Photo
+			|| uploadingData.type() == SendMediaType::Secure)
 			? uploadingData.file->id
 			: uploadingData.file->thumbId)
 		: uploadingData.media.thumbId;
@@ -250,7 +258,7 @@ void Uploader::sendNext() {
 						MTP_int(uploadingData.partsCount),
 						MTP_string(photoFilename),
 						MTP_bytes(md5));
-					emit photoReady(uploadingId, silent, file);
+					_photoReady.fire({ uploadingId, silent, file });
 				} else if (uploadingData.type() == SendMediaType::File
 					|| uploadingData.type() == SendMediaType::Audio) {
 					QByteArray docMd5(32, Qt::Uninitialized);
@@ -278,14 +286,19 @@ void Uploader::sendNext() {
 							MTP_int(uploadingData.partsCount),
 							MTP_string(thumbFilename),
 							MTP_bytes(thumbMd5));
-						emit thumbDocumentReady(
+						_thumbDocumentReady.fire({
 							uploadingId,
 							silent,
 							file,
-							thumb);
+							thumb });
 					} else {
-						emit documentReady(uploadingId, silent, file);
+						_documentReady.fire({ uploadingId, silent, file });
 					}
+				} else if (uploadingData.type() == SendMediaType::Secure) {
+					_secureReady.fire({
+						uploadingId,
+						uploadingData.id(),
+						uploadingData.partsCount });
 				}
 				queue.erase(uploadingId);
 				uploadingId = FullMsgId();
@@ -457,7 +470,7 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 					photo->uploadingData->size = file.file->partssize;
 					photo->uploadingData->offset = file.fileSentSize;
 				}
-				emit photoProgress(fullId);
+				_photoProgress.fire_copy(fullId);
 			} else if (file.type() == SendMediaType::File
 				|| file.type() == SendMediaType::Audio) {
 				const auto document = Auth().data().document(file.id());
@@ -468,7 +481,13 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 						document->uploadingData->size,
 						doneParts * file.docPartSize);
 				}
-				emit documentProgress(fullId);
+				_documentProgress.fire_copy(fullId);
+			} else if (file.type() == SendMediaType::Secure) {
+				file.fileSentSize += sentPartSize;
+				_secureProgress.fire_copy({
+					fullId,
+					file.fileSentSize,
+					file.file->partssize });
 			}
 		}
 	}

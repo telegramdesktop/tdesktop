@@ -226,8 +226,8 @@ private:
 	void requestMoreCdnFileHashes();
 	void getCdnFileHashesDone(const MTPVector<MTPFileHash> &result, mtpRequestId requestId);
 
-	bool feedPart(int offset, base::const_byte_span bytes);
-	void partLoaded(int offset, base::const_byte_span bytes);
+	bool feedPart(int offset, bytes::const_span buffer);
+	void partLoaded(int offset, bytes::const_span buffer);
 
 	bool partFailed(const RPCError &error);
 	bool cdnPartFailed(const RPCError &error, mtpRequestId requestId);
@@ -243,7 +243,7 @@ private:
 		Invalid,
 		Good,
 	};
-	CheckCdnHashResult checkCdnFileHash(int offset, base::const_byte_span bytes);
+	CheckCdnHashResult checkCdnFileHash(int offset, bytes::const_span buffer);
 
 	std::map<mtpRequestId, RequestData> _sentRequests;
 

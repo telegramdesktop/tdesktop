@@ -20,13 +20,13 @@ class Navigation;
 
 namespace Profile {
 
-base::lambda<void(
+Fn<void(
 	const MTPChannelAdminRights &oldRights,
 	const MTPChannelAdminRights &newRights)> SaveAdminCallback(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> user,
-		base::lambda<void(const MTPChannelAdminRights &newRights)> onDone,
-		base::lambda<void()> onFail);
+		Fn<void(const MTPChannelAdminRights &newRights)> onDone,
+		Fn<void()> onFail);
 
 // Viewing admins, banned or restricted users list with search.
 class ParticipantsBoxController
@@ -218,8 +218,8 @@ public:
 	using Role = ParticipantsBoxController::Role;
 	using Additional = ParticipantsBoxController::Additional;
 
-	using AdminDoneCallback = base::lambda<void(not_null<UserData*> user, const MTPChannelAdminRights &adminRights)>;
-	using BannedDoneCallback = base::lambda<void(not_null<UserData*> user, const MTPChannelBannedRights &bannedRights)>;
+	using AdminDoneCallback = Fn<void(not_null<UserData*> user, const MTPChannelAdminRights &adminRights)>;
+	using BannedDoneCallback = Fn<void(not_null<UserData*> user, const MTPChannelBannedRights &bannedRights)>;
 	AddParticipantBoxController(not_null<ChannelData*> channel, Role role, AdminDoneCallback adminDoneCallback, BannedDoneCallback bannedDoneCallback);
 
 	void prepare() override;

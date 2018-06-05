@@ -1094,6 +1094,11 @@ void DocumentData::recountIsImage() {
 	_duration = fileIsImage(filename(), mimeString()) ? 1 : -1; // hack
 }
 
+bool DocumentData::hasGoodStickerThumb() const {
+	return !thumb->isNull()
+		&& ((thumb->width() >= 128) || (thumb->height() >= 128));
+}
+
 bool DocumentData::setRemoteVersion(int32 version) {
 	if (_version == version) {
 		return false;

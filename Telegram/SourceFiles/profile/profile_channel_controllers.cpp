@@ -36,7 +36,7 @@ void RemoveAdmin(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> user,
 		const MTPChannelAdminRights &oldRights,
-		base::lambda<void()> onDone) {
+		Fn<void()> onDone) {
 	const auto newRights = MTP_channelAdminRights(MTP_flags(0));
 	auto done = [=](const MTPUpdates &result) {
 		Auth().api().applyUpdates(result);
@@ -53,13 +53,13 @@ void RemoveAdmin(
 
 } // namespace
 
-base::lambda<void(
+Fn<void(
 	const MTPChannelAdminRights &oldRights,
 	const MTPChannelAdminRights &newRights)> SaveAdminCallback(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> user,
-		base::lambda<void(const MTPChannelAdminRights &newRights)> onDone,
-		base::lambda<void()> onFail) {
+		Fn<void(const MTPChannelAdminRights &newRights)> onDone,
+		Fn<void()> onFail) {
 	return [=](
 			const MTPChannelAdminRights &oldRights,
 			const MTPChannelAdminRights &newRights) {

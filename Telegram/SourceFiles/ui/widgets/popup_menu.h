@@ -19,7 +19,7 @@ public:
 	PopupMenu(QWidget*, QMenu *menu, const style::PopupMenu &st = st::defaultPopupMenu);
 
 	QAction *addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
-	QAction *addAction(const QString &text, base::lambda<void()> callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
+	QAction *addAction(const QString &text, Fn<void()> callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
 	QAction *addSeparator();
 	void clearActions();
 
@@ -30,7 +30,7 @@ public:
 	void popup(const QPoint &p);
 	void hideMenu(bool fast = false);
 
-	void setDestroyedCallback(base::lambda<void()> callback) {
+	void setDestroyedCallback(Fn<void()> callback) {
 		_destroyedCallback = std::move(callback);
 	}
 
@@ -124,7 +124,7 @@ private:
 	bool _triggering = false;
 	bool _deleteLater = false;
 
-	base::lambda<void()> _destroyedCallback;
+	Fn<void()> _destroyedCallback;
 
 };
 

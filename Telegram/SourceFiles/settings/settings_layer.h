@@ -34,7 +34,7 @@ class Layer : public Window::LayerWidget {
 public:
 	Layer();
 
-	void setCloseClickHandler(base::lambda<void()> callback);
+	void setCloseClickHandler(Fn<void()> callback);
 	void resizeToWidth(int newWidth, int newContentLeft);
 
 protected:
@@ -52,6 +52,7 @@ protected:
 	void setRoundedCorners(bool roundedCorners) {
 		_roundedCorners = roundedCorners;
 	}
+	void scrollToY(int y);
 
 private:
 	void doSetInnerWidget(object_ptr<LayerInner> widget);

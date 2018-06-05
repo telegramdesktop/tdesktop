@@ -26,6 +26,10 @@ class InputField;
 struct GroupMediaLayout;
 } // namespace Ui
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 enum class SendFilesWay {
 	Album,
 	Photos,
@@ -42,14 +46,14 @@ public:
 		CompressConfirm compressed);
 
 	void setConfirmedCallback(
-		base::lambda<void(
+		Fn<void(
 			Storage::PreparedList &&list,
 			SendFilesWay way,
 			TextWithTags &&caption,
 			bool ctrlShiftEnter)> callback) {
 		_confirmedCallback = std::move(callback);
 	}
-	void setCancelledCallback(base::lambda<void()> callback) {
+	void setCancelledCallback(Fn<void()> callback) {
 		_cancelledCallback = std::move(callback);
 	}
 
@@ -103,12 +107,12 @@ private:
 	CompressConfirm _compressConfirmInitial = CompressConfirm::None;
 	CompressConfirm _compressConfirm = CompressConfirm::None;
 
-	base::lambda<void(
+	Fn<void(
 		Storage::PreparedList &&list,
 		SendFilesWay way,
 		TextWithTags &&caption,
 		bool ctrlShiftEnter)> _confirmedCallback;
-	base::lambda<void()> _cancelledCallback;
+	Fn<void()> _cancelledCallback;
 	bool _confirmed = false;
 
 	object_ptr<Ui::InputField> _caption = { nullptr };

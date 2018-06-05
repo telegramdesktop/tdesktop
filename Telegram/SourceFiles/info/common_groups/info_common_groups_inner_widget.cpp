@@ -238,11 +238,11 @@ object_ptr<InnerWidget::ListWidget> InnerWidget::setupList(
 	return result;
 }
 
-void InnerWidget::peerListSetTitle(base::lambda<QString()> title) {
+void InnerWidget::peerListSetTitle(Fn<QString()> title) {
 }
 
 void InnerWidget::peerListSetAdditionalTitle(
-		base::lambda<QString()> title) {
+		Fn<QString()> title) {
 }
 
 bool InnerWidget::peerListIsRowSelected(not_null<PeerData*> peer) {

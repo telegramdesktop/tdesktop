@@ -13,7 +13,7 @@ namespace Ui {
 
 class RoundCheckbox {
 public:
-	RoundCheckbox(const style::RoundCheckbox &st, base::lambda<void()> updateCallback);
+	RoundCheckbox(const style::RoundCheckbox &st, Fn<void()> updateCallback);
 
 	void paint(Painter &p, TimeMs ms, int x, int y, int outerWidth, float64 masterScale = 1.);
 
@@ -33,7 +33,7 @@ private:
 	void prepareInactiveCache();
 
 	const style::RoundCheckbox &_st;
-	base::lambda<void()> _updateCallback;
+	Fn<void()> _updateCallback;
 
 	bool _checked = false;
 	Animation _checkedProgress;
@@ -45,8 +45,8 @@ private:
 
 class RoundImageCheckbox {
 public:
-	using PaintRoundImage = base::lambda<void(Painter &p, int x, int y, int outerWidth, int size)>;
-	RoundImageCheckbox(const style::RoundImageCheckbox &st, base::lambda<void()> updateCallback, PaintRoundImage &&paintRoundImage);
+	using PaintRoundImage = Fn<void(Painter &p, int x, int y, int outerWidth, int size)>;
+	RoundImageCheckbox(const style::RoundImageCheckbox &st, Fn<void()> updateCallback, PaintRoundImage &&paintRoundImage);
 
 	void paint(Painter &p, TimeMs ms, int x, int y, int outerWidth);
 	float64 checkedAnimationRatio() const;
@@ -65,7 +65,7 @@ private:
 	void prepareWideCache();
 
 	const style::RoundImageCheckbox &_st;
-	base::lambda<void()> _updateCallback;
+	Fn<void()> _updateCallback;
 	PaintRoundImage _paintRoundImage;
 
 	QPixmap _wideCache;

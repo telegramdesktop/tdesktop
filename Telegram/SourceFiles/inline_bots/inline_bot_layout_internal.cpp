@@ -37,7 +37,7 @@ FileBase::FileBase(not_null<Context*> context, DocumentData *document) : ItemBas
 }
 
 DocumentData *FileBase::getShownDocument() const {
-	if (DocumentData *result = getDocument()) {
+	if (const auto result = getDocument()) {
 		return result;
 	}
 	return getResultDocument();
@@ -371,15 +371,15 @@ void Sticker::initDimensions() {
 }
 
 void Sticker::preload() const {
-	if (DocumentData *document = getShownDocument()) {
-		bool goodThumb = !document->thumb->isNull() && ((document->thumb->width() >= 128) || (document->thumb->height() >= 128));
+	if (const auto document = getShownDocument()) {
+		const auto goodThumb = document->hasGoodStickerThumb();
 		if (goodThumb) {
 			document->thumb->load();
 		} else {
 			document->checkSticker();
 		}
 	} else {
-		ImagePtr thumb = getResultThumb();
+		const auto thumb = getResultThumb();
 		if (!thumb->isNull()) {
 			thumb->load();
 		}
@@ -437,16 +437,18 @@ QSize Sticker::getThumbSize() const {
 }
 
 void Sticker::prepareThumb() const {
-	if (DocumentData *document = getShownDocument()) {
-		bool goodThumb = !document->thumb->isNull() && ((document->thumb->width() >= 128) || (document->thumb->height() >= 128));
+	if (const auto document = getShownDocument()) {
+		const auto goodThumb = document->hasGoodStickerThumb();
 		if (goodThumb) {
 			document->thumb->load();
 		} else {
 			document->checkSticker();
 		}
 
-		ImagePtr sticker = goodThumb ? document->thumb : document->sticker()->img;
-		if (!_thumbLoaded && sticker->loaded()) {
+		const auto sticker = goodThumb
+			? document->thumb
+			: document->sticker()->img;
+		if (!_thumbLoaded && !sticker->isNull() && sticker->loaded()) {
 			QSize thumbSize = getThumbSize();
 			_thumb = sticker->pix(thumbSize.width(), thumbSize.height());
 			_thumbLoaded = true;

@@ -1393,7 +1393,7 @@ void DetachFromDevice() {
 class FFMpegAttributesReader : public AbstractFFMpegLoader {
 public:
 	FFMpegAttributesReader(const FileLocation &file, const QByteArray &data)
-	: AbstractFFMpegLoader(file, data, base::byte_vector()) {
+	: AbstractFFMpegLoader(file, data, bytes::vector()) {
 	}
 
 	bool open(TimeMs positionMs) override {
@@ -1519,7 +1519,7 @@ FileMediaInformation::Song PrepareForSending(const QString &fname, const QByteAr
 
 class FFMpegWaveformCounter : public FFMpegLoader {
 public:
-	FFMpegWaveformCounter(const FileLocation &file, const QByteArray &data) : FFMpegLoader(file, data, base::byte_vector()) {
+	FFMpegWaveformCounter(const FileLocation &file, const QByteArray &data) : FFMpegLoader(file, data, bytes::vector()) {
 	}
 
 	bool open(TimeMs positionMs) override {
@@ -1562,7 +1562,7 @@ public:
 				continue;
 			}
 
-			auto sampleBytes = gsl::as_bytes(gsl::make_span(buffer));
+			auto sampleBytes = bytes::make_span(buffer);
 			if (fmt == AL_FORMAT_MONO8 || fmt == AL_FORMAT_STEREO8) {
 				Media::Audio::IterateSamples<uchar>(sampleBytes, callback);
 			} else if (fmt == AL_FORMAT_MONO16 || fmt == AL_FORMAT_STEREO16) {

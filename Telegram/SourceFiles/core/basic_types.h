@@ -11,11 +11,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <exception>
 #include <memory>
 #include <ctime>
+#include <functional>
 
+#include <crl/crl.h>
 #include "base/build_config.h"
 #include "base/ordered_set.h"
+#include "base/unique_function.h"
+#include "base/functors.h"
+
+namespace func = base::functors;
 
 using gsl::not_null;
+
+template <typename Signature>
+using Fn = std::function<Signature>;
+
+template <typename Signature>
+using FnMut = base::unique_function<Signature>;
 
 //using uchar = unsigned char; // Qt has uchar
 using int16 = qint16;
@@ -28,4 +40,4 @@ using float32 = float;
 using float64 = double;
 
 #define qsl(s) QStringLiteral(s)
-#define qstr(s) QLatin1String(s, sizeof(s) - 1)
+#define qstr(s) QLatin1String((s), sizeof(s) - 1)

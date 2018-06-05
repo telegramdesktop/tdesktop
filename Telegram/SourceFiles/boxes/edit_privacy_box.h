@@ -49,7 +49,7 @@ public:
 		virtual QString exceptionBoxTitle(Exception exception) = 0;
 		virtual QString exceptionsDescription() = 0;
 
-		virtual void confirmSave(bool someAreDisallowed, base::lambda_once<void()> saveCallback) {
+		virtual void confirmSave(bool someAreDisallowed, FnMut<void()> saveCallback) {
 			saveCallback();
 		}
 

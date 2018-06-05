@@ -57,7 +57,7 @@ QString PeerFloodErrorText(PeerFloodType type) {
 
 class RevokePublicLinkBox::Inner : public TWidget, private MTP::Sender {
 public:
-	Inner(QWidget *parent, base::lambda<void()> revokeCallback);
+	Inner(QWidget *parent, Fn<void()> revokeCallback);
 
 protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -85,7 +85,7 @@ private:
 	int _rowHeight = 0;
 	int _revokeWidth = 0;
 
-	base::lambda<void()> _revokeCallback;
+	Fn<void()> _revokeCallback;
 	mtpRequestId _revokeRequestId = 0;
 	QPointer<ConfirmBox> _weakRevokeConfirmBox;
 
@@ -592,7 +592,7 @@ SetupChannelBox::SetupChannelBox(QWidget*, ChannelData *channel, bool existing)
 , _aboutPublicWidth(st::boxWideWidth - st::boxPadding.left() - st::boxButtonPadding.right() - st::newGroupPadding.left() - st::defaultRadio.diameter - st::defaultBoxCheckbox.textPosition.x())
 , _aboutPublic(st::defaultTextStyle, lang(channel->isMegagroup() ? lng_create_public_group_about : lng_create_public_channel_about), _defaultOptions, _aboutPublicWidth)
 , _aboutPrivate(st::defaultTextStyle, lang(channel->isMegagroup() ? lng_create_private_group_about : lng_create_private_channel_about), _defaultOptions, _aboutPublicWidth)
-, _link(this, st::setupChannelLink, base::lambda<QString()>(), channel->username, true) {
+, _link(this, st::setupChannelLink, Fn<QString()>(), channel->username, true) {
 }
 
 void SetupChannelBox::prepare() {
@@ -617,11 +617,13 @@ void SetupChannelBox::prepare() {
 			rtlupdate(_invitationLink);
 		}
 	}));
-	subscribe(boxClosing, [this] {
+
+	boxClosing() | rpl::start_with_next([=] {
 		if (!_existing) {
 			AddParticipantsBoxController::Start(_channel);
 		}
-	});
+	}, lifetime());
+
 	updateMaxHeight();
 }
 
@@ -817,7 +819,7 @@ void SetupChannelBox::privacyChanged(Privacy value) {
 	if (value == Privacy::Public) {
 		if (_tooMuchUsernames) {
 			_privacyGroup->setValue(Privacy::Private);
-			Ui::show(Box<RevokePublicLinkBox>(base::lambda_guarded(this, [this] {
+			Ui::show(Box<RevokePublicLinkBox>(crl::guard(this, [this] {
 				_tooMuchUsernames = false;
 				_privacyGroup->setValue(Privacy::Public);
 				check();
@@ -1387,7 +1389,7 @@ void EditChannelBox::onSaveInvitesDone(const MTPUpdates &result) {
 	closeBox();
 }
 
-RevokePublicLinkBox::Inner::Inner(QWidget *parent, base::lambda<void()> revokeCallback) : TWidget(parent)
+RevokePublicLinkBox::Inner::Inner(QWidget *parent, Fn<void()> revokeCallback) : TWidget(parent)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _revokeWidth(st::normalFont->width(lang(lng_channels_too_much_public_revoke)))
 , _revokeCallback(std::move(revokeCallback)) {
@@ -1423,7 +1425,7 @@ RevokePublicLinkBox::Inner::Inner(QWidget *parent, base::lambda<void()> revokeCa
 	}).send();
 }
 
-RevokePublicLinkBox::RevokePublicLinkBox(QWidget*, base::lambda<void()> revokeCallback)
+RevokePublicLinkBox::RevokePublicLinkBox(QWidget*, Fn<void()> revokeCallback)
 : _aboutRevoke(this, lang(lng_channels_too_much_public_about), Ui::FlatLabel::InitType::Simple, st::aboutRevokePublicLabel)
 , _revokeCallback(std::move(revokeCallback)) {
 }
@@ -1482,7 +1484,7 @@ void RevokePublicLinkBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 		auto text_method = pressed->isMegagroup() ? lng_channels_too_much_public_revoke_confirm_group : lng_channels_too_much_public_revoke_confirm_channel;
 		auto text = text_method(lt_link, Messenger::Instance().createInternalLink(pressed->userName()), lt_group, pressed->name);
 		auto confirmText = lang(lng_channels_too_much_public_revoke);
-		_weakRevokeConfirmBox = Ui::show(Box<ConfirmBox>(text, confirmText, base::lambda_guarded(this, [this, pressed]() {
+		_weakRevokeConfirmBox = Ui::show(Box<ConfirmBox>(text, confirmText, crl::guard(this, [this, pressed]() {
 			if (_revokeRequestId) return;
 			_revokeRequestId = request(MTPchannels_UpdateUsername(pressed->asChannel()->inputChannel, MTP_string(""))).done([this](const MTPBool &result) {
 				if (_weakRevokeConfirmBox) {

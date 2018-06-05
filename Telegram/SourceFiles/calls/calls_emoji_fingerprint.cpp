@@ -99,7 +99,7 @@ const ushort Offsets[] = {
 620, 622, 624, 626, 628, 630, 632, 634, 636, 638, 640, 641,
 642, 643, 644, 646, 648, 650, 652, 654, 656, 658 };
 
-uint64 ComputeEmojiIndex(base::const_byte_span bytes) {
+uint64 ComputeEmojiIndex(bytes::const_span bytes) {
 	Expects(bytes.size() == 8);
 	return ((gsl::to_integer<uint64>(bytes[0]) & 0x7F) << 56)
 		| (gsl::to_integer<uint64>(bytes[1]) << 48)

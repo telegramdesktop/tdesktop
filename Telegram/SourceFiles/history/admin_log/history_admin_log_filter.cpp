@@ -134,7 +134,7 @@ QPoint UserCheckbox::prepareRippleStartPosition() const {
 
 class FilterBox::Inner : public TWidget, private base::Subscriber {
 public:
-	Inner(QWidget *parent, not_null<ChannelData*> channel, const std::vector<not_null<UserData*>> &admins, const FilterValue &filter, base::lambda<void()> changedCallback);
+	Inner(QWidget *parent, not_null<ChannelData*> channel, const std::vector<not_null<UserData*>> &admins, const FilterValue &filter, Fn<void()> changedCallback);
 
 	template <typename Widget>
 	QPointer<Widget> addRow(object_ptr<Widget> widget, int marginTop) {
@@ -176,11 +176,11 @@ private:
 	};
 	std::vector<Row> _rows;
 
-	base::lambda<void()> _changedCallback;
+	Fn<void()> _changedCallback;
 
 };
 
-FilterBox::Inner::Inner(QWidget *parent, not_null<ChannelData*> channel, const std::vector<not_null<UserData*>> &admins, const FilterValue &filter, base::lambda<void()> changedCallback) : TWidget(parent)
+FilterBox::Inner::Inner(QWidget *parent, not_null<ChannelData*> channel, const std::vector<not_null<UserData*>> &admins, const FilterValue &filter, Fn<void()> changedCallback) : TWidget(parent)
 , _channel(channel)
 , _changedCallback(std::move(changedCallback)) {
 	createControls(admins, filter);
@@ -344,7 +344,7 @@ void FilterBox::Inner::resizeEvent(QResizeEvent *e) {
 	}
 }
 
-FilterBox::FilterBox(QWidget*, not_null<ChannelData*> channel, const std::vector<not_null<UserData*>> &admins, const FilterValue &filter, base::lambda<void(FilterValue &&filter)> saveCallback) : BoxContent()
+FilterBox::FilterBox(QWidget*, not_null<ChannelData*> channel, const std::vector<not_null<UserData*>> &admins, const FilterValue &filter, Fn<void(FilterValue &&filter)> saveCallback) : BoxContent()
 , _channel(channel)
 , _admins(admins)
 , _initialFilter(filter)

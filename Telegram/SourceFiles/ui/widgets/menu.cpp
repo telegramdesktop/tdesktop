@@ -49,7 +49,7 @@ QAction *Menu::addAction(const QString &text, const QObject *receiver, const cha
 	return action;
 }
 
-QAction *Menu::addAction(const QString &text, base::lambda<void()> callback, const style::icon *icon, const style::icon *iconOver) {
+QAction *Menu::addAction(const QString &text, Fn<void()> callback, const style::icon *icon, const style::icon *iconOver) {
 	auto action = addAction(new QAction(text, this), icon, iconOver);
 	connect(action, &QAction::triggered, action, std::move(callback), Qt::QueuedConnection);
 	return action;

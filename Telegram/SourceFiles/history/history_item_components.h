@@ -117,6 +117,8 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 	ClickHandlerPtr replyToLink() const {
 		return replyToLnk;
 	}
+	void setReplyToLinkFrom(
+		not_null<HistoryMessage*> holder);
 
 	MsgId replyToMsgId = 0;
 	HistoryItem *replyToMsg = nullptr;

@@ -55,7 +55,7 @@ addChildParentFlags('MTPDchannelForbidden', 'MTPDchannel');
 parentFlagsCheck = {};
 
 countedTypeIdExceptions = {};
-for i in range(77,81):
+for i in range(77, 82):
   countedTypeIdExceptions[i] = {}
   countedTypeIdExceptions[i]['channel'] = True
 countedTypeIdExceptions['ipPortSecret'] = True
@@ -115,6 +115,7 @@ for line in lines:
     if (not nametype):
       if (not re.match(r'vector#1cb5c415 \{t:Type\} # \[ t \] = Vector t;', line)):
         print('Bad line found: ' + line);
+        sys.exit(1);
       continue;
 
     name = nametype.group(1);
@@ -161,7 +162,7 @@ for line in lines:
         vectemplate = templ.group(2);
         if (re.match(r'^[A-Z]', vectemplate) or re.match(r'^[a-zA-Z0-9]+_[A-Z]', vectemplate)):
           restype = templ.group(1) + 'MTP' + vectemplate.replace('.', '_') + '>';
-        elif (vectemplate == 'int' or vectemplate == 'long' or vectemplate == 'string'):
+        elif (vectemplate == 'int' or vectemplate == 'long' or vectemplate == 'string' or vectemplate == 'bytes'):
           restype = templ.group(1) + 'MTP' + vectemplate.replace('.', '_') + '>';
         else:
           foundmeta = '';
@@ -176,10 +177,10 @@ for line in lines:
             ptype = templ.group(1) + 'MTP' + foundmeta.replace('.', '_') + '>';
           else:
             print('Bad vector param: ' + vectemplate);
-            continue;
+            sys.exit(1);
       else:
         print('Bad template type: ' + restype);
-        continue;
+        sys.exit(1);
     resType = restype.replace('.', '_');
     if (restype.find('.') >= 0):
       parts = re.match(r'([a-z]+)\.([A-Z][A-Za-z0-9<>\._]+)', restype)
@@ -187,13 +188,13 @@ for line in lines:
         restype = parts.group(1) + '_' + parts.group(2)[0:1].lower() + parts.group(2)[1:];
       else:
         print('Bad result type name with dot: ' + restype);
-        continue;
+        sys.exit(1);
     else:
       if (re.match(r'^[A-Z]', restype)):
         restype = restype[:1].lower() + restype[1:];
       else:
         print('Bad result type name: ' + restype);
-        continue;
+        sys.exit(1);
 
     boxed[resType] = restype;
     boxed[Name] = name;
@@ -217,7 +218,7 @@ for line in lines:
       pnametype = re.match(r'([a-z_][a-z0-9_]*):([A-Za-z0-9<>\._]+|![a-zA-Z]+|\#|[a-z_][a-z0-9_]*\.[0-9]+\?[A-Za-z0-9<>\._]+)$', param);
       if (not pnametype):
         print('Bad param found: "' + param + '" in line: ' + line);
-        continue;
+        sys.exit(1);
       pname = pnametype.group(1);
       ptypewide = pnametype.group(2);
       if (re.match(r'^!([a-zA-Z]+)$', ptypewide)):
@@ -226,7 +227,7 @@ for line in lines:
           ptype = 'TQueryType';
         else:
           print('Bad template param name: "' + param + '" in line: ' + line);
-          continue;
+          sys.exit(1);
       elif (ptypewide == '#'):
         hasFlags = pname;
         if funcsNow:
@@ -239,7 +240,7 @@ for line in lines:
           pmasktype = re.match(r'([a-z_][a-z0-9_]*)\.([0-9]+)\?([A-Za-z0-9<>\._]+)', ptype);
           if (not pmasktype or pmasktype.group(1) != hasFlags):
             print('Bad param found: "' + param + '" in line: ' + line);
-            continue;
+            sys.exit(1);
           ptype = pmasktype.group(3);
           if (ptype.find('<') >= 0):
             templ = re.match(r'^([vV]ector<)([A-Za-z0-9\._]+)>$', ptype);
@@ -247,7 +248,7 @@ for line in lines:
               vectemplate = templ.group(2);
               if (re.match(r'^[A-Z]', vectemplate) or re.match(r'^[a-zA-Z0-9]+_[A-Z]', vectemplate)):
                 ptype = templ.group(1) + 'MTP' + vectemplate.replace('.', '_') + '>';
-              elif (vectemplate == 'int' or vectemplate == 'long' or vectemplate == 'string'):
+              elif (vectemplate == 'int' or vectemplate == 'long' or vectemplate == 'string' or vectemplate == 'bytes'):
                 ptype = templ.group(1) + 'MTP' + vectemplate.replace('.', '_') + '>';
               else:
                 foundmeta = '';
@@ -262,10 +263,10 @@ for line in lines:
                   ptype = templ.group(1) + 'MTP' + foundmeta.replace('.', '_') + '>';
                 else:
                   print('Bad vector param: ' + vectemplate);
-                  continue;
+                  sys.exit(1);
             else:
               print('Bad template type: ' + ptype);
-              continue;
+              sys.exit(1);
           if (not pname in conditions):
             conditionsList.append(pname);
             conditions[pname] = pmasktype.group(2);
@@ -277,7 +278,7 @@ for line in lines:
             vectemplate = templ.group(2);
             if (re.match(r'^[A-Z]', vectemplate) or re.match(r'^[a-zA-Z0-9]+_[A-Z]', vectemplate)):
               ptype = templ.group(1) + 'MTP' + vectemplate.replace('.', '_') + '>';
-            elif (vectemplate == 'int' or vectemplate == 'long' or vectemplate == 'string'):
+            elif (vectemplate == 'int' or vectemplate == 'long' or vectemplate == 'string' or vectemplate == 'bytes'):
               ptype = templ.group(1) + 'MTP' + vectemplate.replace('.', '_') + '>';
             else:
               foundmeta = '';
@@ -292,16 +293,16 @@ for line in lines:
                 ptype = templ.group(1) + 'MTP' + foundmeta.replace('.', '_') + '>';
               else:
                 print('Bad vector param: ' + vectemplate);
-                continue;
+                sys.exit(1);
           else:
             print('Bad template type: ' + ptype);
-            continue;
+            sys.exit(1);
       prmsList.append(pname);
       prms[pname] = ptype.replace('.', '_');
 
     if (isTemplate == '' and resType == 'X'):
       print('Bad response type "X" in "' + name +'" in line: ' + line);
-      continue;
+      sys.exit(1);
 
     if funcsNow:
       methodBodies = ''
@@ -674,7 +675,9 @@ for restype in typesList:
 
       forwards += 'class MTPD' + name + ';\n'; # data class forward declaration
 
-      dataText += ', '.join(prmsStr) + ') : ' + ', '.join(prmsInit) + ' {\n\t}\n';
+      dataText += ', '.join(prmsStr) + ');\n';
+
+      constructsBodies += 'MTPD' + name + '::MTPD' + name + '(' + ', '.join(prmsStr) + ') : ' + ', '.join(prmsInit) + ' {\n}\n';
 
       dataText += '\n';
       for paramName in prmsList: # fields declaration
@@ -745,20 +748,11 @@ for restype in typesList:
   typesText += ' {\n';
   typesText += 'public:\n';
   typesText += '\tMTP' + restype + '()'; # default constructor
-  inits = [];
-  if not (withType):
-    if (withData):
-      inits.append('TypeDataOwner(' + newFast + ')');
   if (withData and not withType):
     typesText += ';\n';
-    methods += '\nMTP' + restype + '::MTP' + restype + '()';
-    if (inits):
-      methods += ' : ' + ', '.join(inits);
-    methods += ' {\n}\n';
+    methods += '\nMTP' + restype + '::MTP' + restype + '() : TypeDataOwner(' + newFast + ') {\n}\n';
   else:
-    if (inits):
-      typesText += ' : ' + ', '.join(inits);
-    typesText += ' {\n\t}\n';
+    typesText += ' = default;\n';
 
   if (withData):
     typesText += getters;
@@ -851,12 +845,12 @@ for childName in parentFlagsList:
 #
 #    if (not flag in parentFlagsCheck[parentName]):
 #      print('Flag ' + flag + ' not found in ' + parentName + ' which should be a flags-parent of ' + childName);
-#      error
+#      sys.exit(1);
 #
     if (flag in parentFlagsCheck[parentName]):
       if (parentFlagsCheck[childName][flag] != parentFlagsCheck[parentName][flag]):
         print('Flag ' + flag + ' has different value in ' + parentName + ' which should be a flags-parent of ' + childName);
-        error
+        sys.exit(1);
     else:
       parentFlagsCheck[parentName][flag] = parentFlagsCheck[childName][flag];
   flagOperators += 'inline ' + parentName + '::Flags mtpCastFlags(' + childName + '::Flags flags) { return static_cast<' + parentName + '::Flag>(flags.value()); }\n';

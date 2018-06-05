@@ -49,7 +49,7 @@ void Track::samplePeakEach(TimeMs peakDuration) {
 	_peakDurationMs = peakDuration;
 }
 
-void Track::fillFromData(base::byte_vector &&data) {
+void Track::fillFromData(bytes::vector &&data) {
 	FFMpegLoader loader(FileLocation(), QByteArray(), std::move(data));
 
 	auto position = qint64(0);
@@ -81,7 +81,7 @@ void Track::fillFromData(base::byte_vector &&data) {
 		auto samplesAdded = int64(0);
 		auto result = loader.readMore(buffer, samplesAdded);
 		if (samplesAdded > 0) {
-			auto sampleBytes = gsl::as_bytes(gsl::make_span(buffer));
+			auto sampleBytes = bytes::make_span(buffer);
 			_samplesCount += samplesAdded;
 			_samples.insert(_samples.end(), sampleBytes.data(), sampleBytes.data() + sampleBytes.size());
 			if (peaksCount) {
@@ -126,7 +126,7 @@ void Track::fillFromFile(const QString &filePath) {
 	if (f.open(QIODevice::ReadOnly)) {
 		auto size = f.size();
 		if (size > 0 && size <= kMaxFileSize) {
-			auto bytes = base::byte_vector(size);
+			auto bytes = bytes::vector(size);
 			if (f.read(reinterpret_cast<char*>(bytes.data()), bytes.size()) == bytes.size()) {
 				fillFromData(std::move(bytes));
 			} else {

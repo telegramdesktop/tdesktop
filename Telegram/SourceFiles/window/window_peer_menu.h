@@ -25,9 +25,9 @@ enum class PeerMenuSource {
 	Profile,
 };
 
-using PeerMenuCallback = base::lambda<QAction*(
+using PeerMenuCallback = Fn<QAction*(
 	const QString &text,
-	base::lambda<void()> handler)>;
+	Fn<void()> handler)>;
 
 void FillPeerMenu(
 	not_null<Controller*> controller,
@@ -51,11 +51,11 @@ void PeerMenuAddChannelMembers(not_null<ChannelData*> channel);
 //void PeerMenuUngroupFeed(not_null<Data::Feed*> feed); // #feed
 
 //void ToggleChannelGrouping(not_null<ChannelData*> channel, bool group); // #feed
-base::lambda<void()> ClearHistoryHandler(not_null<PeerData*> peer);
-base::lambda<void()> DeleteAndLeaveHandler(not_null<PeerData*> peer);
+Fn<void()> ClearHistoryHandler(not_null<PeerData*> peer);
+Fn<void()> DeleteAndLeaveHandler(not_null<PeerData*> peer);
 
 QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 	MessageIdsList &&items,
-	base::lambda_once<void()> &&successCallback = nullptr);
+	FnMut<void()> &&successCallback = nullptr);
 
 } // namespace Window

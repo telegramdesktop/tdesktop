@@ -16,7 +16,7 @@ public:
 	using Result = QMap<LangKey, QString>;
 
 	FileParser(const QString &file, const std::set<LangKey> &request);
-	FileParser(const QByteArray &content, base::lambda<void(QLatin1String key, const QByteArray &value)> callback);
+	FileParser(const QByteArray &content, Fn<void(QLatin1String key, const QByteArray &value)> callback);
 
 	static QByteArray ReadFile(const QString &absolutePath, const QString &relativePath);
 
@@ -44,7 +44,7 @@ private:
 
 	const QByteArray _content;
 	const std::set<LangKey> _request;
-	const base::lambda<void(QLatin1String key, const QByteArray &value)> _callback;
+	const Fn<void(QLatin1String key, const QByteArray &value)> _callback;
 
 	Result _result;
 

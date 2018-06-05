@@ -132,10 +132,10 @@ public:
 		return _langCloudManager.get();
 	}
 	void authSessionCreate(UserId userId);
-	void authSessionDestroy();
 	base::Observable<void> &authSessionChanged() {
 		return _authSessionChanged;
 	}
+	void logOut();
 
 	// Media component.
 	Media::Audio::Instance &audio() {
@@ -166,6 +166,7 @@ public:
 	void killDownloadSessionsStart(MTP::DcId dcId);
 	void killDownloadSessionsStop(MTP::DcId dcId);
 
+	void forceLogOut(const TextWithEntities &explanation);
 	void checkLocalTime();
 	void setupPasscode();
 	void clearPasscode();
@@ -185,7 +186,7 @@ public:
 	void call_handleDelayedPeerUpdates();
 	void call_handleObservables();
 
-	void callDelayed(int duration, base::lambda_once<void()> &&lambda) {
+	void callDelayed(int duration, FnMut<void()> &&lambda) {
 		_callDelayedTimer.call(duration, std::move(lambda));
 	}
 
@@ -198,8 +199,6 @@ signals:
 
 public slots:
 	void onAllKeysDestroyed();
-
-	void photoUpdated(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
 
 	void onSwitchDebugMode();
 	void onSwitchWorkMode();
@@ -216,6 +215,9 @@ private:
 	static void QuitAttempt();
 	void quitDelayed();
 
+	void photoUpdated(const FullMsgId &msgId, const MTPInputFile &file);
+	void resetAuthorizationKeys();
+	void authSessionDestroy();
 	void loggedOut();
 
 	not_null<Core::Launcher*> _launcher;
@@ -243,6 +245,9 @@ private:
 	base::Observable<void> _authSessionChanged;
 	base::Observable<void> _passcodedChanged;
 	QPointer<BoxContent> _badProxyDisableBox;
+
+	// While profile photo uploading is not moved to apiwrap.
+	rpl::lifetime _uploaderSubscription;
 
 	std::unique_ptr<Media::Audio::Instance> _audio;
 	QImage _logo;

@@ -14,6 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "messenger.h"
 #include "mtproto/session.h"
+#include "mainwindow.h"
+#include "core/click_handler_types.h"
+#include "settings/settings_widget.h"
 
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
@@ -208,8 +211,8 @@ public:
 	template <typename T>
 	void send(
 		const T &request,
-		base::lambda<void(const typename T::ResponseType &result)> done,
-		base::lambda<void(const RPCError &error)> fail,
+		Fn<void(const typename T::ResponseType &result)> done,
+		Fn<void(const RPCError &error)> fail,
 		MTP::ShiftedDcId dcId = 0);
 
 	bool valid() const;
@@ -222,7 +225,7 @@ private:
 	bool removeRequest(mtpRequestId requestId);
 
 	QPointer<MTP::Instance> _instance;
-	std::map<mtpRequestId, base::lambda<void(const RPCError &)>> _requests;
+	std::map<mtpRequestId, Fn<void(const RPCError &)>> _requests;
 
 };
 
@@ -245,11 +248,11 @@ private:
 	};
 
 	using Checker::fail;
-	base::lambda<void(const RPCError &error)> failHandler();
+	Fn<void(const RPCError &error)> failHandler();
 
 	void resolveChannel(
 		const QString &username,
-		base::lambda<void(const MTPInputChannel &channel)> callback);
+		Fn<void(const MTPInputChannel &channel)> callback);
 	void gotMessage(const MTPmessages_Messages &result);
 	base::optional<FileLocation> parseMessage(
 		const MTPmessages_Messages &result) const;
@@ -282,7 +285,7 @@ private:
 	void startLoading() override;
 	void sendRequest();
 	void gotPart(int offset, const MTPupload_File &result);
-	base::lambda<void(const RPCError &)> failHandler();
+	Fn<void(const RPCError &)> failHandler();
 
 	static constexpr auto kRequestsCount = 2;
 	static constexpr auto kNextRequestDelay = TimeMs(20);
@@ -888,8 +891,7 @@ HttpChecker::HttpChecker(bool testing) : Checker(testing) {
 
 void HttpChecker::start() {
 	auto url = QUrl(Local::readAutoupdatePrefix() + qstr("/current"));
-	DEBUG_LOG(("Update Info: requesting update state from '%1'"
-		).arg(url.toDisplayString()));
+	DEBUG_LOG(("Update Info: requesting update state"));
 	const auto request = QNetworkRequest(url);
 	_manager = std::make_unique<QNetworkAccessManager>();
 	_reply = _manager->get(request);
@@ -1190,8 +1192,8 @@ void MtpWeak::die() {
 template <typename T>
 void MtpWeak::send(
 		const T &request,
-		base::lambda<void(const typename T::ResponseType &result)> done,
-		base::lambda<void(const RPCError &error)> fail,
+		Fn<void(const typename T::ResponseType &result)> done,
+		Fn<void(const RPCError &error)> fail,
 		MTP::ShiftedDcId dcId) {
 	using Response = typename T::ResponseType;
 	if (!valid()) {
@@ -1200,14 +1202,14 @@ void MtpWeak::send(
 		});
 		return;
 	}
-	const auto onDone = base::lambda_guarded(this, [=](
+	const auto onDone = crl::guard((QObject*)this, [=](
 			const Response &result,
 			mtpRequestId requestId) {
 		if (removeRequest(requestId)) {
 			done(result);
 		}
 	});
-	const auto onFail = base::lambda_guarded(this, [=](
+	const auto onFail = crl::guard((QObject*)this, [=](
 			const RPCError &error,
 			mtpRequestId requestId) {
 		if (MTP::isDefaultHandledError(error)) {
@@ -1274,7 +1276,7 @@ void MtpChecker::start() {
 
 void MtpChecker::resolveChannel(
 		const QString &username,
-		base::lambda<void(const MTPInputChannel &channel)> callback) {
+		Fn<void(const MTPInputChannel &channel)> callback) {
 	const auto failed = [&] {
 		LOG(("Update Error: MTP channel '%1' resolve failed."
 			).arg(username));
@@ -1464,7 +1466,7 @@ auto MtpChecker::parseFile(const MTPmessages_Messages &result) const
 	return ParsedFile { name, size, fields.vdc_id.v, location };
 }
 
-base::lambda<void(const RPCError &error)> MtpChecker::failHandler() {
+Fn<void(const RPCError &error)> MtpChecker::failHandler() {
 	return [=](const RPCError &error) {
 		LOG(("Update Error: MTP check failed with '%1'"
 			).arg(QString::number(error.code()) + ':' + error.type()));
@@ -1546,7 +1548,7 @@ void MtpLoader::gotPart(int offset, const MTPupload_File &result) {
 	sendRequest();
 }
 
-base::lambda<void(const RPCError &)> MtpLoader::failHandler() {
+Fn<void(const RPCError &)> MtpLoader::failHandler() {
 	return [=](const RPCError &error) {
 		LOG(("Update Error: MTP load failed with '%1'"
 			).arg(QString::number(error.code()) + ':' + error.type()));
@@ -2092,6 +2094,34 @@ bool checkReadyUpdate() {
 	}
 #endif // Q_OS_LINUX
 	return true;
+}
+
+void UpdateApplication() {
+	cSetLastUpdateCheck(0);
+	Core::UpdateChecker().start();
+	if (const auto window = App::wnd()) {
+		auto settings = Box<Settings::Widget>();
+		const auto weak = make_weak(settings.data());
+		window->showSpecialLayer(std::move(settings), anim::type::normal);
+		if (weak) {
+			weak->scrollToUpdateRow();
+		}
+	}
+}
+
+#else // !TDESKTOP_DISABLE_AUTOUPDATE
+
+void UpdateApplication() {
+	const auto url = [&] {
+#ifdef OS_WIN_STORE
+		return "https://www.microsoft.com/en-us/store/p/telegram-desktop/9nztwsqntd0s";
+#elif defined OS_MAC_STORE // OS_WIN_STORE
+		return "https://itunes.apple.com/ae/app/telegram-desktop/id946399090";
+#else // OS_WIN_STORE || OS_MAC_STORE
+		return "https://desktop.telegram.org";
+#endif // OS_WIN_STORE || OS_MAC_STORE
+	}();
+	UrlClickHandler::doOpen(url);
 }
 
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE

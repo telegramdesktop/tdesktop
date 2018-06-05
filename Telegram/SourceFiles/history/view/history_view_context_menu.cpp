@@ -49,10 +49,11 @@ void SavePhotoToFile(not_null<PhotoData*> photo) {
 	}
 
 	FileDialog::GetWritePath(
+		Messenger::Instance().getFileDialogParent(),
 		lang(lng_save_photo),
 		qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter(),
 		filedialogDefaultName(qsl("photo"), qsl(".jpg")),
-		base::lambda_guarded(&Auth(), [=](const QString &result) {
+		crl::guard(&Auth(), [=](const QString &result) {
 			if (!result.isEmpty()) {
 				photo->full->pix().toImage().save(result, "JPG");
 			}
@@ -473,7 +474,7 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 			&& (list->delegate()->listContext() == Context::Feed)) {
 			Window::PeerMenuAddMuteAction(peer, [&](
 					const QString &text,
-					base::lambda<void()> handler) {
+					Fn<void()> handler) {
 				return result->addAction(text, handler);
 			});
 			AddToggleGroupingAction(result, linkPeer->peer());

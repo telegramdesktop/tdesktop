@@ -2766,6 +2766,9 @@ QSize HistorySticker::countOptimalSize() {
 	if (_pixh < 1) _pixh = 1;
 	auto maxWidth = qMax(_pixw, st::minPhotoSize);
 	auto minHeight = qMax(_pixh, st::minPhotoSize);
+	accumulate_max(
+		maxWidth,
+		_parent->infoWidth() + 2 * st::msgDateImgPadding.x());
 	if (_parent->media() == this) {
 		maxWidth += additionalWidth();
 	}

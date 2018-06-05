@@ -7,13 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/bytes.h"
+
 namespace FFMpeg {
 struct AVPacketDataWrap;
 } // namespace FFMpeg
 
 class AudioPlayerLoader {
 public:
-	AudioPlayerLoader(const FileLocation &file, const QByteArray &data, base::byte_vector &&bytes);
+	AudioPlayerLoader(
+		const FileLocation &file,
+		const QByteArray &data,
+		bytes::vector &&buffer);
 	virtual ~AudioPlayerLoader();
 
 	virtual bool check(const FileLocation &file, const QByteArray &data);
@@ -43,7 +48,7 @@ protected:
 	FileLocation _file;
 	bool _access = false;
 	QByteArray _data;
-	base::byte_vector _bytes;
+	bytes::vector _bytes;
 
 	QFile _f;
 	int _dataPos = 0;

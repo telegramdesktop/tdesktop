@@ -76,15 +76,14 @@ void SentCodeField::fix() {
 	}
 }
 
-SentCodeCall::SentCodeCall(QObject *parent, base::lambda_once<void()> callCallback, base::lambda<void()> updateCallback)
-: _timer(parent)
-, _call(std::move(callCallback))
+SentCodeCall::SentCodeCall(FnMut<void()> callCallback, Fn<void()> updateCallback)
+: _call(std::move(callCallback))
 , _update(std::move(updateCallback)) {
-	_timer->connect(_timer, &QTimer::timeout, [this] {
+	_timer.setCallback([=] {
 		if (_status.state == State::Waiting) {
 			if (--_status.timeout <= 0) {
 				_status.state = State::Calling;
-				_timer->stop();
+				_timer.cancel();
 				if (_call) {
 					_call();
 				}
@@ -99,7 +98,7 @@ SentCodeCall::SentCodeCall(QObject *parent, base::lambda_once<void()> callCallba
 void SentCodeCall::setStatus(const Status &status) {
 	_status = status;
 	if (_status.state == State::Waiting) {
-		_timer->start(1000);
+		_timer.callEach(1000);
 	}
 }
 
@@ -130,7 +129,7 @@ void ConfirmPhoneBox::start(const QString &phone, const QString &hash) {
 ConfirmPhoneBox::ConfirmPhoneBox(QWidget*, const QString &phone, const QString &hash)
 : _phone(phone)
 , _hash(hash)
-, _call(this, [this] { sendCall(); }, [this] { update(); }) {
+, _call([this] { sendCall(); }, [this] { update(); }) {
 }
 
 void ConfirmPhoneBox::sendCall() {

@@ -19,13 +19,13 @@ QObject *TimersAdjuster() {
 
 Timer::Timer(
 	not_null<QThread*> thread,
-	base::lambda<void()> callback)
+	Fn<void()> callback)
 : Timer(std::move(callback)) {
 	moveToThread(thread);
 }
 
 
-Timer::Timer(base::lambda<void()> callback)
+Timer::Timer(Fn<void()> callback)
 : QObject(nullptr)
 , _callback(std::move(callback))
 , _type(Qt::PreciseTimer)
@@ -114,7 +114,7 @@ void Timer::timerEvent(QTimerEvent *e) {
 
 int DelayedCallTimer::call(
 		TimeMs timeout,
-		lambda_once<void()> callback,
+		FnMut<void()> callback,
 		Qt::TimerType type) {
 	Expects(timeout >= 0);
 

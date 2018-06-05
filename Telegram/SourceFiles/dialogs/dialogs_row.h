@@ -27,7 +27,7 @@ public:
 	RippleRow();
 	~RippleRow();
 
-	void addRipple(QPoint origin, QSize size, base::lambda<void()> updateCallback);
+	void addRipple(QPoint origin, QSize size, Fn<void()> updateCallback);
 	void stopLastRipple();
 
 	void paintRipple(Painter &p, int x, int y, int outerWidth, TimeMs ms, const QColor *colorOverride = nullptr) const;

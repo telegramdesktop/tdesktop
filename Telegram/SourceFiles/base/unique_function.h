@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <functional>
+
 #ifndef Unexpected
 #define Unexpected(message) std::abort()
 #define UniqueFunctionUnexpected
@@ -47,7 +49,7 @@ public:
 	}
 
 	template <typename ...Args>
-	decltype(auto) operator()(Args &&...args) const {
+	decltype(auto) operator()(Args &&...args) {
 		return _value(std::forward<Args>(args)...);
 	}
 
@@ -59,7 +61,7 @@ private:
 		Unexpected("Attempt to copy-assign a move-only type.");
 	}
 
-	mutable Callable _value;
+	Callable _value;
 
 };
 

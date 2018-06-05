@@ -83,20 +83,25 @@ void DownloadPathBox::radioChanged(Directory value) {
 }
 
 void DownloadPathBox::onEditPath() {
-	auto initialPath = [] {
+	const auto initialPath = [] {
 		if (!Global::DownloadPath().isEmpty() && Global::DownloadPath() != qstr("tmp")) {
 			return Global::DownloadPath().left(Global::DownloadPath().size() - (Global::DownloadPath().endsWith('/') ? 1 : 0));
 		}
 		return QString();
-	};
-	FileDialog::GetFolder(lang(lng_download_path_choose), initialPath(), base::lambda_guarded(this, [this](const QString &result) {
+	}();
+	const auto handleFolder = [=](const QString &result) {
 		if (!result.isEmpty()) {
 			_path = result + '/';
 			_pathBookmark = psDownloadPathBookmark(_path);
 			setPathText(QDir::toNativeSeparators(_path));
 			_group->setValue(Directory::Custom);
 		}
-	}));
+	};
+	FileDialog::GetFolder(
+		this,
+		lang(lng_download_path_choose),
+		initialPath,
+		crl::guard(this, handleFolder));
 }
 
 void DownloadPathBox::save() {

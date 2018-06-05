@@ -18,6 +18,7 @@ void StartTranslucentPaint(QPainter &p, QPaintEvent *e);
 void InitOnTopPanel(QWidget *panel);
 void DeInitOnTopPanel(QWidget *panel);
 void ReInitOnTopPanel(QWidget *panel);
+void RegisterCustomScheme();
 
 QString SystemLanguage();
 QString SystemCountry();

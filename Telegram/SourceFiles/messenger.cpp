@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "messenger.h"
 
-#include <rpl/complete.h>
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "base/timer.h"
+#include "core/update_checker.h"
 #include "storage/localstorage.h"
 #include "platform/platform_specific.h"
 #include "mainwindow.h"
@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_hardcoded.h"
 #include "core/update_checker.h"
+#include "passport/passport_form_controller.h"
 #include "observer_peer.h"
 #include "storage/file_upload.h"
 #include "mainwidget.h"
@@ -34,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/dc_options.h"
 #include "mtproto/mtp_instance.h"
 #include "media/player/media_player_instance.h"
+#include "media/media_audio.h"
 #include "media/media_audio_track.h"
 #include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
@@ -273,7 +275,9 @@ bool Messenger::eventFilter(QObject *object, QEvent *e) {
 				cSetStartUrl(url.mid(0, 8192));
 				checkStartUrl();
 			}
-			_window->activate();
+			if (StartUrlRequiresActivate(url)) {
+				_window->activate();
+			}
 		}
 	} break;
 	}
@@ -505,18 +509,22 @@ void Messenger::suggestMainDcId(MTP::DcId mainDcId) {
 void Messenger::destroyStaleAuthorizationKeys() {
 	Assert(_mtproto != nullptr);
 
-	auto keys = _mtproto->getKeysForWrite();
-	for (auto &key : keys) {
+	for (const auto &key : _mtproto->getKeysForWrite()) {
 		// Disable this for now.
 		if (key->type() == MTP::AuthKey::Type::ReadFromFile) {
 			_private->mtpKeysToDestroy = _mtproto->getKeysForWrite();
-			_mtproto.reset();
-			LOG(("MTP Info: destroying stale keys, count: %1").arg(_private->mtpKeysToDestroy.size()));
-			startMtp();
-			Local::writeMtpData();
+			LOG(("MTP Info: destroying stale keys, count: %1"
+				).arg(_private->mtpKeysToDestroy.size()));
+			resetAuthorizationKeys();
 			return;
 		}
 	}
+}
+
+void Messenger::resetAuthorizationKeys() {
+	_mtproto.reset();
+	startMtp();
+	Local::writeMtpData();
 }
 
 void Messenger::startLocalStorage() {
@@ -647,6 +655,18 @@ void Messenger::killDownloadSessionsStop(MTP::DcId dcId) {
 	}
 }
 
+void Messenger::forceLogOut(const TextWithEntities &explanation) {
+	const auto box = Ui::show(Box<InformBox>(
+		explanation,
+		lang(lng_passcode_logout)));
+	connect(box, &QObject::destroyed, [=] {
+		InvokeQueued(this, [=] {
+			resetAuthorizationKeys();
+			loggedOut();
+		});
+	});
+}
+
 void Messenger::checkLocalTime() {
 	if (App::main()) App::main()->checkLastUpdate(checkms());
 }
@@ -705,8 +725,8 @@ void Messenger::killDownloadSessions() {
 	}
 }
 
-void Messenger::photoUpdated(const FullMsgId &msgId, bool silent, const MTPInputFile &file) {
-	if (!AuthSession::Exists()) return;
+void Messenger::photoUpdated(const FullMsgId &msgId, const MTPInputFile &file) {
+	Expects(AuthSession::Exists());
 
 	auto i = photoUpdates.find(msgId);
 	if (i != photoUpdates.end()) {
@@ -769,12 +789,11 @@ void Messenger::authSessionCreate(UserId userId) {
 }
 
 void Messenger::authSessionDestroy() {
+	_uploaderSubscription = rpl::lifetime();
 	_authSession.reset();
 	_private->storedAuthSession.reset();
 	_private->authSessionUserId = 0;
 	authSessionChanged().notify(true);
-
-	loggedOut();
 }
 
 void Messenger::setInternalLinkDomain(const QString &domain) const {
@@ -834,6 +853,28 @@ bool Messenger::openLocalUrl(const QString &url) {
 	}
 	auto command = urlTrimmed.midRef(qstr("tg://").size());
 
+	const auto showPassportForm = [](const QMap<QString, QString> &params) {
+		const auto botId = params.value("bot_id", QString()).toInt();
+		const auto scope = params.value("scope", QString());
+		const auto callback = params.value("callback_url", QString());
+		const auto publicKey = params.value("public_key", QString());
+		const auto payload = params.value("payload", QString());
+		const auto errors = params.value("errors", QString());
+		if (const auto window = App::wnd()) {
+			if (const auto controller = window->controller()) {
+				controller->showPassportForm(Passport::FormRequest(
+					botId,
+					scope,
+					callback,
+					publicKey,
+					payload,
+					errors));
+				return true;
+			}
+		}
+		return false;
+	};
+
 	using namespace qthelp;
 	auto matchOptions = RegExOption::CaseInsensitive;
 	if (auto joinChatMatch = regex_match(qsl("^join/?\\?invite=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"), command, matchOptions)) {
@@ -869,7 +910,9 @@ bool Messenger::openLocalUrl(const QString &url) {
 		if (auto main = App::main()) {
 			auto params = url_parse_params(usernameMatch->captured(1), UrlParamNameTransform::ToLower);
 			auto domain = params.value(qsl("domain"));
-			if (regex_match(qsl("^[a-zA-Z0-9\\.\\_]+$"), domain, matchOptions)) {
+			if (domain == qsl("telegrampassport")) {
+				return showPassportForm(params);
+			} else if (regex_match(qsl("^[a-zA-Z0-9\\.\\_]+$"), domain, matchOptions)) {
 				auto start = qsl("start");
 				auto startToken = params.value(start);
 				if (startToken.isEmpty()) {
@@ -907,6 +950,32 @@ bool Messenger::openLocalUrl(const QString &url) {
 		auto params = url_parse_params(proxyMatch->captured(1), UrlParamNameTransform::ToLower);
 		ProxiesBoxController::ShowApplyConfirmation(ProxyData::Type::Mtproto, params);
 		return true;
+	} else if (auto authMatch = regex_match(qsl("^passport/?\\?(.+)(#|$)"), command, matchOptions)) {
+		return showPassportForm(url_parse_params(
+			authMatch->captured(1),
+			UrlParamNameTransform::ToLower));
+	} else if (auto unknownMatch = regex_match(qsl("^([^\\?]+)(\\?|#|$)"), command, matchOptions)) {
+		if (_authSession) {
+			const auto request = unknownMatch->captured(1);
+			const auto callback = [=](const MTPDhelp_deepLinkInfo &result) {
+				const auto text = TextWithEntities{
+					qs(result.vmessage),
+					(result.has_entities()
+						? TextUtilities::EntitiesFromMTP(result.ventities.v)
+						: EntitiesInText())
+				};
+				if (result.is_update_app()) {
+					const auto box = std::make_shared<QPointer<BoxContent>>();
+					*box = Ui::show(Box<ConfirmBox>(
+						text,
+						lang(lng_menu_update),
+						[=] { Core::UpdateApplication(); if (*box) (*box)->closeBox(); }));
+				} else {
+					Ui::show(Box<InformBox>(text));
+				}
+			};
+			_authSession->api().requestDeepLinkInfo(request, callback);
+		}
 	}
 	return false;
 }
@@ -941,7 +1010,12 @@ void Messenger::uploadProfilePhoto(QImage &&tosend, const PeerId &peerId) {
 
 	SendMediaReady ready(SendMediaType::Photo, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, 0);
 
-	connect(&Auth().uploader(), SIGNAL(photoReady(const FullMsgId&, bool, const MTPInputFile&)), this, SLOT(photoUpdated(const FullMsgId&, bool, const MTPInputFile&)), Qt::UniqueConnection);
+	if (!_uploaderSubscription) {
+		_uploaderSubscription = Auth().uploader().photoReady(
+		) | rpl::start_with_next([=](const Storage::UploadedPhoto &data) {
+			photoUpdated(data.fullId, data.file);
+		});
+	}
 
 	FullMsgId newId(peerToChannel(peerId), clientMsgId());
 	regPhotoUpdate(peerId, newId);
@@ -1038,11 +1112,43 @@ void Messenger::checkMediaViewActivation() {
 	}
 }
 
+void Messenger::logOut() {
+	if (_mtproto) {
+		_mtproto->logout(::rpcDone([=] {
+			loggedOut();
+		}), ::rpcFail([=] {
+			loggedOut();
+			return true;
+		}));
+	} else {
+		// We log out because we've forgotten passcode.
+		// So we just start mtproto from scratch.
+		startMtp();
+		loggedOut();
+	}
+}
+
 void Messenger::loggedOut() {
+	if (Global::LocalPasscode()) {
+		Global::SetLocalPasscode(false);
+		Global::RefLocalPasscodeChanged().notify();
+	}
+	Media::Player::mixer()->stopAndClear();
+	if (const auto w = getActiveWindow()) {
+		w->tempDirDelete(Local::ClearManagerAll);
+		w->setupIntro();
+	}
+	App::histories().clear();
+	authSessionDestroy();
 	if (_mediaView) {
 		hideMediaView();
 		_mediaView->clearData();
 	}
+	Local::reset();
+	Window::Theme::Background()->reset();
+
+	cSetOtherOnline(0);
+	clearStorageImages();
 }
 
 QPoint Messenger::getPointForCallPanelCenter() const {

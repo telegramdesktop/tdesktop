@@ -19,9 +19,9 @@ class NumbersAnimation {
 public:
 	NumbersAnimation(
 		const style::font &font,
-		base::lambda<void()> animationCallback);
+		Fn<void()> animationCallback);
 
-	void setWidthChangedCallback(base::lambda<void()> callback) {
+	void setWidthChangedCallback(Fn<void()> callback) {
 		_widthChangedCallback = std::move(callback);
 	}
 	void setText(const QString &text, int value);
@@ -58,8 +58,8 @@ private:
 	int _value = 0;
 	bool _growing = false;
 
-	base::lambda<void()> _animationCallback;
-	base::lambda<void()> _widthChangedCallback;
+	Fn<void()> _animationCallback;
+	Fn<void()> _widthChangedCallback;
 
 };
 

@@ -18,7 +18,7 @@ class TabbedMemento : public Window::SectionMemento {
 public:
 	TabbedMemento(
 		object_ptr<TabbedSelector> selector,
-		base::lambda<void(object_ptr<TabbedSelector>)> returnMethod);
+		Fn<void(object_ptr<TabbedSelector>)> returnMethod);
 	TabbedMemento(TabbedMemento &&other) = default;
 	TabbedMemento &operator=(TabbedMemento &&other) = default;
 
@@ -32,7 +32,7 @@ public:
 
 private:
 	object_ptr<TabbedSelector> _selector;
-	base::lambda<void(object_ptr<TabbedSelector>)> _returnMethod;
+	Fn<void(object_ptr<TabbedSelector>)> _returnMethod;
 
 };
 
@@ -45,11 +45,11 @@ public:
 		QWidget *parent,
 		not_null<Window::Controller*> controller,
 		object_ptr<TabbedSelector> selector,
-		base::lambda<void(object_ptr<TabbedSelector>)> returnMethod);
+		Fn<void(object_ptr<TabbedSelector>)> returnMethod);
 
 	void beforeHiding();
 	void afterShown();
-	void setCancelledCallback(base::lambda<void()> callback) {
+	void setCancelledCallback(Fn<void()> callback) {
 		_cancelledCallback = std::move(callback);
 	}
 
@@ -77,8 +77,8 @@ protected:
 
 private:
 	object_ptr<TabbedSelector> _selector;
-	base::lambda<void()> _cancelledCallback;
-	base::lambda<void(object_ptr<TabbedSelector>)> _returnMethod;
+	Fn<void()> _cancelledCallback;
+	Fn<void(object_ptr<TabbedSelector>)> _returnMethod;
 
 };
 

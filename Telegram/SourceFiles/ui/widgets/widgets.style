@@ -94,6 +94,7 @@ RoundButton {
 	textTop: pixels;
 
 	icon: icon;
+	iconPosition: point;
 
 	font: font;
 
@@ -525,6 +526,18 @@ InfoProfileButton {
 	ripple: RippleAnimation;
 }
 
+PassportScanRow {
+	padding: margins;
+	size: pixels;
+	textLeft: pixels;
+	nameTop: pixels;
+	statusTop: pixels;
+	border: pixels;
+	borderFg: color;
+	remove: IconButton;
+	restore: RoundButton;
+}
+
 defaultLabelSimple: LabelSimple {
 	font: normalFont;
 	maxWidth: 0px;
@@ -571,6 +584,8 @@ defaultActiveButton: RoundButton {
 	padding: margins(0px, 0px, 0px, 0px);
 
 	textTop: 8px;
+
+	iconPosition: point(0px, 0px);
 
 	font: semiboldFont;
 

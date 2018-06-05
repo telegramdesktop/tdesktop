@@ -139,8 +139,14 @@ bool PreviewSupported() {
 		&& (Libs::gdk_pixbuf_new_from_file_at_size != nullptr);
 }
 
-bool GetNative(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, Type type, QString startFile) {
-	auto parent = Messenger::Instance().getFileDialogParent();
+bool GetNative(
+		QPointer<QWidget> parent,
+		QStringList &files,
+		QByteArray &remoteContent,
+		const QString &caption,
+		const QString &filter,
+		Type type,
+		QString startFile) {
 	internal::GtkFileDialog dialog(parent, caption, QString(), filter);
 
 	dialog.setModal(true);
@@ -185,13 +191,34 @@ bool GetNative(QStringList &files, QByteArray &remoteContent, const QString &cap
 
 } // namespace
 
-bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, Type type, QString startFile) {
+bool Get(
+		QPointer<QWidget> parent,
+		QStringList &files,
+		QByteArray &remoteContent,
+		const QString &caption,
+		const QString &filter,
+		Type type,
+		QString startFile) {
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 	if (NativeSupported()) {
-		return GetNative(files, remoteContent, caption, filter, type, startFile);
+		return GetNative(
+			parent,
+			files,
+			remoteContent,
+			caption,
+			filter,
+			type,
+			startFile);
 	}
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
-	return ::FileDialog::internal::GetDefault(files, remoteContent, caption, filter, type, startFile);
+	return ::FileDialog::internal::GetDefault(
+		parent,
+		files,
+		remoteContent,
+		caption,
+		filter,
+		type,
+		startFile);
 }
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION

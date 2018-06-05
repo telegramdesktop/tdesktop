@@ -193,19 +193,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_signin_title" = "Cloud-wachtwoord:";
 "lng_signin_desc" = "Cloud-wachtwoord invoeren";
-"lng_signin_recover_desc" = "Voer de code uit de e-mail in\n{email}";
+"lng_signin_recover_desc" = "Voer de code uit de email in\n{email}";
 "lng_signin_password" = "Je cloud-wachtwoord";
-"lng_signin_code" = "Code uit de e-mail";
+"lng_signin_code" = "Code uit de email";
 "lng_signin_recover" = "Wachtwoord vergeten?";
 "lng_signin_recover_title" = "Wachtwoord reset";
 "lng_signin_hint" = "Hint: {password_hint}";
 "lng_signin_recover_hint" = "De code is verstuurd naar {recover_email}";
 "lng_signin_bad_password" = "Ongeldig wachtwoord.";
 "lng_signin_wrong_code" = "Je hebt een ongeldige code ingevoerd.";
-"lng_signin_try_password" = "Kun je je e-mail niet benaderen?";
+"lng_signin_try_password" = "Kun je je email niet benaderen?";
 "lng_signin_password_removed" = "Je cloud-wachtwoord is uitgeschakeld.\nVia instellingen kun je een nieuwe instellen.";
-"lng_signin_no_email_forgot" = "Omdat je geen herstel-e-mailadres hebt opgegeven voor je wachtwoord zul je bij verlies van je wachtwoord je account moeten resetten.";
-"lng_signin_cant_email_forgot" = "Als je geen toegang meer hebt tot je e-mail en je ingestelde wachtwoord zul je je account moeten resetten.";
+"lng_signin_no_email_forgot" = "Omdat je geen herstel-emailadres hebt opgegeven voor je wachtwoord zul je bij verlies van je wachtwoord je account moeten resetten.";
+"lng_signin_cant_email_forgot" = "Als je geen toegang meer hebt tot je email en je ingestelde wachtwoord zul je je account moeten resetten.";
 "lng_signin_reset_account" = "Account resetten";
 "lng_signin_sure_reset" = "Let op:\n\nAl je chats, berichten en alle andere data gaan verloren als je verder gaat!\n\nEcht je account resetten?";
 "lng_signin_reset" = "Reset";
@@ -406,12 +406,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_cloud_password_hint" = "Wachtwoordhint invoeren";
 "lng_cloud_password_change_hint" = "Wachtwoordhint invoeren";
 "lng_cloud_password_bad" = "De hint moet anders zijn dan je wachtwoord.";
-"lng_cloud_password_email" = "Herstel-e-mailadres invoeren";
-"lng_cloud_password_bad_email" = "Ongeldig e-mailadres, probeer een andere.";
+"lng_cloud_password_email" = "Herstel-emailadres invoeren";
+"lng_cloud_password_bad_email" = "Ongeldig emailadres, probeer een andere.";
 "lng_cloud_password_about" = "Dit wachtwoord is nodig als je inlogt vanaf een nieuw apparaat, naast de SMS-code.";
 "lng_cloud_password_about_recover" = "Let op: Echt geen herstel-emailadres\nopgeven voor je wachtwoord?\n\nBij verlies van je wachtwoord ben je\nook de toegang tot Telegram kwijt.";
-"lng_cloud_password_skip_email" = "E-mail overslaan";
-"lng_cloud_password_almost" = "Een bevestigingslink is naar het e-mailadres verstuurd. \ntwee-staps-verificatie is actief na het klikken van de e-mail-link.";
+"lng_cloud_password_skip_email" = "email overslaan";
+"lng_cloud_password_almost" = "Een bevestigingslink is naar het emailadres verstuurd. \ntwee-staps-verificatie is actief na het klikken van de email-link.";
 "lng_cloud_password_was_set" = "Twee-staps-verificatie ingeschakeld.";
 "lng_cloud_password_updated" = "Je cloud-wachtwoord is gewijzigd.";
 "lng_cloud_password_removed" = "Twee-staps-verificatie uitgeschakeld.";
@@ -1044,7 +1044,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_context_copy_link" = "Link kopiëren";
 "lng_context_copy_post_link" = "Berichtlink kopiëren";
-"lng_context_copy_email" = "E-mailadres kopiëren";
+"lng_context_copy_email" = "emailadres kopiëren";
 "lng_context_copy_hashtag" = "Hashtag kopiëren";
 "lng_context_copy_mention" = "Gebruikersnaam kopiëren";
 "lng_context_save_image" = "Afbeelding opslaan als...";

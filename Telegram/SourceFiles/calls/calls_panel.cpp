@@ -71,7 +71,7 @@ SignalBars::SignalBars(
 	QWidget *parent,
 	not_null<Call*> call,
 	const style::CallSignalBars &st,
-	base::lambda<void()> displayedChangedCallback)
+	Fn<void()> displayedChangedCallback)
 : RpWidget(parent)
 , _st(st)
 , _displayedChangedCallback(std::move(displayedChangedCallback)) {
@@ -600,7 +600,7 @@ void Panel::createBottomImage() {
 		p.setBrush(st::callBg);
 		p.setPen(Qt::NoPen);
 		PainterHighQualityEnabler hq(p);
-		p.drawRoundedRect(myrtlrect(_padding.left(), -st::historyMessageRadius, st::callWidth, bottomHeight - _padding.bottom() + st::historyMessageRadius), st::historyMessageRadius, st::historyMessageRadius);
+		p.drawRoundedRect(myrtlrect(_padding.left(), -st::callRadius, st::callWidth, bottomHeight - _padding.bottom() + st::callRadius), st::callRadius, st::callRadius);
 	}
 	_bottomCache = App::pixmapFromImageInPlace(std::move(image));
 }
@@ -620,7 +620,7 @@ void Panel::createDefaultCacheImage() {
 		p.setBrush(st::callBg);
 		p.setPen(Qt::NoPen);
 		PainterHighQualityEnabler hq(p);
-		p.drawRoundedRect(myrtlrect(inner), st::historyMessageRadius, st::historyMessageRadius);
+		p.drawRoundedRect(myrtlrect(inner), st::callRadius, st::callRadius);
 	}
 	_cache = App::pixmapFromImageInPlace(std::move(cache));
 }

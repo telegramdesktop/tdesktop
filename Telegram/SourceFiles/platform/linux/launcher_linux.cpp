@@ -38,7 +38,26 @@ private:
 
 };
 
+QString DeviceModel() {
+#ifdef Q_OS_LINUX64
+	return "PC 64bit";
+#else // Q_OS_LINUX64
+	return "PC 32bit";
+#endif // Q_OS_LINUX64
+}
+
+QString SystemVersion() {
+	const auto result = getenv("XDG_CURRENT_DESKTOP");
+	const auto value = result ? QString::fromLatin1(result) : QString();
+	const auto list = value.split(':', QString::SkipEmptyParts);
+	return list.isEmpty() ? "Linux" : "Linux " + list[0];
+}
+
 } // namespace
+
+Launcher::Launcher(int argc, char *argv[])
+: Core::Launcher(argc, argv, DeviceModel(), SystemVersion()) {
+}
 
 bool Launcher::launchUpdater(UpdaterLaunch action) {
 	if (cExeName().isEmpty()) {

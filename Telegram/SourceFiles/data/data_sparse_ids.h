@@ -96,7 +96,7 @@ public:
 		SparseIdsMergedSlice::Key key,
 		int limitBefore,
 		int limitAfter,
-		base::lambda<SimpleViewerFunction> simpleViewer);
+		Fn<SimpleViewerFunction> simpleViewer);
 
 private:
 	static SparseIdsSlice::Key PartKey(const Key &key) {

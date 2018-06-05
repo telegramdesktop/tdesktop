@@ -48,8 +48,8 @@ public:
 	TermsBox(
 		QWidget*,
 		const TextWithEntities &text,
-		base::lambda<QString()> agree,
-		base::lambda<QString()> cancel,
+		Fn<QString()> agree,
+		Fn<QString()> cancel,
 		int age = 0);
 
 	rpl::producer<> agreeClicks() const;
@@ -62,8 +62,8 @@ protected:
 
 private:
 	TextWithEntities _text;
-	base::lambda<QString()> _agree;
-	base::lambda<QString()> _cancel;
+	Fn<QString()> _agree;
+	Fn<QString()> _cancel;
 	int _age = 0;
 	rpl::event_stream<> _agreeClicks;
 	rpl::event_stream<> _cancelClicks;
@@ -73,8 +73,8 @@ private:
 TermsBox::TermsBox(
 	QWidget*,
 	const TextWithEntities &text,
-	base::lambda<QString()> agree,
-	base::lambda<QString()> cancel,
+	Fn<QString()> agree,
+	Fn<QString()> cancel,
 	int age)
 : _text(text)
 , _agree(agree)
@@ -161,7 +161,7 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 		this,
 		langFactory(lng_menu_settings),
 		st::defaultBoxButton))
-, _next(this, base::lambda<QString()>(), st::introNextButton) {
+, _next(this, Fn<QString()>(), st::introNextButton) {
 	auto country = Platform::SystemCountry();
 	if (country.isEmpty()) {
 		country = str_const_toString(kDefaultCountry);
@@ -392,7 +392,7 @@ void Widget::appendStep(Step *step) {
 	step->setShowTermsCallback([=]() {
 		showTerms();
 	});
-	step->setAcceptTermsCallback([=](base::lambda<void()> callback) {
+	step->setAcceptTermsCallback([=](Fn<void()> callback) {
 		acceptTerms(callback);
 	});
 }
@@ -438,14 +438,14 @@ void Widget::showTerms() {
 	}
 }
 
-void Widget::acceptTerms(base::lambda<void()> callback) {
+void Widget::acceptTerms(Fn<void()> callback) {
 	showTerms(callback);
 }
 
 void Widget::resetAccount() {
 	if (_resetRequest) return;
 
-	Ui::show(Box<ConfirmBox>(lang(lng_signin_sure_reset), lang(lng_signin_reset), st::attentionBoxButton, base::lambda_guarded(this, [this] {
+	Ui::show(Box<ConfirmBox>(lang(lng_signin_sure_reset), lang(lng_signin_reset), st::attentionBoxButton, crl::guard(this, [this] {
 		if (_resetRequest) return;
 		_resetRequest = request(MTPaccount_DeleteAccount(MTP_string("Forgot password"))).done([this](const MTPBool &result) {
 			_resetRequest = 0;
@@ -497,7 +497,7 @@ void Widget::getNearestDC() {
 	}).send();
 }
 
-void Widget::showTerms(base::lambda<void()> callback) {
+void Widget::showTerms(Fn<void()> callback) {
 	if (getData()->termsText.text.isEmpty()) {
 		return;
 	}
@@ -755,7 +755,7 @@ void Widget::Step::updateLabelsPosition() {
 	}
 }
 
-void Widget::Step::setTitleText(base::lambda<QString()> richTitleTextFactory) {
+void Widget::Step::setTitleText(Fn<QString()> richTitleTextFactory) {
 	_titleTextFactory = std::move(richTitleTextFactory);
 	refreshTitle();
 	updateLabelsPosition();
@@ -765,7 +765,7 @@ void Widget::Step::refreshTitle() {
 	_title->setRichText(_titleTextFactory());
 }
 
-void Widget::Step::setDescriptionText(base::lambda<QString()> richDescriptionTextFactory) {
+void Widget::Step::setDescriptionText(Fn<QString()> richDescriptionTextFactory) {
 	_descriptionTextFactory = std::move(richDescriptionTextFactory);
 	refreshDescription();
 	updateLabelsPosition();
@@ -967,7 +967,7 @@ void Widget::Step::setErrorBelowLink(bool below) {
 	}
 }
 
-void Widget::Step::showError(base::lambda<QString()> textFactory) {
+void Widget::Step::showError(Fn<QString()> textFactory) {
 	_errorTextFactory = std::move(textFactory);
 	refreshError();
 	updateLabelsPosition();
@@ -1074,20 +1074,20 @@ void Widget::Step::showAnimated(Direction direction) {
 	}
 }
 
-void Widget::Step::setGoCallback(base::lambda<void(Step *step, Direction direction)> callback) {
+void Widget::Step::setGoCallback(Fn<void(Step *step, Direction direction)> callback) {
 	_goCallback = std::move(callback);
 }
 
-void Widget::Step::setShowResetCallback(base::lambda<void()> callback) {
+void Widget::Step::setShowResetCallback(Fn<void()> callback) {
 	_showResetCallback = std::move(callback);
 }
 
-void Widget::Step::setShowTermsCallback(base::lambda<void()> callback) {
+void Widget::Step::setShowTermsCallback(Fn<void()> callback) {
 	_showTermsCallback = std::move(callback);
 }
 
 void Widget::Step::setAcceptTermsCallback(
-		base::lambda<void(base::lambda<void()> callback)> callback) {
+		Fn<void(Fn<void()> callback)> callback) {
 	_acceptTermsCallback = std::move(callback);
 }
 

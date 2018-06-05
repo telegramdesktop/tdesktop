@@ -20,15 +20,15 @@ inline int bytearraySize(const QByteArray &arr) {
 	return sizeof(quint32) + arr.size();
 }
 
-inline int bytesSize(base::const_byte_span bytes) {
+inline int bytesSize(bytes::const_span bytes) {
 	return sizeof(quint32) + bytes.size();
 }
 
 struct ReadBytesVectorWrap {
-	base::byte_vector &bytes;
+	bytes::vector &bytes;
 };
 
-inline ReadBytesVectorWrap bytes(base::byte_vector &bytes) {
+inline ReadBytesVectorWrap bytes(bytes::vector &bytes) {
 	return ReadBytesVectorWrap { bytes };
 }
 
@@ -58,10 +58,10 @@ inline QDataStream &operator>>(QDataStream &stream, ReadBytesVectorWrap data) {
 }
 
 struct WriteBytesWrap {
-	base::const_byte_span bytes;
+	bytes::const_span bytes;
 };
 
-inline WriteBytesWrap bytes(base::const_byte_span bytes) {
+inline WriteBytesWrap bytes(bytes::const_span bytes) {
 	return WriteBytesWrap { bytes };
 }
 

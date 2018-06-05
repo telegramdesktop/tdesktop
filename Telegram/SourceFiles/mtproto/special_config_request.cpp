@@ -157,7 +157,7 @@ ServiceWebRequest::~ServiceWebRequest() {
 }
 
 SpecialConfigRequest::SpecialConfigRequest(
-	base::lambda<void(
+	Fn<void(
 		DcId dcId,
 		const std::string &ip,
 		int port,
@@ -237,8 +237,7 @@ void SpecialConfigRequest::requestFinished(
 QByteArray SpecialConfigRequest::finalizeRequest(
 		not_null<QNetworkReply*> reply) {
 	if (reply->error() != QNetworkReply::NoError) {
-		LOG(("Config Error: Failed to get response from %1, error: %2 (%3)"
-			).arg(reply->request().url().toDisplayString()
+		LOG(("Config Error: Failed to get response, error: %2 (%3)"
 			).arg(reply->errorString()
 			).arg(reply->error()));
 	}
@@ -276,33 +275,30 @@ bool SpecialConfigRequest::decryptSimpleConfig(const QByteArray &bytes) {
 		return false;
 	}
 
-	auto publicKey = internal::RSAPublicKey(gsl::as_bytes(gsl::make_span(
+	auto publicKey = internal::RSAPublicKey(bytes::make_span(
 		kPublicKey.c_str(),
-		kPublicKey.size())));
-	auto decrypted = publicKey.decrypt(gsl::as_bytes(gsl::make_span(decodedBytes)));
+		kPublicKey.size()));
+	auto decrypted = publicKey.decrypt(bytes::make_span(decodedBytes));
 	auto decryptedBytes = gsl::make_span(decrypted);
 
-	constexpr auto kAesKeySize = CTRState::KeySize;
-	constexpr auto kAesIvecSize = CTRState::IvecSize;
-	auto aesEncryptedBytes = decryptedBytes.subspan(kAesKeySize);
-	base::byte_array<kAesIvecSize> aesivec;
-	base::copy_bytes(aesivec, decryptedBytes.subspan(CTRState::KeySize - CTRState::IvecSize, CTRState::IvecSize));
+	auto aesEncryptedBytes = decryptedBytes.subspan(CTRState::KeySize);
+	auto aesivec = bytes::make_vector(decryptedBytes.subspan(CTRState::KeySize - CTRState::IvecSize, CTRState::IvecSize));
 	AES_KEY aeskey;
-	AES_set_decrypt_key(reinterpret_cast<const unsigned char*>(decryptedBytes.data()), kAesKeySize * CHAR_BIT, &aeskey);
+	AES_set_decrypt_key(reinterpret_cast<const unsigned char*>(decryptedBytes.data()), CTRState::KeySize * CHAR_BIT, &aeskey);
 	AES_cbc_encrypt(reinterpret_cast<const unsigned char*>(aesEncryptedBytes.data()), reinterpret_cast<unsigned char*>(aesEncryptedBytes.data()), aesEncryptedBytes.size(), &aeskey, reinterpret_cast<unsigned char*>(aesivec.data()), AES_DECRYPT);
 
 	constexpr auto kDigestSize = 16;
 	auto dataSize = aesEncryptedBytes.size() - kDigestSize;
 	auto data = aesEncryptedBytes.subspan(0, dataSize);
 	auto hash = openssl::Sha256(data);
-	if (base::compare_bytes(gsl::make_span(hash).subspan(0, kDigestSize), aesEncryptedBytes.subspan(dataSize)) != 0) {
+	if (bytes::compare(gsl::make_span(hash).subspan(0, kDigestSize), aesEncryptedBytes.subspan(dataSize)) != 0) {
 		LOG(("Config Error: Bad digest."));
 		return false;
 	}
 
 	mtpBuffer buffer;
 	buffer.resize(data.size() / sizeof(mtpPrime));
-	base::copy_bytes(gsl::as_writeable_bytes(gsl::make_span(buffer)), data);
+	bytes::copy(bytes::make_span(buffer), data);
 	auto from = &*buffer.cbegin();
 	auto end = from + buffer.size();
 	auto realLength = *from++;
@@ -376,7 +372,7 @@ void SpecialConfigRequest::handleResponse(const QByteArray &bytes) {
 	}
 }
 
-DomainResolver::DomainResolver(base::lambda<void(
+DomainResolver::DomainResolver(Fn<void(
 	const QString &host,
 	const QStringList &ips,
 	TimeMs expireAt)> callback)
@@ -495,8 +491,7 @@ QByteArray DomainResolver::finalizeRequest(
 		const AttemptKey &key,
 		not_null<QNetworkReply*> reply) {
 	if (reply->error() != QNetworkReply::NoError) {
-		LOG(("Resolve Error: Failed to get response from %1, error: %2 (%3)"
-			).arg(reply->request().url().toDisplayString()
+		LOG(("Resolve Error: Failed to get response, error: %2 (%3)"
 			).arg(reply->errorString()
 			).arg(reply->error()));
 	}

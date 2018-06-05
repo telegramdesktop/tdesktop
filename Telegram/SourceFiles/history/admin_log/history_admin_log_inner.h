@@ -69,7 +69,7 @@ public:
 	// Empty "flags" means all events.
 	void applyFilter(FilterValue &&value);
 	void applySearch(const QString &query);
-	void showFilter(base::lambda<void(FilterValue &&filter)> callback);
+	void showFilter(Fn<void(FilterValue &&filter)> callback);
 
 	// Ui::AbstractTooltipShower interface.
 	QString tooltipText() const override;
@@ -260,7 +260,7 @@ private:
 	QString _searchQuery;
 	std::vector<not_null<UserData*>> _admins;
 	std::vector<not_null<UserData*>> _adminsCanEdit;
-	base::lambda<void(FilterValue &&filter)> _showFilterCallback;
+	Fn<void(FilterValue &&filter)> _showFilterCallback;
 
 	std::shared_ptr<LocalIdManager> _idManager;
 

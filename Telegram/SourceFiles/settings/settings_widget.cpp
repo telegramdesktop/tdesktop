@@ -12,8 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_window.h"
 #include "styles/style_boxes.h"
+#include "platform/platform_specific.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/buttons.h"
+#include "ui/toast/toast.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "storage/localstorage.h"
@@ -33,7 +35,7 @@ namespace Settings {
 namespace {
 
 QString SecretText;
-QMap<QString, base::lambda<void()>> Codes;
+QMap<QString, Fn<void()>> Codes;
 
 void fillCodes() {
 	Codes.insert(qsl("debugmode"), [] {
@@ -88,7 +90,7 @@ void fillCodes() {
 		}
 	});
 	Codes.insert(qsl("loadcolors"), [] {
-		FileDialog::GetOpenPath("Open palette file", "Palette (*.tdesktop-palette)", [](const FileDialog::OpenResult &result) {
+		FileDialog::GetOpenPath(Messenger::Instance().getFileDialogParent(), "Open palette file", "Palette (*.tdesktop-palette)", [](const FileDialog::OpenResult &result) {
 			if (!result.paths.isEmpty()) {
 				Window::Theme::Apply(result.paths.front());
 			}
@@ -106,13 +108,17 @@ void fillCodes() {
 		}));
 	});
 	Codes.insert(qsl("endpoints"), [] {
-		FileDialog::GetOpenPath("Open DC endpoints", "DC Endpoints (*.tdesktop-endpoints)", [](const FileDialog::OpenResult &result) {
+		FileDialog::GetOpenPath(Messenger::Instance().getFileDialogParent(), "Open DC endpoints", "DC Endpoints (*.tdesktop-endpoints)", [](const FileDialog::OpenResult &result) {
 			if (!result.paths.isEmpty()) {
 				if (!Messenger::Instance().mtp()->dcOptions()->loadFromFile(result.paths.front())) {
 					Ui::show(Box<InformBox>("Could not load endpoints :( Errors in 'log.txt'."));
 				}
 			}
 		});
+	});
+	Codes.insert(qsl("registertg"), [] {
+		Platform::RegisterCustomScheme();
+		Ui::Toast::Show("Forced custom scheme register.");
 	});
 
 	auto audioFilters = qsl("Audio files (*.wav *.mp3);;") + FileDialog::AllFilesFilter();
@@ -130,7 +136,7 @@ void fillCodes() {
 				return;
 			}
 
-			FileDialog::GetOpenPath("Open audio file", audioFilters, [key](const FileDialog::OpenResult &result) {
+			FileDialog::GetOpenPath(Messenger::Instance().getFileDialogParent(), "Open audio file", audioFilters, [key](const FileDialog::OpenResult &result) {
 				if (AuthSession::Exists() && !result.paths.isEmpty()) {
 					auto track = Media::Audio::Current().createTrack();
 					track->fillFromFile(result.paths.front());
@@ -200,6 +206,12 @@ void Widget::refreshLang() {
 	setTitle(lang(lng_menu_settings));
 
 	update();
+}
+
+void Widget::scrollToUpdateRow() {
+	if (const auto top = _inner->getUpdateTop(); top >= 0) {
+		scrollToY(top);
+	}
 }
 
 void Widget::keyPressEvent(QKeyEvent *e) {

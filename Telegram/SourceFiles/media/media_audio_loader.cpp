@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/media_audio_loader.h"
 
-AudioPlayerLoader::AudioPlayerLoader(const FileLocation &file, const QByteArray &data, base::byte_vector &&bytes)
+AudioPlayerLoader::AudioPlayerLoader(const FileLocation &file, const QByteArray &data, bytes::vector &&buffer)
 : _file(file)
 , _data(data)
-, _bytes(std::move(bytes)) {
+, _bytes(std::move(buffer)) {
 }
 
 AudioPlayerLoader::~AudioPlayerLoader() {

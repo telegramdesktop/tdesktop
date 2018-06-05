@@ -147,43 +147,6 @@ namespace App {
 		return false;
 	}
 
-namespace {
-	bool loggedOut() {
-		if (Global::LocalPasscode()) {
-			Global::SetLocalPasscode(false);
-			Global::RefLocalPasscodeChanged().notify();
-		}
-		Media::Player::mixer()->stopAndClear();
-		if (auto w = wnd()) {
-			w->tempDirDelete(Local::ClearManagerAll);
-			w->setupIntro();
-		}
-		histories().clear();
-		Messenger::Instance().authSessionDestroy();
-		Local::reset();
-		Window::Theme::Background()->reset();
-
-		cSetOtherOnline(0);
-		clearStorageImages();
-		return true;
-	}
-} // namespace
-
-	void logOut() {
-		if (auto mtproto = Messenger::Instance().mtp()) {
-			mtproto->logout(rpcDone([] {
-				return loggedOut();
-			}), rpcFail([] {
-				return loggedOut();
-			}));
-		} else {
-			// We log out because we've forgotten passcode.
-			// So we just start mtproto from scratch.
-			Messenger::Instance().startMtp();
-			loggedOut();
-		}
-	}
-
 	namespace {
 		// we should get a full restriction in "{fulltype}: {reason}" format and we
 		// need to find a "-all" tag in {fulltype}, otherwise ignore this restriction
@@ -715,7 +678,7 @@ namespace {
 					auto h = App::historyLoaded(chat->id);
 					bool found = !h || !h->lastKeyboardFrom;
 					auto botStatus = -1;
-					for (auto i = chat->participants.begin(), e = chat->participants.end(); i != e;) {
+					for (auto i = chat->participants.begin(); i != chat->participants.end();) {
 						auto [user, version] = *i;
 						if (version < pversion) {
 							i = chat->participants.erase(i);
@@ -1150,7 +1113,7 @@ namespace {
 		return i.value();
 	}
 
-	void enumerateUsers(base::lambda<void(not_null<UserData*>)> action) {
+	void enumerateUsers(Fn<void(not_null<UserData*>)> action) {
 		for_const (const auto peer, peersData) {
 			if (const auto user = peer->asUser()) {
 				action(user);
@@ -1159,7 +1122,7 @@ namespace {
 	}
 
 	void enumerateChatsChannels(
-			base::lambda<void(not_null<PeerData*>)> action) {
+			Fn<void(not_null<PeerData*>)> action) {
 		for_const (const auto peer, peersData) {
 			if (!peer->isUser()) {
 				action(peer);

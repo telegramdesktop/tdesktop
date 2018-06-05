@@ -231,7 +231,7 @@ void BackgroundWidget::onChooseFromFile() {
 	auto imgExtensions = cImgExtensions();
 	auto filters = QStringList(qsl("Theme files (*.tdesktop-theme *.tdesktop-palette *") + imgExtensions.join(qsl(" *")) + qsl(")"));
 	filters.push_back(FileDialog::AllFilesFilter());
-	FileDialog::GetOpenPath(lang(lng_choose_image), filters.join(qsl(";;")), base::lambda_guarded(this, [this](const FileDialog::OpenResult &result) {
+	const auto callback = [=](const FileDialog::OpenResult &result) {
 		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
 			return;
 		}
@@ -263,7 +263,12 @@ void BackgroundWidget::onChooseFromFile() {
 		Window::Theme::Background()->setImage(Window::Theme::kCustomBackground, std::move(img));
 		_tile->setChecked(false);
 		_background->updateImage();
-	}));
+	};
+	FileDialog::GetOpenPath(
+		this,
+		lang(lng_choose_image),
+		filters.join(qsl(";;")),
+		crl::guard(this, callback));
 }
 
 void BackgroundWidget::onEditTheme() {

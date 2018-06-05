@@ -168,6 +168,14 @@ GeneralWidget::GeneralWidget(QWidget *parent, UserData *self) : BlockWidget(pare
 	refreshControls();
 }
 
+int GeneralWidget::getUpdateTop() const {
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	return 0; // _updateRow->y(); // Just scroll to the top of the whole General widget
+#else // !TDESKTOP_DISABLE_AUTOUPDATE
+	return -1;
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
+}
+
 int GeneralWidget::resizeGetHeight(int newWidth) {
 	_changeLanguage->moveToRight(0, st::settingsBlockMarginTop + st::settingsBlockTitleTop + st::settingsBlockTitleFont->ascent - st::defaultLinkButton.font->ascent, newWidth);
 	return BlockWidget::resizeGetHeight(newWidth);

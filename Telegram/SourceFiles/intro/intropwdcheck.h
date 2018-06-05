@@ -55,7 +55,8 @@ private:
 	void stopCheck();
 
 	QByteArray _salt;
-	bool _hasRecovery;
+	bool _hasRecovery = false;
+	bool _notEmptyPassport = false;
 	QString _hint, _emailPattern;
 
 	object_ptr<Ui::PasswordInput> _pwdField;

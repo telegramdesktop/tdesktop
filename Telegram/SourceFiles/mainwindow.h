@@ -70,8 +70,7 @@ public:
 	void activate();
 
 	void noIntro(Intro::Widget *was);
-	void noLayerStack(Window::LayerStackWidget *was);
-	void layerFinishedHide(Window::LayerStackWidget *was);
+	void layerHidden(not_null<Window::LayerStackWidget*> layer);
 	bool takeThirdSectionFromLayer();
 
 	void checkHistoryActivation();
@@ -177,7 +176,7 @@ private:
 	object_ptr<PasscodeWidget> _passcode = { nullptr };
 	object_ptr<Intro::Widget> _intro = { nullptr };
 	object_ptr<MainWidget> _main = { nullptr };
-	object_ptr<Window::LayerStackWidget> _layerBg = { nullptr };
+	object_ptr<Window::LayerStackWidget> _layer = { nullptr };
 	object_ptr<MediaPreviewWidget> _mediaPreview = { nullptr };
 
 	object_ptr<Window::Theme::WarningWidget> _testingThemeWarning = { nullptr };
