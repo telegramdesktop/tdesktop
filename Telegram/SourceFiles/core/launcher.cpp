@@ -215,7 +215,7 @@ void Launcher::processArguments() {
 	}
 
 	gTestMode = parseResult.contains("-testmode");
-	gDebug = parseResult.contains("-debug");
+	Logs::SetDebugEnabled(parseResult.contains("-debug"));
 	gManyInstance = parseResult.contains("-many");
 	gKeyFile = parseResult.value("-key", QStringList()).join(QString());
 	gLaunchMode = parseResult.contains("-autostart") ? LaunchModeAutoStart

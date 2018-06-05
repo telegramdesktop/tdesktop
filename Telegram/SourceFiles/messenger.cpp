@@ -744,12 +744,12 @@ void Messenger::photoUpdated(const FullMsgId &msgId, const MTPInputFile &file) {
 }
 
 void Messenger::onSwitchDebugMode() {
-	if (cDebug()) {
+	if (Logs::DebugEnabled()) {
 		QFile(cWorkingDir() + qsl("tdata/withdebug")).remove();
-		cSetDebug(false);
+		Logs::SetDebugEnabled(false);
 		App::restart();
 	} else {
-		cSetDebug(true);
+		Logs::SetDebugEnabled(true);
 		DEBUG_LOG(("Debug logs started."));
 		QFile f(cWorkingDir() + qsl("tdata/withdebug"));
 		if (f.open(QIODevice::WriteOnly)) {

@@ -16,7 +16,6 @@ uint64 gRealBetaVersion = AppBetaVersion;
 QByteArray gBetaPrivateKey;
 
 bool gTestMode = false;
-bool gDebug = false;
 bool gManyInstance = false;
 QString gKeyFile;
 QString gWorkingDir, gExeDir, gExeName;

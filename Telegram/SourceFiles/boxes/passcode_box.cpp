@@ -750,7 +750,7 @@ bool RecoverBox::codeSubmitFail(const RPCError &error) {
 		_recoverCode->showError();
 		return true;
 	}
-	if (cDebug()) { // internal server error
+	if (Logs::DebugEnabled()) { // internal server error
 		_error =  err + ": " + error.description();
 	} else {
 		_error = Lang::Hard::ServerError();

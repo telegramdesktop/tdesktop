@@ -243,7 +243,7 @@ QString LogsBeforeSingleInstanceChecked; // LogsInMemory already dumped in LogsD
 
 void _logsWrite(LogDataType type, const QString &msg) {
 	if (LogsData && (type == LogDataMain || LogsStartIndexChosen < 0)) {
-		if (type == LogDataMain || cDebug()) {
+		if (type == LogDataMain || Logs::DebugEnabled()) {
 			LogsData->write(type, msg);
 		}
 	} else if (LogsInMemory != DeletedLogsInMemory) {
@@ -258,6 +258,8 @@ void _logsWrite(LogDataType type, const QString &msg) {
 
 namespace Logs {
 namespace {
+
+bool DebugModeEnabled = false;
 
 void MoveOldDataFiles(const QString &wasDir) {
 	QFile data(wasDir + "data"), dataConfig(wasDir + "data_config"), tdataConfig(wasDir + "tdata/config");
@@ -307,6 +309,18 @@ void MoveOldDataFiles(const QString &wasDir) {
 
 } // namespace
 
+void SetDebugEnabled(bool enabled) {
+	DebugModeEnabled = enabled;
+}
+
+bool DebugEnabled() {
+#if defined _DEBUG
+	return true;
+#else
+	return DebugModeEnabled;
+#endif
+}
+
 void start(not_null<Core::Launcher*> launcher) {
 	Assert(LogsData == 0);
 
@@ -319,7 +333,7 @@ void start(not_null<Core::Launcher*> launcher) {
 	auto workingDirChosen = false;
 
 	if (cBetaVersion()) {
-		cSetDebug(true);
+		SetDebugEnabled(true);
 		workingDirChosen = true;
 #if defined Q_OS_MAC || defined Q_OS_LINUX
 	} else {
@@ -385,7 +399,7 @@ void start(not_null<Core::Launcher*> launcher) {
 		LogsData = 0;
 	}
 
-	LOG(("Launched version: %1, alpha: %2, beta: %3, debug mode: %4, test dc: %5").arg(AppVersion).arg(Logs::b(cAlphaVersion())).arg(cBetaVersion()).arg(Logs::b(cDebug())).arg(Logs::b(cTestMode())));
+	LOG(("Launched version: %1, alpha: %2, beta: %3, debug mode: %4, test dc: %5").arg(AppVersion).arg(Logs::b(cAlphaVersion())).arg(cBetaVersion()).arg(Logs::b(DebugEnabled())).arg(Logs::b(cTestMode())));
 	LOG(("Executable dir: %1, name: %2").arg(cExeDir()).arg(cExeName()));
 	LOG(("Initial working dir: %1").arg(initialWorkingDir));
 	LOG(("Working dir: %1").arg(cWorkingDir()));
@@ -475,7 +489,7 @@ void multipleInstances() {
 	}
 	LogsInMemory = DeletedLogsInMemory;
 
-	if (cDebug()) {
+	if (Logs::DebugEnabled()) {
 		LOG(("WARNING: debug logs are not written in multiple instances mode!"));
 	}
 	LogsBeforeSingleInstanceChecked.clear();

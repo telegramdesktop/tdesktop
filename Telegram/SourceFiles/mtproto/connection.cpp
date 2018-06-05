@@ -1705,7 +1705,7 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 				|| (errorCode == 17) // bad msg_id
 				|| (errorCode == 64); // bad container
 			if (errorCode == 64) { // bad container!
-				if (cDebug()) {
+				if (Logs::DebugEnabled()) {
 					mtpRequest request;
 					{
 						QWriteLocker locker(sessionData->haveSentMutex());

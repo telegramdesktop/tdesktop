@@ -122,7 +122,7 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 		if (cRestartingToSettings()) [args addObject:@"-tosettings"];
 		if (action == UpdaterLaunch::JustRelaunch) [args addObject:@"-noupdate"];
 		if (cLaunchMode() == LaunchModeAutoStart) [args addObject:@"-autostart"];
-		if (cDebug()) [args addObject:@"-debug"];
+		if (Logs::DebugEnabled()) [args addObject:@"-debug"];
 		if (cStartInTray()) [args addObject:@"-startintray"];
 		if (cTestMode()) [args addObject:@"-testmode"];
 		if (cDataFile() != qsl("data")) {

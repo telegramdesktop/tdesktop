@@ -529,7 +529,7 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	config.enableAGC = true;
 	config.initTimeout = Global::CallConnectTimeoutMs() / 1000;
 	config.recvTimeout = Global::CallPacketTimeoutMs() / 1000;
-	if (cDebug()) {
+	if (Logs::DebugEnabled()) {
 		auto callLogFolder = cWorkingDir() + qsl("DebugLogs");
 		auto callLogPath = callLogFolder + qsl("/last_call_log.txt");
 		auto callLogNative = QFile::encodeName(QDir::toNativeSeparators(callLogPath));

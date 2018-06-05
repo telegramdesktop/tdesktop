@@ -242,7 +242,7 @@ bool CodeWidget::codeSubmitFail(const RPCError &error) {
 		_sentRequest = MTP::send(MTPaccount_GetPassword(), rpcDone(&CodeWidget::gotPassword), rpcFail(&CodeWidget::codeSubmitFail));
 		return true;
 	}
-	if (cDebug()) { // internal server error
+	if (Logs::DebugEnabled()) { // internal server error
 		auto text = err + ": " + error.description();
 		showCodeError([text] { return text; });
 	} else {
@@ -351,7 +351,7 @@ bool CodeWidget::noTelegramCodeFail(const RPCError &error) {
 	}
 	if (MTP::isDefaultHandledError(error)) return false;
 
-	if (cDebug()) { // internal server error
+	if (Logs::DebugEnabled()) { // internal server error
 		auto text = error.type() + ": " + error.description();
 		showCodeError([text] { return text; });
 	} else {

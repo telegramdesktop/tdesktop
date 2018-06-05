@@ -410,8 +410,9 @@ void WorkingDirReady() {
 	if (QFile(cWorkingDir() + qsl("tdata/withtestmode")).exists()) {
 		cSetTestMode(true);
 	}
-	if (!cDebug() && QFile(cWorkingDir() + qsl("tdata/withdebug")).exists()) {
-		cSetDebug(true);
+	if (!Logs::DebugEnabled()
+		&& QFile(cWorkingDir() + qsl("tdata/withdebug")).exists()) {
+		Logs::SetDebugEnabled(true);
 	}
 	if (cBetaVersion()) {
 		cSetAlphaVersion(false);

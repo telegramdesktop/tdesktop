@@ -80,7 +80,7 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	if (cLaunchMode() == LaunchModeAutoStart) {
 		pushArgument(qsl("-autostart"));
 	}
-	if (cDebug()) {
+	if (Logs::DebugEnabled()) {
 		pushArgument(qsl("-debug"));
 	}
 	if (cStartInTray()) {

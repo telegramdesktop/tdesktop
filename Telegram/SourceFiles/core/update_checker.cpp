@@ -1756,7 +1756,7 @@ void Updater::start(bool forceWait) {
 			sendRequest = true;
 		}
 	}
-	if (cManyInstance() && !cDebug()) {
+	if (cManyInstance() && !Logs::DebugEnabled()) {
 		// Only main instance is updating.
 		return;
 	}

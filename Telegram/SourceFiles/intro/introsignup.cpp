@@ -161,7 +161,7 @@ bool SignupWidget::nameSubmitFail(const RPCError &error) {
 		_last->setFocus();
 		return true;
 	}
-	if (cDebug()) { // internal server error
+	if (Logs::DebugEnabled()) { // internal server error
 		auto text = err + ": " + error.description();
 		showError([text] { return text; });
 	} else {

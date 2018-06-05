@@ -108,7 +108,8 @@ void TopBar::initControls() {
 	setInfoLabels();
 	_info->setClickedCallback([this] {
 		if (auto call = _call.get()) {
-			if (cDebug() && (_info->clickModifiers() & Qt::ControlModifier)) {
+			if (Logs::DebugEnabled()
+				&& (_info->clickModifiers() & Qt::ControlModifier)) {
 				Ui::show(Box<DebugInfoBox>(_call));
 			} else {
 				Current().showInfoPanel(call);

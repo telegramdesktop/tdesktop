@@ -39,7 +39,10 @@ QMap<QString, Fn<void()>> Codes;
 
 void fillCodes() {
 	Codes.insert(qsl("debugmode"), [] {
-		QString text = cDebug() ? qsl("Do you want to disable DEBUG logs?") : qsl("Do you want to enable DEBUG logs?\n\nAll network events will be logged.");
+		QString text = Logs::DebugEnabled()
+			? qsl("Do you want to disable DEBUG logs?")
+			: qsl("Do you want to enable DEBUG logs?\n\n"
+				"All network events will be logged.");
 		Ui::show(Box<ConfirmBox>(text, [] {
 			Messenger::Instance().onSwitchDebugMode();
 		}));
@@ -59,7 +62,9 @@ void fillCodes() {
 		Lang::CurrentCloudManager().switchToLanguage(qsl("custom"));
 	});
 	Codes.insert(qsl("debugfiles"), [] {
-		if (!cDebug()) return;
+		if (!Logs::DebugEnabled()) {
+			return;
+		}
 		if (DebugLogging::FileLoader()) {
 			Global::RefDebugLoggingFlags() &= ~DebugLogging::FileLoaderFlag;
 		} else {

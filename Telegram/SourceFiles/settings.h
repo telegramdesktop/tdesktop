@@ -7,18 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-extern bool gDebug;
-inline bool cDebug() {
-#if defined _DEBUG
-	return true;
-#else
-	return gDebug;
-#endif
-}
-inline void cSetDebug(bool debug) {
-	gDebug = debug;
-}
-
 #define DeclareReadSetting(Type, Name) extern Type g##Name; \
 inline const Type &c##Name() { \
 	return g##Name; \

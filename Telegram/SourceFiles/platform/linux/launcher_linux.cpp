@@ -74,7 +74,7 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	if (cLaunchMode() == LaunchModeAutoStart) {
 		argumentsList.push("-autostart");
 	}
-	if (cDebug()) {
+	if (Logs::DebugEnabled()) {
 		argumentsList.push("-debug");
 	}
 	if (cStartInTray()) {

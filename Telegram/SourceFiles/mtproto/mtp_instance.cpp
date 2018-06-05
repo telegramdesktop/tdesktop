@@ -919,7 +919,7 @@ void Instance::Private::clearCallbacksDelayed(
 		return;
 	}
 
-	if (cDebug()) {
+	if (Logs::DebugEnabled()) {
 		auto idsString = QStringList();
 		idsString.reserve(ids.size());
 		for (auto &value : ids) {
@@ -939,7 +939,7 @@ void Instance::Private::clearCallbacks(
 	Expects(!ids.empty());
 
 	for (const auto &clearRequest : ids) {
-		if (cDebug()) {
+		if (Logs::DebugEnabled()) {
 			QMutexLocker locker(&_parserMapLock);
 			if (_parserMap.find(clearRequest.requestId) != _parserMap.end()) {
 				DEBUG_LOG(("RPC Info: "

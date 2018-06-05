@@ -151,7 +151,7 @@ bool PwdCheckWidget::pwdSubmitFail(const RPCError &error) {
 	} else if (err == qstr("PASSWORD_EMPTY")) {
 		goBack();
 	}
-	if (cDebug()) { // internal server error
+	if (Logs::DebugEnabled()) { // internal server error
 		auto text = err + ": " + error.description();
 		showError([text] { return text; });
 	} else {
@@ -188,7 +188,7 @@ bool PwdCheckWidget::codeSubmitFail(const RPCError &error) {
 		_codeField->showError();
 		return true;
 	}
-	if (cDebug()) { // internal server error
+	if (Logs::DebugEnabled()) { // internal server error
 		auto text = err + ": " + error.description();
 		showError([text] { return text; });
 	} else {

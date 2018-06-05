@@ -493,7 +493,9 @@ void MainWindow::setInnerFocus() {
 bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 	switch (e->type()) {
 	case QEvent::KeyPress: {
-		if (cDebug() && e->type() == QEvent::KeyPress && object == windowHandle()) {
+		if (Logs::DebugEnabled()
+			&& (e->type() == QEvent::KeyPress)
+			&& object == windowHandle()) {
 			auto key = static_cast<QKeyEvent*>(e)->key();
 			FeedLangTestingKey(key);
 		}
