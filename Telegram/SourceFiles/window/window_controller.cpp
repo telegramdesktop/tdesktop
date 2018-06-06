@@ -476,9 +476,9 @@ void Navigation::showPeerInfo(
 void Controller::showSection(
 		SectionMemento &&memento,
 		const SectionShow &params) {
-	if (App::wnd()->showSectionInExistingLayer(
+	if (!params.thirdColumn && App::wnd()->showSectionInExistingLayer(
 			&memento,
-			params) && !params.thirdColumn) {
+			params)) {
 		return;
 	}
 	App::main()->showSection(std::move(memento), params);

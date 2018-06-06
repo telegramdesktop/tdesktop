@@ -487,10 +487,10 @@ private:
 	QMap<uint64, QPair<uint64, mtpRequestId> > _stickerSetRequests;
 
 	QMap<ChannelData*, mtpRequestId> _channelAmInRequests;
-	std::map<not_null<UserData*>, mtpRequestId> _blockRequests;
-	std::map<not_null<PeerData*>, mtpRequestId> _exportInviteRequests;
-	std::map<PeerId, mtpRequestId> _notifySettingRequests;
-	std::map<not_null<History*>, mtpRequestId> _draftsSaveRequestIds;
+	base::flat_map<not_null<UserData*>, mtpRequestId> _blockRequests;
+	base::flat_map<not_null<PeerData*>, mtpRequestId> _exportInviteRequests;
+	base::flat_map<PeerId, mtpRequestId> _notifySettingRequests;
+	base::flat_map<not_null<History*>, mtpRequestId> _draftsSaveRequestIds;
 	base::Timer _draftsSaveTimer;
 
 	base::flat_set<mtpRequestId> _stickerSetDisenableRequests;
