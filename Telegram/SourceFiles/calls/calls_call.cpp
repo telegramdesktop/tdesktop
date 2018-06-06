@@ -37,6 +37,7 @@ namespace {
 constexpr auto kMinLayer = 65;
 constexpr auto kMaxLayer = 75;
 constexpr auto kHangupTimeoutMs = 5000;
+constexpr auto kSha256Size = 32;
 
 using tgvoip::Endpoint;
 
@@ -180,6 +181,7 @@ void Call::start(bytes::const_span random) {
 void Call::startOutgoing() {
 	Expects(_type == Type::Outgoing);
 	Expects(_state == State::Requesting);
+	Expects(_gaHash.size() == kSha256Size);
 
 	request(MTPphone_RequestCall(
 		_user->inputUser,
@@ -366,12 +368,12 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 		_id = data.vid.v;
 		_accessHash = data.vaccess_hash.v;
 		auto gaHashBytes = bytes::make_span(data.vg_a_hash.v);
-		if (gaHashBytes.size() != _gaHash.size()) {
-			LOG(("Call Error: Wrong g_a_hash size %1, expected %2.").arg(gaHashBytes.size()).arg(_gaHash.size()));
+		if (gaHashBytes.size() != kSha256Size) {
+			LOG(("Call Error: Wrong g_a_hash size %1, expected %2.").arg(gaHashBytes.size()).arg(kSha256Size));
 			finish(FinishType::Failed);
 			return true;
 		}
-		bytes::copy(_gaHash, gaHashBytes);
+		_gaHash = bytes::make_vector(gaHashBytes);
 	} return true;
 
 	case mtpc_phoneCallEmpty: {
