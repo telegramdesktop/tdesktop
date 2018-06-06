@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/windows_dlls.h"
 #include "lang/lang_keys.h"
 #include "messenger.h"
+#include "core/crash_reports.h"
 
 #include <Shlwapi.h>
 #include <Windowsx.h>
@@ -371,43 +372,53 @@ bool Get(
 	}
 	dialog.show();
 
-	auto realLastPath = ([startFile] {
+	auto realLastPath = [=] {
 		// If we're given some non empty path containing a folder - use it.
 		if (!startFile.isEmpty() && (startFile.indexOf('/') >= 0 || startFile.indexOf('\\') >= 0)) {
 			return QFileInfo(startFile).dir().absolutePath();
 		}
 		return cDialogLastPath();
-	})();
+	}();
 	if (realLastPath.isEmpty() || realLastPath.endsWith(qstr("/tdummy"))) {
-		realLastPath = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+		realLastPath = QStandardPaths::writableLocation(
+			QStandardPaths::DownloadLocation);
 	}
 	dialog.setDirectory(realLastPath);
 
+	auto toSelect = startFile;
 	if (type == Type::WriteFile) {
-		auto toSelect = startFile;
-		auto lastSlash = toSelect.lastIndexOf('/');
+		const auto lastSlash = toSelect.lastIndexOf('/');
 		if (lastSlash >= 0) {
 			toSelect = toSelect.mid(lastSlash + 1);
 		}
-		auto lastBackSlash = toSelect.lastIndexOf('\\');
+		const auto lastBackSlash = toSelect.lastIndexOf('\\');
 		if (lastBackSlash >= 0) {
 			toSelect = toSelect.mid(lastBackSlash + 1);
 		}
 		dialog.selectFile(toSelect);
 	}
 
-	int res = dialog.exec();
+	CrashReports::SetAnnotation(
+		"file_dialog",
+		QString("caption:%1;helper:%2;filter:%3;real:%4;select:%5"
+		).arg(caption
+		).arg(helperPath
+		).arg(filter
+		).arg(realLastPath
+		).arg(toSelect));
+	const auto result = dialog.exec();
+	CrashReports::ClearAnnotation("file_dialog");
 
 	if (type != Type::ReadFolder) {
 		// Save last used directory for all queries except directory choosing.
-		auto path = dialog.directory().absolutePath();
+		const auto path = dialog.directory().absolutePath();
 		if (path != cDialogLastPath()) {
 			cSetDialogLastPath(path);
 			Local::writeUserSettings();
 		}
 	}
 
-	if (res == QDialog::Accepted) {
+	if (result == QDialog::Accepted) {
 		if (type == Type::ReadFiles) {
 			files = dialog.selectedFiles();
 		} else {
