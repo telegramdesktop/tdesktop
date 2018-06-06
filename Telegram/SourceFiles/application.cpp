@@ -140,10 +140,11 @@ void Application::socketConnected() {
 	const QStringList &lst(cSendPaths());
 	for (QStringList::const_iterator i = lst.cbegin(), e = lst.cend(); i != e; ++i) {
 		commands += qsl("SEND:") + _escapeTo7bit(*i) + ';';
-		commands += qsl("CMD:show;");
 	}
 	if (!cStartUrl().isEmpty()) {
 		commands += qsl("OPEN:") + _escapeTo7bit(cStartUrl()) + ';';
+	} else {
+		commands += qsl("CMD:show;");
 	}
 
 	DEBUG_LOG(("Application Info: writing commands %1").arg(commands));
