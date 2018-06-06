@@ -30,6 +30,7 @@ public:
 	virtual void setLayerType(bool layerType) = 0;
 	virtual void setTitle(Fn<TextWithEntities()> titleFactory) = 0;
 	virtual void setAdditionalTitle(Fn<QString()> additionalFactory) = 0;
+	virtual void setCloseByOutsideClick(bool close) = 0;
 
 	virtual void clearButtons() = 0;
 	virtual QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) = 0;
@@ -84,6 +85,12 @@ public:
 	}
 	void setAdditionalTitle(Fn<QString()> additional) {
 		getDelegate()->setAdditionalTitle(std::move(additional));
+	}
+	void setCloseByEscape(bool close) {
+		_closeByEscape = close;
+	}
+	void setCloseByOutsideClick(bool close) {
+		getDelegate()->setCloseByOutsideClick(close);
 	}
 
 	void scrollToWidget(not_null<QWidget*> widget);
@@ -178,6 +185,7 @@ protected:
 
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 	not_null<BoxContentDelegate*> getDelegate() const {
 		return _delegate;
@@ -203,6 +211,7 @@ private:
 
 	bool _preparing = false;
 	bool _noContentMargin = false;
+	bool _closeByEscape = true;
 	int _innerTopSkip = 0;
 	int _innerBottomSkip = 0;
 	object_ptr<Ui::ScrollArea> _scroll = { nullptr };
@@ -256,6 +265,9 @@ public:
 		closeLayer();
 	}
 
+	void setCloseByOutsideClick(bool close) override;
+	bool closeByOutsideClick() const override;
+
 protected:
 	void keyPressEvent(QKeyEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
@@ -298,6 +310,7 @@ private:
 	int _titleLeft = 0;
 	int _titleTop = 0;
 	bool _layerType = false;
+	bool _closeByOutsideClick = true;
 
 	std::vector<object_ptr<Ui::RoundButton>> _buttons;
 	object_ptr<Ui::RoundButton> _leftButton = { nullptr };

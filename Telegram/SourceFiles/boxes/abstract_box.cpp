@@ -32,8 +32,8 @@ QPointer<Ui::RoundButton> BoxContent::addLeftButton(
 		Fn<QString()> textFactory,
 		Fn<void()> clickCallback) {
 	return getDelegate()->addLeftButton(
-		std::move(textFactory), 
-		std::move(clickCallback), 
+		std::move(textFactory),
+		std::move(clickCallback),
 		st::defaultBoxButton);
 }
 
@@ -190,6 +190,14 @@ void BoxContent::resizeEvent(QResizeEvent *e) {
 	}
 }
 
+void BoxContent::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Escape && !_closeByEscape) {
+		e->accept();
+	} else {
+		RpWidget::keyPressEvent(e);
+	}
+}
+
 void BoxContent::updateScrollAreaGeometry() {
 	auto newScrollHeight = height() - _innerTopSkip - _innerBottomSkip;
 	auto changed = (_scroll->height() != newScrollHeight);
@@ -314,6 +322,14 @@ void AbstractBox::refreshTitle() {
 void AbstractBox::setAdditionalTitle(Fn<QString()> additionalFactory) {
 	_additionalTitleFactory = std::move(additionalFactory);
 	refreshAdditionalTitle();
+}
+
+void AbstractBox::setCloseByOutsideClick(bool close) {
+	_closeByOutsideClick = close;
+}
+
+bool AbstractBox::closeByOutsideClick() const {
+	return _closeByOutsideClick;
 }
 
 void AbstractBox::refreshAdditionalTitle() {

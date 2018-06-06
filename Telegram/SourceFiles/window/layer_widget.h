@@ -49,6 +49,9 @@ public:
 			const SectionShow &params) {
 		return false;
 	}
+	virtual bool closeByOutsideClick() const {
+		return true;
+	}
 
 protected:
 	void closeLayer() {

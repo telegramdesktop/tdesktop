@@ -357,6 +357,11 @@ void LayerStackWidget::keyPressEvent(QKeyEvent *e) {
 
 void LayerStackWidget::mousePressEvent(QMouseEvent *e) {
 	if (_hideByBackgroundClick) {
+		if (const auto layer = currentLayer()) {
+			if (!layer->closeByOutsideClick()) {
+				return;
+			}
+		}
 		hideCurrent(anim::type::normal);
 	}
 }
