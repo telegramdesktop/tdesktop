@@ -81,6 +81,7 @@ private slots:
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 	void onEnableTrayIcon();
+	void onStartInSystemTray();
 	void onEnableTaskbarIcon();
 
 #ifndef OS_WIN_STORE
@@ -104,6 +105,7 @@ private:
 	Ui::Checkbox *_enableTaskbarIcon = nullptr;
 	Ui::Checkbox *_autoStart = nullptr;
 	Ui::SlideWrap<Ui::Checkbox> *_startMinimized = nullptr;
+	Ui::Checkbox *_startInSystemTray = nullptr;
 	Ui::Checkbox *_addInSendTo = nullptr;
 
 	int _languagesLoadedSubscription = 0;
