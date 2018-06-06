@@ -147,8 +147,13 @@ ServiceWebRequest &ServiceWebRequest::operator=(ServiceWebRequest &&other) {
 
 void ServiceWebRequest::destroy() {
 	if (const auto value = base::take(reply)) {
-		value->deleteLater();
+		value->disconnect(
+			value,
+			&QNetworkReply::finished,
+			nullptr,
+			nullptr);
 		value->abort();
+		value->deleteLater();
 	}
 }
 
