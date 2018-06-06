@@ -79,17 +79,21 @@ template <typename Callback>
 void Controller::startFading(Callback start) {
 	if (!_fadeAnimation->animating()) {
 		showChildren();
-		_playbackSlider->hide();
+		_playbackSlider->disablePaint(true);
 		_childrenHidden = false;
 	}
 	start();
 	if (_fadeAnimation->animating()) {
-		hideChildren();
+		for (const auto child : children()) {
+			if (child->isWidgetType() && child != _playbackSlider) {
+				static_cast<QWidget*>(child)->hide();
+			}
+		}
 		_childrenHidden = true;
 	} else {
 		fadeFinished();
 	}
-	_playbackSlider->show();
+	_playbackSlider->disablePaint(false);
 }
 
 void Controller::showAnimated() {

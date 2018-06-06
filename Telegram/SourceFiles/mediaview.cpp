@@ -2961,9 +2961,6 @@ bool MediaView::eventFilter(QObject *obj, QEvent *e) {
 				activate = true;
 			}
 			if (activate) {
-				if (_controlsState == ControlsHiding || _controlsState == ControlsHidden) {
-					int a = 0;
-				}
 				activateControls();
 			}
 		}

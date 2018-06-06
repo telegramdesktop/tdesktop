@@ -124,6 +124,7 @@ public:
 		_alwaysDisplayMarker = alwaysDisplayMarker;
 		update();
 	}
+	void disablePaint(bool disabled);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -134,6 +135,7 @@ private:
 
 	const style::MediaSlider &_st;
 	bool _alwaysDisplayMarker = false;
+	bool _paintDisabled = false;
 
 };
 

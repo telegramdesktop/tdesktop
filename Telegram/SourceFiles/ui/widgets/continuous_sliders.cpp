@@ -195,7 +195,14 @@ float64 MediaSlider::getOverDuration() const {
 	return _st.duration;
 }
 
+void MediaSlider::disablePaint(bool disabled) {
+	_paintDisabled = disabled;
+}
+
 void MediaSlider::paintEvent(QPaintEvent *e) {
+	if (_paintDisabled) {
+		return;
+	}
 	Painter p(this);
 	PainterHighQualityEnabler hq(p);
 
