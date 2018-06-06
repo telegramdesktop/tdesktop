@@ -37,7 +37,6 @@ protected:
 
 private:
 	void saveColor();
-	void fieldChanged();
 	void fieldSubmitted();
 
 	void updateFromColor(QColor color);

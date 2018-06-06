@@ -1325,9 +1325,12 @@ void WebLoadManager::sendRequest(webFileLoaderPrivate *loader, const QString &re
 	}
 
 	QNetworkReply *r = loader->request(_manager, redirect);
+
+	// Those use QObject::sender, so don't just remove the receiver pointer!
 	connect(r, SIGNAL(downloadProgress(qint64, qint64)), this, SLOT(onProgress(qint64, qint64)));
 	connect(r, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onFailed(QNetworkReply::NetworkError)));
 	connect(r, SIGNAL(metaDataChanged()), this, SLOT(onMeta()));
+
 	_replies.insert(r, loader);
 }
 

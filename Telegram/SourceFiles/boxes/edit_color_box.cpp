@@ -632,14 +632,17 @@ EditColorBox::EditColorBox(QWidget*, const QString &title, QColor current) : Box
 void EditColorBox::prepare() {
 	setTitle([=] { return _title; });
 
-	const auto changed = [=] { fieldChanged(); };
-	connect(_hueField, &Ui::MaskedInputField::changed, changed);
-	connect(_saturationField, &Ui::MaskedInputField::changed, changed);
-	connect(_brightnessField, &Ui::MaskedInputField::changed, changed);
-	connect(_redField, &Ui::MaskedInputField::changed, changed);
-	connect(_greenField, &Ui::MaskedInputField::changed, changed);
-	connect(_blueField, &Ui::MaskedInputField::changed, changed);
-	connect(_result, &Ui::MaskedInputField::changed, changed);
+	const auto hsvChanged = [=] { updateFromHSVFields(); };
+	const auto rgbChanged = [=] { updateFromRGBFields(); };
+	connect(_hueField, &Ui::MaskedInputField::changed, hsvChanged);
+	connect(_saturationField, &Ui::MaskedInputField::changed, hsvChanged);
+	connect(_brightnessField, &Ui::MaskedInputField::changed, hsvChanged);
+	connect(_redField, &Ui::MaskedInputField::changed, rgbChanged);
+	connect(_greenField, &Ui::MaskedInputField::changed, rgbChanged);
+	connect(_blueField, &Ui::MaskedInputField::changed, rgbChanged);
+	connect(_result, &Ui::MaskedInputField::changed, [=] {
+		updateFromResultField();
+	});
 
 	const auto submitted = [=] { fieldSubmitted(); };
 	connect(_hueField, &Ui::MaskedInputField::submitted, submitted);
@@ -672,29 +675,6 @@ void EditColorBox::prepare() {
 void EditColorBox::setInnerFocus() {
 	_result->setFocus();
 	_result->selectAll();
-}
-
-void EditColorBox::fieldChanged() {
-	auto emitter = sender();
-	auto checkHSVSender = [this, emitter](QObject *field) {
-		if (emitter == field) {
-			updateFromHSVFields();
-		}
-	};
-	auto checkRGBSender = [this, emitter](QObject *field) {
-		if (emitter == field) {
-			updateFromRGBFields();
-		}
-	};
-	checkHSVSender(_hueField);
-	checkHSVSender(_saturationField);
-	checkHSVSender(_brightnessField);
-	checkRGBSender(_redField);
-	checkRGBSender(_greenField);
-	checkRGBSender(_blueField);
-	if (emitter == _result) {
-		updateFromResultField();
-	}
 }
 
 void EditColorBox::fieldSubmitted() {
