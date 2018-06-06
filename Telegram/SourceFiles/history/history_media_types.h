@@ -520,6 +520,7 @@ private:
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 
+	bool needInfoDisplay() const;
 	int additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply) const;
 	int additionalWidth() const;
 

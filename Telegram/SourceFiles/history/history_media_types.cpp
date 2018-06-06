@@ -622,7 +622,7 @@ bool HistoryPhoto::dataLoaded() const {
 }
 
 bool HistoryPhoto::needInfoDisplay() const {
-	return (_data->uploading() || _parent->isUnderCursor());
+	return (_parent->data()->id < 0 || _parent->isUnderCursor());
 }
 
 void HistoryPhoto::validateGroupedCache(
@@ -2725,7 +2725,7 @@ bool HistoryGif::dataLoaded() const {
 }
 
 bool HistoryGif::needInfoDisplay() const {
-	return (_data->uploading() || _parent->isUnderCursor());
+	return (_parent->data()->id < 0 || _parent->isUnderCursor());
 }
 
 HistorySticker::HistorySticker(
@@ -2837,7 +2837,9 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, T
 	if (!inWebPage) {
 		auto fullRight = usex + usew;
 		auto fullBottom = height();
-		_parent->drawInfo(p, fullRight, fullBottom, usex * 2 + usew, selected, InfoDisplayType::Background);
+		if (needInfoDisplay()) {
+			_parent->drawInfo(p, fullRight, fullBottom, usex * 2 + usew, selected, InfoDisplayType::Background);
+		}
 		if (via || reply) {
 			int rectw = width() - usew - st::msgReplyPadding.left();
 			int recth = st::msgReplyPadding.top() + st::msgReplyPadding.bottom();
@@ -2950,6 +2952,10 @@ TextState HistorySticker::textState(QPoint point, StateRequest request) const {
 		return result;
 	}
 	return result;
+}
+
+bool HistorySticker::needInfoDisplay() const {
+	return (_parent->data()->id < 0 || _parent->isUnderCursor());
 }
 
 int HistorySticker::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply) const {
