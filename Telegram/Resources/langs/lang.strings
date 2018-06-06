@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_quit_from_tray" = "Quit Telegram";
 "lng_tray_icon_text" = "Telegram is still running here,\nyou can change this from settings page.\nIf this icon disappears from tray menu,\nyou can drag it here from hidden icons.";
 
+// For lng_month_year or plain month name.
 "lng_month1" = "January";
 "lng_month2" = "February";
 "lng_month3" = "March";
@@ -35,6 +36,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_month10" = "October";
 "lng_month11" = "November";
 "lng_month12" = "December";
+
+// For lng_month_day and lng_month_day_year.
+"lng_month_day1" = "January";
+"lng_month_day2" = "February";
+"lng_month_day3" = "March";
+"lng_month_day4" = "April";
+"lng_month_day5" = "May";
+"lng_month_day6" = "June";
+"lng_month_day7" = "July";
+"lng_month_day8" = "August";
+"lng_month_day9" = "September";
+"lng_month_day10" = "October";
+"lng_month_day11" = "November";
+"lng_month_day12" = "December";
 
 "lng_month1_small" = "Jan";
 "lng_month2_small" = "Feb";
