@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "application.h"
 #include "platform/platform_specific.h"
 
+extern "C" {
 #include <openssl/crypto.h>
 #include <openssl/sha.h>
 #include <openssl/err.h>
@@ -19,8 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <openssl/conf.h>
 #include <openssl/ssl.h>
 #include <openssl/rand.h>
-
-extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 } // extern "C"

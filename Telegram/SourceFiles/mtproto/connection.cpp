@@ -18,12 +18,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "base/openssl_help.h"
 #include "base/qthelp_url.h"
+
+extern "C" {
 #include <openssl/bn.h>
 #include <openssl/err.h>
 #include <openssl/aes.h>
 #include <openssl/sha.h>
 #include <openssl/md5.h>
 #include <openssl/rand.h>
+} // extern "C"
 
 namespace MTP {
 namespace internal {

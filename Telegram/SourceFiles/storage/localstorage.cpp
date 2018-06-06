@@ -30,7 +30,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "history/history.h"
 
+extern "C" {
 #include <openssl/evp.h>
+} // extern "C"
 
 namespace Local {
 namespace {

@@ -7,12 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/bytes.h"
+
+extern "C" {
 #include <openssl/bn.h>
 #include <openssl/sha.h>
 #include <openssl/rand.h>
 #include <openssl/aes.h>
 #include <openssl/crypto.h>
-#include "base/bytes.h"
+} // extern "C"
 
 namespace openssl {
 

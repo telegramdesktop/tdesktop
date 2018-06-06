@@ -11,7 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/dc_options.h"
 #include "mtproto/auth_key.h"
 #include "base/openssl_help.h"
+
+extern "C" {
 #include <openssl/aes.h>
+} // extern "C"
 
 namespace MTP {
 namespace {

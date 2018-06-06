@@ -10,7 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/bytes.h"
 #include "base/openssl_help.h"
 #include "base/qthelp_url.h"
+
+extern "C" {
 #include <openssl/aes.h>
+} // extern "C"
 
 namespace MTP {
 namespace internal {

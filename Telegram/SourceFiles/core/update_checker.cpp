@@ -18,10 +18,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "settings/settings_widget.h"
 
+extern "C" {
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
+} // extern "C"
 
 #ifdef Q_OS_WIN // use Lzma SDK for win
 #include <LzmaLib.h>

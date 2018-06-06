@@ -8,10 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/rsa_public_key.h"
 
 #include "base/openssl_help.h"
+
+extern "C" {
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
+} // extern "C"
 
 namespace MTP {
 namespace internal {
