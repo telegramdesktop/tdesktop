@@ -270,6 +270,10 @@ void PopupMenu::childHiding(PopupMenu *child) {
 	if (_activeSubmenu && _activeSubmenu == child) {
 		_activeSubmenu = SubmenuPointer();
 	}
+	if (!_hiding && !isHidden()) {
+		windowHandle()->requestActivate();
+		activateWindow();
+	}
 }
 
 void PopupMenu::setOrigin(PanelAnimation::Origin origin) {
