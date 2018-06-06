@@ -89,11 +89,11 @@ public:
 
 	template <typename T, typename... Args>
 	T &set(Args &&...args) {
-		_impl.set<T>(std::forward<Args>(args)...);
+		_impl.template set<T>(std::forward<Args>(args)...);
 		return get_unchecked<T>();
 	}
 	void clear() {
-		_impl.set<none_type>();
+		_impl.template set<none_type>();
 	}
 
 	template <typename T>
