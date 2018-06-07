@@ -1643,7 +1643,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_delete_email_sure" = "Are you sure you want to delete your email address?";
 "lng_passport_delete_phone" = "Delete phone number";
 "lng_passport_delete_phone_sure" = "Are you sure you want to delete your phone number?";
-"lng_passport_success" = "Authorization successfull!";
+"lng_passport_success" = "Authorization successful!";
 "lng_passport_stop_sure" = "Are you sure you want to stop this authorization?";
 "lng_passport_stop" = "Stop";
 "lng_passport_restart_sure" = "An unexpected error has occurred. Perhaps some changes were made from a different Telegram application. Would you like to restart this authorization?";
