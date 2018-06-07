@@ -1741,7 +1741,7 @@ bool Session::notifyIsMuted(
 	if (const auto until = settings.muteUntil()) {
 		return resultFromUntil(*until);
 	}
-	return false;
+	return true;
 }
 
 bool Session::notifySilentPosts(not_null<const PeerData*> peer) const {

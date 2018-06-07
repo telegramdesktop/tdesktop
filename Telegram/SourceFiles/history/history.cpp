@@ -2198,9 +2198,6 @@ void History::applyDialog(const MTPDdialog &data) {
 		MTP_notifyPeer(data.vpeer),
 		data.vnotify_settings);
 
-	// Request default notification settings for this type of chat.
-	Auth().data().requestNotifySettings(peer);
-
 	if (data.has_draft() && data.vdraft.type() == mtpc_draftMessage) {
 		Data::applyPeerCloudDraft(peer->id, data.vdraft.c_draftMessage());
 	}

@@ -3700,6 +3700,9 @@ void MainWidget::mtpPing() {
 }
 
 void MainWidget::start(const MTPUser *self) {
+	Auth().api().requestNotifySettings(MTP_inputNotifyUsers());
+	Auth().api().requestNotifySettings(MTP_inputNotifyChats());
+
 	if (!self) {
 		MTP::send(MTPusers_GetFullUser(MTP_inputUserSelf()), rpcDone(&MainWidget::startWithSelf));
 		return;
@@ -3713,7 +3716,7 @@ void MainWidget::start(const MTPUser *self) {
 
 	Local::readSavedPeers();
 	cSetOtherOnline(0);
-	if (auto user = App::feedUsers(MTP_vector<MTPUser>(1, *self))) {
+	if (const auto user = App::feedUsers(MTP_vector<MTPUser>(1, *self))) {
 		user->loadUserpic();
 	}
 
