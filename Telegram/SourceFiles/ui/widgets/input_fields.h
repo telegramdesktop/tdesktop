@@ -125,8 +125,14 @@ public:
 	using TagList = TextWithTags::Tags;
 
 	struct MarkdownTag {
-		int start = 0;
-		int length = 0;
+		// With each emoji being QChar::ObjectReplacementCharacter.
+		int internalStart = 0;
+		int internalLength = 0;
+
+		// Adjusted by emoji to match _lastTextWithTags.
+		int adjustedStart = 0;
+		int adjustedLength = 0;
+
 		bool closed = false;
 		QString tag;
 	};

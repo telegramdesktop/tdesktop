@@ -609,19 +609,21 @@ void MessageLinksParser::parse() {
 	const auto markdownTagsEnd = markdownTags.end();
 	const auto markdownTagsAllow = [&](int from, int length) {
 		while (markdownTag != markdownTagsEnd
-			&& (markdownTag->start + markdownTag->length <= from
+			&& (markdownTag->adjustedStart
+				+ markdownTag->adjustedLength <= from
 				|| !markdownTag->closed)) {
 			++markdownTag;
 			continue;
 		}
 		if (markdownTag == markdownTagsEnd
-			|| markdownTag->start >= from + length) {
+			|| markdownTag->adjustedStart >= from + length) {
 			return true;
 		}
 		// Ignore http-links that are completely inside some tags.
 		// This will allow sending http://test.com/__test__/test correctly.
-		return (markdownTag->start > from
-			|| markdownTag->start + markdownTag->length < from + length);
+		return (markdownTag->adjustedStart > from)
+			|| (markdownTag->adjustedStart
+				+ markdownTag->adjustedLength < from + length);
 	};
 
 	const auto len = text.size();

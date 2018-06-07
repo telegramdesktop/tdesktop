@@ -272,12 +272,22 @@ public:
 	, _items(_expressions.size()) {
 	}
 
-	void feed(const QString &text, const QString &textTag) {
+	// Here we use the fact that text either contains only emoji
+	// { adjustedTextLength = text.size() * (emojiLength - 1) }
+	// or contains no emoji at all and can have tag edges in the middle
+	// { adjustedTextLength = 0 }.
+	//
+	// Otherwise we would have to pass emoji positions inside text.
+	void feed(
+			const QString &text,
+			int adjustedTextLength,
+			const QString &textTag) {
 		if (!_tags) {
 			return;
 		}
 		const auto guard = gsl::finally([&] {
-			_currentLength += text.size();
+			_currentInternalLength += text.size();
+			_currentAdjustedLength += adjustedTextLength;
 		});
 		if (!textTag.isEmpty()) {
 			finishTags();
@@ -290,7 +300,7 @@ public:
 		while (true) {
 			for (; tryFinishTag != _currentFreeTag; ++tryFinishTag) {
 				auto &tag = (*_tags)[tryFinishTag];
-				if (tag.length >= 0) {
+				if (tag.internalLength >= 0) {
 					continue;
 				}
 
@@ -298,8 +308,12 @@ public:
 				Assert(i != end(_tagIndices));
 				const auto tagIndex = i->second;
 
-				_items[tagIndex].applyOffset(
-					tag.start + tag.tag.size() + 1 - _currentLength);
+				const auto atLeastOffset =
+					tag.internalStart
+					+ tag.tag.size()
+					+ 1
+					- _currentInternalLength;
+				_items[tagIndex].applyOffset(atLeastOffset);
 
 				fillItem(
 					tagIndex,
@@ -311,10 +325,7 @@ public:
 				const auto position = matchPosition(tagIndex, Edge::Close);
 				if (position < kInvalidPosition) {
 					const auto till = position + tag.tag.size();
-					finishTag(
-						tryFinishTag,
-						_currentLength + till,
-						true);
+					finishTag(tryFinishTag, till, true);
 					_items[tagIndex].applyOffset(till);
 				}
 			}
@@ -325,9 +336,7 @@ public:
 			if (min < 0) {
 				return;
 			}
-			startTag(
-				_currentLength + matchPosition(min, Edge::Open),
-				_expressions[min].tag);
+			startTag(matchPosition(min, Edge::Open), _expressions[min].tag);
 		}
 	}
 
@@ -342,13 +351,18 @@ public:
 	}
 
 private:
-	void finishTag(int index, int end, bool closed) {
+	void finishTag(int index, int offsetFromAccumulated, bool closed) {
 		Expects(_tags != nullptr);
 		Expects(index >= 0 && index < _tags->size());
 
 		auto &tag = (*_tags)[index];
-		if (tag.length < 0) {
-			tag.length = end - tag.start;
+		if (tag.internalLength < 0) {
+			tag.internalLength = _currentInternalLength
+				+ offsetFromAccumulated
+				- tag.internalStart;
+			tag.adjustedLength = _currentAdjustedLength
+				+ offsetFromAccumulated
+				- tag.adjustedStart;
 			tag.closed = closed;
 		}
 		if (index == _currentTag) {
@@ -369,25 +383,33 @@ private:
 		}
 		const auto endPosition = newlinePosition(
 			text,
-			std::max(0, tag.start + 1 - _currentLength));
+			std::max(0, tag.internalStart + 1 - _currentInternalLength));
 		if (matchPosition(tagIndex, Edge::Close) <= endPosition) {
 			return false;
 		}
-		finishTag(index, _currentLength + endPosition, false);
+		finishTag(index, endPosition, false);
 		return true;
 	}
 	void finishTags() {
 		while (_currentTag != _currentFreeTag) {
-			finishTag(_currentTag, _currentLength, false);
+			finishTag(_currentTag, 0, false);
 		}
 	}
-	void startTag(int offset, const QString &tag) {
+	void startTag(int offsetFromAccumulated, const QString &tag) {
 		Expects(_tags != nullptr);
 
+		const auto newTag = InputField::MarkdownTag{
+			_currentInternalLength + offsetFromAccumulated,
+			-1,
+			_currentAdjustedLength + offsetFromAccumulated,
+			-1,
+			false,
+			tag
+		};
 		if (_currentFreeTag < _tags->size()) {
-			(*_tags)[_currentFreeTag] = { offset, -1, false, tag };
+			(*_tags)[_currentFreeTag] = newTag;
 		} else {
-			_tags->push_back({ offset, -1, false, tag });
+			_tags->push_back(newTag);
 		}
 		++_currentFreeTag;
 	}
@@ -447,7 +469,8 @@ private:
 
 	int _currentTag = 0;
 	int _currentFreeTag = 0;
-	int _currentLength = 0;
+	int _currentInternalLength = 0;
+	int _currentAdjustedLength = 0;
 
 };
 
@@ -1762,11 +1785,11 @@ QString InputField::getTextPart(
 			if (full || !text.isEmpty()) {
 				lastTag = format.property(kTagProperty).toString();
 				tagAccumulator.feed(lastTag, result.size());
-				markdownTagAccumulator.feed(text, lastTag);
 			}
 
 			auto begin = text.data();
 			auto ch = begin;
+			auto adjustedLength = text.size();
 			for (const auto end = begin + text.size(); ch != end; ++ch) {
 				if (IsNewline(*ch) && ch->unicode() != '\r') {
 					*ch = QLatin1Char('\n');
@@ -1778,6 +1801,7 @@ QString InputField::getTextPart(
 					if (ch > begin) {
 						result.append(begin, ch - begin);
 					}
+					adjustedLength += (emojiText.size() - 1);
 					if (!emojiText.isEmpty()) {
 						result.append(emojiText);
 					}
@@ -1788,12 +1812,16 @@ QString InputField::getTextPart(
 			if (ch > begin) {
 				result.append(begin, ch - begin);
 			}
+
+			if (full || !text.isEmpty()) {
+				markdownTagAccumulator.feed(text, adjustedLength, lastTag);
+			}
 		}
 
 		block = block.next();
 		if (block != till) {
 			result.append('\n');
-			markdownTagAccumulator.feed(newline, lastTag);
+			markdownTagAccumulator.feed(newline, 1, lastTag);
 		}
 	}
 
@@ -2151,14 +2179,17 @@ void InputField::highlightMarkdown() {
 		from = b;
 	};
 	for (const auto &tag : _lastMarkdownTags) {
-		if (tag.start > from) {
-			applyColor(from, tag.start, QColor(0, 0, 0));
-		} else if (tag.start < from) {
+		if (tag.internalStart > from) {
+			applyColor(from, tag.internalStart, QColor(0, 0, 0));
+		} else if (tag.internalStart < from) {
 			continue;
 		}
-		applyColor(tag.start, tag.start + tag.length, tag.closed
-			? QColor(0, 128, 0)
-			: QColor(128, 0, 0));
+		applyColor(
+			tag.internalStart,
+			tag.internalStart + tag.internalLength,
+			(tag.closed
+				? QColor(0, 128, 0)
+				: QColor(128, 0, 0)));
 	}
 	auto cursor = textCursor();
 	cursor.movePosition(QTextCursor::End);
@@ -2352,36 +2383,38 @@ TextWithTags InputField::getTextWithAppliedMarkdown() const {
 	const auto linksEnd = links.end();
 	for (const auto &tag : _lastMarkdownTags) {
 		const auto tagLength = int(tag.tag.size());
-		if (!tag.closed || tag.start < from) {
+		if (!tag.closed || tag.adjustedStart < from) {
 			continue;
 		}
-		const auto entityLength = tag.length - 2 * tagLength;
+		const auto entityLength = tag.adjustedLength - 2 * tagLength;
 		if (entityLength <= 0) {
 			continue;
 		}
-		addOriginalTagsUpTill(tag.start);
+		addOriginalTagsUpTill(tag.adjustedStart);
+		const auto tagAdjustedEnd = tag.adjustedStart + tag.adjustedLength;
 		if (originalTag != originalTagsEnd
-			&& originalTag->offset < tag.start + tag.length) {
+			&& originalTag->offset < tagAdjustedEnd) {
 			continue;
 		}
 		while (link != linksEnd
-			&& link->offset() + link->length() <= tag.start) {
+			&& link->offset() + link->length() <= tag.adjustedStart) {
 			++link;
 		}
 		if (link != linksEnd
-			&& link->offset() < tag.start + tag.length
-			&& (link->offset() + link->length() > tag.start + tag.length
-				|| link->offset() < tag.start)) {
+			&& link->offset() < tagAdjustedEnd
+			&& (link->offset() + link->length() > tagAdjustedEnd
+				|| link->offset() < tag.adjustedStart)) {
 			continue;
 		}
-		addOriginalTextUpTill(tag.start);
+		addOriginalTextUpTill(tag.adjustedStart);
 		result.tags.push_back(TextWithTags::Tag{
 			int(result.text.size()),
 			entityLength,
 			tag.tag });
-		result.text.append(
-			originalText.midRef(tag.start + tagLength, entityLength));
-		from = tag.start + tag.length;
+		result.text.append(originalText.midRef(
+			tag.adjustedStart + tagLength,
+			entityLength));
+		from = tag.adjustedStart + tag.adjustedLength;
 		removed += 2 * tagLength;
 	}
 	addOriginalTagsUpTill(originalText.size());
@@ -2749,8 +2782,8 @@ void InputField::processInstantReplaces(const QString &appended) {
 	}
 	const auto position = textCursor().position();
 	for (const auto &tag : _lastMarkdownTags) {
-		if (tag.start < position
-			&& tag.start + tag.length >= position
+		if (tag.internalStart < position
+			&& tag.internalStart + tag.internalLength >= position
 			&& (tag.tag == kTagCode || tag.tag == kTagPre)) {
 			return;
 		}
