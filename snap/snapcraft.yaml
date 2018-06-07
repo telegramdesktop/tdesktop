@@ -17,7 +17,6 @@ version-script: |
   version=$(sed -n "s/AppVersionStr[ ]\+\(.*\)\+/\1/p" $version_file)
   alpha=$(sed -n "s/AlphaChannel[ ]\+\(.*\)\+/\1/p" $version_file)
   beta=$(sed -n "s/BetaVersion[ ]\+\(.*\)\+/\1/p" $version_file)
-  head_sha=$(git rev-parse HEAD)
 
   if [ "$alpha" != "0" ]; then
     version="$version-alpha"
@@ -25,9 +24,7 @@ version-script: |
     version="$version-beta"
   fi
 
-  if ! git ls-remote -q --tags | cut -f1 | grep -q "$head_sha"; then
-    version="$version+git$(git rev-parse --short HEAD)"
-  fi
+  version="${version}$(git describe --tags | sed 's,^v[^-]\+,,')"
 
   echo $version
 
