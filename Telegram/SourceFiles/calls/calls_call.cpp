@@ -632,7 +632,7 @@ void Call::handleControllerBarCountChange(
 	// Expects(controller == _controller.get());
 	Expects(controller->implData == static_cast<void*>(this));
 
-	InvokeQueued(this, [=] {
+	crl::on_main(this, [=] {
 		setSignalBarCount(count);
 	});
 }
@@ -763,10 +763,17 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 	auto duration = getDurationMs() / 1000;
 	auto connectionId = _controller ? _controller->GetPreferredRelayID() : 0;
 	_finishByTimeoutTimer.call(kHangupTimeoutMs, [this, finalState] { setState(finalState); });
-	request(MTPphone_DiscardCall(MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)), MTP_int(duration), reason, MTP_long(connectionId))).done([this, finalState](const MTPUpdates &result) {
+	request(MTPphone_DiscardCall(
+		MTP_inputPhoneCall(
+			MTP_long(_id),
+			MTP_long(_accessHash)),
+		MTP_int(duration),
+		reason,
+		MTP_long(connectionId)
+	)).done([=](const MTPUpdates &result) {
 		// This could be destroyed by updates, so we set Ended after
 		// updates being handled, but in a guarded way.
-		InvokeQueued(this, [this, finalState] { setState(finalState); });
+		crl::on_main(this, [=] { setState(finalState); });
 		App::main()->sentUpdatesReceived(result);
 	}).fail([this, finalState](const RPCError &error) {
 		setState(finalState);
@@ -774,13 +781,13 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 }
 
 void Call::setStateQueued(State state) {
-	InvokeQueued(this, [=] {
+	crl::on_main(this, [=] {
 		setState(state);
 	});
 }
 
 void Call::setFailedQueued(int error) {
-	InvokeQueued(this, [=] {
+	crl::on_main(this, [=] {
 		handleControllerError(error);
 	});
 }

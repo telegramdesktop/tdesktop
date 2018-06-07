@@ -1254,7 +1254,7 @@ MtpChecker::MtpChecker(QPointer<MTP::Instance> instance, bool testing)
 void MtpChecker::start() {
 	if (!_mtp.valid()) {
 		LOG(("Update Info: MTP is unavailable."));
-		InvokeQueued(this, [=] { fail(); });
+		crl::on_main(this, [=] { fail(); });
 		return;
 	}
 	constexpr auto kFeedUsername = "tdhbcfeed";
