@@ -1246,6 +1246,16 @@ void InputField::updatePalette() {
 			}
 		}
 	}
+
+	cursor = textCursor();
+	if (!cursor.hasSelection()) {
+		auto format = cursor.charFormat();
+		format.merge(PrepareTagFormat(
+			_st,
+			format.property(kTagProperty).toString()));
+		cursor.setCharFormat(format);
+		setTextCursor(cursor);
+	}
 }
 
 void InputField::onTouchTimer() {
