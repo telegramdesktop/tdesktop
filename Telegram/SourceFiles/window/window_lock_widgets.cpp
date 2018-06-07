@@ -132,35 +132,18 @@ void PasscodeLockWidget::submit() {
 		return;
 	}
 
-	if (App::main()) {
-		if (Local::checkPasscode(_passcode->text().toUtf8())) {
-			Messenger::Instance().unlockPasscode(); // Destroys this widget.
-			return;
-		} else {
-			cSetPasscodeBadTries(cPasscodeBadTries() + 1);
-			cSetPasscodeLastTry(getms(true));
-			error();
-			return;
-		}
-	} else {
-		if (Local::readMap(_passcode->text().toUtf8()) != Local::ReadMapPassNeeded) {
-			cSetPasscodeBadTries(0);
-
-			Messenger::Instance().startMtp();
-
-			// Destroys this widget.
-			if (AuthSession::Exists()) {
-				App::wnd()->setupMain();
-			} else {
-				App::wnd()->setupIntro();
-			}
-		} else {
-			cSetPasscodeBadTries(cPasscodeBadTries() + 1);
-			cSetPasscodeLastTry(getms(true));
-			error();
-			return;
-		}
+	const auto passcode = _passcode->text().toUtf8();
+	const auto correct = App::main()
+		? Local::checkPasscode(passcode)
+		: (Local::readMap(passcode) != Local::ReadMapPassNeeded);
+	if (!correct) {
+		cSetPasscodeBadTries(cPasscodeBadTries() + 1);
+		cSetPasscodeLastTry(getms(true));
+		error();
+		return;
 	}
+
+	Messenger::Instance().unlockPasscode(); // Destroys this widget.
 }
 
 void PasscodeLockWidget::error() {

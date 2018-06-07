@@ -297,8 +297,9 @@ public:
 		if (range.first == range.second) {
 			return 0;
 		}
+		const auto result = (range.second - range.first);
 		impl().erase(range.first, range.second);
-		return (range.second - range.first);
+		return result;
 	}
 
 	iterator erase(const_iterator where) {

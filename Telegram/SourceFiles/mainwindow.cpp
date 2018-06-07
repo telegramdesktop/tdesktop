@@ -128,9 +128,11 @@ void MainWindow::firstShow() {
 }
 
 void MainWindow::clearWidgetsHook() {
+	Expects(_passcodeLock == nullptr || !Global::LocalPasscode());
+
 	auto wasMain = (_main != nullptr);
-	_passcodeLock.destroy();
 	_main.destroy();
+	_passcodeLock.destroy();
 	_intro.destroy();
 	if (wasMain) {
 		App::clearHistories();
@@ -177,18 +179,20 @@ void MainWindow::clearPasscodeLock() {
 	_passcodeLock.destroy();
 	if (_intro) {
 		_intro->showAnimated(bg, true);
-	} else {
-		Assert(_main != nullptr);
+	} else if (_main) {
 		_main->showAnimated(bg, true);
 		Messenger::Instance().checkStartUrl();
+	} else {
+		Messenger::Instance().startMtp();
+		if (AuthSession::Exists()) {
+			setupMain();
+		} else {
+			setupIntro();
+		}
 	}
 }
 
 void MainWindow::setupIntro() {
-	if (_intro && !_intro->isHidden() && !_main) {
-		return;
-	}
-
 	Ui::hideSettingsAndLayer(anim::type::instant);
 
 	auto animated = (_main || _passcodeLock);
@@ -273,12 +277,12 @@ void MainWindow::sendServiceHistoryRequest() {
 }
 
 void MainWindow::setupMain(const MTPUser *self) {
+	Expects(AuthSession::Exists());
+
 	auto animated = (_intro || _passcodeLock);
 	auto bg = animated ? grabInner() : QPixmap();
 
 	clearWidgets();
-
-	Assert(AuthSession::Exists());
 
 	_main.create(bodyWidget(), controller());
 	_main->show();

@@ -151,24 +151,19 @@ Messenger::Messenger(not_null<Core::Launcher*> launcher)
 	if (state == Local::ReadMapPassNeeded) {
 		Global::SetLocalPasscode(true);
 		Global::RefLocalPasscodeChanged().notify();
+		lockByPasscode();
 		DEBUG_LOG(("Application Info: passcode needed..."));
 	} else {
 		DEBUG_LOG(("Application Info: local map read..."));
 		startMtp();
-	}
-
-	DEBUG_LOG(("Application Info: MTP started..."));
-
-	DEBUG_LOG(("Application Info: showing."));
-	if (state == Local::ReadMapPassNeeded) {
-		lockByPasscode();
-	} else {
+		DEBUG_LOG(("Application Info: MTP started..."));
 		if (AuthSession::Exists()) {
 			_window->setupMain();
 		} else {
 			_window->setupIntro();
 		}
 	}
+	DEBUG_LOG(("Application Info: showing."));
 	_window->firstShow();
 
 	if (cStartToSettings()) {
@@ -1037,8 +1032,12 @@ void Messenger::lockByPasscode() {
 }
 
 void Messenger::unlockPasscode() {
-	cSetPasscodeBadTries(0);
+	clearPasscodeLock();
 	_window->clearPasscodeLock();
+}
+
+void Messenger::clearPasscodeLock() {
+	cSetPasscodeBadTries(0);
 	_passcodeLock = false;
 }
 
@@ -1202,6 +1201,7 @@ void Messenger::loggedOut() {
 		Global::SetLocalPasscode(false);
 		Global::RefLocalPasscodeChanged().notify();
 	}
+	clearPasscodeLock();
 	Media::Player::mixer()->stopAndClear();
 	if (const auto w = getActiveWindow()) {
 		w->tempDirDelete(Local::ClearManagerAll);

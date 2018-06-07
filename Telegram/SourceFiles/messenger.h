@@ -233,6 +233,7 @@ private:
 	void photoUpdated(const FullMsgId &msgId, const MTPInputFile &file);
 	void resetAuthorizationKeys();
 	void authSessionDestroy();
+	void clearPasscodeLock();
 	void loggedOut();
 
 	not_null<Core::Launcher*> _launcher;
