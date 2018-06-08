@@ -281,7 +281,9 @@ QString RoundButton::computeFullText() const {
 
 void RoundButton::resizeToText() {
 	int innerWidth = contentWidth();
-	if (_fullWidthOverride < 0) {
+	if (_fullWidthOverride > 0) {
+		resize(_fullWidthOverride, _st.height + _st.padding.top() + _st.padding.bottom());
+	} else if (_fullWidthOverride < 0) {
 		resize(innerWidth - _fullWidthOverride, _st.height + _st.padding.top() + _st.padding.bottom());
 	} else if (_st.width <= 0) {
 		resize(innerWidth - _st.width + _st.padding.left() + _st.padding.right(), _st.height + _st.padding.top() + _st.padding.bottom());

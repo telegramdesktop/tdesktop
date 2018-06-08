@@ -37,16 +37,19 @@ public:
 
 	PanelDetailsRow(
 		QWidget *parent,
-		const QString &label);
+		const QString &label,
+		int maxLabelWidth);
 
 	static object_ptr<PanelDetailsRow> Create(
 		QWidget *parent,
 		Type type,
 		not_null<PanelController*> controller,
 		const QString &label,
+		int maxLabelWidth,
 		const QString &value,
 		const QString &error,
 		int limit = 0);
+	static int LabelWidth(const QString &label);
 
 	virtual bool setFocusFast();
 	virtual rpl::producer<QString> value() const = 0;
@@ -69,6 +72,7 @@ private:
 	void startErrorAnimation(bool shown);
 
 	QString _label;
+	int _maxLabelWidth = 0;
 	object_ptr<Ui::SlideWrap<Ui::FlatLabel>> _error = { nullptr };
 	bool _errorShown = false;
 	bool _errorHideSubscription = false;

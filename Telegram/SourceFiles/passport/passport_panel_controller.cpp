@@ -67,7 +67,7 @@ EditDocumentScheme GetDocumentScheme(
 		if (value.isEmpty() || value.size() > kMaxNameSize) {
 			return QString();
 		} else if (!QRegularExpression(
-			"^[a-zA-Z\\- ]+$"
+			"^[a-zA-Z0-9\\.,/&\\-' ]+$"
 		).match(value).hasMatch()) {
 			return lang(lng_passport_bad_name);
 		}

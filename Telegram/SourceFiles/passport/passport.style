@@ -34,6 +34,7 @@ passportErrorLabel: FlatLabel(passportPasswordLabel) {
 	textFg: boxTextFgError;
 }
 passportVerifyErrorLabel: FlatLabel(passportErrorLabel) {
+	minWidth: 128px;
 	align: align(topleft);
 }
 
@@ -169,10 +170,11 @@ passportDetailsField: InputField(defaultInputField) {
 	font: normalFont;
 }
 passportDetailsDateField: InputField(passportDetailsField) {
+	textMargins: margins(2px, 8px, 2px, 0px);
 	border: 0px;
 	borderActive: 0px;
 	heightMin: 30px;
-	placeholderFont: font(semibold 14px);
+	placeholderFont: semiboldFont;
 	placeholderFgActive: placeholderFgActive;
 }
 passportDetailsSeparator: FlatLabel(passportPasswordLabelBold) {
@@ -189,7 +191,7 @@ passportDetailsFieldLeft: 116px;
 passportDetailsFieldTop: 2px;
 passportDetailsFieldSkipMin: 12px;
 passportDetailsSkip: 30px;
-passportDetailsGenderSkip: 30px;
+passportDetailsGenderSkip: 20px;
 
 passportRequestTypeSkip: 16px;
 

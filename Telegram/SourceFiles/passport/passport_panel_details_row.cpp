@@ -78,6 +78,7 @@ public:
 	AbstractTextRow(
 		QWidget *parent,
 		const QString &label,
+		int maxLabelWidth,
 		const QString &value,
 		int limit);
 
@@ -101,6 +102,7 @@ public:
 		QWidget *parent,
 		not_null<PanelController*> controller,
 		const QString &label,
+		int maxLabelWidth,
 		const QString &value);
 
 	rpl::producer<QString> value() const override;
@@ -152,7 +154,11 @@ private:
 
 class DateRow : public PanelDetailsRow {
 public:
-	DateRow(QWidget *parent, const QString &label, const QString &value);
+	DateRow(
+		QWidget *parent,
+		const QString &label,
+		int maxLabelWidth,
+		const QString &value);
 
 	bool setFocusFast() override;
 	rpl::producer<QString> value() const override;
@@ -206,6 +212,7 @@ public:
 	GenderRow(
 		QWidget *parent,
 		const QString &label,
+		int maxLabelWidth,
 		const QString &value);
 
 	rpl::producer<QString> value() const override;
@@ -247,9 +254,10 @@ template <typename Input>
 AbstractTextRow<Input>::AbstractTextRow(
 	QWidget *parent,
 	const QString &label,
+	int maxLabelWidth,
 	const QString &value,
 	int limit)
-: PanelDetailsRow(parent, label)
+: PanelDetailsRow(parent, label, maxLabelWidth)
 , _field(this, st::passportDetailsField, nullptr, value)
 , _value(value) {
 	_field->setMaxLength(limit);
@@ -299,8 +307,9 @@ CountryRow::CountryRow(
 	QWidget *parent,
 	not_null<PanelController*> controller,
 	const QString &label,
+	int maxLabelWidth,
 	const QString &value)
-: PanelDetailsRow(parent, label)
+: PanelDetailsRow(parent, label, maxLabelWidth)
 , _controller(controller)
 , _link(this, CountryString(value), st::boxLinkButton)
 , _value(value) {
@@ -505,8 +514,9 @@ void DateInput::correctValue(
 DateRow::DateRow(
 	QWidget *parent,
 	const QString &label,
+	int maxLabelWidth,
 	const QString &value)
-: PanelDetailsRow(parent, label)
+: PanelDetailsRow(parent, label, maxLabelWidth)
 , _day(
 	this,
 	st::passportDetailsDateField,
@@ -726,25 +736,26 @@ int DateRow::resizeInner(int left, int top, int width) {
 	const auto right = left + width;
 	const auto &_st = st::passportDetailsDateField;
 	const auto &font = _st.placeholderFont;
+	const auto addToWidth = st::passportDetailsSeparatorPadding.left();
 	const auto dayWidth = _st.textMargins.left()
 		+ _st.placeholderMargins.left()
 		+ font->width(lang(lng_date_input_day))
 		+ _st.placeholderMargins.right()
 		+ _st.textMargins.right()
-		+ st::lineWidth;
+		+ addToWidth;
 	const auto monthWidth = _st.textMargins.left()
 		+ _st.placeholderMargins.left()
 		+ font->width(lang(lng_date_input_month))
 		+ _st.placeholderMargins.right()
 		+ _st.textMargins.right()
-		+ st::lineWidth;
+		+ addToWidth;
 	_day->setGeometry(left, top, dayWidth, _day->height());
-	left += dayWidth - st::lineWidth;
+	left += dayWidth - addToWidth;
 	_separator1->resizeToNaturalWidth(width);
 	_separator1->move(left, top);
 	left += _separator1->width();
 	_month->setGeometry(left, top, monthWidth, _month->height());
-	left += monthWidth - st::lineWidth;
+	left += monthWidth - addToWidth;
 	_separator2->resizeToNaturalWidth(width);
 	_separator2->move(left, top);
 	left += _separator2->width();
@@ -829,8 +840,9 @@ void DateRow::startBorderAnimation() {
 GenderRow::GenderRow(
 	QWidget *parent,
 	const QString &label,
+	int maxLabelWidth,
 	const QString &value)
-: PanelDetailsRow(parent, label)
+: PanelDetailsRow(parent, label, maxLabelWidth)
 , _group(StringToGender(value).has_value()
 	? std::make_shared<Ui::RadioenumGroup<Gender>>(*StringToGender(value))
 	: std::make_shared<Ui::RadioenumGroup<Gender>>())
@@ -938,8 +950,10 @@ void GenderRow::errorAnimationCallback() {
 
 PanelDetailsRow::PanelDetailsRow(
 	QWidget *parent,
-	const QString &label)
-: _label(label) {
+	const QString &label,
+	int maxLabelWidth)
+: _label(label)
+, _maxLabelWidth(maxLabelWidth) {
 }
 
 object_ptr<PanelDetailsRow> PanelDetailsRow::Create(
@@ -947,6 +961,7 @@ object_ptr<PanelDetailsRow> PanelDetailsRow::Create(
 		Type type,
 		not_null<PanelController*> controller,
 		const QString &label,
+		int maxLabelWidth,
 		const QString &value,
 		const QString &error,
 		int limit) {
@@ -956,20 +971,35 @@ object_ptr<PanelDetailsRow> PanelDetailsRow::Create(
 			return object_ptr<AbstractTextRow<Ui::InputField>>(
 				parent,
 				label,
+				maxLabelWidth,
 				value,
 				limit);
 		case Type::Postcode:
 			return object_ptr<AbstractTextRow<PostcodeInput>>(
 				parent,
 				label,
+				maxLabelWidth,
 				value,
 				limit);
 		case Type::Country:
-			return object_ptr<CountryRow>(parent, controller, label, value);
+			return object_ptr<CountryRow>(
+				parent,
+				controller,
+				label,
+				maxLabelWidth,
+				value);
 		case Type::Gender:
-			return object_ptr<GenderRow>(parent, label, value);
+			return object_ptr<GenderRow>(
+				parent,
+				label,
+				maxLabelWidth,
+				value);
 		case Type::Date:
-			return object_ptr<DateRow>(parent, label, value);
+			return object_ptr<DateRow>(
+				parent,
+				label,
+				maxLabelWidth,
+				value);
 		default:
 			Unexpected("Type in PanelDetailsRow::Create.");
 		}
@@ -981,13 +1011,19 @@ object_ptr<PanelDetailsRow> PanelDetailsRow::Create(
 	return result;
 }
 
+int PanelDetailsRow::LabelWidth(const QString &label) {
+	return st::semiboldFont->width(label);
+}
+
 bool PanelDetailsRow::setFocusFast() {
 	return false;
 }
 
 int PanelDetailsRow::resizeGetHeight(int newWidth) {
 	const auto padding = st::passportDetailsPadding;
-	const auto inputLeft = padding.left() + st::passportDetailsFieldLeft;
+	const auto inputLeft = padding.left() + std::max(
+		st::passportDetailsFieldLeft,
+		_maxLabelWidth + st::passportDetailsFieldSkipMin);
 	const auto inputTop = st::passportDetailsFieldTop;
 	const auto inputRight = padding.right();
 	const auto inputWidth = std::max(newWidth - inputLeft - inputRight, 0);
@@ -997,6 +1033,7 @@ int PanelDetailsRow::resizeGetHeight(int newWidth) {
 		+ (_error ? _error->height() : 0)
 		+ padding.bottom();
 	if (_error) {
+		_error->resizeToWidth(inputWidth);
 		_error->moveToLeft(inputLeft, result - _error->height());
 	}
 	return result;

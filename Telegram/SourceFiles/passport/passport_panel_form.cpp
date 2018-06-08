@@ -326,7 +326,7 @@ void PanelForm::updateControlsGeometry() {
 	_topShadow->moveToLeft(0, 0);
 	_bottomShadow->resizeToWidth(width());
 	_bottomShadow->moveToLeft(0, submitTop - st::lineWidth);
-	_submit->resizeToWidth(width());
+	_submit->setFullWidth(width());
 	_submit->moveToLeft(0, submitTop);
 
 	_scroll->updateBars();

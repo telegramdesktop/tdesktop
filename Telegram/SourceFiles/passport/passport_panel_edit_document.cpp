@@ -326,24 +326,42 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 		return ValueField();
 	};
 
-	for (auto i = 0, count = int(_scheme.rows.size()); i != count; ++i) {
-		const auto &row = _scheme.rows[i];
-		auto fields = (row.valueClass == Scheme::ValueClass::Fields)
-			? &data
-			: scanData;
-		if (!fields) {
-			continue;
+	const auto enumerateRows = [&](auto &&callback) {
+		for (auto i = 0, count = int(_scheme.rows.size()); i != count; ++i) {
+			const auto &row = _scheme.rows[i];
+			auto fields = (row.valueClass == Scheme::ValueClass::Fields)
+				? &data
+				: scanData;
+			if (!fields) {
+				continue;
+			}
+			callback(i, row, *fields);
 		}
-		const auto current = valueOrEmpty(*fields, row.key);
+	};
+	auto maxLabelWidth = 0;
+	enumerateRows([&](
+			int i,
+			const EditDocumentScheme::Row &row,
+			const ValueMap &fields) {
+		accumulate_max(
+			maxLabelWidth,
+			PanelDetailsRow::LabelWidth(row.label));
+	});
+	enumerateRows([&](
+			int i,
+			const EditDocumentScheme::Row &row,
+			const ValueMap &fields) {
+		const auto current = valueOrEmpty(fields, row.key);
 		_details.emplace(i, inner->add(PanelDetailsRow::Create(
 			inner,
 			row.inputType,
 			_controller,
 			row.label,
+			maxLabelWidth,
 			current.text,
 			current.error,
 			row.lengthLimit)));
-	}
+	});
 
 	inner->add(
 		object_ptr<Ui::FixedHeightWidget>(inner, st::passportDetailsSkip));
