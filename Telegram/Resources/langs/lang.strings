@@ -1567,7 +1567,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_address_agreement" = "Tenancy agreement";
 "lng_passport_address_agreement_upload" = "Upload a scan of your tenancy agreement";
 "lng_passport_address_registration" = "Passport registration";
-"lng_passport_address_registration_upload" = "Upload a scan of your passport registration";
+"lng_passport_address_registration_upload" = "Upload a scan of your passport registration page";
 "lng_passport_address_temporary" = "Temporary registration";
 "lng_passport_address_temporary_upload" = "Upload a scan of your temporary registration";
 "lng_passport_address_about" = "To confirm your address, please upload a scan or photo of the selected document (all pages).";
@@ -1594,12 +1594,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_upload_selfie" = "Upload selfie";
 "lng_passport_front_side_title" = "Front side";
 "lng_passport_front_side_name" = "Scan";
-"lng_passport_front_side_description" = "Upload front side of your document.";
-"lng_passport_upload_front_side" = "Upload front side scan";
+"lng_passport_front_side_description" = "Upload the front side of your document.";
+"lng_passport_upload_front_side" = "Upload a scan of the front side";
 "lng_passport_reverse_side_title" = "Reverse side";
 "lng_passport_reverse_side_name" = "Scan";
-"lng_passport_reverse_side_description" = "Upload reverse side of your document.";
-"lng_passport_upload_reverse_side" = "Upload reverse side scan";
+"lng_passport_reverse_side_description" = "Upload the reverse side of your document.";
+"lng_passport_upload_reverse_side" = "Upload a scan of the reverse side";
 "lng_passport_personal_details" = "Personal details";
 "lng_passport_personal_details_enter" = "Enter your personal details";
 "lng_passport_choose_image" = "Choose scan image";
@@ -1648,10 +1648,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_stop" = "Stop";
 "lng_passport_restart_sure" = "An unexpected error has occurred. Perhaps some changes were made from a different Telegram application. Would you like to restart this authorization?";
 "lng_passport_restart" = "Restart";
-"lng_passport_error_too_large" = "This file is too large.";
-"lng_passport_error_bad_size" = "This image has bad dimensions.";
+"lng_passport_error_too_large" = "Sorry, this file is too large.";
+"lng_passport_error_bad_size" = "Sorry, this image has wrong dimensions.";
 "lng_passport_error_cant_read" = "Can't read this file. Please choose an image.";
-"lng_passport_bad_name" = "Use latin characters only.";
+"lng_passport_bad_name" = "Please use latin characters only.";
 
 // Wnd specific
 
