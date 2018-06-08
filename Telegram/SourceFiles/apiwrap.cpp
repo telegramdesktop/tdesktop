@@ -2055,10 +2055,21 @@ void ApiWrap::saveDraftsToCloud() {
 		if (!textWithTags.tags.isEmpty()) {
 			flags |= MTPmessages_SaveDraft::Flag::f_entities;
 		}
-		auto entities = TextUtilities::EntitiesToMTP(ConvertTextTagsToEntities(textWithTags.tags), TextUtilities::ConvertOption::SkipLocal);
+		auto entities = TextUtilities::EntitiesToMTP(
+			ConvertTextTagsToEntities(textWithTags.tags),
+			TextUtilities::ConvertOption::SkipLocal);
 
-		cloudDraft->saveRequestId = request(MTPmessages_SaveDraft(MTP_flags(flags), MTP_int(cloudDraft->msgId), history->peer->input, MTP_string(textWithTags.text), entities)).done([this, history](const MTPBool &result, mtpRequestId requestId) {
-			if (auto cloudDraft = history->cloudDraft()) {
+		history->setSentDraftText(textWithTags.text);
+		cloudDraft->saveRequestId = request(MTPmessages_SaveDraft(
+			MTP_flags(flags),
+			MTP_int(cloudDraft->msgId),
+			history->peer->input,
+			MTP_string(textWithTags.text),
+			entities
+		)).done([=](const MTPBool &result, mtpRequestId requestId) {
+			history->clearSentDraftText();
+
+			if (const auto cloudDraft = history->cloudDraft()) {
 				if (cloudDraft->saveRequestId == requestId) {
 					cloudDraft->saveRequestId = 0;
 					history->draftSavedToCloud();
@@ -2069,8 +2080,10 @@ void ApiWrap::saveDraftsToCloud() {
 				_draftsSaveRequestIds.erase(history);
 				checkQuitPreventFinished();
 			}
-		}).fail([this, history](const RPCError &error, mtpRequestId requestId) {
-			if (auto cloudDraft = history->cloudDraft()) {
+		}).fail([=](const RPCError &error, mtpRequestId requestId) {
+			history->clearSentDraftText();
+
+			if (const auto cloudDraft = history->cloudDraft()) {
 				if (cloudDraft->saveRequestId == requestId) {
 					history->clearCloudDraft();
 				}

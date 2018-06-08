@@ -304,6 +304,9 @@ public:
 	void createLocalDraftFromCloud();
 	void setCloudDraft(std::unique_ptr<Data::Draft> &&draft);
 	Data::Draft *createCloudDraft(Data::Draft *fromDraft);
+	bool skipCloudDraft(const QString &text, TimeId date) const;
+	void setSentDraftText(const QString &text);
+	void clearSentDraftText();
 	void setEditDraft(std::unique_ptr<Data::Draft> &&draft);
 	void clearLocalDraft();
 	void clearCloudDraft();
@@ -501,6 +504,8 @@ private:
 
 	std::unique_ptr<Data::Draft> _localDraft, _cloudDraft;
 	std::unique_ptr<Data::Draft> _editDraft;
+	base::optional<QString> _lastSentDraftText;
+	TimeId _lastSentDraftTime = 0;
 	MessageIdsList _forwardDraft;
 
 	using TypingUsers = QMap<UserData*, TimeMs>;

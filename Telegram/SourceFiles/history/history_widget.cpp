@@ -91,6 +91,9 @@ constexpr auto kShowMembersDropdownTimeoutMs = 300;
 constexpr auto kDisplayEditTimeWarningMs = 300 * 1000;
 constexpr auto kFullDayInMs = 86400 * 1000;
 constexpr auto kCancelTypingActionTimeout = TimeMs(5000);
+constexpr auto kSaveDraftTimeout = 1000;
+constexpr auto kSaveDraftAnywayTimeout = 5000;
+constexpr auto kSaveCloudDraftIdleTimeout = 14000;
 
 ApiWrap::RequestMessageDataCallback replyEditMessageDataCallback() {
 	return [](ChannelData *channel, MsgId msgId) {
@@ -1192,9 +1195,9 @@ void HistoryWidget::onDraftSave(bool delayed) {
 		auto ms = getms();
 		if (!_saveDraftStart) {
 			_saveDraftStart = ms;
-			return _saveDraftTimer.start(SaveDraftTimeout);
-		} else if (ms - _saveDraftStart < SaveDraftAnywayTimeout) {
-			return _saveDraftTimer.start(SaveDraftTimeout);
+			return _saveDraftTimer.start(kSaveDraftTimeout);
+		} else if (ms - _saveDraftStart < kSaveDraftAnywayTimeout) {
+			return _saveDraftTimer.start(kSaveDraftTimeout);
 		}
 	}
 	writeDrafts(nullptr, nullptr);
@@ -1275,7 +1278,7 @@ void HistoryWidget::writeDrafts(Data::Draft **localDraft, Data::Draft **editDraf
 	}
 
 	if (!_editMsgId && !_inlineBot) {
-		_saveCloudDraftTimer.start(SaveCloudDraftIdleTimeout);
+		_saveCloudDraftTimer.start(kSaveCloudDraftIdleTimeout);
 	}
 }
 
