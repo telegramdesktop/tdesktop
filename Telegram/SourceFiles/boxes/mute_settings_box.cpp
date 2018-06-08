@@ -21,6 +21,10 @@ constexpr auto kForeverHours = 24 * 365;
 
 } // namespace
 
+MuteSettingsBox::MuteSettingsBox(QWidget *parent, not_null<PeerData*> peer)
+: _peer(peer) {
+}
+
 void MuteSettingsBox::prepare() {
 	setTitle(langFactory(lng_disable_notifications_from_tray));
 	auto y = 0;
@@ -67,15 +71,25 @@ void MuteSettingsBox::prepare() {
 		- st::boxOptionListSkip
 		+ st::defaultCheckbox.margin.bottom();
 
-	addButton(langFactory(lng_box_ok), [this, group] {
-		auto muteForSeconds = group->value() * 3600;
+	_save = [=] {
+		const auto muteForSeconds = group->value() * 3600;
 		Auth().data().updateNotifySettings(
 			_peer,
 			muteForSeconds);
 		closeBox();
-	});
+	};
+	addButton(langFactory(lng_box_ok), _save);
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	setDimensions(st::boxWidth, y);
 }
+
+void MuteSettingsBox::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
+		if (_save) {
+			_save();
+		}
+	}
+}
+
 // vi: ts=4 tw=80
