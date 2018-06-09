@@ -99,8 +99,10 @@ not_null<History*> Histories::findOrInsert(PeerId peerId) {
 }
 
 void Histories::clear() {
+	for (const auto &[peerId, history] : _map) {
+		history->unloadBlocks();
+	}
 	App::historyClearMsgs();
-
 	_map.clear();
 
 	_unreadFull = _unreadMuted = 0;
