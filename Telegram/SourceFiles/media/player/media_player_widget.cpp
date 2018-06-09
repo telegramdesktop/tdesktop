@@ -116,7 +116,7 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 	});
 
 	updateVolumeToggleIcon();
-	_volumeToggle->setClickedCallback([this] {
+	_volumeToggle->setClickedCallback([=] {
 		Global::SetSongVolume((Global::SongVolume() > 0) ? 0. : Global::RememberedSongVolume());
 		mixer()->setSongVolume(Global::SongVolume());
 		Global::RefSongVolumeChanged().notify();
@@ -124,7 +124,7 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 	subscribe(Global::RefSongVolumeChanged(), [this] { updateVolumeToggleIcon(); });
 
 	updateRepeatTrackIcon();
-	_repeatTrack->setClickedCallback([this] {
+	_repeatTrack->setClickedCallback([=] {
 		instance()->toggleRepeat(AudioMsgId::Type::Song);
 	});
 
@@ -538,12 +538,12 @@ void Widget::createPrevNextButtons() {
 	if (!_previousTrack) {
 		_previousTrack.create(this, st::mediaPlayerPreviousButton);
 		_previousTrack->show();
-		_previousTrack->setClickedCallback([this]() {
+		_previousTrack->setClickedCallback([=]() {
 			instance()->previous();
 		});
 		_nextTrack.create(this, st::mediaPlayerNextButton);
 		_nextTrack->show();
-		_nextTrack->setClickedCallback([this]() {
+		_nextTrack->setClickedCallback([=]() {
 			instance()->next();
 		});
 		updatePlayPrevNextPositions();

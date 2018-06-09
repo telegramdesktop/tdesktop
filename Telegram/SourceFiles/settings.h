@@ -195,7 +195,6 @@ DeclareReadSetting(DBIPlatform, Platform);
 DeclareReadSetting(QString, PlatformString);
 DeclareReadSetting(bool, IsElCapitan);
 DeclareReadSetting(bool, IsSnowLeopard);
-DeclareReadSetting(QUrl, UpdateURL);
 
 DeclareSetting(int, OtherOnline);
 
@@ -223,6 +222,7 @@ DeclareSetting(bool, ShowCallbackData);
 DeclareSetting(bool, ShowUsername);
 DeclareSetting(bool, IgnoreBlocked);
 DeclareSetting(bool, TagMention);
+DeclareSetting(bool, ShowRestrict);
 DeclareSetting(bool, TextMention);
 DeclareSetting(bool, AutoCopy);
 DeclareSetting(int, DialogsType);

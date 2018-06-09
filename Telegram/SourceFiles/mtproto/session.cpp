@@ -27,6 +27,23 @@ QString LogIds(const QVector<uint64> &ids) {
 
 } // namespace
 
+ConnectionOptions::ConnectionOptions(
+	const QString &systemLangCode,
+	const QString &cloudLangCode,
+	const ProxyData &proxy,
+	bool useIPv4,
+	bool useIPv6,
+	bool useHttp,
+	bool useTcp)
+: systemLangCode(systemLangCode)
+, cloudLangCode(cloudLangCode)
+, proxy(proxy)
+, useIPv4(useIPv4)
+, useIPv6(useIPv6)
+, useHttp(useHttp)
+, useTcp(useTcp) {
+}
+
 void SessionData::setKey(const AuthKeyPtr &key) {
 	if (_authKey != key) {
 		uint64 session = rand_value<uint64>();
@@ -93,8 +110,7 @@ Session::Session(not_null<Instance*> instance, ShiftedDcId shiftedDcId) : QObjec
 	connect(&timeouter, SIGNAL(timeout()), this, SLOT(checkRequestsByTimer()));
 	timeouter.start(1000);
 
-	data.setSystemLangCode(instance->systemLangCode());
-	data.setCloudLangCode(instance->cloudLangCode());
+	refreshDataFields();
 
 	connect(&sender, SIGNAL(timeout()), this, SLOT(needToResumeAndSend()));
 }
@@ -147,9 +163,27 @@ void Session::restart() {
 		DEBUG_LOG(("Session Error: can't restart a killed session"));
 		return;
 	}
-	data.setSystemLangCode(_instance->systemLangCode());
-	data.setCloudLangCode(_instance->cloudLangCode());
+	refreshDataFields();
 	emit needToRestart();
+}
+
+void Session::refreshDataFields() {
+	const auto &proxy = Global::SelectedProxy();
+	const auto proxyType = Global::UseProxy()
+		? proxy.type
+		: ProxyData::Type::None;
+	const auto useTcp = (proxyType != ProxyData::Type::Http);
+	const auto useHttp = (proxyType != ProxyData::Type::Mtproto);
+	const auto useIPv4 = true;
+	const auto useIPv6 = Global::TryIPv6();
+	data.setConnectionOptions(ConnectionOptions(
+		_instance->systemLangCode(),
+		_instance->cloudLangCode(),
+		Global::UseProxy() ? proxy : ProxyData(),
+		useIPv4,
+		useIPv6,
+		useHttp,
+		useTcp));
 }
 
 void Session::stop() {

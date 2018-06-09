@@ -17,21 +17,23 @@ class AbstractTCPConnection : public AbstractConnection {
 	Q_OBJECT
 
 public:
-
 	AbstractTCPConnection(QThread *thread);
+
+	void setProxyOverride(const ProxyData &proxy) override;
 	virtual ~AbstractTCPConnection() = 0;
 
 public slots:
-
 	void socketRead();
 
 protected:
+	void writeConnectionStart();
 
 	QTcpSocket sock;
-	uint32 packetNum; // sent packet number
+	uint32 packetNum = 0; // sent packet number
 
-	uint32 packetRead, packetLeft; // reading from socket
-	bool readingToShort;
+	uint32 packetRead = 0;
+	uint32 packetLeft = 0; // reading from socket
+	bool readingToShort = true;
 	char *currentPos;
 	mtpBuffer longBuffer;
 	mtpPrime shortBuffer[MTPShortBufferSize];
@@ -49,6 +51,8 @@ protected:
 	CTRState _sendState;
 	uchar _receiveKey[CTRState::KeySize];
 	CTRState _receiveState;
+	int16 _protocolDcId = 0;
+	bytes::vector _protocolSecret;
 
 };
 
@@ -56,22 +60,24 @@ class TCPConnection : public AbstractTCPConnection {
 	Q_OBJECT
 
 public:
-
 	TCPConnection(QThread *thread);
 
+	TimeMs pingTime() const override;
 	void sendData(mtpBuffer &buffer) override;
 	void disconnectFromServer() override;
-	void connectTcp(const DcOptions::Endpoint &endpoint) override;
-	void connectHttp(const DcOptions::Endpoint &endpoint) override { // not supported
-	}
+	void connectToServer(
+		const QString &ip,
+		int port,
+		const bytes::vector &protocolSecret,
+		int16 protocolDcId) override;
 	bool isConnected() const override;
 
 	int32 debugState() const override;
 
 	QString transport() const override;
+	QString tag() const override;
 
 public slots:
-
 	void socketError(QAbstractSocket::SocketError e);
 
 	void onSocketConnected();
@@ -80,11 +86,9 @@ public slots:
 	void onTcpTimeoutTimer();
 
 protected:
-
 	void socketPacket(const char *packet, uint32 length) override;
 
 private:
-
 	enum Status {
 		WaitingTcp = 0,
 		UsingTcp,
@@ -93,10 +97,10 @@ private:
 	Status status;
 	MTPint128 tcpNonce;
 
-	QString _addr;
+	QString _address;
 	int32 _port, _tcpTimeout;
-	MTPDdcOption::Flags _flags;
 	QTimer tcpTimeoutTimer;
+	TimeMs _pingTime = 0;
 
 };
 

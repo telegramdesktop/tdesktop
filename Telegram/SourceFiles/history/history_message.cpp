@@ -591,7 +591,7 @@ bool HistoryMessage::allowsEdit(TimeId now) const {
 	}();
 	const auto messageTooOld = (messageToMyself || canPinInMegagroup)
 		? false
-		: (now >= date() + Global::EditTimeLimit());
+		: (now - date() >= Global::EditTimeLimit());
 	if (id < 0 || messageTooOld) {
 		return false;
 	}
@@ -733,6 +733,8 @@ void HistoryMessage::refreshSentMedia(const MTPMessageMedia *media) {
 	refreshMedia(media);
 	if (wasGrouped) {
 		Auth().data().groups().refreshMessage(this);
+	} else {
+		Auth().data().requestItemViewRefresh(this);
 	}
 }
 
@@ -889,10 +891,10 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 	if (message.has_entities()) {
 		textWithEntities.entities = TextUtilities::EntitiesFromMTP(message.ventities.v);
 	}
-	setText(textWithEntities);
 	setReplyMarkup(message.has_reply_markup() ? (&message.vreply_markup) : nullptr);
 	refreshMedia(message.has_media() ? (&message.vmedia) : nullptr);
 	setViewsCount(message.has_views() ? message.vviews.v : -1);
+	setText(textWithEntities);
 
 	finishEdition(keyboardTop);
 }
@@ -904,9 +906,9 @@ void HistoryMessage::applyEdition(const MTPDmessageService &message) {
 }
 
 void HistoryMessage::applyEditionToEmpty() {
-	setEmptyText();
-	refreshMedia(nullptr);
 	setReplyMarkup(nullptr);
+	refreshMedia(nullptr);
+	setEmptyText();
 	setViewsCount(-1);
 
 	finishEditionToEmpty();
@@ -971,6 +973,14 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 			st::messageTextStyle,
 			textWithEntities,
 			Ui::ItemTextOptions(this));
+		if (!textWithEntities.text.isEmpty() && _text.isEmpty()) {
+			// If server has allowed some text that we've trim-ed entirely,
+			// just replace it with something so that UI won't look buggy.
+			_text.setMarkedText(
+				st::messageTextStyle,
+				{ QString::fromUtf8("\xF0\x9F\x98\x94"), EntitiesInText() },
+				Ui::ItemTextOptions(this));
+		}
 		_textWidth = -1;
 		_textHeight = 0;
 	}

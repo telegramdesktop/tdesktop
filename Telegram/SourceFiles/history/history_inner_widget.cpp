@@ -1732,7 +1732,7 @@ void HistoryInner::savePhotoToFile(not_null<PhotoData*> photo) {
 		filedialogDefaultName(
 			qsl("photo"),
 			qsl(".jpg")),
-		base::lambda_guarded(this, [this, photo](const QString &result) {
+		base::lambda_guarded(this, [=](const QString &result) {
 			if (!result.isEmpty()) {
 				photo->full->pix().toImage().save(result, "JPG");
 			}

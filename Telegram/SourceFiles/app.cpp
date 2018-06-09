@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "core/crash_reports.h"
+#include "core/update_checker.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "window/themes/window_theme.h"
@@ -1630,6 +1631,7 @@ namespace {
 		int64 nowImageCacheSize = imageCacheSize();
 		if (nowImageCacheSize > serviceImageCacheSize + MemoryForImageCache) {
 			App::forgetMedia();
+			Auth().data().forgetMedia();
 			serviceImageCacheSize = imageCacheSize();
 		}
 	}
@@ -1668,7 +1670,7 @@ namespace {
 
 	void restart() {
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-		bool updateReady = (Sandbox::updatingState() == Application::UpdatingReady);
+		bool updateReady = (Core::UpdateChecker().state() == Core::UpdateChecker::State::Ready);
 #else // !TDESKTOP_DISABLE_AUTOUPDATE
 		bool updateReady = false;
 #endif // else for !TDESKTOP_DISABLE_AUTOUPDATE
@@ -1785,38 +1787,6 @@ namespace {
 			}
 		}
 		if (changeInMin) App::main()->updateMutedIn(changeInMin);
-	}
-
-	void setProxySettings(QNetworkAccessManager &manager) {
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-		manager.setProxy(getHttpProxySettings());
-#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
-	}
-
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-	QNetworkProxy getHttpProxySettings() {
-		const ProxyData *proxy = nullptr;
-		if (Global::started()) {
-			proxy = (Global::ConnectionType() == dbictHttpProxy) ? (&Global::ConnectionProxy()) : nullptr;
-		} else {
-			proxy = Sandbox::PreLaunchProxy().host.isEmpty() ? nullptr : (&Sandbox::PreLaunchProxy());
-		}
-		if (proxy) {
-			return QNetworkProxy(QNetworkProxy::HttpProxy, proxy->host, proxy->port, proxy->user, proxy->password);
-		}
-		return QNetworkProxy(QNetworkProxy::DefaultProxy);
-	}
-#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
-
-	void setProxySettings(QTcpSocket &socket) {
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-		if (Global::ConnectionType() == dbictTcpProxy) {
-			auto &p = Global::ConnectionProxy();
-			socket.setProxy(QNetworkProxy(QNetworkProxy::Socks5Proxy, p.host, p.port, p.user, p.password));
-		} else {
-			socket.setProxy(QNetworkProxy(QNetworkProxy::NoProxy));
-		}
-#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	}
 
 	void rectWithCorners(Painter &p, QRect rect, const style::color &bg, RoundCorners index, RectParts corners) {

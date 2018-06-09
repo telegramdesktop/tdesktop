@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "boxes/send_files_box.h"
 #include "window/themes/window_theme.h"
+#include "core/crash_reports.h"
+#include "core/update_checker.h"
 #include "observer_peer.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -37,6 +39,7 @@ namespace {
 constexpr auto kThemeFileSizeLimit = 5 * 1024 * 1024;
 constexpr auto kFileLoaderQueueStopTimeout = TimeMs(5000);
 constexpr auto kDefaultStickerInstallDate = TimeId(1);
+constexpr auto kProxyTypeShift = 1024;
 
 using FileKey = quint64;
 
@@ -571,6 +574,7 @@ enum {
 	dbiLangPackKey = 0x4e,
 	dbiConnectionType = 0x4f,
 	dbiStickersFavedLimit = 0x50,
+	dbiSuggestStickersByEmoji = 0x51,
 
 	dbiSean = 0x80,
 
@@ -582,6 +586,13 @@ enum {
 	dbiVersion = 666,
 };
 
+enum {
+	dbictAuto = 0,
+	dbictHttpAuto = 1, // not used
+	dbictHttpProxy = 2,
+	dbictTcpProxy = 3,
+	dbictProxiesList = 4,
+};
 
 typedef QMap<PeerId, FileKey> DraftsMap;
 DraftsMap _draftsMap, _draftCursorsMap;
@@ -871,7 +882,12 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> dcId >> host >> ip >> port;
 		if (!_checkStreamStatus(stream)) return false;
 
-		context.dcOptions.constructAddOne(dcId, 0, ip.toStdString(), port);
+		context.dcOptions.constructAddOne(
+			dcId,
+			0,
+			ip.toStdString(),
+			port,
+			{});
 	} break;
 
 	case dbiDcOptionOld: {
@@ -881,7 +897,12 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> dcIdWithShift >> flags >> ip >> port;
 		if (!_checkStreamStatus(stream)) return false;
 
-		context.dcOptions.constructAddOne(dcIdWithShift, MTPDdcOption::Flags::from_raw(flags), ip.toStdString(), port);
+		context.dcOptions.constructAddOne(
+			dcIdWithShift,
+			MTPDdcOption::Flags::from_raw(flags),
+			ip.toStdString(),
+			port,
+			{});
 	} break;
 
 	case dbiDcOptions: {
@@ -998,6 +1019,14 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		if (!_checkStreamStatus(stream)) return false;
 
 		Global::SetSoundNotify(v == 1);
+	} break;
+
+	case dbiSuggestStickersByEmoji: {
+		qint32 v;
+		stream >> v;
+		if (!_checkStreamStatus(stream)) return false;
+
+		Global::SetSuggestStickersByEmoji(v == 1);
 	} break;
 
 	case dbiAutoDownload: {
@@ -1139,51 +1168,108 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
+		ProxyData proxy;
 		switch (v) {
 		case dbictHttpProxy:
 		case dbictTcpProxy: {
-			ProxyData p;
 			qint32 port;
-			stream >> p.host >> port >> p.user >> p.password;
+			stream >> proxy.host >> port >> proxy.user >> proxy.password;
 			if (!_checkStreamStatus(stream)) return false;
 
-			p.port = uint32(port);
-			Global::SetConnectionProxy(p);
-			Global::SetConnectionType(DBIConnectionType(v));
+			proxy.port = uint32(port);
+			proxy.type = (v == dbictTcpProxy)
+				? ProxyData::Type::Socks5
+				: ProxyData::Type::Http;
 		} break;
-		case dbictHttpAuto:
-		default: Global::SetConnectionType(dbictAuto); break;
 		};
-		Global::SetLastProxyType(Global::ConnectionType());
+		Global::SetSelectedProxy(proxy ? proxy : ProxyData());
+		Global::SetUseProxy(proxy ? true : false);
+		if (proxy) {
+			Global::SetProxiesList({ 1, proxy });
+		} else {
+			Global::SetProxiesList({});
+		}
+		Sandbox::refreshGlobalProxy();
 	} break;
 
 	case dbiConnectionType: {
-		ProxyData p;
-		qint32 connectionType, lastProxyType, port;
-		stream >> connectionType >> lastProxyType >> p.host >> port >> p.user >> p.password;
-		if (!_checkStreamStatus(stream)) return false;
-
-		p.port = port;
-		switch (connectionType) {
-		case dbictHttpProxy:
-		case dbictTcpProxy: {
-			Global::SetConnectionType(DBIConnectionType(lastProxyType));
-		} break;
-		case dbictHttpAuto:
-		default: Global::SetConnectionType(dbictAuto); break;
-		};
-		switch (lastProxyType) {
-		case dbictHttpProxy:
-		case dbictTcpProxy: {
-			Global::SetLastProxyType(DBIConnectionType(lastProxyType));
-			Global::SetConnectionProxy(p);
-		} break;
-		case dbictHttpAuto:
-		default: {
-			Global::SetLastProxyType(dbictAuto);
-			Global::SetConnectionProxy(ProxyData());
-		} break;
+		qint32 connectionType;
+		stream >> connectionType;
+		if (!_checkStreamStatus(stream)) {
+			return false;
 		}
+
+		const auto readProxy = [&] {
+			qint32 proxyType, port;
+			ProxyData proxy;
+			stream >> proxyType >> proxy.host >> port >> proxy.user >> proxy.password;
+			proxy.port = port;
+			proxy.type = (proxyType == dbictTcpProxy)
+				? ProxyData::Type::Socks5
+				: (proxyType == dbictHttpProxy)
+				? ProxyData::Type::Http
+				: (proxyType == kProxyTypeShift + int(ProxyData::Type::Socks5))
+				? ProxyData::Type::Socks5
+				: (proxyType == kProxyTypeShift + int(ProxyData::Type::Http))
+				? ProxyData::Type::Http
+				: (proxyType == kProxyTypeShift + int(ProxyData::Type::Mtproto))
+				? ProxyData::Type::Mtproto
+				: ProxyData::Type::None;
+			return proxy;
+		};
+		if (connectionType == dbictProxiesList) {
+			qint32 count = 0, index = 0;
+			stream >> count >> index;
+			if (std::abs(index) > count) {
+				Global::SetUseProxyForCalls(true);
+				index -= (index > 0 ? count : -count);
+			} else {
+				Global::SetUseProxyForCalls(false);
+			}
+
+			auto list = std::vector<ProxyData>();
+			for (auto i = 0; i < count; ++i) {
+				const auto proxy = readProxy();
+				if (proxy) {
+					list.push_back(proxy);
+				} else if (index < -list.size()) {
+					++index;
+				} else if (index > list.size()) {
+					--index;
+				}
+			}
+			if (!_checkStreamStatus(stream)) {
+				return false;
+			}
+			Global::SetProxiesList(list);
+			Global::SetUseProxy(index > 0 && index <= list.size());
+			index = std::abs(index);
+			if (index > 0 && index <= list.size()) {
+				Global::SetSelectedProxy(list[index - 1]);
+			} else {
+				Global::SetSelectedProxy(ProxyData());
+			}
+		} else {
+			const auto proxy = readProxy();
+			if (!_checkStreamStatus(stream)) {
+				return false;
+			}
+			if (proxy) {
+				Global::SetProxiesList({ 1, proxy });
+				Global::SetSelectedProxy(proxy);
+				if (connectionType == dbictTcpProxy
+					|| connectionType == dbictHttpProxy) {
+					Global::SetUseProxy(true);
+				} else {
+					Global::SetUseProxy(false);
+				}
+			} else {
+				Global::SetProxiesList({});
+				Global::SetSelectedProxy(ProxyData());
+				Global::SetUseProxy(false);
+			}
+		}
+		Sandbox::refreshGlobalProxy();
 	} break;
 
 	case dbiThemeKey: {
@@ -1226,7 +1312,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		cSetAutoUpdate(v == 1);
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 		if (!cAutoUpdate()) {
-			Sandbox::stopUpdate();
+			Core::UpdateChecker().stop();
 		}
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
 	} break;
@@ -1563,6 +1649,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		cSetTagMention(conf & 0x10);
 		cSetAutoCopy(conf & 0x20);
 		cSetTextMention(conf & 0x40);
+		cSetShowRestrict(conf & 0x80);
 
 		cSetDialogsType(type);
 		cSetTyping(typing);
@@ -1785,7 +1872,7 @@ void _writeUserSettings() {
 		? userDataInstance->serialize()
 		: QByteArray();
 
-	uint32 size = 21 * (sizeof(quint32) + sizeof(qint32));
+	uint32 size = 22 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::stringSize(Global::AskDownloadPath() ? QString() : Global::DownloadPath()) + Serialize::bytearraySize(Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
 
 	size += sizeof(quint32) + sizeof(qint32);
@@ -1830,6 +1917,7 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiModerateMode) << qint32(Global::ModerateModeEnabled() ? 1 : 0);
 	data.stream << quint32(dbiAutoPlay) << qint32(cAutoPlayGif() ? 1 : 0);
 	data.stream << quint32(dbiUseExternalVideoPlayer) << qint32(cUseExternalVideoPlayer());
+	data.stream << quint32(dbiSuggestStickersByEmoji) << qint32(Global::SuggestStickersByEmoji() ? 1 : 0);
 	if (!userData.isEmpty()) {
 		data.stream << quint32(dbiAuthSessionSettings) << userData;
 	}
@@ -1868,6 +1956,8 @@ void _writeUserSettings() {
 			conf |= 0x20;
 		if (cTextMention())
 			conf |= 0x40;
+		if (cShowRestrict())
+			conf |= 0x80;
 		data.stream << quint32(dbiSean) << conf << qint32(cDialogsType()) << qint32(cTyping());
 	}
 
@@ -2221,7 +2311,19 @@ void _writeMap(WriteMapWhen when) {
 	if (_backgroundKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_userSettingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_recentHashtagsAndBotsKey) mapSize += sizeof(quint32) + sizeof(quint64);
+
+	if (mapSize > 30 * 1024 * 1024) {
+		CrashReports::SetAnnotation("MapSize", QString("%1,%2,%3,%4,%5"
+		).arg(_draftsMap.size()
+		).arg(_draftCursorsMap.size()
+		).arg(_imagesMap.size()
+		).arg(_stickerImagesMap.size()
+		).arg(_audiosMap.size()
+		));
+	}
+
 	EncryptedDescriptor mapData(mapSize);
+
 	if (!_draftsMap.isEmpty()) {
 		mapData.stream << quint32(lskDraft) << quint32(_draftsMap.size());
 		for (DraftsMap::const_iterator i = _draftsMap.cbegin(), e = _draftsMap.cend(); i != e; ++i) {
@@ -2289,6 +2391,10 @@ void _writeMap(WriteMapWhen when) {
 	map.writeEncrypted(mapData);
 
 	_mapChanged = false;
+
+	if (mapSize > 30 * 1024 * 1024) {
+		CrashReports::ClearAnnotation("MapSize");
+	}
 }
 
 } // namespace
@@ -2387,10 +2493,20 @@ void writeSettings() {
 
 	quint32 size = 12 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::bytearraySize(dcOptionsSerialized);
+	size += sizeof(quint32) + Serialize::stringSize(cLoggedPhoneNumber());
 
-	auto &proxy = Global::ConnectionProxy();
-	size += sizeof(quint32) + sizeof(qint32) + sizeof(qint32);
-	size += Serialize::stringSize(proxy.host) + sizeof(qint32) + Serialize::stringSize(proxy.user) + Serialize::stringSize(proxy.password);
+	auto &proxies = Global::RefProxiesList();
+	const auto &proxy = Global::SelectedProxy();
+	auto proxyIt = ranges::find(proxies, proxy);
+	if (proxy.type != ProxyData::Type::None
+		&& proxyIt == end(proxies)) {
+		proxies.push_back(proxy);
+		proxyIt = end(proxies) - 1;
+	}
+	size += sizeof(quint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
+	for (const auto &proxy : proxies) {
+		size += sizeof(qint32) + Serialize::stringSize(proxy.host) + sizeof(qint32) + Serialize::stringSize(proxy.user) + Serialize::stringSize(proxy.password);
+	}
 
 	if (_themeKey) {
 		size += sizeof(quint32) + sizeof(quint64);
@@ -2415,9 +2531,18 @@ void writeSettings() {
 	data.stream << quint32(dbiLastUpdateCheck) << qint32(cLastUpdateCheck());
 	data.stream << quint32(dbiScale) << qint32(cConfigScale());
 	data.stream << quint32(dbiDcOptions) << dcOptionsSerialized;
+	data.stream << quint32(dbiLoggedPhoneNumber) << cLoggedPhoneNumber();
 
-	data.stream << quint32(dbiConnectionType) << qint32(Global::ConnectionType()) << qint32(Global::LastProxyType());
-	data.stream << proxy.host << qint32(proxy.port) << proxy.user << proxy.password;
+	data.stream << quint32(dbiConnectionType) << qint32(dbictProxiesList);
+	data.stream << qint32(proxies.size());
+	const auto index = qint32(proxyIt - begin(proxies))
+		+ qint32(Global::UseProxyForCalls() ? proxies.size() : 0)
+		+ 1;
+	data.stream << (Global::UseProxy() ? index : -index);
+	for (const auto &proxy : proxies) {
+		data.stream << qint32(kProxyTypeShift + int(proxy.type));
+		data.stream << proxy.host << qint32(proxy.port) << proxy.user << proxy.password;
+	}
 
 	data.stream << quint32(dbiTryIPv6) << qint32(Global::TryIPv6());
 	if (_themeKey) {
@@ -2443,6 +2568,60 @@ void writeUserSettings() {
 void writeMtpData() {
 	_writeMtpData();
 }
+
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+const QString &AutoupdatePrefix(const QString &replaceWith = {}) {
+	static auto value = QString();
+	if (!replaceWith.isEmpty()) {
+		value = replaceWith;
+	}
+	return value;
+}
+
+QString autoupdatePrefixFile() {
+	return cWorkingDir() + "tdata/prefix";
+}
+
+const QString &readAutoupdatePrefixRaw() {
+	const auto &result = AutoupdatePrefix();
+	if (!result.isEmpty()) {
+		return result;
+	}
+	QFile f(autoupdatePrefixFile());
+	if (f.open(QIODevice::ReadOnly)) {
+		const auto value = QString::fromUtf8(f.readAll());
+		if (!value.isEmpty()) {
+			return AutoupdatePrefix(value);
+		}
+	}
+	return AutoupdatePrefix("https://telegre.at");
+}
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
+
+void writeAutoupdatePrefix(const QString &prefix) {
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	const auto current = readAutoupdatePrefixRaw();
+	if (current != prefix) {
+		AutoupdatePrefix(prefix);
+		QFile f(autoupdatePrefixFile());
+		if (f.open(QIODevice::WriteOnly)) {
+			f.write(prefix.toUtf8());
+			f.close();
+		}
+		if (cAutoUpdate()) {
+			Core::UpdateChecker checker;
+			checker.start();
+		}
+	}
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
+}
+
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+QString readAutoupdatePrefix() {
+	auto result = readAutoupdatePrefixRaw();
+	return result.replace(QRegularExpression("/+$"), QString());
+}
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
 
 void reset() {
 	if (_localLoader) {
@@ -2893,6 +3072,10 @@ TaskId startImageLoad(const StorageKey &location, mtpFileLoader *loader) {
 		std::make_unique<ImageLoadTask>(j->first, location, loader));
 }
 
+bool willImageLoad(const StorageKey &location) {
+	return _imagesMap.constFind(location) != _imagesMap.cend();
+}
+
 int32 hasImages() {
 	return _imagesMap.size();
 }
@@ -3037,6 +3220,10 @@ bool copyAudio(const StorageKey &oldLocation, const StorageKey &newLocation) {
 	return true;
 }
 
+bool willAudioLoad(const StorageKey &location) {
+	return _audiosMap.constFind(location) != _audiosMap.cend();
+}
+
 int32 hasAudios() {
 	return _audiosMap.size();
 }
@@ -3141,6 +3328,10 @@ TaskId startWebFileLoad(const QString &url, webFileLoader *loader) {
 	}
 	return _localLoader->addTask(
 		std::make_unique<WebFileLoadTask>(j->first, url, loader));
+}
+
+bool willWebFileLoad(const QString &url) {
+	return _webFilesMap.constFind(url) != _webFilesMap.cend();
 }
 
 int32 hasWebFiles() {

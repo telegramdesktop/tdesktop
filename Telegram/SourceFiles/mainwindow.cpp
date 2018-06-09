@@ -99,9 +99,9 @@ void ConnectingWidget::paintEvent(QPaintEvent *e) {
 }
 
 void ConnectingWidget::onReconnect() {
-	auto throughProxy = (Global::ConnectionType() != dbictAuto);
-	if (throughProxy) {
-		Ui::show(Box<ConnectionBox>());
+	if (Global::UseProxy()) {
+		//Ui::show(Box<ConnectionBox>());
+		Ui::show(ProxiesBoxController::CreateOwningBox());
 	} else {
 		MTP::restart();
 	}
@@ -408,8 +408,8 @@ void MainWindow::mtpStateChanged(int32 dc, int32 state) {
 }
 
 void MainWindow::updateConnectingStatus() {
-	auto state = MTP::dcstate();
-	auto throughProxy = (Global::ConnectionType() != dbictAuto);
+	const auto state = MTP::dcstate();
+	const auto throughProxy = Global::UseProxy();
 	if (state == MTP::ConnectingState || state == MTP::DisconnectedState || (state < 0 && state > -600)) {
 		if (_main || getms() > 5000 || _connecting) {
 			showConnecting(lang(throughProxy ? lng_connecting_to_proxy : lng_connecting), throughProxy ? lang(lng_connecting_settings) : QString());

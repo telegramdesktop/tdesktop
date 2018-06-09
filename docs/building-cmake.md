@@ -84,7 +84,9 @@ Go to ***BuildPath*** and run
     cd ..
 
     git clone git://repo.or.cz/openal-soft.git
-    cd openal-soft/build
+    cd openal-soft
+    git checkout v1.18
+    cd build
     cmake -D LIBTYPE:STRING=STATIC ..
     make $MAKE_THREADS_CNT
     sudo make install

@@ -18,11 +18,15 @@ class HTTPConnection : public AbstractConnection {
 public:
 	HTTPConnection(QThread *thread);
 
+	void setProxyOverride(const ProxyData &proxy) override;
+	TimeMs pingTime() const override;
 	void sendData(mtpBuffer &buffer) override;
 	void disconnectFromServer() override;
-	void connectTcp(const DcOptions::Endpoint &endpoint) override { // not supported
-	}
-	void connectHttp(const DcOptions::Endpoint &endpoint) override;
+	void connectToServer(
+		const QString &ip,
+		int port,
+		const bytes::vector &protocolSecret,
+		int16 protocolDcId) override;
 	bool isConnected() const override;
 	bool usingHttpWait() override;
 	bool needHttpWait() override;
@@ -30,6 +34,7 @@ public:
 	int32 debugState() const override;
 
 	QString transport() const override;
+	QString tag() const override;
 
 	static mtpBuffer handleResponse(QNetworkReply *reply);
 	static qint32 handleError(QNetworkReply *reply); // returnes error code
@@ -38,6 +43,8 @@ public slots:
 	void requestFinished(QNetworkReply *reply);
 
 private:
+	QUrl url() const;
+
 	enum Status {
 		WaitingHttp = 0,
 		UsingHttp,
@@ -45,13 +52,14 @@ private:
 	};
 	Status status;
 	MTPint128 httpNonce;
-	MTPDdcOption::Flags _flags;
 
 	QNetworkAccessManager manager;
-	QUrl address;
+	QString _address;
 
 	typedef QSet<QNetworkReply*> Requests;
 	Requests requests;
+
+	TimeMs _pingTime = 0;
 
 };
 

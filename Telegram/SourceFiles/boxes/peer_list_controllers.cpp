@@ -731,7 +731,7 @@ void EditChatAdminsBoxController::Start(not_null<ChatData*> chat) {
 }
 
 void AddBotToGroupBoxController::Start(not_null<UserData*> bot) {
-	auto initBox = [bot](not_null<PeerListBox*> box) {
+	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
 	};
 	Ui::show(Box<PeerListBox>(std::make_unique<AddBotToGroupBoxController>(bot), std::move(initBox)));

@@ -2563,6 +2563,15 @@ void HistoryGif::updateStatusText() const {
 	}
 }
 
+void HistoryGif::refreshParentId(not_null<HistoryItem*> realParent) {
+	HistoryFileMedia::refreshParentId(realParent);
+
+	const auto fullId = realParent->fullId();
+	if (_openInMediaviewLink) {
+		_openInMediaviewLink->setMessageId(fullId);
+	}
+}
+
 QString HistoryGif::additionalInfoString() const {
 	if (_data->isVideoMessage()) {
 		updateStatusText();
@@ -4210,6 +4219,21 @@ int HistoryGame::bottomInfoPadding() const {
 	// back with st::msgPadding.bottom() instead of left().
 	result += st::msgPadding.bottom() - st::msgPadding.left();
 	return result;
+}
+
+void HistoryGame::parentTextUpdated() {
+	if (const auto media = _parent->data()->media()) {
+		const auto consumed = media->consumedMessageText();
+		if (!consumed.text.isEmpty()) {
+			_description.setMarkedText(
+				st::webPageDescriptionStyle,
+				consumed,
+				Ui::ItemTextOptions(_parent->data()));
+		} else {
+			_description = Text(st::msgMinWidth - st::webPageLeft);
+		}
+		Auth().data().requestViewResize(_parent);
+	}
 }
 
 HistoryGame::~HistoryGame() {

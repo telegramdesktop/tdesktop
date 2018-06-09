@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/toast/toast.h"
 #include "ui/empty_userpic.h"
+#include "boxes/edit_participant_box.h"
 #include "core/click_handler_types.h"
 #include "storage/localstorage.h"
 #include "data/data_session.h"
@@ -449,11 +450,16 @@ void DeleteMessagesBox::prepare() {
 	auto text = QString();
 	if (_moderateFrom) {
 		Assert(_moderateInChannel != nullptr);
+		PeerId peerId = _moderateFrom->id;
+		History *history = App::history(peerId);
+		QDateTime msgDate = history->chatsListDate();
+		bool defaultBan = msgDate.isNull();
+
 		text = lang(lng_selected_delete_sure_this).append(" (%1)").arg(_moderateFrom->firstName);
 		if (_moderateBan) {
-			_banUser.create(this, lang(lng_ban_user), false, st::defaultBoxCheckbox);
+			_banUser.create(this, lang(cShowRestrict() ? lng_context_restrict_user : lng_ban_user), defaultBan, st::defaultBoxCheckbox);
 		}
-		_reportSpam.create(this, lang(lng_report_spam), false, st::defaultBoxCheckbox);
+		_reportSpam.create(this, lang(lng_report_spam), defaultBan, st::defaultBoxCheckbox);
 		if (_moderateDeleteAll) {
 			_deleteAll.create(this, lang(lng_delete_all_from), false, st::defaultBoxCheckbox);
 		}
@@ -566,10 +572,26 @@ void DeleteMessagesBox::deleteAndClear() {
 
 	if (_moderateFrom) {
 		if (_banUser && _banUser->checked()) {
-			Auth().api().kickParticipant(
-				_moderateInChannel,
-				_moderateFrom,
-				MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
+			if (cShowRestrict()) {
+				not_null<UserData*> user = _moderateFrom;
+				auto megagroup = _moderateInChannel;
+				auto currentRightsIt = megagroup->mgInfo->lastRestricted.find(user);
+				auto currentRights = (currentRightsIt != megagroup->mgInfo->lastRestricted.end())
+				? currentRightsIt->second.rights
+				: MTP_channelBannedRights(MTP_flags(0), MTP_int(0));
+				auto hasAdminRights = megagroup->mgInfo->lastAdmins.find(user) != megagroup->mgInfo->lastAdmins.cend();
+				auto box = Box<EditRestrictedBox>(megagroup, user, hasAdminRights, currentRights);
+				box->setSaveCallback([megagroup, user](const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
+					Ui::hideLayer();
+					MTP::send(MTPchannels_EditBanned(megagroup->inputChannel, user->inputUser, newRights));
+				});
+				Ui::show(std::move(box));
+			} else {
+				Auth().api().kickParticipant(
+					_moderateInChannel,
+					_moderateFrom,
+					MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
+			}
 		}
 		if (_reportSpam->checked()) {
 			MTP::send(
@@ -609,7 +631,8 @@ void DeleteMessagesBox::deleteAndClear() {
 	for (auto i = idsByPeer.cbegin(), e = idsByPeer.cend(); i != e; ++i) {
 		App::main()->deleteMessages(i.key(), i.value(), forEveryone);
 	}
-	Ui::hideLayer();
+	if (!cShowRestrict() || !(_banUser && _banUser->checked()))
+		Ui::hideLayer();
 	Auth().data().sendHistoryChangeNotifications();
 }
 
@@ -652,7 +675,7 @@ ConfirmInviteBox::ConfirmInviteBox(QWidget*, const QString &title, bool isChanne
 }
 
 void ConfirmInviteBox::prepare() {
-	addButton(langFactory(lng_group_invite_join), [this] {
+	addButton(langFactory(lng_group_invite_join), [] {
 		if (auto main = App::main()) {
 			main->onInviteImport();
 		}

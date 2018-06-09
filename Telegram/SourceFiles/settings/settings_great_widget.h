@@ -19,7 +19,6 @@ public:
 	GreatWidget(QWidget *parent, UserData *self);
 
 private slots:
-	void onRestart();
 	void onTyping();
 
 private:
@@ -29,6 +28,7 @@ private:
 	void onUsername();
 	void onIgnore();
 	void onTagMention();
+	void onShowRestrict();
 	void onTextMention();
 	void onAutoCopy();
 
@@ -36,6 +36,7 @@ private:
 	Ui::Checkbox *_enableUsername = nullptr;
 	Ui::Checkbox *_enableIgnore = nullptr;
 	Ui::Checkbox *_enableTagMention = nullptr;
+	Ui::Checkbox *_enableShowRestrict = nullptr;
 	Ui::Checkbox *_enableTextMention = nullptr;
 	Ui::Checkbox *_enableAutoCopy = nullptr;
 	Ui::Checkbox *_enableUnstable = nullptr;

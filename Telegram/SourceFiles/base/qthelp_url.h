@@ -24,4 +24,6 @@ enum class UrlParamNameTransform {
 // Parses a string like "p1=v1&p2=v2&..&pn=vn" to a map.
 QMap<QString, QString> url_parse_params(const QString &params, UrlParamNameTransform transform = UrlParamNameTransform::NoTransform);
 
+bool is_ipv6(const QString &ip);
+
 } // namespace qthelp

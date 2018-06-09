@@ -568,17 +568,88 @@ void StickersBox::setInnerFocus() {
 }
 
 void StickersBox::exportAllSets() {
-	QString result = "Stickers list by @Telegreat";
+#ifdef Q_OS_WIN
+	QString zws = " ";   // Normal Space
+#else
+	QString zws = "\u200b";   // Zero-width Space
+#endif
+
+	QString header = ":eight_spoked_asterisk: " + lng_telegreat_stickers_export_header(lt_user, App::self()->asUser()->username) + "\n";
+	QString footer = ":star: " + lang(lng_telegreat_stickers_export_footer);
+	QString format = "%1. %2 %3 https://t.me/addstickers/%4  (%5)\n";
+
 	auto &order = Auth().data().stickerSetsOrder();
-	auto &sets = Auth().data().stickerSets();
+	auto &userSets = Auth().data().stickerSets();
+	QList<Stickers::Set> sets;
 	for (auto i = 0, l = order.size(); i < l; ++i) {
-		auto it = sets.constFind(order.at(i));
-		if (it != sets.cend()) {
+		auto it = userSets.constFind(order.at(i));
+		if (it != userSets.cend())
 			if (!(it->flags & MTPDstickerSet::Flag::f_archived)) {
-				result.append("\nt.me/addstickers/").append(it->shortName);
+				if (!sets.size())
+					sets.append(*it);  // padding
+				sets.append(*it);   // 1-indexed
 			}
-		}
 	}
+	auto count = sets.size() - 1;
+
+	auto block = (count-5) / 50 + 1;
+
+	int k, i, end, padding, space, zw;
+	QString result = "";
+	for (k=0; k<block; k++) {
+		end = k*50+50;
+		if (end > count   // Latest block
+			|| count-end <= 5)   // Remaining 1 small block
+			end = count;
+
+		QString tmpResult = "";
+		for (padding = 1;
+			(k == block-1 && padding < 15) ||   // Max padding for last block is 15
+			tmpResult.length() < 4096;   // Roughly test string length, break when over 1 message limit
+			++padding) {
+
+			if (padding > 13)   // padding+2 > 15
+				space = 15, zw = padding-13;   // ZW add 2
+			else
+				space = padding+2, zw=0;   // Space add 2
+
+			tmpResult = header;
+			for (i=k*50+1; i<=end; i++) {
+				tmpResult.append(format
+					.arg(i)   // Index
+					.arg(zws.repeated(zw))
+					.arg(sets[i].title.leftJustified(space))   // Padding Name with space to specified length
+					.arg(sets[i].shortName)   // Add Sticker Link
+					.arg(lng_stickers_count(lt_count, sets[i].count)));   // Stickers Count
+
+				if (!(i%5) && i!=end)   // Every 5 sticker sets
+					tmpResult.append("\n");   // two newline, new small block
+			}
+			tmpResult.append(footer);
+		}
+
+		if (padding > 15)
+			space = 15, zw = padding-15;   // Use zero-width Space to paddig
+		else
+			space = padding, zw=0;
+
+		result.append(header);
+		for (i=k*50+1; i<=end; i++) {
+			result.append(format
+				.arg(i)   // Index
+				.arg(zws.repeated(zw))
+				.arg(sets[i].title.leftJustified(space))   // Padding Name with space to specified length
+				.arg(sets[i].shortName)   // Add Sticker Link
+				.arg(lng_stickers_count(lt_count, sets[i].count)));   // Stickers Count
+
+			if (!(i%5) && i!=end)   // Every 5 sticker sets
+				tmpResult.append("\n");   // two newline, new small block
+		}
+		result.append(footer);
+		if (k < block-1)   // If not last block
+			result.append(qsl("\n").repeated(20));   // Append 20 newline
+	}
+
 	Application::clipboard()->setText(result);
 	Ui::Toast::Show(lang(lng_telegreat_stickers_export_copied));
 }

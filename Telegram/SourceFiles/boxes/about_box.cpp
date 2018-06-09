@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "autoupdater.h"
 #include "boxes/confirm_box.h"
 #include "application.h"
 #include "ui/widgets/buttons.h"
@@ -18,9 +17,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "platform/platform_file_utilities.h"
 #include "core/click_handler_types.h"
+#include "core/update_checker.h"
 
 AboutBox::AboutBox(QWidget *parent)
-: _version(this, lng_about_version(lt_version, qsl("%1 (v%2)").arg(cBetaVersion() % 1000).arg(AppVersionStr.c_str())), st::aboutVersionLink)
+: _version(this, lng_about_version(lt_version, QString::fromLatin1(AppVersionStr.c_str()) + (cAlphaVersion() ? " alpha" : "")), st::aboutVersionLink)
 , _text1(this, lang(lng_about_text_1), Ui::FlatLabel::InitType::Rich, st::aboutLabel)
 , _text2(this, lang(lng_about_text_2), Ui::FlatLabel::InitType::Rich, st::aboutLabel)
 , _text3(this, st::aboutLabel) {
@@ -59,11 +59,7 @@ void AboutBox::resizeEvent(QResizeEvent *e) {
 }
 
 void AboutBox::showVersionHistory() {
-	if (cRealBetaVersion()) {
-		QDesktopServices::openUrl(qsl("https://telegre.at/changelog"));
-	} else {
-		QDesktopServices::openUrl(qsl("https://telegre.at"));
-	}
+	QDesktopServices::openUrl(qsl("https://telegre.at/changelog.php"));
 }
 
 void AboutBox::keyPressEvent(QKeyEvent *e) {
@@ -89,6 +85,8 @@ QString telegramFaqLink() {
 }
 
 QString currentVersionText() {
-	auto result = qsl("%1 (v%2)").arg(cBetaVersion() % 1000).arg(AppVersionStr.c_str());
+	auto result = QString::fromLatin1(AppVersionStr.c_str());
+	if (cAlphaVersion())
+		result += " alpha";
 	return result;
 }

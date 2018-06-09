@@ -42,7 +42,8 @@ travisStartFold() {
         travisEndFold
     fi
 
-    echo "travis_fold:start:$NAME"
+#   echo "travis_fold:start:$NAME"
+    echo "START $NAME"
     sameLineInfoMessage "$TITLE"   
 
     TRAVIS_LAST_FOLD="$NAME"
@@ -53,7 +54,8 @@ travisEndFold() {
         return
     fi
 
-    echo "travis_fold:end:$TRAVIS_LAST_FOLD"
+#   echo "travis_fold:end:$TRAVIS_LAST_FOLD"
+    echo "END   $TRAVIS_LAST_FOLD"
     TRAVIS_LAST_FOLD=""
 }
 

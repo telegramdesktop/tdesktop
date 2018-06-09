@@ -531,6 +531,9 @@ void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 
 void InnerWidget::restoreState(not_null<SectionMemento*> memento) {
 	_items = memento->takeItems();
+	for (auto &item : _items) {
+		item.refreshView(this);
+	}
 	_itemsByIds = memento->takeItemsByIds();
 	if (auto manager = memento->takeIdManager()) {
 		_idManager = std::move(manager);
@@ -1190,7 +1193,7 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 						MTP_int(0));
 					editRestrictions(hasAdminRights, bannedRights);
 				}
-			}).fail([this, editRestrictions](const RPCError &error) {
+			}).fail([=](const RPCError &error) {
 				auto bannedRights = MTP_channelBannedRights(
 					MTP_flags(0),
 					MTP_int(0));

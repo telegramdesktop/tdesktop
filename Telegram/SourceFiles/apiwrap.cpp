@@ -908,7 +908,7 @@ void ApiWrap::requestPeers(const QList<PeerData*> &peers) {
 			channels.push_back((*i)->asChannel()->inputChannel);
 		}
 	}
-	auto handleChats = [this](const MTPmessages_Chats &result) {
+	auto handleChats = [=](const MTPmessages_Chats &result) {
 		if (auto chats = Api::getChatsFromMessagesChats(result)) {
 			App::feedChats(*chats);
 		}
@@ -920,7 +920,7 @@ void ApiWrap::requestPeers(const QList<PeerData*> &peers) {
 		request(MTPchannels_GetChannels(MTP_vector<MTPInputChannel>(channels))).done(handleChats).send();
 	}
 	if (!users.isEmpty()) {
-		request(MTPusers_GetUsers(MTP_vector<MTPInputUser>(users))).done([this](const MTPVector<MTPUser> &result) {
+		request(MTPusers_GetUsers(MTP_vector<MTPInputUser>(users))).done([=](const MTPVector<MTPUser> &result) {
 			App::feedUsers(result);
 		}).send();
 	}
@@ -1509,16 +1509,28 @@ void ApiWrap::stickerSetDisenabled(mtpRequestId requestId) {
 	}
 };
 
-void ApiWrap::joinChannel(ChannelData *channel) {
+void ApiWrap::joinChannel(not_null<ChannelData*> channel) {
 	if (channel->amIn()) {
-		Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::ChannelAmIn);
+		Notify::peerUpdatedDelayed(
+			channel,
+			Notify::PeerUpdate::Flag::ChannelAmIn);
 	} else if (!_channelAmInRequests.contains(channel)) {
-		auto requestId = request(MTPchannels_JoinChannel(channel->inputChannel)).done([this, channel](const MTPUpdates &result) {
+		auto requestId = request(MTPchannels_JoinChannel(
+			channel->inputChannel
+		)).done([=](const MTPUpdates &result) {
 			_channelAmInRequests.remove(channel);
 			applyUpdates(result);
-		}).fail([this, channel](const RPCError &error) {
-			if (error.type() == qstr("CHANNELS_TOO_MUCH")) {
+		}).fail([=](const RPCError &error) {
+			if (error.type() == qstr("CHANNEL_PRIVATE")
+				|| error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA")
+				|| error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
+				Ui::show(Box<InformBox>(lang(channel->isMegagroup()
+					? lng_group_not_accessible
+					: lng_channel_not_accessible)));
+			} else if (error.type() == qstr("CHANNELS_TOO_MUCH")) {
 				Ui::show(Box<InformBox>(lang(lng_join_channel_error)));
+			} else if (error.type() == qstr("USERS_TOO_MUCH")) {
+				Ui::show(Box<InformBox>(lang(lng_group_full)));
 			}
 			_channelAmInRequests.remove(channel);
 		}).send();
@@ -1527,14 +1539,18 @@ void ApiWrap::joinChannel(ChannelData *channel) {
 	}
 }
 
-void ApiWrap::leaveChannel(ChannelData *channel) {
+void ApiWrap::leaveChannel(not_null<ChannelData*> channel) {
 	if (!channel->amIn()) {
-		Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::ChannelAmIn);
+		Notify::peerUpdatedDelayed(
+			channel,
+			Notify::PeerUpdate::Flag::ChannelAmIn);
 	} else if (!_channelAmInRequests.contains(channel)) {
-		auto requestId = request(MTPchannels_LeaveChannel(channel->inputChannel)).done([this, channel](const MTPUpdates &result) {
+		auto requestId = request(MTPchannels_LeaveChannel(
+			channel->inputChannel
+		)).done([=](const MTPUpdates &result) {
 			_channelAmInRequests.remove(channel);
 			applyUpdates(result);
-		}).fail([this, channel](const RPCError &error) {
+		}).fail([=](const RPCError &error) {
 			_channelAmInRequests.remove(channel);
 		}).send();
 
@@ -1607,7 +1623,10 @@ void ApiWrap::requestNotifySetting(PeerData *peer) {
 		notifySettingReceived(notifyPeer, result);
 		_notifySettingRequests.remove(peer);
 	}).fail([this, notifyPeer, peer](const RPCError &error) {
-		notifySettingReceived(notifyPeer, MTP_peerNotifySettingsEmpty());
+		notifySettingReceived(notifyPeer, MTP_peerNotifySettings(
+			MTP_flags(MTPDpeerNotifySettings::Flag::f_show_previews),
+			MTP_int(0),
+			MTP_string("default")));
 		_notifySettingRequests.remove(peer);
 	}).send();
 
@@ -1686,7 +1705,7 @@ void ApiWrap::handlePrivacyChange(mtpTypeId keyTypeId, const MTPVector<MTPPrivac
 		}
 
 		auto now = unixtime();
-		App::enumerateUsers([&userRules, contactsRule, everyoneRule, now](UserData *user) {
+		App::enumerateUsers([&](UserData *user) {
 			if (user->isSelf() || user->loadedStatus != PeerData::FullLoaded) {
 				return;
 			}
@@ -2017,7 +2036,7 @@ void ApiWrap::requestParticipantsCountDelayed(
 		not_null<ChannelData*> channel) {
 	_participantsCountRequestTimer.call(
 		kReloadChannelMembersTimeout,
-		[this, channel] { channel->updateFullForced(); });
+		[=] { channel->updateFullForced(); });
 }
 
 void ApiWrap::requestChannelRangeDifference(not_null<History*> history) {
@@ -2280,7 +2299,7 @@ void ApiWrap::requestStickers(TimeId now) {
 	};
 	_stickersUpdateRequest = request(MTPmessages_GetAllStickers(
 		MTP_int(Local::countStickersHash(true))
-	)).done(onDone).fail([this, onDone](const RPCError &error) {
+	)).done(onDone).fail([=](const RPCError &error) {
 		LOG(("App Fail: Failed to get stickers!"));
 		onDone(MTP_messages_allStickersNotModified());
 	}).send();
@@ -3568,6 +3587,12 @@ void ApiWrap::sendSharedContact(
 		MTP_string(firstName),
 		MTP_string(lastName));
 	sendMedia(item, media, peer->notifySilentPosts());
+
+	if (const auto main = App::main()) {
+		_session->data().sendHistoryChangeNotifications();
+		main->historyToDown(history);
+		main->dialogsToUp();
+	}
 }
 
 void ApiWrap::sendVoiceMessage(
@@ -3716,7 +3741,7 @@ void ApiWrap::uploadAlbumMedia(
 		const MessageGroupId &groupId,
 		const MTPInputMedia &media) {
 	const auto localId = item->fullId();
-	const auto failed = [this] {
+	const auto failed = [=] {
 
 	};
 	request(MTPmessages_UploadMedia(

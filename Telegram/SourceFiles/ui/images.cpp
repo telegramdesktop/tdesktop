@@ -214,7 +214,7 @@ void prepareRound(
 	auto intsTopRight = ints + target.x() + target.width() - cornerWidth + target.y() * imageWidth;
 	auto intsBottomLeft = ints + target.x() + (target.y() + target.height() - cornerHeight) * imageWidth;
 	auto intsBottomRight = ints + target.x() + target.width() - cornerWidth + (target.y() + target.height() - cornerHeight) * imageWidth;
-	auto maskCorner = [imageWidth, imageHeight, imageIntsPerPixel, imageIntsPerLine](uint32 *imageInts, const QImage &mask) {
+	auto maskCorner = [&](uint32 *imageInts, const QImage &mask) {
 		auto maskWidth = mask.width();
 		auto maskHeight = mask.height();
 		auto maskBytesPerPixel = (mask.depth() >> 3);
@@ -797,7 +797,9 @@ void Image::forget() const {
 	if (_data.isNull()) return;
 
 	invalidateSizeCache();
-	if (_saved.isEmpty()) {
+	/*if (hasLocalCopy()) {
+		_saved.clear();
+	} else */if (_saved.isEmpty()) {
 		QBuffer buffer(&_saved);
 		if (!_data.save(&buffer, _format)) {
 			if (_data.save(&buffer, "PNG")) {
@@ -1030,6 +1032,10 @@ int32 StorageImage::countHeight() const {
 	return _location.height();
 }
 
+bool StorageImage::hasLocalCopy() const {
+	return Local::willImageLoad(storageKey(_location));
+}
+
 void StorageImage::setInformation(int32 size, int32 width, int32 height) {
 	_size = size;
 	_location.setSize(width, height);
@@ -1068,6 +1074,10 @@ int WebFileImage::countWidth() const {
 
 int WebFileImage::countHeight() const {
 	return _height;
+}
+
+bool WebFileImage::hasLocalCopy() const {
+	return Local::willImageLoad(storageKey(_location));
 }
 
 void WebFileImage::setInformation(int size, int width, int height) {
@@ -1192,6 +1202,10 @@ int32 WebImage::countWidth() const {
 
 int32 WebImage::countHeight() const {
 	return _height;
+}
+
+bool WebImage::hasLocalCopy() const {
+	return Local::willWebFileLoad(_url);
 }
 
 void WebImage::setInformation(int32 size, int32 width, int32 height) {

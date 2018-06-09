@@ -63,7 +63,7 @@ set "SignPath=%HomePath%\..\..\TelegramPrivate\Sign.bat"
 set "SignAppxPath=%HomePath%\..\..\TelegramPrivate\AppxSign.bat"
 set "BinaryName=Telegreat"
 set "DropboxSymbolsPath=D:\TBuild\symbols"
-set "FinalReleasePath=D:\TBuild\deploy_temp\tsetup"
+set "FinalReleasePath=D:\TBuild\backup"
 
 if not exist %DropboxSymbolsPath% (
   echo Dropbox path %DropboxSymbolsPath% not found!
@@ -249,7 +249,7 @@ if %BuildUWP% neq 0 (
   if %errorlevel% neq 0 goto error
 )
 
-set "FinalDeployPath=%FinalReleasePath%\%AppVersionStrMajor%\%AppVersionStrFull%"
+set "FinalDeployPath=%FinalReleasePath%\%AppVersionStrMajor%\%AppVersionStrFull%\tsetup"
 
 if %BuildUWP% equ 0 (
   echo.
@@ -264,8 +264,7 @@ if %BuildUWP% equ 0 (
   if not exist "%DeployPath%\Updater.exe" goto error
   if not exist "%DeployPath%\Updater.pdb" goto error
   if not exist "%DeployPath%\Updater.exe.pdb" goto error
-  if not exist "%FinalReleasePath%\%AppVersionStrMajor%" mkdir "%FinalReleasePath%\%AppVersionStrMajor%"
-  if not exist "%FinalDeployPath%" mkdir "%FinalDeployPath%"
+  md "%FinalDeployPath%"
 
   xcopy "%DeployPath%\%UpdateFile%" "%FinalDeployPath%\" /Y
   xcopy "%DeployPath%\%PortableFile%" "%FinalDeployPath%\" /Y

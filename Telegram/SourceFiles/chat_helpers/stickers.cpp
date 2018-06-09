@@ -783,9 +783,9 @@ std::vector<not_null<DocumentData*>> GetListByEmoji(
 	addList(
 		Auth().data().stickerSetsOrder(),
 		MTPDstickerSet::Flag::f_archived);
-	addList(
-		Auth().data().featuredStickerSetsOrder(),
-		MTPDstickerSet::Flag::f_installed_date);
+	//addList(
+	//	Auth().data().featuredStickerSetsOrder(),
+	//	MTPDstickerSet::Flag::f_installed_date);
 
 	if (!setsToRequest.empty()) {
 		for (const auto [setId, accessHash] : setsToRequest) {
@@ -794,13 +794,15 @@ std::vector<not_null<DocumentData*>> GetListByEmoji(
 		Auth().api().requestStickerSets();
 	}
 
-	const auto others = Auth().api().stickersByEmoji(original);
-	if (!others) {
-		return {};
-	}
-	result.reserve(result.size() + others->size());
-	for (const auto document : *others) {
-		add(document, CreateOtherSortKey(document));
+	if (Global::SuggestStickersByEmoji()) {
+		const auto others = Auth().api().stickersByEmoji(original);
+		if (!others) {
+			return {};
+		}
+		result.reserve(result.size() + others->size());
+		for (const auto document : *others) {
+			add(document, CreateOtherSortKey(document));
+		}
 	}
 
 	ranges::action::sort(

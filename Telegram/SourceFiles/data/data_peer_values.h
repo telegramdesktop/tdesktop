@@ -34,7 +34,7 @@ inline auto SingleFlagValue(
 	return FlagsValueWithMask(
 		std::move(value),
 		flag
-	) | rpl::map([flag](typename ChangeType::Type value) {
+	) | rpl::map([](typename ChangeType::Type value) {
 		return !!value;
 	});
 }

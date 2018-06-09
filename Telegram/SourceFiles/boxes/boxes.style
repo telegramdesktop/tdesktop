@@ -117,6 +117,11 @@ boxLabel: FlatLabel(defaultFlatLabel) {
 	align: align(topleft);
 	style: boxLabelStyle;
 }
+boxDividerLabel: FlatLabel(boxLabel) {
+	minWidth: 245px;
+	textFg: windowSubTextFg;
+	style: defaultTextStyle;
+}
 
 countryRowHeight: 36px;
 countryRowNameFont: semiboldFont;
@@ -711,3 +716,68 @@ sendMediaFileThumbSize: 64px;
 sendMediaFileThumbSkip: 10px;
 sendMediaFileNameTop: 7px;
 sendMediaFileStatusTop: 37px;
+
+proxyUsePadding: margins(22px, 6px, 22px, 5px);
+proxyTryIPv6Padding: margins(22px, 8px, 22px, 5px);
+proxyRowPadding: margins(22px, 8px, 8px, 8px);
+proxyRowIconSkip: 32px;
+proxyRowSkip: 2px;
+proxyRowRipple: RippleAnimation(defaultRippleAnimation) {
+	color: windowBgOver;
+}
+proxyRowSelectedIcon: icon {{ "passport_ready", windowActiveTextFg }};
+proxyRowTitleFg: windowFg;
+proxyRowTitlePalette: TextPalette(defaultTextPalette) {
+	linkFg: windowSubTextFg;
+}
+proxyRowTitleStyle: TextStyle(defaultTextStyle) {
+	font: semiboldFont;
+	linkFont: normalFont;
+	linkFontOver: normalFont;
+}
+proxyRowStatusFg: windowSubTextFg;
+proxyRowStatusFgOnline: windowActiveTextFg;
+proxyRowStatusFgOffline: boxTextFgError;
+proxyRowStatusFgAvailable: boxTextFgGood;
+proxyRowEdit: IconButton(defaultIconButton) {
+	width: 40px;
+	height: 40px;
+
+	icon: icon {{ "settings_edit_name", menuIconFg }};
+	iconOver: icon {{ "settings_edit_name", menuIconFgOver }};
+	iconPosition: point(12px, 13px);
+
+	rippleAreaSize: 40px;
+	rippleAreaPosition: point(0px, 0px);
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+
+proxyEditTitle: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: autoDownloadTitleFont;
+	}
+	textFg: boxTitleFg;
+}
+proxyEditTitlePadding: margins(22px, 16px, 22px, 0px);
+proxyEditTypePadding: margins(22px, 4px, 22px, 8px);
+proxyEditInputPadding: margins(22px, 0px, 22px, 0px);
+proxyEditSkip: 16px;
+
+proxyEmptyListLabel: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	textFg: windowSubTextFg;
+}
+proxyEmptyListPadding: margins(22px, 48px, 22px, 0px);
+proxyCheckingPosition: point(2px, 5px);
+proxyCheckingSkip: 6px;
+proxyCheckingAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	color: windowSubTextFg;
+	thickness: 1px;
+	size: size(8px, 8px);
+}
+proxyDropdownDownPosition: point(-2px, 35px);
+proxyDropdownUpPosition: point(-2px, 20px);
+
+proxyAboutPadding: margins(22px, 7px, 22px, 14px);

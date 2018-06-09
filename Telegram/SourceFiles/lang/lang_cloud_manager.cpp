@@ -108,6 +108,7 @@ void CloudManager::requestLanguageList() {
 		languages.push_back({"Telegreat_zh_TW", "Chinese (Taiwan)", "正體中文 (臺灣)"});
 		languages.push_back({"Telegreat_zh_CN", "Simplified Chinese", "简体中文"});
 		languages.push_back({"Telegreat_zh_HK", "Chinese (Hong Kong)", "繁體中文 (香港)"});
+		languages.push_back({"Telegreat_zh_OW", "Chinese (Enchanter)", "魔法師中文"});
 		languages.push_back({"Telegreat_ca", "Catalan", "Català"});
 		languages.push_back({"Telegreat_he", "Hebrew", "עִברִית"});
 		for_const (auto &langData, result.v) {

@@ -25,23 +25,12 @@ enum {
 	MTPAckSendWaiting = 10000, // how much time to wait for some more requests, when sending msg acks
 	MTPResendThreshold = 1, // how much ints should message contain for us not to resend, but to check it's state
 	MTPContainerLives = 600, // container lives 10 minutes in haveSent map
-	MTPMinReceiveDelay = 4000, // 4 seconds
-	MTPMaxReceiveDelay = 64000, // 64 seconds
-	MTPMinConnectDelay = 1000, // tcp connect should take less then 1 second
-	MTPMaxConnectDelay = 8000, // tcp connect should take 8 seconds max
-	MTPConnectionOldTimeout = 192000, // 192 seconds
-	MTPTcpConnectionWaitTimeout = 2000, // 2 seconds waiting for tcp, until we accept http
-	MTPIPv4ConnectionWaitTimeout = 1000, // 1 seconds waiting for ipv4, until we accept ipv6
 
 	MTPKillFileSessionTimeout = 5000, // how much time without upload / download causes additional session kill
 
 	MTPDebugBufferSize = 1024 * 1024, // 1 mb start size
 
 	MaxUsersPerInvite = 100, // max users in one super group invite request
-
-	MTPPingDelayDisconnect = 60, // 1 min
-	MTPPingSendAfterAuto = 30, // send new ping starting from 30 seconds (add to existing container)
-	MTPPingSendAfter = 45, // send new ping after 45 seconds without ping
 
 	MTPChannelGetDifferenceLimit = 100,
 
@@ -163,11 +152,11 @@ static const BuiltInDc _builtInDcs[] = {
 };
 
 static const BuiltInDc _builtInDcsIPv6[] = {
-	{ 1, "2001:b28:f23d:f001::a", 443 },
-	{ 2, "2001:67c:4e8:f002::a", 443 },
-	{ 3, "2001:b28:f23d:f003::a", 443 },
-	{ 4, "2001:67c:4e8:f004::a", 443 },
-	{ 5, "2001:b28:f23f:f005::a", 443 }
+	{ 1, "2001:0b28:f23d:f001:0000:0000:0000:000a", 443 },
+	{ 2, "2001:067c:04e8:f002:0000:0000:0000:000a", 443 },
+	{ 3, "2001:0b28:f23d:f003:0000:0000:0000:000a", 443 },
+	{ 4, "2001:067c:04e8:f004:0000:0000:0000:000a", 443 },
+	{ 5, "2001:0b28:f23f:f005:0000:0000:0000:000a", 443 }
 };
 
 static const BuiltInDc _builtInTestDcs[] = {
@@ -177,9 +166,9 @@ static const BuiltInDc _builtInTestDcs[] = {
 };
 
 static const BuiltInDc _builtInTestDcsIPv6[] = {
-	{ 1, "2001:b28:f23d:f001::e", 443 },
-	{ 2, "2001:67c:4e8:f002::e", 443 },
-	{ 3, "2001:b28:f23d:f003::e", 443 }
+	{ 1, "2001:0b28:f23d:f001:0000:0000:0000:000e", 443 },
+	{ 2, "2001:067c:04e8:f002:0000:0000:0000:000e", 443 },
+	{ 3, "2001:0b28:f23d:f003:0000:0000:0000:000e", 443 }
 };
 
 inline const BuiltInDc *builtInDcs() {
@@ -218,7 +207,7 @@ ihUthkqjdoGaXmm9PhK2JPdFm1lKoYGC0A/u6yp35gch0dRk/4NzAgMBAAE=\n\
 //#include "../../../TelegramPrivate/custom_api_id.h" // Custom API id and API hash
 //#else
 static const int32 ApiId = 45735;
-static const char *ApiHash = "";
+static const char *ApiHash = "6685194f787f91058cbc0fe77b4eb139";
 //#endif
 
 #if Q_BYTE_ORDER == Q_BIG_ENDIAN

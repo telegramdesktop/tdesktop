@@ -25,6 +25,7 @@
     <file alias="lang_zh_TW.strings">../langs/lang_zh_TW.strings</file>
     <file alias="lang_zh_CN.strings">../langs/lang_zh_CN.strings</file>
     <file alias="lang_zh_HK.strings">../langs/lang_zh_HK.strings</file>
+    <file alias="lang_zh_OW.strings">../langs/lang_zh_OW.strings</file>
     <file alias="lang_ca.strings">../langs/lang_ca.strings</file>
     <file alias="lang_he.strings">../langs/lang_he.strings</file>
   </qresource>

@@ -236,6 +236,57 @@ namespace {
 	_MsStarter _msStarter;
 }
 
+bool ProxyData::valid() const {
+	if (type == Type::None || host.isEmpty() || !port) {
+		return false;
+	} else if (type == Type::Mtproto && !ValidSecret(password)) {
+		return false;
+	}
+	return true;
+}
+
+bool ProxyData::supportsCalls() const {
+	return (type == Type::Socks5);
+}
+
+ProxyData::operator bool() const {
+	return valid();
+}
+
+bool ProxyData::operator==(const ProxyData &other) const {
+	if (!valid()) {
+		return !other.valid();
+	}
+	return (type == other.type)
+		&& (host == other.host)
+		&& (port == other.port)
+		&& (user == other.user)
+		&& (password == other.password);
+}
+
+bool ProxyData::operator!=(const ProxyData &other) const {
+	return !(*this == other);
+}
+
+bool ProxyData::ValidSecret(const QString &secret) {
+	return QRegularExpression("^[a-fA-F0-9]{32}$").match(secret).hasMatch();
+}
+
+QNetworkProxy ToNetworkProxy(const ProxyData &proxy) {
+	if (proxy.type == ProxyData::Type::None
+		|| proxy.type == ProxyData::Type::Mtproto) {
+		return QNetworkProxy::NoProxy;
+	}
+	return QNetworkProxy(
+		(proxy.type == ProxyData::Type::Socks5
+			? QNetworkProxy::Socks5Proxy
+			: QNetworkProxy::HttpProxy),
+		proxy.host,
+		proxy.port,
+		proxy.user,
+		proxy.password);
+}
+
 namespace ThirdParty {
 
 	void start() {

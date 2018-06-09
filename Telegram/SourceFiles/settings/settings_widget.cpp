@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtp_instance.h"
 #include "mtproto/dc_options.h"
 #include "core/file_utilities.h"
+#include "core/update_checker.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"
 #include "media/media_audio_track.h"
@@ -47,6 +48,11 @@ void fillCodes() {
 			Messenger::Instance().onSwitchTestMode();
 		}));
 	});
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	Codes.insert(qsl("testupdate"), [] {
+		Core::UpdateChecker().test();
+	});
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
 	Codes.insert(qsl("loadlang"), [] {
 		Lang::CurrentCloudManager().switchToLanguage(qsl("custom"));
 	});

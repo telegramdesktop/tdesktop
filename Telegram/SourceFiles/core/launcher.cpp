@@ -109,7 +109,6 @@ void Launcher::prepareSettings() {
 
 	switch (cPlatform()) {
 	case dbipWindows:
-		gUpdateURL = QUrl(qsl("https://telegre.at/tupdates/win.php"));
 #ifndef OS_WIN_STORE
 		gPlatformString = qsl("Windows");
 #else // OS_WIN_STORE
@@ -117,7 +116,6 @@ void Launcher::prepareSettings() {
 #endif // OS_WIN_STORE
 	break;
 	case dbipMac:
-		gUpdateURL = QUrl(qsl("https://telegre.at/tupdates/mac.php"));
 #ifndef OS_MAC_STORE
 		gPlatformString = qsl("MacOS");
 #else // OS_MAC_STORE
@@ -125,15 +123,12 @@ void Launcher::prepareSettings() {
 #endif // OS_MAC_STORE
 	break;
 	case dbipMacOld:
-		gUpdateURL = QUrl(qsl("https://telegre.at/tupdates/mac32.php"));
 		gPlatformString = qsl("MacOSold");
 	break;
 	case dbipLinux64:
-		gUpdateURL = QUrl(qsl("https://telegre.at/tupdates/linux.php"));
 		gPlatformString = qsl("Linux64bit");
 	break;
 	case dbipLinux32:
-		gUpdateURL = QUrl(qsl("https://telegre.at/tupdates/linux32.php"));
 		gPlatformString = qsl("Linux32bit");
 	break;
 	}

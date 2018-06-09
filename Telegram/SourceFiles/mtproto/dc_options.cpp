@@ -62,7 +62,9 @@ AQIDAQAB\n\
 
 class DcOptions::WriteLocker {
 public:
-	WriteLocker(DcOptions *that) : _that(that), _lock(&_that->_useThroughLockers) {
+	WriteLocker(not_null<DcOptions*> that)
+	: _that(that)
+	, _lock(&_that->_useThroughLockers) {
 	}
 	~WriteLocker() {
 		_that->computeCdnDcIds();
@@ -76,7 +78,8 @@ private:
 
 class DcOptions::ReadLocker {
 public:
-	ReadLocker(const DcOptions *that) : _lock(&that->_useThroughLockers) {
+	ReadLocker(not_null<const DcOptions*> that)
+	: _lock(&that->_useThroughLockers) {
 	}
 
 private:
@@ -105,74 +108,66 @@ void DcOptions::constructFromBuiltIn() {
 
 	auto bdcs = builtInDcs();
 	for (auto i = 0, l = builtInDcsCount(); i != l; ++i) {
-		auto flags = MTPDdcOption::Flags(0);
-		auto idWithShift = MTP::shiftDcId(bdcs[i].id, flags);
-		_data.emplace(idWithShift, Option(bdcs[i].id, flags, bdcs[i].ip, bdcs[i].port));
-		DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
+		const auto flags = Flag::f_static | 0;
+		const auto bdc = bdcs[i];
+		applyOneGuarded(bdc.id, flags, bdc.ip, bdc.port, {});
+		DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: "
+			"%2:%3").arg(bdc.id).arg(bdc.ip).arg(bdc.port));
 	}
 
 	auto bdcsipv6 = builtInDcsIPv6();
 	for (auto i = 0, l = builtInDcsCountIPv6(); i != l; ++i) {
-		auto flags = MTPDdcOption::Flags(MTPDdcOption::Flag::f_ipv6);
-		auto idWithShift = MTP::shiftDcId(bdcsipv6[i].id, flags);
-		_data.emplace(idWithShift, Option(bdcsipv6[i].id, flags, bdcsipv6[i].ip, bdcsipv6[i].port));
-		DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: %2:%3").arg(bdcsipv6[i].id).arg(bdcsipv6[i].ip).arg(bdcsipv6[i].port));
+		const auto flags = Flag::f_static | Flag::f_ipv6;
+		const auto bdc = bdcsipv6[i];
+		applyOneGuarded(bdc.id, flags, bdc.ip, bdc.port, {});
+		DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: "
+			"%2:%3").arg(bdc.id).arg(bdc.ip).arg(bdc.port));
 	}
 }
 
-void DcOptions::processFromList(const QVector<MTPDcOption> &options, bool overwrite) {
+void DcOptions::processFromList(
+		const QVector<MTPDcOption> &options,
+		bool overwrite) {
 	if (options.empty() || _immutable) {
 		return;
 	}
 
-	auto idsChanged = std::vector<DcId>();
-	idsChanged.reserve(options.size());
-	auto shiftedIdsProcessed = std::vector<ShiftedDcId>();
-	shiftedIdsProcessed.reserve(options.size());
-	{
-		WriteLocker lock(this);
+	auto data = [&] {
 		if (overwrite) {
-			idsChanged.reserve(_data.size());
+			return std::map<DcId, std::vector<Endpoint>>();
 		}
-		for (auto &mtpOption : options) {
-			if (mtpOption.type() != mtpc_dcOption) {
-				LOG(("Wrong type in DcOptions: %1").arg(mtpOption.type()));
-				continue;
-			}
+		ReadLocker lock(this);
+		return _data;
+	}();
+	for (auto &mtpOption : options) {
+		if (mtpOption.type() != mtpc_dcOption) {
+			LOG(("Wrong type in DcOptions: %1").arg(mtpOption.type()));
+			continue;
+		}
 
-			auto &option = mtpOption.c_dcOption();
-			auto dcId = option.vid.v;
-			auto flags = option.vflags.v;
-			auto dcIdWithShift = MTP::shiftDcId(dcId, flags);
-			if (base::contains(shiftedIdsProcessed, dcIdWithShift)) {
-				continue;
-			}
-
-			shiftedIdsProcessed.push_back(dcIdWithShift);
-			auto ip = std::string(option.vip_address.v.constData(), option.vip_address.v.size());
-			auto port = option.vport.v;
-			if (applyOneGuarded(dcId, flags, ip, port)) {
-				if (!base::contains(idsChanged, dcId)) {
-					idsChanged.push_back(dcId);
-				}
-			}
-		}
-		if (overwrite && shiftedIdsProcessed.size() < _data.size()) {
-			for (auto i = _data.begin(); i != _data.end();) {
-				if (base::contains(shiftedIdsProcessed, i->first)) {
-					++i;
-				} else {
-					if (!base::contains(idsChanged, i->second.id)) {
-						idsChanged.push_back(i->second.id);
-					}
-					i = _data.erase(i);
-				}
-			}
-		}
+		auto &option = mtpOption.c_dcOption();
+		auto dcId = option.vid.v;
+		auto flags = option.vflags.v;
+		auto ip = std::string(
+			option.vip_address.v.constData(),
+			option.vip_address.v.size());
+		auto port = option.vport.v;
+		auto secret = option.has_secret()
+			? bytes::make_vector(option.vsecret.v)
+			: bytes::vector();
+		ApplyOneOption(data, dcId, flags, ip, port, secret);
 	}
 
-	if (!idsChanged.empty()) {
-		_changed.notify(std::move(idsChanged));
+	auto difference = [&] {
+		WriteLocker lock(this);
+		auto result = CountOptionsDifference(_data, data);
+		if (!result.empty()) {
+			_data = std::move(data);
+		}
+		return result;
+	}();
+	if (!difference.empty()) {
+		_changed.notify(std::move(difference));
 	}
 }
 
@@ -199,20 +194,28 @@ void DcOptions::addFromOther(DcOptions &&options) {
 		idsChanged.reserve(options._data.size());
 		{
 			WriteLocker lock(this);
-			for (auto &item : base::take(options._data)) {
-				auto dcId = item.second.id;
-				auto flags = item.second.flags;
-				auto &ip = item.second.ip;
-				auto port = item.second.port;
-				if (applyOneGuarded(dcId, flags, ip, port)) {
-					if (!base::contains(idsChanged, dcId)) {
-						idsChanged.push_back(dcId);
+			const auto changed = [&](const std::vector<Endpoint> &list) {
+				auto result = false;
+				for (const auto &endpoint : list) {
+					const auto dcId = endpoint.id;
+					const auto flags = endpoint.flags;
+					const auto &ip = endpoint.ip;
+					const auto port = endpoint.port;
+					const auto &secret = endpoint.secret;
+					if (applyOneGuarded(dcId, flags, ip, port, secret)) {
+						result = true;
 					}
 				}
+				return result;
+			};
+			for (const auto &item : base::take(options._data)) {
+				if (changed(item.second)) {
+					idsChanged.push_back(item.first);
+				}
 			}
-			for (auto &keysForDc : options._cdnPublicKeys) {
-				for (auto &entry : keysForDc.second) {
-					_cdnPublicKeys[keysForDc.first].insert(std::move(entry));
+			for (auto &item : options._cdnPublicKeys) {
+				for (auto &entry : item.second) {
+					_cdnPublicKeys[item.first].insert(std::move(entry));
 				}
 			}
 		}
@@ -223,24 +226,97 @@ void DcOptions::addFromOther(DcOptions &&options) {
 	}
 }
 
-void DcOptions::constructAddOne(int id, MTPDdcOption::Flags flags, const std::string &ip, int port) {
+void DcOptions::constructAddOne(
+		int id,
+		Flags flags,
+		const std::string &ip,
+		int port,
+		const bytes::vector &secret) {
 	WriteLocker lock(this);
-	applyOneGuarded(bareDcId(id), flags, ip, port);
+	applyOneGuarded(bareDcId(id), flags, ip, port, secret);
 }
 
-bool DcOptions::applyOneGuarded(DcId dcId, MTPDdcOption::Flags flags, const std::string &ip, int port) {
-	auto dcIdWithShift = MTP::shiftDcId(dcId, flags);
-	auto i = _data.find(dcIdWithShift);
-	if (i != _data.cend()) {
-		if (i->second.ip == ip && i->second.port == port) {
-			return false;
+bool DcOptions::applyOneGuarded(
+		DcId dcId,
+		Flags flags,
+		const std::string &ip,
+		int port,
+		const bytes::vector &secret) {
+	return ApplyOneOption(_data, dcId, flags, ip, port, secret);
+}
+
+bool DcOptions::ApplyOneOption(
+		std::map<DcId, std::vector<Endpoint>> &data,
+		DcId dcId,
+		Flags flags,
+		const std::string &ip,
+		int port,
+		const bytes::vector &secret) {
+	auto i = data.find(dcId);
+	if (i != data.cend()) {
+		for (auto &endpoint : i->second) {
+			if (endpoint.ip == ip && endpoint.port == port) {
+				return false;
+			}
 		}
-		i->second.ip = ip;
-		i->second.port = port;
+		i->second.push_back(Endpoint(dcId, flags, ip, port, secret));
 	} else {
-		_data.emplace(dcIdWithShift, Option(dcId, flags, ip, port));
+		data.emplace(dcId, std::vector<Endpoint>(
+			1,
+			Endpoint(dcId, flags, ip, port, secret)));
 	}
 	return true;
+}
+
+auto DcOptions::CountOptionsDifference(
+		const std::map<DcId, std::vector<Endpoint>> &a,
+		const std::map<DcId, std::vector<Endpoint>> &b) -> Ids {
+	auto result = Ids();
+	const auto find = [](
+			const std::vector<Endpoint> &where,
+			const Endpoint &what) {
+		for (const auto &endpoint : where) {
+			if (endpoint.ip == what.ip && endpoint.port == what.port) {
+				return true;
+			}
+		}
+		return false;
+	};
+	const auto equal = [&](
+			const std::vector<Endpoint> &m,
+			const std::vector<Endpoint> &n) {
+		if (m.size() != n.size()) {
+			return false;
+		}
+		for (const auto &endpoint : m) {
+			if (!find(n, endpoint)) {
+				return false;
+			}
+		}
+		return true;
+	};
+
+	auto i = begin(a);
+	auto j = begin(b);
+	const auto max = std::numeric_limits<DcId>::max();
+	while (i != end(a) || j != end(b)) {
+		const auto aId = (i == end(a)) ? max : i->first;
+		const auto bId = (j == end(b)) ? max : j->first;
+		if (aId < bId) {
+			result.push_back(aId);
+			++i;
+		} else if (bId < aId) {
+			result.push_back(bId);
+			++j;
+		} else {
+			if (!equal(i->second, j->second)) {
+				result.push_back(aId);
+			}
+			++i;
+			++j;
+		}
+	}
+	return result;
 }
 
 QByteArray DcOptions::serialize() const {
@@ -252,14 +328,24 @@ QByteArray DcOptions::serialize() const {
 	ReadLocker lock(this);
 
 	auto size = sizeof(qint32);
-	for (auto &item : _data) {
+
+	// Dc options.
+	auto optionsCount = 0;
+	size += sizeof(qint32);
+	for (const auto &item : _data) {
 		if (isTemporaryDcId(item.first)) {
 			continue;
 		}
-		size += sizeof(qint32) + sizeof(qint32) + sizeof(qint32); // id + flags + port
-		size += sizeof(qint32) + item.second.ip.size();
+		for (const auto &endpoint : item.second) {
+			++optionsCount;
+			// id + flags + port
+			size += sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
+			size += sizeof(qint32) + endpoint.ip.size();
+			size += sizeof(qint32) + endpoint.secret.size();
+		}
 	}
 
+	// CDN public keys.
 	auto count = 0;
 	for (auto &keysInDc : _cdnPublicKeys) {
 		count += keysInDc.second.size();
@@ -271,30 +357,54 @@ QByteArray DcOptions::serialize() const {
 	};
 	std::vector<SerializedPublicKey> publicKeys;
 	publicKeys.reserve(count);
-	for (auto &keysInDc : _cdnPublicKeys) {
-		for (auto &entry : keysInDc.second) {
-			publicKeys.push_back({ keysInDc.first, entry.second.getN(), entry.second.getE() });
-			size += sizeof(qint32) + Serialize::bytesSize(publicKeys.back().n) + Serialize::bytesSize(publicKeys.back().e);
+	size += sizeof(qint32);
+	for (const auto &keysInDc : _cdnPublicKeys) {
+		for (const auto &entry : keysInDc.second) {
+			publicKeys.push_back({
+				keysInDc.first,
+				entry.second.getN(),
+				entry.second.getE()
+			});
+			size += sizeof(qint32)
+				+ Serialize::bytesSize(publicKeys.back().n)
+				+ Serialize::bytesSize(publicKeys.back().e);
 		}
 	}
+
+	constexpr auto kVersion = 1;
 
 	auto result = QByteArray();
 	result.reserve(size);
 	{
 		QDataStream stream(&result, QIODevice::WriteOnly);
 		stream.setVersion(QDataStream::Qt_5_1);
-		stream << qint32(_data.size());
-		for (auto &item : _data) {
+		stream << qint32(-kVersion);
+
+		// Dc options.
+		stream << qint32(optionsCount);
+		for (const auto &item : _data) {
 			if (isTemporaryDcId(item.first)) {
 				continue;
 			}
-			stream << qint32(item.second.id) << qint32(item.second.flags) << qint32(item.second.port);
-			stream << qint32(item.second.ip.size());
-			stream.writeRawData(item.second.ip.data(), item.second.ip.size());
+			for (const auto &endpoint : item.second) {
+				stream << qint32(endpoint.id)
+					<< qint32(endpoint.flags)
+					<< qint32(endpoint.port)
+					<< qint32(endpoint.ip.size());
+				stream.writeRawData(endpoint.ip.data(), endpoint.ip.size());
+				stream << qint32(endpoint.secret.size());
+				stream.writeRawData(
+					reinterpret_cast<const char*>(endpoint.secret.data()),
+					endpoint.secret.size());
+			}
 		}
+
+		// CDN public keys.
 		stream << qint32(publicKeys.size());
 		for (auto &key : publicKeys) {
-			stream << qint32(key.dcId) << Serialize::bytes(key.n) << Serialize::bytes(key.e);
+			stream << qint32(key.dcId)
+				<< Serialize::bytes(key.n)
+				<< Serialize::bytes(key.e);
 		}
 	}
 	return result;
@@ -303,8 +413,17 @@ QByteArray DcOptions::serialize() const {
 void DcOptions::constructFromSerialized(const QByteArray &serialized) {
 	QDataStream stream(serialized);
 	stream.setVersion(QDataStream::Qt_5_1);
+
+	auto minusVersion = qint32(0);
+	stream >> minusVersion;
+	const auto version = (minusVersion < 0) ? (-minusVersion) : 0;
+
 	auto count = qint32(0);
-	stream >> count;
+	if (version > 0) {
+		stream >> count;
+	} else {
+		count = minusVersion;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("MTP Error: Bad data for DcOptions::constructFromSerialized()"));
 		return;
@@ -323,15 +442,36 @@ void DcOptions::constructFromSerialized(const QByteArray &serialized) {
 			return;
 		}
 
-		std::string ip(ipSize, ' ');
-		stream.readRawData(&ip[0], ipSize);
+		auto ip = std::string(ipSize, ' ');
+		stream.readRawData(ip.data(), ipSize);
+
+		constexpr auto kMaxSecretSize = 32;
+		auto secret = bytes::vector();
+		if (version > 0) {
+			auto secretSize = qint32(0);
+			stream >> secretSize;
+			if (secretSize < 0 || secretSize > kMaxSecretSize) {
+				LOG(("MTP Error: Bad data inside DcOptions::constructFromSerialized()"));
+				return;
+			} else if (secretSize > 0) {
+				secret.resize(secretSize);
+				stream.readRawData(
+					reinterpret_cast<char*>(secret.data()),
+					secretSize);
+			}
+		}
 
 		if (stream.status() != QDataStream::Ok) {
 			LOG(("MTP Error: Bad data inside DcOptions::constructFromSerialized()"));
 			return;
 		}
 
-		applyOneGuarded(DcId(id), MTPDdcOption::Flags::from_raw(flags), ip, port);
+		applyOneGuarded(
+			DcId(id),
+			Flags::from_raw(flags),
+			ip,
+			port,
+			secret);
 	}
 
 	// Read CDN config
@@ -368,10 +508,11 @@ DcOptions::Ids DcOptions::configEnumDcIds() const {
 		ReadLocker lock(this);
 		result.reserve(_data.size());
 		for (auto &item : _data) {
-			if (!isCdnDc(item.second.flags)
-				&& !isTemporaryDcId(item.first)
-				&& !base::contains(result, item.second.id)) {
-				result.push_back(item.second.id);
+			const auto dcId = item.first;
+			Assert(!item.second.empty());
+			if (!isCdnDc(item.second.front().flags)
+				&& !isTemporaryDcId(dcId)) {
+				result.push_back(dcId);
 			}
 		}
 	}
@@ -438,165 +579,70 @@ bool DcOptions::getDcRSAKey(DcId dcId, const QVector<MTPlong> &fingerprints, int
 	return findKey(_publicKeys);
 }
 
-DcOptions::Variants DcOptions::lookup(DcId dcId, DcType type) const {
-	auto lookupDesiredFlags = [type](int address, int protocol) -> std::vector<MTPDdcOption::Flags> {
-		auto throughProxy = (Global::ConnectionType() != dbictAuto);
-
-		switch (type) {
-		case DcType::Regular:
-		case DcType::Temporary: {
-			switch (address) {
-			case Variants::IPv4: {
-				switch (protocol) {
-				case Variants::Tcp: return {
-					// Regular TCP IPv4
-					throughProxy ? (MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_tcpo_only | 0),
-					throughProxy ? (MTPDdcOption::Flag::f_static | 0) : MTPDdcOption::Flags(0),
-					(MTPDdcOption::Flag::f_tcpo_only | 0),
-					0
-				};
-				case Variants::Http: return {
-					// Regular HTTP IPv4
-					throughProxy ? (MTPDdcOption::Flag::f_static | 0) : MTPDdcOption::Flags(0),
-					0,
-				};
-				}
-			} break;
-			case Variants::IPv6: {
-				switch (protocol) {
-				case Variants::Tcp: return {
-					// Regular TCP IPv6
-					throughProxy ? (MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6),
-					throughProxy ? (MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_ipv6 | 0),
-					(MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6),
-					(MTPDdcOption::Flag::f_ipv6 | 0),
-				};
-				case Variants::Http: return {
-					// Regular HTTP IPv6
-					throughProxy ? (MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_ipv6 | 0),
-					(MTPDdcOption::Flag::f_ipv6 | 0),
-				};
-				}
-			} break;
-			}
-		} break;
-		case DcType::MediaDownload: {
-			switch (address) {
-			case Variants::IPv4: {
-				switch (protocol) {
-				case Variants::Tcp: return {
-					// Media download TCP IPv4
-					throughProxy ? (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_tcpo_only),
-					throughProxy ? (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_tcpo_only | 0),
-					(MTPDdcOption::Flag::f_media_only | 0),
-					throughProxy ? (MTPDdcOption::Flag::f_static | 0) : MTPDdcOption::Flags(0),
-					(MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_tcpo_only),
-					throughProxy ? (MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_tcpo_only | 0),
-					throughProxy ? (MTPDdcOption::Flag::f_tcpo_only | 0) : (MTPDdcOption::Flag::f_media_only | 0),
-					0,
-				};
-				case Variants::Http: return {
-					// Media download HTTP IPv4
-					throughProxy ? (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_media_only | 0),
-					(MTPDdcOption::Flag::f_media_only | 0),
-					throughProxy ? (MTPDdcOption::Flag::f_static | 0) : MTPDdcOption::Flags(0),
-					0,
-				};
-				}
-			} break;
-			case Variants::IPv6: {
-				switch (protocol) {
-				case Variants::Tcp: return {
-					// Media download TCP IPv6
-					throughProxy ? (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6),
-					throughProxy ? (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6),
-					(MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_ipv6),
-					throughProxy ? (MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_ipv6 | 0),
-					(MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6),
-					throughProxy ? (MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6),
-					throughProxy ? (MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6) : (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_ipv6),
-					(MTPDdcOption::Flag::f_ipv6 | 0)
-				};
-				case Variants::Http: return {
-					// Media download HTTP IPv6
-					throughProxy ? (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_ipv6),
-					(MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_ipv6),
-					throughProxy ? (MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_ipv6 | 0),
-					(MTPDdcOption::Flag::f_ipv6 | 0),
-				};
-				}
-			} break;
-			}
-		} break;
-		case DcType::Cdn: {
-			switch (address) {
-			case Variants::IPv4: {
-				switch (protocol) {
-				case Variants::Tcp: return {
-					// CDN TCP IPv4
-					throughProxy ? (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_tcpo_only),
-					throughProxy ? (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_cdn | 0),
-					(MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_tcpo_only),
-					(MTPDdcOption::Flag::f_cdn | 0),
-				};
-				case Variants::Http: return {
-					// CDN HTTP IPv4
-					throughProxy ? (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_cdn | 0),
-					(MTPDdcOption::Flag::f_cdn | 0),
-				};
-				}
-			} break;
-			case Variants::IPv6: {
-				switch (protocol) {
-				case Variants::Tcp: return {
-					// CDN TCP IPv6
-					throughProxy ? (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_tcpo_only),
-					throughProxy ? (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_ipv6),
-					(MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6),
-					(MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_ipv6),
-				};
-				case Variants::Http: return {
-					// CDN HTTP IPv6
-					throughProxy ? (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_ipv6 | MTPDdcOption::Flag::f_static) : (MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_ipv6),
-					(MTPDdcOption::Flag::f_cdn | MTPDdcOption::Flag::f_ipv6),
-				};
-				}
-			} break;
-			}
-		} break;
-		}
-		Unexpected("Bad type / address / protocol");
-	};
-
+auto DcOptions::lookup(
+		DcId dcId,
+		DcType type,
+		bool throughProxy) const -> Variants {
+	using Flag = Flag;
 	auto result = Variants();
 	{
 		ReadLocker lock(this);
-		for (auto address = 0; address != Variants::AddressTypeCount; ++address) {
-			for (auto protocol = 0; protocol != Variants::ProtocolCount; ++protocol) {
-				auto desiredFlags = lookupDesiredFlags(address, protocol);
-				for (auto flags : desiredFlags) {
-					auto shift = static_cast<int>(flags);
-					if (shift < 0) continue;
-
-					auto it = _data.find(shiftDcId(dcId, shift));
-					if (it != _data.cend()) {
-						result.data[address][protocol].ip = it->second.ip;
-						result.data[address][protocol].flags = it->second.flags;
-						result.data[address][protocol].port = it->second.port;
-						break;
-					}
-				}
+		const auto i = _data.find(dcId);
+		if (i == end(_data)) {
+			return result;
+		}
+		for (const auto &endpoint : i->second) {
+			const auto flags = endpoint.flags;
+			if (type == DcType::Cdn && !(flags & Flag::f_cdn)) {
+				continue;
+			} else if (type != DcType::MediaDownload
+				&& (flags & Flag::f_media_only)) {
+				continue;
 			}
+			const auto address = (flags & Flag::f_ipv6)
+				? Variants::IPv6
+				: Variants::IPv4;
+			result.data[address][Variants::Tcp].push_back(endpoint);
+			if (!(flags & (Flag::f_tcpo_only | Flag::f_secret))) {
+				result.data[address][Variants::Http].push_back(endpoint);
+			}
+		}
+		if (type == DcType::MediaDownload) {
+			FilterIfHasWithFlag(result, Flag::f_media_only);
+		}
+		if (throughProxy) {
+			FilterIfHasWithFlag(result, Flag::f_static);
 		}
 	}
 	return result;
 }
 
+void DcOptions::FilterIfHasWithFlag(Variants &variants, Flag flag) {
+	const auto is = [&](const Endpoint &endpoint) {
+		return (endpoint.flags & flag) != 0;
+	};
+	const auto has = [&](const std::vector<Endpoint> &list) {
+		return ranges::find_if(list, is) != end(list);
+	};
+	for (auto &byAddress : variants.data) {
+		for (auto &list : byAddress) {
+			if (has(list)) {
+				list = ranges::view::all(
+					list
+				) | ranges::view::filter(
+					is
+				) | ranges::to_vector;
+			}
+		}
+	}
+}
+
 void DcOptions::computeCdnDcIds() {
 	_cdnDcIds.clear();
 	for (auto &item : _data) {
-		if (item.second.flags & MTPDdcOption::Flag::f_cdn) {
-			_cdnDcIds.insert(item.second.id);
+		Assert(!item.second.empty());
+		if (item.second.front().flags & Flag::f_cdn) {
+			_cdnDcIds.insert(bareDcId(item.first));
 		}
 	}
 }
@@ -632,22 +678,27 @@ bool DcOptions::loadFromFile(const QString &path) {
 		if (dcId <= 0 || dcId >= internal::kDcShift || !host.setAddress(ip) || port <= 0) {
 			return error();
 		}
-		auto flags = MTPDdcOption::Flags(0);
+		auto flags = Flags(0);
 		if (host.protocol() == QAbstractSocket::IPv6Protocol) {
-			flags |= MTPDdcOption::Flag::f_ipv6;
+			flags |= Flag::f_ipv6;
 		}
 		for (auto &option : components.mid(3)) {
 			if (option.startsWith('#')) {
 				break;
 			} else if (option == qstr("tcpo_only")) {
-				flags |= MTPDdcOption::Flag::f_tcpo_only;
+				flags |= Flag::f_tcpo_only;
 			} else if (option == qstr("media_only")) {
-				flags |= MTPDdcOption::Flag::f_media_only;
+				flags |= Flag::f_media_only;
 			} else {
 				return error();
 			}
 		}
-		options.push_back(MTP_dcOption(MTP_flags(flags), MTP_int(dcId), MTP_string(ip), MTP_int(port)));
+		options.push_back(MTP_dcOption(
+			MTP_flags(flags),
+			MTP_int(dcId),
+			MTP_string(ip),
+			MTP_int(port),
+			MTPbytes()));
 	}
 	if (options.isEmpty()) {
 		LOG(("MTP Error: in .tdesktop-endpoints expected at least one endpoint being provided."));
@@ -670,16 +721,21 @@ bool DcOptions::writeToFile(const QString &path) const {
 	stream.setCodec("UTF-8");
 
 	ReadLocker lock(this);
-	for (auto &item : _data) {
-		auto &endpoint = item.second;
-		stream << endpoint.id << ' ' << QString::fromStdString(endpoint.ip) << ' ' << endpoint.port;
-		if (endpoint.flags & MTPDdcOption::Flag::f_tcpo_only) {
-			stream << " tcpo_only";
+	for (const auto &item : _data) {
+		for (const auto &option : item.second) {
+			stream
+				<< option.id
+				<< ' '
+				<< QString::fromStdString(option.ip)
+				<< ' ' << option.port;
+			if (option.flags & Flag::f_tcpo_only) {
+				stream << " tcpo_only";
+			}
+			if (option.flags & Flag::f_media_only) {
+				stream << " media_only";
+			}
+			stream << '\n';
 		}
-		if (endpoint.flags & MTPDdcOption::Flag::f_media_only) {
-			stream << " media_only";
-		}
-		stream << '\n';
 	}
 	return true;
 }

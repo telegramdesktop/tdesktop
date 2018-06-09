@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_file_parser.h"
 #include "lang/lang_cloud_manager.h"
 #include "messenger.h"
-#include "autoupdater.h"
+#include "core/update_checker.h"
 
 namespace Settings {
 
@@ -34,21 +34,37 @@ UpdateStateRow::UpdateStateRow(QWidget *parent) : RpWidget(parent)
 	connect(_check, SIGNAL(clicked()), this, SLOT(onCheck()));
 	connect(_restart, SIGNAL(clicked()), this, SIGNAL(restart()));
 
-	Sandbox::connect(SIGNAL(updateChecking()), this, SLOT(onChecking()));
-	Sandbox::connect(SIGNAL(updateLatest()), this, SLOT(onLatest()));
-	Sandbox::connect(SIGNAL(updateProgress(qint64, qint64)), this, SLOT(onDownloading(qint64, qint64)));
-	Sandbox::connect(SIGNAL(updateFailed()), this, SLOT(onFailed()));
-	Sandbox::connect(SIGNAL(updateReady()), this, SLOT(onReady()));
-
 	_versionText = lng_settings_current_version_label(lt_version, currentVersionText());
 
-	switch (Sandbox::updatingState()) {
-	case Application::UpdatingDownload:
+	Core::UpdateChecker checker;
+	checker.checking() | rpl::start_with_next([=] {
+		onChecking();
+	}, lifetime());
+	checker.isLatest() | rpl::start_with_next([=] {
+		onLatest();
+	}, lifetime());
+	checker.progress(
+	) | rpl::start_with_next([=](Core::UpdateChecker::Progress progress) {
+		onDownloading(progress.already, progress.size);
+	}, lifetime());
+	checker.failed() | rpl::start_with_next([=] {
+		onFailed();
+	}, lifetime());
+	checker.ready() | rpl::start_with_next([=] {
+		onReady();
+	}, lifetime());
+
+	switch (checker.state()) {
+	case Core::UpdateChecker::State::Download:
 		setState(State::Download, true);
-		setDownloadProgress(Sandbox::updatingReady(), Sandbox::updatingSize());
-	break;
-	case Application::UpdatingReady: setState(State::Ready, true); break;
-	default: setState(State::None, true); break;
+		setDownloadProgress(checker.already(), checker.size());
+		break;
+	case Core::UpdateChecker::State::Ready:
+		setState(State::Ready, true);
+		break;
+	default:
+		setState(State::None, true);
+		break;
 	}
 }
 
@@ -89,9 +105,11 @@ void UpdateStateRow::paintEvent(QPaintEvent *e) {
 void UpdateStateRow::onCheck() {
 	if (!cAutoUpdate()) return;
 
+	Core::UpdateChecker checker;
+
 	setState(State::Check);
 	cSetLastUpdateCheck(0);
-	Sandbox::startUpdateCheck();
+	checker.start();
 }
 
 void UpdateStateRow::setState(State state, bool force) {
@@ -212,7 +230,7 @@ void GeneralWidget::onChangeLanguage() {
 
 void GeneralWidget::onRestart() {
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	checkReadyUpdate();
+	Core::checkReadyUpdate();
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
 	App::restart();
 }
@@ -224,10 +242,11 @@ void GeneralWidget::onUpdateAutomatically() {
 	_updateRow->toggle(
 		cAutoUpdate(),
 		anim::type::normal);
+	Core::UpdateChecker checker;
 	if (cAutoUpdate()) {
-		Sandbox::startUpdateCheck();
+		checker.start();
 	} else {
-		Sandbox::stopUpdate();
+		checker.stop();
 	}
 }
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE

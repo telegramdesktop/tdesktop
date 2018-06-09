@@ -1,6 +1,7 @@
 <(src_loc)/base/algorithm.h
 <(src_loc)/base/assertion.h
 <(src_loc)/base/build_config.h
+<(src_loc)/base/bytes.h
 <(src_loc)/base/flags.h
 <(src_loc)/base/enum_mask.h
 <(src_loc)/base/flat_map.h
@@ -162,6 +163,8 @@
 <(src_loc)/core/single_timer.cpp
 <(src_loc)/core/single_timer.h
 <(src_loc)/core/tl_help.h
+<(src_loc)/core/update_checker.cpp
+<(src_loc)/core/update_checker.h
 <(src_loc)/core/utils.cpp
 <(src_loc)/core/utils.h
 <(src_loc)/core/version.h
@@ -426,8 +429,6 @@
 <(src_loc)/mtproto/connection.h
 <(src_loc)/mtproto/connection_abstract.cpp
 <(src_loc)/mtproto/connection_abstract.h
-<(src_loc)/mtproto/connection_auto.cpp
-<(src_loc)/mtproto/connection_auto.h
 <(src_loc)/mtproto/connection_http.cpp
 <(src_loc)/mtproto/connection_http.h
 <(src_loc)/mtproto/connection_tcp.cpp
@@ -733,8 +734,6 @@
 <(src_loc)/application.h
 <(src_loc)/auth_session.cpp
 <(src_loc)/auth_session.h
-<(src_loc)/autoupdater.cpp
-<(src_loc)/autoupdater.h
 <(src_loc)/config.h
 <(src_loc)/countries.h
 <(src_loc)/facades.cpp

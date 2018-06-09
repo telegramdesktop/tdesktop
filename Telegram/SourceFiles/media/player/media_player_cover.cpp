@@ -76,47 +76,47 @@ CoverWidget::CoverWidget(QWidget *parent) : RpWidget(parent)
 	_timeLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 	setMouseTracking(true);
 
-	_playback->setInLoadingStateChangedCallback([this](bool loading) {
+	_playback->setInLoadingStateChangedCallback([=](bool loading) {
 		_playbackSlider->setDisabled(loading);
 	});
-	_playback->setValueChangedCallback([this](float64 value) {
+	_playback->setValueChangedCallback([=](float64 value) {
 		_playbackSlider->setValue(value);
 	});
-	_playbackSlider->setChangeProgressCallback([this](float64 value) {
+	_playbackSlider->setChangeProgressCallback([=](float64 value) {
 		_playback->setValue(value, false);
 		handleSeekProgress(value);
 	});
-	_playbackSlider->setChangeFinishedCallback([this](float64 value) {
+	_playbackSlider->setChangeFinishedCallback([=](float64 value) {
 		_playback->setValue(value, false);
 		handleSeekFinished(value);
 	});
-	_playPause->setClickedCallback([this] {
+	_playPause->setClickedCallback([=] {
 		instance()->playPauseCancelClicked(AudioMsgId::Type::Song);
 	});
 
 	updateRepeatTrackIcon();
-	_repeatTrack->setClickedCallback([this] {
+	_repeatTrack->setClickedCallback([=] {
 		instance()->toggleRepeat(AudioMsgId::Type::Song);
 	});
 
 	updateVolumeToggleIcon();
-	_volumeToggle->setClickedCallback([this]() {
+	_volumeToggle->setClickedCallback([=]() {
 		Global::SetSongVolume((Global::SongVolume() > 0) ? 0. : Global::RememberedSongVolume());
 		mixer()->setSongVolume(Global::SongVolume());
 		Global::RefSongVolumeChanged().notify();
 	});
-	subscribe(Global::RefSongVolumeChanged(), [this] { updateVolumeToggleIcon(); });
-	subscribe(instance()->repeatChangedNotifier(), [this](AudioMsgId::Type type) {
+	subscribe(Global::RefSongVolumeChanged(), [=] { updateVolumeToggleIcon(); });
+	subscribe(instance()->repeatChangedNotifier(), [=](AudioMsgId::Type type) {
 		if (type == AudioMsgId::Type::Song) {
 			updateRepeatTrackIcon();
 		}
 	});
-	subscribe(instance()->updatedNotifier(), [this](const TrackState &state) {
+	subscribe(instance()->updatedNotifier(), [=](const TrackState &state) {
 		if (state.id.type() == AudioMsgId::Type::Song) {
 			handleSongUpdate(state);
 		}
 	});
-	subscribe(instance()->trackChangedNotifier(), [this](AudioMsgId::Type type) {
+	subscribe(instance()->trackChangedNotifier(), [=](AudioMsgId::Type type) {
 		if (type == AudioMsgId::Type::Song) {
 			handleSongChange();
 		}
@@ -353,12 +353,12 @@ void CoverWidget::createPrevNextButtons() {
 	if (!_previousTrack) {
 		_previousTrack.create(this, st::mediaPlayerPanelPreviousButton);
 		_previousTrack->show();
-		_previousTrack->setClickedCallback([this]() {
+		_previousTrack->setClickedCallback([=]() {
 			instance()->previous();
 		});
 		_nextTrack.create(this, st::mediaPlayerPanelNextButton);
 		_nextTrack->show();
-		_nextTrack->setClickedCallback([this]() {
+		_nextTrack->setClickedCallback([=]() {
 			instance()->next();
 		});
 		updatePlayPrevNextPositions();

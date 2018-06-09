@@ -9,10 +9,70 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/connection_tcp.h"
 #include "mtproto/connection_http.h"
-#include "mtproto/connection_auto.h"
+#include "mtproto/session.h"
 
 namespace MTP {
 namespace internal {
+
+ConnectionPointer::ConnectionPointer() = default;
+
+ConnectionPointer::ConnectionPointer(std::nullptr_t) {
+}
+
+ConnectionPointer::ConnectionPointer(AbstractConnection *value)
+: _value(value) {
+}
+
+ConnectionPointer::ConnectionPointer(ConnectionPointer &&other)
+: _value(base::take(other._value)) {
+}
+
+ConnectionPointer &ConnectionPointer::operator=(ConnectionPointer &&other) {
+	reset(base::take(other._value));
+	return *this;
+}
+
+AbstractConnection *ConnectionPointer::get() const {
+	return _value;
+}
+
+void ConnectionPointer::reset(AbstractConnection *value) {
+	if (_value == value) {
+		return;
+	} else if (const auto old = base::take(_value)) {
+		const auto disconnect = [&](auto signal) {
+			old->disconnect(old, signal, nullptr, nullptr);
+		};
+		disconnect(&AbstractConnection::receivedData);
+		disconnect(&AbstractConnection::receivedSome);
+		disconnect(&AbstractConnection::error);
+		disconnect(&AbstractConnection::connected);
+		disconnect(&AbstractConnection::disconnected);
+		old->disconnectFromServer();
+		old->deleteLater();
+	}
+	_value = value;
+}
+
+ConnectionPointer::operator AbstractConnection*() const {
+	return get();
+}
+
+AbstractConnection *ConnectionPointer::operator->() const {
+	return get();
+}
+
+AbstractConnection &ConnectionPointer::operator*() const {
+	return *get();
+}
+
+ConnectionPointer::operator bool() const {
+	return get() != nullptr;
+}
+
+ConnectionPointer::~ConnectionPointer() {
+	reset();
+}
 
 AbstractConnection::~AbstractConnection() {
 }
@@ -62,13 +122,18 @@ MTPResPQ AbstractConnection::readPQFakeReply(const mtpBuffer &buffer) {
 	return response;
 }
 
-AbstractConnection *AbstractConnection::create(DcType type, QThread *thread) {
-	if ((type == DcType::Temporary) || (Global::ConnectionType() == dbictTcpProxy)) {
-		return new TCPConnection(thread);
-	} else if (Global::ConnectionType() == dbictHttpProxy) {
-		return new HTTPConnection(thread);
+AbstractConnection::AbstractConnection(QThread *thread) {
+	moveToThread(thread);
+}
+
+ConnectionPointer AbstractConnection::create(
+		DcOptions::Variants::Protocol protocol,
+		QThread *thread) {
+	if (protocol == DcOptions::Variants::Tcp) {
+		return ConnectionPointer(new TCPConnection(thread));
+	} else {
+		return ConnectionPointer(new HTTPConnection(thread));
 	}
-	return new AutoConnection(thread);
 }
 
 } // namespace internal

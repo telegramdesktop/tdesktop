@@ -22,6 +22,7 @@ constexpr str_const kLegacyLanguages[] = {
 	"zh_TW",
 	"zh_CN",
 	"zh_HK",
+	"zh_OW",
 	"ca",
 	"he",
 };

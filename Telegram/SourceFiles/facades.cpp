@@ -396,8 +396,8 @@ bool CheckBetaVersionDir() {
 			quint64 v;
 			QByteArray k;
 			dataStream >> v >> k;
-			if (dataStream.status() == QDataStream::Ok) {
-				cSetBetaVersion(qMax(v, AppVersion * 1000ULL));
+			if (dataStream.status() == QDataStream::Ok && !k.isEmpty()) {
+				cSetBetaVersion(AppVersion * 1000ULL);
 				cSetBetaPrivateKey(k);
 				cSetRealBetaVersion(v);
 			} else {
@@ -528,6 +528,7 @@ struct Data {
 	int32 CallConnectTimeoutMs = 30000;
 	int32 CallPacketTimeoutMs = 10000;
 	bool PhoneCallsEnabled = true;
+	bool BlockedMode = false;
 	base::Observable<void> PhoneCallsEnabledChanged;
 
 	HiddenPinnedMessagesMap HiddenPinnedMessages;
@@ -552,6 +553,7 @@ struct Data {
 	QByteArray DownloadPathBookmark;
 	base::Observable<void> DownloadPathChanged;
 
+	bool SuggestStickersByEmoji = true;
 	bool SoundNotify = true;
 	bool DesktopNotify = true;
 	bool RestoreSoundNotifyFromTray = false;
@@ -562,10 +564,11 @@ struct Data {
 	Notify::ScreenCorner NotificationsCorner = Notify::ScreenCorner::BottomRight;
 	bool NotificationsDemoIsShown = false;
 
-	DBIConnectionType ConnectionType = dbictAuto;
-	DBIConnectionType LastProxyType = dbictAuto;
 	bool TryIPv6 = (cPlatform() == dbipWindows) ? false : true;
-	ProxyData ConnectionProxy;
+	std::vector<ProxyData> ProxiesList;
+	ProxyData SelectedProxy;
+	bool UseProxy = false;
+	bool UseProxyForCalls = false;
 	base::Observable<void> ConnectionTypeChanged;
 
 	int AutoLock = 3600;
@@ -650,6 +653,7 @@ DefineVar(Global, int32, CallRingTimeoutMs);
 DefineVar(Global, int32, CallConnectTimeoutMs);
 DefineVar(Global, int32, CallPacketTimeoutMs);
 DefineVar(Global, bool, PhoneCallsEnabled);
+DefineVar(Global, bool, BlockedMode);
 DefineRefVar(Global, base::Observable<void>, PhoneCallsEnabledChanged);
 
 DefineVar(Global, HiddenPinnedMessagesMap, HiddenPinnedMessages);
@@ -674,6 +678,7 @@ DefineVar(Global, QString, DownloadPath);
 DefineVar(Global, QByteArray, DownloadPathBookmark);
 DefineRefVar(Global, base::Observable<void>, DownloadPathChanged);
 
+DefineVar(Global, bool, SuggestStickersByEmoji);
 DefineVar(Global, bool, SoundNotify);
 DefineVar(Global, bool, DesktopNotify);
 DefineVar(Global, bool, RestoreSoundNotifyFromTray);
@@ -684,10 +689,11 @@ DefineVar(Global, int, NotificationsCount);
 DefineVar(Global, Notify::ScreenCorner, NotificationsCorner);
 DefineVar(Global, bool, NotificationsDemoIsShown);
 
-DefineVar(Global, DBIConnectionType, ConnectionType);
-DefineVar(Global, DBIConnectionType, LastProxyType);
 DefineVar(Global, bool, TryIPv6);
-DefineVar(Global, ProxyData, ConnectionProxy);
+DefineVar(Global, std::vector<ProxyData>, ProxiesList);
+DefineVar(Global, ProxyData, SelectedProxy);
+DefineVar(Global, bool, UseProxy);
+DefineVar(Global, bool, UseProxyForCalls);
 DefineRefVar(Global, base::Observable<void>, ConnectionTypeChanged);
 
 DefineVar(Global, int, AutoLock);

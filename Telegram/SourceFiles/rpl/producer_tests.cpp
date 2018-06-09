@@ -171,7 +171,7 @@ TEST_CASE("basic event_streams tests", "[rpl::event_stream]") {
 		stream.fire(3);
 		{
 			auto saved = lifetime();
-			stream.events().start([=, &stream](int value) {
+			stream.events().start([=](int value) {
 				*sum += value;
 			}, [=](no_error) {
 			}, [=] {

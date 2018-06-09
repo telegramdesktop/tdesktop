@@ -103,6 +103,7 @@ private:
 
 	bool _shadowsWorking = false;
 	bool _themeInited = false;
+	bool _inUpdateMargins = false;
 
 	HWND ps_hWnd = nullptr;
 	HWND ps_tbHider_hWnd = nullptr;
@@ -113,6 +114,8 @@ private:
 
 	int _deltaLeft = 0;
 	int _deltaTop = 0;
+	int _deltaRight = 0;
+	int _deltaBottom = 0;
 
 };
 

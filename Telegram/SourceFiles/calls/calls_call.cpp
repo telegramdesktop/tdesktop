@@ -40,17 +40,30 @@ constexpr auto kHangupTimeoutMs = 5000;
 
 using tgvoip::Endpoint;
 
-void ConvertEndpoint(std::vector<tgvoip::Endpoint> &ep, const MTPDphoneConnection &mtc) {
+void ConvertEndpoint(
+		std::vector<tgvoip::Endpoint> &ep,
+		const MTPDphoneConnection &mtc) {
 	if (mtc.vpeer_tag.v.length() != 16) {
 		return;
 	}
-	auto ipv4 = tgvoip::IPv4Address(std::string(mtc.vip.v.constData(), mtc.vip.v.size()));
-	auto ipv6 = tgvoip::IPv6Address(std::string(mtc.vipv6.v.constData(), mtc.vipv6.v.size()));
-	ep.push_back(Endpoint((int64_t)mtc.vid.v, (uint16_t)mtc.vport.v, ipv4, ipv6, EP_TYPE_UDP_RELAY, (unsigned char*)mtc.vpeer_tag.v.data()));
+	auto ipv4 = tgvoip::IPv4Address(std::string(
+		mtc.vip.v.constData(),
+		mtc.vip.v.size()));
+	auto ipv6 = tgvoip::IPv6Address(std::string(
+		mtc.vipv6.v.constData(),
+		mtc.vipv6.v.size()));
+	ep.push_back(Endpoint(
+		(int64_t)mtc.vid.v,
+		(uint16_t)mtc.vport.v,
+		ipv4,
+		ipv6,
+		EP_TYPE_UDP_RELAY,
+		(unsigned char*)mtc.vpeer_tag.v.data()));
 }
 
 constexpr auto kFingerprintDataSize = 256;
-uint64 ComputeFingerprint(const std::array<gsl::byte, kFingerprintDataSize> &authKey) {
+uint64 ComputeFingerprint(
+		const std::array<gsl::byte, kFingerprintDataSize> &authKey) {
 	auto hash = openssl::Sha1(authKey);
 	return (gsl::to_integer<uint64>(hash[19]) << 56)
 		| (gsl::to_integer<uint64>(hash[18]) << 48)
@@ -64,7 +77,10 @@ uint64 ComputeFingerprint(const std::array<gsl::byte, kFingerprintDataSize> &aut
 
 } // namespace
 
-Call::Call(not_null<Delegate*> delegate, not_null<UserData*> user, Type type)
+Call::Call(
+	not_null<Delegate*> delegate,
+	not_null<UserData*> user,
+	Type type)
 : _delegate(delegate)
 , _user(user)
 , _type(type) {
@@ -124,7 +140,16 @@ void Call::startOutgoing() {
 	Expects(_type == Type::Outgoing);
 	Expects(_state == State::Requesting);
 
-	request(MTPphone_RequestCall(_user->inputUser, MTP_int(rand_value<int32>()), MTP_bytes(_gaHash), MTP_phoneCallProtocol(MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p | MTPDphoneCallProtocol::Flag::f_udp_reflector), MTP_int(kMinLayer), MTP_int(kMaxLayer)))).done([this](const MTPphone_PhoneCall &result) {
+	request(MTPphone_RequestCall(
+		_user->inputUser,
+		MTP_int(rand_value<int32>()),
+		MTP_bytes(_gaHash),
+		MTP_phoneCallProtocol(
+			MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p
+				| MTPDphoneCallProtocol::Flag::f_udp_reflector),
+			MTP_int(kMinLayer),
+			MTP_int(kMaxLayer))
+	)).done([this](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 
 		setState(State::Waiting);
@@ -185,7 +210,15 @@ void Call::answer() {
 	} else {
 		_answerAfterDhConfigReceived = false;
 	}
-	request(MTPphone_AcceptCall(MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)), MTP_bytes(_gb), _protocol)).done([this](const MTPphone_PhoneCall &result) {
+	request(MTPphone_AcceptCall(
+		MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)),
+		MTP_bytes(_gb),
+		MTP_phoneCallProtocol(
+			MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p
+				| MTPDphoneCallProtocol::Flag::f_udp_reflector),
+			MTP_int(kMinLayer),
+			MTP_int(kMaxLayer))
+	)).done([this](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 		auto &call = result.c_phone_phoneCall();
 		App::feedUsers(call.vusers);
@@ -294,7 +327,6 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 		}
 		_id = data.vid.v;
 		_accessHash = data.vaccess_hash.v;
-		_protocol = data.vprotocol;
 		auto gaHashBytes = bytesFromMTP(data.vg_a_hash);
 		if (gaHashBytes.size() != _gaHash.size()) {
 			LOG(("Call Error: Wrong g_a_hash size %1, expected %2.").arg(gaHashBytes.size()).arg(_gaHash.size()));
@@ -393,7 +425,16 @@ void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 	_keyFingerprint = ComputeFingerprint(_authKey);
 
 	setState(State::ExchangingKeys);
-	request(MTPphone_ConfirmCall(MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)), MTP_bytes(_ga), MTP_long(_keyFingerprint), MTP_phoneCallProtocol(MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p | MTPDphoneCallProtocol::Flag::f_udp_reflector), MTP_int(kMinLayer), MTP_int(kMaxLayer)))).done([this](const MTPphone_PhoneCall &result) {
+	request(MTPphone_ConfirmCall(
+		MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)),
+		MTP_bytes(_ga),
+		MTP_long(_keyFingerprint),
+		MTP_phoneCallProtocol(
+			MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p
+				| MTPDphoneCallProtocol::Flag::f_udp_reflector),
+			MTP_int(kMinLayer),
+			MTP_int(kMaxLayer))
+	)).done([this](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 		auto &call = result.c_phone_phoneCall();
 		App::feedUsers(call.vusers);
@@ -480,6 +521,18 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	_controller->SetStateCallback([](tgvoip::VoIPController *controller, int state) {
 		static_cast<Call*>(controller->implData)->handleControllerStateChange(controller, state);
 	});
+	if (Global::UseProxy() && Global::UseProxyForCalls()) {
+		const auto proxy = Global::SelectedProxy();
+		if (proxy.supportsCalls()) {
+			Assert(proxy.type == ProxyData::Type::Socks5);
+			_controller->SetProxy(
+				tgvoip::PROXY_SOCKS5,
+				proxy.host.toStdString(),
+				proxy.port,
+				proxy.user.toStdString(),
+				proxy.password.toStdString());
+		}
+	}
 	_controller->Start();
 	_controller->Connect();
 }

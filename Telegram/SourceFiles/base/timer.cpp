@@ -17,12 +17,26 @@ QObject *TimersAdjuster() {
 
 } // namespace
 
-Timer::Timer(base::lambda<void()> callback) : QObject(nullptr)
+Timer::Timer(
+	not_null<QThread*> thread,
+	base::lambda<void()> callback)
+: Timer(std::move(callback)) {
+	moveToThread(thread);
+}
+
+
+Timer::Timer(base::lambda<void()> callback)
+: QObject(nullptr)
 , _callback(std::move(callback))
 , _type(Qt::PreciseTimer)
 , _adjusted(false) {
 	setRepeat(Repeat::Interval);
-	connect(TimersAdjuster(), &QObject::destroyed, this, [this] { adjust(); }, Qt::QueuedConnection);
+	connect(
+		TimersAdjuster(),
+		&QObject::destroyed,
+		this,
+		[this] { adjust(); },
+		Qt::QueuedConnection);
 }
 
 void Timer::start(TimeMs timeout, Qt::TimerType type, Repeat repeat) {
@@ -56,7 +70,11 @@ TimeMs Timer::remainingTime() const {
 
 void Timer::Adjust() {
 	QObject emitter;
-	connect(&emitter, &QObject::destroyed, TimersAdjuster(), &QObject::destroyed);
+	connect(
+		&emitter,
+		&QObject::destroyed,
+		TimersAdjuster(),
+		&QObject::destroyed);
 }
 
 void Timer::adjust() {
@@ -70,6 +88,7 @@ void Timer::adjust() {
 
 void Timer::setTimeout(TimeMs timeout) {
 	Expects(timeout >= 0 && timeout <= std::numeric_limits<int>::max());
+
 	_timeout = static_cast<unsigned int>(timeout);
 }
 
@@ -93,8 +112,12 @@ void Timer::timerEvent(QTimerEvent *e) {
 	}
 }
 
-int DelayedCallTimer::call(TimeMs timeout, lambda_once<void()> callback, Qt::TimerType type) {
+int DelayedCallTimer::call(
+		TimeMs timeout,
+		lambda_once<void()> callback,
+		Qt::TimerType type) {
 	Expects(timeout >= 0);
+
 	if (!callback) {
 		return 0;
 	}
@@ -108,7 +131,7 @@ int DelayedCallTimer::call(TimeMs timeout, lambda_once<void()> callback, Qt::Tim
 void DelayedCallTimer::cancel(int callId) {
 	if (callId) {
 		killTimer(callId);
-		_callbacks.erase(callId);
+		_callbacks.remove(callId);
 	}
 }
 

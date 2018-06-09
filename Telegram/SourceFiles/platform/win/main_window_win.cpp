@@ -873,7 +873,9 @@ void MainWindow::updateSystemMenu(Qt::WindowState state) {
 }
 
 void MainWindow::psUpdateMargins() {
-	if (!ps_hWnd) return;
+	if (!ps_hWnd || _inUpdateMargins) return;
+
+	_inUpdateMargins = true;
 
 	RECT r, a;
 
@@ -898,13 +900,18 @@ void MainWindow::psUpdateMargins() {
 
 		_deltaLeft = w.left - m.left;
 		_deltaTop = w.top - m.top;
+		_deltaRight = m.right - w.right;
+		_deltaBottom = m.bottom - w.bottom;
 
-		margins.setLeft(margins.left() - w.left + m.left);
-		margins.setRight(margins.right() - m.right + w.right);
-		margins.setBottom(margins.bottom() - m.bottom + w.bottom);
-		margins.setTop(margins.top() - w.top + m.top);
-	} else {
-		_deltaLeft = _deltaTop = 0;
+		margins.setLeft(margins.left() - _deltaLeft);
+		margins.setRight(margins.right() - _deltaRight);
+		margins.setBottom(margins.bottom() - _deltaBottom);
+		margins.setTop(margins.top() - _deltaTop);
+	} else if (_deltaLeft != 0 || _deltaTop != 0 || _deltaRight != 0 || _deltaBottom != 0) {
+		RECT w;
+		GetWindowRect(ps_hWnd, &w);
+		SetWindowPos(ps_hWnd, 0, 0, 0, w.right - w.left - _deltaLeft - _deltaRight, w.bottom - w.top - _deltaBottom - _deltaTop, SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOREPOSITION);
+		_deltaLeft = _deltaTop = _deltaRight = _deltaBottom = 0;
 	}
 
 	QPlatformNativeInterface *i = QGuiApplication::platformNativeInterface();
@@ -918,6 +925,7 @@ void MainWindow::psUpdateMargins() {
 			}
 		}
 	}
+	_inUpdateMargins = false;
 }
 
 HWND MainWindow::psHwnd() const {

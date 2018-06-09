@@ -44,6 +44,7 @@
         'zh-TW',
         'zh-CN',
         'zh-HK',
+        'zh-OW',
         'ca',
         'he',
       ],

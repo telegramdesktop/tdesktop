@@ -127,6 +127,11 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
 #   Error "Dropbox path not found!"
 # fi
 
+  BackupPath="/media/psf/backup/$AppVersionStrMajor/$AppVersionStrFull/t$BuildTarget"
+  if [ ! -d "/media/psf/backup" ]; then
+    Error "Backup folder not found!"
+  fi
+
   gyp/refresh.sh
 
   cd $ReleasePath
@@ -232,6 +237,13 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
   fi
   cd "$DeployPath"
   tar -cJvf "$SetupFile" "$BinaryName/"
+
+  mkdir -p $BackupPath
+  cp "$SetupFile" "$BackupPath/"
+  cp "$UpdateFile" "$BackupPath/"
+  if [ "$BetaVersion" != "0" ]; then
+    cp -v "$BetaKeyFile" "$BackupPath/"
+  fi
 fi
 
 if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarget" == "macstore" ]; then
@@ -241,12 +253,13 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
 #   Error "Dropbox path not found!"
 # fi
 
-  if [ ! "$REBUILD" == "no" ]; then
-    gyp/refresh.sh
-    xcodebuild -project Telegreat.xcodeproj -alltargets -configuration Release build
-    cp "$FullScriptPath/../../../TelegramPrivate/Telegreat.icns" "$ReleasePath/$BinaryName.app/Contents/Resources/Icon.icns"
-    cp "$FullScriptPath/../../../TelegramPrivate/Telegreat.icns" "$ReleasePath/$BinaryName.app/Contents/Resources/AppIcon.icns"
+  BackupPath="$HOME/Telegram/backup/$AppVersionStrMajor/$AppVersionStrFull"
+  if [ ! -d "$HOME/Telegram/backup" ]; then
+    Error "Backup path not found!"
   fi
+
+  gyp/refresh.sh
+  xcodebuild -project Telegreat.xcodeproj -alltargets -configuration Release build
 
   if [ ! -d "$ReleasePath/$BinaryName.app" ]; then
     Error "$BinaryName.app not found!"
@@ -333,7 +346,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
       bless --folder "$TempDiskPath/" --openfolder "$TempDiskPath/"
       hdiutil detach "$TempDiskPath"
       hdiutil convert tsetup.temp.dmg -format UDZO -imagekey zlib-level=9 -ov -o "$SetupFile"
-#     rm tsetup.temp.dmg
+      rm tsetup.temp.dmg
 #   fi
     cd "$ReleasePath"
     "./Packer" -path "$BinaryName.app" -target "$BuildTarget" -version $VersionForPacker $AlphaBetaParam
@@ -375,28 +388,27 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
       cp "$ReleasePath/$BetaKeyFile" "$DeployPath/"
     fi
 #   cp -r "$ReleasePath/$BinaryName.app.dSYM" "$DeployPath/"
-#   rm "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
-#   rm "$ReleasePath/$BinaryName.app/Contents/Frameworks/Updater"
-#   rm "$ReleasePath/$BinaryName.app/Contents/Info.plist"
-#   rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
+    rm "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
+    rm "$ReleasePath/$BinaryName.app/Contents/Frameworks/Updater"
+    rm "$ReleasePath/$BinaryName.app/Contents/Info.plist"
+    rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
     cp "$ReleasePath/$UpdateFile" "$DeployPath/"
     cp "$ReleasePath/$SetupFile" "$DeployPath/"
 
-    if [ "$BuildTarget" == "mac32" ]; then
-      ReleaseToPath="$HomePath/../../deploy_temp/tmac32"
-      DeployToPath="$ReleaseToPath/$AppVersionStrMajor/$AppVersionStrFull"
-      if [ ! -d "$ReleaseToPath/$AppVersionStrMajor" ]; then
-        mkdir "$ReleaseToPath/$AppVersionStrMajor"
-      fi
-
-      if [ ! -d "$DeployToPath" ]; then
-        mkdir "$DeployToPath"
-      fi
-
-      cp -v "$DeployPath/$UpdateFile" "$DeployToPath/"
-      cp -v "$DeployPath/$SetupFile" "$DeployToPath/"
+    if [ "$BuildTarget" == "mac" ]; then
+      mkdir -p "$BackupPath/tmac"
+      cp "$DeployPath/$UpdateFile" "$BackupPath/tmac/"
+      cp "$DeployPath/$SetupFile" "$BackupPath/tmac/"
       if [ "$BetaVersion" != "0" ]; then
-        cp -v "$DeployPath/$BetaKeyFile" "$DeployToPath/"
+        cp -v "$DeployPath/$BetaKeyFile" "$BackupPath/tmac/"
+      fi
+    fi
+    if [ "$BuildTarget" == "mac32" ]; then
+      mkdir -p "$BackupPath/tmac32"
+      cp "$DeployPath/$UpdateFile" "$BackupPath/tmac32/"
+      cp "$DeployPath/$SetupFile" "$BackupPath/tmac32/"
+      if [ "$BetaVersion" != "0" ]; then
+        cp -v "$DeployPath/$BetaKeyFile" "$BackupPath/tmac32/"
       fi
     fi
   elif [ "$BuildTarget" == "macstore" ]; then
@@ -405,9 +417,9 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     cp -r "$ReleasePath/$BinaryName.app" "$DeployPath/"
     cp "$ReleasePath/$BinaryName.pkg" "$DeployPath/"
 #   cp -r "$ReleasePath/$BinaryName.app.dSYM" "$DeployPath/"
-#   rm "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
-#   rm "$ReleasePath/$BinaryName.app/Contents/Info.plist"
-#   rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
+    rm "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
+    rm "$ReleasePath/$BinaryName.app/Contents/Info.plist"
+    rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
   fi
 fi
 

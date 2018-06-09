@@ -48,12 +48,6 @@ void initLocationManager() {
 	}
 }
 
-void reinitLocationManager() {
-	if (locationManager) {
-		locationManager->reinit();
-	}
-}
-
 void deinitLocationManager() {
 	if (locationManager) {
 		locationManager->deinit();
@@ -65,7 +59,6 @@ void deinitLocationManager() {
 void LocationManager::init() {
 	if (manager) delete manager;
 	manager = new QNetworkAccessManager();
-	App::setProxySettings(*manager);
 
 	connect(manager, SIGNAL(authenticationRequired(QNetworkReply*, QAuthenticator*)), this, SLOT(onFailed(QNetworkReply*)));
 #ifndef OS_MAC_OLD
@@ -81,10 +74,6 @@ void LocationManager::init() {
 	data.fill(st::imageBgTransparent->c);
 	data.setDevicePixelRatio(cRetinaFactor());
 	notLoadedPlaceholder = new ImagePtr(App::pixmapFromImageInPlace(std::move(data)), "GIF");
-}
-
-void LocationManager::reinit() {
-	if (manager) App::setProxySettings(*manager);
 }
 
 void LocationManager::deinit() {

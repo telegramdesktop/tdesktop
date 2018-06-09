@@ -168,7 +168,7 @@ void NotificationsWidget::onAdvanced() {
 
 void NotificationsWidget::onReadAll() {
 	
-	Ui::show(Box<ConfirmBox>(lang(lng_telegreat_mark_all_as_read), lang(lng_continue), base::lambda_guarded(this, [this] {
+	Ui::show(Box<ConfirmBox>(lang(lng_telegreat_mark_all_as_read), lang(lng_continue), base::lambda_guarded(this, [] {
 		Ui::hideLayer();
 		auto peersData = App::peersData();
 		for_const (auto peer, peersData) {

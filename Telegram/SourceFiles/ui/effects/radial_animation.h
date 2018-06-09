@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace style {
+struct InfiniteRadialAnimation;
+} // namespace style
+
 namespace Ui {
 
 class RadialAnimation {
@@ -38,6 +42,44 @@ private:
 	float64 _opacity = 0.;
 	anim::value a_arcEnd;
 	anim::value a_arcStart;
+	BasicAnimation _animation;
+
+};
+
+class InfiniteRadialAnimation {
+public:
+	struct State {
+		float64 shown = 0.;
+		int arcFrom = 0;
+		int arcLength = FullArcLength;
+	};
+	InfiniteRadialAnimation(
+		AnimationCallbacks &&callbacks,
+		const style::InfiniteRadialAnimation &st);
+
+	bool animating() const {
+		return _animation.animating();
+	}
+
+	void start();
+	void stop();
+
+	void step(TimeMs ms);
+	void step() {
+		step(getms());
+	}
+
+	void draw(
+		Painter &p,
+		QPoint position,
+		int outerWidth);
+
+	State computeState();
+
+private:
+	const style::InfiniteRadialAnimation &_st;
+	TimeMs _workStarted = 0;
+	TimeMs _workFinished = 0;
 	BasicAnimation _animation;
 
 };

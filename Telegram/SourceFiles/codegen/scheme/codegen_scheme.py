@@ -54,7 +54,16 @@ addChildParentFlags('MTPDchannelForbidden', 'MTPDchannel');
 # each key flag of parentFlags should be a subset of the value flag here
 parentFlagsCheck = {};
 
+countedTypeIdExceptions = {};
+countedTypeIdExceptions[77] = countedTypeIdExceptions[78] = {}
+countedTypeIdExceptions[77]['channel'] = countedTypeIdExceptions[78]['channel'] = True
+countedTypeIdExceptions['ipPortSecret'] = True
+countedTypeIdExceptions['accessPointRule'] = True
+countedTypeIdExceptions['help_configSimple'] = True
+
+lines = [];
 layer = '';
+layerIndex = 0;
 funcs = 0
 types = 0;
 consts = 0
@@ -83,7 +92,12 @@ with open(input_file) as f:
   for line in f:
     layerline = re.match(r'// LAYER (\d+)', line)
     if (layerline):
-      layer = 'constexpr auto CurrentLayer = mtpPrime(' + layerline.group(1) + ');';
+      layerIndex = 	int(layerline.group(1));
+      layer = 'constexpr auto CurrentLayer = mtpPrime(' + str(layerIndex) + ');';
+    else:
+      lines.append(line);
+
+for line in lines:
     nocomment = re.match(r'^(.*?)//', line)
     if (nocomment):
       line = nocomment.group(1);
@@ -131,8 +145,10 @@ with open(input_file) as f:
     if (typeid and len(typeid) > 0):
       typeid = '0x' + typeid;
       if (typeid != countTypeId):
-        print('Warning: counted ' + countTypeId + ' mismatch with provided ' + typeid + ' (' + cleanline + ')');
-        continue;
+        if (not layerIndex in countedTypeIdExceptions or not name in countedTypeIdExceptions[layerIndex]):
+          if (not name in countedTypeIdExceptions):
+            print('Warning: counted ' + countTypeId + ' mismatch with provided ' + typeid + ' (' + cleanline + ')');
+            continue;
     else:
       typeid = countTypeId;
 
@@ -507,7 +523,9 @@ def addTextSerialize(lst, dct, dataLetter):
                 if (not vtypeget):
                   result += '); vtypes.push_back(0';
             else:
-              result += '0); vtypes.push_back(0';
+              if (not vtypeget):
+                result += '0';
+              result += '); vtypes.push_back(0';
             result += '); stages.push_back(0); flags.push_back(0); ';
             if (k in conditions):
               result += '} else { to.add("[ SKIPPED BY BIT ' + conditions[k] + ' IN FIELD ' + hasFlags + ' ]"); } ';

@@ -19,12 +19,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 
-QPointer<Ui::RoundButton> BoxContent::addButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback) {
-	return addButton(std::move(textFactory), std::move(clickCallback), st::defaultBoxButton);
+QPointer<Ui::RoundButton> BoxContent::addButton(
+		base::lambda<QString()> textFactory,
+		base::lambda<void()> clickCallback) {
+	return addButton(
+		std::move(textFactory),
+		std::move(clickCallback),
+		st::defaultBoxButton);
 }
 
-QPointer<Ui::RoundButton> BoxContent::addLeftButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback) {
-	return getDelegate()->addLeftButton(std::move(textFactory), std::move(clickCallback), st::defaultBoxButton);
+QPointer<Ui::RoundButton> BoxContent::addLeftButton(
+		base::lambda<QString()> textFactory,
+		base::lambda<void()> clickCallback) {
+	return getDelegate()->addLeftButton(
+		std::move(textFactory), 
+		std::move(clickCallback), 
+		st::defaultBoxButton);
 }
 
 void BoxContent::setInner(object_ptr<TWidget> inner) {
@@ -117,7 +127,7 @@ void BoxContent::updateShadowsVisibility() {
 		(top > 0 || _innerTopSkip > 0),
 		anim::type::normal);
 	_bottomShadow->toggle(
-		(top < _scroll->scrollTopMax()),
+		(top < _scroll->scrollTopMax() || _innerBottomSkip > 0),
 		anim::type::normal);
 }
 
@@ -141,6 +151,16 @@ void BoxContent::setInnerTopSkip(int innerTopSkip, bool scrollBottomFixed) {
 			if (scrollBottomFixed) {
 				_scroll->scrollToY(scrollTopWas + delta);
 			}
+		}
+	}
+}
+
+void BoxContent::setInnerBottomSkip(int innerBottomSkip) {
+	if (_innerBottomSkip != innerBottomSkip) {
+		auto delta = innerBottomSkip - _innerBottomSkip;
+		_innerBottomSkip = innerBottomSkip;
+		if (_scroll && width() > 0) {
+			updateScrollAreaGeometry();
 		}
 	}
 }
@@ -169,13 +189,15 @@ void BoxContent::resizeEvent(QResizeEvent *e) {
 }
 
 void BoxContent::updateScrollAreaGeometry() {
-	auto newScrollHeight = height() - _innerTopSkip;
+	auto newScrollHeight = height() - _innerTopSkip - _innerBottomSkip;
 	auto changed = (_scroll->height() != newScrollHeight);
 	_scroll->setGeometryToLeft(0, _innerTopSkip, width(), newScrollHeight);
 	_topShadow->entity()->resize(width(), st::lineWidth);
 	_topShadow->moveToLeft(0, _innerTopSkip);
 	_bottomShadow->entity()->resize(width(), st::lineWidth);
-	_bottomShadow->moveToLeft(0, height() - st::lineWidth);
+	_bottomShadow->moveToLeft(
+		0,
+		height() - _innerBottomSkip - st::lineWidth);
 	if (changed) {
 		updateInnerVisibleTopBottom();
 
@@ -184,7 +206,7 @@ void BoxContent::updateScrollAreaGeometry() {
 			(top > 0 || _innerTopSkip > 0),
 			anim::type::instant);
 		_bottomShadow->toggle(
-			(top < _scroll->scrollTopMax()),
+			(top < _scroll->scrollTopMax() || _innerBottomSkip > 0),
 			anim::type::instant);
 	}
 }

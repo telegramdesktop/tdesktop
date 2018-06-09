@@ -44,14 +44,14 @@ OPENAL_CACHE_VERSION="3"
 
 GYP_DEFINES=""
 
-[[ ! $MAKE_ARGS ]] && MAKE_ARGS="--silent -j4"
+[[ ! $MAKE_ARGS ]] && MAKE_ARGS="-j3"
 
 run() {
   # Move files to subdir
   cd ..
-  mv tdesktop tdesktop2
-  mkdir tdesktop
-  mv tdesktop2 "$UPSTREAM"
+  mv Telegreat Telegreat2
+  mkdir Telegreat
+  mv Telegreat2 "$UPSTREAM"
 
   mkdir "$BUILD"
 
@@ -688,12 +688,9 @@ buildTelegram() {
       -Dlinux_path_breakpad=$BREAKPAD_PATH \
       -Dlinux_path_libexif_lib=/usr/local/lib \
       -Dlinux_path_opus_include=/usr/include/opus \
-      -Dlinux_lib_ssl=-lssl \
-      -Dlinux_lib_crypto=-lcrypto \
-      -Dlinux_lib_icu=-licuuc\ -licutu\ -licui18n \
       --depth=. --generator-output=.. --format=cmake -Goutput_dir=../out \
-      Telegram.gyp
-  cd "$UPSTREAM/out/Debug"
+      Telegreat.gyp
+  cd "$UPSTREAM/out/Release"
 
   export ASM="gcc"
   cmake .
@@ -701,7 +698,7 @@ buildTelegram() {
 }
 
 check() {
-  local filePath="$UPSTREAM/out/Debug/Telegreat"
+  local filePath="$UPSTREAM/out/Release/Telegreat"
   if test -f "$filePath"; then
     success_msg "Build successfully done! :)"
 

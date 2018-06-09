@@ -296,6 +296,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 
 "lng_settings_section_chat_settings" = "Chat Settings";
 "lng_settings_replace_emojis" = "Replace emoji";
+"lng_settings_suggest_by_emoji" = "Suggest popular stickers by emoji";
 "lng_settings_view_emojis" = "View list";
 "lng_settings_send_enter" = "Send by Enter";
 "lng_settings_send_ctrlenter" = "Send by Ctrl+Enter";
@@ -417,7 +418,29 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_connection_port_ph" = "Port";
 "lng_connection_user_ph" = "Username";
 "lng_connection_password_ph" = "Password";
+"lng_connection_proxy_secret_ph" = "Secret";
 "lng_connection_save" = "Save";
+
+"lng_proxy_settings" = "Proxy settings";
+"lng_proxy_use" = "Use proxy";
+"lng_proxy_use_for_calls" = "Use proxy for calls";
+"lng_proxy_about" = "Proxy servers may be helpful in accessing Telegram if there is no connection in a specific region.";
+"lng_proxy_add" = "Add proxy";
+"lng_proxy_share" = "Share";
+"lng_proxy_online" = "online";
+"lng_proxy_checking" = "checking";
+"lng_proxy_connecting" = "connecting";
+"lng_proxy_available" = "available (ping: {ping}ms)";
+"lng_proxy_unavailable" = "not available";
+"lng_proxy_edit" = "Edit proxy";
+"lng_proxy_menu_edit" = "Edit";
+"lng_proxy_menu_delete" = "Delete";
+"lng_proxy_menu_restore" = "Restore";
+"lng_proxy_edit_share" = "Share";
+"lng_proxy_address_label" = "Socket address";
+"lng_proxy_credentials_optional" = "Credentials (optional)";
+"lng_proxy_credentials" = "Credentials";
+"lng_proxy_description" = "Your saved proxy list will be here.";
 
 "lng_settings_blocked_users" = "Blocked users";
 "lng_settings_last_seen_privacy" = "Last seen privacy";
@@ -1501,6 +1524,8 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 
 "lng_telegreat_stickers_export" = "Export";
 "lng_telegreat_stickers_export_copied" = "All Stickers links copied.";
+"lng_telegreat_stickers_export_header" = "{user}'s Stickers pack list:";
+"lng_telegreat_stickers_export_footer" = "Exported from @Telegreat Desktop";
 
 "lng_telegreat_setting" = "Telegreat Config";
 "lng_telegreat_setting_unstable" = "Unstable Features";
@@ -1508,6 +1533,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_telegreat_setting_username" = "Append @username to Display Name";
 "lng_telegreat_setting_ignore" = "Ignore blocked users";
 "lng_telegreat_setting_everyuser" = "Be mention by @admin and @everyuser";
+"lng_telegreat_setting_show_restrict" = "Show restrict users box instead of ban";
 "lng_telegreat_setting_text_mention" = "Mention users without username";
 "lng_telegreat_setting_auto_copy" = "Auto copy text when click";
 "lng_telegreat_setting_typing" = "Online/Typing Toast";

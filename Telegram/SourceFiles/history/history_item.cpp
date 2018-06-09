@@ -372,8 +372,8 @@ bool HistoryItem::canDeleteForEveryone(TimeId now) const {
 	const auto messageTooOld = messageToMyself
 		? false
 		: peer->isUser()
-		? (now >= date() + Global::RevokePrivateTimeLimit())
-		: (now >= date() + Global::RevokeTimeLimit());
+		? (now - date() >= Global::RevokePrivateTimeLimit())
+		: (now - date() >= Global::RevokeTimeLimit());
 	if (id < 0 || messageToMyself || messageTooOld || isPost()) {
 		return false;
 	}

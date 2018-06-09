@@ -1,22 +1,9 @@
 /*
 This file is part of Telegreat,
-the official desktop version of Telegram messaging app, see https://telegre.at
+the official desktop application for the Telegram messaging service.
 
-Telegreat Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/Sea-n/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2018 Sean, https://telegre.at
+For license and copyright information please follow this link:
+https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 */
 "lng_language_name" = "正體中文（臺灣）";
 "lng_switch_to_this" = "繼續使用正體中文（臺灣）";
@@ -294,7 +281,7 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_settings_current_version" = "版本 {version}";
 "lng_settings_check_now" = "檢查更新";
 "lng_settings_update_checking" = "正在檢查更新…";
-"lng_settings_latest_installed" = "最新版本已安裝";
+"lng_settings_latest_installed" = "已安裝最新版";
 "lng_settings_downloading" = "正在下載更新 {ready} / {total} MB…";
 "lng_settings_update_ready" = "新版本已準備就緒";
 "lng_settings_update_now" = "立即重新啟動";
@@ -309,6 +296,7 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 
 "lng_settings_section_chat_settings" = "聊天設定";
 "lng_settings_replace_emojis" = "取代表情符號";
+"lng_settings_suggest_by_emoji" = "透過表情符號推薦受歡迎的貼圖";
 "lng_settings_view_emojis" = "檢視清單";
 "lng_settings_send_enter" = "按下 Enter 鍵就送出訊息";
 "lng_settings_send_ctrlenter" = "按下 Ctrl+Enter 鍵才送出訊息";
@@ -772,9 +760,9 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_action_user_joined_by_link" = "{from} 透過邀請連結加入了群組";
 "lng_action_user_registered" = "{from} 剛才加入了 Telegram";
 "lng_action_removed_photo" = "{from} 移除了群組照片";
-"lng_action_removed_photo_channel" = "頻道照片已移除";
+"lng_action_removed_photo_channel" = "已移除頻道照片";
 "lng_action_changed_photo" = "{from} 更新了群組照片";
-"lng_action_changed_photo_channel" = "頻道照片已更新";
+"lng_action_changed_photo_channel" = "已更新頻道照片";
 "lng_action_changed_title" = "{from} 將群組名稱變更為 «{title}»";
 "lng_action_changed_title_channel" = "頻道名稱被變更為 «{title}»";
 "lng_action_created_chat" = "{from} 建立了 «{title}» 群組";
@@ -789,7 +777,7 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_action_pinned_media_video_message" = "一則視訊訊息";
 "lng_action_pinned_media_file" = "一個檔案";
 "lng_action_pinned_media_gif" = "一張GIF動畫";
-"lng_action_pinned_media_contact" = "一聯絡人資訊";
+"lng_action_pinned_media_contact" = "一則聯絡人資訊";
 "lng_action_pinned_media_location" = "一個位置標記";
 "lng_action_pinned_media_sticker" = "一張貼圖";
 "lng_action_pinned_media_emoji_sticker" = "一 {emoji} 貼圖";
@@ -808,11 +796,11 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_action_you_took_screenshot" = "您擷取了螢幕畫面！";
 "lng_action_bot_allowed_from_domain" = "您允許此機器人在您登入 {domain} 時向您傳送訊息。";
 
-"lng_ttl_photo_received" = "{from} 傳給您一張閱後即焚的照片。請在您的手機上檢視。";
-"lng_ttl_photo_sent" = "您傳了一張閱後即焚的照片。";
+"lng_ttl_photo_received" = "{from} 傳給您一張自毀的照片。請在您的手機上檢視。";
+"lng_ttl_photo_sent" = "您傳了一張自毀的照片。";
 "lng_ttl_photo_expired" = "照片已過期";
-"lng_ttl_video_received" = "{from} 傳給您一個閱後即焚的影片。請在您的手機上檢視。";
-"lng_ttl_video_sent" = "您傳了一個閱後即焚的影片。";
+"lng_ttl_video_received" = "{from} 傳給您一張自毀的影片。請在您的手機上檢視。";
+"lng_ttl_video_sent" = "您傳了一張自毀的影片。";
 "lng_ttl_video_expired" = "影片已過期";
 
 "lng_profile_migrate_reached#one" = "{count} 個成員的限制達到了";
@@ -832,6 +820,7 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 
 "lng_channel_not_accessible" = "抱歉，這個頻道不能存取。";
 "lng_group_not_accessible" = "抱歉，這個群組不能存取。";
+"lng_group_full" = "抱歉，此群組成員名額已滿。";
 
 "lng_channels_too_much_public_about" = "抱歉，您已經建立了太多公開的連結。您可以撤換其中一個舊群組或頻道的公開連結。";
 "lng_channels_too_much_public_revoke_confirm_group" = "您確定要撤換連結 {link}？\n\n群組 «{group}» 將變成私人的。";
@@ -910,7 +899,7 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 
 "lng_switch_stickers" = "貼圖";
 "lng_switch_emoji" = "表情符號";
-"lng_switch_gifs" = "GIFs";
+"lng_switch_gifs" = "GIF 動圖";
 "lng_stickers_featured_add" = "添加";
 "lng_gifs_search" = "搜尋 GIF 動圖";
 "lng_gifs_no_saved" = "您還沒有任何已保存的 GIF 動圖。";
@@ -990,7 +979,7 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_saved_forward_here" = "轉傳訊息到這裡以便快速存取";
 
 "lng_dialogs_text_with_from" = "{from_part} {message}";
-"lng_dialogs_text_from_wrapped" = "{from}:";
+"lng_dialogs_text_from_wrapped" = "{from}：";
 "lng_dialogs_text_media" = "{media_part} {caption}";
 "lng_dialogs_text_media_wrapped" = "{media},";
 "lng_dialogs_show_all_chats" = "顯示所有聊天";
@@ -1297,8 +1286,8 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_call_outgoing" = "撥出電話";
 "lng_call_incoming" = "撥入電話";
 "lng_call_missed" = "未接來電";
-"lng_call_cancelled" = "取消通話";
-"lng_call_declined" = "拒接來電";
+"lng_call_cancelled" = "取消的通話";
+"lng_call_declined" = "拒接的來電";
 "lng_call_duration_info" = "{time}, {duration}";
 "lng_call_type_and_duration" = "{type} ({duration})";
 
@@ -1439,21 +1428,21 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 
 "lng_feed_group" = "在 feed 中聚集";
 "lng_feed_ungroup" = "從 feed 中取消聚集";
-"lng_feed_channel_added" = "頻道加入到您的 feed。";
-"lng_feed_channel_removed" = "頻道從您的 feed 中移除。";
-"lng_feed_no_messages" = "此 feed 中目前沒有訊息";
+"lng_feed_channel_added" = "頻道已加入到您的 feed。";
+"lng_feed_channel_removed" = "頻道已從您的 feed 中移除。";
+"lng_feed_no_messages" = "此 feed 中還沒有訊息";
 "lng_feed_channels#one" = "{count} 個頻道";
 "lng_feed_channels#other" = "{count} 個頻道";
 "lng_feed_notifications" = "Feed 通知";
 "lng_feed_ungroup_all" = "取消所有頻道的聚集";
 "lng_feed_sure_ungroup_all" = "您確定要從這個 Feed 中取消所有頻道的聚集？";
 "lng_feed_ungroup_sure" = "取消聚集";
-"lng_feed_create_new" = "新的 feed";
-"lng_feed_too_few_channels#one" = "您至少需要 {count} 個頻道才能創立一個 feed。";
-"lng_feed_too_few_channels#other" = "您至少需要 {count} 個頻道才能創立一個 feed。";
+"lng_feed_create_new" = "新增 feed";
+"lng_feed_too_few_channels#one" = "您至少需要 {count} 個頻道才能創建一個 feed。";
+"lng_feed_too_few_channels#other" = "您至少需要 {count} 個頻道才能創建一個 feed。";
 "lng_feed_select_more_channels#one" = "選擇 {count} 個頻道或更多。";
 "lng_feed_select_more_channels#other" = "選擇 {count} 個頻道或更多。";
-"lng_feed_create" = "創立";
+"lng_feed_create" = "建立";
 "lng_feed_edit_title" = "編輯 feed";
 "lng_feed_channels_not_found" = "找不到頻道";
 
@@ -1510,285 +1499,11 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_mac_menu_new_channel" = "新增頻道";
 "lng_mac_menu_show" = "顯示 Telegram";
 
-// Keys finished
-/* new from translations.telegram.org */
-
-
-
-"lng_action_game_score#zero" = "{from} 在 {game} 中得到了 {count} 分";
-"lng_action_game_score#two" = "{from} 在 {game} 中得到了 {count} 分";
-"lng_action_game_score#few" = "{from} 在 {game} 中得到了 {count} 分";
-"lng_action_game_score#many" = "{from} 在 {game} 中得到了 {count} 分";
-"lng_action_game_score_no_game#zero" = "{from} 得到了 {count} 分";
-"lng_action_game_score_no_game#two" = "{from} 得到了 {count} 分";
-"lng_action_game_score_no_game#few" = "{from} 得到了 {count} 分";
-"lng_action_game_score_no_game#many" = "{from} 得到了 {count} 分";
-"lng_action_game_you_scored#zero" = "您在 {game} 中得到了 {count} 分";
-"lng_action_game_you_scored#two" = "您在 {game} 中得到了 {count} 分";
-"lng_action_game_you_scored#few" = "您在 {game} 中得到了 {count} 分";
-"lng_action_game_you_scored#many" = "您在 {game} 中得到了 {count} 分";
-"lng_action_game_you_scored_no_game#zero" = "您得到了 {count} 分";
-"lng_action_game_you_scored_no_game#two" = "您得到了 {count} 分";
-"lng_action_game_you_scored_no_game#few" = "您得到了 {count} 分";
-"lng_action_game_you_scored_no_game#many" = "您得到了 {count} 分";
-"lng_channel_admins_link#zero" = "{count} 個管理員";
-"lng_channel_admins_link#two" = "{count} 個管理員";
-"lng_channel_admins_link#few" = "{count} 個管理員";
-"lng_channel_admins_link#many" = "{count} 個管理員";
-"lng_channel_members_link#zero" = "{count} 個成員";
-"lng_channel_members_link#two" = "{count} 個成員";
-"lng_channel_members_link#few" = "{count} 個成員";
-"lng_channel_members_link#many" = "{count} 個成員";
-"lng_chat_status_members#zero" = "{count} 個成員";
-"lng_chat_status_members#two" = "{count} 個成員";
-"lng_chat_status_members#few" = "{count} 個成員";
-"lng_chat_status_members#many" = "{count} 個成員";
-"lng_chat_status_online#zero" = "{count} 人在線上";
-"lng_chat_status_online#two" = "{count} 人在線上";
-"lng_chat_status_online#few" = "{count} 人在線上";
-"lng_chat_status_online#many" = "{count} 人在線上";
-"lng_delete_for_everyone_hint#zero" = "這將為此聊天室中的每個人刪除它們。";
-"lng_delete_for_everyone_hint#two" = "這將為此聊天室中的每個人刪除它們。";
-"lng_delete_for_everyone_hint#few" = "這將為此聊天室中的每個人刪除它們。";
-"lng_delete_for_everyone_hint#many" = "這將為此聊天室中的每個人刪除它們。";
-"lng_delete_for_me_chat_hint#zero" = "這將只為您刪除，而其他成員的聊天紀錄則不受影響。";
-"lng_delete_for_me_chat_hint#two" = "這將只為您刪除，而其他成員的聊天紀錄則不受影響。";
-"lng_delete_for_me_chat_hint#few" = "這將只為您刪除，而其他成員的聊天紀錄則不受影響。";
-"lng_delete_for_me_chat_hint#many" = "這將只為您刪除，而其他成員的聊天紀錄則不受影響。";
-"lng_delete_for_me_hint#zero" = "這將只為您刪除。";
-"lng_delete_for_me_hint#two" = "這將只為您刪除。";
-"lng_delete_for_me_hint#few" = "這將只為您刪除。";
-"lng_delete_for_me_hint#many" = "這將只為您刪除。";
-"lng_duration_minsec_minutes#zero" = "{count} 分";
-"lng_duration_minsec_minutes#two" = "{count} 分";
-"lng_duration_minsec_minutes#few" = "{count} 分";
-"lng_duration_minsec_minutes#many" = "{count} 分";
-"lng_duration_minsec_seconds#zero" = "{count} 秒";
-"lng_duration_minsec_seconds#two" = "{count} 秒";
-"lng_duration_minsec_seconds#few" = "{count} 秒";
-"lng_duration_minsec_seconds#many" = "{count} 秒";
-"lng_duration_seconds#zero" = "{count} 秒";
-"lng_duration_seconds#two" = "{count} 秒";
-"lng_duration_seconds#few" = "{count} 秒";
-"lng_duration_seconds#many" = "{count} 秒";
-"lng_edit_privacy_calls_always#zero" = "總是允許 {count} 個用戶";
-"lng_edit_privacy_calls_always#two" = "總是允許 {count} 個用戶";
-"lng_edit_privacy_calls_always#few" = "總是允許 {count} 個用戶";
-"lng_edit_privacy_calls_always#many" = "總是允許 {count} 個用戶";
-"lng_edit_privacy_calls_never#zero" = "永不允許 {count} 個用戶";
-"lng_edit_privacy_calls_never#two" = "永不允許 {count} 個用戶";
-"lng_edit_privacy_calls_never#few" = "永不允許 {count} 個用戶";
-"lng_edit_privacy_calls_never#many" = "永不允許 {count} 個用戶";
-"lng_edit_privacy_groups_always#zero" = "總是允許 {count} 個用戶";
-"lng_edit_privacy_groups_always#two" = "總是允許 {count} 個用戶";
-"lng_edit_privacy_groups_always#few" = "總是允許 {count} 個用戶";
-"lng_edit_privacy_groups_always#many" = "總是允許 {count} 個用戶";
-"lng_edit_privacy_groups_never#zero" = "永不允許 {count} 個用戶";
-"lng_edit_privacy_groups_never#two" = "永不允許 {count} 個用戶";
-"lng_edit_privacy_groups_never#few" = "永不允許 {count} 個用戶";
-"lng_edit_privacy_groups_never#many" = "永不允許 {count} 個用戶";
-"lng_edit_privacy_lastseen_always#zero" = "總是與 {count} 個用戶分享";
-"lng_edit_privacy_lastseen_always#two" = "總是與 {count} 個用戶分享";
-"lng_edit_privacy_lastseen_always#few" = "總是與 {count} 個用戶分享";
-"lng_edit_privacy_lastseen_always#many" = "總是與 {count} 個用戶分享";
-"lng_edit_privacy_lastseen_never#zero" = "永不與 {count} 個用戶分享";
-"lng_edit_privacy_lastseen_never#two" = "永不與 {count} 個用戶分享";
-"lng_edit_privacy_lastseen_never#few" = "永不與 {count} 個用戶分享";
-"lng_edit_privacy_lastseen_never#many" = "永不與 {count} 個用戶分享";
-"lng_error_pinned_max#zero" = "很抱歉，您不可以置頂超過 {count} 個聊天室。";
-"lng_error_pinned_max#two" = "很抱歉，您不可以置頂超過 {count} 個聊天室。";
-"lng_error_pinned_max#few" = "很抱歉，您不可以置頂超過 {count} 個聊天室。";
-"lng_error_pinned_max#many" = "很抱歉，您不可以置頂超過 {count} 個聊天室。";
-"lng_forward_messages#zero" = "{count} 則轉傳的訊息";
-"lng_forward_messages#two" = "{count} 則轉傳的訊息";
-"lng_forward_messages#few" = "{count} 則轉傳的訊息";
-"lng_forward_messages#many" = "{count} 則轉傳的訊息";
-"lng_forwarding_from#zero" = "{user} 和其他 {count} 人";
-"lng_forwarding_from#two" = "{user} 和其他 {count} 人";
-"lng_forwarding_from#few" = "{user} 和其他 {count} 人";
-"lng_forwarding_from#many" = "{user} 和其他 {count} 人";
-"lng_group_invite_members#zero" = "{count} 個成員，其中包括：";
-"lng_group_invite_members#two" = "{count} 個成員，其中包括：";
-"lng_group_invite_members#few" = "{count} 個成員，其中包括：";
-"lng_group_invite_members#many" = "{count} 個成員，其中包括：";
-"lng_many_playing_game#zero" = "{count} 個人正在玩遊戲";
-"lng_many_playing_game#two" = "{count} 個人正在玩遊戲";
-"lng_many_playing_game#few" = "{count} 個人正在玩遊戲";
-"lng_many_playing_game#many" = "{count} 個人正在玩遊戲";
-"lng_many_typing#zero" = "{count} 個人正在輸入";
-"lng_many_typing#two" = "{count} 個人正在輸入";
-"lng_many_typing#few" = "{count} 個人正在輸入";
-"lng_many_typing#many" = "{count} 個人正在輸入";
-"lng_media_selected_audio#zero" = "{count} 則語音訊息";
-"lng_media_selected_audio#two" = "{count} 則語音訊息";
-"lng_media_selected_audio#few" = "{count} 則語音訊息";
-"lng_media_selected_audio#many" = "{count} 則語音訊息";
-"lng_media_selected_file#zero" = "{count} 個檔案";
-"lng_media_selected_file#two" = "{count} 個檔案";
-"lng_media_selected_file#few" = "{count} 個檔案";
-"lng_media_selected_file#many" = "{count} 個檔案";
-"lng_media_selected_link#zero" = "{count} 個共享連結";
-"lng_media_selected_link#two" = "{count} 個共享連結";
-"lng_media_selected_link#few" = "{count} 個共享連結";
-"lng_media_selected_link#many" = "{count} 個共享連結";
-"lng_media_selected_photo#zero" = "{count} 張照片";
-"lng_media_selected_photo#two" = "{count} 張照片";
-"lng_media_selected_photo#few" = "{count} 張照片";
-"lng_media_selected_photo#many" = "{count} 張照片";
-"lng_media_selected_song#zero" = "{count} 個音訊檔";
-"lng_media_selected_song#two" = "{count} 個音訊檔";
-"lng_media_selected_song#few" = "{count} 個音訊檔";
-"lng_media_selected_song#many" = "{count} 個音訊檔";
-"lng_media_selected_video#zero" = "{count} 個影片";
-"lng_media_selected_video#two" = "{count} 個影片";
-"lng_media_selected_video#few" = "{count} 個影片";
-"lng_media_selected_video#many" = "{count} 個影片";
-"lng_mute_duration_hours#zero" = "{count} 小時";
-"lng_mute_duration_hours#two" = "{count} 小時";
-"lng_mute_duration_hours#few" = "{count} 小時";
-"lng_mute_duration_hours#many" = "{count} 小時";
-"lng_participant_invite_sorry#zero" = "很抱歉，您個人僅能將前 {count} 個成員加入到頻道。\n\n從現在開始，人們將需要透過您的邀請連結來加入。";
-"lng_participant_invite_sorry#two" = "很抱歉，您個人僅能將前 {count} 位成員加入到頻道。\n\n從現在開始，人們將需要透過您的邀請連結來加入。";
-"lng_participant_invite_sorry#few" = "很抱歉，您個人僅能將前 {count} 位成員加入到頻道。\n\n從現在開始，人們將需要透過您的邀請連結來加入。";
-"lng_participant_invite_sorry#many" = "很抱歉，您個人僅能將前 {count} 個成員加入到頻道。\n\n從現在開始，人們將需要透過您的邀請連結來加入。";
-"lng_passcode_autolock_hours#zero" = "{count} 小時";
-"lng_passcode_autolock_hours#two" = "{count} 小時";
-"lng_passcode_autolock_hours#few" = "{count} 小時";
-"lng_passcode_autolock_hours#many" = "{count} 小時";
-"lng_passcode_autolock_minutes#zero" = "{count} 分鐘";
-"lng_passcode_autolock_minutes#two" = "{count} 分鐘";
-"lng_passcode_autolock_minutes#few" = "{count} 分鐘";
-"lng_passcode_autolock_minutes#many" = "{count} 分鐘";
-"lng_profile_add_more_after_upgrade#zero" = "在升級為一個超級群組之後，您將能夠添加高達 {count} 個成員。";
-"lng_profile_add_more_after_upgrade#two" = "在升級為一個超級群組之後，您將能夠添加高達 {count} 個成員。";
-"lng_profile_add_more_after_upgrade#few" = "在升級為一個超級群組之後，您將能夠添加高達 {count} 個成員。";
-"lng_profile_add_more_after_upgrade#many" = "在升級為一個超級群組之後，您將能夠添加高達 {count} 個成員。";
-"lng_profile_audios#zero" = "{count} 則語音訊息";
-"lng_profile_audios#two" = "{count} 則語音訊息";
-"lng_profile_audios#few" = "{count} 則語音訊息";
-"lng_profile_audios#many" = "{count} 則語音訊息";
-"lng_profile_common_groups#zero" = "{count} 個共同的群組";
-"lng_profile_common_groups#two" = "{count} 個共同的群組";
-"lng_profile_common_groups#few" = "{count} 個共同的群組";
-"lng_profile_common_groups#many" = "{count} 個共同的群組";
-"lng_profile_files#zero" = "{count} 個檔案";
-"lng_profile_files#two" = "{count} 個檔案";
-"lng_profile_files#few" = "{count} 個檔案";
-"lng_profile_files#many" = "{count} 個檔案";
-"lng_profile_migrate_reached#zero" = "{count} 個成員的限制達到了";
-"lng_profile_migrate_reached#two" = "{count} 個成員的限制達到了";
-"lng_profile_migrate_reached#few" = "{count} 個成員的限制達到了";
-"lng_profile_migrate_reached#many" = "{count} 個成員的限制達到了";
-"lng_profile_photos#zero" = "{count} 張照片";
-"lng_profile_photos#two" = "{count} 張照片";
-"lng_profile_photos#few" = "{count} 張照片";
-"lng_profile_photos#many" = "{count} 張照片";
-"lng_profile_shared_links#zero" = "{count} 個共享連結";
-"lng_profile_shared_links#two" = "{count} 個共享連結";
-"lng_profile_shared_links#few" = "{count} 個共享連結";
-"lng_profile_shared_links#many" = "{count} 個共享連結";
-"lng_profile_songs#zero" = "{count} 個音訊檔";
-"lng_profile_songs#two" = "{count} 個音訊檔";
-"lng_profile_songs#few" = "{count} 個音訊檔";
-"lng_profile_songs#many" = "{count} 個音訊檔";
-"lng_profile_videos#zero" = "{count} 個影片";
-"lng_profile_videos#two" = "{count} 個影片";
-"lng_profile_videos#few" = "{count} 個影片";
-"lng_profile_videos#many" = "{count} 個影片";
-"lng_reconnecting#zero" = "{count} 秒之後，重新連接…";
-"lng_reconnecting#two" = "{count} 秒之後，重新連接…";
-"lng_reconnecting#few" = "{count} 秒之後，重新連接…";
-"lng_reconnecting#many" = "{count} 秒之後，重新連接…";
-"lng_rights_chat_banned_day#zero" = "{count} 天";
-"lng_rights_chat_banned_day#two" = "{count} 天";
-"lng_rights_chat_banned_day#few" = "{count} 天";
-"lng_rights_chat_banned_day#many" = "{count} 天";
-"lng_rights_chat_banned_week#zero" = "{count} 週";
-"lng_rights_chat_banned_week#two" = "{count} 週";
-"lng_rights_chat_banned_week#few" = "{count} 週";
-"lng_rights_chat_banned_week#many" = "{count} 週";
-"lng_search_found_results#zero" = "找到 {count} 則訊息";
-"lng_search_found_results#two" = "找到 {count} 則訊息";
-"lng_search_found_results#few" = "找到 {count} 則訊息";
-"lng_search_found_results#many" = "找到 {count} 則訊息";
-"lng_selected_delete_sure#zero" = "您想要刪除 {count} 則訊息嗎？";
-"lng_selected_delete_sure#two" = "您想要刪除 {count} 則訊息嗎？";
-"lng_selected_delete_sure#few" = "您想要刪除 {count} 則訊息嗎？";
-"lng_selected_delete_sure#many" = "您想要刪除 {count} 則訊息嗎？";
-"lng_self_destruct_months#zero" = "{count} 個月";
-"lng_self_destruct_months#two" = "{count} 個月";
-"lng_self_destruct_months#few" = "{count} 個月";
-"lng_self_destruct_months#many" = "{count} 個月";
-"lng_self_destruct_years#zero" = "{count} 年";
-"lng_self_destruct_years#two" = "{count} 年";
-"lng_self_destruct_years#few" = "{count} 年";
-"lng_self_destruct_years#many" = "{count} 年";
-"lng_send_files#zero" = "作為 {count} 個檔案傳送";
-"lng_send_files#two" = "作為 {count} 個檔案傳送";
-"lng_send_files#few" = "作為 {count} 個檔案傳送";
-"lng_send_files#many" = "作為 {count} 個檔案傳送";
-"lng_send_files_selected#zero" = "{count} 個檔案已選取";
-"lng_send_files_selected#two" = "{count} 個檔案已選取";
-"lng_send_files_selected#few" = "{count} 個檔案已選取";
-"lng_send_files_selected#many" = "{count} 個檔案已選取";
-"lng_send_images_compress#zero" = "壓縮圖片";
-"lng_send_images_compress#one" = "壓縮圖片";
-"lng_send_images_compress#two" = "壓縮圖片";
-"lng_send_images_compress#few" = "壓縮圖片";
-"lng_send_images_compress#many" = "壓縮圖片";
-"lng_send_images_compress#other" = "壓縮圖片";
-"lng_send_images_selected#zero" = "{count} 張圖片已選取";
-"lng_send_images_selected#two" = "{count} 張圖片已選取";
-"lng_send_images_selected#few" = "{count} 張圖片已選取";
-"lng_send_images_selected#many" = "{count} 張圖片已選取";
-"lng_send_photos#zero" = "作為 {count} 張照片傳送";
-"lng_send_photos#two" = "作為 {count} 張照片傳送";
-"lng_send_photos#few" = "作為 {count} 張照片傳送";
-"lng_send_photos#many" = "作為 {count} 張照片傳送";
-"lng_settings_audios_cached#zero" = "{count} 則語音訊息，{size}";
-"lng_settings_audios_cached#two" = "{count} 則語音訊息，{size}";
-"lng_settings_audios_cached#few" = "{count} 則語音訊息，{size}";
-"lng_settings_audios_cached#many" = "{count} 則語音訊息，{size}";
-"lng_settings_images_cached#zero" = "{count} 張圖片，{size}";
-"lng_settings_images_cached#two" = "{count} 張圖片，{size}";
-"lng_settings_images_cached#few" = "{count} 張圖片，{size}";
-"lng_settings_images_cached#many" = "{count} 張圖片，{size}";
-"lng_signin_reset_days#zero" = "{count} 天";
-"lng_signin_reset_days#two" = "{count} 天";
-"lng_signin_reset_days#few" = "{count} 天";
-"lng_signin_reset_days#many" = "{count} 天";
-"lng_signin_reset_hours#zero" = "{count} 小時";
-"lng_signin_reset_hours#two" = "{count} 小時";
-"lng_signin_reset_hours#few" = "{count} 小時";
-"lng_signin_reset_hours#many" = "{count} 小時";
-"lng_signin_reset_minutes#zero" = "{count} 分鐘";
-"lng_signin_reset_minutes#two" = "{count} 分鐘";
-"lng_signin_reset_minutes#few" = "{count} 分鐘";
-"lng_signin_reset_minutes#many" = "{count} 分鐘";
-"lng_status_lastseen_hours#zero" = "最後上線於 {count} 小時之前";
-"lng_status_lastseen_hours#two" = "最後上線於 {count} 小時之前";
-"lng_status_lastseen_hours#few" = "最後上線於 {count} 小時之前";
-"lng_status_lastseen_hours#many" = "最後上線於 {count} 小時之前";
-"lng_status_lastseen_minutes#zero" = "最後上線於 {count} 分鐘之前";
-"lng_status_lastseen_minutes#two" = "最後上線於 {count} 分鐘之前";
-"lng_status_lastseen_minutes#few" = "最後上線於 {count} 分鐘之前";
-"lng_status_lastseen_minutes#many" = "最後上線於 {count} 分鐘之前";
-"lng_stickers_count#zero" = "{count} 張貼圖";
-"lng_stickers_count#two" = "{count} 張貼圖";
-"lng_stickers_count#few" = "{count} 張貼圖";
-"lng_stickers_count#many" = "{count} 張貼圖";
-"lng_theme_reverting#zero" = "在 {count} 秒內恢復為舊的顏色主題。";
-"lng_theme_reverting#two" = "在 {count} 秒內恢復為舊的顏色主題。";
-"lng_theme_reverting#few" = "在 {count} 秒內恢復為舊的顏色主題。";
-"lng_theme_reverting#many" = "在 {count} 秒內恢復為舊的顏色主題。";
-"lng_unread_bar#zero" = "{count} 則未讀訊息";
-"lng_unread_bar#two" = "{count} 則未讀訊息";
-"lng_unread_bar#few" = "{count} 則未讀訊息";
-"lng_unread_bar#many" = "{count} 則未讀訊息";
-
 
 "lng_telegreat_stickers_export" = "匯出";
 "lng_telegreat_stickers_export_copied" = "已複製所有貼圖連結";
+"lng_telegreat_stickers_export_header" = "{user} 的貼圖包清單：";
+"lng_telegreat_stickers_export_footer" = "從 @Telegreat Desktop 匯出";
 
 "lng_telegreat_setting" = "Telegreat 設定";
 "lng_telegreat_setting_unstable" = "不穩定的功能";
@@ -1796,6 +1511,8 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_telegreat_setting_username" = "將 @username 加到名稱後";
 "lng_telegreat_setting_ignore" = "忽略被封鎖的使用者";
 "lng_telegreat_setting_everyuser" = "被 @admin 和 @everyuser 通知";
+"lng_telegreat_setting_show_restrict" = "顯示「限制用戶」框而不是「封鎖」";
+"lng_telegreat_setting_text_mention" = "提及用戶，但不必使用「用戶名稱」";
 "lng_telegreat_setting_auto_copy" = "點擊文字時自動複製";
 "lng_telegreat_setting_typing" = "輸入中/上線通知";
 
@@ -1808,6 +1525,8 @@ Copyright (c) 2014-2018 Sean, https://telegre.at
 "lng_telegreat_typing_toast_all" = "輸入中通知 (其他)";
 "lng_telegreat_typing_toast_contact" = "輸入中通知 (聯絡人)";
 "lng_telegreat_typing_desc" = "通知持續時間將根據私訊時間\n動態自動調整";
+"lng_telegreat_user_typing" = "{user} 正在輸入";
+"lng_telegreat_user_online" = "{user} 上線";
 
 "lng_telegreat_chat_type" = "聊天室類型";
 "lng_telegreat_user" = "使用者";

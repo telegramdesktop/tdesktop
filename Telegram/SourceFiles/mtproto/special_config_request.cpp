@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace MTP {
 namespace {
 
+constexpr auto kSendNextTimeout = TimeMs(1000);
+
 constexpr auto kPublicKey = str_const("\
 -----BEGIN RSA PUBLIC KEY-----\n\
 MIIBCgKCAQEAyr+18Rex2ohtVy8sroGPBwXD3DOoKCSpjDqYoXgCqB7ioln4eDCF\n\
@@ -27,88 +29,65 @@ Y1hZCxdv6cs5UnW9+PWvS+WIbkh+GaWYxwIDAQAB\n\
 -----END RSA PUBLIC KEY-----\
 ");
 
-} // namespace
+constexpr auto kUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+"AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.117 Safari/537.36";
 
-SpecialConfigRequest::SpecialConfigRequest(base::lambda<void(DcId dcId, const std::string &ip, int port)> callback) : _callback(std::move(callback)) {
-	App::setProxySettings(_manager);
-
-	performAppRequest();
-	performDnsRequest();
-}
-
-void SpecialConfigRequest::performAppRequest() {
-	LOG(("SpecialConfigRequest performDnsRequest"));
-	auto appUrl = QUrl();
-	appUrl.setScheme(qsl("https"));
-	appUrl.setHost(qsl("software-download.microsoft.com"));
-	appUrl.setPath(cTestMode()
-		? qsl("/test/config.txt")
-		: qsl("/prod/config.txt"));
-	auto appRequest = QNetworkRequest(appUrl);
-	appRequest.setRawHeader("Host", "tcdnb.azureedge.net");
-	_appReply.reset(_manager.get(appRequest));
-	connect(_appReply.get(), &QNetworkReply::finished, this, [this] { appFinished(); });
-}
-
-void SpecialConfigRequest::performDnsRequest() {
-	LOG(("SpecialConfigRequest performDnsRequest"));
-	auto dnsUrl = QUrl();
-	dnsUrl.setScheme(qsl("https"));
-	dnsUrl.setHost(qsl("google.com"));
-	dnsUrl.setPath(qsl("/resolve"));
-	dnsUrl.setQuery(qsl("name=%1.stel.com&type=16").arg(cTestMode() ? qsl("tap") : qsl("ap")));
-	auto dnsRequest = QNetworkRequest(QUrl(dnsUrl));
-	dnsRequest.setRawHeader("Host", "dns.google.com");
-	_dnsReply.reset(_manager.get(dnsRequest));
-	connect(_dnsReply.get(), &QNetworkReply::finished, this, [this] { dnsFinished(); });
-}
-
-void SpecialConfigRequest::appFinished() {
-	if (!_appReply) {
-		return;
+bool CheckPhoneByPrefixesRules(const QString &phone, const QString &rules) {
+	const auto check = QString(phone).replace(
+		QRegularExpression("[^0-9]"),
+		QString());
+	auto result = false;
+	for (const auto &prefix : rules.split(',')) {
+		if (prefix.isEmpty()) {
+			result = true;
+		} else if (prefix[0] == '+' && check.startsWith(prefix.mid(1))) {
+			result = true;
+		} else if (prefix[0] == '-' && check.startsWith(prefix.mid(1))) {
+			return false;
+		}
 	}
-	auto result = _appReply->readAll();
-	_appReply.release()->deleteLater();
-	handleResponse(result);
+	return result;
 }
 
-void SpecialConfigRequest::dnsFinished() {
-	if (!_dnsReply) {
-		return;
-	}
-	if (_dnsReply->error() != QNetworkReply::NoError) {
-		LOG(("Config Error: Failed to get dns response JSON, error: %1 (%2)").arg(_dnsReply->errorString()).arg(_dnsReply->error()));
-	}
-	auto result = _dnsReply->readAll();
-	_dnsReply.release()->deleteLater();
-
-	// Read and store to "entries" map all the data bytes from this response:
-	// { .., "Answer": [ { .., "data": "bytes1", .. }, { .., "data": "bytes2", .. } ], .. }
+QByteArray ParseDnsResponse(const QByteArray &response) {
+	// Read and store to "entries" map all the data bytes from the response:
+	// { ..,
+	//   "Answer": [
+	//     { .., "data": "bytes1", .. },
+	//     { .., "data": "bytes2", .. }
+	//   ],
+	// .. }
 	auto entries = QMap<int, QString>();
-	auto error = QJsonParseError { 0, QJsonParseError::NoError };
-	auto document = QJsonDocument::fromJson(result, &error);
+	auto error = QJsonParseError{ 0, QJsonParseError::NoError };
+	auto document = QJsonDocument::fromJson(response, &error);
 	if (error.error != QJsonParseError::NoError) {
-		LOG(("Config Error: Failed to parse dns response JSON, error: %1").arg(error.errorString()));
+		LOG(("Config Error: Failed to parse dns response JSON, error: %1"
+			).arg(error.errorString()));
 	} else if (!document.isObject()) {
 		LOG(("Config Error: Not an object received in dns response JSON."));
 	} else {
 		auto response = document.object();
 		auto answerIt = response.find(qsl("Answer"));
 		if (answerIt == response.constEnd()) {
-			LOG(("Config Error: Could not find Answer in dns response JSON."));
+			LOG(("Config Error: Could not find Answer "
+				"in dns response JSON."));
 		} else if (!(*answerIt).isArray()) {
-			LOG(("Config Error: Not an array received in Answer in dns response JSON."));
+			LOG(("Config Error: Not an array received "
+				"in Answer in dns response JSON."));
 		} else {
 			for (auto elem : (*answerIt).toArray()) {
 				if (!elem.isObject()) {
-					LOG(("Config Error: Not an object found in Answer array in dns response JSON."));
+					LOG(("Config Error: Not an object found "
+						"in Answer array in dns response JSON."));
 				} else {
 					auto object = elem.toObject();
 					auto dataIt = object.find(qsl("data"));
 					if (dataIt == object.constEnd()) {
-						LOG(("Config Error: Could not find data in Answer array entry in dns response JSON."));
+						LOG(("Config Error: Could not find data "
+							"in Answer array entry in dns response JSON."));
 					} else if (!(*dataIt).isString()) {
-						LOG(("Config Error: Not a string data found in Answer array entry in dns response JSON."));
+						LOG(("Config Error: Not a string data found "
+							"in Answer array entry in dns response JSON."));
 					} else {
 						auto data = (*dataIt).toString();
 						LOG(("SpecialConfigRequest data: %1").arg(data));
@@ -118,8 +97,130 @@ void SpecialConfigRequest::dnsFinished() {
 			}
 		}
 	}
-	auto text = QStringList(entries.values()).join(QString());
-	handleResponse(text.toLatin1());
+	return QStringList(entries.values()).join(QString()).toLatin1();
+}
+
+} // namespace
+
+SpecialConfigRequest::Request::Request(not_null<QNetworkReply*> reply)
+: reply(reply.get()) {
+}
+
+SpecialConfigRequest::Request::Request(Request &&other)
+: reply(base::take(other.reply)) {
+}
+
+auto SpecialConfigRequest::Request::operator=(Request &&other) -> Request& {
+	if (reply != other.reply) {
+		destroy();
+		reply = base::take(other.reply);
+	}
+	return *this;
+}
+
+void SpecialConfigRequest::Request::destroy() {
+	if (const auto value = base::take(reply)) {
+		value->deleteLater();
+		value->abort();
+	}
+}
+
+SpecialConfigRequest::Request::~Request() {
+	destroy();
+}
+
+SpecialConfigRequest::SpecialConfigRequest(
+	base::lambda<void(
+		DcId dcId,
+		const std::string &ip,
+		int port,
+		bytes::const_span secret)> callback,
+	const QString &phone)
+: _callback(std::move(callback))
+, _phone(phone) {
+	_attempts = {
+		{ Type::App, qsl("software-download.microsoft.com") },
+		{ Type::Dns, qsl("google.com") },
+		{ Type::Dns, qsl("www.google.com") },
+		{ Type::Dns, qsl("google.ru") },
+		{ Type::Dns, qsl("www.google.ru") },
+	};
+	std::random_device rd;
+	ranges::shuffle(_attempts, std::mt19937(rd()));
+	sendNextRequest();
+}
+
+void SpecialConfigRequest::sendNextRequest() {
+	Expects(!_attempts.empty());
+
+	const auto attempt = _attempts.back();
+	_attempts.pop_back();
+	if (!_attempts.empty()) {
+		App::CallDelayed(kSendNextTimeout, this, [=] {
+			sendNextRequest();
+		});
+	}
+	performRequest(attempt);
+}
+
+void SpecialConfigRequest::performRequest(const Attempt &attempt) {
+	const auto type = attempt.type;
+	auto url = QUrl();
+	url.setScheme(qsl("https"));
+	url.setHost(attempt.domain);
+	auto request = QNetworkRequest();
+	switch (type) {
+	case Type::App: {
+		url.setPath(cTestMode()
+			? qsl("/test/config.txt")
+			: qsl("/prodv2/config.txt"));
+		request.setRawHeader("Host", "tcdnb.azureedge.net");
+	} break;
+	case Type::Dns: {
+		url.setPath(qsl("/resolve"));
+		url.setQuery(
+			qsl("name=%1.stel.com&type=16").arg(
+				cTestMode() ? qsl("tap") : qsl("apv2")));
+		request.setRawHeader("Host", "dns.google.com");
+	} break;
+	default: Unexpected("Type in SpecialConfigRequest::performRequest.");
+	}
+	request.setUrl(url);
+	request.setRawHeader("User-Agent", kUserAgent);
+	const auto reply = _requests.emplace_back(
+		_manager.get(request)
+	).reply;
+	connect(reply, &QNetworkReply::finished, this, [=] {
+		requestFinished(type, reply);
+	});
+}
+
+void SpecialConfigRequest::requestFinished(
+		Type type,
+		not_null<QNetworkReply*> reply) {
+	const auto result = finalizeRequest(reply);
+	switch (type) {
+	case Type::App: handleResponse(result); break;
+	case Type::Dns: handleResponse(ParseDnsResponse(result)); break;
+	default: Unexpected("Type in SpecialConfigRequest::requestFinished.");
+	}
+}
+
+QByteArray SpecialConfigRequest::finalizeRequest(
+		not_null<QNetworkReply*> reply) {
+	if (reply->error() != QNetworkReply::NoError) {
+		LOG(("Config Error: Failed to get response from %1, error: %2 (%3)"
+			).arg(reply->request().url().toDisplayString()
+			).arg(reply->errorString()
+			).arg(reply->error()));
+	}
+	const auto result = reply->readAll();
+	const auto from = ranges::remove(
+		_requests,
+		reply,
+		[](const Request &request) { return request.reply; });
+	_requests.erase(from, end(_requests));
+	return result;
 }
 
 bool SpecialConfigRequest::decryptSimpleConfig(const QByteArray &bytes) {
@@ -206,26 +307,44 @@ void SpecialConfigRequest::handleResponse(const QByteArray &bytes) {
 		LOG(("Config Error: Bad date frame for simple config: %1-%2, our time is %3.").arg(config.vdate.v).arg(config.vexpires.v).arg(now));
 		return;
 	}
-	if (config.vip_port_list.v.empty()) {
+	if (config.vrules.v.empty()) {
 		LOG(("Config Error: Empty simple config received."));
 		return;
 	}
-	for (auto &entry : config.vip_port_list.v) {
-		Assert(entry.type() == mtpc_ipPort);
-		auto &ipPort = entry.c_ipPort();
-		auto ip = *reinterpret_cast<const uint32*>(&ipPort.vipv4.v);
-		auto ipString = qsl("%1.%2.%3.%4").arg((ip >> 24) & 0xFF).arg((ip >> 16) & 0xFF).arg((ip >> 8) & 0xFF).arg(ip & 0xFF);
-		LOG(("SpecialConfigRequest IP String: %1").arg(ipString));
-		_callback(config.vdc_id.v, ipString.toStdString(), ipPort.vport.v);
-	}
-}
+	for (auto &rule : config.vrules.v) {
+		Assert(rule.type() == mtpc_accessPointRule);
+		auto &data = rule.c_accessPointRule();
+		const auto phoneRules = qs(data.vphone_prefix_rules);
+		if (!CheckPhoneByPrefixesRules(_phone, phoneRules)) {
+			continue;
+		}
 
-SpecialConfigRequest::~SpecialConfigRequest() {
-	if (_appReply) {
-		_appReply->abort();
-	}
-	if (_dnsReply) {
-		_dnsReply->abort();
+		const auto dcId = data.vdc_id.v;
+		for (const auto &address : data.vips.v) {
+			const auto parseIp = [](const MTPint &ipv4) {
+				const auto ip = *reinterpret_cast<const uint32*>(&ipv4.v);
+				return qsl("%1.%2.%3.%4"
+				).arg((ip >> 24) & 0xFF
+				).arg((ip >> 16) & 0xFF
+				).arg((ip >> 8) & 0xFF
+				).arg(ip & 0xFF).toStdString();
+			};
+			switch (address.type()) {
+			case mtpc_ipPort: {
+				const auto &fields = address.c_ipPort();
+				_callback(dcId, parseIp(fields.vipv4), fields.vport.v, {});
+			} break;
+			case mtpc_ipPortSecret: {
+				const auto &fields = address.c_ipPortSecret();
+				_callback(
+					dcId,
+					parseIp(fields.vipv4),
+					fields.vport.v,
+					bytes::make_span(fields.vsecret.v));
+			} break;
+			default: Unexpected("Type in simpleConfig ips.");
+			}
+		}
 	}
 }
 

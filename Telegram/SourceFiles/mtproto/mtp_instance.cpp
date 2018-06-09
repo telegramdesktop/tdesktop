@@ -23,6 +23,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 namespace MTP {
+namespace {
+
+constexpr auto kConfigBecomesOldIn = 2 * 60 * TimeMs(1000);
+constexpr auto kConfigBecomesOldForBlockedIn = 8 * TimeMs(1000);
+
+} // namespace
 
 class Instance::Private : private Sender {
 public:
@@ -41,7 +47,9 @@ public:
 	not_null<DcOptions*> dcOptions();
 
 	void requestConfig();
+	void requestConfigIfOld();
 	void requestCDNConfig();
+	void setUserPhone(const QString &phone);
 
 	void restart();
 	void restart(ShiftedDcId shiftedDcId);
@@ -119,11 +127,14 @@ private:
 	void logoutGuestDcs();
 	bool logoutGuestDone(mtpRequestId requestId);
 
+	void requestConfigIfExpired();
 	void configLoadDone(const MTPConfig &result);
 	bool configLoadFail(const RPCError &error);
 
-	void cdnConfigLoadDone(const MTPCdnConfig &result);
-	bool cdnConfigLoadFail(const RPCError &error);
+	base::optional<ShiftedDcId> queryRequestByDc(
+		mtpRequestId requestId) const;
+	base::optional<ShiftedDcId> changeRequestByDc(
+		mtpRequestId requestId, DcId newdc);
 
 	// RPCError::NoError means do not toggle onError callback.
 	void clearCallbacks(
@@ -148,7 +159,10 @@ private:
 	base::set_of_unique_ptr<internal::Connection> _quittingConnections;
 
 	std::unique_ptr<internal::ConfigLoader> _configLoader;
+	QString _userPhone;
 	mtpRequestId _cdnConfigLoadRequestId = 0;
+	TimeMs _lastConfigLoadedTime = 0;
+	TimeMs _configExpiresAt = 0;
 
 	std::map<DcId, AuthKeyPtr> _keysForWrite;
 	mutable QReadWriteLock _keysForWriteLock;
@@ -157,7 +171,7 @@ private:
 
 	// holds dcWithShift for request to this dc or -dc for request to main dc
 	std::map<mtpRequestId, ShiftedDcId> _requestsByDc;
-	QMutex _requestByDcLock;
+	mutable QMutex _requestByDcLock;
 
 	// holds target dcWithShift for auth export request
 	std::map<mtpRequestId, ShiftedDcId> _authExportRequests;
@@ -242,9 +256,7 @@ void Instance::Private::start(Config &&config) {
 	_checkDelayedTimer.setCallback([this] { checkDelayedRequests(); });
 
 	Assert((_mainDcId == Config::kNoneMainDc) == isKeysDestroyer());
-	if (!isKeysDestroyer()) {
-		requestConfig();
-	}
+	requestConfig();
 }
 
 void Instance::Private::suggestMainDcId(DcId mainDcId) {
@@ -273,22 +285,54 @@ DcId Instance::Private::mainDcId() const {
 }
 
 void Instance::Private::requestConfig() {
-	if (_configLoader) {
+	if (_configLoader || isKeysDestroyer()) {
 		return;
 	}
-	_configLoader = std::make_unique<internal::ConfigLoader>(_instance, rpcDone([this](const MTPConfig &result) {
-		configLoadDone(result);
-	}), rpcFail([this](const RPCError &error) {
-		return configLoadFail(error);
-	}));
+	_configLoader = std::make_unique<internal::ConfigLoader>(
+		_instance,
+		_userPhone,
+		rpcDone([=](const MTPConfig &result) { configLoadDone(result); }),
+		rpcFail([=](const RPCError &error) { return configLoadFail(error); }));
 	_configLoader->load();
+}
+
+void Instance::Private::setUserPhone(const QString &phone) {
+	if (_userPhone != phone) {
+		_userPhone = phone;
+		if (_configLoader) {
+			_configLoader->setPhone(_userPhone);
+		}
+	}
+}
+
+void Instance::Private::requestConfigIfOld() {
+	const auto timeout = Global::BlockedMode()
+		? kConfigBecomesOldForBlockedIn
+		: kConfigBecomesOldIn;
+	if (getms(true) - _lastConfigLoadedTime >= timeout) {
+		requestConfig();
+	}
+}
+
+void Instance::Private::requestConfigIfExpired() {
+	const auto requestIn = (_configExpiresAt - getms(true));
+	if (requestIn > 0) {
+		App::CallDelayed(
+			std::min(requestIn, 3600 * TimeMs(1000)),
+			_instance,
+			[=] { requestConfigIfExpired(); });
+	} else {
+		requestConfig();
+	}
 }
 
 void Instance::Private::requestCDNConfig() {
 	if (_cdnConfigLoadRequestId || _mainDcId == Config::kNoneMainDc) {
 		return;
 	}
-	_cdnConfigLoadRequestId = request(MTPhelp_GetCdnConfig()).done([this](const MTPCdnConfig &result) {
+	_cdnConfigLoadRequestId = request(
+		MTPhelp_GetCdnConfig()
+	).done([this](const MTPCdnConfig &result) {
 		_cdnConfigLoadRequestId = 0;
 
 		Expects(result.type() == mtpc_cdnConfig);
@@ -361,8 +405,8 @@ void Instance::Private::ping() {
 void Instance::Private::cancel(mtpRequestId requestId) {
 	if (!requestId) return;
 
-	mtpMsgId msgId = 0;
-	_requestsDelays.erase(requestId);
+	const auto shiftedDcId = queryRequestByDc(requestId);
+	auto msgId = mtpMsgId(0);
 	{
 		QWriteLocker locker(&_requestMapLock);
 		auto it = _requestMap.find(requestId);
@@ -371,14 +415,10 @@ void Instance::Private::cancel(mtpRequestId requestId) {
 			_requestMap.erase(it);
 		}
 	}
-	{
-		QMutexLocker locker(&_requestByDcLock);
-		auto it = _requestsByDc.find(requestId);
-		if (it != _requestsByDc.end()) {
-			if (auto session = getSession(qAbs(it->second))) {
-				session->cancel(requestId, msgId);
-			}
-			_requestsByDc.erase(it);
+	unregisterRequest(requestId);
+	if (shiftedDcId) {
+		if (const auto session = getSession(qAbs(*shiftedDcId))) {
+			session->cancel(requestId, msgId);
 		}
 	}
 	clearCallbacks(requestId);
@@ -386,10 +426,8 @@ void Instance::Private::cancel(mtpRequestId requestId) {
 
 int32 Instance::Private::state(mtpRequestId requestId) { // < 0 means waiting for such count of ms
 	if (requestId > 0) {
-		QMutexLocker locker(&_requestByDcLock);
-		auto i = _requestsByDc.find(requestId);
-		if (i != _requestsByDc.end()) {
-			if (auto session = getSession(qAbs(i->second))) {
+		if (const auto shiftedDcId = queryRequestByDc(requestId)) {
+			if (auto session = getSession(qAbs(*shiftedDcId))) {
 				return session->requestState(requestId);
 			}
 			return MTP::RequestConnecting;
@@ -580,8 +618,9 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 	Expects(result.type() == mtpc_config);
 
 	_configLoader.reset();
+	_lastConfigLoadedTime = getms(true);
 
-	auto &data = result.c_config();
+	const auto &data = result.c_config();
 	DEBUG_LOG(("MTP Info: got config, chat_size_max: %1, date: %2, test_mode: %3, this_dc: %4, dc_options.length: %5").arg(data.vchat_size_max.v).arg(data.vdate.v).arg(mtpIsTrue(data.vtest_mode)).arg(data.vthis_dc.v).arg(data.vdc_options.v.size()));
 	if (data.vdc_options.v.empty()) {
 		LOG(("MTP Error: config with empty dc_options received!"));
@@ -618,9 +657,21 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 		Global::SetPhoneCallsEnabled(data.is_phonecalls_enabled());
 		Global::RefPhoneCallsEnabledChanged().notify();
 	}
-	Lang::CurrentCloudManager().setSuggestedLanguage(data.has_suggested_lang_code() ? qs(data.vsuggested_lang_code) : QString());
+	Global::SetBlockedMode(data.is_blocked_mode());
 
+	const auto lang = data.has_suggested_lang_code()
+		? qs(data.vsuggested_lang_code)
+		: QString();
+	Lang::CurrentCloudManager().setSuggestedLanguage(lang);
+
+	if (data.has_autoupdate_url_prefix()) {
+		Local::writeAutoupdatePrefix(qs(data.vautoupdate_url_prefix));
+	}
 	Local::writeSettings();
+
+	_configExpiresAt = getms(true)
+		+ (data.vexpires.v - unixtime()) * TimeMs(1000);
+	requestConfigIfExpired();
 
 	emit _instance->configLoaded();
 }
@@ -633,6 +684,32 @@ bool Instance::Private::configLoadFail(const RPCError &error) {
 	return false;
 }
 
+base::optional<ShiftedDcId> Instance::Private::queryRequestByDc(
+		mtpRequestId requestId) const {
+	QMutexLocker locker(&_requestByDcLock);
+	auto it = _requestsByDc.find(requestId);
+	if (it != _requestsByDc.cend()) {
+		return it->second;
+	}
+	return base::none;
+}
+
+base::optional<ShiftedDcId> Instance::Private::changeRequestByDc(
+		mtpRequestId requestId,
+		DcId newdc) {
+	QMutexLocker locker(&_requestByDcLock);
+	auto it = _requestsByDc.find(requestId);
+	if (it != _requestsByDc.cend()) {
+		if (it->second < 0) {
+			it->second = -newdc;
+		} else {
+			it->second = shiftDcId(newdc, getDcIdShift(it->second));
+		}
+		return it->second;
+	}
+	return base::none;
+}
+
 void Instance::Private::checkDelayedRequests() {
 	auto now = getms(true);
 	while (!_delayedRequests.empty() && now >= _delayedRequests.front().second) {
@@ -640,15 +717,11 @@ void Instance::Private::checkDelayedRequests() {
 		_delayedRequests.pop_front();
 
 		auto dcWithShift = ShiftedDcId(0);
-		{
-			QMutexLocker locker(&_requestByDcLock);
-			auto it = _requestsByDc.find(requestId);
-			if (it != _requestsByDc.cend()) {
-				dcWithShift = it->second;
-			} else {
-				LOG(("MTP Error: could not find request dc for delayed resend, requestId %1").arg(requestId));
-				continue;
-			}
+		if (const auto shiftedDcId = queryRequestByDc(requestId)) {
+			dcWithShift = *shiftedDcId;
+		} else {
+			LOG(("MTP Error: could not find request dc for delayed resend, requestId %1").arg(requestId));
+			continue;
 		}
 
 		auto request = mtpRequest();
@@ -866,10 +939,8 @@ bool Instance::Private::hasAuthorization() {
 }
 
 void Instance::Private::importDone(const MTPauth_Authorization &result, mtpRequestId requestId) {
-	QMutexLocker locker1(&_requestByDcLock);
-
-	auto it = _requestsByDc.find(requestId);
-	if (it == _requestsByDc.end()) {
+	const auto shiftedDcId = queryRequestByDc(requestId);
+	if (!shiftedDcId) {
 		LOG(("MTP Error: auth import request not found in requestsByDC, requestId: %1").arg(requestId));
 		RPCError error(internal::rpcClientError("AUTH_IMPORT_FAIL", QString("did not find import request in requestsByDC, request %1").arg(requestId)));
 		if (_globalHandler.onFail && hasAuthorization()) {
@@ -877,7 +948,7 @@ void Instance::Private::importDone(const MTPauth_Authorization &result, mtpReque
 		}
 		return;
 	}
-	auto newdc = bareDcId(it->second);
+	auto newdc = bareDcId(*shiftedDcId);
 
 	DEBUG_LOG(("MTP Info: auth import to dc %1 succeeded").arg(newdc));
 
@@ -890,23 +961,15 @@ void Instance::Private::importDone(const MTPauth_Authorization &result, mtpReque
 				LOG(("MTP Error: could not find request %1 for resending").arg(waitedRequestId));
 				continue;
 			}
-			auto dcWithShift = ShiftedDcId(newdc);
-			{
-				auto k = _requestsByDc.find(waitedRequestId);
-				if (k == _requestsByDc.cend()) {
-					LOG(("MTP Error: could not find request %1 by dc for resending").arg(waitedRequestId));
-					continue;
-				}
-				if (k->second < 0) {
-					_instance->setMainDcId(newdc);
-					k->second = -newdc;
-				} else {
-					dcWithShift = shiftDcId(newdc, getDcIdShift(k->second));
-					k->second = dcWithShift;
-				}
-				DEBUG_LOG(("MTP Info: resending request %1 to dc %2 after import auth").arg(waitedRequestId).arg(k->second));
+			const auto shiftedDcId = changeRequestByDc(waitedRequestId, newdc);
+			if (!shiftedDcId) {
+				LOG(("MTP Error: could not find request %1 by dc for resending").arg(waitedRequestId));
+				continue;
+			} else if (*shiftedDcId < 0) {
+				_instance->setMainDcId(newdc);
 			}
-			if (auto session = getSession(dcWithShift)) {
+			DEBUG_LOG(("MTP Info: resending request %1 to dc %2 after import auth").arg(waitedRequestId).arg(*shiftedDcId));
+			if (auto session = getSession(*shiftedDcId)) {
 				session->sendPrepared(it->second);
 			}
 		}
@@ -967,15 +1030,12 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 	if ((m = QRegularExpression("^(FILE|PHONE|NETWORK|USER)_MIGRATE_(\\d+)$").match(err)).hasMatch()) {
 		if (!requestId) return false;
 
-		ShiftedDcId dcWithShift = 0, newdcWithShift = m.captured(2).toInt();
-		{
-			QMutexLocker locker(&_requestByDcLock);
-			auto it = _requestsByDc.find(requestId);
-			if (it == _requestsByDc.end()) {
-				LOG(("MTP Error: could not find request %1 for migrating to %2").arg(requestId).arg(newdcWithShift));
-			} else {
-				dcWithShift = it->second;
-			}
+		auto dcWithShift = ShiftedDcId(0);
+		auto newdcWithShift = ShiftedDcId(m.captured(2).toInt());
+		if (const auto shiftedDcId = queryRequestByDc(requestId)) {
+			dcWithShift = *shiftedDcId;
+		} else {
+			LOG(("MTP Error: could not find request %1 for migrating to %2").arg(requestId).arg(newdcWithShift));
 		}
 		if (!dcWithShift || !newdcWithShift) return false;
 
@@ -1050,14 +1110,10 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 		return true;
 	} else if (code == 401 || (badGuestDc && _badGuestDcRequests.find(requestId) == _badGuestDcRequests.cend())) {
 		auto dcWithShift = ShiftedDcId(0);
-		{
-			QMutexLocker locker(&_requestByDcLock);
-			auto it = _requestsByDc.find(requestId);
-			if (it != _requestsByDc.end()) {
-				dcWithShift = it->second;
-			} else {
-				LOG(("MTP Error: unauthorized request without dc info, requestId %1").arg(requestId));
-			}
+		if (const auto shiftedDcId = queryRequestByDc(requestId)) {
+			dcWithShift = *shiftedDcId;
+		} else {
+			LOG(("MTP Error: unauthorized request without dc info, requestId %1").arg(requestId));
 		}
 		auto newdc = bareDcId(qAbs(dcWithShift));
 		if (!newdc || newdc == mainDcId() || !hasAuthorization()) {
@@ -1092,14 +1148,10 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 			request = it->second;
 		}
 		auto dcWithShift = ShiftedDcId(0);
-		{
-			QMutexLocker locker(&_requestByDcLock);
-			auto it = _requestsByDc.find(requestId);
-			if (it == _requestsByDc.end()) {
-				LOG(("MTP Error: could not find request %1 for resending with init connection").arg(requestId));
-			} else {
-				dcWithShift = it->second;
-			}
+		if (const auto shiftedDcId = queryRequestByDc(requestId)) {
+			dcWithShift = *shiftedDcId;
+		} else {
+			LOG(("MTP Error: could not find request %1 for resending with init connection").arg(requestId));
 		}
 		if (!dcWithShift) return false;
 
@@ -1126,20 +1178,17 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 			return false;
 		}
 		auto dcWithShift = ShiftedDcId(0);
-		{
-			QMutexLocker locker(&_requestByDcLock);
-			auto it = _requestsByDc.find(requestId);
-			auto afterIt = _requestsByDc.find(request->after->requestId);
-			if (it == _requestsByDc.end()) {
-				LOG(("MTP Error: could not find request %1 by dc").arg(requestId));
-			} else if (afterIt == _requestsByDc.end()) {
-				LOG(("MTP Error: could not find dependent request %1 by dc").arg(request->after->requestId));
-			} else {
-				dcWithShift = it->second;
-				if (it->second != afterIt->second) {
+		if (const auto shiftedDcId = queryRequestByDc(requestId)) {
+			if (const auto afterDcId = queryRequestByDc(request->after->requestId)) {
+				dcWithShift = *shiftedDcId;
+				if (*shiftedDcId != *afterDcId) {
 					request->after = mtpRequest();
 				}
+			} else {
+				LOG(("MTP Error: could not find dependent request %1 by dc").arg(request->after->requestId));
 			}
+		} else {
+			LOG(("MTP Error: could not find request %1 by dc").arg(requestId));
 		}
 		if (!dcWithShift) return false;
 
@@ -1308,6 +1357,14 @@ QString Instance::cloudLangCode() const {
 
 void Instance::requestConfig() {
 	_private->requestConfig();
+}
+
+void Instance::setUserPhone(const QString &phone) {
+	_private->setUserPhone(phone);
+}
+
+void Instance::requestConfigIfOld() {
+	_private->requestConfigIfOld();
 }
 
 void Instance::requestCDNConfig() {

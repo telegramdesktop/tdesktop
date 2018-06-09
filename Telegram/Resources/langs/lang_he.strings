@@ -18,10 +18,10 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 
 "lng_disable_notifications_from_tray" = "כבה התראות";
 "lng_enable_notifications_from_tray" = "הפעל התראות";
-"lng_open_from_tray" = "פתח את טלגרט";
+"lng_open_from_tray" = "פתח את טלגרם";
 "lng_minimize_to_tray" = "מזער למגש המערכת";
 "lng_quit_from_tray" = "יציאה";
-"lng_tray_icon_text" = "טלגרט עדיין פועל ברקע,\nבאפשרותך לשנות זאת בהגדרות.\nאם סמל זה נעלם מתפריט המגש,\nביכולתך לגרור אותו לכאן מהסמלים המוסתרים.";
+"lng_tray_icon_text" = "טלגרם עדיין פועל ברקע,\nבאפשרותך לשנות זאת בהגדרות.\nאם סמל זה נעלם מתפריט המגש,\nביכולתך לגרור אותו לכאן מהסמלים המוסתרים.";
 
 "lng_month1" = "ינואר";
 "lng_month2" = "פברואר";
@@ -144,7 +144,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_pinned_unpin" = "בטל הצמדה";
 "lng_pinned_notify" = "שלח התראה למשתמשים";
 
-"lng_intro_about" = "ברוכים הבאים לאפליקציית המסרים הרשמית של טלגרט.\nזה מהיר ובטוח";
+"lng_intro_about" = "ברוכים הבאים לאפליקציית המסרים הרשמית של טלגרם.\nזה מהיר ובטוח";
 "lng_start_msgs" = "התחל לדבר";
 
 "lng_intro_next" = "הבא";
@@ -167,9 +167,9 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_code_desc" = "שלחנו הודעה עם קוד הפעלה\nלטלפון שלך. הזן אותו למטה.";
 "lng_code_telegram" = "הזן את הקוד שקיבלת באפליקציית \nה[b]טלגרם[/b] הקודמת שלך.";
 "lng_code_no_telegram" = "שלח קוד באמצעות SMS";
-"lng_code_call" = "טלגרט יחייג למספר שלך תוך {minutes}:{seconds}";
-"lng_code_calling" = "מבקש שיחה מטלגרט...";
-"lng_code_called" = "טלגרט התקשר למספר שלך";
+"lng_code_call" = "טלגרם יחייג למספר שלך תוך {minutes}:{seconds}";
+"lng_code_calling" = "מבקש שיחה מטלגרם...";
+"lng_code_called" = "טלגרם התקשר למספר שלך";
 
 "lng_bad_phone" = "מספר טלפון שגוי, נסה שוב.";
 "lng_bad_phone_noreg" = "מספר טלפון לא פעיל.";
@@ -222,7 +222,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_contacts_loading" = "...טוען";
 "lng_contacts_not_found" = "לא נמצא איש קשר";
 "lng_dlg_search_for_messages" = "חיפוש אחר הודעות";
-"lng_update_telegram" = "עדכן את טלגרט";
+"lng_update_telegram" = "עדכן את טלגרם";
 "lng_dlg_search_in" = "חפש שיחות ב";
 "lng_dlg_search_from" = "מ: {user}";
 
@@ -275,7 +275,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_settings_section_general" = "כללי";
 "lng_settings_change_lang" = "שנה שפה";
 "lng_languages" = "שפות";
-"lng_sure_save_language" = "טלגרט יופעל מחדש כדי להחיל את שינוי השפה";
+"lng_sure_save_language" = "טלגרם יופעל מחדש כדי להחיל את שינוי השפה";
 "lng_settings_update_automatically" = "עדכן אוטומטית";
 "lng_settings_current_version_label" = "גרסה {version}:";
 "lng_settings_current_version" = "גרסה {version}";
@@ -290,12 +290,13 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_settings_workmode_window" = "הצג סמל במגש המערכת";
 "lng_settings_auto_start" = "הפעל את התוכנה בהפעלת המחשב";
 "lng_settings_start_min" = "הפעל ממוזער";
-"lng_settings_add_sendto" = "«הוסף את טלגרט לתפריט שלח אל";
+"lng_settings_add_sendto" = "«הוסף את טלגרם לתפריט שלח אל";
 "lng_settings_section_scale" = "גודל ממשק";
 "lng_settings_scale_auto" = "אוטומטי ({cur})";
 
 "lng_settings_section_chat_settings" = "הגדרות שיחה";
 "lng_settings_replace_emojis" = "החלף סמיילים";
+"lng_settings_suggest_by_emoji" = "הצע מדבקות פופולריות לפי הסמיילים";
 "lng_settings_view_emojis" = "הצג רשימה";
 "lng_settings_send_enter" = "שלח הודעה בלחיצת Enter";
 "lng_settings_send_ctrlenter" = "שלח הודעה בלחיצת Ctrl+Enter";
@@ -322,7 +323,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_download_path_default" = "תקיית ברירת מחדל";
 "lng_download_path_clear" = "נקה הכל";
 "lng_download_path_header" = "בחר נתיב הורדה";
-"lng_download_path_default_radio" = "תקיית טלגרט במערכת «הורדות»";
+"lng_download_path_default_radio" = "תקיית טלגרם במערכת «הורדות»";
 "lng_download_path_temp_radio" = "תיקייה זמנית, נמחקת בהתנתקות/הסרת התוכנה";
 "lng_download_path_dir_radio" = "תיקייה מותאמת אישית, נמחקת ידנית בלבד";
 "lng_download_path_choose" = "בחר נתיב הורדה";
@@ -564,8 +565,8 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_profile_delete_and_exit" = "עזוב";
 "lng_profile_kick" = "הסר";
 "lng_profile_sure_kick" = "להסיר את {user} מהקבוצה?";
-"lng_profile_sure_kick_channel" = "להסיר {user} מהערוץ?";
-"lng_profile_sure_remove_admin" = "להסיר {user} מניהול?";
+"lng_profile_sure_kick_channel" = "להסיר את {user} מהערוץ?";
+"lng_profile_sure_remove_admin" = "להסיר את {user} מהניהול?";
 "lng_profile_loading" = "טוען...";
 "lng_profile_photos#one" = "תמונה {count}";
 "lng_profile_photos#other" = "{count} תמונות";
@@ -736,7 +737,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_sure_delete_saved_messages" = "האם אתה בטוח שברצונך למחוק את ההודעות השמורות שלך?\n\nלא ניתן לבטל פעולה זו.";
 
 "lng_message_empty" = "הודעה ריקה";
-"lng_message_unsupported" = "הודעה זו אינה נתמכת על ידי הגירסה הנוכחית של טלגרט. עדכן לגרסה העדכנית ביותר בהגדרות, או התקן אותה מהקישור {link}";
+"lng_message_unsupported" = "הודעה זו אינה נתמכת על ידי הגירסה הנוכחית של טלגרם. עדכן לגרסה העדכנית ביותר בהגדרות, או התקן אותה מהקישור {link}";
 
 "lng_duration_seconds#one" = "שנייה {count}";
 "lng_duration_seconds#other" = "{count} שניות";
@@ -793,7 +794,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_action_payment_done_for" = "העברת בהצלחה {amount} ל {user} עבור {invoice}";
 "lng_action_took_screenshot" = "{from} עשה צילום מסך!";
 "lng_action_you_took_screenshot" = "ביצעת צילום מסך!";
-"lng_action_bot_allowed_from_domain" = "אפשרת לרובוט זה לשלוח לך הודעה כאשר נכנסת למערכת {domain}.";
+"lng_action_bot_allowed_from_domain" = "איפשרת לרובוט זה לשלוח לך הודעות כשאתה מתחבר ל {domain}.";
 
 "lng_ttl_photo_received" = "{from} שלח לך תמונה המוגדרת להשמדה עצמית, צפה בה במכשיר הנייד שלך.";
 "lng_ttl_photo_sent" = "שלחת תמונה המוגדרת להשמדה עצמית.";
@@ -819,6 +820,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 
 "lng_channel_not_accessible" = "מצטערים, הערוץ הזה לא נגיש.";
 "lng_group_not_accessible" = "מצטערים, קבוצה זו לא נגישה.";
+"lng_group_full" = "מצטערים, קבוצה זו מלאה.";
 
 "lng_channels_too_much_public_about" = "מצטערים, שמרת יותר מידי שמות קישורים ציבוריים, תוכל לבטל את הקישורים מהקבוצות והערוצים הישנים שלך.";
 "lng_channels_too_much_public_revoke_confirm_group" = "האם אתה בטוח שברצונך לבטל את הקישור {link}?\n\nהקבוצה «{group}» תהפוך לפרטית.";
@@ -856,7 +858,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_cancel_edit_post_yes" = "כן";
 "lng_cancel_edit_post_no" = "לא";
 
-"lng_bot_share_location_unavailable" = "מצטערים, שיתוף המיקום אינו זמין כעת ב- Telegreat Desktop.";
+"lng_bot_share_location_unavailable" = "מצטערים, שיתוף המיקום אינו זמין כעת ב- Telegram Desktop.";
 "lng_bot_share_phone" = "האם ברצונך לשתף את מספר הטלפון שלך עם רובוט זה?";
 "lng_bot_share_phone_confirm" = "שתף";
 
@@ -926,16 +928,16 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_stickers_remove_group_set" = "להסיר את סט המדבקות של הקבוצה?";
 "lng_stickers_group_from_your" = "בחר מהמדבקות שלך";
 "lng_stickers_group_from_featured" = "בחר מהמדבקות המומלצות";
-"lng_stickers_search_sets" = "חיפוש מדבקות";
+"lng_stickers_search_sets" = "חפש סט מדבקות";
 "lng_stickers_nothing_found" = "לא נמצאו מדבקות";
-"lng_stickers_remove_pack_confirm" = "מחק";
+"lng_stickers_remove_pack_confirm" = "הסר";
 
 "lng_in_dlg_photo" = "תמונה";
 "lng_in_dlg_album" = "אלבום";
 "lng_in_dlg_video" = "סרטון";
-"lng_in_dlg_audio_file" = "אדיו";
+"lng_in_dlg_audio_file" = "אודיו";
 "lng_in_dlg_contact" = "איש קשר";
-"lng_in_dlg_audio" = "הקלטה";
+"lng_in_dlg_audio" = "הודעה קולית";
 "lng_in_dlg_video_message" = "הודעת וידיאו";
 "lng_in_dlg_file" = "קובץ";
 "lng_in_dlg_sticker" = "מדבקה";
@@ -1136,7 +1138,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_enter_contact_data" = "איש קשר חדש";
 "lng_edit_contact_title" = "ערוך שם איש קשר";
 "lng_edit_channel_title" = "ערוך ערוץ";
-"lng_edit_sign_messages" = "סמן הודעות";
+"lng_edit_sign_messages" = "חתום הודעות";
 "lng_edit_group_who_invites" = "מי יכול להוסיף מנויים";
 "lng_edit_group_invites_everybody" = "כל המנויים";
 "lng_edit_group_invites_only_admins" = "רק מנהלים";
@@ -1219,7 +1221,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 
 "lng_new_authorization" = "{name},\nזיהינו התחברות חדשה לחשבון שלך בתאריך {day}, {date} ב {time}\n\nהתקן: {device}\nמיקום: {location}\n\nאם זה לא אתה, אתה יכול בהגדרות תחת האפשרות -הצג את כל הפעילויות- לסיים את ההפעלה.\n\nאם אתה חושב שמישהו נכנס לחשבון שלך בניגוד לרצונך, תוכל להפעיל אימות דו-שלבי בהגדרות..\n\nבכבוד רב,\nצוות טלגרם";
 
-"lng_new_version_wrap" = "טלגרט עודכן לגירסה {version}\n\n{changes}\n\nרשימת גירסאות מלאה זמינה כאן:\n{link}";
+"lng_new_version_wrap" = "טלגרם עודכן לגירסה {version}\n\n{changes}\n\nרשימת גירסאות מלאה זמינה כאן:\n{link}";
 "lng_new_version_minor" = "— תיקוני באגים ושיפורים קלים אחרים";
 
 "lng_menu_insert_unicode" = "הכנס תו בקרה של Unicode";
@@ -1249,7 +1251,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_theme_editor_title" = "ערוך צבעים";
 "lng_theme_editor_export_button" = "ייצא ערכת נושא";
 
-"lng_payments_not_supported" = "מצטערים, Telegreat Desktop עדיין לא תומך בתשלומים. השתמש באפליקצייה לנייד כדי לעשות זאת.";
+"lng_payments_not_supported" = "מצטערים, Telegram Desktop עדיין לא תומך בתשלומים. השתמש באפליקצייה לנייד כדי לעשות זאת.";
 "lng_payments_receipt_label" = "קבלה";
 "lng_payments_receipt_label_test" = "בדוק קבלה";
 "lng_payments_invoice_label" = "חשבונית";
@@ -1404,14 +1406,14 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_admin_log_changed_stickers_set" = "סט מדבקות";
 "lng_admin_log_removed_stickers_group" = "{from} הסיר את סט מדבקות הקבוצה";
 "lng_admin_log_user_with_username" = "{name} ({mention})";
-"lng_admin_log_restricted_forever" = "ללא הגבלה";
+"lng_admin_log_restricted_forever" = "ללא הגבלת זמן";
 "lng_admin_log_restricted_until" = "עד {date}";
 "lng_admin_log_banned_view_messages" = "לקרוא הודעות";
 "lng_admin_log_banned_send_messages" = "לשלוח הודעות";
 "lng_admin_log_banned_send_media" = "לשלוח מדיה";
 "lng_admin_log_banned_send_stickers" = "לשלוח מדבקות והנפשות";
 "lng_admin_log_banned_embed_links" = "הטמע קישורים";
-"lng_admin_log_admin_change_info" = "שנה מידע";
+"lng_admin_log_admin_change_info" = "לשנות מידע";
 "lng_admin_log_admin_post_messages" = "לפרסם הודעות";
 "lng_admin_log_admin_edit_messages" = "לערוך הודעות";
 "lng_admin_log_admin_delete_messages" = "למחוק הודעות";
@@ -1495,11 +1497,13 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_mac_menu_add_contact" = "הוסף איש קשר";
 "lng_mac_menu_new_group" = "קבוצה חדשה";
 "lng_mac_menu_new_channel" = "ערוץ חדש";
-"lng_mac_menu_show" = "הצג את טלגרט";
+"lng_mac_menu_show" = "הצג את טלגרם";
 
 
 "lng_telegreat_stickers_export" = "ייצא";
 "lng_telegreat_stickers_export_copied" = "כל קישורי המדבקות הועתקו";
+"lng_telegreat_stickers_export_header" = "{user}'s Stickers pack list:";
+"lng_telegreat_stickers_export_footer" = "Exported from @Telegreat Desktop";
 
 "lng_telegreat_setting" = "תצורת טלגרט";
 "lng_telegreat_setting_unstable" = "תכונות לא יציבות";
@@ -1507,6 +1511,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_telegreat_setting_username" = "הצג @שם משתמש בתצוגת השם";
 "lng_telegreat_setting_ignore" = "התעלם ממשתמשים חסומים";
 "lng_telegreat_setting_everyuser" = "צטט @admin, @everyuser";
+"lng_telegreat_setting_show_restrict" = "Show restrict users box instead of ban";
 "lng_telegreat_setting_text_mention" = "הצג משתמשים ללא שם משתמש";
 "lng_telegreat_setting_auto_copy" = "העתק טקסט אוטומטית בלחיצה";
 "lng_telegreat_setting_typing" = "מחובר/מקליד";
@@ -1531,5 +1536,5 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_telegreat_bot" = "רובוטים";
 
 "lng_telegreat_custom" = "true";
-"lng_telegreat_index" = "5";
+"lng_telegreat_index" = "6";
 "lng_telegreat_lang_code" = "he";

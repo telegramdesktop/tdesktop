@@ -21,7 +21,6 @@ https://git.io/TD
 #include "boxes/typing_box.h"
 #include "core/file_utilities.h"
 #include "messenger.h"
-#include "autoupdater.h"
 
 namespace Settings {
 
@@ -43,14 +42,11 @@ void GreatWidget::refreshControls() {
 	createChildRow(_enableUsername, marginSmall, lang(lng_telegreat_setting_username), [this](bool) { onUsername(); }, cShowUsername());
 	createChildRow(_enableIgnore, marginSmall, lang(lng_telegreat_setting_ignore), [this](bool) { onIgnore(); }, cIgnoreBlocked());
 	createChildRow(_enableTagMention, marginSmall, lang(lng_telegreat_setting_everyuser), [this](bool) { onTagMention(); }, cTagMention());
+	createChildRow(_enableShowRestrict, marginSmall, lang(lng_telegreat_setting_show_restrict), [this](bool) { onShowRestrict(); }, cShowRestrict());
 	createChildRow(_enableTextMention, marginSmall, lang(lng_telegreat_setting_text_mention), [this](bool) { onTextMention(); }, cTextMention());
 	createChildRow(_enableAutoCopy, marginSmall, lang(lng_telegreat_setting_auto_copy), [this](bool) { onAutoCopy(); }, cAutoCopy());
 	createChildRow(_enableUnstable, marginSmall, lang(lng_telegreat_setting_unstable), [this](bool) { onUnstable(); }, cUnstableFeature());
 	createChildRow(_typing, marginSmall, lang(lng_telegreat_setting_typing), SLOT(onTyping()));
-}
-
-void GreatWidget::onRestart() {
-	App::restart();
 }
 	
 void GreatWidget::onUnstable() {
@@ -72,9 +68,14 @@ void GreatWidget::onIgnore() {
 	cSetIgnoreBlocked(_enableIgnore->checked());
 	Local::writeUserSettings();
 }
-	
+
 void GreatWidget::onTagMention() {
 	cSetTagMention(_enableTagMention->checked());
+	Local::writeUserSettings();
+}
+
+void GreatWidget::onShowRestrict() {
+	cSetShowRestrict(_enableShowRestrict->checked());
 	Local::writeUserSettings();
 }
 
