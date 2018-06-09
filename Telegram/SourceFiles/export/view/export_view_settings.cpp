@@ -65,7 +65,7 @@ void SettingsWidget::setupContent() {
 			refreshButtonsCallback();
 		}, lifetime());
 	};
-	addOption(lng_export_option_info, Type::PersonalInfo | Type::Avatars);
+	addOption(lng_export_option_info, Type::PersonalInfo | Type::Userpics);
 	addOption(lng_export_option_contacts, Type::Contacts);
 	addOption(lng_export_option_sessions, Type::Sessions);
 	refreshButtonsCallback();

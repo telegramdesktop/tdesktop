@@ -74,7 +74,7 @@ void PanelController::updateState(State &&state) {
 
 		done->showClicks(
 		) | rpl::start_with_next([=] {
-			File::ShowInFolder(path + "personal.txt");
+			File::ShowInFolder(path);
 			_panel->hideGetDuration();
 		}, done->lifetime());
 

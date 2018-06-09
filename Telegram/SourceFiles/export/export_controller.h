@@ -28,7 +28,7 @@ struct PasswordCheckState {
 struct ProcessingState {
 	enum class Step {
 		PersonalInfo,
-		Avatars,
+		Userpics,
 		Contacts,
 		Sessions,
 		Chats,

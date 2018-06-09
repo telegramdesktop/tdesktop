@@ -89,6 +89,8 @@ public:
 	template <typename Request>
 	class SpecificRequestBuilder : public RequestBuilder {
 	public:
+		using Response = typename Request::ResponseType;
+
 		SpecificRequestBuilder(
 			const SpecificRequestBuilder &other) = delete;
 		SpecificRequestBuilder(
@@ -102,10 +104,32 @@ public:
 			ShiftedDcId dcId) noexcept;
 		[[nodiscard]] SpecificRequestBuilder &afterDelay(
 			TimeMs ms) noexcept;
+
+#ifdef _DEBUG
+		// Allow code completion to show response type.
+		[[nodiscard]] SpecificRequestBuilder &done(Fn<void()> &&handler);
+		[[nodiscard]] SpecificRequestBuilder &done(Fn<void(
+			mtpRequestId)> &&handler);
+		[[nodiscard]] SpecificRequestBuilder &done(Fn<void(
+			mtpRequestId,
+			Response &&)> &&handler);
+		[[nodiscard]] SpecificRequestBuilder &done(Fn<void(
+			Response &&)> &&handler);
+		[[nodiscard]] SpecificRequestBuilder &fail(Fn<void()> &&handler);
+		[[nodiscard]] SpecificRequestBuilder &fail(Fn<void(
+			mtpRequestId)> &&handler);
+		[[nodiscard]] SpecificRequestBuilder &fail(Fn<void(
+			mtpRequestId,
+			RPCError &&)> &&handler);
+		[[nodiscard]] SpecificRequestBuilder &fail(Fn<void(
+			RPCError &&)> &&handler);
+#else // _DEBUG
 		template <typename Handler>
 		[[nodiscard]] SpecificRequestBuilder &done(Handler &&handler);
 		template <typename Handler>
 		[[nodiscard]] SpecificRequestBuilder &fail(Handler &&handler);
+#endif // _DEBUG
+
 		[[nodiscard]] SpecificRequestBuilder &handleFloodErrors() noexcept;
 		[[nodiscard]] SpecificRequestBuilder &handleAllErrors() noexcept;
 		[[nodiscard]] SpecificRequestBuilder &afterRequest(
@@ -228,6 +252,91 @@ template <typename Request>
 	return *this;
 }
 
+#ifdef _DEBUG
+// Allow code completion to show response type.
+template <typename Request>
+[[nodiscard]] auto ConcurrentSender::SpecificRequestBuilder<Request>::done(
+	Fn<void(Response &&)> &&handler)
+-> SpecificRequestBuilder & {
+	setDoneHandler<Response>([handler = std::move(handler)](
+			mtpRequestId requestId,
+			Response &&result) mutable {
+		std::move(handler)(std::move(result));
+	});
+	return *this;
+}
+
+template <typename Request>
+[[nodiscard]] auto ConcurrentSender::SpecificRequestBuilder<Request>::done(
+	Fn<void(mtpRequestId, Response &&)> &&handler)
+-> SpecificRequestBuilder & {
+	setDoneHandler<Response>(std::move(handler));
+	return *this;
+}
+
+template <typename Request>
+[[nodiscard]] auto ConcurrentSender::SpecificRequestBuilder<Request>::done(
+		Fn<void(mtpRequestId)> &&handler) -> SpecificRequestBuilder & {
+	setDoneHandler<Response>([handler = std::move(handler)](
+			mtpRequestId requestId,
+			Response &&result) mutable {
+		std::move(handler)(requestId);
+	});
+	return *this;
+}
+
+template <typename Request>
+[[nodiscard]] auto ConcurrentSender::SpecificRequestBuilder<Request>::done(
+		Fn<void()> &&handler) -> SpecificRequestBuilder & {
+	setDoneHandler<Response>([handler = std::move(handler)](
+			mtpRequestId requestId,
+			Response &&result) mutable {
+		std::move(handler)();
+	});
+	return *this;
+}
+
+template <typename Request>
+[[nodiscard]] auto ConcurrentSender::SpecificRequestBuilder<Request>::fail(
+		Fn<void(RPCError &&)> &&handler) -> SpecificRequestBuilder & {
+	setFailHandler([handler = std::move(handler)](
+			mtpRequestId requestId,
+			RPCError &&error) mutable {
+		std::move(handler)(std::move(error));
+	});
+	return *this;
+}
+
+template <typename Request>
+[[nodiscard]] auto ConcurrentSender::SpecificRequestBuilder<Request>::fail(
+	Fn<void(mtpRequestId, RPCError &&)> &&handler)
+-> SpecificRequestBuilder & {
+	setFailHandler(std::move(handler));
+	return *this;
+}
+
+template <typename Request>
+[[nodiscard]] auto ConcurrentSender::SpecificRequestBuilder<Request>::fail(
+		Fn<void(mtpRequestId)> &&handler) -> SpecificRequestBuilder & {
+	setFailHandler([handler = std::move(handler)](
+			mtpRequestId requestId,
+			RPCError &&error) mutable {
+		std::move(handler)(requestId);
+	});
+	return *this;
+}
+
+template <typename Request>
+[[nodiscard]] auto ConcurrentSender::SpecificRequestBuilder<Request>::fail(
+		Fn<void()> &&handler) -> SpecificRequestBuilder & {
+	setFailHandler([handler = move(handler)](
+			mtpRequestId requestId,
+			RPCError &&error) mutable {
+		std::move(handler)();
+	});
+	return *this;
+}
+#else // _DEBUG
 template <typename Request>
 template <typename Handler>
 [[nodiscard]] auto ConcurrentSender::SpecificRequestBuilder<Request>::done(
@@ -312,6 +421,8 @@ template <typename Handler>
 	}
 	return *this;
 }
+
+#endif // _DEBUG
 
 template <typename Request>
 [[nodiscard]] auto ConcurrentSender::SpecificRequestBuilder<Request>::handleFloodErrors() noexcept

@@ -11,14 +11,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_map.h"
 
 namespace Export {
+namespace Output {
+enum class Format;
+} // namespace Output
 
 struct MediaSettings {
 	enum class Type {
-		Photo,
-		Video,
-		Sticker,
-		GIF,
-		File,
+		Photo   = 0x01,
+		Video   = 0x02,
+		Sticker = 0x04,
+		GIF     = 0x08,
+		File    = 0x10,
 	};
 	using Types = base::flags<Type>;
 	friend inline constexpr auto is_flag_type(Type) { return true; };
@@ -34,19 +37,20 @@ struct MediaSettings {
 
 struct Settings {
 	enum class Type {
-		PersonalInfo,
-		Avatars,
-		Contacts,
-		Sessions,
-		PersonalChats,
-		PrivateGroups,
-		PublicGroups,
-		MyChannels,
+		PersonalInfo  = 0x01,
+		Userpics      = 0x02,
+		Contacts      = 0x04,
+		Sessions      = 0x08,
+		PersonalChats = 0x10,
+		PrivateGroups = 0x20,
+		PublicGroups  = 0x40,
+		MyChannels    = 0x80,
 	};
 	using Types = base::flags<Type>;
 	friend inline constexpr auto is_flag_type(Type) { return true; };
 
 	QString path;
+	Output::Format format = Output::Format();
 
 	Types types = DefaultTypes();
 	MediaSettings defaultMedia;
@@ -54,7 +58,7 @@ struct Settings {
 
 	static inline Types DefaultTypes() {
 		return Type::PersonalInfo
-			| Type::Avatars
+			| Type::Userpics
 			| Type::Contacts
 			| Type::Sessions
 			| Type::PersonalChats;

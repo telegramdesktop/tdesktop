@@ -206,7 +206,11 @@ void SeparatePanel::showControls() {
 
 void SeparatePanel::finishClose() {
 	hide();
-	_closeEvents.fire({});
+	crl::on_main(this, [=] {
+		if (isHidden() && !_visible && !_opacityAnimation.animating()) {
+			_closeEvents.fire({});
+		}
+	});
 }
 
 int SeparatePanel::hideGetDuration() {

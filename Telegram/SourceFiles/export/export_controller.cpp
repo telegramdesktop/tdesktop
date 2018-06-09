@@ -8,10 +8,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/export_controller.h"
 
 #include "export/export_settings.h"
+#include "export/data/export_data_types.h"
+#include "export/output/export_output_abstract.h"
 #include "mtproto/rpc_sender.h"
 #include "mtproto/concurrent_sender.h"
 
 namespace Export {
+namespace {
+
+constexpr auto kUserpicsSliceLimit = 100;
+
+} // namespace
 
 class Controller {
 public:
@@ -30,6 +37,8 @@ public:
 	void startExport(const Settings &settings);
 
 private:
+	using Step = ProcessingState::Step;
+
 	void setState(State &&state);
 	void apiError(const RPCError &error);
 	void apiError(const QString &error);
@@ -39,6 +48,18 @@ private:
 	void requestPasswordState();
 	void passwordStateDone(const MTPaccount_Password &password);
 
+	void fillExportSteps();
+	void exportNext();
+	void exportPersonalInfo();
+	void exportUserpics();
+	void exportContacts();
+	void exportSessions();
+	void exportChats();
+
+	void exportUserpicsSlice(const MTPphotos_Photos &result);
+
+	bool normalizePath();
+
 	MTP::ConcurrentSender _mtp;
 	Settings _settings;
 
@@ -47,6 +68,12 @@ private:
 	rpl::event_stream<State> _stateChanges;
 
 	mtpRequestId _passwordRequestId = 0;
+
+	std::unique_ptr<Output::AbstractWriter> _writer;
+	std::vector<ProcessingState::Step> _steps;
+	int _stepIndex = -1;
+
+	MTPInputUser _user = MTP_inputUserSelf();
 
 };
 
@@ -130,47 +157,197 @@ void Controller::cancelUnconfirmedPassword() {
 
 void Controller::startExport(const Settings &settings) {
 	_settings = base::duplicate(settings);
-	setState(ProcessingState());
 
+	if (!normalizePath()) {
+		ioError(_settings.path);
+		return;
+	}
+	_writer = Output::CreateWriter(_settings.format);
+	fillExportSteps();
+	exportNext();
+}
+
+bool Controller::normalizePath() {
+	const auto check = [&] {
+		return QDir().mkpath(_settings.path);
+	};
+	QDir folder(_settings.path);
+	const auto path = folder.absolutePath();
+	_settings.path = path + '/';
+	if (!folder.exists()) {
+		return check();
+	}
+	const auto list = folder.entryInfoList();
+	if (list.isEmpty()) {
+		return true;
+	}
+	const auto date = QDate::currentDate();
+	const auto base = QString("DataExport.%1.%2.%3"
+	).arg(date.day(), 2, 10, QChar('0')
+	).arg(date.month(), 2, 10, QChar('0')
+	).arg(date.year());
+	const auto add = [&](int i) {
+		return base + (i ? " (" + QString::number(i) + ')' : QString());
+	};
+	auto index = 0;
+	while (QDir(_settings.path + add(index)).exists()) {
+		++index;
+	}
+	_settings.path += add(index) + '/';
+	return check();
+}
+
+void Controller::fillExportSteps() {
+	using Type = Settings::Type;
+	if (_settings.types & Type::PersonalInfo) {
+		_steps.push_back(Step::PersonalInfo);
+	}
+	if (_settings.types & Type::Userpics) {
+		_steps.push_back(Step::Userpics);
+	}
+	if (_settings.types & Type::Contacts) {
+		_steps.push_back(Step::Contacts);
+	}
+	if (_settings.types & Type::Sessions) {
+		_steps.push_back(Step::Sessions);
+	}
+	const auto chatTypes = Type::PersonalChats
+		| Type::PrivateGroups
+		| Type::PublicGroups
+		| Type::MyChannels;
+	if (_settings.types & chatTypes) {
+		_steps.push_back(Step::Chats);
+	}
+}
+
+void Controller::exportNext() {
+	if (!++_stepIndex) {
+		_writer->start(_settings.path);
+	}
+	if (_stepIndex >= _steps.size()) {
+		_writer->finish();
+		setFinishedState();
+		return;
+	}
+	const auto step = _steps[_stepIndex];
+	switch (step) {
+	case Step::PersonalInfo: return exportPersonalInfo();
+	case Step::Userpics: return exportUserpics();
+	case Step::Contacts: return exportContacts();
+	case Step::Sessions: return exportSessions();
+	case Step::Chats: return exportChats();
+	}
+	Unexpected("Step in Controller::exportNext.");
+}
+
+void Controller::exportPersonalInfo() {
+	if (!(_settings.types & Settings::Type::PersonalInfo)) {
+		exportUserpics();
+		return;
+	}
 	_mtp.request(MTPusers_GetFullUser(
-		MTP_inputUserSelf()
+		_user
 	)).done([=](const MTPUserFull &result) {
 		Expects(result.type() == mtpc_userFull);
 
 		const auto &full = result.c_userFull();
-		if (full.vuser.type() != mtpc_user) {
+		if (full.vuser.type() == mtpc_user) {
+			_writer->writePersonal(Data::ParsePersonalInfo(result));
+			exportNext();
+		} else {
 			apiError("Bad user type.");
-			return;
 		}
-		const auto &user = full.vuser.c_user();
-
-		QFile f(_settings.path + "personal.txt");
-		if (!f.open(QIODevice::WriteOnly)) {
-			ioError(f.fileName());
-			return;
-		}
-		QTextStream stream(&f);
-		stream.setCodec("UTF-8");
-		if (user.has_first_name()) {
-			stream << "First name: " << qs(user.vfirst_name) << "\n";
-		}
-		if (user.has_last_name()) {
-			stream << "Last name: " << qs(user.vlast_name) << "\n";
-		}
-		if (user.has_phone()) {
-			stream << "Phone number: " << qs(user.vphone) << "\n";
-		}
-		if (user.has_username()) {
-			stream << "Username: @" << qs(user.vusername) << "\n";
-		}
-		setFinishedState();
 	}).fail([=](const RPCError &error) {
 		apiError(error);
 	}).send();
 }
 
+void Controller::exportUserpics() {
+	_mtp.request(MTPphotos_GetUserPhotos(
+		_user,
+		MTP_int(0),
+		MTP_long(0),
+		MTP_int(kUserpicsSliceLimit)
+	)).done([=](const MTPphotos_Photos &result) {
+		_writer->writeUserpicsStart([&] {
+			auto info = Data::UserpicsInfo();
+			switch (result.type()) {
+			case mtpc_photos_photos: {
+				const auto &data = result.c_photos_photos();
+				info.count = data.vphotos.v.size();
+			} break;
+
+			case mtpc_photos_photosSlice: {
+				const auto &data = result.c_photos_photosSlice();
+				info.count = data.vcount.v;
+			} break;
+
+			default: Unexpected("Photos type in Controller::exportUserpics.");
+			}
+			return info;
+		}());
+
+		exportUserpicsSlice(result);
+	}).fail([=](const RPCError &error) {
+		apiError(error);
+	}).send();
+}
+
+void Controller::exportUserpicsSlice(const MTPphotos_Photos &result) {
+	const auto finish = [&] {
+		_writer->writeUserpicsEnd();
+		exportNext();
+	};
+	switch (result.type()) {
+	case mtpc_photos_photos: {
+		const auto &data = result.c_photos_photos();
+
+		_writer->writeUserpicsSlice(
+			Data::ParseUserpicsSlice(data.vphotos));
+
+		finish();
+	} break;
+
+	case mtpc_photos_photosSlice: {
+		const auto &data = result.c_photos_photosSlice();
+
+		const auto slice = Data::ParseUserpicsSlice(data.vphotos);
+		_writer->writeUserpicsSlice(slice);
+
+		if (slice.list.empty()) {
+			finish();
+		} else {
+			_mtp.request(MTPphotos_GetUserPhotos(
+				_user,
+				MTP_int(0),
+				MTP_long(slice.list.back().id),
+				MTP_int(kUserpicsSliceLimit)
+			)).done([=](const MTPphotos_Photos &result) {
+				exportUserpicsSlice(result);
+			}).fail([=](const RPCError &error) {
+				apiError(error);
+			}).send();
+		}
+	} break;
+
+	default: Unexpected("Photos type in Controller::exportUserpicsSlice.");
+	}
+}
+
+void Controller::exportContacts() {
+	exportNext();
+}
+
+void Controller::exportSessions() {
+	exportNext();
+}
+
+void Controller::exportChats() {
+	exportNext();
+}
+
 void Controller::setFinishedState() {
-	setState(FinishedState{ _settings.path });
+	setState(FinishedState{ _writer->mainFilePath() });
 }
 
 ControllerWrap::ControllerWrap() {
