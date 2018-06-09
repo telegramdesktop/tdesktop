@@ -71,6 +71,7 @@ void Init() {
 	case dbisOne: WorkingIndex = 0; break;
 	case dbisOneAndQuarter: WorkingIndex = 1; break;
 	case dbisOneAndHalf: WorkingIndex = 2; break;
+	case dbisOneSevenFive: WorkingIndex = 3; break;
 	case dbisTwo: WorkingIndex = 3; break;
 	};
 

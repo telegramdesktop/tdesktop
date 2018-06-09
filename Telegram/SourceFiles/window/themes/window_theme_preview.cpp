@@ -493,6 +493,7 @@ void Generator::paintComposeArea() {
 	switch (cScale()) {
 	case dbisOneAndQuarter: fakeMargin = 1; break;
 	case dbisOneAndHalf: fakeMargin = 2; break;
+	case dbisOneSevenFive: fakeMargin = 3; break;
 	case dbisTwo: fakeMargin = 4; break;
 	}
 

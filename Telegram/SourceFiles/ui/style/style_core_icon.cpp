@@ -82,6 +82,7 @@ QSize readGeneratedSize(const IconMask *mask, DBIScale scale) {
 			case dbisOne: return QSize(width, height);
 			case dbisOneAndQuarter: return QSize(pxAdjust(width, 5), pxAdjust(height, 5));
 			case dbisOneAndHalf: return QSize(pxAdjust(width, 6), pxAdjust(height, 6));
+			case dbisOneSevenFive: return QSize(pxAdjust(width, 7), pxAdjust(height, 7));
 			case dbisTwo: return QSize(width * 2, height * 2);
 			}
 		} else {

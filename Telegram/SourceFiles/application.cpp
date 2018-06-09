@@ -418,8 +418,10 @@ void launch() {
 		cSetScreenScale(dbisOne);
 	} else if (dpi <= 132) { // 108-120-132
 		cSetScreenScale(dbisOneAndQuarter);
-	} else if (dpi <= 168) { // 132-144-168
+	} else if (dpi <= 150) { // 132-144
 		cSetScreenScale(dbisOneAndHalf);
+	} else if (dpi <= 168) { // 160-168
+		cSetScreenScale(dbisOneSevenFive);
 	} else { // 168-192-inf
 		cSetScreenScale(dbisTwo);
 	}

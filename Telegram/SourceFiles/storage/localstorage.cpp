@@ -1326,6 +1326,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		case dbisOne: s = dbisOne; break;
 		case dbisOneAndQuarter: s = dbisOneAndQuarter; break;
 		case dbisOneAndHalf: s = dbisOneAndHalf; break;
+		case dbisOneSevenFive: s = dbisOneSevenFive; break;
 		case dbisTwo: s = dbisTwo; break;
 		}
 		if (cRetina()) s = dbisOne;

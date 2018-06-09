@@ -124,6 +124,7 @@ T convertScale(T v) {
 	switch (cScale()) {
 		case dbisOneAndQuarter: return qRound(float64(v) * 1.25 - 0.01);
 		case dbisOneAndHalf: return qRound(float64(v) * 1.5 - 0.01);
+		case dbisOneSevenFive: return qRound(float64(v) * 1.75 - 0.01);
 		case dbisTwo: return v * 2;
 	}
 	return v;

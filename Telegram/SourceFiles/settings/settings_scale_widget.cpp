@@ -25,6 +25,7 @@ QString scaleLabel(DBIScale scale) {
 	case dbisOne: return qsl("100%");
 	case dbisOneAndQuarter: return qsl("125%");
 	case dbisOneAndHalf: return qsl("150%");
+	case dbisOneSevenFive: return qsl("175%");
 	case dbisTwo: return qsl("200%");
 	}
 	return QString();
@@ -45,6 +46,7 @@ void ScaleWidget::createControls() {
 	_scale->addSection(scaleLabel(dbisOne));
 	_scale->addSection(scaleLabel(dbisOneAndQuarter));
 	_scale->addSection(scaleLabel(dbisOneAndHalf));
+	_scale->addSection(scaleLabel(dbisOneSevenFive));
 	_scale->addSection(scaleLabel(dbisTwo));
 	_scale->setActiveSectionFast(cEvalScale(cConfigScale()) - 1);
 	_scale->sectionActivated(
@@ -63,7 +65,8 @@ void ScaleWidget::onAutoChanged() {
 			case dbisOne: newScale = dbisOneAndQuarter; break;
 			case dbisOneAndQuarter: newScale = dbisOne; break;
 			case dbisOneAndHalf: newScale = dbisOneAndQuarter; break;
-			case dbisTwo: newScale = dbisOneAndHalf; break;
+			case dbisOneSevenFive: newScale = dbisOneAndHalf; break;
+			case dbisTwo: newScale = dbisOneSevenFive; break;
 			}
 		}
 	}
@@ -109,7 +112,8 @@ void ScaleWidget::scaleChanged() {
 	case 0: newScale = dbisOne; break;
 	case 1: newScale = dbisOneAndQuarter; break;
 	case 2: newScale = dbisOneAndHalf; break;
-	case 3: newScale = dbisTwo; break;
+	case 3: newScale = dbisOneSevenFive; break;
+	case 4: newScale = dbisTwo; break;
 	}
 	setScale(newScale);
 }
