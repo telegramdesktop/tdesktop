@@ -199,6 +199,9 @@ bool Get(
 		const QString &filter,
 		Type type,
 		QString startFile) {
+	if (parent) {
+		parent = parent->window();
+	}
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 	if (NativeSupported()) {
 		return GetNative(
