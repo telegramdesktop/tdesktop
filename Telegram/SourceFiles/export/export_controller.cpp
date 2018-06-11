@@ -7,18 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "export/export_controller.h"
 
+#include "export/export_api_wrap.h"
 #include "export/export_settings.h"
 #include "export/data/export_data_types.h"
 #include "export/output/export_output_abstract.h"
-#include "mtproto/rpc_sender.h"
-#include "mtproto/concurrent_sender.h"
 
 namespace Export {
-namespace {
-
-constexpr auto kUserpicsSliceLimit = 100;
-
-} // namespace
 
 class Controller {
 public:
@@ -40,8 +34,6 @@ private:
 	using Step = ProcessingState::Step;
 
 	void setState(State &&state);
-	void apiError(const RPCError &error);
-	void apiError(const QString &error);
 	void ioError(const QString &path);
 	void setFinishedState();
 
@@ -56,11 +48,9 @@ private:
 	void exportSessions();
 	void exportChats();
 
-	void exportUserpicsSlice(const MTPphotos_Photos &result);
-
 	bool normalizePath();
 
-	MTP::ConcurrentSender _mtp;
+	ApiWrap _api;
 	Settings _settings;
 
 	// rpl::variable<State> fails to compile in MSVC :(
@@ -73,14 +63,23 @@ private:
 	std::vector<ProcessingState::Step> _steps;
 	int _stepIndex = -1;
 
-	MTPInputUser _user = MTP_inputUserSelf();
+	rpl::lifetime _lifetime;
 
 };
 
 Controller::Controller(crl::weak_on_queue<Controller> weak)
-: _mtp(weak)
+: _api(weak.runner())
 , _state(PasswordCheckState{}) {
-	requestPasswordState();
+	_api.errors(
+	) | rpl::start_with_next([=](RPCError &&error) {
+		setState(ErrorState{ ErrorState::Type::API, std::move(error) });
+	}, _lifetime);
+
+	//requestPasswordState();
+	auto state = PasswordCheckState();
+	state.checked = false;
+	state.requesting = false;
+	setState(std::move(state));
 }
 
 rpl::producer<State> Controller::state() const {
@@ -97,14 +96,6 @@ rpl::producer<State> Controller::state() const {
 void Controller::setState(State &&state) {
 	_state = std::move(state);
 	_stateChanges.fire_copy(_state);
-}
-
-void Controller::apiError(const RPCError &error) {
-	setState(ErrorState{ ErrorState::Type::API, error });
-}
-
-void Controller::apiError(const QString &error) {
-	apiError(MTP_rpc_error(MTP_int(0), MTP_string("API_ERROR: " + error)));
 }
 
 void Controller::ioError(const QString &path) {
@@ -124,7 +115,7 @@ rpl::producer<PasswordUpdate> Controller::passwordUpdate() const {
 }
 
 void Controller::reloadPasswordState() {
-	_mtp.request(base::take(_passwordRequestId)).cancel();
+	//_mtp.request(base::take(_passwordRequestId)).cancel();
 	requestPasswordState();
 }
 
@@ -132,13 +123,13 @@ void Controller::requestPasswordState() {
 	if (_passwordRequestId) {
 		return;
 	}
-	_passwordRequestId = _mtp.request(MTPaccount_GetPassword(
-	)).done([=](const MTPaccount_Password &result) {
-		_passwordRequestId = 0;
-		passwordStateDone(result);
-	}).fail([=](const RPCError &error) {
-		apiError(error);
-	}).send();
+	//_passwordRequestId = _mtp.request(MTPaccount_GetPassword(
+	//)).done([=](const MTPaccount_Password &result) {
+	//	_passwordRequestId = 0;
+	//	passwordStateDone(result);
+	//}).fail([=](const RPCError &error) {
+	//	apiError(error);
+	//}).send();
 }
 
 void Controller::passwordStateDone(const MTPaccount_Password &result) {
@@ -156,6 +147,9 @@ void Controller::cancelUnconfirmedPassword() {
 }
 
 void Controller::startExport(const Settings &settings) {
+	if (!_settings.path.isEmpty()) {
+		return;
+	}
 	_settings = base::duplicate(settings);
 
 	if (!normalizePath()) {
@@ -163,6 +157,7 @@ void Controller::startExport(const Settings &settings) {
 		return;
 	}
 	_writer = Output::CreateWriter(_settings.format);
+	_api.setFilesBaseFolder(_settings.path);
 	fillExportSteps();
 	exportNext();
 }
@@ -182,7 +177,7 @@ bool Controller::normalizePath() {
 		return true;
 	}
 	const auto date = QDate::currentDate();
-	const auto base = QString("DataExport.%1.%2.%3"
+	const auto base = QString("DataExport_%1_%2_%3"
 	).arg(date.day(), 2, 10, QChar('0')
 	).arg(date.month(), 2, 10, QChar('0')
 	).arg(date.year());
@@ -241,101 +236,28 @@ void Controller::exportNext() {
 }
 
 void Controller::exportPersonalInfo() {
-	if (!(_settings.types & Settings::Type::PersonalInfo)) {
-		exportUserpics();
-		return;
-	}
-	_mtp.request(MTPusers_GetFullUser(
-		_user
-	)).done([=](const MTPUserFull &result) {
-		Expects(result.type() == mtpc_userFull);
-
-		const auto &full = result.c_userFull();
-		if (full.vuser.type() == mtpc_user) {
-			_writer->writePersonal(Data::ParsePersonalInfo(result));
-			exportNext();
-		} else {
-			apiError("Bad user type.");
-		}
-	}).fail([=](const RPCError &error) {
-		apiError(error);
-	}).send();
+	_api.requestPersonalInfo([=](Data::PersonalInfo &&result) {
+		_writer->writePersonal(result);
+		exportNext();
+	});
 }
 
 void Controller::exportUserpics() {
-	_mtp.request(MTPphotos_GetUserPhotos(
-		_user,
-		MTP_int(0),
-		MTP_long(0),
-		MTP_int(kUserpicsSliceLimit)
-	)).done([=](const MTPphotos_Photos &result) {
-		_writer->writeUserpicsStart([&] {
-			auto info = Data::UserpicsInfo();
-			switch (result.type()) {
-			case mtpc_photos_photos: {
-				const auto &data = result.c_photos_photos();
-				info.count = data.vphotos.v.size();
-			} break;
-
-			case mtpc_photos_photosSlice: {
-				const auto &data = result.c_photos_photosSlice();
-				info.count = data.vcount.v;
-			} break;
-
-			default: Unexpected("Photos type in Controller::exportUserpics.");
-			}
-			return info;
-		}());
-
-		exportUserpicsSlice(result);
-	}).fail([=](const RPCError &error) {
-		apiError(error);
-	}).send();
-}
-
-void Controller::exportUserpicsSlice(const MTPphotos_Photos &result) {
-	const auto finish = [&] {
+	_api.requestUserpics([=](Data::UserpicsInfo &&start) {
+		_writer->writeUserpicsStart(start);
+	}, [=](Data::UserpicsSlice &&slice) {
+		_writer->writeUserpicsSlice(slice);
+	}, [=] {
 		_writer->writeUserpicsEnd();
 		exportNext();
-	};
-	switch (result.type()) {
-	case mtpc_photos_photos: {
-		const auto &data = result.c_photos_photos();
-
-		_writer->writeUserpicsSlice(
-			Data::ParseUserpicsSlice(data.vphotos));
-
-		finish();
-	} break;
-
-	case mtpc_photos_photosSlice: {
-		const auto &data = result.c_photos_photosSlice();
-
-		const auto slice = Data::ParseUserpicsSlice(data.vphotos);
-		_writer->writeUserpicsSlice(slice);
-
-		if (slice.list.empty()) {
-			finish();
-		} else {
-			_mtp.request(MTPphotos_GetUserPhotos(
-				_user,
-				MTP_int(0),
-				MTP_long(slice.list.back().id),
-				MTP_int(kUserpicsSliceLimit)
-			)).done([=](const MTPphotos_Photos &result) {
-				exportUserpicsSlice(result);
-			}).fail([=](const RPCError &error) {
-				apiError(error);
-			}).send();
-		}
-	} break;
-
-	default: Unexpected("Photos type in Controller::exportUserpicsSlice.");
-	}
+	});
 }
 
 void Controller::exportContacts() {
-	exportNext();
+	_api.requestContacts([=](Data::ContactsList &&result) {
+		_writer->writeContactsList(result);
+		exportNext();
+	});
 }
 
 void Controller::exportSessions() {

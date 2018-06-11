@@ -160,12 +160,17 @@ class optional : public optional_variant<Type> {
 public:
 	using parent::parent;
 
-	Type &operator*() {
+	Type &operator*() & {
 		Expects(parent::template is<Type>());
 
 		return parent::template get_unchecked<Type>();
 	}
-	const Type &operator*() const {
+	Type &&operator*() && {
+		Expects(parent::template is<Type>());
+
+		return std::move(parent::template get_unchecked<Type>());
+	}
+	const Type &operator*() const & {
 		Expects(parent::template is<Type>());
 
 		return parent::template get_unchecked<Type>();

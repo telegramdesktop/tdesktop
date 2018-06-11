@@ -16,7 +16,7 @@ class ConcurrentSender::RPCDoneHandler : public RPCAbstractDoneHandler {
 public:
 	RPCDoneHandler(
 		not_null<ConcurrentSender*> sender,
-		Fn<void(FnMut<void()>)> run);
+		Fn<void(FnMut<void()>)> runner);
 
 	void operator()(
 		mtpRequestId requestId,
@@ -25,7 +25,7 @@ public:
 
 private:
 	base::weak_ptr<ConcurrentSender> _weak;
-	Fn<void(FnMut<void()>)> _run;
+	Fn<void(FnMut<void()>)> _runner;
 
 };
 
@@ -33,7 +33,7 @@ class ConcurrentSender::RPCFailHandler : public RPCAbstractFailHandler {
 public:
 	RPCFailHandler(
 		not_null<ConcurrentSender*> sender,
-		Fn<void(FnMut<void()>)> run,
+		Fn<void(FnMut<void()>)> runner,
 		FailSkipPolicy skipPolicy);
 
 	bool operator()(
@@ -42,16 +42,16 @@ public:
 
 private:
 	base::weak_ptr<ConcurrentSender> _weak;
-	Fn<void(FnMut<void()>)> _run;
+	Fn<void(FnMut<void()>)> _runner;
 	FailSkipPolicy _skipPolicy = FailSkipPolicy::Simple;
 
 };
 
 ConcurrentSender::RPCDoneHandler::RPCDoneHandler(
 	not_null<ConcurrentSender*> sender,
-	Fn<void(FnMut<void()>)> run)
+	Fn<void(FnMut<void()>)> runner)
 : _weak(sender)
-, _run(std::move(run)) {
+, _runner(std::move(runner)) {
 }
 
 void ConcurrentSender::RPCDoneHandler::operator()(
@@ -61,7 +61,7 @@ void ConcurrentSender::RPCDoneHandler::operator()(
 	auto response = gsl::make_span(
 		from,
 		end - from);
-	_run([=, weak = _weak, moved = bytes::make_vector(response)]() mutable {
+	_runner([=, weak = _weak, moved = bytes::make_vector(response)]() mutable {
 		if (const auto strong = weak.get()) {
 			strong->senderRequestDone(requestId, std::move(moved));
 		}
@@ -70,10 +70,10 @@ void ConcurrentSender::RPCDoneHandler::operator()(
 
 ConcurrentSender::RPCFailHandler::RPCFailHandler(
 	not_null<ConcurrentSender*> sender,
-	Fn<void(FnMut<void()>)> run,
+	Fn<void(FnMut<void()>)> runner,
 	FailSkipPolicy skipPolicy)
 : _weak(sender)
-, _run(std::move(run))
+, _runner(std::move(runner))
 , _skipPolicy(skipPolicy) {
 }
 
@@ -89,7 +89,7 @@ bool ConcurrentSender::RPCFailHandler::operator()(
 			return false;
 		}
 	}
-	_run([=, weak = _weak, error = error]() mutable {
+	_runner([=, weak = _weak, error = error]() mutable {
 		if (const auto strong = weak.get()) {
 			strong->senderRequestFail(requestId, std::move(error));
 		}
@@ -142,10 +142,10 @@ mtpRequestId ConcurrentSender::RequestBuilder::send() {
 	_sender->with_instance([
 		=,
 		request = std::move(_serialized),
-		done = std::make_shared<RPCDoneHandler>(_sender, _sender->_run),
+		done = std::make_shared<RPCDoneHandler>(_sender, _sender->_runner),
 		fail = std::make_shared<RPCFailHandler>(
 			_sender,
-			_sender->_run,
+			_sender->_runner,
 			_failSkipPolicy)
 	](not_null<Instance*> instance) mutable {
 		instance->sendSerialized(
@@ -160,8 +160,8 @@ mtpRequestId ConcurrentSender::RequestBuilder::send() {
 	return requestId;
 }
 
-ConcurrentSender::ConcurrentSender(Fn<void(FnMut<void()>)> run)
-: _run(run) {
+ConcurrentSender::ConcurrentSender(Fn<void(FnMut<void()>)> runner)
+: _runner(runner) {
 }
 
 ConcurrentSender::~ConcurrentSender() {

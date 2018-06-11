@@ -93,6 +93,7 @@ void SettingsWidget::refreshButtons(not_null<Ui::RpWidget*> container) {
 			st::defaultBoxButton)
 		: nullptr;
 	if (start) {
+		start->show();
 		_startClicks = start->clicks();
 
 		container->sizeValue(
@@ -107,6 +108,7 @@ void SettingsWidget::refreshButtons(not_null<Ui::RpWidget*> container) {
 		container.get(),
 		langFactory(lng_cancel),
 		st::defaultBoxButton);
+	cancel->show();
 	_cancelClicks = cancel->clicks();
 
 	rpl::combine(

@@ -190,7 +190,7 @@ private:
 
 	bool setState(int32 state, int32 ifState = Connection::UpdateAlways);
 
-	bytes::vector encryptPQInnerRSA(const MTPP_Q_inner_data &data, const MTP::internal::RSAPublicKey &key);
+	bytes::vector encryptPQInnerRSA(const MTPP_Q_inner_data &data, const internal::RSAPublicKey &key);
 	std::string encryptClientDHInner(const MTPClient_DH_Inner_Data &data);
 	void appendTestConnection(
 		DcOptions::Variants::Protocol protocol,

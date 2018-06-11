@@ -376,9 +376,9 @@ void ConnectionPrivate::appendTestConnection(
 }
 
 int16 ConnectionPrivate::getProtocolDcId() const {
-	const auto dcId = MTP::bareDcId(_shiftedDcId);
-	const auto simpleDcId = MTP::isTemporaryDcId(dcId)
-		? MTP::getRealIdFromTemporaryDcId(dcId)
+	const auto dcId = BareDcId(_shiftedDcId);
+	const auto simpleDcId = isTemporaryDcId(dcId)
+		? getRealIdFromTemporaryDcId(dcId)
 		: dcId;
 	const auto testedDcId = cTestMode()
 		? (kTestModeDcIdShift + simpleDcId)
@@ -724,13 +724,13 @@ void ConnectionPrivate::tryToSend() {
 	int32 state = getState();
 	bool prependOnly = (state != ConnectedState);
 	mtpRequest pingRequest;
-	if (_shiftedDcId == bareDcId(_shiftedDcId)) { // main session
+	if (_shiftedDcId == BareDcId(_shiftedDcId)) { // main session
 		if (!prependOnly && !_pingIdToSend && !_pingId && _pingSendAt <= getms(true)) {
 			_pingIdToSend = rand_value<mtpPingId>();
 		}
 	}
 	if (_pingIdToSend) {
-		if (prependOnly || _shiftedDcId != bareDcId(_shiftedDcId)) {
+		if (prependOnly || _shiftedDcId != BareDcId(_shiftedDcId)) {
 			MTPPing ping(MTPping(MTP_long(_pingIdToSend)));
 			uint32 pingSize = ping.innerLength() >> 2; // copy from Session::send
 			pingRequest = mtpRequestData::prepare(pingSize);
@@ -748,7 +748,7 @@ void ConnectionPrivate::tryToSend() {
 		_pingSendAt = pingRequest->msDate + kPingSendAfter;
 		pingRequest->requestId = 0; // dont add to haveSent / wereAcked maps
 
-		if (_shiftedDcId == bareDcId(_shiftedDcId) && !prependOnly) { // main session
+		if (_shiftedDcId == BareDcId(_shiftedDcId) && !prependOnly) { // main session
 			_pingSender.callOnce(kPingSendAfterForce);
 		}
 
@@ -916,7 +916,7 @@ void ConnectionPrivate::tryToSend() {
 						mtpRequest wrappedRequest(mtpRequestData::prepare(toSendSize));
 						memcpy(wrappedRequest->data(), toSendRequest->constData(), 7 * sizeof(mtpPrime)); // all except length
 						wrappedRequest->push_back(mtpc_invokeWithLayer);
-						wrappedRequest->push_back(MTP::internal::CurrentLayer);
+						wrappedRequest->push_back(internal::CurrentLayer);
 						initWrapper.write(*wrappedRequest);
 						wrappedRequest->resize(wrappedRequest->size() + noWrapSize);
 						memcpy(wrappedRequest->data() + wrappedRequest->size() - noWrapSize, toSendRequest->constData() + 8, noWrapSize * sizeof(mtpPrime));
@@ -948,7 +948,7 @@ void ConnectionPrivate::tryToSend() {
 			if (willNeedInit) {
 				initSerialized.reserve(initSizeInInts);
 				initSerialized.push_back(mtpc_invokeWithLayer);
-				initSerialized.push_back(MTP::internal::CurrentLayer);
+				initSerialized.push_back(internal::CurrentLayer);
 				initWrapper.write(initSerialized);
 			}
 			toSendRequest = mtpRequestData::prepare(containerSize, containerSize + 3 * toSend.size()); // prepare container + each in invoke after
@@ -1080,7 +1080,7 @@ void ConnectionPrivate::connectToServer(bool afterConfig) {
 			sessionData->connectionOptions());
 		hasKey = (sessionData->getKey() != nullptr);
 	}
-	auto bareDc = bareDcId(_shiftedDcId);
+	auto bareDc = BareDcId(_shiftedDcId);
 	_dcType = _instance->dcOptions()->dcType(_shiftedDcId);
 
 	// Use media_only addresses only if key for this dc is already created.
@@ -2570,7 +2570,7 @@ void ConnectionPrivate::pqAnswered() {
 	}
 
 	auto rsaKey = internal::RSAPublicKey();
-	if (!_instance->dcOptions()->getDcRSAKey(bareDcId(_shiftedDcId), res_pq.c_resPQ().vserver_public_key_fingerprints.v, &rsaKey)) {
+	if (!_instance->dcOptions()->getDcRSAKey(BareDcId(_shiftedDcId), res_pq.c_resPQ().vserver_public_key_fingerprints.v, &rsaKey)) {
 		if (_dcType == DcType::Cdn) {
 			LOG(("Warning: CDN public RSA key not found"));
 			requestCDNConfig();
@@ -2587,7 +2587,7 @@ void ConnectionPrivate::pqAnswered() {
 	auto &pq = res_pq_data.vpq.v;
 	auto p = QByteArray();
 	auto q = QByteArray();
-	if (!MTP::internal::parsePQ(pq, p, q)) {
+	if (!internal::parsePQ(pq, p, q)) {
 		LOG(("AuthKey Error: could not factor pq!"));
 		DEBUG_LOG(("AuthKey Error: problematic pq: %1").arg(Logs::mb(pq.constData(), pq.length()).str()));
 		return restart();
@@ -2624,7 +2624,7 @@ void ConnectionPrivate::pqAnswered() {
 
 bytes::vector ConnectionPrivate::encryptPQInnerRSA(
 		const MTPP_Q_inner_data &data,
-		const MTP::internal::RSAPublicKey &key) {
+		const internal::RSAPublicKey &key) {
 	auto p_q_inner_size = data.innerLength();
 	auto encSize = (p_q_inner_size >> 2) + 6;
 	if (encSize >= 65) {
@@ -2880,7 +2880,7 @@ void ConnectionPrivate::dhClientParamsAnswered() {
 		uint64 salt1 = _authKeyData->new_nonce.l.l, salt2 = _authKeyData->server_nonce.l, serverSalt = salt1 ^ salt2;
 		sessionData->setSalt(serverSalt);
 
-		auto authKey = std::make_shared<AuthKey>(AuthKey::Type::Generated, bareDcId(_shiftedDcId), _authKeyStrings->auth_key);
+		auto authKey = std::make_shared<AuthKey>(AuthKey::Type::Generated, BareDcId(_shiftedDcId), _authKeyStrings->auth_key);
 
 		DEBUG_LOG(("AuthKey Info: auth key gen succeed, id: %1, server salt: %2").arg(authKey->keyId()).arg(serverSalt));
 

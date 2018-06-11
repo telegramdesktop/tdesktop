@@ -460,9 +460,9 @@ void Instance::Private::restart() {
 }
 
 void Instance::Private::restart(ShiftedDcId shiftedDcId) {
-	auto dcId = bareDcId(shiftedDcId);
+	auto dcId = BareDcId(shiftedDcId);
 	for (auto &session : _sessions) {
-		if (bareDcId(session.second->getDcWithShift()) == dcId) {
+		if (BareDcId(session.second->getDcWithShift()) == dcId) {
 			session.second->restart();
 		}
 	}
@@ -474,9 +474,9 @@ int32 Instance::Private::dcstate(ShiftedDcId shiftedDcId) {
 		return _mainSession->getState();
 	}
 
-	if (!bareDcId(shiftedDcId)) {
+	if (!BareDcId(shiftedDcId)) {
 		Assert(_mainSession != nullptr);
-		shiftedDcId += bareDcId(_mainSession->getDcWithShift());
+		shiftedDcId += BareDcId(_mainSession->getDcWithShift());
 	}
 
 	auto it = _sessions.find(shiftedDcId);
@@ -492,9 +492,9 @@ QString Instance::Private::dctransport(ShiftedDcId shiftedDcId) {
 		Assert(_mainSession != nullptr);
 		return _mainSession->transport();
 	}
-	if (!bareDcId(shiftedDcId)) {
+	if (!BareDcId(shiftedDcId)) {
 		Assert(_mainSession != nullptr);
-		shiftedDcId += bareDcId(_mainSession->getDcWithShift());
+		shiftedDcId += BareDcId(_mainSession->getDcWithShift());
 	}
 
 	auto it = _sessions.find(shiftedDcId);
@@ -583,7 +583,7 @@ void Instance::Private::stopSession(ShiftedDcId shiftedDcId) {
 
 void Instance::Private::reInitConnection(DcId dcId) {
 	for (auto &session : _sessions) {
-		if (bareDcId(session.second->getDcWithShift()) == dcId) {
+		if (BareDcId(session.second->getDcWithShift()) == dcId) {
 			session.second->reInitConnection();
 		}
 	}
@@ -632,7 +632,7 @@ bool Instance::Private::logoutGuestDone(mtpRequestId requestId) {
 std::shared_ptr<internal::Dcenter> Instance::Private::getDcById(ShiftedDcId shiftedDcId) {
 	auto it = _dcenters.find(shiftedDcId);
 	if (it == _dcenters.cend()) {
-		auto dcId = bareDcId(shiftedDcId);
+		auto dcId = BareDcId(shiftedDcId);
 		if (isTemporaryDcId(dcId)) {
 			if (auto realDcId = getRealIdFromTemporaryDcId(dcId)) {
 				dcId = realDcId;
@@ -809,7 +809,7 @@ base::optional<ShiftedDcId> Instance::Private::changeRequestByDc(
 		if (it->second < 0) {
 			it->second = -newdc;
 		} else {
-			it->second = shiftDcId(newdc, getDcIdShift(it->second));
+			it->second = ShiftDcId(newdc, GetDcIdShift(it->second));
 		}
 		return it->second;
 	}
@@ -1081,7 +1081,7 @@ void Instance::Private::importDone(const MTPauth_Authorization &result, mtpReque
 		//}
 		return;
 	}
-	auto newdc = bareDcId(*shiftedDcId);
+	auto newdc = BareDcId(*shiftedDcId);
 
 	DEBUG_LOG(("MTP Info: auth import to dc %1 succeeded").arg(newdc));
 
@@ -1149,7 +1149,7 @@ bool Instance::Private::exportFail(const RPCError &error, mtpRequestId requestId
 
 	auto it = _authExportRequests.find(requestId);
 	if (it != _authExportRequests.cend()) {
-		_authWaiters[bareDcId(it->second)].clear();
+		_authWaiters[BareDcId(it->second)].clear();
 	}
 	//
 	// Don't log out on export/import problems, perhaps this is a server side error.
@@ -1203,7 +1203,7 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 				_instance->setMainDcId(newdcWithShift);
 			}
 		} else {
-			newdcWithShift = shiftDcId(newdcWithShift, getDcIdShift(dcWithShift));
+			newdcWithShift = ShiftDcId(newdcWithShift, GetDcIdShift(dcWithShift));
 		}
 
 		auto request = mtpRequest();
@@ -1255,7 +1255,7 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 		} else {
 			LOG(("MTP Error: unauthorized request without dc info, requestId %1").arg(requestId));
 		}
-		auto newdc = bareDcId(qAbs(dcWithShift));
+		auto newdc = BareDcId(qAbs(dcWithShift));
 		if (!newdc || newdc == mainDcId() || !hasAuthorization()) {
 			if (!badGuestDc && _globalHandler.onFail) {
 				(*_globalHandler.onFail)(requestId, error); // auth failed in main dc
@@ -1336,7 +1336,7 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 			request->needsLayer = true;
 			session->sendPrepared(request);
 		} else {
-			auto newdc = bareDcId(qAbs(dcWithShift));
+			auto newdc = BareDcId(qAbs(dcWithShift));
 			auto &waiters(_authWaiters[newdc]);
 			if (base::contains(waiters, request->after->requestId)) {
 				if (!base::contains(waiters, requestId)) {
@@ -1372,9 +1372,9 @@ not_null<internal::Session*> Instance::Private::getSession(
 		Assert(_mainSession != nullptr);
 		return _mainSession;
 	}
-	if (!bareDcId(shiftedDcId)) {
+	if (!BareDcId(shiftedDcId)) {
 		Assert(_mainSession != nullptr);
-		shiftedDcId += bareDcId(_mainSession->getDcWithShift());
+		shiftedDcId += BareDcId(_mainSession->getDcWithShift());
 	}
 
 	auto it = _sessions.find(shiftedDcId);

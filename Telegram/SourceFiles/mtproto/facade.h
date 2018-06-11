@@ -18,15 +18,6 @@ bool paused();
 void pause();
 void unpause();
 
-constexpr auto kDcShift = ShiftedDcId(10000);
-constexpr auto kConfigDcShift = 0x01;
-constexpr auto kLogoutDcShift = 0x02;
-constexpr auto kUpdaterDcShift = 0x03;
-constexpr auto kMaxMediaDcCount = 0x10;
-constexpr auto kBaseDownloadDcShift = 0x10;
-constexpr auto kBaseUploadDcShift = 0x20;
-constexpr auto kDestroyKeyStartDcShift = 0x100;
-
 } // namespace internal
 
 class PauseHolder {
@@ -53,29 +44,19 @@ private:
 
 };
 
-constexpr DcId bareDcId(ShiftedDcId shiftedDcId) {
-	return (shiftedDcId % internal::kDcShift);
-}
-constexpr ShiftedDcId shiftDcId(DcId dcId, int value) {
-	return dcId + internal::kDcShift * value;
-}
-constexpr int getDcIdShift(ShiftedDcId shiftedDcId) {
-	return shiftedDcId / internal::kDcShift;
-}
-
 // send(MTPhelp_GetConfig(), MTP::configDcId(dc)) - for dc enumeration
 constexpr ShiftedDcId configDcId(DcId dcId) {
-	return shiftDcId(dcId, internal::kConfigDcShift);
+	return ShiftDcId(dcId, kConfigDcShift);
 }
 
 // send(MTPauth_LogOut(), MTP::logoutDcId(dc)) - for logout of guest dcs enumeration
 constexpr ShiftedDcId logoutDcId(DcId dcId) {
-	return shiftDcId(dcId, internal::kLogoutDcShift);
+	return ShiftDcId(dcId, kLogoutDcShift);
 }
 
 // send(MTPupload_GetFile(), MTP::updaterDcId(dc)) - for autoupdater
 constexpr ShiftedDcId updaterDcId(DcId dcId) {
-	return shiftDcId(dcId, internal::kUpdaterDcShift);
+	return ShiftDcId(dcId, kUpdaterDcShift);
 }
 
 constexpr auto kDownloadSessionsCount = 2;
@@ -84,8 +65,8 @@ constexpr auto kUploadSessionsCount = 2;
 namespace internal {
 
 constexpr ShiftedDcId downloadDcId(DcId dcId, int index) {
-	static_assert(kDownloadSessionsCount < internal::kMaxMediaDcCount, "Too large MTPDownloadSessionsCount!");
-	return shiftDcId(dcId, internal::kBaseDownloadDcShift + index);
+	static_assert(kDownloadSessionsCount < kMaxMediaDcCount, "Too large MTPDownloadSessionsCount!");
+	return ShiftDcId(dcId, kBaseDownloadDcShift + index);
 };
 
 } // namespace internal
@@ -97,7 +78,7 @@ inline ShiftedDcId downloadDcId(DcId dcId, int index) {
 }
 
 inline constexpr bool isDownloadDcId(ShiftedDcId shiftedDcId) {
-	return (shiftedDcId >= internal::downloadDcId(0, 0)) && (shiftedDcId < internal::downloadDcId(0, kDownloadSessionsCount - 1) + internal::kDcShift);
+	return (shiftedDcId >= internal::downloadDcId(0, 0)) && (shiftedDcId < internal::downloadDcId(0, kDownloadSessionsCount - 1) + kDcShift);
 }
 
 inline bool isCdnDc(MTPDdcOption::Flags flags) {
@@ -105,43 +86,44 @@ inline bool isCdnDc(MTPDdcOption::Flags flags) {
 }
 
 inline bool isTemporaryDcId(ShiftedDcId shiftedDcId) {
-	auto dcId = bareDcId(shiftedDcId);
+	auto dcId = BareDcId(shiftedDcId);
 	return (dcId >= Instance::Config::kTemporaryMainDc);
 }
 
 inline DcId getRealIdFromTemporaryDcId(ShiftedDcId shiftedDcId) {
-	auto dcId = bareDcId(shiftedDcId);
+	auto dcId = BareDcId(shiftedDcId);
 	return (dcId >= Instance::Config::kTemporaryMainDc) ? (dcId - Instance::Config::kTemporaryMainDc) : 0;
 }
 
 inline DcId getTemporaryIdFromRealDcId(ShiftedDcId shiftedDcId) {
-	auto dcId = bareDcId(shiftedDcId);
+	auto dcId = BareDcId(shiftedDcId);
 	return (dcId < Instance::Config::kTemporaryMainDc) ? (dcId + Instance::Config::kTemporaryMainDc) : 0;
 }
 
 namespace internal {
 
 constexpr ShiftedDcId uploadDcId(DcId dcId, int index) {
-	static_assert(kUploadSessionsCount < internal::kMaxMediaDcCount, "Too large MTPUploadSessionsCount!");
-	return shiftDcId(dcId, internal::kBaseUploadDcShift + index);
+	static_assert(kUploadSessionsCount < kMaxMediaDcCount, "Too large MTPUploadSessionsCount!");
+	return ShiftDcId(dcId, kBaseUploadDcShift + index);
 };
 
 } // namespace internal
 
 // send(req, callbacks, MTP::uploadDcId(index)) - for upload shifted dc id
-// uploading always to the main dc so bareDcId == 0
+// uploading always to the main dc so BareDcId(result) == 0
 inline ShiftedDcId uploadDcId(int index) {
 	Expects(index >= 0 && index < kUploadSessionsCount);
+
 	return internal::uploadDcId(0, index);
 };
 
 constexpr bool isUploadDcId(ShiftedDcId shiftedDcId) {
-	return (shiftedDcId >= internal::uploadDcId(0, 0)) && (shiftedDcId < internal::uploadDcId(0, kUploadSessionsCount - 1) + internal::kDcShift);
+	return (shiftedDcId >= internal::uploadDcId(0, 0)) && (shiftedDcId < internal::uploadDcId(0, kUploadSessionsCount - 1) + kDcShift);
 }
 
 inline ShiftedDcId destroyKeyNextDcId(ShiftedDcId shiftedDcId) {
-	auto shift = getDcIdShift(shiftedDcId);
-	return shiftDcId(bareDcId(shiftedDcId), shift ? (shift + 1) : internal::kDestroyKeyStartDcShift);
+	const auto shift = GetDcIdShift(shiftedDcId);
+	return ShiftDcId(BareDcId(shiftedDcId), shift ? (shift + 1) : kDestroyKeyStartDcShift);
 }
 
 enum {

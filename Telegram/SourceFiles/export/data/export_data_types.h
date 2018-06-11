@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "scheme.h"
+#include "base/optional.h"
 
 #include <QtCore/QDateTime>
 #include <QtCore/QString>
@@ -28,45 +29,63 @@ inline auto NumberToString(Type value)
 	return QByteArray(result.data(), int(result.size()));
 }
 
-struct PersonalInfo {
+struct UserpicsInfo {
+	int count = 0;
+};
+
+struct FileLocation {
+	int dcId = 0;
+	MTPInputFileLocation data;
+};
+
+struct File {
+	FileLocation location;
+	int size = 0;
+	QByteArray content;
+
+	QString suggestedPath;
+
+	QString relativePath;
+};
+
+struct Photo {
+	uint64 id = 0;
+	QDateTime date;
+
+	int width = 0;
+	int height = 0;
+	File image;
+};
+
+struct UserpicsSlice {
+	std::vector<Photo> list;
+};
+
+UserpicsSlice ParseUserpicsSlice(const MTPVector<MTPPhoto> &data);
+
+struct User {
+	int id = 0;
 	Utf8String firstName;
 	Utf8String lastName;
 	Utf8String phoneNumber;
 	Utf8String username;
+};
+
+User ParseUser(const MTPUser &user);
+std::map<int, User> ParseUsersList(const MTPVector<MTPUser> &data);
+
+struct PersonalInfo {
+	User user;
 	Utf8String bio;
 };
 
 PersonalInfo ParsePersonalInfo(const MTPUserFull &data);
 
-struct UserpicsInfo {
-	int count = 0;
-};
-
-struct File {
-	QString relativePath;
-};
-
-struct Userpic {
-	uint64 id = 0;
-	QDateTime date;
-	File image;
-};
-
-struct UserpicsSlice {
-	std::vector<Userpic> list;
-};
-
-UserpicsSlice ParseUserpicsSlice(const MTPVector<MTPPhoto> &data);
-
-struct Contact {
-	Utf8String firstName;
-	Utf8String lastName;
-	Utf8String phoneNumber;
-};
-
 struct ContactsList {
-	std::vector<Contact> list;
+	std::vector<User> list;
 };
+
+ContactsList ParseContactsList(const MTPcontacts_Contacts &data);
 
 struct Session {
 	Utf8String platform;
@@ -108,6 +127,11 @@ struct MessagesSlice {
 };
 
 Utf8String FormatPhoneNumber(const Utf8String &phoneNumber);
+Utf8String FormatDateTime(
+	const int32 date,
+	QChar dateSeparator = QChar('.'),
+	QChar timeSeparator = QChar(':'),
+	QChar separator = QChar(' '));
 
 } // namespace Data
 } // namespace Export

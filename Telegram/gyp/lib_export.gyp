@@ -50,6 +50,8 @@
       '<(submodules_loc)/crl/src',
     ],
     'sources': [
+      '<(src_loc)/export/export_api_wrap.cpp',
+      '<(src_loc)/export/export_api_wrap.h',
       '<(src_loc)/export/export_controller.cpp',
       '<(src_loc)/export/export_controller.h',
       '<(src_loc)/export/export_settings.h',

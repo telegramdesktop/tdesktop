@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include <rpl/details/callable.h>
-#include <crl/crl_object_on_queue.h>
 #include "base/bytes.h"
 #include "base/weak_ptr.h"
 #include "base/flat_map.h"
@@ -81,10 +80,7 @@ class ConcurrentSender : public base::has_weak_ptr {
 	};
 
 public:
-	ConcurrentSender(Fn<void(FnMut<void()>)> run);
-
-	template <typename Type>
-	ConcurrentSender(const crl::weak_on_queue<Type> &weak);
+	ConcurrentSender(Fn<void(FnMut<void()>)> runner);
 
 	template <typename Request>
 	class SpecificRequestBuilder : public RequestBuilder {
@@ -107,21 +103,21 @@ public:
 
 #ifdef _DEBUG
 		// Allow code completion to show response type.
-		[[nodiscard]] SpecificRequestBuilder &done(Fn<void()> &&handler);
-		[[nodiscard]] SpecificRequestBuilder &done(Fn<void(
+		[[nodiscard]] SpecificRequestBuilder &done(FnMut<void()> &&handler);
+		[[nodiscard]] SpecificRequestBuilder &done(FnMut<void(
 			mtpRequestId)> &&handler);
-		[[nodiscard]] SpecificRequestBuilder &done(Fn<void(
+		[[nodiscard]] SpecificRequestBuilder &done(FnMut<void(
 			mtpRequestId,
 			Response &&)> &&handler);
-		[[nodiscard]] SpecificRequestBuilder &done(Fn<void(
+		[[nodiscard]] SpecificRequestBuilder &done(FnMut<void(
 			Response &&)> &&handler);
-		[[nodiscard]] SpecificRequestBuilder &fail(Fn<void()> &&handler);
-		[[nodiscard]] SpecificRequestBuilder &fail(Fn<void(
+		[[nodiscard]] SpecificRequestBuilder &fail(FnMut<void()> &&handler);
+		[[nodiscard]] SpecificRequestBuilder &fail(FnMut<void(
 			mtpRequestId)> &&handler);
-		[[nodiscard]] SpecificRequestBuilder &fail(Fn<void(
+		[[nodiscard]] SpecificRequestBuilder &fail(FnMut<void(
 			mtpRequestId,
 			RPCError &&)> &&handler);
-		[[nodiscard]] SpecificRequestBuilder &fail(Fn<void(
+		[[nodiscard]] SpecificRequestBuilder &fail(FnMut<void(
 			RPCError &&)> &&handler);
 #else // _DEBUG
 		template <typename Handler>
@@ -194,19 +190,10 @@ private:
 	void senderRequestCancel(mtpRequestId requestId);
 	void senderRequestCancelAll();
 
-	const Fn<void(FnMut<void()>)> _run;
+	const Fn<void(FnMut<void()>)> _runner;
 	base::flat_map<mtpRequestId, Handlers> _requests;
 
 };
-
-template <typename Type>
-ConcurrentSender::ConcurrentSender(const crl::weak_on_queue<Type> &weak)
-: ConcurrentSender([=](FnMut<void()> method) {
-	weak.with([method = std::move(method)](Type&) mutable {
-		std::move(method)();
-	});
-}) {
-}
 
 template <typename Response, typename InvokeFullDone>
 void ConcurrentSender::RequestBuilder::setDoneHandler(
@@ -256,7 +243,7 @@ template <typename Request>
 // Allow code completion to show response type.
 template <typename Request>
 [[nodiscard]] auto ConcurrentSender::SpecificRequestBuilder<Request>::done(
-	Fn<void(Response &&)> &&handler)
+	FnMut<void(Response &&)> &&handler)
 -> SpecificRequestBuilder & {
 	setDoneHandler<Response>([handler = std::move(handler)](
 			mtpRequestId requestId,
@@ -268,7 +255,7 @@ template <typename Request>
 
 template <typename Request>
 [[nodiscard]] auto ConcurrentSender::SpecificRequestBuilder<Request>::done(
-	Fn<void(mtpRequestId, Response &&)> &&handler)
+	FnMut<void(mtpRequestId, Response &&)> &&handler)
 -> SpecificRequestBuilder & {
 	setDoneHandler<Response>(std::move(handler));
 	return *this;
@@ -276,7 +263,7 @@ template <typename Request>
 
 template <typename Request>
 [[nodiscard]] auto ConcurrentSender::SpecificRequestBuilder<Request>::done(
-		Fn<void(mtpRequestId)> &&handler) -> SpecificRequestBuilder & {
+		FnMut<void(mtpRequestId)> &&handler) -> SpecificRequestBuilder & {
 	setDoneHandler<Response>([handler = std::move(handler)](
 			mtpRequestId requestId,
 			Response &&result) mutable {
@@ -287,7 +274,7 @@ template <typename Request>
 
 template <typename Request>
 [[nodiscard]] auto ConcurrentSender::SpecificRequestBuilder<Request>::done(
-		Fn<void()> &&handler) -> SpecificRequestBuilder & {
+		FnMut<void()> &&handler) -> SpecificRequestBuilder & {
 	setDoneHandler<Response>([handler = std::move(handler)](
 			mtpRequestId requestId,
 			Response &&result) mutable {
@@ -298,7 +285,7 @@ template <typename Request>
 
 template <typename Request>
 [[nodiscard]] auto ConcurrentSender::SpecificRequestBuilder<Request>::fail(
-		Fn<void(RPCError &&)> &&handler) -> SpecificRequestBuilder & {
+		FnMut<void(RPCError &&)> &&handler) -> SpecificRequestBuilder & {
 	setFailHandler([handler = std::move(handler)](
 			mtpRequestId requestId,
 			RPCError &&error) mutable {
@@ -309,7 +296,7 @@ template <typename Request>
 
 template <typename Request>
 [[nodiscard]] auto ConcurrentSender::SpecificRequestBuilder<Request>::fail(
-	Fn<void(mtpRequestId, RPCError &&)> &&handler)
+	FnMut<void(mtpRequestId, RPCError &&)> &&handler)
 -> SpecificRequestBuilder & {
 	setFailHandler(std::move(handler));
 	return *this;
@@ -317,7 +304,7 @@ template <typename Request>
 
 template <typename Request>
 [[nodiscard]] auto ConcurrentSender::SpecificRequestBuilder<Request>::fail(
-		Fn<void(mtpRequestId)> &&handler) -> SpecificRequestBuilder & {
+		FnMut<void(mtpRequestId)> &&handler) -> SpecificRequestBuilder & {
 	setFailHandler([handler = std::move(handler)](
 			mtpRequestId requestId,
 			RPCError &&error) mutable {
@@ -328,8 +315,8 @@ template <typename Request>
 
 template <typename Request>
 [[nodiscard]] auto ConcurrentSender::SpecificRequestBuilder<Request>::fail(
-		Fn<void()> &&handler) -> SpecificRequestBuilder & {
-	setFailHandler([handler = move(handler)](
+		FnMut<void()> &&handler) -> SpecificRequestBuilder & {
+	setFailHandler([handler = std::move(handler)](
 			mtpRequestId requestId,
 			RPCError &&error) mutable {
 		std::move(handler)();

@@ -24,6 +24,28 @@ namespace MTP {
 using DcId = int32;
 using ShiftedDcId = int32;
 
+constexpr auto kDcShift = ShiftedDcId(10000);
+constexpr auto kConfigDcShift = 0x01;
+constexpr auto kLogoutDcShift = 0x02;
+constexpr auto kUpdaterDcShift = 0x03;
+constexpr auto kExportDcShift = 0x04;
+constexpr auto kMaxMediaDcCount = 0x10;
+constexpr auto kBaseDownloadDcShift = 0x10;
+constexpr auto kBaseUploadDcShift = 0x20;
+constexpr auto kDestroyKeyStartDcShift = 0x100;
+
+constexpr DcId BareDcId(ShiftedDcId shiftedDcId) {
+	return (shiftedDcId % kDcShift);
+}
+
+constexpr ShiftedDcId ShiftDcId(DcId dcId, int value) {
+	return dcId + kDcShift * value;
+}
+
+constexpr int GetDcIdShift(ShiftedDcId shiftedDcId) {
+	return shiftedDcId / kDcShift;
+}
+
 } // namespace MTP
 
 using mtpPrime = int32;

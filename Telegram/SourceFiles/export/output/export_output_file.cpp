@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "export/output/export_output_file.h"
 
+#include <QtCore/QFileInfo>
+#include <QtCore/QDir>
 #include <gsl/gsl_util>
 
 namespace Export {
@@ -46,9 +48,44 @@ File::Result File::reopen() {
 	} else if (_offset > 0) {
 		return Result::FatalError;
 	}
-	return _file->open(QIODevice::Append)
+	if (_file->open(QIODevice::Append)) {
+		return Result::Success;
+	}
+	const auto info = QFileInfo(_path);
+	const auto dir = info.absoluteDir();
+	return (!dir.exists()
+		&& dir.mkpath(dir.absolutePath())
+		&& _file->open(QIODevice::Append))
 		? Result::Success
 		: Result::Error;
+}
+
+QString File::PrepareRelativePath(
+		const QString &folder,
+		const QString &suggested) {
+	if (!QFile::exists(folder + suggested)) {
+		return suggested;
+	}
+
+	// Not lastIndexOf('.') so that "file.tar.xz" won't be messed up.
+	const auto position = suggested.indexOf('.');
+	const auto base = suggested.midRef(0, position);
+	const auto extension = (position >= 0)
+		? suggested.midRef(position)
+		: QStringRef();
+	const auto relativePart = [&](int attempt) {
+		auto result = QString(" (%1)").arg(attempt);
+		result.prepend(base);
+		result.append(extension);
+		return result;
+	};
+	auto attempt = 0;
+	while (true) {
+		const auto relativePath = relativePart(++attempt);
+		if (!QFile::exists(folder + relativePath)) {
+			return relativePath;
+		}
+	}
 }
 
 } // namespace Output

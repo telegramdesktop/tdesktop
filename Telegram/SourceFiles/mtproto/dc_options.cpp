@@ -233,7 +233,7 @@ void DcOptions::constructAddOne(
 		int port,
 		const bytes::vector &secret) {
 	WriteLocker lock(this);
-	applyOneGuarded(bareDcId(id), flags, ip, port, secret);
+	applyOneGuarded(BareDcId(id), flags, ip, port, secret);
 }
 
 bool DcOptions::applyOneGuarded(
@@ -525,7 +525,7 @@ DcType DcOptions::dcType(ShiftedDcId shiftedDcId) const {
 		return DcType::Temporary;
 	}
 	ReadLocker lock(this);
-	if (_cdnDcIds.find(bareDcId(shiftedDcId)) != _cdnDcIds.cend()) {
+	if (_cdnDcIds.find(BareDcId(shiftedDcId)) != _cdnDcIds.cend()) {
 		return DcType::Cdn;
 	}
 	if (isDownloadDcId(shiftedDcId)) {
@@ -642,7 +642,7 @@ void DcOptions::computeCdnDcIds() {
 	for (auto &item : _data) {
 		Assert(!item.second.empty());
 		if (item.second.front().flags & Flag::f_cdn) {
-			_cdnDcIds.insert(bareDcId(item.first));
+			_cdnDcIds.insert(BareDcId(item.first));
 		}
 	}
 }
@@ -675,7 +675,7 @@ bool DcOptions::loadFromFile(const QString &path) {
 		auto ip = components[1];
 		auto port = components[2].toInt();
 		auto host = QHostAddress();
-		if (dcId <= 0 || dcId >= internal::kDcShift || !host.setAddress(ip) || port <= 0) {
+		if (dcId <= 0 || dcId >= kDcShift || !host.setAddress(ip) || port <= 0) {
 			return error();
 		}
 		auto flags = Flags(0);

@@ -596,7 +596,7 @@ void Session::tryToReceive() {
 			}
 		}
 		if (isUpdate) {
-			if (dcWithShift == bareDcId(dcWithShift)) { // call globalCallback only in main session
+			if (dcWithShift == BareDcId(dcWithShift)) { // call globalCallback only in main session
 				_instance->globalCallback(message.constData(), message.constData() + message.size());
 			}
 		} else {

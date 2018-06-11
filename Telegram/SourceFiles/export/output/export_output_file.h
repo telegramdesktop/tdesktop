@@ -27,6 +27,10 @@ public:
 	};
 	Result writeBlock(const QByteArray &block);
 
+	static QString PrepareRelativePath(
+		const QString &folder,
+		const QString &suggested);
+
 private:
 	Result reopen();
 	Result writeBlockAttempt(const QByteArray &block);

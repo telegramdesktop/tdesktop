@@ -35,6 +35,32 @@ void SerializeMultiline(
 	} while (newline > 0);
 }
 
+QByteArray JoinList(
+		const QByteArray &separator,
+		const std::vector<QByteArray> &list) {
+	if (list.empty()) {
+		return QByteArray();
+	} else if (list.size() == 1) {
+		return list[0];
+	}
+	auto size = (list.size() - 1) * separator.size();
+	for (const auto &value : list) {
+		size += value.size();
+	}
+	auto result = QByteArray();
+	result.reserve(size);
+	auto counter = 0;
+	while (true) {
+		result.append(list[counter]);
+		if (++counter == list.size()) {
+			break;
+		} else {
+			result.append(separator);
+		}
+	}
+	return result;
+}
+
 QByteArray SerializeKeyValue(
 		std::vector<std::pair<QByteArray, QByteArray>> &&values) {
 	auto result = QByteArray();
@@ -74,10 +100,10 @@ bool TextWriter::writePersonal(const Data::PersonalInfo &data) {
 		+ kLineBreak
 		+ kLineBreak
 		+ SerializeKeyValue({
-		{ "First name", data.firstName },
-		{ "Last name", data.lastName },
-		{ "Phone number", Data::FormatPhoneNumber(data.phoneNumber) },
-		{ "Username", FormatUsername(data.username) },
+		{ "First name", data.user.firstName },
+		{ "Last name", data.user.lastName },
+		{ "Phone number", Data::FormatPhoneNumber(data.user.phoneNumber) },
+		{ "Username", FormatUsername(data.user.username) },
 		{ "Bio", data.bio },
 		})
 		+ kLineBreak;
@@ -101,8 +127,17 @@ bool TextWriter::writeUserpicsStart(const Data::UserpicsInfo &data) {
 bool TextWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
 	auto lines = QByteArray();
 	for (const auto &userpic : data.list) {
-		lines.append(userpic.date.toString().toUtf8()).append(": ");
-		lines.append(userpic.image.relativePath.toUtf8());
+		if (!userpic.date.isValid()) {
+			lines.append("(empty photo)");
+		} else {
+			lines.append(Data::FormatDateTime(userpic.date.toTime_t()));
+			lines.append(" - ");
+			if (userpic.image.relativePath.isEmpty()) {
+				lines.append("(file unavailable)");
+			} else {
+				lines.append(userpic.image.relativePath.toUtf8());
+			}
+		}
 		lines.append(kLineBreak);
 	}
 	return _result->writeBlock(lines) == File::Result::Success;
@@ -115,7 +150,52 @@ bool TextWriter::writeUserpicsEnd() {
 }
 
 bool TextWriter::writeContactsList(const Data::ContactsList &data) {
-	return true;
+	if (data.list.empty()) {
+		return true;
+	}
+
+	// Get sorted by name indices.
+	const auto names = ranges::view::all(
+		data.list
+	) | ranges::view::transform([](const Data::User &user) {
+		return (QString::fromUtf8(user.firstName)
+			+ ' '
+			+ QString::fromUtf8(user.lastName)).toLower();
+	}) | ranges::to_vector;
+
+	auto indices = ranges::view::ints(0, int(data.list.size()))
+		| ranges::to_vector;
+	ranges::sort(indices, [&](int i, int j) {
+		return names[i] < names[j];
+	});
+
+	const auto header = "Contacts "
+		"(" + Data::NumberToString(data.list.size()) + ")"
+		+ kLineBreak
+		+ kLineBreak;
+	auto list = std::vector<QByteArray>();
+	list.reserve(data.list.size());
+	for (const auto &index : indices) {
+		const auto &contact = data.list[index];
+		if (!contact.id) {
+			list.push_back("(user unavailable)");
+		} else if (contact.firstName.isEmpty()
+			&& contact.lastName.isEmpty()
+			&& contact.phoneNumber.isEmpty()) {
+			list.push_back("(empty user)" + kLineBreak);
+		} else {
+			list.push_back(SerializeKeyValue({
+				{ "First name", contact.firstName },
+				{ "Last name", contact.lastName },
+				{
+					"Phone number",
+					Data::FormatPhoneNumber(contact.phoneNumber)
+				},
+			}));
+		}
+	}
+	const auto full = header + JoinList(kLineBreak, list) + kLineBreak;
+	return _result->writeBlock(full) == File::Result::Success;
 }
 
 bool TextWriter::writeSessionsList(const Data::SessionsList &data) {
