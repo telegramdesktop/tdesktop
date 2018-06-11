@@ -96,11 +96,20 @@
         ],
       }], ['not_need_gtk!="True"', {
         'cflags_cc': [
-          '<!(pkg-config 2> /dev/null --cflags appindicator-0.1)',
           '<!(pkg-config 2> /dev/null --cflags gtk+-2.0)',
           '<!(pkg-config 2> /dev/null --cflags glib-2.0)',
           '<!(pkg-config 2> /dev/null --cflags dee-1.0)',
         ],
+      }], ['<!(pkg-config ayatana-appindicator3-0.1; echo $?) == 0', {
+        'cflags_cc': [ '<!(pkg-config --cflags ayatana-appindicator3-0.1)' ],
+        'defines': [ 'TDESKTOP_USE_AYATANA_INDICATORS' ],
+      }], ['<!(pkg-config ayatana-appindicator-0.1; echo $?) == 0', {
+        'cflags_cc': [ '<!(pkg-config --cflags ayatana-appindicator-0.1)' ],
+        'defines': [ 'TDESKTOP_USE_AYATANA_INDICATORS' ],
+      }], ['<!(pkg-config appindicator3-0.1; echo $?) == 0', {
+        'cflags_cc': [ '<!(pkg-config --cflags appindicator3-0.1)' ],
+      }], ['<!(pkg-config appindicator-0.1; echo $?) == 0', {
+        'cflags_cc': [ '<!(pkg-config --cflags appindicator-0.1)' ],
       }]
     ],
   }]],

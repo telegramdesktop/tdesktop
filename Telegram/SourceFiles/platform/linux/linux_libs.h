@@ -10,7 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 extern "C" {
 #undef signals
+#ifdef TDESKTOP_USE_AYATANA_INDICATORS
+#include <libayatana-appindicator/app-indicator.h>
+#else
 #include <libappindicator/app-indicator.h>
+#endif
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
 #define signals public
