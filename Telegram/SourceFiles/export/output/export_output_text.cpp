@@ -130,8 +130,7 @@ bool TextWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
 		if (!userpic.date.isValid()) {
 			lines.append("(empty photo)");
 		} else {
-			lines.append(Data::FormatDateTime(userpic.date.toTime_t()));
-			lines.append(" - ");
+			lines.append(Data::FormatDateTime(userpic.date)).append(" - ");
 			if (userpic.image.relativePath.isEmpty()) {
 				lines.append("(file unavailable)");
 			} else {
@@ -154,28 +153,13 @@ bool TextWriter::writeContactsList(const Data::ContactsList &data) {
 		return true;
 	}
 
-	// Get sorted by name indices.
-	const auto names = ranges::view::all(
-		data.list
-	) | ranges::view::transform([](const Data::User &user) {
-		return (QString::fromUtf8(user.firstName)
-			+ ' '
-			+ QString::fromUtf8(user.lastName)).toLower();
-	}) | ranges::to_vector;
-
-	auto indices = ranges::view::ints(0, int(data.list.size()))
-		| ranges::to_vector;
-	ranges::sort(indices, [&](int i, int j) {
-		return names[i] < names[j];
-	});
-
 	const auto header = "Contacts "
 		"(" + Data::NumberToString(data.list.size()) + ")"
 		+ kLineBreak
 		+ kLineBreak;
 	auto list = std::vector<QByteArray>();
 	list.reserve(data.list.size());
-	for (const auto &index : indices) {
+	for (const auto &index : Data::SortedContactsIndices(data)) {
 		const auto &contact = data.list[index];
 		if (!contact.id) {
 			list.push_back("(user unavailable)");
@@ -199,7 +183,33 @@ bool TextWriter::writeContactsList(const Data::ContactsList &data) {
 }
 
 bool TextWriter::writeSessionsList(const Data::SessionsList &data) {
-	return true;
+	const auto header = "Sessions "
+		"(" + Data::NumberToString(data.list.size()) + ")"
+		+ kLineBreak
+		+ kLineBreak;
+	auto list = std::vector<QByteArray>();
+	list.reserve(data.list.size());
+	for (const auto &session : data.list) {
+		list.push_back(SerializeKeyValue({
+			{ "Last active", Data::FormatDateTime(session.lastActive) },
+			{ "Last IP address", session.ip },
+			{ "Last country", session.country },
+			{ "Last region", session.region },
+			{
+				"Application name",
+				(session.applicationName.isEmpty()
+					? Data::Utf8String("(unknown)")
+					: session.applicationName)
+			},
+			{ "Application version", session.applicationVersion },
+			{ "Device model", session.deviceModel },
+			{ "Platform", session.platform },
+			{ "System version", session.systemVersion },
+			{ "Created", Data::FormatDateTime(session.created) },
+		}));
+	}
+	const auto full = header + JoinList(kLineBreak, list) + kLineBreak;
+	return _result->writeBlock(full) == File::Result::Success;
 }
 
 bool TextWriter::writeChatsStart(const Data::ChatsInfo &data) {

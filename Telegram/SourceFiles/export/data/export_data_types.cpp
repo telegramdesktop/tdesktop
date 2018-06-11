@@ -100,19 +100,18 @@ Photo ParsePhoto(const MTPPhoto &data, const QString &suggestedPath) {
 }
 
 Utf8String FormatDateTime(
-		const int32 date,
+		const QDateTime &date,
 		QChar dateSeparator,
 		QChar timeSeparator,
 		QChar separator) {
-	const auto value = QDateTime::fromTime_t(date);
 	return (QString("%1") + dateSeparator + "%2" + dateSeparator + "%3"
 		+ separator + "%4" + timeSeparator + "%5" + timeSeparator + "%6"
-	).arg(value.date().year()
-	).arg(value.date().month(), 2, 10, QChar('0')
-	).arg(value.date().day(), 2, 10, QChar('0')
-	).arg(value.time().hour(), 2, 10, QChar('0')
-	).arg(value.time().minute(), 2, 10, QChar('0')
-	).arg(value.time().second(), 2, 10, QChar('0')
+	).arg(date.date().year()
+	).arg(date.date().month(), 2, 10, QChar('0')
+	).arg(date.date().day(), 2, 10, QChar('0')
+	).arg(date.time().hour(), 2, 10, QChar('0')
+	).arg(date.time().minute(), 2, 10, QChar('0')
+	).arg(date.time().second(), 2, 10, QChar('0')
 	).toUtf8();
 }
 
@@ -196,6 +195,52 @@ ContactsList ParseContactsList(const MTPcontacts_Contacts &data) {
 		} else {
 			result.list.push_back(User());
 		}
+	}
+	return result;
+}
+
+std::vector<int> SortedContactsIndices(const ContactsList &data) {
+	const auto names = ranges::view::all(
+		data.list
+	) | ranges::view::transform([](const Data::User &user) {
+		return (QString::fromUtf8(user.firstName)
+			+ ' '
+			+ QString::fromUtf8(user.lastName)).toLower();
+	}) | ranges::to_vector;
+
+	auto indices = ranges::view::ints(0, int(data.list.size()))
+		| ranges::to_vector;
+	ranges::sort(indices, [&](int i, int j) {
+		return names[i] < names[j];
+	});
+	return indices;
+}
+
+Session ParseSession(const MTPAuthorization &data) {
+	Expects(data.type() == mtpc_authorization);
+
+	const auto &fields = data.c_authorization();
+	auto result = Session();
+	result.platform = ParseString(fields.vplatform);
+	result.deviceModel = ParseString(fields.vdevice_model);
+	result.systemVersion = ParseString(fields.vsystem_version);
+	result.applicationName = ParseString(fields.vapp_name);
+	result.applicationVersion = ParseString(fields.vapp_version);
+	result.created = QDateTime::fromTime_t(fields.vdate_created.v);
+	result.lastActive = QDateTime::fromTime_t(fields.vdate_active.v);
+	result.ip = ParseString(fields.vip);
+	result.country = ParseString(fields.vcountry);
+	result.region = ParseString(fields.vregion);
+	return result;
+}
+
+SessionsList ParseSessionsList(const MTPaccount_Authorizations &data) {
+	Expects(data.type() == mtpc_account_authorizations);
+
+	auto result = SessionsList();
+	const auto &list = data.c_account_authorizations().vauthorizations.v;
+	for (const auto &session : list) {
+		result.list.push_back(ParseSession(session));
 	}
 	return result;
 }

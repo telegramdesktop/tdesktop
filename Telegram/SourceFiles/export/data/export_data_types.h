@@ -86,6 +86,7 @@ struct ContactsList {
 };
 
 ContactsList ParseContactsList(const MTPcontacts_Contacts &data);
+std::vector<int> SortedContactsIndices(const ContactsList &data);
 
 struct Session {
 	Utf8String platform;
@@ -103,6 +104,8 @@ struct Session {
 struct SessionsList {
 	std::vector<Session> list;
 };
+
+SessionsList ParseSessionsList(const MTPaccount_Authorizations &data);
 
 struct ChatsInfo {
 	int count = 0;
@@ -127,11 +130,24 @@ struct MessagesSlice {
 };
 
 Utf8String FormatPhoneNumber(const Utf8String &phoneNumber);
+
 Utf8String FormatDateTime(
-	const int32 date,
+	const QDateTime &date,
 	QChar dateSeparator = QChar('.'),
 	QChar timeSeparator = QChar(':'),
 	QChar separator = QChar(' '));
+
+inline Utf8String FormatDateTime(
+		int32 date,
+		QChar dateSeparator = QChar('.'),
+		QChar timeSeparator = QChar(':'),
+		QChar separator = QChar(' ')) {
+	return FormatDateTime(
+		QDateTime::fromTime_t(date),
+		dateSeparator,
+		timeSeparator,
+		separator);
+}
 
 } // namespace Data
 } // namespace Export

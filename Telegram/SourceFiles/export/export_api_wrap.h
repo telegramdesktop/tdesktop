@@ -17,6 +17,7 @@ struct PersonalInfo;
 struct UserpicsInfo;
 struct UserpicsSlice;
 struct ContactsList;
+struct SessionsList;
 } // namespace Data
 
 class ApiWrap {
@@ -35,6 +36,8 @@ public:
 		FnMut<void()> finish);
 
 	void requestContacts(FnMut<void(Data::ContactsList&&)> done);
+
+	void requestSessions(FnMut<void(Data::SessionsList&&)> done);
 
 	~ApiWrap();
 

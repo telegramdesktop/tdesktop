@@ -243,6 +243,14 @@ void ApiWrap::requestContacts(FnMut<void(Data::ContactsList&&)> done) {
 	}).send();
 }
 
+void ApiWrap::requestSessions(FnMut<void(Data::SessionsList&&)> done) {
+	mainRequest(MTPaccount_GetAuthorizations(
+	)).done([=, done = std::move(done)](
+			const MTPaccount_Authorizations &result) mutable {
+		done(Data::ParseSessionsList(result));
+	}).send();
+}
+
 void ApiWrap::loadFile(const Data::File &file, FnMut<void(QString)> done) {
 	Expects(_fileProcess == nullptr);
 

@@ -261,7 +261,10 @@ void Controller::exportContacts() {
 }
 
 void Controller::exportSessions() {
-	exportNext();
+	_api.requestSessions([=](Data::SessionsList &&result) {
+		_writer->writeSessionsList(result);
+		exportNext();
+	});
 }
 
 void Controller::exportChats() {
