@@ -1,0 +1,11 @@
+[Protocol]
+exec=/usr/bin/telegram-desktop -- %u
+protocol=tg
+input=none
+output=none
+helper=true
+listing=false
+reading=false
+writing=false
+makedir=false
+deleting=false

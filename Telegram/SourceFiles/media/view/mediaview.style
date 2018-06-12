@@ -1,0 +1,212 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+
+using "basic.style";
+using "ui/widgets/widgets.style";
+
+mediaviewOverDuration: 150;
+
+mediaviewPlayback: MediaSlider {
+	width: 3px;
+	activeFg: mediaviewPlaybackActive;
+	inactiveFg: mediaviewPlaybackInactive;
+	activeFgOver: mediaviewPlaybackActiveOver;
+	inactiveFgOver: mediaviewPlaybackInactiveOver;
+	activeFgDisabled: mediaviewPlaybackActive;
+	inactiveFgDisabled: mediaviewPlaybackInactive;
+	seekSize: size(11px, 11px);
+	duration: mediaviewOverDuration;
+}
+
+mediaviewControllerSize: size(600px, 50px);
+mediaviewPlayProgressLabel: LabelSimple(defaultLabelSimple) {
+	font: semiboldFont;
+	textFg: mediaviewPlaybackProgressFg;
+}
+mediaviewPlayProgressTop: 11px;
+mediaviewPlayButton: IconButton {
+	width: 25px;
+	height: 24px;
+
+	icon: icon {{ "media_play", mediaviewPlaybackIconFg, point(3px, 0px) }};
+	iconOver: icon {{ "media_play", mediaviewPlaybackIconFgOver, point(3px, 0px) }};
+	iconPosition: point(3px, 1px);
+
+	duration: mediaviewOverDuration;
+}
+mediaviewPauseIcon: icon {{ "media_pause", mediaviewPlaybackIconFg, point(1px, 1px) }};
+mediaviewPauseIconOver: icon {{ "media_pause", mediaviewPlaybackIconFgOver, point(1px, 1px) }};
+mediaviewPlayPauseLeft: 17px;
+mediaviewFullScreenLeft: 17px;
+mediaviewVolumeLeft: 15px;
+
+mediaviewFullScreenButton: IconButton(mediaviewPlayButton) {
+	icon: icon {{ "media_fullscreen_to", mediaviewPlaybackIconFg, point(0px, 0px) }};
+	iconOver: icon {{ "media_fullscreen_to", mediaviewPlaybackIconFgOver, point(0px, 0px) }};
+	iconPosition: point(0px, 1px);
+}
+mediaviewFullScreenOutIcon: icon {{ "media_fullscreen_from", mediaviewPlaybackIconFg, point(0px, 0px) }};
+mediaviewFullScreenOutIconOver: icon {{ "media_fullscreen_from", mediaviewPlaybackIconFgOver, point(0px, 0px) }};
+
+mediaviewPlaybackTop: 28px;
+
+mediaviewVolumeSize: size(44px, 20px);
+mediaviewVolumeIcon: icon {{ "media_volume", mediaviewPlaybackInactiveOver, point(0px, 0px) }};
+mediaviewVolumeOnIcon: icon {{ "media_volume", mediaviewPlaybackActive, point(0px, 0px) }};
+mediaviewVolumeOnIconOver: icon {{ "media_volume", mediaviewPlaybackActiveOver, point(0px, 0px) }};
+mediaviewVolumeIconTop: 8px;
+mediaviewControllerRadius: 25px;
+
+mediaviewLeft: icon {{ "mediaview_next-flip_horizontal", mediaviewControlFg }};
+mediaviewRight: icon {{ "mediaview_next", mediaviewControlFg }};
+mediaviewClose: icon {{ "mediaview_close", mediaviewControlFg }};
+mediaviewSave: icon {{ "mediaview_download", mediaviewControlFg }};
+mediaviewMore: icon {{ "mediaview_more", mediaviewControlFg }};
+
+mediaviewFileRed: icon {
+	{ size(25px, 25px), mediaviewFileBg },
+	{ "mediaview_file_corner", mediaviewFileRedCornerFg },
+};
+mediaviewFileYellow: icon {
+	{ size(25px, 25px), mediaviewFileBg },
+	{ "mediaview_file_corner", mediaviewFileYellowCornerFg },
+};
+mediaviewFileGreen: icon {
+	{ size(25px, 25px), mediaviewFileBg },
+	{ "mediaview_file_corner", mediaviewFileGreenCornerFg },
+};
+mediaviewFileBlue: icon {
+	{ size(25px, 25px), mediaviewFileBg },
+	{ "mediaview_file_corner", mediaviewFileBlueCornerFg },
+};
+
+mediaviewFilePadding: 18px;
+mediaviewFileSize: size(340px, 116px);
+mediaviewFileNameTop: 4px;
+mediaviewFileNameFont: font(semibold 14px);
+mediaviewFileSizeTop: 29px;
+mediaviewFileExtTop: 35px;
+mediaviewFileExtFont: font(semibold 18px);
+mediaviewFileExtPadding: 10px;
+mediaviewFileLinksTop: 57px;
+mediaviewFileIconSize: 80px;
+
+mediaviewFileLink: defaultLinkButton;
+
+mediaviewMenu: Menu(defaultMenu) {
+	itemBg: mediaviewMenuBg;
+	itemBgOver: mediaviewMenuBgOver;
+	itemFg: mediaviewMenuFg;
+	itemFgOver: mediaviewMenuFg;
+	itemFgDisabled: mediaviewMenuFg;
+	itemFgShortcut: mediaviewMenuFg;
+	itemFgShortcutOver: mediaviewMenuFg;
+	itemFgShortcutDisabled: mediaviewMenuFg;
+
+	separatorFg: mediaviewMenuFg;
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: mediaviewMenuBgRipple;
+	}
+}
+mediaviewMenuShadow: Shadow(defaultEmptyShadow) {
+	fallback: mediaviewMenuBg;
+}
+mediaviewPanelAnimation: PanelAnimation(defaultPanelAnimation) {
+	fadeBg: mediaviewMenuBg;
+	shadow: mediaviewMenuShadow;
+}
+mediaviewPopupMenu: PopupMenu(defaultPopupMenu) {
+	shadow: mediaviewMenuShadow;
+	menu: mediaviewMenu;
+	animation: mediaviewPanelAnimation;
+}
+mediaviewDropdownMenu: DropdownMenu(defaultDropdownMenu) {
+	menu: mediaviewMenu;
+	wrap: InnerDropdown(defaultInnerDropdown) {
+		bg: mediaviewMenuBg;
+		animation: mediaviewPanelAnimation;
+		scrollPadding: margins(0px, 8px, 0px, 8px);
+		shadow: mediaviewMenuShadow;
+	}
+}
+
+mediaviewSaveMsgCheck: icon {{ "mediaview_save_check", mediaviewSaveMsgFg }};
+mediaviewSaveMsgPadding: margins(55px, 19px, 29px, 20px);
+mediaviewSaveMsgCheckPos: point(23px, 21px);
+mediaviewSaveMsgShowing: 200;
+mediaviewSaveMsgShown: 2000;
+mediaviewSaveMsgHiding: 2500;
+mediaviewSaveMsgStyle: TextStyle(defaultTextStyle) {
+	font: font(16px);
+	linkFont: font(16px);
+	linkFontOver: font(16px underline);
+}
+mediaviewTextPalette: TextPalette(defaultTextPalette) {
+	linkFg: mediaviewTextLinkFg;
+	monoFg: mediaviewCaptionFg;
+}
+
+mediaviewCaptionStyle: defaultTextStyle;
+
+mediaviewThickFont: semiboldFont;
+mediaviewFont: normalFont;
+mediaviewTextStyle: defaultTextStyle;
+
+mediaviewTextLeft: 16px;
+mediaviewTextSkip: 10px;
+mediaviewHeaderTop: 48px;
+mediaviewTextTop: 24px;
+mediaviewTextOpacity: 0.5;
+mediaviewTextOverOpacity: 1;
+
+mediaviewIconOpacity: 0.45;
+mediaviewIconOverOpacity: 1;
+mediaviewControlBgOpacity: 0.3;
+mediaviewControlMargin: 0px;
+mediaviewControlSize: 90px;
+mediaviewIconSize: size(60px, 56px);
+
+mediaviewWaitHide: 2000;
+mediaviewHideDuration: 1000;
+mediaviewShowDuration: 200;
+mediaviewFadeDuration: 150;
+
+mediaviewDeltaFromLastAction: 5px;
+mediaviewSwipeDistance: 80px;
+
+mediaviewCaptionPadding: margins(18px, 10px, 18px, 10px);
+mediaviewCaptionMargin: size(11px, 11px);
+mediaviewCaptionRadius: 2px;
+
+mediaviewGroupPadding: margins(0px, 14px, 0px, 14px);
+mediaviewGroupHeight: 80px;
+mediaviewGroupWidth: 56px;
+mediaviewGroupWidthMax: 160px;
+mediaviewGroupSkip: 3px;
+mediaviewGroupSkipCurrent: 12px;
+
+themePreviewSize: size(903px, 584px);
+themePreviewBg: windowBg;
+themePreviewOverlayOpacity: 0.8;
+themePreviewMargin: margins(36px, 52px, 36px, 88px);
+themePreviewTitleTop: 14px;
+themePreviewTitleFg: windowBoldFg;
+themePreviewTitleFont: font(17px semibold);
+themePreviewLoadingFont: font(16px);
+themePreviewLoadingFg: windowSubTextFg;
+themePreviewApplyButton: RoundButton(defaultActiveButton) {
+	height: 38px;
+	font: font(15px semibold);
+}
+themePreviewCancelButton: RoundButton(defaultLightButton) {
+	height: 38px;
+	font: font(15px semibold);
+}
+themePreviewButtonsSkip: 20px;
+themePreviewDialogsWidth: 312px;

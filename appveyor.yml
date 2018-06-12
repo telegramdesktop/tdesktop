@@ -1,0 +1,27 @@
+image: Visual Studio 2017
+clone_folder: C:\TBuild\tdesktop
+test: off
+deploy: off
+
+environment:
+  matrix:
+   - BUILD_VERSION:
+   - BUILD_VERSION: disable_autoupdate
+   - BUILD_VERSION: disable_register_custom_scheme
+   - BUILD_VERSION: disable_crash_reports
+   - BUILD_VERSION: disable_network_proxy
+
+matrix:
+  fast_finish: true
+
+before_build:
+  - .\.appveyor\install.bat
+
+build:
+  project: Telegram\Telegram.sln
+
+artifacts:
+  - path: out\Debug\Telegram.exe
+    name: Telegram_debug.exe
+  - path: out\Debug\Telegram.exe.pdb
+    name: Telegram_debug.exe.pdb

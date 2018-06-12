@@ -1,33 +1,44 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#ifdef Q_OS_WIN
-#define OUTPUT_LOG(msg) (OutputDebugString((QString msg + "\n").toStdWString().c_str()))
-#endif
+namespace Core {
+class Launcher;
+} // namespace Core
 
-#if (defined _DEBUG || defined _WITH_DEBUG)
+namespace Logs {
 
-struct DebugLogMemoryBuffer {
-	DebugLogMemoryBuffer(const void *ptr, uint32 size) : p(ptr), s(size) {
+void SetDebugEnabled(bool enabled);
+bool DebugEnabled();
+
+void start(not_null<Core::Launcher*> launcher);
+bool started();
+void finish();
+
+bool instanceChecked();
+void multipleInstances();
+
+void closeMain();
+
+void writeMain(const QString &v);
+
+void writeDebug(const char *file, int32 line, const QString &v);
+void writeTcp(const QString &v);
+void writeMtp(int32 dc, const QString &v);
+
+QString full();
+
+inline const char *b(bool v) {
+	return v ? "[TRUE]" : "[FALSE]";
+}
+
+struct MemoryBuffer {
+	MemoryBuffer(const void *ptr, uint32 size) : p(ptr), s(size) {
 	}
 	QString str() const {
 		QString result;
@@ -45,53 +56,23 @@ struct DebugLogMemoryBuffer {
 
 	const void *p;
 	uint32 s;
+
 };
 
-inline DebugLogMemoryBuffer mb(const void *ptr, uint32 size) {
-	return DebugLogMemoryBuffer(ptr, size);
+inline MemoryBuffer mb(const void *ptr, uint32 size) {
+	return MemoryBuffer(ptr, size);
 }
 
-void debugLogWrite(const char *file, int32 line, const QString &v);
-#define DEBUG_LOG(msg) { if (cDebug()) debugLogWrite(__FILE__, __LINE__, QString msg); }
-//usage DEBUG_LOG(("log: %1 %2").arg(1).arg(2))
+} // namespace Logs
 
-void tcpLogWrite(const QString &v);
-#define TCP_LOG(msg) { if (cDebug()) tcpLogWrite(QString msg); }
-//usage TCP_LOG(("log: %1 %2").arg(1).arg(2))
-
-void mtpLogWrite(int32 dc, const QString &v);
-#define MTP_LOG(dc, msg) { if (cDebug()) mtpLogWrite(dc, QString msg); }
-//usage MTP_LOG(dc, ("log: %1 %2").arg(1).arg(2))
-
-#else
-#define DEBUG_LOG(msg) (void(0))
-#define TCP_LOG(msg) (void(0))
-#define MTP_LOG(dc, msg) (void(0))
-#endif
-
-inline const char *logBool(bool v) {
-	return v ? "[TRUE]" : "[FALSE]";
-}
-
-class MTPlong;
-QString logVectorLong(const QVector<MTPlong> &ids);
-QString logVectorLong(const QVector<uint64> &ids);
-
-void logWrite(const QString &v);
-
-#define LOG(msg) (logWrite(QString msg))
+#define LOG(msg) (Logs::writeMain(QString msg))
 //usage LOG(("log: %1 %2").arg(1).arg(2))
 
-static volatile int *t_assert_nullptr = 0;
-inline void t_noop() {}
-inline void t_assert_fail(const char *message, const char *file, int32 line) {
-	LOG(("Assertion Failed! %1 %2:%3").arg(message).arg(file).arg(line));
-	*t_assert_nullptr = 0;
-}
-#define t_assert_full(condition, message, file, line) ((!(condition)) ? t_assert_fail(message, file, line) : t_noop())
-#define t_assert_c(condition, comment) t_assert_full(condition, "\"" #condition "\" (" comment ")", __FILE__, __LINE__)
-#define t_assert(condition) t_assert_full(condition, "\"" #condition "\"", __FILE__, __LINE__)
+#define DEBUG_LOG(msg) { if (Logs::DebugEnabled() || !Logs::started()) Logs::writeDebug(__FILE__, __LINE__, QString msg); }
+//usage DEBUG_LOG(("log: %1 %2").arg(1).arg(2))
 
-bool logsInit();
-void logsInitDebug();
-void logsClose();
+#define TCP_LOG(msg) { if (Logs::DebugEnabled() || !Logs::started()) Logs::writeTcp(QString msg); }
+//usage TCP_LOG(("log: %1 %2").arg(1).arg(2))
+
+#define MTP_LOG(dc, msg) { if (Logs::DebugEnabled() || !Logs::started()) Logs::writeMtp(dc, QString msg); }
+//usage MTP_LOG(dc, ("log: %1 %2").arg(1).arg(2))

@@ -1,170 +1,174 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "types.h"
+#include "core/basic_types.h"
+#include "data/data_types.h"
+#include "data/data_peer.h"
 
-class Application;
-class Window;
+enum NewMessageType : char;
+class Messenger;
+class MainWindow;
 class MainWidget;
-class SettingsWidget;
-class ApiWrap;
-class Font;
-class Color;
-class FileUploader;
+class LocationCoords;
+struct LocationData;
+class HistoryItem;
+class History;
+class Histories;
+namespace HistoryView {
+class Element;
+} // namespace HistoryView
 
-#include "history.h"
-#include "layout.h"
+using HistoryItemsMap = base::flat_set<not_null<HistoryItem*>>;
+using GifItems = QHash<Media::Clip::Reader*, HistoryItem*>;
 
-typedef QMap<HistoryItem*, NullType> HistoryItemsMap;
-typedef QHash<PhotoData*, HistoryItemsMap> PhotoItems;
-typedef QHash<VideoData*, HistoryItemsMap> VideoItems;
-typedef QHash<AudioData*, HistoryItemsMap> AudioItems;
-typedef QHash<DocumentData*, HistoryItemsMap> DocumentItems;
-typedef QHash<WebPageData*, HistoryItemsMap> WebPageItems;
-typedef QHash<int32, HistoryItemsMap> SharedContactItems;
-typedef QHash<ClipReader*, HistoryItem*> GifItems;
+enum RoundCorners {
+	SmallMaskCorners = 0x00, // for images
+	LargeMaskCorners,
 
-typedef QHash<PhotoId, PhotoData*> PhotosData;
-typedef QHash<VideoId, VideoData*> VideosData;
-typedef QHash<AudioId, AudioData*> AudiosData;
-typedef QHash<DocumentId, DocumentData*> DocumentsData;
+	BoxCorners,
+	MenuCorners,
+	BotKbOverCorners,
+	StickerCorners,
+	StickerSelectedCorners,
+	SelectedOverlaySmallCorners,
+	SelectedOverlayLargeCorners,
+	DateCorners,
+	DateSelectedCorners,
+	ForwardCorners,
+	MediaviewSaveCorners,
+	EmojiHoverCorners,
+	StickerHoverCorners,
+	BotKeyboardCorners,
+	PhotoSelectOverlayCorners,
 
-struct ReplyMarkup {
-	ReplyMarkup(int32 flags = 0) : flags(flags) {
-	}
-	typedef QList<QList<QString> > Commands;
-	Commands commands;
-	int32 flags;
+	Doc1Corners,
+	Doc2Corners,
+	Doc3Corners,
+	Doc4Corners,
+
+	InShadowCorners, // for photos without bg
+	InSelectedShadowCorners,
+
+	MessageInCorners, // with shadow
+	MessageInSelectedCorners,
+	MessageOutCorners,
+	MessageOutSelectedCorners,
+
+	RoundCornersCount
 };
 
-class LayeredWidget;
-
 namespace App {
-	Application *app();
-	Window *wnd();
+	MainWindow *wnd();
 	MainWidget *main();
-	SettingsWidget *settings();
-	bool passcoded();
-	FileUploader *uploader();
-	ApiWrap *api();
-
-	void logOut();
-	bool loggedOut();
 
 	QString formatPhone(QString phone);
 
-	int32 onlineForSort(UserData *user, int32 now);
-	int32 onlineWillChangeIn(UserData *user, int32 nowOnServer);
-	QString onlineText(UserData *user, int32 nowOnServer, bool precise = false);
-	bool onlineColorUse(UserData *user, int32 now);
+	UserData *feedUser(const MTPUser &user);
+	UserData *feedUsers(const MTPVector<MTPUser> &users); // returns last user
+	PeerData *feedChat(const MTPChat &chat);
+	PeerData *feedChats(const MTPVector<MTPChat> &chats); // returns last chat
 
-	UserData *feedUsers(const MTPVector<MTPUser> &users, bool emitPeerUpdated = true); // returns last user
-	PeerData *feedChats(const MTPVector<MTPChat> &chats, bool emitPeerUpdated = true); // returns last chat
-	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos, bool emitPeerUpdated = true);
-	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d, bool emitPeerUpdated = true);
-	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d, bool emitPeerUpdated = true);
-	void feedChatAdmins(const MTPDupdateChatAdmins &d, bool emitPeerUpdated = true);
-	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d, bool emitPeerUpdated = true);
+	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos);
+	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d);
+	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d);
+	void feedChatAdmins(const MTPDupdateChatAdmins &d);
+	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d);
 	bool checkEntitiesAndViewsUpdate(const MTPDmessage &m); // returns true if item found and it is not detached
+	void updateEditedMessage(const MTPMessage &m);
 	void addSavedGif(DocumentData *doc);
 	void checkSavedGif(HistoryItem *item);
 	void feedMsgs(const QVector<MTPMessage> &msgs, NewMessageType type);
 	void feedMsgs(const MTPVector<MTPMessage> &msgs, NewMessageType type);
 	void feedInboxRead(const PeerId &peer, MsgId upTo);
-	void feedOutboxRead(const PeerId &peer, MsgId upTo);
+	void feedOutboxRead(const PeerId &peer, MsgId upTo, TimeId when);
 	void feedWereDeleted(ChannelId channelId, const QVector<MTPint> &msgsIds);
-	void feedUserLinks(const MTPVector<MTPcontacts_Link> &links, bool emitPeerUpdated = true);
-	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink, bool emitPeerUpdated = true);
-
-	void markPeerUpdated(PeerData *data);
-	void clearPeerUpdated(PeerData *data);
-	void emitPeerUpdated();
+	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink);
 
 	ImagePtr image(const MTPPhotoSize &size);
-	StorageImageLocation imageLocation(int32 w, int32 h, const MTPFileLocation &loc);
-	StorageImageLocation imageLocation(const MTPPhotoSize &size);
 
-	PhotoData *feedPhoto(const MTPPhoto &photo, const PreparedPhotoThumbs &thumbs);
-	PhotoData *feedPhoto(const MTPPhoto &photo, PhotoData *convert = 0);
-	PhotoData *feedPhoto(const MTPDphoto &photo, PhotoData *convert = 0);
-	VideoData *feedVideo(const MTPDvideo &video, VideoData *convert = 0);
-	AudioData *feedAudio(const MTPaudio &audio, AudioData *convert = 0);
-	AudioData *feedAudio(const MTPDaudio &audio, AudioData *convert = 0);
-	DocumentData *feedDocument(const MTPdocument &document, const QPixmap &thumb);
-	DocumentData *feedDocument(const MTPdocument &document, DocumentData *convert = 0);
-	DocumentData *feedDocument(const MTPDdocument &document, DocumentData *convert = 0);
-	WebPageData *feedWebPage(const MTPDwebPage &webpage, WebPageData *convert = 0);
-	WebPageData *feedWebPage(const MTPDwebPagePending &webpage, WebPageData *convert = 0);
-	WebPageData *feedWebPage(const MTPWebPage &webpage);
+	PeerData *peer(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded);
+	inline UserData *user(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
+		return asUser(peer(id, restriction));
+	}
+	inline ChatData *chat(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
+		return asChat(peer(id, restriction));
+	}
+	inline ChannelData *channel(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
+		return asChannel(peer(id, restriction));
+	}
+	inline UserData *user(UserId userId, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
+		return asUser(peer(peerFromUser(userId), restriction));
+	}
+	inline ChatData *chat(ChatId chatId, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
+		return asChat(peer(peerFromChat(chatId), restriction));
+	}
+	inline ChannelData *channel(ChannelId channelId, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
+		return asChannel(peer(peerFromChannel(channelId), restriction));
+	}
+	inline PeerData *peerLoaded(const PeerId &id) {
+		return peer(id, PeerData::FullLoaded);
+	}
+	inline UserData *userLoaded(const PeerId &id) {
+		return user(id, PeerData::FullLoaded);
+	}
+	inline ChatData *chatLoaded(const PeerId &id) {
+		return chat(id, PeerData::FullLoaded);
+	}
+	inline ChannelData *channelLoaded(const PeerId &id) {
+		return channel(id, PeerData::FullLoaded);
+	}
+	inline UserData *userLoaded(UserId userId) {
+		return user(userId, PeerData::FullLoaded);
+	}
+	inline ChatData *chatLoaded(ChatId chatId) {
+		return chat(chatId, PeerData::FullLoaded);
+	}
+	inline ChannelData *channelLoaded(ChannelId channelId) {
+		return channel(channelId, PeerData::FullLoaded);
+	}
+	void enumerateUsers(Fn<void(not_null<UserData*>)> action);
+	void enumerateChatsChannels(
+		Fn<void(not_null<PeerData*>)> action);
 
-	PeerData *peerLoaded(const PeerId &id);
-	UserData *userLoaded(const PeerId &id);
-	ChatData *chatLoaded(const PeerId &id);
-	ChannelData *channelLoaded(const PeerId &id);
-	UserData *userLoaded(int32 user);
-	ChatData *chatLoaded(int32 chat);
-	ChannelData *channelLoaded(int32 channel);
-
-	PeerData *peer(const PeerId &id);
-	UserData *user(const PeerId &id);
-	ChatData *chat(const PeerId &id);
-	ChannelData *channel(const PeerId &id);
-	UserData *user(int32 user_id);
-	ChatData *chat(int32 chat_id);
-	ChannelData *channel(int32 channel_id);
 	UserData *self();
 	PeerData *peerByName(const QString &username);
 	QString peerName(const PeerData *peer, bool forDialogs = false);
-	PhotoData *photo(const PhotoId &photo);
-	PhotoData *photoSet(const PhotoId &photo, PhotoData *convert, const uint64 &access, int32 date, const ImagePtr &thumb, const ImagePtr &medium, const ImagePtr &full);
-	VideoData *video(const VideoId &video);
-	VideoData *videoSet(const VideoId &video, VideoData *convert, const uint64 &access, int32 date, int32 duration, int32 w, int32 h, const ImagePtr &thumb, int32 dc, int32 size);
-	AudioData *audio(const AudioId &audio);
-	AudioData *audioSet(const AudioId &audio, AudioData *convert, const uint64 &access, int32 date, const QString &mime, int32 duration, int32 dc, int32 size);
-	DocumentData *document(const DocumentId &document);
-	DocumentData *documentSet(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size, const StorageImageLocation &thumbLocation);
-	WebPageData *webPage(const WebPageId &webPage);
-	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill);
-	ImageLinkData *imageLink(const QString &imageLink);
-	ImageLinkData *imageLinkSet(const QString &imageLink, ImageLinkType type, const QString &url);
+
+	LocationData *location(const LocationCoords &coords);
 	void forgetMedia();
 
 	MTPPhoto photoFromUserPhoto(MTPint userId, MTPint date, const MTPUserProfilePhoto &photo);
 
 	Histories &histories();
-	History *history(const PeerId &peer);
-	History *historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead);
+	not_null<History*> history(const PeerId &peer);
 	History *historyLoaded(const PeerId &peer);
 	HistoryItem *histItemById(ChannelId channelId, MsgId itemId);
+	inline not_null<History*> history(const PeerData *peer) {
+		Assert(peer != nullptr);
+		return history(peer->id);
+	}
+	inline History *historyLoaded(const PeerData *peer) {
+		return peer ? historyLoaded(peer->id) : nullptr;
+	}
+	inline HistoryItem *histItemById(const ChannelData *channel, MsgId itemId) {
+		return histItemById(channel ? peerToChannel(channel->id) : 0, itemId);
+	}
 	inline HistoryItem *histItemById(const FullMsgId &msgId) {
 		return histItemById(msgId.channel, msgId.msg);
 	}
-	void historyRegItem(HistoryItem *item);
-	void historyItemDetached(HistoryItem *item);
-	void historyUnregItem(HistoryItem *item);
+	void historyRegItem(not_null<HistoryItem*> item);
+	void historyUnregItem(not_null<HistoryItem*> item);
+	void historyUpdateDependent(not_null<HistoryItem*> item);
 	void historyClearMsgs();
 	void historyClearItems();
-	void historyRegReply(HistoryReply *reply, HistoryItem *to);
-	void historyUnregReply(HistoryReply *reply, HistoryItem *to);
+	void historyRegDependency(HistoryItem *dependent, HistoryItem *dependency);
+	void historyUnregDependency(HistoryItem *dependent, HistoryItem *dependency);
 
 	void historyRegRandom(uint64 randomId, const FullMsgId &itemId);
 	void historyUnregRandom(uint64 randomId);
@@ -173,21 +177,19 @@ namespace App {
 	void historyUnregSentData(uint64 randomId);
 	void histSentDataByItem(uint64 randomId, PeerId &peerId, QString &text);
 
-	void hoveredItem(HistoryItem *item);
-	HistoryItem *hoveredItem();
-	void pressedItem(HistoryItem *item);
-	HistoryItem *pressedItem();
-	void hoveredLinkItem(HistoryItem *item);
-	HistoryItem *hoveredLinkItem();
-	void pressedLinkItem(HistoryItem *item);
-	HistoryItem *pressedLinkItem();
-	void contextItem(HistoryItem *item);
-	HistoryItem *contextItem();
-	void mousedItem(HistoryItem *item);
-	HistoryItem *mousedItem();
+	void hoveredItem(HistoryView::Element *item);
+	HistoryView::Element *hoveredItem();
+	void pressedItem(HistoryView::Element *item);
+	HistoryView::Element *pressedItem();
+	void hoveredLinkItem(HistoryView::Element *item);
+	HistoryView::Element *hoveredLinkItem();
+	void pressedLinkItem(HistoryView::Element *item);
+	HistoryView::Element *pressedLinkItem();
+	void mousedItem(HistoryView::Element *item);
+	HistoryView::Element *mousedItem();
+	void clearMousedItems();
 
 	const style::font &monofont();
-	const QPixmap &sprite();
 	const QPixmap &emoji();
 	const QPixmap &emojiLarge();
 	const QPixmap &emojiSingle(EmojiPtr emoji, int32 fontHeight);
@@ -196,91 +198,44 @@ namespace App {
 
 	void initMedia();
 	void deinitMedia();
-	void playSound();
 
 	void checkImageCacheSize();
 
 	bool isValidPhone(QString phone);
 
+	enum LaunchState {
+		Launched = 0,
+		QuitRequested = 1,
+		QuitProcessed = 2,
+	};
 	void quit();
-	bool quiting();
-	void setQuiting();
+	bool quitting();
+	LaunchState launchState();
+	void setLaunchState(LaunchState state);
+	void restart();
 
-	QImage readImage(QByteArray data, QByteArray *format = 0, bool opaque = true, bool *animated = 0);
-	QImage readImage(const QString &file, QByteArray *format = 0, bool opaque = true, bool *animated = 0, QByteArray *content = 0);
+	constexpr auto kFileSizeLimit = 1500 * 1024 * 1024; // Load files up to 1500mb
+	constexpr auto kImageSizeLimit = 64 * 1024 * 1024; // Open images up to 64mb jpg/png/gif
+	QImage readImage(QByteArray data, QByteArray *format = nullptr, bool opaque = true, bool *animated = nullptr);
+	QImage readImage(const QString &file, QByteArray *format = nullptr, bool opaque = true, bool *animated = nullptr, QByteArray *content = 0);
+	QPixmap pixmapFromImageInPlace(QImage &&image);
 
-	void regPhotoItem(PhotoData *data, HistoryItem *item);
-	void unregPhotoItem(PhotoData *data, HistoryItem *item);
-	const PhotoItems &photoItems();
-	const PhotosData &photosData();
+	void complexOverlayRect(Painter &p, QRect rect, ImageRoundRadius radius, RectParts corners);
+	void complexLocationRect(Painter &p, QRect rect, ImageRoundRadius radius, RectParts corners);
 
-	void regVideoItem(VideoData *data, HistoryItem *item);
-	void unregVideoItem(VideoData *data, HistoryItem *item);
-	const VideoItems &videoItems();
-	const VideosData &videosData();
-
-	void regAudioItem(AudioData *data, HistoryItem *item);
-	void unregAudioItem(AudioData*data, HistoryItem *item);
-	const AudioItems &audioItems();
-	const AudiosData &audiosData();
-
-	void regDocumentItem(DocumentData *data, HistoryItem *item);
-	void unregDocumentItem(DocumentData *data, HistoryItem *item);
-	const DocumentItems &documentItems();
-	const DocumentsData &documentsData();
-
-	void regWebPageItem(WebPageData *data, HistoryItem *item);
-	void unregWebPageItem(WebPageData *data, HistoryItem *item);
-	const WebPageItems &webPageItems();
-
-	void regSharedContactItem(int32 userId, HistoryItem *item);
-	void unregSharedContactItem(int32 userId, HistoryItem *item);
-	const SharedContactItems &sharedContactItems();
-	QString phoneFromSharedContact(int32 userId);
-
-	void regGifItem(ClipReader *reader, HistoryItem *item);
-	void unregGifItem(ClipReader *reader);
-	void stopGifItems();
-
-	void regMuted(PeerData *peer, int32 changeIn);
-	void unregMuted(PeerData *peer);
-	void updateMuted();
-
-	void regInlineResultLoader(FileLoader *loader, InlineResult *result);
-	void unregInlineResultLoader(FileLoader *loader);
-	InlineResult *inlineResultFromLoader(FileLoader *loader);
-
-	void feedReplyMarkup(ChannelId channelId, MsgId msgId, const MTPReplyMarkup &markup);
-	void clearReplyMarkup(ChannelId channelId, MsgId msgId);
-	const ReplyMarkup &replyMarkup(ChannelId channelId, MsgId msgId);
-
-	void setProxySettings(QNetworkAccessManager &manager);
-	QNetworkProxy getHttpProxySettings();
-	void setProxySettings(QTcpSocket &socket);
-
-	QImage **cornersMask();
-	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, RoundCorners index, const style::color *sh = 0);
-	inline void roundRect(Painter &p, const QRect &rect, const style::color &bg, RoundCorners index, const style::color *sh = 0) {
-		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, index, sh);
+	QImage *cornersMask(ImageRoundRadius radius);
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, RoundCorners index, const style::color *shadow = nullptr, RectParts parts = RectPart::Full);
+	inline void roundRect(Painter &p, const QRect &rect, style::color bg, RoundCorners index, const style::color *shadow = nullptr, RectParts parts = RectPart::Full) {
+		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, index, shadow, parts);
 	}
-	void roundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &sh, RoundCorners index);
-	inline void roundShadow(Painter &p, const QRect &rect, const style::color &sh, RoundCorners index) {
-		return roundShadow(p, rect.x(), rect.y(), rect.width(), rect.height(), sh, index);
+	void roundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, RoundCorners index, RectParts parts = RectPart::Full);
+	inline void roundShadow(Painter &p, const QRect &rect, style::color shadow, RoundCorners index, RectParts parts = RectPart::Full) {
+		return roundShadow(p, rect.x(), rect.y(), rect.width(), rect.height(), shadow, index, parts);
 	}
-	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg);
-	inline void roundRect(Painter &p, const QRect &rect, const style::color &bg) {
-		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg);
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, ImageRoundRadius radius, RectParts parts = RectPart::Full);
+	inline void roundRect(Painter &p, const QRect &rect, style::color bg, ImageRoundRadius radius, RectParts parts = RectPart::Full) {
+		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, radius, parts);
 	}
-
-	void initBackground(int32 id = DefaultChatBackground, const QImage &p = QImage(), bool nowrite = false);
-
-	const style::color &msgServiceBg();
-	const style::color &msgServiceSelectBg();
-	const style::color &historyScrollBarColor();
-	const style::color &historyScrollBgColor();
-	const style::color &historyScrollBarOverColor();
-	const style::color &historyScrollBgOverColor();
-	const style::color &introPointHoverColor();
 
 	struct WallPaper {
 		WallPaper(int32 id, ImagePtr thumb, ImagePtr full) : id(id), thumb(thumb), full(full) {
@@ -293,5 +248,3 @@ namespace App {
 	DeclareSetting(WallPapers, ServerBackgrounds);
 
 };
-
-#include "facades.h"

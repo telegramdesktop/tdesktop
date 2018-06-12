@@ -1,0 +1,129 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "basic.style";
+using "history/history.style";
+using "ui/widgets/widgets.style";
+using "media/view/mediaview.style";
+using "boxes/boxes.style";
+
+OverviewFileLayout {
+	maxWidth: pixels;
+	songPadding: margins;
+	songThumbSize: pixels;
+	songNameTop: pixels;
+	songStatusTop: pixels;
+	songIconBg: color;
+	songOverBg: color;
+	songPause: icon;
+	songPauseSelected: icon;
+	songPlay: icon;
+	songPlaySelected: icon;
+	songCancel: icon;
+	songCancelSelected: icon;
+	songDownload: icon;
+	songDownloadSelected: icon;
+
+	filePadding: margins;
+	fileThumbSize: pixels;
+	fileNameTop: pixels;
+	fileStatusTop: pixels;
+	fileDateTop: pixels;
+}
+
+overviewLeftMin: 28px;
+overviewLeftMax: 42px;
+
+overviewCheckPressedSize: 0.8;
+overviewCheck: RoundCheckbox(defaultRoundCheckbox) {
+	bgInactive: overviewCheckBg;
+	bgActive: overviewCheckBgActive;
+	border: overviewCheckBorder;
+	size: 29px;
+	sizeSmall: 0.3;
+	check: icon {{ "overview_photo_check", overviewCheckFgActive, point(4px, 8px) }};
+}
+overviewSmallCheck: RoundCheckbox(contactsPhotoCheck) {
+	bgInactive: overviewCheckBg;
+	bgActive: overviewCheckBgActive;
+	border: overviewCheckBorder;
+}
+overviewCheckSkip: 5px;
+
+overviewPhotoBg: windowBgOver;
+overviewPhotoMinSize: 90px;
+overviewVideoBg: imageBg;
+
+overviewFileThumbBg: imageBg;
+overviewFileChecked: overviewCheckBgActive;
+overviewFileCheck: overviewCheckBg;
+overviewFileExtPadding: 5px;
+overviewFileExtTop: 24px;
+overviewFileExtFg: windowFgActive;
+overviewFileExtFont: font(18px semibold);
+
+overviewSongPause: icon {{ "playlist_pause", historyFileInIconFg }};
+overviewSongPauseSelected: icon {{ "playlist_pause", historyFileInIconFgSelected }};
+overviewSongPlay: icon {{ "playlist_play", historyFileInIconFg }};
+overviewSongPlaySelected: icon {{ "playlist_play", historyFileInIconFgSelected }};
+overviewSongCancel: icon {{ "playlist_cancel", historyFileInIconFg }};
+overviewSongCancelSelected: icon {{ "playlist_cancel", historyFileInIconFgSelected }};
+overviewSongDownload: icon {{ "playlist_download", historyFileInIconFg }};
+overviewSongDownloadSelected: icon {{ "playlist_download", historyFileInIconFgSelected }};
+overviewFileLayout: OverviewFileLayout {
+	maxWidth: 520px;
+	songPadding: margins(17px, 7px, 10px, 6px);
+	songThumbSize: 36px;
+	songNameTop: 7px;
+	songStatusTop: 25px;
+	songIconBg: msgFileInBg;
+	songOverBg: msgFileInBgOver;
+	songPause: overviewSongPause;
+	songPauseSelected: overviewSongPauseSelected;
+	songPlay: overviewSongPlay;
+	songPlaySelected: overviewSongPlaySelected;
+	songCancel: overviewSongCancel;
+	songCancelSelected: overviewSongCancelSelected;
+	songDownload: overviewSongDownload;
+	songDownloadSelected: overviewSongDownloadSelected;
+
+	filePadding: margins(0px, 3px, 16px, 3px);
+	fileThumbSize: 70px;
+	fileNameTop: 7px;
+	fileStatusTop: 24px;
+	fileDateTop: 49px;
+}
+
+overviewLoader: size(34px, 14px);
+overviewLoaderPoint: size(4px, 4px);
+overviewLoaderSkip: 4px;
+
+playlistHoverBg: windowBgOver;
+playlistPadding: 10px;
+
+linksSearchTop: 30px;
+linksMaxWidth: 520px;
+linksLetterFg: windowFgActive;
+linksLetterFont: font(24px);
+linksMargin: margins(0px, 7px, 0px, 5px);
+linksTextFg: windowFg;
+linksTextTop: 6px;
+linksBorder: 1px;
+linksBorderFg: shadowFg;
+linksDateColor: windowSubTextFg;
+linksDateMargin: margins(0px, 15px, 0px, 2px);
+linksPhotoSize: 46px;
+linksPhotoPadding: 12px;
+
+overviewFilter: FlatInput(defaultFlatInput) {
+	font: font(fsize);
+	icon: fieldSearchIcon;
+
+	width: 240px;
+	height: 32px;
+	textMrg: margins(32px, 3px, 32px, 3px);
+}

@@ -1,375 +1,315 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "stdafx.h"
-#include "lang.h"
-#include "style.h"
-
-#include "gui/filedialog.h"
-#include "boxes/confirmbox.h"
-
-#include "application.h"
-
 #include "intro/intropwdcheck.h"
-#include "intro/intro.h"
 
-IntroPwdCheck::IntroPwdCheck(IntroWidget *parent) : IntroStage(parent)
-, a_errorAlpha(0)
-, _a_error(animation(this, &IntroPwdCheck::step_error))
-, _next(this, lang(lng_intro_submit), st::btnIntroNext)
-, _salt(parent->getPwdSalt())
-, _hasRecovery(parent->getHasRecovery())
-, _hint(parent->getPwdHint())
-, _pwdField(this, st::inpIntroPassword, lang(lng_signin_password))
-, _codeField(this, st::inpIntroPassword, lang(lng_signin_code))
+#include "styles/style_intro.h"
+#include "styles/style_boxes.h"
+#include "core/file_utilities.h"
+#include "boxes/confirm_box.h"
+#include "lang/lang_keys.h"
+#include "application.h"
+#include "intro/introsignup.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/input_fields.h"
+#include "ui/widgets/labels.h"
+
+namespace Intro {
+
+PwdCheckWidget::PwdCheckWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
+, _salt(getData()->pwdSalt)
+, _hasRecovery(getData()->hasRecovery)
+, _notEmptyPassport(getData()->pwdNotEmptyPassport)
+, _hint(getData()->pwdHint)
+, _pwdField(this, st::introPassword, langFactory(lng_signin_password))
+, _pwdHint(this, st::introPasswordHint)
+, _codeField(this, st::introPassword, langFactory(lng_signin_code))
 , _toRecover(this, lang(lng_signin_recover))
 , _toPassword(this, lang(lng_signin_try_password))
-, _reset(this, lang(lng_signin_reset_account), st::btnRedLink)
-, sentRequest(0) {
-	setVisible(false);
-	setGeometry(parent->innerRect());
+, _checkRequest(this) {
+	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 
-	connect(&_next, SIGNAL(clicked()), this, SLOT(onSubmitPwd()));
-	connect(&checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
-	connect(&_toRecover, SIGNAL(clicked()), this, SLOT(onToRecover()));
-	connect(&_toPassword, SIGNAL(clicked()), this, SLOT(onToPassword()));
-	connect(&_pwdField, SIGNAL(changed()), this, SLOT(onInputChange()));
-	connect(&_codeField, SIGNAL(changed()), this, SLOT(onInputChange()));
-	connect(&_reset, SIGNAL(clicked()), this, SLOT(onReset()));
+	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
+	connect(_toRecover, SIGNAL(clicked()), this, SLOT(onToRecover()));
+	connect(_toPassword, SIGNAL(clicked()), this, SLOT(onToPassword()));
+	connect(_pwdField, SIGNAL(changed()), this, SLOT(onInputChange()));
+	connect(_codeField, SIGNAL(changed()), this, SLOT(onInputChange()));
 
-	_pwdField.setEchoMode(QLineEdit::Password);
+	setTitleText(langFactory(lng_signin_title));
+	updateDescriptionText();
+	setErrorBelowLink(true);
 
-	if (!_hint.isEmpty()) {
-		_hintText.setText(st::introFont, lng_signin_hint(lt_password_hint, _hint));
+	if (_hint.isEmpty()) {
+		_pwdHint->hide();
+	} else {
+		_pwdHint->setText(lng_signin_hint(lt_password_hint, _hint));
 	}
-	_codeField.hide();
-	_toPassword.hide();
-	_toRecover.show();
-	_reset.hide();
+	_codeField->hide();
+	_toPassword->hide();
 
 	setMouseTracking(true);
 }
 
-void IntroPwdCheck::paintEvent(QPaintEvent *e) {
-	bool trivial = (rect() == e->rect());
-
-	QPainter p(this);
-	if (!trivial) {
-		p.setClipRect(e->rect());
+void PwdCheckWidget::refreshLang() {
+	if (_toRecover) _toRecover->setText(lang(lng_signin_recover));
+	if (_toPassword) _toPassword->setText(lang(lng_signin_try_password));
+	if (!_hint.isEmpty()) {
+		_pwdHint->setText(lng_signin_hint(lt_password_hint, _hint));
 	}
-	if (trivial || e->rect().intersects(textRect)) {
-		p.setFont(st::introHeaderFont->f);
-		p.drawText(textRect, lang(lng_signin_title), style::al_top);
-		p.setFont(st::introFont->f);
-		p.drawText(textRect, lang(_pwdField.isHidden() ? lng_signin_recover_desc : lng_signin_desc), style::al_bottom);
-	}
-	if (_pwdField.isHidden()) {
-		if (!_emailPattern.isEmpty()) {
-			p.drawText(QRect(textRect.x(), _pwdField.y() + _pwdField.height() + st::introFinishSkip, textRect.width(), st::introFont->height), _emailPattern, style::al_top);
-		}
-	} else if (!_hint.isEmpty()) {
-		_hintText.drawElided(p, _pwdField.x(), _pwdField.y() + _pwdField.height() + st::introFinishSkip, _pwdField.width(), 1, style::al_top);
-	}
-	if (_a_error.animating() || error.length()) {
-		p.setOpacity(a_errorAlpha.current());
-
-		QRect errRect((width() - st::introErrWidth) / 2, (_pwdField.y() + _pwdField.height() + st::introFinishSkip + st::introFont->height + _next.y() - st::introErrHeight) / 2, st::introErrWidth, st::introErrHeight);
-		p.setFont(st::introErrFont->f);
-		p.setPen(st::introErrColor->p);
-		p.drawText(errRect, error, QTextOption(style::al_center));
-
-		p.setOpacity(1);
-	}
+	updateControlsGeometry();
 }
 
-void IntroPwdCheck::resizeEvent(QResizeEvent *e) {
-	if (e->oldSize().width() != width()) {
-		_next.move((width() - _next.width()) / 2, st::introBtnTop);
-		_pwdField.move((width() - _pwdField.width()) / 2, st::introTextTop + st::introTextSize.height() + st::introCountry.top);
-		_codeField.move((width() - _codeField.width()) / 2, st::introTextTop + st::introTextSize.height() + st::introCountry.top);
-		_toRecover.move(_next.x() + (_pwdField.width() - _toRecover.width()) / 2, _next.y() + _next.height() + st::introFinishSkip);
-		_toPassword.move(_next.x() + (_pwdField.width() - _toPassword.width()) / 2, _next.y() + _next.height() + st::introFinishSkip);
-		_reset.move((width() - _reset.width()) / 2, _toRecover.y() + _toRecover.height() + st::introFinishSkip);
-	}
-	textRect = QRect((width() - st::introTextSize.width()) / 2, st::introTextTop, st::introTextSize.width(), st::introTextSize.height());
+void PwdCheckWidget::resizeEvent(QResizeEvent *e) {
+	Step::resizeEvent(e);
+	updateControlsGeometry();
 }
 
-void IntroPwdCheck::showError(const QString &err) {
-	if (!_a_error.animating() && err == error) return;
+void PwdCheckWidget::updateControlsGeometry() {
+	_pwdField->moveToLeft(contentLeft(), contentTop() + st::introPasswordTop);
+	_pwdHint->moveToLeft(contentLeft() + st::buttonRadius, contentTop() + st::introPasswordHintTop);
+	_codeField->moveToLeft(contentLeft(), contentTop() + st::introStepFieldTop);
+	auto linkTop = _codeField->y() + _codeField->height() + st::introLinkTop;
+	_toRecover->moveToLeft(contentLeft() + st::buttonRadius, linkTop);
+	_toPassword->moveToLeft(contentLeft() + st::buttonRadius, linkTop);
+}
 
-	if (err.length()) {
-		error = err;
-		a_errorAlpha.start(1);
+void PwdCheckWidget::setInnerFocus() {
+	if (_pwdField->isHidden()) {
+		_codeField->setFocusFast();
 	} else {
-		a_errorAlpha.start(0);
-	}
-	_a_error.start();
-}
-
-void IntroPwdCheck::step_error(float64 ms, bool timer) {
-	float64 dt = ms / st::introErrDuration;
-
-	if (dt >= 1) {
-		_a_error.stop();
-		a_errorAlpha.finish();
-		if (!a_errorAlpha.current()) {
-			error = "";
-		}
-	} else {
-		a_errorAlpha.update(dt, st::introErrFunc);
-	}
-	if (timer) update();
-}
-
-void IntroPwdCheck::activate() {
-	show();
-	if (_pwdField.isHidden()) {
-		_codeField.setFocus();
-	} else {
-		_pwdField.setFocus();
+		_pwdField->setFocusFast();
 	}
 }
 
-void IntroPwdCheck::deactivate() {
-	hide();
+void PwdCheckWidget::activate() {
+	if (_pwdField->isHidden() && _codeField->isHidden()) {
+		Step::activate();
+		_pwdField->show();
+		_pwdHint->show();
+		_toRecover->show();
+	}
+	setInnerFocus();
 }
 
-void IntroPwdCheck::stopCheck() {
-	checkRequest.stop();
+void PwdCheckWidget::cancelled() {
+	MTP::cancel(base::take(_sentRequest));
 }
 
-void IntroPwdCheck::onCheckRequest() {
-	int32 status = MTP::state(sentRequest);
+void PwdCheckWidget::stopCheck() {
+	_checkRequest->stop();
+}
+
+void PwdCheckWidget::onCheckRequest() {
+	auto status = MTP::state(_sentRequest);
 	if (status < 0) {
-		int32 leftms = -status;
+		auto leftms = -status;
 		if (leftms >= 1000) {
-			MTP::cancel(sentRequest);
-			sentRequest = 0;
-			if (!_pwdField.isEnabled()) {
-				_pwdField.setDisabled(false);
-				_codeField.setDisabled(false);
-				activate();
-			}
+			MTP::cancel(base::take(_sentRequest));
 		}
 	}
-	if (!sentRequest && status == MTP::RequestSent) {
+	if (!_sentRequest && status == MTP::RequestSent) {
 		stopCheck();
 	}
 }
 
-void IntroPwdCheck::pwdSubmitDone(bool recover, const MTPauth_Authorization &result) {
-	sentRequest = 0;
+void PwdCheckWidget::pwdSubmitDone(bool recover, const MTPauth_Authorization &result) {
+	_sentRequest = 0;
 	stopCheck();
 	if (recover) {
 		cSetPasswordRecovered(true);
 	}
-	_pwdField.setDisabled(false);
-	_codeField.setDisabled(false);
-	const MTPDauth_authorization &d(result.c_auth_authorization());
+	auto &d = result.c_auth_authorization();
 	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
-		showError(lang(lng_server_error));
+		showError(&Lang::Hard::ServerError);
 		return;
 	}
-	intro()->finish(d.vuser);
+	finish(d.vuser);
 }
 
-bool IntroPwdCheck::pwdSubmitFail(const RPCError &error) {
-	sentRequest = 0;
+bool PwdCheckWidget::pwdSubmitFail(const RPCError &error) {
+	if (MTP::isFloodError(error)) {
+		_sentRequest = 0;
+		stopCheck();
+		showError(langFactory(lng_flood_error));
+		_pwdField->showError();
+		return true;
+	}
+	if (MTP::isDefaultHandledError(error)) return false;
+
+	_sentRequest = 0;
 	stopCheck();
-	_pwdField.setDisabled(false);
-	_codeField.setDisabled(false);
-	const QString &err = error.type();
-	if (err == "PASSWORD_HASH_INVALID") {
-		showError(lang(lng_signin_bad_password));
-		_pwdField.selectAll();
-		_pwdField.notaBene();
+	auto &err = error.type();
+	if (err == qstr("PASSWORD_HASH_INVALID")) {
+		showError(langFactory(lng_signin_bad_password));
+		_pwdField->selectAll();
+		_pwdField->showError();
 		return true;
-	} else if (err == "PASSWORD_EMPTY") {
-		intro()->onIntroBack();
-	} else if (mtpIsFlood(error)) {
-		showError(lang(lng_flood_error));
-		_pwdField.notaBene();
-		return true;
+	} else if (err == qstr("PASSWORD_EMPTY")) {
+		goBack();
 	}
-	if (cDebug()) { // internal server error
-		showError(err + ": " + error.description());
+	if (Logs::DebugEnabled()) { // internal server error
+		auto text = err + ": " + error.description();
+		showError([text] { return text; });
 	} else {
-		showError(lang(lng_server_error));
+		showError(&Lang::Hard::ServerError);
 	}
-	_pwdField.setFocus();
+	_pwdField->setFocus();
 	return false;
 }
 
-bool IntroPwdCheck::codeSubmitFail(const RPCError &error) {
-	sentRequest = 0;
-	stopCheck();
-	_pwdField.setDisabled(false);
-	_codeField.setDisabled(false);
-	const QString &err = error.type();
-	if (err == "PASSWORD_EMPTY") {
-		intro()->onIntroBack();
+bool PwdCheckWidget::codeSubmitFail(const RPCError &error) {
+	if (MTP::isFloodError(error)) {
+		showError(langFactory(lng_flood_error));
+		_codeField->showError();
 		return true;
-	} else if (err == "PASSWORD_RECOVERY_NA") {
+	}
+	if (MTP::isDefaultHandledError(error)) return false;
+
+	_sentRequest = 0;
+	stopCheck();
+	const QString &err = error.type();
+	if (err == qstr("PASSWORD_EMPTY")) {
+		goBack();
+		return true;
+	} else if (err == qstr("PASSWORD_RECOVERY_NA")) {
 		recoverStartFail(error);
 		return true;
-	} else if (err == "PASSWORD_RECOVERY_EXPIRED") {
+	} else if (err == qstr("PASSWORD_RECOVERY_EXPIRED")) {
 		_emailPattern = QString();
 		onToPassword();
 		return true;
-	} else if (err == "CODE_INVALID") {
-		showError(lang(lng_signin_wrong_code));
-		_codeField.selectAll();
-		_codeField.notaBene();
-		return true;
-	} else if (mtpIsFlood(error)) {
-		showError(lang(lng_flood_error));
-		_codeField.notaBene();
+	} else if (err == qstr("CODE_INVALID")) {
+		showError(langFactory(lng_signin_wrong_code));
+		_codeField->selectAll();
+		_codeField->showError();
 		return true;
 	}
-	if (cDebug()) { // internal server error
-		showError(err + ": " + error.description());
+	if (Logs::DebugEnabled()) { // internal server error
+		auto text = err + ": " + error.description();
+		showError([text] { return text; });
 	} else {
-		showError(lang(lng_server_error));
+		showError(&Lang::Hard::ServerError);
 	}
-	_codeField.setFocus();
+	_codeField->setFocus();
 	return false;
 }
 
-void IntroPwdCheck::recoverStarted(const MTPauth_PasswordRecovery &result) {
-	_emailPattern = st::introFont->elided(lng_signin_recover_hint(lt_recover_email, qs(result.c_auth_passwordRecovery().vemail_pattern)), textRect.width());
-	update();
+void PwdCheckWidget::recoverStarted(const MTPauth_PasswordRecovery &result) {
+	_emailPattern = qs(result.c_auth_passwordRecovery().vemail_pattern);
+	updateDescriptionText();
 }
 
-bool IntroPwdCheck::recoverStartFail(const RPCError &error) {
+bool PwdCheckWidget::recoverStartFail(const RPCError &error) {
 	stopCheck();
-	_pwdField.setDisabled(false);
-	_codeField.setDisabled(false);
-	_pwdField.show();
-	_codeField.hide();
-	_pwdField.setFocus();
+	_pwdField->show();
+	_pwdHint->show();
+	_codeField->hide();
+	_pwdField->setFocus();
+	updateDescriptionText();
 	update();
-	showError("");
+	hideError();
 	return true;
 }
 
-void IntroPwdCheck::onToRecover() {
+void PwdCheckWidget::onToRecover() {
 	if (_hasRecovery) {
-		if (sentRequest) {
-			MTP::cancel(sentRequest);
-			sentRequest = 0;
+		if (_sentRequest) {
+			MTP::cancel(base::take(_sentRequest));
 		}
-		showError("");
-		_toRecover.hide();
-		_toPassword.show();
-		_pwdField.hide();
-		_pwdField.setText(QString());
-		_codeField.show();
-		_codeField.setFocus();
+		hideError();
+		_toRecover->hide();
+		_toPassword->show();
+		_pwdField->hide();
+		_pwdHint->hide();
+		_pwdField->setText(QString());
+		_codeField->show();
+		_codeField->setFocus();
+		updateDescriptionText();
 		if (_emailPattern.isEmpty()) {
-			MTP::send(MTPauth_RequestPasswordRecovery(), rpcDone(&IntroPwdCheck::recoverStarted), rpcFail(&IntroPwdCheck::recoverStartFail));
+			MTP::send(MTPauth_RequestPasswordRecovery(), rpcDone(&PwdCheckWidget::recoverStarted), rpcFail(&PwdCheckWidget::recoverStartFail));
 		}
-		update();
 	} else {
-		ConfirmBox *box = new InformBox(lang(lng_signin_no_email_forgot));
-		Ui::showLayer(box);
-		connect(box, SIGNAL(destroyed(QObject*)), this, SLOT(onToReset()));
+		Ui::show(Box<InformBox>(lang(lng_signin_no_email_forgot), [this] { showReset(); }));
 	}
 }
 
-void IntroPwdCheck::onToPassword() {
-	ConfirmBox *box = new InformBox(lang(lng_signin_cant_email_forgot));
-	Ui::showLayer(box);
-	connect(box, SIGNAL(destroyed(QObject*)), this, SLOT(onToReset()));
+void PwdCheckWidget::onToPassword() {
+	Ui::show(Box<InformBox>(lang(lng_signin_cant_email_forgot), [this] { showReset(); }));
 }
 
-void IntroPwdCheck::onToReset() {
-	if (sentRequest) {
-		MTP::cancel(sentRequest);
-		sentRequest = 0;
+void PwdCheckWidget::showReset() {
+	if (_sentRequest) {
+		MTP::cancel(base::take(_sentRequest));
 	}
-	_toRecover.show();
-	_toPassword.hide();
-	_pwdField.show();
-	_codeField.hide();
-	_codeField.setText(QString());
-	_pwdField.setFocus();
-	_reset.show();
+	_toRecover->show();
+	_toPassword->hide();
+	_pwdField->show();
+	_pwdHint->show();
+	_codeField->hide();
+	_codeField->setText(QString());
+	_pwdField->setFocus();
+	showResetButton();
+	updateDescriptionText();
 	update();
 }
 
-void IntroPwdCheck::onReset() {
-	if (sentRequest) return;
-	ConfirmBox *box = new ConfirmBox(lang(lng_signin_sure_reset), lang(lng_signin_reset), st::attentionBoxButton);
-	connect(box, SIGNAL(confirmed()), this, SLOT(onResetSure()));
-	Ui::showLayer(box);
+void PwdCheckWidget::updateDescriptionText() {
+	auto pwdHidden = _pwdField->isHidden();
+	auto emailPattern = _emailPattern;
+	setDescriptionText([pwdHidden, emailPattern] {
+		return pwdHidden ? lng_signin_recover_desc(lt_email, emailPattern) : lang(lng_signin_desc);
+	});
 }
 
-void IntroPwdCheck::onResetSure() {
-	if (sentRequest) return;
-	sentRequest = MTP::send(MTPaccount_DeleteAccount(MTP_string("Forgot password")), rpcDone(&IntroPwdCheck::deleteDone), rpcFail(&IntroPwdCheck::deleteFail));
+void PwdCheckWidget::onInputChange() {
+	hideError();
 }
 
-bool IntroPwdCheck::deleteFail(const RPCError &error) {
-	if (mtpIsFlood(error)) return false;
-	sentRequest = 0;
-	showError(lang(lng_server_error));
-	return true;
-}
-
-void IntroPwdCheck::deleteDone(const MTPBool &v) {
-	Ui::hideLayer();
-	intro()->onIntroNext();
-}
-
-void IntroPwdCheck::onInputChange() {
-	showError("");
-}
-
-void IntroPwdCheck::onSubmitPwd(bool force) {
-	if (sentRequest) return;
-	if (_pwdField.isHidden()) {
-		if (!force && !_codeField.isEnabled()) return;
-		QString code = _codeField.text().trimmed();
+void PwdCheckWidget::submit() {
+	if (_sentRequest) return;
+	if (_pwdField->isHidden()) {
+		auto code = _codeField->getLastText().trimmed();
 		if (code.isEmpty()) {
-			_codeField.notaBene();
+			_codeField->showError();
 			return;
 		}
+		const auto send = crl::guard(this, [=] {
+			_sentRequest = MTP::send(
+				MTPauth_RecoverPassword(MTP_string(code)),
+				rpcDone(&PwdCheckWidget::pwdSubmitDone, true),
+				rpcFail(&PwdCheckWidget::codeSubmitFail));
+		});
 
-		sentRequest = MTP::send(MTPauth_RecoverPassword(MTP_string(code)), rpcDone(&IntroPwdCheck::pwdSubmitDone, true), rpcFail(&IntroPwdCheck::codeSubmitFail));
+		if (_notEmptyPassport) {
+			const auto box = std::make_shared<QPointer<BoxContent>>();
+			const auto confirmed = [=] {
+				send();
+				if (*box) {
+					(*box)->closeBox();
+				}
+			};
+			*box = Ui::show(Box<ConfirmBox>(
+				lang(lng_cloud_password_passport_losing),
+				lang(lng_continue),
+				confirmed));
+		} else {
+			send();
+		}
 	} else {
-		if (!force && !_pwdField.isEnabled()) return;
+		hideError();
 
-		_pwdField.setDisabled(true);
-		setFocus();
-
-		showError("");
-
-		QByteArray pwdData = _salt + _pwdField.text().toUtf8() + _salt, pwdHash(32, Qt::Uninitialized);
+		QByteArray pwdData = _salt + _pwdField->getLastText().toUtf8() + _salt, pwdHash(32, Qt::Uninitialized);
 		hashSha256(pwdData.constData(), pwdData.size(), pwdHash.data());
-		sentRequest = MTP::send(MTPauth_CheckPassword(MTP_string(pwdHash)), rpcDone(&IntroPwdCheck::pwdSubmitDone, false), rpcFail(&IntroPwdCheck::pwdSubmitFail));
+		_sentRequest = MTP::send(MTPauth_CheckPassword(MTP_bytes(pwdHash)), rpcDone(&PwdCheckWidget::pwdSubmitDone, false), rpcFail(&PwdCheckWidget::pwdSubmitFail));
 	}
 }
 
-void IntroPwdCheck::onNext() {
-	onSubmitPwd();
+QString PwdCheckWidget::nextButtonText() const {
+	return lang(lng_intro_submit);
 }
 
-void IntroPwdCheck::onBack() {
-}
+} // namespace Intro

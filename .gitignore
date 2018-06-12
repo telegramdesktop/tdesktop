@@ -1,4 +1,9 @@
-/Telegram/Target
+/out/
+/Debug/
+/Release/
+/Deploy/
+/ThirdParty/
+/Telegram/build/target
 /Telegram/GeneratedFiles/
 /Telegram/SourceFiles/art/grid.png
 /Telegram/SourceFiles/art/grid_125x.png
@@ -6,13 +11,30 @@
 /Telegram/SourceFiles/art/grid_200x.png
 /Telegram/SourceFiles/art/sprite_125x.png
 /Telegram/SourceFiles/art/sprite_150x.png
+/Telegram/Resources/art/grid.png
+/Telegram/Resources/art/grid_125x.png
+/Telegram/Resources/art/grid_150x.png
+/Telegram/Resources/art/grid_200x.png
+/Telegram/Resources/art/sprite_125x.png
+/Telegram/Resources/art/sprite_150x.png
+/Telegram/Debug/
+/Telegram/Release/
+/Telegram/tests/
+/Telegram/gyp/tests/*.test
+/Telegram/out/
 /Telegram/*.user
+*.vcxproj*
+*.sln
 *.suo
 *.sdf
 *.opensdf
-/Telegram/*.aps
+*.opendb
+*.VC.db
+*.aps
+*.xcodeproj
 /Win32/
 ipch/
+.vs/
 
 /Telegram/log.txt
 /Telegram/data
@@ -25,10 +47,11 @@ ipch/
 ._*
 .qmake.stash
 /Mac/
-/Telegram/*.xcodeproj/xcuserdata/
-/Telegram/*.xcodeproj/project.xcworkspace/
+project.xcworkspace
+xcuserdata
 
 /Telegram/*.user.*
+*.pro.user
 /Linux/
 /Telegram/Makefile
 *.*~

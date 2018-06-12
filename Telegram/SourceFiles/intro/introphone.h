@@ -1,90 +1,79 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <QtWidgets/QWidget>
-#include "gui/flatbutton.h"
-#include "gui/countryinput.h"
-#include "intro.h"
+#include "ui/countryinput.h"
+#include "intro/introwidget.h"
 
-class IntroPhone : public IntroStage, public RPCSender {
+namespace Ui {
+class PhonePartInput;
+class CountryCodeInput;
+class RoundButton;
+class FlatLabel;
+} // namespace Ui
+
+namespace Intro {
+
+class PhoneWidget : public Widget::Step {
 	Q_OBJECT
 
 public:
-
-	IntroPhone(IntroWidget *parent);
-
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-
-	void step_error(float64 ms, bool timer);
+	PhoneWidget(QWidget *parent, Widget::Data *data);
 
 	void selectCountry(const QString &country);
 
-	void activate();
-	void deactivate();
-	void onNext();
-	void onBack();
+	void setInnerFocus() override;
+	void activate() override;
+	void finished() override;
+	void cancelled() override;
+	void submit() override;
 
-	void phoneCheckDone(const MTPauth_CheckedPhone &result);
-	void phoneSubmitDone(const MTPauth_SentCode &result);
-	bool phoneSubmitFail(const RPCError &error);
+	bool hasBack() const override {
+		return true;
+	}
 
-	void toSignUp();
+protected:
+	void resizeEvent(QResizeEvent *e) override;
 
-public slots:
-
-	void countryChanged();
+private slots:
 	void onInputChange();
-	void onSubmitPhone(bool force = false);
 	void onCheckRequest();
 
 private:
+	void updateSignupGeometry();
+	void countryChanged();
+
+	//void phoneCheckDone(const MTPauth_CheckedPhone &result);
+	void phoneSubmitDone(const MTPauth_SentCode &result);
+	bool phoneSubmitFail(const RPCError &error);
+
+	//void toSignUp();
 
 	QString fullNumber() const;
-	void disableAll();
-	void enableAll(bool failed);
 	void stopCheck();
 
-	void showError(const QString &err, bool signUp = false);
+	void showPhoneError(Fn<QString()> textFactory);
+	void hidePhoneError();
+	//void showSignup();
 
-	QString error;
-	anim::fvalue a_errorAlpha;
-	Animation _a_error;
+	bool _changed = false;
 
-	bool changed;
-	FlatButton next;
+	object_ptr<CountryInput> _country;
+	object_ptr<Ui::CountryCodeInput> _code;
+	object_ptr<Ui::PhonePartInput> _phone;
 
-	QRect textRect;
+	object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _signup = { nullptr };
 
-	CountryInput country;
-	PhonePartInput phone;
-	CountryCodeInput code;
+	QString _sentPhone;
+	mtpRequestId _sentRequest = 0;
 
-	FlatLabel _signup;
-	QPixmap _signupCache;
-	bool _showSignup;
+	object_ptr<QTimer> _checkRequest;
 
-	QString sentPhone;
-	mtpRequestId sentRequest;
-
-	QTimer checkRequest;
 };
+
+} // namespace Intro

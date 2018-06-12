@@ -1,41 +1,19 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "packer.h"
 
-#include <QtPlugin>
+#include <QtCore/QtPlugin>
 
 #ifdef Q_OS_MAC
-Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin)
-Q_IMPORT_PLUGIN(QDDSPlugin)
-Q_IMPORT_PLUGIN(QICNSPlugin)
-Q_IMPORT_PLUGIN(QICOPlugin)
-Q_IMPORT_PLUGIN(QJp2Plugin)
-Q_IMPORT_PLUGIN(QMngPlugin)
-Q_IMPORT_PLUGIN(QTgaPlugin)
-Q_IMPORT_PLUGIN(QTiffPlugin)
-Q_IMPORT_PLUGIN(QWbmpPlugin)
-Q_IMPORT_PLUGIN(QWebpPlugin)
+//Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin)
 #endif
 
-bool DevChannel = false;
+bool AlphaChannel = false;
 quint64 BetaVersion = 0;
 
 const char *PublicKey = "\
@@ -46,7 +24,7 @@ BZpkIfKaRcl6XzNJiN28cVwO1Ui5JSa814UAiDHzWUqCaXUiUEQ6NmNTneiGx2sQ\n\
 -----END RSA PUBLIC KEY-----\
 ";
 
-const char *PublicDevKey = "\
+const char *PublicAlphaKey = "\
 -----BEGIN RSA PUBLIC KEY-----\n\
 MIGJAoGBALWu9GGs0HED7KG7BM73CFZ6o0xufKBRQsdnq3lwA8nFQEvmdu+g/I1j\n\
 0LQ+0IQO7GW4jAgzF/4+soPDb6uHQeNFrlVx1JS9DZGhhjZ5rf65yg11nTCIHZCG\n\
@@ -55,7 +33,7 @@ w/CVnbwQOw0g5GBwwFV3r0uTTvy44xx8XXxk+Qknu4eBCsmrAFNnAgMBAAE=\n\
 ";
 
 extern const char *PrivateKey;
-extern const char *PrivateDevKey;
+extern const char *PrivateAlphaKey;
 #include "../../../../TelegramPrivate/packer_private.h" // RSA PRIVATE KEYS for update signing
 #include "../../../../TelegramPrivate/beta_private.h" // private key for beta version file generation
 
@@ -65,79 +43,83 @@ QString countBetaVersionSignature(quint64 version);
 typedef unsigned char uchar;
 typedef unsigned int uint32;
 typedef signed int int32;
+
 namespace{
-    inline uint32 sha1Shift(uint32 v, uint32 shift) {
-        return ((v << shift) | (v >> (32 - shift)));
-    }
-    void sha1PartHash(uint32 *sha, uint32 *temp)
-    {
-        uint32 a = sha[0], b = sha[1], c = sha[2], d = sha[3], e = sha[4], round = 0;
 
-        #define _shiftswap(f, v) { \
-            uint32 t = sha1Shift(a, 5) + (f) + e + v + temp[round]; \
-			e = d; \
-			d = c; \
-			c = sha1Shift(b, 30); \
-			b = a; \
-			a = t; \
-            ++round; \
-		}
-		#define _shiftshiftswap(f, v) { \
-            temp[round] = sha1Shift((temp[round - 3] ^ temp[round - 8] ^ temp[round - 14] ^ temp[round - 16]), 1); \
-			_shiftswap(f, v) \
-		}
-
-        while (round < 16) _shiftswap((b & c) | (~b & d), 0x5a827999)
-        while (round < 20) _shiftshiftswap((b & c) | (~b & d), 0x5a827999)
-        while (round < 40) _shiftshiftswap(b ^ c ^ d, 0x6ed9eba1)
-        while (round < 60) _shiftshiftswap((b & c) | (b & d) | (c & d), 0x8f1bbcdc)
-        while (round < 80) _shiftshiftswap(b ^ c ^ d, 0xca62c1d6)
-
-        #undef _shiftshiftswap
-        #undef _shiftswap
-
-        sha[0] += a;
-        sha[1] += b;
-        sha[2] += c;
-        sha[3] += d;
-        sha[4] += e;
-    }
+inline uint32 sha1Shift(uint32 v, uint32 shift) {
+	return ((v << shift) | (v >> (32 - shift)));
 }
+
+void sha1PartHash(uint32 *sha, uint32 *temp) {
+	uint32 a = sha[0], b = sha[1], c = sha[2], d = sha[3], e = sha[4], round = 0;
+
+#define _shiftswap(f, v) { \
+		uint32 t = sha1Shift(a, 5) + (f) + e + v + temp[round]; \
+		e = d; \
+		d = c; \
+		c = sha1Shift(b, 30); \
+		b = a; \
+		a = t; \
+		++round; \
+	}
+
+#define _shiftshiftswap(f, v) { \
+		temp[round] = sha1Shift((temp[round - 3] ^ temp[round - 8] ^ temp[round - 14] ^ temp[round - 16]), 1); \
+		_shiftswap(f, v) \
+	}
+
+	while (round < 16) _shiftswap((b & c) | (~b & d), 0x5a827999)
+	while (round < 20) _shiftshiftswap((b & c) | (~b & d), 0x5a827999)
+	while (round < 40) _shiftshiftswap(b ^ c ^ d, 0x6ed9eba1)
+	while (round < 60) _shiftshiftswap((b & c) | (b & d) | (c & d), 0x8f1bbcdc)
+	while (round < 80) _shiftshiftswap(b ^ c ^ d, 0xca62c1d6)
+
+#undef _shiftshiftswap
+#undef _shiftswap
+
+	sha[0] += a;
+	sha[1] += b;
+	sha[2] += c;
+	sha[3] += d;
+	sha[4] += e;
+}
+
+} // namespace
 
 int32 *hashSha1(const void *data, uint32 len, void *dest) {
 	const uchar *buf = (const uchar *)data;
 
-    uint32 temp[80], block = 0, end;
-    uint32 sha[5] = {0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0};
-    for (end = block + 64; block + 64 <= len; end = block + 64) {
-        for (uint32 i = 0; block < end; block += 4) {
-            temp[i++] = (uint32) buf[block + 3]
-                    | (((uint32) buf[block + 2]) << 8)
-                    | (((uint32) buf[block + 1]) << 16)
-                    | (((uint32) buf[block]) << 24);
-        }
-        sha1PartHash(sha, temp);
-    }
+	uint32 temp[80], block = 0, end;
+	uint32 sha[5] = {0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0};
+	for (end = block + 64; block + 64 <= len; end = block + 64) {
+		for (uint32 i = 0; block < end; block += 4) {
+			temp[i++] = (uint32) buf[block + 3]
+			        | (((uint32) buf[block + 2]) << 8)
+			        | (((uint32) buf[block + 1]) << 16)
+			        | (((uint32) buf[block]) << 24);
+		}
+		sha1PartHash(sha, temp);
+	}
 
-    end = len - block;
+	end = len - block;
 	memset(temp, 0, sizeof(uint32) * 16);
-    uint32 last = 0;
-    for (; last < end; ++last) {
-        temp[last >> 2] |= (uint32)buf[last + block] << ((3 - (last & 0x03)) << 3);
-    }
-    temp[last >> 2] |= 0x80 << ((3 - (last & 3)) << 3);
-    if (end >= 56) {
-        sha1PartHash(sha, temp);
+	uint32 last = 0;
+	for (; last < end; ++last) {
+		temp[last >> 2] |= (uint32)buf[last + block] << ((3 - (last & 0x03)) << 3);
+	}
+	temp[last >> 2] |= 0x80 << ((3 - (last & 3)) << 3);
+	if (end >= 56) {
+		sha1PartHash(sha, temp);
 		memset(temp, 0, sizeof(uint32) * 16);
-    }
-    temp[15] = len << 3;
-    sha1PartHash(sha, temp);
+	}
+	temp[15] = len << 3;
+	sha1PartHash(sha, temp);
 
 	uchar *sha1To = (uchar*)dest;
 
-    for (int32 i = 19; i >= 0; --i) {
-        sha1To[i] = (sha[i >> 2] >> (((3 - i) & 0x03) << 3)) & 0xFF;
-    }
+	for (int32 i = 19; i >= 0; --i) {
+		sha1To[i] = (sha[i >> 2] >> (((3 - i) & 0x03) << 3)) & 0xFF;
+	}
 
 	return (int32*)sha1To;
 }
@@ -147,21 +129,10 @@ QString BetaSignature;
 int main(int argc, char *argv[])
 {
 	QString workDir;
-#ifdef Q_OS_MAC
-    if (QDir(QString()).absolutePath() == "/") {
-		QString first = argc ? QString::fromLocal8Bit(argv[0]) : QString();
-		if (!first.isEmpty()) {
-			QFileInfo info(first);
-			if (info.exists()) {
-				QDir result(info.absolutePath() + "/../../..");
-				workDir = result.absolutePath() + '/';
-			}
-		}
-	}
-#endif
 
 	QString remove;
 	int version = 0;
+	bool target32 = false;
 	QFileInfoList files;
 	for (int i = 0; i < argc; ++i) {
 		if (string("-path") == argv[i] && i + 1 < argc) {
@@ -169,14 +140,16 @@ int main(int argc, char *argv[])
 			QFileInfo info(path);
 			files.push_back(info);
 			if (remove.isEmpty()) remove = info.canonicalPath() + "/";
+		} else if (string("-target") == argv[i] && i + 1 < argc) {
+			target32 = (string("mac32") == argv[i + 1]);
 		} else if (string("-version") == argv[i] && i + 1 < argc) {
 			version = QString(argv[i + 1]).toInt();
-		} else if (string("-dev") == argv[i]) {
-			DevChannel = true;
+		} else if (string("-alpha") == argv[i]) {
+			AlphaChannel = true;
 		} else if (string("-beta") == argv[i] && i + 1 < argc) {
 			BetaVersion = QString(argv[i + 1]).toULongLong();
 			if (BetaVersion > version * 1000ULL && BetaVersion < (version + 1) * 1000ULL) {
-				DevChannel = false;
+				AlphaChannel = false;
 				BetaSignature = countBetaVersionSignature(BetaVersion);
 				if (BetaSignature.isEmpty()) {
 					return -1;
@@ -434,7 +407,7 @@ int main(int argc, char *argv[])
 	uint32 siglen = 0;
 
 	cout << "Signing..\n";
-	RSA *prKey = PEM_read_bio_RSAPrivateKey(BIO_new_mem_buf(const_cast<char*>((DevChannel || BetaVersion) ? PrivateDevKey : PrivateKey), -1), 0, 0, 0);
+	RSA *prKey = PEM_read_bio_RSAPrivateKey(BIO_new_mem_buf(const_cast<char*>((AlphaChannel || BetaVersion) ? PrivateAlphaKey : PrivateKey), -1), 0, 0, 0);
 	if (!prKey) {
 		cout << "Could not read RSA private key!\n";
 		return -1;
@@ -457,7 +430,7 @@ int main(int argc, char *argv[])
 	}
 
 	cout << "Checking signature..\n";
-	RSA *pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>((DevChannel || BetaVersion) ? PublicDevKey : PublicKey), -1), 0, 0, 0);
+	RSA *pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>((AlphaChannel || BetaVersion) ? PublicAlphaKey : PublicKey), -1), 0, 0, 0);
 	if (!pbKey) {
 		cout << "Could not read RSA public key!\n";
 		return -1;
@@ -472,11 +445,11 @@ int main(int argc, char *argv[])
 #ifdef Q_OS_WIN
 	QString outName(QString("tupdate%1").arg(BetaVersion ? BetaVersion : version));
 #elif defined Q_OS_MAC
-	QString outName(QString("tmacupd%1").arg(BetaVersion ? BetaVersion : version));
+	QString outName((target32 ? QString("tmac32upd%1") : QString("tmacupd%1")).arg(BetaVersion ? BetaVersion : version));
 #elif defined Q_OS_LINUX32
-    QString outName(QString("tlinux32upd%1").arg(BetaVersion ? BetaVersion : version));
+	QString outName(QString("tlinux32upd%1").arg(BetaVersion ? BetaVersion : version));
 #elif defined Q_OS_LINUX64
-    QString outName(QString("tlinuxupd%1").arg(BetaVersion ? BetaVersion : version));
+	QString outName(QString("tlinuxupd%1").arg(BetaVersion ? BetaVersion : version));
 #else
 #error Unknown platform!
 #endif
@@ -507,7 +480,7 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
-QString countBetaVersionSignature(quint64 version) { // duplicated in autoupdate.cpp
+QString countBetaVersionSignature(quint64 version) { // duplicated in autoupdater.cpp
 	QByteArray cBetaPrivateKey(BetaPrivateKey);
 	if (cBetaPrivateKey.isEmpty()) {
 		cout << "Error: Trying to count beta version signature without beta private key!\n";

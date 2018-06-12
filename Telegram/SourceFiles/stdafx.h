@@ -1,76 +1,103 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#define __HUGE
-#define PSAPI_VERSION 1 // fix WinXP
-//#define Q_NO_TEMPLATE_FRIENDS // fix some compiler difference issues
 
-#include <openssl/bn.h>
-#include <openssl/rsa.h>
-#include <openssl/pem.h>
-#include <openssl/bio.h>
-#include <openssl/err.h>
-#include <openssl/aes.h>
-#include <openssl/evp.h>
-#include <openssl/sha.h>
-#include <openssl/md5.h>
+#define NOMINMAX // no min() and max() macro declarations
+#define __HUGE
+
+// Fix Google Breakpad build for Mac App Store version
+#ifdef Q_OS_MAC
+#define __STDC_FORMAT_MACROS
+#endif // Q_OS_MAC
+
+#ifdef __cplusplus
+
+#include <cmath>
+
+// False positive warning in clang for QMap member function value:
+// const T QMap<Key, T>::value(const Key &akey, const T &adefaultValue)
+// fires with "Returning address of local temporary object" which is not true.
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wreturn-stack-address"
+#elif defined _MSC_VER && _MSC_VER >= 1914 // __clang__
+#pragma warning(push)
+#pragma warning(disable:4180)
+#endif // __clang__ || _MSC_VER >= 1914
+
+#include <QtCore/QtCore>
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#elif defined _MSC_VER && _MSC_VER >= 1914 // __clang__
+#pragma warning(pop)
+#endif // __clang__ || _MSC_VER >= 1914
+
+#if QT_VERSION < QT_VERSION_CHECK(5, 5, 0)
+#define OS_MAC_OLD
+#define RANGES_CXX_THREAD_LOCAL 0
+#endif // QT_VERSION < 5.5.0
+
+#ifdef OS_MAC_STORE
+#define MAC_USE_BREAKPAD
+#endif // OS_MAC_STORE
 
 #include <QtWidgets/QtWidgets>
-#include <QtNetwork/QTcpSocket>
-#include <QtNetwork/QHostAddress>
-#include <QtNetwork/QNetworkAccessManager>
-#include <QtNetwork/QNetworkReply>
-#include <QtNetwork/QNetworkProxy>
+#include <QtNetwork/QtNetwork>
 
-#ifdef Q_OS_WIN // use Lzma SDK for win
-#include <LzmaLib.h>
-#else
-#include <lzma.h>
-#endif
+#include <array>
+#include <vector>
+#include <set>
+#include <map>
+#include <unordered_map>
+#include <unordered_set>
+#include <algorithm>
+#include <memory>
 
-extern "C" {
+#include <range/v3/all.hpp>
+#ifdef Q_OS_WIN
+#include "platform/win/windows_range_v3_helpers.h"
+#endif // Q_OS_WIN
 
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libavutil/opt.h>
-#include <libswresample/swresample.h>
-#include <libswscale/swscale.h>
+// Ensures/Expects.
+#include <gsl/gsl_assert>
 
-}
+// Redefine Ensures/Expects by our own assertions.
+#include "base/assertion.h"
 
-#include "types.h"
+#include <gsl/gsl>
+#include <rpl/rpl.h>
+#include <crl/crl.h>
+
+#include "base/variant.h"
+#include "base/optional.h"
+#include "base/algorithm.h"
+#include "base/flat_set.h"
+#include "base/flat_map.h"
+#include "base/weak_ptr.h"
+
+#include "core/basic_types.h"
+#include "logs.h"
+#include "core/utils.h"
 #include "config.h"
 
-#include "mtproto/mtp.h"
+#include "mtproto/facade.h"
 
-#include "gui/style_core.h"
-#include "gui/twidget.h"
-#include "gui/animation.h"
-#include "gui/flatinput.h"
-#include "gui/flattextarea.h"
-#include "gui/flatbutton.h"
-#include "gui/boxshadow.h"
-#include "gui/popupmenu.h"
-#include "gui/scrollarea.h"
-#include "gui/images.h"
-#include "gui/text.h"
-#include "gui/flatlabel.h"
+#include "ui/style/style_core.h"
+#include "styles/palette.h"
+#include "styles/style_basic.h"
 
+#include "ui/animation.h"
+#include "ui/twidget.h"
+#include "ui/images.h"
+#include "ui/text/text.h"
+
+#include "data/data_types.h"
 #include "app.h"
+#include "facades.h"
+
+#endif // __cplusplus

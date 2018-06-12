@@ -4,6 +4,7 @@ version 3 with the addition of the following special exception:
 In addition, as a special exception, the copyright holders give
 permission to link the code of portions of this program with the OpenSSL
 library.
+
 You must obey the GNU General Public License in all respects for all of
 the code used other than OpenSSL. If you modify file(s) with this
 exception, you may extend this exception to your version of the file(s),

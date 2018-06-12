@@ -1,45 +1,39 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "stdafx.h"
-#include "lang.h"
-#include "style.h"
-
-#include "application.h"
-
 #include "intro/introcode.h"
-#include "intro/intro.h"
 
-CodeInput::CodeInput(QWidget *parent, const style::flatInput &st, const QString &ph) : FlatInput(parent, st, ph) {
+#include "lang/lang_keys.h"
+#include "application.h"
+#include "intro/introsignup.h"
+#include "intro/intropwdcheck.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
+#include "styles/style_intro.h"
+
+namespace Intro {
+
+CodeInput::CodeInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory) : Ui::MaskedInputField(parent, st, std::move(placeholderFactory)) {
 }
 
-void CodeInput::correctValue(const QString &was, QString &now) {
+void CodeInput::setDigitsCountMax(int digitsCount) {
+	_digitsCountMax = digitsCount;
+}
+
+void CodeInput::correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) {
 	QString newText;
-	int oldPos(cursorPosition()), newPos(-1), oldLen(now.length()), digitCount = 0;
+	int oldPos(nowCursor), newPos(-1), oldLen(now.length()), digitCount = 0;
 	for (int i = 0; i < oldLen; ++i) {
 		if (now[i].isDigit()) {
 			++digitCount;
 		}
 	}
-	if (digitCount > 5) digitCount = 5;
-	bool strict = (digitCount == 5);
+	accumulate_min(digitCount, _digitsCountMax);
+	auto strict = (digitCount == _digitsCountMax);
 
 	newText.reserve(oldLen);
 	for (int i = 0; i < oldLen; ++i) {
@@ -57,312 +51,313 @@ void CodeInput::correctValue(const QString &was, QString &now) {
 			newPos = newText.length();
 		}
 	}
-	if (newPos < 0) {
-		newPos = newText.length();
+	if (newPos < 0 || newPos > newText.size()) {
+		newPos = newText.size();
 	}
 	if (newText != now) {
 		now = newText;
 		setText(now);
-		updatePlaceholder();
-		if (newPos != oldPos) {
-			setCursorPosition(newPos);
-		}
+		startPlaceholderAnimation();
+	}
+	if (newPos != nowCursor) {
+		nowCursor = newPos;
+		setCursorPosition(nowCursor);
 	}
 
 	if (strict) emit codeEntered();
 }
 
-IntroCode::IntroCode(IntroWidget *parent) : IntroStage(parent)
-, a_errorAlpha(0)
-, _a_error(animation(this, &IntroCode::step_error))
-, next(this, lang(lng_intro_next), st::btnIntroNext)
-, _desc(st::introTextSize.width())
+CodeWidget::CodeWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
 , _noTelegramCode(this, lang(lng_code_no_telegram), st::introLink)
-, _noTelegramCodeRequestId(0)
-, code(this, st::inpIntroCode, lang(lng_code_ph))
-, waitTillCall(intro()->getCallTimeout()) {
-	setVisible(false);
-	setGeometry(parent->innerRect());
+, _code(this, st::introCode, langFactory(lng_code_ph))
+, _callTimer(this)
+, _callStatus(getData()->callStatus)
+, _callTimeout(getData()->callTimeout)
+, _callLabel(this, st::introDescription)
+, _checkRequest(this) {
+	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 
-	connect(&next, SIGNAL(stateChanged(int, ButtonStateChangeSource)), parent, SLOT(onDoneStateChanged(int, ButtonStateChangeSource)));
-	connect(&next, SIGNAL(clicked()), this, SLOT(onSubmitCode()));
-	connect(&code, SIGNAL(changed()), this, SLOT(onInputChange()));
-	connect(&callTimer, SIGNAL(timeout()), this, SLOT(onSendCall()));
-	connect(&checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
-	connect(&_noTelegramCode, SIGNAL(clicked()), this, SLOT(onNoTelegramCode()));
+	connect(_code, SIGNAL(changed()), this, SLOT(onInputChange()));
+	connect(_callTimer, SIGNAL(timeout()), this, SLOT(onSendCall()));
+	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
+	connect(_noTelegramCode, SIGNAL(clicked()), this, SLOT(onNoTelegramCode()));
 
+	_code->setDigitsCountMax(getData()->codeLength);
+	setErrorBelowLink(true);
+
+	setTitleText([text = App::formatPhone(getData()->phone)] { return text; });
 	updateDescText();
 }
 
-void IntroCode::updateDescText() {
-	_desc.setRichText(st::introFont, lang(intro()->codeByTelegram() ? lng_code_telegram : lng_code_desc));
-	if (intro()->codeByTelegram()) {
-		_noTelegramCode.show();
-		callTimer.stop();
+void CodeWidget::refreshLang() {
+	if (_noTelegramCode) _noTelegramCode->setText(lang(lng_code_no_telegram));
+	updateDescText();
+	updateControlsGeometry();
+}
+
+void CodeWidget::updateDescText() {
+	setDescriptionText(langFactory(getData()->codeByTelegram ? lng_code_telegram : lng_code_desc));
+	if (getData()->codeByTelegram) {
+		_noTelegramCode->show();
+		_callTimer->stop();
 	} else {
-		_noTelegramCode.hide();
-		waitTillCall = intro()->getCallTimeout();
-		if (!callTimer.isActive()) {
-			callTimer.start(1000);
+		_noTelegramCode->hide();
+		_callStatus = getData()->callStatus;
+		_callTimeout = getData()->callTimeout;
+		if (_callStatus == Widget::Data::CallStatus::Waiting && !_callTimer->isActive()) {
+			_callTimer->start(1000);
 		}
 	}
-	update();
+	updateCallText();
 }
 
-void IntroCode::paintEvent(QPaintEvent *e) {
-	bool trivial = (rect() == e->rect());
-
-	QPainter p(this);
-	if (!trivial) {
-		p.setClipRect(e->rect());
-	}
-	bool codeByTelegram = intro()->codeByTelegram();
-	if (trivial || e->rect().intersects(textRect)) {
-		p.setFont(st::introHeaderFont->f);
-		p.drawText(textRect, intro()->getPhone(), style::al_top);
-		p.setFont(st::introFont->f);
-		_desc.draw(p, textRect.x(), textRect.y() + textRect.height() - 2 * st::introFont->height, textRect.width(), style::al_top);
-	}
-	if (codeByTelegram) {
-	} else {
-		QString callText = lang(lng_code_calling);
-		if (waitTillCall >= 3600) {
-			callText = lng_code_call(lt_minutes, qsl("%1:%2").arg(waitTillCall / 3600).arg((waitTillCall / 60) % 60, 2, 10, QChar('0')), lt_seconds, qsl("%1").arg(waitTillCall % 60, 2, 10, QChar('0')));
-		} else if (waitTillCall > 0) {
-			callText = lng_code_call(lt_minutes, QString::number(waitTillCall / 60), lt_seconds, qsl("%1").arg(waitTillCall % 60, 2, 10, QChar('0')));
-		} else if (waitTillCall < 0) {
-			callText = lang(lng_code_called);
+void CodeWidget::updateCallText() {
+	auto text = ([this]() -> QString {
+		if (getData()->codeByTelegram) {
+			return QString();
 		}
-		p.drawText(QRect(textRect.left(), code.y() + code.height() + st::introCallSkip, st::introTextSize.width(), st::introErrHeight), callText, style::al_center);
-	}
-	if (_a_error.animating() || error.length()) {
-		p.setOpacity(a_errorAlpha.current());
-		p.setFont(st::introErrFont->f);
-		p.setPen(st::introErrColor->p);
-		p.drawText(QRect(textRect.left(), next.y() + next.height() + st::introErrTop, st::introTextSize.width(), st::introErrHeight), error, style::al_center);
-	}
-}
-
-void IntroCode::resizeEvent(QResizeEvent *e) {
-	if (e->oldSize().width() != width()) {
-		next.move((width() - next.width()) / 2, st::introBtnTop);
-		code.move((width() - code.width()) / 2, st::introTextTop + st::introTextSize.height() + st::introCountry.top);
-	}
-	textRect = QRect((width() - st::introTextSize.width()) / 2, st::introTextTop, st::introTextSize.width(), st::introTextSize.height());
-	_noTelegramCode.move(textRect.left() + (st::introTextSize.width() - _noTelegramCode.width()) / 2, code.y() + code.height() + st::introCallSkip + (st::introErrHeight - _noTelegramCode.height()) / 2);
-}
-
-void IntroCode::showError(const QString &err) {
-	if (!err.isEmpty()) code.notaBene();
-	if (!_a_error.animating() && err == error) return;
-
-	if (err.length()) {
-		error = err;
-		a_errorAlpha.start(1);
-	} else {
-		a_errorAlpha.start(0);
-	}
-	_a_error.start();
-}
-
-void IntroCode::step_error(float64 ms, bool timer) {
-	float64 dt = ms / st::introErrDuration;
-
-	if (dt >= 1) {
-		_a_error.stop();
-		a_errorAlpha.finish();
-		if (!a_errorAlpha.current()) {
-			error = "";
+		switch (_callStatus) {
+		case Widget::Data::CallStatus::Waiting: {
+			if (_callTimeout >= 3600) {
+				return lng_code_call(lt_minutes, qsl("%1:%2").arg(_callTimeout / 3600).arg((_callTimeout / 60) % 60, 2, 10, QChar('0')), lt_seconds, qsl("%1").arg(_callTimeout % 60, 2, 10, QChar('0')));
+			} else {
+				return lng_code_call(lt_minutes, QString::number(_callTimeout / 60), lt_seconds, qsl("%1").arg(_callTimeout % 60, 2, 10, QChar('0')));
+			}
+		} break;
+		case Widget::Data::CallStatus::Calling: return lang(lng_code_calling);
+		case Widget::Data::CallStatus::Called: return lang(lng_code_called);
 		}
+		return QString();
+	})();
+	_callLabel->setText(text);
+	_callLabel->setVisible(!text.isEmpty() && !animating());
+}
+
+void CodeWidget::resizeEvent(QResizeEvent *e) {
+	Step::resizeEvent(e);
+	updateControlsGeometry();
+}
+
+void CodeWidget::updateControlsGeometry() {
+	_code->moveToLeft(contentLeft(), contentTop() + st::introStepFieldTop);
+	auto linkTop = _code->y() + _code->height() + st::introLinkTop;
+	_noTelegramCode->moveToLeft(contentLeft() + st::buttonRadius, linkTop);
+	_callLabel->moveToLeft(contentLeft() + st::buttonRadius, linkTop);
+}
+
+void CodeWidget::showCodeError(Fn<QString()> textFactory) {
+	if (textFactory) _code->showError();
+	showError(std::move(textFactory));
+}
+
+void CodeWidget::setInnerFocus() {
+	_code->setFocusFast();
+}
+
+void CodeWidget::activate() {
+	Step::activate();
+	_code->show();
+	if (getData()->codeByTelegram) {
+		_noTelegramCode->show();
 	} else {
-		a_errorAlpha.update(dt, st::introErrFunc);
+		_callLabel->show();
 	}
-	if (timer) update();
+	setInnerFocus();
 }
 
-void IntroCode::activate() {
-	waitTillCall = intro()->getCallTimeout();
-	if (!intro()->codeByTelegram()) {
-		callTimer.start(1000);
-	}
-	error = "";
-	a_errorAlpha = anim::fvalue(0);
-	sentCode = QString();
-	show();
-	code.setDisabled(false);
-	code.setFocus();
+void CodeWidget::finished() {
+	Step::finished();
+	_checkRequest->stop();
+	_callTimer->stop();
+	rpcInvalidate();
+
+	cancelled();
+	_sentCode.clear();
+	_code->setText(QString());
 }
 
-void IntroCode::prepareShow() {
-	code.setText(QString());
-	if (sentRequest) {
-		MTP::cancel(sentRequest);
-		sentRequest = 0;
-	}
+void CodeWidget::cancelled() {
+	MTP::cancel(base::take(_sentRequest));
+	MTP::cancel(base::take(_callRequestId));
+	MTP::send(MTPauth_CancelCode(MTP_string(getData()->phone), MTP_bytes(getData()->phoneHash)));
 }
 
-void IntroCode::deactivate() {
-	callTimer.stop();
-	hide();
-	code.clearFocus();
+void CodeWidget::stopCheck() {
+	_checkRequest->stop();
 }
 
-void IntroCode::stopCheck() {
-	checkRequest.stop();
-}
-
-void IntroCode::onCheckRequest() {
-	int32 status = MTP::state(sentRequest);
+void CodeWidget::onCheckRequest() {
+	auto status = MTP::state(_sentRequest);
 	if (status < 0) {
-		int32 leftms = -status;
+		auto leftms = -status;
 		if (leftms >= 1000) {
-			if (sentRequest) {
-				MTP::cancel(sentRequest);
-				sentCode = "";
-			}
-			sentRequest = 0;
-			if (!code.isEnabled()) {
-				code.setDisabled(false);
-				code.setFocus();
+			if (_sentRequest) {
+				MTP::cancel(base::take(_sentRequest));
+				_sentCode.clear();
 			}
 		}
 	}
-	if (!sentRequest && status == MTP::RequestSent) {
+	if (!_sentRequest && status == MTP::RequestSent) {
 		stopCheck();
 	}
 }
 
-void IntroCode::codeSubmitDone(const MTPauth_Authorization &result) {
+void CodeWidget::codeSubmitDone(const MTPauth_Authorization &result) {
 	stopCheck();
-	code.setDisabled(false);
-	const MTPDauth_authorization &d(result.c_auth_authorization());
+	_sentRequest = 0;
+	auto &d = result.c_auth_authorization();
 	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
-		showError(lang(lng_server_error));
+		showCodeError(&Lang::Hard::ServerError);
 		return;
 	}
-	cSetLoggedPhoneNumber(intro()->getPhone());
-	intro()->finish(d.vuser);
+	cSetLoggedPhoneNumber(getData()->phone);
+	finish(d.vuser);
 }
 
-bool IntroCode::codeSubmitFail(const RPCError &error) {
+bool CodeWidget::codeSubmitFail(const RPCError &error) {
+	if (MTP::isFloodError(error)) {
+		stopCheck();
+		_sentRequest = 0;
+		showCodeError(langFactory(lng_flood_error));
+		return true;
+	}
+	if (MTP::isDefaultHandledError(error)) return false;
+
 	stopCheck();
-	code.setDisabled(false);
-	const QString &err = error.type();
-	if (err == "PHONE_NUMBER_INVALID" || err == "PHONE_CODE_EXPIRED") { // show error
-		onBack();
+	_sentRequest = 0;
+	auto &err = error.type();
+	if (err == qstr("PHONE_NUMBER_INVALID") || err == qstr("PHONE_CODE_EXPIRED")) { // show error
+		goBack();
 		return true;
-	} else if (err == "PHONE_CODE_EMPTY" || err == "PHONE_CODE_INVALID") {
-		showError(lang(lng_bad_code));
-		code.notaBene();
+	} else if (err == qstr("PHONE_CODE_EMPTY") || err == qstr("PHONE_CODE_INVALID")) {
+		showCodeError(langFactory(lng_bad_code));
 		return true;
-	} else if (err == "PHONE_NUMBER_UNOCCUPIED") { // success, need to signUp
-		intro()->setCode(sentCode);
-		intro()->onIntroNext();
+	} else if (err == qstr("PHONE_NUMBER_UNOCCUPIED")) { // success, need to signUp
+		getData()->code = _sentCode;
+		goReplace(new Intro::SignupWidget(parentWidget(), getData()));
 		return true;
-	} else if (err == "SESSION_PASSWORD_NEEDED") {
-		intro()->setCode(sentCode);
-		code.setDisabled(false);
-		checkRequest.start(1000);
-		sentRequest = MTP::send(MTPaccount_GetPassword(), rpcDone(&IntroCode::gotPassword), rpcFail(&IntroCode::codeSubmitFail));
-		return true;
-	} else if (mtpIsFlood(error)) {
-		showError(lang(lng_flood_error));
-		code.setFocus();
+	} else if (err == qstr("SESSION_PASSWORD_NEEDED")) {
+		getData()->code = _sentCode;
+		_checkRequest->start(1000);
+		_sentRequest = MTP::send(MTPaccount_GetPassword(), rpcDone(&CodeWidget::gotPassword), rpcFail(&CodeWidget::codeSubmitFail));
 		return true;
 	}
-	if (cDebug()) { // internal server error
-		showError(err + ": " + error.description());
+	if (Logs::DebugEnabled()) { // internal server error
+		auto text = err + ": " + error.description();
+		showCodeError([text] { return text; });
 	} else {
-		showError(lang(lng_server_error));
+		showCodeError(&Lang::Hard::ServerError);
 	}
-	code.setFocus();
 	return false;
 }
 
-void IntroCode::onInputChange() {
-	showError("");
-	if (code.text().length() == 5) onSubmitCode();
-}
-
-void IntroCode::onSendCall() {
-	if (!--waitTillCall) {
-		callTimer.stop();
-		MTP::send(MTPauth_SendCall(MTP_string(intro()->getPhone()), MTP_string(intro()->getPhoneHash())), rpcDone(&IntroCode::callDone));
-	}
-	update();
-}
-
-void IntroCode::callDone(const MTPBool &v) {
-	if (!waitTillCall) {
-		waitTillCall = -1;
-		update();
+void CodeWidget::onInputChange() {
+	hideError();
+	if (_code->getLastText().length() == getData()->codeLength) {
+		submit();
 	}
 }
 
-void IntroCode::gotPassword(const MTPaccount_Password &result) {
+void CodeWidget::onSendCall() {
+	if (_callStatus == Widget::Data::CallStatus::Waiting) {
+		if (--_callTimeout <= 0) {
+			_callStatus = Widget::Data::CallStatus::Calling;
+			_callTimer->stop();
+			_callRequestId = MTP::send(MTPauth_ResendCode(MTP_string(getData()->phone), MTP_bytes(getData()->phoneHash)), rpcDone(&CodeWidget::callDone));
+		} else {
+			getData()->callStatus = _callStatus;
+			getData()->callTimeout = _callTimeout;
+		}
+		updateCallText();
+	}
+}
+
+void CodeWidget::callDone(const MTPauth_SentCode &v) {
+	if (v.type() == mtpc_auth_sentCode) {
+		fillSentCodeData(v.c_auth_sentCode());
+		_code->setDigitsCountMax(getData()->codeLength);
+	}
+	if (_callStatus == Widget::Data::CallStatus::Calling) {
+		_callStatus = Widget::Data::CallStatus::Called;
+		getData()->callStatus = _callStatus;
+		getData()->callTimeout = _callTimeout;
+		updateCallText();
+	}
+}
+
+void CodeWidget::gotPassword(const MTPaccount_Password &result) {
 	stopCheck();
-	code.setDisabled(false);
+	_sentRequest = 0;
 	switch (result.type()) {
-	case mtpc_account_noPassword: // should not happen
-		code.setFocus();
-	break;
+	case mtpc_account_noPassword: { // should not happen
+		_code->setFocus();
+	} break;
 
 	case mtpc_account_password: {
-		const MTPDaccount_password &d(result.c_account_password());
-		intro()->setPwdSalt(qba(d.vcurrent_salt));
-		intro()->setHasRecovery(mtpIsTrue(d.vhas_recovery));
-		intro()->setPwdHint(qs(d.vhint));
-		intro()->onIntroNext();
+		auto &d = result.c_account_password();
+		getData()->pwdSalt = qba(d.vcurrent_salt);
+		getData()->hasRecovery = d.is_has_recovery();
+		getData()->pwdHint = qs(d.vhint);
+		getData()->pwdNotEmptyPassport = d.is_has_secure_values();
+		goReplace(new Intro::PwdCheckWidget(parentWidget(), getData()));
 	} break;
 	}
 }
 
-void IntroCode::onSubmitCode(bool force) {
-	if (!force && (code.text() == sentCode || !code.isEnabled())) return;
+void CodeWidget::submit() {
+	if (_sentRequest) return;
 
-	code.setDisabled(true);
-	setFocus();
+	hideError();
 
-	showError("");
+	_checkRequest->start(1000);
 
-	checkRequest.start(1000);
-
-	sentCode = code.text();
-	intro()->setPwdSalt(QByteArray());
-	intro()->setHasRecovery(false);
-	intro()->setPwdHint(QString());
-	sentRequest = MTP::send(MTPauth_SignIn(MTP_string(intro()->getPhone()), MTP_string(intro()->getPhoneHash()), MTP_string(sentCode)), rpcDone(&IntroCode::codeSubmitDone), rpcFail(&IntroCode::codeSubmitFail));
+	_sentCode = _code->getLastText();
+	getData()->pwdSalt = QByteArray();
+	getData()->hasRecovery = false;
+	getData()->pwdHint = QString();
+	getData()->pwdNotEmptyPassport = false;
+	_sentRequest = MTP::send(MTPauth_SignIn(MTP_string(getData()->phone), MTP_bytes(getData()->phoneHash), MTP_string(_sentCode)), rpcDone(&CodeWidget::codeSubmitDone), rpcFail(&CodeWidget::codeSubmitFail));
 }
 
-void IntroCode::onNoTelegramCode() {
+void CodeWidget::onNoTelegramCode() {
 	if (_noTelegramCodeRequestId) return;
-	_noTelegramCodeRequestId = MTP::send(MTPauth_SendSms(MTP_string(intro()->getPhone()), MTP_string(intro()->getPhoneHash())), rpcDone(&IntroCode::noTelegramCodeDone), rpcFail(&IntroCode::noTelegramCodeFail));
+	_noTelegramCodeRequestId = MTP::send(MTPauth_ResendCode(MTP_string(getData()->phone), MTP_bytes(getData()->phoneHash)), rpcDone(&CodeWidget::noTelegramCodeDone), rpcFail(&CodeWidget::noTelegramCodeFail));
 }
 
-void IntroCode::noTelegramCodeDone(const MTPBool &result) {
-	intro()->setCodeByTelegram(false);
+void CodeWidget::noTelegramCodeDone(const MTPauth_SentCode &result) {
+	if (result.type() != mtpc_auth_sentCode) {
+		showCodeError(&Lang::Hard::ServerError);
+		return;
+	}
+
+	const auto &d = result.c_auth_sentCode();
+	fillSentCodeData(d);
+	_code->setDigitsCountMax(getData()->codeLength);
+	if (d.has_next_type() && d.vnext_type.type() == mtpc_auth_codeTypeCall) {
+		getData()->callStatus = Widget::Data::CallStatus::Waiting;
+		getData()->callTimeout = d.has_timeout() ? d.vtimeout.v : 60;
+	} else {
+		getData()->callStatus = Widget::Data::CallStatus::Disabled;
+		getData()->callTimeout = 0;
+	}
+	getData()->codeByTelegram = false;
 	updateDescText();
 }
 
-bool IntroCode::noTelegramCodeFail(const RPCError &error) {
-	if (mtpIsFlood(error)) {
-		showError(lang(lng_flood_error));
-		code.setFocus();
+bool CodeWidget::noTelegramCodeFail(const RPCError &error) {
+	if (MTP::isFloodError(error)) {
+		showCodeError(langFactory(lng_flood_error));
 		return true;
 	}
-	if (cDebug()) { // internal server error
-		showError(error.type() + ": " + error.description());
+	if (MTP::isDefaultHandledError(error)) return false;
+
+	if (Logs::DebugEnabled()) { // internal server error
+		auto text = error.type() + ": " + error.description();
+		showCodeError([text] { return text; });
 	} else {
-		showError(lang(lng_server_error));
+		showCodeError(&Lang::Hard::ServerError);
 	}
-	code.setFocus();
 	return false;
 }
 
-void IntroCode::onNext() {
-	onSubmitCode();
-}
-
-void IntroCode::onBack() {
-	intro()->onIntroBack();
-}
+} // namespace Intro

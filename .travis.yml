@@ -1,0 +1,67 @@
+sudo: required
+dist: trusty
+
+language: cpp
+
+cache:
+  directories:
+    - $HOME/travisCacheDir
+
+env:
+  matrix:
+   - BUILD_VERSION=""
+   - BUILD_VERSION="disable_autoupdate"
+   - BUILD_VERSION="disable_register_custom_scheme"
+   - BUILD_VERSION="disable_crash_reports"
+   - BUILD_VERSION="disable_network_proxy"
+   - BUILD_VERSION="disable_desktop_file_generation"
+   - BUILD_VERSION="disable_unity_integration"
+   - BUILD_VERSION="disable_gtk_integration"
+
+matrix:
+  fast_finish: true
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - bison
+      - build-essential
+      - cmake
+      - devscripts
+      - dpatch
+      - equivs
+      - fakeroot
+      - g++-7
+      - gcc-7
+      - git
+      - gnome-common
+      - gobject-introspection
+      - gtk-doc-tools
+      - libappindicator-dev
+      - libasound2-dev
+      - libdbusmenu-glib-dev
+      - liblzma-dev
+      - libopus-dev
+      - libpulse-dev
+      - libssl-dev
+      - libunity-dev
+      - libva-dev
+      - libvdpau-dev
+      - libxcb-xkb-dev
+      - libxkbcommon-dev
+      - lintian
+      - quilt
+      - valac
+      - xutils-dev
+      - yasm
+
+before_install:
+  - export CXX="g++-7" CC="gcc-7"
+  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 60 --slave /usr/bin/g++ g++ /usr/bin/g++-7
+  - sudo update-alternatives --config gcc
+  - g++ --version
+
+script:
+  - .travis/build.sh

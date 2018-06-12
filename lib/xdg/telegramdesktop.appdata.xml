@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component type="desktop">
+    <id>org.telegram.desktop</id>
+    <metadata_license>CC0-1.0</metadata_license>
+    <project_license>GPL-3.0</project_license>
+    <name>Telegram Desktop</name>
+    <summary>Telegram Desktop messenger</summary>
+    <description>
+       <p>Fast and secure desktop app, perfectly synced with your mobile phone.</p>
+    </description>
+    <categories>
+        <category>Network</category>
+        <category>InstantMessaging</category>
+    </categories>
+    <url type="homepage">https://desktop.telegram.org/</url>
+    <url type="bugtracker">https://github.com/telegramdesktop/tdesktop/issues</url>
+    <screenshots>
+      <screenshot type="default">
+        <image>https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/docs/assets/preview.png</image>
+      </screenshot>
+    </screenshots>
+    <provides>
+        <binary>telegram-desktop</binary>
+    </provides>
+</component>

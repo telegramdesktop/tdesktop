@@ -1,313 +1,298 @@
 /*
 This file is part of Telegram Desktop,
-the official desktop version of Telegram messaging app, see https://telegram.org
+the official desktop application for the Telegram messaging service.
 
-Telegram Desktop is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-It is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-In addition, as a special exception, the copyright holders give permission
-to link the code of portions of this program with the OpenSSL library.
-
-Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2015 John Preston, https://desktop.telegram.org
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "stdafx.h"
-#include "lang.h"
-#include "style.h"
-
-#include "application.h"
-
 #include "intro/introphone.h"
-#include "intro/intro.h"
 
+#include "lang/lang_keys.h"
+#include "application.h"
+#include "intro/introcode.h"
+#include "styles/style_intro.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
+#include "ui/wrap/fade_wrap.h"
+#include "core/click_handler_types.h"
+#include "boxes/confirm_box.h"
+#include "base/qthelp_url.h"
+#include "platform/platform_specific.h"
+#include "messenger.h"
+
+namespace Intro {
 namespace {
-	class SignUpLink : public ITextLink {
-		TEXT_LINK_CLASS(SignUpLink)
 
-	public:
+void SendToBannedHelp(const QString &phone) {
+	const auto version = QString::fromLatin1(AppVersionStr.c_str())
+		+ (cAlphaVersion() ? " alpha" : "")
+		+ (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString());
 
-		SignUpLink(IntroPhone *widget) : _widget(widget) {
-		}
+	const auto subject = qsl("Banned phone number: ") + phone;
 
-		void onClick(Qt::MouseButton) const {
-			_widget->toSignUp();
-		}
+	const auto body = qsl("\
+I'm trying to use my mobile phone number: ") + phone + qsl("\n\
+But Telegram says it's banned. Please help.\n\
+\n\
+App version: ") + version + qsl("\n\
+OS version: ") + cPlatformString() + qsl("\n\
+Locale: ") + Platform::SystemLanguage();
 
-	private:
-		IntroPhone *_widget;
-	};
+	const auto url = "mailto:?to="
+		+ qthelp::url_encode("login@stel.com")
+		+ "&subject="
+		+ qthelp::url_encode(subject)
+		+ "&body="
+		+ qthelp::url_encode(body);
+
+	UrlClickHandler::doOpen(url);
 }
 
-IntroPhone::IntroPhone(IntroWidget *parent) : IntroStage(parent)
-, a_errorAlpha(0)
-, _a_error(animation(this, &IntroPhone::step_error))
-, changed(false)
-, next(this, lang(lng_intro_next), st::btnIntroNext)
-, country(this, st::introCountry)
-, phone(this, st::inpIntroPhone)
-, code(this, st::inpIntroCountryCode)
-, _signup(this, lng_phone_notreg(lt_signup_start, textcmdStartLink(1), lt_signup_end, textcmdStopLink()), st::introErrLabel, st::introErrLabelTextStyle)
-, _showSignup(false) {
-	setVisible(false);
-	setGeometry(parent->innerRect());
+} // namespace
 
-	connect(&next, SIGNAL(stateChanged(int, ButtonStateChangeSource)), parent, SLOT(onDoneStateChanged(int, ButtonStateChangeSource)));
-	connect(&next, SIGNAL(clicked()), this, SLOT(onSubmitPhone()));
-	connect(&phone, SIGNAL(voidBackspace(QKeyEvent*)), &code, SLOT(startErasing(QKeyEvent*)));
-	connect(&country, SIGNAL(codeChanged(const QString &)), &code, SLOT(codeSelected(const QString &)));
-	connect(&code, SIGNAL(codeChanged(const QString &)), &country, SLOT(onChooseCode(const QString &)));
-	connect(&code, SIGNAL(codeChanged(const QString &)), &phone, SLOT(onChooseCode(const QString &)));
-	connect(&country, SIGNAL(codeChanged(const QString &)), &phone, SLOT(onChooseCode(const QString &)));
-	connect(&code, SIGNAL(addedToNumber(const QString &)), &phone, SLOT(addedToNumber(const QString &)));
-	connect(&phone, SIGNAL(changed()), this, SLOT(onInputChange()));
-	connect(&code, SIGNAL(changed()), this, SLOT(onInputChange()));
-	connect(intro(), SIGNAL(countryChanged()), this, SLOT(countryChanged()));
-	connect(&checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
+PhoneWidget::PhoneWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
+, _country(this, st::introCountry)
+, _code(this, st::introCountryCode)
+, _phone(this, st::introPhone)
+, _checkRequest(this) {
+	connect(_phone, SIGNAL(voidBackspace(QKeyEvent*)), _code, SLOT(startErasing(QKeyEvent*)));
+	connect(_country, SIGNAL(codeChanged(const QString &)), _code, SLOT(codeSelected(const QString &)));
+	connect(_code, SIGNAL(codeChanged(const QString &)), _country, SLOT(onChooseCode(const QString &)));
+	connect(_code, SIGNAL(codeChanged(const QString &)), _phone, SLOT(onChooseCode(const QString &)));
+	connect(_country, SIGNAL(codeChanged(const QString &)), _phone, SLOT(onChooseCode(const QString &)));
+	connect(_code, SIGNAL(addedToNumber(const QString &)), _phone, SLOT(addedToNumber(const QString &)));
+	connect(_phone, SIGNAL(changed()), this, SLOT(onInputChange()));
+	connect(_code, SIGNAL(changed()), this, SLOT(onInputChange()));
+	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
 
-	_signup.setLink(1, TextLinkPtr(new SignUpLink(this)));
-	_signup.hide();
+	setTitleText(langFactory(lng_phone_title));
+	setDescriptionText(langFactory(lng_phone_desc));
+	subscribe(getData()->updated, [this] { countryChanged(); });
+	setErrorCentered(true);
 
-	_signupCache = myGrab(&_signup);
-
-	if (!country.onChooseCountry(intro()->currentCountry())) {
-		country.onChooseCountry(qsl("US"));
+	if (!_country->onChooseCountry(getData()->country)) {
+		_country->onChooseCountry(qsl("US"));
 	}
-	changed = false;
+	_changed = false;
+
+	Messenger::Instance().destroyStaleAuthorizationKeys();
 }
 
-void IntroPhone::paintEvent(QPaintEvent *e) {
-	bool trivial = (rect() == e->rect());
+void PhoneWidget::resizeEvent(QResizeEvent *e) {
+	Step::resizeEvent(e);
+	_country->moveToLeft(contentLeft(), contentTop() + st::introStepFieldTop);
+	auto phoneTop = _country->y() + _country->height() + st::introPhoneTop;
+	_code->moveToLeft(contentLeft(), phoneTop);
+	_phone->moveToLeft(contentLeft() + _country->width() - st::introPhone.width, phoneTop);
+	updateSignupGeometry();
+}
 
-	QPainter p(this);
-	if (!trivial) {
-		p.setClipRect(e->rect());
-	}
-	if (trivial || e->rect().intersects(textRect)) {
-		p.setFont(st::introHeaderFont->f);
-		p.drawText(textRect, lang(lng_phone_title), style::al_top);
-		p.setFont(st::introFont->f);
-		p.drawText(textRect, lang(lng_phone_desc), style::al_bottom);
-	}
-	if (_a_error.animating() || error.length()) {
-		int32 errorY = _showSignup ? ((phone.y() + phone.height() + next.y() - st::introErrFont->height) / 2) : (next.y() + next.height() + st::introErrTop);
-		p.setOpacity(a_errorAlpha.current());
-		p.setFont(st::introErrFont->f);
-		p.setPen(st::introErrColor->p);
-		p.drawText(QRect(textRect.x(), errorY, textRect.width(), st::introErrFont->height), error, style::al_top);
-
-		if (_signup.isHidden() && _showSignup) {
-			p.drawPixmap(_signup.x(), _signup.y(), _signupCache);
-		}
+void PhoneWidget::updateSignupGeometry() {
+	if (_signup) {
+		_signup->moveToLeft(contentLeft() + st::buttonRadius, contentTop() + st::introDescriptionTop);
 	}
 }
 
-void IntroPhone::resizeEvent(QResizeEvent *e) {
-	if (e->oldSize().width() != width()) {
-		next.move((width() - next.width()) / 2, st::introBtnTop);
-		country.move((width() - country.width()) / 2, st::introTextTop + st::introTextSize.height() + st::introCountry.top);
-		int phoneTop = country.y() + country.height() + st::introPhoneTop;
-		phone.move((width() - country.width()) / 2 + country.width() - st::inpIntroPhone.width, phoneTop);
-		code.move((width() - country.width()) / 2, phoneTop);
-	}
-	_signup.move((width() - _signup.width()) / 2, next.y() + next.height() + st::introErrTop - ((st::introErrLabelTextStyle.lineHeight - st::introErrFont->height) / 2));
-	textRect = QRect((width() - st::introTextSize.width()) / 2, st::introTextTop, st::introTextSize.width(), st::introTextSize.height());
+void PhoneWidget::showPhoneError(Fn<QString()> textFactory) {
+	_phone->showError();
+	showError(std::move(textFactory));
 }
 
-void IntroPhone::showError(const QString &err, bool signUp) {
-	if (!err.isEmpty()) {
-		phone.notaBene();
-		_showSignup = signUp;
-	}
-
-	if (!_a_error.animating() && err == error) return;
-
-	if (err.length()) {
-		error = err;
-		a_errorAlpha.start(1);
-	} else {
-		a_errorAlpha.start(0);
-	}
-	_signup.hide();
-	_a_error.start();
-}
-
-void IntroPhone::step_error(float64 ms, bool timer) {
-	float64 dt = ms / st::introErrDuration;
-
-	if (dt >= 1) {
-		_a_error.stop();
-		a_errorAlpha.finish();
-		if (!a_errorAlpha.current()) {
-			error = "";
-			_signup.hide();
-		} else if (!error.isEmpty() && _showSignup) {
-			_signup.show();
-		}
-	} else {
-		a_errorAlpha.update(dt, st::introErrFunc);
-	}
-	if (timer) update();
-}
-
-void IntroPhone::countryChanged() {
-	if (!changed) {
-		selectCountry(intro()->currentCountry());
+void PhoneWidget::hidePhoneError() {
+	hideError();
+	if (_signup) {
+		_signup->hide(anim::type::instant);
+		showDescription();
 	}
 }
 
-void IntroPhone::onInputChange() {
-	changed = true;
-	showError("");
+//void PhoneWidget::showSignup() {
+//	showPhoneError(langFactory(lng_bad_phone_noreg));
+//	if (!_signup) {
+//		auto signupText = lng_phone_notreg(lt_link_start, textcmdStartLink(1), lt_link_end, textcmdStopLink(), lt_signup_start, textcmdStartLink(2), lt_signup_end, textcmdStopLink());
+//		auto inner = object_ptr<Ui::FlatLabel>(this, signupText, Ui::FlatLabel::InitType::Rich, st::introDescription);
+//		_signup.create(this, std::move(inner));
+//		_signup->entity()->setLink(1, std::make_shared<UrlClickHandler>(qsl("https://telegram.org"), false));
+//		_signup->entity()->setLink(2, std::make_shared<LambdaClickHandler>([this] {
+//			toSignUp();
+//		}));
+//		_signup->hide(anim::type::instant);
+//		updateSignupGeometry();
+//	}
+//	_signup->show(anim::type::normal);
+//	hideDescription();
+//}
+
+void PhoneWidget::countryChanged() {
+	if (!_changed) {
+		selectCountry(getData()->country);
+	}
 }
 
-void IntroPhone::disableAll() {
-	next.setDisabled(true);
-	phone.setDisabled(true);
-	country.setDisabled(true);
-	code.setDisabled(true);
-	setFocus();
+void PhoneWidget::onInputChange() {
+	_changed = true;
+	hidePhoneError();
 }
 
-void IntroPhone::enableAll(bool failed) {
-	next.setDisabled(false);
-	phone.setDisabled(false);
-	country.setDisabled(false);
-	code.setDisabled(false);
-	if (failed) phone.setFocus();
-}
-
-void IntroPhone::onSubmitPhone(bool force) {
-	if (!force && !next.isEnabled()) return;
+void PhoneWidget::submit() {
+	if (_sentRequest || isHidden()) return;
 
 	if (!App::isValidPhone(fullNumber())) {
-		showError(lang(lng_bad_phone));
-		phone.setFocus();
+		showPhoneError(langFactory(lng_bad_phone));
+		_phone->setFocus();
 		return;
 	}
 
-	disableAll();
-	showError("");
+	hidePhoneError();
 
-	checkRequest.start(1000);
+	_checkRequest->start(1000);
 
-	sentPhone = fullNumber();
-	sentRequest = MTP::send(MTPauth_CheckPhone(MTP_string(sentPhone)), rpcDone(&IntroPhone::phoneCheckDone), rpcFail(&IntroPhone::phoneSubmitFail));
+	_sentPhone = fullNumber();
+	Messenger::Instance().mtp()->setUserPhone(_sentPhone);
+	//_sentRequest = MTP::send(MTPauth_CheckPhone(MTP_string(_sentPhone)), rpcDone(&PhoneWidget::phoneCheckDone), rpcFail(&PhoneWidget::phoneSubmitFail));
+	_sentRequest = MTP::send(
+		MTPauth_SendCode(
+			MTP_flags(0),
+			MTP_string(_sentPhone),
+			MTPBool(),
+			MTP_int(ApiId),
+			MTP_string(ApiHash)),
+		rpcDone(&PhoneWidget::phoneSubmitDone),
+		rpcFail(&PhoneWidget::phoneSubmitFail));
 }
 
-void IntroPhone::stopCheck() {
-	checkRequest.stop();
+void PhoneWidget::stopCheck() {
+	_checkRequest->stop();
 }
 
-void IntroPhone::onCheckRequest() {
-	int32 status = MTP::state(sentRequest);
+void PhoneWidget::onCheckRequest() {
+	auto status = MTP::state(_sentRequest);
 	if (status < 0) {
-		int32 leftms = -status;
+		auto leftms = -status;
 		if (leftms >= 1000) {
-			MTP::cancel(sentRequest);
-			sentRequest = 0;
-			if (!phone.isEnabled()) enableAll(true);
+			MTP::cancel(base::take(_sentRequest));
 		}
 	}
-	if (!sentRequest && status == MTP::RequestSent) {
+	if (!_sentRequest && status == MTP::RequestSent) {
 		stopCheck();
 	}
 }
+//
+//void PhoneWidget::phoneCheckDone(const MTPauth_CheckedPhone &result) {
+//	stopCheck();
+//
+//	auto &d = result.c_auth_checkedPhone();
+//	if (mtpIsTrue(d.vphone_registered)) {
+//		hidePhoneError();
+//
+//		_checkRequest->start(1000);
+//
+//		_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(0), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&PhoneWidget::phoneSubmitDone), rpcFail(&PhoneWidget::phoneSubmitFail));
+//	} else {
+//		showSignup();
+//		_sentRequest = 0;
+//	}
+//}
 
-void IntroPhone::phoneCheckDone(const MTPauth_CheckedPhone &result) {
+void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 	stopCheck();
+	_sentRequest = 0;
 
-	const MTPDauth_checkedPhone &d(result.c_auth_checkedPhone());
-	if (mtpIsTrue(d.vphone_registered)) {
-		disableAll();
-		showError("");
+	if (result.type() != mtpc_auth_sentCode) {
+		showPhoneError(&Lang::Hard::ServerError);
+		return;
+	}
 
-		checkRequest.start(1000);
-
-		sentRequest = MTP::send(MTPauth_SendCode(MTP_string(sentPhone), MTP_int(5), MTP_int(ApiId), MTP_string(ApiHash), MTP_string(Application::language())), rpcDone(&IntroPhone::phoneSubmitDone), rpcFail(&IntroPhone::phoneSubmitFail));
+	const auto &d = result.c_auth_sentCode();
+	fillSentCodeData(d);
+	getData()->phone = _sentPhone;
+	getData()->phoneHash = qba(d.vphone_code_hash);
+	getData()->phoneIsRegistered = d.is_phone_registered();
+	if (d.has_next_type() && d.vnext_type.type() == mtpc_auth_codeTypeCall) {
+		getData()->callStatus = Widget::Data::CallStatus::Waiting;
+		getData()->callTimeout = d.has_timeout() ? d.vtimeout.v : 60;
 	} else {
-		showError(lang(lng_bad_phone_noreg), true);
-		enableAll(true);
+		getData()->callStatus = Widget::Data::CallStatus::Disabled;
+		getData()->callTimeout = 0;
 	}
+	goNext(new Intro::CodeWidget(parentWidget(), getData()));
 }
 
-void IntroPhone::phoneSubmitDone(const MTPauth_SentCode &result) {
-	stopCheck();
-	enableAll(false);
-	
-	if (result.type() == mtpc_auth_sentCode) {
-		const MTPDauth_sentCode &d(result.c_auth_sentCode());
-		intro()->setPhone(sentPhone, d.vphone_code_hash.c_string().v.c_str(), mtpIsTrue(d.vphone_registered));
-		intro()->setCallTimeout(d.vsend_call_timeout.v);
-	} else if (result.type() == mtpc_auth_sentAppCode) {
-		const MTPDauth_sentAppCode &d(result.c_auth_sentAppCode());
-		intro()->setPhone(sentPhone, d.vphone_code_hash.c_string().v.c_str(), mtpIsTrue(d.vphone_registered));
-		intro()->setCallTimeout(d.vsend_call_timeout.v);
-		intro()->setCodeByTelegram(true);
-	}
-	intro()->onIntroNext();
-}
+//void PhoneWidget::toSignUp() {
+//	hideError(); // Hide error, but leave the signup label visible.
+//
+//	_checkRequest->start(1000);
+//
+//	_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(0), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&PhoneWidget::phoneSubmitDone), rpcFail(&PhoneWidget::phoneSubmitFail));
+//}
 
-void IntroPhone::toSignUp() {
-	disableAll();
-	showError("");
-
-	checkRequest.start(1000);
-
-	sentRequest = MTP::send(MTPauth_SendCode(MTP_string(sentPhone), MTP_int(0), MTP_int(ApiId), MTP_string(ApiHash), MTP_string(Application::language())), rpcDone(&IntroPhone::phoneSubmitDone), rpcFail(&IntroPhone::phoneSubmitFail));
-}
-
-bool IntroPhone::phoneSubmitFail(const RPCError &error) {
-	stopCheck();
-	const QString &err = error.type();
-	if (err == "PHONE_NUMBER_INVALID") { // show error
-		showError(lang(lng_bad_phone));
-		enableAll(true);
-		return true;
-	} else if (mtpIsFlood(error)) {
-		showError(lang(lng_flood_error));
-		enableAll(true);
+bool PhoneWidget::phoneSubmitFail(const RPCError &error) {
+	if (MTP::isFloodError(error)) {
+		stopCheck();
+		_sentRequest = 0;
+		showPhoneError(langFactory(lng_flood_error));
 		return true;
 	}
-	if (cDebug()) { // internal server error
-		showError(err + ": " + error.description());
+	if (MTP::isDefaultHandledError(error)) return false;
+
+	stopCheck();
+	_sentRequest = 0;
+	auto &err = error.type();
+	if (err == qstr("PHONE_NUMBER_FLOOD")) {
+		Ui::show(Box<InformBox>(lang(lng_error_phone_flood)));
+		return true;
+	} else if (err == qstr("PHONE_NUMBER_INVALID")) { // show error
+		showPhoneError(langFactory(lng_bad_phone));
+		return true;
+	} else if (err == qstr("PHONE_NUMBER_BANNED")) {
+		const auto phone = _sentPhone;
+		Ui::show(Box<ConfirmBox>(
+			lang(lng_signin_banned_text),
+			lang(lng_box_ok),
+			lang(lng_signin_banned_help),
+			[] { Ui::hideLayer(); },
+			[phone] { SendToBannedHelp(phone); Ui::hideLayer(); }));
+		return true;
+	}
+	if (Logs::DebugEnabled()) { // internal server error
+		auto text = err + ": " + error.description();
+		showPhoneError([text] { return text; });
 	} else {
-		showError(lang(lng_server_error));
+		showPhoneError(&Lang::Hard::ServerError);
 	}
-	enableAll(true);
 	return false;
 }
 
-QString IntroPhone::fullNumber() const {
-	return code.text() + phone.text();
+QString PhoneWidget::fullNumber() const {
+	return _code->getLastText() + _phone->getLastText();
 }
 
-void IntroPhone::selectCountry(const QString &c) {
-	country.onChooseCountry(c);
+void PhoneWidget::selectCountry(const QString &c) {
+	_country->onChooseCountry(c);
 }
 
-void IntroPhone::activate() {
-	error = "";
-	a_errorAlpha = anim::fvalue(0);
-	show();
-	enableAll(true);
+void PhoneWidget::setInnerFocus() {
+	_phone->setFocusFast();
 }
 
-void IntroPhone::deactivate() {
-	checkRequest.stop();
-	hide();
-	phone.clearFocus();
+void PhoneWidget::activate() {
+	Step::activate();
+	_country->show();
+	_phone->show();
+	_code->show();
+	setInnerFocus();
 }
 
-void IntroPhone::onNext() {
-	onSubmitPhone();
+void PhoneWidget::finished() {
+	Step::finished();
+	_checkRequest->stop();
+	rpcInvalidate();
+
+	cancelled();
 }
 
-void IntroPhone::onBack() {
+void PhoneWidget::cancelled() {
+	MTP::cancel(base::take(_sentRequest));
 }
+
+} // namespace Intro

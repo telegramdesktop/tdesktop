@@ -1,0 +1,233 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+
+using "basic.style";
+using "ui/widgets/widgets.style";
+using "overview/overview.style";
+
+mediaPlayerButton: MediaPlayerButton {
+	playPosition: point(2px, 0px);
+	playOuter: size(17px, 15px);
+	pausePosition: point(1px, 1px);
+	pauseOuter: size(15px, 15px);
+	pauseStroke: 5px;
+	cancelPosition: point(1px, 1px);
+	cancelOuter: size(15px, 15px);
+	cancelStroke: 3px;
+
+	rippleAreaPosition: point(0px, 5px);
+	rippleAreaSize: 25px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgOver;
+	}
+}
+mediaPlayerButtonSize: size(25px, 30px);
+
+mediaPlayerButtonPosition: point(5px, 10px);
+mediaPlayerSkipIconPosition: point(5px, 12px);
+
+mediaPlayerHeight: 35px;
+mediaPlayerPadding: 8px;
+mediaPlayerNameTop: 22px;
+mediaPlayerPlayLeft: 7px;
+mediaPlayerPlaySkip: 1px;
+mediaPlayerPlayTop: 0px;
+mediaPlayerCloseRight: 0px;
+
+mediaPlayerName: FlatLabel(defaultFlatLabel) {
+	maxHeight: 20px;
+}
+mediaPlayerTime: LabelSimple(defaultLabelSimple) {
+	textFg: windowSubTextFg;
+}
+
+mediaPlayerRepeatButton: IconButton {
+	width: 31px;
+	height: 30px;
+
+	icon: icon {
+		{ "player_repeat", mediaPlayerActiveFg, point(9px, 11px) }
+	};
+	iconPosition: point(0px, 0px);
+
+	rippleAreaPosition: point(3px, 5px);
+	rippleAreaSize: 25px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgOver;
+	}
+}
+mediaPlayerRepeatDisabledIcon: icon {
+	{ "player_repeat", menuIconFg, point(9px, 11px)}
+};
+mediaPlayerRepeatDisabledIconOver: icon {
+	{ "player_repeat", menuIconFgOver, point(9px, 11px)}
+};
+mediaPlayerRepeatDisabledRippleBg: windowBgOver;
+mediaPlayerRepeatInactiveIcon: icon {
+	{ "player_repeat", mediaPlayerInactiveFg, point(9px, 11px)}
+};
+
+mediaPlayerVolumeIcon0: icon {
+	{ "player_volume0", mediaPlayerActiveFg },
+};
+mediaPlayerVolumeIcon1: icon {
+	{ "player_volume1", mediaPlayerActiveFg },
+};
+mediaPlayerVolumeIcon2: icon {
+	{ "player_volume2", mediaPlayerActiveFg },
+};
+mediaPlayerVolumeIcon3: icon {
+	{ "player_volume3", mediaPlayerActiveFg },
+};
+mediaPlayerVolumeToggle: IconButton {
+	width: 31px;
+	height: 30px;
+
+	icon: mediaPlayerVolumeIcon0;
+	iconPosition: point(8px, 11px);
+
+	rippleAreaPosition: point(3px, 5px);
+	rippleAreaSize: 25px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgOver;
+	}
+}
+mediaPlayerVolumeMargin: 10px;
+mediaPlayerVolumeSize: size(27px, 100px);
+
+mediaPlayerPanelPinButton: IconButton(mediaPlayerRepeatButton) {
+	icon: icon {
+		{ "player_panel_pin", mediaPlayerActiveFg, point(9px, 11px) }
+	};
+}
+
+mediaPlayerNextButton: IconButton(mediaPlayerRepeatButton) {
+	width: 25px;
+	icon: icon {
+		{ "player_next", mediaPlayerActiveFg, mediaPlayerSkipIconPosition },
+	};
+
+	rippleAreaPosition: point(0px, 5px);
+}
+mediaPlayerNextDisabledIcon: icon {
+	{ "player_next", mediaPlayerInactiveFg, mediaPlayerSkipIconPosition },
+};
+mediaPlayerPreviousButton: IconButton(mediaPlayerNextButton) {
+	icon: icon {
+		{ "player_next-flip_horizontal", mediaPlayerActiveFg, mediaPlayerSkipIconPosition },
+	};
+	rippleAreaPosition: point(1px, 5px);
+}
+mediaPlayerPreviousDisabledIcon: icon {
+	{ "player_next-flip_horizontal", mediaPlayerInactiveFg, mediaPlayerSkipIconPosition },
+};
+mediaPlayerClose: IconButton(mediaPlayerRepeatButton) {
+	width: 37px;
+	icon: icon {{ "player_close", menuIconFg, point(10px, 12px) }};
+	iconOver: icon {{ "player_close", menuIconFgOver, point(10px, 12px) }};
+
+	rippleAreaPosition: point(3px, 5px);
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+mediaPlayerPlayback: FilledSlider {
+	fullWidth: 6px;
+	lineWidth: 2px;
+	activeFg: mediaPlayerActiveFg;
+	inactiveFg: mediaPlayerInactiveFg;
+	disabledFg: mediaPlayerDisabledFg;
+	duration: 150;
+}
+
+mediaPlayerButtonTransformDuration: 200;
+
+mediaPlayerPanelButton: MediaPlayerButton {
+	playPosition: point(3px, 0px);
+	playOuter: size(22px, 18px);
+	pausePosition: point(1px, 1px);
+	pauseOuter: size(16px, 18px);
+	pauseStroke: 5px;
+	cancelPosition: point(0px, 1px);
+	cancelOuter: size(16px, 18px);
+	cancelStroke: 3px;
+}
+mediaPlayerPanelButtonSize: size(32px, 32px);
+mediaPlayerPanelButtonPosition: point(8px, 7px);
+
+mediaPlayerPanelMarginLeft: 10px;
+mediaPlayerPanelMarginBottom: 10px;
+mediaPlayerPanelWidth: 344px;
+mediaPlayerCoverHeight: 102px;
+
+mediaPlayerPanelClose: IconButton(mediaPlayerClose) {
+	width: 43px;
+	height: 28px;
+	icon: icon {{ "player_close", menuIconFg, point(16px, 14px) }};
+	iconOver: icon {{ "player_close", menuIconFgOver, point(16px, 14px) }};
+}
+
+mediaPlayerPanelNextButton: IconButton(mediaPlayerRepeatButton) {
+	width: 37px;
+	icon: icon {{ "player_panel_next", mediaPlayerActiveFg, point(10px, 10px) }};
+}
+mediaPlayerPanelNextDisabledIcon: icon {
+	{ "player_panel_next", mediaPlayerInactiveFg, point(10px, 10px) },
+};
+mediaPlayerPanelPreviousButton: IconButton(mediaPlayerPanelNextButton) {
+	icon: icon {{ "player_panel_next-flip_horizontal", mediaPlayerActiveFg, point(10px, 10px) }};
+}
+mediaPlayerPanelPreviousDisabledIcon: icon {
+	{ "player_panel_next-flip_horizontal", mediaPlayerInactiveFg, point(10px, 10px) },
+};
+
+mediaPlayerPanelPadding: 16px;
+mediaPlayerPanelNameTop: 24px;
+mediaPlayerPanelPlayLeft: 9px;
+mediaPlayerPanelPlaySkip: 7px;
+mediaPlayerPanelPlayTop: 58px;
+mediaPlayerPanelPlaybackTop: 32px;
+mediaPlayerPanelPlaybackPadding: 8px;
+mediaPlayerPanelPlayback: MediaSlider {
+	width: 3px;
+	activeFg: mediaPlayerActiveFg;
+	inactiveFg: mediaPlayerInactiveFg;
+	activeFgOver: mediaPlayerActiveFg;
+	inactiveFgOver: mediaPlayerInactiveFg;
+	activeFgDisabled: mediaPlayerInactiveFg;
+	inactiveFgDisabled: windowBg;
+	seekSize: size(9px, 9px);
+	duration: 150;
+}
+
+mediaPlayerPanelVolumeTop: 65px;
+mediaPlayerPanelVolumeSkip: 3px;
+mediaPlayerPanelVolumeWidth: 64px;
+mediaPlayerPanelVolumeToggleSkip: 0px;
+mediaPlayerPanelVolumeToggleTop: 57px;
+
+mediaPlayerScroll: ScrollArea(defaultSolidScroll) {
+	deltat: 10px;
+	deltab: 10px;
+}
+mediaPlayerListHeightMax: 280px;
+mediaPlayerListMarginBottom: 10px;
+mediaPlayerScrollShadow: Shadow {
+	bottom: icon {{ "playlist_shadow", windowShadowFg }};
+	extend: margins(2px, 2px, 2px, 2px);
+}
+
+mediaPlayerListMarginTop: 8px;
+mediaPlayerFileLayout: OverviewFileLayout(overviewFileLayout) {
+	maxWidth: 344px;
+	songIconBg: mediaPlayerActiveFg;
+	songOverBg: mediaPlayerActiveFg;
+}
+
+mediaPlayerFloatSize: 128px;
+mediaPlayerFloatMargin: 12px;
