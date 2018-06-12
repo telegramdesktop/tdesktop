@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QVector>
 #include <QtCore/QString>
 #include <QtCore/QByteArray>
+#include <rpl/details/callable.h>
 #include "core/basic_types.h"
 #include "base/flags.h"
 #include "base/bytes.h"
@@ -227,6 +228,18 @@ protected:
 	const DataType &queryData() const {
 		Expects(_data != nullptr);
 		return static_cast<const DataType &>(*_data);
+	}
+
+	template <typename Data, typename Callback, typename ...Callbacks>
+	static decltype(auto) VisitData(
+			const Data &data,
+			Callback &&callback,
+			Callbacks &&...callbacks) {
+		if constexpr (rpl::details::is_callable_plain_v<Callback, Data>) {
+			return std::forward<Callback>(callback)(data);
+		} else {
+			return VisitData(data, std::forward<Callbacks>(callbacks)...);
+		}
 	}
 
 private:
