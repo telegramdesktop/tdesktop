@@ -127,7 +127,7 @@ bool TextWriter::writeUserpicsStart(const Data::UserpicsInfo &data) {
 bool TextWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
 	auto lines = QByteArray();
 	for (const auto &userpic : data.list) {
-		if (!userpic.date.isValid()) {
+		if (!userpic.date) {
 			lines.append("(empty photo)");
 		} else {
 			lines.append(Data::FormatDateTime(userpic.date)).append(" - ");
@@ -153,10 +153,7 @@ bool TextWriter::writeContactsList(const Data::ContactsList &data) {
 		return true;
 	}
 
-	const auto header = "Contacts "
-		"(" + Data::NumberToString(data.list.size()) + ")"
-		+ kLineBreak
-		+ kLineBreak;
+	const auto file = std::make_unique<File>(_folder + "contacts.txt");
 	auto list = std::vector<QByteArray>();
 	list.reserve(data.list.size());
 	for (const auto &index : Data::SortedContactsIndices(data)) {
@@ -178,15 +175,24 @@ bool TextWriter::writeContactsList(const Data::ContactsList &data) {
 			}));
 		}
 	}
-	const auto full = header + JoinList(kLineBreak, list) + kLineBreak;
-	return _result->writeBlock(full) == File::Result::Success;
+	const auto full = JoinList(kLineBreak, list);
+	if (file->writeBlock(full) != File::Result::Success) {
+		return false;
+	}
+
+	const auto header = "Contacts "
+		"(" + Data::NumberToString(data.list.size()) + ") - contacts.txt"
+		+ kLineBreak
+		+ kLineBreak;
+	return _result->writeBlock(header) == File::Result::Success;
 }
 
 bool TextWriter::writeSessionsList(const Data::SessionsList &data) {
-	const auto header = "Sessions "
-		"(" + Data::NumberToString(data.list.size()) + ")"
-		+ kLineBreak
-		+ kLineBreak;
+	if (data.list.empty()) {
+		return true;
+	}
+
+	const auto file = std::make_unique<File>(_folder + "sessions.txt");
 	auto list = std::vector<QByteArray>();
 	list.reserve(data.list.size());
 	for (const auto &session : data.list) {
@@ -208,15 +214,65 @@ bool TextWriter::writeSessionsList(const Data::SessionsList &data) {
 			{ "Created", Data::FormatDateTime(session.created) },
 		}));
 	}
-	const auto full = header + JoinList(kLineBreak, list) + kLineBreak;
-	return _result->writeBlock(full) == File::Result::Success;
+	const auto full = JoinList(kLineBreak, list);
+	if (file->writeBlock(full) != File::Result::Success) {
+		return false;
+	}
+
+	const auto header = "Sessions "
+		"(" + Data::NumberToString(data.list.size()) + ") - sessions.txt"
+		+ kLineBreak
+		+ kLineBreak;
+	return _result->writeBlock(header) == File::Result::Success;
 }
 
-bool TextWriter::writeChatsStart(const Data::ChatsInfo &data) {
-	return true;
+bool TextWriter::writeDialogsStart(const Data::DialogsInfo &data) {
+	if (data.list.empty()) {
+		return true;
+	}
+
+	using Type = Data::DialogInfo::Type;
+	const auto TypeString = [](Type type) {
+		switch (type) {
+		case Type::Unknown: return "(unknown)";
+		case Type::Personal: return "Personal Chat";
+		case Type::PrivateGroup: return "Private Group";
+		case Type::PublicGroup: return "Public Group";
+		case Type::Channel: return "Channel";
+		}
+		Unexpected("Dialog type in TypeString.");
+	};
+	const auto digits = Data::NumberToString(data.list.size() - 1).size();
+	const auto file = std::make_unique<File>(_folder + "chats.txt");
+	auto list = std::vector<QByteArray>();
+	list.reserve(data.list.size());
+	auto index = 0;
+	for (const auto &dialog : data.list) {
+		auto number = Data::NumberToString(++index);
+		auto path = QByteArray("Chats/chat_");
+		for (auto i = number.size(); i < digits; ++i) {
+			path += '0';
+		}
+		path += number + ".txt";
+		list.push_back(SerializeKeyValue({
+			{ "Name", dialog.name },
+			{ "Type", TypeString(dialog.type) },
+			{ "Content", path }
+		}));
+	}
+	const auto full = JoinList(kLineBreak, list);
+	if (file->writeBlock(full) != File::Result::Success) {
+		return false;
+	}
+
+	const auto header = "Chats "
+		"(" + Data::NumberToString(data.list.size()) + ") - chats.txt"
+		+ kLineBreak
+		+ kLineBreak;
+	return _result->writeBlock(header) == File::Result::Success;
 }
 
-bool TextWriter::writeChatStart(const Data::ChatInfo &data) {
+bool TextWriter::writeDialogStart(const Data::DialogInfo &data) {
 	return true;
 }
 
@@ -224,11 +280,11 @@ bool TextWriter::writeMessagesSlice(const Data::MessagesSlice &data) {
 	return true;
 }
 
-bool TextWriter::writeChatEnd() {
+bool TextWriter::writeDialogEnd() {
 	return true;
 }
 
-bool TextWriter::writeChatsEnd() {
+bool TextWriter::writeDialogsEnd() {
 	return true;
 }
 

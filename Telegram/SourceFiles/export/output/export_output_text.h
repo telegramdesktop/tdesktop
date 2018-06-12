@@ -27,11 +27,11 @@ public:
 
 	bool writeSessionsList(const Data::SessionsList &data) override;
 
-	bool writeChatsStart(const Data::ChatsInfo &data) override;
-	bool writeChatStart(const Data::ChatInfo &data) override;
+	bool writeDialogsStart(const Data::DialogsInfo &data) override;
+	bool writeDialogStart(const Data::DialogInfo &data) override;
 	bool writeMessagesSlice(const Data::MessagesSlice &data) override;
-	bool writeChatEnd() override;
-	bool writeChatsEnd() override;
+	bool writeDialogEnd() override;
+	bool writeDialogsEnd() override;
 
 	bool finish() override;
 

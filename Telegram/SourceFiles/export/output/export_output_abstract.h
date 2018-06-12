@@ -16,8 +16,8 @@ struct UserpicsInfo;
 struct UserpicsSlice;
 struct ContactsList;
 struct SessionsList;
-struct ChatsInfo;
-struct ChatInfo;
+struct DialogsInfo;
+struct DialogInfo;
 struct MessagesSlice;
 } // namespace Data
 
@@ -43,11 +43,11 @@ public:
 
 	virtual bool writeSessionsList(const Data::SessionsList &data) = 0;
 
-	virtual bool writeChatsStart(const Data::ChatsInfo &data) = 0;
-	virtual bool writeChatStart(const Data::ChatInfo &data) = 0;
+	virtual bool writeDialogsStart(const Data::DialogsInfo &data) = 0;
+	virtual bool writeDialogStart(const Data::DialogInfo &data) = 0;
 	virtual bool writeMessagesSlice(const Data::MessagesSlice &data) = 0;
-	virtual bool writeChatEnd() = 0;
-	virtual bool writeChatsEnd() = 0;
+	virtual bool writeDialogEnd() = 0;
+	virtual bool writeDialogsEnd() = 0;
 
 	virtual bool finish() = 0;
 

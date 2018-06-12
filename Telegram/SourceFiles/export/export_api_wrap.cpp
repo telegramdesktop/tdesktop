@@ -16,10 +16,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Export {
 namespace {
 
-constexpr auto kUserpicsSliceLimit = 2;
+constexpr auto kUserpicsSliceLimit = 100;
 constexpr auto kFileChunkSize = 128 * 1024;
 constexpr auto kFileRequestsCount = 2;
 constexpr auto kFileNextRequestDelay = TimeMs(20);
+constexpr auto kChatsSliceLimit = 200;
 
 } // namespace
 
@@ -51,6 +52,17 @@ struct ApiWrap::FileProcess {
 		QByteArray bytes;
 	};
 	std::deque<Request> requests;
+
+};
+
+struct ApiWrap::DialogsProcess {
+	Data::DialogsInfo info;
+
+	FnMut<void(Data::DialogsInfo&&)> done;
+
+	int32 offsetDate = 0;
+	int32 offsetId = 0;
+	MTPInputPeer offsetPeer = MTP_inputPeerEmpty();
 
 };
 
@@ -248,6 +260,49 @@ void ApiWrap::requestSessions(FnMut<void(Data::SessionsList&&)> done) {
 	)).done([=, done = std::move(done)](
 			const MTPaccount_Authorizations &result) mutable {
 		done(Data::ParseSessionsList(result));
+	}).send();
+}
+
+void ApiWrap::requestDialogs(FnMut<void(Data::DialogsInfo&&)> done) {
+	Expects(_dialogsProcess == nullptr);
+
+	_dialogsProcess = std::make_unique<DialogsProcess>();
+	_dialogsProcess->done = std::move(done);
+	requestDialogsSlice();
+}
+
+void ApiWrap::requestDialogsSlice() {
+	Expects(_dialogsProcess != nullptr);
+
+	mainRequest(MTPmessages_GetDialogs(
+		MTP_flags(0),
+		MTP_int(_dialogsProcess->offsetDate),
+		MTP_int(_dialogsProcess->offsetId),
+		_dialogsProcess->offsetPeer,
+		MTP_int(kChatsSliceLimit)
+	)).done([=](const MTPmessages_Dialogs &result) mutable {
+		const auto finished = [&] {
+			switch (result.type()) {
+			case mtpc_messages_dialogs: return true;
+			case mtpc_messages_dialogsSlice: {
+				const auto &data = result.c_messages_dialogsSlice();
+				return data.vdialogs.v.isEmpty();
+			} break;
+			default: Unexpected("Type in ApiWrap::requestChatsSlice.");
+			}
+		}();
+		Data::AppendParsedDialogs(_dialogsProcess->info, result);
+		if (finished || _dialogsProcess->info.list.empty()) {
+			auto process = base::take(_dialogsProcess);
+			ranges::reverse(process->info.list);
+			process->done(std::move(process->info));
+		} else {
+			const auto &last = _dialogsProcess->info.list.back();
+			_dialogsProcess->offsetId = last.topMessageId;
+			_dialogsProcess->offsetDate = last.topMessageDate;
+			_dialogsProcess->offsetPeer = last.input;
+			requestDialogsSlice();
+		}
 	}).send();
 }
 

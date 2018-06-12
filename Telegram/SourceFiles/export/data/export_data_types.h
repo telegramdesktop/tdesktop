@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "scheme.h"
 #include "base/optional.h"
+#include "base/variant.h"
 
-#include <QtCore/QDateTime>
 #include <QtCore/QString>
 #include <QtCore/QByteArray>
 #include <vector>
@@ -18,7 +18,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Export {
 namespace Data {
 
+using TimeId = int32;
 using Utf8String = QByteArray;
+using PeerId = uint64;
+
+PeerId UserPeerId(int32 userId);
+PeerId ChatPeerId(int32 chatId);
+int32 BarePeerId(PeerId peerId);
 
 Utf8String ParseString(const MTPstring &data);
 
@@ -50,7 +56,7 @@ struct File {
 
 struct Photo {
 	uint64 id = 0;
-	QDateTime date;
+	TimeId date = 0;
 
 	int width = 0;
 	int height = 0;
@@ -64,15 +70,45 @@ struct UserpicsSlice {
 UserpicsSlice ParseUserpicsSlice(const MTPVector<MTPPhoto> &data);
 
 struct User {
-	int id = 0;
+	int32 id = 0;
 	Utf8String firstName;
 	Utf8String lastName;
 	Utf8String phoneNumber;
 	Utf8String username;
+
+	MTPInputUser input;
 };
 
-User ParseUser(const MTPUser &user);
-std::map<int, User> ParseUsersList(const MTPVector<MTPUser> &data);
+User ParseUser(const MTPUser &data);
+std::map<int32, User> ParseUsersList(const MTPVector<MTPUser> &data);
+
+struct Chat {
+	int32 id = 0;
+	Utf8String title;
+	Utf8String username;
+	bool broadcast = false;
+
+	MTPInputPeer input;
+};
+
+Chat ParseChat(const MTPChat &data);
+std::map<int32, Chat> ParseChatsList(const MTPVector<MTPChat> &data);
+
+struct Peer {
+	PeerId id() const;
+	Utf8String name() const;
+	MTPInputPeer input() const;
+
+	const User *user() const;
+	const Chat *chat() const;
+
+	base::variant<User, Chat> data;
+
+};
+
+std::map<PeerId, Peer> ParsePeersLists(
+	const MTPVector<MTPUser> &users,
+	const MTPVector<MTPChat> &chats);
 
 struct PersonalInfo {
 	User user;
@@ -94,8 +130,8 @@ struct Session {
 	Utf8String systemVersion;
 	Utf8String applicationName;
 	Utf8String applicationVersion;
-	QDateTime created;
-	QDateTime lastActive;
+	TimeId created = 0;
+	TimeId lastActive = 0;
 	Utf8String ip;
 	Utf8String country;
 	Utf8String region;
@@ -107,23 +143,37 @@ struct SessionsList {
 
 SessionsList ParseSessionsList(const MTPaccount_Authorizations &data);
 
-struct ChatsInfo {
-	int count = 0;
+struct Message {
+	int32 id = 0;
+	TimeId date = 0;
+
 };
 
-struct ChatInfo {
+Message ParseMessage(const MTPMessage &data);
+std::map<int32, Message> ParseMessagesList(
+	const MTPVector<MTPMessage> &data);
+
+struct DialogInfo {
 	enum class Type {
+		Unknown,
 		Personal,
-		Group,
+		PrivateGroup,
+		PublicGroup,
 		Channel,
 	};
-	Type type = Type::Personal;
-	QString name;
+	Type type = Type::Unknown;
+	Utf8String name;
+
+	MTPInputPeer input;
+	int32 topMessageId = 0;
+	TimeId topMessageDate = 0;
 };
 
-struct Message {
-	int id = 0;
+struct DialogsInfo {
+	std::vector<DialogInfo> list;
 };
+
+void AppendParsedDialogs(DialogsInfo &to, const MTPmessages_Dialogs &data);
 
 struct MessagesSlice {
 	std::vector<Message> list;
@@ -132,22 +182,10 @@ struct MessagesSlice {
 Utf8String FormatPhoneNumber(const Utf8String &phoneNumber);
 
 Utf8String FormatDateTime(
-	const QDateTime &date,
+	TimeId date,
 	QChar dateSeparator = QChar('.'),
 	QChar timeSeparator = QChar(':'),
 	QChar separator = QChar(' '));
-
-inline Utf8String FormatDateTime(
-		int32 date,
-		QChar dateSeparator = QChar('.'),
-		QChar timeSeparator = QChar(':'),
-		QChar separator = QChar(' ')) {
-	return FormatDateTime(
-		QDateTime::fromTime_t(date),
-		dateSeparator,
-		timeSeparator,
-		separator);
-}
 
 } // namespace Data
 } // namespace Export

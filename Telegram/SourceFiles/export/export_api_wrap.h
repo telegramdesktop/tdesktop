@@ -18,6 +18,7 @@ struct UserpicsInfo;
 struct UserpicsSlice;
 struct ContactsList;
 struct SessionsList;
+struct DialogsInfo;
 } // namespace Data
 
 class ApiWrap {
@@ -39,6 +40,8 @@ public:
 
 	void requestSessions(FnMut<void(Data::SessionsList&&)> done);
 
+	void requestDialogs(FnMut<void(Data::DialogsInfo&&)> done);
+
 	~ApiWrap();
 
 private:
@@ -47,6 +50,8 @@ private:
 	void loadNextUserpic();
 	void loadUserpicDone(const QString &relativePath);
 	void finishUserpics();
+
+	void requestDialogsSlice();
 
 	void loadFile(const Data::File &file, FnMut<void(QString)> done);
 	void loadFilePart();
@@ -71,6 +76,9 @@ private:
 
 	struct FileProcess;
 	std::unique_ptr<FileProcess> _fileProcess;
+
+	struct DialogsProcess;
+	std::unique_ptr<DialogsProcess> _dialogsProcess;
 
 	rpl::event_stream<RPCError> _errors;
 

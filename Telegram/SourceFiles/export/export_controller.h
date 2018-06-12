@@ -31,7 +31,7 @@ struct ProcessingState {
 		Userpics,
 		Contacts,
 		Sessions,
-		Chats,
+		Dialogs,
 	};
 	enum class Item {
 		Other,

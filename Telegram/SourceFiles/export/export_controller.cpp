@@ -46,7 +46,7 @@ private:
 	void exportUserpics();
 	void exportContacts();
 	void exportSessions();
-	void exportChats();
+	void exportDialogs();
 
 	bool normalizePath();
 
@@ -206,12 +206,12 @@ void Controller::fillExportSteps() {
 	if (_settings.types & Type::Sessions) {
 		_steps.push_back(Step::Sessions);
 	}
-	const auto chatTypes = Type::PersonalChats
+	const auto dialogTypes = Type::PersonalChats
 		| Type::PrivateGroups
 		| Type::PublicGroups
 		| Type::MyChannels;
-	if (_settings.types & chatTypes) {
-		_steps.push_back(Step::Chats);
+	if (_settings.types & dialogTypes) {
+		_steps.push_back(Step::Dialogs);
 	}
 }
 
@@ -230,7 +230,7 @@ void Controller::exportNext() {
 	case Step::Userpics: return exportUserpics();
 	case Step::Contacts: return exportContacts();
 	case Step::Sessions: return exportSessions();
-	case Step::Chats: return exportChats();
+	case Step::Dialogs: return exportDialogs();
 	}
 	Unexpected("Step in Controller::exportNext.");
 }
@@ -267,8 +267,11 @@ void Controller::exportSessions() {
 	});
 }
 
-void Controller::exportChats() {
-	exportNext();
+void Controller::exportDialogs() {
+	_api.requestDialogs([=](Data::DialogsInfo &&result) {
+		_writer->writeDialogsStart(result);
+		exportNext();
+	});
 }
 
 void Controller::setFinishedState() {
