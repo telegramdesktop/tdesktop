@@ -138,19 +138,11 @@ void ApiWrap::requestUserpics(
 
 		_userpicsProcess->start([&] {
 			auto info = Data::UserpicsInfo();
-			switch (result.type()) {
-			case mtpc_photos_photos: {
-				const auto &data = result.c_photos_photos();
+			result.visit([&](const MTPDphotos_photos &data) {
 				info.count = data.vphotos.v.size();
-			} break;
-
-			case mtpc_photos_photosSlice: {
-				const auto &data = result.c_photos_photosSlice();
+			}, [&](const MTPDphotos_photosSlice &data) {
 				info.count = data.vcount.v;
-			} break;
-
-			default: Unexpected("Photos type in Controller::exportUserpics.");
-			}
+			});
 			return info;
 		}());
 
@@ -161,20 +153,15 @@ void ApiWrap::requestUserpics(
 void ApiWrap::handleUserpicsSlice(const MTPphotos_Photos &result) {
 	Expects(_userpicsProcess != nullptr);
 
-	switch (result.type()) {
-	case mtpc_photos_photos: {
-		const auto &data = result.c_photos_photos();
+	if (result.type() == mtpc_photos_photos) {
 		_userpicsProcess->lastSlice = true;
-		loadUserpicsFiles(Data::ParseUserpicsSlice(data.vphotos));
-	} break;
-
-	case mtpc_photos_photosSlice: {
-		const auto &data = result.c_photos_photosSlice();
-		loadUserpicsFiles(Data::ParseUserpicsSlice(data.vphotos));
-	} break;
-
-	default: Unexpected("Photos type in Controller::exportUserpicsSlice.");
 	}
+	result.visit([&](const auto &data) {
+		if constexpr (MTPDphotos_photos::Is<decltype(data)>()) {
+			_userpicsProcess->lastSlice = true;
+		}
+		loadUserpicsFiles(Data::ParseUserpicsSlice(data.vphotos));
+	});
 }
 
 void ApiWrap::loadUserpicsFiles(Data::UserpicsSlice &&slice) {

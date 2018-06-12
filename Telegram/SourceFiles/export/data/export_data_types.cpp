@@ -35,15 +35,13 @@ int32 BarePeerId(PeerId peerId) {
 }
 
 PeerId ParsePeerId(const MTPPeer &data) {
-	switch (data.type()) {
-	case mtpc_peerUser:
-		return UserPeerId(data.c_peerUser().vuser_id.v);
-	case mtpc_peerChat:
-		return ChatPeerId(data.c_peerChat().vchat_id.v);
-	case mtpc_peerChannel:
-		return ChatPeerId(data.c_peerChannel().vchannel_id.v);
-	}
-	Unexpected("Type in ParsePeerId.");
+	return data.visit([](const MTPDpeerUser &data) {
+		return UserPeerId(data.vuser_id.v);
+	}, [](const MTPDpeerChat &data) {
+		return ChatPeerId(data.vchat_id.v);
+	}, [](const MTPDpeerChannel &data) {
+		return ChatPeerId(data.vchannel_id.v);
+	});
 }
 
 Utf8String ParseString(const MTPstring &data) {
@@ -51,29 +49,23 @@ Utf8String ParseString(const MTPstring &data) {
 }
 
 FileLocation ParseLocation(const MTPFileLocation &data) {
-	switch (data.type()) {
-	case mtpc_fileLocation: {
-		const auto &location = data.c_fileLocation();
-		return {
-			location.vdc_id.v,
+	return data.visit([](const MTPDfileLocation &data) {
+		return FileLocation{
+			data.vdc_id.v,
 			MTP_inputFileLocation(
-				location.vvolume_id,
-				location.vlocal_id,
-				location.vsecret)
+				data.vvolume_id,
+				data.vlocal_id,
+				data.vsecret)
 		};
-	} break;
-	case mtpc_fileLocationUnavailable: {
-		const auto &location = data.c_fileLocationUnavailable();
-		return {
+	}, [](const MTPDfileLocationUnavailable &data) {
+		return FileLocation{
 			0,
 			MTP_inputFileLocation(
-				location.vvolume_id,
-				location.vlocal_id,
-				location.vsecret)
+				data.vvolume_id,
+				data.vlocal_id,
+				data.vsecret)
 		};
-	} break;
-	}
-	Unexpected("Type in ParseLocation.");
+	});
 }
 
 File ParseMaxImage(
@@ -84,50 +76,36 @@ File ParseMaxImage(
 
 	auto maxArea = int64(0);
 	for (const auto &size : data.v) {
-		switch (size.type()) {
-		case mtpc_photoSize: {
-			const auto &fields = size.c_photoSize();
-			const auto area = fields.vw.v * int64(fields.vh.v);
+		size.visit([&](const MTPDphotoSize &data) {
+			const auto area = data.vw.v * int64(data.vh.v);
 			if (area > maxArea) {
-				result.location = ParseLocation(fields.vlocation);
-				result.size = fields.vsize.v;
+				result.location = ParseLocation(data.vlocation);
+				result.size = data.vsize.v;
 				result.content = QByteArray();
 				maxArea = area;
 			}
-		} break;
-
-		case mtpc_photoCachedSize: {
-			const auto &fields = size.c_photoCachedSize();
-			const auto area = fields.vw.v * int64(fields.vh.v);
+		}, [&](const MTPDphotoCachedSize &data) {
+			const auto area = data.vw.v * int64(data.vh.v);
 			if (area > maxArea) {
-				result.location = ParseLocation(fields.vlocation);
-				result.size = fields.vbytes.v.size();
-				result.content = fields.vbytes.v;
+				result.location = ParseLocation(data.vlocation);
+				result.size = data.vbytes.v.size();
+				result.content = data.vbytes.v;
 				maxArea = area;
 			}
-		} break;
-		}
+		}, [](const MTPDphotoSizeEmpty &) {});
 	}
 	return result;
 }
 
 Photo ParsePhoto(const MTPPhoto &data, const QString &suggestedPath) {
 	auto result = Photo();
-	switch (data.type()) {
-	case mtpc_photo: {
-		const auto &photo = data.c_photo();
-		result.id = photo.vid.v;
-		result.date = photo.vdate.v;
-		result.image = ParseMaxImage(photo.vsizes, suggestedPath);
-	} break;
-
-	case mtpc_photoEmpty: {
-		const auto &photo = data.c_photoEmpty();
-		result.id = photo.vid.v;
-	} break;
-
-	default: Unexpected("Photo type in ParsePhoto.");
-	}
+	data.visit([&](const MTPDphoto &data) {
+		result.id = data.vid.v;
+		result.date = data.vdate.v;
+		result.image = ParseMaxImage(data.vsizes, suggestedPath);
+	}, [&](const MTPDphotoEmpty &data) {
+		result.id = data.vid.v;
+	});
 	return result;
 }
 
@@ -166,37 +144,29 @@ UserpicsSlice ParseUserpicsSlice(const MTPVector<MTPPhoto> &data) {
 
 User ParseUser(const MTPUser &data) {
 	auto result = User();
-	switch (data.type()) {
-	case mtpc_user: {
-		const auto &fields = data.c_user();
-		result.id = fields.vid.v;
-		if (fields.has_first_name()) {
-			result.firstName = ParseString(fields.vfirst_name);
+	data.visit([&](const MTPDuser &data) {
+		result.id = data.vid.v;
+		if (data.has_first_name()) {
+			result.firstName = ParseString(data.vfirst_name);
 		}
-		if (fields.has_last_name()) {
-			result.lastName = ParseString(fields.vlast_name);
+		if (data.has_last_name()) {
+			result.lastName = ParseString(data.vlast_name);
 		}
-		if (fields.has_phone()) {
-			result.phoneNumber = ParseString(fields.vphone);
+		if (data.has_phone()) {
+			result.phoneNumber = ParseString(data.vphone);
 		}
-		if (fields.has_username()) {
-			result.username = ParseString(fields.vusername);
+		if (data.has_username()) {
+			result.username = ParseString(data.vusername);
 		}
-		if (fields.has_access_hash()) {
-			result.input = MTP_inputUser(fields.vid, fields.vaccess_hash);
+		if (data.has_access_hash()) {
+			result.input = MTP_inputUser(data.vid, data.vaccess_hash);
 		} else {
 			result.input = MTP_inputUserEmpty();
 		}
-	} break;
-
-	case mtpc_userEmpty: {
-		const auto &fields = data.c_userEmpty();
-		result.id = fields.vid.v;
+	}, [&](const MTPDuserEmpty &data) {
+		result.id = data.vid.v;
 		result.input = MTP_inputUserEmpty();
-	} break;
-
-	default: Unexpected("Type in ParseUser.");
-	}
+	});
 	return result;
 }
 
@@ -211,52 +181,35 @@ std::map<int32, User> ParseUsersList(const MTPVector<MTPUser> &data) {
 
 Chat ParseChat(const MTPChat &data) {
 	auto result = Chat();
-	switch (data.type()) {
-	case mtpc_chat: {
-		const auto &fields = data.c_chat();
-		result.id = fields.vid.v;
-		result.title = ParseString(fields.vtitle);
+	data.visit([&](const MTPDchat &data) {
+		result.id = data.vid.v;
+		result.title = ParseString(data.vtitle);
 		result.input = MTP_inputPeerChat(MTP_int(result.id));
-	} break;
-
-	case mtpc_chatEmpty: {
-		const auto &fields = data.c_chatEmpty();
-		result.id = fields.vid.v;
+	}, [&](const MTPDchatEmpty &data) {
+		result.id = data.vid.v;
 		result.input = MTP_inputPeerChat(MTP_int(result.id));
-	} break;
-
-	case mtpc_chatForbidden: {
-		const auto &fields = data.c_chatForbidden();
-		result.id = fields.vid.v;
-		result.title = ParseString(fields.vtitle);
+	}, [&](const MTPDchatForbidden &data) {
+		result.id = data.vid.v;
+		result.title = ParseString(data.vtitle);
 		result.input = MTP_inputPeerChat(MTP_int(result.id));
-	} break;
-
-	case mtpc_channel: {
-		const auto &fields = data.c_channel();
-		result.id = fields.vid.v;
-		result.broadcast = fields.is_broadcast();
-		result.title = ParseString(fields.vtitle);
-		if (fields.has_username()) {
-			result.username = ParseString(fields.vusername);
+	}, [&](const MTPDchannel &data) {
+		result.id = data.vid.v;
+		result.broadcast = data.is_broadcast();
+		result.title = ParseString(data.vtitle);
+		if (data.has_username()) {
+			result.username = ParseString(data.vusername);
 		}
 		result.input = MTP_inputPeerChannel(
 			MTP_int(result.id),
-			fields.vaccess_hash);
-	} break;
-
-	case mtpc_channelForbidden: {
-		const auto &fields = data.c_channelForbidden();
-		result.id = fields.vid.v;
-		result.broadcast = fields.is_broadcast();
-		result.title = ParseString(fields.vtitle);
+			data.vaccess_hash);
+	}, [&](const MTPDchannelForbidden &data) {
+		result.id = data.vid.v;
+		result.broadcast = data.is_broadcast();
+		result.title = ParseString(data.vtitle);
 		result.input = MTP_inputPeerChannel(
 			MTP_int(result.id),
-			fields.vaccess_hash);
-	} break;
-
-	default: Unexpected("Type in ParseChat.");
-	}
+			data.vaccess_hash);
+	});
 	return result;
 }
 
@@ -324,24 +277,15 @@ std::map<PeerId, Peer> ParsePeersLists(
 
 Message ParseMessage(const MTPMessage &data) {
 	auto result = Message();
-	switch (data.type()) {
-	case mtpc_message: {
-		const auto &fields = data.c_message();
-		result.id = fields.vid.v;
-		result.date = fields.vdate.v;
-	} break;
-
-	case mtpc_messageService: {
-		const auto &fields = data.c_messageService();
-		result.id = fields.vid.v;
-		result.date = fields.vdate.v;
-	} break;
-
-	case mtpc_messageEmpty: {
-		const auto &fields = data.c_messageEmpty();
-		result.id = fields.vid.v;
-	} break;
-	}
+	data.visit([&](const MTPDmessage &data) {
+		result.id = data.vid.v;
+		result.date = data.vdate.v;
+	}, [&](const MTPDmessageService &data) {
+		result.id = data.vid.v;
+		result.date = data.vdate.v;
+	}, [&](const MTPDmessageEmpty &data) {
+		result.id = data.vid.v;
+	});
 	return result;
 }
 
@@ -468,17 +412,7 @@ void AppendParsedDialogs(DialogsInfo &to, const MTPmessages_Dialogs &data) {
 			to.list.push_back(std::move(info));
 		}
 	};
-	switch (data.type()) {
-	case mtpc_messages_dialogs:
-		process(data.c_messages_dialogs());
-		break;
-
-	case mtpc_messages_dialogsSlice:
-		process(data.c_messages_dialogsSlice());
-		break;
-
-	default: Unexpected("Type in AppendParsedChats.");
-	}
+	data.visit(process);
 }
 
 Utf8String FormatPhoneNumber(const Utf8String &phoneNumber) {
