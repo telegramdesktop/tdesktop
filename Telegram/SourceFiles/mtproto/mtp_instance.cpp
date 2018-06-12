@@ -880,7 +880,7 @@ void Instance::Private::registerRequest(
 		mtpRequestId requestId,
 		ShiftedDcId shiftedDcId) {
 	QMutexLocker locker(&_requestByDcLock);
-	_requestsByDc.emplace(requestId, shiftedDcId);
+	_requestsByDc[requestId] = shiftedDcId;
 }
 
 void Instance::Private::unregisterRequest(mtpRequestId requestId) {
