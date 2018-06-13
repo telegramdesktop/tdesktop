@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <cmath>
 #include <set>
 #include "logs.h"
 #include "core/basic_types.h"
@@ -434,35 +435,6 @@ enum DBIPeerReportSpamStatus {
 	dbiprsHidden = 4, // hidden in the cloud or not needed (bots, contacts, etc), no more requests
 	dbiprsRequesting = 5, // requesting the cloud setting right now
 };
-
-class MimeType {
-public:
-	enum class Known {
-		Unknown,
-		TDesktopTheme,
-		TDesktopPalette,
-		WebP,
-	};
-
-	MimeType(const QMimeType &type) : _typeStruct(type) {
-	}
-	MimeType(Known type) : _type(type) {
-	}
-	QStringList globPatterns() const;
-	QString filterString() const;
-	QString name() const;
-
-private:
-	QMimeType _typeStruct;
-	Known _type = Known::Unknown;
-
-};
-
-MimeType mimeTypeForName(const QString &mime);
-MimeType mimeTypeForFile(const QFileInfo &file);
-MimeType mimeTypeForData(const QByteArray &data);
-
-#include <cmath>
 
 inline int rowscount(int fullCount, int countPerRow) {
 	return (fullCount + countPerRow - 1) / countPerRow;

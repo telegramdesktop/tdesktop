@@ -154,6 +154,8 @@
 <(src_loc)/core/launcher.h
 <(src_loc)/core/main_queue_processor.cpp
 <(src_loc)/core/main_queue_processor.h
+<(src_loc)/core/mime_type.cpp
+<(src_loc)/core/mime_type.h
 <(src_loc)/core/single_timer.cpp
 <(src_loc)/core/single_timer.h
 <(src_loc)/core/tl_help.h

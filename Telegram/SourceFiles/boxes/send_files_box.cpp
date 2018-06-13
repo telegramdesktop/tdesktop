@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_media_types.h"
 #include "chat_helpers/message_field.h"
 #include "core/file_utilities.h"
+#include "core/mime_type.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -801,7 +802,7 @@ void SingleFilePreview::preparePreview(const Storage::PreparedFile &file) {
 	} else {
 		auto fileinfo = QFileInfo(filepath);
 		auto filename = fileinfo.fileName();
-		_fileIsImage = fileIsImage(filename, mimeTypeForFile(fileinfo).name());
+		_fileIsImage = fileIsImage(filename, Core::MimeTypeForFile(fileinfo).name());
 
 		auto songTitle = QString();
 		auto songPerformer = QString();

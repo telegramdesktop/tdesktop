@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_layout_item.h"
 #include "mainwidget.h"
 #include "core/file_utilities.h"
+#include "core/mime_type.h"
 #include "media/media_audio.h"
 #include "storage/localstorage.h"
 #include "platform/platform_specific.h"
@@ -192,7 +193,7 @@ QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = fals
 	}
 
 	QString name, filter, caption, prefix;
-	MimeType mimeType = mimeTypeForName(data->mimeString());
+	const auto mimeType = Core::MimeTypeForName(data->mimeString());
 	QStringList p = mimeType.globPatterns();
 	QString pattern = p.isEmpty() ? QString() : p.front();
 	if (data->isVoiceMessage()) {

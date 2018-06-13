@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_document.h"
 #include "core/file_utilities.h"
+#include "core/mime_type.h"
 #include "media/media_audio.h"
 #include "boxes/send_files_box.h"
 #include "media/media_clip_reader.h"
@@ -392,7 +393,7 @@ void FileLoadTask::process() {
 		filesize = info.size();
 		filename = info.fileName();
 		if (!_information) {
-			_information = readMediaInformation(mimeTypeForFile(info).name());
+			_information = readMediaInformation(Core::MimeTypeForFile(info).name());
 		}
 		filemime = _information->filemime;
 		if (auto image = base::get_if<FileMediaInformation::Image>(
@@ -415,7 +416,7 @@ void FileLoadTask::process() {
 					fullimage = base::take(image->data);
 				}
 			}
-			auto mimeType = mimeTypeForData(_content);
+			const auto mimeType = Core::MimeTypeForData(_content);
 			filemime = mimeType.name();
 			if (filemime != stickerMime) {
 				fullimage = Images::prepareOpaque(std::move(fullimage));
@@ -444,14 +445,14 @@ void FileLoadTask::process() {
 			if (_type == SendMediaType::Photo) {
 				if (ValidateThumbDimensions(fullimage.width(), fullimage.height())) {
 					filesize = -1; // Fill later.
-					filemime = mimeTypeForName("image/jpeg").name();
+					filemime = Core::MimeTypeForName("image/jpeg").name();
 					filename = filedialogDefaultName(qsl("image"), qsl(".jpg"), QString(), true);
 				} else {
 					_type = SendMediaType::File;
 				}
 			}
 			if (_type == SendMediaType::File) {
-				filemime = mimeTypeForName("image/png").name();
+				filemime = Core::MimeTypeForName("image/png").name();
 				filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
 				{
 					QBuffer buffer(&_content);
