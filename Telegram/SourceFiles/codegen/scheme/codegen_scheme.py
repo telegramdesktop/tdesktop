@@ -635,7 +635,7 @@ for restype in typesList:
 
     switchLines += '\tcase mtpc_' + name + ': '; # for by-type-id type constructor
     getters += '\tconst MTPD' + name + ' &c_' + name + '() const;\n'; # const getter
-    visitor += '\tcase mtpc_' + name + ': return VisitData(c_' + name + '(), std::forward<Callback>(callback), std::forward<Callbacks>(callbacks)...);\n';
+    visitor += '\tcase mtpc_' + name + ': return base::match_method(c_' + name + '(), std::forward<Method>(method), std::forward<Methods>(methods)...);\n';
 
     forwards += 'class MTPD' + name + ';\n'; # data class forward declaration
     if (len(prms) > len(trivialConditions)):
@@ -771,14 +771,14 @@ for restype in typesList:
     typesText += getters;
     if (withType):
       typesText += '\n';
-      typesText += '\ttemplate <typename Callback, typename ...Callbacks>\n';
-      typesText += '\tdecltype(auto) visit(Callback &&callback, Callbacks &&...callbacks) const;\n';
-      visitorMethods += 'template <typename Callback, typename ...Callbacks>\n';
-      visitorMethods += 'decltype(auto) MTP' + restype + '::visit(Callback &&callback, Callbacks &&...callbacks) const {\n';
+      typesText += '\ttemplate <typename Method, typename ...Methods>\n';
+      typesText += '\tdecltype(auto) match(Method &&method, Methods &&...methods) const;\n';
+      visitorMethods += 'template <typename Method, typename ...Methods>\n';
+      visitorMethods += 'decltype(auto) MTP' + restype + '::match(Method &&method, Methods &&...methods) const {\n';
       visitorMethods += '\tswitch (_type) {\n';
       visitorMethods += visitor;
       visitorMethods += '\t}\n';
-      visitorMethods += '\tUnexpected("Type in MTP' + restype + '::visit.");\n';
+      visitorMethods += '\tUnexpected("Type in MTP' + restype + '::match.");\n';
       visitorMethods += '}\n\n';
 
   typesText += '\n\tuint32 innerLength() const;\n'; # size method

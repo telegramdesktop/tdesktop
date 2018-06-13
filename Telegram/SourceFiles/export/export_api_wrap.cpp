@@ -24,6 +24,11 @@ constexpr auto kFileNextRequestDelay = TimeMs(20);
 constexpr auto kChatsSliceLimit = 100;
 constexpr auto kMessagesSliceLimit = 100;
 
+bool WillLoadFile(const Data::File &file) {
+	return file.relativePath.isEmpty()
+		&& (!file.content.isEmpty() || file.location.dcId != 0);
+}
+
 } // namespace
 
 struct ApiWrap::UserpicsProcess {
@@ -79,7 +84,7 @@ struct ApiWrap::DialogsProcess {
 struct ApiWrap::DialogsProcess::Single {
 	Single(const Data::DialogInfo &info);
 
-	MTPInputPeer peer;
+	Data::DialogInfo info;
 	int32 offsetId = 1;
 
 	base::optional<Data::MessagesSlice> slice;
@@ -92,7 +97,7 @@ ApiWrap::FileProcess::FileProcess(const QString &path) : file(path) {
 }
 
 ApiWrap::DialogsProcess::Single::Single(const Data::DialogInfo &info)
-: peer(info.input) {
+: info(info) {
 }
 
 template <typename Request>
@@ -166,7 +171,7 @@ void ApiWrap::requestUserpics(
 
 		_userpicsProcess->start([&] {
 			auto info = Data::UserpicsInfo();
-			result.visit([&](const MTPDphotos_photos &data) {
+			result.match([&](const MTPDphotos_photos &data) {
 				info.count = data.vphotos.v.size();
 			}, [&](const MTPDphotos_photosSlice &data) {
 				info.count = data.vcount.v;
@@ -181,7 +186,7 @@ void ApiWrap::requestUserpics(
 void ApiWrap::handleUserpicsSlice(const MTPphotos_Photos &result) {
 	Expects(_userpicsProcess != nullptr);
 
-	result.visit([&](const auto &data) {
+	result.match([&](const auto &data) {
 		if constexpr (MTPDphotos_photos::Is<decltype(data)>()) {
 			_userpicsProcess->lastSlice = true;
 		}
@@ -206,12 +211,18 @@ void ApiWrap::loadNextUserpic() {
 	Expects(_userpicsProcess->slice.has_value());
 
 	const auto &list = _userpicsProcess->slice->list;
-	++_userpicsProcess->fileIndex;
-	if (_userpicsProcess->fileIndex < list.size()) {
-		loadFile(
-			list[_userpicsProcess->fileIndex].image,
-			[=](const QString &path) { loadUserpicDone(path); });
-		return;
+	while (true) {
+		const auto index = ++_userpicsProcess->fileIndex;
+		if (index >= list.size()) {
+			break;
+		}
+		const auto &file = list[index].image.file;
+		if (WillLoadFile(file)) {
+			loadFile(
+				file,
+				[=](const QString &path) { loadUserpicDone(path); });
+			return;
+		}
 	}
 	const auto lastUserpicId = list.empty()
 		? base::none
@@ -243,7 +254,8 @@ void ApiWrap::loadUserpicDone(const QString &relativePath) {
 			< _userpicsProcess->slice->list.size()));
 
 	const auto index = _userpicsProcess->fileIndex;
-	_userpicsProcess->slice->list[index].image.relativePath = relativePath;
+	auto &file = _userpicsProcess->slice->list[index].image.file;
+	file.relativePath = relativePath;
 	loadNextUserpic();
 }
 
@@ -364,8 +376,22 @@ void ApiWrap::finishDialogsList() {
 	Expects(_dialogsProcess != nullptr);
 
 	ranges::reverse(_dialogsProcess->info.list);
+	fillDialogsPaths();
+
 	_dialogsProcess->start(_dialogsProcess->info);
 	requestNextDialog();
+}
+
+void ApiWrap::fillDialogsPaths() {
+	Expects(_dialogsProcess != nullptr);
+
+	auto &list = _dialogsProcess->info.list;
+	const auto digits = Data::NumberToString(list.size() - 1).size();
+	auto index = 0;
+	for (auto &dialog : list) {
+		const auto number = Data::NumberToString(++index, digits, '0');
+		dialog.relativePath = "Chats/chat_" + number + '/';
+	}
 }
 
 void ApiWrap::requestNextDialog() {
@@ -373,7 +399,7 @@ void ApiWrap::requestNextDialog() {
 	Expects(_dialogsProcess->single == nullptr);
 
 	const auto index = ++_dialogsProcess->singleIndex;
-	if (index < 3) {// _dialogsProcess->info.list.size()) {
+	if (index < 11) {// _dialogsProcess->info.list.size()) {
 		const auto &one = _dialogsProcess->info.list[index];
 		_dialogsProcess->single = std::make_unique<DialogsProcess::Single>(one);
 		_dialogsProcess->startOne(one);
@@ -389,7 +415,7 @@ void ApiWrap::requestMessagesSlice() {
 
 	const auto process = _dialogsProcess->single.get();
 	mainRequest(MTPmessages_GetHistory(
-		process->peer,
+		process->info.input,
 		MTP_int(process->offsetId),
 		MTP_int(0), // offset_date
 		MTP_int(-kMessagesSliceLimit),
@@ -402,7 +428,7 @@ void ApiWrap::requestMessagesSlice() {
 		Expects(_dialogsProcess->single != nullptr);
 
 		const auto process = _dialogsProcess->single.get();
-		result.visit([&](const MTPDmessages_messagesNotModified &data) {
+		result.match([&](const MTPDmessages_messagesNotModified &data) {
 			error("Unexpected messagesNotModified received.");
 		}, [&](const auto &data) {
 			if constexpr (MTPDmessages_messages::Is<decltype(data)>()) {
@@ -411,7 +437,8 @@ void ApiWrap::requestMessagesSlice() {
 			loadMessagesFiles(Data::ParseMessagesSlice(
 				data.vmessages,
 				data.vusers,
-				data.vchats));
+				data.vchats,
+				process->info.relativePath));
 		});
 	}).send();
 }
@@ -438,12 +465,18 @@ void ApiWrap::loadNextMessageFile() {
 
 	const auto process = _dialogsProcess->single.get();
 	const auto &list = process->slice->list;
-	++process->fileIndex;
-	if (process->fileIndex < list.size()) {
-		loadFile(
-			list[process->fileIndex].mediaFile,
-			[=](const QString &path) { loadMessageFileDone(path); });
-		return;
+	while (true) {
+		const auto index = ++process->fileIndex;
+		if (index >= list.size()) {
+			break;
+		}
+		const auto &file = list[index].media.file();
+		if (WillLoadFile(file)) {
+			loadFile(
+				file,
+				[=](const QString &path) { loadMessageFileDone(path); });
+			return;
+		}
 	}
 
 	_dialogsProcess->sliceOne(*base::take(process->slice));
@@ -468,7 +501,7 @@ void ApiWrap::loadMessageFileDone(const QString &relativePath) {
 
 	const auto process = _dialogsProcess->single.get();
 	const auto index = process->fileIndex;
-	process->slice->list[index].mediaFile.relativePath = relativePath;
+	process->slice->list[index].media.file().relativePath = relativePath;
 	loadNextMessageFile();
 }
 
@@ -493,14 +526,7 @@ void ApiWrap::finishDialogs() {
 void ApiWrap::loadFile(const Data::File &file, FnMut<void(QString)> done) {
 	Expects(_fileProcess == nullptr);
 	Expects(_settings != nullptr);
-
-	if (!file.relativePath.isEmpty()) {
-		done(file.relativePath);
-		return;
-	} else if (file.content.isEmpty() && !file.location.dcId) {
-		done(QString());
-		return;
-	}
+	Expects(WillLoadFile(file));
 
 	using namespace Output;
 	const auto relativePath = File::PrepareRelativePath(

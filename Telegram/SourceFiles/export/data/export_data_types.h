@@ -59,13 +59,40 @@ struct File {
 	QString relativePath;
 };
 
+struct Image {
+	int width = 0;
+	int height = 0;
+	File file;
+};
+
 struct Photo {
 	uint64 id = 0;
 	TimeId date = 0;
 
+	Image image;
+};
+
+struct Document {
+	uint64 id = 0;
+	TimeId date = 0;
+
+	File file;
+
+	Utf8String name;
+	Utf8String mime;
 	int width = 0;
 	int height = 0;
-	File image;
+
+	Utf8String stickerEmoji;
+	Utf8String songPerformer;
+	Utf8String songTitle;
+	int duration = 0;
+
+	bool isAnimated = false;
+	bool isVideoMessage = false;
+	bool isVoiceMessage = false;
+	bool isVideoFile = false;
+	bool isAudioFile = false;
 };
 
 struct UserpicsSlice {
@@ -148,18 +175,45 @@ struct SessionsList {
 
 SessionsList ParseSessionsList(const MTPaccount_Authorizations &data);
 
+struct Media {
+	base::optional_variant<Photo, Document> content;
+	TimeId ttl = 0;
+
+	File &file();
+	const File &file() const;
+};
+
+Media ParseMedia(
+	const MTPMessageMedia &data,
+	const QString &folder,
+	TimeId date);
+
+struct ServiceAction {
+	base::optional_variant<> data;
+};
+
+ServiceAction ParseServiceAction(
+	const MTPMessageAction &data,
+	const QString &mediaFolder,
+	TimeId date);
+
 struct Message {
 	int32 id = 0;
 	TimeId date = 0;
-
+	TimeId edited = 0;
+	int32 fromId = 0;
+	int32 viaBotId = 0;
+	int32 replyToMsgId = 0;
 	Utf8String text;
-	File mediaFile;
+	Media media;
+	ServiceAction action;
 
 };
 
-Message ParseMessage(const MTPMessage &data);
+Message ParseMessage(const MTPMessage &data, const QString &mediaFolder);
 std::map<int32, Message> ParseMessagesList(
-	const MTPVector<MTPMessage> &data);
+	const MTPVector<MTPMessage> &data,
+	const QString &mediaFolder);
 
 struct DialogInfo {
 	enum class Type {
@@ -175,6 +229,9 @@ struct DialogInfo {
 	MTPInputPeer input;
 	int32 topMessageId = 0;
 	TimeId topMessageDate = 0;
+
+	QString relativePath;
+
 };
 
 struct DialogsInfo {
@@ -191,7 +248,8 @@ struct MessagesSlice {
 MessagesSlice ParseMessagesSlice(
 	const MTPVector<MTPMessage> &data,
 	const MTPVector<MTPUser> &users,
-	const MTPVector<MTPChat> &chats);
+	const MTPVector<MTPChat> &chats,
+	const QString &mediaFolder);
 
 Utf8String FormatPhoneNumber(const Utf8String &phoneNumber);
 

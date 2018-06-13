@@ -109,6 +109,15 @@ public:
 		return _impl.template get_unchecked<T>();
 	}
 
+	template <typename ...Methods>
+	decltype(auto) match(Methods &&...methods) {
+		return base::match(_impl, std::forward<Methods>(methods)...);
+	}
+	template <typename ...Methods>
+	decltype(auto) match(Methods &&...methods) const {
+		return base::match(_impl, std::forward<Methods>(methods)...);
+	}
+
 private:
 	variant<none_type, Types...> _impl;
 
@@ -122,6 +131,20 @@ inline T *get_if(optional_variant<Types...> *v) {
 template <typename T, typename... Types>
 inline const T *get_if(const optional_variant<Types...> *v) {
 	return (v && v->template is<T>()) ? &v->template get_unchecked<T>() : nullptr;
+}
+
+template <typename ...Types, typename ...Methods>
+inline decltype(auto) match(
+		optional_variant<Types...> &value,
+		Methods &&...methods) {
+	return value.match(std::forward<Methods>(methods)...);
+}
+
+template <typename ...Types, typename ...Methods>
+inline decltype(auto) match(
+		const optional_variant<Types...> &value,
+		Methods &&...methods) {
+	return value.match(std::forward<Methods>(methods)...);
 }
 
 template <typename Type>

@@ -63,6 +63,7 @@ private:
 	void requestDialogsSlice();
 	void appendDialogsSlice(Data::DialogsInfo &&info);
 	void finishDialogsList();
+	void fillDialogsPaths();
 
 	void requestNextDialog();
 	void requestMessagesSlice();

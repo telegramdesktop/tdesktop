@@ -131,10 +131,10 @@ bool TextWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
 			lines.append("(deleted photo)");
 		} else {
 			lines.append(Data::FormatDateTime(userpic.date)).append(" - ");
-			if (userpic.image.relativePath.isEmpty()) {
+			if (userpic.image.file.relativePath.isEmpty()) {
 				lines.append("(file unavailable)");
 			} else {
-				lines.append(userpic.image.relativePath.toUtf8());
+				lines.append(userpic.image.file.relativePath.toUtf8());
 			}
 		}
 		lines.append(kLineBreak);
@@ -259,18 +259,16 @@ bool TextWriter::writeDialogsStart(const Data::DialogsInfo &data) {
 		}
 		Unexpected("Dialog type in TypeString.");
 	};
-	const auto digits = Data::NumberToString(data.list.size() - 1).size();
 	const auto file = fileWithRelativePath("chats.txt");
 	auto list = std::vector<QByteArray>();
 	list.reserve(data.list.size());
 	auto index = 0;
 	for (const auto &dialog : data.list) {
-		const auto number = Data::NumberToString(++index, digits, '0');
-		const auto path = "Chats/chat_" + number + ".txt";
+		const auto path = dialog.relativePath + "messages.txt";
 		list.push_back(SerializeKeyValue({
 			{ "Name", NameString(dialog.name, dialog.type) },
 			{ "Type", TypeString(dialog.type) },
-			{ "Content", path }
+			{ "Content", path.toUtf8() }
 		}));
 	}
 	const auto full = JoinList(kLineBreak, list);
@@ -291,7 +289,7 @@ bool TextWriter::writeDialogStart(const Data::DialogInfo &data) {
 
 	const auto digits = Data::NumberToString(_dialogsCount - 1).size();
 	const auto number = Data::NumberToString(++_dialogIndex, digits, '0');
-	_dialog = fileWithRelativePath("Chats/chat_" + number + ".txt");
+	_dialog = fileWithRelativePath(data.relativePath + "messages.txt");
 	return true;
 }
 

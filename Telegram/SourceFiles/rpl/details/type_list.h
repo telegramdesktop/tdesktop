@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include <type_traits>
-#include "base/variant.h"
 
 namespace rpl {
 namespace details {
@@ -177,20 +176,5 @@ struct extract_to<list<Types...>, To> {
 };
 
 } // namespace type_list
-
-template <typename ...Types>
-struct normalized_variant {
-	using list = type_list::list<Types...>;
-	using distinct = type_list::distinct_t<list>;
-	using type = std::conditional_t<
-		type_list::size_v<distinct> == 1,
-		type_list::get_t<0, distinct>,
-		type_list::extract_to_t<distinct, base::variant>>;
-};
-
-template <typename ...Types>
-using normalized_variant_t
-	= typename normalized_variant<Types...>::type;
-
 } // namespace details
 } // namespace rpl
