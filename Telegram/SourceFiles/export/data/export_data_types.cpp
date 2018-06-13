@@ -48,6 +48,19 @@ Utf8String ParseString(const MTPstring &data) {
 	return data.v;
 }
 
+Utf8String FillLeft(const Utf8String &data, int length, char filler) {
+	if (length <= data.size()) {
+		return data;
+	}
+	auto result = Utf8String();
+	result.reserve(length);
+	for (auto i = 0, count = length - data.size(); i != count; ++i) {
+		result.append(filler);
+	}
+	result.append(data);
+	return result;
+}
+
 FileLocation ParseLocation(const MTPFileLocation &data) {
 	return data.visit([](const MTPDfileLocation &data) {
 		return FileLocation{
@@ -158,14 +171,13 @@ User ParseUser(const MTPUser &data) {
 		if (data.has_username()) {
 			result.username = ParseString(data.vusername);
 		}
-		if (data.has_access_hash()) {
-			result.input = MTP_inputUser(data.vid, data.vaccess_hash);
-		} else {
-			result.input = MTP_inputUserEmpty();
-		}
+		const auto access_hash = data.has_access_hash()
+			? data.vaccess_hash
+			: MTP_long(0);
+		result.input = MTP_inputUser(data.vid, access_hash);
 	}, [&](const MTPDuserEmpty &data) {
 		result.id = data.vid.v;
-		result.input = MTP_inputUserEmpty();
+		result.input = MTP_inputUser(data.vid, MTP_long(0));
 	});
 	return result;
 }
@@ -240,7 +252,13 @@ PeerId Peer::id() const {
 
 Utf8String Peer::name() const {
 	if (const auto user = this->user()) {
-		return user->firstName + ' ' + user->lastName;
+		return user->firstName.isEmpty()
+			? (user->lastName.isEmpty()
+				? Utf8String()
+				: user->lastName)
+			: (user->lastName.isEmpty()
+				? user->firstName
+				: user->firstName + ' ' + user->lastName);
 	} else if (const auto chat = this->chat()) {
 		return chat->title;
 	}
@@ -280,6 +298,7 @@ Message ParseMessage(const MTPMessage &data) {
 	data.visit([&](const MTPDmessage &data) {
 		result.id = data.vid.v;
 		result.date = data.vdate.v;
+		result.text = ParseString(data.vmessage);
 	}, [&](const MTPDmessageService &data) {
 		result.id = data.vid.v;
 		result.date = data.vdate.v;
@@ -376,12 +395,12 @@ SessionsList ParseSessionsList(const MTPaccount_Authorizations &data) {
 	return result;
 }
 
-void AppendParsedDialogs(DialogsInfo &to, const MTPmessages_Dialogs &data) {
-//	const auto process = [&](const MTPDmessages_dialogs &data) {
-	const auto process = [&](const auto &data) {
+DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
+	auto result = DialogsInfo();
+	data.visit([&](const auto &data) { // MTPDmessages_dialogs &data) {
 		const auto peers = ParsePeersLists(data.vusers, data.vchats);
 		const auto messages = ParseMessagesList(data.vmessages);
-		to.list.reserve(to.list.size() + data.vdialogs.v.size());
+		result.list.reserve(result.list.size() + data.vdialogs.v.size());
 		for (const auto &dialog : data.vdialogs.v) {
 			if (dialog.type() != mtpc_dialog) {
 				continue;
@@ -409,10 +428,25 @@ void AppendParsedDialogs(DialogsInfo &to, const MTPmessages_Dialogs &data) {
 				const auto &message = messageIt->second;
 				info.topMessageDate = message.date;
 			}
-			to.list.push_back(std::move(info));
+			result.list.push_back(std::move(info));
 		}
-	};
-	data.visit(process);
+	});
+	return result;
+}
+
+MessagesSlice ParseMessagesSlice(
+		const MTPVector<MTPMessage> &data,
+		const MTPVector<MTPUser> &users,
+		const MTPVector<MTPChat> &chats) {
+	const auto &list = data.v;
+	auto result = MessagesSlice();
+	result.list.reserve(list.size());
+	for (const auto &message : list) {
+		result.list.push_back(ParseMessage(message));
+	}
+	ranges::reverse(result.list);
+	result.peers = ParsePeersLists(users, chats);
+	return result;
 }
 
 Utf8String FormatPhoneNumber(const Utf8String &phoneNumber) {

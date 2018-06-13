@@ -19,15 +19,19 @@ struct UserpicsSlice;
 struct ContactsList;
 struct SessionsList;
 struct DialogsInfo;
+struct DialogInfo;
+struct MessagesSlice;
 } // namespace Data
+
+struct Settings;
 
 class ApiWrap {
 public:
 	ApiWrap(Fn<void(FnMut<void()>)> runner);
 
-	void setFilesBaseFolder(const QString &folder);
-
 	rpl::producer<RPCError> errors() const;
+
+	void startExport(const Settings &settings);
 
 	void requestPersonalInfo(FnMut<void(Data::PersonalInfo&&)> done);
 
@@ -40,7 +44,12 @@ public:
 
 	void requestSessions(FnMut<void(Data::SessionsList&&)> done);
 
-	void requestDialogs(FnMut<void(Data::DialogsInfo&&)> done);
+	void requestDialogs(
+		FnMut<void(const Data::DialogsInfo&)> start,
+		Fn<void(const Data::DialogInfo&)> startOne,
+		Fn<void(Data::MessagesSlice&&)> sliceOne,
+		Fn<void()> finishOne,
+		FnMut<void()> finish);
 
 	~ApiWrap();
 
@@ -52,6 +61,16 @@ private:
 	void finishUserpics();
 
 	void requestDialogsSlice();
+	void appendDialogsSlice(Data::DialogsInfo &&info);
+	void finishDialogsList();
+
+	void requestNextDialog();
+	void requestMessagesSlice();
+	void loadMessagesFiles(Data::MessagesSlice &&slice);
+	void loadNextMessageFile();
+	void loadMessageFileDone(const QString &relativePath);
+	void finishMessages();
+	void finishDialogs();
 
 	void loadFile(const Data::File &file, FnMut<void(QString)> done);
 	void loadFilePart();
@@ -68,7 +87,8 @@ private:
 	void error(const QString &text);
 
 	MTP::ConcurrentSender _mtp;
-	QString _filesFolder;
+
+	std::unique_ptr<Settings> _settings;
 	MTPInputUser _user = MTP_inputUserSelf();
 
 	struct UserpicsProcess;

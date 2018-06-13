@@ -29,7 +29,7 @@ void SerializeMultiline(
 	auto offset = 0;
 	do {
 		appendTo.append("> ");
-		appendTo.append(data + offset, newline).append(kLineBreak);
+		appendTo.append(data + offset, newline - offset).append(kLineBreak);
 		offset = newline + 1;
 		newline = value.indexOf('\n', offset);
 	} while (newline > 0);
@@ -89,7 +89,7 @@ bool TextWriter::start(const QString &folder) {
 	Expects(folder.endsWith('/'));
 
 	_folder = folder;
-	_result = std::make_unique<File>(_folder + "result.txt");
+	_result = fileWithRelativePath(mainFileRelativePath());
 	return true;
 }
 
@@ -128,7 +128,7 @@ bool TextWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
 	auto lines = QByteArray();
 	for (const auto &userpic : data.list) {
 		if (!userpic.date) {
-			lines.append("(empty photo)");
+			lines.append("(deleted photo)");
 		} else {
 			lines.append(Data::FormatDateTime(userpic.date)).append(" - ");
 			if (userpic.image.relativePath.isEmpty()) {
@@ -153,17 +153,17 @@ bool TextWriter::writeContactsList(const Data::ContactsList &data) {
 		return true;
 	}
 
-	const auto file = std::make_unique<File>(_folder + "contacts.txt");
+	const auto file = fileWithRelativePath("contacts.txt");
 	auto list = std::vector<QByteArray>();
 	list.reserve(data.list.size());
 	for (const auto &index : Data::SortedContactsIndices(data)) {
 		const auto &contact = data.list[index];
 		if (!contact.id) {
-			list.push_back("(user unavailable)");
+			list.push_back("(user unavailable)" + kLineBreak);
 		} else if (contact.firstName.isEmpty()
 			&& contact.lastName.isEmpty()
 			&& contact.phoneNumber.isEmpty()) {
-			list.push_back("(empty user)" + kLineBreak);
+			list.push_back("(deleted user)" + kLineBreak);
 		} else {
 			list.push_back(SerializeKeyValue({
 				{ "First name", contact.firstName },
@@ -192,7 +192,7 @@ bool TextWriter::writeSessionsList(const Data::SessionsList &data) {
 		return true;
 	}
 
-	const auto file = std::make_unique<File>(_folder + "sessions.txt");
+	const auto file = fileWithRelativePath("sessions.txt");
 	auto list = std::vector<QByteArray>();
 	list.reserve(data.list.size());
 	for (const auto &session : data.list) {
@@ -231,6 +231,8 @@ bool TextWriter::writeDialogsStart(const Data::DialogsInfo &data) {
 		return true;
 	}
 
+	_dialogsCount = data.list.size();
+
 	using Type = Data::DialogInfo::Type;
 	const auto TypeString = [](Type type) {
 		switch (type) {
@@ -242,20 +244,31 @@ bool TextWriter::writeDialogsStart(const Data::DialogsInfo &data) {
 		}
 		Unexpected("Dialog type in TypeString.");
 	};
+	const auto NameString = [](
+			const Data::Utf8String &name,
+			Type type) -> QByteArray {
+		if (!name.isEmpty()) {
+			return name;
+		}
+		switch (type) {
+		case Type::Unknown: return "(unknown)";
+		case Type::Personal: return "(deleted user)";
+		case Type::PrivateGroup:
+		case Type::PublicGroup: return "(deleted group)";
+		case Type::Channel: return "(deleted channel)";
+		}
+		Unexpected("Dialog type in TypeString.");
+	};
 	const auto digits = Data::NumberToString(data.list.size() - 1).size();
-	const auto file = std::make_unique<File>(_folder + "chats.txt");
+	const auto file = fileWithRelativePath("chats.txt");
 	auto list = std::vector<QByteArray>();
 	list.reserve(data.list.size());
 	auto index = 0;
 	for (const auto &dialog : data.list) {
-		auto number = Data::NumberToString(++index);
-		auto path = QByteArray("Chats/chat_");
-		for (auto i = number.size(); i < digits; ++i) {
-			path += '0';
-		}
-		path += number + ".txt";
+		const auto number = Data::NumberToString(++index, digits, '0');
+		const auto path = "Chats/chat_" + number + ".txt";
 		list.push_back(SerializeKeyValue({
-			{ "Name", dialog.name },
+			{ "Name", NameString(dialog.name, dialog.type) },
 			{ "Type", TypeString(dialog.type) },
 			{ "Content", path }
 		}));
@@ -273,14 +286,38 @@ bool TextWriter::writeDialogsStart(const Data::DialogsInfo &data) {
 }
 
 bool TextWriter::writeDialogStart(const Data::DialogInfo &data) {
+	Expects(_dialog == nullptr);
+	Expects(_dialogIndex < _dialogsCount);
+
+	const auto digits = Data::NumberToString(_dialogsCount - 1).size();
+	const auto number = Data::NumberToString(++_dialogIndex, digits, '0');
+	_dialog = fileWithRelativePath("Chats/chat_" + number + ".txt");
 	return true;
 }
 
 bool TextWriter::writeMessagesSlice(const Data::MessagesSlice &data) {
-	return true;
+	Expects(_dialog != nullptr);
+
+	auto list = std::vector<QByteArray>();
+	list.reserve(data.list.size());
+	auto index = 0;
+	for (const auto &message : data.list) {
+		list.push_back(SerializeKeyValue({
+			{ "ID", Data::NumberToString(message.id) },
+			{ "Date", Data::FormatDateTime(message.date) },
+			{ "Text", message.text }
+		}));
+	}
+	const auto full = _dialog->empty()
+		? JoinList(kLineBreak, list)
+		: kLineBreak + JoinList(kLineBreak, list);
+	return _dialog->writeBlock(full) == File::Result::Success;
 }
 
 bool TextWriter::writeDialogEnd() {
+	Expects(_dialog != nullptr);
+
+	_dialog = nullptr;
 	return true;
 }
 
@@ -293,7 +330,20 @@ bool TextWriter::finish() {
 }
 
 QString TextWriter::mainFilePath() {
-	return _folder + "result.txt";
+	return pathWithRelativePath(mainFileRelativePath());
+}
+
+QString TextWriter::mainFileRelativePath() const {
+	return "result.txt";
+}
+
+QString TextWriter::pathWithRelativePath(const QString &path) const {
+	return _folder + path;
+}
+
+std::unique_ptr<File> TextWriter::fileWithRelativePath(
+		const QString &path) const {
+	return std::make_unique<File>(_folder + path);
 }
 
 } // namespace Output

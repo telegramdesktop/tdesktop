@@ -17,6 +17,10 @@ namespace Output {
 File::File(const QString &path) : _path(path) {
 }
 
+bool File::empty() const {
+	return !_offset;
+}
+
 File::Result File::writeBlock(const QByteArray &block) {
 	const auto result = writeBlockAttempt(block);
 	if (result != Result::Success) {

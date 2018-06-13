@@ -28,11 +28,16 @@ int32 BarePeerId(PeerId peerId);
 
 Utf8String ParseString(const MTPstring &data);
 
+Utf8String FillLeft(const Utf8String &data, int length, char filler);
+
 template <typename Type>
-inline auto NumberToString(Type value)
+inline auto NumberToString(Type value, int length = 0, char filler = '0')
 -> std::enable_if_t<std::is_arithmetic_v<Type>, Utf8String> {
 	const auto result = std::to_string(value);
-	return QByteArray(result.data(), int(result.size()));
+	return FillLeft(
+		Utf8String(result.data(), int(result.size())),
+		length,
+		filler);
 }
 
 struct UserpicsInfo {
@@ -147,6 +152,9 @@ struct Message {
 	int32 id = 0;
 	TimeId date = 0;
 
+	Utf8String text;
+	File mediaFile;
+
 };
 
 Message ParseMessage(const MTPMessage &data);
@@ -173,11 +181,17 @@ struct DialogsInfo {
 	std::vector<DialogInfo> list;
 };
 
-void AppendParsedDialogs(DialogsInfo &to, const MTPmessages_Dialogs &data);
+DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data);
 
 struct MessagesSlice {
 	std::vector<Message> list;
+	std::map<PeerId, Peer> peers;
 };
+
+MessagesSlice ParseMessagesSlice(
+	const MTPVector<MTPMessage> &data,
+	const MTPVector<MTPUser> &users,
+	const MTPVector<MTPChat> &chats);
 
 Utf8String FormatPhoneNumber(const Utf8String &phoneNumber);
 

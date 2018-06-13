@@ -20,6 +20,8 @@ class File {
 public:
 	File(const QString &path);
 
+	bool empty() const;
+
 	enum class Result {
 		Success,
 		Error,

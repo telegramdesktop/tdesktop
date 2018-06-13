@@ -38,10 +38,18 @@ public:
 	QString mainFilePath() override;
 
 private:
+	QString mainFileRelativePath() const;
+	QString pathWithRelativePath(const QString &path) const;
+	std::unique_ptr<File> fileWithRelativePath(const QString &path) const;
+
 	QString _folder;
 
 	std::unique_ptr<File> _result;
 	int _userpicsCount = 0;
+
+	int _dialogsCount = 0;
+	int _dialogIndex = 0;
+	std::unique_ptr<File> _dialog;
 
 };
 

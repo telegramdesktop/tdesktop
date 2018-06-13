@@ -53,6 +53,7 @@ struct Settings {
 	Output::Format format = Output::Format();
 
 	Types types = DefaultTypes();
+	Types fullChats = DefaultFullChats();
 	MediaSettings defaultMedia;
 	base::flat_map<Type, MediaSettings> customMedia;
 
@@ -62,6 +63,10 @@ struct Settings {
 			| Type::Contacts
 			| Type::Sessions
 			| Type::PersonalChats;
+	}
+
+	static inline Types DefaultFullChats() {
+		return Type::PersonalChats;
 	}
 
 };

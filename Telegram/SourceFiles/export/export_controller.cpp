@@ -157,7 +157,7 @@ void Controller::startExport(const Settings &settings) {
 		return;
 	}
 	_writer = Output::CreateWriter(_settings.format);
-	_api.setFilesBaseFolder(_settings.path);
+	_api.startExport(_settings);
 	fillExportSteps();
 	exportNext();
 }
@@ -268,8 +268,16 @@ void Controller::exportSessions() {
 }
 
 void Controller::exportDialogs() {
-	_api.requestDialogs([=](Data::DialogsInfo &&result) {
+	_api.requestDialogs([=](const Data::DialogsInfo &result) {
 		_writer->writeDialogsStart(result);
+	}, [=](const Data::DialogInfo &result) {
+		_writer->writeDialogStart(result);
+	}, [=](Data::MessagesSlice &&result) {
+		_writer->writeMessagesSlice(result);
+	}, [=] {
+		_writer->writeDialogEnd();
+	}, [=] {
+		_writer->writeDialogsEnd();
 		exportNext();
 	});
 }
