@@ -9,13 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "export/output/export_output_abstract.h"
 #include "export/output/export_output_file.h"
+#include "export/export_settings.h"
 
 namespace Export {
 namespace Output {
 
 class TextWriter : public AbstractWriter {
 public:
-	bool start(const QString &folder) override;
+	bool start(const Settings &settings) override;
 
 	bool writePersonal(const Data::PersonalInfo &data) override;
 
@@ -42,7 +43,7 @@ private:
 	QString pathWithRelativePath(const QString &path) const;
 	std::unique_ptr<File> fileWithRelativePath(const QString &path) const;
 
-	QString _folder;
+	Settings _settings;
 
 	std::unique_ptr<File> _result;
 	int _userpicsCount = 0;

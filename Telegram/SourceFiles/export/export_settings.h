@@ -50,6 +50,7 @@ struct Settings {
 	friend inline constexpr auto is_flag_type(Type) { return true; };
 
 	QString path;
+	QString internalLinksDomain;
 	Output::Format format = Output::Format();
 
 	Types types = DefaultTypes();
@@ -62,7 +63,8 @@ struct Settings {
 			| Type::Userpics
 			| Type::Contacts
 			| Type::Sessions
-			| Type::PersonalChats;
+			| Type::PersonalChats
+			| Type::PrivateGroups;
 	}
 
 	static inline Types DefaultFullChats() {

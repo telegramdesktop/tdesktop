@@ -29,6 +29,8 @@ SettingsWidget::SettingsWidget(QWidget *parent)
 	} else {
 		_data.path = Global::DownloadPath();
 	}
+	_data.internalLinksDomain = Global::InternalLinksDomain();
+
 	setupContent();
 }
 

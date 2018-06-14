@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QFileInfo>
 #include <QtCore/QDir>
+
 #include <gsl/gsl_util>
 
 namespace Export {

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/output/export_output_text.h"
 
 #include "export/data/export_data_types.h"
+#include "core/utils.h"
 
 #include <QtCore/QFile>
 
@@ -83,12 +84,312 @@ Data::Utf8String FormatUsername(const Data::Utf8String &username) {
 	return username.isEmpty() ? username : ('@' + username);
 }
 
+QByteArray FormatFilePath(const Data::File &file) {
+	return file.relativePath.toUtf8();
+}
+
+QByteArray SerializeMessage(
+		const Data::Message &message,
+		const std::map<Data::PeerId, Data::Peer> &peers,
+		const QString &internalLinksDomain) {
+	using namespace Data;
+
+	if (message.media.content.is<UnsupportedMedia>()) {
+		return "Error! This message is not supported "
+			"by this version of Telegram Desktop. "
+			"Please update the application.";
+	}
+
+	const auto peer = [&](PeerId peerId) -> const Peer& {
+		if (const auto i = peers.find(peerId); i != end(peers)) {
+			return i->second;
+		}
+		static auto empty = Peer{ User() };
+		return empty;
+	};
+	const auto user = [&](int32 userId) -> const User& {
+		if (const auto result = peer(UserPeerId(userId)).user()) {
+			return *result;
+		}
+		static auto empty = User();
+		return empty;
+	};
+	const auto chat = [&](int32 chatId) -> const Chat& {
+		if (const auto result = peer(ChatPeerId(chatId)).chat()) {
+			return *result;
+		}
+		static auto empty = Chat();
+		return empty;
+	};
+
+	auto values = std::vector<std::pair<QByteArray, QByteArray>>{
+		{ "ID", NumberToString(message.id) },
+		{ "Date", FormatDateTime(message.date) },
+		{ "Edited", FormatDateTime(message.edited) },
+	};
+	const auto push = [&](const QByteArray &key, const QByteArray &value) {
+		if (!value.isEmpty()) {
+			values.emplace_back(key, value);
+		}
+	};
+	const auto wrapPeerName = [&](PeerId peerId) {
+		const auto result = peer(peerId).name();
+		return result.isEmpty() ? QByteArray("(unknown peer)") : result;
+	};
+	const auto wrapUserName = [&](int32 userId) {
+		const auto result = user(userId).name();
+		return result.isEmpty() ? QByteArray("(unknown user)") : result;
+	};
+	const auto pushFrom = [&](const QByteArray &label = "From") {
+		if (message.fromId) {
+			push(label, wrapUserName(message.fromId));
+		}
+	};
+	const auto pushReplyToMsgId = [&](
+			const QByteArray &label = "Reply to message") {
+		if (message.replyToMsgId) {
+			push(label, "ID-" + NumberToString(message.replyToMsgId));
+		}
+	};
+	const auto pushUserNames = [&](
+			const std::vector<int32> &data,
+			const QByteArray &labelOne = "Member",
+			const QByteArray &labelMany = "Members") {
+		auto list = std::vector<QByteArray>();
+		for (const auto userId : data) {
+			list.push_back(wrapUserName(userId));
+		}
+		if (list.size() == 1) {
+			push(labelOne, list[0]);
+		} else if (!list.empty()) {
+			push(labelMany, JoinList(", ", list));
+		}
+	};
+	const auto pushActor = [&] {
+		pushFrom("Actor");
+	};
+	const auto pushAction = [&](const QByteArray &action) {
+		push("Action", action);
+	};
+	message.action.content.match([&](const ActionChatCreate &data) {
+		pushActor();
+		pushAction("Create group");
+		push("Title", data.title);
+		pushUserNames(data.userIds);
+	}, [&](const ActionChatEditTitle &data) {
+		pushActor();
+		pushAction("Edit group title");
+		push("New title", data.title);
+	}, [&](const ActionChatEditPhoto &data) {
+		pushActor();
+		pushAction("Edit group photo");
+		push("Photo", FormatFilePath(data.photo.image.file));
+	}, [&](const ActionChatDeletePhoto &data) {
+		pushActor();
+		pushAction("Delete group photo");
+	}, [&](const ActionChatAddUser &data) {
+		pushActor();
+		pushAction("Invite members");
+		pushUserNames(data.userIds);
+	}, [&](const ActionChatDeleteUser &data) {
+		pushActor();
+		pushAction("Remove members");
+		push("Member", wrapUserName(data.userId));
+	}, [&](const ActionChatJoinedByLink &data) {
+		pushActor();
+		pushAction("Join group by link");
+		push("Inviter", wrapUserName(data.inviterId));
+	}, [&](const ActionChannelCreate &data) {
+		pushActor();
+		pushAction("Create channel");
+		push("Title", data.title);
+	}, [&](const ActionChatMigrateTo &data) {
+		pushActor();
+		pushAction("Migrate this group to supergroup");
+	}, [&](const ActionChannelMigrateFrom &data) {
+		pushActor();
+		pushAction("Migrate this supergroup from group");
+		push("Title", data.title);
+	}, [&](const ActionPinMessage &data) {
+		pushActor();
+		pushAction("Pin message");
+		pushReplyToMsgId("Message");
+	}, [&](const ActionHistoryClear &data) {
+		pushActor();
+		pushAction("Clear history");
+	}, [&](const ActionGameScore &data) {
+		pushActor();
+		pushAction("Score in a game");
+		pushReplyToMsgId("Game message");
+		push("Score", NumberToString(data.score));
+	}, [&](const ActionPaymentSent &data) {
+		pushAction("Send payment");
+		push(
+			"Amount",
+			Data::FormatMoneyAmount(data.amount, data.currency));
+		pushReplyToMsgId("Invoice message");
+	}, [&](const ActionPhoneCall &data) {
+		pushActor();
+		pushAction("Phone call");
+		if (data.duration) {
+			push("Duration", NumberToString(data.duration) + " sec.");
+		}
+		using Reason = ActionPhoneCall::DiscardReason;
+		push("Discard reason", [&] {
+			switch (data.discardReason) {
+			case Reason::Busy: return "Busy";
+			case Reason::Disconnect: return "Disconnect";
+			case Reason::Hangup: return "Hangup";
+			case Reason::Missed: return "Missed";
+			}
+			return "";
+		}());
+	}, [&](const ActionScreenshotTaken &data) {
+		pushActor();
+		pushAction("Take screenshot");
+	}, [&](const ActionCustomAction &data) {
+		pushActor();
+		push("Information", data.message);
+	}, [&](const ActionBotAllowed &data) {
+		pushAction("Allow sending messages");
+		push("Reason", "Login on \"" + data.domain + "\"");
+	}, [&](const ActionSecureValuesSent &data) {
+		pushAction("Send Telegram Passport values");
+		auto list = std::vector<QByteArray>();
+		for (const auto type : data.types) {
+			list.push_back([&] {
+				using Type = ActionSecureValuesSent::Type;
+				switch (type) {
+				case Type::PersonalDetails: return "Personal details";
+				case Type::Passport: return "Passport";
+				case Type::DriverLicense: return "Driver license";
+				case Type::IdentityCard: return "Identity card";
+				case Type::InternalPassport: return "Internal passport";
+				case Type::Address: return "Address information";
+				case Type::UtilityBill: return "Utility bill";
+				case Type::BankStatement: return "Bank statement";
+				case Type::RentalAgreement: return "Rental agreement";
+				case Type::PassportRegistration:
+					return "Passport registration";
+				case Type::TemporaryRegistration:
+					return "Temporary registration";
+				case Type::Phone: return "Phone number";
+				case Type::Email: return "Email";
+				}
+				return "";
+			}());
+		}
+		if (list.size() == 1) {
+			push("Value", list[0]);
+		} else if (!list.empty()) {
+			push("Values", JoinList(", ", list));
+		}
+	}, [](const base::none_type &) {});
+
+	if (!message.action.content) {
+		pushFrom();
+		push("Author", message.signature);
+		if (message.forwardedFromId) {
+			push("Forwarded from", wrapPeerName(message.forwardedFromId));
+		}
+		pushReplyToMsgId();
+		if (message.viaBotId) {
+			push("Via", user(message.viaBotId).username);
+		}
+	}
+
+	message.media.content.match([&](const Photo &photo) {
+	}, [&](const Document &data) {
+		const auto pushPath = [&](const QByteArray &label) {
+			push(label, FormatFilePath(data.file));
+		};
+		if (!data.stickerEmoji.isEmpty()) {
+			pushPath("Sticker");
+			push("Emoji", data.stickerEmoji);
+		} else if (data.isVideoMessage) {
+			pushPath("Video message");
+		} else if (data.isVoiceMessage) {
+			pushPath("Voice message");
+		} else if (data.isAnimated) {
+			pushPath("Animation");
+		} else if (data.isVideoFile) {
+			pushPath("Video file");
+		} else if (data.isAudioFile) {
+			pushPath("Audio file");
+			push("Performer", data.songPerformer);
+			push("Title", data.songTitle);
+		} else {
+			pushPath("File");
+		}
+		if (data.stickerEmoji.isEmpty()) {
+			push("Mime type", data.mime);
+		}
+		if (data.duration) {
+			push("Duration", NumberToString(data.duration) + " sec.");
+		}
+		if (data.width && data.height) {
+			push("Width", NumberToString(data.width));
+			push("Height", NumberToString(data.height));
+		}
+	}, [&](const ContactInfo &data) {
+		push("Contact information", SerializeKeyValue({
+			{ "First name", data.firstName },
+			{ "Last name", data.lastName },
+			{ "Phone number", FormatPhoneNumber(data.phoneNumber) },
+		}));
+	}, [&](const GeoPoint &data) {
+		push("Location", data.valid ? SerializeKeyValue({
+			{ "Latitude", NumberToString(data.latitude) },
+			{ "Longitude", NumberToString(data.longitude) },
+		}) : QByteArray("(empty value)"));
+	}, [&](const Venue &data) {
+		push("Place name", data.title);
+		push("Address", data.address);
+		if (data.point.valid) {
+			push("Location", SerializeKeyValue({
+				{ "Latitude", NumberToString(data.point.latitude) },
+				{ "Longitude", NumberToString(data.point.longitude) },
+			}));
+		}
+	}, [&](const Game &data) {
+		push("Game", data.title);
+		push("Description", data.description);
+		if (data.botId != 0 && !data.shortName.isEmpty()) {
+			const auto bot = user(data.botId);
+			if (bot.isBot && !bot.username.isEmpty()) {
+				push("Link", internalLinksDomain.toUtf8()
+					+ bot.username
+					+ "?game="
+					+ data.shortName);
+			}
+		}
+	}, [&](const Invoice &data) {
+		push("Invoice", SerializeKeyValue({
+			{ "Title", data.title },
+			{ "Description", data.description },
+			{
+				"Amount",
+				Data::FormatMoneyAmount(data.amount, data.currency)
+			},
+			{ "Receipt message", (data.receiptMsgId
+				? "ID-" + NumberToString(data.receiptMsgId)
+				: QByteArray()) }
+		}));
+	}, [](const UnsupportedMedia &data) {
+		Unexpected("Unsupported message.");
+	}, [](const base::none_type &) {});
+
+	push("Text", message.text);
+
+	return SerializeKeyValue(std::move(values));
+}
+
 } // namespace
 
-bool TextWriter::start(const QString &folder) {
-	Expects(folder.endsWith('/'));
+bool TextWriter::start(const Settings &settings) {
+	Expects(settings.path.endsWith('/'));
 
-	_folder = folder;
+	_settings = base::duplicate(settings);
 	_result = fileWithRelativePath(mainFileRelativePath());
 	return true;
 }
@@ -96,13 +397,14 @@ bool TextWriter::start(const QString &folder) {
 bool TextWriter::writePersonal(const Data::PersonalInfo &data) {
 	Expects(_result != nullptr);
 
+	const auto &info = data.user.info;
 	const auto serialized = "Personal information"
 		+ kLineBreak
 		+ kLineBreak
 		+ SerializeKeyValue({
-		{ "First name", data.user.firstName },
-		{ "Last name", data.user.lastName },
-		{ "Phone number", Data::FormatPhoneNumber(data.user.phoneNumber) },
+		{ "First name", info.firstName },
+		{ "Last name", info.lastName },
+		{ "Phone number", Data::FormatPhoneNumber(info.phoneNumber) },
 		{ "Username", FormatUsername(data.user.username) },
 		{ "Bio", data.bio },
 		})
@@ -158,7 +460,7 @@ bool TextWriter::writeContactsList(const Data::ContactsList &data) {
 	list.reserve(data.list.size());
 	for (const auto &index : Data::SortedContactsIndices(data)) {
 		const auto &contact = data.list[index];
-		if (!contact.id) {
+		if (!contact.userId) {
 			list.push_back("(user unavailable)" + kLineBreak);
 		} else if (contact.firstName.isEmpty()
 			&& contact.lastName.isEmpty()
@@ -300,11 +602,10 @@ bool TextWriter::writeMessagesSlice(const Data::MessagesSlice &data) {
 	list.reserve(data.list.size());
 	auto index = 0;
 	for (const auto &message : data.list) {
-		list.push_back(SerializeKeyValue({
-			{ "ID", Data::NumberToString(message.id) },
-			{ "Date", Data::FormatDateTime(message.date) },
-			{ "Text", message.text }
-		}));
+		list.push_back(SerializeMessage(
+			message,
+			data.peers,
+			_settings.internalLinksDomain));
 	}
 	const auto full = _dialog->empty()
 		? JoinList(kLineBreak, list)
@@ -336,12 +637,12 @@ QString TextWriter::mainFileRelativePath() const {
 }
 
 QString TextWriter::pathWithRelativePath(const QString &path) const {
-	return _folder + path;
+	return _settings.path + path;
 }
 
 std::unique_ptr<File> TextWriter::fileWithRelativePath(
 		const QString &path) const {
-	return std::make_unique<File>(_folder + path);
+	return std::make_unique<File>(pathWithRelativePath(path));
 }
 
 } // namespace Output

@@ -41,6 +41,8 @@ namespace Ui {
 class EmptyUserpic;
 } // namespace Ui
 
+QString FillAmountAndCurrency(uint64 amount, const QString &currency);
+
 class HistoryFileMedia : public HistoryMedia {
 public:
 	using HistoryMedia::HistoryMedia;
@@ -850,7 +852,6 @@ public:
 	QString getTitle() const {
 		return _title.originalText();
 	}
-	static QString fillAmountAndCurrency(uint64 amount, const QString &currency);
 
 	bool hideMessageText() const override {
 		return false;

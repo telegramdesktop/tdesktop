@@ -11,8 +11,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QDir>
 #include <QtCore/QTextStream>
 #include <QtCore/QDateTime>
+#include <QtCore/QString>
+#include <QtCore/QByteArray>
+#include <QtCore/QReadWriteLock>
+#include <QtCore/QRegularExpression>
+
 #include <crl/crl.h>
 #include <rpl/rpl.h>
+
 #include <vector>
 #include <map>
 #include <deque>

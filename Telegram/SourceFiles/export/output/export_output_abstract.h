@@ -21,6 +21,8 @@ struct DialogInfo;
 struct MessagesSlice;
 } // namespace Data
 
+struct Settings;
+
 namespace Output {
 
 enum class Format {
@@ -31,7 +33,7 @@ enum class Format {
 
 class AbstractWriter {
 public:
-	virtual bool start(const QString &folder) = 0;
+	virtual bool start(const Settings &settings) = 0;
 
 	virtual bool writePersonal(const Data::PersonalInfo &data) = 0;
 

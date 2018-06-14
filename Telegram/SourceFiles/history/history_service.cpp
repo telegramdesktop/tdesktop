@@ -608,7 +608,7 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 		UpdateComponents(HistoryServicePayment::Bit());
 		auto amount = message.vaction.c_messageActionPaymentSent().vtotal_amount.v;
 		auto currency = qs(message.vaction.c_messageActionPaymentSent().vcurrency);
-		Get<HistoryServicePayment>()->amount = HistoryInvoice::fillAmountAndCurrency(amount, currency);
+		Get<HistoryServicePayment>()->amount = FillAmountAndCurrency(amount, currency);
 	}
 	if (message.has_reply_to_msg_id()) {
 		if (message.vaction.type() == mtpc_messageActionPinMessage) {

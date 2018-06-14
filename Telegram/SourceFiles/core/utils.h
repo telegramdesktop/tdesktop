@@ -7,13 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <cmath>
-#include <set>
 #include "logs.h"
 #include "core/basic_types.h"
 #include "base/flags.h"
 #include "base/algorithm.h"
 #include "base/assertion.h"
+
+#include <QtCore/QReadWriteLock>
+#include <QtCore/QRegularExpression>
+#include <QtNetwork/QNetworkProxy>
+
+#include <cmath>
+#include <set>
 
 // Define specializations for QByteArray for Qt 5.3.2, because
 // QByteArray in Qt 5.3.2 doesn't declare "pointer" subtype.

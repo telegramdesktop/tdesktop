@@ -217,7 +217,7 @@ void Controller::fillExportSteps() {
 
 void Controller::exportNext() {
 	if (!++_stepIndex) {
-		_writer->start(_settings.path);
+		_writer->start(_settings);
 	}
 	if (_stepIndex >= _steps.size()) {
 		_writer->finish();

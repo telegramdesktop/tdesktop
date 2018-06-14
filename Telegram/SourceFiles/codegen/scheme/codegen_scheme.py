@@ -767,19 +767,20 @@ for restype in typesList:
   else:
     typesText += ' = default;\n';
 
-  if (withData):
-    typesText += getters;
-    if (withType):
-      typesText += '\n';
-      typesText += '\ttemplate <typename Method, typename ...Methods>\n';
-      typesText += '\tdecltype(auto) match(Method &&method, Methods &&...methods) const;\n';
-      visitorMethods += 'template <typename Method, typename ...Methods>\n';
-      visitorMethods += 'decltype(auto) MTP' + restype + '::match(Method &&method, Methods &&...methods) const {\n';
-      visitorMethods += '\tswitch (_type) {\n';
-      visitorMethods += visitor;
-      visitorMethods += '\t}\n';
-      visitorMethods += '\tUnexpected("Type in MTP' + restype + '::match.");\n';
-      visitorMethods += '}\n\n';
+  typesText += getters;
+  typesText += '\n';
+  typesText += '\ttemplate <typename Method, typename ...Methods>\n';
+  typesText += '\tdecltype(auto) match(Method &&method, Methods &&...methods) const;\n';
+  visitorMethods += 'template <typename Method, typename ...Methods>\n';
+  visitorMethods += 'decltype(auto) MTP' + restype + '::match(Method &&method, Methods &&...methods) const {\n';
+  if (withType):
+    visitorMethods += '\tswitch (_type) {\n';
+    visitorMethods += visitor;
+    visitorMethods += '\t}\n';
+    visitorMethods += '\tUnexpected("Type in MTP' + restype + '::match.");\n';
+  else:
+    visitorMethods += '\treturn base::match_method(c_' + v[0][0] + '(), std::forward<Method>(method), std::forward<Methods>(methods)...);\n';
+  visitorMethods += '}\n\n';
 
   typesText += '\n\tuint32 innerLength() const;\n'; # size method
   methods += '\nuint32 MTP' + restype + '::innerLength() const {\n';
@@ -843,7 +844,7 @@ for restype in typesList:
 
   if (withData):
     typesText += constructsText;
-    methods += constructsBodies;
+  methods += constructsBodies;
 
   if (friendDecl):
     typesText += '\n' + friendDecl;

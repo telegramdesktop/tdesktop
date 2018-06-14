@@ -470,7 +470,7 @@ void ApiWrap::loadNextMessageFile() {
 		if (index >= list.size()) {
 			break;
 		}
-		const auto &file = list[index].media.file();
+		const auto &file = list[index].file();
 		if (WillLoadFile(file)) {
 			loadFile(
 				file,
@@ -479,16 +479,16 @@ void ApiWrap::loadNextMessageFile() {
 		}
 	}
 
+	if (!list.empty()) {
+		process->offsetId = list.back().id + 1;
+	}
 	_dialogsProcess->sliceOne(*base::take(process->slice));
 
 	if (process->lastSlice) {
 		finishMessages();
-		return;
+	} else {
+		requestMessagesSlice();
 	}
-
-	Assert(!list.empty());
-	process->offsetId = list.back().id + 1;
-	requestMessagesSlice();
 }
 
 void ApiWrap::loadMessageFileDone(const QString &relativePath) {
@@ -501,7 +501,7 @@ void ApiWrap::loadMessageFileDone(const QString &relativePath) {
 
 	const auto process = _dialogsProcess->single.get();
 	const auto index = process->fileIndex;
-	process->slice->list[index].media.file().relativePath = relativePath;
+	process->slice->list[index].file().relativePath = relativePath;
 	loadNextMessageFile();
 }
 
