@@ -134,4 +134,7 @@ vector concatenate(SpanRange args) {
 	return result;
 }
 
+// Implemented in base/openssl_help.h
+void set_random(span destination);
+
 } // namespace bytes

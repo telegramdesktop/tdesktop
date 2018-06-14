@@ -826,6 +826,23 @@ ContactsList ParseContactsList(const MTPcontacts_Contacts &data) {
 	return result;
 }
 
+ContactsList ParseContactsList(const MTPVector<MTPSavedContact> &data) {
+	auto result = ContactsList();
+	result.list.reserve(data.v.size());
+	for (const auto &contact : data.v) {
+		auto info = contact.match([](const MTPDsavedPhoneContact &data) {
+			auto info = ContactInfo();
+			info.firstName = ParseString(data.vfirst_name);
+			info.lastName = ParseString(data.vlast_name);
+			info.phoneNumber = ParseString(data.vphone);
+			info.date = data.vdate.v;
+			return info;
+		});
+		result.list.push_back(std::move(info));
+	}
+	return result;
+}
+
 std::vector<int> SortedContactsIndices(const ContactsList &data) {
 	const auto names = ranges::view::all(
 		data.list
@@ -890,14 +907,19 @@ DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
 			const auto peerId = ParsePeerId(fields.vpeer);
 			const auto peerIt = peers.find(peerId);
 			if (peerIt != end(peers)) {
+				using Type = DialogInfo::Type;
 				const auto &peer = peerIt->second;
 				info.type = peer.user()
-					? DialogInfo::Type::Personal
-					: peer.chat()->broadcast
-					? DialogInfo::Type::Channel
-					: peer.chat()->username.isEmpty()
-					? DialogInfo::Type::PrivateGroup
-					: DialogInfo::Type::PublicGroup;
+					? (peer.user()->isBot
+						? Type::Bot
+						: Type::Personal)
+					: (peer.chat()->broadcast
+						? (peer.chat()->username.isEmpty()
+							? Type::PrivateChannel
+							: Type::PublicChannel)
+						: (peer.chat()->username.isEmpty()
+							? Type::PrivateGroup
+							: Type::PublicGroup));
 				info.name = peer.name();
 				info.input = peer.input();
 			}
@@ -940,6 +962,9 @@ Utf8String FormatDateTime(
 		QChar dateSeparator,
 		QChar timeSeparator,
 		QChar separator) {
+	if (!date) {
+		return Utf8String();
+	}
 	const auto value = QDateTime::fromTime_t(date);
 	return (QString("%1") + dateSeparator + "%2" + dateSeparator + "%3"
 		+ separator + "%4" + timeSeparator + "%5" + timeSeparator + "%6"

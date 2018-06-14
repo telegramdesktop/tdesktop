@@ -37,14 +37,16 @@ struct MediaSettings {
 
 struct Settings {
 	enum class Type {
-		PersonalInfo  = 0x01,
-		Userpics      = 0x02,
-		Contacts      = 0x04,
-		Sessions      = 0x08,
-		PersonalChats = 0x10,
-		PrivateGroups = 0x20,
-		PublicGroups  = 0x40,
-		MyChannels    = 0x80,
+		PersonalInfo    = 0x001,
+		Userpics        = 0x002,
+		Contacts        = 0x004,
+		Sessions        = 0x008,
+		PersonalChats   = 0x010,
+		BotChats        = 0x020,
+		PrivateGroups   = 0x040,
+		PublicGroups    = 0x080,
+		PrivateChannels = 0x100,
+		PublicChannels  = 0x200,
 	};
 	using Types = base::flags<Type>;
 	friend inline constexpr auto is_flag_type(Type) { return true; };

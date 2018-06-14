@@ -460,9 +460,7 @@ bool TextWriter::writeContactsList(const Data::ContactsList &data) {
 	list.reserve(data.list.size());
 	for (const auto &index : Data::SortedContactsIndices(data)) {
 		const auto &contact = data.list[index];
-		if (!contact.userId) {
-			list.push_back("(user unavailable)" + kLineBreak);
-		} else if (contact.firstName.isEmpty()
+		if (contact.firstName.isEmpty()
 			&& contact.lastName.isEmpty()
 			&& contact.phoneNumber.isEmpty()) {
 			list.push_back("(deleted user)" + kLineBreak);
@@ -474,6 +472,7 @@ bool TextWriter::writeContactsList(const Data::ContactsList &data) {
 					"Phone number",
 					Data::FormatPhoneNumber(contact.phoneNumber)
 				},
+				{ "Date", Data::FormatDateTime(contact.date) }
 			}));
 		}
 	}
@@ -539,10 +538,12 @@ bool TextWriter::writeDialogsStart(const Data::DialogsInfo &data) {
 	const auto TypeString = [](Type type) {
 		switch (type) {
 		case Type::Unknown: return "(unknown)";
-		case Type::Personal: return "Personal Chat";
-		case Type::PrivateGroup: return "Private Group";
-		case Type::PublicGroup: return "Public Group";
-		case Type::Channel: return "Channel";
+		case Type::Personal: return "Personal chat";
+		case Type::Bot: return "Bot chat";
+		case Type::PrivateGroup: return "Private group";
+		case Type::PublicGroup: return "Public group";
+		case Type::PrivateChannel: return "Private channel";
+		case Type::PublicChannel: return "Private channel";
 		}
 		Unexpected("Dialog type in TypeString.");
 	};
@@ -555,9 +556,11 @@ bool TextWriter::writeDialogsStart(const Data::DialogsInfo &data) {
 		switch (type) {
 		case Type::Unknown: return "(unknown)";
 		case Type::Personal: return "(deleted user)";
+		case Type::Bot: return "(deleted bot)";
 		case Type::PrivateGroup:
 		case Type::PublicGroup: return "(deleted group)";
-		case Type::Channel: return "(deleted channel)";
+		case Type::PrivateChannel:
+		case Type::PublicChannel: return "(deleted channel)";
 		}
 		Unexpected("Dialog type in TypeString.");
 	};

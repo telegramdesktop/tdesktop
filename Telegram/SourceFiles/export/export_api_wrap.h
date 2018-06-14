@@ -31,7 +31,9 @@ public:
 
 	rpl::producer<RPCError> errors() const;
 
-	void startExport(const Settings &settings);
+	void startExport(
+		const Settings &settings,
+		FnMut<void()> done);
 
 	void requestPersonalInfo(FnMut<void(Data::PersonalInfo&&)> done);
 
@@ -54,11 +56,15 @@ public:
 	~ApiWrap();
 
 private:
+	void startMainSession(FnMut<void()> done);
+
 	void handleUserpicsSlice(const MTPphotos_Photos &result);
 	void loadUserpicsFiles(Data::UserpicsSlice &&slice);
 	void loadNextUserpic();
 	void loadUserpicDone(const QString &relativePath);
 	void finishUserpics();
+
+	void requestSavedContacts();
 
 	void requestDialogsSlice();
 	void appendDialogsSlice(Data::DialogsInfo &&info);
@@ -88,6 +94,7 @@ private:
 	void error(const QString &text);
 
 	MTP::ConcurrentSender _mtp;
+	base::optional<uint64> _takeoutId;
 
 	std::unique_ptr<Settings> _settings;
 	MTPInputUser _user = MTP_inputUserSelf();

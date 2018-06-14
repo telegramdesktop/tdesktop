@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/data/export_data_types.h"
 #include "export/output/export_output_file.h"
 #include "mtproto/rpc_sender.h"
+#include "base/bytes.h"
 
 #include <deque>
 
@@ -23,6 +24,7 @@ constexpr auto kFileRequestsCount = 2;
 constexpr auto kFileNextRequestDelay = TimeMs(20);
 constexpr auto kChatsSliceLimit = 100;
 constexpr auto kMessagesSliceLimit = 100;
+constexpr auto kFileMaxSize = 1500 * 1024 * 1024;
 
 bool WillLoadFile(const Data::File &file) {
 	return file.relativePath.isEmpty()
@@ -102,23 +104,29 @@ ApiWrap::DialogsProcess::Single::Single(const Data::DialogInfo &info)
 
 template <typename Request>
 auto ApiWrap::mainRequest(Request &&request) {
-	return std::move(_mtp.request(
-		std::move(request)
-	).fail([=](RPCError &&result) {
+	Expects(_takeoutId.has_value());
+
+	return std::move(_mtp.request(MTPInvokeWithTakeout<Request>(
+		MTP_long(*_takeoutId),
+		request
+	)).fail([=](RPCError &&result) {
 		error(std::move(result));
 	}).toDC(MTP::ShiftDcId(0, MTP::kExportDcShift)));
 }
 
 auto ApiWrap::fileRequest(const Data::FileLocation &location, int offset) {
 	Expects(location.dcId != 0);
+	Expects(_takeoutId.has_value());
 
-	return std::move(_mtp.request(MTPupload_GetFile(
-		location.data,
-		MTP_int(offset),
-		MTP_int(kFileChunkSize)
+	return std::move(_mtp.request(MTPInvokeWithTakeout<MTPupload_GetFile>(
+		MTP_long(*_takeoutId),
+		MTPupload_GetFile(
+			location.data,
+			MTP_int(offset),
+			MTP_int(kFileChunkSize))
 	)).fail([=](RPCError &&result) {
 		error(std::move(result));
-	}).toDC(MTP::ShiftDcId(location.dcId, MTP::kExportDcShift)));
+	}).toDC(MTP::ShiftDcId(location.dcId, MTP::kExportMediaDcShift)));
 }
 
 ApiWrap::ApiWrap(Fn<void(FnMut<void()>)> runner)
@@ -129,10 +137,57 @@ rpl::producer<RPCError> ApiWrap::errors() const {
 	return _errors.events();
 }
 
-void ApiWrap::startExport(const Settings &settings) {
+void ApiWrap::startExport(
+		const Settings &settings,
+		FnMut<void()> done) {
 	Expects(_settings == nullptr);
 
 	_settings = std::make_unique<Settings>(settings);
+	startMainSession(std::move(done));
+}
+
+void ApiWrap::startMainSession(FnMut<void()> done) {
+	auto sizeLimit = _settings->defaultMedia.sizeLimit;
+	auto hasFiles = _settings->defaultMedia.types != 0;
+	for (const auto &item : _settings->customMedia) {
+		sizeLimit = std::max(sizeLimit, item.second.sizeLimit);
+		hasFiles = hasFiles || (item.second.types != 0);
+	}
+	if (!sizeLimit) {
+		hasFiles = false;
+	}
+
+	using Type = Settings::Type;
+	using Flag = MTPaccount_InitTakeoutSession::Flag;
+	const auto flags = Flag(0)
+		| (_settings->types & Type::Contacts ? Flag::f_contacts : Flag(0))
+		| (hasFiles ? Flag::f_files : Flag(0))
+		| (sizeLimit < kFileMaxSize ? Flag::f_file_max_size : Flag(0))
+		| (_settings->types & (Type::PersonalChats | Type::BotChats)
+			? Flag::f_message_users
+			: Flag(0))
+		| (_settings->types & Type::PrivateGroups
+			? (Flag::f_message_chats | Flag::f_message_megagroups)
+			: Flag(0))
+		| (_settings->types & Type::PublicGroups
+			? Flag::f_message_megagroups
+			: Flag(0))
+		| (_settings->types & (Type::PrivateChannels | Type::PublicChannels)
+			? Flag::f_message_channels
+			: Flag(0));
+
+	_mtp.request(MTPaccount_InitTakeoutSession(
+		MTP_flags(flags),
+		MTP_int(sizeLimit)
+	)).done([=, done = std::move(done)](
+			const MTPaccount_Takeout &result) mutable {
+		_takeoutId = result.match([](const MTPDaccount_takeout &data) {
+			return data.vid.v;
+		});
+		done();
+	}).fail([=](RPCError &&result) {
+		error(std::move(result));
+	}).toDC(MTP::ShiftDcId(0, MTP::kExportDcShift)).send();
 }
 
 void ApiWrap::requestPersonalInfo(FnMut<void(Data::PersonalInfo&&)> done) {
@@ -266,16 +321,10 @@ void ApiWrap::finishUserpics() {
 }
 
 void ApiWrap::requestContacts(FnMut<void(Data::ContactsList&&)> done) {
-	const auto hash = 0;
-	mainRequest(MTPcontacts_GetContacts(
-		MTP_int(hash)
+	mainRequest(MTPcontacts_GetSaved(
 	)).done([=, done = std::move(done)](
-			const MTPcontacts_Contacts &result) mutable {
-		if (result.type() == mtpc_contacts_contacts) {
-			done(Data::ParseContactsList(result));
-		} else {
-			error("Bad contacts type.");
-		}
+			const MTPVector<MTPSavedContact> &result) mutable {
+		done(Data::ParseContactsList(result));
 	}).send();
 }
 
@@ -354,12 +403,16 @@ void ApiWrap::appendDialogsSlice(Data::DialogsInfo &&info) {
 			switch (info.type) {
 			case DialogType::Personal:
 				return Settings::Type::PersonalChats;
+			case DialogType::Bot:
+				return Settings::Type::BotChats;
 			case DialogType::PrivateGroup:
 				return Settings::Type::PrivateGroups;
 			case DialogType::PublicGroup:
 				return Settings::Type::PublicGroups;
-			case DialogType::Channel:
-				return Settings::Type::MyChannels;
+			case DialogType::PrivateChannel:
+				return Settings::Type::PrivateChannels;
+			case DialogType::PublicChannel:
+				return Settings::Type::PublicChannels;
 			}
 			return Settings::Type(0);
 		}();
@@ -536,6 +589,7 @@ void ApiWrap::loadFile(const Data::File &file, FnMut<void(QString)> done) {
 		_settings->path + relativePath);
 	_fileProcess->relativePath = relativePath;
 	_fileProcess->location = file.location;
+	_fileProcess->size = file.size;
 	_fileProcess->done = std::move(done);
 
 	if (!file.content.isEmpty()) {

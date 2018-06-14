@@ -157,9 +157,10 @@ void Controller::startExport(const Settings &settings) {
 		return;
 	}
 	_writer = Output::CreateWriter(_settings.format);
-	_api.startExport(_settings);
 	fillExportSteps();
-	exportNext();
+	_api.startExport(_settings, [=] {
+		exportNext();
+	});
 }
 
 bool Controller::normalizePath() {
@@ -207,9 +208,11 @@ void Controller::fillExportSteps() {
 		_steps.push_back(Step::Sessions);
 	}
 	const auto dialogTypes = Type::PersonalChats
+		| Type::BotChats
 		| Type::PrivateGroups
 		| Type::PublicGroups
-		| Type::MyChannels;
+		| Type::PrivateChannels
+		| Type::PublicChannels;
 	if (_settings.types & dialogTypes) {
 		_steps.push_back(Step::Dialogs);
 	}

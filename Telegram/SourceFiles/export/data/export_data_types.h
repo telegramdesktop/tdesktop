@@ -136,6 +136,7 @@ struct ContactInfo {
 	Utf8String firstName;
 	Utf8String lastName;
 	Utf8String phoneNumber;
+	TimeId date = 0;
 
 	Utf8String name() const;
 };
@@ -196,6 +197,7 @@ struct ContactsList {
 };
 
 ContactsList ParseContactsList(const MTPcontacts_Contacts &data);
+ContactsList ParseContactsList(const MTPVector<MTPSavedContact> &data);
 std::vector<int> SortedContactsIndices(const ContactsList &data);
 
 struct Session {
@@ -394,9 +396,11 @@ struct DialogInfo {
 	enum class Type {
 		Unknown,
 		Personal,
+		Bot,
 		PrivateGroup,
 		PublicGroup,
-		Channel,
+		PrivateChannel,
+		PublicChannel,
 	};
 	Type type = Type::Unknown;
 	Utf8String name;
