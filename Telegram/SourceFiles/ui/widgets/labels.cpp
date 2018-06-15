@@ -86,7 +86,11 @@ void CrossFadeAnimation::paintLine(Painter &p, const Line &line, float64 positio
 	}
 }
 
-LabelSimple::LabelSimple(QWidget *parent, const style::LabelSimple &st, const QString &value) : TWidget(parent)
+LabelSimple::LabelSimple(
+	QWidget *parent,
+	const style::LabelSimple &st,
+	const QString &value)
+: RpWidget(parent)
 , _st(st) {
 	setText(value);
 }

@@ -17,11 +17,13 @@ enum class Format;
 
 struct MediaSettings {
 	enum class Type {
-		Photo   = 0x01,
-		Video   = 0x02,
-		Sticker = 0x04,
-		GIF     = 0x08,
-		File    = 0x10,
+		Photo        = 0x01,
+		Video        = 0x02,
+		VoiceMessage = 0x04,
+		VideoMessage = 0x08,
+		Sticker      = 0x10,
+		GIF          = 0x20,
+		File         = 0x40,
 	};
 	using Types = base::flags<Type>;
 	friend inline constexpr auto is_flag_type(Type) { return true; };
@@ -57,8 +59,7 @@ struct Settings {
 
 	Types types = DefaultTypes();
 	Types fullChats = DefaultFullChats();
-	MediaSettings defaultMedia;
-	base::flat_map<Type, MediaSettings> customMedia;
+	MediaSettings media;
 
 	static inline Types DefaultTypes() {
 		return Type::PersonalInfo

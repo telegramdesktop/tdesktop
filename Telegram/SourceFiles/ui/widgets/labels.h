@@ -47,9 +47,12 @@ private:
 
 };
 
-class LabelSimple : public TWidget {
+class LabelSimple : public RpWidget {
 public:
-	LabelSimple(QWidget *parent, const style::LabelSimple &st = st::defaultLabelSimple, const QString &value = QString());
+	LabelSimple(
+		QWidget *parent,
+		const style::LabelSimple &st = st::defaultLabelSimple,
+		const QString &value = QString());
 
 	// This method also resizes the label.
 	void setText(const QString &newText, bool *outTextChanged = nullptr);

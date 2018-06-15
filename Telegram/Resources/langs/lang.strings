@@ -1657,6 +1657,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_export_option_info" = "Personal info";
 "lng_export_option_contacts" = "Contacts list";
 "lng_export_option_sessions" = "Sessions list";
+"lng_export_header_chats" = "Chats export settings";
+"lng_export_option_personal_chats" = "Personal chats";
+"lng_export_option_bot_chats" = "Bot chats";
+"lng_export_option_private_groups" = "Private groups";
+"lng_export_option_private_channels" = "Private channels";
+"lng_export_option_public_groups" = "Public groups";
+"lng_export_option_public_channels" = "Public channels";
+"lng_export_option_only_my" = "Only my messages";
+"lng_export_header_media" = "Media export settings";
+"lng_export_option_photos" = "Photos";
+"lng_export_option_video_files" = "Video files";
+"lng_export_option_voice_messages" = "Voice messages";
+"lng_export_option_video_messages" = "Round video messages";
+"lng_export_option_stickers" = "Stickers";
+"lng_export_option_gifs" = "Animated GIFs";
+"lng_export_option_files" = "Files";
+"lng_export_option_size_limit" = "Size limit: {size}";
 "lng_export_start" = "Export";
 
 // Wnd specific

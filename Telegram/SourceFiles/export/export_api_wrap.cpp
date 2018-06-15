@@ -147,15 +147,8 @@ void ApiWrap::startExport(
 }
 
 void ApiWrap::startMainSession(FnMut<void()> done) {
-	auto sizeLimit = _settings->defaultMedia.sizeLimit;
-	auto hasFiles = _settings->defaultMedia.types != 0;
-	for (const auto &item : _settings->customMedia) {
-		sizeLimit = std::max(sizeLimit, item.second.sizeLimit);
-		hasFiles = hasFiles || (item.second.types != 0);
-	}
-	if (!sizeLimit) {
-		hasFiles = false;
-	}
+	const auto sizeLimit = _settings->media.sizeLimit;
+	const auto hasFiles = (_settings->media.types != 0) && (sizeLimit > 0);
 
 	using Type = Settings::Type;
 	using Flag = MTPaccount_InitTakeoutSession::Flag;

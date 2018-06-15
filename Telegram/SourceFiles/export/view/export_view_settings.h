@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/export_settings.h"
 #include "ui/rp_widget.h"
 
+namespace Ui {
+class VerticalLayout;
+} // namespace Ui
+
 namespace Export {
 namespace View {
 
@@ -28,6 +32,7 @@ private:
 
 	void setupContent();
 	void refreshButtons(not_null<Ui::RpWidget*> container);
+	void createSizeSlider(not_null<Ui::VerticalLayout*> container);
 
 	Settings _data;
 	struct Wrap {
@@ -40,6 +45,7 @@ private:
 	};
 	rpl::variable<Wrap> _startClicks;
 	rpl::variable<Wrap> _cancelClicks;
+	rpl::event_stream<Settings::Types> _dataTypesChanges;
 
 };
 
