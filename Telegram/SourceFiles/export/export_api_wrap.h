@@ -76,6 +76,7 @@ private:
 
 	void requestNextDialog();
 	void requestMessagesSlice();
+	bool onlyMyMessages() const;
 	void loadMessagesFiles(Data::MessagesSlice &&slice);
 	void loadNextMessageFile();
 

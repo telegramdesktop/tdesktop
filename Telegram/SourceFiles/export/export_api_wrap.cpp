@@ -458,16 +458,7 @@ void ApiWrap::requestMessagesSlice() {
 	Expects(_dialogsProcess->single != nullptr);
 
 	const auto process = _dialogsProcess->single.get();
-	mainRequest(MTPmessages_GetHistory(
-		process->info.input,
-		MTP_int(process->offsetId),
-		MTP_int(0), // offset_date
-		MTP_int(-kMessagesSliceLimit),
-		MTP_int(kMessagesSliceLimit),
-		MTP_int(0), // max_id
-		MTP_int(0), // min_id
-		MTP_int(0)  // hash
-	)).done([=](const MTPmessages_Messages &result) mutable {
+	auto handleResult = [=](const MTPmessages_Messages &result) mutable {
 		Expects(_dialogsProcess != nullptr);
 		Expects(_dialogsProcess->single != nullptr);
 
@@ -484,7 +475,55 @@ void ApiWrap::requestMessagesSlice() {
 				data.vchats,
 				process->info.relativePath));
 		});
-	}).send();
+	};
+	if (onlyMyMessages()) {
+		mainRequest(MTPmessages_Search(
+			MTP_flags(MTPmessages_Search::Flag::f_from_id),
+			process->info.input,
+			MTP_string(""), // query
+			_user,
+			MTP_inputMessagesFilterEmpty(),
+			MTP_int(0), // min_date
+			MTP_int(0), // max_date
+			MTP_int(process->offsetId),
+			MTP_int(-kMessagesSliceLimit),
+			MTP_int(kMessagesSliceLimit),
+			MTP_int(0), // max_id
+			MTP_int(0), // min_id
+			MTP_int(0) // hash
+		)).done(std::move(handleResult)).send();
+	} else {
+		mainRequest(MTPmessages_GetHistory(
+			process->info.input,
+			MTP_int(process->offsetId),
+			MTP_int(0), // offset_date
+			MTP_int(-kMessagesSliceLimit),
+			MTP_int(kMessagesSliceLimit),
+			MTP_int(0), // max_id
+			MTP_int(0), // min_id
+			MTP_int(0)  // hash
+		)).done(std::move(handleResult)).send();
+	}
+}
+
+bool ApiWrap::onlyMyMessages() const {
+	Expects(_dialogsProcess != nullptr);
+	Expects(_dialogsProcess->single != nullptr);
+
+	const auto process = _dialogsProcess->single.get();
+	using Type = Data::DialogInfo::Type;
+	const auto setting = [&] {
+		switch (process->info.type) {
+		case Type::Personal: return Settings::Type::PersonalChats;
+		case Type::Bot: return Settings::Type::BotChats;
+		case Type::PrivateGroup: return Settings::Type::PrivateGroups;
+		case Type::PrivateChannel: return Settings::Type::PrivateChannels;
+		case Type::PublicGroup: return Settings::Type::PublicGroups;
+		case Type::PublicChannel: return Settings::Type::PublicChannels;
+		}
+		Unexpected("Type in ApiWrap::onlyMyMessages.");
+	}();
+	return (_settings->fullChats & setting) != setting;
 }
 
 void ApiWrap::loadMessagesFiles(Data::MessagesSlice &&slice) {
