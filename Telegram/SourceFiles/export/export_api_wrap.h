@@ -21,6 +21,7 @@ struct SessionsList;
 struct DialogsInfo;
 struct DialogInfo;
 struct MessagesSlice;
+struct Message;
 } // namespace Data
 
 struct Settings;
@@ -56,6 +57,10 @@ public:
 	~ApiWrap();
 
 private:
+	struct UserpicsProcess;
+	struct FileProcess;
+	struct DialogsProcess;
+
 	void startMainSession(FnMut<void()> done);
 
 	void handleUserpicsSlice(const MTPphotos_Photos &result);
@@ -63,8 +68,6 @@ private:
 	void loadNextUserpic();
 	void loadUserpicDone(const QString &relativePath);
 	void finishUserpics();
-
-	void requestSavedContacts();
 
 	void requestDialogsSlice();
 	void appendDialogsSlice(Data::DialogsInfo &&info);
@@ -75,10 +78,18 @@ private:
 	void requestMessagesSlice();
 	void loadMessagesFiles(Data::MessagesSlice &&slice);
 	void loadNextMessageFile();
+
 	void loadMessageFileDone(const QString &relativePath);
 	void finishMessages();
 	void finishDialogs();
 
+	bool processFileLoad(
+		Data::File &file,
+		FnMut<void(QString)> done,
+		Data::Message *message = nullptr);
+	std::unique_ptr<FileProcess> prepareFileProcess(
+		const Data::File &file) const;
+	bool writePreloadedFile(Data::File &file);
 	void loadFile(const Data::File &file, FnMut<void(QString)> done);
 	void loadFilePart();
 	void filePartDone(int offset, const MTPupload_File &result);
@@ -99,13 +110,8 @@ private:
 	std::unique_ptr<Settings> _settings;
 	MTPInputUser _user = MTP_inputUserSelf();
 
-	struct UserpicsProcess;
 	std::unique_ptr<UserpicsProcess> _userpicsProcess;
-
-	struct FileProcess;
 	std::unique_ptr<FileProcess> _fileProcess;
-
-	struct DialogsProcess;
 	std::unique_ptr<DialogsProcess> _dialogsProcess;
 
 	rpl::event_stream<RPCError> _errors;

@@ -26,9 +26,8 @@ constexpr auto kChatsSliceLimit = 100;
 constexpr auto kMessagesSliceLimit = 100;
 constexpr auto kFileMaxSize = 1500 * 1024 * 1024;
 
-bool WillLoadFile(const Data::File &file) {
-	return file.relativePath.isEmpty()
-		&& (!file.content.isEmpty() || file.location.dcId != 0);
+bool FileIsAvailable(const Data::File &file) {
+	return file.relativePath.isEmpty() && (file.location.dcId != 0);
 }
 
 } // namespace
@@ -258,17 +257,16 @@ void ApiWrap::loadNextUserpic() {
 	Expects(_userpicsProcess != nullptr);
 	Expects(_userpicsProcess->slice.has_value());
 
-	const auto &list = _userpicsProcess->slice->list;
+	auto &list = _userpicsProcess->slice->list;
 	while (true) {
 		const auto index = ++_userpicsProcess->fileIndex;
 		if (index >= list.size()) {
 			break;
 		}
-		const auto &file = list[index].image.file;
-		if (WillLoadFile(file)) {
-			loadFile(
-				file,
-				[=](const QString &path) { loadUserpicDone(path); });
+		const auto ready = processFileLoad(
+			list[index].image.file,
+			[=](const QString &path) { loadUserpicDone(path); });
+		if (!ready) {
 			return;
 		}
 	}
@@ -510,17 +508,16 @@ void ApiWrap::loadNextMessageFile() {
 	Expects(_dialogsProcess->single->slice.has_value());
 
 	const auto process = _dialogsProcess->single.get();
-	const auto &list = process->slice->list;
+	auto &list = process->slice->list;
 	while (true) {
 		const auto index = ++process->fileIndex;
 		if (index >= list.size()) {
 			break;
 		}
-		const auto &file = list[index].file();
-		if (WillLoadFile(file)) {
-			loadFile(
-				file,
-				[=](const QString &path) { loadMessageFileDone(path); });
+		const auto ready = processFileLoad(
+			list[index].file(),
+			[=](const QString &path) { loadMessageFileDone(path); });
+		if (!ready) {
 			return;
 		}
 	}
@@ -569,32 +566,92 @@ void ApiWrap::finishDialogs() {
 	base::take(_dialogsProcess)->finish();
 }
 
-void ApiWrap::loadFile(const Data::File &file, FnMut<void(QString)> done) {
-	Expects(_fileProcess == nullptr);
+bool ApiWrap::processFileLoad(
+		Data::File &file,
+		FnMut<void(QString)> done,
+		Data::Message *message) {
+	using SkipReason = Data::File::SkipReason;
+
+	if (!file.relativePath.isEmpty()) {
+		return true;
+	} else if (writePreloadedFile(file)) {
+		return true;
+	} else if (!FileIsAvailable(file)) {
+		file.skipReason = SkipReason::Unavailable;
+		return true;
+	}
+
+	using Type = MediaSettings::Type;
+	const auto type = message ? message->media.content.match(
+	[&](const Data::Document &data) {
+		if (data.isSticker) {
+			return Type::Sticker;
+		} else if (data.isVideoMessage) {
+			return Type::VideoMessage;
+		} else if (data.isVoiceMessage) {
+			return Type::VoiceMessage;
+		} else if (data.isAnimated) {
+			return Type::GIF;
+		} else if (data.isVideoFile) {
+			return Type::Video;
+		} else {
+			return Type::File;
+		}
+	}, [](const auto &data) {
+		return Type::Photo;
+	}) : Type::Photo;
+
+	if ((_settings->media.types & type) != type) {
+		file.skipReason = SkipReason::FileType;
+		return true;
+	} else if (file.size >= _settings->media.sizeLimit) {
+		file.skipReason = SkipReason::FileSize;
+		return true;
+	}
+	loadFile(file, std::move(done));
+	return false;
+}
+
+bool ApiWrap::writePreloadedFile(Data::File &file) {
 	Expects(_settings != nullptr);
-	Expects(WillLoadFile(file));
 
 	using namespace Output;
-	const auto relativePath = File::PrepareRelativePath(
-		_settings->path,
-		file.suggestedPath);
-	_fileProcess = std::make_unique<FileProcess>(
-		_settings->path + relativePath);
-	_fileProcess->relativePath = relativePath;
-	_fileProcess->location = file.location;
-	_fileProcess->size = file.size;
-	_fileProcess->done = std::move(done);
 
 	if (!file.content.isEmpty()) {
+		const auto process = prepareFileProcess(file);
 		auto &output = _fileProcess->file;
 		if (output.writeBlock(file.content) == File::Result::Success) {
-			_fileProcess->done(relativePath);
-		} else {
-			error(QString("Could not open '%1'.").arg(relativePath));
+			file.relativePath = process->relativePath;
+			return true;
 		}
-	} else {
-		loadFilePart();
+		error(QString("Could not write '%1'.").arg(process->relativePath));
 	}
+	return false;
+}
+
+void ApiWrap::loadFile(const Data::File &file, FnMut<void(QString)> done) {
+	Expects(_fileProcess == nullptr);
+	Expects(FileIsAvailable(file));
+
+	_fileProcess = prepareFileProcess(file);
+	_fileProcess->done = std::move(done);
+
+	loadFilePart();
+}
+
+auto ApiWrap::prepareFileProcess(const Data::File &file) const
+-> std::unique_ptr<FileProcess> {
+	Expects(_settings != nullptr);
+
+	const auto relativePath = Output::File::PrepareRelativePath(
+		_settings->path,
+		file.suggestedPath);
+	auto result = std::make_unique<FileProcess>(
+		_settings->path + relativePath);
+	result->relativePath = relativePath;
+	result->location = file.location;
+	result->size = file.size;
+	return result;
 }
 
 void ApiWrap::loadFilePart() {

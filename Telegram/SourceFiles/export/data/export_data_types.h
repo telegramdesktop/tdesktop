@@ -51,6 +51,12 @@ struct FileLocation {
 };
 
 struct File {
+	enum class SkipReason {
+		None,
+		Unavailable,
+		FileType,
+		FileSize,
+	};
 	FileLocation location;
 	int size = 0;
 	QByteArray content;
@@ -58,6 +64,7 @@ struct File {
 	QString suggestedPath;
 
 	QString relativePath;
+	SkipReason skipReason = SkipReason::None;
 };
 
 struct Image {
@@ -89,6 +96,7 @@ struct Document {
 	Utf8String songTitle;
 	int duration = 0;
 
+	bool isSticker = false;
 	bool isAnimated = false;
 	bool isVideoMessage = false;
 	bool isVoiceMessage = false;

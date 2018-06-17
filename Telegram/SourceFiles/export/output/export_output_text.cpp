@@ -171,6 +171,13 @@ QByteArray SerializeMessage(
 	const auto pushAction = [&](const QByteArray &action) {
 		push("Action", action);
 	};
+	const auto pushTTL = [&](
+		const QByteArray &label = "Self destruct period") {
+		if (const auto ttl = message.media.ttl) {
+			push(label, NumberToString(ttl) + " sec.");
+		}
+	};
+
 	message.action.content.match([&](const ActionChatCreate &data) {
 		pushActor();
 		pushAction("Create group");
@@ -299,11 +306,12 @@ QByteArray SerializeMessage(
 	}
 
 	message.media.content.match([&](const Photo &photo) {
+		pushTTL();
 	}, [&](const Document &data) {
 		const auto pushPath = [&](const QByteArray &label) {
 			push(label, FormatFilePath(data.file));
 		};
-		if (!data.stickerEmoji.isEmpty()) {
+		if (data.isSticker) {
 			pushPath("Sticker");
 			push("Emoji", data.stickerEmoji);
 		} else if (data.isVideoMessage) {
@@ -321,7 +329,7 @@ QByteArray SerializeMessage(
 		} else {
 			pushPath("File");
 		}
-		if (data.stickerEmoji.isEmpty()) {
+		if (!data.isSticker) {
 			push("Mime type", data.mime);
 		}
 		if (data.duration) {
@@ -331,6 +339,7 @@ QByteArray SerializeMessage(
 			push("Width", NumberToString(data.width));
 			push("Height", NumberToString(data.height));
 		}
+		pushTTL();
 	}, [&](const ContactInfo &data) {
 		push("Contact information", SerializeKeyValue({
 			{ "First name", data.firstName },
@@ -342,6 +351,7 @@ QByteArray SerializeMessage(
 			{ "Latitude", NumberToString(data.latitude) },
 			{ "Longitude", NumberToString(data.longitude) },
 		}) : QByteArray("(empty value)"));
+		pushTTL("Live location period");
 	}, [&](const Venue &data) {
 		push("Place name", data.title);
 		push("Address", data.address);
