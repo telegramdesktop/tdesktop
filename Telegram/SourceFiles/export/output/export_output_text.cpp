@@ -30,12 +30,17 @@ void SerializeMultiline(
 	auto offset = 0;
 	do {
 		appendTo.append("> ");
+		const auto win = (newline > 0 && *(data + newline - 1) == '\r');
+		if (win) --newline;
 		appendTo.append(data + offset, newline - offset).append(kLineBreak);
+		if (win) ++newline;
 		offset = newline + 1;
 		newline = value.indexOf('\n', offset);
 	} while (newline > 0);
-	appendTo.append("> ");
-	appendTo.append(data + offset).append(kLineBreak);
+	if (const auto size = value.size(); size > offset) {
+		appendTo.append("> ");
+		appendTo.append(data + offset, size - offset).append(kLineBreak);
+	}
 }
 
 QByteArray JoinList(
@@ -467,6 +472,9 @@ bool TextWriter::writeUserpicsStart(const Data::UserpicsInfo &data) {
 }
 
 bool TextWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
+	Expects(_result != nullptr);
+	Expects(!data.list.empty());
+
 	auto lines = QByteArray();
 	for (const auto &userpic : data.list) {
 		if (!userpic.date) {
@@ -485,12 +493,16 @@ bool TextWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
 }
 
 bool TextWriter::writeUserpicsEnd() {
+	Expects(_result != nullptr);
+
 	return (_userpicsCount > 0)
 		? _result->writeBlock(kLineBreak) == File::Result::Success
 		: true;
 }
 
 bool TextWriter::writeContactsList(const Data::ContactsList &data) {
+	Expects(_result != nullptr);
+
 	if (data.list.empty()) {
 		return true;
 	}
@@ -529,6 +541,8 @@ bool TextWriter::writeContactsList(const Data::ContactsList &data) {
 }
 
 bool TextWriter::writeSessionsList(const Data::SessionsList &data) {
+	Expects(_result != nullptr);
+
 	if (data.list.empty()) {
 		return true;
 	}
@@ -568,6 +582,8 @@ bool TextWriter::writeSessionsList(const Data::SessionsList &data) {
 }
 
 bool TextWriter::writeDialogsStart(const Data::DialogsInfo &data) {
+	Expects(_result != nullptr);
+
 	if (data.list.empty()) {
 		return true;
 	}
@@ -635,12 +651,16 @@ bool TextWriter::writeDialogStart(const Data::DialogInfo &data) {
 	const auto digits = Data::NumberToString(_dialogsCount - 1).size();
 	const auto number = Data::NumberToString(++_dialogIndex, digits, '0');
 	_dialog = fileWithRelativePath(data.relativePath + "messages.txt");
+	_dialogEmpty = true;
+	_dialogOnlyMy = data.onlyMyMessages;
 	return true;
 }
 
 bool TextWriter::writeMessagesSlice(const Data::MessagesSlice &data) {
 	Expects(_dialog != nullptr);
+	Expects(!data.list.empty());
 
+	_dialogEmpty = false;
 	auto list = std::vector<QByteArray>();
 	list.reserve(data.list.size());
 	auto index = 0;
@@ -659,6 +679,11 @@ bool TextWriter::writeMessagesSlice(const Data::MessagesSlice &data) {
 bool TextWriter::writeDialogEnd() {
 	Expects(_dialog != nullptr);
 
+	if (_dialogEmpty) {
+		_dialog->writeBlock(_dialogOnlyMy
+			? "No outgoing messages in this chat."
+			: "No messages in this chat.");
+	}
 	_dialog = nullptr;
 	return true;
 }

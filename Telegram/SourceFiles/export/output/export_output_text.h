@@ -50,6 +50,8 @@ private:
 
 	int _dialogsCount = 0;
 	int _dialogIndex = 0;
+	bool _dialogOnlyMy = false;
+	bool _dialogEmpty = true;
 	std::unique_ptr<File> _dialog;
 
 };

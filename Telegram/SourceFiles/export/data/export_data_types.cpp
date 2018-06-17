@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "export/data/export_data_types.h"
 
+#include "export/export_settings.h"
 #include "core/mime_type.h"
 
 #include <QtCore/QDateTime>
@@ -891,6 +892,21 @@ SessionsList ParseSessionsList(const MTPaccount_Authorizations &data) {
 	return result;
 }
 
+DialogInfo::Type DialogTypeFromChat(const Chat &chat) {
+	using Type = DialogInfo::Type;
+	return chat.username.isEmpty()
+		? (chat.broadcast
+			? Type::PrivateChannel
+			: Type::PrivateGroup)
+		: (chat.broadcast
+			? Type::PublicChannel
+			: Type::PublicGroup);
+}
+
+DialogInfo::Type DialogTypeFromUser(const User &user) {
+	return user.isBot ? DialogInfo::Type::Bot : DialogInfo::Type::Personal;
+}
+
 DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
 	auto result = DialogsInfo();
 	const auto folder = QString();
@@ -905,22 +921,14 @@ DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
 			const auto &fields = dialog.c_dialog();
 
 			auto info = DialogInfo();
-			const auto peerId = ParsePeerId(fields.vpeer);
-			const auto peerIt = peers.find(peerId);
+			info.peerId = ParsePeerId(fields.vpeer);
+			const auto peerIt = peers.find(info.peerId);
 			if (peerIt != end(peers)) {
 				using Type = DialogInfo::Type;
 				const auto &peer = peerIt->second;
 				info.type = peer.user()
-					? (peer.user()->isBot
-						? Type::Bot
-						: Type::Personal)
-					: (peer.chat()->broadcast
-						? (peer.chat()->username.isEmpty()
-							? Type::PrivateChannel
-							: Type::PublicChannel)
-						: (peer.chat()->username.isEmpty()
-							? Type::PrivateGroup
-							: Type::PublicGroup));
+					? DialogTypeFromUser(*peer.user())
+					: DialogTypeFromChat(*peer.chat());
 				info.name = peer.name();
 				info.input = peer.input();
 			}
@@ -934,6 +942,57 @@ DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
 		}
 	});
 	return result;
+}
+
+void InsertLeftDialog(
+		DialogsInfo &info,
+		const Chat &chat,
+		Message &&message) {
+	const auto projection = [](const DialogInfo &dialog) {
+		return std::make_tuple(
+			dialog.topMessageDate,
+			dialog.topMessageId,
+			BarePeerId(dialog.peerId));
+	};
+	const auto i = ranges::lower_bound(
+		info.list,
+		std::make_tuple(message.date, message.id, chat.id),
+		ranges::ordered_less{},
+		projection);
+
+	auto insert = DialogInfo();
+	insert.input = chat.input;
+	insert.name = chat.title;
+	insert.peerId = ChatPeerId(chat.id);
+	insert.topMessageDate = message.date;
+	insert.topMessageId = message.id;
+	insert.type = DialogTypeFromChat(chat);
+	info.list.insert(i, std::move(insert));
+}
+
+void FinalizeDialogsInfo(DialogsInfo &info, const Settings &settings) {
+	auto &list = info.list;
+	const auto digits = Data::NumberToString(list.size() - 1).size();
+	auto index = 0;
+	for (auto &dialog : list) {
+		const auto number = Data::NumberToString(++index, digits, '0');
+		dialog.relativePath = "Chats/chat_" + number + '/';
+
+		using DialogType = DialogInfo::Type;
+		using Type = Settings::Type;
+		const auto setting = [&] {
+			switch (dialog.type) {
+			case DialogType::Personal: return Type::PersonalChats;
+			case DialogType::Bot: return Type::BotChats;
+			case DialogType::PrivateGroup: return Type::PrivateGroups;
+			case DialogType::PrivateChannel: return Type::PrivateChannels;
+			case DialogType::PublicGroup: return Type::PublicGroups;
+			case DialogType::PublicChannel: return Type::PublicChannels;
+			}
+			Unexpected("Type in ApiWrap::onlyMyMessages.");
+		}();
+		dialog.onlyMyMessages = ((settings.fullChats & setting) != setting);
+	}
 }
 
 MessagesSlice ParseMessagesSlice(

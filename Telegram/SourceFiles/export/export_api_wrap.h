@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Export {
 namespace Data {
 struct File;
+struct Chat;
 struct FileLocation;
 struct PersonalInfo;
 struct UserpicsInfo;
@@ -72,16 +73,16 @@ private:
 
 	void requestDialogsSlice();
 	void appendDialogsSlice(Data::DialogsInfo &&info);
+	void requestLeftChannels();
+	void requestLeftDialog();
 	void finishDialogsList();
-	void fillDialogsPaths();
 
 	void requestNextDialog();
 	void requestMessagesSlice();
-	bool onlyMyMessages() const;
 	void loadMessagesFiles(Data::MessagesSlice &&slice);
 	void loadNextMessageFile();
-
 	void loadMessageFileDone(const QString &relativePath);
+	void finishMessagesSlice();
 	void finishMessages();
 	void finishDialogs();
 

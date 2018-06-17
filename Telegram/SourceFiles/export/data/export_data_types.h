@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <vector>
 
 namespace Export {
+struct Settings;
 namespace Data {
 
 using TimeId = int32;
@@ -420,7 +421,10 @@ struct DialogInfo {
 	MTPInputPeer input = MTP_inputPeerEmpty();
 	int32 topMessageId = 0;
 	TimeId topMessageDate = 0;
+	PeerId peerId = 0;
 
+	// Filled after the whole dialogs list is accumulated.
+	bool onlyMyMessages = false;
 	QString relativePath;
 
 };
@@ -430,6 +434,11 @@ struct DialogsInfo {
 };
 
 DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data);
+void InsertLeftDialog(
+	DialogsInfo &info,
+	const Chat &chat,
+	Message &&message);
+void FinalizeDialogsInfo(DialogsInfo &info, const Settings &settings);
 
 struct MessagesSlice {
 	std::vector<Message> list;

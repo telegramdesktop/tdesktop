@@ -1266,6 +1266,7 @@ channels.setStickers#ea8ca4f9 channel:InputChannel stickerset:InputStickerSet = 
 channels.readMessageContents#eab5dc38 channel:InputChannel id:Vector<int> = Bool;
 channels.deleteHistory#af369d42 channel:InputChannel max_id:int = Bool;
 channels.togglePreHistoryHidden#eabbb94c channel:InputChannel enabled:Bool = Updates;
+channels.getLeftChannels#90920196 = messages.Chats;
 
 bots.sendCustomRequest#aa2769ed custom_method:string params:DataJSON = DataJSON;
 bots.answerWebhookJSONQuery#e6213f4d query_id:long data:DataJSON = Bool;
