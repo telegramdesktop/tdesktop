@@ -461,7 +461,7 @@ void ApiWrap::appendDialogsSlice(Data::DialogsInfo &&info) {
 	Expects(_dialogsProcess != nullptr);
 	Expects(_settings != nullptr);
 
-	const auto types = _settings->types | _settings->fullChats;
+	const auto types = _settings->types;
 	auto filtered = ranges::view::all(
 		info.list
 	) | ranges::view::filter([&](const Data::DialogInfo &info) {
@@ -519,7 +519,7 @@ void ApiWrap::requestNextDialog() {
 	Expects(_dialogsProcess->single == nullptr);
 
 	const auto index = ++_dialogsProcess->singleIndex;
-	if (index < 11) {// _dialogsProcess->info.list.size()) {
+	if (index < _dialogsProcess->info.list.size()) {
 		const auto &one = _dialogsProcess->info.list[index];
 		_dialogsProcess->single = std::make_unique<DialogsProcess::Single>(one);
 		_dialogsProcess->startOne(one);
@@ -631,7 +631,8 @@ void ApiWrap::loadNextMessageFile() {
 		}
 		const auto ready = processFileLoad(
 			list[index].file(),
-			[=](const QString &path) { loadMessageFileDone(path); });
+			[=](const QString &path) { loadMessageFileDone(path); },
+			&list[index]);
 		if (!ready) {
 			return;
 		}

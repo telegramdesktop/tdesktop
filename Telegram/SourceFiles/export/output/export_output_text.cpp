@@ -34,6 +34,8 @@ void SerializeMultiline(
 		offset = newline + 1;
 		newline = value.indexOf('\n', offset);
 	} while (newline > 0);
+	appendTo.append("> ");
+	appendTo.append(data + offset).append(kLineBreak);
 }
 
 QByteArray JoinList(
@@ -181,15 +183,17 @@ QByteArray SerializeMessage(
 	using SkipReason = Data::File::SkipReason;
 	const auto pushPath = [&](
 			const Data::File &file,
-			const QByteArray &label) {
+			const QByteArray &label,
+			const QByteArray &name = QByteArray()) {
 		Expects(!file.relativePath.isEmpty()
 			|| file.skipReason != SkipReason::None);
 
 		push(label, [&]() -> QByteArray {
+			const auto pre = name.isEmpty() ? QByteArray() : name + ' ';
 			switch (file.skipReason) {
-			case SkipReason::Unavailable: return "(file unavailable)";
-			case SkipReason::FileSize: return "(file too large)";
-			case SkipReason::FileType: return "(file skipped)";
+			case SkipReason::Unavailable: return pre + "(file unavailable)";
+			case SkipReason::FileSize: return pre + "(file too large)";
+			case SkipReason::FileType: return pre + "(file skipped)";
 			case SkipReason::None: return FormatFilePath(file);
 			}
 			Unexpected("Skip reason while writing file path.");
