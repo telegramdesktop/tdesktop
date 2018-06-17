@@ -48,6 +48,10 @@ struct UserpicsInfo {
 struct FileLocation {
 	int dcId = 0;
 	MTPInputFileLocation data;
+
+	explicit operator bool() const {
+		return dcId != 0;
+	}
 };
 
 struct File {

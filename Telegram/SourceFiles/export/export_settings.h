@@ -71,7 +71,8 @@ struct Settings {
 	}
 
 	static inline Types DefaultFullChats() {
-		return Type::PersonalChats;
+		return Type::PersonalChats
+			| Type::BotChats;
 	}
 
 };

@@ -178,6 +178,31 @@ QByteArray SerializeMessage(
 		}
 	};
 
+	using SkipReason = Data::File::SkipReason;
+	const auto pushPath = [&](
+			const Data::File &file,
+			const QByteArray &label) {
+		Expects(!file.relativePath.isEmpty()
+			|| file.skipReason != SkipReason::None);
+
+		push(label, [&]() -> QByteArray {
+			switch (file.skipReason) {
+			case SkipReason::Unavailable: return "(file unavailable)";
+			case SkipReason::FileSize: return "(file too large)";
+			case SkipReason::FileType: return "(file skipped)";
+			case SkipReason::None: return FormatFilePath(file);
+			}
+			Unexpected("Skip reason while writing file path.");
+		}());
+	};
+	const auto pushPhoto = [&](const Image &image) {
+		pushPath(image.file, "Photo");
+		if (image.width && image.height) {
+			push("Width", NumberToString(image.width));
+			push("Height", NumberToString(image.height));
+		}
+	};
+
 	message.action.content.match([&](const ActionChatCreate &data) {
 		pushActor();
 		pushAction("Create group");
@@ -190,7 +215,7 @@ QByteArray SerializeMessage(
 	}, [&](const ActionChatEditPhoto &data) {
 		pushActor();
 		pushAction("Edit group photo");
-		push("Photo", FormatFilePath(data.photo.image.file));
+		pushPhoto(data.photo.image);
 	}, [&](const ActionChatDeletePhoto &data) {
 		pushActor();
 		pushAction("Delete group photo");
@@ -306,28 +331,29 @@ QByteArray SerializeMessage(
 	}
 
 	message.media.content.match([&](const Photo &photo) {
+		pushPhoto(photo.image);
 		pushTTL();
 	}, [&](const Document &data) {
-		const auto pushPath = [&](const QByteArray &label) {
-			push(label, FormatFilePath(data.file));
+		const auto pushMyPath = [&](const QByteArray &label) {
+			return pushPath(data.file, label);
 		};
 		if (data.isSticker) {
-			pushPath("Sticker");
+			pushMyPath("Sticker");
 			push("Emoji", data.stickerEmoji);
 		} else if (data.isVideoMessage) {
-			pushPath("Video message");
+			pushMyPath("Video message");
 		} else if (data.isVoiceMessage) {
-			pushPath("Voice message");
+			pushMyPath("Voice message");
 		} else if (data.isAnimated) {
-			pushPath("Animation");
+			pushMyPath("Animation");
 		} else if (data.isVideoFile) {
-			pushPath("Video file");
+			pushMyPath("Video file");
 		} else if (data.isAudioFile) {
-			pushPath("Audio file");
+			pushMyPath("Audio file");
 			push("Performer", data.songPerformer);
 			push("Title", data.songTitle);
 		} else {
-			pushPath("File");
+			pushMyPath("File");
 		}
 		if (!data.isSticker) {
 			push("Mime type", data.mime);

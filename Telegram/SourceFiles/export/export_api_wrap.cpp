@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/data/export_data_types.h"
 #include "export/output/export_output_file.h"
 #include "mtproto/rpc_sender.h"
+#include "base/value_ordering.h"
 #include "base/bytes.h"
 
 #include <deque>
@@ -25,12 +26,60 @@ constexpr auto kFileNextRequestDelay = TimeMs(20);
 constexpr auto kChatsSliceLimit = 100;
 constexpr auto kMessagesSliceLimit = 100;
 constexpr auto kFileMaxSize = 1500 * 1024 * 1024;
+constexpr auto kLocationCacheSize = 100'000;
 
-bool FileIsAvailable(const Data::File &file) {
-	return file.relativePath.isEmpty() && (file.location.dcId != 0);
+struct LocationKey {
+	uint64 type;
+	uint64 id;
+
+	inline bool operator<(const LocationKey &other) const {
+		return std::tie(type, id) < std::tie(other.type, other.id);
+	}
+};
+
+std::tuple<const uint64 &, const uint64 &> value_ordering_helper(const LocationKey &value) {
+	return std::tie(
+		value.type,
+		value.id);
+}
+
+LocationKey ComputeLocationKey(const Data::FileLocation &value) {
+	auto result = LocationKey();
+	result.type = value.dcId;
+	value.data.match([&](const MTPDinputFileLocation &data) {
+		result.type |= (1ULL << 24);
+		result.type |= (uint64(uint32(data.vlocal_id.v)) << 32);
+		result.id = data.vvolume_id.v;
+	}, [&](const MTPDinputDocumentFileLocation &data) {
+		result.type |= (2ULL << 24);
+		result.id = data.vid.v;
+	}, [&](const MTPDinputSecureFileLocation &data) {
+		result.type |= (3ULL << 24);
+		result.id = data.vid.v;
+	}, [&](const MTPDinputEncryptedFileLocation &data) {
+		result.type |= (4ULL << 24);
+		result.id = data.vid.v;
+	});
+	return result;
 }
 
 } // namespace
+
+class ApiWrap::LoadedFileCache {
+public:
+	using Location = Data::FileLocation;
+
+	LoadedFileCache(int limit);
+
+	void save(const Location &location, const QString &relativePath);
+	base::optional<QString> find(const Location &location) const;
+
+private:
+	int _limit = 0;
+	std::map<LocationKey, QString> _map;
+	std::deque<LocationKey> _list;
+
+};
 
 struct ApiWrap::UserpicsProcess {
 	FnMut<void(Data::UserpicsInfo&&)> start;
@@ -94,6 +143,32 @@ struct ApiWrap::DialogsProcess::Single {
 
 };
 
+ApiWrap::LoadedFileCache::LoadedFileCache(int limit) : _limit(limit) {
+	Expects(limit >= 0);
+}
+
+void ApiWrap::LoadedFileCache::save(
+		const Location &location,
+		const QString &relativePath) {
+	const auto key = ComputeLocationKey(location);
+	_map[key] = relativePath;
+	_list.push_back(key);
+	if (_list.size() > _limit) {
+		const auto key = _list.front();
+		_list.pop_front();
+		_map.erase(key);
+	}
+}
+
+base::optional<QString> ApiWrap::LoadedFileCache::find(
+		const Location &location) const {
+	const auto key = ComputeLocationKey(location);
+	if (const auto i = _map.find(key); i != end(_map)) {
+		return i->second;
+	}
+	return base::none;
+}
+
 ApiWrap::FileProcess::FileProcess(const QString &path) : file(path) {
 }
 
@@ -129,7 +204,8 @@ auto ApiWrap::fileRequest(const Data::FileLocation &location, int offset) {
 }
 
 ApiWrap::ApiWrap(Fn<void(FnMut<void()>)> runner)
-: _mtp(std::move(runner)) {
+: _mtp(std::move(runner))
+, _fileCache(std::make_unique<LoadedFileCache>(kLocationCacheSize)) {
 }
 
 rpl::producer<RPCError> ApiWrap::errors() const {
@@ -613,10 +689,10 @@ bool ApiWrap::processFileLoad(
 
 	if (!file.relativePath.isEmpty()) {
 		return true;
-	} else if (writePreloadedFile(file)) {
-		return true;
-	} else if (!FileIsAvailable(file)) {
+	} else if (!file.location) {
 		file.skipReason = SkipReason::Unavailable;
+		return true;
+	} else if (writePreloadedFile(file)) {
 		return true;
 	}
 
@@ -656,11 +732,15 @@ bool ApiWrap::writePreloadedFile(Data::File &file) {
 
 	using namespace Output;
 
-	if (!file.content.isEmpty()) {
+	if (const auto path = _fileCache->find(file.location)) {
+		file.relativePath = *path;
+		return true;
+	} else if (!file.content.isEmpty()) {
 		const auto process = prepareFileProcess(file);
 		auto &output = _fileProcess->file;
 		if (output.writeBlock(file.content) == File::Result::Success) {
 			file.relativePath = process->relativePath;
+			_fileCache->save(file.location, file.relativePath);
 			return true;
 		}
 		error(QString("Could not write '%1'.").arg(process->relativePath));
@@ -670,7 +750,7 @@ bool ApiWrap::writePreloadedFile(Data::File &file) {
 
 void ApiWrap::loadFile(const Data::File &file, FnMut<void(QString)> done) {
 	Expects(_fileProcess == nullptr);
-	Expects(FileIsAvailable(file));
+	Expects(file.location.dcId != 0);
 
 	_fileProcess = prepareFileProcess(file);
 	_fileProcess->done = std::move(done);
@@ -767,7 +847,10 @@ void ApiWrap::filePartDone(int offset, const MTPupload_File &result) {
 			return;
 		}
 	}
+
 	auto process = base::take(_fileProcess);
+	const auto relativePath = process->relativePath;
+	_fileCache->save(process->location, relativePath);
 	process->done(process->relativePath);
 }
 

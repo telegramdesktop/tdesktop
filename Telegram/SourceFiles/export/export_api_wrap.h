@@ -60,6 +60,7 @@ private:
 	struct UserpicsProcess;
 	struct FileProcess;
 	struct DialogsProcess;
+	class LoadedFileCache;
 
 	void startMainSession(FnMut<void()> done);
 
@@ -111,6 +112,7 @@ private:
 	std::unique_ptr<Settings> _settings;
 	MTPInputUser _user = MTP_inputUserSelf();
 
+	std::unique_ptr<LoadedFileCache> _fileCache;
 	std::unique_ptr<UserpicsProcess> _userpicsProcess;
 	std::unique_ptr<FileProcess> _fileProcess;
 	std::unique_ptr<DialogsProcess> _dialogsProcess;
