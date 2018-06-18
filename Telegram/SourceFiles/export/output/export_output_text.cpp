@@ -582,6 +582,49 @@ bool TextWriter::writeSessionsList(const Data::SessionsList &data) {
 }
 
 bool TextWriter::writeDialogsStart(const Data::DialogsInfo &data) {
+	return writeChatsStart(data, "Chats", "chats.txt");
+}
+
+bool TextWriter::writeDialogStart(const Data::DialogInfo &data) {
+	return writeChatStart(data);
+}
+
+bool TextWriter::writeDialogSlice(const Data::MessagesSlice &data) {
+	return writeChatSlice(data);
+}
+
+bool TextWriter::writeDialogEnd() {
+	return writeChatEnd();
+}
+
+bool TextWriter::writeDialogsEnd() {
+	return true;
+}
+
+bool TextWriter::writeLeftChannelsStart(const Data::DialogsInfo &data) {
+	return writeChatsStart(data, "Left chats", "left_chats.txt");
+}
+
+bool TextWriter::writeLeftChannelStart(const Data::DialogInfo &data) {
+	return writeChatStart(data);
+}
+
+bool TextWriter::writeLeftChannelSlice(const Data::MessagesSlice &data) {
+	return writeChatSlice(data);
+}
+
+bool TextWriter::writeLeftChannelEnd() {
+	return writeChatEnd();
+}
+
+bool TextWriter::writeLeftChannelsEnd() {
+	return true;
+}
+
+bool TextWriter::writeChatsStart(
+		const Data::DialogsInfo &data,
+		const QByteArray &listName,
+		const QString &fileName) {
 	Expects(_result != nullptr);
 
 	if (data.list.empty()) {
@@ -620,7 +663,7 @@ bool TextWriter::writeDialogsStart(const Data::DialogsInfo &data) {
 		}
 		Unexpected("Dialog type in TypeString.");
 	};
-	const auto file = fileWithRelativePath("chats.txt");
+	const auto file = fileWithRelativePath(fileName);
 	auto list = std::vector<QByteArray>();
 	list.reserve(data.list.size());
 	auto index = 0;
@@ -637,27 +680,28 @@ bool TextWriter::writeDialogsStart(const Data::DialogsInfo &data) {
 		return false;
 	}
 
-	const auto header = "Chats "
-		"(" + Data::NumberToString(data.list.size()) + ") - chats.txt"
+	const auto header = listName + " "
+		"(" + Data::NumberToString(data.list.size()) + ") - "
+		+ fileName.toUtf8()
 		+ kLineBreak
 		+ kLineBreak;
 	return _result->writeBlock(header) == File::Result::Success;
 }
 
-bool TextWriter::writeDialogStart(const Data::DialogInfo &data) {
-	Expects(_dialog == nullptr);
+bool TextWriter::writeChatStart(const Data::DialogInfo &data) {
+	Expects(_chat == nullptr);
 	Expects(_dialogIndex < _dialogsCount);
 
 	const auto digits = Data::NumberToString(_dialogsCount - 1).size();
 	const auto number = Data::NumberToString(++_dialogIndex, digits, '0');
-	_dialog = fileWithRelativePath(data.relativePath + "messages.txt");
+	_chat = fileWithRelativePath(data.relativePath + "messages.txt");
 	_dialogEmpty = true;
 	_dialogOnlyMy = data.onlyMyMessages;
 	return true;
 }
 
-bool TextWriter::writeMessagesSlice(const Data::MessagesSlice &data) {
-	Expects(_dialog != nullptr);
+bool TextWriter::writeChatSlice(const Data::MessagesSlice &data) {
+	Expects(_chat != nullptr);
 	Expects(!data.list.empty());
 
 	_dialogEmpty = false;
@@ -670,25 +714,21 @@ bool TextWriter::writeMessagesSlice(const Data::MessagesSlice &data) {
 			data.peers,
 			_settings.internalLinksDomain));
 	}
-	const auto full = _dialog->empty()
+	const auto full = _chat->empty()
 		? JoinList(kLineBreak, list)
 		: kLineBreak + JoinList(kLineBreak, list);
-	return _dialog->writeBlock(full) == File::Result::Success;
+	return _chat->writeBlock(full) == File::Result::Success;
 }
 
-bool TextWriter::writeDialogEnd() {
-	Expects(_dialog != nullptr);
+bool TextWriter::writeChatEnd() {
+	Expects(_chat != nullptr);
 
 	if (_dialogEmpty) {
-		_dialog->writeBlock(_dialogOnlyMy
+		_chat->writeBlock(_dialogOnlyMy
 			? "No outgoing messages in this chat."
 			: "No messages in this chat.");
 	}
-	_dialog = nullptr;
-	return true;
-}
-
-bool TextWriter::writeDialogsEnd() {
+	_chat = nullptr;
 	return true;
 }
 

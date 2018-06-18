@@ -30,9 +30,15 @@ public:
 
 	bool writeDialogsStart(const Data::DialogsInfo &data) override;
 	bool writeDialogStart(const Data::DialogInfo &data) override;
-	bool writeMessagesSlice(const Data::MessagesSlice &data) override;
+	bool writeDialogSlice(const Data::MessagesSlice &data) override;
 	bool writeDialogEnd() override;
 	bool writeDialogsEnd() override;
+
+	bool writeLeftChannelsStart(const Data::DialogsInfo &data) override;
+	bool writeLeftChannelStart(const Data::DialogInfo &data) override;
+	bool writeLeftChannelSlice(const Data::MessagesSlice &data) override;
+	bool writeLeftChannelEnd() override;
+	bool writeLeftChannelsEnd() override;
 
 	bool finish() override;
 
@@ -43,6 +49,14 @@ private:
 	QString pathWithRelativePath(const QString &path) const;
 	std::unique_ptr<File> fileWithRelativePath(const QString &path) const;
 
+	bool writeChatsStart(
+		const Data::DialogsInfo &data,
+		const QByteArray &listName,
+		const QString &fileName);
+	bool writeChatStart(const Data::DialogInfo &data);
+	bool writeChatSlice(const Data::MessagesSlice &data);
+	bool writeChatEnd();
+
 	Settings _settings;
 
 	std::unique_ptr<File> _result;
@@ -52,7 +66,12 @@ private:
 	int _dialogIndex = 0;
 	bool _dialogOnlyMy = false;
 	bool _dialogEmpty = true;
-	std::unique_ptr<File> _dialog;
+
+	int _leftChannelsCount = 0;
+	int _leftChannelIndex = 0;
+	bool _leftChannelEmpty = true;
+
+	std::unique_ptr<File> _chat;
 
 };
 

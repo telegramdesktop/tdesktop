@@ -18,6 +18,10 @@ namespace Output {
 File::File(const QString &path) : _path(path) {
 }
 
+int File::size() const {
+	return _offset;
+}
+
 bool File::empty() const {
 	return !_offset;
 }

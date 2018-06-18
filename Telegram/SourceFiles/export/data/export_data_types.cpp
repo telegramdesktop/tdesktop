@@ -944,30 +944,23 @@ DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
 	return result;
 }
 
-void InsertLeftDialog(
-		DialogsInfo &info,
-		const Chat &chat,
-		Message &&message) {
-	const auto projection = [](const DialogInfo &dialog) {
-		return std::make_tuple(
-			dialog.topMessageDate,
-			dialog.topMessageId,
-			BarePeerId(dialog.peerId));
-	};
-	const auto i = ranges::lower_bound(
-		info.list,
-		std::make_tuple(message.date, message.id, chat.id),
-		ranges::ordered_less{},
-		projection);
-
-	auto insert = DialogInfo();
-	insert.input = chat.input;
-	insert.name = chat.title;
-	insert.peerId = ChatPeerId(chat.id);
-	insert.topMessageDate = message.date;
-	insert.topMessageId = message.id;
-	insert.type = DialogTypeFromChat(chat);
-	info.list.insert(i, std::move(insert));
+DialogsInfo ParseLeftChannelsInfo(const MTPmessages_Chats &data) {
+	auto result = DialogsInfo();
+	data.match([&](const auto &data) { //MTPDmessages_chats &data) {
+		result.list.reserve(data.vchats.v.size());
+		for (const auto &single : data.vchats.v) {
+			const auto chat = ParseChat(single);
+			auto info = DialogInfo();
+			info.input = chat.input;
+			info.name = chat.title;
+			info.peerId = ChatPeerId(chat.id);
+			info.topMessageDate = 0;
+			info.topMessageId = 0;
+			info.type = DialogTypeFromChat(chat);
+			result.list.push_back(std::move(info));
+		}
+	});
+	return result;
 }
 
 void FinalizeDialogsInfo(DialogsInfo &info, const Settings &settings) {
@@ -992,6 +985,17 @@ void FinalizeDialogsInfo(DialogsInfo &info, const Settings &settings) {
 			Unexpected("Type in ApiWrap::onlyMyMessages.");
 		}();
 		dialog.onlyMyMessages = ((settings.fullChats & setting) != setting);
+	}
+}
+
+void FinalizeLeftChannelsInfo(DialogsInfo &info, const Settings &settings) {
+	auto &list = info.list;
+	const auto digits = Data::NumberToString(list.size() - 1).size();
+	auto index = 0;
+	for (auto &dialog : list) {
+		const auto number = Data::NumberToString(++index, digits, '0');
+		dialog.relativePath = "Chats/left_" + number + '/';
+		dialog.onlyMyMessages = true;
 	}
 }
 

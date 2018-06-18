@@ -47,9 +47,15 @@ public:
 
 	virtual bool writeDialogsStart(const Data::DialogsInfo &data) = 0;
 	virtual bool writeDialogStart(const Data::DialogInfo &data) = 0;
-	virtual bool writeMessagesSlice(const Data::MessagesSlice &data) = 0;
+	virtual bool writeDialogSlice(const Data::MessagesSlice &data) = 0;
 	virtual bool writeDialogEnd() = 0;
 	virtual bool writeDialogsEnd() = 0;
+
+	virtual bool writeLeftChannelsStart(const Data::DialogsInfo &data) = 0;
+	virtual bool writeLeftChannelStart(const Data::DialogInfo &data) = 0;
+	virtual bool writeLeftChannelSlice(const Data::MessagesSlice &data) = 0;
+	virtual bool writeLeftChannelEnd() = 0;
+	virtual bool writeLeftChannelsEnd() = 0;
 
 	virtual bool finish() = 0;
 

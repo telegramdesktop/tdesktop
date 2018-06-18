@@ -27,20 +27,30 @@ struct PasswordCheckState {
 
 struct ProcessingState {
 	enum class Step {
+		Initializing,
+		LeftChannelsList,
+		DialogsList,
 		PersonalInfo,
 		Userpics,
 		Contacts,
 		Sessions,
+		LeftChannels,
 		Dialogs,
 	};
 	enum class Item {
 		Other,
 		Photo,
 		Video,
+		VoiceMessage,
+		VideoMessage,
+		Sticker,
+		GIF,
 		File,
 	};
 
-	Step step = Step::PersonalInfo;
+	Step step = Step::Initializing;
+
+	std::vector<int> substepsInStep;
 
 	int entityIndex = 0;
 	int entityCount = 1;
@@ -50,9 +60,11 @@ struct ProcessingState {
 	int itemCount = 0;
 	Item itemType = Item::Other;
 	QString itemName;
+	QString itemId;
 
 	int bytesLoaded = 0;
 	int bytesCount = 0;
+	QString objectId;
 
 };
 
@@ -79,16 +91,16 @@ using State = base::optional_variant<
 	ErrorState,
 	FinishedState>;
 
-struct PasswordUpdate {
-	enum class Type {
-		CheckSucceed,
-		WrongPassword,
-		FloodLimit,
-		RecoverUnavailable,
-	};
-	Type type = Type::WrongPassword;
-
-};
+//struct PasswordUpdate {
+//	enum class Type {
+//		CheckSucceed,
+//		WrongPassword,
+//		FloodLimit,
+//		RecoverUnavailable,
+//	};
+//	Type type = Type::WrongPassword;
+//
+//};
 
 class ControllerWrap {
 public:
@@ -97,11 +109,11 @@ public:
 	rpl::producer<State> state() const;
 
 	// Password step.
-	void submitPassword(const QString &password);
-	void requestPasswordRecover();
-	rpl::producer<PasswordUpdate> passwordUpdate() const;
-	void reloadPasswordState();
-	void cancelUnconfirmedPassword();
+	//void submitPassword(const QString &password);
+	//void requestPasswordRecover();
+	//rpl::producer<PasswordUpdate> passwordUpdate() const;
+	//void reloadPasswordState();
+	//void cancelUnconfirmedPassword();
 
 	// Processing step.
 	void startExport(const Settings &settings);

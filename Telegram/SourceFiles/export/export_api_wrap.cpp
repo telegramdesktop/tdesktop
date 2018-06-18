@@ -63,6 +63,25 @@ LocationKey ComputeLocationKey(const Data::FileLocation &value) {
 	return result;
 }
 
+Settings::Type SettingsFromDialogsType(Data::DialogInfo::Type type) {
+	using DialogType = Data::DialogInfo::Type;
+	switch (type) {
+	case DialogType::Personal:
+		return Settings::Type::PersonalChats;
+	case DialogType::Bot:
+		return Settings::Type::BotChats;
+	case DialogType::PrivateGroup:
+		return Settings::Type::PrivateGroups;
+	case DialogType::PublicGroup:
+		return Settings::Type::PublicGroups;
+	case DialogType::PrivateChannel:
+		return Settings::Type::PrivateChannels;
+	case DialogType::PublicChannel:
+		return Settings::Type::PublicChannels;
+	}
+	return Settings::Type(0);
+}
+
 } // namespace
 
 class ApiWrap::LoadedFileCache {
@@ -78,6 +97,19 @@ private:
 	int _limit = 0;
 	std::map<LocationKey, QString> _map;
 	std::deque<LocationKey> _list;
+
+};
+
+struct ApiWrap::StartProcess {
+	FnMut<void(StartInfo)> done;
+
+	enum class Step {
+		UserpicsCount,
+		DialogsCount,
+		LeftChannelsCount,
+	};
+	std::deque<Step> steps;
+	StartInfo info;
 
 };
 
@@ -112,30 +144,36 @@ struct ApiWrap::FileProcess {
 
 };
 
-struct ApiWrap::DialogsProcess {
-	Data::DialogsInfo info;
-	std::map<int32, Data::Chat> left;
+struct ApiWrap::LeftChannelsProcess {
+	FnMut<void(Data::DialogsInfo&&)> done;
 
-	FnMut<void(const Data::DialogsInfo&)> start;
-	Fn<void(const Data::DialogInfo&)> startOne;
-	Fn<void(Data::MessagesSlice&&)> sliceOne;
-	Fn<void()> finishOne;
-	FnMut<void()> finish;
+	Data::DialogsInfo info;
+
+	rpl::variable<int> count;
+	int fullCount = 0;
+	bool finished = false;
+
+};
+
+struct ApiWrap::DialogsProcess {
+	FnMut<void(Data::DialogsInfo&&)> done;
+
+	Data::DialogsInfo info;
 
 	Data::TimeId offsetDate = 0;
 	int32 offsetId = 0;
 	MTPInputPeer offsetPeer = MTP_inputPeerEmpty();
 
-	struct Single;
-	std::unique_ptr<Single> single;
-	int singleIndex = -1;
+	rpl::variable<int> count;
 
 };
 
-struct ApiWrap::DialogsProcess::Single {
-	Single(const Data::DialogInfo &info);
-
+struct ApiWrap::ChatProcess {
 	Data::DialogInfo info;
+
+	Fn<void(Data::MessagesSlice&&)> handleSlice;
+	FnMut<void()> done;
+
 	int32 offsetId = 1;
 
 	base::optional<Data::MessagesSlice> slice;
@@ -171,10 +209,6 @@ base::optional<QString> ApiWrap::LoadedFileCache::find(
 }
 
 ApiWrap::FileProcess::FileProcess(const QString &path) : file(path) {
-}
-
-ApiWrap::DialogsProcess::Single::Single(const Data::DialogInfo &info)
-: info(info) {
 }
 
 template <typename Request>
@@ -215,11 +249,158 @@ rpl::producer<RPCError> ApiWrap::errors() const {
 
 void ApiWrap::startExport(
 		const Settings &settings,
-		FnMut<void()> done) {
+		FnMut<void(StartInfo)> done) {
 	Expects(_settings == nullptr);
+	Expects(_startProcess == nullptr);
 
 	_settings = std::make_unique<Settings>(settings);
-	startMainSession(std::move(done));
+	_startProcess = std::make_unique<StartProcess>();
+	_startProcess->done = std::move(done);
+
+	using Step = StartProcess::Step;
+	if (_settings->types & Settings::Type::Userpics) {
+		_startProcess->steps.push_back(Step::UserpicsCount);
+	} else if (_settings->types & Settings::Type::AnyChatsMask) {
+		_startProcess->steps.push_back(Step::DialogsCount);
+	} else if (_settings->types & Settings::Type::GroupsChannelsMask) {
+		_startProcess->steps.push_back(Step::LeftChannelsCount);
+	}
+	startMainSession([=] {
+		sendNextStartRequest();
+	});
+}
+
+void ApiWrap::sendNextStartRequest() {
+	Expects(_startProcess != nullptr);
+
+	auto &steps = _startProcess->steps;
+	if (steps.empty()) {
+		finishStartProcess();
+		return;
+	}
+	const auto step = steps.front();
+	steps.pop_front();
+	switch (step) {
+	case StartProcess::Step::UserpicsCount:
+		return requestUserpicsCount();
+	case StartProcess::Step::DialogsCount:
+		return requestDialogsCount();
+	case StartProcess::Step::LeftChannelsCount:
+		return requestLeftChannelsCount();
+	}
+	Unexpected("Step in ApiWrap::sendNextStartRequest.");
+}
+
+void ApiWrap::requestUserpicsCount() {
+	Expects(_startProcess != nullptr);
+
+	mainRequest(MTPphotos_GetUserPhotos(
+		_user,
+		MTP_int(0),  // offset
+		MTP_long(0), // max_id
+		MTP_int(0)   // limit
+	)).done([=](const MTPphotos_Photos &result) {
+		Expects(_settings != nullptr);
+		Expects(_startProcess != nullptr);
+
+		_startProcess->info.userpicsCount = result.match(
+		[](const MTPDphotos_photos &data) {
+			return int(data.vphotos.v.size());
+		}, [](const MTPDphotos_photosSlice &data) {
+			return data.vcount.v;
+		});
+
+		sendNextStartRequest();
+	}).send();
+}
+
+void ApiWrap::requestDialogsCount() {
+	Expects(_startProcess != nullptr);
+
+	mainRequest(MTPmessages_GetDialogs(
+		MTP_flags(0),
+		MTP_int(0), // offset_date
+		MTP_int(0), // offset_id
+		MTP_inputPeerEmpty(), // offset_peer
+		MTP_int(1)
+	)).done([=](const MTPmessages_Dialogs &result) {
+		Expects(_settings != nullptr);
+		Expects(_startProcess != nullptr);
+
+		_startProcess->info.dialogsCount = result.match(
+		[](const MTPDmessages_dialogs &data) {
+			return int(data.vdialogs.v.size());
+		}, [](const MTPDmessages_dialogsSlice &data) {
+			return data.vcount.v;
+		});
+
+		sendNextStartRequest();
+	}).send();
+}
+
+void ApiWrap::requestLeftChannelsCount() {
+	Expects(_startProcess != nullptr);
+	Expects(_leftChannelsProcess == nullptr);
+
+	_leftChannelsProcess = std::make_unique<LeftChannelsProcess>();
+	requestLeftChannelsSliceGeneric([=] {
+		Expects(_startProcess != nullptr);
+		Expects(_leftChannelsProcess != nullptr);
+
+		_startProcess->info.leftChannelsCount
+			= _leftChannelsProcess->fullCount;
+		sendNextStartRequest();
+	});
+}
+
+void ApiWrap::finishStartProcess() {
+	Expects(_startProcess != nullptr);
+
+	const auto process = base::take(_startProcess);
+	process->done(process->info);
+}
+
+void ApiWrap::requestLeftChannelsList(
+		FnMut<void(Data::DialogsInfo&&)> done) {
+	Expects(_leftChannelsProcess != nullptr);
+
+	_leftChannelsProcess->done = std::move(done);
+	requestLeftChannelsSlice();
+}
+
+void ApiWrap::requestLeftChannelsSlice() {
+	requestLeftChannelsSliceGeneric([=] {
+		Expects(_leftChannelsProcess != nullptr);
+
+		if (_leftChannelsProcess->finished) {
+			const auto process = base::take(_leftChannelsProcess);
+			Data::FinalizeLeftChannelsInfo(process->info, *_settings);
+			process->done(std::move(process->info));
+		} else {
+			requestLeftChannelsSlice();
+		}
+	});
+}
+
+rpl::producer<int> ApiWrap::leftChannelsLoadedCount() const {
+	Expects(_leftChannelsProcess != nullptr);
+
+	return _leftChannelsProcess->count.value();
+}
+
+void ApiWrap::requestDialogsList(FnMut<void(Data::DialogsInfo&&)> done) {
+	Expects(_dialogsProcess == nullptr);
+
+	_dialogsProcess = std::make_unique<DialogsProcess>();
+	_dialogsProcess->done = std::move(done);
+
+	requestDialogsSlice();
+}
+
+rpl::producer<int> ApiWrap::dialogsLoadedCount() const {
+	Expects(_dialogsProcess != nullptr);
+
+	return _dialogsProcess->count.value();
 }
 
 void ApiWrap::startMainSession(FnMut<void()> done) {
@@ -287,8 +468,8 @@ void ApiWrap::requestUserpics(
 
 	mainRequest(MTPphotos_GetUserPhotos(
 		_user,
-		MTP_int(0),
-		MTP_long(0),
+		MTP_int(0),  // offset
+		MTP_long(0), // max_id
 		MTP_int(kUserpicsSliceLimit)
 	)).done([=](const MTPphotos_Photos &result) mutable {
 		Expects(_userpicsProcess != nullptr);
@@ -405,22 +586,18 @@ void ApiWrap::requestSessions(FnMut<void(Data::SessionsList&&)> done) {
 	}).send();
 }
 
-void ApiWrap::requestDialogs(
-		FnMut<void(const Data::DialogsInfo&)> start,
-		Fn<void(const Data::DialogInfo&)> startOne,
-		Fn<void(Data::MessagesSlice&&)> sliceOne,
-		Fn<void()> finishOne,
-		FnMut<void()> finish) {
-	Expects(_dialogsProcess == nullptr);
+void ApiWrap::requestMessages(
+		const Data::DialogInfo &info,
+		Fn<void(Data::MessagesSlice&&)> slice,
+		FnMut<void()> done) {
+	Expects(_chatProcess == nullptr);
 
-	_dialogsProcess = std::make_unique<DialogsProcess>();
-	_dialogsProcess->start = std::move(start);
-	_dialogsProcess->startOne = std::move(startOne);
-	_dialogsProcess->sliceOne = std::move(sliceOne);
-	_dialogsProcess->finishOne = std::move(finishOne);
-	_dialogsProcess->finish = std::move(finish);
+	_chatProcess = std::make_unique<ChatProcess>();
+	_chatProcess->info = info;
+	_chatProcess->handleSlice = std::move(slice);
+	_chatProcess->done = std::move(done);
 
-	requestDialogsSlice();
+	requestMessagesSlice();
 }
 
 void ApiWrap::requestDialogsSlice() {
@@ -432,7 +609,7 @@ void ApiWrap::requestDialogsSlice() {
 		MTP_int(_dialogsProcess->offsetId),
 		_dialogsProcess->offsetPeer,
 		MTP_int(kChatsSliceLimit)
-	)).done([=](const MTPmessages_Dialogs &result) mutable {
+	)).done([=](const MTPmessages_Dialogs &result) {
 		const auto finished = result.match(
 		[](const MTPDmessages_dialogs &data) {
 			return true;
@@ -442,7 +619,7 @@ void ApiWrap::requestDialogsSlice() {
 
 		auto info = Data::ParseDialogsInfo(result);
 		if (finished || info.list.empty()) {
-			requestLeftChannels();
+			finishDialogsList();
 		} else {
 			const auto &last = info.list.back();
 			_dialogsProcess->offsetId = last.topMessageId;
@@ -458,139 +635,86 @@ void ApiWrap::requestDialogsSlice() {
 
 void ApiWrap::appendDialogsSlice(Data::DialogsInfo &&info) {
 	Expects(_dialogsProcess != nullptr);
-	Expects(_settings != nullptr);
 
-	const auto types = _settings->types;
-	auto filtered = ranges::view::all(
-		info.list
-	) | ranges::view::filter([&](const Data::DialogInfo &info) {
-		const auto bit = [&] {
-			using DialogType = Data::DialogInfo::Type;
-			switch (info.type) {
-			case DialogType::Personal:
-				return Settings::Type::PersonalChats;
-			case DialogType::Bot:
-				return Settings::Type::BotChats;
-			case DialogType::PrivateGroup:
-				return Settings::Type::PrivateGroups;
-			case DialogType::PublicGroup:
-				return Settings::Type::PublicGroups;
-			case DialogType::PrivateChannel:
-				return Settings::Type::PrivateChannels;
-			case DialogType::PublicChannel:
-				return Settings::Type::PublicChannels;
-			}
-			return Settings::Type(0);
-		}();
-		return (types & bit) != 0;
-	});
-	auto &list = _dialogsProcess->info.list;
-	list.reserve(list.size());
-	for (auto &info : filtered) {
-		list.push_back(std::move(info));
-	}
+	appendChatsSlice(_dialogsProcess->info, std::move(info));
 }
 
-void ApiWrap::requestLeftChannels() {
+void ApiWrap::finishDialogsList() {
 	Expects(_dialogsProcess != nullptr);
 
-	mainRequest(MTPchannels_GetLeftChannels(
-	)).done([=](const MTPmessages_Chats &result) mutable {
-		Expects(_dialogsProcess != nullptr);
+	const auto process = base::take(_dialogsProcess);
 
-		const auto finished = result.match(
+	ranges::reverse(process->info.list);
+	Data::FinalizeDialogsInfo(process->info, *_settings);
+
+	process->done(std::move(process->info));
+}
+
+void ApiWrap::requestLeftChannelsSliceGeneric(FnMut<void()> done) {
+	Expects(_leftChannelsProcess != nullptr);
+
+	mainRequest(MTPchannels_GetLeftChannels(
+		MTP_int(_leftChannelsProcess->info.list.size())
+	)).done([=, done = std::move(done)](
+			const MTPmessages_Chats &result) mutable {
+		Expects(_leftChannelsProcess != nullptr);
+
+		appendLeftChannelsSlice(Data::ParseLeftChannelsInfo(result));
+
+		const auto process = _leftChannelsProcess.get();
+		process->fullCount = result.match(
+		[](const MTPDmessages_chats &data) {
+			return int(data.vchats.v.size());
+		}, [](const MTPDmessages_chatsSlice &data) {
+			return data.vcount.v;
+		});
+
+		process->finished = result.match(
 		[](const MTPDmessages_chats &data) {
 			return true;
 		}, [](const MTPDmessages_chatsSlice &data) {
 			return data.vchats.v.isEmpty();
 		});
 
-		_dialogsProcess->left = Data::ParseChatsList(*result.match(
-		[](const auto &data) {
-			return &data.vchats;
-		}));
-		requestLeftDialog();
+		process->count = process->info.list.size();
+
+		done();
 	}).send();
 }
 
-void ApiWrap::requestLeftDialog() {
-	Expects(_dialogsProcess != nullptr);
+void ApiWrap::appendLeftChannelsSlice(Data::DialogsInfo &&info) {
+	Expects(_leftChannelsProcess != nullptr);
 
-	auto &left = _dialogsProcess->left;
-	if (true || left.empty()) { // #TODO export
-		finishDialogsList();
-		return;
-	}
-	const auto key = std::move(*left.begin());
-	left.erase(key.first);
-
-	mainRequest(MTPmessages_Search(
-		MTP_flags(MTPmessages_Search::Flag::f_from_id),
-		key.second.input,
-		MTP_string(""), // query
-		_user,
-		MTP_inputMessagesFilterEmpty(),
-		MTP_int(0), // min_date
-		MTP_int(0), // max_date
-		MTP_int(0), // offset_id
-		MTP_int(0), // add_offset
-		MTP_int(1), // limit
-		MTP_int(0), // max_id
-		MTP_int(0), // min_id
-		MTP_int(0) // hash
-	)).done([=](const MTPmessages_Messages &result) {
-		Expects(_dialogsProcess != nullptr);
-
-		result.match([=](const MTPDmessages_messagesNotModified &data) {
-			error("Unexpected messagesNotModified received.");
-		}, [=](const auto &data) {
-			auto messages = Data::ParseMessagesList(
-				data.vmessages,
-				QString());
-			if (!messages.empty() && messages.begin()->second.date > 0) {
-				Data::InsertLeftDialog(
-					_dialogsProcess->info,
-					key.second,
-					std::move(messages.begin()->second));
-			}
-			requestLeftDialog();
-		});
-	}).send();
+	appendChatsSlice(_leftChannelsProcess->info, std::move(info));
 }
 
-void ApiWrap::finishDialogsList() {
-	Expects(_dialogsProcess != nullptr);
+void ApiWrap::appendChatsSlice(
+		Data::DialogsInfo &to,
+		Data::DialogsInfo &&info) {
+	Expects(_settings != nullptr);
 
-	ranges::reverse(_dialogsProcess->info.list);
-	Data::FinalizeDialogsInfo(_dialogsProcess->info, *_settings);
-
-	_dialogsProcess->start(_dialogsProcess->info);
-	requestNextDialog();
-}
-
-void ApiWrap::requestNextDialog() {
-	Expects(_dialogsProcess != nullptr);
-	Expects(_dialogsProcess->single == nullptr);
-
-	const auto index = ++_dialogsProcess->singleIndex;
-	if (index < _dialogsProcess->info.list.size()) {
-		const auto &one = _dialogsProcess->info.list[index];
-		_dialogsProcess->single = std::make_unique<DialogsProcess::Single>(one);
-		_dialogsProcess->startOne(one);
-		requestMessagesSlice();
-		return;
+	const auto types = _settings->types;
+	auto filtered = ranges::view::all(
+		info.list
+	) | ranges::view::filter([&](const Data::DialogInfo &info) {
+		return (types & SettingsFromDialogsType(info.type)) != 0;
+	});
+	auto &list = to.list;
+	if (list.empty()) {
+		list = filtered | ranges::to_vector;
+	} else {
+		list.reserve(list.size() + info.list.size());
+		for (auto &info : filtered) {
+			list.push_back(std::move(info));
+		}
 	}
-	finishDialogs();
 }
 
 void ApiWrap::requestMessagesSlice() {
-	Expects(_dialogsProcess != nullptr);
-	Expects(_dialogsProcess->single != nullptr);
-
-	const auto process = _dialogsProcess->single.get();
+	Expects(_chatProcess != nullptr);
 
 	// #TODO export
-	if (process->info.input.match([](const MTPDinputPeerUser &value) {
+	if (_chatProcess->info.input.match([](const MTPDinputPeerUser &value) {
 		return !value.vaccess_hash.v;
 	}, [](const auto &data) { return false; })) {
 		finishMessages();
@@ -598,33 +722,31 @@ void ApiWrap::requestMessagesSlice() {
 	}
 
 	auto handleResult = [=](const MTPmessages_Messages &result) mutable {
-		Expects(_dialogsProcess != nullptr);
-		Expects(_dialogsProcess->single != nullptr);
+		Expects(_chatProcess != nullptr);
 
-		const auto process = _dialogsProcess->single.get();
 		result.match([&](const MTPDmessages_messagesNotModified &data) {
 			error("Unexpected messagesNotModified received.");
 		}, [&](const auto &data) {
 			if constexpr (MTPDmessages_messages::Is<decltype(data)>()) {
-				process->lastSlice = true;
+				_chatProcess->lastSlice = true;
 			}
 			loadMessagesFiles(Data::ParseMessagesSlice(
 				data.vmessages,
 				data.vusers,
 				data.vchats,
-				process->info.relativePath));
+				_chatProcess->info.relativePath));
 		});
 	};
-	if (process->info.onlyMyMessages) {
+	if (_chatProcess->info.onlyMyMessages) {
 		mainRequest(MTPmessages_Search(
 			MTP_flags(MTPmessages_Search::Flag::f_from_id),
-			process->info.input,
+			_chatProcess->info.input,
 			MTP_string(""), // query
 			_user,
 			MTP_inputMessagesFilterEmpty(),
 			MTP_int(0), // min_date
 			MTP_int(0), // max_date
-			MTP_int(process->offsetId),
+			MTP_int(_chatProcess->offsetId),
 			MTP_int(-kMessagesSliceLimit),
 			MTP_int(kMessagesSliceLimit),
 			MTP_int(0), // max_id
@@ -633,8 +755,8 @@ void ApiWrap::requestMessagesSlice() {
 		)).done(std::move(handleResult)).send();
 	} else {
 		mainRequest(MTPmessages_GetHistory(
-			process->info.input,
-			MTP_int(process->offsetId),
+			_chatProcess->info.input,
+			MTP_int(_chatProcess->offsetId),
 			MTP_int(0), // offset_date
 			MTP_int(-kMessagesSliceLimit),
 			MTP_int(kMessagesSliceLimit),
@@ -646,29 +768,25 @@ void ApiWrap::requestMessagesSlice() {
 }
 
 void ApiWrap::loadMessagesFiles(Data::MessagesSlice &&slice) {
-	Expects(_dialogsProcess != nullptr);
-	Expects(_dialogsProcess->single != nullptr);
-	Expects(!_dialogsProcess->single->slice.has_value());
+	Expects(_chatProcess != nullptr);
+	Expects(!_chatProcess->slice.has_value());
 
-	const auto process = _dialogsProcess->single.get();
 	if (slice.list.empty()) {
-		process->lastSlice = true;
+		_chatProcess->lastSlice = true;
 	}
-	process->slice = std::move(slice);
-	process->fileIndex = -1;
+	_chatProcess->slice = std::move(slice);
+	_chatProcess->fileIndex = -1;
 
 	loadNextMessageFile();
 }
 
 void ApiWrap::loadNextMessageFile() {
-	Expects(_dialogsProcess != nullptr);
-	Expects(_dialogsProcess->single != nullptr);
-	Expects(_dialogsProcess->single->slice.has_value());
+	Expects(_chatProcess != nullptr);
+	Expects(_chatProcess->slice.has_value());
 
-	const auto process = _dialogsProcess->single.get();
-	auto &list = process->slice->list;
+	auto &list = _chatProcess->slice->list;
 	while (true) {
-		const auto index = ++process->fileIndex;
+		const auto index = ++_chatProcess->fileIndex;
 		if (index >= list.size()) {
 			break;
 		}
@@ -684,17 +802,15 @@ void ApiWrap::loadNextMessageFile() {
 }
 
 void ApiWrap::finishMessagesSlice() {
-	Expects(_dialogsProcess != nullptr);
-	Expects(_dialogsProcess->single != nullptr);
-	Expects(_dialogsProcess->single->slice.has_value());
+	Expects(_chatProcess != nullptr);
+	Expects(_chatProcess->slice.has_value());
 
-	const auto process = _dialogsProcess->single.get();
-	auto slice = *base::take(process->slice);
+	auto slice = *base::take(_chatProcess->slice);
 	if (!slice.list.empty()) {
-		process->offsetId = slice.list.back().id + 1;
-		_dialogsProcess->sliceOne(std::move(slice));
+		_chatProcess->offsetId = slice.list.back().id + 1;
+		_chatProcess->handleSlice(std::move(slice));
 	}
-	if (process->lastSlice) {
+	if (_chatProcess->lastSlice) {
 		finishMessages();
 	} else {
 		requestMessagesSlice();
@@ -702,35 +818,22 @@ void ApiWrap::finishMessagesSlice() {
 }
 
 void ApiWrap::loadMessageFileDone(const QString &relativePath) {
-	Expects(_dialogsProcess != nullptr);
-	Expects(_dialogsProcess->single != nullptr);
-	Expects(_dialogsProcess->single->slice.has_value());
-	Expects((_dialogsProcess->single->fileIndex >= 0)
-		&& (_dialogsProcess->single->fileIndex
-			< _dialogsProcess->single->slice->list.size()));
+	Expects(_chatProcess != nullptr);
+	Expects(_chatProcess->slice.has_value());
+	Expects((_chatProcess->fileIndex >= 0)
+		&& (_chatProcess->fileIndex < _chatProcess->slice->list.size()));
 
-	const auto process = _dialogsProcess->single.get();
-	const auto index = process->fileIndex;
-	process->slice->list[index].file().relativePath = relativePath;
+	const auto index = _chatProcess->fileIndex;
+	_chatProcess->slice->list[index].file().relativePath = relativePath;
 	loadNextMessageFile();
 }
 
 void ApiWrap::finishMessages() {
-	Expects(_dialogsProcess != nullptr);
-	Expects(_dialogsProcess->single != nullptr);
-	Expects(!_dialogsProcess->single->slice.has_value());
+	Expects(_chatProcess != nullptr);
+	Expects(!_chatProcess->slice.has_value());
 
-	_dialogsProcess->single = nullptr;
-	_dialogsProcess->finishOne();
-
-	requestNextDialog();
-}
-
-void ApiWrap::finishDialogs() {
-	Expects(_dialogsProcess != nullptr);
-	Expects(_dialogsProcess->single == nullptr);
-
-	base::take(_dialogsProcess)->finish();
+	const auto process = base::take(_chatProcess);
+	process->done();
 }
 
 bool ApiWrap::processFileLoad(
@@ -800,7 +903,9 @@ bool ApiWrap::writePreloadedFile(Data::File &file) {
 	return false;
 }
 
-void ApiWrap::loadFile(const Data::File &file, FnMut<void(QString)> done) {
+void ApiWrap::loadFile(
+		const Data::File &file,
+		FnMut<void(QString)> done) {
 	Expects(_fileProcess == nullptr);
 	Expects(file.location.dcId != 0);
 

@@ -33,9 +33,20 @@ public:
 
 	rpl::producer<RPCError> errors() const;
 
+	struct StartInfo {
+		int userpicsCount = 0;
+		int dialogsCount = 0;
+		int leftChannelsCount = 0;
+	};
 	void startExport(
 		const Settings &settings,
-		FnMut<void()> done);
+		FnMut<void(StartInfo)> done);
+
+	void requestLeftChannelsList(FnMut<void(Data::DialogsInfo&&)> done);
+	rpl::producer<int> leftChannelsLoadedCount() const;
+
+	void requestDialogsList(FnMut<void(Data::DialogsInfo&&)> done);
+	rpl::producer<int> dialogsLoadedCount() const;
 
 	void requestPersonalInfo(FnMut<void(Data::PersonalInfo&&)> done);
 
@@ -48,22 +59,28 @@ public:
 
 	void requestSessions(FnMut<void(Data::SessionsList&&)> done);
 
-	void requestDialogs(
-		FnMut<void(const Data::DialogsInfo&)> start,
-		Fn<void(const Data::DialogInfo&)> startOne,
-		Fn<void(Data::MessagesSlice&&)> sliceOne,
-		Fn<void()> finishOne,
-		FnMut<void()> finish);
+	void requestMessages(
+		const Data::DialogInfo &info,
+		Fn<void(Data::MessagesSlice&&)> slice,
+		FnMut<void()> done);
 
 	~ApiWrap();
 
 private:
+	class LoadedFileCache;
+	struct StartProcess;
 	struct UserpicsProcess;
 	struct FileProcess;
+	struct LeftChannelsProcess;
 	struct DialogsProcess;
-	class LoadedFileCache;
+	struct ChatProcess;
 
 	void startMainSession(FnMut<void()> done);
+	void sendNextStartRequest();
+	void requestUserpicsCount();
+	void requestDialogsCount();
+	void requestLeftChannelsCount();
+	void finishStartProcess();
 
 	void handleUserpicsSlice(const MTPphotos_Photos &result);
 	void loadUserpicsFiles(Data::UserpicsSlice &&slice);
@@ -73,18 +90,20 @@ private:
 
 	void requestDialogsSlice();
 	void appendDialogsSlice(Data::DialogsInfo &&info);
-	void requestLeftChannels();
-	void requestLeftDialog();
 	void finishDialogsList();
 
-	void requestNextDialog();
+	void requestLeftChannelsSliceGeneric(FnMut<void()> done);
+	void requestLeftChannelsSlice();
+	void appendLeftChannelsSlice(Data::DialogsInfo &&info);
+
+	void appendChatsSlice(Data::DialogsInfo &to, Data::DialogsInfo &&info);
+
 	void requestMessagesSlice();
 	void loadMessagesFiles(Data::MessagesSlice &&slice);
 	void loadNextMessageFile();
 	void loadMessageFileDone(const QString &relativePath);
 	void finishMessagesSlice();
 	void finishMessages();
-	void finishDialogs();
 
 	bool processFileLoad(
 		Data::File &file,
@@ -93,7 +112,9 @@ private:
 	std::unique_ptr<FileProcess> prepareFileProcess(
 		const Data::File &file) const;
 	bool writePreloadedFile(Data::File &file);
-	void loadFile(const Data::File &file, FnMut<void(QString)> done);
+	void loadFile(
+		const Data::File &file,
+		FnMut<void(QString)> done);
 	void loadFilePart();
 	void filePartDone(int offset, const MTPupload_File &result);
 
@@ -113,10 +134,13 @@ private:
 	std::unique_ptr<Settings> _settings;
 	MTPInputUser _user = MTP_inputUserSelf();
 
+	std::unique_ptr<StartProcess> _startProcess;
 	std::unique_ptr<LoadedFileCache> _fileCache;
 	std::unique_ptr<UserpicsProcess> _userpicsProcess;
 	std::unique_ptr<FileProcess> _fileProcess;
+	std::unique_ptr<LeftChannelsProcess> _leftChannelsProcess;
 	std::unique_ptr<DialogsProcess> _dialogsProcess;
+	std::unique_ptr<ChatProcess> _chatProcess;
 
 	rpl::event_stream<RPCError> _errors;
 

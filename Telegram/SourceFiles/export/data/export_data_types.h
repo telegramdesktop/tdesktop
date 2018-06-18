@@ -433,12 +433,12 @@ struct DialogsInfo {
 	std::vector<DialogInfo> list;
 };
 
+DialogInfo::Type DialogTypeFromChat(const Chat &chat);
+
 DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data);
-void InsertLeftDialog(
-	DialogsInfo &info,
-	const Chat &chat,
-	Message &&message);
+DialogsInfo ParseLeftChannelsInfo(const MTPmessages_Chats &data);
 void FinalizeDialogsInfo(DialogsInfo &info, const Settings &settings);
+void FinalizeLeftChannelsInfo(DialogsInfo &info, const Settings &settings);
 
 struct MessagesSlice {
 	std::vector<Message> list;

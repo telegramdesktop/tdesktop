@@ -20,6 +20,7 @@ class File {
 public:
 	File(const QString &path);
 
+	int size() const;
 	bool empty() const;
 
 	enum class Result {
