@@ -49,6 +49,9 @@ private:
 	QString pathWithRelativePath(const QString &path) const;
 	std::unique_ptr<File> fileWithRelativePath(const QString &path) const;
 
+	Result writeSavedContacts(const Data::ContactsList &data);
+	Result writeFrequentContacts(const Data::ContactsList &data);
+
 	Result writeChatsStart(
 		const Data::DialogsInfo &data,
 		const QByteArray &listName,

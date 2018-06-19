@@ -205,13 +205,21 @@ struct PersonalInfo {
 
 PersonalInfo ParsePersonalInfo(const MTPUserFull &data);
 
+struct TopPeer {
+	Peer peer;
+	float64 rating = 0.;
+};
+
 struct ContactsList {
 	std::vector<ContactInfo> list;
+	std::vector<TopPeer> correspondents;
+	std::vector<TopPeer> inlineBots;
 };
 
 ContactsList ParseContactsList(const MTPcontacts_Contacts &data);
 ContactsList ParseContactsList(const MTPVector<MTPSavedContact> &data);
 std::vector<int> SortedContactsIndices(const ContactsList &data);
+bool AppendTopPeers(ContactsList &to, const MTPcontacts_TopPeers &data);
 
 struct Session {
 	Utf8String platform;

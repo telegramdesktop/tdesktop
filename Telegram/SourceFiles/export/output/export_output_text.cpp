@@ -504,6 +504,15 @@ Result TextWriter::writeUserpicsEnd() {
 Result TextWriter::writeContactsList(const Data::ContactsList &data) {
 	Expects(_summary != nullptr);
 
+	if (const auto result = writeSavedContacts(data); !result) {
+		return result;
+	} else if (const auto result = writeFrequentContacts(data); !result) {
+		return result;
+	}
+	return Result::Success();
+}
+
+Result TextWriter::writeSavedContacts(const Data::ContactsList &data) {
 	if (data.list.empty()) {
 		return Result::Success();
 	}
@@ -511,7 +520,7 @@ Result TextWriter::writeContactsList(const Data::ContactsList &data) {
 	const auto file = fileWithRelativePath("contacts.txt");
 	auto list = std::vector<QByteArray>();
 	list.reserve(data.list.size());
-	for (const auto &index : Data::SortedContactsIndices(data)) {
+	for (const auto index : Data::SortedContactsIndices(data)) {
 		const auto &contact = data.list[index];
 		if (contact.firstName.isEmpty()
 			&& contact.lastName.isEmpty()
@@ -536,6 +545,69 @@ Result TextWriter::writeContactsList(const Data::ContactsList &data) {
 
 	const auto header = "Contacts "
 		"(" + Data::NumberToString(data.list.size()) + ") - contacts.txt"
+		+ kLineBreak
+		+ kLineBreak;
+	return _summary->writeBlock(header);
+}
+
+Result TextWriter::writeFrequentContacts(const Data::ContactsList &data) {
+	const auto size = data.correspondents.size() + data.inlineBots.size();
+	if (data.correspondents.empty() && data.inlineBots.empty()) {
+		return Result::Success();
+	}
+
+	const auto file = fileWithRelativePath("frequent.txt");
+	auto list = std::vector<QByteArray>();
+	list.reserve(size);
+	const auto writeList = [&](
+			const std::vector<Data::TopPeer> &peers,
+			Data::Utf8String category) {
+		for (const auto &top : peers) {
+			const auto user = [&]() -> Data::Utf8String {
+				if (!top.peer.user()) {
+					return Data::Utf8String();
+				} else if (top.peer.name().isEmpty()) {
+					return "(deleted user)";
+				}
+				return top.peer.name();
+			}();
+			const auto chatType = [&] {
+				if (const auto chat = top.peer.chat()) {
+					return chat->username.isEmpty()
+						? (chat->broadcast
+							? "Private channel"
+							: "Private group")
+						: (chat->broadcast
+							? "Public channel"
+							: "Public group");
+				}
+				return "";
+			}();
+			const auto chat = [&]() -> Data::Utf8String {
+				if (!top.peer.chat()) {
+					return Data::Utf8String();
+				} else if (top.peer.name().isEmpty()) {
+					return "(deleted chat)";
+				}
+				return top.peer.name();
+			}();
+			list.push_back(SerializeKeyValue({
+				{ "Category", category },
+				{ "User",  top.peer.user() ? user : QByteArray() },
+				{ chatType, chat },
+				{ "Rating", QString::number(top.rating).toUtf8() }
+			}));
+		}
+	};
+	writeList(data.correspondents, "Correspondents");
+	writeList(data.inlineBots, "Inline bots");
+	const auto full = JoinList(kLineBreak, list);
+	if (const auto result = file->writeBlock(full); !result) {
+		return result;
+	}
+
+	const auto header = "Frequent contacts "
+		"(" + Data::NumberToString(size) + ") - frequent.txt"
 		+ kLineBreak
 		+ kLineBreak;
 	return _summary->writeBlock(header);

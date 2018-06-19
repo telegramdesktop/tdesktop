@@ -517,6 +517,25 @@ std::map<PeerId, Peer> ParsePeersLists(
 	return result;
 }
 
+User EmptyUser(int32 userId) {
+	return ParseUser(MTP_userEmpty(MTP_int(userId)));
+}
+
+Chat EmptyChat(int32 chatId) {
+	return ParseChat(MTP_chatEmpty(MTP_int(chatId)));
+}
+
+Peer EmptyPeer(PeerId peerId) {
+	if (UserPeerId(BarePeerId(peerId)) == peerId) {
+		auto user = ParseUser(MTP_userEmpty(MTP_int(BarePeerId(peerId))));
+		return Peer{ EmptyUser(BarePeerId(peerId)) };
+	} else if (ChatPeerId(BarePeerId(peerId)) == peerId) {
+		auto chat = ParseChat(MTP_chatEmpty(MTP_int(BarePeerId(peerId))));
+		return Peer{ EmptyChat(BarePeerId(peerId)) };
+	}
+	Unexpected("PeerId in EmptyPeer.");
+}
+
 File &Media::file() {
 	return content.match([](Photo &data) -> File& {
 		return data.image.file;
@@ -835,7 +854,7 @@ ContactsList ParseContactsList(const MTPcontacts_Contacts &data) {
 		if (const auto i = map.find(userId); i != end(map)) {
 			result.list.push_back(i->second.info);
 		} else {
-			result.list.push_back(ContactInfo());
+			result.list.push_back(EmptyUser(userId).info);
 		}
 	}
 	return result;
@@ -873,6 +892,52 @@ std::vector<int> SortedContactsIndices(const ContactsList &data) {
 		return names[i] < names[j];
 	});
 	return indices;
+}
+
+bool AppendTopPeers(ContactsList &to, const MTPcontacts_TopPeers &data) {
+	return data.match([](const MTPDcontacts_topPeersNotModified &data) {
+		return false;
+	}, [&](const MTPDcontacts_topPeers &data) {
+		const auto peers = ParsePeersLists(data.vusers, data.vchats);
+		const auto append = [&](
+				std::vector<TopPeer> &to,
+				const MTPVector<MTPTopPeer> &list) {
+			for (const auto &topPeer : list.v) {
+				to.push_back(topPeer.match([&](const MTPDtopPeer &data) {
+					const auto peerId = ParsePeerId(data.vpeer);
+					auto peer = [&] {
+						const auto i = peers.find(peerId);
+						return (i != peers.end())
+							? i->second
+							: EmptyPeer(peerId);
+					}();
+					return TopPeer{
+						Peer{ std::move(peer) },
+						data.vrating.v
+					};
+				}));
+			}
+		};
+		for (const auto &list : data.vcategories.v) {
+			const auto appended = list.match(
+			[&](const MTPDtopPeerCategoryPeers &data) {
+				const auto category = data.vcategory.type();
+				if (category == mtpc_topPeerCategoryCorrespondents) {
+					append(to.correspondents, data.vpeers);
+					return true;
+				} else if (category == mtpc_topPeerCategoryBotsInline) {
+					append(to.inlineBots, data.vpeers);
+					return true;
+				} else {
+					return false;
+				}
+			});
+			if (!appended) {
+				return false;
+			}
+		}
+		return true;
+	});
 }
 
 Session ParseSession(const MTPAuthorization &data) {

@@ -26,6 +26,7 @@ constexpr auto kFileRequestsCount = 2;
 constexpr auto kFileNextRequestDelay = TimeMs(20);
 constexpr auto kChatsSliceLimit = 100;
 constexpr auto kMessagesSliceLimit = 100;
+constexpr auto kTopPeerSliceLimit = 100;
 constexpr auto kFileMaxSize = 1500 * 1024 * 1024;
 constexpr auto kLocationCacheSize = 100'000;
 
@@ -111,7 +112,14 @@ struct ApiWrap::StartProcess {
 	};
 	std::deque<Step> steps;
 	StartInfo info;
+};
 
+struct ApiWrap::ContactsProcess {
+	FnMut<void(Data::ContactsList&&)> done;
+
+	Data::ContactsList result;
+
+	int topPeersOffset = 0;
 };
 
 struct ApiWrap::UserpicsProcess {
@@ -124,7 +132,6 @@ struct ApiWrap::UserpicsProcess {
 	uint64 maxId = 0;
 	bool lastSlice = false;
 	int fileIndex = -1;
-
 };
 
 struct ApiWrap::FileProcess {
@@ -145,7 +152,6 @@ struct ApiWrap::FileProcess {
 		QByteArray bytes;
 	};
 	std::deque<Request> requests;
-
 };
 
 struct ApiWrap::FileProgress {
@@ -162,7 +168,6 @@ struct ApiWrap::LeftChannelsProcess {
 	int fullCount = 0;
 	int offset = 0;
 	bool finished = false;
-
 };
 
 struct ApiWrap::DialogsProcess {
@@ -174,7 +179,6 @@ struct ApiWrap::DialogsProcess {
 	Data::TimeId offsetDate = 0;
 	int32 offsetId = 0;
 	MTPInputPeer offsetPeer = MTP_inputPeerEmpty();
-
 };
 
 struct ApiWrap::ChatProcess {
@@ -190,7 +194,6 @@ struct ApiWrap::ChatProcess {
 	base::optional<Data::MessagesSlice> slice;
 	bool lastSlice = false;
 	int fileIndex = -1;
-
 };
 
 ApiWrap::LoadedFileCache::LoadedFileCache(int limit) : _limit(limit) {
@@ -605,10 +608,60 @@ void ApiWrap::finishUserpics() {
 }
 
 void ApiWrap::requestContacts(FnMut<void(Data::ContactsList&&)> done) {
+	Expects(_contactsProcess == nullptr);
+
+	_contactsProcess = std::make_unique<ContactsProcess>();
+	_contactsProcess->done = std::move(done);
 	mainRequest(MTPcontacts_GetSaved(
-	)).done([=, done = std::move(done)](
-			const MTPVector<MTPSavedContact> &result) mutable {
-		done(Data::ParseContactsList(result));
+	)).done([=](const MTPVector<MTPSavedContact> &result) {
+		_contactsProcess->result = Data::ParseContactsList(result);
+		requestTopPeersSlice();
+	}).send();
+}
+
+void ApiWrap::requestTopPeersSlice() {
+	Expects(_contactsProcess != nullptr);
+
+	using Flag = MTPcontacts_GetTopPeers::Flag;
+	mainRequest(MTPcontacts_GetTopPeers(
+		MTP_flags(Flag::f_correspondents | Flag::f_bots_inline),
+		MTP_int(_contactsProcess->topPeersOffset),
+		MTP_int(kTopPeerSliceLimit),
+		MTP_int(0) // hash
+	)).done([=](const MTPcontacts_TopPeers &result) {
+		Expects(_contactsProcess != nullptr);
+
+		if (!Data::AppendTopPeers(_contactsProcess->result, result)) {
+			error("Unexpected data in ApiWrap::requestTopPeersSlice.");
+			return;
+		}
+
+		const auto offset = _contactsProcess->topPeersOffset;
+		const auto loaded = result.match(
+		[](const MTPDcontacts_topPeersNotModified &data) {
+			return true;
+		}, [&](const MTPDcontacts_topPeers &data) {
+			for (const auto &category : data.vcategories.v) {
+				const auto loaded = category.match(
+				[&](const MTPDtopPeerCategoryPeers &data) {
+					return offset + data.vpeers.v.size() >= data.vcount.v;
+				});
+				if (!loaded) {
+					return false;
+				}
+			}
+			return true;
+		});
+
+		if (loaded) {
+			auto process = base::take(_contactsProcess);
+			process->done(std::move(process->result));
+		} else {
+			_contactsProcess->topPeersOffset = std::max(
+				_contactsProcess->result.correspondents.size(),
+				_contactsProcess->result.inlineBots.size());
+			requestTopPeersSlice();
+		}
 	}).send();
 }
 

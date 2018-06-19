@@ -84,6 +84,7 @@ public:
 private:
 	class LoadedFileCache;
 	struct StartProcess;
+	struct ContactsProcess;
 	struct UserpicsProcess;
 	struct FileProcess;
 	struct FileProgress;
@@ -97,6 +98,8 @@ private:
 	void requestDialogsCount();
 	void requestLeftChannelsCount();
 	void finishStartProcess();
+
+	void requestTopPeersSlice();
 
 	void handleUserpicsSlice(const MTPphotos_Photos &result);
 	void loadUserpicsFiles(Data::UserpicsSlice &&slice);
@@ -158,6 +161,7 @@ private:
 
 	std::unique_ptr<StartProcess> _startProcess;
 	std::unique_ptr<LoadedFileCache> _fileCache;
+	std::unique_ptr<ContactsProcess> _contactsProcess;
 	std::unique_ptr<UserpicsProcess> _userpicsProcess;
 	std::unique_ptr<FileProcess> _fileProcess;
 	std::unique_ptr<LeftChannelsProcess> _leftChannelsProcess;
