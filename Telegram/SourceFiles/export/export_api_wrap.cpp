@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "export/export_settings.h"
 #include "export/data/export_data_types.h"
+#include "export/output/export_output_result.h"
 #include "export/output/export_output_file.h"
 #include "mtproto/rpc_sender.h"
 #include "base/value_ordering.h"
@@ -114,11 +115,13 @@ struct ApiWrap::StartProcess {
 };
 
 struct ApiWrap::UserpicsProcess {
-	FnMut<void(Data::UserpicsInfo&&)> start;
-	Fn<void(Data::UserpicsSlice&&)> handleSlice;
+	FnMut<bool(Data::UserpicsInfo&&)> start;
+	Fn<bool(DownloadProgress)> fileProgress;
+	Fn<bool(Data::UserpicsSlice&&)> handleSlice;
 	FnMut<void()> finish;
 
 	base::optional<Data::UserpicsSlice> slice;
+	uint64 maxId = 0;
 	bool lastSlice = false;
 	int fileIndex = -1;
 
@@ -130,6 +133,7 @@ struct ApiWrap::FileProcess {
 	Output::File file;
 	QString relativePath;
 
+	Fn<bool(FileProgress)> progress;
 	FnMut<void(const QString &relativePath)> done;
 
 	Data::FileLocation location;
@@ -144,18 +148,25 @@ struct ApiWrap::FileProcess {
 
 };
 
+struct ApiWrap::FileProgress {
+	int ready = 0;
+	int total = 0;
+};
+
 struct ApiWrap::LeftChannelsProcess {
+	Fn<bool(int count)> progress;
 	FnMut<void(Data::DialogsInfo&&)> done;
 
 	Data::DialogsInfo info;
 
-	rpl::variable<int> count;
 	int fullCount = 0;
+	int offset = 0;
 	bool finished = false;
 
 };
 
 struct ApiWrap::DialogsProcess {
+	Fn<bool(int count)> progress;
 	FnMut<void(Data::DialogsInfo&&)> done;
 
 	Data::DialogsInfo info;
@@ -164,14 +175,14 @@ struct ApiWrap::DialogsProcess {
 	int32 offsetId = 0;
 	MTPInputPeer offsetPeer = MTP_inputPeerEmpty();
 
-	rpl::variable<int> count;
-
 };
 
 struct ApiWrap::ChatProcess {
 	Data::DialogInfo info;
 
-	Fn<void(Data::MessagesSlice&&)> handleSlice;
+	FnMut<bool(const Data::DialogInfo &)> start;
+	Fn<bool(DownloadProgress)> fileProgress;
+	Fn<bool(Data::MessagesSlice&&)> handleSlice;
 	FnMut<void()> done;
 
 	int32 offsetId = 1;
@@ -247,6 +258,10 @@ rpl::producer<RPCError> ApiWrap::errors() const {
 	return _errors.events();
 }
 
+rpl::producer<Output::Result> ApiWrap::ioErrors() const {
+	return _ioErrors.events();
+}
+
 void ApiWrap::startExport(
 		const Settings &settings,
 		FnMut<void(StartInfo)> done) {
@@ -260,9 +275,11 @@ void ApiWrap::startExport(
 	using Step = StartProcess::Step;
 	if (_settings->types & Settings::Type::Userpics) {
 		_startProcess->steps.push_back(Step::UserpicsCount);
-	} else if (_settings->types & Settings::Type::AnyChatsMask) {
+	}
+	if (_settings->types & Settings::Type::AnyChatsMask) {
 		_startProcess->steps.push_back(Step::DialogsCount);
-	} else if (_settings->types & Settings::Type::GroupsChannelsMask) {
+	}
+	if (_settings->types & Settings::Type::GroupsChannelsMask) {
 		_startProcess->steps.push_back(Step::LeftChannelsCount);
 	}
 	startMainSession([=] {
@@ -361,9 +378,11 @@ void ApiWrap::finishStartProcess() {
 }
 
 void ApiWrap::requestLeftChannelsList(
+		Fn<bool(int count)> progress,
 		FnMut<void(Data::DialogsInfo&&)> done) {
 	Expects(_leftChannelsProcess != nullptr);
 
+	_leftChannelsProcess->progress = std::move(progress);
 	_leftChannelsProcess->done = std::move(done);
 	requestLeftChannelsSlice();
 }
@@ -382,25 +401,16 @@ void ApiWrap::requestLeftChannelsSlice() {
 	});
 }
 
-rpl::producer<int> ApiWrap::leftChannelsLoadedCount() const {
-	Expects(_leftChannelsProcess != nullptr);
-
-	return _leftChannelsProcess->count.value();
-}
-
-void ApiWrap::requestDialogsList(FnMut<void(Data::DialogsInfo&&)> done) {
+void ApiWrap::requestDialogsList(
+		Fn<bool(int count)> progress,
+		FnMut<void(Data::DialogsInfo&&)> done) {
 	Expects(_dialogsProcess == nullptr);
 
 	_dialogsProcess = std::make_unique<DialogsProcess>();
+	_dialogsProcess->progress = std::move(progress);
 	_dialogsProcess->done = std::move(done);
 
 	requestDialogsSlice();
-}
-
-rpl::producer<int> ApiWrap::dialogsLoadedCount() const {
-	Expects(_dialogsProcess != nullptr);
-
-	return _dialogsProcess->count.value();
 }
 
 void ApiWrap::startMainSession(FnMut<void()> done) {
@@ -456,33 +466,35 @@ void ApiWrap::requestPersonalInfo(FnMut<void(Data::PersonalInfo&&)> done) {
 }
 
 void ApiWrap::requestUserpics(
-		FnMut<void(Data::UserpicsInfo&&)> start,
-		Fn<void(Data::UserpicsSlice&&)> slice,
+		FnMut<bool(Data::UserpicsInfo&&)> start,
+		Fn<bool(DownloadProgress)> progress,
+		Fn<bool(Data::UserpicsSlice&&)> slice,
 		FnMut<void()> finish) {
 	Expects(_userpicsProcess == nullptr);
 
 	_userpicsProcess = std::make_unique<UserpicsProcess>();
 	_userpicsProcess->start = std::move(start);
+	_userpicsProcess->fileProgress = std::move(progress);
 	_userpicsProcess->handleSlice = std::move(slice);
 	_userpicsProcess->finish = std::move(finish);
 
 	mainRequest(MTPphotos_GetUserPhotos(
 		_user,
-		MTP_int(0),  // offset
-		MTP_long(0), // max_id
+		MTP_int(0), // offset
+		MTP_long(_userpicsProcess->maxId),
 		MTP_int(kUserpicsSliceLimit)
 	)).done([=](const MTPphotos_Photos &result) mutable {
 		Expects(_userpicsProcess != nullptr);
 
-		_userpicsProcess->start([&] {
-			auto info = Data::UserpicsInfo();
-			result.match([&](const MTPDphotos_photos &data) {
-				info.count = data.vphotos.v.size();
-			}, [&](const MTPDphotos_photosSlice &data) {
-				info.count = data.vcount.v;
-			});
-			return info;
-		}());
+		auto startInfo = result.match(
+		[](const MTPDphotos_photos &data) {
+			return Data::UserpicsInfo{ data.vphotos.v.size() };
+		}, [](const MTPDphotos_photosSlice &data) {
+			return Data::UserpicsInfo{ data.vcount.v };
+		});
+		if (!_userpicsProcess->start(std::move(startInfo))) {
+			return;
+		}
 
 		handleUserpicsSlice(result);
 	}).send();
@@ -523,32 +535,52 @@ void ApiWrap::loadNextUserpic() {
 		}
 		const auto ready = processFileLoad(
 			list[index].image.file,
+			[=](FileProgress value) { return loadUserpicProgress(value); },
 			[=](const QString &path) { loadUserpicDone(path); });
 		if (!ready) {
 			return;
 		}
 	}
-	const auto lastUserpicId = list.empty()
-		? base::none
-		: base::make_optional(list.back().id);
+	finishUserpicsSlice();
+}
 
-	if (!list.empty()) {
-		_userpicsProcess->handleSlice(*base::take(_userpicsProcess->slice));
+void ApiWrap::finishUserpicsSlice() {
+	Expects(_userpicsProcess != nullptr);
+	Expects(_userpicsProcess->slice.has_value());
+
+	auto slice = *base::take(_userpicsProcess->slice);
+	if (!slice.list.empty()) {
+		_userpicsProcess->maxId = slice.list.back().id;
+		if (!_userpicsProcess->handleSlice(std::move(slice))) {
+			return;
+		}
 	}
 	if (_userpicsProcess->lastSlice) {
 		finishUserpics();
 		return;
 	}
 
-	Assert(lastUserpicId.has_value());
 	mainRequest(MTPphotos_GetUserPhotos(
 		_user,
-		MTP_int(0),
-		MTP_long(*lastUserpicId),
+		MTP_int(0), // offset
+		MTP_long(_userpicsProcess->maxId),
 		MTP_int(kUserpicsSliceLimit)
 	)).done([=](const MTPphotos_Photos &result) {
 		handleUserpicsSlice(result);
 	}).send();
+}
+
+bool ApiWrap::loadUserpicProgress(FileProgress progress) {
+	Expects(_userpicsProcess != nullptr);
+	Expects(_userpicsProcess->slice.has_value());
+	Expects((_userpicsProcess->fileIndex >= 0)
+		&& (_userpicsProcess->fileIndex
+			< _userpicsProcess->slice->list.size()));
+
+	return _userpicsProcess->fileProgress(DownloadProgress{
+		_userpicsProcess->fileIndex,
+		progress.ready,
+		progress.total });
 }
 
 void ApiWrap::loadUserpicDone(const QString &relativePath) {
@@ -588,16 +620,25 @@ void ApiWrap::requestSessions(FnMut<void(Data::SessionsList&&)> done) {
 
 void ApiWrap::requestMessages(
 		const Data::DialogInfo &info,
-		Fn<void(Data::MessagesSlice&&)> slice,
+		FnMut<bool(const Data::DialogInfo &)> start,
+		Fn<bool(DownloadProgress)> progress,
+		Fn<bool(Data::MessagesSlice&&)> slice,
 		FnMut<void()> done) {
 	Expects(_chatProcess == nullptr);
 
 	_chatProcess = std::make_unique<ChatProcess>();
 	_chatProcess->info = info;
+	_chatProcess->start = std::move(start);
+	_chatProcess->fileProgress = std::move(progress);
 	_chatProcess->handleSlice = std::move(slice);
 	_chatProcess->done = std::move(done);
 
-	requestMessagesSlice();
+	requestMessagesSlice([=](int count) {
+		Expects(_chatProcess != nullptr);
+
+		_chatProcess->info.messagesCount = count;
+		return _chatProcess->start(_chatProcess->info);
+	});
 }
 
 void ApiWrap::requestDialogsSlice() {
@@ -628,6 +669,11 @@ void ApiWrap::requestDialogsSlice() {
 
 			appendDialogsSlice(std::move(info));
 
+			const auto count = _dialogsProcess->info.list.size();
+			if (!_dialogsProcess->progress(count)) {
+				return;
+			}
+
 			requestDialogsSlice();
 		}
 	}).send();
@@ -654,7 +700,7 @@ void ApiWrap::requestLeftChannelsSliceGeneric(FnMut<void()> done) {
 	Expects(_leftChannelsProcess != nullptr);
 
 	mainRequest(MTPchannels_GetLeftChannels(
-		MTP_int(_leftChannelsProcess->info.list.size())
+		MTP_int(_leftChannelsProcess->offset)
 	)).done([=, done = std::move(done)](
 			const MTPmessages_Chats &result) mutable {
 		Expects(_leftChannelsProcess != nullptr);
@@ -662,6 +708,11 @@ void ApiWrap::requestLeftChannelsSliceGeneric(FnMut<void()> done) {
 		appendLeftChannelsSlice(Data::ParseLeftChannelsInfo(result));
 
 		const auto process = _leftChannelsProcess.get();
+		process->offset += result.match(
+		[](const auto &data) {
+			return int(data.vchats.v.size());
+		});
+
 		process->fullCount = result.match(
 		[](const MTPDmessages_chats &data) {
 			return int(data.vchats.v.size());
@@ -676,7 +727,11 @@ void ApiWrap::requestLeftChannelsSliceGeneric(FnMut<void()> done) {
 			return data.vchats.v.isEmpty();
 		});
 
-		process->count = process->info.list.size();
+		if (process->progress) {
+			if (!process->progress(process->info.list.size())) {
+				return;
+			}
+		}
 
 		done();
 	}).send();
@@ -710,23 +765,30 @@ void ApiWrap::appendChatsSlice(
 	}
 }
 
-void ApiWrap::requestMessagesSlice() {
+void ApiWrap::requestMessagesSlice(FnMut<bool(int count)> start) {
 	Expects(_chatProcess != nullptr);
 
-	// #TODO export
-	if (_chatProcess->info.input.match([](const MTPDinputPeerUser &value) {
-		return !value.vaccess_hash.v;
-	}, [](const auto &data) { return false; })) {
-		finishMessages();
-		return;
-	}
-
-	auto handleResult = [=](const MTPmessages_Messages &result) mutable {
+	auto handleResult = [=, start = std::move(start)](
+			const MTPmessages_Messages &result) mutable {
 		Expects(_chatProcess != nullptr);
+
+		const auto count = result.match(
+		[](const MTPDmessages_messages &data) {
+			return data.vmessages.v.size();
+		}, [](const MTPDmessages_messagesSlice &data) {
+			return data.vcount.v;
+		}, [](const MTPDmessages_channelMessages &data) {
+			return data.vcount.v;
+		}, [](const MTPDmessages_messagesNotModified &data) {
+			return 0;
+		});
 
 		result.match([&](const MTPDmessages_messagesNotModified &data) {
 			error("Unexpected messagesNotModified received.");
 		}, [&](const auto &data) {
+			if (start && !start(count)) {
+				return;
+			}
 			if constexpr (MTPDmessages_messages::Is<decltype(data)>()) {
 				_chatProcess->lastSlice = true;
 			}
@@ -790,8 +852,12 @@ void ApiWrap::loadNextMessageFile() {
 		if (index >= list.size()) {
 			break;
 		}
+		const auto fileProgress = [=](FileProgress value) {
+			return loadMessageFileProgress(value);
+		};
 		const auto ready = processFileLoad(
 			list[index].file(),
+			fileProgress,
 			[=](const QString &path) { loadMessageFileDone(path); },
 			&list[index]);
 		if (!ready) {
@@ -808,13 +874,27 @@ void ApiWrap::finishMessagesSlice() {
 	auto slice = *base::take(_chatProcess->slice);
 	if (!slice.list.empty()) {
 		_chatProcess->offsetId = slice.list.back().id + 1;
-		_chatProcess->handleSlice(std::move(slice));
+		if (!_chatProcess->handleSlice(std::move(slice))) {
+			return;
+		}
 	}
 	if (_chatProcess->lastSlice) {
 		finishMessages();
 	} else {
 		requestMessagesSlice();
 	}
+}
+
+bool ApiWrap::loadMessageFileProgress(FileProgress progress) {
+	Expects(_chatProcess != nullptr);
+	Expects(_chatProcess->slice.has_value());
+	Expects((_chatProcess->fileIndex >= 0)
+		&& (_chatProcess->fileIndex < _chatProcess->slice->list.size()));
+
+	return _chatProcess->fileProgress(DownloadProgress{
+		_chatProcess->fileIndex,
+		progress.ready,
+		progress.total });
 }
 
 void ApiWrap::loadMessageFileDone(const QString &relativePath) {
@@ -838,6 +918,7 @@ void ApiWrap::finishMessages() {
 
 bool ApiWrap::processFileLoad(
 		Data::File &file,
+		Fn<bool(FileProgress)> progress,
 		FnMut<void(QString)> done,
 		Data::Message *message) {
 	using SkipReason = Data::File::SkipReason;
@@ -848,7 +929,7 @@ bool ApiWrap::processFileLoad(
 		file.skipReason = SkipReason::Unavailable;
 		return true;
 	} else if (writePreloadedFile(file)) {
-		return true;
+		return !file.relativePath.isEmpty();
 	}
 
 	using Type = MediaSettings::Type;
@@ -878,7 +959,7 @@ bool ApiWrap::processFileLoad(
 		file.skipReason = SkipReason::FileSize;
 		return true;
 	}
-	loadFile(file, std::move(done));
+	loadFile(file, std::move(progress), std::move(done));
 	return false;
 }
 
@@ -893,24 +974,38 @@ bool ApiWrap::writePreloadedFile(Data::File &file) {
 	} else if (!file.content.isEmpty()) {
 		const auto process = prepareFileProcess(file);
 		auto &output = _fileProcess->file;
-		if (output.writeBlock(file.content) == File::Result::Success) {
+		if (const auto result = output.writeBlock(file.content)) {
 			file.relativePath = process->relativePath;
 			_fileCache->save(file.location, file.relativePath);
-			return true;
+		} else {
+			ioError(result);
 		}
-		error(QString("Could not write '%1'.").arg(process->relativePath));
+		return true;
 	}
 	return false;
 }
 
 void ApiWrap::loadFile(
 		const Data::File &file,
+		Fn<bool(FileProgress)> progress,
 		FnMut<void(QString)> done) {
 	Expects(_fileProcess == nullptr);
 	Expects(file.location.dcId != 0);
 
 	_fileProcess = prepareFileProcess(file);
+	_fileProcess->progress = std::move(progress);
 	_fileProcess->done = std::move(done);
+
+
+	if (_fileProcess->progress) {
+		const auto progress = FileProgress{
+			_fileProcess->file.size(),
+			_fileProcess->size
+		};
+		if (!_fileProcess->progress(progress)) {
+			return;
+		}
+	}
 
 	loadFilePart();
 }
@@ -989,12 +1084,17 @@ void ApiWrap::filePartDone(int offset, const MTPupload_File &result) {
 		auto &file = _fileProcess->file;
 		while (!requests.empty() && !requests.front().bytes.isEmpty()) {
 			const auto &bytes = requests.front().bytes;
-			if (file.writeBlock(bytes) != Output::File::Result::Success) {
-				error(QString("Could not write bytes to '%1'."
-				).arg(_fileProcess->relativePath));
+			if (const auto result = file.writeBlock(bytes); !result) {
+				ioError(result);
 				return;
 			}
 			requests.pop_front();
+		}
+
+		if (_fileProcess->progress) {
+			_fileProcess->progress(FileProgress{
+				file.size(),
+				_fileProcess->size });
 		}
 
 		if (!requests.empty()
@@ -1017,6 +1117,10 @@ void ApiWrap::error(RPCError &&error) {
 
 void ApiWrap::error(const QString &text) {
 	error(MTP_rpc_error(MTP_int(0), MTP_string("API_ERROR: " + text)));
+}
+
+void ApiWrap::ioError(const Output::Result &result) {
+	_ioErrors.fire_copy(result);
 }
 
 ApiWrap::~ApiWrap() = default;

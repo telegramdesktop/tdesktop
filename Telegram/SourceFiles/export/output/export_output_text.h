@@ -16,31 +16,31 @@ namespace Output {
 
 class TextWriter : public AbstractWriter {
 public:
-	bool start(const Settings &settings) override;
+	Result start(const Settings &settings) override;
 
-	bool writePersonal(const Data::PersonalInfo &data) override;
+	Result writePersonal(const Data::PersonalInfo &data) override;
 
-	bool writeUserpicsStart(const Data::UserpicsInfo &data) override;
-	bool writeUserpicsSlice(const Data::UserpicsSlice &data) override;
-	bool writeUserpicsEnd() override;
+	Result writeUserpicsStart(const Data::UserpicsInfo &data) override;
+	Result writeUserpicsSlice(const Data::UserpicsSlice &data) override;
+	Result writeUserpicsEnd() override;
 
-	bool writeContactsList(const Data::ContactsList &data) override;
+	Result writeContactsList(const Data::ContactsList &data) override;
 
-	bool writeSessionsList(const Data::SessionsList &data) override;
+	Result writeSessionsList(const Data::SessionsList &data) override;
 
-	bool writeDialogsStart(const Data::DialogsInfo &data) override;
-	bool writeDialogStart(const Data::DialogInfo &data) override;
-	bool writeDialogSlice(const Data::MessagesSlice &data) override;
-	bool writeDialogEnd() override;
-	bool writeDialogsEnd() override;
+	Result writeDialogsStart(const Data::DialogsInfo &data) override;
+	Result writeDialogStart(const Data::DialogInfo &data) override;
+	Result writeDialogSlice(const Data::MessagesSlice &data) override;
+	Result writeDialogEnd() override;
+	Result writeDialogsEnd() override;
 
-	bool writeLeftChannelsStart(const Data::DialogsInfo &data) override;
-	bool writeLeftChannelStart(const Data::DialogInfo &data) override;
-	bool writeLeftChannelSlice(const Data::MessagesSlice &data) override;
-	bool writeLeftChannelEnd() override;
-	bool writeLeftChannelsEnd() override;
+	Result writeLeftChannelsStart(const Data::DialogsInfo &data) override;
+	Result writeLeftChannelStart(const Data::DialogInfo &data) override;
+	Result writeLeftChannelSlice(const Data::MessagesSlice &data) override;
+	Result writeLeftChannelEnd() override;
+	Result writeLeftChannelsEnd() override;
 
-	bool finish() override;
+	Result finish() override;
 
 	QString mainFilePath() override;
 
@@ -49,27 +49,23 @@ private:
 	QString pathWithRelativePath(const QString &path) const;
 	std::unique_ptr<File> fileWithRelativePath(const QString &path) const;
 
-	bool writeChatsStart(
+	Result writeChatsStart(
 		const Data::DialogsInfo &data,
 		const QByteArray &listName,
 		const QString &fileName);
-	bool writeChatStart(const Data::DialogInfo &data);
-	bool writeChatSlice(const Data::MessagesSlice &data);
-	bool writeChatEnd();
+	Result writeChatStart(const Data::DialogInfo &data);
+	Result writeChatSlice(const Data::MessagesSlice &data);
+	Result writeChatEnd();
 
 	Settings _settings;
 
-	std::unique_ptr<File> _result;
+	std::unique_ptr<File> _summary;
 	int _userpicsCount = 0;
 
 	int _dialogsCount = 0;
 	int _dialogIndex = 0;
 	bool _dialogOnlyMy = false;
 	bool _dialogEmpty = true;
-
-	int _leftChannelsCount = 0;
-	int _leftChannelIndex = 0;
-	bool _leftChannelEmpty = true;
 
 	std::unique_ptr<File> _chat;
 

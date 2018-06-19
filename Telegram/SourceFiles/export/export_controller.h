@@ -50,7 +50,7 @@ struct ProcessingState {
 
 	Step step = Step::Initializing;
 
-	std::vector<int> substepsInStep;
+	std::shared_ptr<const std::vector<int>> substepsInStep;
 
 	int entityIndex = 0;
 	int entityCount = 1;
@@ -68,15 +68,13 @@ struct ProcessingState {
 
 };
 
-struct ErrorState {
-	enum class Type {
-		Unknown,
-		API,
-		IO,
-	};
-	Type type = Type::Unknown;
-	base::optional<RPCError> apiError;
-	base::optional<QString> ioErrorPath;
+struct ApiErrorState {
+	RPCError data;
+
+};
+
+struct OutputErrorState {
+	QString path;
 
 };
 
@@ -88,7 +86,8 @@ struct FinishedState {
 using State = base::optional_variant<
 	PasswordCheckState,
 	ProcessingState,
-	ErrorState,
+	ApiErrorState,
+	OutputErrorState,
 	FinishedState>;
 
 //struct PasswordUpdate {

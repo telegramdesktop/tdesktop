@@ -1654,7 +1654,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_bad_name" = "Please use latin characters only.";
 
 "lng_export_title" = "Personal data export";
-"lng_export_option_info" = "Personal info";
+"lng_export_option_info" = "Personal information";
 "lng_export_option_contacts" = "Contacts list";
 "lng_export_option_sessions" = "Sessions list";
 "lng_export_header_chats" = "Chats export settings";
@@ -1675,6 +1675,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_export_option_files" = "Files";
 "lng_export_option_size_limit" = "Size limit: {size}";
 "lng_export_start" = "Export";
+"lng_export_state_initializing" = "Initializing...";
+"lng_export_state_userpics" = "Personal photos";
+"lng_export_state_chats_list" = "Processing chats...";
+"lng_export_state_chats" = "Chats";
+"lng_export_state_progress" = "{count} / {total}";
+"lng_export_state_photo" = "Photo";
+"lng_export_state_video_file" = "Video file";
+"lng_export_state_voice_message" = "Voice message";
+"lng_export_state_video_message" = "Round video message";
+"lng_export_state_sticker" = "Sticker";
+"lng_export_state_gif" = "Animated GIF";
 
 // Wnd specific
 

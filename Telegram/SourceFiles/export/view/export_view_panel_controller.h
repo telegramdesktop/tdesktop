@@ -31,6 +31,9 @@ private:
 	void createPanel();
 	void updateState(State &&state);
 	void showSettings();
+	void showError(const ApiErrorState &error);
+	void showError(const OutputErrorState &error);
+	void showError(const QString &text);
 
 	not_null<ControllerWrap*> _process;
 

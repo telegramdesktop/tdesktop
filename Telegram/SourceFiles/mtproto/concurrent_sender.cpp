@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/mtp_instance.h"
 #include "mtproto/rpc_sender.h"
+#include "mtproto/session.h"
 
 namespace MTP {
 
@@ -178,7 +179,13 @@ void ConcurrentSender::senderRequestDone(
 		mtpRequestId requestId,
 		bytes::const_span result) {
 	if (auto handlers = _requests.take(requestId)) {
-		std::move(handlers->done)(requestId, result);
+		try {
+			std::move(handlers->done)(requestId, result);
+		} catch (Exception &e) {
+			std::move(handlers->fail)(requestId, internal::rpcClientError(
+				"RESPONSE_PARSE_FAILED",
+				QString("exception text: ") + e.what()));
+		}
 	}
 }
 

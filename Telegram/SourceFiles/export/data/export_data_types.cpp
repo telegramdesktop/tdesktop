@@ -250,6 +250,21 @@ QString CleanDocumentName(QString name) {
 	return name;
 }
 
+QString DocumentFolder(const Document &data) {
+	if (data.isVideoFile) {
+		return "VideoFiles";
+	} else if (data.isAnimated) {
+		return "AnimatedGIFs";
+	} else if (data.isSticker) {
+		return "Stickers";
+	} else if (data.isVoiceMessage) {
+		return "VoiceMessages";
+	} else if (data.isVideoMessage) {
+		return "RoundVideoMessages";
+	}
+	return "Files";
+}
+
 Document ParseDocument(
 		const MTPDocument &data,
 		const QString &suggestedFolder,
@@ -267,6 +282,7 @@ Document ParseDocument(
 		result.mime = ParseString(data.vmime_type);
 		ParseAttributes(result, data.vattributes);
 		result.file.suggestedPath = suggestedFolder
+			+ DocumentFolder(result) + '/'
 			+ CleanDocumentName(
 				ComputeDocumentName(result, date ? date : result.date));
 	}, [&](const MTPDdocumentEmpty &data) {
@@ -548,10 +564,7 @@ Media ParseMedia(
 		result.content = UnsupportedMedia();
 	}, [&](const MTPDmessageMediaDocument &data) {
 		result.content = data.has_document()
-			? ParseDocument(
-				data.vdocument,
-				folder + "Files/",
-				date)
+			? ParseDocument(data.vdocument, folder, date)
 			: Document();
 		if (data.has_ttl_seconds()) {
 			result.ttl = data.vttl_seconds.v;

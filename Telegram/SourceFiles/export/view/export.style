@@ -37,3 +37,8 @@ exportFileSizeLabel: LabelSimple(defaultLabelSimple) {
 }
 exportFileSizePadding: margins(22px, 8px, 22px, 8px);
 exportFileSizeLabelBottom: 18px;
+exportErrorLabel: FlatLabel(boxLabel) {
+	minWidth: 175px;
+	align: align(top);
+	textFg: boxTextFgError;
+}

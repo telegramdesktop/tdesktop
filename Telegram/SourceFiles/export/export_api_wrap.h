@@ -25,6 +25,10 @@ struct MessagesSlice;
 struct Message;
 } // namespace Data
 
+namespace Output {
+struct Result;
+} // namespace Output
+
 struct Settings;
 
 class ApiWrap {
@@ -32,6 +36,7 @@ public:
 	ApiWrap(Fn<void(FnMut<void()>)> runner);
 
 	rpl::producer<RPCError> errors() const;
+	rpl::producer<Output::Result> ioErrors() const;
 
 	struct StartInfo {
 		int userpicsCount = 0;
@@ -42,17 +47,24 @@ public:
 		const Settings &settings,
 		FnMut<void(StartInfo)> done);
 
-	void requestLeftChannelsList(FnMut<void(Data::DialogsInfo&&)> done);
-	rpl::producer<int> leftChannelsLoadedCount() const;
-
-	void requestDialogsList(FnMut<void(Data::DialogsInfo&&)> done);
-	rpl::producer<int> dialogsLoadedCount() const;
+	void requestLeftChannelsList(
+		Fn<bool(int count)> progress,
+		FnMut<void(Data::DialogsInfo&&)> done);
+	void requestDialogsList(
+		Fn<bool(int count)> progress,
+		FnMut<void(Data::DialogsInfo&&)> done);
 
 	void requestPersonalInfo(FnMut<void(Data::PersonalInfo&&)> done);
 
+	struct DownloadProgress {
+		int itemIndex = 0;
+		int ready = 0;
+		int total = 0;
+	};
 	void requestUserpics(
-		FnMut<void(Data::UserpicsInfo&&)> start,
-		Fn<void(Data::UserpicsSlice&&)> slice,
+		FnMut<bool(Data::UserpicsInfo&&)> start,
+		Fn<bool(DownloadProgress)> progress,
+		Fn<bool(Data::UserpicsSlice&&)> slice,
 		FnMut<void()> finish);
 
 	void requestContacts(FnMut<void(Data::ContactsList&&)> done);
@@ -61,7 +73,9 @@ public:
 
 	void requestMessages(
 		const Data::DialogInfo &info,
-		Fn<void(Data::MessagesSlice&&)> slice,
+		FnMut<bool(const Data::DialogInfo &)> start,
+		Fn<bool(DownloadProgress)> progress,
+		Fn<bool(Data::MessagesSlice&&)> slice,
 		FnMut<void()> done);
 
 	~ApiWrap();
@@ -71,6 +85,7 @@ private:
 	struct StartProcess;
 	struct UserpicsProcess;
 	struct FileProcess;
+	struct FileProgress;
 	struct LeftChannelsProcess;
 	struct DialogsProcess;
 	struct ChatProcess;
@@ -85,7 +100,9 @@ private:
 	void handleUserpicsSlice(const MTPphotos_Photos &result);
 	void loadUserpicsFiles(Data::UserpicsSlice &&slice);
 	void loadNextUserpic();
+	bool loadUserpicProgress(FileProgress value);
 	void loadUserpicDone(const QString &relativePath);
+	void finishUserpicsSlice();
 	void finishUserpics();
 
 	void requestDialogsSlice();
@@ -98,15 +115,17 @@ private:
 
 	void appendChatsSlice(Data::DialogsInfo &to, Data::DialogsInfo &&info);
 
-	void requestMessagesSlice();
+	void requestMessagesSlice(FnMut<bool(int count)> start = nullptr);
 	void loadMessagesFiles(Data::MessagesSlice &&slice);
 	void loadNextMessageFile();
+	bool loadMessageFileProgress(FileProgress value);
 	void loadMessageFileDone(const QString &relativePath);
 	void finishMessagesSlice();
 	void finishMessages();
 
 	bool processFileLoad(
 		Data::File &file,
+		Fn<bool(FileProgress)> progress,
 		FnMut<void(QString)> done,
 		Data::Message *message = nullptr);
 	std::unique_ptr<FileProcess> prepareFileProcess(
@@ -114,6 +133,7 @@ private:
 	bool writePreloadedFile(Data::File &file);
 	void loadFile(
 		const Data::File &file,
+		Fn<bool(FileProgress)> progress,
 		FnMut<void(QString)> done);
 	void loadFilePart();
 	void filePartDone(int offset, const MTPupload_File &result);
@@ -127,6 +147,7 @@ private:
 
 	void error(RPCError &&error);
 	void error(const QString &text);
+	void ioError(const Output::Result &result);
 
 	MTP::ConcurrentSender _mtp;
 	base::optional<uint64> _takeoutId;
@@ -143,6 +164,7 @@ private:
 	std::unique_ptr<ChatProcess> _chatProcess;
 
 	rpl::event_stream<RPCError> _errors;
+	rpl::event_stream<Output::Result> _ioErrors;
 
 };
 

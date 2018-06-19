@@ -16,27 +16,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Export {
 namespace Output {
 
+struct Result;
+
 class File {
 public:
 	File(const QString &path);
 
-	int size() const;
-	bool empty() const;
+	[[nodiscard]] int size() const;
+	[[nodiscard]] bool empty() const;
 
-	enum class Result {
-		Success,
-		Error,
-		FatalError,
-	};
-	Result writeBlock(const QByteArray &block);
+	[[nodiscard]] Result writeBlock(const QByteArray &block);
 
-	static QString PrepareRelativePath(
+	[[nodiscard]] static QString PrepareRelativePath(
 		const QString &folder,
 		const QString &suggested);
 
 private:
-	Result reopen();
-	Result writeBlockAttempt(const QByteArray &block);
+	[[nodiscard]] Result reopen();
+	[[nodiscard]] Result writeBlockAttempt(const QByteArray &block);
+
+	[[nodiscard]] Result error() const;
+	[[nodiscard]] Result fatalError() const;
 
 	QString _path;
 	int _offset = 0;

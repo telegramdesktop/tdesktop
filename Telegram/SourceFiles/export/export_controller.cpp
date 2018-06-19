@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/export_settings.h"
 #include "export/data/export_data_types.h"
 #include "export/output/export_output_abstract.h"
+#include "export/output/export_output_result.h"
 
 namespace Export {
 
@@ -34,9 +35,11 @@ public:
 
 private:
 	using Step = ProcessingState::Step;
+	using DownloadProgress = ApiWrap::DownloadProgress;
 
 	void setState(State &&state);
 	void ioError(const QString &path);
+	bool ioCatchError(Output::Result result);
 	void setFinishedState();
 
 	//void requestPasswordState();
@@ -65,11 +68,11 @@ private:
 	ProcessingState stateLeftChannelsList(int processed) const;
 	ProcessingState stateDialogsList(int processed) const;
 	ProcessingState statePersonalInfo() const;
-	ProcessingState stateUserpics() const;
+	ProcessingState stateUserpics(DownloadProgress progress) const;
 	ProcessingState stateContacts() const;
 	ProcessingState stateSessions() const;
-	ProcessingState stateLeftChannels() const;
-	ProcessingState stateDialogs() const;
+	ProcessingState stateLeftChannels(DownloadProgress progress) const;
+	ProcessingState stateDialogs(DownloadProgress progress) const;
 
 	int substepsInStep(Step step) const;
 
@@ -77,15 +80,23 @@ private:
 
 	ApiWrap _api;
 	Settings _settings;
+
 	Data::DialogsInfo _leftChannelsInfo;
-	Data::DialogsInfo _dialogsInfo;
 	int _leftChannelIndex = -1;
+
+	Data::DialogsInfo _dialogsInfo;
 	int _dialogIndex = -1;
+
+	int _messagesWritten = 0;
+	int _messagesCount = 0;
+
+	int _userpicsWritten = 0;
+	int _userpicsCount = 0;
 
 	// rpl::variable<State> fails to compile in MSVC :(
 	State _state;
 	rpl::event_stream<State> _stateChanges;
-	std::vector<int> _substepsInStep;
+	std::shared_ptr<const std::vector<int>> _substepsInStep;
 
 	std::unique_ptr<Output::AbstractWriter> _writer;
 	std::vector<Step> _steps;
@@ -100,7 +111,12 @@ Controller::Controller(crl::weak_on_queue<Controller> weak)
 , _state(PasswordCheckState{}) {
 	_api.errors(
 	) | rpl::start_with_next([=](RPCError &&error) {
-		setState(ErrorState{ ErrorState::Type::API, std::move(error) });
+		setState(ApiErrorState{ std::move(error) });
+	}, _lifetime);
+
+	_api.ioErrors(
+	) | rpl::start_with_next([=](const Output::Result &result) {
+		ioCatchError(result);
 	}, _lifetime);
 
 	//requestPasswordState();
@@ -127,7 +143,15 @@ void Controller::setState(State &&state) {
 }
 
 void Controller::ioError(const QString &path) {
-	setState(ErrorState{ ErrorState::Type::IO, base::none, path });
+	setState(OutputErrorState{ path });
+}
+
+bool Controller::ioCatchError(Output::Result result) {
+	if (!result) {
+		ioError(result.path);
+		return true;
+	}
+	return false;
 }
 
 //void Controller::submitPassword(const QString &password) {
@@ -223,7 +247,7 @@ void Controller::fillExportSteps() {
 	using Type = Settings::Type;
 	_steps.push_back(Step::Initializing);
 	if (_settings.types & Type::GroupsChannelsMask) {
-		_steps.push_back(Step::LeftChannels);
+		_steps.push_back(Step::LeftChannelsList);
 	}
 	if (_settings.types & Type::AnyChatsMask) {
 		_steps.push_back(Step::DialogsList);
@@ -243,15 +267,19 @@ void Controller::fillExportSteps() {
 	if (_settings.types & Type::AnyChatsMask) {
 		_steps.push_back(Step::Dialogs);
 	}
+	if (_settings.types & Type::GroupsChannelsMask) {
+		_steps.push_back(Step::LeftChannels);
+	}
 }
 
 void Controller::fillSubstepsInSteps(const ApiWrap::StartInfo &info) {
+	auto result = std::vector<int>();
 	const auto push = [&](Step step, int count) {
 		const auto index = static_cast<int>(step);
-		if (index >= _substepsInStep.size()) {
-			_substepsInStep.resize(index + 1, 0);
+		if (index >= result.size()) {
+			result.resize(index + 1, 0);
 		}
-		_substepsInStep[index] = count;
+		result[index] = count;
 	};
 	push(Step::Initializing, 1);
 	if (_settings.types & Settings::Type::GroupsChannelsMask) {
@@ -278,14 +306,20 @@ void Controller::fillSubstepsInSteps(const ApiWrap::StartInfo &info) {
 	if (_settings.types & Settings::Type::AnyChatsMask) {
 		push(Step::Dialogs, info.dialogsCount);
 	}
+	_substepsInStep = std::make_shared<const std::vector<int>>(
+		std::move(result));
 }
 
 void Controller::exportNext() {
 	if (!++_stepIndex) {
-		_writer->start(_settings);
+		if (ioCatchError(_writer->start(_settings))) {
+			return;
+		}
 	}
 	if (_stepIndex >= _steps.size()) {
-		_writer->finish();
+		if (ioCatchError(_writer->finish())) {
+			return;
+		}
 		setFinishedState();
 		return;
 	}
@@ -314,63 +348,82 @@ void Controller::initialize() {
 }
 
 void Controller::collectLeftChannels() {
-	_api.requestLeftChannelsList([=](Data::DialogsInfo &&result) {
+	_api.requestLeftChannelsList([=](int count) {
+		setState(stateLeftChannelsList(count));
+		return true;
+	}, [=](Data::DialogsInfo &&result) {
 		_leftChannelsInfo = std::move(result);
 		exportNext();
 	});
-
-	_api.leftChannelsLoadedCount(
-	) | rpl::start_with_next([=](int count) {
-		setState(stateLeftChannelsList(count));
-	}, _lifetime);
 }
 
 void Controller::collectDialogsList() {
-	_api.requestDialogsList([=](Data::DialogsInfo &&result) {
+	_api.requestDialogsList([=](int count) {
+		setState(stateDialogsList(count));
+		return true;
+	}, [=](Data::DialogsInfo &&result) {
 		_dialogsInfo = std::move(result);
 		exportNext();
 	});
-
-	_api.dialogsLoadedCount(
-	) | rpl::start_with_next([=](int count) {
-		setState(stateDialogsList(count));
-	}, _lifetime);
 }
 
 void Controller::exportPersonalInfo() {
 	_api.requestPersonalInfo([=](Data::PersonalInfo &&result) {
-		_writer->writePersonal(result);
+		if (ioCatchError(_writer->writePersonal(result))) {
+			return;
+		}
 		exportNext();
 	});
 }
 
 void Controller::exportUserpics() {
 	_api.requestUserpics([=](Data::UserpicsInfo &&start) {
-		_writer->writeUserpicsStart(start);
+		if (ioCatchError(_writer->writeUserpicsStart(start))) {
+			return false;
+		}
+		_userpicsWritten = 0;
+		_userpicsCount = start.count;
+		return true;
+	}, [=](DownloadProgress progress) {
+		setState(stateUserpics(progress));
+		return true;
 	}, [=](Data::UserpicsSlice &&slice) {
-		_writer->writeUserpicsSlice(slice);
+		if (ioCatchError(_writer->writeUserpicsSlice(slice))) {
+			return false;
+		}
+		_userpicsWritten += slice.list.size();
+		setState(stateUserpics(DownloadProgress()));
+		return true;
 	}, [=] {
-		_writer->writeUserpicsEnd();
+		if (ioCatchError(_writer->writeUserpicsEnd())) {
+			return;
+		}
 		exportNext();
 	});
 }
 
 void Controller::exportContacts() {
 	_api.requestContacts([=](Data::ContactsList &&result) {
-		_writer->writeContactsList(result);
+		if (ioCatchError(_writer->writeContactsList(result))) {
+			return;
+		}
 		exportNext();
 	});
 }
 
 void Controller::exportSessions() {
 	_api.requestSessions([=](Data::SessionsList &&result) {
-		_writer->writeSessionsList(result);
+		if (ioCatchError(_writer->writeSessionsList(result))) {
+			return;
+		}
 		exportNext();
 	});
 }
 
 void Controller::exportDialogs() {
-	_writer->writeDialogsStart(_dialogsInfo);
+	if (ioCatchError(_writer->writeDialogsStart(_dialogsInfo))) {
+		return;
+	}
 
 	exportNextDialog();
 }
@@ -379,22 +432,42 @@ void Controller::exportNextDialog() {
 	const auto index = ++_dialogIndex;
 	if (index < _dialogsInfo.list.size()) {
 		const auto &info = _dialogsInfo.list[index];
-		_writer->writeDialogStart(info);
-
-		_api.requestMessages(info, [=](Data::MessagesSlice &&result) {
-			_writer->writeDialogSlice(result);
+		_api.requestMessages(info, [=](const Data::DialogInfo &info) {
+			if (ioCatchError(_writer->writeDialogStart(info))) {
+				return false;
+			}
+			_messagesWritten = 0;
+			_messagesCount = info.messagesCount;
+			setState(stateDialogs(DownloadProgress()));
+			return true;
+		}, [=](DownloadProgress progress) {
+			setState(stateDialogs(progress));
+			return true;
+		}, [=](Data::MessagesSlice &&result) {
+			if (ioCatchError(_writer->writeDialogSlice(result))) {
+				return false;
+			}
+			_messagesWritten += result.list.size();
+			setState(stateDialogs(DownloadProgress()));
+			return true;
 		}, [=] {
-			_writer->writeDialogEnd();
+			if (ioCatchError(_writer->writeDialogEnd())) {
+				return;
+			}
 			exportNextDialog();
 		});
 		return;
 	}
-	_writer->writeDialogsEnd();
+	if (ioCatchError(_writer->writeDialogsEnd())) {
+		return;
+	}
 	exportNext();
 }
 
 void Controller::exportLeftChannels() {
-	_writer->writeLeftChannelsStart(_leftChannelsInfo);
+	if (ioCatchError(_writer->writeLeftChannelsStart(_leftChannelsInfo))) {
+		return;
+	}
 
 	exportNextLeftChannel();
 }
@@ -402,18 +475,36 @@ void Controller::exportLeftChannels() {
 void Controller::exportNextLeftChannel() {
 	const auto index = ++_leftChannelIndex;
 	if (index < _leftChannelsInfo.list.size()) {
-		const auto &chat = _leftChannelsInfo.list[index];
-		_writer->writeLeftChannelStart(chat);
-
-		_api.requestMessages(chat, [=](Data::MessagesSlice &&result) {
-			_writer->writeLeftChannelSlice(result);
+		const auto &info = _leftChannelsInfo.list[index];
+		_api.requestMessages(info, [=](const Data::DialogInfo &info) {
+			if (ioCatchError(_writer->writeLeftChannelStart(info))) {
+				return false;
+			}
+			_messagesWritten = 0;
+			_messagesCount = info.messagesCount;
+			setState(stateLeftChannels(DownloadProgress()));
+			return true;
+		}, [=](DownloadProgress progress) {
+			setState(stateLeftChannels(progress));
+			return true;
+		}, [=](Data::MessagesSlice &&result) {
+			if (ioCatchError(_writer->writeLeftChannelSlice(result))) {
+				return false;
+			}
+			_messagesWritten += result.list.size();
+			setState(stateLeftChannels(DownloadProgress()));
+			return true;
 		}, [=] {
-			_writer->writeLeftChannelEnd();
+			if (ioCatchError(_writer->writeLeftChannelEnd())) {
+				return;
+			}
 			exportNextLeftChannel();
 		});
 		return;
 	}
-	_writer->writeLeftChannelsEnd();
+	if (ioCatchError(_writer->writeLeftChannelsEnd())) {
+		return;
+	}
 	exportNext();
 }
 
@@ -451,9 +542,12 @@ ProcessingState Controller::statePersonalInfo() const {
 	return prepareState(Step::PersonalInfo);
 }
 
-ProcessingState Controller::stateUserpics() const {
+ProcessingState Controller::stateUserpics(DownloadProgress progress) const {
 	return prepareState(Step::Userpics, [&](ProcessingState &result) {
-
+		result.entityIndex = _userpicsWritten + progress.itemIndex;
+		result.entityCount = std::max(_userpicsCount, result.entityIndex);
+		result.bytesLoaded = progress.ready;
+		result.bytesCount = progress.total;
 	});
 }
 
@@ -465,26 +559,36 @@ ProcessingState Controller::stateSessions() const {
 	return prepareState(Step::Sessions);
 }
 
-ProcessingState Controller::stateLeftChannels() const {
+ProcessingState Controller::stateLeftChannels(
+		DownloadProgress progress) const {
 	const auto step = Step::LeftChannels;
 	return prepareState(step, [&](ProcessingState &result) {
-		//result.entityIndex = processed;
-		//result.entityCount = std::max(processed, substepsInStep(step));
+		result.entityIndex = _leftChannelIndex;
+		result.entityCount = _leftChannelsInfo.list.size();
+		result.itemIndex = _messagesWritten + progress.itemIndex;
+		result.itemCount = std::max(_messagesCount, result.entityIndex);
+		result.bytesLoaded = progress.ready;
+		result.bytesCount = progress.total;
 	});
 }
 
-ProcessingState Controller::stateDialogs() const {
+ProcessingState Controller::stateDialogs(DownloadProgress progress) const {
 	const auto step = Step::Dialogs;
 	return prepareState(step, [&](ProcessingState &result) {
-		//result.entityIndex = processed;
-		//result.entityCount = std::max(processed, substepsInStep(step));
+		result.entityIndex = _dialogIndex;
+		result.entityCount = _dialogsInfo.list.size();
+		result.itemIndex = _messagesWritten + progress.itemIndex;
+		result.itemCount = std::max(_messagesCount, result.entityIndex);
+		result.bytesLoaded = progress.ready;
+		result.bytesCount = progress.total;
 	});
 }
 
 int Controller::substepsInStep(Step step) const {
-	Expects(_substepsInStep.size() > static_cast<int>(step));
+	Expects(_substepsInStep != 0);
+	Expects(_substepsInStep->size() > static_cast<int>(step));
 
-	return _substepsInStep[static_cast<int>(step)];
+	return (*_substepsInStep)[static_cast<int>(step)];
 }
 
 void Controller::setFinishedState() {

@@ -203,14 +203,11 @@ void ConcurrentSender::RequestBuilder::setDoneHandler(
 	_handlers.done = [handler = std::move(invoke)](
 			mtpRequestId requestId,
 			bytes::const_span result) mutable {
-		try {
-			auto from = reinterpret_cast<const mtpPrime*>(result.data());
-			const auto end = from + result.size() / sizeof(mtpPrime);
-			Response data;
-			data.read(from, end);
-			std::move(handler)(requestId, std::move(data));
-		} catch (...) {
-		}
+		auto from = reinterpret_cast<const mtpPrime*>(result.data());
+		const auto end = from + result.size() / sizeof(mtpPrime);
+		Response data;
+		data.read(from, end);
+		std::move(handler)(requestId, std::move(data));
 	};
 }
 

@@ -25,41 +25,55 @@ struct Settings;
 
 namespace Output {
 
+struct Result;
+
 enum class Format {
 	Text,
+	Yaml,
 	Html,
 	Json,
 };
 
 class AbstractWriter {
 public:
-	virtual bool start(const Settings &settings) = 0;
+	[[nodiscard]] virtual Result start(const Settings &settings) = 0;
 
-	virtual bool writePersonal(const Data::PersonalInfo &data) = 0;
+	[[nodiscard]] virtual Result writePersonal(
+		const Data::PersonalInfo &data) = 0;
 
-	virtual bool writeUserpicsStart(const Data::UserpicsInfo &data) = 0;
-	virtual bool writeUserpicsSlice(const Data::UserpicsSlice &data) = 0;
-	virtual bool writeUserpicsEnd() = 0;
+	[[nodiscard]] virtual Result writeUserpicsStart(
+		const Data::UserpicsInfo &data) = 0;
+	[[nodiscard]] virtual Result writeUserpicsSlice(
+		const Data::UserpicsSlice &data) = 0;
+	[[nodiscard]] virtual Result writeUserpicsEnd() = 0;
 
-	virtual bool writeContactsList(const Data::ContactsList &data) = 0;
+	[[nodiscard]] virtual Result writeContactsList(
+		const Data::ContactsList &data) = 0;
 
-	virtual bool writeSessionsList(const Data::SessionsList &data) = 0;
+	[[nodiscard]] virtual Result writeSessionsList(
+		const Data::SessionsList &data) = 0;
 
-	virtual bool writeDialogsStart(const Data::DialogsInfo &data) = 0;
-	virtual bool writeDialogStart(const Data::DialogInfo &data) = 0;
-	virtual bool writeDialogSlice(const Data::MessagesSlice &data) = 0;
-	virtual bool writeDialogEnd() = 0;
-	virtual bool writeDialogsEnd() = 0;
+	[[nodiscard]] virtual Result writeDialogsStart(
+		const Data::DialogsInfo &data) = 0;
+	[[nodiscard]] virtual Result writeDialogStart(
+		const Data::DialogInfo &data) = 0;
+	[[nodiscard]] virtual Result writeDialogSlice(
+		const Data::MessagesSlice &data) = 0;
+	[[nodiscard]] virtual Result writeDialogEnd() = 0;
+	[[nodiscard]] virtual Result writeDialogsEnd() = 0;
 
-	virtual bool writeLeftChannelsStart(const Data::DialogsInfo &data) = 0;
-	virtual bool writeLeftChannelStart(const Data::DialogInfo &data) = 0;
-	virtual bool writeLeftChannelSlice(const Data::MessagesSlice &data) = 0;
-	virtual bool writeLeftChannelEnd() = 0;
-	virtual bool writeLeftChannelsEnd() = 0;
+	[[nodiscard]] virtual Result writeLeftChannelsStart(
+		const Data::DialogsInfo &data) = 0;
+	[[nodiscard]] virtual Result writeLeftChannelStart(
+		const Data::DialogInfo &data) = 0;
+	[[nodiscard]] virtual Result writeLeftChannelSlice(
+		const Data::MessagesSlice &data) = 0;
+	[[nodiscard]] virtual Result writeLeftChannelEnd() = 0;
+	[[nodiscard]] virtual Result writeLeftChannelsEnd() = 0;
 
-	virtual bool finish() = 0;
+	[[nodiscard]] virtual Result finish() = 0;
 
-	virtual QString mainFilePath() = 0;
+	[[nodiscard]] virtual QString mainFilePath() = 0;
 
 	virtual ~AbstractWriter() = default;
 

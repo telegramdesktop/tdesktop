@@ -427,6 +427,9 @@ struct DialogInfo {
 	bool onlyMyMessages = false;
 	QString relativePath;
 
+	// Filled when requesting dialog messages.
+	int messagesCount = 0;
+
 };
 
 struct DialogsInfo {

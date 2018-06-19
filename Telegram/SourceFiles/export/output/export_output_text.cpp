@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "export/output/export_output_text.h"
 
+#include "export/output/export_output_result.h"
 #include "export/data/export_data_types.h"
 #include "core/utils.h"
 
@@ -431,16 +432,16 @@ QByteArray SerializeMessage(
 
 } // namespace
 
-bool TextWriter::start(const Settings &settings) {
+Result TextWriter::start(const Settings &settings) {
 	Expects(settings.path.endsWith('/'));
 
 	_settings = base::duplicate(settings);
-	_result = fileWithRelativePath(mainFileRelativePath());
-	return true;
+	_summary = fileWithRelativePath(mainFileRelativePath());
+	return Result::Success();
 }
 
-bool TextWriter::writePersonal(const Data::PersonalInfo &data) {
-	Expects(_result != nullptr);
+Result TextWriter::writePersonal(const Data::PersonalInfo &data) {
+	Expects(_summary != nullptr);
 
 	const auto &info = data.user.info;
 	const auto serialized = "Personal information"
@@ -454,25 +455,25 @@ bool TextWriter::writePersonal(const Data::PersonalInfo &data) {
 		{ "Bio", data.bio },
 		})
 		+ kLineBreak;
-	return _result->writeBlock(serialized) == File::Result::Success;
+	return _summary->writeBlock(serialized);
 }
 
-bool TextWriter::writeUserpicsStart(const Data::UserpicsInfo &data) {
-	Expects(_result != nullptr);
+Result TextWriter::writeUserpicsStart(const Data::UserpicsInfo &data) {
+	Expects(_summary != nullptr);
 
 	_userpicsCount = data.count;
 	if (!_userpicsCount) {
-		return true;
+		return Result::Success();
 	}
 	const auto serialized = "Personal photos "
 		"(" + Data::NumberToString(_userpicsCount) + ")"
 		+ kLineBreak
 		+ kLineBreak;
-	return _result->writeBlock(serialized) == File::Result::Success;
+	return _summary->writeBlock(serialized);
 }
 
-bool TextWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
-	Expects(_result != nullptr);
+Result TextWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
+	Expects(_summary != nullptr);
 	Expects(!data.list.empty());
 
 	auto lines = QByteArray();
@@ -489,22 +490,22 @@ bool TextWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
 		}
 		lines.append(kLineBreak);
 	}
-	return _result->writeBlock(lines) == File::Result::Success;
+	return _summary->writeBlock(lines);
 }
 
-bool TextWriter::writeUserpicsEnd() {
-	Expects(_result != nullptr);
+Result TextWriter::writeUserpicsEnd() {
+	Expects(_summary != nullptr);
 
 	return (_userpicsCount > 0)
-		? _result->writeBlock(kLineBreak) == File::Result::Success
-		: true;
+		? _summary->writeBlock(kLineBreak)
+		: Result::Success();
 }
 
-bool TextWriter::writeContactsList(const Data::ContactsList &data) {
-	Expects(_result != nullptr);
+Result TextWriter::writeContactsList(const Data::ContactsList &data) {
+	Expects(_summary != nullptr);
 
 	if (data.list.empty()) {
-		return true;
+		return Result::Success();
 	}
 
 	const auto file = fileWithRelativePath("contacts.txt");
@@ -529,22 +530,22 @@ bool TextWriter::writeContactsList(const Data::ContactsList &data) {
 		}
 	}
 	const auto full = JoinList(kLineBreak, list);
-	if (file->writeBlock(full) != File::Result::Success) {
-		return false;
+	if (const auto result = file->writeBlock(full); !result) {
+		return result;
 	}
 
 	const auto header = "Contacts "
 		"(" + Data::NumberToString(data.list.size()) + ") - contacts.txt"
 		+ kLineBreak
 		+ kLineBreak;
-	return _result->writeBlock(header) == File::Result::Success;
+	return _summary->writeBlock(header);
 }
 
-bool TextWriter::writeSessionsList(const Data::SessionsList &data) {
-	Expects(_result != nullptr);
+Result TextWriter::writeSessionsList(const Data::SessionsList &data) {
+	Expects(_summary != nullptr);
 
 	if (data.list.empty()) {
-		return true;
+		return Result::Success();
 	}
 
 	const auto file = fileWithRelativePath("sessions.txt");
@@ -570,67 +571,68 @@ bool TextWriter::writeSessionsList(const Data::SessionsList &data) {
 		}));
 	}
 	const auto full = JoinList(kLineBreak, list);
-	if (file->writeBlock(full) != File::Result::Success) {
-		return false;
+	if (const auto result = file->writeBlock(full); !result) {
+		return result;
 	}
 
 	const auto header = "Sessions "
 		"(" + Data::NumberToString(data.list.size()) + ") - sessions.txt"
 		+ kLineBreak
 		+ kLineBreak;
-	return _result->writeBlock(header) == File::Result::Success;
+	return _summary->writeBlock(header);
 }
 
-bool TextWriter::writeDialogsStart(const Data::DialogsInfo &data) {
+Result TextWriter::writeDialogsStart(const Data::DialogsInfo &data) {
 	return writeChatsStart(data, "Chats", "chats.txt");
 }
 
-bool TextWriter::writeDialogStart(const Data::DialogInfo &data) {
+Result TextWriter::writeDialogStart(const Data::DialogInfo &data) {
 	return writeChatStart(data);
 }
 
-bool TextWriter::writeDialogSlice(const Data::MessagesSlice &data) {
+Result TextWriter::writeDialogSlice(const Data::MessagesSlice &data) {
 	return writeChatSlice(data);
 }
 
-bool TextWriter::writeDialogEnd() {
+Result TextWriter::writeDialogEnd() {
 	return writeChatEnd();
 }
 
-bool TextWriter::writeDialogsEnd() {
-	return true;
+Result TextWriter::writeDialogsEnd() {
+	return Result::Success();
 }
 
-bool TextWriter::writeLeftChannelsStart(const Data::DialogsInfo &data) {
+Result TextWriter::writeLeftChannelsStart(const Data::DialogsInfo &data) {
 	return writeChatsStart(data, "Left chats", "left_chats.txt");
 }
 
-bool TextWriter::writeLeftChannelStart(const Data::DialogInfo &data) {
+Result TextWriter::writeLeftChannelStart(const Data::DialogInfo &data) {
 	return writeChatStart(data);
 }
 
-bool TextWriter::writeLeftChannelSlice(const Data::MessagesSlice &data) {
+Result TextWriter::writeLeftChannelSlice(const Data::MessagesSlice &data) {
 	return writeChatSlice(data);
 }
 
-bool TextWriter::writeLeftChannelEnd() {
+Result TextWriter::writeLeftChannelEnd() {
 	return writeChatEnd();
 }
 
-bool TextWriter::writeLeftChannelsEnd() {
-	return true;
+Result TextWriter::writeLeftChannelsEnd() {
+	return Result::Success();
 }
 
-bool TextWriter::writeChatsStart(
+Result TextWriter::writeChatsStart(
 		const Data::DialogsInfo &data,
 		const QByteArray &listName,
 		const QString &fileName) {
-	Expects(_result != nullptr);
+	Expects(_summary != nullptr);
 
 	if (data.list.empty()) {
-		return true;
+		return Result::Success();
 	}
 
+	_dialogIndex = 0;
 	_dialogsCount = data.list.size();
 
 	using Type = Data::DialogInfo::Type;
@@ -676,8 +678,8 @@ bool TextWriter::writeChatsStart(
 		}));
 	}
 	const auto full = JoinList(kLineBreak, list);
-	if (file->writeBlock(full) != File::Result::Success) {
-		return false;
+	if (const auto result = file->writeBlock(full); !result) {
+		return result;
 	}
 
 	const auto header = listName + " "
@@ -685,10 +687,10 @@ bool TextWriter::writeChatsStart(
 		+ fileName.toUtf8()
 		+ kLineBreak
 		+ kLineBreak;
-	return _result->writeBlock(header) == File::Result::Success;
+	return _summary->writeBlock(header);
 }
 
-bool TextWriter::writeChatStart(const Data::DialogInfo &data) {
+Result TextWriter::writeChatStart(const Data::DialogInfo &data) {
 	Expects(_chat == nullptr);
 	Expects(_dialogIndex < _dialogsCount);
 
@@ -697,10 +699,10 @@ bool TextWriter::writeChatStart(const Data::DialogInfo &data) {
 	_chat = fileWithRelativePath(data.relativePath + "messages.txt");
 	_dialogEmpty = true;
 	_dialogOnlyMy = data.onlyMyMessages;
-	return true;
+	return Result::Success();
 }
 
-bool TextWriter::writeChatSlice(const Data::MessagesSlice &data) {
+Result TextWriter::writeChatSlice(const Data::MessagesSlice &data) {
 	Expects(_chat != nullptr);
 	Expects(!data.list.empty());
 
@@ -717,23 +719,26 @@ bool TextWriter::writeChatSlice(const Data::MessagesSlice &data) {
 	const auto full = _chat->empty()
 		? JoinList(kLineBreak, list)
 		: kLineBreak + JoinList(kLineBreak, list);
-	return _chat->writeBlock(full) == File::Result::Success;
+	return _chat->writeBlock(full);
 }
 
-bool TextWriter::writeChatEnd() {
+Result TextWriter::writeChatEnd() {
 	Expects(_chat != nullptr);
 
 	if (_dialogEmpty) {
-		_chat->writeBlock(_dialogOnlyMy
+		const auto result = _chat->writeBlock(_dialogOnlyMy
 			? "No outgoing messages in this chat."
 			: "No messages in this chat.");
+		if (!result) {
+			return result;
+		}
 	}
 	_chat = nullptr;
-	return true;
+	return Result::Success();
 }
 
-bool TextWriter::finish() {
-	return true;
+Result TextWriter::finish() {
+	return Result::Success();
 }
 
 QString TextWriter::mainFilePath() {
