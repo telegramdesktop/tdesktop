@@ -68,11 +68,17 @@ private:
 	ProcessingState stateLeftChannelsList(int processed) const;
 	ProcessingState stateDialogsList(int processed) const;
 	ProcessingState statePersonalInfo() const;
-	ProcessingState stateUserpics(DownloadProgress progress) const;
+	ProcessingState stateUserpics(const DownloadProgress &progress) const;
 	ProcessingState stateContacts() const;
 	ProcessingState stateSessions() const;
-	ProcessingState stateLeftChannels(DownloadProgress progress) const;
-	ProcessingState stateDialogs(DownloadProgress progress) const;
+	ProcessingState stateLeftChannels(
+		const DownloadProgress &progress) const;
+	ProcessingState stateDialogs(const DownloadProgress &progress) const;
+	void fillMessagesState(
+		ProcessingState &result,
+		const Data::DialogsInfo &info,
+		int index,
+		const DownloadProgress &progress) const;
 
 	int substepsInStep(Step step) const;
 
@@ -96,7 +102,10 @@ private:
 	// rpl::variable<State> fails to compile in MSVC :(
 	State _state;
 	rpl::event_stream<State> _stateChanges;
-	std::shared_ptr<const std::vector<int>> _substepsInStep;
+	std::vector<int> _substepsInStep;
+	int _substepsTotal = 0;
+	mutable int _substepsPassed = 0;
+	mutable Step _lastProcessingStep = Step::Initializing;
 
 	std::unique_ptr<Output::AbstractWriter> _writer;
 	std::vector<Step> _steps;
@@ -292,7 +301,7 @@ void Controller::fillSubstepsInSteps(const ApiWrap::StartInfo &info) {
 		push(Step::PersonalInfo, 1);
 	}
 	if (_settings.types & Settings::Type::Userpics) {
-		push(Step::Userpics, info.userpicsCount);
+		push(Step::Userpics, 1);
 	}
 	if (_settings.types & Settings::Type::Contacts) {
 		push(Step::Contacts, 1);
@@ -306,8 +315,8 @@ void Controller::fillSubstepsInSteps(const ApiWrap::StartInfo &info) {
 	if (_settings.types & Settings::Type::AnyChatsMask) {
 		push(Step::Dialogs, info.dialogsCount);
 	}
-	_substepsInStep = std::make_shared<const std::vector<int>>(
-		std::move(result));
+	_substepsInStep = std::move(result);
+	_substepsTotal = ranges::accumulate(_substepsInStep, 0);
 }
 
 void Controller::exportNext() {
@@ -512,10 +521,17 @@ template <typename Callback>
 ProcessingState Controller::prepareState(
 		Step step,
 		Callback &&callback) const {
+	if (step != _lastProcessingStep) {
+		_substepsPassed += substepsInStep(_lastProcessingStep);
+		_lastProcessingStep = step;
+	}
+
 	auto result = ProcessingState();
 	callback(result);
 	result.step = step;
-	result.substepsInStep = _substepsInStep;
+	result.substepsPassed = _substepsPassed;
+	result.substepsNow = substepsInStep(_lastProcessingStep);
+	result.substepsTotal = _substepsTotal;
 	return result;
 }
 
@@ -524,10 +540,12 @@ ProcessingState Controller::stateInitializing() const {
 }
 
 ProcessingState Controller::stateLeftChannelsList(int processed) const {
-	const auto step = Step::LeftChannelsList;
-	return prepareState(step, [&](ProcessingState &result) {
+	return prepareState(Step::LeftChannelsList, [&](
+			ProcessingState &result) {
 		result.entityIndex = processed;
-		result.entityCount = std::max(processed, substepsInStep(step));
+		result.entityCount = std::max(
+			processed,
+			substepsInStep(Step::LeftChannels));
 	});
 }
 
@@ -535,17 +553,25 @@ ProcessingState Controller::stateDialogsList(int processed) const {
 	const auto step = Step::DialogsList;
 	return prepareState(step, [&](ProcessingState &result) {
 		result.entityIndex = processed;
-		result.entityCount = std::max(processed, substepsInStep(step));
+		result.entityCount = std::max(
+			processed,
+			substepsInStep(Step::Dialogs));
 	});
 }
 ProcessingState Controller::statePersonalInfo() const {
 	return prepareState(Step::PersonalInfo);
 }
 
-ProcessingState Controller::stateUserpics(DownloadProgress progress) const {
+ProcessingState Controller::stateUserpics(
+		const DownloadProgress &progress) const {
 	return prepareState(Step::Userpics, [&](ProcessingState &result) {
 		result.entityIndex = _userpicsWritten + progress.itemIndex;
 		result.entityCount = std::max(_userpicsCount, result.entityIndex);
+		result.bytesType = ProcessingState::FileType::Photo;
+		if (!progress.path.isEmpty()) {
+			const auto last = progress.path.lastIndexOf('/');
+			result.bytesName = progress.path.mid(last + 1);
+		}
 		result.bytesLoaded = progress.ready;
 		result.bytesCount = progress.total;
 	});
@@ -560,35 +586,59 @@ ProcessingState Controller::stateSessions() const {
 }
 
 ProcessingState Controller::stateLeftChannels(
-		DownloadProgress progress) const {
+		const DownloadProgress & progress) const {
 	const auto step = Step::LeftChannels;
 	return prepareState(step, [&](ProcessingState &result) {
-		result.entityIndex = _leftChannelIndex;
-		result.entityCount = _leftChannelsInfo.list.size();
-		result.itemIndex = _messagesWritten + progress.itemIndex;
-		result.itemCount = std::max(_messagesCount, result.entityIndex);
-		result.bytesLoaded = progress.ready;
-		result.bytesCount = progress.total;
+		fillMessagesState(
+			result,
+			_leftChannelsInfo,
+			_leftChannelIndex,
+			progress);
 	});
 }
 
-ProcessingState Controller::stateDialogs(DownloadProgress progress) const {
+ProcessingState Controller::stateDialogs(
+		const DownloadProgress &progress) const {
 	const auto step = Step::Dialogs;
 	return prepareState(step, [&](ProcessingState &result) {
-		result.entityIndex = _dialogIndex;
-		result.entityCount = _dialogsInfo.list.size();
-		result.itemIndex = _messagesWritten + progress.itemIndex;
-		result.itemCount = std::max(_messagesCount, result.entityIndex);
-		result.bytesLoaded = progress.ready;
-		result.bytesCount = progress.total;
+		fillMessagesState(
+			result,
+			_dialogsInfo,
+			_dialogIndex,
+			progress);
 	});
+}
+
+void Controller::fillMessagesState(
+		ProcessingState &result,
+		const Data::DialogsInfo &info,
+		int index,
+		const DownloadProgress &progress) const {
+	const auto &dialog = info.list[index];
+	auto count = 0;
+	for (const auto &dialog : info.list) {
+		if (dialog.name.isEmpty()) {
+			++count;
+		}
+	}
+	result.entityIndex = index;
+	result.entityCount = info.list.size();
+	result.entityName = dialog.name;
+	result.itemIndex = _messagesWritten + progress.itemIndex;
+	result.itemCount = std::max(_messagesCount, result.entityIndex);
+	result.bytesType = ProcessingState::FileType::File; // TODO
+	if (!progress.path.isEmpty()) {
+		const auto last = progress.path.lastIndexOf('/');
+		result.bytesName = progress.path.mid(last + 1);
+	}
+	result.bytesLoaded = progress.ready;
+	result.bytesCount = progress.total;
 }
 
 int Controller::substepsInStep(Step step) const {
-	Expects(_substepsInStep != 0);
-	Expects(_substepsInStep->size() > static_cast<int>(step));
+	Expects(_substepsInStep.size() > static_cast<int>(step));
 
-	return (*_substepsInStep)[static_cast<int>(step)];
+	return _substepsInStep[static_cast<int>(step)];
 }
 
 void Controller::setFinishedState() {

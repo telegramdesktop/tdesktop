@@ -37,8 +37,8 @@ struct ProcessingState {
 		LeftChannels,
 		Dialogs,
 	};
-	enum class Item {
-		Other,
+	enum class FileType {
+		None,
 		Photo,
 		Video,
 		VoiceMessage,
@@ -50,21 +50,21 @@ struct ProcessingState {
 
 	Step step = Step::Initializing;
 
-	std::shared_ptr<const std::vector<int>> substepsInStep;
+	int substepsPassed = 0;
+	int substepsNow = 0;
+	int substepsTotal = 0;
 
+	QString entityName;
 	int entityIndex = 0;
 	int entityCount = 1;
-	QString entityName;
 
 	int itemIndex = 0;
 	int itemCount = 0;
-	Item itemType = Item::Other;
-	QString itemName;
-	QString itemId;
 
+	FileType bytesType = FileType::None;
+	QString bytesName;
 	int bytesLoaded = 0;
 	int bytesCount = 0;
-	QString objectId;
 
 };
 

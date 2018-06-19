@@ -571,6 +571,7 @@ void ApiWrap::finishUserpicsSlice() {
 }
 
 bool ApiWrap::loadUserpicProgress(FileProgress progress) {
+	Expects(_fileProcess != nullptr);
 	Expects(_userpicsProcess != nullptr);
 	Expects(_userpicsProcess->slice.has_value());
 	Expects((_userpicsProcess->fileIndex >= 0)
@@ -578,6 +579,7 @@ bool ApiWrap::loadUserpicProgress(FileProgress progress) {
 			< _userpicsProcess->slice->list.size()));
 
 	return _userpicsProcess->fileProgress(DownloadProgress{
+		_fileProcess->relativePath,
 		_userpicsProcess->fileIndex,
 		progress.ready,
 		progress.total });
@@ -886,12 +888,14 @@ void ApiWrap::finishMessagesSlice() {
 }
 
 bool ApiWrap::loadMessageFileProgress(FileProgress progress) {
+	Expects(_fileProcess != nullptr);
 	Expects(_chatProcess != nullptr);
 	Expects(_chatProcess->slice.has_value());
 	Expects((_chatProcess->fileIndex >= 0)
 		&& (_chatProcess->fileIndex < _chatProcess->slice->list.size()));
 
 	return _chatProcess->fileProgress(DownloadProgress{
+		_fileProcess->relativePath,
 		_chatProcess->fileIndex,
 		progress.ready,
 		progress.total });
@@ -995,7 +999,6 @@ void ApiWrap::loadFile(
 	_fileProcess = prepareFileProcess(file);
 	_fileProcess->progress = std::move(progress);
 	_fileProcess->done = std::move(done);
-
 
 	if (_fileProcess->progress) {
 		const auto progress = FileProgress{

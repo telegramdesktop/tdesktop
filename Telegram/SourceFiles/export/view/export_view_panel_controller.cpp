@@ -46,9 +46,7 @@ void PanelController::showSettings() {
 
 	settings->startClicks(
 	) | rpl::start_with_next([=](const Settings &settings) {
-		_panel->showInner(base::make_unique_q<ProgressWidget>(
-			_panel.get(),
-			ContentFromState(_process->state())));
+		showProgress();
 		_process->startExport(settings);
 	}, settings->lifetime());
 
@@ -88,6 +86,36 @@ void PanelController::showError(const QString &text) {
 	_panel->showInner(std::move(container));
 }
 
+void PanelController::showProgress() {
+	auto progress = base::make_unique_q<ProgressWidget>(
+		_panel.get(),
+		ContentFromState(_process->state()));
+
+	progress->cancelClicks(
+	) | rpl::start_with_next([=] {
+		_panel->hideGetDuration();
+	}, progress->lifetime());
+
+	_panel->showInner(std::move(progress));
+}
+
+void PanelController::showDone(const QString &path) {
+	auto done = base::make_unique_q<DoneWidget>(_panel.get());
+
+	done->showClicks(
+	) | rpl::start_with_next([=] {
+		File::ShowInFolder(path);
+		_panel->hideGetDuration();
+	}, done->lifetime());
+
+	done->closeClicks(
+	) | rpl::start_with_next([=] {
+		_panel->hideGetDuration();
+	}, done->lifetime());
+
+	_panel->showInner(std::move(done));
+}
+
 rpl::producer<> PanelController::closed() const {
 	return _panelCloseEvents.events(
 	) | rpl::flatten_latest(
@@ -106,17 +134,7 @@ void PanelController::updateState(State &&state) {
 	} else if (const auto error = base::get_if<OutputErrorState>(&_state)) {
 		showError(*error);
 	} else if (const auto finished = base::get_if<FinishedState>(&_state)) {
-		const auto path = finished->path;
-
-		auto done = base::make_unique_q<DoneWidget>(_panel.get());
-
-		done->showClicks(
-		) | rpl::start_with_next([=] {
-			File::ShowInFolder(path);
-			_panel->hideGetDuration();
-		}, done->lifetime());
-
-		_panel->showInner(std::move(done));
+		showDone(finished->path);
 	}
 }
 

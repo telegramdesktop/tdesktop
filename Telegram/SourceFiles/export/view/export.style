@@ -42,3 +42,23 @@ exportErrorLabel: FlatLabel(boxLabel) {
 	align: align(top);
 	textFg: boxTextFgError;
 }
+
+exportProgressDuration: 200;
+exportProgressRowHeight: 30px;
+exportProgressRowPadding: margins(22px, 10px, 22px, 20px);
+exportProgressLabel: FlatLabel(boxLabel) {
+	textFg: windowBoldFg;
+	maxHeight: 20px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+		linkFont: font(14px semibold);
+		linkFontOver: font(14px semibold);
+	}
+}
+exportProgressInfoLabel: FlatLabel(boxLabel) {
+	textFg: windowSubTextFg;
+	maxHeight: 20px;
+}
+exportProgressWidth: 3px;
+exportProgressFg: mediaPlayerActiveFg;
+exportProgressBg: mediaPlayerInactiveFg;

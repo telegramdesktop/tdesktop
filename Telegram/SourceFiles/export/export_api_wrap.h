@@ -57,6 +57,7 @@ public:
 	void requestPersonalInfo(FnMut<void(Data::PersonalInfo&&)> done);
 
 	struct DownloadProgress {
+		QString path;
 		int itemIndex = 0;
 		int ready = 0;
 		int total = 0;

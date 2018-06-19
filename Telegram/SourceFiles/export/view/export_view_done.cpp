@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
 #include "platform/platform_specific.h"
 #include "styles/style_widgets.h"
@@ -24,6 +25,8 @@ DoneWidget::DoneWidget(QWidget *parent)
 }
 
 void DoneWidget::setupContent() {
+	initFooter();
+
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	const auto label = content->add(
@@ -45,6 +48,39 @@ void DoneWidget::setupContent() {
 
 rpl::producer<> DoneWidget::showClicks() const {
 	return _showClicks.events();
+}
+
+rpl::producer<> DoneWidget::closeClicks() const {
+	return _close->clicks();
+}
+
+void DoneWidget::initFooter() {
+	const auto buttonsPadding = st::boxButtonPadding;
+	const auto buttonsHeight = buttonsPadding.top()
+		+ st::defaultBoxButton.height
+		+ buttonsPadding.bottom();
+	const auto buttons = Ui::CreateChild<Ui::FixedHeightWidget>(
+		this,
+		buttonsHeight);
+
+	sizeValue(
+	) | rpl::start_with_next([=](QSize size) {
+		buttons->resizeToWidth(size.width());
+		buttons->moveToLeft(0, size.height() - buttons->height());
+	}, lifetime());
+
+	_close = Ui::CreateChild<Ui::RoundButton>(
+		buttons,
+		langFactory(lng_close),
+		st::defaultBoxButton);
+	_close->show();
+
+	buttons->widthValue(
+	) | rpl::start_with_next([=] {
+		const auto right = st::boxButtonPadding.right();
+		const auto top = st::boxButtonPadding.top();
+		_close->moveToRight(right, top);
+	}, _close->lifetime());
 }
 
 } // namespace View

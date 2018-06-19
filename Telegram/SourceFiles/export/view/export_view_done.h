@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
+namespace Ui {
+class RoundButton;
+} // namespace Ui
+
 namespace Export {
 namespace View {
 
@@ -17,11 +21,15 @@ public:
 	DoneWidget(QWidget *parent);
 
 	rpl::producer<> showClicks() const;
+	rpl::producer<> closeClicks() const;
 
 private:
+	void initFooter();
 	void setupContent();
 
 	rpl::event_stream<> _showClicks;
+
+	QPointer<Ui::RoundButton> _close;
 
 };
 
