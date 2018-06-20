@@ -445,10 +445,7 @@ Result TextWriter::writePersonal(const Data::PersonalInfo &data) {
 	Expects(_summary != nullptr);
 
 	const auto &info = data.user.info;
-	const auto serialized = "Personal information"
-		+ kLineBreak
-		+ kLineBreak
-		+ SerializeKeyValue({
+	const auto serialized = SerializeKeyValue({
 		{ "First name", info.firstName },
 		{ "Last name", info.lastName },
 		{ "Phone number", Data::FormatPhoneNumber(info.phoneNumber) },
@@ -461,45 +458,49 @@ Result TextWriter::writePersonal(const Data::PersonalInfo &data) {
 
 Result TextWriter::writeUserpicsStart(const Data::UserpicsInfo &data) {
 	Expects(_summary != nullptr);
+	Expects(_userpics == nullptr);
 
 	_userpicsCount = data.count;
 	if (!_userpicsCount) {
 		return Result::Success();
 	}
+	const auto filename = "personal_photos.txt";
+	_userpics = fileWithRelativePath(filename);
+
 	const auto serialized = "Personal photos "
-		"(" + Data::NumberToString(_userpicsCount) + ")"
+		"(" + Data::NumberToString(_userpicsCount) + ") - " + filename
 		+ kLineBreak
 		+ kLineBreak;
 	return _summary->writeBlock(serialized);
 }
 
 Result TextWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
-	Expects(_summary != nullptr);
+	Expects(_userpics != nullptr);
 	Expects(!data.list.empty());
 
-	auto lines = QByteArray();
+	auto lines = std::vector<QByteArray>();
+	lines.reserve(data.list.size());
 	for (const auto &userpic : data.list) {
 		if (!userpic.date) {
-			lines.append("(deleted photo)");
+			lines.push_back("(deleted photo)");
 		} else {
-			lines.append(Data::FormatDateTime(userpic.date)).append(" - ");
-			if (userpic.image.file.relativePath.isEmpty()) {
-				lines.append("(file unavailable)");
-			} else {
-				lines.append(userpic.image.file.relativePath.toUtf8());
-			}
+			lines.push_back(SerializeKeyValue({
+				{ "Date", Data::FormatDateTime(userpic.date) },
+				{
+					"Photo",
+					(userpic.image.file.relativePath.isEmpty()
+						? QByteArray("(file unavailable)")
+						: userpic.image.file.relativePath.toUtf8())
+				},
+			}));
 		}
-		lines.append(kLineBreak);
 	}
-	return _summary->writeBlock(lines);
+	return _userpics->writeBlock(JoinList(kLineBreak, lines) + kLineBreak);
 }
 
 Result TextWriter::writeUserpicsEnd() {
-	Expects(_summary != nullptr);
-
-	return (_userpicsCount > 0)
-		? _summary->writeBlock(kLineBreak)
-		: Result::Success();
+	_userpics = nullptr;
+	return Result::Success();
 }
 
 Result TextWriter::writeContactsList(const Data::ContactsList &data) {

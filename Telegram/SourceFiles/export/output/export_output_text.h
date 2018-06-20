@@ -64,7 +64,9 @@ private:
 	Stats *_stats = nullptr;
 
 	std::unique_ptr<File> _summary;
+
 	int _userpicsCount = 0;
+	std::unique_ptr<File> _userpics;
 
 	int _dialogsCount = 0;
 	int _dialogIndex = 0;
