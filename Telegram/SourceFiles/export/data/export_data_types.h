@@ -393,6 +393,7 @@ ServiceAction ParseServiceAction(
 
 struct Message {
 	int32 id = 0;
+	int32 chatId = 0;
 	TimeId date = 0;
 	TimeId edited = 0;
 	int32 fromId = 0;
@@ -409,7 +410,7 @@ struct Message {
 };
 
 Message ParseMessage(const MTPMessage &data, const QString &mediaFolder);
-std::map<int32, Message> ParseMessagesList(
+std::map<uint64, Message> ParseMessagesList(
 	const MTPVector<MTPMessage> &data,
 	const QString &mediaFolder);
 

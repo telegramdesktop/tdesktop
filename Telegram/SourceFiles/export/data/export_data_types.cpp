@@ -45,6 +45,14 @@ int32 BarePeerId(PeerId peerId) {
 	return int32(peerId & 0xFFFFFFFFULL);
 }
 
+bool IsChatPeerId(PeerId peerId) {
+	return (peerId & kChatPeerIdShift) == kChatPeerIdShift;
+}
+
+bool IsUserPeerId(PeerId peerId) {
+	return (peerId & kUserPeerIdShift) == kUserPeerIdShift;
+}
+
 PeerId ParsePeerId(const MTPPeer &data) {
 	return data.match([](const MTPDpeerUser &data) {
 		return UserPeerId(data.vuser_id.v);
@@ -526,11 +534,9 @@ Chat EmptyChat(int32 chatId) {
 }
 
 Peer EmptyPeer(PeerId peerId) {
-	if (UserPeerId(BarePeerId(peerId)) == peerId) {
-		auto user = ParseUser(MTP_userEmpty(MTP_int(BarePeerId(peerId))));
+	if (IsUserPeerId(peerId)) {
 		return Peer{ EmptyUser(BarePeerId(peerId)) };
-	} else if (ChatPeerId(BarePeerId(peerId)) == peerId) {
-		auto chat = ParseChat(MTP_chatEmpty(MTP_int(BarePeerId(peerId))));
+	} else if (IsChatPeerId(peerId)) {
 		return Peer{ EmptyChat(BarePeerId(peerId)) };
 	}
 	Unexpected("PeerId in EmptyPeer.");
@@ -762,6 +768,10 @@ Message ParseMessage(const MTPMessage &data, const QString &mediaFolder) {
 	auto result = Message();
 	data.match([&](const MTPDmessage &data) {
 		result.id = data.vid.v;
+		const auto peerId = ParsePeerId(data.vto_id);
+		if (IsChatPeerId(peerId)) {
+			result.chatId = BarePeerId(peerId);
+		}
 		const auto date = result.date = data.vdate.v;
 		if (data.has_edit_date()) {
 			result.edited = data.vedit_date.v;
@@ -805,6 +815,10 @@ Message ParseMessage(const MTPMessage &data, const QString &mediaFolder) {
 		result.text = ParseString(data.vmessage);
 	}, [&](const MTPDmessageService &data) {
 		result.id = data.vid.v;
+		const auto peerId = ParsePeerId(data.vto_id);
+		if (IsChatPeerId(peerId)) {
+			result.chatId = BarePeerId(peerId);
+		}
 		const auto date = result.date = data.vdate.v;
 		result.action = ParseServiceAction(data.vaction, mediaFolder, date);
 		if (data.has_from_id()) {
@@ -819,13 +833,14 @@ Message ParseMessage(const MTPMessage &data, const QString &mediaFolder) {
 	return result;
 }
 
-std::map<int32, Message> ParseMessagesList(
+std::map<uint64, Message> ParseMessagesList(
 		const MTPVector<MTPMessage> &data,
 		const QString &mediaFolder) {
-	auto result = std::map<int32, Message>();
+	auto result = std::map<uint64, Message>();
 	for (const auto &message : data.v) {
 		auto parsed = ParseMessage(message, mediaFolder);
-		result.emplace(parsed.id, std::move(parsed));
+		const auto shift = uint64(uint32(parsed.chatId)) << 32;
+		result.emplace(shift | uint32(parsed.id), std::move(parsed));
 	}
 	return result;
 }
@@ -1011,7 +1026,11 @@ DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
 				info.input = peer.input();
 			}
 			info.topMessageId = fields.vtop_message.v;
-			const auto messageIt = messages.find(info.topMessageId);
+			const auto shift = IsChatPeerId(info.peerId)
+				? (uint64(uint32(BarePeerId(info.peerId))) << 32)
+				: 0;
+			const auto messageIt = messages.find(
+				shift | uint32(info.topMessageId));
 			if (messageIt != end(messages)) {
 				const auto &message = messageIt->second;
 				info.topMessageDate = message.date;
