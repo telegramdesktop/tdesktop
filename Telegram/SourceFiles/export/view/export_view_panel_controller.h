@@ -45,7 +45,6 @@ private:
 	void updateState(State &&state);
 	void showSettings();
 	void showProgress();
-	void showDone(const QString &path);
 	void showError(const ApiErrorState &error);
 	void showError(const OutputErrorState &error);
 	void showError(const QString &text);

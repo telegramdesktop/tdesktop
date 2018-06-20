@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "export/view/export_view_settings.h"
 #include "export/view/export_view_progress.h"
-#include "export/view/export_view_done.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/separate_panel.h"
 #include "ui/wrap/padding_wrap.h"
@@ -137,26 +136,6 @@ void PanelController::stopExport() {
 	_panel->hideGetDuration();
 }
 
-void PanelController::showDone(const QString &path) {
-	_panel->setTitle(Lang::Viewer(lng_export_title));
-
-	auto done = base::make_unique_q<DoneWidget>(_panel.get());
-
-	done->showClicks(
-	) | rpl::start_with_next([=] {
-		File::ShowInFolder(path);
-		_panel->hideGetDuration();
-	}, done->lifetime());
-
-	done->closeClicks(
-	) | rpl::start_with_next([=] {
-		_panel->hideGetDuration();
-	}, done->lifetime());
-
-	_panel->showInner(std::move(done));
-	_panel->setHideOnDeactivate(false);
-}
-
 rpl::producer<> PanelController::closed() const {
 	return _panelCloseEvents.events(
 	) | rpl::flatten_latest(
@@ -175,8 +154,8 @@ void PanelController::updateState(State &&state) {
 	} else if (const auto error = base::get_if<OutputErrorState>(&_state)) {
 		showError(*error);
 	} else if (const auto finished = base::get_if<FinishedState>(&_state)) {
+		_panel->setTitle(Lang::Viewer(lng_export_title));
 		_panel->setHideOnDeactivate(false);
-	//	showDone(finished->path);
 	}
 }
 

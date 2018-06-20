@@ -227,8 +227,6 @@
 <(src_loc)/dialogs/dialogs_widget.h
 <(src_loc)/export/view/export_view_content.cpp
 <(src_loc)/export/view/export_view_content.h
-<(src_loc)/export/view/export_view_done.cpp
-<(src_loc)/export/view/export_view_done.h
 <(src_loc)/export/view/export_view_panel_controller.cpp
 <(src_loc)/export/view/export_view_panel_controller.h
 <(src_loc)/export/view/export_view_progress.cpp
