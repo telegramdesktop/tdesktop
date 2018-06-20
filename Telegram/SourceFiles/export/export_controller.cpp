@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/data/export_data_types.h"
 #include "export/output/export_output_abstract.h"
 #include "export/output/export_output_result.h"
+#include "export/output/export_output_stats.h"
 
 namespace Export {
 
@@ -102,6 +103,9 @@ private:
 	// rpl::variable<State> fails to compile in MSVC :(
 	State _state;
 	rpl::event_stream<State> _stateChanges;
+
+	Output::Stats _stats;
+
 	std::vector<int> _substepsInStep;
 	int _substepsTotal = 0;
 	mutable int _substepsPassed = 0;
@@ -321,7 +325,7 @@ void Controller::fillSubstepsInSteps(const ApiWrap::StartInfo &info) {
 
 void Controller::exportNext() {
 	if (!++_stepIndex) {
-		if (ioCatchError(_writer->start(_settings))) {
+		if (ioCatchError(_writer->start(_settings, &_stats))) {
 			return;
 		}
 	}
@@ -350,7 +354,7 @@ void Controller::exportNext() {
 void Controller::initialize() {
 	setState(stateInitializing());
 
-	_api.startExport(_settings, [=](ApiWrap::StartInfo info) {
+	_api.startExport(_settings, &_stats, [=](ApiWrap::StartInfo info) {
 		fillSubstepsInSteps(info);
 		exportNext();
 	});
@@ -642,7 +646,10 @@ int Controller::substepsInStep(Step step) const {
 }
 
 void Controller::setFinishedState() {
-	setState(FinishedState{ _writer->mainFilePath() });
+	setState(FinishedState{
+		_writer->mainFilePath(),
+		_stats.filesCount(),
+		_stats.bytesCount() });
 }
 
 ControllerWrap::ControllerWrap() {

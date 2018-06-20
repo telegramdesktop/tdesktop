@@ -17,10 +17,11 @@ namespace Export {
 namespace Output {
 
 struct Result;
+class Stats;
 
 class File {
 public:
-	File(const QString &path);
+	File(const QString &path, Stats *stats);
 
 	[[nodiscard]] int size() const;
 	[[nodiscard]] bool empty() const;
@@ -41,6 +42,9 @@ private:
 	QString _path;
 	int _offset = 0;
 	base::optional<QFile> _file;
+
+	Stats *_stats = nullptr;
+	bool _inStats = false;
 
 };
 

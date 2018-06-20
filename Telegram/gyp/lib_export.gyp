@@ -61,6 +61,8 @@
       '<(src_loc)/export/output/export_output_abstract.h',
       '<(src_loc)/export/output/export_output_file.cpp',
       '<(src_loc)/export/output/export_output_file.h',
+      '<(src_loc)/export/output/export_output_stats.cpp',
+      '<(src_loc)/export/output/export_output_stats.h',
       '<(src_loc)/export/output/export_output_text.cpp',
       '<(src_loc)/export/output/export_output_text.h',
     ],

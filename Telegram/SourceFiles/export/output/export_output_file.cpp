@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/output/export_output_file.h"
 
 #include "export/output/export_output_result.h"
+#include "export/output/export_output_stats.h"
 
 #include <QtCore/QFileInfo>
 #include <QtCore/QDir>
@@ -17,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Export {
 namespace Output {
 
-File::File(const QString &path) : _path(path) {
+File::File(const QString &path, Stats *stats) : _path(path), _stats(stats) {
 }
 
 int File::size() const {
@@ -37,11 +38,22 @@ Result File::writeBlock(const QByteArray &block) {
 }
 
 Result File::writeBlockAttempt(const QByteArray &block) {
+	if (_stats && !_inStats) {
+		_inStats = true;
+		_stats->incrementFiles();
+	}
 	if (const auto result = reopen(); !result) {
 		return result;
 	}
-	if (_file->write(block) == block.size() && _file->flush()) {
-		_offset += block.size();
+	const auto size = block.size();
+	if (!size) {
+		return Result::Success();
+	}
+	if (_file->write(block) == size && _file->flush()) {
+		_offset += size;
+		if (_stats) {
+			_stats->incrementBytes(size);
+		}
 		return Result::Success();
 	}
 	return error();

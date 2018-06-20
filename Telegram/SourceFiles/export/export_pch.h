@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <vector>
 #include <map>
 #include <deque>
+#include <atomic>
 
 #include <range/v3/all.hpp>
 #ifdef Q_OS_WIN

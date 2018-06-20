@@ -432,10 +432,11 @@ QByteArray SerializeMessage(
 
 } // namespace
 
-Result TextWriter::start(const Settings &settings) {
+Result TextWriter::start(const Settings &settings, Stats *stats) {
 	Expects(settings.path.endsWith('/'));
 
 	_settings = base::duplicate(settings);
+	_stats = stats;
 	_summary = fileWithRelativePath(mainFileRelativePath());
 	return Result::Success();
 }
@@ -827,7 +828,7 @@ QString TextWriter::pathWithRelativePath(const QString &path) const {
 
 std::unique_ptr<File> TextWriter::fileWithRelativePath(
 		const QString &path) const {
-	return std::make_unique<File>(pathWithRelativePath(path));
+	return std::make_unique<File>(pathWithRelativePath(path), _stats);
 }
 
 } // namespace Output

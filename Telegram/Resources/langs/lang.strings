@@ -1690,11 +1690,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_export_progress" = "Note: Please don't close Telegram while exporting files and personal data.";
 "lng_export_stop" = "Stop";
 "lng_export_sure_stop" = "Are you sure you want to stop exporting your data?\n\nThis action cannot be undone.";
-"lng_export_about_done" = "Your data is successfully exported.";
+"lng_export_about_done" = "Your data was successfully exported.";
 "lng_export_done" = "Show my data";
 "lng_export_finished" = "Export is finished.";
-"lng_export_total_files" = "Total files: {count}";
-"lng_export_total_size" = "Total size: {size}";
+"lng_export_total_files" = "Total files: {count}.";
+"lng_export_total_size" = "Total size: {size}.";
 
 // Wnd specific
 

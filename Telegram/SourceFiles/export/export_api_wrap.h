@@ -27,13 +27,14 @@ struct Message;
 
 namespace Output {
 struct Result;
+class Stats;
 } // namespace Output
 
 struct Settings;
 
 class ApiWrap {
 public:
-	ApiWrap(Fn<void(FnMut<void()>)> runner);
+	explicit ApiWrap(Fn<void(FnMut<void()>)> runner);
 
 	rpl::producer<RPCError> errors() const;
 	rpl::producer<Output::Result> ioErrors() const;
@@ -45,6 +46,7 @@ public:
 	};
 	void startExport(
 		const Settings &settings,
+		Output::Stats *stats,
 		FnMut<void(StartInfo)> done);
 
 	void requestLeftChannelsList(
@@ -155,6 +157,7 @@ private:
 
 	MTP::ConcurrentSender _mtp;
 	base::optional<uint64> _takeoutId;
+	Output::Stats *_stats = nullptr;
 
 	std::unique_ptr<Settings> _settings;
 	MTPInputUser _user = MTP_inputUserSelf();

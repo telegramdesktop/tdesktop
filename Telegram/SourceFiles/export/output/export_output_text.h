@@ -16,7 +16,7 @@ namespace Output {
 
 class TextWriter : public AbstractWriter {
 public:
-	Result start(const Settings &settings) override;
+	Result start(const Settings &settings, Stats *stats) override;
 
 	Result writePersonal(const Data::PersonalInfo &data) override;
 
@@ -61,6 +61,7 @@ private:
 	Result writeChatEnd();
 
 	Settings _settings;
+	Stats *_stats = nullptr;
 
 	std::unique_ptr<File> _summary;
 	int _userpicsCount = 0;

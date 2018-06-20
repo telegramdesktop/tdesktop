@@ -26,6 +26,7 @@ struct Settings;
 namespace Output {
 
 struct Result;
+class Stats;
 
 enum class Format {
 	Text,
@@ -36,7 +37,9 @@ enum class Format {
 
 class AbstractWriter {
 public:
-	[[nodiscard]] virtual Result start(const Settings &settings) = 0;
+	[[nodiscard]] virtual Result start(
+		const Settings &settings,
+		Stats *stats) = 0;
 
 	[[nodiscard]] virtual Result writePersonal(
 		const Data::PersonalInfo &data) = 0;

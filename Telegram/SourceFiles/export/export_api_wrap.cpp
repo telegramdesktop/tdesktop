@@ -135,7 +135,7 @@ struct ApiWrap::UserpicsProcess {
 };
 
 struct ApiWrap::FileProcess {
-	FileProcess(const QString &path);
+	FileProcess(const QString &path, Output::Stats *stats);
 
 	Output::File file;
 	QString relativePath;
@@ -222,7 +222,8 @@ base::optional<QString> ApiWrap::LoadedFileCache::find(
 	return base::none;
 }
 
-ApiWrap::FileProcess::FileProcess(const QString &path) : file(path) {
+ApiWrap::FileProcess::FileProcess(const QString &path, Output::Stats *stats)
+: file(path, stats) {
 }
 
 template <typename Request>
@@ -267,11 +268,13 @@ rpl::producer<Output::Result> ApiWrap::ioErrors() const {
 
 void ApiWrap::startExport(
 		const Settings &settings,
+		Output::Stats *stats,
 		FnMut<void(StartInfo)> done) {
 	Expects(_settings == nullptr);
 	Expects(_startProcess == nullptr);
 
 	_settings = std::make_unique<Settings>(settings);
+	_stats = stats;
 	_startProcess = std::make_unique<StartProcess>();
 	_startProcess->done = std::move(done);
 
@@ -1079,7 +1082,8 @@ auto ApiWrap::prepareFileProcess(const Data::File &file) const
 		_settings->path,
 		file.suggestedPath);
 	auto result = std::make_unique<FileProcess>(
-		_settings->path + relativePath);
+		_settings->path + relativePath,
+		_stats);
 	result->relativePath = relativePath;
 	result->location = file.location;
 	result->size = file.size;
