@@ -31,6 +31,7 @@ private:
 	using MediaTypes = MediaSettings::Types;
 
 	void setupContent();
+	void chooseFolder();
 	void refreshButtons(not_null<Ui::RpWidget*> container);
 	void createSizeSlider(not_null<Ui::VerticalLayout*> container);
 
@@ -43,7 +44,7 @@ private:
 		rpl::producer<> value;
 
 	};
-	rpl::variable<Wrap> _startClicks;
+	rpl::event_stream<Settings> _startClicks;
 	rpl::variable<Wrap> _cancelClicks;
 	rpl::event_stream<Settings::Types> _dataTypesChanges;
 

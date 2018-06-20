@@ -91,7 +91,7 @@ void DownloadPathBox::onEditPath() {
 	}();
 	const auto handleFolder = [=](const QString &result) {
 		if (!result.isEmpty()) {
-			_path = result + '/';
+			_path = result.endsWith('/') ? result : (result + '/');
 			_pathBookmark = psDownloadPathBookmark(_path);
 			setPathText(QDir::toNativeSeparators(_path));
 			_group->setValue(Directory::Custom);

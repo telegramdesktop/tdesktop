@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/fade_wrap.h"
 #include "platform/platform_specific.h"
+#include "core/file_utilities.h"
 #include "styles/style_widgets.h"
 #include "styles/style_export.h"
 #include "styles/style_boxes.h"
@@ -311,7 +312,7 @@ void SettingsWidget::refreshButtons(not_null<Ui::RpWidget*> container) {
 		: nullptr;
 	if (start) {
 		start->show();
-		_startClicks = start->clicks();
+		start->addClickHandler([=] { chooseFolder(); });
 
 		container->sizeValue(
 		) | rpl::start_with_next([=](QSize size) {
@@ -339,14 +340,16 @@ void SettingsWidget::refreshButtons(not_null<Ui::RpWidget*> container) {
 	}, cancel->lifetime());
 }
 
+void SettingsWidget::chooseFolder() {
+	const auto ready = [=](QString &&result) {
+		_data.path = result;
+		_startClicks.fire(base::duplicate(_data));
+	};
+	FileDialog::GetFolder(this, lang(lng_export_folder), _data.path, ready);
+}
+
 rpl::producer<Settings> SettingsWidget::startClicks() const {
-	return _startClicks.value(
-	) | rpl::map([](Wrap &&wrap) {
-		return std::move(wrap.value);
-	}) | rpl::flatten_latest(
-	) | rpl::map([=] {
-		return _data;
-	});
+	return _startClicks.events();
 }
 
 rpl::producer<> SettingsWidget::cancelClicks() const {

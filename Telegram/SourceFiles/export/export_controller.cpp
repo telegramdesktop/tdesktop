@@ -232,11 +232,12 @@ bool Controller::normalizePath() {
 	};
 	QDir folder(_settings.path);
 	const auto path = folder.absolutePath();
-	_settings.path = path + '/';
+	_settings.path = path.endsWith('/') ? path : (path + '/');
 	if (!folder.exists()) {
 		return check();
 	}
-	const auto list = folder.entryInfoList();
+	const auto mode = QDir::AllEntries | QDir::NoDotAndDotDot;
+	const auto list = folder.entryInfoList(mode);
 	if (list.isEmpty()) {
 		return true;
 	}

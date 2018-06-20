@@ -1696,6 +1696,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_export_finished" = "Export is finished.";
 "lng_export_total_files" = "Total files: {count}.";
 "lng_export_total_size" = "Total size: {size}.";
+"lng_export_folder" = "Choose export folder";
 
 // Wnd specific
 

@@ -151,7 +151,8 @@ void Launcher::prepareSettings() {
 			info = info.symLinkTarget();
 		}
 		if (info.exists()) {
-			gExeDir = info.absoluteDir().absolutePath() + '/';
+			const auto dir = info.absoluteDir().absolutePath();
+			gExeDir = (dir.endsWith('/') ? dir : (dir + '/'));
 			gExeName = info.fileName();
 		}
 	}
