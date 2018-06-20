@@ -87,6 +87,7 @@ private slots:
 	void onAutoLock();
 	void onShowSessions();
 	void onSelfDestruction();
+	void onExportData();
 
 private:
 	static QString GetAutoLockText();
@@ -103,6 +104,7 @@ private:
 	CloudPasswordState *_cloudPasswordState = nullptr;
 	Ui::LinkButton *_showAllSessions = nullptr;
 	Ui::LinkButton *_selfDestruction = nullptr;
+	Ui::LinkButton *_exportData = nullptr;
 
 };
 
