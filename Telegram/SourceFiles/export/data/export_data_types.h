@@ -142,7 +142,9 @@ struct UserpicsSlice {
 	std::vector<Photo> list;
 };
 
-UserpicsSlice ParseUserpicsSlice(const MTPVector<MTPPhoto> &data);
+UserpicsSlice ParseUserpicsSlice(
+	const MTPVector<MTPPhoto> &data,
+	int baseIndex);
 
 struct ContactInfo {
 	int32 userId = 0;
@@ -259,10 +261,18 @@ struct Media {
 	const File &file() const;
 };
 
+struct ParseMediaContext {
+	int photos = 0;
+	int audios = 0;
+	int videos = 0;
+	int files = 0;
+	int32 botId = 0;
+};
+
 Media ParseMedia(
+	ParseMediaContext &context,
 	const MTPMessageMedia &data,
-	const QString &folder,
-	TimeId date);
+	const QString &folder);
 
 struct ActionChatCreate {
 	Utf8String title;
@@ -387,9 +397,9 @@ struct ServiceAction {
 };
 
 ServiceAction ParseServiceAction(
+	ParseMediaContext &context,
 	const MTPMessageAction &data,
-	const QString &mediaFolder,
-	TimeId date);
+	const QString &mediaFolder);
 
 struct Message {
 	int32 id = 0;
@@ -409,7 +419,10 @@ struct Message {
 	const File &file() const;
 };
 
-Message ParseMessage(const MTPMessage &data, const QString &mediaFolder);
+Message ParseMessage(
+	ParseMediaContext &context,
+	const MTPMessage &data,
+	const QString &mediaFolder);
 std::map<uint64, Message> ParseMessagesList(
 	const MTPVector<MTPMessage> &data,
 	const QString &mediaFolder);
@@ -458,6 +471,7 @@ struct MessagesSlice {
 };
 
 MessagesSlice ParseMessagesSlice(
+	ParseMediaContext &context,
 	const MTPVector<MTPMessage> &data,
 	const MTPVector<MTPUser> &users,
 	const MTPVector<MTPChat> &chats,

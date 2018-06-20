@@ -128,6 +128,7 @@ struct ApiWrap::UserpicsProcess {
 	Fn<bool(Data::UserpicsSlice&&)> handleSlice;
 	FnMut<void()> finish;
 
+	int processed = 0;
 	base::optional<Data::UserpicsSlice> slice;
 	uint64 maxId = 0;
 	bool lastSlice = false;
@@ -191,6 +192,7 @@ struct ApiWrap::ChatProcess {
 
 	int32 offsetId = 1;
 
+	Data::ParseMediaContext context;
 	base::optional<Data::MessagesSlice> slice;
 	bool lastSlice = false;
 	int fileIndex = -1;
@@ -513,7 +515,9 @@ void ApiWrap::handleUserpicsSlice(const MTPphotos_Photos &result) {
 		if constexpr (MTPDphotos_photos::Is<decltype(data)>()) {
 			_userpicsProcess->lastSlice = true;
 		}
-		loadUserpicsFiles(Data::ParseUserpicsSlice(data.vphotos));
+		loadUserpicsFiles(Data::ParseUserpicsSlice(
+			data.vphotos,
+			_userpicsProcess->processed));
 	});
 }
 
@@ -556,6 +560,7 @@ void ApiWrap::finishUserpicsSlice() {
 
 	auto slice = *base::take(_userpicsProcess->slice);
 	if (!slice.list.empty()) {
+		_userpicsProcess->processed += slice.list.size();
 		_userpicsProcess->maxId = slice.list.back().id;
 		if (!_userpicsProcess->handleSlice(std::move(slice))) {
 			return;
@@ -702,7 +707,6 @@ void ApiWrap::requestMessages(
 void ApiWrap::requestDialogsSlice() {
 	Expects(_dialogsProcess != nullptr);
 
-	LOG(("REQUEST %1 %2").arg(_dialogsProcess->offsetDate).arg(_dialogsProcess->offsetId));
 	mainRequest(MTPmessages_GetDialogs(
 		MTP_flags(0),
 		MTP_int(_dialogsProcess->offsetDate),
@@ -725,10 +729,6 @@ void ApiWrap::requestDialogsSlice() {
 			_dialogsProcess->offsetId = last.topMessageId;
 			_dialogsProcess->offsetDate = last.topMessageDate;
 			_dialogsProcess->offsetPeer = last.input;
-
-			for (const auto &item : info.list) {
-				LOG(("RESULT: %1 %2").arg(item.topMessageDate).arg(item.topMessageId));
-			}
 
 			appendDialogsSlice(std::move(info));
 
@@ -856,6 +856,7 @@ void ApiWrap::requestMessagesSlice(FnMut<bool(int count)> start) {
 				_chatProcess->lastSlice = true;
 			}
 			loadMessagesFiles(Data::ParseMessagesSlice(
+				_chatProcess->context,
 				data.vmessages,
 				data.vusers,
 				data.vchats,

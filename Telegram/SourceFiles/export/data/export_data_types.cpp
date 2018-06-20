@@ -27,12 +27,6 @@ constexpr auto kChatPeerIdShift = (2ULL << 32);
 
 } // namespace
 
-QString PreparePhotoFileName(TimeId date) {
-	return "Photo_"
-		+ QString::fromUtf8(FormatDateTime(date, '_', '_', '_'))
-		+ ".jpg";
-}
-
 PeerId UserPeerId(int32 userId) {
 	return kUserPeerIdShift | uint32(userId);
 }
@@ -178,7 +172,9 @@ void ParseAttributes(
 	}
 }
 
-QString ComputeDocumentName(const Document &data, TimeId date) {
+QString ComputeDocumentName(
+		ParseMediaContext &context,
+		const Document &data) {
 	if (!data.name.isEmpty()) {
 		return QString::fromUtf8(data.name);
 	}
@@ -188,27 +184,27 @@ QString ComputeDocumentName(const Document &data, TimeId date) {
 		return !mimeString.compare(mime, Qt::CaseInsensitive);
 	};
 	const auto patterns = mimeType.globPatterns();
-	auto pattern = patterns.isEmpty() ? QString() : patterns.front();
-	auto extension = QString();
-	auto prefix = QString();
+	const auto pattern = patterns.isEmpty() ? QString() : patterns.front();
 	if (data.isVoiceMessage) {
 		const auto isMP3 = hasMimeType(qstr("audio/mp3"));
-		extension = isMP3 ? qsl(".mp3") : qsl(".ogg");
-		prefix = qsl("Audio_");
+		return qsl("Audio_")
+			+ QString::number(++context.audios)
+			+ (isMP3 ? qsl(".mp3") : qsl(".ogg"));
 	} else if (data.isVideoFile) {
-		extension = pattern.isEmpty()
+		const auto extension = pattern.isEmpty()
 			? qsl(".mov")
 			: QString(pattern).replace('*', QString());
-		prefix = qsl("Video_");
+		return qsl("Video_")
+			+ QString::number(++context.videos)
+			+ extension;
 	} else {
-		extension = pattern.isEmpty()
+		const auto extension = pattern.isEmpty()
 			? qsl(".unknown")
-			: pattern.replace('*', QString());
-		prefix = qsl("File_");
+			: QString(pattern).replace('*', QString());
+		return qsl("File_")
+			+ QString::number(++context.files)
+			+ extension;
 	}
-	return prefix
-		+ QString::fromUtf8(FormatDateTime(date, '_', '_', '_'))
-		+ extension;
 }
 
 QString CleanDocumentName(QString name) {
@@ -274,9 +270,9 @@ QString DocumentFolder(const Document &data) {
 }
 
 Document ParseDocument(
+		ParseMediaContext &context,
 		const MTPDocument &data,
-		const QString &suggestedFolder,
-		TimeId date) {
+		const QString &suggestedFolder) {
 	auto result = Document();
 	data.match([&](const MTPDdocument &data) {
 		result.id = data.vid.v;
@@ -291,8 +287,7 @@ Document ParseDocument(
 		ParseAttributes(result, data.vattributes);
 		result.file.suggestedPath = suggestedFolder
 			+ DocumentFolder(result) + '/'
-			+ CleanDocumentName(
-				ComputeDocumentName(result, date ? date : result.date));
+			+ CleanDocumentName(ComputeDocumentName(context, result));
 	}, [&](const MTPDdocumentEmpty &data) {
 		result.id = data.vid.v;
 	});
@@ -341,15 +336,15 @@ Invoice ParseInvoice(const MTPDmessageMediaInvoice &data) {
 	return result;
 }
 
-UserpicsSlice ParseUserpicsSlice(const MTPVector<MTPPhoto> &data) {
+UserpicsSlice ParseUserpicsSlice(
+		const MTPVector<MTPPhoto> &data,
+		int baseIndex) {
 	const auto &list = data.v;
 	auto result = UserpicsSlice();
 	result.list.reserve(list.size());
 	for (const auto &photo : list) {
 		const auto suggestedPath = "PersonalPhotos/"
-			+ (photo.type() == mtpc_photo
-				? PreparePhotoFileName(photo.c_photo().vdate.v)
-				: "Photo_Empty.jpg");
+			"Photo_" + QString::number(++baseIndex) + ".jpg";
 		result.list.push_back(ParsePhoto(photo, suggestedPath));
 	}
 	return result;
@@ -565,10 +560,9 @@ const File &Media::file() const {
 }
 
 Media ParseMedia(
+		ParseMediaContext &context,
 		const MTPMessageMedia &data,
-		const QString &folder,
-		TimeId date,
-		int32 botId) {
+		const QString &folder) {
 	Expects(folder.isEmpty() || folder.endsWith(QChar('/')));
 
 	auto result = Media();
@@ -576,7 +570,8 @@ Media ParseMedia(
 		result.content = data.has_photo()
 			? ParsePhoto(
 				data.vphoto,
-				folder + "Photos/" + PreparePhotoFileName(date))
+				folder + "Photos/"
+				"Photo_" + QString::number(++context.photos) + ".jpg")
 			: Photo();
 		if (data.has_ttl_seconds()) {
 			result.ttl = data.vttl_seconds.v;
@@ -589,7 +584,7 @@ Media ParseMedia(
 		result.content = UnsupportedMedia();
 	}, [&](const MTPDmessageMediaDocument &data) {
 		result.content = data.has_document()
-			? ParseDocument(data.vdocument, folder, date)
+			? ParseDocument(context, data.vdocument, folder)
 			: Document();
 		if (data.has_ttl_seconds()) {
 			result.ttl = data.vttl_seconds.v;
@@ -599,7 +594,7 @@ Media ParseMedia(
 	}, [&](const MTPDmessageMediaVenue &data) {
 		result.content = ParseVenue(data);
 	}, [&](const MTPDmessageMediaGame &data) {
-		result.content = ParseGame(data.vgame, botId);
+		result.content = ParseGame(data.vgame, context.botId);
 	}, [&](const MTPDmessageMediaInvoice &data) {
 		result.content = ParseInvoice(data);
 	}, [&](const MTPDmessageMediaGeoLive &data) {
@@ -610,9 +605,9 @@ Media ParseMedia(
 }
 
 ServiceAction ParseServiceAction(
+		ParseMediaContext &context,
 		const MTPMessageAction &data,
-		const QString &mediaFolder,
-		TimeId date) {
+		const QString &mediaFolder) {
 	auto result = ServiceAction();
 	data.match([&](const MTPDmessageActionChatCreate &data) {
 		auto content = ActionChatCreate();
@@ -630,7 +625,8 @@ ServiceAction ParseServiceAction(
 		auto content = ActionChatEditPhoto();
 		content.photo = ParsePhoto(
 			data.vphoto,
-			mediaFolder + "Photos/" + PreparePhotoFileName(date));
+			mediaFolder + "Photos/"
+			"Photo_" + QString::number(++context.photos) + ".jpg");
 		result.content = content;
 	}, [&](const MTPDmessageActionChatDeletePhoto &data) {
 		result.content = ActionChatDeletePhoto();
@@ -764,7 +760,10 @@ const File &Message::file() const {
 	return media.file();
 }
 
-Message ParseMessage(const MTPMessage &data, const QString &mediaFolder) {
+Message ParseMessage(
+		ParseMediaContext &context,
+		const MTPMessage &data,
+		const QString &mediaFolder) {
 	auto result = Message();
 	data.match([&](const MTPDmessage &data) {
 		result.id = data.vid.v;
@@ -772,7 +771,7 @@ Message ParseMessage(const MTPMessage &data, const QString &mediaFolder) {
 		if (IsChatPeerId(peerId)) {
 			result.chatId = BarePeerId(peerId);
 		}
-		const auto date = result.date = data.vdate.v;
+		result.date = data.vdate.v;
 		if (data.has_edit_date()) {
 			result.edited = data.vedit_date.v;
 		}
@@ -802,15 +801,16 @@ Message ParseMessage(const MTPMessage &data, const QString &mediaFolder) {
 			result.viaBotId = data.vvia_bot_id.v;
 		}
 		if (data.has_media()) {
+			context.botId = (result.viaBotId
+				? result.viaBotId
+				: result.forwardedFromId
+				? result.forwardedFromId
+				: result.fromId);
 			result.media = ParseMedia(
+				context,
 				data.vmedia,
-				mediaFolder,
-				date,
-				(result.viaBotId
-					? result.viaBotId
-					: result.forwardedFromId
-					? result.forwardedFromId
-					: result.fromId));
+				mediaFolder);
+			context.botId = 0;
 		}
 		result.text = ParseString(data.vmessage);
 	}, [&](const MTPDmessageService &data) {
@@ -819,8 +819,11 @@ Message ParseMessage(const MTPMessage &data, const QString &mediaFolder) {
 		if (IsChatPeerId(peerId)) {
 			result.chatId = BarePeerId(peerId);
 		}
-		const auto date = result.date = data.vdate.v;
-		result.action = ParseServiceAction(data.vaction, mediaFolder, date);
+		result.date = data.vdate.v;
+		result.action = ParseServiceAction(
+			context,
+			data.vaction,
+			mediaFolder);
 		if (data.has_from_id()) {
 			result.fromId = data.vfrom_id.v;
 		}
@@ -836,9 +839,10 @@ Message ParseMessage(const MTPMessage &data, const QString &mediaFolder) {
 std::map<uint64, Message> ParseMessagesList(
 		const MTPVector<MTPMessage> &data,
 		const QString &mediaFolder) {
+	auto context = ParseMediaContext();
 	auto result = std::map<uint64, Message>();
 	for (const auto &message : data.v) {
-		auto parsed = ParseMessage(message, mediaFolder);
+		auto parsed = ParseMessage(context, message, mediaFolder);
 		const auto shift = uint64(uint32(parsed.chatId)) << 32;
 		result.emplace(shift | uint32(parsed.id), std::move(parsed));
 	}
@@ -1097,6 +1101,7 @@ void FinalizeLeftChannelsInfo(DialogsInfo &info, const Settings &settings) {
 }
 
 MessagesSlice ParseMessagesSlice(
+		ParseMediaContext &context,
 		const MTPVector<MTPMessage> &data,
 		const MTPVector<MTPUser> &users,
 		const MTPVector<MTPChat> &chats,
@@ -1104,10 +1109,10 @@ MessagesSlice ParseMessagesSlice(
 	const auto &list = data.v;
 	auto result = MessagesSlice();
 	result.list.reserve(list.size());
-	for (const auto &message : list) {
-		result.list.push_back(ParseMessage(message, mediaFolder));
+	for (auto i = list.size(); i != 0;) {
+		const auto &message = list[--i];
+		result.list.push_back(ParseMessage(context, message, mediaFolder));
 	}
-	ranges::reverse(result.list);
 	result.peers = ParsePeersLists(users, chats);
 	return result;
 }
