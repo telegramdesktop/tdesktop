@@ -79,7 +79,9 @@ private:
 		ProcessingState &result,
 		const Data::DialogsInfo &info,
 		int index,
-		const DownloadProgress &progress) const;
+		const DownloadProgress &progress,
+		int addIndex,
+		int addCount) const;
 
 	int substepsInStep(Step step) const;
 
@@ -550,15 +552,16 @@ ProcessingState Controller::stateLeftChannelsList(int processed) const {
 		result.entityIndex = processed;
 		result.entityCount = std::max(
 			processed,
-			substepsInStep(Step::LeftChannels));
+			substepsInStep(Step::LeftChannels))
+			+ substepsInStep(Step::Dialogs);
 	});
 }
 
 ProcessingState Controller::stateDialogsList(int processed) const {
 	const auto step = Step::DialogsList;
 	return prepareState(step, [&](ProcessingState &result) {
-		result.entityIndex = processed;
-		result.entityCount = std::max(
+		result.entityIndex = substepsInStep(Step::LeftChannels) + processed;
+		result.entityCount = substepsInStep(Step::LeftChannels) + std::max(
 			processed,
 			substepsInStep(Step::Dialogs));
 	});
@@ -594,11 +597,15 @@ ProcessingState Controller::stateLeftChannels(
 		const DownloadProgress & progress) const {
 	const auto step = Step::LeftChannels;
 	return prepareState(step, [&](ProcessingState &result) {
+		const auto addIndex = _dialogsInfo.list.size();
+		const auto addCount = addIndex;
 		fillMessagesState(
 			result,
 			_leftChannelsInfo,
 			_leftChannelIndex,
-			progress);
+			progress,
+			addIndex,
+			addCount);
 	});
 }
 
@@ -606,11 +613,15 @@ ProcessingState Controller::stateDialogs(
 		const DownloadProgress &progress) const {
 	const auto step = Step::Dialogs;
 	return prepareState(step, [&](ProcessingState &result) {
+		const auto addIndex = 0;
+		const auto addCount = _leftChannelsInfo.list.size();
 		fillMessagesState(
 			result,
 			_dialogsInfo,
 			_dialogIndex,
-			progress);
+			progress,
+			addIndex,
+			addCount);
 	});
 }
 
@@ -618,7 +629,9 @@ void Controller::fillMessagesState(
 		ProcessingState &result,
 		const Data::DialogsInfo &info,
 		int index,
-		const DownloadProgress &progress) const {
+		const DownloadProgress &progress,
+		int addIndex,
+		int addCount) const {
 	const auto &dialog = info.list[index];
 	auto count = 0;
 	for (const auto &dialog : info.list) {
@@ -626,8 +639,8 @@ void Controller::fillMessagesState(
 			++count;
 		}
 	}
-	result.entityIndex = index;
-	result.entityCount = info.list.size();
+	result.entityIndex = index + addIndex;
+	result.entityCount = info.list.size() + addCount;
 	result.entityName = dialog.name;
 	result.itemIndex = _messagesWritten + progress.itemIndex;
 	result.itemCount = std::max(_messagesCount, result.entityIndex);

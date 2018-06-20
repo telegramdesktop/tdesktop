@@ -55,7 +55,7 @@ struct ProcessingState {
 
 	QString entityName;
 	int entityIndex = 0;
-	int entityCount = 1;
+	int entityCount = 0;
 
 	int itemIndex = 0;
 	int itemCount = 0;
