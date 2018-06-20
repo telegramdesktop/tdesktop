@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "apiwrap.h"
+#include "export/export_controller.h"
+#include "export/view/export_view_panel_controller.h"
 #include "window/notifications_manager.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
@@ -66,6 +68,32 @@ Session::Session(not_null<AuthSession*> session)
 , _unmuteByFinishedTimer([=] { unmuteByFinished(); }) {
 	setupContactViewsViewer();
 	setupChannelLeavingViewer();
+}
+
+void Session::startExport() {
+	_export = std::make_unique<Export::ControllerWrap>();
+	_exportPanel = std::make_unique<Export::View::PanelController>(
+		_export.get());
+
+	_exportViewChanges.fire(_exportPanel.get());
+
+	_exportPanel->closed(
+	) | rpl::start_with_next([=] {
+		clearExport();
+	}, _export->lifetime());
+}
+
+rpl::producer<Export::View::PanelController*> Session::currentExportView(
+) const {
+	return _exportViewChanges.events_starting_with(_exportPanel.get());
+}
+
+void Session::clearExport() {
+	if (_exportPanel) {
+		_exportPanel = nullptr;
+		_exportViewChanges.fire(nullptr);
+	}
+	_export = nullptr;
 }
 
 void Session::setupContactViewsViewer() {

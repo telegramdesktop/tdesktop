@@ -70,7 +70,7 @@ Content ContentFromState(const ProcessingState &state) {
 		pushMain(lang(lng_export_state_userpics));
 		pushBytes(
 			"userpic" + QString::number(state.entityIndex),
-			"Photo_" + QString::number(state.entityIndex + 1) + ".jpg");
+			state.bytesName);
 		break;
 	case Step::Contacts:
 		pushMain(lang(lng_export_option_contacts));

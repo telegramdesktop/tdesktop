@@ -9,15 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_inner_widget.h"
 #include "settings/settings_fixed_bar.h"
-#include "styles/style_settings.h"
-#include "styles/style_window.h"
-#include "styles/style_boxes.h"
 #include "platform/platform_specific.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/buttons.h"
 #include "ui/toast/toast.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
+#include "data/data_session.h"
 #include "storage/localstorage.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
@@ -32,6 +30,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/media_audio_track.h"
 #include "mainwindow.h"
 #include "window/window_controller.h"
+#include "styles/style_settings.h"
+#include "styles/style_window.h"
+#include "styles/style_boxes.h"
 
 namespace Settings {
 namespace {
@@ -128,7 +129,7 @@ void fillCodes() {
 		Ui::Toast::Show("Forced custom scheme register.");
 	});
 	Codes.insert(qsl("export"), [] {
-		App::wnd()->controller()->startDataExport();
+		Auth().data().startExport();
 	});
 
 	auto audioFilters = qsl("Audio files (*.wav *.mp3);;") + FileDialog::AllFilesFilter();

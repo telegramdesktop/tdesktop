@@ -235,6 +235,8 @@
 <(src_loc)/export/view/export_view_progress.h
 <(src_loc)/export/view/export_view_settings.cpp
 <(src_loc)/export/view/export_view_settings.h
+<(src_loc)/export/view/export_view_top_bar.cpp
+<(src_loc)/export/view/export_view_top_bar.h
 <(src_loc)/history/admin_log/history_admin_log_filter.cpp
 <(src_loc)/history/admin_log/history_admin_log_filter.h
 <(src_loc)/history/admin_log/history_admin_log_inner.cpp
@@ -735,8 +737,6 @@
 <(src_loc)/window/notifications_manager_default.h
 <(src_loc)/window/notifications_utilities.cpp
 <(src_loc)/window/notifications_utilities.h
-<(src_loc)/window/player_wrap_widget.cpp
-<(src_loc)/window/player_wrap_widget.h
 <(src_loc)/window/section_memento.h
 <(src_loc)/window/section_widget.cpp
 <(src_loc)/window/section_widget.h
@@ -753,6 +753,7 @@
 <(src_loc)/window/window_slide_animation.cpp
 <(src_loc)/window/window_slide_animation.h
 <(src_loc)/window/window_title.h
+<(src_loc)/window/window_top_bar_wrap.h
 <(src_loc)/window/themes/window_theme.cpp
 <(src_loc)/window/themes/window_theme.h
 <(src_loc)/window/themes/window_theme_editor.cpp

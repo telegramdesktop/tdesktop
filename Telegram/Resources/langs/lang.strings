@@ -1654,6 +1654,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_bad_name" = "Please use latin characters only.";
 
 "lng_export_title" = "Personal data export";
+"lng_export_progress_title" = "Exporting personal data";
 "lng_export_option_info" = "Personal information";
 "lng_export_option_contacts" = "Contacts list";
 "lng_export_option_sessions" = "Sessions list";

@@ -27,6 +27,13 @@ class Reader;
 } // namespace Clip
 } // namespace Media
 
+namespace Export {
+class ControllerWrap;
+namespace View {
+class PanelController;
+} // namespace View
+} // namespace Export
+
 namespace Data {
 
 class Feed;
@@ -43,6 +50,9 @@ public:
 	AuthSession &session() const {
 		return *_session;
 	}
+
+	void startExport();
+	rpl::producer<Export::View::PanelController*> currentExportView() const;
 
 	[[nodiscard]] base::Variable<bool> &contactsLoaded() {
 		return _contactsLoaded;
@@ -395,6 +405,8 @@ public:
 	}
 
 private:
+	void clearExport();
+
 	void setupContactViewsViewer();
 	void setupChannelLeavingViewer();
 	void photoApplyFields(
@@ -488,6 +500,10 @@ private:
 		Method method);
 
 	not_null<AuthSession*> _session;
+
+	std::unique_ptr<Export::ControllerWrap> _export;
+	std::unique_ptr<Export::View::PanelController> _exportPanel;
+	rpl::event_stream<Export::View::PanelController*> _exportViewChanges;
 
 	base::Variable<bool> _contactsLoaded = { false };
 	base::Variable<bool> _allChatsLoaded = { false };

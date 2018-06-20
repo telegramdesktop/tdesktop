@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "export/export_controller.h"
+#include "export/view/export_view_content.h"
 #include "base/unique_qptr.h"
 
 namespace Ui {
@@ -23,7 +24,17 @@ class PanelController {
 public:
 	PanelController(not_null<ControllerWrap*> process);
 
+	void activatePanel();
+
 	rpl::producer<> closed() const;
+
+	rpl::lifetime &lifetime() {
+		return _lifetime;
+	}
+
+	auto progressState() const {
+		return ContentFromState(_process->state());
+	}
 
 	~PanelController();
 

@@ -16,8 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_feed.h"
 #include "passport/passport_form_controller.h"
-#include "export/export_controller.h"
-#include "export/view/export_view_panel_controller.h"
 #include "boxes/calendar_box.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -416,24 +414,6 @@ void Controller::showPassportForm(const Passport::FormRequest &request) {
 
 void Controller::clearPassportForm() {
 	_passportForm = nullptr;
-}
-
-void Controller::startDataExport() {
-	using namespace Export;
-
-	_export = std::make_unique<Export::ControllerWrap>();
-	_exportPanel = std::make_unique<Export::View::PanelController>(
-		_export.get());
-
-	_exportPanel->closed(
-	) | rpl::start_with_next([=] {
-		clearDataExport();
-	}, _export->lifetime());
-}
-
-void Controller::clearDataExport() {
-	_exportPanel = nullptr;
-	_export = nullptr;
 }
 
 void Controller::updateColumnLayout() {

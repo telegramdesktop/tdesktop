@@ -30,6 +30,7 @@ public:
 	void setTitle(rpl::producer<QString> title);
 	void setInnerSize(QSize size);
 
+	void setHideOnDeactivate(bool hideOnDeactivate);
 	void showAndActivate();
 	int hideGetDuration();
 
@@ -56,6 +57,7 @@ protected:
 	void leaveEventHook(QEvent *e) override;
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 	void keyPressEvent(QKeyEvent *e) override;
+	bool eventHook(QEvent *e) override;
 
 private:
 	void initControls();
@@ -68,6 +70,7 @@ private:
 	void opacityCallback();
 	void ensureLayerCreated();
 
+	void updateTitleGeometry(int newWidth);
 	void updateTitlePosition();
 	void paintShadowBorder(Painter &p) const;
 	void paintOpaqueBorder(Painter &p) const;
@@ -86,6 +89,7 @@ private:
 	rpl::event_stream<> _userCloseRequests;
 	rpl::event_stream<> _closeEvents;
 
+	bool _hideOnDeactivate = false;
 	bool _useTransparency = true;
 	style::margins _padding;
 

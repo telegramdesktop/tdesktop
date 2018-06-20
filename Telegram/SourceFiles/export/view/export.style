@@ -62,3 +62,10 @@ exportProgressInfoLabel: FlatLabel(boxLabel) {
 exportProgressWidth: 3px;
 exportProgressFg: mediaPlayerActiveFg;
 exportProgressBg: mediaPlayerInactiveFg;
+
+exportTopBarLabel: FlatLabel(defaultFlatLabel) {
+	maxHeight: 20px;
+	palette: TextPalette(defaultTextPalette) {
+		linkFg: windowSubTextFg;
+	}
+}

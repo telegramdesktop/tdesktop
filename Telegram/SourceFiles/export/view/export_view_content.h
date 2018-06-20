@@ -27,14 +27,16 @@ struct Content {
 Content ContentFromState(const ProcessingState &state);
 
 inline auto ContentFromState(rpl::producer<State> state) {
-	return rpl::single(Content()) | rpl::then(std::move(
+	return std::move(
 		state
 	) | rpl::filter([](const State &state) {
-		return state.template is<ProcessingState>();
+		return state.is<ProcessingState>() || state.is<FinishedState>();
 	}) | rpl::map([](const State &state) {
-		return ContentFromState(
-			state.template get_unchecked<ProcessingState>());
-	}));
+		if (const auto process = base::get_if<ProcessingState>(&state)) {
+			return ContentFromState(*process);
+		}
+		return Content();
+	});
 }
 
 } // namespace View

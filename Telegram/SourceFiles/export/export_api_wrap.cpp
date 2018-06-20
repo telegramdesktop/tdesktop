@@ -699,6 +699,7 @@ void ApiWrap::requestMessages(
 void ApiWrap::requestDialogsSlice() {
 	Expects(_dialogsProcess != nullptr);
 
+	LOG(("REQUEST %1 %2").arg(_dialogsProcess->offsetDate).arg(_dialogsProcess->offsetId));
 	mainRequest(MTPmessages_GetDialogs(
 		MTP_flags(0),
 		MTP_int(_dialogsProcess->offsetDate),
@@ -721,6 +722,10 @@ void ApiWrap::requestDialogsSlice() {
 			_dialogsProcess->offsetId = last.topMessageId;
 			_dialogsProcess->offsetDate = last.topMessageDate;
 			_dialogsProcess->offsetPeer = last.input;
+
+			for (const auto &item : info.list) {
+				LOG(("RESULT: %1 %2").arg(item.topMessageDate).arg(item.topMessageId));
+			}
 
 			appendDialogsSlice(std::move(info));
 

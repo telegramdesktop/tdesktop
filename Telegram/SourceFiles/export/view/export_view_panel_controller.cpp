@@ -28,6 +28,10 @@ PanelController::PanelController(not_null<ControllerWrap*> process)
 	}, _lifetime);
 }
 
+void PanelController::activatePanel() {
+	_panel->showAndActivate();
+}
+
 void PanelController::createPanel() {
 	_panel = base::make_unique_q<Ui::SeparatePanel>();
 	_panel->setTitle(Lang::Viewer(lng_export_title));
@@ -84,12 +88,17 @@ void PanelController::showError(const QString &text) {
 	}, container->lifetime());
 
 	_panel->showInner(std::move(container));
+	_panel->setHideOnDeactivate(false);
 }
 
 void PanelController::showProgress() {
+	_panel->setTitle(Lang::Viewer(lng_export_progress_title));
+
 	auto progress = base::make_unique_q<ProgressWidget>(
 		_panel.get(),
-		ContentFromState(_process->state()));
+		rpl::single(
+			ContentFromState(ProcessingState())
+		) | rpl::then(progressState()));
 
 	progress->cancelClicks(
 	) | rpl::start_with_next([=] {
@@ -97,9 +106,12 @@ void PanelController::showProgress() {
 	}, progress->lifetime());
 
 	_panel->showInner(std::move(progress));
+	_panel->setHideOnDeactivate(true);
 }
 
 void PanelController::showDone(const QString &path) {
+	_panel->setTitle(Lang::Viewer(lng_export_title));
+
 	auto done = base::make_unique_q<DoneWidget>(_panel.get());
 
 	done->showClicks(
@@ -114,6 +126,7 @@ void PanelController::showDone(const QString &path) {
 	}, done->lifetime());
 
 	_panel->showInner(std::move(done));
+	_panel->setHideOnDeactivate(false);
 }
 
 rpl::producer<> PanelController::closed() const {
