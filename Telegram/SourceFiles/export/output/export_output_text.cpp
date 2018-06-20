@@ -552,8 +552,10 @@ Result TextWriter::writeSavedContacts(const Data::ContactsList &data) {
 }
 
 Result TextWriter::writeFrequentContacts(const Data::ContactsList &data) {
-	const auto size = data.correspondents.size() + data.inlineBots.size();
-	if (data.correspondents.empty() && data.inlineBots.empty()) {
+	const auto size = data.correspondents.size()
+		+ data.inlineBots.size()
+		+ data.phoneCalls.size();
+	if (!size) {
 		return Result::Success();
 	}
 
@@ -602,6 +604,7 @@ Result TextWriter::writeFrequentContacts(const Data::ContactsList &data) {
 	};
 	writeList(data.correspondents, "Correspondents");
 	writeList(data.inlineBots, "Inline bots");
+	writeList(data.phoneCalls, "Calls");
 	const auto full = JoinList(kLineBreak, list);
 	if (const auto result = file->writeBlock(full); !result) {
 		return result;

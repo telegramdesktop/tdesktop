@@ -947,6 +947,9 @@ bool AppendTopPeers(ContactsList &to, const MTPcontacts_TopPeers &data) {
 				} else if (category == mtpc_topPeerCategoryBotsInline) {
 					append(to.inlineBots, data.vpeers);
 					return true;
+				} else if (category == mtpc_topPeerCategoryPhoneCalls) {
+					append(to.phoneCalls, data.vpeers);
+					return true;
 				} else {
 					return false;
 				}

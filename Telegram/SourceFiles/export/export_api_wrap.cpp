@@ -632,7 +632,9 @@ void ApiWrap::requestTopPeersSlice() {
 
 	using Flag = MTPcontacts_GetTopPeers::Flag;
 	mainRequest(MTPcontacts_GetTopPeers(
-		MTP_flags(Flag::f_correspondents | Flag::f_bots_inline),
+		MTP_flags(Flag::f_correspondents
+			| Flag::f_bots_inline
+			| Flag::f_phone_calls),
 		MTP_int(_contactsProcess->topPeersOffset),
 		MTP_int(kTopPeerSliceLimit),
 		MTP_int(0) // hash
@@ -665,9 +667,10 @@ void ApiWrap::requestTopPeersSlice() {
 			auto process = base::take(_contactsProcess);
 			process->done(std::move(process->result));
 		} else {
-			_contactsProcess->topPeersOffset = std::max(
+			_contactsProcess->topPeersOffset = std::max(std::max(
 				_contactsProcess->result.correspondents.size(),
-				_contactsProcess->result.inlineBots.size());
+				_contactsProcess->result.inlineBots.size()),
+				_contactsProcess->result.phoneCalls.size());
 			requestTopPeersSlice();
 		}
 	}).send();

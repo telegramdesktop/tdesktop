@@ -216,6 +216,7 @@ struct ContactsList {
 	std::vector<ContactInfo> list;
 	std::vector<TopPeer> correspondents;
 	std::vector<TopPeer> inlineBots;
+	std::vector<TopPeer> phoneCalls;
 };
 
 ContactsList ParseContactsList(const MTPcontacts_Contacts &data);
