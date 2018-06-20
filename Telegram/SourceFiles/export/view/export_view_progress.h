@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 class VerticalLayout;
 class RoundButton;
+class FlatLabel;
 } // namespace Ui
 
 namespace Export {
@@ -25,12 +26,14 @@ public:
 		rpl::producer<Content> content);
 
 	rpl::producer<> cancelClicks() const;
+	rpl::producer<> doneClicks() const;
 
 	~ProgressWidget();
 
 private:
-	void initFooter();
+	void setupBottomButton(not_null<Ui::RoundButton*> button);
 	void updateState(Content &&content);
+	void showDone();
 
 	Content _content;
 
@@ -38,7 +41,10 @@ private:
 	object_ptr<Ui::VerticalLayout> _body;
 	std::vector<not_null<Row*>> _rows;
 
-	QPointer<Ui::RoundButton> _cancel;
+	QPointer<Ui::FlatLabel> _about;
+	base::unique_qptr<Ui::RoundButton> _cancel;
+	base::unique_qptr<Ui::RoundButton> _done;
+	rpl::event_stream<> _doneClicks;
 
 };
 

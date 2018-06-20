@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Export {
 namespace View {
 
+const QString Content::kDoneId = "done";
+
 Content ContentFromState(const ProcessingState &state) {
 	using Step = ProcessingState::Step;
 
@@ -101,6 +103,29 @@ Content ContentFromState(const ProcessingState &state) {
 		break;
 	default: Unexpected("Step in ContentFromState.");
 	}
+	while (result.rows.size() < 3) {
+		result.rows.push_back(Content::Row());
+	}
+	return result;
+}
+
+Content ContentFromState(const FinishedState &state) {
+	auto result = Content();
+	result.rows.push_back({
+		Content::kDoneId,
+		lang(lng_export_finished),
+		QString(),
+		1. });
+	result.rows.push_back({
+		Content::kDoneId,
+		lng_export_total_files(lt_count, QString::number(state.filesCount)),
+		QString(),
+		1. });
+	result.rows.push_back({
+		Content::kDoneId,
+		lng_export_total_size(lt_size, formatSizeText(state.bytesCount)),
+		QString(),
+		1. });
 	return result;
 }
 

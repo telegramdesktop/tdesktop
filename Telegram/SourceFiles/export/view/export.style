@@ -58,10 +58,30 @@ exportProgressLabel: FlatLabel(boxLabel) {
 exportProgressInfoLabel: FlatLabel(boxLabel) {
 	textFg: windowSubTextFg;
 	maxHeight: 20px;
+	style: boxTextStyle;
 }
 exportProgressWidth: 3px;
 exportProgressFg: mediaPlayerActiveFg;
 exportProgressBg: mediaPlayerInactiveFg;
+
+exportCancelButton: RoundButton(attentionBoxButton) {
+	width: 200px;
+	height: 44px;
+	textTop: 12px;
+	font: font(semibold 15px);
+}
+exportCancelBottom: 30px;
+exportDoneButton: RoundButton(defaultActiveButton) {
+	width: 200px;
+	height: 44px;
+	textTop: 12px;
+	font: font(semibold 15px);
+}
+
+exportAboutLabel: FlatLabel(boxLabel) {
+	textFg: windowSubTextFg;
+}
+exportAboutPadding: margins(22px, 10px, 22px, 0px);
 
 exportTopBarLabel: FlatLabel(defaultFlatLabel) {
 	maxHeight: 20px;

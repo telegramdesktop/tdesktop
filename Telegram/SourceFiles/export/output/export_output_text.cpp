@@ -818,7 +818,7 @@ QString TextWriter::mainFilePath() {
 }
 
 QString TextWriter::mainFileRelativePath() const {
-	return "result.txt";
+	return "overview.txt";
 }
 
 QString TextWriter::pathWithRelativePath(const QString &path) const {

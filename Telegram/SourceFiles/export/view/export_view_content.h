@@ -22,9 +22,12 @@ struct Content {
 
 	std::vector<Row> rows;
 
+	static const QString kDoneId;
+
 };
 
 Content ContentFromState(const ProcessingState &state);
+Content ContentFromState(const FinishedState &state);
 
 inline auto ContentFromState(rpl::producer<State> state) {
 	return std::move(
@@ -34,8 +37,10 @@ inline auto ContentFromState(rpl::producer<State> state) {
 	}) | rpl::map([](const State &state) {
 		if (const auto process = base::get_if<ProcessingState>(&state)) {
 			return ContentFromState(*process);
+		} else if (const auto done = base::get_if<FinishedState>(&state)) {
+			return ContentFromState(*done);
 		}
-		return Content();
+		Unexpected("State type in ContentFromState.");
 	});
 }
 

@@ -22,7 +22,6 @@ struct PasswordCheckState {
 	bool requesting = true;
 	bool hasPassword = false;
 	bool checked = false;
-
 };
 
 struct ProcessingState {
@@ -65,22 +64,20 @@ struct ProcessingState {
 	QString bytesName;
 	int bytesLoaded = 0;
 	int bytesCount = 0;
-
 };
 
 struct ApiErrorState {
 	RPCError data;
-
 };
 
 struct OutputErrorState {
 	QString path;
-
 };
 
 struct FinishedState {
 	QString path;
-
+	int filesCount = 0;
+	int64 bytesCount = 0;
 };
 
 using State = base::optional_variant<

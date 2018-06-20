@@ -25,6 +25,7 @@ public:
 	PanelController(not_null<ControllerWrap*> process);
 
 	void activatePanel();
+	void stopWithConfirmation();
 
 	rpl::producer<> closed() const;
 
@@ -39,6 +40,7 @@ public:
 	~PanelController();
 
 private:
+	void stopExport();
 	void createPanel();
 	void updateState(State &&state);
 	void showSettings();
@@ -54,6 +56,7 @@ private:
 
 	State _state;
 	rpl::event_stream<rpl::producer<>> _panelCloseEvents;
+	bool _stopRequested = false;
 	rpl::lifetime _lifetime;
 
 };

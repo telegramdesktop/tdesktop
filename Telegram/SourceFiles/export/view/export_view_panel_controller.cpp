@@ -13,9 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/separate_panel.h"
 #include "ui/wrap/padding_wrap.h"
+#include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "core/file_utilities.h"
 #include "styles/style_export.h"
+#include "styles/style_boxes.h"
 
 namespace Export {
 namespace View {
@@ -102,11 +104,37 @@ void PanelController::showProgress() {
 
 	progress->cancelClicks(
 	) | rpl::start_with_next([=] {
-		_panel->hideGetDuration();
+		stopWithConfirmation();
+	}, progress->lifetime());
+
+	progress->doneClicks(
+	) | rpl::start_with_next([=] {
+		if (const auto finished = base::get_if<FinishedState>(&_state)) {
+			File::ShowInFolder(finished->path);
+			_panel->hideGetDuration();
+		}
 	}, progress->lifetime());
 
 	_panel->showInner(std::move(progress));
 	_panel->setHideOnDeactivate(true);
+}
+
+void PanelController::stopWithConfirmation() {
+	auto box = Box<ConfirmBox>(
+		lang(lng_export_sure_stop),
+		lang(lng_export_stop),
+		st::attentionBoxButton,
+		[=] { stopExport(); });
+	_panel->showBox(
+		std::move(box),
+		LayerOption::KeepOther,
+		anim::type::normal);
+}
+
+void PanelController::stopExport() {
+	_stopRequested = true;
+	_panel->showAndActivate();
+	_panel->hideGetDuration();
 }
 
 void PanelController::showDone(const QString &path) {
@@ -133,7 +161,7 @@ rpl::producer<> PanelController::closed() const {
 	return _panelCloseEvents.events(
 	) | rpl::flatten_latest(
 	) | rpl::filter([=] {
-		return !_state.is<ProcessingState>();
+		return !_state.is<ProcessingState>() || _stopRequested;
 	});
 }
 
@@ -147,7 +175,8 @@ void PanelController::updateState(State &&state) {
 	} else if (const auto error = base::get_if<OutputErrorState>(&_state)) {
 		showError(*error);
 	} else if (const auto finished = base::get_if<FinishedState>(&_state)) {
-		showDone(finished->path);
+		_panel->setHideOnDeactivate(false);
+	//	showDone(finished->path);
 	}
 }
 

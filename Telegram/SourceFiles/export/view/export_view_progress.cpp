@@ -237,61 +237,64 @@ ProgressWidget::ProgressWidget(
 	rpl::producer<Content> content)
 : RpWidget(parent)
 , _body(this) {
-	initFooter();
-
 	widthValue(
 	) | rpl::start_with_next([=](int width) {
 		_body->resizeToWidth(width);
 		_body->moveToLeft(0, 0);
 	}, _body->lifetime());
 
+	_about = _body->add(
+		object_ptr<Ui::FlatLabel>(
+			this,
+			lang(lng_export_progress),
+			Ui::FlatLabel::InitType::Simple,
+			st::exportAboutLabel),
+		st::exportAboutPadding);
+
 	std::move(
 		content
 	) | rpl::start_with_next([=](Content &&content) {
 		updateState(std::move(content));
 	}, lifetime());
+
+	_cancel = base::make_unique_q<Ui::RoundButton>(
+		this,
+		langFactory(lng_export_stop),
+		st::exportCancelButton);
+	setupBottomButton(_cancel.get());
 }
 
 rpl::producer<> ProgressWidget::cancelClicks() const {
-	return _cancel->clicks();
+	return _cancel ? _cancel->clicks() : rpl::never<>();
 }
 
-void ProgressWidget::initFooter() {
-	const auto buttonsPadding = st::boxButtonPadding;
-	const auto buttonsHeight = buttonsPadding.top()
-		+ st::defaultBoxButton.height
-		+ buttonsPadding.bottom();
-	const auto buttons = Ui::CreateChild<Ui::FixedHeightWidget>(
-		this,
-		buttonsHeight);
+rpl::producer<> ProgressWidget::doneClicks() const {
+	return _doneClicks.events();
+}
+
+void ProgressWidget::setupBottomButton(not_null<Ui::RoundButton*> button) {
+	button->show();
 
 	sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
-		buttons->resizeToWidth(size.width());
-		buttons->moveToLeft(0, size.height() - buttons->height());
-	}, lifetime());
-
-	_cancel = Ui::CreateChild<Ui::RoundButton>(
-		buttons,
-		langFactory(lng_cancel),
-		st::defaultBoxButton);
-	_cancel->show();
-
-	buttons->widthValue(
-	) | rpl::start_with_next([=] {
-		const auto right = st::boxButtonPadding.right();
-		const auto top = st::boxButtonPadding.top();
-		_cancel->moveToRight(right, top);
-	}, _cancel->lifetime());
+		button->move(
+			(size.width() - button->width()) / 2,
+			(size.height() - st::exportCancelBottom - button->height()));
+	}, button->lifetime());
 }
 
 void ProgressWidget::updateState(Content &&content) {
+	if (!content.rows.empty() && content.rows[0].id == Content::kDoneId) {
+		showDone();
+	}
+
 	auto index = 0;
 	for (auto &row : content.rows) {
 		if (index < _rows.size()) {
 			_rows[index]->updateData(std::move(row));
 		} else {
-			_rows.push_back(_body->add(
+			_rows.push_back(_body->insert(
+				index,
 				object_ptr<Row>(this, std::move(row)),
 				st::exportProgressRowPadding));
 		}
@@ -300,6 +303,17 @@ void ProgressWidget::updateState(Content &&content) {
 	for (const auto count = _rows.size(); index != count; ++index) {
 		_rows[index]->updateData(Content::Row());
 	}
+}
+
+void ProgressWidget::showDone() {
+	_cancel = nullptr;
+	_about->setText(lang(lng_export_about_done));
+	_done = base::make_unique_q<Ui::RoundButton>(
+		this,
+		langFactory(lng_export_done),
+		st::exportDoneButton);
+	_done->clicks() | rpl::start_to_stream(_doneClicks, _done->lifetime());
+	setupBottomButton(_done.get());
 }
 
 ProgressWidget::~ProgressWidget() = default;
