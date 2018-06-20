@@ -49,6 +49,46 @@ index 14e4fd10aa..0619a176a7 100644
      { 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 14, 9, 11, 11 },
      { 3, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 14, 9, 11, 11 },
      { 3, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 14, 9, 11, 11 },
+diff --git a/src/corelib/tools/qunicodetools.cpp b/src/corelib/tools/qunicodetools.cpp
+index 0df6b01b13..9db76719fe 100644
+--- a/src/corelib/tools/qunicodetools.cpp
++++ b/src/corelib/tools/qunicodetools.cpp
+@@ -715,7 +715,7 @@ Q_CORE_EXPORT void initScripts(const ushort *string, int length, uchar *scripts)
+             script = QChar::Script(prop->script);
+         }
+ 
+-#if 0 // ### Disabled due to regressions. The font selection algorithm is not prepared for this change.
++//#if 0 // ### Disabled due to regressions. The font selection algorithm is not prepared for this change.
+         if (Q_LIKELY(script != QChar::Script_Common)) {
+             // override preceding Common-s
+             while (sor > 0 && scripts[sor - 1] == QChar::Script_Common)
+@@ -725,7 +725,7 @@ Q_CORE_EXPORT void initScripts(const ushort *string, int length, uchar *scripts)
+             if (sor > 0)
+                 script = scripts[sor - 1];
+         }
+-#endif
++//#endif
+ 
+         while (sor < eor)
+             scripts[sor++] = script;
+@@ -734,7 +734,7 @@ Q_CORE_EXPORT void initScripts(const ushort *string, int length, uchar *scripts)
+     }
+     eor = length;
+ 
+-#if 0 // ### Disabled due to regressions. The font selection algorithm is not prepared for this change.
++//#if 0 // ### Disabled due to regressions. The font selection algorithm is not prepared for this change.
+     if (Q_LIKELY(script != QChar::Script_Common)) {
+         // override preceding Common-s
+         while (sor > 0 && scripts[sor - 1] == QChar::Script_Common)
+@@ -744,7 +744,7 @@ Q_CORE_EXPORT void initScripts(const ushort *string, int length, uchar *scripts)
+         if (sor > 0)
+             script = scripts[sor - 1];
+     }
+-#endif
++//#endif
+ 
+     while (sor < eor)
+         scripts[sor++] = script;
 diff --git a/src/gui/kernel/qhighdpiscaling.cpp b/src/gui/kernel/qhighdpiscaling.cpp
 index 2d00b9dce9..eeba86e936 100644
 --- a/src/gui/kernel/qhighdpiscaling.cpp
@@ -116,6 +156,19 @@ index 918c98997b..4158259743 100644
          }
  
          // Make sure we're inside the viewport.
+diff --git a/src/gui/text/qtextengine.cpp b/src/gui/text/qtextengine.cpp
+index 17a91f5a6a..d556d8dbf4 100644
+--- a/src/gui/text/qtextengine.cpp
++++ b/src/gui/text/qtextengine.cpp
+@@ -112,7 +112,7 @@ private:
+         for (int i = start + 1; i < end; ++i) {
+             if (m_analysis[i].bidiLevel == m_analysis[start].bidiLevel
+                 && m_analysis[i].flags == m_analysis[start].flags
+-                && (m_analysis[i].script == m_analysis[start].script || m_string[i] == QLatin1Char('.'))
++                && m_analysis[i].script == m_analysis[start].script
+                 && m_analysis[i].flags < QScriptAnalysis::SpaceTabOrObject
+                 && i - start < MaxItemLength)
+                 continue;
 diff --git a/src/gui/text/qtextengine_p.h b/src/gui/text/qtextengine_p.h
 index 7e507bba2d..936e7a92cb 100644
 --- a/src/gui/text/qtextengine_p.h
