@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
 #include "lang/lang_keys.h"
+#include "boxes/confirm_box.h"
 #include "data/data_abstract_structure.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
@@ -1589,7 +1590,13 @@ namespace App {
 	}
 
 	void quit() {
-		if (quitting()) return;
+		if (quitting()) {
+			return;
+		} else if (AuthSession::Exists()
+			&& Auth().data().exportInProgress()) {
+			Auth().data().stopExportWithConfirmation([] { App::quit(); });
+			return;
+		}
 		setLaunchState(QuitRequested);
 
 		if (auto window = wnd()) {

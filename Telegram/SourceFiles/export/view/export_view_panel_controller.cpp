@@ -118,16 +118,37 @@ void PanelController::showProgress() {
 	_panel->setHideOnDeactivate(true);
 }
 
-void PanelController::stopWithConfirmation() {
+void PanelController::stopWithConfirmation(FnMut<void()> callback) {
+	if (!_state.is<ProcessingState>()) {
+		stopExport();
+		callback();
+		return;
+	}
+	auto stop = [=, callback = std::move(callback)]() mutable {
+		auto saved = std::move(callback);
+		stopExport();
+		if (saved) {
+			saved();
+		}
+	};
+	const auto hidden = _panel->isHidden();
+	const auto old = _confirmStopBox;
 	auto box = Box<ConfirmBox>(
 		lang(lng_export_sure_stop),
 		lang(lng_export_stop),
 		st::attentionBoxButton,
-		[=] { stopExport(); });
+		std::move(stop));
+	_confirmStopBox = box.data();
 	_panel->showBox(
 		std::move(box),
-		LayerOption::KeepOther,
-		anim::type::normal);
+		LayerOption::CloseOther,
+		hidden ? anim::type::instant : anim::type::normal);
+	if (hidden) {
+		_panel->showAndActivate();
+	}
+	if (old) {
+		old->closeBox();
+	}
 }
 
 void PanelController::stopExport() {

@@ -53,6 +53,9 @@ public:
 
 	void startExport();
 	rpl::producer<Export::View::PanelController*> currentExportView() const;
+	bool exportInProgress() const;
+	void stopExportWithConfirmation(FnMut<void()> callback);
+	void stopExport();
 
 	[[nodiscard]] base::Variable<bool> &contactsLoaded() {
 		return _contactsLoaded;
@@ -405,8 +408,6 @@ public:
 	}
 
 private:
-	void clearExport();
-
 	void setupContactViewsViewer();
 	void setupChannelLeavingViewer();
 	void photoApplyFields(

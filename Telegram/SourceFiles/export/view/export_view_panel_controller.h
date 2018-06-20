@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/view/export_view_content.h"
 #include "base/unique_qptr.h"
 
+class BoxContent;
+
 namespace Ui {
 class SeparatePanel;
 } // namespace Ui
@@ -25,7 +27,7 @@ public:
 	PanelController(not_null<ControllerWrap*> process);
 
 	void activatePanel();
-	void stopWithConfirmation();
+	void stopWithConfirmation(FnMut<void()> callback = nullptr);
 
 	rpl::producer<> closed() const;
 
@@ -54,6 +56,7 @@ private:
 	base::unique_qptr<Ui::SeparatePanel> _panel;
 
 	State _state;
+	QPointer<BoxContent> _confirmStopBox;
 	rpl::event_stream<rpl::producer<>> _panelCloseEvents;
 	bool _stopRequested = false;
 	rpl::lifetime _lifetime;

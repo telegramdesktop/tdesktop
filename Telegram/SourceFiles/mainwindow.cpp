@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 
 #include "data/data_document.h"
+#include "data/data_session.h"
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"
@@ -618,11 +619,22 @@ void MainWindow::onLogout() {
 		showFromTray();
 	}
 
+	const auto logout = [] {
+		Messenger::Instance().logOut();
+	};
+	const auto callback = [=] {
+		if (AuthSession::Exists() && Auth().data().exportInProgress()) {
+			Ui::hideLayer();
+			Auth().data().stopExportWithConfirmation(logout);
+		} else {
+			logout();
+		}
+	};
 	Ui::show(Box<ConfirmBox>(
 		lang(lng_sure_logout),
 		lang(lng_settings_logout),
 		st::attentionBoxButton,
-		[] { Messenger::Instance().logOut(); }));
+		callback));
 }
 
 void MainWindow::quitFromTray() {

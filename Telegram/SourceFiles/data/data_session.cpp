@@ -79,7 +79,7 @@ void Session::startExport() {
 
 	_exportPanel->closed(
 	) | rpl::start_with_next([=] {
-		clearExport();
+		stopExport();
 	}, _export->lifetime());
 }
 
@@ -88,7 +88,26 @@ rpl::producer<Export::View::PanelController*> Session::currentExportView(
 	return _exportViewChanges.events_starting_with(_exportPanel.get());
 }
 
-void Session::clearExport() {
+bool Session::exportInProgress() const {
+	return _export != nullptr;
+}
+
+void Session::stopExportWithConfirmation(FnMut<void()> callback) {
+	if (!_exportPanel) {
+		callback();
+		return;
+	}
+	auto closeAndCall = [=, callback = std::move(callback)]() mutable {
+		auto saved = std::move(callback);
+		stopExport();
+		if (saved) {
+			saved();
+		}
+	};
+	_exportPanel->stopWithConfirmation(std::move(closeAndCall));
+}
+
+void Session::stopExport() {
 	if (_exportPanel) {
 		_exportPanel = nullptr;
 		_exportViewChanges.fire(nullptr);
