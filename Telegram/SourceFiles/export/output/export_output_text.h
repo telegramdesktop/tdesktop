@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/output/export_output_abstract.h"
 #include "export/output/export_output_file.h"
 #include "export/export_settings.h"
+#include "export/data/export_data_types.h"
 
 namespace Export {
 namespace Output {
@@ -59,6 +60,7 @@ private:
 	Result writeChatStart(const Data::DialogInfo &data);
 	Result writeChatSlice(const Data::MessagesSlice &data);
 	Result writeChatEnd();
+	Result writeChatsEnd();
 
 	Settings _settings;
 	Stats *_stats = nullptr;
@@ -70,9 +72,10 @@ private:
 
 	int _dialogsCount = 0;
 	int _dialogIndex = 0;
-	bool _dialogOnlyMy = false;
-	bool _dialogEmpty = true;
+	Data::DialogInfo _dialog;
 
+	int _messagesCount = 0;
+	std::unique_ptr<File> _chats;
 	std::unique_ptr<File> _chat;
 
 };

@@ -676,7 +676,7 @@ Result TextWriter::writeDialogEnd() {
 }
 
 Result TextWriter::writeDialogsEnd() {
-	return Result::Success();
+	return writeChatsEnd();
 }
 
 Result TextWriter::writeLeftChannelsStart(const Data::DialogsInfo &data) {
@@ -704,13 +704,60 @@ Result TextWriter::writeChatsStart(
 		const QByteArray &listName,
 		const QString &fileName) {
 	Expects(_summary != nullptr);
+	Expects(_chats == nullptr);
 
 	if (data.list.empty()) {
 		return Result::Success();
 	}
 
+	_chats = fileWithRelativePath(fileName);
 	_dialogIndex = 0;
 	_dialogsCount = data.list.size();
+
+	const auto header = listName + " "
+		"(" + Data::NumberToString(data.list.size()) + ") - "
+		+ fileName.toUtf8()
+		+ kLineBreak
+		+ kLineBreak;
+	return _summary->writeBlock(header);
+}
+
+Result TextWriter::writeChatStart(const Data::DialogInfo &data) {
+	Expects(_chat == nullptr);
+	Expects(_dialogIndex < _dialogsCount);
+
+	const auto digits = Data::NumberToString(_dialogsCount - 1).size();
+	const auto number = Data::NumberToString(++_dialogIndex, digits, '0');
+	_chat = fileWithRelativePath(data.relativePath + "messages.txt");
+	_messagesCount = 0;
+	_dialog = data;
+	return Result::Success();
+}
+
+Result TextWriter::writeChatSlice(const Data::MessagesSlice &data) {
+	Expects(_chat != nullptr);
+	Expects(!data.list.empty());
+
+	_messagesCount += data.list.size();
+	auto list = std::vector<QByteArray>();
+	list.reserve(data.list.size());
+	for (const auto &message : data.list) {
+		list.push_back(SerializeMessage(
+			message,
+			data.peers,
+			_settings.internalLinksDomain));
+	}
+	const auto full = _chat->empty()
+		? JoinList(kLineBreak, list)
+		: kLineBreak + JoinList(kLineBreak, list);
+	return _chat->writeBlock(full);
+}
+
+Result TextWriter::writeChatEnd() {
+	Expects(_chats != nullptr);
+	Expects(_chat != nullptr);
+
+	_chat = nullptr;
 
 	using Type = Data::DialogInfo::Type;
 	const auto TypeString = [](Type type) {
@@ -742,75 +789,23 @@ Result TextWriter::writeChatsStart(
 		}
 		Unexpected("Dialog type in TypeString.");
 	};
-	const auto file = fileWithRelativePath(fileName);
-	auto list = std::vector<QByteArray>();
-	list.reserve(data.list.size());
-	auto index = 0;
-	for (const auto &dialog : data.list) {
-		const auto path = dialog.relativePath + "messages.txt";
-		list.push_back(SerializeKeyValue({
-			{ "Name", NameString(dialog.name, dialog.type) },
-			{ "Type", TypeString(dialog.type) },
-			{ "Content", path.toUtf8() }
-		}));
-	}
-	const auto full = JoinList(kLineBreak, list);
-	if (const auto result = file->writeBlock(full); !result) {
-		return result;
-	}
-
-	const auto header = listName + " "
-		"(" + Data::NumberToString(data.list.size()) + ") - "
-		+ fileName.toUtf8()
-		+ kLineBreak
-		+ kLineBreak;
-	return _summary->writeBlock(header);
-}
-
-Result TextWriter::writeChatStart(const Data::DialogInfo &data) {
-	Expects(_chat == nullptr);
-	Expects(_dialogIndex < _dialogsCount);
-
-	const auto digits = Data::NumberToString(_dialogsCount - 1).size();
-	const auto number = Data::NumberToString(++_dialogIndex, digits, '0');
-	_chat = fileWithRelativePath(data.relativePath + "messages.txt");
-	_dialogEmpty = true;
-	_dialogOnlyMy = data.onlyMyMessages;
-	return Result::Success();
-}
-
-Result TextWriter::writeChatSlice(const Data::MessagesSlice &data) {
-	Expects(_chat != nullptr);
-	Expects(!data.list.empty());
-
-	_dialogEmpty = false;
-	auto list = std::vector<QByteArray>();
-	list.reserve(data.list.size());
-	auto index = 0;
-	for (const auto &message : data.list) {
-		list.push_back(SerializeMessage(
-			message,
-			data.peers,
-			_settings.internalLinksDomain));
-	}
-	const auto full = _chat->empty()
-		? JoinList(kLineBreak, list)
-		: kLineBreak + JoinList(kLineBreak, list);
-	return _chat->writeBlock(full);
-}
-
-Result TextWriter::writeChatEnd() {
-	Expects(_chat != nullptr);
-
-	if (_dialogEmpty) {
-		const auto result = _chat->writeBlock(_dialogOnlyMy
-			? "No outgoing messages in this chat."
-			: "No messages in this chat.");
-		if (!result) {
-			return result;
+	return _chats->writeBlock(SerializeKeyValue({
+		{ "Name", NameString(_dialog.name, _dialog.type) },
+		{ "Type", TypeString(_dialog.type) },
+		{ "Messages count", Data::NumberToString(_messagesCount) },
+		{
+			"Content",
+			(_messagesCount > 0
+				? (_dialog.relativePath + "messages.txt").toUtf8()
+				: QByteArray())
 		}
-	}
-	_chat = nullptr;
+	}) + kLineBreak);
+}
+
+Result TextWriter::writeChatsEnd() {
+	Expects(_chats != nullptr);
+
+	_chats = nullptr;
 	return Result::Success();
 }
 
