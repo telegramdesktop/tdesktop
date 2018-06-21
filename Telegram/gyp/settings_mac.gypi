@@ -85,6 +85,9 @@
           '-w', # Suppress 'libstdc++ is deprecated' warning.
         ],
       },
+      'defines': [
+        'RANGES_CXX_THREAD_LOCAL=0',
+      ],
     }, {
       'xcode_settings': {
         'CLANG_CXX_LIBRARY': 'libc++',

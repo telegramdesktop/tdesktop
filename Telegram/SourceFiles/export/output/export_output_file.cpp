@@ -102,13 +102,12 @@ QString File::PrepareRelativePath(
 
 	// Not lastIndexOf('.') so that "file.tar.xz" won't be messed up.
 	const auto position = suggested.indexOf('.');
-	const auto base = suggested.midRef(0, position);
+	const auto base = suggested.midRef(0, position).toString();
 	const auto extension = (position >= 0)
 		? suggested.midRef(position)
 		: QStringRef();
 	const auto relativePart = [&](int attempt) {
-		auto result = QString(" (%1)").arg(attempt);
-		result.prepend(base);
+		auto result = base + QString(" (%1)").arg(attempt);
 		result.append(extension);
 		return result;
 	};
