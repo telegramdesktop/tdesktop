@@ -465,7 +465,9 @@ void Controller::exportNextDialog() {
 				return false;
 			}
 			_messagesWritten = 0;
-			_messagesCount = info.messagesCount;
+			_messagesCount = ranges::accumulate(
+				info.messagesCountPerSplit,
+				0);
 			setState(stateDialogs(DownloadProgress()));
 			return true;
 		}, [=](DownloadProgress progress) {
@@ -509,7 +511,9 @@ void Controller::exportNextLeftChannel() {
 				return false;
 			}
 			_messagesWritten = 0;
-			_messagesCount = info.messagesCount;
+			_messagesCount = ranges::accumulate(
+				info.messagesCountPerSplit,
+				0);
 			setState(stateLeftChannels(DownloadProgress()));
 			return true;
 		}, [=](DownloadProgress progress) {

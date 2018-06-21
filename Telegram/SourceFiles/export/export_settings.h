@@ -39,21 +39,22 @@ struct MediaSettings {
 
 struct Settings {
 	enum class Type {
-		PersonalInfo       = 0x001,
-		Userpics           = 0x002,
-		Contacts           = 0x004,
-		Sessions           = 0x008,
-		PersonalChats      = 0x010,
-		BotChats           = 0x020,
-		PrivateGroups      = 0x040,
-		PublicGroups       = 0x080,
-		PrivateChannels    = 0x100,
-		PublicChannels     = 0x200,
+		PersonalInfo        = 0x001,
+		Userpics            = 0x002,
+		Contacts            = 0x004,
+		Sessions            = 0x008,
+		PersonalChats       = 0x010,
+		BotChats            = 0x020,
+		PrivateGroups       = 0x040,
+		PublicGroups        = 0x080,
+		PrivateChannels     = 0x100,
+		PublicChannels      = 0x200,
 
-		GroupsMask         = PrivateGroups | PublicGroups,
-		ChannelsMask       = PrivateChannels | PublicChannels,
-		GroupsChannelsMask = GroupsMask | ChannelsMask,
-		AnyChatsMask       = PersonalChats | BotChats | GroupsChannelsMask,
+		GroupsMask          = PrivateGroups | PublicGroups,
+		ChannelsMask        = PrivateChannels | PublicChannels,
+		GroupsChannelsMask  = GroupsMask | ChannelsMask,
+		NonChannelChatsMask = PersonalChats | BotChats | PrivateGroups,
+		AnyChatsMask        = PersonalChats | BotChats | GroupsChannelsMask,
 	};
 	using Types = base::flags<Type>;
 	friend inline constexpr auto is_flag_type(Type) { return true; };

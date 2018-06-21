@@ -490,7 +490,7 @@ Result TextWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
 					"Photo",
 					(userpic.image.file.relativePath.isEmpty()
 						? QByteArray("(file unavailable)")
-						: userpic.image.file.relativePath.toUtf8())
+						: FormatFilePath(userpic.image.file))
 				},
 			}));
 		}
@@ -792,7 +792,12 @@ Result TextWriter::writeChatEnd() {
 	return _chats->writeBlock(SerializeKeyValue({
 		{ "Name", NameString(_dialog.name, _dialog.type) },
 		{ "Type", TypeString(_dialog.type) },
-		{ "Messages count", Data::NumberToString(_messagesCount) },
+		{
+			(_dialog.onlyMyMessages
+				? "Outgoing messages count"
+				: "Messages count"),
+			Data::NumberToString(_messagesCount)
+		},
 		{
 			"Content",
 			(_messagesCount > 0

@@ -93,6 +93,7 @@ private:
 	struct UserpicsProcess;
 	struct FileProcess;
 	struct FileProgress;
+	struct ChatsProcess;
 	struct LeftChannelsProcess;
 	struct DialogsProcess;
 	struct ChatProcess;
@@ -100,6 +101,7 @@ private:
 	void startMainSession(FnMut<void()> done);
 	void sendNextStartRequest();
 	void requestUserpicsCount();
+	void requestSplitRanges();
 	void requestDialogsCount();
 	void requestLeftChannelsCount();
 	void finishStartProcess();
@@ -114,6 +116,8 @@ private:
 	void finishUserpicsSlice();
 	void finishUserpics();
 
+	void validateSplits();
+
 	void requestDialogsSlice();
 	void appendDialogsSlice(Data::DialogsInfo &&info);
 	void finishDialogsList();
@@ -122,9 +126,19 @@ private:
 	void requestLeftChannelsSlice();
 	void appendLeftChannelsSlice(Data::DialogsInfo &&info);
 
-	void appendChatsSlice(Data::DialogsInfo &to, Data::DialogsInfo &&info);
+	void appendChatsSlice(
+		ChatsProcess &to,
+		Data::DialogsInfo &&info,
+		int splitIndex);
 
-	void requestMessagesSlice(FnMut<bool(int count)> start = nullptr);
+	void requestMessagesCount(int localSplitIndex);
+	void requestMessagesSlice();
+	void requestChatMessages(
+		int splitIndex,
+		int offsetId,
+		int addOffset,
+		int limit,
+		FnMut<void(MTPmessages_Messages&&)> done);
 	void loadMessagesFiles(Data::MessagesSlice &&slice);
 	void loadNextMessageFile();
 	bool loadMessageFileProgress(FileProgress value);
@@ -150,6 +164,9 @@ private:
 	template <typename Request>
 	[[nodiscard]] auto mainRequest(Request &&request);
 
+	template <typename Request>
+	[[nodiscard]] auto splitRequest(int index, Request &&request);
+
 	[[nodiscard]] auto fileRequest(
 		const Data::FileLocation &location,
 		int offset);
@@ -173,6 +190,7 @@ private:
 	std::unique_ptr<LeftChannelsProcess> _leftChannelsProcess;
 	std::unique_ptr<DialogsProcess> _dialogsProcess;
 	std::unique_ptr<ChatProcess> _chatProcess;
+	QVector<MTPMessageRange> _splits;
 
 	rpl::event_stream<RPCError> _errors;
 	rpl::event_stream<Output::Result> _ioErrors;

@@ -446,13 +446,15 @@ struct DialogInfo {
 	TimeId topMessageDate = 0;
 	PeerId peerId = 0;
 
+	// User messages splits which contained that dialog.
+	std::vector<int> splits;
+
 	// Filled after the whole dialogs list is accumulated.
 	bool onlyMyMessages = false;
 	QString relativePath;
 
 	// Filled when requesting dialog messages.
-	int messagesCount = 0;
-
+	std::vector<int> messagesCountPerSplit;
 };
 
 struct DialogsInfo {

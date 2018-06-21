@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <vector>
 #include <map>
+#include <set>
 #include <deque>
 #include <atomic>
 

@@ -1089,6 +1089,8 @@ void FinalizeDialogsInfo(DialogsInfo &info, const Settings &settings) {
 			Unexpected("Type in ApiWrap::onlyMyMessages.");
 		}();
 		dialog.onlyMyMessages = ((settings.fullChats & setting) != setting);
+
+		ranges::reverse(dialog.splits);
 	}
 }
 
