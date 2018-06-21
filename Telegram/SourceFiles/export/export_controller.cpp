@@ -33,6 +33,7 @@ public:
 
 	// Processing step.
 	void startExport(const Settings &settings);
+	void cancelExportFast();
 
 private:
 	using Step = ProcessingState::Step;
@@ -153,6 +154,9 @@ rpl::producer<State> Controller::state() const {
 }
 
 void Controller::setState(State &&state) {
+	if (_state.is<CancelledState>()) {
+		return;
+	}
 	_state = std::move(state);
 	_stateChanges.fire_copy(_state);
 }
@@ -326,6 +330,11 @@ void Controller::fillSubstepsInSteps(const ApiWrap::StartInfo &info) {
 	_substepsTotal = ranges::accumulate(_substepsInStep, 0);
 }
 
+void Controller::cancelExportFast() {
+	_api.cancelExportFast();
+	setState(CancelledState());
+}
+
 void Controller::exportNext() {
 	if (!++_stepIndex) {
 		if (ioCatchError(_writer->start(_settings, &_stats))) {
@@ -336,9 +345,12 @@ void Controller::exportNext() {
 		if (ioCatchError(_writer->finish())) {
 			return;
 		}
-		setFinishedState();
+		_api.finishExport([=] {
+			setFinishedState();
+		});
 		return;
 	}
+
 	const auto step = _steps[_stepIndex];
 	switch (step) {
 	case Step::Initializing: return initialize();
@@ -710,6 +722,14 @@ void ControllerWrap::startExport(const Settings &settings) {
 
 	_wrapped.with([=](Controller &controller) {
 		controller.startExport(settings);
+	});
+}
+
+void ControllerWrap::cancelExportFast() {
+	LOG(("Export Info: Cancelled export."));
+
+	_wrapped.with([=](Controller &controller) {
+		controller.cancelExportFast();
 	});
 }
 

@@ -20,6 +20,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Export {
 namespace View {
+namespace {
+
+constexpr auto kAddDelay = TimeId(60);
+
+} // namespace
 
 PanelController::PanelController(not_null<ControllerWrap*> process)
 : _process(process) {
@@ -64,17 +69,27 @@ void PanelController::showSettings() {
 }
 
 void PanelController::showError(const ApiErrorState &error) {
-	showError("API Error happened :(\n"
-		+ QString::number(error.data.code()) + ": " + error.data.type()
-		+ "\n" + error.data.description());
+	if (error.data.type() == qstr("TAKEOUT_INVALID")) {
+		showError(lang(lng_export_invalid));
+	} else if (error.data.type().startsWith(qstr("TAKEOUT_INIT_DELAY_"))) {
+		const auto seconds = std::max(error.data.type().mid(
+			qstr("TAKEOUT_INIT_DELAY_").size()).toInt(), 0) + kAddDelay;
+		const auto now = QDateTime::currentDateTime();
+		const auto when = now.addSecs(seconds);
+		showError(lng_export_delay(lt_date, langDateTimeFull(when)));
+	} else {
+		showCriticalError("API Error happened :(\n"
+			+ QString::number(error.data.code()) + ": " + error.data.type()
+			+ "\n" + error.data.description());
+	}
 }
 
 void PanelController::showError(const OutputErrorState &error) {
-	showError("Disk Error happened :(\n"
+	showCriticalError("Disk Error happened :(\n"
 		"Could not write path:\n" + error.path);
 }
 
-void PanelController::showError(const QString &text) {
+void PanelController::showCriticalError(const QString &text) {
 	auto container = base::make_unique_q<Ui::PaddingWrap<Ui::FlatLabel>>(
 		_panel.get(),
 		object_ptr<Ui::FlatLabel>(
@@ -89,6 +104,26 @@ void PanelController::showError(const QString &text) {
 	}, container->lifetime());
 
 	_panel->showInner(std::move(container));
+	_panel->setHideOnDeactivate(false);
+}
+
+void PanelController::showError(const QString &text) {
+	auto box = Box<InformBox>(text);
+	const auto weak = make_weak(box.data());
+	const auto hidden = _panel->isHidden();
+	_panel->showBox(
+		std::move(box),
+		LayerOption::CloseOther,
+		hidden ? anim::type::instant : anim::type::normal);
+	weak->setCloseByEscape(false);
+	weak->setCloseByOutsideClick(false);
+	weak->boxClosing(
+	) | rpl::start_with_next([=] {
+		_panel->hideGetDuration();
+	}, weak->lifetime());
+	if (hidden) {
+		_panel->showAndActivate();
+	}
 	_panel->setHideOnDeactivate(false);
 }
 
@@ -125,10 +160,11 @@ void PanelController::stopWithConfirmation(FnMut<void()> callback) {
 		return;
 	}
 	auto stop = [=, callback = std::move(callback)]() mutable {
-		auto saved = std::move(callback);
-		stopExport();
-		if (saved) {
+		if (auto saved = std::move(callback)) {
+			stopExport();
 			saved();
+		} else {
+			_process->cancelExportFast();
 		}
 	};
 	const auto hidden = _panel->isHidden();
@@ -157,7 +193,7 @@ void PanelController::stopExport() {
 	_panel->hideGetDuration();
 }
 
-rpl::producer<> PanelController::closed() const {
+rpl::producer<> PanelController::stopRequests() const {
 	return _panelCloseEvents.events(
 	) | rpl::flatten_latest(
 	) | rpl::filter([=] {
@@ -174,9 +210,11 @@ void PanelController::updateState(State &&state) {
 		showError(*apiError);
 	} else if (const auto error = base::get_if<OutputErrorState>(&_state)) {
 		showError(*error);
-	} else if (const auto finished = base::get_if<FinishedState>(&_state)) {
+	} else if (_state.is<FinishedState>()) {
 		_panel->setTitle(Lang::Viewer(lng_export_title));
 		_panel->setHideOnDeactivate(false);
+	} else if (_state.is<CancelledState>()) {
+		stopExport();
 	}
 }
 

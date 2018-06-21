@@ -74,6 +74,9 @@ struct OutputErrorState {
 	QString path;
 };
 
+struct CancelledState {
+};
+
 struct FinishedState {
 	QString path;
 	int filesCount = 0;
@@ -85,6 +88,7 @@ using State = base::optional_variant<
 	ProcessingState,
 	ApiErrorState,
 	OutputErrorState,
+	CancelledState,
 	FinishedState>;
 
 //struct PasswordUpdate {
@@ -113,6 +117,7 @@ public:
 
 	// Processing step.
 	void startExport(const Settings &settings);
+	void cancelExportFast();
 
 	rpl::lifetime &lifetime();
 

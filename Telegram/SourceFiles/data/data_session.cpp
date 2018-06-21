@@ -77,7 +77,7 @@ void Session::startExport() {
 
 	_exportViewChanges.fire(_exportPanel.get());
 
-	_exportPanel->closed(
+	_exportPanel->stopRequests(
 	) | rpl::start_with_next([=] {
 		stopExport();
 	}, _export->lifetime());

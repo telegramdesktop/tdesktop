@@ -198,7 +198,7 @@ void ConcurrentSender::senderRequestFail(
 }
 
 void ConcurrentSender::senderRequestCancel(mtpRequestId requestId) {
-	_requests.erase(requestId);
+	senderRequestDetach(requestId);
 	with_instance([=](not_null<Instance*> instance) {
 		instance->cancel(requestId);
 	});
@@ -214,6 +214,10 @@ void ConcurrentSender::senderRequestCancelAll() {
 			instance->cancel(requestId);
 		}
 	});
+}
+
+void ConcurrentSender::senderRequestDetach(mtpRequestId requestId) {
+	_requests.erase(requestId);
 }
 
 } // namespace MTP

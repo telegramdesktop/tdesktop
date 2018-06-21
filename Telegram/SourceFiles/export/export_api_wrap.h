@@ -81,6 +81,9 @@ public:
 		Fn<bool(Data::MessagesSlice&&)> slice,
 		FnMut<void()> done);
 
+	void finishExport(FnMut<void()> done);
+	void cancelExportFast();
+
 	~ApiWrap();
 
 private:

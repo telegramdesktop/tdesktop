@@ -29,7 +29,7 @@ public:
 	void activatePanel();
 	void stopWithConfirmation(FnMut<void()> callback = nullptr);
 
-	rpl::producer<> closed() const;
+	rpl::producer<> stopRequests() const;
 
 	rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -50,6 +50,7 @@ private:
 	void showError(const ApiErrorState &error);
 	void showError(const OutputErrorState &error);
 	void showError(const QString &text);
+	void showCriticalError(const QString &text);
 
 	not_null<ControllerWrap*> _process;
 

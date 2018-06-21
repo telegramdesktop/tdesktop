@@ -707,6 +707,23 @@ void ApiWrap::requestMessages(
 	});
 }
 
+void ApiWrap::finishExport(FnMut<void()> done) {
+	const auto guard = gsl::finally([&] { _takeoutId = base::none; });
+
+	mainRequest(MTPaccount_FinishTakeoutSession(
+		MTP_flags(MTPaccount_FinishTakeoutSession::Flag::f_success)
+	)).done(std::move(done)).send();
+}
+
+void ApiWrap::cancelExportFast() {
+	if (_takeoutId.has_value()) {
+		const auto requestId = mainRequest(MTPaccount_FinishTakeoutSession(
+			MTP_flags(0)
+		)).send();
+		_mtp.request(requestId).detach();
+	}
+}
+
 void ApiWrap::requestDialogsSlice() {
 	Expects(_dialogsProcess != nullptr);
 

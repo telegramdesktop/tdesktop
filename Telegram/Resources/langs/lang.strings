@@ -1697,6 +1697,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_export_total_files" = "Total files: {count}.";
 "lng_export_total_size" = "Total size: {size}.";
 "lng_export_folder" = "Choose export folder";
+"lng_export_invalid" = "Sorry, you have started a new data export, so this data export is now cancelled.";
+"lng_export_delay" = "Sorry, for security reasons this data export will be available for you:\n\n{date}\n\nAt this time please try again.";
 
 // Wnd specific
 

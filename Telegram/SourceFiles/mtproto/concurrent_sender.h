@@ -148,6 +148,7 @@ public:
 	class SentRequestWrap {
 	public:
 		void cancel();
+		void detach();
 
 	private:
 		friend class ConcurrentSender;
@@ -190,6 +191,7 @@ private:
 		RPCError &&error);
 	void senderRequestCancel(mtpRequestId requestId);
 	void senderRequestCancelAll();
+	void senderRequestDetach(mtpRequestId requestId);
 
 	const Fn<void(FnMut<void()>)> _runner;
 	base::flat_map<mtpRequestId, Handlers> _requests;
@@ -444,6 +446,10 @@ auto ConcurrentSender::SpecificRequestBuilder<Request>::afterRequest(
 
 inline void ConcurrentSender::SentRequestWrap::cancel() {
 	_sender->senderRequestCancel(_requestId);
+}
+
+inline void ConcurrentSender::SentRequestWrap::detach() {
+	_sender->senderRequestDetach(_requestId);
 }
 
 inline ConcurrentSender::SentRequestWrap::SentRequestWrap(
