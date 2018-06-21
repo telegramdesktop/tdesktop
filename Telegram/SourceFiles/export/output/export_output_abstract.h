@@ -29,10 +29,10 @@ struct Result;
 class Stats;
 
 enum class Format {
+	Json,
 	Text,
 	Yaml,
 	Html,
-	Json,
 };
 
 class AbstractWriter {

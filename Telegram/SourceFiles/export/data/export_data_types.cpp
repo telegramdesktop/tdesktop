@@ -61,6 +61,76 @@ Utf8String ParseString(const MTPstring &data) {
 	return data.v;
 }
 
+std::vector<TextPart> ParseText(
+		const MTPstring &data,
+		const QVector<MTPMessageEntity> &entities) {
+	using Type = TextPart::Type;
+	const auto text = QString::fromUtf8(data.v);
+	const auto size = data.v.size();
+	const auto mid = [&](int offset, int length) {
+		return text.mid(offset, length).toUtf8();
+	};
+	auto result = std::vector<TextPart>();
+	auto offset = 0;
+	auto addTextPart = [&](int till) {
+		if (till > offset) {
+			auto part = TextPart();
+			part.text = mid(offset, till - offset);
+			result.push_back(std::move(part));
+			offset = till;
+		}
+	};
+	for (const auto &entity : entities) {
+		const auto start = entity.match([](const auto &data) {
+			return data.voffset.v;
+		});
+		const auto length = entity.match([](const auto &data) {
+			return data.vlength.v;
+		});
+
+		if (start < offset || length <= 0 || start + length > size) {
+			continue;
+		}
+
+		addTextPart(start);
+
+		auto part = TextPart();
+		part.type = entity.match(
+			[](const MTPDmessageEntityUnknown&) { return Type::Unknown; },
+			[](const MTPDmessageEntityMention&) { return Type::Mention; },
+			[](const MTPDmessageEntityHashtag&) { return Type::Hashtag; },
+			[](const MTPDmessageEntityBotCommand&) {
+				return Type::BotCommand; },
+			[](const MTPDmessageEntityUrl&) { return Type::Url; },
+			[](const MTPDmessageEntityEmail&) { return Type::Email; },
+			[](const MTPDmessageEntityBold&) { return Type::Bold; },
+			[](const MTPDmessageEntityItalic&) { return Type::Italic; },
+			[](const MTPDmessageEntityCode&) { return Type::Code; },
+			[](const MTPDmessageEntityPre&) { return Type::Pre; },
+			[](const MTPDmessageEntityTextUrl&) { return Type::TextUrl; },
+			[](const MTPDmessageEntityMentionName&) {
+				return Type::MentionName; },
+			[](const MTPDinputMessageEntityMentionName&) {
+				return Type::MentionName; },
+			[](const MTPDmessageEntityPhone&) { return Type::Phone; },
+			[](const MTPDmessageEntityCashtag&) { return Type::Cashtag; });
+		part.text = mid(start, length);
+		part.additional = entity.match(
+		[](const MTPDmessageEntityPre &data) {
+			return ParseString(data.vlanguage);
+		}, [](const MTPDmessageEntityTextUrl &data) {
+			return ParseString(data.vurl);
+		}, [](const MTPDmessageEntityMentionName &data) {
+			return NumberToString(data.vuser_id.v);
+		}, [](const auto &) { return Utf8String(); });
+
+		result.push_back(std::move(part));
+		offset = start + length;
+	}
+	addTextPart(size);
+	return result;
+}
+
 Utf8String FillLeft(const Utf8String &data, int length, char filler) {
 	if (length <= data.size()) {
 		return data;
@@ -812,7 +882,11 @@ Message ParseMessage(
 				mediaFolder);
 			context.botId = 0;
 		}
-		result.text = ParseString(data.vmessage);
+		result.text = ParseText(
+			data.vmessage,
+			(data.has_entities()
+				? data.ventities.v
+				: QVector<MTPMessageEntity>{}));
 	}, [&](const MTPDmessageService &data) {
 		result.id = data.vid.v;
 		const auto peerId = ParsePeerId(data.vto_id);

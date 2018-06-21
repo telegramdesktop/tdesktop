@@ -415,6 +415,29 @@ ServiceAction ParseServiceAction(
 	const MTPMessageAction &data,
 	const QString &mediaFolder);
 
+struct TextPart {
+	enum class Type {
+		Text,
+		Unknown,
+		Mention,
+		Hashtag,
+		BotCommand,
+		Url,
+		Email,
+		Bold,
+		Italic,
+		Code,
+		Pre,
+		TextUrl,
+		MentionName,
+		Phone,
+		Cashtag,
+	};
+	Type type = Type::Text;
+	Utf8String text;
+	Utf8String additional;
+};
+
 struct Message {
 	int32 id = 0;
 	int32 chatId = 0;
@@ -425,7 +448,7 @@ struct Message {
 	Utf8String signature;
 	int32 viaBotId = 0;
 	int32 replyToMsgId = 0;
-	Utf8String text;
+	std::vector<TextPart> text;
 	Media media;
 	ServiceAction action;
 

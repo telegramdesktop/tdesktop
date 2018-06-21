@@ -135,6 +135,64 @@ QByteArray SerializeArray(
 	return result;
 }
 
+QByteArray SerializeText(
+		Context &context,
+		const std::vector<Data::TextPart> &data) {
+	using Type = Data::TextPart::Type;
+
+	if (data.empty()) {
+		return SerializeString("");
+	}
+	const auto text = ranges::view::all(
+		data
+	) | ranges::view::transform([&](const Data::TextPart &part) {
+		if (part.type == Type::Text) {
+			return SerializeString(part.text);
+		}
+		const auto typeString = [&] {
+			switch (part.type) {
+			case Type::Unknown: return "unknown";
+			case Type::Mention: return "mention";
+			case Type::Hashtag: return "hashtag";
+			case Type::BotCommand: return "bot_command";
+			case Type::Url: return "link";
+			case Type::Email: return "email";
+			case Type::Bold: return "bold";
+			case Type::Italic: return "italic";
+			case Type::Code: return "code";
+			case Type::Pre: return "pre";
+			case Type::TextUrl: return "text_link";
+			case Type::MentionName: return "mention_name";
+			case Type::Phone: return "phone";
+			case Type::Cashtag: return "cashtag";
+			}
+			Unexpected("Type in SerializeText.");
+		}();
+		const auto additionalName = (part.type == Type::MentionName)
+			? "user_id"
+			: (part.type == Type::Pre)
+			? "language"
+			: (part.type == Type::TextUrl)
+			? "href"
+			: "none";
+		const auto additionalValue = (part.type == Type::MentionName)
+			? part.additional
+			: (part.type == Type::Pre || part.type == Type::TextUrl)
+			? SerializeString(part.additional)
+			: QByteArray();
+		return SerializeObject(context, {
+			{ "type", SerializeString(typeString) },
+			{ "text", SerializeString(part.text) },
+			{ additionalName, additionalValue },
+		});
+	}) | ranges::to_vector;
+
+	if (data.size() == 1 && data[0].type == Data::TextPart::Type::Text) {
+		return text[0];
+	}
+	return SerializeArray(context, text);
+}
+
 Data::Utf8String FormatUsername(const Data::Utf8String &username) {
 	return username.isEmpty() ? username : ('@' + username);
 }
@@ -493,7 +551,7 @@ QByteArray SerializeMessage(
 		Unexpected("Unsupported message.");
 	}, [](const base::none_type &) {});
 
-	push("text", message.text);
+	pushBare("text", SerializeText(context, message.text));
 
 	return serialized();
 }

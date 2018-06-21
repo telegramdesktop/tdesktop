@@ -425,7 +425,12 @@ QByteArray SerializeMessage(
 		Unexpected("Unsupported message.");
 	}, [](const base::none_type &) {});
 
-	push("Text", message.text);
+	auto value = JoinList(QByteArray(), ranges::view::all(
+		message.text
+	) | ranges::view::transform([](const Data::TextPart &part) {
+		return part.text;
+	}) | ranges::to_vector);
+	push("Text", value);
 
 	return SerializeKeyValue(std::move(values));
 }
