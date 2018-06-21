@@ -47,10 +47,12 @@ QByteArray SerializeString(const QByteArray &value) {
 			} else {
 				result.append('0' + left);
 			}
-		} else if (ch == 0xE2 && (p + 2 < end) && *(p + 1) == 0x80) {
-			if (*(p + 2) == 0xA8) { // Line separator.
+		} else if (ch == char(0xE2)
+			&& (p + 2 < end)
+			&& *(p + 1) == char(0x80)) {
+			if (*(p + 2) == char(0xA8)) { // Line separator.
 				result.append("\\u2028", 6);
-			} else if (*(p + 2) == 0xA9) { // Paragraph separator.
+			} else if (*(p + 2) == char(0xA9)) { // Paragraph separator.
 				result.append("\\u2029", 6);
 			} else {
 				result.append(ch);

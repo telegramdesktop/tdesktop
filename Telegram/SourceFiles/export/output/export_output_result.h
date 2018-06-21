@@ -19,7 +19,7 @@ struct Result {
 		FatalError
 	};
 
-	Result(Type type, QString path) : type(type), path(path) {
+	Result(Type type, QString path) : path(path), type(type) {
 	}
 
 	static Result Success() {

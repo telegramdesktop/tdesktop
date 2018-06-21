@@ -1057,7 +1057,6 @@ DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
 			info.peerId = ParsePeerId(fields.vpeer);
 			const auto peerIt = peers.find(info.peerId);
 			if (peerIt != end(peers)) {
-				using Type = DialogInfo::Type;
 				const auto &peer = peerIt->second;
 				info.type = peer.user()
 					? DialogTypeFromUser(*peer.user())

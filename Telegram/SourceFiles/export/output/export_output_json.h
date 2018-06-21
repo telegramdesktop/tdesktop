@@ -18,8 +18,8 @@ namespace details {
 
 struct JsonContext {
 	using Type = bool;
-	static const auto kObject = Type(true);
-	static const auto kArray = Type(false);
+	static constexpr auto kObject = Type(true);
+	static constexpr auto kArray = Type(false);
 
 	// Always fun to use std::vector<bool>.
 	std::vector<Type> nesting;
