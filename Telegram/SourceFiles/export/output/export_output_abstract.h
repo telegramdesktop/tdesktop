@@ -29,8 +29,8 @@ struct Result;
 class Stats;
 
 enum class Format {
-	Json,
 	Text,
+	Json,
 	Yaml,
 	Html,
 };

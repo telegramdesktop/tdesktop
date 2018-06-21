@@ -29,6 +29,7 @@ private:
 	using Types = Settings::Types;
 	using MediaType = MediaSettings::Type;
 	using MediaTypes = MediaSettings::Types;
+	using Format = Output::Format;
 
 	void setupContent();
 	void chooseFolder();

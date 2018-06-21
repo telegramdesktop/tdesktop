@@ -1676,6 +1676,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_export_option_gifs" = "Animated GIFs";
 "lng_export_option_files" = "Files";
 "lng_export_option_size_limit" = "Size limit: {size}";
+"lng_export_header_format" = "Format";
+"lng_export_option_text" = "Human-readable text";
+"lng_export_option_json" = "Machine-readable JSON";
 "lng_export_start" = "Export";
 "lng_export_state_initializing" = "Initializing...";
 "lng_export_state_userpics" = "Personal photos";

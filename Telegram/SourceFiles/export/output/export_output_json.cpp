@@ -143,6 +143,9 @@ QByteArray SerializeText(
 	if (data.empty()) {
 		return SerializeString("");
 	}
+
+	context.nesting.push_back(Context::kArray);
+
 	const auto text = ranges::view::all(
 		data
 	) | ranges::view::transform([&](const Data::TextPart &part) {
@@ -186,6 +189,8 @@ QByteArray SerializeText(
 			{ additionalName, additionalValue },
 		});
 	}) | ranges::to_vector;
+
+	context.nesting.pop_back();
 
 	if (data.size() == 1 && data[0].type == Data::TextPart::Type::Text) {
 		return text[0];

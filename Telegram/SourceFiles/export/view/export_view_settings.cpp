@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "export/view/export_view_settings.h"
 
+#include "export/output/export_output_abstract.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
@@ -212,6 +213,25 @@ void SettingsWidget::setupContent() {
 	addSubOption(lng_export_option_gifs, MediaType::GIF);
 	addSubOption(lng_export_option_files, MediaType::File);
 	createSizeSlider(media);
+
+	const auto formatGroup = std::make_shared<Ui::RadioenumGroup<Format>>(
+		_data.format);
+	formatGroup->setChangedCallback([=](Format format) {
+		_data.format = format;
+	});
+	const auto addFormatOption = [&](LangKey key, Format format) {
+		const auto radio = content->add(
+			object_ptr<Ui::Radioenum<Format>>(
+				content,
+				formatGroup,
+				format,
+				lang(key),
+				st::defaultBoxCheckbox),
+			st::exportSettingPadding);
+	};
+	addHeader(content, lng_export_header_format);
+	addFormatOption(lng_export_option_text, Format::Text);
+	addFormatOption(lng_export_option_json, Format::Json);
 
 	_dataTypesChanges.events_starting_with_copy(
 		_data.types
