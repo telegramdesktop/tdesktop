@@ -729,7 +729,13 @@ void ApiWrap::requestSessions(FnMut<void(Data::SessionsList&&)> done) {
 	mainRequest(MTPaccount_GetAuthorizations(
 	)).done([=, done = std::move(done)](
 			const MTPaccount_Authorizations &result) mutable {
-		done(Data::ParseSessionsList(result));
+		auto list = Data::ParseSessionsList(result);
+		mainRequest(MTPaccount_GetWebAuthorizations(
+		)).done([=, done = std::move(done), list = std::move(list)](
+				const MTPaccount_WebAuthorizations &result) mutable {
+			list.webList = Data::ParseWebSessionsList(result).webList;
+			done(std::move(list));
+		}).send();
 	}).send();
 }
 

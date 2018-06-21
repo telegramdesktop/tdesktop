@@ -14,7 +14,11 @@ namespace Export {
 namespace Output {
 
 std::unique_ptr<AbstractWriter> CreateWriter(Format format) {
-	return std::make_unique<JsonWriter>();
+	switch (format) {
+	case Format::Text: return std::make_unique<TextWriter>();
+	case Format::Json: return std::make_unique<JsonWriter>();
+	}
+	Unexpected("Format in Export::Output::CreateWriter.");
 }
 
 } // namespace Output

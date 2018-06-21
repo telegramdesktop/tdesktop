@@ -237,11 +237,24 @@ struct Session {
 	Utf8String region;
 };
 
+struct WebSession {
+	Utf8String botUsername;
+	Utf8String domain;
+	Utf8String browser;
+	Utf8String platform;
+	TimeId created = 0;
+	TimeId lastActive = 0;
+	Utf8String ip;
+	Utf8String region;
+};
+
 struct SessionsList {
 	std::vector<Session> list;
+	std::vector<WebSession> webList;
 };
 
 SessionsList ParseSessionsList(const MTPaccount_Authorizations &data);
+SessionsList ParseWebSessionsList(const MTPaccount_WebAuthorizations &data);
 
 struct UnsupportedMedia {
 };

@@ -621,6 +621,17 @@ Result TextWriter::writeFrequentContacts(const Data::ContactsList &data) {
 Result TextWriter::writeSessionsList(const Data::SessionsList &data) {
 	Expects(_summary != nullptr);
 
+	if (const auto result = writeSessions(data); !result) {
+		return result;
+	} else if (const auto result = writeWebSessions(data); !result) {
+		return result;
+	}
+	return Result::Success();
+}
+
+Result TextWriter::writeSessions(const Data::SessionsList &data) {
+	Expects(_summary != nullptr);
+
 	if (data.list.empty()) {
 		return Result::Success();
 	}
@@ -654,6 +665,51 @@ Result TextWriter::writeSessionsList(const Data::SessionsList &data) {
 
 	const auto header = "Sessions "
 		"(" + Data::NumberToString(data.list.size()) + ") - sessions.txt"
+		+ kLineBreak
+		+ kLineBreak;
+	return _summary->writeBlock(header);
+}
+
+Result TextWriter::writeWebSessions(const Data::SessionsList &data) {
+	Expects(_summary != nullptr);
+
+	if (data.webList.empty()) {
+		return Result::Success();
+	}
+
+	const auto file = fileWithRelativePath("web_sessions.txt");
+	auto list = std::vector<QByteArray>();
+	list.reserve(data.webList.size());
+	for (const auto &session : data.webList) {
+		list.push_back(SerializeKeyValue({
+			{ "Last active", Data::FormatDateTime(session.lastActive) },
+			{ "Last IP address", session.ip },
+			{ "Last region", session.region },
+			{
+				"Bot username",
+				(session.botUsername.isEmpty()
+					? Data::Utf8String("(unknown)")
+					: session.botUsername)
+			},
+			{
+				"Domain name",
+				(session.domain.isEmpty()
+					? Data::Utf8String("(unknown)")
+					: session.domain)
+			},
+			{ "Browser", session.browser },
+			{ "Platform", session.platform },
+			{ "Created", Data::FormatDateTime(session.created) },
+		}));
+	}
+	const auto full = JoinList(kLineBreak, list);
+	if (const auto result = file->writeBlock(full); !result) {
+		return result;
+	}
+
+	const auto header = "Web sessions "
+		"(" + Data::NumberToString(data.webList.size()) + ")"
+		" - web_sessions.txt"
 		+ kLineBreak
 		+ kLineBreak;
 	return _summary->writeBlock(header);

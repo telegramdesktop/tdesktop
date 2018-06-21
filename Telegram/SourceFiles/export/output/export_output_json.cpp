@@ -688,6 +688,17 @@ Result JsonWriter::writeFrequentContacts(const Data::ContactsList &data) {
 Result JsonWriter::writeSessionsList(const Data::SessionsList &data) {
 	Expects(_output != nullptr);
 
+	if (const auto result = writeSessions(data); !result) {
+		return result;
+	} else if (const auto result = writeWebSessions(data); !result) {
+		return result;
+	}
+	return Result::Success();
+}
+
+Result JsonWriter::writeSessions(const Data::SessionsList &data) {
+	Expects(_output != nullptr);
+
 	auto block = prepareObjectItemStart("sessions");
 	block.append(pushNesting(Context::kArray));
 	for (const auto &session : data.list) {
@@ -708,6 +719,27 @@ Result JsonWriter::writeSessionsList(const Data::SessionsList &data) {
 			{ "device_model", SerializeString(session.deviceModel) },
 			{ "platform", SerializeString(session.platform) },
 			{ "system_version", SerializeString(session.systemVersion) },
+			{ "created", SerializeDate(session.created) },
+		}));
+	}
+	return _output->writeBlock(block + popNesting());
+}
+
+Result JsonWriter::writeWebSessions(const Data::SessionsList &data) {
+	Expects(_output != nullptr);
+
+	auto block = prepareObjectItemStart("web_sessions");
+	block.append(pushNesting(Context::kArray));
+	for (const auto &session : data.webList) {
+		block.append(prepareArrayItemStart());
+		block.append(SerializeObject(_context, {
+			{ "last_active", SerializeDate(session.lastActive) },
+			{ "last_ip", SerializeString(session.ip) },
+			{ "last_region", SerializeString(session.region) },
+			{ "bot_username", StringAllowNull(session.botUsername) },
+			{ "domain_name", StringAllowNull(session.domain) },
+			{ "browser", SerializeString(session.browser) },
+			{ "platform", SerializeString(session.platform) },
 			{ "created", SerializeDate(session.created) },
 		}));
 	}

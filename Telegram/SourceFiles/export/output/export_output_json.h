@@ -72,6 +72,9 @@ private:
 	Result writeSavedContacts(const Data::ContactsList &data);
 	Result writeFrequentContacts(const Data::ContactsList &data);
 
+	Result writeSessions(const Data::SessionsList &data);
+	Result writeWebSessions(const Data::SessionsList &data);
+
 	Result writeChatsStart(
 		const Data::DialogsInfo &data,
 		const QByteArray &listName);

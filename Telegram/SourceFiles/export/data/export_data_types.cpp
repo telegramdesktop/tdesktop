@@ -963,33 +963,66 @@ bool AppendTopPeers(ContactsList &to, const MTPcontacts_TopPeers &data) {
 }
 
 Session ParseSession(const MTPAuthorization &data) {
-	Expects(data.type() == mtpc_authorization);
-
-	const auto &fields = data.c_authorization();
-	auto result = Session();
-	result.platform = ParseString(fields.vplatform);
-	result.deviceModel = ParseString(fields.vdevice_model);
-	result.systemVersion = ParseString(fields.vsystem_version);
-	result.applicationName = ParseString(fields.vapp_name);
-	result.applicationVersion = ParseString(fields.vapp_version);
-	result.created = fields.vdate_created.v;
-	result.lastActive = fields.vdate_active.v;
-	result.ip = ParseString(fields.vip);
-	result.country = ParseString(fields.vcountry);
-	result.region = ParseString(fields.vregion);
-	return result;
+	return data.match([&](const MTPDauthorization &data) {
+		auto result = Session();
+		result.platform = ParseString(data.vplatform);
+		result.deviceModel = ParseString(data.vdevice_model);
+		result.systemVersion = ParseString(data.vsystem_version);
+		result.applicationName = ParseString(data.vapp_name);
+		result.applicationVersion = ParseString(data.vapp_version);
+		result.created = data.vdate_created.v;
+		result.lastActive = data.vdate_active.v;
+		result.ip = ParseString(data.vip);
+		result.country = ParseString(data.vcountry);
+		result.region = ParseString(data.vregion);
+		return result;
+	});
 }
 
 SessionsList ParseSessionsList(const MTPaccount_Authorizations &data) {
-	Expects(data.type() == mtpc_account_authorizations);
+	return data.match([](const MTPDaccount_authorizations &data) {
+		auto result = SessionsList();
+		const auto &list = data.vauthorizations.v;
+		result.list.reserve(list.size());
+		for (const auto &session : list) {
+			result.list.push_back(ParseSession(session));
+		}
+		return result;
+	});
+}
 
-	auto result = SessionsList();
-	const auto &list = data.c_account_authorizations().vauthorizations.v;
-	result.list.reserve(list.size());
-	for (const auto &session : list) {
-		result.list.push_back(ParseSession(session));
-	}
-	return result;
+WebSession ParseWebSession(
+		const MTPWebAuthorization &data,
+		const std::map<int32, User> &users) {
+	return data.match([&](const MTPDwebAuthorization &data) {
+		auto result = WebSession();
+		const auto i = users.find(data.vbot_id.v);
+		if (i != users.end() && i->second.isBot) {
+			result.botUsername = i->second.username;
+		}
+		result.domain = ParseString(data.vdomain);
+		result.platform = ParseString(data.vplatform);
+		result.browser = ParseString(data.vbrowser);
+		result.created = data.vdate_created.v;
+		result.lastActive = data.vdate_active.v;
+		result.ip = ParseString(data.vip);
+		result.region = ParseString(data.vregion);
+		return result;
+	});
+}
+
+SessionsList ParseWebSessionsList(
+		const MTPaccount_WebAuthorizations &data) {
+	return data.match([&](const MTPDaccount_webAuthorizations &data) {
+		auto result = SessionsList();
+		const auto users = ParseUsersList(data.vusers);
+		const auto &list = data.vauthorizations.v;
+		result.webList.reserve(list.size());
+		for (const auto &session : list) {
+			result.webList.push_back(ParseWebSession(session, users));
+		}
+		return result;
+	});
 }
 
 DialogInfo::Type DialogTypeFromChat(const Chat &chat) {
