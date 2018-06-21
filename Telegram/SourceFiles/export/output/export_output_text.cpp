@@ -696,7 +696,7 @@ Result TextWriter::writeLeftChannelEnd() {
 }
 
 Result TextWriter::writeLeftChannelsEnd() {
-	return Result::Success();
+	return writeChatsEnd();
 }
 
 Result TextWriter::writeChatsStart(
@@ -768,7 +768,7 @@ Result TextWriter::writeChatEnd() {
 		case Type::PrivateGroup: return "Private group";
 		case Type::PublicGroup: return "Public group";
 		case Type::PrivateChannel: return "Private channel";
-		case Type::PublicChannel: return "Private channel";
+		case Type::PublicChannel: return "Public channel";
 		}
 		Unexpected("Dialog type in TypeString.");
 	};

@@ -233,14 +233,11 @@ void Controller::startExport(const Settings &settings) {
 }
 
 bool Controller::normalizePath() {
-	const auto check = [&] {
-		return QDir().mkpath(_settings.path);
-	};
 	QDir folder(_settings.path);
 	const auto path = folder.absolutePath();
 	_settings.path = path.endsWith('/') ? path : (path + '/');
 	if (!folder.exists()) {
-		return check();
+		return true;
 	}
 	const auto mode = QDir::AllEntries | QDir::NoDotAndDotDot;
 	const auto list = folder.entryInfoList(mode);
@@ -260,7 +257,7 @@ bool Controller::normalizePath() {
 		++index;
 	}
 	_settings.path += add(index) + '/';
-	return check();
+	return true;
 }
 
 void Controller::fillExportSteps() {
@@ -336,12 +333,7 @@ void Controller::cancelExportFast() {
 }
 
 void Controller::exportNext() {
-	if (!++_stepIndex) {
-		if (ioCatchError(_writer->start(_settings, &_stats))) {
-			return;
-		}
-	}
-	if (_stepIndex >= _steps.size()) {
+	if (++_stepIndex >= _steps.size()) {
 		if (ioCatchError(_writer->finish())) {
 			return;
 		}
@@ -370,6 +362,9 @@ void Controller::initialize() {
 	setState(stateInitializing());
 
 	_api.startExport(_settings, &_stats, [=](ApiWrap::StartInfo info) {
+		if (ioCatchError(_writer->start(_settings, &_stats))) {
+			return;
+		}
 		fillSubstepsInSteps(info);
 		exportNext();
 	});
