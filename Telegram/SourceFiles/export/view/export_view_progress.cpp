@@ -265,7 +265,9 @@ ProgressWidget::ProgressWidget(
 }
 
 rpl::producer<> ProgressWidget::cancelClicks() const {
-	return _cancel ? _cancel->clicks() : rpl::never<>();
+	return _cancel
+		? _cancel->clicks()
+		: (rpl::never<>() | rpl::type_erased());
 }
 
 rpl::producer<> ProgressWidget::doneClicks() const {
