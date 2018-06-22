@@ -87,20 +87,7 @@
       },
     },
     'conditions': [
-      [ '"<!(uname -p)" == "x86_64"', {
-        # 32 bit version can't be linked with debug info or LTO,
-        # virtual memory exhausted :(
-        'cflags_c': [ '-g' ],
-        'cflags_cc': [ '-g' ],
-        'ldflags': [ '-g' ],
-        'configurations': {
-          'Release': {
-            'cflags_c': [ '-flto' ],
-            'cflags_cc': [ '-flto' ],
-            'ldflags': [ '-flto' ],
-          },
-        },
-      }, {
+      [ '"<!(uname -p)" != "x86_64"', {
         'ldflags': [
           '-Wl,-wrap,__divmoddi4',
         ],
