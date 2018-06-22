@@ -67,6 +67,10 @@ public:
 	variable() : _data{} {
 	}
 
+	variable &operator=(variable &&other) {
+		return (*this = std::move(other._data));
+	}
+
 	template <
 		typename OtherType,
 		typename = std::enable_if_t<
