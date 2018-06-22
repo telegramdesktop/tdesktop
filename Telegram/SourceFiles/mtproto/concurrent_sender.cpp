@@ -206,8 +206,8 @@ void ConcurrentSender::senderRequestCancel(mtpRequestId requestId) {
 
 void ConcurrentSender::senderRequestCancelAll() {
 	auto list = std::vector<mtpRequestId>(_requests.size());
-	for (const auto &[requestId, handlers] : base::take(_requests)) {
-		list.push_back(requestId);
+	for (const auto &pair : base::take(_requests)) {
+		list.push_back(pair.first);
 	}
 	with_instance([list = std::move(list)](not_null<Instance*> instance) {
 		for (const auto requestId : list) {
