@@ -95,12 +95,21 @@ void SettingsWidget::setupContent() {
 }
 
 void SettingsWidget::setupOptions(not_null<Ui::VerticalLayout*> container) {
-	addOption(
+	addOptionWithAbout(
 		container,
 		lng_export_option_info,
-		Type::PersonalInfo | Type::Userpics);
-	addOption(container, lng_export_option_contacts, Type::Contacts);
-	addOption(container, lng_export_option_sessions, Type::Sessions);
+		Type::PersonalInfo | Type::Userpics,
+		lng_export_option_info_about);
+	addOptionWithAbout(
+		container,
+		lng_export_option_contacts,
+		Type::Contacts,
+		lng_export_option_contacts_about);
+	addOptionWithAbout(
+		container,
+		lng_export_option_sessions,
+		Type::Sessions,
+		lng_export_option_sessions_about);
 	addHeader(container, lng_export_header_chats);
 	addOption(
 		container,
@@ -309,6 +318,21 @@ not_null<Ui::Checkbox*> SettingsWidget::addOption(
 		});
 	}, lifetime());
 	return checkbox;
+}
+
+void SettingsWidget::addOptionWithAbout(
+		not_null<Ui::VerticalLayout*> container,
+		LangKey key,
+		Types types,
+		LangKey about) {
+	addOption(container, key, types);
+	const auto label = container->add(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			lang(about),
+			Ui::FlatLabel::InitType::Simple,
+			st::exportAboutOptionLabel),
+		st::exportAboutOptionPadding);
 }
 
 void SettingsWidget::addChatOption(

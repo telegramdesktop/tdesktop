@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "export/output/export_output_result.h"
 #include "export/data/export_data_types.h"
+#include "export/data/export_data_about.h"
 #include "core/utils.h"
 
 #include <QtCore/QDateTime>
@@ -615,6 +616,7 @@ Result JsonWriter::writePersonal(const Data::PersonalInfo &data) {
 	return _output->writeBlock(
 		prepareObjectItemStart("personal_information")
 		+ SerializeObject(_context, {
+		{ "about", SerializeString(Data::AboutPersonalInfo()) },
 		{ "first_name", SerializeString(info.firstName) },
 		{ "last_name", SerializeString(info.lastName) },
 		{
@@ -687,6 +689,10 @@ Result JsonWriter::writeSavedContacts(const Data::ContactsList &data) {
 	Expects(_output != nullptr);
 
 	auto block = prepareObjectItemStart("contacts");
+	block.append(pushNesting(Context::kObject));
+	block.append(prepareObjectItemStart("about"));
+	block.append(SerializeString(Data::AboutContacts()));
+	block.append(prepareObjectItemStart("list"));
 	block.append(pushNesting(Context::kArray));
 	for (const auto index : Data::SortedContactsIndices(data)) {
 		const auto &contact = data.list[index];
@@ -711,6 +717,7 @@ Result JsonWriter::writeSavedContacts(const Data::ContactsList &data) {
 			}));
 		}
 	}
+	block.append(popNesting());
 	return _output->writeBlock(block + popNesting());
 }
 
@@ -765,6 +772,10 @@ Result JsonWriter::writeSessions(const Data::SessionsList &data) {
 	Expects(_output != nullptr);
 
 	auto block = prepareObjectItemStart("sessions");
+	block.append(pushNesting(Context::kObject));
+	block.append(prepareObjectItemStart("about"));
+	block.append(SerializeString(Data::AboutSessions()));
+	block.append(prepareObjectItemStart("list"));
 	block.append(pushNesting(Context::kArray));
 	for (const auto &session : data.list) {
 		block.append(prepareArrayItemStart());
@@ -787,6 +798,7 @@ Result JsonWriter::writeSessions(const Data::SessionsList &data) {
 			{ "created", SerializeDate(session.created) },
 		}));
 	}
+	block.append(popNesting());
 	return _output->writeBlock(block + popNesting());
 }
 

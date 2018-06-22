@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "export/output/export_output_result.h"
 #include "export/data/export_data_types.h"
+#include "export/data/export_data_about.h"
 #include "core/utils.h"
 
 #include <QtCore/QFile>
@@ -457,6 +458,9 @@ Result TextWriter::writePersonal(const Data::PersonalInfo &data) {
 		{ "Username", FormatUsername(data.user.username) },
 		{ "Bio", data.bio },
 		})
+		+ kLineBreak
+		+ Data::AboutPersonalInfo()
+		+ kLineBreak
 		+ kLineBreak;
 	return _summary->writeBlock(serialized);
 }
@@ -545,7 +549,10 @@ Result TextWriter::writeSavedContacts(const Data::ContactsList &data) {
 			}));
 		}
 	}
-	const auto full = JoinList(kLineBreak, list);
+	const auto full = Data::AboutContacts()
+		+ kLineBreak
+		+ kLineBreak
+		+ JoinList(kLineBreak, list);
 	if (const auto result = file->writeBlock(full); !result) {
 		return result;
 	}
@@ -663,7 +670,10 @@ Result TextWriter::writeSessions(const Data::SessionsList &data) {
 			{ "Created", Data::FormatDateTime(session.created) },
 		}));
 	}
-	const auto full = JoinList(kLineBreak, list);
+	const auto full = Data::AboutSessions()
+		+ kLineBreak
+		+ kLineBreak
+		+ JoinList(kLineBreak, list);
 	if (const auto result = file->writeBlock(full); !result) {
 		return result;
 	}

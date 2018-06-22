@@ -51,6 +51,11 @@ private:
 		not_null<Ui::VerticalLayout*> container,
 		LangKey key,
 		Types types);
+	void addOptionWithAbout(
+		not_null<Ui::VerticalLayout*> container,
+		LangKey key,
+		Types types,
+		LangKey about);
 	void addChatOption(
 		not_null<Ui::VerticalLayout*> container,
 		LangKey key,

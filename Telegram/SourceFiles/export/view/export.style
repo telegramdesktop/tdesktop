@@ -43,6 +43,12 @@ exportLocationLabel: FlatLabel(boxLabel) {
 }
 exportLocationPadding: margins(22px, 8px, 22px, 8px);
 
+exportAboutOptionLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	minWidth: 175px;
+}
+exportAboutOptionPadding: margins(22px, 0px, 22px, 16px);
+
 exportErrorLabel: FlatLabel(boxLabel) {
 	minWidth: 175px;
 	align: align(top);

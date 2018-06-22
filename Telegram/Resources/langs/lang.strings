@@ -1657,8 +1657,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_export_title" = "Export Personal Data";
 "lng_export_progress_title" = "Exporting personal data";
 "lng_export_option_info" = "Personal information";
+"lng_export_option_info_about" = "Your chosen screen name, username and profile pictures are public and available to everyone. You don't have to supply your real name.";
 "lng_export_option_contacts" = "Contacts list";
+"lng_export_option_contacts_about" = "To let you connect with friends across all your devices, your contacts are continuosly synced with Telegram. You can disable syncing or delete your stored contacts in Settings > Privacy & Security.";
 "lng_export_option_sessions" = "Sessions list";
+"lng_export_option_sessions_about" = "We store this to display your connected devices in Settings > Privacy & Security > Active Sessions. Terminating a session removes this data from Telegram servers.";
 "lng_export_header_chats" = "Chat export settings";
 "lng_export_option_personal_chats" = "Personal chats";
 "lng_export_option_bot_chats" = "Bot chats";
