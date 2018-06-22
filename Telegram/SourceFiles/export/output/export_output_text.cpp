@@ -142,11 +142,11 @@ QByteArray SerializeMessage(
 	};
 	const auto wrapPeerName = [&](PeerId peerId) {
 		const auto result = peer(peerId).name();
-		return result.isEmpty() ? QByteArray("(unknown peer)") : result;
+		return result.isEmpty() ? QByteArray("(deleted peer)") : result;
 	};
 	const auto wrapUserName = [&](int32 userId) {
 		const auto result = user(userId).name();
-		return result.isEmpty() ? QByteArray("(unknown user)") : result;
+		return result.isEmpty() ? QByteArray("(deleted user)") : result;
 	};
 	const auto pushFrom = [&](const QByteArray &label = "From") {
 		if (message.fromId) {
@@ -869,9 +869,7 @@ Result TextWriter::writeChatEnd() {
 }
 
 Result TextWriter::writeChatsEnd() {
-	if (_chats) {
-		_chats = nullptr;
-	}
+	_chats = nullptr;
 	return Result::Success();
 }
 
