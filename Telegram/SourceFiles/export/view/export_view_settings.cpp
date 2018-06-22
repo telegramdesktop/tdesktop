@@ -57,12 +57,20 @@ int SizeLimitByIndex(int index) {
 
 } // namespace
 
-SettingsWidget::SettingsWidget(QWidget *parent)
-: RpWidget(parent) {
-	_data.path = psDownloadPath();
-	_data.internalLinksDomain = Global::InternalLinksDomain();
-
+SettingsWidget::SettingsWidget(QWidget *parent, Settings data)
+: RpWidget(parent)
+, _internal_data(std::move(data)) {
 	setupContent();
+}
+
+const Settings &SettingsWidget::readData() const {
+	return _internal_data;
+}
+
+template <typename Callback>
+void SettingsWidget::changeData(Callback &&callback) {
+	callback(_internal_data);
+	_changes.fire_copy(_internal_data);
 }
 
 void SettingsWidget::setupContent() {
@@ -77,8 +85,6 @@ void SettingsWidget::setupContent() {
 	const auto buttons = setupButtons(scroll, wrap);
 	setupOptions(content);
 	setupPathAndFormat(content);
-
-	_refreshButtons.fire({});
 
 	sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
@@ -138,8 +144,9 @@ void SettingsWidget::setupMediaOptions(
 	addMediaOption(media, lng_export_option_files, MediaType::File);
 	addSizeSlider(media);
 
-	_dataTypesChanges.events_starting_with_copy(
-		_data.types
+	value() | rpl::map([](const Settings &data) {
+		return data.types;
+	}) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](Settings::Types types) {
 		mediaWrap->toggle((types & (Type::PersonalChats
 			| Type::BotChats
@@ -158,9 +165,11 @@ void SettingsWidget::setupMediaOptions(
 void SettingsWidget::setupPathAndFormat(
 		not_null<Ui::VerticalLayout*> container) {
 	const auto formatGroup = std::make_shared<Ui::RadioenumGroup<Format>>(
-		_data.format);
+		readData().format);
 	formatGroup->setChangedCallback([=](Format format) {
-		_data.format = format;
+		changeData([&](Settings &data) {
+			data.format = format;
+		});
 	});
 	const auto addFormatOption = [&](LangKey key, Format format) {
 		const auto radio = container->add(
@@ -180,10 +189,17 @@ void SettingsWidget::setupPathAndFormat(
 
 void SettingsWidget::addLocationLabel(
 		not_null<Ui::VerticalLayout*> container) {
-	auto pathLabel = _locationChanges.events_starting_with_copy(
-		_data.path
+	auto pathLabel = value() | rpl::map([](const Settings &data) {
+		return data.path;
+	}) | rpl::distinct_until_changed(
 	) | rpl::map([](const QString &path) {
-		const auto text = (path == psDownloadPath())
+		const auto check = [](const QString &value) {
+			const auto result = value.endsWith('/')
+				? value.mid(0, value.size() - 1)
+				: value;
+			return (cPlatform() == dbipWindows) ? result.toLower() : result;
+		};
+		const auto text = (check(path) == check(psDownloadPath()))
 			? QString("Downloads/Telegram Desktop")
 			: path;
 		auto pathLink = TextWithEntities{
@@ -194,7 +210,7 @@ void SettingsWidget::addLocationLabel(
 			EntityInTextCustomUrl,
 			0,
 			text.size(),
-			"internal:edit_export_path"));
+			QString("internal:edit_export_path")));
 		return lng_export_option_location__generic<TextWithEntities>(
 			lt_path,
 			pathLink);
@@ -236,9 +252,11 @@ not_null<Ui::RpWidget*> SettingsWidget::setupButtons(
 		return top < scroll->scrollTopMax();
 	}));
 
-	_refreshButtons.events(
-	) | rpl::start_with_next([=] {
-		refreshButtons(buttons);
+	value() | rpl::map([](const Settings &data) {
+		return data.types != Types(0);
+	}) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](bool canStart) {
+		refreshButtons(buttons, canStart);
 		topShadow->raise();
 		bottomShadow->raise();
 	}, buttons->lifetime());
@@ -276,19 +294,19 @@ not_null<Ui::Checkbox*> SettingsWidget::addOption(
 		object_ptr<Ui::Checkbox>(
 			container,
 			lang(key),
-			((_data.types & types) == types),
+			((readData().types & types) == types),
 			st::defaultBoxCheckbox),
 		st::exportSettingPadding);
 	base::ObservableViewer(
 		checkbox->checkedChanged
 	) | rpl::start_with_next([=](bool checked) {
-		if (checked) {
-			_data.types |= types;
-		} else {
-			_data.types &= ~types;
-		}
-		_dataTypesChanges.fire_copy(_data.types);
-		_refreshButtons.fire({});
+		changeData([&](Settings &data) {
+			if (checked) {
+				data.types |= types;
+			} else {
+				data.types &= ~types;
+			}
+		});
 	}, lifetime());
 	return checkbox;
 }
@@ -304,18 +322,20 @@ void SettingsWidget::addChatOption(
 			object_ptr<Ui::Checkbox>(
 				container,
 				lang(lng_export_option_only_my),
-				((_data.fullChats & types) != types),
+				((readData().fullChats & types) != types),
 				st::defaultBoxCheckbox),
 			st::exportSubSettingPadding));
 
 	base::ObservableViewer(
 		onlyMy->entity()->checkedChanged
 	) | rpl::start_with_next([=](bool checked) {
-		if (checked) {
-			_data.fullChats &= ~types;
-		} else {
-			_data.fullChats |= types;
-		}
+		changeData([&](Settings &data) {
+			if (checked) {
+				data.fullChats &= ~types;
+			} else {
+				data.fullChats |= types;
+			}
+		});
 	}, checkbox->lifetime());
 
 	onlyMy->toggleOn(base::ObservableViewer(
@@ -338,18 +358,19 @@ void SettingsWidget::addMediaOption(
 		object_ptr<Ui::Checkbox>(
 			container,
 			lang(key),
-			((_data.media.types & type) == type),
+			((readData().media.types & type) == type),
 			st::defaultBoxCheckbox),
 		st::exportSettingPadding);
 	base::ObservableViewer(
 		checkbox->checkedChanged
 	) | rpl::start_with_next([=](bool checked) {
-		if (checked) {
-			_data.media.types |= type;
-		} else {
-			_data.media.types &= ~type;
-		}
-		_refreshButtons.fire({});
+		changeData([&](Settings &data) {
+			if (checked) {
+				data.media.types |= type;
+			} else {
+				data.media.types &= ~type;
+			}
+		});
 	}, lifetime());
 }
 
@@ -364,7 +385,7 @@ void SettingsWidget::addSizeSlider(
 	slider->setAlwaysDisplayMarker(true);
 	slider->setDirection(Ui::ContinuousSlider::Direction::Horizontal);
 	for (auto i = 0; i != kSizeValueCount + 1; ++i) {
-		if (_data.media.sizeLimit <= SizeLimitByIndex(i)) {
+		if (readData().media.sizeLimit <= SizeLimitByIndex(i)) {
 			slider->setValue(i / float64(kSizeValueCount));
 			break;
 		}
@@ -373,24 +394,26 @@ void SettingsWidget::addSizeSlider(
 	const auto label = Ui::CreateChild<Ui::LabelSimple>(
 		container.get(),
 		st::exportFileSizeLabel);
-	const auto refreshSizeLimit = [=] {
-		const auto limit = _data.media.sizeLimit / kMegabyte;
-		const auto size = ((limit > 0)
-			? QString::number(limit)
-			: QString::number(float64(_data.media.sizeLimit) / kMegabyte))
-			+ " MB";
-		const auto text = lng_export_option_size_limit(lt_size, size);
-		label->setText(text);
-	};
 	slider->setAdjustCallback([=](float64 value) {
 		return std::round(value * kSizeValueCount) / kSizeValueCount;
 	});
 	slider->setChangeProgressCallback([=](float64 value) {
 		const auto index = int(std::round(value * kSizeValueCount));
-		_data.media.sizeLimit = SizeLimitByIndex(index);
-		refreshSizeLimit();
+		changeData([&](Settings &data) {
+			data.media.sizeLimit = SizeLimitByIndex(index);
+		});
 	});
-	refreshSizeLimit();
+	value() | rpl::map([](const Settings &data) {
+		return data.media.sizeLimit;
+	}) | rpl::start_with_next([=](int sizeLimit) {
+		const auto limit = sizeLimit / kMegabyte;
+		const auto size = ((limit > 0)
+			? QString::number(limit)
+			: QString::number(float64(sizeLimit) / kMegabyte))
+			+ " MB";
+		const auto text = lng_export_option_size_limit(lt_size, size);
+		label->setText(text);
+	}, slider->lifetime());
 
 	rpl::combine(
 		label->widthValue(),
@@ -404,7 +427,9 @@ void SettingsWidget::addSizeSlider(
 
 }
 
-void SettingsWidget::refreshButtons(not_null<Ui::RpWidget*> container) {
+void SettingsWidget::refreshButtons(
+		not_null<Ui::RpWidget*> container,
+		bool canStart) {
 	container->hideChildren();
 	const auto children = container->children();
 	for (const auto child : children) {
@@ -412,7 +437,7 @@ void SettingsWidget::refreshButtons(not_null<Ui::RpWidget*> container) {
 			child->deleteLater();
 		}
 	}
-	const auto start = _data.types
+	const auto start = canStart
 		? Ui::CreateChild<Ui::RoundButton>(
 			container.get(),
 			langFactory(lng_export_start),
@@ -420,9 +445,7 @@ void SettingsWidget::refreshButtons(not_null<Ui::RpWidget*> container) {
 		: nullptr;
 	if (start) {
 		start->show();
-		start->addClickHandler([=] {
-			_startClicks.fire(base::duplicate(_data));
-		});
+		_startClicks = start->clicks();
 
 		container->sizeValue(
 		) | rpl::start_with_next([=](QSize size) {
@@ -451,15 +474,31 @@ void SettingsWidget::refreshButtons(not_null<Ui::RpWidget*> container) {
 }
 
 void SettingsWidget::chooseFolder() {
-	const auto ready = [=](QString &&result) {
-		_data.path = result;
-		_locationChanges.fire(std::move(result));
+	const auto callback = [=](QString &&result) {
+		changeData([&](Settings &data) {
+			data.path = std::move(result);
+		});
 	};
-	FileDialog::GetFolder(this, lang(lng_export_folder), _data.path, ready);
+	FileDialog::GetFolder(
+		this,
+		lang(lng_export_folder),
+		readData().path,
+		callback);
 }
 
-rpl::producer<Settings> SettingsWidget::startClicks() const {
-	return _startClicks.events();
+rpl::producer<Settings> SettingsWidget::changes() const {
+	return _changes.events();
+}
+
+rpl::producer<Settings> SettingsWidget::value() const {
+	return rpl::single(readData()) | rpl::then(changes());
+}
+
+rpl::producer<> SettingsWidget::startClicks() const {
+	return _startClicks.value(
+	) | rpl::map([](Wrap &&wrap) {
+		return std::move(wrap.value);
+	}) | rpl::flatten_latest();
 }
 
 rpl::producer<> SettingsWidget::cancelClicks() const {

@@ -17,6 +17,10 @@ struct Cached;
 } // namespace Theme
 } // namespace Window
 
+namespace Export {
+struct Settings;
+} // namespace Export
+
 namespace Local {
 
 void start();
@@ -161,6 +165,9 @@ void writeLangPack();
 
 void writeRecentHashtagsAndBots();
 void readRecentHashtagsAndBots();
+
+void WriteExportSettings(const Export::Settings &settings);
+Export::Settings ReadExportSettings();
 
 void addSavedPeer(PeerData *peer, const QDateTime &position);
 void removeSavedPeer(PeerData *peer);

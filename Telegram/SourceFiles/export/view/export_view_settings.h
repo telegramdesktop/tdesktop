@@ -23,9 +23,11 @@ namespace View {
 
 class SettingsWidget : public Ui::RpWidget {
 public:
-	SettingsWidget(QWidget *parent);
+	SettingsWidget(QWidget *parent, Settings data);
 
-	rpl::producer<Settings> startClicks() const;
+	rpl::producer<Settings> value() const;
+	rpl::producer<Settings> changes() const;
+	rpl::producer<> startClicks() const;
 	rpl::producer<> cancelClicks() const;
 
 private:
@@ -61,9 +63,17 @@ private:
 	void addLocationLabel(
 		not_null<Ui::VerticalLayout*> container);
 	void chooseFolder();
-	void refreshButtons(not_null<Ui::RpWidget*> container);
+	void refreshButtons(
+		not_null<Ui::RpWidget*> container,
+		bool canStart);
 
-	Settings _data;
+	const Settings &readData() const;
+	template <typename Callback>
+	void changeData(Callback &&callback);
+
+	// Use through readData / changeData wrappers.
+	Settings _internal_data;
+
 	struct Wrap {
 		Wrap(rpl::producer<> value = rpl::never<>())
 		: value(std::move(value)) {
@@ -71,11 +81,9 @@ private:
 
 		rpl::producer<> value;
 	};
-	rpl::event_stream<Settings> _startClicks;
+	rpl::event_stream<Settings> _changes;
+	rpl::variable<Wrap> _startClicks;
 	rpl::variable<Wrap> _cancelClicks;
-	rpl::event_stream<Settings::Types> _dataTypesChanges;
-	rpl::event_stream<> _refreshButtons;
-	rpl::event_stream<QString> _locationChanges;
 
 };
 

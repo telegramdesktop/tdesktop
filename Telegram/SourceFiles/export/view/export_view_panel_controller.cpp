@@ -14,7 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
+#include "storage/localstorage.h"
 #include "core/file_utilities.h"
+#include "platform/platform_specific.h"
 #include "styles/style_export.h"
 #include "styles/style_boxes.h"
 
@@ -23,11 +25,19 @@ namespace View {
 namespace {
 
 constexpr auto kAddDelay = TimeId(60);
+constexpr auto kSaveSettingsTimeout = TimeMs(1000);
 
 } // namespace
 
 PanelController::PanelController(not_null<ControllerWrap*> process)
-: _process(process) {
+: _process(process)
+, _settings(std::make_unique<Settings>(Local::ReadExportSettings()))
+, _saveSettingsTimer([=] { saveSettings(); }) {
+	if (_settings->path.isEmpty()) {
+		_settings->path = psDownloadPath();
+	}
+	_settings->internalLinksDomain = Global::InternalLinksDomain();
+
 	_process->state(
 	) | rpl::start_with_next([=](State &&state) {
 		updateState(std::move(state));
@@ -52,17 +62,25 @@ void PanelController::createPanel() {
 }
 
 void PanelController::showSettings() {
-	auto settings = base::make_unique_q<SettingsWidget>(_panel);
+	auto settings = base::make_unique_q<SettingsWidget>(
+		_panel,
+		*_settings);
 
 	settings->startClicks(
-	) | rpl::start_with_next([=](const Settings &settings) {
+	) | rpl::start_with_next([=]() {
 		showProgress();
-		_process->startExport(settings);
+		_process->startExport(*_settings);
 	}, settings->lifetime());
 
 	settings->cancelClicks(
 	) | rpl::start_with_next([=] {
 		_panel->hideGetDuration();
+	}, settings->lifetime());
+
+	settings->changes(
+	) | rpl::start_with_next([=](Settings &&settings) {
+		*_settings = std::move(settings);
+		_saveSettingsTimer.callOnce(kSaveSettingsTimeout);
 	}, settings->lifetime());
 
 	_panel->showInner(std::move(settings));
@@ -218,7 +236,25 @@ void PanelController::updateState(State &&state) {
 	}
 }
 
-PanelController::~PanelController() = default;
+void PanelController::saveSettings() const {
+	const auto check = [](const QString &value) {
+		const auto result = value.endsWith('/')
+			? value.mid(0, value.size() - 1)
+			: value;
+		return (cPlatform() == dbipWindows) ? result.toLower() : result;
+	};
+	auto settings = *_settings;
+	if (check(settings.path) == check(psDownloadPath())) {
+		settings.path = QString();
+	}
+	Local::WriteExportSettings(settings);
+}
+
+PanelController::~PanelController() {
+	if (_saveSettingsTimer.isActive()) {
+		saveSettings();
+	}
+}
 
 } // namespace View
 } // namespace Export

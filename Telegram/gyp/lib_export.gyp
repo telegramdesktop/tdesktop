@@ -54,6 +54,7 @@
       '<(src_loc)/export/export_api_wrap.h',
       '<(src_loc)/export/export_controller.cpp',
       '<(src_loc)/export/export_controller.h',
+      '<(src_loc)/export/export_settings.cpp',
       '<(src_loc)/export/export_settings.h',
       '<(src_loc)/export/data/export_data_types.cpp',
       '<(src_loc)/export/data/export_data_types.h',

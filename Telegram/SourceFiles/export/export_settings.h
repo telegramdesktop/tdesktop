@@ -16,6 +16,8 @@ enum class Format;
 } // namespace Output
 
 struct MediaSettings {
+	bool validate() const;
+
 	enum class Type {
 		Photo        = 0x01,
 		Video        = 0x02,
@@ -24,6 +26,9 @@ struct MediaSettings {
 		Sticker      = 0x10,
 		GIF          = 0x20,
 		File         = 0x40,
+
+		MediaMask    = Photo | Video | VoiceMessage | VideoMessage,
+		AllMask      = MediaMask | Sticker | GIF | File,
 	};
 	using Types = base::flags<Type>;
 	friend inline constexpr auto is_flag_type(Type) { return true; };
@@ -38,6 +43,8 @@ struct MediaSettings {
 };
 
 struct Settings {
+	bool validate() const;
+
 	enum class Type {
 		PersonalInfo        = 0x001,
 		Userpics            = 0x002,
@@ -55,6 +62,8 @@ struct Settings {
 		GroupsChannelsMask  = GroupsMask | ChannelsMask,
 		NonChannelChatsMask = PersonalChats | BotChats | PrivateGroups,
 		AnyChatsMask        = PersonalChats | BotChats | GroupsChannelsMask,
+		NonChatsMask        = PersonalInfo | Userpics | Contacts | Sessions,
+		AllMask             = NonChatsMask | AnyChatsMask,
 	};
 	using Types = base::flags<Type>;
 	friend inline constexpr auto is_flag_type(Type) { return true; };

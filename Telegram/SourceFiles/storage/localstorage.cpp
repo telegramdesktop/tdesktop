@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "boxes/send_files_box.h"
 #include "window/themes/window_theme.h"
+#include "export/export_settings.h"
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
 #include "observer_peer.h"
@@ -501,6 +502,7 @@ enum { // Local Storage Keys
 	lskStickersKeys = 0x10, // no data
 	lskTrustedBots = 0x11, // no data
 	lskFavedStickers = 0x12, // no data
+	lskExportSettings = 0x13, // no data
 };
 
 enum {
@@ -633,6 +635,8 @@ bool _readingUserSettings = false;
 FileKey _userSettingsKey = 0;
 FileKey _recentHashtagsAndBotsKey = 0;
 bool _recentHashtagsAndBotsWereRead = false;
+
+FileKey _exportSettingsKey = 0;
 
 FileKey _savedPeersKey = 0;
 FileKey _langPackKey = 0;
@@ -2065,7 +2069,7 @@ ReadMapState _readMap(const QByteArray &pass) {
 	quint64 recentStickersKeyOld = 0;
 	quint64 installedStickersKey = 0, featuredStickersKey = 0, recentStickersKey = 0, favedStickersKey = 0, archivedStickersKey = 0;
 	quint64 savedGifsKey = 0;
-	quint64 backgroundKey = 0, userSettingsKey = 0, recentHashtagsAndBotsKey = 0, savedPeersKey = 0;
+	quint64 backgroundKey = 0, userSettingsKey = 0, recentHashtagsAndBotsKey = 0, savedPeersKey = 0, exportSettingsKey = 0;
 	while (!map.stream.atEnd()) {
 		quint32 keyType;
 		map.stream >> keyType;
@@ -2167,6 +2171,9 @@ ReadMapState _readMap(const QByteArray &pass) {
 		case lskSavedPeers: {
 			map.stream >> savedPeersKey;
 		} break;
+		case lskExportSettings: {
+			map.stream >> exportSettingsKey;
+		} break;
 		default:
 		LOG(("App Error: unknown key type in encrypted map: %1").arg(keyType));
 		return ReadMapFailed;
@@ -2201,6 +2208,7 @@ ReadMapState _readMap(const QByteArray &pass) {
 	_backgroundKey = backgroundKey;
 	_userSettingsKey = userSettingsKey;
 	_recentHashtagsAndBotsKey = recentHashtagsAndBotsKey;
+	_exportSettingsKey = exportSettingsKey;
 	_oldMapVersion = mapData.version;
 	if (_oldMapVersion < AppVersion) {
 		_mapChanged = true;
@@ -2279,6 +2287,7 @@ void _writeMap(WriteMapWhen when) {
 	if (_backgroundKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_userSettingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_recentHashtagsAndBotsKey) mapSize += sizeof(quint32) + sizeof(quint64);
+	if (_exportSettingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 
 	if (mapSize > 30 * 1024 * 1024) {
 		CrashReports::SetAnnotation("MapSize", QString("%1,%2,%3,%4,%5"
@@ -2355,6 +2364,9 @@ void _writeMap(WriteMapWhen when) {
 	}
 	if (_recentHashtagsAndBotsKey) {
 		mapData.stream << quint32(lskRecentHashtagsAndBots) << quint64(_recentHashtagsAndBotsKey);
+	}
+	if (_exportSettingsKey) {
+		mapData.stream << quint32(lskExportSettings) << quint64(_exportSettingsKey);
 	}
 	map.writeEncrypted(mapData);
 
@@ -2613,7 +2625,7 @@ void reset() {
 	_recentStickersKeyOld = 0;
 	_installedStickersKey = _featuredStickersKey = _recentStickersKey = _favedStickersKey = _archivedStickersKey = 0;
 	_savedGifsKey = 0;
-	_backgroundKey = _userSettingsKey = _recentHashtagsAndBotsKey = _savedPeersKey = 0;
+	_backgroundKey = _userSettingsKey = _recentHashtagsAndBotsKey = _savedPeersKey = _exportSettingsKey = 0;
 	_oldMapVersion = _oldSettingsVersion = 0;
 	StoredAuthSessionCache.reset();
 	_mapChanged = true;
@@ -4600,6 +4612,74 @@ void readRecentHashtagsAndBots() {
 		}
 		cSetRecentInlineBots(bots);
 	}
+}
+
+void WriteExportSettings(const Export::Settings &settings) {
+	if (!_working()) return;
+
+	const auto check = Export::Settings();
+	if (settings.types == check.types
+		&& settings.fullChats == check.fullChats
+		&& settings.media.types == check.media.types
+		&& settings.media.sizeLimit == check.media.sizeLimit
+		&& settings.path == check.path
+		&& settings.format == check.format) {
+		if (_exportSettingsKey) {
+			clearKey(_exportSettingsKey);
+			_exportSettingsKey = 0;
+			_mapChanged = true;
+		}
+		_writeMap();
+	} else {
+		if (!_exportSettingsKey) {
+			_exportSettingsKey = genKey();
+			_mapChanged = true;
+			_writeMap(WriteMapWhen::Fast);
+		}
+		quint32 size = sizeof(quint32) * 5
+			+ Serialize::stringSize(settings.path);
+		EncryptedDescriptor data(size);
+		data.stream
+			<< quint32(settings.types)
+			<< quint32(settings.fullChats)
+			<< quint32(settings.media.types)
+			<< quint32(settings.media.sizeLimit)
+			<< quint32(settings.format)
+			<< settings.path;
+
+		FileWriteDescriptor file(_exportSettingsKey);
+		file.writeEncrypted(data);
+	}
+}
+
+Export::Settings ReadExportSettings() {
+	FileReadDescriptor file;
+	if (!readEncryptedFile(file, _exportSettingsKey)) {
+		clearKey(_exportSettingsKey);
+		_exportSettingsKey = 0;
+		_writeMap();
+		return Export::Settings();
+	}
+
+	quint32 types = 0, fullChats = 0;
+	quint32 mediaTypes = 0, mediaSizeLimit = 0;
+	quint32 format = 0;
+	QString path;
+	file.stream
+		>> types
+		>> fullChats
+		>> mediaTypes
+		>> mediaSizeLimit
+		>> format
+		>> path;
+	auto result = Export::Settings();
+	result.types = Export::Settings::Types::from_raw(types);
+	result.fullChats = Export::Settings::Types::from_raw(fullChats);
+	result.media.types = Export::MediaSettings::Types::from_raw(mediaTypes);
+	result.media.sizeLimit = mediaSizeLimit;
+	result.format = Export::Output::Format(format);
+	result.path = path;
+	return result.validate() ? result : Export::Settings();
 }
 
 void writeSavedPeers() {

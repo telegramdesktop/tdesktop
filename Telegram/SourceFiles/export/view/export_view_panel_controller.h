@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/export_controller.h"
 #include "export/view/export_view_content.h"
 #include "base/unique_qptr.h"
+#include "base/timer.h"
 
 class BoxContent;
 
@@ -52,7 +53,11 @@ private:
 	void showError(const QString &text);
 	void showCriticalError(const QString &text);
 
+	void saveSettings() const;
+
 	not_null<ControllerWrap*> _process;
+	std::unique_ptr<Settings> _settings;
+	base::Timer _saveSettingsTimer;
 
 	base::unique_qptr<Ui::SeparatePanel> _panel;
 
