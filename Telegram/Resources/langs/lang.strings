@@ -1703,6 +1703,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_export_folder" = "Choose export folder";
 "lng_export_invalid" = "Sorry, you have started a new data export, so this data export is now cancelled.";
 "lng_export_delay" = "Sorry, for security reasons, you will be able to begin downloading your data in 24 hours. We have notified all your devices about the export request to make sure it's authorized and give you time to react if it's not.\n\nPlease come back on {date} and repeat the request using the same device.";
+"lng_export_suggest_title" = "Data export ready";
+"lng_export_suggest_text" = "You can now download the data you requested. Start exporting data?";
+"lng_export_suggest_cancel" = "Not now";
 
 // Wnd specific
 

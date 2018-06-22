@@ -180,7 +180,7 @@ struct ApiWrap::LeftChannelsProcess : ChatsProcess {
 
 struct ApiWrap::DialogsProcess : ChatsProcess {
 	int splitIndexPlusOne = 0;
-	Data::TimeId offsetDate = 0;
+	TimeId offsetDate = 0;
 	int32 offsetId = 0;
 	MTPInputPeer offsetPeer = MTP_inputPeerEmpty();
 };

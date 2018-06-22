@@ -21,6 +21,8 @@ class SeparatePanel;
 namespace Export {
 namespace View {
 
+void SuggestStart();
+
 class Panel;
 
 class PanelController {

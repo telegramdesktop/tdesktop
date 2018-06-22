@@ -188,7 +188,6 @@ inline void accumulate_max(T &a, const T &b) { if (a < b) a = b; }
 template <typename T>
 inline void accumulate_min(T &a, const T &b) { if (a > b) a = b; }
 
-using TimeId = int32;
 void unixtimeInit();
 void unixtimeSet(TimeId serverTime, bool force = false);
 TimeId unixtime();

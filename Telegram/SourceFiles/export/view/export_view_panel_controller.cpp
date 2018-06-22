@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "core/file_utilities.h"
 #include "platform/platform_specific.h"
+#include "auth_session.h"
+#include "data/data_session.h"
 #include "styles/style_export.h"
 #include "styles/style_boxes.h"
 
@@ -24,10 +26,71 @@ namespace Export {
 namespace View {
 namespace {
 
-constexpr auto kAddDelay = TimeId(60);
 constexpr auto kSaveSettingsTimeout = TimeMs(1000);
 
+class SuggestBox : public BoxContent {
+public:
+	SuggestBox(QWidget*);
+
+protected:
+	void prepare() override;
+
+private:
+	bool _cleared = false;
+
+};
+
+SuggestBox::SuggestBox(QWidget*) {
+}
+
+void SuggestBox::prepare() {
+	setTitle(langFactory(lng_export_suggest_title));
+
+	const auto clear = [=] {
+		if (_cleared) {
+			return;
+		}
+		_cleared = true;
+
+		auto settings = Local::ReadExportSettings();
+		settings.availableAt = 0;
+		Local::WriteExportSettings(settings);
+	};
+
+	addButton(langFactory(lng_box_ok), [=] {
+		clear();
+		closeBox();
+		Auth().data().startExport();
+	});
+	addButton(langFactory(lng_export_suggest_cancel), [=] { closeBox(); });
+	setCloseByOutsideClick(false);
+
+	const auto content = Ui::CreateChild<Ui::FlatLabel>(
+		this,
+		lang(lng_export_suggest_text),
+		Ui::FlatLabel::InitType::Simple,
+		st::boxLabel);
+	widthValue(
+	) | rpl::start_with_next([=](int width) {
+		const auto contentWidth = width
+			- st::boxPadding.left()
+			- st::boxPadding.right();
+		content->resizeToWidth(contentWidth);
+		content->moveToLeft(st::boxPadding.left(), 0);
+	}, content->lifetime());
+	content->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		setDimensions(st::boxWidth, height + st::boxPadding.bottom());
+	}, content->lifetime());
+
+	boxClosing() | rpl::start_with_next(clear, lifetime());
+}
+
 } // namespace
+
+void SuggestStart() {
+	Ui::show(Box<SuggestBox>(), LayerOption::KeepOther);
+}
 
 PanelController::PanelController(not_null<ControllerWrap*> process)
 : _process(process)
@@ -91,10 +154,15 @@ void PanelController::showError(const ApiErrorState &error) {
 		showError(lang(lng_export_invalid));
 	} else if (error.data.type().startsWith(qstr("TAKEOUT_INIT_DELAY_"))) {
 		const auto seconds = std::max(error.data.type().mid(
-			qstr("TAKEOUT_INIT_DELAY_").size()).toInt(), 0) + kAddDelay;
+			qstr("TAKEOUT_INIT_DELAY_").size()).toInt(), 1);
 		const auto now = QDateTime::currentDateTime();
 		const auto when = now.addSecs(seconds);
 		showError(lng_export_delay(lt_date, langDateTimeFull(when)));
+
+		_settings->availableAt = unixtime() + seconds;
+		_saveSettingsTimer.callOnce(kSaveSettingsTimeout);
+
+		Auth().data().suggestStartExport(_settings->availableAt);
 	} else {
 		showCriticalError("API Error happened :(\n"
 			+ QString::number(error.data.code()) + ": " + error.data.type()

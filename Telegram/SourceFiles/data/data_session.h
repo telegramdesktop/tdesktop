@@ -52,6 +52,7 @@ public:
 	}
 
 	void startExport();
+	void suggestStartExport(TimeId availableAt);
 	rpl::producer<Export::View::PanelController*> currentExportView() const;
 	bool exportInProgress() const;
 	void stopExportWithConfirmation(FnMut<void()> callback);
@@ -408,6 +409,8 @@ public:
 	}
 
 private:
+	void suggestStartExport();
+
 	void setupContactViewsViewer();
 	void setupChannelLeavingViewer();
 	void photoApplyFields(
@@ -505,6 +508,7 @@ private:
 	std::unique_ptr<Export::ControllerWrap> _export;
 	std::unique_ptr<Export::View::PanelController> _exportPanel;
 	rpl::event_stream<Export::View::PanelController*> _exportViewChanges;
+	TimeId _exportAvailableAt = 0;
 
 	base::Variable<bool> _contactsLoaded = { false };
 	base::Variable<bool> _allChatsLoaded = { false };

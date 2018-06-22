@@ -20,7 +20,6 @@ namespace Export {
 struct Settings;
 namespace Data {
 
-using TimeId = int32;
 using Utf8String = QByteArray;
 using PeerId = uint64;
 

@@ -79,6 +79,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "calls/calls_instance.h"
 #include "calls/calls_top_bar.h"
+#include "export/export_settings.h"
 #include "export/view/export_view_top_bar.h"
 #include "export/view/export_view_panel_controller.h"
 #include "auth_session.h"
@@ -3821,6 +3822,10 @@ void MainWidget::start(const MTPUser *self) {
 	Local::readRecentStickers();
 	Local::readFavedStickers();
 	Local::readSavedGifs();
+	if (const auto availableAt = Local::ReadExportSettings().availableAt) {
+		Auth().data().suggestStartExport(availableAt);
+	}
+
 	_history->start();
 
 	Messenger::Instance().checkStartUrl();

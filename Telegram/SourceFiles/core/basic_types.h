@@ -40,6 +40,7 @@ using float32 = float;
 using float64 = double;
 
 using TimeMs = int64;
+using TimeId = int32;
 
 #define qsl(s) QStringLiteral(s)
 #define qstr(s) QLatin1String((s), sizeof(s) - 1)

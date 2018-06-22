@@ -83,6 +83,29 @@ void Session::startExport() {
 	}, _export->lifetime());
 }
 
+void Session::suggestStartExport(TimeId availableAt) {
+	_exportAvailableAt = availableAt;
+	suggestStartExport();
+}
+
+void Session::suggestStartExport() {
+	if (_exportAvailableAt <= 0) {
+		return;
+	}
+	const auto now = unixtime();
+	const auto left = (_exportAvailableAt <= now)
+		? 0
+		: (_exportAvailableAt - now);
+	if (!left) {
+		Export::View::SuggestStart();
+	} else {
+		App::CallDelayed(
+			std::min(left + 5, 3600) * TimeMs(1000),
+			_session,
+			[=] { suggestStartExport(); });
+	}
+}
+
 rpl::producer<Export::View::PanelController*> Session::currentExportView(
 ) const {
 	return _exportViewChanges.events_starting_with(_exportPanel.get());

@@ -4623,7 +4623,8 @@ void WriteExportSettings(const Export::Settings &settings) {
 		&& settings.media.types == check.media.types
 		&& settings.media.sizeLimit == check.media.sizeLimit
 		&& settings.path == check.path
-		&& settings.format == check.format) {
+		&& settings.format == check.format
+		&& settings.availableAt == check.availableAt) {
 		if (_exportSettingsKey) {
 			clearKey(_exportSettingsKey);
 			_exportSettingsKey = 0;
@@ -4636,7 +4637,7 @@ void WriteExportSettings(const Export::Settings &settings) {
 			_mapChanged = true;
 			_writeMap(WriteMapWhen::Fast);
 		}
-		quint32 size = sizeof(quint32) * 5
+		quint32 size = sizeof(quint32) * 6
 			+ Serialize::stringSize(settings.path);
 		EncryptedDescriptor data(size);
 		data.stream
@@ -4645,7 +4646,8 @@ void WriteExportSettings(const Export::Settings &settings) {
 			<< quint32(settings.media.types)
 			<< quint32(settings.media.sizeLimit)
 			<< quint32(settings.format)
-			<< settings.path;
+			<< settings.path
+			<< quint32(settings.availableAt);
 
 		FileWriteDescriptor file(_exportSettingsKey);
 		file.writeEncrypted(data);
@@ -4663,7 +4665,7 @@ Export::Settings ReadExportSettings() {
 
 	quint32 types = 0, fullChats = 0;
 	quint32 mediaTypes = 0, mediaSizeLimit = 0;
-	quint32 format = 0;
+	quint32 format = 0, availableAt = 0;
 	QString path;
 	file.stream
 		>> types
@@ -4671,7 +4673,8 @@ Export::Settings ReadExportSettings() {
 		>> mediaTypes
 		>> mediaSizeLimit
 		>> format
-		>> path;
+		>> path
+		>> availableAt;
 	auto result = Export::Settings();
 	result.types = Export::Settings::Types::from_raw(types);
 	result.fullChats = Export::Settings::Types::from_raw(fullChats);
@@ -4679,7 +4682,10 @@ Export::Settings ReadExportSettings() {
 	result.media.sizeLimit = mediaSizeLimit;
 	result.format = Export::Output::Format(format);
 	result.path = path;
-	return result.validate() ? result : Export::Settings();
+	result.availableAt = availableAt;
+	return (file.stream.status() == QDataStream::Ok && result.validate())
+		? result
+		: Export::Settings();
 }
 
 void writeSavedPeers() {

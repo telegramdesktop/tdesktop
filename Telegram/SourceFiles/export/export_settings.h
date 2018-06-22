@@ -76,6 +76,8 @@ struct Settings {
 	Types fullChats = DefaultFullChats();
 	MediaSettings media;
 
+	TimeId availableAt = 0;
+
 	static inline Types DefaultTypes() {
 		return Type::PersonalInfo
 			| Type::Userpics
