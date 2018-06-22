@@ -124,7 +124,10 @@ public:
 		_impl.swap(other._impl);
 	}
 
-	template <typename ...OtherArgs>
+	template <
+		typename ...OtherArgs,
+		typename = decltype(std::declval<std::function<Return(Args...)>>()(
+			std::declval<OtherArgs>()...))>
 	Return operator()(OtherArgs &&...args) {
 		return _impl(std::forward<OtherArgs>(args)...);
 	}
