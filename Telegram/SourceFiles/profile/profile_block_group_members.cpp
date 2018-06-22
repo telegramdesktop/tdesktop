@@ -331,7 +331,7 @@ void GroupMembersWidget::refreshLimitReached() {
 		QString link = TextUtilities::EscapeForRichParsing(lang(lng_profile_migrate_learn_more));
 		QString text = qsl("%1%2%3\n%4 [a href=\"https://telegram.org/blog/supergroups5k\"]%5[/a]").arg(textcmdStartSemibold()).arg(title).arg(textcmdStopSemibold()).arg(body).arg(link);
 		_limitReachedInfo->setRichText(text);
-		_limitReachedInfo->setClickHandlerHook([this](const ClickHandlerPtr &handler, Qt::MouseButton button) {
+		_limitReachedInfo->setClickHandlerFilter([=](auto&&...) {
 			Ui::show(Box<ConvertToSupergroupBox>(peer()->asChat()));
 			return false;
 		});

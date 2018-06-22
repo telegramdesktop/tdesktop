@@ -88,7 +88,7 @@ void InfoWidget::refreshUsername() {
 		TextWithEntities(),
 		copyText);
 	if (auto text = _username->entity()->textLabel()) {
-		text->setClickHandlerHook([](const ClickHandlerPtr &handler, Qt::MouseButton button) {
+		text->setClickHandlerFilter([](auto&&...) {
 			Ui::show(Box<UsernameBox>());
 			return false;
 		});
@@ -115,7 +115,7 @@ void InfoWidget::refreshBio() {
 		TextWithEntities(),
 		QString());
 	if (auto text = _bio->entity()->textLabel()) {
-		text->setClickHandlerHook([](const ClickHandlerPtr &handler, Qt::MouseButton button) {
+		text->setClickHandlerFilter([](auto&&...) {
 			Ui::show(Box<EditBioBox>(App::self()));
 			return false;
 		});

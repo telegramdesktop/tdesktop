@@ -271,7 +271,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			lng_info_link_label,
 			std::move(linkText),
 			QString());
-		link->setClickHandlerHook([peer = _peer](auto&&...) {
+		link->setClickHandlerFilter([peer = _peer](auto&&...) {
 			auto link = Messenger::Instance().createInternalLinkFull(
 				peer->userName());
 			if (!link.isEmpty()) {

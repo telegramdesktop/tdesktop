@@ -59,21 +59,13 @@ int SizeLimitByIndex(int index) {
 
 SettingsWidget::SettingsWidget(QWidget *parent)
 : RpWidget(parent) {
-	if (Global::DownloadPath().isEmpty()) {
-		_data.path = psDownloadPath();
-	} else if (Global::DownloadPath() == qsl("tmp")) {
-		_data.path = cTempDir();
-	} else {
-		_data.path = Global::DownloadPath();
-	}
+	_data.path = psDownloadPath();
 	_data.internalLinksDomain = Global::InternalLinksDomain();
 
 	setupContent();
 }
 
 void SettingsWidget::setupContent() {
-	using namespace rpl::mappers;
-
 	const auto scroll = Ui::CreateChild<Ui::ScrollArea>(
 		this,
 		st::boxLayerScroll);
@@ -81,6 +73,148 @@ void SettingsWidget::setupContent() {
 		scroll,
 		object_ptr<Ui::VerticalLayout>(scroll)));
 	const auto content = static_cast<Ui::VerticalLayout*>(wrap->entity());
+
+	const auto buttons = setupButtons(scroll, wrap);
+	setupOptions(content);
+	setupPathAndFormat(content);
+
+	_refreshButtons.fire({});
+
+	sizeValue(
+	) | rpl::start_with_next([=](QSize size) {
+		scroll->resize(size.width(), size.height() - buttons->height());
+		wrap->resizeToWidth(size.width());
+		content->resizeToWidth(size.width());
+	}, lifetime());
+}
+
+void SettingsWidget::setupOptions(not_null<Ui::VerticalLayout*> container) {
+	addOption(
+		container,
+		lng_export_option_info,
+		Type::PersonalInfo | Type::Userpics);
+	addOption(container, lng_export_option_contacts, Type::Contacts);
+	addOption(container, lng_export_option_sessions, Type::Sessions);
+	addHeader(container, lng_export_header_chats);
+	addOption(
+		container,
+		lng_export_option_personal_chats,
+		Type::PersonalChats);
+	addOption(container, lng_export_option_bot_chats, Type::BotChats);
+	addChatOption(
+		container,
+		lng_export_option_private_groups,
+		Type::PrivateGroups);
+	addChatOption(
+		container,
+		lng_export_option_private_channels,
+		Type::PrivateChannels);
+	addChatOption(
+		container,
+		lng_export_option_public_groups,
+		Type::PublicGroups);
+	addChatOption(
+		container,
+		lng_export_option_public_channels,
+		Type::PublicChannels);
+
+	setupMediaOptions(container);
+}
+
+void SettingsWidget::setupMediaOptions(
+		not_null<Ui::VerticalLayout*> container) {
+	const auto mediaWrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	const auto media = mediaWrap->entity();
+	addHeader(media, lng_export_header_media);
+	addMediaOption(media, lng_export_option_photos, MediaType::Photo);
+	addMediaOption(media, lng_export_option_video_files, MediaType::Video);
+	addMediaOption(media, lng_export_option_voice_messages, MediaType::VoiceMessage);
+	addMediaOption(media, lng_export_option_video_messages, MediaType::VideoMessage);
+	addMediaOption(media, lng_export_option_stickers, MediaType::Sticker);
+	addMediaOption(media, lng_export_option_gifs, MediaType::GIF);
+	addMediaOption(media, lng_export_option_files, MediaType::File);
+	addSizeSlider(media);
+
+	_dataTypesChanges.events_starting_with_copy(
+		_data.types
+	) | rpl::start_with_next([=](Settings::Types types) {
+		mediaWrap->toggle((types & (Type::PersonalChats
+			| Type::BotChats
+			| Type::PrivateGroups
+			| Type::PrivateChannels
+			| Type::PublicGroups
+			| Type::PublicChannels)) != 0, anim::type::normal);
+	}, mediaWrap->lifetime());
+
+	widthValue(
+	) | rpl::start_with_next([=](int width) {
+		mediaWrap->resizeToWidth(width);
+	}, mediaWrap->lifetime());
+}
+
+void SettingsWidget::setupPathAndFormat(
+		not_null<Ui::VerticalLayout*> container) {
+	const auto formatGroup = std::make_shared<Ui::RadioenumGroup<Format>>(
+		_data.format);
+	formatGroup->setChangedCallback([=](Format format) {
+		_data.format = format;
+	});
+	const auto addFormatOption = [&](LangKey key, Format format) {
+		const auto radio = container->add(
+			object_ptr<Ui::Radioenum<Format>>(
+				container,
+				formatGroup,
+				format,
+				lang(key),
+				st::defaultBoxCheckbox),
+			st::exportSettingPadding);
+	};
+	addHeader(container, lng_export_header_format);
+	addLocationLabel(container);
+	addFormatOption(lng_export_option_text, Format::Text);
+	addFormatOption(lng_export_option_json, Format::Json);
+}
+
+void SettingsWidget::addLocationLabel(
+		not_null<Ui::VerticalLayout*> container) {
+	auto pathLabel = _locationChanges.events_starting_with_copy(
+		_data.path
+	) | rpl::map([](const QString &path) {
+		const auto text = (path == psDownloadPath())
+			? QString("Downloads/Telegram Desktop")
+			: path;
+		auto pathLink = TextWithEntities{
+			QDir::toNativeSeparators(text),
+			EntitiesInText()
+		};
+		pathLink.entities.push_back(EntityInText(
+			EntityInTextCustomUrl,
+			0,
+			text.size(),
+			"internal:edit_export_path"));
+		return lng_export_option_location__generic<TextWithEntities>(
+			lt_path,
+			pathLink);
+	});
+	const auto label = container->add(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			std::move(pathLabel),
+			st::exportLocationLabel),
+		st::exportLocationPadding);
+	label->setClickHandlerFilter([=](auto&&...) {
+		chooseFolder();
+		return false;
+	});
+}
+
+not_null<Ui::RpWidget*> SettingsWidget::setupButtons(
+		not_null<Ui::ScrollArea*> scroll,
+		not_null<Ui::RpWidget*> wrap) {
+	using namespace rpl::mappers;
 
 	const auto buttonsPadding = st::boxButtonPadding;
 	const auto buttonsHeight = buttonsPadding.top()
@@ -101,170 +235,125 @@ void SettingsWidget::setupContent() {
 	) | rpl::map([=](int top) {
 		return top < scroll->scrollTopMax();
 	}));
-	const auto refreshButtonsCallback = [=] {
+
+	_refreshButtons.events(
+	) | rpl::start_with_next([=] {
 		refreshButtons(buttons);
-	};
-	const auto addHeader = [&](
-			not_null<Ui::VerticalLayout*> container,
-			LangKey key) {
-		container->add(
-			object_ptr<Ui::FlatLabel>(
-				container,
-				lang(key),
-				Ui::FlatLabel::InitType::Simple,
-				st::exportHeaderLabel),
-			st::exportHeaderPadding);
-	};
-
-	const auto addOption = [&](LangKey key, Types types) {
-		const auto checkbox = content->add(
-			object_ptr<Ui::Checkbox>(
-				content,
-				lang(key),
-				((_data.types & types) == types),
-				st::defaultBoxCheckbox),
-			st::exportSettingPadding);
-		base::ObservableViewer(
-			checkbox->checkedChanged
-		) | rpl::start_with_next([=](bool checked) {
-			if (checked) {
-				_data.types |= types;
-			} else {
-				_data.types &= ~types;
-			}
-			_dataTypesChanges.fire_copy(_data.types);
-			refreshButtonsCallback();
-		}, lifetime());
-		return checkbox;
-	};
-	const auto addBigOption = [&](LangKey key, Types types) {
-		const auto checkbox = addOption(key, types);
-		const auto onlyMy = content->add(
-			object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
-				content,
-				object_ptr<Ui::Checkbox>(
-					content,
-					lang(lng_export_option_only_my),
-					((_data.fullChats & types) != types),
-					st::defaultBoxCheckbox),
-				st::exportSubSettingPadding));
-
-		base::ObservableViewer(
-			onlyMy->entity()->checkedChanged
-		) | rpl::start_with_next([=](bool checked) {
-			if (checked) {
-				_data.fullChats &= ~types;
-			} else {
-				_data.fullChats |= types;
-			}
-		}, checkbox->lifetime());
-
-		onlyMy->toggleOn(base::ObservableViewer(
-			checkbox->checkedChanged
-		));
-
-		onlyMy->toggle(checkbox->checked(), anim::type::instant);
-
-		if (types & (Type::PublicGroups | Type::PublicChannels)) {
-			onlyMy->entity()->setChecked(true);
-			onlyMy->entity()->setDisabled(true);
-		}
-	};
-	addOption(lng_export_option_info, Type::PersonalInfo | Type::Userpics);
-	addOption(lng_export_option_contacts, Type::Contacts);
-	addOption(lng_export_option_sessions, Type::Sessions);
-	addHeader(content, lng_export_header_chats);
-	addOption(lng_export_option_personal_chats, Type::PersonalChats);
-	addOption(lng_export_option_bot_chats, Type::BotChats);
-	addBigOption(lng_export_option_private_groups, Type::PrivateGroups);
-	addBigOption(lng_export_option_private_channels, Type::PrivateChannels);
-	addBigOption(lng_export_option_public_groups, Type::PublicGroups);
-	addBigOption(lng_export_option_public_channels, Type::PublicChannels);
-	const auto mediaWrap = content->add(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			content,
-			object_ptr<Ui::VerticalLayout>(content)));
-	const auto media = mediaWrap->entity();
-	const auto addSubOption = [&](LangKey key, MediaType type) {
-		const auto checkbox = media->add(
-			object_ptr<Ui::Checkbox>(
-				media,
-				lang(key),
-				((_data.media.types & type) == type),
-				st::defaultBoxCheckbox),
-			st::exportSettingPadding);
-		base::ObservableViewer(
-			checkbox->checkedChanged
-		) | rpl::start_with_next([=](bool checked) {
-			if (checked) {
-				_data.media.types |= type;
-			} else {
-				_data.media.types &= ~type;
-			}
-			refreshButtonsCallback();
-		}, lifetime());
-	};
-	addHeader(media, lng_export_header_media);
-	addSubOption(lng_export_option_photos, MediaType::Photo);
-	addSubOption(lng_export_option_video_files, MediaType::Video);
-	addSubOption(lng_export_option_voice_messages, MediaType::VoiceMessage);
-	addSubOption(lng_export_option_video_messages, MediaType::VideoMessage);
-	addSubOption(lng_export_option_stickers, MediaType::Sticker);
-	addSubOption(lng_export_option_gifs, MediaType::GIF);
-	addSubOption(lng_export_option_files, MediaType::File);
-	createSizeSlider(media);
-
-	const auto formatGroup = std::make_shared<Ui::RadioenumGroup<Format>>(
-		_data.format);
-	formatGroup->setChangedCallback([=](Format format) {
-		_data.format = format;
-	});
-	const auto addFormatOption = [&](LangKey key, Format format) {
-		const auto radio = content->add(
-			object_ptr<Ui::Radioenum<Format>>(
-				content,
-				formatGroup,
-				format,
-				lang(key),
-				st::defaultBoxCheckbox),
-			st::exportSettingPadding);
-	};
-	addHeader(content, lng_export_header_format);
-	addFormatOption(lng_export_option_text, Format::Text);
-	addFormatOption(lng_export_option_json, Format::Json);
-
-	_dataTypesChanges.events_starting_with_copy(
-		_data.types
-	) | rpl::start_with_next([=](Settings::Types types) {
-		mediaWrap->toggle((types & (Type::PersonalChats
-			| Type::BotChats
-			| Type::PrivateGroups
-			| Type::PrivateChannels
-			| Type::PublicGroups
-			| Type::PublicChannels)) != 0, anim::type::normal);
-	}, mediaWrap->lifetime());
-
-	refreshButtonsCallback();
-
-	topShadow->raise();
-	bottomShadow->raise();
+		topShadow->raise();
+		bottomShadow->raise();
+	}, buttons->lifetime());
 
 	sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
-		scroll->resize(size.width(), size.height() - buttons->height());
-		wrap->resizeToWidth(size.width());
-		content->resizeToWidth(size.width());
 		buttons->resizeToWidth(size.width());
+		buttons->moveToLeft(0, size.height() - buttons->height());
 		topShadow->resizeToWidth(size.width());
-		mediaWrap->resizeToWidth(size.width());
 		topShadow->moveToLeft(0, 0);
 		bottomShadow->resizeToWidth(size.width());
-		bottomShadow->moveToLeft(0, scroll->height() - st::lineWidth);
-		buttons->moveToLeft(0, size.height() - buttons->height());
+		bottomShadow->moveToLeft(0, buttons->y() - st::lineWidth);
+	}, buttons->lifetime());
+
+	return buttons;
+}
+
+void SettingsWidget::addHeader(
+		not_null<Ui::VerticalLayout*> container,
+		LangKey key) {
+	container->add(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			lang(key),
+			Ui::FlatLabel::InitType::Simple,
+			st::exportHeaderLabel),
+		st::exportHeaderPadding);
+}
+
+not_null<Ui::Checkbox*> SettingsWidget::addOption(
+		not_null<Ui::VerticalLayout*> container,
+		LangKey key,
+		Types types) {
+	const auto checkbox = container->add(
+		object_ptr<Ui::Checkbox>(
+			container,
+			lang(key),
+			((_data.types & types) == types),
+			st::defaultBoxCheckbox),
+		st::exportSettingPadding);
+	base::ObservableViewer(
+		checkbox->checkedChanged
+	) | rpl::start_with_next([=](bool checked) {
+		if (checked) {
+			_data.types |= types;
+		} else {
+			_data.types &= ~types;
+		}
+		_dataTypesChanges.fire_copy(_data.types);
+		_refreshButtons.fire({});
+	}, lifetime());
+	return checkbox;
+}
+
+void SettingsWidget::addChatOption(
+		not_null<Ui::VerticalLayout*> container,
+		LangKey key,
+		Types types) {
+	const auto checkbox = addOption(container, key, types);
+	const auto onlyMy = container->add(
+		object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
+			container,
+			object_ptr<Ui::Checkbox>(
+				container,
+				lang(lng_export_option_only_my),
+				((_data.fullChats & types) != types),
+				st::defaultBoxCheckbox),
+			st::exportSubSettingPadding));
+
+	base::ObservableViewer(
+		onlyMy->entity()->checkedChanged
+	) | rpl::start_with_next([=](bool checked) {
+		if (checked) {
+			_data.fullChats &= ~types;
+		} else {
+			_data.fullChats |= types;
+		}
+	}, checkbox->lifetime());
+
+	onlyMy->toggleOn(base::ObservableViewer(
+		checkbox->checkedChanged
+	));
+
+	onlyMy->toggle(checkbox->checked(), anim::type::instant);
+
+	if (types & (Type::PublicGroups | Type::PublicChannels)) {
+		onlyMy->entity()->setChecked(true);
+		onlyMy->entity()->setDisabled(true);
+	}
+}
+
+void SettingsWidget::addMediaOption(
+		not_null<Ui::VerticalLayout*> container,
+		LangKey key,
+		MediaType type) {
+	const auto checkbox = container->add(
+		object_ptr<Ui::Checkbox>(
+			container,
+			lang(key),
+			((_data.media.types & type) == type),
+			st::defaultBoxCheckbox),
+		st::exportSettingPadding);
+	base::ObservableViewer(
+		checkbox->checkedChanged
+	) | rpl::start_with_next([=](bool checked) {
+		if (checked) {
+			_data.media.types |= type;
+		} else {
+			_data.media.types &= ~type;
+		}
+		_refreshButtons.fire({});
 	}, lifetime());
 }
 
-void SettingsWidget::createSizeSlider(
+void SettingsWidget::addSizeSlider(
 		not_null<Ui::VerticalLayout*> container) {
 	using namespace rpl::mappers;
 
@@ -273,7 +362,6 @@ void SettingsWidget::createSizeSlider(
 		st::exportFileSizePadding);
 	slider->resize(st::exportFileSizeSlider.seekSize);
 	slider->setAlwaysDisplayMarker(true);
-	slider->setMoveByWheel(true);
 	slider->setDirection(Ui::ContinuousSlider::Direction::Horizontal);
 	for (auto i = 0; i != kSizeValueCount + 1; ++i) {
 		if (_data.media.sizeLimit <= SizeLimitByIndex(i)) {
@@ -332,7 +420,9 @@ void SettingsWidget::refreshButtons(not_null<Ui::RpWidget*> container) {
 		: nullptr;
 	if (start) {
 		start->show();
-		start->addClickHandler([=] { chooseFolder(); });
+		start->addClickHandler([=] {
+			_startClicks.fire(base::duplicate(_data));
+		});
 
 		container->sizeValue(
 		) | rpl::start_with_next([=](QSize size) {
@@ -363,7 +453,7 @@ void SettingsWidget::refreshButtons(not_null<Ui::RpWidget*> container) {
 void SettingsWidget::chooseFolder() {
 	const auto ready = [=](QString &&result) {
 		_data.path = result;
-		_startClicks.fire(base::duplicate(_data));
+		_locationChanges.fire(std::move(result));
 	};
 	FileDialog::GetFolder(this, lang(lng_export_folder), _data.path, ready);
 }

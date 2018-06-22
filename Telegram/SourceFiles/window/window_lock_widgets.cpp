@@ -243,7 +243,7 @@ void TermsBox::prepare() {
 			st::termsPadding),
 		0,
 		age ? age->height() : 0);
-	content->entity()->setClickHandlerHook([=](
+	content->entity()->setClickHandlerFilter([=](
 			const ClickHandlerPtr &handler,
 			Qt::MouseButton button) {
 		const auto link = handler

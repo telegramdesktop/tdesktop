@@ -710,7 +710,7 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkEdit() {
 	_controls.inviteLink->setSelectable(true);
 	_controls.inviteLink->setContextCopyText(QString());
 	_controls.inviteLink->setBreakEverywhere(true);
-	_controls.inviteLink->setClickHandlerHook([this](auto&&...) {
+	_controls.inviteLink->setClickHandlerFilter([=](auto&&...) {
 		Application::clipboard()->setText(inviteLinkText());
 		Ui::Toast::Show(lang(lng_group_invite_copied));
 		return false;
