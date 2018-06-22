@@ -869,9 +869,9 @@ Result TextWriter::writeChatEnd() {
 }
 
 Result TextWriter::writeChatsEnd() {
-	Expects(_chats != nullptr);
-
-	_chats = nullptr;
+	if (_chats) {
+		_chats = nullptr;
+	}
 	return Result::Success();
 }
 
