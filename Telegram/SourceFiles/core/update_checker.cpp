@@ -518,7 +518,7 @@ void Updater::start(bool forceWait) {
 	if (sendRequest) {
 		clearSentRequest();
 
-		auto url = QUrl(Local::readAutoupdatePrefix() + qstr("/tupdates/current.php"));
+		auto url = QUrl(Local::readAutoupdatePrefix() + qstr("/tupdates/json.php"));
 
 		QString query = qsl("version=%1").arg(AppVersion);
 
