@@ -106,7 +106,7 @@ Stats AbstractWriter::produceTestExample(const QString &path) {
 		result.id = counter();
 		result.image.width = 512;
 		result.image.height = 512;
-		result.image.file.relativePath = "Files/Photo_"
+		result.image.file.relativePath = "files/photo_"
 			+ QString::number(++index)
 			+ ".jpg";
 		return result;
@@ -439,7 +439,9 @@ Stats AbstractWriter::produceTestExample(const QString &path) {
 	dialogBot.name = peerBot.name();
 	dialogBot.onlyMyMessages = false;
 	dialogBot.peerId = peerBot.id();
-	dialogBot.relativePath = "Chats/C_" + QString::number(counter()) + '/';
+	dialogBot.relativePath = "chats/chat_"
+		+ QString::number(counter())
+		+ '/';
 	dialogBot.splits.push_back(0);
 	dialogBot.splits.push_back(1);
 	dialogBot.topMessageDate = sliceBot2.list.back().date;
@@ -451,7 +453,9 @@ Stats AbstractWriter::produceTestExample(const QString &path) {
 	dialogChat.name = peerChat.name();
 	dialogChat.onlyMyMessages = true;
 	dialogChat.peerId = peerChat.id();
-	dialogChat.relativePath = "Chats/C_" + QString::number(counter()) + '/';
+	dialogChat.relativePath = "chats/chat_"
+		+ QString::number(counter())
+		+ '/';
 	dialogChat.splits.push_back(0);
 	dialogChat.splits.push_back(1);
 	dialogChat.topMessageDate = sliceChat2.list.back().date;

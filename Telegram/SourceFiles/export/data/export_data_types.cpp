@@ -257,21 +257,21 @@ QString ComputeDocumentName(
 	const auto pattern = patterns.isEmpty() ? QString() : patterns.front();
 	if (data.isVoiceMessage) {
 		const auto isMP3 = hasMimeType(qstr("audio/mp3"));
-		return qsl("Audio_")
+		return qsl("audio_")
 			+ QString::number(++context.audios)
 			+ (isMP3 ? qsl(".mp3") : qsl(".ogg"));
 	} else if (data.isVideoFile) {
 		const auto extension = pattern.isEmpty()
 			? qsl(".mov")
 			: QString(pattern).replace('*', QString());
-		return qsl("Video_")
+		return qsl("video_")
 			+ QString::number(++context.videos)
 			+ extension;
 	} else {
 		const auto extension = pattern.isEmpty()
 			? qsl(".unknown")
 			: QString(pattern).replace('*', QString());
-		return qsl("File_")
+		return qsl("file_")
 			+ QString::number(++context.files)
 			+ extension;
 	}
@@ -326,17 +326,17 @@ QString CleanDocumentName(QString name) {
 
 QString DocumentFolder(const Document &data) {
 	if (data.isVideoFile) {
-		return "VideoFiles";
+		return "video_files";
 	} else if (data.isAnimated) {
-		return "AnimatedGIFs";
+		return "animations";
 	} else if (data.isSticker) {
-		return "Stickers";
+		return "stickers";
 	} else if (data.isVoiceMessage) {
-		return "VoiceMessages";
+		return "voice_messages";
 	} else if (data.isVideoMessage) {
-		return "RoundVideoMessages";
+		return "round_video_messages";
 	}
-	return "Files";
+	return "files";
 }
 
 Document ParseDocument(
@@ -413,8 +413,8 @@ UserpicsSlice ParseUserpicsSlice(
 	auto result = UserpicsSlice();
 	result.list.reserve(list.size());
 	for (const auto &photo : list) {
-		const auto suggestedPath = "PersonalPhotos/"
-			"Photo_" + QString::number(++baseIndex) + ".jpg";
+		const auto suggestedPath = "profile_pictures/"
+			"photo_" + QString::number(++baseIndex) + ".jpg";
 		result.list.push_back(ParsePhoto(photo, suggestedPath));
 	}
 	return result;
@@ -645,8 +645,8 @@ Media ParseMedia(
 		result.content = data.has_photo()
 			? ParsePhoto(
 				data.vphoto,
-				folder + "Photos/"
-				"Photo_" + QString::number(++context.photos) + ".jpg")
+				folder + "photos/"
+				"photo_" + QString::number(++context.photos) + ".jpg")
 			: Photo();
 		if (data.has_ttl_seconds()) {
 			result.ttl = data.vttl_seconds.v;
@@ -700,8 +700,8 @@ ServiceAction ParseServiceAction(
 		auto content = ActionChatEditPhoto();
 		content.photo = ParsePhoto(
 			data.vphoto,
-			mediaFolder + "Photos/"
-			"Photo_" + QString::number(++context.photos) + ".jpg");
+			mediaFolder + "photos/"
+			"photo_" + QString::number(++context.photos) + ".jpg");
 		result.content = content;
 	}, [&](const MTPDmessageActionChatDeletePhoto &data) {
 		result.content = ActionChatDeletePhoto();
@@ -1190,7 +1190,7 @@ void FinalizeDialogsInfo(DialogsInfo &info, const Settings &settings) {
 	auto index = 0;
 	for (auto &dialog : list) {
 		const auto number = Data::NumberToString(++index, digits, '0');
-		dialog.relativePath = "Chats/chat_" + number + '/';
+		dialog.relativePath = "chats/chat_" + number + '/';
 
 		using DialogType = DialogInfo::Type;
 		using Type = Settings::Type;
@@ -1219,7 +1219,7 @@ void FinalizeLeftChannelsInfo(DialogsInfo &info, const Settings &settings) {
 	auto index = 0;
 	for (auto &dialog : list) {
 		const auto number = Data::NumberToString(++index, digits, '0');
-		dialog.relativePath = "Chats/left_" + number + '/';
+		dialog.relativePath = "chats/left_" + number + '/';
 		dialog.onlyMyMessages = true;
 	}
 }

@@ -199,8 +199,12 @@ QByteArray SerializeMessage(
 			const auto pre = name.isEmpty() ? QByteArray() : name + ' ';
 			switch (file.skipReason) {
 			case SkipReason::Unavailable: return pre + "(file unavailable)";
-			case SkipReason::FileSize: return pre + "(file too large)";
-			case SkipReason::FileType: return pre + "(file skipped)";
+			case SkipReason::FileSize:
+				return pre + "(" + label + " exceeds maximum size. "
+					"Change data exporting settings to download.)";
+			case SkipReason::FileType:
+				return pre + "(" + label + " not included. "
+					"Change data exporting settings to download.)";
 			case SkipReason::None: return FormatFilePath(file);
 			}
 			Unexpected("Skip reason while writing file path.");
@@ -248,10 +252,10 @@ QByteArray SerializeMessage(
 		push("Title", data.title);
 	}, [&](const ActionChatMigrateTo &data) {
 		pushActor();
-		pushAction("Migrate this group to supergroup");
+		pushAction("Convert this group to supergroup");
 	}, [&](const ActionChannelMigrateFrom &data) {
 		pushActor();
-		pushAction("Migrate this supergroup from group");
+		pushAction("Basic group converted to supergroup");
 		push("Title", data.title);
 	}, [&](const ActionPinMessage &data) {
 		pushActor();
@@ -459,8 +463,6 @@ Result TextWriter::writePersonal(const Data::PersonalInfo &data) {
 		{ "Bio", data.bio },
 		})
 		+ kLineBreak
-		+ Data::AboutPersonalInfo()
-		+ kLineBreak
 		+ kLineBreak;
 	return _summary->writeBlock(serialized);
 }
@@ -473,10 +475,10 @@ Result TextWriter::writeUserpicsStart(const Data::UserpicsInfo &data) {
 	if (!_userpicsCount) {
 		return Result::Success();
 	}
-	const auto filename = "personal_photos.txt";
+	const auto filename = "profile_pictures.txt";
 	_userpics = fileWithRelativePath(filename);
 
-	const auto serialized = "Personal photos "
+	const auto serialized = "Profile pictures"
 		"(" + Data::NumberToString(_userpicsCount) + ") - " + filename
 		+ kLineBreak
 		+ kLineBreak;
@@ -493,14 +495,26 @@ Result TextWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
 		if (!userpic.date) {
 			lines.push_back("(deleted photo)");
 		} else {
+			using SkipReason = Data::File::SkipReason;
+			const auto &file = userpic.image.file;
+			Assert(!file.relativePath.isEmpty()
+				|| file.skipReason != SkipReason::None);
+			const auto path = [&]() -> Data::Utf8String {
+				switch (file.skipReason) {
+				case SkipReason::Unavailable: return "(file unavailable)";
+				case SkipReason::FileSize:
+					return "(Photo exceeds maximum size. "
+						"Change data exporting settings to download.)";
+				case SkipReason::FileType:
+					return "(Photo not included. "
+						"Change data exporting settings to download.)";
+				case SkipReason::None: return FormatFilePath(file);
+				}
+				Unexpected("Skip reason while writing photo path.");
+			}();
 			lines.push_back(SerializeKeyValue({
 				{ "Date", Data::FormatDateTime(userpic.date) },
-				{
-					"Photo",
-					(userpic.image.file.relativePath.isEmpty()
-						? QByteArray("(file unavailable)")
-						: FormatFilePath(userpic.image.file))
-				},
+				{ "Photo", path },
 			}));
 		}
 	}
@@ -624,10 +638,13 @@ Result TextWriter::writeFrequentContacts(const Data::ContactsList &data) {
 			}));
 		}
 	};
-	writeList(data.correspondents, "Correspondents");
+	writeList(data.correspondents, "People");
 	writeList(data.inlineBots, "Inline bots");
 	writeList(data.phoneCalls, "Calls");
-	const auto full = JoinList(kLineBreak, list);
+	const auto full = Data::AboutFrequent()
+		+ kLineBreak
+		+ kLineBreak
+		+ JoinList(kLineBreak, list);
 	if (const auto result = file->writeBlock(full); !result) {
 		return result;
 	}
@@ -726,7 +743,10 @@ Result TextWriter::writeWebSessions(const Data::SessionsList &data) {
 			{ "Created", Data::FormatDateTime(session.created) },
 		}));
 	}
-	const auto full = JoinList(kLineBreak, list);
+	const auto full = Data::AboutWebSessions()
+		+ kLineBreak
+		+ kLineBreak
+		+ JoinList(kLineBreak, list);
 	if (const auto result = file->writeBlock(full); !result) {
 		return result;
 	}
@@ -740,7 +760,11 @@ Result TextWriter::writeWebSessions(const Data::SessionsList &data) {
 }
 
 Result TextWriter::writeDialogsStart(const Data::DialogsInfo &data) {
-	return writeChatsStart(data, "Chats", "chats.txt");
+	return writeChatsStart(
+		data,
+		"Chats",
+		Data::AboutChats(),
+		"chats.html");
 }
 
 Result TextWriter::writeDialogStart(const Data::DialogInfo &data) {
@@ -760,7 +784,11 @@ Result TextWriter::writeDialogsEnd() {
 }
 
 Result TextWriter::writeLeftChannelsStart(const Data::DialogsInfo &data) {
-	return writeChatsStart(data, "Left chats", "left_chats.txt");
+	return writeChatsStart(
+		data,
+		"Left chats",
+		Data::AboutLeftChats(),
+		"left_chats.html");
 }
 
 Result TextWriter::writeLeftChannelStart(const Data::DialogInfo &data) {
@@ -782,6 +810,7 @@ Result TextWriter::writeLeftChannelsEnd() {
 Result TextWriter::writeChatsStart(
 		const Data::DialogsInfo &data,
 		const QByteArray &listName,
+		const QByteArray &about,
 		const QString &fileName) {
 	Expects(_summary != nullptr);
 	Expects(_chats == nullptr);
@@ -793,6 +822,11 @@ Result TextWriter::writeChatsStart(
 	_chats = fileWithRelativePath(fileName);
 	_dialogIndex = 0;
 	_dialogsCount = data.list.size();
+
+	const auto block = about + kLineBreak;
+	if (const auto result = _chats->writeBlock(block); !result) {
+		return result;
+	}
 
 	const auto header = listName + " "
 		"(" + Data::NumberToString(data.list.size()) + ") - "
@@ -827,9 +861,7 @@ Result TextWriter::writeChatSlice(const Data::MessagesSlice &data) {
 			data.peers,
 			_settings.internalLinksDomain));
 	}
-	const auto full = _chat->empty()
-		? JoinList(kLineBreak, list)
-		: kLineBreak + JoinList(kLineBreak, list);
+	const auto full = kLineBreak + JoinList(kLineBreak, list);
 	return _chat->writeBlock(full);
 }
 

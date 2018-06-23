@@ -327,8 +327,12 @@ QByteArray SerializeMessage(
 			const auto pre = name.isEmpty() ? QByteArray() : name + ' ';
 			switch (file.skipReason) {
 			case SkipReason::Unavailable: return pre + "(file unavailable)";
-			case SkipReason::FileSize: return pre + "(file too large)";
-			case SkipReason::FileType: return pre + "(file skipped)";
+			case SkipReason::FileSize:
+				return pre + "(File exceeds maximum size. "
+					"Change data exporting settings to download.)";
+			case SkipReason::FileType:
+				return pre + "(File not included. "
+					"Change data exporting settings to download.)";
 			case SkipReason::None: return FormatFilePath(file);
 			}
 			Unexpected("Skip reason while writing file path.");
@@ -616,7 +620,6 @@ Result JsonWriter::writePersonal(const Data::PersonalInfo &data) {
 	return _output->writeBlock(
 		prepareObjectItemStart("personal_information")
 		+ SerializeObject(_context, {
-		{ "about", SerializeString(Data::AboutPersonalInfo()) },
 		{ "first_name", SerializeString(info.firstName) },
 		{ "last_name", SerializeString(info.lastName) },
 		{
@@ -641,7 +644,7 @@ Result JsonWriter::writePersonal(const Data::PersonalInfo &data) {
 Result JsonWriter::writeUserpicsStart(const Data::UserpicsInfo &data) {
 	Expects(_output != nullptr);
 
-	auto block = prepareObjectItemStart("personal_photos");
+	auto block = prepareObjectItemStart("profile_pictures");
 	return _output->writeBlock(block + pushNesting(Context::kArray));
 }
 
@@ -651,6 +654,23 @@ Result JsonWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
 
 	auto block = QByteArray();
 	for (const auto &userpic : data.list) {
+		using SkipReason = Data::File::SkipReason;
+		const auto &file = userpic.image.file;
+		Assert(!file.relativePath.isEmpty()
+			|| file.skipReason != SkipReason::None);
+		const auto path = [&]() -> Data::Utf8String {
+			switch (file.skipReason) {
+			case SkipReason::Unavailable: return "(file unavailable)";
+			case SkipReason::FileSize:
+				return "(Photo exceeds maximum size. "
+					"Change data exporting settings to download.)";
+			case SkipReason::FileType:
+				return "(Photo not included. "
+					"Change data exporting settings to download.)";
+			case SkipReason::None: return FormatFilePath(file);
+			}
+			Unexpected("Skip reason while writing photo path.");
+		}();
 		block.append(prepareArrayItemStart());
 		block.append(SerializeObject(_context, {
 			{
@@ -659,9 +679,7 @@ Result JsonWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
 			},
 			{
 				"photo",
-				SerializeString(userpic.image.file.relativePath.isEmpty()
-					? QByteArray("(file unavailable)")
-						: FormatFilePath(userpic.image.file))
+				SerializeString(path)
 			},
 		}));
 	}
@@ -725,6 +743,10 @@ Result JsonWriter::writeFrequentContacts(const Data::ContactsList &data) {
 	Expects(_output != nullptr);
 
 	auto block = prepareObjectItemStart("frequent_contacts");
+	block.append(pushNesting(Context::kObject));
+	block.append(prepareObjectItemStart("about"));
+	block.append(SerializeString(Data::AboutFrequent()));
+	block.append(prepareObjectItemStart("list"));
 	block.append(pushNesting(Context::kArray));
 	const auto writeList = [&](
 			const std::vector<Data::TopPeer> &peers,
@@ -753,9 +775,10 @@ Result JsonWriter::writeFrequentContacts(const Data::ContactsList &data) {
 			}));
 		}
 	};
-	writeList(data.correspondents, "correspondents");
+	writeList(data.correspondents, "people");
 	writeList(data.inlineBots, "inline_bots");
 	writeList(data.phoneCalls, "calls");
+	block.append(popNesting());
 	return _output->writeBlock(block + popNesting());
 }
 
@@ -808,6 +831,10 @@ Result JsonWriter::writeWebSessions(const Data::SessionsList &data) {
 	Expects(_output != nullptr);
 
 	auto block = prepareObjectItemStart("web_sessions");
+	block.append(pushNesting(Context::kObject));
+	block.append(prepareObjectItemStart("about"));
+	block.append(SerializeString(Data::AboutWebSessions()));
+	block.append(prepareObjectItemStart("list"));
 	block.append(pushNesting(Context::kArray));
 	for (const auto &session : data.webList) {
 		block.append(prepareArrayItemStart());
@@ -822,6 +849,7 @@ Result JsonWriter::writeWebSessions(const Data::SessionsList &data) {
 			{ "created", SerializeDate(session.created) },
 		}));
 	}
+	block.append(popNesting());
 	return _output->writeBlock(block + popNesting());
 }
 

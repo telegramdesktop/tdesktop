@@ -73,6 +73,7 @@ private:
 	Result writeChatsStart(
 		const Data::DialogsInfo &data,
 		const QByteArray &listName,
+		const QByteArray &about,
 		const QString &fileName);
 	Result writeChatStart(const Data::DialogInfo &data);
 	Result writeChatSlice(const Data::MessagesSlice &data);
