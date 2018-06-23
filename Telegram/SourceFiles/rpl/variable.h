@@ -66,7 +66,8 @@ class variable final {
 public:
 	variable() : _data{} {
 	}
-
+	variable(variable &&other) : _data(std::move(other._data)) {
+	}
 	variable &operator=(variable &&other) {
 		return (*this = std::move(other._data));
 	}
