@@ -475,7 +475,7 @@ Result TextWriter::writeUserpicsStart(const Data::UserpicsInfo &data) {
 	if (!_userpicsCount) {
 		return Result::Success();
 	}
-	const auto filename = "profile_pictures.txt";
+	const auto filename = "lists/profile_pictures.txt";
 	_userpics = fileWithRelativePath(filename);
 
 	const auto serialized = "Profile pictures"
@@ -542,7 +542,8 @@ Result TextWriter::writeSavedContacts(const Data::ContactsList &data) {
 		return Result::Success();
 	}
 
-	const auto file = fileWithRelativePath("contacts.txt");
+	const auto filename = "lists/contacts.txt";
+	const auto file = fileWithRelativePath(filename);
 	auto list = std::vector<QByteArray>();
 	list.reserve(data.list.size());
 	for (const auto index : Data::SortedContactsIndices(data)) {
@@ -572,7 +573,7 @@ Result TextWriter::writeSavedContacts(const Data::ContactsList &data) {
 	}
 
 	const auto header = "Contacts "
-		"(" + Data::NumberToString(data.list.size()) + ") - contacts.txt"
+		"(" + Data::NumberToString(data.list.size()) + ") - " + filename
 		+ kLineBreak
 		+ kLineBreak;
 	return _summary->writeBlock(header);
@@ -586,7 +587,8 @@ Result TextWriter::writeFrequentContacts(const Data::ContactsList &data) {
 		return Result::Success();
 	}
 
-	const auto file = fileWithRelativePath("frequent.txt");
+	const auto filename = "lists/frequent.txt";
+	const auto file = fileWithRelativePath(filename);
 	auto list = std::vector<QByteArray>();
 	list.reserve(size);
 	const auto writeList = [&](
@@ -650,7 +652,7 @@ Result TextWriter::writeFrequentContacts(const Data::ContactsList &data) {
 	}
 
 	const auto header = "Frequent contacts "
-		"(" + Data::NumberToString(size) + ") - frequent.txt"
+		"(" + Data::NumberToString(size) + ") - lists/frequent.txt"
 		+ kLineBreak
 		+ kLineBreak;
 	return _summary->writeBlock(header);
@@ -674,7 +676,8 @@ Result TextWriter::writeSessions(const Data::SessionsList &data) {
 		return Result::Success();
 	}
 
-	const auto file = fileWithRelativePath("sessions.txt");
+	const auto filename = "lists/sessions.txt";
+	const auto file = fileWithRelativePath(filename);
 	auto list = std::vector<QByteArray>();
 	list.reserve(data.list.size());
 	for (const auto &session : data.list) {
@@ -705,7 +708,7 @@ Result TextWriter::writeSessions(const Data::SessionsList &data) {
 	}
 
 	const auto header = "Sessions "
-		"(" + Data::NumberToString(data.list.size()) + ") - sessions.txt"
+		"(" + Data::NumberToString(data.list.size()) + ") - " + filename
 		+ kLineBreak
 		+ kLineBreak;
 	return _summary->writeBlock(header);
@@ -718,7 +721,8 @@ Result TextWriter::writeWebSessions(const Data::SessionsList &data) {
 		return Result::Success();
 	}
 
-	const auto file = fileWithRelativePath("web_sessions.txt");
+	const auto filename = "lists/web_sessions.txt";
+	const auto file = fileWithRelativePath(filename);
 	auto list = std::vector<QByteArray>();
 	list.reserve(data.webList.size());
 	for (const auto &session : data.webList) {
@@ -752,8 +756,7 @@ Result TextWriter::writeWebSessions(const Data::SessionsList &data) {
 	}
 
 	const auto header = "Web sessions "
-		"(" + Data::NumberToString(data.webList.size()) + ")"
-		" - web_sessions.txt"
+		"(" + Data::NumberToString(data.webList.size()) + ") - " + filename
 		+ kLineBreak
 		+ kLineBreak;
 	return _summary->writeBlock(header);
@@ -764,7 +767,7 @@ Result TextWriter::writeDialogsStart(const Data::DialogsInfo &data) {
 		data,
 		"Chats",
 		Data::AboutChats(),
-		"chats.html");
+		"lists/chats.txt");
 }
 
 Result TextWriter::writeDialogStart(const Data::DialogInfo &data) {
@@ -788,7 +791,7 @@ Result TextWriter::writeLeftChannelsStart(const Data::DialogsInfo &data) {
 		data,
 		"Left chats",
 		Data::AboutLeftChats(),
-		"left_chats.html");
+		"lists/left_chats.txt");
 }
 
 Result TextWriter::writeLeftChannelStart(const Data::DialogInfo &data) {
@@ -940,7 +943,7 @@ QString TextWriter::mainFilePath() {
 }
 
 QString TextWriter::mainFileRelativePath() const {
-	return "overview.txt";
+	return "export_results.txt";
 }
 
 QString TextWriter::pathWithRelativePath(const QString &path) const {

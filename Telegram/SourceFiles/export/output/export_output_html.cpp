@@ -685,7 +685,7 @@ Result HtmlWriter::writeUserpicsStart(const Data::UserpicsInfo &data) {
 	if (!_userpicsCount) {
 		return Result::Success();
 	}
-	const auto filename = "profile_pictures.html";
+	const auto filename = "lists/profile_pictures.html";
 	_userpics = fileWithRelativePath(filename);
 
 	const auto serialized = SerializeLink(
@@ -761,7 +761,7 @@ Result HtmlWriter::writeSavedContacts(const Data::ContactsList &data) {
 		return Result::Success();
 	}
 
-	const auto filename = "contacts.html";
+	const auto filename = "lists/contacts.html";
 	const auto file = fileWithRelativePath(filename);
 	auto list = std::vector<QByteArray>();
 	list.reserve(data.list.size());
@@ -814,7 +814,7 @@ Result HtmlWriter::writeFrequentContacts(const Data::ContactsList &data) {
 		return Result::Success();
 	}
 
-	const auto filename = "frequent.html";
+	const auto filename = "lists/frequent.html";
 	const auto file = fileWithRelativePath(filename);
 	auto list = std::vector<QByteArray>();
 	list.reserve(size);
@@ -913,7 +913,7 @@ Result HtmlWriter::writeSessions(const Data::SessionsList &data) {
 		return Result::Success();
 	}
 
-	const auto filename = "sessions.html";
+	const auto filename = "lists/sessions.html";
 	const auto file = fileWithRelativePath(filename);
 	auto list = std::vector<QByteArray>();
 	list.reserve(data.list.size());
@@ -968,7 +968,7 @@ Result HtmlWriter::writeWebSessions(const Data::SessionsList &data) {
 		return Result::Success();
 	}
 
-	const auto filename = "web_sessions.html";
+	const auto filename = "lists/web_sessions.html";
 	const auto file = fileWithRelativePath(filename);
 	auto list = std::vector<QByteArray>();
 	list.reserve(data.webList.size());
@@ -1024,7 +1024,7 @@ Result HtmlWriter::writeDialogsStart(const Data::DialogsInfo &data) {
 		data,
 		"Chats",
 		Data::AboutChats(),
-		"chats.html");
+		"lists/chats.html");
 }
 
 Result HtmlWriter::writeDialogStart(const Data::DialogInfo &data) {
@@ -1048,7 +1048,7 @@ Result HtmlWriter::writeLeftChannelsStart(const Data::DialogsInfo &data) {
 		data,
 		"Left chats",
 		Data::AboutLeftChats(),
-		"left_chats.html");
+		"lists/left_chats.html");
 }
 
 Result HtmlWriter::writeLeftChannelStart(const Data::DialogInfo &data) {
@@ -1220,7 +1220,7 @@ QString HtmlWriter::mainFilePath() {
 }
 
 QString HtmlWriter::mainFileRelativePath() const {
-	return "overview.html";
+	return "export_results.html";
 }
 
 QString HtmlWriter::pathWithRelativePath(const QString &path) const {
