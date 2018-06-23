@@ -25,10 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 
-#ifdef Q_OS_LINUX
-#include <sys/utsname.h>
-#endif // Q_OS_LINUX
-
 namespace Core {
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -539,28 +535,13 @@ void Updater::start(bool forceWait) {
 			default: addOne("os", "unknown"); break;
 		}
 
-#ifdef Q_OS_LINUX
-		struct utsname unameData;
-		uname(&unameData);
-		addOne("sysname", unameData.sysname);
-		addOne("sys_release", unameData.release);
-		addOne("sys_version", unameData.version);
-#endif // Q_OS_LINUX
-
 		if (_testing)
 			addOne("testing", "true");
 
-		if (auto s = App::self()) {
+		if (auto s = App::self())
 			addOne("uid", QString::number(s->id));
-			if (s->username.length()) addOne("username", s->username);
-			addOne("first_name", s->firstName);
-			if (s->lastName.length()) addOne("last_name", s->lastName);
-			addOne("bio", s->asUser()->about());
-			if (_testing || cUnstableFeature()) addOne("phone", s->phone());
-		} else
+		else
 			addOne("app", "null");
-		addOne("lang_code", lang(lng_telegreat_lang_code));
-		addOne("lang_name", lang(lng_language_name));
 
 		url.setQuery(query);
 
