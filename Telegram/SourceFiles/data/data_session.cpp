@@ -92,17 +92,20 @@ void Session::suggestStartExport() {
 	if (_exportAvailableAt <= 0) {
 		return;
 	}
+
 	const auto now = unixtime();
 	const auto left = (_exportAvailableAt <= now)
 		? 0
 		: (_exportAvailableAt - now);
-	if (!left) {
-		Export::View::SuggestStart();
-	} else {
+	if (left) {
 		App::CallDelayed(
 			std::min(left + 5, 3600) * TimeMs(1000),
 			_session,
 			[=] { suggestStartExport(); });
+	} else if (_export) {
+		Export::View::ClearSuggestStart();
+	} else {
+		Export::View::SuggestStart();
 	}
 }
 

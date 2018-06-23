@@ -50,6 +50,9 @@ void fillCodes() {
 			Messenger::Instance().onSwitchDebugMode();
 		}));
 	});
+	Codes.insert(qsl("viewlogs"), [] {
+		File::ShowInFolder(cWorkingDir() + "log.txt");
+	});
 	Codes.insert(qsl("testmode"), [] {
 		auto text = cTestMode() ? qsl("Do you want to disable TEST mode?") : qsl("Do you want to enable TEST mode?\n\nYou will be switched to test cloud.");
 		Ui::show(Box<ConfirmBox>(text, [] {

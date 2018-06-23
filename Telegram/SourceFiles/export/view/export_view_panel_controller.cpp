@@ -51,10 +51,7 @@ void SuggestBox::prepare() {
 			return;
 		}
 		_cleared = true;
-
-		auto settings = Local::ReadExportSettings();
-		settings.availableAt = 0;
-		Local::WriteExportSettings(settings);
+		ClearSuggestStart();
 	};
 
 	addButton(langFactory(lng_box_ok), [=] {
@@ -90,6 +87,12 @@ void SuggestBox::prepare() {
 
 void SuggestStart() {
 	Ui::show(Box<SuggestBox>(), LayerOption::KeepOther);
+}
+
+void ClearSuggestStart() {
+	auto settings = Local::ReadExportSettings();
+	settings.availableAt = 0;
+	Local::WriteExportSettings(settings);
 }
 
 PanelController::PanelController(not_null<ControllerWrap*> process)

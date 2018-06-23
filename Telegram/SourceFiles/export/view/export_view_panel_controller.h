@@ -22,6 +22,7 @@ namespace Export {
 namespace View {
 
 void SuggestStart();
+void ClearSuggestStart();
 
 class Panel;
 

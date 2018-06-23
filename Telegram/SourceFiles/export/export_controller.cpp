@@ -613,17 +613,11 @@ void Controller::fillMessagesState(
 		int addIndex,
 		int addCount) const {
 	const auto &dialog = info.list[index];
-	auto count = 0;
-	for (const auto &dialog : info.list) {
-		if (dialog.name.isEmpty()) {
-			++count;
-		}
-	}
 	result.entityIndex = index + addIndex;
 	result.entityCount = info.list.size() + addCount;
 	result.entityName = dialog.name;
 	result.itemIndex = _messagesWritten + progress.itemIndex;
-	result.itemCount = std::max(_messagesCount, result.entityIndex);
+	result.itemCount = std::max(_messagesCount, result.itemIndex);
 	result.bytesType = ProcessingState::FileType::File; // TODO
 	if (!progress.path.isEmpty()) {
 		const auto last = progress.path.lastIndexOf('/');
