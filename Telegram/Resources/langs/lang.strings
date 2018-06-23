@@ -1681,7 +1681,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_export_option_size_limit" = "Size limit: {size}";
 "lng_export_header_format" = "Location and format";
 "lng_export_option_location" = "Download path: {path}";
-"lng_export_option_text" = "Human-readable text";
+"lng_export_option_html" = "Human-readable HTML";
 "lng_export_option_json" = "Machine-readable JSON";
 "lng_export_start" = "Export";
 "lng_export_state_initializing" = "Initializing...";

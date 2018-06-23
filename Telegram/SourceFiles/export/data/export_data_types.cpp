@@ -458,6 +458,9 @@ User ParseUser(const MTPUser &data) {
 		if (data.has_bot_info_version()) {
 			result.isBot = true;
 		}
+		if (data.is_self()) {
+			result.isSelf = true;
+		}
 		const auto access_hash = data.has_access_hash()
 			? data.vaccess_hash
 			: MTP_long(0);
@@ -492,7 +495,8 @@ Chat ParseChat(const MTPChat &data) {
 		result.input = MTP_inputPeerChat(MTP_int(result.id));
 	}, [&](const MTPDchannel &data) {
 		result.id = data.vid.v;
-		result.broadcast = data.is_broadcast();
+		result.isBroadcast = data.is_broadcast();
+		result.isSupergroup = data.is_megagroup();
 		result.title = ParseString(data.vtitle);
 		if (data.has_username()) {
 			result.username = ParseString(data.vusername);
@@ -502,7 +506,8 @@ Chat ParseChat(const MTPChat &data) {
 			data.vaccess_hash);
 	}, [&](const MTPDchannelForbidden &data) {
 		result.id = data.vid.v;
-		result.broadcast = data.is_broadcast();
+		result.isBroadcast = data.is_broadcast();
+		result.isSupergroup = data.is_megagroup();
 		result.title = ParseString(data.vtitle);
 		result.input = MTP_inputPeerChannel(
 			MTP_int(result.id),
@@ -1102,16 +1107,22 @@ SessionsList ParseWebSessionsList(
 DialogInfo::Type DialogTypeFromChat(const Chat &chat) {
 	using Type = DialogInfo::Type;
 	return chat.username.isEmpty()
-		? (chat.broadcast
+		? (chat.isBroadcast
 			? Type::PrivateChannel
+			: chat.isSupergroup
+			? Type::PrivateSupergroup
 			: Type::PrivateGroup)
-		: (chat.broadcast
+		: (chat.isBroadcast
 			? Type::PublicChannel
-			: Type::PublicGroup);
+			: Type::PublicSupergroup);
 }
 
 DialogInfo::Type DialogTypeFromUser(const User &user) {
-	return user.isBot ? DialogInfo::Type::Bot : DialogInfo::Type::Personal;
+	return user.isSelf
+		? DialogInfo::Type::Self
+		: user.isBot
+		? DialogInfo::Type::Bot
+		: DialogInfo::Type::Personal;
 }
 
 DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
@@ -1185,11 +1196,13 @@ void FinalizeDialogsInfo(DialogsInfo &info, const Settings &settings) {
 		using Type = Settings::Type;
 		const auto setting = [&] {
 			switch (dialog.type) {
+			case DialogType::Self:
 			case DialogType::Personal: return Type::PersonalChats;
 			case DialogType::Bot: return Type::BotChats;
-			case DialogType::PrivateGroup: return Type::PrivateGroups;
+			case DialogType::PrivateGroup:
+			case DialogType::PrivateSupergroup: return Type::PrivateGroups;
 			case DialogType::PrivateChannel: return Type::PrivateChannels;
-			case DialogType::PublicGroup: return Type::PublicGroups;
+			case DialogType::PublicSupergroup: return Type::PublicGroups;
 			case DialogType::PublicChannel: return Type::PublicChannels;
 			}
 			Unexpected("Type in ApiWrap::onlyMyMessages.");

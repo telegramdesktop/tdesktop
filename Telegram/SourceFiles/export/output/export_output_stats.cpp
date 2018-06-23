@@ -10,6 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Export {
 namespace Output {
 
+Stats::Stats(const Stats &other)
+: _files(other._files.load())
+, _bytes(other._bytes.load()) {
+}
+
 void Stats::incrementFiles() {
 	++_files;
 }

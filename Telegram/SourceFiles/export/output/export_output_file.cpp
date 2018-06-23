@@ -120,5 +120,20 @@ QString File::PrepareRelativePath(
 	}
 }
 
+Result File::Copy(
+		const QString &source,
+		const QString &path,
+		Stats *stats) {
+	QFile f(source);
+	if (!f.exists() || !f.open(QIODevice::ReadOnly)) {
+		return Result(Result::Type::FatalError, source);
+	}
+	const auto bytes = f.readAll();
+	if (bytes.size() != f.size()) {
+		return Result(Result::Type::FatalError, source);
+	}
+	return File(path, stats).writeBlock(bytes);
+}
+
 } // namespace Output
 } // namespace File

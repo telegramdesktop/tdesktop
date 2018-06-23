@@ -733,12 +733,14 @@ Result JsonWriter::writeFrequentContacts(const Data::ContactsList &data) {
 			const auto type = [&] {
 				if (const auto chat = top.peer.chat()) {
 					return chat->username.isEmpty()
-						? (chat->broadcast
+						? (chat->isBroadcast
 							? "private_channel"
-							: "private_group")
-						: (chat->broadcast
+							: (chat->isSupergroup
+								? "private_supergroup"
+								: "private_group"))
+						: (chat->isBroadcast
 							? "public_channel"
-							: "public_group");
+							: "public_supergroup");
 				}
 				return "user";
 			}();
@@ -879,10 +881,12 @@ Result JsonWriter::writeChatStart(const Data::DialogInfo &data) {
 	const auto TypeString = [](Type type) {
 		switch (type) {
 		case Type::Unknown: return "";
+		case Type::Self: return "saved_messages";
 		case Type::Personal: return "personal_chat";
 		case Type::Bot: return "bot_chat";
 		case Type::PrivateGroup: return "private_group";
-		case Type::PublicGroup: return "public_group";
+		case Type::PrivateSupergroup: return "private_supergroup";
+		case Type::PublicSupergroup: return "public_supergroup";
 		case Type::PrivateChannel: return "private_channel";
 		case Type::PublicChannel: return "public_channel";
 		}
@@ -891,8 +895,10 @@ Result JsonWriter::writeChatStart(const Data::DialogInfo &data) {
 
 	auto block = prepareArrayItemStart();
 	block.append(pushNesting(Context::kObject));
-	block.append(prepareObjectItemStart("name")
-		+ StringAllowNull(data.name));
+	if (data.type != Type::Self) {
+		block.append(prepareObjectItemStart("name")
+			+ StringAllowNull(data.name));
+	}
 	block.append(prepareObjectItemStart("type")
 		+ StringAllowNull(TypeString(data.type)));
 	block.append(prepareObjectItemStart("messages"));

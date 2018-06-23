@@ -32,6 +32,11 @@ public:
 		const QString &folder,
 		const QString &suggested);
 
+	[[nodiscard]] static Result Copy(
+		const QString &source,
+		const QString &path,
+		Stats *stats);
+
 private:
 	[[nodiscard]] Result reopen();
 	[[nodiscard]] Result writeBlockAttempt(const QByteArray &block);

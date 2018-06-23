@@ -162,6 +162,7 @@ struct User {
 	ContactInfo info;
 	Utf8String username;
 	bool isBot = false;
+	bool isSelf = false;
 
 	MTPInputUser input = MTP_inputUserEmpty();
 
@@ -175,7 +176,8 @@ struct Chat {
 	int32 id = 0;
 	Utf8String title;
 	Utf8String username;
-	bool broadcast = false;
+	bool isBroadcast = false;
+	bool isSupergroup = false;
 
 	MTPInputPeer input = MTP_inputPeerEmpty();
 };
@@ -466,10 +468,12 @@ std::map<uint64, Message> ParseMessagesList(
 struct DialogInfo {
 	enum class Type {
 		Unknown,
+		Self,
 		Personal,
 		Bot,
 		PrivateGroup,
-		PublicGroup,
+		PrivateSupergroup,
+		PublicSupergroup,
 		PrivateChannel,
 		PublicChannel,
 	};
@@ -479,7 +483,7 @@ struct DialogInfo {
 	MTPInputPeer input = MTP_inputPeerEmpty();
 	int32 topMessageId = 0;
 	TimeId topMessageDate = 0;
-	PeerId peerId = 0;
+	PeerId peerId;
 
 	// User messages splits which contained that dialog.
 	std::vector<int> splits;

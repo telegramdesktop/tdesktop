@@ -25,18 +25,22 @@ struct Settings;
 
 namespace Output {
 
+QString NormalizePath(const QString &source);
+
 struct Result;
 class Stats;
 
 enum class Format {
-	Text,
-	Json,
-	Yaml,
 	Html,
+	Json,
+	Text,
+	Yaml,
 };
 
 class AbstractWriter {
 public:
+	[[nodiscard]] virtual Format format() = 0;
+
 	[[nodiscard]] virtual Result start(
 		const Settings &settings,
 		Stats *stats) = 0;
@@ -79,6 +83,8 @@ public:
 	[[nodiscard]] virtual QString mainFilePath() = 0;
 
 	virtual ~AbstractWriter() = default;
+
+	Stats produceTestExample(const QString &path);
 
 };
 

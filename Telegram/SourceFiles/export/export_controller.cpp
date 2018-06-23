@@ -223,41 +223,10 @@ void Controller::startExport(const Settings &settings) {
 	}
 	_settings = base::duplicate(settings);
 
-	if (!normalizePath()) {
-		ioError(_settings.path);
-		return;
-	}
+	_settings.path = Output::NormalizePath(_settings.path);
 	_writer = Output::CreateWriter(_settings.format);
 	fillExportSteps();
 	exportNext();
-}
-
-bool Controller::normalizePath() {
-	QDir folder(_settings.path);
-	const auto path = folder.absolutePath();
-	_settings.path = path.endsWith('/') ? path : (path + '/');
-	if (!folder.exists()) {
-		return true;
-	}
-	const auto mode = QDir::AllEntries | QDir::NoDotAndDotDot;
-	const auto list = folder.entryInfoList(mode);
-	if (list.isEmpty()) {
-		return true;
-	}
-	const auto date = QDate::currentDate();
-	const auto base = QString("DataExport_%1_%2_%3"
-	).arg(date.day(), 2, 10, QChar('0')
-	).arg(date.month(), 2, 10, QChar('0')
-	).arg(date.year());
-	const auto add = [&](int i) {
-		return base + (i ? " (" + QString::number(i) + ')' : QString());
-	};
-	auto index = 0;
-	while (QDir(_settings.path + add(index)).exists()) {
-		++index;
-	}
-	_settings.path += add(index) + '/';
-	return true;
 }
 
 void Controller::fillExportSteps() {

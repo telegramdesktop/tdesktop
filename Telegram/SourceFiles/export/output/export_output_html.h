@@ -14,23 +14,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Export {
 namespace Output {
-namespace details {
 
-struct JsonContext {
-	using Type = bool;
-	static constexpr auto kObject = Type(true);
-	static constexpr auto kArray = Type(false);
-
-	// Always fun to use std::vector<bool>.
-	std::vector<Type> nesting;
-};
-
-} // namespace details
-
-class JsonWriter : public AbstractWriter {
+class HtmlWriter : public AbstractWriter {
 public:
+	HtmlWriter();
+
 	Format format() override {
-		return Format::Json;
+		return Format::Html;
 	}
 
 	Result start(const Settings &settings, Stats *stats) override;
@@ -61,17 +51,18 @@ public:
 
 	QString mainFilePath() override;
 
-private:
-	using Context = details::JsonContext;
+	~HtmlWriter();
 
-	[[nodiscard]] QByteArray pushNesting(Context::Type type);
-	[[nodiscard]] QByteArray prepareObjectItemStart(const QByteArray &key);
-	[[nodiscard]] QByteArray prepareArrayItemStart();
-	[[nodiscard]] QByteArray popNesting();
+private:
+	class Wrap;
+
+	Result copyFile(
+		const QString &source,
+		const QString &relativePath) const;
 
 	QString mainFileRelativePath() const;
 	QString pathWithRelativePath(const QString &path) const;
-	std::unique_ptr<File> fileWithRelativePath(const QString &path) const;
+	std::unique_ptr<Wrap> fileWithRelativePath(const QString &path) const;
 
 	Result writeSavedContacts(const Data::ContactsList &data);
 	Result writeFrequentContacts(const Data::ContactsList &data);
@@ -81,7 +72,8 @@ private:
 
 	Result writeChatsStart(
 		const Data::DialogsInfo &data,
-		const QByteArray &listName);
+		const QByteArray &listName,
+		const QString &fileName);
 	Result writeChatStart(const Data::DialogInfo &data);
 	Result writeChatSlice(const Data::MessagesSlice &data);
 	Result writeChatEnd();
@@ -89,10 +81,19 @@ private:
 
 	Settings _settings;
 	Stats *_stats = nullptr;
-	Context _context;
-	bool _currentNestingHadItem = false;
 
-	std::unique_ptr<File> _output;
+	std::unique_ptr<Wrap> _summary;
+
+	int _userpicsCount = 0;
+	std::unique_ptr<Wrap> _userpics;
+
+	int _dialogsCount = 0;
+	int _dialogIndex = 0;
+	Data::DialogInfo _dialog;
+
+	int _messagesCount = 0;
+	std::unique_ptr<Wrap> _chats;
+	std::unique_ptr<Wrap> _chat;
 
 };
 

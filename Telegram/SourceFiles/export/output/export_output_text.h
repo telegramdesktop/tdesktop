@@ -17,6 +17,10 @@ namespace Output {
 
 class TextWriter : public AbstractWriter {
 public:
+	Format format() override {
+		return Format::Text;
+	}
+
 	Result start(const Settings &settings, Stats *stats) override;
 
 	Result writePersonal(const Data::PersonalInfo &data) override;

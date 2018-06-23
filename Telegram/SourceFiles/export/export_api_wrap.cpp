@@ -69,13 +69,15 @@ LocationKey ComputeLocationKey(const Data::FileLocation &value) {
 Settings::Type SettingsFromDialogsType(Data::DialogInfo::Type type) {
 	using DialogType = Data::DialogInfo::Type;
 	switch (type) {
+	case DialogType::Self:
 	case DialogType::Personal:
 		return Settings::Type::PersonalChats;
 	case DialogType::Bot:
 		return Settings::Type::BotChats;
 	case DialogType::PrivateGroup:
+	case DialogType::PrivateSupergroup:
 		return Settings::Type::PrivateGroups;
-	case DialogType::PublicGroup:
+	case DialogType::PublicSupergroup:
 		return Settings::Type::PublicGroups;
 	case DialogType::PrivateChannel:
 		return Settings::Type::PrivateChannels;

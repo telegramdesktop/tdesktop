@@ -14,6 +14,9 @@ namespace Output {
 
 class Stats {
 public:
+	Stats() = default;
+	Stats(const Stats &other);
+
 	void incrementFiles();
 	void incrementBytes(int count);
 

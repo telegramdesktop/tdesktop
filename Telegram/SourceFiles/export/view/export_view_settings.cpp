@@ -192,7 +192,7 @@ void SettingsWidget::setupPathAndFormat(
 	};
 	addHeader(container, lng_export_header_format);
 	addLocationLabel(container);
-	addFormatOption(lng_export_option_text, Format::Text);
+	addFormatOption(lng_export_option_html, Format::Html);
 	addFormatOption(lng_export_option_json, Format::Json);
 }
 

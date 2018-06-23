@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "export/output/export_output_text.h"
+#include "export/output/export_output_html.h"
 
 #include "export/output/export_output_result.h"
 #include "export/data/export_data_types.h"
@@ -18,11 +18,54 @@ namespace Export {
 namespace Output {
 namespace {
 
-#ifdef Q_OS_WIN
-const auto kLineBreak = QByteArrayLiteral("\r\n");
-#else // Q_OS_WIN
-const auto kLineBreak = QByteArrayLiteral("\n");
-#endif // Q_OS_WIN
+const auto kLineBreak = QByteArrayLiteral("<br>");
+
+QByteArray SerializeString(const QByteArray &value) {
+	const auto size = value.size();
+	const auto begin = value.data();
+	const auto end = begin + size;
+
+	auto result = QByteArray();
+	result.reserve(size * 6);
+	for (auto p = begin; p != end; ++p) {
+		const auto ch = *p;
+		if (ch == '\n') {
+			result.append("<br>", 4);
+		} else if (ch == '"') {
+			result.append("&quot;", 6);
+		} else if (ch == '&') {
+			result.append("&amp;", 5);
+		} else if (ch == '\'') {
+			result.append("&apos;", 6);
+		} else if (ch == '<') {
+			result.append("&lt;", 4);
+		} else if (ch == '>') {
+			result.append("&gt;", 4);
+		} else if (ch >= 0 && ch < 32) {
+			result.append("&#x", 3).append('0' + (ch >> 4));
+			const auto left = (ch & 0x0F);
+			if (left >= 10) {
+				result.append('A' + (left - 10));
+			} else {
+				result.append('0' + left);
+			}
+			result.append(';');
+		} else if (ch == char(0xE2)
+			&& (p + 2 < end)
+			&& *(p + 1) == char(0x80)) {
+			if (*(p + 2) == char(0xA8)) { // Line separator.
+				result.append("<br>", 4);
+			} else if (*(p + 2) == char(0xA9)) { // Paragraph separator.
+				result.append("<br>", 4);
+			} else {
+				result.append(ch);
+			}
+		} else {
+			result.append(ch);
+		}
+	}
+	return result;
+}
 
 void SerializeMultiline(
 		QByteArray &appendTo,
@@ -97,16 +140,23 @@ QByteArray FormatFilePath(const Data::File &file) {
 	return file.relativePath.toUtf8();
 }
 
+QByteArray SerializeLink(
+		const Data::Utf8String &text,
+		const QString &path) {
+	return "<a href=\"" + path.toUtf8() + "\">" + text + "</a>";
+}
+
 QByteArray SerializeMessage(
+		Fn<QString(QString)> relativePath,
 		const Data::Message &message,
 		const std::map<Data::PeerId, Data::Peer> &peers,
 		const QString &internalLinksDomain) {
 	using namespace Data;
 
 	if (message.media.content.is<UnsupportedMedia>()) {
-		return "Error! This message is not supported "
+		return SerializeString("Error! This message is not supported "
 			"by this version of Telegram Desktop. "
-			"Please update the application.";
+			"Please update the application.");
 	}
 
 	const auto peer = [&](PeerId peerId) -> const Peer& {
@@ -132,13 +182,18 @@ QByteArray SerializeMessage(
 	};
 
 	auto values = std::vector<std::pair<QByteArray, QByteArray>>{
-		{ "ID", NumberToString(message.id) },
-		{ "Date", FormatDateTime(message.date) },
-		{ "Edited", FormatDateTime(message.edited) },
+		{ "ID", SerializeString(NumberToString(message.id)) },
+		{ "Date", SerializeString(FormatDateTime(message.date)) },
+		{ "Edited", SerializeString(FormatDateTime(message.edited)) },
+	};
+	const auto pushBare = [&](
+			const QByteArray &key,
+			const QByteArray &value) {
+		values.emplace_back(key, value);
 	};
 	const auto push = [&](const QByteArray &key, const QByteArray &value) {
 		if (!value.isEmpty()) {
-			values.emplace_back(key, value);
+			pushBare(key, SerializeString(value));
 		}
 	};
 	const auto wrapPeerName = [&](PeerId peerId) {
@@ -166,12 +221,12 @@ QByteArray SerializeMessage(
 			const QByteArray &labelMany = "Members") {
 		auto list = std::vector<QByteArray>();
 		for (const auto userId : data) {
-			list.push_back(wrapUserName(userId));
+			list.push_back(SerializeString(wrapUserName(userId)));
 		}
 		if (list.size() == 1) {
-			push(labelOne, list[0]);
+			pushBare(labelOne, list[0]);
 		} else if (!list.empty()) {
-			push(labelMany, JoinList(", ", list));
+			pushBare(labelMany, JoinList(", ", list));
 		}
 	};
 	const auto pushActor = [&] {
@@ -195,13 +250,17 @@ QByteArray SerializeMessage(
 		Expects(!file.relativePath.isEmpty()
 			|| file.skipReason != SkipReason::None);
 
-		push(label, [&]() -> QByteArray {
-			const auto pre = name.isEmpty() ? QByteArray() : name + ' ';
+		pushBare(label, [&]() -> QByteArray {
+			const auto pre = name.isEmpty()
+				? QByteArray()
+				: SerializeString(name + ' ');
 			switch (file.skipReason) {
 			case SkipReason::Unavailable: return pre + "(file unavailable)";
 			case SkipReason::FileSize: return pre + "(file too large)";
 			case SkipReason::FileType: return pre + "(file skipped)";
-			case SkipReason::None: return FormatFilePath(file);
+			case SkipReason::None: return SerializeLink(
+				FormatFilePath(file),
+				relativePath(file.relativePath));
 			}
 			Unexpected("Skip reason while writing file path.");
 		}());
@@ -378,13 +437,13 @@ QByteArray SerializeMessage(
 		}
 		pushTTL();
 	}, [&](const ContactInfo &data) {
-		push("Contact information", SerializeKeyValue({
+		pushBare("Contact information", SerializeKeyValue({
 			{ "First name", data.firstName },
 			{ "Last name", data.lastName },
 			{ "Phone number", FormatPhoneNumber(data.phoneNumber) },
 		}));
 	}, [&](const GeoPoint &data) {
-		push("Location", data.valid ? SerializeKeyValue({
+		pushBare("Location", data.valid ? SerializeKeyValue({
 			{ "Latitude", NumberToString(data.latitude) },
 			{ "Longitude", NumberToString(data.longitude) },
 		}) : QByteArray("(empty value)"));
@@ -393,7 +452,7 @@ QByteArray SerializeMessage(
 		push("Place name", data.title);
 		push("Address", data.address);
 		if (data.point.valid) {
-			push("Location", SerializeKeyValue({
+			pushBare("Location", SerializeKeyValue({
 				{ "Latitude", NumberToString(data.point.latitude) },
 				{ "Longitude", NumberToString(data.point.longitude) },
 			}));
@@ -411,7 +470,7 @@ QByteArray SerializeMessage(
 			}
 		}
 	}, [&](const Invoice &data) {
-		push("Invoice", SerializeKeyValue({
+		pushBare("Invoice", SerializeKeyValue({
 			{ "Title", data.title },
 			{ "Description", data.description },
 			{
@@ -428,44 +487,195 @@ QByteArray SerializeMessage(
 
 	auto value = JoinList(QByteArray(), ranges::view::all(
 		message.text
-	) | ranges::view::transform([](const Data::TextPart &part) {
-		return part.text;
+	) | ranges::view::transform([&](const Data::TextPart &part) {
+		const auto text = SerializeString(part.text);
+		using Type = Data::TextPart::Type;
+		switch (part.type) {
+		case Type::Text: return text;
+		case Type::Unknown: return text;
+		case Type::Mention:
+			return "<a href=\""
+				+ internalLinksDomain.toUtf8()
+				+ text.mid(1)
+				+ "\">" + text + "</a>";
+		case Type::Hashtag: return "<a href=\"#hash-"
+			+ text.mid(1)
+			+ "\">" + text + "</a>";
+		case Type::BotCommand: return "<a href=\"#command-"
+			+ text.mid(1)
+			+ "\">" + text + "</a>";
+		case Type::Url: return "<a href=\""
+			+ text
+			+ "\">" + text + "</a>";
+		case Type::Email: return "<a href=\"mailto:"
+			+ text
+			+ "\">" + text + "</a>";
+		case Type::Bold: return "<b>" + text + "</b>";
+		case Type::Italic: return "<i>" + text + "</i>";
+		case Type::Code: return "<code>" + text + "</code>";
+		case Type::Pre: return "<pre>" + text + "</pre>";
+		case Type::TextUrl: return "<a href=\""
+			+ SerializeString(part.additional)
+			+ "\">" + text + "</a>";
+		case Type::MentionName: return "<a href=\"#mention-"
+			+ part.additional
+			+ "\">" + text + "</a>";
+		case Type::Phone: return "<a href=\"tel:"
+			+ text
+			+ "\">" + text + "</a>";
+		case Type::Cashtag: return "<a href=\"#cash-"
+			+ text.mid(1)
+			+ "\">" + text + "</a>";
+		}
+		Unexpected("Type in text entities serialization.");
 	}) | ranges::to_vector);
-	push("Text", value);
+	pushBare("Text", value);
 
 	return SerializeKeyValue(std::move(values));
 }
 
 } // namespace
 
-Result TextWriter::start(const Settings &settings, Stats *stats) {
+class HtmlWriter::Wrap {
+public:
+	Wrap(const QString &path, const QString &base, Stats *stats);
+
+	[[nodiscard]] bool empty() const;
+
+	[[nodiscard]] Result writeBlock(const QByteArray &block);
+
+	[[nodiscard]] Result close();
+
+	[[nodiscard]] QString relativePath(const QString &path) const;
+	[[nodiscard]] QString relativePath(const Data::File &file) const;
+
+	~Wrap();
+
+private:
+	QByteArray begin() const;
+	QByteArray end() const;
+
+	File _file;
+	bool _closed = false;
+	QByteArray _base;
+
+};
+
+HtmlWriter::Wrap::Wrap(
+	const QString &path,
+	const QString &base,
+	Stats *stats)
+: _file(path, stats) {
+	Expects(base.endsWith('/'));
+	Expects(path.startsWith(base));
+
+	const auto left = path.mid(base.size());
+	const auto nesting = ranges::count(left, '/');
+	_base = QString("../").repeated(nesting).toUtf8();
+}
+
+bool HtmlWriter::Wrap::empty() const {
+	return _file.empty();
+}
+
+Result HtmlWriter::Wrap::writeBlock(const QByteArray &block) {
+	Expects(!_closed);
+
+	const auto result = [&] {
+		if (block.isEmpty()) {
+			return _file.writeBlock(block);
+		} else if (_file.empty()) {
+			return _file.writeBlock(begin() + block);
+		}
+		return _file.writeBlock(block);
+	}();
+	if (!result) {
+		_closed = true;
+	}
+	return result;
+}
+
+Result HtmlWriter::Wrap::close() {
+	if (!std::exchange(_closed, true) && !_file.empty()) {
+		return _file.writeBlock(end());
+	}
+	return Result::Success();
+}
+
+QString HtmlWriter::Wrap::relativePath(const QString &path) const {
+	return _base + path;
+}
+
+QString HtmlWriter::Wrap::relativePath(const Data::File &file) const {
+	return relativePath(file.relativePath);
+}
+
+QByteArray HtmlWriter::Wrap::begin() const {
+	return "\
+<!DOCTYPE html>\n\
+<html>\n\
+<head>\n\
+	<meta charset=\"utf-8\">\n\
+	<title>Exported Data</title>\n\
+	<meta name=\"viewport\" "
+	"content=\"width=device-width, initial-scale=1.0\">\n\
+	<link href=\"" + _base + "css/style.css\" rel=\"stylesheet\">\n\
+</head>\n\
+<body>\n\
+<div class=\"container page_wrap\">\n";
+}
+
+QByteArray HtmlWriter::Wrap::end() const {
+	return "\
+</div>\n\
+</body>\n\
+</html>\n";
+}
+
+HtmlWriter::Wrap::~Wrap() {
+	Expects(_file.empty() || _closed);
+}
+
+HtmlWriter::HtmlWriter() = default;
+
+Result HtmlWriter::start(const Settings &settings, Stats *stats) {
 	Expects(settings.path.endsWith('/'));
 
 	_settings = base::duplicate(settings);
 	_stats = stats;
 	_summary = fileWithRelativePath(mainFileRelativePath());
-	return Result::Success();
+
+	//const auto result = copyFile(
+	//	":/export/css/bootstrap.min.css",
+	//	"css/bootstrap.min.css");
+	//if (!result) {
+	//	return result;
+	//}
+	return copyFile(":/export/css/style.css", "css/style.css");
 }
 
-Result TextWriter::writePersonal(const Data::PersonalInfo &data) {
+Result HtmlWriter::writePersonal(const Data::PersonalInfo &data) {
 	Expects(_summary != nullptr);
 
 	const auto &info = data.user.info;
 	const auto serialized = SerializeKeyValue({
-		{ "First name", info.firstName },
-		{ "Last name", info.lastName },
-		{ "Phone number", Data::FormatPhoneNumber(info.phoneNumber) },
-		{ "Username", FormatUsername(data.user.username) },
-		{ "Bio", data.bio },
+		{ "First name", SerializeString(info.firstName) },
+		{ "Last name", SerializeString(info.lastName) },
+		{
+			"Phone number",
+			SerializeString(Data::FormatPhoneNumber(info.phoneNumber))
+		},
+		{ "Username", SerializeString(FormatUsername(data.user.username)) },
+		{ "Bio", SerializeString(data.bio) },
 		})
 		+ kLineBreak
-		+ Data::AboutPersonalInfo()
+		+ SerializeString(Data::AboutPersonalInfo())
 		+ kLineBreak
 		+ kLineBreak;
 	return _summary->writeBlock(serialized);
 }
 
-Result TextWriter::writeUserpicsStart(const Data::UserpicsInfo &data) {
+Result HtmlWriter::writeUserpicsStart(const Data::UserpicsInfo &data) {
 	Expects(_summary != nullptr);
 	Expects(_userpics == nullptr);
 
@@ -473,17 +683,19 @@ Result TextWriter::writeUserpicsStart(const Data::UserpicsInfo &data) {
 	if (!_userpicsCount) {
 		return Result::Success();
 	}
-	const auto filename = "personal_photos.txt";
+	const auto filename = "personal_photos.html";
 	_userpics = fileWithRelativePath(filename);
 
-	const auto serialized = "Personal photos "
-		"(" + Data::NumberToString(_userpicsCount) + ") - " + filename
+	const auto serialized = SerializeLink(
+		"Personal photos "
+		"(" + Data::NumberToString(_userpicsCount) + ")",
+		_summary->relativePath(filename))
 		+ kLineBreak
 		+ kLineBreak;
 	return _summary->writeBlock(serialized);
 }
 
-Result TextWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
+Result HtmlWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
 	Expects(_userpics != nullptr);
 	Expects(!data.list.empty());
 
@@ -493,26 +705,41 @@ Result TextWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
 		if (!userpic.date) {
 			lines.push_back("(deleted photo)");
 		} else {
+			using SkipReason = Data::File::SkipReason;
+			const auto &file = userpic.image.file;
+			Assert(!file.relativePath.isEmpty()
+				|| file.skipReason != SkipReason::None);
+			const auto path = [&]() -> Data::Utf8String {
+				switch (file.skipReason) {
+				case SkipReason::Unavailable: return "(file unavailable)";
+				case SkipReason::FileSize: return "(file too large)";
+				case SkipReason::FileType: return "(file skipped)";
+				case SkipReason::None: return SerializeLink(
+					FormatFilePath(file),
+					_userpics->relativePath(file.relativePath));
+				}
+				Unexpected("Skip reason while writing photo path.");
+			}();
 			lines.push_back(SerializeKeyValue({
-				{ "Date", Data::FormatDateTime(userpic.date) },
 				{
-					"Photo",
-					(userpic.image.file.relativePath.isEmpty()
-						? QByteArray("(file unavailable)")
-						: FormatFilePath(userpic.image.file))
+					"Date",
+					SerializeString(Data::FormatDateTime(userpic.date))
 				},
+				{ "Photo", path },
 			}));
 		}
 	}
 	return _userpics->writeBlock(JoinList(kLineBreak, lines) + kLineBreak);
 }
 
-Result TextWriter::writeUserpicsEnd() {
-	_userpics = nullptr;
+Result HtmlWriter::writeUserpicsEnd() {
+	if (_userpics) {
+		return base::take(_userpics)->close();
+	}
 	return Result::Success();
 }
 
-Result TextWriter::writeContactsList(const Data::ContactsList &data) {
+Result HtmlWriter::writeContactsList(const Data::ContactsList &data) {
 	Expects(_summary != nullptr);
 
 	if (const auto result = writeSavedContacts(data); !result) {
@@ -523,12 +750,13 @@ Result TextWriter::writeContactsList(const Data::ContactsList &data) {
 	return Result::Success();
 }
 
-Result TextWriter::writeSavedContacts(const Data::ContactsList &data) {
+Result HtmlWriter::writeSavedContacts(const Data::ContactsList &data) {
 	if (data.list.empty()) {
 		return Result::Success();
 	}
 
-	const auto file = fileWithRelativePath("contacts.txt");
+	const auto filename = "contacts.html";
+	const auto file = fileWithRelativePath(filename);
 	auto list = std::vector<QByteArray>();
 	list.reserve(data.list.size());
 	for (const auto index : Data::SortedContactsIndices(data)) {
@@ -539,32 +767,40 @@ Result TextWriter::writeSavedContacts(const Data::ContactsList &data) {
 			list.push_back("(deleted user)" + kLineBreak);
 		} else {
 			list.push_back(SerializeKeyValue({
-				{ "First name", contact.firstName },
-				{ "Last name", contact.lastName },
+				{ "First name", SerializeString(contact.firstName) },
+				{ "Last name", SerializeString(contact.lastName) },
 				{
 					"Phone number",
-					Data::FormatPhoneNumber(contact.phoneNumber)
+					SerializeString(
+						Data::FormatPhoneNumber(contact.phoneNumber))
 				},
-				{ "Date", Data::FormatDateTime(contact.date) }
+				{
+					"Date",
+					SerializeString(Data::FormatDateTime(contact.date))
+				}
 			}));
 		}
 	}
-	const auto full = Data::AboutContacts()
+	const auto full = SerializeString(Data::AboutContacts())
 		+ kLineBreak
 		+ kLineBreak
 		+ JoinList(kLineBreak, list);
 	if (const auto result = file->writeBlock(full); !result) {
 		return result;
+	} else if (const auto closed = file->close(); !closed) {
+		return closed;
 	}
 
-	const auto header = "Contacts "
-		"(" + Data::NumberToString(data.list.size()) + ") - contacts.txt"
+	const auto header = SerializeLink(
+		"Contacts "
+		"(" + Data::NumberToString(data.list.size()) + ")",
+		_summary->relativePath(filename))
 		+ kLineBreak
 		+ kLineBreak;
 	return _summary->writeBlock(header);
 }
 
-Result TextWriter::writeFrequentContacts(const Data::ContactsList &data) {
+Result HtmlWriter::writeFrequentContacts(const Data::ContactsList &data) {
 	const auto size = data.correspondents.size()
 		+ data.inlineBots.size()
 		+ data.phoneCalls.size();
@@ -572,7 +808,8 @@ Result TextWriter::writeFrequentContacts(const Data::ContactsList &data) {
 		return Result::Success();
 	}
 
-	const auto file = fileWithRelativePath("frequent.txt");
+	const auto filename = "frequent.html";
+	const auto file = fileWithRelativePath(filename);
 	auto list = std::vector<QByteArray>();
 	list.reserve(size);
 	const auto writeList = [&](
@@ -616,11 +853,17 @@ Result TextWriter::writeFrequentContacts(const Data::ContactsList &data) {
 				return "Saved messages";
 			}();
 			list.push_back(SerializeKeyValue({
-				{ "Category", category },
-				{ "User",  top.peer.user() ? user : QByteArray() },
-				{ "Chat", saved },
-				{ chatType, chat },
-				{ "Rating", Data::NumberToString(top.rating) }
+				{ "Category", SerializeString(category) },
+				{
+					"User",
+					top.peer.user() ? SerializeString(user) : QByteArray()
+				},
+				{ "Chat", SerializeString(saved) },
+				{ chatType, SerializeString(chat) },
+				{
+					"Rating",
+					SerializeString(Data::NumberToString(top.rating))
+				}
 			}));
 		}
 	};
@@ -630,16 +873,20 @@ Result TextWriter::writeFrequentContacts(const Data::ContactsList &data) {
 	const auto full = JoinList(kLineBreak, list);
 	if (const auto result = file->writeBlock(full); !result) {
 		return result;
+	} else if (const auto closed = file->close(); !closed) {
+		return closed;
 	}
 
-	const auto header = "Frequent contacts "
-		"(" + Data::NumberToString(size) + ") - frequent.txt"
+	const auto header = SerializeLink(
+		"Frequent contacts "
+		"(" + Data::NumberToString(size) + ")",
+		_summary->relativePath(filename))
 		+ kLineBreak
 		+ kLineBreak;
 	return _summary->writeBlock(header);
 }
 
-Result TextWriter::writeSessionsList(const Data::SessionsList &data) {
+Result HtmlWriter::writeSessionsList(const Data::SessionsList &data) {
 	Expects(_summary != nullptr);
 
 	if (const auto result = writeSessions(data); !result) {
@@ -650,136 +897,157 @@ Result TextWriter::writeSessionsList(const Data::SessionsList &data) {
 	return Result::Success();
 }
 
-Result TextWriter::writeSessions(const Data::SessionsList &data) {
+Result HtmlWriter::writeSessions(const Data::SessionsList &data) {
 	Expects(_summary != nullptr);
 
 	if (data.list.empty()) {
 		return Result::Success();
 	}
 
-	const auto file = fileWithRelativePath("sessions.txt");
+	const auto filename = "sessions.html";
+	const auto file = fileWithRelativePath(filename);
 	auto list = std::vector<QByteArray>();
 	list.reserve(data.list.size());
 	for (const auto &session : data.list) {
 		list.push_back(SerializeKeyValue({
-			{ "Last active", Data::FormatDateTime(session.lastActive) },
-			{ "Last IP address", session.ip },
-			{ "Last country", session.country },
-			{ "Last region", session.region },
+			{
+				"Last active",
+				SerializeString(Data::FormatDateTime(session.lastActive))
+			},
+			{ "Last IP address", SerializeString(session.ip) },
+			{ "Last country", SerializeString(session.country) },
+			{ "Last region", SerializeString(session.region) },
 			{
 				"Application name",
 				(session.applicationName.isEmpty()
 					? Data::Utf8String("(unknown)")
-					: session.applicationName)
+					: SerializeString(session.applicationName))
 			},
-			{ "Application version", session.applicationVersion },
-			{ "Device model", session.deviceModel },
-			{ "Platform", session.platform },
-			{ "System version", session.systemVersion },
+			{
+				"Application version",
+				SerializeString(session.applicationVersion)
+			},
+			{ "Device model", SerializeString(session.deviceModel) },
+			{ "Platform", SerializeString(session.platform) },
+			{ "System version", SerializeString(session.systemVersion) },
 			{ "Created", Data::FormatDateTime(session.created) },
 		}));
 	}
-	const auto full = Data::AboutSessions()
+	const auto full = SerializeString(Data::AboutSessions())
 		+ kLineBreak
 		+ kLineBreak
 		+ JoinList(kLineBreak, list);
 	if (const auto result = file->writeBlock(full); !result) {
 		return result;
+	} else if (const auto closed = file->close(); !closed) {
+		return closed;
 	}
 
-	const auto header = "Sessions "
-		"(" + Data::NumberToString(data.list.size()) + ") - sessions.txt"
+	const auto header = SerializeLink(
+		"Sessions "
+		"(" + Data::NumberToString(data.list.size()) + ")",
+		_summary->relativePath(filename))
 		+ kLineBreak
 		+ kLineBreak;
 	return _summary->writeBlock(header);
 }
 
-Result TextWriter::writeWebSessions(const Data::SessionsList &data) {
+Result HtmlWriter::writeWebSessions(const Data::SessionsList &data) {
 	Expects(_summary != nullptr);
 
 	if (data.webList.empty()) {
 		return Result::Success();
 	}
 
-	const auto file = fileWithRelativePath("web_sessions.txt");
+	const auto filename = "web_sessions.html";
+	const auto file = fileWithRelativePath(filename);
 	auto list = std::vector<QByteArray>();
 	list.reserve(data.webList.size());
 	for (const auto &session : data.webList) {
 		list.push_back(SerializeKeyValue({
-			{ "Last active", Data::FormatDateTime(session.lastActive) },
-			{ "Last IP address", session.ip },
-			{ "Last region", session.region },
+			{
+				"Last active",
+				SerializeString(Data::FormatDateTime(session.lastActive))
+			},
+			{ "Last IP address", SerializeString(session.ip) },
+			{ "Last region", SerializeString(session.region) },
 			{
 				"Bot username",
 				(session.botUsername.isEmpty()
 					? Data::Utf8String("(unknown)")
-					: session.botUsername)
+					: SerializeString(session.botUsername))
 			},
 			{
 				"Domain name",
 				(session.domain.isEmpty()
 					? Data::Utf8String("(unknown)")
-					: session.domain)
+					: SerializeString(session.domain))
 			},
-			{ "Browser", session.browser },
-			{ "Platform", session.platform },
-			{ "Created", Data::FormatDateTime(session.created) },
+			{ "Browser", SerializeString(session.browser) },
+			{ "Platform", SerializeString(session.platform) },
+			{
+				"Created",
+				SerializeString(Data::FormatDateTime(session.created))
+			},
 		}));
 	}
 	const auto full = JoinList(kLineBreak, list);
 	if (const auto result = file->writeBlock(full); !result) {
 		return result;
+	} else if (const auto closed = file->close(); !closed) {
+		return closed;
 	}
 
-	const auto header = "Web sessions "
-		"(" + Data::NumberToString(data.webList.size()) + ")"
-		" - web_sessions.txt"
+	const auto header = SerializeLink(
+		"Web sessions "
+		"(" + Data::NumberToString(data.webList.size()) + ")",
+		_summary->relativePath(filename))
 		+ kLineBreak
 		+ kLineBreak;
 	return _summary->writeBlock(header);
 }
 
-Result TextWriter::writeDialogsStart(const Data::DialogsInfo &data) {
-	return writeChatsStart(data, "Chats", "chats.txt");
+Result HtmlWriter::writeDialogsStart(const Data::DialogsInfo &data) {
+	return writeChatsStart(data, "Chats", "chats.html");
 }
 
-Result TextWriter::writeDialogStart(const Data::DialogInfo &data) {
+Result HtmlWriter::writeDialogStart(const Data::DialogInfo &data) {
 	return writeChatStart(data);
 }
 
-Result TextWriter::writeDialogSlice(const Data::MessagesSlice &data) {
+Result HtmlWriter::writeDialogSlice(const Data::MessagesSlice &data) {
 	return writeChatSlice(data);
 }
 
-Result TextWriter::writeDialogEnd() {
+Result HtmlWriter::writeDialogEnd() {
 	return writeChatEnd();
 }
 
-Result TextWriter::writeDialogsEnd() {
+Result HtmlWriter::writeDialogsEnd() {
 	return writeChatsEnd();
 }
 
-Result TextWriter::writeLeftChannelsStart(const Data::DialogsInfo &data) {
-	return writeChatsStart(data, "Left chats", "left_chats.txt");
+Result HtmlWriter::writeLeftChannelsStart(const Data::DialogsInfo &data) {
+	return writeChatsStart(data, "Left chats", "left_chats.html");
 }
 
-Result TextWriter::writeLeftChannelStart(const Data::DialogInfo &data) {
+Result HtmlWriter::writeLeftChannelStart(const Data::DialogInfo &data) {
 	return writeChatStart(data);
 }
 
-Result TextWriter::writeLeftChannelSlice(const Data::MessagesSlice &data) {
+Result HtmlWriter::writeLeftChannelSlice(const Data::MessagesSlice &data) {
 	return writeChatSlice(data);
 }
 
-Result TextWriter::writeLeftChannelEnd() {
+Result HtmlWriter::writeLeftChannelEnd() {
 	return writeChatEnd();
 }
 
-Result TextWriter::writeLeftChannelsEnd() {
+Result HtmlWriter::writeLeftChannelsEnd() {
 	return writeChatsEnd();
 }
 
-Result TextWriter::writeChatsStart(
+Result HtmlWriter::writeChatsStart(
 		const Data::DialogsInfo &data,
 		const QByteArray &listName,
 		const QString &fileName) {
@@ -794,27 +1062,28 @@ Result TextWriter::writeChatsStart(
 	_dialogIndex = 0;
 	_dialogsCount = data.list.size();
 
-	const auto header = listName + " "
-		"(" + Data::NumberToString(data.list.size()) + ") - "
-		+ fileName.toUtf8()
+	const auto header = SerializeLink(
+		listName + " "
+		"(" + Data::NumberToString(data.list.size()) + ")",
+		_summary->relativePath(fileName))
 		+ kLineBreak
 		+ kLineBreak;
 	return _summary->writeBlock(header);
 }
 
-Result TextWriter::writeChatStart(const Data::DialogInfo &data) {
+Result HtmlWriter::writeChatStart(const Data::DialogInfo &data) {
 	Expects(_chat == nullptr);
 	Expects(_dialogIndex < _dialogsCount);
 
 	const auto digits = Data::NumberToString(_dialogsCount - 1).size();
 	const auto number = Data::NumberToString(++_dialogIndex, digits, '0');
-	_chat = fileWithRelativePath(data.relativePath + "messages.txt");
+	_chat = fileWithRelativePath(data.relativePath + "messages.html");
 	_messagesCount = 0;
 	_dialog = data;
 	return Result::Success();
 }
 
-Result TextWriter::writeChatSlice(const Data::MessagesSlice &data) {
+Result HtmlWriter::writeChatSlice(const Data::MessagesSlice &data) {
 	Expects(_chat != nullptr);
 	Expects(!data.list.empty());
 
@@ -823,6 +1092,7 @@ Result TextWriter::writeChatSlice(const Data::MessagesSlice &data) {
 	list.reserve(data.list.size());
 	for (const auto &message : data.list) {
 		list.push_back(SerializeMessage(
+			[&](QString path) { return _chat->relativePath(path); },
 			message,
 			data.peers,
 			_settings.internalLinksDomain));
@@ -833,11 +1103,13 @@ Result TextWriter::writeChatSlice(const Data::MessagesSlice &data) {
 	return _chat->writeBlock(full);
 }
 
-Result TextWriter::writeChatEnd() {
+Result HtmlWriter::writeChatEnd() {
 	Expects(_chats != nullptr);
 	Expects(_chat != nullptr);
 
-	_chat = nullptr;
+	if (const auto closed = base::take(_chat)->close(); !closed) {
+		return closed;
+	}
 
 	using Type = Data::DialogInfo::Type;
 	const auto TypeString = [](Type type) {
@@ -877,48 +1149,69 @@ Result TextWriter::writeChatEnd() {
 		Unexpected("Dialog type in TypeString.");
 	};
 	return _chats->writeBlock(SerializeKeyValue({
-		{ "Name", NameString(_dialog, _dialog.type) },
-		{ "Type", TypeString(_dialog.type) },
+		{ "Name", SerializeString(NameString(_dialog, _dialog.type)) },
+		{ "Type", SerializeString(TypeString(_dialog.type)) },
 		{
 			(_dialog.onlyMyMessages
 				? "Outgoing messages count"
 				: "Messages count"),
-			Data::NumberToString(_messagesCount)
+			SerializeString(Data::NumberToString(_messagesCount))
 		},
 		{
 			"Content",
 			(_messagesCount > 0
-				? (_dialog.relativePath + "messages.txt").toUtf8()
+				? SerializeLink(
+					(_dialog.relativePath + "messages.html").toUtf8(),
+					_chats->relativePath(
+						(_dialog.relativePath + "messages.html")))
 				: QByteArray())
 		}
 	}) + kLineBreak);
 }
 
-Result TextWriter::writeChatsEnd() {
-	_chats = nullptr;
+Result HtmlWriter::writeChatsEnd() {
+	if (_chats) {
+		return base::take(_chats)->close();
+	}
 	return Result::Success();
 }
 
-Result TextWriter::finish() {
-	return Result::Success();
+Result HtmlWriter::finish() {
+	Expects(_summary != nullptr);
+
+	return _summary->close();
 }
 
-QString TextWriter::mainFilePath() {
+Result HtmlWriter::copyFile(
+		const QString &source,
+		const QString &relativePath) const {
+	return File::Copy(
+		source,
+		pathWithRelativePath(relativePath),
+		_stats);
+}
+
+QString HtmlWriter::mainFilePath() {
 	return pathWithRelativePath(mainFileRelativePath());
 }
 
-QString TextWriter::mainFileRelativePath() const {
-	return "overview.txt";
+QString HtmlWriter::mainFileRelativePath() const {
+	return "overview.html";
 }
 
-QString TextWriter::pathWithRelativePath(const QString &path) const {
+QString HtmlWriter::pathWithRelativePath(const QString &path) const {
 	return _settings.path + path;
 }
 
-std::unique_ptr<File> TextWriter::fileWithRelativePath(
+std::unique_ptr<HtmlWriter::Wrap> HtmlWriter::fileWithRelativePath(
 		const QString &path) const {
-	return std::make_unique<File>(pathWithRelativePath(path), _stats);
+	return std::make_unique<Wrap>(
+		pathWithRelativePath(path),
+		_settings.path,
+		_stats);
 }
+
+HtmlWriter::~HtmlWriter() = default;
 
 } // namespace Output
 } // namespace Export
