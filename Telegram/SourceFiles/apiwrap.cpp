@@ -270,8 +270,9 @@ void ApiWrap::requestTermsUpdate() {
 		_termsUpdateRequestId = 0;
 
 		const auto requestNext = [&](auto &&data) {
+			const auto timeout = (data.vexpires.v - unixtime());
 			_termsUpdateSendAt = getms(true) + snap(
-				TimeMs(data.vexpires.v - unixtime()),
+				timeout * TimeMs(1000),
 				kTermsUpdateTimeoutMin,
 				kTermsUpdateTimeoutMax);
 			requestTermsUpdate();
