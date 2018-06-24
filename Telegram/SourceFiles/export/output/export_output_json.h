@@ -33,7 +33,10 @@ public:
 		return Format::Json;
 	}
 
-	Result start(const Settings &settings, Stats *stats) override;
+	Result start(
+		const Settings &settings,
+		const Environment &environment,
+		Stats *stats) override;
 
 	Result writePersonal(const Data::PersonalInfo &data) override;
 
@@ -90,7 +93,9 @@ private:
 	Result writeChatsEnd();
 
 	Settings _settings;
+	Environment _environment;
 	Stats *_stats = nullptr;
+
 	Context _context;
 	bool _currentNestingHadItem = false;
 

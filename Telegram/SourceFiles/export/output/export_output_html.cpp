@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "export/output/export_output_result.h"
 #include "export/data/export_data_types.h"
-#include "export/data/export_data_about.h"
 #include "core/utils.h"
 
 #include <QtCore/QFile>
@@ -681,10 +680,14 @@ HtmlWriter::Wrap::~Wrap() {
 
 HtmlWriter::HtmlWriter() = default;
 
-Result HtmlWriter::start(const Settings &settings, Stats *stats) {
+Result HtmlWriter::start(
+		const Settings &settings,
+		const Environment &environment,
+		Stats *stats) {
 	Expects(settings.path.endsWith('/'));
 
 	_settings = base::duplicate(settings);
+	_environment = environment;
 	_stats = stats;
 	_summary = fileWithRelativePath(mainFileRelativePath());
 
@@ -699,7 +702,7 @@ Result HtmlWriter::start(const Settings &settings, Stats *stats) {
 		return result;
 	}
 	return _summary->writeBlock(
-		MakeLinks(SerializeString(Data::AboutTelegram()))
+		MakeLinks(SerializeString(_environment.aboutTelegram))
 			+ kLineBreak
 			+ kLineBreak);
 }
@@ -833,7 +836,7 @@ Result HtmlWriter::writeSavedContacts(const Data::ContactsList &data) {
 			}));
 		}
 	}
-	const auto full = MakeLinks(SerializeString(Data::AboutContacts()))
+	const auto full = MakeLinks(SerializeString(_environment.aboutContacts))
 		+ kLineBreak
 		+ kLineBreak
 		+ JoinList(kLineBreak, list);
@@ -922,7 +925,7 @@ Result HtmlWriter::writeFrequentContacts(const Data::ContactsList &data) {
 	writeList(data.correspondents, "People");
 	writeList(data.inlineBots, "Inline bots");
 	writeList(data.phoneCalls, "Calls");
-	const auto full = MakeLinks(SerializeString(Data::AboutFrequent()))
+	const auto full = MakeLinks(SerializeString(_environment.aboutFrequent))
 		+ kLineBreak
 		+ kLineBreak
 		+ JoinList(kLineBreak, list);
@@ -988,7 +991,7 @@ Result HtmlWriter::writeSessions(const Data::SessionsList &data) {
 			{ "Created", Data::FormatDateTime(session.created) },
 		}));
 	}
-	const auto full = MakeLinks(SerializeString(Data::AboutSessions()))
+	const auto full = MakeLinks(SerializeString(_environment.aboutSessions))
 		+ kLineBreak
 		+ kLineBreak
 		+ JoinList(kLineBreak, list);
@@ -1046,7 +1049,8 @@ Result HtmlWriter::writeWebSessions(const Data::SessionsList &data) {
 			},
 		}));
 	}
-	const auto full = MakeLinks(SerializeString(Data::AboutWebSessions()))
+	const auto full = MakeLinks(
+		SerializeString(_environment.aboutWebSessions))
 		+ kLineBreak
 		+ kLineBreak
 		+ JoinList(kLineBreak, list);
@@ -1080,7 +1084,7 @@ Result HtmlWriter::writeDialogsStart(const Data::DialogsInfo &data) {
 	return writeChatsStart(
 		data,
 		"Chats",
-		Data::AboutChats(),
+		_environment.aboutChats,
 		"lists/chats.html");
 }
 
@@ -1104,7 +1108,7 @@ Result HtmlWriter::writeLeftChannelsStart(const Data::DialogsInfo &data) {
 	return writeChatsStart(
 		data,
 		"Left chats",
-		Data::AboutLeftChats(),
+		_environment.aboutLeftChats,
 		"lists/left_chats.html");
 }
 
@@ -1178,7 +1182,7 @@ Result HtmlWriter::writeChatSlice(const Data::MessagesSlice &data) {
 			[&](QString path) { return _chat->relativePath(path); },
 			message,
 			data.peers,
-			_settings.internalLinksDomain));
+			_environment.internalLinksDomain));
 	}
 	const auto full = _chat->empty()
 		? JoinList(kLineBreak, list)

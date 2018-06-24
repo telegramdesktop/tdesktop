@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "export/output/export_output_result.h"
 #include "export/data/export_data_types.h"
-#include "export/data/export_data_about.h"
 #include "core/utils.h"
 
 #include <QtCore/QDateTime>
@@ -572,11 +571,15 @@ QByteArray SerializeMessage(
 
 } // namespace
 
-Result JsonWriter::start(const Settings &settings, Stats *stats) {
+Result JsonWriter::start(
+		const Settings &settings,
+		const Environment &environment,
+		Stats *stats) {
 	Expects(_output == nullptr);
 	Expects(settings.path.endsWith('/'));
 
 	_settings = base::duplicate(settings);
+	_environment = environment;
 	_stats = stats;
 	_output = fileWithRelativePath(mainFileRelativePath());
 
@@ -713,7 +716,7 @@ Result JsonWriter::writeSavedContacts(const Data::ContactsList &data) {
 	auto block = prepareObjectItemStart("contacts");
 	block.append(pushNesting(Context::kObject));
 	block.append(prepareObjectItemStart("about"));
-	block.append(SerializeString(Data::AboutContacts()));
+	block.append(SerializeString(_environment.aboutContacts));
 	block.append(prepareObjectItemStart("list"));
 	block.append(pushNesting(Context::kArray));
 	for (const auto index : Data::SortedContactsIndices(data)) {
@@ -749,7 +752,7 @@ Result JsonWriter::writeFrequentContacts(const Data::ContactsList &data) {
 	auto block = prepareObjectItemStart("frequent_contacts");
 	block.append(pushNesting(Context::kObject));
 	block.append(prepareObjectItemStart("about"));
-	block.append(SerializeString(Data::AboutFrequent()));
+	block.append(SerializeString(_environment.aboutFrequent));
 	block.append(prepareObjectItemStart("list"));
 	block.append(pushNesting(Context::kArray));
 	const auto writeList = [&](
@@ -874,7 +877,7 @@ Result JsonWriter::writeSessions(const Data::SessionsList &data) {
 	auto block = prepareObjectItemStart("sessions");
 	block.append(pushNesting(Context::kObject));
 	block.append(prepareObjectItemStart("about"));
-	block.append(SerializeString(Data::AboutSessions()));
+	block.append(SerializeString(_environment.aboutSessions));
 	block.append(prepareObjectItemStart("list"));
 	block.append(pushNesting(Context::kArray));
 	for (const auto &session : data.list) {
@@ -908,7 +911,7 @@ Result JsonWriter::writeWebSessions(const Data::SessionsList &data) {
 	auto block = prepareObjectItemStart("web_sessions");
 	block.append(pushNesting(Context::kObject));
 	block.append(prepareObjectItemStart("about"));
-	block.append(SerializeString(Data::AboutWebSessions()));
+	block.append(SerializeString(_environment.aboutWebSessions));
 	block.append(prepareObjectItemStart("list"));
 	block.append(pushNesting(Context::kArray));
 	for (const auto &session : data.webList) {
@@ -1018,7 +1021,7 @@ Result JsonWriter::writeChatSlice(const Data::MessagesSlice &data) {
 			_context,
 			message,
 			data.peers,
-			_settings.internalLinksDomain));
+			_environment.internalLinksDomain));
 	}
 	return _output->writeBlock(block);
 }

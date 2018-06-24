@@ -15,6 +15,7 @@ namespace Export {
 
 class Controller;
 struct Settings;
+struct Environment;
 
 struct PasswordCheckState {
 	QString hint;
@@ -117,7 +118,9 @@ public:
 	//void cancelUnconfirmedPassword();
 
 	// Processing step.
-	void startExport(const Settings &settings);
+	void startExport(
+		const Settings &settings,
+		const Environment &environment);
 	void cancelExportFast();
 
 	rpl::lifetime &lifetime();

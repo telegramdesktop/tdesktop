@@ -59,11 +59,20 @@ std::unique_ptr<AbstractWriter> CreateWriter(Format format) {
 Stats AbstractWriter::produceTestExample(const QString &path) {
 	auto result = Stats();
 	const auto folder = QDir(path).absolutePath();
+	auto environment = Environment();
+	environment.internalLinksDomain = "https://t.me/";
+	environment.aboutTelegram = "About Telegram";
+	environment.aboutContacts = "About contacts";
+	environment.aboutFrequent = "About frequent";
+	environment.aboutSessions = "About sessions";
+	environment.aboutWebSessions = "About web sessions";
+	environment.aboutChats = "About chats";
+	environment.aboutLeftChats = "About left chats";
+
 	auto settings = Settings();
 	settings.format = format();
 	settings.path = (folder.endsWith('/') ? folder : (folder + '/'))
 		+ "ExportExample/";
-	settings.internalLinksDomain = "https://t.me/";
 	settings.types = Settings::Type::AllMask;
 	settings.fullChats = Settings::Type::AllMask
 		& ~(Settings::Type::PublicChannels | Settings::Type::PublicGroups);
@@ -74,7 +83,7 @@ Stats AbstractWriter::produceTestExample(const QString &path) {
 		Assert(result.isSuccess());
 	};
 
-	check(start(settings, &result));
+	check(start(settings, environment, &result));
 
 	const auto counter = [&] {
 		static auto GlobalCounter = 0;

@@ -23,7 +23,10 @@ public:
 		return Format::Html;
 	}
 
-	Result start(const Settings &settings, Stats *stats) override;
+	Result start(
+		const Settings &settings,
+		const Environment &environment,
+		Stats *stats) override;
 
 	Result writePersonal(const Data::PersonalInfo &data) override;
 
@@ -83,6 +86,7 @@ private:
 	Result writeChatsEnd();
 
 	Settings _settings;
+	Environment _environment;
 	Stats *_stats = nullptr;
 
 	std::unique_ptr<Wrap> _summary;

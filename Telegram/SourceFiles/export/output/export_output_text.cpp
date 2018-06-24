@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "export/output/export_output_result.h"
 #include "export/data/export_data_types.h"
-#include "export/data/export_data_about.h"
 #include "core/utils.h"
 
 #include <QtCore/QFile>
@@ -442,13 +441,17 @@ QByteArray SerializeMessage(
 
 } // namespace
 
-Result TextWriter::start(const Settings &settings, Stats *stats) {
+Result TextWriter::start(
+		const Settings &settings,
+		const Environment &environment,
+		Stats *stats) {
 	Expects(settings.path.endsWith('/'));
 
 	_settings = base::duplicate(settings);
+	_environment = environment;
 	_stats = stats;
 	_summary = fileWithRelativePath(mainFileRelativePath());
-	return _summary->writeBlock(Data::AboutTelegram()
+	return _summary->writeBlock(_environment.aboutTelegram
 		+ kLineBreak
 		+ kLineBreak);
 }
@@ -566,7 +569,7 @@ Result TextWriter::writeSavedContacts(const Data::ContactsList &data) {
 			}));
 		}
 	}
-	const auto full = Data::AboutContacts()
+	const auto full = _environment.aboutContacts
 		+ kLineBreak
 		+ kLineBreak
 		+ JoinList(kLineBreak, list);
@@ -645,7 +648,7 @@ Result TextWriter::writeFrequentContacts(const Data::ContactsList &data) {
 	writeList(data.correspondents, "People");
 	writeList(data.inlineBots, "Inline bots");
 	writeList(data.phoneCalls, "Calls");
-	const auto full = Data::AboutFrequent()
+	const auto full = _environment.aboutFrequent
 		+ kLineBreak
 		+ kLineBreak
 		+ JoinList(kLineBreak, list);
@@ -701,7 +704,7 @@ Result TextWriter::writeSessions(const Data::SessionsList &data) {
 			{ "Created", Data::FormatDateTime(session.created) },
 		}));
 	}
-	const auto full = Data::AboutSessions()
+	const auto full = _environment.aboutSessions
 		+ kLineBreak
 		+ kLineBreak
 		+ JoinList(kLineBreak, list);
@@ -749,7 +752,7 @@ Result TextWriter::writeWebSessions(const Data::SessionsList &data) {
 			{ "Created", Data::FormatDateTime(session.created) },
 		}));
 	}
-	const auto full = Data::AboutWebSessions()
+	const auto full = _environment.aboutWebSessions
 		+ kLineBreak
 		+ kLineBreak
 		+ JoinList(kLineBreak, list);
@@ -777,7 +780,7 @@ Result TextWriter::writeDialogsStart(const Data::DialogsInfo &data) {
 	return writeChatsStart(
 		data,
 		"Chats",
-		Data::AboutChats(),
+		_environment.aboutChats,
 		"lists/chats.txt");
 }
 
@@ -801,7 +804,7 @@ Result TextWriter::writeLeftChannelsStart(const Data::DialogsInfo &data) {
 	return writeChatsStart(
 		data,
 		"Left chats",
-		Data::AboutLeftChats(),
+		_environment.aboutLeftChats,
 		"lists/left_chats.txt");
 }
 
@@ -873,7 +876,7 @@ Result TextWriter::writeChatSlice(const Data::MessagesSlice &data) {
 		list.push_back(SerializeMessage(
 			message,
 			data.peers,
-			_settings.internalLinksDomain));
+			_environment.internalLinksDomain));
 	}
 	const auto full = _chat->empty()
 		? JoinList(kLineBreak, list)

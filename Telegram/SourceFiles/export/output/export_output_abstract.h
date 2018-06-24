@@ -23,6 +23,7 @@ struct File;
 } // namespace Data
 
 struct Settings;
+struct Environment;
 
 namespace Output {
 
@@ -44,6 +45,7 @@ public:
 
 	[[nodiscard]] virtual Result start(
 		const Settings &settings,
+		const Environment &environment,
 		Stats *stats) = 0;
 
 	[[nodiscard]] virtual Result writePersonal(

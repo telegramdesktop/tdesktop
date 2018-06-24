@@ -83,6 +83,22 @@ void SuggestBox::prepare() {
 	boxClosing() | rpl::start_with_next(clear, lifetime());
 }
 
+Environment PrepareEnvironment() {
+	auto result = Environment();
+	const auto utfLang = [](LangKey key) {
+		return lang(key).toUtf8();
+	};
+	result.internalLinksDomain = Global::InternalLinksDomain();
+	result.aboutTelegram = utfLang(lng_export_about_telegram);
+	result.aboutContacts = utfLang(lng_export_about_contacts);
+	result.aboutFrequent = utfLang(lng_export_about_frequent);
+	result.aboutSessions = utfLang(lng_export_about_sessions);
+	result.aboutWebSessions = utfLang(lng_export_about_web_sessions);
+	result.aboutChats = utfLang(lng_export_about_chats);
+	result.aboutLeftChats = utfLang(lng_export_about_left_chats);
+	return result;
+}
+
 } // namespace
 
 void SuggestStart() {
@@ -104,7 +120,6 @@ PanelController::PanelController(not_null<ControllerWrap*> process)
 	if (_settings->path.isEmpty()) {
 		_settings->path = psDownloadPath();
 	}
-	_settings->internalLinksDomain = Global::InternalLinksDomain();
 
 	_process->state(
 	) | rpl::start_with_next([=](State &&state) {
@@ -137,7 +152,7 @@ void PanelController::showSettings() {
 	settings->startClicks(
 	) | rpl::start_with_next([=]() {
 		showProgress();
-		_process->startExport(*_settings);
+		_process->startExport(*_settings, PrepareEnvironment());
 	}, settings->lifetime());
 
 	settings->cancelClicks(

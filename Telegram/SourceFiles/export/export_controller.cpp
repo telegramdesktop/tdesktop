@@ -32,7 +32,9 @@ public:
 	//void cancelUnconfirmedPassword();
 
 	// Processing step.
-	void startExport(const Settings &settings);
+	void startExport(
+		const Settings &settings,
+		const Environment &environment);
 	void cancelExportFast();
 
 private:
@@ -51,6 +53,7 @@ private:
 	void fillSubstepsInSteps(const ApiWrap::StartInfo &info);
 	void exportNext();
 	void initialize();
+	void initialized(const ApiWrap::StartInfo &info);
 	void collectLeftChannels();
 	void collectDialogsList();
 	void exportPersonalInfo();
@@ -92,6 +95,7 @@ private:
 
 	ApiWrap _api;
 	Settings _settings;
+	Environment _environment;
 
 	Data::DialogsInfo _leftChannelsInfo;
 	int _leftChannelIndex = -1;
@@ -219,11 +223,14 @@ bool Controller::ioCatchError(Output::Result result) {
 //
 //}
 
-void Controller::startExport(const Settings &settings) {
+void Controller::startExport(
+		const Settings &settings,
+		const Environment &environment) {
 	if (!_settings.path.isEmpty()) {
 		return;
 	}
 	_settings = base::duplicate(settings);
+	_environment = environment;
 
 	_settings.path = Output::NormalizePath(_settings.path);
 	_writer = Output::CreateWriter(_settings.format);
@@ -339,12 +346,16 @@ void Controller::exportNext() {
 void Controller::initialize() {
 	setState(stateInitializing());
 	_api.startExport(_settings, &_stats, [=](ApiWrap::StartInfo info) {
-		if (ioCatchError(_writer->start(_settings, &_stats))) {
-			return;
-		}
-		fillSubstepsInSteps(info);
-		exportNext();
+		initialized(info);
 	});
+}
+
+void Controller::initialized(const ApiWrap::StartInfo &info) {
+	if (ioCatchError(_writer->start(_settings, _environment, &_stats))) {
+		return;
+	}
+	fillSubstepsInSteps(info);
+	exportNext();
 }
 
 void Controller::collectLeftChannels() {
@@ -707,11 +718,13 @@ rpl::producer<State> ControllerWrap::state() const {
 //	});
 //}
 
-void ControllerWrap::startExport(const Settings &settings) {
+void ControllerWrap::startExport(
+		const Settings &settings,
+		const Environment &environment) {
 	LOG(("Export Info: Started export to '%1'.").arg(settings.path));
 
 	_wrapped.with([=](Controller &controller) {
-		controller.startExport(settings);
+		controller.startExport(settings, environment);
 	});
 }
 
@@ -727,6 +740,8 @@ rpl::lifetime &ControllerWrap::lifetime() {
 	return _lifetime;
 }
 
-ControllerWrap::~ControllerWrap() = default;
+ControllerWrap::~ControllerWrap() {
+	LOG(("Export Info: Controller destroyed."));
+}
 
 } // namespace Export

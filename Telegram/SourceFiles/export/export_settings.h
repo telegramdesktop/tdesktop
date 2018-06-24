@@ -70,7 +70,6 @@ struct Settings {
 	friend inline constexpr auto is_flag_type(Type) { return true; };
 
 	QString path;
-	QString internalLinksDomain;
 	Output::Format format = Output::Format();
 
 	Types types = DefaultTypes();
@@ -93,6 +92,17 @@ struct Settings {
 			| Type::BotChats;
 	}
 
+};
+
+struct Environment {
+	QString internalLinksDomain;
+	QByteArray aboutTelegram;
+	QByteArray aboutContacts;
+	QByteArray aboutFrequent;
+	QByteArray aboutSessions;
+	QByteArray aboutWebSessions;
+	QByteArray aboutChats;
+	QByteArray aboutLeftChats;
 };
 
 } // namespace Export
