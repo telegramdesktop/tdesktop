@@ -82,7 +82,6 @@ struct Settings {
 		return Type::PersonalInfo
 			| Type::Userpics
 			| Type::Contacts
-			| Type::Sessions
 			| Type::PersonalChats
 			| Type::PrivateGroups;
 	}

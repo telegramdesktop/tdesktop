@@ -105,11 +105,6 @@ void SettingsWidget::setupOptions(not_null<Ui::VerticalLayout*> container) {
 		lng_export_option_contacts,
 		Type::Contacts,
 		lng_export_option_contacts_about);
-	addOptionWithAbout(
-		container,
-		lng_export_option_sessions,
-		Type::Sessions,
-		lng_export_option_sessions_about);
 	addHeader(container, lng_export_header_chats);
 	addOption(
 		container,
@@ -136,6 +131,11 @@ void SettingsWidget::setupOptions(not_null<Ui::VerticalLayout*> container) {
 	setupMediaOptions(container);
 
 	addHeader(container, lng_export_header_other);
+	addOptionWithAbout(
+		container,
+		lng_export_option_sessions,
+		Type::Sessions,
+		lng_export_option_sessions_about);
 	addOptionWithAbout(
 		container,
 		lng_export_option_other,

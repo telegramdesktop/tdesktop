@@ -512,6 +512,7 @@ void Instance::Private::ping() {
 void Instance::Private::cancel(mtpRequestId requestId) {
 	if (!requestId) return;
 
+	DEBUG_LOG(("MTP Info: Cancel request %1.").arg(requestId));
 	const auto shiftedDcId = queryRequestByDc(requestId);
 	auto msgId = mtpMsgId(0);
 	{
@@ -884,6 +885,8 @@ void Instance::Private::registerRequest(
 }
 
 void Instance::Private::unregisterRequest(mtpRequestId requestId) {
+	DEBUG_LOG(("MTP Info: unregistering request %1.").arg(requestId));
+
 	_requestsDelays.erase(requestId);
 
 	{
@@ -968,12 +971,13 @@ void Instance::Private::clearCallbacks(
 	for (const auto &clearRequest : ids) {
 		if (Logs::DebugEnabled()) {
 			QMutexLocker locker(&_parserMapLock);
-			if (_parserMap.find(clearRequest.requestId) != _parserMap.end()) {
-				DEBUG_LOG(("RPC Info: "
-					"clearing delayed callback %1, error code %2"
-					).arg(clearRequest.requestId
-					).arg(clearRequest.errorCode));
-			}
+			const auto hasParsers = (_parserMap.find(clearRequest.requestId)
+				!= _parserMap.end());
+			DEBUG_LOG(("RPC Info: "
+				"clearing delayed callback %1, error code %2, parsers: %3"
+				).arg(clearRequest.requestId
+				).arg(clearRequest.errorCode
+				).arg(Logs::b(hasParsers)));
 		}
 		clearCallbacks(clearRequest.requestId, clearRequest.errorCode);
 		unregisterRequest(clearRequest.requestId);
@@ -996,35 +1000,42 @@ void Instance::Private::execCallback(
 		}
 	}
 	if (h.onDone || h.onFail) {
+		const auto handleError = [&](const MTPRpcError &error) {
+			const auto wrapped = RPCError(error);
+			DEBUG_LOG(("RPC Info: "
+				"error received, code %1, type %2, description: %3"
+				).arg(wrapped.code()
+				).arg(wrapped.type()
+				).arg(wrapped.description()));
+			if (rpcErrorOccured(requestId, h, wrapped)) {
+				unregisterRequest(requestId);
+			} else {
+				QMutexLocker locker(&_parserMapLock);
+				_parserMap.emplace(requestId, h);
+			}
+		};
+
 		try {
 			if (from >= end) throw mtpErrorInsufficient();
-
 			if (*from == mtpc_rpc_error) {
-				auto mtpError = MTPRpcError();
-				mtpError.read(from, end);
-				auto error = RPCError(mtpError);
-				DEBUG_LOG(("RPC Info: error received, code %1, type %2, description: %3").arg(error.code()).arg(error.type()).arg(error.description()));
-				if (!rpcErrorOccured(requestId, h, error)) {
-					QMutexLocker locker(&_parserMapLock);
-					_parserMap.emplace(requestId, h);
-					return;
-				}
+				auto error = MTPRpcError();
+				error.read(from, end);
+				handleError(error);
 			} else {
 				if (h.onDone) {
 					(*h.onDone)(requestId, from, end);
 				}
+				unregisterRequest(requestId);
 			}
 		} catch (Exception &e) {
-			if (!rpcErrorOccured(requestId, h, internal::rpcClientError("RESPONSE_PARSE_FAILED", QString("exception text: ") + e.what()))) {
-				QMutexLocker locker(&_parserMapLock);
-				_parserMap.emplace(requestId, h);
-				return;
-			}
+			handleError(internal::rpcClientError(
+				"RESPONSE_PARSE_FAILED",
+				QString("exception text: ") + e.what()));
 		}
 	} else {
 		DEBUG_LOG(("RPC Info: parser not found for %1").arg(requestId));
+		unregisterRequest(requestId);
 	}
-	unregisterRequest(requestId);
 }
 
 bool Instance::Private::hasCallbacks(mtpRequestId requestId) {

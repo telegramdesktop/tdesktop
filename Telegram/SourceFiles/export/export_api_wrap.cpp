@@ -491,15 +491,18 @@ void ApiWrap::requestDialogsList(
 }
 
 void ApiWrap::startMainSession(FnMut<void()> done) {
-	const auto sizeLimit = _settings->media.sizeLimit;
-	const auto hasFiles = (_settings->media.types != 0) && (sizeLimit > 0);
-
 	using Type = Settings::Type;
+	const auto sizeLimit = _settings->media.sizeLimit;
+	const auto hasFiles = ((_settings->media.types != 0) && (sizeLimit > 0))
+		|| (_settings->types & Type::Userpics);
+
 	using Flag = MTPaccount_InitTakeoutSession::Flag;
 	const auto flags = Flag(0)
 		| (_settings->types & Type::Contacts ? Flag::f_contacts : Flag(0))
 		| (hasFiles ? Flag::f_files : Flag(0))
-		| (sizeLimit < kFileMaxSize ? Flag::f_file_max_size : Flag(0))
+		| ((hasFiles && sizeLimit < kFileMaxSize)
+			? Flag::f_file_max_size
+			: Flag(0))
 		| (_settings->types & (Type::PersonalChats | Type::BotChats)
 			? Flag::f_message_users
 			: Flag(0))

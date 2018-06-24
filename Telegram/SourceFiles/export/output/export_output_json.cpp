@@ -329,7 +329,8 @@ QByteArray SerializeMessage(
 		push(label, [&]() -> QByteArray {
 			const auto pre = name.isEmpty() ? QByteArray() : name + ' ';
 			switch (file.skipReason) {
-			case SkipReason::Unavailable: return pre + "(file unavailable)";
+			case SkipReason::Unavailable:
+				return pre + "(File unavailable, please try again later)";
 			case SkipReason::FileSize:
 				return pre + "(File exceeds maximum size. "
 					"Change data exporting settings to download.)";
@@ -667,7 +668,8 @@ Result JsonWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
 			|| file.skipReason != SkipReason::None);
 		const auto path = [&]() -> Data::Utf8String {
 			switch (file.skipReason) {
-			case SkipReason::Unavailable: return "(file unavailable)";
+			case SkipReason::Unavailable:
+				return "(Photo unavailable, please try again later)";
 			case SkipReason::FileSize:
 				return "(Photo exceeds maximum size. "
 					"Change data exporting settings to download.)";
