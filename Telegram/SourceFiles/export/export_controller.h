@@ -33,6 +33,7 @@ struct ProcessingState {
 		Userpics,
 		Contacts,
 		Sessions,
+		OtherData,
 		LeftChannels,
 		Dialogs,
 	};

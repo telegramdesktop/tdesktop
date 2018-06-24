@@ -62,6 +62,8 @@ LocationKey ComputeLocationKey(const Data::FileLocation &value) {
 	}, [&](const MTPDinputEncryptedFileLocation &data) {
 		result.type |= (4ULL << 24);
 		result.id = data.vid.v;
+	}, [&](const MTPDinputTakeoutFileLocation &data) {
+		result.type |= (5ULL << 24);
 	});
 	return result;
 }
@@ -138,6 +140,11 @@ struct ApiWrap::UserpicsProcess {
 	uint64 maxId = 0;
 	bool lastSlice = false;
 	int fileIndex = -1;
+};
+
+struct ApiWrap::OtherDataProcess {
+	Data::File file;
+	FnMut<void(Data::File&&)> done;
 };
 
 struct ApiWrap::FileProcess {
@@ -259,7 +266,8 @@ auto ApiWrap::splitRequest(int index, Request &&request) {
 }
 
 auto ApiWrap::fileRequest(const Data::FileLocation &location, int offset) {
-	Expects(location.dcId != 0);
+	Expects(location.dcId != 0
+		|| location.data.type() == mtpc_inputTakeoutFileLocation);
 	Expects(_takeoutId.has_value());
 
 	return std::move(_mtp.request(MTPInvokeWithTakeout<MTPupload_GetFile>(
@@ -269,7 +277,14 @@ auto ApiWrap::fileRequest(const Data::FileLocation &location, int offset) {
 			MTP_int(offset),
 			MTP_int(kFileChunkSize))
 	)).fail([=](RPCError &&result) {
-		error(std::move(result));
+		if (result.type() == qstr("TAKEOUT_FILE_EMPTY")
+			&& _otherDataProcess != nullptr) {
+			filePartDone(0, MTP_upload_file(MTP_storage_filePartial(),
+				MTP_int(0),
+				MTP_bytes(QByteArray())));
+		} else {
+			error(std::move(result));
+		}
 	}).toDC(MTP::ShiftDcId(location.dcId, MTP::kExportMediaDcShift)));
 }
 
@@ -376,6 +391,8 @@ void ApiWrap::requestSplitRanges() {
 void ApiWrap::requestDialogsCount() {
 	Expects(_startProcess != nullptr);
 
+	validateSplits();
+
 	splitRequest(_startProcess->splitIndex, MTPmessages_GetDialogs(
 		MTP_flags(0),
 		MTP_int(0), // offset_date
@@ -467,7 +484,7 @@ void ApiWrap::requestDialogsList(
 void ApiWrap::validateSplits() {
 	if (_splits.empty()) {
 		_splits.push_back(MTP_messageRange(
-			MTP_int(0),
+			MTP_int(1),
 			MTP_int(std::numeric_limits<int>::max())));
 	}
 }
@@ -522,6 +539,29 @@ void ApiWrap::requestPersonalInfo(FnMut<void(Data::PersonalInfo&&)> done) {
 			error("Bad user type.");
 		}
 	}).send();
+}
+
+void ApiWrap::requestOtherData(
+		const QString &suggestedPath,
+		FnMut<void(Data::File&&)> done) {
+	Expects(_otherDataProcess == nullptr);
+
+	_otherDataProcess = std::make_unique<OtherDataProcess>();
+	_otherDataProcess->done = std::move(done);
+	_otherDataProcess->file.location.data = MTP_inputTakeoutFileLocation();
+	_otherDataProcess->file.suggestedPath = suggestedPath;
+	loadFile(
+		_otherDataProcess->file,
+		[](FileProgress progress) { return true; },
+		[=](const QString &result) { otherDataDone(result); });
+}
+
+void ApiWrap::otherDataDone(const QString &relativePath) {
+	Expects(_otherDataProcess != nullptr);
+
+	_otherDataProcess->file.relativePath = relativePath;
+	const auto process = base::take(_otherDataProcess);
+	process->done(std::move(process->file));
 }
 
 void ApiWrap::requestUserpics(
@@ -1185,7 +1225,8 @@ void ApiWrap::loadFile(
 		Fn<bool(FileProgress)> progress,
 		FnMut<void(QString)> done) {
 	Expects(_fileProcess == nullptr);
-	Expects(file.location.dcId != 0);
+	Expects(file.location.dcId != 0
+		|| file.location.data.type() == mtpc_inputTakeoutFileLocation);
 
 	_fileProcess = prepareFileProcess(file);
 	_fileProcess->progress = std::move(progress);
@@ -1263,6 +1304,11 @@ void ApiWrap::filePartDone(int offset, const MTPupload_File &result) {
 	if (data.vbytes.v.isEmpty()) {
 		if (_fileProcess->size > 0) {
 			error("Empty bytes received in file part.");
+			return;
+		}
+		const auto result = _fileProcess->file.writeBlock({});
+		if (!result) {
+			ioError(result);
 			return;
 		}
 	} else {

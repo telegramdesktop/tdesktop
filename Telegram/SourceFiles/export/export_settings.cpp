@@ -37,7 +37,7 @@ bool Settings::validate() const {
 		return false;
 	} else if ((fullChats & MustNotBeFull) != 0) {
 		return false;
-	} else if (format != Format::Text && format != Format::Json) {
+	} else if (format != Format::Html && format != Format::Json) {
 		return false;
 	} else if (!media.validate()) {
 		return false;

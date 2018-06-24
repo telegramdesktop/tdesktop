@@ -80,6 +80,9 @@ Content ContentFromState(const ProcessingState &state) {
 	case Step::Sessions:
 		pushMain(lang(lng_export_option_sessions));
 		break;
+	case Step::OtherData:
+		pushMain(lang(lng_export_option_other));
+		break;
 	case Step::LeftChannels:
 	case Step::Dialogs:
 		pushMain(lang(lng_export_state_chats));

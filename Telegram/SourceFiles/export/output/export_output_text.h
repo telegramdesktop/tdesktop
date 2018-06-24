@@ -33,6 +33,8 @@ public:
 
 	Result writeSessionsList(const Data::SessionsList &data) override;
 
+	Result writeOtherData(const Data::File &data) override;
+
 	Result writeDialogsStart(const Data::DialogsInfo &data) override;
 	Result writeDialogStart(const Data::DialogInfo &data) override;
 	Result writeDialogSlice(const Data::MessagesSlice &data) override;

@@ -91,8 +91,10 @@ void SuggestStart() {
 
 void ClearSuggestStart() {
 	auto settings = Local::ReadExportSettings();
-	settings.availableAt = 0;
-	Local::WriteExportSettings(settings);
+	if (settings.availableAt) {
+		settings.availableAt = 0;
+		Local::WriteExportSettings(settings);
+	}
 }
 
 PanelController::PanelController(not_null<ControllerWrap*> process)
@@ -160,7 +162,18 @@ void PanelController::showError(const ApiErrorState &error) {
 			qstr("TAKEOUT_INIT_DELAY_").size()).toInt(), 1);
 		const auto now = QDateTime::currentDateTime();
 		const auto when = now.addSecs(seconds);
-		showError(lng_export_delay(lt_date, langDateTimeFull(when)));
+		const auto hours = seconds / 3600;
+		const auto hoursText = [&] {
+			if (hours <= 0) {
+				return lang(lng_export_delay_less_than_hour);
+			}
+			return lng_export_delay_hours(lt_count, hours);
+		}();
+		showError(lng_export_delay(
+			lt_hours,
+			hoursText,
+			lt_date,
+			langDateTimeFull(when)));
 
 		_settings->availableAt = unixtime() + seconds;
 		_saveSettingsTimer.callOnce(kSaveSettingsTimeout);
@@ -217,6 +230,9 @@ void PanelController::showError(const QString &text) {
 }
 
 void PanelController::showProgress() {
+	_settings->availableAt = 0;
+	ClearSuggestStart();
+
 	_panel->setTitle(Lang::Viewer(lng_export_progress_title));
 
 	auto progress = base::make_unique_q<ProgressWidget>(

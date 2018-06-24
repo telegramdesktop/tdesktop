@@ -71,6 +71,10 @@ Session::Session(not_null<AuthSession*> session)
 }
 
 void Session::startExport() {
+	if (_exportPanel) {
+		_exportPanel->activatePanel();
+		return;
+	}
 	_export = std::make_unique<Export::ControllerWrap>();
 	_exportPanel = std::make_unique<Export::View::PanelController>(
 		_export.get());

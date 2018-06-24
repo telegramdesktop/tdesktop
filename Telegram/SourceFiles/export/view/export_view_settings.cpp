@@ -134,6 +134,13 @@ void SettingsWidget::setupOptions(not_null<Ui::VerticalLayout*> container) {
 		Type::PublicChannels);
 
 	setupMediaOptions(container);
+
+	addHeader(container, lng_export_header_other);
+	addOptionWithAbout(
+		container,
+		lng_export_option_other,
+		Type::OtherData,
+		lng_export_option_other_about);
 }
 
 void SettingsWidget::setupMediaOptions(
@@ -320,12 +327,12 @@ not_null<Ui::Checkbox*> SettingsWidget::addOption(
 	return checkbox;
 }
 
-void SettingsWidget::addOptionWithAbout(
+not_null<Ui::Checkbox*> SettingsWidget::addOptionWithAbout(
 		not_null<Ui::VerticalLayout*> container,
 		LangKey key,
 		Types types,
 		LangKey about) {
-	addOption(container, key, types);
+	const auto result = addOption(container, key, types);
 	const auto label = container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
@@ -333,6 +340,7 @@ void SettingsWidget::addOptionWithAbout(
 			Ui::FlatLabel::InitType::Simple,
 			st::exportAboutOptionLabel),
 		st::exportAboutOptionPadding);
+	return result;
 }
 
 void SettingsWidget::addChatOption(

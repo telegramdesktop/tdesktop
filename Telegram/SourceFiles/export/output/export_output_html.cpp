@@ -637,7 +637,7 @@ QByteArray HtmlWriter::Wrap::end() const {
 }
 
 HtmlWriter::Wrap::~Wrap() {
-	Expects(_file.empty() || _closed);
+	(void)close();
 }
 
 HtmlWriter::HtmlWriter() = default;
@@ -1019,6 +1019,17 @@ Result HtmlWriter::writeWebSessions(const Data::SessionsList &data) {
 	return _summary->writeBlock(header);
 }
 
+Result HtmlWriter::writeOtherData(const Data::File &data) {
+	Expects(_summary != nullptr);
+
+	const auto header = SerializeLink(
+		"Other data",
+		_summary->relativePath(data))
+		+ kLineBreak
+		+ kLineBreak;
+	return _summary->writeBlock(header);
+}
+
 Result HtmlWriter::writeDialogsStart(const Data::DialogsInfo &data) {
 	return writeChatsStart(
 		data,
@@ -1123,7 +1134,9 @@ Result HtmlWriter::writeChatSlice(const Data::MessagesSlice &data) {
 			data.peers,
 			_settings.internalLinksDomain));
 	}
-	const auto full = kLineBreak + JoinList(kLineBreak, list);
+	const auto full = _chat->empty()
+		? JoinList(kLineBreak, list)
+		: kLineBreak + JoinList(kLineBreak, list);
 	return _chat->writeBlock(full);
 }
 
@@ -1172,7 +1185,7 @@ Result HtmlWriter::writeChatEnd() {
 		}
 		Unexpected("Dialog type in TypeString.");
 	};
-	return _chats->writeBlock(SerializeKeyValue({
+	return _chats->writeBlock(kLineBreak + SerializeKeyValue({
 		{ "Name", SerializeString(NameString(_dialog, _dialog.type)) },
 		{ "Type", SerializeString(TypeString(_dialog.type)) },
 		{
@@ -1190,7 +1203,7 @@ Result HtmlWriter::writeChatEnd() {
 						(_dialog.relativePath + "messages.html")))
 				: QByteArray())
 		}
-	}) + kLineBreak);
+	}));
 }
 
 Result HtmlWriter::writeChatsEnd() {

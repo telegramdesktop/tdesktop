@@ -57,6 +57,7 @@ private:
 	void exportUserpics();
 	void exportContacts();
 	void exportSessions();
+	void exportOtherData();
 	void exportDialogs();
 	void exportNextDialog();
 	void exportLeftChannels();
@@ -73,6 +74,7 @@ private:
 	ProcessingState stateUserpics(const DownloadProgress &progress) const;
 	ProcessingState stateContacts() const;
 	ProcessingState stateSessions() const;
+	ProcessingState stateOtherData() const;
 	ProcessingState stateLeftChannels(
 		const DownloadProgress &progress) const;
 	ProcessingState stateDialogs(const DownloadProgress &progress) const;
@@ -250,6 +252,9 @@ void Controller::fillExportSteps() {
 	if (_settings.types & Type::Sessions) {
 		_steps.push_back(Step::Sessions);
 	}
+	if (_settings.types & Type::OtherData) {
+		_steps.push_back(Step::OtherData);
+	}
 	if (_settings.types & Type::AnyChatsMask) {
 		_steps.push_back(Step::Dialogs);
 	}
@@ -286,6 +291,9 @@ void Controller::fillSubstepsInSteps(const ApiWrap::StartInfo &info) {
 	if (_settings.types & Settings::Type::Sessions) {
 		push(Step::Sessions, 1);
 	}
+	if (_settings.types & Settings::Type::OtherData) {
+		push(Step::OtherData, 1);
+	}
 	if (_settings.types & Settings::Type::GroupsChannelsMask) {
 		push(Step::LeftChannels, info.leftChannelsCount);
 	}
@@ -321,6 +329,7 @@ void Controller::exportNext() {
 	case Step::Userpics: return exportUserpics();
 	case Step::Contacts: return exportContacts();
 	case Step::Sessions: return exportSessions();
+	case Step::OtherData: return exportOtherData();
 	case Step::LeftChannels: return exportLeftChannels();
 	case Step::Dialogs: return exportDialogs();
 	}
@@ -329,7 +338,6 @@ void Controller::exportNext() {
 
 void Controller::initialize() {
 	setState(stateInitializing());
-
 	_api.startExport(_settings, &_stats, [=](ApiWrap::StartInfo info) {
 		if (ioCatchError(_writer->start(_settings, &_stats))) {
 			return;
@@ -340,6 +348,7 @@ void Controller::initialize() {
 }
 
 void Controller::collectLeftChannels() {
+	setState(stateLeftChannelsList(0));
 	_api.requestLeftChannelsList([=](int count) {
 		setState(stateLeftChannelsList(count));
 		return true;
@@ -350,6 +359,7 @@ void Controller::collectLeftChannels() {
 }
 
 void Controller::collectDialogsList() {
+	setState(stateDialogsList(0));
 	_api.requestDialogsList([=](int count) {
 		setState(stateDialogsList(count));
 		return true;
@@ -360,6 +370,7 @@ void Controller::collectDialogsList() {
 }
 
 void Controller::exportPersonalInfo() {
+	setState(statePersonalInfo());
 	_api.requestPersonalInfo([=](Data::PersonalInfo &&result) {
 		if (ioCatchError(_writer->writePersonal(result))) {
 			return;
@@ -395,6 +406,7 @@ void Controller::exportUserpics() {
 }
 
 void Controller::exportContacts() {
+	setState(stateContacts());
 	_api.requestContacts([=](Data::ContactsList &&result) {
 		if (ioCatchError(_writer->writeContactsList(result))) {
 			return;
@@ -404,8 +416,20 @@ void Controller::exportContacts() {
 }
 
 void Controller::exportSessions() {
+	setState(stateSessions());
 	_api.requestSessions([=](Data::SessionsList &&result) {
 		if (ioCatchError(_writer->writeSessionsList(result))) {
+			return;
+		}
+		exportNext();
+	});
+}
+
+void Controller::exportOtherData() {
+	setState(stateOtherData());
+	const auto relativePath = "lists/other_data.json";
+	_api.requestOtherData(relativePath, [=](Data::File &&result) {
+		if (ioCatchError(_writer->writeOtherData(result))) {
 			return;
 		}
 		exportNext();
@@ -571,6 +595,10 @@ ProcessingState Controller::stateContacts() const {
 
 ProcessingState Controller::stateSessions() const {
 	return prepareState(Step::Sessions);
+}
+
+ProcessingState Controller::stateOtherData() const {
+	return prepareState(Step::OtherData);
 }
 
 ProcessingState Controller::stateLeftChannels(

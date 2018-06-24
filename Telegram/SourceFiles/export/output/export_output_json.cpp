@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/utils.h"
 
 #include <QtCore/QDateTime>
+#include <QtCore/QJsonDocument>
+#include <QtCore/QJsonObject>
+#include <QtCore/QJsonArray>
+#include <QtCore/QJsonValue>
 
 namespace Export {
 namespace Output {
@@ -791,6 +795,77 @@ Result JsonWriter::writeSessionsList(const Data::SessionsList &data) {
 		return result;
 	}
 	return Result::Success();
+}
+
+Result JsonWriter::writeOtherData(const Data::File &data) {
+	Expects(_output != nullptr);
+	Expects(data.skipReason == Data::File::SkipReason::None);
+	Expects(!data.relativePath.isEmpty());
+
+	QFile f(pathWithRelativePath(data.relativePath));
+	if (!f.open(QIODevice::ReadOnly)) {
+		return Result(Result::Type::FatalError, f.fileName());
+	}
+	const auto content = f.readAll();
+	if (content.isEmpty()) {
+		return Result::Success();
+	}
+	auto error = QJsonParseError{ 0, QJsonParseError::NoError };
+	const auto document = QJsonDocument::fromJson(content, &error);
+	if (error.error != QJsonParseError::NoError) {
+		return Result(Result::Type::FatalError, f.fileName());
+	}
+	auto block = prepareObjectItemStart("other_data");
+	Fn<void(const QJsonObject &data)> pushObject;
+	Fn<void(const QJsonArray &data)> pushArray;
+	Fn<void(const QJsonValue &data)> pushValue;
+	pushObject = [&](const QJsonObject &data) {
+		block.append(pushNesting(Context::kObject));
+		for (auto i = data.begin(); i != data.end(); ++i) {
+			if ((*i).type() != QJsonValue::Undefined) {
+				block.append(prepareObjectItemStart(i.key().toUtf8()));
+				pushValue(*i);
+			}
+		}
+		block.append(popNesting());
+	};
+	pushArray = [&](const QJsonArray &data) {
+		block.append(pushNesting(Context::kArray));
+		for (auto i = data.begin(); i != data.end(); ++i) {
+			if ((*i).type() != QJsonValue::Undefined) {
+				block.append(prepareArrayItemStart());
+				pushValue(*i);
+			}
+		}
+		block.append(popNesting());
+	};
+	pushValue = [&](const QJsonValue &data) {
+		switch (data.type()) {
+		case QJsonValue::Null:
+			block.append("null");
+			return;
+		case QJsonValue::Bool:
+			block.append(data.toBool() ? "true" : "false");
+			return;
+		case QJsonValue::Double:
+			block.append(Data::NumberToString(data.toDouble()));
+			return;
+		case QJsonValue::String:
+			block.append(SerializeString(data.toString().toUtf8()));
+			return;
+		case QJsonValue::Array:
+			return pushArray(data.toArray());
+		case QJsonValue::Object:
+			return pushObject(data.toObject());
+		}
+		Unexpected("Type of json valuein JsonWriter::writeOtherData.");
+	};
+	if (document.isObject()) {
+		pushObject(document.object());
+	} else {
+		pushArray(document.array());
+	}
+	return _output->writeBlock(block);
 }
 
 Result JsonWriter::writeSessions(const Data::SessionsList &data) {

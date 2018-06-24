@@ -51,12 +51,12 @@ private:
 		not_null<Ui::VerticalLayout*> container,
 		LangKey key,
 		Types types);
-	void addOptionWithAbout(
+	not_null<Ui::Checkbox*> addOptionWithAbout(
 		not_null<Ui::VerticalLayout*> container,
 		LangKey key,
 		Types types,
 		LangKey about);
-	void addChatOption(
+ 	void addChatOption(
 		not_null<Ui::VerticalLayout*> container,
 		LangKey key,
 		Types types);

@@ -1660,8 +1660,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_export_option_info_about" = "Your chosen screen name, username, phone number and profile pictures.";
 "lng_export_option_contacts" = "Contacts list";
 "lng_export_option_contacts_about" = "If you allow access, contacts are continuously synced with Telegram. You can adjust this in Settings > Privacy & Security on mobile devices.";
-"lng_export_option_sessions" = "Sessions list";
+"lng_export_option_sessions" = "Active sessions";
 "lng_export_option_sessions_about" = "We store this to display your connected devices in Settings > Privacy & Security > Active Sessions. Terminating a session removes this data from Telegram servers.";
+"lng_export_header_other" = "Other";
+"lng_export_option_other" = "Miscellaneous data";
+"lng_export_option_other_about" = "Other types of data not mentioned above. (beta)";
 "lng_export_header_chats" = "Chat export settings";
 "lng_export_option_personal_chats" = "Personal chats";
 "lng_export_option_bot_chats" = "Bot chats";
@@ -1705,7 +1708,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_export_total_size" = "Total size: {size}.";
 "lng_export_folder" = "Choose export folder";
 "lng_export_invalid" = "Sorry, you have started a new data export, so this data export is now cancelled.";
-"lng_export_delay" = "Sorry, for security reasons, you will be able to begin downloading your data in 24 hours. We have notified all your devices about the export request to make sure it's authorized and give you time to react if it's not.\n\nPlease come back on {date} and repeat the request using the same device.";
+"lng_export_delay" = "Sorry, for security reasons, you will be able to begin downloading your data in {hours}. We have notified all your devices about the export request to make sure it's authorized and give you time to react if it's not.\n\nPlease come back on {date} and repeat the request using the same device.";
+"lng_export_delay_less_than_hour" = "less than an hour";
+"lng_export_delay_hours#one" = "{count} hour";
+"lng_export_delay_hours#other" = "{count} hours";
 "lng_export_suggest_title" = "Data export ready";
 "lng_export_suggest_text" = "You can now download the data you requested. Start exporting data?";
 "lng_export_suggest_cancel" = "Not now";

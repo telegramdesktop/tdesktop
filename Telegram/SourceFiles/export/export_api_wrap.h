@@ -58,6 +58,10 @@ public:
 
 	void requestPersonalInfo(FnMut<void(Data::PersonalInfo&&)> done);
 
+	void requestOtherData(
+		const QString &suggestedPath,
+		FnMut<void(Data::File&&)> done);
+
 	struct DownloadProgress {
 		QString path;
 		int itemIndex = 0;
@@ -91,6 +95,7 @@ private:
 	struct StartProcess;
 	struct ContactsProcess;
 	struct UserpicsProcess;
+	struct OtherDataProcess;
 	struct FileProcess;
 	struct FileProgress;
 	struct ChatsProcess;
@@ -115,6 +120,8 @@ private:
 	void loadUserpicDone(const QString &relativePath);
 	void finishUserpicsSlice();
 	void finishUserpics();
+
+	void otherDataDone(const QString &relativePath);
 
 	void validateSplits();
 
@@ -186,6 +193,7 @@ private:
 	std::unique_ptr<LoadedFileCache> _fileCache;
 	std::unique_ptr<ContactsProcess> _contactsProcess;
 	std::unique_ptr<UserpicsProcess> _userpicsProcess;
+	std::unique_ptr<OtherDataProcess> _otherDataProcess;
 	std::unique_ptr<FileProcess> _fileProcess;
 	std::unique_ptr<LeftChannelsProcess> _leftChannelsProcess;
 	std::unique_ptr<DialogsProcess> _dialogsProcess;

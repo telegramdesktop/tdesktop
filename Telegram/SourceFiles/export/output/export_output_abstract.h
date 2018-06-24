@@ -19,6 +19,7 @@ struct SessionsList;
 struct DialogsInfo;
 struct DialogInfo;
 struct MessagesSlice;
+struct File;
 } // namespace Data
 
 struct Settings;
@@ -59,6 +60,9 @@ public:
 
 	[[nodiscard]] virtual Result writeSessionsList(
 		const Data::SessionsList &data) = 0;
+
+	[[nodiscard]] virtual Result writeOtherData(
+		const Data::File &data) = 0;
 
 	[[nodiscard]] virtual Result writeDialogsStart(
 		const Data::DialogsInfo &data) = 0;

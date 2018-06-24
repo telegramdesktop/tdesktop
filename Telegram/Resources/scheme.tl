@@ -192,6 +192,7 @@ inputFileLocation#14637196 volume_id:long local_id:int secret:long = InputFileLo
 inputEncryptedFileLocation#f5235d55 id:long access_hash:long = InputFileLocation;
 inputDocumentFileLocation#430f0724 id:long access_hash:long version:int = InputFileLocation;
 inputSecureFileLocation#cbc7ee28 id:long access_hash:long = InputFileLocation;
+inputTakeoutFileLocation#29be5899 = InputFileLocation;
 
 inputAppEvent#770656a8 time:double type:string peer:long data:string = InputAppEvent;
 
