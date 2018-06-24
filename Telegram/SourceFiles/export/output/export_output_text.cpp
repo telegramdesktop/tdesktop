@@ -448,7 +448,9 @@ Result TextWriter::start(const Settings &settings, Stats *stats) {
 	_settings = base::duplicate(settings);
 	_stats = stats;
 	_summary = fileWithRelativePath(mainFileRelativePath());
-	return Result::Success();
+	return _summary->writeBlock(Data::AboutTelegram()
+		+ kLineBreak
+		+ kLineBreak);
 }
 
 Result TextWriter::writePersonal(const Data::PersonalInfo &data) {
@@ -513,7 +515,7 @@ Result TextWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
 				Unexpected("Skip reason while writing photo path.");
 			}();
 			lines.push_back(SerializeKeyValue({
-				{ "Date", Data::FormatDateTime(userpic.date) },
+				{ "Added", Data::FormatDateTime(userpic.date) },
 				{ "Photo", path },
 			}));
 		}
@@ -560,7 +562,7 @@ Result TextWriter::writeSavedContacts(const Data::ContactsList &data) {
 					"Phone number",
 					Data::FormatPhoneNumber(contact.phoneNumber)
 				},
-				{ "Date", Data::FormatDateTime(contact.date) }
+				{ "Added", Data::FormatDateTime(contact.date) }
 			}));
 		}
 	}

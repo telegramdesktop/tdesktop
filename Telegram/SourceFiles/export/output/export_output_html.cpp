@@ -67,6 +67,45 @@ QByteArray SerializeString(const QByteArray &value) {
 	return result;
 }
 
+QByteArray MakeLinks(const QByteArray &value) {
+	const auto domain = QByteArray("https://telegram.org/");
+	auto result = QByteArray();
+	auto offset = 0;
+	while (true) {
+		const auto start = value.indexOf(domain, offset);
+		if (start < 0) {
+			break;
+		}
+		auto end = start + domain.size();
+		for (; end != value.size(); ++end) {
+			const auto ch = value[end];
+			if ((ch < 'a' || ch > 'z')
+				&& (ch < 'A' || ch > 'Z')
+				&& (ch < '0' || ch > '9')
+				&& (ch != '-')
+				&& (ch != '_')
+				&& (ch != '/')) {
+				break;
+			}
+		}
+		if (start > offset) {
+			const auto link = value.mid(start, end - start);
+			result.append(value.mid(offset, start - offset));
+			result.append("<a href=\"").append(link).append("\">");
+			result.append(link);
+			result.append("</a>");
+			offset = end;
+		}
+	}
+	if (result.isEmpty()) {
+		return value;
+	}
+	if (offset < value.size()) {
+		result.append(value.mid(offset));
+	}
+	return result;
+}
+
 void SerializeMultiline(
 		QByteArray &appendTo,
 		const QByteArray &value,
@@ -655,7 +694,14 @@ Result HtmlWriter::start(const Settings &settings, Stats *stats) {
 	//if (!result) {
 	//	return result;
 	//}
-	return copyFile(":/export/css/style.css", "css/style.css");
+	const auto result = copyFile(":/export/css/style.css", "css/style.css");
+	if (!result) {
+		return result;
+	}
+	return _summary->writeBlock(
+		MakeLinks(SerializeString(Data::AboutTelegram()))
+			+ kLineBreak
+			+ kLineBreak);
 }
 
 Result HtmlWriter::writePersonal(const Data::PersonalInfo &data) {
@@ -728,7 +774,7 @@ Result HtmlWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
 			}();
 			lines.push_back(SerializeKeyValue({
 				{
-					"Date",
+					"Added",
 					SerializeString(Data::FormatDateTime(userpic.date))
 				},
 				{ "Photo", path },
@@ -787,7 +833,7 @@ Result HtmlWriter::writeSavedContacts(const Data::ContactsList &data) {
 			}));
 		}
 	}
-	const auto full = SerializeString(Data::AboutContacts())
+	const auto full = MakeLinks(SerializeString(Data::AboutContacts()))
 		+ kLineBreak
 		+ kLineBreak
 		+ JoinList(kLineBreak, list);
@@ -876,7 +922,7 @@ Result HtmlWriter::writeFrequentContacts(const Data::ContactsList &data) {
 	writeList(data.correspondents, "People");
 	writeList(data.inlineBots, "Inline bots");
 	writeList(data.phoneCalls, "Calls");
-	const auto full = SerializeString(Data::AboutFrequent())
+	const auto full = MakeLinks(SerializeString(Data::AboutFrequent()))
 		+ kLineBreak
 		+ kLineBreak
 		+ JoinList(kLineBreak, list);
@@ -942,7 +988,7 @@ Result HtmlWriter::writeSessions(const Data::SessionsList &data) {
 			{ "Created", Data::FormatDateTime(session.created) },
 		}));
 	}
-	const auto full = SerializeString(Data::AboutSessions())
+	const auto full = MakeLinks(SerializeString(Data::AboutSessions()))
 		+ kLineBreak
 		+ kLineBreak
 		+ JoinList(kLineBreak, list);
@@ -1000,7 +1046,7 @@ Result HtmlWriter::writeWebSessions(const Data::SessionsList &data) {
 			},
 		}));
 	}
-	const auto full = SerializeString(Data::AboutWebSessions())
+	const auto full = MakeLinks(SerializeString(Data::AboutWebSessions()))
 		+ kLineBreak
 		+ kLineBreak
 		+ JoinList(kLineBreak, list);
@@ -1094,7 +1140,7 @@ Result HtmlWriter::writeChatsStart(
 	_dialogIndex = 0;
 	_dialogsCount = data.list.size();
 
-	const auto block = SerializeString(about) + kLineBreak;
+	const auto block = MakeLinks(SerializeString(about)) + kLineBreak;
 	if (const auto result = _chats->writeBlock(block); !result) {
 		return result;
 	}

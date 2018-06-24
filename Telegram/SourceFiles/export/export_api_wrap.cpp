@@ -317,7 +317,7 @@ void ApiWrap::startExport(
 	if (_settings->types & Settings::Type::Userpics) {
 		_startProcess->steps.push_back(Step::UserpicsCount);
 	}
-	if (_settings->types & Settings::Type::NonChannelChatsMask) {
+	if (_settings->types & Settings::Type::AnyChatsMask) {
 		_startProcess->steps.push_back(Step::SplitRanges);
 	}
 	if (_settings->types & Settings::Type::AnyChatsMask) {
@@ -384,14 +384,21 @@ void ApiWrap::requestSplitRanges() {
 	mainRequest(MTPmessages_GetSplitRanges(
 	)).done([=](const MTPVector<MTPMessageRange> &result) {
 		_splits = result.v;
+		if (_splits.empty()) {
+			_splits.push_back(MTP_messageRange(
+				MTP_int(1),
+				MTP_int(std::numeric_limits<int>::max())));
+		}
+		_startProcess->splitIndex = useOnlyLastSplit()
+			? (_splits.size() - 1)
+			: 0;
+
 		sendNextStartRequest();
 	}).send();
 }
 
 void ApiWrap::requestDialogsCount() {
 	Expects(_startProcess != nullptr);
-
-	validateSplits();
 
 	splitRequest(_startProcess->splitIndex, MTPmessages_GetDialogs(
 		MTP_flags(0),
@@ -440,12 +447,14 @@ void ApiWrap::finishStartProcess() {
 	process->done(process->info);
 }
 
+bool ApiWrap::useOnlyLastSplit() const {
+	return !(_settings->types & Settings::Type::NonChannelChatsMask);
+}
+
 void ApiWrap::requestLeftChannelsList(
 		Fn<bool(int count)> progress,
 		FnMut<void(Data::DialogsInfo&&)> done) {
 	Expects(_leftChannelsProcess != nullptr);
-
-	validateSplits();
 
 	_leftChannelsProcess->progress = std::move(progress);
 	_leftChannelsProcess->done = std::move(done);
@@ -471,22 +480,12 @@ void ApiWrap::requestDialogsList(
 		FnMut<void(Data::DialogsInfo&&)> done) {
 	Expects(_dialogsProcess == nullptr);
 
-	validateSplits();
-
 	_dialogsProcess = std::make_unique<DialogsProcess>();
 	_dialogsProcess->splitIndexPlusOne = _splits.size();
 	_dialogsProcess->progress = std::move(progress);
 	_dialogsProcess->done = std::move(done);
 
 	requestDialogsSlice();
-}
-
-void ApiWrap::validateSplits() {
-	if (_splits.empty()) {
-		_splits.push_back(MTP_messageRange(
-			MTP_int(1),
-			MTP_int(std::numeric_limits<int>::max())));
-	}
 }
 
 void ApiWrap::startMainSession(FnMut<void()> done) {
@@ -884,7 +883,8 @@ void ApiWrap::requestDialogsSlice() {
 			_dialogsProcess->offsetId = last.topMessageId;
 			_dialogsProcess->offsetDate = last.topMessageDate;
 			_dialogsProcess->offsetPeer = last.input;
-		} else if (--_dialogsProcess->splitIndexPlusOne > 0) {
+		} else if (!useOnlyLastSplit()
+			&& --_dialogsProcess->splitIndexPlusOne > 0) {
 			_dialogsProcess->offsetId = 0;
 			_dialogsProcess->offsetDate = 0;
 			_dialogsProcess->offsetPeer = MTP_inputPeerEmpty();
@@ -1185,7 +1185,7 @@ bool ApiWrap::processFileLoad(
 		}
 	}, [](const auto &data) {
 		return Type::Photo;
-	}) : Type::Photo;
+	}) : Type(0);
 
 	if ((_settings->media.types & type) != type) {
 		file.skipReason = SkipReason::FileType;

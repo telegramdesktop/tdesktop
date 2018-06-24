@@ -86,17 +86,19 @@ Content ContentFromState(const ProcessingState &state) {
 	case Step::LeftChannels:
 	case Step::Dialogs:
 		pushMain(lang(lng_export_state_chats));
-		if (state.itemCount > 0) {
-			push(
-				"chat" + QString::number(state.entityIndex),
-				(state.entityName.isEmpty()
-					? lang(lng_deleted)
-					: state.entityName),
-				(QString::number(state.itemIndex)
+		push(
+			"chat" + QString::number(state.entityIndex),
+			(state.entityName.isEmpty()
+				? lang(lng_deleted)
+				: state.entityName),
+			(state.itemCount > 0
+				? (QString::number(state.itemIndex)
 					+ " / "
-					+ QString::number(state.itemCount)),
-				state.itemIndex / float64(state.itemCount));
-		}
+					+ QString::number(state.itemCount))
+				: QString()),
+			(state.itemCount > 0
+				? (state.itemIndex / float64(state.itemCount))
+				: 0.));
 		pushBytes(
 			("file"
 				+ QString::number(state.entityIndex)

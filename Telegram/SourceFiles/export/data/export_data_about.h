@@ -12,6 +12,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Export {
 namespace Data {
 
+inline Utf8String AboutTelegram() {
+	return "Here is all the data you requested. "
+		"Remember: we don\xE2\x80\x99""t use your data for ad targeting, "
+		"we don\xE2\x80\x99""t sell it to others, "
+		"and we\xE2\x80\x99""re not part of any "
+		"\xE2\x80\x9C""family of companies.\xE2\x80\x9D\n\n"
+		"Telegram only keeps the information it needs to function "
+		"as a feature-rich cloud service \xE2\x80\x93 for example, "
+		"your cloud chats so that you can access them "
+		"from any devices without using third-party backups, "
+		"or your contacts so that you can rely "
+		"on your existing social graph "
+		"when messaging people on Telegram.\n\n"
+		"Check out Settings > Privacy & Security "
+		"on Telegram's mobile apps for relevant settings.";
+}
+
 inline Utf8String AboutContacts() {
 	return "If you allow access, your contacts are continuously synced "
 		"with Telegram. Thanks to this, you can easily switch to Telegram "
@@ -38,7 +55,7 @@ inline Utf8String AboutFrequent() {
 		"(requires Telegram for iOS v.4.8.3 "
 		"or Telegram for Android v.4.8.10 or higher). "
 		"See this page for more information: "
-		"https://telegram.org/faq/data-export";
+		"https://telegram.org/faq_export";
 }
 
 inline Utf8String AboutSessions() {

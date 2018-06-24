@@ -123,7 +123,7 @@ private:
 
 	void otherDataDone(const QString &relativePath);
 
-	void validateSplits();
+	bool useOnlyLastSplit() const;
 
 	void requestDialogsSlice();
 	void appendDialogsSlice(Data::DialogsInfo &&info);
