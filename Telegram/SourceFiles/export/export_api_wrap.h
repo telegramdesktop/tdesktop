@@ -167,6 +167,7 @@ private:
 		FnMut<void(QString)> done);
 	void loadFilePart();
 	void filePartDone(int offset, const MTPupload_File &result);
+	void filePartUnavailable();
 
 	template <typename Request>
 	[[nodiscard]] auto mainRequest(Request &&request);

@@ -282,6 +282,8 @@ auto ApiWrap::fileRequest(const Data::FileLocation &location, int offset) {
 			filePartDone(0, MTP_upload_file(MTP_storage_filePartial(),
 				MTP_int(0),
 				MTP_bytes(QByteArray())));
+		} else if (result.type() == qstr("LOCATION_INVALID")) {
+			filePartUnavailable();
 		} else {
 			error(std::move(result));
 		}
@@ -558,8 +560,11 @@ void ApiWrap::requestOtherData(
 void ApiWrap::otherDataDone(const QString &relativePath) {
 	Expects(_otherDataProcess != nullptr);
 
-	_otherDataProcess->file.relativePath = relativePath;
 	const auto process = base::take(_otherDataProcess);
+	process->file.relativePath = relativePath;
+	if (relativePath.isEmpty()) {
+		process->file.skipReason = Data::File::SkipReason::Unavailable;
+	}
 	process->done(std::move(process->file));
 }
 
@@ -696,6 +701,9 @@ void ApiWrap::loadUserpicDone(const QString &relativePath) {
 	const auto index = _userpicsProcess->fileIndex;
 	auto &file = _userpicsProcess->slice->list[index].image.file;
 	file.relativePath = relativePath;
+	if (relativePath.isEmpty()) {
+		file.skipReason = Data::File::SkipReason::Unavailable;
+	}
 	loadNextUserpic();
 }
 
@@ -1139,7 +1147,11 @@ void ApiWrap::loadMessageFileDone(const QString &relativePath) {
 		&& (_chatProcess->fileIndex < _chatProcess->slice->list.size()));
 
 	const auto index = _chatProcess->fileIndex;
-	_chatProcess->slice->list[index].file().relativePath = relativePath;
+	auto &file = _chatProcess->slice->list[index].file();
+	file.relativePath = relativePath;
+	if (relativePath.isEmpty()) {
+		file.skipReason = Data::File::SkipReason::Unavailable;
+	}
 	loadNextMessageFile();
 }
 
@@ -1350,6 +1362,15 @@ void ApiWrap::filePartDone(int offset, const MTPupload_File &result) {
 	const auto relativePath = process->relativePath;
 	_fileCache->save(process->location, relativePath);
 	process->done(process->relativePath);
+}
+
+void ApiWrap::filePartUnavailable() {
+	Expects(_fileProcess != nullptr);
+	Expects(!_fileProcess->requests.empty());
+
+	LOG(("Export Error: File unavailable."));
+
+	base::take(_fileProcess)->done(QString());
 }
 
 void ApiWrap::error(RPCError &&error) {
