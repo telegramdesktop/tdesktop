@@ -111,6 +111,7 @@ void SeparatePanel::setHideOnDeactivate(bool hideOnDeactivate) {
 	if (!_hideOnDeactivate) {
 		showAndActivate();
 	} else if (!isActiveWindow()) {
+		LOG(("Export Info: Panel Hide On Inactive Change."));
 		hideGetDuration();
 	}
 }
@@ -132,6 +133,7 @@ void SeparatePanel::keyPressEvent(QKeyEvent *e) {
 
 bool SeparatePanel::eventHook(QEvent *e) {
 	if (e->type() == QEvent::WindowDeactivate && _hideOnDeactivate) {
+		LOG(("Export Info: Panel Hide On Inactive Window."));
 		hideGetDuration();
 	}
 	return RpWidget::eventHook(e);
@@ -230,12 +232,14 @@ void SeparatePanel::finishClose() {
 	hide();
 	crl::on_main(this, [=] {
 		if (isHidden() && !_visible && !_opacityAnimation.animating()) {
+			LOG(("Export Info: Panel Closed."));
 			_closeEvents.fire({});
 		}
 	});
 }
 
 int SeparatePanel::hideGetDuration() {
+	LOG(("Export Info: Panel Hide Requested."));
 	toggleOpacityAnimation(false);
 	if (_animationCache.isNull()) {
 		finishClose();
@@ -529,6 +533,7 @@ void SeparatePanel::mousePressEvent(QMouseEvent *e) {
 			_dragStartMousePosition = e->globalPos();
 			_dragStartMyPosition = QPoint(x(), y());
 		} else if (!rect().contains(e->pos()) && _hideOnDeactivate) {
+			LOG(("Export Info: Panel Hide On Click."));
 			hideGetDuration();
 		}
 	}

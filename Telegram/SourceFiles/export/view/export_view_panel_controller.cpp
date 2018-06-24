@@ -137,6 +137,7 @@ void PanelController::createPanel() {
 	_panel->setInnerSize(st::exportPanelSize);
 	_panel->closeRequests(
 	) | rpl::start_with_next([=] {
+		LOG(("Export Info: Panel Hide By Close."));
 		_panel->hideGetDuration();
 	}, _panel->lifetime());
 	_panelCloseEvents.fire(_panel->closeEvents());
@@ -157,6 +158,7 @@ void PanelController::showSettings() {
 
 	settings->cancelClicks(
 	) | rpl::start_with_next([=] {
+		LOG(("Export Info: Panel Hide By Cancel."));
 		_panel->hideGetDuration();
 	}, settings->lifetime());
 
@@ -170,6 +172,8 @@ void PanelController::showSettings() {
 }
 
 void PanelController::showError(const ApiErrorState &error) {
+	LOG(("Export Info: API Error '%1'.").arg(error.data.type()));
+
 	if (error.data.type() == qstr("TAKEOUT_INVALID")) {
 		showError(lang(lng_export_invalid));
 	} else if (error.data.type().startsWith(qstr("TAKEOUT_INIT_DELAY_"))) {
@@ -236,6 +240,7 @@ void PanelController::showError(const QString &text) {
 	weak->setCloseByOutsideClick(false);
 	weak->boxClosing(
 	) | rpl::start_with_next([=] {
+		LOG(("Export Info: Panel Hide By Error: %1.").arg(text));
 		_panel->hideGetDuration();
 	}, weak->lifetime());
 	if (hidden) {
@@ -265,6 +270,8 @@ void PanelController::showProgress() {
 	) | rpl::start_with_next([=] {
 		if (const auto finished = base::get_if<FinishedState>(&_state)) {
 			File::ShowInFolder(finished->path);
+			LOG(("Export Info: Panel Hide By Done: %1."
+				).arg(finished->path));
 			_panel->hideGetDuration();
 		}
 	}, progress->lifetime());
@@ -275,12 +282,14 @@ void PanelController::showProgress() {
 
 void PanelController::stopWithConfirmation(FnMut<void()> callback) {
 	if (!_state.is<ProcessingState>()) {
+		LOG(("Export Info: Stop Panel Without Confirmation."));
 		stopExport();
 		callback();
 		return;
 	}
 	auto stop = [=, callback = std::move(callback)]() mutable {
 		if (auto saved = std::move(callback)) {
+			LOG(("Export Info: Stop Panel With Confirmation."));
 			stopExport();
 			saved();
 		} else {
@@ -310,6 +319,7 @@ void PanelController::stopWithConfirmation(FnMut<void()> callback) {
 void PanelController::stopExport() {
 	_stopRequested = true;
 	_panel->showAndActivate();
+	LOG(("Export Info: Panel Hide By Stop"));
 	_panel->hideGetDuration();
 }
 
@@ -334,6 +344,7 @@ void PanelController::updateState(State &&state) {
 		_panel->setTitle(Lang::Viewer(lng_export_title));
 		_panel->setHideOnDeactivate(false);
 	} else if (_state.is<CancelledState>()) {
+		LOG(("Export Info: Stop Panel After Cancel."));
 		stopExport();
 	}
 }

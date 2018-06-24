@@ -1696,14 +1696,17 @@ void MainWidget::setCurrentExportView(Export::View::PanelController *view) {
 		) | rpl::start_with_next([=](Export::View::Content &&data) {
 			if (!data.rows.empty()
 				&& data.rows[0].id == Export::View::Content::kDoneId) {
+				LOG(("Export Info: Destroy top bar by Done."));
 				destroyExportTopBar();
 			} else if (!_exportTopBar) {
+				LOG(("Export Info: Create top bar by State."));
 				createExportTopBar(std::move(data));
 			} else {
 				_exportTopBar->entity()->updateData(std::move(data));
 			}
 		}, _currentExportView->lifetime());
 	} else {
+		LOG(("Export Info: Destroy top bar by controller removal."));
 		destroyExportTopBar();
 	}
 }

@@ -83,6 +83,7 @@ void Session::startExport() {
 
 	_exportPanel->stopRequests(
 	) | rpl::start_with_next([=] {
+		LOG(("Export Info: Stop requested."));
 		stopExport();
 	}, _export->lifetime());
 }
@@ -129,6 +130,7 @@ void Session::stopExportWithConfirmation(FnMut<void()> callback) {
 	}
 	auto closeAndCall = [=, callback = std::move(callback)]() mutable {
 		auto saved = std::move(callback);
+		LOG(("Export Info: Stop With Confirmation."));
 		stopExport();
 		if (saved) {
 			saved();
@@ -139,6 +141,7 @@ void Session::stopExportWithConfirmation(FnMut<void()> callback) {
 
 void Session::stopExport() {
 	if (_exportPanel) {
+		LOG(("Export Info: Destroying."));
 		_exportPanel = nullptr;
 		_exportViewChanges.fire(nullptr);
 	}
