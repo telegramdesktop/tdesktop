@@ -17,6 +17,8 @@ namespace Export {
 namespace Output {
 namespace {
 
+constexpr auto kMessagesInFile = 1000;
+
 const auto kLineBreak = QByteArrayLiteral("<br>");
 
 QByteArray SerializeString(const QByteArray &value) {
@@ -1164,7 +1166,7 @@ Result HtmlWriter::writeChatStart(const Data::DialogInfo &data) {
 
 	const auto digits = Data::NumberToString(_dialogsCount - 1).size();
 	const auto number = Data::NumberToString(++_dialogIndex, digits, '0');
-	_chat = fileWithRelativePath(data.relativePath + "messages.html");
+	_chat = fileWithRelativePath(data.relativePath + messagesFile(0));
 	_messagesCount = 0;
 	_dialog = data;
 	return Result::Success();
@@ -1174,7 +1176,15 @@ Result HtmlWriter::writeChatSlice(const Data::MessagesSlice &data) {
 	Expects(_chat != nullptr);
 	Expects(!data.list.empty());
 
+	const auto wasIndex = (_messagesCount / kMessagesInFile);
 	_messagesCount += data.list.size();
+	const auto nowIndex = (_messagesCount / kMessagesInFile);
+	if (nowIndex != wasIndex) {
+		if (const auto result = switchToNextChatFile(nowIndex); !result) {
+			return result;
+		}
+	}
+
 	auto list = std::vector<QByteArray>();
 	list.reserve(data.list.size());
 	for (const auto &message : data.list) {
@@ -1263,6 +1273,20 @@ Result HtmlWriter::writeChatsEnd() {
 	return Result::Success();
 }
 
+Result HtmlWriter::switchToNextChatFile(int index) {
+	Expects(_chat != nullptr);
+
+	const auto nextPath = messagesFile(index);
+	const auto link = kLineBreak + "<a href=\""
+		+ nextPath.toUtf8()
+		+ "\">Next messages part</a>";
+	if (const auto result = _chat->writeBlock(link); !result) {
+		return result;
+	}
+	_chat = fileWithRelativePath(_dialog.relativePath + nextPath);
+	return Result::Success();
+}
+
 Result HtmlWriter::finish() {
 	Expects(_summary != nullptr);
 
@@ -1288,6 +1312,12 @@ QString HtmlWriter::mainFileRelativePath() const {
 
 QString HtmlWriter::pathWithRelativePath(const QString &path) const {
 	return _settings.path + path;
+}
+
+QString HtmlWriter::messagesFile(int index) const {
+	return "messages"
+		+ (index > 0 ? QString::number(index + 1) : QString())
+		+ ".html";
 }
 
 std::unique_ptr<HtmlWriter::Wrap> HtmlWriter::fileWithRelativePath(

@@ -68,6 +68,7 @@ private:
 	QString mainFileRelativePath() const;
 	QString pathWithRelativePath(const QString &path) const;
 	std::unique_ptr<Wrap> fileWithRelativePath(const QString &path) const;
+	QString messagesFile(int index) const;
 
 	Result writeSavedContacts(const Data::ContactsList &data);
 	Result writeFrequentContacts(const Data::ContactsList &data);
@@ -84,6 +85,7 @@ private:
 	Result writeChatSlice(const Data::MessagesSlice &data);
 	Result writeChatEnd();
 	Result writeChatsEnd();
+	Result switchToNextChatFile(int index);
 
 	Settings _settings;
 	Environment _environment;
