@@ -108,6 +108,9 @@ public:
 		MTPint128 msgKey,
 		uint32 size) const;
 
+	gsl::span<const mtpPrime> parseNotSecureResponse(
+		const mtpBuffer &buffer) const;
+
 	// Used to emit error(...) with no real code from the server.
 	static constexpr auto kErrorCodeOther = -499;
 

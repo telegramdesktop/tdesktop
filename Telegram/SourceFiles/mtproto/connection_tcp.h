@@ -52,13 +52,13 @@ private:
 	void socketRead();
 	void writeConnectionStart();
 
-	void socketPacket(const char *packet, uint32 length);
+	void socketPacket(bytes::const_span bytes);
 
 	void socketConnected();
 	void socketDisconnected();
 	void socketError(QAbstractSocket::SocketError e);
 
-	mtpBuffer handleResponse(const char *packet, uint32 length);
+	mtpBuffer parsePacket(bytes::const_span bytes);
 	static void handleError(QAbstractSocket::SocketError e, QTcpSocket &sock);
 	static uint32 fourCharsToUInt(char ch1, char ch2, char ch3, char ch4) {
 		char ch[4] = { ch1, ch2, ch3, ch4 };

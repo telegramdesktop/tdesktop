@@ -169,16 +169,24 @@ void HttpConnection::requestFinished(QNetworkReply *reply) {
 				emit receivedData();
 			} else {
 				try {
-					auto res_pq = readPQFakeReply(data);
-					const auto &res_pq_data(res_pq.c_resPQ());
-					if (res_pq_data.vnonce == _checkNonce) {
-						DEBUG_LOG(("Connection Info: HTTP-transport to %1 connected by pq-response").arg(_address));
+					const auto res_pq = readPQFakeReply(data);
+					const auto &data = res_pq.c_resPQ();
+					if (data.vnonce == _checkNonce) {
+						DEBUG_LOG(("Connection Info: "
+							"HTTP-transport to %1 connected by pq-response"
+							).arg(_address));
 						_status = Status::Ready;
 						_pingTime = getms() - _pingTime;
 						emit connected();
+					} else {
+						DEBUG_LOG(("Connection Error: "
+							"Wrong nonce received in HTTP fake pq-responce"));
+						emit error(kErrorCodeOther);
 					}
 				} catch (Exception &e) {
-					DEBUG_LOG(("Connection Error: exception in parsing HTTP fake pq-responce, %1").arg(e.what()));
+					DEBUG_LOG(("Connection Error: "
+						"Exception in parsing HTTP fake pq-responce, %1"
+						).arg(e.what()));
 					emit error(kErrorCodeOther);
 				}
 			}
