@@ -240,10 +240,14 @@ namespace {
 bool ProxyData::valid() const {
 	if (type == Type::None || host.isEmpty() || !port) {
 		return false;
-	} else if (type == Type::Mtproto && !ValidSecret(password)) {
+	} else if (type == Type::Mtproto && !ValidMtprotoPassword(password)) {
 		return false;
 	}
 	return true;
+}
+
+int ProxyData::MaxMtprotoPasswordLength() {
+	return 34;
 }
 
 bool ProxyData::supportsCalls() const {
@@ -256,6 +260,34 @@ bool ProxyData::tryCustomResolve() const {
 		&& !QRegularExpression(
 			qsl("^\\d+\\.\\d+\\.\\d+\\.\\d+$")
 		).match(host).hasMatch();
+}
+
+bytes::vector ProxyData::secretFromMtprotoPassword() const {
+	Expects(type == Type::Mtproto);
+	Expects(password.size() % 2 == 0);
+
+	const auto length = password.size() / 2;
+	const auto fromHex = [](QChar ch) -> int {
+		const auto code = int(ch.unicode());
+		if (code >= '0' && code <= '9') {
+			return (code - '0');
+		} else if (code >= 'A' && code <= 'F') {
+			return 10 + (code - 'A');
+		} else if (ch >= 'a' && ch <= 'f') {
+			return 10 + (code - 'a');
+		}
+		return -1;
+	};
+	auto result = bytes::vector(length);
+	for (auto i = 0; i != length; ++i) {
+		const auto high = fromHex(password[2 * i]);
+		const auto low = fromHex(password[2 * i + 1]);
+		if (high < 0 || low < 0) {
+			return {};
+		}
+		result[i] = static_cast<gsl::byte>(high * 16 + low);
+	}
+	return result;
 }
 
 ProxyData::operator bool() const {
@@ -277,8 +309,15 @@ bool ProxyData::operator!=(const ProxyData &other) const {
 	return !(*this == other);
 }
 
-bool ProxyData::ValidSecret(const QString &secret) {
-	return QRegularExpression("^[a-fA-F0-9]{32}$").match(secret).hasMatch();
+bool ProxyData::ValidMtprotoPassword(const QString &secret) {
+	if (secret.size() == 32) {
+		static const auto check = QRegularExpression("^[a-fA-F0-9]{32}$");
+		return check.match(secret).hasMatch();
+	} else if (secret.size() == 34) {
+		static const auto check = QRegularExpression("^dd[a-fA-F0-9]{32}$");
+		return check.match(secret).hasMatch();
+	}
+	return false;
 }
 
 ProxyData ToDirectIpProxy(const ProxyData &proxy, int ipIndex) {

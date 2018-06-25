@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "base/algorithm.h"
 #include "base/assertion.h"
+#include "base/bytes.h"
 
 #include <QtCore/QReadWriteLock>
 #include <QtCore/QRegularExpression>
@@ -400,11 +401,13 @@ struct ProxyData {
 	bool valid() const;
 	bool supportsCalls() const;
 	bool tryCustomResolve() const;
+	bytes::vector secretFromMtprotoPassword() const;
 	explicit operator bool() const;
 	bool operator==(const ProxyData &other) const;
 	bool operator!=(const ProxyData &other) const;
 
-	static bool ValidSecret(const QString &secret);
+	static bool ValidMtprotoPassword(const QString &secret);
+	static int MaxMtprotoPasswordLength();
 
 };
 

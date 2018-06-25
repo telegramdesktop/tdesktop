@@ -512,8 +512,7 @@ void TcpConnection::connectToServer(
 	if (_proxy.type == ProxyData::Type::Mtproto) {
 		_address = _proxy.host;
 		_port = _proxy.port;
-		_protocol = Protocol::Create(
-			ProtocolSecretFromPassword(_proxy.password));
+		_protocol = Protocol::Create(_proxy.secretFromMtprotoPassword());
 
 		DEBUG_LOG(("TCP Info: "
 			"dc:%1 - Connecting to proxy '%2'"

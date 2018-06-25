@@ -738,8 +738,7 @@ ProxyData ProxyBox::collectData() {
 	} else if ((result.type == Type::Http || result.type == Type::Socks5)
 		&& !result.password.isEmpty() && result.user.isEmpty()) {
 		_user->showError();
-	} else if (result.type == Type::Mtproto
-		&& result.password.size() != 32) {
+	} else if (result.type == Type::Mtproto && !result.valid()) {
 		_secret->showError();
 	} else if (!result) {
 		_host->showError();
@@ -850,7 +849,7 @@ void ProxyBox::setupMtprotoCredentials(const ProxyData &data) {
 		st::connectionUserInputField,
 		langFactory(lng_connection_proxy_secret_ph),
 		(data.type == Type::Mtproto) ? data.password : QString());
-	_secret->setMaxLength(32);
+	_secret->setMaxLength(ProxyData::MaxMtprotoPasswordLength());
 	_secret->move(0, 0);
 	_secret->heightValue(
 	) | rpl::start_with_next([=, wrap = secretWrap.data()](int height) {
@@ -1107,7 +1106,7 @@ void ProxiesBoxController::refreshChecker(Item &item) {
 		item.checker->connectToServer(
 			item.data.host,
 			item.data.port,
-			MTP::ProtocolSecretFromPassword(item.data.password),
+			item.data.secretFromMtprotoPassword(),
 			dcId);
 	} else {
 		const auto options = mtproto->dcOptions()->lookup(
