@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include <atomic>
+#include <memory>
 
 namespace base {
 namespace details {
