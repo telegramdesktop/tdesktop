@@ -107,30 +107,34 @@ ConnectionPointer::~ConnectionPointer() {
 	reset();
 }
 
-AbstractConnection::~AbstractConnection() {
+mtpBuffer AbstractConnection::prepareSecurePacket(
+		uint64 keyId,
+		MTPint128 msgKey,
+		uint32 size) const {
+	auto result = mtpBuffer();
+	constexpr auto kTcpPrefixInts = 2;
+	constexpr auto kAuthKeyIdPosition = kTcpPrefixInts;
+	constexpr auto kAuthKeyIdInts = 2;
+	constexpr auto kMessageKeyPosition = kAuthKeyIdPosition
+		+ kAuthKeyIdInts;
+	constexpr auto kMessageKeyInts = 4;
+	constexpr auto kPrefixInts = kTcpPrefixInts
+		+ kAuthKeyIdInts
+		+ kMessageKeyInts;
+	constexpr auto kTcpPostfixInts = 4;
+	result.reserve(kPrefixInts + size + kTcpPostfixInts);
+	result.resize(kPrefixInts);
+	*reinterpret_cast<uint64*>(&result[kAuthKeyIdPosition]) = keyId;
+	*reinterpret_cast<MTPint128*>(&result[kMessageKeyPosition]) = msgKey;
+	return result;
 }
 
-mtpBuffer AbstractConnection::preparePQFake(const MTPint128 &nonce) {
-	MTPReq_pq req_pq(nonce);
-	mtpBuffer buffer;
-	uint32 requestSize = req_pq.innerLength() >> 2;
-
-	buffer.resize(0);
-	buffer.reserve(8 + requestSize);
-	buffer.push_back(0); // tcp packet len
-	buffer.push_back(0); // tcp packet num
-	buffer.push_back(0);
-	buffer.push_back(0);
-	buffer.push_back(0);
-	buffer.push_back(unixtime());
-	buffer.push_back(requestSize * 4);
-	req_pq.write(buffer);
-	buffer.push_back(0); // tcp crc32 hash
-
-	return buffer;
+mtpBuffer AbstractConnection::preparePQFake(const MTPint128 &nonce) const {
+	return prepareNotSecurePacket(MTPReq_pq(nonce));
 }
 
-MTPResPQ AbstractConnection::readPQFakeReply(const mtpBuffer &buffer) {
+MTPResPQ AbstractConnection::readPQFakeReply(
+		const mtpBuffer &buffer) const {
 	const mtpPrime *answer(buffer.constData());
 	uint32 len = buffer.size();
 	if (len < 5) {

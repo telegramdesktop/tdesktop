@@ -462,7 +462,7 @@ def addTextSerialize(lst, dct, dataLetter):
 
       templateArgument = ''
       if (isTemplate != ''):
-          templateArgument = '<mtpRequest>'
+          templateArgument = '<MTP::SecureRequest>'
 
       result += 'void Serialize_' + name + '(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, uint32 iflag) {\n';
       if (len(conditions)):

@@ -29,17 +29,14 @@ ConnectionPointer HttpConnection::clone(const ProxyData &proxy) {
 	return ConnectionPointer::New<HttpConnection>(thread(), proxy);
 }
 
-void HttpConnection::sendData(mtpBuffer &buffer) {
-	if (_status == Status::Finished) return;
+void HttpConnection::sendData(mtpBuffer &&buffer) {
+	Expects(buffer.size() > 2);
 
-	if (buffer.size() < 3) {
-		LOG(("TCP Error: writing bad packet, len = %1").arg(buffer.size() * sizeof(mtpPrime)));
-		TCP_LOG(("TCP Error: bad packet %1").arg(Logs::mb(&buffer[0], buffer.size() * sizeof(mtpPrime)).str()));
-		emit error(kErrorCodeOther);
+	if (_status == Status::Finished) {
 		return;
 	}
 
-	int32 requestSize = (buffer.size() - 3) * sizeof(mtpPrime);
+	int32 requestSize = (buffer.size() - 2) * sizeof(mtpPrime);
 
 	QNetworkRequest request(url());
 	request.setHeader(QNetworkRequest::ContentLengthHeader, QVariant(requestSize));
@@ -77,7 +74,7 @@ void HttpConnection::connectToServer(
 		this,
 		&HttpConnection::requestFinished);
 
-	mtpBuffer buffer(preparePQFake(_checkNonce));
+	auto buffer = preparePQFake(_checkNonce);
 
 	DEBUG_LOG(("HTTP Info: "
 		"dc:%1 - Sending fake req_pq to '%2'"
@@ -85,7 +82,7 @@ void HttpConnection::connectToServer(
 		).arg(url().toDisplayString()));
 
 	_pingTime = getms();
-	sendData(buffer);
+	sendData(std::move(buffer));
 }
 
 mtpBuffer HttpConnection::handleResponse(QNetworkReply *reply) {

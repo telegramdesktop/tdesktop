@@ -26,7 +26,7 @@ public:
 
 	TimeMs pingTime() const override;
 	TimeMs fullConnectTimeout() const override;
-	void sendData(mtpBuffer &buffer) override;
+	void sendData(mtpBuffer &&buffer) override;
 	void disconnectFromServer() override;
 	void connectToServer(
 		const QString &address,
@@ -34,6 +34,7 @@ public:
 		const bytes::vector &protocolSecret,
 		int16 protocolDcId) override;
 	bool isConnected() const override;
+	bool requiresExtendedPadding() const override;
 
 	int32 debugState() const override;
 

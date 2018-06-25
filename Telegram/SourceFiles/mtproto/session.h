@@ -21,6 +21,24 @@ namespace internal {
 class Dcenter;
 class Connection;
 
+using PreRequestMap = QMap<mtpRequestId, SecureRequest>;
+using RequestMap = QMap<mtpMsgId, SecureRequest>;
+
+class RequestIdsMap : public QMap<mtpMsgId, mtpRequestId> {
+public:
+	using ParentType = QMap<mtpMsgId, mtpRequestId>;
+
+	mtpMsgId min() const {
+		return size() ? cbegin().key() : 0;
+	}
+
+	mtpMsgId max() const {
+		ParentType::const_iterator e(cend());
+		return size() ? (--e).key() : 0;
+	}
+
+};
+
 class ReceivedMsgIds {
 public:
 	bool registerMsgId(mtpMsgId msgId, bool needAck) {
@@ -191,22 +209,22 @@ public:
 		return &_stateRequestLock;
 	}
 
-	mtpPreRequestMap &toSendMap() {
+	PreRequestMap &toSendMap() {
 		return _toSend;
 	}
-	const mtpPreRequestMap &toSendMap() const {
+	const PreRequestMap &toSendMap() const {
 		return _toSend;
 	}
-	mtpRequestMap &haveSentMap() {
+	RequestMap &haveSentMap() {
 		return _haveSent;
 	}
-	const mtpRequestMap &haveSentMap() const {
+	const RequestMap &haveSentMap() const {
 		return _haveSent;
 	}
-	mtpRequestIdsMap &toResendMap() { // msgId -> requestId, on which toSend: requestId -> request for resended requests
+	RequestIdsMap &toResendMap() { // msgId -> requestId, on which toSend: requestId -> request for resended requests
 		return _toResend;
 	}
-	const mtpRequestIdsMap &toResendMap() const {
+	const RequestIdsMap &toResendMap() const {
 		return _toResend;
 	}
 	ReceivedMsgIds &receivedIdsSet() {
@@ -215,10 +233,10 @@ public:
 	const ReceivedMsgIds &receivedIdsSet() const {
 		return _receivedIds;
 	}
-	mtpRequestIdsMap &wereAckedMap() {
+	RequestIdsMap &wereAckedMap() {
 		return _wereAcked;
 	}
-	const mtpRequestIdsMap &wereAckedMap() const {
+	const RequestIdsMap &wereAckedMap() const {
 		return _wereAcked;
 	}
 	QMap<mtpRequestId, SerializedMessage> &haveReceivedResponses() {
@@ -233,10 +251,10 @@ public:
 	const QList<SerializedMessage> &haveReceivedUpdates() const {
 		return _receivedUpdates;
 	}
-	mtpMsgIdsSet &stateRequestMap() {
+	QMap<mtpMsgId, bool> &stateRequestMap() {
 		return _stateRequest;
 	}
-	const mtpMsgIdsSet &stateRequestMap() const {
+	const QMap<mtpMsgId, bool> &stateRequestMap() const {
 		return _stateRequest;
 	}
 
@@ -269,12 +287,12 @@ private:
 	bool _layerInited = false;
 	ConnectionOptions _options;
 
-	mtpPreRequestMap _toSend; // map of request_id -> request, that is waiting to be sent
-	mtpRequestMap _haveSent; // map of msg_id -> request, that was sent, msDate = 0 for msgs_state_req (no resend / state req), msDate = 0, seqNo = 0 for containers
-	mtpRequestIdsMap _toResend; // map of msg_id -> request_id, that request_id -> request lies in toSend and is waiting to be resent
+	PreRequestMap _toSend; // map of request_id -> request, that is waiting to be sent
+	RequestMap _haveSent; // map of msg_id -> request, that was sent, msDate = 0 for msgs_state_req (no resend / state req), msDate = 0, seqNo = 0 for containers
+	RequestIdsMap _toResend; // map of msg_id -> request_id, that request_id -> request lies in toSend and is waiting to be resent
 	ReceivedMsgIds _receivedIds; // set of received msg_id's, for checking new msg_ids
-	mtpRequestIdsMap _wereAcked; // map of msg_id -> request_id, this msg_ids already were acked or do not need ack
-	mtpMsgIdsSet _stateRequest; // set of msg_id's, whose state should be requested
+	RequestIdsMap _wereAcked; // map of msg_id -> request_id, this msg_ids already were acked or do not need ack
+	QMap<mtpMsgId, bool> _stateRequest; // set of msg_id's, whose state should be requested
 
 	QMap<mtpRequestId, SerializedMessage> _receivedResponses; // map of request_id -> response that should be processed in the main thread
 	QList<SerializedMessage> _receivedUpdates; // list of updates that should be processed in the main thread
@@ -321,7 +339,7 @@ public:
 
 	// Nulls msgId and seqNo in request, if newRequest = true.
 	void sendPrepared(
-		const mtpRequest &request,
+		const SecureRequest &request,
 		TimeMs msCanWait = 0,
 		bool newRequest = true);
 

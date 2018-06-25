@@ -169,11 +169,18 @@ private:
 	void removeTestConnection(not_null<AbstractConnection*> connection);
 	int16 getProtocolDcId() const;
 
-	mtpMsgId placeToContainer(mtpRequest &toSendRequest, mtpMsgId &bigMsgId, mtpMsgId *&haveSentArr, mtpRequest &req);
-	mtpMsgId prepareToSend(mtpRequest &request, mtpMsgId currentLastId);
-	mtpMsgId replaceMsgId(mtpRequest &request, mtpMsgId newId);
+	mtpMsgId placeToContainer(
+		SecureRequest &toSendRequest,
+		mtpMsgId &bigMsgId,
+		mtpMsgId *&haveSentArr,
+		SecureRequest &req);
+	mtpMsgId prepareToSend(SecureRequest &request, mtpMsgId currentLastId);
+	mtpMsgId replaceMsgId(SecureRequest &request, mtpMsgId newId);
 
-	bool sendRequest(mtpRequest &request, bool needAnyResponse, QReadLocker &lockFinished);
+	bool sendSecureRequest(
+		SecureRequest &&request,
+		bool needAnyResponse,
+		QReadLocker &lockFinished);
 	mtpRequestId wasSent(mtpMsgId msgId) const;
 
 	enum class HandleResult {
@@ -207,11 +214,11 @@ private:
 	void resend(quint64 msgId, qint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
 	void resendMany(QVector<quint64> msgIds, qint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
 
-	template <typename TRequest>
-	void sendRequestNotSecure(const TRequest &request);
+	template <typename Request>
+	void sendNotSecureRequest(const Request &request);
 
-	template <typename TResponse>
-	bool readResponseNotSecure(TResponse &response);
+	template <typename Response>
+	bool readNotSecureResponse(Response &response);
 
 	not_null<Instance*> _instance;
 	DcType _dcType = DcType::Regular;
@@ -281,9 +288,6 @@ private:
 		uchar aesKey[32] = { 0 };
 		uchar aesIV[32] = { 0 };
 		MTPlong auth_key_hash;
-
-		uint32 req_num = 0; // sent not encrypted request number
-		uint32 msgs_sent = 0;
 	};
 	struct AuthKeyCreateStrings {
 		bytes::vector dh_prime;

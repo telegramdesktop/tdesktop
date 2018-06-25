@@ -189,10 +189,16 @@ TimeMs ResolvingConnection::fullConnectTimeout() const {
 	return kOneConnectionTimeout * qMax(int(_proxy.resolvedIPs.size()), 1);
 }
 
-void ResolvingConnection::sendData(mtpBuffer &buffer) {
+void ResolvingConnection::sendData(mtpBuffer &&buffer) {
 	Expects(_child != nullptr);
 
-	_child->sendData(buffer);
+	_child->sendData(std::move(buffer));
+}
+
+bool ResolvingConnection::requiresExtendedPadding() const {
+	Expects(_child != nullptr);
+
+	return _child->requiresExtendedPadding();
 }
 
 void ResolvingConnection::disconnectFromServer() {

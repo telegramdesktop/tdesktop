@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <array>
 #include <memory>
+#include "base/bytes.h"
 
 namespace MTP {
 
@@ -145,6 +146,6 @@ struct CTRState {
 	uint32 num = 0;
 	uchar ecount[EcountSize] = { 0 };
 };
-void aesCtrEncrypt(void *data, uint32 len, const void *key, CTRState *state);
+void aesCtrEncrypt(bytes::span data, const void *key, CTRState *state);
 
 } // namespace MTP

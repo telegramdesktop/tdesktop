@@ -37,6 +37,147 @@ const auto QTcpSocket_error = ErrorSignal(&QAbstractSocket::error);
 
 } // namespace
 
+class TcpConnection::Protocol {
+public:
+	static std::unique_ptr<Protocol> Create(bytes::vector &&secret);
+
+	virtual uint32 id() const = 0;
+	virtual bool requiresExtendedPadding() const = 0;
+	virtual bool supportsArbitraryLength() const = 0;
+	virtual void prepareKey(bytes::span key, bytes::const_span source) = 0;
+	virtual bytes::span finalizePacket(mtpBuffer &buffer) = 0;
+
+	virtual ~Protocol() = default;
+
+private:
+	class Version0;
+	class Version1;
+	class VersionD;
+
+};
+
+class TcpConnection::Protocol::Version0 : public Protocol {
+public:
+	uint32 id() const override;
+	bool requiresExtendedPadding() const override;
+	bool supportsArbitraryLength() const override;
+	void prepareKey(bytes::span key, bytes::const_span source) override;
+	bytes::span finalizePacket(mtpBuffer &buffer) override;
+
+};
+
+uint32 TcpConnection::Protocol::Version0::id() const {
+	return 0xEFEFEFEFU;
+}
+
+bool TcpConnection::Protocol::Version0::requiresExtendedPadding() const {
+	return false;
+}
+
+bool TcpConnection::Protocol::Version0::supportsArbitraryLength() const {
+	return false;
+}
+
+void TcpConnection::Protocol::Version0::prepareKey(
+		bytes::span key,
+		bytes::const_span source) {
+	bytes::copy(key, source);
+}
+
+bytes::span TcpConnection::Protocol::Version0::finalizePacket(
+		mtpBuffer &buffer) {
+	Expects(buffer.size() > 2 && buffer.size() < 0x1000003U);
+
+	const auto intsSize = uint32(buffer.size() - 2);
+	const auto bytesSize = intsSize * sizeof(mtpPrime);
+	const auto data = reinterpret_cast<uchar*>(&buffer[0]);
+	const auto added = [&] {
+		if (intsSize < 0x7F) {
+			data[7] = uchar(intsSize);
+			return 1;
+		}
+		data[4] = uchar(0x7F);
+		data[5] = uchar(intsSize & 0xFF);
+		data[6] = uchar((intsSize >> 8) & 0xFF);
+		data[7] = uchar((intsSize >> 16) & 0xFF);
+		return 4;
+	}();
+	return bytes::make_span(buffer).subspan(8 - added, added + bytesSize);
+}
+
+class TcpConnection::Protocol::Version1 : public Version0 {
+public:
+	explicit Version1(bytes::vector &&secret);
+
+	bool requiresExtendedPadding() const override;
+	void prepareKey(bytes::span key, bytes::const_span source) override;
+
+private:
+	bytes::vector _secret;
+
+};
+
+TcpConnection::Protocol::Version1::Version1(bytes::vector &&secret)
+: _secret(std::move(secret)) {
+}
+
+bool TcpConnection::Protocol::Version1::requiresExtendedPadding() const {
+	return true;
+}
+
+void TcpConnection::Protocol::Version1::prepareKey(
+		bytes::span key,
+		bytes::const_span source) {
+	const auto payload = bytes::concatenate(source, _secret);
+	bytes::copy(key, openssl::Sha256(payload));
+}
+
+class TcpConnection::Protocol::VersionD : public Version1 {
+public:
+	using Version1::Version1;
+
+	uint32 id() const override;
+	bool supportsArbitraryLength() const override;
+	bytes::span finalizePacket(mtpBuffer &buffer) override;
+
+};
+
+uint32 TcpConnection::Protocol::VersionD::id() const {
+	return 0xDDDDDDDDU;
+}
+
+bool TcpConnection::Protocol::VersionD::supportsArbitraryLength() const {
+	return true;
+}
+
+bytes::span TcpConnection::Protocol::VersionD::finalizePacket(
+		mtpBuffer &buffer) {
+	Expects(buffer.size() > 2 && buffer.size() < 0x1000003U);
+
+	const auto intsSize = uint32(buffer.size() - 2);
+	const auto padding = rand_value<uint32>() & 0x0F;
+	const auto bytesSize = intsSize * sizeof(mtpPrime) + padding;
+	buffer[1] = bytesSize;
+	for (auto added = 0; added < padding; added += 4) {
+		buffer.push_back(rand_value<mtpPrime>());
+	}
+
+	return bytes::make_span(buffer).subspan(4, 4 + bytesSize);
+}
+
+auto TcpConnection::Protocol::Create(bytes::vector &&secret)
+-> std::unique_ptr<Protocol> {
+	if (secret.size() == 17 && static_cast<uchar>(secret[0]) == 0xDD) {
+		return std::make_unique<VersionD>(
+			bytes::make_vector(bytes::make_span(secret).subspan(1)));
+	} else if (secret.size() == 16) {
+		return std::make_unique<Version1>(std::move(secret));
+	} else if (secret.empty()) {
+		return std::make_unique<Version0>();
+	}
+	Unexpected("Secret bytes in TcpConnection::Protocol::Create.");
+}
+
 TcpConnection::TcpConnection(QThread *thread, const ProxyData &proxy)
 : AbstractConnection(thread, proxy)
 , _currentPosition(reinterpret_cast<char*>(_shortBuffer))
@@ -99,7 +240,10 @@ void TcpConnection::socketRead() {
 		}
 		int32 bytes = (int32)_socket.read(_currentPosition, toRead);
 		if (bytes > 0) {
-			aesCtrEncrypt(_currentPosition, bytes, _receiveKey, &_receiveState);
+			aesCtrEncrypt(
+				bytes::make_span(_currentPosition, bytes),
+				_receiveKey,
+				&_receiveState);
 			TCP_LOG(("TCP Info: read %1 bytes").arg(bytes));
 
 			_packetRead += bytes;
@@ -182,11 +326,10 @@ mtpBuffer TcpConnection::handleResponse(const char *packet, uint32 length) {
 	if (size == 1) {
 		LOG(("TCP Error: "
 			"error packet received, endpoint: '%1:%2', "
-			"protocolDcId: %3, secret_len: %4, code = %5"
+			"protocolDcId: %3, code = %4"
 			).arg(_address.isEmpty() ? ("proxy_" + _proxy.host) : _address
 			).arg(_address.isEmpty() ? _proxy.port : _port
 			).arg(_protocolDcId
-			).arg(_protocolSecret.size()
 			).arg(*packetdata));
 		return mtpBuffer(1, *packetdata);
 	}
@@ -247,7 +390,7 @@ void TcpConnection::socketConnected() {
 		).arg(_address + ':' + QString::number(_port)));
 
 	_pingTime = getms();
-	sendData(buffer);
+	sendData(std::move(buffer));
 }
 
 void TcpConnection::socketDisconnected() {
@@ -256,20 +399,23 @@ void TcpConnection::socketDisconnected() {
 	}
 }
 
-void TcpConnection::sendData(mtpBuffer &buffer) {
-	if (_status == Status::Finished) return;
+bool TcpConnection::requiresExtendedPadding() const {
+	Expects(_protocol != nullptr);
 
-	if (buffer.size() < 3) {
-		LOG(("TCP Error: writing bad packet, len = %1").arg(buffer.size() * sizeof(mtpPrime)));
-		TCP_LOG(("TCP Error: bad packet %1").arg(Logs::mb(&buffer[0], buffer.size() * sizeof(mtpPrime)).str()));
-		emit error(kErrorCodeOther);
-		return;
+	return _protocol->requiresExtendedPadding();
+}
+
+void TcpConnection::sendData(mtpBuffer &&buffer) {
+	Expects(buffer.size() > 2);
+
+	if (_status != Status::Finished) {
+		sendBuffer(std::move(buffer));
 	}
-
-	sendBuffer(buffer);
 }
 
 void TcpConnection::writeConnectionStart() {
+	Expects(_protocol != nullptr);
+
 	// prepare random part
 	auto nonceBytes = bytes::vector(64);
 	const auto nonce = bytes::make_span(nonceBytes);
@@ -282,6 +428,7 @@ void TcpConnection::writeConnectionStart() {
 	const auto reserved12 = 0x54534F50U;
 	const auto reserved13 = 0x20544547U;
 	const auto reserved14 = 0xEEEEEEEEU;
+	const auto reserved15 = 0xDDDDDDDDU;
 	const auto reserved21 = 0x00000000U;
 	do {
 		bytes::set_random(nonce);
@@ -290,21 +437,11 @@ void TcpConnection::writeConnectionStart() {
 		|| *first == reserved12
 		|| *first == reserved13
 		|| *first == reserved14
+		|| *first == reserved15
 		|| *second == reserved21);
 
-	const auto prepareKey = [&](bytes::span key, bytes::const_span from) {
-		if (_protocolSecret.size() == 16) {
-			const auto payload = bytes::concatenate(from, _protocolSecret);
-			bytes::copy(key, openssl::Sha256(payload));
-		} else if (_protocolSecret.empty()) {
-			bytes::copy(key, from);
-		} else {
-			bytes::set_with_const(key, gsl::byte{});
-		}
-	};
-
 	// prepare encryption key/iv
-	prepareKey(
+	_protocol->prepareKey(
 		bytes::make_span(_sendKey),
 		nonce.subspan(8, CTRState::KeySize));
 	bytes::copy(
@@ -316,7 +453,7 @@ void TcpConnection::writeConnectionStart() {
 	const auto reversed = bytes::make_span(reversedBytes);
 	bytes::copy(reversed, nonce.subspan(8, reversed.size()));
 	std::reverse(reversed.begin(), reversed.end());
-	prepareKey(
+	_protocol->prepareKey(
 		bytes::make_span(_receiveKey),
 		reversed.subspan(0, CTRState::KeySize));
 	bytes::copy(
@@ -325,39 +462,31 @@ void TcpConnection::writeConnectionStart() {
 
 	// write protocol and dc ids
 	const auto protocol = reinterpret_cast<uint32*>(nonce.data() + 56);
-	*protocol = 0xEFEFEFEFU;
+	*protocol = _protocol->id();
 	const auto dcId = reinterpret_cast<int16*>(nonce.data() + 60);
 	*dcId = _protocolDcId;
 
 	_socket.write(reinterpret_cast<const char*>(nonce.data()), 56);
-	aesCtrEncrypt(nonce.data(), 64, _sendKey, &_sendState);
+	aesCtrEncrypt(nonce, _sendKey, &_sendState);
 	_socket.write(reinterpret_cast<const char*>(nonce.subspan(56).data()), 8);
 }
 
-void TcpConnection::sendBuffer(mtpBuffer &buffer) {
+void TcpConnection::sendBuffer(mtpBuffer &&buffer) {
 	if (!_packetIndex++) {
 		writeConnectionStart();
 	}
 
-	uint32 size = buffer.size() - 3, len = size * 4;
-	char *data = reinterpret_cast<char*>(&buffer[0]);
-	if (size < 0x7f) {
-		data[7] = char(size);
-		TCP_LOG(("TCP Info: write %1 packet %2").arg(_packetIndex).arg(len + 1));
-
-		aesCtrEncrypt(data + 7, len + 1, _sendKey, &_sendState);
-		_socket.write(data + 7, len + 1);
-	} else {
-		data[4] = 0x7f;
-		reinterpret_cast<uchar*>(data)[5] = uchar(size & 0xFF);
-		reinterpret_cast<uchar*>(data)[6] = uchar((size >> 8) & 0xFF);
-		reinterpret_cast<uchar*>(data)[7] = uchar((size >> 16) & 0xFF);
-		TCP_LOG(("TCP Info: write %1 packet %2").arg(_packetIndex).arg(len + 4));
-
-		aesCtrEncrypt(data + 4, len + 4, _sendKey, &_sendState);
-		_socket.write(data + 4, len + 4);
-	}
+	// buffer: 2 available int-s + data + available int.
+	const auto bytes = _protocol->finalizePacket(buffer);
+	TCP_LOG(("TCP Info: write %1 packet %2"
+		).arg(_packetIndex
+		).arg(bytes.size()));
+	aesCtrEncrypt(bytes, _sendKey, &_sendState);
+	_socket.write(
+		reinterpret_cast<const char*>(bytes.data()),
+		bytes.size());
 }
+
 
 void TcpConnection::disconnectFromServer() {
 	if (_status == Status::Finished) return;
@@ -377,13 +506,14 @@ void TcpConnection::connectToServer(
 		int16 protocolDcId) {
 	Expects(_address.isEmpty());
 	Expects(_port == 0);
-	Expects(_protocolSecret.empty());
+	Expects(_protocol == nullptr);
 	Expects(_protocolDcId == 0);
 
 	if (_proxy.type == ProxyData::Type::Mtproto) {
 		_address = _proxy.host;
 		_port = _proxy.port;
-		_protocolSecret = ProtocolSecretFromPassword(_proxy.password);
+		_protocol = Protocol::Create(
+			ProtocolSecretFromPassword(_proxy.password));
 
 		DEBUG_LOG(("TCP Info: "
 			"dc:%1 - Connecting to proxy '%2'"
@@ -392,7 +522,7 @@ void TcpConnection::connectToServer(
 	} else {
 		_address = address;
 		_port = port;
-		_protocolSecret = protocolSecret;
+		_protocol = Protocol::Create(base::duplicate(protocolSecret));
 
 		DEBUG_LOG(("TCP Info: "
 			"dc:%1 - Connecting to '%2'"
@@ -478,6 +608,8 @@ void TcpConnection::socketError(QAbstractSocket::SocketError e) {
 	handleError(e, _socket);
 	emit error(kErrorCodeOther);
 }
+
+TcpConnection::~TcpConnection() = default;
 
 } // namespace internal
 } // namespace MTP

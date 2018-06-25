@@ -61,7 +61,7 @@ class ConcurrentSender : public base::has_weak_ptr {
 	protected:
 		RequestBuilder(
 			not_null<ConcurrentSender*> sender,
-			mtpRequest &&serialized) noexcept;
+			SecureRequest &&serialized) noexcept;
 
 		void setToDC(ShiftedDcId dcId) noexcept;
 		void setCanWait(TimeMs ms) noexcept;
@@ -74,7 +74,7 @@ class ConcurrentSender : public base::has_weak_ptr {
 
 	private:
 		not_null<ConcurrentSender*> _sender;
-		mtpRequest _serialized;
+		SecureRequest _serialized;
 		ShiftedDcId _dcId = 0;
 		TimeMs _canWait = 0;
 
@@ -224,7 +224,7 @@ template <typename Request>
 ConcurrentSender::SpecificRequestBuilder<Request>::SpecificRequestBuilder(
 	not_null<ConcurrentSender*> sender,
 	Request &&request
-) noexcept : RequestBuilder(sender, mtpRequestData::serialize(request)) {
+) noexcept : RequestBuilder(sender, SecureRequest::Serialize(request)) {
 }
 
 template <typename Request>

@@ -19,6 +19,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/algorithm.h"
 #include "base/assertion.h"
 
+using mtpPrime = int32;
+using mtpRequestId = int32;
+using mtpMsgId = uint64;
+using mtpPingId = uint64;
+
+using mtpBuffer = QVector<mtpPrime>;
+using mtpTypeId = uint32;
+
 namespace MTP {
 
 // type DcId represents actual data center id, while in most cases
@@ -50,89 +58,6 @@ constexpr int GetDcIdShift(ShiftedDcId shiftedDcId) {
 }
 
 } // namespace MTP
-
-using mtpPrime = int32;
-using mtpRequestId = int32;
-using mtpMsgId = uint64;
-using mtpPingId = uint64;
-
-using mtpBuffer = QVector<mtpPrime>;
-using mtpTypeId = uint32;
-
-class mtpRequestData;
-class mtpRequest : public std::shared_ptr<mtpRequestData> {
-public:
-	mtpRequest() = default;
-    explicit mtpRequest(mtpRequestData *ptr)
-	: std::shared_ptr<mtpRequestData>(ptr) {
-	}
-
-	uint32 innerLength() const;
-	void write(mtpBuffer &to) const;
-
-	using ResponseType = void; // don't know real response type =(
-
-};
-
-class mtpRequestData : public mtpBuffer {
-public:
-	// in toSend: = 0 - must send in container, > 0 - can send without container
-	// in haveSent: = 0 - container with msgIds, > 0 - when was sent
-	int64 msDate = 0;
-
-	mtpRequestId requestId = 0;
-	mtpRequest after;
-	bool needsLayer = false;
-
-	mtpRequestData(bool/* sure*/) {
-	}
-
-	static mtpRequest prepare(uint32 requestSize, uint32 maxSize = 0);
-	static void padding(mtpRequest &request);
-
-	template <typename TRequest>
-	static mtpRequest serialize(const TRequest &request) {
-		const auto requestSize = request.innerLength() >> 2;
-		auto serialized = prepare(requestSize);
-		request.write(*serialized);
-		return serialized;
-	}
-
-	static uint32 messageSize(const mtpRequest &request) {
-		if (request->size() < 9) return 0;
-		return 4 + (request.innerLength() >> 2); // 2: msg_id, 1: seq_no, q: message_length
-	}
-
-	static bool isSentContainer(const mtpRequest &request); // "request-like" wrap for msgIds vector
-	static bool isStateRequest(const mtpRequest &request);
-	static bool needAck(const mtpRequest &request) {
-		if (request->size() < 9) return false;
-		return mtpRequestData::needAckByType((*request)[8]);
-	}
-	static bool needAckByType(mtpTypeId type);
-
-private:
-	static uint32 _padding(uint32 requestSize);
-
-};
-
-using mtpPreRequestMap = QMap<mtpRequestId, mtpRequest>;
-using mtpRequestMap = QMap<mtpMsgId, mtpRequest>;
-using mtpMsgIdsSet = QMap<mtpMsgId, bool>;
-
-class mtpRequestIdsMap : public QMap<mtpMsgId, mtpRequestId> {
-public:
-	using ParentType = QMap<mtpMsgId, mtpRequestId>;
-
-	mtpMsgId min() const {
-		return size() ? cbegin().key() : 0;
-	}
-
-	mtpMsgId max() const {
-		ParentType::const_iterator e(cend());
-		return size() ? (--e).key() : 0;
-	}
-};
 
 class Exception : public std::exception {
 public:
@@ -348,6 +273,100 @@ template <typename T>
 class MTPBoxed<MTPBoxed<T> > {
 	typename T::CantMakeBoxedBoxedType v;
 };
+
+namespace MTP {
+namespace details {
+
+struct SecureRequestCreateTag {
+};
+
+} // namespace details
+
+template <typename T>
+struct is_boxed : std::false_type {
+};
+
+template <typename T>
+struct is_boxed<MTPBoxed<T>> : std::true_type {
+};
+
+template <typename T>
+constexpr bool is_boxed_v = is_boxed<T>::value;
+
+class SecureRequestData;
+class SecureRequest {
+public:
+	SecureRequest() = default;
+
+	static constexpr auto kSaltInts = 2;
+	static constexpr auto kSessionIdInts = 2;
+	static constexpr auto kMessageIdInts = 2;
+	static constexpr auto kSeqNoPosition = kSaltInts
+		+ kSessionIdInts
+		+ kMessageIdInts;
+	static constexpr auto kSeqNoInts = 1;
+	static constexpr auto kMessageLengthPosition = kSeqNoPosition
+		+ kSeqNoInts;
+	static constexpr auto kMessageLengthInts = 1;
+	static constexpr auto kMessageBodyPosition = kMessageLengthPosition
+		+ kMessageLengthInts;
+
+	static SecureRequest Prepare(uint32 size, uint32 reserveSize = 0);
+
+	template <
+		typename Request,
+		typename = std::enable_if_t<is_boxed_v<Request>>>
+	static SecureRequest Serialize(const Request &request);
+
+	// For template MTP requests and MTPBoxed instanciation.
+	uint32 innerLength() const;
+	void write(mtpBuffer &to) const;
+
+	SecureRequestData *operator->() const;
+	SecureRequestData &operator*() const;
+	explicit operator bool() const;
+
+	void addPadding(bool extended);
+	uint32 messageSize() const;
+
+	// "request-like" wrap for msgIds vector
+	bool isSentContainer() const;
+	bool isStateRequest() const;
+	bool needAck() const;
+
+	using ResponseType = void; // don't know real response type =(
+
+private:
+	explicit SecureRequest(const details::SecureRequestCreateTag &);
+
+	std::shared_ptr<SecureRequestData> _data;
+
+};
+
+class SecureRequestData : public mtpBuffer {
+public:
+	explicit SecureRequestData(const details::SecureRequestCreateTag &) {
+	}
+
+	// in toSend: = 0 - must send in container, > 0 - can send without container
+	// in haveSent: = 0 - container with msgIds, > 0 - when was sent
+	int64 msDate = 0;
+
+	mtpRequestId requestId = 0;
+	SecureRequest after;
+	bool needsLayer = false;
+
+};
+
+template <typename Request, typename>
+SecureRequest SecureRequest::Serialize(const Request &request) {
+	const auto requestSize = request.innerLength() >> 2;
+	auto serialized = Prepare(requestSize);
+	request.write(*serialized);
+	return serialized;
+}
+
+} // namespace MTP
 
 class MTPint {
 public:

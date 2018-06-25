@@ -92,14 +92,22 @@ void aesIgeDecryptRaw(const void *src, void *dst, uint32 len, const void *key, c
 	AES_ige_encrypt(static_cast<const uchar*>(src), static_cast<uchar*>(dst), len, &aes, aes_iv, AES_DECRYPT);
 }
 
-void aesCtrEncrypt(void *data, uint32 len, const void *key, CTRState *state) {
+void aesCtrEncrypt(bytes::span data, const void *key, CTRState *state) {
 	AES_KEY aes;
 	AES_set_encrypt_key(static_cast<const uchar*>(key), 256, &aes);
 
 	static_assert(CTRState::IvecSize == AES_BLOCK_SIZE, "Wrong size of ctr ivec!");
 	static_assert(CTRState::EcountSize == AES_BLOCK_SIZE, "Wrong size of ctr ecount!");
 
-	CRYPTO_ctr128_encrypt(static_cast<const uchar*>(data), static_cast<uchar*>(data), len, &aes, state->ivec, state->ecount, &state->num, (block128_f) AES_encrypt);
+	CRYPTO_ctr128_encrypt(
+		reinterpret_cast<const uchar*>(data.data()),
+		reinterpret_cast<uchar*>(data.data()),
+		data.size(),
+		&aes,
+		state->ivec,
+		state->ecount,
+		&state->num,
+		(block128_f)AES_encrypt);
 }
 
 } // namespace MTP

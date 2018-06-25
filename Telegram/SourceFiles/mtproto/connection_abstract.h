@@ -59,7 +59,7 @@ public:
 		const ProxyData &proxy);
 	AbstractConnection(const AbstractConnection &other) = delete;
 	AbstractConnection &operator=(const AbstractConnection &other) = delete;
-	virtual ~AbstractConnection() = 0;
+	virtual ~AbstractConnection() = default;
 
 	// virtual constructor
 	static ConnectionPointer Create(
@@ -72,7 +72,7 @@ public:
 
 	virtual TimeMs pingTime() const = 0;
 	virtual TimeMs fullConnectTimeout() const = 0;
-	virtual void sendData(mtpBuffer &buffer) = 0; // has size + 3, buffer[0] = len, buffer[1] = packetnum, buffer[last] = crc32
+	virtual void sendData(mtpBuffer &&buffer) = 0;
 	virtual void disconnectFromServer() = 0;
 	virtual void connectToServer(
 		const QString &ip,
@@ -84,6 +84,9 @@ public:
 		return false;
 	}
 	virtual bool needHttpWait() {
+		return false;
+	}
+	virtual bool requiresExtendedPadding() const {
 		return false;
 	}
 
@@ -100,6 +103,13 @@ public:
 	BuffersQueue &received() {
 		return _receivedQueue;
 	}
+
+	template <typename Request>
+	mtpBuffer prepareNotSecurePacket(const Request &request) const;
+	mtpBuffer prepareSecurePacket(
+		uint64 keyId,
+		MTPint128 msgKey,
+		uint32 size) const;
 
 	// Used to emit error(...) with no real code from the server.
 	static constexpr auto kErrorCodeOther = -499;
@@ -121,10 +131,49 @@ protected:
 
 	// first we always send fake MTPReq_pq to see if connection works at all
 	// we send them simultaneously through TCP/HTTP/IPv4/IPv6 to choose the working one
-	static mtpBuffer preparePQFake(const MTPint128 &nonce);
-	static MTPResPQ readPQFakeReply(const mtpBuffer &buffer);
+	mtpBuffer preparePQFake(const MTPint128 &nonce) const;
+	MTPResPQ readPQFakeReply(const mtpBuffer &buffer) const;
 
 };
+
+template <typename Request>
+mtpBuffer AbstractConnection::prepareNotSecurePacket(const Request &request) const {
+	const auto intsSize = request.innerLength() >> 2;
+	const auto intsPadding = requiresExtendedPadding()
+		? uint32(rand_value<uchar>() & 0x3F)
+		: 0;
+
+	auto result = mtpBuffer();
+	constexpr auto kTcpPrefixInts = 2;
+	constexpr auto kAuthKeyIdInts = 2;
+	constexpr auto kMessageIdInts = 2;
+	constexpr auto kMessageLengthInts = 1;
+	constexpr auto kPrefixInts = kTcpPrefixInts
+		+ kAuthKeyIdInts
+		+ kMessageIdInts
+		+ kMessageLengthInts;
+	constexpr auto kTcpPostfixInts = 4;
+
+	result.reserve(kPrefixInts + intsSize + intsPadding + kTcpPostfixInts);
+	result.resize(kPrefixInts);
+
+	const auto messageId = &result[kTcpPrefixInts + kAuthKeyIdInts];
+	*reinterpret_cast<mtpMsgId*>(messageId) = msgid();
+
+	request.write(result);
+
+	const auto messageLength = messageId + kMessageIdInts;
+	*messageLength = (result.size() - kPrefixInts + intsPadding) << 2;
+
+	if (intsPadding > 0) {
+		result.resize(result.size() + intsPadding);
+		memset_rand(
+			result.data() + result.size() - intsPadding,
+			intsPadding * sizeof(mtpPrime));
+	}
+
+	return result;
+}
 
 } // namespace internal
 } // namespace MTP

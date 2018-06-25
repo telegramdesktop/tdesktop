@@ -20,7 +20,7 @@ public:
 
 	TimeMs pingTime() const override;
 	TimeMs fullConnectTimeout() const override;
-	void sendData(mtpBuffer &buffer) override;
+	void sendData(mtpBuffer &&buffer) override;
 	void disconnectFromServer() override;
 	void connectToServer(
 		const QString &address,

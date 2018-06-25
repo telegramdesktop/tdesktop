@@ -583,8 +583,8 @@ void mtpFileLoader::cdnPartLoaded(const MTPupload_CdnFile &result, mtpRequestId 
 	state.ivec[12] = static_cast<uchar>((counterOffset >> 24) & 0xFF);
 
 	auto decryptInPlace = result.c_upload_cdnFile().vbytes.v;
-	MTP::aesCtrEncrypt(decryptInPlace.data(), decryptInPlace.size(), key.data(), &state);
 	auto buffer = bytes::make_span(decryptInPlace);
+	MTP::aesCtrEncrypt(buffer, key.data(), &state);
 
 	switch (checkCdnFileHash(offset, buffer)) {
 	case CheckCdnHashResult::NoHash: {

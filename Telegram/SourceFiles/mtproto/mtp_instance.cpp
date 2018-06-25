@@ -78,7 +78,7 @@ public:
 
 	void sendRequest(
 		mtpRequestId requestId,
-		mtpRequest &&request,
+		SecureRequest &&request,
 		RPCResponseHandler &&callbacks,
 		ShiftedDcId shiftedDcId,
 		TimeMs msCanWait,
@@ -88,9 +88,9 @@ public:
 	void unregisterRequest(mtpRequestId requestId);
 	void storeRequest(
 		mtpRequestId requestId,
-		const mtpRequest &request,
+		const SecureRequest &request,
 		RPCResponseHandler &&callbacks);
-	mtpRequest getRequest(mtpRequestId requestId);
+	SecureRequest getRequest(mtpRequestId requestId);
 	void clearCallbacksDelayed(std::vector<RPCCallbackClear> &&ids);
 	void execCallback(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end);
 	bool hasCallbacks(mtpRequestId requestId);
@@ -199,7 +199,7 @@ private:
 	std::map<mtpRequestId, RPCResponseHandler> _parserMap;
 	QMutex _parserMapLock;
 
-	std::map<mtpRequestId, mtpRequest> _requestMap;
+	std::map<mtpRequestId, SecureRequest> _requestMap;
 	QReadWriteLock _requestMapLock;
 
 	std::deque<std::pair<mtpRequestId, TimeMs>> _delayedRequests;
@@ -831,7 +831,7 @@ void Instance::Private::checkDelayedRequests() {
 			continue;
 		}
 
-		auto request = mtpRequest();
+		auto request = SecureRequest();
 		{
 			QReadLocker locker(&_requestMapLock);
 			auto it = _requestMap.find(requestId);
@@ -852,7 +852,7 @@ void Instance::Private::checkDelayedRequests() {
 
 void Instance::Private::sendRequest(
 		mtpRequestId requestId,
-		mtpRequest &&request,
+		SecureRequest &&request,
 		RPCResponseHandler &&callbacks,
 		ShiftedDcId shiftedDcId,
 		TimeMs msCanWait,
@@ -900,7 +900,7 @@ void Instance::Private::unregisterRequest(mtpRequestId requestId) {
 
 void Instance::Private::storeRequest(
 		mtpRequestId requestId,
-		const mtpRequest &request,
+		const SecureRequest &request,
 		RPCResponseHandler &&callbacks) {
 	if (callbacks.onDone || callbacks.onFail) {
 		QMutexLocker locker(&_parserMapLock);
@@ -912,8 +912,8 @@ void Instance::Private::storeRequest(
 	}
 }
 
-mtpRequest Instance::Private::getRequest(mtpRequestId requestId) {
-	auto result = mtpRequest();
+SecureRequest Instance::Private::getRequest(mtpRequestId requestId) {
+	auto result = SecureRequest();
 	{
 		QReadLocker locker(&_requestMapLock);
 		auto it = _requestMap.find(requestId);
@@ -1217,7 +1217,7 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 			newdcWithShift = ShiftDcId(newdcWithShift, GetDcIdShift(dcWithShift));
 		}
 
-		auto request = mtpRequest();
+		auto request = SecureRequest();
 		{
 			QReadLocker locker(&_requestMapLock);
 			auto it = _requestMap.find(requestId);
@@ -1288,7 +1288,7 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 		if (badGuestDc) _badGuestDcRequests.insert(requestId);
 		return true;
 	} else if (err == qstr("CONNECTION_NOT_INITED") || err == qstr("CONNECTION_LAYER_INVALID")) {
-		mtpRequest request;
+		SecureRequest request;
 		{
 			QReadLocker locker(&_requestMapLock);
 			auto it = _requestMap.find(requestId);
@@ -1313,7 +1313,7 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 	} else if (err == qstr("CONNECTION_LANG_CODE_INVALID")) {
 		Lang::CurrentCloudManager().resetToDefault();
 	} else if (err == qstr("MSG_WAIT_FAILED")) {
-		mtpRequest request;
+		SecureRequest request;
 		{
 			QReadLocker locker(&_requestMapLock);
 			auto it = _requestMap.find(requestId);
@@ -1332,7 +1332,7 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 			if (const auto afterDcId = queryRequestByDc(request->after->requestId)) {
 				dcWithShift = *shiftedDcId;
 				if (*shiftedDcId != *afterDcId) {
-					request->after = mtpRequest();
+					request->after = SecureRequest();
 				}
 			} else {
 				LOG(("MTP Error: could not find dependent request %1 by dc").arg(request->after->requestId));
@@ -1676,7 +1676,7 @@ void Instance::onKeyDestroyed(qint32 shiftedDcId) {
 }
 void Instance::sendRequest(
 		mtpRequestId requestId,
-		mtpRequest &&request,
+		SecureRequest &&request,
 		RPCResponseHandler &&callbacks,
 		ShiftedDcId shiftedDcId,
 		TimeMs msCanWait,

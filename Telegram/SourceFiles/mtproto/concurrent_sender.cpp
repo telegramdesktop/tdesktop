@@ -110,7 +110,7 @@ auto ConcurrentSender::with_instance(Method &&method)
 
 ConcurrentSender::RequestBuilder::RequestBuilder(
 	not_null<ConcurrentSender*> sender,
-	mtpRequest &&serialized) noexcept
+	SecureRequest &&serialized) noexcept
 : _sender(sender)
 , _serialized(std::move(serialized)) {
 }

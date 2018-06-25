@@ -60,9 +60,9 @@ public:
 
 	not_null<DcOptions*> dcOptions();
 
-	template <typename TRequest>
+	template <typename Request>
 	mtpRequestId send(
-			const TRequest &request,
+			const Request &request,
 			RPCResponseHandler &&callbacks = {},
 			ShiftedDcId shiftedDcId = 0,
 			TimeMs msCanWait = 0,
@@ -70,7 +70,7 @@ public:
 		const auto requestId = GetNextRequestId();
 		sendSerialized(
 			requestId,
-			mtpRequestData::serialize(request),
+			SecureRequest::Serialize(request),
 			std::move(callbacks),
 			shiftedDcId,
 			msCanWait,
@@ -78,9 +78,9 @@ public:
 		return requestId;
 	}
 
-	template <typename TRequest>
+	template <typename Request>
 	mtpRequestId send(
-			const TRequest &request,
+			const Request &request,
 			RPCDoneHandlerPtr &&onDone,
 			RPCFailHandlerPtr &&onFail = nullptr,
 			ShiftedDcId shiftedDcId = 0,
@@ -94,14 +94,14 @@ public:
 			afterRequestId);
 	}
 
-	template <typename TRequest>
+	template <typename Request>
 	mtpRequestId sendProtocolMessage(
 			ShiftedDcId shiftedDcId,
-			const TRequest &request) {
+			const Request &request) {
 		const auto requestId = GetNextRequestId();
 		sendRequest(
 			requestId,
-			mtpRequestData::serialize(request),
+			SecureRequest::Serialize(request),
 			{},
 			shiftedDcId,
 			0,
@@ -112,7 +112,7 @@ public:
 
 	void sendSerialized(
 			mtpRequestId requestId,
-			mtpRequest &&request,
+			SecureRequest &&request,
 			RPCResponseHandler &&callbacks,
 			ShiftedDcId shiftedDcId,
 			TimeMs msCanWait,
@@ -195,7 +195,7 @@ private slots:
 private:
 	void sendRequest(
 		mtpRequestId requestId,
-		mtpRequest &&request,
+		SecureRequest &&request,
 		RPCResponseHandler &&callbacks,
 		ShiftedDcId shiftedDcId,
 		TimeMs msCanWait,

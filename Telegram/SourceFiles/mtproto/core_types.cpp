@@ -9,6 +9,144 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "zlib.h"
 
+namespace MTP {
+namespace {
+
+uint32 CountPaddingAmountInInts(uint32 requestSize, bool extended) {
+#ifdef TDESKTOP_MTPROTO_OLD
+	return ((8 + requestSize) & 0x03)
+		? (4 - ((8 + requestSize) & 0x03))
+		: 0;
+#else // TDESKTOP_MTPROTO_OLD
+	auto result = ((8 + requestSize) & 0x03)
+		? (4 - ((8 + requestSize) & 0x03))
+		: 0;
+
+	// At least 12 bytes of random padding.
+	if (result < 3) {
+		result += 4;
+	}
+
+	if (extended) {
+		// Some more random padding.
+		result += ((rand_value<uchar>() & 0x0F) << 2);
+	}
+
+	return result;
+#endif // TDESKTOP_MTPROTO_OLD
+}
+
+} // namespace
+
+SecureRequest::SecureRequest(const details::SecureRequestCreateTag &tag)
+: _data(std::make_shared<SecureRequestData>(tag)) {
+}
+
+SecureRequest SecureRequest::Prepare(uint32 size, uint32 reserveSize) {
+	const auto finalSize = std::max(size, reserveSize);
+
+	auto result = SecureRequest(details::SecureRequestCreateTag{});
+	result->reserve(kMessageBodyPosition + finalSize);
+	result->resize(kMessageBodyPosition);
+	result->back() = (size << 2);
+	return result;
+}
+
+uint32 SecureRequest::innerLength() const {
+	if (!_data || _data->size() <= kMessageBodyPosition) {
+		return 0;
+	}
+	return (*_data)[kMessageLengthPosition];
+}
+
+void SecureRequest::write(mtpBuffer &to) const {
+	if (!_data || _data->size() <= kMessageBodyPosition) {
+		return;
+	}
+	uint32 was = to.size(), s = innerLength() / sizeof(mtpPrime);
+	to.resize(was + s);
+	memcpy(
+		to.data() + was,
+		_data->constData() + kMessageBodyPosition,
+		s * sizeof(mtpPrime));
+}
+
+SecureRequestData *SecureRequest::operator->() const {
+	Expects(_data != nullptr);
+
+	return _data.get();
+}
+
+SecureRequestData &SecureRequest::operator*() const {
+	Expects(_data != nullptr);
+
+	return *_data;
+}
+
+SecureRequest::operator bool() const {
+	return (_data != nullptr);
+}
+
+void SecureRequest::addPadding(bool extended) {
+	if (_data->size() <= kMessageBodyPosition) return;
+
+	const auto requestSize = (innerLength() >> 2);
+	const auto padding = CountPaddingAmountInInts(requestSize, extended);
+	const auto fullSize = kMessageBodyPosition + requestSize + padding;
+	if (uint32(_data->size()) != fullSize) {
+		_data->resize(fullSize);
+		if (padding > 0) {
+			memset_rand(
+				_data->data() + (fullSize - padding),
+				padding * sizeof(mtpPrime));
+		}
+	}
+}
+
+uint32 SecureRequest::messageSize() const {
+	if (_data->size() <= kMessageBodyPosition) {
+		return 0;
+	}
+	const auto ints = (innerLength() >> 2);
+	return kMessageIdInts + kSeqNoInts + kMessageLengthInts + ints;
+}
+
+bool SecureRequest::isSentContainer() const {
+	if (_data->size() <= kMessageBodyPosition) {
+		return false;
+	}
+	return (!_data->msDate && !(*_data)[kSeqNoPosition]); // msDate = 0, seqNo = 0
+}
+
+bool SecureRequest::isStateRequest() const {
+	if (_data->size() <= kMessageBodyPosition) {
+		return false;
+	}
+	const auto type = mtpTypeId((*_data)[kMessageBodyPosition]);
+	return (type == mtpc_msgs_state_req);
+}
+
+bool SecureRequest::needAck() const {
+	if (_data->size() <= kMessageBodyPosition) {
+		return false;
+	}
+	const auto type = mtpTypeId((*_data)[kMessageBodyPosition]);
+	switch (type) {
+	case mtpc_msg_container:
+	case mtpc_msgs_ack:
+	case mtpc_http_wait:
+	case mtpc_bad_msg_notification:
+	case mtpc_msgs_all_info:
+	case mtpc_msgs_state_info:
+	case mtpc_msg_detailed_info:
+	case mtpc_msg_new_detailed_info:
+		return false;
+	}
+	return true;
+}
+
+} // namespace MTP
+
 Exception::Exception(const QString &msg) noexcept : _msg(msg.toUtf8()) {
 	LOG(("Exception: %1").arg(msg));
 }
@@ -89,85 +227,6 @@ void MTPstring::write(mtpBuffer &to) const {
 		*(buf++) = (char)((l >> 16) & 0xFF);
 	}
 	memcpy(buf, v.constData(), l);
-}
-
-uint32 mtpRequest::innerLength() const { // for template MTP requests and MTPBoxed instanciation
-	const auto value = get();
-	if (!value || value->size() < 9) {
-		return 0;
-	}
-	return value->at(7);
-}
-
-void mtpRequest::write(mtpBuffer &to) const {
-	const auto value = get();
-	if (!value || value->size() < 9) {
-		return;
-	}
-	uint32 was = to.size(), s = innerLength() / sizeof(mtpPrime);
-	to.resize(was + s);
-	memcpy(to.data() + was, value->constData() + 8, s * sizeof(mtpPrime));
-}
-
-bool mtpRequestData::isSentContainer(const mtpRequest &request) { // "request-like" wrap for msgIds vector
-	if (request->size() < 9) return false;
-	return (!request->msDate && !(*request)[6]); // msDate = 0, seqNo = 0
-}
-
-bool mtpRequestData::isStateRequest(const mtpRequest &request) {
-	if (request->size() < 9) return false;
-	return (mtpTypeId((*request)[8]) == mtpc_msgs_state_req);
-}
-
-bool mtpRequestData::needAckByType(mtpTypeId type) {
-	switch (type) {
-	case mtpc_msg_container:
-	case mtpc_msgs_ack:
-	case mtpc_http_wait:
-	case mtpc_bad_msg_notification:
-	case mtpc_msgs_all_info:
-	case mtpc_msgs_state_info:
-	case mtpc_msg_detailed_info:
-	case mtpc_msg_new_detailed_info:
-	return false;
-	}
-	return true;
-}
-
-mtpRequest mtpRequestData::prepare(uint32 requestSize, uint32 maxSize) {
-	if (!maxSize) maxSize = requestSize;
-	mtpRequest result(new mtpRequestData(true));
-	result->reserve(8 + maxSize + _padding(maxSize)); // 2: salt, 2: session_id, 2: msg_id, 1: seq_no, 1: message_length
-	result->resize(7);
-	result->push_back(requestSize << 2);
-	return result;
-}
-
-void mtpRequestData::padding(mtpRequest &request) {
-	if (request->size() < 9) return;
-
-	uint32 requestSize = (request.innerLength() >> 2), padding = _padding(requestSize), fullSize = 8 + requestSize + padding; // 2: salt, 2: session_id, 2: msg_id, 1: seq_no, 1: message_length
-	if (uint32(request->size()) != fullSize) {
-		request->resize(fullSize);
-		if (padding) {
-			memset_rand(request->data() + (fullSize - padding), padding * sizeof(mtpPrime));
-		}
-	}
-}
-
-uint32 mtpRequestData::_padding(uint32 requestSize) {
-#ifdef TDESKTOP_MTPROTO_OLD
-	return ((8 + requestSize) & 0x03) ? (4 - ((8 + requestSize) & 0x03)) : 0;
-#else // TDESKTOP_MTPROTO_OLD
-	auto result = ((8 + requestSize) & 0x03) ? (4 - ((8 + requestSize) & 0x03)) : 0;
-
-	// At least 12 bytes of random padding.
-	if (result < 3) {
-		result += 4;
-	}
-
-	return result;
-#endif // TDESKTOP_MTPROTO_OLD
 }
 
 void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons, uint32 level, mtpPrime vcons) {

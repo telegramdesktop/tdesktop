@@ -290,14 +290,14 @@ void Session::checkRequestsByTimer() {
 
 	{
 		QReadLocker locker(data.haveSentMutex());
-		mtpRequestMap &haveSent(data.haveSentMap());
-		uint32 haveSentCount(haveSent.size());
+		auto &haveSent = data.haveSentMap();
+		const auto haveSentCount = haveSent.size();
 		auto ms = getms(true);
-		for (mtpRequestMap::iterator i = haveSent.begin(), e = haveSent.end(); i != e; ++i) {
-			mtpRequest &req(i.value());
+		for (auto i = haveSent.begin(), e = haveSent.end(); i != e; ++i) {
+			auto &req = i.value();
 			if (req->msDate > 0) {
 				if (req->msDate + MTPCheckResendTimeout < ms) { // need to resend or check state
-					if (mtpRequestData::messageSize(req) < MTPResendThreshold) { // resend
+					if (req.messageSize() < MTPResendThreshold) { // resend
 						resendingIds.reserve(haveSentCount);
 						resendingIds.push_back(i.key());
 					} else {
@@ -396,8 +396,8 @@ int32 Session::requestState(mtpRequestId requestId) const {
 	if (!requestId) return MTP::RequestSent;
 
 	QWriteLocker locker(data.toSendMutex());
-	const mtpPreRequestMap &toSend(data.toSendMap());
-	mtpPreRequestMap::const_iterator i = toSend.constFind(requestId);
+	const auto &toSend = data.toSendMap();
+	const auto i = toSend.constFind(requestId);
 	if (i != toSend.cend()) {
 		return MTP::RequestSending;
 	} else {
@@ -433,10 +433,10 @@ QString Session::transport() const {
 }
 
 mtpRequestId Session::resend(quint64 msgId, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
-	mtpRequest request;
+	SecureRequest request;
 	{
 		QWriteLocker locker(data.haveSentMutex());
-		mtpRequestMap &haveSent(data.haveSentMap());
+		auto &haveSent = data.haveSentMap();
 
 		auto i = haveSent.find(msgId);
 		if (i == haveSent.end()) {
@@ -458,14 +458,14 @@ mtpRequestId Session::resend(quint64 msgId, qint64 msCanWait, bool forceContaine
 		request = i.value();
 		haveSent.erase(i);
 	}
-	if (mtpRequestData::isSentContainer(request)) { // for container just resend all messages we can
+	if (request.isSentContainer()) { // for container just resend all messages we can
 		DEBUG_LOG(("Message Info: resending container from haveSent, msgId %1").arg(msgId));
 		const mtpMsgId *ids = (const mtpMsgId *)(request->constData() + 8);
 		for (uint32 i = 0, l = (request->size() - 8) >> 1; i < l; ++i) {
 			resend(ids[i], 10, true);
 		}
 		return 0xFFFFFFFF;
-	} else if (!mtpRequestData::isStateRequest(request)) {
+	} else if (!request.isStateRequest()) {
 		request->msDate = forceContainer ? 0 : getms(true);
 		sendPrepared(request, msCanWait, false);
 		{
@@ -488,10 +488,12 @@ void Session::resendAll() {
 	QVector<mtpMsgId> toResend;
 	{
 		QReadLocker locker(data.haveSentMutex());
-		const mtpRequestMap &haveSent(data.haveSentMap());
+		const auto &haveSent = data.haveSentMap();
 		toResend.reserve(haveSent.size());
-		for (mtpRequestMap::const_iterator i = haveSent.cbegin(), e = haveSent.cend(); i != e; ++i) {
-			if (i.value()->requestId) toResend.push_back(i.key());
+		for (auto i = haveSent.cbegin(), e = haveSent.cend(); i != e; ++i) {
+			if (i.value()->requestId) {
+				toResend.push_back(i.key());
+			}
 		}
 	}
 	for (uint32 i = 0, l = toResend.size(); i < l; ++i) {
@@ -500,7 +502,7 @@ void Session::resendAll() {
 }
 
 void Session::sendPrepared(
-		const mtpRequest &request,
+		const SecureRequest &request,
 		TimeMs msCanWait,
 		bool newRequest) {
 	DEBUG_LOG(("MTP Info: adding request to toSendMap, msCanWait %1"
