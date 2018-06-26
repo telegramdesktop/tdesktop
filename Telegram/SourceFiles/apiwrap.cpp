@@ -2064,7 +2064,8 @@ void ApiWrap::saveDraftsToCloud() {
 			ConvertTextTagsToEntities(textWithTags.tags),
 			TextUtilities::ConvertOption::SkipLocal);
 
-		history->setSentDraftText(textWithTags.text);
+		const auto draftText = textWithTags.text;
+		history->setSentDraftText(draftText);
 		cloudDraft->saveRequestId = request(MTPmessages_SaveDraft(
 			MTP_flags(flags),
 			MTP_int(cloudDraft->msgId),
@@ -2072,7 +2073,7 @@ void ApiWrap::saveDraftsToCloud() {
 			MTP_string(textWithTags.text),
 			entities
 		)).done([=](const MTPBool &result, mtpRequestId requestId) {
-			history->clearSentDraftText();
+			history->clearSentDraftText(draftText);
 
 			if (const auto cloudDraft = history->cloudDraft()) {
 				if (cloudDraft->saveRequestId == requestId) {
@@ -2086,7 +2087,7 @@ void ApiWrap::saveDraftsToCloud() {
 				checkQuitPreventFinished();
 			}
 		}).fail([=](const RPCError &error, mtpRequestId requestId) {
-			history->clearSentDraftText();
+			history->clearSentDraftText(draftText);
 
 			if (const auto cloudDraft = history->cloudDraft()) {
 				if (cloudDraft->saveRequestId == requestId) {
@@ -4042,6 +4043,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		if (message.clearDraft) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_clear_draft;
 			history->clearCloudDraft();
+			history->setSentDraftText(QString());
 		}
 		auto messageFromId = channelPost ? 0 : _session->userId();
 		auto messagePostAuthor = channelPost
@@ -4076,7 +4078,10 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			sentEntities
 		)).done([=](const MTPUpdates &result) {
 			applyUpdates(result, randomId);
-		}).fail([=](const RPCError &error) { sendMessageFail(error);
+			history->clearSentDraftText(QString());
+		}).fail([=](const RPCError &error) {
+			sendMessageFail(error);
+			history->clearSentDraftText(QString());
 		}).afterRequest(history->sendRequestId
 		).send();
 	}
@@ -4141,6 +4146,9 @@ void ApiWrap::sendInlineResult(
 		options.replyTo,
 		messagePostAuthor);
 
+	history->clearCloudDraft();
+	history->setSentDraftText(QString());
+
 	history->sendRequestId = request(MTPmessages_SendInlineBotResult(
 		MTP_flags(sendFlags),
 		peer->input,
@@ -4150,7 +4158,10 @@ void ApiWrap::sendInlineResult(
 		MTP_string(data->getId())
 	)).done([=](const MTPUpdates &result) {
 		applyUpdates(result, randomId);
-	}).fail([=](const RPCError &error) { sendMessageFail(error);
+		history->clearSentDraftText(QString());
+	}).fail([=](const RPCError &error) {
+		sendMessageFail(error);
+		history->clearSentDraftText(QString());
 	}).afterRequest(history->sendRequestId
 	).send();
 

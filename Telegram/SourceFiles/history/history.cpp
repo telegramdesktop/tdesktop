@@ -409,9 +409,9 @@ Data::Draft *History::createCloudDraft(Data::Draft *fromDraft) {
 }
 
 bool History::skipCloudDraft(const QString &text, TimeId date) const {
-	if (_lastSentDraftText && *_lastSentDraftText == text) {
+	if (date > 0 && date <= _lastSentDraftTime + kSkipCloudDraftsFor) {
 		return true;
-	} else if (date <= _lastSentDraftTime + kSkipCloudDraftsFor) {
+	} else if (_lastSentDraftText && *_lastSentDraftText == text) {
 		return true;
 	}
 	return false;
@@ -421,8 +421,10 @@ void History::setSentDraftText(const QString &text) {
 	_lastSentDraftText = text;
 }
 
-void History::clearSentDraftText() {
-	_lastSentDraftText = base::none;
+void History::clearSentDraftText(const QString &text) {
+	if (_lastSentDraftText && *_lastSentDraftText == text) {
+		_lastSentDraftText = base::none;
+	}
 	accumulate_max(_lastSentDraftTime, unixtime());
 }
 
