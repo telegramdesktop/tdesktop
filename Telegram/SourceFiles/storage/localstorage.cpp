@@ -579,6 +579,7 @@ enum {
 	dbiStickersFavedLimit = 0x50,
 	dbiSuggestStickersByEmoji = 0x51,
 	dbiSuggestEmoji = 0x52,
+	dbiTxtDomainString = 0x53,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -1157,6 +1158,14 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 			return dbiwmWindowAndTray;
 		};
 		Global::RefWorkMode().set(newMode());
+	} break;
+
+	case dbiTxtDomainString: {
+		QString v;
+		stream >> v;
+		if (!_checkStreamStatus(stream)) return false;
+
+		Global::SetTxtDomainString(v);
 	} break;
 
 	case dbiConnectionTypeOld: {
@@ -2474,6 +2483,7 @@ void writeSettings() {
 	quint32 size = 12 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::bytearraySize(dcOptionsSerialized);
 	size += sizeof(quint32) + Serialize::stringSize(cLoggedPhoneNumber());
+	size += sizeof(quint32) + Serialize::stringSize(Global::TxtDomainString());
 
 	auto &proxies = Global::RefProxiesList();
 	const auto &proxy = Global::SelectedProxy();
@@ -2512,6 +2522,7 @@ void writeSettings() {
 	data.stream << quint32(dbiScale) << qint32(cConfigScale());
 	data.stream << quint32(dbiDcOptions) << dcOptionsSerialized;
 	data.stream << quint32(dbiLoggedPhoneNumber) << cLoggedPhoneNumber();
+	data.stream << quint32(dbiTxtDomainString) << Global::TxtDomainString();
 
 	data.stream << quint32(dbiConnectionType) << qint32(dbictProxiesList);
 	data.stream << qint32(proxies.size());

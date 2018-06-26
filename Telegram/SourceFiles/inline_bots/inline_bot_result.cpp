@@ -366,8 +366,7 @@ MTPWebDocument Result::adjustAttributes(const MTPWebDocument &document) {
 			data.vaccess_hash,
 			data.vsize,
 			data.vmime_type,
-			adjustAttributes(data.vattributes, data.vmime_type),
-			data.vdc_id);
+			adjustAttributes(data.vattributes, data.vmime_type));
 	} break;
 
 	case mtpc_webDocumentNoProxy: {

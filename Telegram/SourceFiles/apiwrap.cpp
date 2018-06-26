@@ -566,13 +566,15 @@ void ApiWrap::requestDialogEntry(not_null<Data::Feed*> feed) {
 //	}
 //	_dialogFeedRequests.emplace(feed);
 //
+//	const auto hash = 0;
 //	request(MTPmessages_GetDialogs(
 //		MTP_flags(MTPmessages_GetDialogs::Flag::f_feed_id),
 //		MTP_int(feed->id()),
 //		MTP_int(0), // offset_date
 //		MTP_int(0), // offset_id
 //		MTP_inputPeerEmpty(), // offset_peer
-//		MTP_int(Data::Feed::kChannelsLimit)
+//		MTP_int(Data::Feed::kChannelsLimit),
+//		MTP_int(hash)
 //	)).done([=](const MTPmessages_Dialogs &result) {
 //		applyFeedDialogs(feed, result);
 //		_dialogFeedRequests.remove(feed);
@@ -3777,6 +3779,8 @@ void ApiWrap::sendSharedContact(
 	const auto messagePostAuthor = channelPost
 		? (_session->user()->firstName + ' ' + _session->user()->lastName)
 		: QString();
+	const auto vcard = QString();
+	const auto views = 1;
 	const auto item = history->addNewMessage(
 		MTP_message(
 			MTP_flags(flags),
@@ -3792,10 +3796,11 @@ void ApiWrap::sendSharedContact(
 				MTP_string(phone),
 				MTP_string(firstName),
 				MTP_string(lastName),
+				MTP_string(vcard),
 				MTP_int(userId)),
 			MTPnullMarkup,
 			MTPnullEntities,
-			MTP_int(1),
+			MTP_int(views),
 			MTPint(),
 			MTP_string(messagePostAuthor),
 			MTPlong()),
@@ -3804,7 +3809,8 @@ void ApiWrap::sendSharedContact(
 	const auto media = MTP_inputMediaContact(
 		MTP_string(phone),
 		MTP_string(firstName),
-		MTP_string(lastName));
+		MTP_string(lastName),
+		MTP_string(vcard));
 	sendMedia(item, media, _session->data().notifySilentPosts(peer));
 
 	if (const auto main = App::main()) {

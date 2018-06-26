@@ -13,9 +13,10 @@ void deinitLocationManager();
 class LocationCoords {
 public:
 	LocationCoords() = default;
-	LocationCoords(float64 lat, float64 lon) : _lat(lat), _lon(lon) {
-	}
-	LocationCoords(const MTPDgeoPoint &point) : _lat(point.vlat.v), _lon(point.vlong.v) {
+	explicit LocationCoords(const MTPDgeoPoint &point)
+	: _lat(point.vlat.v)
+	, _lon(point.vlong.v)
+	, _access(point.vaccess_hash.v) {
 	}
 
 	QString latAsString() const {
@@ -25,7 +26,10 @@ public:
 		return asString(_lon);
 	}
 	MTPGeoPoint toMTP() const {
-		return MTP_geoPoint(MTP_double(_lon), MTP_double(_lat));
+		return MTP_geoPoint(
+			MTP_double(_lon),
+			MTP_double(_lat),
+			MTP_long(_access));
 	}
 
 private:
@@ -54,6 +58,7 @@ private:
 
 	float64 _lat = 0;
 	float64 _lon = 0;
+	uint64 _access = 0;
 
 };
 

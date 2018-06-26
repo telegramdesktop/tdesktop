@@ -1082,7 +1082,7 @@ DocumentData *Session::documentFromWeb(
 		int32(0), // data.vsize.v
 		StorageImageLocation());
 	result->setWebLocation(WebFileLocation(
-		data.vdc_id.v,
+		Global::WebFileDcId(),
 		data.vurl.v,
 		data.vaccess_hash.v));
 	return result;

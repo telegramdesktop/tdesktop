@@ -14,7 +14,7 @@ class InputField;
 namespace Data {
 
 void applyPeerCloudDraft(PeerId peerId, const MTPDdraftMessage &draft);
-void clearPeerCloudDraft(PeerId peerId);
+void clearPeerCloudDraft(PeerId peerId, TimeId date);
 
 struct Draft {
 	Draft() = default;

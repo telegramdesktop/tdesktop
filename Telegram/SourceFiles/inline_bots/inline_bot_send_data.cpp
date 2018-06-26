@@ -99,11 +99,14 @@ SendDataCommon::SentMTPMessageFields SendVenue::getSentMessageFields() const {
 
 SendDataCommon::SentMTPMessageFields SendContact::getSentMessageFields() const {
 	SentMTPMessageFields result;
+	const auto userId = 0;
+	const auto vcard = QString();
 	result.media = MTP_messageMediaContact(
 		MTP_string(_phoneNumber),
 		MTP_string(_firstName),
 		MTP_string(_lastName),
-		MTP_int(0));
+		MTP_string(vcard),
+		MTP_int(userId));
 	return result;
 }
 

@@ -995,6 +995,8 @@ std::vector<int> SortedContactsIndices(const ContactsList &data) {
 bool AppendTopPeers(ContactsList &to, const MTPcontacts_TopPeers &data) {
 	return data.match([](const MTPDcontacts_topPeersNotModified &data) {
 		return false;
+	}, [](const MTPDcontacts_topPeersDisabled &data) {
+		return true;
 	}, [&](const MTPDcontacts_topPeers &data) {
 		const auto peers = ParsePeersLists(data.vusers, data.vchats);
 		const auto append = [&](
@@ -1128,7 +1130,9 @@ DialogInfo::Type DialogTypeFromUser(const User &user) {
 DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
 	auto result = DialogsInfo();
 	const auto folder = QString();
-	data.match([&](const auto &data) { // MTPDmessages_dialogs &data) {
+	data.match([](const MTPDmessages_dialogsNotModified &data) {
+		Unexpected("dialogsNotModified in ParseDialogsInfo.");
+	}, [&](const auto &data) { // MTPDmessages_dialogs &data) {
 		const auto peers = ParsePeersLists(data.vusers, data.vchats);
 		const auto messages = ParseMessagesList(data.vmessages, folder);
 		result.list.reserve(result.list.size() + data.vdialogs.v.size());

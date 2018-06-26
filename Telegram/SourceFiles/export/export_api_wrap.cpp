@@ -402,22 +402,35 @@ void ApiWrap::requestSplitRanges() {
 void ApiWrap::requestDialogsCount() {
 	Expects(_startProcess != nullptr);
 
+	const auto offsetDate = 0;
+	const auto offsetId = 0;
+	const auto offsetPeer = MTP_inputPeerEmpty();
+	const auto limit = 1;
+	const auto hash = 0;
 	splitRequest(_startProcess->splitIndex, MTPmessages_GetDialogs(
 		MTP_flags(0),
-		MTP_int(0), // offset_date
-		MTP_int(0), // offset_id
-		MTP_inputPeerEmpty(), // offset_peer
-		MTP_int(1)
+		MTP_int(offsetDate),
+		MTP_int(offsetId),
+		offsetPeer,
+		MTP_int(limit),
+		MTP_int(hash)
 	)).done([=](const MTPmessages_Dialogs &result) {
 		Expects(_settings != nullptr);
 		Expects(_startProcess != nullptr);
 
-		_startProcess->info.dialogsCount += result.match(
+		const auto count = result.match(
 		[](const MTPDmessages_dialogs &data) {
 			return int(data.vdialogs.v.size());
 		}, [](const MTPDmessages_dialogsSlice &data) {
 			return data.vcount.v;
+		}, [](const MTPDmessages_dialogsNotModified &data) {
+			return -1;
 		});
+		if (count < 0) {
+			error("Unexpected dialogsNotModified received.");
+			return;
+		}
+		_startProcess->info.dialogsCount += count;
 
 		if (++_startProcess->splitIndex >= _splits.size()) {
 			sendNextStartRequest();
@@ -751,6 +764,8 @@ void ApiWrap::requestTopPeersSlice() {
 		const auto loaded = result.match(
 		[](const MTPDcontacts_topPeersNotModified &data) {
 			return true;
+		}, [](const MTPDcontacts_topPeersDisabled &data) {
+			return true;
 		}, [&](const MTPDcontacts_topPeers &data) {
 			for (const auto &category : data.vcategories.v) {
 				const auto loaded = category.match(
@@ -865,18 +880,26 @@ void ApiWrap::requestDialogsSlice() {
 	Expects(_dialogsProcess != nullptr);
 
 	const auto splitIndex = _dialogsProcess->splitIndexPlusOne - 1;
+	const auto hash = 0;
 	splitRequest(splitIndex, MTPmessages_GetDialogs(
 		MTP_flags(0),
 		MTP_int(_dialogsProcess->offsetDate),
 		MTP_int(_dialogsProcess->offsetId),
 		_dialogsProcess->offsetPeer,
-		MTP_int(kChatsSliceLimit)
+		MTP_int(kChatsSliceLimit),
+		MTP_int(hash)
 	)).done([=](const MTPmessages_Dialogs &result) {
+		if (result.type() == mtpc_messages_dialogsNotModified) {
+			error("Unexpected dialogsNotModified received.");
+			return;
+		}
 		auto finished = result.match(
 		[](const MTPDmessages_dialogs &data) {
 			return true;
 		}, [](const MTPDmessages_dialogsSlice &data) {
 			return data.vdialogs.v.isEmpty();
+		}, [](const MTPDmessages_dialogsNotModified &data) {
+			return true;
 		});
 
 		auto info = Data::ParseDialogsInfo(result);

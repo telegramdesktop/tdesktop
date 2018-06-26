@@ -277,6 +277,8 @@ DeclareVar(int32, CallReceiveTimeoutMs);
 DeclareVar(int32, CallRingTimeoutMs);
 DeclareVar(int32, CallConnectTimeoutMs);
 DeclareVar(int32, CallPacketTimeoutMs);
+DeclareVar(int32, WebFileDcId);
+DeclareVar(QString, TxtDomainString);
 DeclareVar(bool, PhoneCallsEnabled);
 DeclareVar(bool, BlockedMode);
 DeclareRefVar(base::Observable<void>, PhoneCallsEnabledChanged);

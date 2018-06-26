@@ -4784,6 +4784,13 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	//	}
 	//} break;
 
+	case mtpc_updateDialogUnreadMark: {
+		const auto &data = update.c_updateDialogUnreadMark();
+		if (data.is_unread()) {
+			// #TODO dialog_unread
+		}
+	} break;
+
 	// Deleted messages.
 	case mtpc_updateDeleteMessages: {
 		auto &d = update.c_updateDeleteMessages();
@@ -5335,16 +5342,15 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	////// Cloud drafts
 	case mtpc_updateDraftMessage: {
-		auto &peerDraft = update.c_updateDraftMessage();
-		auto peerId = peerFromMTP(peerDraft.vpeer);
-
-		auto &draftMessage = peerDraft.vdraft;
-		if (draftMessage.type() == mtpc_draftMessage) {
-			auto &draft = draftMessage.c_draftMessage();
-			Data::applyPeerCloudDraft(peerId, draft);
-		} else {
-			Data::clearPeerCloudDraft(peerId);
-		}
+		const auto &data = update.c_updateDraftMessage();
+		const auto peerId = peerFromMTP(data.vpeer);
+		data.vdraft.match([&](const MTPDdraftMessage &data) {
+			Data::applyPeerCloudDraft(peerId, data);
+		}, [&](const MTPDdraftMessageEmpty &data) {
+			Data::clearPeerCloudDraft(
+				peerId,
+				TimeId(data.has_date() ? data.vdate.v : 0));
+		});
 	} break;
 
 	////// Cloud langpacks

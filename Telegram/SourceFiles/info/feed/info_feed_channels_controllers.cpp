@@ -251,13 +251,15 @@ void NotificationsController::loadMoreRows() {
 	if (_preloadRequestId || _allLoaded) {
 		return;
 	}
+	// const auto hash = 0;
 	//_preloadRequestId = request(MTPmessages_GetDialogs( // #feed
 	//	MTP_flags(MTPmessages_GetDialogs::Flag::f_feed_id),
 	//	MTP_int(_feed->id()),
 	//	MTP_int(_preloadOffsetDate),
 	//	MTP_int(_preloadOffsetId),
 	//	_preloadPeer ? _preloadPeer->input : MTP_inputPeerEmpty(),
-	//	MTP_int(Data::Feed::kChannelsLimit)
+	//	MTP_int(Data::Feed::kChannelsLimit),
+	//	MTP_int(hash)
 	//)).done([=](const MTPmessages_Dialogs &result) {
 	//	applyFeedDialogs(result);
 	//	_preloadRequestId = 0;

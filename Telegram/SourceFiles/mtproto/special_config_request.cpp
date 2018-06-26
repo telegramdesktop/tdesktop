@@ -215,9 +215,7 @@ void SpecialConfigRequest::performRequest(const Attempt &attempt) {
 	} break;
 	case Type::Dns: {
 		url.setPath(qsl("/resolve"));
-		url.setQuery(
-			qsl("name=%1.stel.com&type=16").arg(
-				cTestMode() ? qsl("testapv2") : qsl("apv2")));
+		url.setQuery(qsl("name=%1&type=16").arg(Global::TxtDomainString()));
 		request.setRawHeader("Host", "dns.google.com");
 	} break;
 	default: Unexpected("Type in SpecialConfigRequest::performRequest.");

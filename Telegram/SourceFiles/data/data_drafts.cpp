@@ -68,8 +68,11 @@ void applyPeerCloudDraft(PeerId peerId, const MTPDdraftMessage &draft) {
 	}
 }
 
-void clearPeerCloudDraft(PeerId peerId) {
-	auto history = App::history(peerId);
+void clearPeerCloudDraft(PeerId peerId, TimeId date) {
+	const auto history = App::history(peerId);
+	if (history->skipCloudDraft(QString(), date)) {
+		return;
+	}
 
 	history->clearCloudDraft();
 	history->clearLocalDraft();
