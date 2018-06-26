@@ -32,7 +32,10 @@ public:
 	FieldAutocomplete(QWidget *parent);
 
 	bool clearFilteredBotCommands();
-	void showFiltered(PeerData *peer, QString query, bool addInlineBots);
+	void showFiltered(
+		not_null<PeerData*> peer,
+		QString query,
+		bool addInlineBots);
 	void showStickers(EmojiPtr emoji);
 	void setBoundings(QRect boundings);
 

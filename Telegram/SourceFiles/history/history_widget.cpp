@@ -1034,6 +1034,9 @@ void HistoryWidget::onHashtagOrBotCommandInsert(
 }
 
 void HistoryWidget::updateInlineBotQuery() {
+	if (!_history) {
+		return;
+	}
 	const auto query = ParseInlineBotQuery(_field);
 	if (_inlineBotUsername != query.username) {
 		_inlineBotUsername = query.username;
@@ -1131,20 +1134,22 @@ void HistoryWidget::setReportSpamStatus(DBIPeerReportSpamStatus status) {
 }
 
 void HistoryWidget::updateStickersByEmoji() {
-	int len = 0;
-	if (!_editMsgId) {
-		auto &text = _field->getTextWithTags().text;
-		if (auto emoji = Ui::Emoji::Find(text, &len)) {
-			if (text.size() > len) {
-				len = 0;
-			} else {
-				_fieldAutocomplete->showStickers(emoji);
+	if (!_history) {
+		return;
+	}
+	const auto emoji = [&] {
+		if (!_editMsgId) {
+			const auto &text = _field->getTextWithTags().text;
+			auto length = 0;
+			if (const auto emoji = Ui::Emoji::Find(text, &length)) {
+				if (text.size() <= length) {
+					return emoji;
+				}
 			}
 		}
-	}
-	if (!len) {
-		_fieldAutocomplete->showStickers(nullptr);
-	}
+		return EmojiPtr(nullptr);
+	}();
+	_fieldAutocomplete->showStickers(emoji);
 }
 
 void HistoryWidget::onTextChange() {

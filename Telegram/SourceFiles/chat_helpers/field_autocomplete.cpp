@@ -57,7 +57,10 @@ void FieldAutocomplete::paintEvent(QPaintEvent *e) {
 	p.fillRect(rect(), st::mentionBg);
 }
 
-void FieldAutocomplete::showFiltered(PeerData *peer, QString query, bool addInlineBots) {
+void FieldAutocomplete::showFiltered(
+		not_null<PeerData*> peer,
+		QString query,
+		bool addInlineBots) {
 	_chat = peer->asChat();
 	_user = peer->asUser();
 	_channel = peer->asChannel();
@@ -105,9 +108,9 @@ void FieldAutocomplete::showStickers(EmojiPtr emoji) {
 		return;
 	}
 
-	_chat = 0;
-	_user = 0;
-	_channel = 0;
+	_chat = nullptr;
+	_user = nullptr;
+	_channel = nullptr;
 
 	updateFiltered(resetScroll);
 }
