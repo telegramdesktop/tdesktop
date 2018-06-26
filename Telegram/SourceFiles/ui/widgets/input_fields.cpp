@@ -2386,7 +2386,7 @@ TextWithTags InputField::getTextWithAppliedMarkdown() const {
 		if (!tag.closed || tag.adjustedStart < from) {
 			continue;
 		}
-		const auto entityLength = tag.adjustedLength - 2 * tagLength;
+		auto entityLength = tag.adjustedLength - 2 * tagLength;
 		if (entityLength <= 0) {
 			continue;
 		}
@@ -2407,15 +2407,38 @@ TextWithTags InputField::getTextWithAppliedMarkdown() const {
 			continue;
 		}
 		addOriginalTextUpTill(tag.adjustedStart);
-		result.tags.push_back(TextWithTags::Tag{
-			int(result.text.size()),
-			entityLength,
-			tag.tag });
-		result.text.append(originalText.midRef(
-			tag.adjustedStart + tagLength,
-			entityLength));
+
+		auto entityStart = tag.adjustedStart + tagLength;
+		if (tag.tag == kTagPre) {
+			// Remove redundant newlines for pre.
+			// If ``` is on a separate line add only one newline.
+			if (IsNewline(originalText[entityStart])
+				&& (result.text.isEmpty()
+					|| IsNewline(result.text[result.text.size() - 1]))) {
+				++entityStart;
+				--entityLength;
+			}
+			const auto entityEnd = entityStart + entityLength;
+			if (IsNewline(originalText[entityEnd - 1])
+				&& (originalText.size() <= entityEnd + tagLength
+					|| IsNewline(originalText[entityEnd + tagLength]))) {
+				--entityLength;
+			}
+		}
+
+		if (entityLength > 0) {
+			// Add tag text and entity.
+			result.tags.push_back(TextWithTags::Tag{
+				int(result.text.size()),
+				entityLength,
+				tag.tag });
+			result.text.append(originalText.midRef(
+				entityStart,
+				entityLength));
+		}
+
 		from = tag.adjustedStart + tag.adjustedLength;
-		removed += 2 * tagLength;
+		removed += (tag.adjustedLength - entityLength);
 	}
 	addOriginalTagsUpTill(originalText.size());
 	addOriginalTextUpTill(originalText.size());
