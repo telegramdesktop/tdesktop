@@ -407,10 +407,11 @@ void RowPainter::paint(
 	const auto history = row->history();
 	const auto peer = history ? history->peer.get() : nullptr;
 	const auto unreadCount = entry->chatListUnreadCount();
+	const auto unreadMark = entry->chatListUnreadMark();
 	const auto unreadMuted = entry->chatListMutedBadge();
 	const auto item = entry->chatsListItem();
 	const auto cloudDraft = [&]() -> const Data::Draft*{
-		if (history && (!item || !unreadCount)) {
+		if (history && (!item || (!unreadCount && !unreadMark))) {
 			// Draw item, if there are unread messages.
 			if (const auto draft = history->cloudDraft()) {
 				if (!Data::draftIsNull(draft)) {
@@ -458,11 +459,18 @@ void RowPainter::paint(
 			}
 			return (unreadCount > 0);
 		}();
+		const auto displayUnreadMark = !displayUnreadCounter
+			&& !displayMentionBadge
+			&& history
+			&& unreadMark;
 		const auto displayPinnedIcon = !displayUnreadCounter
 			&& !displayMentionBadge
+			&& !displayUnreadMark
 			&& entry->isPinnedDialog();
-		if (displayUnreadCounter) {
-			auto counter = QString::number(unreadCount);
+		if (displayUnreadCounter || displayUnreadMark) {
+			auto counter = (unreadCount > 0)
+				? QString::number(unreadCount)
+				: QString();
 			auto unreadRight = fullWidth - st::dialogsPadding.x();
 			auto unreadTop = texttop + st::dialogsTextFont->ascent - st::dialogsUnreadFont->ascent - (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2;
 			auto unreadWidth = 0;

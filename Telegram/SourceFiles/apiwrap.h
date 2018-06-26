@@ -85,6 +85,8 @@ public:
 	//void setFeedChannels(
 	//	not_null<Data::Feed*> feed,
 	//	const std::vector<not_null<ChannelData*>> &channels);
+	void changeDialogUnreadMark(not_null<History*> history, bool unread);
+	//void changeDialogUnreadMark(not_null<Data::Feed*> feed, bool unread); // #feed
 
 	void requestFullPeer(PeerData *peer);
 	void requestPeer(PeerData *peer);

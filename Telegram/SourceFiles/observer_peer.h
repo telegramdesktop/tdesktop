@@ -37,13 +37,14 @@ struct PeerUpdate {
 		MigrationChanged          = (1 << 6),
 		PinnedChanged             = (1 << 7),
 		RestrictionReasonChanged  = (1 << 8),
+		UnreadViewChanged         = (1 << 9),
 
 		// For chats and channels
-		InviteLinkChanged         = (1 << 9),
-		MembersChanged            = (1 << 10),
-		AdminsChanged             = (1 << 11),
-		BannedUsersChanged        = (1 << 12),
-		UnreadMentionsChanged     = (1 << 13),
+		InviteLinkChanged         = (1 << 10),
+		MembersChanged            = (1 << 11),
+		AdminsChanged             = (1 << 12),
+		BannedUsersChanged        = (1 << 13),
+		UnreadMentionsChanged     = (1 << 14),
 
 		// For users
 		UserCanShareContact       = (1 << 16),

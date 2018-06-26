@@ -1275,10 +1275,6 @@ Dialogs::IndexedList *MainWidget::contactsNoDialogsList() {
 	return _dialogs->contactsNoDialogsList();
 }
 
-void MainWidget::unreadCountChanged(not_null<History*> history) {
-	_history->unreadCountChanged(history);
-}
-
 TimeMs MainWidget::highlightStartTime(not_null<const HistoryItem*> item) const {
 	return _history->highlightStartTime(item);
 }
@@ -4634,8 +4630,14 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateDialogUnreadMark: {
 		const auto &data = update.c_updateDialogUnreadMark();
-		if (data.is_unread()) {
-			// #TODO dialog_unread
+		const auto history = data.vpeer.match(
+		[&](const MTPDdialogPeer &data) {
+			const auto peerId = peerFromMTP(data.vpeer);
+			return App::historyLoaded(peerId);
+		//}, [&](const MTPDdialogPeerFeed &data) { // #feed
+		});
+		if (history) {
+			history->setUnreadMark(data.is_unread());
 		}
 	} break;
 

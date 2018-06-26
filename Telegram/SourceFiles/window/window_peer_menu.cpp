@@ -50,6 +50,7 @@ private:
 	void addPinToggle();
 	void addInfo();
 	void addSearch();
+	void addToggleUnreadMark();
 	void addUserActions(not_null<UserData*> user);
 	void addBlockUser(not_null<UserData*> user);
 	void addChatActions(not_null<ChatData*> chat);
@@ -229,6 +230,48 @@ void Filler::addSearch() {
 	});
 }
 
+void Filler::addToggleUnreadMark() {
+	const auto peer = _peer;
+	const auto isUnread = [](not_null<PeerData*> peer) {
+		if (const auto history = App::historyLoaded(peer)) {
+			return (history->chatListUnreadCount() > 0)
+				|| (history->chatListUnreadMark());
+		}
+		return false;
+	};
+	const auto label = [=](not_null<PeerData*> peer) {
+		return lang(isUnread(peer)
+			? lng_context_mark_read
+			: lng_context_mark_unread);
+	};
+	auto action = _addAction(label(peer), [=] {
+		const auto markAsRead = isUnread(peer);
+		const auto handle = [&](not_null<History*> history) {
+			if (markAsRead) {
+				Auth().api().readServerHistory(history);
+			} else {
+				Auth().api().changeDialogUnreadMark(history, !markAsRead);
+			}
+		};
+		const auto history = App::history(peer);
+		handle(history);
+		if (markAsRead) {
+			if (const auto migrated = history->migrateSibling()) {
+				handle(migrated);
+			}
+		}
+	});
+
+	auto lifetime = Notify::PeerUpdateViewer(
+		_peer,
+		Notify::PeerUpdate::Flag::UnreadViewChanged
+	) | rpl::start_with_next([=] {
+		action->setText(label(peer));
+	});
+
+	Ui::AttachAsChild(action, std::move(lifetime));
+}
+
 void Filler::addBlockUser(not_null<UserData*> user) {
 	auto blockText = [](not_null<UserData*> user) {
 		return lang(user->isBlocked()
@@ -401,6 +444,7 @@ void Filler::fill() {
 	}
 	if (_source == PeerMenuSource::ChatsList) {
 		addSearch();
+		addToggleUnreadMark();
 	}
 
 	if (const auto user = _peer->asUser()) {

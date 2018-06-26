@@ -455,6 +455,10 @@ int Feed::chatListUnreadCount() const {
 	return unreadCount();
 }
 
+bool Feed::chatListUnreadMark() const {
+	return false; // #feed unread mark
+}
+
 bool Feed::chatListMutedBadge() const {
 	return _unreadCount ? (*_unreadCount <= _unreadMutedCount) : false;
 }

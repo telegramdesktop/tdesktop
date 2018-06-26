@@ -641,6 +641,7 @@ HistoryWidget::HistoryWidget(
 	using UpdateFlag = Notify::PeerUpdate::Flag;
 	auto changes = UpdateFlag::ChannelRightsChanged
 		| UpdateFlag::UnreadMentionsChanged
+		| UpdateFlag::UnreadViewChanged
 		| UpdateFlag::MigrationChanged
 		| UpdateFlag::RestrictionReasonChanged
 		| UpdateFlag::ChannelPinnedChanged
@@ -658,6 +659,9 @@ HistoryWidget::HistoryWidget(
 			}
 			if (update.flags & UpdateFlag::UnreadMentionsChanged) {
 				updateUnreadMentionsVisibility();
+			}
+			if (update.flags & UpdateFlag::UnreadViewChanged) {
+				unreadCountUpdated();
 			}
 			if (update.flags & UpdateFlag::MigrationChanged) {
 				if (auto channel = _peer->migrateTo()) {
@@ -1913,7 +1917,19 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 				}
 			}
 		}
-		unreadCountChanged(_history); // set _historyDown badge.
+		if (_history->chatListUnreadMark()) {
+			Auth().api().changeDialogUnreadMark(_history, false);
+			if (_migrated) {
+				Auth().api().changeDialogUnreadMark(_migrated, false);
+			}
+
+			// Must be done before unreadCountUpdated(), or we auto-close.
+			_history->setUnreadMark(false);
+			if (_migrated) {
+				_migrated->setUnreadMark(false);
+			}
+		}
+		unreadCountUpdated(); // set _historyDown badge.
 	} else {
 		_topBar->setActiveChat(Dialogs::Key());
 		updateTopBarSelection();
@@ -2366,8 +2382,15 @@ void HistoryWidget::historyToDown(History *history) {
 	}
 }
 
-void HistoryWidget::unreadCountChanged(not_null<History*> history) {
-	if (history == _history || history == _migrated) {
+void HistoryWidget::unreadCountUpdated() {
+	if (_history->chatListUnreadMark()) {
+		crl::on_main(this, [=, history = _history] {
+			if (history == _history) {
+				controller()->showBackFromStack();
+				emit cancelled();
+			}
+		});
+	} else {
 		updateHistoryDownVisibility();
 		_historyDown->setUnreadCount(_history->chatListUnreadCount());
 	}
@@ -2376,7 +2399,9 @@ void HistoryWidget::unreadCountChanged(not_null<History*> history) {
 bool HistoryWidget::messagesFailed(const RPCError &error, mtpRequestId requestId) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
-	if (error.type() == qstr("CHANNEL_PRIVATE") || error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA") || error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
+	if (error.type() == qstr("CHANNEL_PRIVATE")
+		|| error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA")
+		|| error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
 		auto was = _peer;
 		controller()->showBackFromStack();
 		Ui::show(Box<InformBox>(lang((was && was->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));

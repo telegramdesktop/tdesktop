@@ -72,6 +72,7 @@ public:
 	virtual bool toImportant() const = 0;
 	virtual bool shouldBeInChatList() const = 0;
 	virtual int chatListUnreadCount() const = 0;
+	virtual bool chatListUnreadMark() const = 0;
 	virtual bool chatListMutedBadge() const = 0;
 	virtual HistoryItem *chatsListItem() const = 0;
 	virtual const QString &chatsListName() const = 0;

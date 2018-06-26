@@ -213,6 +213,9 @@ public:
 	bool unreadCountKnown() const;
 	void setUnreadCount(int newUnreadCount);
 	void changeUnreadCount(int delta);
+	void setUnreadMark(bool unread);
+	bool unreadMark() const;
+	int historiesUnreadCount() const; // unreadCount || unreadMark ? 1 : 0.
 	bool mute() const;
 	bool changeMute(bool newMute);
 	void addUnreadBar();
@@ -322,6 +325,7 @@ public:
 	HistoryItemsList validateForwardDraft();
 	void setForwardDraft(MessageIdsList &&items);
 
+	History *migrateSibling() const;
 	bool useProxyPromotion() const override;
 	void updateChatListExistence() override;
 	bool shouldBeInChatList() const override;
@@ -329,6 +333,7 @@ public:
 		return !mute();
 	}
 	int chatListUnreadCount() const override;
+	bool chatListUnreadMark() const override;
 	bool chatListMutedBadge() const override;
 	HistoryItem *chatsListItem() const override;
 	const QString &chatsListName() const override;
@@ -492,6 +497,7 @@ private:
 	base::optional<int> _unreadMentionsCount;
 	base::flat_set<MsgId> _unreadMentions;
 	base::optional<HistoryItem*> _lastMessage;
+	bool _unreadMark = false;
 
 	// A pointer to the block that is currently being built.
 	// We hold this pointer so we can destroy it while building

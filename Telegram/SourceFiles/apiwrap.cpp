@@ -719,6 +719,18 @@ void ApiWrap::applyFeedDialogs(
 	_session->data().sendHistoryChangeNotifications();
 }
 
+void ApiWrap::changeDialogUnreadMark(
+		not_null<History*> history,
+		bool unread) {
+	history->setUnreadMark(unread);
+
+	using Flag = MTPmessages_MarkDialogUnread::Flag;
+	request(MTPmessages_MarkDialogUnread(
+		MTP_flags(unread ? Flag::f_unread : Flag(0)),
+		MTP_inputDialogPeer(history->peer->input)
+	)).send();
+}
+
 void ApiWrap::requestFullPeer(PeerData *peer) {
 	if (!peer || _fullPeerRequests.contains(peer)) return;
 
@@ -4416,6 +4428,9 @@ FileLoadTo ApiWrap::fileLoadTaskOptions(const SendOptions &options) const {
 void ApiWrap::readServerHistory(not_null<History*> history) {
 	if (history->unreadCount()) {
 		readServerHistoryForce(history);
+	}
+	if (history->unreadMark()) {
+		changeDialogUnreadMark(history, false);
 	}
 }
 

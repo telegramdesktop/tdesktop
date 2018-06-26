@@ -211,7 +211,6 @@ public:
 		not_null<History*> history,
 		not_null<HistoryItem*> item);
 	void historyToDown(History *history);
-	void unreadCountChanged(not_null<History*> history);
 
 	QRect historyRect() const;
 	void pushTabbedSelectorToThirdSection(
@@ -449,6 +448,7 @@ private:
 	void forwardItems(MessageIdsList &&items);
 	void handleHistoryChange(not_null<const History*> history);
 	void refreshAboutProxyPromotion();
+	void unreadCountUpdated();
 
 	void highlightMessage(MsgId universalMessageId);
 	void adjustHighlightedMessageToMigrated();

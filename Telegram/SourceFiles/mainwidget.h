@@ -222,8 +222,6 @@ public:
 	Dialogs::IndexedList *dialogsList();
 	Dialogs::IndexedList *contactsNoDialogsList();
 
-	void unreadCountChanged(not_null<History*> history);
-
 	// While HistoryInner is not HistoryView::ListWidget.
 	TimeMs highlightStartTime(not_null<const HistoryItem*> item) const;
 	bool historyInSelectionMode() const;

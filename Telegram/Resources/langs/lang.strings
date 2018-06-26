@@ -1106,6 +1106,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_view_feed_info" = "View feed info";
 "lng_context_pin_to_top" = "Pin to top";
 "lng_context_unpin_from_top" = "Unpin from top";
+"lng_context_mark_unread" = "Mark as unread";
+"lng_context_mark_read" = "Mark as read";
 
 "lng_context_promote_admin" = "Promote to admin";
 "lng_context_edit_permissions" = "Edit permissions";
