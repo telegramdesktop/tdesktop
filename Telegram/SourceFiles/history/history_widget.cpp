@@ -3004,13 +3004,17 @@ void HistoryWidget::send() {
 		return;
 	}
 
-	WebPageId webPageId = _previewCancelled ? CancelledWebPageId : ((_previewData && _previewData->pendingTill >= 0) ? _previewData->id : 0);
+	WebPageId webPageId = _previewCancelled
+		? CancelledWebPageId
+		: ((_previewData && _previewData->pendingTill >= 0)
+			? _previewData->id
+			: 0);
 
-	auto message = MainWidget::MessageToSend(_history);
+	auto message = ApiWrap::MessageToSend(_history);
 	message.textWithTags = _field->getTextWithAppliedMarkdown();
 	message.replyTo = replyToId();
 	message.webPageId = webPageId;
-	App::main()->sendMessage(message);
+	Auth().api().sendMessage(std::move(message));
 
 	clearFieldText();
 	_saveDraftText = true;
@@ -3398,14 +3402,14 @@ void HistoryWidget::sendBotCommand(PeerData *peer, UserData *bot, const QString 
 		toSend += '@' + username;
 	}
 
-	auto message = MainWidget::MessageToSend(_history);
+	auto message = ApiWrap::MessageToSend(_history);
 	message.textWithTags = { toSend, TextWithTags::Tags() };
 	message.replyTo = replyTo
 		? ((!_peer->isUser()/* && (botStatus == 0 || botStatus == 2)*/)
 			? replyTo
 			: replyToId())
 		: 0;
-	App::main()->sendMessage(message);
+	Auth().api().sendMessage(std::move(message));
 	if (replyTo) {
 		if (_replyToId == replyTo) {
 			cancelReply();
@@ -5398,7 +5402,10 @@ void HistoryWidget::onPhotoSend(PhotoData *photo) {
 void HistoryWidget::onInlineResultSend(
 		InlineBots::Result *result,
 		UserData *bot) {
-	if (!_peer || !_peer->canWrite() || !result) {
+	Expects(result != nullptr);
+	Expects(bot != nullptr);
+
+	if (!_peer || !_peer->canWrite()) {
 		return;
 	}
 
@@ -5412,77 +5419,15 @@ void HistoryWidget::onInlineResultSend(
 	options.clearDraft = true;
 	options.replyTo = replyToId();
 	options.generateLocal = true;
-	Auth().api().sendAction(options);
-
-	uint64 randomId = rand_value<uint64>();
-	FullMsgId newId(_channel, clientMsgId());
-
-	auto flags = NewMessageFlags(_peer) | MTPDmessage::Flag::f_media;
-	auto sendFlags = MTPmessages_SendInlineBotResult::Flag::f_clear_draft | 0;
-	if (options.replyTo) {
-		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
-		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_reply_to_msg_id;
-	}
-	bool channelPost = _peer->isChannel() && !_peer->isMegagroup();
-	bool silentPost = channelPost && Auth().data().notifySilentPosts(_peer);
-	if (channelPost) {
-		flags |= MTPDmessage::Flag::f_views;
-		flags |= MTPDmessage::Flag::f_post;
-	}
-	if (!channelPost) {
-		flags |= MTPDmessage::Flag::f_from_id;
-	} else if (_peer->asChannel()->addsSignature()) {
-		flags |= MTPDmessage::Flag::f_post_author;
-	}
-	if (silentPost) {
-		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_silent;
-	}
-	if (bot) {
-		flags |= MTPDmessage::Flag::f_via_bot_id;
-	}
-
-	auto messageFromId = channelPost ? 0 : Auth().userId();
-	auto messagePostAuthor = channelPost
-		? App::peerName(Auth().user())
-		: QString();
-	MTPint messageDate = MTP_int(unixtime());
-	UserId messageViaBotId = bot ? peerToUser(bot->id) : 0;
-	MsgId messageId = newId.msg;
-
-	result->addToHistory(
-		_history,
-		flags,
-		messageId,
-		messageFromId,
-		messageDate,
-		messageViaBotId,
-		options.replyTo,
-		messagePostAuthor);
-
-	_history->sendRequestId = MTP::send(
-		MTPmessages_SendInlineBotResult(
-			MTP_flags(sendFlags),
-			_peer->input,
-			MTP_int(options.replyTo),
-			MTP_long(randomId),
-			MTP_long(result->getQueryId()),
-			MTP_string(result->getId())),
-		App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
-		App::main()->rpcFail(&MainWidget::sendMessageFail),
-		0,
-		0,
-		_history->sendRequestId);
-	App::main()->finishForwarding(_history);
-
-	App::historyRegRandom(randomId, newId);
+	Auth().api().sendInlineResult(bot, result, options);
 
 	clearFieldText();
 	_saveDraftText = true;
 	_saveDraftStart = getms();
 	onDraftSave();
 
-	RecentInlineBots &bots(cRefRecentInlineBots());
-	int32 index = bots.indexOf(bot);
+	auto &bots = cRefRecentInlineBots();
+	const auto index = bots.indexOf(bot);
 	if (index) {
 		if (index > 0) {
 			bots.removeAt(index);

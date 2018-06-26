@@ -2403,7 +2403,7 @@ bool DialogsInner::chooseHashtag() {
 		_mouseSelection = true;
 		updateSelected();
 	} else {
-		saveRecentHashtags('#' + hashtag->tag);
+		Local::saveRecentSearchHashtags('#' + hashtag->tag);
 		emit completeHashtag(hashtag->tag);
 	}
 	return true;
@@ -2456,7 +2456,7 @@ bool DialogsInner::chooseRow() {
 	const auto chosen = computeChosenRow();
 	if (chosen.key) {
 		if (IsServerMsgId(chosen.message.fullId.msg)) {
-			saveRecentHashtags(_filter);
+			Local::saveRecentSearchHashtags(_filter);
 		}
 		const auto openSearchResult = !App::main()->selectingPeer(true)
 			&& (_state == State::Filtered)
@@ -2483,38 +2483,6 @@ bool DialogsInner::chooseRow() {
 		return true;
 	}
 	return false;
-}
-
-void DialogsInner::saveRecentHashtags(const QString &text) {
-	auto found = false;
-	QRegularExpressionMatch m;
-	auto recent = cRecentSearchHashtags();
-	for (int32 i = 0, next = 0; (m = TextUtilities::RegExpHashtag().match(text, i)).hasMatch(); i = next) {
-		i = m.capturedStart();
-		next = m.capturedEnd();
-		if (m.hasMatch()) {
-			if (!m.capturedRef(1).isEmpty()) {
-				++i;
-			}
-			if (!m.capturedRef(2).isEmpty()) {
-				--next;
-			}
-		}
-		const auto tag = text.mid(i + 1, next - i - 1);
-		if (TextUtilities::RegExpHashtagExclude().match(tag).hasMatch()) {
-			continue;
-		}
-		if (!found && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) {
-			Local::readRecentHashtagsAndBots();
-			recent = cRecentSearchHashtags();
-		}
-		found = true;
-		Stickers::IncrementRecentHashtag(recent, tag);
-	}
-	if (found) {
-		cSetRecentSearchHashtags(recent);
-		Local::writeRecentHashtagsAndBots();
-	}
 }
 
 void DialogsInner::destroyData() {

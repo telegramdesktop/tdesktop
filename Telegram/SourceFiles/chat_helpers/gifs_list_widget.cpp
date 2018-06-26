@@ -860,7 +860,14 @@ void GifsListWidget::sendInlineRequest() {
 	}
 
 	_footer->setLoading(true);
-	_inlineRequestId = request(MTPmessages_GetInlineBotResults(MTP_flags(0), _searchBot->inputUser, _inlineQueryPeer->input, MTPInputGeoPoint(), MTP_string(_inlineQuery), MTP_string(nextOffset))).done([this](const MTPmessages_BotResults &result, mtpRequestId requestId) {
+	_inlineRequestId = request(MTPmessages_GetInlineBotResults(
+		MTP_flags(0),
+		_searchBot->inputUser,
+		_inlineQueryPeer->input,
+		MTPInputGeoPoint(),
+		MTP_string(_inlineQuery),
+		MTP_string(nextOffset)
+	)).done([this](const MTPmessages_BotResults &result) {
 		inlineResultsDone(result);
 	}).fail([this](const RPCError &error) {
 		// show error?

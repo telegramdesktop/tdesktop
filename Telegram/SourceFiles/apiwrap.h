@@ -21,6 +21,11 @@ class AuthSession;
 struct MessageGroupId;
 struct SendingAlbum;
 enum class SendMediaType;
+struct FileLoadTo;
+
+namespace InlineBots {
+class Result;
+} // namespace InlineBots
 
 namespace Storage {
 enum class SharedMediaType : signed char;
@@ -221,8 +226,7 @@ public:
 		Fn<void()> callbackNotModified = nullptr);
 
 	struct SendOptions {
-		SendOptions(not_null<History*> history) : history(history) {
-		}
+		SendOptions(not_null<History*> history);
 
 		not_null<History*> history;
 		MsgId replyTo = 0;
@@ -276,6 +280,21 @@ public:
 		const base::optional<MTPInputFile> &thumb,
 		bool silent);
 	void cancelLocalItem(not_null<HistoryItem*> item);
+
+	struct MessageToSend {
+		MessageToSend(not_null<History*> history);
+
+		not_null<History*> history;
+		TextWithTags textWithTags;
+		MsgId replyTo = 0;
+		WebPageId webPageId = 0;
+		bool clearDraft = true;
+	};
+	void sendMessage(MessageToSend &&message);
+	void sendInlineResult(
+		not_null<UserData*> bot,
+		not_null<InlineBots::Result*> data,
+		const SendOptions &options);
 
 	~ApiWrap();
 
@@ -439,6 +458,7 @@ private:
 		const MTPInputMedia &media,
 		bool silent,
 		uint64 randomId);
+	FileLoadTo fileLoadTaskOptions(const SendOptions &options) const;
 
 	void readFeeds();
 

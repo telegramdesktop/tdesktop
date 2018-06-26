@@ -63,10 +63,8 @@ public:
 	void refresh(bool toTop = false);
 
 	bool chooseRow();
-	void saveRecentHashtags(const QString &text);
 
 	void destroyData();
-
 
 	Dialogs::RowDescriptor chatListEntryBefore(
 		const Dialogs::RowDescriptor &which) const;

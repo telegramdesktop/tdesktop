@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_connecting_widget.h"
 #include "profile/profile_channel_controllers.h"
 #include "storage/storage_media_prepare.h"
+#include "storage/localstorage.h"
 #include "data/data_session.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"
@@ -637,7 +638,7 @@ void DialogsWidget::searchMessages(
 		_searchTimer.stop();
 		onSearchMessages();
 
-		_inner->saveRecentHashtags(query);
+		Local::saveRecentSearchHashtags(query);
 	}
 }
 

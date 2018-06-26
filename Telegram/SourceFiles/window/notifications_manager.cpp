@@ -445,15 +445,13 @@ void Manager::notificationReplied(
 		const TextWithTags &reply) {
 	if (!peerId) return;
 
-	auto history = App::history(peerId);
+	const auto history = App::history(peerId);
 
-	auto message = MainWidget::MessageToSend(history);
+	auto message = ApiWrap::MessageToSend(history);
 	message.textWithTags = reply;
 	message.replyTo = (msgId > 0 && !history->peer->isUser()) ? msgId : 0;
 	message.clearDraft = false;
-	if (auto main = App::main()) {
-		main->sendMessage(message);
-	}
+	Auth().api().sendMessage(std::move(message));
 }
 
 void NativeManager::doShowNotification(HistoryItem *item, int forwardedCount) {
