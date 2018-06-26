@@ -646,10 +646,7 @@ int32 MainWindow::screenNameChecksum(const QString &name) const {
 }
 
 void MainWindow::psRefreshTaskbarIcon() {
-	auto refresher = object_ptr<QWidget>(this);
-	auto guard = gsl::finally([&refresher] {
-		refresher.destroy();
-	});
+	auto refresher = std::unique_ptr<QWidget>(this);
 	refresher->setWindowFlags(static_cast<Qt::WindowFlags>(Qt::Tool) | Qt::FramelessWindowHint);
 	refresher->setGeometry(x() + 1, y() + 1, 1, 1);
 	auto palette = refresher->palette();

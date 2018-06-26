@@ -60,9 +60,6 @@ MainWindow::MainWindow()
 , _titleText(qsl("Telegram")) {
 	subscribe(Theme::Background(), [this](const Theme::BackgroundUpdate &data) {
 		if (data.paletteChanged()) {
-			if (_title) {
-				_title->update();
-			}
 			updatePalette();
 		}
 	});
@@ -242,6 +239,8 @@ void MainWindow::handleActiveChanged() {
 }
 
 void MainWindow::updatePalette() {
+	Ui::ForceFullRepaint(this);
+
 	auto p = palette();
 	p.setColor(QPalette::Window, st::windowBg->c);
 	setPalette(p);

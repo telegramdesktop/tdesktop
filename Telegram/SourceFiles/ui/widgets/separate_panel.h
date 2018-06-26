@@ -23,7 +23,7 @@ class LayerStackWidget;
 
 namespace Ui {
 
-class SeparatePanel : public Ui::RpWidget {
+class SeparatePanel : public Ui::RpWidget, private base::Subscriber {
 public:
 	SeparatePanel();
 

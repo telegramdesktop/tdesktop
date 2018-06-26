@@ -215,6 +215,12 @@ QImage GrabWidgetToImage(not_null<QWidget*> target, QRect rect, QColor bg) {
 	return result;
 }
 
+void ForceFullRepaint(not_null<QWidget*> widget) {
+	const auto refresher = std::make_unique<QWidget>(widget);
+	refresher->setGeometry(widget->rect());
+	refresher->show();
+}
+
 } // namespace Ui
 
 void sendSynteticMouseEvent(QWidget *widget, QEvent::Type type, Qt::MouseButton button, const QPoint &globalPoint) {

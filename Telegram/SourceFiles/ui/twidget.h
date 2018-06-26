@@ -57,6 +57,8 @@ QImage GrabWidgetToImage(
 	QRect rect = QRect(),
 	QColor bg = QColor(255, 255, 255, 0));
 
+void ForceFullRepaint(not_null<QWidget*> widget);
+
 } // namespace Ui
 
 enum class RectPart {

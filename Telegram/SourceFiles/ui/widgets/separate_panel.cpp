@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/widgets/tooltip.h"
 #include "window/layer_widget.h"
+#include "window/themes/window_theme.h"
 #include "messenger.h"
 #include "styles/style_widgets.h"
 #include "styles/style_info.h"
@@ -150,6 +151,13 @@ void SeparatePanel::initLayout() {
 	setAttribute(Qt::WA_TranslucentBackground, true);
 
 	createBorderImage();
+	subscribe(Window::Theme::Background(), [=](
+			const Window::Theme::BackgroundUpdate &update) {
+		if (update.paletteChanged()) {
+			createBorderImage();
+			Ui::ForceFullRepaint(this);
+		}
+	});
 
 	Platform::InitOnTopPanel(this);
 }
