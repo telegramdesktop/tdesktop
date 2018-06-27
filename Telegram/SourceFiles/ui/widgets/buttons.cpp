@@ -263,7 +263,7 @@ void RoundButton::numbersAnimationCallback() {
 
 void RoundButton::setFullWidth(int newFullWidth) {
 	_fullWidthOverride = newFullWidth;
-	resizeToText();
+	refreshText();
 }
 
 void RoundButton::refreshText() {
@@ -282,6 +282,10 @@ QString RoundButton::computeFullText() const {
 void RoundButton::resizeToText() {
 	int innerWidth = contentWidth();
 	if (_fullWidthOverride > 0) {
+		if (_fullWidthOverride < innerWidth + (_st.height - _st.font->height)) {
+			_text = _st.font->elided(computeFullText(), qMax(_fullWidthOverride - (_st.height - _st.font->height), 1));
+			_textWidth = _st.font->width(_text);
+		}
 		resize(_fullWidthOverride, _st.height + _st.padding.top() + _st.padding.bottom());
 	} else if (_fullWidthOverride < 0) {
 		resize(innerWidth - _fullWidthOverride, _st.height + _st.padding.top() + _st.padding.bottom());

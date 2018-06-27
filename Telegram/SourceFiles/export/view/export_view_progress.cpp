@@ -314,6 +314,14 @@ void ProgressWidget::showDone() {
 		this,
 		langFactory(lng_export_done),
 		st::exportDoneButton);
+	const auto desired = std::min(
+		st::exportDoneButton.font->width(lang(lng_export_done).toUpper())
+		+ st::exportDoneButton.height
+		- st::exportDoneButton.font->height,
+		st::exportPanelSize.width() - 2 * st::exportCancelBottom);
+	if (_done->width() < desired) {
+		_done->setFullWidth(desired);
+	}
 	_done->clicks() | rpl::start_to_stream(_doneClicks, _done->lifetime());
 	setupBottomButton(_done.get());
 }
