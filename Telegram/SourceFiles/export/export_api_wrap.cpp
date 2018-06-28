@@ -202,6 +202,8 @@ struct ApiWrap::ChatProcess {
 	Fn<bool(Data::MessagesSlice&&)> handleSlice;
 	FnMut<void()> done;
 
+	FnMut<void(MTPmessages_Messages&&)> requestDone;
+
 	int localSplitIndex = 0;
 	int32 largestIdPlusOne = 1;
 
@@ -210,6 +212,83 @@ struct ApiWrap::ChatProcess {
 	bool lastSlice = false;
 	int fileIndex = -1;
 };
+
+
+template <typename Request>
+class ApiWrap::RequestBuilder {
+public:
+	using Original = MTP::ConcurrentSender::SpecificRequestBuilder<Request>;
+	using Response = typename Request::ResponseType;
+
+	RequestBuilder(
+		Original &&builder,
+		FnMut<void(RPCError&&)> commonFailHandler);
+
+	[[nodiscard]] RequestBuilder &done(FnMut<void()> &&handler);
+	[[nodiscard]] RequestBuilder &done(
+		FnMut<void(Response &&)> &&handler);
+	[[nodiscard]] RequestBuilder &fail(
+		FnMut<bool(const RPCError &)> &&handler);
+
+	mtpRequestId send();
+
+private:
+	Original _builder;
+	FnMut<void(RPCError&&)> _commonFailHandler;
+
+};
+
+template <typename Request>
+ApiWrap::RequestBuilder<Request>::RequestBuilder(
+	Original &&builder,
+	FnMut<void(RPCError&&)> commonFailHandler)
+: _builder(std::move(builder))
+, _commonFailHandler(std::move(commonFailHandler)) {
+}
+
+template <typename Request>
+auto ApiWrap::RequestBuilder<Request>::done(
+	FnMut<void()> &&handler
+) -> RequestBuilder& {
+	if (handler) {
+		auto &silence_warning = _builder.done(std::move(handler));
+	}
+	return *this;
+}
+
+template <typename Request>
+auto ApiWrap::RequestBuilder<Request>::done(
+	FnMut<void(Response &&)> &&handler
+) -> RequestBuilder& {
+	if (handler) {
+		auto &silence_warning = _builder.done(std::move(handler));
+	}
+	return *this;
+}
+
+template <typename Request>
+auto ApiWrap::RequestBuilder<Request>::fail(
+	FnMut<bool(const RPCError &)> &&handler
+) -> RequestBuilder& {
+	if (handler) {
+		auto &silence_warning = _builder.fail([
+			common = base::take(_commonFailHandler),
+			specific = std::move(handler)
+		](RPCError &&error) mutable {
+			if (!specific(error)) {
+				common(std::move(error));
+			}
+		});
+	}
+	return *this;
+}
+
+template <typename Request>
+mtpRequestId ApiWrap::RequestBuilder<Request>::send() {
+	return _commonFailHandler
+		? _builder.fail(base::take(_commonFailHandler)).send()
+		: _builder.send();
+}
 
 ApiWrap::LoadedFileCache::LoadedFileCache(int limit) : _limit(limit) {
 	Expects(limit >= 0);
@@ -245,12 +324,14 @@ template <typename Request>
 auto ApiWrap::mainRequest(Request &&request) {
 	Expects(_takeoutId.has_value());
 
-	return std::move(_mtp.request(MTPInvokeWithTakeout<Request>(
+	auto original = std::move(_mtp.request(MTPInvokeWithTakeout<Request>(
 		MTP_long(*_takeoutId),
 		std::forward<Request>(request)
-	)).fail([=](RPCError &&result) {
-		error(std::move(result));
-	}).toDC(MTP::ShiftDcId(0, MTP::kExportDcShift)));
+	)).toDC(MTP::ShiftDcId(0, MTP::kExportDcShift)));
+
+	return RequestBuilder<MTPInvokeWithTakeout<Request>>(
+		std::move(original),
+		[=](RPCError &&result) { error(std::move(result)); });
 }
 
 template <typename Request>
@@ -1060,6 +1141,14 @@ void ApiWrap::requestChatMessages(
 		int addOffset,
 		int limit,
 		FnMut<void(MTPmessages_Messages&&)> done) {
+	Expects(_chatProcess != nullptr);
+
+	_chatProcess->requestDone = std::move(done);
+	const auto doneHandler = [=](MTPmessages_Messages &&result) {
+		Expects(_chatProcess != nullptr);
+
+		base::take(_chatProcess->requestDone)(std::move(result));
+	};
 	if (_chatProcess->info.onlyMyMessages) {
 		splitRequest(splitIndex, MTPmessages_Search(
 			MTP_flags(MTPmessages_Search::Flag::f_from_id),
@@ -1075,7 +1164,7 @@ void ApiWrap::requestChatMessages(
 			MTP_int(0), // max_id
 			MTP_int(0), // min_id
 			MTP_int(0) // hash
-		)).done(std::move(done)).send();
+		)).done(doneHandler).send();
 	} else {
 		splitRequest(splitIndex, MTPmessages_GetHistory(
 			_chatProcess->info.input,
@@ -1086,7 +1175,27 @@ void ApiWrap::requestChatMessages(
 			MTP_int(0), // max_id
 			MTP_int(0), // min_id
 			MTP_int(0)  // hash
-		)).done(std::move(done)).send();
+		)).fail([=](const RPCError &error) {
+			Expects(_chatProcess != nullptr);
+
+			if (error.type() == qstr("CHANNEL_PRIVATE")) {
+				if (_chatProcess->info.input.type() == mtpc_inputPeerChannel
+					&& !_chatProcess->info.onlyMyMessages) {
+
+					// Perhaps we just left / were kicked from channel.
+					// Just switch to only my messages.
+					_chatProcess->info.onlyMyMessages = true;
+					requestChatMessages(
+						splitIndex,
+						offsetId,
+						addOffset,
+						limit,
+						base::take(_chatProcess->requestDone));
+					return true;
+				}
+			}
+			return false;
+		}).done(doneHandler).send();
 	}
 }
 

@@ -170,6 +170,9 @@ private:
 	void filePartUnavailable();
 
 	template <typename Request>
+	class RequestBuilder;
+
+	template <typename Request>
 	[[nodiscard]] auto mainRequest(Request &&request);
 
 	template <typename Request>

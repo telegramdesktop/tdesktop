@@ -109,21 +109,19 @@ public:
 #ifndef MTP_SENDER_USE_GENERIC_HANDLERS
 		// Allow code completion to show response type.
 		[[nodiscard]] SpecificRequestBuilder &done(FnMut<void()> &&handler);
-		[[nodiscard]] SpecificRequestBuilder &done(FnMut<void(
-			mtpRequestId)> &&handler);
-		[[nodiscard]] SpecificRequestBuilder &done(FnMut<void(
-			mtpRequestId,
-			Response &&)> &&handler);
+		[[nodiscard]] SpecificRequestBuilder &done(
+			FnMut<void(mtpRequestId)> &&handler);
+		[[nodiscard]] SpecificRequestBuilder &done(
+			FnMut<void(mtpRequestId, Response &&)> &&handler);
 		[[nodiscard]] SpecificRequestBuilder &done(FnMut<void(
 			Response &&)> &&handler);
 		[[nodiscard]] SpecificRequestBuilder &fail(FnMut<void()> &&handler);
-		[[nodiscard]] SpecificRequestBuilder &fail(FnMut<void(
-			mtpRequestId)> &&handler);
-		[[nodiscard]] SpecificRequestBuilder &fail(FnMut<void(
-			mtpRequestId,
-			RPCError &&)> &&handler);
-		[[nodiscard]] SpecificRequestBuilder &fail(FnMut<void(
-			RPCError &&)> &&handler);
+		[[nodiscard]] SpecificRequestBuilder &fail(
+			FnMut<void(mtpRequestId)> &&handler);
+		[[nodiscard]] SpecificRequestBuilder &fail(
+			FnMut<void(mtpRequestId, RPCError &&)> &&handler);
+		[[nodiscard]] SpecificRequestBuilder &fail(
+			FnMut<void(RPCError &&)> &&handler);
 #else // !MTP_SENDER_USE_GENERIC_HANDLERS
 		template <typename Handler>
 		[[nodiscard]] SpecificRequestBuilder &done(Handler &&handler);
