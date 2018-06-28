@@ -90,7 +90,9 @@ Content ContentFromState(const ProcessingState &state) {
 			"chat" + QString::number(state.entityIndex),
 			(state.entityName.isEmpty()
 				? lang(lng_deleted)
-				: state.entityName),
+				: (state.entityType == ProcessingState::EntityType::Chat)
+				? state.entityName
+				: lang(lng_saved_messages)),
 			(state.itemCount > 0
 				? (QString::number(state.itemIndex)
 					+ " / "

@@ -48,6 +48,11 @@ struct ProcessingState {
 		GIF,
 		File,
 	};
+	enum class EntityType {
+		Chat,
+		SavedMessages,
+		Other,
+	};
 
 	Step step = Step::Initializing;
 
@@ -55,6 +60,7 @@ struct ProcessingState {
 	int substepsNow = 0;
 	int substepsTotal = 0;
 
+	EntityType entityType = EntityType::Other;
 	QString entityName;
 	int entityIndex = 0;
 	int entityCount = 0;

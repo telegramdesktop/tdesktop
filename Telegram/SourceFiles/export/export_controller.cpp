@@ -655,6 +655,9 @@ void Controller::fillMessagesState(
 	result.entityIndex = index + addIndex;
 	result.entityCount = info.list.size() + addCount;
 	result.entityName = dialog.name;
+	result.entityType = (dialog.type == Data::DialogInfo::Type::Self)
+		? ProcessingState::EntityType::SavedMessages
+		: ProcessingState::EntityType::Chat;
 	result.itemIndex = _messagesWritten + progress.itemIndex;
 	result.itemCount = std::max(_messagesCount, result.itemIndex);
 	result.bytesType = ProcessingState::FileType::File; // TODO
