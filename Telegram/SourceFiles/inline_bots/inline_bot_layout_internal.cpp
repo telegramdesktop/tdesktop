@@ -30,10 +30,12 @@ namespace internal {
 
 using TextState = HistoryView::TextState;
 
-FileBase::FileBase(not_null<Context*> context, Result *result) : ItemBase(context, result) {
+FileBase::FileBase(not_null<Context*> context, not_null<Result*> result)
+: ItemBase(context, result) {
 }
 
-FileBase::FileBase(not_null<Context*> context, DocumentData *document) : ItemBase(context, document) {
+FileBase::FileBase(not_null<Context*> context, DocumentData *document)
+: ItemBase(context, document) {
 }
 
 DocumentData *FileBase::getShownDocument() const {
@@ -688,13 +690,19 @@ void CancelFileClickHandler::onClickImpl() const {
 	_result->cancelFile();
 }
 
-File::File(not_null<Context*> context, Result *result) : FileBase(context, result)
+File::File(not_null<Context*> context, not_null<Result*> result)
+: FileBase(context, result)
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::msgFileSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::msgFileSize - st::inlineThumbSkip)
 , _open(std::make_shared<OpenFileClickHandler>(result))
-, _cancel(std::make_shared<CancelFileClickHandler>(result)) {
+, _cancel(std::make_shared<CancelFileClickHandler>(result))
+, _document(getShownDocument()) {
 	updateStatusText();
-	regDocumentItem(getShownDocument(), this);
+
+	// We have to save document, not read it from Result every time.
+	// Because we first delete the Result and then delete this File.
+	// So in destructor we have to remember _document, we can't read it.
+	regDocumentItem(_document, this);
 }
 
 void File::initDimensions() {
@@ -712,14 +720,14 @@ void File::initDimensions() {
 }
 
 void File::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
-	int32 left = st::msgFileSize + st::inlineThumbSkip;
+	const auto left = st::msgFileSize + st::inlineThumbSkip;
 
-	DocumentData *document = getShownDocument();
-	bool loaded = document->loaded(), displayLoading = document->displayLoading();
+	const auto loaded = _document->loaded();
+	const auto displayLoading = _document->displayLoading();
 	if (displayLoading) {
 		ensureAnimation();
 		if (!_animation->radial.animating()) {
-			_animation->radial.start(document->progress());
+			_animation->radial.start(_document->progress());
 		}
 	}
 	bool showPause = updateStatusText();
@@ -731,7 +739,7 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 		auto over = _animation->a_thumbOver.current();
 		p.setBrush(anim::brush(st::msgFileInBg, st::msgFileInBgOver, over));
 	} else {
-		bool over = ClickHandler::showAsActive(document->loading() ? _cancel : _open);
+		bool over = ClickHandler::showAsActive(_document->loading() ? _cancel : _open);
 		p.setBrush(over ? st::msgFileInBgOver : st::msgFileInBg);
 	}
 
@@ -745,15 +753,16 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 		_animation->radial.draw(p, radialCircle, st::msgFileRadialLine, st::historyFileInRadialFg);
 	}
 
-	auto icon = ([showPause, radial, document] {
+	auto icon = ([&] {
 		if (showPause) {
 			return &st::historyFileInPause;
-		} else if (radial || document->loading()) {
+		} else if (radial || _document->loading()) {
 			return &st::historyFileInCancel;
-		} else if (true || document->loaded()) {
-			if (document->isImage()) {
+		} else if (true || _document->loaded()) {
+			if (_document->isImage()) {
 				return &st::historyFileInImage;
-			} else if (document->isVoiceMessage() || document->isAudioFile()) {
+			} else if (_document->isVoiceMessage()
+				|| _document->isAudioFile()) {
 				return &st::historyFileInPlay;
 			}
 			return &st::historyFileInDocument;
@@ -790,7 +799,7 @@ TextState File::getState(
 		QPoint point,
 		StateRequest request) const {
 	if (QRect(0, st::inlineRowMargin, st::msgFileSize, st::msgFileSize).contains(point)) {
-		return { nullptr, getShownDocument()->loading() ? _cancel : _open };
+		return { nullptr, _document->loading() ? _cancel : _open };
 	} else {
 		auto left = st::msgFileSize + st::inlineThumbSkip;
 		if (QRect(left, 0, _width - left, _height).contains(point)) {
@@ -808,7 +817,7 @@ void File::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 }
 
 File::~File() {
-	unregDocumentItem(getShownDocument(), this);
+	unregDocumentItem(_document, this);
 }
 
 void File::thumbAnimationCallback() {
@@ -819,8 +828,10 @@ void File::step_radial(TimeMs ms, bool timer) {
 	if (timer) {
 		update();
 	} else {
-		DocumentData *document = getShownDocument();
-		_animation->radial.update(document->progress(), !document->loading() || document->loaded(), ms);
+		_animation->radial.update(
+			_document->progress(),
+			!_document->loading() || _document->loaded(),
+			ms);
 		if (!_animation->radial.animating()) {
 			checkAnimationFinished();
 		}
@@ -834,8 +845,10 @@ void File::ensureAnimation() const {
 }
 
 void File::checkAnimationFinished() const {
-	if (_animation && !_animation->a_thumbOver.animating() && !_animation->radial.animating()) {
-		if (getShownDocument()->loaded()) {
+	if (_animation
+		&& !_animation->a_thumbOver.animating()
+		&& !_animation->radial.animating()) {
+		if (_document->loaded()) {
 			_animation.reset();
 		}
 	}
@@ -844,32 +857,31 @@ void File::checkAnimationFinished() const {
 bool File::updateStatusText() const {
 	bool showPause = false;
 	int32 statusSize = 0, realDuration = 0;
-	DocumentData *document = getShownDocument();
-	if (document->status == FileDownloadFailed || document->status == FileUploadFailed) {
+	if (_document->status == FileDownloadFailed || _document->status == FileUploadFailed) {
 		statusSize = FileStatusSizeFailed;
-	} else if (document->uploading()) {
-		statusSize = document->uploadingData->offset;
-	} else if (document->loading()) {
-		statusSize = document->loadOffset();
-	} else if (document->loaded()) {
+	} else if (_document->uploading()) {
+		statusSize = _document->uploadingData->offset;
+	} else if (_document->loading()) {
+		statusSize = _document->loadOffset();
+	} else if (_document->loaded()) {
 		using State = Media::Player::State;
-		if (document->isVoiceMessage()) {
+		if (_document->isVoiceMessage()) {
 			statusSize = FileStatusSizeLoaded;
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
-			if (state.id == AudioMsgId(document, FullMsgId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
+			if (state.id == AudioMsgId(_document, FullMsgId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
 				statusSize = -1 - (state.position / state.frequency);
 				realDuration = (state.length / state.frequency);
 				showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
 			}
-		} else if (document->isAudioFile()) {
+		} else if (_document->isAudioFile()) {
 			statusSize = FileStatusSizeLoaded;
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
-			if (state.id == AudioMsgId(document, FullMsgId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
+			if (state.id == AudioMsgId(_document, FullMsgId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
 				statusSize = -1 - (state.position / state.frequency);
 				realDuration = (state.length / state.frequency);
 				showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
 			}
-			if (!showPause && (state.id == AudioMsgId(document, FullMsgId())) && Media::Player::instance()->isSeeking(AudioMsgId::Type::Song)) {
+			if (!showPause && (state.id == AudioMsgId(_document, FullMsgId())) && Media::Player::instance()->isSeeking(AudioMsgId::Type::Song)) {
 				showPause = true;
 			}
 		} else {
@@ -879,12 +891,12 @@ bool File::updateStatusText() const {
 		statusSize = FileStatusSizeReady;
 	}
 	if (statusSize != _statusSize) {
-		int32 duration = document->isSong()
-			? document->song()->duration
-			: (document->isVoiceMessage()
-				? document->voice()->duration
+		int32 duration = _document->isSong()
+			? _document->song()->duration
+			: (_document->isVoiceMessage()
+				? _document->voice()->duration
 				: -1);
-		setStatusSize(statusSize, document->size, duration, realDuration);
+		setStatusSize(statusSize, _document->size, duration, realDuration);
 	}
 	return showPause;
 }

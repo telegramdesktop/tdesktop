@@ -18,7 +18,7 @@ namespace internal {
 
 class FileBase : public ItemBase {
 public:
-	FileBase(not_null<Context*> context, Result *result);
+	FileBase(not_null<Context*> context, not_null<Result*> result);
 	// for saved gif layouts
 	FileBase(not_null<Context*> context, DocumentData *doc);
 
@@ -197,33 +197,33 @@ private:
 
 class OpenFileClickHandler : public LeftButtonClickHandler {
 public:
-	OpenFileClickHandler(Result *result) : _result(result) {
+	OpenFileClickHandler(not_null<Result*> result) : _result(result) {
 	}
 
 protected:
 	void onClickImpl() const override;
 
 private:
-	Result *_result;
+	not_null<Result*> _result;
 
 };
 
 class CancelFileClickHandler : public LeftButtonClickHandler {
 public:
-	CancelFileClickHandler(Result *result) : _result(result) {
+	CancelFileClickHandler(not_null<Result*> result) : _result(result) {
 	}
 
 protected:
 	void onClickImpl() const override;
 
 private:
-	Result *_result;
+	not_null<Result*> _result;
 
 };
 
 class File : public FileBase {
 public:
-	File(not_null<Context*> context, Result *result);
+	File(not_null<Context*> context, not_null<Result*> result);
 
 	void initDimensions() override;
 
@@ -282,6 +282,8 @@ private:
 
 	// duration = -1 - no duration, duration = -2 - "GIF" duration
 	void setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const;
+
+	not_null<DocumentData*> _document;
 
 };
 
