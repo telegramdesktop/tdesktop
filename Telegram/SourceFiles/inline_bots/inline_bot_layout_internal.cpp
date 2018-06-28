@@ -362,7 +362,8 @@ void Gif::clipCallback(Media::Clip::Notification notification) {
 	}
 }
 
-Sticker::Sticker(not_null<Context*> context, Result *result) : FileBase(context, result) {
+Sticker::Sticker(not_null<Context*> context, Result *result)
+: FileBase(context, result) {
 }
 
 void Sticker::initDimensions() {
@@ -447,7 +448,9 @@ void Sticker::prepareThumb() const {
 
 		const auto sticker = goodThumb
 			? document->thumb
-			: document->sticker()->img;
+			: document->sticker()
+			? document->sticker()->img
+			: ImagePtr();
 		if (!_thumbLoaded && !sticker->isNull() && sticker->loaded()) {
 			QSize thumbSize = getThumbSize();
 			_thumb = sticker->pix(thumbSize.width(), thumbSize.height());
@@ -467,7 +470,8 @@ void Sticker::prepareThumb() const {
 	}
 }
 
-Photo::Photo(not_null<Context*> context, Result *result) : ItemBase(context, result) {
+Photo::Photo(not_null<Context*> context, Result *result)
+: ItemBase(context, result) {
 }
 
 void Photo::initDimensions() {

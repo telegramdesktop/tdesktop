@@ -99,17 +99,28 @@ std::unique_ptr<ItemBase> ItemBase::createLayout(not_null<Context*> context, Res
 	using Type = Result::Type;
 
 	switch (result->_type) {
-	case Type::Photo: return std::make_unique<internal::Photo>(context, result); break;
+	case Type::Photo:
+		return std::make_unique<internal::Photo>(context, result);
 	case Type::Audio:
-	case Type::File: return std::make_unique<internal::File>(context, result); break;
-	case Type::Video: return std::make_unique<internal::Video>(context, result); break;
-	case Type::Sticker: return std::make_unique<internal::Sticker>(context, result); break;
-	case Type::Gif: return std::make_unique<internal::Gif>(context, result); break;
+	case Type::File:
+		return std::make_unique<internal::File>(context, result);
+	case Type::Video:
+		return std::make_unique<internal::Video>(context, result);
+	case Type::Sticker:
+		return std::make_unique<internal::Sticker>(context, result);
+	case Type::Gif:
+		return std::make_unique<internal::Gif>(context, result);
 	case Type::Article:
 	case Type::Geo:
-	case Type::Venue: return std::make_unique<internal::Article>(context, result, forceThumb); break;
-	case Type::Game: return std::make_unique<internal::Game>(context, result); break;
-	case Type::Contact: return std::make_unique<internal::Contact>(context, result); break;
+	case Type::Venue:
+		return std::make_unique<internal::Article>(
+			context,
+			result,
+			forceThumb);
+	case Type::Game:
+		return std::make_unique<internal::Game>(context, result);
+	case Type::Contact:
+		return std::make_unique<internal::Contact>(context, result);
 	}
 	return nullptr;
 }
