@@ -90,12 +90,14 @@ Environment PrepareEnvironment() {
 
 } // namespace
 
-void SuggestStart() {
+QPointer<BoxContent> SuggestStart() {
 	ClearSuggestStart();
-	Ui::show(Box<SuggestBox>(), LayerOption::KeepOther);
+	return Ui::show(Box<SuggestBox>(), LayerOption::KeepOther).data();
 }
 
 void ClearSuggestStart() {
+	Auth().data().clearExportSuggestion();
+
 	auto settings = Local::ReadExportSettings();
 	if (settings.availableAt) {
 		settings.availableAt = 0;

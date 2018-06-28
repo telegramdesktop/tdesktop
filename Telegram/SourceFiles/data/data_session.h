@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 class HistoryItem;
+class BoxContent;
 
 namespace HistoryView {
 struct Group;
@@ -53,6 +54,7 @@ public:
 
 	void startExport();
 	void suggestStartExport(TimeId availableAt);
+	void clearExportSuggestion();
 	rpl::producer<Export::View::PanelController*> currentExportView() const;
 	bool exportInProgress() const;
 	void stopExportWithConfirmation(FnMut<void()> callback);
@@ -509,6 +511,7 @@ private:
 	std::unique_ptr<Export::View::PanelController> _exportPanel;
 	rpl::event_stream<Export::View::PanelController*> _exportViewChanges;
 	TimeId _exportAvailableAt = 0;
+	QPointer<BoxContent> _exportSuggestion;
 
 	base::Variable<bool> _contactsLoaded = { false };
 	base::Variable<bool> _allChatsLoaded = { false };

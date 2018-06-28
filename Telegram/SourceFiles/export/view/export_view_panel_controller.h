@@ -21,7 +21,7 @@ class SeparatePanel;
 namespace Export {
 namespace View {
 
-void SuggestStart();
+QPointer<BoxContent> SuggestStart();
 void ClearSuggestStart();
 
 class Panel;

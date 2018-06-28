@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "storage/localstorage.h"
+#include "boxes/abstract_box.h"
 #include "data/data_media_types.h"
 #include "data/data_feed.h"
 #include "data/data_photo.h"
@@ -93,6 +94,13 @@ void Session::suggestStartExport(TimeId availableAt) {
 	suggestStartExport();
 }
 
+void Session::clearExportSuggestion() {
+	_exportAvailableAt = 0;
+	if (_exportSuggestion) {
+		_exportSuggestion->closeBox();
+	}
+}
+
 void Session::suggestStartExport() {
 	if (_exportAvailableAt <= 0) {
 		return;
@@ -110,7 +118,7 @@ void Session::suggestStartExport() {
 	} else if (_export) {
 		Export::View::ClearSuggestStart();
 	} else {
-		Export::View::SuggestStart();
+		_exportSuggestion = Export::View::SuggestStart();
 	}
 }
 
