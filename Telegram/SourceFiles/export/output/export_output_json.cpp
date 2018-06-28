@@ -468,6 +468,9 @@ QByteArray SerializeMessage(
 				"forwarded_from",
 				wrapPeerName(message.forwardedFromId));
 		}
+		if (message.savedFromChatId) {
+			pushBare("saved_from", wrapPeerName(message.savedFromChatId));
+		}
 		pushReplyToMsgId();
 		if (message.viaBotId) {
 			const auto username = FormatUsername(

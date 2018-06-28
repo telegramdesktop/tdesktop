@@ -451,6 +451,7 @@ struct Message {
 	TimeId edited = 0;
 	int32 fromId = 0;
 	PeerId forwardedFromId = 0;
+	PeerId savedFromChatId = 0;
 	Utf8String signature;
 	int32 viaBotId = 0;
 	int32 replyToMsgId = 0;

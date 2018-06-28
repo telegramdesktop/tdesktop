@@ -340,6 +340,9 @@ QByteArray SerializeMessage(
 		if (message.forwardedFromId) {
 			push("Forwarded from", wrapPeerName(message.forwardedFromId));
 		}
+		if (message.savedFromChatId) {
+			push("Saved from", wrapPeerName(message.savedFromChatId));
+		}
 		pushReplyToMsgId();
 		if (message.viaBotId) {
 			push("Via", user(message.viaBotId).username);

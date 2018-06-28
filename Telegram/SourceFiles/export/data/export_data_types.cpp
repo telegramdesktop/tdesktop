@@ -873,10 +873,15 @@ Message ParseMessage(
 			[](const MTPDmessageFwdHeader &data) {
 				if (data.has_channel_id()) {
 					return ChatPeerId(data.vchannel_id.v);
-				} else if (data.has_saved_from_peer()) {
-					return ParsePeerId(data.vsaved_from_peer);
 				} else if (data.has_from_id()) {
 					return UserPeerId(data.vfrom_id.v);
+				}
+				return PeerId(0);
+			});
+			result.savedFromChatId = data.vfwd_from.match(
+			[](const MTPDmessageFwdHeader &data) {
+				if (data.has_saved_from_peer()) {
+					return ParsePeerId(data.vsaved_from_peer);
 				}
 				return PeerId(0);
 			});
@@ -893,8 +898,8 @@ Message ParseMessage(
 		if (data.has_media()) {
 			context.botId = (result.viaBotId
 				? result.viaBotId
-				: result.forwardedFromId
-				? result.forwardedFromId
+				: IsUserPeerId(result.forwardedFromId)
+				? BarePeerId(result.forwardedFromId)
 				: result.fromId);
 			result.media = ParseMedia(
 				context,
