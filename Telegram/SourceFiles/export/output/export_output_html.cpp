@@ -172,6 +172,13 @@ QByteArray SerializeKeyValue(
 	return result;
 }
 
+QByteArray SerializeBlockquote(
+		std::vector<std::pair<QByteArray, QByteArray>> &&values) {
+	return "<blockquote>"
+		+ SerializeKeyValue(std::move(values))
+		+ "</blockquote>";
+}
+
 Data::Utf8String FormatUsername(const Data::Utf8String &username) {
 	return username.isEmpty() ? username : ('@' + username);
 }
@@ -283,33 +290,37 @@ QByteArray SerializeMessage(
 	};
 
 	using SkipReason = Data::File::SkipReason;
-	const auto pushPath = [&](
+	const auto formatPath = [&](
 			const Data::File &file,
 			const QByteArray &label,
 			const QByteArray &name = QByteArray()) {
 		Expects(!file.relativePath.isEmpty()
 			|| file.skipReason != SkipReason::None);
 
-		pushBare(label, [&]() -> QByteArray {
-			const auto pre = name.isEmpty()
-				? QByteArray()
-				: SerializeString(name + ' ');
-			switch (file.skipReason) {
-			case SkipReason::Unavailable:
-				return pre + "(" + label + " unavailable, "
-					"please try again later)";
-			case SkipReason::FileSize:
-				return pre + "(" + label + " exceeds maximum size. "
-					"Change data exporting settings to download.)";
-			case SkipReason::FileType:
-				return pre + "(" + label + " not included. "
-					"Change data exporting settings to download.)";
-			case SkipReason::None: return SerializeLink(
-				FormatFilePath(file),
-				relativePath(file.relativePath));
-			}
-			Unexpected("Skip reason while writing file path.");
-		}());
+		const auto pre = name.isEmpty()
+			? QByteArray()
+			: SerializeString(name + ' ');
+		switch (file.skipReason) {
+		case SkipReason::Unavailable:
+			return pre + "(" + label + " unavailable, "
+				"please try again later)";
+		case SkipReason::FileSize:
+			return pre + "(" + label + " exceeds maximum size. "
+				"Change data exporting settings to download.)";
+		case SkipReason::FileType:
+			return pre + "(" + label + " not included. "
+				"Change data exporting settings to download.)";
+		case SkipReason::None: return SerializeLink(
+			FormatFilePath(file),
+			relativePath(file.relativePath));
+		}
+		Unexpected("Skip reason while writing file path.");
+	};
+	const auto pushPath = [&](
+			const Data::File &file,
+			const QByteArray &label,
+			const QByteArray &name = QByteArray()) {
+		pushBare(label, formatPath(file, label, name));
 	};
 	const auto pushPhoto = [&](const Image &image) {
 		pushPath(image.file, "Photo");
@@ -486,16 +497,16 @@ QByteArray SerializeMessage(
 		}
 		pushTTL();
 	}, [&](const SharedContact &data) {
-		pushBare("Contact information", SerializeKeyValue({
+		pushBare("Contact information", SerializeBlockquote({
 			{ "First name", data.info.firstName },
 			{ "Last name", data.info.lastName },
 			{ "Phone number", FormatPhoneNumber(data.info.phoneNumber) },
+			{ "vCard", (data.vcard.content.isEmpty()
+				? QByteArray()
+				: formatPath(data.vcard, "vCard")) }
 		}));
-		if (!data.vcard.content.isEmpty()) {
-			pushPath(data.vcard, "Contact vcard");
-		}
 	}, [&](const GeoPoint &data) {
-		pushBare("Location", data.valid ? SerializeKeyValue({
+		pushBare("Location", data.valid ? SerializeBlockquote({
 			{ "Latitude", NumberToString(data.latitude) },
 			{ "Longitude", NumberToString(data.longitude) },
 		}) : QByteArray("(empty value)"));
@@ -504,7 +515,7 @@ QByteArray SerializeMessage(
 		push("Place name", data.title);
 		push("Address", data.address);
 		if (data.point.valid) {
-			pushBare("Location", SerializeKeyValue({
+			pushBare("Location", SerializeBlockquote({
 				{ "Latitude", NumberToString(data.point.latitude) },
 				{ "Longitude", NumberToString(data.point.longitude) },
 			}));
@@ -522,7 +533,7 @@ QByteArray SerializeMessage(
 			}
 		}
 	}, [&](const Invoice &data) {
-		pushBare("Invoice", SerializeKeyValue({
+		pushBare("Invoice", SerializeBlockquote({
 			{ "Title", data.title },
 			{ "Description", data.description },
 			{
