@@ -35,9 +35,6 @@ public:
 protected:
 	void prepare() override;
 
-private:
-	bool _cleared = false;
-
 };
 
 SuggestBox::SuggestBox(QWidget*) {
