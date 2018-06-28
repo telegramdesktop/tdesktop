@@ -46,6 +46,7 @@ struct EditDocumentScheme {
 		Fn<base::optional<QString>(const QString &value)> error;
 		Fn<QString(const QString &value)> format;
 		int lengthLimit = 0;
+		QString keyForAttachmentTo; // attach last_name to first_name
 	};
 	std::vector<Row> rows;
 	QString rowsHeader;

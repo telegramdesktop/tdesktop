@@ -101,14 +101,56 @@ std::vector<Scope> ComputeScopes(
 	return result;
 }
 
+QString JoinScopeRowReadyString(
+		std::vector<std::pair<QString, QString>> &&values) {
+	using Pair = std::pair<QString, QString>;
+
+	if (values.empty()) {
+		return QString();
+	}
+	auto result = QString();
+	auto size = ranges::accumulate(
+		values,
+		0,
+		ranges::plus(),
+		[](const Pair &v) { return v.second.size(); });
+	result.reserve(size + (values.size() - 1) * 2);
+	for (const auto &pair : values) {
+		if (pair.second.isEmpty()) {
+			continue;
+		}
+		if (!result.isEmpty()) {
+			result.append(", ");
+		}
+		result.append(pair.second);
+	}
+	return result;
+}
+
 QString ComputeScopeRowReadyString(const Scope &scope) {
 	switch (scope.type) {
 	case Scope::Type::Identity:
 	case Scope::Type::Address: {
-		auto list = QStringList();
-		const auto pushListValue = [&](const QString &value) {
-			if (const auto trimmed = value.trimmed(); !trimmed.isEmpty()) {
-				list.push_back(trimmed);
+		auto list = std::vector<std::pair<QString, QString>>();
+		const auto pushListValue = [&](
+				const QString &key,
+				const QString &value,
+				const QString &keyForAttachmentTo = QString()) {
+			if (keyForAttachmentTo.isEmpty()) {
+				list.push_back({ key, value.trimmed() });
+			} else {
+				const auto i = ranges::find(
+					list,
+					keyForAttachmentTo,
+					[](const std::pair<QString, QString> &value) {
+					return value.first;
+				});
+				Assert(i != end(list));
+				if (i->second.isEmpty()) {
+					i->second = value.trimmed();
+				} else {
+					i->second += ' ' + value.trimmed();
+				}
 			}
 		};
 		const auto &fields = scope.fields->data.parsed.fields;
@@ -121,7 +163,7 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 			return nullptr;
 		}();
 		if (document && scope.documents.size() > 1) {
-			pushListValue([&] {
+			pushListValue("_type", [&] {
 				using Type = Value::Type;
 				switch (document->type) {
 				case Type::Passport:
@@ -161,7 +203,10 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 				if (row.error && row.error(text).has_value()) {
 					return QString();
 				}
-				pushListValue(format ? format(text) : text);
+				pushListValue(
+					row.key,
+					format ? format(text) : text,
+					row.keyForAttachmentTo);
 			} else if (scope.documents.empty()) {
 				continue;
 			} else {
@@ -173,10 +218,10 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 				if (row.error && row.error(text).has_value()) {
 					return QString();
 				}
-				pushListValue(text);
+				pushListValue(row.key, text, row.keyForAttachmentTo);
 			}
 		}
-		return list.join(", ");
+		return JoinScopeRowReadyString(std::move(list));
 	} break;
 	case Scope::Type::Phone:
 	case Scope::Type::Email: {

@@ -138,6 +138,7 @@ EditDocumentScheme GetDocumentScheme(
 				NameValidate,
 				DontFormat,
 				kMaxNameSize,
+				qsl("first_name")
 			},
 			{
 				ValueClass::Fields,
