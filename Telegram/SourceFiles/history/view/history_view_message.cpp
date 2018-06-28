@@ -1229,6 +1229,15 @@ int Message::infoWidth() const {
 	return result;
 }
 
+void Message::refreshDataIdHook() {
+	if (base::take(_rightActionLink)) {
+		_rightActionLink = rightActionLink();
+	}
+	if (base::take(_fastReplyLink)) {
+		_fastReplyLink = fastReplyLink();
+	}
+}
+
 int Message::timeLeft() const {
 	const auto item = message();
 	auto result = 0;
@@ -1335,6 +1344,7 @@ bool Message::hasFastReply() const {
 
 bool Message::displayFastReply() const {
 	return hasFastReply()
+		&& IsServerMsgId(data()->id)
 		&& data()->history()->peer->canWrite()
 		&& !delegate()->elementInSelectionMode();
 }
@@ -1346,7 +1356,9 @@ bool Message::displayRightAction() const {
 bool Message::displayFastShare() const {
 	const auto item = message();
 	const auto peer = item->history()->peer;
-	if (peer->isChannel()) {
+	if (!IsServerMsgId(item->id)) {
+		return false;
+	} else if (peer->isChannel()) {
 		return !peer->isMegagroup();
 	} else if (const auto user = peer->asUser()) {
 		if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {

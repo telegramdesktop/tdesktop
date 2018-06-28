@@ -174,6 +174,9 @@ void Element::setY(int y) {
 	_y = y;
 }
 
+void Element::refreshDataIdHook() {
+}
+
 void Element::paintHighlight(
 		Painter &p,
 		int geometryHeight) const {
@@ -292,6 +295,7 @@ void Element::refreshDataId() {
 	if (const auto media = this->media()) {
 		media->refreshParentId(data());
 	}
+	refreshDataIdHook();
 }
 
 bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {

@@ -1080,6 +1080,7 @@ void HistoryMessage::setViewsCount(int32 count) {
 
 void HistoryMessage::setRealId(MsgId newId) {
 	HistoryItem::setRealId(newId);
+
 	Auth().data().groups().refreshMessage(this);
 	Auth().data().requestItemResize(this);
 	if (const auto reply = Get<HistoryMessageReply>()) {
