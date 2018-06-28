@@ -5502,7 +5502,7 @@ void HistoryWidget::updatePinnedBar(bool force) {
 	if (_pinnedBar->msg) {
 		_pinnedBar->text.setText(
 			st::messageTextStyle,
-			TextUtilities::Clean(_pinnedBar->msg->notificationText()),
+			_pinnedBar->msg->inReplyText(),
 			Ui::DialogTextOptions());
 		update();
 	} else if (force) {
@@ -6788,8 +6788,10 @@ void HistoryWidget::drawPinnedBar(Painter &p) {
 		p.setFont(st::msgServiceNameFont);
 		p.drawText(left, top + st::msgServiceNameFont->ascent, lang(lng_pinned_message));
 
-		p.setPen(!_pinnedBar->msg->toHistoryMessage() ? st::historyComposeAreaFgService : st::historyComposeAreaFg);
+		p.setPen(st::historyComposeAreaFg);
+		p.setTextPalette(st::historyComposeAreaPalette);
 		_pinnedBar->text.drawElided(p, left, top + st::msgServiceNameFont->height, width() - left - _pinnedBar->cancel->width() - st::msgReplyPadding.right());
+		p.restoreTextPalette();
 	} else {
 		p.setFont(st::msgDateFont);
 		p.setPen(st::historyComposeAreaFgService);
