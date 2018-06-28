@@ -297,6 +297,9 @@ ApiWrap::LoadedFileCache::LoadedFileCache(int limit) : _limit(limit) {
 void ApiWrap::LoadedFileCache::save(
 		const Location &location,
 		const QString &relativePath) {
+	if (!location) {
+		return;
+	}
 	const auto key = ComputeLocationKey(location);
 	_map[key] = relativePath;
 	_list.push_back(key);
@@ -309,6 +312,9 @@ void ApiWrap::LoadedFileCache::save(
 
 base::optional<QString> ApiWrap::LoadedFileCache::find(
 		const Location &location) const {
+	if (!location) {
+		return base::none;
+	}
 	const auto key = ComputeLocationKey(location);
 	if (const auto i = _map.find(key); i != end(_map)) {
 		return i->second;
@@ -1307,7 +1313,7 @@ bool ApiWrap::processFileLoad(
 
 	if (!file.relativePath.isEmpty()) {
 		return true;
-	} else if (!file.location) {
+	} else if (!file.location && file.content.isEmpty()) {
 		file.skipReason = SkipReason::Unavailable;
 		return true;
 	} else if (writePreloadedFile(file)) {
@@ -1355,8 +1361,7 @@ bool ApiWrap::writePreloadedFile(Data::File &file) {
 		return true;
 	} else if (!file.content.isEmpty()) {
 		const auto process = prepareFileProcess(file);
-		auto &output = _fileProcess->file;
-		if (const auto result = output.writeBlock(file.content)) {
+		if (const auto result = process->file.writeBlock(file.content)) {
 			file.relativePath = process->relativePath;
 			_fileCache->save(file.location, file.relativePath);
 		} else {

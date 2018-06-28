@@ -482,12 +482,15 @@ QByteArray SerializeMessage(
 			push("Height", NumberToString(data.height));
 		}
 		pushTTL();
-	}, [&](const ContactInfo &data) {
+	}, [&](const SharedContact &data) {
 		pushBare("Contact information", SerializeKeyValue({
-			{ "First name", data.firstName },
-			{ "Last name", data.lastName },
-			{ "Phone number", FormatPhoneNumber(data.phoneNumber) },
+			{ "First name", data.info.firstName },
+			{ "Last name", data.info.lastName },
+			{ "Phone number", FormatPhoneNumber(data.info.phoneNumber) },
 		}));
+		if (!data.vcard.content.isEmpty()) {
+			pushPath(data.vcard, "Contact vcard");
+		}
 	}, [&](const GeoPoint &data) {
 		pushBare("Location", data.valid ? SerializeKeyValue({
 			{ "Latitude", NumberToString(data.latitude) },

@@ -239,7 +239,9 @@ Stats AbstractWriter::produceTestExample(const QString &path) {
 	}());
 	sliceBot1.list.push_back([&] {
 		auto message = sampleMessage();
-		message.media.content = user.info;
+		auto contact = Data::SharedContact();
+		contact.info = user.info;
+		message.media.content = contact;
 		return message;
 	}());
 	auto sliceBot2 = Data::MessagesSlice();
