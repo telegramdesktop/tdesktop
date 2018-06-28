@@ -46,16 +46,7 @@ SuggestBox::SuggestBox(QWidget*) {
 void SuggestBox::prepare() {
 	setTitle(langFactory(lng_export_suggest_title));
 
-	const auto clear = [=] {
-		if (_cleared) {
-			return;
-		}
-		_cleared = true;
-		ClearSuggestStart();
-	};
-
 	addButton(langFactory(lng_box_ok), [=] {
-		clear();
 		closeBox();
 		Auth().data().startExport();
 	});
@@ -79,8 +70,6 @@ void SuggestBox::prepare() {
 	) | rpl::start_with_next([=](int height) {
 		setDimensions(st::boxWidth, height + st::boxPadding.bottom());
 	}, content->lifetime());
-
-	boxClosing() | rpl::start_with_next(clear, lifetime());
 }
 
 Environment PrepareEnvironment() {
@@ -102,6 +91,7 @@ Environment PrepareEnvironment() {
 } // namespace
 
 void SuggestStart() {
+	ClearSuggestStart();
 	Ui::show(Box<SuggestBox>(), LayerOption::KeepOther);
 }
 
