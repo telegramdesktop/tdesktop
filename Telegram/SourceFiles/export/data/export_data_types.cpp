@@ -8,15 +8,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/data/export_data_types.h"
 
 #include "export/export_settings.h"
+#include "export/output/export_output_file.h"
 #include "core/mime_type.h"
 
 #include <QtCore/QDateTime>
 #include <QtCore/QRegularExpression>
+#include <QtGui/QImageReader>
 
 namespace App { // Hackish..
 QString formatPhone(QString phone);
 } // namespace App
 QString FillAmountAndCurrency(uint64 amount, const QString &currency);
+QString formatSizeText(qint64 size);
 
 namespace Export {
 namespace Data {
@@ -24,6 +27,7 @@ namespace {
 
 constexpr auto kUserPeerIdShift = (1ULL << 32);
 constexpr auto kChatPeerIdShift = (2ULL << 32);
+constexpr auto kMaxImageSize = 10000;
 
 } // namespace
 
@@ -37,6 +41,43 @@ PeerId ChatPeerId(int32 chatId) {
 
 int32 BarePeerId(PeerId peerId) {
 	return int32(peerId & 0xFFFFFFFFULL);
+}
+
+int PeerColorIndex(int32 bareId) {
+	const auto index = std::abs(bareId) % 7;
+	const int map[] = { 0, 7, 4, 1, 6, 3, 5 };
+	return map[index];
+}
+
+int StringBarePeerId(const Utf8String &data) {
+	auto result = 0xFF;
+	for (const auto ch : data) {
+		result *= 239;
+		result += ch;
+		result &= 0xFF;
+	}
+	return result;
+}
+
+int ApplicationColorIndex(int applicationId) {
+	static const auto official = std::map<int, int> {
+		{ 1, 0 }, // iOS
+		{ 7, 0 }, // iOS X
+		{ 6, 1 }, // Android
+		{ 21724, 1 }, // Android X
+		{ 2834, 2 }, // macOS
+		{ 2496, 3 }, // Webogram
+		{ 2040, 4 }, // Desktop
+		{ 1429, 5 }, // Windows Phone
+	};
+	if (const auto i = official.find(applicationId); i != end(official)) {
+		return i->second;
+	}
+	return PeerColorIndex(applicationId);
+}
+
+int DomainApplicationId(const Utf8String &data) {
+	return 0x1000 + StringBarePeerId(data);
 }
 
 bool IsChatPeerId(PeerId peerId) {
@@ -440,6 +481,43 @@ UserpicsSlice ParseUserpicsSlice(
 	return result;
 }
 
+QString WriteImageThumb(
+		const QString &basePath,
+		const QString &largePath,
+		int width,
+		int height,
+		const QString &postfix) {
+	if (largePath.isEmpty()) {
+		return QString();
+	}
+	const auto path = basePath + largePath;
+	QImageReader reader(path);
+	if (!reader.canRead()) {
+		return QString();
+	}
+	const auto size = reader.size();
+	if (size.isEmpty()
+		|| size.width() >= kMaxImageSize
+		|| size.height() >= kMaxImageSize) {
+		return QString();
+	}
+	auto image = reader.read();
+	if (image.isNull()) {
+		return QString();
+	}
+	const auto format = reader.format();
+	const auto lastSlash = largePath.lastIndexOf('/');
+	const auto firstDot = largePath.indexOf('.', lastSlash + 1);
+	const auto thumb = (firstDot >= 0)
+		? largePath.mid(0, firstDot) + postfix + largePath.mid(firstDot)
+		: largePath + postfix;
+	const auto result = Output::File::PrepareRelativePath(basePath, thumb);
+	if (!image.save(basePath + result, reader.format(), reader.quality())) {
+		return QString();
+	}
+	return result;
+}
+
 ContactInfo ParseContactInfo(const MTPUser &data) {
 	auto result = ContactInfo();
 	data.match([&](const MTPDuser &data) {
@@ -457,6 +535,13 @@ ContactInfo ParseContactInfo(const MTPUser &data) {
 		result.userId = data.vid.v;
 	});
 	return result;
+}
+
+int ContactColorIndex(const ContactInfo &data) {
+	if (data.userId != 0) {
+		return PeerColorIndex(data.userId);
+	}
+	return PeerColorIndex(StringBarePeerId(data.phoneNumber));
 }
 
 User ParseUser(const MTPUser &data) {
@@ -1066,6 +1151,7 @@ bool AppendTopPeers(ContactsList &to, const MTPcontacts_TopPeers &data) {
 Session ParseSession(const MTPAuthorization &data) {
 	return data.match([&](const MTPDauthorization &data) {
 		auto result = Session();
+		result.applicationId = data.vapi_id.v;
 		result.platform = ParseString(data.vplatform);
 		result.deviceModel = ParseString(data.vdevice_model);
 		result.systemVersion = ParseString(data.vsystem_version);
@@ -1170,7 +1256,12 @@ DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
 				info.type = peer.user()
 					? DialogTypeFromUser(*peer.user())
 					: DialogTypeFromChat(*peer.chat());
-				info.name = peer.name();
+				info.name = peer.user()
+					? peer.user()->info.firstName
+					: peer.name();
+				info.lastName = peer.user()
+					? peer.user()->info.lastName
+					: Utf8String();
 				info.input = peer.input();
 			}
 			info.topMessageId = fields.vtop_message.v;
@@ -1295,6 +1386,10 @@ Utf8String FormatMoneyAmount(uint64 amount, const Utf8String &currency) {
 	return FillAmountAndCurrency(
 		amount,
 		QString::fromUtf8(currency)).toUtf8();
+}
+
+Utf8String FormatFileSize(int64 size) {
+	return formatSizeText(size).toUtf8();
 }
 
 } // namespace Data

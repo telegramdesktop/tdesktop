@@ -90,7 +90,9 @@ public:
 
 	virtual ~AbstractWriter() = default;
 
-	Stats produceTestExample(const QString &path);
+	Stats produceTestExample(
+		const QString &path,
+		const Environment &environment);
 
 };
 

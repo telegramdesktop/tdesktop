@@ -19,8 +19,12 @@ class SeparatePanel;
 } // namespace Ui
 
 namespace Export {
+
+struct Environment;
+
 namespace View {
 
+Environment PrepareEnvironment();
 QPointer<BoxContent> SuggestStart();
 void ClearSuggestStart();
 

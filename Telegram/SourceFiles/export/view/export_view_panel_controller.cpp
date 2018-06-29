@@ -69,6 +69,8 @@ void SuggestBox::prepare() {
 	}, content->lifetime());
 }
 
+} // namespace
+
 Environment PrepareEnvironment() {
 	auto result = Environment();
 	const auto utfLang = [](LangKey key) {
@@ -84,8 +86,6 @@ Environment PrepareEnvironment() {
 	result.aboutLeftChats = utfLang(lng_export_about_left_chats);
 	return result;
 }
-
-} // namespace
 
 QPointer<BoxContent> SuggestStart() {
 	ClearSuggestStart();

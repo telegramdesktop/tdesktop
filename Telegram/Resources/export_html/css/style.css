@@ -1,0 +1,247 @@
+body {
+    margin: 0;
+    font: 12px/18px 'Open Sans',"Lucida Grande","Lucida Sans Unicode",Arial,Helvetica,Verdana,sans-serif;
+}
+.clearfix:after {
+    content: " ";
+    visibility: hidden;
+    display: block;
+    height: 0;
+    clear: both;
+}
+.pull_left {
+    float: left;
+}
+.pull_right {
+    float: right;
+}
+.page_wrap {
+    background-color: #ffffff;
+    color: #000000;
+}
+.page_wrap a {
+    color: #168acd;
+    text-decoration: none;
+}
+.page_wrap a:hover {
+    text-decoration: underline;
+}
+.page_header {
+    position: fixed;
+    background-color: #ffffff;
+    width: 100%;
+    border-bottom: 1px solid #e3e6e8;
+}
+.page_header .content {
+    width: 480px;
+    margin: 0 auto;
+    border-radius: 0 !important;
+}
+.page_header a.content {
+    background-image: url(../images/back.png);
+    background-repeat: no-repeat;
+    background-position: 24px 21px;
+    background-size: 24px 24px;
+}
+.bold {
+    color: #212121;
+}
+.details {
+    color: #70777b;
+}
+.page_header .content .text {
+    padding: 24px 24px 22px 24px;
+    font-size: 22px;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.page_header a.content .text {
+    padding: 24px 24px 22px 82px;
+}
+.page_body {
+    padding-top: 64px;
+    width: 480px;
+    margin: 0 auto;
+}
+.page_about {
+    padding: 24px 24px;
+}
+.with_divider {
+    border-top: 1px solid #e3e6e8;
+}
+.userpic_link {
+    display: block;
+    text-decoration: none;
+}
+.userpic_link:hover {
+    text-decoration: none;
+}
+.userpic {
+    display: block;
+    border-radius: 50%;
+    overflow: hidden;
+}
+.userpic .initials {
+    display: block;
+    color: #fff;
+    text-align: center;
+    text-transform: uppercase;
+    user-select: none;
+}
+.userpic1 {
+    background-color: #ff5555;
+}
+.userpic2 {
+    background-color: #64bf47;
+}
+.userpic3 {
+    background-color: #ffab00;
+}
+.userpic4 {
+    background-color: #4f9cd9;
+}
+.userpic5 {
+    background-color: #9884e8;
+}
+.userpic6 {
+    background-color: #e671a5;
+}
+.userpic7 {
+    background-color: #47bcd1;
+}
+.userpic8 {
+    background-color: #ff8c44;
+}
+.personal_info {
+    padding: 24px;
+}
+.personal_info .userpic .initials {
+    font-size: 30px;
+}
+.personal_info .rows {
+    float: left;
+    padding-right: 24px;
+}
+.personal_info .names {
+    width: 164px;
+}
+.personal_info .info {
+    width: 124px;
+}
+.personal_info .bio {
+    width: 400px;
+}
+.personal_info .row {
+    padding-bottom: 16px;
+}
+a.block_link {
+    display: block;
+    text-decoration: none !important;
+    border-radius: 4px;
+}
+a.block_link:hover {
+    text-decoration: none !important;
+    background-color: #f5f7f8;
+}
+.sections {
+    padding: 11px 0;
+}
+.section {
+    height: 48px;
+    background-position: 24px 12px;
+    background-repeat: no-repeat;
+    background-size: 24px 24px;
+}
+.section .counter {
+    float: right;
+    padding: 14px 24px 0;
+    font-size: 15px;
+}
+.section .label {
+    padding: 15px 0 0 82px;
+    font-size: 15px;
+    font-weight: 700;
+}
+.section.calls {
+    background-image: url(../images/calls.png);
+}
+.section.chats {
+    background-image: url(../images/chats.png);
+}
+.section.contacts {
+    background-image: url(../images/contacts.png);
+}
+.section.frequent {
+    background-image: url(../images/frequent.png);
+}
+.section.photos {
+    background-image: url(../images/photos.png);
+}
+.section.sessions {
+    background-image: url(../images/sessions.png);
+}
+.section.web {
+    background-image: url(../images/web.png);
+}
+@media only screen and (min--moz-device-pixel-ratio: 2), only screen and (-o-min-device-pixel-ratio: 2/1), only screen and (-webkit-min-device-pixel-ratio: 2), only screen and (min-device-pixel-ratio: 2) {
+.section.calls {
+    background-image: url(../images/calls@2x.png);
+}
+.section.chats {
+    background-image: url(../images/chats@2x.png);
+}
+.section.contacts {
+    background-image: url(../images/contacts@2x.png);
+}
+.section.frequent {
+    background-image: url(../images/frequent@2x.png);
+}
+.section.photos {
+    background-image: url(../images/photos@2x.png);
+}
+.section.sessions {
+    background-image: url(../images/sessions@2x.png);
+}
+.section.web {
+    background-image: url(../images/web@2x.png);
+}
+.page_header a.content {
+    background-image: url(../images/back@2x.png);
+}
+}
+.list_page .page_about {
+    padding: 16px 24px 0;
+    font-size: 11px;
+}
+.list_page .entry_list {
+    padding: 16px 0;
+}
+.list_page .entry {
+    padding: 10px 16px;
+}
+.list_page .entry .userpic .initials {
+    font-size: 18px;
+}
+.list_page .entry .body {
+    margin-left: 66px;
+}
+.list_page .entry .name {
+    padding: 4px 0 2px;
+    font-weight: 700;
+    font-size: 14px;
+}
+.list_page .entry .subname {
+    padding-top: 4px;
+}
+.list_page .entry .details_entry {
+    padding-top: 4px;
+}
+.list_page .entry .info {
+    font-size: 11px;
+    padding-top: 5px;
+}
+.history {
+    padding: 16px 0;
+}

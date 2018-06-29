@@ -1,6 +1,22 @@
 <RCC>
   <qresource prefix="/export">
-    <file alias="css/style.css">../css/export_style.css</file>
+    <file alias="css/style.css">../export_html/css/style.css</file>
+    <file alias="images/back.png">../export_html/images/back.png</file>
+    <file alias="images/back@2x.png">../export_html/images/back@2x.png</file>
+    <file alias="images/calls.png">../export_html/images/calls.png</file>
+    <file alias="images/calls@2x.png">../export_html/images/calls@2x.png</file>
+    <file alias="images/chats.png">../export_html/images/chats.png</file>
+    <file alias="images/chats@2x.png">../export_html/images/chats@2x.png</file>
+    <file alias="images/contacts.png">../export_html/images/contacts.png</file>
+    <file alias="images/contacts@2x.png">../export_html/images/contacts@2x.png</file>
+    <file alias="images/frequent.png">../export_html/images/frequent.png</file>
+    <file alias="images/frequent@2x.png">../export_html/images/frequent@2x.png</file>
+    <file alias="images/photos.png">../export_html/images/photos.png</file>
+    <file alias="images/photos@2x.png">../export_html/images/photos@2x.png</file>
+    <file alias="images/sessions.png">../export_html/images/sessions.png</file>
+    <file alias="images/sessions@2x.png">../export_html/images/sessions@2x.png</file>
+    <file alias="images/web.png">../export_html/images/web.png</file>
+    <file alias="images/web@2x.png">../export_html/images/web@2x.png</file>
   </qresource>
   <qresource prefix="/gui">
     <file alias="fonts/OpenSans-Regular.ttf">../fonts/OpenSans-Regular.ttf</file>

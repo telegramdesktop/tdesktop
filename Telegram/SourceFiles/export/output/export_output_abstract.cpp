@@ -56,19 +56,11 @@ std::unique_ptr<AbstractWriter> CreateWriter(Format format) {
 	Unexpected("Format in Export::Output::CreateWriter.");
 }
 
-Stats AbstractWriter::produceTestExample(const QString &path) {
+Stats AbstractWriter::produceTestExample(
+		const QString &path,
+		const Environment &environment) {
 	auto result = Stats();
 	const auto folder = QDir(path).absolutePath();
-	auto environment = Environment();
-	environment.internalLinksDomain = "https://t.me/";
-	environment.aboutTelegram = "About Telegram";
-	environment.aboutContacts = "About contacts";
-	environment.aboutFrequent = "About frequent";
-	environment.aboutSessions = "About sessions";
-	environment.aboutWebSessions = "About web sessions";
-	environment.aboutChats = "About chats";
-	environment.aboutLeftChats = "About left chats";
-
 	auto settings = Settings();
 	settings.format = format();
 	settings.path = (folder.endsWith('/') ? folder : (folder + '/'))

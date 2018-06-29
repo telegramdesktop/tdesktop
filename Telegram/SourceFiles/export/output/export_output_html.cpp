@@ -18,8 +18,14 @@ namespace Output {
 namespace {
 
 constexpr auto kMessagesInFile = 1000;
+constexpr auto kPersonalUserpicSize = 90;
+constexpr auto kEntryUserpicSize = 48;
+constexpr auto kSavedMessagesColorIndex = 3;
 
 const auto kLineBreak = QByteArrayLiteral("<br>");
+
+using Context = details::HtmlContext;
+using UserpicData = details::UserpicData;
 
 QByteArray SerializeString(const QByteArray &value) {
 	const auto size = value.size();
@@ -599,11 +605,104 @@ QByteArray SerializeMessage(
 
 } // namespace
 
+namespace details {
+
+struct UserpicData {
+	int colorIndex = 0;
+	int pixelSize = 0;
+	QString imageLink;
+	QString largeLink;
+	QByteArray firstName;
+	QByteArray lastName;
+};
+
+QByteArray HtmlContext::pushTag(
+		const QByteArray &tag,
+		std::map<QByteArray, QByteArray> &&attributes) {
+	auto data = Tag();
+	data.name = tag;
+	auto empty = false;
+	auto inner = QByteArray();
+	for (const auto &[name, value] : attributes) {
+		if (name == "inline") {
+			data.block = false;
+		} else if (name == "empty") {
+			empty = true;
+		} else {
+			inner.append(' ').append(name);
+			inner.append("=\"").append(SerializeString(value)).append("\"");
+		}
+	}
+	auto result = (data.block ? ("\n" + indent()) : QByteArray())
+		+ "<" + data.name + inner + (empty ? "/" : "") + ">"
+		+ (data.block ? "\n" : "");
+	if (!empty) {
+		_tags.push_back(data);
+	}
+	return result;
+}
+
+QByteArray HtmlContext::popTag() {
+	Expects(!_tags.empty());
+
+	const auto data = _tags.back();
+	_tags.pop_back();
+	return (data.block ? ("\n" + indent()) : QByteArray())
+		+ "</" + data.name + ">"
+		+ (data.block ? "\n" : "");
+}
+
+QByteArray HtmlContext::indent() const {
+	return QByteArray(_tags.size(), ' ');
+}
+
+bool HtmlContext::empty() const {
+	return _tags.empty();
+}
+
+} // namespace details
+
 class HtmlWriter::Wrap {
 public:
 	Wrap(const QString &path, const QString &base, Stats *stats);
 
 	[[nodiscard]] bool empty() const;
+
+	[[nodiscard]] QByteArray pushTag(
+		const QByteArray &tag,
+		std::map<QByteArray, QByteArray> &&attributes = {});
+	[[nodiscard]] QByteArray popTag();
+	[[nodiscard]] QByteArray indent() const;
+
+	[[nodiscard]] QByteArray pushDiv(
+		const QByteArray &className,
+		const QByteArray &style = {});
+
+	[[nodiscard]] QByteArray pushUserpic(const UserpicData &userpic);
+	[[nodiscard]] QByteArray pushListEntry(
+		const UserpicData &userpic,
+		const QByteArray &name,
+		const QByteArray &details,
+		const QByteArray &info,
+		const QString &link = QString());
+	[[nodiscard]] QByteArray pushSessionListEntry(
+		int apiId,
+		const QByteArray &name,
+		const QByteArray &subname,
+		std::initializer_list<QByteArray> details,
+		const QByteArray &info = QByteArray());
+
+	[[nodiscard]] QByteArray pushHeader(
+		const QByteArray &header,
+		const QString &path = QString());
+	[[nodiscard]] QByteArray pushSection(
+		const QByteArray &label,
+		const QByteArray &type,
+		int count,
+		const QString &path);
+	[[nodiscard]] QByteArray pushAbout(
+		const QByteArray &text,
+		bool withDivider = false);
 
 	[[nodiscard]] Result writeBlock(const QByteArray &block);
 
@@ -615,14 +714,35 @@ public:
 	~Wrap();
 
 private:
-	QByteArray begin() const;
-	QByteArray end() const;
+	[[nodiscard]] QByteArray composeStart();
+	[[nodiscard]] QByteArray pushGenericListEntry(
+		const QString &link,
+		const UserpicData &userpic,
+		const QByteArray &name,
+		const QByteArray &subname,
+		std::initializer_list<QByteArray> details,
+		const QByteArray &info);
 
 	File _file;
 	bool _closed = false;
 	QByteArray _base;
+	Context _context;
 
 };
+
+struct HtmlWriter::SavedSection {
+	int priority = 0;
+	QByteArray label;
+	QByteArray type;
+	int count = 0;
+	QString path;
+};
+
+QByteArray ComposeName(const UserpicData &data, const QByteArray &empty) {
+	return ((data.firstName.isEmpty() && data.lastName.isEmpty())
+		? empty
+		: (data.firstName + ' ' + data.lastName));
+}
 
 HtmlWriter::Wrap::Wrap(
 	const QString &path,
@@ -641,6 +761,153 @@ bool HtmlWriter::Wrap::empty() const {
 	return _file.empty();
 }
 
+QByteArray HtmlWriter::Wrap::pushTag(
+		const QByteArray &tag,
+		std::map<QByteArray, QByteArray> &&attributes) {
+	return _context.pushTag(tag, std::move(attributes));
+}
+
+QByteArray HtmlWriter::Wrap::popTag() {
+	return _context.popTag();
+}
+
+QByteArray HtmlWriter::Wrap::indent() const {
+	return _context.indent();
+}
+
+QByteArray HtmlWriter::Wrap::pushDiv(
+		const QByteArray &className,
+		const QByteArray &style) {
+	return style.isEmpty()
+		? _context.pushTag("div", { { "class", className } })
+		: _context.pushTag("div", {
+			{ "class", className },
+			{ "style", style }
+		});
+}
+
+QByteArray HtmlWriter::Wrap::pushUserpic(const UserpicData &userpic) {
+	const auto size = Data::NumberToString(userpic.pixelSize) + "px";
+	auto result = QByteArray();
+	if (!userpic.largeLink.isEmpty()) {
+		result.append(pushTag("a", {
+			{ "class", "userpic_link" },
+			{ "href", relativePath(userpic.largeLink).toUtf8() }
+		}));
+	}
+	const auto sizeStyle = "width: " + size + "; height: " + size;
+	if (!userpic.imageLink.isEmpty()) {
+		result.append(pushTag("img", {
+			{ "class", "userpic" },
+			{ "style", sizeStyle },
+			{ "src", relativePath(userpic.imageLink).toUtf8() },
+			{ "empty", "" }
+		}));
+	} else {
+		result.append(pushTag("div", {
+			{
+				"class",
+				"userpic userpic"
+				+ Data::NumberToString(userpic.colorIndex + 1)
+			},
+			{ "style", sizeStyle }
+		}));
+		result.append(pushDiv(
+			"initials",
+			"line-height: " + size));
+		auto character = [](const QByteArray &from) {
+			const auto utf = QString::fromUtf8(from).trimmed();
+			return utf.isEmpty() ? QByteArray() : utf.mid(0, 1).toUtf8();
+		};
+		result.append(character(userpic.firstName));
+		result.append(character(userpic.lastName));
+		result.append(popTag());
+		result.append(popTag());
+	}
+	if (!userpic.largeLink.isEmpty()) {
+		result.append(popTag());
+	}
+	return result;
+}
+
+QByteArray HtmlWriter::Wrap::pushListEntry(
+		const UserpicData &userpic,
+		const QByteArray &name,
+		const QByteArray &details,
+		const QByteArray &info,
+		const QString &link) {
+	return pushGenericListEntry(
+		link,
+		userpic,
+		name,
+		{},
+		{ details },
+		info);
+}
+
+QByteArray HtmlWriter::Wrap::pushSessionListEntry(
+		int apiId,
+		const QByteArray &name,
+		const QByteArray &subname,
+		std::initializer_list<QByteArray> details,
+		const QByteArray &info) {
+	const auto link = QString();
+	auto userpic = UserpicData{
+		Data::ApplicationColorIndex(apiId),
+		kEntryUserpicSize
+	};
+	userpic.firstName = name;
+	return pushGenericListEntry(
+		link,
+		userpic,
+		name,
+		subname,
+		details,
+		info);
+}
+
+QByteArray HtmlWriter::Wrap::pushGenericListEntry(
+		const QString &link,
+		const UserpicData &userpic,
+		const QByteArray &name,
+		const QByteArray &subname,
+		std::initializer_list<QByteArray> details,
+		const QByteArray &info) {
+	auto result = link.isEmpty()
+		? pushDiv("entry clearfix")
+		: pushTag("a", {
+			{ "class", "entry block_link clearfix" },
+			{ "href", relativePath(link).toUtf8() },
+		});
+	result.append(pushDiv("pull_left userpic_wrap"));
+	result.append(pushUserpic(userpic));
+	result.append(popTag());
+	result.append(pushDiv("body"));
+	if (!info.isEmpty()) {
+		result.append(pushDiv("pull_right info details"));
+		result.append(SerializeString(info));
+		result.append(popTag());
+	}
+	if (!name.isEmpty()) {
+		result.append(pushDiv("name bold"));
+		result.append(SerializeString(name));
+		result.append(popTag());
+	}
+	if (!subname.isEmpty()) {
+		result.append(pushDiv("subname bold"));
+		result.append(SerializeString(subname));
+		result.append(popTag());
+	}
+	for (const auto detail : details) {
+		result.append(pushDiv("details_entry details"));
+		result.append(SerializeString(detail));
+		result.append(popTag());
+	}
+	result.append(popTag());
+	result.append(popTag());
+	return result;
+}
+
 Result HtmlWriter::Wrap::writeBlock(const QByteArray &block) {
 	Expects(!_closed);
 
@@ -648,7 +915,7 @@ Result HtmlWriter::Wrap::writeBlock(const QByteArray &block) {
 		if (block.isEmpty()) {
 			return _file.writeBlock(block);
 		} else if (_file.empty()) {
-			return _file.writeBlock(begin() + block);
+			return _file.writeBlock(composeStart() + block);
 		}
 		return _file.writeBlock(block);
 	}();
@@ -658,9 +925,61 @@ Result HtmlWriter::Wrap::writeBlock(const QByteArray &block) {
 	return result;
 }
 
+QByteArray HtmlWriter::Wrap::pushHeader(
+		const QByteArray &header,
+		const QString &path) {
+	auto result = pushDiv("page_header");
+	result.append(path.isEmpty()
+		? pushDiv("content")
+		: pushTag("a", {
+			{ "class", "content block_link" },
+			{ "href", relativePath(path).toUtf8() }
+		}));
+	result.append(pushDiv("text bold"));
+	result.append(SerializeString(header));
+	result.append(popTag());
+	result.append(popTag());
+	result.append(popTag());
+	return result;
+}
+
+QByteArray HtmlWriter::Wrap::pushSection(
+		const QByteArray &header,
+		const QByteArray &type,
+		int count,
+		const QString &link) {
+	auto result = pushTag("a", {
+		{ "class", "section block_link " + type },
+		{ "href", link.toUtf8() },
+	});
+	result.append(pushDiv("counter details"));
+	result.append(Data::NumberToString(count));
+	result.append(popTag());
+	result.append(pushDiv("label bold"));
+	result.append(SerializeString(header));
+	result.append(popTag());
+	result.append(popTag());
+	return result;
+}
+
+QByteArray HtmlWriter::Wrap::pushAbout(
+		const QByteArray &text,
+		bool withDivider) {
+	auto result = pushDiv(withDivider
+		? "page_about details with_divider"
+		: "page_about details");
+	result.append(MakeLinks(SerializeString(text)));
+	result.append(popTag());
+	return result;
+}
+
 Result HtmlWriter::Wrap::close() {
 	if (!std::exchange(_closed, true) && !_file.empty()) {
-		return _file.writeBlock(end());
+		auto block = QByteArray();
+		while (!_context.empty()) {
+			block.append(_context.popTag());
+		}
+		return _file.writeBlock(block);
 	}
 	return Result::Success();
 }
@@ -673,26 +992,30 @@ QString HtmlWriter::Wrap::relativePath(const Data::File &file) const {
 	return relativePath(file.relativePath);
 }
 
-QByteArray HtmlWriter::Wrap::begin() const {
-	return "\
-<!DOCTYPE html>\n\
-<html>\n\
-<head>\n\
-	<meta charset=\"utf-8\">\n\
-	<title>Exported Data</title>\n\
-	<meta name=\"viewport\" "
-	"content=\"width=device-width, initial-scale=1.0\">\n\
-	<link href=\"" + _base + "css/style.css\" rel=\"stylesheet\">\n\
-</head>\n\
-<body>\n\
-<div class=\"container page_wrap\">\n";
-}
-
-QByteArray HtmlWriter::Wrap::end() const {
-	return "\
-</div>\n\
-</body>\n\
-</html>\n";
+QByteArray HtmlWriter::Wrap::composeStart() {
+	auto result = "<!DOCTYPE html>" + _context.pushTag("html");
+	result.append(pushTag("head"));
+	result.append(pushTag("meta", {
+		{ "charset", "utf-8" },
+		{ "empty", "" }
+	}));
+	result.append(pushTag("title", { { "inline", "" } }));
+	result.append("Exported Data");
+	result.append(popTag());
+	result.append(_context.pushTag("meta", {
+		{ "name", "viewport" },
+		{ "content", "width=device-width, initial-scale=1.0" },
+		{ "empty", "" }
+	}));
+	result.append(_context.pushTag("link", {
+		{ "href", _base + "css/style.css" },
+		{ "rel", "stylesheet" },
+		{ "empty", "" }
+	}));
+	result.append(popTag());
+	result.append(pushTag("body"));
+	result.append(pushDiv("page_wrap"));
+	return result;
 }
 
 HtmlWriter::Wrap::~Wrap() {
@@ -718,33 +1041,128 @@ Result HtmlWriter::start(
 	//if (!result) {
 	//	return result;
 	//}
-	const auto result = copyFile(":/export/css/style.css", "css/style.css");
-	if (!result) {
-		return result;
+	const auto copy = [&](const QString &filename) {
+		return copyFile(":/export/" + filename, filename);
+	};
+	const auto files = {
+		"css/style.css",
+		"images/back.png",
+		"images/calls.png",
+		"images/chats.png",
+		"images/contacts.png",
+		"images/frequent.png",
+		"images/photos.png",
+		"images/sessions.png",
+		"images/web.png",
+	};
+	for (const auto path : files) {
+		const auto name = QString(path);
+		if (const auto result = copy(name); !result) {
+			return result;
+		} else if (const auto png = name.indexOf(".png"); png > 0) {
+			const auto x2 = name.mid(0, png) + "@2x.png";
+			if (const auto result = copy(x2); !result) {
+				return result;
+			}
+		}
 	}
-	return _summary->writeBlock(
-		MakeLinks(SerializeString(_environment.aboutTelegram))
-			+ kLineBreak
-			+ kLineBreak);
+	auto block = _summary->pushHeader("Exported Data");
+	block.append(_summary->pushDiv("page_body"));
+	return _summary->writeBlock(block);
 }
 
 Result HtmlWriter::writePersonal(const Data::PersonalInfo &data) {
 	Expects(_summary != nullptr);
 
+	_selfColorIndex = Data::PeerColorIndex(data.user.info.userId);
+	if (_settings.types & Settings::Type::Userpics) {
+		_delayedPersonalInfo = std::make_unique<Data::PersonalInfo>(data);
+		return Result::Success();
+	}
+	return writeDefaultPersonal(data);
+}
+
+Result HtmlWriter::writeDefaultPersonal(const Data::PersonalInfo &data) {
+	return writePreparedPersonal(data, QString());
+}
+
+Result HtmlWriter::writeDelayedPersonal(const QString &userpicPath) {
+	if (!_delayedPersonalInfo) {
+		return Result::Success();
+	}
+	const auto result = writePreparedPersonal(
+		*base::take(_delayedPersonalInfo),
+		userpicPath);
+	if (!result) {
+		return result;
+	}
+	if (_userpicsCount) {
+		pushUserpicsSection();
+	}
+	return Result::Success();
+}
+
+Result HtmlWriter::writePreparedPersonal(
+		const Data::PersonalInfo &data,
+		const QString &userpicPath) {
 	const auto &info = data.user.info;
-	const auto serialized = SerializeKeyValue({
-		{ "First name", SerializeString(info.firstName) },
-		{ "Last name", SerializeString(info.lastName) },
-		{
-			"Phone number",
-			SerializeString(Data::FormatPhoneNumber(info.phoneNumber))
-		},
-		{ "Username", SerializeString(FormatUsername(data.user.username)) },
-		{ "Bio", SerializeString(data.bio) },
-		})
-		+ kLineBreak
-		+ kLineBreak;
-	return _summary->writeBlock(serialized);
+
+	auto userpic = UserpicData{ _selfColorIndex, kPersonalUserpicSize };
+	userpic.largeLink = userpicPath.isEmpty()
+		? QString()
+		: userpicsFilePath();
+	userpic.imageLink = writeUserpicThumb(userpicPath, userpic, "_info");
+	userpic.firstName = info.firstName;
+	userpic.lastName = info.lastName;
+
+	auto block = _summary->pushDiv("personal_info clearfix");
+	block.append(_summary->pushDiv("pull_right userpic_wrap"));
+	block.append(_summary->pushUserpic(userpic));
+	block.append(_summary->popTag());
+	const auto pushRows = [&](
+			QByteArray name,
+			std::vector<std::pair<QByteArray, QByteArray>> &&values) {
+		block.append(_summary->pushDiv("rows " + name));
+		for (const auto &[key, value] : values) {
+			if (value.isEmpty()) {
+				continue;
+			}
+			block.append(_summary->pushDiv("row"));
+			block.append(_summary->pushDiv("label details"));
+			block.append(SerializeString(key));
+			block.append(_summary->popTag());
+			block.append(_summary->pushDiv("value bold"));
+			block.append(SerializeString(value));
+			block.append(_summary->popTag());
+			block.append(_summary->popTag());
+		}
+		block.append(_summary->popTag());
+	};
+	pushRows("names", {
+		{ "First name", info.firstName },
+		{ "Last name", info.lastName },
+	});
+	pushRows("info", {
+		{ "Phone number", Data::FormatPhoneNumber(info.phoneNumber) },
+		{ "Username", FormatUsername(data.user.username) },
+	});
+	pushRows("bio", { { "Bio", data.bio } });
+	block.append(_summary->popTag());
+
+	_summaryNeedDivider = true;
+	return _summary->writeBlock(block);
+}
+
+QString HtmlWriter::writeUserpicThumb(
+		const QString &largePath,
+		const UserpicData &userpic,
+		const QString &postfix) {
+	return Data::WriteImageThumb(
+		_settings.path,
+		largePath,
+		userpic.pixelSize * 2,
+		userpic.pixelSize * 2,
+		postfix);
 }
 
 Result HtmlWriter::writeUserpicsStart(const Data::UserpicsInfo &data) {
@@ -755,65 +1173,87 @@ Result HtmlWriter::writeUserpicsStart(const Data::UserpicsInfo &data) {
 	if (!_userpicsCount) {
 		return Result::Success();
 	}
-	const auto filename = "lists/profile_pictures.html";
-	_userpics = fileWithRelativePath(filename);
+	_userpics = fileWithRelativePath(userpicsFilePath());
 
-	const auto serialized = SerializeLink(
-		"Profile pictures "
-		"(" + Data::NumberToString(_userpicsCount) + ")",
-		_summary->relativePath(filename))
-		+ kLineBreak
-		+ kLineBreak;
-	return _summary->writeBlock(serialized);
+	auto block = _userpics->pushHeader(
+		"Personal photos",
+		mainFileRelativePath());
+	block.append(_userpics->pushDiv("page_body list_page"));
+	block.append(_userpics->pushDiv("entry_list"));
+	if (const auto result = _userpics->writeBlock(block); !result) {
+		return result;
+	}
+	if (!_delayedPersonalInfo) {
+		pushUserpicsSection();
+	}
+	return Result::Success();
 }
 
 Result HtmlWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
 	Expects(_userpics != nullptr);
 	Expects(!data.list.empty());
 
-	auto lines = std::vector<QByteArray>();
-	lines.reserve(data.list.size());
-	for (const auto &userpic : data.list) {
-		if (!userpic.date) {
-			lines.push_back("(deleted photo)");
-		} else {
-			using SkipReason = Data::File::SkipReason;
-			const auto &file = userpic.image.file;
-			Assert(!file.relativePath.isEmpty()
-				|| file.skipReason != SkipReason::None);
-			const auto path = [&]() -> Data::Utf8String {
-				switch (file.skipReason) {
-				case SkipReason::Unavailable:
-					return "(Photo unavailable, please try again later)";
-				case SkipReason::FileSize:
-					return "(Photo exceeds maximum size. "
-						"Change data exporting settings to download.)";
-				case SkipReason::FileType:
-					return "(Photo not included. "
-						"Change data exporting settings to download.)";
-				case SkipReason::None: return SerializeLink(
-					FormatFilePath(file),
-					_userpics->relativePath(file.relativePath));
-				}
-				Unexpected("Skip reason while writing photo path.");
-			}();
-			lines.push_back(SerializeKeyValue({
-				{
-					"Added",
-					SerializeString(Data::FormatDateTime(userpic.date))
-				},
-				{ "Photo", path },
-			}));
-		}
+	const auto firstPath = data.list.front().image.file.relativePath;
+	if (const auto result = writeDelayedPersonal(firstPath); !result) {
+		return result;
 	}
-	return _userpics->writeBlock(JoinList(kLineBreak, lines) + kLineBreak);
+
+	auto block = QByteArray();
+	for (const auto &userpic : data.list) {
+		auto data = UserpicData{ _selfColorIndex, kEntryUserpicSize };
+		using SkipReason = Data::File::SkipReason;
+		const auto &file = userpic.image.file;
+		Assert(!file.relativePath.isEmpty()
+			|| file.skipReason != SkipReason::None);
+		const auto status = [&]() -> Data::Utf8String {
+			switch (file.skipReason) {
+			case SkipReason::Unavailable:
+				return "(Photo unavailable, please try again later)";
+			case SkipReason::FileSize:
+				return "(Photo exceeds maximum size. "
+					"Change data exporting settings to download.)";
+			case SkipReason::FileType:
+				return "(Photo not included. "
+					"Change data exporting settings to download.)";
+			case SkipReason::None: return Data::FormatFileSize(file.size);
+			}
+			Unexpected("Skip reason while writing photo path.");
+		}();
+		const auto &path = userpic.image.file.relativePath;
+		data.imageLink = writeUserpicThumb(path, data);
+		data.firstName = path.toUtf8();
+		block.append(_userpics->pushListEntry(
+			data,
+			(path.isEmpty() ? QString("Photo unavailable") : path).toUtf8(),
+			status,
+			(userpic.date > 0
+				? Data::FormatDateTime(userpic.date)
+				: QByteArray()),
+			path));
+	}
+	return _userpics->writeBlock(block);
 }
 
 Result HtmlWriter::writeUserpicsEnd() {
-	if (_userpics) {
+	if (const auto result = writeDelayedPersonal(QString()); !result) {
+		return result;
+	} else if (_userpics) {
 		return base::take(_userpics)->close();
 	}
 	return Result::Success();
+}
+
+QString HtmlWriter::userpicsFilePath() const {
+	return "lists/profile_pictures.html";
+}
+
+void HtmlWriter::pushUserpicsSection() {
+	pushSection(
+		4,
+		"Profile pictures",
+		"photos",
+		_userpicsCount,
+		userpicsFilePath());
 }
 
 Result HtmlWriter::writeContactsList(const Data::ContactsList &data) {
@@ -834,47 +1274,39 @@ Result HtmlWriter::writeSavedContacts(const Data::ContactsList &data) {
 
 	const auto filename = "lists/contacts.html";
 	const auto file = fileWithRelativePath(filename);
-	auto list = std::vector<QByteArray>();
-	list.reserve(data.list.size());
+	auto block = file->pushHeader(
+		"Contacts",
+		mainFileRelativePath());
+	block.append(file->pushDiv("page_body list_page"));
+	block.append(file->pushAbout(_environment.aboutContacts));
+	block.append(file->pushDiv("entry_list"));
 	for (const auto index : Data::SortedContactsIndices(data)) {
 		const auto &contact = data.list[index];
-		if (contact.firstName.isEmpty()
-			&& contact.lastName.isEmpty()
-			&& contact.phoneNumber.isEmpty()) {
-			list.push_back("(deleted user)" + kLineBreak);
-		} else {
-			list.push_back(SerializeKeyValue({
-				{ "First name", SerializeString(contact.firstName) },
-				{ "Last name", SerializeString(contact.lastName) },
-				{
-					"Phone number",
-					SerializeString(
-						Data::FormatPhoneNumber(contact.phoneNumber))
-				},
-				{
-					"Added",
-					SerializeString(Data::FormatDateTime(contact.date))
-				}
-			}));
-		}
+		auto userpic = UserpicData{
+			Data::ContactColorIndex(contact),
+			kEntryUserpicSize
+		};
+		userpic.firstName = contact.firstName;
+		userpic.lastName = contact.lastName;
+		block.append(file->pushListEntry(
+			userpic,
+			ComposeName(userpic, "Deleted Account"),
+			Data::FormatPhoneNumber(contact.phoneNumber),
+			Data::FormatDateTime(contact.date)));
 	}
-	const auto full = MakeLinks(SerializeString(_environment.aboutContacts))
-		+ kLineBreak
-		+ kLineBreak
-		+ JoinList(kLineBreak, list);
-	if (const auto result = file->writeBlock(full); !result) {
+	if (const auto result = file->writeBlock(block); !result) {
 		return result;
 	} else if (const auto closed = file->close(); !closed) {
 		return closed;
 	}
 
-	const auto header = SerializeLink(
-		"Contacts "
-		"(" + Data::NumberToString(data.list.size()) + ")",
-		_summary->relativePath(filename))
-		+ kLineBreak
-		+ kLineBreak;
-	return _summary->writeBlock(header);
+	pushSection(
+		2,
+		"Contacts",
+		"contacts",
+		data.list.size(),
+		filename);
+	return Result::Success();
 }
 
 Result HtmlWriter::writeFrequentContacts(const Data::ContactsList &data) {
@@ -887,83 +1319,62 @@ Result HtmlWriter::writeFrequentContacts(const Data::ContactsList &data) {
 
 	const auto filename = "lists/frequent.html";
 	const auto file = fileWithRelativePath(filename);
-	auto list = std::vector<QByteArray>();
-	list.reserve(size);
+	auto block = file->pushHeader(
+		"Frequent contacts",
+		mainFileRelativePath());
+	block.append(file->pushDiv("page_body list_page"));
+	block.append(file->pushAbout(_environment.aboutFrequent));
+	block.append(file->pushDiv("entry_list"));
 	const auto writeList = [&](
 			const std::vector<Data::TopPeer> &peers,
 			Data::Utf8String category) {
 		for (const auto &top : peers) {
-			const auto user = [&]() -> Data::Utf8String {
-				if (!top.peer.user() || top.peer.user()->isSelf) {
-					return Data::Utf8String();
-				} else if (top.peer.name().isEmpty()) {
-					return "(deleted user)";
+			const auto name = [&]() -> Data::Utf8String {
+				if (top.peer.chat()) {
+					return top.peer.name();
+				} else if (top.peer.user()->isSelf) {
+					return "Saved messages";
+				} else {
+					return top.peer.user()->info.firstName;
 				}
-				return top.peer.name();
 			}();
-			const auto chatType = [&] {
-				if (const auto chat = top.peer.chat()) {
-					return chat->username.isEmpty()
-						? (chat->isBroadcast
-							? "Private channel"
-							: (chat->isSupergroup
-								? "Private supergroup"
-								: "Private group"))
-						: (chat->isBroadcast
-							? "Public channel"
-							: "Public supergroup");
+			const auto lastName = [&]() -> Data::Utf8String {
+				if (top.peer.user() && !top.peer.user()->isSelf) {
+					return top.peer.user()->info.lastName;
 				}
-				return "";
+				return {};
 			}();
-			const auto chat = [&]() -> Data::Utf8String {
-				if (!top.peer.chat()) {
-					return Data::Utf8String();
-				} else if (top.peer.name().isEmpty()) {
-					return "(deleted chat)";
-				}
-				return top.peer.name();
-			}();
-			const auto saved = [&]() -> Data::Utf8String {
-				if (!top.peer.user() || !top.peer.user()->isSelf) {
-					return Data::Utf8String();
-				}
-				return "Saved messages";
-			}();
-			list.push_back(SerializeKeyValue({
-				{ "Category", SerializeString(category) },
-				{
-					"User",
-					top.peer.user() ? SerializeString(user) : QByteArray()
-				},
-				{ "Chat", SerializeString(saved) },
-				{ chatType, SerializeString(chat) },
-				{
-					"Rating",
-					SerializeString(Data::NumberToString(top.rating))
-				}
-			}));
+			auto userpic = UserpicData{
+				Data::PeerColorIndex(Data::BarePeerId(top.peer.id())),
+				kEntryUserpicSize
+			};
+			userpic.firstName = name;
+			userpic.lastName = lastName;
+			block.append(file->pushListEntry(
+				userpic,
+				((name.isEmpty() && lastName.isEmpty())
+					? QByteArray("Deleted Account")
+					: (name + ' ' + lastName)),
+				"Rating: " + Data::NumberToString(top.rating),
+				category));
 		}
 	};
-	writeList(data.correspondents, "People");
-	writeList(data.inlineBots, "Inline bots");
-	writeList(data.phoneCalls, "Calls");
-	const auto full = MakeLinks(SerializeString(_environment.aboutFrequent))
-		+ kLineBreak
-		+ kLineBreak
-		+ JoinList(kLineBreak, list);
-	if (const auto result = file->writeBlock(full); !result) {
+	writeList(data.correspondents, "people");
+	writeList(data.inlineBots, "inline bots");
+	writeList(data.phoneCalls, "calls");
+	if (const auto result = file->writeBlock(block); !result) {
 		return result;
 	} else if (const auto closed = file->close(); !closed) {
 		return closed;
 	}
 
-	const auto header = SerializeLink(
-		"Frequent contacts "
-		"(" + Data::NumberToString(size) + ")",
-		_summary->relativePath(filename))
-		+ kLineBreak
-		+ kLineBreak;
-	return _summary->writeBlock(header);
+	pushSection(
+		3,
+		"Frequent contacts",
+		"frequent",
+		size,
+		filename);
+	return Result::Success();
 }
 
 Result HtmlWriter::writeSessionsList(const Data::SessionsList &data) {
@@ -986,50 +1397,50 @@ Result HtmlWriter::writeSessions(const Data::SessionsList &data) {
 
 	const auto filename = "lists/sessions.html";
 	const auto file = fileWithRelativePath(filename);
-	auto list = std::vector<QByteArray>();
-	list.reserve(data.list.size());
+	auto block = file->pushHeader(
+		"Sessions",
+		mainFileRelativePath());
+	block.append(file->pushDiv("page_body list_page"));
+	block.append(file->pushAbout(_environment.aboutSessions));
+	block.append(file->pushDiv("entry_list"));
 	for (const auto &session : data.list) {
-		list.push_back(SerializeKeyValue({
+		block.append(file->pushSessionListEntry(
+			session.applicationId,
+			((session.applicationName.isEmpty()
+				? Data::Utf8String("Unknown")
+				: session.applicationName)
+				+ ' '
+				+ session.applicationVersion),
+			(session.deviceModel
+				+ ", "
+				+ session.platform
+				+ ' '
+				+ session.systemVersion),
 			{
-				"Last active",
-				SerializeString(Data::FormatDateTime(session.lastActive))
-			},
-			{ "Last IP address", SerializeString(session.ip) },
-			{ "Last country", SerializeString(session.country) },
-			{ "Last region", SerializeString(session.region) },
-			{
-				"Application name",
-				(session.applicationName.isEmpty()
-					? Data::Utf8String("(unknown)")
-					: SerializeString(session.applicationName))
-			},
-			{
-				"Application version",
-				SerializeString(session.applicationVersion)
-			},
-			{ "Device model", SerializeString(session.deviceModel) },
-			{ "Platform", SerializeString(session.platform) },
-			{ "System version", SerializeString(session.systemVersion) },
-			{ "Created", Data::FormatDateTime(session.created) },
-		}));
+				(session.ip
+					+ " \xE2\x80\x93 "
+					+ session.region
+					+ ((session.region.isEmpty() || session.country.isEmpty())
+						? QByteArray()
+						: QByteArray(", "))
+					+ session.country),
+				"Last active: " + Data::FormatDateTime(session.lastActive),
+				"Created: " + Data::FormatDateTime(session.created)
+			}));
 	}
-	const auto full = MakeLinks(SerializeString(_environment.aboutSessions))
-		+ kLineBreak
-		+ kLineBreak
-		+ JoinList(kLineBreak, list);
-	if (const auto result = file->writeBlock(full); !result) {
+	if (const auto result = file->writeBlock(block); !result) {
 		return result;
 	} else if (const auto closed = file->close(); !closed) {
 		return closed;
 	}
 
-	const auto header = SerializeLink(
-		"Sessions "
-		"(" + Data::NumberToString(data.list.size()) + ")",
-		_summary->relativePath(filename))
-		+ kLineBreak
-		+ kLineBreak;
-	return _summary->writeBlock(header);
+	pushSection(
+		5,
+		"Sessions",
+		"sessions",
+		data.list.size(),
+		filename);
+	return Result::Success();
 }
 
 Result HtmlWriter::writeWebSessions(const Data::SessionsList &data) {
@@ -1041,54 +1452,41 @@ Result HtmlWriter::writeWebSessions(const Data::SessionsList &data) {
 
 	const auto filename = "lists/web_sessions.html";
 	const auto file = fileWithRelativePath(filename);
-	auto list = std::vector<QByteArray>();
-	list.reserve(data.webList.size());
+	auto block = file->pushHeader(
+		"Web sessions",
+		mainFileRelativePath());
+	block.append(file->pushDiv("page_body list_page"));
+	block.append(file->pushAbout(_environment.aboutWebSessions));
+	block.append(file->pushDiv("entry_list"));
 	for (const auto &session : data.webList) {
-		list.push_back(SerializeKeyValue({
+		block.append(file->pushSessionListEntry(
+			Data::DomainApplicationId(session.domain),
+			(session.domain.isEmpty()
+				? Data::Utf8String("Unknown")
+				: session.domain),
+			session.platform + ", " + session.browser,
 			{
-				"Last active",
-				SerializeString(Data::FormatDateTime(session.lastActive))
+				session.ip + " \xE2\x80\x93 " + session.region,
+				"Last active: " + Data::FormatDateTime(session.lastActive),
+				"Created: " + Data::FormatDateTime(session.created)
 			},
-			{ "Last IP address", SerializeString(session.ip) },
-			{ "Last region", SerializeString(session.region) },
-			{
-				"Bot username",
-				(session.botUsername.isEmpty()
-					? Data::Utf8String("(unknown)")
-					: SerializeString(session.botUsername))
-			},
-			{
-				"Domain name",
-				(session.domain.isEmpty()
-					? Data::Utf8String("(unknown)")
-					: SerializeString(session.domain))
-			},
-			{ "Browser", SerializeString(session.browser) },
-			{ "Platform", SerializeString(session.platform) },
-			{
-				"Created",
-				SerializeString(Data::FormatDateTime(session.created))
-			},
-		}));
+			(session.botUsername.isEmpty()
+				? QByteArray()
+				: ('@' + session.botUsername))));
 	}
-	const auto full = MakeLinks(
-		SerializeString(_environment.aboutWebSessions))
-		+ kLineBreak
-		+ kLineBreak
-		+ JoinList(kLineBreak, list);
-	if (const auto result = file->writeBlock(full); !result) {
+	if (const auto result = file->writeBlock(block); !result) {
 		return result;
 	} else if (const auto closed = file->close(); !closed) {
 		return closed;
 	}
 
-	const auto header = SerializeLink(
-		"Web sessions "
-		"(" + Data::NumberToString(data.webList.size()) + ")",
-		_summary->relativePath(filename))
-		+ kLineBreak
-		+ kLineBreak;
-	return _summary->writeBlock(header);
+	pushSection(
+		6,
+		"Web sessions",
+		"web",
+		data.webList.size(),
+		filename);
+	return Result::Success();
 }
 
 Result HtmlWriter::writeOtherData(const Data::File &data) {
@@ -1162,22 +1560,28 @@ Result HtmlWriter::writeChatsStart(
 		return Result::Success();
 	}
 
+	_dialogsRelativePath = fileName;
 	_chats = fileWithRelativePath(fileName);
 	_dialogIndex = 0;
 	_dialogsCount = data.list.size();
 
-	const auto block = MakeLinks(SerializeString(about)) + kLineBreak;
+	auto block = _chats->pushHeader(
+		listName,
+		mainFileRelativePath());
+	block.append(_chats->pushDiv("page_body list_page"));
+	block.append(_chats->pushAbout(about));
+	block.append(_chats->pushDiv("entry_list"));
 	if (const auto result = _chats->writeBlock(block); !result) {
 		return result;
 	}
 
-	const auto header = SerializeLink(
-		listName + " "
-		"(" + Data::NumberToString(data.list.size()) + ")",
-		_summary->relativePath(fileName))
-		+ kLineBreak
-		+ kLineBreak;
-	return _summary->writeBlock(header);
+	pushSection(
+		0,
+		listName,
+		"chats",
+		data.list.size(),
+		fileName);
+	return writeSections();
 }
 
 Result HtmlWriter::writeChatStart(const Data::DialogInfo &data) {
@@ -1195,6 +1599,17 @@ Result HtmlWriter::writeChatStart(const Data::DialogInfo &data) {
 Result HtmlWriter::writeChatSlice(const Data::MessagesSlice &data) {
 	Expects(_chat != nullptr);
 	Expects(!data.list.empty());
+
+	if (_chat->empty()) {
+		auto block = _chat->pushHeader(
+			_dialog.name + ' ' + _dialog.lastName,
+			_dialogsRelativePath);
+		block.append(_chat->pushDiv("page_body chat_page"));
+		block.append(_chat->pushDiv("history"));
+		if (const auto result = _chat->writeBlock(block); !result) {
+			return result;
+		}
+	}
 
 	const auto wasIndex = (_messagesCount / kMessagesInFile);
 	_messagesCount += data.list.size();
@@ -1231,59 +1646,71 @@ Result HtmlWriter::writeChatEnd() {
 	using Type = Data::DialogInfo::Type;
 	const auto TypeString = [](Type type) {
 		switch (type) {
-		case Type::Unknown: return "(unknown)";
+		case Type::Unknown: return "unknown";
 		case Type::Self:
-		case Type::Personal: return "Personal chat";
-		case Type::Bot: return "Bot chat";
-		case Type::PrivateGroup: return "Private group";
-		case Type::PrivateSupergroup: return "Private supergroup";
-		case Type::PublicSupergroup: return "Public supergroup";
-		case Type::PrivateChannel: return "Private channel";
-		case Type::PublicChannel: return "Public channel";
+		case Type::Personal: return "private";
+		case Type::Bot: return "bot";
+		case Type::PrivateGroup:
+		case Type::PrivateSupergroup:
+		case Type::PublicSupergroup: return "group";
+		case Type::PrivateChannel:
+		case Type::PublicChannel: return "channel";
+		}
+		Unexpected("Dialog type in TypeString.");
+	};
+	const auto DeletedString = [](Type type) {
+		switch (type) {
+		case Type::Unknown:
+		case Type::Self:
+		case Type::Personal:
+		case Type::Bot: return "Deleted Account";
+		case Type::PrivateGroup:
+		case Type::PrivateSupergroup:
+		case Type::PublicSupergroup: return "Deleted Group";
+		case Type::PrivateChannel:
+		case Type::PublicChannel: return "Deleted Channel";
 		}
 		Unexpected("Dialog type in TypeString.");
 	};
 	const auto NameString = [](
-			const Data::DialogInfo &dialog,
-			Type type) -> QByteArray {
+			const Data::DialogInfo &dialog) -> QByteArray {
 		if (dialog.type == Type::Self) {
 			return "Saved messages";
 		}
-		const auto name = dialog.name;
-		if (!name.isEmpty()) {
-			return name;
-		}
-		switch (type) {
-		case Type::Unknown: return "(unknown)";
-		case Type::Personal: return "(deleted user)";
-		case Type::Bot: return "(deleted bot)";
-		case Type::PrivateGroup:
-		case Type::PrivateSupergroup:
-		case Type::PublicSupergroup: return "(deleted group)";
-		case Type::PrivateChannel:
-		case Type::PublicChannel: return "(deleted channel)";
-		}
-		Unexpected("Dialog type in TypeString.");
+		return dialog.name;
 	};
-	return _chats->writeBlock(kLineBreak + SerializeKeyValue({
-		{ "Name", SerializeString(NameString(_dialog, _dialog.type)) },
-		{ "Type", SerializeString(TypeString(_dialog.type)) },
-		{
-			(_dialog.onlyMyMessages
-				? "Outgoing messages count"
-				: "Messages count"),
-			SerializeString(Data::NumberToString(_messagesCount))
-		},
-		{
-			"Content",
-			(_messagesCount > 0
-				? SerializeLink(
-					(_dialog.relativePath + "messages.html").toUtf8(),
-					_chats->relativePath(
-						(_dialog.relativePath + "messages.html")))
-				: QByteArray())
+	const auto LastNameString = [](
+			const Data::DialogInfo &dialog) -> QByteArray {
+		if (dialog.type != Type::Personal && dialog.type != Type::Bot) {
+			return {};
 		}
-	}));
+		return dialog.lastName;
+	};
+	const auto CountString = [](int count, bool outgoing) -> QByteArray {
+		if (count == 1) {
+			return outgoing ? "1 outgoing message" : "1 message";
+		}
+		return Data::NumberToString(count)
+			+ (outgoing ? " outgoing messages" : " messages");
+	};
+	auto userpic = UserpicData{
+		(_dialog.type == Type::Self
+			? kSavedMessagesColorIndex
+			: Data::PeerColorIndex(Data::BarePeerId(_dialog.peerId))),
+		kEntryUserpicSize
+	};
+	userpic.firstName = NameString(_dialog);
+	userpic.lastName = LastNameString(_dialog);
+	return _chats->writeBlock(_chats->pushListEntry(
+		userpic,
+		((userpic.firstName.isEmpty() && userpic.lastName.isEmpty())
+			? QByteArray(DeletedString(_dialog.type))
+			: (userpic.firstName + ' ' + userpic.lastName)),
+		CountString(_messagesCount, _dialog.onlyMyMessages),
+		TypeString(_dialog.type),
+		(_messagesCount > 0
+			? (_dialog.relativePath + "messages.html")
+			: QString())));
 }
 
 Result HtmlWriter::writeChatsEnd() {
@@ -1293,23 +1720,91 @@ Result HtmlWriter::writeChatsEnd() {
 	return Result::Success();
 }
 
+void HtmlWriter::pushSection(
+		int priority,
+		const QByteArray &label,
+		const QByteArray &type,
+		int count,
+		const QString &path) {
+	_savedSections.push_back({
+		priority,
+		label,
+		type,
+		count,
+		path
+	});
+}
+
+Result HtmlWriter::writeSections() {
+	Expects(_summary != nullptr);
+
+	if (!_haveSections && _summaryNeedDivider) {
+		auto block = _summary->pushDiv(
+			_summaryNeedDivider ? "sections with_divider" : "sections");
+		if (const auto result = _summary->writeBlock(block); !result) {
+			return result;
+		}
+		_haveSections = true;
+		_summaryNeedDivider = false;
+	}
+
+	auto block = QByteArray();
+	ranges::sort(_savedSections, std::less<>(), [](const SavedSection &data) {
+		return data.priority;
+	});
+	for (const auto &section : base::take(_savedSections)) {
+		block.append(_summary->pushSection(
+			section.label,
+			section.type,
+			section.count,
+			_summary->relativePath(section.path)));
+	}
+	return _summary->writeBlock(block);
+}
+
 Result HtmlWriter::switchToNextChatFile(int index) {
 	Expects(_chat != nullptr);
 
 	const auto nextPath = messagesFile(index);
-	const auto link = kLineBreak + "<a href=\""
-		+ nextPath.toUtf8()
-		+ "\">Next messages part</a>";
-	if (const auto result = _chat->writeBlock(link); !result) {
+	auto next = _chat->pushTag("a", {
+		{ "class", "pagination" },
+		{ "href", nextPath.toUtf8() }
+	});
+	next.append("Next messages part");
+	next.append(_chat->popTag());
+	if (const auto result = _chat->writeBlock(next); !result) {
 		return result;
 	}
 	_chat = fileWithRelativePath(_dialog.relativePath + nextPath);
-	return Result::Success();
+	auto block = _chat->pushHeader(
+		_dialog.name + ' ' + _dialog.lastName,
+		_dialogsRelativePath);
+	block.append(_chat->pushDiv("page_body chat_page"));
+	block.append(_chat->pushDiv("history"));
+	block.append(_chat->pushTag("a", {
+		{ "class", "pagination" },
+		{ "href", nextPath.toUtf8() }
+	}));
+	block.append("Previous messages part");
+	block.append(_chat->popTag());
+	return _chat->writeBlock(block);
 }
 
 Result HtmlWriter::finish() {
 	Expects(_summary != nullptr);
 
+	auto block = QByteArray();
+	if (_haveSections) {
+		block.append(_summary->popTag());
+		_summaryNeedDivider = true;
+		_haveSections = false;
+	}
+	block.append(_summary->pushAbout(
+		_environment.aboutTelegram,
+		_summaryNeedDivider));
+	if (const auto result = _summary->writeBlock(block); !result) {
+		return result;
+	}
 	return _summary->close();
 }
 

@@ -14,6 +14,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Export {
 namespace Output {
+namespace details {
+
+class HtmlContext {
+public:
+	[[nodiscard]] QByteArray pushTag(
+		const QByteArray &tag,
+		std::map<QByteArray, QByteArray> &&attributes = {});
+	[[nodiscard]] QByteArray popTag();
+	[[nodiscard]] QByteArray indent() const;
+	[[nodiscard]] bool empty() const;
+
+private:
+	struct Tag {
+		QByteArray name;
+		bool block = true;
+	};
+	std::vector<Tag> _tags;
+
+};
+
+struct UserpicData;
+
+} // namespace details
 
 class HtmlWriter : public AbstractWriter {
 public:
@@ -59,9 +82,11 @@ public:
 	~HtmlWriter();
 
 private:
+	using Context = details::HtmlContext;
+	using UserpicData = details::UserpicData;
 	class Wrap;
 
-	Result copyFile(
+	[[nodiscard]] Result copyFile(
 		const QString &source,
 		const QString &relativePath) const;
 
@@ -70,34 +95,66 @@ private:
 	std::unique_ptr<Wrap> fileWithRelativePath(const QString &path) const;
 	QString messagesFile(int index) const;
 
-	Result writeSavedContacts(const Data::ContactsList &data);
-	Result writeFrequentContacts(const Data::ContactsList &data);
+	[[nodiscard]] Result writeSavedContacts(const Data::ContactsList &data);
+	[[nodiscard]] Result writeFrequentContacts(const Data::ContactsList &data);
 
-	Result writeSessions(const Data::SessionsList &data);
-	Result writeWebSessions(const Data::SessionsList &data);
+	[[nodiscard]] Result writeSessions(const Data::SessionsList &data);
+	[[nodiscard]] Result writeWebSessions(const Data::SessionsList &data);
 
-	Result writeChatsStart(
+	[[nodiscard]] Result writeChatsStart(
 		const Data::DialogsInfo &data,
 		const QByteArray &listName,
 		const QByteArray &about,
 		const QString &fileName);
-	Result writeChatStart(const Data::DialogInfo &data);
-	Result writeChatSlice(const Data::MessagesSlice &data);
-	Result writeChatEnd();
-	Result writeChatsEnd();
-	Result switchToNextChatFile(int index);
+	[[nodiscard]] Result writeChatStart(const Data::DialogInfo &data);
+	[[nodiscard]] Result writeChatSlice(const Data::MessagesSlice &data);
+	[[nodiscard]] Result writeChatEnd();
+	[[nodiscard]] Result writeChatsEnd();
+	[[nodiscard]] Result switchToNextChatFile(int index);
+
+	void pushSection(
+		int priority,
+		const QByteArray &label,
+		const QByteArray &type,
+		int count,
+		const QString &path);
+	[[nodiscard]] Result writeSections();
+
+	[[nodiscard]] Result writeDefaultPersonal(
+		const Data::PersonalInfo &data);
+	[[nodiscard]] Result writeDelayedPersonal(const QString &userpicPath);
+	[[nodiscard]] Result writePreparedPersonal(
+		const Data::PersonalInfo &data,
+		const QString &userpicPath);
+	void pushUserpicsSection();
+
+	[[nodiscard]] QString writeUserpicThumb(
+		const QString &largePath,
+		const UserpicData &userpic,
+		const QString &postfix = "_thumb");
+
+	[[nodiscard]] QString userpicsFilePath() const;
 
 	Settings _settings;
 	Environment _environment;
 	Stats *_stats = nullptr;
 
+	struct SavedSection;
+	std::vector<SavedSection> _savedSections;
+
 	std::unique_ptr<Wrap> _summary;
+	bool _summaryNeedDivider = false;
+	bool _haveSections = false;
+
+	int _selfColorIndex = 0;
+	std::unique_ptr<Data::PersonalInfo> _delayedPersonalInfo;
 
 	int _userpicsCount = 0;
 	std::unique_ptr<Wrap> _userpics;
 
 	int _dialogsCount = 0;
 	int _dialogIndex = 0;
+	QString _dialogsRelativePath;
 	Data::DialogInfo _dialog;
 
 	int _messagesCount = 0;

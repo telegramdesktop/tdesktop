@@ -26,6 +26,9 @@ using PeerId = uint64;
 PeerId UserPeerId(int32 userId);
 PeerId ChatPeerId(int32 chatId);
 int32 BarePeerId(PeerId peerId);
+int PeerColorIndex(int32 bareId);
+int ApplicationColorIndex(int applicationId);
+int DomainApplicationId(const Utf8String &data);
 
 Utf8String ParseString(const MTPstring &data);
 
@@ -77,6 +80,13 @@ struct Image {
 	File file;
 };
 
+QString WriteImageThumb(
+	const QString &basePath,
+	const QString &largePath,
+	int width,
+	int height,
+	const QString &postfix = "_thumb");
+
 struct ContactInfo {
 	int32 userId = 0;
 	Utf8String firstName;
@@ -88,6 +98,7 @@ struct ContactInfo {
 };
 
 ContactInfo ParseContactInfo(const MTPUser &data);
+int ContactColorIndex(const ContactInfo &data);
 
 struct Photo {
 	uint64 id = 0;
@@ -230,6 +241,7 @@ std::vector<int> SortedContactsIndices(const ContactsList &data);
 bool AppendTopPeers(ContactsList &to, const MTPcontacts_TopPeers &data);
 
 struct Session {
+	int applicationId = 0;
 	Utf8String platform;
 	Utf8String deviceModel;
 	Utf8String systemVersion;
@@ -485,6 +497,7 @@ struct DialogInfo {
 	};
 	Type type = Type::Unknown;
 	Utf8String name;
+	Utf8String lastName;
 
 	MTPInputPeer input = MTP_inputPeerEmpty();
 	int32 topMessageId = 0;
@@ -526,14 +539,13 @@ MessagesSlice ParseMessagesSlice(
 	const QString &mediaFolder);
 
 Utf8String FormatPhoneNumber(const Utf8String &phoneNumber);
-
 Utf8String FormatDateTime(
 	TimeId date,
 	QChar dateSeparator = QChar('.'),
 	QChar timeSeparator = QChar(':'),
 	QChar separator = QChar(' '));
-
 Utf8String FormatMoneyAmount(uint64 amount, const Utf8String &currency);
+Utf8String FormatFileSize(int64 size);
 
 } // namespace Data
 } // namespace Export

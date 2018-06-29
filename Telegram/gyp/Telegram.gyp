@@ -109,7 +109,9 @@
       '<@(style_files)',
       '<!@(<(list_sources_command) <(qt_moc_list_sources_arg))',
       'telegram_sources.txt',
-      '<(res_loc)/css/export_style.css',
+      '<(res_loc)/export_html/css/style.css',
+      '<(res_loc)/export_html/images/back.png',
+      '<(res_loc)/export_html/images/back@2x.png',
     ],
     'sources!': [
       '<!@(<(list_sources_command) <(qt_moc_list_sources_arg) --exclude_for <(build_os))',
