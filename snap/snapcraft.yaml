@@ -91,7 +91,7 @@ parts:
                         TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
       - --depth=.
     override-build: |
-      set -x
+      set -xe
       snapcraftctl build
       snap_gui=$SNAPCRAFT_STAGE/../snap/gui
       mkdir -vp $snap_gui
@@ -128,7 +128,7 @@ parts:
   desktop-gtk3:
     stage: [-./usr/share/fonts/**]
     override-build: |
-      set -x
+      set -xe
       snapcraftctl build
       export XDG_DATA_DIRS=$SNAPCRAFT_PART_INSTALL/usr/share
       update-mime-database $SNAPCRAFT_PART_INSTALL/usr/share/mime
