@@ -14,7 +14,7 @@ SingleTimer::SingleTimer(QObject *parent) : QTimer(parent) {
 	Sandbox::connect(SIGNAL(adjustSingleTimers()), this, SLOT(adjust()));
 }
 
-void SingleTimer::setTimeoutHandler(base::lambda<void()> handler) {
+void SingleTimer::setTimeoutHandler(Fn<void()> handler) {
 	if (_handler && !handler) {
 		disconnect(this, SIGNAL(timeout()), this, SLOT(onTimeout()));
 	} else if (handler && !_handler) {

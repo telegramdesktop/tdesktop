@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/info_section_widget.h"
 
+#include "window/window_connecting_widget.h"
 #include "info/info_content_widget.h"
 #include "info/info_wrap_widget.h"
 #include "info/info_layer_widget.h"
@@ -42,6 +43,15 @@ void SectionWidget::init() {
 		auto additionalScroll = 0;
 		wrap->updateGeometry(wrapGeometry, additionalScroll);
 	}, _content->lifetime());
+
+	_connecting = Window::ConnectingWidget::CreateDefaultWidget(
+		_content.data(),
+		Window::AdaptiveIsOneColumn());
+
+	_content->contentChanged(
+	) | rpl::start_with_next([=] {
+		_connecting->raise();
+	}, _connecting->lifetime());
 }
 
 Dialogs::RowDescriptor SectionWidget::activeChat() const {

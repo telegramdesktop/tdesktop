@@ -22,7 +22,7 @@ class CodeInput final : public Ui::MaskedInputField {
 	Q_OBJECT
 
 public:
-	CodeInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory);
+	CodeInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory);
 
 	void setDigitsCountMax(int digitsCount);
 
@@ -71,7 +71,7 @@ private:
 	void codeSubmitDone(const MTPauth_Authorization &result);
 	bool codeSubmitFail(const RPCError &error);
 
-	void showCodeError(base::lambda<QString()> textFactory);
+	void showCodeError(Fn<QString()> textFactory);
 	void callDone(const MTPauth_SentCode &v);
 	void gotPassword(const MTPaccount_Password &result);
 

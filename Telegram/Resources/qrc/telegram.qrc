@@ -1,4 +1,7 @@
 <RCC>
+  <qresource prefix="/export">
+    <file alias="css/style.css">../css/export_style.css</file>
+  </qresource>
   <qresource prefix="/gui">
     <file alias="fonts/OpenSans-Regular.ttf">../fonts/OpenSans-Regular.ttf</file>
     <file alias="fonts/OpenSans-Bold.ttf">../fonts/OpenSans-Bold.ttf</file>

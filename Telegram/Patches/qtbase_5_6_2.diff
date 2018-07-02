@@ -221,6 +221,19 @@ index f74d4d4229..8ad672c9fe 100644
  };
  
  
+diff --git a/src/network/access/qhttpnetworkconnection.cpp b/src/network/access/qhttpnetworkconnection.cpp
+index c4cb8e65c0..45793e364f 100644
+--- a/src/network/access/qhttpnetworkconnection.cpp
++++ b/src/network/access/qhttpnetworkconnection.cpp
+@@ -110,6 +110,8 @@ QHttpNetworkConnectionPrivate::~QHttpNetworkConnectionPrivate()
+ {
+     for (int i = 0; i < channelCount; ++i) {
+         if (channels[i].socket) {
++            // Patch: backport critical bugfix from '4f959b6b30' commit.
++            QObject::disconnect(channels[i].socket, Q_NULLPTR, &channels[i], Q_NULLPTR);
+             channels[i].socket->close();
+             delete channels[i].socket;
+         }
 diff --git a/src/network/socket/qnativesocketengine_win.cpp b/src/network/socket/qnativesocketengine_win.cpp
 index 41834b21ae..8cdf4ab145 100644
 --- a/src/network/socket/qnativesocketengine_win.cpp
@@ -454,6 +467,20 @@ index 566abf2126..5b9c714ffa 100644
      fd->styleName = (CFStringRef)CTFontDescriptorCopyAttribute(font, kCTFontStyleNameAttribute);
      fd->weight = QFont::Normal;
      fd->style = QFont::StyleNormal;
+diff --git a/src/platformsupport/fontdatabases/mac/qfontengine_coretext.mm b/src/platformsupport/fontdatabases/mac/qfontengine_coretext.mm
+index 7b459584ea..2ed2fd9b3b 100644
+--- a/src/platformsupport/fontdatabases/mac/qfontengine_coretext.mm
++++ b/src/platformsupport/fontdatabases/mac/qfontengine_coretext.mm
+@@ -764,7 +764,8 @@ void QCoreTextFontEngine::getUnscaledGlyph(glyph_t glyph, QPainterPath *path, gl
+ 
+ QFixed QCoreTextFontEngine::emSquareSize() const
+ {
+-    return QFixed::QFixed(int(CTFontGetUnitsPerEm(ctfont)));
++    // Patch: Fix build for Xcode 9.3.1.
++    return QFixed(int(CTFontGetUnitsPerEm(ctfont)));
+ }
+ 
+ QFontEngine *QCoreTextFontEngine::cloneWithSize(qreal pixelSize) const
 diff --git a/src/plugins/platforminputcontexts/compose/compose.pro b/src/plugins/platforminputcontexts/compose/compose.pro
 index 86bdd4729b..9b9c8ded08 100644
 --- a/src/plugins/platforminputcontexts/compose/compose.pro

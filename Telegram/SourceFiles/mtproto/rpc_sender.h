@@ -8,25 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include <rpl/details/callable.h>
+#include "base/flat_set.h"
 
 class RPCError {
 public:
-	RPCError(const MTPrpcError &error) : _code(error.c_rpc_error().verror_code.v) {
-		QString text = qs(error.c_rpc_error().verror_message);
-		if (_code < 0 || _code >= 500) {
-			_type = qsl("INTERNAL_SERVER_ERROR");
-			_description = text;
-		} else {
-			auto m = QRegularExpression("^([A-Z0-9_]+)(: .*)?$", reMultiline).match(text);
-			if (m.hasMatch()) {
-				_type = m.captured(1);
-				_description = m.captured(2).mid(2);
-			} else {
-				_type = qsl("CLIENT_BAD_RPC_ERROR");
-				_description = qsl("Bad rpc error received, text = '") + text + '\'';
-			}
-		}
-	}
+	RPCError(const MTPrpcError &error);
 
 	int32 code() const {
 		return _code;
@@ -688,30 +674,6 @@ private:
 };
 
 class RPCSender {
-	using DoneHandlers = QSet<RPCOwnedDoneHandler*>;
-	DoneHandlers _rpcDoneHandlers;
-	using FailHandlers = QSet<RPCOwnedFailHandler*>;
-	FailHandlers _rpcFailHandlers;
-
-	void _rpcRegHandler(RPCOwnedDoneHandler *handler) {
-		_rpcDoneHandlers.insert(handler);
-	}
-
-	void _rpcUnregHandler(RPCOwnedDoneHandler *handler) {
-		_rpcDoneHandlers.remove(handler);
-	}
-
-	void _rpcRegHandler(RPCOwnedFailHandler *handler) {
-		_rpcFailHandlers.insert(handler);
-	}
-
-	void _rpcUnregHandler(RPCOwnedFailHandler *handler) {
-		_rpcFailHandlers.remove(handler);
-	}
-
-	friend class RPCOwnedDoneHandler;
-	friend class RPCOwnedFailHandler;
-
 public:
 	template <typename TReturn, typename TReceiver> // done(from, end)
 	RPCDoneHandlerPtr rpcDone(TReturn (TReceiver::*onDone)(const mtpPrime *, const mtpPrime *)) {
@@ -831,6 +793,29 @@ protected:
 		}
 	}
 
+private:
+	base::flat_set<RPCOwnedDoneHandler*> _rpcDoneHandlers;
+	base::flat_set<RPCOwnedFailHandler*> _rpcFailHandlers;
+
+	void rpcRegHandler(RPCOwnedDoneHandler *handler) {
+		_rpcDoneHandlers.emplace(handler);
+	}
+
+	void rpcUnregHandler(RPCOwnedDoneHandler *handler) {
+		_rpcDoneHandlers.remove(handler);
+	}
+
+	void rpcRegHandler(RPCOwnedFailHandler *handler) {
+		_rpcFailHandlers.emplace(handler);
+	}
+
+	void rpcUnregHandler(RPCOwnedFailHandler *handler) {
+		_rpcFailHandlers.remove(handler);
+	}
+
+	friend class RPCOwnedDoneHandler;
+	friend class RPCOwnedFailHandler;
+
 };
 
 using MTPStateChangedHandler = void (*)(int32 dcId, int32 state);
@@ -839,7 +824,7 @@ using MTPSessionResetHandler = void (*)(int32 dcId);
 template <typename Base, typename FunctionType>
 class RPCHandlerImplementation : public Base {
 protected:
-	using Lambda = base::lambda_once<FunctionType>;
+	using Lambda = FnMut<FunctionType>;
 	using Parent = RPCHandlerImplementation<Base, FunctionType>;
 
 public:
@@ -994,7 +979,7 @@ using rpcDone_returnType_t = typename rpcDone_returnType<Function>::type;
 
 template <
 	typename Lambda,
-	typename Function = base::lambda_call_type_t<Lambda>>
+	typename Function = crl::deduced_call_type<Lambda>>
 RPCDoneHandlerPtr rpcDone(Lambda lambda) {
 	using R = rpcDone_returnType_t<Function>;
 	if constexpr (rpcDone_canCallBare_v<Lambda>) {
@@ -1073,7 +1058,7 @@ constexpr bool rpcFail_canCallReq_v = rpl::details::is_callable_plain_v<
 
 template <
 	typename Lambda,
-	typename Function = base::lambda_call_type_t<Lambda>>
+	typename Function = crl::deduced_call_type<Lambda>>
 RPCFailHandlerPtr rpcFail(Lambda lambda) {
 	if constexpr (rpcFail_canCallNo_v<Lambda>) {
 		return RPCFailHandlerPtr(new RPCFailHandlerImplementationNo(std::move(lambda)));

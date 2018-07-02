@@ -44,6 +44,7 @@ public:
 	}
 	void addItem(not_null<HistoryItem*> item) {
 		Expects(canAddItem(item));
+
 		_items.push_back(item);
 		ranges::sort(_items, [](not_null<HistoryItem*> a, auto b) {
 			return (a->id > b->id);
@@ -78,7 +79,7 @@ public:
 		int availableWidth,
 		int outerWidth,
 		bool selected) override;
-	void addActionRipple(QPoint point, base::lambda<void()> updateCallback) override;
+	void addActionRipple(QPoint point, Fn<void()> updateCallback) override;
 	void stopLastActionRipple() override;
 
 	int nameIconWidth() const override {
@@ -191,7 +192,7 @@ BoxController::Row::Type BoxController::Row::ComputeType(
 	return Type::In;
 }
 
-void BoxController::Row::addActionRipple(QPoint point, base::lambda<void()> updateCallback) {
+void BoxController::Row::addActionRipple(QPoint point, Fn<void()> updateCallback) {
 	if (!_actionRipple) {
 		auto mask = Ui::RippleAnimation::ellipseMask(QSize(st::callReDial.rippleAreaSize, st::callReDial.rippleAreaSize));
 		_actionRipple = std::make_unique<Ui::RippleAnimation>(st::callReDial.ripple, std::move(mask), std::move(updateCallback));

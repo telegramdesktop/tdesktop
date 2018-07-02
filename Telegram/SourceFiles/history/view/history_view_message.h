@@ -84,6 +84,9 @@ public:
 	TimeId displayedEditDate() const override;
 	int infoWidth() const override;
 
+protected:
+	void refreshDataIdHook() override;
+
 private:
 	not_null<HistoryMessage*> message() const;
 

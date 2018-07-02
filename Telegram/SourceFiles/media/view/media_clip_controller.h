@@ -36,9 +36,6 @@ public:
 	void updatePlayback(const Player::TrackState &state);
 	void setInFullScreen(bool inFullScreen);
 
-	void grabStart() override;
-	void grabFinish() override;
-
 	~Controller();
 
 signals:
@@ -69,6 +66,7 @@ private:
 	void refreshTimeTexts();
 
 	bool _showPause = false;
+	bool _childrenHidden = false;
 	QString _timeAlready, _timeLeft;
 	TimeMs _seekPositionMs = -1;
 	TimeMs _lastDurationMs = 0;

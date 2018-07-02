@@ -149,12 +149,12 @@ bool HistoryMessageReply::updateData(
 	if (replyToMsg) {
 		replyToText.setText(
 			st::messageTextStyle,
-			TextUtilities::Clean(replyToMsg->inReplyText()),
+			replyToMsg->inReplyText(),
 			Ui::DialogTextOptions());
 
 		updateName();
 
-		replyToLnk = goToMessageClickHandler(replyToMsg, holder->fullId());
+		setReplyToLinkFrom(holder);
 		if (!replyToMsg->Has<HistoryMessageForwarded>()) {
 			if (auto bot = replyToMsg->viaBot()) {
 				replyToVia = std::make_unique<HistoryMessageVia>();
@@ -168,6 +168,13 @@ bool HistoryMessageReply::updateData(
 		Auth().data().requestItemResize(holder);
 	}
 	return (replyToMsg || !replyToMsgId);
+}
+
+void HistoryMessageReply::setReplyToLinkFrom(
+		not_null<HistoryMessage*> holder) {
+	replyToLnk = replyToMsg
+		? goToMessageClickHandler(replyToMsg, holder->fullId())
+		: nullptr;
 }
 
 void HistoryMessageReply::clearData(not_null<HistoryMessage*> holder) {
@@ -271,14 +278,14 @@ void HistoryMessageReply::paint(
 					p.drawText(x + st::msgReplyBarSkip + previewSkip + replyToName.maxWidth() + st::msgServiceFont->spacew, y + st::msgReplyPadding.top() + st::msgServiceFont->ascent, replyToVia->text);
 				}
 
-				auto replyToAsMsg = replyToMsg->toHistoryMessage();
-				if (!(flags & PaintFlag::InBubble)) {
-				} else if (!replyToAsMsg) {
-					p.setPen(outbg ? (selected ? st::msgOutDateFgSelected : st::msgOutDateFg) : (selected ? st::msgInDateFgSelected : st::msgInDateFg));
-				} else {
+				if (flags & PaintFlag::InBubble) {
 					p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
+					p.setTextPalette(outbg ? (selected ? st::outReplyTextPaletteSelected : st::outReplyTextPalette) : (selected ? st::inReplyTextPaletteSelected : st::inReplyTextPalette));
+				} else {
+					p.setTextPalette(st::imgReplyTextPalette);
 				}
 				replyToText.drawLeftElided(p, x + st::msgReplyBarSkip + previewSkip, y + st::msgReplyPadding.top() + st::msgServiceNameFont->height, w - st::msgReplyBarSkip - previewSkip, w + 2 * x);
+				p.setTextPalette(selected ? (outbg ? st::outTextPaletteSelected : st::inTextPaletteSelected) : (outbg ? st::outTextPalette : st::inTextPalette));
 			}
 		} else {
 			p.setFont(st::msgDateFont);

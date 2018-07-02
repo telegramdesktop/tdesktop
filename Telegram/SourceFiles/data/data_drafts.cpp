@@ -33,7 +33,7 @@ Draft::Draft(
 }
 
 Draft::Draft(
-	not_null<const Ui::FlatTextarea*> field,
+	not_null<const Ui::InputField*> field,
 	MsgId msgId,
 	bool previewCancelled,
 	mtpRequestId saveRequestId)
@@ -45,8 +45,16 @@ Draft::Draft(
 
 void applyPeerCloudDraft(PeerId peerId, const MTPDdraftMessage &draft) {
 	auto history = App::history(peerId);
-	auto text = TextWithEntities { qs(draft.vmessage), draft.has_entities() ? TextUtilities::EntitiesFromMTP(draft.ventities.v) : EntitiesInText() };
-	auto textWithTags = TextWithTags { TextUtilities::ApplyEntities(text), ConvertEntitiesToTextTags(text.entities) };
+	auto textWithTags = TextWithTags {
+		qs(draft.vmessage),
+		ConvertEntitiesToTextTags(
+			draft.has_entities()
+			? TextUtilities::EntitiesFromMTP(draft.ventities.v)
+			: EntitiesInText())
+	};
+	if (history->skipCloudDraft(textWithTags.text, draft.vdate.v)) {
+		return;
+	}
 	auto replyTo = draft.has_reply_to_msg_id() ? draft.vreply_to_msg_id.v : MsgId(0);
 	auto cloudDraft = std::make_unique<Draft>(textWithTags, replyTo, MessageCursor(QFIXED_MAX, QFIXED_MAX, QFIXED_MAX), draft.is_no_webpage());
 	cloudDraft->date = draft.vdate.v;
@@ -60,8 +68,11 @@ void applyPeerCloudDraft(PeerId peerId, const MTPDdraftMessage &draft) {
 	}
 }
 
-void clearPeerCloudDraft(PeerId peerId) {
-	auto history = App::history(peerId);
+void clearPeerCloudDraft(PeerId peerId, TimeId date) {
+	const auto history = App::history(peerId);
+	if (history->skipCloudDraft(QString(), date)) {
+		return;
+	}
 
 	history->clearCloudDraft();
 	history->clearLocalDraft();

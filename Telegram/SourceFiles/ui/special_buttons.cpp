@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_history.h"
 #include "dialogs/dialogs_layout.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/effects/radial_animation.h"
 #include "ui/empty_userpic.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
@@ -94,7 +95,10 @@ void SuggestPhotoFile(
 }
 
 template <typename Callback>
-void ShowChoosePhotoBox(PeerId peerForCrop, Callback &&callback) {
+void ShowChoosePhotoBox(
+		QPointer<QWidget> parent,
+		PeerId peerForCrop,
+		Callback &&callback) {
 	auto imgExtensions = cImgExtensions();
 	auto filter = qsl("Image files (*")
 		+ imgExtensions.join(qsl(" *"))
@@ -107,6 +111,7 @@ void ShowChoosePhotoBox(PeerId peerForCrop, Callback &&callback) {
 		SuggestPhotoFile(result, peerForCrop, std::move(callback));
 	};
 	FileDialog::GetOpenPath(
+		parent,
 		lang(lng_choose_image),
 		filter,
 		std::move(handleChosenPhoto));
@@ -163,8 +168,7 @@ void HistoryDownButton::setUnreadCount(int unreadCount) {
 
 EmojiButton::EmojiButton(QWidget *parent, const style::IconButton &st)
 : RippleButton(parent, st.ripple)
-, _st(st)
-, _a_loading(animation(this, &EmojiButton::step_loading)) {
+, _st(st) {
 	resize(_st.width, _st.height);
 	setCursor(style::cur_pointer);
 }
@@ -177,8 +181,10 @@ void EmojiButton::paintEvent(QPaintEvent *e) {
 	p.fillRect(e->rect(), st::historyComposeAreaBg);
 	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms, _rippleOverride ? &(*_rippleOverride)->c : nullptr);
 
-	auto loading = a_loading.current(ms, _loading ? 1 : 0);
-	p.setOpacity(1 - loading);
+	const auto loadingState = _loading
+		? _loading->computeState()
+		: Ui::InfiniteRadialAnimation::State{ 0., 0, FullArcLength };
+	p.setOpacity(1. - loadingState.shown);
 
 	auto over = isOver();
 	auto icon = _iconOverride ? _iconOverride : &(over ? _st.iconOver : _st.icon);
@@ -193,25 +199,23 @@ void EmojiButton::paintEvent(QPaintEvent *e) {
 
 	PainterHighQualityEnabler hq(p);
 	QRect inner(QPoint((width() - st::historyEmojiCircle.width()) / 2, st::historyEmojiCircleTop), st::historyEmojiCircle);
-	if (loading > 0) {
-		int32 full = FullArcLength;
-		int32 start = qRound(full * float64(ms % st::historyEmojiCirclePeriod) / st::historyEmojiCirclePeriod), part = qRound(loading * full / st::historyEmojiCirclePart);
-		p.drawArc(inner, start, full - part);
+	if (loadingState.arcLength < FullArcLength) {
+		p.drawArc(inner, loadingState.arcFrom, loadingState.arcLength);
 	} else {
 		p.drawEllipse(inner);
 	}
 }
 
 void EmojiButton::setLoading(bool loading) {
-	if (_loading != loading) {
-		_loading = loading;
-		auto from = loading ? 0. : 1., to = loading ? 1. : 0.;
-		a_loading.start([this] { update(); }, from, to, st::historyEmojiCircleDuration);
-		if (loading) {
-			_a_loading.start();
-		} else {
-			_a_loading.stop();
-		}
+	if (loading && !_loading) {
+		_loading = std::make_unique<Ui::InfiniteRadialAnimation>(
+			animation(this, &EmojiButton::step_loading),
+			st::defaultInfiniteRadialAnimation);
+	}
+	if (loading) {
+		_loading->start();
+	} else if (_loading) {
+		_loading->stop();
 	}
 }
 
@@ -302,7 +306,7 @@ void SendButton::paintEvent(QPaintEvent *e) {
 		auto rippleColor = anim::color(st::historyAttachEmoji.ripple.color, st::historyRecordVoiceRippleBgActive, recordActive);
 		paintRipple(p, (width() - st::historyAttachEmoji.rippleAreaSize) / 2, st::historyAttachEmoji.rippleAreaPosition.y(), ms, &rippleColor);
 
-		auto fastIcon = [recordActive, over, this] {
+		auto fastIcon = [&] {
 			if (recordActive == 1.) {
 				return &st::historyRecordVoiceActive;
 			} else if (over) {
@@ -416,6 +420,22 @@ UserpicButton::UserpicButton(
 	setupPeerViewers();
 }
 
+UserpicButton::UserpicButton(
+	QWidget *parent,
+	not_null<PeerData*> peer,
+	Role role,
+	const style::UserpicButton &st)
+: RippleButton(parent, st.changeButton.ripple)
+, _st(st)
+, _peer(peer)
+, _peerForCrop(_peer->id)
+, _role(role) {
+	Expects(_role != Role::OpenProfile);
+
+	_waiting = false;
+	prepare();
+}
+
 void UserpicButton::prepare() {
 	resize(_st.size);
 	_notShownYet = _waiting;
@@ -451,14 +471,14 @@ void UserpicButton::setClickHandlerByRole() {
 }
 
 void UserpicButton::changePhotoLazy() {
-	auto callback = base::lambda_guarded(
+	auto callback = crl::guard(
 		this,
 		[this](QImage &&image) { setImage(std::move(image)); });
-	ShowChoosePhotoBox(_peerForCrop, std::move(callback));
+	ShowChoosePhotoBox(this, _peerForCrop, std::move(callback));
 }
 
 void UserpicButton::uploadNewPeerPhoto() {
-	auto callback = base::lambda_guarded(
+	auto callback = crl::guard(
 		this,
 		[this](QImage &&image) {
 			Messenger::Instance().uploadProfilePhoto(
@@ -466,7 +486,7 @@ void UserpicButton::uploadNewPeerPhoto() {
 				_peer->id
 			);
 		});
-	ShowChoosePhotoBox(_peerForCrop, std::move(callback));
+	ShowChoosePhotoBox(this, _peerForCrop, std::move(callback));
 }
 
 void UserpicButton::openPeerPhoto() {
@@ -918,8 +938,8 @@ QPoint FeedUserpicButton::countInnerPosition() const {
 SilentToggle::SilentToggle(QWidget *parent, not_null<ChannelData*> channel)
 : IconButton(parent, st::historySilentToggle)
 , _channel(channel)
-, _checked(_channel->notifySilentPosts()) {
-	Expects(!_channel->notifySettingsUnknown());
+, _checked(Auth().data().notifySilentPosts(_channel)) {
+	Expects(!Auth().data().notifySilentPostsUnknown(_channel));
 
 	if (_checked) {
 		refreshIconOverrides();
@@ -962,13 +982,10 @@ void SilentToggle::mouseReleaseEvent(QMouseEvent *e) {
 	setChecked(!_checked);
 	IconButton::mouseReleaseEvent(e);
 	Ui::Tooltip::Show(0, this);
-	const auto silentState = _checked
-		? Data::NotifySettings::SilentPostsChange::Silent
-		: Data::NotifySettings::SilentPostsChange::Notify;
-	App::main()->updateNotifySettings(
+	Auth().data().updateNotifySettings(
 		_channel,
-		Data::NotifySettings::MuteChange::Ignore,
-		silentState);
+		base::none,
+		_checked);
 }
 
 QString SilentToggle::tooltipText() const {

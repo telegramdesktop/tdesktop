@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <rpl/producer.h>
 #include "ui/rp_widget.h"
+#include "ui/wrap/padding_wrap.h"
+#include "boxes/abstract_box.h"
 #include "styles/style_widgets.h"
 
 namespace Ui {
@@ -46,9 +47,12 @@ private:
 
 };
 
-class LabelSimple : public TWidget {
+class LabelSimple : public RpWidget {
 public:
-	LabelSimple(QWidget *parent, const style::LabelSimple &st = st::defaultLabelSimple, const QString &value = QString());
+	LabelSimple(
+		QWidget *parent,
+		const style::LabelSimple &st = st::defaultLabelSimple,
+		const QString &value = QString());
 
 	// This method also resizes the label.
 	void setText(const QString &newText, bool *outTextChanged = nullptr);
@@ -108,8 +112,8 @@ public:
 
 	void setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk);
 
-	using ClickHandlerHook = base::lambda<bool(const ClickHandlerPtr&, Qt::MouseButton)>;
-	void setClickHandlerHook(ClickHandlerHook &&hook);
+	using ClickHandlerFilter = Fn<bool(const ClickHandlerPtr&, Qt::MouseButton)>;
+	void setClickHandlerFilter(ClickHandlerFilter &&filter);
 
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
@@ -203,13 +207,28 @@ private:
 	QString _contextCopyText;
 	ExpandLinksMode _contextExpandLinksMode = ExpandLinksAll;
 
-	ClickHandlerHook _clickHandlerHook;
+	ClickHandlerFilter _clickHandlerFilter;
 
 	// text selection and context menu by touch support (at least Windows Surface tablets)
 	bool _touchSelect = false;
 	bool _touchInProgress = false;
 	QPoint _touchStart, _touchPrevPos, _touchPos;
 	QTimer _touchSelectTimer;
+
+};
+
+class DividerLabel : public PaddingWrap<Ui::FlatLabel> {
+public:
+	using PaddingWrap::PaddingWrap;
+
+	int naturalWidth() const override;
+
+protected:
+	void resizeEvent(QResizeEvent *e) override;
+
+private:
+	object_ptr<BoxContentDivider> _background
+		= object_ptr<BoxContentDivider>(this);
 
 };
 

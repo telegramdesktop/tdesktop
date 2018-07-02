@@ -22,8 +22,8 @@ class Sender {
 		RequestBuilder &operator=(RequestBuilder &&other) = delete;
 
 	protected:
-		using FailPlainHandler = base::lambda_once<void(const RPCError &error)>;
-		using FailRequestIdHandler = base::lambda_once<void(const RPCError &error, mtpRequestId requestId)>;
+		using FailPlainHandler = FnMut<void(const RPCError &error)>;
+		using FailRequestIdHandler = FnMut<void(const RPCError &error, mtpRequestId requestId)>;
 		enum class FailSkipPolicy {
 			Simple,
 			HandleFlood,
@@ -31,7 +31,7 @@ class Sender {
 		};
 		template <typename Response>
 		struct DonePlainPolicy {
-			using Callback = base::lambda_once<void(const Response &result)>;
+			using Callback = FnMut<void(const Response &result)>;
 			static void handle(Callback &&handler, mtpRequestId requestId, Response &&result) {
 				handler(result);
 			}
@@ -39,7 +39,7 @@ class Sender {
 		};
 		template <typename Response>
 		struct DoneRequestIdPolicy {
-			using Callback = base::lambda_once<void(const Response &result, mtpRequestId requestId)>;
+			using Callback = FnMut<void(const Response &result, mtpRequestId requestId)>;
 			static void handle(Callback &&handler, mtpRequestId requestId, Response &&result) {
 				handler(result, requestId);
 			}
@@ -72,14 +72,14 @@ class Sender {
 		};
 
 		struct FailPlainPolicy {
-			using Callback = base::lambda_once<void(const RPCError &error)>;
+			using Callback = FnMut<void(const RPCError &error)>;
 			static void handle(Callback &&handler, mtpRequestId requestId, const RPCError &error) {
 				handler(error);
 			}
 
 		};
 		struct FailRequestIdPolicy {
-			using Callback = base::lambda_once<void(const RPCError &error, mtpRequestId requestId)>;
+			using Callback = FnMut<void(const RPCError &error, mtpRequestId requestId)>;
 			static void handle(Callback &&handler, mtpRequestId requestId, const RPCError &error) {
 				handler(error, requestId);
 			}
@@ -209,19 +209,19 @@ public:
 			setCanWait(ms);
 			return *this;
 		}
-		[[nodiscard]] SpecificRequestBuilder &done(base::lambda_once<void(const typename Request::ResponseType &result)> callback) {
+		[[nodiscard]] SpecificRequestBuilder &done(FnMut<void(const typename Request::ResponseType &result)> callback) {
 			setDoneHandler(std::make_shared<DoneHandler<typename Request::ResponseType, DonePlainPolicy>>(sender(), std::move(callback)));
 			return *this;
 		}
-		[[nodiscard]] SpecificRequestBuilder &done(base::lambda_once<void(const typename Request::ResponseType &result, mtpRequestId requestId)> callback) {
+		[[nodiscard]] SpecificRequestBuilder &done(FnMut<void(const typename Request::ResponseType &result, mtpRequestId requestId)> callback) {
 			setDoneHandler(std::make_shared<DoneHandler<typename Request::ResponseType, DoneRequestIdPolicy>>(sender(), std::move(callback)));
 			return *this;
 		}
-		[[nodiscard]] SpecificRequestBuilder &fail(base::lambda_once<void(const RPCError &error)> callback) noexcept {
+		[[nodiscard]] SpecificRequestBuilder &fail(FnMut<void(const RPCError &error)> callback) noexcept {
 			setFailHandler(std::move(callback));
 			return *this;
 		}
-		[[nodiscard]] SpecificRequestBuilder &fail(base::lambda_once<void(const RPCError &error, mtpRequestId requestId)> callback) noexcept {
+		[[nodiscard]] SpecificRequestBuilder &fail(FnMut<void(const RPCError &error, mtpRequestId requestId)> callback) noexcept {
 			setFailHandler(std::move(callback));
 			return *this;
 		}

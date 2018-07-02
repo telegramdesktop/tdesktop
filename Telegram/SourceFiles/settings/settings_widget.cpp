@@ -9,13 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_inner_widget.h"
 #include "settings/settings_fixed_bar.h"
-#include "styles/style_settings.h"
-#include "styles/style_window.h"
-#include "styles/style_boxes.h"
+#include "platform/platform_specific.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/buttons.h"
+#include "ui/toast/toast.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
+#include "data/data_session.h"
 #include "storage/localstorage.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
@@ -24,22 +24,34 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtp_instance.h"
 #include "mtproto/dc_options.h"
 #include "core/file_utilities.h"
+#include "core/update_checker.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"
 #include "media/media_audio_track.h"
+#include "mainwindow.h"
+#include "window/window_controller.h"
+#include "styles/style_settings.h"
+#include "styles/style_window.h"
+#include "styles/style_boxes.h"
 
 namespace Settings {
 namespace {
 
 QString SecretText;
-QMap<QString, base::lambda<void()>> Codes;
+QMap<QString, Fn<void()>> Codes;
 
 void fillCodes() {
 	Codes.insert(qsl("debugmode"), [] {
-		QString text = cDebug() ? qsl("Do you want to disable DEBUG logs?") : qsl("Do you want to enable DEBUG logs?\n\nAll network events will be logged.");
+		QString text = Logs::DebugEnabled()
+			? qsl("Do you want to disable DEBUG logs?")
+			: qsl("Do you want to enable DEBUG logs?\n\n"
+				"All network events will be logged.");
 		Ui::show(Box<ConfirmBox>(text, [] {
 			Messenger::Instance().onSwitchDebugMode();
 		}));
+	});
+	Codes.insert(qsl("viewlogs"), [] {
+		File::ShowInFolder(cWorkingDir() + "log.txt");
 	});
 	Codes.insert(qsl("testmode"), [] {
 		auto text = cTestMode() ? qsl("Do you want to disable TEST mode?") : qsl("Do you want to enable TEST mode?\n\nYou will be switched to test cloud.");
@@ -47,11 +59,18 @@ void fillCodes() {
 			Messenger::Instance().onSwitchTestMode();
 		}));
 	});
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	Codes.insert(qsl("testupdate"), [] {
+		Core::UpdateChecker().test();
+	});
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
 	Codes.insert(qsl("loadlang"), [] {
 		Lang::CurrentCloudManager().switchToLanguage(qsl("custom"));
 	});
 	Codes.insert(qsl("debugfiles"), [] {
-		if (!cDebug()) return;
+		if (!Logs::DebugEnabled()) {
+			return;
+		}
 		if (DebugLogging::FileLoader()) {
 			Global::RefDebugLoggingFlags() &= ~DebugLogging::FileLoaderFlag;
 		} else {
@@ -82,7 +101,7 @@ void fillCodes() {
 		}
 	});
 	Codes.insert(qsl("loadcolors"), [] {
-		FileDialog::GetOpenPath("Open palette file", "Palette (*.tdesktop-palette)", [](const FileDialog::OpenResult &result) {
+		FileDialog::GetOpenPath(Messenger::Instance().getFileDialogParent(), "Open palette file", "Palette (*.tdesktop-palette)", [](const FileDialog::OpenResult &result) {
 			if (!result.paths.isEmpty()) {
 				Window::Theme::Apply(result.paths.front());
 			}
@@ -100,13 +119,20 @@ void fillCodes() {
 		}));
 	});
 	Codes.insert(qsl("endpoints"), [] {
-		FileDialog::GetOpenPath("Open DC endpoints", "DC Endpoints (*.tdesktop-endpoints)", [](const FileDialog::OpenResult &result) {
+		FileDialog::GetOpenPath(Messenger::Instance().getFileDialogParent(), "Open DC endpoints", "DC Endpoints (*.tdesktop-endpoints)", [](const FileDialog::OpenResult &result) {
 			if (!result.paths.isEmpty()) {
 				if (!Messenger::Instance().mtp()->dcOptions()->loadFromFile(result.paths.front())) {
 					Ui::show(Box<InformBox>("Could not load endpoints :( Errors in 'log.txt'."));
 				}
 			}
 		});
+	});
+	Codes.insert(qsl("registertg"), [] {
+		Platform::RegisterCustomScheme();
+		Ui::Toast::Show("Forced custom scheme register.");
+	});
+	Codes.insert(qsl("export"), [] {
+		Auth().data().startExport();
 	});
 
 	auto audioFilters = qsl("Audio files (*.wav *.mp3);;") + FileDialog::AllFilesFilter();
@@ -124,7 +150,7 @@ void fillCodes() {
 				return;
 			}
 
-			FileDialog::GetOpenPath("Open audio file", audioFilters, [key](const FileDialog::OpenResult &result) {
+			FileDialog::GetOpenPath(Messenger::Instance().getFileDialogParent(), "Open audio file", audioFilters, [key](const FileDialog::OpenResult &result) {
 				if (AuthSession::Exists() && !result.paths.isEmpty()) {
 					auto track = Media::Audio::Current().createTrack();
 					track->fillFromFile(result.paths.front());
@@ -194,6 +220,12 @@ void Widget::refreshLang() {
 	setTitle(lang(lng_menu_settings));
 
 	update();
+}
+
+void Widget::scrollToUpdateRow() {
+	if (const auto top = _inner->getUpdateTop(); top >= 0) {
+		scrollToY(top);
+	}
 }
 
 void Widget::keyPressEvent(QKeyEvent *e) {

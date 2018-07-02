@@ -149,6 +149,7 @@ mediaviewSaveMsgStyle: TextStyle(defaultTextStyle) {
 }
 mediaviewTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: mediaviewTextLinkFg;
+	monoFg: mediaviewCaptionFg;
 }
 
 mediaviewCaptionStyle: defaultTextStyle;

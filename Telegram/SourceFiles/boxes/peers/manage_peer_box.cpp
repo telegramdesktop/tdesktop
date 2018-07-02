@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "history/admin_log/history_admin_log_section.h"
 #include "window/window_controller.h"
+#include "mainwindow.h"
 #include "profile/profile_channel_controllers.h"
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_icon.h"
@@ -23,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-base::lambda<QString()> ManagePeerTitle(
+Fn<QString()> ManagePeerTitle(
 		not_null<ChannelData*> channel) {
 	return langFactory(channel->isMegagroup()
 		? lng_manage_group_title
@@ -88,9 +89,9 @@ bool HasRecentActions(not_null<ChannelData*> channel) {
 }
 
 void ShowRecentActions(
-		not_null<Window::Controller*> controller,
+		not_null<Window::Navigation*> navigation,
 		not_null<ChannelData*> channel) {
-	controller->showSection(AdminLog::SectionMemento(channel));
+	navigation->showSection(AdminLog::SectionMemento(channel));
 }
 
 bool HasEditInfoBox(not_null<ChannelData*> channel) {
@@ -104,7 +105,7 @@ bool HasEditInfoBox(not_null<ChannelData*> channel) {
 }
 
 void FillManageBox(
-		not_null<Window::Controller*> controller,
+		not_null<Window::Navigation*> navigation,
 		not_null<ChannelData*> channel,
 		not_null<Ui::VerticalLayout*> content) {
 	using Profile::ParticipantsBoxController;
@@ -123,7 +124,7 @@ void FillManageBox(
 		AddButton(
 			content,
 			Lang::Viewer(lng_manage_peer_recent_actions),
-			[=] { ShowRecentActions(controller, channel); },
+			[=] { ShowRecentActions(navigation, channel); },
 			st::infoIconRecentActions);
 	}
 	if (channel->canViewMembers()) {
@@ -134,7 +135,7 @@ void FillManageBox(
 				| ToPositiveNumberString(),
 			[=] {
 				ParticipantsBoxController::Start(
-					controller,
+					navigation,
 					channel,
 					ParticipantsBoxController::Role::Members);
 			},
@@ -148,7 +149,7 @@ void FillManageBox(
 				| ToPositiveNumberString(),
 			[=] {
 				ParticipantsBoxController::Start(
-					controller,
+					navigation,
 					channel,
 					ParticipantsBoxController::Role::Admins);
 			},
@@ -163,7 +164,7 @@ void FillManageBox(
 					| ToPositiveNumberString(),
 				[=] {
 					ParticipantsBoxController::Start(
-						controller,
+						navigation,
 						channel,
 						ParticipantsBoxController::Role::Restricted);
 				},
@@ -176,7 +177,7 @@ void FillManageBox(
 				| ToPositiveNumberString(),
 			[=] {
 				ParticipantsBoxController::Start(
-					controller,
+					navigation,
 					channel,
 					ParticipantsBoxController::Role::Kicked);
 			},
@@ -218,7 +219,7 @@ void ManagePeerBox::prepare() {
 
 void ManagePeerBox::setupContent() {
 	auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
-	FillManageBox(controller(), _channel, content);
+	FillManageBox(App::wnd()->controller(), _channel, content);
 	widthValue(
 	) | rpl::start_with_next([=](int width) {
 		content->resizeToWidth(width);

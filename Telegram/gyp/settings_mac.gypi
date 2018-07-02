@@ -60,6 +60,7 @@
         'COMBINE_HIDPI_IMAGES': 'YES',
         'COPY_PHASE_STRIP': 'NO',
         'CLANG_CXX_LANGUAGE_STANDARD': 'c++1z',
+        'GCC_INLINES_ARE_PRIVATE_EXTERN': 'YES',
       },
       'configurations': {
         'Debug': {
@@ -84,6 +85,9 @@
           '-w', # Suppress 'libstdc++ is deprecated' warning.
         ],
       },
+      'defines': [
+        'RANGES_CXX_THREAD_LOCAL=0',
+      ],
     }, {
       'xcode_settings': {
         'CLANG_CXX_LIBRARY': 'libc++',

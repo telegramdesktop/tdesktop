@@ -12,7 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_media_prepare.h"
 #include "mainwidget.h"
 #include "history/history_media_types.h"
+#include "chat_helpers/message_field.h"
 #include "core/file_utilities.h"
+#include "core/mime_type.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -124,7 +126,7 @@ public:
 	bool isPointAfter(QPoint position) const;
 	void moveInAlbum(QPoint to);
 	QPoint center() const;
-	void suggestMove(float64 delta, base::lambda<void()> callback);
+	void suggestMove(float64 delta, Fn<void()> callback);
 	void finishAnimations();
 
 private:
@@ -219,6 +221,7 @@ AlbumThumb::AlbumThumb(
 	if (_nameWidth > availableFileWidth) {
 		_name = st::semiboldFont->elided(
 			_name,
+			availableFileWidth,
 			Qt::ElideMiddle);
 		_nameWidth = st::semiboldFont->width(_name);
 	}
@@ -518,7 +521,7 @@ QPoint AlbumThumb::center() const {
 	return realGeometry.center();
 }
 
-void AlbumThumb::suggestMove(float64 delta, base::lambda<void()> callback) {
+void AlbumThumb::suggestMove(float64 delta, Fn<void()> callback) {
 	if (_suggestedMove != delta) {
 		_suggestedMoveAnimation.start(
 			std::move(callback),
@@ -799,7 +802,7 @@ void SingleFilePreview::preparePreview(const Storage::PreparedFile &file) {
 	} else {
 		auto fileinfo = QFileInfo(filepath);
 		auto filename = fileinfo.fileName();
-		_fileIsImage = fileIsImage(filename, mimeTypeForFile(fileinfo).name());
+		_fileIsImage = fileIsImage(filename, Core::MimeTypeForFile(fileinfo).name());
 
 		auto songTitle = QString();
 		auto songPerformer = QString();
@@ -887,7 +890,7 @@ rpl::producer<int> SingleFilePreview::desiredHeightValue() const {
 	return rpl::single(st::boxPhotoPadding.top() + h + st::msgShadow);
 }
 
-base::lambda<QString()> FieldPlaceholder(const Storage::PreparedList &list) {
+Fn<QString()> FieldPlaceholder(const Storage::PreparedList &list) {
 	return langFactory(list.files.size() > 1
 		? lng_photos_comment
 		: lng_photo_caption);
@@ -1318,11 +1321,20 @@ void SendFilesBox::AlbumPreview::mouseReleaseEvent(QMouseEvent *e) {
 
 SendFilesBox::SendFilesBox(
 	QWidget*,
+	not_null<Window::Controller*> controller,
 	Storage::PreparedList &&list,
+	const TextWithTags &caption,
 	CompressConfirm compressed)
-: _list(std::move(list))
+: _controller(controller)
+, _list(std::move(list))
 , _compressConfirmInitial(compressed)
-, _compressConfirm(compressed) {
+, _compressConfirm(compressed)
+, _caption(
+	this,
+	st::confirmCaptionArea,
+	Ui::InputField::Mode::MultiLine,
+	FieldPlaceholder(_list),
+	caption) {
 }
 
 void SendFilesBox::initPreview(rpl::producer<int> desiredPreviewHeight) {
@@ -1350,7 +1362,7 @@ void SendFilesBox::prepareSingleFilePreview() {
 	Expects(_list.files.size() == 1);
 
 	const auto &file = _list.files[0];
-	const auto media = SingleMediaPreview::Create(this, controller(), file);
+	const auto media = SingleMediaPreview::Create(this, _controller, file);
 	if (media) {
 		if (!media->canSendAsPhoto()) {
 			_compressConfirm = CompressConfirm::None;
@@ -1413,17 +1425,16 @@ void SendFilesBox::setupShadows(
 }
 
 void SendFilesBox::prepare() {
-	Expects(controller() != nullptr);
-
 	_send = addButton(langFactory(lng_send_button), [this] { send(); });
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	setupCaption();
 	initSendWay();
 	preparePreview();
-	subscribe(boxClosing, [this] {
+	boxClosing() | rpl::start_with_next([=] {
 		if (!_confirmed && _cancelledCallback) {
 			_cancelledCallback();
 		}
-	});
+	}, lifetime());
 }
 
 void SendFilesBox::initSendWay() {
@@ -1488,7 +1499,7 @@ void SendFilesBox::preparePreview() {
 void SendFilesBox::setupControls() {
 	setupTitleText();
 	setupSendWayControls();
-	setupCaption();
+	_caption->setPlaceholder(FieldPlaceholder(_list));
 }
 
 void SendFilesBox::setupSendWayControls() {
@@ -1545,34 +1556,34 @@ void SendFilesBox::applyAlbumOrder() {
 }
 
 void SendFilesBox::setupCaption() {
-	if (_caption) {
-		_caption->setPlaceholder(FieldPlaceholder(_list));
-		return;
-	}
-
-	_caption.create(this, st::confirmCaptionArea, FieldPlaceholder(_list));
 	_caption->setMaxLength(MaxPhotoCaption);
-	_caption->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
-	connect(_caption, &Ui::InputArea::resized, this, [this] {
+	_caption->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
+	connect(_caption, &Ui::InputField::resized, [=] {
 		captionResized();
 	});
-	connect(_caption, &Ui::InputArea::submitted, this, [this](
-		bool ctrlShiftEnter) {
+	connect(_caption, &Ui::InputField::submitted, [=](
+			Qt::KeyboardModifiers modifiers) {
+		const auto ctrlShiftEnter = modifiers.testFlag(Qt::ShiftModifier)
+			&& (modifiers.testFlag(Qt::ControlModifier)
+				|| modifiers.testFlag(Qt::MetaModifier));
 		send(ctrlShiftEnter);
 	});
-	connect(_caption, &Ui::InputArea::cancelled, this, [this] {
-		closeBox();
-	});
-	_caption->setMimeDataHook([this](
+	connect(_caption, &Ui::InputField::cancelled, [=] { closeBox(); });
+	_caption->setMimeDataHook([=](
 			not_null<const QMimeData*> data,
-			Ui::InputArea::MimeAction action) {
-		if (action == Ui::InputArea::MimeAction::Check) {
+			Ui::InputField::MimeAction action) {
+		if (action == Ui::InputField::MimeAction::Check) {
 			return canAddFiles(data);
-		} else if (action == Ui::InputArea::MimeAction::Insert) {
+		} else if (action == Ui::InputField::MimeAction::Insert) {
 			return addFiles(data);
 		}
 		Unexpected("action in MimeData hook.");
 	});
+	_caption->setInstantReplaces(Ui::InstantReplaces::Default());
+	_caption->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	_caption->setMarkdownReplacesEnabled(rpl::single(true));
+	_caption->setEditLinkCallback(
+		DefaultEditLinkCallback(_controller, _caption));
 }
 
 void SendFilesBox::captionResized() {
@@ -1784,10 +1795,8 @@ void SendFilesBox::send(bool ctrlShiftEnter) {
 	_confirmed = true;
 	if (_confirmedCallback) {
 		auto caption = _caption
-			? TextUtilities::PrepareForSending(
-				_caption->getLastText(),
-				TextUtilities::PrepareTextOption::CheckLinks)
-			: QString();
+			? _caption->getTextWithAppliedMarkdown()
+			: TextWithTags();
 		_confirmedCallback(
 			std::move(_list),
 			way,

@@ -123,6 +123,7 @@ public:
 	MsgRange rangeForDifferenceRequest() const;
 	HistoryService *insertJoinedMessage(bool unread);
 	void checkJoinedMessage(bool createUnread = false);
+	void removeJoinedMessage();
 
 	bool isEmpty() const;
 	bool isDisplayedEmpty() const;
@@ -212,6 +213,9 @@ public:
 	bool unreadCountKnown() const;
 	void setUnreadCount(int newUnreadCount);
 	void changeUnreadCount(int delta);
+	void setUnreadMark(bool unread);
+	bool unreadMark() const;
+	int historiesUnreadCount() const; // unreadCount || unreadMark ? 1 : 0.
 	bool mute() const;
 	bool changeMute(bool newMute);
 	void addUnreadBar();
@@ -303,6 +307,9 @@ public:
 	void createLocalDraftFromCloud();
 	void setCloudDraft(std::unique_ptr<Data::Draft> &&draft);
 	Data::Draft *createCloudDraft(Data::Draft *fromDraft);
+	bool skipCloudDraft(const QString &text, TimeId date) const;
+	void setSentDraftText(const QString &text);
+	void clearSentDraftText(const QString &text);
 	void setEditDraft(std::unique_ptr<Data::Draft> &&draft);
 	void clearLocalDraft();
 	void clearCloudDraft();
@@ -318,12 +325,15 @@ public:
 	HistoryItemsList validateForwardDraft();
 	void setForwardDraft(MessageIdsList &&items);
 
+	History *migrateSibling() const;
+	bool useProxyPromotion() const override;
 	void updateChatListExistence() override;
 	bool shouldBeInChatList() const override;
 	bool toImportant() const override {
 		return !mute();
 	}
 	int chatListUnreadCount() const override;
+	bool chatListUnreadMark() const override;
 	bool chatListMutedBadge() const override;
 	HistoryItem *chatsListItem() const override;
 	const QString &chatsListName() const override;
@@ -487,6 +497,7 @@ private:
 	base::optional<int> _unreadMentionsCount;
 	base::flat_set<MsgId> _unreadMentions;
 	base::optional<HistoryItem*> _lastMessage;
+	bool _unreadMark = false;
 
 	// A pointer to the block that is currently being built.
 	// We hold this pointer so we can destroy it while building
@@ -499,6 +510,8 @@ private:
 
 	std::unique_ptr<Data::Draft> _localDraft, _cloudDraft;
 	std::unique_ptr<Data::Draft> _editDraft;
+	base::optional<QString> _lastSentDraftText;
+	TimeId _lastSentDraftTime = 0;
 	MessageIdsList _forwardDraft;
 
 	using TypingUsers = QMap<UserData*, TimeMs>;

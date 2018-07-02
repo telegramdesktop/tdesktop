@@ -21,6 +21,11 @@ class RoundController;
 } // namespace Player
 } // namespace Media
 
+namespace Passport {
+struct FormRequest;
+class FormController;
+} // namespace Passport
+
 namespace Window {
 
 class LayerWidget;
@@ -200,6 +205,9 @@ public:
 		Dialogs::Key chat,
 		QDate requestedDate);
 
+	void showPassportForm(const Passport::FormRequest &request);
+	void clearPassportForm();
+
 	base::Variable<bool> &dialogsListFocused() {
 		return _dialogsListFocused;
 	}
@@ -245,6 +253,8 @@ private:
 		int bodyWidth) const;
 
 	not_null<MainWindow*> _window;
+
+	std::unique_ptr<Passport::FormController> _passportForm;
 
 	GifPauseReasons _gifPauseReasons = 0;
 	base::Observable<void> _gifPauseLevelChanged;

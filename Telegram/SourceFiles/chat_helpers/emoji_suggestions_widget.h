@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 
 class InnerDropdown;
-class FlatTextarea;
 
 namespace Emoji {
 
@@ -69,6 +68,10 @@ public:
 	SuggestionsController(QWidget *parent, not_null<QTextEdit*> field);
 
 	void raise();
+	void setReplaceCallback(Fn<void(
+		int from,
+		int till,
+		const QString &replacement)> callback);
 
 protected:
 	bool eventFilter(QObject *object, QEvent *event) override;
@@ -88,6 +91,10 @@ private:
 	bool _ignoreCursorPositionChange = false;
 	bool _textChangeAfterKeyPress = false;
 	QPointer<QTextEdit> _field;
+	Fn<void(
+		int from,
+		int till,
+		const QString &replacement)> _replaceCallback;
 	object_ptr<InnerDropdown> _container;
 	QPointer<SuggestionsWidget> _suggestions;
 

@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_widget.h"
 #include "core/crash_reports.h"
 #include "storage/localstorage.h"
-#include "passcodewidget.h"
 #include "mainwindow.h"
 #include "history/history_location_manager.h"
 #include "platform/mac/mac_utilities.h"
@@ -398,10 +397,17 @@ QString CurrentExecutablePath(int argc, char *argv[]) {
 	return NS2QString([[NSBundle mainBundle] bundlePath]);
 }
 
+void RegisterCustomScheme() {
+#ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
+	OSStatus result = LSSetDefaultHandlerForURLScheme(CFSTR("tg"), (CFStringRef)[[NSBundle mainBundle] bundleIdentifier]);
+	DEBUG_LOG(("App Info: set default handler for 'tg' scheme result: %1").arg(result));
+#endif // !TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
+}
+
 } // namespace Platform
 
 void psNewVersion() {
-	objc_registerCustomScheme();
+	Platform::RegisterCustomScheme();
 }
 
 void psAutoStart(bool start, bool silent) {

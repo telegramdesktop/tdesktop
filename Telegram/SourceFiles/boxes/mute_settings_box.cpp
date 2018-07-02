@@ -8,7 +8,8 @@ Copyright (C) 2017, Nicholas Guriev <guriev-ns@ya.ru>
 #include "boxes/mute_settings_box.h"
 
 #include "lang/lang_keys.h"
-#include "mainwidget.h"
+#include "auth_session.h"
+#include "data/data_session.h"
 #include "styles/style_boxes.h"
 #include "ui/special_buttons.h"
 #include "ui/widgets/checkbox.h"
@@ -19,6 +20,10 @@ namespace {
 constexpr auto kForeverHours = 24 * 365;
 
 } // namespace
+
+MuteSettingsBox::MuteSettingsBox(QWidget *parent, not_null<PeerData*> peer)
+: _peer(peer) {
+}
 
 void MuteSettingsBox::prepare() {
 	setTitle(langFactory(lng_disable_notifications_from_tray));
@@ -31,7 +36,6 @@ void MuteSettingsBox::prepare() {
 
 	const auto icon = object_ptr<Ui::UserpicButton>(
 		this,
-		controller(),
 		_peer,
 		Ui::UserpicButton::Role::Custom,
 		st::mutePhotoButton);
@@ -67,17 +71,25 @@ void MuteSettingsBox::prepare() {
 		- st::boxOptionListSkip
 		+ st::defaultCheckbox.margin.bottom();
 
-	addButton(langFactory(lng_box_ok), [this, group] {
-		auto muteForSeconds = group->value() * 3600;
-		App::main()->updateNotifySettings(
+	_save = [=] {
+		const auto muteForSeconds = group->value() * 3600;
+		Auth().data().updateNotifySettings(
 			_peer,
-			Data::NotifySettings::MuteChange::Mute,
-			Data::NotifySettings::SilentPostsChange::Ignore,
 			muteForSeconds);
 		closeBox();
-	});
+	};
+	addButton(langFactory(lng_box_ok), _save);
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	setDimensions(st::boxWidth, y);
 }
+
+void MuteSettingsBox::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
+		if (_save) {
+			_save();
+		}
+	}
+}
+
 // vi: ts=4 tw=80

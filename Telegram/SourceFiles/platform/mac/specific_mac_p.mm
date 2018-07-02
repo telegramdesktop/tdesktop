@@ -394,13 +394,6 @@ void objc_finish() {
 	}
 }
 
-void objc_registerCustomScheme() {
-#ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
-	OSStatus result = LSSetDefaultHandlerForURLScheme(CFSTR("tg"), (CFStringRef)[[NSBundle mainBundle] bundleIdentifier]);
-	DEBUG_LOG(("App Info: set default handler for 'tg' scheme result: %1").arg(result));
-#endif // !TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
-}
-
 void objc_activateProgram(WId winId) {
 	[NSApp activateIgnoringOtherApps:YES];
 	if (winId) {

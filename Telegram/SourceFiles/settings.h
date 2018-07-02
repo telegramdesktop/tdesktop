@@ -7,18 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-extern bool gDebug;
-inline bool cDebug() {
-#if defined _DEBUG
-	return true;
-#else
-	return gDebug;
-#endif
-}
-inline void cSetDebug(bool debug) {
-	gDebug = debug;
-}
-
 #define DeclareReadSetting(Type, Name) extern Type g##Name; \
 inline const Type &c##Name() { \
 	return g##Name; \
@@ -100,7 +88,6 @@ DeclareSetting(bool, WriteProtected);
 DeclareSetting(int32, LastUpdateCheck);
 DeclareSetting(bool, NoStartUpdate);
 DeclareSetting(bool, StartToSettings);
-DeclareSetting(bool, ReplaceEmojis);
 DeclareReadSetting(bool, ManyInstance);
 
 DeclareSetting(QByteArray, LocalSalt);
@@ -194,7 +181,6 @@ DeclareReadSetting(DBIPlatform, Platform);
 DeclareReadSetting(QString, PlatformString);
 DeclareReadSetting(bool, IsElCapitan);
 DeclareReadSetting(bool, IsSnowLeopard);
-DeclareReadSetting(QUrl, UpdateURL);
 
 DeclareSetting(int, OtherOnline);
 

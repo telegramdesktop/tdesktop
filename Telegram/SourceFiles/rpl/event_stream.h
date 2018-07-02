@@ -34,7 +34,11 @@ public:
 	void fire_copy(const Value &value) const {
 		return fire_forward(value);
 	}
+#if defined _MSC_VER && _MSC_VER >= 1914
+	producer<Value> events() const {
+#else // _MSC_VER >= 1914
 	auto events() const {
+#endif // _MSC_VER >= 1914
 		return make_producer<Value>([weak = make_weak()](
 				const auto &consumer) {
 			if (auto strong = weak.lock()) {

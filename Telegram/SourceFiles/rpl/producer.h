@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/lambda.h"
+#include <functional>
 #include <rpl/consumer.h>
 #include <rpl/lifetime.h>
 #include <rpl/details/superset_type.h>
@@ -47,7 +47,7 @@ private:
 
 };
 
-// Type-erased copyable mutable lambda using base::lambda.
+// Type-erased copyable mutable function using std::function.
 template <typename Value, typename Error>
 class type_erased_generator final {
 public:
@@ -100,7 +100,7 @@ public:
 	}
 
 private:
-	base::lambda<lifetime(const consumer_type<type_erased_handlers<Value, Error>> &)> _implementation;
+	std::function<lifetime(const consumer_type<type_erased_handlers<Value, Error>> &)> _implementation;
 
 };
 

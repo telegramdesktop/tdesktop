@@ -126,7 +126,8 @@ enum {
 
 struct TextWithTags {
 	struct Tag {
-		int offset, length;
+		int offset = 0;
+		int length = 0;
 		QString id;
 	};
 	using Tags = QVector<Tag>;
@@ -163,10 +164,14 @@ const QRegularExpression &RegExpHashtag();
 const QRegularExpression &RegExpHashtagExclude();
 const QRegularExpression &RegExpMention();
 const QRegularExpression &RegExpBotCommand();
-const QRegularExpression &RegExpMarkdownBold();
-const QRegularExpression &RegExpMarkdownItalic();
-const QRegularExpression &RegExpMarkdownMonoInline();
-const QRegularExpression &RegExpMarkdownMonoBlock();
+QString MarkdownBoldGoodBefore();
+QString MarkdownBoldBadAfter();
+QString MarkdownItalicGoodBefore();
+QString MarkdownItalicBadAfter();
+QString MarkdownCodeGoodBefore();
+QString MarkdownCodeBadAfter();
+QString MarkdownPreGoodBefore();
+QString MarkdownPreBadAfter();
 
 inline void Append(TextWithEntities &to, TextWithEntities &&append) {
 	auto entitiesShiftRight = to.text.size();
@@ -218,7 +223,6 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &entities, Conver
 // Changes text if (flags & TextParseMarkdown).
 TextWithEntities ParseEntities(const QString &text, int32 flags);
 void ParseEntities(TextWithEntities &result, int32 flags, bool rich = false);
-QString ApplyEntities(const TextWithEntities &text);
 
 void PrepareForSending(TextWithEntities &result, int32 flags);
 void Trim(TextWithEntities &result);
@@ -236,6 +240,10 @@ inline QString PrepareForSending(const QString &text, PrepareTextOption option =
 
 // Replace bad symbols with space and remove '\r'.
 void ApplyServerCleaning(TextWithEntities &result);
+
+QByteArray SerializeTags(const TextWithTags::Tags &tags);
+TextWithTags::Tags DeserializeTags(QByteArray data, int textLength);
+QString TagsMimeType();
 
 } // namespace TextUtilities
 

@@ -289,11 +289,11 @@ void Channels::visibleTopBottomUpdated(
 	setChildVisibleTopBottom(_list, visibleTop, visibleBottom);
 }
 
-void Channels::peerListSetTitle(base::lambda<QString()> title) {
+void Channels::peerListSetTitle(Fn<QString()> title) {
 }
 
 void Channels::peerListSetAdditionalTitle(
-		base::lambda<QString()> title) {
+		Fn<QString()> title) {
 }
 
 bool Channels::peerListIsRowSelected(not_null<PeerData*> peer) {

@@ -15,25 +15,16 @@ class NotifySettings {
 public:
 	NotifySettings();
 
-	enum class MuteChange {
-		Ignore,
-		Mute,
-		Unmute,
-	};
-	enum class SilentPostsChange {
-		Ignore,
-		Silent,
-		Notify,
-	};
+	static constexpr auto kDefaultMutePeriod = 86400 * 365;
 
 	bool change(const MTPPeerNotifySettings &settings);
 	bool change(
-		MuteChange mute,
-		SilentPostsChange silent,
-		int muteForSeconds);
-	TimeMs muteFinishesIn() const;
+		base::optional<int> muteForSeconds,
+		base::optional<bool> silentPosts);
+
 	bool settingsUnknown() const;
-	bool silentPosts() const;
+	base::optional<TimeId> muteUntil() const;
+	base::optional<bool> silentPosts() const;
 	MTPinputPeerNotifySettings serialize() const;
 
 	~NotifySettings();

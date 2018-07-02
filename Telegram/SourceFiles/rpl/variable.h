@@ -10,6 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/producer.h>
 #include <rpl/event_stream.h>
 
+namespace mapbox {
+namespace util {
+
+template <typename ...Types>
+class variant;
+
+} // namespace util
+} // namespace mapbox
+
 namespace rpl {
 namespace details {
 
@@ -17,18 +26,38 @@ template <typename A, typename B>
 struct supports_equality_compare {
 	template <typename U, typename V>
 	static auto test(const U *u, const V *v)
-		-> decltype(*u == *v, details::true_t());
-	static details::false_t test(...);
+		-> decltype(*u == *v, true_t());
+	static false_t test(...);
 	static constexpr bool value
-		= (sizeof(test(
-		(std::decay_t<A>*)nullptr,
-			(std::decay_t<B>*)nullptr
-		)) == sizeof(details::true_t));
+		= (sizeof(test((const A*)nullptr, (const B*)nullptr))
+			== sizeof(true_t));
 };
+
+// Fix for MSVC expression SFINAE.
+// It still doesn't work! :(
+//
+//template <typename Type1, typename ...Types1>
+//struct supports_equality_compare<
+//		mapbox::util::variant<Type1, Types1...>,
+//		mapbox::util::variant<Type1, Types1...>> {
+//	static constexpr bool value
+//		= (supports_equality_compare<Type1, Type1>::value
+//			&& supports_equality_compare<
+//			mapbox::util::variant<Types1...>,
+//			mapbox::util::variant<Types1...>>::value);
+//
+//};
+//template <typename Type>
+//struct supports_equality_compare<
+//		mapbox::util::variant<Type>,
+//		mapbox::util::variant<Type>> {
+//	static constexpr bool value = supports_equality_compare<Type, Type>::value;
+//
+//};
 
 template <typename A, typename B>
 constexpr bool supports_equality_compare_v
-	= supports_equality_compare<A, B>::value;
+	= supports_equality_compare<std::decay_t<A>, std::decay_t<B>>::value;
 
 } // namespace details
 
@@ -36,6 +65,11 @@ template <typename Type>
 class variable final {
 public:
 	variable() : _data{} {
+	}
+	variable(variable &&other) : _data(std::move(other._data)) {
+	}
+	variable &operator=(variable &&other) {
+		return (*this = std::move(other._data));
 	}
 
 	template <

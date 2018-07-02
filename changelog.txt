@@ -1,3 +1,121 @@
+1.3.9 (28.06.18)
+
+- Mark chats in the chat list as Read or Unread.
+- Improved censorship circumvention.
+
+1.3.8 (24.06.18)
+
+- Bug fixes and other minor improvements.
+
+1.3.7 (11.06.18)
+
+- Push fixes to stable version.
+
+1.3.6 alpha (11.06.18)
+
+- Bug fixes and other minor improvements.
+
+1.3.5 alpha (08.06.18)
+
+- Bug fixes and other minor improvements.
+
+1.3.4 alpha (07.06.18)
+
+- Bug fixes and other minor improvements.
+
+1.3.3 alpha (07.06.18)
+
+- Bug fixes and other minor improvements.
+
+1.3.2 alpha (07.06.18)
+
+- Bug fixes and other minor improvements.
+
+1.3.1 alpha (04.06.18)
+
+- Bug fixes and other minor improvements.
+
+1.3.0 (01.06.18)
+
+- Improved censorship circumvention.
+- Improved stability when working through proxy servers.
+- Save several proxy servers to quickly switch between them in Settings.
+- Use proxy for calls.
+- Emoji and text replacement now happens immediately after typing (instead of after sending) and can be rolled back using Backspace or CTRL/CMD + Z. Replacement no longer happens when pasting text.
+
+Added formatting shortcuts. Select text and use:
+- CTRL/CMD + B/I for bold and italic
+- CTRL/CMD + K to create or edit a custom link
+- CTRL/CMD + SHIFT + M for monospace font
+- CTRL/CMD + SHIFT + N to clear formatting
+
+1.2.25 alpha (31.05.18)
+
+- Apply markdown formatting (```, `, **, __) only when sending the message.
+- Display connection quality bars in calls.
+- Telegram Desktop can update itself through MTProto.
+- Bug fixes and other minor improvements.
+
+1.2.24 alpha (26.05.18)
+
+- Add links with custom text from context menu or by Ctrl/Cmd + K keyboard shortcut.
+
+1.2.23 alpha (25.05.18)
+
+- Apply formatting from input field context menu.
+- Apply formatting by hotkeys.
+- Bug fixes and other minor improvements.
+
+1.2.22 alpha (24.05.18)
+
+- Use markdown in media captions (**bold**, __italic__, `tag` and ```code```).
+- Use emoji replacement in media captions, group and channel titles and descriptions (:like: etc.)
+- Markdown replacement now happens immediately after typing (instead of after sending) and can be rolled back using Backspace or Ctrl/Cmd + Z. Replacement no longer happens when pasting text.
+
+1.2.21 alpha (18.05.18)
+
+- Support domain names in mtproto proxy.
+- Bug fixes and other minor improvements.
+
+1.2.20 alpha (13.05.18)
+
+- Emoji and text replacements are done while you type the message.
+- Revert emoji and text replacements by pressing backspace.
+- Disable emoji replacements or suggestions in Settings.
+- Some critical bug fixes.
+
+1.2.19 alpha (08.05.18)
+
+- Enable proxy for calls in Settings.
+- Bug fixes and other minor improvements.
+
+1.2.18 alpha (05.05.18)
+
+- Improve working through proxy servers.
+- Bug fixes and other minor improvements.
+
+1.2.17 (08.04.18)
+
+- Bug fixes and other minor improvements.
+
+1.2.16 (07.04.18)
+
+- Bug fixes and other minor improvements.
+
+1.2.15 (26.03.18)
+
+- Bug fixes and other minor improvements.
+
+1.2.14 (21.03.18)
+
+- Discover new stickers. Type one emoji to see suggestions from popular sticker sets. Suggestions from your installed sticker sets will come first.
+- Search for Stickers. Click on the new search icon to access your sticker sets or find new ones.
+- Quick Reply. Double click near a message for a quick reply.
+
+1.2.13 alpha (21.03.18)
+
+- Bug fixes and other minor improvements.
+
 1.2.12 alpha (12.03.18)
 
 - Bug fixes and other minor improvements.

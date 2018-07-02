@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "info/feed/info_feed_channels_controllers.h"
+#include "info/profile/info_profile_values.h"
 #include "data/data_session.h"
 #include "data/data_feed.h"
 #include "dialogs/dialogs_key.h"
@@ -49,6 +50,7 @@ private:
 	void addPinToggle();
 	void addInfo();
 	void addSearch();
+	void addToggleUnreadMark();
 	void addUserActions(not_null<UserData*> user);
 	void addBlockUser(not_null<UserData*> user);
 	void addChatActions(not_null<ChatData*> chat);
@@ -228,6 +230,48 @@ void Filler::addSearch() {
 	});
 }
 
+void Filler::addToggleUnreadMark() {
+	const auto peer = _peer;
+	const auto isUnread = [](not_null<PeerData*> peer) {
+		if (const auto history = App::historyLoaded(peer)) {
+			return (history->chatListUnreadCount() > 0)
+				|| (history->chatListUnreadMark());
+		}
+		return false;
+	};
+	const auto label = [=](not_null<PeerData*> peer) {
+		return lang(isUnread(peer)
+			? lng_context_mark_read
+			: lng_context_mark_unread);
+	};
+	auto action = _addAction(label(peer), [=] {
+		const auto markAsRead = isUnread(peer);
+		const auto handle = [&](not_null<History*> history) {
+			if (markAsRead) {
+				Auth().api().readServerHistory(history);
+			} else {
+				Auth().api().changeDialogUnreadMark(history, !markAsRead);
+			}
+		};
+		const auto history = App::history(peer);
+		handle(history);
+		if (markAsRead) {
+			if (const auto migrated = history->migrateSibling()) {
+				handle(migrated);
+			}
+		}
+	});
+
+	auto lifetime = Notify::PeerUpdateViewer(
+		_peer,
+		Notify::PeerUpdate::Flag::UnreadViewChanged
+	) | rpl::start_with_next([=] {
+		action->setText(label(peer));
+	});
+
+	Ui::AttachAsChild(action, std::move(lifetime));
+}
+
 void Filler::addBlockUser(not_null<UserData*> user) {
 	auto blockText = [](not_null<UserData*> user) {
 		return lang(user->isBlocked()
@@ -386,7 +430,11 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 
 void Filler::fill() {
 	if (_source == PeerMenuSource::ChatsList) {
-		addPinToggle();
+		if (const auto history = App::historyLoaded(_peer)) {
+			if (!history->useProxyPromotion()) {
+				addPinToggle();
+			}
+		}
 	}
 	if (showInfo()) {
 		addInfo();
@@ -396,6 +444,7 @@ void Filler::fill() {
 	}
 	if (_source == PeerMenuSource::ChatsList) {
 		addSearch();
+		addToggleUnreadMark();
 	}
 
 	if (const auto user = _peer->asUser()) {
@@ -560,7 +609,7 @@ void PeerMenuShareContactBox(not_null<UserData*> user) {
 
 QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 		MessageIdsList &&items,
-		base::lambda_once<void()> &&successCallback) {
+		FnMut<void()> &&successCallback) {
 	const auto weak = std::make_shared<QPointer<PeerListBox>>();
 	auto callback = [
 		ids = std::move(items),
@@ -630,32 +679,24 @@ void PeerMenuAddChannelMembers(not_null<ChannelData*> channel) {
 void PeerMenuAddMuteAction(
 		not_null<PeerData*> peer,
 		const PeerMenuCallback &addAction) {
-	if (peer->notifySettingsUnknown()) {
-		Auth().api().requestNotifySetting(peer);
-	}
-	auto muteText = [](bool isMuted) {
+	Auth().data().requestNotifySettings(peer);
+	const auto muteText = [](bool isMuted) {
 		return lang(isMuted
 			? lng_enable_notifications_from_tray
 			: lng_disable_notifications_from_tray);
 	};
-	auto muteAction = addAction(muteText(peer->isMuted()), [=] {
-		if (!peer->isMuted()) {
+	const auto muteAction = addAction(QString("-"), [=] {
+		if (!Auth().data().notifyIsMuted(peer)) {
 			Ui::show(Box<MuteSettingsBox>(peer));
 		} else {
-			App::main()->updateNotifySettings(
-				peer,
-				Data::NotifySettings::MuteChange::Unmute);
+			Auth().data().updateNotifySettings(peer, 0);
 		}
 	});
 
-	auto lifetime = Notify::PeerUpdateViewer(
-		peer,
-		Notify::PeerUpdate::Flag::NotificationsEnabled
-	) | rpl::map([=] {
-		return peer->isMuted();
-	}) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](bool muted) {
-		muteAction->setText(muteText(muted));
+	auto lifetime = Info::Profile::NotificationsEnabledValue(
+		peer
+	) | rpl::start_with_next([=](bool enabled) {
+		muteAction->setText(muteText(!enabled));
 	});
 
 	Ui::AttachAsChild(muteAction, std::move(lifetime));
@@ -687,7 +728,7 @@ void PeerMenuAddMuteAction(
 //		callback);
 //}
 
-base::lambda<void()> ClearHistoryHandler(not_null<PeerData*> peer) {
+Fn<void()> ClearHistoryHandler(not_null<PeerData*> peer) {
 	return [peer] {
 		const auto weak = std::make_shared<QPointer<ConfirmBox>>();
 		const auto text = peer->isSelf()
@@ -711,7 +752,7 @@ base::lambda<void()> ClearHistoryHandler(not_null<PeerData*> peer) {
 	};
 }
 
-base::lambda<void()> DeleteAndLeaveHandler(not_null<PeerData*> peer) {
+Fn<void()> DeleteAndLeaveHandler(not_null<PeerData*> peer) {
 	return [peer] {
 		const auto warningText = peer->isSelf()
 			? lang(lng_sure_delete_saved_messages)

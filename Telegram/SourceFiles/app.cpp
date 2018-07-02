@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
 #include "lang/lang_keys.h"
+#include "boxes/confirm_box.h"
 #include "data/data_abstract_structure.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
@@ -38,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "core/crash_reports.h"
+#include "core/update_checker.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "window/themes/window_theme.h"
@@ -49,11 +51,7 @@ namespace {
 
 	UserData *self = nullptr;
 
-	using PeersData = QHash<PeerId, PeerData*>;
-	PeersData peersData;
-
-	using MutedPeers = QMap<not_null<PeerData*>, bool>;
-	MutedPeers mutedPeers;
+	std::unordered_map<PeerId, std::unique_ptr<PeerData>> peersData;
 
 	using LocationsData = QHash<LocationCoords, LocationData*>;
 	LocationsData locationsData;
@@ -140,53 +138,6 @@ namespace App {
 			return window->mainWidget();
 		}
 		return nullptr;
-	}
-
-	bool passcoded() {
-		if (auto window = wnd()) {
-			return window->passcodeWidget();
-		}
-		return false;
-	}
-
-namespace {
-	bool loggedOut() {
-		if (Global::LocalPasscode()) {
-			Global::SetLocalPasscode(false);
-			Global::RefLocalPasscodeChanged().notify();
-		}
-		Media::Player::mixer()->stopAndClear();
-		if (auto w = wnd()) {
-			w->tempDirDelete(Local::ClearManagerAll);
-			w->setupIntro();
-		}
-		histories().clear();
-		Messenger::Instance().authSessionDestroy();
-		Local::reset();
-		Window::Theme::Background()->reset();
-
-		cSetOtherOnline(0);
-		clearStorageImages();
-		if (auto w = wnd()) {
-			w->updateConnectingStatus();
-		}
-		return true;
-	}
-} // namespace
-
-	void logOut() {
-		if (auto mtproto = Messenger::Instance().mtp()) {
-			mtproto->logout(rpcDone([] {
-				return loggedOut();
-			}), rpcFail([] {
-				return loggedOut();
-			}));
-		} else {
-			// We log out because we've forgotten passcode.
-			// So we just start mtproto from scratch.
-			Messenger::Instance().startMtp();
-			loggedOut();
-		}
 	}
 
 	namespace {
@@ -720,7 +671,7 @@ namespace {
 					auto h = App::historyLoaded(chat->id);
 					bool found = !h || !h->lastKeyboardFrom;
 					auto botStatus = -1;
-					for (auto i = chat->participants.begin(), e = chat->participants.end(); i != e;) {
+					for (auto i = chat->participants.begin(); i != chat->participants.end();) {
 						auto [user, version] = *i;
 						if (version < pversion) {
 							i = chat->participants.erase(i);
@@ -796,7 +747,7 @@ namespace {
 		} else if (chat->version <= d.vversion.v && chat->count > 0) {
 			chat->version = d.vversion.v;
 			auto canEdit = chat->canEdit();
-			UserData *user = App::userLoaded(d.vuser_id.v);
+			const auto user = App::userLoaded(d.vuser_id.v);
 			if (user) {
 				if (chat->participants.empty()) {
 					if (chat->count > 0) {
@@ -1123,42 +1074,54 @@ namespace {
 	}
 
 	PeerData *peer(const PeerId &id, PeerData::LoadedStatus restriction) {
-		if (!id) return nullptr;
+		if (!id) {
+			return nullptr;
+		}
 
-		auto i = peersData.constFind(id);
+		auto i = peersData.find(id);
 		if (i == peersData.cend()) {
-			PeerData *newData = nullptr;
-			if (peerIsUser(id)) {
-				newData = new UserData(id);
-			} else if (peerIsChat(id)) {
-				newData = new ChatData(id);
-			} else if (peerIsChannel(id)) {
-				newData = new ChannelData(id);
-			}
-			Assert(newData != nullptr);
+			auto newData = [&]() -> std::unique_ptr<PeerData> {
+				if (peerIsUser(id)) {
+					return std::make_unique<UserData>(id);
+				} else if (peerIsChat(id)) {
+					return std::make_unique<ChatData>(id);
+				} else if (peerIsChannel(id)) {
+					return std::make_unique<ChannelData>(id);
+				}
+				Unexpected("Peer id type.");
+			}();
 
 			newData->input = MTPinputPeer(MTP_inputPeerEmpty());
-			i = peersData.insert(id, newData);
+			i = peersData.emplace(id, std::move(newData)).first;
 		}
 		switch (restriction) {
 		case PeerData::MinimalLoaded: {
-			if (i.value()->loadedStatus == PeerData::NotLoaded) {
+			if (i->second->loadedStatus == PeerData::NotLoaded) {
 				return nullptr;
 			}
 		} break;
 		case PeerData::FullLoaded: {
-			if (i.value()->loadedStatus != PeerData::FullLoaded) {
+			if (i->second->loadedStatus != PeerData::FullLoaded) {
 				return nullptr;
 			}
 		} break;
 		}
-		return i.value();
+		return i->second.get();
 	}
 
-	void enumerateUsers(base::lambda<void(UserData*)> action) {
-		for_const (auto peer, peersData) {
-			if (auto user = peer->asUser()) {
+	void enumerateUsers(Fn<void(not_null<UserData*>)> action) {
+		for (const auto &[peerId, peer] : peersData) {
+			if (const auto user = peer->asUser()) {
 				action(user);
+			}
+		}
+	}
+
+	void enumerateChatsChannels(
+			Fn<void(not_null<PeerData*>)> action) {
+		for (const auto &[peerId, peer] : peersData) {
+			if (!peer->isUser()) {
+				action(peer.get());
 			}
 		}
 	}
@@ -1168,10 +1131,10 @@ namespace {
 	}
 
 	PeerData *peerByName(const QString &username) {
-		QString uname(username.trimmed());
-		for_const (PeerData *peer, peersData) {
+		const auto uname = username.trimmed();
+		for (const auto &[peerId, peer] : peersData) {
 			if (!peer->userName().compare(uname, Qt::CaseInsensitive)) {
-				return peer;
+				return peer.get();
 			}
 		}
 		return nullptr;
@@ -1286,23 +1249,15 @@ namespace {
 	void historyClearMsgs() {
 		::dependentItems.clear();
 
-		QVector<HistoryItem*> toDelete;
-		for_const (auto item, msgsData) {
-			if (!item->mainView()) {
-				toDelete.push_back(item);
-			}
-		}
-		for_const (auto &chMsgsData, channelMsgsData) {
-			for_const (auto item, chMsgsData) {
-				if (!item->mainView()) {
-					toDelete.push_back(item);
-				}
-			}
-		}
-		msgsData.clear();
-		channelMsgsData.clear();
-		for_const (auto item, toDelete) {
+		const auto oldData = base::take(msgsData);
+		const auto oldChannelData = base::take(channelMsgsData);
+		for (const auto item : oldData) {
 			delete item;
+		}
+		for (const auto &data : oldChannelData) {
+			for (const auto item : data) {
+				delete item;
+			}
 		}
 
 		clearMousedItems();
@@ -1311,15 +1266,11 @@ namespace {
 	void historyClearItems() {
 		randomData.clear();
 		sentData.clear();
-		mutedPeers.clear();
 		cSetSavedPeers(SavedPeers());
 		cSetSavedPeersByTime(SavedPeersByTime());
 		cSetRecentInlineBots(RecentInlineBots());
 
-		for_const (auto peer, ::peersData) {
-			delete peer;
-		}
-		::peersData.clear();
+		peersData.clear();
 
 		if (AuthSession::Exists()) {
 			Auth().api().clearWebPageRequests();
@@ -1628,6 +1579,7 @@ namespace {
 		int64 nowImageCacheSize = imageCacheSize();
 		if (nowImageCacheSize > serviceImageCacheSize + MemoryForImageCache) {
 			App::forgetMedia();
+			Auth().data().forgetMedia();
 			serviceImageCacheSize = imageCacheSize();
 		}
 	}
@@ -1638,7 +1590,13 @@ namespace {
 	}
 
 	void quit() {
-		if (quitting()) return;
+		if (quitting()) {
+			return;
+		} else if (AuthSession::Exists()
+			&& Auth().data().exportInProgress()) {
+			Auth().data().stopExportWithConfirmation([] { App::quit(); });
+			return;
+		}
 		setLaunchState(QuitRequested);
 
 		if (auto window = wnd()) {
@@ -1666,7 +1624,7 @@ namespace {
 
 	void restart() {
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-		bool updateReady = (Sandbox::updatingState() == Application::UpdatingReady);
+		bool updateReady = (Core::UpdateChecker().state() == Core::UpdateChecker::State::Ready);
 #else // !TDESKTOP_DISABLE_AUTOUPDATE
 		bool updateReady = false;
 #endif // else for !TDESKTOP_DISABLE_AUTOUPDATE
@@ -1747,70 +1705,6 @@ namespace {
 
 	QPixmap pixmapFromImageInPlace(QImage &&image) {
 		return QPixmap::fromImage(std::move(image), Qt::ColorOnly);
-	}
-
-	void regMuted(not_null<PeerData*> peer, TimeMs changeIn) {
-		::mutedPeers.insert(peer, true);
-		App::main()->updateMutedIn(changeIn);
-	}
-
-	void unregMuted(not_null<PeerData*> peer) {
-		::mutedPeers.remove(peer);
-	}
-
-	void updateMuted() {
-		auto changeInMin = TimeMs(0);
-		for (auto i = ::mutedPeers.begin(); i != ::mutedPeers.end();) {
-			const auto history = App::historyLoaded(i.key()->id);
-			const auto muteFinishesIn = i.key()->notifyMuteFinishesIn();
-			if (muteFinishesIn > 0) {
-				if (history) {
-					history->changeMute(true);
-				}
-				if (!changeInMin || muteFinishesIn < changeInMin) {
-					changeInMin = muteFinishesIn;
-				}
-				++i;
-			} else {
-				if (history) {
-					history->changeMute(false);
-				}
-				i = ::mutedPeers.erase(i);
-			}
-		}
-		if (changeInMin) App::main()->updateMutedIn(changeInMin);
-	}
-
-	void setProxySettings(QNetworkAccessManager &manager) {
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-		manager.setProxy(getHttpProxySettings());
-#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
-	}
-
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-	QNetworkProxy getHttpProxySettings() {
-		const ProxyData *proxy = nullptr;
-		if (Global::started()) {
-			proxy = (Global::ConnectionType() == dbictHttpProxy) ? (&Global::ConnectionProxy()) : nullptr;
-		} else {
-			proxy = Sandbox::PreLaunchProxy().host.isEmpty() ? nullptr : (&Sandbox::PreLaunchProxy());
-		}
-		if (proxy) {
-			return QNetworkProxy(QNetworkProxy::HttpProxy, proxy->host, proxy->port, proxy->user, proxy->password);
-		}
-		return QNetworkProxy(QNetworkProxy::DefaultProxy);
-	}
-#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
-
-	void setProxySettings(QTcpSocket &socket) {
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-		if (Global::ConnectionType() == dbictTcpProxy) {
-			auto &p = Global::ConnectionProxy();
-			socket.setProxy(QNetworkProxy(QNetworkProxy::Socks5Proxy, p.host, p.port, p.user, p.password));
-		} else {
-			socket.setProxy(QNetworkProxy(QNetworkProxy::NoProxy));
-		}
-#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	}
 
 	void rectWithCorners(Painter &p, QRect rect, const style::color &bg, RoundCorners index, RectParts corners) {

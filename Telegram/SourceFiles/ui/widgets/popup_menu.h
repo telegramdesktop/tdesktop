@@ -8,18 +8,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "styles/style_widgets.h"
+#include "ui/rp_widget.h"
 #include "ui/widgets/menu.h"
 #include "ui/effects/panel_animation.h"
 
 namespace Ui {
 
-class PopupMenu : public TWidget, private base::Subscriber {
+class PopupMenu : public Ui::RpWidget, private base::Subscriber {
 public:
 	PopupMenu(QWidget*, const style::PopupMenu &st = st::defaultPopupMenu);
 	PopupMenu(QWidget*, QMenu *menu, const style::PopupMenu &st = st::defaultPopupMenu);
 
 	QAction *addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
-	QAction *addAction(const QString &text, base::lambda<void()> callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
+	QAction *addAction(const QString &text, Fn<void()> callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
 	QAction *addSeparator();
 	void clearActions();
 
@@ -30,7 +31,7 @@ public:
 	void popup(const QPoint &p);
 	void hideMenu(bool fast = false);
 
-	void setDestroyedCallback(base::lambda<void()> callback) {
+	void setDestroyedCallback(Fn<void()> callback) {
 		_destroyedCallback = std::move(callback);
 	}
 
@@ -124,7 +125,7 @@ private:
 	bool _triggering = false;
 	bool _deleteLater = false;
 
-	base::lambda<void()> _destroyedCallback;
+	Fn<void()> _destroyedCallback;
 
 };
 

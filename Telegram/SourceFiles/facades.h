@@ -25,99 +25,34 @@ class ItemBase;
 namespace App {
 namespace internal {
 
-void CallDelayed(int duration, base::lambda_once<void()> &&lambda);
+void CallDelayed(int duration, FnMut<void()> &&lambda);
 
 } // namespace internal
 
-template <typename Lambda>
+template <typename Guard, typename Lambda>
 inline void CallDelayed(
 		int duration,
-		base::lambda_internal::guard_with_QObject<Lambda> &&guarded) {
+		crl::guarded_wrap<Guard, Lambda> &&guarded) {
 	return internal::CallDelayed(
 		duration,
 		std::move(guarded));
 }
 
-template <typename Lambda>
-inline void CallDelayed(
-		int duration,
-		base::lambda_internal::guard_with_weak<Lambda> &&guarded) {
-	return internal::CallDelayed(
-		duration,
-		std::move(guarded));
+template <typename Guard, typename Lambda>
+inline void CallDelayed(int duration, Guard &&object, Lambda &&lambda) {
+	return internal::CallDelayed(duration, crl::guard(
+		std::forward<Guard>(object),
+		std::forward<Lambda>(lambda)));
 }
 
-template <typename Lambda>
-inline void CallDelayed(
-		int duration,
-		const QObject *object,
-		Lambda &&lambda) {
-	return internal::CallDelayed(
-		duration,
-		base::lambda_guarded(object, std::forward<Lambda>(lambda)));
-}
-
-template <typename Lambda>
-inline void CallDelayed(
-		int duration,
-		const base::has_weak_ptr *object,
-		Lambda &&lambda) {
-	return internal::CallDelayed(
-		duration,
-		base::lambda_guarded(object, std::forward<Lambda>(lambda)));
-}
-
-template <typename Lambda>
-inline auto LambdaDelayed(
-		int duration,
-		const QObject *object,
-		Lambda &&lambda) {
-	auto guarded = base::lambda_guarded(
-		object,
+template <typename Guard, typename Lambda>
+inline auto LambdaDelayed(int duration, Guard &&object, Lambda &&lambda) {
+	auto guarded = crl::guard(
+		std::forward<Guard>(object),
 		std::forward<Lambda>(lambda));
 	return [saved = std::move(guarded), duration] {
 		auto copy = saved;
 		internal::CallDelayed(duration, std::move(copy));
-	};
-}
-
-template <typename Lambda>
-inline auto LambdaDelayed(
-		int duration,
-		const base::has_weak_ptr *object,
-		Lambda &&lambda) {
-	auto guarded = base::lambda_guarded(
-		object,
-		std::forward<Lambda>(lambda));
-	return [saved = std::move(guarded), duration] {
-		auto copy = saved;
-		internal::CallDelayed(duration, std::move(copy));
-	};
-}
-
-template <typename Lambda>
-inline auto LambdaDelayedOnce(
-		int duration,
-		const QObject *object,
-		Lambda &&lambda) {
-	auto guarded = base::lambda_guarded(
-		object,
-		std::forward<Lambda>(lambda));
-	return [saved = std::move(guarded), duration]() mutable {
-		internal::CallDelayed(duration, std::move(saved));
-	};
-}
-
-template <typename Lambda>
-inline auto LambdaDelayedOnce(
-		int duration,
-		const base::has_weak_ptr *object,
-		Lambda &&lambda) {
-	auto guarded = base::lambda_guarded(
-		object,
-		std::forward<Lambda>(lambda));
-	return [saved = std::move(guarded), duration]() mutable {
-		internal::CallDelayed(duration, std::move(saved));
 	};
 }
 
@@ -140,8 +75,6 @@ void joinGroupByHash(const QString &hash);
 void showSettings();
 
 void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button);
-
-void logOutDelayed();
 
 } // namespace App
 
@@ -344,7 +277,10 @@ DeclareVar(int32, CallReceiveTimeoutMs);
 DeclareVar(int32, CallRingTimeoutMs);
 DeclareVar(int32, CallConnectTimeoutMs);
 DeclareVar(int32, CallPacketTimeoutMs);
+DeclareVar(int32, WebFileDcId);
+DeclareVar(QString, TxtDomainString);
 DeclareVar(bool, PhoneCallsEnabled);
+DeclareVar(bool, BlockedMode);
 DeclareRefVar(base::Observable<void>, PhoneCallsEnabledChanged);
 
 typedef QMap<PeerId, MsgId> HiddenPinnedMessagesMap;
@@ -360,6 +296,10 @@ DeclareVar(QString, DownloadPath);
 DeclareVar(QByteArray, DownloadPathBookmark);
 DeclareRefVar(base::Observable<void>, DownloadPathChanged);
 
+DeclareVar(bool, ReplaceEmoji);
+DeclareVar(bool, SuggestEmoji);
+DeclareVar(bool, SuggestStickersByEmoji);
+DeclareRefVar(base::Observable<void>, ReplaceEmojiChanged);
 DeclareVar(bool, SoundNotify);
 DeclareVar(bool, DesktopNotify);
 DeclareVar(bool, RestoreSoundNotifyFromTray);
@@ -370,10 +310,11 @@ DeclareVar(int, NotificationsCount);
 DeclareVar(Notify::ScreenCorner, NotificationsCorner);
 DeclareVar(bool, NotificationsDemoIsShown);
 
-DeclareVar(DBIConnectionType, ConnectionType);
-DeclareVar(DBIConnectionType, LastProxyType);
 DeclareVar(bool, TryIPv6);
-DeclareVar(ProxyData, ConnectionProxy);
+DeclareVar(std::vector<ProxyData>, ProxiesList);
+DeclareVar(ProxyData, SelectedProxy);
+DeclareVar(bool, UseProxy);
+DeclareVar(bool, UseProxyForCalls);
 DeclareRefVar(base::Observable<void>, ConnectionTypeChanged);
 
 DeclareVar(int, AutoLock);
@@ -384,6 +325,8 @@ DeclareRefVar(base::Variable<DBIWorkMode>, WorkMode);
 
 DeclareRefVar(base::Observable<void>, UnreadCounterUpdate);
 DeclareRefVar(base::Observable<void>, PeerChooseCancel);
+
+rpl::producer<bool> ReplaceEmojiValue();
 
 } // namespace Global
 

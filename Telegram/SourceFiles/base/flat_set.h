@@ -12,6 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace base {
 
+using std::begin;
+using std::end;
+
 template <typename Type, typename Compare = std::less<>>
 class flat_set;
 
@@ -294,8 +297,9 @@ public:
 		if (range.first == range.second) {
 			return 0;
 		}
+		const auto result = (range.second - range.first);
 		impl().erase(range.first, range.second);
-		return (range.second - range.first);
+		return result;
 	}
 
 	iterator erase(const_iterator where) {
@@ -303,6 +307,9 @@ public:
 	}
 	iterator erase(const_iterator from, const_iterator till) {
 		return impl().erase(from._impl, till._impl);
+	}
+	int erase(const Type &value) {
+		return removeAll(value);
 	}
 
 	iterator findFirst(const Type &value) {

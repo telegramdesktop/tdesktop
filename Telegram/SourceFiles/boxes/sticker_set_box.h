@@ -52,7 +52,7 @@ public:
 	bool loaded() const;
 	bool notInstalled() const;
 	bool official() const;
-	base::lambda<TextWithEntities()> title() const;
+	Fn<TextWithEntities()> title() const;
 	QString shortName() const;
 
 	void install();

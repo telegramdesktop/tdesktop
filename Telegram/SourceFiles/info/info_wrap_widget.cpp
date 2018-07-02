@@ -7,9 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/info_wrap_widget.h"
 
-#include <rpl/flatten_latest.h>
-#include <rpl/take.h>
-#include <rpl/combine.h>
 #include "info/profile/info_profile_widget.h"
 #include "info/profile/info_profile_values.h"
 #include "info/media/info_media_widget.h"
@@ -29,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "boxes/peer_list_box.h"
 #include "auth_session.h"
+#include "data/data_session.h"
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
@@ -452,10 +450,10 @@ void WrapWidget::addProfileNotificationsButton() {
 				? st::infoLayerTopBarNotifications
 				: st::infoTopBarNotifications)));
 	notifications->addClickHandler([peer] {
-		const auto muteState = peer->isMuted()
-			? Data::NotifySettings::MuteChange::Unmute
-			: Data::NotifySettings::MuteChange::Mute;
-		App::main()->updateNotifySettings(peer, muteState);
+		const auto muteForSeconds = Auth().data().notifyIsMuted(peer)
+			? 0
+			: Data::NotifySettings::kDefaultMutePeriod;
+		Auth().data().updateNotifySettings(peer, muteForSeconds);
 	});
 	Profile::NotificationsEnabledValue(
 		peer
@@ -499,7 +497,7 @@ void WrapWidget::showProfileMenu() {
 
 	const auto addAction = [=](
 			const QString &text,
-			base::lambda<void()> callback) {
+			Fn<void()> callback) {
 		return _topBarMenu->addAction(text, std::move(callback));
 	};
 	if (const auto peer = key().peer()) {
@@ -582,6 +580,7 @@ void WrapWidget::finishShowContent() {
 	_scrollTillBottomChanges.fire(_content->scrollTillBottomChanges());
 	_topShadow->raise();
 	_topShadow->finishAnimating();
+	_contentChanges.fire({});
 
 	// This was done for tabs support.
 	//
@@ -678,6 +677,10 @@ void WrapWidget::setWrap(Wrap wrap) {
 	//	convertProfileFromStackToTab();
 	//}
 	_wrap = wrap;
+}
+
+rpl::producer<> WrapWidget::contentChanged() const {
+	return _contentChanges.events();
 }
 
 bool WrapWidget::hasTopBarShadow() const {

@@ -32,6 +32,7 @@ constexpr int kErrorAlreadyDefined     = 805;
 constexpr int kErrorBadString          = 806;
 constexpr int kErrorIconDuplicate      = 807;
 constexpr int kErrorBadIconModifier    = 808;
+constexpr int kErrorCyclicDependency   = 809;
 
 QString findInputFile(const Options &options) {
 	for (const auto &dir : options.includePaths) {
@@ -148,14 +149,21 @@ Modifier GetModifier(const QString &name) {
 	return modifiers.value(name);
 }
 
-ParsedFile::ParsedFile(const Options &options)
+ParsedFile::ParsedFile(
+	const Options &options,
+	std::vector<QString> includeStack)
 : filePath_(findInputFile(options))
 , file_(filePath_)
-, options_(options) {
+, options_(options)
+, includeStack_(includeStack) {
 }
 
 bool ParsedFile::read() {
-	if (!file_.read()) {
+	if (std::find(begin(includeStack_), end(includeStack_), filePath_)
+		!= end(includeStack_)) {
+		logError(kErrorCyclicDependency) << "include cycle detected.";
+		return false;
+	} else if (!file_.read()) {
 		return false;
 	}
 
@@ -205,7 +213,11 @@ common::LogStream ParsedFile::logErrorTypeMismatch() {
 ParsedFile::ModulePtr ParsedFile::readIncluded() {
 	if (auto usingFile = assertNextToken(BasicType::String)) {
 		if (assertNextToken(BasicType::Semicolon)) {
-			ParsedFile included(includedOptions(tokenValue(usingFile)));
+			auto includeStack = includeStack_;
+			includeStack.push_back(filePath_);
+			ParsedFile included(
+				includedOptions(tokenValue(usingFile)),
+				includeStack);
 			if (included.read()) {
 				return included.getResult();
 			} else {

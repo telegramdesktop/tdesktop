@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "base/weak_ptr.h"
+#include "base/bytes.h"
 #include "mtproto/rpc_sender.h"
 
 namespace MTP {
@@ -20,16 +21,26 @@ namespace internal {
 
 class ConfigLoader : public base::has_weak_ptr {
 public:
-	ConfigLoader(not_null<Instance*> instance, RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail);
+	ConfigLoader(
+		not_null<Instance*> instance,
+		const QString &phone,
+		RPCDoneHandlerPtr onDone,
+		RPCFailHandlerPtr onFail);
 	~ConfigLoader();
 
 	void load();
+	void setPhone(const QString &phone);
 
 private:
 	mtpRequestId sendRequest(ShiftedDcId shiftedDcId);
-	void addSpecialEndpoint(DcId dcId, const std::string &ip, int port);
+	void addSpecialEndpoint(
+		DcId dcId,
+		const std::string &ip,
+		int port,
+		bytes::const_span secret);
 	void sendSpecialRequest();
 	void enumerate();
+	void refreshSpecialLoader();
 	void createSpecialLoader();
 	DcId specialToRealDcId(DcId specialDcId);
 	void specialConfigLoaded(const MTPConfig &result);
@@ -45,6 +56,7 @@ private:
 		DcId dcId;
 		std::string ip;
 		int port;
+		bytes::vector secret;
 	};
 	friend bool operator==(const SpecialEndpoint &a, const SpecialEndpoint &b);
 	std::unique_ptr<SpecialConfigRequest> _specialLoader;
@@ -53,6 +65,7 @@ private:
 	base::Timer _specialEnumTimer;
 	DcId _specialEnumCurrent = 0;
 	mtpRequestId _specialEnumRequest = 0;
+	QString _phone;
 
 	RPCDoneHandlerPtr _doneHandler;
 	RPCFailHandlerPtr _failHandler;

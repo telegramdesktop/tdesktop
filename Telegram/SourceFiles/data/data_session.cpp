@@ -10,12 +10,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "apiwrap.h"
+#include "export/export_controller.h"
+#include "export/view/export_view_panel_controller.h"
+#include "window/notifications_manager.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
 #include "history/history_media.h"
 #include "history/view/history_view_element.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "storage/localstorage.h"
+#include "boxes/abstract_box.h"
 #include "data/data_media_types.h"
 #include "data/data_feed.h"
 #include "data/data_photo.h"
@@ -25,6 +29,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 namespace {
+
+constexpr auto kMaxNotifyCheckDelay = 24 * 3600 * TimeMs(1000);
 
 using ViewElement = HistoryView::Element;
 
@@ -59,9 +65,95 @@ void UpdateImage(ImagePtr &old, ImagePtr now) {
 
 Session::Session(not_null<AuthSession*> session)
 : _session(session)
-, _groups(this) {
+, _groups(this)
+, _unmuteByFinishedTimer([=] { unmuteByFinished(); }) {
 	setupContactViewsViewer();
 	setupChannelLeavingViewer();
+}
+
+void Session::startExport() {
+	if (_exportPanel) {
+		_exportPanel->activatePanel();
+		return;
+	}
+	_export = std::make_unique<Export::ControllerWrap>();
+	_exportPanel = std::make_unique<Export::View::PanelController>(
+		_export.get());
+
+	_exportViewChanges.fire(_exportPanel.get());
+
+	_exportPanel->stopRequests(
+	) | rpl::start_with_next([=] {
+		LOG(("Export Info: Stop requested."));
+		stopExport();
+	}, _export->lifetime());
+}
+
+void Session::suggestStartExport(TimeId availableAt) {
+	_exportAvailableAt = availableAt;
+	suggestStartExport();
+}
+
+void Session::clearExportSuggestion() {
+	_exportAvailableAt = 0;
+	if (_exportSuggestion) {
+		_exportSuggestion->closeBox();
+	}
+}
+
+void Session::suggestStartExport() {
+	if (_exportAvailableAt <= 0) {
+		return;
+	}
+
+	const auto now = unixtime();
+	const auto left = (_exportAvailableAt <= now)
+		? 0
+		: (_exportAvailableAt - now);
+	if (left) {
+		App::CallDelayed(
+			std::min(left + 5, 3600) * TimeMs(1000),
+			_session,
+			[=] { suggestStartExport(); });
+	} else if (_export) {
+		Export::View::ClearSuggestStart();
+	} else {
+		_exportSuggestion = Export::View::SuggestStart();
+	}
+}
+
+rpl::producer<Export::View::PanelController*> Session::currentExportView(
+) const {
+	return _exportViewChanges.events_starting_with(_exportPanel.get());
+}
+
+bool Session::exportInProgress() const {
+	return _export != nullptr;
+}
+
+void Session::stopExportWithConfirmation(FnMut<void()> callback) {
+	if (!_exportPanel) {
+		callback();
+		return;
+	}
+	auto closeAndCall = [=, callback = std::move(callback)]() mutable {
+		auto saved = std::move(callback);
+		LOG(("Export Info: Stop With Confirmation."));
+		stopExport();
+		if (saved) {
+			saved();
+		}
+	};
+	_exportPanel->stopWithConfirmation(std::move(closeAndCall));
+}
+
+void Session::stopExport() {
+	if (_exportPanel) {
+		LOG(("Export Info: Destroying."));
+		_exportPanel = nullptr;
+		_exportViewChanges.fire(nullptr);
+	}
+	_export = nullptr;
 }
 
 void Session::setupContactViewsViewer() {
@@ -83,10 +175,14 @@ void Session::setupChannelLeavingViewer() {
 		return update.peer->asChannel();
 	}) | rpl::filter([](ChannelData *channel) {
 		return (channel != nullptr)
-			&& !(channel->amIn())
-			&& (channel->feed() != nullptr);
+			&& !(channel->amIn());
 	}) | rpl::start_with_next([=](not_null<ChannelData*> channel) {
 		channel->clearFeed();
+		if (const auto history = App::historyLoaded(channel->id)) {
+			history->removeJoinedMessage();
+			history->updateChatListExistence();
+			history->updateChatListSortPosition();
+		}
 	}, _lifetime);
 }
 
@@ -541,6 +637,77 @@ void Session::setIsPinned(const Dialogs::Key &key, bool pinned) {
 	}
 }
 
+NotifySettings &Session::defaultNotifySettings(
+		not_null<const PeerData*> peer) {
+	return peer->isUser()
+		? _defaultUserNotifySettings
+		: _defaultChatNotifySettings;
+}
+
+const NotifySettings &Session::defaultNotifySettings(
+		not_null<const PeerData*> peer) const {
+	return peer->isUser()
+		? _defaultUserNotifySettings
+		: _defaultChatNotifySettings;
+}
+
+void Session::updateNotifySettingsLocal(not_null<PeerData*> peer) {
+	const auto history = App::historyLoaded(peer->id);
+	auto changesIn = TimeMs(0);
+	const auto muted = notifyIsMuted(peer, &changesIn);
+	if (history && history->changeMute(muted)) {
+		// Notification already sent.
+	} else {
+		Notify::peerUpdatedDelayed(
+			peer,
+			Notify::PeerUpdate::Flag::NotificationsEnabled);
+	}
+
+	if (muted) {
+		_mutedPeers.emplace(peer);
+		unmuteByFinishedDelayed(changesIn);
+		if (history) {
+			_session->notifications().clearFromHistory(history);
+		}
+	} else {
+		_mutedPeers.erase(peer);
+	}
+}
+
+void Session::unmuteByFinishedDelayed(TimeMs delay) {
+	accumulate_max(delay, kMaxNotifyCheckDelay);
+	if (!_unmuteByFinishedTimer.isActive()
+		|| _unmuteByFinishedTimer.remainingTime() > delay) {
+		_unmuteByFinishedTimer.callOnce(delay);
+	}
+}
+
+void Session::unmuteByFinished() {
+	auto changesInMin = TimeMs(0);
+	for (auto i = begin(_mutedPeers); i != end(_mutedPeers);) {
+		const auto history = App::historyLoaded((*i)->id);
+		auto changesIn = TimeMs(0);
+		const auto muted = notifyIsMuted(*i, &changesIn);
+		if (muted) {
+			if (history) {
+				history->changeMute(true);
+			}
+			if (!changesInMin || changesInMin > changesIn) {
+				changesInMin = changesIn;
+			}
+			++i;
+		} else {
+			if (history) {
+				history->changeMute(false);
+			}
+			i = _mutedPeers.erase(i);
+		}
+	}
+	if (changesInMin) {
+		unmuteByFinishedDelayed(changesInMin);
+	}
+}
+
 not_null<PhotoData*> Session::photo(PhotoId id) {
 	auto i = _photos.find(id);
 	if (i == _photos.end()) {
@@ -923,7 +1090,7 @@ DocumentData *Session::documentFromWeb(
 		int32(0), // data.vsize.v
 		StorageImageLocation());
 	result->setWebLocation(WebFileLocation(
-		data.vdc_id.v,
+		Global::WebFileDcId(),
 		data.vurl.v,
 		data.vaccess_hash.v));
 	return result;
@@ -1258,7 +1425,7 @@ void Session::gameApplyFields(
 		const QString &description,
 		PhotoData *photo,
 		DocumentData *document) {
-	if (game->accessHash || !accessHash) {
+	if (game->accessHash) {
 		return;
 	}
 	game->accessHash = accessHash;
@@ -1575,6 +1742,145 @@ rpl::producer<FeedId> Session::defaultFeedIdValue() const {
 	return _defaultFeedId.value();
 }
 
+void Session::requestNotifySettings(not_null<PeerData*> peer) {
+	if (peer->notifySettingsUnknown()) {
+		_session->api().requestNotifySettings(
+			MTP_inputNotifyPeer(peer->input));
+	}
+	if (defaultNotifySettings(peer).settingsUnknown()) {
+		_session->api().requestNotifySettings(peer->isUser()
+			? MTP_inputNotifyUsers()
+			: MTP_inputNotifyChats());
+	}
+}
+
+void Session::applyNotifySetting(
+		const MTPNotifyPeer &notifyPeer,
+		const MTPPeerNotifySettings &settings) {
+	switch (notifyPeer.type()) {
+	case mtpc_notifyUsers: {
+		if (_defaultUserNotifySettings.change(settings)) {
+			_defaultUserNotifyUpdates.fire({});
+
+			App::enumerateUsers([&](not_null<UserData*> user) {
+				if (!user->notifySettingsUnknown()
+					&& ((!user->notifyMuteUntil()
+						&& _defaultUserNotifySettings.muteUntil())
+						|| (!user->notifySilentPosts()
+							&& _defaultUserNotifySettings.silentPosts()))) {
+					updateNotifySettingsLocal(user);
+				}
+			});
+		}
+	} break;
+	case mtpc_notifyChats: {
+		if (_defaultChatNotifySettings.change(settings)) {
+			_defaultChatNotifyUpdates.fire({});
+
+			App::enumerateChatsChannels([&](not_null<PeerData*> peer) {
+				if (!peer->notifySettingsUnknown()
+					&& ((!peer->notifyMuteUntil()
+						&& _defaultChatNotifySettings.muteUntil())
+						|| (!peer->notifySilentPosts()
+							&& _defaultChatNotifySettings.silentPosts()))) {
+					updateNotifySettingsLocal(peer);
+				}
+			});
+		}
+	} break;
+	case mtpc_notifyPeer: {
+		const auto &data = notifyPeer.c_notifyPeer();
+		if (const auto peer = App::peerLoaded(peerFromMTP(data.vpeer))) {
+			if (peer->notifyChange(settings)) {
+				updateNotifySettingsLocal(peer);
+			}
+		}
+	} break;
+	}
+}
+
+void Session::updateNotifySettings(
+		not_null<PeerData*> peer,
+		base::optional<int> muteForSeconds,
+		base::optional<bool> silentPosts) {
+	if (peer->notifyChange(muteForSeconds, silentPosts)) {
+		updateNotifySettingsLocal(peer);
+		_session->api().updateNotifySettingsDelayed(peer);
+	}
+}
+
+bool Session::notifyIsMuted(
+		not_null<const PeerData*> peer,
+		TimeMs *changesIn) const {
+	const auto resultFromUntil = [&](TimeId until) {
+		const auto now = unixtime();
+		const auto result = (until > now) ? (until - now) : 0;
+		if (changesIn) {
+			*changesIn = (result > 0)
+				? std::min(result * TimeMs(1000), kMaxNotifyCheckDelay)
+				: kMaxNotifyCheckDelay;
+		}
+		return (result > 0);
+	};
+	if (const auto until = peer->notifyMuteUntil()) {
+		return resultFromUntil(*until);
+	}
+	const auto &settings = defaultNotifySettings(peer);
+	if (const auto until = settings.muteUntil()) {
+		return resultFromUntil(*until);
+	}
+	return true;
+}
+
+bool Session::notifySilentPosts(not_null<const PeerData*> peer) const {
+	if (const auto silent = peer->notifySilentPosts()) {
+		return *silent;
+	}
+	const auto &settings = defaultNotifySettings(peer);
+	if (const auto silent = settings.silentPosts()) {
+		return *silent;
+	}
+	return false;
+}
+
+bool Session::notifyMuteUnknown(not_null<const PeerData*> peer) const {
+	if (peer->notifySettingsUnknown()) {
+		return true;
+	} else if (const auto nonDefault = peer->notifyMuteUntil()) {
+		return false;
+	}
+	return defaultNotifySettings(peer).settingsUnknown();
+}
+
+bool Session::notifySilentPostsUnknown(
+		not_null<const PeerData*> peer) const {
+	if (peer->notifySettingsUnknown()) {
+		return true;
+	} else if (const auto nonDefault = peer->notifySilentPosts()) {
+		return false;
+	}
+	return defaultNotifySettings(peer).settingsUnknown();
+}
+
+bool Session::notifySettingsUnknown(not_null<const PeerData*> peer) const {
+	return notifyMuteUnknown(peer) || notifySilentPostsUnknown(peer);
+}
+
+rpl::producer<> Session::defaultUserNotifyUpdates() const {
+	return _defaultUserNotifyUpdates.events();
+}
+
+rpl::producer<> Session::defaultChatNotifyUpdates() const {
+	return _defaultChatNotifyUpdates.events();
+}
+
+rpl::producer<> Session::defaultNotifyUpdates(
+		not_null<const PeerData*> peer) const {
+	return peer->isUser()
+		? defaultUserNotifyUpdates()
+		: defaultChatNotifyUpdates();
+}
+
 void Session::forgetMedia() {
 	for (const auto &[id, photo] : _photos) {
 		photo->forget();
@@ -1590,6 +1896,34 @@ void Session::setMimeForwardIds(MessageIdsList &&list) {
 
 MessageIdsList Session::takeMimeForwardIds() {
 	return std::move(_mimeForwardIds);
+}
+
+void Session::setProxyPromoted(PeerData *promoted) {
+	if (_proxyPromoted != promoted) {
+		if (const auto history = App::historyLoaded(_proxyPromoted)) {
+			history->cacheProxyPromoted(false);
+		}
+		const auto old = std::exchange(_proxyPromoted, promoted);
+		if (_proxyPromoted) {
+			const auto history = App::history(_proxyPromoted);
+			history->cacheProxyPromoted(true);
+			if (!history->lastMessageKnown()) {
+				_session->api().requestDialogEntry(history);
+			}
+			Notify::peerUpdatedDelayed(
+				_proxyPromoted,
+				Notify::PeerUpdate::Flag::ChannelPromotedChanged);
+		}
+		if (old) {
+			Notify::peerUpdatedDelayed(
+				old,
+				Notify::PeerUpdate::Flag::ChannelPromotedChanged);
+		}
+	}
+}
+
+PeerData *Session::proxyPromoted() const {
+	return _proxyPromoted;
 }
 
 } // namespace Data

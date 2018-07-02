@@ -41,13 +41,13 @@ void AdvancedWidget::createControls() {
 	style::margins marginSmall(0, 0, 0, st::settingsSmallSkip);
 	style::margins marginLarge(0, 0, 0, st::settingsLargeSkip);
 
-	style::margins marginLocalStorage = ([&marginSmall, &marginLarge]() {
+	style::margins marginLocalStorage = [&] {
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 		return marginSmall;
 #else // !TDESKTOP_DISABLE_NETWORK_PROXY
 		return marginLarge;
 #endif // TDESKTOP_DISABLE_NETWORK_PROXY
-	})();
+	}();
 	if (self()) {
 		createChildRow(_manageLocalStorage, marginLocalStorage, lang(lng_settings_manage_local_storage), SLOT(onManageLocalStorage()));
 	}
@@ -94,26 +94,24 @@ void AdvancedWidget::onManageLocalStorage() {
 
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 void AdvancedWidget::connectionTypeUpdated() {
-	auto connection = [] {
-		switch (Global::ConnectionType()) {
-		case dbictHttpProxy:
-		case dbictTcpProxy: {
-			auto transport = MTP::dctransport();
-			return transport.isEmpty() ? lang(lng_connection_proxy_connecting) : lng_connection_proxy(lt_transport, transport);
-		} break;
-		case dbictAuto:
-		default: {
-			auto transport = MTP::dctransport();
-			return transport.isEmpty() ? lang(lng_connection_auto_connecting) : lng_connection_auto(lt_transport, transport);
-		} break;
+	const auto connection = [] {
+		const auto transport = MTP::dctransport();
+		if (!Global::UseProxy()) {
+			return transport.isEmpty()
+				? lang(lng_connection_auto_connecting)
+				: lng_connection_auto(lt_transport, transport);
+		} else {
+			return transport.isEmpty()
+				? lang(lng_connection_proxy_connecting)
+				: lng_connection_proxy(lt_transport, transport);
 		}
-	};
-	_connectionType->link()->setText(connection());
+	}();
+	_connectionType->link()->setText(connection);
 	resizeToWidth(width());
 }
 
 void AdvancedWidget::onConnectionType() {
-	Ui::show(Box<ConnectionBox>());
+	Ui::show(ProxiesBoxController::CreateOwningBox());
 }
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 
@@ -126,9 +124,9 @@ void AdvancedWidget::onToggleNightTheme() {
 }
 
 void AdvancedWidget::onAskQuestion() {
-	auto box = Box<ConfirmBox>(lang(lng_settings_ask_sure), lang(lng_settings_ask_ok), lang(lng_settings_faq_button), base::lambda_guarded(this, [this] {
+	auto box = Box<ConfirmBox>(lang(lng_settings_ask_sure), lang(lng_settings_ask_ok), lang(lng_settings_faq_button), crl::guard(this, [this] {
 		onAskQuestionSure();
-	}), base::lambda_guarded(this, [this] {
+	}), crl::guard(this, [this] {
 		onTelegramFAQ();
 	}));
 	box->setStrictCancel(true);

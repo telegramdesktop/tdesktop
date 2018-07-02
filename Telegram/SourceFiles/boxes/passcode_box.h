@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
+#include "mtproto/sender.h"
 
 namespace Ui {
 class InputField;
@@ -15,22 +16,20 @@ class PasswordInput;
 class LinkButton;
 } // namespace Ui
 
-class PasscodeBox : public BoxContent, public RPCSender {
+class PasscodeBox : public BoxContent, private MTP::Sender {
 	Q_OBJECT
 
 public:
 	PasscodeBox(QWidget*, bool turningOff);
-	PasscodeBox(QWidget*, const QByteArray &newSalt, const QByteArray &curSalt, bool hasRecovery, const QString &hint, bool turningOff = false);
-
-private slots:
-	void onSave(bool force = false);
-	void onBadOldPasscode();
-	void onOldChanged();
-	void onNewChanged();
-	void onEmailChanged();
-	void onRecoverByEmail();
-	void onRecoverExpired();
-	void onSubmit();
+	PasscodeBox(
+		QWidget*,
+		const QByteArray &newSalt,
+		const QByteArray &curSalt,
+		bool hasRecovery,
+		bool notEmptyPassport,
+		const QString &hint,
+		const QByteArray &newSecureSecretSalt,
+		bool turningOff = false);
 
 signals:
 	void reloadPassword();
@@ -43,15 +42,40 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	void submit();
 	void closeReplacedBy();
+	void oldChanged();
+	void newChanged();
+	void emailChanged();
+	void save(bool force = false);
+	void badOldPasscode();
+	void recoverByEmail();
+	void recoverExpired();
 
-	void setPasswordDone(const MTPBool &result);
+	void setPasswordDone();
 	bool setPasswordFail(const RPCError &error);
 
 	void recoverStarted(const MTPauth_PasswordRecovery &result);
 	bool recoverStartFail(const RPCError &error);
 
 	void recover();
+	void clearCloudPassword(const QString &oldPassword);
+	void setNewCloudPassword(const QString &newPassword);
+	void changeCloudPassword(
+		const QString &oldPassword,
+		const QString &newPassword);
+	void sendChangeCloudPassword(
+		const QByteArray &oldPasswordHash,
+		const QString &newPassword,
+		const QByteArray &secureSecret);
+	void suggestSecretReset(
+		const QByteArray &oldPasswordHash,
+		const QString &newPassword);
+	void resetSecretAndChangePassword(
+		const QByteArray &oldPasswordHash,
+		const QString &newPassword);
+	void sendClearCloudPassword(const QString &oldPassword);
+
 	QString _pattern;
 
 	QPointer<BoxContent> _replacedBy;
@@ -59,8 +83,9 @@ private:
 	bool _cloudPwd = false;
 	mtpRequestId _setRequest = 0;
 
-	QByteArray _newSalt, _curSalt;
+	QByteArray _newSalt, _curSalt, _newSecureSecretSalt;
 	bool _hasRecovery = false;
+	bool _notEmptyPassport = false;
 	bool _skipEmailWarning = false;
 
 	int _aboutHeight = 0;
@@ -82,11 +107,7 @@ class RecoverBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	RecoverBox(QWidget*, const QString &pattern);
-
-public slots:
-	void onSubmit();
-	void onCodeChanged();
+	RecoverBox(QWidget*, const QString &pattern, bool notEmptyPassport);
 
 signals:
 	void reloadPassword();
@@ -100,12 +121,15 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	void submit();
+	void codeChanged();
 	void codeSubmitDone(bool recover, const MTPauth_Authorization &result);
 	bool codeSubmitFail(const RPCError &error);
 
 	mtpRequestId _submitRequest = 0;
 
 	QString _pattern;
+	bool _notEmptyPassport = false;
 
 	object_ptr<Ui::InputField> _recoverCode;
 

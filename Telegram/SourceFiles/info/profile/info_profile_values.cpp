@@ -115,11 +115,14 @@ rpl::producer<QString> LinkValue(
 
 rpl::producer<bool> NotificationsEnabledValue(
 		not_null<PeerData*> peer) {
-	return Notify::PeerUpdateValue(
+	return rpl::merge(
+		Notify::PeerUpdateValue(
 			peer,
 			Notify::PeerUpdate::Flag::NotificationsEnabled
+		) | rpl::map([] { return rpl::empty_value(); }),
+		Auth().data().defaultNotifyUpdates(peer)
 	) | rpl::map([peer] {
-		return !peer->isMuted();
+		return !Auth().data().notifyIsMuted(peer);
 	}) | rpl::distinct_until_changed();
 }
 

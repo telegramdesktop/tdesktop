@@ -19,31 +19,6 @@ namespace {
 std::map<int, const char*> AlphaLogs() {
 	return {
 	{
-		1001024,
-		"\xE2\x80\x94 Radically improved navigation. "
-		"New side panel on the right with quick access to "
-		"shared media and group members.\n"
-
-		"\xE2\x80\x94 Pinned Messages. If you are a channel admin, "
-		"pin messages to focus your subscribers\xE2\x80\x99 attention "
-		"on important announcements.\n"
-
-		"\xE2\x80\x94 Also supported clearing history in supergroups "
-		"and added a host of minor improvements."
-	},
-	{
-		1001026,
-		"\xE2\x80\x94 Admin badges in supergroup messages.\n"
-		"\xE2\x80\x94 Fix crashing on launch in OS X 10.6.\n"
-		"\xE2\x80\x94 Bug fixes and other minor improvements."
-	},
-	{
-		1001027,
-		"\xE2\x80\x94 Saved Messages. Bookmark messages by forwarding them "
-		"to \xE2\x80\x9C""Saved Messages\xE2\x80\x9D. "
-		"Access them from the Chats list or from the side menu."
-	},
-	{
 		1002002,
 		"\xE2\x80\x94 Grouped photos and videos are displayed as albums."
 	},
@@ -80,6 +55,62 @@ std::map<int, const char*> AlphaLogs() {
 		"\xE2\x80\x94 Search for Stickers. "
 		"Click on the new search icon to access "
 		"your sticker sets or find new ones."
+	},
+	{
+		1002019,
+		"\xE2\x80\x94 Enable proxy for calls in Settings.\n"
+
+		"\xE2\x80\x94 Bug fixes and other minor improvements."
+	},
+	{
+		1002020,
+		"\xE2\x80\x94 Emoji and text replacements are done "
+		"while you type the message.\n"
+
+		"\xE2\x80\x94 Revert emoji and text replacements "
+		"by pressing backspace.\n"
+
+		"\xE2\x80\x94 Disable emoji replacements or suggestions "
+		"in Settings.\n"
+
+		"\xE2\x80\x94 Some critical bug fixes."
+	},
+	{
+		1002022,
+		"\xE2\x80\x94 Use markdown in media captions "
+		"(**bold**, __italic__, `tag` and ```code```).\n"
+
+		"\xE2\x80\x94 Use emoji replacement in media captions, "
+		"group and channel titles and descriptions (:like: etc.)\n"
+
+		"\xE2\x80\x94 Markdown replacement now happens immediately "
+		"after typing (instead of after sending) and can be "
+		"rolled back using Backspace or Ctrl/Cmd + Z. "
+		"Replacement no longer happens when pasting text."
+	},
+	{
+		1002023,
+		"\xE2\x80\x94 Apply formatting from input field context menu.\n"
+
+		"\xE2\x80\x94 Apply formatting by hotkeys.\n"
+
+		"\xE2\x80\x94 Bug fixes and other minor improvements."
+	},
+	{
+		1002024,
+		"\xE2\x80\x94 Add links with custom text from context menu "
+		"or by Ctrl/Cmd + K keyboard shortcut."
+	},
+	{
+		1002025,
+		"\xE2\x80\x94 Apply markdown formatting (```, `, **, __) "
+		"only when sending the message.\n"
+
+		"\xE2\x80\x94 Display connection quality bars in calls.\n"
+
+		"\xE2\x80\x94 Telegram Desktop can update itself through MTProto.\n"
+
+		"\xE2\x80\x94 Bug fixes and other minor improvements."
 	}
 	};
 }
@@ -146,7 +177,7 @@ void Changelogs::requestCloudLogs() {
 	};
 	_session->api().requestChangelog(
 		FormatVersionPrecise(_oldVersion),
-		base::lambda_guarded(this, callback));
+		crl::guard(this, callback));
 }
 
 void Changelogs::addLocalLogs() {

@@ -1,0 +1,103 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "basic.style";
+
+using "ui/widgets/widgets.style";
+using "boxes/boxes.style";
+
+exportPanelSize: size(364px, 480px);
+exportSettingPadding: margins(22px, 8px, 22px, 8px);
+exportSubSettingPadding: margins(56px, 4px, 22px, 12px);
+exportHeaderLabel: FlatLabel(boxTitle) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(15px semibold);
+		linkFont: font(15px semibold);
+		linkFontOver: font(15px semibold underline);
+	}
+}
+exportHeaderPadding: margins(22px, 20px, 22px, 9px);
+exportFileSizeSlider: MediaSlider {
+	width: 3px;
+	activeFg: mediaPlayerActiveFg;
+	inactiveFg: mediaPlayerInactiveFg;
+	activeFgOver: mediaPlayerActiveFg;
+	inactiveFgOver: mediaPlayerInactiveFg;
+	activeFgDisabled: mediaPlayerInactiveFg;
+	inactiveFgDisabled: windowBg;
+	seekSize: size(15px, 15px);
+	duration: 150;
+}
+exportFileSizeLabel: LabelSimple(defaultLabelSimple) {
+	font: boxTextFont;
+}
+exportFileSizePadding: margins(22px, 8px, 22px, 8px);
+exportFileSizeLabelBottom: 18px;
+
+exportLocationLabel: FlatLabel(boxLabel) {
+	maxHeight: 21px;
+}
+exportLocationPadding: margins(22px, 8px, 22px, 8px);
+
+exportAboutOptionLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	minWidth: 175px;
+}
+exportAboutOptionPadding: margins(22px, 0px, 22px, 16px);
+
+exportErrorLabel: FlatLabel(boxLabel) {
+	minWidth: 175px;
+	align: align(top);
+	textFg: boxTextFgError;
+}
+
+exportProgressDuration: 200;
+exportProgressRowHeight: 30px;
+exportProgressRowPadding: margins(22px, 10px, 22px, 20px);
+exportProgressLabel: FlatLabel(boxLabel) {
+	textFg: windowBoldFg;
+	maxHeight: 20px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+		linkFont: font(14px semibold);
+		linkFontOver: font(14px semibold);
+	}
+}
+exportProgressInfoLabel: FlatLabel(boxLabel) {
+	textFg: windowSubTextFg;
+	maxHeight: 20px;
+	style: boxTextStyle;
+}
+exportProgressWidth: 3px;
+exportProgressFg: mediaPlayerActiveFg;
+exportProgressBg: mediaPlayerInactiveFg;
+
+exportCancelButton: RoundButton(attentionBoxButton) {
+	width: 200px;
+	height: 44px;
+	textTop: 12px;
+	font: font(semibold 15px);
+}
+exportCancelBottom: 30px;
+exportDoneButton: RoundButton(defaultActiveButton) {
+	width: 200px;
+	height: 44px;
+	textTop: 12px;
+	font: font(semibold 15px);
+}
+
+exportAboutLabel: FlatLabel(boxLabel) {
+	textFg: windowSubTextFg;
+}
+exportAboutPadding: margins(22px, 10px, 22px, 0px);
+
+exportTopBarLabel: FlatLabel(defaultFlatLabel) {
+	maxHeight: 20px;
+	palette: TextPalette(defaultTextPalette) {
+		linkFg: windowSubTextFg;
+	}
+}

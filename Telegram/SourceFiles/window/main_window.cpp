@@ -8,18 +8,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/main_window.h"
 
 #include "storage/localstorage.h"
-#include "styles/style_window.h"
 #include "platform/platform_window_title.h"
 #include "history/history.h"
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
+#include "window/window_lock_widgets.h"
+#include "boxes/confirm_box.h"
+#include "core/click_handler_types.h"
+#include "lang/lang_keys.h"
 #include "mediaview.h"
+#include "auth_session.h"
+#include "apiwrap.h"
 #include "messenger.h"
 #include "mainwindow.h"
+#include "styles/style_window.h"
+#include "styles/style_boxes.h"
 
 namespace Window {
 
-constexpr auto kInactivePressTimeout = 200;
+constexpr auto kInactivePressTimeout = TimeMs(200);
+constexpr auto kSaveWindowPositionTimeout = TimeMs(1000);
 
 QImage LoadLogo() {
 	return QImage(qsl(":/gui/art/logo_256.png"));
@@ -45,16 +53,13 @@ QIcon CreateIcon() {
 	return result;
 }
 
-MainWindow::MainWindow() : QWidget()
-, _positionUpdatedTimer(this)
+MainWindow::MainWindow()
+: _positionUpdatedTimer([=] { savePosition(); })
 , _body(this)
 , _icon(CreateIcon())
 , _titleText(qsl("Telegram")) {
 	subscribe(Theme::Background(), [this](const Theme::BackgroundUpdate &data) {
 		if (data.paletteChanged()) {
-			if (_title) {
-				_title->update();
-			}
 			updatePalette();
 		}
 	});
@@ -63,8 +68,92 @@ MainWindow::MainWindow() : QWidget()
 	subscribe(Messenger::Instance().authSessionChanged(), [this] { checkAuthSession(); });
 	checkAuthSession();
 
+	Messenger::Instance().termsLockValue(
+	) | rpl::start_with_next([=] {
+		checkLockByTerms();
+	}, lifetime());
+
 	_isActiveTimer.setCallback([this] { updateIsActive(0); });
 	_inactivePressTimer.setCallback([this] { setInactivePress(false); });
+}
+
+void MainWindow::checkLockByTerms() {
+	const auto data = Messenger::Instance().termsLocked();
+	if (!data || !AuthSession::Exists()) {
+		if (_termsBox) {
+			_termsBox->closeBox();
+		}
+		return;
+	}
+	Ui::hideSettingsAndLayer(anim::type::instant);
+	const auto box = Ui::show(Box<TermsBox>(
+		*data,
+		langFactory(lng_terms_agree),
+		langFactory(lng_terms_decline)));
+
+	box->setCloseByEscape(false);
+	box->setCloseByOutsideClick(false);
+
+	const auto id = data->id;
+	box->agreeClicks(
+	) | rpl::start_with_next([=] {
+		const auto mention = box ? box->lastClickedMention() : QString();
+		if (AuthSession::Exists()) {
+			Auth().api().acceptTerms(id);
+			if (!mention.isEmpty()) {
+				MentionClickHandler(mention).onClick(Qt::LeftButton);
+			}
+		}
+		Messenger::Instance().unlockTerms();
+	}, box->lifetime());
+
+	box->cancelClicks(
+	) | rpl::start_with_next([=] {
+		showTermsDecline();
+	}, box->lifetime());
+
+	connect(box, &QObject::destroyed, [=] {
+		crl::on_main(this, [=] { checkLockByTerms(); });
+	});
+
+	_termsBox = box;
+}
+
+void MainWindow::showTermsDecline() {
+	const auto box = Ui::show(
+		Box<Window::TermsBox>(
+			TextWithEntities{ lang(lng_terms_update_sorry) },
+			langFactory(lng_terms_decline_and_delete),
+			langFactory(lng_terms_back),
+			true),
+		LayerOption::KeepOther);
+
+	box->agreeClicks(
+	) | rpl::start_with_next([=] {
+		if (box) {
+			box->closeBox();
+		}
+		showTermsDelete();
+	}, box->lifetime());
+
+	box->cancelClicks(
+	) | rpl::start_with_next([=] {
+		if (box) {
+			box->closeBox();
+		}
+	}, box->lifetime());
+}
+
+void MainWindow::showTermsDelete() {
+	const auto box = std::make_shared<QPointer<BoxContent>>();
+	*box = Ui::show(
+		Box<ConfirmBox>(
+			lang(lng_terms_delete_warning),
+			lang(lng_terms_delete_now),
+			st::attentionBoxButton,
+			[=] { Messenger::Instance().termsDeleteNow(); },
+			[=] { if (*box) (*box)->closeBox(); }),
+		LayerOption::KeepOther);
 }
 
 bool MainWindow::hideNoQuit() {
@@ -104,26 +193,13 @@ bool MainWindow::computeIsActive() const {
 	return isActiveWindow() && isVisible() && !(windowState() & Qt::WindowMinimized);
 }
 
-void MainWindow::onReActivate() {
-	if (auto w = App::wnd()) {
-		if (auto f = QApplication::focusWidget()) {
-			f->clearFocus();
-		}
-		w->windowHandle()->requestActivate();
-		w->activate();
-		if (auto f = QApplication::focusWidget()) {
-			f->clearFocus();
-		}
-		w->setInnerFocus();
-	}
-}
-
 void MainWindow::updateWindowIcon() {
 	setWindowIcon(_icon);
 }
 
 void MainWindow::init() {
 	Expects(!windowHandle());
+
 	createWinId();
 
 	initHook();
@@ -131,9 +207,6 @@ void MainWindow::init() {
 
 	connect(windowHandle(), &QWindow::activeChanged, this, [this] { handleActiveChanged(); }, Qt::QueuedConnection);
 	connect(windowHandle(), &QWindow::windowStateChanged, this, [this](Qt::WindowState state) { handleStateChanged(state); });
-
-	_positionUpdatedTimer->setSingleShot(true);
-	connect(_positionUpdatedTimer, SIGNAL(timeout()), this, SLOT(savePositionByTimer()));
 
 	updatePalette();
 
@@ -166,6 +239,8 @@ void MainWindow::handleActiveChanged() {
 }
 
 void MainWindow::updatePalette() {
+	Ui::ForceFullRepaint(this);
+
 	auto p = palette();
 	p.setColor(QPalette::Window, st::windowBg->c);
 	setPalette(p);
@@ -221,7 +296,7 @@ void MainWindow::initSize() {
 }
 
 void MainWindow::positionUpdated() {
-	_positionUpdatedTimer->start(SaveWindowPositionTimeout);
+	_positionUpdatedTimer.callOnce(kSaveWindowPositionTimeout);
 }
 
 bool MainWindow::titleVisible() const {
@@ -253,7 +328,7 @@ rpl::producer<> MainWindow::leaveEvents() const {
 	return _leaveEvents.events();
 }
 
-void MainWindow::leaveEvent(QEvent *e) {
+void MainWindow::leaveEventHook(QEvent *e) {
 	_leaveEvents.fire({});
 }
 
@@ -343,6 +418,26 @@ bool MainWindow::minimizeToTray() {
 	updateGlobalMenu();
 	showTrayTooltip();
 	return true;
+}
+
+void MainWindow::reActivateWindow() {
+#if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
+	const auto reActivate = [=] {
+		if (const auto w = App::wnd()) {
+			if (auto f = QApplication::focusWidget()) {
+				f->clearFocus();
+			}
+			windowHandle()->requestActivate();
+			w->activate();
+			if (auto f = QApplication::focusWidget()) {
+				f->clearFocus();
+			}
+			w->setInnerFocus();
+		}
+	};
+	crl::on_main(this, reActivate);
+	App::CallDelayed(200, this, reActivate);
+#endif // Q_OS_LINUX32 || Q_OS_LINUX64
 }
 
 void MainWindow::showRightColumn(object_ptr<TWidget> widget) {

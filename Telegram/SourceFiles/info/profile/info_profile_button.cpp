@@ -58,6 +58,11 @@ rpl::producer<bool> Button::toggledValue() const {
 	return rpl::never<bool>();
 }
 
+void Button::setColorOverride(base::optional<QColor> textColorOverride) {
+	_textColorOverride = textColorOverride;
+	update();
+}
+
 void Button::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
@@ -69,7 +74,11 @@ void Button::paintEvent(QPaintEvent *e) {
 
 	auto outerw = width();
 	p.setFont(_st.font);
-	p.setPen(paintOver ? _st.textFgOver : _st.textFg);
+	p.setPen(_textColorOverride
+		? QPen(*_textColorOverride)
+		: paintOver
+		? _st.textFgOver
+		: _st.textFg);
 	p.drawTextLeft(
 		_st.padding.left(),
 		_st.padding.top(),

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "boxes/confirm_box.h"
 #include "boxes/edit_participant_box.h"
+#include "profile/profile_channel_controllers.h"
 #include "ui/widgets/popup_menu.h"
 #include "data/data_peer_values.h"
 #include "mainwidget.h"
@@ -43,16 +44,16 @@ GroupMembersWidget::GroupMembersWidget(
 		notifyPeerUpdated(update);
 	}));
 
-	setRemovedCallback([this, peer](PeerData *selectedPeer) {
+	setRemovedCallback([=](PeerData *selectedPeer) {
 		removePeer(selectedPeer);
 	});
-	setSelectedCallback([this](PeerData *selectedPeer) {
+	setSelectedCallback([=](PeerData *selectedPeer) {
 		Ui::showPeerProfile(selectedPeer);
 	});
-	setUpdateItemCallback([this](Item *item) {
+	setUpdateItemCallback([=](Item *item) {
 		updateItemStatusText(item);
 	});
-	setPreloadMoreCallback([this] {
+	setPreloadMoreCallback([=] {
 		preloadMore();
 	});
 
@@ -67,16 +68,19 @@ void GroupMembersWidget::editAdmin(not_null<UserData*> user) {
 	auto currentRightsIt = megagroup->mgInfo->lastAdmins.find(user);
 	auto hasAdminRights = (currentRightsIt != megagroup->mgInfo->lastAdmins.cend());
 	auto currentRights = hasAdminRights ? currentRightsIt->second.rights : MTP_channelAdminRights(MTP_flags(0));
-	auto weak = QPointer<GroupMembersWidget>(this);
+	auto weak = std::make_shared<QPointer<EditAdminBox>>(nullptr);
 	auto box = Box<EditAdminBox>(megagroup, user, currentRights);
-	box->setSaveCallback([weak, megagroup, user](const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights) {
-		Ui::hideLayer();
-		MTP::send(MTPchannels_EditAdmin(megagroup->inputChannel, user->inputUser, newRights), rpcDone([weak, megagroup, user, oldRights, newRights](const MTPUpdates &result) {
-			if (App::main()) App::main()->sentUpdatesReceived(result);
-			megagroup->applyEditAdmin(user, oldRights, newRights);
-		}));
-	});
-	Ui::show(std::move(box));
+	box->setSaveCallback(SaveAdminCallback(megagroup, user, [=](
+			const MTPChannelAdminRights &newRights) {
+		if (*weak) {
+			(*weak)->closeBox();
+		}
+	}, [=] {
+		if (*weak) {
+			(*weak)->closeBox();
+		}
+	}));
+	*weak = Ui::show(std::move(box));
 }
 
 void GroupMembersWidget::restrictUser(not_null<UserData*> user) {
@@ -240,20 +244,20 @@ Ui::PopupMenu *GroupMembersWidget::fillPeerMenu(PeerData *selectedPeer) {
 			if (channel) {
 				if (channel->canEditAdmin(user)) {
 					auto label = lang((item->adminState != Item::AdminState::None) ? lng_context_edit_permissions : lng_context_promote_admin);
-					result->addAction(label, base::lambda_guarded(this, [this, user] {
+					result->addAction(label, crl::guard(this, [this, user] {
 						editAdmin(user);
 					}));
 				}
 				if (channel->canRestrictUser(user)) {
-					result->addAction(lang(lng_context_restrict_user), base::lambda_guarded(this, [this, user] {
+					result->addAction(lang(lng_context_restrict_user), crl::guard(this, [this, user] {
 						restrictUser(user);
 					}));
-					result->addAction(lang(lng_context_remove_from_group), base::lambda_guarded(this, [this, selectedPeer] {
+					result->addAction(lang(lng_context_remove_from_group), crl::guard(this, [this, selectedPeer] {
 						removePeer(selectedPeer);
 					}));
 				}
 			} else if (item->hasRemoveLink) {
-				result->addAction(lang(lng_context_remove_from_group), base::lambda_guarded(this, [this, selectedPeer] {
+				result->addAction(lang(lng_context_remove_from_group), crl::guard(this, [this, selectedPeer] {
 					removePeer(selectedPeer);
 				}));
 			}
@@ -327,7 +331,7 @@ void GroupMembersWidget::refreshLimitReached() {
 		QString link = TextUtilities::EscapeForRichParsing(lang(lng_profile_migrate_learn_more));
 		QString text = qsl("%1%2%3\n%4 [a href=\"https://telegram.org/blog/supergroups5k\"]%5[/a]").arg(textcmdStartSemibold()).arg(title).arg(textcmdStopSemibold()).arg(body).arg(link);
 		_limitReachedInfo->setRichText(text);
-		_limitReachedInfo->setClickHandlerHook([this](const ClickHandlerPtr &handler, Qt::MouseButton button) {
+		_limitReachedInfo->setClickHandlerFilter([=](auto&&...) {
 			Ui::show(Box<ConvertToSupergroupBox>(peer()->asChat()));
 			return false;
 		});

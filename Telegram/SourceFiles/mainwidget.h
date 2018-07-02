@@ -40,6 +40,14 @@ class Float;
 } // namespace Player
 } // namespace Media
 
+namespace Export {
+namespace View {
+class TopBar;
+class PanelController;
+struct Content;
+} // namespace View
+} // namespace Export
+
 namespace Ui {
 class ResizeArea;
 class PlainShadow;
@@ -50,10 +58,12 @@ class SlideWrap;
 
 namespace Window {
 class Controller;
-class PlayerWrapWidget;
+template <typename Inner>
+class TopBarWrapWidget;
 class SectionMemento;
 class SectionWidget;
 class AbstractSectionWidget;
+class ConnectingWidget;
 struct SectionSlideParams;
 struct SectionShow;
 enum class Column;
@@ -92,17 +102,6 @@ public:
 	void stickersBox(const MTPInputStickerSet &set);
 
 	bool started();
-	void applyNotifySetting(
-		const MTPNotifyPeer &notifyPeer,
-		const MTPPeerNotifySettings &settings,
-		History *history = 0);
-
-	void updateNotifySettings(
-		not_null<PeerData*> peer,
-		Data::NotifySettings::MuteChange mute,
-		Data::NotifySettings::SilentPostsChange silent
-			= Data::NotifySettings::SilentPostsChange::Ignore,
-		int muteForSeconds = 86400 * 365);
 
 	void incrementSticker(DocumentData *sticker);
 
@@ -223,21 +222,6 @@ public:
 	Dialogs::IndexedList *dialogsList();
 	Dialogs::IndexedList *contactsNoDialogsList();
 
-	struct MessageToSend {
-		MessageToSend(not_null<History*> history) : history(history) {
-		}
-
-		not_null<History*> history;
-		TextWithTags textWithTags;
-		MsgId replyTo = 0;
-		WebPageId webPageId = 0;
-		bool clearDraft = true;
-	};
-	void sendMessage(const MessageToSend &message);
-	void saveRecentHashtags(const QString &text);
-
-	void unreadCountChanged(not_null<History*> history);
-
 	// While HistoryInner is not HistoryView::ListWidget.
 	TimeMs highlightStartTime(not_null<const HistoryItem*> item) const;
 	bool historyInSelectionMode() const;
@@ -273,8 +257,6 @@ public:
 
 	void cancelForwarding(not_null<History*> history);
 	void finishForwarding(not_null<History*> history);
-
-	void updateMutedIn(TimeMs delay);
 
 	// Does offerPeer or showPeerHistory.
 	void choosePeer(PeerId peerId, MsgId showAtMsgId);
@@ -354,13 +336,9 @@ public slots:
 	void updateOnline(bool gotOtherOffline = false);
 	void checkIdleFinish();
 
-	void onUpdateNotifySettings();
-
 	void onCacheBackground();
 
 	void onInviteImport();
-
-	void onUpdateMuted();
 
 	void onViewsIncrement();
 
@@ -426,6 +404,7 @@ private:
 		-> std::unique_ptr<Window::SectionMemento>;
 	void userIsContactUpdated(not_null<UserData*> user);
 
+	void setupConnectingWidget();
 	void createPlayer();
 	void switchToPanelPlayer();
 	void switchToFixedPlayer();
@@ -436,6 +415,11 @@ private:
 	void createCallTopBar();
 	void destroyCallTopBar();
 	void callTopBarHeightUpdated(int callTopBarHeight);
+
+	void setCurrentExportView(Export::View::PanelController *view);
+	void createExportTopBar(Export::View::Content &&data);
+	void destroyExportTopBar();
+	void exportTopBarHeightUpdated();
 
 	void messagesAffected(
 		not_null<PeerData*> peer,
@@ -533,14 +517,8 @@ private:
 	void ensureFirstColumnResizeAreaCreated();
 	void ensureThirdColumnResizeAreaCreated();
 
-	void updateNotifySettingsLocal(
-		not_null<PeerData*> peer,
-		History *history = nullptr);
-
 	not_null<Window::Controller*> _controller;
 	bool _started = false;
-
-	SingleTimer _updateMutedTimer;
 
 	QString _inviteHash;
 
@@ -561,11 +539,17 @@ private:
 	object_ptr<Window::SectionWidget> _mainSection = { nullptr };
 	object_ptr<Window::SectionWidget> _thirdSection = { nullptr };
 	std::unique_ptr<Window::SectionMemento> _thirdSectionFromStack;
+	base::unique_qptr<Window::ConnectingWidget> _connecting;
 
 	base::weak_ptr<Calls::Call> _currentCall;
 	object_ptr<Ui::SlideWrap<Calls::TopBar>> _callTopBar = { nullptr };
 
-	object_ptr<Window::PlayerWrapWidget> _player = { nullptr };
+	Export::View::PanelController *_currentExportView = nullptr;
+	object_ptr<Window::TopBarWrapWidget<Export::View::TopBar>> _exportTopBar
+		= { nullptr };
+
+	object_ptr<Window::TopBarWrapWidget<Media::Player::Widget>> _player
+		= { nullptr };
 	object_ptr<Media::Player::VolumeWidget> _playerVolume = { nullptr };
 	object_ptr<Media::Player::Panel> _playerPlaylist;
 	object_ptr<Media::Player::Panel> _playerPanel;
@@ -578,6 +562,7 @@ private:
 
 	int _playerHeight = 0;
 	int _callTopBarHeight = 0;
+	int _exportTopBarHeight = 0;
 	int _contentScrollAddToY = 0;
 
 	int32 updDate = 0;
@@ -603,9 +588,6 @@ private:
 	bool _lastWasOnline = false;
 	TimeMs _lastSetOnline = 0;
 	bool _isIdle = false;
-
-	base::flat_set<not_null<PeerData*>> updateNotifySettingPeers;
-	SingleTimer updateNotifySettingTimer;
 
 	int32 _failDifferenceTimeout = 1; // growing timeout for getDifference calls, if it fails
 	typedef QMap<ChannelData*, int32> ChannelFailDifferenceTimeout;

@@ -107,7 +107,7 @@ void DownloadPathState::onDownloadPath() {
 }
 
 void DownloadPathState::onClear() {
-	Ui::show(Box<ConfirmBox>(lang(lng_sure_clear_downloads), base::lambda_guarded(this, [this] {
+	Ui::show(Box<ConfirmBox>(lang(lng_sure_clear_downloads), crl::guard(this, [this] {
 		Ui::hideLayer();
 		App::wnd()->tempDirDelete(Local::ClearManagerDownloads);
 		_state = State::Clearing;
@@ -140,7 +140,9 @@ void ChatSettingsWidget::createControls() {
 	style::margins marginSub(0, 0, 0, st::settingsSubSkip);
 	style::margins slidedPadding(0, marginSub.bottom() / 2, 0, marginSub.bottom() - (marginSub.bottom() / 2));
 
-	createChildRow(_replaceEmoji, marginSkip, lang(lng_settings_replace_emojis), [this](bool) { onReplaceEmoji(); }, cReplaceEmojis());
+	createChildRow(_replaceEmoji, marginSmall, lang(lng_settings_replace_emojis), [this](bool) { toggleReplaceEmoji(); }, Global::ReplaceEmoji());
+	createChildRow(_suggestEmoji, marginSmall, lang(lng_settings_suggest_emoji), [this](bool) { toggleSuggestEmoji(); }, Global::SuggestEmoji());
+	createChildRow(_suggestByEmoji, marginSkip, lang(lng_settings_suggest_by_emoji), [this](bool) { toggleSuggestStickersByEmoji(); }, Global::SuggestStickersByEmoji());
 
 #ifndef OS_WIN_STORE
 	auto pathMargin = marginSub;
@@ -168,8 +170,19 @@ void ChatSettingsWidget::createControls() {
 	createChildRow(_manageStickerSets, marginSmall, lang(lng_stickers_you_have), SLOT(onManageStickerSets()));
 }
 
-void ChatSettingsWidget::onReplaceEmoji() {
-	cSetReplaceEmojis(_replaceEmoji->checked());
+void ChatSettingsWidget::toggleReplaceEmoji() {
+	Global::SetReplaceEmoji(_replaceEmoji->checked());
+	Global::RefReplaceEmojiChanged().notify();
+	Local::writeUserSettings();
+}
+
+void ChatSettingsWidget::toggleSuggestEmoji() {
+	Global::SetSuggestEmoji(_suggestEmoji->checked());
+	Local::writeUserSettings();
+}
+
+void ChatSettingsWidget::toggleSuggestStickersByEmoji() {
+	Global::SetSuggestStickersByEmoji(_suggestByEmoji->checked());
 	Local::writeUserSettings();
 }
 

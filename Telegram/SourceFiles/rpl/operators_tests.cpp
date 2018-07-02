@@ -14,8 +14,8 @@ using namespace rpl;
 
 class OnDestructor {
 public:
-	OnDestructor(base::lambda_once<void()> callback)
-		: _callback(std::move(callback)) {
+	OnDestructor(std::function<void()> callback)
+	: _callback(std::move(callback)) {
 	}
 	~OnDestructor() {
 		if (_callback) {
@@ -24,7 +24,7 @@ public:
 	}
 
 private:
-	base::lambda_once<void()> _callback;
+	std::function<void()> _callback;
 
 };
 
@@ -460,5 +460,37 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 				}, lifetime);
 		}
 		REQUIRE(*sum == "012done012done012done");
+	}
+
+	SECTION("skip test") {
+		auto sum = std::make_shared<std::string>("");
+		{
+			rpl::lifetime lifetime;
+			ints(10) | skip(5)
+				| start_with_next_done([=](int value) {
+					*sum += std::to_string(value);
+				}, [=] {
+					*sum += "done";
+				}, lifetime);
+		}
+		{
+			rpl::lifetime lifetime;
+			ints(3) | skip(3)
+				| start_with_next_done([=](int value) {
+					*sum += std::to_string(value);
+				}, [=] {
+					*sum += "done";
+				}, lifetime);
+		}
+		{
+			rpl::lifetime lifetime;
+			ints(3) | skip(10)
+				| start_with_next_done([=](int value) {
+					*sum += std::to_string(value);
+				}, [=] {
+					*sum += "done";
+				}, lifetime);
+		}
+		REQUIRE(*sum == "56789donedonedone");
 	}
 }

@@ -435,7 +435,11 @@ void UserData::setName(const QString &newFirstName, const QString &newLastName, 
 }
 
 void UserData::setPhone(const QString &newPhone) {
-	_phone = newPhone;
+	if (_phone != newPhone) {
+		_phone = newPhone;
+		if (bareId() == Auth().userId()) {
+		}
+	}
 }
 
 void UserData::setBotInfoVersion(int version) {

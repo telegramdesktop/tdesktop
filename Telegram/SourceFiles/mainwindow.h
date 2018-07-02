@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_main_window.h"
 #include "core/single_timer.h"
 
-class PasscodeWidget;
 class MainWidget;
 class BoxContent;
 
@@ -28,6 +27,7 @@ class LayerWidget;
 class LayerStackWidget;
 class SectionMemento;
 struct SectionShow;
+class PasscodeLockWidget;
 namespace Theme {
 struct BackgroundUpdate;
 class WarningWidget;
@@ -37,26 +37,6 @@ class WarningWidget;
 namespace Ui {
 class LinkButton;
 } // namespace Ui
-
-class ConnectingWidget : public TWidget {
-	Q_OBJECT
-
-public:
-	ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect);
-	void set(const QString &text, const QString &reconnect);
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-public slots:
-	void onReconnect();
-
-private:
-	QString _text;
-	int _textWidth = 0;
-	object_ptr<Ui::LinkButton> _reconnect;
-
-};
 
 class MediaPreviewWidget;
 
@@ -69,22 +49,19 @@ public:
 
 	void firstShow();
 
-	void setupPasscode();
-	void clearPasscode();
+	void setupPasscodeLock();
+	void clearPasscodeLock();
 	void setupIntro();
 	void setupMain(const MTPUser *user = nullptr);
 	void serviceNotification(const TextWithEntities &message, const MTPMessageMedia &media = MTP_messageMediaEmpty(), int32 date = 0, bool force = false);
 	void sendServiceHistoryRequest();
 	void showDelayedServiceMsgs();
 
-	void mtpStateChanged(int32 dc, int32 state);
-
 	MainWidget *chatsWidget() {
 		return mainWidget();
 	}
 
 	MainWidget *mainWidget();
-	PasscodeWidget *passcodeWidget();
 
 	bool doWeReadServerHistory();
 	bool doWeReadMentions();
@@ -92,8 +69,7 @@ public:
 	void activate();
 
 	void noIntro(Intro::Widget *was);
-	void noLayerStack(Window::LayerStackWidget *was);
-	void layerFinishedHide(Window::LayerStackWidget *was);
+	void layerHidden(not_null<Window::LayerStackWidget*> layer);
 	bool takeThirdSectionFromLayer();
 
 	void checkHistoryActivation();
@@ -153,7 +129,6 @@ protected:
 public slots:
 	void showSettings();
 	void setInnerFocus();
-	void updateConnectingStatus();
 
 	void quitFromTray();
 	void showFromTray(QSystemTrayIcon::ActivationReason reason = QSystemTrayIcon::Unknown);
@@ -174,9 +149,6 @@ signals:
 	void checkNewAuthorization();
 
 private:
-	void showConnecting(const QString &text, const QString &reconnect = QString());
-	void hideConnecting();
-
 	[[nodiscard]] bool skipTrayClick() const;
 
 	void ensureLayerCreated();
@@ -200,13 +172,12 @@ private:
 	mtpRequestId _serviceHistoryRequest = 0;
 	TimeMs _lastTrayClickTime = 0;
 
-	object_ptr<PasscodeWidget> _passcode = { nullptr };
+	object_ptr<Window::PasscodeLockWidget> _passcodeLock = { nullptr };
 	object_ptr<Intro::Widget> _intro = { nullptr };
 	object_ptr<MainWidget> _main = { nullptr };
-	object_ptr<Window::LayerStackWidget> _layerBg = { nullptr };
+	object_ptr<Window::LayerStackWidget> _layer = { nullptr };
 	object_ptr<MediaPreviewWidget> _mediaPreview = { nullptr };
 
-	object_ptr<ConnectingWidget> _connecting = { nullptr };
 	object_ptr<Window::Theme::WarningWidget> _testingThemeWarning = { nullptr };
 
 	Local::ClearManager *_clearManager = nullptr;

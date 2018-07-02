@@ -25,6 +25,14 @@ namespace {
 // Show all dates that are in the last 20 hours in time format.
 constexpr int kRecentlyInSeconds = 20 * 3600;
 
+void paintRowTopRight(Painter &p, const QString &text, QRect &rectForName, bool active, bool selected) {
+	const auto width = st::dialogsDateFont->width(text);
+	rectForName.setWidth(rectForName.width() - width - st::dialogsDateSkip);
+	p.setFont(st::dialogsDateFont);
+	p.setPen(active ? st::dialogsDateFgActive : (selected ? st::dialogsDateFgOver : st::dialogsDateFg));
+	p.drawText(rectForName.left() + rectForName.width() + st::dialogsDateSkip, rectForName.top() + st::msgNameFont->height - st::msgDateFont->descent, text);
+}
+
 void paintRowDate(Painter &p, QDateTime date, QRect &rectForName, bool active, bool selected) {
 	auto now = QDateTime::currentDateTime();
 	auto lastTime = date;
@@ -41,11 +49,7 @@ void paintRowDate(Painter &p, QDateTime date, QRect &rectForName, bool active, b
 	} else {
 		dt = lastDate.toString(qsl("d.MM.yy"));
 	}
-	int32 dtWidth = st::dialogsDateFont->width(dt);
-	rectForName.setWidth(rectForName.width() - dtWidth - st::dialogsDateSkip);
-	p.setFont(st::dialogsDateFont);
-	p.setPen(active ? st::dialogsDateFgActive : (selected ? st::dialogsDateFgOver : st::dialogsDateFg));
-	p.drawText(rectForName.left() + rectForName.width() + st::dialogsDateSkip, rectForName.top() + st::msgNameFont->height - st::msgDateFont->descent, dt);
+	paintRowTopRight(p, dt, rectForName, active, selected);
 }
 
 enum class Flag {
@@ -132,7 +136,11 @@ void paintRow(
 		namewidth,
 		st::msgNameFont->height);
 
-	if (from && !(flags & Flag::FeedSearchResult)) {
+	const auto promoted = chat.entry()->useProxyPromotion();
+	if (promoted) {
+		const auto text = lang(lng_proxy_sponsor);
+		paintRowTopRight(p, text, rectForName, active, selected);
+	} else if (from && !(flags & Flag::FeedSearchResult)) {
 		if (const auto chatTypeIcon = ChatTypeIcon(from, active, selected)) {
 			chatTypeIcon->paint(p, rectForName.topLeft(), fullWidth);
 			rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
@@ -147,7 +155,9 @@ void paintRow(
 		+ st::msgNameFont->height
 		+ st::dialogsSkip;
 	if (draft) {
-		paintRowDate(p, date, rectForName, active, selected);
+		if (!promoted) {
+			paintRowDate(p, date, rectForName, active, selected);
+		}
 
 		auto availableWidth = namewidth;
 		if (entry->isPinnedDialog()) {
@@ -183,7 +193,9 @@ void paintRow(
 			// Empty history
 		}
 	} else if (!item->isEmpty()) {
-		paintRowDate(p, date, rectForName, active, selected);
+		if (!promoted) {
+			paintRowDate(p, date, rectForName, active, selected);
+		}
 
 		paintItemCallback(nameleft, namewidth);
 	} else if (entry->isPinnedDialog()) {
@@ -395,10 +407,11 @@ void RowPainter::paint(
 	const auto history = row->history();
 	const auto peer = history ? history->peer.get() : nullptr;
 	const auto unreadCount = entry->chatListUnreadCount();
+	const auto unreadMark = entry->chatListUnreadMark();
 	const auto unreadMuted = entry->chatListMutedBadge();
 	const auto item = entry->chatsListItem();
 	const auto cloudDraft = [&]() -> const Data::Draft*{
-		if (history && (!item || !unreadCount)) {
+		if (history && (!item || (!unreadCount && !unreadMark))) {
 			// Draw item, if there are unread messages.
 			if (const auto draft = history->cloudDraft()) {
 				if (!Data::draftIsNull(draft)) {
@@ -446,11 +459,18 @@ void RowPainter::paint(
 			}
 			return (unreadCount > 0);
 		}();
+		const auto displayUnreadMark = !displayUnreadCounter
+			&& !displayMentionBadge
+			&& history
+			&& unreadMark;
 		const auto displayPinnedIcon = !displayUnreadCounter
 			&& !displayMentionBadge
+			&& !displayUnreadMark
 			&& entry->isPinnedDialog();
-		if (displayUnreadCounter) {
-			auto counter = QString::number(unreadCount);
+		if (displayUnreadCounter || displayUnreadMark) {
+			auto counter = (unreadCount > 0)
+				? QString::number(unreadCount)
+				: QString();
 			auto unreadRight = fullWidth - st::dialogsPadding.x();
 			auto unreadTop = texttop + st::dialogsTextFont->ascent - st::dialogsUnreadFont->ascent - (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2;
 			auto unreadWidth = 0;

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_file_utilities.h"
 #include "storage/localimageloader.h"
+#include "core/mime_type.h"
 
 namespace Storage {
 namespace {
@@ -48,13 +49,13 @@ bool PrepareAlbumMediaIsWaiting(
 	crl::async([=, &semaphore, &file] {
 		const auto guard = gsl::finally([&] { semaphore.release(); });
 		if (!file.path.isEmpty()) {
-			file.mime = mimeTypeForFile(QFileInfo(file.path)).name();
+			file.mime = Core::MimeTypeForFile(QFileInfo(file.path)).name();
 			file.information = FileLoadTask::ReadMediaInformation(
 				file.path,
 				QByteArray(),
 				file.mime);
 		} else if (!file.content.isEmpty()) {
-			file.mime = mimeTypeForData(file.content).name();
+			file.mime = Core::MimeTypeForData(file.content).name();
 			file.information = FileLoadTask::ReadMediaInformation(
 				QString(),
 				file.content,

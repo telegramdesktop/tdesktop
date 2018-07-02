@@ -38,7 +38,7 @@ public:
 	BackgroundWidget(QWidget *parent) : TWidget(parent) {
 	}
 
-	void setDoneCallback(base::lambda<void()> callback) {
+	void setDoneCallback(Fn<void()> callback) {
 		_doneCallback = std::move(callback);
 	}
 
@@ -72,7 +72,7 @@ private:
 	QPixmap _specialLayerCache;
 	QPixmap _layerCache;
 
-	base::lambda<void()> _doneCallback;
+	Fn<void()> _doneCallback;
 
 	bool _wasAnimating = false;
 	bool _inPaintEvent = false;
@@ -314,11 +314,8 @@ void LayerStackWidget::BackgroundWidget::animationCallback() {
 	checkIfDone();
 }
 
-LayerStackWidget::LayerStackWidget(
-	QWidget *parent,
-	Controller *controller)
-: TWidget(parent)
-, _controller(controller)
+LayerStackWidget::LayerStackWidget(QWidget *parent)
+: RpWidget(parent)
 , _background(this) {
 	setGeometry(parentWidget()->rect());
 	hide();
@@ -326,7 +323,7 @@ LayerStackWidget::LayerStackWidget(
 }
 
 void LayerWidget::setInnerFocus() {
-	if (!isAncestorOf(App::wnd()->focusWidget())) {
+	if (!isAncestorOf(window()->focusWidget())) {
 		doSetInnerFocus();
 	}
 }
@@ -348,6 +345,10 @@ bool LayerWidget::overlaps(const QRect &globalRect) {
 	return false;
 }
 
+void LayerStackWidget::setHideByBackgroundClick(bool hide) {
+	_hideByBackgroundClick = hide;
+}
+
 void LayerStackWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		hideCurrent(anim::type::normal);
@@ -355,7 +356,14 @@ void LayerStackWidget::keyPressEvent(QKeyEvent *e) {
 }
 
 void LayerStackWidget::mousePressEvent(QMouseEvent *e) {
-	hideCurrent(anim::type::normal);
+	if (_hideByBackgroundClick) {
+		if (const auto layer = currentLayer()) {
+			if (!layer->closeByOutsideClick()) {
+				return;
+			}
+		}
+		hideCurrent(anim::type::normal);
+	}
 }
 
 void LayerStackWidget::hideCurrent(anim::type animated) {
@@ -406,13 +414,13 @@ void LayerStackWidget::setCacheImages() {
 	if (auto layer = currentLayer()) {
 		layerCache = Ui::Shadow::grab(layer, st::boxRoundShadow);
 	}
-	if (isAncestorOf(App::wnd()->focusWidget())) {
+	if (isAncestorOf(window()->focusWidget())) {
 		setFocus();
 	}
 	if (_mainMenu) {
 		setAttribute(Qt::WA_OpaquePaintEvent, false);
 		hideChildren();
-		bodyCache = Ui::GrabWidget(App::wnd()->bodyWidget());
+		bodyCache = Ui::GrabWidget(parentWidget());
 		showChildren();
 		mainMenuCache = Ui::Shadow::grab(_mainMenu, st::boxRoundShadow, RectPart::Right);
 	}
@@ -542,6 +550,21 @@ void LayerStackWidget::resizeEvent(QResizeEvent *e) {
 
 void LayerStackWidget::showBox(
 		object_ptr<BoxContent> box,
+		LayerOptions options,
+		anim::type animated) {
+	if (options & LayerOption::KeepOther) {
+		if (options & LayerOption::ShowAfterOther) {
+			prependBox(std::move(box), animated);
+		} else {
+			appendBox(std::move(box), animated);
+		}
+	} else {
+		replaceBox(std::move(box), animated);
+	}
+}
+
+void LayerStackWidget::replaceBox(
+		object_ptr<BoxContent> box,
 		anim::type animated) {
 	auto pointer = pushBox(std::move(box), animated);
 	while (!_layers.isEmpty() && _layers.front() != pointer) {
@@ -585,11 +608,15 @@ void LayerStackWidget::animationDone() {
 		hidden = false;
 	}
 	if (hidden) {
-		App::wnd()->layerFinishedHide(this);
+		_hideFinishStream.fire({});
 	} else {
 		showFinished();
 	}
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
+}
+
+rpl::producer<> LayerStackWidget::hideFinishEvents() const {
+	return _hideFinishStream.events();
 }
 
 void LayerStackWidget::showFinished() {
@@ -602,8 +629,8 @@ void LayerStackWidget::showFinished() {
 	if (auto layer = currentLayer()) {
 		layer->showFinished();
 	}
-	if (auto window = App::wnd()) {
-		window->setInnerFocus();
+	if (canSetFocus()) {
+		setInnerFocus();
 	}
 }
 
@@ -635,9 +662,11 @@ void LayerStackWidget::hideSpecialLayer(anim::type animated) {
 	}, Action::HideSpecialLayer, animated);
 }
 
-void LayerStackWidget::showMainMenu(anim::type animated) {
-	startAnimation([this] {
-		_mainMenu.create(this, _controller);
+void LayerStackWidget::showMainMenu(
+		not_null<Window::Controller*> controller,
+		anim::type animated) {
+	startAnimation([&] {
+		_mainMenu.create(this, controller);
 		_mainMenu->setGeometryToLeft(0, 0, _mainMenu->width(), height());
 		_mainMenu->setParent(this);
 	}, [this] {
@@ -662,14 +691,13 @@ LayerWidget *LayerStackWidget::pushBox(
 	}
 	auto layer = object_ptr<AbstractBox>(
 		this,
-		_controller,
 		std::move(box));
 	_layers.push_back(layer);
 	initChildLayer(layer);
 
 	if (_layers.size() > 1) {
 		if (!_background->animating()) {
-			layer->show();
+			layer->setVisible(true);
 			showFinished();
 		}
 	} else {
@@ -685,9 +713,10 @@ void LayerStackWidget::prependBox(
 		object_ptr<BoxContent> box,
 		anim::type animated) {
 	if (_layers.empty()) {
-		return showBox(std::move(box), animated);
+		replaceBox(std::move(box), animated);
+		return;
 	}
-	auto layer = object_ptr<AbstractBox>(this, _controller, std::move(box));
+	auto layer = object_ptr<AbstractBox>(this, std::move(box));
 	layer->hide();
 	_layers.push_front(layer);
 	initChildLayer(layer);
@@ -771,11 +800,9 @@ LayerStackWidget::~LayerStackWidget() {
 	// other layers, that call methods of LayerStackWidget and access
 	// its fields, so if it is destroyed already everything crashes.
 	for (auto layer : base::take(_layers)) {
-		layer->setClosing();
 		layer->hide();
 		delete layer;
 	}
-	if (App::wnd()) App::wnd()->noLayerStack(this);
 }
 
 } // namespace Window
@@ -961,7 +988,7 @@ QPixmap MediaPreviewWidget::currentImage() const {
 			if (_document->loaded()) {
 				if (!_gif && !_gif.isBad()) {
 					auto that = const_cast<MediaPreviewWidget*>(this);
-					that->_gif = Media::Clip::MakeReader(_document, FullMsgId(), [this, that](Media::Clip::Notification notification) {
+					that->_gif = Media::Clip::MakeReader(_document, FullMsgId(), [=](Media::Clip::Notification notification) {
 						that->clipCallback(notification);
 					});
 					if (_gif) _gif->setAutoplay();

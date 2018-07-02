@@ -90,6 +90,8 @@ public:
 	rpl::producer<Wrap> wrapValue() const;
 	void setWrap(Wrap wrap);
 
+	rpl::producer<> contentChanged() const;
+
 	not_null<Controller*> controller() {
 		return _controller.get();
 	}
@@ -217,6 +219,7 @@ private:
 	rpl::event_stream<rpl::producer<bool>> _desiredShadowVisibilities;
 	rpl::event_stream<rpl::producer<SelectedItems>> _selectedLists;
 	rpl::event_stream<rpl::producer<int>> _scrollTillBottomChanges;
+	rpl::event_stream<> _contentChanges;
 
 };
 

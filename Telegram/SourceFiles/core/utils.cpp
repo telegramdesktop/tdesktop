@@ -7,6 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/utils.h"
 
+#include "base/qthelp_url.h"
+#include "application.h"
+#include "platform/platform_specific.h"
+
+extern "C" {
 #include <openssl/crypto.h>
 #include <openssl/sha.h>
 #include <openssl/err.h>
@@ -14,16 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <openssl/engine.h>
 #include <openssl/conf.h>
 #include <openssl/ssl.h>
-
-extern "C" {
+#include <openssl/rand.h>
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
-}
-
-#include "application.h"
-#include "platform/platform_specific.h"
-
-uint64 _SharedMemoryLocation[4] = { 0x00, 0x01, 0x02, 0x03 };
+} // extern "C"
 
 #ifdef Q_OS_WIN
 #elif defined Q_OS_MAC
@@ -32,7 +31,7 @@ uint64 _SharedMemoryLocation[4] = { 0x00, 0x01, 0x02, 0x03 };
 #include <time.h>
 #endif
 
-#include <openssl/rand.h>
+uint64 _SharedMemoryLocation[4] = { 0x00, 0x01, 0x02, 0x03 };
 
 // Base types compile-time check
 static_assert(sizeof(char) == 1, "Basic types size check failed");
@@ -55,11 +54,13 @@ static_assert(sizeof(MTPdouble) == 8, "Basic types size check failed");
 // Unixtime functions
 
 namespace {
+
+std::atomic<int> GlobalAtomicRequestId = 0;
+
 	QReadWriteLock unixtimeLock;
 	volatile int32 unixtimeDelta = 0;
 	volatile bool unixtimeWasSet = false;
     volatile uint64 _msgIdStart, _msgIdLocal = 0, _msgIdMsStart;
-	int32 _reqId = 0;
 
 	void _initMsgIdConstants() {
 #ifdef Q_OS_WIN
@@ -236,6 +237,120 @@ namespace {
 	_MsStarter _msStarter;
 }
 
+bool ProxyData::valid() const {
+	if (type == Type::None || host.isEmpty() || !port) {
+		return false;
+	} else if (type == Type::Mtproto && !ValidMtprotoPassword(password)) {
+		return false;
+	}
+	return true;
+}
+
+int ProxyData::MaxMtprotoPasswordLength() {
+	return 34;
+}
+
+bool ProxyData::supportsCalls() const {
+	return (type == Type::Socks5);
+}
+
+bool ProxyData::tryCustomResolve() const {
+	return (type == Type::Socks5 || type == Type::Mtproto)
+		&& !qthelp::is_ipv6(host)
+		&& !QRegularExpression(
+			qsl("^\\d+\\.\\d+\\.\\d+\\.\\d+$")
+		).match(host).hasMatch();
+}
+
+bytes::vector ProxyData::secretFromMtprotoPassword() const {
+	Expects(type == Type::Mtproto);
+	Expects(password.size() % 2 == 0);
+
+	const auto length = password.size() / 2;
+	const auto fromHex = [](QChar ch) -> int {
+		const auto code = int(ch.unicode());
+		if (code >= '0' && code <= '9') {
+			return (code - '0');
+		} else if (code >= 'A' && code <= 'F') {
+			return 10 + (code - 'A');
+		} else if (ch >= 'a' && ch <= 'f') {
+			return 10 + (code - 'a');
+		}
+		return -1;
+	};
+	auto result = bytes::vector(length);
+	for (auto i = 0; i != length; ++i) {
+		const auto high = fromHex(password[2 * i]);
+		const auto low = fromHex(password[2 * i + 1]);
+		if (high < 0 || low < 0) {
+			return {};
+		}
+		result[i] = static_cast<gsl::byte>(high * 16 + low);
+	}
+	return result;
+}
+
+ProxyData::operator bool() const {
+	return valid();
+}
+
+bool ProxyData::operator==(const ProxyData &other) const {
+	if (!valid()) {
+		return !other.valid();
+	}
+	return (type == other.type)
+		&& (host == other.host)
+		&& (port == other.port)
+		&& (user == other.user)
+		&& (password == other.password);
+}
+
+bool ProxyData::operator!=(const ProxyData &other) const {
+	return !(*this == other);
+}
+
+bool ProxyData::ValidMtprotoPassword(const QString &secret) {
+	if (secret.size() == 32) {
+		static const auto check = QRegularExpression("^[a-fA-F0-9]{32}$");
+		return check.match(secret).hasMatch();
+	} else if (secret.size() == 34) {
+		static const auto check = QRegularExpression("^dd[a-fA-F0-9]{32}$");
+		return check.match(secret).hasMatch();
+	}
+	return false;
+}
+
+ProxyData ToDirectIpProxy(const ProxyData &proxy, int ipIndex) {
+	if (!proxy.tryCustomResolve()
+		|| ipIndex < 0
+		|| ipIndex >= proxy.resolvedIPs.size()) {
+		return proxy;
+	}
+	return {
+		proxy.type,
+		proxy.resolvedIPs[ipIndex],
+		proxy.port,
+		proxy.user,
+		proxy.password
+	};
+}
+
+QNetworkProxy ToNetworkProxy(const ProxyData &proxy) {
+	if (proxy.type == ProxyData::Type::None) {
+		return QNetworkProxy::DefaultProxy;
+	} else if (proxy.type == ProxyData::Type::Mtproto) {
+		return QNetworkProxy::NoProxy;
+	}
+	return QNetworkProxy(
+		(proxy.type == ProxyData::Type::Socks5
+			? QNetworkProxy::Socks5Proxy
+			: QNetworkProxy::HttpProxy),
+		proxy.host,
+		proxy.port,
+		proxy.user,
+		proxy.password);
+}
+
 namespace ThirdParty {
 
 	void start() {
@@ -359,12 +474,12 @@ uint64 msgid() {
 	return result + (_msgIdLocal += 4);
 }
 
-int32 reqid() {
-	QWriteLocker locker(&unixtimeLock);
-	if (_reqId == INT_MAX) {
-		_reqId = 0;
+int GetNextRequestId() {
+	const auto result = ++GlobalAtomicRequestId;
+	if (result == std::numeric_limits<int>::max() / 2) {
+		GlobalAtomicRequestId = 0;
 	}
-	return ++_reqId;
+	return result;
 }
 
 // crc32 hash, taken somewhere from the internet
@@ -928,77 +1043,4 @@ QString rusKeyboardLayoutSwitch(const QString &from) {
 		}
 	}
 	return result;
-}
-
-QStringList MimeType::globPatterns() const {
-	switch (_type) {
-	case Known::WebP: return QStringList(qsl("*.webp"));
-	case Known::TDesktopTheme: return QStringList(qsl("*.tdesktop-theme"));
-	case Known::TDesktopPalette: return QStringList(qsl("*.tdesktop-palette"));
-	default: break;
-	}
-	return _typeStruct.globPatterns();
-}
-QString MimeType::filterString() const {
-	switch (_type) {
-	case Known::WebP: return qsl("WebP image (*.webp)");
-	case Known::TDesktopTheme: return qsl("Theme files (*.tdesktop-theme)");
-	case Known::TDesktopPalette: return qsl("Palette files (*.tdesktop-palette)");
-	default: break;
-	}
-	return _typeStruct.filterString();
-}
-QString MimeType::name() const {
-	switch (_type) {
-	case Known::WebP: return qsl("image/webp");
-	case Known::TDesktopTheme: return qsl("application/x-tdesktop-theme");
-	case Known::TDesktopPalette: return qsl("application/x-tdesktop-palette");
-	default: break;
-	}
-	return _typeStruct.name();
-}
-
-MimeType mimeTypeForName(const QString &mime) {
-	if (mime == qsl("image/webp")) {
-		return MimeType(MimeType::Known::WebP);
-	} else if (mime == qsl("application/x-tdesktop-theme")) {
-		return MimeType(MimeType::Known::TDesktopTheme);
-	} else if (mime == qsl("application/x-tdesktop-palette")) {
-		return MimeType(MimeType::Known::TDesktopPalette);
-	}
-	return MimeType(QMimeDatabase().mimeTypeForName(mime));
-}
-
-MimeType mimeTypeForFile(const QFileInfo &file) {
-	QString path = file.absoluteFilePath();
-	if (path.endsWith(qstr(".webp"), Qt::CaseInsensitive)) {
-		return MimeType(MimeType::Known::WebP);
-	} else if (path.endsWith(qstr(".tdesktop-theme"), Qt::CaseInsensitive)) {
-		return MimeType(MimeType::Known::TDesktopTheme);
-	} else if (path.endsWith(qstr(".tdesktop-palette"), Qt::CaseInsensitive)) {
-		return MimeType(MimeType::Known::TDesktopPalette);
-	}
-
-	{
-		QFile f(path);
-		if (f.open(QIODevice::ReadOnly)) {
-			QByteArray magic = f.read(12);
-			if (magic.size() >= 12) {
-				if (!memcmp(magic.constData(), "RIFF", 4) && !memcmp(magic.constData() + 8, "WEBP", 4)) {
-					return MimeType(MimeType::Known::WebP);
-				}
-			}
-			f.close();
-		}
-	}
-	return MimeType(QMimeDatabase().mimeTypeForFile(file));
-}
-
-MimeType mimeTypeForData(const QByteArray &data) {
-	if (data.size() >= 12) {
-		if (!memcmp(data.constData(), "RIFF", 4) && !memcmp(data.constData() + 8, "WEBP", 4)) {
-			return MimeType(MimeType::Known::WebP);
-		}
-	}
-	return MimeType(QMimeDatabase().mimeTypeForData(data));
 }

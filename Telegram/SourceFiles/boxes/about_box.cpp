@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "autoupdater.h"
 #include "boxes/confirm_box.h"
 #include "application.h"
 #include "ui/widgets/buttons.h"
@@ -18,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "platform/platform_file_utilities.h"
 #include "core/click_handler_types.h"
+#include "core/update_checker.h"
 
 AboutBox::AboutBox(QWidget *parent)
 : _version(this, lng_about_version(lt_version, QString::fromLatin1(AppVersionStr.c_str()) + (cAlphaVersion() ? " alpha" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString())), st::aboutVersionLink)
@@ -31,7 +31,7 @@ void AboutBox::prepare() {
 
 	addButton(langFactory(lng_close), [this] { closeBox(); });
 
-	const auto linkHook = [](const ClickHandlerPtr &link, auto button) {
+	const auto linkFilter = [](const ClickHandlerPtr &link, auto button) {
 		if (const auto url = dynamic_cast<UrlClickHandler*>(link.get())) {
 			url->UrlClickHandler::onClick(button);
 			return false;
@@ -40,9 +40,9 @@ void AboutBox::prepare() {
 	};
 
 	_text3->setRichText(lng_about_text_3(lt_faq_open, qsl("[a href=\"%1\"]").arg(telegramFaqLink()), lt_faq_close, qsl("[/a]")));
-	_text1->setClickHandlerHook(linkHook);
-	_text2->setClickHandlerHook(linkHook);
-	_text3->setClickHandlerHook(linkHook);
+	_text1->setClickHandlerFilter(linkFilter);
+	_text2->setClickHandlerFilter(linkFilter);
+	_text3->setClickHandlerFilter(linkFilter);
 
 	_version->setClickedCallback([this] { showVersionHistory(); });
 
@@ -68,7 +68,7 @@ void AboutBox::showVersionHistory() {
 		case dbipLinux32: url += qsl("linux32/%1.tar.xz"); break;
 		case dbipLinux64: url += qsl("linux/%1.tar.xz"); break;
 		}
-		url = url.arg(qsl("tbeta%1_%2").arg(cRealBetaVersion()).arg(countBetaVersionSignature(cRealBetaVersion())));
+		url = url.arg(qsl("tbeta%1_%2").arg(cRealBetaVersion()).arg(Core::countBetaVersionSignature(cRealBetaVersion())));
 
 		Application::clipboard()->setText(url);
 

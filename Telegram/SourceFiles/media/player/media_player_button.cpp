@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Media {
 namespace Player {
 
-PlayButtonLayout::PlayButtonLayout(const style::MediaPlayerButton &st, base::lambda<void()> callback)
+PlayButtonLayout::PlayButtonLayout(const style::MediaPlayerButton &st, Fn<void()> callback)
 : _st(st)
 , _callback(std::move(callback)) {
 }

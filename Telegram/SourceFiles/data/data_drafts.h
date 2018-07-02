@@ -8,13 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 namespace Ui {
-class FlatTextarea;
+class InputField;
 } // namespace Ui
 
 namespace Data {
 
 void applyPeerCloudDraft(PeerId peerId, const MTPDdraftMessage &draft);
-void clearPeerCloudDraft(PeerId peerId);
+void clearPeerCloudDraft(PeerId peerId, TimeId date);
 
 struct Draft {
 	Draft() = default;
@@ -25,7 +25,7 @@ struct Draft {
 		bool previewCancelled,
 		mtpRequestId saveRequestId = 0);
 	Draft(
-		not_null<const Ui::FlatTextarea*> field,
+		not_null<const Ui::InputField*> field,
 		MsgId msgId,
 		bool previewCancelled,
 		mtpRequestId saveRequestId = 0);

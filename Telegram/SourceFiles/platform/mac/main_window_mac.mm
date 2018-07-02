@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "application.h"
+#include "messenger.h"
 #include "history/history.h"
 #include "history/history_widget.h"
 #include "history/history_inner_widget.h"
@@ -65,7 +66,7 @@ id FindClassInSubviews(NSView *parent, NSString *className) {
 
 class LayerCreationChecker : public QObject {
 public:
-	LayerCreationChecker(NSView * __weak view, base::lambda<void()> callback)
+	LayerCreationChecker(NSView * __weak view, Fn<void()> callback)
 	: _weakView(view)
 	, _callback(std::move(callback)) {
 		QCoreApplication::instance()->installEventFilter(this);
@@ -81,7 +82,7 @@ protected:
 
 private:
 	NSView * __weak _weakView = nil;
-	base::lambda<void()> _callback;
+	Fn<void()> _callback;
 
 };
 
@@ -675,7 +676,7 @@ void MainWindow::updateGlobalMenuHook() {
 	if (!App::wnd() || !positionInited()) return;
 
 	auto focused = QApplication::focusWidget();
-	bool isLogged = !!App::self(), canUndo = false, canRedo = false, canCut = false, canCopy = false, canPaste = false, canDelete = false, canSelectAll = false;
+	bool canUndo = false, canRedo = false, canCut = false, canCopy = false, canPaste = false, canDelete = false, canSelectAll = false;
 	auto clipboardHasText = _private->clipboardHasText();
 	if (auto edit = qobject_cast<QLineEdit*>(focused)) {
 		canCut = canCopy = canDelete = edit->hasSelectedText();
@@ -694,7 +695,10 @@ void MainWindow::updateGlobalMenuHook() {
 		canDelete = list->canDeleteSelected();
 	}
 	App::wnd()->updateIsActive(0);
-	_forceDisabled(psLogout, !isLogged && !App::passcoded());
+	const auto logged = !!App::self();
+	const auto locked = !Messenger::Instance().locked();
+	const auto inactive = !logged || locked;
+	_forceDisabled(psLogout, !logged && !locked);
 	_forceDisabled(psUndo, !canUndo);
 	_forceDisabled(psRedo, !canRedo);
 	_forceDisabled(psCut, !canCut);
@@ -702,10 +706,10 @@ void MainWindow::updateGlobalMenuHook() {
 	_forceDisabled(psPaste, !canPaste);
 	_forceDisabled(psDelete, !canDelete);
 	_forceDisabled(psSelectAll, !canSelectAll);
-	_forceDisabled(psContacts, !isLogged || App::passcoded());
-	_forceDisabled(psAddContact, !isLogged || App::passcoded());
-	_forceDisabled(psNewGroup, !isLogged || App::passcoded());
-	_forceDisabled(psNewChannel, !isLogged || App::passcoded());
+	_forceDisabled(psContacts, inactive);
+	_forceDisabled(psAddContact, inactive);
+	_forceDisabled(psNewGroup, inactive);
+	_forceDisabled(psNewChannel, inactive);
 	_forceDisabled(psShowTelegram, App::wnd()->isActive());
 }
 

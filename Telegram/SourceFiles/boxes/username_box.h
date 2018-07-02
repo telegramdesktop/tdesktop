@@ -15,8 +15,6 @@ class LinkButton;
 } // namespace Ui
 
 class UsernameBox : public BoxContent, public RPCSender {
-	Q_OBJECT
-
 public:
 	UsernameBox(QWidget*);
 
@@ -27,20 +25,19 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-private slots:
-	void onSave();
-
-	void onCheck();
-	void onChanged();
-
-	void onLinkClick();
-
 private:
 	void onUpdateDone(const MTPUser &result);
 	bool onUpdateFail(const RPCError &error);
 
 	void onCheckDone(const MTPBool &result);
 	bool onCheckFail(const RPCError &error);
+
+	void save();
+
+	void check();
+	void changed();
+
+	void linkClick();
 
 	QString getName() const;
 	void updateLinkText();

@@ -630,38 +630,45 @@ EditColorBox::EditColorBox(QWidget*, const QString &title, QColor current) : Box
 }
 
 void EditColorBox::prepare() {
-	setTitle([this] { return _title; });
+	setTitle([=] { return _title; });
 
-	connect(_hueField, SIGNAL(changed()), this, SLOT(onFieldChanged()));
-	connect(_saturationField, SIGNAL(changed()), this, SLOT(onFieldChanged()));
-	connect(_brightnessField, SIGNAL(changed()), this, SLOT(onFieldChanged()));
-	connect(_redField, SIGNAL(changed()), this, SLOT(onFieldChanged()));
-	connect(_greenField, SIGNAL(changed()), this, SLOT(onFieldChanged()));
-	connect(_blueField, SIGNAL(changed()), this, SLOT(onFieldChanged()));
-	connect(_result, SIGNAL(changed()), this, SLOT(onFieldChanged()));
+	const auto hsvChanged = [=] { updateFromHSVFields(); };
+	const auto rgbChanged = [=] { updateFromRGBFields(); };
+	connect(_hueField, &Ui::MaskedInputField::changed, hsvChanged);
+	connect(_saturationField, &Ui::MaskedInputField::changed, hsvChanged);
+	connect(_brightnessField, &Ui::MaskedInputField::changed, hsvChanged);
+	connect(_redField, &Ui::MaskedInputField::changed, rgbChanged);
+	connect(_greenField, &Ui::MaskedInputField::changed, rgbChanged);
+	connect(_blueField, &Ui::MaskedInputField::changed, rgbChanged);
+	connect(_result, &Ui::MaskedInputField::changed, [=] {
+		updateFromResultField();
+	});
 
-	connect(_hueField, SIGNAL(submitted(bool)), this, SLOT(onFieldSubmitted()));
-	connect(_saturationField, SIGNAL(submitted(bool)), this, SLOT(onFieldSubmitted()));
-	connect(_brightnessField, SIGNAL(submitted(bool)), this, SLOT(onFieldSubmitted()));
-	connect(_redField, SIGNAL(submitted(bool)), this, SLOT(onFieldSubmitted()));
-	connect(_greenField, SIGNAL(submitted(bool)), this, SLOT(onFieldSubmitted()));
-	connect(_blueField, SIGNAL(submitted(bool)), this, SLOT(onFieldSubmitted()));
-	connect(_result, SIGNAL(submitted(bool)), this, SLOT(onFieldSubmitted()));
+	const auto submitted = [=] { fieldSubmitted(); };
+	connect(_hueField, &Ui::MaskedInputField::submitted, submitted);
+	connect(_saturationField, &Ui::MaskedInputField::submitted, submitted);
+	connect(_brightnessField, &Ui::MaskedInputField::submitted, submitted);
+	connect(_redField, &Ui::MaskedInputField::submitted, submitted);
+	connect(_greenField, &Ui::MaskedInputField::submitted, submitted);
+	connect(_blueField, &Ui::MaskedInputField::submitted, submitted);
+	connect(_result, &Ui::MaskedInputField::submitted, submitted);
 
-	addButton(langFactory(lng_settings_save), [this] { saveColor(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_settings_save), [=] { saveColor(); });
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 
 	auto height = st::colorEditSkip + st::colorPickerSize + st::colorEditSkip + st::colorSliderWidth + st::colorEditSkip;
 	setDimensions(st::colorEditWidth, height);
 
-	subscribe(_picker->changed(), [this] { updateFromControls(); });
-	subscribe(_hueSlider->changed(), [this] { updateFromControls(); });
-	subscribe(_opacitySlider->changed(), [this] { updateFromControls(); });
-	subscribe(boxClosing, [this] {
+	subscribe(_picker->changed(), [=] { updateFromControls(); });
+	subscribe(_hueSlider->changed(), [=] { updateFromControls(); });
+	subscribe(_opacitySlider->changed(), [=] { updateFromControls(); });
+
+	boxClosing() | rpl::start_with_next([=] {
 		if (_cancelCallback) {
 			_cancelCallback();
 		}
-	});
+	}, lifetime());
+
 	updateFromControls();
 }
 
@@ -670,30 +677,7 @@ void EditColorBox::setInnerFocus() {
 	_result->selectAll();
 }
 
-void EditColorBox::onFieldChanged() {
-	auto emitter = sender();
-	auto checkHSVSender = [this, emitter](QObject *field) {
-		if (emitter == field) {
-			updateFromHSVFields();
-		}
-	};
-	auto checkRGBSender = [this, emitter](QObject *field) {
-		if (emitter == field) {
-			updateFromRGBFields();
-		}
-	};
-	checkHSVSender(_hueField);
-	checkHSVSender(_saturationField);
-	checkHSVSender(_brightnessField);
-	checkRGBSender(_redField);
-	checkRGBSender(_greenField);
-	checkRGBSender(_blueField);
-	if (emitter == _result) {
-		updateFromResultField();
-	}
-}
-
-void EditColorBox::onFieldSubmitted() {
+void EditColorBox::fieldSubmitted() {
 	Ui::MaskedInputField *fields[] = {
 		_hueField,
 		_saturationField,
@@ -716,7 +700,7 @@ void EditColorBox::onFieldSubmitted() {
 }
 
 void EditColorBox::saveColor() {
-	_cancelCallback = base::lambda<void()>();
+	_cancelCallback = Fn<void()>();
 	if (_saveCallback) {
 		_saveCallback(_new.toRgb());
 	}

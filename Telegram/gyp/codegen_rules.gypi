@@ -99,22 +99,6 @@
     'message': 'codegen_numbers-ing numbers.txt..',
     'process_outputs_as_sources': 1,
   }, {
-    'action_name': 'codegen_scheme',
-    'inputs': [
-      '<(src_loc)/codegen/scheme/codegen_scheme.py',
-      '<(res_loc)/scheme.tl',
-    ],
-    'outputs': [
-      '<(SHARED_INTERMEDIATE_DIR)/scheme.cpp',
-      '<(SHARED_INTERMEDIATE_DIR)/scheme.h',
-    ],
-    'action': [
-      'python', '<(src_loc)/codegen/scheme/codegen_scheme.py',
-      '-o', '<(SHARED_INTERMEDIATE_DIR)', '<(res_loc)/scheme.tl',
-    ],
-    'message': 'codegen_scheme-ing scheme.tl..',
-    'process_outputs_as_sources': 1,
-  }, {
     'action_name': 'codegen_emoji',
     'inputs': [
       '<(PRODUCT_DIR)/codegen_emoji<(exe_ext)',

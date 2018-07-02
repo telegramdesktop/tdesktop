@@ -41,6 +41,8 @@ namespace Ui {
 class EmptyUserpic;
 } // namespace Ui
 
+QString FillAmountAndCurrency(uint64 amount, const QString &currency);
+
 class HistoryFileMedia : public HistoryMedia {
 public:
 	using HistoryMedia::HistoryMedia;
@@ -389,6 +391,8 @@ public:
 		return MediaTypeGif;
 	}
 
+	void refreshParentId(not_null<HistoryItem*> realParent) override;
+
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
@@ -466,7 +470,7 @@ private:
 	bool isSeparateRoundVideo() const;
 
 	not_null<DocumentData*> _data;
-	ClickHandlerPtr _openInMediaviewLink;
+	FileClickHandlerPtr _openInMediaviewLink;
 	int _thumbw = 1;
 	int _thumbh = 1;
 	Text _caption;
@@ -518,6 +522,7 @@ private:
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 
+	bool needInfoDisplay() const;
 	int additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply) const;
 	int additionalWidth() const;
 
@@ -803,6 +808,8 @@ public:
 		return _attach.get();
 	}
 
+	void parentTextUpdated() override;
+
 	~HistoryGame();
 
 private:
@@ -845,7 +852,6 @@ public:
 	QString getTitle() const {
 		return _title.originalText();
 	}
-	static QString fillAmountAndCurrency(uint64 amount, const QString &currency);
 
 	bool hideMessageText() const override {
 		return false;

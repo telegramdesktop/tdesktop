@@ -7,9 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/change_phone_box.h"
 
-#include <rpl/filter.h>
-#include <rpl/mappers.h>
-#include <rpl/take.h>
 #include "lang/lang_keys.h"
 #include "styles/style_boxes.h"
 #include "ui/widgets/labels.h"
@@ -128,7 +125,7 @@ void ChangePhoneBox::EnterPhone::prepare() {
 
 	_phone->resize(st::boxWidth - 2 * st::boxPadding.left(), _phone->height());
 	_phone->moveToLeft(st::boxPadding.left(), st::boxLittleSkip);
-	connect(_phone, &Ui::PhoneInput::submitted, this, [this] { submit(); });
+	connect(_phone, &Ui::PhoneInput::submitted, [=] { submit(); });
 
 	auto description = object_ptr<Ui::FlatLabel>(this, lang(lng_change_phone_new_description), Ui::FlatLabel::InitType::Simple, st::changePhoneLabel);
 	auto errorSkip = st::boxLittleSkip + st::changePhoneError.style.font->height;
@@ -147,9 +144,9 @@ void ChangePhoneBox::EnterPhone::submit() {
 	hideError();
 
 	auto phoneNumber = _phone->getLastText().trimmed();
-	_requestId = MTP::send(MTPaccount_SendChangePhoneCode(MTP_flags(0), MTP_string(phoneNumber), MTP_bool(false)), rpcDone(base::lambda_guarded(this, [this, phoneNumber](const MTPauth_SentCode &result) {
+	_requestId = MTP::send(MTPaccount_SendChangePhoneCode(MTP_flags(0), MTP_string(phoneNumber), MTP_bool(false)), rpcDone(crl::guard(this, [this, phoneNumber](const MTPauth_SentCode &result) {
 		return sendPhoneDone(phoneNumber, result);
-	})), rpcFail(base::lambda_guarded(this, [this, phoneNumber](const RPCError &error) {
+	})), rpcFail(crl::guard(this, [this, phoneNumber](const RPCError &error) {
 		return sendPhoneFail(phoneNumber, error);
 	})));
 }
@@ -216,7 +213,7 @@ ChangePhoneBox::EnterCode::EnterCode(QWidget*, const QString &phone, const QStri
 , _hash(hash)
 , _codeLength(codeLength)
 , _callTimeout(callTimeout)
-, _call(this, [this] { sendCall(); }, [this] { updateCall(); }) {
+, _call([this] { sendCall(); }, [this] { updateCall(); }) {
 }
 
 void ChangePhoneBox::EnterCode::prepare() {
@@ -228,12 +225,12 @@ void ChangePhoneBox::EnterCode::prepare() {
 
 	auto phoneValue = QString();
 	_code.create(this, st::defaultInputField, langFactory(lng_change_phone_code_title), phoneValue);
-	_code->setAutoSubmit(_codeLength, [this] { submit(); });
-	_code->setChangedCallback([this] { hideError(); });
+	_code->setAutoSubmit(_codeLength, [=] { submit(); });
+	_code->setChangedCallback([=] { hideError(); });
 
 	_code->resize(st::boxWidth - 2 * st::boxPadding.left(), _code->height());
 	_code->moveToLeft(st::boxPadding.left(), description->bottomNoMargins());
-	connect(_code, &Ui::InputField::submitted, this, [this] { submit(); });
+	connect(_code, &Ui::InputField::submitted, [=] { submit(); });
 
 	setDimensions(st::boxWidth, countHeight());
 
@@ -242,8 +239,8 @@ void ChangePhoneBox::EnterCode::prepare() {
 		updateCall();
 	}
 
-	addButton(langFactory(lng_change_phone_new_submit), [this] { submit(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_change_phone_new_submit), [=] { submit(); });
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 }
 
 int ChangePhoneBox::EnterCode::countHeight() {
@@ -268,13 +265,13 @@ void ChangePhoneBox::EnterCode::submit() {
 			Ui::hideLayer();
 		}
 		Ui::Toast::Show(lang(lng_change_phone_success));
-	}), rpcFail(base::lambda_guarded(this, [this](const RPCError &error) {
+	}), rpcFail(crl::guard(this, [this](const RPCError &error) {
 		return sendCodeFail(error);
 	})));
 }
 
 void ChangePhoneBox::EnterCode::sendCall() {
-	MTP::send(MTPauth_ResendCode(MTP_string(_phone), MTP_string(_hash)), rpcDone(base::lambda_guarded(this, [this] {
+	MTP::send(MTPauth_ResendCode(MTP_string(_phone), MTP_string(_hash)), rpcDone(crl::guard(this, [this] {
 		_call.callDone();
 	})));
 }

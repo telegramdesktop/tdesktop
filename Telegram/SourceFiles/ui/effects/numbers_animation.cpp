@@ -14,7 +14,7 @@ namespace Ui {
 
 NumbersAnimation::NumbersAnimation(
 	const style::font &font,
-	base::lambda<void()> animationCallback)
+	Fn<void()> animationCallback)
 : _font(font)
 , _animationCallback(std::move(animationCallback)) {
 	for (auto ch = '0'; ch != '9'; ++ch) {

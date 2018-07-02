@@ -274,7 +274,9 @@ void StickersBox::prepare() {
 	if (_installed.widget()) {
 		connect(_installed.widget(), SIGNAL(draggingScrollDelta(int)), this, SLOT(onDraggingScrollDelta(int)));
 		if (!_megagroupSet) {
-			subscribe(boxClosing, [this] { saveChanges(); });
+			boxClosing() | rpl::start_with_next([=] {
+				saveChanges();
+			}, lifetime());
 		}
 	}
 
@@ -610,14 +612,14 @@ StickersBox::Inner::Inner(QWidget *parent, not_null<ChannelData*> megagroup) : T
 	connect(
 		_megagroupSetField,
 		&Ui::MaskedInputField::changed,
-		[this] {
+		[=] {
 			_megagroupSetAddressChangedTimer.callOnce(
 				kHandleMegagroupSetAddressChangeTimeout);
 		});
 	connect(
 		_megagroupSetField,
 		&Ui::MaskedInputField::submitted,
-		[this] {
+		[=] {
 			_megagroupSetAddressChangedTimer.cancel();
 			handleMegagroupSetAddressChange();
 		});

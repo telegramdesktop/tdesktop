@@ -27,12 +27,14 @@
         '<(src_loc)/boxes/boxes.style',
         '<(src_loc)/calls/calls.style',
         '<(src_loc)/dialogs/dialogs.style',
+        '<(src_loc)/export/view/export.style',
         '<(src_loc)/history/history.style',
         '<(src_loc)/info/info.style',
         '<(src_loc)/intro/intro.style',
         '<(src_loc)/media/view/mediaview.style',
         '<(src_loc)/media/player/media_player.style',
         '<(src_loc)/overview/overview.style',
+        '<(src_loc)/passport/passport.style',
         '<(src_loc)/profile/profile.style',
         '<(src_loc)/settings/settings.style',
         '<(src_loc)/chat_helpers/chat_helpers.style',
@@ -50,6 +52,8 @@
       ],
       'build_defines%': '',
       'list_sources_command': 'python <(DEPTH)/list_sources.py --input <(DEPTH)/telegram_sources.txt --replace src_loc=<(src_loc)',
+      'pch_source': '<(src_loc)/stdafx.cpp',
+      'pch_header': '<(src_loc)/stdafx.h',
     },
     'includes': [
       'common_executable.gypi',
@@ -61,6 +65,7 @@
       'qt_moc.gypi',
       'qt_rcc.gypi',
       'codegen_rules.gypi',
+      'pch.gypi',
     ],
 
     'dependencies': [
@@ -72,6 +77,7 @@
       'utils.gyp:Updater',
       '../ThirdParty/libtgvoip/libtgvoip.gyp:libtgvoip',
       'crl.gyp:crl',
+      'lib_export.gyp:lib_export',
     ],
 
     'defines': [
@@ -103,6 +109,7 @@
       '<@(style_files)',
       '<!@(<(list_sources_command) <(qt_moc_list_sources_arg))',
       'telegram_sources.txt',
+      '<(res_loc)/css/export_style.css',
     ],
     'sources!': [
       '<!@(<(list_sources_command) <(qt_moc_list_sources_arg) --exclude_for <(build_os))',

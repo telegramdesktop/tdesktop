@@ -372,8 +372,8 @@ bool HistoryItem::canDeleteForEveryone(TimeId now) const {
 	const auto messageTooOld = messageToMyself
 		? false
 		: peer->isUser()
-		? (now >= date() + Global::RevokePrivateTimeLimit())
-		: (now >= date() + Global::RevokeTimeLimit());
+		? (now - date() >= Global::RevokePrivateTimeLimit())
+		: (now - date() >= Global::RevokeTimeLimit());
 	if (id < 0 || messageToMyself || messageTooOld || isPost()) {
 		return false;
 	}
@@ -405,6 +405,17 @@ bool HistoryItem::canDeleteForEveryone(TimeId now) const {
 		}
 	}
 	return true;
+}
+
+bool HistoryItem::suggestReport() const {
+	if (out() || serviceMsg() || !IsServerMsgId(id)) {
+		return false;
+	} else if (const auto channel = history()->peer->asChannel()) {
+		return true;
+	} else if (const auto user = history()->peer->asUser()) {
+		return user->botInfo != nullptr;
+	}
+	return false;
 }
 
 bool HistoryItem::suggestBanReport() const {
@@ -462,7 +473,7 @@ Data::MessagePosition HistoryItem::position() const {
 }
 
 MsgId HistoryItem::replyToId() const {
-	if (auto reply = Get<HistoryMessageReply>()) {
+	if (const auto reply = Get<HistoryMessageReply>()) {
 		return reply->replyToId();
 	}
 	return 0;

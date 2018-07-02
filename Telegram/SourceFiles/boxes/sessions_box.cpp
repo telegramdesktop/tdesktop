@@ -28,14 +28,14 @@ void SessionsBox::prepare() {
 
 	setDimensions(st::boxWideWidth, st::sessionsHeight);
 
+	_inner = setInnerWidget(object_ptr<Inner>(this, &_list, &_current), st::sessionsScroll);
+	_inner->resize(width(), st::noContactsHeight);
+
 	connect(_inner, SIGNAL(oneTerminated()), this, SLOT(onOneTerminated()));
 	connect(_inner, SIGNAL(allTerminated()), this, SLOT(onAllTerminated()));
 	connect(_inner, SIGNAL(terminateAll()), this, SLOT(onTerminateAll()));
 	connect(App::wnd(), SIGNAL(checkNewAuthorization()), this, SLOT(onCheckNewAuthorization()));
 	connect(_shortPollTimer, SIGNAL(timeout()), this, SLOT(onShortPollAuthorizations()));
-
-	_inner = setInnerWidget(object_ptr<Inner>(this, &_list, &_current), st::sessionsScroll);
-	_inner->resize(width(), st::noContactsHeight);
 
 	setLoading(true);
 
@@ -71,8 +71,9 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 	_shortPollRequest = 0;
 	setLoading(false);
 
-	auto availCurrent = st::boxWideWidth - st::sessionPadding.left() - st::sessionTerminateSkip;
-	auto availOther = availCurrent - st::sessionTerminate.iconPosition.x();// -st::sessionTerminate.width - st::sessionTerminateSkip;
+	const auto availCurrent = st::boxWideWidth - st::sessionPadding.left() - st::sessionTerminateSkip;
+	const auto availOther = availCurrent - st::sessionTerminate.iconPosition.x();
+	const auto availInfo = availCurrent - st::sessionTerminate.width;
 
 	_list.clear();
 	if (result.type() != mtpc_account_authorizations) {
@@ -165,8 +166,8 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 				data.nameWidth = st::sessionNameFont->width(data.name);
 			}
 			data.infoWidth = st::sessionInfoFont->width(data.info);
-			if (data.infoWidth > availOther) {
-				data.info = st::sessionInfoFont->elided(data.info, availOther);
+			if (data.infoWidth > availInfo) {
+				data.info = st::sessionInfoFont->elided(data.info, availInfo);
 				data.infoWidth = st::sessionInfoFont->width(data.info);
 			}
 			data.ipWidth = st::sessionInfoFont->width(data.ip);
@@ -243,8 +244,8 @@ void SessionsBox::Inner::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
+	p.translate(0, st::sessionCurrentPadding.top());
 	if (r.y() <= st::sessionCurrentHeight) {
-		p.translate(0, st::sessionCurrentPadding.top());
 		p.setFont(st::sessionNameFont);
 		p.setPen(st::sessionNameFg);
 		p.drawTextLeft(x, st::sessionPadding.top(), w, _current->name, _current->nameWidth);
@@ -297,7 +298,7 @@ void SessionsBox::Inner::onTerminate() {
 	for (auto i = _terminateButtons.begin(), e = _terminateButtons.end(); i != e; ++i) {
 		if (i.value()->isOver()) {
 			if (_terminateBox) _terminateBox->deleteLater();
-			_terminateBox = Ui::show(Box<ConfirmBox>(lang(lng_settings_reset_one_sure), lang(lng_settings_reset_button), st::attentionBoxButton, base::lambda_guarded(this, [this, terminating = i.key()] {
+			_terminateBox = Ui::show(Box<ConfirmBox>(lang(lng_settings_reset_one_sure), lang(lng_settings_reset_button), st::attentionBoxButton, crl::guard(this, [this, terminating = i.key()] {
 				if (_terminateBox) {
 					_terminateBox->closeBox();
 					_terminateBox = nullptr;
@@ -315,7 +316,7 @@ void SessionsBox::Inner::onTerminate() {
 
 void SessionsBox::Inner::onTerminateAll() {
 	if (_terminateBox) _terminateBox->deleteLater();
-	_terminateBox = Ui::show(Box<ConfirmBox>(lang(lng_settings_reset_sure), lang(lng_settings_reset_button), st::attentionBoxButton, base::lambda_guarded(this, [this] {
+	_terminateBox = Ui::show(Box<ConfirmBox>(lang(lng_settings_reset_sure), lang(lng_settings_reset_button), st::attentionBoxButton, crl::guard(this, [this] {
 		if (_terminateBox) {
 			_terminateBox->closeBox();
 			_terminateBox = nullptr;

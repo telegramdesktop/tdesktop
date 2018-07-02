@@ -13,7 +13,7 @@ namespace Ui {
 
 class RippleAnimation {
 public:
-	using UpdateCallback = base::lambda<void()>;
+	using UpdateCallback = Fn<void()>;
 
 	// White upon transparent mask, like colorizeImage(black-white-mask, white).
 	RippleAnimation(const style::RippleAnimation &st, QImage mask, const UpdateCallback &update);
@@ -30,7 +30,7 @@ public:
 		return _ripples.isEmpty();
 	}
 
-	static QImage maskByDrawer(QSize size, bool filled, base::lambda<void(QPainter &p)> drawer);
+	static QImage maskByDrawer(QSize size, bool filled, Fn<void(QPainter &p)> drawer);
 	static QImage rectMask(QSize size);
 	static QImage roundRectMask(QSize size, int radius);
 	static QImage ellipseMask(QSize size);

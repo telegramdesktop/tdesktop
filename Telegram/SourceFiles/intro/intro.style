@@ -125,6 +125,11 @@ introResetButton: RoundButton(defaultLightButton) {
 }
 introResetBottom: 20px;
 
+introTermsLabel: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+}
+introTermsBottom: 20px;
+
 introCountryIcon: icon {{ "intro_country_dropdown", menuIconFg }};
 introCountryIconPosition: point(8px, 37px);
 

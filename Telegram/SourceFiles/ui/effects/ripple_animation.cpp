@@ -181,7 +181,7 @@ void RippleAnimation::paint(QPainter &p, int x, int y, int outerWidth, TimeMs ms
 	clearFinished();
 }
 
-QImage RippleAnimation::maskByDrawer(QSize size, bool filled, base::lambda<void(QPainter &p)> drawer) {
+QImage RippleAnimation::maskByDrawer(QSize size, bool filled, Fn<void(QPainter &p)> drawer) {
 	auto result = QImage(size * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(cRetinaFactor());
 	result.fill(filled ? QColor(255, 255, 255) : Qt::transparent);
@@ -197,7 +197,7 @@ QImage RippleAnimation::maskByDrawer(QSize size, bool filled, base::lambda<void(
 }
 
 QImage RippleAnimation::rectMask(QSize size) {
-	return maskByDrawer(size, true, base::lambda<void(QPainter&)>());
+	return maskByDrawer(size, true, Fn<void(QPainter&)>());
 }
 
 QImage RippleAnimation::roundRectMask(QSize size, int radius) {

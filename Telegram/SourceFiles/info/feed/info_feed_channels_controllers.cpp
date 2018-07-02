@@ -195,7 +195,7 @@ base::unique_qptr<Ui::PopupMenu> ChannelsController::rowContextMenu(
 	auto result = base::make_unique_q<Ui::PopupMenu>(nullptr);
 	Window::PeerMenuAddMuteAction(channel, [&](
 			const QString &text,
-			base::lambda<void()> handler) {
+			Fn<void()> handler) {
 		return result->addAction(text, handler);
 	});
 	//result->addAction( // #feed
@@ -212,18 +212,17 @@ base::unique_qptr<Ui::PopupMenu> ChannelsController::rowContextMenu(
 void NotificationsController::Start(not_null<Data::Feed*> feed) {
 	const auto initBox = [=](not_null<PeerListBox*> box) {
 		box->addButton(langFactory(lng_settings_save), [=] {
-			const auto main = App::main();
 			const auto count = box->peerListFullRowsCount();
 			for (auto i = 0; i != count; ++i) {
 				const auto row = box->peerListRowAt(i);
 				const auto peer = row->peer();
 				const auto muted = !row->checked();
-				if (muted != peer->isMuted()) {
-					main->updateNotifySettings(
+				if (muted != Auth().data().notifyIsMuted(peer)) {
+					Auth().data().updateNotifySettings(
 						peer,
 						(muted
-							? Data::NotifySettings::MuteChange::Mute
-							: Data::NotifySettings::MuteChange::Unmute));
+							? Data::NotifySettings::kDefaultMutePeriod
+							: 0));
 				}
 			}
 			box->closeBox();
@@ -252,13 +251,15 @@ void NotificationsController::loadMoreRows() {
 	if (_preloadRequestId || _allLoaded) {
 		return;
 	}
+	// const auto hash = 0;
 	//_preloadRequestId = request(MTPmessages_GetDialogs( // #feed
 	//	MTP_flags(MTPmessages_GetDialogs::Flag::f_feed_id),
 	//	MTP_int(_feed->id()),
 	//	MTP_int(_preloadOffsetDate),
 	//	MTP_int(_preloadOffsetId),
 	//	_preloadPeer ? _preloadPeer->input : MTP_inputPeerEmpty(),
-	//	MTP_int(Data::Feed::kChannelsLimit)
+	//	MTP_int(Data::Feed::kChannelsLimit),
+	//	MTP_int(hash)
 	//)).done([=](const MTPmessages_Dialogs &result) {
 	//	applyFeedDialogs(result);
 	//	_preloadRequestId = 0;
@@ -320,7 +321,7 @@ void NotificationsController::applyFeedDialogs(
 		auto notMutedChannels = ranges::view::all(
 			channels
 		) | ranges::view::filter([](not_null<ChannelData*> channel) {
-			return !channel->isMuted();
+			return !Auth().data().notifyIsMuted(channel);
 		});
 		delegate()->peerListAddSelectedRows(notMutedChannels);
 		for (const auto channel : channels) {

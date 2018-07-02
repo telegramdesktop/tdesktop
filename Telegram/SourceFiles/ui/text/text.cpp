@@ -27,11 +27,24 @@ inline int32 countBlockHeight(const ITextBlock *b, const style::TextStyle *st) {
 
 bool chIsBad(QChar ch) {
 #ifdef OS_MAC_OLD
-	if (cIsSnowLeopard() && (ch == 8207 || ch == 8206)) {
+	if (cIsSnowLeopard() && (ch == 8207 || ch == 8206 || ch == 8288)) {
 		return true;
 	}
 #endif // OS_MAC_OLD
-	return (ch == 0) || (ch >= 8232 && ch < 8237) || (ch >= 65024 && ch < 65040 && ch != 65039) || (ch >= 127 && ch < 160 && ch != 156) || (cPlatform() == dbipMac && ch >= 0x0B00 && ch <= 0x0B7F && chIsDiac(ch) && cIsElCapitan()); // tmp hack see https://bugreports.qt.io/browse/QTBUG-48910
+	return (ch == 0)
+        || (ch >= 8232 && ch < 8237)
+        || (ch >= 65024 && ch < 65040 && ch != 65039)
+        || (ch >= 127 && ch < 160 && ch != 156)
+
+        // qt harfbuzz crash see https://github.com/telegramdesktop/tdesktop/issues/4551
+        || (cPlatform() == dbipMac && ch == 6158)
+
+        // tmp hack see https://bugreports.qt.io/browse/QTBUG-48910
+        || (cPlatform() == dbipMac
+            && ch >= 0x0B00
+            && ch <= 0x0B7F
+            && chIsDiac(ch)
+            && cIsElCapitan());
 }
 
 QString textcmdSkipBlock(ushort w, ushort h) {
@@ -221,7 +234,9 @@ public:
 				if (flags & flag) {
 					createBlock();
 					flags &= ~flag;
-					if (flag == TextBlockFPre) {
+					if (flag == TextBlockFPre
+						&& !_t->_blocks.empty()
+						&& _t->_blocks.back()->type() != TextBlockTNewline) {
 						newlineAwaited = true;
 					}
 				}
@@ -2976,18 +2991,13 @@ void Text::enumerateText(TextSelection selection, AppendPartCallback appendPartC
 		uint16 blockFrom = (i == e) ? _text.size() : (*i)->from();
 		int32 blockFlags = (i == e) ? 0 : (*i)->flags();
 
-		bool checkBlockFlags = (blockFrom >= selection.from) && (blockFrom <= selection.to);
-		if (checkBlockFlags && blockFlags != flags) {
-			flagsChangeCallback(flags, blockFlags);
-			flags = blockFlags;
-		}
 		if (blockLnkIndex && !_links.at(blockLnkIndex - 1)) { // ignore empty links
 			blockLnkIndex = 0;
 		}
 		if (blockLnkIndex != lnkIndex) {
 			if (lnkIndex) {
 				auto rangeFrom = qMax(selection.from, lnkFrom);
-				auto rangeTo = qMin(blockFrom, selection.to);
+				auto rangeTo = qMin(selection.to, blockFrom);
 				if (rangeTo > rangeFrom) { // handle click handler
 					QStringRef r = _text.midRef(rangeFrom, rangeTo - rangeFrom);
 					if (lnkFrom != rangeFrom || blockFrom != rangeTo) {
@@ -3003,7 +3013,16 @@ void Text::enumerateText(TextSelection selection, AppendPartCallback appendPartC
 				clickHandlerStartCallback();
 			}
 		}
-		if (i == e || blockFrom >= selection.to) break;
+
+		const auto checkBlockFlags = (blockFrom >= selection.from)
+			&& (blockFrom <= selection.to);
+		if (checkBlockFlags && blockFlags != flags) {
+			flagsChangeCallback(flags, blockFlags);
+			flags = blockFlags;
+		}
+		if (i == e || blockFrom >= selection.to) {
+			break;
+		}
 
 		if ((*i)->type() == TextBlockTSkip) continue;
 

@@ -34,6 +34,7 @@ class FadeWrapScaled;
 
 namespace Window {
 class Controller;
+class ConnectingWidget;
 } // namespace Window
 
 enum DialogsSearchRequestType {
@@ -120,10 +121,6 @@ public slots:
 private slots:
 	void onDraggingScrollTimer();
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	void onCheckUpdateStatus();
-#endif // TDESKTOP_DISABLE_AUTOUPDATE
-
 protected:
 	void dragEnterEvent(QDragEnterEvent *e) override;
 	void dragMoveEvent(QDragMoveEvent *e) override;
@@ -155,6 +152,7 @@ private:
 		const QVector<MTPDialog> &dialogs,
 		const QVector<MTPMessage> &messages);
 
+	void setupConnectingWidget();
 	bool searchForPeersRequired(const QString &query) const;
 	void setSearchInChat(Dialogs::Key chat, UserData *from = nullptr);
 	void showJumpToDate();
@@ -166,6 +164,10 @@ private:
 	void updateSearchFromVisibility(bool fast = false);
 	void updateControlsGeometry();
 	void updateForwardBar();
+
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	void checkUpdateStatus();
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
 
 	bool dialogsFailed(const RPCError &error, mtpRequestId req);
 	bool searchFailed(DialogsSearchRequestType type, const RPCError &error, mtpRequestId req);
@@ -194,6 +196,7 @@ private:
 	QPointer<DialogsInner> _inner;
 	class UpdateButton;
 	object_ptr<UpdateButton> _updateTelegram = { nullptr };
+	base::unique_qptr<Window::ConnectingWidget> _connecting;
 
 	Animation _a_show;
 	Window::SlideDirection _showDirection;

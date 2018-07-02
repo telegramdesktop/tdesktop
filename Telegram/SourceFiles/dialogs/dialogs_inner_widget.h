@@ -63,10 +63,8 @@ public:
 	void refresh(bool toTop = false);
 
 	bool chooseRow();
-	void saveRecentHashtags(const QString &text);
 
 	void destroyData();
-
 
 	Dialogs::RowDescriptor chatListEntryBefore(
 		const Dialogs::RowDescriptor &which) const;
@@ -102,7 +100,7 @@ public:
 
 	PeerData *updateFromParentDrag(QPoint globalPos);
 
-	void setLoadMoreCallback(base::lambda<void()> callback) {
+	void setLoadMoreCallback(Fn<void()> callback) {
 		_loadMoreCallback = std::move(callback);
 	}
 
@@ -213,19 +211,13 @@ private:
 		UpdateRowSections sections = UpdateRowSection::All);
 
 	int dialogsOffset() const;
+	int proxyPromotedCount() const;
+	int pinnedOffset() const;
 	int filteredOffset() const;
 	int peerSearchOffset() const;
 	int searchedOffset() const;
 	int searchInChatSkip() const;
 
-	void paintDialog(
-		Painter &p,
-		not_null<Dialogs::Row*> row,
-		int fullWidth,
-		Dialogs::Key active,
-		Dialogs::Key selected,
-		bool onlyBackground,
-		TimeMs ms);
 	void paintPeerSearchResult(
 		Painter &p,
 		not_null<const PeerSearchResult*> result,
@@ -363,7 +355,7 @@ private:
 	Text _searchFromUserText;
 	Dialogs::Key _menuKey;
 
-	base::lambda<void()> _loadMoreCallback;
+	Fn<void()> _loadMoreCallback;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 

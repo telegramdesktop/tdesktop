@@ -646,10 +646,7 @@ int32 MainWindow::screenNameChecksum(const QString &name) const {
 }
 
 void MainWindow::psRefreshTaskbarIcon() {
-	auto refresher = object_ptr<QWidget>(this);
-	auto guard = gsl::finally([&refresher] {
-		refresher.destroy();
-	});
+	auto refresher = std::unique_ptr<QWidget>(this);
 	refresher->setWindowFlags(static_cast<Qt::WindowFlags>(Qt::Tool) | Qt::FramelessWindowHint);
 	refresher->setGeometry(x() + 1, y() + 1, 1, 1);
 	auto palette = refresher->palette();
@@ -800,10 +797,14 @@ void MainWindow::psFirstShow() {
 		setWindowState(Qt::WindowMaximized);
 	}
 
-	if ((cLaunchMode() == LaunchModeAutoStart && cStartMinimized() && !App::passcoded()) || cStartInTray()) {
+	if (cStartInTray()
+		|| (cLaunchMode() == LaunchModeAutoStart
+			&& cStartMinimized()
+			&& !Messenger::Instance().passcodeLocked())) {
 		DEBUG_LOG(("Window Pos: First show, setting minimized after."));
 		setWindowState(Qt::WindowMinimized);
-		if (Global::WorkMode().value() == dbiwmTrayOnly || Global::WorkMode().value() == dbiwmWindowAndTray) {
+		if (Global::WorkMode().value() == dbiwmTrayOnly
+			|| Global::WorkMode().value() == dbiwmWindowAndTray) {
 			hide();
 		} else {
 			show();
@@ -873,7 +874,9 @@ void MainWindow::updateSystemMenu(Qt::WindowState state) {
 }
 
 void MainWindow::psUpdateMargins() {
-	if (!ps_hWnd) return;
+	if (!ps_hWnd || _inUpdateMargins) return;
+
+	_inUpdateMargins = true;
 
 	RECT r, a;
 
@@ -898,13 +901,18 @@ void MainWindow::psUpdateMargins() {
 
 		_deltaLeft = w.left - m.left;
 		_deltaTop = w.top - m.top;
+		_deltaRight = m.right - w.right;
+		_deltaBottom = m.bottom - w.bottom;
 
-		margins.setLeft(margins.left() - w.left + m.left);
-		margins.setRight(margins.right() - m.right + w.right);
-		margins.setBottom(margins.bottom() - m.bottom + w.bottom);
-		margins.setTop(margins.top() - w.top + m.top);
-	} else {
-		_deltaLeft = _deltaTop = 0;
+		margins.setLeft(margins.left() - _deltaLeft);
+		margins.setRight(margins.right() - _deltaRight);
+		margins.setBottom(margins.bottom() - _deltaBottom);
+		margins.setTop(margins.top() - _deltaTop);
+	} else if (_deltaLeft != 0 || _deltaTop != 0 || _deltaRight != 0 || _deltaBottom != 0) {
+		RECT w;
+		GetWindowRect(ps_hWnd, &w);
+		SetWindowPos(ps_hWnd, 0, 0, 0, w.right - w.left - _deltaLeft - _deltaRight, w.bottom - w.top - _deltaBottom - _deltaTop, SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOREPOSITION);
+		_deltaLeft = _deltaTop = _deltaRight = _deltaBottom = 0;
 	}
 
 	QPlatformNativeInterface *i = QGuiApplication::platformNativeInterface();
@@ -918,6 +926,7 @@ void MainWindow::psUpdateMargins() {
 			}
 		}
 	}
+	_inUpdateMargins = false;
 }
 
 HWND MainWindow::psHwnd() const {

@@ -250,6 +250,8 @@ protected:
 		Painter &p,
 		int geometryHeight) const;
 
+	virtual void refreshDataIdHook();
+
 private:
 	// This should be called only from previousInBlocksChanged()
 	// to add required bits to the Composer mask

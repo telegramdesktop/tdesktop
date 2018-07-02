@@ -17,6 +17,10 @@ struct Cached;
 } // namespace Theme
 } // namespace Window
 
+namespace Export {
+struct Settings;
+} // namespace Export
+
 namespace Local {
 
 void start();
@@ -26,6 +30,11 @@ void readSettings();
 void writeSettings();
 void writeUserSettings();
 void writeMtpData();
+
+void writeAutoupdatePrefix(const QString &prefix);
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+QString readAutoupdatePrefix();
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
 
 void reset();
 
@@ -95,6 +104,7 @@ FileLocation readFileLocation(MediaKey location, bool check = true);
 void writeImage(const StorageKey &location, const ImagePtr &img);
 void writeImage(const StorageKey &location, const StorageImageSaved &jpeg, bool overwrite = true);
 TaskId startImageLoad(const StorageKey &location, mtpFileLoader *loader);
+bool willImageLoad(const StorageKey &location);
 int32 hasImages();
 qint64 storageImagesSize();
 
@@ -107,12 +117,14 @@ qint64 storageStickersSize();
 
 void writeAudio(const StorageKey &location, const QByteArray &data, bool overwrite = true);
 TaskId startAudioLoad(const StorageKey &location, mtpFileLoader *loader);
+bool willAudioLoad(const StorageKey &location);
 bool copyAudio(const StorageKey &oldLocation, const StorageKey &newLocation);
 int32 hasAudios();
 qint64 storageAudiosSize();
 
 void writeWebFile(const QString &url, const QByteArray &data, bool overwrite = true);
 TaskId startWebFileLoad(const QString &url, webFileLoader *loader);
+bool willWebFileLoad(const QString &url);
 int32 hasWebFiles();
 qint64 storageWebFilesSize();
 
@@ -153,6 +165,11 @@ void writeLangPack();
 
 void writeRecentHashtagsAndBots();
 void readRecentHashtagsAndBots();
+void saveRecentSentHashtags(const QString &text);
+void saveRecentSearchHashtags(const QString &text);
+
+void WriteExportSettings(const Export::Settings &settings);
+Export::Settings ReadExportSettings();
 
 void addSavedPeer(PeerData *peer, const QDateTime &position);
 void removeSavedPeer(PeerData *peer);

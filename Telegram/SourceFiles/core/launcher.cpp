@@ -19,9 +19,15 @@ std::unique_ptr<Launcher> Launcher::Create(int argc, char *argv[]) {
 	return std::make_unique<Platform::Launcher>(argc, argv);
 }
 
-Launcher::Launcher(int argc, char *argv[])
+Launcher::Launcher(
+	int argc,
+	char *argv[],
+	const QString &deviceModel,
+	const QString &systemVersion)
 : _argc(argc)
-, _argv(argv) {
+, _argv(argv)
+, _deviceModel(deviceModel)
+, _systemVersion(systemVersion) {
 }
 
 void Launcher::init() {
@@ -94,6 +100,10 @@ QString Launcher::argumentsString() const {
 	return _arguments.join(' ');
 }
 
+bool Launcher::customWorkingDir() const {
+	return _customWorkingDir;
+}
+
 void Launcher::prepareSettings() {
 #ifdef Q_OS_MAC
 #ifndef OS_MAC_OLD
@@ -109,7 +119,6 @@ void Launcher::prepareSettings() {
 
 	switch (cPlatform()) {
 	case dbipWindows:
-		gUpdateURL = QUrl(qsl("http://tdesktop.com/win/tupdates/current"));
 #ifndef OS_WIN_STORE
 		gPlatformString = qsl("Windows");
 #else // OS_WIN_STORE
@@ -117,7 +126,6 @@ void Launcher::prepareSettings() {
 #endif // OS_WIN_STORE
 	break;
 	case dbipMac:
-		gUpdateURL = QUrl(qsl("http://tdesktop.com/mac/tupdates/current"));
 #ifndef OS_MAC_STORE
 		gPlatformString = qsl("MacOS");
 #else // OS_MAC_STORE
@@ -125,15 +133,12 @@ void Launcher::prepareSettings() {
 #endif // OS_MAC_STORE
 	break;
 	case dbipMacOld:
-		gUpdateURL = QUrl(qsl("http://tdesktop.com/mac32/tupdates/current"));
 		gPlatformString = qsl("MacOSold");
 	break;
 	case dbipLinux64:
-		gUpdateURL = QUrl(qsl("http://tdesktop.com/linux/tupdates/current"));
 		gPlatformString = qsl("Linux64bit");
 	break;
 	case dbipLinux32:
-		gUpdateURL = QUrl(qsl("http://tdesktop.com/linux32/tupdates/current"));
 		gPlatformString = qsl("Linux32bit");
 	break;
 	}
@@ -146,7 +151,8 @@ void Launcher::prepareSettings() {
 			info = info.symLinkTarget();
 		}
 		if (info.exists()) {
-			gExeDir = info.absoluteDir().absolutePath() + '/';
+			const auto dir = info.absoluteDir().absolutePath();
+			gExeDir = (dir.endsWith('/') ? dir : (dir + '/'));
 			gExeName = info.fileName();
 		}
 	}
@@ -155,6 +161,14 @@ void Launcher::prepareSettings() {
 	}
 
 	processArguments();
+}
+
+QString Launcher::deviceModel() const {
+	return _deviceModel;
+}
+
+QString Launcher::systemVersion() const {
+	return _systemVersion;
 }
 
 void Launcher::processArguments() {
@@ -202,7 +216,7 @@ void Launcher::processArguments() {
 	}
 
 	gTestMode = parseResult.contains("-testmode");
-	gDebug = parseResult.contains("-debug");
+	Logs::SetDebugEnabled(parseResult.contains("-debug"));
 	gManyInstance = parseResult.contains("-many");
 	gKeyFile = parseResult.value("-key", QStringList()).join(QString());
 	gLaunchMode = parseResult.contains("-autostart") ? LaunchModeAutoStart

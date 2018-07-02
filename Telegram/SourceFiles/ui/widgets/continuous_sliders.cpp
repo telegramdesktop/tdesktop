@@ -14,7 +14,7 @@ constexpr auto kByWheelFinishedTimeout = 1000;
 
 } // namespace
 
-ContinuousSlider::ContinuousSlider(QWidget *parent) : TWidget(parent) {
+ContinuousSlider::ContinuousSlider(QWidget *parent) : RpWidget(parent) {
 	setCursor(style::cur_pointer);
 }
 
@@ -58,11 +58,12 @@ void ContinuousSlider::mouseMoveEvent(QMouseEvent *e) {
 }
 
 float64 ContinuousSlider::computeValue(const QPoint &pos) const {
-	auto seekRect = myrtlrect(getSeekRect());
-	auto result = isHorizontal() ?
+	const auto seekRect = myrtlrect(getSeekRect());
+	const auto result = isHorizontal() ?
 		(pos.x() - seekRect.x()) / float64(seekRect.width()) :
 		(1. - (pos.y() - seekRect.y()) / float64(seekRect.height()));
-	return snap(result, 0., 1.);
+	const auto snapped = snap(result, 0., 1.);
+	return _adjustCallback ? _adjustCallback(snapped) : snapped;
 }
 
 void ContinuousSlider::mousePressEvent(QMouseEvent *e) {
@@ -195,7 +196,14 @@ float64 MediaSlider::getOverDuration() const {
 	return _st.duration;
 }
 
+void MediaSlider::disablePaint(bool disabled) {
+	_paintDisabled = disabled;
+}
+
 void MediaSlider::paintEvent(QPaintEvent *e) {
+	if (_paintDisabled) {
+		return;
+	}
 	Painter p(this);
 	PainterHighQualityEnabler hq(p);
 

@@ -22,9 +22,11 @@ constexpr auto kSpecialRequestTimeoutMs = 6000; // 4 seconds timeout for it to w
 
 ConfigLoader::ConfigLoader(
 	not_null<Instance*> instance,
+	const QString &phone,
 	RPCDoneHandlerPtr onDone,
 	RPCFailHandlerPtr onFail)
 : _instance(instance)
+, _phone(phone)
 , _doneHandler(onDone)
 , _failHandler(onFail) {
 	_enumDCTimer.setCallback([this] { enumerate(); });
@@ -52,7 +54,7 @@ mtpRequestId ConfigLoader::sendRequest(ShiftedDcId shiftedDcId) {
 }
 
 DcId ConfigLoader::specialToRealDcId(DcId specialDcId) {
-	return Instance::Config::kTemporaryMainDc + specialDcId;
+	return getTemporaryIdFromRealDcId(specialDcId);
 }
 
 void ConfigLoader::terminateRequest() {
@@ -96,24 +98,51 @@ void ConfigLoader::enumerate() {
 
 	_enumDCTimer.callOnce(kEnumerateDcTimeout);
 
-	createSpecialLoader();
+	refreshSpecialLoader();
 }
 
-void ConfigLoader::createSpecialLoader() {
-	if (Global::ConnectionType() != dbictAuto) {
+void ConfigLoader::refreshSpecialLoader() {
+	if (Global::UseProxy()) {
 		_specialLoader.reset();
 		return;
 	}
-	if (!_specialLoader || (!_specialEnumRequest && _specialEndpoints.empty())) {
-		_specialLoader = std::make_unique<SpecialConfigRequest>([this](DcId dcId, const std::string &ip, int port) {
-			addSpecialEndpoint(dcId, ip, port);
-		});
-		_triedSpecialEndpoints.clear();
+	if (!_specialLoader
+		|| (!_specialEnumRequest && _specialEndpoints.empty())) {
+		createSpecialLoader();
 	}
 }
 
-void ConfigLoader::addSpecialEndpoint(DcId dcId, const std::string &ip, int port) {
-	auto endpoint = SpecialEndpoint { dcId, ip, port };
+void ConfigLoader::setPhone(const QString &phone) {
+	if (_phone != phone) {
+		_phone = phone;
+		if (_specialLoader) {
+			createSpecialLoader();
+		}
+	}
+}
+
+void ConfigLoader::createSpecialLoader() {
+	_triedSpecialEndpoints.clear();
+	_specialLoader = std::make_unique<SpecialConfigRequest>([=](
+			DcId dcId,
+			const std::string &ip,
+			int port,
+			bytes::const_span secret) {
+		addSpecialEndpoint(dcId, ip, port, secret);
+	}, _phone);
+}
+
+void ConfigLoader::addSpecialEndpoint(
+		DcId dcId,
+		const std::string &ip,
+		int port,
+		bytes::const_span secret) {
+	auto endpoint = SpecialEndpoint {
+		dcId,
+		ip,
+		port,
+		bytes::make_vector(secret)
+	};
 	if (base::contains(_specialEndpoints, endpoint)
 		|| base::contains(_triedSpecialEndpoints, endpoint)) {
 		return;
@@ -128,12 +157,12 @@ void ConfigLoader::addSpecialEndpoint(DcId dcId, const std::string &ip, int port
 
 void ConfigLoader::sendSpecialRequest() {
 	terminateSpecialRequest();
-	if (Global::ConnectionType() != dbictAuto) {
+	if (Global::UseProxy()) {
 		_specialLoader.reset();
 		return;
 	}
 	if (_specialEndpoints.empty()) {
-		createSpecialLoader();
+		refreshSpecialLoader();
 		return;
 	}
 
@@ -141,11 +170,16 @@ void ConfigLoader::sendSpecialRequest() {
 	const auto index = rand_value<uint32>() % _specialEndpoints.size();
 	const auto endpoint = _specialEndpoints.begin() + index;
 	_specialEnumCurrent = specialToRealDcId(endpoint->dcId);
+
+	using Flag = MTPDdcOption::Flag;
+	const auto flags = Flag::f_tcpo_only
+		| (endpoint->secret.empty() ? Flag(0) : Flag::f_secret);
 	_instance->dcOptions()->constructAddOne(
 		_specialEnumCurrent,
-		MTPDdcOption::Flag::f_tcpo_only,
+		flags,
 		endpoint->ip,
-		endpoint->port);
+		endpoint->port,
+		endpoint->secret);
 	_specialEnumRequest = _instance->send(
 		MTPhelp_GetConfig(),
 		rpcDone([weak](const MTPConfig &result) {

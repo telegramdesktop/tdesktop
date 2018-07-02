@@ -57,7 +57,10 @@ void FieldAutocomplete::paintEvent(QPaintEvent *e) {
 	p.fillRect(rect(), st::mentionBg);
 }
 
-void FieldAutocomplete::showFiltered(PeerData *peer, QString query, bool addInlineBots) {
+void FieldAutocomplete::showFiltered(
+		not_null<PeerData*> peer,
+		QString query,
+		bool addInlineBots) {
 	_chat = peer->asChat();
 	_user = peer->asUser();
 	_channel = peer->asChannel();
@@ -105,9 +108,9 @@ void FieldAutocomplete::showStickers(EmojiPtr emoji) {
 		return;
 	}
 
-	_chat = 0;
-	_user = 0;
-	_channel = 0;
+	_chat = nullptr;
+	_user = nullptr;
+	_channel = nullptr;
 
 	updateFiltered(resetScroll);
 }
@@ -523,10 +526,19 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	if (r != rect()) p.setClipRect(r);
 
-	int32 atwidth = st::mentionFont->width('@'), hashwidth = st::mentionFont->width('#');
-	int32 mentionleft = 2 * st::mentionPadding.left() + st::mentionPhotoSize;
-	int32 mentionwidth = width() - mentionleft - 2 * st::mentionPadding.right();
-	int32 htagleft = st::historyAttach.width + st::historyComposeField.textMrg.left() - st::lineWidth, htagwidth = width() - st::mentionPadding.right() - htagleft - st::mentionScroll.width;
+	auto atwidth = st::mentionFont->width('@');
+	auto hashwidth = st::mentionFont->width('#');
+	auto mentionleft = 2 * st::mentionPadding.left() + st::mentionPhotoSize;
+	auto mentionwidth = width()
+		- mentionleft
+		- 2 * st::mentionPadding.right();
+	auto htagleft = st::historyAttach.width
+		+ st::historyComposeField.textMargins.left()
+		- st::lineWidth;
+	auto htagwidth = width()
+		- st::mentionPadding.right()
+		- htagleft
+		- st::mentionScroll.width;
 
 	if (!_srows->empty()) {
 		int32 rows = rowscount(_srows->size(), _stickersPerRow);
@@ -549,7 +561,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 					App::roundRect(p, QRect(tl, st::stickerPanSize), st::emojiPanHover, StickerHoverCorners);
 				}
 
-				bool goodThumb = !sticker->thumb->isNull() && ((sticker->thumb->width() >= 128) || (sticker->thumb->height() >= 128));
+				const auto goodThumb = sticker->hasGoodStickerThumb();
 				if (goodThumb) {
 					sticker->thumb->load();
 				} else {

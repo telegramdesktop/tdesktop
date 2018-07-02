@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_file_utilities.h"
 #include "auth_session.h"
 #include "core/crash_reports.h"
+#include "base/bytes.h"
+#include "base/openssl_help.h"
 
 namespace Storage {
 
@@ -493,6 +495,8 @@ void mtpFileLoader::makeRequest(int offset) {
 MTPInputFileLocation mtpFileLoader::computeLocation() const {
 	if (_location) {
 		return MTP_inputFileLocation(MTP_long(_location->volume()), MTP_int(_location->local()), MTP_long(_location->secret()));
+	} else if (_locationType == SecureFileLocation) {
+		return MTP_inputSecureFileLocation(MTP_long(_id), MTP_long(_accessHash));
 	}
 	return MTP_inputDocumentFileLocation(MTP_long(_id), MTP_long(_accessHash), MTP_int(_version));
 }
@@ -528,8 +532,8 @@ void mtpFileLoader::normalPartLoaded(const MTPupload_File &result, mtpRequestId 
 	if (result.type() == mtpc_upload_fileCdnRedirect) {
 		return switchToCDN(offset, result.c_upload_fileCdnRedirect());
 	}
-	auto bytes = gsl::as_bytes(gsl::make_span(result.c_upload_file().vbytes.v));
-	return partLoaded(offset, bytes);
+	auto buffer = bytes::make_span(result.c_upload_file().vbytes.v);
+	return partLoaded(offset, buffer);
 }
 
 void mtpFileLoader::webPartLoaded(const MTPupload_WebFile &result, mtpRequestId requestId) {
@@ -543,8 +547,8 @@ void mtpFileLoader::webPartLoaded(const MTPupload_WebFile &result, mtpRequestId 
 		LOG(("MTP Error: Bad size provided by bot for webDocument: %1, real: %2").arg(_size).arg(webFile.vsize.v));
 		return cancel(true);
 	}
-	auto bytes = gsl::as_bytes(gsl::make_span(webFile.vbytes.v));
-	return partLoaded(offset, bytes);
+	auto buffer = bytes::make_span(webFile.vbytes.v);
+	return partLoaded(offset, buffer);
 }
 
 void mtpFileLoader::cdnPartLoaded(const MTPupload_CdnFile &result, mtpRequestId requestId) {
@@ -563,13 +567,13 @@ void mtpFileLoader::cdnPartLoaded(const MTPupload_CdnFile &result, mtpRequestId 
 	}
 	Expects(result.type() == mtpc_upload_cdnFile);
 
-	auto key = gsl::as_bytes(gsl::make_span(_cdnEncryptionKey));
-	auto iv = gsl::as_bytes(gsl::make_span(_cdnEncryptionIV));
+	auto key = bytes::make_span(_cdnEncryptionKey);
+	auto iv = bytes::make_span(_cdnEncryptionIV);
 	Expects(key.size() == MTP::CTRState::KeySize);
 	Expects(iv.size() == MTP::CTRState::IvecSize);
 
 	auto state = MTP::CTRState();
-	auto ivec = gsl::as_writeable_bytes(gsl::make_span(state.ivec));
+	auto ivec = bytes::make_span(state.ivec);
 	std::copy(iv.begin(), iv.end(), ivec.begin());
 
 	auto counterOffset = static_cast<uint32>(offset) >> 4;
@@ -579,10 +583,10 @@ void mtpFileLoader::cdnPartLoaded(const MTPupload_CdnFile &result, mtpRequestId 
 	state.ivec[12] = static_cast<uchar>((counterOffset >> 24) & 0xFF);
 
 	auto decryptInPlace = result.c_upload_cdnFile().vbytes.v;
-	MTP::aesCtrEncrypt(decryptInPlace.data(), decryptInPlace.size(), key.data(), &state);
-	auto bytes = gsl::as_bytes(gsl::make_span(decryptInPlace));
+	auto buffer = bytes::make_span(decryptInPlace);
+	MTP::aesCtrEncrypt(buffer, key.data(), &state);
 
-	switch (checkCdnFileHash(offset, bytes)) {
+	switch (checkCdnFileHash(offset, buffer)) {
 	case CheckCdnHashResult::NoHash: {
 		_cdnUncheckedParts.emplace(offset, decryptInPlace);
 		requestMoreCdnFileHashes();
@@ -593,18 +597,18 @@ void mtpFileLoader::cdnPartLoaded(const MTPupload_CdnFile &result, mtpRequestId 
 		cancel(true);
 	} return;
 
-	case CheckCdnHashResult::Good: return partLoaded(offset, bytes);
+	case CheckCdnHashResult::Good: return partLoaded(offset, buffer);
 	}
 	Unexpected("Result of checkCdnFileHash()");
 }
 
-mtpFileLoader::CheckCdnHashResult mtpFileLoader::checkCdnFileHash(int offset, base::const_byte_span bytes) {
+mtpFileLoader::CheckCdnHashResult mtpFileLoader::checkCdnFileHash(int offset, bytes::const_span buffer) {
 	auto cdnFileHashIt = _cdnFileHashes.find(offset);
 	if (cdnFileHashIt == _cdnFileHashes.cend()) {
 		return CheckCdnHashResult::NoHash;
 	}
-	auto realHash = hashSha256(bytes.data(), bytes.size());
-	if (base::compare_bytes(gsl::as_bytes(gsl::make_span(realHash)), gsl::as_bytes(gsl::make_span(cdnFileHashIt->second.hash)))) {
+	auto realHash = openssl::Sha256(buffer);
+	if (bytes::compare(realHash, bytes::make_span(cdnFileHashIt->second.hash))) {
 		return CheckCdnHashResult::Invalid;
 	}
 	return CheckCdnHashResult::Good;
@@ -627,7 +631,7 @@ void mtpFileLoader::getCdnFileHashesDone(const MTPVector<MTPFileHash> &result, m
 	auto someMoreChecked = false;
 	for (auto i = _cdnUncheckedParts.begin(); i != _cdnUncheckedParts.cend();) {
 		const auto uncheckedOffset = i->first;
-		const auto uncheckedBytes = gsl::as_bytes(gsl::make_span(i->second));
+		const auto uncheckedBytes = bytes::make_span(i->second);
 
 		switch (checkCdnFileHash(uncheckedOffset, uncheckedBytes)) {
 		case CheckCdnHashResult::NoHash: {
@@ -644,10 +648,9 @@ void mtpFileLoader::getCdnFileHashesDone(const MTPVector<MTPFileHash> &result, m
 			someMoreChecked = true;
 			const auto goodOffset = uncheckedOffset;
 			const auto goodBytes = std::move(i->second);
-			const auto goodBytesSpan = gsl::make_span(goodBytes);
 			const auto weak = QPointer<mtpFileLoader>(this);
 			i = _cdnUncheckedParts.erase(i);
-			if (!feedPart(goodOffset, gsl::as_bytes(goodBytesSpan))
+			if (!feedPart(goodOffset, bytes::make_span(goodBytes))
 				|| !weak) {
 				return;
 			} else if (_finished) {
@@ -690,30 +693,30 @@ int mtpFileLoader::finishSentRequestGetOffset(mtpRequestId requestId) {
 	return requestData.offset;
 }
 
-bool mtpFileLoader::feedPart(int offset, base::const_byte_span bytes) {
+bool mtpFileLoader::feedPart(int offset, bytes::const_span buffer) {
 	Expects(!_finished);
 
-	if (bytes.size()) {
+	if (buffer.size()) {
 		if (_fileIsOpen) {
 			auto fsize = _file.size();
 			if (offset < fsize) {
-				_skippedBytes -= bytes.size();
+				_skippedBytes -= buffer.size();
 			} else if (offset > fsize) {
 				_skippedBytes += offset - fsize;
 			}
 			_file.seek(offset);
-			if (_file.write(reinterpret_cast<const char*>(bytes.data()), bytes.size()) != qint64(bytes.size())) {
+			if (_file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size()) != qint64(buffer.size())) {
 				cancel(true);
 				return false;
 			}
 		} else {
 			if (offset > 100 * 1024 * 1024) {
 				// Debugging weird out of memory crashes.
-				auto info = QString("offset: %1, size: %2, cancelled: %3, finished: %4, filename: '%5', tocache: %6, fromcloud: %7, data: %8, fullsize: %9").arg(offset).arg(bytes.size()).arg(Logs::b(_cancelled)).arg(Logs::b(_finished)).arg(_filename).arg(int(_toCache)).arg(int(_fromCloud)).arg(_data.size()).arg(_size);
+				auto info = QString("offset: %1, size: %2, cancelled: %3, finished: %4, filename: '%5', tocache: %6, fromcloud: %7, data: %8, fullsize: %9").arg(offset).arg(buffer.size()).arg(Logs::b(_cancelled)).arg(Logs::b(_finished)).arg(_filename).arg(int(_toCache)).arg(int(_fromCloud)).arg(_data.size()).arg(_size);
 				info += QString(", locationtype: %1, inqueue: %2, localstatus: %3").arg(int(_locationType)).arg(Logs::b(_inQueue)).arg(int(_localStatus));
 				CrashReports::SetAnnotation("DebugInfo", info);
 			}
-			_data.reserve(offset + bytes.size());
+			_data.reserve(offset + buffer.size());
 			if (offset > 100 * 1024 * 1024) {
 				CrashReports::ClearAnnotation("DebugInfo");
 			}
@@ -723,19 +726,18 @@ bool mtpFileLoader::feedPart(int offset, base::const_byte_span bytes) {
 				_data.resize(offset);
 			}
 			if (offset == _data.size()) {
-				_data.append(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+				_data.append(reinterpret_cast<const char*>(buffer.data()), buffer.size());
 			} else {
-				_skippedBytes -= bytes.size();
-				if (int64(offset + bytes.size()) > _data.size()) {
-					_data.resize(offset + bytes.size());
+				_skippedBytes -= buffer.size();
+				if (int64(offset + buffer.size()) > _data.size()) {
+					_data.resize(offset + buffer.size());
 				}
-				auto src = bytes;
-				auto dst = gsl::make_span(_data).subspan(offset, bytes.size());
-				base::copy_bytes(gsl::as_writeable_bytes(dst), src);
+				auto dst = bytes::make_span(_data).subspan(offset, buffer.size());
+				bytes::copy(dst, buffer);
 			}
 		}
 	}
-	if (!bytes.size() || (bytes.size() % 1024)) { // bad next offset
+	if (!buffer.size() || (buffer.size() % 1024)) { // bad next offset
 		_lastComplete = true;
 	}
 	if (_sentRequests.empty()
@@ -771,6 +773,12 @@ bool mtpFileLoader::feedPart(int offset, base::const_byte_span bytes) {
 						Local::writeStickerImage(mkey, _data);
 					} else if (_locationType == AudioFileLocation) {
 						Local::writeAudio(mkey, _data);
+					} else if (_locationType == SecureFileLocation) {
+						Local::writeImage(
+							StorageKey(
+								storageMix32To64(_locationType, _dcId),
+								_id),
+							StorageImageSaved(_data));
 					}
 				}
 			} else {
@@ -784,8 +792,8 @@ bool mtpFileLoader::feedPart(int offset, base::const_byte_span bytes) {
 	return true;
 }
 
-void mtpFileLoader::partLoaded(int offset, base::const_byte_span bytes) {
-	if (feedPart(offset, bytes)) {
+void mtpFileLoader::partLoaded(int offset, bytes::const_span buffer) {
+	if (feedPart(offset, buffer)) {
 		emit progress(this);
 		loadNext();
 	}
@@ -894,6 +902,10 @@ bool mtpFileLoader::tryLoadLocal() {
 				_localTaskId = Local::startStickerImageLoad(mkey, this);
 			} else if (_locationType == AudioFileLocation) {
 				_localTaskId = Local::startAudioLoad(mkey, this);
+			} else if (_locationType == SecureFileLocation) {
+				_localTaskId = Local::startImageLoad(StorageKey(
+					storageMix32To64(_locationType, _dcId),
+					_id), this);
 			}
 		}
 	}
@@ -1080,14 +1092,6 @@ private:
 	friend class WebLoadManager;
 };
 
-void reinitWebLoadManager() {
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-	if (webLoadManager()) {
-		webLoadManager()->setProxySettings(App::getHttpProxySettings());
-	}
-#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
-}
-
 void stopWebLoadManager() {
 	if (webLoadManager()) {
 		_webLoadThread->quit();
@@ -1102,21 +1106,12 @@ void stopWebLoadManager() {
 	}
 }
 
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-void WebLoadManager::setProxySettings(const QNetworkProxy &proxy) {
-	QMutexLocker lock(&_loaderPointersMutex);
-	_proxySettings = proxy;
-	emit proxyApplyDelayed();
-}
-#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
-
 WebLoadManager::WebLoadManager(QThread *thread) {
 	moveToThread(thread);
 	_manager.moveToThread(thread);
 	connect(thread, SIGNAL(started()), this, SLOT(process()));
 	connect(thread, SIGNAL(finished()), this, SLOT(finish()));
 	connect(this, SIGNAL(processDelayed()), this, SLOT(process()), Qt::QueuedConnection);
-	connect(this, SIGNAL(proxyApplyDelayed()), this, SLOT(proxyApply()), Qt::QueuedConnection);
 
 	connect(this, SIGNAL(progress(webFileLoader*,qint64,qint64)), _webLoadMainManager, SLOT(progress(webFileLoader*,qint64,qint64)));
 	connect(this, SIGNAL(finished(webFileLoader*,QByteArray)), _webLoadMainManager, SLOT(finished(webFileLoader*,QByteArray)));
@@ -1330,17 +1325,13 @@ void WebLoadManager::sendRequest(webFileLoaderPrivate *loader, const QString &re
 	}
 
 	QNetworkReply *r = loader->request(_manager, redirect);
+
+	// Those use QObject::sender, so don't just remove the receiver pointer!
 	connect(r, SIGNAL(downloadProgress(qint64, qint64)), this, SLOT(onProgress(qint64, qint64)));
 	connect(r, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onFailed(QNetworkReply::NetworkError)));
 	connect(r, SIGNAL(metaDataChanged()), this, SLOT(onMeta()));
-	_replies.insert(r, loader);
-}
 
-void WebLoadManager::proxyApply() {
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-	QMutexLocker lock(&_loaderPointersMutex);
-	_manager.setProxy(_proxySettings);
-#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
+	_replies.insert(r, loader);
 }
 
 void WebLoadManager::finish() {

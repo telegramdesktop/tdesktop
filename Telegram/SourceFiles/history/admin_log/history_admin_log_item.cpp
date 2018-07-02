@@ -195,9 +195,9 @@ auto GenerateBannedChangeText(const TextWithEntities &user, const MTPChannelBann
 			lt_date,
 			langDateTime(ParseDateTime(newUntil)));
 	auto result = lng_admin_log_restricted__generic(
-		lt_user, 
-		user, 
-		lt_until, 
+		lt_user,
+		user,
+		lt_until,
 		TextWithEntities { untilText });
 
 	static auto phraseMap = std::map<Flags, LangKey> {
@@ -317,12 +317,17 @@ OwnedItem::~OwnedItem() {
 	}
 }
 
+void OwnedItem::refreshView(
+		not_null<HistoryView::ElementDelegate*> delegate) {
+	_view = _data->createView(delegate);
+}
+
 void GenerateItems(
 		not_null<HistoryView::ElementDelegate*> delegate,
 		not_null<History*> history,
 		not_null<LocalIdManager*> idManager,
 		const MTPDchannelAdminLogEvent &event,
-		base::lambda<void(OwnedItem item)> callback) {
+		Fn<void(OwnedItem item)> callback) {
 	Expects(history->peer->isChannel());
 
 	auto id = event.vid.v;

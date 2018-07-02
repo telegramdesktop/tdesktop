@@ -14,7 +14,7 @@ inline QString lang(LangKey key) {
 	return Lang::Current().getValue(key);
 }
 
-inline base::lambda<QString()> langFactory(LangKey key) {
+inline Fn<QString()> langFactory(LangKey key) {
 	return [key] { return Lang::Current().getValue(key); };
 }
 
@@ -58,9 +58,9 @@ inline QString langDayOfMonth(const QDate &date) {
 inline QString langDayOfMonthFull(const QDate &date) {
 	auto day = date.day();
 	return langDateMaybeWithYear(date, [day](int month, int year) {
-		return lng_month_day_year(lt_month, lang(LangKey(lng_month1 + month - 1)), lt_day, QString::number(day), lt_year, QString::number(year));
+		return lng_month_day_year(lt_month, lang(LangKey(lng_month_day1 + month - 1)), lt_day, QString::number(day), lt_year, QString::number(year));
 	}, [day](int month, int year) {
-		return lng_month_day(lt_month, lang(LangKey(lng_month1 + month - 1)), lt_day, QString::number(day));
+		return lng_month_day(lt_month, lang(LangKey(lng_month_day1 + month - 1)), lt_day, QString::number(day));
 	});
 }
 

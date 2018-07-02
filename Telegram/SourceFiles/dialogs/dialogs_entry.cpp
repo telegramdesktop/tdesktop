@@ -26,6 +26,10 @@ uint64 DialogPosFromDate(const QDateTime &date) {
 	return (uint64(date.toTime_t()) << 32) | (++DialogsPosToTopShift);
 }
 
+uint64 ProxyPromotedDialogPos() {
+	return 0xFFFFFFFFFFFF0001ULL;
+}
+
 uint64 PinnedDialogPos(int pinnedIndex) {
 	return 0xFFFFFFFF00000000ULL + pinnedIndex;
 }
@@ -49,12 +53,25 @@ void Entry::cachePinnedIndex(int index) {
 	}
 }
 
+void Entry::cacheProxyPromoted(bool promoted) {
+	if (_isProxyPromoted != promoted) {
+		_isProxyPromoted = promoted;
+		updateChatListSortPosition();
+		updateChatListEntry();
+		if (!_isProxyPromoted) {
+			updateChatListExistence();
+		}
+	}
+}
+
 bool Entry::needUpdateInChatList() const {
 	return inChatList(Dialogs::Mode::All) || shouldBeInChatList();
 }
 
 void Entry::updateChatListSortPosition() {
-	_sortKeyInChatList = isPinnedDialog()
+	_sortKeyInChatList = useProxyPromotion()
+		? ProxyPromotedDialogPos()
+		: isPinnedDialog()
 		? PinnedDialogPos(_pinnedIndex)
 		: DialogPosFromDate(adjustChatListDate());
 	if (needUpdateInChatList()) {

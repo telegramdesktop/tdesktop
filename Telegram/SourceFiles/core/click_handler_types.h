@@ -87,7 +87,7 @@ public:
 	HiddenUrlClickHandler(QString url) : UrlClickHandler(url, false) {
 	}
 	QString copyToClipboardContextItemText() const override {
-		return url().isEmpty()
+		return (url().isEmpty() || url().startsWith(qstr("internal:")))
 			? QString()
 			: UrlClickHandler::copyToClipboardContextItemText();
 	}

@@ -19,12 +19,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 
-QPointer<Ui::RoundButton> BoxContent::addButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback) {
-	return addButton(std::move(textFactory), std::move(clickCallback), st::defaultBoxButton);
+QPointer<Ui::RoundButton> BoxContent::addButton(
+		Fn<QString()> textFactory,
+		Fn<void()> clickCallback) {
+	return addButton(
+		std::move(textFactory),
+		std::move(clickCallback),
+		st::defaultBoxButton);
 }
 
-QPointer<Ui::RoundButton> BoxContent::addLeftButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback) {
-	return getDelegate()->addLeftButton(std::move(textFactory), std::move(clickCallback), st::defaultBoxButton);
+QPointer<Ui::RoundButton> BoxContent::addLeftButton(
+		Fn<QString()> textFactory,
+		Fn<void()> clickCallback) {
+	return getDelegate()->addLeftButton(
+		std::move(textFactory),
+		std::move(clickCallback),
+		st::defaultBoxButton);
 }
 
 void BoxContent::setInner(object_ptr<TWidget> inner) {
@@ -66,6 +76,8 @@ void BoxContent::finishPrepare() {
 
 void BoxContent::finishScrollCreate() {
 	Expects(_scroll != nullptr);
+
+	_scroll->show();
 	updateScrollAreaGeometry();
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 	connect(_scroll, SIGNAL(innerResized()), this, SLOT(onInnerResize()));
@@ -117,7 +129,7 @@ void BoxContent::updateShadowsVisibility() {
 		(top > 0 || _innerTopSkip > 0),
 		anim::type::normal);
 	_bottomShadow->toggle(
-		(top < _scroll->scrollTopMax()),
+		(top < _scroll->scrollTopMax() || _innerBottomSkip > 0),
 		anim::type::normal);
 }
 
@@ -145,6 +157,16 @@ void BoxContent::setInnerTopSkip(int innerTopSkip, bool scrollBottomFixed) {
 	}
 }
 
+void BoxContent::setInnerBottomSkip(int innerBottomSkip) {
+	if (_innerBottomSkip != innerBottomSkip) {
+		auto delta = innerBottomSkip - _innerBottomSkip;
+		_innerBottomSkip = innerBottomSkip;
+		if (_scroll && width() > 0) {
+			updateScrollAreaGeometry();
+		}
+	}
+}
+
 void BoxContent::setInnerVisible(bool scrollAreaVisible) {
 	if (_scroll) {
 		_scroll->setVisible(scrollAreaVisible);
@@ -168,14 +190,24 @@ void BoxContent::resizeEvent(QResizeEvent *e) {
 	}
 }
 
+void BoxContent::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Escape && !_closeByEscape) {
+		e->accept();
+	} else {
+		RpWidget::keyPressEvent(e);
+	}
+}
+
 void BoxContent::updateScrollAreaGeometry() {
-	auto newScrollHeight = height() - _innerTopSkip;
+	auto newScrollHeight = height() - _innerTopSkip - _innerBottomSkip;
 	auto changed = (_scroll->height() != newScrollHeight);
 	_scroll->setGeometryToLeft(0, _innerTopSkip, width(), newScrollHeight);
 	_topShadow->entity()->resize(width(), st::lineWidth);
 	_topShadow->moveToLeft(0, _innerTopSkip);
 	_bottomShadow->entity()->resize(width(), st::lineWidth);
-	_bottomShadow->moveToLeft(0, height() - st::lineWidth);
+	_bottomShadow->moveToLeft(
+		0,
+		height() - _innerBottomSkip - st::lineWidth);
 	if (changed) {
 		updateInnerVisibleTopBottom();
 
@@ -184,7 +216,7 @@ void BoxContent::updateScrollAreaGeometry() {
 			(top > 0 || _innerTopSkip > 0),
 			anim::type::instant);
 		_bottomShadow->toggle(
-			(top < _scroll->scrollTopMax()),
+			(top < _scroll->scrollTopMax() || _innerBottomSkip > 0),
 			anim::type::instant);
 	}
 }
@@ -203,8 +235,9 @@ void BoxContent::paintEvent(QPaintEvent *e) {
 	}
 }
 
-AbstractBox::AbstractBox(QWidget *parent, Window::Controller *controller, object_ptr<BoxContent> content) : LayerWidget(parent)
-, _controller(controller)
+AbstractBox::AbstractBox(not_null<Window::LayerStackWidget*> layer, object_ptr<BoxContent> content)
+: LayerWidget(layer)
+, _layer(layer)
 , _content(std::move(content)) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 	_content->setParent(this);
@@ -265,7 +298,7 @@ void AbstractBox::parentResized() {
 	update();
 }
 
-void AbstractBox::setTitle(base::lambda<TextWithEntities()> titleFactory) {
+void AbstractBox::setTitle(Fn<TextWithEntities()> titleFactory) {
 	_titleFactory = std::move(titleFactory);
 	refreshTitle();
 }
@@ -286,9 +319,17 @@ void AbstractBox::refreshTitle() {
 	}
 }
 
-void AbstractBox::setAdditionalTitle(base::lambda<QString()> additionalFactory) {
+void AbstractBox::setAdditionalTitle(Fn<QString()> additionalFactory) {
 	_additionalTitleFactory = std::move(additionalFactory);
 	refreshAdditionalTitle();
+}
+
+void AbstractBox::setCloseByOutsideClick(bool close) {
+	_closeByOutsideClick = close;
+}
+
+bool AbstractBox::closeByOutsideClick() const {
+	return _closeByOutsideClick;
 }
 
 void AbstractBox::refreshAdditionalTitle() {
@@ -304,6 +345,13 @@ void AbstractBox::refreshLang() {
 
 bool AbstractBox::hasTitle() const {
 	return (_title != nullptr) || !_additionalTitle.isEmpty();
+}
+
+void AbstractBox::showBox(
+		object_ptr<BoxContent> box,
+		LayerOptions options,
+		anim::type animated) {
+	_layer->showBox(std::move(box), options, animated);
 }
 
 void AbstractBox::updateSize() {
@@ -341,7 +389,7 @@ void AbstractBox::clearButtons() {
 	_leftButton.destroy();
 }
 
-QPointer<Ui::RoundButton> AbstractBox::addButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback, const style::RoundButton &st) {
+QPointer<Ui::RoundButton> AbstractBox::addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) {
 	_buttons.push_back(object_ptr<Ui::RoundButton>(this, std::move(textFactory), st));
 	auto result = QPointer<Ui::RoundButton>(_buttons.back());
 	result->setClickedCallback(std::move(clickCallback));
@@ -350,7 +398,7 @@ QPointer<Ui::RoundButton> AbstractBox::addButton(base::lambda<QString()> textFac
 	return result;
 }
 
-QPointer<Ui::RoundButton> AbstractBox::addLeftButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback, const style::RoundButton &st) {
+QPointer<Ui::RoundButton> AbstractBox::addLeftButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) {
 	_leftButton = object_ptr<Ui::RoundButton>(this, std::move(textFactory), st);
 	auto result = QPointer<Ui::RoundButton>(_leftButton);
 	result->setClickedCallback(std::move(clickCallback));
@@ -414,11 +462,13 @@ void AbstractBox::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-BoxContentDivider::BoxContentDivider(QWidget *parent) : RpWidget(parent) {
+BoxContentDivider::BoxContentDivider(QWidget *parent)
+: BoxContentDivider(parent, st::rightsDividerHeight) {
 }
 
-int BoxContentDivider::resizeGetHeight(int newWidth) {
-	return st::rightsDividerHeight;
+BoxContentDivider::BoxContentDivider(QWidget *parent, int height)
+: RpWidget(parent) {
+	resize(width(), height);
 }
 
 void BoxContentDivider::paintEvent(QPaintEvent *e) {

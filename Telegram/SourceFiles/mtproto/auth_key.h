@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <array>
 #include <memory>
+#include "base/bytes.h"
 
 namespace MTP {
 
@@ -60,15 +61,15 @@ public:
 		return other ? (_key == other->_key) : false;
 	}
 
-	static void FillData(Data &authKey, base::const_byte_span computedAuthKey) {
+	static void FillData(Data &authKey, bytes::const_span computedAuthKey) {
 		auto computedAuthKeySize = computedAuthKey.size();
 		Assert(computedAuthKeySize <= kSize);
 		auto authKeyBytes = gsl::make_span(authKey);
 		if (computedAuthKeySize < kSize) {
-			base::set_bytes(authKeyBytes.subspan(0, kSize - computedAuthKeySize), gsl::byte());
-			base::copy_bytes(authKeyBytes.subspan(kSize - computedAuthKeySize), computedAuthKey);
+			bytes::set_with_const(authKeyBytes.subspan(0, kSize - computedAuthKeySize), gsl::byte());
+			bytes::copy(authKeyBytes.subspan(kSize - computedAuthKeySize), computedAuthKey);
 		} else {
-			base::copy_bytes(authKeyBytes, computedAuthKey);
+			bytes::copy(authKeyBytes, computedAuthKey);
 		}
 	}
 
@@ -145,6 +146,6 @@ struct CTRState {
 	uint32 num = 0;
 	uchar ecount[EcountSize] = { 0 };
 };
-void aesCtrEncrypt(void *data, uint32 len, const void *key, CTRState *state);
+void aesCtrEncrypt(bytes::span data, const void *key, CTRState *state);
 
 } // namespace MTP

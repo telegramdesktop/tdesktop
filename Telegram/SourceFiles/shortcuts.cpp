@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "shortcuts.h"
 
 #include "mainwindow.h"
-#include "passcodewidget.h"
 #include "mainwidget.h"
 #include "messenger.h"
 #include "media/player/media_player_instance.h"
@@ -20,8 +19,9 @@ namespace ShortcutCommands {
 using Handler = bool(*)();
 
 bool lock_telegram() {
-	if (!App::passcoded() && Global::LocalPasscode()) {
-		Messenger::Instance().setupPasscode();
+	if (!Messenger::Instance().passcodeLocked()
+		&& Global::LocalPasscode()) {
+		Messenger::Instance().lockByPasscode();
 		return true;
 	}
 	return false;

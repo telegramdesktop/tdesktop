@@ -13,15 +13,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "messenger.h"
 
 bool filedialogGetSaveFile(
+		QPointer<QWidget> parent,
 		QString &file,
 		const QString &caption,
 		const QString &filter,
 		const QString &initialPath) {
 	QStringList files;
 	QByteArray remoteContent;
-	bool result = Platform::FileDialog::Get(files, remoteContent, caption, filter, FileDialog::internal::Type::WriteFile, initialPath);
+	bool result = Platform::FileDialog::Get(
+		parent,
+		files,
+		remoteContent,
+		caption,
+		filter,
+		FileDialog::internal::Type::WriteFile,
+		initialPath);
 	file = files.isEmpty() ? QString() : files.at(0);
 	return result;
+}
+
+bool filedialogGetSaveFile(
+		QString &file,
+		const QString &caption,
+		const QString &filter,
+		const QString &initialPath) {
+	return filedialogGetSaveFile(
+		Messenger::Instance().getFileDialogParent(),
+		file,
+		caption,
+		filter,
+		initialPath);
 }
 
 QString filedialogDefaultName(
@@ -55,8 +76,10 @@ QString filedialogDefaultName(
 	if (skipExistance) {
 		name = base + extension;
 	} else {
-		QDir dir(directoryPath);
-		QString nameBase = dir.absolutePath() + '/' + base;
+		QDir directory(directoryPath);
+		const auto dir = directory.absolutePath();
+		const auto nameBase = (dir.endsWith('/') ? dir : (dir + '/'))
+			+ base;
 		name = nameBase + extension;
 		for (int i = 0; QFileInfo(name).exists(); ++i) {
 			name = nameBase + qsl(" (%1)").arg(i + 2) + extension;
@@ -69,14 +92,16 @@ QString filedialogNextFilename(
 		const QString &name,
 		const QString &cur,
 		const QString &path) {
-	QDir dir(path.isEmpty() ? cDialogLastPath() : path);
+	QDir directory(path.isEmpty() ? cDialogLastPath() : path);
 	int32 extIndex = name.lastIndexOf('.');
 	QString prefix = name, extension;
 	if (extIndex >= 0) {
 		extension = name.mid(extIndex);
 		prefix = name.mid(0, extIndex);
 	}
-	QString nameBase = dir.absolutePath() + '/' + prefix, result = nameBase + extension;
+	const auto dir = directory.absolutePath();
+	const auto nameBase = (dir.endsWith('/') ? dir : (dir + '/')) + prefix;
+	auto result = nameBase + extension;
 	for (int i = 0; result.toLower() != cur.toLower() && QFileInfo(result).exists(); ++i) {
 		result = nameBase + qsl(" (%1)").arg(i + 2) + extension;
 	}
@@ -130,14 +155,16 @@ void UnsafeLaunchDefault(const QString &filepath) {
 namespace FileDialog {
 
 void GetOpenPath(
+		QPointer<QWidget> parent,
 		const QString &caption,
 		const QString &filter,
-		base::lambda<void(OpenResult &&result)> callback,
-		base::lambda<void()> failed) {
+		Fn<void(OpenResult &&result)> callback,
+		Fn<void()> failed) {
 	InvokeQueued(QApplication::instance(), [=] {
 		auto files = QStringList();
 		auto remoteContent = QByteArray();
 		const auto success = Platform::FileDialog::Get(
+			parent,
 			files,
 			remoteContent,
 			caption,
@@ -161,14 +188,16 @@ void GetOpenPath(
 }
 
 void GetOpenPaths(
+		QPointer<QWidget> parent,
 		const QString &caption,
 		const QString &filter,
-		base::lambda<void(OpenResult &&result)> callback,
-		base::lambda<void()> failed) {
+		Fn<void(OpenResult &&result)> callback,
+		Fn<void()> failed) {
 	InvokeQueued(QApplication::instance(), [=] {
 		auto files = QStringList();
 		auto remoteContent = QByteArray();
 		const auto success = Platform::FileDialog::Get(
+			parent,
 			files,
 			remoteContent,
 			caption,
@@ -188,14 +217,15 @@ void GetOpenPaths(
 }
 
 void GetWritePath(
+		QPointer<QWidget> parent,
 		const QString &caption,
 		const QString &filter,
 		const QString &initialPath,
-		base::lambda<void(QString &&result)> callback,
-		base::lambda<void()> failed) {
+		Fn<void(QString &&result)> callback,
+		Fn<void()> failed) {
 	InvokeQueued(QApplication::instance(), [=] {
 		auto file = QString();
-		if (filedialogGetSaveFile(file, caption, filter, initialPath)) {
+		if (filedialogGetSaveFile(parent, file, caption, filter, initialPath)) {
 			if (callback) {
 				callback(std::move(file));
 			}
@@ -206,14 +236,16 @@ void GetWritePath(
 }
 
 void GetFolder(
+		QPointer<QWidget> parent,
 		const QString &caption,
 		const QString &initialPath,
-		base::lambda<void(QString &&result)> callback,
-		base::lambda<void()> failed) {
+		Fn<void(QString &&result)> callback,
+		Fn<void()> failed) {
 	InvokeQueued(QApplication::instance(), [=] {
 		auto files = QStringList();
 		auto remoteContent = QByteArray();
 		const auto success = Platform::FileDialog::Get(
+			parent,
 			files,
 			remoteContent,
 			caption,
@@ -244,7 +276,14 @@ void InitLastPathDefault() {
 	cSetDialogLastPath(QStandardPaths::writableLocation(QStandardPaths::DownloadLocation));
 }
 
-bool GetDefault(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, FileDialog::internal::Type type, QString startFile = QString()) {
+bool GetDefault(
+		QPointer<QWidget> parent,
+		QStringList &files,
+		QByteArray &remoteContent,
+		const QString &caption,
+		const QString &filter,
+		FileDialog::internal::Type type,
+		QString startFile = QString()) {
 	if (cDialogLastPath().isEmpty()) {
 		Platform::FileDialog::InitLastPath();
 	}

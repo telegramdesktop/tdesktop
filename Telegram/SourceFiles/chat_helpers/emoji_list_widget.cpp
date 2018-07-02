@@ -615,7 +615,10 @@ QRect EmojiListWidget::emojiRect(int section, int sel) {
 
 void EmojiListWidget::onColorSelected(EmojiPtr emoji) {
 	if (emoji->hasVariants()) {
-		cRefEmojiVariants().insert(emoji->nonColoredId(), emoji->variantIndex(emoji));
+		cRefEmojiVariants().insert(
+			emoji->nonColoredId(),
+			emoji->variantIndex(emoji));
+		Auth().saveSettingsDelayed();
 	}
 	if (_pickerSel >= 0) {
 		auto section = (_pickerSel / MatrixRowShift);

@@ -15,19 +15,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace base {
 namespace internal {
 
-using ObservableCallHandlers = base::lambda<void()>;
+using ObservableCallHandlers = Fn<void()>;
 void RegisterPendingObservable(ObservableCallHandlers *handlers);
 void UnregisterActiveObservable(ObservableCallHandlers *handlers);
 void UnregisterObservable(ObservableCallHandlers *handlers);
 
 template <typename EventType>
 struct SubscriptionHandlerHelper {
-	using type = base::lambda<void(parameter_type<EventType>)>;
+	using type = Fn<void(parameter_type<EventType>)>;
 };
 
 template <>
 struct SubscriptionHandlerHelper<void> {
-	using type = base::lambda<void()>;
+	using type = Fn<void()>;
 };
 
 template <typename EventType>

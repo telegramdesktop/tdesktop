@@ -22,7 +22,7 @@ namespace {
 
 class PrivacyExceptionsBoxController : public ChatsListBoxController {
 public:
-	PrivacyExceptionsBoxController(base::lambda<QString()> titleFactory, const std::vector<not_null<UserData*>> &selected);
+	PrivacyExceptionsBoxController(Fn<QString()> titleFactory, const std::vector<not_null<UserData*>> &selected);
 	void rowClicked(not_null<PeerListRow*> row) override;
 
 	std::vector<not_null<UserData*>> getResult() const;
@@ -32,12 +32,12 @@ protected:
 	std::unique_ptr<Row> createRow(not_null<History*> history) override;
 
 private:
-	base::lambda<QString()> _titleFactory;
+	Fn<QString()> _titleFactory;
 	std::vector<not_null<UserData*>> _selected;
 
 };
 
-PrivacyExceptionsBoxController::PrivacyExceptionsBoxController(base::lambda<QString()> titleFactory, const std::vector<not_null<UserData*>> &selected)
+PrivacyExceptionsBoxController::PrivacyExceptionsBoxController(Fn<QString()> titleFactory, const std::vector<not_null<UserData*>> &selected)
 : _titleFactory(std::move(titleFactory))
 , _selected(selected) {
 }
@@ -95,7 +95,7 @@ void EditPrivacyBox::prepare() {
 
 int EditPrivacyBox::resizeGetHeight(int newWidth) {
 	auto top = 0;
-	auto layoutRow = [this, newWidth, &top](auto &widget, style::margins padding) {
+	auto layoutRow = [&](auto &widget, style::margins padding) {
 		if (!widget) return;
 		widget->resizeToNaturalWidth(newWidth - padding.left() - padding.right());
 		widget->moveToLeft(padding.left(), top + padding.top());
@@ -137,7 +137,7 @@ int EditPrivacyBox::countDefaultHeight(int newWidth) {
 		}
 		return st::editPrivacyOptionMargin.top() + st::defaultCheck.diameter + st::editPrivacyOptionMargin.bottom();
 	};
-	auto labelHeight = [this, newWidth](const QString &text, const style::FlatLabel &st, style::margins padding) {
+	auto labelHeight = [newWidth](const QString &text, const style::FlatLabel &st, style::margins padding) {
 		if (text.isEmpty()) {
 			return 0;
 		}
@@ -163,11 +163,11 @@ int EditPrivacyBox::countDefaultHeight(int newWidth) {
 }
 
 void EditPrivacyBox::editExceptionUsers(Exception exception) {
-	auto controller = std::make_unique<PrivacyExceptionsBoxController>(base::lambda_guarded(this, [this, exception] {
+	auto controller = std::make_unique<PrivacyExceptionsBoxController>(crl::guard(this, [this, exception] {
 		return _controller->exceptionBoxTitle(exception);
 	}), exceptionUsers(exception));
 	auto initBox = [this, exception, controller = controller.get()](not_null<PeerListBox*> box) {
-		box->addButton(langFactory(lng_settings_save), base::lambda_guarded(this, [this, box, exception, controller] {
+		box->addButton(langFactory(lng_settings_save), crl::guard(this, [this, box, exception, controller] {
 			exceptionUsers(exception) = controller->getResult();
 			exceptionLink(exception)->entity()->setText(exceptionLinkText(exception));
 			auto removeFrom = ([exception] {
@@ -295,7 +295,7 @@ void EditPrivacyBox::createWidgets() {
 	clearButtons();
 	addButton(langFactory(lng_settings_save), [this] {
 		auto someAreDisallowed = (_option != Option::Everyone) || !_neverUsers.empty();
-		_controller->confirmSave(someAreDisallowed, base::lambda_guarded(this, [this] {
+		_controller->confirmSave(someAreDisallowed, crl::guard(this, [this] {
 			Auth().api().savePrivacy(_controller->key(), collectResult());
 			closeBox();
 		}));

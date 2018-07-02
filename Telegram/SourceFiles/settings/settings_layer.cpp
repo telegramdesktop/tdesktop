@@ -44,7 +44,7 @@ Layer::Layer()
 		| rpl::map(_1 > 0));
 }
 
-void Layer::setCloseClickHandler(base::lambda<void()> callback) {
+void Layer::setCloseClickHandler(Fn<void()> callback) {
 	_fixedBarClose->setClickedCallback(std::move(callback));
 }
 
@@ -111,6 +111,10 @@ void Layer::resizeEvent(QResizeEvent *e) {
 
 void Layer::setTitle(const QString &title) {
 	_fixedBar->setText(title);
+}
+
+void Layer::scrollToY(int y) {
+	_scroll->scrollToY(y);
 }
 
 } // namespace Settings

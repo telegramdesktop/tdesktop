@@ -51,6 +51,7 @@ constexpr auto kStatusShowClientsideChooseContact = 6000;
 constexpr auto kStatusShowClientsidePlayGame = 10000;
 constexpr auto kSetMyActionForMs = 10000;
 constexpr auto kNewBlockEachMessage = 50;
+constexpr auto kSkipCloudDraftsFor = TimeId(3);
 
 void checkForSwitchInlineButton(HistoryItem *item) {
 	if (item->out() || !item->hasSwitchInlineButton()) {
@@ -98,8 +99,10 @@ not_null<History*> Histories::findOrInsert(PeerId peerId) {
 }
 
 void Histories::clear() {
+	for (const auto &[peerId, history] : _map) {
+		history->unloadBlocks();
+	}
 	App::historyClearMsgs();
-
 	_map.clear();
 
 	_unreadFull = _unreadMuted = 0;
@@ -224,7 +227,7 @@ History::History(const PeerId &peerId)
 : Entry(this)
 , peer(App::peer(peerId))
 , cloudDraftTextCache(st::dialogsTextWidthMin)
-, _mute(peer->isMuted())
+, _mute(Auth().data().notifyIsMuted(peer))
 , _sendActionText(st::dialogsTextWidthMin) {
 	if (const auto user = peer->asUser()) {
 		if (user->botInfo) {
@@ -403,6 +406,26 @@ Data::Draft *History::createCloudDraft(Data::Draft *fromDraft) {
 	updateChatListSortPosition();
 
 	return cloudDraft();
+}
+
+bool History::skipCloudDraft(const QString &text, TimeId date) const {
+	if (date > 0 && date <= _lastSentDraftTime + kSkipCloudDraftsFor) {
+		return true;
+	} else if (_lastSentDraftText && *_lastSentDraftText == text) {
+		return true;
+	}
+	return false;
+}
+
+void History::setSentDraftText(const QString &text) {
+	_lastSentDraftText = text;
+}
+
+void History::clearSentDraftText(const QString &text) {
+	if (_lastSentDraftText && *_lastSentDraftText == text) {
+		_lastSentDraftText = base::none;
+	}
+	accumulate_max(_lastSentDraftTime, unixtime());
 }
 
 void History::setEditDraft(std::unique_ptr<Data::Draft> &&draft) {
@@ -1622,6 +1645,11 @@ int History::unreadCount() const {
 	return _unreadCount ? *_unreadCount : 0;
 }
 
+int History::historiesUnreadCount() const {
+	const auto result = unreadCount();
+	return (!result && unreadMark()) ? 1 : result;
+}
+
 bool History::unreadCountKnown() const {
 	return !!_unreadCount;
 }
@@ -1650,6 +1678,16 @@ void History::setUnreadCount(int newUnreadCount) {
 				calculateFirstUnreadMessage();
 			}
 		}
+		const auto unreadMarkDelta = [&] {
+			if (_unreadMark) {
+				const auto was = _unreadCount && (*_unreadCount > 0);
+				const auto now = (newUnreadCount > 0);
+				if (was != now) {
+					return was ? 1 : -1;
+				}
+			}
+			return 0;
+		}();
 		_unreadCount = newUnreadCount;
 
 		if (_unreadBarView) {
@@ -1662,14 +1700,38 @@ void History::setUnreadCount(int newUnreadCount) {
 		}
 
 		if (inChatList(Dialogs::Mode::All)) {
+			const auto delta = unreadCountDelta
+				? *unreadCountDelta
+				: newUnreadCount;
 			App::histories().unreadIncrement(
-				unreadCountDelta ? *unreadCountDelta : newUnreadCount,
+				delta + unreadMarkDelta,
 				mute());
 		}
-		if (const auto main = App::main()) {
-			main->unreadCountChanged(this);
-		}
+		Notify::peerUpdatedDelayed(
+			peer,
+			Notify::PeerUpdate::Flag::UnreadViewChanged);
 	}
+}
+
+void History::setUnreadMark(bool unread) {
+	if (_unreadMark != unread) {
+		_unreadMark = unread;
+		if (!_unreadCount || !*_unreadCount) {
+			if (inChatList(Dialogs::Mode::All)) {
+				const auto delta = _unreadMark ? 1 : -1;
+				App::histories().unreadIncrement(delta, mute());
+
+				updateChatListEntry();
+			}
+		}
+		Notify::peerUpdatedDelayed(
+			peer,
+			Notify::PeerUpdate::Flag::UnreadViewChanged);
+	}
+}
+
+bool History::unreadMark() const {
+	return _unreadMark;
 }
 
 void History::changeUnreadCount(int delta) {
@@ -1710,8 +1772,8 @@ bool History::changeMute(bool newMute) {
 		}
 	}
 	if (inChatList(Dialogs::Mode::All)) {
-		if (_unreadCount && *_unreadCount) {
-			App::histories().unreadMuteChanged(*_unreadCount, _mute);
+		if (const auto count = historiesUnreadCount()) {
+			App::histories().unreadMuteChanged(count, _mute);
 			Notify::unreadCounterUpdated();
 		}
 		Notify::historyMuteUpdated(this);
@@ -1924,8 +1986,7 @@ not_null<HistoryItem*> History::addNewInTheMiddle(
 	return item;
 }
 
-int History::chatListUnreadCount() const {
-	const auto result = unreadCount();
+History *History::migrateSibling() const {
 	const auto addFromId = [&] {
 		if (const auto from = peer->migrateFrom()) {
 			return from->id;
@@ -1934,10 +1995,24 @@ int History::chatListUnreadCount() const {
 		}
 		return PeerId(0);
 	}();
-	if (const auto migrated = App::historyLoaded(addFromId)) {
+	return App::historyLoaded(addFromId);
+}
+
+int History::chatListUnreadCount() const {
+	const auto result = unreadCount();
+	if (const auto migrated = migrateSibling()) {
 		return result + migrated->unreadCount();
 	}
 	return result;
+}
+
+bool History::chatListUnreadMark() const {
+	if (unreadMark()) {
+		return true;
+	} else if (const auto migrated = migrateSibling()) {
+		return migrated->unreadMark();
+	}
+	return false;
 }
 
 bool History::chatListMutedBadge() const {
@@ -2134,6 +2209,15 @@ void History::updateChatListExistence() {
 	}
 }
 
+bool History::useProxyPromotion() const {
+	if (!isProxyPromoted()) {
+		return false;
+	} else if (const auto channel = peer->asChannel()) {
+		return !isPinnedDialog() && !channel->amIn();
+	}
+	return false;
+}
+
 bool History::shouldBeInChatList() const {
 	if (peer->migrateTo()) {
 		return false;
@@ -2141,7 +2225,7 @@ bool History::shouldBeInChatList() const {
 		return true;
 	} else if (const auto channel = peer->asChannel()) {
 		if (!channel->amIn()) {
-			return false;
+			return isProxyPromoted();
 		} else if (const auto feed = channel->feed()) {
 			return !feed->needUpdateInChatList();
 		}
@@ -2169,6 +2253,7 @@ void History::applyDialog(const MTPDdialog &data) {
 		data.vread_inbox_max_id.v,
 		data.vread_outbox_max_id.v);
 	applyDialogTopMessage(data.vtop_message.v);
+	setUnreadMark(data.is_unread_mark());
 	setUnreadMentionsCount(data.vunread_mentions_count.v);
 	if (const auto channel = peer->asChannel()) {
 		if (data.has_pts()) {
@@ -2185,10 +2270,10 @@ void History::applyDialog(const MTPDdialog &data) {
 			}
 		}
 	}
-	App::main()->applyNotifySetting(
+	Auth().data().applyNotifySetting(
 		MTP_notifyPeer(data.vpeer),
-		data.vnotify_settings,
-		this);
+		data.vnotify_settings);
+
 	if (data.has_draft() && data.vdraft.type() == mtpc_draftMessage) {
 		Data::applyPeerCloudDraft(peer->id, data.vdraft.c_draftMessage());
 	}
@@ -2275,7 +2360,8 @@ HistoryItem *History::lastSentMessage() const {
 	for (const auto &block : base::reversed(blocks)) {
 		for (const auto &message : base::reversed(block->messages)) {
 			const auto item = message->data();
-			if (IsServerMsgId(item->id) && item->out()) {
+			if (IsServerMsgId(item->id)
+				&& (item->out() || peer->isSelf())) {
 				return item;
 			}
 		}
@@ -2474,6 +2560,12 @@ void History::checkJoinedMessage(bool createUnread) {
 	}
 }
 
+void History::removeJoinedMessage() {
+	if (_joinedMessage) {
+		base::take(_joinedMessage)->destroy();
+	}
+}
+
 bool History::isEmpty() const {
 	return blocks.empty();
 }
@@ -2611,9 +2703,10 @@ void History::applyGroupAdminChanges(
 }
 
 void History::changedInChatListHook(Dialogs::Mode list, bool added) {
-	if (list == Dialogs::Mode::All && unreadCount()) {
-		const auto delta = added ? unreadCount() : -unreadCount();
-		App::histories().unreadIncrement(delta, mute());
+	if (list == Dialogs::Mode::All) {
+		if (const auto delta = historiesUnreadCount() * (added ? 1 : -1)) {
+			App::histories().unreadIncrement(delta, mute());
+		}
 	}
 }
 

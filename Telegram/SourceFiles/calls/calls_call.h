@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/weak_ptr.h"
 #include "base/timer.h"
+#include "base/bytes.h"
 #include "mtproto/sender.h"
 #include "mtproto/auth_key.h"
 
@@ -27,7 +28,7 @@ namespace Calls {
 struct DhConfig {
 	int32 version = 0;
 	int32 g = 0;
-	std::vector<gsl::byte> p;
+	bytes::vector p;
 };
 
 class Call : public base::has_weak_ptr, private MTP::Sender {
@@ -48,8 +49,6 @@ public:
 
 	};
 
-	static constexpr auto kRandomPowerSize = 256;
-	static constexpr auto kSha256Size = 32;
 	static constexpr auto kSoundSampleMs = 100;
 
 	enum class Type {
@@ -66,7 +65,7 @@ public:
 	}
 	bool isIncomingWaiting() const;
 
-	void start(base::const_byte_span random);
+	void start(bytes::const_span random);
 	bool handleUpdate(const MTPPhoneCall &call);
 
 	enum State {
@@ -93,6 +92,13 @@ public:
 		return _stateChanged;
 	}
 
+	static constexpr auto kSignalBarStarting = -1;
+	static constexpr auto kSignalBarFinished = -2;
+	static constexpr auto kSignalBarCount = 4;
+	base::Observable<int> &signalBarCountChanged() {
+		return _signalBarCountChanged;
+	}
+
 	void setMute(bool mute);
 	bool isMute() const {
 		return _mute;
@@ -109,13 +115,30 @@ public:
 	void redial();
 
 	bool isKeyShaForFingerprintReady() const;
-	std::array<gsl::byte, kSha256Size> getKeyShaForFingerprint() const;
+	bytes::vector getKeyShaForFingerprint() const;
 
 	QString getDebugLog() const;
 
 	~Call();
 
 private:
+	class ControllerPointer {
+	public:
+		void create();
+		void reset();
+		bool empty() const;
+
+		bool operator==(std::nullptr_t) const;
+		explicit operator bool() const;
+		tgvoip::VoIPController *operator->() const;
+		tgvoip::VoIPController &operator*() const;
+
+		~ControllerPointer();
+
+	private:
+		std::unique_ptr<tgvoip::VoIPController> _data;
+
+	};
 	enum class FinishType {
 		None,
 		Ended,
@@ -128,8 +151,13 @@ private:
 	void startIncoming();
 	void startWaitingTrack();
 
-	void generateModExpFirst(base::const_byte_span randomSeed);
-	void handleControllerStateChange(tgvoip::VoIPController *controller, int state);
+	void generateModExpFirst(bytes::const_span randomSeed);
+	void handleControllerStateChange(
+		tgvoip::VoIPController *controller,
+		int state);
+	void handleControllerBarCountChange(
+		tgvoip::VoIPController *controller,
+		int count);
 	void createAndStartController(const MTPDphoneCall &call);
 
 	template <typename T>
@@ -142,6 +170,7 @@ private:
 	void setState(State state);
 	void setStateQueued(State state);
 	void setFailedQueued(int error);
+	void setSignalBarCount(int count);
 	void destroyController();
 
 	not_null<Delegate*> _delegate;
@@ -151,6 +180,8 @@ private:
 	FinishType _finishAfterRequestingCall = FinishType::None;
 	bool _answerAfterDhConfigReceived = false;
 	base::Observable<State> _stateChanged;
+	int _signalBarCount = kSignalBarStarting;
+	base::Observable<int> _signalBarCountChanged;
 	TimeMs _startTime = 0;
 	base::DelayedCallTimer _finishByTimeoutTimer;
 	base::Timer _discardByTimeoutTimer;
@@ -159,10 +190,10 @@ private:
 	base::Observable<bool> _muteChanged;
 
 	DhConfig _dhConfig;
-	std::vector<gsl::byte> _ga;
-	std::vector<gsl::byte> _gb;
-	std::array<gsl::byte, kSha256Size> _gaHash;
-	std::array<gsl::byte, kRandomPowerSize> _randomPower;
+	bytes::vector _ga;
+	bytes::vector _gb;
+	bytes::vector _gaHash;
+	bytes::vector _randomPower;
 	MTP::AuthKey::Data _authKey;
 	MTPPhoneCallProtocol _protocol;
 
@@ -170,7 +201,7 @@ private:
 	uint64 _accessHash = 0;
 	uint64 _keyFingerprint = 0;
 
-	std::unique_ptr<tgvoip::VoIPController> _controller;
+	ControllerPointer _controller;
 
 	std::unique_ptr<Media::Audio::Track> _waitingTrack;
 

@@ -23,6 +23,7 @@ namespace Intro {
 PwdCheckWidget::PwdCheckWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
 , _salt(getData()->pwdSalt)
 , _hasRecovery(getData()->hasRecovery)
+, _notEmptyPassport(getData()->pwdNotEmptyPassport)
 , _hint(getData()->pwdHint)
 , _pwdField(this, st::introPassword, langFactory(lng_signin_password))
 , _pwdHint(this, st::introPasswordHint)
@@ -150,7 +151,7 @@ bool PwdCheckWidget::pwdSubmitFail(const RPCError &error) {
 	} else if (err == qstr("PASSWORD_EMPTY")) {
 		goBack();
 	}
-	if (cDebug()) { // internal server error
+	if (Logs::DebugEnabled()) { // internal server error
 		auto text = err + ": " + error.description();
 		showError([text] { return text; });
 	} else {
@@ -187,7 +188,7 @@ bool PwdCheckWidget::codeSubmitFail(const RPCError &error) {
 		_codeField->showError();
 		return true;
 	}
-	if (cDebug()) { // internal server error
+	if (Logs::DebugEnabled()) { // internal server error
 		auto text = err + ": " + error.description();
 		showError([text] { return text; });
 	} else {
@@ -276,8 +277,28 @@ void PwdCheckWidget::submit() {
 			_codeField->showError();
 			return;
 		}
+		const auto send = crl::guard(this, [=] {
+			_sentRequest = MTP::send(
+				MTPauth_RecoverPassword(MTP_string(code)),
+				rpcDone(&PwdCheckWidget::pwdSubmitDone, true),
+				rpcFail(&PwdCheckWidget::codeSubmitFail));
+		});
 
-		_sentRequest = MTP::send(MTPauth_RecoverPassword(MTP_string(code)), rpcDone(&PwdCheckWidget::pwdSubmitDone, true), rpcFail(&PwdCheckWidget::codeSubmitFail));
+		if (_notEmptyPassport) {
+			const auto box = std::make_shared<QPointer<BoxContent>>();
+			const auto confirmed = [=] {
+				send();
+				if (*box) {
+					(*box)->closeBox();
+				}
+			};
+			*box = Ui::show(Box<ConfirmBox>(
+				lang(lng_cloud_password_passport_losing),
+				lang(lng_continue),
+				confirmed));
+		} else {
+			send();
+		}
 	} else {
 		hideError();
 

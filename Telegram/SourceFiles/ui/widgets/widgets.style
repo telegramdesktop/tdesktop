@@ -29,12 +29,34 @@ LinkButton {
 	overColor: color;
 	font: font;
 	overFont: font;
+	padding: margins;
 }
 
 RippleAnimation {
 	color: color;
 	showDuration: int;
 	hideDuration: int;
+}
+
+InfiniteRadialAnimation {
+	color: color;
+	thickness: pixels;
+	size: size;
+	linearPeriod: int;
+	sinePeriod: int;
+	sineDuration: int;
+	sineShift: int;
+	arcMin: double;
+	arcMax: double;
+}
+
+defaultInfiniteRadialAnimation: InfiniteRadialAnimation {
+	linearPeriod: 1000;
+	sinePeriod: 3000;
+	sineDuration: 1000;
+	sineShift: 1500;
+	arcMin: 0.0625;
+	arcMax: 0.75;
 }
 
 FlatButton {
@@ -72,6 +94,7 @@ RoundButton {
 	textTop: pixels;
 
 	icon: icon;
+	iconPosition: point;
 
 	font: font;
 
@@ -156,22 +179,6 @@ ScrollArea {
 
 	duration: int;
 	hiding: int;
-}
-
-FlatTextarea {
-	textColor: color;
-	bgColor: color;
-	width: pixels;
-	textMrg: margins;
-	align: align;
-	font: font;
-
-	phColor: color;
-	phFocusColor: color;
-	phPos: point;
-	phAlign: align;
-	phShift: pixels;
-	phDuration: int;
 }
 
 FlatInput {
@@ -519,6 +526,18 @@ InfoProfileButton {
 	ripple: RippleAnimation;
 }
 
+PassportScanRow {
+	padding: margins;
+	size: pixels;
+	textLeft: pixels;
+	nameTop: pixels;
+	statusTop: pixels;
+	border: pixels;
+	borderFg: color;
+	remove: IconButton;
+	restore: RoundButton;
+}
+
 defaultLabelSimple: LabelSimple {
 	font: normalFont;
 	maxWidth: 0px;
@@ -565,6 +584,8 @@ defaultActiveButton: RoundButton {
 	padding: margins(0px, 0px, 0px, 0px);
 
 	textTop: 8px;
+
+	iconPosition: point(0px, 0px);
 
 	font: semiboldFont;
 

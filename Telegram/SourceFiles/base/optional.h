@@ -87,6 +87,15 @@ public:
 		return _impl >= other._impl;
 	}
 
+	template <typename T, typename... Args>
+	T &set(Args &&...args) {
+		_impl.template set<T>(std::forward<Args>(args)...);
+		return get_unchecked<T>();
+	}
+	void clear() {
+		_impl.template set<none_type>();
+	}
+
 	template <typename T>
 	decltype(auto) is() const {
 		return _impl.template is<T>();
@@ -98,6 +107,15 @@ public:
 	template <typename T>
 	decltype(auto) get_unchecked() const {
 		return _impl.template get_unchecked<T>();
+	}
+
+	template <typename ...Methods>
+	decltype(auto) match(Methods &&...methods) {
+		return base::match(_impl, std::forward<Methods>(methods)...);
+	}
+	template <typename ...Methods>
+	decltype(auto) match(Methods &&...methods) const {
+		return base::match(_impl, std::forward<Methods>(methods)...);
 	}
 
 private:
@@ -113,6 +131,20 @@ inline T *get_if(optional_variant<Types...> *v) {
 template <typename T, typename... Types>
 inline const T *get_if(const optional_variant<Types...> *v) {
 	return (v && v->template is<T>()) ? &v->template get_unchecked<T>() : nullptr;
+}
+
+template <typename ...Types, typename ...Methods>
+inline decltype(auto) match(
+		optional_variant<Types...> &value,
+		Methods &&...methods) {
+	return value.match(std::forward<Methods>(methods)...);
+}
+
+template <typename ...Types, typename ...Methods>
+inline decltype(auto) match(
+		const optional_variant<Types...> &value,
+		Methods &&...methods) {
+	return value.match(std::forward<Methods>(methods)...);
 }
 
 template <typename Type>
@@ -146,28 +178,39 @@ using optional_chain_result_t = typename optional_chain_result<Type>::type;
 
 template <typename Type>
 class optional : public optional_variant<Type> {
-public:
-	using optional_variant<Type>::optional_variant;
+	using parent = optional_variant<Type>;
 
-	Type &operator*() {
-		auto result = get_if<Type>(this);
-		Expects(result != nullptr);
-		return *result;
+public:
+	using parent::parent;
+
+	Type &operator*() & {
+		Expects(parent::template is<Type>());
+
+		return parent::template get_unchecked<Type>();
 	}
-	const Type &operator*() const {
-		auto result = get_if<Type>(this);
-		Expects(result != nullptr);
-		return *result;
+	Type &&operator*() && {
+		Expects(parent::template is<Type>());
+
+		return std::move(parent::template get_unchecked<Type>());
+	}
+	const Type &operator*() const & {
+		Expects(parent::template is<Type>());
+
+		return parent::template get_unchecked<Type>();
 	}
 	Type *operator->() {
-		auto result = get_if<Type>(this);
-		Expects(result != nullptr);
-		return result;
+		Expects(parent::template is<Type>());
+
+		return std::addressof(parent::template get_unchecked<Type>());
 	}
 	const Type *operator->() const {
-		auto result = get_if<Type>(this);
-		Expects(result != nullptr);
-		return result;
+		Expects(parent::template is<Type>());
+
+		return std::addressof(parent::template get_unchecked<Type>());
+	}
+	template <typename ...Args>
+	Type &emplace(Args &&...args) {
+		return parent::template set<Type>(std::forward<Args>(args)...);
 	}
 
 };

@@ -13,12 +13,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "boxes/send_files_box.h"
 #include "window/themes/window_theme.h"
+#include "export/export_settings.h"
+#include "core/crash_reports.h"
+#include "core/update_checker.h"
 #include "observer_peer.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "lang/lang_keys.h"
 #include "media/media_audio.h"
-#include "ui/widgets/input_fields.h"
 #include "mtproto/dc_options.h"
 #include "messenger.h"
 #include "application.h"
@@ -29,7 +31,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "history/history.h"
 
+extern "C" {
 #include <openssl/evp.h>
+} // extern "C"
 
 namespace Local {
 namespace {
@@ -37,6 +41,7 @@ namespace {
 constexpr auto kThemeFileSizeLimit = 5 * 1024 * 1024;
 constexpr auto kFileLoaderQueueStopTimeout = TimeMs(5000);
 constexpr auto kDefaultStickerInstallDate = TimeId(1);
+constexpr auto kProxyTypeShift = 1024;
 
 using FileKey = quint64;
 
@@ -497,6 +502,7 @@ enum { // Local Storage Keys
 	lskStickersKeys = 0x10, // no data
 	lskTrustedBots = 0x11, // no data
 	lskFavedStickers = 0x12, // no data
+	lskExportSettings = 0x13, // no data
 };
 
 enum {
@@ -519,7 +525,7 @@ enum {
 	// 0x10 reserved
 	dbiDefaultAttach = 0x11,
 	dbiCatsAndDogs = 0x12,
-	dbiReplaceEmojis = 0x13,
+	dbiReplaceEmoji = 0x13,
 	dbiAskDownloadPath = 0x14,
 	dbiDownloadPathOld = 0x15,
 	dbiScale = 0x16,
@@ -571,6 +577,9 @@ enum {
 	dbiLangPackKey = 0x4e,
 	dbiConnectionType = 0x4f,
 	dbiStickersFavedLimit = 0x50,
+	dbiSuggestStickersByEmoji = 0x51,
+	dbiSuggestEmoji = 0x52,
+	dbiTxtDomainString = 0x53,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -580,6 +589,13 @@ enum {
 	dbiVersion = 666,
 };
 
+enum {
+	dbictAuto = 0,
+	dbictHttpAuto = 1, // not used
+	dbictHttpProxy = 2,
+	dbictTcpProxy = 3,
+	dbictProxiesList = 4,
+};
 
 typedef QMap<PeerId, FileKey> DraftsMap;
 DraftsMap _draftsMap, _draftCursorsMap;
@@ -620,6 +636,8 @@ bool _readingUserSettings = false;
 FileKey _userSettingsKey = 0;
 FileKey _recentHashtagsAndBotsKey = 0;
 bool _recentHashtagsAndBotsWereRead = false;
+
+FileKey _exportSettingsKey = 0;
 
 FileKey _savedPeersKey = 0;
 FileKey _langPackKey = 0;
@@ -869,7 +887,12 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> dcId >> host >> ip >> port;
 		if (!_checkStreamStatus(stream)) return false;
 
-		context.dcOptions.constructAddOne(dcId, 0, ip.toStdString(), port);
+		context.dcOptions.constructAddOne(
+			dcId,
+			0,
+			ip.toStdString(),
+			port,
+			{});
 	} break;
 
 	case dbiDcOptionOld: {
@@ -879,7 +902,12 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> dcIdWithShift >> flags >> ip >> port;
 		if (!_checkStreamStatus(stream)) return false;
 
-		context.dcOptions.constructAddOne(dcIdWithShift, MTPDdcOption::Flags::from_raw(flags), ip.toStdString(), port);
+		context.dcOptions.constructAddOne(
+			dcIdWithShift,
+			MTPDdcOption::Flags::from_raw(flags),
+			ip.toStdString(),
+			port,
+			{});
 	} break;
 
 	case dbiDcOptions: {
@@ -1132,56 +1160,121 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		Global::RefWorkMode().set(newMode());
 	} break;
 
+	case dbiTxtDomainString: {
+		QString v;
+		stream >> v;
+		if (!_checkStreamStatus(stream)) return false;
+
+		Global::SetTxtDomainString(v);
+	} break;
+
 	case dbiConnectionTypeOld: {
 		qint32 v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
+		ProxyData proxy;
 		switch (v) {
 		case dbictHttpProxy:
 		case dbictTcpProxy: {
-			ProxyData p;
 			qint32 port;
-			stream >> p.host >> port >> p.user >> p.password;
+			stream >> proxy.host >> port >> proxy.user >> proxy.password;
 			if (!_checkStreamStatus(stream)) return false;
 
-			p.port = uint32(port);
-			Global::SetConnectionProxy(p);
-			Global::SetConnectionType(DBIConnectionType(v));
+			proxy.port = uint32(port);
+			proxy.type = (v == dbictTcpProxy)
+				? ProxyData::Type::Socks5
+				: ProxyData::Type::Http;
 		} break;
-		case dbictHttpAuto:
-		default: Global::SetConnectionType(dbictAuto); break;
 		};
-		Global::SetLastProxyType(Global::ConnectionType());
+		Global::SetSelectedProxy(proxy ? proxy : ProxyData());
+		Global::SetUseProxy(proxy ? true : false);
+		if (proxy) {
+			Global::SetProxiesList({ 1, proxy });
+		} else {
+			Global::SetProxiesList({});
+		}
+		Sandbox::refreshGlobalProxy();
 	} break;
 
 	case dbiConnectionType: {
-		ProxyData p;
-		qint32 connectionType, lastProxyType, port;
-		stream >> connectionType >> lastProxyType >> p.host >> port >> p.user >> p.password;
-		if (!_checkStreamStatus(stream)) return false;
-
-		p.port = port;
-		switch (connectionType) {
-		case dbictHttpProxy:
-		case dbictTcpProxy: {
-			Global::SetConnectionType(DBIConnectionType(lastProxyType));
-		} break;
-		case dbictHttpAuto:
-		default: Global::SetConnectionType(dbictAuto); break;
-		};
-		switch (lastProxyType) {
-		case dbictHttpProxy:
-		case dbictTcpProxy: {
-			Global::SetLastProxyType(DBIConnectionType(lastProxyType));
-			Global::SetConnectionProxy(p);
-		} break;
-		case dbictHttpAuto:
-		default: {
-			Global::SetLastProxyType(dbictAuto);
-			Global::SetConnectionProxy(ProxyData());
-		} break;
+		qint32 connectionType;
+		stream >> connectionType;
+		if (!_checkStreamStatus(stream)) {
+			return false;
 		}
+
+		const auto readProxy = [&] {
+			qint32 proxyType, port;
+			ProxyData proxy;
+			stream >> proxyType >> proxy.host >> port >> proxy.user >> proxy.password;
+			proxy.port = port;
+			proxy.type = (proxyType == dbictTcpProxy)
+				? ProxyData::Type::Socks5
+				: (proxyType == dbictHttpProxy)
+				? ProxyData::Type::Http
+				: (proxyType == kProxyTypeShift + int(ProxyData::Type::Socks5))
+				? ProxyData::Type::Socks5
+				: (proxyType == kProxyTypeShift + int(ProxyData::Type::Http))
+				? ProxyData::Type::Http
+				: (proxyType == kProxyTypeShift + int(ProxyData::Type::Mtproto))
+				? ProxyData::Type::Mtproto
+				: ProxyData::Type::None;
+			return proxy;
+		};
+		if (connectionType == dbictProxiesList) {
+			qint32 count = 0, index = 0;
+			stream >> count >> index;
+			if (std::abs(index) > count) {
+				Global::SetUseProxyForCalls(true);
+				index -= (index > 0 ? count : -count);
+			} else {
+				Global::SetUseProxyForCalls(false);
+			}
+
+			auto list = std::vector<ProxyData>();
+			for (auto i = 0; i < count; ++i) {
+				const auto proxy = readProxy();
+				if (proxy) {
+					list.push_back(proxy);
+				} else if (index < -list.size()) {
+					++index;
+				} else if (index > list.size()) {
+					--index;
+				}
+			}
+			if (!_checkStreamStatus(stream)) {
+				return false;
+			}
+			Global::SetProxiesList(list);
+			Global::SetUseProxy(index > 0 && index <= list.size());
+			index = std::abs(index);
+			if (index > 0 && index <= list.size()) {
+				Global::SetSelectedProxy(list[index - 1]);
+			} else {
+				Global::SetSelectedProxy(ProxyData());
+			}
+		} else {
+			const auto proxy = readProxy();
+			if (!_checkStreamStatus(stream)) {
+				return false;
+			}
+			if (proxy) {
+				Global::SetProxiesList({ 1, proxy });
+				Global::SetSelectedProxy(proxy);
+				if (connectionType == dbictTcpProxy
+					|| connectionType == dbictHttpProxy) {
+					Global::SetUseProxy(true);
+				} else {
+					Global::SetUseProxy(false);
+				}
+			} else {
+				Global::SetProxiesList({});
+				Global::SetSelectedProxy(ProxyData());
+				Global::SetUseProxy(false);
+			}
+		}
+		Sandbox::refreshGlobalProxy();
 	} break;
 
 	case dbiThemeKey: {
@@ -1224,7 +1317,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		cSetAutoUpdate(v == 1);
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 		if (!cAutoUpdate()) {
-			Sandbox::stopUpdate();
+			Core::UpdateChecker().stop();
 		}
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
 	} break;
@@ -1348,12 +1441,28 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		Global::RefLocalPasscodeChanged().notify();
 	} break;
 
-	case dbiReplaceEmojis: {
+	case dbiReplaceEmoji: {
 		qint32 v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		cSetReplaceEmojis(v == 1);
+		Global::SetReplaceEmoji(v == 1);
+	} break;
+
+	case dbiSuggestEmoji: {
+		qint32 v;
+		stream >> v;
+		if (!_checkStreamStatus(stream)) return false;
+
+		Global::SetSuggestEmoji(v == 1);
+	} break;
+
+	case dbiSuggestStickersByEmoji: {
+		qint32 v;
+		stream >> v;
+		if (!_checkStreamStatus(stream)) return false;
+
+		Global::SetSuggestStickersByEmoji(v == 1);
 	} break;
 
 	case dbiDefaultAttach: {
@@ -1766,7 +1875,7 @@ void _writeUserSettings() {
 		? userDataInstance->serialize()
 		: QByteArray();
 
-	uint32 size = 21 * (sizeof(quint32) + sizeof(qint32));
+	uint32 size = 23 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::stringSize(Global::AskDownloadPath() ? QString() : Global::DownloadPath()) + Serialize::bytearraySize(Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
 
 	size += sizeof(quint32) + sizeof(qint32);
@@ -1775,7 +1884,7 @@ void _writeUserSettings() {
 	}
 
 	size += sizeof(quint32) + sizeof(qint32) + cEmojiVariants().size() * (sizeof(uint32) + sizeof(uint64));
-	size += sizeof(quint32) + sizeof(qint32) + (Stickers::GetRecentPack().isEmpty() ? Stickers::GetRecentPack().size() : cRecentStickersPreload().size()) * (sizeof(uint64) + sizeof(ushort));
+	size += sizeof(quint32) + sizeof(qint32) + (cRecentStickersPreload().isEmpty() ? Stickers::GetRecentPack().size() : cRecentStickersPreload().size()) * (sizeof(uint64) + sizeof(ushort));
 	size += sizeof(quint32) + Serialize::stringSize(cDialogLastPath());
 	size += sizeof(quint32) + 3 * sizeof(qint32);
 	size += sizeof(quint32) + 2 * sizeof(qint32);
@@ -1791,7 +1900,9 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiTileBackground) << qint32(Window::Theme::Background()->tileForSave() ? 1 : 0);
 	data.stream << quint32(dbiAdaptiveForWide) << qint32(Global::AdaptiveForWide() ? 1 : 0);
 	data.stream << quint32(dbiAutoLock) << qint32(Global::AutoLock());
-	data.stream << quint32(dbiReplaceEmojis) << qint32(cReplaceEmojis() ? 1 : 0);
+	data.stream << quint32(dbiReplaceEmoji) << qint32(Global::ReplaceEmoji() ? 1 : 0);
+	data.stream << quint32(dbiSuggestEmoji) << qint32(Global::SuggestEmoji() ? 1 : 0);
+	data.stream << quint32(dbiSuggestStickersByEmoji) << qint32(Global::SuggestStickersByEmoji() ? 1 : 0);
 	data.stream << quint32(dbiSoundNotify) << qint32(Global::SoundNotify());
 	data.stream << quint32(dbiIncludeMuted) << qint32(Global::IncludeMuted());
 	data.stream << quint32(dbiDesktopNotify) << qint32(Global::DesktopNotify());
@@ -1967,7 +2078,7 @@ ReadMapState _readMap(const QByteArray &pass) {
 	quint64 recentStickersKeyOld = 0;
 	quint64 installedStickersKey = 0, featuredStickersKey = 0, recentStickersKey = 0, favedStickersKey = 0, archivedStickersKey = 0;
 	quint64 savedGifsKey = 0;
-	quint64 backgroundKey = 0, userSettingsKey = 0, recentHashtagsAndBotsKey = 0, savedPeersKey = 0;
+	quint64 backgroundKey = 0, userSettingsKey = 0, recentHashtagsAndBotsKey = 0, savedPeersKey = 0, exportSettingsKey = 0;
 	while (!map.stream.atEnd()) {
 		quint32 keyType;
 		map.stream >> keyType;
@@ -2069,6 +2180,9 @@ ReadMapState _readMap(const QByteArray &pass) {
 		case lskSavedPeers: {
 			map.stream >> savedPeersKey;
 		} break;
+		case lskExportSettings: {
+			map.stream >> exportSettingsKey;
+		} break;
 		default:
 		LOG(("App Error: unknown key type in encrypted map: %1").arg(keyType));
 		return ReadMapFailed;
@@ -2103,6 +2217,7 @@ ReadMapState _readMap(const QByteArray &pass) {
 	_backgroundKey = backgroundKey;
 	_userSettingsKey = userSettingsKey;
 	_recentHashtagsAndBotsKey = recentHashtagsAndBotsKey;
+	_exportSettingsKey = exportSettingsKey;
 	_oldMapVersion = mapData.version;
 	if (_oldMapVersion < AppVersion) {
 		_mapChanged = true;
@@ -2181,7 +2296,20 @@ void _writeMap(WriteMapWhen when) {
 	if (_backgroundKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_userSettingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_recentHashtagsAndBotsKey) mapSize += sizeof(quint32) + sizeof(quint64);
+	if (_exportSettingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
+
+	if (mapSize > 30 * 1024 * 1024) {
+		CrashReports::SetAnnotation("MapSize", QString("%1,%2,%3,%4,%5"
+		).arg(_draftsMap.size()
+		).arg(_draftCursorsMap.size()
+		).arg(_imagesMap.size()
+		).arg(_stickerImagesMap.size()
+		).arg(_audiosMap.size()
+		));
+	}
+
 	EncryptedDescriptor mapData(mapSize);
+
 	if (!_draftsMap.isEmpty()) {
 		mapData.stream << quint32(lskDraft) << quint32(_draftsMap.size());
 		for (DraftsMap::const_iterator i = _draftsMap.cbegin(), e = _draftsMap.cend(); i != e; ++i) {
@@ -2246,9 +2374,16 @@ void _writeMap(WriteMapWhen when) {
 	if (_recentHashtagsAndBotsKey) {
 		mapData.stream << quint32(lskRecentHashtagsAndBots) << quint64(_recentHashtagsAndBotsKey);
 	}
+	if (_exportSettingsKey) {
+		mapData.stream << quint32(lskExportSettings) << quint64(_exportSettingsKey);
+	}
 	map.writeEncrypted(mapData);
 
 	_mapChanged = false;
+
+	if (mapSize > 30 * 1024 * 1024) {
+		CrashReports::ClearAnnotation("MapSize");
+	}
 }
 
 } // namespace
@@ -2347,10 +2482,21 @@ void writeSettings() {
 
 	quint32 size = 12 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::bytearraySize(dcOptionsSerialized);
+	size += sizeof(quint32) + Serialize::stringSize(cLoggedPhoneNumber());
+	size += sizeof(quint32) + Serialize::stringSize(Global::TxtDomainString());
 
-	auto &proxy = Global::ConnectionProxy();
-	size += sizeof(quint32) + sizeof(qint32) + sizeof(qint32);
-	size += Serialize::stringSize(proxy.host) + sizeof(qint32) + Serialize::stringSize(proxy.user) + Serialize::stringSize(proxy.password);
+	auto &proxies = Global::RefProxiesList();
+	const auto &proxy = Global::SelectedProxy();
+	auto proxyIt = ranges::find(proxies, proxy);
+	if (proxy.type != ProxyData::Type::None
+		&& proxyIt == end(proxies)) {
+		proxies.push_back(proxy);
+		proxyIt = end(proxies) - 1;
+	}
+	size += sizeof(quint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
+	for (const auto &proxy : proxies) {
+		size += sizeof(qint32) + Serialize::stringSize(proxy.host) + sizeof(qint32) + Serialize::stringSize(proxy.user) + Serialize::stringSize(proxy.password);
+	}
 
 	if (_themeKey) {
 		size += sizeof(quint32) + sizeof(quint64);
@@ -2375,9 +2521,19 @@ void writeSettings() {
 	data.stream << quint32(dbiLastUpdateCheck) << qint32(cLastUpdateCheck());
 	data.stream << quint32(dbiScale) << qint32(cConfigScale());
 	data.stream << quint32(dbiDcOptions) << dcOptionsSerialized;
+	data.stream << quint32(dbiLoggedPhoneNumber) << cLoggedPhoneNumber();
+	data.stream << quint32(dbiTxtDomainString) << Global::TxtDomainString();
 
-	data.stream << quint32(dbiConnectionType) << qint32(Global::ConnectionType()) << qint32(Global::LastProxyType());
-	data.stream << proxy.host << qint32(proxy.port) << proxy.user << proxy.password;
+	data.stream << quint32(dbiConnectionType) << qint32(dbictProxiesList);
+	data.stream << qint32(proxies.size());
+	const auto index = qint32(proxyIt - begin(proxies))
+		+ qint32(Global::UseProxyForCalls() ? proxies.size() : 0)
+		+ 1;
+	data.stream << (Global::UseProxy() ? index : -index);
+	for (const auto &proxy : proxies) {
+		data.stream << qint32(kProxyTypeShift + int(proxy.type));
+		data.stream << proxy.host << qint32(proxy.port) << proxy.user << proxy.password;
+	}
 
 	data.stream << quint32(dbiTryIPv6) << qint32(Global::TryIPv6());
 	if (_themeKey) {
@@ -2404,6 +2560,60 @@ void writeMtpData() {
 	_writeMtpData();
 }
 
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+const QString &AutoupdatePrefix(const QString &replaceWith = {}) {
+	static auto value = QString();
+	if (!replaceWith.isEmpty()) {
+		value = replaceWith;
+	}
+	return value;
+}
+
+QString autoupdatePrefixFile() {
+	return cWorkingDir() + "tdata/prefix";
+}
+
+const QString &readAutoupdatePrefixRaw() {
+	const auto &result = AutoupdatePrefix();
+	if (!result.isEmpty()) {
+		return result;
+	}
+	QFile f(autoupdatePrefixFile());
+	if (f.open(QIODevice::ReadOnly)) {
+		const auto value = QString::fromUtf8(f.readAll());
+		if (!value.isEmpty()) {
+			return AutoupdatePrefix(value);
+		}
+	}
+	return AutoupdatePrefix("https://updates.tdesktop.com");
+}
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
+
+void writeAutoupdatePrefix(const QString &prefix) {
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	const auto current = readAutoupdatePrefixRaw();
+	if (current != prefix) {
+		AutoupdatePrefix(prefix);
+		QFile f(autoupdatePrefixFile());
+		if (f.open(QIODevice::WriteOnly)) {
+			f.write(prefix.toUtf8());
+			f.close();
+		}
+		if (cAutoUpdate()) {
+			Core::UpdateChecker checker;
+			checker.start();
+		}
+	}
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
+}
+
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+QString readAutoupdatePrefix() {
+	auto result = readAutoupdatePrefixRaw();
+	return result.replace(QRegularExpression("/+$"), QString());
+}
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
+
 void reset() {
 	if (_localLoader) {
 		_localLoader->stop();
@@ -2426,7 +2636,7 @@ void reset() {
 	_recentStickersKeyOld = 0;
 	_installedStickersKey = _featuredStickersKey = _recentStickersKey = _favedStickersKey = _archivedStickersKey = 0;
 	_savedGifsKey = 0;
-	_backgroundKey = _userSettingsKey = _recentHashtagsAndBotsKey = _savedPeersKey = 0;
+	_backgroundKey = _userSettingsKey = _recentHashtagsAndBotsKey = _savedPeersKey = _exportSettingsKey = 0;
 	_oldMapVersion = _oldSettingsVersion = 0;
 	StoredAuthSessionCache.reset();
 	_mapChanged = true;
@@ -2493,8 +2703,10 @@ void writeDrafts(const PeerId &peer, const MessageDraft &localDraft, const Messa
 			_writeMap(WriteMapWhen::Fast);
 		}
 
-		auto msgTags = Ui::FlatTextarea::serializeTagsList(localDraft.textWithTags.tags);
-		auto editTags = Ui::FlatTextarea::serializeTagsList(editDraft.textWithTags.tags);
+		auto msgTags = TextUtilities::SerializeTags(
+			localDraft.textWithTags.tags);
+		auto editTags = TextUtilities::SerializeTags(
+			editDraft.textWithTags.tags);
 
 		int size = sizeof(quint64);
 		size += Serialize::stringSize(localDraft.textWithTags.text) + Serialize::bytearraySize(msgTags) + 2 * sizeof(qint32);
@@ -2600,8 +2812,12 @@ void readDraftsWithCursors(History *h) {
 		return;
 	}
 
-	msgData.tags = Ui::FlatTextarea::deserializeTagsList(msgTagsSerialized, msgData.text.size());
-	editData.tags = Ui::FlatTextarea::deserializeTagsList(editTagsSerialized, editData.text.size());
+	msgData.tags = TextUtilities::DeserializeTags(
+		msgTagsSerialized,
+		msgData.text.size());
+	editData.tags = TextUtilities::DeserializeTags(
+		editTagsSerialized,
+		editData.text.size());
 
 	MessageCursor msgCursor, editCursor;
 	_readDraftCursors(peer, msgCursor, editCursor);
@@ -2610,13 +2826,21 @@ void readDraftsWithCursors(History *h) {
 		if (msgData.text.isEmpty() && !msgReplyTo) {
 			h->clearLocalDraft();
 		} else {
-			h->setLocalDraft(std::make_unique<Data::Draft>(msgData, msgReplyTo, msgCursor, msgPreviewCancelled));
+			h->setLocalDraft(std::make_unique<Data::Draft>(
+				msgData,
+				msgReplyTo,
+				msgCursor,
+				msgPreviewCancelled));
 		}
 	}
 	if (!editMsgId) {
 		h->clearEditDraft();
 	} else {
-		h->setEditDraft(std::make_unique<Data::Draft>(editData, editMsgId, editCursor, editPreviewCancelled));
+		h->setEditDraft(std::make_unique<Data::Draft>(
+			editData,
+			editMsgId,
+			editCursor,
+			editPreviewCancelled));
 	}
 }
 
@@ -2853,6 +3077,10 @@ TaskId startImageLoad(const StorageKey &location, mtpFileLoader *loader) {
 		std::make_unique<ImageLoadTask>(j->first, location, loader));
 }
 
+bool willImageLoad(const StorageKey &location) {
+	return _imagesMap.constFind(location) != _imagesMap.cend();
+}
+
 int32 hasImages() {
 	return _imagesMap.size();
 }
@@ -2997,6 +3225,10 @@ bool copyAudio(const StorageKey &oldLocation, const StorageKey &newLocation) {
 	return true;
 }
 
+bool willAudioLoad(const StorageKey &location) {
+	return _audiosMap.constFind(location) != _audiosMap.cend();
+}
+
 int32 hasAudios() {
 	return _audiosMap.size();
 }
@@ -3101,6 +3333,10 @@ TaskId startWebFileLoad(const QString &url, webFileLoader *loader) {
 	}
 	return _localLoader->addTask(
 		std::make_unique<WebFileLoadTask>(j->first, url, loader));
+}
+
+bool willWebFileLoad(const QString &url) {
+	return _webFilesMap.constFind(url) != _webFilesMap.cend();
 }
 
 int32 hasWebFiles() {
@@ -4387,6 +4623,168 @@ void readRecentHashtagsAndBots() {
 		}
 		cSetRecentInlineBots(bots);
 	}
+}
+
+void incrementRecentHashtag(RecentHashtagPack &recent, const QString &tag) {
+	auto i = recent.begin(), e = recent.end();
+	for (; i != e; ++i) {
+		if (i->first == tag) {
+			++i->second;
+			if (qAbs(i->second) > 0x4000) {
+				for (auto j = recent.begin(); j != e; ++j) {
+					if (j->second > 1) {
+						j->second /= 2;
+					} else if (j->second > 0) {
+						j->second = 1;
+					}
+				}
+			}
+			for (; i != recent.begin(); --i) {
+				if (qAbs((i - 1)->second) > qAbs(i->second)) {
+					break;
+				}
+				qSwap(*i, *(i - 1));
+			}
+			break;
+		}
+	}
+	if (i == e) {
+		while (recent.size() >= 64) recent.pop_back();
+		recent.push_back(qMakePair(tag, 1));
+		for (i = recent.end() - 1; i != recent.begin(); --i) {
+			if ((i - 1)->second > i->second) {
+				break;
+			}
+			qSwap(*i, *(i - 1));
+		}
+	}
+}
+
+base::optional<RecentHashtagPack> saveRecentHashtags(
+		Fn<RecentHashtagPack()> getPack,
+		const QString &text) {
+	auto found = false;
+	auto m = QRegularExpressionMatch();
+	auto recent = getPack();
+	for (auto i = 0, next = 0; (m = TextUtilities::RegExpHashtag().match(text, i)).hasMatch(); i = next) {
+		i = m.capturedStart();
+		next = m.capturedEnd();
+		if (m.hasMatch()) {
+			if (!m.capturedRef(1).isEmpty()) {
+				++i;
+			}
+			if (!m.capturedRef(2).isEmpty()) {
+				--next;
+			}
+		}
+		const auto tag = text.mid(i + 1, next - i - 1);
+		if (TextUtilities::RegExpHashtagExclude().match(tag).hasMatch()) {
+			continue;
+		}
+		if (!found
+			&& cRecentWriteHashtags().isEmpty()
+			&& cRecentSearchHashtags().isEmpty()) {
+			Local::readRecentHashtagsAndBots();
+			recent = getPack();
+		}
+		found = true;
+		incrementRecentHashtag(recent, tag);
+	}
+	return found ? base::make_optional(recent) : base::none;
+}
+
+void saveRecentSentHashtags(const QString &text) {
+	const auto result = saveRecentHashtags(
+		[] { return cRecentWriteHashtags(); },
+		text);
+	if (result) {
+		cSetRecentWriteHashtags(*result);
+		Local::writeRecentHashtagsAndBots();
+	}
+}
+
+void saveRecentSearchHashtags(const QString &text) {
+	const auto result = saveRecentHashtags(
+		[] { return cRecentSearchHashtags(); },
+		text);
+	if (result) {
+		cSetRecentSearchHashtags(*result);
+		Local::writeRecentHashtagsAndBots();
+	}
+}
+
+void WriteExportSettings(const Export::Settings &settings) {
+	if (!_working()) return;
+
+	const auto check = Export::Settings();
+	if (settings.types == check.types
+		&& settings.fullChats == check.fullChats
+		&& settings.media.types == check.media.types
+		&& settings.media.sizeLimit == check.media.sizeLimit
+		&& settings.path == check.path
+		&& settings.format == check.format
+		&& settings.availableAt == check.availableAt) {
+		if (_exportSettingsKey) {
+			clearKey(_exportSettingsKey);
+			_exportSettingsKey = 0;
+			_mapChanged = true;
+		}
+		_writeMap();
+	} else {
+		if (!_exportSettingsKey) {
+			_exportSettingsKey = genKey();
+			_mapChanged = true;
+			_writeMap(WriteMapWhen::Fast);
+		}
+		quint32 size = sizeof(quint32) * 6
+			+ Serialize::stringSize(settings.path);
+		EncryptedDescriptor data(size);
+		data.stream
+			<< quint32(settings.types)
+			<< quint32(settings.fullChats)
+			<< quint32(settings.media.types)
+			<< quint32(settings.media.sizeLimit)
+			<< quint32(settings.format)
+			<< settings.path
+			<< quint32(settings.availableAt);
+
+		FileWriteDescriptor file(_exportSettingsKey);
+		file.writeEncrypted(data);
+	}
+}
+
+Export::Settings ReadExportSettings() {
+	FileReadDescriptor file;
+	if (!readEncryptedFile(file, _exportSettingsKey)) {
+		clearKey(_exportSettingsKey);
+		_exportSettingsKey = 0;
+		_writeMap();
+		return Export::Settings();
+	}
+
+	quint32 types = 0, fullChats = 0;
+	quint32 mediaTypes = 0, mediaSizeLimit = 0;
+	quint32 format = 0, availableAt = 0;
+	QString path;
+	file.stream
+		>> types
+		>> fullChats
+		>> mediaTypes
+		>> mediaSizeLimit
+		>> format
+		>> path
+		>> availableAt;
+	auto result = Export::Settings();
+	result.types = Export::Settings::Types::from_raw(types);
+	result.fullChats = Export::Settings::Types::from_raw(fullChats);
+	result.media.types = Export::MediaSettings::Types::from_raw(mediaTypes);
+	result.media.sizeLimit = mediaSizeLimit;
+	result.format = Export::Output::Format(format);
+	result.path = path;
+	result.availableAt = availableAt;
+	return (file.stream.status() == QDataStream::Ok && result.validate())
+		? result
+		: Export::Settings();
 }
 
 void writeSavedPeers() {

@@ -7,17 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <gsl/gsl>
+#include <QtCore/QVector>
+#include <QtCore/QString>
+#include <QtCore/QByteArray>
+#include <rpl/details/callable.h>
 #include "core/basic_types.h"
+#include "base/match_method.h"
 #include "base/flags.h"
-
-namespace MTP {
-
-// type DcId represents actual data center id, while in most cases
-// we use some shifted ids, like DcId() + X * DCShift
-using DcId = int32;
-using ShiftedDcId = int32;
-
-} // namespace MTP
+#include "base/bytes.h"
+#include "base/algorithm.h"
+#include "base/assertion.h"
 
 using mtpPrime = int32;
 using mtpRequestId = int32;
@@ -27,99 +27,64 @@ using mtpPingId = uint64;
 using mtpBuffer = QVector<mtpPrime>;
 using mtpTypeId = uint32;
 
-class mtpRequestData;
-class mtpRequest : public std::shared_ptr<mtpRequestData> {
+namespace MTP {
+
+// type DcId represents actual data center id, while in most cases
+// we use some shifted ids, like DcId() + X * DCShift
+using DcId = int32;
+using ShiftedDcId = int32;
+
+constexpr auto kDcShift = ShiftedDcId(10000);
+constexpr auto kConfigDcShift = 0x01;
+constexpr auto kLogoutDcShift = 0x02;
+constexpr auto kUpdaterDcShift = 0x03;
+constexpr auto kExportDcShift = 0x04;
+constexpr auto kExportMediaDcShift = 0x05;
+constexpr auto kMaxMediaDcCount = 0x10;
+constexpr auto kBaseDownloadDcShift = 0x10;
+constexpr auto kBaseUploadDcShift = 0x20;
+constexpr auto kDestroyKeyStartDcShift = 0x100;
+
+constexpr DcId BareDcId(ShiftedDcId shiftedDcId) {
+	return (shiftedDcId % kDcShift);
+}
+
+constexpr ShiftedDcId ShiftDcId(DcId dcId, int value) {
+	return dcId + kDcShift * value;
+}
+
+constexpr int GetDcIdShift(ShiftedDcId shiftedDcId) {
+	return shiftedDcId / kDcShift;
+}
+
+} // namespace MTP
+
+class Exception : public std::exception {
 public:
-	mtpRequest() = default;
-    explicit mtpRequest(mtpRequestData *ptr)
-	: std::shared_ptr<mtpRequestData>(ptr) {
-	}
+	explicit Exception(const QString &msg) noexcept;
 
-	uint32 innerLength() const;
-	void write(mtpBuffer &to) const;
-
-	using ResponseType = void; // don't know real response type =(
-
-};
-
-class mtpRequestData : public mtpBuffer {
-public:
-	// in toSend: = 0 - must send in container, > 0 - can send without container
-	// in haveSent: = 0 - container with msgIds, > 0 - when was sent
-	TimeMs msDate = 0;
-
-	mtpRequestId requestId = 0;
-	mtpRequest after;
-	bool needsLayer = false;
-
-	mtpRequestData(bool/* sure*/) {
-	}
-
-	static mtpRequest prepare(uint32 requestSize, uint32 maxSize = 0);
-	static void padding(mtpRequest &request);
-
-	template <typename TRequest>
-	static mtpRequest serialize(const TRequest &request) {
-		const auto requestSize = request.innerLength() >> 2;
-		auto serialized = prepare(requestSize);
-		request.write(*serialized);
-		return serialized;
-	}
-
-	static uint32 messageSize(const mtpRequest &request) {
-		if (request->size() < 9) return 0;
-		return 4 + (request.innerLength() >> 2); // 2: msg_id, 1: seq_no, q: message_length
-	}
-
-	static bool isSentContainer(const mtpRequest &request); // "request-like" wrap for msgIds vector
-	static bool isStateRequest(const mtpRequest &request);
-	static bool needAck(const mtpRequest &request) {
-		if (request->size() < 9) return false;
-		return mtpRequestData::needAckByType((*request)[8]);
-	}
-	static bool needAckByType(mtpTypeId type);
+	const char *what() const noexcept override;
 
 private:
-	static uint32 _padding(uint32 requestSize);
+	QByteArray _msg;
 
-};
-
-using mtpPreRequestMap = QMap<mtpRequestId, mtpRequest>;
-using mtpRequestMap = QMap<mtpMsgId, mtpRequest>;
-using mtpMsgIdsSet = QMap<mtpMsgId, bool>;
-
-class mtpRequestIdsMap : public QMap<mtpMsgId, mtpRequestId> {
-public:
-	using ParentType = QMap<mtpMsgId, mtpRequestId>;
-
-	mtpMsgId min() const {
-		return size() ? cbegin().key() : 0;
-	}
-
-	mtpMsgId max() const {
-		ParentType::const_iterator e(cend());
-		return size() ? (--e).key() : 0;
-	}
 };
 
 class mtpErrorUnexpected : public Exception {
 public:
-	mtpErrorUnexpected(mtpTypeId typeId, const QString &type) : Exception(QString("MTP Unexpected type id #%1 read in %2").arg(uint32(typeId), 0, 16).arg(type), false) { // maybe api changed?..
-	}
+	mtpErrorUnexpected(mtpTypeId typeId, const QString &type) noexcept;
 
 };
 
 class mtpErrorInsufficient : public Exception {
 public:
-	mtpErrorInsufficient() : Exception("MTP Insufficient bytes in input buffer") {
-	}
+	mtpErrorInsufficient() noexcept;
 
 };
 
 class mtpErrorBadTypeId : public Exception {
 public:
-	mtpErrorBadTypeId(mtpTypeId typeId, const QString &type) : Exception(QString("MTP Bad type id %1 passed to constructor of %2").arg(typeId).arg(type)) {
-	}
+	mtpErrorBadTypeId(mtpTypeId typeId, const QString &type) noexcept;
 
 };
 
@@ -189,6 +154,7 @@ protected:
 	template <typename DataType>
 	const DataType &queryData() const {
 		Expects(_data != nullptr);
+
 		return static_cast<const DataType &>(*_data);
 	}
 
@@ -307,6 +273,100 @@ template <typename T>
 class MTPBoxed<MTPBoxed<T> > {
 	typename T::CantMakeBoxedBoxedType v;
 };
+
+namespace MTP {
+namespace details {
+
+struct SecureRequestCreateTag {
+};
+
+} // namespace details
+
+template <typename T>
+struct is_boxed : std::false_type {
+};
+
+template <typename T>
+struct is_boxed<MTPBoxed<T>> : std::true_type {
+};
+
+template <typename T>
+constexpr bool is_boxed_v = is_boxed<T>::value;
+
+class SecureRequestData;
+class SecureRequest {
+public:
+	SecureRequest() = default;
+
+	static constexpr auto kSaltInts = 2;
+	static constexpr auto kSessionIdInts = 2;
+	static constexpr auto kMessageIdInts = 2;
+	static constexpr auto kSeqNoPosition = kSaltInts
+		+ kSessionIdInts
+		+ kMessageIdInts;
+	static constexpr auto kSeqNoInts = 1;
+	static constexpr auto kMessageLengthPosition = kSeqNoPosition
+		+ kSeqNoInts;
+	static constexpr auto kMessageLengthInts = 1;
+	static constexpr auto kMessageBodyPosition = kMessageLengthPosition
+		+ kMessageLengthInts;
+
+	static SecureRequest Prepare(uint32 size, uint32 reserveSize = 0);
+
+	template <
+		typename Request,
+		typename = std::enable_if_t<is_boxed_v<Request>>>
+	static SecureRequest Serialize(const Request &request);
+
+	// For template MTP requests and MTPBoxed instanciation.
+	uint32 innerLength() const;
+	void write(mtpBuffer &to) const;
+
+	SecureRequestData *operator->() const;
+	SecureRequestData &operator*() const;
+	explicit operator bool() const;
+
+	void addPadding(bool extended);
+	uint32 messageSize() const;
+
+	// "request-like" wrap for msgIds vector
+	bool isSentContainer() const;
+	bool isStateRequest() const;
+	bool needAck() const;
+
+	using ResponseType = void; // don't know real response type =(
+
+private:
+	explicit SecureRequest(const details::SecureRequestCreateTag &);
+
+	std::shared_ptr<SecureRequestData> _data;
+
+};
+
+class SecureRequestData : public mtpBuffer {
+public:
+	explicit SecureRequestData(const details::SecureRequestCreateTag &) {
+	}
+
+	// in toSend: = 0 - must send in container, > 0 - can send without container
+	// in haveSent: = 0 - container with msgIds, > 0 - when was sent
+	int64 msDate = 0;
+
+	mtpRequestId requestId = 0;
+	SecureRequest after;
+	bool needsLayer = false;
+
+};
+
+template <typename Request, typename>
+SecureRequest SecureRequest::Serialize(const Request &request) {
+	const auto requestSize = request.innerLength() >> 2;
+	auto serialized = Prepare(requestSize);
+	request.write(*serialized);
+	return serialized;
+}
+
+} // namespace MTP
 
 class MTPint {
 public:
@@ -625,15 +685,13 @@ inline MTPbytes MTP_bytes(const QByteArray &v) {
 inline MTPbytes MTP_bytes(QByteArray &&v) {
 	return MTPbytes(std::move(v));
 }
-inline MTPbytes MTP_bytes(base::const_byte_span bytes) {
-	return MTP_bytes(QByteArray(reinterpret_cast<const char*>(bytes.data()), bytes.size()));
+inline MTPbytes MTP_bytes(bytes::const_span buffer) {
+	return MTP_bytes(QByteArray(
+		reinterpret_cast<const char*>(buffer.data()),
+		buffer.size()));
 }
-inline MTPbytes MTP_bytes(const std::vector<gsl::byte> &bytes) {
-	return MTP_bytes(gsl::make_span(bytes));
-}
-template <size_t N>
-inline MTPbytes MTP_bytes(const std::array<gsl::byte, N> &bytes) {
-	return MTP_bytes(gsl::make_span(bytes));
+inline MTPbytes MTP_bytes(const bytes::vector &buffer) {
+	return MTP_bytes(bytes::make_span(buffer));
 }
 
 inline bool operator==(const MTPstring &a, const MTPstring &b) {
@@ -651,23 +709,14 @@ inline QByteArray qba(const MTPstring &v) {
 	return v.v;
 }
 
-inline base::const_byte_span bytesFromMTP(const MTPbytes &v) {
-	return gsl::as_bytes(gsl::make_span(v.v));
-}
-
-inline std::vector<gsl::byte> byteVectorFromMTP(const MTPbytes &v) {
-	auto bytes = bytesFromMTP(v);
-	return std::vector<gsl::byte>(bytes.cbegin(), bytes.cend());
-}
-
 template <typename T>
 class MTPvector {
 public:
 	MTPvector() = default;
 
 	uint32 innerLength() const {
-		uint32 result(sizeof(uint32));
-		for_const (auto &item, v) {
+		auto result = uint32(sizeof(uint32));
+		for (const auto &item : v) {
 			result += item.innerLength();
 		}
 		return result;
@@ -688,7 +737,7 @@ public:
 	}
 	void write(mtpBuffer &to) const {
 		to.push_back(v.size());
-		for_const (auto &item, v) {
+		for (const auto &item : v) {
 			item.write(to);
 		}
 	}
@@ -740,7 +789,11 @@ inline bool operator!=(const MTPvector<T> &a, const MTPvector<T> &b) {
 // Human-readable text serialization
 
 struct MTPStringLogger {
-	MTPStringLogger() : p(new char[MTPDebugBufferSize]), size(0), alloced(MTPDebugBufferSize) {
+	static constexpr auto kBufferSize = 1024 * 1024; // 1 mb start size
+
+	MTPStringLogger()
+	: p(new char[kBufferSize])
+	, alloced(kBufferSize) {
 	}
 	~MTPStringLogger() {
 		delete[] p;
@@ -777,15 +830,20 @@ struct MTPStringLogger {
 		if (size + add <= alloced) return;
 
 		int32 newsize = size + add;
-		if (newsize % MTPDebugBufferSize) newsize += MTPDebugBufferSize - (newsize % MTPDebugBufferSize);
+		if (newsize % kBufferSize) {
+			newsize += kBufferSize - (newsize % kBufferSize);
+		}
 		char *b = new char[newsize];
 		memcpy(b, p, size);
 		alloced = newsize;
 		delete[] p;
 		p = b;
 	}
-	char *p;
-	int32 size, alloced;
+
+	char *p = nullptr;
+	int size = 0;
+	int alloced = 0;
+
 };
 
 void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons = 0, uint32 level = 0, mtpPrime vcons = 0);

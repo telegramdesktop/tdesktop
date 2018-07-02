@@ -12,7 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "lang/lang_keys.h"
 #include "application.h"
+#include "auth_session.h"
+#include "data/data_session.h"
 #include "platform/platform_specific.h"
+#include "base/openssl_help.h"
 #include "boxes/sessions_box.h"
 #include "boxes/passcode_box.h"
 #include "boxes/autolock_box.h"
@@ -73,7 +76,13 @@ int CloudPasswordState::resizeGetHeight(int newWidth) {
 }
 
 void CloudPasswordState::onEdit() {
-	auto box = Ui::show(Box<PasscodeBox>(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint));
+	auto box = Ui::show(Box<PasscodeBox>(
+		_newPasswordSalt,
+		_curPasswordSalt,
+		_hasPasswordRecovery,
+		_notEmptyPassport,
+		_curPasswordHint,
+		_newSecureSecretSalt));
 	connect(box, SIGNAL(reloadPassword()), this, SLOT(onReloadPassword()));
 }
 
@@ -81,22 +90,48 @@ void CloudPasswordState::onTurnOff() {
 	if (_curPasswordSalt.isEmpty()) {
 		_turnOff->hide();
 
-		auto flags = MTPDaccount_passwordInputSettings::Flag::f_email;
-		MTPaccount_PasswordInputSettings settings(MTP_account_passwordInputSettings(MTP_flags(flags), MTP_bytes(QByteArray()), MTP_bytes(QByteArray()), MTP_string(QString()), MTP_string(QString())));
-		MTP::send(MTPaccount_UpdatePasswordSettings(MTP_bytes(QByteArray()), settings), rpcDone(&CloudPasswordState::offPasswordDone), rpcFail(&CloudPasswordState::offPasswordFail));
+		MTP::send(
+			MTPaccount_UpdatePasswordSettings(
+				MTP_bytes(QByteArray()),
+				MTP_account_passwordInputSettings(
+					MTP_flags(MTPDaccount_passwordInputSettings::Flag::f_email),
+					MTP_bytes(QByteArray()), // new_salt
+					MTP_bytes(QByteArray()), // new_password_hash
+					MTP_string(QString()), // hint
+					MTP_string(QString()), // email
+					MTP_bytes(QByteArray()), // new_secure_salt
+					MTP_bytes(QByteArray()), // new_secure_secret
+					MTP_long(0))), // new_secure_secret_hash
+			rpcDone(&CloudPasswordState::offPasswordDone),
+			rpcFail(&CloudPasswordState::offPasswordFail));
 	} else {
-		auto box = Ui::show(Box<PasscodeBox>(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint, true));
+		auto box = Ui::show(Box<PasscodeBox>(
+			_newPasswordSalt,
+			_curPasswordSalt,
+			_hasPasswordRecovery,
+			_notEmptyPassport,
+			_curPasswordHint,
+			_newSecureSecretSalt,
+			true));
 		connect(box, SIGNAL(reloadPassword()), this, SLOT(onReloadPassword()));
 	}
 }
 
+void CloudPasswordState::onReloadPassword() {
+	if (_reloadRequestId) {
+		return;
+	}
+	_reloadRequestId = MTP::send(MTPaccount_GetPassword(), rpcDone(&CloudPasswordState::getPasswordDone), rpcFail(&CloudPasswordState::getPasswordFail));
+}
+
 void CloudPasswordState::onReloadPassword(Qt::ApplicationState state) {
-	if (state == Qt::ApplicationActive) {
-		MTP::send(MTPaccount_GetPassword(), rpcDone(&CloudPasswordState::getPasswordDone));
+	if (!_waitingConfirm.isEmpty() && state == Qt::ApplicationActive) {
+		onReloadPassword();
 	}
 }
 
 void CloudPasswordState::getPasswordDone(const MTPaccount_Password &result) {
+	_reloadRequestId = 0;
 	_waitingConfirm = QString();
 
 	switch (result.type()) {
@@ -104,24 +139,30 @@ void CloudPasswordState::getPasswordDone(const MTPaccount_Password &result) {
 		auto &d = result.c_account_noPassword();
 		_curPasswordSalt = QByteArray();
 		_hasPasswordRecovery = false;
+		_notEmptyPassport = false;
 		_curPasswordHint = QString();
 		_newPasswordSalt = qba(d.vnew_salt);
+		_newSecureSecretSalt = qba(d.vnew_secure_salt);
 		auto pattern = qs(d.vemail_unconfirmed_pattern);
 		if (!pattern.isEmpty()) {
 			_waitingConfirm = lng_cloud_password_waiting(lt_email, pattern);
 		}
+		openssl::AddRandomSeed(bytes::make_span(d.vsecure_random.v));
 	} break;
 
 	case mtpc_account_password: {
 		auto &d = result.c_account_password();
 		_curPasswordSalt = qba(d.vcurrent_salt);
-		_hasPasswordRecovery = mtpIsTrue(d.vhas_recovery);
+		_hasPasswordRecovery = d.is_has_recovery();
+		_notEmptyPassport = d.is_has_secure_values();
 		_curPasswordHint = qs(d.vhint);
 		_newPasswordSalt = qba(d.vnew_salt);
+		_newSecureSecretSalt = qba(d.vnew_secure_salt);
 		auto pattern = qs(d.vemail_unconfirmed_pattern);
 		if (!pattern.isEmpty()) {
 			_waitingConfirm = lng_cloud_password_waiting(lt_email, pattern);
 		}
+		openssl::AddRandomSeed(bytes::make_span(d.vsecure_random.v));
 	} break;
 	}
 	_edit->setText(lang(_curPasswordSalt.isEmpty() ? lng_cloud_password_set : lng_cloud_password_edit));
@@ -130,7 +171,21 @@ void CloudPasswordState::getPasswordDone(const MTPaccount_Password &result) {
 	update();
 
 	_newPasswordSalt.resize(_newPasswordSalt.size() + 8);
-	memset_rand(_newPasswordSalt.data() + _newPasswordSalt.size() - 8, 8);
+	memset_rand(
+		_newPasswordSalt.data() + _newPasswordSalt.size() - 8,
+		8);
+	_newSecureSecretSalt.resize(_newSecureSecretSalt.size() + 8);
+	memset_rand(
+		_newSecureSecretSalt.data() + _newSecureSecretSalt.size() - 8,
+		8);
+}
+
+bool CloudPasswordState::getPasswordFail(const RPCError &error) {
+	if (MTP::isDefaultHandledError(error)) {
+		return false;
+	}
+	_reloadRequestId = 0;
+	return true;
 }
 
 void CloudPasswordState::paintEvent(QPaintEvent *e) {
@@ -181,8 +236,9 @@ void PrivacyWidget::createControls() {
 		_autoLock->hide(anim::type::instant);
 	}
 	createChildRow(_cloudPasswordState, marginSmall);
-	createChildRow(_showAllSessions, marginSmall, lang(lng_settings_show_sessions), SLOT(onShowSessions()));
 	createChildRow(_selfDestruction, marginSmall, lang(lng_settings_self_destruct), SLOT(onSelfDestruction()));
+	createChildRow(_showAllSessions, marginSmall, lang(lng_settings_show_sessions), SLOT(onShowSessions()));
+	createChildRow(_exportData, marginSmall, lang(lng_settings_export_data), SLOT(onExportData()));
 }
 
 void PrivacyWidget::autoLockUpdated() {
@@ -199,7 +255,7 @@ void PrivacyWidget::autoLockUpdated() {
 void PrivacyWidget::onBlockedUsers() {
 	Ui::show(Box<PeerListBox>(std::make_unique<BlockedBoxController>(), [](not_null<PeerListBox*> box) {
 		box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
-		box->addLeftButton(langFactory(lng_blocked_list_add), [box] { BlockedBoxController::BlockNewUser(); });
+		box->addLeftButton(langFactory(lng_blocked_list_add), [=] { BlockedBoxController::BlockNewUser(); });
 	}));
 }
 
@@ -225,6 +281,14 @@ void PrivacyWidget::onShowSessions() {
 
 void PrivacyWidget::onSelfDestruction() {
 	Ui::show(Box<SelfDestructionBox>());
+}
+
+void PrivacyWidget::onExportData() {
+	Ui::hideSettingsAndLayer();
+	App::CallDelayed(
+		st::boxDuration,
+		&Auth(),
+		[] { Auth().data().startExport(); });
 }
 
 } // namespace Settings

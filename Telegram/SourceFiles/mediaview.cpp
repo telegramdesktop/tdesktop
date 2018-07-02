@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "application.h"
 #include "core/file_utilities.h"
+#include "core/mime_type.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
 #include "ui/text_options.h"
@@ -152,7 +153,7 @@ void MediaView::refreshLang() {
 }
 
 void MediaView::moveToScreen() {
-	auto widgetScreen = [this](auto &&widget) -> QScreen* {
+	auto widgetScreen = [&](auto &&widget) -> QScreen* {
 		if (auto handle = widget ? widget->windowHandle() : nullptr) {
 			return handle->screen();
 		}
@@ -807,7 +808,7 @@ void MediaView::onSaveAs() {
 			QFileInfo alreadyInfo(location.name());
 			QDir alreadyDir(alreadyInfo.dir());
 			QString name = alreadyInfo.fileName(), filter;
-			MimeType mimeType = mimeTypeForName(_doc->mimeString());
+			const auto mimeType = Core::MimeTypeForName(_doc->mimeString());
 			QStringList p = mimeType.globPatterns();
 			QString pattern = p.isEmpty() ? QString() : p.front();
 			if (name.isEmpty()) {
@@ -851,6 +852,7 @@ void MediaView::onSaveAs() {
 		psBringToBack(this);
 		auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
 		FileDialog::GetWritePath(
+			this,
 			lang(lng_save_photo),
 			filter,
 			filedialogDefaultName(
@@ -859,12 +861,12 @@ void MediaView::onSaveAs() {
 				QString(),
 				false,
 				_photo->date),
-			base::lambda_guarded(this, [this, photo = _photo](const QString &result) {
+			crl::guard(this, [this, photo = _photo](const QString &result) {
 				if (!result.isEmpty() && _photo == photo && photo->loaded()) {
 					photo->full->pix().toImage().save(result, "JPG");
 				}
 				psShowOverAll(this);
-			}), base::lambda_guarded(this, [this] {
+			}), crl::guard(this, [this] {
 				psShowOverAll(this);
 			}));
 	}
@@ -2280,7 +2282,7 @@ void MediaView::paintThemePreview(Painter &p, QRect clip) {
 		}
 	}
 
-	auto fillOverlay = [this, &p, clip](QRect fill) {
+	auto fillOverlay = [&](QRect fill) {
 		auto clipped = fill.intersected(clip);
 		if (!clipped.isEmpty()) {
 			p.setOpacity(st::themePreviewOverlayOpacity);
@@ -2960,9 +2962,6 @@ bool MediaView::eventFilter(QObject *obj, QEvent *e) {
 				activate = true;
 			}
 			if (activate) {
-				if (_controlsState == ControlsHiding || _controlsState == ControlsHidden) {
-					int a = 0;
-				}
 				activateControls();
 			}
 		}

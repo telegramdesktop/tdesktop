@@ -99,6 +99,4 @@ QString GetSetTitle(const MTPDstickerSet &s);
 
 RecentStickerPack &GetRecentPack();
 
-void IncrementRecentHashtag(RecentHashtagPack &recent, const QString &tag);
-
 } // namespace Stickers

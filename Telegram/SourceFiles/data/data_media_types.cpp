@@ -205,6 +205,10 @@ bool Media::consumeMessageText(const TextWithEntities &text) {
 	return false;
 }
 
+TextWithEntities Media::consumedMessageText() const {
+	return {};
+}
+
 std::unique_ptr<HistoryMedia> Media::createView(
 		not_null<HistoryView::Element*> message) {
 	return createView(message, message->data());
@@ -908,6 +912,14 @@ std::unique_ptr<Media> MediaWebPage::clone(not_null<HistoryItem*> parent) {
 	return std::make_unique<MediaWebPage>(parent, _page);
 }
 
+DocumentData *MediaWebPage::document() const {
+	return _page->document;
+}
+
+PhotoData *MediaWebPage::photo() const {
+	return _page->photo;
+}
+
 WebPageData *MediaWebPage::webpage() const {
 	return _page;
 }
@@ -1031,6 +1043,10 @@ QString MediaGame::errorTextForForward(
 bool MediaGame::consumeMessageText(const TextWithEntities &text) {
 	_consumedText = text;
 	return true;
+}
+
+TextWithEntities MediaGame::consumedMessageText() const {
+	return _consumedText;
 }
 
 bool MediaGame::updateInlineResultMedia(const MTPMessageMedia &media) {

@@ -8,10 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "styles/style_widgets.h"
+#include "ui/rp_widget.h"
 
 namespace Ui {
 
-class ContinuousSlider : public TWidget {
+class ContinuousSlider : public RpWidget {
 public:
 	ContinuousSlider(QWidget *parent);
 
@@ -32,11 +33,13 @@ public:
 		return _disabled;
 	}
 
-	using Callback = base::lambda<void(float64)>;
-	void setChangeProgressCallback(Callback &&callback) {
+	void setAdjustCallback(Fn<float64(float64)> callback) {
+		_adjustCallback = std::move(callback);
+	}
+	void setChangeProgressCallback(Fn<void(float64)> callback) {
 		_changeProgressCallback = std::move(callback);
 	}
-	void setChangeFinishedCallback(Callback &&callback) {
+	void setChangeFinishedCallback(Fn<void(float64)> callback) {
 		_changeFinishedCallback = std::move(callback);
 	}
 	bool isChanging() const {
@@ -86,8 +89,9 @@ private:
 
 	std::unique_ptr<SingleTimer> _byWheelFinished;
 
-	Callback _changeProgressCallback;
-	Callback _changeFinishedCallback;
+	Fn<float64(float64)> _adjustCallback;
+	Fn<void(float64)> _changeProgressCallback;
+	Fn<void(float64)> _changeFinishedCallback;
 
 	bool _over = false;
 	Animation _a_over;
@@ -124,6 +128,7 @@ public:
 		_alwaysDisplayMarker = alwaysDisplayMarker;
 		update();
 	}
+	void disablePaint(bool disabled);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -134,6 +139,7 @@ private:
 
 	const style::MediaSlider &_st;
 	bool _alwaysDisplayMarker = false;
+	bool _paintDisabled = false;
 
 };
 

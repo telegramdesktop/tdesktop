@@ -247,6 +247,27 @@ windowEmojiSuggestionsPopup: PopupMenu(defaultPopupMenu) {
 	}
 }
 
+connectingLeftShadow: icon {{ "connecting_left_shadow", windowShadowFg }};
+connectingLeft: icon {{ "connecting_left", windowBg }};
+connectingRightShadow: icon {{ "connecting_right_shadow", windowShadowFg }};
+connectingRight: icon {{ "connecting_right", windowBg }};
+connectingBodyShadow: icon {{ "connecting_body_shadow", windowShadowFg }};
+connectingBody: icon {{ "connecting_body", windowBg }};
+connectingMargin: margins(2px, 2px, 2px, 2px);
+connectingTextPadding: margins(18px, 11px, 18px, 0px);
+connectingRadialSkip: 6px;
+connectingRadial: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	color: menuIconFg;
+	thickness: 2px;
+	size: size(20px, 20px);
+}
+connectingRetryLink: LinkButton(defaultLinkButton) {
+	padding: margins(6px, 11px, 6px, 0px);
+}
+connectingProxyOff: icon {{ "proxy_off", menuIconFg }};
+connectingProxyOn: icon {{ "proxy_on", windowBgActive }};
+connectingDuration: 150;
+
 // Mac specific
 
 macAccessoryWidth: 450.;

@@ -209,15 +209,15 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		return false;
 	};
 	auto copyLinkCallback = canCopyLink
-		? base::lambda<void()>(std::move(copyCallback))
-		: base::lambda<void()>();
+		? Fn<void()>(std::move(copyCallback))
+		: Fn<void()>();
 	Ui::show(Box<ShareBox>(
 		std::move(copyLinkCallback),
 		std::move(submitCallback),
 		std::move(filterCallback)));
 }
 
-base::lambda<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
+Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
 		const FullMsgId &msgId) {
 	return [dependent = msgId](ChannelData *channel, MsgId msgId) {
 		if (auto item = App::histItemById(dependent)) {
@@ -590,7 +590,7 @@ bool HistoryMessage::allowsEdit(TimeId now) const {
 	}();
 	const auto messageTooOld = (messageToMyself || canPinInMegagroup)
 		? false
-		: (now >= date() + Global::EditTimeLimit());
+		: (now - date() >= Global::EditTimeLimit());
 	if (id < 0 || messageTooOld) {
 		return false;
 	}
@@ -610,7 +610,7 @@ bool HistoryMessage::allowsEdit(TimeId now) const {
 			return true;
 		}
 		if (out()) {
-			return !isPost() || channel->canPublish();
+			return isPost() ? channel->canPublish() : channel->canWrite();
 		}
 	}
 	return out();
@@ -732,6 +732,8 @@ void HistoryMessage::refreshSentMedia(const MTPMessageMedia *media) {
 	refreshMedia(media);
 	if (wasGrouped) {
 		Auth().data().groups().refreshMessage(this);
+	} else {
+		Auth().data().requestItemViewRefresh(this);
 	}
 }
 
@@ -888,10 +890,10 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 	if (message.has_entities()) {
 		textWithEntities.entities = TextUtilities::EntitiesFromMTP(message.ventities.v);
 	}
-	setText(textWithEntities);
 	setReplyMarkup(message.has_reply_markup() ? (&message.vreply_markup) : nullptr);
 	refreshMedia(message.has_media() ? (&message.vmedia) : nullptr);
 	setViewsCount(message.has_views() ? message.vviews.v : -1);
+	setText(textWithEntities);
 
 	finishEdition(keyboardTop);
 }
@@ -903,9 +905,9 @@ void HistoryMessage::applyEdition(const MTPDmessageService &message) {
 }
 
 void HistoryMessage::applyEditionToEmpty() {
-	setEmptyText();
-	refreshMedia(nullptr);
 	setReplyMarkup(nullptr);
+	refreshMedia(nullptr);
+	setEmptyText();
 	setViewsCount(-1);
 
 	finishEditionToEmpty();
@@ -970,6 +972,14 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 			st::messageTextStyle,
 			textWithEntities,
 			Ui::ItemTextOptions(this));
+		if (!textWithEntities.text.isEmpty() && _text.isEmpty()) {
+			// If server has allowed some text that we've trim-ed entirely,
+			// just replace it with something so that UI won't look buggy.
+			_text.setMarkedText(
+				st::messageTextStyle,
+				{ QString::fromUtf8("\xF0\x9F\x98\x94"), EntitiesInText() },
+				Ui::ItemTextOptions(this));
+		}
 		_textWidth = -1;
 		_textHeight = 0;
 	}
@@ -1070,8 +1080,14 @@ void HistoryMessage::setViewsCount(int32 count) {
 
 void HistoryMessage::setRealId(MsgId newId) {
 	HistoryItem::setRealId(newId);
+
 	Auth().data().groups().refreshMessage(this);
 	Auth().data().requestItemResize(this);
+	if (const auto reply = Get<HistoryMessageReply>()) {
+		if (reply->replyToLink()) {
+			reply->setReplyToLinkFrom(this);
+		}
+	}
 }
 
 void HistoryMessage::dependencyItemRemoved(HistoryItem *dependency) {

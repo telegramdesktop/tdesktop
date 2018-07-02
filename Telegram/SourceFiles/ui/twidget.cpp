@@ -175,7 +175,7 @@ void SendPendingMoveResizeEvents(not_null<QWidget*> target) {
 	SendPendingEventsRecursive(target, !target->isVisible());
 }
 
-QPixmap GrabWidget(not_null<TWidget*> target, QRect rect, QColor bg) {
+QPixmap GrabWidget(not_null<QWidget*> target, QRect rect, QColor bg) {
 	SendPendingMoveResizeEvents(target);
 	if (rect.isNull()) {
 		rect = target->rect();
@@ -186,19 +186,15 @@ QPixmap GrabWidget(not_null<TWidget*> target, QRect rect, QColor bg) {
 	if (!target->testAttribute(Qt::WA_OpaquePaintEvent)) {
 		result.fill(bg);
 	}
-
-	target->grabStart();
 	target->render(
 		&result,
 		QPoint(0, 0),
 		rect,
 		QWidget::DrawChildren | QWidget::IgnoreMask);
-	target->grabFinish();
-
 	return result;
 }
 
-QImage GrabWidgetToImage(not_null<TWidget*> target, QRect rect, QColor bg) {
+QImage GrabWidgetToImage(not_null<QWidget*> target, QRect rect, QColor bg) {
 	Ui::SendPendingMoveResizeEvents(target);
 	if (rect.isNull()) {
 		rect = target->rect();
@@ -211,16 +207,18 @@ QImage GrabWidgetToImage(not_null<TWidget*> target, QRect rect, QColor bg) {
 	if (!target->testAttribute(Qt::WA_OpaquePaintEvent)) {
 		result.fill(bg);
 	}
-
-	target->grabStart();
 	target->render(
 		&result,
 		QPoint(0, 0),
 		rect,
 		QWidget::DrawChildren | QWidget::IgnoreMask);
-	target->grabFinish();
-
 	return result;
+}
+
+void ForceFullRepaint(not_null<QWidget*> widget) {
+	const auto refresher = std::make_unique<QWidget>(widget);
+	refresher->setGeometry(widget->rect());
+	refresher->show();
 }
 
 } // namespace Ui

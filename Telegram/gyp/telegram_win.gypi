@@ -6,8 +6,6 @@
 
 {
   'conditions': [[ 'build_win', {
-    'msvs_precompiled_source': '<(src_loc)/stdafx.cpp',
-    'msvs_precompiled_header': '<(src_loc)/stdafx.h',
     'msbuild_toolset': 'v141',
     'sources': [
       '<(res_loc)/winrc/Telegram.rc',

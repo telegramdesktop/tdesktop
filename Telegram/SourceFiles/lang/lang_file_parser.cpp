@@ -22,7 +22,7 @@ FileParser::FileParser(const QString &file, const std::set<LangKey> &request)
 	parse();
 }
 
-FileParser::FileParser(const QByteArray &content, base::lambda<void(QLatin1String key, const QByteArray &value)> callback)
+FileParser::FileParser(const QByteArray &content, Fn<void(QLatin1String key, const QByteArray &value)> callback)
 : _content(base::parse::stripComments(content))
 , _callback(std::move(callback)) {
 	parse();

@@ -271,7 +271,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			lng_info_link_label,
 			std::move(linkText),
 			QString());
-		link->setClickHandlerHook([peer = _peer](auto&&...) {
+		link->setClickHandlerFilter([peer = _peer](auto&&...) {
 			auto link = Messenger::Instance().createInternalLinkFull(
 				peer->userName());
 			if (!link.isEmpty()) {
@@ -310,10 +310,10 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 	result->toggleOn(
 		NotificationsEnabledValue(peer)
 	)->addClickHandler([=] {
-		const auto muteState = peer->isMuted()
-			? Data::NotifySettings::MuteChange::Unmute
-			: Data::NotifySettings::MuteChange::Mute;
-		App::main()->updateNotifySettings(peer, muteState);
+		const auto muteForSeconds = Auth().data().notifyIsMuted(peer)
+			? 0
+			: Data::NotifySettings::kDefaultMutePeriod;
+		Auth().data().updateNotifySettings(peer, muteForSeconds);
 	});
 	object_ptr<FloatingIcon>(
 		result,
@@ -537,6 +537,7 @@ void ActionsFiller::addBotCommandActions(not_null<UserData*> user) {
 	};
 	addBotCommand(lng_profile_bot_help, qsl("help"));
 	addBotCommand(lng_profile_bot_settings, qsl("settings"));
+	addBotCommand(lng_profile_bot_privacy, qsl("privacy"));
 }
 
 void ActionsFiller::addReportAction() {

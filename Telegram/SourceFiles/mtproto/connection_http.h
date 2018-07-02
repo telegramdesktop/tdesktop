@@ -12,17 +12,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace MTP {
 namespace internal {
 
-class HTTPConnection : public AbstractConnection {
-	Q_OBJECT
-
+class HttpConnection : public AbstractConnection {
 public:
-	HTTPConnection(QThread *thread);
+	HttpConnection(QThread *thread, const ProxyData &proxy);
 
-	void sendData(mtpBuffer &buffer) override;
+	ConnectionPointer clone(const ProxyData &proxy) override;
+
+	TimeMs pingTime() const override;
+	TimeMs fullConnectTimeout() const override;
+	void sendData(mtpBuffer &&buffer) override;
 	void disconnectFromServer() override;
-	void connectTcp(const DcOptions::Endpoint &endpoint) override { // not supported
-	}
-	void connectHttp(const DcOptions::Endpoint &endpoint) override;
+	void connectToServer(
+		const QString &address,
+		int port,
+		const bytes::vector &protocolSecret,
+		int16 protocolDcId) override;
 	bool isConnected() const override;
 	bool usingHttpWait() override;
 	bool needHttpWait() override;
@@ -30,28 +34,30 @@ public:
 	int32 debugState() const override;
 
 	QString transport() const override;
+	QString tag() const override;
 
 	static mtpBuffer handleResponse(QNetworkReply *reply);
 	static qint32 handleError(QNetworkReply *reply); // returnes error code
 
-public slots:
+private:
+	QUrl url() const;
+
 	void requestFinished(QNetworkReply *reply);
 
-private:
-	enum Status {
-		WaitingHttp = 0,
-		UsingHttp,
-		FinishedWork
+	enum class Status {
+		Waiting = 0,
+		Ready,
+		Finished,
 	};
-	Status status;
-	MTPint128 httpNonce;
-	MTPDdcOption::Flags _flags;
+	Status _status = Status::Waiting;
+	MTPint128 _checkNonce;
 
-	QNetworkAccessManager manager;
-	QUrl address;
+	QNetworkAccessManager _manager;
+	QString _address;
 
-	typedef QSet<QNetworkReply*> Requests;
-	Requests requests;
+	QSet<QNetworkReply*> _requests;
+
+	TimeMs _pingTime = 0;
 
 };
 

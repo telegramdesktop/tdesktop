@@ -39,6 +39,9 @@ Name: "es"; MessagesFile: "compiler:Languages\Spanish.isl"
 Name: "de"; MessagesFile: "compiler:Languages\German.isl"
 Name: "nl"; MessagesFile: "compiler:Languages\Dutch.isl"
 Name: "pt_BR"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
+Name: "ru"; MessagesFile: "compiler:Languages\Russian.isl"
+Name: "fr"; MessagesFile: "compiler:Languages\French.isl"
+Name: "ua"; MessagesFile: "compiler:Languages\Ukrainian.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"

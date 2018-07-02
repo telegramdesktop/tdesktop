@@ -11,7 +11,7 @@ namespace Core {
 
 EventFilter::EventFilter(
 	not_null<QObject*> parent,
-	base::lambda<bool(not_null<QEvent*>)> filter)
+	Fn<bool(not_null<QEvent*>)> filter)
 : QObject(parent)
 , _filter(std::move(filter)) {
 	parent->installEventFilter(this);
@@ -23,7 +23,7 @@ bool EventFilter::eventFilter(QObject *watched, QEvent *event) {
 
 not_null<QObject*> InstallEventFilter(
 		not_null<QObject*> object,
-		base::lambda<bool(not_null<QEvent*>)> filter) {
+		Fn<bool(not_null<QEvent*>)> filter) {
 	return new EventFilter(object, std::move(filter));
 }
 

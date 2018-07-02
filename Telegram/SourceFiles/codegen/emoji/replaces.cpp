@@ -315,6 +315,13 @@ Replaces PrepareReplaces(const QString &filename) {
 		auto name = getString("name");
 		auto replacement = getString("alpha_code");
 		auto aliases = getString("aliases").split('|');
+		const auto Exceptions = { ":shrug:" };
+		for (const auto &exception : Exceptions) {
+			const auto index = aliases.indexOf(exception);
+			if (index >= 0) {
+				aliases.removeAt(index);
+			}
+		}
 		if (aliases.size() == 1 && aliases[0].isEmpty()) {
 			aliases.clear();
 		}

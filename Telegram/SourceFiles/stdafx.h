@@ -24,17 +24,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wreturn-stack-address"
-#endif // __clang__
+#elif defined _MSC_VER && _MSC_VER >= 1914 // __clang__
+#pragma warning(push)
+#pragma warning(disable:4180)
+#endif // __clang__ || _MSC_VER >= 1914
 
 #include <QtCore/QtCore>
 
 #ifdef __clang__
 #pragma clang diagnostic pop
-#endif // __clang__
+#elif defined _MSC_VER && _MSC_VER >= 1914 // __clang__
+#pragma warning(pop)
+#endif // __clang__ || _MSC_VER >= 1914
 
 #if QT_VERSION < QT_VERSION_CHECK(5, 5, 0)
 #define OS_MAC_OLD
-#define RANGES_CXX_THREAD_LOCAL 0
 #endif // QT_VERSION < 5.5.0
 
 #ifdef OS_MAC_STORE
@@ -49,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <set>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 #include <algorithm>
 #include <memory>
 
@@ -70,18 +75,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/variant.h"
 #include "base/optional.h"
 #include "base/algorithm.h"
-#include "base/functors.h"
-
-namespace func = base::functors;
-
 #include "base/flat_set.h"
 #include "base/flat_map.h"
+#include "base/weak_ptr.h"
 
 #include "core/basic_types.h"
 #include "logs.h"
 #include "core/utils.h"
-#include "base/lambda.h"
-#include "base/lambda_guard.h"
 #include "config.h"
 
 #include "mtproto/facade.h"

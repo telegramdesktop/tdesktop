@@ -35,10 +35,10 @@ public:
 
 	bool overlaps(const QRect &globalRect);
 
-	void setClosedCallback(base::lambda<void()> callback) {
+	void setClosedCallback(Fn<void()> callback) {
 		_closedCallback = std::move(callback);
 	}
-	void setResizedCallback(base::lambda<void()> callback) {
+	void setResizedCallback(Fn<void()> callback) {
 		_resizedCallback = std::move(callback);
 	}
 	virtual bool takeToThirdSection() {
@@ -48,6 +48,9 @@ public:
 			not_null<SectionMemento*> memento,
 			const SectionShow &params) {
 		return false;
+	}
+	virtual bool closeByOutsideClick() const {
+		return true;
 	}
 
 protected:
@@ -72,34 +75,29 @@ protected:
 
 private:
 	bool _closing = false;
-	base::lambda<void()> _closedCallback;
-	base::lambda<void()> _resizedCallback;
+	Fn<void()> _closedCallback;
+	Fn<void()> _resizedCallback;
 
 };
 
-class LayerStackWidget : public TWidget {
+class LayerStackWidget : public Ui::RpWidget {
 	Q_OBJECT
 
 public:
-	LayerStackWidget(QWidget *parent, Controller *controller);
+	LayerStackWidget(QWidget *parent);
 
-	Controller *controller() const {
-		return _controller;
-	}
 	void finishAnimating();
+	rpl::producer<> hideFinishEvents() const;
 
 	void showBox(
 		object_ptr<BoxContent> box,
+		LayerOptions options,
 		anim::type animated);
 	void showSpecialLayer(
 		object_ptr<LayerWidget> layer,
 		anim::type animated);
-	void showMainMenu(anim::type animated);
-	void appendBox(
-		object_ptr<BoxContent> box,
-		anim::type animated);
-	void prependBox(
-		object_ptr<BoxContent> box,
+	void showMainMenu(
+		not_null<Window::Controller*> controller,
 		anim::type animated);
 	bool takeToThirdSection();
 
@@ -112,6 +110,7 @@ public:
 	void hideLayers(anim::type animated);
 	void hideAll(anim::type animated);
 	void hideTopLayer(anim::type animated);
+	void setHideByBackgroundClick(bool hide);
 
 	bool showSectionInternal(
 		not_null<SectionMemento*> memento,
@@ -132,6 +131,16 @@ private slots:
 	void onLayerResized();
 
 private:
+	void appendBox(
+		object_ptr<BoxContent> box,
+		anim::type animated);
+	void prependBox(
+		object_ptr<BoxContent> box,
+		anim::type animated);
+	void replaceBox(
+		object_ptr<BoxContent> box,
+		anim::type animated);
+
 	LayerWidget *pushBox(
 		object_ptr<BoxContent> box,
 		anim::type animated);
@@ -171,8 +180,6 @@ private:
 		return const_cast<LayerStackWidget*>(this)->currentLayer();
 	}
 
-	Controller *_controller = nullptr;
-
 	QList<LayerWidget*> _layers;
 
 	object_ptr<LayerWidget> _specialLayer = { nullptr };
@@ -180,6 +187,9 @@ private:
 
 	class BackgroundWidget;
 	object_ptr<BackgroundWidget> _background;
+	bool _hideByBackgroundClick = true;
+
+	rpl::event_stream<> _hideFinishStream;
 
 };
 

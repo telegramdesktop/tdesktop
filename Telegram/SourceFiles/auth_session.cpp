@@ -278,13 +278,23 @@ AuthSession::AuthSession(UserId userId)
 , _changelogs(Core::Changelogs::Create(this)) {
 	Expects(_userId != 0);
 
-	_saveDataTimer.setCallback([this] {
+	_saveDataTimer.setCallback([=] {
 		Local::writeUserSettings();
 	});
-	subscribe(Messenger::Instance().passcodedChanged(), [this] {
+	Messenger::Instance().passcodeLockChanges(
+	) | rpl::start_with_next([=] {
 		_shouldLockAt = 0;
+	}, _lifetime);
+	Messenger::Instance().lockChanges(
+	) | rpl::start_with_next([=] {
 		notifications().updateAll();
+	}, _lifetime);
+	subscribe(Global::RefConnectionTypeChanged(), [=] {
+		_api->refreshProxyPromotion();
 	});
+	_api->refreshProxyPromotion();
+	_api->requestTermsUpdate();
+
 	Window::Theme::Background()->start();
 }
 
@@ -304,9 +314,12 @@ base::Observable<void> &AuthSession::downloaderTaskFinished() {
 }
 
 bool AuthSession::validateSelf(const MTPUser &user) {
-	if (user.type() != mtpc_user || !user.c_user().is_self() || user.c_user().vid.v != userId()) {
+	if (user.type() != mtpc_user || !user.c_user().is_self()) {
+		LOG(("API Error: bad self user received."));
+		return false;
+	} else if (user.c_user().vid.v != userId()) {
 		LOG(("Auth Error: wrong self user received."));
-		App::logOutDelayed();
+		crl::on_main(this, [] { Messenger::Instance().logOut(); });
 		return false;
 	}
 	return true;
@@ -314,11 +327,15 @@ bool AuthSession::validateSelf(const MTPUser &user) {
 
 void AuthSession::saveSettingsDelayed(TimeMs delay) {
 	Expects(this == &Auth());
+
 	_saveDataTimer.callOnce(delay);
 }
 
 void AuthSession::checkAutoLock() {
-	if (!Global::LocalPasscode() || App::passcoded()) return;
+	if (!Global::LocalPasscode()
+		|| Messenger::Instance().passcodeLocked()) {
+		return;
+	}
 
 	Messenger::Instance().checkLocalTime();
 	auto now = getms(true);
@@ -327,7 +344,7 @@ void AuthSession::checkAutoLock() {
 	auto notPlayingVideoForMs = now - settings().lastTimeVideoPlayedAt();
 	auto checkTimeMs = qMin(idleForMs, notPlayingVideoForMs);
 	if (checkTimeMs >= shouldLockInMs || (_shouldLockAt > 0 && now > _shouldLockAt + kAutoLockTimeoutLateMs)) {
-		Messenger::Instance().setupPasscode();
+		Messenger::Instance().lockByPasscode();
 	} else {
 		_shouldLockAt = now + (shouldLockInMs - checkTimeMs);
 		_autoLockTimer.callOnce(shouldLockInMs - checkTimeMs);

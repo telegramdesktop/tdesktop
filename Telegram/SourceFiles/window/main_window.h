@@ -7,22 +7,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <rpl/event_stream.h>
 #include "window/window_title.h"
+#include "ui/rp_widget.h"
 #include "base/timer.h"
 
+class BoxContent;
 class MediaView;
 
 namespace Window {
 
 class Controller;
 class TitleWidget;
+struct TermsLock;
 
 QImage LoadLogo();
 QImage LoadLogoNoMargin();
 QIcon CreateIcon();
 
-class MainWindow : public QWidget, protected base::Subscriber {
+class MainWindow : public Ui::RpWidget, protected base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -56,12 +58,7 @@ public:
 		return _titleText;
 	}
 
-	void reActivateWindow() {
-#if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
-		onReActivate();
-		QTimer::singleShot(200, this, SLOT(onReActivate()));
-#endif // Q_OS_LINUX32 || Q_OS_LINUX64
-	}
+	void reActivateWindow();
 
 	void showRightColumn(object_ptr<TWidget> widget);
 	int maximalExtendBy() const;
@@ -94,7 +91,7 @@ public slots:
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 
 	void savePosition(Qt::WindowState state = Qt::WindowActive);
 	void handleStateChanged(Qt::WindowState state);
@@ -147,12 +144,6 @@ protected:
 
 	void setPositionInited();
 
-private slots:
-	void savePositionByTimer() {
-		savePosition();
-	}
-	void onReActivate();
-
 private:
 	void checkAuthSession();
 	void updatePalette();
@@ -160,14 +151,18 @@ private:
 	void initSize();
 
 	bool computeIsActive() const;
+	void checkLockByTerms();
+	void showTermsDecline();
+	void showTermsDelete();
 
-	object_ptr<QTimer> _positionUpdatedTimer;
+	base::Timer _positionUpdatedTimer;
 	bool _positionInited = false;
 
 	std::unique_ptr<Window::Controller> _controller;
 	object_ptr<TitleWidget> _title = { nullptr };
 	object_ptr<TWidget> _body;
 	object_ptr<TWidget> _rightColumn = { nullptr };
+	QPointer<BoxContent> _termsBox;
 
 	QIcon _icon;
 	QString _titleText;

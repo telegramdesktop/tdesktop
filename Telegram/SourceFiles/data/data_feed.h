@@ -59,9 +59,11 @@ public:
 	int unreadCount() const;
 	bool unreadCountKnown() const;
 
+	bool useProxyPromotion() const override;
 	bool toImportant() const override;
 	bool shouldBeInChatList() const override;
 	int chatListUnreadCount() const override;
+	bool chatListUnreadMark() const override;
 	bool chatListMutedBadge() const override;
 	HistoryItem *chatsListItem() const override;
 	const QString &chatsListName() const override;

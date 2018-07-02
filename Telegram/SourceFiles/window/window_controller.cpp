@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_round_controller.h"
 #include "data/data_session.h"
 #include "data/data_feed.h"
+#include "passport/passport_form_controller.h"
 #include "boxes/calendar_box.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -141,7 +142,7 @@ Controller::ColumnLayout Controller::computeColumnLayout() const {
 	auto bodyWidth = window()->bodyWidget()->width();
 	auto dialogsWidth = 0, chatWidth = 0, thirdWidth = 0;
 
-	auto useOneColumnLayout = [this, bodyWidth] {
+	auto useOneColumnLayout = [&] {
 		auto minimalNormal = st::columnMinimalWidthLeft
 			+ st::columnMinimalWidthMain;
 		if (bodyWidth < minimalNormal) {
@@ -150,7 +151,7 @@ Controller::ColumnLayout Controller::computeColumnLayout() const {
 		return false;
 	};
 
-	auto useNormalLayout = [this, bodyWidth] {
+	auto useNormalLayout = [&] {
 		// Used if useSmallColumnLayout() == false.
 		if (bodyWidth < minimalThreeColumnWidth()) {
 			return true;
@@ -404,6 +405,17 @@ void Controller::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 	Ui::show(std::move(box));
 }
 
+void Controller::showPassportForm(const Passport::FormRequest &request) {
+	_passportForm = std::make_unique<Passport::FormController>(
+		this,
+		request);
+	_passportForm->show();
+}
+
+void Controller::clearPassportForm() {
+	_passportForm = nullptr;
+}
+
 void Controller::updateColumnLayout() {
 	App::main()->updateColumnLayout();
 }
@@ -464,9 +476,9 @@ void Navigation::showPeerInfo(
 void Controller::showSection(
 		SectionMemento &&memento,
 		const SectionShow &params) {
-	if (App::wnd()->showSectionInExistingLayer(
+	if (!params.thirdColumn && App::wnd()->showSectionInExistingLayer(
 			&memento,
-			params) && !params.thirdColumn) {
+			params)) {
 		return;
 	}
 	App::main()->showSection(std::move(memento), params);

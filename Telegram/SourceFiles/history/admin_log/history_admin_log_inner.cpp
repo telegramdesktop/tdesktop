@@ -419,7 +419,7 @@ void InnerWidget::requestAdmins() {
 	}).send();
 }
 
-void InnerWidget::showFilter(base::lambda<void(FilterValue &&filter)> callback) {
+void InnerWidget::showFilter(Fn<void(FilterValue &&filter)> callback) {
 	if (_admins.empty()) {
 		_showFilterCallback = std::move(callback);
 	} else {
@@ -531,6 +531,9 @@ void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 
 void InnerWidget::restoreState(not_null<SectionMemento*> memento) {
 	_items = memento->takeItems();
+	for (auto &item : _items) {
+		item.refreshView(this);
+	}
 	_itemsByIds = memento->takeItemsByIds();
 	if (auto manager = memento->takeIdManager()) {
 		_idManager = std::move(manager);
@@ -1082,10 +1085,11 @@ void InnerWidget::savePhotoToFile(PhotoData *photo) {
 
 	auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
 	FileDialog::GetWritePath(
+		this,
 		lang(lng_save_photo),
 		filter,
 		filedialogDefaultName(qsl("photo"), qsl(".jpg")),
-		base::lambda_guarded(this, [=](const QString &result) {
+		crl::guard(this, [=](const QString &result) {
 			if (!result.isEmpty()) {
 				photo->full->pix().toImage().save(result, "JPG");
 			}
@@ -1190,7 +1194,7 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 						MTP_int(0));
 					editRestrictions(hasAdminRights, bannedRights);
 				}
-			}).fail([this, editRestrictions](const RPCError &error) {
+			}).fail([=](const RPCError &error) {
 				auto bannedRights = MTP_channelBannedRights(
 					MTP_flags(0),
 					MTP_int(0));
