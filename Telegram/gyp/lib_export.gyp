@@ -14,10 +14,14 @@
     'includes': [
       'common.gypi',
       'qt.gypi',
+      'telegram_win.gypi',
+      'telegram_mac.gypi',
+      'telegram_linux.gypi',
       'pch.gypi',
     ],
     'variables': {
       'src_loc': '../SourceFiles',
+      'res_loc': '../Resources',
       'libs_loc': '../../../Libraries',
       'official_build_target%': '',
       'submodules_loc': '../ThirdParty',
