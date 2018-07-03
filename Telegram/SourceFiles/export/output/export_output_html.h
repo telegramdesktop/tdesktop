@@ -35,6 +35,8 @@ private:
 };
 
 struct UserpicData;
+struct PeersMap;
+struct MediaData;
 
 } // namespace details
 
@@ -84,7 +86,9 @@ public:
 private:
 	using Context = details::HtmlContext;
 	using UserpicData = details::UserpicData;
+	using MediaData = details::MediaData;
 	class Wrap;
+	struct MessageInfo;
 
 	[[nodiscard]] Result copyFile(
 		const QString &source,
@@ -104,6 +108,7 @@ private:
 	[[nodiscard]] Result writeChatsStart(
 		const Data::DialogsInfo &data,
 		const QByteArray &listName,
+		const QByteArray &buttonClass,
 		const QByteArray &about,
 		const QString &fileName);
 	[[nodiscard]] Result writeChatStart(const Data::DialogInfo &data);
@@ -153,7 +158,7 @@ private:
 	Data::DialogInfo _dialog;
 
 	int _messagesCount = 0;
-	TimeId _lastMessageDate = 0;
+	std::unique_ptr<MessageInfo> _lastMessageInfo;
 	int _dateMessageId = 0;
 	std::unique_ptr<Wrap> _chats;
 	std::unique_ptr<Wrap> _chat;

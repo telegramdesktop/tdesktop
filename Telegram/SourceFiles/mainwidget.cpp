@@ -261,9 +261,9 @@ MainWidget::MainWidget(
 	Messenger::Instance().mtp()->setUpdatesHandler(rpcDone(&MainWidget::updateReceived));
 	Messenger::Instance().mtp()->setGlobalFailHandler(rpcFail(&MainWidget::updateFail));
 
-	Export::Output::HtmlWriter writer;
-	writer.produceTestExample(psDownloadPath(), Export::View::PrepareEnvironment());
-	crl::on_main([] { App::quit(); });
+	//Export::Output::HtmlWriter writer;
+	//writer.produceTestExample(psDownloadPath(), Export::View::PrepareEnvironment());
+	//crl::on_main([] { App::quit(); });
 
 	_ptsWaiter.setRequesting(true);
 	updateScrollColors();

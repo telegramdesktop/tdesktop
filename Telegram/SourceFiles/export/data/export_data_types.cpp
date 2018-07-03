@@ -20,6 +20,7 @@ QString formatPhone(QString phone);
 } // namespace App
 QString FillAmountAndCurrency(uint64 amount, const QString &currency);
 QString formatSizeText(qint64 size);
+QString formatDurationText(qint64 duration);
 
 namespace Export {
 namespace Data {
@@ -940,18 +941,31 @@ Message ParseMessage(
 		const MTPMessage &data,
 		const QString &mediaFolder) {
 	auto result = Message();
-	data.match([&](const MTPDmessage &data) {
+	data.match([&](const auto &data) {
 		result.id = data.vid.v;
-		const auto peerId = ParsePeerId(data.vto_id);
-		if (IsChatPeerId(peerId)) {
-			result.chatId = BarePeerId(peerId);
+		if constexpr (!MTPDmessageEmpty::Is<decltype(data)>()) {
+			result.toId = ParsePeerId(data.vto_id);
+			const auto peerId = (!data.is_out()
+				&& data.has_from_id()
+				&& data.vto_id.type() == mtpc_peerUser)
+				? UserPeerId(data.vfrom_id.v)
+				: result.toId;
+			if (IsChatPeerId(peerId)) {
+				result.chatId = BarePeerId(peerId);
+			}
+			if (data.has_from_id()) {
+				result.fromId = data.vfrom_id.v;
+			}
+			if (data.has_reply_to_msg_id()) {
+				result.replyToMsgId = data.vreply_to_msg_id.v;
+			}
+			result.date = data.vdate.v;
+			result.out = data.is_out();
 		}
-		result.date = data.vdate.v;
+	});
+	data.match([&](const MTPDmessage &data) {
 		if (data.has_edit_date()) {
 			result.edited = data.vedit_date.v;
-		}
-		if (data.has_from_id()) {
-			result.fromId = data.vfrom_id.v;
 		}
 		if (data.has_fwd_from()) {
 			result.forwardedFromId = data.vfwd_from.match(
@@ -962,6 +976,10 @@ Message ParseMessage(
 					return UserPeerId(data.vfrom_id.v);
 				}
 				return PeerId(0);
+			});
+			result.forwardedDate = data.vfwd_from.match(
+			[](const MTPDmessageFwdHeader &data) {
+				return data.vdate.v;
 			});
 			result.savedFromChatId = data.vfwd_from.match(
 			[](const MTPDmessageFwdHeader &data) {
@@ -998,22 +1016,10 @@ Message ParseMessage(
 				? data.ventities.v
 				: QVector<MTPMessageEntity>{}));
 	}, [&](const MTPDmessageService &data) {
-		result.id = data.vid.v;
-		const auto peerId = ParsePeerId(data.vto_id);
-		if (IsChatPeerId(peerId)) {
-			result.chatId = BarePeerId(peerId);
-		}
-		result.date = data.vdate.v;
 		result.action = ParseServiceAction(
 			context,
 			data.vaction,
 			mediaFolder);
-		if (data.has_from_id()) {
-			result.fromId = data.vfrom_id.v;
-		}
-		if (data.has_reply_to_msg_id()) {
-			result.replyToMsgId = data.vreply_to_msg_id.v;
-		}
 	}, [&](const MTPDmessageEmpty &data) {
 		result.id = data.vid.v;
 	});
@@ -1373,9 +1379,9 @@ Utf8String FormatDateTime(
 	const auto value = QDateTime::fromTime_t(date);
 	return (QString("%1") + dateSeparator + "%2" + dateSeparator + "%3"
 		+ separator + "%4" + timeSeparator + "%5" + timeSeparator + "%6"
-	).arg(value.date().year()
-	).arg(value.date().month(), 2, 10, QChar('0')
 	).arg(value.date().day(), 2, 10, QChar('0')
+	).arg(value.date().month(), 2, 10, QChar('0')
+	).arg(value.date().year()
 	).arg(value.time().hour(), 2, 10, QChar('0')
 	).arg(value.time().minute(), 2, 10, QChar('0')
 	).arg(value.time().second(), 2, 10, QChar('0')
@@ -1390,6 +1396,10 @@ Utf8String FormatMoneyAmount(uint64 amount, const Utf8String &currency) {
 
 Utf8String FormatFileSize(int64 size) {
 	return formatSizeText(size).toUtf8();
+}
+
+Utf8String FormatDuration(int64 seconds) {
+	return formatDurationText(seconds).toUtf8();
 }
 
 } // namespace Data

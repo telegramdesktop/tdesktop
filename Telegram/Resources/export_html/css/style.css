@@ -2,6 +2,34 @@ body {
     margin: 0;
     font: 12px/18px 'Open Sans',"Lucida Grande","Lucida Sans Unicode",Arial,Helvetica,Verdana,sans-serif;
 }
+strong {
+    font-weight: 700;
+}
+code, kbd, pre, samp {
+    font-family: Menlo,Monaco,Consolas,"Courier New",monospace;
+}
+code {
+    padding: 2px 4px;
+    font-size: 90%;
+    color: #c7254e;
+    background-color: #f9f2f4;
+    border-radius: 4px;
+}
+pre {
+    display: block;
+    margin: 0;
+    line-height: 1.42857143;
+    word-break: break-all;
+    word-wrap: break-word;
+    color: #333;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    overflow: auto;
+    padding: 3px;
+    border: 1px solid #eee;
+    max-height: none;
+    font-size: inherit;
+}
 .clearfix:after {
     content: " ";
     visibility: hidden;
@@ -38,13 +66,13 @@ body {
     border-radius: 0 !important;
 }
 .page_header a.content {
-    background-image: url(../images/back.png);
     background-repeat: no-repeat;
     background-position: 24px 21px;
     background-size: 24px 24px;
 }
 .bold {
     color: #212121;
+    font-weight: 700;
 }
 .details {
     color: #70777b;
@@ -52,7 +80,6 @@ body {
 .page_header .content .text {
     padding: 24px 24px 22px 24px;
     font-size: 22px;
-    font-weight: 700;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -90,28 +117,47 @@ body {
     text-transform: uppercase;
     user-select: none;
 }
-.userpic1 {
+.color_red,
+.userpic1,
+.media_call .thumb,
+.media_file .thumb,
+.media_live_location .thumb {
     background-color: #ff5555;
 }
-.userpic2 {
+.color_green,
+.userpic2,
+.media_call.success .thumb {
     background-color: #64bf47;
 }
-.userpic3 {
+.color_yellow,
+.userpic3,
+.media_venue .thumb {
     background-color: #ffab00;
 }
-.userpic4 {
+.color_blue,
+.userpic4,
+.media_audio_file .thumb,
+.media_voice_message .thumb {
     background-color: #4f9cd9;
 }
-.userpic5 {
+.color_purple,
+.userpic5,
+.media_game .thumb {
     background-color: #9884e8;
 }
-.userpic6 {
+.color_pink,
+.userpic6,
+.media_invoice .thumb {
     background-color: #e671a5;
 }
-.userpic7 {
+.color_sea,
+.userpic7,
+.media_location .thumb {
     background-color: #47bcd1;
 }
-.userpic8 {
+.color_orange,
+.userpic8,
+.media_contact .thumb {
     background-color: #ff8c44;
 }
 .personal_info {
@@ -162,54 +208,6 @@ a.block_link:hover {
 .section .label {
     padding: 15px 0 0 82px;
     font-size: 15px;
-    font-weight: 700;
-}
-.section.calls {
-    background-image: url(../images/calls.png);
-}
-.section.chats {
-    background-image: url(../images/chats.png);
-}
-.section.contacts {
-    background-image: url(../images/contacts.png);
-}
-.section.frequent {
-    background-image: url(../images/frequent.png);
-}
-.section.photos {
-    background-image: url(../images/photos.png);
-}
-.section.sessions {
-    background-image: url(../images/sessions.png);
-}
-.section.web {
-    background-image: url(../images/web.png);
-}
-@media only screen and (min--moz-device-pixel-ratio: 2), only screen and (-o-min-device-pixel-ratio: 2/1), only screen and (-webkit-min-device-pixel-ratio: 2), only screen and (min-device-pixel-ratio: 2) {
-.section.calls {
-    background-image: url(../images/calls@2x.png);
-}
-.section.chats {
-    background-image: url(../images/chats@2x.png);
-}
-.section.contacts {
-    background-image: url(../images/contacts@2x.png);
-}
-.section.frequent {
-    background-image: url(../images/frequent@2x.png);
-}
-.section.photos {
-    background-image: url(../images/photos@2x.png);
-}
-.section.sessions {
-    background-image: url(../images/sessions@2x.png);
-}
-.section.web {
-    background-image: url(../images/web@2x.png);
-}
-.page_header a.content {
-    background-image: url(../images/back@2x.png);
-}
 }
 .list_page .page_about {
     padding: 16px 24px 0;
@@ -229,7 +227,6 @@ a.block_link:hover {
 }
 .list_page .entry .name {
     padding: 4px 0 2px;
-    font-weight: 700;
     font-size: 14px;
 }
 .list_page .entry .subname {
@@ -248,7 +245,7 @@ a.block_link:hover {
 .service {
     padding: 10px 24px;
 }
-.service .content {
+.service .body {
     text-align: center;
 }
 .service .userpic_wrap {
@@ -259,4 +256,173 @@ a.block_link:hover {
 }
 .service .userpic .initials {
     font-size: 24px;
+}
+.message .userpic .initials {
+    font-size: 16px;
+}
+.default {
+    padding: 10px 0 10px;
+}
+.default.joined {
+    padding-top: 0;
+}
+.default .from_name {
+    color: #3892db;
+    font-weight: 700;
+    padding-bottom: 5px;
+}
+.default .from_name .details {
+    font-weight: normal;
+}
+.default .body {
+    margin-left: 60px;
+}
+.default .text {
+    word-wrap: break-word;
+    line-height: 150%;
+}
+.default .reply_to,
+.default .media_wrap {
+    padding-bottom: 5px;
+}
+.default .media {
+    margin: 0 -10px;
+    padding: 5px 10px;
+}
+.default .media .thumb {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background-repeat: no-repeat;
+    background-position: 12px 12px;
+    background-size: 24px 24px;
+}
+.default .media .title {
+    padding-top: 4px;
+    font-size: 14px;
+}
+.default .media .description {
+    color: #000000;
+    padding-top: 4px;
+    font-size: 13px;
+}
+.default .media .status {
+    padding-top: 4px;
+    font-size: 13px;
+}
+
+.section.calls {
+    background-image: url(../images/section_calls.png);
+}
+.section.chats {
+    background-image: url(../images/section_chats.png);
+}
+.section.contacts {
+    background-image: url(../images/section_contacts.png);
+}
+.section.frequent {
+    background-image: url(../images/section_frequent.png);
+}
+.section.photos {
+    background-image: url(../images/section_photos.png);
+}
+.section.sessions {
+    background-image: url(../images/section_sessions.png);
+}
+.section.web {
+    background-image: url(../images/section_web.png);
+}
+.section.leftchats {
+    background-image: url(../images/section_leftchats.png);
+}
+.section.other {
+    background-image: url(../images/section_other.png)
+}
+.page_header a.content {
+    background-image: url(../images/back.png);
+}
+.media_call .thumb {
+    background-image: url(../images/media_call.png)
+}
+.media_contact .thumb {
+    background-image: url(../images/media_contact.png)
+}
+.media_file .thumb {
+    background-image: url(../images/media_file.png)
+}
+.media_game .thumb {
+    background-image: url(../images/media_game.png)
+}
+.media_live_location .thumb,
+.media_location .thumb,
+.media_venue .thumb {
+    background-image: url(../images/media_location.png)
+}
+.media_audio_file .thumb {
+    background-image: url(../images/media_music.png)
+}
+.media_invoice .thumb {
+    background-image: url(../images/media_shop.png)
+}
+.media_voice_message .thumb {
+    background-image: url(../images/media_voice.png)
+}
+
+@media only screen and (min--moz-device-pixel-ratio: 2), only screen and (-o-min-device-pixel-ratio: 2/1), only screen and (-webkit-min-device-pixel-ratio: 2), only screen and (min-device-pixel-ratio: 2) {
+.section.calls {
+    background-image: url(../images/section_calls@2x.png);
+}
+.section.chats {
+    background-image: url(../images/section_chats@2x.png);
+}
+.section.contacts {
+    background-image: url(../images/section_contacts@2x.png);
+}
+.section.frequent {
+    background-image: url(../images/section_frequent@2x.png);
+}
+.section.photos {
+    background-image: url(../images/section_photos@2x.png);
+}
+.section.sessions {
+    background-image: url(../images/section_sessions@2x.png);
+}
+.section.web {
+    background-image: url(../images/section_web@2x.png);
+}
+.section.leftchats {
+    background-image: url(../images/section_leftchats@2x.png);
+}
+.section.other {
+    background-image: url(../images/section_other@2x.png);
+}
+.page_header a.content {
+    background-image: url(../images/back@2x.png);
+}
+.media_call .thumb {
+    background-image: url(../images/media_call@2x.png)
+}
+.media_contact .thumb {
+    background-image: url(../images/media_contact@2x.png)
+}
+.media_file .thumb {
+    background-image: url(../images/media_file@2x.png)
+}
+.media_game .thumb {
+    background-image: url(../images/media_game@2x.png)
+}
+.media_live_location .thumb,
+.media_location .thumb,
+.media_venue .thumb {
+    background-image: url(../images/media_location@2x.png)
+}
+.media_audio_file .thumb {
+    background-image: url(../images/media_music@2x.png)
+}
+.media_invoice .thumb {
+    background-image: url(../images/media_shop@2x.png)
+}
+.media_voice_message .thumb {
+    background-image: url(../images/media_voice@2x.png)
+}
 }

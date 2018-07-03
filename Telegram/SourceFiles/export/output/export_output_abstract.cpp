@@ -197,7 +197,11 @@ Stats AbstractWriter::produceTestExample(
 		message.id = counter();
 		message.date = prevdate();
 		message.edited = date();
-		message.forwardedFromId = user.info.userId;
+		static auto count = 0;
+		if (++count % 3 == 0) {
+			message.forwardedFromId = Data::UserPeerId(user.info.userId);
+			message.forwardedDate = date();
+		}
 		message.fromId = user.info.userId;
 		message.replyToMsgId = counter();
 		message.viaBotId = bot.info.userId;
@@ -484,7 +488,6 @@ Stats AbstractWriter::produceTestExample(
 
 	return result;
 }
-
 
 } // namespace Output
 } // namespace Export

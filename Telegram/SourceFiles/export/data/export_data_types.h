@@ -26,6 +26,8 @@ using PeerId = uint64;
 PeerId UserPeerId(int32 userId);
 PeerId ChatPeerId(int32 chatId);
 int32 BarePeerId(PeerId peerId);
+bool IsChatPeerId(PeerId peerId);
+bool IsUserPeerId(PeerId peerId);
 int PeerColorIndex(int32 bareId);
 int ApplicationColorIndex(int applicationId);
 int DomainApplicationId(const Utf8String &data);
@@ -462,7 +464,9 @@ struct Message {
 	TimeId date = 0;
 	TimeId edited = 0;
 	int32 fromId = 0;
+	PeerId toId = 0;
 	PeerId forwardedFromId = 0;
+	TimeId forwardedDate = 0;
 	PeerId savedFromChatId = 0;
 	Utf8String signature;
 	int32 viaBotId = 0;
@@ -470,6 +474,7 @@ struct Message {
 	std::vector<TextPart> text;
 	Media media;
 	ServiceAction action;
+	bool out = false;
 
 	File &file();
 	const File &file() const;
@@ -546,6 +551,7 @@ Utf8String FormatDateTime(
 	QChar separator = QChar(' '));
 Utf8String FormatMoneyAmount(uint64 amount, const Utf8String &currency);
 Utf8String FormatFileSize(int64 size);
+Utf8String FormatDuration(int64 seconds);
 
 } // namespace Data
 } // namespace Export
