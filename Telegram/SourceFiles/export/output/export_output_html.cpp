@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/utils.h"
 
 #include <QtCore/QFile>
+#include <QtCore/QDateTime>
 
 namespace Export {
 namespace Output {
@@ -20,6 +21,7 @@ namespace {
 constexpr auto kMessagesInFile = 1000;
 constexpr auto kPersonalUserpicSize = 90;
 constexpr auto kEntryUserpicSize = 48;
+constexpr auto kServiceMessagePhotoSize = 60;
 constexpr auto kSavedMessagesColorIndex = 3;
 
 const auto kLineBreak = QByteArrayLiteral("<br>");
@@ -193,414 +195,44 @@ QByteArray FormatFilePath(const Data::File &file) {
 	return file.relativePath.toUtf8();
 }
 
+bool DisplayDate(TimeId date, TimeId previousDate) {
+	if (!previousDate) {
+		return true;
+	}
+	return QDateTime::fromTime_t(date).date()
+		!= QDateTime::fromTime_t(previousDate).date();
+}
+
+QByteArray FormatDateText(TimeId date) {
+	const auto parsed = QDateTime::fromTime_t(date).date();
+	const auto month = [](int index) {
+		switch (index) {
+		case 1: return "January";
+		case 2: return "February";
+		case 3: return "March";
+		case 4: return "April";
+		case 5: return "May";
+		case 6: return "June";
+		case 7: return "July";
+		case 8: return "August";
+		case 9: return "September";
+		case 10: return "October";
+		case 11: return "November";
+		case 12: return "December";
+		}
+		return "Unknown";
+	};
+	return Data::NumberToString(parsed.day())
+		+ ' '
+		+ month(parsed.month())
+		+ ' '
+		+ Data::NumberToString(parsed.year());
+}
+
 QByteArray SerializeLink(
 		const Data::Utf8String &text,
 		const QString &path) {
 	return "<a href=\"" + path.toUtf8() + "\">" + text + "</a>";
-}
-
-QByteArray SerializeMessage(
-		Fn<QString(QString)> relativePath,
-		const Data::Message &message,
-		const std::map<Data::PeerId, Data::Peer> &peers,
-		const QString &internalLinksDomain) {
-	using namespace Data;
-
-	if (message.media.content.is<UnsupportedMedia>()) {
-		return SerializeString("Error! This message is not supported "
-			"by this version of Telegram Desktop. "
-			"Please update the application.");
-	}
-
-	const auto peer = [&](PeerId peerId) -> const Peer& {
-		if (const auto i = peers.find(peerId); i != end(peers)) {
-			return i->second;
-		}
-		static auto empty = Peer{ User() };
-		return empty;
-	};
-	const auto user = [&](int32 userId) -> const User& {
-		if (const auto result = peer(UserPeerId(userId)).user()) {
-			return *result;
-		}
-		static auto empty = User();
-		return empty;
-	};
-	const auto chat = [&](int32 chatId) -> const Chat& {
-		if (const auto result = peer(ChatPeerId(chatId)).chat()) {
-			return *result;
-		}
-		static auto empty = Chat();
-		return empty;
-	};
-
-	auto values = std::vector<std::pair<QByteArray, QByteArray>>{
-		{ "ID", SerializeString(NumberToString(message.id)) },
-		{ "Date", SerializeString(FormatDateTime(message.date)) },
-		{ "Edited", SerializeString(FormatDateTime(message.edited)) },
-	};
-	const auto pushBare = [&](
-			const QByteArray &key,
-			const QByteArray &value) {
-		values.emplace_back(key, value);
-	};
-	const auto push = [&](const QByteArray &key, const QByteArray &value) {
-		if (!value.isEmpty()) {
-			pushBare(key, SerializeString(value));
-		}
-	};
-	const auto wrapPeerName = [&](PeerId peerId) {
-		const auto result = peer(peerId).name();
-		return result.isEmpty() ? QByteArray("(deleted peer)") : result;
-	};
-	const auto wrapUserName = [&](int32 userId) {
-		const auto result = user(userId).name();
-		return result.isEmpty() ? QByteArray("(deleted user)") : result;
-	};
-	const auto pushFrom = [&](const QByteArray &label = "From") {
-		if (message.fromId) {
-			push(label, wrapUserName(message.fromId));
-		}
-	};
-	const auto pushReplyToMsgId = [&](
-			const QByteArray &label = "Reply to message") {
-		if (message.replyToMsgId) {
-			push(label, "ID-" + NumberToString(message.replyToMsgId));
-		}
-	};
-	const auto pushUserNames = [&](
-			const std::vector<int32> &data,
-			const QByteArray &labelOne = "Member",
-			const QByteArray &labelMany = "Members") {
-		auto list = std::vector<QByteArray>();
-		for (const auto userId : data) {
-			list.push_back(SerializeString(wrapUserName(userId)));
-		}
-		if (list.size() == 1) {
-			pushBare(labelOne, list[0]);
-		} else if (!list.empty()) {
-			pushBare(labelMany, JoinList(", ", list));
-		}
-	};
-	const auto pushActor = [&] {
-		pushFrom("Actor");
-	};
-	const auto pushAction = [&](const QByteArray &action) {
-		push("Action", action);
-	};
-	const auto pushTTL = [&](
-		const QByteArray &label = "Self destruct period") {
-		if (const auto ttl = message.media.ttl) {
-			push(label, NumberToString(ttl) + " sec.");
-		}
-	};
-
-	using SkipReason = Data::File::SkipReason;
-	const auto formatPath = [&](
-			const Data::File &file,
-			const QByteArray &label,
-			const QByteArray &name = QByteArray()) {
-		Expects(!file.relativePath.isEmpty()
-			|| file.skipReason != SkipReason::None);
-
-		const auto pre = name.isEmpty()
-			? QByteArray()
-			: SerializeString(name + ' ');
-		switch (file.skipReason) {
-		case SkipReason::Unavailable:
-			return pre + "(" + label + " unavailable, "
-				"please try again later)";
-		case SkipReason::FileSize:
-			return pre + "(" + label + " exceeds maximum size. "
-				"Change data exporting settings to download.)";
-		case SkipReason::FileType:
-			return pre + "(" + label + " not included. "
-				"Change data exporting settings to download.)";
-		case SkipReason::None: return SerializeLink(
-			FormatFilePath(file),
-			relativePath(file.relativePath));
-		}
-		Unexpected("Skip reason while writing file path.");
-	};
-	const auto pushPath = [&](
-			const Data::File &file,
-			const QByteArray &label,
-			const QByteArray &name = QByteArray()) {
-		pushBare(label, formatPath(file, label, name));
-	};
-	const auto pushPhoto = [&](const Image &image) {
-		pushPath(image.file, "Photo");
-		if (image.width && image.height) {
-			push("Width", NumberToString(image.width));
-			push("Height", NumberToString(image.height));
-		}
-	};
-
-	message.action.content.match([&](const ActionChatCreate &data) {
-		pushActor();
-		pushAction("Create group");
-		push("Title", data.title);
-		pushUserNames(data.userIds);
-	}, [&](const ActionChatEditTitle &data) {
-		pushActor();
-		pushAction("Edit group title");
-		push("New title", data.title);
-	}, [&](const ActionChatEditPhoto &data) {
-		pushActor();
-		pushAction("Edit group photo");
-		pushPhoto(data.photo.image);
-	}, [&](const ActionChatDeletePhoto &data) {
-		pushActor();
-		pushAction("Delete group photo");
-	}, [&](const ActionChatAddUser &data) {
-		pushActor();
-		pushAction("Invite members");
-		pushUserNames(data.userIds);
-	}, [&](const ActionChatDeleteUser &data) {
-		pushActor();
-		pushAction("Remove members");
-		push("Member", wrapUserName(data.userId));
-	}, [&](const ActionChatJoinedByLink &data) {
-		pushActor();
-		pushAction("Join group by link");
-		push("Inviter", wrapUserName(data.inviterId));
-	}, [&](const ActionChannelCreate &data) {
-		pushActor();
-		pushAction("Create channel");
-		push("Title", data.title);
-	}, [&](const ActionChatMigrateTo &data) {
-		pushActor();
-		pushAction("Convert this group to supergroup");
-	}, [&](const ActionChannelMigrateFrom &data) {
-		pushActor();
-		pushAction("Basic group converted to supergroup");
-		push("Title", data.title);
-	}, [&](const ActionPinMessage &data) {
-		pushActor();
-		pushAction("Pin message");
-		pushReplyToMsgId("Message");
-	}, [&](const ActionHistoryClear &data) {
-		pushActor();
-		pushAction("Clear history");
-	}, [&](const ActionGameScore &data) {
-		pushActor();
-		pushAction("Score in a game");
-		pushReplyToMsgId("Game message");
-		push("Score", NumberToString(data.score));
-	}, [&](const ActionPaymentSent &data) {
-		pushAction("Send payment");
-		push(
-			"Amount",
-			Data::FormatMoneyAmount(data.amount, data.currency));
-		pushReplyToMsgId("Invoice message");
-	}, [&](const ActionPhoneCall &data) {
-		pushActor();
-		pushAction("Phone call");
-		if (data.duration) {
-			push("Duration", NumberToString(data.duration) + " sec.");
-		}
-		using Reason = ActionPhoneCall::DiscardReason;
-		push("Discard reason", [&] {
-			switch (data.discardReason) {
-			case Reason::Busy: return "Busy";
-			case Reason::Disconnect: return "Disconnect";
-			case Reason::Hangup: return "Hangup";
-			case Reason::Missed: return "Missed";
-			}
-			return "";
-		}());
-	}, [&](const ActionScreenshotTaken &data) {
-		pushActor();
-		pushAction("Take screenshot");
-	}, [&](const ActionCustomAction &data) {
-		pushActor();
-		push("Information", data.message);
-	}, [&](const ActionBotAllowed &data) {
-		pushAction("Allow sending messages");
-		push("Reason", "Login on \"" + data.domain + "\"");
-	}, [&](const ActionSecureValuesSent &data) {
-		pushAction("Send Telegram Passport values");
-		auto list = std::vector<QByteArray>();
-		for (const auto type : data.types) {
-			list.push_back([&] {
-				using Type = ActionSecureValuesSent::Type;
-				switch (type) {
-				case Type::PersonalDetails: return "Personal details";
-				case Type::Passport: return "Passport";
-				case Type::DriverLicense: return "Driver license";
-				case Type::IdentityCard: return "Identity card";
-				case Type::InternalPassport: return "Internal passport";
-				case Type::Address: return "Address information";
-				case Type::UtilityBill: return "Utility bill";
-				case Type::BankStatement: return "Bank statement";
-				case Type::RentalAgreement: return "Rental agreement";
-				case Type::PassportRegistration:
-					return "Passport registration";
-				case Type::TemporaryRegistration:
-					return "Temporary registration";
-				case Type::Phone: return "Phone number";
-				case Type::Email: return "Email";
-				}
-				return "";
-			}());
-		}
-		if (list.size() == 1) {
-			push("Value", list[0]);
-		} else if (!list.empty()) {
-			push("Values", JoinList(", ", list));
-		}
-	}, [](const base::none_type &) {});
-
-	if (!message.action.content) {
-		pushFrom();
-		push("Author", message.signature);
-		if (message.forwardedFromId) {
-			push("Forwarded from", wrapPeerName(message.forwardedFromId));
-		}
-		if (message.savedFromChatId) {
-			push("Saved from", wrapPeerName(message.savedFromChatId));
-		}
-		pushReplyToMsgId();
-		if (message.viaBotId) {
-			push("Via", user(message.viaBotId).username);
-		}
-	}
-
-	message.media.content.match([&](const Photo &photo) {
-		pushPhoto(photo.image);
-		pushTTL();
-	}, [&](const Document &data) {
-		const auto pushMyPath = [&](const QByteArray &label) {
-			return pushPath(data.file, label);
-		};
-		if (data.isSticker) {
-			pushMyPath("Sticker");
-			push("Emoji", data.stickerEmoji);
-		} else if (data.isVideoMessage) {
-			pushMyPath("Video message");
-		} else if (data.isVoiceMessage) {
-			pushMyPath("Voice message");
-		} else if (data.isAnimated) {
-			pushMyPath("Animation");
-		} else if (data.isVideoFile) {
-			pushMyPath("Video file");
-		} else if (data.isAudioFile) {
-			pushMyPath("Audio file");
-			push("Performer", data.songPerformer);
-			push("Title", data.songTitle);
-		} else {
-			pushMyPath("File");
-		}
-		if (!data.isSticker) {
-			push("Mime type", data.mime);
-		}
-		if (data.duration) {
-			push("Duration", NumberToString(data.duration) + " sec.");
-		}
-		if (data.width && data.height) {
-			push("Width", NumberToString(data.width));
-			push("Height", NumberToString(data.height));
-		}
-		pushTTL();
-	}, [&](const SharedContact &data) {
-		pushBare("Contact information", SerializeBlockquote({
-			{ "First name", data.info.firstName },
-			{ "Last name", data.info.lastName },
-			{ "Phone number", FormatPhoneNumber(data.info.phoneNumber) },
-			{ "vCard", (data.vcard.content.isEmpty()
-				? QByteArray()
-				: formatPath(data.vcard, "vCard")) }
-		}));
-	}, [&](const GeoPoint &data) {
-		pushBare("Location", data.valid ? SerializeBlockquote({
-			{ "Latitude", NumberToString(data.latitude) },
-			{ "Longitude", NumberToString(data.longitude) },
-		}) : QByteArray("(empty value)"));
-		pushTTL("Live location period");
-	}, [&](const Venue &data) {
-		push("Place name", data.title);
-		push("Address", data.address);
-		if (data.point.valid) {
-			pushBare("Location", SerializeBlockquote({
-				{ "Latitude", NumberToString(data.point.latitude) },
-				{ "Longitude", NumberToString(data.point.longitude) },
-			}));
-		}
-	}, [&](const Game &data) {
-		push("Game", data.title);
-		push("Description", data.description);
-		if (data.botId != 0 && !data.shortName.isEmpty()) {
-			const auto bot = user(data.botId);
-			if (bot.isBot && !bot.username.isEmpty()) {
-				push("Link", internalLinksDomain.toUtf8()
-					+ bot.username
-					+ "?game="
-					+ data.shortName);
-			}
-		}
-	}, [&](const Invoice &data) {
-		pushBare("Invoice", SerializeBlockquote({
-			{ "Title", data.title },
-			{ "Description", data.description },
-			{
-				"Amount",
-				Data::FormatMoneyAmount(data.amount, data.currency)
-			},
-			{ "Receipt message", (data.receiptMsgId
-				? "ID-" + NumberToString(data.receiptMsgId)
-				: QByteArray()) }
-		}));
-	}, [](const UnsupportedMedia &data) {
-		Unexpected("Unsupported message.");
-	}, [](const base::none_type &) {});
-
-	auto value = JoinList(QByteArray(), ranges::view::all(
-		message.text
-	) | ranges::view::transform([&](const Data::TextPart &part) {
-		const auto text = SerializeString(part.text);
-		using Type = Data::TextPart::Type;
-		switch (part.type) {
-		case Type::Text: return text;
-		case Type::Unknown: return text;
-		case Type::Mention:
-			return "<a href=\""
-				+ internalLinksDomain.toUtf8()
-				+ text.mid(1)
-				+ "\">" + text + "</a>";
-		case Type::Hashtag: return "<a href=\"#hash-"
-			+ text.mid(1)
-			+ "\">" + text + "</a>";
-		case Type::BotCommand: return "<a href=\"#command-"
-			+ text.mid(1)
-			+ "\">" + text + "</a>";
-		case Type::Url: return "<a href=\""
-			+ text
-			+ "\">" + text + "</a>";
-		case Type::Email: return "<a href=\"mailto:"
-			+ text
-			+ "\">" + text + "</a>";
-		case Type::Bold: return "<b>" + text + "</b>";
-		case Type::Italic: return "<i>" + text + "</i>";
-		case Type::Code: return "<code>" + text + "</code>";
-		case Type::Pre: return "<pre>" + text + "</pre>";
-		case Type::TextUrl: return "<a href=\""
-			+ SerializeString(part.additional)
-			+ "\">" + text + "</a>";
-		case Type::MentionName: return "<a href=\"#mention-"
-			+ part.additional
-			+ "\">" + text + "</a>";
-		case Type::Phone: return "<a href=\"tel:"
-			+ text
-			+ "\">" + text + "</a>";
-		case Type::Cashtag: return "<a href=\"#cash-"
-			+ text.mid(1)
-			+ "\">" + text + "</a>";
-		}
-		Unexpected("Type in text entities serialization.");
-	}) | ranges::to_vector);
-	pushBare("Text", value);
-
-	return SerializeKeyValue(std::move(values));
 }
 
 } // namespace
@@ -703,6 +335,18 @@ public:
 	[[nodiscard]] QByteArray pushAbout(
 		const QByteArray &text,
 		bool withDivider = false);
+	[[nodiscard]] QByteArray pushServiceMessage(
+		int messageId,
+		const Data::DialogInfo &dialog,
+		const QString &basePath,
+		const QByteArray &text,
+		const Data::Photo *photo = nullptr);
+	[[nodiscard]] QByteArray pushMessage(
+		const Data::Message &message,
+		const Data::DialogInfo &dialog,
+		const QString &basePath,
+		const std::map<Data::PeerId, Data::Peer> &peers,
+		const QString &internalLinksDomain);
 
 	[[nodiscard]] Result writeBlock(const QByteArray &block);
 
@@ -742,6 +386,19 @@ QByteArray ComposeName(const UserpicData &data, const QByteArray &empty) {
 	return ((data.firstName.isEmpty() && data.lastName.isEmpty())
 		? empty
 		: (data.firstName + ' ' + data.lastName));
+}
+
+QString WriteUserpicThumb(
+		const QString &basePath,
+		const QString &largePath,
+		const UserpicData &userpic,
+		const QString &postfix = "_thumb") {
+	return Data::WriteImageThumb(
+		basePath,
+		largePath,
+		userpic.pixelSize * 2,
+		userpic.pixelSize * 2,
+		postfix);
 }
 
 HtmlWriter::Wrap::Wrap(
@@ -973,6 +630,451 @@ QByteArray HtmlWriter::Wrap::pushAbout(
 	return result;
 }
 
+QByteArray HtmlWriter::Wrap::pushServiceMessage(
+		int messageId,
+		const Data::DialogInfo &dialog,
+		const QString &basePath,
+		const QByteArray &serialized,
+		const Data::Photo *photo) {
+	auto result = pushTag("div", {
+		{ "class", "message service" },
+		{ "id", "message" + Data::NumberToString(messageId) }
+	});
+	result.append(pushDiv("content details"));
+	result.append(serialized);
+	result.append(popTag());
+	if (photo) {
+		auto userpic = UserpicData();
+		userpic.colorIndex = Data::PeerColorIndex(
+			Data::BarePeerId(dialog.peerId));
+		userpic.firstName = dialog.name;
+		userpic.lastName = dialog.lastName;
+		userpic.pixelSize = kServiceMessagePhotoSize;
+		userpic.largeLink = photo->image.file.relativePath;
+		userpic.imageLink = WriteUserpicThumb(
+			basePath,
+			userpic.largeLink,
+			userpic);
+		result.append(pushDiv("userpic_wrap"));
+		result.append(pushUserpic(userpic));
+		result.append(popTag());
+	}
+	result.append(popTag());
+	return result;
+}
+
+QByteArray HtmlWriter::Wrap::pushMessage(
+		const Data::Message &message,
+		const Data::DialogInfo &dialog,
+		const QString &basePath,
+		const std::map<Data::PeerId, Data::Peer> &peers,
+		const QString &internalLinksDomain) {
+	using namespace Data;
+
+	if (message.media.content.is<UnsupportedMedia>()) {
+		return pushServiceMessage(
+			message.id,
+			dialog,
+			basePath,
+			"This message is not supported by this version "
+			"of Telegram Desktop. Please update the application.");
+	}
+
+	const auto peer = [&](PeerId peerId) -> const Peer& {
+		if (const auto i = peers.find(peerId); i != end(peers)) {
+			return i->second;
+		}
+		static auto empty = Peer{ User() };
+		return empty;
+	};
+	const auto user = [&](int32 userId) -> const User& {
+		if (const auto result = peer(UserPeerId(userId)).user()) {
+			return *result;
+		}
+		static auto empty = User();
+		return empty;
+	};
+	const auto chat = [&](int32 chatId) -> const Chat& {
+		if (const auto result = peer(ChatPeerId(chatId)).chat()) {
+			return *result;
+		}
+		static auto empty = Chat();
+		return empty;
+	};
+
+	auto values = std::vector<std::pair<QByteArray, QByteArray>>{
+		{ "ID", SerializeString(NumberToString(message.id)) },
+		{ "Date", SerializeString(FormatDateTime(message.date)) },
+		{ "Edited", SerializeString(FormatDateTime(message.edited)) },
+	};
+	const auto pushBare = [&](
+			const QByteArray &key,
+			const QByteArray &value) {
+		values.emplace_back(key, value);
+	};
+	const auto push = [&](const QByteArray &key, const QByteArray &value) {
+		if (!value.isEmpty()) {
+			pushBare(key, SerializeString(value));
+		}
+	};
+	const auto wrapPeerName = [&](PeerId peerId) {
+		const auto result = peer(peerId).name();
+		return result.isEmpty() ? QByteArray("(deleted peer)") : result;
+	};
+	const auto wrapUserName = [&](int32 userId) {
+		const auto result = user(userId).name();
+		return result.isEmpty()
+			? QByteArray("Deleted Account")
+			: SerializeString(result);
+	};
+	const auto pushFrom = [&](const QByteArray &label = "From") {
+		if (message.fromId) {
+			push(label, wrapUserName(message.fromId));
+		}
+	};
+	const auto pushReplyToMsgId = [&](
+			const QByteArray &label = "Reply to message") {
+		if (message.replyToMsgId) {
+			push(label, "ID-" + NumberToString(message.replyToMsgId));
+		}
+	};
+	const auto wrapList = [&](const std::vector<QByteArray> &values) {
+		const auto count = values.size();
+		if (count == 1) {
+			return values[0];
+		} else if (count > 1) {
+			auto result = values[0];
+			for (auto i = 1; i != count - 1; ++i) {
+				result += ", " + values[i];
+			}
+			return result + " and " + values[count - 1];
+		}
+		return QByteArray();
+	};
+	const auto wrapUserNames = [&](const std::vector<int32> &data) {
+		auto list = std::vector<QByteArray>();
+		for (const auto userId : data) {
+			list.push_back(wrapUserName(userId));
+		}
+		return wrapList(list);
+	};
+	const auto pushActor = [&] {
+		pushFrom("Actor");
+	};
+	const auto pushAction = [&](const QByteArray &action) {
+		push("Action", action);
+	};
+	const auto pushTTL = [&](
+		const QByteArray &label = "Self destruct period") {
+		if (const auto ttl = message.media.ttl) {
+			push(label, NumberToString(ttl) + " sec.");
+		}
+	};
+
+	using SkipReason = Data::File::SkipReason;
+	const auto formatPath = [&](
+			const Data::File &file,
+			const QByteArray &label,
+			const QByteArray &name = QByteArray()) {
+		Expects(!file.relativePath.isEmpty()
+			|| file.skipReason != SkipReason::None);
+
+		const auto pre = name.isEmpty()
+			? QByteArray()
+			: SerializeString(name + ' ');
+		switch (file.skipReason) {
+		case SkipReason::Unavailable:
+			return pre + "(" + label + " unavailable, "
+				"please try again later)";
+		case SkipReason::FileSize:
+			return pre + "(" + label + " exceeds maximum size. "
+				"Change data exporting settings to download.)";
+		case SkipReason::FileType:
+			return pre + "(" + label + " not included. "
+				"Change data exporting settings to download.)";
+		case SkipReason::None: return SerializeLink(
+			FormatFilePath(file),
+			relativePath(file.relativePath));
+		}
+		Unexpected("Skip reason while writing file path.");
+	};
+	const auto pushPath = [&](
+			const Data::File &file,
+			const QByteArray &label,
+			const QByteArray &name = QByteArray()) {
+		pushBare(label, formatPath(file, label, name));
+	};
+	const auto pushPhoto = [&](const Image &image) {
+		pushPath(image.file, "Photo");
+		if (image.width && image.height) {
+			push("Width", NumberToString(image.width));
+			push("Height", NumberToString(image.height));
+		}
+	};
+	const auto wrapReplyToLink = [&](const QByteArray &text) {
+		return "<a href=\"#message"
+			+ NumberToString(message.replyToMsgId)
+			+ "\">"
+			+ text + "</a>";
+	};
+
+	const auto serviceFrom = wrapUserName(message.fromId);
+	const auto serviceText = message.action.content.match(
+	[&](const ActionChatCreate &data) {
+		return serviceFrom
+			+ " created group &laquo;" + data.title + "&raquo;"
+			+ (data.userIds.empty()
+				? QByteArray()
+				: " with members " + wrapUserNames(data.userIds));
+	}, [&](const ActionChatEditTitle &data) {
+		return serviceFrom
+			+ " changed group title to &laquo;" + data.title + "&raquo;";
+	}, [&](const ActionChatEditPhoto &data) {
+		return serviceFrom
+			+ " changed group photo";
+	}, [&](const ActionChatDeletePhoto &data) {
+		return serviceFrom
+			+ " deleted group photo";
+	}, [&](const ActionChatAddUser &data) {
+		return serviceFrom
+			+ " invited "
+			+ wrapUserNames(data.userIds);
+	}, [&](const ActionChatDeleteUser &data) {
+		return serviceFrom
+			+ " removed "
+			+ wrapUserName(data.userId);
+	}, [&](const ActionChatJoinedByLink &data) {
+		return serviceFrom
+			+ " joined group by link from "
+			+ wrapUserName(data.inviterId);
+	}, [&](const ActionChannelCreate &data) {
+		return "Channel &laquo;" + data.title + "&raquo; created";
+	}, [&](const ActionChatMigrateTo &data) {
+		return serviceFrom
+			+ " converted this group to a supergroup";
+	}, [&](const ActionChannelMigrateFrom &data) {
+		return serviceFrom
+			+ " converted a basic group to this supergroup "
+			+ "&laquo;" + data.title + "&raquo;";
+	}, [&](const ActionPinMessage &data) {
+		return serviceFrom
+			+ " pinned "
+			+ wrapReplyToLink("this message");
+	}, [&](const ActionHistoryClear &data) {
+		return QByteArray("History cleared");
+	}, [&](const ActionGameScore &data) {
+		return serviceFrom
+			+ " scored "
+			+ NumberToString(data.score)
+			+ " in "
+			+ wrapReplyToLink("this game");
+	}, [&](const ActionPaymentSent &data) {
+		return "You have successfully transferred "
+			+ FormatMoneyAmount(data.amount, data.currency)
+			+ " for "
+			+ wrapReplyToLink("this invoice");
+	}, [&](const ActionPhoneCall &data) {
+		return QByteArray();
+	}, [&](const ActionScreenshotTaken &data) {
+		return serviceFrom + " took a screenshot";
+	}, [&](const ActionCustomAction &data) {
+		return data.message;
+	}, [&](const ActionBotAllowed &data) {
+		return "You allowed this bot to message you when you logged in on "
+			+ data.domain;
+	}, [&](const ActionSecureValuesSent &data) {
+		auto list = std::vector<QByteArray>();
+		for (const auto type : data.types) {
+			list.push_back([&] {
+				using Type = ActionSecureValuesSent::Type;
+				switch (type) {
+				case Type::PersonalDetails: return "Personal details";
+				case Type::Passport: return "Passport";
+				case Type::DriverLicense: return "Driver license";
+				case Type::IdentityCard: return "Identity card";
+				case Type::InternalPassport: return "Internal passport";
+				case Type::Address: return "Address information";
+				case Type::UtilityBill: return "Utility bill";
+				case Type::BankStatement: return "Bank statement";
+				case Type::RentalAgreement: return "Rental agreement";
+				case Type::PassportRegistration:
+					return "Passport registration";
+				case Type::TemporaryRegistration:
+					return "Temporary registration";
+				case Type::Phone: return "Phone number";
+				case Type::Email: return "Email";
+				}
+				return "";
+			}());
+		}
+		return "You have sent the following documents: " + wrapList(list);
+	}, [](const base::none_type &) { return QByteArray(); });
+
+	if (!serviceText.isEmpty()) {
+		const auto &content = message.action.content;
+		const auto photo = content.is<ActionChatEditPhoto>()
+			? &content.get_unchecked<ActionChatEditPhoto>().photo
+			: nullptr;
+		return pushServiceMessage(
+			message.id,
+			dialog,
+			basePath,
+			serviceText,
+			photo);
+	}
+
+	if (!message.action.content) {
+		pushFrom();
+		push("Author", message.signature);
+		if (message.forwardedFromId) {
+			push("Forwarded from", wrapPeerName(message.forwardedFromId));
+		}
+		if (message.savedFromChatId) {
+			push("Saved from", wrapPeerName(message.savedFromChatId));
+		}
+		pushReplyToMsgId();
+		if (message.viaBotId) {
+			push("Via", user(message.viaBotId).username);
+		}
+	}
+
+	message.media.content.match([&](const Photo &photo) {
+		pushPhoto(photo.image);
+		pushTTL();
+	}, [&](const Document &data) {
+		const auto pushMyPath = [&](const QByteArray &label) {
+			return pushPath(data.file, label);
+		};
+		if (data.isSticker) {
+			pushMyPath("Sticker");
+			push("Emoji", data.stickerEmoji);
+		} else if (data.isVideoMessage) {
+			pushMyPath("Video message");
+		} else if (data.isVoiceMessage) {
+			pushMyPath("Voice message");
+		} else if (data.isAnimated) {
+			pushMyPath("Animation");
+		} else if (data.isVideoFile) {
+			pushMyPath("Video file");
+		} else if (data.isAudioFile) {
+			pushMyPath("Audio file");
+			push("Performer", data.songPerformer);
+			push("Title", data.songTitle);
+		} else {
+			pushMyPath("File");
+		}
+		if (!data.isSticker) {
+			push("Mime type", data.mime);
+		}
+		if (data.duration) {
+			push("Duration", NumberToString(data.duration) + " sec.");
+		}
+		if (data.width && data.height) {
+			push("Width", NumberToString(data.width));
+			push("Height", NumberToString(data.height));
+		}
+		pushTTL();
+	}, [&](const SharedContact &data) {
+		pushBare("Contact information", SerializeBlockquote({
+			{ "First name", data.info.firstName },
+			{ "Last name", data.info.lastName },
+			{ "Phone number", FormatPhoneNumber(data.info.phoneNumber) },
+			{ "vCard", (data.vcard.content.isEmpty()
+				? QByteArray()
+				: formatPath(data.vcard, "vCard")) }
+		}));
+	}, [&](const GeoPoint &data) {
+		pushBare("Location", data.valid ? SerializeBlockquote({
+			{ "Latitude", NumberToString(data.latitude) },
+			{ "Longitude", NumberToString(data.longitude) },
+		}) : QByteArray("(empty value)"));
+		pushTTL("Live location period");
+	}, [&](const Venue &data) {
+		push("Place name", data.title);
+		push("Address", data.address);
+		if (data.point.valid) {
+			pushBare("Location", SerializeBlockquote({
+				{ "Latitude", NumberToString(data.point.latitude) },
+				{ "Longitude", NumberToString(data.point.longitude) },
+			}));
+		}
+	}, [&](const Game &data) {
+		push("Game", data.title);
+		push("Description", data.description);
+		if (data.botId != 0 && !data.shortName.isEmpty()) {
+			const auto bot = user(data.botId);
+			if (bot.isBot && !bot.username.isEmpty()) {
+				push("Link", internalLinksDomain.toUtf8()
+					+ bot.username
+					+ "?game="
+					+ data.shortName);
+			}
+		}
+	}, [&](const Invoice &data) {
+		pushBare("Invoice", SerializeBlockquote({
+			{ "Title", data.title },
+			{ "Description", data.description },
+			{
+				"Amount",
+				Data::FormatMoneyAmount(data.amount, data.currency)
+			},
+			{ "Receipt message", (data.receiptMsgId
+				? "ID-" + NumberToString(data.receiptMsgId)
+				: QByteArray()) }
+		}));
+	}, [](const UnsupportedMedia &data) {
+		Unexpected("Unsupported message.");
+	}, [](const base::none_type &) {});
+
+	auto value = JoinList(QByteArray(), ranges::view::all(
+		message.text
+	) | ranges::view::transform([&](const Data::TextPart &part) {
+		const auto text = SerializeString(part.text);
+		using Type = Data::TextPart::Type;
+		switch (part.type) {
+		case Type::Text: return text;
+		case Type::Unknown: return text;
+		case Type::Mention:
+			return "<a href=\""
+				+ internalLinksDomain.toUtf8()
+				+ text.mid(1)
+				+ "\">" + text + "</a>";
+		case Type::Hashtag: return "<a href=\"#hash-"
+			+ text.mid(1)
+			+ "\">" + text + "</a>";
+		case Type::BotCommand: return "<a href=\"#command-"
+			+ text.mid(1)
+			+ "\">" + text + "</a>";
+		case Type::Url: return "<a href=\""
+			+ text
+			+ "\">" + text + "</a>";
+		case Type::Email: return "<a href=\"mailto:"
+			+ text
+			+ "\">" + text + "</a>";
+		case Type::Bold: return "<b>" + text + "</b>";
+		case Type::Italic: return "<i>" + text + "</i>";
+		case Type::Code: return "<code>" + text + "</code>";
+		case Type::Pre: return "<pre>" + text + "</pre>";
+		case Type::TextUrl: return "<a href=\""
+			+ SerializeString(part.additional)
+			+ "\">" + text + "</a>";
+		case Type::MentionName: return "<a href=\"#mention-"
+			+ part.additional
+			+ "\">" + text + "</a>";
+		case Type::Phone: return "<a href=\"tel:"
+			+ text
+			+ "\">" + text + "</a>";
+		case Type::Cashtag: return "<a href=\"#cash-"
+			+ text.mid(1)
+			+ "\">" + text + "</a>";
+		}
+		Unexpected("Type in text entities serialization.");
+	}) | ranges::to_vector);
+	pushBare("Text", value);
+
+	return SerializeKeyValue(std::move(values));
+}
+
 Result HtmlWriter::Wrap::close() {
 	if (!std::exchange(_closed, true) && !_file.empty()) {
 		auto block = QByteArray();
@@ -1111,7 +1213,11 @@ Result HtmlWriter::writePreparedPersonal(
 	userpic.largeLink = userpicPath.isEmpty()
 		? QString()
 		: userpicsFilePath();
-	userpic.imageLink = writeUserpicThumb(userpicPath, userpic, "_info");
+	userpic.imageLink = WriteUserpicThumb(
+		_settings.path,
+		userpicPath,
+		userpic,
+		"_info");
 	userpic.firstName = info.firstName;
 	userpic.lastName = info.lastName;
 
@@ -1151,18 +1257,6 @@ Result HtmlWriter::writePreparedPersonal(
 
 	_summaryNeedDivider = true;
 	return _summary->writeBlock(block);
-}
-
-QString HtmlWriter::writeUserpicThumb(
-		const QString &largePath,
-		const UserpicData &userpic,
-		const QString &postfix) {
-	return Data::WriteImageThumb(
-		_settings.path,
-		largePath,
-		userpic.pixelSize * 2,
-		userpic.pixelSize * 2,
-		postfix);
 }
 
 Result HtmlWriter::writeUserpicsStart(const Data::UserpicsInfo &data) {
@@ -1220,7 +1314,7 @@ Result HtmlWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
 			Unexpected("Skip reason while writing photo path.");
 		}();
 		const auto &path = userpic.image.file.relativePath;
-		data.imageLink = writeUserpicThumb(path, data);
+		data.imageLink = WriteUserpicThumb(_settings.path, path, data);
 		data.firstName = path.toUtf8();
 		block.append(_userpics->pushListEntry(
 			data,
@@ -1592,6 +1686,8 @@ Result HtmlWriter::writeChatStart(const Data::DialogInfo &data) {
 	const auto number = Data::NumberToString(++_dialogIndex, digits, '0');
 	_chat = fileWithRelativePath(data.relativePath + messagesFile(0));
 	_messagesCount = 0;
+	_dateMessageId = 0;
+	_lastMessageDate = 0;
 	_dialog = data;
 	return Result::Success();
 }
@@ -1620,19 +1716,25 @@ Result HtmlWriter::writeChatSlice(const Data::MessagesSlice &data) {
 		}
 	}
 
-	auto list = std::vector<QByteArray>();
-	list.reserve(data.list.size());
+	auto block = QByteArray();
 	for (const auto &message : data.list) {
-		list.push_back(SerializeMessage(
-			[&](QString path) { return _chat->relativePath(path); },
+		const auto date = message.date;
+		if (DisplayDate(date, _lastMessageDate)) {
+			block.append(_chat->pushServiceMessage(
+				--_dateMessageId,
+				_dialog,
+				_settings.path,
+				FormatDateText(date)));
+		}
+		block.append(_chat->pushMessage(
 			message,
+			_dialog,
+			_settings.path,
 			data.peers,
 			_environment.internalLinksDomain));
+		_lastMessageDate = date;
 	}
-	const auto full = _chat->empty()
-		? JoinList(kLineBreak, list)
-		: kLineBreak + JoinList(kLineBreak, list);
-	return _chat->writeBlock(full);
+	return _chat->writeBlock(block);
 }
 
 Result HtmlWriter::writeChatEnd() {

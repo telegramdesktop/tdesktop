@@ -245,3 +245,18 @@ a.block_link:hover {
 .history {
     padding: 16px 0;
 }
+.service {
+    padding: 10px 24px;
+}
+.service .content {
+    text-align: center;
+}
+.service .userpic_wrap {
+    padding-top: 10px;
+}
+.service .userpic {
+    margin: 0 auto;
+}
+.service .userpic .initials {
+    font-size: 24px;
+}

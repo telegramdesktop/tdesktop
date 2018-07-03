@@ -128,11 +128,6 @@ private:
 		const QString &userpicPath);
 	void pushUserpicsSection();
 
-	[[nodiscard]] QString writeUserpicThumb(
-		const QString &largePath,
-		const UserpicData &userpic,
-		const QString &postfix = "_thumb");
-
 	[[nodiscard]] QString userpicsFilePath() const;
 
 	Settings _settings;
@@ -158,6 +153,8 @@ private:
 	Data::DialogInfo _dialog;
 
 	int _messagesCount = 0;
+	TimeId _lastMessageDate = 0;
+	int _dateMessageId = 0;
 	std::unique_ptr<Wrap> _chats;
 	std::unique_ptr<Wrap> _chat;
 
