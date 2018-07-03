@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <gsl/gsl>
 #include <gsl/gsl_byte>
 
 namespace bytes {
