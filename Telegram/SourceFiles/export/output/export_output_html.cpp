@@ -262,10 +262,6 @@ Data::Utf8String FormatUsername(const Data::Utf8String &username) {
 	return username.isEmpty() ? username : ('@' + username);
 }
 
-QByteArray FormatFilePath(const Data::File &file) {
-	return file.relativePath.toUtf8();
-}
-
 bool DisplayDate(TimeId date, TimeId previousDate) {
 	if (!previousDate) {
 		return true;
@@ -353,6 +349,7 @@ struct MediaData {
 	QByteArray description;
 	QByteArray status;
 	QByteArray classes;
+	QString thumb;
 	QString link;
 };
 
@@ -884,33 +881,6 @@ auto HtmlWriter::Wrap::pushMessage(
 			"of Telegram Desktop. Please update the application.") };
 	}
 
-	using SkipReason = Data::File::SkipReason;
-	const auto formatPath = [&](
-			const Data::File &file,
-			const QByteArray &label,
-			const QByteArray &name = QByteArray()) {
-		Expects(!file.relativePath.isEmpty()
-			|| file.skipReason != SkipReason::None);
-
-		const auto pre = name.isEmpty()
-			? QByteArray()
-			: SerializeString(name + ' ');
-		switch (file.skipReason) {
-		case SkipReason::Unavailable:
-			return pre + "(" + label + " unavailable, "
-				"please try again later)";
-		case SkipReason::FileSize:
-			return pre + "(" + label + " exceeds maximum size. "
-				"Change data exporting settings to download.)";
-		case SkipReason::FileType:
-			return pre + "(" + label + " not included. "
-				"Change data exporting settings to download.)";
-		case SkipReason::None: return SerializeLink(
-			FormatFilePath(file),
-			relativePath(file.relativePath));
-		}
-		Unexpected("Skip reason while writing file path.");
-	};
 	const auto wrapReplyToLink = [&](const QByteArray &text) {
 		return "<a href=\"#message"
 			+ NumberToString(message.replyToMsgId)
@@ -1184,8 +1154,16 @@ QByteArray HtmlWriter::Wrap::pushMedia(
 			}
 		}));
 	}
-	result.append(pushDiv("thumb pull_left"));
-	result.append(popTag());
+	if (data.thumb.isEmpty()) {
+		result.append(pushDiv("fill pull_left"));
+		result.append(popTag());
+	} else {
+		result.append(pushTag("img", {
+			{ "class", "thumb pull_left" },
+			{ "src", relativePath(data.thumb).toUtf8() },
+			{ "empty", "" }
+		}));
+	}
 	result.append(pushDiv("body"));
 	if (!data.title.isEmpty()) {
 		result.append(pushDiv("title bold"));
@@ -1248,10 +1226,10 @@ MediaData HtmlWriter::Wrap::prepareMediaData(
 			+ "x"
 			+ NumberToString(photo.image.height);
 		result.classes = "media_file"; // #TODO export
-		result.link = FormatFilePath(photo.image.file);
+		result.link = photo.image.file.relativePath;
 	}, [&](const Document &data) {
 		// #TODO export: sticker + thumb (video, video message) + self destruct (ttl)
-		result.link = FormatFilePath(data.file);
+		result.link = data.file.relativePath;
 		if (data.isSticker) {
 			result.title = "Sticker";
 			result.status = data.stickerEmoji;
@@ -1259,7 +1237,8 @@ MediaData HtmlWriter::Wrap::prepareMediaData(
 		} else if (data.isVideoMessage) {
 			result.title = "Video message";
 			result.status = FormatDuration(data.duration);
-			result.classes = "media_file"; // #TODO export
+			result.thumb = data.thumb.file.relativePath;
+			result.classes = "media_file";
 		} else if (data.isVoiceMessage) {
 			result.title = "Voice message";
 			result.status = FormatDuration(data.duration);
@@ -1292,7 +1271,7 @@ MediaData HtmlWriter::Wrap::prepareMediaData(
 		result.status = FormatPhoneNumber(data.info.phoneNumber);
 		if (!data.vcard.content.isEmpty()) {
 			result.status += " - vCard";
-			result.link = FormatFilePath(data.vcard);
+			result.link = data.vcard.relativePath;
 		}
 	}, [&](const GeoPoint &data) {
 		if (message.media.ttl) {

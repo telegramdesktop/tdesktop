@@ -114,6 +114,7 @@ struct Document {
 	TimeId date = 0;
 
 	File file;
+	Image thumb;
 
 	Utf8String name;
 	Utf8String mime;
@@ -292,6 +293,8 @@ struct Media {
 
 	File &file();
 	const File &file() const;
+	Image &thumb();
+	const Image &thumb() const;
 };
 
 struct ParseMediaContext {
@@ -478,6 +481,8 @@ struct Message {
 
 	File &file();
 	const File &file() const;
+	Image &thumb();
+	const Image &thumb() const;
 };
 
 Message ParseMessage(

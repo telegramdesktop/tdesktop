@@ -119,45 +119,45 @@ pre {
 }
 .color_red,
 .userpic1,
-.media_call .thumb,
-.media_file .thumb,
-.media_live_location .thumb {
+.media_call .fill,
+.media_file .fill,
+.media_live_location .fill {
     background-color: #ff5555;
 }
 .color_green,
 .userpic2,
-.media_call.success .thumb {
+.media_call.success .fill {
     background-color: #64bf47;
 }
 .color_yellow,
 .userpic3,
-.media_venue .thumb {
+.media_venue .fill {
     background-color: #ffab00;
 }
 .color_blue,
 .userpic4,
-.media_audio_file .thumb,
-.media_voice_message .thumb {
+.media_audio_file .fill,
+.media_voice_message .fill {
     background-color: #4f9cd9;
 }
 .color_purple,
 .userpic5,
-.media_game .thumb {
+.media_game .fill {
     background-color: #9884e8;
 }
 .color_pink,
 .userpic6,
-.media_invoice .thumb {
+.media_invoice .fill {
     background-color: #e671a5;
 }
 .color_sea,
 .userpic7,
-.media_location .thumb {
+.media_location .fill {
     background-color: #47bcd1;
 }
 .color_orange,
 .userpic8,
-.media_contact .thumb {
+.media_contact .fill {
     background-color: #ff8c44;
 }
 .personal_info {
@@ -289,10 +289,13 @@ a.block_link:hover {
     margin: 0 -10px;
     padding: 5px 10px;
 }
+.default .media .fill,
 .default .media .thumb {
     width: 48px;
     height: 48px;
     border-radius: 50%;
+}
+.default .media .fill {
     background-repeat: no-repeat;
     background-position: 12px 12px;
     background-size: 24px 24px;
@@ -399,30 +402,30 @@ a.block_link:hover {
 .page_header a.content {
     background-image: url(../images/back@2x.png);
 }
-.media_call .thumb {
+.media_call .fill {
     background-image: url(../images/media_call@2x.png)
 }
-.media_contact .thumb {
+.media_contact .fill {
     background-image: url(../images/media_contact@2x.png)
 }
-.media_file .thumb {
+.media_file .fill {
     background-image: url(../images/media_file@2x.png)
 }
-.media_game .thumb {
+.media_game .fill {
     background-image: url(../images/media_game@2x.png)
 }
-.media_live_location .thumb,
-.media_location .thumb,
-.media_venue .thumb {
+.media_live_location .fill,
+.media_location .fill,
+.media_venue .fill {
     background-image: url(../images/media_location@2x.png)
 }
-.media_audio_file .thumb {
+.media_audio_file .fill {
     background-image: url(../images/media_music@2x.png)
 }
-.media_invoice .thumb {
+.media_invoice .fill {
     background-image: url(../images/media_shop@2x.png)
 }
-.media_voice_message .thumb {
+.media_voice_message .fill {
     background-image: url(../images/media_voice@2x.png)
 }
 }

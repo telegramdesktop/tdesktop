@@ -389,17 +389,36 @@ Document ParseDocument(
 	data.match([&](const MTPDdocument &data) {
 		result.id = data.vid.v;
 		result.date = data.vdate.v;
+		result.mime = ParseString(data.vmime_type);
+		ParseAttributes(result, data.vattributes);
+
 		result.file.size = data.vsize.v;
 		result.file.location.dcId = data.vdc_id.v;
 		result.file.location.data = MTP_inputDocumentFileLocation(
 			data.vid,
 			data.vaccess_hash,
 			data.vversion);
-		result.mime = ParseString(data.vmime_type);
-		ParseAttributes(result, data.vattributes);
-		result.file.suggestedPath = suggestedFolder
+		const auto path = result.file.suggestedPath = suggestedFolder
 			+ DocumentFolder(result) + '/'
 			+ CleanDocumentName(ComputeDocumentName(context, result));
+
+		result.thumb = data.vthumb.match([](const MTPDphotoSizeEmpty &) {
+			return Image();
+		}, [&](const auto &data) {
+			auto result = Image();
+			result.width = data.vw.v;
+			result.height = data.vh.v;
+			result.file.location = ParseLocation(data.vlocation);
+			if constexpr (MTPDphotoCachedSize::Is<decltype(data)>()) {
+				result.file.content = data.vbytes.v;
+				result.file.size = result.file.content.size();
+			} else {
+				result.file.content = QByteArray();
+				result.file.size = data.vsize.v;
+			}
+			result.file.suggestedPath = path + "_thumb.jpg";
+			return result;
+		});
 	}, [&](const MTPDdocumentEmpty &data) {
 		result.id = data.vid.v;
 	});
@@ -735,6 +754,24 @@ const File &Media::file() const {
 	});
 }
 
+Image &Media::thumb() {
+	return content.match([](Document &data) -> Image& {
+		return data.thumb;
+	}, [](auto&) -> Image& {
+		static Image result;
+		return result;
+	});
+}
+
+const Image &Media::thumb() const {
+	return content.match([](const Document &data) -> const Image& {
+		return data.thumb;
+	}, [](const auto &) -> const Image& {
+		static const Image result;
+		return result;
+	});
+}
+
 Media ParseMedia(
 		ParseMediaContext &context,
 		const MTPMessageMedia &data,
@@ -934,6 +971,14 @@ const File &Message::file() const {
 		return photo->photo.image.file;
 	}
 	return media.file();
+}
+
+Image &Message::thumb() {
+	return media.thumb();
+}
+
+const Image &Message::thumb() const {
+	return media.thumb();
 }
 
 Message ParseMessage(

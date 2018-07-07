@@ -150,6 +150,8 @@ private:
 	void loadNextMessageFile();
 	bool loadMessageFileProgress(FileProgress value);
 	void loadMessageFileDone(const QString &relativePath);
+	bool loadMessageThumbProgress(FileProgress value);
+	void loadMessageThumbDone(const QString &relativePath);
 	void finishMessagesSlice();
 	void finishMessages();
 

@@ -486,6 +486,9 @@ QByteArray SerializeMessage(
 		pushTTL();
 	}, [&](const Document &data) {
 		pushPath(data.file, "file");
+		if (data.thumb.width > 0) {
+			pushPath(data.thumb.file, "thumbnail");
+		}
 		const auto pushType = [&](const QByteArray &value) {
 			push("media_type", value);
 		};
