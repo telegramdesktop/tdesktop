@@ -112,6 +112,7 @@ private:
 		const QByteArray &about,
 		const QString &fileName);
 	[[nodiscard]] Result writeChatStart(const Data::DialogInfo &data);
+	[[nodiscard]] Result writeChatOpening(int index);
 	[[nodiscard]] Result writeChatSlice(const Data::MessagesSlice &data);
 	[[nodiscard]] Result writeChatEnd();
 	[[nodiscard]] Result writeChatsEnd();
@@ -162,6 +163,7 @@ private:
 	int _dateMessageId = 0;
 	std::unique_ptr<Wrap> _chats;
 	std::unique_ptr<Wrap> _chat;
+	bool _chatFileEmpty = false;
 
 };
 

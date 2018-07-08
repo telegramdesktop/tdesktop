@@ -313,6 +313,11 @@ a.block_link:hover {
     padding-top: 4px;
     font-size: 13px;
 }
+.pagination {
+    text-align: center;
+    padding: 20px;
+    font-size: 16px;
+}
 
 .section.calls {
     background-image: url(../images/section_calls.png);

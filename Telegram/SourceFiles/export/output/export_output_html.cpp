@@ -18,7 +18,10 @@ namespace Export {
 namespace Output {
 namespace {
 
-constexpr auto kMessagesInFile = 1000;
+#ifndef _DEBUG
+#error test
+#endif
+constexpr auto kMessagesInFile = 50;
 constexpr auto kPersonalUserpicSize = 90;
 constexpr auto kEntryUserpicSize = 48;
 constexpr auto kServiceMessagePhotoSize = 60;
@@ -1973,6 +1976,7 @@ Result HtmlWriter::writeChatStart(const Data::DialogInfo &data) {
 	const auto digits = Data::NumberToString(_dialogsCount - 1).size();
 	const auto number = Data::NumberToString(++_dialogIndex, digits, '0');
 	_chat = fileWithRelativePath(data.relativePath + messagesFile(0));
+	_chatFileEmpty = true;
 	_messagesCount = 0;
 	_dateMessageId = 0;
 	_lastMessageInfo = nullptr;
@@ -1980,38 +1984,43 @@ Result HtmlWriter::writeChatStart(const Data::DialogInfo &data) {
 	return Result::Success();
 }
 
+Result HtmlWriter::writeChatOpening(int index) {
+	const auto name = (_dialog.name.isEmpty()
+		&& _dialog.lastName.isEmpty())
+		? QByteArray("Deleted Account")
+		: (_dialog.name + ' ' + _dialog.lastName);
+	auto block = _chat->pushHeader(
+		name,
+		_dialogsRelativePath);
+	block.append(_chat->pushDiv("page_body chat_page"));
+	block.append(_chat->pushDiv("history"));
+	if (index > 0) {
+		const auto previousPath = messagesFile(index - 1);
+		block.append(_chat->pushTag("a", {
+			{ "class", "pagination block_link" },
+			{ "href", previousPath.toUtf8() }
+			}));
+		block.append("Previous messages part");
+		block.append(_chat->popTag());
+	}
+	return _chat->writeBlock(block);
+}
+
 Result HtmlWriter::writeChatSlice(const Data::MessagesSlice &data) {
 	Expects(_chat != nullptr);
 	Expects(!data.list.empty());
 
-	if (_chat->empty()) {
-		const auto name = (_dialog.name.isEmpty()
-			&& _dialog.lastName.isEmpty())
-			? QByteArray("Deleted Account")
-			: (_dialog.name + ' ' + _dialog.lastName);
-		auto block = _chat->pushHeader(
-			name,
-			_dialogsRelativePath);
-		block.append(_chat->pushDiv("page_body chat_page"));
-		block.append(_chat->pushDiv("history"));
-		if (const auto result = _chat->writeBlock(block); !result) {
-			return result;
-		}
-	}
-
-	const auto wasIndex = (_messagesCount / kMessagesInFile);
-	_messagesCount += data.list.size();
-	const auto nowIndex = (_messagesCount / kMessagesInFile);
-	if (nowIndex != wasIndex) {
-		if (const auto result = switchToNextChatFile(nowIndex); !result) {
-			return result;
-		}
-	}
-
+	auto oldIndex = (_messagesCount / kMessagesInFile);
 	auto previous = _lastMessageInfo.get();
-	auto saved = MessageInfo();
+	auto saved = base::optional<MessageInfo>();
 	auto block = QByteArray();
 	for (const auto &message : data.list) {
+		if (_chatFileEmpty) {
+			if (const auto result = writeChatOpening(oldIndex); !result) {
+				return result;
+			}
+			_chatFileEmpty = false;
+		}
 		const auto date = message.date;
 		if (DisplayDate(date, previous ? previous->date : 0)) {
 			block.append(_chat->pushServiceMessage(
@@ -2028,10 +2037,29 @@ Result HtmlWriter::writeChatSlice(const Data::MessagesSlice &data) {
 			data.peers,
 			_environment.internalLinksDomain);
 		block.append(content);
-		saved = info;
-		previous = &saved;
+
+		++_messagesCount;
+		const auto newIndex = (_messagesCount / kMessagesInFile);
+		if (oldIndex != newIndex) {
+			if (const auto result = _chat->writeBlock(block); !result) {
+				return result;
+			} else if (const auto next = switchToNextChatFile(newIndex)) {
+				block = QByteArray();
+				_lastMessageInfo = nullptr;
+				previous = nullptr;
+				saved = base::none;
+				oldIndex = newIndex;
+			} else {
+				return next;
+			}
+		} else {
+			saved = info;
+			previous = &*saved;
+		}
 	}
-	_lastMessageInfo = std::make_unique<MessageInfo>(saved);
+	if (saved) {
+		_lastMessageInfo = std::make_unique<MessageInfo>(*saved);
+	}
 	return _chat->writeBlock(block);
 }
 
@@ -2138,7 +2166,7 @@ void HtmlWriter::pushSection(
 Result HtmlWriter::writeSections() {
 	Expects(_summary != nullptr);
 
-	if (!_haveSections && _summaryNeedDivider) {
+	if (!_haveSections) {
 		auto block = _summary->pushDiv(
 			_summaryNeedDivider ? "sections with_divider" : "sections");
 		if (const auto result = _summary->writeBlock(block); !result) {
@@ -2167,27 +2195,19 @@ Result HtmlWriter::switchToNextChatFile(int index) {
 
 	const auto nextPath = messagesFile(index);
 	auto next = _chat->pushTag("a", {
-		{ "class", "pagination" },
+		{ "class", "pagination block_link" },
 		{ "href", nextPath.toUtf8() }
 	});
 	next.append("Next messages part");
 	next.append(_chat->popTag());
 	if (const auto result = _chat->writeBlock(next); !result) {
 		return result;
+	} else if (const auto end = _chat->close(); !end) {
+		return end;
 	}
 	_chat = fileWithRelativePath(_dialog.relativePath + nextPath);
-	auto block = _chat->pushHeader(
-		_dialog.name + ' ' + _dialog.lastName,
-		_dialogsRelativePath);
-	block.append(_chat->pushDiv("page_body chat_page"));
-	block.append(_chat->pushDiv("history"));
-	block.append(_chat->pushTag("a", {
-		{ "class", "pagination" },
-		{ "href", nextPath.toUtf8() }
-	}));
-	block.append("Previous messages part");
-	block.append(_chat->popTag());
-	return _chat->writeBlock(block);
+	_chatFileEmpty = true;
+	return Result::Success();
 }
 
 Result HtmlWriter::finish() {
