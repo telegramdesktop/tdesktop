@@ -501,41 +501,66 @@ UserpicsSlice ParseUserpicsSlice(
 	return result;
 }
 
-QString WriteImageThumb(
+std::pair<QString, QSize> WriteImageThumb(
 		const QString &basePath,
 		const QString &largePath,
-		int width,
-		int height,
+		Fn<QSize(QSize)> convertSize,
+		base::optional<QByteArray> format,
+		base::optional<int> quality,
 		const QString &postfix) {
 	if (largePath.isEmpty()) {
-		return QString();
+		return {};
 	}
 	const auto path = basePath + largePath;
 	QImageReader reader(path);
 	if (!reader.canRead()) {
-		return QString();
+		return {};
 	}
 	const auto size = reader.size();
 	if (size.isEmpty()
 		|| size.width() >= kMaxImageSize
 		|| size.height() >= kMaxImageSize) {
-		return QString();
+		return {};
 	}
 	auto image = reader.read();
 	if (image.isNull()) {
-		return QString();
+		return {};
 	}
-	const auto format = reader.format();
+	const auto finalSize = convertSize(image.size());
+	if (finalSize.isEmpty()) {
+		return {};
+	}
+	image = std::move(image).scaled(
+		finalSize,
+		Qt::IgnoreAspectRatio,
+		Qt::SmoothTransformation);
+	const auto finalFormat = format ? *format : reader.format();
+	const auto finalQuality = quality ? *quality : reader.quality();
 	const auto lastSlash = largePath.lastIndexOf('/');
 	const auto firstDot = largePath.indexOf('.', lastSlash + 1);
 	const auto thumb = (firstDot >= 0)
 		? largePath.mid(0, firstDot) + postfix + largePath.mid(firstDot)
 		: largePath + postfix;
 	const auto result = Output::File::PrepareRelativePath(basePath, thumb);
-	if (!image.save(basePath + result, reader.format(), reader.quality())) {
-		return QString();
+	if (!image.save(basePath + result, finalFormat, finalQuality)) {
+		return {};
 	}
-	return result;
+	return { result, finalSize };
+}
+
+QString WriteImageThumb(
+		const QString &basePath,
+		const QString &largePath,
+		int width,
+		int height,
+		const QString &postfix) {
+	return WriteImageThumb(
+		basePath,
+		largePath,
+		[=](QSize size) { return QSize(width, height); },
+		base::none,
+		base::none,
+		postfix).first;
 }
 
 ContactInfo ParseContactInfo(const MTPUser &data) {
@@ -780,7 +805,7 @@ Media ParseMedia(
 
 	auto result = Media();
 	data.match([&](const MTPDmessageMediaPhoto &data) {
-		result.content = data.has_photo()
+		auto photo = data.has_photo()
 			? ParsePhoto(
 				data.vphoto,
 				folder + "photos/"
@@ -788,7 +813,9 @@ Media ParseMedia(
 			: Photo();
 		if (data.has_ttl_seconds()) {
 			result.ttl = data.vttl_seconds.v;
+			photo.image.file = File();
 		}
+		result.content = photo;
 	}, [&](const MTPDmessageMediaGeo &data) {
 		result.content = ParseGeoPoint(data.vgeo);
 	}, [&](const MTPDmessageMediaContact &data) {
@@ -796,12 +823,14 @@ Media ParseMedia(
 	}, [&](const MTPDmessageMediaUnsupported &data) {
 		result.content = UnsupportedMedia();
 	}, [&](const MTPDmessageMediaDocument &data) {
-		result.content = data.has_document()
+		auto document = data.has_document()
 			? ParseDocument(context, data.vdocument, folder)
 			: Document();
 		if (data.has_ttl_seconds()) {
 			result.ttl = data.vttl_seconds.v;
+			document.file = File();
 		}
+		result.content = document;
 	}, [&](const MTPDmessageMediaWebPage &data) {
 		// Ignore web pages.
 	}, [&](const MTPDmessageMediaVenue &data) {
@@ -1053,6 +1082,10 @@ Message ParseMessage(
 				context,
 				data.vmedia,
 				mediaFolder);
+			if (result.media.ttl && !data.is_out()) {
+				result.media.file() = File();
+				result.media.thumb().file = File();
+			}
 			context.botId = 0;
 		}
 		result.text = ParseText(

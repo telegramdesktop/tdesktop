@@ -1096,6 +1096,11 @@ void ApiWrap::appendChatsSlice(
 	auto filtered = ranges::view::all(
 		info.list
 	) | ranges::view::filter([&](const Data::DialogInfo &info) {
+#ifdef _DEBUG
+		return (info.name == "Anta");
+#else
+#error "test"
+#endif
 		return (types & SettingsFromDialogsType(info.type)) != 0;
 	});
 	auto &list = to.info.list;
@@ -1365,10 +1370,12 @@ bool ApiWrap::processFileLoad(
 		return Type::Photo;
 	}) : Type(0);
 
+	const auto limit = _settings->media.sizeLimit;
 	if ((_settings->media.types & type) != type) {
 		file.skipReason = SkipReason::FileType;
 		return true;
-	} else if (file.size >= _settings->media.sizeLimit) {
+	} else if ((message ? message->file().size : file.size) >= limit) {
+		// Don't load thumbs for large files that we skip.
 		file.skipReason = SkipReason::FileSize;
 		return true;
 	}

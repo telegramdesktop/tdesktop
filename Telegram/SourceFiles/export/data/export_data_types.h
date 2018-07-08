@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/optional.h"
 #include "base/variant.h"
 
+#include <QtCore/QSize>
 #include <QtCore/QString>
 #include <QtCore/QByteArray>
 
@@ -81,6 +82,14 @@ struct Image {
 	int height = 0;
 	File file;
 };
+
+std::pair<QString, QSize> WriteImageThumb(
+	const QString &basePath,
+	const QString &largePath,
+	Fn<QSize(QSize)> convertSize,
+	base::optional<QByteArray> format = base::none,
+	base::optional<int> quality = base::none,
+	const QString &postfix = "_thumb");
 
 QString WriteImageThumb(
 	const QString &basePath,

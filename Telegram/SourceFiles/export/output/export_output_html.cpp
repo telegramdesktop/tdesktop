@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/data/export_data_types.h"
 #include "core/utils.h"
 
+#include <QtCore/QSize>
 #include <QtCore/QFile>
 #include <QtCore/QDateTime>
 
@@ -28,6 +29,14 @@ constexpr auto kServiceMessagePhotoSize = 60;
 constexpr auto kHistoryUserpicSize = 42;
 constexpr auto kSavedMessagesColorIndex = 3;
 constexpr auto kJoinWithinSeconds = 900;
+constexpr auto kPhotoMaxWidth = 520;
+constexpr auto kPhotoMaxHeight = 520;
+constexpr auto kPhotoMinWidth = 80;
+constexpr auto kPhotoMinHeight = 80;
+constexpr auto kStickerMaxWidth = 384;
+constexpr auto kStickerMaxHeight = 384;
+constexpr auto kStickerMinWidth = 80;
+constexpr auto kStickerMinHeight = 80;
 
 const auto kLineBreak = QByteArrayLiteral("<br>");
 
@@ -39,6 +48,50 @@ using MediaData = details::MediaData;
 bool IsGlobalLink(const QString &link) {
 	return link.startsWith(qstr("http://"), Qt::CaseInsensitive)
 		|| link.startsWith(qstr("https://"), Qt::CaseInsensitive);
+}
+
+QByteArray NoFileDescription(Data::File::SkipReason reason) {
+	using SkipReason = Data::File::SkipReason;
+	switch (reason) {
+	case SkipReason::Unavailable:
+		return "Unavailable, please try again later.";
+	case SkipReason::FileSize:
+		return "Exceeds maximum size, "
+			"change data exporting settings to download.";
+	case SkipReason::FileType:
+		return "Not included, "
+			"change data exporting settings to download.";
+	case SkipReason::None:
+		return "";
+	}
+	Unexpected("Skip reason in NoFileDescription.");
+}
+
+auto CalculateThumbSize(
+		int maxWidth,
+		int maxHeight,
+		int minWidth,
+		int minHeight,
+		bool expandForRetina = false) {
+	return [=](QSize largeSize) {
+		const auto multiplier = (expandForRetina ? 2 : 1);
+		const auto checkWidth = largeSize.width() * multiplier;
+		const auto checkHeight = largeSize.height() * multiplier;
+		const auto smallSize = (checkWidth > maxWidth
+			|| checkHeight > maxHeight)
+			? largeSize.scaled(
+				maxWidth,
+				maxHeight,
+				Qt::KeepAspectRatio)
+			: largeSize;
+		const auto retinaSize = QSize(
+			smallSize.width() & ~0x01,
+			smallSize.height() & ~0x01);
+		return (retinaSize.width() < kPhotoMinWidth
+			|| retinaSize.height() < kPhotoMinHeight)
+			? QSize()
+			: retinaSize;
+	};
 }
 
 QByteArray SerializeString(const QByteArray &value) {
@@ -517,11 +570,6 @@ public:
 		const QString &basePath,
 		const PeersMap &peers,
 		const QString &internalLinksDomain);
-	[[nodiscard]] QByteArray pushMedia(
-		const Data::Message &message,
-		const QString &basePath,
-		const PeersMap &peers,
-		const QString &internalLinksDomain);
 
 	[[nodiscard]] Result writeBlock(const QByteArray &block);
 
@@ -554,6 +602,24 @@ private:
 		const QString &basePath,
 		const PeersMap &peers,
 		const QString &internalLinksDomain) const;
+	[[nodiscard]] QByteArray pushMedia(
+		const Data::Message &message,
+		const QString &basePath,
+		const PeersMap &peers,
+		const QString &internalLinksDomain);
+	[[nodiscard]] QByteArray pushGenericMedia(const MediaData &data);
+	[[nodiscard]] QByteArray pushStickerMedia(
+		const Data::Document &data,
+		const QString &basePath);
+	[[nodiscard]] QByteArray pushAnimatedMedia(
+		const Data::Document &data,
+		const QString &basePath);
+	[[nodiscard]] QByteArray pushVideoFileMedia(
+		const Data::Document &data,
+		const QString &basePath);
+	[[nodiscard]] QByteArray pushPhotoMedia(
+		const Data::Photo &data,
+		const QString &basePath);
 
 	File _file;
 	bool _closed = false;
@@ -1137,9 +1203,29 @@ QByteArray HtmlWriter::Wrap::pushMedia(
 		basePath,
 		peers,
 		internalLinksDomain);
-	if (data.classes.isEmpty()) {
-		return QByteArray();
+	if (!data.classes.isEmpty()) {
+		return pushGenericMedia(data);
 	}
+	const auto &content = message.media.content;
+	if (const auto document = base::get_if<Data::Document>(&content)) {
+		Assert(!message.media.ttl);
+		if (document->isSticker) {
+			return pushStickerMedia(*document, basePath);
+		} else if (document->isAnimated) {
+			return pushAnimatedMedia(*document, basePath);
+		} else if (document->isVideoFile) {
+			return pushVideoFileMedia(*document, basePath);
+		}
+		Unexpected("Non generic document in HtmlWriter::Wrap::pushMedia.");
+	} else if (const auto photo = base::get_if<Data::Photo>(&content)) {
+		Assert(!message.media.ttl);
+		return pushPhotoMedia(*photo, basePath);
+	}
+	Assert(!content.has_value());
+	return QByteArray();
+}
+
+QByteArray HtmlWriter::Wrap::pushGenericMedia(const MediaData &data) {
 	auto result = pushDiv("media_wrap clearfix");
 	if (data.link.isEmpty()) {
 		result.append(pushDiv("media clearfix pull_left " + data.classes));
@@ -1189,6 +1275,222 @@ QByteArray HtmlWriter::Wrap::pushMedia(
 	return result;
 }
 
+QByteArray HtmlWriter::Wrap::pushStickerMedia(
+		const Data::Document &data,
+		const QString &basePath) {
+	using namespace Data;
+
+	const auto [thumb, size] = WriteImageThumb(
+		basePath,
+		data.file.relativePath,
+		CalculateThumbSize(
+			kStickerMaxWidth,
+			kStickerMaxHeight,
+			kStickerMinWidth,
+			kStickerMinHeight),
+		"PNG",
+		-1);
+	if (thumb.isEmpty()) {
+		auto generic = MediaData();
+		generic.title = "Sticker";
+		generic.status = data.stickerEmoji;
+		if (data.file.relativePath.isEmpty()) {
+			generic.status += ", " + FormatFileSize(data.file.size);
+		} else {
+			generic.link = data.file.relativePath;
+		}
+		generic.description = NoFileDescription(data.file.skipReason);
+		generic.classes = "media_photo";
+		return pushGenericMedia(generic);
+	}
+	auto result = pushDiv("media_wrap clearfix");
+	result.append(pushTag("a", {
+		{ "class", "sticker_wrap clearfix pull_left" },
+		{
+			"href",
+			relativePath(data.file.relativePath).toUtf8()
+		}
+	}));
+	const auto sizeStyle = "width: "
+		+ NumberToString(size.width() / 2)
+		+ "px; height: "
+		+ NumberToString(size.height() / 2)
+		+ "px";
+	result.append(pushTag("img", {
+		{ "class", "sticker" },
+		{ "style", sizeStyle },
+		{ "src", relativePath(thumb).toUtf8() },
+		{ "empty", "" }
+	}));
+	result.append(popTag());
+	result.append(popTag());
+	return result;
+}
+
+QByteArray HtmlWriter::Wrap::pushAnimatedMedia(
+		const Data::Document &data,
+		const QString &basePath) {
+	using namespace Data;
+
+	auto size = QSize(data.width, data.height);
+	auto thumbSize = CalculateThumbSize(
+		kPhotoMaxWidth,
+		kPhotoMaxHeight,
+		kPhotoMinWidth,
+		kPhotoMinHeight,
+		true)(size);
+	if (data.thumb.file.relativePath.isEmpty()
+		|| data.file.relativePath.isEmpty()
+		|| !thumbSize.width()
+		|| !thumbSize.height()) {
+		auto generic = MediaData();
+		generic.title = "Animation";
+		generic.status = FormatFileSize(data.file.size);
+		generic.link = data.file.relativePath;
+		generic.description = NoFileDescription(data.file.skipReason);
+		generic.classes = "media_video";
+		return pushGenericMedia(generic);
+	}
+	auto result = pushDiv("media_wrap clearfix");
+	result.append(pushTag("a", {
+		{ "class", "animated_wrap clearfix pull_left" },
+		{
+			"href",
+			relativePath(data.file.relativePath).toUtf8()
+		}
+	}));
+	result.append(pushDiv("video_play_bg"));
+	result.append(pushDiv("gif_play"));
+	result.append("GIF");
+	result.append(popTag());
+	result.append(popTag());
+	const auto sizeStyle = "width: "
+		+ NumberToString(thumbSize.width() / 2)
+		+ "px; height: "
+		+ NumberToString(thumbSize.height() / 2)
+		+ "px";
+	result.append(pushTag("img", {
+		{ "class", "animated" },
+		{ "style", sizeStyle },
+		{ "src", relativePath(data.thumb.file.relativePath).toUtf8() },
+		{ "empty", "" }
+	}));
+	result.append(popTag());
+	result.append(popTag());
+	return result;
+}
+
+QByteArray HtmlWriter::Wrap::pushVideoFileMedia(
+		const Data::Document &data,
+		const QString &basePath) {
+	using namespace Data;
+
+	auto size = QSize(data.width, data.height);
+	auto thumbSize = CalculateThumbSize(
+		kPhotoMaxWidth,
+		kPhotoMaxHeight,
+		kPhotoMinWidth,
+		kPhotoMinHeight,
+		true)(size);
+	if (data.thumb.file.relativePath.isEmpty()
+		|| data.file.relativePath.isEmpty()
+		|| !thumbSize.width()
+		|| !thumbSize.height()) {
+		auto generic = MediaData();
+		generic.title = "Video file";
+		generic.status = FormatDuration(data.duration);
+		if (data.file.relativePath.isEmpty()) {
+			generic.status += ", " + FormatFileSize(data.file.size);
+		} else {
+			generic.link = data.file.relativePath;
+		}
+		generic.description = NoFileDescription(data.file.skipReason);
+		generic.classes = "media_video";
+		return pushGenericMedia(generic);
+	}
+	auto result = pushDiv("media_wrap clearfix");
+	result.append(pushTag("a", {
+		{ "class", "video_file_wrap clearfix pull_left" },
+		{
+			"href",
+			relativePath(data.file.relativePath).toUtf8()
+		}
+	}));
+	result.append(pushDiv("video_play_bg"));
+	result.append(pushDiv("video_play"));
+	result.append(popTag());
+	result.append(popTag());
+	result.append(pushDiv("video_duration"));
+	result.append(FormatDuration(data.duration));
+	result.append(popTag());
+	const auto sizeStyle = "width: "
+		+ NumberToString(thumbSize.width() / 2)
+		+ "px; height: "
+		+ NumberToString(thumbSize.height() / 2)
+		+ "px";
+	result.append(pushTag("img", {
+		{ "class", "video_file" },
+		{ "style", sizeStyle },
+		{ "src", relativePath(data.thumb.file.relativePath).toUtf8() },
+		{ "empty", "" }
+	}));
+	result.append(popTag());
+	result.append(popTag());
+	return result;
+}
+
+QByteArray HtmlWriter::Wrap::pushPhotoMedia(
+		const Data::Photo &data,
+		const QString &basePath) {
+	using namespace Data;
+
+	const auto [thumb, size] = WriteImageThumb(
+		basePath,
+		data.image.file.relativePath,
+		CalculateThumbSize(
+			kPhotoMaxWidth,
+			kPhotoMaxHeight,
+			kPhotoMinWidth,
+			kPhotoMinHeight));
+	if (thumb.isEmpty()) {
+		auto generic = MediaData();
+		generic.title = "Photo";
+		generic.status = NumberToString(data.image.width)
+			+ "x"
+			+ NumberToString(data.image.height);
+		if (data.image.file.relativePath.isEmpty()) {
+			generic.status += ", " + FormatFileSize(data.image.file.size);
+		} else {
+			generic.link = data.image.file.relativePath;
+		}
+		generic.description = NoFileDescription(data.image.file.skipReason);
+		generic.classes = "media_photo";
+		return pushGenericMedia(generic);
+	}
+	auto result = pushDiv("media_wrap clearfix");
+	result.append(pushTag("a", {
+		{ "class", "photo_wrap clearfix pull_left" },
+		{
+			"href",
+			relativePath(data.image.file.relativePath).toUtf8()
+		}
+	}));
+	const auto sizeStyle = "width: "
+		+ NumberToString(size.width() / 2)
+		+ "px; height: "
+		+ NumberToString(size.height() / 2)
+		+ "px";
+	result.append(pushTag("img", {
+		{ "class", "photo" },
+		{ "style", sizeStyle },
+		{ "src", relativePath(thumb).toUtf8() },
+		{ "empty", "" }
+	}));
+	result.append(popTag());
+	result.append(popTag());
+	return result;
+}
+
 MediaData HtmlWriter::Wrap::prepareMediaData(
 		const Data::Message &message,
 		const QString &basePath,
@@ -1222,50 +1524,64 @@ MediaData HtmlWriter::Wrap::prepareMediaData(
 		return result;
 	}
 
-	message.media.content.match([&](const Photo &photo) {
-		// #TODO export: photo + self destruct (ttl)
-		result.title = "Photo";
-		result.status = NumberToString(photo.image.width)
-			+ "x"
-			+ NumberToString(photo.image.height);
-		result.classes = "media_file"; // #TODO export
-		result.link = photo.image.file.relativePath;
+	message.media.content.match([&](const Photo &data) {
+		if (message.media.ttl) {
+			result.title = "Self-destructing photo";
+			result.status = data.id
+				? "Please view it on your mobile"
+				: "Expired";
+			result.classes = "media_photo";
+			return;
+		}
+		// At least try to pushPhotoMedia.
 	}, [&](const Document &data) {
-		// #TODO export: sticker + thumb (video, video message) + self destruct (ttl)
+		if (message.media.ttl) {
+			result.title = "Self-destructing video";
+			result.status = data.id
+				? "Please view it on your mobile"
+				: "Expired";
+			result.classes = "media_video";
+			return;
+		}
+		const auto hasFile = !data.file.relativePath.isEmpty();
 		result.link = data.file.relativePath;
+		result.description = NoFileDescription(data.file.skipReason);
 		if (data.isSticker) {
-			result.title = "Sticker";
-			result.status = data.stickerEmoji;
-			result.classes = "media_file"; // #TODO export
+			// At least try to pushStickerMedia.
 		} else if (data.isVideoMessage) {
 			result.title = "Video message";
 			result.status = FormatDuration(data.duration);
+			if (!hasFile) {
+				result.status += ", " + FormatFileSize(data.file.size);
+			}
 			result.thumb = data.thumb.file.relativePath;
-			result.classes = "media_file";
+			result.classes = "media_video";
 		} else if (data.isVoiceMessage) {
 			result.title = "Voice message";
 			result.status = FormatDuration(data.duration);
+			if (!hasFile) {
+				result.status += ", " + FormatFileSize(data.file.size);
+			}
 			result.classes = "media_voice_message";
 		} else if (data.isAnimated) {
-			result.title = "Animation";
-			result.status = FormatFileSize(data.duration);
-			result.classes = "media_file"; // #TODO export
+			// At least try to pushAnimatedMedia.
 		} else if (data.isVideoFile) {
-			result.title = "Video file";
-			result.status = FormatDuration(data.duration);
-			result.classes = "media_file"; // #TODO export
+			// At least try to pushVideoFileMedia.
 		} else if (data.isAudioFile) {
 			result.title = (data.songPerformer.isEmpty()
 				|| data.songTitle.isEmpty())
 				? QByteArray("Audio file")
 				: data.songPerformer + " \xe2\x80\x93 " + data.songTitle;
 			result.status = FormatDuration(data.duration);
+			if (!hasFile) {
+				result.status += ", " + FormatFileSize(data.file.size);
+			}
 			result.classes = "media_audio_file";
 		} else {
 			result.title = data.name.isEmpty()
 				? QByteArray("File")
 				: data.name;
-			result.status = FormatFileSize(data.duration);
+			result.status = FormatFileSize(data.file.size);
 			result.classes = "media_file";
 		}
 	}, [&](const SharedContact &data) {
@@ -1434,7 +1750,9 @@ Result HtmlWriter::start(
 		"images/media_game.png",
 		"images/media_location.png",
 		"images/media_music.png",
+		"images/media_photo.png",
 		"images/media_shop.png",
+		"images/media_video.png",
 		"images/media_voice.png",
 		"images/section_calls.png",
 		"images/section_chats.png",

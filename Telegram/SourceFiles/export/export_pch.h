@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QFile>
 #include <QtCore/QFileInfo>
 #include <QtCore/QDir>
+#include <QtCore/QSize>
 #include <QtCore/QTextStream>
 #include <QtCore/QDateTime>
 #include <QtCore/QString>

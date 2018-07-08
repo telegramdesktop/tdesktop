@@ -56,6 +56,7 @@ pre {
 }
 .page_header {
     position: fixed;
+    z-index: 10;
     background-color: #ffffff;
     width: 100%;
     border-bottom: 1px solid #e3e6e8;
@@ -126,7 +127,8 @@ pre {
 }
 .color_green,
 .userpic2,
-.media_call.success .fill {
+.media_call.success .fill,
+.media_photo .fill {
     background-color: #64bf47;
 }
 .color_yellow,
@@ -152,7 +154,8 @@ pre {
 }
 .color_sea,
 .userpic7,
-.media_location .fill {
+.media_location .fill,
+.media_video .fill {
     background-color: #47bcd1;
 }
 .color_orange,
@@ -313,6 +316,63 @@ a.block_link:hover {
     padding-top: 4px;
     font-size: 13px;
 }
+.default .video_file_wrap,
+.default .animated_wrap {
+    position: relative;
+}
+.default .video_file,
+.default .animated,
+.default .photo,
+.default .sticker {
+    display: block;
+}
+.video_duration {
+    background: rgba(0, 0, 0, .4);
+    padding: 0px 5px;
+    position: absolute;
+    z-index: 2;
+    border-radius: 2px;
+    right: 3px;
+    bottom: 3px;
+    color: #ffffff;
+    font-size: 11px;
+}
+.video_play_bg {
+    background: rgba(0, 0, 0, .4);
+    width: 40px;
+    height: 40px;
+    line-height: 0;
+    position: absolute;
+    z-index: 2;
+    border-radius: 50%;
+    overflow: hidden;
+    margin: -20px auto 0 -20px;
+    top: 50%;
+    left: 50%;
+    pointer-events: none;
+}
+.video_play {
+    position: absolute;
+    display: inline-block;
+    top: 50%;
+    left: 50%;
+    margin-left: -5px;
+    margin-top: -9px;
+    z-index: 1;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 9px 0 9px 14px;
+    border-color: transparent transparent transparent #fff;
+}
+.gif_play {
+    font-weight: 700;
+    color: #FFF;
+    display: block;
+    line-height: 40px;
+    font-size: 13px;
+    text-align: center;
+}
 .pagination {
     text-align: center;
     padding: 20px;
@@ -349,31 +409,37 @@ a.block_link:hover {
 .page_header a.content {
     background-image: url(../images/back.png);
 }
-.media_call .thumb {
+.media_call .fill {
     background-image: url(../images/media_call.png)
 }
-.media_contact .thumb {
+.media_contact .fill {
     background-image: url(../images/media_contact.png)
 }
-.media_file .thumb {
+.media_file .fill {
     background-image: url(../images/media_file.png)
 }
-.media_game .thumb {
+.media_game .fill {
     background-image: url(../images/media_game.png)
 }
-.media_live_location .thumb,
-.media_location .thumb,
-.media_venue .thumb {
+.media_live_location .fill,
+.media_location .fill,
+.media_venue .fill {
     background-image: url(../images/media_location.png)
 }
-.media_audio_file .thumb {
+.media_audio_file .fill {
     background-image: url(../images/media_music.png)
 }
-.media_invoice .thumb {
+.media_invoice .fill {
     background-image: url(../images/media_shop.png)
 }
-.media_voice_message .thumb {
+.media_voice_message .fill {
     background-image: url(../images/media_voice.png)
+}
+.media_photo .fill {
+    background-image: url(../images/media_photo.png)
+}
+.media_video .fill {
+    background-image: url(../images/media_video.png)
 }
 
 @media only screen and (min--moz-device-pixel-ratio: 2), only screen and (-o-min-device-pixel-ratio: 2/1), only screen and (-webkit-min-device-pixel-ratio: 2), only screen and (min-device-pixel-ratio: 2) {
@@ -432,5 +498,11 @@ a.block_link:hover {
 }
 .media_voice_message .fill {
     background-image: url(../images/media_voice@2x.png)
+}
+.media_photo .fill {
+    background-image: url(../images/media_photo@2x.png)
+}
+.media_video .fill {
+    background-image: url(../images/media_video@2x.png)
 }
 }
