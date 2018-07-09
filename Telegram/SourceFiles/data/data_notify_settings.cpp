@@ -73,15 +73,22 @@ bool NotifySettingsValue::change(
 	const auto notMuted = muteForSeconds
 		? !(*muteForSeconds)
 		: (!_mute || *_mute <= now);
-	return change(muteForSeconds
+	const auto newMute = muteForSeconds
 		? base::make_optional((*muteForSeconds > 0)
 			? (now + *muteForSeconds)
 			: 0)
-		: base::none, (_sound && _sound->isEmpty() && notMuted)
+		: _mute;
+	const auto newSound = (_sound && _sound->isEmpty() && notMuted)
 		? qsl("default")
-		: _sound, _showPreviews, silentPosts
+		: _sound;
+	const auto newSilentPosts = silentPosts
 		? base::make_optional(*silentPosts)
-		: base::none);
+		: _silent;
+	return change(
+		newMute,
+		newSound,
+		_showPreviews,
+		newSilentPosts);
 }
 
 bool NotifySettingsValue::change(
