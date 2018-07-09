@@ -10,6 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class ClickHandler;
 using ClickHandlerPtr = std::shared_ptr<ClickHandler>;
 
+struct ClickContext {
+	Qt::MouseButton button = Qt::LeftButton;
+	QVariant other;
+};
+
 enum ExpandLinksMode {
 	ExpandLinksNone,
 	ExpandLinksShortened,
@@ -35,7 +40,7 @@ public:
 	virtual ~ClickHandler() {
 	}
 
-	virtual void onClick(Qt::MouseButton) const = 0;
+	virtual void onClick(ClickContext context) const = 0;
 
 	// What text to show in a tooltip when mouse is over that click handler as a link in Text.
 	virtual QString tooltip() const {
@@ -159,9 +164,10 @@ private:
 
 class LeftButtonClickHandler : public ClickHandler {
 public:
-	void onClick(Qt::MouseButton button) const override final {
-		if (button != Qt::LeftButton) return;
-		onClickImpl();
+	void onClick(ClickContext context) const override final {
+		if (context.button == Qt::LeftButton) {
+			onClickImpl();
+		}
 	}
 
 protected:
@@ -173,8 +179,8 @@ class LambdaClickHandler : public ClickHandler {
 public:
 	LambdaClickHandler(Fn<void()> handler) : _handler(std::move(handler)) {
 	}
-	void onClick(Qt::MouseButton button) const override final {
-		if (button == Qt::LeftButton && _handler) {
+	void onClick(ClickContext context) const override final {
+		if (context.button == Qt::LeftButton && _handler) {
 			_handler();
 		}
 	}

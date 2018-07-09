@@ -48,7 +48,7 @@ public:
 	DateClickHandler(Dialogs::Key chat, QDate date);
 
 	void setDate(QDate date);
-	void onClick(Qt::MouseButton) const override;
+	void onClick(ClickContext context) const override;
 
 private:
 	Dialogs::Key _chat;

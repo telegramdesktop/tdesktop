@@ -1277,8 +1277,9 @@ void HistoryInner::mouseActionFinish(
 			}
 		}
 	}
-	if (App::pressedItem()) {
-		repaintItem(App::pressedItem());
+	const auto pressedItemView = App::pressedItem();
+	if (pressedItemView) {
+		repaintItem(pressedItemView);
 		App::pressedItem(nullptr);
 	}
 
@@ -1286,7 +1287,13 @@ void HistoryInner::mouseActionFinish(
 
 	if (activated) {
 		mouseActionCancel();
-		App::activateClickHandler(activated, button);
+		const auto pressedItemId = pressedItemView
+			? pressedItemView->data()->fullId()
+			: FullMsgId();
+		App::activateClickHandler(activated, {
+			button,
+			QVariant::fromValue(pressedItemId)
+		});
 		return;
 	}
 	if ((_mouseAction == MouseAction::PrepareSelect)

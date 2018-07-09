@@ -1979,7 +1979,10 @@ void ListWidget::mouseActionFinish(
 		activated = nullptr;
 	} else if (activated) {
 		mouseActionCancel();
-		App::activateClickHandler(activated, button);
+		App::activateClickHandler(activated, {
+			button,
+			QVariant::fromValue(pressState.itemId)
+		});
 		return;
 	}
 	if (needItemSelectionToggle) {

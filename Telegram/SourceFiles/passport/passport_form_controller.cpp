@@ -2106,7 +2106,7 @@ void FormController::cancelSure() {
 					: (_serviceErrorText.isEmpty()
 						? "tg_passport=cancel"
 						: "tg_passport=error&error=" + _serviceErrorText)));
-			UrlClickHandler::doOpen(url);
+			UrlClickHandler::Open(url);
 		}
 		const auto timeout = _view->closeGetDuration();
 		App::CallDelayed(timeout, this, [=] {

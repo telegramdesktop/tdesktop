@@ -841,13 +841,13 @@ void Messenger::checkStartUrl() {
 	if (!cStartUrl().isEmpty() && !locked()) {
 		auto url = cStartUrl();
 		cSetStartUrl(QString());
-		if (!openLocalUrl(url)) {
+		if (!openLocalUrl(url, {})) {
 			cSetStartUrl(url);
 		}
 	}
 }
 
-bool Messenger::openLocalUrl(const QString &url) {
+bool Messenger::openLocalUrl(const QString &url, QVariant context) {
 	auto urlTrimmed = url.trimmed();
 	if (urlTrimmed.size() > 8192) urlTrimmed = urlTrimmed.mid(0, 8192);
 
@@ -936,7 +936,12 @@ bool Messenger::openLocalUrl(const QString &url) {
 					startToken = gameParam;
 					post = ShowAtGameShareMsgId;
 				}
-				main->openPeerByName(domain, post, startToken);
+				const auto clickFromMessageId = context.value<FullMsgId>();
+				main->openPeerByName(
+					domain,
+					post,
+					startToken,
+					clickFromMessageId);
 				return true;
 			}
 		}

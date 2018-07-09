@@ -70,8 +70,8 @@ PeerClickHandler::PeerClickHandler(not_null<PeerData*> peer)
 : _peer(peer) {
 }
 
-void PeerClickHandler::onClick(Qt::MouseButton button) const {
-	if (button == Qt::LeftButton && App::wnd()) {
+void PeerClickHandler::onClick(ClickContext context) const {
+	if (context.button == Qt::LeftButton && App::wnd()) {
 		auto controller = App::wnd()->controller();
 		if (_peer
 			&& _peer->isChannel()

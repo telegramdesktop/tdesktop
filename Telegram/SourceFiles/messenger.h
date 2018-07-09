@@ -151,7 +151,7 @@ public:
 	QString createInternalLink(const QString &query) const;
 	QString createInternalLinkFull(const QString &query) const;
 	void checkStartUrl();
-	bool openLocalUrl(const QString &url);
+	bool openLocalUrl(const QString &url, QVariant context);
 
 	void uploadProfilePhoto(QImage &&tosend, const PeerId &peerId);
 	void regPhotoUpdate(const PeerId &peer, const FullMsgId &msgId);

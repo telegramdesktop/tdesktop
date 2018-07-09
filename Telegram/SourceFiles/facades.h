@@ -74,6 +74,7 @@ void openPeerByName(
 void joinGroupByHash(const QString &hash);
 void showSettings();
 
+void activateClickHandler(ClickHandlerPtr handler, ClickContext context);
 void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button);
 
 } // namespace App

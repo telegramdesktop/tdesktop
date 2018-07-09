@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class TextClickHandler : public ClickHandler {
 public:
-
 	TextClickHandler(bool fullDisplayed = true)
 	: _fullDisplayed(fullDisplayed) {
 	}
@@ -56,10 +55,11 @@ public:
 		int entityOffset,
 		const QStringRef &textPart) const override;
 
-	static void doOpen(QString url);
-	void onClick(Qt::MouseButton button) const override {
+	static void Open(QString url, QVariant context = {});
+	void onClick(ClickContext context) const override {
+		const auto button = context.button;
 		if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-			doOpen(url());
+			Open(url(), context.other);
 		}
 	}
 
@@ -92,10 +92,11 @@ public:
 			: UrlClickHandler::copyToClipboardContextItemText();
 	}
 
-	static void doOpen(QString url);
-	void onClick(Qt::MouseButton button) const override {
+	static void Open(QString url, QVariant context = {});
+	void onClick(ClickContext context) const override {
+		const auto button = context.button;
 		if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-			doOpen(url());
+			Open(url(), context.other);
 		}
 	}
 
@@ -115,7 +116,7 @@ public:
 	: UrlClickHandler(url, false)
 	, _bot(bot) {
 	}
-	void onClick(Qt::MouseButton button) const override;
+	void onClick(ClickContext context) const override;
 
 private:
 	UserData *_bot;
@@ -127,7 +128,7 @@ public:
 	MentionClickHandler(const QString &tag) : _tag(tag) {
 	}
 
-	void onClick(Qt::MouseButton button) const override;
+	void onClick(ClickContext context) const override;
 
 	QString dragText() const override {
 		return _tag;
@@ -158,7 +159,7 @@ public:
 		, _accessHash(accessHash) {
 	}
 
-	void onClick(Qt::MouseButton button) const override;
+	void onClick(ClickContext context) const override;
 
 	TextWithEntities getExpandedLinkTextWithEntities(
 		ExpandLinksMode mode,
@@ -179,7 +180,7 @@ public:
 	HashtagClickHandler(const QString &tag) : _tag(tag) {
 	}
 
-	void onClick(Qt::MouseButton button) const override;
+	void onClick(ClickContext context) const override;
 
 	QString dragText() const override {
 		return _tag;
@@ -207,7 +208,7 @@ public:
 	CashtagClickHandler(const QString &tag) : _tag(tag) {
 	}
 
-	void onClick(Qt::MouseButton button) const override;
+	void onClick(ClickContext context) const override;
 
 	QString dragText() const override {
 		return _tag;
@@ -237,7 +238,7 @@ public:
 	BotCommandClickHandler(const QString &cmd) : _cmd(cmd) {
 	}
 
-	void onClick(Qt::MouseButton button) const override;
+	void onClick(ClickContext context) const override;
 
 	QString dragText() const override {
 		return _cmd;

@@ -33,7 +33,7 @@ style::color PeerUserpicColor(PeerId peerId);
 class PeerClickHandler : public ClickHandler {
 public:
 	PeerClickHandler(not_null<PeerData*> peer);
-	void onClick(Qt::MouseButton button) const override;
+	void onClick(ClickContext context) const override;
 
 	not_null<PeerData*> peer() const {
 		return _peer;

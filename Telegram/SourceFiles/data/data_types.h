@@ -206,6 +206,8 @@ struct FullMsgId {
 
 };
 
+Q_DECLARE_METATYPE(FullMsgId);
+
 using MessageIdsList = std::vector<FullMsgId>;
 
 inline PeerId peerFromMessage(const MTPmessage &msg) {

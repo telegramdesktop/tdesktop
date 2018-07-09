@@ -29,7 +29,7 @@ public:
 // this type used as a flag, we dynamic_cast<> to it
 class SendClickHandler : public ClickHandler {
 public:
-	void onClick(Qt::MouseButton) const override {
+	void onClick(ClickContext context) const override {
 	}
 };
 

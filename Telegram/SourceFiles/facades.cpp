@@ -100,9 +100,9 @@ void activateBotCommand(
 			}
 		}
 		if (skipConfirmation) {
-			UrlClickHandler::doOpen(url);
+			UrlClickHandler::Open(url);
 		} else {
-			HiddenUrlClickHandler::doOpen(url);
+			HiddenUrlClickHandler::Open(url);
 		}
 	} break;
 
@@ -177,10 +177,14 @@ void showSettings() {
 	}
 }
 
-void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
-	crl::on_main(wnd(), [handler, button] {
-		handler->onClick(button);
+void activateClickHandler(ClickHandlerPtr handler, ClickContext context) {
+	crl::on_main(wnd(), [=] {
+		handler->onClick(context);
 	});
+}
+
+void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
+	activateClickHandler(handler, ClickContext{ button });
 }
 
 } // namespace App

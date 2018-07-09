@@ -281,17 +281,17 @@ void Result::forget() {
 
 void Result::openFile() {
 	if (_document) {
-		DocumentOpenClickHandler(_document).onClick(Qt::LeftButton);
+		DocumentOpenClickHandler(_document).onClick({});
 	} else if (_photo) {
-		PhotoOpenClickHandler(_photo).onClick(Qt::LeftButton);
+		PhotoOpenClickHandler(_photo).onClick({});
 	}
 }
 
 void Result::cancelFile() {
 	if (_document) {
-		DocumentCancelClickHandler(_document).onClick(Qt::LeftButton);
+		DocumentCancelClickHandler(_document).onClick({});
 	} else if (_photo) {
-		PhotoCancelClickHandler(_photo).onClick(Qt::LeftButton);
+		PhotoCancelClickHandler(_photo).onClick({});
 	}
 }
 

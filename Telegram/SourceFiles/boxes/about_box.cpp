@@ -33,7 +33,7 @@ void AboutBox::prepare() {
 
 	const auto linkFilter = [](const ClickHandlerPtr &link, auto button) {
 		if (const auto url = dynamic_cast<UrlClickHandler*>(link.get())) {
-			url->UrlClickHandler::onClick(button);
+			url->UrlClickHandler::onClick({ button });
 			return false;
 		}
 		return true;

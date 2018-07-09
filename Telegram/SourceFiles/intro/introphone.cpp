@@ -45,7 +45,7 @@ Locale: ") + Platform::SystemLanguage();
 		+ "&body="
 		+ qthelp::url_encode(body);
 
-	UrlClickHandler::doOpen(url);
+	UrlClickHandler::Open(url);
 }
 
 } // namespace

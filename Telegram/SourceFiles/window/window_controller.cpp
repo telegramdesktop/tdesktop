@@ -35,7 +35,7 @@ void DateClickHandler::setDate(QDate date) {
 	_date = date;
 }
 
-void DateClickHandler::onClick(Qt::MouseButton) const {
+void DateClickHandler::onClick(ClickContext context) const {
 	App::wnd()->controller()->showJumpToDate(_chat, _date);
 }
 

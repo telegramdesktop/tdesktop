@@ -26,7 +26,7 @@ QString LocationClickHandler::copyToClipboardContextItemText() const {
 	return lang(lng_context_copy_link);
 }
 
-void LocationClickHandler::onClick(Qt::MouseButton button) const {
+void LocationClickHandler::onClick(ClickContext context) const {
 	if (!psLaunchMaps(_coords)) {
 		QDesktopServices::openUrl(_text);
 	}

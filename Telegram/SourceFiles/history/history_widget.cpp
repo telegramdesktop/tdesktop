@@ -3546,12 +3546,12 @@ void HistoryWidget::botCallbackDone(
 			auto url = qs(answerData.vurl);
 			if (info.game) {
 				url = AppendShareGameScoreUrl(url, info.msgId);
-				BotGameUrlClickHandler(info.bot, url).onClick(Qt::LeftButton);
+				BotGameUrlClickHandler(info.bot, url).onClick({});
 				if (item) {
 					updateSendAction(item->history(), SendAction::Type::PlayGame);
 				}
 			} else {
-				UrlClickHandler(url).onClick(Qt::LeftButton);
+				UrlClickHandler(url).onClick({});
 			}
 		}
 	}

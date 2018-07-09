@@ -3695,7 +3695,11 @@ bool MainWidget::started() {
 	return _started;
 }
 
-void MainWidget::openPeerByName(const QString &username, MsgId msgId, const QString &startToken) {
+void MainWidget::openPeerByName(
+		const QString &username,
+		MsgId msgId,
+		const QString &startToken,
+		FullMsgId clickFromMessageId) {
 	Messenger::Instance().hideMediaView();
 
 	PeerData *peer = App::peerByName(username);
@@ -3736,7 +3740,13 @@ void MainWidget::openPeerByName(const QString &username, MsgId msgId, const QStr
 					_history->updateControlsGeometry();
 				}
 			}
-			InvokeQueued(this, [this, peer, msgId] {
+			const auto returnToId = clickFromMessageId;
+			InvokeQueued(this, [=] {
+				if (const auto returnTo = App::histItemById(returnToId)) {
+					if (returnTo->history()->peer == peer) {
+						pushReplyReturn(returnTo);
+					}
+				}
 				_controller->showPeerHistory(
 					peer->id,
 					SectionShow::Way::Forward,
