@@ -2060,8 +2060,12 @@ void FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 void FormController::formFail(const QString &error) {
 	_savedPasswordValue = QByteArray();
 	_serviceErrorText = error;
-	_view->showCriticalError(
-		lang(lng_passport_form_error) + "\n" + error);
+	if (error == "APP_VERSION_OUTDATED") {
+		_view->showUpdateAppBox();
+	} else {
+		_view->showCriticalError(
+			lang(lng_passport_form_error) + "\n" + error);
+	}
 }
 
 void FormController::requestPassword() {

@@ -43,6 +43,7 @@ public:
 	virtual void showAskPassword() = 0;
 	virtual void showNoPassword() = 0;
 	virtual void showCriticalError(const QString &error) = 0;
+	virtual void showUpdateAppBox() = 0;
 	virtual void editScope(int index) = 0;
 
 	virtual void showBox(

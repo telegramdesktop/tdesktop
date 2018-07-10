@@ -97,6 +97,7 @@ public:
 	void showAskPassword() override;
 	void showNoPassword() override;
 	void showCriticalError(const QString &error) override;
+	void showUpdateAppBox() override;
 
 	void fillRows(
 		Fn<void(

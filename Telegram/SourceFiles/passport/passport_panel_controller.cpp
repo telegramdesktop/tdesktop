@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/rp_widget.h"
 #include "ui/countryinput.h"
+#include "core/update_checker.h"
 #include "layout.h"
 #include "styles/style_boxes.h"
 
@@ -810,6 +811,24 @@ void PanelController::showNoPassword() {
 void PanelController::showCriticalError(const QString &error) {
 	ensurePanelCreated();
 	_panel->showCriticalError(error);
+}
+
+void PanelController::showUpdateAppBox() {
+	ensurePanelCreated();
+
+	const auto box = std::make_shared<QPointer<BoxContent>>();
+	const auto callback = [=] {
+		_form->cancelSure();
+		Core::UpdateApplication();
+	};
+	*box = show(
+		Box<ConfirmBox>(
+			lang(lng_passport_app_out_of_date),
+			lang(lng_menu_update),
+			callback,
+			[=] { _form->cancelSure(); }),
+		LayerOption::KeepOther,
+		anim::type::instant);
 }
 
 void PanelController::ensurePanelCreated() {

@@ -2108,6 +2108,7 @@ void UpdateApplication() {
 		if (weak) {
 			weak->scrollToUpdateRow();
 		}
+		window->showFromTray();
 	}
 }
 

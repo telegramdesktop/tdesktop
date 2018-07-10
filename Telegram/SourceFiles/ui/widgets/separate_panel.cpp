@@ -223,7 +223,9 @@ void SeparatePanel::finishAnimating() {
 	_animationCache = QPixmap();
 	if (_visible) {
 		showControls();
-		_inner->setFocus();
+		if (_inner) {
+			_inner->setFocus();
+		}
 	} else {
 		finishClose();
 	}
@@ -317,7 +319,7 @@ void SeparatePanel::focusInEvent(QFocusEvent *e) {
 	crl::on_main(this, [=] {
 		if (_layer) {
 			_layer->setInnerFocus();
-		} else if (!_inner->isHidden()) {
+		} else if (_inner && !_inner->isHidden()) {
 			_inner->setFocus();
 		}
 	});

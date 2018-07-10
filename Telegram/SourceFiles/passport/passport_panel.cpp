@@ -98,6 +98,7 @@ void Panel::showBox(
 		LayerOptions options,
 		anim::type animated) {
 	_widget->showBox(std::move(box), options, animated);
+	_widget->showAndActivate();
 }
 
 void Panel::showToast(const QString &text) {
