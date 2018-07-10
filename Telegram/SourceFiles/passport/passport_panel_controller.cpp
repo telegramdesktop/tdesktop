@@ -945,20 +945,24 @@ void PanelController::editWithUpload(int index, int documentIndex) {
 	Expects(documentIndex >= 0
 		&& documentIndex < _scopes[index].documents.size());
 
+	const auto &document = _scopes[index].documents[documentIndex];
+	const auto requiresSpecialScan = document->requiresSpecialScan(
+		SpecialFile::FrontSide,
+		false);
+	const auto allowMany = !requiresSpecialScan;
 	const auto widget = _panel->widget();
 	EditScans::ChooseScan(widget.get(), [=](QByteArray &&content) {
-		base::take(_scopeDocumentTypeBox);
-		editScope(index, documentIndex);
-		if (_scopes[index].documents[documentIndex]->requiresSpecialScan(
-				SpecialFile::FrontSide,
-				false)) {
+		if (!_editScope || !_editDocument) {
+			editScope(index, documentIndex);
+		}
+		if (requiresSpecialScan) {
 			uploadSpecialScan(SpecialFile::FrontSide, std::move(content));
 		} else {
 			uploadScan(std::move(content));
 		}
 	}, [=](ReadScanError error) {
 		readScanError(error);
-	});
+	}, allowMany);
 }
 
 void PanelController::readScanError(ReadScanError error) {
