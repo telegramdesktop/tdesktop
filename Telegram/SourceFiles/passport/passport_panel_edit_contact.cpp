@@ -300,6 +300,7 @@ void PanelEditContact::setupControls(
 		if (error.key == QString("value")) {
 			_field->showError();
 			errorWrap->entity()->setText(error.text);
+			_content->resizeToWidth(width());
 			errorWrap->show(anim::type::normal);
 		}
 	}, lifetime());
