@@ -93,7 +93,7 @@ void PanelAskPassword::hideError() {
 }
 
 void PanelAskPassword::submit() {
-	_controller->submitPassword(_password->getLastText());
+	_controller->submitPassword(_password->getLastText().toUtf8());
 }
 
 void PanelAskPassword::recover() {

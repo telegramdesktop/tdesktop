@@ -83,7 +83,12 @@ void CloudPasswordState::onEdit() {
 		_notEmptyPassport,
 		_curPasswordHint,
 		_newSecureSecretSalt));
-	connect(box, SIGNAL(reloadPassword()), this, SLOT(onReloadPassword()));
+	rpl::merge(
+		box->newPasswordSet() | rpl::map([] { return rpl::empty_value(); }),
+		box->passwordReloadNeeded()
+	) | rpl::start_with_next([=] {
+		onReloadPassword();
+	}, box->lifetime());
 }
 
 void CloudPasswordState::onTurnOff() {
@@ -113,7 +118,13 @@ void CloudPasswordState::onTurnOff() {
 			_curPasswordHint,
 			_newSecureSecretSalt,
 			true));
-		connect(box, SIGNAL(reloadPassword()), this, SLOT(onReloadPassword()));
+		rpl::merge(
+			box->newPasswordSet(
+			) | rpl::map([] { return rpl::empty_value(); }),
+			box->passwordReloadNeeded()
+		) | rpl::start_with_next([=] {
+			onReloadPassword();
+		}, box->lifetime());
 	}
 }
 

@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_hardcoded.h"
 #include "base/openssl_help.h"
 #include "base/qthelp_url.h"
+#include "data/data_session.h"
 #include "mainwindow.h"
 #include "window/window_controller.h"
 #include "core/click_handler_types.h"
@@ -30,6 +31,7 @@ namespace {
 
 constexpr auto kDocumentScansLimit = 20;
 constexpr auto kShortPollTimeout = TimeMs(3000);
+constexpr auto kRememberCredentialsDelay = TimeMs(1800 * 1000);
 
 bool ForwardServiceErrorRequired(const QString &error) {
 	return (error == qstr("BOT_INVALID"))
@@ -436,38 +438,89 @@ std::vector<not_null<const Value*>> FormController::submitGetErrors() {
 	return {};
 }
 
-void FormController::submitPassword(const QString &password) {
+void FormController::submitPassword(const QByteArray &password) {
 	Expects(!_password.salt.empty());
 
+	const auto submitSaved = !base::take(_savedPasswordValue).isEmpty();
 	if (_passwordCheckRequestId) {
 		return;
 	} else if (password.isEmpty()) {
 		_passwordError.fire(QString());
+		return;
 	}
-	const auto passwordBytes = password.toUtf8();
 	_passwordCheckRequestId = request(MTPaccount_GetPasswordSettings(
-		MTP_bytes(passwordHashForAuth(bytes::make_span(passwordBytes)))
+		MTP_bytes(passwordHashForAuth(bytes::make_span(password)))
 	)).handleFloodErrors(
 	).done([=](const MTPaccount_PasswordSettings &result) {
 		Expects(result.type() == mtpc_account_passwordSettings);
 
 		_passwordCheckRequestId = 0;
+		_savedPasswordValue = QByteArray();
 		const auto &data = result.c_account_passwordSettings();
+		const auto hashForAuth = passwordHashForAuth(
+			bytes::make_span(password));
+		const auto hashForSecret = (data.vsecure_salt.v.isEmpty()
+			? bytes::vector()
+			: CountPasswordHashForSecret(
+				bytes::make_span(data.vsecure_salt.v),
+				bytes::make_span(password)));
 		_password.confirmedEmail = qs(data.vemail);
 		validateSecureSecret(
-			bytes::make_span(data.vsecure_salt.v),
 			bytes::make_span(data.vsecure_secret.v),
-			bytes::make_span(passwordBytes),
+			hashForSecret,
+			bytes::make_span(password),
 			data.vsecure_secret_id.v);
+		if (!_secret.empty()) {
+			auto saved = SavedCredentials();
+			saved.hashForAuth = hashForAuth;
+			saved.hashForSecret = hashForSecret;
+			saved.secretId = _secretId;
+			Auth().data().rememberPassportCredentials(
+				std::move(saved),
+				kRememberCredentialsDelay);
+		}
 	}).fail([=](const RPCError &error) {
 		_passwordCheckRequestId = 0;
-		if (MTP::isFloodError(error)) {
+		if (submitSaved) {
+			// Force reload and show form.
+			_password = PasswordSettings();
+			reloadPassword();
+		} else if (MTP::isFloodError(error)) {
 			_passwordError.fire(lang(lng_flood_error));
 		} else if (error.type() == qstr("PASSWORD_HASH_INVALID")) {
 			_passwordError.fire(lang(lng_passport_password_wrong));
 		} else {
 			_passwordError.fire_copy(error.type());
 		}
+	}).send();
+}
+
+void FormController::checkSavedPasswordSettings(
+		const SavedCredentials &credentials) {
+	_passwordCheckRequestId = request(MTPaccount_GetPasswordSettings(
+		MTP_bytes(credentials.hashForAuth)
+	)).done([=](const MTPaccount_PasswordSettings &result) {
+		Expects(result.type() == mtpc_account_passwordSettings);
+
+		_passwordCheckRequestId = 0;
+		const auto &data = result.c_account_passwordSettings();
+		if (!data.vsecure_secret.v.isEmpty()
+			&& data.vsecure_secret_id.v == credentials.secretId) {
+			_password.confirmedEmail = qs(data.vemail);
+			validateSecureSecret(
+				bytes::make_span(data.vsecure_secret.v),
+				credentials.hashForSecret,
+				{},
+				data.vsecure_secret_id.v);
+		}
+		if (_secret.empty()) {
+			Auth().data().forgetPassportCredentials();
+			showForm();
+		}
+	}).fail([=](const RPCError &error) {
+		_passwordCheckRequestId = 0;
+		Auth().data().forgetPassportCredentials();
+		showForm();
 	}).send();
 }
 
@@ -489,14 +542,16 @@ void FormController::recoverPassword() {
 		const auto box = _view->show(Box<RecoverBox>(
 			pattern,
 			_password.notEmptyPassport));
-		box->connect(box, &RecoverBox::reloadPassword, [=] {
+
+		box->passwordCleared(
+		) | rpl::start_with_next([=] {
 			reloadPassword();
-		});
-		box->connect(box, &RecoverBox::recoveryExpired, [=] {
-			if (box) {
-				box->closeBox();
-			}
-		});
+		}, box->lifetime());
+
+		box->recoveryExpired(
+		) | rpl::start_with_next([=] {
+			box->closeBox();
+		}, box->lifetime());
 	}).fail([=](const RPCError &error) {
 		_recoverRequestId = 0;
 		_view->show(Box<InformBox>(Lang::Hard::ServerError()
@@ -506,6 +561,11 @@ void FormController::recoverPassword() {
 }
 
 void FormController::reloadPassword() {
+	requestPassword();
+}
+
+void FormController::reloadAndSubmitPassword(const QByteArray &password) {
+	_savedPasswordValue = password;
 	requestPassword();
 }
 
@@ -534,22 +594,30 @@ void FormController::cancelPassword() {
 }
 
 void FormController::validateSecureSecret(
-		bytes::const_span salt,
 		bytes::const_span encryptedSecret,
-		bytes::const_span password,
+		bytes::const_span passwordHashForSecret,
+		bytes::const_span passwordBytes,
 		uint64 serverSecretId) {
-	if (!salt.empty() && !encryptedSecret.empty()) {
-		_secret = DecryptSecureSecret(salt, encryptedSecret, password);
+	Expects(!passwordBytes.empty() || !passwordHashForSecret.empty());
+
+	if (!passwordHashForSecret.empty() && !encryptedSecret.empty()) {
+		_secret = DecryptSecureSecret(
+			encryptedSecret,
+			passwordHashForSecret);
 		if (_secret.empty()) {
 			_secretId = 0;
 			LOG(("API Error: Failed to decrypt secure secret."));
-			suggestReset(bytes::make_vector(password));
+			if (!passwordBytes.empty()) {
+				suggestReset(bytes::make_vector(passwordBytes));
+			}
 			return;
 		} else if (CountSecureSecretId(_secret) != serverSecretId) {
 			_secret.clear();
 			_secretId = 0;
 			LOG(("API Error: Wrong secure secret id."));
-			suggestReset(bytes::make_vector(password));
+			if (!passwordBytes.empty()) {
+				suggestReset(bytes::make_vector(passwordBytes));
+			}
 			return;
 		} else {
 			_secretId = serverSecretId;
@@ -557,7 +625,7 @@ void FormController::validateSecureSecret(
 		}
 	}
 	if (_secret.empty()) {
-		generateSecret(password);
+		generateSecret(passwordBytes);
 	}
 	_secretReady.fire({});
 }
@@ -569,13 +637,9 @@ void FormController::suggestReset(bytes::vector password) {
 //		}
 	}
 	_view->suggestReset([=] {
-		const auto hashForAuth = openssl::Sha256(bytes::concatenate(
-			_password.salt,
-			password,
-			_password.salt));
 		using Flag = MTPDaccount_passwordInputSettings::Flag;
 		_saveSecretRequestId = request(MTPaccount_UpdatePasswordSettings(
-			MTP_bytes(hashForAuth),
+			MTP_bytes(passwordHashForAuth(password)),
 			MTP_account_passwordInputSettings(
 				MTP_flags(Flag::f_new_secure_salt
 					| Flag::f_new_secure_secret
@@ -1696,6 +1760,8 @@ void FormController::valueSaveFailed(not_null<Value*> value) {
 }
 
 void FormController::generateSecret(bytes::const_span password) {
+	Expects(!password.empty());
+
 	if (_saveSecretRequestId) {
 		return;
 	}
@@ -1707,20 +1773,20 @@ void FormController::generateSecret(bytes::const_span password) {
 		_password.newSecureSalt,
 		randomSaltPart);
 
-	auto secureSecretId = CountSecureSecretId(secret);
-	auto encryptedSecret = EncryptSecureSecret(
+	auto saved = SavedCredentials();
+	saved.hashForAuth = passwordHashForAuth(password);
+	saved.hashForSecret = CountPasswordHashForSecret(
 		newSecureSaltFull,
-		secret,
 		password);
+	saved.secretId = CountSecureSecretId(secret);
 
-	const auto hashForAuth = openssl::Sha256(bytes::concatenate(
-		_password.salt,
-		password,
-		_password.salt));
+	auto encryptedSecret = EncryptSecureSecret(
+		secret,
+		saved.hashForSecret);
 
 	using Flag = MTPDaccount_passwordInputSettings::Flag;
 	_saveSecretRequestId = request(MTPaccount_UpdatePasswordSettings(
-		MTP_bytes(hashForAuth),
+		MTP_bytes(saved.hashForAuth),
 		MTP_account_passwordInputSettings(
 			MTP_flags(Flag::f_new_secure_salt
 				| Flag::f_new_secure_secret
@@ -1731,11 +1797,15 @@ void FormController::generateSecret(bytes::const_span password) {
 			MTPstring(), // email
 			MTP_bytes(newSecureSaltFull),
 			MTP_bytes(encryptedSecret),
-			MTP_long(secureSecretId))
+			MTP_long(saved.secretId))
 	)).done([=](const MTPBool &result) {
+		Auth().data().rememberPassportCredentials(
+			std::move(saved),
+			kRememberCredentialsDelay);
+
 		_saveSecretRequestId = 0;
 		_secret = secret;
-		_secretId = secureSecretId;
+		_secretId = saved.secretId;
 		//_password.salt = newPasswordSaltFull;
 		for (const auto &callback : base::take(_secretCallbacks)) {
 			callback();
@@ -1988,6 +2058,7 @@ void FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 }
 
 void FormController::formFail(const QString &error) {
+	_savedPasswordValue = QByteArray();
 	_serviceErrorText = error;
 	_view->showCriticalError(
 		lang(lng_passport_form_error) + "\n" + error);
@@ -2036,7 +2107,13 @@ void FormController::showForm() {
 		return;
 	}
 	if (!_password.salt.empty()) {
-		_view->showAskPassword();
+		if (!_savedPasswordValue.isEmpty()) {
+			submitPassword(base::duplicate(_savedPasswordValue));
+		} else if (const auto saved = Auth().data().passportCredentials()) {
+			checkSavedPasswordSettings(*saved);
+		} else {
+			_view->showAskPassword();
+		}
 	} else {
 		_view->showNoPassword();
 	}

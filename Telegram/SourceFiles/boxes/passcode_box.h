@@ -17,8 +17,6 @@ class LinkButton;
 } // namespace Ui
 
 class PasscodeBox : public BoxContent, private MTP::Sender {
-	Q_OBJECT
-
 public:
 	PasscodeBox(QWidget*, bool turningOff);
 	PasscodeBox(
@@ -31,8 +29,8 @@ public:
 		const QByteArray &newSecureSecretSalt,
 		bool turningOff = false);
 
-signals:
-	void reloadPassword();
+	rpl::producer<QByteArray> newPasswordSet() const;
+	rpl::producer<> passwordReloadNeeded() const;
 
 protected:
 	void prepare() override;
@@ -52,8 +50,11 @@ private:
 	void recoverByEmail();
 	void recoverExpired();
 
-	void setPasswordDone();
+	void setPasswordDone(const QByteArray &newPasswordBytes);
 	bool setPasswordFail(const RPCError &error);
+	bool setPasswordFail(
+		const QByteArray &newPasswordBytes,
+		const RPCError &error);
 
 	void recoverStarted(const MTPauth_PasswordRecovery &result);
 	bool recoverStartFail(const RPCError &error);
@@ -101,17 +102,20 @@ private:
 
 	QString _oldError, _newError, _emailError;
 
+	rpl::event_stream<QByteArray> _newPasswordSet;
+	rpl::event_stream<> _passwordReloadNeeded;
+
 };
 
 class RecoverBox : public BoxContent, public RPCSender {
-	Q_OBJECT
-
 public:
 	RecoverBox(QWidget*, const QString &pattern, bool notEmptyPassport);
 
-signals:
-	void reloadPassword();
-	void recoveryExpired();
+	rpl::producer<> passwordCleared() const;
+	rpl::producer<> recoveryExpired() const;
+
+	//void reloadPassword();
+	//void recoveryExpired();
 
 protected:
 	void prepare() override;
@@ -134,5 +138,8 @@ private:
 	object_ptr<Ui::InputField> _recoverCode;
 
 	QString _error;
+
+	rpl::event_stream<> _passwordCleared;
+	rpl::event_stream<> _recoveryExpired;
 
 };

@@ -11,14 +11,15 @@ namespace Passport {
 
 bytes::vector GenerateSecretBytes();
 
+bytes::vector CountPasswordHashForSecret(
+	bytes::const_span salt,
+	bytes::const_span password);
 bytes::vector EncryptSecureSecret(
-	bytes::const_span salt,
 	bytes::const_span secret,
-	bytes::const_span password);
+	bytes::const_span passwordHashForSecret);
 bytes::vector DecryptSecureSecret(
-	bytes::const_span salt,
 	bytes::const_span encryptedSecret,
-	bytes::const_span password);
+	bytes::const_span passwordHashForSecret);
 
 bytes::vector SerializeData(const std::map<QString, QString> &data);
 std::map<QString, QString> DeserializeData(bytes::const_span bytes);

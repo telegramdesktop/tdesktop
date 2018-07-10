@@ -16,6 +16,7 @@ namespace {
 constexpr auto kAesKeyLength = 32;
 constexpr auto kAesIvLength = 16;
 constexpr auto kSecretSize = 32;
+constexpr auto kAesParamsHashSize = 64;
 constexpr auto kMinPadding = 32;
 constexpr auto kMaxPadding = 255;
 constexpr auto kAlignTo = 16;
@@ -27,16 +28,19 @@ struct AesParams {
 	bytes::vector iv;
 };
 
-AesParams PrepareAesParams(bytes::const_span bytesForEncryptionKey) {
-	const auto hash = openssl::Sha512(bytesForEncryptionKey);
-	const auto view = gsl::make_span(hash);
+AesParams PrepareAesParamsWithHash(bytes::const_span hashForEncryptionKey) {
+	Expects(hashForEncryptionKey.size() == kAesParamsHashSize);
 
 	auto result = AesParams();
 	result.key = bytes::make_vector(
-		view.subspan(0, kAesKeyLength));
+		hashForEncryptionKey.subspan(0, kAesKeyLength));
 	result.iv = bytes::make_vector(
-		view.subspan(kAesKeyLength, kAesIvLength));
+		hashForEncryptionKey.subspan(kAesKeyLength, kAesIvLength));
 	return result;
+}
+
+AesParams PrepareAesParams(bytes::const_span bytesForEncryptionKey) {
+	return PrepareAesParamsWithHash(openssl::Sha512(bytesForEncryptionKey));
 }
 
 bytes::vector EncryptOrDecrypt(
@@ -112,9 +116,9 @@ bytes::vector GenerateSecretBytes() {
 	return result;
 }
 
-bytes::vector DecryptSecretBytes(
+bytes::vector DecryptSecretBytesWithHash(
 		bytes::const_span encryptedSecret,
-		bytes::const_span bytesForEncryptionKey) {
+		bytes::const_span hashForEncryptionKey) {
 	if (encryptedSecret.empty()) {
 		return {};
 	} else if (encryptedSecret.size() != kSecretSize) {
@@ -122,13 +126,31 @@ bytes::vector DecryptSecretBytes(
 			).arg(encryptedSecret.size()));
 		return {};
 	}
-	auto params = PrepareAesParams(bytesForEncryptionKey);
+	auto params = PrepareAesParamsWithHash(hashForEncryptionKey);
 	auto result = Decrypt(encryptedSecret, std::move(params));
 	if (!CheckSecretBytes(result)) {
 		LOG(("API Error: Bad secret bytes."));
 		return {};
 	}
 	return result;
+}
+
+bytes::vector DecryptSecretBytes(
+		bytes::const_span encryptedSecret,
+		bytes::const_span bytesForEncryptionKey) {
+	return DecryptSecretBytesWithHash(
+		encryptedSecret,
+		openssl::Sha512(bytesForEncryptionKey));
+}
+
+bytes::vector EncryptSecretBytesWithHash(
+		bytes::const_span secret,
+		bytes::const_span hashForEncryptionKey) {
+	Expects(secret.size() == kSecretSize);
+	Expects(CheckSecretBytes(secret) == true);
+
+	auto params = PrepareAesParamsWithHash(hashForEncryptionKey);
+	return Encrypt(secret, std::move(params));
 }
 
 bytes::vector EncryptSecretBytes(
@@ -141,34 +163,31 @@ bytes::vector EncryptSecretBytes(
 	return Encrypt(secret, std::move(params));
 }
 
-bytes::vector DecryptSecureSecret(
+bytes::vector CountPasswordHashForSecret(
 		bytes::const_span salt,
-		bytes::const_span encryptedSecret,
 		bytes::const_span password) {
-	Expects(!salt.empty());
-	Expects(!encryptedSecret.empty());
-	Expects(!password.empty());
-
-	const auto bytesForEncryptionKey = bytes::concatenate(
+	return openssl::Sha512(bytes::concatenate(
 		salt,
 		password,
-		salt);
-	return DecryptSecretBytes(encryptedSecret, bytesForEncryptionKey);
+		salt));
+}
+
+bytes::vector DecryptSecureSecret(
+		bytes::const_span encryptedSecret,
+		bytes::const_span passwordHashForSecret) {
+	Expects(!encryptedSecret.empty());
+
+	return DecryptSecretBytesWithHash(
+		encryptedSecret,
+		passwordHashForSecret);
 }
 
 bytes::vector EncryptSecureSecret(
-		bytes::const_span salt,
 		bytes::const_span secret,
-		bytes::const_span password) {
-	Expects(!salt.empty());
+		bytes::const_span passwordHashForSecret) {
 	Expects(secret.size() == kSecretSize);
-	Expects(!password.empty());
 
-	const auto bytesForEncryptionKey = bytes::concatenate(
-		salt,
-		password,
-		salt);
-	return EncryptSecretBytes(secret, bytesForEncryptionKey);
+	return EncryptSecretBytesWithHash(secret, passwordHashForSecret);
 }
 
 bytes::vector SerializeData(const std::map<QString, QString> &data) {

@@ -68,7 +68,7 @@ public:
 	not_null<UserData*> bot() const;
 	QString privacyPolicyUrl() const;
 	void submitForm();
-	void submitPassword(const QString &password);
+	void submitPassword(const QByteArray &password);
 	void recoverPassword();
 	rpl::producer<QString> passwordError() const;
 	QString passwordHint() const;

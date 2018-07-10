@@ -1096,11 +1096,6 @@ void ApiWrap::appendChatsSlice(
 	auto filtered = ranges::view::all(
 		info.list
 	) | ranges::view::filter([&](const Data::DialogInfo &info) {
-#ifdef _DEBUG
-		return (info.name == "Anta");
-#else
-#error "test"
-#endif
 		return (types & SettingsFromDialogsType(info.type)) != 0;
 	});
 	auto &list = to.info.list;

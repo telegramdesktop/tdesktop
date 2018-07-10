@@ -90,15 +90,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
 
-#ifdef _DEBUG
-#include "export/output/export_output_html.h"
-#include "export/output/export_output_stats.h"
-#include "export/view/export_view_panel_controller.h"
-#include "platform/platform_specific.h"
-#else
-#error "test"
-#endif
-
 namespace {
 
 bool IsForceLogoutNotification(const MTPDupdateServiceNotification &data) {
@@ -260,10 +251,6 @@ MainWidget::MainWidget(
 , _playerPanel(this, _controller, Media::Player::Panel::Layout::Full) {
 	Messenger::Instance().mtp()->setUpdatesHandler(rpcDone(&MainWidget::updateReceived));
 	Messenger::Instance().mtp()->setGlobalFailHandler(rpcFail(&MainWidget::updateFail));
-
-	//Export::Output::HtmlWriter writer;
-	//writer.produceTestExample(psDownloadPath(), Export::View::PrepareEnvironment());
-	//crl::on_main([] { App::quit(); });
 
 	_ptsWaiter.setRequesting(true);
 	updateScrollColors();

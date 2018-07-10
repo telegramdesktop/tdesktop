@@ -35,6 +35,10 @@ class PanelController;
 } // namespace View
 } // namespace Export
 
+namespace Passport {
+struct SavedCredentials;
+} // namespace Passport
+
 namespace Data {
 
 class Feed;
@@ -59,6 +63,12 @@ public:
 	bool exportInProgress() const;
 	void stopExportWithConfirmation(FnMut<void()> callback);
 	void stopExport();
+
+	const Passport::SavedCredentials *passportCredentials() const;
+	void rememberPassportCredentials(
+		Passport::SavedCredentials data,
+		TimeMs rememberFor);
+	void forgetPassportCredentials();
 
 	[[nodiscard]] base::Variable<bool> &contactsLoaded() {
 		return _contactsLoaded;
@@ -609,6 +619,11 @@ private:
 	base::Timer _unmuteByFinishedTimer;
 
 	MessageIdsList _mimeForwardIds;
+
+	using CredentialsWithGeneration = std::pair<
+		const Passport::SavedCredentials,
+		int>;
+	std::unique_ptr<CredentialsWithGeneration> _passportCredentials;
 
 	rpl::lifetime _lifetime;
 

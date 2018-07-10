@@ -24,6 +24,12 @@ class Controller;
 
 namespace Passport {
 
+struct SavedCredentials {
+	bytes::vector hashForAuth;
+	bytes::vector hashForSecret;
+	uint64 secretId = 0;
+};
+
 class ViewController;
 
 struct FormRequest {
@@ -247,11 +253,12 @@ public:
 	UserData *bot() const;
 	QString privacyPolicyUrl() const;
 	std::vector<not_null<const Value*>> submitGetErrors();
-	void submitPassword(const QString &password);
+	void submitPassword(const QByteArray &password);
 	void recoverPassword();
 	rpl::producer<QString> passwordError() const;
 	const PasswordSettings &passwordSettings() const;
 	void reloadPassword();
+	void reloadAndSubmitPassword(const QByteArray &password);
 	void cancelPassword();
 
 	bool canAddScan(not_null<const Value*> value) const;
@@ -335,10 +342,11 @@ private:
 	bool applyPassword(const MTPDaccount_password &settings);
 	bool applyPassword(PasswordSettings &&settings);
 	bytes::vector passwordHashForAuth(bytes::const_span password) const;
+	void checkSavedPasswordSettings(const SavedCredentials &credentials);
 	void validateSecureSecret(
-		bytes::const_span salt,
 		bytes::const_span encryptedSecret,
-		bytes::const_span password,
+		bytes::const_span passwordHashForSecret,
+		bytes::const_span passwordBytes,
 		uint64 serverSecretId);
 	void decryptValues();
 	void decryptValue(Value &value);
@@ -413,6 +421,7 @@ private:
 	mtpRequestId _passwordCheckRequestId = 0;
 
 	PasswordSettings _password;
+	QByteArray _savedPasswordValue;
 	Form _form;
 	bool _cancelled = false;
 	mtpRequestId _recoverRequestId = 0;

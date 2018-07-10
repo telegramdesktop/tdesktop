@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_layout_item.h"
 #include "storage/localstorage.h"
 #include "boxes/abstract_box.h"
+#include "passport/passport_form_controller.h"
 #include "data/data_media_types.h"
 #include "data/data_feed.h"
 #include "data/data_photo.h"
@@ -154,6 +155,30 @@ void Session::stopExport() {
 		_exportViewChanges.fire(nullptr);
 	}
 	_export = nullptr;
+}
+
+const Passport::SavedCredentials *Session::passportCredentials() const {
+	return _passportCredentials ? &_passportCredentials->first : nullptr;
+}
+
+void Session::rememberPassportCredentials(
+		Passport::SavedCredentials data,
+		TimeMs rememberFor) {
+	Expects(rememberFor > 0);
+
+	static auto generation = 0;
+	_passportCredentials = std::make_unique<CredentialsWithGeneration>(
+		std::move(data),
+		++generation);
+	App::CallDelayed(rememberFor, _session, [=, check = generation] {
+		if (_passportCredentials && _passportCredentials->second == check) {
+			forgetPassportCredentials();
+		}
+	});
+}
+
+void Session::forgetPassportCredentials() {
+	_passportCredentials = nullptr;
 }
 
 void Session::setupContactViewsViewer() {

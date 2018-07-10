@@ -362,9 +362,8 @@ PanelController::PanelController(not_null<FormController*> form)
 , _scopes(ComputeScopes(_form)) {
 	_form->secretReadyEvents(
 	) | rpl::start_with_next([=] {
-		if (_panel) {
-			_panel->showForm();
-		}
+		ensurePanelCreated();
+		_panel->showForm();
 	}, lifetime());
 
 	_form->verificationNeeded(
@@ -435,7 +434,7 @@ void PanelController::submitForm() {
 	}
 }
 
-void PanelController::submitPassword(const QString &password) {
+void PanelController::submitPassword(const QByteArray &password) {
 	_form->submitPassword(password);
 }
 
@@ -467,7 +466,10 @@ void PanelController::setupPassword() {
 	Expects(_panel != nullptr);
 
 	const auto &settings = _form->passwordSettings();
-	Assert(settings.salt.empty());
+	if (!settings.salt.empty()) {
+		showAskPassword();
+		return;
+	}
 
 	constexpr auto kRandomPart = 8;
 	auto newPasswordSalt = QByteArray(
@@ -494,9 +496,22 @@ void PanelController::setupPassword() {
 		notEmptyPassport,
 		hint,
 		newSecureSecretSalt));
-	box->connect(box, &PasscodeBox::reloadPassword, [=] {
+	box->newPasswordSet(
+	) | rpl::filter([=](const QByteArray &password) {
+		return !password.isEmpty();
+	}) | rpl::start_with_next([=](const QByteArray &password) {
+		_form->reloadAndSubmitPassword(password);
+	}, box->lifetime());
+
+	rpl::merge(
+		box->passwordReloadNeeded(),
+		box->newPasswordSet(
+		) | rpl::filter([=](const QByteArray &password) {
+			return password.isEmpty();
+		}) | rpl::map([] { return rpl::empty_value(); })
+	) | rpl::start_with_next([=] {
 		_form->reloadPassword();
-	});
+	}, box->lifetime());
 }
 
 void PanelController::cancelPasswordSubmit() {
