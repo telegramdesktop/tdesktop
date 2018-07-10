@@ -263,7 +263,9 @@ ScopeRow ComputeScopeRow(const Scope &scope) {
 		};
 		ranges::for_each(scope.documents, addValueErrors);
 		addValueErrors(scope.fields);
-		row.error = errors.join('\n');
+		if (!errors.isEmpty()) {
+			row.error = lang(lng_passport_fix_errors);// errors.join('\n');
+		}
 		if (row.error.isEmpty()
 			&& row.ready.isEmpty()
 			&& scope.type == Scope::Type::Identity
