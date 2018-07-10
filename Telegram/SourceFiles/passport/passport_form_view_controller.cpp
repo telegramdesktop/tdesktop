@@ -264,6 +264,17 @@ ScopeRow ComputeScopeRow(const Scope &scope) {
 		ranges::for_each(scope.documents, addValueErrors);
 		addValueErrors(scope.fields);
 		row.error = errors.join('\n');
+		if (row.error.isEmpty()
+			&& row.ready.isEmpty()
+			&& scope.type == Scope::Type::Identity
+			&& scope.selfieRequired) {
+			auto noSelfieScope = scope;
+			noSelfieScope.selfieRequired = false;
+			if (!ComputeScopeRowReadyString(noSelfieScope).isEmpty()) {
+				// Only selfie is missing.
+				row.description = lang(lng_passport_identity_selfie);
+			}
+		}
 		return row;
 	};
 	switch (scope.type) {

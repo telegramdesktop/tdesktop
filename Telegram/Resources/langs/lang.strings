@@ -1561,6 +1561,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_identity_internal" = "Internal passport";
 "lng_passport_identity_internal_upload" = "Upload a scan of your internal passport";
 "lng_passport_identity_about" = "The document must contain your photograph, first and last name, date of birth, document number, country of issue, and expiry date.";
+"lng_passport_identity_selfie" = "Take a selfie with your document";
 "lng_passport_address_title" = "Residential address";
 "lng_passport_address_description" = "Upload a proof of your address";
 "lng_passport_address_bill" = "Utility bill";

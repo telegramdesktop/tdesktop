@@ -813,6 +813,15 @@ int PanelController::findNonEmptyDocumentIndex(const Scope &scope) const {
 	if (i != end(documents)) {
 		return (i - begin(documents));
 	}
+	// If we have a document where only selfie is not filled - return it.
+	const auto j = ranges::find_if(
+		documents,
+		[&](not_null<const Value*> document) {
+			return document->scansAreFilled(false);
+		});
+	if (j != end(documents)) {
+		return (j - begin(documents));
+	}
 	return -1;
 }
 
