@@ -7,6 +7,9 @@
 {
   'conditions': [[ 'build_linux', {
     'variables': {
+      'variables': {
+        'build_defines%': '',
+      },
       'not_need_gtk%': '<!(python -c "print(\'TDESKTOP_DISABLE_GTK_INTEGRATION\' in \'<(build_defines)\')")',
       'pkgconfig_libs': [
 # In order to work libxkbcommon must be linked statically,
