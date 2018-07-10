@@ -144,6 +144,7 @@ private:
 	void processVerificationNeeded(not_null<const Value*> value);
 
 	bool savingScope() const;
+	bool uploadingScopeScan() const;
 	bool hasValueDocument() const;
 	bool hasValueFields() const;
 	ScanInfo collectScanInfo(const EditFile &file) const;

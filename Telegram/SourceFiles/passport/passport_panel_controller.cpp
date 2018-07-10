@@ -1065,6 +1065,13 @@ void PanelController::processValueSaveFinished(
 	}
 }
 
+bool PanelController::uploadingScopeScan() const {
+	Expects(_editValue != nullptr);
+
+	return _form->uploadingScan(_editValue)
+		|| (_editDocument && _form->uploadingScan(_editDocument));
+}
+
 bool PanelController::savingScope() const {
 	Expects(_editValue != nullptr);
 
@@ -1179,7 +1186,10 @@ void PanelController::saveScope(ValueMap &&data, ValueMap &&filesData) {
 	Expects(_panel != nullptr);
 	Expects(_editValue != nullptr);
 
-	if (savingScope()) {
+	if (uploadingScopeScan()) {
+		showToast(lang(lng_passport_wait_upload));
+		return;
+	} else if (savingScope()) {
 		return;
 	}
 

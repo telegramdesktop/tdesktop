@@ -1664,6 +1664,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_error_bad_size" = "Sorry, this image has wrong dimensions.";
 "lng_passport_error_cant_read" = "Can't read this file. Please choose an image.";
 "lng_passport_bad_name" = "Please use latin characters only.";
+"lng_passport_wait_upload" = "Please wait while upload is finished.";
 
 "lng_export_title" = "Export Personal Data";
 "lng_export_progress_title" = "Exporting personal data";
