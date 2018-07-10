@@ -77,7 +77,8 @@ private:
 	void pushScan(const ScanInfo &info);
 	void createSpecialScanRow(
 		SpecialScan &scan,
-		const ScanInfo &info);
+		const ScanInfo &info,
+		bool requiresBothSides);
 	base::unique_qptr<Ui::SlideWrap<ScanButton>> createScan(
 		not_null<Ui::VerticalLayout*> parent,
 		const ScanInfo &info,

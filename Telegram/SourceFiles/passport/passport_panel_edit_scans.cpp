@@ -117,7 +117,7 @@ struct EditScans::SpecialScan {
 	QPointer<Info::Profile::Button> upload;
 	bool errorShown = false;
 	Animation errorAnimation;
-
+	rpl::variable<bool> rowCreated;
 };
 
 ScanButton::ScanButton(
@@ -390,10 +390,14 @@ void EditScans::setupScans(const QString &header) {
 }
 
 void EditScans::setupSpecialScans(std::map<SpecialFile, ScanInfo> &&files) {
-	const auto title = [](SpecialFile type) {
+	const auto requiresBothSides = files.find(SpecialFile::ReverseSide)
+		!= end(files);
+	const auto title = [&](SpecialFile type) {
 		switch (type) {
 		case SpecialFile::FrontSide:
-			return lang(lng_passport_front_side_title);
+			return lang(requiresBothSides
+				? lng_passport_front_side_title
+				: lng_passport_main_page_title);
 		case SpecialFile::ReverseSide:
 			return lang(lng_passport_reverse_side_title);
 		case SpecialFile::Selfie:
@@ -401,21 +405,33 @@ void EditScans::setupSpecialScans(std::map<SpecialFile, ScanInfo> &&files) {
 		}
 		Unexpected("Type in special row title.");
 	};
-	const auto uploadKey = [](SpecialFile type) {
+	const auto uploadKey = [=](SpecialFile type, bool hasScan) {
 		switch (type) {
 		case SpecialFile::FrontSide:
-			return lng_passport_upload_front_side;
+			return requiresBothSides
+				? (hasScan
+					? lng_passport_reupload_front_side
+					: lng_passport_upload_front_side)
+				: (hasScan
+					? lng_passport_reupload_main_page
+					: lng_passport_upload_main_page);
 		case SpecialFile::ReverseSide:
-			return lng_passport_upload_reverse_side;
+			return hasScan
+				? lng_passport_reupload_reverse_side
+				: lng_passport_upload_reverse_side;
 		case SpecialFile::Selfie:
-			return lng_passport_upload_selfie;
+			return hasScan
+				? lng_passport_reupload_selfie
+				: lng_passport_upload_selfie;
 		}
 		Unexpected("Type in special row upload key.");
 	};
-	const auto description = [](SpecialFile type) {
+	const auto description = [&](SpecialFile type) {
 		switch (type) {
 		case SpecialFile::FrontSide:
-			return lang(lng_passport_front_side_description);
+			return lang(requiresBothSides
+				? lng_passport_front_side_description
+				: lng_passport_main_page_description);
 		case SpecialFile::ReverseSide:
 			return lang(lng_passport_reverse_side_description);
 		case SpecialFile::Selfie:
@@ -444,14 +460,17 @@ void EditScans::setupSpecialScans(std::map<SpecialFile, ScanInfo> &&files) {
 		scan.header->toggle(scan.file.key.id != 0, anim::type::instant);
 		scan.wrap = inner->add(object_ptr<Ui::VerticalLayout>(inner));
 		if (scan.file.key.id) {
-			createSpecialScanRow(scan, scan.file);
+			createSpecialScanRow(scan, scan.file, requiresBothSides);
 		}
+		auto label = scan.rowCreated.value(
+		) | rpl::map([=](bool created) {
+			return Lang::Viewer(uploadKey(type, created));
+		}) | rpl::flatten_latest(
+		) | Info::Profile::ToUpperValue();
 		scan.upload = inner->add(
 			object_ptr<Info::Profile::Button>(
 				inner,
-				Lang::Viewer(
-					uploadKey(type)
-				) | Info::Profile::ToUpperValue(),
+				std::move(label),
 				st::passportUploadButton),
 			st::passportUploadButtonPadding);
 		scan.upload->addClickHandler([=, type = type] {
@@ -527,11 +546,15 @@ void EditScans::updateSpecialScan(SpecialFile type, ScanInfo &&info) {
 	auto &scan = i->second;
 	if (scan.file.key.id) {
 		updateFileRow(scan.row->entity(), info);
+		scan.rowCreated = !info.deleted;
 		if (!info.deleted) {
 			hideSpecialScanError(type);
 		}
 	} else {
-		createSpecialScanRow(scan, info);
+		const auto requiresBothSides
+			= (_specialScans.find(SpecialFile::ReverseSide)
+				!= end(_specialScans));
+		createSpecialScanRow(scan, info, requiresBothSides);
 		scan.wrap->resizeToWidth(width());
 		scan.row->show(anim::type::normal);
 		scan.header->show(anim::type::normal);
@@ -551,14 +574,17 @@ void EditScans::updateFileRow(
 
 void EditScans::createSpecialScanRow(
 		SpecialScan &scan,
-		const ScanInfo &info) {
+		const ScanInfo &info,
+		bool requiresBothSides) {
 	Expects(scan.file.special.has_value());
 
 	const auto type = *scan.file.special;
 	const auto name = [&] {
 		switch (type) {
 		case SpecialFile::FrontSide:
-			return lang(lng_passport_front_side_name);
+			return lang(requiresBothSides
+				? lng_passport_front_side_name
+				: lng_passport_main_page_name);
 		case SpecialFile::ReverseSide:
 			return lang(lng_passport_reverse_side_name);
 		case SpecialFile::Selfie:
@@ -579,6 +605,7 @@ void EditScans::createSpecialScanRow(
 		_controller->restoreSpecialScan(type);
 	}, row->lifetime());
 
+	scan.rowCreated = !info.deleted;
 	hideSpecialScanError(type);
 }
 
