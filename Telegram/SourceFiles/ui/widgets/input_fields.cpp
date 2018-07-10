@@ -1987,7 +1987,6 @@ void InputField::processFormatting(int insertPosition, int insertEnd) {
 
 					if (ch + 1 < textEnd && ch->isHighSurrogate() && (ch + 1)->isLowSurrogate()) {
 						++ch;
-						++fragmentPosition;
 					}
 				}
 				if (action.type != ActionType::Invalid) {
