@@ -463,7 +463,7 @@ void EditScans::setupSpecialScans(std::map<SpecialFile, ScanInfo> &&files) {
 			createSpecialScanRow(scan, scan.file, requiresBothSides);
 		}
 		auto label = scan.rowCreated.value(
-		) | rpl::map([=](bool created) {
+		) | rpl::map([=, type = type](bool created) {
 			return Lang::Viewer(uploadKey(type, created));
 		}) | rpl::flatten_latest(
 		) | Info::Profile::ToUpperValue();

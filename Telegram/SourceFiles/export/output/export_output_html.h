@@ -35,7 +35,7 @@ private:
 };
 
 struct UserpicData;
-struct PeersMap;
+class PeersMap;
 struct MediaData;
 
 } // namespace details
