@@ -466,9 +466,9 @@ void Messenger::startMtp() {
 	_langCloudManager = std::make_unique<Lang::CloudManager>(
 		langpack(),
 		mtp());
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	Core::UpdateChecker().setMtproto(mtp());
-#endif // TDESKTOP_DISABLE_AUTOUPDATE
+	if (!Core::UpdaterDisabled()) {
+		Core::UpdateChecker().setMtproto(mtp());
+	}
 }
 
 void Messenger::destroyMtpKeys(MTP::AuthKeysList &&keys) {

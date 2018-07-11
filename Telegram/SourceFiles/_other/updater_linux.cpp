@@ -337,6 +337,7 @@ int main(int argc, char *argv[]) {
 	bool tosettings = false;
 	bool startintray = false;
 	bool testmode = false;
+	bool externalupdater = false;
 	bool customWorkingDir = false;
 
 	char *key = 0;
@@ -352,6 +353,8 @@ int main(int argc, char *argv[]) {
 			startintray = true;
 		} else if (equal(argv[i], "-testmode")) {
 			testmode = true;
+		} else if (equal(argv[i], "-externalupdater")) {
+			externalupdater = true;
 		} else if (equal(argv[i], "-tosettings")) {
 			tosettings = true;
 		} else if (equal(argv[i], "-workdir_custom")) {
@@ -450,6 +453,7 @@ int main(int argc, char *argv[]) {
 	char p_key[] = "-key";
 	char p_startintray[] = "-startintray";
 	char p_testmode[] = "-testmode";
+	char p_externalupdater[] = "-externalupdater";
 	char p_workdir[] = "-workdir";
 	int argIndex = 0;
 	args[argIndex++] = path;
@@ -458,6 +462,7 @@ int main(int argc, char *argv[]) {
 	if (debug) args[argIndex++] = p_debug;
 	if (startintray) args[argIndex++] = p_startintray;
 	if (testmode) args[argIndex++] = p_testmode;
+	if (externalupdater) args[argIndex++] = p_externalupdater;
 	if (tosettings) args[argIndex++] = p_tosettings;
 	if (key) {
 		args[argIndex++] = p_key;

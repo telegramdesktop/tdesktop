@@ -48,10 +48,8 @@ protected:
 signals:
 	void countryChanged();
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 private slots:
 	void onCheckUpdateStatus();
-#endif // TDESKTOP_DISABLE_AUTOUPDATE
 
 	// Internal interface.
 public:

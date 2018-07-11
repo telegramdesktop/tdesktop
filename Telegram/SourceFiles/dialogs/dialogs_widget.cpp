@@ -120,17 +120,17 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 	connect(_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
 	connect(_filter, SIGNAL(cursorPositionChanged(int,int)), this, SLOT(onFilterCursorMoved(int,int)));
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	Core::UpdateChecker checker;
-	rpl::merge(
-		rpl::single(rpl::empty_value()),
-		checker.isLatest(),
-		checker.failed(),
-		checker.ready()
-	) | rpl::start_with_next([=] {
-		checkUpdateStatus();
-	}, lifetime());
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
+	if (!Core::UpdaterDisabled()) {
+		Core::UpdateChecker checker;
+		rpl::merge(
+			rpl::single(rpl::empty_value()),
+			checker.isLatest(),
+			checker.failed(),
+			checker.ready()
+		) | rpl::start_with_next([=] {
+			checkUpdateStatus();
+		}, lifetime());
+	}
 
 	subscribe(Adaptive::Changed(), [this] { updateForwardBar(); });
 
@@ -181,8 +181,9 @@ void DialogsWidget::setupConnectingWidget() {
 		Window::AdaptiveIsOneColumn());
 }
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 void DialogsWidget::checkUpdateStatus() {
+	Expects(!Core::UpdaterDisabled());
+
 	using Checker = Core::UpdateChecker;
 	if (Checker().state() == Checker::State::Ready) {
 		if (_updateTelegram) return;
@@ -198,7 +199,6 @@ void DialogsWidget::checkUpdateStatus() {
 	}
 	updateControlsGeometry();
 }
-#endif // TDESKTOP_DISABLE_AUTOUPDATE
 
 void DialogsWidget::activate() {
 	_filter->setFocus();

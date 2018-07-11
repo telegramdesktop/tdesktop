@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/mac/launcher_mac.h"
 
 #include "core/crash_reports.h"
+#include "core/update_checker.h"
 #include "platform/mac/mac_utilities.h"
 
 #include <Cocoa/Cocoa.h>
@@ -125,6 +126,9 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 		if (Logs::DebugEnabled()) [args addObject:@"-debug"];
 		if (cStartInTray()) [args addObject:@"-startintray"];
 		if (cTestMode()) [args addObject:@"-testmode"];
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+		if (Core::UpdaterDisabled()) [args addObject:@"-externalupdater"];
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 		if (cDataFile() != qsl("data")) {
 			[args addObject:@"-key"];
 			[args addObject:Q2NSString(cDataFile())];

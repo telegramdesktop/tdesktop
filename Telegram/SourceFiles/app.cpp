@@ -1623,11 +1623,9 @@ namespace App {
 	}
 
 	void restart() {
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-		bool updateReady = (Core::UpdateChecker().state() == Core::UpdateChecker::State::Ready);
-#else // !TDESKTOP_DISABLE_AUTOUPDATE
-		bool updateReady = false;
-#endif // else for !TDESKTOP_DISABLE_AUTOUPDATE
+		using namespace Core;
+		const auto updateReady = !UpdaterDisabled()
+			&& (UpdateChecker().state() == UpdateChecker::State::Ready);
 		if (updateReady) {
 			cSetRestartingUpdate(true);
 		} else {

@@ -95,7 +95,6 @@ public slots:
 	void onSendingFinished();
 	void onSendingProgress(qint64 uploaded, qint64 total);
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void onUpdateRetry();
 	void onUpdateSkip();
 
@@ -104,7 +103,6 @@ public slots:
 	void onUpdateDownloading(qint64 ready, qint64 total);
 	void onUpdateReady();
 	void onUpdateFailed();
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 protected:
 	void closeEvent(QCloseEvent *e);
@@ -153,8 +151,6 @@ private:
 	QNetworkAccessManager _sendManager;
 	QNetworkReply *_checkReply, *_sendReply;
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	PreLaunchButton _updatingCheck, _updatingSkip;
 	enum UpdatingState {
 		UpdatingNone,
 		UpdatingCheck,
@@ -163,12 +159,17 @@ private:
 		UpdatingFail,
 		UpdatingReady
 	};
-	UpdatingState _updatingState;
-	QString _newVersionDownload;
+	struct UpdaterData {
+		UpdaterData(QWidget *buttonParent);
+
+		PreLaunchButton check, skip;
+		UpdatingState state;
+		QString newVersionDownload;
+	};
+	const std::unique_ptr<UpdaterData> _updaterData;
 
 	void setUpdatingState(UpdatingState state, bool force = false);
 	void setDownloadProgress(qint64 ready, qint64 total);
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 	rpl::lifetime _lifetime;
 

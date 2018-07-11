@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "core/crash_reports.h"
 #include "core/main_queue_processor.h"
+#include "core/update_checker.h"
 #include "application.h"
 
 namespace Core {
@@ -61,15 +62,12 @@ int Launcher::exec() {
 
 	DEBUG_LOG(("Telegram finished, result: %1").arg(result));
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	if (cRestartingUpdate()) {
+	if (!UpdaterDisabled() && cRestartingUpdate()) {
 		DEBUG_LOG(("Application Info: executing updater to install update..."));
 		if (!launchUpdater(UpdaterLaunch::PerformUpdate)) {
 			psDeleteDir(cWorkingDir() + qsl("tupdates/temp"));
 		}
-	} else
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
-	if (cRestarting()) {
+	} else if (cRestarting()) {
 		DEBUG_LOG(("Application Info: executing Telegram, because of restart..."));
 		launchUpdater(UpdaterLaunch::JustRelaunch);
 	}
@@ -178,19 +176,20 @@ void Launcher::processArguments() {
 		AllLeftValues,
 	};
 	auto parseMap = std::map<QByteArray, KeyFormat> {
-		{ "-testmode"   , KeyFormat::NoValues },
-		{ "-debug"      , KeyFormat::NoValues },
-		{ "-many"       , KeyFormat::NoValues },
-		{ "-key"        , KeyFormat::OneValue },
-		{ "-autostart"  , KeyFormat::NoValues },
-		{ "-fixprevious", KeyFormat::NoValues },
-		{ "-cleanup"    , KeyFormat::NoValues },
-		{ "-noupdate"   , KeyFormat::NoValues },
-		{ "-tosettings" , KeyFormat::NoValues },
-		{ "-startintray", KeyFormat::NoValues },
-		{ "-sendpath"   , KeyFormat::AllLeftValues },
-		{ "-workdir"    , KeyFormat::OneValue },
-		{ "--"          , KeyFormat::OneValue },
+		{ "-testmode"       , KeyFormat::NoValues },
+		{ "-debug"          , KeyFormat::NoValues },
+		{ "-many"           , KeyFormat::NoValues },
+		{ "-key"            , KeyFormat::OneValue },
+		{ "-autostart"      , KeyFormat::NoValues },
+		{ "-fixprevious"    , KeyFormat::NoValues },
+		{ "-cleanup"        , KeyFormat::NoValues },
+		{ "-noupdate"       , KeyFormat::NoValues },
+		{ "-externalupdater", KeyFormat::NoValues },
+		{ "-tosettings"     , KeyFormat::NoValues },
+		{ "-startintray"    , KeyFormat::NoValues },
+		{ "-sendpath"       , KeyFormat::AllLeftValues },
+		{ "-workdir"        , KeyFormat::OneValue },
+		{ "--"              , KeyFormat::OneValue },
 	};
 	auto parseResult = QMap<QByteArray, QStringList>();
 	auto parsingKey = QByteArray();
@@ -215,6 +214,9 @@ void Launcher::processArguments() {
 		}
 	}
 
+	if (parseResult.contains("-externalupdater")) {
+		SetUpdaterDisabledAtStartup();
+	}
 	gTestMode = parseResult.contains("-testmode");
 	Logs::SetDebugEnabled(parseResult.contains("-debug"));
 	gManyInstance = parseResult.contains("-many");

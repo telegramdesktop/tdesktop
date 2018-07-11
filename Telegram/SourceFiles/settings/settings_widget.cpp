@@ -59,11 +59,11 @@ void fillCodes() {
 			Messenger::Instance().onSwitchTestMode();
 		}));
 	});
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	Codes.insert(qsl("testupdate"), [] {
-		Core::UpdateChecker().test();
-	});
-#endif // TDESKTOP_DISABLE_AUTOUPDATE
+	if (!Core::UpdaterDisabled()) {
+		Codes.insert(qsl("testupdate"), [] {
+			Core::UpdateChecker().test();
+		});
+	}
 	Codes.insert(qsl("loadlang"), [] {
 		Lang::CurrentCloudManager().switchToLanguage(qsl("custom"));
 	});

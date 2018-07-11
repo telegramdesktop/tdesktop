@@ -13,7 +13,8 @@ class Instance;
 
 namespace Core {
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+bool UpdaterDisabled();
+void SetUpdaterDisabledAtStartup();
 
 class Updater;
 
@@ -53,13 +54,6 @@ private:
 };
 
 bool checkReadyUpdate();
-
-#else // TDESKTOP_DISABLE_AUTOUPDATE
-class UpdateChecker {
-};
-
-#endif // TDESKTOP_DISABLE_AUTOUPDATE
-
 void UpdateApplication();
 QString countBetaVersionSignature(uint64 version);
 

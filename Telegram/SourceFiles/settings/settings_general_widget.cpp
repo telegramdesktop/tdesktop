@@ -27,10 +27,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Settings {
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 UpdateStateRow::UpdateStateRow(QWidget *parent) : RpWidget(parent)
 , _check(this, lang(lng_settings_check_now))
 , _restart(this, lang(lng_settings_update_now)) {
+	Expects(!Core::UpdaterDisabled());
+
 	connect(_check, SIGNAL(clicked()), this, SLOT(onCheck()));
 	connect(_restart, SIGNAL(clicked()), this, SIGNAL(restart()));
 
@@ -160,7 +161,6 @@ void UpdateStateRow::onReady() {
 void UpdateStateRow::onFailed() {
 	setState(State::Fail);
 }
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 GeneralWidget::GeneralWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_general))
 , _changeLanguage(this, lang(lng_settings_change_lang), st::boxLinkButton) {
@@ -169,11 +169,8 @@ GeneralWidget::GeneralWidget(QWidget *parent, UserData *self) : BlockWidget(pare
 }
 
 int GeneralWidget::getUpdateTop() const {
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	return 0; // _updateRow->y(); // Just scroll to the top of the whole General widget
-#else // !TDESKTOP_DISABLE_AUTOUPDATE
-	return -1;
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
+	// Just scroll to the top of the whole General widget
+	return Core::UpdaterDisabled() ? -1 : 0;
 }
 
 int GeneralWidget::resizeGetHeight(int newWidth) {
@@ -187,15 +184,15 @@ void GeneralWidget::refreshControls() {
 	style::margins marginSmall(0, 0, 0, st::settingsSmallSkip);
 	style::margins slidedPadding(0, marginSmall.bottom() / 2, 0, marginSmall.bottom() - (marginSmall.bottom() / 2));
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	createChildRow(_updateAutomatically, marginSub, lang(lng_settings_update_automatically), [this](bool) { onUpdateAutomatically(); }, cAutoUpdate());
-	style::margins marginLink(st::defaultCheck.diameter + st::defaultBoxCheckbox.textPosition.x(), 0, 0, st::settingsSkip);
-	createChildRow(_updateRow, marginLink, slidedPadding);
-	connect(_updateRow->entity(), SIGNAL(restart()), this, SLOT(onRestart()));
-	if (!cAutoUpdate()) {
-		_updateRow->hide(anim::type::instant);
+	if (!Core::UpdaterDisabled()) {
+		createChildRow(_updateAutomatically, marginSub, lang(lng_settings_update_automatically), [this](bool) { onUpdateAutomatically(); }, cAutoUpdate());
+		style::margins marginLink(st::defaultCheck.diameter + st::defaultBoxCheckbox.textPosition.x(), 0, 0, st::settingsSkip);
+		createChildRow(_updateRow, marginLink, slidedPadding);
+		connect(_updateRow->entity(), SIGNAL(restart()), this, SLOT(onRestart()));
+		if (!cAutoUpdate()) {
+			_updateRow->hide(anim::type::instant);
+		}
 	}
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 	if (cPlatform() == dbipWindows || cSupportTray()) {
 		auto workMode = Global::WorkMode().value();
@@ -237,14 +234,15 @@ void GeneralWidget::onChangeLanguage() {
 }
 
 void GeneralWidget::onRestart() {
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	Core::checkReadyUpdate();
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
+	if (!Core::UpdaterDisabled()) {
+		Core::checkReadyUpdate();
+	}
 	App::restart();
 }
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 void GeneralWidget::onUpdateAutomatically() {
+	Expects(!Core::UpdaterDisabled());
+
 	cSetAutoUpdate(_updateAutomatically->checked());
 	Local::writeSettings();
 	_updateRow->toggle(
@@ -257,7 +255,6 @@ void GeneralWidget::onUpdateAutomatically() {
 		checker.stop();
 	}
 }
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 void GeneralWidget::onEnableTrayIcon() {
 	if ((!_enableTrayIcon->checked() || cPlatform() != dbipWindows) && _enableTaskbarIcon && !_enableTaskbarIcon->checked()) {

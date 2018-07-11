@@ -61,9 +61,7 @@ private:
 	void singleInstanceChecked();
 
 private:
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	std::unique_ptr<Core::UpdateChecker> _updateChecker;
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 };
 

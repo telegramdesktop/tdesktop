@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/launcher_linux.h"
 
 #include "core/crash_reports.h"
+#include "core/update_checker.h"
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -83,6 +84,11 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	if (cTestMode()) {
 		argumentsList.push("-testmode");
 	}
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	if (Core::UpdaterDisabled()) {
+		argumentsList.push("-externalupdater");
+	}
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 	if (cDataFile() != qsl("data")) {
 		argumentsList.push("-key");
 		argumentsList.push(QFile::encodeName(cDataFile()));

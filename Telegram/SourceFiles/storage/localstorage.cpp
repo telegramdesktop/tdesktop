@@ -1315,11 +1315,9 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		if (!_checkStreamStatus(stream)) return false;
 
 		cSetAutoUpdate(v == 1);
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-		if (!cAutoUpdate()) {
+		if (!Core::UpdaterDisabled() && !cAutoUpdate()) {
 			Core::UpdateChecker().stop();
 		}
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 	} break;
 
 	case dbiLastUpdateCheck: {
@@ -2560,8 +2558,9 @@ void writeMtpData() {
 	_writeMtpData();
 }
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 const QString &AutoupdatePrefix(const QString &replaceWith = {}) {
+	Expects(!Core::UpdaterDisabled());
+
 	static auto value = QString();
 	if (!replaceWith.isEmpty()) {
 		value = replaceWith;
@@ -2570,10 +2569,14 @@ const QString &AutoupdatePrefix(const QString &replaceWith = {}) {
 }
 
 QString autoupdatePrefixFile() {
+	Expects(!Core::UpdaterDisabled());
+
 	return cWorkingDir() + "tdata/prefix";
 }
 
 const QString &readAutoupdatePrefixRaw() {
+	Expects(!Core::UpdaterDisabled());
+
 	const auto &result = AutoupdatePrefix();
 	if (!result.isEmpty()) {
 		return result;
@@ -2587,10 +2590,12 @@ const QString &readAutoupdatePrefixRaw() {
 	}
 	return AutoupdatePrefix("https://updates.tdesktop.com");
 }
-#endif // TDESKTOP_DISABLE_AUTOUPDATE
 
 void writeAutoupdatePrefix(const QString &prefix) {
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	if (Core::UpdaterDisabled()) {
+		return;
+	}
+
 	const auto current = readAutoupdatePrefixRaw();
 	if (current != prefix) {
 		AutoupdatePrefix(prefix);
@@ -2604,15 +2609,14 @@ void writeAutoupdatePrefix(const QString &prefix) {
 			checker.start();
 		}
 	}
-#endif // TDESKTOP_DISABLE_AUTOUPDATE
 }
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 QString readAutoupdatePrefix() {
+	Expects(!Core::UpdaterDisabled());
+
 	auto result = readAutoupdatePrefixRaw();
 	return result.replace(QRegularExpression("/+$"), QString());
 }
-#endif // TDESKTOP_DISABLE_AUTOUPDATE
 
 void reset() {
 	if (_localLoader) {

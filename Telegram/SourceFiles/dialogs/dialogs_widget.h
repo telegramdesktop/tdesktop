@@ -164,10 +164,7 @@ private:
 	void updateSearchFromVisibility(bool fast = false);
 	void updateControlsGeometry();
 	void updateForwardBar();
-
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void checkUpdateStatus();
-#endif // TDESKTOP_DISABLE_AUTOUPDATE
 
 	bool dialogsFailed(const RPCError &error, mtpRequestId req);
 	bool searchFailed(DialogsSearchRequestType type, const RPCError &error, mtpRequestId req);

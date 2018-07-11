@@ -368,10 +368,10 @@ MainWidget::MainWidget(
 
 	orderWidgets();
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	Core::UpdateChecker checker;
-	checker.start();
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
+	if (!Core::UpdaterDisabled()) {
+		Core::UpdateChecker checker;
+		checker.start();
+	}
 }
 
 void MainWidget::setupConnectingWidget() {

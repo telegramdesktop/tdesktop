@@ -91,10 +91,9 @@ Application::Application(
 		char **argv)
 : QApplication(argc, argv)
 , _launcher(launcher)
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-, _updateChecker(std::make_unique<Core::UpdateChecker>())
-#endif // TDESKTOP_DISABLE_AUTOUPDATE
-{
+, _updateChecker(Core::UpdaterDisabled()
+	? nullptr
+	: std::make_unique<Core::UpdateChecker>()) {
 	const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
 	char h[33] = { 0 };
 	hashMd5Hex(d.constData(), d.size(), h);
@@ -204,13 +203,13 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 	}
 #endif // !Q_OS_WINRT
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	if (!cNoStartUpdate() && Core::checkReadyUpdate()) {
+	if (!Core::UpdaterDisabled()
+		&& !cNoStartUpdate()
+		&& Core::checkReadyUpdate()) {
 		cSetRestartingUpdate(true);
 		DEBUG_LOG(("Application Info: installing update instead of starting app..."));
 		return App::quit();
 	}
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 	singleInstanceChecked();
 }
@@ -384,9 +383,7 @@ void Application::closeApplication() {
 
 	_localSocket.close();
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	_updateChecker = nullptr;
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 }
 
 inline Application *application() {

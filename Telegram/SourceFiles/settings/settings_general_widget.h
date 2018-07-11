@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Settings {
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 class UpdateStateRow : public Ui::RpWidget {
 	Q_OBJECT
 
@@ -60,7 +59,6 @@ private:
 	QString _versionText;
 
 };
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 class GeneralWidget : public BlockWidget {
 	Q_OBJECT
@@ -75,11 +73,7 @@ protected:
 
 private slots:
 	void onChangeLanguage();
-
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void onUpdateAutomatically();
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
-
 	void onEnableTrayIcon();
 	void onEnableTaskbarIcon();
 
@@ -96,10 +90,8 @@ private:
 	void updateWorkmode();
 
 	object_ptr<Ui::LinkButton> _changeLanguage;
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	Ui::Checkbox *_updateAutomatically = nullptr;
 	Ui::SlideWrap<UpdateStateRow> *_updateRow = nullptr;
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 	Ui::Checkbox *_enableTrayIcon = nullptr;
 	Ui::Checkbox *_enableTaskbarIcon = nullptr;
 	Ui::Checkbox *_autoStart = nullptr;

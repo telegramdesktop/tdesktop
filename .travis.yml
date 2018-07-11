@@ -10,7 +10,6 @@ cache:
 env:
   matrix:
    - BUILD_VERSION=""
-   - BUILD_VERSION="disable_autoupdate"
    - BUILD_VERSION="disable_register_custom_scheme"
    - BUILD_VERSION="disable_crash_reports"
    - BUILD_VERSION="disable_network_proxy"
