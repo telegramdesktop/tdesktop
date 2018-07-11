@@ -2501,6 +2501,12 @@ std::vector<not_null<DocumentData*>> *ApiWrap::stickersByEmoji(
 			auto &entry = _stickersByEmoji[emoji];
 			entry.list.clear();
 			entry.list.reserve(data.vstickers.v.size());
+			for (const auto &sticker : data.vstickers.v) {
+				const auto document = _session->data().document(sticker);
+				if (document->sticker()) {
+					entry.list.push_back(document);
+				}
+			}
 			entry.hash = data.vhash.v;
 			entry.received = getms(true);
 			_session->data().notifyStickersUpdated();
