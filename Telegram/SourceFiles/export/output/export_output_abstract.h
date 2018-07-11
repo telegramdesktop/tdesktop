@@ -75,15 +75,6 @@ public:
 	[[nodiscard]] virtual Result writeDialogEnd() = 0;
 	[[nodiscard]] virtual Result writeDialogsEnd() = 0;
 
-	[[nodiscard]] virtual Result writeLeftChannelsStart(
-		const Data::DialogsInfo &data) = 0;
-	[[nodiscard]] virtual Result writeLeftChannelStart(
-		const Data::DialogInfo &data) = 0;
-	[[nodiscard]] virtual Result writeLeftChannelSlice(
-		const Data::MessagesSlice &data) = 0;
-	[[nodiscard]] virtual Result writeLeftChannelEnd() = 0;
-	[[nodiscard]] virtual Result writeLeftChannelsEnd() = 0;
-
 	[[nodiscard]] virtual Result finish() = 0;
 
 	[[nodiscard]] virtual QString mainFilePath() = 0;

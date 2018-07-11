@@ -61,7 +61,6 @@ Content ContentFromState(const ProcessingState &state) {
 	case Step::Initializing:
 		pushMain(lang(lng_export_state_initializing));
 		break;
-	case Step::LeftChannelsList:
 	case Step::DialogsList:
 		pushMain(lang(lng_export_state_chats_list));
 		break;
@@ -83,7 +82,6 @@ Content ContentFromState(const ProcessingState &state) {
 	case Step::OtherData:
 		pushMain(lang(lng_export_option_other));
 		break;
-	case Step::LeftChannels:
 	case Step::Dialogs:
 		pushMain(lang(lng_export_state_chats));
 		push(

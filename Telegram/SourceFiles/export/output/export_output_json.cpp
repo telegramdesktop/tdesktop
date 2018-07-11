@@ -593,7 +593,10 @@ Result JsonWriter::start(
 	_stats = stats;
 	_output = fileWithRelativePath(mainFileRelativePath());
 
-	return _output->writeBlock(pushNesting(Context::kObject));
+	auto block = pushNesting(Context::kObject);
+	block.append(prepareObjectItemStart("about"));
+	block.append(SerializeString(_environment.aboutTelegram));
+	return _output->writeBlock(block);
 }
 
 QByteArray JsonWriter::pushNesting(Context::Type type) {
@@ -943,56 +946,16 @@ Result JsonWriter::writeWebSessions(const Data::SessionsList &data) {
 }
 
 Result JsonWriter::writeDialogsStart(const Data::DialogsInfo &data) {
-	return writeChatsStart(data, "chats");
+	return Result::Success();
 }
 
 Result JsonWriter::writeDialogStart(const Data::DialogInfo &data) {
-	return writeChatStart(data);
-}
-
-Result JsonWriter::writeDialogSlice(const Data::MessagesSlice &data) {
-	return writeChatSlice(data);
-}
-
-Result JsonWriter::writeDialogEnd() {
-	return writeChatEnd();
-}
-
-Result JsonWriter::writeDialogsEnd() {
-	return writeChatsEnd();
-}
-
-Result JsonWriter::writeLeftChannelsStart(const Data::DialogsInfo &data) {
-	return writeChatsStart(data, "left_chats");
-}
-
-Result JsonWriter::writeLeftChannelStart(const Data::DialogInfo &data) {
-	return writeChatStart(data);
-}
-
-Result JsonWriter::writeLeftChannelSlice(const Data::MessagesSlice &data) {
-	return writeChatSlice(data);
-}
-
-Result JsonWriter::writeLeftChannelEnd() {
-	return writeChatEnd();
-}
-
-Result JsonWriter::writeLeftChannelsEnd() {
-	return writeChatsEnd();
-}
-
-Result JsonWriter::writeChatsStart(
-		const Data::DialogsInfo &data,
-		const QByteArray &listName) {
 	Expects(_output != nullptr);
 
-	auto block = prepareObjectItemStart(listName);
-	return _output->writeBlock(block + pushNesting(Context::kArray));
-}
-
-Result JsonWriter::writeChatStart(const Data::DialogInfo &data) {
-	Expects(_output != nullptr);
+	const auto result = validateDialogsMode(data.isLeftChannel);
+	if (!result) {
+		return result;
+	}
 
 	using Type = Data::DialogInfo::Type;
 	const auto TypeString = [](Type type) {
@@ -1023,7 +986,26 @@ Result JsonWriter::writeChatStart(const Data::DialogInfo &data) {
 	return _output->writeBlock(block);
 }
 
-Result JsonWriter::writeChatSlice(const Data::MessagesSlice &data) {
+Result JsonWriter::validateDialogsMode(bool isLeftChannel) {
+	const auto mode = isLeftChannel
+		? DialogsMode::Left
+		: DialogsMode::Chats;
+	if (_dialogsMode == mode) {
+		return Result::Success();
+	} else if (_dialogsMode != DialogsMode::None) {
+		if (const auto result = writeChatsEnd(); !result) {
+			return result;
+		}
+	}
+	_dialogsMode = mode;
+	return writeChatsStart(
+		isLeftChannel ? "left_chats" : "chats",
+		(isLeftChannel
+			? _environment.aboutLeftChats
+			: _environment.aboutChats));
+}
+
+Result JsonWriter::writeDialogSlice(const Data::MessagesSlice &data) {
 	Expects(_output != nullptr);
 
 	auto block = QByteArray();
@@ -1037,17 +1019,35 @@ Result JsonWriter::writeChatSlice(const Data::MessagesSlice &data) {
 	return _output->writeBlock(block);
 }
 
-Result JsonWriter::writeChatEnd() {
+Result JsonWriter::writeDialogEnd() {
 	Expects(_output != nullptr);
 
 	auto block = popNesting();
 	return _output->writeBlock(block + popNesting());
 }
 
+Result JsonWriter::writeDialogsEnd() {
+	return writeChatsEnd();
+}
+
+Result JsonWriter::writeChatsStart(
+		const QByteArray &listName,
+		const QByteArray &about) {
+	Expects(_output != nullptr);
+
+	auto block = prepareObjectItemStart(listName);
+	block.append(pushNesting(Context::kObject));
+	block.append(prepareObjectItemStart("about"));
+	block.append(SerializeString(about));
+	block.append(prepareObjectItemStart("list"));
+	return _output->writeBlock(block + pushNesting(Context::kArray));
+}
+
 Result JsonWriter::writeChatsEnd() {
 	Expects(_output != nullptr);
 
-	return _output->writeBlock(popNesting());
+	auto block = popNesting();
+	return _output->writeBlock(block + popNesting());
 }
 
 Result JsonWriter::finish() {

@@ -1755,7 +1755,6 @@ Result HtmlWriter::start(
 		"images/section_chats.png",
 		"images/section_contacts.png",
 		"images/section_frequent.png",
-		"images/section_leftchats.png",
 		"images/section_other.png",
 		"images/section_photos.png",
 		"images/section_sessions.png",
@@ -1874,7 +1873,7 @@ Result HtmlWriter::writeUserpicsStart(const Data::UserpicsInfo &data) {
 	_userpics = fileWithRelativePath(userpicsFilePath());
 
 	auto block = _userpics->pushHeader(
-		"Personal photos",
+		"Profile pictures",
 		mainFileRelativePath());
 	block.append(_userpics->pushDiv("page_body list_page"));
 	block.append(_userpics->pushDiv("entry_list"));
@@ -2198,98 +2197,36 @@ Result HtmlWriter::writeOtherData(const Data::File &data) {
 }
 
 Result HtmlWriter::writeDialogsStart(const Data::DialogsInfo &data) {
-	return writeChatsStart(
-		data,
-		"Chats",
-		"chats",
-		_environment.aboutChats,
-		"lists/chats.html");
-}
-
-Result HtmlWriter::writeDialogStart(const Data::DialogInfo &data) {
-	return writeChatStart(data);
-}
-
-Result HtmlWriter::writeDialogSlice(const Data::MessagesSlice &data) {
-	return writeChatSlice(data);
-}
-
-Result HtmlWriter::writeDialogEnd() {
-	return writeChatEnd();
-}
-
-Result HtmlWriter::writeDialogsEnd() {
-	return writeChatsEnd();
-}
-
-Result HtmlWriter::writeLeftChannelsStart(const Data::DialogsInfo &data) {
-	return writeChatsStart(
-		data,
-		"Left chats",
-		"leftchats",
-		_environment.aboutLeftChats,
-		"lists/left_chats.html");
-}
-
-Result HtmlWriter::writeLeftChannelStart(const Data::DialogInfo &data) {
-	return writeChatStart(data);
-}
-
-Result HtmlWriter::writeLeftChannelSlice(const Data::MessagesSlice &data) {
-	return writeChatSlice(data);
-}
-
-Result HtmlWriter::writeLeftChannelEnd() {
-	return writeChatEnd();
-}
-
-Result HtmlWriter::writeLeftChannelsEnd() {
-	return writeChatsEnd();
-}
-
-Result HtmlWriter::writeChatsStart(
-		const Data::DialogsInfo &data,
-		const QByteArray &listName,
-		const QByteArray &buttonClass,
-		const QByteArray &about,
-		const QString &fileName) {
 	Expects(_summary != nullptr);
 	Expects(_chats == nullptr);
 
-	if (data.list.empty()) {
+	if (data.chats.empty() && data.left.empty()) {
 		return Result::Success();
 	}
 
-	_dialogsRelativePath = fileName;
-	_chats = fileWithRelativePath(fileName);
-	_dialogIndex = 0;
-	_dialogsCount = data.list.size();
+	_dialogsRelativePath = "lists/chats.html";
+	_chats = fileWithRelativePath(_dialogsRelativePath);
 
 	auto block = _chats->pushHeader(
-		listName,
+		"Chats",
 		mainFileRelativePath());
 	block.append(_chats->pushDiv("page_body list_page"));
-	block.append(_chats->pushAbout(about));
-	block.append(_chats->pushDiv("entry_list"));
 	if (const auto result = _chats->writeBlock(block); !result) {
 		return result;
 	}
 
 	pushSection(
 		0,
-		listName,
-		buttonClass,
-		data.list.size(),
-		fileName);
+		"Chats",
+		"chats",
+		data.chats.size() + data.left.size(),
+		"lists/chats.html");
 	return writeSections();
 }
 
-Result HtmlWriter::writeChatStart(const Data::DialogInfo &data) {
+Result HtmlWriter::writeDialogStart(const Data::DialogInfo &data) {
 	Expects(_chat == nullptr);
-	Expects(_dialogIndex < _dialogsCount);
 
-	const auto digits = Data::NumberToString(_dialogsCount - 1).size();
-	const auto number = Data::NumberToString(++_dialogIndex, digits, '0');
 	_chat = fileWithRelativePath(data.relativePath + messagesFile(0));
 	_chatFileEmpty = true;
 	_messagesCount = 0;
@@ -2299,29 +2236,7 @@ Result HtmlWriter::writeChatStart(const Data::DialogInfo &data) {
 	return Result::Success();
 }
 
-Result HtmlWriter::writeChatOpening(int index) {
-	const auto name = (_dialog.name.isEmpty()
-		&& _dialog.lastName.isEmpty())
-		? QByteArray("Deleted Account")
-		: (_dialog.name + ' ' + _dialog.lastName);
-	auto block = _chat->pushHeader(
-		name,
-		_dialogsRelativePath);
-	block.append(_chat->pushDiv("page_body chat_page"));
-	block.append(_chat->pushDiv("history"));
-	if (index > 0) {
-		const auto previousPath = messagesFile(index - 1);
-		block.append(_chat->pushTag("a", {
-			{ "class", "pagination block_link" },
-			{ "href", previousPath.toUtf8() }
-			}));
-		block.append("Previous messages part");
-		block.append(_chat->popTag());
-	}
-	return _chat->writeBlock(block);
-}
-
-Result HtmlWriter::writeChatSlice(const Data::MessagesSlice &data) {
+Result HtmlWriter::writeDialogSlice(const Data::MessagesSlice &data) {
 	Expects(_chat != nullptr);
 	Expects(!data.list.empty());
 
@@ -2331,7 +2246,7 @@ Result HtmlWriter::writeChatSlice(const Data::MessagesSlice &data) {
 	auto block = QByteArray();
 	for (const auto &message : data.list) {
 		if (_chatFileEmpty) {
-			if (const auto result = writeChatOpening(oldIndex); !result) {
+			if (const auto result = writeDialogOpening(oldIndex); !result) {
 				return result;
 			}
 			_chatFileEmpty = false;
@@ -2378,7 +2293,7 @@ Result HtmlWriter::writeChatSlice(const Data::MessagesSlice &data) {
 	return _chat->writeBlock(block);
 }
 
-Result HtmlWriter::writeChatEnd() {
+Result HtmlWriter::writeDialogEnd() {
 	Expects(_chats != nullptr);
 	Expects(_chat != nullptr);
 
@@ -2446,6 +2361,12 @@ Result HtmlWriter::writeChatEnd() {
 	};
 	userpic.firstName = NameString(_dialog);
 	userpic.lastName = LastNameString(_dialog);
+
+	const auto result = validateDialogsMode(_dialog.isLeftChannel);
+	if (!result) {
+		return result;
+	}
+
 	return _chats->writeBlock(_chats->pushListEntry(
 		userpic,
 		ComposeName(userpic, DeletedString(_dialog.type)),
@@ -2456,11 +2377,53 @@ Result HtmlWriter::writeChatEnd() {
 			: QString())));
 }
 
-Result HtmlWriter::writeChatsEnd() {
+Result HtmlWriter::validateDialogsMode(bool isLeftChannel) {
+	const auto mode = isLeftChannel
+		? DialogsMode::Left
+		: DialogsMode::Chats;
+	if (_dialogsMode == mode) {
+		return Result::Success();
+	} else if (_dialogsMode != DialogsMode::None) {
+		const auto result = _chats->writeBlock(_chats->popTag());
+		if (!result) {
+			return result;
+		}
+	}
+	_dialogsMode = mode;
+	auto block = _chats->pushAbout(isLeftChannel
+		? _environment.aboutLeftChats
+		: _environment.aboutChats);
+	block.append(_chats->pushDiv("entry_list"));
+	return _chats->writeBlock(block);
+}
+
+Result HtmlWriter::writeDialogsEnd() {
 	if (_chats) {
 		return base::take(_chats)->close();
 	}
 	return Result::Success();
+}
+
+Result HtmlWriter::writeDialogOpening(int index) {
+	const auto name = (_dialog.name.isEmpty()
+		&& _dialog.lastName.isEmpty())
+		? QByteArray("Deleted Account")
+		: (_dialog.name + ' ' + _dialog.lastName);
+	auto block = _chat->pushHeader(
+		name,
+		_dialogsRelativePath);
+	block.append(_chat->pushDiv("page_body chat_page"));
+	block.append(_chat->pushDiv("history"));
+	if (index > 0) {
+		const auto previousPath = messagesFile(index - 1);
+		block.append(_chat->pushTag("a", {
+			{ "class", "pagination block_link" },
+			{ "href", previousPath.toUtf8() }
+			}));
+		block.append("Previous messages");
+		block.append(_chat->popTag());
+	}
+	return _chat->writeBlock(block);
 }
 
 void HtmlWriter::pushSection(
@@ -2513,7 +2476,7 @@ Result HtmlWriter::switchToNextChatFile(int index) {
 		{ "class", "pagination block_link" },
 		{ "href", nextPath.toUtf8() }
 	});
-	next.append("Next messages part");
+	next.append("Next messages");
 	next.append(_chat->popTag());
 	if (const auto result = _chat->writeBlock(next); !result) {
 		return result;

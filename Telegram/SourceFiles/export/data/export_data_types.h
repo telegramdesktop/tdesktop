@@ -521,13 +521,14 @@ struct DialogInfo {
 	MTPInputPeer input = MTP_inputPeerEmpty();
 	int32 topMessageId = 0;
 	TimeId topMessageDate = 0;
-	PeerId peerId;
+	PeerId peerId = 0;
 
 	// User messages splits which contained that dialog.
 	std::vector<int> splits;
 
 	// Filled after the whole dialogs list is accumulated.
 	bool onlyMyMessages = false;
+	bool isLeftChannel = false;
 	QString relativePath;
 
 	// Filled when requesting dialog messages.
@@ -535,7 +536,11 @@ struct DialogInfo {
 };
 
 struct DialogsInfo {
-	std::vector<DialogInfo> list;
+	DialogInfo *item(int index);
+	const DialogInfo *item(int index) const;
+
+	std::vector<DialogInfo> chats;
+	std::vector<DialogInfo> left;
 };
 
 DialogInfo::Type DialogTypeFromChat(const Chat &chat);
@@ -543,7 +548,6 @@ DialogInfo::Type DialogTypeFromChat(const Chat &chat);
 DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data);
 DialogsInfo ParseLeftChannelsInfo(const MTPmessages_Chats &data);
 void FinalizeDialogsInfo(DialogsInfo &info, const Settings &settings);
-void FinalizeLeftChannelsInfo(DialogsInfo &info, const Settings &settings);
 
 struct MessagesSlice {
 	std::vector<Message> list;

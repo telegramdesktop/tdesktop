@@ -56,41 +56,39 @@ public:
 	Result writeDialogEnd() override;
 	Result writeDialogsEnd() override;
 
-	Result writeLeftChannelsStart(const Data::DialogsInfo &data) override;
-	Result writeLeftChannelStart(const Data::DialogInfo &data) override;
-	Result writeLeftChannelSlice(const Data::MessagesSlice &data) override;
-	Result writeLeftChannelEnd() override;
-	Result writeLeftChannelsEnd() override;
-
 	Result finish() override;
 
 	QString mainFilePath() override;
 
 private:
 	using Context = details::JsonContext;
+	enum class DialogsMode {
+		None,
+		Chats,
+		Left,
+	};
 
 	[[nodiscard]] QByteArray pushNesting(Context::Type type);
 	[[nodiscard]] QByteArray prepareObjectItemStart(const QByteArray &key);
 	[[nodiscard]] QByteArray prepareArrayItemStart();
 	[[nodiscard]] QByteArray popNesting();
 
-	QString mainFileRelativePath() const;
-	QString pathWithRelativePath(const QString &path) const;
-	std::unique_ptr<File> fileWithRelativePath(const QString &path) const;
+	[[nodiscard]] QString mainFileRelativePath() const;
+	[[nodiscard]] QString pathWithRelativePath(const QString &path) const;
+	[[nodiscard]] std::unique_ptr<File> fileWithRelativePath(
+		const QString &path) const;
 
-	Result writeSavedContacts(const Data::ContactsList &data);
-	Result writeFrequentContacts(const Data::ContactsList &data);
+	[[nodiscard]] Result writeSavedContacts(const Data::ContactsList &data);
+	[[nodiscard]] Result writeFrequentContacts(const Data::ContactsList &data);
 
-	Result writeSessions(const Data::SessionsList &data);
-	Result writeWebSessions(const Data::SessionsList &data);
+	[[nodiscard]] Result writeSessions(const Data::SessionsList &data);
+	[[nodiscard]] Result writeWebSessions(const Data::SessionsList &data);
 
-	Result writeChatsStart(
-		const Data::DialogsInfo &data,
-		const QByteArray &listName);
-	Result writeChatStart(const Data::DialogInfo &data);
-	Result writeChatSlice(const Data::MessagesSlice &data);
-	Result writeChatEnd();
-	Result writeChatsEnd();
+	[[nodiscard]] Result validateDialogsMode(bool isLeftChannel);
+	[[nodiscard]] Result writeChatsStart(
+		const QByteArray &listName,
+		const QByteArray &about);
+	[[nodiscard]] Result writeChatsEnd();
 
 	Settings _settings;
 	Environment _environment;
@@ -98,6 +96,7 @@ private:
 
 	Context _context;
 	bool _currentNestingHadItem = false;
+	DialogsMode _dialogsMode = DialogsMode::None;
 
 	std::unique_ptr<File> _output;
 

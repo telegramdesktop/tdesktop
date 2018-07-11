@@ -42,16 +42,12 @@ public:
 	struct StartInfo {
 		int userpicsCount = 0;
 		int dialogsCount = 0;
-		int leftChannelsCount = 0;
 	};
 	void startExport(
 		const Settings &settings,
 		Output::Stats *stats,
 		FnMut<void(StartInfo)> done);
 
-	void requestLeftChannelsList(
-		Fn<bool(int count)> progress,
-		FnMut<void(Data::DialogsInfo&&)> done);
 	void requestDialogsList(
 		Fn<bool(int count)> progress,
 		FnMut<void(Data::DialogsInfo&&)> done);
@@ -129,13 +125,18 @@ private:
 	void appendDialogsSlice(Data::DialogsInfo &&info);
 	void finishDialogsList();
 
+	void requestLeftChannelsIfNeeded();
+	void requestLeftChannelsList(
+		Fn<bool(int count)> progress,
+		FnMut<void(Data::DialogsInfo&&)> done);
 	void requestLeftChannelsSliceGeneric(FnMut<void()> done);
 	void requestLeftChannelsSlice();
 	void appendLeftChannelsSlice(Data::DialogsInfo &&info);
 
 	void appendChatsSlice(
-		ChatsProcess &to,
-		Data::DialogsInfo &&info,
+		ChatsProcess &process,
+		std::vector<Data::DialogInfo> &to,
+		std::vector<Data::DialogInfo> &&from,
 		int splitIndex);
 
 	void requestMessagesCount(int localSplitIndex);

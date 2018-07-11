@@ -400,9 +400,6 @@ a.block_link:hover {
 .section.web {
     background-image: url(../images/section_web.png);
 }
-.section.leftchats {
-    background-image: url(../images/section_leftchats.png);
-}
 .section.other {
     background-image: url(../images/section_other.png)
 }
@@ -463,9 +460,6 @@ a.block_link:hover {
 }
 .section.web {
     background-image: url(../images/section_web@2x.png);
-}
-.section.leftchats {
-    background-image: url(../images/section_leftchats@2x.png);
 }
 .section.other {
     background-image: url(../images/section_other@2x.png);

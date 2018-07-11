@@ -536,8 +536,8 @@ void ApiWrap::requestLeftChannelsCount() {
 		Expects(_startProcess != nullptr);
 		Expects(_leftChannelsProcess != nullptr);
 
-		_startProcess->info.leftChannelsCount
-			= _leftChannelsProcess->fullCount;
+		_startProcess->info.dialogsCount
+			+= _leftChannelsProcess->fullCount;
 		sendNextStartRequest();
 	});
 }
@@ -569,7 +569,6 @@ void ApiWrap::requestLeftChannelsSlice() {
 
 		if (_leftChannelsProcess->finished) {
 			const auto process = base::take(_leftChannelsProcess);
-			Data::FinalizeLeftChannelsInfo(process->info, *_settings);
 			process->done(std::move(process->info));
 		} else {
 			requestLeftChannelsSlice();
@@ -987,10 +986,10 @@ void ApiWrap::requestDialogsSlice() {
 		});
 
 		auto info = Data::ParseDialogsInfo(result);
-		_dialogsProcess->processedCount += info.list.size();
-		const auto last = info.list.empty()
+		_dialogsProcess->processedCount += info.chats.size();
+		const auto last = info.chats.empty()
 			? Data::DialogInfo()
-			: info.list.back();
+			: info.chats.back();
 		appendDialogsSlice(std::move(info));
 
 		if (!_dialogsProcess->progress(_dialogsProcess->processedCount)) {
@@ -1007,7 +1006,7 @@ void ApiWrap::requestDialogsSlice() {
 			_dialogsProcess->offsetDate = 0;
 			_dialogsProcess->offsetPeer = MTP_inputPeerEmpty();
 		} else {
-			finishDialogsList();
+			requestLeftChannelsIfNeeded();
 			return;
 		}
 		requestDialogsSlice();
@@ -1020,8 +1019,27 @@ void ApiWrap::appendDialogsSlice(Data::DialogsInfo &&info) {
 
 	appendChatsSlice(
 		*_dialogsProcess,
-		std::move(info),
+		_dialogsProcess->info.chats,
+		std::move(info.chats),
 		_dialogsProcess->splitIndexPlusOne - 1);
+}
+
+void ApiWrap::requestLeftChannelsIfNeeded() {
+	if (_settings->types & Settings::Type::GroupsChannelsMask) {
+		requestLeftChannelsList([=](int count) {
+			Expects(_dialogsProcess != nullptr);
+
+			return _dialogsProcess->progress(
+				_dialogsProcess->processedCount + count);
+		}, [=](Data::DialogsInfo &&result) {
+			Expects(_dialogsProcess != nullptr);
+
+			_dialogsProcess->info.left = std::move(result.left);
+			finishDialogsList();
+		});
+	} else {
+		finishDialogsList();
+	}
 }
 
 void ApiWrap::finishDialogsList() {
@@ -1029,7 +1047,7 @@ void ApiWrap::finishDialogsList() {
 
 	const auto process = base::take(_dialogsProcess);
 
-	ranges::reverse(process->info.list);
+	ranges::reverse(process->info.chats);
 	Data::FinalizeDialogsInfo(process->info, *_settings);
 
 	process->done(std::move(process->info));
@@ -1067,7 +1085,7 @@ void ApiWrap::requestLeftChannelsSliceGeneric(FnMut<void()> done) {
 		});
 
 		if (process->progress) {
-			if (!process->progress(process->info.list.size())) {
+			if (!process->progress(process->info.left.size())) {
 				return;
 			}
 		}
@@ -1082,32 +1100,33 @@ void ApiWrap::appendLeftChannelsSlice(Data::DialogsInfo &&info) {
 
 	appendChatsSlice(
 		*_leftChannelsProcess,
-		std::move(info),
+		_leftChannelsProcess->info.left,
+		std::move(info.left),
 		_splits.size() - 1);
 }
 
 void ApiWrap::appendChatsSlice(
-		ChatsProcess &to,
-		Data::DialogsInfo &&info,
+		ChatsProcess &process,
+		std::vector<Data::DialogInfo> &to,
+		std::vector<Data::DialogInfo> &&from,
 		int splitIndex) {
 	Expects(_settings != nullptr);
 
 	const auto types = _settings->types;
 	auto filtered = ranges::view::all(
-		info.list
+		from
 	) | ranges::view::filter([&](const Data::DialogInfo &info) {
 		return (types & SettingsFromDialogsType(info.type)) != 0;
 	});
-	auto &list = to.info.list;
-	list.reserve(list.size() + info.list.size());
+	to.reserve(to.size() + from.size());
 	for (auto &info : filtered) {
-		const auto nextIndex = list.size();
-		const auto [i, ok] = to.indexByPeer.emplace(info.peerId, nextIndex);
+		const auto nextIndex = to.size();
+		const auto [i, ok] = process.indexByPeer.emplace(info.peerId, nextIndex);
 		if (ok) {
-			list.push_back(std::move(info));
+			to.push_back(std::move(info));
 		}
-		list[i->second].splits.push_back(splitIndex);
-		list[i->second].messagesCountPerSplit.push_back(0);
+		to[i->second].splits.push_back(splitIndex);
+		to[i->second].messagesCountPerSplit.push_back(0);
 	}
 }
 

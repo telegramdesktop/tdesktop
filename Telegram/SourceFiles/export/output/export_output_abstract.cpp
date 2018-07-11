@@ -467,8 +467,8 @@ Stats AbstractWriter::produceTestExample(
 	dialogChat.splits.push_back(1);
 	dialogChat.topMessageDate = sliceChat2.list.back().date;
 	dialogChat.topMessageId = sliceChat2.list.back().id;
-	dialogs.list.push_back(dialogBot);
-	dialogs.list.push_back(dialogChat);
+	dialogs.chats.push_back(dialogBot);
+	dialogs.chats.push_back(dialogChat);
 
 	check(writeDialogsStart(dialogs));
 	check(writeDialogStart(dialogBot));
@@ -480,9 +480,6 @@ Stats AbstractWriter::produceTestExample(
 	check(writeDialogSlice(sliceChat2));
 	check(writeDialogEnd());
 	check(writeDialogsEnd());
-
-	check(writeLeftChannelsStart(Data::DialogsInfo()));
-	check(writeLeftChannelsEnd());
 
 	check(finish());
 

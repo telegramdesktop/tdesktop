@@ -786,95 +786,47 @@ Result TextWriter::writeOtherData(const Data::File &data) {
 }
 
 Result TextWriter::writeDialogsStart(const Data::DialogsInfo &data) {
-	return writeChatsStart(
-		data,
-		"Chats",
-		_environment.aboutChats,
-		"lists/chats.txt");
+	_dialogsCount = data.chats.size();
+	_leftChannelsCount = data.left.size();
+	return Result::Success();
 }
 
 Result TextWriter::writeDialogStart(const Data::DialogInfo &data) {
-	return writeChatStart(data);
-}
+	Expects(_chat == nullptr);
 
-Result TextWriter::writeDialogSlice(const Data::MessagesSlice &data) {
-	return writeChatSlice(data);
-}
-
-Result TextWriter::writeDialogEnd() {
-	return writeChatEnd();
-}
-
-Result TextWriter::writeDialogsEnd() {
-	return writeChatsEnd();
-}
-
-Result TextWriter::writeLeftChannelsStart(const Data::DialogsInfo &data) {
-	return writeChatsStart(
-		data,
-		"Left chats",
-		_environment.aboutLeftChats,
-		"lists/left_chats.txt");
-}
-
-Result TextWriter::writeLeftChannelStart(const Data::DialogInfo &data) {
-	return writeChatStart(data);
-}
-
-Result TextWriter::writeLeftChannelSlice(const Data::MessagesSlice &data) {
-	return writeChatSlice(data);
-}
-
-Result TextWriter::writeLeftChannelEnd() {
-	return writeChatEnd();
-}
-
-Result TextWriter::writeLeftChannelsEnd() {
-	return writeChatsEnd();
-}
-
-Result TextWriter::writeChatsStart(
-		const Data::DialogsInfo &data,
-		const QByteArray &listName,
-		const QByteArray &about,
-		const QString &fileName) {
-	Expects(_summary != nullptr);
-	Expects(_chats == nullptr);
-
-	if (data.list.empty()) {
-		return Result::Success();
-	}
-
-	_chats = fileWithRelativePath(fileName);
-	_dialogIndex = 0;
-	_dialogsCount = data.list.size();
-
-	const auto block = about + kLineBreak;
-	if (const auto result = _chats->writeBlock(block); !result) {
+	const auto result = validateDialogsMode(data.isLeftChannel);
+	if (!result) {
 		return result;
 	}
 
-	const auto header = listName + " "
-		"(" + Data::NumberToString(data.list.size()) + ") - "
-		+ fileName.toUtf8()
-		+ kLineBreak
-		+ kLineBreak;
-	return _summary->writeBlock(header);
-}
-
-Result TextWriter::writeChatStart(const Data::DialogInfo &data) {
-	Expects(_chat == nullptr);
-	Expects(_dialogIndex < _dialogsCount);
-
-	const auto digits = Data::NumberToString(_dialogsCount - 1).size();
-	const auto number = Data::NumberToString(++_dialogIndex, digits, '0');
 	_chat = fileWithRelativePath(data.relativePath + "messages.txt");
 	_messagesCount = 0;
 	_dialog = data;
 	return Result::Success();
 }
 
-Result TextWriter::writeChatSlice(const Data::MessagesSlice &data) {
+Result TextWriter::validateDialogsMode(bool isLeftChannel) {
+	const auto mode = isLeftChannel
+		? DialogsMode::Left
+		: DialogsMode::Chats;
+	if (_dialogsMode == mode) {
+		return Result::Success();
+	} else if (_dialogsMode != DialogsMode::None) {
+		if (const auto result = writeChatsEnd(); !result) {
+			return result;
+		}
+	}
+	_dialogsMode = mode;
+	return writeChatsStart(
+		isLeftChannel ? _leftChannelsCount : _dialogsCount,
+		isLeftChannel ? "Left chats" : "Chats",
+		(isLeftChannel
+			? _environment.aboutLeftChats
+			: _environment.aboutChats),
+		isLeftChannel ? "lists/left_chats.txt" : "lists/chats.txt");
+}
+
+Result TextWriter::writeDialogSlice(const Data::MessagesSlice &data) {
 	Expects(_chat != nullptr);
 	Expects(!data.list.empty());
 
@@ -893,7 +845,7 @@ Result TextWriter::writeChatSlice(const Data::MessagesSlice &data) {
 	return _chat->writeBlock(full);
 }
 
-Result TextWriter::writeChatEnd() {
+Result TextWriter::writeDialogEnd() {
 	Expects(_chats != nullptr);
 	Expects(_chat != nullptr);
 
@@ -952,6 +904,37 @@ Result TextWriter::writeChatEnd() {
 				: QByteArray())
 		}
 	}));
+}
+
+Result TextWriter::writeDialogsEnd() {
+	return writeChatsEnd();
+}
+
+Result TextWriter::writeChatsStart(
+		int count,
+		const QByteArray &listName,
+		const QByteArray &about,
+		const QString &fileName) {
+	Expects(_summary != nullptr);
+	Expects(_chats == nullptr);
+
+	if (!count) {
+		return Result::Success();
+	}
+
+	_chats = fileWithRelativePath(fileName);
+
+	const auto block = about + kLineBreak;
+	if (const auto result = _chats->writeBlock(block); !result) {
+		return result;
+	}
+
+	const auto header = listName + " "
+		"(" + Data::NumberToString(count) + ") - "
+		+ fileName.toUtf8()
+		+ kLineBreak
+		+ kLineBreak;
+	return _summary->writeBlock(header);
 }
 
 Result TextWriter::writeChatsEnd() {

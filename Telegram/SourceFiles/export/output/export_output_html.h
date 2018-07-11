@@ -71,12 +71,6 @@ public:
 	Result writeDialogEnd() override;
 	Result writeDialogsEnd() override;
 
-	Result writeLeftChannelsStart(const Data::DialogsInfo &data) override;
-	Result writeLeftChannelStart(const Data::DialogInfo &data) override;
-	Result writeLeftChannelSlice(const Data::MessagesSlice &data) override;
-	Result writeLeftChannelEnd() override;
-	Result writeLeftChannelsEnd() override;
-
 	Result finish() override;
 
 	QString mainFilePath() override;
@@ -89,15 +83,21 @@ private:
 	using MediaData = details::MediaData;
 	class Wrap;
 	struct MessageInfo;
+	enum class DialogsMode {
+		None,
+		Chats,
+		Left,
+	};
 
 	[[nodiscard]] Result copyFile(
 		const QString &source,
 		const QString &relativePath) const;
 
-	QString mainFileRelativePath() const;
-	QString pathWithRelativePath(const QString &path) const;
-	std::unique_ptr<Wrap> fileWithRelativePath(const QString &path) const;
-	QString messagesFile(int index) const;
+	[[nodiscard]] QString mainFileRelativePath() const;
+	[[nodiscard]] QString pathWithRelativePath(const QString &path) const;
+	[[nodiscard]] std::unique_ptr<Wrap> fileWithRelativePath(
+		const QString &path) const;
+	[[nodiscard]] QString messagesFile(int index) const;
 
 	[[nodiscard]] Result writeSavedContacts(const Data::ContactsList &data);
 	[[nodiscard]] Result writeFrequentContacts(const Data::ContactsList &data);
@@ -105,17 +105,8 @@ private:
 	[[nodiscard]] Result writeSessions(const Data::SessionsList &data);
 	[[nodiscard]] Result writeWebSessions(const Data::SessionsList &data);
 
-	[[nodiscard]] Result writeChatsStart(
-		const Data::DialogsInfo &data,
-		const QByteArray &listName,
-		const QByteArray &buttonClass,
-		const QByteArray &about,
-		const QString &fileName);
-	[[nodiscard]] Result writeChatStart(const Data::DialogInfo &data);
-	[[nodiscard]] Result writeChatOpening(int index);
-	[[nodiscard]] Result writeChatSlice(const Data::MessagesSlice &data);
-	[[nodiscard]] Result writeChatEnd();
-	[[nodiscard]] Result writeChatsEnd();
+	[[nodiscard]] Result validateDialogsMode(bool isLeftChannel);
+	[[nodiscard]] Result writeDialogOpening(int index);
 	[[nodiscard]] Result switchToNextChatFile(int index);
 
 	void pushSection(
@@ -153,10 +144,9 @@ private:
 	int _userpicsCount = 0;
 	std::unique_ptr<Wrap> _userpics;
 
-	int _dialogsCount = 0;
-	int _dialogIndex = 0;
 	QString _dialogsRelativePath;
 	Data::DialogInfo _dialog;
+	DialogsMode _dialogsMode = DialogsMode::None;
 
 	int _messagesCount = 0;
 	std::unique_ptr<MessageInfo> _lastMessageInfo;

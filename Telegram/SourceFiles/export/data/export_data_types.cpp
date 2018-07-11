@@ -1296,6 +1296,28 @@ SessionsList ParseWebSessionsList(
 	});
 }
 
+DialogInfo *DialogsInfo::item(int index) {
+	const auto chatsCount = chats.size();
+	return (index < 0)
+		? nullptr
+		: (index < chatsCount)
+		? &chats[index]
+		: (index - chatsCount < left.size())
+		? &left[index - chatsCount]
+		: nullptr;
+}
+
+const DialogInfo *DialogsInfo::item(int index) const {
+	const auto chatsCount = chats.size();
+	return (index < 0)
+		? nullptr
+		: (index < chatsCount)
+		? &chats[index]
+		: (index - chatsCount < left.size())
+		? &left[index - chatsCount]
+		: nullptr;
+}
+
 DialogInfo::Type DialogTypeFromChat(const Chat &chat) {
 	using Type = DialogInfo::Type;
 	return chat.username.isEmpty()
@@ -1325,7 +1347,7 @@ DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
 	}, [&](const auto &data) { // MTPDmessages_dialogs &data) {
 		const auto peers = ParsePeersLists(data.vusers, data.vchats);
 		const auto messages = ParseMessagesList(data.vmessages, folder);
-		result.list.reserve(result.list.size() + data.vdialogs.v.size());
+		result.chats.reserve(result.chats.size() + data.vdialogs.v.size());
 		for (const auto &dialog : data.vdialogs.v) {
 			if (dialog.type() != mtpc_dialog) {
 				continue;
@@ -1358,7 +1380,7 @@ DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
 				const auto &message = messageIt->second;
 				info.topMessageDate = message.date;
 			}
-			result.list.push_back(std::move(info));
+			result.chats.push_back(std::move(info));
 		}
 	});
 	return result;
@@ -1367,7 +1389,7 @@ DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
 DialogsInfo ParseLeftChannelsInfo(const MTPmessages_Chats &data) {
 	auto result = DialogsInfo();
 	data.match([&](const auto &data) { //MTPDmessages_chats &data) {
-		result.list.reserve(data.vchats.v.size());
+		result.left.reserve(data.vchats.v.size());
 		for (const auto &single : data.vchats.v) {
 			const auto chat = ParseChat(single);
 			auto info = DialogInfo();
@@ -1377,17 +1399,20 @@ DialogsInfo ParseLeftChannelsInfo(const MTPmessages_Chats &data) {
 			info.topMessageDate = 0;
 			info.topMessageId = 0;
 			info.type = DialogTypeFromChat(chat);
-			result.list.push_back(std::move(info));
+			info.isLeftChannel = true;
+			result.left.push_back(std::move(info));
 		}
 	});
 	return result;
 }
 
 void FinalizeDialogsInfo(DialogsInfo &info, const Settings &settings) {
-	auto &list = info.list;
-	const auto digits = Data::NumberToString(list.size() - 1).size();
+	auto &chats = info.chats;
+	auto &left = info.left;
+	const auto fullCount = chats.size() + left.size();
+	const auto digits = Data::NumberToString(fullCount - 1).size();
 	auto index = 0;
-	for (auto &dialog : list) {
+	for (auto &dialog : chats) {
 		const auto number = Data::NumberToString(++index, digits, '0');
 		dialog.relativePath = "chats/chat_" + number + '/';
 
@@ -1410,15 +1435,9 @@ void FinalizeDialogsInfo(DialogsInfo &info, const Settings &settings) {
 
 		ranges::reverse(dialog.splits);
 	}
-}
-
-void FinalizeLeftChannelsInfo(DialogsInfo &info, const Settings &settings) {
-	auto &list = info.list;
-	const auto digits = Data::NumberToString(list.size() - 1).size();
-	auto index = 0;
-	for (auto &dialog : list) {
+	for (auto &dialog : left) {
 		const auto number = Data::NumberToString(++index, digits, '0');
-		dialog.relativePath = "chats/left_" + number + '/';
+		dialog.relativePath = "chats/chat_" + number + '/';
 		dialog.onlyMyMessages = true;
 	}
 }

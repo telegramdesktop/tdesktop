@@ -28,14 +28,12 @@ struct PasswordCheckState {
 struct ProcessingState {
 	enum class Step {
 		Initializing,
-		LeftChannelsList,
 		DialogsList,
 		PersonalInfo,
 		Userpics,
 		Contacts,
 		Sessions,
 		OtherData,
-		LeftChannels,
 		Dialogs,
 	};
 	enum class FileType {
