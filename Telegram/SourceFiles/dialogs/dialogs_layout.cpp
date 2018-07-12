@@ -432,6 +432,27 @@ void RowPainter::paint(
 		}
 		return cloudDraft ? ParseDateTime(cloudDraft->date) : QDateTime();
 	}();
+	const auto displayMentionBadge = history
+		? history->hasUnreadMentions()
+		: false;
+	const auto displayUnreadCounter = [&] {
+		if (displayMentionBadge
+			&& unreadCount == 1
+			&& item
+			&& item->isMediaUnread()
+			&& item->mentionsMe()) {
+			return false;
+		}
+		return (unreadCount > 0);
+	}();
+	const auto displayUnreadMark = !displayUnreadCounter
+		&& !displayMentionBadge
+		&& history
+		&& unreadMark;
+	const auto displayPinnedIcon = !displayUnreadCounter
+		&& !displayMentionBadge
+		&& !displayUnreadMark
+		&& entry->isPinnedDialog();
 
 	const auto from = history
 		? (history->peer->migrateTo()
@@ -446,27 +467,6 @@ void RowPainter::paint(
 		auto availableWidth = namewidth;
 		auto texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
 		auto hadOneBadge = false;
-		const auto displayMentionBadge = history
-			? history->hasUnreadMentions()
-			: false;
-		const auto displayUnreadCounter = [&] {
-			if (displayMentionBadge
-				&& unreadCount == 1
-				&& item
-				&& item->isMediaUnread()
-				&& item->mentionsMe()) {
-				return false;
-			}
-			return (unreadCount > 0);
-		}();
-		const auto displayUnreadMark = !displayUnreadCounter
-			&& !displayMentionBadge
-			&& history
-			&& unreadMark;
-		const auto displayPinnedIcon = !displayUnreadCounter
-			&& !displayMentionBadge
-			&& !displayUnreadMark
-			&& entry->isPinnedDialog();
 		if (displayUnreadCounter || displayUnreadMark) {
 			auto counter = (unreadCount > 0)
 				? QString::number(unreadCount)
@@ -533,10 +533,15 @@ void RowPainter::paint(
 		}
 	};
 	const auto paintCounterCallback = [&] {
-		if (unreadCount) {
-			auto counter = QString::number(unreadCount);
-			if (counter.size() > 4) {
-				counter = qsl("..") + counter.mid(counter.size() - 3);
+		auto hadOneBadge = false;
+		auto skipBeforeMention = 0;
+		if (displayUnreadCounter || displayUnreadMark) {
+			auto counter = (unreadCount > 0)
+				? QString::number(unreadCount)
+				: QString();
+			const auto allowDigits = displayMentionBadge ? 1 : 3;
+			if (counter.size() > allowDigits + 1) {
+				counter = qsl("..") + counter.mid(counter.size() - allowDigits);
 			}
 			auto unreadRight = st::dialogsPadding.x() + st::dialogsPhotoSize;
 			auto unreadTop = st::dialogsPadding.y() + st::dialogsPhotoSize - st::dialogsUnreadHeight;
@@ -545,6 +550,20 @@ void RowPainter::paint(
 			UnreadBadgeStyle st;
 			st.active = active;
 			st.muted = unreadMuted;
+			paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
+			skipBeforeMention += unreadWidth + st.padding;
+		}
+		if (displayMentionBadge) {
+			auto counter = qsl("@");
+			auto unreadRight = st::dialogsPadding.x() + st::dialogsPhotoSize - skipBeforeMention;
+			auto unreadTop = st::dialogsPadding.y() + st::dialogsPhotoSize - st::dialogsUnreadHeight;
+			auto unreadWidth = 0;
+
+			UnreadBadgeStyle st;
+			st.active = active;
+			st.muted = false;
+			st.padding = 0;
+			st.textTop = 0;
 			paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
 		}
 	};
