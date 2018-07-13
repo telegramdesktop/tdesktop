@@ -186,11 +186,11 @@ inputGeoPointEmpty#e4c123d6 = InputGeoPoint;
 inputGeoPoint#f3b7acc9 lat:double long:double = InputGeoPoint;
 
 inputPhotoEmpty#1cd7bf0d = InputPhoto;
-inputPhoto#fb95c6c4 id:long access_hash:long = InputPhoto;
+inputPhoto#3bb3b94a id:long access_hash:long file_reference:bytes = InputPhoto;
 
-inputFileLocation#14637196 volume_id:long local_id:int secret:long = InputFileLocation;
+inputFileLocation#dfdaabe1 volume_id:long local_id:int secret:long file_reference:bytes = InputFileLocation;
 inputEncryptedFileLocation#f5235d55 id:long access_hash:long = InputFileLocation;
-inputDocumentFileLocation#430f0724 id:long access_hash:long version:int = InputFileLocation;
+inputDocumentFileLocation#a9b915b0 id:long access_hash:long version:int file_reference:bytes = InputFileLocation;
 inputSecureFileLocation#cbc7ee28 id:long access_hash:long = InputFileLocation;
 inputTakeoutFileLocation#29be5899 = InputFileLocation;
 
@@ -212,7 +212,7 @@ storage.fileMp4#b3cea0e4 = storage.FileType;
 storage.fileWebp#1081464c = storage.FileType;
 
 fileLocationUnavailable#7c596b46 volume_id:long local_id:int secret:long = FileLocation;
-fileLocation#53d69076 dc_id:int volume_id:long local_id:int secret:long = FileLocation;
+fileLocation#91d11eb dc_id:int volume_id:long local_id:int secret:long file_reference:bytes = FileLocation;
 
 userEmpty#200250ba id:int = User;
 user#2e13f4c3 flags:# self:flags.10?true contact:flags.11?true mutual_contact:flags.12?true deleted:flags.13?true bot:flags.14?true bot_chat_history:flags.15?true bot_nochats:flags.16?true verified:flags.17?true restricted:flags.18?true min:flags.20?true bot_inline_geo:flags.21?true id:int access_hash:flags.0?long first_name:flags.1?string last_name:flags.2?string username:flags.3?string phone:flags.4?string photo:flags.5?UserProfilePhoto status:flags.6?UserStatus bot_info_version:flags.14?int restriction_reason:flags.18?string bot_inline_placeholder:flags.19?string lang_code:flags.22?string = User;
@@ -288,7 +288,7 @@ messageActionSecureValuesSent#d95c6154 types:Vector<SecureValueType> = MessageAc
 dialog#e4def5db flags:# pinned:flags.2?true unread_mark:flags.3?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage = Dialog;
 
 photoEmpty#2331b22d id:long = Photo;
-photo#9288dd29 flags:# has_stickers:flags.0?true id:long access_hash:long date:int sizes:Vector<PhotoSize> = Photo;
+photo#9c477dd8 flags:# has_stickers:flags.0?true id:long access_hash:long file_reference:bytes date:int sizes:Vector<PhotoSize> = Photo;
 
 photoSizeEmpty#e17e23c type:string = PhotoSize;
 photoSize#77bfb61b type:string location:FileLocation w:int h:int size:int = PhotoSize;
@@ -505,10 +505,10 @@ messages.sentEncryptedMessage#560f8935 date:int = messages.SentEncryptedMessage;
 messages.sentEncryptedFile#9493ff32 date:int file:EncryptedFile = messages.SentEncryptedMessage;
 
 inputDocumentEmpty#72f0eaae = InputDocument;
-inputDocument#18798952 id:long access_hash:long = InputDocument;
+inputDocument#1abfb575 id:long access_hash:long file_reference:bytes = InputDocument;
 
 documentEmpty#36f8c871 id:long = Document;
-document#87232bc7 id:long access_hash:long date:int mime_type:string size:int thumb:PhotoSize dc_id:int version:int attributes:Vector<DocumentAttribute> = Document;
+document#ca84c039 id:long access_hash:long file_reference:bytes date:int mime_type:string size:int thumb:PhotoSize dc_id:int version:int attributes:Vector<DocumentAttribute> = Document;
 
 help.support#17c6b5f6 phone_number:string user:User = help.Support;
 

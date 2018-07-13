@@ -1705,7 +1705,8 @@ void FormController::loadFile(File &file) {
 			file.dcId,
 			file.id,
 			file.accessHash,
-			0,
+			0, // version
+			QByteArray(), // file_reference
 			SecureFileLocation,
 			QString(),
 			file.size,

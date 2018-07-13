@@ -85,9 +85,13 @@ inline int dateTimeSize() {
 	return (sizeof(qint64) + sizeof(quint32) + sizeof(qint8));
 }
 
-void writeStorageImageLocation(QDataStream &stream, const StorageImageLocation &loc);
-StorageImageLocation readStorageImageLocation(QDataStream &stream);
-int storageImageLocationSize();
+void writeStorageImageLocation(
+	QDataStream &stream,
+	const StorageImageLocation &location);
+StorageImageLocation readStorageImageLocation(
+	int streamAppVersion,
+	QDataStream &stream);
+int storageImageLocationSize(const StorageImageLocation &location);
 
 template <typename T>
 inline T read(QDataStream &stream) {

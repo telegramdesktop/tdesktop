@@ -193,7 +193,8 @@ FileLocation ParseLocation(const MTPFileLocation &data) {
 			MTP_inputFileLocation(
 				data.vvolume_id,
 				data.vlocal_id,
-				data.vsecret)
+				data.vsecret,
+				data.vfile_reference)
 		};
 	}, [](const MTPDfileLocationUnavailable &data) {
 		return FileLocation{
@@ -201,7 +202,8 @@ FileLocation ParseLocation(const MTPFileLocation &data) {
 			MTP_inputFileLocation(
 				data.vvolume_id,
 				data.vlocal_id,
-				data.vsecret)
+				data.vsecret,
+				MTP_bytes(QByteArray()))
 		};
 	});
 }
@@ -397,7 +399,8 @@ Document ParseDocument(
 		result.file.location.data = MTP_inputDocumentFileLocation(
 			data.vid,
 			data.vaccess_hash,
-			data.vversion);
+			data.vversion,
+			data.vfile_reference);
 		const auto path = result.file.suggestedPath = suggestedFolder
 			+ DocumentFolder(result) + '/'
 			+ CleanDocumentName(ComputeDocumentName(context, result));

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "platform/platform_file_utilities.h"
 #include "auth_session.h"
+#include "apiwrap.h"
 #include "core/crash_reports.h"
 #include "base/bytes.h"
 #include "base/openssl_help.h"
@@ -392,8 +393,18 @@ void FileLoader::startLoading(bool loadFirst, bool prior) {
 	loadPart();
 }
 
-mtpFileLoader::mtpFileLoader(const StorageImageLocation *location, int32 size, LoadFromCloudSetting fromCloud, bool autoLoading)
-: FileLoader(QString(), size, UnknownFileLocation, LoadToCacheAsWell, fromCloud, autoLoading)
+mtpFileLoader::mtpFileLoader(
+	const StorageImageLocation *location,
+	int32 size,
+	LoadFromCloudSetting fromCloud
+	, bool autoLoading)
+: FileLoader(
+	QString(),
+	size,
+	UnknownFileLocation,
+	LoadToCacheAsWell,
+	fromCloud,
+	autoLoading)
 , _dcId(location->dc())
 , _location(location) {
 	auto shiftedDcId = MTP::downloadDcId(_dcId, 0);
@@ -404,12 +415,30 @@ mtpFileLoader::mtpFileLoader(const StorageImageLocation *location, int32 size, L
 	_queue = &i.value();
 }
 
-mtpFileLoader::mtpFileLoader(int32 dc, uint64 id, uint64 accessHash, int32 version, LocationType type, const QString &to, int32 size, LoadToCacheSetting toCache, LoadFromCloudSetting fromCloud, bool autoLoading)
-: FileLoader(to, size, type, toCache, fromCloud, autoLoading)
+mtpFileLoader::mtpFileLoader(
+	int32 dc,
+	uint64 id,
+	uint64 accessHash,
+	int32 version,
+	const QByteArray &fileReference,
+	LocationType type,
+	const QString &to,
+	int32 size,
+	LoadToCacheSetting toCache,
+	LoadFromCloudSetting fromCloud,
+	bool autoLoading)
+: FileLoader(
+	to,
+	size,
+	type,
+	toCache,
+	fromCloud,
+	autoLoading)
 , _dcId(dc)
 , _id(id)
 , _accessHash(accessHash)
-, _version(version) {
+, _version(version)
+, _fileReference(fileReference) {
 	auto shiftedDcId = MTP::downloadDcId(_dcId, 0);
 	auto i = queues.find(shiftedDcId);
 	if (i == queues.cend()) {
@@ -418,8 +447,18 @@ mtpFileLoader::mtpFileLoader(int32 dc, uint64 id, uint64 accessHash, int32 versi
 	_queue = &i.value();
 }
 
-mtpFileLoader::mtpFileLoader(const WebFileLocation *location, int32 size, LoadFromCloudSetting fromCloud, bool autoLoading)
-: FileLoader(QString(), size, UnknownFileLocation, LoadToCacheAsWell, fromCloud, autoLoading)
+mtpFileLoader::mtpFileLoader(
+	const WebFileLocation *location,
+	int32 size,
+	LoadFromCloudSetting fromCloud,
+	bool autoLoading)
+: FileLoader(
+	QString(),
+	size,
+	UnknownFileLocation,
+	LoadToCacheAsWell,
+	fromCloud,
+	autoLoading)
 , _dcId(location->dc())
 , _urlLocation(location) {
 	auto shiftedDcId = MTP::downloadDcId(_dcId, 0);
@@ -480,13 +519,39 @@ void mtpFileLoader::makeRequest(int offset) {
 		auto shiftedDcId = MTP::downloadDcId(requestData.dcId, requestData.dcIndex);
 		if (_cdnDcId) {
 			Assert(requestData.dcId == _cdnDcId);
-			return MTP::send(MTPupload_GetCdnFile(MTP_bytes(_cdnToken), MTP_int(offset), MTP_int(limit)), rpcDone(&mtpFileLoader::cdnPartLoaded), rpcFail(&mtpFileLoader::cdnPartFailed), shiftedDcId, 50);
+			return MTP::send(
+				MTPupload_GetCdnFile(
+					MTP_bytes(_cdnToken),
+					MTP_int(offset),
+					MTP_int(limit)),
+				rpcDone(&mtpFileLoader::cdnPartLoaded),
+				rpcFail(&mtpFileLoader::cdnPartFailed),
+				shiftedDcId,
+				50);
 		} else if (_urlLocation) {
 			Assert(requestData.dcId == _dcId);
-			return MTP::send(MTPupload_GetWebFile(MTP_inputWebFileLocation(MTP_bytes(_urlLocation->url()), MTP_long(_urlLocation->accessHash())), MTP_int(offset), MTP_int(limit)), rpcDone(&mtpFileLoader::webPartLoaded), rpcFail(&mtpFileLoader::partFailed), shiftedDcId, 50);
+			return MTP::send(
+				MTPupload_GetWebFile(
+					MTP_inputWebFileLocation(
+						MTP_bytes(_urlLocation->url()),
+						MTP_long(_urlLocation->accessHash())),
+					MTP_int(offset),
+					MTP_int(limit)),
+				rpcDone(&mtpFileLoader::webPartLoaded),
+				rpcFail(&mtpFileLoader::partFailed),
+				shiftedDcId,
+				50);
 		} else {
 			Assert(requestData.dcId == _dcId);
-			return MTP::send(MTPupload_GetFile(computeLocation(), MTP_int(offset), MTP_int(limit)), rpcDone(&mtpFileLoader::normalPartLoaded), rpcFail(&mtpFileLoader::partFailed), shiftedDcId, 50);
+			return MTP::send(
+				MTPupload_GetFile(
+					computeLocation(),
+					MTP_int(offset),
+					MTP_int(limit)),
+				rpcDone(&mtpFileLoader::normalPartLoaded),
+				rpcFail(&mtpFileLoader::partFailed),
+				shiftedDcId,
+				50);
 		}
 	};
 	placeSentRequest(send(), requestData);
@@ -494,11 +559,21 @@ void mtpFileLoader::makeRequest(int offset) {
 
 MTPInputFileLocation mtpFileLoader::computeLocation() const {
 	if (_location) {
-		return MTP_inputFileLocation(MTP_long(_location->volume()), MTP_int(_location->local()), MTP_long(_location->secret()));
+		return MTP_inputFileLocation(
+			MTP_long(_location->volume()),
+			MTP_int(_location->local()),
+			MTP_long(_location->secret()),
+			MTP_bytes(_location->fileReference()));
 	} else if (_locationType == SecureFileLocation) {
-		return MTP_inputSecureFileLocation(MTP_long(_id), MTP_long(_accessHash));
+		return MTP_inputSecureFileLocation(
+			MTP_long(_id),
+			MTP_long(_accessHash));
 	}
-	return MTP_inputDocumentFileLocation(MTP_long(_id), MTP_long(_accessHash), MTP_int(_version));
+	return MTP_inputDocumentFileLocation(
+		MTP_long(_id),
+		MTP_long(_accessHash),
+		MTP_int(_version),
+		MTP_bytes(_fileReference));
 }
 
 void mtpFileLoader::requestMoreCdnFileHashes() {
@@ -524,7 +599,9 @@ void mtpFileLoader::requestMoreCdnFileHashes() {
 	placeSentRequest(requestId, requestData);
 }
 
-void mtpFileLoader::normalPartLoaded(const MTPupload_File &result, mtpRequestId requestId) {
+void mtpFileLoader::normalPartLoaded(
+		const MTPupload_File &result,
+		mtpRequestId requestId) {
 	Expects(!_finished);
 	Expects(result.type() == mtpc_upload_fileCdnRedirect || result.type() == mtpc_upload_file);
 
@@ -536,7 +613,9 @@ void mtpFileLoader::normalPartLoaded(const MTPupload_File &result, mtpRequestId 
 	return partLoaded(offset, buffer);
 }
 
-void mtpFileLoader::webPartLoaded(const MTPupload_WebFile &result, mtpRequestId requestId) {
+void mtpFileLoader::webPartLoaded(
+		const MTPupload_WebFile &result,
+		mtpRequestId requestId) {
 	Expects(result.type() == mtpc_upload_webFile);
 
 	auto offset = finishSentRequestGetOffset(requestId);
@@ -799,25 +878,39 @@ void mtpFileLoader::partLoaded(int offset, bytes::const_span buffer) {
 	}
 }
 
-bool mtpFileLoader::partFailed(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
+bool mtpFileLoader::partFailed(
+		const RPCError &error,
+		mtpRequestId requestId) {
+	if (MTP::isDefaultHandledError(error)) {
+		return false;
+	}
 	cancel(true);
 	return true;
 }
 
-bool mtpFileLoader::cdnPartFailed(const RPCError &error, mtpRequestId requestId) {
-	if (MTP::isDefaultHandledError(error)) return false;
+bool mtpFileLoader::cdnPartFailed(
+		const RPCError &error,
+		mtpRequestId requestId) {
+	if (MTP::isDefaultHandledError(error)) {
+		return false;
+	}
 
 	if (requestId == _cdnHashesRequestId) {
 		_cdnHashesRequestId = 0;
 	}
-	if (error.type() == qstr("FILE_TOKEN_INVALID") || error.type() == qstr("REQUEST_TOKEN_INVALID")) {
+	if (error.type() == qstr("FILE_TOKEN_INVALID")
+		|| error.type() == qstr("REQUEST_TOKEN_INVALID")) {
 		auto offset = finishSentRequestGetOffset(requestId);
-		changeCDNParams(offset, 0, QByteArray(), QByteArray(), QByteArray(), QVector<MTPFileHash>());
+		changeCDNParams(
+			offset,
+			0,
+			QByteArray(),
+			QByteArray(),
+			QByteArray(),
+			QVector<MTPFileHash>());
 		return true;
 	}
-	return partFailed(error);
+	return partFailed(error, requestId);
 }
 
 void mtpFileLoader::cancelRequests() {
@@ -850,8 +943,16 @@ void mtpFileLoader::addCdnHashes(const QVector<MTPFileHash> &hashes) {
 	}
 }
 
-void mtpFileLoader::changeCDNParams(int offset, MTP::DcId dcId, const QByteArray &token, const QByteArray &encryptionKey, const QByteArray &encryptionIV, const QVector<MTPFileHash> &hashes) {
-	if (dcId != 0 && (encryptionKey.size() != MTP::CTRState::KeySize || encryptionIV.size() != MTP::CTRState::IvecSize)) {
+void mtpFileLoader::changeCDNParams(
+		int offset,
+		MTP::DcId dcId,
+		const QByteArray &token,
+		const QByteArray &encryptionKey,
+		const QByteArray &encryptionIV,
+		const QVector<MTPFileHash> &hashes) {
+	if (dcId != 0
+		&& (encryptionKey.size() != MTP::CTRState::KeySize
+			|| encryptionIV.size() != MTP::CTRState::IvecSize)) {
 		LOG(("Message Error: Wrong key (%1) / iv (%2) size in CDN params").arg(encryptionKey.size()).arg(encryptionIV.size()));
 		cancel(true);
 		return;

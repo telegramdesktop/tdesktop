@@ -4226,7 +4226,10 @@ void ApiWrap::uploadAlbumMedia(
 					: MTPDinputMediaPhoto::Flag(0));
 			const auto media = MTP_inputMediaPhoto(
 				MTP_flags(flags),
-				MTP_inputPhoto(photo.vid, photo.vaccess_hash),
+				MTP_inputPhoto(
+					photo.vid,
+					photo.vaccess_hash,
+					photo.vfile_reference),
 				data.has_ttl_seconds() ? data.vttl_seconds : MTPint());
 			sendAlbumWithUploaded(item, groupId, media);
 		} break;
@@ -4244,7 +4247,10 @@ void ApiWrap::uploadAlbumMedia(
 					: MTPDinputMediaDocument::Flag(0));
 			const auto media = MTP_inputMediaDocument(
 				MTP_flags(flags),
-				MTP_inputDocument(document.vid, document.vaccess_hash),
+				MTP_inputDocument(
+					document.vid,
+					document.vaccess_hash,
+					document.vfile_reference),
 				data.has_ttl_seconds() ? data.vttl_seconds : MTPint());
 			sendAlbumWithUploaded(item, groupId, media);
 		} break;

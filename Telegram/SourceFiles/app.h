@@ -143,8 +143,6 @@ namespace App {
 	LocationData *location(const LocationCoords &coords);
 	void forgetMedia();
 
-	MTPPhoto photoFromUserPhoto(MTPint userId, MTPint date, const MTPUserProfilePhoto &photo);
-
 	Histories &histories();
 	not_null<History*> history(const PeerId &peer);
 	History *historyLoaded(const PeerId &peer);

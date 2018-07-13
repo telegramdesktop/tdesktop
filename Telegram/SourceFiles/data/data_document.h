@@ -148,7 +148,10 @@ public:
 	bool hasGoodStickerThumb() const;
 
 	bool setRemoteVersion(int32 version); // Returns true if version has changed.
-	void setRemoteLocation(int32 dc, uint64 access);
+	void setRemoteLocation(
+		int32 dc,
+		uint64 access,
+		const QByteArray &fileReference);
 	void setContentUrl(const QString &url);
 	void setWebLocation(const WebFileLocation &location);
 	bool hasRemoteLocation() const;
@@ -198,6 +201,7 @@ private:
 	// Two types of location: from MTProto by dc+access+version or from web by url
 	int32 _dc = 0;
 	uint64 _access = 0;
+	QByteArray _fileReference;
 	int32 _version = 0;
 	QString _url;
 	QString _filename;

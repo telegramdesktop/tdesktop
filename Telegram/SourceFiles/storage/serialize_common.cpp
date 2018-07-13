@@ -9,21 +9,48 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Serialize {
 
-void writeStorageImageLocation(QDataStream &stream, const StorageImageLocation &loc) {
-	stream << qint32(loc.width()) << qint32(loc.height());
-	stream << qint32(loc.dc()) << quint64(loc.volume()) << qint32(loc.local()) << quint64(loc.secret());
+void writeStorageImageLocation(
+		QDataStream &stream,
+		const StorageImageLocation &location) {
+	stream
+		<< qint32(location.width())
+		<< qint32(location.height())
+		<< qint32(location.dc())
+		<< quint64(location.volume())
+		<< qint32(location.local())
+		<< quint64(location.secret());
+	stream << location.fileReference();
 }
 
-StorageImageLocation readStorageImageLocation(QDataStream &stream) {
+StorageImageLocation readStorageImageLocation(
+		int streamAppVersion,
+		QDataStream &stream) {
 	qint32 width, height, dc, local;
 	quint64 volume, secret;
+	QByteArray fileReference;
 	stream >> width >> height >> dc >> volume >> local >> secret;
-	return StorageImageLocation(width, height, dc, volume, local, secret);
+	if (streamAppVersion >= 1003011) {
+		stream >> fileReference;
+	}
+	return StorageImageLocation(
+		width,
+		height,
+		dc,
+		volume,
+		local,
+		secret,
+		fileReference);
 }
 
-int storageImageLocationSize() {
-	// width + height + dc + volume + local + secret
-	return sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(quint64) + sizeof(qint32) + sizeof(quint64);
+int storageImageLocationSize(const StorageImageLocation &location) {
+	// width + height + dc + volume + local + secret + fileReference
+	return sizeof(qint32)
+		+ sizeof(qint32)
+		+ sizeof(qint32)
+		+ sizeof(quint64)
+		+ sizeof(qint32)
+		+ sizeof(quint64)
+		+ bytearraySize(location.fileReference());
 }
 
 } // namespace Serialize

@@ -970,8 +970,11 @@ void MainWidget::deletePhotoLayer(PhotoData *photo) {
 		} else if (photo->peer && !photo->peer->isUser() && photo->peer->userpicPhotoId() == photo->id) {
 			Messenger::Instance().peerClearPhoto(photo->peer->id);
 		} else {
-			MTP::send(MTPphotos_DeletePhotos(MTP_vector<MTPInputPhoto>(1, MTP_inputPhoto(MTP_long(photo->id), MTP_long(photo->access)))));
-			Auth().storage().remove(Storage::UserPhotosRemoveOne(me->bareId(), photo->id));
+			MTP::send(MTPphotos_DeletePhotos(
+				MTP_vector<MTPInputPhoto>(1, photo->mtpInput())));
+			Auth().storage().remove(Storage::UserPhotosRemoveOne(
+				me->bareId(),
+				photo->id));
 		}
 	})));
 }

@@ -112,10 +112,19 @@ inline int32 unpackIntSecond(uint64 v) {
 class StorageImageLocation {
 public:
 	StorageImageLocation() = default;
-	StorageImageLocation(int32 width, int32 height, int32 dc, const uint64 &volume, int32 local, const uint64 &secret) : _widthheight(packIntInt(width, height)), _dclocal(packIntInt(dc, local)), _volume(volume), _secret(secret) {
-	}
-	StorageImageLocation(int32 width, int32 height, const MTPDfileLocation &location) : _widthheight(packIntInt(width, height)), _dclocal(packIntInt(location.vdc_id.v, location.vlocal_id.v)), _volume(location.vvolume_id.v), _secret(location.vsecret.v) {
-	}
+	StorageImageLocation(
+		int32 width,
+		int32 height,
+		int32 dc,
+		const uint64 &volume,
+		int32 local,
+		const uint64 &secret,
+		const QByteArray &fileReference);
+	StorageImageLocation(
+		int32 width,
+		int32 height,
+		const MTPDfileLocation &location);
+
 	bool isNull() const {
 		return !_dclocal;
 	}
@@ -140,16 +149,19 @@ public:
 	uint64 secret() const {
 		return _secret;
 	}
+	QByteArray fileReference() const {
+		return _fileReference;
+	}
 
 	static StorageImageLocation FromMTP(
-			int32 width,
-			int32 height,
-			const MTPFileLocation &location) {
+		int32 width,
+		int32 height,
+		const MTPFileLocation &location) {
 		if (location.type() == mtpc_fileLocation) {
 			const auto &data = location.c_fileLocation();
 			return StorageImageLocation(width, height, data);
 		}
-		return StorageImageLocation(width, height, 0, 0, 0, 0);
+		return StorageImageLocation(width, height, 0, 0, 0, 0, {});
 	}
 	static StorageImageLocation FromMTP(const MTPPhotoSize &size) {
 		switch (size.type()) {
@@ -172,9 +184,12 @@ private:
 	uint64 _dclocal = 0;
 	uint64 _volume = 0;
 	uint64 _secret = 0;
+	QByteArray _fileReference;
 
-	friend inline bool operator==(const StorageImageLocation &a, const StorageImageLocation &b) {
-		return (a._dclocal == b._dclocal) && (a._volume == b._volume) && (a._secret == b._secret);
+	friend inline bool operator==(
+			const StorageImageLocation &a,
+			const StorageImageLocation &b) {
+		return (a._dclocal == b._dclocal) && (a._volume == b._volume);
 	}
 
 };
@@ -211,8 +226,12 @@ private:
 	QByteArray _url;
 	int32 _dc = 0;
 
-	friend inline bool operator==(const WebFileLocation &a, const WebFileLocation &b) {
-		return (a._dc == b._dc) && (a._accessHash == b._accessHash) && (a._url == b._url);
+	friend inline bool operator==(
+			const WebFileLocation &a,
+			const WebFileLocation &b) {
+		return (a._dc == b._dc)
+			&& (a._accessHash == b._accessHash)
+			&& (a._url == b._url);
 	}
 
 };

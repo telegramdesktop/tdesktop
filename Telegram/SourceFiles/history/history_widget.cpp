@@ -3101,7 +3101,16 @@ void HistoryWidget::onBotStart() {
 		sendBotCommand(_peer, _peer->asUser(), qsl("/start"), 0);
 	} else {
 		uint64 randomId = rand_value<uint64>();
-		MTP::send(MTPmessages_StartBot(_peer->asUser()->inputUser, MTP_inputPeerEmpty(), MTP_long(randomId), MTP_string(token)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, { _peer->asUser(), (PeerData*)nullptr }));
+		MTP::send(
+			MTPmessages_StartBot(
+				_peer->asUser()->inputUser,
+				MTP_inputPeerEmpty(),
+				MTP_long(randomId),
+				MTP_string(token)),
+			App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
+			App::main()->rpcFail(
+				&MainWidget::addParticipantFail,
+				{ _peer->asUser(), (PeerData*)nullptr }));
 
 		_peer->asUser()->botInfo->startToken = QString();
 		if (_keyboard->hasMarkup()) {
@@ -5754,7 +5763,7 @@ void HistoryWidget::sendExistingPhoto(
 			MTP_int(options.replyTo),
 			MTP_inputMediaPhoto(
 				MTP_flags(0),
-				MTP_inputPhoto(MTP_long(photo->id), MTP_long(photo->access)),
+				photo->mtpInput(),
 				MTPint()),
 			MTP_string(caption.text),
 			MTP_long(randomId),

@@ -960,7 +960,16 @@ namespace App {
 			auto &d = size.c_photoSize();
 			if (d.vlocation.type() == mtpc_fileLocation) {
 				auto &l = d.vlocation.c_fileLocation();
-				return ImagePtr(StorageImageLocation(d.vw.v, d.vh.v, l.vdc_id.v, l.vvolume_id.v, l.vlocal_id.v, l.vsecret.v), d.vsize.v);
+				return ImagePtr(
+					StorageImageLocation(
+						d.vw.v,
+						d.vh.v,
+						l.vdc_id.v,
+						l.vvolume_id.v,
+						l.vlocal_id.v,
+						l.vsecret.v,
+						l.vfile_reference.v),
+					d.vsize.v);
 			}
 		} break;
 		case mtpc_photoCachedSize: {
@@ -968,10 +977,28 @@ namespace App {
 			if (d.vlocation.type() == mtpc_fileLocation) {
 				auto &l = d.vlocation.c_fileLocation();
 				auto bytes = qba(d.vbytes);
-				return ImagePtr(StorageImageLocation(d.vw.v, d.vh.v, l.vdc_id.v, l.vvolume_id.v, l.vlocal_id.v, l.vsecret.v), bytes);
+				return ImagePtr(
+					StorageImageLocation(
+						d.vw.v,
+						d.vh.v,
+						l.vdc_id.v,
+						l.vvolume_id.v,
+						l.vlocal_id.v,
+						l.vsecret.v,
+						l.vfile_reference.v),
+					bytes);
 			} else if (d.vlocation.type() == mtpc_fileLocationUnavailable) {
 				auto bytes = qba(d.vbytes);
-				return ImagePtr(StorageImageLocation(d.vw.v, d.vh.v, 0, 0, 0, 0), bytes);
+				return ImagePtr(
+					StorageImageLocation(
+						d.vw.v,
+						d.vh.v,
+						0,
+						0,
+						0,
+						0,
+						{}),
+					bytes);
 			}
 		} break;
 		}
@@ -1152,19 +1179,6 @@ namespace App {
 		for_const (auto location, ::locationsData) {
 			location->thumb->forget();
 		}
-	}
-
-	MTPPhoto photoFromUserPhoto(MTPint userId, MTPint date, const MTPUserProfilePhoto &photo) {
-		if (photo.type() == mtpc_userProfilePhoto) {
-			const auto &uphoto(photo.c_userProfilePhoto());
-
-			QVector<MTPPhotoSize> photoSizes;
-			photoSizes.push_back(MTP_photoSize(MTP_string("a"), uphoto.vphoto_small, MTP_int(160), MTP_int(160), MTP_int(0)));
-			photoSizes.push_back(MTP_photoSize(MTP_string("c"), uphoto.vphoto_big, MTP_int(640), MTP_int(640), MTP_int(0)));
-
-			return MTP_photo(MTP_flags(0), uphoto.vphoto_id, MTP_long(0), date, MTP_vector<MTPPhotoSize>(photoSizes));
-		}
-		return MTP_photoEmpty(MTP_long(0));
 	}
 
 	QString peerName(const PeerData *peer, bool forDialogs) {

@@ -1017,7 +1017,13 @@ void Messenger::uploadProfilePhoto(QImage &&tosend, const PeerId &peerId) {
 
 	PhotoId id = rand_value<PhotoId>();
 
-	auto photo = MTP_photo(MTP_flags(0), MTP_long(id), MTP_long(0), MTP_int(unixtime()), MTP_vector<MTPPhotoSize>(photoSizes));
+	auto photo = MTP_photo(
+		MTP_flags(0),
+		MTP_long(id),
+		MTP_long(0),
+		MTP_bytes(QByteArray()),
+		MTP_int(unixtime()),
+		MTP_vector<MTPPhotoSize>(photoSizes));
 
 	QString file, filename;
 	int32 filesize = 0;

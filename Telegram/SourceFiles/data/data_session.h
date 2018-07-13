@@ -250,6 +250,7 @@ public:
 	not_null<PhotoData*> photo(
 		PhotoId id,
 		const uint64 &access,
+		const QByteArray &fileReference,
 		TimeId date,
 		const ImagePtr &thumb,
 		const ImagePtr &medium,
@@ -269,6 +270,7 @@ public:
 		DocumentId id,
 		const uint64 &access,
 		int32 version,
+		const QByteArray &fileReference,
 		TimeId date,
 		const QVector<MTPDocumentAttribute> &attributes,
 		const QString &mime,
@@ -435,6 +437,7 @@ private:
 	void photoApplyFields(
 		not_null<PhotoData*> photo,
 		const uint64 &access,
+		const QByteArray &fileReference,
 		TimeId date,
 		const ImagePtr &thumb,
 		const ImagePtr &medium,
@@ -450,6 +453,7 @@ private:
 		not_null<DocumentData*> document,
 		const uint64 &access,
 		int32 version,
+		const QByteArray &fileReference,
 		TimeId date,
 		const QVector<MTPDocumentAttribute> &attributes,
 		const QString &mime,

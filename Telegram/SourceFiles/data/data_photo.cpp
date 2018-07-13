@@ -13,7 +13,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "messenger.h"
 
-PhotoData::PhotoData(const PhotoId &id, const uint64 &access, int32 date, const ImagePtr &thumb, const ImagePtr &medium, const ImagePtr &full)
+PhotoData::PhotoData(const PhotoId &id)
+: id(id) {
+}
+
+PhotoData::PhotoData(
+	const PhotoId &id,
+	const uint64 &access,
+	const QByteArray &fileReference,
+	TimeId date,
+	const ImagePtr &thumb,
+	const ImagePtr &medium,
+	const ImagePtr &full)
 : id(id)
 , access(access)
 , date(date)
@@ -108,6 +119,13 @@ ImagePtr PhotoData::makeReplyPreview() {
 		}
 	}
 	return replyPreview;
+}
+
+MTPInputPhoto PhotoData::mtpInput() const {
+	return MTP_inputPhoto(
+		MTP_long(id),
+		MTP_long(access),
+		MTP_bytes(fileReference));
 }
 
 void PhotoOpenClickHandler::onClickImpl() const {

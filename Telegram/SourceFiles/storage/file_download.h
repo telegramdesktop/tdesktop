@@ -181,9 +181,28 @@ class mtpFileLoader : public FileLoader, public RPCSender {
 	Q_OBJECT
 
 public:
-	mtpFileLoader(const StorageImageLocation *location, int32 size, LoadFromCloudSetting fromCloud, bool autoLoading);
-	mtpFileLoader(int32 dc, uint64 id, uint64 accessHash, int32 version, LocationType type, const QString &toFile, int32 size, LoadToCacheSetting toCache, LoadFromCloudSetting fromCloud, bool autoLoading);
-	mtpFileLoader(const WebFileLocation *location, int32 size, LoadFromCloudSetting fromCloud, bool autoLoading);
+	mtpFileLoader(
+		const StorageImageLocation *location,
+		int32 size,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading);
+	mtpFileLoader(
+		int32 dc,
+		uint64 id,
+		uint64 accessHash,
+		int32 version,
+		const QByteArray &fileReference,
+		LocationType type,
+		const QString &toFile,
+		int32 size,
+		LoadToCacheSetting toCache,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading);
+	mtpFileLoader(
+		const WebFileLocation *location,
+		int32 size,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading);
 
 	int32 currentOffset(bool includeSkipped = false) const override;
 
@@ -229,7 +248,7 @@ private:
 	bool feedPart(int offset, bytes::const_span buffer);
 	void partLoaded(int offset, bytes::const_span buffer);
 
-	bool partFailed(const RPCError &error);
+	bool partFailed(const RPCError &error, mtpRequestId requestId);
 	bool cdnPartFailed(const RPCError &error, mtpRequestId requestId);
 
 	void placeSentRequest(mtpRequestId requestId, const RequestData &requestData);
@@ -257,6 +276,7 @@ private:
 	uint64 _id = 0; // for document locations
 	uint64 _accessHash = 0;
 	int32 _version = 0;
+	QByteArray _fileReference;
 
 	const WebFileLocation *_urlLocation = nullptr; // for webdocument locations
 

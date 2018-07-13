@@ -752,11 +752,30 @@ void DocumentData::save(
 	} else {
 		status = FileReady;
 		if (hasWebLocation()) {
-			_loader = new mtpFileLoader(&_urlLocation, size, fromCloud, autoLoading);
+			_loader = new mtpFileLoader(
+				&_urlLocation,
+				size,
+				fromCloud,
+				autoLoading);
 		} else if (!_access && !_url.isEmpty()) {
-			_loader = new webFileLoader(_url, toFile, fromCloud, autoLoading);
+			_loader = new webFileLoader(
+				_url,
+				toFile,
+				fromCloud,
+				autoLoading);
 		} else {
-			_loader = new mtpFileLoader(_dc, id, _access, _version, locationType(), toFile, size, (saveToCache() ? LoadToCacheAsWell : LoadToFileOnly), fromCloud, autoLoading);
+			_loader = new mtpFileLoader(
+				_dc,
+				id,
+				_access,
+				_version,
+				_fileReference,
+				locationType(),
+				toFile,
+				size,
+				(saveToCache() ? LoadToCacheAsWell : LoadToFileOnly),
+				fromCloud,
+				autoLoading);
 		}
 
 		_loader->connect(_loader, SIGNAL(progress(FileLoader*)), App::main(), SLOT(documentLoadProgress(FileLoader*)));
@@ -984,7 +1003,8 @@ MTPInputDocument DocumentData::mtpInput() const {
 	if (_access) {
 		return MTP_inputDocument(
 			MTP_long(id),
-			MTP_long(_access));
+			MTP_long(_access),
+			MTP_bytes(_fileReference));
 	}
 	return MTP_inputDocumentEmpty();
 }
@@ -1114,7 +1134,11 @@ bool DocumentData::setRemoteVersion(int32 version) {
 	return true;
 }
 
-void DocumentData::setRemoteLocation(int32 dc, uint64 access) {
+void DocumentData::setRemoteLocation(
+		int32 dc,
+		uint64 access,
+		const QByteArray &fileReference) {
+	_fileReference = fileReference;
 	if (_dc != dc || _access != access) {
 		_dc = dc;
 		_access = access;

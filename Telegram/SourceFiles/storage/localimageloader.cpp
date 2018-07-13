@@ -560,7 +560,13 @@ void FileLoadTask::process() {
 					full.save(&buffer, "JPG", 87);
 				}
 
-				photo = MTP_photo(MTP_flags(0), MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_vector<MTPPhotoSize>(photoSizes));
+				photo = MTP_photo(
+					MTP_flags(0),
+					MTP_long(_id),
+					MTP_long(0),
+					MTP_bytes(QByteArray()),
+					MTP_int(unixtime()),
+					MTP_vector<MTPPhotoSize>(photoSizes));
 
 				if (filesize < 0) {
 					filesize = _result->filesize = filedata.size();
@@ -603,9 +609,29 @@ void FileLoadTask::process() {
 		auto flags = MTPDdocumentAttributeAudio::Flag::f_voice | MTPDdocumentAttributeAudio::Flag::f_waveform;
 		attributes[0] = MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(_duration), MTPstring(), MTPstring(), MTP_bytes(documentWaveformEncode5bit(_waveform)));
 		attributes.resize(1);
-		document = MTP_document(MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_string(filemime), MTP_int(filesize), thumbSize, MTP_int(MTP::maindc()), MTP_int(0), MTP_vector<MTPDocumentAttribute>(attributes));
+		document = MTP_document(
+			MTP_long(_id),
+			MTP_long(0),
+			MTP_bytes(QByteArray()),
+			MTP_int(unixtime()),
+			MTP_string(filemime),
+			MTP_int(filesize),
+			thumbSize,
+			MTP_int(MTP::maindc()),
+			MTP_int(0),
+			MTP_vector<MTPDocumentAttribute>(attributes));
 	} else if (_type != SendMediaType::Photo) {
-		document = MTP_document(MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_string(filemime), MTP_int(filesize), thumbSize, MTP_int(MTP::maindc()), MTP_int(0), MTP_vector<MTPDocumentAttribute>(attributes));
+		document = MTP_document(
+			MTP_long(_id),
+			MTP_long(0),
+			MTP_bytes(QByteArray()),
+			MTP_int(unixtime()),
+			MTP_string(filemime),
+			MTP_int(filesize),
+			thumbSize,
+			MTP_int(MTP::maindc()),
+			MTP_int(0),
+			MTP_vector<MTPDocumentAttribute>(attributes));
 		_type = SendMediaType::File;
 	}
 

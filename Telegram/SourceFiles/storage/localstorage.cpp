@@ -3950,6 +3950,7 @@ void importOldRecentStickers() {
 			id,
 			access,
 			int32(0),
+			QByteArray(),
 			date,
 			attributes,
 			mime,
@@ -4419,8 +4420,10 @@ bool copyThemeColorsToPalette(const QString &path) {
 	return Window::Theme::CopyColorsToPalette(path, themeContent);
 }
 
-uint32 _peerSize(PeerData *peer) {
-	uint32 result = sizeof(quint64) + sizeof(quint64) + Serialize::storageImageLocationSize();
+uint32 _peerSize(not_null<PeerData*> peer) {
+	uint32 result = sizeof(quint64)
+		+ sizeof(quint64)
+		+ Serialize::storageImageLocationSize(peer->userpicLocation());
 	if (peer->isUser()) {
 		UserData *user = peer->asUser();
 
@@ -4501,11 +4504,13 @@ void _writePeer(QDataStream &stream, PeerData *peer) {
 	}
 }
 
-PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
+PeerData *_readPeer(int streamAppVersion, QDataStream &stream) {
 	quint64 peerId = 0, photoId = 0;
-	from.stream >> peerId >> photoId;
+	stream >> peerId >> photoId;
 
-	auto photoLoc = Serialize::readStorageImageLocation(from.stream);
+	auto photoLoc = Serialize::readStorageImageLocation(
+		streamAppVersion,
+		stream);
 
 	PeerData *result = App::peerLoaded(peerId);
 	bool wasLoaded = (result != nullptr);
@@ -4517,14 +4522,14 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 		QString first, last, phone, username, inlinePlaceholder;
 		quint64 access;
 		qint32 flags = 0, onlineTill, contact, botInfoVersion;
-		from.stream >> first >> last >> phone >> username >> access;
-		if (from.version >= 9012) {
-			from.stream >> flags;
+		stream >> first >> last >> phone >> username >> access;
+		if (streamAppVersion >= 9012) {
+			stream >> flags;
 		}
-		if (from.version >= 9016 || fileVersion >= 9016) {
-			from.stream >> inlinePlaceholder;
+		if (streamAppVersion >= 9016) {
+			stream >> inlinePlaceholder;
 		}
-		from.stream >> onlineTill >> contact >> botInfoVersion;
+		stream >> onlineTill >> contact >> botInfoVersion;
 
 		const auto showPhone = !isServiceUser(user->id)
 			&& (user->id != Auth().userPeerId())
@@ -4562,9 +4567,9 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 		QString name, inviteLink;
 		qint32 count, date, version, creator, oldForbidden;
 		quint32 flagsData, flags;
-		from.stream >> name >> count >> date >> version >> creator >> oldForbidden >> flagsData >> inviteLink;
+		stream >> name >> count >> date >> version >> creator >> oldForbidden >> flagsData >> inviteLink;
 
-		if (from.version >= 9012) {
+		if (streamAppVersion >= 9012) {
 			flags = flagsData;
 		} else {
 			// flagsData was haveLeft
@@ -4592,7 +4597,7 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 		quint64 access;
 		qint32 date, version, oldForbidden;
 		quint32 flags;
-		from.stream >> name >> access >> date >> version >> oldForbidden >> flags >> inviteLink;
+		stream >> name >> access >> date >> version >> oldForbidden >> flags >> inviteLink;
 		if (oldForbidden) {
 			flags |= quint32(MTPDchannel_ClientFlag::f_forbidden);
 		}
@@ -4637,32 +4642,32 @@ void writeRecentHashtagsAndBots() {
 			_writeMap(WriteMapWhen::Fast);
 		}
 		quint32 size = sizeof(quint32) * 3, writeCnt = 0, searchCnt = 0, botsCnt = cRecentInlineBots().size();
-		for (RecentHashtagPack::const_iterator i = write.cbegin(), e = write.cend(); i != e;  ++i) {
+		for (auto i = write.cbegin(), e = write.cend(); i != e;  ++i) {
 			if (!i->first.isEmpty()) {
 				size += Serialize::stringSize(i->first) + sizeof(quint16);
 				++writeCnt;
 			}
 		}
-		for (RecentHashtagPack::const_iterator i = search.cbegin(), e = search.cend(); i != e; ++i) {
+		for (auto i = search.cbegin(), e = search.cend(); i != e; ++i) {
 			if (!i->first.isEmpty()) {
 				size += Serialize::stringSize(i->first) + sizeof(quint16);
 				++searchCnt;
 			}
 		}
-		for (RecentInlineBots::const_iterator i = bots.cbegin(), e = bots.cend(); i != e; ++i) {
+		for (auto i = bots.cbegin(), e = bots.cend(); i != e; ++i) {
 			size += _peerSize(*i);
 		}
 
 		EncryptedDescriptor data(size);
 		data.stream << quint32(writeCnt) << quint32(searchCnt);
-		for (RecentHashtagPack::const_iterator i = write.cbegin(), e = write.cend(); i != e; ++i) {
+		for (auto i = write.cbegin(), e = write.cend(); i != e; ++i) {
 			if (!i->first.isEmpty()) data.stream << i->first << quint16(i->second);
 		}
-		for (RecentHashtagPack::const_iterator i = search.cbegin(), e = search.cend(); i != e; ++i) {
+		for (auto i = search.cbegin(), e = search.cend(); i != e; ++i) {
 			if (!i->first.isEmpty()) data.stream << i->first << quint16(i->second);
 		}
 		data.stream << quint32(botsCnt);
-		for (RecentInlineBots::const_iterator i = bots.cbegin(), e = bots.cend(); i != e; ++i) {
+		for (auto i = bots.cbegin(), e = bots.cend(); i != e; ++i) {
 			_writePeer(data.stream, *i);
 		}
 		FileWriteDescriptor file(_recentHashtagsAndBotsKey);
@@ -4713,8 +4718,10 @@ void readRecentHashtagsAndBots() {
 		hashtags.stream >> botsCount;
 		if (botsCount) {
 			bots.reserve(botsCount);
-			for (uint32 i = 0; i < botsCount; ++i) {
-				PeerData *peer = _readPeer(hashtags, 9016);
+			for (auto i = 0; i < botsCount; ++i) {
+				const auto peer = _readPeer(
+					hashtags.version,
+					hashtags.stream);
 				if (peer && peer->isUser() && peer->asUser()->botInfo && !peer->asUser()->botInfo->inlinePlaceholder.isEmpty() && !peer->asUser()->username.isEmpty()) {
 					bots.push_back(peer->asUser());
 				}
@@ -4997,7 +5004,7 @@ void readSavedPeers() {
 	QList<PeerData*> peers;
 	peers.reserve(count);
 	for (uint32 i = 0; i < count; ++i) {
-		PeerData *peer = _readPeer(saved);
+		const auto peer = _readPeer(saved.version, saved.stream);
 		if (!peer) break;
 
 		QDateTime t;

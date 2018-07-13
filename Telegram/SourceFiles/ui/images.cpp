@@ -405,6 +405,35 @@ uint64 SinglePixKey(Images::Options options) {
 StorageImageLocation StorageImageLocation::Null;
 WebFileLocation WebFileLocation::Null;
 
+StorageImageLocation::StorageImageLocation(
+	int32 width,
+	int32 height,
+	int32 dc,
+	const uint64 &volume,
+	int32 local,
+	const uint64 &secret,
+	const QByteArray &fileReference)
+: _widthheight(packIntInt(width, height))
+, _dclocal(packIntInt(dc, local))
+, _volume(volume)
+, _secret(secret)
+, _fileReference(fileReference) {
+}
+
+StorageImageLocation::StorageImageLocation(
+	int32 width,
+	int32 height,
+	const MTPDfileLocation &location)
+: StorageImageLocation(
+	width,
+	height,
+	location.vdc_id.v,
+	location.vvolume_id.v,
+	location.vlocal_id.v,
+	location.vsecret.v,
+	location.vfile_reference.v) {
+}
+
 bool Image::isNull() const {
 	return (this == blank());
 }
@@ -1099,19 +1128,22 @@ DelayedStorageImage::DelayedStorageImage() : StorageImage(StorageImageLocation()
 , _loadFromCloud(false) {
 }
 
-DelayedStorageImage::DelayedStorageImage(int32 w, int32 h) : StorageImage(StorageImageLocation(w, h, 0, 0, 0, 0))
+DelayedStorageImage::DelayedStorageImage(int32 w, int32 h)
+: StorageImage(StorageImageLocation(w, h, 0, 0, 0, 0, {}))
 , _loadRequested(false)
 , _loadCancelled(false)
 , _loadFromCloud(false) {
 }
 
-DelayedStorageImage::DelayedStorageImage(QByteArray &bytes) : StorageImage(StorageImageLocation(), bytes)
+DelayedStorageImage::DelayedStorageImage(QByteArray &bytes)
+: StorageImage(StorageImageLocation(), bytes)
 , _loadRequested(false)
 , _loadCancelled(false)
 , _loadFromCloud(false) {
 }
 
-void DelayedStorageImage::setStorageLocation(const StorageImageLocation location) {
+void DelayedStorageImage::setStorageLocation(
+		const StorageImageLocation location) {
 	_location = location;
 	if (_loadRequested) {
 		if (!_loadCancelled) {

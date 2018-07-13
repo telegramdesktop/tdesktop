@@ -105,12 +105,27 @@ TextWithEntities ExtractEditedText(const MTPMessage &message) {
 	return { text, entities };
 }
 
-PhotoData *GenerateChatPhoto(ChannelId channelId, uint64 logEntryId, TimeId date, const MTPDchatPhoto &photo) {
+PhotoData *GenerateChatPhoto(
+		ChannelId channelId,
+		uint64 logEntryId,
+		TimeId date,
+		const MTPDchatPhoto &photo) {
 	// We try to make a unique photoId that will stay the same for each pair (channelId, logEntryId).
 	static const auto RandomIdPart = rand_value<uint64>();
 	auto mixinIdPart = (static_cast<uint64>(static_cast<uint32>(channelId)) << 32) ^ logEntryId;
 	auto photoId = RandomIdPart ^ mixinIdPart;
 
+	const auto fileReference = [&]() -> const MTPbytes * {
+		const auto takeFrom = [](const MTPFileLocation &location) {
+			return (location.type() == mtpc_fileLocation)
+				? &location.c_fileLocation().vfile_reference
+				: nullptr;
+		};
+		if (const auto result = takeFrom(photo.vphoto_big)) {
+			return result;
+		}
+		return takeFrom(photo.vphoto_small);
+	}();
 	auto photoSizes = QVector<MTPPhotoSize>();
 	photoSizes.reserve(2);
 	photoSizes.push_back(MTP_photoSize(MTP_string("a"), photo.vphoto_small, MTP_int(160), MTP_int(160), MTP_int(0)));
@@ -119,6 +134,7 @@ PhotoData *GenerateChatPhoto(ChannelId channelId, uint64 logEntryId, TimeId date
 		MTP_flags(0),
 		MTP_long(photoId),
 		MTP_long(0),
+		fileReference ? (*fileReference) : MTP_bytes(QByteArray()),
 		MTP_int(date),
 		MTP_vector<MTPPhotoSize>(photoSizes)));
 }
