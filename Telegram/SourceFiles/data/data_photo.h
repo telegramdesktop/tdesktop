@@ -21,10 +21,12 @@ public:
 		const ImagePtr &medium,
 		const ImagePtr &full);
 
-	void automaticLoad(const HistoryItem *item);
+	void automaticLoad(
+		Data::FileOrigin origin,
+		const HistoryItem *item);
 	void automaticLoadSettingsChanged();
 
-	void download();
+	void download(Data::FileOrigin origin);
 	bool loaded() const;
 	bool loading() const;
 	bool displayLoading() const;
@@ -37,7 +39,7 @@ public:
 	bool waitingForAlbum() const;
 
 	void forget();
-	ImagePtr makeReplyPreview();
+	ImagePtr makeReplyPreview(Data::FileOrigin origin);
 
 	MTPInputPhoto mtpInput() const;
 

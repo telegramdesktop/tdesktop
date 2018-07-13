@@ -503,7 +503,7 @@ void Panel::processUserPhoto() {
 		? Auth().data().photo(_user->userpicPhotoId()).get()
 		: nullptr;
 	if (isGoodUserPhoto(photo)) {
-		photo->full->load(true);
+		photo->full->load(_user->userpicPhotoOrigin(), true);
 	} else if (_user->userpicPhotoUnknown() || (photo && !photo->date)) {
 		Auth().api().requestFullPeer(_user);
 	}
@@ -540,7 +540,13 @@ void Panel::createUserpicCache(ImagePtr image) {
 			height = qMax((height * size) / width, 1);
 			width = size;
 		}
-		_userPhoto = image->pixNoCache(width, height, options, st::callWidth, st::callWidth);
+		_userPhoto = image->pixNoCache(
+			_user->userpicPhotoOrigin(),
+			width,
+			height,
+			options,
+			st::callWidth,
+			st::callWidth);
 		if (cRetina()) _userPhoto.setDevicePixelRatio(cRetinaFactor());
 	} else {
 		auto filled = QImage(QSize(st::callWidth, st::callWidth) * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);

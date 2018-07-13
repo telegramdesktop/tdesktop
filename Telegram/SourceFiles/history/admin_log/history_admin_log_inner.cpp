@@ -1081,7 +1081,9 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 }
 
 void InnerWidget::savePhotoToFile(PhotoData *photo) {
-	if (!photo || !photo->date || !photo->loaded()) return;
+	if (!photo || !photo->date || !photo->loaded()) {
+		return;
+	}
 
 	auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
 	FileDialog::GetWritePath(
@@ -1091,19 +1093,19 @@ void InnerWidget::savePhotoToFile(PhotoData *photo) {
 		filedialogDefaultName(qsl("photo"), qsl(".jpg")),
 		crl::guard(this, [=](const QString &result) {
 			if (!result.isEmpty()) {
-				photo->full->pix().toImage().save(result, "JPG");
+				photo->full->pix(Data::FileOrigin()).toImage().save(result, "JPG");
 			}
 		}));
 }
 
 void InnerWidget::saveDocumentToFile(DocumentData *document) {
-	DocumentSaveClickHandler::doSave(document, true);
+	DocumentSaveClickHandler::Save(Data::FileOrigin(), document, true);
 }
 
 void InnerWidget::copyContextImage(PhotoData *photo) {
 	if (!photo || !photo->date || !photo->loaded()) return;
 
-	QApplication::clipboard()->setPixmap(photo->full->pix());
+	QApplication::clipboard()->setPixmap(photo->full->pix(Data::FileOrigin()));
 }
 
 void InnerWidget::copySelectedText() {

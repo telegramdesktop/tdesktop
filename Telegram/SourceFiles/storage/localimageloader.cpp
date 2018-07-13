@@ -618,7 +618,6 @@ void FileLoadTask::process() {
 			MTP_int(filesize),
 			thumbSize,
 			MTP_int(MTP::maindc()),
-			MTP_int(0),
 			MTP_vector<MTPDocumentAttribute>(attributes));
 	} else if (_type != SendMediaType::Photo) {
 		document = MTP_document(
@@ -630,7 +629,6 @@ void FileLoadTask::process() {
 			MTP_int(filesize),
 			thumbSize,
 			MTP_int(MTP::maindc()),
-			MTP_int(0),
 			MTP_vector<MTPDocumentAttribute>(attributes));
 		_type = SendMediaType::File;
 	}

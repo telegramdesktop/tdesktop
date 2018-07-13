@@ -281,7 +281,9 @@ void StickerSetBox::Inner::mouseMoveEvent(QMouseEvent *e) {
 		int index = stickerFromGlobalPos(e->globalPos());
 		if (index >= 0 && index < _pack.size() && index != _previewShown) {
 			_previewShown = index;
-			Ui::showMediaPreview(_pack.at(_previewShown));
+			Ui::showMediaPreview(
+				Data::FileOriginStickerSet(_setId, _setAccess),
+				_pack[_previewShown]);
 		}
 	}
 }
@@ -338,7 +340,9 @@ void StickerSetBox::Inner::onPreview() {
 	int index = stickerFromGlobalPos(QCursor::pos());
 	if (index >= 0 && index < _pack.size()) {
 		_previewShown = index;
-		Ui::showMediaPreview(_pack.at(_previewShown));
+		Ui::showMediaPreview(
+			Data::FileOriginStickerSet(_setId, _setAccess),
+			_pack[_previewShown]);
 	}
 }
 
@@ -381,19 +385,7 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 				p.setOpacity(1);
 
 			}
-			const auto goodThumb = doc->hasGoodStickerThumb();
-			if (goodThumb) {
-				doc->thumb->load();
-			} else {
-				if (doc->status == FileReady) {
-					doc->automaticLoad(0);
-				}
-				if (doc->sticker()->img->isNull() && doc->loaded(DocumentData::FilePathResolveChecked)) {
-					doc->sticker()->img = doc->data().isEmpty()
-						? ImagePtr(doc->filepath())
-						: ImagePtr(doc->data());
-				}
-			}
+			doc->checkStickerThumb();
 
 			float64 coef = qMin((st::stickersSize.width() - st::buttonRadius * 2) / float64(doc->dimensions.width()), (st::stickersSize.height() - st::buttonRadius * 2) / float64(doc->dimensions.height()));
 			if (coef > 1) coef = 1;
@@ -401,10 +393,11 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 			if (w < 1) w = 1;
 			if (h < 1) h = 1;
 			QPoint ppos = pos + QPoint((st::stickersSize.width() - w) / 2, (st::stickersSize.height() - h) / 2);
-			if (goodThumb) {
-				p.drawPixmapLeft(ppos, width(), doc->thumb->pix(w, h));
-			} else if (!doc->sticker()->img->isNull()) {
-				p.drawPixmapLeft(ppos, width(), doc->sticker()->img->pix(w, h));
+			if (const auto image = doc->getStickerThumb()) {
+				p.drawPixmapLeft(
+					ppos,
+					width(),
+					image->pix(doc->stickerSetOrigin(), w, h));
 			}
 		}
 	}

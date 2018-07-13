@@ -343,16 +343,21 @@ void GifsListWidget::selectInlineResult(int row, int column) {
 		if (photo->medium->loaded() || photo->thumb->loaded()) {
 			emit selected(photo);
 		} else if (!photo->medium->loading()) {
-			photo->thumb->loadEvenCancelled();
-			photo->medium->loadEvenCancelled();
+			photo->thumb->loadEvenCancelled(Data::FileOrigin());
+			photo->medium->loadEvenCancelled(Data::FileOrigin());
 		}
-	} else if (auto document = item->getDocument()) {
+	} else if (const auto document = item->getDocument()) {
 		if (document->loaded()) {
 			emit selected(document);
 		} else if (document->loading()) {
 			document->cancel();
 		} else {
-			DocumentOpenClickHandler::doOpen(document, nullptr, ActionOnLoadNone);
+
+			DocumentOpenClickHandler::Open(
+				document->stickerOrGifOrigin(),
+				document,
+				nullptr,
+				ActionOnLoadNone);
 		}
 	} else if (auto inlineResult = item->getResult()) {
 		if (inlineResult->onChoose(item)) {
@@ -764,6 +769,12 @@ bool GifsListWidget::inlineItemVisible(const InlineBots::Layout::ItemBase *layou
 	return (top < getVisibleBottom()) && (top + _rows[row].items[col]->height() > getVisibleTop());
 }
 
+Data::FileOrigin GifsListWidget::inlineItemFileOrigin() {
+	return _inlineQuery.isEmpty()
+		? Data::FileOriginSavedGifs()
+		: Data::FileOrigin();
+}
+
 void GifsListWidget::afterShown() {
 	if (_footer) {
 		_footer->stealFocus();
@@ -948,10 +959,14 @@ void GifsListWidget::updateSelected() {
 			_pressed = _selected;
 			if (row >= 0 && col >= 0) {
 				auto layout = _rows[row].items[col];
-				if (auto previewDocument = layout->getPreviewDocument()) {
-					Ui::showMediaPreview(previewDocument);
-				} else if (auto previewPhoto = layout->getPreviewPhoto()) {
-					Ui::showMediaPreview(previewPhoto);
+				if (const auto previewDocument = layout->getPreviewDocument()) {
+					Ui::showMediaPreview(
+						Data::FileOriginSavedGifs(),
+						previewDocument);
+				} else if (const auto previewPhoto = layout->getPreviewPhoto()) {
+					Ui::showMediaPreview(
+						Data::FileOrigin(),
+						previewPhoto);
 				}
 			}
 		}
@@ -966,11 +981,15 @@ void GifsListWidget::onPreview() {
 	int row = _pressed / MatrixRowShift, col = _pressed % MatrixRowShift;
 	if (row < _rows.size() && col < _rows[row].items.size()) {
 		auto layout = _rows[row].items[col];
-		if (auto previewDocument = layout->getPreviewDocument()) {
-			Ui::showMediaPreview(previewDocument);
+		if (const auto previewDocument = layout->getPreviewDocument()) {
+			Ui::showMediaPreview(
+				Data::FileOriginSavedGifs(),
+				previewDocument);
 			_previewShown = true;
-		} else if (auto previewPhoto = layout->getPreviewPhoto()) {
-			Ui::showMediaPreview(previewPhoto);
+		} else if (const auto previewPhoto = layout->getPreviewPhoto()) {
+			Ui::showMediaPreview(
+				Data::FileOrigin(),
+				previewPhoto);
 			_previewShown = true;
 		}
 	}

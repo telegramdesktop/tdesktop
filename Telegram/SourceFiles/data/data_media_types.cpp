@@ -269,7 +269,7 @@ bool MediaPhoto::hasReplyPreview() const {
 }
 
 ImagePtr MediaPhoto::replyPreview() const {
-	return _photo->makeReplyPreview();
+	return _photo->makeReplyPreview(parent()->fullId());
 }
 
 QString MediaPhoto::notificationText() const {
@@ -470,7 +470,7 @@ bool MediaFile::hasReplyPreview() const {
 }
 
 ImagePtr MediaFile::replyPreview() const {
-	return _document->makeReplyPreview();
+	return _document->makeReplyPreview(parent()->fullId());
 }
 
 QString MediaFile::chatsListText() const {
@@ -935,9 +935,9 @@ bool MediaWebPage::hasReplyPreview() const {
 
 ImagePtr MediaWebPage::replyPreview() const {
 	if (const auto document = _page->document) {
-		return document->makeReplyPreview();
+		return document->makeReplyPreview(parent()->fullId());
 	} else if (const auto photo = _page->photo) {
-		return photo->makeReplyPreview();
+		return photo->makeReplyPreview(parent()->fullId());
 	}
 	return ImagePtr();
 }
@@ -998,9 +998,9 @@ bool MediaGame::hasReplyPreview() const {
 
 ImagePtr MediaGame::replyPreview() const {
 	if (const auto document = _game->document) {
-		return document->makeReplyPreview();
+		return document->makeReplyPreview(parent()->fullId());
 	} else if (const auto photo = _game->photo) {
-		return photo->makeReplyPreview();
+		return photo->makeReplyPreview(parent()->fullId());
 	}
 	return ImagePtr();
 }
@@ -1098,7 +1098,7 @@ bool MediaInvoice::hasReplyPreview() const {
 
 ImagePtr MediaInvoice::replyPreview() const {
 	if (const auto photo = _invoice.photo) {
-		return photo->makeReplyPreview();
+		return photo->makeReplyPreview(parent()->fullId());
 	}
 	return ImagePtr();
 }

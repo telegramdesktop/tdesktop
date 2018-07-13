@@ -395,7 +395,9 @@ bool MainWindow::ui_isLayerShown() {
 	return _layer != nullptr;
 }
 
-void MainWindow::ui_showMediaPreview(DocumentData *document) {
+void MainWindow::ui_showMediaPreview(
+		Data::FileOrigin origin,
+		not_null<DocumentData*> document) {
 	if (!document || ((!document->isAnimation() || !document->loaded()) && !document->sticker())) {
 		return;
 	}
@@ -406,11 +408,15 @@ void MainWindow::ui_showMediaPreview(DocumentData *document) {
 	if (_mediaPreview->isHidden()) {
 		fixOrder();
 	}
-	_mediaPreview->showPreview(document);
+	_mediaPreview->showPreview(origin, document);
 }
 
-void MainWindow::ui_showMediaPreview(PhotoData *photo) {
-	if (!photo) return;
+void MainWindow::ui_showMediaPreview(
+		Data::FileOrigin origin,
+		not_null<PhotoData*> photo) {
+	if (!photo) {
+		return;
+	}
 	if (!_mediaPreview) {
 		_mediaPreview.create(bodyWidget(), controller());
 		updateControlsGeometry();
@@ -418,7 +424,7 @@ void MainWindow::ui_showMediaPreview(PhotoData *photo) {
 	if (_mediaPreview->isHidden()) {
 		fixOrder();
 	}
-	_mediaPreview->showPreview(photo);
+	_mediaPreview->showPreview(origin, photo);
 }
 
 void MainWindow::ui_hideMediaPreview() {

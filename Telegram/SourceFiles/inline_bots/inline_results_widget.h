@@ -66,6 +66,7 @@ public:
 	void inlineItemLayoutChanged(const ItemBase *layout) override;
 	void inlineItemRepaint(const ItemBase *layout) override;
 	bool inlineItemVisible(const ItemBase *layout) override;
+	Data::FileOrigin inlineItemFileOrigin() override;
 
 	int countHeight();
 

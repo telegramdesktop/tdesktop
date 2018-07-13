@@ -232,7 +232,8 @@ QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = fals
 	return FileNameForSave(caption, filter, prefix, name, forceSavingAs, dir);
 }
 
-void DocumentOpenClickHandler::doOpen(
+void DocumentOpenClickHandler::Open(
+		Data::FileOrigin origin,
 		not_null<DocumentData*> data,
 		HistoryItem *context,
 		ActionOnLoad action) {
@@ -334,7 +335,7 @@ void DocumentOpenClickHandler::doOpen(
 		if (filename.isEmpty()) return;
 	}
 
-	data->save(filename, action, msgId);
+	data->save(origin, filename, action, msgId);
 }
 
 void DocumentOpenClickHandler::onClickImpl() const {
@@ -342,14 +343,15 @@ void DocumentOpenClickHandler::onClickImpl() const {
 	const auto action = data->isVoiceMessage()
 		? ActionOnLoadNone
 		: ActionOnLoadOpen;
-	doOpen(data, getActionItem(), action);
+	Open(context(), data, getActionItem(), action);
 }
 
 void GifOpenClickHandler::onClickImpl() const {
-	doOpen(document(), getActionItem(), ActionOnLoadPlayInline);
+	Open(context(), document(), getActionItem(), ActionOnLoadPlayInline);
 }
 
-void DocumentSaveClickHandler::doSave(
+void DocumentSaveClickHandler::Save(
+		Data::FileOrigin origin,
 		not_null<DocumentData*> data,
 		bool forceSavingAs) {
 	if (!data->date) return;
@@ -365,13 +367,13 @@ void DocumentSaveClickHandler::doSave(
 		auto filename = filepath.isEmpty() ? QString() : fileinfo.fileName();
 		auto newfname = documentSaveFilename(data, forceSavingAs, filename, filedir);
 		if (!newfname.isEmpty()) {
-			data->save(newfname, ActionOnLoadNone, FullMsgId());
+			data->save(origin, newfname, ActionOnLoadNone, FullMsgId());
 		}
 	}
 }
 
 void DocumentSaveClickHandler::onClickImpl() const {
-	doSave(document());
+	Save(context(), document());
 }
 
 void DocumentCancelClickHandler::onClickImpl() const {
@@ -385,6 +387,15 @@ void DocumentCancelClickHandler::onClickImpl() const {
 	} else {
 		data->cancel();
 	}
+}
+
+Data::FileOrigin StickerData::setOrigin() const {
+	return set.match([&](const MTPDinputStickerSetID &data) {
+		return Data::FileOrigin(
+			Data::FileOriginStickerSet(data.vid.v, data.vaccess_hash.v));
+	}, [&](const auto &) {
+		return Data::FileOrigin();
+	});
 }
 
 VoiceData::~VoiceData() {
@@ -514,12 +525,14 @@ void DocumentData::forget() {
 	_data.clear();
 }
 
-void DocumentData::automaticLoad(const HistoryItem *item) {
+void DocumentData::automaticLoad(
+		Data::FileOrigin origin,
+		const HistoryItem *item) {
 	if (loaded() || status != FileReady) return;
 
 	if (saveToCache() && _loader != CancelledMtpFileLoader) {
 		if (type == StickerDocument) {
-			save(QString(), _actionOnLoad, _actionOnLoadMsgId);
+			save(origin, QString(), _actionOnLoad, _actionOnLoadMsgId);
 		} else if (isAnimation()) {
 			bool loadFromCloud = false;
 			if (item) {
@@ -531,7 +544,7 @@ void DocumentData::automaticLoad(const HistoryItem *item) {
 			} else { // if load at least anywhere
 				loadFromCloud = !(cAutoDownloadGif() & dbiadNoPrivate) || !(cAutoDownloadGif() & dbiadNoGroups);
 			}
-			save(QString(), _actionOnLoad, _actionOnLoadMsgId, loadFromCloud ? LoadFromCloudOrLocal : LoadFromLocalOnly, true);
+			save(origin, QString(), _actionOnLoad, _actionOnLoadMsgId, loadFromCloud ? LoadFromCloudOrLocal : LoadFromLocalOnly, true);
 		} else if (isVoiceMessage()) {
 			if (item) {
 				bool loadFromCloud = false;
@@ -540,7 +553,7 @@ void DocumentData::automaticLoad(const HistoryItem *item) {
 				} else {
 					loadFromCloud = !(cAutoDownloadAudio() & dbiadNoGroups);
 				}
-				save(QString(), _actionOnLoad, _actionOnLoadMsgId, loadFromCloud ? LoadFromCloudOrLocal : LoadFromLocalOnly, true);
+				save(origin, QString(), _actionOnLoad, _actionOnLoadMsgId, loadFromCloud ? LoadFromCloudOrLocal : LoadFromLocalOnly, true);
 			}
 		}
 	}
@@ -706,6 +719,7 @@ bool DocumentData::waitingForAlbum() const {
 }
 
 void DocumentData::save(
+		Data::FileOrigin origin,
 		const QString &toFile,
 		ActionOnLoad action,
 		const FullMsgId &actionMsgId,
@@ -768,8 +782,8 @@ void DocumentData::save(
 				_dc,
 				id,
 				_access,
-				_version,
 				_fileReference,
+				origin,
 				locationType(),
 				toFile,
 				size,
@@ -924,7 +938,7 @@ bool DocumentData::isStickerSetInstalled() const {
 	return false;
 }
 
-ImagePtr DocumentData::makeReplyPreview() {
+ImagePtr DocumentData::makeReplyPreview(Data::FileOrigin origin) {
 	if (replyPreview->isNull() && !thumb->isNull()) {
 		if (thumb->loaded()) {
 			int w = thumb->width(), h = thumb->height();
@@ -934,10 +948,10 @@ ImagePtr DocumentData::makeReplyPreview() {
 			thumbSize *= cIntRetinaFactor();
 			auto options = Images::Option::Smooth | (isVideoMessage() ? Images::Option::Circled : Images::Option::None) | Images::Option::TransparentBackground;
 			auto outerSize = st::msgReplyBarSize.height();
-			auto image = thumb->pixNoCache(thumbSize.width(), thumbSize.height(), options, outerSize, outerSize);
+			auto image = thumb->pixNoCache(origin, thumbSize.width(), thumbSize.height(), options, outerSize, outerSize);
 			replyPreview = ImagePtr(image, "PNG");
 		} else {
-			thumb->load();
+			thumb->load(origin);
 		}
 	}
 	return replyPreview;
@@ -953,10 +967,10 @@ void DocumentData::checkSticker() {
 	const auto data = sticker();
 	if (!data) return;
 
-	automaticLoad(nullptr);
+	automaticLoad(stickerSetOrigin(), nullptr);
 	if (data->img->isNull() && loaded()) {
 		if (_data.isEmpty()) {
-			const FileLocation &loc(location(true));
+			const auto &loc = location(true);
 			if (loc.accessEnable()) {
 				data->img = ImagePtr(loc.name());
 				loc.accessDisable();
@@ -965,6 +979,38 @@ void DocumentData::checkSticker() {
 			data->img = ImagePtr(_data);
 		}
 	}
+}
+
+void DocumentData::checkStickerThumb() {
+	if (hasGoodStickerThumb()) {
+		thumb->load(stickerSetOrigin());
+	} else {
+		checkSticker();
+	}
+}
+
+ImagePtr DocumentData::getStickerThumb() {
+	if (hasGoodStickerThumb()) {
+		return thumb;
+	} else if (const auto data = sticker()) {
+		return data->img;
+	}
+	return ImagePtr();
+}
+
+Data::FileOrigin DocumentData::stickerSetOrigin() const {
+	if (const auto data = sticker()) {
+		return data->setOrigin();
+	}
+	return Data::FileOrigin();
+}
+
+Data::FileOrigin DocumentData::stickerOrGifOrigin() const {
+	return (sticker()
+		? stickerSetOrigin()
+		: isGifv()
+		? Data::FileOriginSavedGifs()
+		: Data::FileOrigin());
 }
 
 SongData *DocumentData::song() {
@@ -1026,7 +1072,7 @@ void DocumentData::setMimeString(const QString &mime) {
 }
 
 MediaKey DocumentData::mediaKey() const {
-	return ::mediaKey(locationType(), _dc, id, _version);
+	return ::mediaKey(locationType(), _dc, id);
 }
 
 QString DocumentData::composeNameString() const {
@@ -1118,20 +1164,6 @@ void DocumentData::recountIsImage() {
 bool DocumentData::hasGoodStickerThumb() const {
 	return !thumb->isNull()
 		&& ((thumb->width() >= 128) || (thumb->height() >= 128));
-}
-
-bool DocumentData::setRemoteVersion(int32 version) {
-	if (_version == version) {
-		return false;
-	}
-	_version = version;
-	_location = FileLocation();
-	_data = QByteArray();
-	status = FileReady;
-	if (loading()) {
-		destroyLoaderDelayed();
-	}
-	return true;
 }
 
 void DocumentData::setRemoteLocation(

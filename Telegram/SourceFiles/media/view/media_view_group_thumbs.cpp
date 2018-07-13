@@ -31,6 +31,20 @@ int Round(float64 value) {
 using Context = GroupThumbs::Context;
 using Key = GroupThumbs::Key;
 
+Data::FileOrigin ComputeFileOrigin(const Key &key, const Context &context) {
+	return key.match([&](PhotoId photoId) {
+		return context.match([&](PeerId peerId) {
+			return peerIsUser(peerId)
+				? Data::FileOriginUserPhoto(peerToUser(peerId), photoId)
+				: Data::FileOrigin(Data::FileOriginPeerPhoto(peerId));
+		}, [&](auto&&) {
+			return Data::FileOrigin();
+		});
+	}, [](FullMsgId itemId) {
+		return Data::FileOrigin(itemId);
+	});
+}
+
 Context ComputeContext(const SharedMediaWithLastSlice &slice, int index) {
 	Expects(index >= 0 && index < slice.size());
 
@@ -96,7 +110,11 @@ public:
 		Dying,
 	};
 
-	Thumb(Key key, ImagePtr image, Fn<void()> handler);
+	Thumb(
+		Key key,
+		ImagePtr image,
+		Data::FileOrigin origin,
+		Fn<void()> handler);
 
 	int leftToUpdate() const;
 	int rightToUpdate() const;
@@ -123,6 +141,7 @@ private:
 	ClickHandlerPtr _link;
 	const Key _key;
 	ImagePtr _image;
+	Data::FileOrigin _origin;
 	State _state = State::Alive;
 	QPixmap _full;
 	int _fullWidth = 0;
@@ -137,9 +156,11 @@ private:
 GroupThumbs::Thumb::Thumb(
 	Key key,
 	ImagePtr image,
+	Data::FileOrigin origin,
 	Fn<void()> handler)
 : _key(key)
-, _image(image) {
+, _image(image)
+, _origin(origin) {
 	_link = std::make_shared<LambdaClickHandler>(std::move(handler));
 	_fullWidth = std::min(
 		wantedPixSize().width(),
@@ -159,7 +180,7 @@ void GroupThumbs::Thumb::validateImage() {
 	if (!_full.isNull()) {
 		return;
 	}
-	_image->load();
+	_image->load(_origin);
 	if (!_image->loaded()) {
 		return;
 	}
@@ -170,7 +191,7 @@ void GroupThumbs::Thumb::validateImage() {
 		const auto originalHeight = _image->height();
 		const auto takeWidth = originalWidth * st::mediaviewGroupWidthMax
 			/ pixSize.width();
-		const auto original = _image->pixNoCache().toImage();
+		const auto original = _image->pixNoCache(_origin).toImage();
 		_full = App::pixmapFromImageInPlace(original.copy(
 			(originalWidth - takeWidth) / 2,
 			0,
@@ -183,6 +204,7 @@ void GroupThumbs::Thumb::validateImage() {
 			Qt::SmoothTransformation));
 	} else {
 		_full = _image->pixNoCache(
+			_origin,
 			pixSize.width() * cIntRetinaFactor(),
 			pixSize.height() * cIntRetinaFactor(),
 			Images::Option::Smooth);
@@ -396,7 +418,6 @@ void GroupThumbs::fillItems(
 	Expects(index < till);
 	Expects(from + 1 < till);
 
-
 	const auto current = (index - from);
 	const auto old = base::take(_items);
 
@@ -470,10 +491,13 @@ void GroupThumbs::animatePreviouslyAlive(
 	}
 }
 
-auto GroupThumbs::createThumb(Key key) -> std::unique_ptr<Thumb> {
+auto GroupThumbs::createThumb(Key key)
+-> std::unique_ptr<Thumb> {
 	if (const auto photoId = base::get_if<PhotoId>(&key)) {
 		const auto photo = Auth().data().photo(*photoId);
-		return createThumb(key, photo->date ? photo->thumb : ImagePtr());
+		return createThumb(
+			key,
+			photo->date ? photo->thumb : ImagePtr());
 	} else if (const auto msgId = base::get_if<FullMsgId>(&key)) {
 		if (const auto item = App::histItemById(*msgId)) {
 			if (const auto media = item->media()) {
@@ -492,7 +516,8 @@ auto GroupThumbs::createThumb(Key key) -> std::unique_ptr<Thumb> {
 auto GroupThumbs::createThumb(Key key, ImagePtr image)
 -> std::unique_ptr<Thumb> {
 	const auto weak = base::make_weak(this);
-	return std::make_unique<Thumb>(key, image, [=] {
+	const auto origin = ComputeFileOrigin(key, _context);
+	return std::make_unique<Thumb>(key, image, origin, [=] {
 		if (const auto strong = weak.get()) {
 			strong->_activateStream.fire_copy(key);
 		}

@@ -399,7 +399,6 @@ Document ParseDocument(
 		result.file.location.data = MTP_inputDocumentFileLocation(
 			data.vid,
 			data.vaccess_hash,
-			data.vversion,
 			data.vfile_reference);
 		const auto path = result.file.suggestedPath = suggestedFolder
 			+ DocumentFolder(result) + '/'

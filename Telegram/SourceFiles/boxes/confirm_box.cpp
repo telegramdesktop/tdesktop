@@ -648,7 +648,13 @@ void DeleteMessagesBox::deleteAndClear() {
 	Auth().data().sendHistoryChangeNotifications();
 }
 
-ConfirmInviteBox::ConfirmInviteBox(QWidget*, const QString &title, bool isChannel, const MTPChatPhoto &photo, int count, const QVector<UserData*> &participants)
+ConfirmInviteBox::ConfirmInviteBox(
+	QWidget*,
+	const QString &title,
+	bool isChannel,
+	const MTPChatPhoto &photo,
+	int count,
+	const QVector<UserData*> &participants)
 : _title(this, st::confirmInviteTitle)
 , _status(this, st::confirmInviteStatus)
 , _participants(participants) {
@@ -675,7 +681,7 @@ ConfirmInviteBox::ConfirmInviteBox(QWidget*, const QString &title, bool isChanne
 			_photo = ImagePtr(location);
 			if (!_photo->loaded()) {
 				subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
-				_photo->load();
+				_photo->load(Data::FileOrigin());
 			}
 		}
 	}
@@ -730,15 +736,31 @@ void ConfirmInviteBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	if (_photo) {
-		p.drawPixmap((width() - st::confirmInvitePhotoSize) / 2, st::confirmInvitePhotoTop, _photo->pixCircled(st::confirmInvitePhotoSize, st::confirmInvitePhotoSize));
+		p.drawPixmap(
+			(width() - st::confirmInvitePhotoSize) / 2,
+			st::confirmInvitePhotoTop,
+			_photo->pixCircled(
+				Data::FileOrigin(),
+				st::confirmInvitePhotoSize,
+				st::confirmInvitePhotoSize));
 	} else {
-		_photoEmpty->paint(p, (width() - st::confirmInvitePhotoSize) / 2, st::confirmInvitePhotoTop, width(), st::confirmInvitePhotoSize);
+		_photoEmpty->paint(
+			p,
+			(width() - st::confirmInvitePhotoSize) / 2,
+			st::confirmInvitePhotoTop,
+			width(),
+			st::confirmInvitePhotoSize);
 	}
 
 	int sumWidth = _participants.size() * _userWidth;
 	int left = (width() - sumWidth) / 2;
 	for_const (auto user, _participants) {
-		user->paintUserpicLeft(p, left + (_userWidth - st::confirmInviteUserPhotoSize) / 2, st::confirmInviteUserPhotoTop, width(), st::confirmInviteUserPhotoSize);
+		user->paintUserpicLeft(
+			p,
+			left + (_userWidth - st::confirmInviteUserPhotoSize) / 2,
+			st::confirmInviteUserPhotoTop,
+			width(),
+			st::confirmInviteUserPhotoSize);
 		left += _userWidth;
 	}
 }

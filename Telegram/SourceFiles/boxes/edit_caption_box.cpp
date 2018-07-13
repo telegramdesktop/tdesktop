@@ -79,7 +79,7 @@ EditCaptionBox::EditCaptionBox(
 					| Images::Option::RoundedBottomLeft
 					| Images::Option::RoundedBottomRight;
 				_thumb = Images::pixmap(
-					image->pix().toImage(),
+					image->pix(_msgId).toImage(),
 					_thumbw * cIntRetinaFactor(),
 					0,
 					options,
@@ -129,6 +129,7 @@ EditCaptionBox::EditCaptionBox(
 				const auto options = Images::Option::Smooth
 					| Images::Option::Blurred;
 				_thumb = image->pixNoCache(
+					_msgId,
 					maxW * cIntRetinaFactor(),
 					maxH * cIntRetinaFactor(),
 					options,
@@ -142,6 +143,7 @@ EditCaptionBox::EditCaptionBox(
 			_thumbnailImage = image;
 			_refreshThumbnail = [=] {
 				_thumb = image->pixNoCache(
+					_msgId,
 					maxW * cIntRetinaFactor(),
 					maxH * cIntRetinaFactor(),
 					Images::Option::Smooth,

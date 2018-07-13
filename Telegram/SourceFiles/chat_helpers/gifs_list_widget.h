@@ -45,6 +45,7 @@ public:
 	void inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout) override;
 	void inlineItemRepaint(const InlineBots::Layout::ItemBase *layout) override;
 	bool inlineItemVisible(const InlineBots::Layout::ItemBase *layout) override;
+	Data::FileOrigin inlineItemFileOrigin() override;
 
 	void afterShown() override;
 	void beforeHiding() override;

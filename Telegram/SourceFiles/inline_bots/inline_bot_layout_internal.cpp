@@ -134,8 +134,8 @@ int Gif::resizeGetHeight(int width) {
 }
 
 void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
-	DocumentData *document = getShownDocument();
-	document->automaticLoad(nullptr);
+	const auto document = getShownDocument();
+	document->automaticLoad(fileOrigin(), nullptr);
 
 	bool loaded = document->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
 	if (loaded && !_gif && !_gif.isBad()) {
@@ -286,25 +286,26 @@ QSize Gif::countFrameSize() const {
 }
 
 void Gif::prepareThumb(int32 width, int32 height, const QSize &frame) const {
-	if (DocumentData *document = getShownDocument()) {
+	const auto origin = fileOrigin();
+	if (const auto document = getShownDocument()) {
 		if (!document->thumb->isNull()) {
 			if (document->thumb->loaded()) {
 				if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-					_thumb = document->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+					_thumb = document->thumb->pixNoCache(origin, frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 				}
 			} else {
-				document->thumb->load();
+				document->thumb->load(origin);
 			}
 		}
 	} else {
-		ImagePtr thumb = getResultThumb();
+		const auto thumb = getResultThumb();
 		if (!thumb->isNull()) {
 			if (thumb->loaded()) {
 				if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-					_thumb = thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+					_thumb = thumb->pixNoCache(origin, frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 				}
 			} else {
-				thumb->load();
+				thumb->load(origin);
 			}
 		}
 	}
@@ -375,17 +376,9 @@ void Sticker::initDimensions() {
 
 void Sticker::preload() const {
 	if (const auto document = getShownDocument()) {
-		const auto goodThumb = document->hasGoodStickerThumb();
-		if (goodThumb) {
-			document->thumb->load();
-		} else {
-			document->checkSticker();
-		}
-	} else {
-		const auto thumb = getResultThumb();
-		if (!thumb->isNull()) {
-			thumb->load();
-		}
+		document->checkStickerThumb();
+	} else if (const auto thumb = getResultThumb()) {
+		thumb->load(fileOrigin());
 	}
 }
 
@@ -441,33 +434,31 @@ QSize Sticker::getThumbSize() const {
 
 void Sticker::prepareThumb() const {
 	if (const auto document = getShownDocument()) {
-		const auto goodThumb = document->hasGoodStickerThumb();
-		if (goodThumb) {
-			document->thumb->load();
-		} else {
-			document->checkSticker();
-		}
+		document->checkStickerThumb();
 
-		const auto sticker = goodThumb
-			? document->thumb
-			: document->sticker()
-			? document->sticker()->img
-			: ImagePtr();
+		const auto sticker = document->getStickerThumb();
 		if (!_thumbLoaded && !sticker->isNull() && sticker->loaded()) {
-			QSize thumbSize = getThumbSize();
-			_thumb = sticker->pix(thumbSize.width(), thumbSize.height());
+			const auto thumbSize = getThumbSize();
+			_thumb = sticker->pix(
+				document->stickerSetOrigin(),
+				thumbSize.width(),
+				thumbSize.height());
 			_thumbLoaded = true;
 		}
 	} else {
-		ImagePtr thumb = getResultThumb();
+		const auto origin = fileOrigin();
+		const auto thumb = getResultThumb();
 		if (thumb->loaded()) {
 			if (!_thumbLoaded) {
-				QSize thumbSize = getThumbSize();
-				_thumb = thumb->pix(thumbSize.width(), thumbSize.height());
+				const auto thumbSize = getThumbSize();
+				_thumb = thumb->pix(
+					origin,
+					thumbSize.width(),
+					thumbSize.height());
 				_thumbLoaded = true;
 			}
 		} else {
-			thumb->load();
+			thumb->load(origin);
 		}
 	}
 }
@@ -546,28 +537,29 @@ QSize Photo::countFrameSize() const {
 }
 
 void Photo::prepareThumb(int32 width, int32 height, const QSize &frame) const {
-	if (PhotoData *photo = getShownPhoto()) {
+	const auto origin = fileOrigin();
+	if (const auto photo = getShownPhoto()) {
 		if (photo->medium->loaded()) {
 			if (!_thumbLoaded || _thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				_thumb = photo->medium->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+				_thumb = photo->medium->pixNoCache(origin, frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 			}
 			_thumbLoaded = true;
 		} else {
 			if (photo->thumb->loaded()) {
 				if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-					_thumb = photo->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+					_thumb = photo->thumb->pixNoCache(origin, frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 				}
 			}
-			photo->medium->load();
+			photo->medium->load(origin);
 		}
 	} else {
-		ImagePtr thumb = getResultThumb();
+		const auto thumb = getResultThumb();
 		if (thumb->loaded()) {
 			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				_thumb = thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+				_thumb = thumb->pixNoCache(origin, frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 			}
 		} else {
-			thumb->load();
+			thumb->load(origin);
 		}
 	}
 }
@@ -660,7 +652,8 @@ TextState Video::getState(
 }
 
 void Video::prepareThumb(int32 width, int32 height) const {
-	ImagePtr thumb = content_thumb();
+	const auto thumb = content_thumb();
+	const auto origin = fileOrigin();
 	if (thumb->loaded()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
 			int32 w = qMax(convertScale(thumb->width()), 1), h = qMax(convertScale(thumb->height()), 1);
@@ -675,10 +668,10 @@ void Video::prepareThumb(int32 width, int32 height) const {
 					w = width;
 				}
 			}
-			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+			_thumb = thumb->pixNoCache(origin, w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 		}
 	} else {
-		thumb->load();
+		thumb->load(origin);
 	}
 }
 
@@ -971,7 +964,7 @@ TextState Contact::getState(
 }
 
 void Contact::prepareThumb(int width, int height) const {
-	ImagePtr thumb = getResultThumb();
+	const auto thumb = getResultThumb();
 	if (thumb->isNull()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
 			_thumb = getResultContactAvatar(width, height);
@@ -979,6 +972,7 @@ void Contact::prepareThumb(int width, int height) const {
 		return;
 	}
 
+	const auto origin = fileOrigin();
 	if (thumb->loaded()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
 			int w = qMax(convertScale(thumb->width()), 1), h = qMax(convertScale(thumb->height()), 1);
@@ -993,10 +987,10 @@ void Contact::prepareThumb(int width, int height) const {
 					w = width;
 				}
 			}
-			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+			_thumb = thumb->pixNoCache(origin, w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 		}
 	} else {
-		thumb->load();
+		thumb->load(origin);
 	}
 }
 
@@ -1118,7 +1112,7 @@ TextState Article::getState(
 }
 
 void Article::prepareThumb(int width, int height) const {
-	ImagePtr thumb = getResultThumb();
+	const auto thumb = getResultThumb();
 	if (thumb->isNull()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
 			_thumb = getResultContactAvatar(width, height);
@@ -1126,6 +1120,7 @@ void Article::prepareThumb(int width, int height) const {
 		return;
 	}
 
+	const auto origin = fileOrigin();
 	if (thumb->loaded()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
 			int w = qMax(convertScale(thumb->width()), 1), h = qMax(convertScale(thumb->height()), 1);
@@ -1140,10 +1135,10 @@ void Article::prepareThumb(int width, int height) const {
 					w = width;
 				}
 			}
-			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+			_thumb = thumb->pixNoCache(origin, w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 		}
 	} else {
-		thumb->load();
+		thumb->load(origin);
 	}
 }
 
@@ -1217,7 +1212,7 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 	auto document = getResultDocument();
 	auto animatedThumb = document && document->isAnimation();
 	if (animatedThumb) {
-		document->automaticLoad(nullptr);
+		document->automaticLoad(fileOrigin(), nullptr);
 
 		bool loaded = document->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
 		if (loaded && !_gif && !_gif.isBad()) {
@@ -1293,7 +1288,7 @@ TextState Game::getState(
 }
 
 void Game::prepareThumb(int width, int height) const {
-	auto thumb = [this] {
+	const auto thumb = [this] {
 		if (auto photo = getResultPhoto()) {
 			return photo->medium;
 		} else if (auto document = getResultDocument()) {
@@ -1305,6 +1300,7 @@ void Game::prepareThumb(int width, int height) const {
 		return;
 	}
 
+	const auto origin = fileOrigin();
 	if (thumb->loaded()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
 			int w = qMax(convertScale(thumb->width()), 1), h = qMax(convertScale(thumb->height()), 1);
@@ -1321,10 +1317,10 @@ void Game::prepareThumb(int width, int height) const {
 					w = width;
 				}
 			}
-			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+			_thumb = thumb->pixNoCache(origin, w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 		}
 	} else {
-		thumb->load();
+		thumb->load(origin);
 	}
 }
 

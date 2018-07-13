@@ -238,7 +238,8 @@ bool Instance::moveInPlaylist(
 					|| document->isVideoMessage()) {
 					play(AudioMsgId(document, item->fullId()));
 				} else {
-					//DocumentOpenClickHandler::doOpen(
+					//DocumentOpenClickHandler::Open(
+					//	item->fullId(),
 					//	document,
 					//	item,
 					//	ActionOnLoadPlayInline);
@@ -440,9 +441,10 @@ void Instance::preloadNext(not_null<Data*> data) {
 				const auto isLoaded = document->loaded(
 					DocumentData::FilePathResolveSaveFromDataSilent);
 				if (!isLoaded) {
-					DocumentOpenClickHandler::doOpen(
+					DocumentOpenClickHandler::Open(
+						item->fullId(),
 						document,
-						nullptr,
+						item,
 						ActionOnLoadNone);
 				}
 			}

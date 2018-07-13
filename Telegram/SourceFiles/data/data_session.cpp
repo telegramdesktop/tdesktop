@@ -57,7 +57,7 @@ void UpdateImage(ImagePtr &old, ImagePtr now) {
 	} else if (const auto delayed = old->toDelayedStorageImage()) {
 		const auto location = now->location();
 		if (!location.isNull()) {
-			delayed->setStorageLocation(location);
+			delayed->setStorageLocation(Data::FileOrigin(), location);
 		}
 	}
 }
@@ -1011,7 +1011,6 @@ not_null<DocumentData*> Session::document(
 		return document(
 			fields.vid.v,
 			fields.vaccess_hash.v,
-			fields.vversion.v,
 			fields.vfile_reference.v,
 			fields.vdate.v,
 			fields.vattributes.v,
@@ -1028,7 +1027,6 @@ not_null<DocumentData*> Session::document(
 not_null<DocumentData*> Session::document(
 		DocumentId id,
 		const uint64 &access,
-		int32 version,
 		const QByteArray &fileReference,
 		TimeId date,
 		const QVector<MTPDocumentAttribute> &attributes,
@@ -1041,7 +1039,6 @@ not_null<DocumentData*> Session::document(
 	documentApplyFields(
 		result,
 		access,
-		version,
 		fileReference,
 		date,
 		attributes,
@@ -1120,7 +1117,6 @@ DocumentData *Session::documentFromWeb(
 	const auto result = document(
 		rand_value<DocumentId>(),
 		uint64(0),
-		int32(0),
 		QByteArray(),
 		unixtime(),
 		data.vattributes.v,
@@ -1142,7 +1138,6 @@ DocumentData *Session::documentFromWeb(
 	const auto result = document(
 		rand_value<DocumentId>(),
 		uint64(0),
-		int32(0),
 		QByteArray(),
 		unixtime(),
 		data.vattributes.v,
@@ -1169,7 +1164,6 @@ void Session::documentApplyFields(
 	documentApplyFields(
 		document,
 		data.vaccess_hash.v,
-		data.vversion.v,
 		data.vfile_reference.v,
 		data.vdate.v,
 		data.vattributes.v,
@@ -1183,7 +1177,6 @@ void Session::documentApplyFields(
 void Session::documentApplyFields(
 		not_null<DocumentData*> document,
 		const uint64 &access,
-		int32 version,
 		const QByteArray &fileReference,
 		TimeId date,
 		const QVector<MTPDocumentAttribute> &attributes,
@@ -1196,7 +1189,6 @@ void Session::documentApplyFields(
 		return;
 	}
 	document->setattributes(attributes);
-	document->setRemoteVersion(version);
 	if (dc != 0 && access != 0) {
 		document->setRemoteLocation(dc, access, fileReference);
 	}

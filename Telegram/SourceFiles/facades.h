@@ -98,8 +98,10 @@ void showBox(
 
 } // namespace internal
 
-void showMediaPreview(DocumentData *document);
-void showMediaPreview(PhotoData *photo);
+void showMediaPreview(
+	Data::FileOrigin origin,
+	not_null<DocumentData*> document);
+void showMediaPreview(Data::FileOrigin origin, not_null<PhotoData*> photo);
 void hideMediaPreview();
 
 template <typename BoxType>

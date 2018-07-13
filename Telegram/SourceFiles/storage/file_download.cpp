@@ -395,6 +395,7 @@ void FileLoader::startLoading(bool loadFirst, bool prior) {
 
 mtpFileLoader::mtpFileLoader(
 	const StorageImageLocation *location,
+	Data::FileOrigin origin,
 	int32 size,
 	LoadFromCloudSetting fromCloud
 	, bool autoLoading)
@@ -406,7 +407,8 @@ mtpFileLoader::mtpFileLoader(
 	fromCloud,
 	autoLoading)
 , _dcId(location->dc())
-, _location(location) {
+, _location(location)
+, _origin(origin) {
 	auto shiftedDcId = MTP::downloadDcId(_dcId, 0);
 	auto i = queues.find(shiftedDcId);
 	if (i == queues.cend()) {
@@ -419,8 +421,8 @@ mtpFileLoader::mtpFileLoader(
 	int32 dc,
 	uint64 id,
 	uint64 accessHash,
-	int32 version,
 	const QByteArray &fileReference,
+	Data::FileOrigin origin,
 	LocationType type,
 	const QString &to,
 	int32 size,
@@ -437,8 +439,8 @@ mtpFileLoader::mtpFileLoader(
 , _dcId(dc)
 , _id(id)
 , _accessHash(accessHash)
-, _version(version)
-, _fileReference(fileReference) {
+, _fileReference(fileReference)
+, _origin(origin) {
 	auto shiftedDcId = MTP::downloadDcId(_dcId, 0);
 	auto i = queues.find(shiftedDcId);
 	if (i == queues.cend()) {
@@ -471,6 +473,10 @@ mtpFileLoader::mtpFileLoader(
 
 int32 mtpFileLoader::currentOffset(bool includeSkipped) const {
 	return (_fileIsOpen ? _file.size() : _data.size()) - (includeSkipped ? 0 : _skippedBytes);
+}
+
+Data::FileOrigin mtpFileLoader::fileOrigin() const {
+	return _origin;
 }
 
 bool mtpFileLoader::loadPart() {
@@ -572,7 +578,6 @@ MTPInputFileLocation mtpFileLoader::computeLocation() const {
 	return MTP_inputDocumentFileLocation(
 		MTP_long(_id),
 		MTP_long(_accessHash),
-		MTP_int(_version),
 		MTP_bytes(_fileReference));
 }
 
@@ -843,7 +848,7 @@ bool mtpFileLoader::feedPart(int offset, bytes::const_span buffer) {
 			if (_urlLocation) {
 				Local::writeImage(storageKey(*_urlLocation), StorageImageSaved(_data));
 			} else if (_locationType != UnknownFileLocation) { // audio, video, document
-				auto mkey = mediaKey(_locationType, _dcId, _id, _version);
+				auto mkey = mediaKey(_locationType, _dcId, _id);
 				if (!_filename.isEmpty()) {
 					Local::writeFileLocation(mkey, FileLocation(_filename));
 				}
@@ -998,7 +1003,7 @@ bool mtpFileLoader::tryLoadLocal() {
 		_localTaskId = Local::startImageLoad(storageKey(*_location), this);
 	} else {
 		if (_toCache == LoadToCacheAsWell) {
-			MediaKey mkey = mediaKey(_locationType, _dcId, _id, _version);
+			MediaKey mkey = mediaKey(_locationType, _dcId, _id);
 			if (_locationType == DocumentFileLocation) {
 				_localTaskId = Local::startStickerImageLoad(mkey, this);
 			} else if (_locationType == AudioFileLocation) {

@@ -1638,10 +1638,13 @@ void MainWidget::documentLoadFailed(FileLoader *loader, bool started) {
 
 	auto document = Auth().data().document(documentId);
 	if (started) {
-		auto failedFileName = loader->fileName();
+		const auto origin = loader->fileOrigin();
+		const auto failedFileName = loader->fileName();
 		Ui::show(Box<ConfirmBox>(lang(lng_download_finish_failed), crl::guard(this, [=] {
 			Ui::hideLayer();
-			if (document) document->save(failedFileName);
+			if (document) {
+				document->save(origin, failedFileName);
+			}
 		})));
 	} else {
 		// Sometimes we have LOCATION_INVALID error in documents / stickers.
@@ -1790,7 +1793,7 @@ void MainWidget::updateScrollColors() {
 
 void MainWidget::setChatBackground(const App::WallPaper &wp) {
 	_background = std::make_unique<App::WallPaper>(wp);
-	_background->full->loadEvenCancelled();
+	_background->full->loadEvenCancelled(Data::FileOrigin());
 	checkChatBackground();
 }
 
@@ -1815,7 +1818,7 @@ void MainWidget::checkChatBackground() {
 				|| _background->id == Window::Theme::kDefaultBackground) {
 				Window::Theme::Background()->setImage(_background->id);
 			} else {
-				Window::Theme::Background()->setImage(_background->id, _background->full->pix().toImage());
+				Window::Theme::Background()->setImage(_background->id, _background->full->pix(Data::FileOrigin()).toImage());
 			}
 			_background = nullptr;
 			QTimer::singleShot(0, this, SLOT(update()));

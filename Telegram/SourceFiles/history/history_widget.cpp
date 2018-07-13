@@ -6616,7 +6616,7 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 					auto replyPreview = drawMsgText->media()->replyPreview();
 					if (!replyPreview->isNull()) {
 						auto to = QRect(replyLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
-						p.drawPixmap(to.x(), to.y(), replyPreview->pixSingle(replyPreview->width() / cIntRetinaFactor(), replyPreview->height() / cIntRetinaFactor(), to.width(), to.height(), ImageRoundRadius::Small));
+						p.drawPixmap(to.x(), to.y(), replyPreview->pixSingle(drawMsgText->fullId(), replyPreview->width() / cIntRetinaFactor(), replyPreview->height() / cIntRetinaFactor(), to.width(), to.height(), ImageRoundRadius::Small));
 					}
 					replyLeft += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
 				}
@@ -6651,10 +6651,10 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 			if (!preview->isNull()) {
 				auto to = QRect(forwardLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
 				if (preview->width() == preview->height()) {
-					p.drawPixmap(to.x(), to.y(), preview->pix());
+					p.drawPixmap(to.x(), to.y(), preview->pix(firstItem->fullId()));
 				} else {
 					auto from = (preview->width() > preview->height()) ? QRect((preview->width() - preview->height()) / 2, 0, preview->height(), preview->height()) : QRect(0, (preview->height() - preview->width()) / 2, preview->width(), preview->width());
-					p.drawPixmap(to, preview->pix(), from);
+					p.drawPixmap(to, preview->pix(firstItem->fullId()), from);
 				}
 				forwardLeft += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
 			}
@@ -6670,14 +6670,14 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 		auto previewLeft = st::historyReplySkip + st::webPageLeft;
 		p.fillRect(st::historyReplySkip, backy + st::msgReplyPadding.top(), st::webPageBar, st::msgReplyBarSize.height(), st::msgInReplyBarColor);
 		if ((_previewData->photo && !_previewData->photo->thumb->isNull()) || (_previewData->document && !_previewData->document->thumb->isNull())) {
-			auto replyPreview = _previewData->photo ? _previewData->photo->makeReplyPreview() : _previewData->document->makeReplyPreview();
+			auto replyPreview = _previewData->photo ? _previewData->photo->makeReplyPreview(Data::FileOrigin()) : _previewData->document->makeReplyPreview(Data::FileOrigin());
 			if (!replyPreview->isNull()) {
 				auto to = QRect(previewLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
 				if (replyPreview->width() == replyPreview->height()) {
-					p.drawPixmap(to.x(), to.y(), replyPreview->pix());
+					p.drawPixmap(to.x(), to.y(), replyPreview->pix(Data::FileOrigin()));
 				} else {
 					auto from = (replyPreview->width() > replyPreview->height()) ? QRect((replyPreview->width() - replyPreview->height()) / 2, 0, replyPreview->height(), replyPreview->height()) : QRect(0, (replyPreview->height() - replyPreview->width()) / 2, replyPreview->width(), replyPreview->width());
-					p.drawPixmap(to, replyPreview->pix(), from);
+					p.drawPixmap(to, replyPreview->pix(Data::FileOrigin()), from);
 				}
 			}
 			previewLeft += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
@@ -6782,7 +6782,7 @@ void HistoryWidget::drawPinnedBar(Painter &p) {
 			ImagePtr replyPreview = _pinnedBar->msg->media()->replyPreview();
 			if (!replyPreview->isNull()) {
 				QRect to(left, top, st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
-				p.drawPixmap(to.x(), to.y(), replyPreview->pixSingle(replyPreview->width() / cIntRetinaFactor(), replyPreview->height() / cIntRetinaFactor(), to.width(), to.height(), ImageRoundRadius::Small));
+				p.drawPixmap(to.x(), to.y(), replyPreview->pixSingle(_pinnedBar->msg->fullId(), replyPreview->width() / cIntRetinaFactor(), replyPreview->height() / cIntRetinaFactor(), to.width(), to.height(), ImageRoundRadius::Small));
 			}
 			left += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
 		}

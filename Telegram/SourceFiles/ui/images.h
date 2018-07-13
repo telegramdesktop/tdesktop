@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/flags.h"
+#include "data/data_file_origin.h"
 
 enum class ImageRoundRadius {
 	None,
@@ -66,7 +67,6 @@ inline QPixmap pixmap(QImage img, int w, int h, Options options, int outerw, int
 } // namespace Images
 
 class FileLoader;
-class mtpFileLoader;
 
 enum LoadFromCloudSetting {
 	LoadFromCloudOrLocal,
@@ -250,7 +250,9 @@ public:
 	Image(const QPixmap &pixmap, QByteArray format = QByteArray());
 	Image(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap);
 
-	virtual void automaticLoad(const HistoryItem *item) { // auto load photo
+	virtual void automaticLoad(
+		Data::FileOrigin origin,
+		const HistoryItem *item) {
 	}
 	virtual void automaticLoadSettingsChanged() {
 	}
@@ -273,18 +275,74 @@ public:
 		return 0;
 	}
 
-	const QPixmap &pix(int32 w = 0, int32 h = 0) const;
-	const QPixmap &pixRounded(int32 w = 0, int32 h = 0, ImageRoundRadius radius = ImageRoundRadius::None, RectParts corners = RectPart::AllCorners) const;
-	const QPixmap &pixBlurred(int32 w = 0, int32 h = 0) const;
-	const QPixmap &pixColored(style::color add, int32 w = 0, int32 h = 0) const;
-	const QPixmap &pixBlurredColored(style::color add, int32 w = 0, int32 h = 0) const;
-	const QPixmap &pixSingle(int32 w, int32 h, int32 outerw, int32 outerh, ImageRoundRadius radius, RectParts corners = RectPart::AllCorners, const style::color *colored = nullptr) const;
-	const QPixmap &pixBlurredSingle(int32 w, int32 h, int32 outerw, int32 outerh, ImageRoundRadius radius, RectParts corners = RectPart::AllCorners) const;
-	const QPixmap &pixCircled(int32 w = 0, int32 h = 0) const;
-	const QPixmap &pixBlurredCircled(int32 w = 0, int32 h = 0) const;
-	QPixmap pixNoCache(int w = 0, int h = 0, Images::Options options = 0, int outerw = -1, int outerh = -1, const style::color *colored = nullptr) const;
-	QPixmap pixColoredNoCache(style::color add, int32 w = 0, int32 h = 0, bool smooth = false) const;
-	QPixmap pixBlurredColoredNoCache(style::color add, int32 w, int32 h = 0) const;
+	const QPixmap &pix(
+		Data::FileOrigin origin,
+		int32 w = 0,
+		int32 h = 0) const;
+	const QPixmap &pixRounded(
+		Data::FileOrigin origin,
+		int32 w = 0,
+		int32 h = 0,
+		ImageRoundRadius radius = ImageRoundRadius::None,
+		RectParts corners = RectPart::AllCorners) const;
+	const QPixmap &pixBlurred(
+		Data::FileOrigin origin,
+		int32 w = 0,
+		int32 h = 0) const;
+	const QPixmap &pixColored(
+		Data::FileOrigin origin,
+		style::color add,
+		int32 w = 0,
+		int32 h = 0) const;
+	const QPixmap &pixBlurredColored(
+		Data::FileOrigin origin,
+		style::color add,
+		int32 w = 0,
+		int32 h = 0) const;
+	const QPixmap &pixSingle(
+		Data::FileOrigin origin,
+		int32 w,
+		int32 h,
+		int32 outerw,
+		int32 outerh,
+		ImageRoundRadius radius,
+		RectParts corners = RectPart::AllCorners,
+		const style::color *colored = nullptr) const;
+	const QPixmap &pixBlurredSingle(
+		Data::FileOrigin origin,
+		int32 w,
+		int32 h,
+		int32 outerw,
+		int32 outerh,
+		ImageRoundRadius radius,
+		RectParts corners = RectPart::AllCorners) const;
+	const QPixmap &pixCircled(
+		Data::FileOrigin origin,
+		int32 w = 0,
+		int32 h = 0) const;
+	const QPixmap &pixBlurredCircled(
+		Data::FileOrigin origin,
+		int32 w = 0,
+		int32 h = 0) const;
+	QPixmap pixNoCache(
+		Data::FileOrigin origin,
+		int w = 0,
+		int h = 0,
+		Images::Options options = 0,
+		int outerw = -1,
+		int outerh = -1,
+		const style::color *colored = nullptr) const;
+	QPixmap pixColoredNoCache(
+		Data::FileOrigin origin,
+		style::color add,
+		int32 w = 0,
+		int32 h = 0,
+		bool smooth = false) const;
+	QPixmap pixBlurredColoredNoCache(
+		Data::FileOrigin origin,
+		style::color add,
+		int32 w,
+		int32 h = 0) const;
 
 	int32 width() const {
 		return qMax(countWidth(), 1);
@@ -294,10 +352,16 @@ public:
 		return qMax(countHeight(), 1);
 	}
 
-	virtual void load(bool loadFirst = false, bool prior = true) {
+	virtual void load(
+		Data::FileOrigin origin,
+		bool loadFirst = false,
+		bool prior = true) {
 	}
 
-	virtual void loadEvenCancelled(bool loadFirst = false, bool prior = true) {
+	virtual void loadEvenCancelled(
+		Data::FileOrigin origin,
+		bool loadFirst = false,
+		bool prior = true) {
 	}
 
 	virtual const StorageImageLocation &location() const {
@@ -381,7 +445,9 @@ inline StorageKey storageKey(const WebFileLocation &location) {
 
 class RemoteImage : public Image {
 public:
-	void automaticLoad(const HistoryItem *item) override; // auto load photo
+	void automaticLoad(
+		Data::FileOrigin origin,
+		const HistoryItem *item) override; // auto load photo
 	void automaticLoadSettingsChanged() override;
 
 	bool loaded() const override;
@@ -393,10 +459,18 @@ public:
 	float64 progress() const override;
 	int32 loadOffset() const override;
 
-	void setData(QByteArray &bytes, const QByteArray &format = QByteArray());
+	void setData(
+		QByteArray &bytes,
+		const QByteArray &format = QByteArray());
 
-	void load(bool loadFirst = false, bool prior = true) override;
-	void loadEvenCancelled(bool loadFirst = false, bool prior = true) override;
+	void load(
+		Data::FileOrigin origin,
+		bool loadFirst = false,
+		bool prior = true) override;
+	void loadEvenCancelled(
+		Data::FileOrigin origin,
+		bool loadFirst = false,
+		bool prior = true) override;
 
 	~RemoteImage();
 
@@ -407,7 +481,10 @@ protected:
 		return QSize();
 	}
 	virtual void setInformation(int32 size, int32 width, int32 height) = 0;
-	virtual FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) = 0;
+	virtual FileLoader *createLoader(
+		Data::FileOrigin origin,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading) = 0;
 
 	void checkload() const override {
 		doCheckload();
@@ -434,26 +511,36 @@ public:
 
 protected:
 	void setInformation(int32 size, int32 width, int32 height) override;
-	FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) override;
+	FileLoader *createLoader(
+		Data::FileOrigin origin,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading) override;
 
 	bool hasLocalCopy() const override;
 
-	StorageImageLocation _location;
-	int32 _size;
-
 	int32 countWidth() const override;
 	int32 countHeight() const override;
+
+	StorageImageLocation _location;
+	int32 _size;
 
 };
 
 class WebFileImage : public RemoteImage {
 public:
 	WebFileImage(const WebFileLocation &location, QSize box, int size = 0);
-	WebFileImage(const WebFileLocation &location, int width, int height, int size = 0);
+	WebFileImage(
+		const WebFileLocation &location,
+		int width,
+		int height,
+		int size = 0);
 
 protected:
 	void setInformation(int size, int width, int height) override;
-	FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) override;
+	FileLoader *createLoader(
+		Data::FileOrigin origin,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading) override;
 
 	QSize shrinkBox() const override {
 		return _box;
@@ -461,25 +548,26 @@ protected:
 
 	bool hasLocalCopy() const override;
 
+	int countWidth() const override;
+	int countHeight() const override;
+
 	WebFileLocation _location;
 	QSize _box;
 	int _width = 0;
 	int _height = 0;
 	int _size = 0;
 
-	int countWidth() const override;
-	int countHeight() const override;
-
 };
 
 class DelayedStorageImage : public StorageImage {
 public:
-
 	DelayedStorageImage();
 	DelayedStorageImage(int32 w, int32 h);
 	DelayedStorageImage(QByteArray &bytes);
 
-	void setStorageLocation(const StorageImageLocation location);
+	void setStorageLocation(
+		Data::FileOrigin origin,
+		const StorageImageLocation location);
 
 	virtual DelayedStorageImage *toDelayedStorageImage() override {
 		return this;
@@ -488,7 +576,9 @@ public:
 		return this;
 	}
 
-	void automaticLoad(const HistoryItem *item) override; // auto load photo
+	void automaticLoad(
+		Data::FileOrigin origin,
+		const HistoryItem *item) override; // auto load photo
 	void automaticLoadSettingsChanged() override;
 
 	bool loading() const override {
@@ -497,8 +587,14 @@ public:
 	bool displayLoading() const override;
 	void cancel() override;
 
-	void load(bool loadFirst = false, bool prior = true) override;
-	void loadEvenCancelled(bool loadFirst = false, bool prior = true) override;
+	void load(
+		Data::FileOrigin origin,
+		bool loadFirst = false,
+		bool prior = true) override;
+	void loadEvenCancelled(
+		Data::FileOrigin origin,
+		bool loadFirst = false,
+		bool prior = true) override;
 
 private:
 	bool _loadRequested, _loadCancelled, _loadFromCloud;
@@ -518,7 +614,10 @@ protected:
 		return _box;
 	}
 	void setInformation(int32 size, int32 width, int32 height) override;
-	FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) override;
+	FileLoader *createLoader(
+		Data::FileOrigin origin,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading) override;
 
 	int32 countWidth() const override;
 	int32 countHeight() const override;

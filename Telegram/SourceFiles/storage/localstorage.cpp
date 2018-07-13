@@ -3949,7 +3949,6 @@ void importOldRecentStickers() {
 		const auto doc = Auth().data().document(
 			id,
 			access,
-			int32(0),
 			QByteArray(),
 			date,
 			attributes,

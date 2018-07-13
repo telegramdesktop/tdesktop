@@ -45,7 +45,12 @@ QString FillAmountAndCurrency(uint64 amount, const QString &currency);
 
 class HistoryFileMedia : public HistoryMedia {
 public:
-	using HistoryMedia::HistoryMedia;
+	HistoryFileMedia(
+		not_null<Element*> parent,
+		not_null<HistoryItem*> realParent)
+	: HistoryMedia(parent)
+	, _realParent(realParent) {
+	}
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return p == _openl || p == _savel || p == _cancell;
@@ -67,6 +72,8 @@ public:
 
 protected:
 	using FileClickHandlerPtr = std::shared_ptr<FileClickHandler>;
+
+	not_null<HistoryItem*> _realParent;
 	FileClickHandlerPtr _openl, _savel, _cancell;
 
 	void setLinks(

@@ -70,7 +70,7 @@ struct LocationData {
 	ImagePtr thumb;
 	bool loading;
 
-	void load();
+	void load(Data::FileOrigin origin);
 };
 
 class LocationClickHandler : public ClickHandler {

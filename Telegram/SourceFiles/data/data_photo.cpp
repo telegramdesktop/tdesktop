@@ -33,16 +33,18 @@ PhotoData::PhotoData(
 , full(full) {
 }
 
-void PhotoData::automaticLoad(const HistoryItem *item) {
-	full->automaticLoad(item);
+void PhotoData::automaticLoad(
+		Data::FileOrigin origin,
+		const HistoryItem *item) {
+	full->automaticLoad(origin, item);
 }
 
 void PhotoData::automaticLoadSettingsChanged() {
 	full->automaticLoadSettingsChanged();
 }
 
-void PhotoData::download() {
-	full->loadEvenCancelled();
+void PhotoData::download(Data::FileOrigin origin) {
+	full->loadEvenCancelled(origin);
 	Auth().data().notifyPhotoLayoutChanged(this);
 }
 
@@ -107,15 +109,15 @@ void PhotoData::forget() {
 	full->forget();
 }
 
-ImagePtr PhotoData::makeReplyPreview() {
+ImagePtr PhotoData::makeReplyPreview(Data::FileOrigin origin) {
 	if (replyPreview->isNull() && !thumb->isNull()) {
 		if (thumb->loaded()) {
 			int w = thumb->width(), h = thumb->height();
 			if (w <= 0) w = 1;
 			if (h <= 0) h = 1;
-			replyPreview = ImagePtr(w > h ? thumb->pix(w * st::msgReplyBarSize.height() / h, st::msgReplyBarSize.height()) : thumb->pix(st::msgReplyBarSize.height()), "PNG");
+			replyPreview = ImagePtr(w > h ? thumb->pix(origin, w * st::msgReplyBarSize.height() / h, st::msgReplyBarSize.height()) : thumb->pix(origin, st::msgReplyBarSize.height()), "PNG");
 		} else {
-			thumb->load();
+			thumb->load(origin);
 		}
 	}
 	return replyPreview;
@@ -136,7 +138,7 @@ void PhotoSaveClickHandler::onClickImpl() const {
 	auto data = photo();
 	if (!data->date) return;
 
-	data->download();
+	data->download(context());
 }
 
 void PhotoCancelClickHandler::onClickImpl() const {

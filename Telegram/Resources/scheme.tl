@@ -190,7 +190,7 @@ inputPhoto#3bb3b94a id:long access_hash:long file_reference:bytes = InputPhoto;
 
 inputFileLocation#dfdaabe1 volume_id:long local_id:int secret:long file_reference:bytes = InputFileLocation;
 inputEncryptedFileLocation#f5235d55 id:long access_hash:long = InputFileLocation;
-inputDocumentFileLocation#a9b915b0 id:long access_hash:long version:int file_reference:bytes = InputFileLocation;
+inputDocumentFileLocation#196683d9 id:long access_hash:long file_reference:bytes = InputFileLocation;
 inputSecureFileLocation#cbc7ee28 id:long access_hash:long = InputFileLocation;
 inputTakeoutFileLocation#29be5899 = InputFileLocation;
 
@@ -508,7 +508,7 @@ inputDocumentEmpty#72f0eaae = InputDocument;
 inputDocument#1abfb575 id:long access_hash:long file_reference:bytes = InputDocument;
 
 documentEmpty#36f8c871 id:long = Document;
-document#ca84c039 id:long access_hash:long file_reference:bytes date:int mime_type:string size:int thumb:PhotoSize dc_id:int version:int attributes:Vector<DocumentAttribute> = Document;
+document#59534e4c id:long access_hash:long file_reference:bytes date:int mime_type:string size:int thumb:PhotoSize dc_id:int attributes:Vector<DocumentAttribute> = Document;
 
 help.support#17c6b5f6 phone_number:string user:User = help.Support;
 
@@ -1331,4 +1331,4 @@ langpack.getStrings#efea3803 lang_pack:string lang_code:string keys:Vector<strin
 langpack.getDifference#b2e4d7d from_version:int = LangPackDifference;
 langpack.getLanguages#42c6978f lang_pack:string = Vector<LangPackLanguage>;
 
-// LAYER 85
+// LAYER 86

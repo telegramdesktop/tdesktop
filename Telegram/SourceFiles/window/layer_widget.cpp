@@ -850,7 +850,9 @@ void MediaPreviewWidget::resizeEvent(QResizeEvent *e) {
 	update();
 }
 
-void MediaPreviewWidget::showPreview(DocumentData *document) {
+void MediaPreviewWidget::showPreview(
+		Data::FileOrigin origin,
+		not_null<DocumentData*> document) {
 	if (!document
 		|| (!document->isAnimation() && !document->sticker())
 		|| document->isVideoMessage()) {
@@ -859,19 +861,23 @@ void MediaPreviewWidget::showPreview(DocumentData *document) {
 	}
 
 	startShow();
+	_origin = origin;
 	_photo = nullptr;
 	_document = document;
 	fillEmojiString();
 	resetGifAndCache();
 }
 
-void MediaPreviewWidget::showPreview(PhotoData *photo) {
-	if (!photo || photo->full->isNull()) {
+void MediaPreviewWidget::showPreview(
+		Data::FileOrigin origin,
+		not_null<PhotoData*> photo) {
+	if (photo->full->isNull()) {
 		hidePreview();
 		return;
 	}
 
 	startShow();
+	_origin = origin;
 	_photo = photo;
 	_document = nullptr;
 	fillEmojiString();
@@ -974,17 +980,17 @@ QPixmap MediaPreviewWidget::currentImage() const {
 				if (_document->sticker()->img->isNull()) {
 					if (_cacheStatus != CacheThumbLoaded && _document->thumb->loaded()) {
 						QSize s = currentDimensions();
-						_cache = _document->thumb->pixBlurred(s.width(), s.height());
+						_cache = _document->thumb->pixBlurred(_origin, s.width(), s.height());
 						_cacheStatus = CacheThumbLoaded;
 					}
 				} else {
 					QSize s = currentDimensions();
-					_cache = _document->sticker()->img->pix(s.width(), s.height());
+					_cache = _document->sticker()->img->pix(_origin, s.width(), s.height());
 					_cacheStatus = CacheLoaded;
 				}
 			}
 		} else {
-			_document->automaticLoad(nullptr);
+			_document->automaticLoad(_origin, nullptr);
 			if (_document->loaded()) {
 				if (!_gif && !_gif.isBad()) {
 					auto that = const_cast<MediaPreviewWidget*>(this);
@@ -1001,7 +1007,7 @@ QPixmap MediaPreviewWidget::currentImage() const {
 			}
 			if (_cacheStatus != CacheThumbLoaded && _document->thumb->loaded()) {
 				QSize s = currentDimensions();
-				_cache = _document->thumb->pixBlurred(s.width(), s.height());
+				_cache = _document->thumb->pixBlurred(_origin, s.width(), s.height());
 				_cacheStatus = CacheThumbLoaded;
 			}
 		}
@@ -1009,16 +1015,16 @@ QPixmap MediaPreviewWidget::currentImage() const {
 		if (_cacheStatus != CacheLoaded) {
 			if (_photo->full->loaded()) {
 				QSize s = currentDimensions();
-				_cache = _photo->full->pix(s.width(), s.height());
+				_cache = _photo->full->pix(_origin, s.width(), s.height());
 				_cacheStatus = CacheLoaded;
 			} else {
 				if (_cacheStatus != CacheThumbLoaded && _photo->thumb->loaded()) {
 					QSize s = currentDimensions();
-					_cache = _photo->thumb->pixBlurred(s.width(), s.height());
+					_cache = _photo->thumb->pixBlurred(_origin, s.width(), s.height());
 					_cacheStatus = CacheThumbLoaded;
 				}
-				_photo->thumb->load();
-				_photo->full->load();
+				_photo->thumb->load(_origin);
+				_photo->full->load(_origin);
 			}
 		}
 

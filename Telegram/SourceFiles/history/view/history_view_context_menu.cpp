@@ -55,7 +55,7 @@ void SavePhotoToFile(not_null<PhotoData*> photo) {
 		filedialogDefaultName(qsl("photo"), qsl(".jpg")),
 		crl::guard(&Auth(), [=](const QString &result) {
 			if (!result.isEmpty()) {
-				photo->full->pix().toImage().save(result, "JPG");
+				photo->full->pix(Data::FileOrigin()).toImage().save(result, "JPG");
 			}
 		}));
 }
@@ -65,7 +65,7 @@ void CopyImage(not_null<PhotoData*> photo) {
 		return;
 	}
 
-	QApplication::clipboard()->setPixmap(photo->full->pix());
+	QApplication::clipboard()->setPixmap(photo->full->pix(Data::FileOrigin()));
 }
 
 void ShowStickerPackInfo(not_null<DocumentData*> document) {
@@ -121,6 +121,7 @@ void ShowInFolder(not_null<DocumentData*> document) {
 
 void AddSaveDocumentAction(
 		not_null<Ui::PopupMenu*> menu,
+		Data::FileOrigin origin,
 		not_null<DocumentData*> document) {
 	menu->addAction(
 		lang(document->isVideoFile()
@@ -135,7 +136,7 @@ void AddSaveDocumentAction(
 		App::LambdaDelayed(
 			st::defaultDropdownMenu.menu.ripple.hideDuration,
 			&Auth(),
-			[=] { DocumentSaveClickHandler::doSave(document, true); }));
+			[=] { DocumentSaveClickHandler::Save(origin, document, true); }));
 }
 
 void AddDocumentActions(
@@ -176,7 +177,7 @@ void AddDocumentActions(
 				: lng_context_show_in_folder),
 			[=] { ShowInFolder(document); });
 	}
-	AddSaveDocumentAction(menu, document);
+	AddSaveDocumentAction(menu, contextId, document);
 }
 
 void CopyPostLink(FullMsgId itemId) {

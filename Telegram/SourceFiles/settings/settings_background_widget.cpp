@@ -71,7 +71,7 @@ void BackgroundRow::paintEvent(QPaintEvent *e) {
 		if (backThumb->isNull()) {
 			p.drawPixmap(0, 0, _background);
 		} else {
-			const QPixmap &pix = App::main()->newBackgroundThumb()->pixBlurred(st::settingsBackgroundSize);
+			const QPixmap &pix = App::main()->newBackgroundThumb()->pixBlurred(Data::FileOrigin(), st::settingsBackgroundSize);
 			p.drawPixmap(0, 0, st::settingsBackgroundSize, st::settingsBackgroundSize, pix, 0, (pix.height() - st::settingsBackgroundSize * cIntRetinaFactor()) / 2, st::settingsBackgroundSize * cIntRetinaFactor(), st::settingsBackgroundSize * cIntRetinaFactor());
 		}
 

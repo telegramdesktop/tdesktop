@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_cloud_password.h"
 
 class BoxContent;
+class mtpFileLoader;
 
 namespace Storage {
 struct UploadSecureDone;

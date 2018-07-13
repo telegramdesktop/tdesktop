@@ -243,8 +243,8 @@ bool Result::onChoose(Layout::ItemBase *layout) {
 		if (_photo->medium->loaded() || _photo->thumb->loaded()) {
 			return true;
 		} else if (!_photo->medium->loading()) {
-			_photo->thumb->loadEvenCancelled();
-			_photo->medium->loadEvenCancelled();
+			_photo->thumb->loadEvenCancelled(Data::FileOrigin());
+			_photo->medium->loadEvenCancelled(Data::FileOrigin());
 		}
 		return false;
 	}
@@ -260,7 +260,11 @@ bool Result::onChoose(Layout::ItemBase *layout) {
 			} else if (_document->loading()) {
 				_document->cancel();
 			} else {
-				DocumentOpenClickHandler::doOpen(_document, nullptr, ActionOnLoadNone);
+				DocumentOpenClickHandler::Open(
+					Data::FileOriginSavedGifs(),
+					_document,
+					nullptr,
+					ActionOnLoadNone);
 			}
 			return false;
 		}

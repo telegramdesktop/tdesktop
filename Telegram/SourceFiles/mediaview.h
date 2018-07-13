@@ -175,6 +175,8 @@ private:
 	void validateUserPhotos();
 	void handleUserPhotosUpdate(UserPhotosSlice &&update);
 
+	Data::FileOrigin fileOrigin() const;
+
 	void refreshCaption(HistoryItem *item);
 	void refreshMediaViewer();
 	void refreshNavVisibility();

@@ -29,7 +29,11 @@ StorageImageLocation readStorageImageLocation(
 	quint64 volume, secret;
 	QByteArray fileReference;
 	stream >> width >> height >> dc >> volume >> local >> secret;
-	if (streamAppVersion >= 1003011) {
+#ifdef _DEBUG
+	if (streamAppVersion >= 1003013 || true) { // #TODO testing
+#else
+#error "test"
+#endif
 		stream >> fileReference;
 	}
 	return StorageImageLocation(

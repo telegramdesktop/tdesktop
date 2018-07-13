@@ -269,7 +269,6 @@ public:
 	not_null<DocumentData*> document(
 		DocumentId id,
 		const uint64 &access,
-		int32 version,
 		const QByteArray &fileReference,
 		TimeId date,
 		const QVector<MTPDocumentAttribute> &attributes,
@@ -452,7 +451,6 @@ private:
 	void documentApplyFields(
 		not_null<DocumentData*> document,
 		const uint64 &access,
-		int32 version,
 		const QByteArray &fileReference,
 		TimeId date,
 		const QVector<MTPDocumentAttribute> &attributes,

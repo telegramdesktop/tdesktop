@@ -157,7 +157,7 @@ void BackgroundBox::Inner::updateWallpapers() {
 	for (int i = 0; i < BackgroundsInRow * 3; ++i) {
 		if (i >= _bgCount) break;
 
-		App::cServerBackgrounds().at(i).thumb->load();
+		App::cServerBackgrounds()[i].thumb->load(Data::FileOrigin());
 	}
 }
 
@@ -172,13 +172,16 @@ void BackgroundBox::Inner::paintEvent(QPaintEvent *e) {
 				int index = i * BackgroundsInRow + j;
 				if (index >= _bgCount) break;
 
-				const App::WallPaper &paper(App::cServerBackgrounds().at(index));
-				paper.thumb->load();
+				const auto &paper = App::cServerBackgrounds()[index];
+				paper.thumb->load(Data::FileOrigin());
 
 				int x = st::backgroundPadding + j * (st::backgroundSize.width() + st::backgroundPadding);
 				int y = st::backgroundPadding + i * (st::backgroundSize.height() + st::backgroundPadding);
 
-				const QPixmap &pix(paper.thumb->pix(st::backgroundSize.width(), st::backgroundSize.height()));
+				const auto &pix = paper.thumb->pix(
+					Data::FileOrigin(),
+					st::backgroundSize.width(),
+					st::backgroundSize.height());
 				p.drawPixmap(x, y, pix);
 
 				if (paper.id == Window::Theme::Background()->id()) {

@@ -710,7 +710,10 @@ void Mixer::play(
 	}
 	if (notLoadedYet) {
 		if (type == AudioMsgId::Type::Song || type == AudioMsgId::Type::Video) {
-			DocumentOpenClickHandler::doOpen(audio.audio(), App::histItemById(audio.contextId()));
+			DocumentOpenClickHandler::Open(
+				audio.contextId(),
+				audio.audio(),
+				App::histItemById(audio.contextId()));
 		} else {
 			onError(audio);
 		}

@@ -68,18 +68,19 @@ PhotoData *ItemBase::getPreviewPhoto() const {
 }
 
 void ItemBase::preload() const {
+	const auto origin = fileOrigin();
 	if (_result) {
 		if (_result->_photo) {
-			_result->_photo->thumb->load();
+			_result->_photo->thumb->load(origin);
 		} else if (_result->_document) {
-			_result->_document->thumb->load();
+			_result->_document->thumb->load(origin);
 		} else if (!_result->_thumb->isNull()) {
-			_result->_thumb->load();
+			_result->_thumb->load(origin);
 		}
 	} else if (_doc) {
-		_doc->thumb->load();
+		_doc->thumb->load(origin);
 	} else if (_photo) {
-		_photo->medium->load();
+		_photo->medium->load(origin);
 	}
 }
 

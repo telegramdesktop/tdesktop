@@ -1536,7 +1536,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					});
 				}
 				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsVoice ? lng_context_save_audio : (lnkIsAudio ? lng_context_save_audio_file : lng_context_save_file))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
-					saveDocumentToFile(document);
+					saveDocumentToFile(itemId, document);
 				}));
 			}
 		}
@@ -1639,8 +1639,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 									toggleFavedSticker(document);
 								});
 							}
-							_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
-								saveDocumentToFile(document);
+							_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
+								saveDocumentToFile(itemId, document);
 							}));
 						}
 					}
@@ -1753,7 +1753,7 @@ void HistoryInner::savePhotoToFile(not_null<PhotoData*> photo) {
 			qsl(".jpg")),
 		crl::guard(this, [=](const QString &result) {
 			if (!result.isEmpty()) {
-				photo->full->pix().toImage().save(result, "JPG");
+				photo->full->pix(Data::FileOrigin()).toImage().save(result, "JPG");
 			}
 		}));
 }
@@ -1761,7 +1761,7 @@ void HistoryInner::savePhotoToFile(not_null<PhotoData*> photo) {
 void HistoryInner::copyContextImage(not_null<PhotoData*> photo) {
 	if (!photo->date || !photo->loaded()) return;
 
-	QApplication::clipboard()->setPixmap(photo->full->pix());
+	QApplication::clipboard()->setPixmap(photo->full->pix(Data::FileOrigin()));
 }
 
 void HistoryInner::showStickerPackInfo(not_null<DocumentData*> document) {
@@ -1791,8 +1791,10 @@ void HistoryInner::showContextInFolder(not_null<DocumentData*> document) {
 	}
 }
 
-void HistoryInner::saveDocumentToFile(not_null<DocumentData*> document) {
-	DocumentSaveClickHandler::doSave(document, true);
+void HistoryInner::saveDocumentToFile(
+		FullMsgId contextId,
+		not_null<DocumentData*> document) {
+	DocumentSaveClickHandler::Save(contextId, document, true);
 }
 
 void HistoryInner::openContextGif(FullMsgId itemId) {

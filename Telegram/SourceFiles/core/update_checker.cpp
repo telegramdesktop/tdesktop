@@ -1467,7 +1467,6 @@ auto MtpChecker::parseFile(const MTPmessages_Messages &result) const
 	const auto location = MTP_inputDocumentFileLocation(
 		fields.vid,
 		fields.vaccess_hash,
-		fields.vversion,
 		fields.vfile_reference);
 	return ParsedFile { name, size, fields.vdc_id.v, location };
 }

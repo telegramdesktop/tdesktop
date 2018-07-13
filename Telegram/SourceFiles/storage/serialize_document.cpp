@@ -25,8 +25,9 @@ enum StickerSetType {
 namespace Serialize {
 
 void Document::writeToStream(QDataStream &stream, DocumentData *document) {
+	const auto version = 0;
 	stream << quint64(document->id) << quint64(document->_access) << qint32(document->date);
-	stream << document->_fileReference << qint32(document->_version);
+	stream << document->_fileReference << qint32(version);
 	stream << document->filename() << document->mimeString() << qint32(document->_dc) << qint32(document->size);
 	stream << qint32(document->dimensions.width()) << qint32(document->dimensions.height());
 	stream << qint32(document->type);
@@ -58,7 +59,11 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 	QByteArray fileReference;
 	stream >> id >> access >> date;
 	if (streamAppVersion >= 9061) {
-		if (streamAppVersion >= 1003011) {
+#ifdef _DEBUG
+		if (streamAppVersion >= 1003013 || true) { // #TODO testing
+#else
+#error "test"
+#endif
 			stream >> fileReference;
 		}
 		stream >> version;
@@ -131,7 +136,6 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 	return Auth().data().document(
 		id,
 		access,
-		version,
 		fileReference,
 		date,
 		attributes,

@@ -222,9 +222,12 @@ void LocationManager::failed(LocationData *data) {
 	serverRedirects.remove(data);
 }
 
-void LocationData::load() {
-	if (!thumb->isNull()) return thumb->load(false, false);
-	if (loading) return;
+void LocationData::load(Data::FileOrigin origin) {
+	if (!thumb->isNull()) {
+		return thumb->load(origin, false, false);
+	} else if (loading) {
+		return;
+	}
 
 	loading = true;
 	if (locationManager) {

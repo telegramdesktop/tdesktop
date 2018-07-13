@@ -190,13 +190,27 @@ public slots:
 
 private:
 	struct Row {
-		Row(uint64 id, DocumentData *sticker, int32 count, const QString &title, int titleWidth, bool installed, bool official, bool unread, bool archived, bool removed, int32 pixw, int32 pixh);
+		Row(
+			uint64 id,
+			uint64 accessHash,
+			DocumentData *sticker,
+			int32 count,
+			const QString &title,
+			int titleWidth,
+			bool installed,
+			bool official,
+			bool unread,
+			bool archived,
+			bool removed,
+			int32 pixw,
+			int32 pixh);
 		bool isRecentSet() const {
 			return (id == Stickers::CloudRecentSetId);
 		}
 		~Row();
 
 		uint64 id = 0;
+		uint64 accessHash = 0;
 		DocumentData *sticker = nullptr;
 		int32 count = 0;
 		QString title;

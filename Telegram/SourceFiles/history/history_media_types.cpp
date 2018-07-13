@@ -258,7 +258,7 @@ HistoryPhoto::HistoryPhoto(
 	not_null<Element*> parent,
 	not_null<HistoryItem*> realParent,
 	not_null<PhotoData*> photo)
-: HistoryFileMedia(parent)
+: HistoryFileMedia(parent, realParent)
 , _data(photo)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
 	const auto fullId = realParent->fullId();
@@ -275,7 +275,7 @@ HistoryPhoto::HistoryPhoto(
 	not_null<PeerData*> chat,
 	not_null<PhotoData*> photo,
 	int width)
-: HistoryFileMedia(parent)
+: HistoryFileMedia(parent, parent->data())
 , _data(photo)
 , _serviceWidth(width) {
 	create(parent->data()->fullId(), chat);
@@ -286,7 +286,7 @@ void HistoryPhoto::create(FullMsgId contextId, PeerData *chat) {
 		std::make_shared<PhotoOpenClickHandler>(_data, contextId, chat),
 		std::make_shared<PhotoSaveClickHandler>(_data, contextId, chat),
 		std::make_shared<PhotoCancelClickHandler>(_data, contextId, chat));
-	_data->thumb->load();
+	_data->thumb->load(contextId);
 }
 
 QSize HistoryPhoto::countOptimalSize() {
@@ -375,7 +375,7 @@ QSize HistoryPhoto::countCurrentSize(int newWidth) {
 void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
-	_data->automaticLoad(_parent->data());
+	_data->automaticLoad(_realParent->fullId(), _parent->data());
 	auto selected = (selection == FullSelection);
 	auto loaded = _data->loaded();
 	auto displayLoading = _data->displayLoading();
@@ -397,8 +397,8 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 	auto rthumb = rtlrect(paintx, painty, paintw, painth, width());
 	if (_serviceWidth > 0) {
 		const auto pix = loaded
-			? _data->full->pixCircled(_pixw, _pixh)
-			: _data->thumb->pixBlurredCircled(_pixw, _pixh);
+			? _data->full->pixCircled(_realParent->fullId(), _pixw, _pixh)
+			: _data->thumb->pixBlurredCircled(_realParent->fullId(), _pixw, _pixh);
 		p.drawPixmap(rthumb.topLeft(), pix);
 	} else {
 		if (bubble) {
@@ -417,8 +417,8 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 		auto roundCorners = inWebPage ? RectPart::AllCorners : ((isBubbleTop() ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
 			| ((isBubbleBottom() && _caption.isEmpty()) ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None));
 		const auto pix = loaded
-			? _data->full->pixSingle(_pixw, _pixh, paintw, painth, roundRadius, roundCorners)
-			: _data->thumb->pixBlurredSingle(_pixw, _pixh, paintw, painth, roundRadius, roundCorners);
+			? _data->full->pixSingle(_realParent->fullId(), _pixw, _pixh, paintw, painth, roundRadius, roundCorners)
+			: _data->thumb->pixBlurredSingle(_realParent->fullId(), _pixw, _pixh, paintw, painth, roundRadius, roundCorners);
 		p.drawPixmap(rthumb.topLeft(), pix);
 		if (selected) {
 			App::complexOverlayRect(p, rthumb, roundRadius, roundCorners);
@@ -559,7 +559,7 @@ void HistoryPhoto::drawGrouped(
 		RectParts corners,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const {
-	_data->automaticLoad(_parent->data());
+	_data->automaticLoad(_realParent->fullId(), _parent->data());
 
 	validateGroupedCache(geometry, corners, cacheKey, cache);
 
@@ -715,7 +715,7 @@ void HistoryPhoto::validateGroupedCache(
 	const auto &image = loaded ? _data->full : _data->thumb;
 
 	*cacheKey = key;
-	*cache = image->pixNoCache(pixWidth, pixHeight, options, width, height);
+	*cache = image->pixNoCache(_realParent->fullId(), pixWidth, pixHeight, options, width, height);
 }
 
 TextWithEntities HistoryPhoto::selectedText(TextSelection selection) const {
@@ -747,7 +747,7 @@ HistoryVideo::HistoryVideo(
 	not_null<Element*> parent,
 	not_null<HistoryItem*> realParent,
 	not_null<DocumentData*> document)
-: HistoryFileMedia(parent)
+: HistoryFileMedia(parent, realParent)
 , _data(document)
 , _thumbw(1)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
@@ -757,7 +757,7 @@ HistoryVideo::HistoryVideo(
 
 	setStatusSize(FileStatusSizeReady);
 
-	_data->thumb->load();
+	_data->thumb->load(realParent->fullId());
 }
 
 QSize HistoryVideo::countOptimalSize() {
@@ -837,7 +837,7 @@ QSize HistoryVideo::countCurrentSize(int newWidth) {
 void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
-	_data->automaticLoad(_parent->data());
+	_data->automaticLoad(_realParent->fullId(), _parent->data());
 	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
 	bool selected = (selection == FullSelection);
 
@@ -871,7 +871,7 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 	auto roundCorners = inWebPage ? RectPart::AllCorners : ((isBubbleTop() ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
 		| ((isBubbleBottom() && _caption.isEmpty()) ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None));
 	QRect rthumb(rtlrect(paintx, painty, paintw, painth, width()));
-	p.drawPixmap(rthumb.topLeft(), _data->thumb->pixBlurredSingle(_thumbw, 0, paintw, painth, roundRadius, roundCorners));
+	p.drawPixmap(rthumb.topLeft(), _data->thumb->pixBlurredSingle(_realParent->fullId(), _thumbw, 0, paintw, painth, roundRadius, roundCorners));
 	if (selected) {
 		App::complexOverlayRect(p, rthumb, roundRadius, roundCorners);
 	}
@@ -1010,7 +1010,7 @@ void HistoryVideo::drawGrouped(
 		RectParts corners,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const {
-	_data->automaticLoad(_parent->data());
+	_data->automaticLoad(_realParent->fullId(), _parent->data());
 
 	validateGroupedCache(geometry, corners, cacheKey, cache);
 
@@ -1155,7 +1155,7 @@ void HistoryVideo::validateGroupedCache(
 	const auto &image = _data->thumb;
 
 	*cacheKey = key;
-	*cache = image->pixNoCache(pixWidth, pixHeight, options, width, height);
+	*cache = image->pixNoCache(_realParent->fullId(), pixWidth, pixHeight, options, width, height);
 }
 
 void HistoryVideo::setStatusSize(int newSize) const {
@@ -1208,7 +1208,7 @@ void HistoryVideo::updateStatusText() const {
 HistoryDocument::HistoryDocument(
 	not_null<Element*> parent,
 	not_null<DocumentData*> document)
-: HistoryFileMedia(parent)
+: HistoryFileMedia(parent, parent->data())
 , _data(document) {
 	const auto item = parent->data();
 	auto caption = createCaption(item);
@@ -1293,7 +1293,7 @@ QSize HistoryDocument::countOptimalSize() {
 	}
 	auto thumbed = Get<HistoryDocumentThumbed>();
 	if (thumbed) {
-		_data->thumb->load();
+		_data->thumb->load(_realParent->fullId());
 		auto tw = convertScale(_data->thumb->width());
 		auto th = convertScale(_data->thumb->height());
 		if (tw > th) {
@@ -1378,7 +1378,7 @@ QSize HistoryDocument::countCurrentSize(int newWidth) {
 void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
-	_data->automaticLoad(_parent->data());
+	_data->automaticLoad(_realParent->fullId(), _parent->data());
 	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
 	bool selected = (selection == FullSelection);
 
@@ -1409,9 +1409,9 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 		QRect rthumb(rtlrect(st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top() - topMinus, st::msgFileThumbSize, st::msgFileThumbSize, width()));
 		QPixmap thumb;
 		if (loaded) {
-			thumb = _data->thumb->pixSingle(thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize, roundRadius);
+			thumb = _data->thumb->pixSingle(_realParent->fullId(), thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize, roundRadius);
 		} else {
-			thumb = _data->thumb->pixBlurredSingle(thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize, roundRadius);
+			thumb = _data->thumb->pixBlurredSingle(_realParent->fullId(), thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize, roundRadius);
 		}
 		p.drawPixmap(rthumb.topLeft(), thumb);
 		if (selected) {
@@ -1929,7 +1929,7 @@ TextWithEntities HistoryDocument::getCaption() const {
 HistoryGif::HistoryGif(
 	not_null<Element*> parent,
 	not_null<DocumentData*> document)
-: HistoryFileMedia(parent)
+: HistoryFileMedia(parent, parent->data())
 , _data(document)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
 	const auto item = parent->data();
@@ -1938,7 +1938,7 @@ HistoryGif::HistoryGif(
 	setStatusSize(FileStatusSizeReady);
 
 	_caption = createCaption(item);
-	_data->thumb->load();
+	_data->thumb->load(item->fullId());
 }
 
 QSize HistoryGif::countOptimalSize() {
@@ -2116,7 +2116,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
 	const auto item = _parent->data();
-	_data->automaticLoad(item);
+	_data->automaticLoad(_realParent->fullId(), item);
 	auto loaded = _data->loaded();
 	auto displayLoading = (item->id < 0) || _data->displayLoading();
 	auto selected = (selection == FullSelection);
@@ -2220,7 +2220,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 			}
 		}
 	} else {
-		p.drawPixmap(rthumb.topLeft(), _data->thumb->pixBlurredSingle(_thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
+		p.drawPixmap(rthumb.topLeft(), _data->thumb->pixBlurredSingle(_realParent->fullId(), _thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
 	}
 
 	if (selected) {
@@ -2793,7 +2793,7 @@ HistorySticker::HistorySticker(
 : HistoryMedia(parent)
 , _data(document)
 , _emoji(_data->sticker()->alt) {
-	_data->thumb->load();
+	_data->thumb->load(parent->data()->fullId());
 	if (auto emoji = Ui::Emoji::Find(_emoji)) {
 		_emoji = emoji->text();
 	}
@@ -2881,15 +2881,15 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, T
 
 	if (selected) {
 		if (sticker->img->isNull()) {
-			p.drawPixmap(QPoint(usex + (usew - _pixw) / 2, (minHeight() - _pixh) / 2), _data->thumb->pixBlurredColored(st::msgStickerOverlay, _pixw, _pixh));
+			p.drawPixmap(QPoint(usex + (usew - _pixw) / 2, (minHeight() - _pixh) / 2), _data->thumb->pixBlurredColored(item->fullId(), st::msgStickerOverlay, _pixw, _pixh));
 		} else {
-			p.drawPixmap(QPoint(usex + (usew - _pixw) / 2, (minHeight() - _pixh) / 2), sticker->img->pixColored(st::msgStickerOverlay, _pixw, _pixh));
+			p.drawPixmap(QPoint(usex + (usew - _pixw) / 2, (minHeight() - _pixh) / 2), sticker->img->pixColored(item->fullId(), st::msgStickerOverlay, _pixw, _pixh));
 		}
 	} else {
 		if (sticker->img->isNull()) {
-			p.drawPixmap(QPoint(usex + (usew - _pixw) / 2, (minHeight() - _pixh) / 2), _data->thumb->pixBlurred(_pixw, _pixh));
+			p.drawPixmap(QPoint(usex + (usew - _pixw) / 2, (minHeight() - _pixh) / 2), _data->thumb->pixBlurred(item->fullId(), _pixw, _pixh));
 		} else {
-			p.drawPixmap(QPoint(usex + (usew - _pixw) / 2, (minHeight() - _pixh) / 2), sticker->img->pix(_pixw, _pixh));
+			p.drawPixmap(QPoint(usex + (usew - _pixw) / 2, (minHeight() - _pixh) / 2), sticker->img->pix(item->fullId(), _pixw, _pixh));
 		}
 	}
 
@@ -3616,7 +3616,8 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, T
 
 	auto lineHeight = unitedLineHeight();
 	if (_asArticle) {
-		_data->photo->medium->load(false, false);
+		const auto contextId = _parent->data()->fullId();
+		_data->photo->medium->load(contextId, false, false);
 		bool full = _data->photo->medium->loaded();
 		QPixmap pix;
 		auto pw = qMax(_pixw, lineHeight);
@@ -3629,9 +3630,9 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, T
 			pixw = qRound(pixw * coef);
 		}
 		if (full) {
-			pix = _data->photo->medium->pixSingle(pixw, pixh, pw, ph, ImageRoundRadius::Small);
+			pix = _data->photo->medium->pixSingle(contextId, pixw, pixh, pw, ph, ImageRoundRadius::Small);
 		} else {
-			pix = _data->photo->thumb->pixBlurredSingle(pixw, pixh, pw, ph, ImageRoundRadius::Small);
+			pix = _data->photo->thumb->pixBlurredSingle(contextId, pixw, pixh, pw, ph, ImageRoundRadius::Small);
 		}
 		p.drawPixmapLeft(padding.left() + paintw - pw, tshift, width(), pix);
 		if (selected) {
@@ -4802,7 +4803,8 @@ void HistoryLocation::draw(Painter &p, const QRect &r, TextSelection selection, 
 		App::roundShadow(p, 0, 0, paintw, painth, selected ? st::msgInShadowSelected : st::msgInShadow, selected ? InSelectedShadowCorners : InShadowCorners);
 	}
 
-	_data->load();
+	const auto contextId = _parent->data()->fullId();
+	_data->load(contextId);
 	auto roundRadius = ImageRoundRadius::Large;
 	auto roundCorners = ((isBubbleTop() && _title.isEmpty() && _description.isEmpty()) ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
 		| (isBubbleBottom() ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None);
@@ -4811,13 +4813,13 @@ void HistoryLocation::draw(Painter &p, const QRect &r, TextSelection selection, 
 		auto w = _data->thumb->width(), h = _data->thumb->height();
 		QPixmap pix;
 		if (paintw * h == painth * w || (w == fullWidth() && h == fullHeight())) {
-			pix = _data->thumb->pixSingle(paintw, painth, paintw, painth, roundRadius, roundCorners);
+			pix = _data->thumb->pixSingle(contextId, paintw, painth, paintw, painth, roundRadius, roundCorners);
 		} else if (paintw * h > painth * w) {
 			auto nw = painth * w / h;
-			pix = _data->thumb->pixSingle(nw, painth, paintw, painth, roundRadius, roundCorners);
+			pix = _data->thumb->pixSingle(contextId, nw, painth, paintw, painth, roundRadius, roundCorners);
 		} else {
 			auto nh = paintw * h / w;
-			pix = _data->thumb->pixSingle(paintw, nh, paintw, painth, roundRadius, roundCorners);
+			pix = _data->thumb->pixSingle(contextId, paintw, nh, paintw, painth, roundRadius, roundCorners);
 		}
 		p.drawPixmap(rthumb.topLeft(), pix);
 	} else {

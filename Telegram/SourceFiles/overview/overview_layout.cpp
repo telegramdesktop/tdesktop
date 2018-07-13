@@ -314,7 +314,7 @@ int32 Photo::resizeGetHeight(int32 width) {
 void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
 	bool good = _data->loaded(), selected = (selection == FullSelection);
 	if (!good) {
-		_data->medium->automaticLoad(parent());
+		_data->medium->automaticLoad(parent()->fullId(), parent());
 		good = _data->medium->loaded();
 	}
 	if ((good && !_goodLoaded) || _pix.width() != _width * cIntRetinaFactor()) {
@@ -322,7 +322,7 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 
 		int32 size = _width * cIntRetinaFactor();
 		if (_goodLoaded || _data->thumb->loaded()) {
-			auto img = (_data->loaded() ? _data->full : (_data->medium->loaded() ? _data->medium : _data->thumb))->pix().toImage();
+			auto img = (_data->loaded() ? _data->full : (_data->medium->loaded() ? _data->medium : _data->thumb))->pix(parent()->fullId()).toImage();
 			if (!_goodLoaded) {
 				img = Images::prepareBlur(std::move(img));
 			}
@@ -376,7 +376,7 @@ Video::Video(
 , _duration(formatDurationText(_data->duration()))
 , _thumbLoaded(false) {
 	setDocumentLinks(_data);
-	_data->thumb->load();
+	_data->thumb->load(parent->fullId());
 }
 
 void Video::initDimensions() {
@@ -393,7 +393,7 @@ int32 Video::resizeGetHeight(int32 width) {
 void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
 	bool selected = (selection == FullSelection), thumbLoaded = _data->thumb->loaded();
 
-	_data->automaticLoad(parent());
+	_data->automaticLoad(parent()->fullId(), parent());
 	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
 	if (displayLoading) {
 		ensureRadial();
@@ -409,7 +409,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 
 		if (_thumbLoaded && !_data->thumb->isNull()) {
 			auto size = _width * cIntRetinaFactor();
-			auto img = Images::prepareBlur(_data->thumb->pix().toImage());
+			auto img = Images::prepareBlur(_data->thumb->pix(parent()->fullId()).toImage());
 			if (img.width() == img.height()) {
 				if (img.width() != size) {
 					img = img.scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
@@ -594,7 +594,7 @@ void Voice::initDimensions() {
 void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
 	bool selected = (selection == FullSelection);
 
-	_data->automaticLoad(parent());
+	_data->automaticLoad(parent()->fullId(), parent());
 	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
 
 	if (displayLoading) {
@@ -832,7 +832,7 @@ Document::Document(
 	_status.update(FileStatusSizeReady, _data->size, _data->isSong() ? _data->song()->duration : -1, 0);
 
 	if (withThumb()) {
-		_data->thumb->load();
+		_data->thumb->load(parent->fullId());
 		int32 tw = convertScale(_data->thumb->width()), th = convertScale(_data->thumb->height());
 		if (tw > th) {
 			_thumbw = (tw * _st.fileThumbSize) / th;
@@ -862,7 +862,7 @@ void Document::initDimensions() {
 void Document::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
 	bool selected = (selection == FullSelection);
 
-	_data->automaticLoad(parent());
+	_data->automaticLoad(parent()->fullId(), parent());
 	bool loaded = _data->loaded() || Local::willStickerImageLoad(_data->mediaKey()), displayLoading = _data->displayLoading();
 
 	if (displayLoading) {
@@ -936,7 +936,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 						_thumbForLoaded = loaded;
 						auto options = Images::Option::Smooth | Images::Option::None;
 						if (!_thumbForLoaded) options |= Images::Option::Blurred;
-						_thumb = _data->thumb->pixNoCache(_thumbw * cIntRetinaFactor(), 0, options, _st.fileThumbSize, _st.fileThumbSize);
+						_thumb = _data->thumb->pixNoCache(parent()->fullId(), _thumbw * cIntRetinaFactor(), 0, options, _st.fileThumbSize, _st.fileThumbSize);
 					}
 					p.drawPixmap(rthumb.topLeft(), _thumb);
 				} else {
@@ -1267,12 +1267,16 @@ Link::Link(
 	}
 	int32 tw = 0, th = 0;
 	if (_page && _page->photo) {
-		if (!_page->photo->loaded()) _page->photo->thumb->load(false, false);
+		if (!_page->photo->loaded()) {
+			_page->photo->thumb->load(parent->fullId(), false, false);
+		}
 
 		tw = convertScale(_page->photo->thumb->width());
 		th = convertScale(_page->photo->thumb->height());
 	} else if (_page && _page->document) {
-		if (!_page->document->thumb->loaded()) _page->document->thumb->load(false, false);
+		if (!_page->document->thumb->loaded()) {
+			_page->document->thumb->load(parent->fullId(), false, false);
+		}
 
 		tw = convertScale(_page->document->thumb->width());
 		th = convertScale(_page->document->thumb->height());
@@ -1357,18 +1361,18 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 		if (_page && _page->photo) {
 			QPixmap pix;
 			if (_page->photo->medium->loaded()) {
-				pix = _page->photo->medium->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+				pix = _page->photo->medium->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
 			} else if (_page->photo->loaded()) {
-				pix = _page->photo->full->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+				pix = _page->photo->full->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
 			} else {
-				pix = _page->photo->thumb->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+				pix = _page->photo->thumb->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
 			}
 			p.drawPixmapLeft(pixLeft, pixTop, _width, pix);
 		} else if (_page && _page->document && !_page->document->thumb->isNull()) {
 			auto roundRadius = _page->document->isVideoMessage()
 				? ImageRoundRadius::Ellipse
 				: ImageRoundRadius::Small;
-			p.drawPixmapLeft(pixLeft, pixTop, _width, _page->document->thumb->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, roundRadius));
+			p.drawPixmapLeft(pixLeft, pixTop, _width, _page->document->thumb->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, roundRadius));
 		} else {
 			const auto index = _letter.isEmpty()
 				? 0

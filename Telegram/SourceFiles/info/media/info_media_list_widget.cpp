@@ -1220,10 +1220,11 @@ void ListWidget::showContextMenu(
 
 	auto link = ClickHandler::getActive();
 
+	const auto itemFullId = item->fullId();
 	_contextMenu = base::make_unique_q<Ui::PopupMenu>(this);
 	_contextMenu->addAction(
 		lang(lng_context_to_msg),
-		[itemFullId = item->fullId()] {
+		[itemFullId] {
 			if (auto item = App::histItemById(itemFullId)) {
 				Ui::showPeerHistoryAtItem(item);
 			}
@@ -1271,8 +1272,11 @@ void ListWidget::showContextMenu(
 					auto handler = App::LambdaDelayed(
 						st::defaultDropdownMenu.menu.ripple.hideDuration,
 						this,
-						[document] {
-							DocumentSaveClickHandler::doSave(document, true);
+						[=] {
+							DocumentSaveClickHandler::Save(
+								itemFullId,
+								document,
+								true);
 						});
 					_contextMenu->addAction(
 						lang(isVideo

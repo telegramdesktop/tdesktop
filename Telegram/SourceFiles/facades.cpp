@@ -203,15 +203,17 @@ void showBox(
 
 } // namespace internal
 
-void showMediaPreview(DocumentData *document) {
+void showMediaPreview(
+		Data::FileOrigin origin,
+		not_null<DocumentData*> document) {
 	if (auto w = App::wnd()) {
-		w->ui_showMediaPreview(document);
+		w->ui_showMediaPreview(origin, document);
 	}
 }
 
-void showMediaPreview(PhotoData *photo) {
+void showMediaPreview(Data::FileOrigin origin, not_null<PhotoData*> photo) {
 	if (auto w = App::wnd()) {
-		w->ui_showMediaPreview(photo);
+		w->ui_showMediaPreview(origin, photo);
 	}
 }
 

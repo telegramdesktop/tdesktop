@@ -38,6 +38,7 @@ public:
 	virtual void inlineItemLayoutChanged(const ItemBase *layout) = 0;
 	virtual bool inlineItemVisible(const ItemBase *item) = 0;
 	virtual void inlineItemRepaint(const ItemBase *item) = 0;
+	virtual Data::FileOrigin inlineItemFileOrigin() = 0;
 };
 
 class ItemBase : public LayoutItemBase {
@@ -104,6 +105,9 @@ protected:
 
 	not_null<Context*> context() const {
 		return _context;
+	}
+	Data::FileOrigin fileOrigin() const {
+		return _context->inlineItemFileOrigin();
 	}
 
 	Result *_result = nullptr;

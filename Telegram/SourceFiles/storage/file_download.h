@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/observer.h"
 #include "storage/localimageloader.h" // for TaskId
+#include "data/data_file_origin.h"
 
 namespace Storage {
 
@@ -93,6 +94,9 @@ public:
 	QPixmap imagePixmap(const QSize &shrinkBox = QSize()) const;
 	QString fileName() const {
 		return _filename;
+	}
+	virtual Data::FileOrigin fileOrigin() const {
+		return Data::FileOrigin();
 	}
 	float64 currentProgress() const;
 	virtual int32 currentOffset(bool includeSkipped = false) const = 0;
@@ -183,6 +187,7 @@ class mtpFileLoader : public FileLoader, public RPCSender {
 public:
 	mtpFileLoader(
 		const StorageImageLocation *location,
+		Data::FileOrigin origin,
 		int32 size,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading);
@@ -190,8 +195,8 @@ public:
 		int32 dc,
 		uint64 id,
 		uint64 accessHash,
-		int32 version,
 		const QByteArray &fileReference,
+		Data::FileOrigin origin,
 		LocationType type,
 		const QString &toFile,
 		int32 size,
@@ -205,6 +210,7 @@ public:
 		bool autoLoading);
 
 	int32 currentOffset(bool includeSkipped = false) const override;
+	Data::FileOrigin fileOrigin() const override;
 
 	uint64 objId() const override {
 		return _id;
@@ -275,10 +281,11 @@ private:
 
 	uint64 _id = 0; // for document locations
 	uint64 _accessHash = 0;
-	int32 _version = 0;
 	QByteArray _fileReference;
 
 	const WebFileLocation *_urlLocation = nullptr; // for webdocument locations
+
+	Data::FileOrigin _origin;
 
 	MTP::DcId _cdnDcId = 0;
 	QByteArray _cdnToken;
