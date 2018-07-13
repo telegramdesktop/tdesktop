@@ -1046,10 +1046,7 @@ void ApiWrap::finishDialogsList() {
 	Expects(_dialogsProcess != nullptr);
 
 	const auto process = base::take(_dialogsProcess);
-
-	ranges::reverse(process->info.chats);
 	Data::FinalizeDialogsInfo(process->info, *_settings);
-
 	process->done(std::move(process->info));
 }
 
