@@ -394,7 +394,7 @@ void FileLoader::startLoading(bool loadFirst, bool prior) {
 }
 
 mtpFileLoader::mtpFileLoader(
-	const StorageImageLocation *location,
+	not_null<StorageImageLocation*> location,
 	Data::FileOrigin origin,
 	int32 size,
 	LoadFromCloudSetting fromCloud
@@ -477,6 +477,34 @@ int32 mtpFileLoader::currentOffset(bool includeSkipped) const {
 
 Data::FileOrigin mtpFileLoader::fileOrigin() const {
 	return _origin;
+}
+
+void mtpFileLoader::refreshFileReferenceFrom(
+		const Data::UpdatedFileReferences &data,
+		int requestId,
+		const QByteArray &current) {
+	const auto updated = [&] {
+		if (_location) {
+			const auto i = data.find(Data::SimpleFileLocationId(
+				_location->volume(),
+				_location->dc(),
+				_location->local()));
+			return (i == end(data)) ? QByteArray() : i->second;
+		}
+		const auto i = data.find(_id);
+		return (i == end(data)) ? QByteArray() : i->second;
+	}();
+	if (updated.isEmpty() || updated == current) {
+		cancel(true);
+		return;
+	}
+	if (_location) {
+		_location->refreshFileReference(updated);
+	} else {
+		_fileReference = updated;
+	}
+	const auto offset = finishSentRequestGetOffset(requestId);
+	makeRequest(offset);
 }
 
 bool mtpFileLoader::loadPart() {
@@ -766,7 +794,7 @@ void mtpFileLoader::placeSentRequest(mtpRequestId requestId, const RequestData &
 
 int mtpFileLoader::finishSentRequestGetOffset(mtpRequestId requestId) {
 	auto it = _sentRequests.find(requestId);
-	Expects(it != _sentRequests.cend());
+	Assert(it != _sentRequests.cend());
 
 	auto requestData = it->second;
 	_downloader->requestedAmountIncrement(requestData.dcId, requestData.dcIndex, -partSize());
@@ -888,6 +916,14 @@ bool mtpFileLoader::partFailed(
 		mtpRequestId requestId) {
 	if (MTP::isDefaultHandledError(error)) {
 		return false;
+	}
+	if (error.type().startsWith(qstr("FILE_REFERENCE_"))) {
+		Auth().api().refreshFileReference(
+			_origin,
+			this,
+			requestId,
+			_location ? _location->fileReference() : _fileReference);
+		return true;
 	}
 	cancel(true);
 	return true;

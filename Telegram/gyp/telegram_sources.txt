@@ -179,6 +179,7 @@
 <(src_loc)/data/data_feed.h
 <(src_loc)/data/data_feed_messages.cpp
 <(src_loc)/data/data_feed_messages.h
+<(src_loc)/data/data_file_origin.cpp
 <(src_loc)/data/data_file_origin.h
 <(src_loc)/data/data_flags.h
 <(src_loc)/data/data_game.h

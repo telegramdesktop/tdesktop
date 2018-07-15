@@ -22,6 +22,7 @@ struct MessageGroupId;
 struct SendingAlbum;
 enum class SendMediaType;
 struct FileLoadTo;
+class mtpFileLoader;
 
 namespace InlineBots {
 class Result;
@@ -54,7 +55,6 @@ inline int32 CountHash(IntRange &&range) {
 	}
 	return int32(acc & 0x7FFFFFFF);
 }
-
 
 } // namespace Api
 
@@ -96,6 +96,12 @@ public:
 	void requestAdmins(not_null<ChannelData*> channel);
 	void requestParticipantsCountDelayed(not_null<ChannelData*> channel);
 	void requestChannelRangeDifference(not_null<History*> history);
+
+	void refreshFileReference(
+		Data::FileOrigin origin,
+		not_null<mtpFileLoader*> loader,
+		int requestId,
+		const QByteArray &current);
 
 	void requestChangelog(
 		const QString &sinceVersion,
@@ -315,6 +321,12 @@ private:
 		TimeMs received = 0;
 	};
 
+	using SimpleFileLocationId = Data::SimpleFileLocationId;
+	using DocumentFileLocationId = Data::DocumentFileLocationId;
+	using FileLocationId = Data::FileLocationId;
+	using UpdatedFileReferences = Data::UpdatedFileReferences;
+	using FileReferencesHandler = FnMut<void(const UpdatedFileReferences&)>;
+
 	void updatesReceived(const MTPUpdates &updates);
 	void checkQuitPreventFinished();
 
@@ -469,6 +481,14 @@ private:
 
 	void sendNotifySettingsUpdates();
 
+	template <typename Request>
+	void requestFileReference(
+		Data::FileOrigin origin,
+		not_null<mtpFileLoader*> loader,
+		int requestId,
+		const QByteArray &current,
+		Request &&data);
+
 	not_null<AuthSession*> _session;
 
 	MessageDataRequests _messageDataRequests;
@@ -604,6 +624,10 @@ private:
 
 	base::flat_set<not_null<const PeerData*>> _updateNotifySettingsPeers;
 	base::Timer _updateNotifySettingsTimer;
+
+	std::map<
+		Data::FileOrigin,
+		std::vector<FileReferencesHandler>> _fileReferenceHandlers;
 
 	mtpRequestId _deepLinkInfoRequestId = 0;
 

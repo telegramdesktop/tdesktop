@@ -152,6 +152,9 @@ public:
 	QByteArray fileReference() const {
 		return _fileReference;
 	}
+	void refreshFileReference(const QByteArray &data) {
+		_fileReference = data;
+	}
 
 	static StorageImageLocation FromMTP(
 		int32 width,

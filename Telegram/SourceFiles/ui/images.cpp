@@ -1143,7 +1143,9 @@ FileLoader *StorageImage::createLoader(
 		Data::FileOrigin origin,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading) {
-	if (_location.isNull()) return 0;
+	if (_location.isNull()) {
+		return nullptr;
+	}
 	return new mtpFileLoader(
 		&_location,
 		origin,

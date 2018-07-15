@@ -186,7 +186,7 @@ class mtpFileLoader : public FileLoader, public RPCSender {
 
 public:
 	mtpFileLoader(
-		const StorageImageLocation *location,
+		not_null<StorageImageLocation*> location,
 		Data::FileOrigin origin,
 		int32 size,
 		LoadFromCloudSetting fromCloud,
@@ -219,6 +219,10 @@ public:
 	void stop() override {
 		rpcInvalidate();
 	}
+	void refreshFileReferenceFrom(
+		const Data::UpdatedFileReferences &data,
+		int requestId,
+		const QByteArray &current);
 
 	~mtpFileLoader();
 
@@ -277,7 +281,7 @@ private:
 	int32 _nextRequestOffset = 0;
 
 	MTP::DcId _dcId = 0; // for photo locations
-	const StorageImageLocation *_location = nullptr;
+	StorageImageLocation *_location = nullptr;
 
 	uint64 _id = 0; // for document locations
 	uint64 _accessHash = 0;
