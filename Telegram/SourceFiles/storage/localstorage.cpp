@@ -2979,7 +2979,7 @@ void writeImage(const StorageKey &location, const StorageImageSaved &image, bool
 
 	auto legacyTypeField = 0;
 
-	EncryptedDescriptor data(sizeof(quint64) * 2 + sizeof(quint32) + sizeof(quint32) + image.data.size());
+	EncryptedDescriptor data(sizeof(quint64) * 2 + sizeof(quint32) + Serialize::bytearraySize(image.data));
 	data.stream << quint64(location.first) << quint64(location.second) << quint32(legacyTypeField) << image.data;
 
 	FileWriteDescriptor file(i.value().first, FileOption::User);
@@ -3106,7 +3106,7 @@ void writeStickerImage(const StorageKey &location, const QByteArray &sticker, bo
 	} else if (!overwrite) {
 		return;
 	}
-	EncryptedDescriptor data(sizeof(quint64) * 2 + sizeof(quint32) + sizeof(quint32) + sticker.size());
+	EncryptedDescriptor data(sizeof(quint64) * 2 + Serialize::bytearraySize(sticker));
 	data.stream << quint64(location.first) << quint64(location.second) << sticker;
 	FileWriteDescriptor file(i.value().first, FileOption::User);
 	file.writeEncrypted(data);
@@ -3180,7 +3180,7 @@ void writeAudio(const StorageKey &location, const QByteArray &audio, bool overwr
 	} else if (!overwrite) {
 		return;
 	}
-	EncryptedDescriptor data(sizeof(quint64) * 2 + sizeof(quint32) + sizeof(quint32) + audio.size());
+	EncryptedDescriptor data(sizeof(quint64) * 2 + Serialize::bytearraySize(audio));
 	data.stream << quint64(location.first) << quint64(location.second) << audio;
 	FileWriteDescriptor file(i.value().first, FileOption::User);
 	file.writeEncrypted(data);
@@ -3261,7 +3261,7 @@ void writeWebFile(const QString &url, const QByteArray &content, bool overwrite)
 	} else if (!overwrite) {
 		return;
 	}
-	EncryptedDescriptor data(Serialize::stringSize(url) + sizeof(quint32) + sizeof(quint32) + content.size());
+	EncryptedDescriptor data(Serialize::stringSize(url) + Serialize::bytearraySize(content));
 	data.stream << url << content;
 	FileWriteDescriptor file(i.value().first, FileOption::User);
 	file.writeEncrypted(data);
@@ -4119,8 +4119,8 @@ void writeBackground(int32 id, const QImage &img) {
 		_mapChanged = true;
 		_writeMap(WriteMapWhen::Fast);
 	}
-	quint32 size = sizeof(qint32) + sizeof(quint32) + (bmp.isEmpty() ? 0 : (sizeof(quint32) + bmp.size()));
-	EncryptedDescriptor data(size);
+
+	EncryptedDescriptor data(sizeof(qint32) + Serialize::bytearraySize(bmp));
 	data.stream << qint32(id) << bmp;
 
 	FileWriteDescriptor file(_backgroundKey);
