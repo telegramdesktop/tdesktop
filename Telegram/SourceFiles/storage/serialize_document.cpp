@@ -59,11 +59,7 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 	QByteArray fileReference;
 	stream >> id >> access >> date;
 	if (streamAppVersion >= 9061) {
-#ifdef _DEBUG
-		if (streamAppVersion >= 1003013 || true) { // #TODO testing
-#else
-#error "test"
-#endif
+		if (streamAppVersion >= 1003013) {
 			stream >> fileReference;
 		}
 		stream >> version;
