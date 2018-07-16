@@ -97,6 +97,11 @@ public:
 	void requestParticipantsCountDelayed(not_null<ChannelData*> channel);
 	void requestChannelRangeDifference(not_null<History*> history);
 
+	using UpdatedFileReferences = Data::UpdatedFileReferences;
+	using FileReferencesHandler = FnMut<void(const UpdatedFileReferences&)>;
+	void refreshFileReference(
+		Data::FileOrigin origin,
+		FileReferencesHandler &&handler);
 	void refreshFileReference(
 		Data::FileOrigin origin,
 		not_null<mtpFileLoader*> loader,
@@ -303,6 +308,11 @@ public:
 		not_null<UserData*> bot,
 		not_null<InlineBots::Result*> data,
 		const SendOptions &options);
+	void sendExistingDocument(
+		not_null<DocumentData*> document,
+		Data::FileOrigin origin,
+		TextWithEntities caption,
+		const SendOptions &options);
 
 	~ApiWrap();
 
@@ -324,8 +334,6 @@ private:
 	using SimpleFileLocationId = Data::SimpleFileLocationId;
 	using DocumentFileLocationId = Data::DocumentFileLocationId;
 	using FileLocationId = Data::FileLocationId;
-	using UpdatedFileReferences = Data::UpdatedFileReferences;
-	using FileReferencesHandler = FnMut<void(const UpdatedFileReferences&)>;
 
 	void updatesReceived(const MTPUpdates &updates);
 	void checkQuitPreventFinished();
@@ -484,9 +492,7 @@ private:
 	template <typename Request>
 	void requestFileReference(
 		Data::FileOrigin origin,
-		not_null<mtpFileLoader*> loader,
-		int requestId,
-		const QByteArray &current,
+		FileReferencesHandler &&handler,
 		Request &&data);
 
 	not_null<AuthSession*> _session;

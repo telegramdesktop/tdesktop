@@ -1055,6 +1055,14 @@ MTPInputDocument DocumentData::mtpInput() const {
 	return MTP_inputDocumentEmpty();
 }
 
+QByteArray DocumentData::fileReference() const {
+	return _fileReference;
+}
+
+void DocumentData::refreshFileReference(const QByteArray &value) {
+	_fileReference = value;
+}
+
 QString DocumentData::filename() const {
 	return _filename;
 }

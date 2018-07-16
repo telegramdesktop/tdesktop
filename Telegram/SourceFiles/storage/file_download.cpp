@@ -917,7 +917,8 @@ bool mtpFileLoader::partFailed(
 	if (MTP::isDefaultHandledError(error)) {
 		return false;
 	}
-	if (error.type().startsWith(qstr("FILE_REFERENCE_"))) {
+	if (error.code() == 400
+		&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
 		Auth().api().refreshFileReference(
 			_origin,
 			this,

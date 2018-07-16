@@ -2377,14 +2377,8 @@ void ApiWrap::channelRangeDifferenceDone(
 template <typename Request>
 void ApiWrap::requestFileReference(
 		Data::FileOrigin origin,
-		not_null<mtpFileLoader*> loader,
-		int requestId,
-		const QByteArray &current,
+		FileReferencesHandler &&handler,
 		Request &&data) {
-	auto handler = crl::guard(loader, [=](
-			const Data::UpdatedFileReferences &data) {
-		loader->refreshFileReferenceFrom(data, requestId, current);
-	});
 	const auto i = _fileReferenceHandlers.find(origin);
 	if (i != end(_fileReferenceHandlers)) {
 		i->second.push_back(std::move(handler));
@@ -2396,6 +2390,15 @@ void ApiWrap::requestFileReference(
 
 	request(std::move(data)).done([=](const auto &result) {
 		const auto parsed = Data::GetFileReferences(result);
+		for (const auto &[origin, reference] : parsed) {
+			const auto documentId = base::get_if<DocumentFileLocationId>(
+				&origin);
+			if (documentId) {
+				_session->data().document(
+					*documentId
+				)->refreshFileReference(reference);
+			}
+		}
 		const auto i = _fileReferenceHandlers.find(origin);
 		Assert(i != end(_fileReferenceHandlers));
 		auto handlers = std::move(i->second);
@@ -2419,16 +2422,32 @@ void ApiWrap::refreshFileReference(
 		not_null<mtpFileLoader*> loader,
 		int requestId,
 		const QByteArray &current) {
-	const auto request = [&](auto &&data) {
+	return refreshFileReference(origin, crl::guard(loader, [=](
+			const Data::UpdatedFileReferences &data) {
+		loader->refreshFileReferenceFrom(data, requestId, current);
+	}));
+}
+
+void ApiWrap::refreshFileReference(
+		Data::FileOrigin origin,
+		FileReferencesHandler &&handler) {
+	const auto request = [&](
+			auto &&data,
+			Fn<void()> &&additional = nullptr) {
 		requestFileReference(
 			origin,
-			loader,
-			requestId,
-			current,
+			std::move(handler),
 			std::move(data));
+		if (additional) {
+			const auto i = _fileReferenceHandlers.find(origin);
+			Assert(i != end(_fileReferenceHandlers));
+			i->second.push_back([=](auto&&) {
+				additional();
+			});
+		}
 	};
 	const auto fail = [&] {
-		loader->refreshFileReferenceFrom({}, requestId, current);
+		handler(Data::UpdatedFileReferences());
 	};
 	origin.match([&](Data::FileOriginMessage data) {
 		if (const auto item = App::histItemById(data)) {
@@ -2479,14 +2498,21 @@ void ApiWrap::refreshFileReference(
 			|| data.setId == Stickers::RecentSetId) {
 			request(MTPmessages_GetRecentStickers(
 				MTP_flags(0),
-				MTP_int(0)));
+				MTP_int(0)),
+				[] { crl::on_main([] { Local::writeRecentStickers(); }); });
 		} else if (data.setId == Stickers::FavedSetId) {
-			request(MTPmessages_GetFavedStickers(MTP_int(0)));
+			request(MTPmessages_GetFavedStickers(MTP_int(0)),
+				[] { crl::on_main([] { Local::writeFavedStickers(); }); });
 		} else {
 			request(MTPmessages_GetStickerSet(
 				MTP_inputStickerSetID(
 					MTP_long(data.setId),
-					MTP_long(data.accessHash))));
+					MTP_long(data.accessHash))),
+				[] { crl::on_main([] {
+					Local::writeInstalledStickers();
+					Local::writeRecentStickers();
+					Local::writeFavedStickers();
+				}); });
 		}
 	}, [&](Data::FileOriginSavedGifs data) {
 		request(MTPmessages_GetSavedGifs(MTP_int(0)));
@@ -4311,6 +4337,113 @@ void ApiWrap::sendInlineResult(
 
 	if (const auto main = App::main()) {
 		main->finishForwarding(history);
+	}
+}
+
+void ApiWrap::sendExistingDocument(
+		not_null<DocumentData*> document,
+		Data::FileOrigin origin,
+		TextWithEntities caption,
+		const SendOptions &options) {
+	Auth().api().sendAction(options);
+
+	const auto history = options.history;
+	const auto peer = history->peer;
+	const auto newId = FullMsgId(peerToChannel(peer->id), clientMsgId());
+	const auto randomId = rand_value<uint64>();
+
+	auto flags = NewMessageFlags(peer) | MTPDmessage::Flag::f_media;
+	auto sendFlags = MTPmessages_SendMedia::Flags(0);
+	if (options.replyTo) {
+		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
+		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
+	}
+	bool channelPost = peer->isChannel() && !peer->isMegagroup();
+	bool silentPost = channelPost && Auth().data().notifySilentPosts(peer);
+	if (channelPost) {
+		flags |= MTPDmessage::Flag::f_views;
+		flags |= MTPDmessage::Flag::f_post;
+	}
+	if (!channelPost) {
+		flags |= MTPDmessage::Flag::f_from_id;
+	} else if (peer->asChannel()->addsSignature()) {
+		flags |= MTPDmessage::Flag::f_post_author;
+	}
+	if (silentPost) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
+	}
+	auto messageFromId = channelPost ? 0 : Auth().userId();
+	auto messagePostAuthor = channelPost
+		? App::peerName(Auth().user()) : QString();
+
+	TextUtilities::Trim(caption);
+	auto sentEntities = TextUtilities::EntitiesToMTP(
+		caption.entities,
+		TextUtilities::ConvertOption::SkipLocal);
+	if (!sentEntities.v.isEmpty()) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_entities;
+	}
+
+	App::historyRegRandom(randomId, newId);
+
+	history->addNewDocument(
+		newId.msg,
+		flags,
+		0,
+		options.replyTo,
+		unixtime(),
+		messageFromId,
+		messagePostAuthor,
+		document,
+		caption,
+		MTPnullMarkup);
+	auto failHandler = std::make_shared<Fn<void(const RPCError&)>>();
+
+	const auto replyTo = options.replyTo;
+	const auto captionText = caption.text;
+	auto performRequest = [=] {
+		history->sendRequestId = request(MTPmessages_SendMedia(
+			MTP_flags(sendFlags),
+			peer->input,
+			MTP_int(replyTo),
+			MTP_inputMediaDocument(
+				MTP_flags(0),
+				document->mtpInput(),
+				MTPint()),
+			MTP_string(captionText),
+			MTP_long(randomId),
+			MTPnullMarkup,
+			sentEntities
+		)).done([=](const MTPUpdates &result) {
+			applyUpdates(result, randomId);
+		}).fail(
+			base::duplicate(*failHandler)
+		).afterRequest(history->sendRequestId
+		).send();
+	};
+	*failHandler = [=](const RPCError &error) {
+		if (error.code() == 400
+			&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
+			const auto current = document->fileReference();
+			auto refreshed = [=](const Data::UpdatedFileReferences &data) {
+				if (document->fileReference() != current) {
+					performRequest();
+				} else {
+					sendMessageFail(error);
+				}
+			};
+			refreshFileReference(origin, std::move(refreshed));
+		} else {
+			sendMessageFail(error);
+		}
+	};
+	performRequest();
+
+	if (const auto main = App::main()) {
+		main->finishForwarding(history);
+		if (document->sticker()) {
+			main->incrementSticker(document);
+		}
 	}
 }
 

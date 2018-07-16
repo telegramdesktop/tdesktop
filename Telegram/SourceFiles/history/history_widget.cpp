@@ -470,9 +470,9 @@ HistoryWidget::HistoryWidget(
 		&TabbedSelector::emojiSelected,
 		_field,
 		[=](EmojiPtr emoji) { InsertEmojiToField(_field, emoji); });
-	connect(_tabbedSelector, SIGNAL(stickerSelected(DocumentData*)), this, SLOT(onStickerSend(DocumentData*)));
-	connect(_tabbedSelector, SIGNAL(photoSelected(PhotoData*)), this, SLOT(onPhotoSend(PhotoData*)));
-	connect(_tabbedSelector, SIGNAL(inlineResultSelected(InlineBots::Result*,UserData*)), this, SLOT(onInlineResultSend(InlineBots::Result*,UserData*)));
+	connect(_tabbedSelector, SIGNAL(stickerOrGifSelected(not_null<DocumentData*>)), this, SLOT(onStickerOrGifSend(not_null<DocumentData*>)));
+	connect(_tabbedSelector, SIGNAL(photoSelected(not_null<PhotoData*>)), this, SLOT(onPhotoSend(not_null<PhotoData*>)));
+	connect(_tabbedSelector, SIGNAL(inlineResultSelected(not_null<InlineBots::Result*>,not_null<UserData*>)), this, SLOT(onInlineResultSend(not_null<InlineBots::Result*>,not_null<UserData*>)));
 	connect(Media::Capture::instance(), SIGNAL(error()), this, SLOT(onRecordError()));
 	connect(Media::Capture::instance(), SIGNAL(updated(quint16,qint32)), this, SLOT(onRecordUpdate(quint16,qint32)));
 	connect(Media::Capture::instance(), SIGNAL(done(QByteArray,VoiceWaveform,qint32)), this, SLOT(onRecordDone(QByteArray,VoiceWaveform,qint32)));
@@ -5416,7 +5416,7 @@ void HistoryWidget::onFieldTabbed() {
 	}
 }
 
-bool HistoryWidget::onStickerSend(DocumentData *sticker) {
+bool HistoryWidget::onStickerOrGifSend(not_null<DocumentData*> document) {
 	if (auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
 		if (megagroup->restricted(ChannelRestriction::f_send_stickers)) {
 			Ui::show(
@@ -5425,10 +5425,13 @@ bool HistoryWidget::onStickerSend(DocumentData *sticker) {
 			return false;
 		}
 	}
-	return sendExistingDocument(sticker, TextWithEntities());
+	return sendExistingDocument(
+		document,
+		document->stickerOrGifOrigin(),
+		TextWithEntities());
 }
 
-void HistoryWidget::onPhotoSend(PhotoData *photo) {
+void HistoryWidget::onPhotoSend(not_null<PhotoData*> photo) {
 	if (auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
 		if (megagroup->restricted(ChannelRestriction::f_send_media)) {
 			Ui::show(
@@ -5441,11 +5444,8 @@ void HistoryWidget::onPhotoSend(PhotoData *photo) {
 }
 
 void HistoryWidget::onInlineResultSend(
-		InlineBots::Result *result,
-		UserData *bot) {
-	Expects(result != nullptr);
-	Expects(bot != nullptr);
-
+		not_null<InlineBots::Result*> result,
+		not_null<UserData*> bot) {
 	if (!_peer || !_peer->canWrite()) {
 		return;
 	}
@@ -5594,14 +5594,10 @@ void HistoryWidget::destroyPinnedBar() {
 }
 
 bool HistoryWidget::sendExistingDocument(
-		DocumentData *doc,
+		not_null<DocumentData*> document,
+		Data::FileOrigin origin,
 		TextWithEntities caption) {
-	if (!_peer || !_peer->canWrite() || !doc) {
-		return false;
-	}
-
-	MTPInputDocument mtpInput = doc->mtpInput();
-	if (mtpInput.type() == mtpc_inputDocumentEmpty) {
+	if (!_peer || !_peer->canWrite()) {
 		return false;
 	}
 
@@ -5609,77 +5605,7 @@ bool HistoryWidget::sendExistingDocument(
 	options.clearDraft = false;
 	options.replyTo = replyToId();
 	options.generateLocal = true;
-	Auth().api().sendAction(options);
-
-	uint64 randomId = rand_value<uint64>();
-	FullMsgId newId(_channel, clientMsgId());
-
-	auto flags = NewMessageFlags(_peer) | MTPDmessage::Flag::f_media;
-	auto sendFlags = MTPmessages_SendMedia::Flags(0);
-	if (options.replyTo) {
-		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
-		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
-	}
-	bool channelPost = _peer->isChannel() && !_peer->isMegagroup();
-	bool silentPost = channelPost && Auth().data().notifySilentPosts(_peer);
-	if (channelPost) {
-		flags |= MTPDmessage::Flag::f_views;
-		flags |= MTPDmessage::Flag::f_post;
-	}
-	if (!channelPost) {
-		flags |= MTPDmessage::Flag::f_from_id;
-	} else if (_peer->asChannel()->addsSignature()) {
-		flags |= MTPDmessage::Flag::f_post_author;
-	}
-	if (silentPost) {
-		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
-	}
-	auto messageFromId = channelPost ? 0 : Auth().userId();
-	auto messagePostAuthor = channelPost
-		? App::peerName(Auth().user()) : QString();
-
-	TextUtilities::Trim(caption);
-	auto sentEntities = TextUtilities::EntitiesToMTP(
-		caption.entities,
-		TextUtilities::ConvertOption::SkipLocal);
-	if (!sentEntities.v.isEmpty()) {
-		sendFlags |= MTPmessages_SendMedia::Flag::f_entities;
-	}
-
-	_history->addNewDocument(
-		newId.msg,
-		flags,
-		0,
-		options.replyTo,
-		unixtime(),
-		messageFromId,
-		messagePostAuthor,
-		doc,
-		caption,
-		MTPnullMarkup);
-	_history->sendRequestId = MTP::send(
-		MTPmessages_SendMedia(
-			MTP_flags(sendFlags),
-			_peer->input,
-			MTP_int(options.replyTo),
-			MTP_inputMediaDocument(
-				MTP_flags(0),
-				mtpInput,
-				MTPint()),
-			MTP_string(caption.text),
-			MTP_long(randomId),
-			MTPnullMarkup,
-			sentEntities),
-		App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
-		App::main()->rpcFail(&MainWidget::sendMessageFail),
-		0,
-		0,
-		_history->sendRequestId);
-	App::main()->finishForwarding(_history);
-
-	if (doc->sticker()) App::main()->incrementSticker(doc);
-
-	App::historyRegRandom(randomId, newId);
+	Auth().api().sendExistingDocument(document, origin, caption, options);
 
 	if (_fieldAutocomplete->stickersShown()) {
 		clearFieldText();
@@ -5696,9 +5622,9 @@ bool HistoryWidget::sendExistingDocument(
 }
 
 void HistoryWidget::sendExistingPhoto(
-		PhotoData *photo,
+		not_null<PhotoData*> photo,
 		TextWithEntities caption) {
-	if (!_peer || !_peer->canWrite() || !photo) {
+	if (!_peer || !_peer->canWrite()) {
 		return;
 	}
 

@@ -158,6 +158,8 @@ public:
 	bool hasWebLocation() const;
 	bool isValid() const;
 	MTPInputDocument mtpInput() const;
+	QByteArray fileReference() const;
+	void refreshFileReference(const QByteArray &value);
 
 	// When we have some client-side generated document
 	// (for example for displaying an external inline bot result)

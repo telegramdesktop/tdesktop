@@ -92,9 +92,11 @@ private slots:
 
 signals:
 	void emojiSelected(EmojiPtr emoji);
-	void stickerSelected(DocumentData *sticker);
-	void photoSelected(PhotoData *photo);
-	void inlineResultSelected(InlineBots::Result *result, UserData *bot);
+	void stickerOrGifSelected(not_null<DocumentData*> sticker);
+	void photoSelected(not_null<PhotoData*> photo);
+	void inlineResultSelected(
+		not_null<InlineBots::Result*> result,
+		not_null<UserData*> bot);
 
 	void cancelled();
 	void slideFinished();

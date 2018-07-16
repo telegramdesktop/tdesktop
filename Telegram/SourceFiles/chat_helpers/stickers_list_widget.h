@@ -87,7 +87,7 @@ private slots:
 	void onPreview();
 
 signals:
-	void selected(DocumentData *sticker);
+	void selected(not_null<DocumentData*> sticker);
 	void scrollUpdated();
 	void checkForHide();
 

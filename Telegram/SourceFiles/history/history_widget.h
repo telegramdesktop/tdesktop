@@ -394,9 +394,11 @@ public slots:
 	void onTextChange();
 
 	void onFieldTabbed();
-	bool onStickerSend(DocumentData *sticker);
-	void onPhotoSend(PhotoData *photo);
-	void onInlineResultSend(InlineBots::Result *result, UserData *bot);
+	bool onStickerOrGifSend(not_null<DocumentData*> document);
+	void onPhotoSend(not_null<PhotoData*> photo);
+	void onInlineResultSend(
+		not_null<InlineBots::Result*> result,
+		not_null<UserData*> bot);
 
 	void onWindowVisibleChanged();
 
@@ -596,8 +598,13 @@ private:
 	void destroyPinnedBar();
 	void unpinDone(const MTPUpdates &updates);
 
-	bool sendExistingDocument(DocumentData *doc, TextWithEntities caption);
-	void sendExistingPhoto(PhotoData *photo, TextWithEntities caption);
+	bool sendExistingDocument(
+		not_null<DocumentData*> document,
+		Data::FileOrigin origin,
+		TextWithEntities caption);
+	void sendExistingPhoto(
+		not_null<PhotoData*> photo,
+		TextWithEntities caption);
 
 	void drawField(Painter &p, const QRect &rect);
 	void paintEditHeader(Painter &p, const QRect &rect, int left, int top) const;

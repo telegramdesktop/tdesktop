@@ -309,11 +309,11 @@ TabbedSelector::TabbedSelector(QWidget *parent, not_null<Window::Controller*> co
 	connect(stickers(), SIGNAL(scrollUpdated()), this, SLOT(onScroll()));
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 	connect(emoji(), SIGNAL(selected(EmojiPtr)), this, SIGNAL(emojiSelected(EmojiPtr)));
-	connect(stickers(), SIGNAL(selected(DocumentData*)), this, SIGNAL(stickerSelected(DocumentData*)));
+	connect(stickers(), SIGNAL(selected(not_null<DocumentData*>)), this, SIGNAL(stickerOrGifSelected(not_null<DocumentData*>)));
 	connect(stickers(), SIGNAL(checkForHide()), this, SIGNAL(checkForHide()));
-	connect(gifs(), SIGNAL(selected(DocumentData*)), this, SIGNAL(stickerSelected(DocumentData*)));
-	connect(gifs(), SIGNAL(selected(PhotoData*)), this, SIGNAL(photoSelected(PhotoData*)));
-	connect(gifs(), SIGNAL(selected(InlineBots::Result*, UserData*)), this, SIGNAL(inlineResultSelected(InlineBots::Result*, UserData*)));
+	connect(gifs(), SIGNAL(selected(not_null<DocumentData*>)), this, SIGNAL(stickerOrGifSelected(not_null<DocumentData*>)));
+	connect(gifs(), SIGNAL(selected(not_null<PhotoData*>)), this, SIGNAL(photoSelected(not_null<PhotoData*>)));
+	connect(gifs(), SIGNAL(selected(not_null<InlineBots::Result*>,not_null<UserData*>)), this, SIGNAL(inlineResultSelected(not_null<InlineBots::Result*>,not_null<UserData*>)));
 	connect(gifs(), SIGNAL(cancelled()), this, SIGNAL(cancelled()));
 
 	_topShadow->raise();

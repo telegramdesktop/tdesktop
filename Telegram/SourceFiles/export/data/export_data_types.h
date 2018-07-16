@@ -44,7 +44,7 @@ inline auto NumberToString(Type value, int length = 0, char filler = '0')
 	return FillLeft(
 		Utf8String(result.data(), int(result.size())),
 		length,
-		filler);
+		filler).replace(',', '.');
 }
 
 struct UserpicsInfo {

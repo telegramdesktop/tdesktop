@@ -81,9 +81,11 @@ private slots:
 	void onUpdateInlineItems();
 
 signals:
-	void selected(DocumentData *sticker);
-	void selected(PhotoData *photo);
-	void selected(InlineBots::Result *result, UserData *bot);
+	void selected(not_null<DocumentData*> sticker);
+	void selected(not_null<PhotoData*> photo);
+	void selected(
+		not_null<InlineBots::Result*> result,
+		not_null<UserData*> bot);
 	void cancelled();
 
 	void emptyInlineRows();

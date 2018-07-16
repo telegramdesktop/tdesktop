@@ -1688,7 +1688,7 @@ void MainWidget::onSendFileConfirm(
 }
 
 bool MainWidget::onSendSticker(DocumentData *document) {
-	return _history->onStickerSend(document);
+	return _history->onStickerOrGifSend(document);
 }
 
 void MainWidget::dialogsCancelled() {
