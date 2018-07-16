@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "messenger.h"
 #include "mainwidget.h"
 #include "auth_session.h"
+#include "apiwrap.h"
 
 namespace HistoryView {
 namespace {
@@ -76,15 +77,13 @@ void ShowStickerPackInfo(not_null<DocumentData*> document) {
 	}
 }
 
-void ToggleFavedSticker(not_null<DocumentData*> document) {
-	const auto unfave = Stickers::IsFaved(document);
-	MTP::send(
-		MTPmessages_FaveSticker(
-			document->mtpInput(),
-			MTP_bool(unfave)),
-		rpcDone([=](const MTPBool &result) {
-		Stickers::SetFaved(document, !unfave);
-	}));
+void ToggleFavedSticker(
+		not_null<DocumentData*> document,
+		FullMsgId contextId) {
+	Auth().api().toggleFavedSticker(
+		document,
+		contextId,
+		!Stickers::IsFaved(document));
 }
 
 void AddPhotoActions(
@@ -167,7 +166,7 @@ void AddDocumentActions(
 			lang(Stickers::IsFaved(document)
 				? lng_faved_stickers_remove
 				: lng_faved_stickers_add),
-			[=] { ToggleFavedSticker(document); });
+			[=] { ToggleFavedSticker(document, contextId); });
 	}
 	if (!document->filepath(
 			DocumentData::FilePathResolveChecked).isEmpty()) {

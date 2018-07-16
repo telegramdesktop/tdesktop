@@ -1636,7 +1636,10 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 									showStickerPackInfo(document);
 								});
 								_menu->addAction(lang(Stickers::IsFaved(document) ? lng_faved_stickers_remove : lng_faved_stickers_add), [=] {
-									toggleFavedSticker(document);
+									Auth().api().toggleFavedSticker(
+										document,
+										itemId,
+										!Stickers::IsFaved(document));
 								});
 							}
 							_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
@@ -1772,13 +1775,6 @@ void HistoryInner::showStickerPackInfo(not_null<DocumentData*> document) {
 	}
 }
 
-void HistoryInner::toggleFavedSticker(not_null<DocumentData*> document) {
-	auto unfave = Stickers::IsFaved(document);
-	MTP::send(MTPmessages_FaveSticker(document->mtpInput(), MTP_bool(unfave)), rpcDone([document, unfave](const MTPBool &result) {
-		Stickers::SetFaved(document, !unfave);
-	}));
-}
-
 void HistoryInner::cancelContextDownload(not_null<DocumentData*> document) {
 	document->cancel();
 }
@@ -1811,7 +1807,7 @@ void HistoryInner::saveContextGif(FullMsgId itemId) {
 	if (const auto item = App::histItemById(itemId)) {
 		if (const auto media = item->media()) {
 			if (const auto document = media->document()) {
-				_widget->saveGif(document);
+				Auth().api().toggleSavedGif(document, item->fullId(), true);
 			}
 		}
 	}

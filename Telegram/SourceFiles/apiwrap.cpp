@@ -2515,7 +2515,9 @@ void ApiWrap::refreshFileReference(
 				}); });
 		}
 	}, [&](Data::FileOriginSavedGifs data) {
-		request(MTPmessages_GetSavedGifs(MTP_int(0)));
+		request(
+			MTPmessages_GetSavedGifs(MTP_int(0)),
+			[] { crl::on_main([] { Local::writeSavedGifs(); }); });
 	}, [&](base::none_type) {
 		fail();
 	});
@@ -2670,6 +2672,80 @@ std::vector<not_null<DocumentData*>> *ApiWrap::stickersByEmoji(
 		return &it->second.list;
 	}
 	return nullptr;
+}
+
+void ApiWrap::toggleFavedSticker(
+		not_null<DocumentData*> document,
+		Data::FileOrigin origin,
+		bool faved) {
+	if (faved && !document->sticker()) {
+		return;
+	}
+
+	auto failHandler = std::make_shared<Fn<void(const RPCError&)>>();
+	auto performRequest = [=] {
+		request(MTPmessages_FaveSticker(
+			document->mtpInput(),
+			MTP_bool(!faved)
+		)).done([=](const MTPBool &result) {
+			if (mtpIsTrue(result)) {
+				Stickers::SetFaved(document, faved);
+			}
+		}).fail(
+			base::duplicate(*failHandler)
+		).send();
+	};
+	*failHandler = [=](const RPCError &error) {
+		if (error.code() == 400
+			&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
+			const auto current = document->fileReference();
+			auto refreshed = [=](const Data::UpdatedFileReferences &data) {
+				if (document->fileReference() != current) {
+					performRequest();
+				}
+			};
+			refreshFileReference(origin, std::move(refreshed));
+		}
+	};
+	performRequest();
+}
+
+void ApiWrap::toggleSavedGif(
+		not_null<DocumentData*> document,
+		Data::FileOrigin origin,
+		bool saved) {
+	if (saved && !document->isGifv()) {
+		return;
+	}
+
+	auto failHandler = std::make_shared<Fn<void(const RPCError&)>>();
+	auto performRequest = [=] {
+		request(MTPmessages_SaveGif(
+			document->mtpInput(),
+			MTP_bool(!saved)
+		)).done([=](const MTPBool &result) {
+			if (mtpIsTrue(result)) {
+				if (saved) {
+					App::addSavedGif(document);
+				}
+			}
+		}).fail(
+			base::duplicate(*failHandler)
+		).send();
+	};
+	*failHandler = [=](const RPCError &error) {
+		if (error.code() == 400
+			&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
+			const auto current = document->fileReference();
+			auto refreshed = [=](const Data::UpdatedFileReferences &data) {
+				if (document->fileReference() != current) {
+					performRequest();
+				}
+			};
+			refreshFileReference(origin, std::move(refreshed));
+		}
+	};
+	performRequest();
 }
 
 void ApiWrap::requestStickers(TimeId now) {
@@ -4383,6 +4459,8 @@ void ApiWrap::sendExistingDocument(
 	if (!sentEntities.v.isEmpty()) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_entities;
 	}
+	const auto replyTo = options.replyTo;
+	const auto captionText = caption.text;
 
 	App::historyRegRandom(randomId, newId);
 
@@ -4390,17 +4468,15 @@ void ApiWrap::sendExistingDocument(
 		newId.msg,
 		flags,
 		0,
-		options.replyTo,
+		replyTo,
 		unixtime(),
 		messageFromId,
 		messagePostAuthor,
 		document,
 		caption,
 		MTPnullMarkup);
-	auto failHandler = std::make_shared<Fn<void(const RPCError&)>>();
 
-	const auto replyTo = options.replyTo;
-	const auto captionText = caption.text;
+	auto failHandler = std::make_shared<Fn<void(const RPCError&)>>();
 	auto performRequest = [=] {
 		history->sendRequestId = request(MTPmessages_SendMedia(
 			MTP_flags(sendFlags),

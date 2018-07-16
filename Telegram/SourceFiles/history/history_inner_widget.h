@@ -214,7 +214,6 @@ private:
 		not_null<DocumentData*> document);
 	void copyContextImage(not_null<PhotoData*> photo);
 	void showStickerPackInfo(not_null<DocumentData*> document);
-	void toggleFavedSticker(not_null<DocumentData*> document);
 
 	void itemRemoved(not_null<const HistoryItem*> item);
 	void viewRemoved(not_null<const Element*> view);

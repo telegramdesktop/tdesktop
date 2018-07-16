@@ -1606,8 +1606,10 @@ void StickersListWidget::removeFavedSticker(int section, int index) {
 	clearSelection();
 	auto sticker = _mySets[section].pack[index];
 	Stickers::SetFaved(sticker, false);
-	auto unfave = true;
-	MTP::send(MTPmessages_FaveSticker(sticker->mtpInput(), MTP_bool(unfave)));
+	Auth().api().toggleFavedSticker(
+		sticker,
+		Data::FileOriginStickerSet(Stickers::FavedSetId, 0),
+		false);
 }
 
 void StickersListWidget::setColumnCount(int count) {

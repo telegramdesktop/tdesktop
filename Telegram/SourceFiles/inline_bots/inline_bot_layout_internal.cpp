@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "storage/localstorage.h"
 #include "auth_session.h"
+#include "apiwrap.h"
 #include "lang/lang_keys.h"
 
 namespace InlineBots {
@@ -117,12 +118,12 @@ void Gif::setPosition(int32 position) {
 }
 
 void DeleteSavedGifClickHandler::onClickImpl() const {
-	auto index = Auth().data().savedGifs().indexOf(_data);
+	Auth().api().toggleSavedGif(_data, Data::FileOriginSavedGifs(), false);
+
+	const auto index = Auth().data().savedGifs().indexOf(_data);
 	if (index >= 0) {
 		Auth().data().savedGifsRef().remove(index);
 		Local::writeSavedGifs();
-
-		MTP::send(MTPmessages_SaveGif(_data->mtpInput(), MTP_bool(true)));
 	}
 	Auth().data().notifySavedGifsUpdated();
 }

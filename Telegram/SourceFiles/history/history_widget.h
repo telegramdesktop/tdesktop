@@ -322,8 +322,6 @@ public:
 
 	void updateNotifyControls();
 
-	void saveGif(DocumentData *doc);
-
 	bool contentOverlapped(const QRect &globalRect);
 
 	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params);
@@ -695,8 +693,6 @@ private:
 	// Used to distinguish between user scrolls and syntetic scrolls.
 	// This one is syntetic.
 	void synteticScrollToY(int y);
-
-	void saveGifDone(DocumentData *doc, const MTPBool &result);
 
 	void reportSpamDone(PeerData *peer, const MTPBool &result, mtpRequestId request);
 	bool reportSpamFail(const RPCError &error, mtpRequestId request);
