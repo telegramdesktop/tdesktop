@@ -1636,12 +1636,15 @@ void MainWidget::documentLoadFailed(FileLoader *loader, bool started) {
 			if (document) document->save(failedFileName);
 		})));
 	} else {
-		Ui::show(Box<ConfirmBox>(lang(lng_download_path_failed), lang(lng_download_path_settings), crl::guard(this, [=] {
-			Global::SetDownloadPath(QString());
-			Global::SetDownloadPathBookmark(QByteArray());
-			Ui::show(Box<DownloadPathBox>());
-			Global::RefDownloadPathChanged().notify();
-		})));
+		// Sometimes we have LOCATION_INVALID error in documents / stickers.
+		// Sometimes FILE_REFERENCE_EXPIRED could not be handled.
+		//
+		//Ui::show(Box<ConfirmBox>(lang(lng_download_path_failed), lang(lng_download_path_settings), crl::guard(this, [=] {
+		//	Global::SetDownloadPath(QString());
+		//	Global::SetDownloadPathBookmark(QByteArray());
+		//	Ui::show(Box<DownloadPathBox>());
+		//	Global::RefDownloadPathChanged().notify();
+		//})));
 	}
 
 	if (document) {
