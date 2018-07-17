@@ -589,9 +589,27 @@ namespace {
 bool QuietHoursEnabled = false;
 DWORD QuietHoursValue = 0;
 
+bool useQuietHoursRegistryEntry() {
+	// Taken from QSysInfo.
+	OSVERSIONINFO result = { sizeof(OSVERSIONINFO), 0, 0, 0, 0,{ '\0' } };
+	if (const auto library = GetModuleHandle(L"ntdll.dll")) {
+		using RtlGetVersionFunction = NTSTATUS(NTAPI*)(LPOSVERSIONINFO);
+		const auto RtlGetVersion = reinterpret_cast<RtlGetVersionFunction>(
+			GetProcAddress(library, "RtlGetVersion"));
+		if (RtlGetVersion) {
+			RtlGetVersion(&result);
+		}
+	}
+	// At build 17134 (Redstone 4) the "Quiet hours" was replaced
+	// by "Focus assist" and it looks like it doesn't use registry.
+	return (result.dwMajorVersion == 10
+		&& result.dwMinorVersion == 0
+		&& result.dwBuildNumber < 17134);
+}
+
 // Thanks https://stackoverflow.com/questions/35600128/get-windows-quiet-hours-from-win32-or-c-sharp-api
 void queryQuietHours() {
-	if (QSysInfo::windowsVersion() < QSysInfo::WV_WINDOWS10) {
+	if (!useQuietHoursRegistryEntry()) {
 		// There are quiet hours in Windows starting from Windows 8.1
 		// But there were several reports about the notifications being shut
 		// down according to the registry while no quiet hours were enabled.
