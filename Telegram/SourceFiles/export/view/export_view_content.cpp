@@ -28,7 +28,7 @@ Content ContentFromState(const ProcessingState &state) {
 	};
 	const auto pushMain = [&](const QString &label) {
 		const auto info = (state.entityCount > 0)
-			? (QString::number(state.entityIndex)
+			? (QString::number(state.entityIndex + 1)
 				+ " / "
 				+ QString::number(state.entityCount))
 			: QString();
