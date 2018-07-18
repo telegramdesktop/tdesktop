@@ -2322,7 +2322,7 @@ void ConnectionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool byRespon
 			while (ackedCount-- > MTPIdsBufferSize) {
 				auto i = wereAcked.begin();
 				clearedBecauseTooOld.push_back(RPCCallbackClear(
-					i.key(),
+					i.value(),
 					RPCError::TimeoutError));
 				wereAcked.erase(i);
 			}
