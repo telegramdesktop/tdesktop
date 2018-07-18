@@ -297,6 +297,8 @@ public:
 	int scrollTopMax() const;
 	void scrollTo(int top);
 
+	~InputField();
+
 private slots:
 	void onTouchTimer();
 
@@ -413,7 +415,7 @@ private:
 	bool _forcePlaceholderHidden = false;
 	bool _reverseMarkdownReplacement = false;
 
-	object_ptr<Inner> _inner;
+	const std::unique_ptr<Inner> _inner;
 
 	TextWithTags _lastTextWithTags;
 	std::vector<MarkdownTag> _lastMarkdownTags;

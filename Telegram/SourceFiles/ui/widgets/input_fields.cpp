@@ -1137,7 +1137,7 @@ InputField::InputField(
 , _mode(mode)
 , _minHeight(st.heightMin)
 , _maxHeight(st.heightMax)
-, _inner(this)
+, _inner(std::make_unique<Inner>(this))
 , _lastTextWithTags(value)
 , _placeholderFactory(std::move(placeholderFactory)) {
 	_inner->setAcceptRichText(false);
@@ -1182,10 +1182,12 @@ InputField::InputField(
 	connect(&_touchTimer, SIGNAL(timeout()), this, SLOT(onTouchTimer()));
 
 	connect(_inner->document(), SIGNAL(contentsChange(int,int,int)), this, SLOT(onDocumentContentsChange(int,int,int)));
-	connect(_inner, SIGNAL(undoAvailable(bool)), this, SLOT(onUndoAvailable(bool)));
-	connect(_inner, SIGNAL(redoAvailable(bool)), this, SLOT(onRedoAvailable(bool)));
-	connect(_inner, SIGNAL(cursorPositionChanged()), this, SLOT(onCursorPositionChanged()));
-	if (App::wnd()) connect(_inner, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
+	connect(_inner.get(), SIGNAL(undoAvailable(bool)), this, SLOT(onUndoAvailable(bool)));
+	connect(_inner.get(), SIGNAL(redoAvailable(bool)), this, SLOT(onRedoAvailable(bool)));
+	connect(_inner.get(), SIGNAL(cursorPositionChanged()), this, SLOT(onCursorPositionChanged()));
+	if (App::wnd()) {
+		connect(_inner.get(), SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
+	}
 
 	const auto bar = _inner->verticalScrollBar();
 	_scrollTop = bar->value();
@@ -2463,11 +2465,11 @@ void InputField::clearFocus() {
 }
 
 not_null<QTextEdit*> InputField::rawTextEdit() {
-	return _inner;
+	return _inner.get();
 }
 
 not_null<const QTextEdit*> InputField::rawTextEdit() const {
-	return _inner;
+	return _inner.get();
 }
 
 void InputField::keyPressEventInner(QKeyEvent *e) {
@@ -3375,6 +3377,8 @@ void InputField::setErrorShown(bool error) {
 		startBorderAnimation();
 	}
 }
+
+InputField::~InputField() = default;
 
 MaskedInputField::MaskedInputField(
 	QWidget *parent,
