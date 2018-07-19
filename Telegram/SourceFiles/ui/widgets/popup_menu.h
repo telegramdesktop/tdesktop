@@ -16,8 +16,8 @@ namespace Ui {
 
 class PopupMenu : public Ui::RpWidget, private base::Subscriber {
 public:
-	PopupMenu(QWidget*, const style::PopupMenu &st = st::defaultPopupMenu);
-	PopupMenu(QWidget*, QMenu *menu, const style::PopupMenu &st = st::defaultPopupMenu);
+	PopupMenu(QWidget *parent, const style::PopupMenu &st = st::defaultPopupMenu);
+	PopupMenu(QWidget *parent, QMenu *menu, const style::PopupMenu &st = st::defaultPopupMenu);
 
 	QAction *addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
 	QAction *addAction(const QString &text, Fn<void()> callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);

@@ -33,6 +33,7 @@ public:
 	std::unique_ptr<PeerListRow> createRestoredRow(
 		not_null<PeerData*> peer) override;
 	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
+		QWidget *parent,
 		not_null<PeerListRow*> row) override;
 
 	std::unique_ptr<PeerListState> saveState() const override;

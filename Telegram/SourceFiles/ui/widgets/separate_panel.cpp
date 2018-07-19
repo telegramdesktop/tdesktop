@@ -143,7 +143,6 @@ bool SeparatePanel::eventHook(QEvent *e) {
 void SeparatePanel::initLayout() {
 	setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint)
 		| Qt::WindowStaysOnTopHint
-		| Qt::BypassWindowManagerHint
 		| Qt::NoDropShadowWindowHint
 		| Qt::Dialog);
 	setAttribute(Qt::WA_MacAlwaysShowToolWindow);

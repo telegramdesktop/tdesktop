@@ -221,7 +221,7 @@ Ui::PopupMenu *GroupMembersWidget::fillPeerMenu(PeerData *selectedPeer) {
 		return nullptr;
 	}
 	auto user = selectedPeer->asUser();
-	auto result = new Ui::PopupMenu(nullptr);
+	auto result = new Ui::PopupMenu(this);
 	result->addAction(lang(lng_context_view_profile), [selectedPeer] {
 		Ui::showPeerProfile(selectedPeer);
 	});

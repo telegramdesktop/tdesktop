@@ -251,6 +251,7 @@ void PeerListController::setSearchNoResultsText(const QString &text) {
 }
 
 base::unique_qptr<Ui::PopupMenu> PeerListController::rowContextMenu(
+		QWidget *parent,
 		not_null<PeerListRow*> row) {
 	return nullptr;
 }
@@ -1020,7 +1021,7 @@ void PeerListContent::contextMenuEvent(QContextMenuEvent *e) {
 	}
 
 	if (const auto row = getRow(_contexted.index)) {
-		_contextMenu = _controller->rowContextMenu(row);
+		_contextMenu = _controller->rowContextMenu(this, row);
 		if (_contextMenu) {
 			_contextMenu->setDestroyedCallback(crl::guard(
 				this,

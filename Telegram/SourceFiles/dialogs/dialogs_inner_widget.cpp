@@ -1514,7 +1514,7 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 		mousePressReleased(_pressButton);
 	}
 
-	_menu = base::make_unique_q<Ui::PopupMenu>(nullptr);
+	_menu = base::make_unique_q<Ui::PopupMenu>(this);
 	if (const auto history = key.history()) {
 		Window::FillPeerMenu(
 			_controller,

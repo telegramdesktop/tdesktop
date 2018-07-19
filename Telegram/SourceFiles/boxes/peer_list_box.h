@@ -345,6 +345,7 @@ public:
 	virtual void itemDeselectedHook(not_null<PeerData*> peer) {
 	}
 	virtual base::unique_qptr<Ui::PopupMenu> rowContextMenu(
+		QWidget *parent,
 		not_null<PeerListRow*> row);
 	bool isSearchLoading() const {
 		return _searchController ? _searchController->isLoading() : false;

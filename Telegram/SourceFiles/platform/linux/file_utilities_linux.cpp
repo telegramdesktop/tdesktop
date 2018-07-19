@@ -247,9 +247,6 @@ GtkDialog *QGtkDialog::gtkDialog() const {
 }
 
 void QGtkDialog::exec() {
-	if (auto w = App::wnd()) {
-		w->reActivateWindow();
-	}
 	if (modality() == Qt::ApplicationModal) {
 		// block input to the whole app, including other GTK dialogs
 		Libs::gtk_dialog_run(gtkDialog());
@@ -412,6 +409,12 @@ int GtkFileDialog::exec() {
 	setResult(0);
 
 	show();
+
+	if (const auto parent = parentWidget()) {
+		App::CallDelayed(200, parent, [=] {
+			parent->activateWindow();
+		});
+	}
 
 	QPointer<QDialog> guard = this;
 	d->exec();

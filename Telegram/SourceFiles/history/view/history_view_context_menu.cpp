@@ -434,7 +434,7 @@ void AddCopyLinkAction(
 base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 		not_null<ListWidget*> list,
 		const ContextMenuRequest &request) {
-	auto result = base::make_unique_q<Ui::PopupMenu>(nullptr);
+	auto result = base::make_unique_q<Ui::PopupMenu>(list);
 
 	const auto link = request.link;
 	const auto view = request.view;

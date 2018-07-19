@@ -188,11 +188,12 @@ void ChannelsController::rowActionClicked(not_null<PeerListRow*> row) {
 }
 
 base::unique_qptr<Ui::PopupMenu> ChannelsController::rowContextMenu(
+		QWidget *parent,
 		not_null<PeerListRow*> row) {
 	auto my = static_cast<Row*>(row.get());
 	auto channel = my->history()->peer->asChannel();
 
-	auto result = base::make_unique_q<Ui::PopupMenu>(nullptr);
+	auto result = base::make_unique_q<Ui::PopupMenu>(parent);
 	Window::PeerMenuAddMuteAction(channel, [&](
 			const QString &text,
 			Fn<void()> handler) {

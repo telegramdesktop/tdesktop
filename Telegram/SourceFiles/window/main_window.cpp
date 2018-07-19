@@ -427,7 +427,6 @@ void MainWindow::reActivateWindow() {
 			if (auto f = QApplication::focusWidget()) {
 				f->clearFocus();
 			}
-			windowHandle()->requestActivate();
 			w->activate();
 			if (auto f = QApplication::focusWidget()) {
 				f->clearFocus();

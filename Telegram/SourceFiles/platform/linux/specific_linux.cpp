@@ -94,11 +94,9 @@ QRect psDesktopRect() {
 }
 
 void psShowOverAll(QWidget *w, bool canFocus) {
-	w->show();
 }
 
 void psBringToBack(QWidget *w) {
-	w->hide();
 }
 
 QAbstractNativeEventFilter *psNativeEventFilter() {

@@ -40,6 +40,7 @@ public:
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void rowActionClicked(not_null<PeerListRow*> row) override;
 	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
+		QWidget *parent,
 		not_null<PeerListRow*> row) override;
 
 	rpl::producer<int> onlineCountValue() const override {
@@ -266,12 +267,13 @@ void ChatMembersController::rowActionClicked(
 }
 
 base::unique_qptr<Ui::PopupMenu> ChatMembersController::rowContextMenu(
+		QWidget *parent,
 		not_null<PeerListRow*> row) {
 	auto my = static_cast<MemberListRow*>(row.get());
 	auto user = my->user();
 	auto canRemoveMember = my->canRemove();
 
-	auto result = base::make_unique_q<Ui::PopupMenu>(nullptr);
+	auto result = base::make_unique_q<Ui::PopupMenu>(parent);
 	result->addAction(
 		lang(lng_context_view_profile),
 		[weak = base::make_weak(this), user] {

@@ -61,9 +61,7 @@ public:
 	rpl::producer<> checkForHide() const {
 		return _checkForHide.events();
 	}
-	bool preventAutoHide() const {
-		return (_contextMenu != nullptr) || (_actionBoxWeak != nullptr);
-	}
+	bool preventAutoHide() const;
 
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
@@ -304,7 +302,7 @@ private:
 	DragSelectAction _dragSelectAction = DragSelectAction::None;
 	bool _wasSelectedText = false; // was some text selected in current drag action
 
-	Ui::PopupMenu *_contextMenu = nullptr;
+	base::unique_qptr<Ui::PopupMenu> _contextMenu;
 	rpl::event_stream<> _checkForHide;
 	QPointer<Ui::RpWidget> _actionBoxWeak;
 	rpl::lifetime _actionBoxWeakLifetime;

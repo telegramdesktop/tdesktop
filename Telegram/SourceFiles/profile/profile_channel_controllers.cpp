@@ -704,11 +704,12 @@ bool ParticipantsBoxController::canRestrictUser(
 }
 
 base::unique_qptr<Ui::PopupMenu> ParticipantsBoxController::rowContextMenu(
+		QWidget *parent,
 		not_null<PeerListRow*> row) {
 	Expects(row->peer()->isUser());
 
 	auto user = row->peer()->asUser();
-	auto result = base::make_unique_q<Ui::PopupMenu>(nullptr);
+	auto result = base::make_unique_q<Ui::PopupMenu>(parent);
 	result->addAction(
 		lang(lng_context_view_profile),
 		[weak = base::make_weak(this), user] {

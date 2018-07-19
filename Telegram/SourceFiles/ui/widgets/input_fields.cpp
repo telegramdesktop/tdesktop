@@ -1004,7 +1004,7 @@ void FlatInput::refreshPlaceholder() {
 
 void FlatInput::contextMenuEvent(QContextMenuEvent *e) {
 	if (auto menu = createStandardContextMenu()) {
-		(new Ui::PopupMenu(nullptr, menu))->popup(e->globalPos());
+		(new Ui::PopupMenu(this, menu))->popup(e->globalPos());
 	}
 }
 
@@ -3170,7 +3170,7 @@ bool InputField::revertFormatReplace() {
 void InputField::contextMenuEventInner(QContextMenuEvent *e) {
 	if (const auto menu = _inner->createStandardContextMenu()) {
 		addMarkdownActions(menu, e);
-		_contextMenu = base::make_unique_q<Ui::PopupMenu>(nullptr, menu);
+		_contextMenu = base::make_unique_q<Ui::PopupMenu>(this, menu);
 		_contextMenu->popup(e->globalPos());
 	}
 }
@@ -3670,7 +3670,7 @@ void MaskedInputField::setPlaceholder(Fn<QString()> placeholderFactory) {
 
 void MaskedInputField::contextMenuEvent(QContextMenuEvent *e) {
 	if (auto menu = createStandardContextMenu()) {
-		(new Ui::PopupMenu(nullptr, menu))->popup(e->globalPos());
+		(new Ui::PopupMenu(this, menu))->popup(e->globalPos());
 	}
 }
 
