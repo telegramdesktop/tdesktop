@@ -33,15 +33,17 @@ BackgroundRow::BackgroundRow(QWidget *parent) : RpWidget(parent)
 	connect(_chooseFromFile, SIGNAL(clicked()), this, SIGNAL(chooseFromFile()));
 	connect(_editTheme, SIGNAL(clicked()), this, SIGNAL(editTheme()));
 	checkNonDefaultTheme();
-	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
-		if (update.type == Window::Theme::BackgroundUpdate::Type::ApplyingTheme) {
+	using Update = const Window::Theme::BackgroundUpdate;
+	subscribe(Window::Theme::Background(), [this](Update &update) {
+		if (update.type == Update::Type::ApplyingTheme
+			|| update.type == Update::Type::New) {
 			checkNonDefaultTheme();
 		}
 	});
 }
 
 void BackgroundRow::checkNonDefaultTheme() {
-	if (Window::Theme::IsNonDefaultUsed()) {
+	if (Window::Theme::SuggestThemeReset()) {
 		if (!_useDefaultTheme) {
 			_useDefaultTheme.create(this, lang(lng_settings_bg_use_default), st::boxLinkButton);
 			_useDefaultTheme->show();
@@ -190,7 +192,8 @@ BackgroundWidget::BackgroundWidget(QWidget *parent, UserData *self) : BlockWidge
 	subscribe(Window::Theme::Background(), [this](const Update &update) {
 		if (update.type == Update::Type::New) {
 			_background->updateImage();
-		} else if (update.type == Update::Type::Start) {
+		} else if (update.type == Update::Type::Start
+			|| update.type == Update::Type::Changed) {
 			needBackgroundUpdate(update.tiled);
 		}
 	});

@@ -44,7 +44,7 @@ private:
 	LabeledLink *_connectionType = nullptr;
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	Ui::SlideWrap<Ui::LinkButton> *_useDefaultTheme = nullptr;
-	Ui::SlideWrap<Ui::LinkButton> *_toggleNightTheme = nullptr;
+	Ui::LinkButton *_toggleNightTheme = nullptr;
 	Ui::LinkButton *_askQuestion = nullptr;
 	Ui::LinkButton *_telegramFAQ = nullptr;
 	Ui::LinkButton *_logOut = nullptr;

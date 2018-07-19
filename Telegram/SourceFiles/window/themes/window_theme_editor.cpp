@@ -785,9 +785,9 @@ void Editor::paintEvent(QPaintEvent *e) {
 }
 
 void Editor::Start() {
-	auto palettePath = Local::themePaletteAbsolutePath();
-	if (palettePath.isEmpty()) {
-		FileDialog::GetWritePath(App::wnd(), lang(lng_theme_editor_save_palette), "Palette (*.tdesktop-palette)", "colors.tdesktop-palette", [](const QString &path) {
+	const auto path = Background()->themeAbsolutePath();
+	if (path.isEmpty() || !Window::Theme::IsPaletteTestingPath(path)) {
+		const auto start = [](const QString &path) {
 			if (!Local::copyThemeColorsToPalette(path)) {
 				writeDefaultPalette(path);
 			}
@@ -799,9 +799,15 @@ void Editor::Start() {
 			if (auto window = App::wnd()) {
 				window->showRightColumn(Box<Editor>(path));
 			}
-		});
+		};
+		FileDialog::GetWritePath(
+			App::wnd(),
+			lang(lng_theme_editor_save_palette),
+			"Palette (*.tdesktop-palette)",
+			"colors.tdesktop-palette",
+			start);
 	} else if (auto window = App::wnd()) {
-		window->showRightColumn(Box<Editor>(palettePath));
+		window->showRightColumn(Box<Editor>(path));
 	}
 }
 

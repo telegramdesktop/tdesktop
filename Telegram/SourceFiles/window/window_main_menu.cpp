@@ -44,9 +44,10 @@ MainMenu::MainMenu(
 	checkSelf();
 
 	_nightThemeSwitch.setCallback([this] {
-		if (auto action = *_nightThemeAction) {
-			if (action->isChecked() != Window::Theme::IsNightTheme()) {
-				Window::Theme::SwitchNightTheme(action->isChecked());
+		if (const auto action = *_nightThemeAction) {
+			const auto nightMode = Window::Theme::IsNightMode();
+			if (action->isChecked() != nightMode) {
+				Window::Theme::ToggleNightMode();
 			}
 		}
 	});
@@ -104,19 +105,17 @@ void MainMenu::refreshMenu() {
 		App::wnd()->showSettings();
 	}, &st::mainMenuSettings, &st::mainMenuSettingsOver);
 
-	if (!Window::Theme::IsNonDefaultUsed()) {
-		_nightThemeAction = std::make_shared<QPointer<QAction>>(nullptr);
-		auto action = _menu->addAction(lang(lng_menu_night_mode), [this] {
-			if (auto action = *_nightThemeAction) {
-				action->setChecked(!action->isChecked());
-				_nightThemeSwitch.callOnce(st::mainMenu.itemToggle.duration);
-			}
-		}, &st::mainMenuNightMode, &st::mainMenuNightModeOver);
-		*_nightThemeAction = action;
-		action->setCheckable(true);
-		action->setChecked(Window::Theme::IsNightTheme());
-		_menu->finishAnimating();
-	}
+	_nightThemeAction = std::make_shared<QPointer<QAction>>(nullptr);
+	auto action = _menu->addAction(lang(lng_menu_night_mode), [this] {
+		if (auto action = *_nightThemeAction) {
+			action->setChecked(!action->isChecked());
+			_nightThemeSwitch.callOnce(st::mainMenu.itemToggle.duration);
+		}
+	}, &st::mainMenuNightMode, &st::mainMenuNightModeOver);
+	*_nightThemeAction = action;
+	action->setCheckable(true);
+	action->setChecked(Window::Theme::IsNightMode());
+	_menu->finishAnimating();
 
 	updatePhone();
 }

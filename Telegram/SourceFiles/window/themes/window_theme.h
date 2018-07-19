@@ -30,7 +30,13 @@ struct Cached {
 	int32 paletteChecksum = 0;
 	int32 contentChecksum = 0;
 };
-bool Load(const QString &pathRelative, const QString &pathAbsolute, const QByteArray &content, Cached &cache);
+struct Saved {
+	QString pathRelative;
+	QString pathAbsolute;
+	QByteArray content;
+	Cached cache;
+};
+bool Load(Saved &&saved);
 void Unload();
 
 struct Instance {
@@ -41,7 +47,8 @@ struct Instance {
 };
 
 struct Preview {
-	QString path;
+	QString pathRelative;
+	QString pathAbsolute;
 	Instance instance;
 	QByteArray content;
 	QImage preview;
@@ -52,9 +59,12 @@ bool Apply(std::unique_ptr<Preview> preview);
 void ApplyDefault();
 bool ApplyEditedPalette(const QString &path, const QByteArray &content);
 void KeepApplied();
-bool IsNonDefaultUsed();
-bool IsNightTheme();
-void SwitchNightTheme(bool enabled);
+QString NightThemePath();
+bool IsNightMode();
+void SetNightModeValue(bool nightMode);
+void ToggleNightMode();
+bool IsNonDefaultThemeOrBackground();
+bool SuggestThemeReset();
 void Revert();
 
 bool LoadFromFile(const QString &file, Instance *out, QByteArray *outContent);
@@ -88,6 +98,10 @@ public:
 	void start();
 	void setImage(int32 id, QImage &&image = QImage());
 	void setTile(bool tile);
+	void setTileDayValue(bool tile);
+	void setTileNightValue(bool tile);
+	void setThemeAbsolutePath(const QString &path);
+	QString themeAbsolutePath() const;
 	void reset();
 
 	enum class ChangeMode {
@@ -96,7 +110,6 @@ public:
 	};
 	void setTestingTheme(Instance &&theme, ChangeMode mode = ChangeMode::SwitchToThemeBackground);
 	void setTestingDefaultTheme();
-	void keepApplied();
 	void revert();
 
 	int32 id() const;
@@ -107,7 +120,8 @@ public:
 		return _pixmapForTiled;
 	}
 	bool tile() const;
-	bool tileForSave() const;
+	bool tileDay() const;
+	bool tileNight() const;
 
 private:
 	void ensureStarted();
@@ -115,11 +129,26 @@ private:
 	void setPreparedImage(QImage &&image);
 	void writeNewBackgroundSettings();
 
+	void setNightModeValue(bool nightMode);
+	bool nightMode() const;
+	void toggleNightMode();
+	void keepApplied(const QString &path, bool write);
+	bool isNonDefaultThemeOrBackground() const;
+
+	friend bool IsNightMode();
+	friend void SetNightModeValue(bool nightMode);
+	friend void ToggleNightMode();
+	friend void KeepApplied();
+	friend bool IsNonDefaultThemeOrBackground();
+
 	int32 _id = internal::kUninitializedBackground;
 	QPixmap _pixmap;
 	QPixmap _pixmapForTiled;
-	bool _tile = false;
+	bool _nightMode = false;
+	bool _tileDayValue = false;
+	bool _tileNightValue = true;
 
+	QString _themeAbsolutePath;
 	QImage _themeImage;
 	bool _themeTile = false;
 

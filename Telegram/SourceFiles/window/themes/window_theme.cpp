@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/themes/window_theme.h"
 
+#include "window/themes/window_theme_preview.h"
 #include "mainwidget.h"
 #include "storage/localstorage.h"
 #include "base/parse_helper.h"
@@ -27,7 +28,8 @@ constexpr auto kNightThemeFile = str_const(":/gui/night.tdesktop-theme");
 
 struct Data {
 	struct Applying {
-		QString path;
+		QString pathRelative;
+		QString pathAbsolute;
 		QByteArray content;
 		QByteArray paletteForRevert;
 		Cached cached;
@@ -195,7 +197,7 @@ void applyBackground(QImage &&background, bool tiled, Instance *out) {
 	}
 }
 
-bool loadThemeFromCache(const QByteArray &content, Cached &cache) {
+bool loadThemeFromCache(const QByteArray &content, const Cached &cache) {
 	if (cache.paletteChecksum != style::palette::Checksum()) {
 		return false;
 	}
@@ -205,8 +207,8 @@ bool loadThemeFromCache(const QByteArray &content, Cached &cache) {
 
 	QImage background;
 	if (!cache.background.isEmpty()) {
-		QBuffer buffer(&cache.background);
-		QImageReader reader(&buffer);
+		QDataStream stream(cache.background);
+		QImageReader reader(stream.device());
 #ifndef OS_MAC_OLD
 		reader.setAutoTransform(true);
 #endif // OS_MAC_OLD
@@ -364,6 +366,24 @@ void adjustColorsUsingBackground(const QImage &img) {
 	adjustColor(st::historyScroll.barBgOver, hue, saturation);
 }
 
+void ApplyDefaultWithNightMode(bool nightMode) {
+	if (nightMode) {
+		if (auto preview = PreviewFromFile(NightThemePath())) {
+			Apply(std::move(preview));
+		}
+	} else {
+		instance.createIfNull();
+		instance->applying.pathRelative = QString();
+		instance->applying.pathAbsolute = QString();
+		instance->applying.content = QByteArray();
+		instance->applying.cached = Cached();
+		if (instance->applying.paletteForRevert.isEmpty()) {
+			instance->applying.paletteForRevert = style::main_palette::save();
+		}
+		Background()->setTestingDefaultTheme();
+	}
+}
+
 } // namespace
 
 void ChatBackground::setThemeData(QImage &&themeImage, bool themeTile) {
@@ -380,7 +400,10 @@ void ChatBackground::start() {
 }
 
 void ChatBackground::setImage(int32 id, QImage &&image) {
-	auto resetPalette = (id == kDefaultBackground && _id != kDefaultBackground && !Local::hasTheme());
+	auto resetPalette = (id == kDefaultBackground)
+		&& (_id != kDefaultBackground)
+		&& !nightMode()
+		&& _themeAbsolutePath.isEmpty();
 	if (id == kThemeBackground && _themeImage.isNull()) {
 		id = kDefaultBackground;
 	} else if (resetPalette) {
@@ -392,7 +415,7 @@ void ChatBackground::setImage(int32 id, QImage &&image) {
 	}
 	_id = id;
 	if (_id == kThemeBackground) {
-		_tile = _themeTile;
+		(nightMode() ? _tileNightValue : _tileDayValue) = _themeTile;
 		setPreparedImage(QImage(_themeImage));
 	} else if (_id == internal::kTestingThemeBackground
 		|| _id == internal::kTestingDefaultBackground
@@ -418,10 +441,10 @@ void ChatBackground::setImage(int32 id, QImage &&image) {
 		setPreparedImage(prepareBackgroundImage(std::move(image)));
 	}
 	Assert(!_pixmap.isNull() && !_pixmapForTiled.isNull());
-	notify(BackgroundUpdate(BackgroundUpdate::Type::New, _tile));
+	notify(BackgroundUpdate(BackgroundUpdate::Type::New, tile()));
 	if (resetPalette) {
-		notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, _tile), true);
-		notify(BackgroundUpdate(BackgroundUpdate::Type::ApplyingTheme, _tile), true);
+		notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, tile()), true);
+		notify(BackgroundUpdate(BackgroundUpdate::Type::ApplyingTheme, tile()), true);
 	}
 }
 
@@ -429,33 +452,30 @@ void ChatBackground::setPreparedImage(QImage &&image) {
 	image = std::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(cRetinaFactor());
 
-	auto adjustColors = [this] {
-		auto someThemeApplied = [] {
-			if (AreTestingTheme()) {
-				return !instance->applying.path.isEmpty();
-			}
-			return IsNonDefaultUsed() || IsNightTheme();
+	auto adjustColors = [&] {
+		const auto usingThemeBackground = [&] {
+			return (_id == kThemeBackground)
+				|| (_id == internal::kTestingThemeBackground);
 		};
-		auto usingThemeBackground = [this] {
-			return (_id == kThemeBackground || _id == internal::kTestingThemeBackground);
+		const auto usingDefaultBackground = [&] {
+			return (_id == kDefaultBackground)
+				|| (_id == internal::kTestingDefaultBackground);
 		};
-		auto usingDefaultBackground = [this] {
-			return (_id == kDefaultBackground || _id == internal::kTestingDefaultBackground);
-		};
-		auto testingPalette = [] {
-			if (AreTestingTheme()) {
-				return IsPaletteTestingPath(instance->applying.path);
-			}
-			return !Local::themePaletteAbsolutePath().isEmpty();
+		const auto testingPalette = [&] {
+			const auto path = AreTestingTheme()
+				? instance->applying.pathAbsolute
+				: _themeAbsolutePath;
+			return IsPaletteTestingPath(path);
 		};
 
-		if (someThemeApplied()) {
-			return !usingThemeBackground() && !testingPalette();
+		if (testingPalette()) {
+			return false;
+		} else if (IsNonDefaultThemeOrBackground() || nightMode()) {
+			return !usingThemeBackground();
 		}
 		return !usingDefaultBackground();
-	};
-
-	if (adjustColors()) {
+	}();
+	if (adjustColors) {
 		adjustColorsUsingBackground(image);
 	}
 
@@ -494,15 +514,27 @@ int32 ChatBackground::id() const {
 }
 
 bool ChatBackground::tile() const {
-	return _tile;
+	return nightMode() ? _tileNightValue : _tileDayValue;
 }
 
-bool ChatBackground::tileForSave() const {
+bool ChatBackground::tileDay() const {
 	if (_id == internal::kTestingThemeBackground ||
 		_id == internal::kTestingDefaultBackground) {
-		return _tileForRevert;
+		if (!nightMode()) {
+			return _tileForRevert;
+		}
 	}
-	return tile();
+	return _tileDayValue;
+}
+
+bool ChatBackground::tileNight() const {
+	if (_id == internal::kTestingThemeBackground ||
+		_id == internal::kTestingDefaultBackground) {
+		if (nightMode()) {
+			return _tileForRevert;
+		}
+	}
+	return _tileNightValue;
 }
 
 void ChatBackground::ensureStarted() {
@@ -515,17 +547,42 @@ void ChatBackground::ensureStarted() {
 
 void ChatBackground::setTile(bool tile) {
 	ensureStarted();
-	if (_tile != tile) {
-		_tile = tile;
-		if (_id != internal::kTestingThemeBackground && _id != internal::kTestingDefaultBackground) {
+	const auto old = this->tile();
+	if (nightMode()) {
+		setTileNightValue(tile);
+	} else {
+		setTileDayValue(tile);
+	}
+	if (this->tile() != old) {
+		if (_id != internal::kTestingThemeBackground
+			&& _id != internal::kTestingDefaultBackground) {
 			Local::writeUserSettings();
 		}
-		notify(BackgroundUpdate(BackgroundUpdate::Type::Changed, _tile));
+		notify(BackgroundUpdate(BackgroundUpdate::Type::Changed, tile));
 	}
 }
 
+void ChatBackground::setTileDayValue(bool tile) {
+	ensureStarted();
+	_tileDayValue = tile;
+}
+
+void ChatBackground::setTileNightValue(bool tile) {
+	ensureStarted();
+	_tileNightValue = tile;
+}
+
+void ChatBackground::setThemeAbsolutePath(const QString &path) {
+	_themeAbsolutePath = path;
+}
+
+QString ChatBackground::themeAbsolutePath() const {
+	return _themeAbsolutePath;
+}
+
 void ChatBackground::reset() {
-	if (_id == internal::kTestingThemeBackground || _id == internal::kTestingDefaultBackground) {
+	if (_id == internal::kTestingThemeBackground
+		|| _id == internal::kTestingDefaultBackground) {
 		if (_themeImage.isNull()) {
 			_idForRevert = kDefaultBackground;
 			_imageForRevert = QImage();
@@ -542,10 +599,11 @@ void ChatBackground::reset() {
 
 void ChatBackground::saveForRevert() {
 	ensureStarted();
-	if (_id != internal::kTestingThemeBackground && _id != internal::kTestingDefaultBackground) {
+	if (_id != internal::kTestingThemeBackground
+		&& _id != internal::kTestingDefaultBackground) {
 		_idForRevert = _id;
 		_imageForRevert = std::move(_pixmap).toImage();
-		_tileForRevert = _tile;
+		_tileForRevert = tile();
 	}
 }
 
@@ -553,8 +611,10 @@ void ChatBackground::setTestingTheme(Instance &&theme, ChangeMode mode) {
 	style::main_palette::apply(theme.palette);
 	auto switchToThemeBackground = (mode == ChangeMode::SwitchToThemeBackground && !theme.background.isNull())
 		|| (_id == kThemeBackground)
-		|| (_id == kDefaultBackground && !Local::hasTheme());
-	if (AreTestingTheme() && IsPaletteTestingPath(instance->applying.path)) {
+		|| (_id == kDefaultBackground
+			&& !nightMode()
+			&& _themeAbsolutePath.isEmpty());
+	if (AreTestingTheme() && IsPaletteTestingPath(instance->applying.pathAbsolute)) {
 		// Grab current background image if it is not already custom
 		if (_id != kCustomBackground) {
 			saveForRevert();
@@ -568,47 +628,61 @@ void ChatBackground::setTestingTheme(Instance &&theme, ChangeMode mode) {
 		// Apply current background image so that service bg colors are recounted.
 		setImage(_id, std::move(_pixmap).toImage());
 	}
-	notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, _tile), true);
+	notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, tile()), true);
 }
 
 void ChatBackground::setTestingDefaultTheme() {
 	style::main_palette::reset();
-	if (_id == kThemeBackground) {
-		saveForRevert();
-		setImage(internal::kTestingDefaultBackground);
-		setTile(false);
-	} else {
-		// Apply current background image so that service bg colors are recounted.
-		setImage(_id, std::move(_pixmap).toImage());
-	}
-	notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, _tile), true);
+	saveForRevert();
+	setImage(internal::kTestingDefaultBackground);
+	setTile(false);
+	notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, tile()), true);
 }
 
-void ChatBackground::keepApplied() {
+void ChatBackground::keepApplied(const QString &path, bool write) {
+	setThemeAbsolutePath(path);
 	if (_id == internal::kTestingEditorBackground) {
 		_id = kCustomBackground;
 		_themeImage = QImage();
 		_themeTile = false;
-		writeNewBackgroundSettings();
+		if (write) {
+			writeNewBackgroundSettings();
+		}
 	} else if (_id == internal::kTestingThemeBackground) {
 		_id = kThemeBackground;
 		_themeImage = _pixmap.toImage();
-		_themeTile = _tile;
-		writeNewBackgroundSettings();
+		_themeTile = tile();
+		if (write) {
+			writeNewBackgroundSettings();
+		}
 	} else if (_id == internal::kTestingDefaultBackground) {
 		_id = kDefaultBackground;
 		_themeImage = QImage();
 		_themeTile = false;
-		writeNewBackgroundSettings();
+		if (write) {
+			writeNewBackgroundSettings();
+		}
 	}
-	notify(BackgroundUpdate(BackgroundUpdate::Type::ApplyingTheme, _tile), true);
+	notify(BackgroundUpdate(BackgroundUpdate::Type::ApplyingTheme, tile()), true);
+}
+
+bool ChatBackground::isNonDefaultThemeOrBackground() const {
+	return nightMode()
+		? (_themeAbsolutePath != NightThemePath()
+			|| _id != kThemeBackground)
+		: (!_themeAbsolutePath.isEmpty()
+			|| _id != kDefaultBackground);
 }
 
 void ChatBackground::writeNewBackgroundSettings() {
-	if (_tile != _tileForRevert) {
+	if (tile() != _tileForRevert) {
 		Local::writeUserSettings();
 	}
-	Local::writeBackground(_id, (_id == kThemeBackground || _id == kDefaultBackground) ? QImage() : _pixmap.toImage());
+	Local::writeBackground(
+		_id,
+		((_id == kThemeBackground || _id == kDefaultBackground)
+			? QImage()
+			: _pixmap.toImage()));
 }
 
 void ChatBackground::revert() {
@@ -621,30 +695,100 @@ void ChatBackground::revert() {
 		// Apply current background image so that service bg colors are recounted.
 		setImage(_id, std::move(_pixmap).toImage());
 	}
-	notify(BackgroundUpdate(BackgroundUpdate::Type::RevertingTheme, _tile), true);
+	notify(BackgroundUpdate(BackgroundUpdate::Type::RevertingTheme, tile()), true);
 }
 
+void ChatBackground::setNightModeValue(bool nightMode) {
+	_nightMode = nightMode;
+}
+
+bool ChatBackground::nightMode() const {
+	return _nightMode;
+}
+
+void ChatBackground::toggleNightMode() {
+	const auto oldNightMode = _nightMode;
+	const auto newNightMode = !_nightMode;
+	_nightMode = newNightMode;
+	auto read = Local::readThemeAfterSwitch();
+	auto path = read.pathAbsolute;
+
+	_nightMode = oldNightMode;
+	auto oldTileValue = (_nightMode ? _tileNightValue : _tileDayValue);
+	const auto applied = [&] {
+		if (read.content.isEmpty()) {
+			return false;
+		}
+		auto preview = std::make_unique<Preview>();
+		preview->pathAbsolute = std::move(read.pathAbsolute);
+		preview->pathRelative = std::move(read.pathRelative);
+		preview->content = std::move(read.content);
+		preview->instance.cached = std::move(read.cache);
+		const auto loaded = loadTheme(
+			preview->content,
+			preview->instance.cached,
+			&preview->instance);
+		if (!loaded) {
+			return false;
+		}
+		Apply(std::move(preview));
+		return true;
+	}();
+	if (!applied) {
+		path = newNightMode ? NightThemePath() : QString();
+		ApplyDefaultWithNightMode(newNightMode);
+	}
+
+	// Theme editor could have already reverted the testing of this toggle.
+	if (AreTestingTheme()) {
+		_nightMode = newNightMode;
+		if (oldNightMode) {
+			_tileDayValue = _tileNightValue;
+			_tileNightValue = oldTileValue;
+		} else {
+			_tileNightValue = _tileDayValue;
+			_tileDayValue = oldTileValue;
+		}
+
+		// We don't call full KeepApplied() here, because
+		// we don't need to write theme or overwrite current background.
+		instance->applying = Data::Applying();
+		Local::writeSettings();
+		keepApplied(path, false);
+		if (tile() != _tileForRevert) {
+			Local::writeUserSettings();
+		}
+
+		if (!Local::readBackground()) {
+			setImage(kThemeBackground);
+		}
+	}
+}
 
 ChatBackground *Background() {
 	instance.createIfNull();
 	return &instance->background;
 }
 
-bool Load(const QString &pathRelative, const QString &pathAbsolute, const QByteArray &content, Cached &cache) {
-	if (content.size() < 4) {
-		LOG(("Theme Error: Could not load theme from '%1' (%2)").arg(pathRelative).arg(pathAbsolute));
+bool Load(Saved &&saved) {
+	if (saved.content.size() < 4) {
+		LOG(("Theme Error: Could not load theme from '%1' (%2)"
+			).arg(saved.pathRelative
+			).arg(saved.pathAbsolute));
 		return false;
 	}
 
 	instance.createIfNull();
-	if (loadThemeFromCache(content, cache)) {
+	if (loadThemeFromCache(saved.content, saved.cache)) {
+		Background()->setThemeAbsolutePath(saved.pathAbsolute);
 		return true;
 	}
 
-	if (!loadTheme(content, cache)) {
+	if (!loadTheme(saved.content, saved.cache)) {
 		return false;
 	}
-	Local::writeTheme(pathRelative, pathAbsolute, content, cache);
+	Local::writeTheme(saved);
+	Background()->setThemeAbsolutePath(saved.pathAbsolute);
 	return true;
 }
 
@@ -653,38 +797,16 @@ void Unload() {
 }
 
 bool Apply(const QString &filepath) {
-	auto preview = std::make_unique<Preview>();
-	preview->path = filepath;
-	if (!LoadFromFile(preview->path, &preview->instance, &preview->content)) {
-		return false;
+	if (auto preview = PreviewFromFile(filepath)) {
+		return Apply(std::move(preview));
 	}
-	return Apply(std::move(preview));
-}
-
-void SwitchNightTheme(bool enabled) {
-	if (enabled) {
-		auto preview = std::make_unique<Preview>();
-		preview->path = str_const_toString(kNightThemeFile);
-		if (!LoadFromFile(preview->path, &preview->instance, &preview->content)) {
-			return;
-		}
-		instance.createIfNull();
-		instance->applying.path = std::move(preview->path);
-		instance->applying.content = std::move(preview->content);
-		instance->applying.cached = std::move(preview->instance.cached);
-		if (instance->applying.paletteForRevert.isEmpty()) {
-			instance->applying.paletteForRevert = style::main_palette::save();
-		}
-		Background()->setTestingTheme(std::move(preview->instance), ChatBackground::ChangeMode::LeaveCurrentCustomBackground);
-	} else {
-		Window::Theme::ApplyDefault();
-	}
-	KeepApplied();
+	return false;
 }
 
 bool Apply(std::unique_ptr<Preview> preview) {
 	instance.createIfNull();
-	instance->applying.path = std::move(preview->path);
+	instance->applying.pathRelative = std::move(preview->pathRelative);
+	instance->applying.pathAbsolute = std::move(preview->pathAbsolute);
 	instance->applying.content = std::move(preview->content);
 	instance->applying.cached = std::move(preview->instance.cached);
 	if (instance->applying.paletteForRevert.isEmpty()) {
@@ -695,14 +817,7 @@ bool Apply(std::unique_ptr<Preview> preview) {
 }
 
 void ApplyDefault() {
-	instance.createIfNull();
-	instance->applying.path = QString();
-	instance->applying.content = QByteArray();
-	instance->applying.cached = Cached();
-	if (instance->applying.paletteForRevert.isEmpty()) {
-		instance->applying.paletteForRevert = style::main_palette::save();
-	}
-	Background()->setTestingDefaultTheme();
+	ApplyDefaultWithNightMode(IsNightMode());
 }
 
 bool ApplyEditedPalette(const QString &path, const QByteArray &content) {
@@ -715,7 +830,12 @@ bool ApplyEditedPalette(const QString &path, const QByteArray &content) {
 	out.cached.contentChecksum = hashCrc32(content.constData(), content.size());
 
 	instance.createIfNull();
-	instance->applying.path = path;
+	instance->applying.pathRelative = path.isEmpty()
+		? QString()
+		: QDir().relativeFilePath(path);
+	instance->applying.pathAbsolute = path.isEmpty()
+		? QString()
+		: QFileInfo(path).absoluteFilePath();
 	instance->applying.content = content;
 	instance->applying.cached = out.cached;
 	if (instance->applying.paletteForRevert.isEmpty()) {
@@ -727,31 +847,52 @@ bool ApplyEditedPalette(const QString &path, const QByteArray &content) {
 }
 
 void KeepApplied() {
-	if (!instance) {
+	if (!AreTestingTheme()) {
 		return;
 	}
-	auto filepath = instance->applying.path;
-	auto pathRelative = filepath.isEmpty() ? QString() : QDir().relativeFilePath(filepath);
-	auto pathAbsolute = filepath.isEmpty() ? QString() : QFileInfo(filepath).absoluteFilePath();
-	Local::writeTheme(pathRelative, pathAbsolute, instance->applying.content, instance->applying.cached);
+	auto saved = Saved();
+	saved.pathRelative = instance->applying.pathRelative;
+	saved.pathAbsolute = instance->applying.pathAbsolute;
+	saved.content = std::move(instance->applying.content);
+	saved.cache = std::move(instance->applying.cached);
+	Local::writeTheme(saved);
 	instance->applying = Data::Applying();
-	Background()->keepApplied();
+	Background()->keepApplied(saved.pathAbsolute, true);
 }
 
 void Revert() {
-	if (!instance->applying.paletteForRevert.isEmpty()) {
-		style::main_palette::load(instance->applying.paletteForRevert);
+	if (!AreTestingTheme()) {
+		return;
 	}
+	style::main_palette::load(instance->applying.paletteForRevert);
 	instance->applying = Data::Applying();
 	Background()->revert();
 }
 
-bool IsNightTheme() {
-	return (Local::themeAbsolutePath() == str_const_toString(kNightThemeFile));
+QString NightThemePath() {
+	return str_const_toString(kNightThemeFile);
 }
 
-bool IsNonDefaultUsed() {
-	return Local::hasTheme() && !IsNightTheme();
+bool IsNonDefaultThemeOrBackground() {
+	return Background()->isNonDefaultThemeOrBackground();
+}
+
+bool IsNightMode() {
+	return instance ? Background()->nightMode() : false;
+}
+
+void SetNightModeValue(bool nightMode) {
+	if (instance || nightMode) {
+		Background()->setNightModeValue(nightMode);
+	}
+}
+
+void ToggleNightMode() {
+	Background()->toggleNightMode();
+}
+
+bool SuggestThemeReset() {
+	return IsNonDefaultThemeOrBackground();
 }
 
 bool LoadFromFile(const QString &path, Instance *out, QByteArray *outContent) {

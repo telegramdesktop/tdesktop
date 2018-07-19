@@ -491,7 +491,7 @@ enum { // Local Storage Keys
 	lskStickerImages = 0x05, // data: StorageKey location
 	lskAudios = 0x06, // data: StorageKey location
 	lskRecentStickersOld = 0x07, // no data
-	lskBackground = 0x08, // no data
+	lskBackgroundOld = 0x08, // no data
 	lskUserSettings = 0x09, // no data
 	lskRecentHashtagsAndBots = 0x0a, // no data
 	lskStickersOld = 0x0b, // no data
@@ -503,6 +503,7 @@ enum { // Local Storage Keys
 	lskTrustedBots = 0x11, // no data
 	lskFavedStickers = 0x12, // no data
 	lskExportSettings = 0x13, // no data
+	lskBackground = 0x14, // no data
 };
 
 enum {
@@ -539,7 +540,7 @@ enum {
 	dbiCompressPastedImage = 0x1e,
 	dbiLangOld = 0x1f,
 	dbiLangFileOld = 0x20,
-	dbiTileBackground = 0x21,
+	dbiTileBackgroundOld = 0x21,
 	dbiAutoLock = 0x22,
 	dbiDialogLastPath = 0x23,
 	dbiRecentEmojiOld = 0x24,
@@ -567,7 +568,7 @@ enum {
 	dbiNativeNotifications = 0x44,
 	dbiNotificationsCount  = 0x45,
 	dbiNotificationsCorner = 0x46,
-	dbiThemeKey = 0x47,
+	dbiThemeKeyOld = 0x47,
 	dbiDialogsWidthRatioOld = 0x48,
 	dbiUseExternalVideoPlayer = 0x49,
 	dbiDcOptions = 0x4a,
@@ -580,6 +581,8 @@ enum {
 	dbiSuggestStickersByEmoji = 0x51,
 	dbiSuggestEmoji = 0x52,
 	dbiTxtDomainString = 0x53,
+	dbiThemeKey = 0x54,
+	dbiTileBackground = 0x55,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -624,13 +627,17 @@ FileKey _recentStickersKeyOld = 0;
 FileKey _installedStickersKey = 0, _featuredStickersKey = 0, _recentStickersKey = 0, _favedStickersKey = 0, _archivedStickersKey = 0;
 FileKey _savedGifsKey = 0;
 
-FileKey _backgroundKey = 0;
-bool _backgroundWasRead = false;
+FileKey _backgroundKeyDay = 0;
+FileKey _backgroundKeyNight = 0;
 bool _backgroundCanWrite = true;
 
-FileKey _themeKey = 0;
-QString _themeAbsolutePath;
-QString _themePaletteAbsolutePath;
+FileKey _themeKeyDay = 0;
+FileKey _themeKeyNight = 0;
+
+// Theme key legacy may be read in start() with settings.
+// But it should be moved to keyDay or keyNight inside loadTheme()
+// and never used after.
+FileKey _themeKeyLegacy = 0;
 
 bool _readingUserSettings = false;
 FileKey _userSettingsKey = 0;
@@ -1277,12 +1284,23 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		Sandbox::refreshGlobalProxy();
 	} break;
 
-	case dbiThemeKey: {
-		quint64 themeKey = 0;
-		stream >> themeKey;
+	case dbiThemeKeyOld: {
+		quint64 key = 0;
+		stream >> key;
 		if (!_checkStreamStatus(stream)) return false;
 
-		_themeKey = themeKey;
+		_themeKeyLegacy = key;
+	} break;
+
+	case dbiThemeKey: {
+		quint64 keyDay = 0, keyNight = 0;
+		quint32 nightMode = 0;
+		stream >> keyDay >> keyNight >> nightMode;
+		if (!_checkStreamStatus(stream)) return false;
+
+		_themeKeyDay = keyDay;
+		_themeKeyNight = keyNight;
+		Window::Theme::SetNightModeValue(nightMode == 1);
 	} break;
 
 	case dbiLangPackKey: {
@@ -1413,13 +1431,28 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		if (!_checkStreamStatus(stream)) return false;
 	} break;
 
-	case dbiTileBackground: {
+	case dbiTileBackgroundOld: {
 		qint32 v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		bool tile = (version < 8005 && !_backgroundKey) ? false : (v == 1);
-		Window::Theme::Background()->setTile(tile);
+		bool tile = (version < 8005 && !_backgroundKeyDay)
+			? false
+			: (v == 1);
+		if (Window::Theme::IsNightMode()) {
+			Window::Theme::Background()->setTileNightValue(tile);
+		} else {
+			Window::Theme::Background()->setTileDayValue(tile);
+		}
+	} break;
+
+	case dbiTileBackground: {
+		qint32 tileDay, tileNight;
+		stream >> tileDay >> tileNight;
+		if (!_checkStreamStatus(stream)) return false;
+
+		Window::Theme::Background()->setTileDayValue(tileDay == 1);
+		Window::Theme::Background()->setTileNightValue(tileNight == 1);
 	} break;
 
 	case dbiAdaptiveForWide: {
@@ -1873,7 +1906,7 @@ void _writeUserSettings() {
 		? userDataInstance->serialize()
 		: QByteArray();
 
-	uint32 size = 23 * (sizeof(quint32) + sizeof(qint32));
+	uint32 size = 22 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::stringSize(Global::AskDownloadPath() ? QString() : Global::DownloadPath()) + Serialize::bytearraySize(Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
 
 	size += sizeof(quint32) + sizeof(qint32);
@@ -1886,6 +1919,7 @@ void _writeUserSettings() {
 	size += sizeof(quint32) + Serialize::stringSize(cDialogLastPath());
 	size += sizeof(quint32) + 3 * sizeof(qint32);
 	size += sizeof(quint32) + 2 * sizeof(qint32);
+	size += sizeof(quint32) + 2 * sizeof(qint32);
 	if (!Global::HiddenPinnedMessages().isEmpty()) {
 		size += sizeof(quint32) + sizeof(qint32) + Global::HiddenPinnedMessages().size() * (sizeof(PeerId) + sizeof(MsgId));
 	}
@@ -1895,7 +1929,10 @@ void _writeUserSettings() {
 
 	EncryptedDescriptor data(size);
 	data.stream << quint32(dbiSendKey) << qint32(cCtrlEnter() ? dbiskCtrlEnter : dbiskEnter);
-	data.stream << quint32(dbiTileBackground) << qint32(Window::Theme::Background()->tileForSave() ? 1 : 0);
+	data.stream
+		<< quint32(dbiTileBackground)
+		<< qint32(Window::Theme::Background()->tileDay() ? 1 : 0)
+		<< qint32(Window::Theme::Background()->tileNight() ? 1 : 0);
 	data.stream << quint32(dbiAdaptiveForWide) << qint32(Global::AdaptiveForWide() ? 1 : 0);
 	data.stream << quint32(dbiAutoLock) << qint32(Global::AutoLock());
 	data.stream << quint32(dbiReplaceEmoji) << qint32(Global::ReplaceEmoji() ? 1 : 0);
@@ -2076,7 +2113,8 @@ ReadMapState _readMap(const QByteArray &pass) {
 	quint64 recentStickersKeyOld = 0;
 	quint64 installedStickersKey = 0, featuredStickersKey = 0, recentStickersKey = 0, favedStickersKey = 0, archivedStickersKey = 0;
 	quint64 savedGifsKey = 0;
-	quint64 backgroundKey = 0, userSettingsKey = 0, recentHashtagsAndBotsKey = 0, savedPeersKey = 0, exportSettingsKey = 0;
+	quint64 backgroundKeyDay = 0, backgroundKeyNight = 0;
+	quint64 userSettingsKey = 0, recentHashtagsAndBotsKey = 0, savedPeersKey = 0, exportSettingsKey = 0;
 	while (!map.stream.atEnd()) {
 		quint32 keyType;
 		map.stream >> keyType;
@@ -2150,8 +2188,13 @@ ReadMapState _readMap(const QByteArray &pass) {
 		case lskRecentStickersOld: {
 			map.stream >> recentStickersKeyOld;
 		} break;
+		case lskBackgroundOld: {
+			map.stream >> (Window::Theme::IsNightMode()
+				? backgroundKeyNight
+				: backgroundKeyDay);
+		} break;
 		case lskBackground: {
-			map.stream >> backgroundKey;
+			map.stream >> backgroundKeyDay >> backgroundKeyNight;
 		} break;
 		case lskUserSettings: {
 			map.stream >> userSettingsKey;
@@ -2212,7 +2255,8 @@ ReadMapState _readMap(const QByteArray &pass) {
 	_archivedStickersKey = archivedStickersKey;
 	_savedGifsKey = savedGifsKey;
 	_savedPeersKey = savedPeersKey;
-	_backgroundKey = backgroundKey;
+	_backgroundKeyDay = backgroundKeyDay;
+	_backgroundKeyNight = backgroundKeyNight;
 	_userSettingsKey = userSettingsKey;
 	_recentHashtagsAndBotsKey = recentHashtagsAndBotsKey;
 	_exportSettingsKey = exportSettingsKey;
@@ -2291,7 +2335,7 @@ void _writeMap(WriteMapWhen when) {
 	if (_favedStickersKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_savedGifsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_savedPeersKey) mapSize += sizeof(quint32) + sizeof(quint64);
-	if (_backgroundKey) mapSize += sizeof(quint32) + sizeof(quint64);
+	if (_backgroundKeyDay || _backgroundKeyNight) mapSize += sizeof(quint32) + sizeof(quint64) + sizeof(quint64);
 	if (_userSettingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_recentHashtagsAndBotsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_exportSettingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
@@ -2363,8 +2407,11 @@ void _writeMap(WriteMapWhen when) {
 	if (_savedPeersKey) {
 		mapData.stream << quint32(lskSavedPeers) << quint64(_savedPeersKey);
 	}
-	if (_backgroundKey) {
-		mapData.stream << quint32(lskBackground) << quint64(_backgroundKey);
+	if (_backgroundKeyDay || _backgroundKeyNight) {
+		mapData.stream
+			<< quint32(lskBackground)
+			<< quint64(_backgroundKeyDay)
+			<< quint64(_backgroundKeyNight);
 	}
 	if (_userSettingsKey) {
 		mapData.stream << quint32(lskUserSettings) << quint64(_userSettingsKey);
@@ -2396,7 +2443,7 @@ void finish() {
 	}
 }
 
-void readTheme();
+void loadTheme();
 void readLangPack();
 
 void start() {
@@ -2454,7 +2501,7 @@ void start() {
 	_oldSettingsVersion = settingsData.version;
 	_settingsSalt = salt;
 
-	readTheme();
+	loadTheme();
 	readLangPack();
 
 	applyReadContext(std::move(context));
@@ -2496,9 +2543,8 @@ void writeSettings() {
 		size += sizeof(qint32) + Serialize::stringSize(proxy.host) + sizeof(qint32) + Serialize::stringSize(proxy.user) + Serialize::stringSize(proxy.password);
 	}
 
-	if (_themeKey) {
-		size += sizeof(quint32) + sizeof(quint64);
-	}
+	// Theme keys and night mode.
+	size += sizeof(quint32) + sizeof(quint64) * 2 + sizeof(quint32);
 	if (_langPackKey) {
 		size += sizeof(quint32) + sizeof(quint64);
 	}
@@ -2534,9 +2580,11 @@ void writeSettings() {
 	}
 
 	data.stream << quint32(dbiTryIPv6) << qint32(Global::TryIPv6());
-	if (_themeKey) {
-		data.stream << quint32(dbiThemeKey) << quint64(_themeKey);
-	}
+	data.stream
+		<< quint32(dbiThemeKey)
+		<< quint64(_themeKeyDay)
+		<< quint64(_themeKeyNight)
+		<< quint32(Window::Theme::IsNightMode() ? 1 : 0);
 	if (_langPackKey) {
 		data.stream << quint32(dbiLangPackKey) << quint64(_langPackKey);
 	}
@@ -2640,7 +2688,8 @@ void reset() {
 	_recentStickersKeyOld = 0;
 	_installedStickersKey = _featuredStickersKey = _recentStickersKey = _favedStickersKey = _archivedStickersKey = 0;
 	_savedGifsKey = 0;
-	_backgroundKey = _userSettingsKey = _recentHashtagsAndBotsKey = _savedPeersKey = _exportSettingsKey = 0;
+	_backgroundKeyDay = _backgroundKeyNight = 0;
+	_userSettingsKey = _recentHashtagsAndBotsKey = _savedPeersKey = _exportSettingsKey = 0;
 	_oldMapVersion = _oldSettingsVersion = 0;
 	StoredAuthSessionCache.reset();
 	_mapChanged = true;
@@ -4102,48 +4151,58 @@ void readSavedGifs() {
 }
 
 void writeBackground(int32 id, const QImage &img) {
-	if (!_working() || !_backgroundCanWrite) return;
+	if (!_working() || !_backgroundCanWrite) {
+		return;
+	}
 
 	if (!LocalKey) {
 		LOG(("App Error: localkey not created in writeBackground()"));
 		return;
 	}
 
+	auto &backgroundKey = Window::Theme::IsNightMode()
+		? _backgroundKeyNight
+		: _backgroundKeyDay;
 	QByteArray bmp;
 	if (!img.isNull()) {
 		QBuffer buf(&bmp);
-		if (!img.save(&buf, "BMP")) return;
+		if (!img.save(&buf, "BMP")) {
+			return;
+		}
 	}
-	if (!_backgroundKey) {
-		_backgroundKey = genKey();
+	if (!backgroundKey) {
+		backgroundKey = genKey();
 		_mapChanged = true;
 		_writeMap(WriteMapWhen::Fast);
 	}
-	quint32 size = sizeof(qint32) + sizeof(quint32) + (bmp.isEmpty() ? 0 : (sizeof(quint32) + bmp.size()));
+	quint32 size = sizeof(qint32)
+		+ sizeof(quint32)
+		+ (bmp.isEmpty() ? 0 : (sizeof(quint32) + bmp.size()));
 	EncryptedDescriptor data(size);
 	data.stream << qint32(id) << bmp;
 
-	FileWriteDescriptor file(_backgroundKey);
+	FileWriteDescriptor file(backgroundKey);
 	file.writeEncrypted(data);
 }
 
 bool readBackground() {
-	if (_backgroundWasRead) {
-		return false;
-	}
-	_backgroundWasRead = true;
-
 	FileReadDescriptor bg;
-	if (!readEncryptedFile(bg, _backgroundKey)) {
-		clearKey(_backgroundKey);
-		_backgroundKey = 0;
-		_writeMap();
+	auto &backgroundKey = Window::Theme::IsNightMode()
+		? _backgroundKeyNight
+		: _backgroundKeyDay;
+	if (!readEncryptedFile(bg, backgroundKey)) {
+		if (backgroundKey) {
+			clearKey(backgroundKey);
+			backgroundKey = 0;
+			_mapChanged = true;
+			_writeMap();
+		}
 		return false;
 	}
 
-	QByteArray pngData;
+	QByteArray bmpData;
 	qint32 id;
-	bg.stream >> id >> pngData;
+	bg.stream >> id >> bmpData;
 	auto oldEmptyImage = (bg.stream.status() != QDataStream::Ok);
 	if (oldEmptyImage
 		|| id == Window::Theme::kInitialBackground
@@ -4157,7 +4216,7 @@ bool readBackground() {
 		}
 		_backgroundCanWrite = true;
 		return true;
-	} else if (id == Window::Theme::kThemeBackground && pngData.isEmpty()) {
+	} else if (id == Window::Theme::kThemeBackground && bmpData.isEmpty()) {
 		_backgroundCanWrite = false;
 		Window::Theme::Background()->setImage(id);
 		_backgroundCanWrite = true;
@@ -4165,7 +4224,7 @@ bool readBackground() {
 	}
 
 	QImage image;
-	QBuffer buf(&pngData);
+	QBuffer buf(&bmpData);
 	QImageReader reader(&buf);
 #ifndef OS_MAC_OLD
 	reader.setAutoTransform(true);
@@ -4179,96 +4238,127 @@ bool readBackground() {
 	return false;
 }
 
-bool readThemeUsingKey(FileKey key) {
+Window::Theme::Saved readThemeUsingKey(FileKey key) {
 	FileReadDescriptor theme;
 	if (!readEncryptedFile(theme, key, FileOption::Safe, SettingsKey)) {
-		return false;
+		return {};
 	}
 
-	QByteArray themeContent;
-	QString pathRelative, pathAbsolute;
-	Window::Theme::Cached cache;
-	theme.stream >> themeContent;
-	theme.stream >> pathRelative >> pathAbsolute;
+	auto result = Window::Theme::Saved();
+	theme.stream >> result.content;
+	theme.stream >> result.pathRelative >> result.pathAbsolute;
 	if (theme.stream.status() != QDataStream::Ok) {
-		return false;
+		return {};
 	}
 
-	_themeAbsolutePath = pathAbsolute;
-	_themePaletteAbsolutePath = Window::Theme::IsPaletteTestingPath(pathAbsolute) ? pathAbsolute : QString();
-
-	QFile file(pathRelative);
-	if (pathRelative.isEmpty() || !file.exists()) {
-		file.setFileName(pathAbsolute);
+	QFile file(result.pathRelative);
+	if (result.pathRelative.isEmpty() || !file.exists()) {
+		file.setFileName(result.pathAbsolute);
 	}
 
 	auto changed = false;
-	if (!file.fileName().isEmpty() && file.exists() && file.open(QIODevice::ReadOnly)) {
+	if (!file.fileName().isEmpty()
+		&& file.exists()
+		&& file.open(QIODevice::ReadOnly)) {
 		if (file.size() > kThemeFileSizeLimit) {
-			LOG(("Error: theme file too large: %1 (should be less than 5 MB, got %2)").arg(file.fileName()).arg(file.size()));
-			return false;
+			LOG(("Error: theme file too large: %1 "
+				"(should be less than 5 MB, got %2)"
+				).arg(file.fileName()
+				).arg(file.size()));
+			return {};
 		}
 		auto fileContent = file.readAll();
 		file.close();
-		if (themeContent != fileContent) {
-			themeContent = fileContent;
+		if (result.content != fileContent) {
+			result.content = fileContent;
 			changed = true;
 		}
 	}
 	if (!changed) {
 		quint32 backgroundIsTiled = 0;
-		theme.stream >> cache.paletteChecksum >> cache.contentChecksum >> cache.colors >> cache.background >> backgroundIsTiled;
-		cache.tiled = (backgroundIsTiled == 1);
+		theme.stream
+			>> result.cache.paletteChecksum
+			>> result.cache.contentChecksum
+			>> result.cache.colors
+			>> result.cache.background
+			>> backgroundIsTiled;
+		result.cache.tiled = (backgroundIsTiled == 1);
 		if (theme.stream.status() != QDataStream::Ok) {
-			return false;
+			return {};
 		}
 	}
-	return Window::Theme::Load(pathRelative, pathAbsolute, themeContent, cache);
+	return result;
 }
 
-void writeTheme(const QString &pathRelative, const QString &pathAbsolute, const QByteArray &content, const Window::Theme::Cached &cache) {
-	if (content.isEmpty()) {
-		_themeAbsolutePath = _themePaletteAbsolutePath = QString();
-		if (_themeKey) {
-			clearKey(_themeKey);
-			_themeKey = 0;
+QString loadThemeUsingKey(FileKey key) {
+	auto read = readThemeUsingKey(key);
+	const auto result = read.pathAbsolute;
+	return (!read.content.isEmpty() && Window::Theme::Load(std::move(read)))
+		? result
+		: QString();
+}
+
+void writeTheme(const Window::Theme::Saved &saved) {
+	auto &themeKey = Window::Theme::IsNightMode()
+		? _themeKeyNight
+		: _themeKeyDay;
+	if (saved.content.isEmpty()) {
+		if (themeKey) {
+			clearKey(themeKey);
+			themeKey = 0;
 			writeSettings();
 		}
 		return;
 	}
 
-	_themeAbsolutePath = pathAbsolute;
-	_themePaletteAbsolutePath = Window::Theme::IsPaletteTestingPath(pathAbsolute) ? pathAbsolute : QString();
-	if (!_themeKey) {
-		_themeKey = genKey(FileOption::Safe);
+	if (!themeKey) {
+		themeKey = genKey(FileOption::Safe);
 		writeSettings();
 	}
 
-	auto backgroundTiled = static_cast<quint32>(cache.tiled ? 1 : 0);
-	quint32 size = Serialize::bytearraySize(content);
-	size += Serialize::stringSize(pathRelative) + Serialize::stringSize(pathAbsolute);
-	size += sizeof(int32) * 2 + Serialize::bytearraySize(cache.colors) + Serialize::bytearraySize(cache.background) + sizeof(quint32);
+	auto backgroundTiled = static_cast<quint32>(saved.cache.tiled ? 1 : 0);
+	quint32 size = Serialize::bytearraySize(saved.content);
+	size += Serialize::stringSize(saved.pathRelative) + Serialize::stringSize(saved.pathAbsolute);
+	size += sizeof(int32) * 2 + Serialize::bytearraySize(saved.cache.colors) + Serialize::bytearraySize(saved.cache.background) + sizeof(quint32);
 	EncryptedDescriptor data(size);
-	data.stream << content;
-	data.stream << pathRelative << pathAbsolute;
-	data.stream << cache.paletteChecksum << cache.contentChecksum << cache.colors << cache.background << backgroundTiled;
+	data.stream << saved.content;
+	data.stream << saved.pathRelative << saved.pathAbsolute;
+	data.stream << saved.cache.paletteChecksum << saved.cache.contentChecksum << saved.cache.colors << saved.cache.background << backgroundTiled;
 
-	FileWriteDescriptor file(_themeKey, FileOption::Safe);
+	FileWriteDescriptor file(themeKey, FileOption::Safe);
 	file.writeEncrypted(data, SettingsKey);
 }
 
 void clearTheme() {
-	writeTheme(QString(), QString(), QByteArray(), Window::Theme::Cached());
+	writeTheme(Window::Theme::Saved());
 }
 
-void readTheme() {
-	if (_themeKey && !readThemeUsingKey(_themeKey)) {
+void loadTheme() {
+	const auto key = (_themeKeyLegacy != 0)
+		? _themeKeyLegacy
+		: (Window::Theme::IsNightMode()
+			? _themeKeyNight
+			: _themeKeyDay);
+	if (!key) {
+		return;
+	} else if (const auto path = loadThemeUsingKey(key); !path.isEmpty()) {
+		if (_themeKeyLegacy) {
+			Window::Theme::SetNightModeValue(path
+				== Window::Theme::NightThemePath());
+			(Window::Theme::IsNightMode()
+				? _themeKeyNight
+				: _themeKeyDay) = base::take(_themeKeyLegacy);
+		}
+	} else {
 		clearTheme();
 	}
 }
 
-bool hasTheme() {
-	return (_themeKey != 0);
+Window::Theme::Saved readThemeAfterSwitch() {
+	const auto key = Window::Theme::IsNightMode()
+		? _themeKeyNight
+		: _themeKeyDay;
+	return readThemeUsingKey(key);
 }
 
 void readLangPack() {
@@ -4297,21 +4387,16 @@ void writeLangPack() {
 	file.writeEncrypted(data, SettingsKey);
 }
 
-QString themePaletteAbsolutePath() {
-	return _themePaletteAbsolutePath;
-}
-
-QString themeAbsolutePath() {
-	return _themeAbsolutePath;
-}
-
 bool copyThemeColorsToPalette(const QString &path) {
-	if (!_themeKey) {
+	auto &themeKey = Window::Theme::IsNightMode()
+		? _themeKeyNight
+		: _themeKeyDay;
+	if (!themeKey) {
 		return false;
 	}
 
 	FileReadDescriptor theme;
-	if (!readEncryptedFile(theme, _themeKey, FileOption::Safe, SettingsKey)) {
+	if (!readEncryptedFile(theme, themeKey, FileOption::Safe, SettingsKey)) {
 		return false;
 	}
 

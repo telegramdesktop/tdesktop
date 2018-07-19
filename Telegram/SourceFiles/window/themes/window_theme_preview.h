@@ -18,6 +18,7 @@ struct CurrentData {
 	bool backgroundTiled = false;
 };
 
+std::unique_ptr<Preview> PreviewFromFile(const QString &filepath);
 std::unique_ptr<Preview> GeneratePreview(
 	const QString &filepath,
 	CurrentData &&data);

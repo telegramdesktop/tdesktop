@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Window {
 namespace Theme {
-struct Cached;
+struct Saved;
 } // namespace Theme
 } // namespace Window
 
@@ -152,12 +152,10 @@ int32 countSavedGifsHash();
 void writeBackground(int32 id, const QImage &img);
 bool readBackground();
 
-void writeTheme(const QString &pathRelative, const QString &pathAbsolute, const QByteArray &content, const Window::Theme::Cached &cache);
+void writeTheme(const Window::Theme::Saved &saved);
 void clearTheme();
-bool hasTheme();
-QString themeAbsolutePath();
-QString themePaletteAbsolutePath();
 bool copyThemeColorsToPalette(const QString &file);
+Window::Theme::Saved readThemeAfterSwitch();
 
 void writeLangPack();
 

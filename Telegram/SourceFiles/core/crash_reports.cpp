@@ -519,6 +519,9 @@ void SetAnnotationHex(const std::string &key, const QString &value) {
 }
 
 void SetAnnotationRef(const std::string &key, const QString *valuePtr) {
+	static QMutex mutex;
+	QMutexLocker lock(&mutex);
+
 	if (valuePtr) {
 		ProcessAnnotationRefs[key] = valuePtr;
 	} else {
