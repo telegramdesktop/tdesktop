@@ -61,6 +61,7 @@
         'COPY_PHASE_STRIP': 'NO',
         'CLANG_CXX_LANGUAGE_STANDARD': 'c++1z',
         'GCC_INLINES_ARE_PRIVATE_EXTERN': 'YES',
+        'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',
       },
       'configurations': {
         'Debug': {

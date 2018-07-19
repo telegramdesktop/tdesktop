@@ -390,7 +390,7 @@ protected:
 	virtual void setInformation(int32 size, int32 width, int32 height) = 0;
 	virtual FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) = 0;
 
-	void checkload() const {
+	void checkload() const override {
 		doCheckload();
 	}
 	void loadLocal();
@@ -462,10 +462,10 @@ public:
 
 	void setStorageLocation(const StorageImageLocation location);
 
-	virtual DelayedStorageImage *toDelayedStorageImage() {
+	virtual DelayedStorageImage *toDelayedStorageImage() override {
 		return this;
 	}
-	virtual const DelayedStorageImage *toDelayedStorageImage() const {
+	virtual const DelayedStorageImage *toDelayedStorageImage() const override {
 		return this;
 	}
 
