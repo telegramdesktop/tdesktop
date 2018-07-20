@@ -22,6 +22,7 @@ namespace {
 constexpr auto kPacketSizeMax = int(0x01000000 * sizeof(mtpPrime));
 constexpr auto kFullConnectionTimeout = 8 * TimeMs(1000);
 constexpr auto kSmallBufferSize = 256 * 1024;
+constexpr auto kMinPacketBuffer = 256;
 
 using ErrorSignal = void(QTcpSocket::*)(QAbstractSocket::SocketError);
 const auto QTcpSocket_error = ErrorSignal(&QAbstractSocket::error);
@@ -266,6 +267,34 @@ ConnectionPointer TcpConnection::clone(const ProxyData &proxy) {
 	return ConnectionPointer::New<TcpConnection>(thread(), proxy);
 }
 
+void TcpConnection::ensureAvailableInBuffer(int amount) {
+	auto &buffer = _usingLargeBuffer ? _largeBuffer : _smallBuffer;
+	const auto full = bytes::make_span(buffer).subspan(
+		_offsetBytes);
+	if (full.size() >= amount) {
+		return;
+	}
+	const auto read = full.subspan(0, _readBytes);
+	if (amount <= _smallBuffer.size()) {
+		if (_usingLargeBuffer) {
+			bytes::copy(_smallBuffer, read);
+			_usingLargeBuffer = false;
+			_largeBuffer.clear();
+		} else {
+			bytes::move(_smallBuffer, read);
+		}
+	} else if (amount <= _largeBuffer.size()) {
+		Assert(_usingLargeBuffer);
+		bytes::move(_largeBuffer, read);
+	} else {
+		auto enough = bytes::vector(amount);
+		bytes::copy(enough, read);
+		_largeBuffer = std::move(enough);
+		_usingLargeBuffer = true;
+	}
+	_offsetBytes = 0;
+}
+
 void TcpConnection::socketRead() {
 	Expects(_leftBytes > 0 || !_usingLargeBuffer);
 
@@ -332,33 +361,14 @@ void TcpConnection::socketRead() {
 						available = available.subspan(packetSize);
 						_offsetBytes += packetSize;
 						_readBytes -= packetSize;
+
+						// If we have too little space left in the buffer.
+						ensureAvailableInBuffer(kMinPacketBuffer);
 					} else {
 						_leftBytes = packetSize - available.size();
 
 						// If the next packet won't fit in the buffer.
-						const auto full = bytes::make_span(buffer).subspan(
-							_offsetBytes);
-						if (full.size() < packetSize) {
-							const auto read = full.subspan(0, _readBytes);
-							if (packetSize <= _smallBuffer.size()) {
-								if (_usingLargeBuffer) {
-									bytes::copy(_smallBuffer, read);
-									_usingLargeBuffer = false;
-									_largeBuffer.clear();
-								} else {
-									bytes::move(_smallBuffer, read);
-								}
-							} else if (packetSize <= _largeBuffer.size()) {
-								Assert(_usingLargeBuffer);
-								bytes::move(_largeBuffer, read);
-							} else {
-								auto enough = bytes::vector(packetSize);
-								bytes::copy(enough, read);
-								_largeBuffer = std::move(enough);
-								_usingLargeBuffer = true;
-							}
-							_offsetBytes = 0;
-						}
+						ensureAvailableInBuffer(packetSize);
 
 						TCP_LOG(("TCP Info: not enough %1 for packet! "
 							"full size %2 read %3"

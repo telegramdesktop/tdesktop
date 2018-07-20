@@ -58,6 +58,7 @@ private:
 	void socketError(QAbstractSocket::SocketError e);
 
 	mtpBuffer parsePacket(bytes::const_span bytes);
+	void ensureAvailableInBuffer(int amount);
 	static void handleError(QAbstractSocket::SocketError e, QTcpSocket &sock);
 	static uint32 fourCharsToUInt(char ch1, char ch2, char ch3, char ch4) {
 		char ch[4] = { ch1, ch2, ch3, ch4 };
