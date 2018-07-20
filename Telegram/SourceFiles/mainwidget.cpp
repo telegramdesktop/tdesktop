@@ -1559,12 +1559,6 @@ void MainWidget::createExportTopBar(Export::View::Content &&data) {
 	_exportTopBar.create(
 		this,
 		object_ptr<Export::View::TopBar>(this, std::move(data)));
-	rpl::merge(
-		_exportTopBar->heightValue() | rpl::map([] { return true; }),
-		_exportTopBar->shownValue()
-	) | rpl::start_with_next([=] {
-		exportTopBarHeightUpdated();
-	}, _exportTopBar->lifetime());
 	_exportTopBar->entity()->clicks(
 	) | rpl::start_with_next([=] {
 		if (_currentExportView) {
@@ -1581,6 +1575,12 @@ void MainWidget::createExportTopBar(Export::View::Content &&data) {
 		_exportTopBarHeight = _contentScrollAddToY = _exportTopBar->contentHeight();
 		updateControlsGeometry();
 	}
+	rpl::merge(
+		_exportTopBar->heightValue() | rpl::map([] { return true; }),
+		_exportTopBar->shownValue()
+	) | rpl::start_with_next([=] {
+		exportTopBarHeightUpdated();
+	}, _exportTopBar->lifetime());
 }
 
 void MainWidget::destroyExportTopBar() {
