@@ -2689,6 +2689,7 @@ void reset() {
 	_installedStickersKey = _featuredStickersKey = _recentStickersKey = _favedStickersKey = _archivedStickersKey = 0;
 	_savedGifsKey = 0;
 	_backgroundKeyDay = _backgroundKeyNight = 0;
+	Window::Theme::Background()->reset();
 	_userSettingsKey = _recentHashtagsAndBotsKey = _savedPeersKey = _exportSettingsKey = 0;
 	_oldMapVersion = _oldSettingsVersion = 0;
 	StoredAuthSessionCache.reset();
@@ -4299,6 +4300,9 @@ QString loadThemeUsingKey(FileKey key) {
 }
 
 void writeTheme(const Window::Theme::Saved &saved) {
+	if (_themeKeyLegacy) {
+		return;
+	}
 	auto &themeKey = Window::Theme::IsNightMode()
 		? _themeKeyNight
 		: _themeKeyDay;

@@ -220,6 +220,7 @@ bool loadThemeFromCache(const QByteArray &content, const Cached &cache) {
 	if (!style::main_palette::load(cache.colors)) {
 		return false;
 	}
+	Background()->saveAdjustableColors();
 	if (!background.isNull()) {
 		applyBackground(std::move(background), cache.tiled, nullptr);
 	}
@@ -280,6 +281,7 @@ bool loadTheme(const QByteArray &content, Cached &cache, Instance *out = nullptr
 		if (!loadColorScheme(schemeContent, out)) {
 			return false;
 		}
+		Background()->saveAdjustableColors();
 
 		auto backgroundTiled = false;
 		auto backgroundContent = QByteArray();
@@ -307,6 +309,7 @@ bool loadTheme(const QByteArray &content, Cached &cache, Instance *out = nullptr
 		if (!loadColorScheme(content, out)) {
 			return false;
 		}
+		Background()->saveAdjustableColors();
 	}
 	if (out) {
 		cache.colors = out->palette.save();
@@ -333,39 +336,6 @@ void adjustColor(style::color color, float64 hue, float64 saturation) {
 	color.set(original.red(), original.green(), original.blue(), original.alpha());
 }
 
-void adjustColorsUsingBackground(const QImage &img) {
-	Assert(img.format() == QImage::Format_ARGB32_Premultiplied);
-
-	uint64 components[3] = { 0 };
-	uint64 componentsScroll[3] = { 0 };
-	auto w = img.width();
-	auto h = img.height();
-	auto size = w * h;
-	if (auto pix = img.constBits()) {
-		for (auto i = 0, l = size * 4; i != l; i += 4) {
-			components[2] += pix[i + 0];
-			components[1] += pix[i + 1];
-			components[0] += pix[i + 2];
-		}
-	}
-
-	if (size) {
-		for (auto i = 0; i != 3; ++i) {
-			components[i] /= size;
-		}
-	}
-
-	auto bgColor = QColor(components[0], components[1], components[2]);
-	auto hue = bgColor.hslHueF();
-	auto saturation = bgColor.hslSaturationF();
-	adjustColor(st::msgServiceBg, hue, saturation);
-	adjustColor(st::msgServiceBgSelected, hue, saturation);
-	adjustColor(st::historyScroll.bg, hue, saturation);
-	adjustColor(st::historyScroll.bgOver, hue, saturation);
-	adjustColor(st::historyScroll.barBg, hue, saturation);
-	adjustColor(st::historyScroll.barBgOver, hue, saturation);
-}
-
 void ApplyDefaultWithNightMode(bool nightMode) {
 	if (nightMode) {
 		if (auto preview = PreviewFromFile(NightThemePath())) {
@@ -386,6 +356,21 @@ void ApplyDefaultWithNightMode(bool nightMode) {
 
 } // namespace
 
+ChatBackground::AdjustableColor::AdjustableColor(style::color data)
+: item(data)
+, original(data->c) {
+}
+
+ChatBackground::ChatBackground() : _adjustableColors({
+		st::msgServiceBg,
+		st::msgServiceBgSelected,
+		st::historyScrollBg,
+		st::historyScrollBgOver,
+		st::historyScrollBarBg,
+		st::historyScrollBarBgOver }) {
+	saveAdjustableColors();
+}
+
 void ChatBackground::setThemeData(QImage &&themeImage, bool themeTile) {
 	_themeImage = prepareBackgroundImage(std::move(themeImage));
 	_themeTile = themeTile;
@@ -400,18 +385,18 @@ void ChatBackground::start() {
 }
 
 void ChatBackground::setImage(int32 id, QImage &&image) {
-	auto resetPalette = (id == kDefaultBackground)
+	auto needResetAdjustable = (id == kDefaultBackground)
 		&& (_id != kDefaultBackground)
 		&& !nightMode()
 		&& _themeAbsolutePath.isEmpty();
 	if (id == kThemeBackground && _themeImage.isNull()) {
 		id = kDefaultBackground;
-	} else if (resetPalette) {
+	} else if (needResetAdjustable) {
 		// If we had a default color theme with non-default background,
 		// and we switch to default background we must somehow switch from
 		// adjusted service colors to default (non-adjusted) service colors.
 		// The only way to do that right now is through full palette reset.
-		style::main_palette::reset();
+		restoreAdjustableColors();
 	}
 	_id = id;
 	if (_id == kThemeBackground) {
@@ -442,7 +427,7 @@ void ChatBackground::setImage(int32 id, QImage &&image) {
 	}
 	Assert(!_pixmap.isNull() && !_pixmapForTiled.isNull());
 	notify(BackgroundUpdate(BackgroundUpdate::Type::New, tile()));
-	if (resetPalette) {
+	if (needResetAdjustable) {
 		notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, tile()), true);
 		notify(BackgroundUpdate(BackgroundUpdate::Type::ApplyingTheme, tile()), true);
 	}
@@ -476,7 +461,7 @@ void ChatBackground::setPreparedImage(QImage &&image) {
 		return !usingDefaultBackground();
 	}();
 	if (adjustColors) {
-		adjustColorsUsingBackground(image);
+		adjustPaletteUsingBackground(image);
 	}
 
 	auto width = image.width();
@@ -506,6 +491,36 @@ void ChatBackground::setPreparedImage(QImage &&image) {
 	_pixmap = App::pixmapFromImageInPlace(std::move(image));
 	if (!isSmallForTiled) {
 		_pixmapForTiled = _pixmap;
+	}
+}
+
+void ChatBackground::adjustPaletteUsingBackground(const QImage &img) {
+	Assert(img.format() == QImage::Format_ARGB32_Premultiplied);
+
+	uint64 components[3] = { 0 };
+	uint64 componentsScroll[3] = { 0 };
+	auto w = img.width();
+	auto h = img.height();
+	auto size = w * h;
+	if (auto pix = img.constBits()) {
+		for (auto i = 0, l = size * 4; i != l; i += 4) {
+			components[2] += pix[i + 0];
+			components[1] += pix[i + 1];
+			components[0] += pix[i + 2];
+		}
+	}
+
+	if (size) {
+		for (auto i = 0; i != 3; ++i) {
+			components[i] /= size;
+		}
+	}
+
+	auto bgColor = QColor(components[0], components[1], components[2]);
+	auto hue = bgColor.hslHueF();
+	auto saturation = bgColor.hslSaturationF();
+	for (const auto &color : _adjustableColors) {
+		adjustColor(color.item, hue, saturation);
 	}
 }
 
@@ -594,6 +609,9 @@ void ChatBackground::reset() {
 		}
 	} else {
 		setImage(kThemeBackground);
+		restoreAdjustableColors();
+		notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, tile()), true);
+		notify(BackgroundUpdate(BackgroundUpdate::Type::ApplyingTheme, tile()), true);
 	}
 }
 
@@ -607,9 +625,24 @@ void ChatBackground::saveForRevert() {
 	}
 }
 
-void ChatBackground::setTestingTheme(Instance &&theme, ChangeMode mode) {
+void ChatBackground::saveAdjustableColors() {
+	for (auto &color : _adjustableColors) {
+		color.original = color.item->c;
+	}
+}
+
+void ChatBackground::restoreAdjustableColors() {
+	for (const auto &color : _adjustableColors) {
+		const auto value = color.original;
+		color.item.set(value.red(), value.green(), value.blue(), value.alpha());
+	}
+}
+
+void ChatBackground::setTestingTheme(Instance &&theme) {
 	style::main_palette::apply(theme.palette);
-	auto switchToThemeBackground = (mode == ChangeMode::SwitchToThemeBackground && !theme.background.isNull())
+	saveAdjustableColors();
+
+	auto switchToThemeBackground = !theme.background.isNull()
 		|| (_id == kThemeBackground)
 		|| (_id == kDefaultBackground
 			&& !nightMode()
@@ -633,6 +666,8 @@ void ChatBackground::setTestingTheme(Instance &&theme, ChangeMode mode) {
 
 void ChatBackground::setTestingDefaultTheme() {
 	style::main_palette::reset();
+	saveAdjustableColors();
+
 	saveForRevert();
 	setImage(internal::kTestingDefaultBackground);
 	setTile(false);
@@ -666,7 +701,8 @@ void ChatBackground::keepApplied(const QString &path, bool write) {
 	notify(BackgroundUpdate(BackgroundUpdate::Type::ApplyingTheme, tile()), true);
 }
 
-bool ChatBackground::isNonDefaultThemeOrBackground() const {
+bool ChatBackground::isNonDefaultThemeOrBackground() {
+	start();
 	return nightMode()
 		? (_themeAbsolutePath != NightThemePath()
 			|| _id != kThemeBackground)
@@ -865,6 +901,8 @@ void Revert() {
 		return;
 	}
 	style::main_palette::load(instance->applying.paletteForRevert);
+	Background()->saveAdjustableColors();
+
 	instance->applying = Data::Applying();
 	Background()->revert();
 }

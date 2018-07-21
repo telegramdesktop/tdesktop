@@ -1219,7 +1219,6 @@ void Messenger::loggedOut() {
 		_mediaView->clearData();
 	}
 	Local::reset();
-	Window::Theme::Background()->reset();
 
 	cSetOtherOnline(0);
 	clearStorageImages();

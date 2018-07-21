@@ -91,6 +91,8 @@ struct BackgroundUpdate {
 
 class ChatBackground : public base::Observable<BackgroundUpdate> {
 public:
+	ChatBackground();
+
 	// This method is allowed to (and should) be called before start().
 	void setThemeData(QImage &&themeImage, bool themeTile);
 
@@ -104,11 +106,8 @@ public:
 	QString themeAbsolutePath() const;
 	void reset();
 
-	enum class ChangeMode {
-		SwitchToThemeBackground,
-		LeaveCurrentCustomBackground,
-	};
-	void setTestingTheme(Instance &&theme, ChangeMode mode = ChangeMode::SwitchToThemeBackground);
+	void setTestingTheme(Instance &&theme);
+	void saveAdjustableColors();
 	void setTestingDefaultTheme();
 	void revert();
 
@@ -124,16 +123,26 @@ public:
 	bool tileNight() const;
 
 private:
+	struct AdjustableColor {
+		AdjustableColor(style::color data);
+
+		style::color item;
+		QColor original;
+	};
+
 	void ensureStarted();
 	void saveForRevert();
 	void setPreparedImage(QImage &&image);
 	void writeNewBackgroundSettings();
 
+	void adjustPaletteUsingBackground(const QImage &img);
+	void restoreAdjustableColors();
+
 	void setNightModeValue(bool nightMode);
 	bool nightMode() const;
 	void toggleNightMode();
 	void keepApplied(const QString &path, bool write);
-	bool isNonDefaultThemeOrBackground() const;
+	bool isNonDefaultThemeOrBackground();
 
 	friend bool IsNightMode();
 	friend void SetNightModeValue(bool nightMode);
@@ -155,6 +164,8 @@ private:
 	int32 _idForRevert = internal::kUninitializedBackground;
 	QImage _imageForRevert;
 	bool _tileForRevert = false;
+
+	std::vector<AdjustableColor> _adjustableColors;
 
 };
 
