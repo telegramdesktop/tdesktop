@@ -1,0 +1,24 @@
+#!/bin/bash
+
+default_downloaddir="$SNAP_USER_DATA/Telegram Desktop"
+
+if [ -d "$default_downloaddir" ] && [ ! -L "$default_downloaddir" ]; then
+  dest_downloaddir="$SNAP_USER_COMMON/$(basename "$default_downloaddir")"
+  if [ -d "$dest_downloaddir" ]; then
+    mv -v "$default_downloaddir/*" "$dest_downloaddir/"
+    rmdir "$default_downloaddir"
+  else
+    mv -v "$default_downloaddir" "$SNAP_USER_COMMON"
+  fi
+  ln -sv "$dest_downloaddir" "$default_downloaddir"
+fi
+
+default_im_module="xim"
+
+if [ -n "$TELEGRAM_QT_IM_MODULE" ]; then
+  export QT_IM_MODULE="$TELEGRAM_QT_IM_MODULE"
+elif [ -z "$QT_IM_MODULE" ] || [ "$QT_IM_MODULE" == "ibus" ]; then
+  export QT_IM_MODULE="$default_im_module"
+fi
+
+exec desktop-launch Telegram $*

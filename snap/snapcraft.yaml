@@ -1,0 +1,415 @@
+name: telegram-desktop
+version: git
+adopt-info: telegram
+description: |
+  Telegram is a popular messaging protocol with encryption and security as
+  its key focus.
+
+  Fast and secure desktop app, perfectly synced with your mobile phone.
+
+grade: stable
+confinement: strict
+
+version-script: |
+  set -x
+  version_file=Telegram/build/version
+  version=$(sed -n "s/AppVersionStr[ ]\+\(.*\)\+/\1/p" $version_file)
+  alpha=$(sed -n "s/AlphaChannel[ ]\+\(.*\)\+/\1/p" $version_file)
+  beta=$(sed -n "s/BetaVersion[ ]\+\(.*\)\+/\1/p" $version_file)
+
+  if [ "$alpha" != "0" ]; then
+    version="$version-alpha"
+  elif [ "$beta" != "0" ]; then
+    version="$version-beta"
+  fi
+
+  version="${version}$(git describe --tags | sed 's,^v[^-]\+,,')"
+
+  echo $version
+
+apps:
+  telegram-desktop:
+    command: telegram-launch
+    common-id: org.telegram.desktop
+    environment:
+      DISABLE_WAYLAND: 1
+      WAYLAND_DISPLAY: no-display
+      QTCOMPOSE: $SNAP/usr/share/X11/locale
+      HOME: "$SNAP_USER_COMMON"
+    plugs:
+      - desktop
+      - desktop-legacy
+      - gsettings
+      - home
+      - network
+      - network-bind
+      - network-manager
+      - pulseaudio
+      - removable-media
+      - unity7
+
+parts:
+  telegram:
+    plugin: gyp-cmake
+    source: .
+    source-type: git
+    parse-info: [lib/xdg/telegramdesktop.appdata.xml]
+    build-packages:
+      - libappindicator-dev
+      - libappindicator3-dev
+      - libexif-dev
+      - libicu-dev
+      - liblzma-dev
+      - libssl-dev
+      - libunity-dev
+      - zlib1g-dev
+    gyp-file: Telegram/gyp/Telegram.gyp
+    build-type: 'Release'
+    artifacts: ['Telegram']
+    environment:
+      - CC: gcc-7
+      - CXX: g++-7
+    organize:
+      Telegram: bin/Telegram
+    configflags:
+      - -Dlinux_path_breakpad=$SNAPCRAFT_STAGE
+      - -Dlinux_path_range=$SNAPCRAFT_STAGE/range-v3
+      - -Dlinux_path_ffmpeg=$SNAPCRAFT_STAGE
+      - -Dlinux_path_libexif_lib=$SNAPCRAFT_STAGE
+      - -Dlinux_path_openal=$SNAPCRAFT_STAGE
+      - -Dlinux_path_opus_include=$SNAPCRAFT_STAGE/include/opus
+      - -Dlinux_path_qt=$SNAPCRAFT_STAGE
+      - -Dlinux_path_va=$SNAPCRAFT_STAGE
+      - -Dlinux_path_vdpau=$SNAPCRAFT_STAGE
+      - -Dlinux_path_xkbcommon=$SNAPCRAFT_STAGE
+      - -Dlinux_lib_ssl=-lssl
+      - -Dlinux_lib_crypto=-lcrypto
+      - -Dlinux_lib_icu=-licuuc -licutu -licui18n
+      - -Dbuild_defines=TDESKTOP_DISABLE_AUTOUPDATE,
+                        TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME,
+                        TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
+      - --depth=.
+    override-build: |
+      set -xe
+      snapcraftctl build
+      snap_gui=$SNAPCRAFT_STAGE/../snap/gui
+      mkdir -vp $snap_gui
+      cp -v lib/xdg/telegramdesktop.desktop $snap_gui
+      cp -v Telegram/Resources/art/icon512@2x.png $snap_gui/icon.png
+      sed -i "s|^Icon=.*|Icon=\${SNAP}/meta/gui/icon.png|g" $snap_gui/telegramdesktop.desktop
+      echo "Keywords=tg;chat;im;messaging;messenger;" >> $snap_gui/telegramdesktop.desktop
+    after:
+      - breakpad
+      - ffmpeg
+      - gyp
+      - libva
+      - openal
+      - qt
+      - range-v3
+      - gcc7
+
+  telegram-launcher:
+    plugin: dump
+    source: snap/scripts
+    organize:
+      telegram-launch: bin/telegram-launch
+
+  desktop-integration:
+    plugin: nil
+    stage-packages:
+      - libappindicator3-1
+      - libnotify4
+      - libpulse0
+      - libunity9
+    after: [desktop-gtk3]
+    stage: [-./usr/share/fonts/**]
+
+  desktop-gtk3:
+    stage: [-./usr/share/fonts/**]
+    override-build: |
+      set -xe
+      snapcraftctl build
+      export XDG_DATA_DIRS=$SNAPCRAFT_PART_INSTALL/usr/share
+      update-mime-database $SNAPCRAFT_PART_INSTALL/usr/share/mime
+
+      for dir in $SNAPCRAFT_PART_INSTALL/usr/share/icons/*/; do
+        if [ -f $dir/index.theme ]; then
+          gtk-update-icon-cache-3.0 -q $dir
+        fi
+      done
+
+  libva:
+    source: https://github.com/01org/libva.git
+    source-depth: 1
+    plugin: autotools
+    build-packages:
+      - libdrm-dev
+      - libegl1-mesa-dev
+      - libgl1-mesa-dev
+      - libx11-dev
+      - libxext-dev
+      - libxfixes-dev
+    configflags:
+      - --enable-static
+    prime: [-./*]
+
+  libvdpau:
+    source: git://anongit.freedesktop.org/vdpau/libvdpau
+    source-depth: 1
+    plugin: autotools
+    build-packages:
+      - libx11-dev
+      - x11proto-dri2-dev
+      - libxext-dev
+    configflags:
+      - --enable-static
+    prime: [-./*]
+
+  opus:
+    source: https://github.com/xiph/opus.git
+    source-depth: 1
+    source-branch: v1.2.1
+    plugin: autotools
+    prime: [-./*]
+
+  ffmpeg:
+    source: https://github.com/FFmpeg/FFmpeg.git
+    source-depth: 1
+    source-branch: release/3.4
+    plugin: autotools
+    build-packages:
+      - libass-dev
+      - libfreetype6-dev
+      - libgpac-dev
+      - liblzma-dev
+      - libsdl1.2-dev
+      - libtheora-dev
+      - libtool
+      - libvorbis-dev
+      - libxcb1-dev
+      - libxcb-shm0-dev
+      - libxcb-xfixes0-dev
+      - pkg-config
+      - texi2html
+      - yasm
+      - zlib1g-dev
+    configflags:
+      - --prefix=/
+      - --disable-debug
+      - --disable-programs
+      - --disable-doc
+      - --disable-everything
+      - --enable-gpl
+      - --enable-version3
+      - --enable-libopus
+      - --enable-decoder=aac
+      - --enable-decoder=aac_latm
+      - --enable-decoder=aasc
+      - --enable-decoder=flac
+      - --enable-decoder=gif
+      - --enable-decoder=h264
+      - --enable-decoder=h264_vdpau
+      - --enable-decoder=mp1
+      - --enable-decoder=mp1float
+      - --enable-decoder=mp2
+      - --enable-decoder=mp2float
+      - --enable-decoder=mp3
+      - --enable-decoder=mp3adu
+      - --enable-decoder=mp3adufloat
+      - --enable-decoder=mp3float
+      - --enable-decoder=mp3on4
+      - --enable-decoder=mp3on4float
+      - --enable-decoder=mpeg4
+      - --enable-decoder=mpeg4_vdpau
+      - --enable-decoder=msmpeg4v2
+      - --enable-decoder=msmpeg4v3
+      - --enable-decoder=opus
+      - --enable-decoder=vorbis
+      - --enable-decoder=wavpack
+      - --enable-decoder=wmalossless
+      - --enable-decoder=wmapro
+      - --enable-decoder=wmav1
+      - --enable-decoder=wmav2
+      - --enable-decoder=wmavoice
+      - --enable-encoder=libopus
+      - --enable-hwaccel=h264_vaapi
+      - --enable-hwaccel=h264_vdpau
+      - --enable-hwaccel=mpeg4_vaapi
+      - --enable-hwaccel=mpeg4_vdpau
+      - --enable-parser=aac
+      - --enable-parser=aac_latm
+      - --enable-parser=flac
+      - --enable-parser=h264
+      - --enable-parser=mpeg4video
+      - --enable-parser=mpegaudio
+      - --enable-parser=opus
+      - --enable-parser=vorbis
+      - --enable-demuxer=aac
+      - --enable-demuxer=flac
+      - --enable-demuxer=gif
+      - --enable-demuxer=h264
+      - --enable-demuxer=mov
+      - --enable-demuxer=mp3
+      - --enable-demuxer=ogg
+      - --enable-demuxer=wav
+      - --enable-muxer=ogg
+      - --enable-muxer=opus
+    after:
+      - libva
+      - libvdpau
+      - opus
+    prime: [-./*]
+
+  openal:
+    source: https://github.com/kcat/openal-soft.git
+    source-depth: 1
+    source-branch: v1.18
+    plugin: cmake
+    build-packages:
+      - oss4-dev
+      - portaudio19-dev
+    configflags:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DALSOFT_EXAMPLES=OFF
+      - -DALSOFT_TESTS=OFF
+      - -DALSOFT_UTILS=OFF
+      - -DLIBTYPE=STATIC
+    after:
+      - ffmpeg
+    prime: [-./*]
+
+  libxkbcommon:
+    source: https://github.com/xkbcommon/libxkbcommon.git
+    source-depth: 1
+    plugin: autotools
+    build-packages:
+      - xutils-dev
+      - bison
+      - python-xcbgen
+    configflags:
+      - --disable-x11
+    prime: [-./*]
+
+  qt:
+    plugin: qtbuilder
+    qt-version: 5.6.2
+    qt-source-git: https://code.qt.io/qt/qt5.git
+    qt-submodules: ['qtbase', 'qtimageformats']
+    qt-patches-path: Telegram/Patches
+    qt-extra-plugins:
+      - platforminputcontexts:
+        - https://github.com/telegramdesktop/fcitx.git
+        - https://github.com/telegramdesktop/hime.git
+    environment:
+      - CC: gcc-7
+      - CXX: g++-7
+      - QMAKE_CC: gcc-7
+      - QMAKE_CXX: g++-7
+    build-packages:
+      - libasound2-dev
+      - libdbusmenu-glib-dev
+      - libffi-dev
+      - liblzma-dev
+      - libpulse-dev
+      - libssl-dev
+      - libx11-xcb-dev
+      - libxcb-icccm4-dev
+      - libxcb-image0-dev
+      - libxcb-keysyms1-dev
+      - libxcb-randr0-dev
+      - libxcb-render-util0-dev
+      - libxcb-sync-dev
+      - libxcb-util0-dev
+      - libxcb-xfixes0-dev
+      - libxcb1-dev
+      - libxrender-dev
+    configflags:
+      - -prefix
+      - $SNAPCRAFT_STAGE
+      - -release
+      - -force-debug-info
+      - -opensource
+      - -confirm-license
+      - -qt-zlib
+      - -qt-libpng
+      - -qt-libjpeg
+      - -qt-freetype
+      - -qt-harfbuzz
+      - -qt-pcre
+      - -qt-xcb
+      - -qt-xkbcommon-x11
+      - -no-gstreamer
+      - -no-gtkstyle
+      - -no-mirclient
+      - -no-opengl
+      - -static
+      - -dbus-runtime
+      - -openssl-linked
+      - -nomake
+      - examples
+      - -nomake
+      - tests
+    after:
+      - libxkbcommon
+      - gcc7
+    prime: [-./*]
+
+  breakpad:
+    plugin: autotools-subsource
+    source: https://chromium.googlesource.com/breakpad/breakpad
+    source-type: git
+    source-commit: bc8fb886
+    sub-sources:
+      - linux-syscall-support:
+          dest: src/third_party/lss
+          source: https://chromium.googlesource.com/linux-syscall-support
+          source-type: git
+          source-commit: a91633d1
+    prime: [-./*]
+
+  range-v3:
+    source: https://github.com/ericniebler/range-v3.git
+    source-depth: 1
+    plugin: nil
+    override-build: |
+      set -x
+      snapcraftctl build
+      mkdir $SNAPCRAFT_PART_INSTALL/range-v3
+      cp -rv * $SNAPCRAFT_PART_INSTALL/range-v3
+    prime: [-./*]
+
+  gyp:
+    plugin: patched-python
+    source: https://chromium.googlesource.com/external/gyp
+    source-type: git
+    source-commit: 702ac58e47
+    python-version: python2
+    patches:
+      - Telegram/Patches/gyp.diff
+    prime: [-./*]
+
+  # Since this is supposed to be built against ubuntu 16.04, we need to manually
+  # install gcc7, and this is a workaround to achieve this.
+  # This part can be safely removed when build.snapcraft.io will allow
+  # to build against 18.04.
+  gcc7:
+    plugin: nil
+    build-packages:
+      - libmpc-dev
+      - libcloog-ppl-dev
+    override-pull: |
+      set -x
+      echo "deb http://ppa.launchpad.net/ubuntu-toolchain-r/test/ubuntu xenial main" | \
+            sudo tee /etc/apt/sources.list.d/ubuntu-toolchain-r.list
+      sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 60C317803A41BA51845E371A1E9377A2BA9EF27F
+      sudo apt-get update \
+        -o Dir::Etc::sourcelist="sources.list.d/ubuntu-toolchain-r.list" \
+        -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0"
+      snapcraftctl pull
+    override-build: |
+      set -x
+      snapcraftctl build
+      sudo apt install gcc-7 g++-7 -o Debug::pkgProblemResolver=yes --no-install-recommends -y
+      sudo apt-mark auto gcc-7 g++-7
+      sudo rm -f /etc/apt/sources.list.d/ubuntu-toolchain-r.list
+    prime: [-./*]
