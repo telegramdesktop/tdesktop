@@ -42,7 +42,9 @@ private:
 		not_null<Ui::ScrollArea*> scroll,
 		not_null<Ui::RpWidget*> wrap);
 	void setupOptions(not_null<Ui::VerticalLayout*> container);
+	void setupFullExportOptions(not_null<Ui::VerticalLayout*> container);
 	void setupMediaOptions(not_null<Ui::VerticalLayout*> container);
+	void setupOtherOptions(not_null<Ui::VerticalLayout*> container);
 	void setupPathAndFormat(not_null<Ui::VerticalLayout*> container);
 	void addHeader(
 		not_null<Ui::VerticalLayout*> container,
@@ -60,6 +62,7 @@ private:
 		not_null<Ui::VerticalLayout*> container,
 		LangKey key,
 		Types types);
+	void addMediaOptions(not_null<Ui::VerticalLayout*> container);
 	void addMediaOption(
 		not_null<Ui::VerticalLayout*> container,
 		LangKey key,
@@ -75,6 +78,8 @@ private:
 	const Settings &readData() const;
 	template <typename Callback>
 	void changeData(Callback &&callback);
+
+	PeerId _singlePeerId = 0;
 
 	// Use through readData / changeData wrappers.
 	Settings _internal_data;

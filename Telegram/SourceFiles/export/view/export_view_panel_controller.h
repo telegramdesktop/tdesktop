@@ -50,6 +50,7 @@ public:
 	~PanelController();
 
 private:
+	void fillParams(const PasswordCheckState &state);
 	void stopExport();
 	void createPanel();
 	void updateState(State &&state);

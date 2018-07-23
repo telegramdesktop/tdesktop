@@ -546,6 +546,12 @@ struct DialogsInfo {
 DialogInfo::Type DialogTypeFromChat(const Chat &chat);
 
 DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data);
+DialogsInfo ParseDialogsInfo(
+	const MTPInputPeer &singlePeer,
+	const MTPVector<MTPUser> &data);
+DialogsInfo ParseDialogsInfo(
+	const MTPInputPeer &singlePeer,
+	const MTPmessages_Chats &data);
 DialogsInfo ParseLeftChannelsInfo(const MTPmessages_Chats &data);
 void FinalizeDialogsInfo(DialogsInfo &info, const Settings &settings);
 

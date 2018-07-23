@@ -45,7 +45,7 @@ void SuggestBox::prepare() {
 
 	addButton(langFactory(lng_box_ok), [=] {
 		closeBox();
-		Auth().data().startExport();
+		Auth().data().startExport(Local::ReadExportSettings().singlePeer);
 	});
 	addButton(langFactory(lng_export_suggest_cancel), [=] { closeBox(); });
 	setCloseByOutsideClick(false);
@@ -121,8 +121,11 @@ void PanelController::activatePanel() {
 }
 
 void PanelController::createPanel() {
+	const auto singlePeer = _settings->onlySinglePeer();
 	_panel = base::make_unique_q<Ui::SeparatePanel>();
-	_panel->setTitle(Lang::Viewer(lng_export_title));
+	_panel->setTitle(Lang::Viewer(singlePeer
+		? lng_export_header_chats
+		: lng_export_title));
 	_panel->setInnerSize(st::exportPanelSize);
 	_panel->closeRequests(
 	) | rpl::start_with_next([=] {
@@ -154,7 +157,6 @@ void PanelController::showSettings() {
 	settings->changes(
 	) | rpl::start_with_next([=](Settings &&settings) {
 		*_settings = std::move(settings);
-		_saveSettingsTimer.callOnce(kSaveSettingsTimeout);
 	}, settings->lifetime());
 
 	_panel->showInner(std::move(settings));
@@ -320,7 +322,14 @@ rpl::producer<> PanelController::stopRequests() const {
 	});
 }
 
+void PanelController::fillParams(const PasswordCheckState &state) {
+	_settings->singlePeer = state.singlePeer;
+}
+
 void PanelController::updateState(State &&state) {
+	if (const auto start = base::get_if<PasswordCheckState>(&state)) {
+		fillParams(*start);
+	}
 	if (!_panel) {
 		createPanel();
 	}

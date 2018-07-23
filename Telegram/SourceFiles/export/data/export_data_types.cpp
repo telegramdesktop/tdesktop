@@ -1386,21 +1386,97 @@ DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
 	return result;
 }
 
+DialogInfo DialogInfoFromUser(const User &data) {
+	auto result = DialogInfo();
+	result.input = (Peer{ data }).input();
+	result.name = data.info.firstName;
+	result.lastName = data.info.lastName;
+	result.peerId = UserPeerId(data.info.userId);
+	result.topMessageDate = 0;
+	result.topMessageId = 0;
+	result.type = DialogTypeFromUser(data);
+	result.isLeftChannel = false;
+	return result;
+}
+
+DialogInfo DialogInfoFromChat(const Chat &data) {
+	auto result = DialogInfo();
+	result.input = data.input;
+	result.name = data.title;
+	result.peerId = ChatPeerId(data.id);
+	result.topMessageDate = 0;
+	result.topMessageId = 0;
+	result.type = DialogTypeFromChat(data);
+	return result;
+}
+
 DialogsInfo ParseLeftChannelsInfo(const MTPmessages_Chats &data) {
 	auto result = DialogsInfo();
 	data.match([&](const auto &data) { //MTPDmessages_chats &data) {
 		result.left.reserve(data.vchats.v.size());
 		for (const auto &single : data.vchats.v) {
-			const auto chat = ParseChat(single);
-			auto info = DialogInfo();
-			info.input = chat.input;
-			info.name = chat.title;
-			info.peerId = ChatPeerId(chat.id);
-			info.topMessageDate = 0;
-			info.topMessageId = 0;
-			info.type = DialogTypeFromChat(chat);
+			auto info = DialogInfoFromChat(ParseChat(single));
 			info.isLeftChannel = true;
 			result.left.push_back(std::move(info));
+		}
+	});
+	return result;
+}
+
+DialogsInfo ParseDialogsInfo(
+		const MTPInputPeer &singlePeer,
+		const MTPVector<MTPUser> &data) {
+	const auto singleId = singlePeer.match(
+	[](const MTPDinputPeerUser &data) {
+		return data.vuser_id.v;
+	}, [](const MTPDinputPeerSelf &data) {
+		return 0;
+	}, [](const auto &data) -> int {
+		Unexpected("Single peer type in ParseDialogsInfo(users).");
+	});
+	auto result = DialogsInfo();
+	result.chats.reserve(data.v.size());
+	for (const auto &single : data.v) {
+		const auto userId = single.match([&](const auto &data) {
+			return data.vid.v;
+		});
+		if (userId != singleId
+			&& (singleId != 0
+				|| single.type() != mtpc_user
+				|| !single.c_user().is_self())) {
+			continue;
+		}
+		auto info = DialogInfoFromUser(ParseUser(single));
+		result.chats.push_back(std::move(info));
+	}
+	return result;
+}
+
+DialogsInfo ParseDialogsInfo(
+		const MTPInputPeer &singlePeer,
+		const MTPmessages_Chats &data) {
+	const auto singleId = singlePeer.match(
+	[](const MTPDinputPeerChat &data) {
+		return data.vchat_id.v;
+	}, [](const MTPDinputPeerChannel &data) {
+		return data.vchannel_id.v;
+	}, [](const auto &data) -> int {
+		Unexpected("Single peer type in ParseDialogsInfo(chats).");
+	});
+	auto result = DialogsInfo();
+	data.match([&](const auto &data) { //MTPDmessages_chats &data) {
+		result.chats.reserve(data.vchats.v.size());
+		for (const auto &single : data.vchats.v) {
+			const auto chatId = single.match([&](const auto &data) {
+				return data.vid.v;
+			});
+			if (chatId != singleId) {
+				continue;
+			}
+			const auto chat = ParseChat(single);
+			auto info = DialogInfoFromChat(ParseChat(single));
+			info.isLeftChannel = false;
+			result.chats.push_back(std::move(info));
 		}
 	});
 	return result;
@@ -1414,7 +1490,9 @@ void FinalizeDialogsInfo(DialogsInfo &info, const Settings &settings) {
 	auto index = 0;
 	for (auto &dialog : chats) {
 		const auto number = Data::NumberToString(++index, digits, '0');
-		dialog.relativePath = "chats/chat_" + number + '/';
+		dialog.relativePath = settings.onlySinglePeer()
+			? QString()
+			: "chats/chat_" + QString::fromUtf8(number) + '/';
 
 		using DialogType = DialogInfo::Type;
 		using Type = Settings::Type;
@@ -1436,6 +1514,8 @@ void FinalizeDialogsInfo(DialogsInfo &info, const Settings &settings) {
 		ranges::reverse(dialog.splits);
 	}
 	for (auto &dialog : left) {
+		Assert(!settings.onlySinglePeer());
+
 		const auto number = Data::NumberToString(++index, digits, '0');
 		dialog.relativePath = "chats/chat_" + number + '/';
 		dialog.onlyMyMessages = true;

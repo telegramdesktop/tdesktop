@@ -124,6 +124,7 @@ private:
 	void requestDialogsSlice();
 	void appendDialogsSlice(Data::DialogsInfo &&info);
 	void finishDialogsList();
+	void requestSinglePeerDialog();
 
 	void requestLeftChannelsIfNeeded();
 	void requestLeftChannelsList(

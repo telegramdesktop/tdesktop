@@ -76,7 +76,13 @@ struct Settings {
 	Types fullChats = DefaultFullChats();
 	MediaSettings media;
 
+	MTPInputPeer singlePeer = MTP_inputPeerEmpty();
+
 	TimeId availableAt = 0;
+
+	bool onlySinglePeer() const {
+		return singlePeer.type() != mtpc_inputPeerEmpty;
+	}
 
 	static inline Types DefaultTypes() {
 		return Type::PersonalInfo

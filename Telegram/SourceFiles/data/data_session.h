@@ -56,7 +56,8 @@ public:
 		return *_session;
 	}
 
-	void startExport();
+	void startExport(PeerData *peer = nullptr);
+	void startExport(const MTPInputPeer &singlePeer);
 	void suggestStartExport(TimeId availableAt);
 	void clearExportSuggestion();
 	rpl::producer<Export::View::PanelController*> currentExportView() const;

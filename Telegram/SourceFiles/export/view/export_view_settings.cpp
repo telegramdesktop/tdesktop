@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "platform/platform_specific.h"
 #include "core/file_utilities.h"
+#include "auth_session.h"
 #include "styles/style_widgets.h"
 #include "styles/style_export.h"
 #include "styles/style_boxes.h"
@@ -55,10 +56,25 @@ int SizeLimitByIndex(int index) {
 	return megabytes() * kMegabyte;
 }
 
+PeerId ReadPeerId(const MTPInputPeer &data) {
+	return data.match([](const MTPDinputPeerUser &data) {
+		return peerFromUser(data.vuser_id.v);
+	}, [](const MTPDinputPeerChat &data) {
+		return peerFromChat(data.vchat_id.v);
+	}, [](const MTPDinputPeerChannel &data) {
+		return peerFromChannel(data.vchannel_id.v);
+	}, [](const MTPDinputPeerSelf &data) {
+		return Auth().userPeerId();
+	}, [](const MTPDinputPeerEmpty &data) {
+		return PeerId(0);
+	});
+}
+
 } // namespace
 
 SettingsWidget::SettingsWidget(QWidget *parent, Settings data)
 : RpWidget(parent)
+, _singlePeerId(ReadPeerId(data.singlePeer))
 , _internal_data(std::move(data)) {
 	setupContent();
 }
@@ -95,6 +111,17 @@ void SettingsWidget::setupContent() {
 }
 
 void SettingsWidget::setupOptions(not_null<Ui::VerticalLayout*> container) {
+	if (!_singlePeerId) {
+		setupFullExportOptions(container);
+	}
+	setupMediaOptions(container);
+	if (!_singlePeerId) {
+		setupOtherOptions(container);
+	}
+}
+
+void SettingsWidget::setupFullExportOptions(
+		not_null<Ui::VerticalLayout*> container) {
 	addOptionWithAbout(
 		container,
 		lng_export_option_info,
@@ -127,38 +154,21 @@ void SettingsWidget::setupOptions(not_null<Ui::VerticalLayout*> container) {
 		container,
 		lng_export_option_public_channels,
 		Type::PublicChannels);
-
-	setupMediaOptions(container);
-
-	addHeader(container, lng_export_header_other);
-	addOptionWithAbout(
-		container,
-		lng_export_option_sessions,
-		Type::Sessions,
-		lng_export_option_sessions_about);
-	addOptionWithAbout(
-		container,
-		lng_export_option_other,
-		Type::OtherData,
-		lng_export_option_other_about);
 }
 
 void SettingsWidget::setupMediaOptions(
 		not_null<Ui::VerticalLayout*> container) {
+	if (_singlePeerId != 0) {
+		addMediaOptions(container);
+		return;
+	}
 	const auto mediaWrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			container,
 			object_ptr<Ui::VerticalLayout>(container)));
 	const auto media = mediaWrap->entity();
 	addHeader(media, lng_export_header_media);
-	addMediaOption(media, lng_export_option_photos, MediaType::Photo);
-	addMediaOption(media, lng_export_option_video_files, MediaType::Video);
-	addMediaOption(media, lng_export_option_voice_messages, MediaType::VoiceMessage);
-	addMediaOption(media, lng_export_option_video_messages, MediaType::VideoMessage);
-	addMediaOption(media, lng_export_option_stickers, MediaType::Sticker);
-	addMediaOption(media, lng_export_option_gifs, MediaType::GIF);
-	addMediaOption(media, lng_export_option_files, MediaType::File);
-	addSizeSlider(media);
+	addMediaOptions(media);
 
 	value() | rpl::map([](const Settings &data) {
 		return data.types;
@@ -178,8 +188,27 @@ void SettingsWidget::setupMediaOptions(
 	}, mediaWrap->lifetime());
 }
 
+void SettingsWidget::setupOtherOptions(
+		not_null<Ui::VerticalLayout*> container) {
+	addHeader(container, lng_export_header_other);
+	addOptionWithAbout(
+		container,
+		lng_export_option_sessions,
+		Type::Sessions,
+		lng_export_option_sessions_about);
+	addOptionWithAbout(
+		container,
+		lng_export_option_other,
+		Type::OtherData,
+		lng_export_option_other_about);
+}
+
 void SettingsWidget::setupPathAndFormat(
 		not_null<Ui::VerticalLayout*> container) {
+	if (_singlePeerId != 0) {
+		addLocationLabel(container);
+		return;
+	}
 	const auto formatGroup = std::make_shared<Ui::RadioenumGroup<Format>>(
 		readData().format);
 	formatGroup->setChangedCallback([=](Format format) {
@@ -205,6 +234,7 @@ void SettingsWidget::setupPathAndFormat(
 
 void SettingsWidget::addLocationLabel(
 		not_null<Ui::VerticalLayout*> container) {
+#ifndef OS_MAC_STORE
 	auto pathLabel = value() | rpl::map([](const Settings &data) {
 		return data.path;
 	}) | rpl::distinct_until_changed(
@@ -241,6 +271,7 @@ void SettingsWidget::addLocationLabel(
 		chooseFolder();
 		return false;
 	});
+#endif // OS_MAC_STORE
 }
 
 not_null<Ui::RpWidget*> SettingsWidget::setupButtons(
@@ -380,6 +411,30 @@ void SettingsWidget::addChatOption(
 		onlyMy->entity()->setChecked(true);
 		onlyMy->entity()->setDisabled(true);
 	}
+}
+
+void SettingsWidget::addMediaOptions(
+		not_null<Ui::VerticalLayout*> container) {
+	addMediaOption(container, lng_export_option_photos, MediaType::Photo);
+	addMediaOption(
+		container,
+		lng_export_option_video_files,
+		MediaType::Video);
+	addMediaOption(
+		container,
+		lng_export_option_voice_messages,
+		MediaType::VoiceMessage);
+	addMediaOption(
+		container,
+		lng_export_option_video_messages,
+		MediaType::VideoMessage);
+	addMediaOption(
+		container,
+		lng_export_option_stickers,
+		MediaType::Sticker);
+	addMediaOption(container, lng_export_option_gifs, MediaType::GIF);
+	addMediaOption(container, lng_export_option_files, MediaType::File);
+	addSizeSlider(container);
 }
 
 void SettingsWidget::addMediaOption(

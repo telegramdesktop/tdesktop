@@ -15,12 +15,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/output/export_output_stats.h"
 
 namespace Export {
+namespace {
 
-auto kNullStateCallback = [](ProcessingState&) {};
+const auto kNullStateCallback = [](ProcessingState&) {};
+
+Settings NormalizeSettings(const Settings &settings) {
+	if (!settings.onlySinglePeer()) {
+		return base::duplicate(settings);
+	}
+	auto result = base::duplicate(settings);
+	result.format = Output::Format::Html;
+	result.types = result.fullChats = Settings::Type::AnyChatsMask;
+	return result;
+}
+
+} // namespace
 
 class Controller {
 public:
-	Controller(crl::weak_on_queue<Controller> weak);
+	Controller(
+		crl::weak_on_queue<Controller> weak,
+		const MTPInputPeer &peer);
 
 	rpl::producer<State> state() const;
 
@@ -83,8 +98,6 @@ private:
 
 	int substepsInStep(Step step) const;
 
-	bool normalizePath();
-
 	ApiWrap _api;
 	Settings _settings;
 	Environment _environment;
@@ -117,7 +130,9 @@ private:
 
 };
 
-Controller::Controller(crl::weak_on_queue<Controller> weak)
+Controller::Controller(
+	crl::weak_on_queue<Controller> weak,
+	const MTPInputPeer &peer)
 : _api(weak.runner())
 , _state(PasswordCheckState{}) {
 	_api.errors(
@@ -134,6 +149,7 @@ Controller::Controller(crl::weak_on_queue<Controller> weak)
 	auto state = PasswordCheckState();
 	state.checked = false;
 	state.requesting = false;
+	state.singlePeer = peer;
 	setState(std::move(state));
 }
 
@@ -218,10 +234,10 @@ void Controller::startExport(
 	if (!_settings.path.isEmpty()) {
 		return;
 	}
-	_settings = base::duplicate(settings);
+	_settings = NormalizeSettings(settings);
 	_environment = environment;
 
-	_settings.path = Output::NormalizePath(_settings.path);
+	_settings.path = Output::NormalizePath(_settings);
 	_writer = Output::CreateWriter(_settings.format);
 	fillExportSteps();
 	exportNext();
@@ -569,7 +585,7 @@ void Controller::setFinishedState() {
 		_stats.bytesCount() });
 }
 
-ControllerWrap::ControllerWrap() {
+ControllerWrap::ControllerWrap(const MTPInputPeer &peer) : _wrapped(peer) {
 }
 
 rpl::producer<State> ControllerWrap::state() const {

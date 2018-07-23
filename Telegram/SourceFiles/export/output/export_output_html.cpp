@@ -1727,7 +1727,6 @@ Result HtmlWriter::start(
 	_settings = base::duplicate(settings);
 	_environment = environment;
 	_stats = stats;
-	_summary = fileWithRelativePath(mainFileRelativePath());
 
 	//const auto result = copyFile(
 	//	":/export/css/bootstrap.min.css",
@@ -1771,6 +1770,11 @@ Result HtmlWriter::start(
 			}
 		}
 	}
+
+	if (_settings.onlySinglePeer()) {
+		return Result::Success();
+	}
+	_summary = fileWithRelativePath(mainFileRelativePath());
 	auto block = _summary->pushHeader("Exported Data");
 	block.append(_summary->pushDiv("page_body"));
 	return _summary->writeBlock(block);
@@ -1810,6 +1814,8 @@ Result HtmlWriter::writeDelayedPersonal(const QString &userpicPath) {
 Result HtmlWriter::writePreparedPersonal(
 		const Data::PersonalInfo &data,
 		const QString &userpicPath) {
+	Expects(_summary != nullptr);
+
 	const auto &info = data.user.info;
 
 	auto userpic = UserpicData{ _selfColorIndex, kPersonalUserpicSize };
@@ -2197,10 +2203,11 @@ Result HtmlWriter::writeOtherData(const Data::File &data) {
 }
 
 Result HtmlWriter::writeDialogsStart(const Data::DialogsInfo &data) {
-	Expects(_summary != nullptr);
 	Expects(_chats == nullptr);
 
 	if (data.chats.empty() && data.left.empty()) {
+		return Result::Success();
+	} else if (_settings.onlySinglePeer()) {
 		return Result::Success();
 	}
 
@@ -2293,12 +2300,35 @@ Result HtmlWriter::writeDialogSlice(const Data::MessagesSlice &data) {
 	return _chat->writeBlock(block);
 }
 
-Result HtmlWriter::writeDialogEnd() {
-	Expects(_chats != nullptr);
+Result HtmlWriter::writeEmptySinglePeer() {
 	Expects(_chat != nullptr);
+
+	if (!_settings.onlySinglePeer() || _messagesCount != 0) {
+		return Result::Success();
+	}
+	Assert(_chatFileEmpty);
+	if (const auto result = writeDialogOpening(0); !result) {
+		return result;
+	}
+	return _chat->writeBlock(_chat->pushServiceMessage(
+		--_dateMessageId,
+		_dialog,
+		_settings.path,
+		"Empty chat"));
+}
+
+Result HtmlWriter::writeDialogEnd() {
+	Expects(_settings.onlySinglePeer() || _chats != nullptr);
+	Expects(_chat != nullptr);
+
+	if (const auto result = writeEmptySinglePeer(); !result) {
+		return result;
+	}
 
 	if (const auto closed = base::take(_chat)->close(); !closed) {
 		return closed;
+	} else if (_settings.onlySinglePeer()) {
+		return Result::Success();
 	}
 
 	using Type = Data::DialogInfo::Type;
@@ -2411,7 +2441,7 @@ Result HtmlWriter::writeDialogOpening(int index) {
 		: (_dialog.name + ' ' + _dialog.lastName);
 	auto block = _chat->pushHeader(
 		name,
-		_dialogsRelativePath);
+		_settings.onlySinglePeer() ? QString() : _dialogsRelativePath);
 	block.append(_chat->pushDiv("page_body chat_page"));
 	block.append(_chat->pushDiv("history"));
 	if (index > 0) {
@@ -2489,7 +2519,11 @@ Result HtmlWriter::switchToNextChatFile(int index) {
 }
 
 Result HtmlWriter::finish() {
-	Expects(_summary != nullptr);
+	Expects(_settings.onlySinglePeer() || _summary != nullptr);
+
+	if (_settings.onlySinglePeer()) {
+		return Result::Success();
+	}
 
 	auto block = QByteArray();
 	if (_haveSections) {
@@ -2516,7 +2550,9 @@ Result HtmlWriter::copyFile(
 }
 
 QString HtmlWriter::mainFilePath() {
-	return pathWithRelativePath(mainFileRelativePath());
+	return pathWithRelativePath(_settings.onlySinglePeer()
+		? messagesFile(0)
+		: mainFileRelativePath());
 }
 
 QString HtmlWriter::mainFileRelativePath() const {

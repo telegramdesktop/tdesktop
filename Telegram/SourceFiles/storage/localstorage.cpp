@@ -43,6 +43,12 @@ constexpr auto kFileLoaderQueueStopTimeout = TimeMs(5000);
 constexpr auto kDefaultStickerInstallDate = TimeId(1);
 constexpr auto kProxyTypeShift = 1024;
 
+constexpr auto kSinglePeerTypeUser = qint32(1);
+constexpr auto kSinglePeerTypeChat = qint32(2);
+constexpr auto kSinglePeerTypeChannel = qint32(3);
+constexpr auto kSinglePeerTypeSelf = qint32(4);
+constexpr auto kSinglePeerTypeEmpty = qint32(0);
+
 using FileKey = quint64;
 
 constexpr char tdfMagic[] = { 'T', 'D', 'F', '$' };
@@ -4816,7 +4822,8 @@ void WriteExportSettings(const Export::Settings &settings) {
 		&& settings.media.sizeLimit == check.media.sizeLimit
 		&& settings.path == check.path
 		&& settings.format == check.format
-		&& settings.availableAt == check.availableAt) {
+		&& settings.availableAt == check.availableAt
+		&& !settings.onlySinglePeer()) {
 		if (_exportSettingsKey) {
 			clearKey(_exportSettingsKey);
 			_exportSettingsKey = 0;
@@ -4830,7 +4837,8 @@ void WriteExportSettings(const Export::Settings &settings) {
 			_writeMap(WriteMapWhen::Fast);
 		}
 		quint32 size = sizeof(quint32) * 6
-			+ Serialize::stringSize(settings.path);
+			+ Serialize::stringSize(settings.path)
+			+ sizeof(qint32) * 2 + sizeof(quint64);
 		EncryptedDescriptor data(size);
 		data.stream
 			<< quint32(settings.types)
@@ -4840,6 +4848,23 @@ void WriteExportSettings(const Export::Settings &settings) {
 			<< quint32(settings.format)
 			<< settings.path
 			<< quint32(settings.availableAt);
+		settings.singlePeer.match([&](const MTPDinputPeerUser &user) {
+			data.stream
+				<< kSinglePeerTypeUser
+				<< qint32(user.vuser_id.v)
+				<< quint64(user.vaccess_hash.v);
+		}, [&](const MTPDinputPeerChat &chat) {
+			data.stream << kSinglePeerTypeChat << qint32(chat.vchat_id.v);
+		}, [&](const MTPDinputPeerChannel &channel) {
+			data.stream
+				<< kSinglePeerTypeChannel
+				<< qint32(channel.vchannel_id.v)
+				<< quint64(channel.vaccess_hash.v);
+		}, [&](const MTPDinputPeerSelf &) {
+			data.stream << kSinglePeerTypeSelf;
+		}, [&](const MTPDinputPeerEmpty &) {
+			data.stream << kSinglePeerTypeEmpty;
+		});
 
 		FileWriteDescriptor file(_exportSettingsKey);
 		file.writeEncrypted(data);
@@ -4859,6 +4884,8 @@ Export::Settings ReadExportSettings() {
 	quint32 mediaTypes = 0, mediaSizeLimit = 0;
 	quint32 format = 0, availableAt = 0;
 	QString path;
+	qint32 singlePeerType = 0, singlePeerBareId = 0;
+	quint64 singlePeerAccessHash = 0;
 	file.stream
 		>> types
 		>> fullChats
@@ -4867,6 +4894,19 @@ Export::Settings ReadExportSettings() {
 		>> format
 		>> path
 		>> availableAt;
+	if (!file.stream.atEnd()) {
+		file.stream >> singlePeerType;
+		switch (singlePeerType) {
+		case kSinglePeerTypeUser:
+		case kSinglePeerTypeChannel: {
+			file.stream >> singlePeerBareId >> singlePeerAccessHash;
+		} break;
+		case kSinglePeerTypeChat: file.stream >> singlePeerBareId; break;
+		case kSinglePeerTypeSelf:
+		case kSinglePeerTypeEmpty: break;
+		default: return Export::Settings();
+		}
+	}
 	auto result = Export::Settings();
 	result.types = Export::Settings::Types::from_raw(types);
 	result.fullChats = Export::Settings::Types::from_raw(fullChats);
@@ -4875,6 +4915,25 @@ Export::Settings ReadExportSettings() {
 	result.format = Export::Output::Format(format);
 	result.path = path;
 	result.availableAt = availableAt;
+	result.singlePeer = [&] {
+		switch (singlePeerType) {
+		case kSinglePeerTypeUser:
+			return MTP_inputPeerUser(
+				MTP_int(singlePeerBareId),
+				MTP_long(singlePeerAccessHash));
+		case kSinglePeerTypeChat:
+			return MTP_inputPeerChat(MTP_int(singlePeerBareId));
+		case kSinglePeerTypeChannel:
+			return MTP_inputPeerChannel(
+				MTP_int(singlePeerBareId),
+				MTP_long(singlePeerAccessHash));
+		case kSinglePeerTypeSelf:
+			return MTP_inputPeerSelf();
+		case kSinglePeerTypeEmpty:
+			return MTP_inputPeerEmpty();
+		}
+		Unexpected("Type in export data single peer.");
+	}();
 	return (file.stream.status() == QDataStream::Ok && result.validate())
 		? result
 		: Export::Settings();

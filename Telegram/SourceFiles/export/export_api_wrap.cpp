@@ -369,7 +369,8 @@ auto ApiWrap::fileRequest(const Data::FileLocation &location, int offset) {
 			filePartDone(0, MTP_upload_file(MTP_storage_filePartial(),
 				MTP_int(0),
 				MTP_bytes(QByteArray())));
-		} else if (result.type() == qstr("LOCATION_INVALID")) {
+		} else if (result.type() == qstr("LOCATION_INVALID")
+			|| result.type() == qstr("VERSION_INVALID")) {
 			filePartUnavailable();
 		} else {
 			error(std::move(result));
@@ -413,7 +414,9 @@ void ApiWrap::startExport(
 		_startProcess->steps.push_back(Step::DialogsCount);
 	}
 	if (_settings->types & Settings::Type::GroupsChannelsMask) {
-		_startProcess->steps.push_back(Step::LeftChannelsCount);
+		if (!_settings->onlySinglePeer()) {
+			_startProcess->steps.push_back(Step::LeftChannelsCount);
+		}
 	}
 	startMainSession([=] {
 		sendNextStartRequest();
@@ -488,6 +491,15 @@ void ApiWrap::requestSplitRanges() {
 
 void ApiWrap::requestDialogsCount() {
 	Expects(_startProcess != nullptr);
+
+	if (_settings->onlySinglePeer()) {
+		_startProcess->info.dialogsCount =
+			(_settings->singlePeer.type() == mtpc_inputPeerChannel
+				? 1
+				: _splits.size());
+		sendNextStartRequest();
+		return;
+	}
 
 	const auto offsetDate = 0;
 	const auto offsetId = 0;
@@ -959,8 +971,57 @@ void ApiWrap::cancelExportFast() {
 	}
 }
 
+void ApiWrap::requestSinglePeerDialog() {
+	auto doneSinglePeer = [=](const auto &result) {
+		auto info = Data::ParseDialogsInfo(_settings->singlePeer, result);
+
+		_dialogsProcess->processedCount += info.chats.size();
+		appendDialogsSlice(std::move(info));
+
+		const auto last = _dialogsProcess->splitIndexPlusOne - 1;
+		for (auto &info : _dialogsProcess->info.chats) {
+			for (auto i = last; i != 0; --i) {
+				info.splits.push_back(i - 1);
+				info.messagesCountPerSplit.push_back(0);
+			}
+		}
+
+		if (!_dialogsProcess->progress(_dialogsProcess->processedCount)) {
+			return;
+		}
+		finishDialogsList();
+	};
+	const auto requestUser = [&](const MTPInputUser &data) {
+		mainRequest(MTPusers_GetUsers(
+			MTP_vector<MTPInputUser>(1, data)
+		)).done(std::move(doneSinglePeer)).send();
+	};
+	_settings->singlePeer.match([&](const MTPDinputPeerUser &data) {
+		requestUser(MTP_inputUser(data.vuser_id, data.vaccess_hash));
+	}, [&](const MTPDinputPeerChat &data) {
+		mainRequest(MTPmessages_GetChats(
+			MTP_vector<MTPint>(1, data.vchat_id)
+		)).done(std::move(doneSinglePeer)).send();
+	}, [&](const MTPDinputPeerChannel &data) {
+		mainRequest(MTPchannels_GetChannels(
+			MTP_vector<MTPInputChannel>(
+				1,
+				MTP_inputChannel(data.vchannel_id, data.vaccess_hash))
+		)).done(std::move(doneSinglePeer)).send();
+	}, [&](const MTPDinputPeerSelf &data) {
+		requestUser(MTP_inputUserSelf());
+	}, [](const MTPDinputPeerEmpty &data) {
+		Unexpected("Empty peer in ApiWrap::requestSinglePeerDialog.");
+	});
+}
+
 void ApiWrap::requestDialogsSlice() {
 	Expects(_dialogsProcess != nullptr);
+
+	if (_settings->onlySinglePeer()) {
+		requestSinglePeerDialog();
+		return;
+	}
 
 	const auto splitIndex = _dialogsProcess->splitIndexPlusOne - 1;
 	const auto hash = 0;

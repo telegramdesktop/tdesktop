@@ -72,12 +72,16 @@ Session::Session(not_null<AuthSession*> session)
 	setupChannelLeavingViewer();
 }
 
-void Session::startExport() {
+void Session::startExport(PeerData *peer) {
+	startExport(peer ? peer->input : MTP_inputPeerEmpty());
+}
+
+void Session::startExport(const MTPInputPeer &singlePeer) {
 	if (_exportPanel) {
 		_exportPanel->activatePanel();
 		return;
 	}
-	_export = std::make_unique<Export::ControllerWrap>();
+	_export = std::make_unique<Export::ControllerWrap>(singlePeer);
 	_exportPanel = std::make_unique<Export::View::PanelController>(
 		_export.get());
 

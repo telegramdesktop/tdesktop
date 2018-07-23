@@ -108,6 +108,7 @@ private:
 	[[nodiscard]] Result validateDialogsMode(bool isLeftChannel);
 	[[nodiscard]] Result writeDialogOpening(int index);
 	[[nodiscard]] Result switchToNextChatFile(int index);
+	[[nodiscard]] Result writeEmptySinglePeer();
 
 	void pushSection(
 		int priority,

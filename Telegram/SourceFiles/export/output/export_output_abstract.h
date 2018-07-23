@@ -27,7 +27,7 @@ struct Environment;
 
 namespace Output {
 
-QString NormalizePath(const QString &source);
+QString NormalizePath(const Settings &settings);
 
 struct Result;
 class Stats;
