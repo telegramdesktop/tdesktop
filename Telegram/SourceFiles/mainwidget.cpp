@@ -2248,8 +2248,14 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 			height() - sectionTop));
 	} else if (_mainSection) {
 		result.oldContentCache = _mainSection->grabForShowAnimation(result);
-	} else {
+	} else if (!Adaptive::OneColumn() || !_history->isHidden()) {
 		result.oldContentCache = _history->grabForShowAnimation(result);
+	} else {
+		result.oldContentCache = Ui::GrabWidget(this, QRect(
+			0,
+			sectionTop,
+			_dialogsWidth,
+			height() - sectionTop));
 	}
 
 	if (playerVolumeVisible) {
