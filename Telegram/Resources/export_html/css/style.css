@@ -245,6 +245,14 @@ a.block_link:hover {
 .history {
     padding: 16px 0;
 }
+.message {
+    margin: 0 -10px;
+    transition: background-color 2.0s ease;
+}
+div.selected {
+    background-color: rgba(242,246,250,255);
+    transition: background-color 0.5s ease;
+}
 .service {
     padding: 10px 24px;
 }
@@ -264,7 +272,7 @@ a.block_link:hover {
     font-size: 16px;
 }
 .default {
-    padding: 10px 0 10px;
+    padding: 10px;
 }
 .default.joined {
     padding-top: 0;
@@ -377,6 +385,26 @@ a.block_link:hover {
     text-align: center;
     padding: 20px;
     font-size: 16px;
+}
+
+.toast_container {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    opacity: 0;
+    transition: opacity 3.0s ease;
+}
+.toast_body {
+    margin: 0 -50%;
+    float: left;
+    border-radius: 15px;
+    padding: 10px 20px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #ffffff;
+}
+div.toast_shown {
+    opacity: 1;
+    transition: opacity 0.4s ease;
 }
 
 .section.calls {

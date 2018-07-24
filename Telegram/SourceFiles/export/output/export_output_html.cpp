@@ -253,12 +253,14 @@ QByteArray FormatText(
 				+ internalLinksDomain.toUtf8()
 				+ text.mid(1)
 				+ "\">" + text + "</a>";
-		case Type::Hashtag: return "<a href=\"#hash-"
-			+ text.mid(1)
-			+ "\">" + text + "</a>";
-		case Type::BotCommand: return "<a href=\"#command-"
-			+ text.mid(1)
-			+ "\">" + text + "</a>";
+		case Type::Hashtag: return "<a href=\"\" "
+			"onclick=\"return ShowHashtag("
+			+ SerializeString('"' + text.mid(1) + '"')
+			+ ")\">" + text + "</a>";
+		case Type::BotCommand: return "<a href=\"\" "
+			"onclick=\"return ShowBotCommand("
+			+ SerializeString('"' + text.mid(1) + '"')
+			+ ")\">" + text + "</a>";
 		case Type::Url: return "<a href=\""
 			+ text
 			+ "\">" + text + "</a>";
@@ -272,15 +274,15 @@ QByteArray FormatText(
 		case Type::TextUrl: return "<a href=\""
 			+ SerializeString(part.additional)
 			+ "\">" + text + "</a>";
-		case Type::MentionName: return "<a href=\"#mention-"
-			+ part.additional
-			+ "\">" + text + "</a>";
+		case Type::MentionName: return "<a href=\"\" "
+			"onclick=\"return ShowMentionName()\">" + text + "</a>";
 		case Type::Phone: return "<a href=\"tel:"
 			+ text
 			+ "\">" + text + "</a>";
-		case Type::Cashtag: return "<a href=\"#cash-"
-			+ text.mid(1)
-			+ "\">" + text + "</a>";
+		case Type::Cashtag: return "<a href=\"\" "
+			"onclick=\"return ShowCashtag("
+			+ SerializeString('"' + text.mid(1) + '"')
+			+ ")\">" + text + "</a>";
 		}
 		Unexpected("Type in text entities serialization.");
 	}) | ranges::to_vector);
@@ -506,6 +508,7 @@ struct HtmlWriter::MessageInfo {
 		Service,
 		Default,
 	};
+	int32 id = 0;
 	Type type = Type::Service;
 	int32 fromId = 0;
 	TimeId date = 0;
@@ -566,7 +569,8 @@ public:
 		const Data::DialogInfo &dialog,
 		const QString &basePath,
 		const PeersMap &peers,
-		const QString &internalLinksDomain);
+		const QString &internalLinksDomain,
+		Fn<QByteArray(int messageId, QByteArray text)> wrapMessageLink);
 
 	[[nodiscard]] Result writeBlock(const QByteArray &block);
 
@@ -794,7 +798,7 @@ QByteArray HtmlWriter::Wrap::pushGenericListEntry(
 		? pushDiv("entry clearfix")
 		: pushTag("a", {
 			{ "class", "entry block_link clearfix" },
-			{ "href", relativePath(link).toUtf8() },
+			{ "href", relativePath(link).toUtf8() + "#allow_back" },
 		});
 	result.append(pushDiv("pull_left userpic_wrap"));
 	result.append(pushUserpic(userpic));
@@ -850,7 +854,8 @@ QByteArray HtmlWriter::Wrap::pushHeader(
 		? pushDiv("content")
 		: pushTag("a", {
 			{ "class", "content block_link" },
-			{ "href", relativePath(path).toUtf8() }
+			{ "href", relativePath(path).toUtf8() },
+			{ "onclick", "return GoBack(this)"},
 		}));
 	result.append(pushDiv("text bold"));
 	result.append(SerializeString(header));
@@ -867,7 +872,7 @@ QByteArray HtmlWriter::Wrap::pushSection(
 		const QString &link) {
 	auto result = pushTag("a", {
 		{ "class", "section block_link " + type },
-		{ "href", link.toUtf8() },
+		{ "href", link.toUtf8() + "#allow_back" },
 	});
 	result.append(pushDiv("counter details"));
 	result.append(Data::NumberToString(count));
@@ -924,16 +929,18 @@ QByteArray HtmlWriter::Wrap::pushServiceMessage(
 }
 
 auto HtmlWriter::Wrap::pushMessage(
-		const Data::Message &message,
-		const MessageInfo *previous,
-		const Data::DialogInfo &dialog,
-		const QString &basePath,
-		const PeersMap &peers,
-		const QString &internalLinksDomain
+	const Data::Message &message,
+	const MessageInfo *previous,
+	const Data::DialogInfo &dialog,
+	const QString &basePath,
+	const PeersMap &peers,
+	const QString &internalLinksDomain,
+	Fn<QByteArray(int messageId, QByteArray text)> wrapMessageLink
 ) -> std::pair<MessageInfo, QByteArray> {
 	using namespace Data;
 
 	auto info = MessageInfo();
+	info.id = message.id;
 	info.fromId = message.fromId;
 	info.date = message.date;
 	info.forwardedFromId = message.forwardedFromId;
@@ -948,10 +955,7 @@ auto HtmlWriter::Wrap::pushMessage(
 	}
 
 	const auto wrapReplyToLink = [&](const QByteArray &text) {
-		return "<a href=\"#message"
-			+ NumberToString(message.replyToMsgId)
-			+ "\">"
-			+ text + "</a>";
+		return wrapMessageLink(message.replyToMsgId, text);
 	};
 
 	const auto serviceFrom = peers.wrapUserName(message.fromId);
@@ -1706,8 +1710,15 @@ QByteArray HtmlWriter::Wrap::composeStart() {
 		{ "rel", "stylesheet" },
 		{ "empty", "" }
 	}));
+	result.append(_context.pushTag("script", {
+		{ "src", _base + "js/script.js" },
+		{ "type", "text/javascript" },
+	}));
+	result.append(_context.popTag());
 	result.append(popTag());
-	result.append(pushTag("body"));
+	result.append(pushTag("body", {
+		{ "onload", "CheckLocation();" }
+	}));
 	result.append(pushDiv("page_wrap"));
 	return result;
 }
@@ -1758,6 +1769,7 @@ Result HtmlWriter::start(
 		"images/section_photos.png",
 		"images/section_sessions.png",
 		"images/section_web.png",
+		"js/script.js",
 	};
 	for (const auto path : files) {
 		const auto name = QString(path);
@@ -2239,6 +2251,7 @@ Result HtmlWriter::writeDialogStart(const Data::DialogInfo &data) {
 	_messagesCount = 0;
 	_dateMessageId = 0;
 	_lastMessageInfo = nullptr;
+	_lastMessageIdsPerFile.clear();
 	_dialog = data;
 	return Result::Success();
 }
@@ -2247,11 +2260,32 @@ Result HtmlWriter::writeDialogSlice(const Data::MessagesSlice &data) {
 	Expects(_chat != nullptr);
 	Expects(!data.list.empty());
 
+	const auto messageLinkWrapper = [&](int messageId, QByteArray text) {
+		return wrapMessageLink(messageId, text);
+	};
 	auto oldIndex = (_messagesCount / kMessagesInFile);
 	auto previous = _lastMessageInfo.get();
 	auto saved = base::optional<MessageInfo>();
 	auto block = QByteArray();
 	for (const auto &message : data.list) {
+		const auto newIndex = (_messagesCount / kMessagesInFile);
+		if (oldIndex != newIndex) {
+			if (const auto result = _chat->writeBlock(block); !result) {
+				return result;
+			} else if (const auto next = switchToNextChatFile(newIndex)) {
+				Assert(saved.has_value() || _lastMessageInfo != nullptr);
+				_lastMessageIdsPerFile.push_back(saved
+					? saved->id
+					: _lastMessageInfo->id);
+				block = QByteArray();
+				_lastMessageInfo = nullptr;
+				previous = nullptr;
+				saved = base::none;
+				oldIndex = newIndex;
+			} else {
+				return next;
+			}
+		}
 		if (_chatFileEmpty) {
 			if (const auto result = writeDialogOpening(oldIndex); !result) {
 				return result;
@@ -2272,27 +2306,13 @@ Result HtmlWriter::writeDialogSlice(const Data::MessagesSlice &data) {
 			_dialog,
 			_settings.path,
 			data.peers,
-			_environment.internalLinksDomain);
+			_environment.internalLinksDomain,
+			messageLinkWrapper);
 		block.append(content);
 
 		++_messagesCount;
-		const auto newIndex = (_messagesCount / kMessagesInFile);
-		if (oldIndex != newIndex) {
-			if (const auto result = _chat->writeBlock(block); !result) {
-				return result;
-			} else if (const auto next = switchToNextChatFile(newIndex)) {
-				block = QByteArray();
-				_lastMessageInfo = nullptr;
-				previous = nullptr;
-				saved = base::none;
-				oldIndex = newIndex;
-			} else {
-				return next;
-			}
-		} else {
-			saved = info;
-			previous = &*saved;
-		}
+		saved = info;
+		previous = &*saved;
 	}
 	if (saved) {
 		_lastMessageInfo = std::make_unique<MessageInfo>(*saved);
@@ -2474,7 +2494,9 @@ void HtmlWriter::pushSection(
 Result HtmlWriter::writeSections() {
 	Expects(_summary != nullptr);
 
-	if (!_haveSections) {
+	if (_savedSections.empty()) {
+		return Result::Success();
+	} else if (!_haveSections) {
 		auto block = _summary->pushDiv(
 			_summaryNeedDivider ? "sections with_divider" : "sections");
 		if (const auto result = _summary->writeBlock(block); !result) {
@@ -2496,6 +2518,29 @@ Result HtmlWriter::writeSections() {
 			_summary->relativePath(section.path)));
 	}
 	return _summary->writeBlock(block);
+}
+
+QByteArray HtmlWriter::wrapMessageLink(int messageId, QByteArray text) {
+	const auto finishedCount = _lastMessageIdsPerFile.size();
+	const auto it = ranges::find_if(_lastMessageIdsPerFile, [&](int maxMessageId) {
+		return messageId <= maxMessageId;
+	});
+	if (it == end(_lastMessageIdsPerFile)) {
+		return "<a href=\"#go_to_message"
+			+ Data::NumberToString(messageId)
+			+ "\" onclick=\"return GoToMessage("
+			+ Data::NumberToString(messageId)
+			+ ")\">"
+			+ text + "</a>";
+	} else {
+		const auto index = it - begin(_lastMessageIdsPerFile);
+		return "<a href=\"" + messagesFile(index).toUtf8()
+			+ "#go_to_message"
+			+ Data::NumberToString(messageId)
+			+ "\">"
+			+ text + "</a>";
+
+	}
 }
 
 Result HtmlWriter::switchToNextChatFile(int index) {
@@ -2525,6 +2570,9 @@ Result HtmlWriter::finish() {
 		return Result::Success();
 	}
 
+	if (const auto result = writeSections(); !result) {
+		return result;
+	}
 	auto block = QByteArray();
 	if (_haveSections) {
 		block.append(_summary->popTag());

@@ -128,6 +128,10 @@ private:
 
 	[[nodiscard]] QString userpicsFilePath() const;
 
+	[[nodiscard]] QByteArray wrapMessageLink(
+		int messageId,
+		QByteArray text);
+
 	Settings _settings;
 	Environment _environment;
 	Stats *_stats = nullptr;
@@ -154,6 +158,7 @@ private:
 	int _dateMessageId = 0;
 	std::unique_ptr<Wrap> _chats;
 	std::unique_ptr<Wrap> _chat;
+	std::vector<int> _lastMessageIdsPerFile;
 	bool _chatFileEmpty = false;
 
 };

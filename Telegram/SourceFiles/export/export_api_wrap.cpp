@@ -972,6 +972,13 @@ void ApiWrap::cancelExportFast() {
 }
 
 void ApiWrap::requestSinglePeerDialog() {
+	const auto isChannelType = [](Data::DialogInfo::Type type) {
+		using Type = Data::DialogInfo::Type;
+		return (type == Type::PrivateSupergroup)
+			|| (type == Type::PublicSupergroup)
+			|| (type == Type::PrivateChannel)
+			|| (type == Type::PublicChannel);
+	};
 	auto doneSinglePeer = [=](const auto &result) {
 		auto info = Data::ParseDialogsInfo(_settings->singlePeer, result);
 
@@ -980,6 +987,9 @@ void ApiWrap::requestSinglePeerDialog() {
 
 		const auto last = _dialogsProcess->splitIndexPlusOne - 1;
 		for (auto &info : _dialogsProcess->info.chats) {
+			if (isChannelType(info.type)) {
+				continue;
+			}
 			for (auto i = last; i != 0; --i) {
 				info.splits.push_back(i - 1);
 				info.messagesCountPerSplit.push_back(0);

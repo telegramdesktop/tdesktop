@@ -39,6 +39,7 @@
     <file alias="images/section_sessions@2x.png">../export_html/images/section_sessions@2x.png</file>
     <file alias="images/section_web.png">../export_html/images/section_web.png</file>
     <file alias="images/section_web@2x.png">../export_html/images/section_web@2x.png</file>
+    <file alias="js/script.js">../export_html/js/script.js</file>
   </qresource>
   <qresource prefix="/gui">
     <file alias="fonts/OpenSans-Regular.ttf">../fonts/OpenSans-Regular.ttf</file>
