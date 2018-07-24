@@ -4250,7 +4250,9 @@ bool HistoryWidget::confirmSendingFiles(
 	}));
 
 	ActivateWindowDelayed(controller());
-	Ui::show(std::move(box));
+	const auto shown = Ui::show(std::move(box));
+	shown->setCloseByOutsideClick(false);
+
 	return true;
 }
 
