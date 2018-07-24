@@ -778,13 +778,9 @@ void ChatBackground::toggleNightMode() {
 	// Theme editor could have already reverted the testing of this toggle.
 	if (AreTestingTheme()) {
 		_nightMode = newNightMode;
-		if (oldNightMode) {
-			_tileDayValue = _tileNightValue;
-			_tileNightValue = oldTileValue;
-		} else {
-			_tileNightValue = _tileDayValue;
-			_tileDayValue = oldTileValue;
-		}
+
+		// Restore the value, it was set inside theme testing.
+		(oldNightMode ? _tileNightValue : _tileDayValue) = oldTileValue;
 
 		// We don't call full KeepApplied() here, because
 		// we don't need to write theme or overwrite current background.
