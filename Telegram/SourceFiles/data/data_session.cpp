@@ -1353,9 +1353,7 @@ void Session::webpageApplyFields(
 		int duration,
 		const QString &author,
 		TimeId pendingTill) {
-	if (!page->pendingTill && pendingTill > 0) {
-		_session->api().requestWebPageDelayed(page);
-	}
+	const auto requestPending = (!page->pendingTill && pendingTill > 0);
 	const auto changed = page->applyChanges(
 		type,
 		url,
@@ -1368,6 +1366,9 @@ void Session::webpageApplyFields(
 		duration,
 		author,
 		pendingTill);
+	if (requestPending) {
+		_session->api().requestWebPageDelayed(page);
+	}
 	if (changed) {
 		notifyWebPageUpdateDelayed(page);
 	}
