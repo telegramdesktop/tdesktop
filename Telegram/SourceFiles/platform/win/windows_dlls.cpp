@@ -42,12 +42,14 @@ f_WindowsCreateStringReference WindowsCreateStringReference;
 f_WindowsDeleteString WindowsDeleteString;
 f_PropVariantToString PropVariantToString;
 f_PSStringFromPropertyKey PSStringFromPropertyKey;
+f_DwmIsCompositionEnabled DwmIsCompositionEnabled;
 
 HINSTANCE LibUxTheme;
 HINSTANCE LibShell32;
 HINSTANCE LibWtsApi32;
 HINSTANCE LibPropSys;
 HINSTANCE LibComBase;
+HINSTANCE LibDwmApi;
 
 void start() {
 	init();
@@ -84,6 +86,9 @@ void start() {
 			load(LibComBase, "WindowsCreateStringReference", WindowsCreateStringReference);
 			load(LibComBase, "WindowsDeleteString", WindowsDeleteString);
 		}
+
+		LibDwmApi = LoadLibrary(L"DWMAPI.DLL");
+		load(LibDwmApi, "DwmIsCompositionEnabled", DwmIsCompositionEnabled);
 	}
 }
 

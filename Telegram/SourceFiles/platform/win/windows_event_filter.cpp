@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/win/windows_event_filter.h"
 
+#include "platform/win/windows_dlls.h"
 #include "mainwindow.h"
 #include "auth_session.h"
 
@@ -16,6 +17,15 @@ namespace {
 EventFilter *instance = nullptr;
 
 int menuShown = 0, menuHidden = 0;
+
+bool IsCompositionEnabled() {
+	if (!Dlls::DwmIsCompositionEnabled) {
+		return false;
+	}
+	auto result = BOOL(FALSE);
+	const auto success = (Dlls::DwmIsCompositionEnabled(&result) == S_OK);
+	return success && result;
+}
 
 } // namespace
 
@@ -117,8 +127,13 @@ bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 	}
 
 	case WM_NCACTIVATE: {
-		auto res = DefWindowProc(hWnd, msg, wParam, -1);
-		if (result) *result = res;
+		if (IsCompositionEnabled()) {
+			const auto res = DefWindowProc(hWnd, msg, wParam, -1);
+			if (result) *result = res;
+		} else {
+			// Thanks https://github.com/melak47/BorderlessWindow
+			if (result) *result = 1;
+		}
 	} return true;
 
 	case WM_WINDOWPOSCHANGING:
