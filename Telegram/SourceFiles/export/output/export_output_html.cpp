@@ -958,6 +958,9 @@ auto HtmlWriter::Wrap::pushMessage(
 		return wrapMessageLink(message.replyToMsgId, text);
 	};
 
+	using DialogType = Data::DialogInfo::Type;
+	const auto isChannel = (dialog.type == DialogType::PrivateChannel)
+		|| (dialog.type == DialogType::PublicChannel);
 	const auto serviceFrom = peers.wrapUserName(message.fromId);
 	const auto serviceText = message.action.content.match(
 	[&](const ActionChatCreate &data) {
@@ -967,14 +970,20 @@ auto HtmlWriter::Wrap::pushMessage(
 				? QByteArray()
 				: " with members " + peers.wrapUserNames(data.userIds));
 	}, [&](const ActionChatEditTitle &data) {
-		return serviceFrom
-			+ " changed group title to &laquo;" + data.title + "&raquo;";
+		return isChannel
+			? ("Channel title changed to &laquo;" + data.title + "&raquo;")
+			: (serviceFrom
+				+ " changed group title to &laquo;"
+				+ data.title
+				+ "&raquo;");
 	}, [&](const ActionChatEditPhoto &data) {
-		return serviceFrom
-			+ " changed group photo";
+		return isChannel
+			? QByteArray("Channel photo changed")
+			: (serviceFrom + " changed group photo");
 	}, [&](const ActionChatDeletePhoto &data) {
-		return serviceFrom
-			+ " deleted group photo";
+		return isChannel
+			? QByteArray("Channel photo removed")
+			: (serviceFrom + " removed group photo");
 	}, [&](const ActionChatAddUser &data) {
 		return serviceFrom
 			+ " invited "
@@ -2263,7 +2272,9 @@ Result HtmlWriter::writeDialogSlice(const Data::MessagesSlice &data) {
 	const auto messageLinkWrapper = [&](int messageId, QByteArray text) {
 		return wrapMessageLink(messageId, text);
 	};
-	auto oldIndex = (_messagesCount / kMessagesInFile);
+	auto oldIndex = (_messagesCount > 0)
+		? ((_messagesCount - 1) / kMessagesInFile)
+		: 0;
 	auto previous = _lastMessageInfo.get();
 	auto saved = base::optional<MessageInfo>();
 	auto block = QByteArray();

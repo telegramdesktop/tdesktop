@@ -275,7 +275,7 @@ div.selected {
     padding: 10px;
 }
 .default.joined {
-    padding-top: 0;
+    margin-top: -10px;
 }
 .default .from_name {
     color: #3892db;

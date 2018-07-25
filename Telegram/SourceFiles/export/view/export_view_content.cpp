@@ -41,10 +41,16 @@ Content ContentFromState(const ProcessingState &state) {
 		const auto done = state.substepsPassed;
 		const auto add = state.substepsNow;
 		const auto doneProgress = done / float64(substepsTotal);
-		const auto addProgress = (state.entityCount > 0)
-			? ((float64(add) * state.entityIndex)
-				/ (float64(substepsTotal) * state.entityCount))
-			: 0.;
+		const auto addPart = [&](int index, int count) {
+			return (count > 0)
+				? ((float64(add) * index)
+					/ (float64(substepsTotal) * count))
+				: 0.;
+		};
+		const auto addProgress = (state.entityCount == 1
+			&& !state.entityIndex)
+			? addPart(state.itemIndex, state.itemCount)
+			: addPart(state.entityIndex, state.entityCount);
 		push("main", label, info, doneProgress + addProgress);
 	};
 	const auto pushBytes = [&](const QString &id, const QString &label) {
