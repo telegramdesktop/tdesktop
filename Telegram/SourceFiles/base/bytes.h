@@ -80,7 +80,7 @@ inline void move(span destination, const_span source) {
 	memmove(destination.data(), source.data(), source.size());
 }
 
-inline void set_with_const(span destination, gsl::byte value) {
+inline void set_with_const(span destination, type value) {
 	memset(
 		destination.data(),
 		gsl::to_integer<unsigned char>(value),

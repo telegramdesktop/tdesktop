@@ -78,6 +78,7 @@
       '../ThirdParty/libtgvoip/libtgvoip.gyp:libtgvoip',
       'crl.gyp:crl',
       'lib_export.gyp:lib_export',
+      'lib_storage.gyp:lib_storage',
     ],
 
     'defines': [
