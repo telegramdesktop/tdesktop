@@ -20,7 +20,7 @@ CtrState::CtrState(bytes::const_span key, bytes::const_span iv) {
 }
 
 template <typename Method>
-void CtrState::process(bytes::span data, index_type offset, Method method) {
+void CtrState::process(bytes::span data, int64 offset, Method method) {
 	Expects((data.size() % kBlockSize) == 0);
 	Expects((offset % kBlockSize) == 0);
 
@@ -46,7 +46,7 @@ void CtrState::process(bytes::span data, index_type offset, Method method) {
 		(block128_f)method);
 }
 
-auto CtrState::incrementedIv(index_type blockIndex)
+auto CtrState::incrementedIv(int64 blockIndex)
 -> bytes::array<kIvSize> {
 	Expects(blockIndex >= 0);
 
@@ -65,17 +65,25 @@ auto CtrState::incrementedIv(index_type blockIndex)
 	return result;
 }
 
-void CtrState::encrypt(bytes::span data, index_type offset) {
+void CtrState::encrypt(bytes::span data, int64 offset) {
 	return process(data, offset, AES_encrypt);
 }
 
-void CtrState::decrypt(bytes::span data, index_type offset) {
+void CtrState::decrypt(bytes::span data, int64 offset) {
 	return process(data, offset, AES_encrypt);
 }
 
 EncryptionKey::EncryptionKey(bytes::vector &&data)
 : _data(std::move(data)) {
 	Expects(_data.size() == kSize);
+}
+
+bool EncryptionKey::empty() const {
+	return _data.empty();
+}
+
+EncryptionKey::operator bool() const {
+	return !empty();
 }
 
 const bytes::vector &EncryptionKey::data() const {

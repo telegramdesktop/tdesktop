@@ -61,7 +61,7 @@
       'telegram_win.gypi',
       'telegram_mac.gypi',
       'telegram_linux.gypi',
-	  'openssl.gypi',
+      'openssl.gypi',
       'qt.gypi',
       'qt_moc.gypi',
       'qt_rcc.gypi',
@@ -86,6 +86,7 @@
       'AL_LIBTYPE_STATIC',
       'AL_ALEXT_PROTOTYPES',
       'TGVOIP_USE_CXX11_LIB',
+      'XXH_INLINE_ALL',
       '<!@(python -c "for s in \'<(build_defines)\'.split(\',\'): print(s)")',
     ],
 
@@ -105,6 +106,7 @@
       '<(submodules_loc)/GSL/include',
       '<(submodules_loc)/variant/include',
       '<(submodules_loc)/crl/src',
+      '<(submodules_loc)/xxHash',
     ],
     'sources': [
       '<@(qrc_files)',

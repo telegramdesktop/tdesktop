@@ -30,7 +30,16 @@ public:
 	Result open(const QString &path, Mode mode, const EncryptionKey &key);
 
 	size_type read(bytes::span bytes);
-	size_type write(bytes::span bytes);
+	bool write(bytes::span bytes);
+
+	size_type readWithPadding(bytes::span bytes);
+	bool writeWithPadding(bytes::span bytes);
+
+	bool flush();
+
+	int64 size() const;
+	int64 offset() const;
+	bool seek(int64 offset);
 
 	void close();
 
@@ -52,10 +61,12 @@ private:
 	size_type writePlain(bytes::const_span bytes);
 	void decrypt(bytes::span bytes);
 	void encrypt(bytes::span bytes);
+	void decryptBack(bytes::span bytes);
 
 	QFile _data;
 	FileLock _lock;
-	index_type _offset = 0;
+	int64 _encryptionOffset = 0;
+	int64 _dataSize = 0;
 
 	base::optional<CtrState> _state;
 

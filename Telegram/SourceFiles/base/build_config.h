@@ -56,11 +56,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #endif
 
 #if defined(__GNUC__)
-#define FORCE_INLINE inline __attribute__((always_inline))
+#define TG_FORCE_INLINE inline __attribute__((always_inline))
 #elif defined(_MSC_VER)
-#define FORCE_INLINE __forceinline
+#define TG_FORCE_INLINE __forceinline
 #else
-#define FORCE_INLINE inline
+#define TG_FORCE_INLINE inline
 #endif
 
 #include <climits>

@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 extern int (*TestForkedMethod)();
 
-const auto key = Storage::EncryptionKey(bytes::make_vector(
+const auto Key = Storage::EncryptionKey(bytes::make_vector(
 	bytes::make_span("\
 abcdefgh01234567abcdefgh01234567abcdefgh01234567abcdefgh01234567\
 abcdefgh01234567abcdefgh01234567abcdefgh01234567abcdefgh01234567\
@@ -32,17 +32,18 @@ abcdefgh01234567abcdefgh01234567abcdefgh01234567abcdefgh01234567\
 abcdefgh01234567abcdefgh01234567abcdefgh01234567abcdefgh01234567\
 ").subspan(0, Storage::EncryptionKey::kSize)));
 
-const auto name = QString("test.file");
+const auto Name = QString("test.file");
 
-const auto test = bytes::make_span("testbytetestbyte").subspan(0, 16);
+const auto Test1 = bytes::make_span("testbytetestbyte").subspan(0, 16);
+const auto Test2 = bytes::make_span("bytetestbytetest").subspan(0, 16);
 
 struct ForkInit {
 	static int Method() {
 		Storage::File file;
 		const auto result = file.open(
-			name,
+			Name,
 			Storage::File::Mode::ReadAppend,
-			key);
+			Key);
 		if (result != Storage::File::Result::Success) {
 			return -1;
 		}
@@ -51,12 +52,11 @@ struct ForkInit {
 		const auto read = file.read(data);
 		if (read != data.size()) {
 			return -1;
-		} else if (data != bytes::make_vector(test)) {
+		} else if (data != bytes::make_vector(Test1)) {
 			return -1;
 		}
 
-		const auto written = file.write(data);
-		if (written != data.size()) {
+		if (!file.write(data) || !file.flush()) {
 			return -1;
 		}
 #ifdef _DEBUG
@@ -85,44 +85,72 @@ TEST_CASE("simple encrypted file", "[storage_encrypted_file]") {
 	SECTION("writing file") {
 		Storage::File file;
 		const auto result = file.open(
-			name,
+			Name,
 			Storage::File::Mode::Write,
-			key);
+			Key);
 		REQUIRE(result == Storage::File::Result::Success);
 
-		auto data = bytes::make_vector(test);
-		const auto written = file.write(data);
-		REQUIRE(written == data.size());
+		auto data = bytes::make_vector(Test1);
+		const auto success = file.write(data);
+		REQUIRE(success);
 	}
 	SECTION("reading and writing file") {
 		Storage::File file;
 		const auto result = file.open(
-			name,
+			Name,
 			Storage::File::Mode::ReadAppend,
-			key);
+			Key);
 		REQUIRE(result == Storage::File::Result::Success);
 
 		auto data = bytes::vector(16);
 		const auto read = file.read(data);
 		REQUIRE(read == data.size());
-		REQUIRE(data == bytes::make_vector(test));
+		REQUIRE(data == bytes::make_vector(Test1));
 
-		const auto written = file.write(data);
-		REQUIRE(written == data.size());
+		data = bytes::make_vector(Test2);
+		const auto success = file.write(data);
+		REQUIRE(success);
+	}
+	SECTION("offset and seek") {
+		Storage::File file;
+		const auto result = file.open(
+			Name,
+			Storage::File::Mode::ReadAppend,
+			Key);
+		REQUIRE(result == Storage::File::Result::Success);
+		REQUIRE(file.offset() == 0);
+
+		const auto success1 = file.seek(16);
+		REQUIRE(success1);
+		REQUIRE(file.offset() == 16);
+
+		auto data = bytes::vector(16);
+		const auto read = file.read(data);
+		REQUIRE(read == data.size());
+		REQUIRE(data == bytes::make_vector(Test2));
+		REQUIRE(file.offset() == 32);
+
+		const auto success2 = file.seek(16);
+		REQUIRE(success2);
+		REQUIRE(file.offset() == 16);
+
+		data = bytes::make_vector(Test1);
+		const auto success3 = file.write(data);
+		REQUIRE(success3);
 	}
 	SECTION("reading file") {
 		Storage::File file;
 
 		const auto result = file.open(
-			name,
+			Name,
 			Storage::File::Mode::Read,
-			key);
+			Key);
 		REQUIRE(result == Storage::File::Result::Success);
 
 		auto data = bytes::vector(32);
 		const auto read = file.read(data);
 		REQUIRE(read == data.size());
-		REQUIRE(data == bytes::concatenate(test, test));
+		REQUIRE(data == bytes::concatenate(Test1, Test1));
 	}
 }
 
@@ -130,14 +158,14 @@ TEST_CASE("two process encrypted file", "[storage_encrypted_file]") {
 	SECTION("writing file") {
 		Storage::File file;
 		const auto result = file.open(
-			name,
+			Name,
 			Storage::File::Mode::Write,
-			key);
+			Key);
 		REQUIRE(result == Storage::File::Result::Success);
 
-		auto data = bytes::make_vector(test);
-		const auto written = file.write(data);
-		REQUIRE(written == data.size());
+		auto data = bytes::make_vector(Test1);
+		const auto success = file.write(data);
+		REQUIRE(success);
 	}
 	SECTION("access from subprocess") {
 		SECTION("start subprocess") {
@@ -172,15 +200,15 @@ TEST_CASE("two process encrypted file", "[storage_encrypted_file]") {
 			Storage::File file;
 
 			const auto result = file.open(
-				name,
+				Name,
 				Storage::File::Mode::Read,
-				key);
+				Key);
 			REQUIRE(result == Storage::File::Result::Success);
 
 			auto data = bytes::vector(32);
 			const auto read = file.read(data);
 			REQUIRE(read == data.size());
-			REQUIRE(data == bytes::concatenate(test, test));
+			REQUIRE(data == bytes::concatenate(Test1, Test1));
 		}
 		SECTION("take subprocess result") {
 			REQUIRE(ForkProcess.state() == QProcess::Running);
@@ -188,15 +216,15 @@ TEST_CASE("two process encrypted file", "[storage_encrypted_file]") {
 			Storage::File file;
 
 			const auto result = file.open(
-				name,
+				Name,
 				Storage::File::Mode::ReadAppend,
-				key);
+				Key);
 			REQUIRE(result == Storage::File::Result::Success);
 
 			auto data = bytes::vector(32);
 			const auto read = file.read(data);
 			REQUIRE(read == data.size());
-			REQUIRE(data == bytes::concatenate(test, test));
+			REQUIRE(data == bytes::concatenate(Test1, Test1));
 
 			const auto finished = ForkProcess.waitForFinished(0);
 			REQUIRE(finished);

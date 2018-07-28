@@ -125,17 +125,19 @@
     ],
     'dependencies': [
       '../lib_storage.gyp:lib_storage',
+      '../crl.gyp:crl',
     ],
     'sources': [
       '<(src_loc)/storage/storage_encrypted_file_tests.cpp',
+      '<(src_loc)/storage/cache/storage_cache_database_tests.cpp',
       '<(src_loc)/platform/win/windows_dlls.cpp',
       '<(src_loc)/platform/win/windows_dlls.h',
     ],
     'conditions': [[ 'not build_win', {
-	  'sources!': [
+      'sources!': [
         '<(src_loc)/platform/win/windows_dlls.cpp',
         '<(src_loc)/platform/win/windows_dlls.h',
-	  ],
-	}]],
+      ],
+    }]],
   }],
 }

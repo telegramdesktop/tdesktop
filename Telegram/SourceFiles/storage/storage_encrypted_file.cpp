@@ -30,7 +30,15 @@ File::Result File::open(
 		const EncryptionKey &key) {
 	close();
 
-	_data.setFileName(QFileInfo(path).absoluteFilePath());
+	const auto info = QFileInfo(path);
+	const auto dir = info.absoluteDir();
+	if (mode != Mode::Read && !dir.exists()) {
+		if (!QDir().mkpath(dir.absolutePath())) {
+			return Result::Failed;
+		}
+	}
+
+	_data.setFileName(info.absoluteFilePath());
 	const auto result = attemptOpen(mode, key);
 	if (result != Result::Success) {
 		close();
@@ -105,6 +113,7 @@ bool File::writeHeader(const EncryptionKey &key) {
 	} else if (!write(headerBytes.subspan(header.salt.size()))) {
 		return false;
 	}
+	_dataSize = 0;
 	return true;
 }
 
@@ -132,6 +141,13 @@ File::Result File::readHeader(const EncryptionKey &key) {
 	} else if (header.format != Format::Format_0) {
 		return Result::Failed;
 	}
+	_dataSize = _data.size()
+		- int64(sizeof(BasicHeader))
+		- FileLock::kSkipBytes;
+	Assert(_dataSize >= 0);
+	if (const auto bad = (_dataSize % kBlockSize)) {
+		_dataSize -= bad;
+	}
 	return Result::Success;
 }
 
@@ -148,15 +164,15 @@ size_type File::writePlain(bytes::const_span bytes) {
 void File::decrypt(bytes::span bytes) {
 	Expects(_state.has_value());
 
-	_state->decrypt(bytes, _offset);
-	_offset += bytes.size();
+	_state->decrypt(bytes, _encryptionOffset);
+	_encryptionOffset += bytes.size();
 }
 
 void File::encrypt(bytes::span bytes) {
 	Expects(_state.has_value());
 
-	_state->encrypt(bytes, _offset);
-	_offset += bytes.size();
+	_state->encrypt(bytes, _encryptionOffset);
+	_encryptionOffset += bytes.size();
 }
 
 size_type File::read(bytes::span bytes) {
@@ -175,31 +191,108 @@ size_type File::read(bytes::span bytes) {
 	return count;
 }
 
-size_type File::write(bytes::span bytes) {
+bool File::write(bytes::span bytes) {
 	Expects(bytes.size() % kBlockSize == 0);
 
 	encrypt(bytes);
-	auto count = writePlain(bytes);
-	if (const auto back = (count % kBlockSize)) {
-		if (!_data.seek(_data.pos() - back)) {
-			return 0;
+	const auto count = writePlain(bytes);
+	if (count != bytes.size()) {
+		decryptBack(bytes);
+		if (count > 0) {
+			_data.seek(_data.pos() - count);
 		}
-		count -= back;
+		return false;
 	}
-	if (const auto back = (bytes.size() - count)) {
-		_offset -= back;
-		decrypt(bytes.subspan(count));
+	return true;
+}
+
+void File::decryptBack(bytes::span bytes) {
+	Expects(_encryptionOffset >= bytes.size());
+
+	_encryptionOffset -= bytes.size();
+	decrypt(bytes);
+	_encryptionOffset -= bytes.size();
+}
+
+size_type File::readWithPadding(bytes::span bytes) {
+	const auto size = bytes.size();
+	const auto part = size % kBlockSize;
+	const auto good = size - part;
+	if (good) {
+		const auto succeed = read(bytes.subspan(0, good));
+		if (succeed != good) {
+			return succeed;
+		}
 	}
-	_data.flush();
-	return count;
+	if (!part) {
+		return good;
+	}
+	auto storage = bytes::array<kBlockSize>();
+	const auto padded = bytes::make_span(storage);
+	const auto succeed = read(padded);
+	if (!succeed) {
+		return good;
+	}
+	Assert(succeed == kBlockSize);
+	bytes::copy(bytes.subspan(good), padded.subspan(0, part));
+	return size;
+}
+
+bool File::writeWithPadding(bytes::span bytes) {
+	const auto size = bytes.size();
+	const auto part = size % kBlockSize;
+	const auto good = size - part;
+	if (good && !write(bytes.subspan(0, good))) {
+		return false;
+	}
+	if (!part) {
+		return true;
+	}
+	auto storage = bytes::array<kBlockSize>();
+	const auto padded = bytes::make_span(storage);
+	bytes::copy(padded, bytes.subspan(good));
+	bytes::set_random(padded.subspan(part));
+	if (write(padded)) {
+		return true;
+	}
+	if (good) {
+		decryptBack(bytes.subspan(0, good));
+		_data.seek(_data.pos() - good);
+	}
+	return false;
+}
+
+bool File::flush() {
+	return _data.flush();
 }
 
 void File::close() {
 	_lock.unlock();
 	_data.close();
 	_data.setFileName(QString());
-	_offset = 0;
+	_dataSize = _encryptionOffset = 0;
 	_state = base::none;
+}
+
+int64 File::size() const {
+	return _dataSize;
+}
+
+int64 File::offset() const {
+	const auto realOffset = kSaltSize + _encryptionOffset;
+	const auto skipOffset = sizeof(BasicHeader);
+	return (realOffset >= skipOffset) ? (realOffset - skipOffset) : 0;
+}
+
+bool File::seek(int64 offset) {
+	const auto realOffset = sizeof(BasicHeader) + offset;
+	if (offset < 0 || offset > _dataSize) {
+		return false;
+	} else if (!_data.seek(FileLock::kSkipBytes + realOffset)) {
+		return false;
+	}
+	_encryptionOffset = realOffset - kSaltSize;
+	return true;
 }
 
 } // namespace Storage

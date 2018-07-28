@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Images {
 namespace {
 
-FORCE_INLINE uint64 blurGetColors(const uchar *p) {
+TG_FORCE_INLINE uint64 blurGetColors(const uchar *p) {
 	return (uint64)p[0] + ((uint64)p[1] << 16) + ((uint64)p[2] << 32) + ((uint64)p[3] << 48);
 }
 

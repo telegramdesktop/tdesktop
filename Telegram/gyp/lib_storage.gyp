@@ -30,6 +30,7 @@
       'pch_header': '<(src_loc)/storage/storage_pch.h',
     },
     'defines': [
+      'XXH_INLINE_ALL',
     ],
     'dependencies': [
       'crl.gyp:crl',
@@ -41,6 +42,7 @@
       '<(submodules_loc)/GSL/include',
       '<(submodules_loc)/variant/include',
       '<(submodules_loc)/crl/src',
+      '<(submodules_loc)/xxHash',
     ],
     'sources': [
       '<(src_loc)/storage/storage_encryption.cpp',

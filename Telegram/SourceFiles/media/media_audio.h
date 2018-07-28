@@ -324,11 +324,11 @@ VoiceWaveform audioCountWaveform(const FileLocation &file, const QByteArray &dat
 namespace Media {
 namespace Audio {
 
-FORCE_INLINE uint16 ReadOneSample(uchar data) {
+TG_FORCE_INLINE uint16 ReadOneSample(uchar data) {
 	return qAbs((static_cast<int16>(data) - 0x80) * 0x100);
 }
 
-FORCE_INLINE uint16 ReadOneSample(int16 data) {
+TG_FORCE_INLINE uint16 ReadOneSample(int16 data) {
 	return qAbs(data);
 }
 

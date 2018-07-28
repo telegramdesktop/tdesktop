@@ -93,6 +93,9 @@
 
   },
 
+  'defines': [
+    'NOMINMAX'
+  ],
   'configurations': {
     'Debug': {
       'defines': [

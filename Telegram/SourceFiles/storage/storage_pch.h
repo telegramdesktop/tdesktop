@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/rpl.h>
 
 #include <vector>
+#include <unordered_map>
+#include <set>
 
 #include <range/v3/all.hpp>
 #ifdef Q_OS_WIN

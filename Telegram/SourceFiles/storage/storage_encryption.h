@@ -21,14 +21,14 @@ public:
 
 	CtrState(bytes::const_span key, bytes::const_span iv);
 
-	void encrypt(bytes::span data, index_type offset);
-	void decrypt(bytes::span data, index_type offset);
+	void encrypt(bytes::span data, int64 offset);
+	void decrypt(bytes::span data, int64 offset);
 
 private:
 	template <typename Method>
-	void process(bytes::span data, index_type offset, Method method);
+	void process(bytes::span data, int64 offset, Method method);
 
-	bytes::array<kIvSize> incrementedIv(index_type blockIndex);
+	bytes::array<kIvSize> incrementedIv(int64 blockIndex);
 
 	static constexpr auto EcountSize = kBlockSize;
 
@@ -43,6 +43,9 @@ public:
 
 	EncryptionKey() = default;
 	explicit EncryptionKey(bytes::vector &&data);
+
+	bool empty() const;
+	explicit operator bool() const;
 
 	const bytes::vector &data() const;
 	CtrState prepareCtrState(bytes::const_span salt) const;
