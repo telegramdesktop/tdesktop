@@ -116,13 +116,19 @@ FileLock::Lock::~Lock() {
 
 FileLock::FileLock() = default;
 
-bool FileLock::lock(const QFile &file) {
+bool FileLock::lock(QFile &file, QIODevice::OpenMode mode) {
+	Expects(_lock == nullptr || file.isOpen());
+
+	unlock();
+	file.close();
 	do {
-		unlock();
-		if (const auto descriptor = Lock::Acquire(file)) {
+		if (!file.open(mode)) {
+			return false;
+		} else if (const auto descriptor = Lock::Acquire(file)) {
 			_lock = std::make_unique<Lock>(descriptor);
 			return true;
 		}
+		file.close();
 	} while (CloseProcesses(file.fileName()));
 
 	return false;

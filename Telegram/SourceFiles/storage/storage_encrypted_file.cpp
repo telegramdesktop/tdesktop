@@ -62,9 +62,7 @@ File::Result File::attemptOpenForRead(const EncryptionKey &key) {
 }
 
 File::Result File::attemptOpenForReadAppend(const EncryptionKey &key) {
-	if (!_data.open(QIODevice::ReadWrite)) {
-		return Result::Failed;
-	} else if (!_lock.lock(_data)) {
+	if (!_lock.lock(_data, QIODevice::ReadWrite)) {
 		return Result::LockFailed;
 	}
 	const auto size = _data.size();
@@ -75,9 +73,7 @@ File::Result File::attemptOpenForReadAppend(const EncryptionKey &key) {
 }
 
 File::Result File::attemptOpenForWrite(const EncryptionKey &key) {
-	if (!_data.open(QIODevice::WriteOnly)) {
-		return Result::Failed;
-	} else if (!_lock.lock(_data)) {
+	if (!_lock.lock(_data, QIODevice::WriteOnly)) {
 		return Result::LockFailed;
 	}
 	return writeHeader(key) ? Result::Success : Result::Failed;

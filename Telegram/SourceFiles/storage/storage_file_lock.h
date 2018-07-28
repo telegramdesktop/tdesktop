@@ -17,7 +17,7 @@ class FileLock {
 public:
 	FileLock();
 
-	bool lock(const QFile &file);
+	bool lock(QFile &file, QIODevice::OpenMode mode);
 	void unlock();
 
 	static constexpr auto kSkipBytes = size_type(4);

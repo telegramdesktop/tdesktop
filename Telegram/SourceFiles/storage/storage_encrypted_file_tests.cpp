@@ -9,6 +9,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/storage_encrypted_file.h"
 
+#ifdef Q_OS_WIN
+#include "platform/win/windows_dlls.h"
+#endif // Q_OS_WIN
+
+#include <QtCore/QProcess>
+
+#include <thread>
+#ifdef Q_OS_MAC
+#include <mach-o/dyld.h>
+#elif defined Q_OS_LINUX // Q_OS_MAC
+#include <unistd.h>
+#endif // Q_OS_MAC || Q_OS_LINUX
+
+extern int (*TestForkedMethod)();
+
 const auto key = Storage::EncryptionKey(bytes::make_vector(
 	bytes::make_span("\
 abcdefgh01234567abcdefgh01234567abcdefgh01234567abcdefgh01234567\
@@ -17,10 +32,56 @@ abcdefgh01234567abcdefgh01234567abcdefgh01234567abcdefgh01234567\
 abcdefgh01234567abcdefgh01234567abcdefgh01234567abcdefgh01234567\
 ").subspan(0, Storage::EncryptionKey::kSize)));
 
-TEST_CASE("simple encrypted file", "[storage_encrypted_file]") {
-	const auto name = QString("simple.test");
-	const auto test = bytes::make_span("testbytetestbyte").subspan(0, 16);
+const auto name = QString("test.file");
 
+const auto test = bytes::make_span("testbytetestbyte").subspan(0, 16);
+
+struct ForkInit {
+	static int Method() {
+		Storage::File file;
+		const auto result = file.open(
+			name,
+			Storage::File::Mode::ReadAppend,
+			key);
+		if (result != Storage::File::Result::Success) {
+			return -1;
+		}
+
+		auto data = bytes::vector(16);
+		const auto read = file.read(data);
+		if (read != data.size()) {
+			return -1;
+		} else if (data != bytes::make_vector(test)) {
+			return -1;
+		}
+
+		const auto written = file.write(data);
+		if (written != data.size()) {
+			return -1;
+		}
+#ifdef _DEBUG
+		while (true) {
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
+#else // _DEBUG
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+		return 0;
+#endif // _DEBUG
+	}
+	ForkInit() {
+#ifdef Q_OS_WIN
+		Platform::Dlls::start();
+#endif // Q_OS_WIN
+
+		TestForkedMethod = &ForkInit::Method;
+	}
+
+};
+
+ForkInit ForkInitializer;
+QProcess ForkProcess;
+
+TEST_CASE("simple encrypted file", "[storage_encrypted_file]") {
 	SECTION("writing file") {
 		Storage::File file;
 		const auto result = file.open(
@@ -66,5 +127,81 @@ TEST_CASE("simple encrypted file", "[storage_encrypted_file]") {
 }
 
 TEST_CASE("two process encrypted file", "[storage_encrypted_file]") {
+	SECTION("writing file") {
+		Storage::File file;
+		const auto result = file.open(
+			name,
+			Storage::File::Mode::Write,
+			key);
+		REQUIRE(result == Storage::File::Result::Success);
+
+		auto data = bytes::make_vector(test);
+		const auto written = file.write(data);
+		REQUIRE(written == data.size());
+	}
+	SECTION("access from subprocess") {
+		SECTION("start subprocess") {
+			const auto application = []() -> QString {
+#ifdef Q_OS_WIN
+				return "tests_storage.exe";
+#else // Q_OS_WIN
+				constexpr auto kMaxPath = 1024;
+				char result[kMaxPath] = { 0 };
+				uint32_t size = kMaxPath;
+#ifdef Q_OS_MAC
+				if (_NSGetExecutablePath(result, &size) == 0) {
+					return result;
+				}
+#else // Q_OS_MAC
+				auto count = readlink("/proc/self/exe", result, size);
+				if (count > 0) {
+					return result;
+				}
+#endif // Q_OS_MAC
+				return "tests_storage";
+#endif // Q_OS_WIN
+			}();
+
+			ForkProcess.start(application + " --forked");
+			const auto started = ForkProcess.waitForStarted();
+			REQUIRE(started);
+		}
+		SECTION("read subprocess result") {
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+			Storage::File file;
+
+			const auto result = file.open(
+				name,
+				Storage::File::Mode::Read,
+				key);
+			REQUIRE(result == Storage::File::Result::Success);
+
+			auto data = bytes::vector(32);
+			const auto read = file.read(data);
+			REQUIRE(read == data.size());
+			REQUIRE(data == bytes::concatenate(test, test));
+		}
+		SECTION("take subprocess result") {
+			REQUIRE(ForkProcess.state() == QProcess::Running);
+
+			Storage::File file;
+
+			const auto result = file.open(
+				name,
+				Storage::File::Mode::ReadAppend,
+				key);
+			REQUIRE(result == Storage::File::Result::Success);
+
+			auto data = bytes::vector(32);
+			const auto read = file.read(data);
+			REQUIRE(read == data.size());
+			REQUIRE(data == bytes::concatenate(test, test));
+
+			const auto finished = ForkProcess.waitForFinished(0);
+			REQUIRE(finished);
+			REQUIRE(ForkProcess.state() == QProcess::NotRunning);
+		}
+	}
 
 }

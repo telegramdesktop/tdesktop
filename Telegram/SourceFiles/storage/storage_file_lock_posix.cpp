@@ -18,12 +18,17 @@ namespace Storage {
 namespace {
 
 bool KillProcess(pid_t pid) {
+	auto signal = SIGTERM;
+	auto attempts = 0;
 	while (true) {
-		const auto result = kill(pid, SIGTERM);
+		const auto result = kill(pid, signal);
 		if (result < 0) {
 			return (errno == ESRCH);
 		}
 		usleep(10000);
+		if (++attempts == 50) {
+			signal = SIGKILL;
+		}
 	}
 }
 
@@ -85,8 +90,14 @@ FileLock::Lock::~Lock() {
 
 FileLock::FileLock() = default;
 
-bool FileLock::lock(const QFile &file) {
+bool FileLock::lock(QFile &file, QIODevice::OpenMode mode) {
+	Expects(_lock == nullptr || file.isOpen());
+
 	unlock();
+	file.close();
+	if (!file.open(mode)) {
+		return false;
+	}
 	while (true) {
 		const auto result = Lock::Acquire(file);
 		if (const auto descriptor = base::get_if<Descriptor>(&result)) {
@@ -94,10 +105,10 @@ bool FileLock::lock(const QFile &file) {
 				_lock = std::make_unique<Lock>(descriptor->value);
 				return true;
 			}
-			return false;
+			break;
 		} else if (const auto pid = base::get_if<LockingPid>(&result)) {
 			if (pid->value <= 0 || !KillProcess(pid->value)) {
-				return false;
+				break;
 			}
 		}
 	}
