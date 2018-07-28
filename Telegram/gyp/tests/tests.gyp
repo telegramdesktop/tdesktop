@@ -23,6 +23,7 @@
     ],
     'dependencies': [
       '<!@(<(list_tests_command))',
+      'tests_storage',
     ],
     'sources': [
       '<!@(<(list_tests_command) --sources)',
@@ -102,19 +103,39 @@
       '<(src_loc)/rpl/lifetime.h',
       '<(src_loc)/rpl/map.h',
       '<(src_loc)/rpl/mappers.h',
-	  '<(src_loc)/rpl/merge.h',
+      '<(src_loc)/rpl/merge.h',
       '<(src_loc)/rpl/never.h',
       '<(src_loc)/rpl/operators_tests.cpp',
       '<(src_loc)/rpl/producer.h',
       '<(src_loc)/rpl/producer_tests.cpp',
       '<(src_loc)/rpl/range.h',
       '<(src_loc)/rpl/rpl.h',
-	  '<(src_loc)/rpl/skip.h',
+      '<(src_loc)/rpl/skip.h',
       '<(src_loc)/rpl/take.h',
       '<(src_loc)/rpl/then.h',
       '<(src_loc)/rpl/type_erased.h',
       '<(src_loc)/rpl/variable.h',
       '<(src_loc)/rpl/variable_tests.cpp',
     ],
+  }, {
+    'target_name': 'tests_storage',
+    'includes': [
+      'common_test.gypi',
+      '../openssl.gypi',
+    ],
+    'dependencies': [
+      '../lib_storage.gyp:lib_storage',
+    ],
+    'sources': [
+      '<(src_loc)/storage/storage_encrypted_file_tests.cpp',
+      '<(src_loc)/platform/win/windows_dlls.cpp',
+      '<(src_loc)/platform/win/windows_dlls.h',
+    ],
+    'conditions': [[ 'not build_win', {
+	  'sources!': [
+        '<(src_loc)/platform/win/windows_dlls.cpp',
+        '<(src_loc)/platform/win/windows_dlls.h',
+	  ],
+	}]],
   }],
 }

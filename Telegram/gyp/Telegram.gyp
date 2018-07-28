@@ -61,6 +61,7 @@
       'telegram_win.gypi',
       'telegram_mac.gypi',
       'telegram_linux.gypi',
+	  'openssl.gypi',
       'qt.gypi',
       'qt_moc.gypi',
       'qt_rcc.gypi',

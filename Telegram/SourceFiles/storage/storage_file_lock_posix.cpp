@@ -71,6 +71,9 @@ FileLock::Lock::Result FileLock::Lock::Acquire(const QFile &file) {
 	}
 }
 
+FileLock::Lock::Lock(int descriptor) : _descriptor(descriptor) {
+}
+
 FileLock::Lock::~Lock() {
 	struct flock unlock;
 	unlock.l_type = F_UNLCK;

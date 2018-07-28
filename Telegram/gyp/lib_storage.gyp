@@ -13,6 +13,7 @@
     'type': 'static_library',
     'includes': [
       'common.gypi',
+	  'openssl.gypi',
       'qt.gypi',
       'telegram_win.gypi',
       'telegram_mac.gypi',

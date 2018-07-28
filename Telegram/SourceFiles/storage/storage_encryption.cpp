@@ -30,17 +30,39 @@ void CtrState::process(bytes::span data, index_type offset, Method method) {
 		_key.size() * CHAR_BIT,
 		&aes);
 
-	unsigned char ecountBuf[kBlockSize];
-	unsigned int blockNumber = offset / kBlockSize;
+	unsigned char ecountBuf[kBlockSize] = { 0 };
+	unsigned int offsetInBlock = 0;
+	const auto blockIndex = offset / kBlockSize;
+	auto iv = incrementedIv(blockIndex);
+
 	CRYPTO_ctr128_encrypt(
 		reinterpret_cast<const uchar*>(data.data()),
 		reinterpret_cast<uchar*>(data.data()),
 		data.size(),
 		&aes,
-		reinterpret_cast<unsigned char*>(_iv.data()),
+		reinterpret_cast<unsigned char*>(iv.data()),
 		ecountBuf,
-		&blockNumber,
+		&offsetInBlock,
 		(block128_f)method);
+}
+
+auto CtrState::incrementedIv(index_type blockIndex)
+-> bytes::array<kIvSize> {
+	Expects(blockIndex >= 0);
+
+	if (!blockIndex) {
+		return _iv;
+	}
+	auto result = _iv;
+	auto digits = kIvSize;
+	auto increment = uint64(blockIndex);
+	do {
+		--digits;
+		increment += static_cast<uint64>(result[digits]);
+		result[digits] = static_cast<bytes::type>(increment & 0xFFULL);
+		increment >>= 8;
+	} while (digits != 0 && increment != 0);
+	return result;
 }
 
 void CtrState::encrypt(bytes::span data, index_type offset) {
@@ -48,7 +70,7 @@ void CtrState::encrypt(bytes::span data, index_type offset) {
 }
 
 void CtrState::decrypt(bytes::span data, index_type offset) {
-	return process(data, offset, AES_decrypt);
+	return process(data, offset, AES_encrypt);
 }
 
 EncryptionKey::EncryptionKey(bytes::vector &&data)

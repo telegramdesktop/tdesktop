@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_file_lock.h"
 #include "storage/storage_encryption.h"
 #include "base/bytes.h"
+#include "base/optional.h"
 
 namespace Storage {
 
@@ -30,6 +31,8 @@ public:
 
 	size_type read(bytes::span bytes);
 	size_type write(bytes::span bytes);
+
+	void close();
 
 private:
 	enum class Format : uint32 {

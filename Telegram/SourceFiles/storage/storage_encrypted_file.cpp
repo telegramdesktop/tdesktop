@@ -28,12 +28,12 @@ File::Result File::open(
 		const QString &path,
 		Mode mode,
 		const EncryptionKey &key) {
+	close();
+
 	_data.setFileName(QFileInfo(path).absoluteFilePath());
 	const auto result = attemptOpen(mode, key);
 	if (result != Result::Success) {
-		_state = base::none;
-		_data.close();
-		_lock.unlock();
+		close();
 	}
 	return result;
 
@@ -196,6 +196,14 @@ size_type File::write(bytes::span bytes) {
 	}
 	_data.flush();
 	return count;
+}
+
+void File::close() {
+	_lock.unlock();
+	_data.close();
+	_data.setFileName(QString());
+	_offset = 0;
+	_state = base::none;
 }
 
 } // namespace Storage

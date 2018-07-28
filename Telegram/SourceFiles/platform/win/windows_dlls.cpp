@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/win/windows_dlls.h"
 
+#include <QtCore/QSysInfo>
+
 namespace Platform {
 namespace Dlls {
 
@@ -68,10 +70,6 @@ void start() {
 	load(LibShell32, "SHQueryUserNotificationState", SHQueryUserNotificationState);
 	load(LibShell32, "SHChangeNotify", SHChangeNotify);
 	load(LibShell32, "SetCurrentProcessExplicitAppUserModelID", SetCurrentProcessExplicitAppUserModelID);
-
-	if (cBetaVersion() == 10020001 && SHChangeNotify) { // Temp - app icon was changed
-		SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
-	}
 
 	LibUxTheme = LoadLibrary(L"UXTHEME.DLL");
 	load(LibUxTheme, "SetWindowTheme", SetWindowTheme);

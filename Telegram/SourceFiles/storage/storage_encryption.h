@@ -28,6 +28,8 @@ private:
 	template <typename Method>
 	void process(bytes::span data, index_type offset, Method method);
 
+	bytes::array<kIvSize> incrementedIv(index_type blockIndex);
+
 	static constexpr auto EcountSize = kBlockSize;
 
 	bytes::array<kKeySize> _key;
