@@ -13,3 +13,6 @@
 [submodule "Telegram/ThirdParty/crl"]
 	path = Telegram/ThirdParty/crl
 	url = https://github.com/telegramdesktop/crl.git
+[submodule "Telegram/ThirdParty/xxHash"]
+	path = Telegram/ThirdParty/xxHash
+	url = https://github.com/Cyan4973/xxHash.git

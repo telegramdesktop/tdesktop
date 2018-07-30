@@ -39,6 +39,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 * Open Sans font ([Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0.html))
 * Emoji alpha codes ([MIT License](https://github.com/emojione/emojione/blob/master/extras/alpha-codes/LICENSE.md))
 * Catch test framework ([Boost License](https://github.com/philsquared/Catch/blob/master/LICENSE.txt))
+* xxHash ([BSD License](https://github.com/Cyan4973/xxHash/blob/dev/LICENSE))
 
 ## Build instructions
 
