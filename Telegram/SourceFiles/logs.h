@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "core/basic_types.h"
+#include "base/basic_types.h"
 
 namespace Core {
 class Launcher;

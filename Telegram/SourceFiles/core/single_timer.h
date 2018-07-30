@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "core/basic_types.h"
-
 class SingleTimer : public QTimer { // single shot timer with check
 	Q_OBJECT
 

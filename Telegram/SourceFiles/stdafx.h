@@ -78,7 +78,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_map.h"
 #include "base/weak_ptr.h"
 
-#include "core/basic_types.h"
+#include "base/basic_types.h"
 #include "logs.h"
 #include "core/utils.h"
 #include "config.h"

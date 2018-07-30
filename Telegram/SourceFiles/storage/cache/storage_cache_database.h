@@ -7,7 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "core/basic_types.h"
+#include "storage/cache/storage_cache_types.h"
+#include "base/basic_types.h"
 #include <crl/crl_object_on_queue.h>
 #include <QtCore/QString>
 
@@ -42,20 +43,6 @@ public:
 	};
 	Database(const QString &path, const Settings &settings);
 
-	struct Error {
-		enum class Type {
-			None,
-			IO,
-			WrongKey,
-			LockFailed,
-		};
-		Type type = Type::None;
-		QString path;
-
-		static Error NoError() {
-			return Error();
-		}
-	};
 	void open(EncryptionKey key, FnMut<void(Error)> done);
 	void close(FnMut<void()> done);
 

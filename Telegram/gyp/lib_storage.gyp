@@ -52,8 +52,12 @@
       '<(src_loc)/storage/storage_file_lock_posix.cpp',
       '<(src_loc)/storage/storage_file_lock_win.cpp',
       '<(src_loc)/storage/storage_file_lock.h',
+      '<(src_loc)/storage/cache/storage_cache_cleaner.cpp',
+      '<(src_loc)/storage/cache/storage_cache_cleaner.h',
       '<(src_loc)/storage/cache/storage_cache_database.cpp',
       '<(src_loc)/storage/cache/storage_cache_database.h',
+      '<(src_loc)/storage/cache/storage_cache_types.cpp',
+      '<(src_loc)/storage/cache/storage_cache_types.h',
     ],
     'conditions': [[ 'build_macold', {
       'xcode_settings': {

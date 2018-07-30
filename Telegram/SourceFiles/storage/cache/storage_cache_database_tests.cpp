@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/cache/storage_cache_database.h"
 #include "storage/storage_encryption.h"
-
 #include <crl/crl.h>
+#include <thread>
 
 using namespace Storage::Cache;
 
@@ -29,8 +29,8 @@ const auto TestValue2 = QByteArray("bytetestbytetestb");
 
 crl::semaphore Semaphore;
 
-auto Result = Database::Error();
-const auto GetResult = [](Database::Error error) {
+auto Result = Error();
+const auto GetResult = [](Error error) {
 	Result = error;
 	Semaphore.release();
 };
@@ -49,15 +49,15 @@ TEST_CASE("encrypted cache db", "[storage_cache_database]") {
 
 		db.clear(GetResult);
 		Semaphore.acquire();
-		REQUIRE(Result.type == Database::Error::Type::None);
+		REQUIRE(Result.type == Error::Type::None);
 
 		db.open(key, GetResult);
 		Semaphore.acquire();
-		REQUIRE(Result.type == Database::Error::Type::None);
+		REQUIRE(Result.type == Error::Type::None);
 
 		db.put(Key{ 0, 1 }, TestValue1, GetResult);
 		Semaphore.acquire();
-		REQUIRE(Result.type == Database::Error::Type::None);
+		REQUIRE(Result.type == Error::Type::None);
 
 		db.close([&] { Semaphore.release(); });
 		Semaphore.acquire();
@@ -67,7 +67,7 @@ TEST_CASE("encrypted cache db", "[storage_cache_database]") {
 
 		db.open(key, GetResult);
 		Semaphore.acquire();
-		REQUIRE(Result.type == Database::Error::Type::None);
+		REQUIRE(Result.type == Error::Type::None);
 
 		db.get(Key{ 0, 1 }, GetValue);
 		Semaphore.acquire();
@@ -75,7 +75,7 @@ TEST_CASE("encrypted cache db", "[storage_cache_database]") {
 
 		db.put(Key{ 1, 0 }, TestValue2, GetResult);
 		Semaphore.acquire();
-		REQUIRE(Result.type == Database::Error::Type::None);
+		REQUIRE(Result.type == Error::Type::None);
 
 		db.get(Key{ 1, 0 }, GetValue);
 		Semaphore.acquire();
@@ -93,7 +93,7 @@ TEST_CASE("encrypted cache db", "[storage_cache_database]") {
 
 		db.open(key, GetResult);
 		Semaphore.acquire();
-		REQUIRE(Result.type == Database::Error::Type::None);
+		REQUIRE(Result.type == Error::Type::None);
 
 		db.get(Key{ 0, 1 }, GetValue);
 		Semaphore.acquire();

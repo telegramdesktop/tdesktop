@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/rpc_sender.h"
 #include "base/value_ordering.h"
 #include "base/bytes.h"
-
 #include <set>
 #include <deque>
 

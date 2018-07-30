@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <rpl/details/callable.h>
 #include "base/flat_set.h"
+#include "core/utils.h"
+#include <rpl/details/callable.h>
 
 class RPCError {
 public:

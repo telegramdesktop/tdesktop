@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/cache/storage_cache_database.h"
 
+#include "storage/cache/storage_cache_cleaner.h"
 #include "storage/storage_encryption.h"
 #include "storage/storage_encrypted_file.h"
 #include "base/flat_set.h"
@@ -160,9 +161,11 @@ class Database {
 public:
 	using Wrapper = Cache::Database;
 	using Settings = Wrapper::Settings;
-	Database(const QString &path, const Settings &settings);
+	Database(
+		crl::weak_on_queue<Database> weak,
+		const QString &path,
+		const Settings &settings);
 
-	using Error = Wrapper::Error;
 	void open(EncryptionKey key, FnMut<void(Error)> done);
 	void close(FnMut<void()> done);
 
@@ -173,7 +176,6 @@ public:
 	void clear(FnMut<void(Error)> done);
 
 private:
-	using Version = int32;
 	struct Entry {
 		Entry() = default;
 		Entry(PlaceId place, uint8 tag, uint32 checksum, size_type size);
@@ -182,6 +184,10 @@ private:
 		uint32 checksum = 0;
 		size_type size = 0;
 		PlaceId place = { { 0 } };
+	};
+	struct CleanerWrap {
+		std::unique_ptr<Cleaner> object;
+		base::binary_guard guard;
 	};
 
 	template <typename Callback, typename ...Args>
@@ -215,12 +221,18 @@ private:
 	QString writeKeyPlace(const Key &key, size_type size, uint32 checksum);
 	void writeMultiRemove();
 
+	void createCleaner();
+	void cleanerDone(Error error);
+
+	crl::weak_on_queue<Database> _weak;
 	QString _base, _path;
 	Settings _settings;
 	EncryptionKey _key;
 	File _binlog;
 	std::unordered_map<Key, Entry> _map;
 	std::set<Key> _removing;
+
+	CleanerWrap _cleaner;
 
 };
 
@@ -235,8 +247,12 @@ Database::Entry::Entry(
 , size(size) {
 }
 
-Database::Database(const QString &path, const Settings &settings)
-: _base(QDir(path).absolutePath() + '/')
+Database::Database(
+	crl::weak_on_queue<Database> weak,
+	const QString &path,
+	const Settings &settings)
+: _weak(std::move(weak))
+, _base(ComputeBasePath(path))
 , _settings(settings) {
 }
 
@@ -253,7 +269,7 @@ void Database::invokeCallback(Callback &&callback, Args &&...args) {
 	}
 }
 
-auto Database::ioError(const QString &path) const -> Error {
+Error Database::ioError(const QString &path) const {
 	return { Error::Type::IO, path };
 }
 
@@ -276,15 +292,15 @@ void Database::open(EncryptionKey key, FnMut<void(Error)> done) {
 		break;
 	case File::Result::Failed: {
 		const auto available = findAvailableVersion();
-		const auto retry = openBinlog(available, File::Mode::Write, key);
-		if (retry == File::Result::Success) {
-			if (writeVersion(available)) {
+		if (writeVersion(available)) {
+			const auto open = openBinlog(available, File::Mode::Write, key);
+			if (open == File::Result::Success) {
 				invokeCallback(done, Error::NoError());
 			} else {
-				invokeCallback(done, ioError(versionPath()));
+				invokeCallback(done, ioError(binlogPath(available)));
 			}
 		} else {
-			invokeCallback(done, ioError(binlogPath(available)));
+			invokeCallback(done, ioError(versionPath()));
 		}
 	} break;
 	default: Unexpected("Result from Database::openBinlog.");
@@ -296,7 +312,7 @@ QString Database::computePath(Version version) const {
 }
 
 QString Database::binlogFilename() const {
-	return qsl("binlog");
+	return QStringLiteral("binlog");
 }
 
 QString Database::binlogPath(Version version) const {
@@ -316,6 +332,7 @@ File::Result Database::openBinlog(
 	if (result == File::Result::Success) {
 		_path = computePath(version);
 		_key = std::move(key);
+		createCleaner();
 		readBinlog();
 	}
 	return result;
@@ -466,6 +483,7 @@ bool Database::readRecordMultiRemove(bytes::const_span data) {
 }
 
 void Database::close(FnMut<void()> done) {
+	_cleaner = CleanerWrap();
 	_binlog.close();
 	invokeCallback(done);
 }
@@ -604,6 +622,24 @@ void Database::writeMultiRemove() {
 	}
 }
 
+void Database::createCleaner() {
+	auto [left, right] = base::make_binary_guard();
+	_cleaner.guard = std::move(left);
+	auto done = [weak = _weak](Error error) {
+		weak.with([=](Database &that) {
+			that.cleanerDone(error);
+		});
+	};
+	_cleaner.object = std::make_unique<Cleaner>(
+		_base,
+		std::move(right),
+		std::move(done));
+}
+
+void Database::cleanerDone(Error error) {
+	_cleaner = CleanerWrap();
+}
+
 void Database::clear(FnMut<void(Error)> done) {
 	Expects(_key.empty());
 
@@ -631,36 +667,18 @@ auto Database::findAvailableVersion() const -> Version {
 }
 
 QString Database::versionPath() const {
-	return _base + "version";
+	return VersionFilePath(_base);
 }
 
 bool Database::writeVersion(Version version) {
-	const auto bytes = QByteArray::fromRawData(
-		reinterpret_cast<const char*>(&version),
-		sizeof(version));
-
-	if (!QDir().mkpath(_base)) {
-		return false;
-	}
-	QFile file(versionPath());
-	if (!file.open(QIODevice::WriteOnly)) {
-		return false;
-	} else if (file.write(bytes) != bytes.size()) {
-		return false;
-	}
-	return file.flush();
+	return WriteVersionValue(_base, version);
 }
 
 auto Database::readVersion() const -> Version {
-	QFile file(versionPath());
-	if (!file.open(QIODevice::ReadOnly)) {
-		return Version();
+	if (const auto result = ReadVersionValue(_base)) {
+		return *result;
 	}
-	const auto bytes = file.read(sizeof(Version));
-	if (bytes.size() != sizeof(Version)) {
-		return Version();
-	}
-	return *reinterpret_cast<const Version*>(bytes.data());
+	return Version();
 }
 
 QString Database::placePath(PlaceId place) const {

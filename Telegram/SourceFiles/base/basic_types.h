@@ -7,17 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/build_config.h"
+#include "base/ordered_set.h"
+#include "base/unique_function.h"
+#include "base/functors.h"
+
+#include <QtGlobal>
+
 #include <string>
 #include <exception>
 #include <memory>
 #include <ctime>
 #include <functional>
 #include <gsl/gsl>
-
-#include "base/build_config.h"
-#include "base/ordered_set.h"
-#include "base/unique_function.h"
-#include "base/functors.h"
 
 namespace func = base::functors;
 
@@ -45,6 +47,3 @@ using float64 = double;
 
 using TimeMs = int64;
 using TimeId = int32;
-
-#define qsl(s) QStringLiteral(s)
-#define qstr(s) QLatin1String((s), sizeof(s) - 1)

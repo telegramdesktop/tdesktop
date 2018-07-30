@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/bytes.h"
 #include "base/algorithm.h"
-#include "core/basic_types.h"
+#include "base/basic_types.h"
 
 extern "C" {
 #include <openssl/bn.h>

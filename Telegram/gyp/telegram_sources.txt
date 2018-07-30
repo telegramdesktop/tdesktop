@@ -1,5 +1,7 @@
 <(src_loc)/base/algorithm.h
 <(src_loc)/base/assertion.h
+<(src_loc)/base/basic_types.h
+<(src_loc)/base/binary_guard.h
 <(src_loc)/base/build_config.h
 <(src_loc)/base/bytes.h
 <(src_loc)/base/flags.h
@@ -136,7 +138,6 @@
 <(src_loc)/chat_helpers/tabbed_section.h
 <(src_loc)/chat_helpers/tabbed_selector.cpp
 <(src_loc)/chat_helpers/tabbed_selector.h
-<(src_loc)/core/basic_types.h
 <(src_loc)/core/changelogs.cpp
 <(src_loc)/core/changelogs.h
 <(src_loc)/core/click_handler.cpp

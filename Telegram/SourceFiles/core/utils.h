@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "logs.h"
-#include "core/basic_types.h"
+#include "base/basic_types.h"
 #include "base/flags.h"
 #include "base/algorithm.h"
 #include "base/assertion.h"
@@ -20,6 +20,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <cmath>
 #include <set>
+
+#define qsl(s) QStringLiteral(s)
+#define qstr(s) QLatin1String((s), sizeof(s) - 1)
 
 // Define specializations for QByteArray for Qt 5.3.2, because
 // QByteArray in Qt 5.3.2 doesn't declare "pointer" subtype.
