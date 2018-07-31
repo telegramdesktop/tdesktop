@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history_widget.h"
 #include "base/qthelp_regex.h"
+#include "base/qthelp_url.h"
 #include "boxes/abstract_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_controller.h"
@@ -72,40 +73,6 @@ private:
 
 };
 
-QRegularExpression RegExpProtocol() {
-	static const auto result = QRegularExpression("^([a-zA-Z]+)://");
-	return result;
-}
-
-bool IsGoodProtocol(const QString &protocol) {
-	const auto equals = [&](QLatin1String string) {
-		return protocol.compare(string, Qt::CaseInsensitive) == 0;
-	};
-	return equals(qstr("http"))
-		|| equals(qstr("https"))
-		|| equals(qstr("tg"));
-}
-
-QString NormalizeUrl(const QString &value) {
-	const auto trimmed = value.trimmed();
-	if (trimmed.isEmpty()) {
-		return QString();
-	}
-	const auto match = TextUtilities::RegExpDomainExplicit().match(trimmed);
-	if (!match.hasMatch()) {
-		const auto domain = TextUtilities::RegExpDomain().match(trimmed);
-		if (!domain.hasMatch() || domain.capturedStart() != 0) {
-			return QString();
-		}
-		return qstr("http://") + trimmed;
-	} else if (match.capturedStart() != 0) {
-		return QString();
-	}
-	const auto protocolMatch = RegExpProtocol().match(trimmed);
-	Assert(protocolMatch.hasMatch());
-	return IsGoodProtocol(protocolMatch.captured(1)) ? trimmed : QString();
-}
-
 //bool ValidateUrl(const QString &value) {
 //	const auto match = TextUtilities::RegExpDomain().match(value);
 //	if (!match.hasMatch() || match.capturedStart() != 0) {
@@ -156,7 +123,7 @@ void EditLinkBox::prepare() {
 
 	const auto submit = [=] {
 		const auto linkText = text->getLastText();
-		const auto linkUrl = NormalizeUrl(url->getLastText());
+		const auto linkUrl = qthelp::validate_url(url->getLastText());
 		if (linkText.isEmpty()) {
 			text->showError();
 			return;

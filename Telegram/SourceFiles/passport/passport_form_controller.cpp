@@ -188,6 +188,13 @@ QString SpecialScanCredentialsKey(SpecialFile type) {
 	Unexpected("Type in SpecialScanCredentialsKey.");
 }
 
+QString ValidateUrl(const QString &url) {
+	const auto result = qthelp::validate_url(url);
+	return result.startsWith("tg://", Qt::CaseInsensitive)
+		? QString()
+		: result;
+}
+
 } // namespace
 
 FormRequest::FormRequest(
@@ -199,7 +206,7 @@ FormRequest::FormRequest(
 	const QString &errors)
 : botId(botId)
 , scope(scope)
-, callbackUrl(callbackUrl)
+, callbackUrl(ValidateUrl(callbackUrl))
 , publicKey(publicKey)
 , payload(payload)
 , errors(errors) {

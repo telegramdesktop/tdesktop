@@ -30,4 +30,6 @@ QString url_append_query_or_hash(const QString &url, const QString &add);
 
 bool is_ipv6(const QString &ip);
 
+QString validate_url(const QString &value);
+
 } // namespace qthelp
