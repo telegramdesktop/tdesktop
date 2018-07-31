@@ -12,6 +12,7 @@ class Launcher;
 class UpdateChecker;
 } // namespace Core
 
+bool InternalPassportLink(const QString &url);
 bool StartUrlRequiresActivate(const QString &url);
 
 class Application : public QApplication {

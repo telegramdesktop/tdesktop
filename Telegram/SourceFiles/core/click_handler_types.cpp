@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "messenger.h"
+#include "application.h"
 #include "platform/platform_specific.h"
 #include "history/view/history_view_element.h"
 #include "history/history_item.h"
@@ -142,13 +143,21 @@ TextWithEntities UrlClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMod
 
 void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 	auto urlText = tryConvertUrlToLocal(url);
-
+	const auto open = [=] {
+		UrlClickHandler::Open(urlText, context);
+	};
 	if (urlText.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
-		Messenger::Instance().openLocalUrl(urlText, context);
+		if (InternalPassportLink(urlText)) {
+			Ui::show(
+				Box<ConfirmBox>(
+					lang(lng_open_passport_link),
+					lang(lng_open_link),
+					[=] { Ui::hideLayer(); open(); }),
+				LayerOption::KeepOther);
+		} else {
+			open();
+		}
 	} else {
-		const auto open = [=] {
-			UrlClickHandler::Open(urlText, context);
-		};
 		auto parsedUrl = QUrl::fromUserInput(urlText);
 		if (UrlRequiresConfirmation(urlText)) {
 			auto displayUrl = parsedUrl.isValid()

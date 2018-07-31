@@ -1041,6 +1041,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_open_this_link" = "Open this link?";
 "lng_open_link" = "Open";
+"lng_open_passport_link" = "Open this Telegram Passport authorization?";
 "lng_allow_bot_pass" = "Allow {bot_name} to pass your Telegram name and ID to the web pages you open via this bot?";
 "lng_allow_bot" = "Allow";
 

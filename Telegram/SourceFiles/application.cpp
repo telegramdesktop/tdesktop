@@ -64,11 +64,10 @@ QString _escapeFrom7bit(const QString &str) {
 
 } // namespace
 
-bool StartUrlRequiresActivate(const QString &url) {
+bool InternalPassportLink(const QString &url) {
 	const auto urlTrimmed = url.trimmed();
-	if (!urlTrimmed.startsWith(qstr("tg://"), Qt::CaseInsensitive)
-		|| Messenger::Instance().locked()) {
-		return true;
+	if (!urlTrimmed.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
+		return false;
 	}
 	const auto command = urlTrimmed.midRef(qstr("tg://").size());
 
@@ -78,11 +77,23 @@ bool StartUrlRequiresActivate(const QString &url) {
 		qsl("^passport/?\\?(.+)(#|$)"),
 		command,
 		matchOptions);
-	const auto authLegacyMatch = regex_match(
-		qsl("^resolve/?\\?domain=telegrampassport&(.+)(#|$)"),
+	const auto usernameMatch = regex_match(
+		qsl("^resolve/?\\?(.+)(#|$)"),
 		command,
 		matchOptions);
-	return !authMatch->hasMatch() && !authLegacyMatch->hasMatch();
+	const auto usernameValue = usernameMatch->hasMatch()
+		? url_parse_params(
+			usernameMatch->captured(1),
+			UrlParamNameTransform::ToLower).value(qsl("domain"))
+		: QString();
+	const auto authLegacy = (usernameValue == qstr("telegrampassport"));
+	return authMatch->hasMatch() || authLegacy;
+}
+
+bool StartUrlRequiresActivate(const QString &url) {
+	return Messenger::Instance().locked()
+		? true
+		: !InternalPassportLink(url);
 }
 
 Application::Application(
