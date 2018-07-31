@@ -196,6 +196,7 @@ uint64 msgid();
 int GetNextRequestId();
 
 QDateTime ParseDateTime(TimeId serverTime);
+TimeId ServerTimeFromParsed(const QDateTime &date);
 
 inline void mylocaltime(struct tm * _Tm, const time_t * _Time) {
 #ifdef Q_OS_WIN

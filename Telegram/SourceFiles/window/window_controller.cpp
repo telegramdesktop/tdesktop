@@ -334,14 +334,14 @@ void Controller::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 						return history->blocks.front()->messages.front()->dateTime().date();
 					}
 				}
-			} else if (!history->chatsListDate().isNull()) {
-				return history->chatsListDate().date();
+			} else if (history->chatsListTimeId() != 0) {
+				return ParseDateTime(history->chatsListTimeId()).date();
 			}
 		} else if (const auto feed = chat.feed()) {
 			/*if (chatScrollPosition(feed)) { // #TODO feeds save position
 
-			} else */if (!feed->chatsListDate().isNull()) {
-				return feed->chatsListDate().date();
+			} else */if (feed->chatsListTimeId() != 0) {
+				return ParseDateTime(feed->chatsListTimeId()).date();
 			}
 		}
 		return QDate::currentDate();
@@ -351,12 +351,12 @@ void Controller::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 			if (const auto channel = history->peer->migrateTo()) {
 				history = App::historyLoaded(channel);
 			}
-			if (history && !history->chatsListDate().isNull()) {
-				return history->chatsListDate().date();
+			if (history && history->chatsListTimeId() != 0) {
+				return ParseDateTime(history->chatsListTimeId()).date();
 			}
 		} else if (const auto feed = chat.feed()) {
-			if (!feed->chatsListDate().isNull()) {
-				return feed->chatsListDate().date();
+			if (feed->chatsListTimeId() != 0) {
+				return ParseDateTime(feed->chatsListTimeId()).date();
 			}
 		}
 		return QDate::currentDate();

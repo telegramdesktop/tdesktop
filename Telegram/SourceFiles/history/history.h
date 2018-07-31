@@ -445,7 +445,7 @@ private:
 		not_null<Element*> view);
 	void removeNotification(not_null<HistoryItem*> item);
 
-	QDateTime adjustChatListDate() const override;
+	TimeId adjustChatListTimeId() const override;
 	void changedInChatListHook(Dialogs::Mode list, bool added) override;
 	void changedChatListPinHook() override;
 

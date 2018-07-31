@@ -636,7 +636,7 @@ void ApiWrap::historyDialogEntryApplied(not_null<History*> history) {
 			if (!chat->haveLeft()) {
 				Local::addSavedPeer(
 					history->peer,
-					history->chatsListDate());
+					ParseDateTime(history->chatsListTimeId()));
 			}
 		} else if (const auto channel = history->peer->asChannel()) {
 			const auto inviter = channel->inviter;
@@ -653,12 +653,11 @@ void ApiWrap::historyDialogEntryApplied(not_null<History*> history) {
 		return;
 	}
 
-	if (!history->chatsListDate().isNull()
-		&& history->loadedAtBottom()) {
+	if (history->chatsListTimeId() != 0 && history->loadedAtBottom()) {
 		if (const auto channel = history->peer->asChannel()) {
 			const auto inviter = channel->inviter;
 			if (inviter != 0
-				&& history->chatsListDate() <= ParseDateTime(channel->inviteDate)
+				&& history->chatsListTimeId() <= channel->inviteDate
 				&& channel->amIn()) {
 				if (const auto from = App::userLoaded(inviter)) {
 					history->insertJoinedMessage(true);

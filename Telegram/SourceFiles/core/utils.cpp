@@ -125,6 +125,14 @@ QDateTime ParseDateTime(TimeId serverTime) {
 	return QDateTime::fromTime_t(serverTime - unixtimeDelta);
 }
 
+TimeId ServerTimeFromParsed(const QDateTime &date) {
+	if (date.isNull()) {
+		return TimeId(0);
+	}
+	QReadLocker locker(&unixtimeLock);
+	return date.toTime_t() + unixtimeDelta;
+}
+
 // Precise timing functions / rand init
 
 struct CRYPTO_dynlock_value {
