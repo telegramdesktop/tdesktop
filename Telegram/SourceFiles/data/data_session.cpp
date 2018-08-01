@@ -704,7 +704,7 @@ void Session::updateNotifySettingsLocal(not_null<PeerData*> peer) {
 }
 
 void Session::unmuteByFinishedDelayed(TimeMs delay) {
-	accumulate_max(delay, kMaxNotifyCheckDelay);
+	accumulate_min(delay, kMaxNotifyCheckDelay);
 	if (!_unmuteByFinishedTimer.isActive()
 		|| _unmuteByFinishedTimer.remainingTime() > delay) {
 		_unmuteByFinishedTimer.callOnce(delay);
