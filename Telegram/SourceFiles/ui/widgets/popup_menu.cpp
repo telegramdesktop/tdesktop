@@ -423,6 +423,12 @@ void PopupMenu::popup(const QPoint &p) {
 }
 
 void PopupMenu::showMenu(const QPoint &p, PopupMenu *parent, TriggeredSource source) {
+	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
+		if (!parent && !static_cast<QApplication*>(QApplication::instance())->activeWindow()) {
+			crl::on_main(this, [=] { show(); hideFast(); });
+			return;
+		}
+	}
 	_parent = parent;
 
 	auto origin = PanelAnimation::Origin::TopLeft;
