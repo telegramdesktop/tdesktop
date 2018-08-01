@@ -19,84 +19,6 @@ namespace {
 std::map<int, const char*> AlphaLogs() {
 	return {
 	{
-		1002002,
-		"\xE2\x80\x94 Grouped photos and videos are displayed as albums."
-	},
-	{
-		1002004,
-		"\xE2\x80\x94 Group media into an album "
-		"when sharing multiple photos and videos.\n"
-
-		"\xE2\x80\x94 Bug fixes and other minor improvements."
-	},
-	{
-		1002005,
-		"\xE2\x80\x94 When viewing a photo from an album, "
-		"you'll see other pictures from the same group "
-		"as thumbnails in the lower part of the screen.\n"
-
-		"\xE2\x80\x94 When composing an album paste "
-		"additional media from the clipboard.\n"
-
-		"\xE2\x80\x94 Bug fixes and other minor improvements."
-	},
-	{
-		1002007,
-		"\xE2\x80\x94 Use fast reply button in group chats.\n"
-
-		"\xE2\x80\x94 Select a message you want to reply to by "
-		"pressing Ctrl+Up and Ctrl+Down."
-	},
-	{
-		1002009,
-		"\xE2\x80\x94 Quick Reply. "
-		"Double click next to any message for a quick reply.\n"
-
-		"\xE2\x80\x94 Search for Stickers. "
-		"Click on the new search icon to access "
-		"your sticker sets or find new ones."
-	},
-	{
-		1002019,
-		"\xE2\x80\x94 Enable proxy for calls in Settings.\n"
-
-		"\xE2\x80\x94 Bug fixes and other minor improvements."
-	},
-	{
-		1002020,
-		"\xE2\x80\x94 Emoji and text replacements are done "
-		"while you type the message.\n"
-
-		"\xE2\x80\x94 Revert emoji and text replacements "
-		"by pressing backspace.\n"
-
-		"\xE2\x80\x94 Disable emoji replacements or suggestions "
-		"in Settings.\n"
-
-		"\xE2\x80\x94 Some critical bug fixes."
-	},
-	{
-		1002022,
-		"\xE2\x80\x94 Use markdown in media captions "
-		"(**bold**, __italic__, `tag` and ```code```).\n"
-
-		"\xE2\x80\x94 Use emoji replacement in media captions, "
-		"group and channel titles and descriptions (:like: etc.)\n"
-
-		"\xE2\x80\x94 Markdown replacement now happens immediately "
-		"after typing (instead of after sending) and can be "
-		"rolled back using Backspace or Ctrl/Cmd + Z. "
-		"Replacement no longer happens when pasting text."
-	},
-	{
-		1002023,
-		"\xE2\x80\x94 Apply formatting from input field context menu.\n"
-
-		"\xE2\x80\x94 Apply formatting by hotkeys.\n"
-
-		"\xE2\x80\x94 Bug fixes and other minor improvements."
-	},
-	{
 		1002024,
 		"\xE2\x80\x94 Add links with custom text from context menu "
 		"or by Ctrl/Cmd + K keyboard shortcut."
@@ -111,6 +33,13 @@ std::map<int, const char*> AlphaLogs() {
 		"\xE2\x80\x94 Telegram Desktop can update itself through MTProto.\n"
 
 		"\xE2\x80\x94 Bug fixes and other minor improvements."
+	},
+	{
+		1003011,
+		"\xE2\x80\x94 Added a new night theme.\n"
+
+		"\xE2\x80\x94 You can now assign custom themes "
+		"as night and day themes to quickly switch between them."
 	}
 	};
 }
