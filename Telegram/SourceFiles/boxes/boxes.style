@@ -113,7 +113,7 @@ boxMediumSkip: 20px;
 boxButtonPadding: margins(8px, 12px, 13px, 12px);
 boxLayerButtonPadding: margins(8px, 8px, 8px, 8px);
 boxLabel: FlatLabel(defaultFlatLabel) {
-	minWidth: 285px;
+	minWidth: 274px;
 	align: align(topleft);
 	style: boxLabelStyle;
 }
