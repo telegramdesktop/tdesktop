@@ -669,7 +669,10 @@ void EditColorBox::prepare() {
 		}
 	}, lifetime());
 
-	updateFromControls();
+	updateRGBFields();
+	updateHSVFields();
+	updateResultField();
+	update();
 }
 
 void EditColorBox::setInnerFocus() {
