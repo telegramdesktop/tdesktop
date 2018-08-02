@@ -354,6 +354,19 @@ void ApplyDefaultWithNightMode(bool nightMode) {
 	}
 }
 
+void WriteAppliedTheme() {
+	auto saved = Saved();
+	saved.pathRelative = instance->applying.pathRelative;
+	saved.pathAbsolute = instance->applying.pathAbsolute;
+	saved.content = std::move(instance->applying.content);
+	saved.cache = std::move(instance->applying.cached);
+	Local::writeTheme(saved);
+}
+
+void ClearApplying() {
+	instance->applying = Data::Applying();
+}
+
 } // namespace
 
 ChatBackground::AdjustableColor::AdjustableColor(style::color data)
@@ -751,7 +764,7 @@ void ChatBackground::toggleNightMode() {
 
 	_nightMode = oldNightMode;
 	auto oldTileValue = (_nightMode ? _tileNightValue : _tileDayValue);
-	const auto applied = [&] {
+	const auto alreadyOnDisk = [&] {
 		if (read.content.isEmpty()) {
 			return false;
 		}
@@ -770,7 +783,7 @@ void ChatBackground::toggleNightMode() {
 		Apply(std::move(preview));
 		return true;
 	}();
-	if (!applied) {
+	if (!alreadyOnDisk) {
 		path = newNightMode ? NightThemePath() : QString();
 		ApplyDefaultWithNightMode(newNightMode);
 	}
@@ -782,15 +795,16 @@ void ChatBackground::toggleNightMode() {
 		// Restore the value, it was set inside theme testing.
 		(oldNightMode ? _tileNightValue : _tileDayValue) = oldTileValue;
 
-		// We don't call full KeepApplied() here, because
-		// we don't need to write theme or overwrite current background.
-		instance->applying = Data::Applying();
-		Local::writeSettings();
+		if (!alreadyOnDisk) {
+			// First-time switch to default night mode should write it.
+			WriteAppliedTheme();
+		}
+		ClearApplying();
 		keepApplied(path, false);
 		if (tile() != _tileForRevert) {
 			Local::writeUserSettings();
 		}
-
+		Local::writeSettings();
 		if (!Local::readBackground()) {
 			setImage(kThemeBackground);
 		}
@@ -882,14 +896,10 @@ void KeepApplied() {
 	if (!AreTestingTheme()) {
 		return;
 	}
-	auto saved = Saved();
-	saved.pathRelative = instance->applying.pathRelative;
-	saved.pathAbsolute = instance->applying.pathAbsolute;
-	saved.content = std::move(instance->applying.content);
-	saved.cache = std::move(instance->applying.cached);
-	Local::writeTheme(saved);
-	instance->applying = Data::Applying();
-	Background()->keepApplied(saved.pathAbsolute, true);
+	const auto path = instance->applying.pathAbsolute;
+	WriteAppliedTheme();
+	ClearApplying();
+	Background()->keepApplied(path, true);
 }
 
 void Revert() {
@@ -899,7 +909,7 @@ void Revert() {
 	style::main_palette::load(instance->applying.paletteForRevert);
 	Background()->saveAdjustableColors();
 
-	instance->applying = Data::Applying();
+	ClearApplying();
 	Background()->revert();
 }
 
