@@ -11,6 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "ui/widgets/shadow.h"
 #include "lang/lang_keys.h"
+#include "emoji_suggestions_data.h"
+#include "emoji_suggestions_helper.h"
+#include "facades.h"
 
 namespace ChatHelpers {
 
@@ -667,6 +670,28 @@ Ui::Emoji::Section EmojiListWidget::currentSection(int yOffset) const {
 	return static_cast<Section>(sectionInfoByOffset(yOffset).section);
 }
 
+QString EmojiListWidget::tooltipText() const {
+	const auto &replacements = Ui::Emoji::internal::GetAllReplacements();
+	const auto section = (_selected / MatrixRowShift);
+	const auto sel = _selected % MatrixRowShift;
+	if (_selected >= 0 && section < kEmojiSectionCount && sel < _emoji[section].size()) {
+		const auto emoji = _emoji[section][sel];
+		const auto text = emoji->text();
+		// find the replacement belonging to the emoji
+		const auto it = ranges::find_if(replacements, [&text](auto &one) {
+			return text == Ui::Emoji::QStringFromUTF16(one.emoji);
+		});
+		if (it != replacements.end()) {
+			return Ui::Emoji::QStringFromUTF16(it->replacement);
+		}
+	}
+	return "";
+}
+
+QPoint EmojiListWidget::tooltipPos() const {
+	return _lastMousePos;
+}
+
 TabbedSelector::InnerFooter *EmojiListWidget::getFooter() const {
 	return _footer;
 }
@@ -728,6 +753,10 @@ void EmojiListWidget::setSelected(int newSelected) {
 	updateSelected();
 	_selected = newSelected;
 	updateSelected();
+
+	if (_selected >= 0 && Global::SuggestEmoji()) {
+		Ui::Tooltip::Show(1000, this);
+	}
 
 	setCursor((_selected >= 0) ? style::cur_pointer : style::cur_default);
 	if (_selected >= 0 && !_picker->isHidden()) {

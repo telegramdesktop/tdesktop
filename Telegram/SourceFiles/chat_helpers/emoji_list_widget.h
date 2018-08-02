@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "chat_helpers/tabbed_selector.h"
+#include "ui/widgets/tooltip.h"
 
 namespace Window {
 class Controller;
@@ -74,7 +75,7 @@ private:
 
 };
 
-class EmojiListWidget : public TabbedSelector::Inner {
+class EmojiListWidget : public TabbedSelector::Inner, public Ui::AbstractTooltipShower {
 	Q_OBJECT
 
 public:
@@ -88,6 +89,10 @@ public:
 
 	void showEmojiSection(Section section);
 	Section currentSection(int yOffset) const;
+
+	// Ui::AbstractTooltipShower interface.
+	QString tooltipText() const override;
+	QPoint tooltipPos() const override;
 
 public slots:
 	void onShowPicker();
