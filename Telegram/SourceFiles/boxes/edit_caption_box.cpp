@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "mainwidget.h"
 #include "layout.h"
+#include "auth_session.h"
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
 
@@ -69,8 +70,22 @@ EditCaptionBox::EditCaptionBox(
 			} else {
 				_thumbw = st::msgFileThumbSize;
 			}
-			auto options = Images::Option::Smooth | Images::Option::RoundedSmall | Images::Option::RoundedTopLeft | Images::Option::RoundedTopRight | Images::Option::RoundedBottomLeft | Images::Option::RoundedBottomRight;
-			_thumb = Images::pixmap(image->pix().toImage(), _thumbw * cIntRetinaFactor(), 0, options, st::msgFileThumbSize, st::msgFileThumbSize);
+			_thumbnailImage = image;
+			_refreshThumbnail = [=] {
+				auto options = Images::Option::Smooth
+					| Images::Option::RoundedSmall
+					| Images::Option::RoundedTopLeft
+					| Images::Option::RoundedTopRight
+					| Images::Option::RoundedBottomLeft
+					| Images::Option::RoundedBottomRight;
+				_thumb = Images::pixmap(
+					image->pix().toImage(),
+					_thumbw * cIntRetinaFactor(),
+					0,
+					options,
+					st::msgFileThumbSize,
+					st::msgFileThumbSize);
+			};
 		}
 
 		if (doc) {
@@ -87,6 +102,9 @@ EditCaptionBox::EditCaptionBox(
 				st::normalFont->width(_status));
 			_isImage = doc->isImage();
 			_isAudio = (doc->isVoiceMessage() || doc->isAudioFile());
+		}
+		if (_refreshThumbnail) {
+			_refreshThumbnail();
 		}
 	} else {
 		int32 maxW = 0, maxH = 0;
@@ -106,13 +124,33 @@ EditCaptionBox::EditCaptionBox(
 					maxH = limitH;
 				}
 			}
-			_thumb = image->pixNoCache(maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), Images::Option::Smooth | Images::Option::Blurred, maxW, maxH);
+			_thumbnailImage = image;
+			_refreshThumbnail = [=] {
+				const auto options = Images::Option::Smooth
+					| Images::Option::Blurred;
+				_thumb = image->pixNoCache(
+					maxW * cIntRetinaFactor(),
+					maxH * cIntRetinaFactor(),
+					options,
+					maxW,
+					maxH);
+			};
 			prepareGifPreview(doc);
 		} else {
 			maxW = dimensions.width();
 			maxH = dimensions.height();
-			_thumb = image->pixNoCache(maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), Images::Option::Smooth, maxW, maxH);
+			_thumbnailImage = image;
+			_refreshThumbnail = [=] {
+				_thumb = image->pixNoCache(
+					maxW * cIntRetinaFactor(),
+					maxH * cIntRetinaFactor(),
+					Images::Option::Smooth,
+					maxW,
+					maxH);
+			};
 		}
+		_refreshThumbnail();
+
 		int32 tw = _thumb.width(), th = _thumb.height();
 		if (!tw || !th) {
 			tw = th = 1;
@@ -132,10 +170,36 @@ EditCaptionBox::EditCaptionBox(
 		}
 		_thumbx = (st::boxWideWidth - _thumbw) / 2;
 
-		_thumb = App::pixmapFromImageInPlace(_thumb.toImage().scaled(_thumbw * cIntRetinaFactor(), _thumbh * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
-		_thumb.setDevicePixelRatio(cRetinaFactor());
+		const auto prepareBasicThumb = _refreshThumbnail;
+		const auto scaleThumbDown = [=] {
+			_thumb = App::pixmapFromImageInPlace(_thumb.toImage().scaled(
+				_thumbw * cIntRetinaFactor(),
+				_thumbh * cIntRetinaFactor(),
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation));
+			_thumb.setDevicePixelRatio(cRetinaFactor());
+		};
+		_refreshThumbnail = [=] {
+			prepareBasicThumb();
+			scaleThumbDown();
+		};
+		scaleThumbDown();
 	}
 	Assert(_animated || _photo || _doc);
+
+	_thumbnailImageLoaded = _thumbnailImage
+		? _thumbnailImage->loaded()
+		: true;
+	subscribe(Auth().downloaderTaskFinished(), [=] {
+		if (!_thumbnailImageLoaded && _thumbnailImage->loaded()) {
+			_thumbnailImageLoaded = true;
+			_refreshThumbnail();
+			update();
+		}
+		if (doc && doc->isAnimation() && doc->loaded() && !_gifPreview) {
+			prepareGifPreview(doc);
+		}
+	});
 
 	_field.create(
 		this,
@@ -152,12 +216,10 @@ EditCaptionBox::EditCaptionBox(
 		DefaultEditLinkCallback(_controller, _field));
 }
 
-void EditCaptionBox::prepareGifPreview(DocumentData *document) {
-	auto createGifPreview = [document] {
-		return (document && document->isAnimation());
-	};
-	auto createGifPreviewResult = createGifPreview(); // Clang freeze workaround.
-	if (createGifPreviewResult) {
+void EditCaptionBox::prepareGifPreview(not_null<DocumentData*> document) {
+	if (_gifPreview) {
+		return;
+	} else if (document->isAnimation() && document->loaded()) {
 		_gifPreview = Media::Clip::MakeReader(document, _msgId, [this](Media::Clip::Notification notification) {
 			clipCallback(notification);
 		});

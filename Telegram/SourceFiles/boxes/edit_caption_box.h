@@ -41,7 +41,7 @@ protected:
 
 private:
 	void updateBoxSize();
-	void prepareGifPreview(DocumentData *document);
+	void prepareGifPreview(not_null<DocumentData*> document);
 	void clipCallback(Media::Clip::Notification notification);
 
 	void save();
@@ -54,6 +54,9 @@ private:
 
 	not_null<Window::Controller*> _controller;
 	FullMsgId _msgId;
+	ImagePtr _thumbnailImage;
+	bool _thumbnailImageLoaded = false;
+	Fn<void()> _refreshThumbnail;
 	bool _animated = false;
 	bool _photo = false;
 	bool _doc = false;
