@@ -163,15 +163,6 @@ bytes::vector EncryptSecretBytes(
 	return Encrypt(secret, std::move(params));
 }
 
-bytes::vector CountPasswordHashForSecret(
-		bytes::const_span salt,
-		bytes::const_span password) {
-	return openssl::Sha512(bytes::concatenate(
-		salt,
-		password,
-		salt));
-}
-
 bytes::vector DecryptSecureSecret(
 		bytes::const_span encryptedSecret,
 		bytes::const_span passwordHashForSecret) {
@@ -403,7 +394,7 @@ bytes::vector DecryptData(
 bytes::vector PrepareValueHash(
 		bytes::const_span dataHash,
 		bytes::const_span valueSecret) {
-	return openssl::Sha256(bytes::concatenate(dataHash, valueSecret));
+	return openssl::Sha256(dataHash, valueSecret);
 }
 
 bytes::vector EncryptValueSecret(

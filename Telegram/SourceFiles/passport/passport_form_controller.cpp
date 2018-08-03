@@ -321,10 +321,7 @@ QString FormController::privacyPolicyUrl() const {
 
 bytes::vector FormController::passwordHashForAuth(
 		bytes::const_span password) const {
-	return openssl::Sha256(bytes::concatenate(
-		_password.salt,
-		password,
-		_password.salt));
+	return Core::ComputeCloudPasswordHash(_password.algo, password);
 }
 
 auto FormController::prepareFinalData() -> FinalData {
@@ -446,7 +443,7 @@ std::vector<not_null<const Value*>> FormController::submitGetErrors() {
 }
 
 void FormController::submitPassword(const QByteArray &password) {
-	Expects(!_password.salt.empty());
+	Expects(_password.algo.has_value());
 
 	const auto submitSaved = !base::take(_savedPasswordValue).isEmpty();
 	if (_passwordCheckRequestId) {
@@ -463,28 +460,42 @@ void FormController::submitPassword(const QByteArray &password) {
 
 		_passwordCheckRequestId = 0;
 		_savedPasswordValue = QByteArray();
-		const auto &data = result.c_account_passwordSettings();
 		const auto hashForAuth = passwordHashForAuth(
 			bytes::make_span(password));
-		const auto hashForSecret = (data.vsecure_salt.v.isEmpty()
-			? bytes::vector()
-			: CountPasswordHashForSecret(
-				bytes::make_span(data.vsecure_salt.v),
-				bytes::make_span(password)));
+		const auto &data = result.c_account_passwordSettings();
 		_password.confirmedEmail = qs(data.vemail);
-		validateSecureSecret(
-			bytes::make_span(data.vsecure_secret.v),
-			hashForSecret,
-			bytes::make_span(password),
-			data.vsecure_secret_id.v);
-		if (!_secret.empty()) {
-			auto saved = SavedCredentials();
-			saved.hashForAuth = hashForAuth;
-			saved.hashForSecret = hashForSecret;
-			saved.secretId = _secretId;
-			Auth().data().rememberPassportCredentials(
-				std::move(saved),
-				kRememberCredentialsDelay);
+		if (data.has_secure_settings()) {
+			const auto &wrapped = data.vsecure_settings;
+			const auto &settings = wrapped.c_secureSecretSettings();
+			const auto algo = Core::ParseSecureSecretAlgo(
+				settings.vsecure_algo);
+			if (!algo) {
+				_view->showUpdateAppBox();
+				return;
+			}
+			const auto hashForSecret = Core::ComputeSecureSecretHash(
+				algo,
+				bytes::make_span(password));
+			validateSecureSecret(
+				bytes::make_span(settings.vsecure_secret.v),
+				hashForSecret,
+				bytes::make_span(password),
+				settings.vsecure_secret_id.v);
+			if (!_secret.empty()) {
+				auto saved = SavedCredentials();
+				saved.hashForAuth = hashForAuth;
+				saved.hashForSecret = hashForSecret;
+				saved.secretId = _secretId;
+				Auth().data().rememberPassportCredentials(
+					std::move(saved),
+					kRememberCredentialsDelay);
+			}
+		} else {
+			validateSecureSecret(
+				bytes::const_span(), // secure_secret
+				bytes::const_span(), // hash for secret
+				bytes::make_span(password),
+				0); // secure_secret_id
 		}
 	}).fail([=](const RPCError &error) {
 		_passwordCheckRequestId = 0;
@@ -511,14 +522,23 @@ void FormController::checkSavedPasswordSettings(
 
 		_passwordCheckRequestId = 0;
 		const auto &data = result.c_account_passwordSettings();
-		if (!data.vsecure_secret.v.isEmpty()
-			&& data.vsecure_secret_id.v == credentials.secretId) {
-			_password.confirmedEmail = qs(data.vemail);
-			validateSecureSecret(
-				bytes::make_span(data.vsecure_secret.v),
-				credentials.hashForSecret,
-				{},
-				data.vsecure_secret_id.v);
+		if (data.has_secure_settings()) {
+			const auto &wrapped = data.vsecure_settings;
+			const auto &settings = wrapped.c_secureSecretSettings();
+			const auto algo = Core::ParseSecureSecretAlgo(
+				settings.vsecure_algo);
+			if (!algo) {
+				_view->showUpdateAppBox();
+				return;
+			} else if (!settings.vsecure_secret.v.isEmpty()
+				&& settings.vsecure_secret_id.v == credentials.secretId) {
+				_password.confirmedEmail = qs(data.vemail);
+				validateSecureSecret(
+					bytes::make_span(settings.vsecure_secret.v),
+					credentials.hashForSecret,
+					{},
+					settings.vsecure_secret_id.v);
+			}
 		}
 		if (_secret.empty()) {
 			Auth().data().forgetPassportCredentials();
@@ -584,13 +604,11 @@ void FormController::cancelPassword() {
 		MTP_bytes(QByteArray()),
 		MTP_account_passwordInputSettings(
 			MTP_flags(MTPDaccount_passwordInputSettings::Flag::f_email),
-			MTP_bytes(QByteArray()), // new_salt
+			MTP_passwordKdfAlgoUnknown(), // new_algo
 			MTP_bytes(QByteArray()), // new_password_hash
 			MTP_string(QString()), // hint
 			MTP_string(QString()), // email
-			MTP_bytes(QByteArray()), // new_secure_salt
-			MTP_bytes(QByteArray()), // new_secure_secret
-			MTP_long(0)) // new_secure_secret_hash
+			MTPSecureSecretSettings())
 	)).done([=](const MTPBool &result) {
 		_passwordRequestId = 0;
 		reloadPassword();
@@ -648,16 +666,15 @@ void FormController::suggestReset(bytes::vector password) {
 		_saveSecretRequestId = request(MTPaccount_UpdatePasswordSettings(
 			MTP_bytes(passwordHashForAuth(password)),
 			MTP_account_passwordInputSettings(
-				MTP_flags(Flag::f_new_secure_salt
-					| Flag::f_new_secure_secret
-					| Flag::f_new_secure_secret_id),
-				MTPbytes(), // new_salt
+				MTP_flags(Flag::f_new_secure_settings),
+				MTPPasswordKdfAlgo(), // new_algo
 				MTPbytes(), // new_password_hash
 				MTPstring(), // hint
 				MTPstring(), // email
-			MTP_bytes(QByteArray()), // new_secure_salt
-			MTP_bytes(QByteArray()), // new_secure_secret
-			MTP_long(0)) // new_secure_secret_id
+				MTP_secureSecretSettings(
+					MTP_securePasswordKdfAlgoUnknown(), // secure_algo
+					MTP_bytes(QByteArray()), // secure_secret
+					MTP_long(0))) // secure_secret_id
 		)).done([=](const MTPBool &result) {
 			_saveSecretRequestId = 0;
 			generateSecret(password);
@@ -1774,16 +1791,10 @@ void FormController::generateSecret(bytes::const_span password) {
 	}
 	auto secret = GenerateSecretBytes();
 
-	auto randomSaltPart = bytes::vector(8);
-	bytes::set_random(randomSaltPart);
-	auto newSecureSaltFull = bytes::concatenate(
-		_password.newSecureSalt,
-		randomSaltPart);
-
 	auto saved = SavedCredentials();
 	saved.hashForAuth = passwordHashForAuth(password);
-	saved.hashForSecret = CountPasswordHashForSecret(
-		newSecureSaltFull,
+	saved.hashForSecret = Core::ComputeSecureSecretHash(
+		_password.newSecureAlgo,
 		password);
 	saved.secretId = CountSecureSecretId(secret);
 
@@ -1795,16 +1806,15 @@ void FormController::generateSecret(bytes::const_span password) {
 	_saveSecretRequestId = request(MTPaccount_UpdatePasswordSettings(
 		MTP_bytes(saved.hashForAuth),
 		MTP_account_passwordInputSettings(
-			MTP_flags(Flag::f_new_secure_salt
-				| Flag::f_new_secure_secret
-				| Flag::f_new_secure_secret_id),
-			MTPbytes(), // new_salt
+			MTP_flags(Flag::f_new_secure_settings),
+			MTPPasswordKdfAlgo(), // new_algo
 			MTPbytes(), // new_password_hash
 			MTPstring(), // hint
 			MTPstring(), // email
-			MTP_bytes(newSecureSaltFull),
-			MTP_bytes(encryptedSecret),
-			MTP_long(saved.secretId))
+			MTP_secureSecretSettings(
+				Core::PrepareSecureSecretAlgo(_password.newSecureAlgo),
+				MTP_bytes(encryptedSecret),
+				MTP_long(saved.secretId)))
 	)).done([=](const MTPBool &result) {
 		Auth().data().rememberPassportCredentials(
 			std::move(saved),
@@ -2089,15 +2099,9 @@ void FormController::requestPassword() {
 }
 
 void FormController::passwordDone(const MTPaccount_Password &result) {
-	const auto changed = [&] {
-		switch (result.type()) {
-		case mtpc_account_noPassword:
-			return applyPassword(result.c_account_noPassword());
-		case mtpc_account_password:
-			return applyPassword(result.c_account_password());
-		}
-		Unexpected("Type in FormController::passwordDone.");
-	}();
+	Expects(result.type() == mtpc_account_password);
+
+	const auto changed = applyPassword(result.c_account_password());
 	if (changed && !_formRequestId) {
 		showForm();
 	}
@@ -2117,7 +2121,12 @@ void FormController::showForm() {
 		formFail(Lang::Hard::NoAuthorizationBot());
 		return;
 	}
-	if (!_password.salt.empty()) {
+	if (_password.unknownAlgo
+		|| !_password.newAlgo
+		|| !_password.newSecureAlgo) {
+		_view->showUpdateAppBox();
+		return;
+	} else if (_password.algo) {
 		if (!_savedPasswordValue.isEmpty()) {
 			submitPassword(base::duplicate(_savedPasswordValue));
 		} else if (const auto saved = Auth().data().passportCredentials()) {
@@ -2130,24 +2139,23 @@ void FormController::showForm() {
 	}
 }
 
-bool FormController::applyPassword(const MTPDaccount_noPassword &result) {
-	auto settings = PasswordSettings();
-	settings.unconfirmedPattern = qs(result.vemail_unconfirmed_pattern);
-	settings.newSalt = bytes::make_vector(result.vnew_salt.v);
-	settings.newSecureSalt = bytes::make_vector(result.vnew_secure_salt.v);
-	openssl::AddRandomSeed(bytes::make_span(result.vsecure_random.v));
-	return applyPassword(std::move(settings));
-}
-
 bool FormController::applyPassword(const MTPDaccount_password &result) {
 	auto settings = PasswordSettings();
 	settings.hint = qs(result.vhint);
 	settings.hasRecovery = result.is_has_recovery();
 	settings.notEmptyPassport = result.is_has_secure_values();
-	settings.salt = bytes::make_vector(result.vcurrent_salt.v);
-	settings.unconfirmedPattern = qs(result.vemail_unconfirmed_pattern);
-	settings.newSalt = bytes::make_vector(result.vnew_salt.v);
-	settings.newSecureSalt = bytes::make_vector(result.vnew_secure_salt.v);
+	settings.algo = result.has_current_algo()
+		? Core::ParseCloudPasswordAlgo(result.vcurrent_algo)
+		: Core::CloudPasswordAlgo();
+	settings.unknownAlgo = result.has_current_algo()
+		&& !settings.algo;
+	settings.unconfirmedPattern = result.has_email_unconfirmed_pattern()
+		? qs(result.vemail_unconfirmed_pattern)
+		: QString();
+	settings.newAlgo = Core::ValidateNewCloudPasswordAlgo(
+		Core::ParseCloudPasswordAlgo(result.vnew_algo));
+	settings.newSecureAlgo = Core::ValidateNewSecureSecretAlgo(
+		Core::ParseSecureSecretAlgo(result.vnew_secure_algo));
 	openssl::AddRandomSeed(bytes::make_span(result.vsecure_random.v));
 	return applyPassword(std::move(settings));
 }

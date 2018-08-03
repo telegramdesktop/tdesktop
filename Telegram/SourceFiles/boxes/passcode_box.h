@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 #include "mtproto/sender.h"
+#include "core/core_cloud_password.h"
 
 namespace Ui {
 class InputField;
@@ -21,12 +22,12 @@ public:
 	PasscodeBox(QWidget*, bool turningOff);
 	PasscodeBox(
 		QWidget*,
-		const QByteArray &newSalt,
-		const QByteArray &curSalt,
+		const Core::CloudPasswordAlgo &curAlgo,
+		const Core::CloudPasswordAlgo &newAlgo,
 		bool hasRecovery,
 		bool notEmptyPassport,
 		const QString &hint,
-		const QByteArray &newSecureSecretSalt,
+		const Core::SecureSecretAlgo &newSecureSecretAlgo,
 		bool turningOff = false);
 
 	rpl::producer<QByteArray> newPasswordSet() const;
@@ -49,6 +50,7 @@ private:
 	void badOldPasscode();
 	void recoverByEmail();
 	void recoverExpired();
+	bool currentlyHave() const;
 
 	void setPasswordDone(const QByteArray &newPasswordBytes);
 	bool setPasswordFail(const RPCError &error);
@@ -66,14 +68,14 @@ private:
 		const QString &oldPassword,
 		const QString &newPassword);
 	void sendChangeCloudPassword(
-		const QByteArray &oldPasswordHash,
+		const bytes::vector &oldPasswordHash,
 		const QString &newPassword,
 		const QByteArray &secureSecret);
 	void suggestSecretReset(
-		const QByteArray &oldPasswordHash,
+		const bytes::vector &oldPasswordHash,
 		const QString &newPassword);
 	void resetSecretAndChangePassword(
-		const QByteArray &oldPasswordHash,
+		const bytes::vector &oldPasswordHash,
 		const QString &newPassword);
 	void sendClearCloudPassword(const QString &oldPassword);
 
@@ -84,7 +86,9 @@ private:
 	bool _cloudPwd = false;
 	mtpRequestId _setRequest = 0;
 
-	QByteArray _newSalt, _curSalt, _newSecureSecretSalt;
+	Core::CloudPasswordAlgo _curAlgo;
+	Core::CloudPasswordAlgo _newAlgo;
+	Core::SecureSecretAlgo _newSecureSecretAlgo;
 	bool _hasRecovery = false;
 	bool _notEmptyPassport = false;
 	bool _skipEmailWarning = false;

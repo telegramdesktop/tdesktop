@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_block_widget.h"
 #include "settings/settings_chat_settings_widget.h"
+#include "core/core_cloud_password.h"
 #include "ui/rp_widget.h"
 
 namespace Settings {
@@ -59,16 +60,19 @@ private:
 	void offPasswordDone(const MTPBool &result);
 	bool offPasswordFail(const RPCError &error);
 
+	bool hasCloudPassword() const;
+
 	object_ptr<Ui::LinkButton> _edit;
 	object_ptr<Ui::LinkButton> _turnOff;
 
 	QString _waitingConfirm;
-	QByteArray _curPasswordSalt;
+	Core::CloudPasswordAlgo _curPasswordAlgo;
+	bool _unknownPasswordAlgo = false;
 	bool _hasPasswordRecovery = false;
 	bool _notEmptyPassport = false;
 	QString _curPasswordHint;
-	QByteArray _newPasswordSalt;
-	QByteArray _newSecureSecretSalt;
+	Core::CloudPasswordAlgo _newPasswordAlgo;
+	Core::SecureSecretAlgo _newSecureSecretAlgo;
 	mtpRequestId _reloadRequestId = 0;
 
 };

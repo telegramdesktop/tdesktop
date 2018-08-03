@@ -54,7 +54,7 @@ private:
 	void updateDescriptionText();
 	void stopCheck();
 
-	QByteArray _salt;
+	Core::CloudPasswordAlgo _algo;
 	bool _hasRecovery = false;
 	bool _notEmptyPassport = false;
 	QString _hint, _emailPattern;
@@ -65,8 +65,6 @@ private:
 	object_ptr<Ui::LinkButton> _toRecover;
 	object_ptr<Ui::LinkButton> _toPassword;
 	mtpRequestId _sentRequest = 0;
-
-	QByteArray _pwdSalt;
 
 	object_ptr<QTimer> _checkRequest;
 

@@ -15,7 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "data/data_session.h"
 #include "platform/platform_specific.h"
+#include "core/update_checker.h"
 #include "base/openssl_help.h"
+#include "boxes/confirm_box.h"
 #include "boxes/sessions_box.h"
 #include "boxes/passcode_box.h"
 #include "boxes/autolock_box.h"
@@ -76,13 +78,27 @@ int CloudPasswordState::resizeGetHeight(int newWidth) {
 }
 
 void CloudPasswordState::onEdit() {
+	if (_unknownPasswordAlgo
+		|| !_newPasswordAlgo
+		|| !_newSecureSecretAlgo) {
+		const auto box = std::make_shared<QPointer<BoxContent>>();
+		const auto callback = [=] {
+			Core::UpdateApplication();
+			if (*box) (*box)->closeBox();
+		};
+		*box = Ui::show(Box<ConfirmBox>(
+			lang(lng_passport_app_out_of_date),
+			lang(lng_menu_update),
+			callback));
+		return;
+	}
 	auto box = Ui::show(Box<PasscodeBox>(
-		_newPasswordSalt,
-		_curPasswordSalt,
+		_curPasswordAlgo,
+		_newPasswordAlgo,
 		_hasPasswordRecovery,
 		_notEmptyPassport,
 		_curPasswordHint,
-		_newSecureSecretSalt));
+		_newSecureSecretAlgo));
 	rpl::merge(
 		box->newPasswordSet() | rpl::map([] { return rpl::empty_value(); }),
 		box->passwordReloadNeeded()
@@ -92,31 +108,44 @@ void CloudPasswordState::onEdit() {
 }
 
 void CloudPasswordState::onTurnOff() {
-	if (_curPasswordSalt.isEmpty()) {
+	if (_unknownPasswordAlgo
+		|| !_newPasswordAlgo
+		|| !_newSecureSecretAlgo) {
+		const auto box = std::make_shared<QPointer<BoxContent>>();
+		const auto callback = [=] {
+			Core::UpdateApplication();
+			if (*box) (*box)->closeBox();
+		};
+		*box = Ui::show(Box<ConfirmBox>(
+			lang(lng_passport_app_out_of_date),
+			lang(lng_menu_update),
+			callback));
+		return;
+	}
+	if (!_curPasswordAlgo) {
 		_turnOff->hide();
 
 		MTP::send(
 			MTPaccount_UpdatePasswordSettings(
 				MTP_bytes(QByteArray()),
 				MTP_account_passwordInputSettings(
-					MTP_flags(MTPDaccount_passwordInputSettings::Flag::f_email),
-					MTP_bytes(QByteArray()), // new_salt
+					MTP_flags(
+						MTPDaccount_passwordInputSettings::Flag::f_email),
+					MTP_passwordKdfAlgoUnknown(), // new_algo
 					MTP_bytes(QByteArray()), // new_password_hash
 					MTP_string(QString()), // hint
 					MTP_string(QString()), // email
-					MTP_bytes(QByteArray()), // new_secure_salt
-					MTP_bytes(QByteArray()), // new_secure_secret
-					MTP_long(0))), // new_secure_secret_hash
+					MTPSecureSecretSettings())),
 			rpcDone(&CloudPasswordState::offPasswordDone),
 			rpcFail(&CloudPasswordState::offPasswordFail));
 	} else {
 		auto box = Ui::show(Box<PasscodeBox>(
-			_newPasswordSalt,
-			_curPasswordSalt,
+			_curPasswordAlgo,
+			_newPasswordAlgo,
 			_hasPasswordRecovery,
 			_notEmptyPassport,
 			_curPasswordHint,
-			_newSecureSecretSalt,
+			_newSecureSecretAlgo,
 			true));
 		rpl::merge(
 			box->newPasswordSet(
@@ -142,53 +171,41 @@ void CloudPasswordState::onReloadPassword(Qt::ApplicationState state) {
 }
 
 void CloudPasswordState::getPasswordDone(const MTPaccount_Password &result) {
+	Expects(result.type() == mtpc_account_password);
+
 	_reloadRequestId = 0;
 	_waitingConfirm = QString();
 
-	switch (result.type()) {
-	case mtpc_account_noPassword: {
-		auto &d = result.c_account_noPassword();
-		_curPasswordSalt = QByteArray();
-		_hasPasswordRecovery = false;
-		_notEmptyPassport = false;
-		_curPasswordHint = QString();
-		_newPasswordSalt = qba(d.vnew_salt);
-		_newSecureSecretSalt = qba(d.vnew_secure_salt);
-		auto pattern = qs(d.vemail_unconfirmed_pattern);
-		if (!pattern.isEmpty()) {
-			_waitingConfirm = lng_cloud_password_waiting(lt_email, pattern);
-		}
-		openssl::AddRandomSeed(bytes::make_span(d.vsecure_random.v));
-	} break;
-
-	case mtpc_account_password: {
-		auto &d = result.c_account_password();
-		_curPasswordSalt = qba(d.vcurrent_salt);
-		_hasPasswordRecovery = d.is_has_recovery();
-		_notEmptyPassport = d.is_has_secure_values();
-		_curPasswordHint = qs(d.vhint);
-		_newPasswordSalt = qba(d.vnew_salt);
-		_newSecureSecretSalt = qba(d.vnew_secure_salt);
-		auto pattern = qs(d.vemail_unconfirmed_pattern);
-		if (!pattern.isEmpty()) {
-			_waitingConfirm = lng_cloud_password_waiting(lt_email, pattern);
-		}
-		openssl::AddRandomSeed(bytes::make_span(d.vsecure_random.v));
-	} break;
+	const auto &d = result.c_account_password();
+	_curPasswordAlgo = d.has_current_algo()
+		? Core::ParseCloudPasswordAlgo(d.vcurrent_algo)
+		: Core::CloudPasswordAlgo();
+	_unknownPasswordAlgo = d.has_current_algo() && !_curPasswordAlgo;
+	_hasPasswordRecovery = d.is_has_recovery();
+	_notEmptyPassport = d.is_has_secure_values();
+	_curPasswordHint = qs(d.vhint);
+	_newPasswordAlgo = Core::ValidateNewCloudPasswordAlgo(
+		Core::ParseCloudPasswordAlgo(d.vnew_algo));
+	_newSecureSecretAlgo = Core::ValidateNewSecureSecretAlgo(
+		Core::ParseSecureSecretAlgo(d.vnew_secure_algo));
+	const auto pattern = d.has_email_unconfirmed_pattern()
+		? qs(d.vemail_unconfirmed_pattern)
+		: QString();
+	if (!pattern.isEmpty()) {
+		_waitingConfirm = lng_cloud_password_waiting(lt_email, pattern);
 	}
-	_edit->setText(lang(_curPasswordSalt.isEmpty() ? lng_cloud_password_set : lng_cloud_password_edit));
-	_edit->setVisible(_waitingConfirm.isEmpty());
-	_turnOff->setVisible(!_waitingConfirm.isEmpty() || !_curPasswordSalt.isEmpty());
-	update();
+	openssl::AddRandomSeed(bytes::make_span(d.vsecure_random.v));
 
-	_newPasswordSalt.resize(_newPasswordSalt.size() + 8);
-	memset_rand(
-		_newPasswordSalt.data() + _newPasswordSalt.size() - 8,
-		8);
-	_newSecureSecretSalt.resize(_newSecureSecretSalt.size() + 8);
-	memset_rand(
-		_newSecureSecretSalt.data() + _newSecureSecretSalt.size() - 8,
-		8);
+	_edit->setText(lang(hasCloudPassword()
+		? lng_cloud_password_edit
+		: lng_cloud_password_set));
+	_edit->setVisible(_waitingConfirm.isEmpty());
+	_turnOff->setVisible(!_waitingConfirm.isEmpty() || hasCloudPassword());
+	update();
+}
+
+bool CloudPasswordState::hasCloudPassword() const {
+	return (_curPasswordAlgo || _unknownPasswordAlgo);
 }
 
 bool CloudPasswordState::getPasswordFail(const RPCError &error) {

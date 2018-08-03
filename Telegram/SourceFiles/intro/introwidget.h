@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "ui/rp_widget.h"
 #include "window/window_lock_widgets.h"
+#include "core/core_cloud_password.h"
 
 namespace Ui {
 class IconButton;
@@ -72,7 +73,7 @@ public:
 		int codeLength = 5;
 		bool codeByTelegram = false;
 
-		QByteArray pwdSalt;
+		Core::CloudPasswordAlgo pwdAlgo;
 		bool hasRecovery = false;
 		QString pwdHint;
 		bool pwdNotEmptyPassport = false;

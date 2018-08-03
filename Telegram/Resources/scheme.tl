@@ -322,6 +322,7 @@ inputReportReasonSpam#58dbcab8 = ReportReason;
 inputReportReasonViolence#1e22c78d = ReportReason;
 inputReportReasonPornography#2e59d922 = ReportReason;
 inputReportReasonOther#e1746d0a text:string = ReportReason;
+inputReportReasonCopyright#9b89f93a = ReportReason;
 
 userFull#f220f3f flags:# blocked:flags.0?true phone_calls_available:flags.4?true phone_calls_private:flags.5?true user:User about:flags.1?string link:contacts.Link profile_photo:flags.2?Photo notify_settings:PeerNotifySettings bot_info:flags.3?BotInfo common_chats_count:int = UserFull;
 
@@ -473,7 +474,7 @@ config#3213dbba flags:# phonecalls_enabled:flags.1?true default_p2p_contacts:fla
 
 nearestDc#8e1a1775 country:string this_dc:int nearest_dc:int = NearestDc;
 
-help.appUpdate#8987f311 id:int critical:Bool url:string text:string = help.AppUpdate;
+help.appUpdate#1da7158f flags:# popup:flags.0?true id:int version:string text:string entities:Vector<MessageEntity> document:flags.1?Document url:flags.2?string = help.AppUpdate;
 help.noAppUpdate#c45a6536 = help.AppUpdate;
 
 help.inviteText#18cb9f78 message:string = help.InviteText;
@@ -589,12 +590,11 @@ authorization#7bf2e6f6 hash:long flags:int device_model:string platform:string s
 
 account.authorizations#1250abde authorizations:Vector<Authorization> = account.Authorizations;
 
-account.noPassword#5ea182f6 new_salt:bytes new_secure_salt:bytes secure_random:bytes email_unconfirmed_pattern:string = account.Password;
-account.password#ca39b447 flags:# has_recovery:flags.0?true has_secure_values:flags.1?true current_salt:bytes new_salt:bytes new_secure_salt:bytes secure_random:bytes hint:string email_unconfirmed_pattern:string = account.Password;
+account.password#68873ba5 flags:# has_recovery:flags.0?true has_secure_values:flags.1?true has_password:flags.2?true current_algo:flags.2?PasswordKdfAlgo hint:flags.3?string email_unconfirmed_pattern:flags.4?string new_algo:PasswordKdfAlgo new_secure_algo:SecurePasswordKdfAlgo secure_random:bytes = account.Password;
 
-account.passwordSettings#7bd9c3f1 email:string secure_salt:bytes secure_secret:bytes secure_secret_id:long = account.PasswordSettings;
+account.passwordSettings#9a5c33e5 flags:# email:flags.0?string secure_settings:flags.1?SecureSecretSettings = account.PasswordSettings;
 
-account.passwordInputSettings#21ffa60d flags:# new_salt:flags.0?bytes new_password_hash:flags.0?bytes hint:flags.0?string email:flags.1?string new_secure_salt:flags.2?bytes new_secure_secret:flags.2?bytes new_secure_secret_id:flags.2?long = account.PasswordInputSettings;
+account.passwordInputSettings#c23727c9 flags:# new_algo:flags.0?PasswordKdfAlgo new_password_hash:flags.0?bytes hint:flags.0?string email:flags.1?string new_secure_settings:flags.2?SecureSecretSettings = account.PasswordInputSettings;
 
 auth.passwordRecovery#137948a5 email_pattern:string = auth.PasswordRecovery;
 
@@ -1021,6 +1021,15 @@ savedPhoneContact#1142bd56 phone:string first_name:string last_name:string date:
 
 account.takeout#4dba4501 id:long = account.Takeout;
 
+passwordKdfAlgoUnknown#d45ab096 = PasswordKdfAlgo;
+passwordKdfAlgoSHA256SHA256PBKDF2HMACSHA512iter100000#b6425eaa salt1:bytes salt2:bytes = PasswordKdfAlgo;
+
+securePasswordKdfAlgoUnknown#4a8537 = SecurePasswordKdfAlgo;
+securePasswordKdfAlgoPBKDF2HMACSHA512iter100000#bbf2dda0 salt:bytes = SecurePasswordKdfAlgo;
+securePasswordKdfAlgoSHA512#86471d92 salt:bytes = SecurePasswordKdfAlgo;
+
+secureSecretSettings#1527bcac secure_algo:SecurePasswordKdfAlgo secure_secret:bytes secure_secret_id:long = SecureSecretSettings;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -1211,6 +1220,7 @@ messages.searchStickerSets#c2b7d08b flags:# exclude_featured:flags.0?true q:stri
 messages.getSplitRanges#1cff7e08 = Vector<MessageRange>;
 messages.markDialogUnread#c286d98f flags:# unread:flags.0?true peer:InputDialogPeer = Bool;
 messages.getDialogUnreadMarks#22e24e22 = Vector<DialogPeer>;
+messages.clearAllDrafts#7e58ee9c = Bool;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#25939651 flags:# pts:int pts_total_limit:flags.0?int date:int qts:int = updates.Difference;
@@ -1232,7 +1242,7 @@ upload.getFileHashes#c7025931 location:InputFileLocation offset:int = Vector<Fil
 
 help.getConfig#c4f9186b = Config;
 help.getNearestDc#1fb33026 = NearestDc;
-help.getAppUpdate#ae2de196 = help.AppUpdate;
+help.getAppUpdate#522d5a7d source:string = help.AppUpdate;
 help.saveAppLog#6f02f748 events:Vector<InputAppEvent> = Bool;
 help.getInviteText#4d392343 = help.InviteText;
 help.getSupport#9cdf08cd = help.Support;
@@ -1308,4 +1318,4 @@ langpack.getStrings#2e1ee318 lang_code:string keys:Vector<string> = Vector<LangP
 langpack.getDifference#b2e4d7d from_version:int = LangPackDifference;
 langpack.getLanguages#800fd57d = Vector<LangPackLanguage>;
 
-// LAYER 82
+// LAYER 83

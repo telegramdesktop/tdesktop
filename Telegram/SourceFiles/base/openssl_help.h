@@ -8,13 +8,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/bytes.h"
+#include "base/algorithm.h"
+#include "core/basic_types.h"
 
 extern "C" {
 #include <openssl/bn.h>
 #include <openssl/sha.h>
 #include <openssl/rand.h>
 #include <openssl/aes.h>
+#include <openssl/modes.h>
 #include <openssl/crypto.h>
+#include <openssl/evp.h>
 } // extern "C"
 
 namespace openssl {
@@ -212,35 +216,142 @@ inline BigNum operator-(const BigNum &a, const BigNum &b) {
 	return result;
 }
 
-inline bytes::vector Sha512(bytes::const_span data) {
-	auto result = bytes::vector(SHA512_DIGEST_LENGTH);
-	SHA512(
+namespace details {
+
+template <typename Context, typename Method, typename Arg>
+inline void ShaUpdate(Context context, Method method, Arg &&arg) {
+	const auto span = bytes::make_span(arg);
+	method(context, span.data(), span.size());
+}
+
+template <typename Context, typename Method, typename Arg, typename ...Args>
+inline void ShaUpdate(Context context, Method method, Arg &&arg, Args &&...args) {
+	const auto span = bytes::make_span(arg);
+	method(context, span.data(), span.size());
+	ShaUpdate(context, method, args...);
+}
+
+template <size_type Size, typename Method>
+inline bytes::vector Sha(Method method, bytes::const_span data) {
+	auto result = bytes::vector(Size);
+	method(
 		reinterpret_cast<const unsigned char*>(data.data()),
 		data.size(),
 		reinterpret_cast<unsigned char*>(result.data()));
 	return result;
+}
+
+template <
+	size_type Size,
+	typename Context,
+	typename Init,
+	typename Update,
+	typename Finalize,
+	typename ...Args,
+	typename = std::enable_if_t<(sizeof...(Args) > 1)>>
+bytes::vector Sha(
+		Context context,
+		Init init,
+		Update update,
+		Finalize finalize,
+		Args &&...args) {
+	auto result = bytes::vector(Size);
+
+	init(&context);
+	ShaUpdate(&context, update, args...);
+	finalize(reinterpret_cast<unsigned char*>(result.data()), &context);
+
+	return result;
+}
+
+template <
+	size_type Size,
+	typename Evp>
+bytes::vector Pbkdf2(
+		bytes::const_span password,
+		bytes::const_span salt,
+		int iterations,
+		Evp evp) {
+	auto result = bytes::vector(Size);
+	PKCS5_PBKDF2_HMAC(
+		reinterpret_cast<const char*>(password.data()),
+		password.size(),
+		reinterpret_cast<const unsigned char*>(salt.data()),
+		salt.size(),
+		iterations,
+		evp,
+		result.size(),
+		reinterpret_cast<unsigned char*>(result.data()));
+	return result;
+}
+
+} // namespace details
+
+constexpr auto kSha1Size = size_type(SHA_DIGEST_LENGTH);
+constexpr auto kSha256Size = size_type(SHA256_DIGEST_LENGTH);
+constexpr auto kSha512Size = size_type(SHA512_DIGEST_LENGTH);
+
+inline bytes::vector Sha1(bytes::const_span data) {
+	return details::Sha<kSha1Size>(SHA1, data);
+}
+
+template <
+	typename ...Args,
+	typename = std::enable_if_t<(sizeof...(Args) > 1)>>
+inline bytes::vector Sha1(Args &&...args) {
+	return details::Sha<kSha1Size>(
+		SHA_CTX(),
+		SHA_Init,
+		SHA_Update,
+		SHA_Final,
+		args...);
 }
 
 inline bytes::vector Sha256(bytes::const_span data) {
-	auto result = bytes::vector(SHA256_DIGEST_LENGTH);
-	SHA256(
-		reinterpret_cast<const unsigned char*>(data.data()),
-		data.size(),
-		reinterpret_cast<unsigned char*>(result.data()));
-	return result;
+	return details::Sha<kSha256Size>(SHA256, data);
 }
 
-inline bytes::vector Sha1(bytes::const_span data) {
-	auto result = bytes::vector(SHA_DIGEST_LENGTH);
-	SHA1(
-		reinterpret_cast<const unsigned char*>(data.data()),
-		data.size(),
-		reinterpret_cast<unsigned char*>(result.data()));
-	return result;
+template <
+	typename ...Args,
+	typename = std::enable_if_t<(sizeof...(Args) > 1)>>
+inline bytes::vector Sha256(Args &&...args) {
+	return details::Sha<kSha256Size>(
+		SHA256_CTX(),
+		SHA256_Init,
+		SHA256_Update,
+		SHA256_Final,
+		args...);
+}
+
+inline bytes::vector Sha512(bytes::const_span data) {
+	return details::Sha<kSha512Size>(SHA512, data);
+}
+
+template <
+	typename ...Args,
+	typename = std::enable_if_t<(sizeof...(Args) > 1)>>
+inline bytes::vector Sha512(Args &&...args) {
+	return details::Sha<kSha512Size>(
+		SHA512_CTX(),
+		SHA512_Init,
+		SHA512_Update,
+		SHA512_Final,
+		args...);
 }
 
 inline void AddRandomSeed(bytes::const_span data) {
 	RAND_seed(data.data(), data.size());
+}
+
+inline bytes::vector Pbkdf2Sha512(
+		bytes::const_span password,
+		bytes::const_span salt,
+		int iterations) {
+	return details::Pbkdf2<kSha512Size>(
+		password,
+		salt,
+		iterations,
+		EVP_sha512());
 }
 
 } // namespace openssl

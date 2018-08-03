@@ -55,7 +55,7 @@ addChildParentFlags('MTPDchannelForbidden', 'MTPDchannel');
 parentFlagsCheck = {};
 
 countedTypeIdExceptions = {};
-for i in range(77, 83):
+for i in range(77, 84):
   countedTypeIdExceptions[i] = {}
   countedTypeIdExceptions[i]['channel'] = True
 countedTypeIdExceptions['ipPortSecret'] = True

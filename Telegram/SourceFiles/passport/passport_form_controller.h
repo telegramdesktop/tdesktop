@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "boxes/confirm_phone_box.h"
 #include "base/weak_ptr.h"
+#include "core/core_cloud_password.h"
 
 class BoxContent;
 
@@ -195,23 +196,25 @@ struct Form {
 };
 
 struct PasswordSettings {
-	bytes::vector salt;
-	bytes::vector newSalt;
-	bytes::vector newSecureSalt;
+	Core::CloudPasswordAlgo algo;
+	Core::CloudPasswordAlgo newAlgo;
+	Core::SecureSecretAlgo newSecureAlgo;
 	QString hint;
 	QString unconfirmedPattern;
 	QString confirmedEmail;
 	bool hasRecovery = false;
 	bool notEmptyPassport = false;
+	bool unknownAlgo = false;
 
 	bool operator==(const PasswordSettings &other) const {
-		return (salt == other.salt)
-			&& (newSalt == other.newSalt)
-			&& (newSecureSalt == other.newSecureSalt)
+		return (algo == other.algo)
+			&& (newAlgo == other.newAlgo)
+			&& (newSecureAlgo == other.newSecureAlgo)
 			&& (hint == other.hint)
 			&& (unconfirmedPattern == other.unconfirmedPattern)
 			&& (confirmedEmail == other.confirmedEmail)
-			&& (hasRecovery == other.hasRecovery);
+			&& (hasRecovery == other.hasRecovery)
+			&& (unknownAlgo == other.unknownAlgo);
 	}
 	bool operator!=(const PasswordSettings &other) const {
 		return !(*this == other);
@@ -338,7 +341,6 @@ private:
 		const std::vector<EditFile> &source) const;
 
 	void passwordDone(const MTPaccount_Password &result);
-	bool applyPassword(const MTPDaccount_noPassword &settings);
 	bool applyPassword(const MTPDaccount_password &settings);
 	bool applyPassword(PasswordSettings &&settings);
 	bytes::vector passwordHashForAuth(bytes::const_span password) const;

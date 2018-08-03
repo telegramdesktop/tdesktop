@@ -22,6 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace func = base::functors;
 
 using gsl::not_null;
+using index_type = gsl::index;
+using size_type = gsl::index;
 
 template <typename Signature>
 using Fn = std::function<Signature>;

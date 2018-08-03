@@ -261,7 +261,17 @@ ScopeRow ComputeScopeRow(const Scope &scope) {
 				}
 			}
 		};
-		ranges::for_each(scope.documents, addValueErrors);
+		const auto document = [&]() -> const Value* {
+			for (const auto &document : scope.documents) {
+				if (document->scansAreFilled(scope.selfieRequired)) {
+					return document;
+				}
+			}
+			return nullptr;
+		}();
+		if (document) {
+			addValueErrors(document);
+		}
 		addValueErrors(scope.fields);
 		if (!errors.isEmpty()) {
 			row.error = lang(lng_passport_fix_errors);// errors.join('\n');

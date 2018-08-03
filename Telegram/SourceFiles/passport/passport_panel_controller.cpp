@@ -467,36 +467,26 @@ void PanelController::setupPassword() {
 	Expects(_panel != nullptr);
 
 	const auto &settings = _form->passwordSettings();
-	if (!settings.salt.empty()) {
+	if (settings.unknownAlgo
+		|| !settings.newAlgo
+		|| !settings.newSecureAlgo) {
+		showUpdateAppBox();
+		return;
+	} else if (settings.algo) {
 		showAskPassword();
 		return;
 	}
 
-	constexpr auto kRandomPart = 8;
-	auto newPasswordSalt = QByteArray(
-		reinterpret_cast<const char*>(settings.newSalt.data()),
-		settings.newSalt.size());
-	newPasswordSalt.resize(newPasswordSalt.size() + kRandomPart);
-	bytes::set_random(
-		bytes::make_span(newPasswordSalt).subspan(settings.newSalt.size()));
-	auto newSecureSecretSalt = QByteArray(
-		reinterpret_cast<const char*>(settings.newSecureSalt.data()),
-		settings.newSecureSalt.size());
-	newSecureSecretSalt.resize(newSecureSecretSalt.size() + kRandomPart);
-	bytes::set_random(
-		bytes::make_span(
-			newSecureSecretSalt).subspan(settings.newSecureSalt.size()));
-	const auto currentSalt = QByteArray();
 	const auto hasRecovery = false;
 	const auto notEmptyPassport = false;
 	const auto hint = QString();
 	auto box = show(Box<PasscodeBox>(
-		newPasswordSalt,
-		currentSalt,
+		Core::CloudPasswordAlgo(), // current algo
+		settings.newAlgo,
 		hasRecovery,
 		notEmptyPassport,
 		hint,
-		newSecureSecretSalt));
+		settings.newSecureAlgo));
 	box->newPasswordSet(
 	) | rpl::filter([=](const QByteArray &password) {
 		return !password.isEmpty();
@@ -816,12 +806,11 @@ void PanelController::showCriticalError(const QString &error) {
 void PanelController::showUpdateAppBox() {
 	ensurePanelCreated();
 
-	const auto box = std::make_shared<QPointer<BoxContent>>();
 	const auto callback = [=] {
 		_form->cancelSure();
 		Core::UpdateApplication();
 	};
-	*box = show(
+	show(
 		Box<ConfirmBox>(
 			lang(lng_passport_app_out_of_date),
 			lang(lng_menu_update),
@@ -952,6 +941,9 @@ void PanelController::editWithUpload(int index, int documentIndex) {
 	const auto allowMany = !requiresSpecialScan;
 	const auto widget = _panel->widget();
 	EditScans::ChooseScan(widget.get(), [=](QByteArray &&content) {
+		if (_scopeDocumentTypeBox) {
+			_scopeDocumentTypeBox = BoxPointer();
+		}
 		if (!_editScope || !_editDocument) {
 			editScope(index, documentIndex);
 		}

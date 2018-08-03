@@ -975,10 +975,14 @@ bool Messenger::openLocalUrl(const QString &url, QVariant context) {
 				};
 				if (result.is_update_app()) {
 					const auto box = std::make_shared<QPointer<BoxContent>>();
+					const auto callback = [=] {
+						Core::UpdateApplication();
+						if (*box) (*box)->closeBox();
+					};
 					*box = Ui::show(Box<ConfirmBox>(
 						text,
 						lang(lng_menu_update),
-						[=] { Core::UpdateApplication(); if (*box) (*box)->closeBox(); }));
+						callback));
 				} else {
 					Ui::show(Box<InformBox>(text));
 				}

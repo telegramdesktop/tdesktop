@@ -30,27 +30,29 @@ PasscodeBox::PasscodeBox(QWidget*, bool turningOff)
 
 PasscodeBox::PasscodeBox(
 	QWidget*,
-	const QByteArray &newSalt,
-	const QByteArray &curSalt,
+	const Core::CloudPasswordAlgo &curAlgo,
+	const Core::CloudPasswordAlgo &newAlgo,
 	bool hasRecovery,
 	bool notEmptyPassport,
 	const QString &hint,
-	const QByteArray &newSecureSecretSalt,
+	const Core::SecureSecretAlgo &newSecureSecretAlgo,
 	bool turningOff)
 : _turningOff(turningOff)
 , _cloudPwd(true)
-, _newSalt(newSalt)
-, _curSalt(curSalt)
-, _newSecureSecretSalt(newSecureSecretSalt)
+, _curAlgo(curAlgo)
+, _newAlgo(newAlgo)
+, _newSecureSecretAlgo(newSecureSecretAlgo)
 , _hasRecovery(hasRecovery)
 , _notEmptyPassport(notEmptyPassport)
 , _about(st::boxWidth - st::boxPadding.left() * 1.5)
 , _oldPasscode(this, st::defaultInputField, langFactory(lng_cloud_password_enter_old))
-, _newPasscode(this, st::defaultInputField, langFactory(curSalt.isEmpty() ? lng_cloud_password_enter_first : lng_cloud_password_enter_new))
+, _newPasscode(this, st::defaultInputField, langFactory(curAlgo ? lng_cloud_password_enter_new : lng_cloud_password_enter_first))
 , _reenterPasscode(this, st::defaultInputField, langFactory(lng_cloud_password_confirm_new))
-, _passwordHint(this, st::defaultInputField, langFactory(curSalt.isEmpty() ? lng_cloud_password_hint : lng_cloud_password_change_hint))
+, _passwordHint(this, st::defaultInputField, langFactory(curAlgo ? lng_cloud_password_change_hint : lng_cloud_password_hint))
 , _recoverEmail(this, st::defaultInputField, langFactory(lng_cloud_password_email))
 , _recover(this, lang(lng_signin_recover)) {
+	Expects(!_turningOff || curAlgo.has_value());
+
 	if (!hint.isEmpty()) _hintText.setText(st::passcodeTextStyle, lng_signin_hint(lt_password_hint, hint));
 }
 
@@ -60,6 +62,10 @@ rpl::producer<QByteArray> PasscodeBox::newPasswordSet() const {
 
 rpl::producer<> PasscodeBox::passwordReloadNeeded() const {
 	return _passwordReloadNeeded.events();
+}
+
+bool PasscodeBox::currentlyHave() const {
+	return _cloudPwd ? _curAlgo.has_value() : Global::LocalPasscode();
 }
 
 void PasscodeBox::prepare() {
@@ -73,8 +79,7 @@ void PasscodeBox::prepare() {
 		setTitle(langFactory(_cloudPwd ? lng_cloud_password_remove : lng_passcode_remove));
 		setDimensions(st::boxWidth, st::passcodePadding.top() + _oldPasscode->height() + st::passcodeTextLine + ((_hasRecovery && !_hintText.isEmpty()) ? st::passcodeTextLine : 0) + st::passcodeAboutSkip + _aboutHeight + st::passcodePadding.bottom());
 	} else {
-		auto has = _cloudPwd ? (!_curSalt.isEmpty()) : Global::LocalPasscode();
-		if (has) {
+		if (currentlyHave()) {
 			_oldPasscode->show();
 			setTitle(langFactory(_cloudPwd ? lng_cloud_password_change : lng_passcode_change));
 			setDimensions(st::boxWidth, st::passcodePadding.top() + _oldPasscode->height() + st::passcodeTextLine + ((_hasRecovery && !_hintText.isEmpty()) ? st::passcodeTextLine : 0) + _newPasscode->height() + st::passcodeLittleSkip + _reenterPasscode->height() + st::passcodeSkip + (_cloudPwd ? _passwordHint->height() + st::passcodeLittleSkip : 0) + st::passcodeAboutSkip + _aboutHeight + st::passcodePadding.bottom());
@@ -100,17 +105,17 @@ void PasscodeBox::prepare() {
 
 	_recover->addClickHandler([=] { recoverByEmail(); });
 
-	bool has = _cloudPwd ? (!_curSalt.isEmpty()) : Global::LocalPasscode();
+	const auto has = currentlyHave();
 	_oldPasscode->setVisible(_turningOff || has);
 	_recover->setVisible((_turningOff || has) && _cloudPwd && _hasRecovery);
 	_newPasscode->setVisible(!_turningOff);
 	_reenterPasscode->setVisible(!_turningOff);
 	_passwordHint->setVisible(!_turningOff && _cloudPwd);
-	_recoverEmail->setVisible(!_turningOff && _cloudPwd && _curSalt.isEmpty());
+	_recoverEmail->setVisible(!_turningOff && _cloudPwd && !has);
 }
 
 void PasscodeBox::submit() {
-	bool has = _cloudPwd ? (!_curSalt.isEmpty()) : Global::LocalPasscode();
+	const auto has = currentlyHave();
 	if (_oldPasscode->hasFocus()) {
 		if (_turningOff) {
 			save();
@@ -177,7 +182,7 @@ void PasscodeBox::paintEvent(QPaintEvent *e) {
 void PasscodeBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
-	bool has = _cloudPwd ? (!_curSalt.isEmpty()) : Global::LocalPasscode();
+	const auto has = currentlyHave();
 	int32 w = st::boxWidth - st::boxPadding.left() - st::boxPadding.right();
 	_oldPasscode->resize(w, _oldPasscode->height());
 	_oldPasscode->moveToLeft(st::boxPadding.left(), st::passcodePadding.top());
@@ -291,7 +296,7 @@ void PasscodeBox::save(bool force) {
 	if (_setRequest) return;
 
 	QString old = _oldPasscode->text(), pwd = _newPasscode->text(), conf = _reenterPasscode->text();
-	bool has = _cloudPwd ? (!_curSalt.isEmpty()) : Global::LocalPasscode();
+	const auto has = currentlyHave();
 	if (!_cloudPwd && (_turningOff || has)) {
 		if (!passcodeCanTry()) {
 			_oldError = lang(lng_flood_error);
@@ -387,14 +392,14 @@ void PasscodeBox::clearCloudPassword(const QString &oldPassword) {
 
 void PasscodeBox::sendClearCloudPassword(const QString &oldPassword) {
 	const auto passwordUtf = oldPassword.toUtf8();
-	const auto oldPasswordData = (_curSalt + passwordUtf + _curSalt);
-	auto oldPasswordHash = QByteArray(32, Qt::Uninitialized);
-	hashSha256(oldPasswordData.constData(), oldPasswordData.size(), oldPasswordHash.data());
+	const auto oldPasswordHash = Core::ComputeCloudPasswordHash(
+		_curAlgo,
+		bytes::make_span(passwordUtf));
 	const auto newPasswordData = QByteArray();
 	const auto newPasswordHash = QByteArray();
 	const auto hint = QString();
 	const auto email = QString();
-	const auto flags = MTPDaccount_passwordInputSettings::Flag::f_new_salt
+	const auto flags = MTPDaccount_passwordInputSettings::Flag::f_new_algo
 		| MTPDaccount_passwordInputSettings::Flag::f_new_password_hash
 		| MTPDaccount_passwordInputSettings::Flag::f_hint
 		| MTPDaccount_passwordInputSettings::Flag::f_email;
@@ -402,13 +407,11 @@ void PasscodeBox::sendClearCloudPassword(const QString &oldPassword) {
 		MTP_bytes(oldPasswordHash),
 		MTP_account_passwordInputSettings(
 			MTP_flags(flags),
-			MTP_bytes(_newSalt),
+			Core::PrepareCloudPasswordAlgo(_newAlgo),
 			MTP_bytes(newPasswordHash),
 			MTP_string(hint),
 			MTP_string(email),
-			MTPbytes(), // new_secure_salt
-			MTPbytes(), // new_secure_secret
-			MTPlong()) // new_secure_secret_id
+			MTPSecureSecretSettings())
 	)).done([=](const MTPBool &result) {
 		setPasswordDone({});
 	}).fail([=](const RPCError &error) {
@@ -418,14 +421,14 @@ void PasscodeBox::sendClearCloudPassword(const QString &oldPassword) {
 
 void PasscodeBox::setNewCloudPassword(const QString &newPassword) {
 	const auto newPasswordBytes = newPassword.toUtf8();
-	const auto newPasswordData = (_newSalt + newPasswordBytes + _newSalt);
-	auto newPasswordHash = QByteArray(32, Qt::Uninitialized);
-	hashSha256(newPasswordData.constData(), newPasswordData.size(), newPasswordHash.data());
+	const auto newPasswordHash = Core::ComputeCloudPasswordHash(
+		_newAlgo,
+		bytes::make_span(newPasswordBytes));
 	const auto oldPasswordData = QByteArray();
 	const auto oldPasswordHash = QByteArray();
 	const auto hint = _passwordHint->getLastText();
 	const auto email = _recoverEmail->getLastText().trimmed();
-	const auto flags = MTPDaccount_passwordInputSettings::Flag::f_new_salt
+	const auto flags = MTPDaccount_passwordInputSettings::Flag::f_new_algo
 		| MTPDaccount_passwordInputSettings::Flag::f_new_password_hash
 		| MTPDaccount_passwordInputSettings::Flag::f_hint
 		| MTPDaccount_passwordInputSettings::Flag::f_email;
@@ -433,13 +436,11 @@ void PasscodeBox::setNewCloudPassword(const QString &newPassword) {
 		MTP_bytes(oldPasswordHash),
 		MTP_account_passwordInputSettings(
 			MTP_flags(flags),
-			MTP_bytes(_newSalt),
+			Core::PrepareCloudPasswordAlgo(_newAlgo),
 			MTP_bytes(newPasswordHash),
 			MTP_string(hint),
 			MTP_string(email),
-			MTPbytes(), // new_secure_salt
-			MTPbytes(), // new_secure_secret
-			MTPlong()) // new_secure_secret_id
+			MTPSecureSecretSettings())
 	)).done([=](const MTPBool &result) {
 		setPasswordDone(newPasswordBytes);
 	}).fail([=](const RPCError &error) {
@@ -451,9 +452,9 @@ void PasscodeBox::changeCloudPassword(
 		const QString &oldPassword,
 		const QString &newPassword) {
 	const auto passwordUtf = oldPassword.toUtf8();
-	const auto oldPasswordData = (_curSalt + passwordUtf + _curSalt);
-	auto oldPasswordHash = QByteArray(32, Qt::Uninitialized);
-	hashSha256(oldPasswordData.constData(), oldPasswordData.size(), oldPasswordHash.data());
+	const auto oldPasswordHash = Core::ComputeCloudPasswordHash(
+		_curAlgo,
+		bytes::make_span(passwordUtf));
 	_setRequest = request(MTPaccount_GetPasswordSettings(
 		MTP_bytes(oldPasswordHash)
 	)).done([=](const MTPaccount_PasswordSettings &result) {
@@ -462,20 +463,23 @@ void PasscodeBox::changeCloudPassword(
 		Expects(result.type() == mtpc_account_passwordSettings);
 		const auto &data = result.c_account_passwordSettings();
 
-		if (data.vsecure_secret.v.isEmpty()) {
+		if (!data.has_secure_settings()) {
 			const auto empty = QByteArray();
 			sendChangeCloudPassword(oldPasswordHash, newPassword, empty);
 			return;
 		}
+		const auto &wrapped = data.vsecure_settings;
+		const auto &settings = wrapped.c_secureSecretSettings();
 		const auto secret = Passport::DecryptSecureSecret(
-			bytes::make_span(data.vsecure_secret.v),
-			Passport::CountPasswordHashForSecret(
-				bytes::make_span(data.vsecure_salt.v),
+			bytes::make_span(settings.vsecure_secret.v),
+			Core::ComputeSecureSecretHash(
+				Core::ParseSecureSecretAlgo(settings.vsecure_algo),
 				bytes::make_span(passwordUtf)));
 		if (secret.empty()) {
 			LOG(("API Error: Failed to decrypt secure secret."));
 			suggestSecretReset(oldPasswordHash, newPassword);
-		} else if (Passport::CountSecureSecretId(secret) != data.vsecure_secret_id.v) {
+		} else if (Passport::CountSecureSecretId(secret)
+				!= settings.vsecure_secret_id.v) {
 			LOG(("API Error: Wrong secure secret id."));
 			suggestSecretReset(oldPasswordHash, newPassword);
 		} else {
@@ -492,7 +496,7 @@ void PasscodeBox::changeCloudPassword(
 }
 
 void PasscodeBox::suggestSecretReset(
-		const QByteArray &oldPasswordHash,
+		const bytes::vector &oldPasswordHash,
 		const QString &newPassword) {
 	const auto box = std::make_shared<QPointer<BoxContent>>();
 	const auto resetSecretAndSave = [=] {
@@ -500,16 +504,15 @@ void PasscodeBox::suggestSecretReset(
 		_setRequest = request(MTPaccount_UpdatePasswordSettings(
 			MTP_bytes(oldPasswordHash),
 			MTP_account_passwordInputSettings(
-				MTP_flags(Flag::f_new_secure_salt
-					| Flag::f_new_secure_secret
-					| Flag::f_new_secure_secret_id),
-				MTPbytes(), // new_salt
+				MTP_flags(Flag::f_new_secure_settings),
+				MTPPasswordKdfAlgo(), // new_algo
 				MTPbytes(), // new_password_hash
 				MTPstring(), // hint
 				MTPstring(), // email
-				MTP_bytes(QByteArray()), // new_secure_salt
-				MTP_bytes(QByteArray()), // new_secure_secret
-				MTP_long(0)) // new_secure_secret_id
+				MTP_secureSecretSettings(
+					MTP_securePasswordKdfAlgoUnknown(), // secure_algo
+					MTP_bytes(QByteArray()), // secure_secret
+					MTP_long(0))) // secure_secret_id
 		)).done([=](const MTPBool &result) {
 			_setRequest = 0;
 			const auto empty = QByteArray();
@@ -528,42 +531,41 @@ void PasscodeBox::suggestSecretReset(
 }
 
 void PasscodeBox::sendChangeCloudPassword(
-		const QByteArray &oldPasswordHash,
+		const bytes::vector &oldPasswordHash,
 		const QString &newPassword,
 		const QByteArray &secureSecret) {
 	const auto newPasswordBytes = newPassword.toUtf8();
-	const auto newPasswordData = (_newSalt + newPasswordBytes + _newSalt);
-	auto newPasswordHash = QByteArray(32, Qt::Uninitialized);
-	hashSha256(newPasswordData.constData(), newPasswordData.size(), newPasswordHash.data());
+	const auto newPasswordHash = Core::ComputeCloudPasswordHash(
+		_newAlgo,
+		bytes::make_span(newPasswordBytes));
 	const auto hint = _passwordHint->getLastText();
-	auto flags = MTPDaccount_passwordInputSettings::Flag::f_new_salt
+	auto flags = MTPDaccount_passwordInputSettings::Flag::f_new_algo
 		| MTPDaccount_passwordInputSettings::Flag::f_new_password_hash
 		| MTPDaccount_passwordInputSettings::Flag::f_hint;
 	auto newSecureSecret = bytes::vector();
 	auto newSecureSecretId = 0ULL;
 	if (!secureSecret.isEmpty()) {
-		flags |= MTPDaccount_passwordInputSettings::Flag::f_new_secure_salt
-			| MTPDaccount_passwordInputSettings::Flag::f_new_secure_secret
-			| MTPDaccount_passwordInputSettings::Flag::f_new_secure_secret_id;
+		flags |= MTPDaccount_passwordInputSettings::Flag::f_new_secure_settings;
 		newSecureSecretId = Passport::CountSecureSecretId(
 			bytes::make_span(secureSecret));
 		newSecureSecret = Passport::EncryptSecureSecret(
 			bytes::make_span(secureSecret),
-			Passport::CountPasswordHashForSecret(
-				bytes::make_span(_newSecureSecretSalt),
+			Core::ComputeSecureSecretHash(
+				_newSecureSecretAlgo,
 				bytes::make_span(newPasswordBytes)));
 	}
 	_setRequest = request(MTPaccount_UpdatePasswordSettings(
 		MTP_bytes(oldPasswordHash),
 		MTP_account_passwordInputSettings(
 			MTP_flags(flags),
-			MTP_bytes(_newSalt),
+			Core::PrepareCloudPasswordAlgo(_newAlgo),
 			MTP_bytes(newPasswordHash),
 			MTP_string(hint),
 			MTPstring(), // email is not changing
-			MTP_bytes(_newSecureSecretSalt),
-			MTP_bytes(newSecureSecret),
-			MTP_long(newSecureSecretId))
+			MTP_secureSecretSettings(
+				Core::PrepareSecureSecretAlgo(_newSecureSecretAlgo),
+				MTP_bytes(newSecureSecret),
+				MTP_long(newSecureSecretId)))
 	)).done([=](const MTPBool &result) {
 		setPasswordDone(newPasswordBytes);
 	}).fail([=](const RPCError &error) {

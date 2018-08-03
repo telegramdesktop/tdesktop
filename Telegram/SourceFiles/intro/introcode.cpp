@@ -11,8 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "application.h"
 #include "intro/introsignup.h"
 #include "intro/intropwdcheck.h"
+#include "core/update_checker.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "boxes/confirm_box.h"
 #include "styles/style_intro.h"
 
 namespace Intro {
@@ -286,22 +288,34 @@ void CodeWidget::callDone(const MTPauth_SentCode &v) {
 }
 
 void CodeWidget::gotPassword(const MTPaccount_Password &result) {
+	Expects(result.type() == mtpc_account_password);
+
 	stopCheck();
 	_sentRequest = 0;
-	switch (result.type()) {
-	case mtpc_account_noPassword: { // should not happen
+	const auto &d = result.c_account_password();
+	getData()->pwdAlgo = d.has_current_algo()
+		? Core::ParseCloudPasswordAlgo(d.vcurrent_algo)
+		: Core::CloudPasswordAlgo();
+	if (!d.has_current_algo()) {
+		LOG(("API Error: No current password received on login."));
 		_code->setFocus();
-	} break;
-
-	case mtpc_account_password: {
-		auto &d = result.c_account_password();
-		getData()->pwdSalt = qba(d.vcurrent_salt);
-		getData()->hasRecovery = d.is_has_recovery();
-		getData()->pwdHint = qs(d.vhint);
-		getData()->pwdNotEmptyPassport = d.is_has_secure_values();
-		goReplace(new Intro::PwdCheckWidget(parentWidget(), getData()));
-	} break;
+		return;
+	} else if (!getData()->pwdAlgo) {
+		const auto box = std::make_shared<QPointer<BoxContent>>();
+		const auto callback = [=] {
+			Core::UpdateApplication();
+			if (*box) (*box)->closeBox();
+		};
+		*box = Ui::show(Box<ConfirmBox>(
+			lang(lng_passport_app_out_of_date),
+			lang(lng_menu_update),
+			callback));
+		return;
 	}
+	getData()->hasRecovery = d.is_has_recovery();
+	getData()->pwdHint = qs(d.vhint);
+	getData()->pwdNotEmptyPassport = d.is_has_secure_values();
+	goReplace(new Intro::PwdCheckWidget(parentWidget(), getData()));
 }
 
 void CodeWidget::submit() {
@@ -312,7 +326,7 @@ void CodeWidget::submit() {
 	_checkRequest->start(1000);
 
 	_sentCode = _code->getLastText();
-	getData()->pwdSalt = QByteArray();
+	getData()->pwdAlgo = Core::CloudPasswordAlgo();
 	getData()->hasRecovery = false;
 	getData()->pwdHint = QString();
 	getData()->pwdNotEmptyPassport = false;

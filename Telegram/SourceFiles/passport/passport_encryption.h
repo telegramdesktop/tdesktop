@@ -11,9 +11,6 @@ namespace Passport {
 
 bytes::vector GenerateSecretBytes();
 
-bytes::vector CountPasswordHashForSecret(
-	bytes::const_span salt,
-	bytes::const_span password);
 bytes::vector EncryptSecureSecret(
 	bytes::const_span secret,
 	bytes::const_span passwordHashForSecret);

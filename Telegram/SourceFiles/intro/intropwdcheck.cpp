@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_intro.h"
 #include "styles/style_boxes.h"
 #include "core/file_utilities.h"
+#include "core/core_cloud_password.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "application.h"
@@ -17,11 +18,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
+#include "base/openssl_help.h"
 
 namespace Intro {
 
-PwdCheckWidget::PwdCheckWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
-, _salt(getData()->pwdSalt)
+PwdCheckWidget::PwdCheckWidget(
+	QWidget *parent,
+	Widget::Data *data)
+: Step(parent, data)
+, _algo(getData()->pwdAlgo)
 , _hasRecovery(getData()->hasRecovery)
 , _notEmptyPassport(getData()->pwdNotEmptyPassport)
 , _hint(getData()->pwdHint)
@@ -31,6 +36,8 @@ PwdCheckWidget::PwdCheckWidget(QWidget *parent, Widget::Data *data) : Step(paren
 , _toRecover(this, lang(lng_signin_recover))
 , _toPassword(this, lang(lng_signin_try_password))
 , _checkRequest(this) {
+	Expects(_algo.has_value());
+
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 
 	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
@@ -302,9 +309,14 @@ void PwdCheckWidget::submit() {
 	} else {
 		hideError();
 
-		QByteArray pwdData = _salt + _pwdField->getLastText().toUtf8() + _salt, pwdHash(32, Qt::Uninitialized);
-		hashSha256(pwdData.constData(), pwdData.size(), pwdHash.data());
-		_sentRequest = MTP::send(MTPauth_CheckPassword(MTP_bytes(pwdHash)), rpcDone(&PwdCheckWidget::pwdSubmitDone, false), rpcFail(&PwdCheckWidget::pwdSubmitFail));
+		const auto password = _pwdField->getLastText().toUtf8();
+		const auto hash = Core::ComputeCloudPasswordHash(
+			_algo,
+			bytes::make_span(password));
+		_sentRequest = MTP::send(
+			MTPauth_CheckPassword(MTP_bytes(hash)),
+			rpcDone(&PwdCheckWidget::pwdSubmitDone, false),
+			rpcFail(&PwdCheckWidget::pwdSubmitFail));
 	}
 }
 
