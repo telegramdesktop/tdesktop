@@ -47,6 +47,10 @@ bool _psRunCommand(const QByteArray &command) {
 
 namespace Platform {
 
+bool IsApplicationActive() {
+	return static_cast<QApplication*>(QApplication::instance())->activeWindow() != nullptr;
+}
+
 QString CurrentExecutablePath(int argc, char *argv[]) {
 	constexpr auto kMaxPath = 1024;
 	char result[kMaxPath] = { 0 };

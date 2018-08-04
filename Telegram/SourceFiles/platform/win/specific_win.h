@@ -14,6 +14,8 @@ namespace Platform {
 inline void SetWatchingMediaKeys(bool watching) {
 }
 
+bool IsApplicationActive();
+
 inline bool TranslucentWindowsSupported(QPoint globalPosition) {
 	return true;
 }

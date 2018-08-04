@@ -15,6 +15,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 
 namespace Ui {
+namespace {
+
+bool InactiveMacApplication() {
+	return (cPlatform() == dbipMac || cPlatform() == dbipMacOld)
+		&& !Platform::IsApplicationActive();
+}
+
+} // namespace
 
 PopupMenu::PopupMenu(QWidget *parent, const style::PopupMenu &st)
 : RpWidget(parent)
@@ -423,11 +431,16 @@ void PopupMenu::popup(const QPoint &p) {
 }
 
 void PopupMenu::showMenu(const QPoint &p, PopupMenu *parent, TriggeredSource source) {
-	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
-		if (!parent && !static_cast<QApplication*>(QApplication::instance())->activeWindow()) {
-			crl::on_main(this, [=] { show(); hideFast(); });
-			return;
+	if (!parent && InactiveMacApplication()) {
+		_hiding = false;
+		_a_opacity.finish();
+		_a_show.finish();
+		_cache = QPixmap();
+		hide();
+		if (_deleteOnHide) {
+			deleteLater();
 		}
+		return;
 	}
 	_parent = parent;
 

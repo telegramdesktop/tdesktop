@@ -332,6 +332,10 @@ QString SystemCountry() {
 	return QString();
 }
 
+bool IsApplicationActive() {
+	return static_cast<QApplication*>(QApplication::instance())->activeWindow() != nullptr;
+}
+
 QString CurrentExecutablePath(int argc, char *argv[]) {
 	WCHAR result[MAX_PATH + 1] = { 0 };
 	auto count = GetModuleFileName(nullptr, result, MAX_PATH + 1);

@@ -15,6 +15,8 @@ namespace Platform {
 inline void SetWatchingMediaKeys(bool watching) {
 }
 
+bool IsApplicationActive();
+
 inline void StartTranslucentPaint(QPainter &p, QPaintEvent *e) {
 }
 
