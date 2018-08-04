@@ -993,7 +993,7 @@ auto SendFilesBox::AlbumPreview::generateOrderedLayout() const
 	auto sizes = ranges::view::all(
 		_order
 	) | ranges::view::transform([&](int index) {
-		return _list.files[index].preview.size() / cIntRetinaFactor();
+		return _list.files[index].shownDimensions;
 	}) | ranges::to_vector;
 
 	auto layout = Ui::LayoutMediaGroup(

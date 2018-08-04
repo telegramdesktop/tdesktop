@@ -37,6 +37,7 @@ struct PreparedFile {
 	QString mime;
 	std::unique_ptr<FileMediaInformation> information;
 	QImage preview;
+	QSize shownDimensions;
 	AlbumType type = AlbumType::None;
 
 };

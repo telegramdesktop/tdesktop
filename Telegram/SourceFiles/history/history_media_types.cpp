@@ -545,8 +545,8 @@ TextState HistoryPhoto::textState(QPoint point, StateRequest request) const {
 }
 
 QSize HistoryPhoto::sizeForGrouping() const {
-	const auto width = convertScale(_data->full->width());
-	const auto height = convertScale(_data->full->height());
+	const auto width = _data->full->width();
+	const auto height = _data->full->height();
 	return { std::max(width, 1), std::max(height, 1) };
 }
 
@@ -992,8 +992,12 @@ TextState HistoryVideo::textState(QPoint point, StateRequest request) const {
 }
 
 QSize HistoryVideo::sizeForGrouping() const {
-	const auto width = convertScale(_data->thumb->width());
-	const auto height = convertScale(_data->thumb->height());
+	const auto width = _data->dimensions.isEmpty()
+		? _data->thumb->width()
+		: _data->dimensions.width();
+	const auto height = _data->dimensions.isEmpty()
+		? _data->thumb->height()
+		: _data->dimensions.height();
 	return { std::max(width, 1), std::max(height, 1) };
 }
 
