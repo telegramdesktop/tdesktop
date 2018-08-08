@@ -74,7 +74,7 @@ private:
 };
 
 //bool ValidateUrl(const QString &value) {
-//	const auto match = TextUtilities::RegExpDomain().match(value);
+//	const auto match = qthelp::RegExpDomain().match(value);
 //	if (!match.hasMatch() || match.capturedStart() != 0) {
 //		return false;
 //	}
@@ -596,7 +596,7 @@ void MessageLinksParser::parse() {
 	const auto len = text.size();
 	const QChar *start = text.unicode(), *end = start + text.size();
 	for (auto offset = 0, matchOffset = offset; offset < len;) {
-		auto m = TextUtilities::RegExpDomain().match(text, matchOffset);
+		auto m = qthelp::RegExpDomain().match(text, matchOffset);
 		if (!m.hasMatch()) break;
 
 		auto domainOffset = m.capturedStart();

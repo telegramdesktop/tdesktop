@@ -78,6 +78,7 @@
       'utils.gyp:Updater',
       '../ThirdParty/libtgvoip/libtgvoip.gyp:libtgvoip',
       'crl.gyp:crl',
+      'lib_base.gyp:lib_base',
       'lib_export.gyp:lib_export',
       'lib_storage.gyp:lib_storage',
     ],

@@ -1,40 +1,3 @@
-<(src_loc)/base/algorithm.h
-<(src_loc)/base/assertion.h
-<(src_loc)/base/basic_types.h
-<(src_loc)/base/binary_guard.h
-<(src_loc)/base/build_config.h
-<(src_loc)/base/bytes.h
-<(src_loc)/base/flags.h
-<(src_loc)/base/enum_mask.h
-<(src_loc)/base/flat_map.h
-<(src_loc)/base/flat_set.h
-<(src_loc)/base/functors.h
-<(src_loc)/base/index_based_iterator.h
-<(src_loc)/base/match_method.h
-<(src_loc)/base/observer.cpp
-<(src_loc)/base/observer.h
-<(src_loc)/base/ordered_set.h
-<(src_loc)/base/openssl_help.h
-<(src_loc)/base/optional.h
-<(src_loc)/base/overload.h
-<(src_loc)/base/parse_helper.cpp
-<(src_loc)/base/parse_helper.h
-<(src_loc)/base/qthelp_regex.h
-<(src_loc)/base/qthelp_url.cpp
-<(src_loc)/base/qthelp_url.h
-<(src_loc)/base/runtime_composer.cpp
-<(src_loc)/base/runtime_composer.h
-<(src_loc)/base/timer.cpp
-<(src_loc)/base/timer.h
-<(src_loc)/base/type_traits.h
-<(src_loc)/base/unique_any.h
-<(src_loc)/base/unique_function.h
-<(src_loc)/base/unique_qptr.h
-<(src_loc)/base/value_ordering.h
-<(src_loc)/base/variant.h
-<(src_loc)/base/virtual_method.h
-<(src_loc)/base/weak_ptr.h
-<(src_loc)/base/zlib_help.h
 <(src_loc)/boxes/peers/edit_peer_info_box.cpp
 <(src_loc)/boxes/peers/edit_peer_info_box.h
 <(src_loc)/boxes/peers/manage_peer_box.cpp
@@ -810,6 +773,9 @@ platforms: !win
 <(minizip_loc)/zip.h
 <(minizip_loc)/unzip.c
 <(minizip_loc)/unzip.h
+
+platforms: win
+<(res_loc)/winrc/Telegram.rc
 
 platforms: mac
 <(sp_media_key_tap_loc)/SPMediaKeyTap.m

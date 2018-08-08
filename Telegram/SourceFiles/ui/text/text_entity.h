@@ -157,8 +157,6 @@ namespace TextUtilities {
 bool IsValidProtocol(const QString &protocol);
 bool IsValidTopDomain(const QString &domain);
 
-const QRegularExpression &RegExpDomain();
-const QRegularExpression &RegExpDomainExplicit();
 const QRegularExpression &RegExpMailNameAtEnd();
 const QRegularExpression &RegExpHashtag();
 const QRegularExpression &RegExpHashtagExclude();

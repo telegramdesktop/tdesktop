@@ -668,7 +668,8 @@ void Messenger::forceLogOut(const TextWithEntities &explanation) {
 }
 
 void Messenger::checkLocalTime() {
-	if (App::main()) App::main()->checkLastUpdate(checkms());
+	const auto updated = checkms();
+	if (App::main()) App::main()->checkLastUpdate(updated);
 }
 
 void Messenger::onAppStateChanged(Qt::ApplicationState state) {

@@ -8,27 +8,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/runtime_composer.h"
 
 struct RuntimeComposerMetadatasMap {
-	QMap<uint64, RuntimeComposerMetadata*> data;
-	~RuntimeComposerMetadatasMap() {
-		for_const (const RuntimeComposerMetadata *p, data) {
-			delete p;
-		}
-	}
+	std::map<uint64, std::unique_ptr<RuntimeComposerMetadata>> data;
+	QMutex mutex;
 };
 
 const RuntimeComposerMetadata *GetRuntimeComposerMetadata(uint64 mask) {
 	static RuntimeComposerMetadatasMap RuntimeComposerMetadatas;
-	static QMutex RuntimeComposerMetadatasMutex;
 
-	QMutexLocker lock(&RuntimeComposerMetadatasMutex);
-	auto i = RuntimeComposerMetadatas.data.constFind(mask);
-	if (i == RuntimeComposerMetadatas.data.cend()) {
-		RuntimeComposerMetadata *meta = new RuntimeComposerMetadata(mask);
-		Assert(meta != nullptr);
-
-		i = RuntimeComposerMetadatas.data.insert(mask, meta);
+	QMutexLocker lock(&RuntimeComposerMetadatas.mutex);
+	auto i = RuntimeComposerMetadatas.data.find(mask);
+	if (i == end(RuntimeComposerMetadatas.data)) {
+		i = RuntimeComposerMetadatas.data.emplace(
+			mask,
+			std::make_unique<RuntimeComposerMetadata>(mask)).first;
 	}
-	return i.value();
+	return i->second.get();
 }
 
 const RuntimeComposerMetadata *RuntimeComposerBase::ZeroRuntimeComposerMetadata = GetRuntimeComposerMetadata(0);

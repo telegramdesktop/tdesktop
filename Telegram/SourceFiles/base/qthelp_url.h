@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace qthelp {
 
+const QRegularExpression &RegExpDomain();
+const QRegularExpression &RegExpDomainExplicit();
+QRegularExpression RegExpProtocol();
+
 inline QString url_encode(const QString &part) {
 	return QString::fromLatin1(QUrl::toPercentEncoding(part));
 }

@@ -47,11 +47,17 @@ void ProcessMainQueue(void (*callable)(void*), void *argument) {
 	}
 }
 
+void ProcessObservables() {
+	Global::RefHandleObservables().call();
+}
+
 } // namespace
 
 MainQueueProcessor::MainQueueProcessor() {
 	acquire();
 	crl::init_main_queue(ProcessMainQueue);
+
+	base::InitObservables(ProcessObservables);
 }
 
 bool MainQueueProcessor::event(QEvent *event) {

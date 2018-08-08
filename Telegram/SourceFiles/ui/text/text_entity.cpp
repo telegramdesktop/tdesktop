@@ -9,19 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "auth_session.h"
 #include "lang/lang_tag.h"
+#include "base/qthelp_url.h"
 
 namespace TextUtilities {
 namespace {
-
-QString ExpressionDomain() {
-	// Matches any domain name, containing at least one '.', including "file.txt".
-	return QString::fromUtf8("(?<![\\w\\$\\-\\_%=\\.])(?:([a-zA-Z]+)://)?((?:[A-Za-z" "\xD0\x90-\xD0\xAF\xD0\x81" "\xD0\xB0-\xD1\x8F\xD1\x91" "0-9\\-\\_]+\\.){1,10}([A-Za-z" "\xD1\x80\xD1\x84" "\\-\\d]{2,22})(\\:\\d+)?)");
-}
-
-QString ExpressionDomainExplicit() {
-	// Matches any domain name, containing a protocol, including "test://localhost".
-	return QString::fromUtf8("(?<![\\w\\$\\-\\_%=\\.])(?:([a-zA-Z]+)://)((?:[A-Za-z" "\xD0\x90-\xD0\xAF\xD0\x81" "\xD0\xB0-\xD1\x8F\xD1\x91" "0-9\\-\\_]+\\.){0,10}([A-Za-z" "\xD1\x80\xD1\x84" "\\-\\d]{2,22})(\\:\\d+)?)");
-}
 
 QString ExpressionMailNameAtEnd() {
 	// Matches email first part (before '@') at the end of the string.
@@ -1138,16 +1129,6 @@ const QRegularExpression &RegExpWordSplit() {
 
 } // namespace
 
-const QRegularExpression &RegExpDomain() {
-	static const auto result = CreateRegExp(ExpressionDomain());
-	return result;
-}
-
-const QRegularExpression &RegExpDomainExplicit() {
-	static const auto result = CreateRegExp(ExpressionDomainExplicit());
-	return result;
-}
-
 const QRegularExpression &RegExpMailNameAtEnd() {
 	static const auto result = CreateRegExp(ExpressionMailNameAtEnd());
 	return result;
@@ -1604,8 +1585,8 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 				}
 			}
 		}
-		auto mDomain = RegExpDomain().match(result.text, matchOffset);
-		auto mExplicitDomain = RegExpDomainExplicit().match(result.text, matchOffset);
+		auto mDomain = qthelp::RegExpDomain().match(result.text, matchOffset);
+		auto mExplicitDomain = qthelp::RegExpDomainExplicit().match(result.text, matchOffset);
 		auto mHashtag = withHashtags ? RegExpHashtag().match(result.text, matchOffset) : QRegularExpressionMatch();
 		auto mMention = withMentions ? RegExpMention().match(result.text, qMax(mentionSkip, matchOffset)) : QRegularExpressionMatch();
 		auto mBotCommand = withBotCommands ? RegExpBotCommand().match(result.text, matchOffset) : QRegularExpressionMatch();

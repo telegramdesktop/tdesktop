@@ -12,6 +12,7 @@ namespace internal {
 namespace {
 
 bool CantUseObservables = false;
+void (*HandleDelayedMethod)() = nullptr;
 
 struct ObservableListWrap {
 	~ObservableListWrap() {
@@ -35,7 +36,9 @@ ObservableListWrap &ActiveObservables() {
 void RegisterPendingObservable(ObservableCallHandlers *handlers) {
 	if (CantUseObservables) return;
 	PendingObservables().list.insert(handlers);
-	Global::RefHandleObservables().call();
+	if (HandleDelayedMethod) {
+		HandleDelayedMethod();
+	}
 }
 
 void UnregisterActiveObservable(ObservableCallHandlers *handlers) {
@@ -50,6 +53,10 @@ void UnregisterObservable(ObservableCallHandlers *handlers) {
 }
 
 } // namespace internal
+
+void InitObservables(void(*HandleDelayed)()) {
+	internal::HandleDelayedMethod = HandleDelayed;
+}
 
 void HandleObservables() {
 	if (internal::CantUseObservables) return;

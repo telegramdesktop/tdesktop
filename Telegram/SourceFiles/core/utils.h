@@ -22,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <set>
 
 #define qsl(s) QStringLiteral(s)
-#define qstr(s) QLatin1String((s), sizeof(s) - 1)
 
 // Define specializations for QByteArray for Qt 5.3.2, because
 // QByteArray in Qt 5.3.2 doesn't declare "pointer" subtype.
@@ -185,12 +184,6 @@ inline QString str_const_toString(const str_const &str) {
 inline QByteArray str_const_toByteArray(const str_const &str) {
 	return QByteArray::fromRawData(str.c_str(), str.size());
 }
-
-template <typename T>
-inline void accumulate_max(T &a, const T &b) { if (a < b) a = b; }
-
-template <typename T>
-inline void accumulate_min(T &a, const T &b) { if (a > b) a = b; }
 
 void unixtimeInit();
 void unixtimeSet(TimeId serverTime, bool force = false);

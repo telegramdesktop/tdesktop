@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "base/timer.h"
 
+#include <QtCore/QTimerEvent>
+
 namespace base {
 namespace {
 
@@ -48,7 +50,7 @@ void Timer::start(TimeMs timeout, Qt::TimerType type, Repeat repeat) {
 	setTimeout(timeout);
 	_timerId = startTimer(_timeout, _type);
 	if (_timerId) {
-		_next = getms(true) + _timeout;
+		_next = crl::time() + _timeout;
 	} else {
 		_next = 0;
 	}
@@ -64,7 +66,7 @@ TimeMs Timer::remainingTime() const {
 	if (!isActive()) {
 		return -1;
 	}
-	auto now = getms(true);
+	auto now = crl::time();
 	return (_next > now) ? (_next - now) : TimeMs(0);
 }
 
@@ -101,7 +103,7 @@ void Timer::timerEvent(QTimerEvent *e) {
 		if (_adjusted) {
 			start(_timeout, _type, repeat());
 		} else {
-			_next = getms(true) + _timeout;
+			_next = crl::time() + _timeout;
 		}
 	} else {
 		cancel();

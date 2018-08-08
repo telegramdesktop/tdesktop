@@ -452,6 +452,7 @@ private:
 
 };
 
+void InitObservables(void(*HandleDelayed)());
 void HandleObservables();
 
 template <

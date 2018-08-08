@@ -194,52 +194,34 @@ namespace {
 		return 0;
 	}
 
-	float64 _msFreq;
 	float64 _msgIdCoef;
-	TimeMs _msStart = 0, _msAddToMsStart = 0, _msAddToUnixtime = 0;
-	int32 _timeStart = 0;
-
-	class _MsInitializer {
+	class _MsStarter {
 	public:
-		_MsInitializer() {
+		_MsStarter() {
 #ifdef Q_OS_WIN
 			LARGE_INTEGER li;
 			QueryPerformanceFrequency(&li);
-            _msFreq = 1000. / float64(li.QuadPart);
 
 			// 0xFFFF0000L istead of 0x100000000L to make msgId grow slightly slower, than unixtime and we had time to reconfigure
 			_msgIdCoef = float64(0xFFFF0000L) / float64(li.QuadPart);
 
 			QueryPerformanceCounter(&li);
-			_msStart = li.QuadPart;
+			const auto seed = li.QuadPart;
 #elif defined Q_OS_MAC
             mach_timebase_info_data_t tb = { 0, 0 };
             mach_timebase_info(&tb);
-            _msFreq = (float64(tb.numer) / tb.denom) / 1000000.;
+            const auto freq = (float64(tb.numer) / tb.denom) / 1000000.;
+            _msgIdCoef = freq * (float64(0xFFFF0000L) / 1000.);
 
-            _msgIdCoef = _msFreq * (float64(0xFFFF0000L) / 1000.);
-
-            _msStart = mach_absolute_time();
+            const auto seed = mach_absolute_time();
 #else
-            timespec ts;
-            clock_gettime(CLOCK_MONOTONIC, &ts);
-            //_msFreq = 1 / 1000000.;
-            _msgIdCoef = float64(0xFFFF0000L) / 1000000000.;
-            _msStart = 1000LL * static_cast<TimeMs>(ts.tv_sec) + (static_cast<TimeMs>(ts.tv_nsec) / 1000000LL);
+			_msgIdCoef = float64(0xFFFF0000L) / 1000000000.;
+
+			timespec ts;
+			clock_gettime(CLOCK_MONOTONIC, &ts);
+			const auto seed = 1000LL * static_cast<TimeMs>(ts.tv_sec) + (static_cast<TimeMs>(ts.tv_nsec) / 1000000LL);
 #endif
-			_timeStart = LocalUnixtime();
-			srand((uint32)(_msStart & 0xFFFFFFFFL));
-		}
-	};
-
-	void _msInitialize() {
-		static _MsInitializer _msInitializer;
-	}
-
-	class _MsStarter {
-	public:
-		_MsStarter() {
-			getms();
+			srand((uint32)(seed & 0xFFFFFFFFL));
 		}
 	};
 	_MsStarter _msStarter;
@@ -365,11 +347,25 @@ namespace ThirdParty {
 		Platform::ThirdParty::start();
 
 		if (!RAND_status()) { // should be always inited in all modern OS
-			char buf[16];
-			memcpy(buf, &_msStart, 8);
-			memcpy(buf + 8, &_msFreq, 8);
-			uchar sha256Buffer[32];
-			RAND_seed(hashSha256(buf, 16, sha256Buffer), 32);
+			const auto FeedSeed = [](auto value) {
+				RAND_seed(&value, sizeof(value));
+			};
+#ifdef Q_OS_WIN
+			LARGE_INTEGER li;
+			QueryPerformanceFrequency(&li);
+			FeedSeed(li.QuadPart);
+			QueryPerformanceCounter(&li);
+			FeedSeed(li.QuadPart);
+#elif defined Q_OS_MAC
+			mach_timebase_info_data_t tb = { 0 };
+			mach_timebase_info(&tb);
+			FeedSeed(tb);
+			FeedSeed(mach_absolute_time());
+#else
+			timespec ts = { 0 };
+			clock_gettime(CLOCK_MONOTONIC, &ts);
+			FeedSeed(ts);
+#endif
 			if (!RAND_status()) {
 				LOG(("MTP Error: Could not init OpenSSL rand, RAND_status() is 0..."));
 			}
@@ -429,12 +425,7 @@ namespace ThirdParty {
 }
 
 bool checkms() {
-	auto unixms = (LocalUnixtime() - _timeStart) * 1000LL + _msAddToUnixtime;
-	auto ms = getms(true);
-	if (ms > unixms + 1000LL) {
-		_msAddToUnixtime = ((ms - unixms) / 1000LL) * 1000LL;
-	} else if (unixms > ms + 1000LL) {
-		_msAddToMsStart += ((unixms - ms) / 1000LL) * 1000LL;
+	if (crl::adjust_time()) {
 		Sandbox::adjustSingleTimers();
 		return true;
 	}
@@ -442,24 +433,7 @@ bool checkms() {
 }
 
 TimeMs getms(bool checked) {
-    _msInitialize();
-#ifdef Q_OS_WIN
-    LARGE_INTEGER li;
-    QueryPerformanceCounter(&li);
-	return ((li.QuadPart - _msStart) * _msFreq) + (checked ? _msAddToMsStart : 0LL);
-#elif defined Q_OS_MAC
-	auto msCount = static_cast<TimeMs>(mach_absolute_time());
-	return ((msCount - _msStart) * _msFreq) + (checked ? _msAddToMsStart : 0LL);
-#else
-    timespec ts;
-    auto res = clock_gettime(CLOCK_MONOTONIC, &ts);
-    if (res != 0) {
-        LOG(("Bad clock_gettime result: %1").arg(res));
-        return 0;
-    }
-    auto msCount = 1000LL * static_cast<TimeMs>(ts.tv_sec) + (static_cast<TimeMs>(ts.tv_nsec) / 1000000LL);
-    return (msCount - _msStart) + (checked ? _msAddToMsStart : 0LL);
-#endif
+	return crl::time();
 }
 
 uint64 msgid() {

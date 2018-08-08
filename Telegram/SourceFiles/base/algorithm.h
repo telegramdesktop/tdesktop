@@ -25,3 +25,14 @@ inline constexpr size_t array_size(const Type(&)[Size]) {
 }
 
 } // namespace base
+
+template <typename T>
+inline void accumulate_max(T &a, const T &b) { if (a < b) a = b; }
+
+template <typename T>
+inline void accumulate_min(T &a, const T &b) { if (a > b) a = b; }
+
+template <size_t Size>
+QLatin1String qstr(const char(&string)[Size]) {
+	return QLatin1String(string, Size - 1);
+}

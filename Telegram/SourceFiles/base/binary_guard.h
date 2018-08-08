@@ -21,6 +21,7 @@ public:
 	~binary_guard();
 
 	bool alive() const;
+	void kill();
 
 private:
 	void destroy();
@@ -49,6 +50,10 @@ inline binary_guard::~binary_guard() {
 
 inline bool binary_guard::alive() const {
 	return _bothAlive && _bothAlive->load();
+}
+
+inline void binary_guard::kill() {
+	destroy();
 }
 
 inline void binary_guard::destroy() {

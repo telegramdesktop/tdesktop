@@ -10,9 +10,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace qthelp {
 namespace {
 
-QRegularExpression RegExpProtocol() {
-	static const auto result = QRegularExpression("^([a-zA-Z]+)://");
+QRegularExpression CreateRegExp(const QString &expression) {
+	auto result = QRegularExpression(
+		expression,
+		QRegularExpression::UseUnicodePropertiesOption);
+#ifndef OS_MAC_OLD
+	result.optimize();
+#endif // OS_MAC_OLD
 	return result;
+}
+
+QString ExpressionDomain() {
+	// Matches any domain name, containing at least one '.', including "file.txt".
+	return QString::fromUtf8("(?<![\\w\\$\\-\\_%=\\.])(?:([a-zA-Z]+)://)?((?:[A-Za-z" "\xD0\x90-\xD0\xAF\xD0\x81" "\xD0\xB0-\xD1\x8F\xD1\x91" "0-9\\-\\_]+\\.){1,10}([A-Za-z" "\xD1\x80\xD1\x84" "\\-\\d]{2,22})(\\:\\d+)?)");
+}
+
+QString ExpressionDomainExplicit() {
+	// Matches any domain name, containing a protocol, including "test://localhost".
+	return QString::fromUtf8("(?<![\\w\\$\\-\\_%=\\.])(?:([a-zA-Z]+)://)((?:[A-Za-z" "\xD0\x90-\xD0\xAF\xD0\x81" "\xD0\xB0-\xD1\x8F\xD1\x91" "0-9\\-\\_]+\\.){0,10}([A-Za-z" "\xD1\x80\xD1\x84" "\\-\\d]{2,22})(\\:\\d+)?)");
 }
 
 bool IsGoodProtocol(const QString &protocol) {
@@ -25,6 +40,21 @@ bool IsGoodProtocol(const QString &protocol) {
 }
 
 } // namespace
+
+const QRegularExpression &RegExpDomain() {
+	static const auto result = CreateRegExp(ExpressionDomain());
+	return result;
+}
+
+const QRegularExpression &RegExpDomainExplicit() {
+	static const auto result = CreateRegExp(ExpressionDomainExplicit());
+	return result;
+}
+
+QRegularExpression RegExpProtocol() {
+	static const auto result = CreateRegExp("^([a-zA-Z]+)://");
+	return result;
+}
 
 QMap<QString, QString> url_parse_params(
 		const QString &params,
@@ -77,9 +107,9 @@ QString validate_url(const QString &value) {
 	if (trimmed.isEmpty()) {
 		return QString();
 	}
-	const auto match = TextUtilities::RegExpDomainExplicit().match(trimmed);
+	const auto match = RegExpDomainExplicit().match(trimmed);
 	if (!match.hasMatch()) {
-		const auto domain = TextUtilities::RegExpDomain().match(trimmed);
+		const auto domain = RegExpDomain().match(trimmed);
 		if (!domain.hasMatch() || domain.capturedStart() != 0) {
 			return QString();
 		}

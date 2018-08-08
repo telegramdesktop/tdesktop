@@ -7,9 +7,6 @@
 {
   'conditions': [[ 'build_win', {
     'msbuild_toolset': 'v141',
-    'sources': [
-      '<(res_loc)/winrc/Telegram.rc',
-    ],
     'library_dirs': [
       '<(libs_loc)/ffmpeg',
     ],
