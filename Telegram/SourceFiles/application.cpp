@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "messenger.h"
 #include "base/timer.h"
+#include "base/concurrent_timer.h"
 #include "base/qthelp_url.h"
 #include "base/qthelp_regex.h"
 #include "core/update_checker.h"
@@ -446,6 +447,7 @@ void adjustSingleTimers() {
 		a->adjustSingleTimers();
 	}
 	base::Timer::Adjust();
+	base::ConcurrentTimerEnvironment::Adjust();
 }
 
 void connect(const char *signal, QObject *object, const char *method) {

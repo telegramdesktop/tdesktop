@@ -125,7 +125,6 @@
     ],
     'dependencies': [
       '../lib_storage.gyp:lib_storage',
-      '../crl.gyp:crl',
     ],
     'sources': [
       '<(src_loc)/storage/storage_encrypted_file_tests.cpp',

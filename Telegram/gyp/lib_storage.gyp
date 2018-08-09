@@ -34,6 +34,11 @@
     ],
     'dependencies': [
       'crl.gyp:crl',
+      'lib_base.gyp:lib_base',
+    ],
+    'export_dependent_settings': [
+      'crl.gyp:crl',
+      'lib_base.gyp:lib_base',
     ],
     'include_dirs': [
       '<(src_loc)',

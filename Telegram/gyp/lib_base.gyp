@@ -51,6 +51,8 @@
       '<(src_loc)/base/binary_guard.h',
       '<(src_loc)/base/build_config.h',
       '<(src_loc)/base/bytes.h',
+      '<(src_loc)/base/concurrent_timer.cpp',
+      '<(src_loc)/base/concurrent_timer.h',
       '<(src_loc)/base/flags.h',
       '<(src_loc)/base/enum_mask.h',
       '<(src_loc)/base/flat_map.h',

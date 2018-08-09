@@ -9,6 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/storage_encrypted_file.h"
 
+#include <QtCore/QThread>
+#include <QtCore/QCoreApplication>
+
 #ifdef Q_OS_WIN
 #include "platform/win/windows_dlls.h"
 #endif // Q_OS_WIN

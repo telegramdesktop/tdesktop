@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/cache/storage_cache_database.h"
 #include "storage/storage_encryption.h"
+#include "base/concurrent_timer.h"
 #include <crl/crl.h>
 #include <thread>
 

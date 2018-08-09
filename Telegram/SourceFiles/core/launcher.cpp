@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "core/main_queue_processor.h"
 #include "core/update_checker.h"
+#include "base/concurrent_timer.h"
 #include "application.h"
 
 namespace Core {
@@ -242,6 +243,8 @@ void Launcher::processArguments() {
 
 int Launcher::executeApplication() {
 	MainQueueProcessor processor;
+	base::ConcurrentTimerEnvironment environment;
+
 	Application app(this, _argc, _argv);
 	return app.exec();
 }

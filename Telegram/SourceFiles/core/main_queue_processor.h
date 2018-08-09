@@ -12,7 +12,6 @@ namespace Core {
 class MainQueueProcessor : public QObject {
 public:
 	MainQueueProcessor();
-
 	~MainQueueProcessor();
 
 protected:

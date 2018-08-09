@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QUrl>
 #include <QtCore/QMutex>
 #include <QtCore/QRegularExpression>
+#include <QtCore/QThread>
+#include <QtCore/QCoreApplication>
 
 #include <crl/crl.h>
 #include <rpl/rpl.h>

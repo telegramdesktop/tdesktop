@@ -26,7 +26,6 @@ Timer::Timer(
 	moveToThread(thread);
 }
 
-
 Timer::Timer(Fn<void()> callback)
 : QObject(nullptr)
 , _callback(std::move(callback))

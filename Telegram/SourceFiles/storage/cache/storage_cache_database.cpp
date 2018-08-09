@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_encrypted_file.h"
 #include "base/flat_set.h"
 #include "base/algorithm.h"
+#include "base/concurrent_timer.h"
 #include <crl/crl.h>
 #include <xxhash.h>
 #include <QtCore/QDir>
@@ -39,6 +40,7 @@ constexpr auto kReadBlockSize = 8 * 1024 * 1024;
 constexpr auto kRecordSizeUnknown = size_type(-1);
 constexpr auto kRecordSizeInvalid = size_type(-2);
 constexpr auto kMaxDataSize = 10 * 1024 * 1024;
+constexpr auto kRemoveBundleDelay = 60 * 60 * crl::time_type(1000);
 
 using RecordType = uint8;
 using PlaceId = std::array<uint8, 7>;
@@ -175,6 +177,8 @@ public:
 
 	void clear(FnMut<void(Error)> done);
 
+	~Database();
+
 private:
 	struct Entry {
 		Entry() = default;
@@ -232,6 +236,8 @@ private:
 	std::unordered_map<Key, Entry> _map;
 	std::set<Key> _removing;
 
+	base::ConcurrentTimer _writeRemoveTimer;
+
 	CleanerWrap _cleaner;
 
 };
@@ -253,7 +259,8 @@ Database::Database(
 	const Settings &settings)
 : _weak(std::move(weak))
 , _base(ComputeBasePath(path))
-, _settings(settings) {
+, _settings(settings)
+, _writeRemoveTimer(_weak, [=] { writeMultiRemove(); }) {
 }
 
 template <typename Callback, typename ...Args>
@@ -483,6 +490,9 @@ bool Database::readRecordMultiRemove(bytes::const_span data) {
 }
 
 void Database::close(FnMut<void()> done) {
+	if (_writeRemoveTimer.isActive()) {
+		writeMultiRemove();
+	}
 	_cleaner = CleanerWrap();
 	_binlog.close();
 	invokeCallback(done);
@@ -588,11 +598,11 @@ void Database::remove(const Key &key, FnMut<void()> done) {
 	const auto i = _map.find(key);
 	if (i != _map.end()) {
 		_removing.emplace(key);
-		if (true || _removing.size() == kMaxBundledRecords) {
+		if (_removing.size() == kMaxBundledRecords) {
+			_writeRemoveTimer.cancel();
 			writeMultiRemove();
-			// cancel timeout?..
-		} else {
-			// timeout?..
+		} else if (!_writeRemoveTimer.isActive()) {
+			_writeRemoveTimer.callOnce(kRemoveBundleDelay);
 		}
 
 		const auto &entry = i->second;
@@ -647,6 +657,10 @@ void Database::clear(FnMut<void(Error)> done) {
 	invokeCallback(
 		done,
 		writeVersion(version) ? Error::NoError() : ioError(versionPath()));
+}
+
+Database::~Database() {
+	close(nullptr);
 }
 
 auto Database::findAvailableVersion() const -> Version {
