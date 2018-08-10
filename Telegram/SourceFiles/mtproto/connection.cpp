@@ -61,16 +61,20 @@ QString LogIdsVector(const QVector<MTPlong> &ids) {
 	return idsStr + "]";
 }
 
-bool IsGoodModExpFirst(const openssl::BigNum &modexp, const openssl::BigNum &prime) {
-	auto diff = prime - modexp;
+bool IsGoodModExpFirst(
+		const openssl::BigNum &modexp,
+		const openssl::BigNum &prime) {
+	const auto diff = openssl::BigNum::Sub(prime, modexp);
 	if (modexp.failed() || prime.failed() || diff.failed()) {
 		return false;
 	}
 	constexpr auto kMinDiffBitsCount = 2048 - 64;
-	if (diff.isNegative() || diff.bitsSize() < kMinDiffBitsCount || modexp.bitsSize() < kMinDiffBitsCount) {
+	if (diff.isNegative()
+		|| diff.bitsSize() < kMinDiffBitsCount
+		|| modexp.bitsSize() < kMinDiffBitsCount
+		|| modexp.bytesSize() > kMaxModExpSize) {
 		return false;
 	}
-	Assert(modexp.bytesSize() <= kMaxModExpSize);
 	return true;
 }
 
@@ -194,20 +198,21 @@ ModExpFirst CreateModExp(
 
 	BigNum prime(primeBytes);
 	auto result = ModExpFirst();
-	constexpr auto kMaxModExpFirstTries = 5;
 	result.randomPower.resize(ModExpFirst::kRandomPowerSize);
-	for (auto tries = 0; tries != kMaxModExpFirstTries; ++tries) {
+	while (true) {
 		bytes::set_random(result.randomPower);
 		for (auto i = 0; i != ModExpFirst::kRandomPowerSize; ++i) {
 			result.randomPower[i] ^= randomSeed[i];
 		}
-		auto modexp = BigNum::ModExp(BigNum(g), BigNum(result.randomPower), prime);
+		const auto modexp = BigNum::ModExp(
+			BigNum(g),
+			BigNum(result.randomPower),
+			prime);
 		if (IsGoodModExpFirst(modexp, prime)) {
 			result.modexp = modexp.getBytes();
-			break;
+			return result;
 		}
 	}
-	return result;
 }
 
 void wrapInvokeAfter(SecureRequest &to, const SecureRequest &from, const RequestMap &haveSent, int32 skipBeforeRequest = 0) {
@@ -3241,6 +3246,10 @@ void ConnectionPrivate::stop() {
 
 bool IsPrimeAndGood(bytes::const_span primeBytes, int g) {
 	return internal::IsPrimeAndGood(primeBytes, g);
+}
+
+bool IsGoodModExpFirst(const openssl::BigNum &modexp, const openssl::BigNum &prime) {
+	return internal::IsGoodModExpFirst(modexp, prime);
 }
 
 ModExpFirst CreateModExp(int g, bytes::const_span primeBytes, bytes::const_span randomSeed) {

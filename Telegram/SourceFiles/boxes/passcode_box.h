@@ -22,7 +22,7 @@ public:
 	PasscodeBox(QWidget*, bool turningOff);
 	PasscodeBox(
 		QWidget*,
-		const Core::CloudPasswordAlgo &curAlgo,
+		const Core::CloudPasswordCheckRequest &curRequest,
 		const Core::CloudPasswordAlgo &newAlgo,
 		bool hasRecovery,
 		bool notEmptyPassport,
@@ -41,6 +41,9 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	using CheckPasswordCallback = Fn<void(
+		const Core::CloudPasswordResult &check)>;
+
 	void submit();
 	void closeReplacedBy();
 	void oldChanged();
@@ -53,31 +56,51 @@ private:
 	bool currentlyHave() const;
 
 	void setPasswordDone(const QByteArray &newPasswordBytes);
-	bool setPasswordFail(const RPCError &error);
-	bool setPasswordFail(
+	void setPasswordFail(const RPCError &error);
+	void setPasswordFail(
 		const QByteArray &newPasswordBytes,
 		const RPCError &error);
 
 	void recoverStarted(const MTPauth_PasswordRecovery &result);
-	bool recoverStartFail(const RPCError &error);
+	void recoverStartFail(const RPCError &error);
 
 	void recover();
 	void clearCloudPassword(const QString &oldPassword);
 	void setNewCloudPassword(const QString &newPassword);
+
+	void checkPassword(
+		const QString &oldPassword,
+		CheckPasswordCallback callback);
+	void checkPasswordHash(CheckPasswordCallback callback);
+
 	void changeCloudPassword(
 		const QString &oldPassword,
 		const QString &newPassword);
+	void changeCloudPassword(
+		const QString &oldPassword,
+		const Core::CloudPasswordResult &check,
+		const QString &newPassword);
+
 	void sendChangeCloudPassword(
-		const bytes::vector &oldPasswordHash,
+		const Core::CloudPasswordResult &check,
 		const QString &newPassword,
 		const QByteArray &secureSecret);
-	void suggestSecretReset(
-		const bytes::vector &oldPasswordHash,
-		const QString &newPassword);
+	void suggestSecretReset(const QString &newPassword);
+	void resetSecret(
+		const Core::CloudPasswordResult &check,
+		const QString &newPassword,
+		Fn<void()> callback);
 	void resetSecretAndChangePassword(
 		const bytes::vector &oldPasswordHash,
 		const QString &newPassword);
+
 	void sendClearCloudPassword(const QString &oldPassword);
+	void sendClearCloudPassword(const Core::CloudPasswordResult &check);
+
+	void handleSrpIdInvalid();
+	void requestPasswordData();
+	void passwordChecked();
+	void serverError();
 
 	QString _pattern;
 
@@ -86,12 +109,15 @@ private:
 	bool _cloudPwd = false;
 	mtpRequestId _setRequest = 0;
 
-	Core::CloudPasswordAlgo _curAlgo;
+	Core::CloudPasswordCheckRequest _curRequest;
+	TimeMs _lastSrpIdInvalidTime = 0;
 	Core::CloudPasswordAlgo _newAlgo;
 	Core::SecureSecretAlgo _newSecureSecretAlgo;
 	bool _hasRecovery = false;
 	bool _notEmptyPassport = false;
 	bool _skipEmailWarning = false;
+	CheckPasswordCallback _checkPasswordCallback;
+	bytes::vector _checkPasswordHash;
 
 	int _aboutHeight = 0;
 

@@ -30,7 +30,7 @@ PasscodeBox::PasscodeBox(QWidget*, bool turningOff)
 
 PasscodeBox::PasscodeBox(
 	QWidget*,
-	const Core::CloudPasswordAlgo &curAlgo,
+	const Core::CloudPasswordCheckRequest &curRequest,
 	const Core::CloudPasswordAlgo &newAlgo,
 	bool hasRecovery,
 	bool notEmptyPassport,
@@ -39,19 +39,19 @@ PasscodeBox::PasscodeBox(
 	bool turningOff)
 : _turningOff(turningOff)
 , _cloudPwd(true)
-, _curAlgo(curAlgo)
+, _curRequest(curRequest)
 , _newAlgo(newAlgo)
 , _newSecureSecretAlgo(newSecureSecretAlgo)
 , _hasRecovery(hasRecovery)
 , _notEmptyPassport(notEmptyPassport)
 , _about(st::boxWidth - st::boxPadding.left() * 1.5)
 , _oldPasscode(this, st::defaultInputField, langFactory(lng_cloud_password_enter_old))
-, _newPasscode(this, st::defaultInputField, langFactory(curAlgo ? lng_cloud_password_enter_new : lng_cloud_password_enter_first))
+, _newPasscode(this, st::defaultInputField, langFactory(curRequest ? lng_cloud_password_enter_new : lng_cloud_password_enter_first))
 , _reenterPasscode(this, st::defaultInputField, langFactory(lng_cloud_password_confirm_new))
-, _passwordHint(this, st::defaultInputField, langFactory(curAlgo ? lng_cloud_password_change_hint : lng_cloud_password_hint))
+, _passwordHint(this, st::defaultInputField, langFactory(curRequest ? lng_cloud_password_change_hint : lng_cloud_password_hint))
 , _recoverEmail(this, st::defaultInputField, langFactory(lng_cloud_password_email))
 , _recover(this, lang(lng_signin_recover)) {
-	Expects(!_turningOff || curAlgo.has_value());
+	Expects(!_turningOff || curRequest);
 
 	if (!hint.isEmpty()) _hintText.setText(st::passcodeTextStyle, lng_signin_hint(lt_password_hint, hint));
 }
@@ -65,7 +65,7 @@ rpl::producer<> PasscodeBox::passwordReloadNeeded() const {
 }
 
 bool PasscodeBox::currentlyHave() const {
-	return _cloudPwd ? _curAlgo.has_value() : Global::LocalPasscode();
+	return _cloudPwd ? (!!_curRequest) : Global::LocalPasscode();
 }
 
 void PasscodeBox::prepare() {
@@ -225,10 +225,8 @@ void PasscodeBox::closeReplacedBy() {
 	}
 }
 
-bool PasscodeBox::setPasswordFail(const RPCError &error) {
+void PasscodeBox::setPasswordFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
-		if (_oldPasscode->isHidden()) return false;
-
 		closeReplacedBy();
 		_setRequest = 0;
 
@@ -240,45 +238,36 @@ bool PasscodeBox::setPasswordFail(const RPCError &error) {
 			_recover->hide();
 		}
 		update();
-		return true;
+		return;
 	}
-	if (MTP::isDefaultHandledError(error)) return false;
 
 	closeReplacedBy();
 	_setRequest = 0;
-	QString err = error.type();
-	if (err == qstr("PASSWORD_HASH_INVALID")) {
+	const auto err = error.type();
+	if (err == qstr("PASSWORD_HASH_INVALID")
+		|| err == qstr("SRP_PASSWORD_CHANGED")) {
 		if (_oldPasscode->isHidden()) {
 			_passwordReloadNeeded.fire({});
 			closeBox();
 		} else {
 			badOldPasscode();
 		}
-	} else if (err == qstr("NEW_PASSWORD_BAD")) {
-		_newPasscode->setFocus();
-		_newPasscode->showError();
-		_newError = lang(lng_cloud_password_bad);
-		update();
-	} else if (err == qstr("NEW_SALT_INVALID")) {
-		_passwordReloadNeeded.fire({});
-		closeBox();
+	} else if (error.type() == qstr("SRP_ID_INVALID")) {
+		handleSrpIdInvalid();
+	//} else if (err == qstr("NEW_PASSWORD_BAD")) {
+	//} else if (err == qstr("NEW_SALT_INVALID")) {
 	} else if (err == qstr("EMAIL_INVALID")) {
 		_emailError = lang(lng_cloud_password_bad_email);
 		_recoverEmail->setFocus();
 		_recoverEmail->showError();
 		update();
 	}
-	return true;
 }
 
-bool PasscodeBox::setPasswordFail(
+void PasscodeBox::setPasswordFail(
 		const QByteArray &newPasswordBytes,
 		const RPCError &error) {
-	if (MTP::isFloodError(error)) {
-		return setPasswordFail(error);
-	} else if (MTP::isDefaultHandledError(error)) {
-		return setPasswordFail(error);
-	} else if (error.type() == qstr("EMAIL_UNCONFIRMED")) {
+	if (error.type() == qstr("EMAIL_UNCONFIRMED")) {
 		closeReplacedBy();
 		_setRequest = 0;
 
@@ -286,9 +275,21 @@ bool PasscodeBox::setPasswordFail(
 		getDelegate()->show(
 			Box<InformBox>(lang(lng_cloud_password_almost)),
 			LayerOption::CloseOther);
-		return true;
 	} else {
-		return setPasswordFail(error);
+		setPasswordFail(error);
+	}
+}
+
+void PasscodeBox::handleSrpIdInvalid() {
+	const auto now = getms(true);
+	if (_lastSrpIdInvalidTime > 0
+		&& now - _lastSrpIdInvalidTime < Core::kHandleSrpIdInvalidTimeout) {
+		_curRequest.id = 0;
+		_oldError = Lang::Hard::ServerError();
+		update();
+	} else {
+		_lastSrpIdInvalidTime = now;
+		requestPasswordData();
 	}
 }
 
@@ -391,10 +392,68 @@ void PasscodeBox::clearCloudPassword(const QString &oldPassword) {
 }
 
 void PasscodeBox::sendClearCloudPassword(const QString &oldPassword) {
+	checkPassword(oldPassword, [=](const Core::CloudPasswordResult &check) {
+		sendClearCloudPassword(check);
+	});
+}
+
+void PasscodeBox::checkPassword(
+		const QString &oldPassword,
+		CheckPasswordCallback callback) {
 	const auto passwordUtf = oldPassword.toUtf8();
-	const auto oldPasswordHash = Core::ComputeCloudPasswordHash(
-		_curAlgo,
+	_checkPasswordHash = Core::ComputeCloudPasswordHash(
+		_curRequest.algo,
 		bytes::make_span(passwordUtf));
+	checkPasswordHash(std::move(callback));
+}
+
+void PasscodeBox::checkPasswordHash(CheckPasswordCallback callback) {
+	_checkPasswordCallback = std::move(callback);
+	if (_curRequest.id) {
+		passwordChecked();
+	} else {
+		requestPasswordData();
+	}
+}
+
+void PasscodeBox::passwordChecked() {
+	if (!_curRequest || !_curRequest.id || !_checkPasswordCallback) {
+		return serverError();
+	}
+	const auto check = Core::ComputeCloudPasswordCheck(
+		_curRequest,
+		_checkPasswordHash);
+	if (!check) {
+		return serverError();
+	}
+	_curRequest.id = 0;
+	_checkPasswordCallback(check);
+}
+
+void PasscodeBox::requestPasswordData() {
+	if (!_checkPasswordCallback) {
+		return serverError();
+	}
+
+	request(base::take(_setRequest)).cancel();
+	_setRequest = request(
+		MTPaccount_GetPassword()
+	).done([=](const MTPaccount_Password &result) {
+		_setRequest = 0;
+		result.match([&](const MTPDaccount_password &data) {
+			_curRequest = Core::ParseCloudPasswordCheckRequest(data);
+			passwordChecked();
+		});
+	}).send();
+}
+
+void PasscodeBox::serverError() {
+	getDelegate()->show(Box<InformBox>(Lang::Hard::ServerError()));
+	closeBox();
+}
+
+void PasscodeBox::sendClearCloudPassword(
+		const Core::CloudPasswordResult &check) {
 	const auto newPasswordData = QByteArray();
 	const auto newPasswordHash = QByteArray();
 	const auto hint = QString();
@@ -404,40 +463,42 @@ void PasscodeBox::sendClearCloudPassword(const QString &oldPassword) {
 		| MTPDaccount_passwordInputSettings::Flag::f_hint
 		| MTPDaccount_passwordInputSettings::Flag::f_email;
 	_setRequest = request(MTPaccount_UpdatePasswordSettings(
-		MTP_bytes(oldPasswordHash),
+		check.result,
 		MTP_account_passwordInputSettings(
 			MTP_flags(flags),
 			Core::PrepareCloudPasswordAlgo(_newAlgo),
-			MTP_bytes(newPasswordHash),
+			MTP_bytes(QByteArray()), // new_password_hash
 			MTP_string(hint),
 			MTP_string(email),
 			MTPSecureSecretSettings())
 	)).done([=](const MTPBool &result) {
 		setPasswordDone({});
-	}).fail([=](const RPCError &error) {
+	}).handleFloodErrors().fail([=](const RPCError &error) mutable {
 		setPasswordFail({}, error);
 	}).send();
 }
 
 void PasscodeBox::setNewCloudPassword(const QString &newPassword) {
 	const auto newPasswordBytes = newPassword.toUtf8();
-	const auto newPasswordHash = Core::ComputeCloudPasswordHash(
+	const auto newPasswordHash = Core::ComputeCloudPasswordDigest(
 		_newAlgo,
 		bytes::make_span(newPasswordBytes));
-	const auto oldPasswordData = QByteArray();
-	const auto oldPasswordHash = QByteArray();
+	if (newPasswordHash.modpow.empty()) {
+		return serverError();
+	}
 	const auto hint = _passwordHint->getLastText();
 	const auto email = _recoverEmail->getLastText().trimmed();
 	const auto flags = MTPDaccount_passwordInputSettings::Flag::f_new_algo
 		| MTPDaccount_passwordInputSettings::Flag::f_new_password_hash
 		| MTPDaccount_passwordInputSettings::Flag::f_hint
 		| MTPDaccount_passwordInputSettings::Flag::f_email;
+	_checkPasswordCallback = nullptr;
 	_setRequest = request(MTPaccount_UpdatePasswordSettings(
-		MTP_bytes(oldPasswordHash),
+		MTP_inputCheckPasswordEmpty(),
 		MTP_account_passwordInputSettings(
 			MTP_flags(flags),
 			Core::PrepareCloudPasswordAlgo(_newAlgo),
-			MTP_bytes(newPasswordHash),
+			MTP_bytes(newPasswordHash.modpow),
 			MTP_string(hint),
 			MTP_string(email),
 			MTPSecureSecretSettings())
@@ -451,12 +512,17 @@ void PasscodeBox::setNewCloudPassword(const QString &newPassword) {
 void PasscodeBox::changeCloudPassword(
 		const QString &oldPassword,
 		const QString &newPassword) {
-	const auto passwordUtf = oldPassword.toUtf8();
-	const auto oldPasswordHash = Core::ComputeCloudPasswordHash(
-		_curAlgo,
-		bytes::make_span(passwordUtf));
+	checkPassword(oldPassword, [=](const Core::CloudPasswordResult &check) {
+		changeCloudPassword(oldPassword, check, newPassword);
+	});
+}
+
+void PasscodeBox::changeCloudPassword(
+		const QString &oldPassword,
+		const Core::CloudPasswordResult &check,
+		const QString &newPassword) {
 	_setRequest = request(MTPaccount_GetPasswordSettings(
-		MTP_bytes(oldPasswordHash)
+		check.result
 	)).done([=](const MTPaccount_PasswordSettings &result) {
 		_setRequest = 0;
 
@@ -464,12 +530,15 @@ void PasscodeBox::changeCloudPassword(
 		const auto &data = result.c_account_passwordSettings();
 
 		if (!data.has_secure_settings()) {
-			const auto empty = QByteArray();
-			sendChangeCloudPassword(oldPasswordHash, newPassword, empty);
+			checkPasswordHash([=](const Core::CloudPasswordResult &check) {
+				const auto empty = QByteArray();
+				sendChangeCloudPassword(check, newPassword, empty);
+			});
 			return;
 		}
 		const auto &wrapped = data.vsecure_settings;
 		const auto &settings = wrapped.c_secureSecretSettings();
+		const auto passwordUtf = oldPassword.toUtf8();
 		const auto secret = Passport::DecryptSecureSecret(
 			bytes::make_span(settings.vsecure_secret.v),
 			Core::ComputeSecureSecretHash(
@@ -477,67 +546,84 @@ void PasscodeBox::changeCloudPassword(
 				bytes::make_span(passwordUtf)));
 		if (secret.empty()) {
 			LOG(("API Error: Failed to decrypt secure secret."));
-			suggestSecretReset(oldPasswordHash, newPassword);
+			suggestSecretReset(newPassword);
 		} else if (Passport::CountSecureSecretId(secret)
 				!= settings.vsecure_secret_id.v) {
 			LOG(("API Error: Wrong secure secret id."));
-			suggestSecretReset(oldPasswordHash, newPassword);
+			suggestSecretReset(newPassword);
 		} else {
-			sendChangeCloudPassword(
-				oldPasswordHash,
-				newPassword,
-				QByteArray::fromRawData(
-					reinterpret_cast<const char*>(secret.data()),
-					secret.size()));
+			const auto secureSecret = QByteArray(
+				reinterpret_cast<const char*>(secret.data()),
+				secret.size());
+			checkPasswordHash([=](const Core::CloudPasswordResult &check) {
+				sendChangeCloudPassword(check, newPassword, secureSecret);
+			});
 		}
-	}).fail([=](const RPCError &error) {
+	}).handleFloodErrors().fail([=](const RPCError &error) {
 		setPasswordFail(error);
 	}).send();
 }
 
-void PasscodeBox::suggestSecretReset(
-		const bytes::vector &oldPasswordHash,
-		const QString &newPassword) {
+void PasscodeBox::suggestSecretReset(const QString &newPassword) {
 	const auto box = std::make_shared<QPointer<BoxContent>>();
 	const auto resetSecretAndSave = [=] {
-		using Flag = MTPDaccount_passwordInputSettings::Flag;
-		_setRequest = request(MTPaccount_UpdatePasswordSettings(
-			MTP_bytes(oldPasswordHash),
-			MTP_account_passwordInputSettings(
-				MTP_flags(Flag::f_new_secure_settings),
-				MTPPasswordKdfAlgo(), // new_algo
-				MTPbytes(), // new_password_hash
-				MTPstring(), // hint
-				MTPstring(), // email
-				MTP_secureSecretSettings(
-					MTP_securePasswordKdfAlgoUnknown(), // secure_algo
-					MTP_bytes(QByteArray()), // secure_secret
-					MTP_long(0))) // secure_secret_id
-		)).done([=](const MTPBool &result) {
-			_setRequest = 0;
-			const auto empty = QByteArray();
-			if (*box) {
-				(*box)->closeBox();
-			}
-			sendChangeCloudPassword(oldPasswordHash, newPassword, empty);
-		}).fail([=](const RPCError &error) {
-			_setRequest = 0;
-		}).send();
+		checkPasswordHash([=](const Core::CloudPasswordResult &check) {
+			resetSecret(check, newPassword, [=] {
+				if (*box) {
+					(*box)->closeBox();
+				}
+			});
+		});
 	};
 	*box = getDelegate()->show(Box<ConfirmBox>(
-		Lang::Hard::PassportCorrupted(),
+		Lang::Hard::PassportCorruptedChange(),
 		Lang::Hard::PassportCorruptedReset(),
 		[=] { resetSecretAndSave(); }));
 }
 
+void PasscodeBox::resetSecret(
+		const Core::CloudPasswordResult &check,
+		const QString &newPassword,
+		Fn<void()> callback) {
+	using Flag = MTPDaccount_passwordInputSettings::Flag;
+	_setRequest = request(MTPaccount_UpdatePasswordSettings(
+		check.result,
+		MTP_account_passwordInputSettings(
+			MTP_flags(Flag::f_new_secure_settings),
+			MTPPasswordKdfAlgo(), // new_algo
+			MTPbytes(), // new_password_hash
+			MTPstring(), // hint
+			MTPstring(), // email
+			MTP_secureSecretSettings(
+				MTP_securePasswordKdfAlgoUnknown(), // secure_algo
+				MTP_bytes(QByteArray()), // secure_secret
+				MTP_long(0))) // secure_secret_id
+	)).done([=](const MTPBool &result) {
+		_setRequest = 0;
+		callback();
+		checkPasswordHash([=](const Core::CloudPasswordResult &check) {
+			const auto empty = QByteArray();
+			sendChangeCloudPassword(check, newPassword, empty);
+		});
+	}).fail([=](const RPCError &error) {
+		_setRequest = 0;
+		if (error.type() == qstr("SRP_ID_INVALID")) {
+			handleSrpIdInvalid();
+		}
+	}).send();
+}
+
 void PasscodeBox::sendChangeCloudPassword(
-		const bytes::vector &oldPasswordHash,
+		const Core::CloudPasswordResult &check,
 		const QString &newPassword,
 		const QByteArray &secureSecret) {
 	const auto newPasswordBytes = newPassword.toUtf8();
-	const auto newPasswordHash = Core::ComputeCloudPasswordHash(
+	const auto newPasswordHash = Core::ComputeCloudPasswordDigest(
 		_newAlgo,
 		bytes::make_span(newPasswordBytes));
+	if (newPasswordHash.modpow.empty()) {
+		return serverError();
+	}
 	const auto hint = _passwordHint->getLastText();
 	auto flags = MTPDaccount_passwordInputSettings::Flag::f_new_algo
 		| MTPDaccount_passwordInputSettings::Flag::f_new_password_hash
@@ -555,11 +641,11 @@ void PasscodeBox::sendChangeCloudPassword(
 				bytes::make_span(newPasswordBytes)));
 	}
 	_setRequest = request(MTPaccount_UpdatePasswordSettings(
-		MTP_bytes(oldPasswordHash),
+		check.result,
 		MTP_account_passwordInputSettings(
 			MTP_flags(flags),
 			Core::PrepareCloudPasswordAlgo(_newAlgo),
-			MTP_bytes(newPasswordHash),
+			MTP_bytes(newPasswordHash.modpow),
 			MTP_string(hint),
 			MTPstring(), // email is not changing
 			MTP_secureSecretSettings(
@@ -568,7 +654,7 @@ void PasscodeBox::sendChangeCloudPassword(
 				MTP_long(newSecureSecretId)))
 	)).done([=](const MTPBool &result) {
 		setPasswordDone(newPasswordBytes);
-	}).fail([=](const RPCError &error) {
+	}).handleFloodErrors().fail([=](const RPCError &error) {
 		setPasswordFail(newPasswordBytes, error);
 	}).send();
 }
@@ -651,12 +737,9 @@ void PasscodeBox::recoverStarted(const MTPauth_PasswordRecovery &result) {
 	recover();
 }
 
-bool PasscodeBox::recoverStartFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
+void PasscodeBox::recoverStartFail(const RPCError &error) {
 	_pattern = QString();
 	closeBox();
-	return true;
 }
 
 RecoverBox::RecoverBox(

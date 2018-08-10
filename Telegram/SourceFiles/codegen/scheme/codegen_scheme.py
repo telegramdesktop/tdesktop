@@ -55,12 +55,13 @@ addChildParentFlags('MTPDchannelForbidden', 'MTPDchannel');
 parentFlagsCheck = {};
 
 countedTypeIdExceptions = {};
-for i in range(77, 84):
-  countedTypeIdExceptions[i] = {}
-  countedTypeIdExceptions[i]['channel'] = True
-countedTypeIdExceptions['ipPortSecret'] = True
-countedTypeIdExceptions['accessPointRule'] = True
-countedTypeIdExceptions['help_configSimple'] = True
+countedTypeIdExceptions['channel#c88974ac'] = True
+countedTypeIdExceptions['ipPortSecret#37982646'] = True
+countedTypeIdExceptions['accessPointRule#4679b65f'] = True
+countedTypeIdExceptions['help.configSimple#5a592a6c'] = True
+
+renamedTypes = {};
+renamedTypes['passwordKdfAlgoSHA256SHA256PBKDF2HMACSHA512iter100000SHA256ModPow'] = 'passwordKdfAlgoModPow';
 
 lines = [];
 layer = '';
@@ -119,7 +120,10 @@ for line in lines:
         sys.exit(1);
       continue;
 
-    name = nametype.group(1);
+    originalname = nametype.group(1);
+    name = originalname;
+    if (name in renamedTypes):
+      name = renamedTypes[name];
     nameInd = name.find('.');
     if (nameInd >= 0):
       Name = name[0:nameInd] + '_' + name[nameInd + 1:nameInd + 2].upper() + name[nameInd + 2:];
@@ -144,16 +148,18 @@ for line in lines:
     countTypeId = binascii.crc32(binascii.a2b_qp(cleanline));
     if (countTypeId < 0):
       countTypeId += 2 ** 32;
-    countTypeId = '0x' + re.sub(r'^0x|L$', '', hex(countTypeId));
+    countTypeId = re.sub(r'^0x|L$', '', hex(countTypeId));
     if (typeid and len(typeid) > 0):
-      typeid = '0x' + typeid;
+      typeid = typeid;
       if (typeid != countTypeId):
-        if (not layerIndex in countedTypeIdExceptions or not name in countedTypeIdExceptions[layerIndex]):
-          if (not name in countedTypeIdExceptions):
-            print('Warning: counted ' + countTypeId + ' mismatch with provided ' + typeid + ' (' + cleanline + ')');
+          key = originalname + '#' + typeid;
+          if (not key in countedTypeIdExceptions):
+            print('Warning: counted ' + countTypeId + ' mismatch with provided ' + typeid + ' (' + key + ', ' + cleanline + ')');
             continue;
     else:
       typeid = countTypeId;
+
+    typeid = '0x' + typeid;
 
     params = nametype.group(3);
     restype = nametype.group(4);
@@ -216,7 +222,7 @@ for line in lines:
       if (templ):
         hasTemplate = templ.group(1);
         continue;
-      pnametype = re.match(r'([a-z_][a-z0-9_]*):([A-Za-z0-9<>\._]+|![a-zA-Z]+|\#|[a-z_][a-z0-9_]*\.[0-9]+\?[A-Za-z0-9<>\._]+)$', param);
+      pnametype = re.match(r'([a-zA-Z_][a-zA-Z0-9_]*):([A-Za-z0-9<>\._]+|![a-zA-Z]+|\#|[a-z_][a-z0-9_]*\.[0-9]+\?[A-Za-z0-9<>\._]+)$', param);
       if (not pnametype):
         print('Bad param found: "' + param + '" in line: ' + line);
         sys.exit(1);

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/auth_key.h"
 #include "mtproto/dc_options.h"
 #include "mtproto/connection_abstract.h"
+#include "base/openssl_help.h"
 #include "base/timer.h"
 
 namespace MTP {
@@ -23,6 +24,7 @@ struct ModExpFirst {
 	bytes::vector modexp;
 	bytes::vector randomPower;
 };
+bool IsGoodModExpFirst(const openssl::BigNum &modexp, const openssl::BigNum &prime);
 ModExpFirst CreateModExp(int g, bytes::const_span primeBytes, bytes::const_span randomSeed);
 bytes::vector CreateAuthKey(bytes::const_span firstBytes, bytes::const_span randomBytes, bytes::const_span primeBytes);
 

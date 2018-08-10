@@ -46,6 +46,10 @@ inline QString PassportCorrupted() {
 	return qsl("It seems your Telegram Passport data was corrupted.\n\nYou can reset your Telegram Passport and restart this authorization.");
 }
 
+inline QString PassportCorruptedChange() {
+	return qsl("It seems your Telegram Passport data was corrupted.\n\nYou can reset your Telegram Passport and change your cloud password.");
+}
+
 inline QString PassportCorruptedReset() {
 	return qsl("Reset");
 }

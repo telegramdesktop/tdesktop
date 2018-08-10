@@ -196,7 +196,7 @@ struct Form {
 };
 
 struct PasswordSettings {
-	Core::CloudPasswordAlgo algo;
+	Core::CloudPasswordCheckRequest request;
 	Core::CloudPasswordAlgo newAlgo;
 	Core::SecureSecretAlgo newSecureAlgo;
 	QString hint;
@@ -207,9 +207,14 @@ struct PasswordSettings {
 	bool unknownAlgo = false;
 
 	bool operator==(const PasswordSettings &other) const {
-		return (algo == other.algo)
-			&& (newAlgo == other.newAlgo)
-			&& (newSecureAlgo == other.newSecureAlgo)
+		return (request == other.request)
+// newAlgo and newSecureAlgo are always different, because they have
+// different random parts added on the client to the server salts.
+//			&& (newAlgo == other.newAlgo)
+//			&& (newSecureAlgo == other.newSecureAlgo)
+			&& ((!newAlgo && !other.newAlgo) || (newAlgo && other.newAlgo))
+			&& ((!newSecureAlgo && !other.newSecureAlgo)
+				|| (newSecureAlgo && other.newSecureAlgo))
 			&& (hint == other.hint)
 			&& (unconfirmedPattern == other.unconfirmedPattern)
 			&& (confirmedEmail == other.confirmedEmail)
@@ -310,6 +315,9 @@ public:
 	~FormController();
 
 private:
+	using PasswordCheckCallback = Fn<void(
+		const Core::CloudPasswordResult &check)>;
+
 	struct FinalData {
 		QVector<MTPSecureValueHash> hashes;
 		QByteArray credentials;
@@ -340,11 +348,26 @@ private:
 		File &destination,
 		const std::vector<EditFile> &source) const;
 
+	void submitPassword(
+		const Core::CloudPasswordResult &check,
+		const QByteArray &password,
+		bool submitSaved);
+	void checkPasswordHash(
+		mtpRequestId &guard,
+		bytes::vector hash,
+		PasswordCheckCallback callback);
+	bool handleSrpIdInvalid(mtpRequestId &guard);
+	void requestPasswordData(mtpRequestId &guard);
+	void passwordChecked();
+	void passwordServerError();
 	void passwordDone(const MTPaccount_Password &result);
 	bool applyPassword(const MTPDaccount_password &settings);
 	bool applyPassword(PasswordSettings &&settings);
 	bytes::vector passwordHashForAuth(bytes::const_span password) const;
 	void checkSavedPasswordSettings(const SavedCredentials &credentials);
+	void checkSavedPasswordSettings(
+		const Core::CloudPasswordResult &check,
+		const SavedCredentials &credentials);
 	void validateSecureSecret(
 		bytes::const_span encryptedSecret,
 		bytes::const_span passwordHashForSecret,
@@ -361,6 +384,10 @@ private:
 	void fileLoadProgress(FileKey key, int offset);
 	void fileLoadFail(FileKey key);
 	void generateSecret(bytes::const_span password);
+	void saveSecret(
+		const Core::CloudPasswordResult &check,
+		const SavedCredentials &saved,
+		const bytes::vector &secret);
 
 	void subscribeToUploader();
 	void encryptFile(
@@ -410,6 +437,9 @@ private:
 	FinalData prepareFinalData();
 
 	void suggestReset(bytes::vector password);
+	void resetSecret(
+		const Core::CloudPasswordResult &check,
+		const bytes::vector &password);
 	void suggestRestart();
 	void cancelAbort();
 	void shortPollEmailConfirmation();
@@ -423,6 +453,9 @@ private:
 	mtpRequestId _passwordCheckRequestId = 0;
 
 	PasswordSettings _password;
+	TimeMs _lastSrpIdInvalidTime = 0;
+	bytes::vector _passwordCheckHash;
+	PasswordCheckCallback _passwordCheckCallback;
 	QByteArray _savedPasswordValue;
 	Form _form;
 	bool _cancelled = false;

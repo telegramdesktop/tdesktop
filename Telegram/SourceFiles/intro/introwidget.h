@@ -73,7 +73,7 @@ public:
 		int codeLength = 5;
 		bool codeByTelegram = false;
 
-		Core::CloudPasswordAlgo pwdAlgo;
+		Core::CloudPasswordCheckRequest pwdRequest;
 		bool hasRecovery = false;
 		QString pwdHint;
 		bool pwdNotEmptyPassport = false;

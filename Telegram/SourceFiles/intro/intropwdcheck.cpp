@@ -26,7 +26,7 @@ PwdCheckWidget::PwdCheckWidget(
 	QWidget *parent,
 	Widget::Data *data)
 : Step(parent, data)
-, _algo(getData()->pwdAlgo)
+, _request(getData()->pwdRequest)
 , _hasRecovery(getData()->hasRecovery)
 , _notEmptyPassport(getData()->pwdNotEmptyPassport)
 , _hint(getData()->pwdHint)
@@ -36,7 +36,7 @@ PwdCheckWidget::PwdCheckWidget(
 , _toRecover(this, lang(lng_signin_recover))
 , _toPassword(this, lang(lng_signin_try_password))
 , _checkRequest(this) {
-	Expects(_algo.has_value());
+	Expects(!!_request);
 
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 
@@ -103,7 +103,7 @@ void PwdCheckWidget::activate() {
 }
 
 void PwdCheckWidget::cancelled() {
-	MTP::cancel(base::take(_sentRequest));
+	request(base::take(_sentRequest)).cancel();
 }
 
 void PwdCheckWidget::stopCheck() {
@@ -115,7 +115,7 @@ void PwdCheckWidget::onCheckRequest() {
 	if (status < 0) {
 		auto leftms = -status;
 		if (leftms >= 1000) {
-			MTP::cancel(base::take(_sentRequest));
+			request(base::take(_sentRequest)).cancel();
 		}
 	}
 	if (!_sentRequest && status == MTP::RequestSent) {
@@ -137,72 +137,125 @@ void PwdCheckWidget::pwdSubmitDone(bool recover, const MTPauth_Authorization &re
 	finish(d.vuser);
 }
 
-bool PwdCheckWidget::pwdSubmitFail(const RPCError &error) {
+void PwdCheckWidget::pwdSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
 		_sentRequest = 0;
 		stopCheck();
 		showError(langFactory(lng_flood_error));
 		_pwdField->showError();
-		return true;
+		return;
 	}
-	if (MTP::isDefaultHandledError(error)) return false;
 
 	_sentRequest = 0;
 	stopCheck();
 	auto &err = error.type();
-	if (err == qstr("PASSWORD_HASH_INVALID")) {
+	if (err == qstr("PASSWORD_HASH_INVALID")
+		|| err == qstr("SRP_PASSWORD_CHANGED")) {
 		showError(langFactory(lng_signin_bad_password));
 		_pwdField->selectAll();
 		_pwdField->showError();
-		return true;
 	} else if (err == qstr("PASSWORD_EMPTY")) {
 		goBack();
-	}
-	if (Logs::DebugEnabled()) { // internal server error
-		auto text = err + ": " + error.description();
-		showError([text] { return text; });
+	} else if (err == qstr("SRP_ID_INVALID")) {
+		handleSrpIdInvalid();
 	} else {
-		showError(&Lang::Hard::ServerError);
+		if (Logs::DebugEnabled()) { // internal server error
+			auto text = err + ": " + error.description();
+			showError([text] { return text; });
+		} else {
+			showError(&Lang::Hard::ServerError);
+		}
+		_pwdField->setFocus();
 	}
-	_pwdField->setFocus();
-	return false;
 }
 
-bool PwdCheckWidget::codeSubmitFail(const RPCError &error) {
+void PwdCheckWidget::handleSrpIdInvalid() {
+	const auto now = getms(true);
+	if (_lastSrpIdInvalidTime > 0
+		&& now - _lastSrpIdInvalidTime < Core::kHandleSrpIdInvalidTimeout) {
+		_request.id = 0;
+		showError(&Lang::Hard::ServerError);
+	} else {
+		_lastSrpIdInvalidTime = now;
+		requestPasswordData();
+	}
+}
+
+void PwdCheckWidget::checkPasswordHash() {
+	if (_request.id) {
+		passwordChecked();
+	} else {
+		requestPasswordData();
+	}
+}
+
+void PwdCheckWidget::requestPasswordData() {
+	request(base::take(_sentRequest)).cancel();
+	_sentRequest = request(
+		MTPaccount_GetPassword()
+	).done([=](const MTPaccount_Password &result) {
+		_sentRequest = 0;
+		result.match([&](const MTPDaccount_password &data) {
+			_request = Core::ParseCloudPasswordCheckRequest(data);
+			passwordChecked();
+		});
+	}).send();
+}
+
+void PwdCheckWidget::passwordChecked() {
+	if (!_request || !_request.id) {
+		return serverError();
+	}
+	const auto check = Core::ComputeCloudPasswordCheck(
+		_request,
+		_passwordHash);
+	if (!check) {
+		return serverError();
+	}
+	_request.id = 0;
+	_sentRequest = request(
+		MTPauth_CheckPassword(check.result)
+	).done([=](const MTPauth_Authorization &result) {
+		pwdSubmitDone(false, result);
+	}).handleFloodErrors().fail([=](const RPCError &error) {
+		pwdSubmitFail(error);
+	}).send();
+}
+
+void PwdCheckWidget::serverError() {
+	showError(&Lang::Hard::ServerError);
+}
+
+void PwdCheckWidget::codeSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
 		showError(langFactory(lng_flood_error));
 		_codeField->showError();
-		return true;
+		return;
 	}
-	if (MTP::isDefaultHandledError(error)) return false;
 
 	_sentRequest = 0;
 	stopCheck();
 	const QString &err = error.type();
 	if (err == qstr("PASSWORD_EMPTY")) {
 		goBack();
-		return true;
 	} else if (err == qstr("PASSWORD_RECOVERY_NA")) {
 		recoverStartFail(error);
-		return true;
 	} else if (err == qstr("PASSWORD_RECOVERY_EXPIRED")) {
 		_emailPattern = QString();
 		onToPassword();
-		return true;
 	} else if (err == qstr("CODE_INVALID")) {
 		showError(langFactory(lng_signin_wrong_code));
 		_codeField->selectAll();
 		_codeField->showError();
-		return true;
-	}
-	if (Logs::DebugEnabled()) { // internal server error
-		auto text = err + ": " + error.description();
-		showError([text] { return text; });
 	} else {
-		showError(&Lang::Hard::ServerError);
+		if (Logs::DebugEnabled()) { // internal server error
+			auto text = err + ": " + error.description();
+			showError([text] { return text; });
+		} else {
+			showError(&Lang::Hard::ServerError);
+		}
+		_codeField->setFocus();
 	}
-	_codeField->setFocus();
-	return false;
 }
 
 void PwdCheckWidget::recoverStarted(const MTPauth_PasswordRecovery &result) {
@@ -210,7 +263,7 @@ void PwdCheckWidget::recoverStarted(const MTPauth_PasswordRecovery &result) {
 	updateDescriptionText();
 }
 
-bool PwdCheckWidget::recoverStartFail(const RPCError &error) {
+void PwdCheckWidget::recoverStartFail(const RPCError &error) {
 	stopCheck();
 	_pwdField->show();
 	_pwdHint->show();
@@ -219,13 +272,12 @@ bool PwdCheckWidget::recoverStartFail(const RPCError &error) {
 	updateDescriptionText();
 	update();
 	hideError();
-	return true;
 }
 
 void PwdCheckWidget::onToRecover() {
 	if (_hasRecovery) {
 		if (_sentRequest) {
-			MTP::cancel(base::take(_sentRequest));
+			request(base::take(_sentRequest)).cancel();
 		}
 		hideError();
 		_toRecover->hide();
@@ -237,7 +289,13 @@ void PwdCheckWidget::onToRecover() {
 		_codeField->setFocus();
 		updateDescriptionText();
 		if (_emailPattern.isEmpty()) {
-			MTP::send(MTPauth_RequestPasswordRecovery(), rpcDone(&PwdCheckWidget::recoverStarted), rpcFail(&PwdCheckWidget::recoverStartFail));
+			request(
+				MTPauth_RequestPasswordRecovery()
+			).done([=](const MTPauth_PasswordRecovery &result) {
+				recoverStarted(result);
+			}).fail([=](const RPCError &error) {
+				recoverStartFail(error);
+			}).send();
 		}
 	} else {
 		Ui::show(Box<InformBox>(lang(lng_signin_no_email_forgot), [this] { showReset(); }));
@@ -250,7 +308,7 @@ void PwdCheckWidget::onToPassword() {
 
 void PwdCheckWidget::showReset() {
 	if (_sentRequest) {
-		MTP::cancel(base::take(_sentRequest));
+		request(base::take(_sentRequest)).cancel();
 	}
 	_toRecover->show();
 	_toPassword->hide();
@@ -285,10 +343,13 @@ void PwdCheckWidget::submit() {
 			return;
 		}
 		const auto send = crl::guard(this, [=] {
-			_sentRequest = MTP::send(
-				MTPauth_RecoverPassword(MTP_string(code)),
-				rpcDone(&PwdCheckWidget::pwdSubmitDone, true),
-				rpcFail(&PwdCheckWidget::codeSubmitFail));
+			_sentRequest = request(
+				MTPauth_RecoverPassword(MTP_string(code))
+			).done([=](const MTPauth_Authorization &result) {
+				pwdSubmitDone(true, result);
+			}).handleFloodErrors().fail([=](const RPCError &error) {
+				codeSubmitFail(error);
+			}).send();
 		});
 
 		if (_notEmptyPassport) {
@@ -310,13 +371,10 @@ void PwdCheckWidget::submit() {
 		hideError();
 
 		const auto password = _pwdField->getLastText().toUtf8();
-		const auto hash = Core::ComputeCloudPasswordHash(
-			_algo,
+		_passwordHash = Core::ComputeCloudPasswordHash(
+			_request.algo,
 			bytes::make_span(password));
-		_sentRequest = MTP::send(
-			MTPauth_CheckPassword(MTP_bytes(hash)),
-			rpcDone(&PwdCheckWidget::pwdSubmitDone, false),
-			rpcFail(&PwdCheckWidget::pwdSubmitFail));
+		checkPasswordHash();
 	}
 }
 

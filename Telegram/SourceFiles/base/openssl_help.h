@@ -87,18 +87,11 @@ public:
 			_failed = true;
 		}
 	}
-	void setModExp(
-			const BigNum &a,
-			const BigNum &p,
-			const BigNum &m,
-			const Context &context = Context()) {
-		if (a.failed() || p.failed() || m.failed()) {
+
+	void setAdd(const BigNum &a, const BigNum &b) {
+		if (a.failed() || b.failed()) {
 			_failed = true;
-		} else if (a.isNegative() || p.isNegative() || m.isNegative()) {
-			_failed = true;
-		} else if (!BN_mod_exp(raw(), a.raw(), p.raw(), m.raw(), context.raw())) {
-			_failed = true;
-		} else if (isNegative()) {
+		} else if (!BN_add(raw(), a.raw(), b.raw())) {
 			_failed = true;
 		}
 	}
@@ -116,6 +109,16 @@ public:
 			_failed = true;
 		}
 	}
+	void setMul(
+			const BigNum &a,
+			const BigNum &b,
+			const Context &context = Context()) {
+		if (a.failed() || b.failed()) {
+			_failed = true;
+		} else if (!BN_mul(raw(), a.raw(), b.raw(), context.raw())) {
+			_failed = true;
+		}
+	}
 	BN_ULONG setDivWord(BN_ULONG word) {
 		Expects(word != 0);
 		if (failed()) {
@@ -127,6 +130,51 @@ public:
 			_failed = true;
 		}
 		return result;
+	}
+	void setModSub(
+			const BigNum &a,
+			const BigNum &b,
+			const BigNum &m,
+			const Context &context = Context()) {
+		if (a.failed() || b.failed() || m.failed()) {
+			_failed = true;
+		} else if (a.isNegative() || b.isNegative() || m.isNegative()) {
+			_failed = true;
+		} else if (!BN_mod_sub(raw(), a.raw(), b.raw(), m.raw(), context.raw())) {
+			_failed = true;
+		} else if (isNegative()) {
+			_failed = true;
+		}
+	}
+	void setModMul(
+			const BigNum &a,
+			const BigNum &b,
+			const BigNum &m,
+			const Context &context = Context()) {
+		if (a.failed() || b.failed() || m.failed()) {
+			_failed = true;
+		} else if (a.isNegative() || b.isNegative() || m.isNegative()) {
+			_failed = true;
+		} else if (!BN_mod_mul(raw(), a.raw(), b.raw(), m.raw(), context.raw())) {
+			_failed = true;
+		} else if (isNegative()) {
+			_failed = true;
+		}
+	}
+	void setModExp(
+			const BigNum &base,
+			const BigNum &power,
+			const BigNum &m,
+			const Context &context = Context()) {
+		if (base.failed() || power.failed() || m.failed()) {
+			_failed = true;
+		} else if (base.isNegative() || power.isNegative() || m.isNegative()) {
+			_failed = true;
+		} else if (!BN_mod_exp(raw(), base.raw(), power.raw(), m.raw(), context.raw())) {
+			_failed = true;
+		} else if (isNegative()) {
+			_failed = true;
+		}
 	}
 
 	bool isNegative() const {
@@ -198,9 +246,54 @@ public:
 		return _failed;
 	}
 
-	static BigNum ModExp(const BigNum &base, const BigNum &power, const openssl::BigNum &mod) {
+	static BigNum Add(const BigNum &a, const BigNum &b) {
 		BigNum result;
-		result.setModExp(base, power, mod);
+		result.setAdd(a, b);
+		return result;
+	}
+	static BigNum Sub(const BigNum &a, const BigNum &b) {
+		BigNum result;
+		result.setSub(a, b);
+		return result;
+	}
+	static BigNum Mul(
+			const BigNum &a,
+			const BigNum &b,
+			const Context &context = Context()) {
+		BigNum result;
+		result.setMul(a, b, context);
+		return result;
+	}
+	static BigNum ModSub(
+			const BigNum &a,
+			const BigNum &b,
+			const BigNum &mod,
+			const Context &context = Context()) {
+		BigNum result;
+		result.setModSub(a, b, mod, context);
+		return result;
+	}
+	static BigNum ModMul(
+			const BigNum &a,
+			const BigNum &b,
+			const BigNum &mod,
+			const Context &context = Context()) {
+		BigNum result;
+		result.setModMul(a, b, mod, context);
+		return result;
+	}
+	static BigNum ModExp(
+			const BigNum &base,
+			const BigNum &power,
+			const BigNum &mod,
+			const Context &context = Context()) {
+		BigNum result;
+		result.setModExp(base, power, mod, context);
+		return result;
+	}
+	static BigNum Failed() {
+		BigNum result;
+		result._failed = true;
 		return result;
 	}
 
@@ -209,12 +302,6 @@ private:
 	mutable bool _failed = false;
 
 };
-
-inline BigNum operator-(const BigNum &a, const BigNum &b) {
-	BigNum result;
-	result.setSub(a, b);
-	return result;
-}
 
 namespace details {
 

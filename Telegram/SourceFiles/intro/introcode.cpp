@@ -293,14 +293,12 @@ void CodeWidget::gotPassword(const MTPaccount_Password &result) {
 	stopCheck();
 	_sentRequest = 0;
 	const auto &d = result.c_account_password();
-	getData()->pwdAlgo = d.has_current_algo()
-		? Core::ParseCloudPasswordAlgo(d.vcurrent_algo)
-		: Core::CloudPasswordAlgo();
-	if (!d.has_current_algo()) {
+	getData()->pwdRequest = Core::ParseCloudPasswordCheckRequest(d);
+	if (!d.has_current_algo() || !d.has_srp_id() || !d.has_srp_B()) {
 		LOG(("API Error: No current password received on login."));
 		_code->setFocus();
 		return;
-	} else if (!getData()->pwdAlgo) {
+	} else if (!getData()->pwdRequest) {
 		const auto box = std::make_shared<QPointer<BoxContent>>();
 		const auto callback = [=] {
 			Core::UpdateApplication();
@@ -326,7 +324,7 @@ void CodeWidget::submit() {
 	_checkRequest->start(1000);
 
 	_sentCode = _code->getLastText();
-	getData()->pwdAlgo = Core::CloudPasswordAlgo();
+	getData()->pwdRequest = Core::CloudPasswordCheckRequest();
 	getData()->hasRecovery = false;
 	getData()->pwdHint = QString();
 	getData()->pwdNotEmptyPassport = false;

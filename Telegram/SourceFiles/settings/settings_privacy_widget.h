@@ -66,7 +66,7 @@ private:
 	object_ptr<Ui::LinkButton> _turnOff;
 
 	QString _waitingConfirm;
-	Core::CloudPasswordAlgo _curPasswordAlgo;
+	Core::CloudPasswordCheckRequest _curPasswordRequest;
 	bool _unknownPasswordAlgo = false;
 	bool _hasPasswordRecovery = false;
 	bool _notEmptyPassport = false;

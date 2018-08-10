@@ -93,7 +93,7 @@ void CloudPasswordState::onEdit() {
 		return;
 	}
 	auto box = Ui::show(Box<PasscodeBox>(
-		_curPasswordAlgo,
+		_curPasswordRequest,
 		_newPasswordAlgo,
 		_hasPasswordRecovery,
 		_notEmptyPassport,
@@ -122,12 +122,12 @@ void CloudPasswordState::onTurnOff() {
 			callback));
 		return;
 	}
-	if (!_curPasswordAlgo) {
+	if (!_curPasswordRequest) {
 		_turnOff->hide();
 
 		MTP::send(
 			MTPaccount_UpdatePasswordSettings(
-				MTP_bytes(QByteArray()),
+				MTP_inputCheckPasswordEmpty(),
 				MTP_account_passwordInputSettings(
 					MTP_flags(
 						MTPDaccount_passwordInputSettings::Flag::f_email),
@@ -140,7 +140,7 @@ void CloudPasswordState::onTurnOff() {
 			rpcFail(&CloudPasswordState::offPasswordFail));
 	} else {
 		auto box = Ui::show(Box<PasscodeBox>(
-			_curPasswordAlgo,
+			_curPasswordRequest,
 			_newPasswordAlgo,
 			_hasPasswordRecovery,
 			_notEmptyPassport,
@@ -177,10 +177,8 @@ void CloudPasswordState::getPasswordDone(const MTPaccount_Password &result) {
 	_waitingConfirm = QString();
 
 	const auto &d = result.c_account_password();
-	_curPasswordAlgo = d.has_current_algo()
-		? Core::ParseCloudPasswordAlgo(d.vcurrent_algo)
-		: Core::CloudPasswordAlgo();
-	_unknownPasswordAlgo = d.has_current_algo() && !_curPasswordAlgo;
+	_curPasswordRequest = Core::ParseCloudPasswordCheckRequest(d);
+	_unknownPasswordAlgo = d.has_current_algo() && !_curPasswordRequest;
 	_hasPasswordRecovery = d.is_has_recovery();
 	_notEmptyPassport = d.is_has_secure_values();
 	_curPasswordHint = qs(d.vhint);
@@ -205,7 +203,7 @@ void CloudPasswordState::getPasswordDone(const MTPaccount_Password &result) {
 }
 
 bool CloudPasswordState::hasCloudPassword() const {
-	return (_curPasswordAlgo || _unknownPasswordAlgo);
+	return (_curPasswordRequest || _unknownPasswordAlgo);
 }
 
 bool CloudPasswordState::getPasswordFail(const RPCError &error) {

@@ -590,7 +590,7 @@ authorization#7bf2e6f6 hash:long flags:int device_model:string platform:string s
 
 account.authorizations#1250abde authorizations:Vector<Authorization> = account.Authorizations;
 
-account.password#68873ba5 flags:# has_recovery:flags.0?true has_secure_values:flags.1?true has_password:flags.2?true current_algo:flags.2?PasswordKdfAlgo hint:flags.3?string email_unconfirmed_pattern:flags.4?string new_algo:PasswordKdfAlgo new_secure_algo:SecurePasswordKdfAlgo secure_random:bytes = account.Password;
+account.password#ad2641f8 flags:# has_recovery:flags.0?true has_secure_values:flags.1?true has_password:flags.2?true current_algo:flags.2?PasswordKdfAlgo srp_B:flags.2?bytes srp_id:flags.2?long hint:flags.3?string email_unconfirmed_pattern:flags.4?string new_algo:PasswordKdfAlgo new_secure_algo:SecurePasswordKdfAlgo secure_random:bytes = account.Password;
 
 account.passwordSettings#9a5c33e5 flags:# email:flags.0?string secure_settings:flags.1?SecureSecretSettings = account.PasswordSettings;
 
@@ -1022,13 +1022,16 @@ savedPhoneContact#1142bd56 phone:string first_name:string last_name:string date:
 account.takeout#4dba4501 id:long = account.Takeout;
 
 passwordKdfAlgoUnknown#d45ab096 = PasswordKdfAlgo;
-passwordKdfAlgoSHA256SHA256PBKDF2HMACSHA512iter100000#b6425eaa salt1:bytes salt2:bytes = PasswordKdfAlgo;
+passwordKdfAlgoSHA256SHA256PBKDF2HMACSHA512iter100000SHA256ModPow#3a912d4a salt1:bytes salt2:bytes g:int p:bytes = PasswordKdfAlgo;
 
 securePasswordKdfAlgoUnknown#4a8537 = SecurePasswordKdfAlgo;
 securePasswordKdfAlgoPBKDF2HMACSHA512iter100000#bbf2dda0 salt:bytes = SecurePasswordKdfAlgo;
 securePasswordKdfAlgoSHA512#86471d92 salt:bytes = SecurePasswordKdfAlgo;
 
 secureSecretSettings#1527bcac secure_algo:SecurePasswordKdfAlgo secure_secret:bytes secure_secret_id:long = SecureSecretSettings;
+
+inputCheckPasswordEmpty#9880f658 = InputCheckPasswordSRP;
+inputCheckPasswordSRP#d27ff082 srp_id:long A:bytes M1:bytes = InputCheckPasswordSRP;
 
 ---functions---
 
@@ -1049,7 +1052,7 @@ auth.exportAuthorization#e5bfffcd dc_id:int = auth.ExportedAuthorization;
 auth.importAuthorization#e3ef9613 id:int bytes:bytes = auth.Authorization;
 auth.bindTempAuthKey#cdd42a05 perm_auth_key_id:long nonce:long expires_at:int encrypted_message:bytes = Bool;
 auth.importBotAuthorization#67a3ff2c flags:int api_id:int api_hash:string bot_auth_token:string = auth.Authorization;
-auth.checkPassword#a63011e password_hash:bytes = auth.Authorization;
+auth.checkPassword#d18b4d16 password:InputCheckPasswordSRP = auth.Authorization;
 auth.requestPasswordRecovery#d897bc66 = auth.PasswordRecovery;
 auth.recoverPassword#4ea56e92 code:string = auth.Authorization;
 auth.resendCode#3ef1a9bf phone_number:string phone_code_hash:string = auth.SentCode;
@@ -1078,11 +1081,11 @@ account.updateDeviceLocked#38df3532 period:int = Bool;
 account.getAuthorizations#e320c158 = account.Authorizations;
 account.resetAuthorization#df77f3bc hash:long = Bool;
 account.getPassword#548a30f5 = account.Password;
-account.getPasswordSettings#bc8d11bb current_password_hash:bytes = account.PasswordSettings;
-account.updatePasswordSettings#fa7c4b86 current_password_hash:bytes new_settings:account.PasswordInputSettings = Bool;
+account.getPasswordSettings#9cd4eaf9 password:InputCheckPasswordSRP = account.PasswordSettings;
+account.updatePasswordSettings#a59b102f password:InputCheckPasswordSRP new_settings:account.PasswordInputSettings = Bool;
 account.sendConfirmPhoneCode#1516d7bd flags:# allow_flashcall:flags.0?true hash:string current_number:flags.0?Bool = auth.SentCode;
 account.confirmPhone#5f2178c3 phone_code_hash:string phone_code:string = Bool;
-account.getTmpPassword#4a82327e password_hash:bytes period:int = account.TmpPassword;
+account.getTmpPassword#449e0b51 password:InputCheckPasswordSRP period:int = account.TmpPassword;
 account.getWebAuthorizations#182e6d6f = account.WebAuthorizations;
 account.resetWebAuthorization#2d01b9ef hash:long = Bool;
 account.resetWebAuthorizations#682d2594 = Bool;
@@ -1318,4 +1321,4 @@ langpack.getStrings#2e1ee318 lang_code:string keys:Vector<string> = Vector<LangP
 langpack.getDifference#b2e4d7d from_version:int = LangPackDifference;
 langpack.getLanguages#800fd57d = Vector<LangPackLanguage>;
 
-// LAYER 83
+// LAYER 84

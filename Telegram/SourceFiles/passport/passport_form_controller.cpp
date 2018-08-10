@@ -321,7 +321,7 @@ QString FormController::privacyPolicyUrl() const {
 
 bytes::vector FormController::passwordHashForAuth(
 		bytes::const_span password) const {
-	return Core::ComputeCloudPasswordHash(_password.algo, password);
+	return Core::ComputeCloudPasswordHash(_password.request.algo, password);
 }
 
 auto FormController::prepareFinalData() -> FinalData {
@@ -442,8 +442,52 @@ std::vector<not_null<const Value*>> FormController::submitGetErrors() {
 	return {};
 }
 
+void FormController::checkPasswordHash(
+		mtpRequestId &guard,
+		bytes::vector hash,
+		PasswordCheckCallback callback) {
+	_passwordCheckHash = std::move(hash);
+	_passwordCheckCallback = std::move(callback);
+	if (_password.request.id) {
+		passwordChecked();
+	} else {
+		requestPasswordData(guard);
+	}
+}
+
+void FormController::passwordChecked() {
+	if (!_password.request || !_password.request.id) {
+		return passwordServerError();
+	}
+	const auto check = Core::ComputeCloudPasswordCheck(
+		_password.request,
+		_passwordCheckHash);
+	if (!check) {
+		return passwordServerError();
+	}
+	_password.request.id = 0;
+	_passwordCheckCallback(check);
+}
+
+void FormController::requestPasswordData(mtpRequestId &guard) {
+	if (!_passwordCheckCallback) {
+		return passwordServerError();
+	}
+
+	request(base::take(guard)).cancel();
+	guard = request(
+		MTPaccount_GetPassword()
+	).done([=, &guard](const MTPaccount_Password &result) {
+		guard = 0;
+		result.match([&](const MTPDaccount_password &data) {
+			_password.request = Core::ParseCloudPasswordCheckRequest(data);
+			passwordChecked();
+		});
+	}).send();
+}
+
 void FormController::submitPassword(const QByteArray &password) {
-	Expects(_password.algo.has_value());
+	Expects(!!_password.request);
 
 	const auto submitSaved = !base::take(_savedPasswordValue).isEmpty();
 	if (_passwordCheckRequestId) {
@@ -452,16 +496,27 @@ void FormController::submitPassword(const QByteArray &password) {
 		_passwordError.fire(QString());
 		return;
 	}
+	const auto callback = [=](const Core::CloudPasswordResult &check) {
+		submitPassword(check, password, submitSaved);
+	};
+	checkPasswordHash(
+		_passwordCheckRequestId,
+		passwordHashForAuth(bytes::make_span(password)),
+		callback);
+}
+
+void FormController::submitPassword(
+		const Core::CloudPasswordResult &check,
+		const QByteArray &password,
+		bool submitSaved) {
 	_passwordCheckRequestId = request(MTPaccount_GetPasswordSettings(
-		MTP_bytes(passwordHashForAuth(bytes::make_span(password)))
+		check.result
 	)).handleFloodErrors(
 	).done([=](const MTPaccount_PasswordSettings &result) {
 		Expects(result.type() == mtpc_account_passwordSettings);
 
 		_passwordCheckRequestId = 0;
 		_savedPasswordValue = QByteArray();
-		const auto hashForAuth = passwordHashForAuth(
-			bytes::make_span(password));
 		const auto &data = result.c_account_passwordSettings();
 		_password.confirmedEmail = qs(data.vemail);
 		if (data.has_secure_settings()) {
@@ -483,7 +538,7 @@ void FormController::submitPassword(const QByteArray &password) {
 				settings.vsecure_secret_id.v);
 			if (!_secret.empty()) {
 				auto saved = SavedCredentials();
-				saved.hashForAuth = hashForAuth;
+				saved.hashForAuth = base::take(_passwordCheckHash);
 				saved.hashForSecret = hashForSecret;
 				saved.secretId = _secretId;
 				Auth().data().rememberPassportCredentials(
@@ -499,13 +554,16 @@ void FormController::submitPassword(const QByteArray &password) {
 		}
 	}).fail([=](const RPCError &error) {
 		_passwordCheckRequestId = 0;
-		if (submitSaved) {
+		if (error.type() == qstr("SRP_ID_INVALID")) {
+			handleSrpIdInvalid(_passwordCheckRequestId);
+		} else if (submitSaved) {
 			// Force reload and show form.
 			_password = PasswordSettings();
 			reloadPassword();
 		} else if (MTP::isFloodError(error)) {
 			_passwordError.fire(lang(lng_flood_error));
-		} else if (error.type() == qstr("PASSWORD_HASH_INVALID")) {
+		} else if (error.type() == qstr("PASSWORD_HASH_INVALID")
+			|| error.type() == qstr("SRP_PASSWORD_CHANGED")) {
 			_passwordError.fire(lang(lng_passport_password_wrong));
 		} else {
 			_passwordError.fire_copy(error.type());
@@ -513,10 +571,40 @@ void FormController::submitPassword(const QByteArray &password) {
 	}).send();
 }
 
+bool FormController::handleSrpIdInvalid(mtpRequestId &guard) {
+	const auto now = getms(true);
+	if (_lastSrpIdInvalidTime > 0
+		&& now - _lastSrpIdInvalidTime < Core::kHandleSrpIdInvalidTimeout) {
+		_password.request.id = 0;
+		_passwordError.fire(Lang::Hard::ServerError());
+		return false;
+	} else {
+		_lastSrpIdInvalidTime = now;
+		requestPasswordData(guard);
+		return true;
+	}
+}
+
+void FormController::passwordServerError() {
+	_view->showCriticalError(Lang::Hard::ServerError());
+}
+
 void FormController::checkSavedPasswordSettings(
 		const SavedCredentials &credentials) {
+	const auto callback = [=](const Core::CloudPasswordResult &check) {
+		checkSavedPasswordSettings(check, credentials);
+	};
+	checkPasswordHash(
+		_passwordCheckRequestId,
+		credentials.hashForAuth,
+		callback);
+}
+
+void FormController::checkSavedPasswordSettings(
+		const Core::CloudPasswordResult &check,
+		const SavedCredentials &credentials) {
 	_passwordCheckRequestId = request(MTPaccount_GetPasswordSettings(
-		MTP_bytes(credentials.hashForAuth)
+		check.result
 	)).done([=](const MTPaccount_PasswordSettings &result) {
 		Expects(result.type() == mtpc_account_passwordSettings);
 
@@ -546,8 +634,12 @@ void FormController::checkSavedPasswordSettings(
 		}
 	}).fail([=](const RPCError &error) {
 		_passwordCheckRequestId = 0;
-		Auth().data().forgetPassportCredentials();
-		showForm();
+		if (error.type() != qstr("SRP_ID_INVALID")
+			|| !handleSrpIdInvalid(_passwordCheckRequestId)) {
+		} else {
+			Auth().data().forgetPassportCredentials();
+			showForm();
+		}
 	}).send();
 }
 
@@ -601,7 +693,7 @@ void FormController::cancelPassword() {
 		return;
 	}
 	_passwordRequestId = request(MTPaccount_UpdatePasswordSettings(
-		MTP_bytes(QByteArray()),
+		MTP_inputCheckPasswordEmpty(),
 		MTP_account_passwordInputSettings(
 			MTP_flags(MTPDaccount_passwordInputSettings::Flag::f_email),
 			MTP_passwordKdfAlgoUnknown(), // new_algo
@@ -662,28 +754,43 @@ void FormController::suggestReset(bytes::vector password) {
 //		}
 	}
 	_view->suggestReset([=] {
-		using Flag = MTPDaccount_passwordInputSettings::Flag;
-		_saveSecretRequestId = request(MTPaccount_UpdatePasswordSettings(
-			MTP_bytes(passwordHashForAuth(password)),
-			MTP_account_passwordInputSettings(
-				MTP_flags(Flag::f_new_secure_settings),
-				MTPPasswordKdfAlgo(), // new_algo
-				MTPbytes(), // new_password_hash
-				MTPstring(), // hint
-				MTPstring(), // email
-				MTP_secureSecretSettings(
-					MTP_securePasswordKdfAlgoUnknown(), // secure_algo
-					MTP_bytes(QByteArray()), // secure_secret
-					MTP_long(0))) // secure_secret_id
-		)).done([=](const MTPBool &result) {
-			_saveSecretRequestId = 0;
-			generateSecret(password);
-		}).fail([=](const RPCError &error) {
-			_saveSecretRequestId = 0;
-			formFail(error.type());
-		}).send();
+		const auto callback = [=](const Core::CloudPasswordResult &check) {
+			resetSecret(check, password);
+		};
+		checkPasswordHash(
+			_saveSecretRequestId,
+			passwordHashForAuth(bytes::make_span(password)),
+			callback);
 		_secretReady.fire({});
 	});
+}
+
+void FormController::resetSecret(
+		const Core::CloudPasswordResult &check,
+		const bytes::vector &password) {
+	using Flag = MTPDaccount_passwordInputSettings::Flag;
+	_saveSecretRequestId = request(MTPaccount_UpdatePasswordSettings(
+		check.result,
+		MTP_account_passwordInputSettings(
+			MTP_flags(Flag::f_new_secure_settings),
+			MTPPasswordKdfAlgo(), // new_algo
+			MTPbytes(), // new_password_hash
+			MTPstring(), // hint
+			MTPstring(), // email
+			MTP_secureSecretSettings(
+				MTP_securePasswordKdfAlgoUnknown(), // secure_algo
+				MTP_bytes(QByteArray()), // secure_secret
+				MTP_long(0))) // secure_secret_id
+	)).done([=](const MTPBool &result) {
+		_saveSecretRequestId = 0;
+		generateSecret(password);
+	}).fail([=](const RPCError &error) {
+		_saveSecretRequestId = 0;
+		if (error.type() != qstr("SRP_ID_INVALID")
+			|| !handleSrpIdInvalid(_saveSecretRequestId)) {
+			formFail(error.type());
+		}
+	}).send();
 }
 
 void FormController::decryptValues() {
@@ -1792,19 +1899,29 @@ void FormController::generateSecret(bytes::const_span password) {
 	auto secret = GenerateSecretBytes();
 
 	auto saved = SavedCredentials();
-	saved.hashForAuth = passwordHashForAuth(password);
+	saved.hashForAuth = _passwordCheckHash;
 	saved.hashForSecret = Core::ComputeSecureSecretHash(
 		_password.newSecureAlgo,
 		password);
 	saved.secretId = CountSecureSecretId(secret);
 
-	auto encryptedSecret = EncryptSecureSecret(
+	const auto callback = [=](const Core::CloudPasswordResult &check) {
+		saveSecret(check, saved, secret);
+	};
+	checkPasswordHash(_saveSecretRequestId, saved.hashForAuth, callback);
+}
+
+void FormController::saveSecret(
+		const Core::CloudPasswordResult &check,
+		const SavedCredentials &saved,
+		const bytes::vector &secret) {
+	const auto encryptedSecret = EncryptSecureSecret(
 		secret,
 		saved.hashForSecret);
 
 	using Flag = MTPDaccount_passwordInputSettings::Flag;
 	_saveSecretRequestId = request(MTPaccount_UpdatePasswordSettings(
-		MTP_bytes(saved.hashForAuth),
+		check.result,
 		MTP_account_passwordInputSettings(
 			MTP_flags(Flag::f_new_secure_settings),
 			MTPPasswordKdfAlgo(), // new_algo
@@ -1829,7 +1946,10 @@ void FormController::generateSecret(bytes::const_span password) {
 		}
 	}).fail([=](const RPCError &error) {
 		_saveSecretRequestId = 0;
-		suggestRestart();
+		if (error.type() != qstr("SRP_ID_INVALID")
+			|| !handleSrpIdInvalid(_saveSecretRequestId)) {
+			suggestRestart();
+		}
 	}).send();
 }
 
@@ -2126,7 +2246,7 @@ void FormController::showForm() {
 		|| !_password.newSecureAlgo) {
 		_view->showUpdateAppBox();
 		return;
-	} else if (_password.algo) {
+	} else if (_password.request) {
 		if (!_savedPasswordValue.isEmpty()) {
 			submitPassword(base::duplicate(_savedPasswordValue));
 		} else if (const auto saved = Auth().data().passportCredentials()) {
@@ -2144,11 +2264,9 @@ bool FormController::applyPassword(const MTPDaccount_password &result) {
 	settings.hint = qs(result.vhint);
 	settings.hasRecovery = result.is_has_recovery();
 	settings.notEmptyPassport = result.is_has_secure_values();
-	settings.algo = result.has_current_algo()
-		? Core::ParseCloudPasswordAlgo(result.vcurrent_algo)
-		: Core::CloudPasswordAlgo();
+	settings.request = Core::ParseCloudPasswordCheckRequest(result);
 	settings.unknownAlgo = result.has_current_algo()
-		&& !settings.algo;
+		&& !settings.request;
 	settings.unconfirmedPattern = result.has_email_unconfirmed_pattern()
 		? qs(result.vemail_unconfirmed_pattern)
 		: QString();

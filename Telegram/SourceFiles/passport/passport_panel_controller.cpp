@@ -472,7 +472,7 @@ void PanelController::setupPassword() {
 		|| !settings.newSecureAlgo) {
 		showUpdateAppBox();
 		return;
-	} else if (settings.algo) {
+	} else if (settings.request) {
 		showAskPassword();
 		return;
 	}
@@ -481,7 +481,7 @@ void PanelController::setupPassword() {
 	const auto notEmptyPassport = false;
 	const auto hint = QString();
 	auto box = show(Box<PasscodeBox>(
-		Core::CloudPasswordAlgo(), // current algo
+		Core::CloudPasswordCheckRequest(), // current
 		settings.newAlgo,
 		hasRecovery,
 		notEmptyPassport,
