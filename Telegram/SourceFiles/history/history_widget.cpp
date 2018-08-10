@@ -5351,6 +5351,8 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 		}
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
 		onListEnterPressed();
+	} else if (e->key() == Qt::Key_O && e->modifiers() == Qt::ControlModifier) {
+		chooseAttach();
 	} else {
 		e->ignore();
 	}
