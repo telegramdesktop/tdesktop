@@ -18,12 +18,12 @@ namespace {
 
 std::map<Value::Type, Scope::Type> ScopeTypesMap() {
 	return {
-		{ Value::Type::PersonalDetails, Scope::Type::Identity },
+		{ Value::Type::PersonalDetails, Scope::Type::PersonalDetails },
 		{ Value::Type::Passport, Scope::Type::Identity },
 		{ Value::Type::DriverLicense, Scope::Type::Identity },
 		{ Value::Type::IdentityCard, Scope::Type::Identity },
 		{ Value::Type::InternalPassport, Scope::Type::Identity },
-		{ Value::Type::Address, Scope::Type::Address },
+		{ Value::Type::Address, Scope::Type::AddressDetails },
 		{ Value::Type::UtilityBill, Scope::Type::Address },
 		{ Value::Type::BankStatement, Scope::Type::Address },
 		{ Value::Type::RentalAgreement, Scope::Type::Address },
@@ -41,62 +41,141 @@ Scope::Type ScopeTypeForValueType(Value::Type type) {
 	return i->second;
 }
 
-std::map<Scope::Type, Value::Type> ScopeFieldsMap() {
+std::map<Scope::Type, Value::Type> ScopeDetailsMap() {
 	return {
+		{ Scope::Type::PersonalDetails, Value::Type::PersonalDetails },
 		{ Scope::Type::Identity, Value::Type::PersonalDetails },
+		{ Scope::Type::AddressDetails, Value::Type::Address },
 		{ Scope::Type::Address, Value::Type::Address },
 		{ Scope::Type::Phone, Value::Type::Phone },
 		{ Scope::Type::Email, Value::Type::Email },
 	};
 }
 
-Value::Type FieldsTypeForScopeType(Scope::Type type) {
-	static const auto map = ScopeFieldsMap();
+Value::Type DetailsTypeForScopeType(Scope::Type type) {
+	static const auto map = ScopeDetailsMap();
 	const auto i = map.find(type);
 	Assert(i != map.end());
 	return i->second;
 }
 
-} // namespace
+bool InlineDetails(
+		const Form::Request &request,
+		Scope::Type into,
+		Value::Type details) {
+	const auto count = ranges::count_if(
+		request,
+		[&](const std::vector<Value::Type> &types) {
+			Expects(!types.empty());
 
-Scope::Scope(Type type, not_null<const Value*> fields)
-: type(type)
-, fields(fields) {
+			return ScopeTypeForValueType(types[0]) == into;
+		});
+	if (count != 1) {
+		return false;
+	}
+	const auto has = ranges::find_if(
+		request,
+		[&](const std::vector<Value::Type> &types) {
+			Expects(!types.empty());
+
+			return (types[0] == details);
+		}
+	) != end(request);
+	return has;
 }
 
-std::vector<Scope> ComputeScopes(
-		not_null<const FormController*> controller) {
-	auto scopes = std::map<Scope::Type, Scope>();
-	const auto &form = controller->form();
+bool InlineDetails(const Form::Request &request, Value::Type details) {
+	if (details == Value::Type::PersonalDetails) {
+		return InlineDetails(request, Scope::Type::Identity, details);
+	} else if (details == Value::Type::Address) {
+		return InlineDetails(request, Scope::Type::Address, details);
+	}
+	return false;
+}
+
+} // namespace
+
+Scope::Scope(Type type) : type(type) {
+}
+
+bool ValidateForm(const Form &form) {
+	base::flat_set<Value::Type> values;
+	for (const auto &requested : form.request) {
+		if (requested.empty()) {
+			LOG(("API Error: Empty types list in authorization form row."));
+			return false;
+		}
+		const auto scopeType = ScopeTypeForValueType(requested[0]);
+		const auto ownsDetails = (scopeType != Scope::Type::Identity
+			&& scopeType != Scope::Type::Address);
+		if (ownsDetails && requested.size() != 1) {
+			LOG(("API Error: Large types list in authorization form row."));
+			return false;
+		}
+		for (const auto type : requested) {
+			if (values.contains(type)) {
+				LOG(("API Error: Value twice in authorization form row."));
+				return false;
+			}
+			values.emplace(type);
+		}
+	}
+	for (const auto &[type, value] : form.values) {
+		if (!value.translationRequired) {
+			for (const auto &scan : value.translations) {
+				if (!scan.error.isEmpty()) {
+					LOG(("API Error: "
+						"Translation error in authorization form value."));
+					return false;
+				}
+			}
+			if (!value.translationMissingError.isEmpty()) {
+				LOG(("API Error: "
+					"Translations error in authorization form value."));
+				return false;
+			}
+		}
+		for (const auto &[type, specialScan] : value.specialScans) {
+			if (!value.requiresSpecialScan(type)
+				&& !specialScan.error.isEmpty()) {
+				LOG(("API Error: "
+					"Special scan error in authorization form value."));
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+std::vector<Scope> ComputeScopes(const Form &form) {
+	auto result = std::vector<Scope>();
 	const auto findValue = [&](const Value::Type type) {
 		const auto i = form.values.find(type);
 		Assert(i != form.values.end());
 		return &i->second;
 	};
-	for (const auto type : form.request) {
-		const auto scopeType = ScopeTypeForValueType(type);
-		const auto fieldsType = FieldsTypeForScopeType(scopeType);
-		const auto [i, ok] = scopes.emplace(
-			scopeType,
-			Scope(scopeType, findValue(fieldsType)));
-		i->second.selfieRequired = (scopeType == Scope::Type::Identity)
-			&& form.identitySelfieRequired;
-		const auto alreadyIt = ranges::find(
-			i->second.documents,
-			type,
-			[](not_null<const Value*> value) { return value->type; });
-		if (alreadyIt != end(i->second.documents)) {
-			LOG(("API Error: Value type %1 multiple times in request."
-				).arg(int(type)));
+	for (const auto &requested : form.request) {
+		Assert(!requested.empty());
+		const auto scopeType = ScopeTypeForValueType(requested[0]);
+		const auto detailsType = DetailsTypeForScopeType(scopeType);
+		const auto ownsDetails = (scopeType != Scope::Type::Identity
+			&& scopeType != Scope::Type::Address);
+		const auto inlineDetails = InlineDetails(form.request, detailsType);
+		if (ownsDetails && inlineDetails) {
 			continue;
-		} else if (type != fieldsType) {
-			i->second.documents.push_back(findValue(type));
 		}
-	}
-	auto result = std::vector<Scope>();
-	result.reserve(scopes.size());
-	for (auto &[type, scope] : scopes) {
-		result.push_back(std::move(scope));
+		result.push_back(Scope(scopeType));
+		auto &scope = result.back();
+		scope.details = (ownsDetails || inlineDetails)
+			? findValue(detailsType)
+			: nullptr;
+		if (ownsDetails) {
+			Assert(requested.size() == 1);
+		} else {
+			for (const auto type : requested) {
+				scope.documents.push_back(findValue(type));
+			}
+		}
 	}
 	return result;
 }
@@ -129,7 +208,9 @@ QString JoinScopeRowReadyString(
 
 QString ComputeScopeRowReadyString(const Scope &scope) {
 	switch (scope.type) {
+	case Scope::Type::PersonalDetails:
 	case Scope::Type::Identity:
+	case Scope::Type::AddressDetails:
 	case Scope::Type::Address: {
 		auto list = std::vector<std::pair<QString, QString>>();
 		const auto pushListValue = [&](
@@ -153,10 +234,12 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 				}
 			}
 		};
-		const auto &fields = scope.fields->data.parsed.fields;
+		const auto fields = scope.details
+			? &scope.details->data.parsed.fields
+			: nullptr;
 		const auto document = [&]() -> const Value* {
 			for (const auto &document : scope.documents) {
-				if (document->scansAreFilled(scope.selfieRequired)) {
+				if (document->scansAreFilled()) {
 					return document;
 				}
 			}
@@ -195,8 +278,11 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 		for (const auto &row : scheme.rows) {
 			const auto format = row.format;
 			if (row.valueClass == EditDocumentScheme::ValueClass::Fields) {
-				const auto i = fields.find(row.key);
-				if (i == end(fields)) {
+				if (!fields) {
+					continue;
+				}
+				const auto i = fields->find(row.key);
+				if (i == end(*fields)) {
 					return QString();
 				}
 				const auto text = i->second.text;
@@ -225,8 +311,9 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 	} break;
 	case Scope::Type::Phone:
 	case Scope::Type::Email: {
+		Assert(scope.details != nullptr);
 		const auto format = GetContactScheme(scope.type).format;
-		const auto &fields = scope.fields->data.parsed.fields;
+		const auto &fields = scope.details->data.parsed.fields;
 		const auto i = fields.find("value");
 		return (i != end(fields))
 			? (format ? format(i->second.text) : i->second.text)
@@ -242,7 +329,21 @@ ScopeRow ComputeScopeRow(const Scope &scope) {
 		row.ready = ready;
 		auto errors = QStringList();
 		const auto addValueErrors = [&](not_null<const Value*> value) {
+			if (!value->error.isEmpty()) {
+				errors.push_back(value->error);
+			}
+			if (!value->scanMissingError.isEmpty()) {
+				errors.push_back(value->scanMissingError);
+			}
+			if (!value->translationMissingError.isEmpty()) {
+				errors.push_back(value->translationMissingError);
+			}
 			for (const auto &scan : value->scans) {
+				if (!scan.error.isEmpty()) {
+					errors.push_back(scan.error);
+				}
+			}
+			for (const auto &scan : value->translations) {
 				if (!scan.error.isEmpty()) {
 					errors.push_back(scan.error);
 				}
@@ -252,9 +353,6 @@ ScopeRow ComputeScopeRow(const Scope &scope) {
 					errors.push_back(scan.error);
 				}
 			}
-			if (!value->scanMissingError.isEmpty()) {
-				errors.push_back(value->scanMissingError);
-			}
 			for (const auto &[key, value] : value->data.parsed.fields) {
 				if (!value.error.isEmpty()) {
 					errors.push_back(value.error);
@@ -263,7 +361,7 @@ ScopeRow ComputeScopeRow(const Scope &scope) {
 		};
 		const auto document = [&]() -> const Value* {
 			for (const auto &document : scope.documents) {
-				if (document->scansAreFilled(scope.selfieRequired)) {
+				if (document->scansAreFilled()) {
 					return document;
 				}
 			}
@@ -272,31 +370,35 @@ ScopeRow ComputeScopeRow(const Scope &scope) {
 		if (document) {
 			addValueErrors(document);
 		}
-		addValueErrors(scope.fields);
+		if (scope.details) {
+			addValueErrors(scope.details);
+		}
 		if (!errors.isEmpty()) {
-			row.error = lang(lng_passport_fix_errors);// errors.join('\n');
+			row.error = errors[0];// errors.join('\n');
 		}
-		if (row.error.isEmpty()
-			&& row.ready.isEmpty()
-			&& scope.type == Scope::Type::Identity
-			&& scope.selfieRequired) {
-			auto noSelfieScope = scope;
-			noSelfieScope.selfieRequired = false;
-			if (!ComputeScopeRowReadyString(noSelfieScope).isEmpty()) {
-				// Only selfie is missing.
-				row.description = lang(lng_passport_identity_selfie);
-			}
-		}
+		// #TODO passport half-full value
+		//if (row.error.isEmpty()
+		//	&& row.ready.isEmpty()
+		//	&& scope.type == Scope::Type::Identity
+		//	&& scope.selfieRequired) {
+		//	auto noSelfieScope = scope;
+		//	noSelfieScope.selfieRequired = false;
+		//	if (!ComputeScopeRowReadyString(noSelfieScope).isEmpty()) {
+		//		// Only selfie is missing.
+		//		row.description = lang(lng_passport_identity_selfie);
+		//	}
+		//}
 		return row;
 	};
 	switch (scope.type) {
+	case Scope::Type::PersonalDetails:
+		return addReadyError({
+			lang(lng_passport_personal_details),
+			lang(lng_passport_personal_details_enter),
+		});
 	case Scope::Type::Identity:
-		if (scope.documents.empty()) {
-			return addReadyError({
-				lang(lng_passport_personal_details),
-				lang(lng_passport_personal_details_enter),
-			});
-		} else if (scope.documents.size() == 1) {
+		Assert(!scope.documents.empty());
+		if (scope.documents.size() == 1) {
 			switch (scope.documents.front()->type) {
 			case Value::Type::Passport:
 				return addReadyError({
@@ -325,13 +427,14 @@ ScopeRow ComputeScopeRow(const Scope &scope) {
 			lang(lng_passport_identity_title),
 			lang(lng_passport_identity_description),
 		});
-	case Scope::Type::Address:
-		if (scope.documents.empty()) {
-			return addReadyError({
-				lang(lng_passport_address),
-				lang(lng_passport_address_enter),
+	case Scope::Type::AddressDetails:
+		return addReadyError({
+			lang(lng_passport_address),
+			lang(lng_passport_address_enter),
 			});
-		} else if (scope.documents.size() == 1) {
+	case Scope::Type::Address:
+		Assert(!scope.documents.empty());
+		if (scope.documents.size() == 1) {
 			switch (scope.documents.front()->type) {
 			case Value::Type::BankStatement:
 				return addReadyError({

@@ -13,17 +13,18 @@ namespace Passport {
 
 struct Scope {
 	enum class Type {
+		PersonalDetails,
 		Identity,
+		AddressDetails,
 		Address,
 		Phone,
 		Email,
 	};
-	Scope(Type type, not_null<const Value*> fields);
+	explicit Scope(Type type);
 
 	Type type;
-	not_null<const Value*> fields;
+	const Value *details = nullptr;
 	std::vector<not_null<const Value*>> documents;
-	bool selfieRequired = false;
 };
 
 struct ScopeRow {
@@ -33,8 +34,8 @@ struct ScopeRow {
 	QString error;
 };
 
-std::vector<Scope> ComputeScopes(
-	not_null<const FormController*> controller);
+bool ValidateForm(const Form &form);
+std::vector<Scope> ComputeScopes(const Form &form);
 QString ComputeScopeRowReadyString(const Scope &scope);
 ScopeRow ComputeScopeRow(const Scope &scope);
 

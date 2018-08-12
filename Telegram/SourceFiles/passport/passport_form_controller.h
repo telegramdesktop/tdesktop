@@ -168,31 +168,52 @@ struct Value {
 	Value(Value &&other) = default;
 	Value &operator=(Value &&other) = default;
 
-	bool requiresSpecialScan(SpecialFile type, bool selfieRequired) const;
-	bool scansAreFilled(bool selfieRequired) const;
+	bool requiresSpecialScan(SpecialFile type) const;
+	bool scansAreFilled() const;
 
 	Type type;
 	ValueData data;
 	std::vector<File> scans;
+	std::vector<File> translations;
 	std::map<SpecialFile, File> specialScans;
+	QString error;
 	QString scanMissingError;
+	QString translationMissingError;
 	std::vector<EditFile> scansInEdit;
+	std::vector<EditFile> translationsInEdit;
 	std::map<SpecialFile, EditFile> specialScansInEdit;
 	Verification verification;
 	bytes::vector submitHash;
+
+	bool selfieRequired = false;
+	bool translationRequired = false;
+	bool nativeNames = false;
 
 	int editScreens = 0;
 	mtpRequestId saveRequestId = 0;
 
 };
 
+struct RequestedValue {
+	explicit RequestedValue(Value::Type type);
+
+	Value::Type type;
+	bool selfieRequired = false;
+	bool translationRequired = false;
+	bool nativeNames = false;
+};
+
+struct RequestedRow {
+	std::vector<RequestedValue> values;
+};
+
 struct Form {
+	using Request = std::vector<std::vector<Value::Type>>;
+
 	std::map<Value::Type, Value> values;
-	std::vector<Value::Type> request;
-	bool identitySelfieRequired = false;
+	Request request;
 	QString privacyPolicyUrl;
 	QVector<MTPSecureValueError> pendingErrors;
-
 };
 
 struct PasswordSettings {
@@ -333,7 +354,7 @@ private:
 
 	void formDone(const MTPaccount_AuthorizationForm &result);
 	void formFail(const QString &error);
-	void parseForm(const MTPaccount_AuthorizationForm &result);
+	bool parseForm(const MTPaccount_AuthorizationForm &result);
 	void showForm();
 	Value parseValue(
 		const MTPSecureValue &value,

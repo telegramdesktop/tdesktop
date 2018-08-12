@@ -132,7 +132,30 @@ MTPSecureValueType ConvertType(Value::Type type) {
 		return MTP_secureValueTypeEmail();
 	}
 	Unexpected("Type in FormController::submit.");
-};
+}
+
+void CollectToRequestedRow(
+		RequestedRow &row,
+		const MTPSecureRequiredType &data) {
+	data.match([&](const MTPDsecureRequiredType &data) {
+		row.values.emplace_back(ConvertType(data.vtype));
+		auto &value = row.values.back();
+		value.selfieRequired = data.is_selfie_required();
+		value.translationRequired = data.is_translation_required();
+		value.nativeNames = data.is_native_names();
+	}, [&](const MTPDsecureRequiredTypeOneOf &data) {
+		row.values.reserve(row.values.size() + data.vtypes.v.size());
+		for (const auto &one : data.vtypes.v) {
+			CollectToRequestedRow(row, one);
+		}
+	});
+}
+
+RequestedRow CollectRequestedRow(const MTPSecureRequiredType &data) {
+	auto result = RequestedRow();
+	CollectToRequestedRow(result, data);
+	return result;
+}
 
 QJsonObject GetJSONFromMap(
 	const std::map<QString, bytes::const_span> &map) {
@@ -257,12 +280,13 @@ UploadScanData *UploadScanDataPointer::operator->() const {
 	return _value.get();
 }
 
+RequestedValue::RequestedValue(Value::Type type) : type(type) {
+}
+
 Value::Value(Type type) : type(type) {
 }
 
-bool Value::requiresSpecialScan(
-		SpecialFile type,
-		bool selfieRequired) const {
+bool Value::requiresSpecialScan(SpecialFile type) const {
 	switch (type) {
 	case SpecialFile::FrontSide:
 		return (this->type == Type::Passport)
@@ -278,9 +302,11 @@ bool Value::requiresSpecialScan(
 	Unexpected("Special scan type in requiresSpecialScan.");
 }
 
-bool Value::scansAreFilled(bool selfieRequired) const {
-	if (!requiresSpecialScan(SpecialFile::FrontSide, selfieRequired)) {
-		return !scans.empty();
+bool Value::scansAreFilled() const {
+	if (!requiresSpecialScan(SpecialFile::FrontSide) && scans.empty()) {
+		return false;
+	} else if (translationRequired && translations.empty()) {
+		return false;
 	}
 	const auto types = {
 		SpecialFile::FrontSide,
@@ -288,14 +314,13 @@ bool Value::scansAreFilled(bool selfieRequired) const {
 		SpecialFile::Selfie
 	};
 	for (const auto type : types) {
-		if (requiresSpecialScan(type, selfieRequired)
+		if (requiresSpecialScan(type)
 			&& (specialScans.find(type) == end(specialScans))) {
 			return false;
 		}
 	}
 	return true;
-};
-
+}
 
 FormController::FormController(
 	not_null<Window::Controller*> controller,
@@ -346,8 +371,7 @@ auto FormController::prepareFinalData() -> FinalData {
 			object.insert("files", files);
 		}
 		for (const auto &[type, scan] : value->specialScans) {
-			const auto selfieRequired = _form.identitySelfieRequired;
-			if (value->requiresSpecialScan(type, selfieRequired)) {
+			if (value->requiresSpecialScan(type)) {
 				object.insert(
 					SpecialScanCredentialsKey(type),
 					GetJSONFromFile(scan));
@@ -364,17 +388,21 @@ auto FormController::prepareFinalData() -> FinalData {
 			addValueToJSON(key, value);
 		}
 	};
-	const auto scopes = ComputeScopes(this);
+	const auto scopes = ComputeScopes(_form);
 	for (const auto &scope : scopes) {
 		const auto row = ComputeScopeRow(scope);
 		if (row.ready.isEmpty() || !row.error.isEmpty()) {
-			errors.push_back(scope.fields);
+			errors.push_back(scope.details
+				? scope.details
+				: scope.documents[0].get());
 			continue;
 		}
-		addValue(scope.fields);
+		if (scope.details) {
+			addValue(scope.details);
+		}
 		if (!scope.documents.empty()) {
 			for (const auto &document : scope.documents) {
-				if (document->scansAreFilled(scope.selfieRequired)) {
+				if (document->scansAreFilled()) {
 					addValue(document);
 					break;
 				}
@@ -803,6 +831,7 @@ void FormController::decryptValues() {
 }
 
 void FormController::fillErrors() {
+	// #TODO passport filter by flags
 	const auto find = [&](const MTPSecureValueType &type) -> Value* {
 		const auto converted = ConvertType(type);
 		const auto i = _form.values.find(ConvertType(type));
@@ -835,43 +864,44 @@ void FormController::fillErrors() {
 		}
 	};
 	for (const auto &error : _form.pendingErrors) {
-		switch (error.type()) {
-		case mtpc_secureValueErrorData: {
-			const auto &data = error.c_secureValueErrorData();
+		error.match([&](const MTPDsecureValueError &data) {
+			if (const auto value = find(data.vtype)) {
+				value->error = qs(data.vtext);
+			}
+		}, [&](const MTPDsecureValueErrorData &data) {
 			if (const auto value = find(data.vtype)) {
 				const auto key = qs(data.vfield);
 				value->data.parsed.fields[key].error = qs(data.vtext);
 			}
-		} break;
-		case mtpc_secureValueErrorFile: {
-			const auto &data = error.c_secureValueErrorFile();
+		}, [&](const MTPDsecureValueErrorFile &data) {
 			const auto hash = bytes::make_span(data.vfile_hash.v);
 			if (const auto value = find(data.vtype)) {
 				if (const auto file = scan(*value, hash)) {
 					file->error = qs(data.vtext);
 				}
 			}
-		} break;
-		case mtpc_secureValueErrorFiles: {
-			const auto &data = error.c_secureValueErrorFiles();
+		}, [&](const MTPDsecureValueErrorFiles &data) {
 			if (const auto value = find(data.vtype)) {
 				value->scanMissingError = qs(data.vtext);
 			}
-		} break;
-		case mtpc_secureValueErrorFrontSide: {
-			const auto &data = error.c_secureValueErrorFrontSide();
+		}, [&](const MTPDsecureValueErrorTranslationFile &data) {
+			const auto hash = bytes::make_span(data.vfile_hash.v);
+			if (const auto value = find(data.vtype)) {
+				if (const auto file = scan(*value, hash)) { // #TODO passport
+					file->error = qs(data.vtext);
+				}
+			}
+		}, [&](const MTPDsecureValueErrorTranslationFiles &data) {
+			if (const auto value = find(data.vtype)) {
+				value->translationMissingError = qs(data.vtext);
+			}
+		}, [&](const MTPDsecureValueErrorFrontSide &data) {
 			setSpecialScanError(SpecialFile::FrontSide, data);
-		} break;
-		case mtpc_secureValueErrorReverseSide: {
-			const auto &data = error.c_secureValueErrorReverseSide();
+		}, [&](const MTPDsecureValueErrorReverseSide &data) {
 			setSpecialScanError(SpecialFile::ReverseSide, data);
-		} break;
-		case mtpc_secureValueErrorSelfie: {
-			const auto &data = error.c_secureValueErrorSelfie();
+		}, [&](const MTPDsecureValueErrorSelfie &data) {
 			setSpecialScanError(SpecialFile::Selfie, data);
-		} break;
-		default: Unexpected("Error type in FormController::fillErrors.");
-		}
+		});
 	}
 }
 
@@ -1312,14 +1342,24 @@ void FormController::startValueEdit(not_null<const Value*> value) {
 	for (auto &scan : nonconst->scans) {
 		loadFile(scan);
 	}
+	if (nonconst->translationRequired) {
+		for (auto &scan : nonconst->translations) {
+			loadFile(scan);
+		}
+	}
 	for (auto &[type, scan] : nonconst->specialScans) {
-		const auto selfieRequired = _form.identitySelfieRequired;
-		if (nonconst->requiresSpecialScan(type, selfieRequired)) {
+		if (nonconst->requiresSpecialScan(type)) {
 			loadFile(scan);
 		}
 	}
 	nonconst->scansInEdit = ranges::view::all(
 		nonconst->scans
+	) | ranges::view::transform([=](const File &file) {
+		return EditFile(nonconst, file, nullptr);
+	}) | ranges::to_vector;
+
+	nonconst->translationsInEdit = ranges::view::all(
+		nonconst->translations
 	) | ranges::view::transform([=](const File &file) {
 		return EditFile(nonconst, file, nullptr);
 	}) | ranges::to_vector;
@@ -1597,7 +1637,7 @@ void FormController::saveEncryptedValue(not_null<Value*> value) {
 		return;
 	}
 
-	const auto inputFile = [](const EditFile &file) {
+	const auto wrapFile = [](const EditFile &file) {
 		if (const auto uploadData = file.uploadData.get()) {
 			return MTP_inputSecureFileUploaded(
 				MTP_long(file.fields.id),
@@ -1611,13 +1651,22 @@ void FormController::saveEncryptedValue(not_null<Value*> value) {
 			MTP_long(file.fields.accessHash));
 	};
 
-	auto inputFiles = QVector<MTPInputSecureFile>();
-	inputFiles.reserve(value->scansInEdit.size());
+	auto files = QVector<MTPInputSecureFile>();
+	files.reserve(value->scansInEdit.size());
 	for (const auto &scan : value->scansInEdit) {
 		if (scan.deleted) {
 			continue;
 		}
-		inputFiles.push_back(inputFile(scan));
+		files.push_back(wrapFile(scan));
+	}
+
+	auto translations = QVector<MTPInputSecureFile>();
+	translations.reserve(value->translationsInEdit.size());
+	for (const auto &scan : value->translationsInEdit) {
+		if (scan.deleted) {
+			continue;
+		}
+		translations.push_back(wrapFile(scan));
 	}
 
 	if (value->data.secret.empty()) {
@@ -1639,7 +1688,7 @@ void FormController::saveEncryptedValue(not_null<Value*> value) {
 	const auto specialFile = [&](SpecialFile type) {
 		const auto i = value->specialScansInEdit.find(type);
 		return (i != end(value->specialScansInEdit) && !i->second.deleted)
-			? inputFile(i->second)
+			? wrapFile(i->second)
 			: MTPInputSecureFile();
 	};
 	const auto frontSide = specialFile(SpecialFile::FrontSide);
@@ -1659,6 +1708,9 @@ void FormController::saveEncryptedValue(not_null<Value*> value) {
 		| (hasSpecialFile(SpecialFile::Selfie)
 			? MTPDinputSecureValue::Flag::f_selfie
 			: MTPDinputSecureValue::Flag(0))
+		| (value->translationsInEdit.empty()
+			? MTPDinputSecureValue::Flag(0)
+			: MTPDinputSecureValue::Flag::f_translation)
 		| (value->scansInEdit.empty()
 			? MTPDinputSecureValue::Flag(0)
 			: MTPDinputSecureValue::Flag::f_files);
@@ -1674,7 +1726,8 @@ void FormController::saveEncryptedValue(not_null<Value*> value) {
 		frontSide,
 		reverseSide,
 		selfie,
-		MTP_vector<MTPInputSecureFile>(inputFiles),
+		MTP_vector<MTPInputSecureFile>(translations),
+		MTP_vector<MTPInputSecureFile>(files),
 		MTPSecurePlainData()));
 }
 
@@ -1703,6 +1756,7 @@ void FormController::savePlainTextValue(not_null<Value*> value) {
 		MTPInputSecureFile(),
 		MTPInputSecureFile(),
 		MTPInputSecureFile(),
+		MTPVector<MTPInputSecureFile>(),
 		MTPVector<MTPInputSecureFile>(),
 		plain(MTP_string(text))));
 }
@@ -2157,13 +2211,14 @@ auto FormController::findFile(const FileKey &key)
 }
 
 void FormController::formDone(const MTPaccount_AuthorizationForm &result) {
-	parseForm(result);
-	if (!_passwordRequestId) {
+	if (!parseForm(result)) {
+		_view->showCriticalError(lang(lng_passport_form_error));
+	} else if (!_passwordRequestId) {
 		showForm();
 	}
 }
 
-void FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
+bool FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 	Expects(result.type() == mtpc_account_authorizationForm);
 
 	const auto &data = result.c_account_authorizationForm();
@@ -2177,21 +2232,34 @@ void FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 		if (alreadyIt != _form.values.end()) {
 			LOG(("API Error: Two values for type %1 in authorization form"
 				"%1").arg(int(type)));
-			continue;
+			return false;
 		}
 		_form.values.emplace(type, std::move(parsed));
 	}
-	_form.identitySelfieRequired = data.is_selfie_required();
 	if (data.has_privacy_policy_url()) {
 		_form.privacyPolicyUrl = qs(data.vprivacy_policy_url);
 	}
 	for (const auto &required : data.vrequired_types.v) {
-		const auto type = ConvertType(required);
-		_form.request.push_back(type);
-		_form.values.emplace(type, Value(type));
+		const auto row = CollectRequestedRow(required);
+		for (const auto value : row.values) {
+			const auto [i, ok] = _form.values.emplace(
+				value.type,
+				Value(value.type));
+			i->second.selfieRequired = value.selfieRequired;
+			i->second.translationRequired = value.translationRequired;
+			i->second.nativeNames = value.nativeNames;
+		}
+		_form.request.push_back(row.values
+			| ranges::view::transform([](const RequestedValue &value) {
+				return value.type;
+			}) | ranges::to_vector);
+	}
+	if (!ValidateForm(_form)) {
+		return false;
 	}
 	_bot = App::userLoaded(_request.botId);
 	_form.pendingErrors = data.verrors.v;
+	return true;
 }
 
 void FormController::formFail(const QString &error) {

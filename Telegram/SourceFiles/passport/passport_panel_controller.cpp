@@ -99,6 +99,7 @@ EditDocumentScheme GetDocumentScheme(
 		return !CountryFormat(value).isEmpty();
 	});
 
+	// #TODO passport scheme
 	switch (type) {
 	case Scope::Type::Identity: {
 		auto result = Scheme();
@@ -360,7 +361,7 @@ BoxContent *BoxPointer::operator->() const {
 
 PanelController::PanelController(not_null<FormController*> form)
 : _form(form)
-, _scopes(ComputeScopes(_form)) {
+, _scopes(ComputeScopes(_form->form())) {
 	_form->secretReadyEvents(
 	) | rpl::start_with_next([=] {
 		ensurePanelCreated();
@@ -378,8 +379,6 @@ PanelController::PanelController(not_null<FormController*> form)
 	}) | rpl::start_with_next([=](not_null<const Value*> field) {
 		_verificationBoxes.erase(field);
 	}, lifetime());
-
-	_scopes = ComputeScopes(_form);
 }
 
 not_null<UserData*> PanelController::bot() const {
@@ -397,12 +396,14 @@ void PanelController::fillRows(
 		bool ready,
 		bool error)> callback) {
 	if (_scopes.empty()) {
-		_scopes = ComputeScopes(_form);
+		_scopes = ComputeScopes(_form->form());
 	}
 	for (const auto &scope : _scopes) {
 		const auto row = ComputeScopeRow(scope);
-		const auto main = scope.fields;
-		if (!row.ready.isEmpty()) {
+		const auto main = scope.details
+			? not_null<const Value*>(scope.details)
+			: scope.documents[0];
+		if (main && !row.ready.isEmpty()) {
 			_submitErrors.erase(
 				ranges::remove(_submitErrors, main),
 				_submitErrors.end());
@@ -546,9 +547,7 @@ void PanelController::uploadSpecialScan(
 		QByteArray &&content) {
 	Expects(_editScope != nullptr);
 	Expects(_editDocument != nullptr);
-	Expects(_editDocument->requiresSpecialScan(
-		type,
-		_editScope->selfieRequired));
+	Expects(_editDocument->requiresSpecialScan(type));
 
 	_form->uploadSpecialScan(_editDocument, type, std::move(content));
 }
@@ -556,9 +555,7 @@ void PanelController::uploadSpecialScan(
 void PanelController::deleteSpecialScan(SpecialFile type) {
 	Expects(_editScope != nullptr);
 	Expects(_editDocument != nullptr);
-	Expects(_editDocument->requiresSpecialScan(
-		type,
-		_editScope->selfieRequired));
+	Expects(_editDocument->requiresSpecialScan(type));
 
 	_form->deleteSpecialScan(_editDocument, type);
 }
@@ -566,9 +563,7 @@ void PanelController::deleteSpecialScan(SpecialFile type) {
 void PanelController::restoreSpecialScan(SpecialFile type) {
 	Expects(_editScope != nullptr);
 	Expects(_editDocument != nullptr);
-	Expects(_editDocument->requiresSpecialScan(
-		type,
-		_editScope->selfieRequired));
+	Expects(_editDocument->requiresSpecialScan(type));
 
 	_form->restoreSpecialScan(_editDocument, type);
 }
@@ -642,8 +637,14 @@ ScanInfo PanelController::collectScanInfo(const EditFile &file) const {
 std::vector<ScopeError> PanelController::collectErrors(
 		not_null<const Value*> value) const {
 	auto result = std::vector<ScopeError>();
+	if (!value->error.isEmpty()) {
+		result.push_back({ FileKey(), value->error });
+	}
 	if (!value->scanMissingError.isEmpty()) {
 		result.push_back({ FileKey(), value->scanMissingError });
+	}
+	if (!value->translationMissingError.isEmpty()) {
+		result.push_back({ FileKey(), value->translationMissingError });
 	}
 	const auto addFileError = [&](const EditFile &file) {
 		if (!file.fields.error.isEmpty()) {
@@ -652,6 +653,9 @@ std::vector<ScopeError> PanelController::collectErrors(
 		}
 	};
 	for (const auto &scan : value->scansInEdit) {
+		addFileError(scan);
+	}
+	for (const auto &scan : value->translationsInEdit) {
 		addFileError(scan);
 	}
 	for (const auto &[type, scan] : value->specialScansInEdit) {
@@ -671,13 +675,14 @@ auto PanelController::deleteValueLabel() const
 
 	if (hasValueDocument()) {
 		return Lang::Viewer(lng_passport_delete_document);
-	}
-	if (!hasValueFields()) {
+	} else if (!hasValueFields()) {
 		return base::none;
 	}
 	switch (_editScope->type) {
+	case Scope::Type::PersonalDetails:
 	case Scope::Type::Identity:
 		return Lang::Viewer(lng_passport_delete_details);
+	case Scope::Type::AddressDetails:
 	case Scope::Type::Address:
 		return Lang::Viewer(lng_passport_delete_address);
 	case Scope::Type::Email:
@@ -700,27 +705,26 @@ bool PanelController::hasValueDocument() const {
 }
 
 bool PanelController::hasValueFields() const {
-	Expects(_editValue != nullptr);
-
-	return !_editValue->data.parsed.fields.empty();
+	return _editValue && !_editValue->data.parsed.fields.empty();
 }
 
 void PanelController::deleteValue() {
 	Expects(_editScope != nullptr);
+	Expects(hasValueDocument() || hasValueFields());
 
 	if (savingScope()) {
 		return;
 	}
 	const auto text = [&] {
 		switch (_editScope->type) {
+		case Scope::Type::PersonalDetails:
+			return lang(lng_passport_delete_details_sure);
 		case Scope::Type::Identity:
-			return lang(hasValueDocument()
-				? lng_passport_delete_document_sure
-				: lng_passport_delete_details_sure);
+			return lang(lng_passport_delete_document_sure);
+		case Scope::Type::AddressDetails:
+			return lang(lng_passport_delete_address_sure);
 		case Scope::Type::Address:
-			return lang(hasValueDocument()
-				? lng_passport_delete_document_sure
-				: lng_passport_delete_address_sure);
+			return lang(lng_passport_delete_document_sure);
 		case Scope::Type::Phone:
 			return lang(lng_passport_delete_phone_sure);
 		case Scope::Type::Email:
@@ -745,7 +749,7 @@ void PanelController::deleteValue() {
 }
 
 void PanelController::deleteValueSure(bool withDetails) {
-	Expects(_editValue != nullptr);
+	Expects(!withDetails || _editValue != nullptr);
 
 	if (hasValueDocument()) {
 		_form->deleteValueEdit(_editDocument);
@@ -830,21 +834,22 @@ int PanelController::findNonEmptyDocumentIndex(const Scope &scope) const {
 	const auto &documents = scope.documents;
 	const auto i = ranges::find_if(
 		documents,
-		[&](not_null<const Value*> document) {
-			return document->scansAreFilled(scope.selfieRequired);
+		[](not_null<const Value*> document) {
+			return document->scansAreFilled();
 		});
 	if (i != end(documents)) {
 		return (i - begin(documents));
 	}
 	// If we have a document where only selfie is not filled - return it.
-	const auto j = ranges::find_if(
-		documents,
-		[&](not_null<const Value*> document) {
-			return document->scansAreFilled(false);
-		});
-	if (j != end(documents)) {
-		return (j - begin(documents));
-	}
+	// #TODO passport half-full value
+	//const auto j = ranges::find_if(
+	//	documents,
+	//	[&](not_null<const Value*> document) {
+	//		return document->scansAreFilled(false);
+	//	});
+	//if (j != end(documents)) {
+	//	return (j - begin(documents));
+	//}
 	return -1;
 }
 
@@ -936,8 +941,7 @@ void PanelController::editWithUpload(int index, int documentIndex) {
 
 	const auto &document = _scopes[index].documents[documentIndex];
 	const auto requiresSpecialScan = document->requiresSpecialScan(
-		SpecialFile::FrontSide,
-		false);
+		SpecialFile::FrontSide);
 	const auto allowMany = !requiresSpecialScan;
 	const auto widget = _panel->widget();
 	EditScans::ChooseScan(widget.get(), [=](QByteArray &&content) {
@@ -981,21 +985,26 @@ void PanelController::editScope(int index, int documentIndex) {
 			&& documentIndex < _scopes[index].documents.size()));
 
 	_editScope = &_scopes[index];
-	_editValue = _editScope->fields;
+	_editValue = _editScope->details;
 	_editDocument = (documentIndex >= 0)
 		? _scopes[index].documents[documentIndex].get()
 		: nullptr;
+	Assert(_editValue || _editDocument);
 
-	_form->startValueEdit(_editValue);
+	if (_editValue) {
+		_form->startValueEdit(_editValue);
+	}
 	if (_editDocument) {
 		_form->startValueEdit(_editDocument);
 	}
 
 	auto content = [&]() -> object_ptr<Ui::RpWidget> {
+		// #TODO passport pass and display value->error
 		switch (_editScope->type) {
 		case Scope::Type::Identity:
 		case Scope::Type::Address: {
-			auto result = _editDocument
+			Assert(_editDocument != nullptr);
+			auto result = _editValue
 				? object_ptr<PanelEditDocument>(
 					_panel->widget(),
 					this,
@@ -1007,7 +1016,22 @@ void PanelController::editScope(int index, int documentIndex) {
 					_editDocument->scanMissingError,
 					valueFiles(*_editDocument),
 					valueSpecialFiles(*_editDocument))
+				// #TODO passport document without details
 				: object_ptr<PanelEditDocument>(
+					_panel->widget(),
+					this,
+					GetDocumentScheme(_editScope->type),
+					_editValue->data.parsedInEdit);
+			const auto weak = make_weak(result.data());
+			_panelHasUnsavedChanges = [=] {
+				return weak ? weak->hasUnsavedChanges() : false;
+			};
+			return std::move(result);
+		} break;
+		case Scope::Type::PersonalDetails:
+		case Scope::Type::AddressDetails: {
+			Assert(_editValue != nullptr);
+			auto result = object_ptr<PanelEditDocument>(
 					_panel->widget(),
 					this,
 					GetDocumentScheme(_editScope->type),
@@ -1020,6 +1044,7 @@ void PanelController::editScope(int index, int documentIndex) {
 		} break;
 		case Scope::Type::Phone:
 		case Scope::Type::Email: {
+			Assert(_editValue != nullptr);
 			const auto &parsed = _editValue->data.parsedInEdit;
 			const auto valueIt = parsed.fields.find("value");
 			const auto value = (valueIt == end(parsed.fields)
@@ -1081,16 +1106,12 @@ void PanelController::processValueSaveFinished(
 }
 
 bool PanelController::uploadingScopeScan() const {
-	Expects(_editValue != nullptr);
-
-	return _form->uploadingScan(_editValue)
+	return (_editValue && _form->uploadingScan(_editValue))
 		|| (_editDocument && _form->uploadingScan(_editDocument));
 }
 
 bool PanelController::savingScope() const {
-	Expects(_editValue != nullptr);
-
-	return _form->savingValue(_editValue)
+	return (_editValue && _form->savingValue(_editValue))
 		|| (_editDocument && _form->savingValue(_editDocument));
 }
 
@@ -1173,7 +1194,7 @@ std::map<SpecialFile, ScanInfo> PanelController::valueSpecialFiles(
 		SpecialFile::Selfie
 	};
 	for (const auto type : types) {
-		if (value.requiresSpecialScan(type, _editScope->selfieRequired)) {
+		if (value.requiresSpecialScan(type)) {
 			const auto i = value.specialScansInEdit.find(type);
 			const auto j = result.emplace(
 				type,
@@ -1190,7 +1211,9 @@ void PanelController::cancelValueEdit() {
 	Expects(_editScope != nullptr);
 
 	_editScopeBoxes.clear();
-	_form->cancelValueEdit(base::take(_editValue));
+	if (const auto value = base::take(_editValue)) {
+		_form->cancelValueEdit(value);
+	}
 	if (const auto document = base::take(_editDocument)) {
 		_form->cancelValueEdit(document);
 	}
@@ -1199,7 +1222,6 @@ void PanelController::cancelValueEdit() {
 
 void PanelController::saveScope(ValueMap &&data, ValueMap &&filesData) {
 	Expects(_panel != nullptr);
-	Expects(_editValue != nullptr);
 
 	if (uploadingScopeScan()) {
 		showToast(lang(lng_passport_wait_upload));
@@ -1208,7 +1230,9 @@ void PanelController::saveScope(ValueMap &&data, ValueMap &&filesData) {
 		return;
 	}
 
-	_form->saveValueEdit(_editValue, std::move(data));
+	if (_editValue) {
+		_form->saveValueEdit(_editValue, std::move(data));
+	}
 	if (_editDocument) {
 		_form->saveValueEdit(_editDocument, std::move(filesData));
 	} else {
@@ -1219,12 +1243,11 @@ void PanelController::saveScope(ValueMap &&data, ValueMap &&filesData) {
 bool PanelController::editScopeChanged(
 		const ValueMap &data,
 		const ValueMap &filesData) const {
-	Expects(_editValue != nullptr);
-
-	if (_form->editValueChanged(_editValue, data)) {
+	if (_editValue && _form->editValueChanged(_editValue, data)) {
 		return true;
-	} else if (_editDocument) {
-		return _form->editValueChanged(_editDocument, filesData);
+	} else if (_editDocument
+		&& _form->editValueChanged(_editDocument, filesData)) {
+		return true;
 	}
 	return false;
 }
