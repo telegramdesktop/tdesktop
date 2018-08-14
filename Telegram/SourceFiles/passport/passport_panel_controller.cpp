@@ -98,12 +98,19 @@ EditDocumentScheme GetDocumentScheme(
 	const auto CountryValidate = FromBoolean([=](const QString &value) {
 		return !CountryFormat(value).isEmpty();
 	});
+	const auto NameOrEmptyValidate = [=](const QString &value) -> Result {
+		if (value.isEmpty()) {
+			return base::none;
+		}
+		return NameValidate(value);
+	};
 
 	// #TODO passport scheme
 	switch (type) {
 	case Scope::Type::Identity: {
 		auto result = Scheme();
-		result.rowsHeader = lang(lng_passport_personal_details);
+		result.detailsHeader = lang(lng_passport_personal_details);
+		result.fieldsHeader = lang(lng_passport_document_details);
 		if (scansType) {
 			switch (*scansType) {
 			case Value::Type::Passport:
@@ -131,6 +138,16 @@ EditDocumentScheme GetDocumentScheme(
 				NameValidate,
 				DontFormat,
 				kMaxNameSize,
+			},
+			{
+				ValueClass::Fields,
+				PanelDetailsType::Text,
+				qsl("middle_name"),
+				lang(lng_passport_middle_name),
+				NameOrEmptyValidate,
+				DontFormat,
+				kMaxNameSize,
+				qsl("first_name")
 			},
 			{
 				ValueClass::Fields,
@@ -197,7 +214,7 @@ EditDocumentScheme GetDocumentScheme(
 
 	case Scope::Type::Address: {
 		auto result = Scheme();
-		result.rowsHeader = lang(lng_passport_address);
+		result.detailsHeader = lang(lng_passport_address);
 		if (scansType) {
 			switch (*scansType) {
 			case Value::Type::UtilityBill:
@@ -1048,12 +1065,16 @@ void PanelController::editScope(int index, int documentIndex) {
 					_editDocument->scanMissingError,
 					valueFiles(*_editDocument),
 					valueSpecialFiles(*_editDocument))
-				// #TODO passport document without details
 				: object_ptr<PanelEditDocument>(
 					_panel->widget(),
 					this,
-					GetDocumentScheme(_editScope->type),
-					_editValue->data.parsedInEdit);
+					GetDocumentScheme(
+						_editScope->type,
+						_editDocument->type),
+					_editDocument->data.parsedInEdit,
+					_editDocument->scanMissingError,
+					valueFiles(*_editDocument),
+					valueSpecialFiles(*_editDocument));
 			const auto weak = make_weak(result.data());
 			_panelHasUnsavedChanges = [=] {
 				return weak ? weak->hasUnsavedChanges() : false;

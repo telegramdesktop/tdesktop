@@ -224,7 +224,32 @@ PanelEditDocument::PanelEditDocument(
 		langFactory(lng_passport_save_value),
 		st::passportPanelSaveValue) {
 	setupControls(
-		data,
+		&data,
+		&scanData,
+		missingScansError,
+		std::move(files),
+		std::move(specialFiles));
+}
+
+PanelEditDocument::PanelEditDocument(
+	QWidget*,
+	not_null<PanelController*> controller,
+	Scheme scheme,
+	const ValueMap &scanData,
+	const QString &missingScansError,
+	std::vector<ScanInfo> &&files,
+	std::map<SpecialFile, ScanInfo> &&specialFiles)
+: _controller(controller)
+, _scheme(std::move(scheme))
+, _scroll(this, st::passportPanelScroll)
+, _topShadow(this)
+, _bottomShadow(this)
+, _done(
+		this,
+		langFactory(lng_passport_save_value),
+		st::passportPanelSaveValue) {
+	setupControls(
+		nullptr,
 		&scanData,
 		missingScansError,
 		std::move(files),
@@ -245,11 +270,11 @@ PanelEditDocument::PanelEditDocument(
 		this,
 		langFactory(lng_passport_save_value),
 		st::passportPanelSaveValue) {
-	setupControls(data, nullptr, QString(), {}, {});
+	setupControls(&data, nullptr, QString(), {}, {});
 }
 
 void PanelEditDocument::setupControls(
-		const ValueMap &data,
+		const ValueMap *data,
 		const ValueMap *scanData,
 		const QString &missingScansError,
 		std::vector<ScanInfo> &&files,
@@ -273,7 +298,7 @@ void PanelEditDocument::setupControls(
 }
 
 not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
-		const ValueMap &data,
+		const ValueMap *data,
 		const ValueMap *scanData,
 		const QString &missingScansError,
 		std::vector<ScanInfo> &&files,
@@ -308,14 +333,6 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 			st::passportFormDividerHeight));
 	}
 
-	inner->add(
-		object_ptr<Ui::FlatLabel>(
-			inner,
-			_scheme.rowsHeader,
-			Ui::FlatLabel::InitType::Simple,
-			st::passportFormHeader),
-		st::passportDetailsHeaderPadding);
-
 	const auto valueOrEmpty = [&](
 			const ValueMap &values,
 			const QString &key) {
@@ -330,7 +347,7 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 		for (auto i = 0, count = int(_scheme.rows.size()); i != count; ++i) {
 			const auto &row = _scheme.rows[i];
 			auto fields = (row.valueClass == Scheme::ValueClass::Fields)
-				? &data
+				? data
 				: scanData;
 			if (!fields) {
 				continue;
@@ -347,24 +364,33 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 			maxLabelWidth,
 			PanelDetailsRow::LabelWidth(row.label));
 	});
-	enumerateRows([&](
-			int i,
-			const EditDocumentScheme::Row &row,
-			const ValueMap &fields) {
-		const auto current = valueOrEmpty(fields, row.key);
-		_details.emplace(i, inner->add(PanelDetailsRow::Create(
-			inner,
-			row.inputType,
-			_controller,
-			row.label,
-			maxLabelWidth,
-			current.text,
-			current.error,
-			row.lengthLimit)));
-	});
+	if (maxLabelWidth > 0) {
+		inner->add(
+			object_ptr<Ui::FlatLabel>(
+				inner,
+				data ? _scheme.detailsHeader : _scheme.fieldsHeader,
+				Ui::FlatLabel::InitType::Simple,
+				st::passportFormHeader),
+			st::passportDetailsHeaderPadding);
+		enumerateRows([&](
+				int i,
+				const EditDocumentScheme::Row &row,
+				const ValueMap &fields) {
+			const auto current = valueOrEmpty(fields, row.key);
+			_details.emplace(i, inner->add(PanelDetailsRow::Create(
+				inner,
+				row.inputType,
+				_controller,
+				row.label,
+				maxLabelWidth,
+				current.text,
+				current.error,
+				row.lengthLimit)));
+		});
 
-	inner->add(
-		object_ptr<Ui::FixedHeightWidget>(inner, st::passportDetailsSkip));
+		inner->add(
+			object_ptr<Ui::FixedHeightWidget>(inner, st::passportDetailsSkip));
+	}
 	if (auto text = _controller->deleteValueLabel()) {
 		inner->add(
 			object_ptr<Info::Profile::Button>(

@@ -224,13 +224,15 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 					list,
 					keyForAttachmentTo,
 					[](const std::pair<QString, QString> &value) {
-					return value.first;
-				});
+						return value.first;
+					});
 				Assert(i != end(list));
-				if (i->second.isEmpty()) {
-					i->second = value.trimmed();
-				} else {
-					i->second += ' ' + value.trimmed();
+				if (const auto data = value.trimmed(); !data.isEmpty()) {
+					if (i->second.isEmpty()) {
+						i->second = data;
+					} else {
+						i->second += ' ' + data;
+					}
 				}
 			}
 		};

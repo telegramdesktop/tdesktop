@@ -1617,10 +1617,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_reupload_main_page" = "Reupload a scan of the main page";
 "lng_passport_personal_details" = "Personal details";
 "lng_passport_personal_details_enter" = "Enter your personal details";
+"lng_passport_document_details" = "Document details";
 "lng_passport_choose_image" = "Choose scan image";
 "lng_passport_delete_scan_undo" = "Undo";
 "lng_passport_scan_uploaded" = "Uploaded on {date}";
 "lng_passport_first_name" = "Name";
+"lng_passport_middle_name" = "Middle name";
 "lng_passport_last_name" = "Surname";
 "lng_passport_birth_date" = "Date of birth";
 "lng_passport_gender" = "Gender";

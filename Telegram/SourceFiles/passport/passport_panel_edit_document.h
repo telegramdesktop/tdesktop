@@ -49,7 +49,8 @@ struct EditDocumentScheme {
 		QString keyForAttachmentTo; // attach last_name to first_name
 	};
 	std::vector<Row> rows;
-	QString rowsHeader;
+	QString fieldsHeader;
+	QString detailsHeader;
 	QString scansHeader;
 
 };
@@ -71,6 +72,14 @@ public:
 		QWidget *parent,
 		not_null<PanelController*> controller,
 		Scheme scheme,
+		const ValueMap &scanData,
+		const QString &missingScansError,
+		std::vector<ScanInfo> &&files,
+		std::map<SpecialFile, ScanInfo> &&specialFiles);
+	PanelEditDocument(
+		QWidget *parent,
+		not_null<PanelController*> controller,
+		Scheme scheme,
 		const ValueMap &data);
 
 	bool hasUnsavedChanges() const;
@@ -82,13 +91,13 @@ protected:
 private:
 	struct Result;
 	void setupControls(
-		const ValueMap &data,
+		const ValueMap *data,
 		const ValueMap *scanData,
 		const QString &missingScansError,
 		std::vector<ScanInfo> &&files,
 		std::map<SpecialFile, ScanInfo> &&specialFiles);
 	not_null<Ui::RpWidget*> setupContent(
-		const ValueMap &data,
+		const ValueMap *data,
 		const ValueMap *scanData,
 		const QString &missingScansError,
 		std::vector<ScanInfo> &&files,
