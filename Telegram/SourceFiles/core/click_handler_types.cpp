@@ -23,7 +23,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 QString tryConvertUrlToLocal(QString url) {
-	if (url.size() > 8192) url = url.mid(0, 8192);
+	if (url.size() > 8192) {
+		url = url.mid(0, 8192);
+	}
 
 	using namespace qthelp;
 	auto matchOptions = RegExOption::CaseInsensitive;
@@ -105,18 +107,17 @@ QString UrlClickHandler::url() const {
 }
 
 void UrlClickHandler::Open(QString url, QVariant context) {
-	Ui::Tooltip::Hide();
-
-	if (isEmail(url)) {
-		File::OpenEmailLink(url);
+	url = tryConvertUrlToLocal(url);
+	if (InternalPassportLink(url)) {
 		return;
 	}
 
-	url = tryConvertUrlToLocal(url);
-
-	if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
+	Ui::Tooltip::Hide();
+	if (isEmail(url)) {
+		File::OpenEmailLink(url);
+	} else if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
 		Messenger::Instance().openLocalUrl(url, context);
-	} else {
+	} else if (!url.isEmpty()) {
 		QDesktopServices::openUrl(url);
 	}
 }
@@ -142,27 +143,22 @@ TextWithEntities UrlClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMod
 }
 
 void HiddenUrlClickHandler::Open(QString url, QVariant context) {
-	auto urlText = tryConvertUrlToLocal(url);
+	url = tryConvertUrlToLocal(url);
+	if (InternalPassportLink(url)) {
+		return;
+	}
+
 	const auto open = [=] {
-		UrlClickHandler::Open(urlText, context);
+		UrlClickHandler::Open(url, context);
 	};
-	if (urlText.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
-		if (InternalPassportLink(urlText)) {
-			Ui::show(
-				Box<ConfirmBox>(
-					lang(lng_open_passport_link),
-					lang(lng_open_link),
-					[=] { Ui::hideLayer(); open(); }),
-				LayerOption::KeepOther);
-		} else {
-			open();
-		}
+	if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
+		open();
 	} else {
-		auto parsedUrl = QUrl::fromUserInput(urlText);
-		if (UrlRequiresConfirmation(urlText)) {
-			auto displayUrl = parsedUrl.isValid()
+		const auto parsedUrl = QUrl::fromUserInput(url);
+		if (UrlRequiresConfirmation(url)) {
+			const auto displayUrl = parsedUrl.isValid()
 				? parsedUrl.toDisplayString()
-				: urlText;
+				: url;
 			Ui::show(
 				Box<ConfirmBox>(
 					lang(lng_open_this_link) + qsl("\n\n") + displayUrl,
@@ -176,13 +172,16 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 }
 
 void BotGameUrlClickHandler::onClick(ClickContext context) const {
-	auto urlText = tryConvertUrlToLocal(url());
+	const auto url = tryConvertUrlToLocal(this->url());
+	if (InternalPassportLink(url)) {
+		return;
+	}
 
 	const auto open = [=] {
-		UrlClickHandler::Open(urlText, context.other);
+		UrlClickHandler::Open(url, context.other);
 	};
-	if (urlText.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
-		Messenger::Instance().openLocalUrl(urlText, context.other);
+	if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
+		open();
 	} else if (!_bot || _bot->isVerified() || Local::isBotTrusted(_bot)) {
 		open();
 	} else {
