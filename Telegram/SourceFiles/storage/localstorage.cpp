@@ -4506,6 +4506,9 @@ void _writePeer(QDataStream &stream, PeerData *peer) {
 PeerData *_readPeer(int streamAppVersion, QDataStream &stream) {
 	quint64 peerId = 0, photoId = 0;
 	stream >> peerId >> photoId;
+	if (!peerId) {
+		return nullptr;
+	}
 
 	auto photoLoc = Serialize::readStorageImageLocation(
 		streamAppVersion,
@@ -4721,7 +4724,12 @@ void readRecentHashtagsAndBots() {
 				const auto peer = _readPeer(
 					hashtags.version,
 					hashtags.stream);
-				if (peer && peer->isUser() && peer->asUser()->botInfo && !peer->asUser()->botInfo->inlinePlaceholder.isEmpty() && !peer->asUser()->username.isEmpty()) {
+				if (!peer) {
+					return; // Broken data.
+				} else if (peer->isUser()
+					&& peer->asUser()->botInfo
+					&& !peer->asUser()->botInfo->inlinePlaceholder.isEmpty()
+					&& !peer->asUser()->username.isEmpty()) {
 					bots.push_back(peer->asUser());
 				}
 			}
