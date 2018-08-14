@@ -367,6 +367,15 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 
 			using namespace mappers;
 
+			// MSVC BUG + REGRESSION rpl::mappers::tuple :(
+			//combine(
+			//	a.events(),
+			//	b.events(),
+			//	tuple(_1, _1 + _2)
+			//) | rpl::start_with_next([=](int a, int a_plus_b) {
+			//	*sum += std::to_string(a * a_plus_b);
+			//}, lifetime);
+
 			combine(
 				a.events(),
 				b.events(),
@@ -384,6 +393,9 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 			c.fire(6);
 		}
 		REQUIRE(*sum == "16192225");
+
+		// MSVC BUG + REGRESSION rpl::mappers::tuple :(
+		//REQUIRE(*sum == "3162419362225");
 	}
 
 	SECTION("after_next test") {

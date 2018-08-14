@@ -296,6 +296,7 @@ MainWidget::MainWidget(
 		checkFloatPlayerVisibility();
 	});
 
+	// MSVC BUG + REGRESSION rpl::mappers::tuple :(
 	using namespace rpl::mappers;
 	_controller->activeChatValue(
 	) | rpl::map([](Dialogs::Key key) {
@@ -303,7 +304,11 @@ MainWidget::MainWidget(
 		auto canWrite = peer
 			? Data::CanWriteValue(peer)
 			: rpl::single(false);
-		return std::move(canWrite) | rpl::map(tuple(key, _1));
+		return std::move(
+			canWrite
+		) | rpl::map([=](bool can) {
+			return std::make_tuple(key, can);
+		});
 	}) | rpl::flatten_latest(
 	) | rpl::start_with_next([this](Dialogs::Key key, bool canWrite) {
 		updateThirdColumnToCurrentChat(key, canWrite);

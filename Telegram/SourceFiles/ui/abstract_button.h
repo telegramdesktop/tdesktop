@@ -43,7 +43,7 @@ public:
 		_clickedCallback = std::move(callback);
 	}
 
-	auto clicks() const {
+	rpl::producer<> clicks() const {
 		return _clicks.events();
 	}
 	template <typename Handler>

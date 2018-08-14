@@ -301,12 +301,13 @@ void Panel::refreshList() {
 			_scroll->scrollToY(newScrollTop);
 		}, weak->lifetime());
 
+		// MSVC BUG + REGRESSION rpl::mappers::tuple :(
 		using namespace rpl::mappers;
 		rpl::combine(
 			_scroll->scrollTopValue(),
-			_scroll->heightValue(),
-			tuple(_1, _1 + _2)
-		) | rpl::start_with_next([=](int top, int bottom) {
+			_scroll->heightValue()
+		) | rpl::start_with_next([=](int top, int height) {
+			const auto bottom = top + height;
 			weak->setVisibleTopBottom(top, bottom);
 		}, weak->lifetime());
 

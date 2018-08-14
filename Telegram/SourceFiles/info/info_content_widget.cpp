@@ -127,15 +127,16 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 			_innerWrap ? _innerWrap->padding() : style::margins()));
 	_innerWrap->move(0, 0);
 
+	// MSVC BUG + REGRESSION rpl::mappers::tuple :(
 	rpl::combine(
 		_scroll->scrollTopValue(),
 		_scroll->heightValue(),
-		_innerWrap->entity()->desiredHeightValue(),
-		tuple(_1, _1 + _2, _3)
+		_innerWrap->entity()->desiredHeightValue()
 	) | rpl::start_with_next([this](
 			int top,
-			int bottom,
+			int height,
 			int desired) {
+		const auto bottom = top + height;
 		_innerDesiredHeight = desired;
 		_innerWrap->setVisibleTopBottom(top, bottom);
 		_scrollTillBottomChanges.fire_copy(std::max(desired - bottom, 0));
