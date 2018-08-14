@@ -324,6 +324,34 @@ EditContactScheme GetContactScheme(Scope::Type type) {
 	Unexpected("Type in GetContactScheme().");
 }
 
+const std::map<QString, QString> &NativeNameKeys() {
+	static const auto result = std::map<QString, QString> {
+		{ qsl("first_name"), qsl("first_name_native") },
+		{ qsl("last_name"), qsl("last_name_native") },
+		{ qsl("middle_name"), qsl("middle_name_native") },
+	};
+	return result;
+}
+
+const std::map<QString, QString> &LatinNameKeys() {
+	static const auto result = std::map<QString, QString> {
+		{ qsl("first_name_native"), qsl("first_name") },
+		{ qsl("last_name_native"), qsl("last_name") },
+		{ qsl("_nativemiddle_name"), qsl("middle_name") },
+	};
+	return result;
+}
+
+bool SkipFieldCheck(not_null<const Value*> value, const QString &key) {
+	if (value->type != Value::Type::PersonalDetails) {
+		return false;
+	}
+	const auto &namesMap = value->nativeNames
+		? NativeNameKeys()
+		: LatinNameKeys();
+	return namesMap.find(key) == end(namesMap);
+}
+
 BoxPointer::BoxPointer(QPointer<BoxContent> value)
 : _value(value) {
 }
@@ -636,15 +664,19 @@ ScanInfo PanelController::collectScanInfo(const EditFile &file) const {
 
 std::vector<ScopeError> PanelController::collectErrors(
 		not_null<const Value*> value) const {
+	using General = ScopeError::General;
+
 	auto result = std::vector<ScopeError>();
 	if (!value->error.isEmpty()) {
-		result.push_back({ FileKey(), value->error });
+		result.push_back({ General::WholeValue, value->error });
 	}
 	if (!value->scanMissingError.isEmpty()) {
-		result.push_back({ FileKey(), value->scanMissingError });
+		result.push_back({ General::ScanMissing, value->scanMissingError });
 	}
 	if (!value->translationMissingError.isEmpty()) {
-		result.push_back({ FileKey(), value->translationMissingError });
+		result.push_back({
+			General::TranslationMissing,
+			value->translationMissingError });
 	}
 	const auto addFileError = [&](const EditFile &file) {
 		if (!file.fields.error.isEmpty()) {

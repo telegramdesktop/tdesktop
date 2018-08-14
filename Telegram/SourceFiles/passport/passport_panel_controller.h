@@ -25,6 +25,10 @@ EditDocumentScheme GetDocumentScheme(
 	base::optional<Value::Type> scansType = base::none);
 EditContactScheme GetContactScheme(Scope::Type type);
 
+const std::map<QString, QString> &NativeNameKeys();
+const std::map<QString, QString> &LatinNameKeys();
+bool SkipFieldCheck(not_null<const Value*> value, const QString &key);
+
 struct ScanInfo {
 	FileKey key;
 	QString status;
@@ -36,12 +40,17 @@ struct ScanInfo {
 };
 
 struct ScopeError {
-	// FileKey:id != 0 - file_hash error (bad scan / selfie)
-	// FileKey:id == 0 - vector<file_hash> error (scan missing)
-	// QString - data_hash with such key error (bad value)
-	base::variant<FileKey, QString> key;
-	QString text;
+	enum class General {
+		WholeValue,
+		ScanMissing,
+		TranslationMissing,
+	};
 
+	// FileKey - file_hash error (bad scan / selfie / translation)
+	// General - general value error (or scan / translation missing)
+	// QString - data_hash with such key error (bad value)
+	base::variant<FileKey, General, QString> key;
+	QString text;
 };
 
 class BoxPointer {

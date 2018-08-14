@@ -831,7 +831,6 @@ void FormController::decryptValues() {
 }
 
 void FormController::fillErrors() {
-	// #TODO passport filter by flags
 	const auto find = [&](const MTPSecureValueType &type) -> Value* {
 		const auto converted = ConvertType(type);
 		const auto i = _form.values.find(ConvertType(type));
@@ -841,25 +840,36 @@ void FormController::fillErrors() {
 		LOG(("API Error: Value not found for error type."));
 		return nullptr;
 	};
-	const auto scan = [&](Value &value, bytes::const_span hash) -> File* {
-		const auto i = ranges::find_if(value.scans, [&](const File &scan) {
+	using List = std::vector<File>;
+	const auto findScan = [&](List &list, bytes::const_span hash) -> File* {
+		const auto i = ranges::find_if(list, [&](const File &scan) {
 			return !bytes::compare(hash, scan.hash);
 		});
-		if (i != end(value.scans)) {
+		if (i != end(list)) {
 			return &*i;
+		}
+		return nullptr;
+	};
+	const auto scan = [&](Value &value, bytes::const_span hash) -> File* {
+		if (const auto translation = findScan(value.translations, hash)) {
+			return translation;
+		} else if (const auto scan = findScan(value.scans, hash)) {
+			return scan;
 		}
 		LOG(("API Error: File not found for error value."));
 		return nullptr;
 	};
 	const auto setSpecialScanError = [&](SpecialFile type, auto &&data) {
 		if (const auto value = find(data.vtype)) {
-			const auto i = value->specialScans.find(type);
-			if (i != value->specialScans.end()) {
-				i->second.error = qs(data.vtext);
-			} else {
-				LOG(("API Error: "
-					"Special scan %1 not found for error value."
-					).arg(int(type)));
+			if (value->requiresSpecialScan(type)) {
+				const auto i = value->specialScans.find(type);
+				if (i != value->specialScans.end()) {
+					i->second.error = qs(data.vtext);
+				} else {
+					LOG(("API Error: "
+						"Special scan %1 not found for error value."
+						).arg(int(type)));
+				}
 			}
 		}
 	};
@@ -871,7 +881,9 @@ void FormController::fillErrors() {
 		}, [&](const MTPDsecureValueErrorData &data) {
 			if (const auto value = find(data.vtype)) {
 				const auto key = qs(data.vfield);
-				value->data.parsed.fields[key].error = qs(data.vtext);
+				if (!SkipFieldCheck(value, key)) {
+					value->data.parsed.fields[key].error = qs(data.vtext);
+				}
 			}
 		}, [&](const MTPDsecureValueErrorFile &data) {
 			const auto hash = bytes::make_span(data.vfile_hash.v);
@@ -887,13 +899,17 @@ void FormController::fillErrors() {
 		}, [&](const MTPDsecureValueErrorTranslationFile &data) {
 			const auto hash = bytes::make_span(data.vfile_hash.v);
 			if (const auto value = find(data.vtype)) {
-				if (const auto file = scan(*value, hash)) { // #TODO passport
-					file->error = qs(data.vtext);
+				if (value->translationRequired) {
+					if (const auto file = scan(*value, hash)) {
+						file->error = qs(data.vtext);
+					}
 				}
 			}
 		}, [&](const MTPDsecureValueErrorTranslationFiles &data) {
 			if (const auto value = find(data.vtype)) {
-				value->translationMissingError = qs(data.vtext);
+				if (value->translationRequired) {
+					value->translationMissingError = qs(data.vtext);
+				}
 			}
 		}, [&](const MTPDsecureValueErrorFrontSide &data) {
 			setSpecialScanError(SpecialFile::FrontSide, data);
