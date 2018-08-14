@@ -159,14 +159,17 @@ bool ValidateForm(const Form &form) {
 			LOG(("API Error: Bad value requiring native names."));
 			return false;
 		}
-		if (!CanRequireScans(value.type)) {
-			Assert(value.scanMissingError.isEmpty());
-		}
-		if (!value.translationRequired) {
-			for (const auto &scan : value.translations) {
+		if (!value.requiresScan(FileType::Scan)) {
+			for (const auto &scan : value.files(FileType::Scan)) {
 				Assert(scan.error.isEmpty());
 			}
-			Assert(value.translationMissingError.isEmpty());
+			Assert(value.fileMissingError(FileType::Scan).isEmpty());
+		}
+		if (!value.requiresScan(FileType::Translation)) {
+			for (const auto &scan : value.files(FileType::Translation)) {
+				Assert(scan.error.isEmpty());
+			}
+			Assert(value.fileMissingError(FileType::Translation).isEmpty());
 		}
 		for (const auto &[type, specialScan] : value.specialScans) {
 			if (!value.requiresSpecialScan(type)) {
@@ -278,6 +281,9 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 			}
 			return nullptr;
 		}();
+		if (!scope.documents.empty() && !document) {
+			return QString();
+		}
 		if ((document && scope.documents.size() > 1)
 			|| (!scope.details
 				&& (ScopeTypeForValueType(document->type)
@@ -306,9 +312,6 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 				default: Unexpected("Files type in ComputeScopeRowReadyString.");
 				}
 			}());
-		}
-		if (!scope.documents.empty() && !document) {
-			return QString();
 		}
 		const auto scheme = GetDocumentScheme(
 			scope.type,
@@ -372,22 +375,18 @@ ScopeRow ComputeScopeRow(const Scope &scope) {
 			if (!value->error.isEmpty()) {
 				errors.push_back(value->error);
 			}
-			if (!value->scanMissingError.isEmpty()) {
-				errors.push_back(value->scanMissingError);
-			}
-			if (!value->translationMissingError.isEmpty()) {
-				errors.push_back(value->translationMissingError);
-			}
-			for (const auto &scan : value->scans) {
-				if (!scan.error.isEmpty()) {
-					errors.push_back(scan.error);
+			const auto addTypeErrors = [&](FileType type) {
+				if (!value->fileMissingError(type).isEmpty()) {
+					errors.push_back(value->fileMissingError(type));
 				}
-			}
-			for (const auto &scan : value->translations) {
-				if (!scan.error.isEmpty()) {
-					errors.push_back(scan.error);
+				for (const auto &scan : value->files(type)) {
+					if (!scan.error.isEmpty()) {
+						errors.push_back(scan.error);
+					}
 				}
-			}
+			};
+			addTypeErrors(FileType::Scan);
+			addTypeErrors(FileType::Translation);
 			for (const auto &[type, scan] : value->specialScans) {
 				if (!scan.error.isEmpty()) {
 					errors.push_back(scan.error);

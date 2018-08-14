@@ -81,6 +81,14 @@ private:
 
 struct Value;
 
+enum class FileType {
+	Scan,
+	Translation,
+	FrontSide,
+	ReverseSide,
+	Selfie,
+};
+
 struct File {
 	uint64 id = 0;
 	uint64 accessHash = 0;
@@ -99,10 +107,12 @@ struct File {
 struct EditFile {
 	EditFile(
 		not_null<const Value*> value,
+		FileType type,
 		const File &fields,
 		std::unique_ptr<UploadScanData> &&uploadData);
 
 	not_null<const Value*> value;
+	FileType type;
 	File fields;
 	UploadScanDataPointer uploadData;
 	std::shared_ptr<bool> guard;
@@ -141,12 +151,6 @@ struct Verification {
 
 struct Form;
 
-enum class SpecialFile {
-	FrontSide,
-	ReverseSide,
-	Selfie,
-};
-
 struct Value {
 	enum class Type {
 		PersonalDetails,
@@ -172,20 +176,32 @@ struct Value {
 	// It should be preserved through re-parsing (for example when saving).
 	// So we hide "operator=(Value&&)" in private and instead provide this.
 	void fillDataFrom(Value &&other);
-	bool requiresSpecialScan(SpecialFile type) const;
+	bool requiresSpecialScan(FileType type) const;
+	bool requiresScan(FileType type) const;
 	bool scansAreFilled() const;
+	void saveInEdit();
+	void clearEditData();
+	bool uploadingScan() const;
+	bool saving() const;
+
+	std::vector<File> &files(FileType type);
+	const std::vector<File> &files(FileType type) const;
+	QString &fileMissingError(FileType type);
+	const QString &fileMissingError(FileType type) const;
+	std::vector<EditFile> &filesInEdit(FileType type);
+	const std::vector<EditFile> &filesInEdit(FileType type) const;
+	EditFile &fileInEdit(FileType type, base::optional<int> fileIndex);
+	const EditFile &fileInEdit(
+		FileType type,
+		base::optional<int> fileIndex) const;
+
+	std::vector<EditFile> takeAllFilesInEdit();
 
 	Type type;
 	ValueData data;
-	std::vector<File> scans;
-	std::vector<File> translations;
-	std::map<SpecialFile, File> specialScans;
+	std::map<FileType, File> specialScans;
 	QString error;
-	QString scanMissingError;
-	QString translationMissingError;
-	std::vector<EditFile> scansInEdit;
-	std::vector<EditFile> translationsInEdit;
-	std::map<SpecialFile, EditFile> specialScansInEdit;
+	std::map<FileType, EditFile> specialScansInEdit;
 	Verification verification;
 	bytes::vector submitHash;
 
@@ -198,6 +214,13 @@ struct Value {
 
 private:
 	Value &operator=(Value &&other) = default;
+
+	std::vector<File> _scans;
+	std::vector<File> _translations;
+	std::vector<EditFile> _scansInEdit;
+	std::vector<EditFile> _translationsInEdit;
+	QString _scanMissingError;
+	QString _translationMissingError;
 
 };
 
@@ -299,20 +322,19 @@ public:
 	void reloadAndSubmitPassword(const QByteArray &password);
 	void cancelPassword();
 
-	bool canAddScan(not_null<const Value*> value) const;
-	void uploadScan(not_null<const Value*> value, QByteArray &&content);
-	void deleteScan(not_null<const Value*> value, int fileIndex);
-	void restoreScan(not_null<const Value*> value, int fileIndex);
-	void uploadSpecialScan(
+	bool canAddScan(not_null<const Value*> value, FileType type) const;
+	void uploadScan(
 		not_null<const Value*> value,
-		SpecialFile type,
+		FileType type,
 		QByteArray &&content);
-	void deleteSpecialScan(
+	void deleteScan(
 		not_null<const Value*> value,
-		SpecialFile type);
-	void restoreSpecialScan(
+		FileType type,
+		base::optional<int> fileIndex);
+	void restoreScan(
 		not_null<const Value*> value,
-		SpecialFile type);
+		FileType type,
+		base::optional<int> fileIndex);
 
 	rpl::producer<> secretReadyEvents() const;
 
@@ -331,8 +353,6 @@ public:
 	void cancelValueVerification(not_null<const Value*> value);
 	void saveValueEdit(not_null<const Value*> value, ValueMap &&data);
 	void deleteValueEdit(not_null<const Value*> value);
-	bool savingValue(not_null<const Value*> value) const;
-	bool uploadingScan(not_null<const Value*> value) const;
 
 	void cancel();
 	void cancelSure();
@@ -350,6 +370,9 @@ private:
 		QByteArray credentials;
 		std::vector<not_null<const Value*>> errors;
 	};
+
+	template <typename Condition>
+	EditFile *findEditFileByCondition(Condition &&condition);
 	EditFile *findEditFile(const FullMsgId &fullId);
 	EditFile *findEditFile(const FileKey &key);
 	std::pair<Value*, File*> findFile(const FileKey &key);
@@ -432,11 +455,8 @@ private:
 	void scanUploadFail(const FullMsgId &fullId);
 	void scanDeleteRestore(
 		not_null<const Value*> value,
-		int fileIndex,
-		bool deleted);
-	void specialScanDeleteRestore(
-		not_null<const Value*> value,
-		SpecialFile type,
+		FileType type,
+		base::optional<int> fileIndex,
 		bool deleted);
 
 	QString getPhoneFromValue(not_null<const Value*> value) const;

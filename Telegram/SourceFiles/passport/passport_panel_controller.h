@@ -36,9 +36,8 @@ struct ScanInfo {
 	QString status;
 	QImage thumb;
 	bool deleted = false;
-	base::optional<SpecialFile> special;
+	FileType type = FileType();
 	QString error;
-
 };
 
 struct ScopeError {
@@ -88,13 +87,10 @@ public:
 	void setupPassword();
 	void cancelPasswordSubmit();
 
-	bool canAddScan() const;
-	void uploadScan(QByteArray &&content);
-	void deleteScan(int fileIndex);
-	void restoreScan(int fileIndex);
-	void uploadSpecialScan(SpecialFile type, QByteArray &&content);
-	void deleteSpecialScan(SpecialFile type);
-	void restoreSpecialScan(SpecialFile type);
+	bool canAddScan(FileType type) const;
+	void uploadScan(FileType type, QByteArray &&content);
+	void deleteScan(FileType type, base::optional<int> fileIndex);
+	void restoreScan(FileType type, base::optional<int> fileIndex);
 	rpl::producer<ScanInfo> scanUpdated() const;
 	rpl::producer<ScopeError> saveErrors() const;
 	void readScanError(ReadScanError error);
@@ -151,8 +147,7 @@ private:
 	int findNonEmptyDocumentIndex(const Scope &scope) const;
 	void requestScopeFilesType(int index);
 	void cancelValueEdit();
-	std::vector<ScanInfo> valueFiles(const Value &value) const;
-	std::map<SpecialFile, ScanInfo> valueSpecialFiles(
+	std::map<FileType, ScanInfo> valueSpecialFiles(
 		const Value &value) const;
 	void processValueSaveFinished(not_null<const Value*> value);
 	void processVerificationNeeded(not_null<const Value*> value);
@@ -161,7 +156,6 @@ private:
 	bool uploadingScopeScan() const;
 	bool hasValueDocument() const;
 	bool hasValueFields() const;
-	ScanInfo collectScanInfo(const EditFile &file) const;
 	std::vector<ScopeError> collectSaveErrors(
 		not_null<const Value*> value) const;
 	QString getDefaultContactValue(Scope::Type type) const;

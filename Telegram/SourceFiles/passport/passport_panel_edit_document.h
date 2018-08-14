@@ -33,8 +33,9 @@ struct ValueMap;
 struct ScanInfo;
 class EditScans;
 class PanelDetailsRow;
-enum class SpecialFile;
+enum class FileType;
 enum class PanelDetailsType;
+struct ScanListData;
 
 struct EditDocumentScheme {
 	enum class ValueClass {
@@ -72,18 +73,18 @@ public:
 		const ValueMap &data,
 		const QString &scansError,
 		const ValueMap &scansData,
-		const QString &missingScansError,
-		std::vector<ScanInfo> &&files,
-		std::map<SpecialFile, ScanInfo> &&specialFiles);
+		ScanListData &&scans,
+		base::optional<ScanListData> &&translations,
+		std::map<FileType, ScanInfo> &&specialFiles);
 	PanelEditDocument(
 		QWidget *parent,
 		not_null<PanelController*> controller,
 		Scheme scheme,
 		const QString &scansError,
 		const ValueMap &scansData,
-		const QString &missingScansError,
-		std::vector<ScanInfo> &&files,
-		std::map<SpecialFile, ScanInfo> &&specialFiles);
+		ScanListData &&scans,
+		base::optional<ScanListData> &&translations,
+		std::map<FileType, ScanInfo> &&specialFiles);
 	PanelEditDocument(
 		QWidget *parent,
 		not_null<PanelController*> controller,
@@ -104,17 +105,17 @@ private:
 		const ValueMap *data,
 		const QString *scansError,
 		const ValueMap *scansData,
-		const QString &missingScansError,
-		std::vector<ScanInfo> &&files,
-		std::map<SpecialFile, ScanInfo> &&specialFiles);
+		ScanListData &&scans,
+		base::optional<ScanListData> &&translations,
+		std::map<FileType, ScanInfo> &&specialFiles);
 	not_null<Ui::RpWidget*> setupContent(
 		const QString *error,
 		const ValueMap *data,
 		const QString *scansError,
 		const ValueMap *scansData,
-		const QString &missingScansError,
-		std::vector<ScanInfo> &&files,
-		std::map<SpecialFile, ScanInfo> &&specialFiles);
+		ScanListData &&scans,
+		base::optional<ScanListData> &&translations,
+		std::map<FileType, ScanInfo> &&specialFiles);
 	void updateControlsGeometry();
 	void updateCommonError();
 

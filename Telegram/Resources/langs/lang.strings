@@ -1620,9 +1620,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_choose_image" = "Choose scan image";
 "lng_passport_delete_scan_undo" = "Undo";
 "lng_passport_scan_uploaded" = "Uploaded on {date}";
-"lng_passport_first_name" = "Name";
+"lng_passport_first_name" = "First name";
 "lng_passport_middle_name" = "Middle name";
-"lng_passport_last_name" = "Surname";
+"lng_passport_last_name" = "Last name";
 "lng_passport_birth_date" = "Date of birth";
 "lng_passport_gender" = "Gender";
 "lng_passport_gender_male" = "Male";
@@ -1638,6 +1638,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_city" = "City";
 "lng_passport_state" = "State";
 "lng_passport_postcode" = "Postcode";
+"lng_passport_translation" = "Translation";
 "lng_passport_use_existing" = "USE {existing}";
 "lng_passport_use_existing_phone" = "Use the same phone number as on Telegram.";
 "lng_passport_new_phone" = "Or enter a new phone number";

@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 
 namespace Passport {
+namespace {
 
 constexpr auto kMaxNameSize = 255;
 constexpr auto kMaxDocumentSize = 24;
@@ -31,6 +32,76 @@ constexpr auto kMaxStreetSize = 64;
 constexpr auto kMinCitySize = 2;
 constexpr auto kMaxCitySize = 64;
 constexpr auto kMaxPostcodeSize = 10;
+
+ScanInfo CollectScanInfo(const EditFile &file) {
+	const auto status = [&] {
+		if (file.fields.accessHash) {
+			if (file.fields.downloadOffset < 0) {
+				return lang(lng_attach_failed);
+			} else if (file.fields.downloadOffset < file.fields.size) {
+				return formatDownloadText(
+					file.fields.downloadOffset,
+					file.fields.size);
+			} else {
+				return lng_passport_scan_uploaded(
+					lt_date,
+					langDateTimeFull(ParseDateTime(file.fields.date)));
+			}
+		} else if (file.uploadData) {
+			if (file.uploadData->offset < 0) {
+				return lang(lng_attach_failed);
+			} else if (file.uploadData->fullId) {
+				return formatDownloadText(
+					file.uploadData->offset,
+					file.uploadData->bytes.size());
+			} else {
+				return lng_passport_scan_uploaded(
+					lt_date,
+					langDateTimeFull(ParseDateTime(file.fields.date)));
+			}
+		} else {
+			return formatDownloadText(0, file.fields.size);
+		}
+	}();
+	return {
+		FileKey{ file.fields.id, file.fields.dcId },
+		!file.fields.error.isEmpty() ? file.fields.error : status,
+		file.fields.image,
+		file.deleted,
+		file.type,
+		file.fields.error };
+}
+
+ScanListData PrepareScanListData(const Value &value, FileType type) {
+	auto result = ScanListData();
+	for (const auto &scan : value.filesInEdit(type)) {
+		result.files.push_back(CollectScanInfo(scan));
+	}
+	result.errorMissing = value.fileMissingError(type);
+	return result;
+}
+
+std::map<FileType, ScanInfo> PrepareSpecialFiles(const Value &value) {
+	auto result = std::map<FileType, ScanInfo>();
+	const auto types = {
+		FileType::FrontSide,
+		FileType::ReverseSide,
+		FileType::Selfie
+	};
+	for (const auto type : types) {
+		if (value.requiresSpecialScan(type)) {
+			const auto i = value.specialScansInEdit.find(type);
+			const auto j = result.emplace(
+				type,
+				(i != end(value.specialScansInEdit)
+					? CollectScanInfo(i->second)
+					: ScanInfo())).first;
+		}
+	}
+	return result;
+}
+
+} // namespace
 
 EditDocumentScheme GetDocumentScheme(
 		Scope::Type type,
@@ -576,66 +647,47 @@ void PanelController::cancelPasswordSubmit() {
 		[=] { if (*box) (*box)->closeBox(); _form->cancelPassword(); }));
 }
 
-bool PanelController::canAddScan() const {
+bool PanelController::canAddScan(FileType type) const {
 	Expects(_editScope != nullptr);
 	Expects(_editDocument != nullptr);
 
-	return _form->canAddScan(_editDocument);
+	return _form->canAddScan(_editDocument, type);
 }
 
-void PanelController::uploadScan(QByteArray &&content) {
+void PanelController::uploadScan(FileType type, QByteArray &&content) {
 	Expects(_editScope != nullptr);
 	Expects(_editDocument != nullptr);
+	Expects(_editDocument->requiresScan(type));
 
-	_form->uploadScan(_editDocument, std::move(content));
+	_form->uploadScan(_editDocument, type, std::move(content));
 }
 
-void PanelController::deleteScan(int fileIndex) {
+void PanelController::deleteScan(
+		FileType type,
+		base::optional<int> fileIndex) {
 	Expects(_editScope != nullptr);
 	Expects(_editDocument != nullptr);
+	Expects(_editDocument->requiresScan(type));
 
-	_form->deleteScan(_editDocument, fileIndex);
+	_form->deleteScan(_editDocument, type, fileIndex);
 }
 
-void PanelController::restoreScan(int fileIndex) {
+void PanelController::restoreScan(
+		FileType type,
+		base::optional<int> fileIndex) {
 	Expects(_editScope != nullptr);
 	Expects(_editDocument != nullptr);
+	Expects(_editDocument->requiresScan(type));
 
-	_form->restoreScan(_editDocument, fileIndex);
-}
-
-void PanelController::uploadSpecialScan(
-		SpecialFile type,
-		QByteArray &&content) {
-	Expects(_editScope != nullptr);
-	Expects(_editDocument != nullptr);
-	Expects(_editDocument->requiresSpecialScan(type));
-
-	_form->uploadSpecialScan(_editDocument, type, std::move(content));
-}
-
-void PanelController::deleteSpecialScan(SpecialFile type) {
-	Expects(_editScope != nullptr);
-	Expects(_editDocument != nullptr);
-	Expects(_editDocument->requiresSpecialScan(type));
-
-	_form->deleteSpecialScan(_editDocument, type);
-}
-
-void PanelController::restoreSpecialScan(SpecialFile type) {
-	Expects(_editScope != nullptr);
-	Expects(_editDocument != nullptr);
-	Expects(_editDocument->requiresSpecialScan(type));
-
-	_form->restoreSpecialScan(_editDocument, type);
+	_form->restoreScan(_editDocument, type, fileIndex);
 }
 
 rpl::producer<ScanInfo> PanelController::scanUpdated() const {
 	return _form->scanUpdated(
 	) | rpl::filter([=](not_null<const EditFile*> file) {
 		return (file->value == _editDocument);
-	}) | rpl::map([=](not_null<const EditFile*> file) {
-		return collectScanInfo(*file);
+	}) | rpl::map([](not_null<const EditFile*> file) {
+		return CollectScanInfo(*file);
 	});
 }
 
@@ -643,63 +695,8 @@ rpl::producer<ScopeError> PanelController::saveErrors() const {
 	return _saveErrors.events();
 }
 
-ScanInfo PanelController::collectScanInfo(const EditFile &file) const {
-	Expects(_editScope != nullptr);
-	Expects(_editDocument != nullptr);
-
-	const auto status = [&] {
-		if (file.fields.accessHash) {
-			if (file.fields.downloadOffset < 0) {
-				return lang(lng_attach_failed);
-			} else if (file.fields.downloadOffset < file.fields.size) {
-				return formatDownloadText(
-					file.fields.downloadOffset,
-					file.fields.size);
-			} else {
-				return lng_passport_scan_uploaded(
-					lt_date,
-					langDateTimeFull(ParseDateTime(file.fields.date)));
-			}
-		} else if (file.uploadData) {
-			if (file.uploadData->offset < 0) {
-				return lang(lng_attach_failed);
-			} else if (file.uploadData->fullId) {
-				return formatDownloadText(
-					file.uploadData->offset,
-					file.uploadData->bytes.size());
-			} else {
-				return lng_passport_scan_uploaded(
-					lt_date,
-					langDateTimeFull(ParseDateTime(file.fields.date)));
-			}
-		} else {
-			return formatDownloadText(0, file.fields.size);
-		}
-	}();
-	const auto specialType = [&]() -> base::optional<SpecialFile> {
-		if (file.value != _editDocument) {
-			return base::none;
-		}
-		for (const auto &[type, scan] : _editDocument->specialScansInEdit) {
-			if (&file == &scan) {
-				return type;
-			}
-		}
-		return base::none;
-	}();
-	return {
-		FileKey{ file.fields.id, file.fields.dcId },
-		!file.fields.error.isEmpty() ? file.fields.error : status,
-		file.fields.image,
-		file.deleted,
-		specialType,
-		file.fields.error };
-}
-
 std::vector<ScopeError> PanelController::collectSaveErrors(
 		not_null<const Value*> value) const {
-	using General = ScopeError::General;
-
 	auto result = std::vector<ScopeError>();
 	for (const auto &[key, value] : value->data.parsedInEdit.fields) {
 		if (!value.error.isEmpty()) {
@@ -740,7 +737,8 @@ bool PanelController::hasValueDocument() const {
 		return false;
 	}
 	return !_editDocument->data.parsed.fields.empty()
-		|| !_editDocument->scans.empty()
+		|| !_editDocument->files(FileType::Scan).empty()
+		|| !_editDocument->files(FileType::Translation).empty()
 		|| !_editDocument->specialScans.empty();
 }
 
@@ -978,25 +976,22 @@ void PanelController::editWithUpload(int index, int documentIndex) {
 		&& documentIndex < _scopes[index].documents.size());
 
 	const auto document = _scopes[index].documents[documentIndex];
-	const auto requiresSpecialScan = document->requiresSpecialScan(
-		SpecialFile::FrontSide);
-	const auto allowMany = !requiresSpecialScan;
+	const auto type = document->requiresSpecialScan(FileType::FrontSide)
+		? FileType::FrontSide
+		: FileType::Scan;
+	const auto allowMany = (type == FileType::Scan);
 	const auto widget = _panel->widget();
-	EditScans::ChooseScan(widget.get(), [=](QByteArray &&content) {
+	EditScans::ChooseScan(widget.get(), type, [=](QByteArray &&content) {
 		if (_scopeDocumentTypeBox) {
 			_scopeDocumentTypeBox = BoxPointer();
 		}
 		if (!_editScope || !_editDocument) {
 			startScopeEdit(index, documentIndex);
 		}
-		if (requiresSpecialScan) {
-			uploadSpecialScan(SpecialFile::FrontSide, std::move(content));
-		} else {
-			uploadScan(std::move(content));
-		}
+		uploadScan(type, std::move(content));
 	}, [=](ReadScanError error) {
 		readScanError(error);
-	}, allowMany);
+	});
 }
 
 void PanelController::readScanError(ReadScanError error) {
@@ -1027,11 +1022,11 @@ bool PanelController::editRequiresScanUpload(
 		return false;
 	}
 	const auto document = _scopes[index].documents[documentIndex];
-	if (document->requiresSpecialScan(SpecialFile::FrontSide)) {
+	if (document->requiresSpecialScan(FileType::FrontSide)) {
 		const auto &scans = document->specialScans;
-		return (scans.find(SpecialFile::FrontSide) == end(scans));
+		return (scans.find(FileType::FrontSide) == end(scans));
 	}
-	return document->scans.empty();
+	return document->files(FileType::Scan).empty();
 }
 
 void PanelController::editScope(int index, int documentIndex) {
@@ -1068,6 +1063,14 @@ void PanelController::startScopeEdit(int index, int documentIndex) {
 		case Scope::Type::Identity:
 		case Scope::Type::Address: {
 			Assert(_editDocument != nullptr);
+			auto scans = PrepareScanListData(
+				*_editDocument,
+				FileType::Scan);
+			auto translations = _editDocument->translationRequired
+				? base::make_optional(PrepareScanListData(
+					*_editDocument,
+					FileType::Translation))
+				: base::none;
 			auto result = _editValue
 				? object_ptr<PanelEditDocument>(
 					_panel->widget(),
@@ -1080,9 +1083,9 @@ void PanelController::startScopeEdit(int index, int documentIndex) {
 					_editValue->data.parsedInEdit,
 					_editDocument->error,
 					_editDocument->data.parsedInEdit,
-					_editDocument->scanMissingError,
-					valueFiles(*_editDocument),
-					valueSpecialFiles(*_editDocument))
+					std::move(scans),
+					std::move(translations),
+					PrepareSpecialFiles(*_editDocument))
 				: object_ptr<PanelEditDocument>(
 					_panel->widget(),
 					this,
@@ -1092,9 +1095,9 @@ void PanelController::startScopeEdit(int index, int documentIndex) {
 						false),
 					_editDocument->error,
 					_editDocument->data.parsedInEdit,
-					_editDocument->scanMissingError,
-					valueFiles(*_editDocument),
-					valueSpecialFiles(*_editDocument));
+					std::move(scans),
+					std::move(translations),
+					PrepareSpecialFiles(*_editDocument));
 			const auto weak = make_weak(result.data());
 			_panelHasUnsavedChanges = [=] {
 				return weak ? weak->hasUnsavedChanges() : false;
@@ -1183,13 +1186,13 @@ void PanelController::processValueSaveFinished(
 }
 
 bool PanelController::uploadingScopeScan() const {
-	return (_editValue && _form->uploadingScan(_editValue))
-		|| (_editDocument && _form->uploadingScan(_editDocument));
+	return (_editValue && _editValue->uploadingScan())
+		|| (_editDocument && _editDocument->uploadingScan());
 }
 
 bool PanelController::savingScope() const {
-	return (_editValue && _form->savingValue(_editValue))
-		|| (_editDocument && _form->savingValue(_editDocument));
+	return (_editValue && _editValue->saving())
+		|| (_editDocument && _editDocument->saving());
 }
 
 void PanelController::processVerificationNeeded(
@@ -1251,37 +1254,6 @@ void PanelController::processVerificationNeeded(
 	}, lifetime());
 
 	_verificationBoxes.emplace(value, box);
-}
-
-std::vector<ScanInfo> PanelController::valueFiles(
-		const Value &value) const {
-	auto result = std::vector<ScanInfo>();
-	for (const auto &scan : value.scansInEdit) {
-		result.push_back(collectScanInfo(scan));
-	}
-	return result;
-}
-
-std::map<SpecialFile, ScanInfo> PanelController::valueSpecialFiles(
-		const Value &value) const {
-	auto result = std::map<SpecialFile, ScanInfo>();
-	const auto types = {
-		SpecialFile::FrontSide,
-		SpecialFile::ReverseSide,
-		SpecialFile::Selfie
-	};
-	for (const auto type : types) {
-		if (value.requiresSpecialScan(type)) {
-			const auto i = value.specialScansInEdit.find(type);
-			const auto j = result.emplace(
-				type,
-				(i != end(value.specialScansInEdit)
-					? collectScanInfo(i->second)
-					: ScanInfo())).first;
-			j->second.special = type;
-		}
-	}
-	return result;
 }
 
 void PanelController::cancelValueEdit() {

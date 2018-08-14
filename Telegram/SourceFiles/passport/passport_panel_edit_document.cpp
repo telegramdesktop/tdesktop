@@ -214,9 +214,9 @@ PanelEditDocument::PanelEditDocument(
 	const ValueMap &data,
 	const QString &scansError,
 	const ValueMap &scansData,
-	const QString &missingScansError,
-	std::vector<ScanInfo> &&files,
-	std::map<SpecialFile, ScanInfo> &&specialFiles)
+	ScanListData &&scans,
+	base::optional<ScanListData> &&translations,
+	std::map<FileType, ScanInfo> &&specialFiles)
 : _controller(controller)
 , _scheme(std::move(scheme))
 , _scroll(this, st::passportPanelScroll)
@@ -231,8 +231,8 @@ PanelEditDocument::PanelEditDocument(
 		&data,
 		&scansError,
 		&scansData,
-		missingScansError,
-		std::move(files),
+		std::move(scans),
+		std::move(translations),
 		std::move(specialFiles));
 }
 
@@ -242,9 +242,9 @@ PanelEditDocument::PanelEditDocument(
 	Scheme scheme,
 	const QString &scansError,
 	const ValueMap &scansData,
-	const QString &missingScansError,
-	std::vector<ScanInfo> &&files,
-	std::map<SpecialFile, ScanInfo> &&specialFiles)
+	ScanListData &&scans,
+	base::optional<ScanListData> &&translations,
+	std::map<FileType, ScanInfo> &&specialFiles)
 : _controller(controller)
 , _scheme(std::move(scheme))
 , _scroll(this, st::passportPanelScroll)
@@ -259,8 +259,8 @@ PanelEditDocument::PanelEditDocument(
 		nullptr,
 		&scansError,
 		&scansData,
-		missingScansError,
-		std::move(files),
+		std::move(scans),
+		std::move(translations),
 		std::move(specialFiles));
 }
 
@@ -279,7 +279,7 @@ PanelEditDocument::PanelEditDocument(
 		this,
 		langFactory(lng_passport_save_value),
 		st::passportPanelSaveValue) {
-	setupControls(&error, &data, nullptr, nullptr, QString(), {}, {});
+	setupControls(&error, &data, nullptr, nullptr, {}, {}, {});
 }
 
 void PanelEditDocument::setupControls(
@@ -287,16 +287,16 @@ void PanelEditDocument::setupControls(
 		const ValueMap *data,
 		const QString *scansError,
 		const ValueMap *scansData,
-		const QString &missingScansError,
-		std::vector<ScanInfo> &&files,
-		std::map<SpecialFile, ScanInfo> &&specialFiles) {
+		ScanListData &&scans,
+		base::optional<ScanListData> &&translations,
+		std::map<FileType, ScanInfo> &&specialFiles) {
 	const auto inner = setupContent(
 		error,
 		data,
 		scansError,
 		scansData,
-		missingScansError,
-		std::move(files),
+		std::move(scans),
+		std::move(translations),
 		std::move(specialFiles));
 
 	using namespace rpl::mappers;
@@ -315,9 +315,9 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 		const ValueMap *data,
 		const QString *scansError,
 		const ValueMap *scansData,
-		const QString &missingScansError,
-		std::vector<ScanInfo> &&files,
-		std::map<SpecialFile, ScanInfo> &&specialFiles) {
+		ScanListData &&scans,
+		base::optional<ScanListData> &&translations,
+		std::map<FileType, ScanInfo> &&specialFiles) {
 	const auto inner = _scroll->setOwnedWidget(
 		object_ptr<Ui::VerticalLayout>(this));
 	_scroll->widthValue(
@@ -331,7 +331,8 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 				inner,
 				_controller,
 				*scansError,
-				std::move(specialFiles)));
+				std::move(specialFiles),
+				std::move(translations)));
 	} else if (scansData) {
 		_editScans = inner->add(
 			object_ptr<EditScans>(
@@ -339,8 +340,8 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 				_controller,
 				_scheme.scansHeader,
 				*scansError,
-				missingScansError,
-				std::move(files)));
+				std::move(scans),
+				std::move(translations)));
 	}
 
 	const auto valueOrEmpty = [&](

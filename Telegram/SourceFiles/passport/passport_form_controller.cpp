@@ -30,6 +30,7 @@ namespace Passport {
 namespace {
 
 constexpr auto kDocumentScansLimit = 20;
+constexpr auto kTranslationScansLimit = 20;
 constexpr auto kShortPollTimeout = TimeMs(3000);
 constexpr auto kRememberCredentialsDelay = TimeMs(1800 * 1000);
 
@@ -209,11 +210,11 @@ QString ValueCredentialsKey(Value::Type type) {
 	Unexpected("Type in ValueCredentialsKey.");
 }
 
-QString SpecialScanCredentialsKey(SpecialFile type) {
+QString SpecialScanCredentialsKey(FileType type) {
 	switch (type) {
-	case SpecialFile::FrontSide: return "front_side";
-	case SpecialFile::ReverseSide: return "reverse_side";
-	case SpecialFile::Selfie: return "selfie";
+	case FileType::FrontSide: return "front_side";
+	case FileType::ReverseSide: return "reverse_side";
+	case FileType::Selfie: return "selfie";
 	}
 	Unexpected("Type in SpecialScanCredentialsKey.");
 }
@@ -236,7 +237,12 @@ bool ValueChanged(not_null<const Value*> value, const ValueMap &data) {
 	};
 
 	auto filesCount = 0;
-	for (const auto &scan : value->scansInEdit) {
+	for (const auto &scan : value->filesInEdit(FileType::Scan)) {
+		if (FileChanged(scan)) {
+			return true;
+		}
+	}
+	for (const auto &scan : value->filesInEdit(FileType::Translation)) {
 		if (FileChanged(scan)) {
 			return true;
 		}
@@ -277,9 +283,11 @@ FormRequest::FormRequest(
 
 EditFile::EditFile(
 	not_null<const Value*> value,
+	FileType type,
 	const File &fields,
 	std::unique_ptr<UploadScanData> &&uploadData)
 : value(value)
+, type(type)
 , fields(std::move(fields))
 , uploadData(std::move(uploadData))
 , guard(std::make_shared<bool>(true)) {
@@ -326,17 +334,31 @@ RequestedValue::RequestedValue(Value::Type type) : type(type) {
 Value::Value(Type type) : type(type) {
 }
 
-bool Value::requiresSpecialScan(SpecialFile type) const {
+bool Value::requiresScan(FileType type) const {
+	if (type == FileType::Scan) {
+		return (this->type == Type::UtilityBill)
+			|| (this->type == Type::BankStatement)
+			|| (this->type == Type::RentalAgreement)
+			|| (this->type == Type::PassportRegistration)
+			|| (this->type == Type::TemporaryRegistration);
+	} else if (type == FileType::Translation) {
+		return translationRequired;
+	} else {
+		return requiresSpecialScan(type);
+	}
+}
+
+bool Value::requiresSpecialScan(FileType type) const {
 	switch (type) {
-	case SpecialFile::FrontSide:
+	case FileType::FrontSide:
 		return (this->type == Type::Passport)
 			|| (this->type == Type::DriverLicense)
 			|| (this->type == Type::IdentityCard)
 			|| (this->type == Type::InternalPassport);
-	case SpecialFile::ReverseSide:
+	case FileType::ReverseSide:
 		return (this->type == Type::DriverLicense)
 			|| (this->type == Type::IdentityCard);
-	case SpecialFile::Selfie:
+	case FileType::Selfie:
 		return selfieRequired;
 	}
 	Unexpected("Special scan type in requiresSpecialScan.");
@@ -357,15 +379,15 @@ void Value::fillDataFrom(Value &&other) {
 }
 
 bool Value::scansAreFilled() const {
-	if (!requiresSpecialScan(SpecialFile::FrontSide) && scans.empty()) {
+	if (requiresScan(FileType::Translation) && _translations.empty()) {
 		return false;
-	} else if (translationRequired && translations.empty()) {
+	} else if (requiresScan(FileType::Scan) && _scans.empty()) {
 		return false;
 	}
 	const auto types = {
-		SpecialFile::FrontSide,
-		SpecialFile::ReverseSide,
-		SpecialFile::Selfie
+		FileType::FrontSide,
+		FileType::ReverseSide,
+		FileType::Selfie
 	};
 	for (const auto type : types) {
 		if (requiresSpecialScan(type)
@@ -374,6 +396,163 @@ bool Value::scansAreFilled() const {
 		}
 	}
 	return true;
+}
+
+void Value::saveInEdit() {
+	const auto saveList = [&](FileType type) {
+		filesInEdit(type) = ranges::view::all(
+			files(type)
+		) | ranges::view::transform([=](const File &file) {
+			return EditFile(this, type, file, nullptr);
+		}) | ranges::to_vector;
+	};
+	saveList(FileType::Scan);
+	saveList(FileType::Translation);
+
+	specialScansInEdit.clear();
+	for (const auto &[type, scan] : specialScans) {
+		specialScansInEdit.emplace(type, EditFile(
+			this,
+			type,
+			scan,
+			nullptr));
+	}
+	data.parsedInEdit = data.parsed;
+}
+
+void Value::clearEditData() {
+	filesInEdit(FileType::Scan).clear();
+	filesInEdit(FileType::Translation).clear();
+	specialScansInEdit.clear();
+	data.encryptedSecretInEdit.clear();
+	data.hashInEdit.clear();
+	data.parsedInEdit = ValueMap();
+}
+
+bool Value::uploadingScan() const {
+	const auto uploading = [](const EditFile &file) {
+		return file.uploadData
+			&& file.uploadData->fullId
+			&& !file.deleted;
+	};
+	const auto uploadingInList = [&](FileType type) {
+		const auto &list = filesInEdit(type);
+		return ranges::find_if(list, uploading) != end(list);
+	};
+	if (uploadingInList(FileType::Scan)
+		|| uploadingInList(FileType::Translation)) {
+		return true;
+	}
+	if (ranges::find_if(specialScansInEdit, [&](const auto &pair) {
+		return uploading(pair.second);
+	}) != end(specialScansInEdit)) {
+		return true;
+	}
+	return false;
+}
+
+bool Value::saving() const {
+	return (saveRequestId != 0)
+		|| (verification.requestId != 0)
+		|| (verification.codeLength != 0)
+		|| uploadingScan();
+}
+
+std::vector<File> &Value::files(FileType type) {
+	switch (type) {
+	case FileType::Scan: return _scans;
+	case FileType::Translation: return _translations;
+	}
+	Unexpected("Type in Value::files().");
+}
+
+const std::vector<File> &Value::files(FileType type) const {
+	switch (type) {
+	case FileType::Scan: return _scans;
+	case FileType::Translation: return _translations;
+	}
+	Unexpected("Type in Value::files() const.");
+}
+
+QString &Value::fileMissingError(FileType type) {
+	switch (type) {
+	case FileType::Scan: return _scanMissingError;
+	case FileType::Translation: return _translationMissingError;
+	}
+	Unexpected("Type in Value::fileMissingError().");
+}
+
+const QString &Value::fileMissingError(FileType type) const {
+	switch (type) {
+	case FileType::Scan: return _scanMissingError;
+	case FileType::Translation: return _translationMissingError;
+	}
+	Unexpected("Type in Value::fileMissingError() const.");
+}
+
+std::vector<EditFile> &Value::filesInEdit(FileType type) {
+	switch (type) {
+	case FileType::Scan: return _scansInEdit;
+	case FileType::Translation: return _translationsInEdit;
+	}
+	Unexpected("Type in Value::filesInEdit().");
+}
+
+const std::vector<EditFile> &Value::filesInEdit(FileType type) const {
+	switch (type) {
+	case FileType::Scan: return _scansInEdit;
+	case FileType::Translation: return _translationsInEdit;
+	}
+	Unexpected("Type in Value::filesInEdit() const.");
+}
+
+EditFile &Value::fileInEdit(FileType type, base::optional<int> fileIndex) {
+	switch (type) {
+	case FileType::Scan:
+	case FileType::Translation: {
+		auto &list = filesInEdit(type);
+		Assert(fileIndex.has_value());
+		Assert(*fileIndex >= 0 && *fileIndex < list.size());
+		return list[*fileIndex];
+	} break;
+	}
+	const auto i = specialScansInEdit.find(type);
+	Assert(!fileIndex.has_value());
+	Assert(i != end(specialScansInEdit));
+	return i->second;
+}
+
+const EditFile &Value::fileInEdit(
+		FileType type,
+		base::optional<int> fileIndex) const {
+	switch (type) {
+	case FileType::Scan:
+	case FileType::Translation: {
+		auto &list = filesInEdit(type);
+		Assert(fileIndex.has_value());
+		Assert(*fileIndex >= 0 && *fileIndex < list.size());
+		return list[*fileIndex];
+	} break;
+	}
+	const auto i = specialScansInEdit.find(type);
+	Assert(!fileIndex.has_value());
+	Assert(i != end(specialScansInEdit));
+	return i->second;
+}
+
+std::vector<EditFile> Value::takeAllFilesInEdit() {
+	auto result = base::take(filesInEdit(FileType::Scan));
+	auto &translation = filesInEdit(FileType::Translation);
+	auto &special = specialScansInEdit;
+	result.reserve(result.size() + translation.size() + special.size());
+
+	for (auto &scan : base::take(translation)) {
+		result.push_back(std::move(scan));
+	}
+	for (auto &[type, scan] : base::take(special)) {
+		result.push_back(std::move(scan));
+	}
+	return result;
 }
 
 FormController::FormController(
@@ -417,12 +596,20 @@ auto FormController::prepareFinalData() -> FinalData {
 				{ "secret", value->data.secret }
 			}));
 		}
-		if (!value->scans.empty()) {
-			auto files = QJsonArray();
-			for (const auto &scan : value->scans) {
-				files.append(GetJSONFromFile(scan));
+		const auto addList = [&](
+				const QString &key,
+				const std::vector<File> &list) {
+			if (!list.empty()) {
+				auto files = QJsonArray();
+				for (const auto &scan : list) {
+					files.append(GetJSONFromFile(scan));
+				}
+				object.insert(key, files);
 			}
-			object.insert("files", files);
+		};
+		addList("files", value->files(FileType::Scan));
+		if (value->translationRequired) {
+			addList("translation", value->files(FileType::Translation));
 		}
 		for (const auto &[type, scan] : value->specialScans) {
 			if (value->requiresSpecialScan(type)) {
@@ -894,26 +1081,21 @@ void FormController::fillErrors() {
 		LOG(("API Error: Value not found for error type."));
 		return nullptr;
 	};
-	using List = std::vector<File>;
-	const auto findScan = [&](List &list, bytes::const_span hash) -> File* {
+	const auto scan = [&](
+			Value &value,
+			FileType type,
+			bytes::const_span hash) -> File* {
+		auto &list = value.files(type);
 		const auto i = ranges::find_if(list, [&](const File &scan) {
 			return !bytes::compare(hash, scan.hash);
 		});
 		if (i != end(list)) {
 			return &*i;
 		}
-		return nullptr;
-	};
-	const auto scan = [&](Value &value, bytes::const_span hash) -> File* {
-		if (const auto translation = findScan(value.translations, hash)) {
-			return translation;
-		} else if (const auto scan = findScan(value.scans, hash)) {
-			return scan;
-		}
 		LOG(("API Error: File not found for error value."));
 		return nullptr;
 	};
-	const auto setSpecialScanError = [&](SpecialFile type, auto &&data) {
+	const auto setSpecialScanError = [&](FileType type, auto &&data) {
 		if (const auto value = find(data.vtype)) {
 			if (value->requiresSpecialScan(type)) {
 				const auto i = value->specialScans.find(type);
@@ -945,37 +1127,40 @@ void FormController::fillErrors() {
 		}, [&](const MTPDsecureValueErrorFile &data) {
 			const auto hash = bytes::make_span(data.vfile_hash.v);
 			if (const auto value = find(data.vtype)) {
-				if (const auto file = scan(*value, hash)) {
-					file->error = qs(data.vtext);
+				if (const auto file = scan(*value, FileType::Scan, hash)) {
+					if (value->requiresScan(FileType::Scan)) {
+						file->error = qs(data.vtext);
+					}
 				}
 			}
 		}, [&](const MTPDsecureValueErrorFiles &data) {
 			if (const auto value = find(data.vtype)) {
-				if (CanRequireScans(value->type)) {
-					value->scanMissingError = qs(data.vtext);
+				if (value->requiresScan(FileType::Scan)) {
+					value->fileMissingError(FileType::Scan)
+						= qs(data.vtext);
 				}
 			}
 		}, [&](const MTPDsecureValueErrorTranslationFile &data) {
 			const auto hash = bytes::make_span(data.vfile_hash.v);
 			if (const auto value = find(data.vtype)) {
-				if (value->translationRequired) {
-					if (const auto file = scan(*value, hash)) {
-						file->error = qs(data.vtext);
-					}
+				const auto file = scan(*value, FileType::Translation, hash);
+				if (file && value->requiresScan(FileType::Translation)) {
+					file->error = qs(data.vtext);
 				}
 			}
 		}, [&](const MTPDsecureValueErrorTranslationFiles &data) {
 			if (const auto value = find(data.vtype)) {
-				if (value->translationRequired) {
-					value->translationMissingError = qs(data.vtext);
+				if (value->requiresScan(FileType::Translation)) {
+					value->fileMissingError(FileType::Translation)
+						= qs(data.vtext);
 				}
 			}
 		}, [&](const MTPDsecureValueErrorFrontSide &data) {
-			setSpecialScanError(SpecialFile::FrontSide, data);
+			setSpecialScanError(FileType::FrontSide, data);
 		}, [&](const MTPDsecureValueErrorReverseSide &data) {
-			setSpecialScanError(SpecialFile::ReverseSide, data);
+			setSpecialScanError(FileType::ReverseSide, data);
 		}, [&](const MTPDsecureValueErrorSelfie &data) {
-			setSpecialScanError(SpecialFile::Selfie, data);
+			setSpecialScanError(FileType::Selfie, data);
 		});
 	}
 }
@@ -1027,13 +1212,18 @@ bool FormController::validateValueSecrets(Value &value) const {
 		}
 		return true;
 	};
-	for (auto &scan : value.scans) {
+	for (auto &scan : value.files(FileType::Scan)) {
 		if (!validateFileSecret(scan)) {
 			return false;
 		}
 	}
-	for (auto &[type, file] : value.specialScans) {
-		if (!validateFileSecret(file)) {
+	for (auto &scan : value.files(FileType::Translation)) {
+		if (!validateFileSecret(scan)) {
+			return false;
+		}
+	}
+	for (auto &[type, scan] : value.specialScans) {
+		if (!validateFileSecret(scan)) {
 			return false;
 		}
 	}
@@ -1054,73 +1244,51 @@ const PasswordSettings &FormController::passwordSettings() const {
 
 void FormController::uploadScan(
 		not_null<const Value*> value,
+		FileType type,
 		QByteArray &&content) {
-	if (!canAddScan(value)) {
+	if (!canAddScan(value, type)) {
 		_view->showToast(lang(lng_passport_scans_limit_reached));
 		return;
 	}
 	const auto nonconst = findValue(value);
-	auto scanIndex = int(nonconst->scansInEdit.size());
-	nonconst->scansInEdit.emplace_back(
-		nonconst,
-		File(),
-		nullptr);
-	auto &scan = nonconst->scansInEdit.back();
+	const auto fileIndex = [&]() -> base::optional<int> {
+		auto scanInEdit = EditFile{ nonconst, type, File(), nullptr };
+		if (type == FileType::Scan || type == FileType::Translation) {
+			auto &list = nonconst->filesInEdit(type);
+			auto scanIndex = int(list.size());
+			list.push_back(std::move(scanInEdit));
+			return list.size() - 1;
+		}
+		auto i = nonconst->specialScansInEdit.find(type);
+		if (i != nonconst->specialScansInEdit.end()) {
+			i->second = std::move(scanInEdit);
+		} else {
+			i = nonconst->specialScansInEdit.emplace(
+				type,
+				std::move(scanInEdit)).first;
+		}
+		return base::none;
+	}();
+	auto &scan = nonconst->fileInEdit(type, fileIndex);
 	encryptFile(scan, std::move(content), [=](UploadScanData &&result) {
-		Expects(scanIndex >= 0 && scanIndex < nonconst->scansInEdit.size());
-
 		uploadEncryptedFile(
-			nonconst->scansInEdit[scanIndex],
+			nonconst->fileInEdit(type, fileIndex),
 			std::move(result));
 	});
 }
 
 void FormController::deleteScan(
 		not_null<const Value*> value,
-		int scanIndex) {
-	scanDeleteRestore(value, scanIndex, true);
+		FileType type,
+		base::optional<int> fileIndex) {
+	scanDeleteRestore(value, type, fileIndex, true);
 }
 
 void FormController::restoreScan(
 		not_null<const Value*> value,
-		int scanIndex) {
-	scanDeleteRestore(value, scanIndex, false);
-}
-
-void FormController::uploadSpecialScan(
-		not_null<const Value*> value,
-		SpecialFile type,
-		QByteArray &&content) {
-	const auto nonconst = findValue(value);
-	auto scanInEdit = EditFile{ nonconst, File(), nullptr };
-	auto i = nonconst->specialScansInEdit.find(type);
-	if (i != nonconst->specialScansInEdit.end()) {
-		i->second = std::move(scanInEdit);
-	} else {
-		i = nonconst->specialScansInEdit.emplace(
-			type,
-			std::move(scanInEdit)).first;
-	}
-	auto &file = i->second;
-	encryptFile(file, std::move(content), [=](UploadScanData &&result) {
-		const auto i = nonconst->specialScansInEdit.find(type);
-		Assert(i != nonconst->specialScansInEdit.end());
-		uploadEncryptedFile(
-			i->second,
-			std::move(result));
-	});
-}
-
-void FormController::deleteSpecialScan(
-		not_null<const Value*> value,
-		SpecialFile type) {
-	specialScanDeleteRestore(value, type, true);
-}
-
-void FormController::restoreSpecialScan(
-		not_null<const Value*> value,
-		SpecialFile type) {
-	specialScanDeleteRestore(value, type, false);
+		FileType type,
+		base::optional<int> fileIndex) {
+	scanDeleteRestore(value, type, fileIndex, false);
 }
 
 void FormController::prepareFile(
@@ -1173,14 +1341,13 @@ void FormController::encryptFile(
 
 void FormController::scanDeleteRestore(
 		not_null<const Value*> value,
-		int scanIndex,
+		FileType type,
+		base::optional<int> fileIndex,
 		bool deleted) {
-	Expects(scanIndex >= 0 && scanIndex < value->scansInEdit.size());
-
 	const auto nonconst = findValue(value);
-	auto &scan = nonconst->scansInEdit[scanIndex];
+	auto &scan = nonconst->fileInEdit(type, fileIndex);
 	if (scan.deleted && !deleted) {
-		if (!canAddScan(value)) {
+		if (!canAddScan(value, type)) {
 			_view->showToast(lang(lng_passport_scans_limit_reached));
 			return;
 		}
@@ -1189,23 +1356,21 @@ void FormController::scanDeleteRestore(
 	_scanUpdated.fire(&scan);
 }
 
-void FormController::specialScanDeleteRestore(
+bool FormController::canAddScan(
 		not_null<const Value*> value,
-		SpecialFile type,
-		bool deleted) {
-	const auto nonconst = findValue(value);
-	const auto i = nonconst->specialScansInEdit.find(type);
-	Assert(i != nonconst->specialScansInEdit.end());
-	auto &scan = i->second;
-	scan.deleted = deleted;
-	_scanUpdated.fire(&scan);
-}
-
-bool FormController::canAddScan(not_null<const Value*> value) const {
+		FileType type) const {
+	const auto limit = (type == FileType::Scan)
+		? kDocumentScansLimit
+		: (type == FileType::Translation)
+		? kTranslationScansLimit
+		: -1;
+	if (limit < 0) {
+		return true;
+	}
 	const auto scansCount = ranges::count_if(
-		value->scansInEdit,
+		value->filesInEdit(type),
 		[](const EditFile &scan) { return !scan.deleted; });
-	return (scansCount < kDocumentScansLimit);
+	return (scansCount < limit);
 }
 
 void FormController::subscribeToUploader() {
@@ -1411,14 +1576,14 @@ not_null<Value*> FormController::findValue(not_null<const Value*> value) {
 void FormController::startValueEdit(not_null<const Value*> value) {
 	const auto nonconst = findValue(value);
 	++nonconst->editScreens;
-	if (savingValue(nonconst)) {
+	if (nonconst->saving()) {
 		return;
 	}
-	for (auto &scan : nonconst->scans) {
+	for (auto &scan : nonconst->files(FileType::Scan)) {
 		loadFile(scan);
 	}
 	if (nonconst->translationRequired) {
-		for (auto &scan : nonconst->translations) {
+		for (auto &scan : nonconst->files(FileType::Translation)) {
 			loadFile(scan);
 		}
 	}
@@ -1427,27 +1592,7 @@ void FormController::startValueEdit(not_null<const Value*> value) {
 			loadFile(scan);
 		}
 	}
-	nonconst->scansInEdit = ranges::view::all(
-		nonconst->scans
-	) | ranges::view::transform([=](const File &file) {
-		return EditFile(nonconst, file, nullptr);
-	}) | ranges::to_vector;
-
-	nonconst->translationsInEdit = ranges::view::all(
-		nonconst->translations
-	) | ranges::view::transform([=](const File &file) {
-		return EditFile(nonconst, file, nullptr);
-	}) | ranges::to_vector;
-
-	nonconst->specialScansInEdit.clear();
-	for (const auto &[type, scan] : nonconst->specialScans) {
-		nonconst->specialScansInEdit.emplace(type, EditFile(
-			nonconst,
-			scan,
-			nullptr));
-	}
-
-	nonconst->data.parsedInEdit = nonconst->data.parsed;
+	nonconst->saveInEdit();
 }
 
 void FormController::loadFile(File &file) {
@@ -1531,41 +1676,6 @@ void FormController::fileLoadFail(FileKey key) {
 	}
 }
 
-bool FormController::savingValue(not_null<const Value*> value) const {
-	return (value->saveRequestId != 0)
-		|| (value->verification.requestId != 0)
-		|| (value->verification.codeLength != 0)
-		|| uploadingScan(value);
-}
-
-bool FormController::uploadingScan(not_null<const Value*> value) const {
-	const auto uploading = [](const EditFile &file) {
-		return file.uploadData
-			&& file.uploadData->fullId
-			&& !file.deleted;
-	};
-	if (ranges::find_if(value->scansInEdit, uploading)
-		!= end(value->scansInEdit)) {
-		return true;
-	}
-	if (ranges::find_if(value->specialScansInEdit, [&](const auto &pair) {
-		return uploading(pair.second);
-	}) != end(value->specialScansInEdit)) {
-		return true;
-	}
-	for (const auto &scan : value->scansInEdit) {
-		if (uploading(scan)) {
-			return true;
-		}
-	}
-	for (const auto &[type, scan] : value->specialScansInEdit) {
-		if (uploading(scan)) {
-			return true;
-		}
-	}
-	return false;
-}
-
 void FormController::cancelValueEdit(not_null<const Value*> value) {
 	Expects(value->editScreens > 0);
 
@@ -1575,7 +1685,7 @@ void FormController::cancelValueEdit(not_null<const Value*> value) {
 }
 
 void FormController::valueEditFailed(not_null<Value*> value) {
-	Expects(!savingValue(value));
+	Expects(!value->saving());
 
 	if (value->editScreens == 0) {
 		clearValueEdit(value);
@@ -1583,20 +1693,16 @@ void FormController::valueEditFailed(not_null<Value*> value) {
 }
 
 void FormController::clearValueEdit(not_null<Value*> value) {
-	if (savingValue(value)) {
+	if (value->saving()) {
 		return;
 	}
-	value->scansInEdit.clear();
-	value->specialScansInEdit.clear();
-	value->data.encryptedSecretInEdit.clear();
-	value->data.hashInEdit.clear();
-	value->data.parsedInEdit = ValueMap();
+	value->clearEditData();
 }
 
 void FormController::cancelValueVerification(not_null<const Value*> value) {
 	const auto nonconst = findValue(value);
 	clearValueVerification(nonconst);
-	if (!savingValue(nonconst)) {
+	if (!nonconst->saving()) {
 		valueEditFailed(nonconst);
 	}
 }
@@ -1619,7 +1725,7 @@ bool FormController::isEncryptedValue(Value::Type type) const {
 void FormController::saveValueEdit(
 		not_null<const Value*> value,
 		ValueMap &&data) {
-	if (savingValue(value) || _submitRequestId) {
+	if (value->saving() || _submitRequestId) {
 		return;
 	}
 
@@ -1630,11 +1736,7 @@ void FormController::saveValueEdit(
 	if (!ValueChanged(nonconst, data)) {
 		nonconst->saveRequestId = -1;
 		crl::on_main(this, [=] {
-			base::take(nonconst->scansInEdit);
-			base::take(nonconst->specialScansInEdit);
-			base::take(nonconst->data.encryptedSecretInEdit);
-			base::take(nonconst->data.hashInEdit);
-			base::take(nonconst->data.parsedInEdit);
+			nonconst->clearEditData();
 			nonconst->saveRequestId = 0;
 			_valueSaveFinished.fire_copy(nonconst);
 		});
@@ -1650,7 +1752,7 @@ void FormController::saveValueEdit(
 }
 
 void FormController::deleteValueEdit(not_null<const Value*> value) {
-	if (savingValue(value) || _submitRequestId) {
+	if (value->saving() || _submitRequestId) {
 		return;
 	}
 
@@ -1689,24 +1791,21 @@ void FormController::saveEncryptedValue(not_null<Value*> value) {
 			MTP_long(file.fields.id),
 			MTP_long(file.fields.accessHash));
 	};
-
-	auto files = QVector<MTPInputSecureFile>();
-	files.reserve(value->scansInEdit.size());
-	for (const auto &scan : value->scansInEdit) {
-		if (scan.deleted) {
-			continue;
+	const auto wrapList = [&](not_null<const Value*> value, FileType type) {
+		const auto &list = value->filesInEdit(type);
+		auto result = QVector<MTPInputSecureFile>();
+		result.reserve(list.size());
+		for (const auto &scan : value->filesInEdit(type)) {
+			if (scan.deleted) {
+				continue;
+			}
+			result.push_back(wrapFile(scan));
 		}
-		files.push_back(wrapFile(scan));
-	}
+		return result;
+	};
 
-	auto translations = QVector<MTPInputSecureFile>();
-	translations.reserve(value->translationsInEdit.size());
-	for (const auto &scan : value->translationsInEdit) {
-		if (scan.deleted) {
-			continue;
-		}
-		translations.push_back(wrapFile(scan));
-	}
+	const auto files = wrapList(value, FileType::Scan);
+	const auto translations = wrapList(value, FileType::Translation);
 
 	if (value->data.secret.empty()) {
 		value->data.secret = GenerateSecretBytes();
@@ -1720,37 +1819,37 @@ void FormController::saveEncryptedValue(not_null<Value*> value) {
 		_secret,
 		value->data.hashInEdit);
 
-	const auto hasSpecialFile = [&](SpecialFile type) {
+	const auto hasSpecialFile = [&](FileType type) {
 		const auto i = value->specialScansInEdit.find(type);
 		return (i != end(value->specialScansInEdit) && !i->second.deleted);
 	};
-	const auto specialFile = [&](SpecialFile type) {
+	const auto specialFile = [&](FileType type) {
 		const auto i = value->specialScansInEdit.find(type);
 		return (i != end(value->specialScansInEdit) && !i->second.deleted)
 			? wrapFile(i->second)
 			: MTPInputSecureFile();
 	};
-	const auto frontSide = specialFile(SpecialFile::FrontSide);
-	const auto reverseSide = specialFile(SpecialFile::ReverseSide);
-	const auto selfie = specialFile(SpecialFile::Selfie);
+	const auto frontSide = specialFile(FileType::FrontSide);
+	const auto reverseSide = specialFile(FileType::ReverseSide);
+	const auto selfie = specialFile(FileType::Selfie);
 
 	const auto type = ConvertType(value->type);
 	const auto flags = (value->data.parsedInEdit.fields.empty()
 			? MTPDinputSecureValue::Flag(0)
 			: MTPDinputSecureValue::Flag::f_data)
-		| (hasSpecialFile(SpecialFile::FrontSide)
+		| (hasSpecialFile(FileType::FrontSide)
 			? MTPDinputSecureValue::Flag::f_front_side
 			: MTPDinputSecureValue::Flag(0))
-		| (hasSpecialFile(SpecialFile::ReverseSide)
+		| (hasSpecialFile(FileType::ReverseSide)
 			? MTPDinputSecureValue::Flag::f_reverse_side
 			: MTPDinputSecureValue::Flag(0))
-		| (hasSpecialFile(SpecialFile::Selfie)
+		| (hasSpecialFile(FileType::Selfie)
 			? MTPDinputSecureValue::Flag::f_selfie
 			: MTPDinputSecureValue::Flag(0))
-		| (value->translationsInEdit.empty()
+		| (translations.empty()
 			? MTPDinputSecureValue::Flag(0)
 			: MTPDinputSecureValue::Flag::f_translation)
-		| (value->scansInEdit.empty()
+		| (files.empty()
 			? MTPDinputSecureValue::Flag(0)
 			: MTPDinputSecureValue::Flag::f_files);
 	Assert(flags != MTPDinputSecureValue::Flags(0));
@@ -1809,10 +1908,7 @@ void FormController::sendSaveRequest(
 		data,
 		MTP_long(_secretId)
 	)).done([=](const MTPSecureValue &result) {
-		auto scansInEdit = base::take(value->scansInEdit);
-		for (auto &[type, scan] : base::take(value->specialScansInEdit)) {
-			scansInEdit.push_back(std::move(scan));
-		}
+		auto scansInEdit = value->takeAllFilesInEdit();
 
 		auto refreshed = parseValue(result, scansInEdit);
 		decryptValue(refreshed);
@@ -2157,23 +2253,28 @@ auto FormController::parseValue(
 		result.data.encryptedSecret = bytes::make_vector(fields.vsecret.v);
 	}
 	if (data.has_files()) {
-		result.scans = parseFiles(data.vfiles.v, editData);
+		result.files(FileType::Scan) = parseFiles(data.vfiles.v, editData);
+	}
+	if (data.has_translation()) {
+		result.files(FileType::Translation) = parseFiles(
+			data.vtranslation.v,
+			editData);
 	}
 	const auto parseSpecialScan = [&](
-			SpecialFile type,
+			FileType type,
 			const MTPSecureFile &file) {
 		if (auto parsed = parseFile(file, editData)) {
 			result.specialScans.emplace(type, std::move(*parsed));
 		}
 	};
 	if (data.has_front_side()) {
-		parseSpecialScan(SpecialFile::FrontSide, data.vfront_side);
+		parseSpecialScan(FileType::FrontSide, data.vfront_side);
 	}
 	if (data.has_reverse_side()) {
-		parseSpecialScan(SpecialFile::ReverseSide, data.vreverse_side);
+		parseSpecialScan(FileType::ReverseSide, data.vreverse_side);
 	}
 	if (data.has_selfie()) {
-		parseSpecialScan(SpecialFile::Selfie, data.vselfie);
+		parseSpecialScan(FileType::Selfie, data.vselfie);
 	}
 	if (data.has_plain_data()) {
 		switch (data.vplain_data.type()) {
@@ -2190,18 +2291,25 @@ auto FormController::parseValue(
 	return result;
 }
 
-auto FormController::findEditFile(const FullMsgId &fullId) -> EditFile* {
-	const auto found = [&](const EditFile &file) {
-		return (file.uploadData && file.uploadData->fullId == fullId);
-	};
-	for (auto &[type, value] : _form.values) {
-		for (auto &scan : value.scansInEdit) {
-			if (found(scan)) {
-				return &scan;
+template <typename Condition>
+EditFile *FormController::findEditFileByCondition(Condition &&condition) {
+	for (auto &pair : _form.values) {
+		auto &value = pair.second;
+		const auto foundInList = [&](FileType type) -> EditFile* {
+			for (auto &scan : value.filesInEdit(type)) {
+				if (condition(scan)) {
+					return &scan;
+				}
 			}
+			return nullptr;
+		};
+		if (const auto result = foundInList(FileType::Scan)) {
+			return result;
+		} else if (const auto other = foundInList(FileType::Translation)) {
+			return other;
 		}
 		for (auto &[special, scan] : value.specialScansInEdit) {
-			if (found(scan)) {
+			if (condition(scan)) {
 				return &scan;
 			}
 		}
@@ -2209,23 +2317,16 @@ auto FormController::findEditFile(const FullMsgId &fullId) -> EditFile* {
 	return nullptr;
 }
 
-auto FormController::findEditFile(const FileKey &key) -> EditFile* {
-	const auto found = [&](const EditFile &file) {
+EditFile *FormController::findEditFile(const FullMsgId &fullId) {
+	return findEditFileByCondition([&](const EditFile &file) {
+		return (file.uploadData && file.uploadData->fullId == fullId);
+	});
+}
+
+EditFile *FormController::findEditFile(const FileKey &key) {
+	return findEditFileByCondition([&](const EditFile &file) {
 		return (file.fields.dcId == key.dcId && file.fields.id == key.id);
-	};
-	for (auto &[type, value] : _form.values) {
-		for (auto &scan : value.scansInEdit) {
-			if (found(scan)) {
-				return &scan;
-			}
-		}
-		for (auto &[special, scan] : value.specialScansInEdit) {
-			if (found(scan)) {
-				return &scan;
-			}
-		}
-	}
-	return nullptr;
+	});
 }
 
 auto FormController::findFile(const FileKey &key)
@@ -2233,11 +2334,20 @@ auto FormController::findFile(const FileKey &key)
 	const auto found = [&](const File &file) {
 		return (file.dcId == key.dcId) && (file.id == key.id);
 	};
-	for (auto &[type, value] : _form.values) {
-		for (auto &scan : value.scans) {
-			if (found(scan)) {
-				return { &value, &scan };
+	for (auto &pair : _form.values) {
+		auto &value = pair.second;
+		const auto foundInList = [&](FileType type) -> File* {
+			for (auto &scan : value.files(type)) {
+				if (found(scan)) {
+					return &scan;
+				}
 			}
+			return nullptr;
+		};
+		if (const auto result = foundInList(FileType::Scan)) {
+			return { &value, result };
+		} else if (const auto other = foundInList(FileType::Translation)) {
+			return { &value, other };
 		}
 		for (auto &[special, scan] : value.specialScans) {
 			if (found(scan)) {
