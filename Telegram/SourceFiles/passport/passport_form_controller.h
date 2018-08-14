@@ -164,10 +164,14 @@ struct Value {
 		Email,
 	};
 
+
 	explicit Value(Type type);
 	Value(Value &&other) = default;
-	Value &operator=(Value &&other) = default;
 
+	// Some data is not parsed from server-provided values.
+	// It should be preserved through re-parsing (for example when saving).
+	// So we hide "operator=(Value&&)" in private and instead provide this.
+	void fillDataFrom(Value &&other);
 	bool requiresSpecialScan(SpecialFile type) const;
 	bool scansAreFilled() const;
 
@@ -188,9 +192,12 @@ struct Value {
 	bool selfieRequired = false;
 	bool translationRequired = false;
 	bool nativeNames = false;
-
 	int editScreens = 0;
+
 	mtpRequestId saveRequestId = 0;
+
+private:
+	Value &operator=(Value &&other) = default;
 
 };
 
@@ -395,9 +402,9 @@ private:
 		bytes::const_span passwordBytes,
 		uint64 serverSecretId);
 	void decryptValues();
-	void decryptValue(Value &value);
-	bool validateValueSecrets(Value &value);
-	void resetValue(Value &value);
+	void decryptValue(Value &value) const;
+	bool validateValueSecrets(Value &value) const;
+	void resetValue(Value &value) const;
 	void fillErrors();
 
 	void loadFile(File &file);

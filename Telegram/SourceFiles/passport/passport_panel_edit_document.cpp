@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/wrap/slide_wrap.h"
 #include "boxes/abstract_box.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
@@ -209,8 +210,10 @@ PanelEditDocument::PanelEditDocument(
 	QWidget*,
 	not_null<PanelController*> controller,
 	Scheme scheme,
+	const QString &error,
 	const ValueMap &data,
-	const ValueMap &scanData,
+	const QString &scansError,
+	const ValueMap &scansData,
 	const QString &missingScansError,
 	std::vector<ScanInfo> &&files,
 	std::map<SpecialFile, ScanInfo> &&specialFiles)
@@ -224,8 +227,10 @@ PanelEditDocument::PanelEditDocument(
 		langFactory(lng_passport_save_value),
 		st::passportPanelSaveValue) {
 	setupControls(
+		&error,
 		&data,
-		&scanData,
+		&scansError,
+		&scansData,
 		missingScansError,
 		std::move(files),
 		std::move(specialFiles));
@@ -235,7 +240,8 @@ PanelEditDocument::PanelEditDocument(
 	QWidget*,
 	not_null<PanelController*> controller,
 	Scheme scheme,
-	const ValueMap &scanData,
+	const QString &scansError,
+	const ValueMap &scansData,
 	const QString &missingScansError,
 	std::vector<ScanInfo> &&files,
 	std::map<SpecialFile, ScanInfo> &&specialFiles)
@@ -250,7 +256,9 @@ PanelEditDocument::PanelEditDocument(
 		st::passportPanelSaveValue) {
 	setupControls(
 		nullptr,
-		&scanData,
+		nullptr,
+		&scansError,
+		&scansData,
 		missingScansError,
 		std::move(files),
 		std::move(specialFiles));
@@ -260,6 +268,7 @@ PanelEditDocument::PanelEditDocument(
 	QWidget*,
 	not_null<PanelController*> controller,
 	Scheme scheme,
+	const QString &error,
 	const ValueMap &data)
 : _controller(controller)
 , _scheme(std::move(scheme))
@@ -270,18 +279,22 @@ PanelEditDocument::PanelEditDocument(
 		this,
 		langFactory(lng_passport_save_value),
 		st::passportPanelSaveValue) {
-	setupControls(&data, nullptr, QString(), {}, {});
+	setupControls(&error, &data, nullptr, nullptr, QString(), {}, {});
 }
 
 void PanelEditDocument::setupControls(
+		const QString *error,
 		const ValueMap *data,
-		const ValueMap *scanData,
+		const QString *scansError,
+		const ValueMap *scansData,
 		const QString &missingScansError,
 		std::vector<ScanInfo> &&files,
 		std::map<SpecialFile, ScanInfo> &&specialFiles) {
 	const auto inner = setupContent(
+		error,
 		data,
-		scanData,
+		scansError,
+		scansData,
 		missingScansError,
 		std::move(files),
 		std::move(specialFiles));
@@ -298,8 +311,10 @@ void PanelEditDocument::setupControls(
 }
 
 not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
+		const QString *error,
 		const ValueMap *data,
-		const ValueMap *scanData,
+		const QString *scansError,
+		const ValueMap *scansData,
 		const QString &missingScansError,
 		std::vector<ScanInfo> &&files,
 		std::map<SpecialFile, ScanInfo> &&specialFiles) {
@@ -315,22 +330,17 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 			object_ptr<EditScans>(
 				inner,
 				_controller,
-//				_scheme.scansHeader,
-//				missingScansError,
-//				std::move(files),
+				*scansError,
 				std::move(specialFiles)));
-	} else if (scanData) {
+	} else if (scansData) {
 		_editScans = inner->add(
 			object_ptr<EditScans>(
 				inner,
 				_controller,
 				_scheme.scansHeader,
+				*scansError,
 				missingScansError,
 				std::move(files)));
-	} else {
-		inner->add(object_ptr<BoxContentDivider>(
-			inner,
-			st::passportFormDividerHeight));
 	}
 
 	const auto valueOrEmpty = [&](
@@ -348,7 +358,7 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 			const auto &row = _scheme.rows[i];
 			auto fields = (row.valueClass == Scheme::ValueClass::Fields)
 				? data
-				: scanData;
+				: scansData;
 			if (!fields) {
 				continue;
 			}
@@ -365,6 +375,18 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 			PanelDetailsRow::LabelWidth(row.label));
 	});
 	if (maxLabelWidth > 0) {
+		if (error && !error->isEmpty()) {
+			_commonError = inner->add(
+				object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+					inner,
+					object_ptr<Ui::FlatLabel>(
+						inner,
+						*error,
+						Ui::FlatLabel::InitType::Simple,
+						st::passportVerifyErrorLabel),
+					st::passportValueErrorPadding));
+			_commonError->toggle(true, anim::type::instant);
+		}
 		inner->add(
 			object_ptr<Ui::FlatLabel>(
 				inner,
@@ -377,15 +399,28 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 				const EditDocumentScheme::Row &row,
 				const ValueMap &fields) {
 			const auto current = valueOrEmpty(fields, row.key);
-			_details.emplace(i, inner->add(PanelDetailsRow::Create(
-				inner,
-				row.inputType,
-				_controller,
-				row.label,
-				maxLabelWidth,
-				current.text,
-				current.error,
-				row.lengthLimit)));
+			const auto [it, ok] = _details.emplace(
+				i,
+				inner->add(PanelDetailsRow::Create(
+					inner,
+					row.inputType,
+					_controller,
+					row.label,
+					maxLabelWidth,
+					current.text,
+					current.error,
+					row.lengthLimit)));
+			const bool details = (&fields == data);
+			it->second->value(
+			) | rpl::skip(1) | rpl::start_with_next([=] {
+				if (details) {
+					_fieldsChanged = true;
+					updateCommonError();
+				} else {
+					Assert(_editScans != nullptr);
+					_editScans->scanFieldsChanged(true);
+				}
+			}, it->second->lifetime());
 		});
 
 		inner->add(
@@ -404,6 +439,12 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 	}
 
 	return inner;
+}
+
+void PanelEditDocument::updateCommonError() {
+	if (_commonError) {
+		_commonError->toggle(!_fieldsChanged, anim::type::normal);
+	}
 }
 
 void PanelEditDocument::focusInEvent(QFocusEvent *e) {
@@ -451,7 +492,7 @@ PanelEditDocument::Result PanelEditDocument::collect() const {
 }
 
 bool PanelEditDocument::validate() {
-	const auto error = _editScans
+	auto error = _editScans
 		? _editScans->validateGetErrorTop()
 		: base::none;
 	if (error) {
@@ -459,6 +500,12 @@ bool PanelEditDocument::validate() {
 		const auto scrolltop = _scroll->mapToGlobal(QPoint(0, 0));
 		const auto scrolldelta = errortop.y() - scrolltop.y();
 		_scroll->scrollToY(_scroll->scrollTop() + scrolldelta);
+	} else if (_commonError && !_fieldsChanged) {
+		const auto firsttop = _commonError->mapToGlobal(QPoint(0, 0));
+		const auto scrolltop = _scroll->mapToGlobal(QPoint(0, 0));
+		const auto scrolldelta = firsttop.y() - scrolltop.y();
+		_scroll->scrollToY(_scroll->scrollTop() + scrolldelta);
+		error = firsttop.y();
 	}
 	auto first = QPointer<PanelDetailsRow>();
 	for (const auto [i, field] : base::reversed(_details)) {

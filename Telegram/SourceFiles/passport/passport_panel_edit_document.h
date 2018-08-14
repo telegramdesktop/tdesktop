@@ -14,7 +14,10 @@ class InputField;
 class ScrollArea;
 class FadeShadow;
 class PlainShadow;
+class FlatLabel;
 class RoundButton;
+template <typename Widget>
+class SlideWrap;
 } // namespace Ui
 
 namespace Info {
@@ -63,8 +66,10 @@ public:
 		QWidget *parent,
 		not_null<PanelController*> controller,
 		Scheme scheme,
+		const QString &error,
 		const ValueMap &data,
-		const ValueMap &scanData,
+		const QString &scansError,
+		const ValueMap &scansData,
 		const QString &missingScansError,
 		std::vector<ScanInfo> &&files,
 		std::map<SpecialFile, ScanInfo> &&specialFiles);
@@ -72,7 +77,8 @@ public:
 		QWidget *parent,
 		not_null<PanelController*> controller,
 		Scheme scheme,
-		const ValueMap &scanData,
+		const QString &scansError,
+		const ValueMap &scansData,
 		const QString &missingScansError,
 		std::vector<ScanInfo> &&files,
 		std::map<SpecialFile, ScanInfo> &&specialFiles);
@@ -80,6 +86,7 @@ public:
 		QWidget *parent,
 		not_null<PanelController*> controller,
 		Scheme scheme,
+		const QString &error,
 		const ValueMap &data);
 
 	bool hasUnsavedChanges() const;
@@ -91,18 +98,23 @@ protected:
 private:
 	struct Result;
 	void setupControls(
+		const QString *error,
 		const ValueMap *data,
-		const ValueMap *scanData,
+		const QString *scansError,
+		const ValueMap *scansData,
 		const QString &missingScansError,
 		std::vector<ScanInfo> &&files,
 		std::map<SpecialFile, ScanInfo> &&specialFiles);
 	not_null<Ui::RpWidget*> setupContent(
+		const QString *error,
 		const ValueMap *data,
-		const ValueMap *scanData,
+		const QString *scansError,
+		const ValueMap *scansData,
 		const QString &missingScansError,
 		std::vector<ScanInfo> &&files,
 		std::map<SpecialFile, ScanInfo> &&specialFiles);
 	void updateControlsGeometry();
+	void updateCommonError();
 
 	Result collect() const;
 	bool validate();
@@ -116,7 +128,9 @@ private:
 	object_ptr<Ui::PlainShadow> _bottomShadow;
 
 	QPointer<EditScans> _editScans;
+	QPointer<Ui::SlideWrap<Ui::FlatLabel>> _commonError;
 	std::map<int, QPointer<PanelDetailsRow>> _details;
+	bool _fieldsChanged = false;
 
 	QPointer<Info::Profile::Button> _delete;
 

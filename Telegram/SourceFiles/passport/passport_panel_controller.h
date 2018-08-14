@@ -25,8 +25,8 @@ EditDocumentScheme GetDocumentScheme(
 	base::optional<Value::Type> scansType = base::none);
 EditContactScheme GetContactScheme(Scope::Type type);
 
-const std::map<QString, QString> &NativeNameKeys();
-const std::map<QString, QString> &LatinNameKeys();
+const std::map<QString, QString> &LatinToNativeMap();
+const std::map<QString, QString> &NativeToLatinMap();
 bool SkipFieldCheck(not_null<const Value*> value, const QString &key);
 
 struct ScanInfo {
@@ -144,6 +144,8 @@ private:
 
 	void editScope(int index, int documentIndex);
 	void editWithUpload(int index, int documentIndex);
+	bool editRequiresScanUpload(int index, int documentIndex) const;
+	void startScopeEdit(int index, int documentIndex);
 	int findNonEmptyDocumentIndex(const Scope &scope) const;
 	void requestScopeFilesType(int index);
 	void cancelValueEdit();
@@ -158,7 +160,7 @@ private:
 	bool hasValueDocument() const;
 	bool hasValueFields() const;
 	ScanInfo collectScanInfo(const EditFile &file) const;
-	std::vector<ScopeError> collectErrors(
+	std::vector<ScopeError> collectSaveErrors(
 		not_null<const Value*> value) const;
 	QString getDefaultContactValue(Scope::Type type) const;
 	void deleteValueSure(bool withDetails);

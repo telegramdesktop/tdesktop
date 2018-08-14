@@ -302,6 +302,20 @@ bool Value::requiresSpecialScan(SpecialFile type) const {
 	Unexpected("Special scan type in requiresSpecialScan.");
 }
 
+void Value::fillDataFrom(Value &&other) {
+	const auto savedSelfieRequired = selfieRequired;
+	const auto savedTranslationRequired = translationRequired;
+	const auto savedNativeNames = nativeNames;
+	const auto savedEditScreens = editScreens;
+
+	*this = std::move(other);
+
+	selfieRequired = savedSelfieRequired;
+	translationRequired = savedTranslationRequired;
+	nativeNames = savedNativeNames;
+	editScreens = savedEditScreens;
+}
+
 bool Value::scansAreFilled() const {
 	if (!requiresSpecialScan(SpecialFile::FrontSide) && scans.empty()) {
 		return false;
@@ -876,12 +890,15 @@ void FormController::fillErrors() {
 	for (const auto &error : _form.pendingErrors) {
 		error.match([&](const MTPDsecureValueError &data) {
 			if (const auto value = find(data.vtype)) {
-				value->error = qs(data.vtext);
+				if (CanHaveErrors(value->type)) {
+					value->error = qs(data.vtext);
+				}
 			}
 		}, [&](const MTPDsecureValueErrorData &data) {
 			if (const auto value = find(data.vtype)) {
 				const auto key = qs(data.vfield);
-				if (!SkipFieldCheck(value, key)) {
+				if (CanHaveErrors(value->type)
+					&& !SkipFieldCheck(value, key)) {
 					value->data.parsed.fields[key].error = qs(data.vtext);
 				}
 			}
@@ -894,7 +911,9 @@ void FormController::fillErrors() {
 			}
 		}, [&](const MTPDsecureValueErrorFiles &data) {
 			if (const auto value = find(data.vtype)) {
-				value->scanMissingError = qs(data.vtext);
+				if (CanRequireScans(value->type)) {
+					value->scanMissingError = qs(data.vtext);
+				}
 			}
 		}, [&](const MTPDsecureValueErrorTranslationFile &data) {
 			const auto hash = bytes::make_span(data.vfile_hash.v);
@@ -921,7 +940,7 @@ void FormController::fillErrors() {
 	}
 }
 
-void FormController::decryptValue(Value &value) {
+void FormController::decryptValue(Value &value) const {
 	Expects(!_secret.empty());
 
 	if (!validateValueSecrets(value)) {
@@ -946,7 +965,7 @@ void FormController::decryptValue(Value &value) {
 	}
 }
 
-bool FormController::validateValueSecrets(Value &value) {
+bool FormController::validateValueSecrets(Value &value) const {
 	if (!value.data.original.isEmpty()) {
 		value.data.secret = DecryptValueSecret(
 			value.data.encryptedSecret,
@@ -981,8 +1000,8 @@ bool FormController::validateValueSecrets(Value &value) {
 	return true;
 }
 
-void FormController::resetValue(Value &value) {
-	value = Value(value.type);
+void FormController::resetValue(Value &value) const {
+	value.fillDataFrom(Value(value.type));
 }
 
 rpl::producer<QString> FormController::passwordError() const {
@@ -1600,6 +1619,9 @@ void FormController::saveValueEdit(
 		return;
 	}
 
+	// If we didn't change anything, we don't send save request
+	// and we don't reset value->error/[scan|translation]MissingError.
+	// Otherwise we reset them after save by re-parsing the value.
 	const auto nonconst = findValue(value);
 	if (!editValueChanged(nonconst, data)) {
 		nonconst->saveRequestId = -1;
@@ -1632,10 +1654,7 @@ void FormController::deleteValueEdit(not_null<const Value*> value) {
 	nonconst->saveRequestId = request(MTPaccount_DeleteSecureValue(
 		MTP_vector<MTPSecureValueType>(1, ConvertType(nonconst->type))
 	)).done([=](const MTPBool &result) {
-		const auto editScreens = value->editScreens;
-		*nonconst = Value(nonconst->type);
-		nonconst->editScreens = editScreens;
-
+		resetValue(*nonconst);
 		_valueSaveFinished.fire_copy(value);
 	}).fail([=](const RPCError &error) {
 		nonconst->saveRequestId = 0;
@@ -1791,10 +1810,9 @@ void FormController::sendSaveRequest(
 			scansInEdit.push_back(std::move(scan));
 		}
 
-		const auto editScreens = value->editScreens;
-		*value = parseValue(result, scansInEdit);
-		decryptValue(*value);
-		value->editScreens = editScreens;
+		auto refreshed = parseValue(result, scansInEdit);
+		decryptValue(refreshed);
+		value->fillDataFrom(std::move(refreshed));
 
 		_valueSaveFinished.fire_copy(value);
 	}).fail([=](const RPCError &error) {
@@ -2257,13 +2275,13 @@ bool FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 	}
 	for (const auto &required : data.vrequired_types.v) {
 		const auto row = CollectRequestedRow(required);
-		for (const auto value : row.values) {
-			const auto [i, ok] = _form.values.emplace(
-				value.type,
-				Value(value.type));
-			i->second.selfieRequired = value.selfieRequired;
-			i->second.translationRequired = value.translationRequired;
-			i->second.nativeNames = value.nativeNames;
+		for (const auto requested : row.values) {
+			const auto type = requested.type;
+			const auto [i, ok] = _form.values.emplace(type, Value(type));
+			auto &value = i->second;
+			value.translationRequired = requested.translationRequired;
+			value.selfieRequired = requested.selfieRequired;
+			value.nativeNames = requested.nativeNames;
 		}
 		_form.request.push_back(row.values
 			| ranges::view::transform([](const RequestedValue &value) {

@@ -105,8 +105,8 @@ EditDocumentScheme GetDocumentScheme(
 		return NameValidate(value);
 	};
 
-	// #TODO passport scheme
 	switch (type) {
+	case Scope::Type::PersonalDetails:
 	case Scope::Type::Identity: {
 		auto result = Scheme();
 		result.detailsHeader = lang(lng_passport_personal_details);
@@ -212,6 +212,7 @@ EditDocumentScheme GetDocumentScheme(
 		return result;
 	} break;
 
+	case Scope::Type::AddressDetails:
 	case Scope::Type::Address: {
 		auto result = Scheme();
 		result.detailsHeader = lang(lng_passport_address);
@@ -341,7 +342,7 @@ EditContactScheme GetContactScheme(Scope::Type type) {
 	Unexpected("Type in GetContactScheme().");
 }
 
-const std::map<QString, QString> &NativeNameKeys() {
+const std::map<QString, QString> &LatinToNativeMap() {
 	static const auto result = std::map<QString, QString> {
 		{ qsl("first_name"), qsl("first_name_native") },
 		{ qsl("last_name"), qsl("last_name_native") },
@@ -350,11 +351,11 @@ const std::map<QString, QString> &NativeNameKeys() {
 	return result;
 }
 
-const std::map<QString, QString> &LatinNameKeys() {
+const std::map<QString, QString> &NativeToLatinMap() {
 	static const auto result = std::map<QString, QString> {
 		{ qsl("first_name_native"), qsl("first_name") },
 		{ qsl("last_name_native"), qsl("last_name") },
-		{ qsl("_nativemiddle_name"), qsl("middle_name") },
+		{ qsl("middle_name_native"), qsl("middle_name") },
 	};
 	return result;
 }
@@ -363,10 +364,10 @@ bool SkipFieldCheck(not_null<const Value*> value, const QString &key) {
 	if (value->type != Value::Type::PersonalDetails) {
 		return false;
 	}
-	const auto &namesMap = value->nativeNames
-		? NativeNameKeys()
-		: LatinNameKeys();
-	return namesMap.find(key) == end(namesMap);
+	const auto &dontCheckNames = value->nativeNames
+		? LatinToNativeMap()
+		: NativeToLatinMap();
+	return dontCheckNames.find(key) != end(dontCheckNames);
 }
 
 BoxPointer::BoxPointer(QPointer<BoxContent> value)
@@ -679,37 +680,11 @@ ScanInfo PanelController::collectScanInfo(const EditFile &file) const {
 		file.fields.error };
 }
 
-std::vector<ScopeError> PanelController::collectErrors(
+std::vector<ScopeError> PanelController::collectSaveErrors(
 		not_null<const Value*> value) const {
 	using General = ScopeError::General;
 
 	auto result = std::vector<ScopeError>();
-	if (!value->error.isEmpty()) {
-		result.push_back({ General::WholeValue, value->error });
-	}
-	if (!value->scanMissingError.isEmpty()) {
-		result.push_back({ General::ScanMissing, value->scanMissingError });
-	}
-	if (!value->translationMissingError.isEmpty()) {
-		result.push_back({
-			General::TranslationMissing,
-			value->translationMissingError });
-	}
-	const auto addFileError = [&](const EditFile &file) {
-		if (!file.fields.error.isEmpty()) {
-			const auto key = FileKey{ file.fields.id, file.fields.dcId };
-			result.push_back({ key, file.fields.error });
-		}
-	};
-	for (const auto &scan : value->scansInEdit) {
-		addFileError(scan);
-	}
-	for (const auto &scan : value->translationsInEdit) {
-		addFileError(scan);
-	}
-	for (const auto &[type, scan] : value->specialScansInEdit) {
-		addFileError(scan);
-	}
 	for (const auto &[key, value] : value->data.parsedInEdit.fields) {
 		if (!value.error.isEmpty()) {
 			result.push_back({ key, value.error });
@@ -912,12 +887,10 @@ void PanelController::editScope(int index) {
 		editScope(index, -1);
 	} else {
 		const auto documentIndex = findNonEmptyDocumentIndex(scope);
-		if (documentIndex >= 0) {
-			editScope(index, documentIndex);
-		} else if (scope.documents.size() > 1) {
-			requestScopeFilesType(index);
+		if (documentIndex >= 0 || scope.documents.size() == 1) {
+			editScope(index, (documentIndex >= 0) ? documentIndex : 0);
 		} else {
-			editWithUpload(index, 0);
+			requestScopeFilesType(index);
 		}
 	}
 }
@@ -988,7 +961,7 @@ void PanelController::editWithUpload(int index, int documentIndex) {
 	Expects(documentIndex >= 0
 		&& documentIndex < _scopes[index].documents.size());
 
-	const auto &document = _scopes[index].documents[documentIndex];
+	const auto document = _scopes[index].documents[documentIndex];
 	const auto requiresSpecialScan = document->requiresSpecialScan(
 		SpecialFile::FrontSide);
 	const auto allowMany = !requiresSpecialScan;
@@ -998,7 +971,7 @@ void PanelController::editWithUpload(int index, int documentIndex) {
 			_scopeDocumentTypeBox = BoxPointer();
 		}
 		if (!_editScope || !_editDocument) {
-			editScope(index, documentIndex);
+			startScopeEdit(index, documentIndex);
 		}
 		if (requiresSpecialScan) {
 			uploadSpecialScan(SpecialFile::FrontSide, std::move(content));
@@ -1026,9 +999,37 @@ void PanelController::readScanError(ReadScanError error) {
 	}()));
 }
 
+bool PanelController::editRequiresScanUpload(
+		int index,
+		int documentIndex) const {
+	Expects(index >= 0 && index < _scopes.size());
+	Expects((documentIndex < 0)
+		|| (documentIndex >= 0
+			&& documentIndex < _scopes[index].documents.size()));
+
+	if (documentIndex < 0) {
+		return false;
+	}
+	const auto document = _scopes[index].documents[documentIndex];
+	if (document->requiresSpecialScan(SpecialFile::FrontSide)) {
+		const auto &scans = document->specialScans;
+		return (scans.find(SpecialFile::FrontSide) == end(scans));
+	}
+	return document->scans.empty();
+}
+
 void PanelController::editScope(int index, int documentIndex) {
+	if (editRequiresScanUpload(index, documentIndex)) {
+		editWithUpload(index, documentIndex);
+	} else {
+		startScopeEdit(index, documentIndex);
+	}
+}
+
+void PanelController::startScopeEdit(int index, int documentIndex) {
 	Expects(_panel != nullptr);
 	Expects(index >= 0 && index < _scopes.size());
+	Expects(_scopes[index].details != 0 || documentIndex >= 0);
 	Expects((documentIndex < 0)
 		|| (documentIndex >= 0
 			&& documentIndex < _scopes[index].documents.size()));
@@ -1038,7 +1039,6 @@ void PanelController::editScope(int index, int documentIndex) {
 	_editDocument = (documentIndex >= 0)
 		? _scopes[index].documents[documentIndex].get()
 		: nullptr;
-	Assert(_editValue || _editDocument);
 
 	if (_editValue) {
 		_form->startValueEdit(_editValue);
@@ -1048,7 +1048,6 @@ void PanelController::editScope(int index, int documentIndex) {
 	}
 
 	auto content = [&]() -> object_ptr<Ui::RpWidget> {
-		// #TODO passport pass and display value->error
 		switch (_editScope->type) {
 		case Scope::Type::Identity:
 		case Scope::Type::Address: {
@@ -1060,7 +1059,9 @@ void PanelController::editScope(int index, int documentIndex) {
 					GetDocumentScheme(
 						_editScope->type,
 						_editDocument->type),
+					_editValue->error,
 					_editValue->data.parsedInEdit,
+					_editDocument->error,
 					_editDocument->data.parsedInEdit,
 					_editDocument->scanMissingError,
 					valueFiles(*_editDocument),
@@ -1071,6 +1072,7 @@ void PanelController::editScope(int index, int documentIndex) {
 					GetDocumentScheme(
 						_editScope->type,
 						_editDocument->type),
+					_editDocument->error,
 					_editDocument->data.parsedInEdit,
 					_editDocument->scanMissingError,
 					valueFiles(*_editDocument),
@@ -1085,10 +1087,11 @@ void PanelController::editScope(int index, int documentIndex) {
 		case Scope::Type::AddressDetails: {
 			Assert(_editValue != nullptr);
 			auto result = object_ptr<PanelEditDocument>(
-					_panel->widget(),
-					this,
-					GetDocumentScheme(_editScope->type),
-					_editValue->data.parsedInEdit);
+				_panel->widget(),
+				this,
+				GetDocumentScheme(_editScope->type),
+				_editValue->error,
+				_editValue->data.parsedInEdit);
 			const auto weak = make_weak(result.data());
 			_panelHasUnsavedChanges = [=] {
 				return weak ? weak->hasUnsavedChanges() : false;
@@ -1148,7 +1151,7 @@ void PanelController::processValueSaveFinished(
 	}
 
 	if ((_editValue == value || _editDocument == value) && !savingScope()) {
-		if (auto errors = collectErrors(value); !errors.empty()) {
+		if (auto errors = collectSaveErrors(value); !errors.empty()) {
 			for (auto &&error : errors) {
 				_saveErrors.fire(std::move(error));
 			}

@@ -257,12 +257,14 @@ EditScans::EditScans(
 	QWidget *parent,
 	not_null<PanelController*> controller,
 	const QString &header,
+	const QString &error,
 	const QString &errorMissing,
 	std::vector<ScanInfo> &&files)
 : RpWidget(parent)
 , _controller(controller)
 , _files(std::move(files))
 , _initialCount(_files.size())
+, _error(error)
 , _errorMissing(errorMissing)
 , _content(this) {
 	setupScans(header);
@@ -271,15 +273,20 @@ EditScans::EditScans(
 EditScans::EditScans(
 	QWidget *parent,
 	not_null<PanelController*> controller,
+	const QString &error,
 	std::map<SpecialFile, ScanInfo> &&specialFiles)
 : RpWidget(parent)
 , _controller(controller)
 , _initialCount(-1)
+, _error(error)
 , _content(this) {
 	setupSpecialScans(std::move(specialFiles));
 }
 
 bool EditScans::uploadedSomeMore() const {
+	if (_initialCount < 0) {
+		return false;
+	}
 	const auto from = begin(_files) + _initialCount;
 	const auto till = end(_files);
 	return std::find_if(from, till, [](const ScanInfo &file) {
@@ -303,6 +310,9 @@ base::optional<int> EditScans::validateGetErrorTop() {
 		[](const ScanInfo &file) { return !file.error.isEmpty(); }
 	) != end(_files);
 
+	if (_commonError && !somethingChanged()) {
+		suggestResult(_commonError->y());
+	}
 	if (_upload && (!exists
 		|| ((errorExists || _uploadMoreError) && !uploadedSomeMore()))) {
 		toggleError(true);
@@ -333,6 +343,19 @@ base::optional<int> EditScans::validateGetErrorTop() {
 void EditScans::setupScans(const QString &header) {
 	const auto inner = _content.data();
 	inner->move(0, 0);
+
+	if (!_error.isEmpty()) {
+		_commonError = inner->add(
+			object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+				inner,
+				object_ptr<Ui::FlatLabel>(
+					inner,
+					_error,
+					Ui::FlatLabel::InitType::Simple,
+					st::passportVerifyErrorLabel),
+				st::passportValueErrorPadding));
+		_commonError->toggle(true, anim::type::instant);
+	}
 
 	_divider = inner->add(
 		object_ptr<Ui::SlideWrap<BoxContentDivider>>(
@@ -442,6 +465,20 @@ void EditScans::setupSpecialScans(std::map<SpecialFile, ScanInfo> &&files) {
 
 	const auto inner = _content.data();
 	inner->move(0, 0);
+
+	if (!_error.isEmpty()) {
+		_commonError = inner->add(
+			object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+				inner,
+				object_ptr<Ui::FlatLabel>(
+					inner,
+					_error,
+					Ui::FlatLabel::InitType::Simple,
+					st::passportVerifyErrorLabel),
+				st::passportValueErrorPadding));
+		_commonError->toggle(true, anim::type::instant);
+	}
+
 	for (auto &[type, info] : files) {
 		const auto i = _specialScans.emplace(
 			type,
@@ -531,9 +568,27 @@ void EditScans::updateScan(ScanInfo &&info) {
 		_header->show(anim::type::normal);
 		_uploadTexts.fire(uploadButtonText());
 	}
+	updateErrorLabels();
+}
+
+void EditScans::scanFieldsChanged(bool changed) {
+	if (_scanFieldsChanged != changed) {
+		_scanFieldsChanged = changed;
+		updateErrorLabels();
+	}
+}
+
+void EditScans::updateErrorLabels() {
 	if (_uploadMoreError) {
 		_uploadMoreError->toggle(!uploadedSomeMore(), anim::type::normal);
 	}
+	if (_commonError) {
+		_commonError->toggle(!somethingChanged(), anim::type::normal);
+	}
+}
+
+bool EditScans::somethingChanged() const {
+	return uploadedSomeMore() || _scanFieldsChanged || _specialScanChanged;
 }
 
 void EditScans::updateSpecialScan(SpecialFile type, ScanInfo &&info) {
@@ -547,8 +602,8 @@ void EditScans::updateSpecialScan(SpecialFile type, ScanInfo &&info) {
 	if (scan.file.key.id) {
 		updateFileRow(scan.row->entity(), info);
 		scan.rowCreated = !info.deleted;
-		if (!info.deleted) {
-			hideSpecialScanError(type);
+		if (scan.file.key.id != info.key.id) {
+			specialScanChanged(type, true);
 		}
 	} else {
 		const auto requiresBothSides
@@ -558,6 +613,7 @@ void EditScans::updateSpecialScan(SpecialFile type, ScanInfo &&info) {
 		scan.wrap->resizeToWidth(width());
 		scan.row->show(anim::type::normal);
 		scan.header->show(anim::type::normal);
+		specialScanChanged(type, true);
 	}
 	scan.file = std::move(info);
 }
@@ -569,8 +625,7 @@ void EditScans::updateFileRow(
 	button->setImage(info.thumb);
 	button->setDeleted(info.deleted);
 	button->setError(!info.error.isEmpty());
-};
-
+}
 
 void EditScans::createSpecialScanRow(
 		SpecialScan &scan,
@@ -606,7 +661,6 @@ void EditScans::createSpecialScanRow(
 	}, row->lifetime());
 
 	scan.rowCreated = !info.deleted;
-	hideSpecialScanError(type);
 }
 
 void EditScans::pushScan(const ScanInfo &info) {
@@ -791,6 +845,14 @@ void EditScans::errorAnimationCallback() {
 
 void EditScans::hideSpecialScanError(SpecialFile type) {
 	toggleSpecialScanError(type, false);
+}
+
+void EditScans::specialScanChanged(SpecialFile type, bool changed) {
+	hideSpecialScanError(type);
+	if (_specialScanChanged != changed) {
+		_specialScanChanged = changed;
+		updateErrorLabels();
+	}
 }
 
 auto EditScans::findSpecialScan(SpecialFile type) -> SpecialScan& {

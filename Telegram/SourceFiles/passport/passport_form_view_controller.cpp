@@ -98,6 +98,31 @@ bool InlineDetails(const Form::Request &request, Value::Type details) {
 Scope::Scope(Type type) : type(type) {
 }
 
+bool CanRequireSelfie(Value::Type type) {
+	const auto scope = ScopeTypeForValueType(type);
+	return (scope == Scope::Type::Address)
+		|| (scope == Scope::Type::Identity);
+}
+
+bool CanRequireScans(Value::Type type) {
+	const auto scope = ScopeTypeForValueType(type);
+	return (scope == Scope::Type::Address);
+}
+
+bool CanRequireTranslation(Value::Type type) {
+	const auto scope = ScopeTypeForValueType(type);
+	return (scope == Scope::Type::Address)
+		|| (scope == Scope::Type::Identity);
+}
+
+bool CanRequireNativeNames(Value::Type type) {
+	return (type == Value::Type::PersonalDetails);
+}
+
+bool CanHaveErrors(Value::Type type) {
+	return (type != Value::Type::Phone) && (type != Value::Type::Email);
+}
+
 bool ValidateForm(const Form &form) {
 	base::flat_set<Value::Type> values;
 	for (const auto &requested : form.request) {
@@ -120,30 +145,36 @@ bool ValidateForm(const Form &form) {
 			values.emplace(type);
 		}
 	}
+
+	// Invalid errors should be skipped while parsing the form.
 	for (const auto &[type, value] : form.values) {
+		if (value.selfieRequired && !CanRequireSelfie(type)) {
+			LOG(("API Error: Bad value requiring selfie."));
+			return false;
+		} else if (value.translationRequired
+			&& !CanRequireTranslation(type)) {
+			LOG(("API Error: Bad value requiring translation."));
+			return false;
+		} else if (value.nativeNames && !CanRequireNativeNames(type)) {
+			LOG(("API Error: Bad value requiring native names."));
+			return false;
+		}
+		if (!CanRequireScans(value.type)) {
+			Assert(value.scanMissingError.isEmpty());
+		}
 		if (!value.translationRequired) {
 			for (const auto &scan : value.translations) {
-				if (!scan.error.isEmpty()) {
-					LOG(("API Error: "
-						"Translation error in authorization form value."));
-					return false;
-				}
+				Assert(scan.error.isEmpty());
 			}
-			if (!value.translationMissingError.isEmpty()) {
-				LOG(("API Error: "
-					"Translations error in authorization form value."));
-				return false;
-			}
+			Assert(value.translationMissingError.isEmpty());
 		}
 		for (const auto &[type, specialScan] : value.specialScans) {
-			if (!value.requiresSpecialScan(type)
-				&& !specialScan.error.isEmpty()) {
-				LOG(("API Error: "
-					"Special scan error in authorization form value."));
-				return false;
+			if (!value.requiresSpecialScan(type)) {
+				Assert(specialScan.error.isEmpty());
 			}
 		}
 	}
+
 	return true;
 }
 

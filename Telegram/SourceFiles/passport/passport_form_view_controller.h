@@ -34,6 +34,8 @@ struct ScopeRow {
 	QString error;
 };
 
+bool CanRequireScans(Value::Type type);
+bool CanHaveErrors(Value::Type type);
 bool ValidateForm(const Form &form);
 std::vector<Scope> ComputeScopes(const Form &form);
 QString ComputeScopeRowReadyString(const Scope &scope);

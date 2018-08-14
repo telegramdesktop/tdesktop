@@ -44,14 +44,18 @@ public:
 		QWidget *parent,
 		not_null<PanelController*> controller,
 		const QString &header,
+		const QString &error,
 		const QString &errorMissing,
 		std::vector<ScanInfo> &&files);
 	EditScans(
 		QWidget *parent,
 		not_null<PanelController*> controller,
+		const QString &error,
 		std::map<SpecialFile, ScanInfo> &&specialFiles);
 
 	base::optional<int> validateGetErrorTop();
+
+	void scanFieldsChanged(bool changed);
 
 	static void ChooseScan(
 		QPointer<QWidget> parent,
@@ -88,28 +92,35 @@ private:
 
 	rpl::producer<QString> uploadButtonText() const;
 
+	void updateErrorLabels();
 	void toggleError(bool shown);
 	void hideError();
 	void errorAnimationCallback();
 	bool uploadedSomeMore() const;
+	bool somethingChanged() const;
 
 	void toggleSpecialScanError(SpecialFile type, bool shown);
 	void hideSpecialScanError(SpecialFile type);
 	void specialScanErrorAnimationCallback(SpecialFile type);
+	void specialScanChanged(SpecialFile type, bool changed);
 
 	not_null<PanelController*> _controller;
 	std::vector<ScanInfo> _files;
 	int _initialCount = 0;
+	QString _error;
 	QString _errorMissing;
 
 	object_ptr<Ui::VerticalLayout> _content;
 	QPointer<Ui::SlideWrap<BoxContentDivider>> _divider;
 	QPointer<Ui::SlideWrap<Ui::FlatLabel>> _header;
+	QPointer<Ui::SlideWrap<Ui::FlatLabel>> _commonError;
 	QPointer<Ui::SlideWrap<Ui::FlatLabel>> _uploadMoreError;
 	QPointer<Ui::VerticalLayout> _wrap;
 	std::vector<base::unique_qptr<Ui::SlideWrap<ScanButton>>> _rows;
 	QPointer<Info::Profile::Button> _upload;
 	rpl::event_stream<rpl::producer<QString>> _uploadTexts;
+	bool _scanFieldsChanged = false;
+	bool _specialScanChanged = false;
 	bool _errorShown = false;
 	Animation _errorAnimation;
 
