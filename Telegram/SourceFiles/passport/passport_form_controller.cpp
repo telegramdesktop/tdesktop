@@ -151,6 +151,13 @@ void CollectToRequestedRow(
 	});
 }
 
+void ApplyDataChanges(ValueData &data, ValueMap &&changes) {
+	data.parsedInEdit = data.parsed;
+	for (auto &[key, value] : changes.fields) {
+		data.parsedInEdit.fields[key] = std::move(value);
+	}
+}
+
 RequestedRow CollectRequestedRow(const MTPSecureRequiredType &data) {
 	auto result = RequestedRow();
 	CollectToRequestedRow(result, data);
@@ -219,6 +226,39 @@ QString ValidateUrl(const QString &url) {
 }
 
 } // namespace
+
+bool ValueChanged(not_null<const Value*> value, const ValueMap &data) {
+	const auto FileChanged = [](const EditFile &file) {
+		if (file.uploadData) {
+			return !file.deleted;
+		}
+		return file.deleted;
+	};
+
+	auto filesCount = 0;
+	for (const auto &scan : value->scansInEdit) {
+		if (FileChanged(scan)) {
+			return true;
+		}
+	}
+	for (const auto &[type, scan] : value->specialScansInEdit) {
+		if (FileChanged(scan)) {
+			return true;
+		}
+	}
+	const auto &existing = value->data.parsed.fields;
+	for (const auto &[key, value] : data.fields) {
+		const auto i = existing.find(key);
+		if (i != existing.end()) {
+			if (i->second.text != value.text) {
+				return true;
+			}
+		} else if (!value.text.isEmpty()) {
+			return true;
+		}
+	}
+	return false;
+}
 
 FormRequest::FormRequest(
 	UserId botId,
@@ -1576,42 +1616,6 @@ bool FormController::isEncryptedValue(Value::Type type) const {
 	return (type != Value::Type::Phone && type != Value::Type::Email);
 }
 
-bool FormController::editFileChanged(const EditFile &file) const {
-	if (file.uploadData) {
-		return !file.deleted;
-	}
-	return file.deleted;
-}
-
-bool FormController::editValueChanged(
-		not_null<const Value*> value,
-		const ValueMap &data) const {
-	auto filesCount = 0;
-	for (const auto &scan : value->scansInEdit) {
-		if (editFileChanged(scan)) {
-			return true;
-		}
-	}
-	for (const auto &[type, scan] : value->specialScansInEdit) {
-		if (editFileChanged(scan)) {
-			return true;
-		}
-	}
-	auto existing = value->data.parsed.fields;
-	for (const auto &[key, value] : data.fields) {
-		const auto i = existing.find(key);
-		if (i != existing.end()) {
-			if (i->second.text != value.text) {
-				return true;
-			}
-			existing.erase(i);
-		} else if (!value.text.isEmpty()) {
-			return true;
-		}
-	}
-	return !existing.empty();
-}
-
 void FormController::saveValueEdit(
 		not_null<const Value*> value,
 		ValueMap &&data) {
@@ -1623,7 +1627,7 @@ void FormController::saveValueEdit(
 	// and we don't reset value->error/[scan|translation]MissingError.
 	// Otherwise we reset them after save by re-parsing the value.
 	const auto nonconst = findValue(value);
-	if (!editValueChanged(nonconst, data)) {
+	if (!ValueChanged(nonconst, data)) {
 		nonconst->saveRequestId = -1;
 		crl::on_main(this, [=] {
 			base::take(nonconst->scansInEdit);
@@ -1636,7 +1640,7 @@ void FormController::saveValueEdit(
 		});
 		return;
 	}
-	nonconst->data.parsedInEdit = std::move(data);
+	ApplyDataChanges(nonconst->data, std::move(data));
 
 	if (isEncryptedValue(nonconst->type)) {
 		saveEncryptedValue(nonconst);

@@ -22,11 +22,13 @@ enum class ReadScanError;
 
 EditDocumentScheme GetDocumentScheme(
 	Scope::Type type,
-	base::optional<Value::Type> scansType = base::none);
+	base::optional<Value::Type> scansType,
+	bool nativeNames);
 EditContactScheme GetContactScheme(Scope::Type type);
 
 const std::map<QString, QString> &LatinToNativeMap();
 const std::map<QString, QString> &NativeToLatinMap();
+QString AdjustKeyName(not_null<const Value*> value, const QString &key);
 bool SkipFieldCheck(not_null<const Value*> value, const QString &key);
 
 struct ScanInfo {

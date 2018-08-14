@@ -278,7 +278,10 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 			}
 			return nullptr;
 		}();
-		if (document && scope.documents.size() > 1) {
+		if ((document && scope.documents.size() > 1)
+			|| (!scope.details
+				&& (ScopeTypeForValueType(document->type)
+					== Scope::Type::Address))) {
 			pushListValue("_type", [&] {
 				using Type = Value::Type;
 				switch (document->type) {
@@ -307,7 +310,10 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 		if (!scope.documents.empty() && !document) {
 			return QString();
 		}
-		const auto scheme = GetDocumentScheme(scope.type);
+		const auto scheme = GetDocumentScheme(
+			scope.type,
+			document ? base::make_optional(document->type) : base::none,
+			scope.details ? scope.details->nativeNames : false);
 		for (const auto &row : scheme.rows) {
 			const auto format = row.format;
 			if (row.valueClass == EditDocumentScheme::ValueClass::Fields) {
@@ -357,9 +363,10 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 }
 
 ScopeRow ComputeScopeRow(const Scope &scope) {
-	const auto addReadyError = [&](ScopeRow &&row) {
-		const auto ready = ComputeScopeRowReadyString(scope);
-		row.ready = ready;
+	const auto addReadyError = [&](
+			ScopeRow &&row,
+			QString titleFallback = QString()) {
+		row.ready = ComputeScopeRowReadyString(scope);
 		auto errors = QStringList();
 		const auto addValueErrors = [&](not_null<const Value*> value) {
 			if (!value->error.isEmpty()) {
@@ -408,7 +415,10 @@ ScopeRow ComputeScopeRow(const Scope &scope) {
 		}
 		if (!errors.isEmpty()) {
 			row.error = errors[0];// errors.join('\n');
+		} else if (row.title == row.ready && !titleFallback.isEmpty()) {
+			row.title = titleFallback;
 		}
+
 		// #TODO passport half-full value
 		//if (row.error.isEmpty()
 		//	&& row.ready.isEmpty()
@@ -464,7 +474,7 @@ ScopeRow ComputeScopeRow(const Scope &scope) {
 		return addReadyError({
 			lang(lng_passport_address),
 			lang(lng_passport_address_enter),
-			});
+		});
 	case Scope::Type::Address:
 		Assert(!scope.documents.empty());
 		if (scope.documents.size() == 1) {
@@ -473,27 +483,27 @@ ScopeRow ComputeScopeRow(const Scope &scope) {
 				return addReadyError({
 					lang(lng_passport_address_statement),
 					lang(lng_passport_address_statement_upload),
-				});
+				}, lang(lng_passport_address_title));
 			case Value::Type::UtilityBill:
 				return addReadyError({
 					lang(lng_passport_address_bill),
 					lang(lng_passport_address_bill_upload),
-				});
+				}, lang(lng_passport_address_title));
 			case Value::Type::RentalAgreement:
 				return addReadyError({
 					lang(lng_passport_address_agreement),
 					lang(lng_passport_address_agreement_upload),
-				});
+				}, lang(lng_passport_address_title));
 			case Value::Type::PassportRegistration:
 				return addReadyError({
 					lang(lng_passport_address_registration),
 					lang(lng_passport_address_registration_upload),
-				});
+				}, lang(lng_passport_address_title));
 			case Value::Type::TemporaryRegistration:
 				return addReadyError({
 					lang(lng_passport_address_temporary),
 					lang(lng_passport_address_temporary_upload),
-				});
+				}, lang(lng_passport_address_title));
 			default: Unexpected("Address type in ComputeScopeRow.");
 			}
 		}

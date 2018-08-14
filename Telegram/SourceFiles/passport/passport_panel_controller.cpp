@@ -34,7 +34,8 @@ constexpr auto kMaxPostcodeSize = 10;
 
 EditDocumentScheme GetDocumentScheme(
 		Scope::Type type,
-		base::optional<Value::Type> scansType) {
+		base::optional<Value::Type> scansType,
+		bool nativeNames) {
 	using Scheme = EditDocumentScheme;
 	using ValueClass = Scheme::ValueClass;
 	const auto DontFormat = nullptr;
@@ -74,7 +75,8 @@ EditDocumentScheme GetDocumentScheme(
 		}
 		return base::none;
 	};
-
+	const auto NativeNameValidate = LimitedValidate(kMaxNameSize);
+	const auto NativeNameOrEmptyValidate = LimitedValidate(kMaxNameSize, 0);
 	const auto DocumentValidate = LimitedValidate(kMaxDocumentSize);
 	const auto StreetValidate = LimitedValidate(kMaxStreetSize);
 	const auto CityValidate = LimitedValidate(kMaxCitySize, kMinCitySize);
@@ -129,35 +131,40 @@ EditDocumentScheme GetDocumentScheme(
 				Unexpected("scansType in GetDocumentScheme:Identity.");
 			}
 		}
+		using Validator = EditDocumentScheme::Row::Validator;
 		result.rows = {
 			{
 				ValueClass::Fields,
 				PanelDetailsType::Text,
-				qsl("first_name"),
+				nativeNames ? qsl("first_name_native") : qsl("first_name"),
 				lang(lng_passport_first_name),
-				NameValidate,
+				nativeNames ? Validator(NativeNameValidate) : NameValidate,
 				DontFormat,
 				kMaxNameSize,
 			},
 			{
 				ValueClass::Fields,
 				PanelDetailsType::Text,
-				qsl("middle_name"),
+				(nativeNames
+					? qsl("middle_name_native")
+					: qsl("middle_name")),
 				lang(lng_passport_middle_name),
-				NameOrEmptyValidate,
+				(nativeNames
+					? Validator(NativeNameOrEmptyValidate)
+					: NameOrEmptyValidate),
 				DontFormat,
 				kMaxNameSize,
-				qsl("first_name")
+				nativeNames ? qsl("first_name_native") : qsl("first_name"),
 			},
 			{
 				ValueClass::Fields,
 				PanelDetailsType::Text,
-				qsl("last_name"),
+				nativeNames ? qsl("last_name_native") : qsl("last_name"),
 				lang(lng_passport_last_name),
-				NameValidate,
+				nativeNames ? Validator(NativeNameValidate) : NameValidate,
 				DontFormat,
 				kMaxNameSize,
-				qsl("first_name")
+				nativeNames ? qsl("first_name_native") : qsl("first_name"),
 			},
 			{
 				ValueClass::Fields,
@@ -358,6 +365,15 @@ const std::map<QString, QString> &NativeToLatinMap() {
 		{ qsl("middle_name_native"), qsl("middle_name") },
 	};
 	return result;
+}
+
+QString AdjustKeyName(not_null<const Value*> value, const QString &key) {
+	if (!value->nativeNames) {
+		return key;
+	}
+	const auto &map = LatinToNativeMap();
+	const auto i = map.find(key);
+	return (i == end(map)) ? key : i->second;
 }
 
 bool SkipFieldCheck(not_null<const Value*> value, const QString &key) {
@@ -1058,7 +1074,8 @@ void PanelController::startScopeEdit(int index, int documentIndex) {
 					this,
 					GetDocumentScheme(
 						_editScope->type,
-						_editDocument->type),
+						_editDocument->type,
+						_editValue->nativeNames),
 					_editValue->error,
 					_editValue->data.parsedInEdit,
 					_editDocument->error,
@@ -1071,7 +1088,8 @@ void PanelController::startScopeEdit(int index, int documentIndex) {
 					this,
 					GetDocumentScheme(
 						_editScope->type,
-						_editDocument->type),
+						_editDocument->type,
+						false),
 					_editDocument->error,
 					_editDocument->data.parsedInEdit,
 					_editDocument->scanMissingError,
@@ -1089,7 +1107,10 @@ void PanelController::startScopeEdit(int index, int documentIndex) {
 			auto result = object_ptr<PanelEditDocument>(
 				_panel->widget(),
 				this,
-				GetDocumentScheme(_editScope->type),
+				GetDocumentScheme(
+					_editScope->type,
+					base::none,
+					_editValue->nativeNames),
 				_editValue->error,
 				_editValue->data.parsedInEdit);
 			const auto weak = make_weak(result.data());
@@ -1288,6 +1309,8 @@ void PanelController::saveScope(ValueMap &&data, ValueMap &&filesData) {
 
 	if (_editValue) {
 		_form->saveValueEdit(_editValue, std::move(data));
+	} else {
+		Assert(data.fields.empty());
 	}
 	if (_editDocument) {
 		_form->saveValueEdit(_editDocument, std::move(filesData));
@@ -1299,10 +1322,9 @@ void PanelController::saveScope(ValueMap &&data, ValueMap &&filesData) {
 bool PanelController::editScopeChanged(
 		const ValueMap &data,
 		const ValueMap &filesData) const {
-	if (_editValue && _form->editValueChanged(_editValue, data)) {
+	if (_editValue && ValueChanged(_editValue, data)) {
 		return true;
-	} else if (_editDocument
-		&& _form->editValueChanged(_editDocument, filesData)) {
+	} else if (_editDocument && ValueChanged(_editDocument, filesData)) {
 		return true;
 	}
 	return false;

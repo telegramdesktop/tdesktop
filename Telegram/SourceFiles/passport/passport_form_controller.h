@@ -201,6 +201,8 @@ private:
 
 };
 
+bool ValueChanged(not_null<const Value*> value, const ValueMap &data);
+
 struct RequestedValue {
 	explicit RequestedValue(Value::Type type);
 
@@ -327,9 +329,6 @@ public:
 	void startValueEdit(not_null<const Value*> value);
 	void cancelValueEdit(not_null<const Value*> value);
 	void cancelValueVerification(not_null<const Value*> value);
-	bool editValueChanged(
-		not_null<const Value*> value,
-		const ValueMap &data) const;
 	void saveValueEdit(not_null<const Value*> value, ValueMap &&data);
 	void deleteValueEdit(not_null<const Value*> value);
 	bool savingValue(not_null<const Value*> value) const;
@@ -454,7 +453,6 @@ private:
 	void valueEditFailed(not_null<Value*> value);
 	void clearValueEdit(not_null<Value*> value);
 	void clearValueVerification(not_null<Value*> value);
-	bool editFileChanged(const EditFile &file) const;
 
 	bool isEncryptedValue(Value::Type type) const;
 	void saveEncryptedValue(not_null<Value*> value);

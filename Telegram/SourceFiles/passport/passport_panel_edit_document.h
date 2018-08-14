@@ -42,14 +42,16 @@ struct EditDocumentScheme {
 		Scans,
 	};
 	struct Row {
+		using Validator = Fn<base::optional<QString>(const QString &value)>;
+		using Formatter = Fn<QString(const QString &value)>;
 		ValueClass valueClass = ValueClass::Fields;
 		PanelDetailsType inputType = PanelDetailsType();
 		QString key;
 		QString label;
-		Fn<base::optional<QString>(const QString &value)> error;
-		Fn<QString(const QString &value)> format;
+		Validator error;
+		Formatter format;
 		int lengthLimit = 0;
-		QString keyForAttachmentTo; // attach last_name to first_name
+		QString keyForAttachmentTo; // attach [last|middle]_name to first_*
 	};
 	std::vector<Row> rows;
 	QString fieldsHeader;
