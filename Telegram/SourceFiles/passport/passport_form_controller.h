@@ -399,6 +399,7 @@ private:
 	void fillDownloadedFile(
 		File &destination,
 		const std::vector<EditFile> &source) const;
+	bool handleAppUpdateError(const QString &error);
 
 	void submitPassword(
 		const Core::CloudPasswordResult &check,

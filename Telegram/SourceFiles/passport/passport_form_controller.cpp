@@ -707,7 +707,8 @@ std::vector<not_null<const Value*>> FormController::submitGetErrors() {
 			[=] { cancel(); });
 	}).fail([=](const RPCError &error) {
 		_submitRequestId = 0;
-		if (AcceptErrorRequiresRestart(error.type())) {
+		if (handleAppUpdateError(error.type())) {
+		} else if (AcceptErrorRequiresRestart(error.type())) {
 			suggestRestart();
 		} else {
 			_view->show(Box<InformBox>(
@@ -1925,7 +1926,8 @@ void FormController::sendSaveRequest(
 	}).fail([=](const RPCError &error) {
 		value->saveRequestId = 0;
 		const auto code = error.type();
-		if (code == qstr("PHONE_VERIFICATION_NEEDED")) {
+		if (handleAppUpdateError(code)) {
+		} else if (code == qstr("PHONE_VERIFICATION_NEEDED")) {
 			if (value->type == Value::Type::Phone) {
 				startPhoneVerification(value);
 				return;
@@ -2420,12 +2422,18 @@ bool FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 void FormController::formFail(const QString &error) {
 	_savedPasswordValue = QByteArray();
 	_serviceErrorText = error;
-	if (error == "APP_VERSION_OUTDATED") {
-		_view->showUpdateAppBox();
-	} else {
+	if (!handleAppUpdateError(error)) {
 		_view->showCriticalError(
 			lang(lng_passport_form_error) + "\n" + error);
 	}
+}
+
+bool FormController::handleAppUpdateError(const QString &error) {
+	if (error == qstr("APP_VERSION_OUTDATED")) {
+		_view->showUpdateAppBox();
+		return true;
+	}
+	return false;
 }
 
 void FormController::requestPassword() {
