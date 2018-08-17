@@ -380,7 +380,7 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 			scope.details ? scope.details->nativeNames : false);
 		for (const auto &row : scheme.rows) {
 			const auto format = row.format;
-			if (row.valueClass == EditDocumentScheme::ValueClass::Fields) {
+			if (row.valueClass != EditDocumentScheme::ValueClass::Scans) {
 				if (!fields) {
 					continue;
 				}

@@ -697,7 +697,7 @@ void EditScans::setupSpecialScans(std::map<FileType, ScanInfo> &&files) {
 		inner->add(object_ptr<Ui::DividerLabel>(
 			inner,
 			object_ptr<Ui::FlatLabel>(
-				_content,
+				inner,
 				description(type),
 				Ui::FlatLabel::InitType::Simple,
 				st::boxDividerLabel),

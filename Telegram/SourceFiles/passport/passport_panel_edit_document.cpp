@@ -344,22 +344,15 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 				std::move(translations)));
 	}
 
-	const auto valueOrEmpty = [&](
-			const ValueMap &values,
-			const QString &key) {
-		const auto &fields = values.fields;
-		if (const auto i = fields.find(key); i != fields.end()) {
-			return i->second;
-		}
-		return ValueField();
-	};
-
 	const auto enumerateRows = [&](auto &&callback) {
 		for (auto i = 0, count = int(_scheme.rows.size()); i != count; ++i) {
 			const auto &row = _scheme.rows[i];
-			auto fields = (row.valueClass == Scheme::ValueClass::Fields)
-				? data
-				: scansData;
+
+			Assert(row.valueClass != Scheme::ValueClass::Additional
+				|| !_scheme.additionalDependencyKey.isEmpty());
+			auto fields = (row.valueClass == Scheme::ValueClass::Scans)
+				? scansData
+				: data;
 			if (!fields) {
 				continue;
 			}
@@ -397,32 +390,58 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 			st::passportDetailsHeaderPadding);
 		enumerateRows([&](
 				int i,
-				const EditDocumentScheme::Row &row,
+				const Scheme::Row &row,
 				const ValueMap &fields) {
-			const auto current = valueOrEmpty(fields, row.key);
-			const auto [it, ok] = _details.emplace(
-				i,
-				inner->add(PanelDetailsRow::Create(
-					inner,
-					row.inputType,
-					_controller,
-					row.label,
-					maxLabelWidth,
-					current.text,
-					current.error,
-					row.lengthLimit)));
-			const bool details = (&fields == data);
-			it->second->value(
-			) | rpl::skip(1) | rpl::start_with_next([=] {
-				if (details) {
-					_fieldsChanged = true;
-					updateCommonError();
-				} else {
-					Assert(_editScans != nullptr);
-					_editScans->scanFieldsChanged(true);
-				}
-			}, it->second->lifetime());
+			if (row.valueClass != Scheme::ValueClass::Additional) {
+				createDetailsRow(inner, i, row, fields, maxLabelWidth);
+			}
 		});
+		if (data && !_scheme.additionalDependencyKey.isEmpty()) {
+			const auto row = findRow(_scheme.additionalDependencyKey);
+			const auto wrap = inner->add(
+				object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+					inner,
+					object_ptr<Ui::VerticalLayout>(inner)));
+			const auto added = wrap->entity();
+			added->add(
+				object_ptr<Ui::FlatLabel>(
+					added,
+					_scheme.additionalHeader,
+					Ui::FlatLabel::InitType::Simple,
+					st::passportFormHeader),
+				st::passportNativeNameHeaderPadding);
+
+			enumerateRows([&](
+					int i,
+					const Scheme::Row &row,
+					const ValueMap &fields) {
+				if (row.valueClass == Scheme::ValueClass::Additional) {
+					createDetailsRow(added, i, row, fields, maxLabelWidth);
+				}
+			});
+
+			auto description = row->value(
+			) | rpl::filter([=](const QString &code) {
+				return _scheme.additionalShown(code);
+			}) | rpl::map([=](const QString &code) {
+				return _scheme.additionalDescription(code);
+			});
+			added->add(
+				object_ptr<Ui::DividerLabel>(
+					added,
+					object_ptr<Ui::FlatLabel>(
+						added,
+						std::move(description),
+						st::boxDividerLabel),
+					st::passportFormLabelPadding),
+				st::passportNativeNameAboutMargin);
+
+			wrap->toggleOn(row->value(
+			) | rpl::map([=](const QString &code) {
+				return _scheme.additionalShown(code);
+			}));
+			wrap->finishAnimating();
+		}
 
 		inner->add(
 			object_ptr<Ui::FixedHeightWidget>(inner, st::passportDetailsSkip));
@@ -440,6 +459,60 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 	}
 
 	return inner;
+}
+
+void PanelEditDocument::createDetailsRow(
+		not_null<Ui::VerticalLayout*> container,
+		int i,
+		const Scheme::Row &row,
+		const ValueMap &fields,
+		int maxLabelWidth) {
+	const auto valueOrEmpty = [&](
+		const ValueMap &values,
+		const QString &key) {
+		const auto &fields = values.fields;
+		if (const auto i = fields.find(key); i != fields.end()) {
+			return i->second;
+		}
+		return ValueField();
+	};
+
+	const auto current = valueOrEmpty(fields, row.key);
+	const auto [it, ok] = _details.emplace(
+		i,
+		container->add(PanelDetailsRow::Create(
+			container,
+			row.inputType,
+			_controller,
+			row.label,
+			maxLabelWidth,
+			current.text,
+			current.error,
+			row.lengthLimit)));
+	const bool details = (row.valueClass != Scheme::ValueClass::Scans);
+	it->second->value(
+	) | rpl::skip(1) | rpl::start_with_next([=] {
+		if (details) {
+			_fieldsChanged = true;
+			updateCommonError();
+		} else {
+			Assert(_editScans != nullptr);
+			_editScans->scanFieldsChanged(true);
+		}
+	}, it->second->lifetime());
+}
+
+not_null<PanelDetailsRow*> PanelEditDocument::findRow(
+		const QString &key) const {
+	for (auto i = 0, count = int(_scheme.rows.size()); i != count; ++i) {
+		const auto &row = _scheme.rows[i];
+		if (row.key == key) {
+			const auto it = _details.find(i);
+			Assert(it != end(_details));
+			return it->second.data();
+		}
+	}
+	Unexpected("Row not found in PanelEditDocument::findRow.");
 }
 
 void PanelEditDocument::updateCommonError() {
@@ -484,9 +557,9 @@ PanelEditDocument::Result PanelEditDocument::collect() const {
 	auto result = Result();
 	for (const auto [i, field] : _details) {
 		const auto &row = _scheme.rows[i];
-		auto &fields = (row.valueClass == Scheme::ValueClass::Fields)
-			? result.data
-			: result.filesData;
+		auto &fields = (row.valueClass == Scheme::ValueClass::Scans)
+			? result.filesData
+			: result.data;
 		fields.fields[row.key].text = field->valueCurrent();
 	}
 	return result;

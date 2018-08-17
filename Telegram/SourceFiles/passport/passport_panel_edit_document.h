@@ -16,6 +16,7 @@ class FadeShadow;
 class PlainShadow;
 class FlatLabel;
 class RoundButton;
+class VerticalLayout;
 template <typename Widget>
 class SlideWrap;
 } // namespace Ui
@@ -40,6 +41,7 @@ struct ScanListData;
 struct EditDocumentScheme {
 	enum class ValueClass {
 		Fields,
+		Additional,
 		Scans,
 	};
 	struct Row {
@@ -58,6 +60,11 @@ struct EditDocumentScheme {
 	QString fieldsHeader;
 	QString detailsHeader;
 	QString scansHeader;
+
+	QString additionalDependencyKey;
+	Fn<bool(const QString &dependency)> additionalShown;
+	QString additionalHeader;
+	Fn<QString(const QString &dependency)> additionalDescription;
 
 };
 
@@ -122,6 +129,14 @@ private:
 	Result collect() const;
 	bool validate();
 	void save();
+
+	void createDetailsRow(
+		not_null<Ui::VerticalLayout*> container,
+		int i,
+		const Scheme::Row &row,
+		const ValueMap &fields,
+		int maxLabelWidth);
+	not_null<PanelDetailsRow*> findRow(const QString &key) const;
 
 	not_null<PanelController*> _controller;
 	Scheme _scheme;

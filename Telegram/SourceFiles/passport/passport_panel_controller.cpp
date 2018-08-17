@@ -202,40 +202,35 @@ EditDocumentScheme GetDocumentScheme(
 				Unexpected("scansType in GetDocumentScheme:Identity.");
 			}
 		}
-		using Validator = EditDocumentScheme::Row::Validator;
 		result.rows = {
 			{
 				ValueClass::Fields,
 				PanelDetailsType::Text,
-				nativeNames ? qsl("first_name_native") : qsl("first_name"),
+				qsl("first_name"),
 				lang(lng_passport_first_name),
-				nativeNames ? Validator(NativeNameValidate) : NameValidate,
+				NameValidate,
 				DontFormat,
 				kMaxNameSize,
 			},
 			{
 				ValueClass::Fields,
 				PanelDetailsType::Text,
-				(nativeNames
-					? qsl("middle_name_native")
-					: qsl("middle_name")),
+				qsl("middle_name"),
 				lang(lng_passport_middle_name),
-				(nativeNames
-					? Validator(NativeNameOrEmptyValidate)
-					: NameOrEmptyValidate),
+				NameOrEmptyValidate,
 				DontFormat,
 				kMaxNameSize,
-				nativeNames ? qsl("first_name_native") : qsl("first_name"),
+				qsl("first_name"),
 			},
 			{
 				ValueClass::Fields,
 				PanelDetailsType::Text,
-				nativeNames ? qsl("last_name_native") : qsl("last_name"),
+				qsl("last_name"),
 				lang(lng_passport_last_name),
-				nativeNames ? Validator(NativeNameValidate) : NameValidate,
+				NameValidate,
 				DontFormat,
 				kMaxNameSize,
-				nativeNames ? qsl("first_name_native") : qsl("first_name"),
+				qsl("first_name"),
 			},
 			{
 				ValueClass::Fields,
@@ -287,6 +282,55 @@ EditDocumentScheme GetDocumentScheme(
 				DontFormat,
 			},
 		};
+		if (nativeNames) {
+			result.additionalDependencyKey = qsl("residence_country_code");
+			result.additionalHeader = lang(lng_passport_native_name_title);
+			result.additionalDescription = [](const QString &countryCode) {
+				const auto name = CountrySelectBox::NameByISO(countryCode);
+				Assert(!name.isEmpty());
+				return lng_passport_native_name_about(
+					lt_country,
+					name);
+			};
+			result.additionalShown = [](const QString &countryCode) {
+				return !countryCode.isEmpty();
+			};
+			using Row = EditDocumentScheme::Row;
+			auto additional = std::initializer_list<Row>{
+				{
+					ValueClass::Additional,
+					PanelDetailsType::Text,
+					qsl("first_name_native"),
+					lang(lng_passport_first_name),
+					NativeNameValidate,
+					DontFormat,
+					kMaxNameSize,
+				},
+				{
+					ValueClass::Additional,
+					PanelDetailsType::Text,
+					qsl("middle_name_native"),
+					lang(lng_passport_middle_name),
+					NativeNameOrEmptyValidate,
+					DontFormat,
+					kMaxNameSize,
+					qsl("first_name_native"),
+				},
+				{
+					ValueClass::Additional,
+					PanelDetailsType::Text,
+					qsl("last_name_native"),
+					lang(lng_passport_last_name),
+					NativeNameValidate,
+					DontFormat,
+					kMaxNameSize,
+					qsl("first_name_native"),
+				},
+			};
+			for (auto &row : additional) {
+				result.rows.push_back(std::move(row));
+			}
+		}
 		return result;
 	} break;
 

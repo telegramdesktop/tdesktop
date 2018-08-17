@@ -200,3 +200,6 @@ passportPasswordAbout1Padding: margins(10px, 28px, 10px, 0px);
 passportPasswordAbout2Padding: margins(10px, 0px, 10px, 28px);
 passportPasswordIconHeight: 224px;
 passportPasswordIcon: icon {{ "passport_password_setup", windowSubTextFg }};
+
+passportNativeNameAboutMargin: margins(0px, 16px, 0px, 0px);
+passportNativeNameHeaderPadding: margins(22px, 28px, 33px, 10px);
