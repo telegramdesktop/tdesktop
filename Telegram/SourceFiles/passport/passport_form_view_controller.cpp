@@ -479,18 +479,28 @@ ScopeRow ComputeScopeRow(const Scope &scope) {
 			row.title = titleFallback;
 		}
 
-		// #TODO passport half-full value
-		//if (row.error.isEmpty()
-		//	&& row.ready.isEmpty()
-		//	&& scope.type == Scope::Type::Identity
-		//	&& scope.selfieRequired) {
-		//	auto noSelfieScope = scope;
-		//	noSelfieScope.selfieRequired = false;
-		//	if (!ComputeScopeRowReadyString(noSelfieScope).isEmpty()) {
-		//		// Only selfie is missing.
-		//		row.description = lang(lng_passport_identity_selfie);
-		//	}
-		//}
+		if (row.error.isEmpty()
+			&& row.ready.isEmpty()
+			&& !scope.documents.empty()) {
+			if (document) {
+				row.description = (scope.type == Scope::Type::Identity)
+					? lang(lng_passport_personal_details_enter)
+					: lang(lng_passport_address_enter);
+			} else {
+				const auto best = ranges::min(
+					scope.documents,
+					std::less<>(),
+					[](not_null<const Value*> document) {
+						return document->whatNotFilled();
+					});
+				const auto notFilled = best->whatNotFilled();
+				if (notFilled & Value::kNoTranslationFilled) {
+					row.description = lang(lng_passport_translation_needed);
+				} else if (notFilled & Value::kNoSelfieFilled) {
+					row.description = lang(lng_passport_identity_selfie);
+				}
+			}
+		}
 		return row;
 	};
 	switch (scope.type) {

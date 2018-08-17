@@ -439,6 +439,7 @@ EditScans::EditScans(
 EditScans::EditScans(
 	QWidget *parent,
 	not_null<PanelController*> controller,
+	const QString &header,
 	const QString &error,
 	std::map<FileType, ScanInfo> &&specialFiles,
 	base::optional<ScanListData> &&translations)
@@ -448,7 +449,7 @@ EditScans::EditScans(
 , _content(this)
 , _scansList(_controller)
 , _translationsList(_controller, std::move(translations)) {
-	setupSpecialScans(std::move(specialFiles));
+	setupSpecialScans(header, std::move(specialFiles));
 }
 
 base::optional<int> EditScans::validateGetErrorTop() {
@@ -481,7 +482,7 @@ base::optional<int> EditScans::validateGetErrorTop() {
 			|| scan.file.deleted
 			|| !scan.file.error.isEmpty()) {
 			toggleSpecialScanError(type, true);
-			suggestResult(scan.header->y());
+			suggestResult(scan.header ? scan.header->y() : scan.wrap->y());
 		}
 	}
 	suggestList(FileType::Translation);
@@ -592,7 +593,9 @@ void EditScans::setupList(
 		st::passportFormDividerHeight));
 }
 
-void EditScans::setupSpecialScans(std::map<FileType, ScanInfo> &&files) {
+void EditScans::setupSpecialScans(
+		const QString &header,
+		std::map<FileType, ScanInfo> &&files) {
 	const auto requiresBothSides = files.find(FileType::ReverseSide)
 		!= end(files);
 	const auto title = [&](FileType type) {
@@ -665,16 +668,18 @@ void EditScans::setupSpecialScans(std::map<FileType, ScanInfo> &&files) {
 			SpecialScan(std::move(info))).first;
 		auto &scan = i->second;
 
-		scan.header = inner->add(
-			object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
-				inner,
-				object_ptr<Ui::FlatLabel>(
+		if (_specialScans.size() == 1) {
+			scan.header = inner->add(
+				object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
 					inner,
-					title(type),
-					Ui::FlatLabel::InitType::Simple,
-					st::passportFormHeader),
-				st::passportUploadHeaderPadding));
-		scan.header->toggle(scan.file.key.id != 0, anim::type::instant);
+					object_ptr<Ui::FlatLabel>(
+						inner,
+						header,
+						Ui::FlatLabel::InitType::Simple,
+						st::passportFormHeader),
+					st::passportUploadHeaderPadding));
+			scan.header->toggle(scan.file.key.id != 0, anim::type::instant);
+		}
 		scan.wrap = inner->add(object_ptr<Ui::VerticalLayout>(inner));
 		if (scan.file.key.id) {
 			createSpecialScanRow(scan, scan.file, requiresBothSides);
@@ -787,7 +792,9 @@ void EditScans::updateSpecialScan(ScanInfo &&info) {
 		createSpecialScanRow(scan, info, requiresBothSides);
 		scan.wrap->resizeToWidth(width());
 		scan.row->show(anim::type::normal);
-		scan.header->show(anim::type::normal);
+		if (scan.header) {
+			scan.header->show(anim::type::normal);
+		}
 		specialScanChanged(type, true);
 	}
 	scan.file = std::move(info);
@@ -805,12 +812,12 @@ void EditScans::createSpecialScanRow(
 		switch (type) {
 		case FileType::FrontSide:
 			return lang(requiresBothSides
-				? lng_passport_front_side_name
-				: lng_passport_main_page_name);
+				? lng_passport_front_side_title
+				: lng_passport_main_page_title);
 		case FileType::ReverseSide:
-			return lang(lng_passport_reverse_side_name);
+			return lang(lng_passport_reverse_side_title);
 		case FileType::Selfie:
-			return lang(lng_passport_selfie_name);
+			return lang(lng_passport_selfie_title);
 		}
 		Unexpected("Type in special file name.");
 	}();

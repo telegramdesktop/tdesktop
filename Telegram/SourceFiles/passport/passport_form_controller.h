@@ -186,6 +186,11 @@ struct Value {
 	bool uploadingScan() const;
 	bool saving() const;
 
+	static constexpr auto kNothingFilled = 0x100;
+	static constexpr auto kNoTranslationFilled = 0x10;
+	static constexpr auto kNoSelfieFilled = 0x001;
+	int whatNotFilled() const;
+
 	std::vector<File> &files(FileType type);
 	const std::vector<File> &files(FileType type) const;
 	QString &fileMissingError(FileType type);

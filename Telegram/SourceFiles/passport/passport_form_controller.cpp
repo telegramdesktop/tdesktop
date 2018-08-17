@@ -386,23 +386,28 @@ void Value::fillDataFrom(Value &&other) {
 }
 
 bool Value::scansAreFilled() const {
-	if (requiresScan(FileType::Translation) && _translations.empty()) {
-		return false;
-	} else if (requiresScan(FileType::Scan) && _scans.empty()) {
-		return false;
-	}
-	const auto types = {
-		FileType::FrontSide,
-		FileType::ReverseSide,
-		FileType::Selfie
+	return (whatNotFilled() == 0);
+}
+
+int Value::whatNotFilled() const {
+	const auto noRequiredSpecialScan = [&](FileType type) {
+		return requiresSpecialScan(type)
+			&& (specialScans.find(type) == end(specialScans));
 	};
-	for (const auto type : types) {
-		if (requiresSpecialScan(type)
-			&& (specialScans.find(type) == end(specialScans))) {
-			return false;
-		}
+	if (requiresScan(FileType::Scan) && _scans.empty()) {
+		return kNothingFilled;
+	} else if (noRequiredSpecialScan(FileType::FrontSide)) {
+		return kNothingFilled;
 	}
-	return true;
+	auto result = 0;
+	if (requiresScan(FileType::Translation) && _translations.empty()) {
+		result |= kNoTranslationFilled;
+	}
+	if (noRequiredSpecialScan(FileType::ReverseSide)
+		|| noRequiredSpecialScan(FileType::Selfie)) {
+		result |= kNoSelfieFilled;
+	}
+	return result;
 }
 
 void Value::saveInEdit() {

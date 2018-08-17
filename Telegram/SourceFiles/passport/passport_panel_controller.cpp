@@ -64,11 +64,11 @@ ScanInfo CollectScanInfo(const EditFile &file) {
 		}
 	}();
 	return {
+		file.type,
 		FileKey{ file.fields.id, file.fields.dcId },
 		!file.fields.error.isEmpty() ? file.fields.error : status,
 		file.fields.image,
 		file.deleted,
-		file.type,
 		file.fields.error };
 }
 
@@ -95,7 +95,7 @@ std::map<FileType, ScanInfo> PrepareSpecialFiles(const Value &value) {
 				type,
 				(i != end(value.specialScansInEdit)
 					? CollectScanInfo(i->second)
-					: ScanInfo())).first;
+					: ScanInfo(type))).first;
 		}
 	}
 	return result;
@@ -185,22 +185,20 @@ EditDocumentScheme GetDocumentScheme(
 		result.detailsHeader = lang(lng_passport_personal_details);
 		result.fieldsHeader = lang(lng_passport_document_details);
 		if (scansType) {
-			switch (*scansType) {
-			case Value::Type::Passport:
-				result.scansHeader = lang(lng_passport_identity_passport);
-				break;
-			case Value::Type::DriverLicense:
-				result.scansHeader = lang(lng_passport_identity_license);
-				break;
-			case Value::Type::IdentityCard:
-				result.scansHeader = lang(lng_passport_identity_card);
-				break;
-			case Value::Type::InternalPassport:
-				result.scansHeader = lang(lng_passport_identity_internal);
-				break;
-			default:
-				Unexpected("scansType in GetDocumentScheme:Identity.");
-			}
+			result.scansHeader = [&] {
+				switch (*scansType) {
+				case Value::Type::Passport:
+					return lang(lng_passport_identity_passport);
+				case Value::Type::DriverLicense:
+					return lang(lng_passport_identity_license);
+				case Value::Type::IdentityCard:
+					return lang(lng_passport_identity_card);
+				case Value::Type::InternalPassport:
+					return lang(lng_passport_identity_internal);
+				default:
+					Unexpected("scansType in GetDocumentScheme:Identity.");
+				}
+			}();
 		}
 		result.rows = {
 			{
@@ -499,6 +497,24 @@ bool SkipFieldCheck(not_null<const Value*> value, const QString &key) {
 		? LatinToNativeMap()
 		: NativeToLatinMap();
 	return dontCheckNames.find(key) != end(dontCheckNames);
+}
+
+ScanInfo::ScanInfo(FileType type) : type(type) {
+}
+
+ScanInfo::ScanInfo(
+	FileType type,
+	const FileKey &key,
+	const QString &status,
+	const QImage &thumb,
+	bool deleted,
+	const QString &error)
+: type(type)
+, key(key)
+, status(status)
+, thumb(thumb)
+, deleted(deleted)
+, error(error) {
 }
 
 BoxPointer::BoxPointer(QPointer<BoxContent> value)
@@ -912,29 +928,22 @@ void PanelController::ensurePanelCreated() {
 	}
 }
 
-int PanelController::findNonEmptyDocumentIndex(const Scope &scope) const {
+base::optional<int> PanelController::findBestDocumentIndex(
+		const Scope &scope) const {
+	Expects(!scope.documents.empty());
+
 	const auto &documents = scope.documents;
-	const auto i = ranges::find_if(
+	const auto i = ranges::min_element(
 		documents,
+		std::less<>(),
 		[](not_null<const Value*> document) {
-			return document->scansAreFilled();
+			return document->whatNotFilled();
 		});
-	if (i != end(documents)) {
-		return (i - begin(documents));
-	}
-	// If we have a document where only selfie is not filled - return it.
-	// #TODO passport half-full value
-	//const auto j = ranges::find_if(
-	//	documents,
-	//	[&](not_null<const Value*> document) {
-	//		return document->scansAreFilled(false);
-	//	});
-	//if (j != end(documents)) {
-	//	return (j - begin(documents));
-	//}
+	return ((*i)->whatNotFilled() == Value::kNothingFilled)
+		? base::none
+		: base::make_optional(int(i - begin(documents)));
 	return -1;
 }
-
 
 void PanelController::editScope(int index) {
 	Expects(_panel != nullptr);
@@ -942,11 +951,11 @@ void PanelController::editScope(int index) {
 
 	const auto &scope = _scopes[index];
 	if (scope.documents.empty()) {
-		editScope(index, -1);
+		editScope(index, base::none);
 	} else {
-		const auto documentIndex = findNonEmptyDocumentIndex(scope);
-		if (documentIndex >= 0 || scope.documents.size() == 1) {
-			editScope(index, (documentIndex >= 0) ? documentIndex : 0);
+		const auto documentIndex = findBestDocumentIndex(scope);
+		if (documentIndex || scope.documents.size() == 1) {
+			editScope(index, documentIndex ? *documentIndex : 0);
 		} else {
 			requestScopeFilesType(index);
 		}
@@ -1056,16 +1065,16 @@ void PanelController::readScanError(ReadScanError error) {
 
 bool PanelController::editRequiresScanUpload(
 		int index,
-		int documentIndex) const {
+		base::optional<int> documentIndex) const {
 	Expects(index >= 0 && index < _scopes.size());
-	Expects((documentIndex < 0)
-		|| (documentIndex >= 0
-			&& documentIndex < _scopes[index].documents.size()));
+	Expects(!documentIndex
+		|| (*documentIndex >= 0
+			&& *documentIndex < _scopes[index].documents.size()));
 
-	if (documentIndex < 0) {
+	if (!documentIndex) {
 		return false;
 	}
-	const auto document = _scopes[index].documents[documentIndex];
+	const auto document = _scopes[index].documents[*documentIndex];
 	if (document->requiresSpecialScan(FileType::FrontSide)) {
 		const auto &scans = document->specialScans;
 		return (scans.find(FileType::FrontSide) == end(scans));
@@ -1073,26 +1082,30 @@ bool PanelController::editRequiresScanUpload(
 	return document->files(FileType::Scan).empty();
 }
 
-void PanelController::editScope(int index, int documentIndex) {
+void PanelController::editScope(
+		int index,
+		base::optional<int> documentIndex) {
 	if (editRequiresScanUpload(index, documentIndex)) {
-		editWithUpload(index, documentIndex);
+		editWithUpload(index, *documentIndex);
 	} else {
 		startScopeEdit(index, documentIndex);
 	}
 }
 
-void PanelController::startScopeEdit(int index, int documentIndex) {
+void PanelController::startScopeEdit(
+		int index,
+		base::optional<int> documentIndex) {
 	Expects(_panel != nullptr);
 	Expects(index >= 0 && index < _scopes.size());
-	Expects(_scopes[index].details != 0 || documentIndex >= 0);
-	Expects((documentIndex < 0)
-		|| (documentIndex >= 0
-			&& documentIndex < _scopes[index].documents.size()));
+	Expects(_scopes[index].details != 0 || documentIndex.has_value());
+	Expects(!documentIndex.has_value()
+		|| (*documentIndex >= 0
+			&& *documentIndex < _scopes[index].documents.size()));
 
 	_editScope = &_scopes[index];
 	_editValue = _editScope->details;
-	_editDocument = (documentIndex >= 0)
-		? _scopes[index].documents[documentIndex].get()
+	_editDocument = documentIndex
+		? _scopes[index].documents[*documentIndex].get()
 		: nullptr;
 
 	if (_editValue) {

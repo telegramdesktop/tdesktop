@@ -32,11 +32,20 @@ QString AdjustKeyName(not_null<const Value*> value, const QString &key);
 bool SkipFieldCheck(not_null<const Value*> value, const QString &key);
 
 struct ScanInfo {
+	explicit ScanInfo(FileType type);
+	ScanInfo(
+		FileType type,
+		const FileKey &key,
+		const QString &status,
+		const QImage &thumb,
+		bool deleted,
+		const QString &error);
+
+	FileType type;
 	FileKey key;
 	QString status;
 	QImage thumb;
 	bool deleted = false;
-	FileType type = FileType();
 	QString error;
 };
 
@@ -140,15 +149,15 @@ public:
 private:
 	void ensurePanelCreated();
 
-	void editScope(int index, int documentIndex);
+	void editScope(int index, base::optional<int> documentIndex);
 	void editWithUpload(int index, int documentIndex);
-	bool editRequiresScanUpload(int index, int documentIndex) const;
-	void startScopeEdit(int index, int documentIndex);
-	int findNonEmptyDocumentIndex(const Scope &scope) const;
+	bool editRequiresScanUpload(
+		int index,
+		base::optional<int> documentIndex) const;
+	void startScopeEdit(int index, base::optional<int> documentIndex);
+	base::optional<int> findBestDocumentIndex(const Scope &scope) const;
 	void requestScopeFilesType(int index);
 	void cancelValueEdit();
-	std::map<FileType, ScanInfo> valueSpecialFiles(
-		const Value &value) const;
 	void processValueSaveFinished(not_null<const Value*> value);
 	void processVerificationNeeded(not_null<const Value*> value);
 

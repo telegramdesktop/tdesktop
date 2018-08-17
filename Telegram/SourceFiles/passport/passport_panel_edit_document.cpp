@@ -330,6 +330,7 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 			object_ptr<EditScans>(
 				inner,
 				_controller,
+				_scheme.scansHeader,
 				*scansError,
 				std::move(specialFiles),
 				std::move(translations)));

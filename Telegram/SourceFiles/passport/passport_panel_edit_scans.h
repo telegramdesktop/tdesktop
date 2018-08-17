@@ -55,6 +55,7 @@ public:
 	EditScans(
 		QWidget *parent,
 		not_null<PanelController*> controller,
+		const QString &header,
 		const QString &error,
 		std::map<FileType, ScanInfo> &&specialFiles,
 		base::optional<ScanListData> &&translations);
@@ -112,7 +113,9 @@ private:
 		not_null<Ui::VerticalLayout*> container,
 		FileType type,
 		const QString &header);
-	void setupSpecialScans(std::map<FileType, ScanInfo> &&files);
+	void setupSpecialScans(
+		const QString &header,
+		std::map<FileType, ScanInfo> &&files);
 	void init();
 
 	void chooseScan(FileType type);
