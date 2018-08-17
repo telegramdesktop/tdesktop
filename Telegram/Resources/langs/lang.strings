@@ -1577,6 +1577,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_address_temporary" = "Temporary registration";
 "lng_passport_address_temporary_upload" = "Upload a scan of your temporary registration";
 "lng_passport_address_about" = "To confirm your address, please upload a scan or photo of the selected document (all pages).";
+"lng_passport_or_title" = "{document} or {second_document}";
 "lng_passport_document_type" = "Please choose the type of your document:";
 "lng_passport_upload_document" = "Upload document";
 "lng_passport_phone_title" = "Phone number";

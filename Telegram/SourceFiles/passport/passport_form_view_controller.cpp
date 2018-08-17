@@ -240,6 +240,90 @@ QString JoinScopeRowReadyString(
 	return result;
 }
 
+ScopeRow DocumentRowByType(Value::Type type) {
+	using Type = Value::Type;
+	switch (type) {
+	case Type::Passport:
+		return {
+			lang(lng_passport_identity_passport),
+			lang(lng_passport_identity_passport_upload),
+		};
+	case Type::DriverLicense:
+		return {
+			lang(lng_passport_identity_license),
+			lang(lng_passport_identity_license_upload),
+		};
+	case Type::IdentityCard:
+		return {
+			lang(lng_passport_identity_card),
+			lang(lng_passport_identity_card_upload),
+		};
+	case Type::InternalPassport:
+		return {
+			lang(lng_passport_identity_internal),
+			lang(lng_passport_identity_internal_upload),
+		};
+	case Type::BankStatement:
+		return {
+			lang(lng_passport_address_statement),
+			lang(lng_passport_address_statement_upload),
+		};
+	case Type::UtilityBill:
+		return {
+			lang(lng_passport_address_bill),
+			lang(lng_passport_address_bill_upload),
+		};
+	case Type::RentalAgreement:
+		return {
+			lang(lng_passport_address_agreement),
+			lang(lng_passport_address_agreement_upload),
+		};
+	case Type::PassportRegistration:
+		return {
+			lang(lng_passport_address_registration),
+			lang(lng_passport_address_registration_upload),
+		};
+	case Type::TemporaryRegistration:
+		return {
+			lang(lng_passport_address_temporary),
+			lang(lng_passport_address_temporary_upload),
+		};
+	default: Unexpected("Value type in DocumentRowByType.");
+	}
+}
+
+QString DocumentName(Value::Type type) {
+	return DocumentRowByType(type).title;
+}
+
+ScopeRow DocumentsOneOfRow(
+		const Scope &scope,
+		const QString &severalTitle,
+		const QString &severalDescription) {
+	Expects(!scope.documents.empty());
+
+	const auto &documents = scope.documents;
+	if (documents.size() == 1) {
+		const auto type = documents.front()->type;
+		return DocumentRowByType(type);
+	} else if (documents.size() == 2) {
+		const auto type1 = documents.front()->type;
+		const auto type2 = documents.back()->type;
+		return {
+			lng_passport_or_title(
+				lt_document,
+				DocumentName(type1),
+				lt_second_document,
+				DocumentName(type2)),
+			severalDescription,
+		};
+	}
+	return {
+		severalTitle,
+		severalDescription,
+	};
+}
+
 QString ComputeScopeRowReadyString(const Scope &scope) {
 	switch (scope.type) {
 	case Scope::Type::PersonalDetails:
@@ -288,30 +372,7 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 			|| (!scope.details
 				&& (ScopeTypeForValueType(document->type)
 					== Scope::Type::Address))) {
-			pushListValue("_type", [&] {
-				using Type = Value::Type;
-				switch (document->type) {
-				case Type::Passport:
-					return lang(lng_passport_identity_passport);
-				case Type::DriverLicense:
-					return lang(lng_passport_identity_license);
-				case Type::IdentityCard:
-					return lang(lng_passport_identity_card);
-				case Type::InternalPassport:
-					return lang(lng_passport_identity_internal);
-				case Type::BankStatement:
-					return lang(lng_passport_address_statement);
-				case Type::UtilityBill:
-					return lang(lng_passport_address_bill);
-				case Type::RentalAgreement:
-					return lang(lng_passport_address_agreement);
-				case Type::PassportRegistration:
-					return lang(lng_passport_address_registration);
-				case Type::TemporaryRegistration:
-					return lang(lng_passport_address_temporary);
-				default: Unexpected("Files type in ComputeScopeRowReadyString.");
-				}
-			}());
+			pushListValue("_type", DocumentName(document->type));
 		}
 		const auto scheme = GetDocumentScheme(
 			scope.type,
@@ -439,77 +500,20 @@ ScopeRow ComputeScopeRow(const Scope &scope) {
 			lang(lng_passport_personal_details_enter),
 		});
 	case Scope::Type::Identity:
-		Assert(!scope.documents.empty());
-		if (scope.documents.size() == 1) {
-			switch (scope.documents.front()->type) {
-			case Value::Type::Passport:
-				return addReadyError({
-					lang(lng_passport_identity_passport),
-					lang(lng_passport_identity_passport_upload),
-				});
-			case Value::Type::IdentityCard:
-				return addReadyError({
-					lang(lng_passport_identity_card),
-					lang(lng_passport_identity_card_upload),
-				});
-			case Value::Type::DriverLicense:
-				return addReadyError({
-					lang(lng_passport_identity_license),
-					lang(lng_passport_identity_license_upload),
-				});
-			case Value::Type::InternalPassport:
-				return addReadyError({
-					lang(lng_passport_identity_internal),
-					lang(lng_passport_identity_internal_upload),
-				});
-			default: Unexpected("Identity type in ComputeScopeRow.");
-			}
-		}
-		return addReadyError({
+		return addReadyError(DocumentsOneOfRow(
+			scope,
 			lang(lng_passport_identity_title),
-			lang(lng_passport_identity_description),
-		});
+			lang(lng_passport_identity_description)));
 	case Scope::Type::AddressDetails:
 		return addReadyError({
 			lang(lng_passport_address),
 			lang(lng_passport_address_enter),
 		});
 	case Scope::Type::Address:
-		Assert(!scope.documents.empty());
-		if (scope.documents.size() == 1) {
-			switch (scope.documents.front()->type) {
-			case Value::Type::BankStatement:
-				return addReadyError({
-					lang(lng_passport_address_statement),
-					lang(lng_passport_address_statement_upload),
-				}, lang(lng_passport_address_title));
-			case Value::Type::UtilityBill:
-				return addReadyError({
-					lang(lng_passport_address_bill),
-					lang(lng_passport_address_bill_upload),
-				}, lang(lng_passport_address_title));
-			case Value::Type::RentalAgreement:
-				return addReadyError({
-					lang(lng_passport_address_agreement),
-					lang(lng_passport_address_agreement_upload),
-				}, lang(lng_passport_address_title));
-			case Value::Type::PassportRegistration:
-				return addReadyError({
-					lang(lng_passport_address_registration),
-					lang(lng_passport_address_registration_upload),
-				}, lang(lng_passport_address_title));
-			case Value::Type::TemporaryRegistration:
-				return addReadyError({
-					lang(lng_passport_address_temporary),
-					lang(lng_passport_address_temporary_upload),
-				}, lang(lng_passport_address_title));
-			default: Unexpected("Address type in ComputeScopeRow.");
-			}
-		}
-		return addReadyError({
+		return addReadyError(DocumentsOneOfRow(
+			scope,
 			lang(lng_passport_address_title),
-			lang(lng_passport_address_description),
-		});
+			lang(lng_passport_address_description)));
 	case Scope::Type::Phone:
 		return addReadyError({
 			lang(lng_passport_phone_title),

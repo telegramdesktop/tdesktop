@@ -184,7 +184,7 @@ bool EditScans::List::uploadMoreRequired() const {
 		files,
 		[](const ScanInfo &file) { return !file.deleted; }) != end(files);
 	if (!exists) {
-		return false;
+		return true;
 	}
 	const auto errorExists = ranges::find_if(
 		files,
@@ -522,7 +522,7 @@ void EditScans::setupScans(const QString &header) {
 	}
 
 	setupList(inner, FileType::Scan, header);
-	setupList(inner, FileType::Translation, "Translations");
+	setupList(inner, FileType::Translation, lang(lng_passport_translation));
 
 	init();
 }
