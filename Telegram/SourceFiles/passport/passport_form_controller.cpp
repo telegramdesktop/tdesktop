@@ -228,6 +228,13 @@ QString ValidateUrl(const QString &url) {
 
 } // namespace
 
+QString NonceNameByScope(const QString &scope) {
+	if (scope.startsWith('{') && scope.endsWith('}')) {
+		return qsl("nonce");
+	}
+	return qsl("payload");
+}
+
 bool ValueChanged(not_null<const Value*> value, const ValueMap &data) {
 	const auto FileChanged = [](const EditFile &file) {
 		if (file.uploadData) {
@@ -271,13 +278,13 @@ FormRequest::FormRequest(
 	const QString &scope,
 	const QString &callbackUrl,
 	const QString &publicKey,
-	const QString &payload,
+	const QString &nonce,
 	const QString &errors)
 : botId(botId)
 , scope(scope)
 , callbackUrl(ValidateUrl(callbackUrl))
 , publicKey(publicKey)
-, payload(payload)
+, nonce(nonce)
 , errors(errors) {
 }
 
@@ -654,7 +661,7 @@ auto FormController::prepareFinalData() -> FinalData {
 	auto json = QJsonObject();
 	if (errors.empty()) {
 		json.insert("secure_data", secureData);
-		json.insert("payload", _request.payload);
+		json.insert(NonceNameByScope(_request.scope), _request.nonce);
 	}
 
 	return {
@@ -2151,9 +2158,9 @@ void FormController::suggestRestart() {
 }
 
 void FormController::requestForm() {
-	if (_request.payload.isEmpty()) {
+	if (_request.nonce.isEmpty()) {
 		_formRequestId = -1;
-		formFail("PAYLOAD_EMPTY");
+		formFail(NonceNameByScope(_request.scope).toUpper() + "_EMPTY");
 		return;
 	}
 	_formRequestId = request(MTPaccount_GetAuthorizationForm(

@@ -31,6 +31,8 @@ struct SavedCredentials {
 	uint64 secretId = 0;
 };
 
+QString NonceNameByScope(const QString &scope);
+
 class ViewController;
 
 struct FormRequest {
@@ -39,14 +41,14 @@ struct FormRequest {
 		const QString &scope,
 		const QString &callbackUrl,
 		const QString &publicKey,
-		const QString &payload,
+		const QString &nonce,
 		const QString &errors);
 
 	UserId botId;
 	QString scope;
 	QString callbackUrl;
 	QString publicKey;
-	QString payload;
+	QString nonce;
 	QString errors;
 
 };

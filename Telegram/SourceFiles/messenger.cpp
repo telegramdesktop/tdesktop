@@ -862,7 +862,9 @@ bool Messenger::openLocalUrl(const QString &url, QVariant context) {
 		const auto scope = params.value("scope", QString());
 		const auto callback = params.value("callback_url", QString());
 		const auto publicKey = params.value("public_key", QString());
-		const auto payload = params.value("payload", QString());
+		const auto nonce = params.value(
+			Passport::NonceNameByScope(scope),
+			QString());
 		const auto errors = params.value("errors", QString());
 		if (const auto window = App::wnd()) {
 			if (const auto controller = window->controller()) {
@@ -871,7 +873,7 @@ bool Messenger::openLocalUrl(const QString &url, QVariant context) {
 					scope,
 					callback,
 					publicKey,
-					payload,
+					nonce,
 					errors));
 				return true;
 			}
