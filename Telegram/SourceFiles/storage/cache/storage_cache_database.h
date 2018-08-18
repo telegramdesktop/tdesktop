@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/cache/storage_cache_types.h"
 #include "base/basic_types.h"
 #include <crl/crl_object_on_queue.h>
+#include <crl/crl_time.h>
 #include <QtCore/QString>
 
 namespace Storage {
@@ -39,7 +40,15 @@ inline bool operator<(const Key &a, const Key &b) {
 class Database {
 public:
 	struct Settings {
-		size_type sizeLimit = 0;
+		int64 totalSizeLimit = 1024 * 1024 * 1024;
+		size_type totalTimeLimit = 30 * 86400; // One month in seconds.
+		size_type maxBundledRecords = 16 * 1024;
+		size_type readBlockSize = 8 * 1024 * 1024;
+		size_type maxDataSize = 10 * 1024 * 1024;
+		crl::time_type writeBundleDelay = 15 * 60 * crl::time_type(1000);
+		size_type maxTimeAdvancement = 365 * 86400; // One year in seconds.
+		crl::time_type pruneTimeout = 5 * crl::time_type(1000);
+		crl::time_type maxPruneCheckTimeout = 60 * 60 * crl::time_type(1000);
 	};
 	Database(const QString &path, const Settings &settings);
 

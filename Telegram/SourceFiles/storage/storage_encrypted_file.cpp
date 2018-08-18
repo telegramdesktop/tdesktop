@@ -14,15 +14,27 @@ namespace {
 
 constexpr auto kBlockSize = CtrState::kBlockSize;
 
-} // namespace
+enum class Format : uint32 {
+	Format_0,
+};
 
-struct File::BasicHeader {
+struct BasicHeader {
+	BasicHeader();
+
 	bytes::array<kSaltSize> salt = { { bytes::type() } };
-	Format format = Format::Format_0;
-	uint32 reserved = 0;
+	Format format : 8;
+	uint32 reserved1 : 24;
+	uint32 reserved2 = 0;
 	uint64 applicationVersion = 0;
 	bytes::array<openssl::kSha256Size> checksum = { { bytes::type() } };
 };
+
+BasicHeader::BasicHeader()
+: format(Format::Format_0)
+, reserved1(0) {
+}
+
+} // namespace
 
 File::Result File::open(
 		const QString &path,

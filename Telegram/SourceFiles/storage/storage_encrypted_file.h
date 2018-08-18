@@ -44,11 +44,6 @@ public:
 	void close();
 
 private:
-	enum class Format : uint32 {
-		Format_0,
-	};
-	struct BasicHeader;
-
 	Result attemptOpen(Mode mode, const EncryptionKey &key);
 	Result attemptOpenForRead(const EncryptionKey &key);
 	Result attemptOpenForReadAppend(const EncryptionKey &key);
