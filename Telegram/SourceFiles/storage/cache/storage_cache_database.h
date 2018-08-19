@@ -17,25 +17,11 @@ namespace Storage {
 class EncryptionKey;
 namespace Cache {
 namespace details {
-class Database;
+class DatabaseObject;
 } // namespace details
 
-struct Key {
-	uint64 high = 0;
-	uint64 low = 0;
-};
-
-inline bool operator==(const Key &a, const Key &b) {
-	return (a.high == b.high) && (a.low == b.low);
-}
-
-inline bool operator!=(const Key &a, const Key &b) {
-	return !(a == b);
-}
-
-inline bool operator<(const Key &a, const Key &b) {
-	return std::tie(a.high, a.low) < std::tie(b.high, b.low);
-}
+using Key = details::Key;
+using Error = details::Error;
 
 class Database {
 public:
@@ -44,6 +30,9 @@ public:
 		size_type readBlockSize = 8 * 1024 * 1024;
 		size_type maxDataSize = 10 * 1024 * 1024;
 		crl::time_type writeBundleDelay = 15 * 60 * crl::time_type(1000);
+
+		int64 compactAfterExcess = 8 * 1024 * 1024;
+		int64 compactAfterFullSize = 0;
 
 		bool trackEstimatedTime = true;
 		int64 totalSizeLimit = 1024 * 1024 * 1024;
@@ -66,7 +55,7 @@ public:
 	~Database();
 
 private:
-	using Implementation = details::Database;
+	using Implementation = details::DatabaseObject;
 	crl::object_on_queue<Implementation> _wrapped;
 
 };

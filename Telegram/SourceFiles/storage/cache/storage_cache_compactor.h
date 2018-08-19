@@ -8,25 +8,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "storage/cache/storage_cache_types.h"
-#include "base/binary_guard.h"
+#include <crl/crl_object_on_queue.h>
 
 namespace Storage {
 namespace Cache {
 namespace details {
 
-class CleanerObject;
+class CompactorObject;
+class DatabaseObject;
 
-class Cleaner {
+class Compactor {
 public:
-	Cleaner(
-		const QString &base,
-		base::binary_guard &&guard,
-		FnMut<void(Error)> done);
+	Compactor(
+		const QString &path,
+		crl::weak_on_queue<DatabaseObject> database);
 
-	~Cleaner();
+	~Compactor();
 
 private:
-	using Implementation = details::CleanerObject;
+	using Implementation = CompactorObject;
 	crl::object_on_queue<Implementation> _wrapped;
 
 };

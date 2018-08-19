@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Storage {
 namespace Cache {
+namespace details {
 
 QString ComputeBasePath(const QString &original) {
 	const auto result = QDir(original).absolutePath();
@@ -51,5 +52,32 @@ bool WriteVersionValue(const QString &base, Version value) {
 	return file.flush();
 }
 
+BasicHeader::BasicHeader()
+: format(Format::Format_0)
+, flags(0) {
+}
+
+MultiStoreHeader::MultiStoreHeader(size_type count)
+: type(kType)
+, count(ReadTo<RecordsCount>(count)) {
+	Expects(count >= 0 && count < kBundledRecordsLimit);
+}
+
+MultiRemoveHeader::MultiRemoveHeader(size_type count)
+: type(kType)
+, count(ReadTo<RecordsCount>(count)) {
+	Expects(count >= 0 && count < kBundledRecordsLimit);
+}
+
+MultiAccessHeader::MultiAccessHeader(
+	EstimatedTimePoint time,
+	size_type count)
+: type(kType)
+, count(ReadTo<RecordsCount>(count))
+, time(time) {
+	Expects(count >= 0 && count < kBundledRecordsLimit);
+}
+
+} // namespace details
 } // namespace Cache
 } // namespace Storage

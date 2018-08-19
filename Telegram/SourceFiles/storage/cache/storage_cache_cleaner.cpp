@@ -19,7 +19,6 @@ namespace details {
 
 class CleanerObject {
 public:
-	using Wrapper = Cache::Cleaner;
 	CleanerObject(
 		crl::weak_on_queue<CleanerObject> weak,
 		const QString &base,
@@ -98,8 +97,6 @@ void CleanerObject::done() {
 	}
 }
 
-} // namespace details
-
 Cleaner::Cleaner(
 	const QString &base,
 	base::binary_guard &&guard,
@@ -109,5 +106,6 @@ Cleaner::Cleaner(
 
 Cleaner::~Cleaner() = default;
 
+} // namespace details
 } // namespace Cache
 } // namespace Storage
