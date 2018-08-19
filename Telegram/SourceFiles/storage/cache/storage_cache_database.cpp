@@ -279,6 +279,7 @@ private:
 		EncryptionKey &key);
 	bool readHeader();
 	bool writeHeader();
+
 	void readBinlog();
 	size_type readBinlogRecords(bytes::const_span data);
 	size_type readBinlogRecordSize(bytes::const_span data) const;
@@ -316,6 +317,8 @@ private:
 
 	void setMapEntry(const Key &key, Entry &&entry);
 	void eraseMapEntry(const Map::const_iterator &i);
+	void recordEntryAccess(const Key &key);
+	QByteArray readValueData(PlaceId place, size_type size) const;
 
 	Version findAvailableVersion() const;
 	QString versionPath() const;
@@ -324,13 +327,17 @@ private:
 
 	QString placePath(PlaceId place) const;
 	bool isFreePlace(PlaceId place) const;
+
 	template <typename StoreRecord>
-	QString writeKeyPlaceGeneric(
+	base::optional<QString> writeKeyPlaceGeneric(
 		StoreRecord &&record,
 		const Key &key,
-		size_type size,
+		const QByteArray &value,
 		uint32 checksum);
-	QString writeKeyPlace(const Key &key, size_type size, uint32 checksum);
+	base::optional<QString> writeKeyPlace(
+		const Key &key,
+		const QByteArray &value,
+		uint32 checksum);
 	void writeMultiRemoveLazy();
 	void writeMultiRemove();
 	void writeMultiAccessLazy();
@@ -953,11 +960,17 @@ void Database::put(
 	_removing.erase(key);
 
 	const auto checksum = CountChecksum(bytes::make_span(value));
-	const auto path = writeKeyPlace(key, value.size(), checksum);
-	if (path.isEmpty()) {
+	const auto maybepath = writeKeyPlace(key, value, checksum);
+	if (!maybepath) {
 		invokeCallback(done, ioError(binlogPath()));
 		return;
+	} else if (maybepath->isEmpty()) {
+		// Nothing changed.
+		invokeCallback(done, Error::NoError());
+		recordEntryAccess(key);
+		return;
 	}
+	const auto path = *maybepath;
 	File data;
 	const auto result = data.open(path, File::Mode::Write, _key);
 	switch (result) {
@@ -987,18 +1000,26 @@ void Database::put(
 }
 
 template <typename StoreRecord>
-QString Database::writeKeyPlaceGeneric(
+base::optional<QString> Database::writeKeyPlaceGeneric(
 		StoreRecord &&record,
 		const Key &key,
-		size_type size,
+		const QByteArray &value,
 		uint32 checksum) {
-	Expects(size <= _settings.maxDataSize);
+	Expects(value.size() <= _settings.maxDataSize);
 
+	const auto size = size_type(value.size());
 	record.key = key;
 	record.size = ReadTo<EntrySize>(size);
 	record.checksum = checksum;
 	if (const auto i = _map.find(key); i != end(_map)) {
-		record.place = i->second.place;
+		const auto &already = i->second;
+		if (already.tag == record.tag
+			&& already.size == size
+			&& already.checksum == checksum
+			&& readValueData(already.place, size) == value) {
+			return QString();
+		}
+		record.place = already.place;
 	} else {
 		do {
 			bytes::set_random(bytes::object_as_span(&record.place));
@@ -1015,12 +1036,12 @@ QString Database::writeKeyPlaceGeneric(
 	return result;
 }
 
-QString Database::writeKeyPlace(
+base::optional<QString> Database::writeKeyPlace(
 		const Key &key,
-		size_type size,
+		const QByteArray &data,
 		uint32 checksum) {
 	if (!_settings.trackEstimatedTime) {
-		return writeKeyPlaceGeneric(Store(), key, size, checksum);
+		return writeKeyPlaceGeneric(Store(), key, data, checksum);
 	}
 	auto record = StoreWithTime();
 	record.time = countTimePoint();
@@ -1031,7 +1052,7 @@ QString Database::writeKeyPlace(
 		record.time.system = _latestSystemTime;
 		record.time.relativeAdvancement = 0;
 	}
-	return writeKeyPlaceGeneric(std::move(record), key, size, checksum);
+	return writeKeyPlaceGeneric(std::move(record), key, data, checksum);
 }
 
 void Database::get(const Key &key, FnMut<void(QByteArray)> done) {
@@ -1046,36 +1067,44 @@ void Database::get(const Key &key, FnMut<void(QByteArray)> done) {
 	}
 	const auto &entry = i->second;
 
-	const auto path = placePath(entry.place);
+	auto result = readValueData(entry.place, entry.size);
+	if (result.isEmpty()) {
+		invokeCallback(done, QByteArray());
+	} else if (CountChecksum(bytes::make_span(result)) != entry.checksum) {
+		invokeCallback(done, QByteArray());
+	} else {
+		invokeCallback(done, std::move(result));
+		recordEntryAccess(key);
+	}
+}
+
+QByteArray Database::readValueData(PlaceId place, size_type size) const {
+	const auto path = placePath(place);
 	File data;
 	const auto result = data.open(path, File::Mode::Read, _key);
 	switch (result) {
 	case File::Result::Failed:
-		invokeCallback(done, QByteArray());
-		break;
-
-	case File::Result::WrongKey:
-		invokeCallback(done, QByteArray());
-		break;
-
+	case File::Result::WrongKey: return QByteArray();
 	case File::Result::Success: {
-		auto result = QByteArray(entry.size, Qt::Uninitialized);
+		auto result = QByteArray(size, Qt::Uninitialized);
 		const auto bytes = bytes::make_span(result);
 		const auto read = data.readWithPadding(bytes);
-		if (read != entry.size || CountChecksum(bytes) != entry.checksum) {
-			invokeCallback(done, QByteArray());
-		} else {
-			invokeCallback(done, std::move(result));
-			if (_settings.trackEstimatedTime) {
-				_accessed.emplace(key);
-				writeMultiAccessLazy();
-			}
-			startDelayedPruning();
+		if (read != size) {
+			return QByteArray();
 		}
+		return result;
 	} break;
-
 	default: Unexpected("Result in Database::get.");
 	}
+}
+
+void Database::recordEntryAccess(const Key &key) {
+	if (!_settings.trackEstimatedTime) {
+		return;
+	}
+	_accessed.emplace(key);
+	writeMultiAccessLazy();
+	startDelayedPruning();
 }
 
 void Database::remove(const Key &key, FnMut<void()> done) {

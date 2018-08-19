@@ -74,6 +74,7 @@ const auto GetValue = [](QByteArray value) {
 
 const auto Settings = [] {
 	auto result = Database::Settings();
+	result.trackEstimatedTime = false;
 	result.writeBundleDelay = 1 * crl::time_type(1000);
 	result.pruneTimeout = 1 * crl::time_type(1500);
 	result.maxDataSize = 20;
@@ -154,6 +155,42 @@ TEST_CASE("encrypted cache db", "[storage_cache_database]") {
 		db.close([&] { Semaphore.release(); });
 		Semaphore.acquire();
 	}
+	SECTION("overwriting values") {
+		Database db(name, Settings);
+
+		db.open(key, GetResult);
+		Semaphore.acquire();
+		REQUIRE(Result.type == Error::Type::None);
+
+		const auto path = GetBinlogPath();
+
+		db.get(Key{ 0, 1 }, GetValue);
+		Semaphore.acquire();
+		REQUIRE((Value == TestValue1));
+
+		const auto size = QFile(path).size();
+
+		db.put(Key{ 0, 1 }, TestValue2, GetResult);
+		Semaphore.acquire();
+		REQUIRE(Result.type == Error::Type::None);
+
+		const auto next = QFile(path).size();
+		REQUIRE(next > size);
+
+		db.get(Key{ 0, 1 }, GetValue);
+		Semaphore.acquire();
+		REQUIRE((Value == TestValue2));
+
+		db.put(Key{ 0, 1 }, TestValue2, GetResult);
+		Semaphore.acquire();
+		REQUIRE(Result.type == Error::Type::None);
+
+		const auto same = QFile(path).size();
+		REQUIRE(same == next);
+
+		db.close([&] { Semaphore.release(); });
+		Semaphore.acquire();
+	}
 }
 
 TEST_CASE("cache db remove", "[storage_cache_database]") {
@@ -206,7 +243,9 @@ TEST_CASE("cache db remove", "[storage_cache_database]") {
 
 TEST_CASE("cache db bundled actions", "[storage_cache_database]") {
 	SECTION("db touched written lazily") {
-		Database db(name, Settings);
+		auto settings = Settings;
+		settings.trackEstimatedTime = true;
+		Database db(name, settings);
 
 		db.clear(GetResult);
 		Semaphore.acquire();
@@ -240,7 +279,9 @@ TEST_CASE("cache db bundled actions", "[storage_cache_database]") {
 		Semaphore.acquire();
 	}
 	SECTION("db touched written on close") {
-		Database db(name, Settings);
+		auto settings = Settings;
+		settings.trackEstimatedTime = true;
+		Database db(name, settings);
 
 		db.clear(GetResult);
 		Semaphore.acquire();
@@ -340,6 +381,7 @@ TEST_CASE("cache db bundled actions", "[storage_cache_database]") {
 TEST_CASE("cache db limits", "[storage_cache_database]") {
 	SECTION("db both limit") {
 		auto settings = Settings;
+		settings.trackEstimatedTime = true;
 		settings.totalSizeLimit = 17 * 3 + 1;
 		settings.totalTimeLimit = 4;
 		Database db(name, settings);
@@ -376,6 +418,7 @@ TEST_CASE("cache db limits", "[storage_cache_database]") {
 	}
 	SECTION("db size limit") {
 		auto settings = Settings;
+		settings.trackEstimatedTime = true;
 		settings.totalSizeLimit = 17 * 3 + 1;
 		Database db(name, settings);
 
@@ -442,6 +485,7 @@ TEST_CASE("cache db limits", "[storage_cache_database]") {
 	}
 	SECTION("db time limit") {
 		auto settings = Settings;
+		settings.trackEstimatedTime = true;
 		settings.totalTimeLimit = 3;
 		Database db(name, settings);
 
