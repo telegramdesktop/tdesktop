@@ -460,7 +460,7 @@ TEST_CASE("cache db limits", "[storage_cache_database]") {
 		AdvanceTime(1);
 		db.get(Key{ 1, 0 }, nullptr);
 		db.get(Key{ 0, 1 }, nullptr);
-		AdvanceTime(2);
+		AdvanceTime(3);
 		db.get(Key{ 2, 0 }, GetValue);
 		Semaphore.acquire();
 		REQUIRE(Value.isEmpty());

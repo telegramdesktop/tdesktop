@@ -100,7 +100,7 @@ QString PlaceFromId(PlaceId place) {
 }
 
 int32 GetUnixtime() {
-	return int32(time(nullptr));
+	return std::max(int32(time(nullptr)), 1);
 }
 
 enum class Format : uint32 {
@@ -110,9 +110,11 @@ enum class Format : uint32 {
 struct BasicHeader {
 	BasicHeader();
 
+	static constexpr auto kTrackEstimatedTime = 0x01U;
+
 	Format format : 8;
 	uint32 flags : 24;
-	uint32 date = 0;
+	uint32 systemTime = 0;
 	uint32 reserved1 = 0;
 	uint32 reserved2 = 0;
 };
@@ -122,6 +124,11 @@ BasicHeader::BasicHeader()
 : format(Format::Format_0)
 , flags(0) {
 }
+
+struct EstimatedTimePoint {
+	uint32 system = 0;
+	uint32 relativeAdvancement = 0;
+};
 
 struct Store {
 	static constexpr auto kType = RecordType(0x01);
@@ -135,6 +142,13 @@ struct Store {
 };
 static_assert(GoodForEncryption<Store>);
 
+struct StoreWithTime : Store {
+	EstimatedTimePoint time;
+	uint32 reserved1 = 0;
+	uint32 reserved2 = 0;
+};
+static_assert(GoodForEncryption<StoreWithTime>);
+
 struct MultiStoreHeader {
 	static constexpr auto kType = RecordType(0x02);
 
@@ -146,16 +160,9 @@ struct MultiStoreHeader {
 	uint32 reserved2 = 0;
 	uint32 reserved3 = 0;
 };
-struct MultiStorePart {
-	uint8 reserved = 0;
-	uint8 tag = 0;
-	EntrySize size = { { 0 } };
-	PlaceId place = { { 0 } };
-	uint32 checksum = 0;
-	Key key;
-};
+using MultiStorePart = Store;
+using MultiStoreWithTimePart = StoreWithTime;
 static_assert(GoodForEncryption<MultiStoreHeader>);
-static_assert(GoodForEncryption<MultiStorePart>);
 
 MultiStoreHeader::MultiStoreHeader(size_type count)
 : type(kType)
@@ -186,34 +193,30 @@ MultiRemoveHeader::MultiRemoveHeader(size_type count)
 	Expects(count >= 0 && count < kBundledRecordsLimit);
 }
 
-struct MultiTouchedHeader {
+struct MultiAccessHeader {
 	static constexpr auto kType = RecordType(0x04);
 
-	MultiTouchedHeader(
-		uint32 time,
-		uint32 advancement,
+	explicit MultiAccessHeader(
+		EstimatedTimePoint time,
 		size_type count = 0);
 
 	RecordType type = kType;
 	RecordsCount count = { { 0 } };
-	uint32 timeAdvancement = 0;
-	uint32 systemTime = 0;
+	EstimatedTimePoint time;
 	uint32 reserved = 0;
 };
-struct MultiTouchedPart {
+struct MultiAccessPart {
 	Key key;
 };
-static_assert(GoodForEncryption<MultiTouchedHeader>);
-static_assert(GoodForEncryption<MultiTouchedPart>);
+static_assert(GoodForEncryption<MultiAccessHeader>);
+static_assert(GoodForEncryption<MultiAccessPart>);
 
-MultiTouchedHeader::MultiTouchedHeader(
-	uint32 time,
-	uint32 advancement,
+MultiAccessHeader::MultiAccessHeader(
+	EstimatedTimePoint time,
 	size_type count)
 : type(kType)
 , count(ReadTo<RecordsCount>(count))
-, timeAdvancement(advancement)
-, systemTime(time) {
+, time(time) {
 	Expects(count >= 0 && count < kBundledRecordsLimit);
 }
 
@@ -280,14 +283,28 @@ private:
 	size_type readBinlogRecords(bytes::const_span data);
 	size_type readBinlogRecordSize(bytes::const_span data) const;
 	bool readBinlogRecord(bytes::const_span data);
+	template <typename RecordStore>
+	bool readRecordStoreGeneric(bytes::const_span data);
 	bool readRecordStore(bytes::const_span data);
+	template <typename StorePart>
+	bool readRecordMultiStoreGeneric(bytes::const_span data);
 	bool readRecordMultiStore(bytes::const_span data);
 	bool readRecordMultiRemove(bytes::const_span data);
-	bool readRecordMultiTouched(bytes::const_span data);
+	bool readRecordMultiAccess(bytes::const_span data);
+	template <typename RecordStore, typename Postprocess>
+	bool processRecordStoreGeneric(
+		const RecordStore *record,
+		Postprocess &&postprocess);
+	bool processRecordStore(const Store *record, std::is_class<Store>);
+	bool processRecordStore(
+		const StoreWithTime *record,
+		std::is_class<StoreWithTime>);
 
 	void adjustRelativeTime();
 	void startDelayedPruning();
 	int64 countRelativeTime() const;
+	EstimatedTimePoint countTimePoint() const;
+	void applyTimePoint(EstimatedTimePoint time);
 	int64 pruneBeforeTime() const;
 	void prune();
 	void collectTimePrune(
@@ -307,12 +324,18 @@ private:
 
 	QString placePath(PlaceId place) const;
 	bool isFreePlace(PlaceId place) const;
+	template <typename StoreRecord>
+	QString writeKeyPlaceGeneric(
+		StoreRecord &&record,
+		const Key &key,
+		size_type size,
+		uint32 checksum);
 	QString writeKeyPlace(const Key &key, size_type size, uint32 checksum);
 	void writeMultiRemoveLazy();
 	void writeMultiRemove();
-	void writeMultiTouchedLazy();
-	void writeMultiTouched();
-	void writeMultiTouchedBlock();
+	void writeMultiAccessLazy();
+	void writeMultiAccess();
+	void writeMultiAccessBlock();
 	void writeBundlesLazy();
 	void writeBundles();
 
@@ -321,12 +344,12 @@ private:
 
 	crl::weak_on_queue<Database> _weak;
 	QString _base, _path;
-	Settings _settings;
+	const Settings _settings;
 	EncryptionKey _key;
 	File _binlog;
 	Map _map;
 	std::set<Key> _removing;
-	std::set<Key> _touched;
+	std::set<Key> _accessed;
 
 	int64 _relativeTime = 0;
 	int64 _timeCorrection = 0;
@@ -461,15 +484,21 @@ bool Database::readHeader() {
 		return false;
 	} else if (header.format != Format::Format_0) {
 		return false;
+	} else if (_settings.trackEstimatedTime
+		!= !!(header.flags & header.kTrackEstimatedTime)) {
+		return false;
 	}
-	_relativeTime = _latestSystemTime = header.date;
+	_relativeTime = _latestSystemTime = header.systemTime;
 	return true;
 }
 
 bool Database::writeHeader() {
 	auto header = BasicHeader();
-	const auto now = std::max(GetUnixtime(), 1);
-	_relativeTime = _latestSystemTime = header.date = now;
+	const auto now = _settings.trackEstimatedTime ? GetUnixtime() : 0;
+	_relativeTime = _latestSystemTime = header.systemTime = now;
+	if (_settings.trackEstimatedTime) {
+		header.flags |= header.kTrackEstimatedTime;
+	}
 	return _binlog.write(bytes::object_as_span(&header));
 }
 
@@ -502,7 +531,7 @@ void Database::readBinlog() {
 }
 
 int64 Database::countRelativeTime() const {
-	const auto now = std::max(GetUnixtime(), 1);
+	const auto now = GetUnixtime();
 	const auto delta = std::max(int64(now) - int64(_latestSystemTime), 0LL);
 	return _relativeTime + delta;
 }
@@ -514,7 +543,7 @@ int64 Database::pruneBeforeTime() const {
 }
 
 void Database::startDelayedPruning() {
-	if (_map.empty()) {
+	if (!_settings.trackEstimatedTime || _map.empty()) {
 		return;
 	}
 	const auto pruning = [&] {
@@ -630,9 +659,12 @@ void Database::collectSizePrune(
 }
 
 void Database::adjustRelativeTime() {
-	const auto now = std::max(GetUnixtime(), 1);
+	if (!_settings.trackEstimatedTime) {
+		return;
+	}
+	const auto now = GetUnixtime();
 	if (now < _latestSystemTime) {
-		writeMultiTouchedBlock();
+		writeMultiAccessBlock();
 	}
 }
 
@@ -658,16 +690,20 @@ size_type Database::readBinlogRecordSize(bytes::const_span data) const {
 
 	switch (static_cast<RecordType>(data[0])) {
 	case Store::kType:
-		return sizeof(Store);
+		return _settings.trackEstimatedTime
+			? sizeof(StoreWithTime)
+			: sizeof(Store);
 
 	case MultiStoreHeader::kType:
 		if (data.size() >= sizeof(MultiStoreHeader)) {
 			const auto header = reinterpret_cast<const MultiStoreHeader*>(
 				data.data());
 			const auto count = ReadFrom(header->count);
+			const auto size = _settings.trackEstimatedTime
+				? sizeof(MultiStoreWithTimePart)
+				: sizeof(MultiStorePart);
 			return (count > 0 && count < _settings.maxBundledRecords)
-				? (sizeof(MultiStoreHeader)
-					+ count * sizeof(MultiStorePart))
+				? (sizeof(MultiStoreHeader) + count * size)
 				: kRecordSizeInvalid;
 		}
 		return kRecordSizeUnknown;
@@ -684,14 +720,16 @@ size_type Database::readBinlogRecordSize(bytes::const_span data) const {
 		}
 		return kRecordSizeUnknown;
 
-	case MultiTouchedHeader::kType:
-		if (data.size() >= sizeof(MultiTouchedHeader)) {
-			const auto header = reinterpret_cast<const MultiTouchedHeader*>(
+	case MultiAccessHeader::kType:
+		if (!_settings.trackEstimatedTime) {
+			return kRecordSizeInvalid;
+		} else if (data.size() >= sizeof(MultiAccessHeader)) {
+			const auto header = reinterpret_cast<const MultiAccessHeader*>(
 				data.data());
 			const auto count = ReadFrom(header->count);
-			return (count > 0 && count < _settings.maxBundledRecords)
-				? (sizeof(MultiTouchedHeader)
-					+ count * sizeof(MultiTouchedPart))
+			return (count >= 0 && count < _settings.maxBundledRecords)
+				? (sizeof(MultiAccessHeader)
+					+ count * sizeof(MultiAccessPart))
 				: kRecordSizeInvalid;
 		}
 		return kRecordSizeUnknown;
@@ -713,59 +751,96 @@ bool Database::readBinlogRecord(bytes::const_span data) {
 	case MultiRemoveHeader::kType:
 		return readRecordMultiRemove(data);
 
-	case MultiTouchedHeader::kType:
-		return readRecordMultiTouched(data);
+	case MultiAccessHeader::kType:
+		return readRecordMultiAccess(data);
 
 	}
 	Unexpected("Bad type in Database::readBinlogRecord.");
 }
 
-bool Database::readRecordStore(bytes::const_span data) {
-	Expects(data.size() >= sizeof(Store));
+template <typename RecordStore>
+bool Database::readRecordStoreGeneric(bytes::const_span data) {
+	Expects(data.size() >= sizeof(RecordStore));
 
-	const auto record = reinterpret_cast<const Store*>(data.data());
+	return processRecordStore(
+		reinterpret_cast<const RecordStore*>(data.data()),
+		std::is_class<RecordStore>{});
+}
+
+template <typename RecordStore, typename Postprocess>
+bool Database::processRecordStoreGeneric(
+		const RecordStore *record,
+		Postprocess &&postprocess) {
 	const auto size = ReadFrom(record->size);
-	if (size > _settings.maxDataSize) {
+	if (size <= 0 || size > _settings.maxDataSize) {
 		return false;
 	}
-	setMapEntry(
-		record->key,
-		Entry(
-			record->place,
-			record->tag,
-			record->checksum,
-			size,
-			_relativeTime));
+	auto entry = Entry(
+		record->place,
+		record->tag,
+		record->checksum,
+		size,
+		_relativeTime);
+	if (!postprocess(entry, record)) {
+		return false;
+	}
+	setMapEntry(record->key, std::move(entry));
 	return true;
 }
 
-bool Database::readRecordMultiStore(bytes::const_span data) {
+bool Database::processRecordStore(
+		const Store *record,
+		std::is_class<Store>) {
+	const auto postprocess = [](auto&&...) { return true; };
+	return processRecordStoreGeneric(record, postprocess);
+}
+
+bool Database::processRecordStore(
+		const StoreWithTime *record,
+		std::is_class<StoreWithTime>) {
+	const auto postprocess = [&](
+			Entry &entry,
+			not_null<const StoreWithTime*> record) {
+		applyTimePoint(record->time);
+		entry.useTime = _relativeTime;
+		return true;
+	};
+	return processRecordStoreGeneric(record, postprocess);
+}
+
+bool Database::readRecordStore(bytes::const_span data) {
+	if (!_settings.trackEstimatedTime) {
+		return readRecordStoreGeneric<Store>(data);
+	}
+	return readRecordStoreGeneric<StoreWithTime>(data);
+}
+
+template <typename StorePart>
+bool Database::readRecordMultiStoreGeneric(bytes::const_span data) {
 	Expects(data.size() >= sizeof(MultiStoreHeader));
 
 	const auto bytes = data.data();
 	const auto record = reinterpret_cast<const MultiStoreHeader*>(bytes);
 	const auto count = ReadFrom(record->count);
 	Assert(data.size() >= sizeof(MultiStoreHeader)
-		+ count * sizeof(MultiStorePart));
+		+ count * sizeof(StorePart));
 	const auto parts = gsl::make_span(
-		reinterpret_cast<const MultiStorePart*>(
+		reinterpret_cast<const StorePart*>(
 			bytes + sizeof(MultiStoreHeader)),
 		count);
 	for (const auto &part : parts) {
-		const auto size = ReadFrom(part.size);
-		if (size > _settings.maxDataSize) {
+		if (!processRecordStore(&part, std::is_class<StorePart>{})) {
 			return false;
 		}
-		setMapEntry(
-			part.key,
-			Entry(
-				part.place,
-				part.tag,
-				part.checksum,
-				size,
-				_relativeTime));
 	}
 	return true;
+}
+
+bool Database::readRecordMultiStore(bytes::const_span data) {
+	if (!_settings.trackEstimatedTime) {
+		return readRecordMultiStoreGeneric<MultiStorePart>(data);
+	}
+	return readRecordMultiStoreGeneric<MultiStoreWithTimePart>(data);
 }
 
 void Database::setMapEntry(const Key &key, Entry &&entry) {
@@ -817,22 +892,38 @@ bool Database::readRecordMultiRemove(bytes::const_span data) {
 	return true;
 }
 
-bool Database::readRecordMultiTouched(bytes::const_span data) {
-	Expects(data.size() >= sizeof(MultiTouchedHeader));
+EstimatedTimePoint Database::countTimePoint() const {
+	const auto now = std::max(GetUnixtime(), 1);
+	const auto delta = std::max(int64(now) - int64(_latestSystemTime), 0LL);
+	auto result = EstimatedTimePoint();
+	result.system = now;
+	result.relativeAdvancement = std::min(
+		delta,
+		int64(_settings.maxTimeAdvancement));
+	return result;
+}
+
+void Database::applyTimePoint(EstimatedTimePoint time) {
+	_relativeTime += time.relativeAdvancement;
+	_latestSystemTime = time.system;
+}
+
+bool Database::readRecordMultiAccess(bytes::const_span data) {
+	Expects(data.size() >= sizeof(MultiAccessHeader));
+	Expects(_settings.trackEstimatedTime);
 
 	const auto bytes = data.data();
-	const auto record = reinterpret_cast<const MultiTouchedHeader*>(bytes);
-	if (record->timeAdvancement > _settings.maxTimeAdvancement) {
+	const auto record = reinterpret_cast<const MultiAccessHeader*>(bytes);
+	if (record->time.relativeAdvancement > _settings.maxTimeAdvancement) {
 		return false;
 	}
-	_relativeTime += record->timeAdvancement;
-	_latestSystemTime = record->systemTime;
+	applyTimePoint(record->time);
 	const auto count = ReadFrom(record->count);
-	Assert(data.size() >= sizeof(MultiTouchedHeader)
-		+ count * sizeof(MultiTouchedPart));
+	Assert(data.size() >= sizeof(MultiAccessHeader)
+		+ count * sizeof(MultiAccessPart));
 	const auto parts = gsl::make_span(
-		reinterpret_cast<const MultiTouchedPart*>(
-			bytes + sizeof(MultiTouchedHeader)),
+		reinterpret_cast<const MultiAccessPart*>(
+			bytes + sizeof(MultiAccessHeader)),
 		count);
 	for (const auto &part : parts) {
 		if (const auto i = _map.find(part.key); i != end(_map)) {
@@ -853,6 +944,12 @@ void Database::put(
 		const Key &key,
 		QByteArray value,
 		FnMut<void(Error)> done) {
+	if (value.isEmpty()) {
+		remove(key, [done = std::move(done)]() mutable {
+			done(Error::NoError());
+		});
+		return;
+	}
 	_removing.erase(key);
 
 	const auto checksum = CountChecksum(bytes::make_span(value));
@@ -881,9 +978,6 @@ void Database::put(
 		} else {
 			data.flush();
 			invokeCallback(done, Error::NoError());
-
-			_touched.emplace(key);
-			writeMultiTouchedLazy();
 			startDelayedPruning();
 		}
 	} break;
@@ -892,13 +986,14 @@ void Database::put(
 	}
 }
 
-QString Database::writeKeyPlace(
+template <typename StoreRecord>
+QString Database::writeKeyPlaceGeneric(
+		StoreRecord &&record,
 		const Key &key,
 		size_type size,
 		uint32 checksum) {
 	Expects(size <= _settings.maxDataSize);
 
-	auto record = Store();
 	record.key = key;
 	record.size = ReadTo<EntrySize>(size);
 	record.checksum = checksum;
@@ -918,6 +1013,25 @@ QString Database::writeKeyPlace(
 	_binlog.flush();
 	readRecordStore(bytes::object_as_span(&record));
 	return result;
+}
+
+QString Database::writeKeyPlace(
+		const Key &key,
+		size_type size,
+		uint32 checksum) {
+	if (!_settings.trackEstimatedTime) {
+		return writeKeyPlaceGeneric(Store(), key, size, checksum);
+	}
+	auto record = StoreWithTime();
+	record.time = countTimePoint();
+	if (record.time.relativeAdvancement * crl::time_type(1000)
+		< _settings.writeBundleDelay) {
+		// We don't want to produce a lot of unique relativeTime values.
+		// So if change in it is not large we stick to the old value.
+		record.time.system = _latestSystemTime;
+		record.time.relativeAdvancement = 0;
+	}
+	return writeKeyPlaceGeneric(std::move(record), key, size, checksum);
 }
 
 void Database::get(const Key &key, FnMut<void(QByteArray)> done) {
@@ -952,9 +1066,10 @@ void Database::get(const Key &key, FnMut<void(QByteArray)> done) {
 			invokeCallback(done, QByteArray());
 		} else {
 			invokeCallback(done, std::move(result));
-
-			_touched.emplace(key);
-			writeMultiTouchedLazy();
+			if (_settings.trackEstimatedTime) {
+				_accessed.emplace(key);
+				writeMultiAccessLazy();
+			}
 			startDelayedPruning();
 		}
 	} break;
@@ -1009,44 +1124,38 @@ void Database::writeMultiRemove() {
 	}
 }
 
-void Database::writeMultiTouchedLazy() {
-	if (_touched.size() == _settings.maxBundledRecords) {
-		writeMultiTouched();
+void Database::writeMultiAccessLazy() {
+	if (_accessed.size() == _settings.maxBundledRecords) {
+		writeMultiAccess();
 	} else {
 		writeBundlesLazy();
 	}
 }
 
-void Database::writeMultiTouched() {
-	if (!_touched.empty()) {
-		writeMultiTouchedBlock();
+void Database::writeMultiAccess() {
+	if (!_accessed.empty()) {
+		writeMultiAccessBlock();
 	}
 }
 
-void Database::writeMultiTouchedBlock() {
-	Expects(_touched.size() <= _settings.maxBundledRecords);
+void Database::writeMultiAccessBlock() {
+	Expects(_settings.trackEstimatedTime);
+	Expects(_accessed.size() <= _settings.maxBundledRecords);
 
-	const auto now = std::max(GetUnixtime(), 1);
-	const auto delta = std::max(int64(now) - int64(_latestSystemTime), 0LL);
-	const auto advancement = std::min(
-		delta,
-		int64(_settings.maxTimeAdvancement));
-	const auto size = _touched.size();
-	auto header = MultiTouchedHeader(now, advancement, size);
-	auto list = std::vector<MultiTouchedPart>();
+	const auto time = countTimePoint();
+	const auto size = _accessed.size();
+	auto header = MultiAccessHeader(time, size);
+	auto list = std::vector<MultiAccessPart>();
 	if (size > 0) {
 		list.reserve(size);
-		for (const auto &key : base::take(_touched)) {
+		for (const auto &key : base::take(_accessed)) {
 			list.push_back({ key });
 		}
 	}
-	_latestSystemTime = now;
-	if (advancement > 0) {
-		_relativeTime += advancement;
-		for (const auto &entry : list) {
-			if (const auto i = _map.find(entry.key); i != end(_map)) {
-				i->second.useTime = _relativeTime;
-			}
+	applyTimePoint(time);
+	for (const auto &entry : list) {
+		if (const auto i = _map.find(entry.key); i != end(_map)) {
+			i->second.useTime = _relativeTime;
 		}
 	}
 
@@ -1060,7 +1169,9 @@ void Database::writeMultiTouchedBlock() {
 
 void Database::writeBundles() {
 	writeMultiRemove();
-	writeMultiTouched();
+	if (_settings.trackEstimatedTime) {
+		writeMultiAccess();
+	}
 }
 
 void Database::createCleaner() {
