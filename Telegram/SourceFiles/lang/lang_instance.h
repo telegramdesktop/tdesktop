@@ -85,6 +85,7 @@ public:
 
 		return _values[key];
 	}
+	QString getNonDefaultValue(const QByteArray &key) const;
 	bool isNonDefaultPlural(LangKey key) const {
 		Expects(key >= 0 && key < kLangKeysCount);
 		Expects(_nonDefaultSet.size() == kLangKeysCount);

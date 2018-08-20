@@ -44,6 +44,11 @@ struct EditDocumentScheme {
 		Additional,
 		Scans,
 	};
+	enum class AdditionalVisibility {
+		Hidden,
+		OnlyIfError,
+		Shown,
+	};
 	struct Row {
 		using Validator = Fn<base::optional<QString>(const QString &value)>;
 		using Formatter = Fn<QString(const QString &value)>;
@@ -54,7 +59,8 @@ struct EditDocumentScheme {
 		Validator error;
 		Formatter format;
 		int lengthLimit = 0;
-		QString keyForAttachmentTo; // attach [last|middle]_name to first_*
+		QString keyForAttachmentTo; // Attach [last|middle]_name to first_*.
+		QString additionalFallbackKey; // *_name_native from *_name.
 	};
 	std::vector<Row> rows;
 	QString fieldsHeader;
@@ -62,8 +68,8 @@ struct EditDocumentScheme {
 	QString scansHeader;
 
 	QString additionalDependencyKey;
-	Fn<bool(const QString &dependency)> additionalShown;
-	QString additionalHeader;
+	Fn<AdditionalVisibility(const QString &dependency)> additionalShown;
+	Fn<QString(const QString &dependency)> additionalHeader;
 	Fn<QString(const QString &dependency)> additionalDescription;
 
 };
@@ -127,6 +133,7 @@ private:
 	void updateCommonError();
 
 	Result collect() const;
+	void fillAdditionalFromFallbacks(Result &result) const;
 	bool validate();
 	void save();
 
@@ -149,6 +156,7 @@ private:
 	QPointer<Ui::SlideWrap<Ui::FlatLabel>> _commonError;
 	std::map<int, QPointer<PanelDetailsRow>> _details;
 	bool _fieldsChanged = false;
+	bool _additionalShown = false;
 
 	QPointer<Info::Profile::Button> _delete;
 

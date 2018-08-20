@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "passport/passport_encryption.h"
 #include "passport/passport_panel_controller.h"
+#include "passport/passport_panel_edit_document.h"
 #include "boxes/confirm_box.h"
 #include "boxes/passcode_box.h"
 #include "lang/lang_keys.h"
@@ -33,6 +34,8 @@ constexpr auto kDocumentScansLimit = 20;
 constexpr auto kTranslationScansLimit = 20;
 constexpr auto kShortPollTimeout = TimeMs(3000);
 constexpr auto kRememberCredentialsDelay = TimeMs(1800 * 1000);
+
+Config GlobalConfig;
 
 bool ForwardServiceErrorRequired(const QString &error) {
 	return (error == qstr("BOT_INVALID"))
@@ -227,6 +230,44 @@ QString ValidateUrl(const QString &url) {
 }
 
 } // namespace
+
+Config &ConfigInstance() {
+	return GlobalConfig;
+}
+
+Config ParseConfig(const MTPhelp_PassportConfig &data) {
+	return data.match([](const MTPDhelp_passportConfig &data) {
+		auto result = Config();
+		result.hash = data.vhash.v;
+		auto error = QJsonParseError{ 0, QJsonParseError::NoError };
+		const auto document = QJsonDocument::fromJson(
+			data.vcountries_langs.c_dataJSON().vdata.v,
+			&error);
+		if (error.error != QJsonParseError::NoError) {
+			LOG(("API Error: Failed to parse passport config, error: %1."
+				).arg(error.errorString()));
+			return result;
+		} else if (!document.isObject()) {
+			LOG(("API Error: Not an object received in passport config."));
+			return result;
+		}
+		const auto object = document.object();
+		for (auto i = object.constBegin(); i != object.constEnd(); ++i) {
+			const auto countryCode = i.key();
+			const auto language = i.value();
+			if (!language.isString()) {
+				LOG(("API Error: Not a string in passport config item."));
+				continue;
+			}
+			result.languagesByCountryCode.emplace(
+				countryCode,
+				language.toString());
+		}
+		return result;
+	}, [](const MTPDhelp_passportConfigNotModified &data) {
+		return ConfigInstance();
+	});
+}
 
 QString NonceNameByScope(const QString &scope) {
 	if (scope.startsWith('{') && scope.endsWith('}')) {
@@ -579,6 +620,7 @@ FormController::FormController(
 void FormController::show() {
 	requestForm();
 	requestPassword();
+	requestConfig();
 }
 
 UserData *FormController::bot() const {
@@ -1082,6 +1124,7 @@ void FormController::decryptValues() {
 		decryptValue(value);
 	}
 	fillErrors();
+	fillNativeFromFallback();
 }
 
 void FormController::fillErrors() {
@@ -1175,6 +1218,42 @@ void FormController::fillErrors() {
 		}, [&](const MTPDsecureValueErrorSelfie &data) {
 			setSpecialScanError(FileType::Selfie, data);
 		});
+	}
+}
+
+void FormController::fillNativeFromFallback() {
+	const auto i = _form.values.find(Value::Type::PersonalDetails);
+	if (i == end(_form.values) || !i->second.nativeNames) {
+		return;
+	}
+	const auto scheme = GetDocumentScheme(
+		Scope::Type::PersonalDetails,
+		base::none,
+		true);
+	auto changed = false;
+	auto values = i->second.data.parsed;
+	using Scheme = EditDocumentScheme;
+	for (const auto &row : scheme.rows) {
+		if (row.valueClass == Scheme::ValueClass::Additional) {
+			auto &field = values.fields[row.key];
+			if (!field.text.isEmpty() || !field.error.isEmpty()) {
+				return;
+			}
+			const auto i = values.fields.find(row.additionalFallbackKey);
+			const auto value = (i == end(values.fields))
+				? QString()
+				: i->second.text;
+			if (row.error(value).has_value()) {
+				return;
+			} else if (field.text != value) {
+				field.text = value;
+				changed = true;
+			}
+		}
+	}
+	if (changed) {
+		startValueEdit(&i->second);
+		saveValueEdit(&i->second, std::move(values));
 	}
 }
 
@@ -2375,9 +2454,27 @@ auto FormController::findFile(const FileKey &key)
 void FormController::formDone(const MTPaccount_AuthorizationForm &result) {
 	if (!parseForm(result)) {
 		_view->showCriticalError(lang(lng_passport_form_error));
-	} else if (!_passwordRequestId) {
+	} else {
 		showForm();
 	}
+}
+
+void FormController::requestConfig() {
+	const auto i = _form.values.find(Value::Type::PersonalDetails);
+	if (i == end(_form.values) || !i->second.nativeNames) {
+		return;
+	}
+	const auto hash = ConfigInstance().hash;
+	_configRequestId = request(MTPhelp_GetPassportConfig(
+		MTP_int(hash)
+	)).done([=](const MTPhelp_PassportConfig &result) {
+		_configRequestId = 0;
+		ConfigInstance() = ParseConfig(result);
+		showForm();
+	}).fail([=](const RPCError &error) {
+		_configRequestId = 0;
+		showForm();
+	}).send();
 }
 
 bool FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
@@ -2458,7 +2555,7 @@ void FormController::passwordDone(const MTPaccount_Password &result) {
 	Expects(result.type() == mtpc_account_password);
 
 	const auto changed = applyPassword(result.c_account_password());
-	if (changed && !_formRequestId) {
+	if (changed) {
 		showForm();
 	}
 	shortPollEmailConfirmation();
@@ -2473,7 +2570,9 @@ void FormController::shortPollEmailConfirmation() {
 }
 
 void FormController::showForm() {
-	if (!_bot) {
+	if (_formRequestId || _passwordRequestId || _configRequestId) {
+		return;
+	} else if (!_bot) {
 		formFail(Lang::Hard::NoAuthorizationBot());
 		return;
 	}

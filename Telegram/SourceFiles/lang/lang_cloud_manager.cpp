@@ -19,7 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Lang {
 
-CloudManager::CloudManager(Instance &langpack, not_null<MTP::Instance*> mtproto) : MTP::Sender()
+CloudManager::CloudManager(
+	Instance &langpack,
+	not_null<MTP::Instance*> mtproto)
+: MTP::Sender()
 , _langpack(langpack) {
 	requestLangPackDifference();
 }

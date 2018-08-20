@@ -32,6 +32,7 @@ constexpr auto kMaxStreetSize = 64;
 constexpr auto kMinCitySize = 2;
 constexpr auto kMaxCitySize = 64;
 constexpr auto kMaxPostcodeSize = 10;
+const auto kLanguageNamePrefix = "cloud_lng_passport_in_";
 
 ScanInfo CollectScanInfo(const EditFile &file) {
 	const auto status = [&] {
@@ -282,8 +283,33 @@ EditDocumentScheme GetDocumentScheme(
 		};
 		if (nativeNames) {
 			result.additionalDependencyKey = qsl("residence_country_code");
-			result.additionalHeader = lang(lng_passport_native_name_title);
-			result.additionalDescription = [](const QString &countryCode) {
+
+			const auto languageValue = [](const QString &countryCode) {
+				if (countryCode.isEmpty()) {
+					return QString();
+				}
+				const auto &config = ConfigInstance();
+				const auto i = config.languagesByCountryCode.find(
+					countryCode);
+				if (i == end(config.languagesByCountryCode)) {
+					return QString();
+				}
+				return Lang::Current().getNonDefaultValue(
+					kLanguageNamePrefix + i->second.toUtf8());
+			};
+			result.additionalHeader = [=](const QString &countryCode) {
+				const auto language = languageValue(countryCode);
+				return language.isEmpty()
+					? lang(lng_passport_native_name_title)
+					: lng_passport_native_name_language(
+						lt_language,
+						language);
+			};
+			result.additionalDescription = [=](const QString &countryCode) {
+				const auto language = languageValue(countryCode);
+				if (!language.isEmpty()) {
+					return lang(lng_passport_native_name_language_about);
+				}
 				const auto name = CountrySelectBox::NameByISO(countryCode);
 				Assert(!name.isEmpty());
 				return lng_passport_native_name_about(
@@ -291,7 +317,18 @@ EditDocumentScheme GetDocumentScheme(
 					name);
 			};
 			result.additionalShown = [](const QString &countryCode) {
-				return !countryCode.isEmpty();
+				using Result = EditDocumentScheme::AdditionalVisibility;
+				if (countryCode.isEmpty()) {
+					return Result::Hidden;
+				}
+				const auto &config = ConfigInstance();
+				const auto i = config.languagesByCountryCode.find(
+					countryCode);
+				if (i != end(config.languagesByCountryCode)
+					&& i->second == "en") {
+					return Result::OnlyIfError;
+				}
+				return Result::Shown;
 			};
 			using Row = EditDocumentScheme::Row;
 			auto additional = std::initializer_list<Row>{
@@ -303,6 +340,8 @@ EditDocumentScheme GetDocumentScheme(
 					NativeNameValidate,
 					DontFormat,
 					kMaxNameSize,
+					QString(),
+					qsl("first_name"),
 				},
 				{
 					ValueClass::Additional,
@@ -313,6 +352,7 @@ EditDocumentScheme GetDocumentScheme(
 					DontFormat,
 					kMaxNameSize,
 					qsl("first_name_native"),
+					qsl("middle_name"),
 				},
 				{
 					ValueClass::Additional,
@@ -323,6 +363,7 @@ EditDocumentScheme GetDocumentScheme(
 					DontFormat,
 					kMaxNameSize,
 					qsl("first_name_native"),
+					qsl("last_name"),
 				},
 			};
 			for (auto &row : additional) {

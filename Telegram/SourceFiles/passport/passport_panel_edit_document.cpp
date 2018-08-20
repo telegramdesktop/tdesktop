@@ -404,11 +404,47 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 					inner,
 					object_ptr<Ui::VerticalLayout>(inner)));
 			const auto added = wrap->entity();
+
+			auto showIfError = false;
+			enumerateRows([&](
+					int i,
+					const Scheme::Row &row,
+					const ValueMap &fields) {
+				if (row.valueClass != Scheme::ValueClass::Additional) {
+					return;
+				}
+				const auto it = fields.fields.find(row.key);
+				if (it == end(fields.fields)) {
+					return;
+				} else if (!it->second.error.isEmpty()) {
+					showIfError = true;
+				} else if (it->second.text.isEmpty()) {
+					return;
+				}
+				const auto fallbackIt = fields.fields.find(
+					row.additionalFallbackKey);
+				if (fallbackIt != end(fields.fields)
+					&& fallbackIt->second.text != it->second.text) {
+					showIfError = true;
+				}
+			});
+			const auto shown = [=](const QString &code) {
+				using Result = Scheme::AdditionalVisibility;
+				const auto value = _scheme.additionalShown(code);
+				return (value == Result::Shown)
+					|| (value == Result::OnlyIfError && showIfError);
+			};
+
+			auto title = row->value(
+			) | rpl::filter(
+				shown
+			) | rpl::map([=](const QString &code) {
+				return _scheme.additionalHeader(code);
+			});
 			added->add(
 				object_ptr<Ui::FlatLabel>(
 					added,
-					_scheme.additionalHeader,
-					Ui::FlatLabel::InitType::Simple,
+					std::move(title),
 					st::passportFormHeader),
 				st::passportNativeNameHeaderPadding);
 
@@ -422,9 +458,9 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 			});
 
 			auto description = row->value(
-			) | rpl::filter([=](const QString &code) {
-				return _scheme.additionalShown(code);
-			}) | rpl::map([=](const QString &code) {
+			) | rpl::filter(
+				shown
+			) | rpl::map([=](const QString &code) {
 				return _scheme.additionalDescription(code);
 			});
 			added->add(
@@ -437,11 +473,15 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 					st::passportFormLabelPadding),
 				st::passportNativeNameAboutMargin);
 
-			wrap->toggleOn(row->value(
-			) | rpl::map([=](const QString &code) {
-				return _scheme.additionalShown(code);
-			}));
+			wrap->toggleOn(row->value() | rpl::map(shown));
 			wrap->finishAnimating();
+
+			row->value(
+			) | rpl::map(
+				shown
+			) | rpl::start_with_next([=](bool visible) {
+				_additionalShown = visible;
+			}, lifetime());
 		}
 
 		inner->add(
@@ -469,8 +509,8 @@ void PanelEditDocument::createDetailsRow(
 		const ValueMap &fields,
 		int maxLabelWidth) {
 	const auto valueOrEmpty = [&](
-		const ValueMap &values,
-		const QString &key) {
+			const ValueMap &values,
+			const QString &key) {
 		const auto &fields = values.fields;
 		if (const auto i = fields.find(key); i != fields.end()) {
 			return i->second;
@@ -561,9 +601,29 @@ PanelEditDocument::Result PanelEditDocument::collect() const {
 		auto &fields = (row.valueClass == Scheme::ValueClass::Scans)
 			? result.filesData
 			: result.data;
+		if (row.valueClass == Scheme::ValueClass::Additional
+			&& !_additionalShown) {
+			continue;
+		}
 		fields.fields[row.key].text = field->valueCurrent();
 	}
+	if (!_additionalShown) {
+		fillAdditionalFromFallbacks(result);
+	}
 	return result;
+}
+
+void PanelEditDocument::fillAdditionalFromFallbacks(Result &result) const {
+	for (const auto &row : _scheme.rows) {
+		if (row.valueClass != Scheme::ValueClass::Additional) {
+			continue;
+		}
+		Assert(!row.additionalFallbackKey.isEmpty());
+		auto &fields = result.data;
+		const auto j = fields.fields.find(row.additionalFallbackKey);
+		Assert(j != end(fields.fields));
+		fields.fields[row.key] = j->second;
+	}
 }
 
 bool PanelEditDocument::validate() {
@@ -585,6 +645,10 @@ bool PanelEditDocument::validate() {
 	auto first = QPointer<PanelDetailsRow>();
 	for (const auto [i, field] : base::reversed(_details)) {
 		const auto &row = _scheme.rows[i];
+		if (row.valueClass == Scheme::ValueClass::Additional
+			&& !_additionalShown) {
+			continue;
+		}
 		if (field->errorShown()) {
 			field->showError();
 			first = field;

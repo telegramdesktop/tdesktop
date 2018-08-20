@@ -25,6 +25,13 @@ class Controller;
 
 namespace Passport {
 
+struct Config {
+	int32 hash = 0;
+	std::map<QString, QString> languagesByCountryCode;
+};
+Config &ConfigInstance();
+Config ParseConfig(const MTPhelp_PassportConfig &data);
+
 struct SavedCredentials {
 	bytes::vector hashForAuth;
 	bytes::vector hashForSecret;
@@ -387,6 +394,7 @@ private:
 
 	void requestForm();
 	void requestPassword();
+	void requestConfig();
 
 	void formDone(const MTPaccount_AuthorizationForm &result);
 	void formFail(const QString &error);
@@ -436,6 +444,7 @@ private:
 	bool validateValueSecrets(Value &value) const;
 	void resetValue(Value &value) const;
 	void fillErrors();
+	void fillNativeFromFallback();
 
 	void loadFile(File &file);
 	void fileLoadDone(FileKey key, const QByteArray &bytes);
@@ -505,6 +514,7 @@ private:
 	mtpRequestId _formRequestId = 0;
 	mtpRequestId _passwordRequestId = 0;
 	mtpRequestId _passwordCheckRequestId = 0;
+	mtpRequestId _configRequestId = 0;
 
 	PasswordSettings _password;
 	TimeMs _lastSrpIdInvalidTime = 0;
