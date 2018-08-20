@@ -32,6 +32,7 @@ inline QString ConvertLegacyLanguageId(const QString &languageId) {
 }
 
 QString DefaultLanguageId();
+QString CloudLangPackName();
 
 class Instance;
 Instance &Current();
@@ -53,12 +54,15 @@ public:
 
 	QString systemLangCode() const;
 	QString cloudLangCode() const;
+	QString langPackName() const;
 
 	QString id() const {
 		return _id;
 	}
 	bool isCustom() const {
-		return (_id == qstr("custom") || _id == qstr("TEST_X") || _id == qstr("TEST_0"));
+		return (_id == qstr("custom")
+			|| _id == qstr("TEST_X")
+			|| _id == qstr("TEST_0"));
 	}
 	int version() const {
 		return _version;
@@ -69,7 +73,8 @@ public:
 	void fillFromLegacy(int legacyId, const QString &legacyPath);
 
 	void applyDifference(const MTPDlangPackDifference &difference);
-	static std::map<LangKey, QString> ParseStrings(const MTPVector<MTPLangPackString> &strings);
+	static std::map<LangKey, QString> ParseStrings(
+		const MTPVector<MTPLangPackString> &strings);
 	base::Observable<void> &updated() {
 		return _updated;
 	}
@@ -77,11 +82,13 @@ public:
 	QString getValue(LangKey key) const {
 		Expects(key >= 0 && key < kLangKeysCount);
 		Expects(_values.size() == kLangKeysCount);
+
 		return _values[key];
 	}
 	bool isNonDefaultPlural(LangKey key) const {
 		Expects(key >= 0 && key < kLangKeysCount);
 		Expects(_nonDefaultSet.size() == kLangKeysCount);
+
 		return _nonDefaultSet[key]
 			|| _nonDefaultSet[key + 1]
 			|| _nonDefaultSet[key + 2]
@@ -95,11 +102,17 @@ private:
 	// It is called for all key-value pairs in string.
 	// ResetCallback takes one QByteArray: key.
 	template <typename SetCallback, typename ResetCallback>
-	static void HandleString(const MTPLangPackString &mtpString, SetCallback setCallback, ResetCallback resetCallback);
+	static void HandleString(
+		const MTPLangPackString &mtpString,
+		SetCallback setCallback,
+		ResetCallback resetCallback);
 
 	// Writes each key-value pair in the result container.
 	template <typename Result>
-	static LangKey ParseKeyValue(const QByteArray &key, const QByteArray &value, Result &result);
+	static LangKey ParseKeyValue(
+		const QByteArray &key,
+		const QByteArray &value,
+		Result &result);
 
 	void applyValue(const QByteArray &key, const QByteArray &value);
 	void resetValue(const QByteArray &key);
@@ -107,7 +120,10 @@ private:
 	void fillDefaults();
 	void fillFromCustomFile(const QString &filePath);
 	void loadFromContent(const QByteArray &content);
-	void loadFromCustomContent(const QString &absolutePath, const QString &relativePath, const QByteArray &content);
+	void loadFromCustomContent(
+		const QString &absolutePath,
+		const QString &relativePath,
+		const QByteArray &content);
 	void updatePluralRules();
 
 	QString _id;

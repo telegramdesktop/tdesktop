@@ -19,14 +19,19 @@ namespace Lang {
 namespace {
 
 constexpr auto kDefaultLanguage = str_const("en");
+constexpr auto kCloudLangPackName = str_const("tdesktop");
 constexpr auto kLangValuesLimit = 20000;
 
 class ValueParser {
 public:
-	ValueParser(const QByteArray &key, LangKey keyIndex, const QByteArray &value);
+	ValueParser(
+		const QByteArray &key,
+		LangKey keyIndex,
+		const QByteArray &value);
 
 	QString takeResult() {
 		Expects(!_failed);
+
 		return std::move(_result);
 	}
 
@@ -164,6 +169,10 @@ QString DefaultLanguageId() {
 	return str_const_toString(kDefaultLanguage);
 }
 
+QString CloudLangPackName() {
+	return str_const_toString(kCloudLangPackName);
+}
+
 void Instance::switchToId(const QString &id) {
 	reset();
 	_id = id;
@@ -226,6 +235,10 @@ QString Instance::cloudLangCode() const {
 		return DefaultLanguageId();
 	}
 	return id();
+}
+
+QString Instance::langPackName() const {
+	return isCustom() ? QString() : CloudLangPackName();
 }
 
 QByteArray Instance::serialize() const {
@@ -462,7 +475,9 @@ void Instance::applyValue(const QByteArray &key, const QByteArray &value) {
 void Instance::updatePluralRules() {
 	auto id = _id;
 	if (isCustom()) {
-		auto path = _customFilePathAbsolute.isEmpty() ? _customFilePathRelative : _customFilePathAbsolute;
+		auto path = _customFilePathAbsolute.isEmpty()
+			? _customFilePathRelative
+			: _customFilePathAbsolute;
 		auto name = QFileInfo(path).fileName();
 		if (auto match = qthelp::regex_match("_([a-z]{2,3})(_[A-Z]{2,3}|\\-[a-z]{2,3})?\\.", name)) {
 			id = match->captured(1);

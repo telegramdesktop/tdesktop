@@ -136,6 +136,7 @@ void Widget::createLanguageLink() {
 		createLink(Lang::GetOriginalValue(lng_switch_to_this), defaultId);
 	} else if (!suggestedId.isEmpty() && suggestedId != currentId) {
 		request(MTPlangpack_GetStrings(
+			MTP_string(Lang::CloudLangPackName()),
 			MTP_string(suggestedId),
 			MTP_vector<MTPstring>(1, MTP_string("lng_switch_to_this"))
 		)).done([=](const MTPVector<MTPLangPackString> &result) {

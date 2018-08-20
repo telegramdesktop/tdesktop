@@ -32,17 +32,22 @@ void CloudManager::requestLangPackDifference() {
 
 	auto version = _langpack.version();
 	if (version > 0) {
-		_langPackRequestId = request(MTPlangpack_GetDifference(MTP_int(version))).done([this](const MTPLangPackDifference &result) {
+		_langPackRequestId = request(MTPlangpack_GetDifference(
+			MTP_int(version)
+		)).done([=](const MTPLangPackDifference &result) {
 			_langPackRequestId = 0;
 			applyLangPackDifference(result);
-		}).fail([this](const RPCError &error) {
+		}).fail([=](const RPCError &error) {
 			_langPackRequestId = 0;
 		}).send();
 	} else {
-		_langPackRequestId = request(MTPlangpack_GetLangPack(MTP_string(_langpack.cloudLangCode()))).done([this](const MTPLangPackDifference &result) {
+		_langPackRequestId = request(MTPlangpack_GetLangPack(
+			MTP_string(CloudLangPackName()),
+			MTP_string(_langpack.cloudLangCode())
+		)).done([=](const MTPLangPackDifference &result) {
 			_langPackRequestId = 0;
 			applyLangPackDifference(result);
-		}).fail([this](const RPCError &error) {
+		}).fail([=](const RPCError &error) {
 			_langPackRequestId = 0;
 		}).send();
 	}
@@ -100,7 +105,9 @@ void CloudManager::applyLangPackDifference(const MTPLangPackDifference &differen
 }
 
 void CloudManager::requestLanguageList() {
-	_languagesRequestId = request(MTPlangpack_GetLanguages()).done([this](const MTPVector<MTPLangPackLanguage> &result) {
+	_languagesRequestId = request(MTPlangpack_GetLanguages(
+		MTP_string(CloudLangPackName())
+	)).done([=](const MTPVector<MTPLangPackLanguage> &result) {
 		auto languages = Languages();
 		for_const (auto &langData, result.v) {
 			Assert(langData.type() == mtpc_langPackLanguage);
@@ -112,7 +119,7 @@ void CloudManager::requestLanguageList() {
 			_languagesChanged.notify();
 		}
 		_languagesRequestId = 0;
-	}).fail([this](const RPCError &error) {
+	}).fail([=](const RPCError &error) {
 		_languagesRequestId = 0;
 	}).send();
 }
@@ -212,11 +219,17 @@ void CloudManager::switchToLanguage(QString id) {
 		keys.push_back(MTP_string("lng_sure_save_language"));
 		keys.push_back(MTP_string("lng_box_ok"));
 		keys.push_back(MTP_string("lng_cancel"));
-		_switchingToLanguageRequest = request(MTPlangpack_GetStrings(MTP_string(id), MTP_vector<MTPstring>(std::move(keys)))).done([this, id](const MTPVector<MTPLangPackString> &result) {
+		_switchingToLanguageRequest = request(MTPlangpack_GetStrings(
+			MTP_string(Lang::CloudLangPackName()),
+			MTP_string(id),
+			MTP_vector<MTPstring>(std::move(keys))
+		)).done([=](const MTPVector<MTPLangPackString> &result) {
 			auto values = Instance::ParseStrings(result);
 			auto getValue = [&values](LangKey key) {
 				auto it = values.find(key);
-				return (it == values.cend()) ? GetOriginalValue(key) : it->second;
+				return (it == values.cend())
+					? GetOriginalValue(key)
+					: it->second;
 			};
 			auto text = getValue(lng_sure_save_language);
 			auto save = getValue(lng_box_ok);

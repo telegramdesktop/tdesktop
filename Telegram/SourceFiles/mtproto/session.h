@@ -108,6 +108,7 @@ struct ConnectionOptions {
 	ConnectionOptions(
 		const QString &systemLangCode,
 		const QString &cloudLangCode,
+		const QString &langPackName,
 		const ProxyData &proxy,
 		bool useIPv4,
 		bool useIPv6,
@@ -118,6 +119,7 @@ struct ConnectionOptions {
 
 	QString systemLangCode;
 	QString cloudLangCode;
+	QString langPackName;
 	ProxyData proxy;
 	bool useIPv4 = true;
 	bool useIPv6 = true;

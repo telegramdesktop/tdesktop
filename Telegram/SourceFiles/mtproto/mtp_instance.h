@@ -53,6 +53,7 @@ public:
 	DcId mainDcId() const;
 	QString systemLangCode() const;
 	QString cloudLangCode() const;
+	QString langPackName() const;
 
 	void setKeyForWrite(DcId dcId, const AuthKeyPtr &key);
 	AuthKeysList getKeysForWrite() const;

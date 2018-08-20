@@ -30,6 +30,7 @@ QString LogIds(const QVector<uint64> &ids) {
 ConnectionOptions::ConnectionOptions(
 	const QString &systemLangCode,
 	const QString &cloudLangCode,
+	const QString &langPackName,
 	const ProxyData &proxy,
 	bool useIPv4,
 	bool useIPv6,
@@ -37,6 +38,7 @@ ConnectionOptions::ConnectionOptions(
 	bool useTcp)
 : systemLangCode(systemLangCode)
 , cloudLangCode(cloudLangCode)
+, langPackName(langPackName)
 , proxy(proxy)
 , useIPv4(useIPv4)
 , useIPv6(useIPv6)
@@ -63,6 +65,7 @@ void SessionData::notifyConnectionInited(const ConnectionOptions &options) {
 	QWriteLocker locker(&_lock);
 	if (options.cloudLangCode == _options.cloudLangCode
 		&& options.systemLangCode == _options.systemLangCode
+		&& options.langPackName == _options.langPackName
 		&& options.proxy == _options.proxy
 		&& !_options.inited) {
 		_options.inited = true;
@@ -178,6 +181,7 @@ void Session::refreshOptions() {
 	data.applyConnectionOptions(ConnectionOptions(
 		_instance->systemLangCode(),
 		_instance->cloudLangCode(),
+		_instance->langPackName(),
 		Global::UseProxy() ? proxy : ProxyData(),
 		useIPv4,
 		useIPv6,

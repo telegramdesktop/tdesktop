@@ -817,7 +817,7 @@ void ConnectionPrivate::tryToSend() {
 		Assert(_connectionOptions != nullptr);
 		const auto systemLangCode = _connectionOptions->systemLangCode;
 		const auto cloudLangCode = _connectionOptions->cloudLangCode;
-		const auto langPack = "tdesktop";
+		const auto langPackName = _connectionOptions->langPackName;
 		const auto deviceModel = (_dcType == DcType::Cdn)
 			? "n/a"
 			: Messenger::Instance().launcher()->deviceModel();
@@ -845,7 +845,7 @@ void ConnectionPrivate::tryToSend() {
 			MTP_string(systemVersion),
 			MTP_string(appVersion),
 			MTP_string(systemLangCode),
-			MTP_string(langPack),
+			MTP_string(langPackName),
 			MTP_string(cloudLangCode),
 			clientProxyFields,
 			SecureRequest());

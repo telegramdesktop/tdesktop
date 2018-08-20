@@ -1524,6 +1524,10 @@ QString Instance::cloudLangCode() const {
 	return Lang::Current().cloudLangCode();
 }
 
+QString Instance::langPackName() const {
+	return Lang::Current().langPackName();
+}
+
 void Instance::requestConfig() {
 	_private->requestConfig();
 }
