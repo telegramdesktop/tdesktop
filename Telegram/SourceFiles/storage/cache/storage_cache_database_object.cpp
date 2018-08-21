@@ -25,6 +25,8 @@ namespace Cache {
 namespace details {
 namespace {
 
+constexpr auto kMaxDelayAfterFailure = 24 * 60 * 60 * crl::time_type(1000);
+
 uint32 CountChecksum(bytes::const_span data) {
 	const auto seed = uint32(0);
 	return XXH32(data.data(), data.size(), seed);
@@ -63,7 +65,7 @@ DatabaseObject::Entry::Entry(
 	uint8 tag,
 	uint32 checksum,
 	size_type size,
-	int64 useTime)
+	uint64 useTime)
 : useTime(useTime)
 , size(size)
 , checksum(checksum)
@@ -80,8 +82,10 @@ DatabaseObject::DatabaseObject(
 , _settings(settings)
 , _writeBundlesTimer(_weak, [=] { writeBundles(); checkCompactor(); })
 , _pruneTimer(_weak, [=] { prune(); }) {
-	Expects(_settings.maxDataSize < kDataSizeLimit);
-	Expects(_settings.maxBundledRecords < kBundledRecordsLimit);
+	Expects(_settings.maxDataSize > 0
+		&& _settings.maxDataSize < kDataSizeLimit);
+	Expects(_settings.maxBundledRecords > 0
+		&& _settings.maxBundledRecords < kBundledRecordsLimit);
 	Expects(!_settings.totalTimeLimit
 		|| _settings.totalTimeLimit > 0);
 	Expects(!_settings.totalSizeLimit
@@ -89,7 +93,9 @@ DatabaseObject::DatabaseObject(
 }
 
 template <typename Callback, typename ...Args>
-void DatabaseObject::invokeCallback(Callback &&callback, Args &&...args) {
+void DatabaseObject::invokeCallback(
+		Callback &&callback,
+		Args &&...args) const {
 	if (callback) {
 		callback(std::move(args)...);
 	}
@@ -137,23 +143,39 @@ QString DatabaseObject::computePath(Version version) const {
 	return _base + QString::number(version) + '/';
 }
 
-QString DatabaseObject::binlogFilename() const {
+QString DatabaseObject::BinlogFilename() {
 	return QStringLiteral("binlog");
 }
 
+QString DatabaseObject::CompactReadyFilename() {
+	return QStringLiteral("binlog-ready");
+}
+
 QString DatabaseObject::binlogPath(Version version) const {
-	return computePath(version) + binlogFilename();
+	return computePath(version) + BinlogFilename();
 }
 
 QString DatabaseObject::binlogPath() const {
-	return _path + binlogFilename();
+	return _path + BinlogFilename();
+}
+
+QString DatabaseObject::compactReadyPath(Version version) const {
+	return computePath(version) + CompactReadyFilename();
+}
+
+QString DatabaseObject::compactReadyPath() const {
+	return _path + CompactReadyFilename();
 }
 
 File::Result DatabaseObject::openBinlog(
 		Version version,
 		File::Mode mode,
 		EncryptionKey &key) {
+	const auto ready = compactReadyPath(version);
 	const auto path = binlogPath(version);
+	if (QFile(ready).exists() && !File::Move(ready, path)) {
+		return File::Result::Failed;
+	}
 	const auto result = _binlog.open(path, mode, key);
 	if (result == File::Result::Success) {
 		const auto headerRequired = (mode == File::Mode::Read)
@@ -180,14 +202,14 @@ bool DatabaseObject::readHeader() {
 		!= !!(header.flags & header.kTrackEstimatedTime)) {
 		return false;
 	}
-	_relativeTime = _latestSystemTime = header.systemTime;
+	_time.setRelative((_time.system = header.systemTime));
 	return true;
 }
 
 bool DatabaseObject::writeHeader() {
 	auto header = BasicHeader();
 	const auto now = _settings.trackEstimatedTime ? GetUnixtime() : 0;
-	_relativeTime = _latestSystemTime = header.systemTime = now;
+	_time.setRelative((_time.system = header.systemTime = now));
 	if (_settings.trackEstimatedTime) {
 		header.flags |= header.kTrackEstimatedTime;
 	}
@@ -243,16 +265,17 @@ void DatabaseObject::readBinlog() {
 	optimize();
 }
 
-int64 DatabaseObject::countRelativeTime() const {
+uint64 DatabaseObject::countRelativeTime() const {
 	const auto now = GetUnixtime();
-	const auto delta = std::max(int64(now) - int64(_latestSystemTime), 0LL);
-	return _relativeTime + delta;
+	const auto delta = std::max(int64(now) - int64(_time.system), 0LL);
+	return _time.getRelative() + delta;
 }
 
-int64 DatabaseObject::pruneBeforeTime() const {
-	return _settings.totalTimeLimit
-		? (countRelativeTime() - _settings.totalTimeLimit)
-		: 0LL;
+uint64 DatabaseObject::pruneBeforeTime() const {
+	const auto relative = countRelativeTime();
+	return (_settings.totalTimeLimit && relative > _settings.totalTimeLimit)
+		? (relative - _settings.totalTimeLimit)
+		: 0ULL;
 }
 
 void DatabaseObject::optimize() {
@@ -265,12 +288,13 @@ bool DatabaseObject::startDelayedPruning() {
 	if (!_settings.trackEstimatedTime || _map.empty()) {
 		return false;
 	}
+	const auto before = pruneBeforeTime();
 	const auto pruning = [&] {
 		if (_settings.totalSizeLimit > 0
 			&& _totalSize > _settings.totalSizeLimit) {
 			return true;
 		} else if (_minimalEntryTime != 0
-			&& _minimalEntryTime <= pruneBeforeTime()) {
+			&& _minimalEntryTime <= before) {
 			return true;
 		}
 		return false;
@@ -282,8 +306,8 @@ bool DatabaseObject::startDelayedPruning() {
 		}
 		return true;
 	} else if (_minimalEntryTime != 0) {
-		const auto before = pruneBeforeTime();
-		const auto seconds = (_minimalEntryTime - before);
+		Assert(_minimalEntryTime > before);
+		const auto seconds = int64(_minimalEntryTime - before);
 		if (!_pruneTimer.isActive()) {
 			_pruneTimer.callOnce(std::min(
 				seconds * crl::time_type(1000),
@@ -384,7 +408,7 @@ void DatabaseObject::adjustRelativeTime() {
 		return;
 	}
 	const auto now = GetUnixtime();
-	if (now < _latestSystemTime) {
+	if (now < _time.system) {
 		writeMultiAccessBlock();
 	}
 }
@@ -402,7 +426,7 @@ bool DatabaseObject::processRecordStoreGeneric(
 		record->tag,
 		record->checksum,
 		size,
-		_relativeTime);
+		_time.getRelative());
 	if (!postprocess(entry, record)) {
 		return false;
 	}
@@ -424,7 +448,7 @@ bool DatabaseObject::processRecordStore(
 			Entry &entry,
 			not_null<const StoreWithTime*> record) {
 		applyTimePoint(record->time);
-		entry.useTime = _relativeTime;
+		entry.useTime = record->time.getRelative();
 		return true;
 	};
 	return processRecordStoreGeneric(record, postprocess);
@@ -464,16 +488,14 @@ bool DatabaseObject::processRecordMultiAccess(
 		const GetElement &element) {
 	Expects(_settings.trackEstimatedTime);
 
-	if (header.time.relativeAdvancement > _settings.maxTimeAdvancement) {
-		return false;
-	}
 	applyTimePoint(header.time);
+	const auto relative = header.time.getRelative();
 
 	_binlogExcessLength += sizeof(header);
 	while (const auto entry = element()) {
 		_binlogExcessLength += sizeof(*entry);
 		if (const auto i = _map.find(*entry); i != end(_map)) {
-			i->second.useTime = _relativeTime;
+			i->second.useTime = relative;
 		}
 	}
 	return true;
@@ -516,26 +538,78 @@ void DatabaseObject::eraseMapEntry(const Map::const_iterator &i) {
 }
 
 EstimatedTimePoint DatabaseObject::countTimePoint() const {
-	const auto now = std::max(GetUnixtime(), 1);
-	const auto delta = std::max(int64(now) - int64(_latestSystemTime), 0LL);
+	const auto now = GetUnixtime();
+	const auto delta = std::max(int64(now) - int64(_time.system), 0LL);
 	auto result = EstimatedTimePoint();
 	result.system = now;
-	result.relativeAdvancement = std::min(
-		delta,
-		int64(_settings.maxTimeAdvancement));
+	result.setRelative(_time.getRelative() + delta);
 	return result;
 }
 
 void DatabaseObject::applyTimePoint(EstimatedTimePoint time) {
-	_relativeTime += time.relativeAdvancement;
-	_latestSystemTime = time.system;
+	const auto possible = time.getRelative();
+	const auto current = _time.getRelative();
+	if (possible > current) {
+		_time = time;
+	}
+}
+
+void DatabaseObject::compactorDone(
+		const QString &path,
+		int64 originalReadTill) {
+	const auto size = _binlog.size();
+	const auto binlog = binlogPath();
+	const auto ready = compactReadyPath();
+	if (originalReadTill != size) {
+		originalReadTill = CatchUp(
+			path,
+			binlog,
+			_key,
+			originalReadTill,
+			_settings.readBlockSize);
+		if (originalReadTill != size) {
+			compactorFail();
+			return;
+		}
+	} else if (!File::Move(path, ready)) {
+		compactorFail();
+		return;
+	}
+	const auto guard = gsl::finally([&] {
+		_compactor = CompactorWrap();
+	});
+	_binlog.close();
+	if (!File::Move(ready, binlog)) {
+		// megafail
+		compactorFail();
+		return;
+	}
+	const auto result = _binlog.open(path, File::Mode::ReadAppend, _key);
+	if (result != File::Result::Success || !_binlog.seek(_binlog.size())) {
+		// megafail
+		compactorFail();
+		return;
+	}
+	_binlogExcessLength -= _compactor.excessLength;
+	Assert(_binlogExcessLength >= 0);
+}
+
+void DatabaseObject::compactorFail() {
+	const auto delay = _compactor.delayAfterFailure;
+	_compactor = CompactorWrap();
+	_compactor.nextAttempt = crl::time() + delay;
+	_compactor.delayAfterFailure = std::min(
+		delay * 2,
+		kMaxDelayAfterFailure);
+	QFile(compactReadyPath()).remove();
 }
 
 void DatabaseObject::close(FnMut<void()> done) {
 	writeBundles();
 	_cleaner = CleanerWrap();
-	_compactor = nullptr;
+	_compactor = CompactorWrap();
 	_binlog.close();
+	_key = EncryptionKey();
 	invokeCallback(done);
 	_map.clear();
 	_binlogExcessLength = 0;
@@ -643,12 +717,14 @@ base::optional<QString> DatabaseObject::writeKeyPlace(
 	}
 	auto record = StoreWithTime();
 	record.time = countTimePoint();
-	if (record.time.relativeAdvancement * crl::time_type(1000)
+	const auto writing = record.time.getRelative();
+	const auto current = _time.getRelative();
+	Assert(writing >= current);
+	if ((writing - current) * crl::time_type(1000)
 		< _settings.writeBundleDelay) {
-		// We don't want to produce a lot of unique relativeTime values.
+		// We don't want to produce a lot of unique _time.relative values.
 		// So if change in it is not large we stick to the old value.
-		record.time.system = _latestSystemTime;
-		record.time.relativeAdvancement = 0;
+		record.time = _time;
 	}
 	return writeKeyPlaceGeneric(std::move(record), key, data, checksum);
 }
@@ -782,10 +858,10 @@ void DatabaseObject::writeMultiAccessBlock() {
 			list.push_back(key);
 		}
 	}
-	applyTimePoint(time);
+	_time = time;
 	for (const auto &entry : list) {
 		if (const auto i = _map.find(entry); i != end(_map)) {
-			i->second.useTime = _relativeTime;
+			i->second.useTime = _time.getRelative();
 		}
 	}
 
@@ -826,7 +902,7 @@ void DatabaseObject::cleanerDone(Error error) {
 }
 
 void DatabaseObject::checkCompactor() {
-	if (_compactor
+	if (_compactor.object
 		|| !_settings.compactAfterExcess
 		|| _binlogExcessLength < _settings.compactAfterExcess) {
 		return;
@@ -835,8 +911,20 @@ void DatabaseObject::checkCompactor() {
 			< _settings.compactAfterExcess * _binlog.size()) {
 			return;
 		}
+	} else if (crl::time() < _compactor.nextAttempt) {
+		return;
 	}
-	_compactor = std::make_unique<Compactor>(_path, _weak);
+	auto info = Compactor::Info();
+	info.till = _binlog.size();
+	info.systemTime = _time.system;
+	info.keysCount = _map.size();
+	_compactor.object = std::make_unique<Compactor>(
+		_weak,
+		_path,
+		_settings,
+		base::duplicate(_key),
+		info);
+	_compactor.excessLength = _binlogExcessLength;
 }
 
 void DatabaseObject::clear(FnMut<void(Error)> done) {
@@ -846,6 +934,18 @@ void DatabaseObject::clear(FnMut<void(Error)> done) {
 	invokeCallback(
 		done,
 		writeVersion(version) ? Error::NoError() : ioError(versionPath()));
+}
+
+auto DatabaseObject::getManyRaw(const std::vector<Key> keys) const
+-> std::vector<Raw> {
+	auto result = std::vector<Raw>();
+	result.reserve(keys.size());
+	for (const auto &key : keys) {
+		if (const auto i = _map.find(key); i != end(_map)) {
+			result.push_back(*i);
+		}
+	}
+	return result;
 }
 
 DatabaseObject::~DatabaseObject() {

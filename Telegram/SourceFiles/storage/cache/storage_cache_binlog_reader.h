@@ -21,8 +21,9 @@ class BinlogReader;
 
 class BinlogWrapper {
 public:
-	BinlogWrapper(File &binlog, const Settings &settings);
+	BinlogWrapper(File &binlog, const Settings &settings, int64 till = 0);
 
+	bool finished() const;
 	bool failed() const;
 
 private:

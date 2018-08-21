@@ -309,4 +309,25 @@ bool File::seek(int64 offset) {
 	return true;
 }
 
+bool File::Move(const QString &from, const QString &to) {
+	QFile source(from);
+	if (!source.exists()) {
+		return false;
+	}
+	QFile destination(to);
+	if (destination.exists()) {
+		FileLock locker;
+		if (!locker.lock(destination, QIODevice::WriteOnly)) {
+			return false;
+		}
+		locker.unlock();
+		destination.close();
+		if (!destination.remove()) {
+			return false;
+		}
+	}
+	return source.rename(to);
+}
+
+
 } // namespace Storage

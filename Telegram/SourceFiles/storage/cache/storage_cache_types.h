@@ -40,11 +40,11 @@ struct Settings {
 
 	int64 compactAfterExcess = 8 * 1024 * 1024;
 	int64 compactAfterFullSize = 0;
+	size_type compactChunkSize = 16 * 1024;
 
 	bool trackEstimatedTime = true;
 	int64 totalSizeLimit = 1024 * 1024 * 1024;
 	size_type totalTimeLimit = 30 * 86400; // One month in seconds.
-	size_type maxTimeAdvancement = 365 * 86400; // One year in seconds.
 	crl::time_type pruneTimeout = 5 * crl::time_type(1000);
 	crl::time_type maxPruneCheckTimeout = 3600 * crl::time_type(1000);
 };
@@ -131,8 +131,17 @@ struct BasicHeader {
 };
 
 struct EstimatedTimePoint {
+	uint32 relative1 = 0;
+	uint32 relative2 = 0;
 	uint32 system = 0;
-	uint32 relativeAdvancement = 0;
+
+	void setRelative(uint64 value) {
+		relative1 = uint32(value & 0xFFFFFFFFU);
+		relative2 = uint32((value >> 32) & 0xFFFFFFFFU);
+	}
+	uint64 getRelative() const {
+		return uint64(relative1) | (uint64(relative2) << 32);
+	}
 };
 
 struct Store {
@@ -145,12 +154,10 @@ struct Store {
 	uint32 checksum = 0;
 	Key key;
 };
-static_assert(GoodForEncryption<Store>);
 
 struct StoreWithTime : Store {
 	EstimatedTimePoint time;
-	uint32 reserved1 = 0;
-	uint32 reserved2 = 0;
+	uint32 reserved = 0;
 };
 
 struct MultiStore {
@@ -168,6 +175,8 @@ struct MultiStore {
 	size_type validateCount() const;
 };
 struct MultiStoreWithTime : MultiStore {
+	using MultiStore::MultiStore;
+
 	using Part = StoreWithTime;
 };
 
@@ -196,7 +205,6 @@ struct MultiAccess {
 	RecordType type = kType;
 	RecordsCount count = { { 0 } };
 	EstimatedTimePoint time;
-	uint32 reserved = 0;
 
 	using Part = Key;
 	size_type validateCount() const;

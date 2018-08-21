@@ -43,6 +43,8 @@ public:
 
 	void close();
 
+	static bool Move(const QString &from, const QString &to);
+
 private:
 	Result attemptOpen(Mode mode, const EncryptionKey &key);
 	Result attemptOpenForRead(const EncryptionKey &key);

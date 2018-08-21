@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include <set>
 
 #include <range/v3/all.hpp>

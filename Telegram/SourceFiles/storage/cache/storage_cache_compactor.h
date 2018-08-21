@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <crl/crl_object_on_queue.h>
 
 namespace Storage {
+class EncryptionKey;
 namespace Cache {
 namespace details {
 
@@ -19,9 +20,18 @@ class DatabaseObject;
 
 class Compactor {
 public:
+	struct Info {
+		int64 till = 0;
+		uint32 systemTime = 0;
+		size_type keysCount = 0;
+	};
+
 	Compactor(
-		const QString &path,
-		crl::weak_on_queue<DatabaseObject> database);
+		crl::weak_on_queue<DatabaseObject> database,
+		const QString &base,
+		const Settings &settings,
+		EncryptionKey &&key,
+		const Info &info);
 
 	~Compactor();
 
@@ -30,6 +40,13 @@ private:
 	crl::object_on_queue<Implementation> _wrapped;
 
 };
+
+int64 CatchUp(
+	const QString &compactPath,
+	const QString &binlogPath,
+	const EncryptionKey &key,
+	int64 from,
+	size_type block);
 
 } // namespace details
 } // namespace Cache

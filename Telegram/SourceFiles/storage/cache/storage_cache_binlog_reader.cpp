@@ -11,12 +11,19 @@ namespace Storage {
 namespace Cache {
 namespace details {
 
-BinlogWrapper::BinlogWrapper(File &binlog, const Settings &settings)
+BinlogWrapper::BinlogWrapper(
+	File &binlog,
+	const Settings &settings,
+	int64 till)
 : _binlog(binlog)
 , _settings(settings)
-, _till(_binlog.size())
+, _till(till ? till : _binlog.size())
 , _data(_settings.readBlockSize)
 , _full(_data) {
+}
+
+bool BinlogWrapper::finished() const {
+	return _finished;
 }
 
 bool BinlogWrapper::failed() const {

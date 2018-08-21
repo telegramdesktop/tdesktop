@@ -38,9 +38,12 @@ public:
 
 	void clear(FnMut<void(Error)> done);
 
-	~DatabaseObject();
+	static QString BinlogFilename();
+	static QString CompactReadyFilename();
 
-private:
+	void compactorDone(const QString &path, int64 originalReadTill);
+	void compactorFail();
+
 	struct Entry {
 		Entry() = default;
 		Entry(
@@ -48,29 +51,42 @@ private:
 			uint8 tag,
 			uint32 checksum,
 			size_type size,
-			int64 useTime);
+			uint64 useTime);
 
-		int64 useTime = 0;
+		uint64 useTime = 0;
 		size_type size = 0;
 		uint32 checksum = 0;
 		PlaceId place = { { 0 } };
 		uint8 tag = 0;
 	};
+	using Raw = std::pair<Key, Entry>;
+	std::vector<Raw> getManyRaw(const std::vector<Key> keys) const;
+
+	~DatabaseObject();
+
+private:
 	struct CleanerWrap {
 		std::unique_ptr<Cleaner> object;
 		base::binary_guard guard;
 	};
+	struct CompactorWrap {
+		std::unique_ptr<Compactor> object;
+		int64 excessLength = 0;
+		crl::time_type nextAttempt = 0;
+		crl::time_type delayAfterFailure = 10 * crl::time_type(1000);
+	};
 	using Map = std::unordered_map<Key, Entry>;
 
 	template <typename Callback, typename ...Args>
-	void invokeCallback(Callback &&callback, Args &&...args);
+	void invokeCallback(Callback &&callback, Args &&...args) const;
 
 	Error ioError(const QString &path) const;
 
 	QString computePath(Version version) const;
 	QString binlogPath(Version version) const;
 	QString binlogPath() const;
-	QString binlogFilename() const;
+	QString compactReadyPath(Version version) const;
+	QString compactReadyPath() const;
 	File::Result openBinlog(
 		Version version,
 		File::Mode mode,
@@ -106,10 +122,10 @@ private:
 	void checkCompactor();
 	void adjustRelativeTime();
 	bool startDelayedPruning();
-	int64 countRelativeTime() const;
+	uint64 countRelativeTime() const;
 	EstimatedTimePoint countTimePoint() const;
 	void applyTimePoint(EstimatedTimePoint time);
-	int64 pruneBeforeTime() const;
+	uint64 pruneBeforeTime() const;
 	void prune();
 	void collectTimePrune(
 		base::flat_set<Key> &stale,
@@ -161,20 +177,18 @@ private:
 	std::set<Key> _removing;
 	std::set<Key> _accessed;
 
-	int64 _relativeTime = 0;
-	int64 _timeCorrection = 0;
-	uint32 _latestSystemTime = 0;
+	EstimatedTimePoint _time;
 
 	int64 _binlogExcessLength = 0;
 	int64 _totalSize = 0;
-	int64 _minimalEntryTime = 0;
+	uint64 _minimalEntryTime = 0;
 	size_type _entriesWithMinimalTimeCount = 0;
 
 	base::ConcurrentTimer _writeBundlesTimer;
 	base::ConcurrentTimer _pruneTimer;
 
 	CleanerWrap _cleaner;
-	std::unique_ptr<Compactor> _compactor;
+	CompactorWrap _compactor;
 
 };
 
