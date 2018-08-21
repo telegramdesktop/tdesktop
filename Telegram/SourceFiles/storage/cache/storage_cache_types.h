@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/basic_types.h"
 #include "base/optional.h"
+#include <crl/crl_time.h>
 
 namespace Storage {
 namespace Cache {
@@ -30,6 +31,23 @@ inline bool operator!=(const Key &a, const Key &b) {
 inline bool operator<(const Key &a, const Key &b) {
 	return std::tie(a.high, a.low) < std::tie(b.high, b.low);
 }
+
+struct Settings {
+	size_type maxBundledRecords = 16 * 1024;
+	size_type readBlockSize = 8 * 1024 * 1024;
+	size_type maxDataSize = 10 * 1024 * 1024;
+	crl::time_type writeBundleDelay = 15 * 60 * crl::time_type(1000);
+
+	int64 compactAfterExcess = 8 * 1024 * 1024;
+	int64 compactAfterFullSize = 0;
+
+	bool trackEstimatedTime = true;
+	int64 totalSizeLimit = 1024 * 1024 * 1024;
+	size_type totalTimeLimit = 30 * 86400; // One month in seconds.
+	size_type maxTimeAdvancement = 365 * 86400; // One year in seconds.
+	crl::time_type pruneTimeout = 5 * crl::time_type(1000);
+	crl::time_type maxPruneCheckTimeout = 3600 * crl::time_type(1000);
+};
 
 using Version = int32;
 
@@ -61,7 +79,7 @@ using EntrySize = std::array<uint8, 3>;
 using RecordsCount = std::array<uint8, 3>;
 
 template <typename Packed>
-Packed ReadTo(size_type count) {
+inline Packed ReadTo(size_type count) {
 	Expects(count >= 0 && count < (1 << (Packed().size() * 8)));
 
 	auto result = Packed();
@@ -73,13 +91,19 @@ Packed ReadTo(size_type count) {
 }
 
 template <typename Packed>
-size_type ReadFrom(Packed count) {
+inline size_type ReadFrom(const Packed &count) {
 	auto result = size_type();
 	for (auto &element : (count | ranges::view::reverse)) {
 		result <<= 8;
 		result |= size_type(element);
 	}
 	return result;
+}
+
+template <typename Packed>
+inline size_type ValidateStrictCount(const Packed &count) {
+	const auto result = ReadFrom(count);
+	return (result != 0) ? result : -1;
 }
 
 constexpr auto kRecordSizeUnknown = size_type(-1);
@@ -105,7 +129,6 @@ struct BasicHeader {
 	uint32 reserved1 = 0;
 	uint32 reserved2 = 0;
 };
-static_assert(GoodForEncryption<BasicHeader>);
 
 struct EstimatedTimePoint {
 	uint32 system = 0;
@@ -129,44 +152,44 @@ struct StoreWithTime : Store {
 	uint32 reserved1 = 0;
 	uint32 reserved2 = 0;
 };
-static_assert(GoodForEncryption<StoreWithTime>);
 
-struct MultiStoreHeader {
+struct MultiStore {
 	static constexpr auto kType = RecordType(0x02);
 
-	explicit MultiStoreHeader(size_type count = 0);
+	explicit MultiStore(size_type count = 0);
 
 	RecordType type = kType;
 	RecordsCount count = { { 0 } };
 	uint32 reserved1 = 0;
 	uint32 reserved2 = 0;
 	uint32 reserved3 = 0;
-};
-using MultiStorePart = Store;
-using MultiStoreWithTimePart = StoreWithTime;
-static_assert(GoodForEncryption<MultiStoreHeader>);
 
-struct MultiRemoveHeader {
+	using Part = Store;
+	size_type validateCount() const;
+};
+struct MultiStoreWithTime : MultiStore {
+	using Part = StoreWithTime;
+};
+
+struct MultiRemove {
 	static constexpr auto kType = RecordType(0x03);
 
-	explicit MultiRemoveHeader(size_type count = 0);
+	explicit MultiRemove(size_type count = 0);
 
 	RecordType type = kType;
 	RecordsCount count = { { 0 } };
 	uint32 reserved1 = 0;
 	uint32 reserved2 = 0;
 	uint32 reserved3 = 0;
-};
-struct MultiRemovePart {
-	Key key;
-};
-static_assert(GoodForEncryption<MultiRemoveHeader>);
-static_assert(GoodForEncryption<MultiRemovePart>);
 
-struct MultiAccessHeader {
+	using Part = Key;
+	size_type validateCount() const;
+};
+
+struct MultiAccess {
 	static constexpr auto kType = RecordType(0x04);
 
-	explicit MultiAccessHeader(
+	explicit MultiAccess(
 		EstimatedTimePoint time,
 		size_type count = 0);
 
@@ -174,12 +197,10 @@ struct MultiAccessHeader {
 	RecordsCount count = { { 0 } };
 	EstimatedTimePoint time;
 	uint32 reserved = 0;
+
+	using Part = Key;
+	size_type validateCount() const;
 };
-struct MultiAccessPart {
-	Key key;
-};
-static_assert(GoodForEncryption<MultiAccessHeader>);
-static_assert(GoodForEncryption<MultiAccessPart>);
 
 } // namespace details
 } // namespace Cache

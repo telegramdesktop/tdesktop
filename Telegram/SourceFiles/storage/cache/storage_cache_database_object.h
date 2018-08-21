@@ -79,26 +79,28 @@ private:
 	bool writeHeader();
 
 	void readBinlog();
-	size_type readBinlogRecords(bytes::const_span data);
-	size_type readBinlogRecordSize(bytes::const_span data) const;
-	bool readBinlogRecord(bytes::const_span data);
-	template <typename RecordStore>
-	bool readRecordStoreGeneric(bytes::const_span data);
-	bool readRecordStore(bytes::const_span data);
-	template <typename StorePart>
-	bool readRecordMultiStoreGeneric(bytes::const_span data);
-	bool readRecordMultiStore(bytes::const_span data);
-	bool readRecordMultiRemove(bytes::const_span data);
-	bool readRecordMultiAccess(bytes::const_span data);
-	template <typename RecordStore, typename Postprocess>
+	template <typename Reader, typename ...Handlers>
+	void readBinlogHelper(Reader &reader, Handlers &&...handlers);
+	template <typename Record, typename Postprocess>
 	bool processRecordStoreGeneric(
-		const RecordStore *record,
+		const Record *record,
 		Postprocess &&postprocess);
 	bool processRecordStore(const Store *record, std::is_class<Store>);
 	bool processRecordStore(
 		const StoreWithTime *record,
 		std::is_class<StoreWithTime>);
-	size_type storeRecordSize() const;
+	template <typename Record, typename GetElement>
+	bool processRecordMultiStore(
+		const Record &header,
+		const GetElement &element);
+	template <typename GetElement>
+	bool processRecordMultiRemove(
+		const MultiRemove &header,
+		const GetElement &element);
+	template <typename GetElement>
+	bool processRecordMultiAccess(
+		const MultiAccess &header,
+		const GetElement &element);
 
 	void optimize();
 	void checkCompactor();

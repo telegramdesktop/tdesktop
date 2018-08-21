@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/cache/storage_cache_cleaner.h"
 #include "storage/cache/storage_cache_compactor.h"
+#include "storage/cache/storage_cache_binlog_reader.h"
 #include "storage/storage_encryption.h"
 #include "storage/storage_encrypted_file.h"
 #include "base/flat_map.h"
@@ -193,30 +194,51 @@ bool DatabaseObject::writeHeader() {
 	return _binlog.write(bytes::object_as_span(&header));
 }
 
-void DatabaseObject::readBinlog() {
-	auto data = bytes::vector(_settings.readBlockSize);
-	const auto full = bytes::make_span(data);
-	auto notParsedBytes = index_type(0);
+template <typename Reader, typename ...Handlers>
+void DatabaseObject::readBinlogHelper(
+		Reader &reader,
+		Handlers &&...handlers) {
 	while (true) {
-		Assert(notParsedBytes < full.size());
-		const auto readBytes = _binlog.read(full.subspan(notParsedBytes));
-		if (!readBytes) {
+		const auto done = reader.readTillEnd(
+			std::forward<Handlers>(handlers)...);
+		if (done) {
 			break;
-		}
-		notParsedBytes += readBytes;
-		const auto bytes = full.subspan(0, notParsedBytes);
-		const auto parsedTill = readBinlogRecords(bytes);
-		if (parsedTill == kRecordSizeInvalid) {
-			break;
-		}
-		Assert(parsedTill >= 0 && parsedTill <= notParsedBytes);
-		notParsedBytes -= parsedTill;
-		if (parsedTill > 0 && parsedTill < bytes.size()) {
-			bytes::move(full, bytes.subspan(parsedTill));
 		}
 	}
-	_binlog.seek(_binlog.offset() - notParsedBytes);
+}
 
+void DatabaseObject::readBinlog() {
+	BinlogWrapper wrapper(_binlog, _settings);
+	if (_settings.trackEstimatedTime) {
+		BinlogReader<
+			StoreWithTime,
+			MultiStoreWithTime,
+			MultiRemove,
+			MultiAccess> reader(wrapper);
+		readBinlogHelper(reader, [&](const StoreWithTime &record) {
+			return processRecordStore(
+				&record,
+				std::is_class<StoreWithTime>{});
+		}, [&](const MultiStoreWithTime &header, const auto &element) {
+			return processRecordMultiStore(header, element);
+		}, [&](const MultiRemove &header, const auto &element) {
+			return processRecordMultiRemove(header, element);
+		}, [&](const MultiAccess &header, const auto &element) {
+			return processRecordMultiAccess(header, element);
+		});
+	} else {
+		BinlogReader<
+			Store,
+			MultiStore,
+			MultiRemove> reader(wrapper);
+		readBinlogHelper(reader, [&](const Store &record) {
+			return processRecordStore(&record, std::is_class<Store>{});
+		}, [&](const MultiStore &header, const auto &element) {
+			return processRecordMultiStore(header, element);
+		}, [&](const MultiRemove &header, const auto &element) {
+			return processRecordMultiRemove(header, element);
+		});
+	}
 	adjustRelativeTime();
 	optimize();
 }
@@ -367,107 +389,9 @@ void DatabaseObject::adjustRelativeTime() {
 	}
 }
 
-size_type DatabaseObject::readBinlogRecords(bytes::const_span data) {
-	auto result = 0;
-	while (true) {
-		const auto size = readBinlogRecordSize(data);
-		if (size == kRecordSizeUnknown || size > data.size()) {
-			return result;
-		} else if (size == kRecordSizeInvalid
-			|| !readBinlogRecord(data.subspan(0, size))) {
-			return (result > 0) ? result : kRecordSizeInvalid;
-		} else {
-			result += size;
-			data = data.subspan(size);
-		}
-	}
-}
-
-size_type DatabaseObject::readBinlogRecordSize(bytes::const_span data) const {
-	if (data.empty()) {
-		return kRecordSizeUnknown;
-	}
-
-	switch (static_cast<RecordType>(data[0])) {
-	case Store::kType:
-		return storeRecordSize();
-
-	case MultiStoreHeader::kType:
-		if (data.size() >= sizeof(MultiStoreHeader)) {
-			const auto header = reinterpret_cast<const MultiStoreHeader*>(
-				data.data());
-			const auto count = ReadFrom(header->count);
-			const auto size = _settings.trackEstimatedTime
-				? sizeof(MultiStoreWithTimePart)
-				: sizeof(MultiStorePart);
-			return (count > 0 && count < _settings.maxBundledRecords)
-				? (sizeof(MultiStoreHeader) + count * size)
-				: kRecordSizeInvalid;
-		}
-		return kRecordSizeUnknown;
-
-	case MultiRemoveHeader::kType:
-		if (data.size() >= sizeof(MultiRemoveHeader)) {
-			const auto header = reinterpret_cast<const MultiRemoveHeader*>(
-				data.data());
-			const auto count = ReadFrom(header->count);
-			return (count > 0 && count < _settings.maxBundledRecords)
-				? (sizeof(MultiRemoveHeader)
-					+ count * sizeof(MultiRemovePart))
-				: kRecordSizeInvalid;
-		}
-		return kRecordSizeUnknown;
-
-	case MultiAccessHeader::kType:
-		if (!_settings.trackEstimatedTime) {
-			return kRecordSizeInvalid;
-		} else if (data.size() >= sizeof(MultiAccessHeader)) {
-			const auto header = reinterpret_cast<const MultiAccessHeader*>(
-				data.data());
-			const auto count = ReadFrom(header->count);
-			return (count >= 0 && count < _settings.maxBundledRecords)
-				? (sizeof(MultiAccessHeader)
-					+ count * sizeof(MultiAccessPart))
-				: kRecordSizeInvalid;
-		}
-		return kRecordSizeUnknown;
-
-	}
-	return kRecordSizeInvalid;
-}
-
-bool DatabaseObject::readBinlogRecord(bytes::const_span data) {
-	Expects(!data.empty());
-
-	switch (static_cast<RecordType>(data[0])) {
-	case Store::kType:
-		return readRecordStore(data);
-
-	case MultiStoreHeader::kType:
-		return readRecordMultiStore(data);
-
-	case MultiRemoveHeader::kType:
-		return readRecordMultiRemove(data);
-
-	case MultiAccessHeader::kType:
-		return readRecordMultiAccess(data);
-
-	}
-	Unexpected("Bad type in DatabaseObject::readBinlogRecord.");
-}
-
-template <typename RecordStore>
-bool DatabaseObject::readRecordStoreGeneric(bytes::const_span data) {
-	Expects(data.size() == sizeof(RecordStore));
-
-	return processRecordStore(
-		reinterpret_cast<const RecordStore*>(data.data()),
-		std::is_class<RecordStore>{});
-}
-
-template <typename RecordStore, typename Postprocess>
+template <typename Record, typename Postprocess>
 bool DatabaseObject::processRecordStoreGeneric(
-		const RecordStore *record,
+		const Record *record,
 		Postprocess &&postprocess) {
 	const auto size = ReadFrom(record->size);
 	if (size <= 0 || size > _settings.maxDataSize) {
@@ -506,52 +430,62 @@ bool DatabaseObject::processRecordStore(
 	return processRecordStoreGeneric(record, postprocess);
 }
 
-bool DatabaseObject::readRecordStore(bytes::const_span data) {
-	if (!_settings.trackEstimatedTime) {
-		return readRecordStoreGeneric<Store>(data);
-	}
-	return readRecordStoreGeneric<StoreWithTime>(data);
-}
-
-template <typename StorePart>
-bool DatabaseObject::readRecordMultiStoreGeneric(bytes::const_span data) {
-	Expects(data.size() >= sizeof(MultiStoreHeader));
-
-	const auto bytes = data.data();
-	const auto record = reinterpret_cast<const MultiStoreHeader*>(bytes);
-	const auto count = ReadFrom(record->count);
-	Assert(data.size() == sizeof(MultiStoreHeader)
-		+ count * sizeof(StorePart));
-	const auto parts = gsl::make_span(
-		reinterpret_cast<const StorePart*>(
-			bytes + sizeof(MultiStoreHeader)),
-		count);
-	for (const auto &part : parts) {
-		if (!processRecordStore(&part, std::is_class<StorePart>{})) {
+template <typename Record, typename GetElement>
+bool DatabaseObject::processRecordMultiStore(
+		const Record &header,
+		const GetElement &element) {
+	while (const auto entry = element()) {
+		if (!processRecordStore(
+				entry,
+				std::is_class<typename Record::Part>{})) {
 			return false;
 		}
 	}
 	return true;
 }
 
-bool DatabaseObject::readRecordMultiStore(bytes::const_span data) {
-	if (!_settings.trackEstimatedTime) {
-		return readRecordMultiStoreGeneric<MultiStorePart>(data);
+template <typename GetElement>
+bool DatabaseObject::processRecordMultiRemove(
+		const MultiRemove &header,
+		const GetElement &element) {
+	_binlogExcessLength += sizeof(header);
+	while (const auto entry = element()) {
+		_binlogExcessLength += sizeof(*entry);
+		if (const auto i = _map.find(*entry); i != end(_map)) {
+			eraseMapEntry(i);
+		}
 	}
-	return readRecordMultiStoreGeneric<MultiStoreWithTimePart>(data);
+	return true;
 }
 
-size_type DatabaseObject::storeRecordSize() const {
-	return _settings.trackEstimatedTime
-		? sizeof(StoreWithTime)
-		: sizeof(Store);
+template <typename GetElement>
+bool DatabaseObject::processRecordMultiAccess(
+		const MultiAccess &header,
+		const GetElement &element) {
+	Expects(_settings.trackEstimatedTime);
+
+	if (header.time.relativeAdvancement > _settings.maxTimeAdvancement) {
+		return false;
+	}
+	applyTimePoint(header.time);
+
+	_binlogExcessLength += sizeof(header);
+	while (const auto entry = element()) {
+		_binlogExcessLength += sizeof(*entry);
+		if (const auto i = _map.find(*entry); i != end(_map)) {
+			i->second.useTime = _relativeTime;
+		}
+	}
+	return true;
 }
 
 void DatabaseObject::setMapEntry(const Key &key, Entry &&entry) {
 	auto &already = _map[key];
 	_totalSize += entry.size - already.size;
 	if (already.size != 0) {
-		_binlogExcessLength += storeRecordSize();
+		_binlogExcessLength += _settings.trackEstimatedTime
+			? sizeof(StoreWithTime)
+			: sizeof(Store);
 	}
 	if (entry.useTime != 0
 		&& (entry.useTime < _minimalEntryTime || !_minimalEntryTime)) {
@@ -581,27 +515,6 @@ void DatabaseObject::eraseMapEntry(const Map::const_iterator &i) {
 	}
 }
 
-bool DatabaseObject::readRecordMultiRemove(bytes::const_span data) {
-	Expects(data.size() >= sizeof(MultiRemoveHeader));
-
-	const auto bytes = data.data();
-	const auto record = reinterpret_cast<const MultiRemoveHeader*>(bytes);
-	const auto count = ReadFrom(record->count);
-	Assert(data.size() == sizeof(MultiRemoveHeader)
-		+ count * sizeof(MultiRemovePart));
-	const auto parts = gsl::make_span(
-		reinterpret_cast<const MultiRemovePart*>(
-			bytes + sizeof(MultiRemoveHeader)),
-		count);
-	for (const auto &part : parts) {
-		if (const auto i = _map.find(part.key); i != end(_map)) {
-			eraseMapEntry(i);
-		}
-	}
-	_binlogExcessLength += data.size();
-	return true;
-}
-
 EstimatedTimePoint DatabaseObject::countTimePoint() const {
 	const auto now = std::max(GetUnixtime(), 1);
 	const auto delta = std::max(int64(now) - int64(_latestSystemTime), 0LL);
@@ -616,32 +529,6 @@ EstimatedTimePoint DatabaseObject::countTimePoint() const {
 void DatabaseObject::applyTimePoint(EstimatedTimePoint time) {
 	_relativeTime += time.relativeAdvancement;
 	_latestSystemTime = time.system;
-}
-
-bool DatabaseObject::readRecordMultiAccess(bytes::const_span data) {
-	Expects(data.size() >= sizeof(MultiAccessHeader));
-	Expects(_settings.trackEstimatedTime);
-
-	const auto bytes = data.data();
-	const auto record = reinterpret_cast<const MultiAccessHeader*>(bytes);
-	if (record->time.relativeAdvancement > _settings.maxTimeAdvancement) {
-		return false;
-	}
-	applyTimePoint(record->time);
-	const auto count = ReadFrom(record->count);
-	Assert(data.size() == sizeof(MultiAccessHeader)
-		+ count * sizeof(MultiAccessPart));
-	const auto parts = gsl::make_span(
-		reinterpret_cast<const MultiAccessPart*>(
-			bytes + sizeof(MultiAccessHeader)),
-		count);
-	for (const auto &part : parts) {
-		if (const auto i = _map.find(part.key); i != end(_map)) {
-			i->second.useTime = _relativeTime;
-		}
-	}
-	_binlogExcessLength += data.size();
-	return true;
 }
 
 void DatabaseObject::close(FnMut<void()> done) {
@@ -740,7 +627,9 @@ base::optional<QString> DatabaseObject::writeKeyPlaceGeneric(
 	}
 	_binlog.flush();
 
-	const auto applied = readRecordStore(bytes::object_as_span(&record));
+	const auto applied = processRecordStore(
+		&record,
+		std::is_class<StoreRecord>{});
 	Assert(applied);
 	return result;
 }
@@ -850,11 +739,11 @@ void DatabaseObject::writeMultiRemove() {
 		return;
 	}
 	const auto size = _removing.size();
-	auto header = MultiRemoveHeader(size);
-	auto list = std::vector<MultiRemovePart>();
+	auto header = MultiRemove(size);
+	auto list = std::vector<MultiRemove::Part>();
 	list.reserve(size);
 	for (const auto &key : base::take(_removing)) {
-		list.push_back({ key });
+		list.push_back(key);
 	}
 	if (_binlog.write(bytes::object_as_span(&header))) {
 		_binlog.write(bytes::make_span(list));
@@ -885,17 +774,17 @@ void DatabaseObject::writeMultiAccessBlock() {
 
 	const auto time = countTimePoint();
 	const auto size = _accessed.size();
-	auto header = MultiAccessHeader(time, size);
-	auto list = std::vector<MultiAccessPart>();
+	auto header = MultiAccess(time, size);
+	auto list = std::vector<MultiAccess::Part>();
 	if (size > 0) {
 		list.reserve(size);
 		for (const auto &key : base::take(_accessed)) {
-			list.push_back({ key });
+			list.push_back(key);
 		}
 	}
 	applyTimePoint(time);
 	for (const auto &entry : list) {
-		if (const auto i = _map.find(entry.key); i != end(_map)) {
+		if (const auto i = _map.find(entry); i != end(_map)) {
 			i->second.useTime = _relativeTime;
 		}
 	}

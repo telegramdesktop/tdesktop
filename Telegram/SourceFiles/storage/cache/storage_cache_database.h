@@ -25,22 +25,7 @@ using Error = details::Error;
 
 class Database {
 public:
-	struct Settings {
-		size_type maxBundledRecords = 16 * 1024;
-		size_type readBlockSize = 8 * 1024 * 1024;
-		size_type maxDataSize = 10 * 1024 * 1024;
-		crl::time_type writeBundleDelay = 15 * 60 * crl::time_type(1000);
-
-		int64 compactAfterExcess = 8 * 1024 * 1024;
-		int64 compactAfterFullSize = 0;
-
-		bool trackEstimatedTime = true;
-		int64 totalSizeLimit = 1024 * 1024 * 1024;
-		size_type totalTimeLimit = 30 * 86400; // One month in seconds.
-		size_type maxTimeAdvancement = 365 * 86400; // One year in seconds.
-		crl::time_type pruneTimeout = 5 * crl::time_type(1000);
-		crl::time_type maxPruneCheckTimeout = 3600 * crl::time_type(1000);
-	};
+	using Settings = details::Settings;
 	Database(const QString &path, const Settings &settings);
 
 	void open(EncryptionKey key, FnMut<void(Error)> done);

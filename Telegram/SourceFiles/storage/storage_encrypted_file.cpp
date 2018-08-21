@@ -208,7 +208,9 @@ bool File::write(bytes::span bytes) {
 
 	encrypt(bytes);
 	const auto count = writePlain(bytes);
-	if (count != bytes.size()) {
+	if (count == bytes.size()) {
+		_dataSize = std::max(_dataSize, offset());
+	} else {
 		decryptBack(bytes);
 		if (count > 0) {
 			_data.seek(_data.pos() - count);

@@ -105,7 +105,7 @@ TEST_CASE("simple encrypted file", "[storage_encrypted_file]") {
 			Key);
 		REQUIRE(result == Storage::File::Result::Success);
 
-		auto data = bytes::vector(16);
+		auto data = bytes::vector(Test1.size());
 		const auto read = file.read(data);
 		REQUIRE(read == data.size());
 		REQUIRE(data == bytes::make_vector(Test1));
@@ -122,24 +122,29 @@ TEST_CASE("simple encrypted file", "[storage_encrypted_file]") {
 			Key);
 		REQUIRE(result == Storage::File::Result::Success);
 		REQUIRE(file.offset() == 0);
+		REQUIRE(file.size() == Test1.size() + Test2.size());
 
-		const auto success1 = file.seek(16);
+		const auto success1 = file.seek(Test1.size());
 		REQUIRE(success1);
-		REQUIRE(file.offset() == 16);
+		REQUIRE(file.offset() == Test1.size());
 
-		auto data = bytes::vector(16);
+		auto data = bytes::vector(Test2.size());
 		const auto read = file.read(data);
 		REQUIRE(read == data.size());
 		REQUIRE(data == bytes::make_vector(Test2));
-		REQUIRE(file.offset() == 32);
+		REQUIRE(file.offset() == Test1.size() + Test2.size());
+		REQUIRE(file.size() == Test1.size() + Test2.size());
 
-		const auto success2 = file.seek(16);
+		const auto success2 = file.seek(Test1.size());
 		REQUIRE(success2);
-		REQUIRE(file.offset() == 16);
+		REQUIRE(file.offset() == Test1.size());
 
 		data = bytes::make_vector(Test1);
-		const auto success3 = file.write(data);
+		const auto success3 = file.write(data) && file.write(data);
 		REQUIRE(success3);
+
+		REQUIRE(file.offset() == 3 * Test1.size());
+		REQUIRE(file.size() == 3 * Test1.size());
 	}
 	SECTION("reading file") {
 		Storage::File file;

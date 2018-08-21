@@ -57,25 +57,37 @@ BasicHeader::BasicHeader()
 , flags(0) {
 }
 
-MultiStoreHeader::MultiStoreHeader(size_type count)
+MultiStore::MultiStore(size_type count)
 : type(kType)
 , count(ReadTo<RecordsCount>(count)) {
 	Expects(count >= 0 && count < kBundledRecordsLimit);
 }
 
-MultiRemoveHeader::MultiRemoveHeader(size_type count)
+size_type MultiStore::validateCount() const {
+	return ValidateStrictCount(count);
+}
+
+MultiRemove::MultiRemove(size_type count)
 : type(kType)
 , count(ReadTo<RecordsCount>(count)) {
 	Expects(count >= 0 && count < kBundledRecordsLimit);
 }
 
-MultiAccessHeader::MultiAccessHeader(
+size_type MultiRemove::validateCount() const {
+	return ValidateStrictCount(count);
+}
+
+MultiAccess::MultiAccess(
 	EstimatedTimePoint time,
 	size_type count)
 : type(kType)
 , count(ReadTo<RecordsCount>(count))
 , time(time) {
 	Expects(count >= 0 && count < kBundledRecordsLimit);
+}
+
+size_type MultiAccess::validateCount() const {
+	return ReadFrom(count);
 }
 
 } // namespace details
