@@ -378,17 +378,41 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 			scope.type,
 			document ? base::make_optional(document->type) : base::none,
 			scope.details ? scope.details->nativeNames : false);
+		using ValueClass = EditDocumentScheme::ValueClass;
+		const auto skipAdditional = [&] {
+			if (!fields) {
+				return false;
+			}
+			for (const auto &row : scheme.rows) {
+				if (row.valueClass == ValueClass::Additional) {
+					const auto i = fields->find(row.key);
+					const auto native = (i == end(*fields))
+						? QString()
+						: i->second.text;
+					const auto j = fields->find(row.additionalFallbackKey);
+					const auto latin = (j == end(*fields))
+						? QString()
+						: j->second.text;
+					if (latin != native) {
+						return false;
+					}
+				}
+			}
+			return true;
+		}();
 		for (const auto &row : scheme.rows) {
 			const auto format = row.format;
-			if (row.valueClass != EditDocumentScheme::ValueClass::Scans) {
+			if (row.valueClass != ValueClass::Scans) {
 				if (!fields) {
+					continue;
+				} else if (row.valueClass == ValueClass::Additional
+					&& skipAdditional) {
 					continue;
 				}
 				const auto i = fields->find(row.key);
-				if (i == end(*fields)) {
-					return QString();
-				}
-				const auto text = i->second.text;
+				const auto text = (i == end(*fields))
+					? QString()
+					: i->second.text;
 				if (row.error && row.error(text).has_value()) {
 					return QString();
 				}
@@ -400,10 +424,9 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 				continue;
 			} else {
 				const auto i = document->data.parsed.fields.find(row.key);
-				if (i == end(document->data.parsed.fields)) {
-					return QString();
-				}
-				const auto text = i->second.text;
+				const auto text = (i == end(document->data.parsed.fields))
+					? QString()
+					: i->second.text;
 				if (row.error && row.error(text).has_value()) {
 					return QString();
 				}

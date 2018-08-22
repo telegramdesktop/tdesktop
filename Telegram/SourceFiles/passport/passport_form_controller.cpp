@@ -1222,31 +1222,51 @@ void FormController::fillErrors() {
 }
 
 void FormController::fillNativeFromFallback() {
+	// Check if additional values (*_name_native) were requested.
 	const auto i = _form.values.find(Value::Type::PersonalDetails);
 	if (i == end(_form.values) || !i->second.nativeNames) {
 		return;
 	}
+	auto values = i->second.data.parsed;
+
+	// Check if additional values should be copied from fallback values.
 	const auto scheme = GetDocumentScheme(
 		Scope::Type::PersonalDetails,
 		base::none,
 		true);
+	const auto dependencyIt = values.fields.find(
+		scheme.additionalDependencyKey);
+	const auto dependency = (dependencyIt == end(values.fields))
+		? QString()
+		: dependencyIt->second.text;
+	if (scheme.additionalShown(dependency)
+		!= EditDocumentScheme::AdditionalVisibility::OnlyIfError) {
+		return;
+	}
+
+	// Copy additional values from fallback if they're not filled yet.
 	auto changed = false;
-	auto values = i->second.data.parsed;
 	using Scheme = EditDocumentScheme;
 	for (const auto &row : scheme.rows) {
 		if (row.valueClass == Scheme::ValueClass::Additional) {
-			auto &field = values.fields[row.key];
-			if (!field.text.isEmpty() || !field.error.isEmpty()) {
+			const auto nativeIt = values.fields.find(row.key);
+			const auto native = (nativeIt == end(values.fields))
+				? QString()
+				: nativeIt->second.text;
+			if (!native.isEmpty()
+				|| (nativeIt != end(values.fields)
+					&& !nativeIt->second.error.isEmpty())) {
 				return;
 			}
-			const auto i = values.fields.find(row.additionalFallbackKey);
-			const auto value = (i == end(values.fields))
+			const auto latinIt = values.fields.find(
+				row.additionalFallbackKey);
+			const auto latin = (latinIt == end(values.fields))
 				? QString()
-				: i->second.text;
-			if (row.error(value).has_value()) {
+				: latinIt->second.text;
+			if (row.error(latin).has_value()) {
 				return;
-			} else if (field.text != value) {
-				field.text = value;
+			} else if (native != latin) {
+				values.fields[row.key].text = latin;
 				changed = true;
 			}
 		}
@@ -2461,10 +2481,6 @@ void FormController::formDone(const MTPaccount_AuthorizationForm &result) {
 }
 
 void FormController::requestConfig() {
-	const auto i = _form.values.find(Value::Type::PersonalDetails);
-	if (i == end(_form.values) || !i->second.nativeNames) {
-		return;
-	}
 	const auto hash = ConfigInstance().hash;
 	_configRequestId = request(MTPhelp_GetPassportConfig(
 		MTP_int(hash)
