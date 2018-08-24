@@ -72,6 +72,40 @@ const auto GetValue = [](QByteArray value) {
 	Semaphore.release();
 };
 
+Error Open(Database &db, const Storage::EncryptionKey &key) {
+	db.open(key, GetResult);
+	Semaphore.acquire();
+	return Result;
+}
+
+void Close(Database &db) {
+	db.close([&] { Semaphore.release(); });
+	Semaphore.acquire();
+}
+
+Error Clear(Database &db) {
+	db.clear(GetResult);
+	Semaphore.acquire();
+	return Result;
+}
+
+QByteArray Get(Database &db, const Key &key) {
+	db.get(key, GetValue);
+	Semaphore.acquire();
+	return Value;
+}
+
+Error Put(Database &db, const Key &key, const QByteArray &value) {
+	db.put(key, value, GetResult);
+	Semaphore.acquire();
+	return Result;
+}
+
+void Remove(Database &db, const Key &key) {
+	db.remove(Key{ 0, 1 }, [&] { Semaphore.release(); });
+	Semaphore.acquire();
+}
+
 const auto Settings = [] {
 	auto result = Database::Settings();
 	result.trackEstimatedTime = false;
@@ -96,100 +130,44 @@ TEST_CASE("encrypted cache db", "[storage_cache_database]") {
 	SECTION("writing db") {
 		Database db(name, Settings);
 
-		db.clear(GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
-		db.open(key, GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
-		db.put(Key{ 0, 1 }, TestValue1, GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
-		db.close([&] { Semaphore.release(); });
-		Semaphore.acquire();
+		REQUIRE(Clear(db).type == Error::Type::None);
+		REQUIRE(Open(db, key).type == Error::Type::None);
+		REQUIRE(Put(db, Key{ 0, 1 }, TestValue1).type == Error::Type::None);
+		Close(db);
 	}
 	SECTION("reading and writing db") {
 		Database db(name, Settings);
 
-		db.open(key, GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
-		db.get(Key{ 0, 1 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE((Value == TestValue1));
-
-		db.put(Key{ 1, 0 }, TestValue2, GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
-		db.get(Key{ 1, 0 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE((Value == TestValue2));
-
-		db.get(Key{ 1, 1 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE(Value.isEmpty());
-
-		db.close([&] { Semaphore.release(); });
-		Semaphore.acquire();
+		REQUIRE(Open(db, key).type == Error::Type::None);
+		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue1));
+		REQUIRE(Put(db, Key{ 1, 0 }, TestValue2).type == Error::Type::None);
+		REQUIRE((Get(db, Key{ 1, 0 }) == TestValue2));
+		REQUIRE(Get(db, Key{ 1, 1 }).isEmpty());
+		Close(db);
 	}
 	SECTION("reading db") {
 		Database db(name, Settings);
 
-		db.open(key, GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
-		db.get(Key{ 0, 1 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE((Value == TestValue1));
-
-		db.get(Key{ 1, 0 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE((Value == TestValue2));
-
-		db.close([&] { Semaphore.release(); });
-		Semaphore.acquire();
+		REQUIRE(Open(db, key).type == Error::Type::None);
+		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue1));
+		REQUIRE((Get(db, Key{ 1, 0 }) == TestValue2));
+		Close(db);
 	}
 	SECTION("overwriting values") {
 		Database db(name, Settings);
 
-		db.open(key, GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
+		REQUIRE(Open(db, key).type == Error::Type::None);
 		const auto path = GetBinlogPath();
-
-		db.get(Key{ 0, 1 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE((Value == TestValue1));
-
+		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue1));
 		const auto size = QFile(path).size();
-
-		db.put(Key{ 0, 1 }, TestValue2, GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
+		REQUIRE(Put(db, Key{ 0, 1 }, TestValue2).type == Error::Type::None);
 		const auto next = QFile(path).size();
 		REQUIRE(next > size);
-
-		db.get(Key{ 0, 1 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE((Value == TestValue2));
-
-		db.put(Key{ 0, 1 }, TestValue2, GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
+		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue2));
+		REQUIRE(Put(db, Key{ 0, 1 }, TestValue2).type == Error::Type::None);
 		const auto same = QFile(path).size();
 		REQUIRE(same == next);
-
-		db.close([&] { Semaphore.release(); });
-		Semaphore.acquire();
+		Close(db);
 	}
 }
 
@@ -197,47 +175,22 @@ TEST_CASE("cache db remove", "[storage_cache_database]") {
 	SECTION("db remove deletes value") {
 		Database db(name, Settings);
 
-		db.clear(GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
-		db.open(key, GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
-		db.put(Key{ 0, 1 }, TestValue1, GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
-		db.put(Key{ 1, 0 }, TestValue2, GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
+		REQUIRE(Clear(db).type == Error::Type::None);
+		REQUIRE(Open(db, key).type == Error::Type::None);
+		REQUIRE(Put(db, Key{ 0, 1 }, TestValue1).type == Error::Type::None);
+		REQUIRE(Put(db, Key{ 1, 0 }, TestValue2).type == Error::Type::None);
 		db.remove(Key{ 0, 1 }, nullptr);
-		db.get(Key{ 0, 1 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE(Value.isEmpty());
-
-		db.get(Key{ 1, 0 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE((Value == TestValue2));
-
-		db.close([&] { Semaphore.release(); });
-		Semaphore.acquire();
+		REQUIRE(Get(db, Key{ 0, 1 }).isEmpty());
+		REQUIRE((Get(db, Key{ 1, 0 }) == TestValue2));
+		Close(db);
 	}
 	SECTION("db remove deletes value permanently") {
 		Database db(name, Settings);
 
-		db.open(key, GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
-		db.get(Key{ 1, 0 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE((Value == TestValue2));
-
-		db.close([&] { Semaphore.release(); });
-		Semaphore.acquire();
+		REQUIRE(Open(db, key).type == Error::Type::None);
+		REQUIRE(Get(db, Key{ 0, 1 }).isEmpty());
+		REQUIRE((Get(db, Key{ 1, 0 }) == TestValue2));
+		Close(db);
 	}
 }
 
@@ -247,134 +200,58 @@ TEST_CASE("cache db bundled actions", "[storage_cache_database]") {
 		settings.trackEstimatedTime = true;
 		Database db(name, settings);
 
-		db.clear(GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
-		db.open(key, GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
+		REQUIRE(Clear(db).type == Error::Type::None);
+		REQUIRE(Open(db, key).type == Error::Type::None);
 		const auto path = GetBinlogPath();
-
-		db.put(Key{ 0, 1 }, TestValue1, GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
+		REQUIRE(Put(db, Key{ 0, 1 }, TestValue1).type == Error::Type::None);
 		const auto size = QFile(path).size();
-
-		db.get(Key{ 0, 1 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE((Value == TestValue1));
-
-		const auto same = QFile(path).size();
-		REQUIRE(same == size);
-
+		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue1));
+		REQUIRE(QFile(path).size() == size);
 		AdvanceTime(2);
-
-		const auto next = QFile(path).size();
-		REQUIRE(next > size);
-
-		db.close([&] { Semaphore.release(); });
-		Semaphore.acquire();
+		REQUIRE(QFile(path).size() > size);
+		Close(db);
 	}
 	SECTION("db touched written on close") {
 		auto settings = Settings;
 		settings.trackEstimatedTime = true;
 		Database db(name, settings);
 
-		db.clear(GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
-		db.open(key, GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
+		REQUIRE(Clear(db).type == Error::Type::None);
+		REQUIRE(Open(db, key).type == Error::Type::None);
 		const auto path = GetBinlogPath();
-
-		db.put(Key{ 0, 1 }, TestValue1, GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
+		REQUIRE(Put(db, Key{ 0, 1 }, TestValue1).type == Error::Type::None);
 		const auto size = QFile(path).size();
-
-		db.get(Key{ 0, 1 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE((Value == TestValue1));
-
-		const auto same = QFile(path).size();
-		REQUIRE(same == size);
-
-		db.close([&] { Semaphore.release(); });
-		Semaphore.acquire();
-
-		const auto next = QFile(path).size();
-		REQUIRE(next > size);
+		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue1));
+		REQUIRE(QFile(path).size() == size);
+		Close(db);
+		REQUIRE(QFile(path).size() > size);
 	}
 	SECTION("db remove written lazily") {
 		Database db(name, Settings);
 
-		db.clear(GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
-		db.open(key, GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
+		REQUIRE(Clear(db).type == Error::Type::None);
+		REQUIRE(Open(db, key).type == Error::Type::None);
 		const auto path = GetBinlogPath();
-
-		db.put(Key{ 0, 1 }, TestValue1, GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
+		REQUIRE(Put(db, Key{ 0, 1 }, TestValue1).type == Error::Type::None);
 		const auto size = QFile(path).size();
-
-		db.remove(Key{ 0, 1 }, [&] { Semaphore.release(); });
-		Semaphore.acquire();
-
-		const auto same = QFile(path).size();
-		REQUIRE(same == size);
-
+		Remove(db, Key{ 0, 1 });
+		REQUIRE(QFile(path).size() == size);
 		AdvanceTime(2);
-
-		const auto next = QFile(path).size();
-		REQUIRE(next > size);
-
-		db.close([&] { Semaphore.release(); });
-		Semaphore.acquire();
+		REQUIRE(QFile(path).size() > size);
+		Close(db);
 	}
 	SECTION("db remove written on close") {
 		Database db(name, Settings);
 
-		db.clear(GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
-		db.open(key, GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
+		REQUIRE(Clear(db).type == Error::Type::None);
+		REQUIRE(Open(db, key).type == Error::Type::None);
 		const auto path = GetBinlogPath();
-
-		db.put(Key{ 0, 1 }, TestValue1, GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
-
+		REQUIRE(Put(db, Key{ 0, 1 }, TestValue1).type == Error::Type::None);
 		const auto size = QFile(path).size();
-
-		db.remove(Key{ 0, 1 }, [&] { Semaphore.release(); });
-		Semaphore.acquire();
-
-		const auto same = QFile(path).size();
-		REQUIRE(same == size);
-
-		db.close([&] { Semaphore.release(); });
-		Semaphore.acquire();
-
-		const auto next = QFile(path).size();
-		REQUIRE(next > size);
+		Remove(db, Key{ 0, 1 });
+		REQUIRE(QFile(path).size() == size);
+		Close(db);
+		REQUIRE(QFile(path).size() > size);
 	}
 }
 
@@ -397,24 +274,12 @@ TEST_CASE("cache db limits", "[storage_cache_database]") {
 		db.put(Key{ 2, 0 }, TestValue2, nullptr);
 		db.put(Key{ 0, 2 }, TestValue1, nullptr);
 		AdvanceTime(2);
-		db.get(Key{ 0, 1 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE(Value.isEmpty());
-		db.get(Key{ 1, 0 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE(Value.isEmpty());
-		db.get(Key{ 1, 1 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE((Value == TestValue1));
-		db.get(Key{ 2, 0 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE((Value == TestValue2));
-		db.get(Key{ 0, 2 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE((Value == TestValue1));
-
-		db.close([&] { Semaphore.release(); });
-		Semaphore.acquire();
+		REQUIRE(Get(db, Key{ 0, 1 }).isEmpty());
+		REQUIRE(Get(db, Key{ 1, 0 }).isEmpty());
+		REQUIRE((Get(db, Key{ 1, 1 }) == TestValue1));
+		REQUIRE((Get(db, Key{ 2, 0 }) == TestValue2));
+		REQUIRE((Get(db, Key{ 0, 2 }) == TestValue1));
+		Close(db);
 	}
 	SECTION("db size limit") {
 		auto settings = Settings;
@@ -434,54 +299,27 @@ TEST_CASE("cache db limits", "[storage_cache_database]") {
 		db.put(Key{ 2, 0 }, TestValue2, nullptr);
 
 		// Removing { 1, 0 } will be scheduled.
-		db.get(Key{ 0, 1 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE((Value == TestValue1));
-		db.get(Key{ 1, 1 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE((Value == TestValue1));
-		db.get(Key{ 2, 0 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE((Value == TestValue2));
-
+		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue1));
+		REQUIRE((Get(db, Key{ 1, 1 }) == TestValue1));
+		REQUIRE((Get(db, Key{ 2, 0 }) == TestValue2));
 		AdvanceTime(2);
 
 		// Removing { 1, 0 } performed.
-		db.get(Key{ 1, 0 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE(Value.isEmpty());
-		db.get(Key{ 1, 1 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE((Value == TestValue1));
-
+		REQUIRE(Get(db, Key{ 1, 0 }).isEmpty());
+		REQUIRE((Get(db, Key{ 1, 1 }) == TestValue1));
 		db.put(Key{ 0, 2 }, TestValue1, nullptr);
-		db.put(Key{ 2, 2 }, TestValue2, GetResult);
-		Semaphore.acquire();
-		REQUIRE(Result.type == Error::Type::None);
+		REQUIRE(Put(db, Key{ 2, 2 }, TestValue2).type == Error::Type::None);
 
 		// Removing { 0, 1 } and { 2, 0 } will be scheduled.
-
 		AdvanceTime(2);
 
 		// Removing { 0, 1 } and { 2, 0 } performed.
-		db.get(Key{ 0, 1 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE(Value.isEmpty());
-		db.get(Key{ 2, 0 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE(Value.isEmpty());
-		db.get(Key{ 1, 1 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE((Value == TestValue1));
-		db.get(Key{ 0, 2 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE((Value == TestValue1));
-		db.get(Key{ 2, 2 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE((Value == TestValue2));
-
-		db.close([&] { Semaphore.release(); });
-		Semaphore.acquire();
+		REQUIRE(Get(db, Key{ 0, 1 }).isEmpty());
+		REQUIRE(Get(db, Key{ 2, 0 }).isEmpty());
+		REQUIRE((Get(db, Key{ 1, 1 }) == TestValue1));
+		REQUIRE((Get(db, Key{ 0, 2 }) == TestValue1));
+		REQUIRE((Get(db, Key{ 2, 2 }) == TestValue2));
+		Close(db);
 	}
 	SECTION("db time limit") {
 		auto settings = Settings;
@@ -505,20 +343,10 @@ TEST_CASE("cache db limits", "[storage_cache_database]") {
 		db.get(Key{ 1, 0 }, nullptr);
 		db.get(Key{ 0, 1 }, nullptr);
 		AdvanceTime(3);
-		db.get(Key{ 2, 0 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE(Value.isEmpty());
-		db.get(Key{ 1, 1 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE(Value.isEmpty());
-		db.get(Key{ 1, 0 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE((Value == TestValue2));
-		db.get(Key{ 0, 1 }, GetValue);
-		Semaphore.acquire();
-		REQUIRE((Value == TestValue1));
-
-		db.close([&] { Semaphore.release(); });
-		Semaphore.acquire();
+		REQUIRE(Get(db, Key{ 2, 0 }).isEmpty());
+		REQUIRE(Get(db, Key{ 1, 1 }).isEmpty());
+		REQUIRE((Get(db, Key{ 1, 0 }) == TestValue2));
+		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue1));
+		Close(db);
 	}
 }
