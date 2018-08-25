@@ -316,11 +316,12 @@ bool File::Move(const QString &from, const QString &to) {
 	}
 	QFile destination(to);
 	if (destination.exists()) {
-		FileLock locker;
-		if (!locker.lock(destination, QIODevice::WriteOnly)) {
-			return false;
+		{
+			FileLock locker;
+			if (!locker.lock(destination, QIODevice::WriteOnly)) {
+				return false;
+			}
 		}
-		locker.unlock();
 		destination.close();
 		if (!destination.remove()) {
 			return false;

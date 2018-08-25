@@ -160,6 +160,10 @@ TEST_CASE("simple encrypted file", "[storage_encrypted_file]") {
 		REQUIRE(read == data.size());
 		REQUIRE(data == bytes::concatenate(Test1, Test1));
 	}
+	SECTION("moving file") {
+		const auto result = Storage::File::Move(Name, "other.file");
+		REQUIRE(result);
+	}
 }
 
 TEST_CASE("two process encrypted file", "[storage_encrypted_file]") {

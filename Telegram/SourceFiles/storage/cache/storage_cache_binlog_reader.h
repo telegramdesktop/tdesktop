@@ -26,6 +26,10 @@ public:
 	bool finished() const;
 	bool failed() const;
 
+	static base::optional<BasicHeader> ReadHeader(
+		File &binlog,
+		const Settings &settings);
+
 private:
 	template <typename ...Records>
 	friend class BinlogReader;
@@ -45,7 +49,6 @@ private:
 	bytes::vector _data;
 	bytes::span _full;
 	bytes::span _part;
-	index_type _notParsedBytes = 0;
 	bool _finished = false;
 	bool _failed = false;
 
@@ -158,7 +161,7 @@ inline size_type BinlogReaderRecursive<Record, Other...>::ReadRecordSize(
 		}
 		const auto head = reinterpret_cast<const Head*>(data.data());
 		const auto count = head->validateCount();
-		return (count >= 0 && count < partsLimit)
+		return (count >= 0 && count <= partsLimit)
 				? (sizeof(Head) + count * sizeof(Part))
 				: kRecordSizeInvalid;
 	} else {

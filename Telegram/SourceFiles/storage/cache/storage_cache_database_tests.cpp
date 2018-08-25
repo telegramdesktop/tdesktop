@@ -18,6 +18,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 using namespace Storage::Cache;
 
+const auto DisableLimitsTests = true;
+const auto DisableCompactTests = false;
+const auto DisableLargeTest = false;
+
 const auto key = Storage::EncryptionKey(bytes::make_vector(
 	bytes::make_span("\
 abcdefgh01234567abcdefgh01234567abcdefgh01234567abcdefgh01234567\
@@ -102,7 +106,7 @@ Error Put(Database &db, const Key &key, const QByteArray &value) {
 }
 
 void Remove(Database &db, const Key &key) {
-	db.remove(Key{ 0, 1 }, [&] { Semaphore.release(); });
+	db.remove(key, [&] { Semaphore.release(); });
 	Semaphore.acquire();
 }
 
@@ -119,7 +123,7 @@ const auto AdvanceTime = [](int32 seconds) {
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000) * seconds);
 };
 
-TEST_CASE("encrypted cache db", "[storage_cache_database]") {
+TEST_CASE("init timers", "[storage_cache_database]") {
 	static auto init = [] {
 		int argc = 0;
 		char **argv = nullptr;
@@ -127,6 +131,211 @@ TEST_CASE("encrypted cache db", "[storage_cache_database]") {
 		static base::ConcurrentTimerEnvironment environment;
 		return true;
 	}();
+}
+
+TEST_CASE("compacting db", "[storage_cache_database]") {
+	if (DisableCompactTests) {
+		return;
+	}
+	const auto write = [](Database &db, uint32 from, uint32 till, QByteArray base) {
+		for (auto i = from; i != till; ++i) {
+			auto value = base;
+			value[0] = char('A') + i;
+			const auto result = Put(db, Key{ i, i + 1 }, value);
+			REQUIRE(result.type == Error::Type::None);
+		}
+	};
+	const auto put = [&](Database &db, uint32 from, uint32 till) {
+		write(db, from, till, TestValue1);
+	};
+	const auto reput = [&](Database &db, uint32 from, uint32 till) {
+		write(db, from, till, TestValue2);
+	};
+	const auto remove = [](Database &db, uint32 from, uint32 till) {
+		for (auto i = from; i != till; ++i) {
+			Remove(db, Key{ i, i + 1 });
+		}
+	};
+	const auto get = [](Database &db, uint32 from, uint32 till) {
+		for (auto i = from; i != till; ++i) {
+			db.get(Key{ i, i + 1 }, nullptr);
+		}
+	};
+	const auto check = [](Database &db, uint32 from, uint32 till, QByteArray base) {
+		for (auto i = from; i != till; ++i) {
+			auto value = base;
+			if (!value.isEmpty()) {
+				value[0] = char('A') + i;
+			}
+			const auto result = Get(db, Key{ i, i + 1 });
+			REQUIRE((result == value));
+		}
+	};
+	SECTION("simple compact with min size") {
+		auto settings = Settings;
+		settings.writeBundleDelay = crl::time_type(100);
+		settings.readBlockSize = 512;
+		settings.maxBundledRecords = 5;
+		settings.compactAfterExcess = (3 * (16 * 5 + 16) + 15 * 32) / 2;
+		settings.compactAfterFullSize = (sizeof(details::BasicHeader)
+			+ 40 * 32) / 2
+			+ settings.compactAfterExcess;
+		Database db(name, settings);
+
+		REQUIRE(Clear(db).type == Error::Type::None);
+		REQUIRE(Open(db, key).type == Error::Type::None);
+		put(db, 0, 30);
+		remove(db, 0, 15);
+		put(db, 30, 40);
+		reput(db, 15, 29);
+		AdvanceTime(1);
+		const auto path = GetBinlogPath();
+		const auto size = QFile(path).size();
+		reput(db, 29, 30); // starts compactor
+		AdvanceTime(2);
+		REQUIRE(QFile(path).size() < size);
+		remove(db, 30, 35);
+		reput(db, 35, 37);
+		put(db, 15, 20);
+		put(db, 40, 45);
+
+		const auto fullcheck = [&] {
+			check(db, 0, 15, {});
+			check(db, 15, 20, TestValue1);
+			check(db, 20, 30, TestValue2);
+			check(db, 30, 35, {});
+			check(db, 35, 37, TestValue2);
+			check(db, 37, 45, TestValue1);
+		};
+		fullcheck();
+		Close(db);
+
+		REQUIRE(Open(db, key).type == Error::Type::None);
+		fullcheck();
+		Close(db);
+	}
+	SECTION("simple compact without min size") {
+		auto settings = Settings;
+		settings.writeBundleDelay = crl::time_type(100);
+		settings.readBlockSize = 512;
+		settings.maxBundledRecords = 5;
+		settings.compactAfterExcess = 3 * (16 * 5 + 16) + 15 * 32;
+		Database db(name, settings);
+
+		REQUIRE(Clear(db).type == Error::Type::None);
+		REQUIRE(Open(db, key).type == Error::Type::None);
+		put(db, 0, 30);
+		remove(db, 0, 15);
+		put(db, 30, 40);
+		reput(db, 15, 29);
+		AdvanceTime(1);
+		const auto path = GetBinlogPath();
+		const auto size = QFile(path).size();
+		reput(db, 29, 30); // starts compactor
+		AdvanceTime(2);
+		REQUIRE(QFile(path).size() < size);
+		remove(db, 30, 35);
+		reput(db, 35, 37);
+		put(db, 15, 20);
+		put(db, 40, 45);
+
+		const auto fullcheck = [&] {
+			check(db, 0, 15, {});
+			check(db, 15, 20, TestValue1);
+			check(db, 20, 30, TestValue2);
+			check(db, 30, 35, {});
+			check(db, 35, 37, TestValue2);
+			check(db, 37, 45, TestValue1);
+		};
+		fullcheck();
+		Close(db);
+
+		REQUIRE(Open(db, key).type == Error::Type::None);
+		fullcheck();
+		Close(db);
+	}
+	SECTION("double compact") {
+		auto settings = Settings;
+		settings.writeBundleDelay = crl::time_type(100);
+		settings.readBlockSize = 512;
+		settings.maxBundledRecords = 5;
+		settings.compactAfterExcess = 3 * (16 * 5 + 16) + 15 * 32;
+		Database db(name, settings);
+
+		REQUIRE(Clear(db).type == Error::Type::None);
+		REQUIRE(Open(db, key).type == Error::Type::None);
+		put(db, 0, 30);
+		remove(db, 0, 15);
+		reput(db, 15, 29);
+		AdvanceTime(1);
+		const auto path = GetBinlogPath();
+		const auto size1 = QFile(path).size();
+		reput(db, 29, 30); // starts compactor
+		AdvanceTime(2);
+		REQUIRE(QFile(path).size() < size1);
+		put(db, 30, 45);
+		remove(db, 20, 35);
+		put(db, 15, 20);
+		reput(db, 35, 44);
+		const auto size2 = QFile(path).size();
+		reput(db, 44, 45); // starts compactor
+		AdvanceTime(2);
+		const auto after = QFile(path).size();
+		REQUIRE(after < size1);
+		REQUIRE(after < size2);
+		const auto fullcheck = [&] {
+			check(db, 0, 15, {});
+			check(db, 15, 20, TestValue1);
+			check(db, 20, 35, {});
+			check(db, 35, 45, TestValue2);
+		};
+		fullcheck();
+		Close(db);
+
+		REQUIRE(Open(db, key).type == Error::Type::None);
+		fullcheck();
+		Close(db);
+	}
+	SECTION("time tracking compact") {
+		auto settings = Settings;
+		settings.writeBundleDelay = crl::time_type(100);
+		settings.trackEstimatedTime = true;
+		settings.readBlockSize = 512;
+		settings.maxBundledRecords = 5;
+		settings.compactAfterExcess = 6 * (16 * 5 + 16)
+			+ 3 * (16 * 5 + 16)
+			+ 15 * 48
+			+ 3 * (16 * 5 + 16)
+			+ (16 * 1 + 16);
+		Database db(name, settings);
+
+		REQUIRE(Clear(db).type == Error::Type::None);
+		REQUIRE(Open(db, key).type == Error::Type::None);
+		put(db, 0, 30);
+		get(db, 0, 30);
+		//AdvanceTime(1); get's will be written instantly becase !(30 % 5)
+		remove(db, 0, 15);
+		reput(db, 15, 30);
+		get(db, 0, 30);
+		AdvanceTime(1);
+		const auto path = GetBinlogPath();
+		const auto size = QFile(path).size();
+		get(db, 29, 30); // starts compactor delayed
+		AdvanceTime(2);
+		REQUIRE(QFile(path).size() < size);
+		const auto fullcheck = [&] {
+			check(db, 15, 30, TestValue2);
+		};
+		fullcheck();
+		Close(db);
+
+		REQUIRE(Open(db, key).type == Error::Type::None);
+		fullcheck();
+		Close(db);
+	}
+}
+
+TEST_CASE("encrypted cache db", "[storage_cache_database]") {
 	SECTION("writing db") {
 		Database db(name, Settings);
 
@@ -169,6 +378,33 @@ TEST_CASE("encrypted cache db", "[storage_cache_database]") {
 		REQUIRE(same == next);
 		Close(db);
 	}
+	SECTION("reading db in many chunks") {
+		auto settings = Settings;
+		settings.readBlockSize = 512;
+		settings.maxBundledRecords = 5;
+		settings.trackEstimatedTime = true;
+		Database db(name, settings);
+
+		const auto count = 30U;
+
+		REQUIRE(Clear(db).type == Error::Type::None);
+		REQUIRE(Open(db, key).type == Error::Type::None);
+		for (auto i = 0U; i != count; ++i) {
+			auto value = TestValue1;
+			value[0] = char('A') + i;
+			const auto result = Put(db, Key{ i, i * 2 }, value);
+			REQUIRE(result.type == Error::Type::None);
+		}
+		Close(db);
+
+		REQUIRE(Open(db, key).type == Error::Type::None);
+		for (auto i = 0U; i != count; ++i) {
+			auto value = TestValue1;
+			value[0] = char('A') + i;
+			REQUIRE((Get(db, Key{ i, i * 2 }) == value));
+		}
+		Close(db);
+	}
 }
 
 TEST_CASE("cache db remove", "[storage_cache_database]") {
@@ -179,7 +415,7 @@ TEST_CASE("cache db remove", "[storage_cache_database]") {
 		REQUIRE(Open(db, key).type == Error::Type::None);
 		REQUIRE(Put(db, Key{ 0, 1 }, TestValue1).type == Error::Type::None);
 		REQUIRE(Put(db, Key{ 1, 0 }, TestValue2).type == Error::Type::None);
-		db.remove(Key{ 0, 1 }, nullptr);
+		Remove(db, Key{ 0, 1 });
 		REQUIRE(Get(db, Key{ 0, 1 }).isEmpty());
 		REQUIRE((Get(db, Key{ 1, 0 }) == TestValue2));
 		Close(db);
@@ -256,6 +492,9 @@ TEST_CASE("cache db bundled actions", "[storage_cache_database]") {
 }
 
 TEST_CASE("cache db limits", "[storage_cache_database]") {
+	if (DisableLimitsTests) {
+		return;
+	}
 	SECTION("db both limit") {
 		auto settings = Settings;
 		settings.trackEstimatedTime = true;

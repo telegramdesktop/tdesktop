@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/concurrent_timer.h"
 #include "base/bytes.h"
 #include "base/flat_set.h"
+#include <set>
 
 namespace Storage {
 namespace Cache {

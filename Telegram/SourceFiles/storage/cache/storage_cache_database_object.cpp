@@ -193,17 +193,11 @@ File::Result DatabaseObject::openBinlog(
 }
 
 bool DatabaseObject::readHeader() {
-	auto header = BasicHeader();
-	if (_binlog.read(bytes::object_as_span(&header)) != sizeof(header)) {
-		return false;
-	} else if (header.format != Format::Format_0) {
-		return false;
-	} else if (_settings.trackEstimatedTime
-		!= !!(header.flags & header.kTrackEstimatedTime)) {
-		return false;
+	if (const auto header = BinlogWrapper::ReadHeader(_binlog, _settings)) {
+		_time.setRelative((_time.system = header->systemTime));
+		return true;
 	}
-	_time.setRelative((_time.system = header.systemTime));
-	return true;
+	return false;
 }
 
 bool DatabaseObject::writeHeader() {
@@ -571,7 +565,8 @@ void DatabaseObject::compactorDone(
 			compactorFail();
 			return;
 		}
-	} else if (!File::Move(path, ready)) {
+	}
+	if (!File::Move(path, ready)) {
 		compactorFail();
 		return;
 	}
@@ -584,7 +579,7 @@ void DatabaseObject::compactorDone(
 		compactorFail();
 		return;
 	}
-	const auto result = _binlog.open(path, File::Mode::ReadAppend, _key);
+	const auto result = _binlog.open(binlog, File::Mode::ReadAppend, _key);
 	if (result != File::Result::Success || !_binlog.seek(_binlog.size())) {
 		// megafail
 		compactorFail();
@@ -906,11 +901,10 @@ void DatabaseObject::checkCompactor() {
 		|| !_settings.compactAfterExcess
 		|| _binlogExcessLength < _settings.compactAfterExcess) {
 		return;
-	} else if (_settings.compactAfterFullSize) {
-		if (_binlogExcessLength * _settings.compactAfterFullSize
-			< _settings.compactAfterExcess * _binlog.size()) {
-			return;
-		}
+	} else if (_settings.compactAfterFullSize
+		&& (_binlogExcessLength * _settings.compactAfterFullSize
+			< _settings.compactAfterExcess * _binlog.size())) {
+		return;
 	} else if (crl::time() < _compactor.nextAttempt) {
 		return;
 	}

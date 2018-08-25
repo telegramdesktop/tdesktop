@@ -37,6 +37,7 @@ private:
 	QString binlogPath() const;
 	QString compactPath() const;
 	bool openBinlog();
+	bool readHeader();
 	bool openCompact();
 	void parseChunk();
 	void fail();
@@ -66,6 +67,7 @@ private:
 	QString _base;
 	Settings _settings;
 	EncryptionKey _key;
+	BasicHeader _header;
 	Info _info;
 	File _binlog;
 	File _compact;
@@ -108,7 +110,7 @@ void CompactorObject::initList() {
 }
 
 void CompactorObject::start() {
-	if (!openBinlog() || !openCompact()) {
+	if (!openBinlog() || !readHeader() || !openCompact()) {
 		fail();
 	}
 	if (_settings.trackEstimatedTime) {
@@ -138,10 +140,24 @@ bool CompactorObject::openBinlog() {
 		&& (_binlog.size() >= _info.till);
 }
 
+bool CompactorObject::readHeader() {
+	const auto header = BinlogWrapper::ReadHeader(_binlog, _settings);
+	if (!header) {
+		return false;
+	}
+	_header = *header;
+	return true;
+}
+
 bool CompactorObject::openCompact() {
 	const auto path = compactPath();
 	const auto result = _compact.open(path, File::Mode::Write, _key);
-	return (result == File::Result::Success);
+	if (result != File::Result::Success) {
+		return false;
+	} else if (!_compact.write(bytes::object_as_span(&_header))) {
+		return false;
+	}
+	return true;
 }
 
 void CompactorObject::fail() {
@@ -168,6 +184,7 @@ void CompactorObject::finish() {
 }
 
 void CompactorObject::finalize() {
+	_binlog.close();
 	_compact.close();
 
 	auto lastCatchUp = 0;
@@ -360,18 +377,20 @@ Compactor::Compactor(
 Compactor::~Compactor() = default;
 
 int64 CatchUp(
-	const QString &compactPath,
-	const QString &binlogPath,
-	const EncryptionKey &key,
-	int64 from,
-	size_type block) {
+		const QString &compactPath,
+		const QString &binlogPath,
+		const EncryptionKey &key,
+		int64 from,
+		size_type block) {
 	File binlog, compact;
 	const auto result1 = binlog.open(binlogPath, File::Mode::Read, key);
 	if (result1 != File::Result::Success) {
 		return 0;
 	}
 	const auto till = binlog.size();
-	if (till < from || !binlog.seek(from)) {
+	if (till == from) {
+		return till;
+	} else if (till < from || !binlog.seek(from)) {
 		return 0;
 	}
 	const auto result2 = compact.open(

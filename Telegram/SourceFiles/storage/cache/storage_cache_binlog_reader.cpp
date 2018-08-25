@@ -30,6 +30,23 @@ bool BinlogWrapper::failed() const {
 	return _failed;
 }
 
+base::optional<BasicHeader> BinlogWrapper::ReadHeader(
+		File &binlog,
+		const Settings &settings) {
+	auto result = BasicHeader();
+	if (binlog.offset() != 0) {
+		return {};
+	} else if (binlog.read(bytes::object_as_span(&result)) != sizeof(result)) {
+		return {};
+	} else if (result.format != Format::Format_0) {
+		return {};
+	} else if (settings.trackEstimatedTime
+		!= !!(result.flags & result.kTrackEstimatedTime)) {
+		return {};
+	}
+	return result;
+}
+
 bool BinlogWrapper::readPart() {
 	if (_finished) {
 		return false;
@@ -44,21 +61,20 @@ bool BinlogWrapper::readPart() {
 		return no();
 	}
 
-	Assert(_notParsedBytes >= 0 && _notParsedBytes <= _part.size());
-	if (_notParsedBytes > 0 && _notParsedBytes < _part.size()) {
-		bytes::move(_full, _part.subspan(_part.size() - _notParsedBytes));
+	if (!_part.empty() && _full.data() != _part.data()) {
+		bytes::move(_full, _part);
+		_part = _full.subspan(0, _part.size());
 	}
 	const auto amount = std::min(
 		left,
-		int64(_full.size() - _notParsedBytes));
+		int64(_full.size() - _part.size()));
 	Assert(amount > 0);
 	const auto readBytes = _binlog.read(
-		_full.subspan(_notParsedBytes, amount));
+		_full.subspan(_part.size(), amount));
 	if (!readBytes) {
 		return no();
 	}
-	_notParsedBytes += readBytes;
-	_part = _full.subspan(0, _notParsedBytes);
+	_part = _full.subspan(0, _part.size() + readBytes);
 	return true;
 }
 
@@ -74,10 +90,9 @@ bytes::const_span BinlogWrapper::readRecord(ReadRecordSize readRecordSize) {
 		_finished = _failed = true;
 		return {};
 	}
-	Assert(size >= 0 && size <= _notParsedBytes);
+	Assert(size >= 0);
 	const auto result = _part.subspan(0, size);
 	_part = _part.subspan(size);
-	_notParsedBytes -= size;
 	return result;
 }
 
@@ -86,9 +101,9 @@ void BinlogWrapper::finish(size_type rollback) {
 
 	if (rollback > 0) {
 		_failed = true;
-		_notParsedBytes += rollback;
 	}
-	_binlog.seek(_binlog.offset() - _notParsedBytes);
+	rollback += _part.size();
+	_binlog.seek(_binlog.offset() - rollback);
 }
 
 } // namespace details
