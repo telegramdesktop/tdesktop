@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 using namespace Storage::Cache;
 
 const auto DisableLimitsTests = true;
-const auto DisableCompactTests = false;
+const auto DisableCompactTests = true;
 const auto DisableLargeTest = false;
 
 const auto key = Storage::EncryptionKey(bytes::make_vector(
@@ -134,7 +134,7 @@ TEST_CASE("init timers", "[storage_cache_database]") {
 }
 
 TEST_CASE("compacting db", "[storage_cache_database]") {
-	if (DisableCompactTests) {
+	if (DisableCompactTests || !DisableLargeTest) {
 		return;
 	}
 	const auto write = [](Database &db, uint32 from, uint32 till, QByteArray base) {
@@ -336,6 +336,9 @@ TEST_CASE("compacting db", "[storage_cache_database]") {
 }
 
 TEST_CASE("encrypted cache db", "[storage_cache_database]") {
+	if (!DisableLargeTest) {
+		return;
+	}
 	SECTION("writing db") {
 		Database db(name, Settings);
 
@@ -408,6 +411,9 @@ TEST_CASE("encrypted cache db", "[storage_cache_database]") {
 }
 
 TEST_CASE("cache db remove", "[storage_cache_database]") {
+	if (!DisableLargeTest) {
+		return;
+	}
 	SECTION("db remove deletes value") {
 		Database db(name, Settings);
 
@@ -431,6 +437,9 @@ TEST_CASE("cache db remove", "[storage_cache_database]") {
 }
 
 TEST_CASE("cache db bundled actions", "[storage_cache_database]") {
+	if (!DisableLargeTest) {
+		return;
+	}
 	SECTION("db touched written lazily") {
 		auto settings = Settings;
 		settings.trackEstimatedTime = true;
@@ -444,6 +453,7 @@ TEST_CASE("cache db bundled actions", "[storage_cache_database]") {
 		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue1));
 		REQUIRE(QFile(path).size() == size);
 		AdvanceTime(2);
+		Get(db, Key{ 0, 1 });
 		REQUIRE(QFile(path).size() > size);
 		Close(db);
 	}
@@ -492,7 +502,7 @@ TEST_CASE("cache db bundled actions", "[storage_cache_database]") {
 }
 
 TEST_CASE("cache db limits", "[storage_cache_database]") {
-	if (DisableLimitsTests) {
+	if (DisableLimitsTests || !DisableLargeTest) {
 		return;
 	}
 	SECTION("db both limit") {
@@ -586,6 +596,43 @@ TEST_CASE("cache db limits", "[storage_cache_database]") {
 		REQUIRE(Get(db, Key{ 1, 1 }).isEmpty());
 		REQUIRE((Get(db, Key{ 1, 0 }) == TestValue2));
 		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue1));
+		Close(db);
+	}
+}
+
+TEST_CASE("large db", "[storage_cache_database]") {
+	if (DisableLargeTest) {
+		return;
+	}
+	SECTION("time tracking large db") {
+		auto settings = Database::Settings();
+		settings.writeBundleDelay = crl::time_type(1000);
+		settings.maxDataSize = 20;
+		settings.totalSizeLimit = 1024 * 1024;
+		settings.totalTimeLimit = 120;
+		settings.pruneTimeout = crl::time_type(1500);
+		settings.compactAfterExcess = 1024 * 1024;
+		settings.trackEstimatedTime = true;
+		Database db(name, settings);
+
+		//REQUIRE(Clear(db).type == Error::Type::None);
+		REQUIRE(Open(db, key).type == Error::Type::None);
+
+		const auto key = [](int index) {
+			return Key{ uint64(index) * 2, (uint64(index) << 32) + 3 };
+		};
+		const auto kWriteRecords = 100 * 1024;
+		for (auto i = 0; i != kWriteRecords; ++i) {
+			db.put(key(i), TestValue1, nullptr);
+			const auto j = i ? (rand() % i) : 0;
+			if (i % 1024 == 1023) {
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				Get(db, key(j));
+			} else {
+				db.get(key(j), nullptr);
+			}
+		}
+
 		Close(db);
 	}
 }
