@@ -206,6 +206,9 @@ size_type File::read(bytes::span bytes) {
 bool File::write(bytes::span bytes) {
 	Expects(bytes.size() % kBlockSize == 0);
 
+	if (!isOpen()) {
+		return false;
+	}
 	encrypt(bytes);
 	const auto count = writePlain(bytes);
 	if (count == bytes.size()) {
@@ -286,6 +289,10 @@ void File::close() {
 	_data.setFileName(QString());
 	_dataSize = _encryptionOffset = 0;
 	_state = base::none;
+}
+
+bool File::isOpen() const {
+	return _data.isOpen();
 }
 
 int64 File::size() const {

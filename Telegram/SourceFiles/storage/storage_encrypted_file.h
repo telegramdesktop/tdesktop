@@ -37,6 +37,7 @@ public:
 
 	bool flush();
 
+	bool isOpen() const;
 	int64 size() const;
 	int64 offset() const;
 	bool seek(int64 offset);

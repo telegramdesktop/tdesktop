@@ -18,9 +18,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 using namespace Storage::Cache;
 
-const auto DisableLimitsTests = true;
-const auto DisableCompactTests = true;
-const auto DisableLargeTest = false;
+const auto DisableLimitsTests = false;
+const auto DisableCompactTests = false;
+const auto DisableLargeTest = true;
 
 const auto key = Storage::EncryptionKey(bytes::make_vector(
 	bytes::make_span("\

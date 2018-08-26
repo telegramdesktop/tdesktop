@@ -88,6 +88,8 @@ private:
 	QString binlogPath() const;
 	QString compactReadyPath(Version version) const;
 	QString compactReadyPath() const;
+	Error openSomeBinlog(EncryptionKey &key);
+	Error openNewBinlog(EncryptionKey &key);
 	File::Result openBinlog(
 		Version version,
 		File::Mode mode,

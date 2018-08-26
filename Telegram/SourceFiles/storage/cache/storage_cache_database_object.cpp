@@ -106,37 +106,39 @@ Error DatabaseObject::ioError(const QString &path) const {
 }
 
 void DatabaseObject::open(EncryptionKey key, FnMut<void(Error)> done) {
+	close(nullptr);
+
+	const auto error = openSomeBinlog(key);
+	if (error.type != Error::Type::None) {
+		close(nullptr);
+	}
+	invokeCallback(done, error);
+}
+
+Error DatabaseObject::openSomeBinlog(EncryptionKey &key) {
 	const auto version = readVersion();
 	const auto result = openBinlog(version, File::Mode::ReadAppend, key);
 	switch (result) {
-	case File::Result::Success:
-		invokeCallback(done, Error::NoError());
-		break;
+	case File::Result::Success: return Error::NoError();
+	case File::Result::Failed: return openNewBinlog(key);
 	case File::Result::LockFailed:
-		invokeCallback(
-			done,
-			Error{ Error::Type::LockFailed, binlogPath(version) });
-		break;
+		return Error{ Error::Type::LockFailed, binlogPath(version) };
 	case File::Result::WrongKey:
-		invokeCallback(
-			done,
-			Error{ Error::Type::WrongKey, binlogPath(version) });
-		break;
-	case File::Result::Failed: {
-		const auto available = findAvailableVersion();
-		if (writeVersion(available)) {
-			const auto open = openBinlog(available, File::Mode::Write, key);
-			if (open == File::Result::Success) {
-				invokeCallback(done, Error::NoError());
-			} else {
-				invokeCallback(done, ioError(binlogPath(available)));
-			}
-		} else {
-			invokeCallback(done, ioError(versionPath()));
-		}
-	} break;
-	default: Unexpected("Result from DatabaseObject::openBinlog.");
+		return Error{ Error::Type::WrongKey, binlogPath(version) };
 	}
+	Unexpected("Result from DatabaseObject::openBinlog.");
+}
+
+Error DatabaseObject::openNewBinlog(EncryptionKey &key) {
+	const auto available = findAvailableVersion();
+	if (!writeVersion(available)) {
+		return ioError(versionPath());
+	}
+	const auto open = openBinlog(available, File::Mode::Write, key);
+	if (open != File::Result::Success) {
+		return ioError(binlogPath(available));
+	}
+	return Error::NoError();
 }
 
 QString DatabaseObject::computePath(Version version) const {
@@ -177,19 +179,20 @@ File::Result DatabaseObject::openBinlog(
 		return File::Result::Failed;
 	}
 	const auto result = _binlog.open(path, mode, key);
-	if (result == File::Result::Success) {
-		const auto headerRequired = (mode == File::Mode::Read)
-			|| (mode == File::Mode::ReadAppend && _binlog.size() > 0);
-		if (headerRequired ? readHeader() : writeHeader()) {
-			_path = computePath(version);
-			_key = std::move(key);
-			createCleaner();
-			readBinlog();
-		} else {
-			return File::Result::Failed;
-		}
+	if (result != File::Result::Success) {
+		return result;
 	}
-	return result;
+	const auto headerRequired = (mode == File::Mode::Read)
+		|| (mode == File::Mode::ReadAppend && _binlog.size() > 0);
+	const auto headerResult = headerRequired ? readHeader() : writeHeader();
+	if (!headerResult) {
+		return File::Result::Failed;
+	}
+	_path = computePath(version);
+	_key = std::move(key);
+	createCleaner();
+	readBinlog();
+	return File::Result::Success;
 }
 
 bool DatabaseObject::readHeader() {
@@ -575,13 +578,15 @@ void DatabaseObject::compactorDone(
 	});
 	_binlog.close();
 	if (!File::Move(ready, binlog)) {
-		// megafail
 		compactorFail();
 		return;
 	}
 	const auto result = _binlog.open(binlog, File::Mode::ReadAppend, _key);
-	if (result != File::Result::Success || !_binlog.seek(_binlog.size())) {
-		// megafail
+	if (result != File::Result::Success) {
+		compactorFail();
+		return;
+	} else if (!_binlog.seek(_binlog.size())) {
+		_binlog.close();
 		compactorFail();
 		return;
 	}
@@ -600,7 +605,9 @@ void DatabaseObject::compactorFail() {
 }
 
 void DatabaseObject::close(FnMut<void()> done) {
-	writeBundles();
+	if (_binlog.isOpen()) {
+		writeBundles();
+	}
 	_cleaner = CleanerWrap();
 	_compactor = CompactorWrap();
 	_binlog.close();
@@ -692,6 +699,7 @@ base::optional<QString> DatabaseObject::writeKeyPlaceGeneric(
 	auto writeable = record;
 	const auto success = _binlog.write(bytes::object_as_span(&writeable));
 	if (!success) {
+		_binlog.close();
 		return QString();
 	}
 	_binlog.flush();
@@ -905,7 +913,7 @@ void DatabaseObject::checkCompactor() {
 		&& (_binlogExcessLength * _settings.compactAfterFullSize
 			< _settings.compactAfterExcess * _binlog.size())) {
 		return;
-	} else if (crl::time() < _compactor.nextAttempt) {
+	} else if (crl::time() < _compactor.nextAttempt || !_binlog.isOpen()) {
 		return;
 	}
 	auto info = Compactor::Info();
