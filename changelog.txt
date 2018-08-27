@@ -1,3 +1,7 @@
+1.3.14 (27.08.18)
+
+- Fix a crash in calls.
+
 1.3.13 (25.08.18)
 
 - Export data from individual chats using the '...' menu.
