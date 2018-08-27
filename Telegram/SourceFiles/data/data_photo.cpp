@@ -111,13 +111,29 @@ void PhotoData::forget() {
 
 ImagePtr PhotoData::makeReplyPreview(Data::FileOrigin origin) {
 	if (replyPreview->isNull() && !thumb->isNull()) {
-		if (thumb->loaded()) {
-			int w = thumb->width(), h = thumb->height();
+		const auto previewFromImage = [&](const ImagePtr &image) {
+			if (!image->loaded()) {
+				image->load(origin);
+				return ImagePtr();
+			}
+			int w = image->width(), h = image->height();
 			if (w <= 0) w = 1;
 			if (h <= 0) h = 1;
-			replyPreview = ImagePtr(w > h ? thumb->pix(origin, w * st::msgReplyBarSize.height() / h, st::msgReplyBarSize.height()) : thumb->pix(origin, st::msgReplyBarSize.height()), "PNG");
+			return ImagePtr(
+				(w > h
+					? image->pix(
+						origin,
+						w * st::msgReplyBarSize.height() / h,
+						st::msgReplyBarSize.height())
+					: image->pix(origin, st::msgReplyBarSize.height())),
+				"PNG");
+		};
+		if (thumb->toDelayedStorageImage()
+			&& !full->isNull()
+			&& !full->toDelayedStorageImage()) {
+			return previewFromImage(full);
 		} else {
-			thumb->load(origin);
+			return previewFromImage(thumb);
 		}
 	}
 	return replyPreview;
@@ -128,6 +144,21 @@ MTPInputPhoto PhotoData::mtpInput() const {
 		MTP_long(id),
 		MTP_long(access),
 		MTP_bytes(fileReference));
+}
+
+void PhotoData::collectLocalData(PhotoData *local) {
+	if (local == this) return;
+
+	const auto copyImage = [](const ImagePtr &src, const ImagePtr &dst) {
+		if (const auto from = src->cacheKey()) {
+			if (const auto to = dst->cacheKey()) {
+				Auth().data().cache().copyIfEmpty(*from, *to);
+			}
+		}
+	};
+	copyImage(local->thumb, thumb);
+	copyImage(local->medium, medium);
+	copyImage(local->full, full);
 }
 
 void PhotoOpenClickHandler::onClickImpl() const {

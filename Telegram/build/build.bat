@@ -250,6 +250,10 @@ if %BuildUWP% neq 0 (
   cd "%DeployPath%"
   7z a -mx9 %PortableFile% %BinaryName%\
   if %errorlevel% neq 0 goto error
+
+  move "%DeployPath%\%BinaryName%\%BinaryName%.exe" "%DeployPath%\"
+  rmdir "%DeployPath%\%BinaryName%"
+  if %errorlevel% neq 0 goto error
 )
 
 set "FinalDeployPath=%FinalReleasePath%\%AppVersionStrMajor%\%AppVersionStrFull%\tsetup"

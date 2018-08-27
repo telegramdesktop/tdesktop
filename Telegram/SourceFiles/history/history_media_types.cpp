@@ -4320,7 +4320,14 @@ HistoryInvoice::HistoryInvoice(
 }
 
 void HistoryInvoice::fillFromData(not_null<Data::Invoice*> invoice) {
-	// init attach
+	if (invoice->photo) {
+		_attach = std::make_unique<HistoryPhoto>(
+			_parent,
+			_parent->data(),
+			invoice->photo);
+	} else {
+		_attach = nullptr;
+	}
 	auto labelText = [&] {
 		if (invoice->receiptMsgId) {
 			if (invoice->isTest) {

@@ -64,20 +64,20 @@ void Database::remove(const Key &key, FnMut<void(Error)> done) {
 	});
 }
 
-void Database::copy(
-		const Key &from,
-		const Key &to,
+void Database::putIfEmpty(
+		const Key &key,
+		QByteArray value,
 		FnMut<void(Error)> done) {
 	_wrapped.with([
-		from,
-		to,
+		key,
+		value = std::move(value),
 		done = std::move(done)
 	](Implementation &unwrapped) mutable {
-		unwrapped.copy(from, to, std::move(done));
+		unwrapped.putIfEmpty(key, std::move(value), std::move(done));
 	});
 }
 
-void Database::move(
+void Database::copyIfEmpty(
 		const Key &from,
 		const Key &to,
 		FnMut<void(Error)> done) {
@@ -86,7 +86,20 @@ void Database::move(
 		to,
 		done = std::move(done)
 	](Implementation &unwrapped) mutable {
-		unwrapped.move(from, to, std::move(done));
+		unwrapped.copyIfEmpty(from, to, std::move(done));
+	});
+}
+
+void Database::moveIfEmpty(
+		const Key &from,
+		const Key &to,
+		FnMut<void(Error)> done) {
+	_wrapped.with([
+		from,
+		to,
+		done = std::move(done)
+	](Implementation &unwrapped) mutable {
+		unwrapped.moveIfEmpty(from, to, std::move(done));
 	});
 }
 

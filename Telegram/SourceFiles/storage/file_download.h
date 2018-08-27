@@ -8,10 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/observer.h"
-#include "storage/localimageloader.h" // for TaskId
 #include "data/data_file_origin.h"
+#include "base/binary_guard.h"
 
 namespace Storage {
+namespace Cache {
+struct Key;
+} // namespace Cache
 
 constexpr auto kMaxFileInMemory = 10 * 1024 * 1024; // 10 MB max file could be hold in memory
 constexpr auto kMaxVoiceInMemory = 2 * 1024 * 1024; // 2 MB audio is hold in memory and auto loaded
@@ -59,14 +62,6 @@ struct StorageImageSaved {
 
 	QByteArray data;
 
-};
-
-enum LocalLoadStatus {
-	LocalNotTried,
-	LocalNotFound,
-	LocalLoading,
-	LocalLoaded,
-	LocalFailed,
 };
 
 class mtpFileLoader;
@@ -119,7 +114,7 @@ public:
 		return _inQueue || _paused;
 	}
 	bool loadingLocal() const {
-		return (_localStatus == LocalLoading);
+		return (_localStatus == LocalStatus::Loading);
 	}
 	bool autoLoading() const {
 		return _autoLoading;
@@ -129,14 +124,36 @@ public:
 	}
 	virtual ~FileLoader();
 
-	void localLoaded(const StorageImageSaved &result, const QByteArray &imageFormat = QByteArray(), const QPixmap &imagePixmap = QPixmap());
+	void localLoaded(
+		const StorageImageSaved &result,
+		const QByteArray &imageFormat = QByteArray(),
+		const QPixmap &imagePixmap = QPixmap());
 
 signals:
 	void progress(FileLoader *loader);
 	void failed(FileLoader *loader, bool started);
 
 protected:
+	enum class LocalStatus {
+		NotTried,
+		NotFound,
+		Loading,
+		Loaded,
+	};
+
 	void readImage(const QSize &shrinkBox) const;
+
+	bool tryLoadLocal();
+	void loadLocal(const Storage::Cache::Key &key);
+	virtual base::optional<Storage::Cache::Key> cacheKey() const = 0;
+	virtual void cancelRequests() = 0;
+
+	void startLoading(bool loadFirst, bool prior);
+	void removeFromQueue();
+	void cancel(bool failed);
+
+	void loadNext();
+	virtual bool loadPart() = 0;
 
 	not_null<Storage::Downloader*> _downloader;
 	FileLoader *_prev = nullptr;
@@ -149,17 +166,7 @@ protected:
 	bool _inQueue = false;
 	bool _finished = false;
 	bool _cancelled = false;
-	mutable LocalLoadStatus _localStatus = LocalNotTried;
-
-	virtual bool tryLoadLocal() = 0;
-	virtual void cancelRequests() = 0;
-
-	void startLoading(bool loadFirst, bool prior);
-	void removeFromQueue();
-	void cancel(bool failed);
-
-	void loadNext();
-	virtual bool loadPart() = 0;
+	mutable LocalStatus _localStatus = LocalStatus::NotTried;
 
 	QString _filename;
 	QFile _file;
@@ -173,7 +180,7 @@ protected:
 	int32 _size;
 	LocationType _locationType;
 
-	TaskId _localTaskId = 0;
+	base::binary_guard _localLoading;
 	mutable QByteArray _imageFormat;
 	mutable QPixmap _imagePixmap;
 
@@ -238,8 +245,7 @@ private:
 		int limit = 0;
 		QByteArray hash;
 	};
-
-	bool tryLoadLocal() override;
+	base::optional<Storage::Cache::Key> cacheKey() const override;
 	void cancelRequests() override;
 
 	int partSize() const;
@@ -307,32 +313,28 @@ class webFileLoader : public FileLoader {
 	Q_OBJECT
 
 public:
+	webFileLoader(
+		const QString &url,
+		const QString &to,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading);
 
-	webFileLoader(const QString &url, const QString &to, LoadFromCloudSetting fromCloud, bool autoLoading);
-
-	virtual int32 currentOffset(bool includeSkipped = false) const;
-	virtual webFileLoader *webLoader() {
-		return this;
-	}
-	virtual const webFileLoader *webLoader() const {
-		return this;
-	}
+	int32 currentOffset(bool includeSkipped = false) const override;
 
 	void onProgress(qint64 already, qint64 size);
 	void onFinished(const QByteArray &data);
 	void onError();
 
-	virtual void stop() {
+	void stop() override {
 		cancelRequests();
 	}
 
 	~webFileLoader();
 
 protected:
-
-	virtual void cancelRequests();
-	virtual bool tryLoadLocal();
-	virtual bool loadPart();
+	void cancelRequests() override;
+	base::optional<Storage::Cache::Key> cacheKey() const override;
+	bool loadPart() override;
 
 	QString _url;
 

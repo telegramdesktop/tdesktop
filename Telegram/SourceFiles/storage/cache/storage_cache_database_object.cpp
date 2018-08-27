@@ -622,9 +622,7 @@ void DatabaseObject::put(
 		QByteArray value,
 		FnMut<void(Error)> done) {
 	if (value.isEmpty()) {
-		remove(key, [done = std::move(done)](Error error) mutable {
-			done(error);
-		});
+		remove(key, std::move(done));
 		return;
 	}
 	_removing.erase(key);
@@ -645,10 +643,12 @@ void DatabaseObject::put(
 	const auto result = data.open(path, File::Mode::Write, _key);
 	switch (result) {
 	case File::Result::Failed:
+		remove(key, nullptr);
 		invokeCallback(done, ioError(path));
 		break;
 
 	case File::Result::LockFailed:
+		remove(key, nullptr);
 		invokeCallback(done, Error{ Error::Type::LockFailed, path });
 		break;
 
@@ -800,8 +800,10 @@ void DatabaseObject::get(const Key &key, FnMut<void(QByteArray)> done) {
 
 	auto result = readValueData(entry.place, entry.size);
 	if (result.isEmpty()) {
+		remove(key, nullptr);
 		invokeCallback(done, QByteArray());
 	} else if (CountChecksum(bytes::make_span(result)) != entry.checksum) {
+		remove(key, nullptr);
 		invokeCallback(done, QByteArray());
 	} else {
 		invokeCallback(done, std::move(result));
@@ -856,22 +858,41 @@ void DatabaseObject::remove(const Key &key, FnMut<void(Error)> done) {
 	}
 }
 
-void DatabaseObject::copy(
+void DatabaseObject::putIfEmpty(
+		const Key &key,
+		QByteArray value,
+		FnMut<void(Error)> done) {
+	if (_map.find(key) != end(_map)) {
+		invokeCallback(done, Error::NoError());
+		return;
+	}
+	put(key, std::move(value), std::move(done));
+}
+
+void DatabaseObject::copyIfEmpty(
 		const Key &from,
 		const Key &to,
 		FnMut<void(Error)> done) {
+	if (_map.find(to) != end(_map)) {
+		invokeCallback(done, Error::NoError());
+		return;
+	}
 	get(from, [&](QByteArray value) {
 		put(to, value, std::move(done));
 	});
 }
 
-void DatabaseObject::move(
+void DatabaseObject::moveIfEmpty(
 		const Key &from,
 		const Key &to,
 		FnMut<void(Error)> done) {
+	if (_map.find(to) != end(_map)) {
+		invokeCallback(done, Error::NoError());
+		return;
+	}
 	const auto i = _map.find(from);
 	if (i == _map.end()) {
-		put(to, QByteArray(), std::move(done));
+		invokeCallback(done, Error::NoError());
 		return;
 	}
 	_removing.emplace(from);

@@ -37,29 +37,14 @@ void LocalStorageBox::prepare() {
 }
 
 void LocalStorageBox::updateControls() {
-	auto rowsHeight = 0;
-	if (_imagesCount > 0 && _audiosCount > 0) {
-		rowsHeight = 2 * (st::linkFont->height + st::localStorageBoxSkip);
-	} else {
-		rowsHeight = st::linkFont->height + st::localStorageBoxSkip;
-	}
-	_clear->setVisible(_imagesCount > 0 || _audiosCount > 0);
+	const auto rowsHeight = st::linkFont->height + st::localStorageBoxSkip;
+	_clear->setVisible(false);
 	setDimensions(st::boxWidth, st::localStorageBoxSkip + rowsHeight + _clear->height());
 	_clear->moveToLeft(st::boxPadding.left(), st::localStorageBoxSkip + rowsHeight);
 	update();
 }
 
 void LocalStorageBox::checkLocalStoredCounts() {
-	int imagesCount = Local::hasImages() + Local::hasStickers() + Local::hasWebFiles();
-	int audiosCount = Local::hasAudios();
-	if (imagesCount != _imagesCount || audiosCount != _audiosCount) {
-		_imagesCount = imagesCount;
-		_audiosCount = audiosCount;
-		if (_imagesCount > 0 || _audiosCount > 0) {
-			_state = State::Normal;
-		}
-		updateControls();
-	}
 }
 
 void LocalStorageBox::paintEvent(QPaintEvent *e) {
@@ -71,19 +56,8 @@ void LocalStorageBox::paintEvent(QPaintEvent *e) {
 	p.setPen(st::windowFg);
 	checkLocalStoredCounts();
 	auto top = st::localStorageBoxSkip;
-	if (_imagesCount > 0) {
-		auto text = lng_settings_images_cached(lt_count, _imagesCount, lt_size, formatSizeText(Local::storageImagesSize() + Local::storageStickersSize() + Local::storageWebFilesSize()));
-		p.drawTextLeft(st::boxPadding.left(), top, width(), text);
-		top += st::boxTextFont->height + st::localStorageBoxSkip;
-	}
-	if (_audiosCount > 0) {
-		auto text = lng_settings_audios_cached(lt_count, _audiosCount, lt_size, formatSizeText(Local::storageAudiosSize()));
-		p.drawTextLeft(st::boxPadding.left(), top, width(), text);
-		top += st::boxTextFont->height + st::localStorageBoxSkip;
-	} else if (_imagesCount <= 0) {
-		p.drawTextLeft(st::boxPadding.left(), top, width(), lang(lng_settings_no_data_cached));
-		top += st::boxTextFont->height + st::localStorageBoxSkip;
-	}
+	p.drawTextLeft(st::boxPadding.left(), top, width(), lang(lng_settings_no_data_cached));
+	top += st::boxTextFont->height + st::localStorageBoxSkip;
 	auto text = ([this]() -> QString {
 		switch (_state) {
 		case State::Clearing: return lang(lng_local_storage_clearing);

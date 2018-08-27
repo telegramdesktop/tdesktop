@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "storage/localstorage.h"
+#include "storage/storage_encrypted_file.h"
 #include "boxes/abstract_box.h"
 #include "passport/passport_form_controller.h"
 #include "data/data_media_types.h"
@@ -66,10 +67,17 @@ void UpdateImage(ImagePtr &old, ImagePtr now) {
 
 Session::Session(not_null<AuthSession*> session)
 : _session(session)
+, _cache(Local::cachePath(), Local::cacheSettings())
 , _groups(this)
 , _unmuteByFinishedTimer([=] { unmuteByFinished(); }) {
+	_cache.open(Local::cacheKey());
+
 	setupContactViewsViewer();
 	setupChannelLeavingViewer();
+}
+
+Storage::Cache::Database &Session::cache() {
+	return _cache;
 }
 
 void Session::startExport(PeerData *peer) {
@@ -1061,6 +1069,7 @@ void Session::documentConvert(
 		Unexpected("Type in Session::documentConvert().");
 	}();
 	const auto oldKey = original->mediaKey();
+	const auto oldCacheKey = original->cacheKey();
 	const auto idChanged = (original->id != id);
 	const auto sentSticker = idChanged && (original->sticker() != nullptr);
 	if (idChanged) {
@@ -1083,14 +1092,7 @@ void Session::documentConvert(
 	}
 	documentApplyFields(original, data);
 	if (idChanged) {
-		const auto newKey = original->mediaKey();
-		if (oldKey != newKey) {
-			if (original->isVoiceMessage()) {
-				Local::copyAudio(oldKey, newKey);
-			} else if (original->sticker() || original->isAnimation()) {
-				Local::copyStickerImage(oldKey, newKey);
-			}
-		}
+		cache().moveIfEmpty(oldCacheKey, original->cacheKey());
 		if (savedGifs().indexOf(original) >= 0) {
 			Local::writeSavedGifs();
 		}

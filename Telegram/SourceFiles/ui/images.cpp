@@ -9,10 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mainwidget.h"
 #include "storage/localstorage.h"
+#include "storage/cache/storage_cache_database.h"
 #include "platform/platform_specific.h"
 #include "auth_session.h"
 #include "history/history_item.h"
 #include "history/history.h"
+#include "data/data_session.h"
 
 namespace Images {
 namespace {
@@ -915,6 +917,10 @@ void Image::restore() const {
 	_forgot = false;
 }
 
+base::optional<Storage::Cache::Key> Image::cacheKey() const {
+	return base::none;
+}
+
 void Image::invalidateSizeCache() const {
 	for (auto &pix : _sizesCache) {
 		if (!pix.isNull()) {
@@ -993,9 +999,9 @@ void RemoteImage::loadLocal() {
 	if (_loader) _loader->start();
 }
 
-void RemoteImage::setData(QByteArray &bytes, const QByteArray &bytesFormat) {
-	QBuffer buffer(&bytes);
-
+void RemoteImage::setImageBytes(
+		const QByteArray &bytes,
+		const QByteArray &bytesFormat) {
 	if (!_data.isNull()) {
 		globalAcquiredSize -= int64(_data.width()) * _data.height() * 4;
 	}
@@ -1013,6 +1019,11 @@ void RemoteImage::setData(QByteArray &bytes, const QByteArray &bytesFormat) {
 	_saved = bytes;
 	_format = fmt;
 	_forgot = false;
+
+	const auto location = this->location();
+	if (!location.isNull() && !bytes.isEmpty()) {
+		Auth().data().cache().putIfEmpty(Data::StorageCacheKey(location), bytes);
+	}
 }
 
 bool RemoteImage::amLoading() const {
@@ -1113,13 +1124,18 @@ StorageImage::StorageImage(const StorageImageLocation &location, int32 size)
 , _size(size) {
 }
 
-StorageImage::StorageImage(const StorageImageLocation &location, QByteArray &bytes)
+StorageImage::StorageImage(
+	const StorageImageLocation &location,
+	const QByteArray &bytes)
 : _location(location)
 , _size(bytes.size()) {
-	setData(bytes);
-	if (!_location.isNull()) {
-		Local::writeImage(storageKey(_location), StorageImageSaved(bytes));
-	}
+	setImageBytes(bytes);
+}
+
+base::optional<Storage::Cache::Key> StorageImage::cacheKey() const {
+	return _location.isNull()
+		? base::none
+		: base::make_optional(Data::StorageCacheKey(_location));
 }
 
 int32 StorageImage::countWidth() const {
@@ -1128,10 +1144,6 @@ int32 StorageImage::countWidth() const {
 
 int32 StorageImage::countHeight() const {
 	return _location.height();
-}
-
-bool StorageImage::hasLocalCopy() const {
-	return Local::willImageLoad(storageKey(_location));
 }
 
 void StorageImage::setInformation(int32 size, int32 width, int32 height) {
@@ -1176,16 +1188,18 @@ WebFileImage::WebFileImage(
 , _size(size) {
 }
 
+base::optional<Storage::Cache::Key> WebFileImage::cacheKey() const {
+	return _location.isNull()
+		? base::none
+		: base::make_optional(Data::WebDocumentCacheKey(_location));
+}
+
 int WebFileImage::countWidth() const {
 	return _width;
 }
 
 int WebFileImage::countHeight() const {
 	return _height;
-}
-
-bool WebFileImage::hasLocalCopy() const {
-	return Local::willImageLoad(storageKey(_location));
 }
 
 void WebFileImage::setInformation(int size, int width, int height) {
@@ -1219,13 +1233,13 @@ DelayedStorageImage::DelayedStorageImage(int32 w, int32 h)
 , _loadCancelled(false)
 , _loadFromCloud(false) {
 }
-
-DelayedStorageImage::DelayedStorageImage(QByteArray &bytes)
-: StorageImage(StorageImageLocation(), bytes)
-, _loadRequested(false)
-, _loadCancelled(false)
-, _loadFromCloud(false) {
-}
+//
+//DelayedStorageImage::DelayedStorageImage(QByteArray &bytes)
+//: StorageImage(StorageImageLocation(), bytes)
+//, _loadRequested(false)
+//, _loadCancelled(false)
+//, _loadFromCloud(false) {
+//}
 
 void DelayedStorageImage::setStorageLocation(
 		Data::FileOrigin origin,
@@ -1317,6 +1331,10 @@ WebImage::WebImage(const QString &url, int width, int height)
 , _height(height) {
 }
 
+base::optional<Storage::Cache::Key> WebImage::cacheKey() const {
+	return Data::UrlCacheKey(_url);
+}
+
 void WebImage::setSize(int width, int height) {
 	_width = width;
 	_height = height;
@@ -1328,10 +1346,6 @@ int32 WebImage::countWidth() const {
 
 int32 WebImage::countHeight() const {
 	return _height;
-}
-
-bool WebImage::hasLocalCopy() const {
-	return Local::willWebFileLoad(_url);
 }
 
 void WebImage::setInformation(int32 size, int32 width, int32 height) {
@@ -1404,8 +1418,8 @@ Image *getImage(int32 width, int32 height) {
 }
 
 StorageImage *getImage(const StorageImageLocation &location, int32 size) {
-	StorageKey key(storageKey(location));
-	StorageImages::const_iterator i = storageImages.constFind(key);
+	const auto key = storageKey(location);
+	auto i = storageImages.constFind(key);
 	if (i == storageImages.cend()) {
 		i = storageImages.insert(key, new StorageImage(location, size));
 	} else {
@@ -1414,20 +1428,17 @@ StorageImage *getImage(const StorageImageLocation &location, int32 size) {
 	return i.value();
 }
 
-StorageImage *getImage(const StorageImageLocation &location, const QByteArray &bytes) {
-	StorageKey key(storageKey(location));
-	StorageImages::const_iterator i = storageImages.constFind(key);
+StorageImage *getImage(
+		const StorageImageLocation &location,
+		const QByteArray &bytes) {
+	const auto key = storageKey(location);
+	auto i = storageImages.constFind(key);
 	if (i == storageImages.cend()) {
-		QByteArray bytesArr(bytes);
-		i = storageImages.insert(key, new StorageImage(location, bytesArr));
+		i = storageImages.insert(key, new StorageImage(location, bytes));
 	} else {
 		i.value()->refreshFileReference(location.fileReference());
 		if (!i.value()->loaded()) {
-			QByteArray bytesArr(bytes);
-			i.value()->setData(bytesArr);
-			if (!location.isNull()) {
-				Local::writeImage(key, StorageImageSaved(bytes));
-			}
+			i.value()->setImageBytes(bytes);
 		}
 	}
 	return i.value();

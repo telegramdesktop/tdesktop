@@ -10,6 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "data/data_file_origin.h"
 
+namespace Storage {
+namespace Cache {
+struct Key;
+} // namespace Cache
+} // namespace Storage
+
 enum class ImageRoundRadius {
 	None,
 	Large,
@@ -372,6 +378,7 @@ public:
 	virtual const StorageImageLocation &location() const {
 		return StorageImageLocation::Null;
 	}
+	virtual base::optional<Storage::Cache::Key> cacheKey() const;
 
 	bool isNull() const;
 
@@ -410,10 +417,6 @@ protected:
 	virtual int32 countHeight() const {
 		restore();
 		return _data.height();
-	}
-
-	virtual bool hasLocalCopy() const {
-		return false;
 	}
 
 	mutable QByteArray _saved, _format;
@@ -464,8 +467,8 @@ public:
 	float64 progress() const override;
 	int32 loadOffset() const override;
 
-	void setData(
-		QByteArray &bytes,
+	void setImageBytes(
+		const QByteArray &bytes,
 		const QByteArray &format = QByteArray());
 
 	void load(
@@ -507,12 +510,13 @@ private:
 
 class StorageImage : public RemoteImage {
 public:
-	StorageImage(const StorageImageLocation &location, int32 size = 0);
-	StorageImage(const StorageImageLocation &location, QByteArray &bytes);
+	explicit StorageImage(const StorageImageLocation &location, int32 size = 0);
+	StorageImage(const StorageImageLocation &location, const QByteArray &bytes);
 
 	const StorageImageLocation &location() const override {
 		return _location;
 	}
+	base::optional<Storage::Cache::Key> cacheKey() const override;
 	void refreshFileReference(const QByteArray &data) {
 		_location.refreshFileReference(data);
 	}
@@ -523,8 +527,6 @@ protected:
 		Data::FileOrigin origin,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading) override;
-
-	bool hasLocalCopy() const override;
 
 	int32 countWidth() const override;
 	int32 countHeight() const override;
@@ -543,6 +545,8 @@ public:
 		int height,
 		int size = 0);
 
+	base::optional<Storage::Cache::Key> cacheKey() const override;
+
 protected:
 	void setInformation(int size, int width, int height) override;
 	FileLoader *createLoader(
@@ -553,8 +557,6 @@ protected:
 	QSize shrinkBox() const override {
 		return _box;
 	}
-
-	bool hasLocalCopy() const override;
 
 	int countWidth() const override;
 	int countHeight() const override;
@@ -571,7 +573,7 @@ class DelayedStorageImage : public StorageImage {
 public:
 	DelayedStorageImage();
 	DelayedStorageImage(int32 w, int32 h);
-	DelayedStorageImage(QByteArray &bytes);
+	//DelayedStorageImage(QByteArray &bytes);
 
 	void setStorageLocation(
 		Data::FileOrigin origin,
@@ -617,6 +619,8 @@ public:
 
 	void setSize(int width, int height);
 
+	base::optional<Storage::Cache::Key> cacheKey() const override;
+
 protected:
 	QSize shrinkBox() const override {
 		return _box;
@@ -629,8 +633,6 @@ protected:
 
 	int32 countWidth() const override;
 	int32 countHeight() const override;
-
-	bool hasLocalCopy() const override;
 
 private:
 	QString _url;
@@ -652,7 +654,7 @@ Image *getImage(
 	const QPixmap &pixmap);
 Image *getImage(int32 width, int32 height);
 StorageImage *getImage(const StorageImageLocation &location, int size = 0);
-StorageImage *getImage(
+StorageImage *getImage( // photoCachedSize
 	const StorageImageLocation &location,
 	const QByteArray &bytes);
 Image *getImage(const MTPWebDocument &location);

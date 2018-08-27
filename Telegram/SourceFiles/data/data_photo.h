@@ -43,6 +43,12 @@ public:
 
 	MTPInputPhoto mtpInput() const;
 
+	// When we have some client-side generated photo
+	// (for example for displaying an external inline bot result)
+	// and it has downloaded full image, we can collect image from it
+	// to (this) received from the server "same" photo.
+	void collectLocalData(PhotoData *local);
+
 	PhotoId id = 0;
 	uint64 access = 0;
 	QByteArray fileReference;

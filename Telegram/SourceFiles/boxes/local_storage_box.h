@@ -43,7 +43,4 @@ private:
 
 	object_ptr<Ui::LinkButton> _clear;
 
-	int _imagesCount = -1;
-	int _audiosCount = -1;
-
 };

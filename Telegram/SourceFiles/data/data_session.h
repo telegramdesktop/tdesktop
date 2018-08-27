@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "storage/cache/storage_cache_database.h"
 #include "chat_helpers/stickers.h"
 #include "dialogs/dialogs_key.h"
 #include "data/data_groups.h"
@@ -70,6 +71,8 @@ public:
 		Passport::SavedCredentials data,
 		TimeMs rememberFor);
 	void forgetPassportCredentials();
+
+	Storage::Cache::Database &cache();
 
 	[[nodiscard]] base::Variable<bool> &contactsLoaded() {
 		return _contactsLoaded;
@@ -519,6 +522,8 @@ private:
 		Method method);
 
 	not_null<AuthSession*> _session;
+
+	Storage::Cache::Database _cache;
 
 	std::unique_ptr<Export::ControllerWrap> _export;
 	std::unique_ptr<Export::View::PanelController> _exportPanel;

@@ -2338,16 +2338,12 @@ void FormController::fillDownloadedFile(
 	if (!i->uploadData) {
 		return;
 	}
-	Local::writeImage(
-		StorageKey(
-			storageMix32To64(
-				SecureFileLocation,
-				destination.dcId),
-			destination.id),
-		StorageImageSaved(QByteArray::fromRawData(
-			reinterpret_cast<const char*>(
-				i->uploadData->bytes.data()),
-			i->uploadData->bytes.size())));
+	const auto &bytes = i->uploadData->bytes;
+	Auth().data().cache().put(
+		Data::DocumentCacheKey(destination.dcId, destination.id),
+		QByteArray(
+			reinterpret_cast<const char*>(bytes.data()),
+			bytes.size()));
 }
 
 auto FormController::parseValue(

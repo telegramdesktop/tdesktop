@@ -794,7 +794,7 @@ MainWindow::TempDirState MainWindow::localStorageState() {
 	if (_clearManager && _clearManager->hasTask(Local::ClearManagerStorage)) {
 		return TempDirRemoving;
 	}
-	return (Local::hasImages() || Local::hasStickers() || Local::hasWebFiles() || Local::hasAudios()) ? TempDirExists : TempDirEmpty;
+	return TempDirEmpty;
 }
 
 void MainWindow::tempDirDelete(int task) {

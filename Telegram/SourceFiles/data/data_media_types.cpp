@@ -312,22 +312,20 @@ bool MediaPhoto::updateInlineResultMedia(const MTPMessageMedia &media) {
 	if (media.type() != mtpc_messageMediaPhoto) {
 		return false;
 	}
-	auto &photo = media.c_messageMediaPhoto();
-	if (photo.has_photo() && !photo.has_ttl_seconds()) {
-		if (auto existing = Auth().data().photo(photo.vphoto)) {
-			if (existing == _photo) {
-				return true;
-			} else {
-				// collect data
-			}
+	auto &data = media.c_messageMediaPhoto();
+	if (data.has_photo() && !data.has_ttl_seconds()) {
+		const auto photo = Auth().data().photo(data.vphoto);
+		if (photo == _photo) {
+			return true;
+		} else {
+			photo->collectLocalData(_photo);
 		}
 	} else {
 		LOG(("API Error: "
 			"Got MTPMessageMediaPhoto without photo "
 			"or with ttl_seconds in updateInlineResultMedia()"));
 	}
-	// Can return false if we collect the data.
-	return true;
+	return false;
 }
 
 bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
@@ -347,6 +345,20 @@ bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
 	if (photo.type() != mtpc_photo) {
 		return false;
 	}
+	const auto saveImageToCache = [](
+			const MTPDfileLocation &location,
+			const ImagePtr &image) {
+		const auto key = StorageImageLocation(0, 0, location);
+		if (key.isNull() || image->isNull() || !image->loaded()) {
+			return;
+		}
+		if (image->savedData().isEmpty()) {
+			image->forget();
+		}
+		Auth().data().cache().putIfEmpty(
+			Data::StorageCacheKey(key),
+			image->savedData());
+	};
 	auto &sizes = photo.c_photo().vsizes.v;
 	auto max = 0;
 	const MTPDfileLocation *maxLocation = 0;
@@ -369,23 +381,24 @@ bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
 		if (!loc || loc->type() != mtpc_fileLocation) {
 			continue;
 		}
+		const auto &location = loc->c_fileLocation();
 		if (size == 's') {
-			Local::writeImage(storageKey(loc->c_fileLocation()), _photo->thumb);
+			saveImageToCache(location, _photo->thumb);
 		} else if (size == 'm') {
-			Local::writeImage(storageKey(loc->c_fileLocation()), _photo->medium);
+			saveImageToCache(location, _photo->medium);
 		} else if (size == 'x' && max < 1) {
 			max = 1;
-			maxLocation = &loc->c_fileLocation();
+			maxLocation = &location;
 		} else if (size == 'y' && max < 2) {
 			max = 2;
-			maxLocation = &loc->c_fileLocation();
+			maxLocation = &location;
 		//} else if (size == 'w' && max < 3) {
 		//	max = 3;
 		//	maxLocation = &loc->c_fileLocation();
 		}
 	}
 	if (maxLocation) {
-		Local::writeImage(storageKey(*maxLocation), _photo->full);
+		saveImageToCache(*maxLocation, _photo->full);
 	}
 	return true;
 }
@@ -637,13 +650,6 @@ bool MediaFile::updateSentMedia(const MTPMessageMedia &media) {
 		return false;
 	}
 	Auth().data().documentConvert(_document, data.vdocument);
-	if (!_document->data().isEmpty()) {
-		if (_document->isVoiceMessage()) {
-			Local::writeAudio(_document->mediaKey(), _document->data());
-		} else {
-			Local::writeStickerImage(_document->mediaKey(), _document->data());
-		}
-	}
 	return true;
 }
 

@@ -1226,6 +1226,10 @@ void Messenger::loggedOut() {
 		w->setupIntro();
 	}
 	App::histories().clear();
+	if (const auto session = authSession()) {
+		session->data().cache().close();
+		session->data().cache().clear();
+	}
 	authSessionDestroy();
 	if (_mediaView) {
 		hideMediaView();

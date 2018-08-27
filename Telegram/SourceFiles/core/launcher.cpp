@@ -221,7 +221,8 @@ void Launcher::processArguments() {
 	gTestMode = parseResult.contains("-testmode");
 	Logs::SetDebugEnabled(parseResult.contains("-debug"));
 	gManyInstance = parseResult.contains("-many");
-	gKeyFile = parseResult.value("-key", QStringList()).join(QString());
+	gKeyFile = parseResult.value("-key", {}).join(QString()).toLower();
+	gKeyFile = gKeyFile.replace(QRegularExpression("[^a-z0-9\\-_]"), {});
 	gLaunchMode = parseResult.contains("-autostart") ? LaunchModeAutoStart
 		: parseResult.contains("-fixprevious") ? LaunchModeFixPrevious
 		: parseResult.contains("-cleanup") ? LaunchModeCleanup
@@ -229,8 +230,8 @@ void Launcher::processArguments() {
 	gNoStartUpdate = parseResult.contains("-noupdate");
 	gStartToSettings = parseResult.contains("-tosettings");
 	gStartInTray = parseResult.contains("-startintray");
-	gSendPaths = parseResult.value("-sendpath", QStringList());
-	gWorkingDir = parseResult.value("-workdir", QStringList()).join(QString());
+	gSendPaths = parseResult.value("-sendpath", {});
+	gWorkingDir = parseResult.value("-workdir", {}).join(QString());
 	if (!gWorkingDir.isEmpty()) {
 		if (QDir().exists(gWorkingDir)) {
 			_customWorkingDir = true;
@@ -238,7 +239,7 @@ void Launcher::processArguments() {
 			gWorkingDir = QString();
 		}
 	}
-	gStartUrl = parseResult.value("--", QStringList()).join(QString());
+	gStartUrl = parseResult.value("--", {}).join(QString());
 }
 
 int Launcher::executeApplication() {

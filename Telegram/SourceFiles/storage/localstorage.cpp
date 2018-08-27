@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/serialize_document.h"
 #include "storage/serialize_common.h"
+#include "storage/storage_encrypted_file.h"
 #include "chat_helpers/stickers.h"
 #include "data/data_drafts.h"
 #include "boxes/send_files_box.h"
@@ -65,7 +66,7 @@ QString toFilePart(FileKey val) {
 	return result;
 }
 
-QString _basePath, _userBasePath;
+QString _basePath, _userBasePath, _userDbPath;
 
 bool _started = false;
 internal::Manager *_manager = nullptr;
@@ -620,9 +621,6 @@ typedef QMap<QString, FileLocationPair> FileLocationPairs;
 FileLocationPairs _fileLocationPairs;
 typedef QMap<MediaKey, MediaKey> FileLocationAliases;
 FileLocationAliases _fileLocationAliases;
-typedef QMap<QString, FileDesc> WebFilesMap;
-WebFilesMap _webFilesMap;
-uint64 _storageWebFilesSize = 0;
 FileKey _locationsKey = 0, _reportSpamStatusesKey = 0, _trustedBotsKey = 0;
 
 using TrustedBots = OrderedSet<uint64>;
@@ -655,10 +653,6 @@ FileKey _exportSettingsKey = 0;
 FileKey _savedPeersKey = 0;
 FileKey _langPackKey = 0;
 
-typedef QMap<StorageKey, FileDesc> StorageMap;
-StorageMap _imagesMap, _stickerImagesMap, _audiosMap;
-qint64 _storageImagesSize = 0, _storageStickersSize = 0, _storageAudiosSize = 0;
-
 bool _mapChanged = false;
 int32 _oldMapVersion = 0, _oldSettingsVersion = 0;
 
@@ -686,7 +680,7 @@ void _writeLocations(WriteMapWhen when = WriteMapWhen::Soon) {
 	if (!_working()) return;
 
 	_manager->writingLocations();
-	if (_fileLocations.isEmpty() && _webFilesMap.isEmpty()) {
+	if (_fileLocations.isEmpty()) {
 		if (_locationsKey) {
 			clearKey(_locationsKey);
 			_locationsKey = 0;
@@ -724,12 +718,6 @@ void _writeLocations(WriteMapWhen when = WriteMapWhen::Soon) {
 			size += sizeof(quint64) * 2 + sizeof(quint64) * 2;
 		}
 
-		size += sizeof(quint32); // web files count
-		for (WebFilesMap::const_iterator i = _webFilesMap.cbegin(), e = _webFilesMap.cend(); i != e; ++i) {
-			// url + filekey + size
-			size += Serialize::stringSize(i.key()) + sizeof(quint64) + sizeof(qint32);
-		}
-
 		EncryptedDescriptor data(size);
 		auto legacyTypeField = 0;
 		for (FileLocations::const_iterator i = _fileLocations.cbegin(); i != _fileLocations.cend(); ++i) {
@@ -749,11 +737,6 @@ void _writeLocations(WriteMapWhen when = WriteMapWhen::Soon) {
 		data.stream << quint32(_fileLocationAliases.size());
 		for (FileLocationAliases::const_iterator i = _fileLocationAliases.cbegin(), e = _fileLocationAliases.cend(); i != e; ++i) {
 			data.stream << quint64(i.key().first) << quint64(i.key().second) << quint64(i.value().first) << quint64(i.value().second);
-		}
-
-		data.stream << quint32(_webFilesMap.size());
-		for (WebFilesMap::const_iterator i = _webFilesMap.cbegin(), e = _webFilesMap.cend(); i != e; ++i) {
-			data.stream << i.key() << quint64(i.value().first) << qint32(i.value().second);
 		}
 
 		FileWriteDescriptor file(_locationsKey);
@@ -804,9 +787,6 @@ void _readLocations() {
 		}
 
 		if (!locations.stream.atEnd()) {
-			_storageWebFilesSize = 0;
-			_webFilesMap.clear();
-
 			quint32 webLocationsCount;
 			locations.stream >> webLocationsCount;
 			for (quint32 i = 0; i < webLocationsCount; ++i) {
@@ -814,8 +794,7 @@ void _readLocations() {
 				quint64 key;
 				qint32 size;
 				locations.stream >> url >> key >> size;
-				_webFilesMap.insert(url, FileDesc(key, size));
-				_storageWebFilesSize += size;
+				clearKey(key, FileOption::User);
 			}
 		}
 	}
@@ -2071,6 +2050,10 @@ ReadMapState _readMap(const QByteArray &pass) {
 	hashMd5(dataNameUtf8.constData(), dataNameUtf8.size(), dataNameHash);
 	_dataNameKey = dataNameHash[0];
 	_userBasePath = _basePath + toFilePart(_dataNameKey) + QChar('/');
+	_userDbPath = _basePath
+		+ "user_" + cDataFile()
+		+ (cTestMode() ? "[test]" : "")
+		+ '/';
 
 	FileReadDescriptor mapData;
 	if (!readFile(mapData, qsl("map"))) {
@@ -2113,8 +2096,6 @@ ReadMapState _readMap(const QByteArray &pass) {
 
 	DraftsMap draftsMap, draftCursorsMap;
 	DraftsNotReadMap draftsNotReadMap;
-	StorageMap imagesMap, stickerImagesMap, audiosMap;
-	qint64 storageImagesSize = 0, storageStickersSize = 0, storageAudiosSize = 0;
 	quint64 locationsKey = 0, reportSpamStatusesKey = 0, trustedBotsKey = 0;
 	quint64 recentStickersKeyOld = 0;
 	quint64 installedStickersKey = 0, featuredStickersKey = 0, recentStickersKey = 0, favedStickersKey = 0, archivedStickersKey = 0;
@@ -2154,8 +2135,7 @@ ReadMapState _readMap(const QByteArray &pass) {
 				quint64 first, second;
 				qint32 size;
 				map.stream >> key >> first >> second >> size;
-				imagesMap.insert(StorageKey(first, second), FileDesc(key, size));
-				storageImagesSize += size;
+				clearKey(key, FileOption::User);
 			}
 		} break;
 		case lskStickerImages: {
@@ -2166,8 +2146,7 @@ ReadMapState _readMap(const QByteArray &pass) {
 				quint64 first, second;
 				qint32 size;
 				map.stream >> key >> first >> second >> size;
-				stickerImagesMap.insert(StorageKey(first, second), FileDesc(key, size));
-				storageStickersSize += size;
+				clearKey(key, FileOption::User);
 			}
 		} break;
 		case lskAudios: {
@@ -2178,8 +2157,7 @@ ReadMapState _readMap(const QByteArray &pass) {
 				quint64 first, second;
 				qint32 size;
 				map.stream >> key >> first >> second >> size;
-				audiosMap.insert(StorageKey(first, second), FileDesc(key, size));
-				storageAudiosSize += size;
+				clearKey(key, FileOption::User);
 			}
 		} break;
 		case lskLocations: {
@@ -2242,13 +2220,6 @@ ReadMapState _readMap(const QByteArray &pass) {
 	_draftsMap = draftsMap;
 	_draftCursorsMap = draftCursorsMap;
 	_draftsNotReadMap = draftsNotReadMap;
-
-	_imagesMap = imagesMap;
-	_storageImagesSize = storageImagesSize;
-	_stickerImagesMap = stickerImagesMap;
-	_storageStickersSize = storageStickersSize;
-	_audiosMap = audiosMap;
-	_storageAudiosSize = storageAudiosSize;
 
 	_locationsKey = locationsKey;
 	_reportSpamStatusesKey = reportSpamStatusesKey;
@@ -2328,9 +2299,6 @@ void _writeMap(WriteMapWhen when) {
 	uint32 mapSize = 0;
 	if (!_draftsMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _draftsMap.size() * sizeof(quint64) * 2;
 	if (!_draftCursorsMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _draftCursorsMap.size() * sizeof(quint64) * 2;
-	if (!_imagesMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _imagesMap.size() * (sizeof(quint64) * 3 + sizeof(qint32));
-	if (!_stickerImagesMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _stickerImagesMap.size() * (sizeof(quint64) * 3 + sizeof(qint32));
-	if (!_audiosMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _audiosMap.size() * (sizeof(quint64) * 3 + sizeof(qint32));
 	if (_locationsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_reportSpamStatusesKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_trustedBotsKey) mapSize += sizeof(quint32) + sizeof(quint64);
@@ -2346,16 +2314,6 @@ void _writeMap(WriteMapWhen when) {
 	if (_recentHashtagsAndBotsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_exportSettingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 
-	if (mapSize > 30 * 1024 * 1024) {
-		CrashReports::SetAnnotation("MapSize", QString("%1,%2,%3,%4,%5"
-		).arg(_draftsMap.size()
-		).arg(_draftCursorsMap.size()
-		).arg(_imagesMap.size()
-		).arg(_stickerImagesMap.size()
-		).arg(_audiosMap.size()
-		));
-	}
-
 	EncryptedDescriptor mapData(mapSize);
 
 	if (!_draftsMap.isEmpty()) {
@@ -2368,24 +2326,6 @@ void _writeMap(WriteMapWhen when) {
 		mapData.stream << quint32(lskDraftPosition) << quint32(_draftCursorsMap.size());
 		for (DraftsMap::const_iterator i = _draftCursorsMap.cbegin(), e = _draftCursorsMap.cend(); i != e; ++i) {
 			mapData.stream << quint64(i.value()) << quint64(i.key());
-		}
-	}
-	if (!_imagesMap.isEmpty()) {
-		mapData.stream << quint32(lskImages) << quint32(_imagesMap.size());
-		for (StorageMap::const_iterator i = _imagesMap.cbegin(), e = _imagesMap.cend(); i != e; ++i) {
-			mapData.stream << quint64(i.value().first) << quint64(i.key().first) << quint64(i.key().second) << qint32(i.value().second);
-		}
-	}
-	if (!_stickerImagesMap.isEmpty()) {
-		mapData.stream << quint32(lskStickerImages) << quint32(_stickerImagesMap.size());
-		for (StorageMap::const_iterator i = _stickerImagesMap.cbegin(), e = _stickerImagesMap.cend(); i != e; ++i) {
-			mapData.stream << quint64(i.value().first) << quint64(i.key().first) << quint64(i.key().second) << qint32(i.value().second);
-		}
-	}
-	if (!_audiosMap.isEmpty()) {
-		mapData.stream << quint32(lskAudios) << quint32(_audiosMap.size());
-		for (StorageMap::const_iterator i = _audiosMap.cbegin(), e = _audiosMap.cend(); i != e; ++i) {
-			mapData.stream << quint64(i.value().first) << quint64(i.key().first) << quint64(i.key().second) << qint32(i.value().second);
 		}
 	}
 	if (_locationsKey) {
@@ -2431,10 +2371,6 @@ void _writeMap(WriteMapWhen when) {
 	map.writeEncrypted(mapData);
 
 	_mapChanged = false;
-
-	if (mapSize > 30 * 1024 * 1024) {
-		CrashReports::ClearAnnotation("MapSize");
-	}
 }
 
 } // namespace
@@ -2683,13 +2619,7 @@ void reset() {
 	_fileLocations.clear();
 	_fileLocationPairs.clear();
 	_fileLocationAliases.clear();
-	_imagesMap.clear();
 	_draftsNotReadMap.clear();
-	_stickerImagesMap.clear();
-	_audiosMap.clear();
-	_storageImagesSize = _storageStickersSize = _storageAudiosSize = 0;
-	_webFilesMap.clear();
-	_storageWebFilesSize = 0;
 	_locationsKey = _reportSpamStatusesKey = _trustedBotsKey = 0;
 	_recentStickersKeyOld = 0;
 	_installedStickersKey = _featuredStickersKey = _recentStickersKey = _favedStickersKey = _archivedStickersKey = 0;
@@ -3011,401 +2941,23 @@ qint32 _storageAudioSize(qint32 rawlen) {
 	return result;
 }
 
-void writeImage(const StorageKey &location, const ImagePtr &image) {
-	if (image->isNull() || !image->loaded()) return;
-	if (_imagesMap.constFind(location) != _imagesMap.cend()) return;
+QString cachePath() {
+	Expects(!_userDbPath.isEmpty());
 
-	image->forget();
-	writeImage(location, StorageImageSaved(image->savedData()), false);
+	return _userDbPath + "cache";
 }
 
-void writeImage(const StorageKey &location, const StorageImageSaved &image, bool overwrite) {
-	if (!_working()) return;
-
-	qint32 size = _storageImageSize(image.data.size());
-	StorageMap::const_iterator i = _imagesMap.constFind(location);
-	if (i == _imagesMap.cend()) {
-		i = _imagesMap.insert(location, FileDesc(genKey(FileOption::User), size));
-		_storageImagesSize += size;
-		_mapChanged = true;
-		_writeMap();
-	} else if (!overwrite) {
-		return;
-	}
-
-	auto legacyTypeField = 0;
-
-	EncryptedDescriptor data(sizeof(quint64) * 2 + sizeof(quint32) + sizeof(quint32) + image.data.size());
-	data.stream << quint64(location.first) << quint64(location.second) << quint32(legacyTypeField) << image.data;
-
-	FileWriteDescriptor file(i.value().first, FileOption::User);
-	file.writeEncrypted(data);
-	if (i.value().second != size) {
-		_storageImagesSize += size;
-		_storageImagesSize -= i.value().second;
-		_imagesMap[location].second = size;
-	}
-}
-
-class AbstractCachedLoadTask : public Task {
-public:
-
-	AbstractCachedLoadTask(const FileKey &key, const StorageKey &location, bool readImageFlag, mtpFileLoader *loader) :
-		_key(key), _location(location), _readImageFlag(readImageFlag), _loader(loader), _result(0) {
-	}
-	void process() {
-		FileReadDescriptor image;
-		if (!readEncryptedFile(image, _key, FileOption::User)) {
-			return;
-		}
-
-		QByteArray imageData;
-		quint64 locFirst, locSecond;
-		quint32 legacyTypeField = 0;
-		readFromStream(image.stream, locFirst, locSecond, imageData);
-
-		// we're saving files now before we have actual location
-		//if (locFirst != _location.first || locSecond != _location.second) {
-		//	return;
-		//}
-
-		_result = new Result(imageData, _readImageFlag);
-	}
-	void finish() {
-		if (_result) {
-			_loader->localLoaded(_result->image, _result->format, _result->pixmap);
-		} else {
-			clearInMap();
-			_loader->localLoaded(StorageImageSaved());
-		}
-	}
-	virtual void readFromStream(QDataStream &stream, quint64 &first, quint64 &second, QByteArray &data) = 0;
-	virtual void clearInMap() = 0;
-	virtual ~AbstractCachedLoadTask() {
-		delete base::take(_result);
-	}
-
-protected:
-	FileKey _key;
-	StorageKey _location;
-	bool _readImageFlag;
-	struct Result {
-		Result(const QByteArray &data, bool readImageFlag) : image(data) {
-			if (readImageFlag) {
-				auto realFormat = QByteArray();
-				pixmap = App::pixmapFromImageInPlace(App::readImage(data, &realFormat, false));
-				if (!pixmap.isNull()) {
-					format = realFormat;
-				}
-			}
-		}
-		StorageImageSaved image;
-		QByteArray format;
-		QPixmap pixmap;
-
-	};
-	mtpFileLoader *_loader;
-	Result *_result;
-
-};
-
-class ImageLoadTask : public AbstractCachedLoadTask {
-public:
-	ImageLoadTask(const FileKey &key, const StorageKey &location, mtpFileLoader *loader) :
-	AbstractCachedLoadTask(key, location, true, loader) {
-	}
-	void readFromStream(QDataStream &stream, quint64 &first, quint64 &second, QByteArray &data) override {
-		qint32 legacyTypeField = 0;
-		stream >> first >> second >> legacyTypeField >> data;
-	}
-	void clearInMap() override {
-		StorageMap::iterator j = _imagesMap.find(_location);
-		if (j != _imagesMap.cend() && j->first == _key) {
-			clearKey(_key, FileOption::User);
-			_storageImagesSize -= j->second;
-			_imagesMap.erase(j);
-		}
-	}
-};
-
-TaskId startImageLoad(const StorageKey &location, mtpFileLoader *loader) {
-	StorageMap::const_iterator j = _imagesMap.constFind(location);
-	if (j == _imagesMap.cend() || !_localLoader) {
-		return 0;
-	}
-	return _localLoader->addTask(
-		std::make_unique<ImageLoadTask>(j->first, location, loader));
-}
-
-bool willImageLoad(const StorageKey &location) {
-	return _imagesMap.constFind(location) != _imagesMap.cend();
-}
-
-int32 hasImages() {
-	return _imagesMap.size();
-}
-
-qint64 storageImagesSize() {
-	return _storageImagesSize;
-}
-
-void writeStickerImage(const StorageKey &location, const QByteArray &sticker, bool overwrite) {
-	if (!_working()) return;
-
-	qint32 size = _storageStickerSize(sticker.size());
-	StorageMap::const_iterator i = _stickerImagesMap.constFind(location);
-	if (i == _stickerImagesMap.cend()) {
-		i = _stickerImagesMap.insert(location, FileDesc(genKey(FileOption::User), size));
-		_storageStickersSize += size;
-		_mapChanged = true;
-		_writeMap();
-	} else if (!overwrite) {
-		return;
-	}
-	EncryptedDescriptor data(sizeof(quint64) * 2 + sizeof(quint32) + sizeof(quint32) + sticker.size());
-	data.stream << quint64(location.first) << quint64(location.second) << sticker;
-	FileWriteDescriptor file(i.value().first, FileOption::User);
-	file.writeEncrypted(data);
-	if (i.value().second != size) {
-		_storageStickersSize += size;
-		_storageStickersSize -= i.value().second;
-		_stickerImagesMap[location].second = size;
-	}
-}
-
-class StickerImageLoadTask : public AbstractCachedLoadTask {
-public:
-	StickerImageLoadTask(const FileKey &key, const StorageKey &location, mtpFileLoader *loader) :
-	AbstractCachedLoadTask(key, location, true, loader) {
-	}
-	void readFromStream(QDataStream &stream, quint64 &first, quint64 &second, QByteArray &data) {
-		stream >> first >> second >> data;
-	}
-	void clearInMap() {
-		auto j = _stickerImagesMap.find(_location);
-		if (j != _stickerImagesMap.cend() && j->first == _key) {
-			clearKey(j.value().first, FileOption::User);
-			_storageStickersSize -= j.value().second;
-			_stickerImagesMap.erase(j);
-		}
-	}
-};
-
-TaskId startStickerImageLoad(const StorageKey &location, mtpFileLoader *loader) {
-	auto j = _stickerImagesMap.constFind(location);
-	if (j == _stickerImagesMap.cend() || !_localLoader) {
-		return 0;
-	}
-	return _localLoader->addTask(
-		std::make_unique<StickerImageLoadTask>(j->first, location, loader));
-}
-
-bool willStickerImageLoad(const StorageKey &location) {
-	return _stickerImagesMap.constFind(location) != _stickerImagesMap.cend();
-}
-
-bool copyStickerImage(const StorageKey &oldLocation, const StorageKey &newLocation) {
-	auto i = _stickerImagesMap.constFind(oldLocation);
-	if (i == _stickerImagesMap.cend()) {
-		return false;
-	}
-	_stickerImagesMap.insert(newLocation, i.value());
-	_mapChanged = true;
-	_writeMap();
-	return true;
-}
-
-int32 hasStickers() {
-	return _stickerImagesMap.size();
-}
-
-qint64 storageStickersSize() {
-	return _storageStickersSize;
-}
-
-void writeAudio(const StorageKey &location, const QByteArray &audio, bool overwrite) {
-	if (!_working()) return;
-
-	qint32 size = _storageAudioSize(audio.size());
-	StorageMap::const_iterator i = _audiosMap.constFind(location);
-	if (i == _audiosMap.cend()) {
-		i = _audiosMap.insert(location, FileDesc(genKey(FileOption::User), size));
-		_storageAudiosSize += size;
-		_mapChanged = true;
-		_writeMap();
-	} else if (!overwrite) {
-		return;
-	}
-	EncryptedDescriptor data(sizeof(quint64) * 2 + sizeof(quint32) + sizeof(quint32) + audio.size());
-	data.stream << quint64(location.first) << quint64(location.second) << audio;
-	FileWriteDescriptor file(i.value().first, FileOption::User);
-	file.writeEncrypted(data);
-	if (i.value().second != size) {
-		_storageAudiosSize += size;
-		_storageAudiosSize -= i.value().second;
-		_audiosMap[location].second = size;
-	}
-}
-
-class AudioLoadTask : public AbstractCachedLoadTask {
-public:
-	AudioLoadTask(const FileKey &key, const StorageKey &location, mtpFileLoader *loader) :
-	AbstractCachedLoadTask(key, location, false, loader) {
-	}
-	void readFromStream(QDataStream &stream, quint64 &first, quint64 &second, QByteArray &data) {
-		stream >> first >> second >> data;
-	}
-	void clearInMap() {
-		auto j = _audiosMap.find(_location);
-		if (j != _audiosMap.cend() && j->first == _key) {
-			clearKey(j.value().first, FileOption::User);
-			_storageAudiosSize -= j.value().second;
-			_audiosMap.erase(j);
-		}
-	}
-};
-
-TaskId startAudioLoad(const StorageKey &location, mtpFileLoader *loader) {
-	auto j = _audiosMap.constFind(location);
-	if (j == _audiosMap.cend() || !_localLoader) {
-		return 0;
-	}
-	return _localLoader->addTask(
-		std::make_unique<AudioLoadTask>(j->first, location, loader));
-}
-
-bool copyAudio(const StorageKey &oldLocation, const StorageKey &newLocation) {
-	auto i = _audiosMap.constFind(oldLocation);
-	if (i == _audiosMap.cend()) {
-		return false;
-	}
-	_audiosMap.insert(newLocation, i.value());
-	_mapChanged = true;
-	_writeMap();
-	return true;
-}
-
-bool willAudioLoad(const StorageKey &location) {
-	return _audiosMap.constFind(location) != _audiosMap.cend();
-}
-
-int32 hasAudios() {
-	return _audiosMap.size();
-}
-
-qint64 storageAudiosSize() {
-	return _storageAudiosSize;
-}
-
-qint32 _storageWebFileSize(const QString &url, qint32 rawlen) {
-	// fulllen + url + len + data
-	qint32 result = sizeof(uint32) + Serialize::stringSize(url) + sizeof(quint32) + rawlen;
-	if (result & 0x0F) result += 0x10 - (result & 0x0F);
-	result += tdfMagicLen + sizeof(qint32) + sizeof(quint32) + 0x10 + 0x10; // magic + version + len of encrypted + part of sha1 + md5
+Storage::Cache::Database::Settings cacheSettings() {
+	auto result = Storage::Cache::Database::Settings();
 	return result;
 }
 
-void writeWebFile(const QString &url, const QByteArray &content, bool overwrite) {
-	if (!_working()) return;
+Storage::EncryptionKey cacheKey() {
+	Expects(LocalKey != nullptr);
 
-	qint32 size = _storageWebFileSize(url, content.size());
-	WebFilesMap::const_iterator i = _webFilesMap.constFind(url);
-	if (i == _webFilesMap.cend()) {
-		i = _webFilesMap.insert(url, FileDesc(genKey(FileOption::User), size));
-		_storageWebFilesSize += size;
-		_writeLocations();
-	} else if (!overwrite) {
-		return;
-	}
-	EncryptedDescriptor data(Serialize::stringSize(url) + sizeof(quint32) + sizeof(quint32) + content.size());
-	data.stream << url << content;
-	FileWriteDescriptor file(i.value().first, FileOption::User);
-	file.writeEncrypted(data);
-	if (i.value().second != size) {
-		_storageWebFilesSize += size;
-		_storageWebFilesSize -= i.value().second;
-		_webFilesMap[url].second = size;
-	}
+	return Storage::EncryptionKey(bytes::make_vector(LocalKey->data()));
 }
 
-class WebFileLoadTask : public Task {
-public:
-	WebFileLoadTask(const FileKey &key, const QString &url, webFileLoader *loader)
-		: _key(key)
-		, _url(url)
-		, _loader(loader)
-		, _result(0) {
-	}
-	void process() {
-		FileReadDescriptor image;
-		if (!readEncryptedFile(image, _key, FileOption::User)) {
-			return;
-		}
-
-		QByteArray imageData;
-		QString url;
-		image.stream >> url >> imageData;
-
-		_result = new Result(imageData);
-	}
-	void finish() {
-		if (_result) {
-			_loader->localLoaded(_result->image, _result->format, _result->pixmap);
-		} else {
-			WebFilesMap::iterator j = _webFilesMap.find(_url);
-			if (j != _webFilesMap.cend() && j->first == _key) {
-				clearKey(j.value().first, FileOption::User);
-				_storageWebFilesSize -= j.value().second;
-				_webFilesMap.erase(j);
-			}
-			_loader->localLoaded(StorageImageSaved());
-		}
-	}
-	virtual ~WebFileLoadTask() {
-		delete base::take(_result);
-	}
-
-protected:
-	FileKey _key;
-	QString _url;
-	struct Result {
-		explicit Result(const QByteArray &data) : image(data) {
-			QByteArray guessFormat;
-			pixmap = App::pixmapFromImageInPlace(App::readImage(data, &guessFormat, false));
-			if (!pixmap.isNull()) {
-				format = guessFormat;
-			}
-		}
-		StorageImageSaved image;
-		QByteArray format;
-		QPixmap pixmap;
-
-	};
-	webFileLoader *_loader;
-	Result *_result;
-
-};
-
-TaskId startWebFileLoad(const QString &url, webFileLoader *loader) {
-	WebFilesMap::const_iterator j = _webFilesMap.constFind(url);
-	if (j == _webFilesMap.cend() || !_localLoader) {
-		return 0;
-	}
-	return _localLoader->addTask(
-		std::make_unique<WebFileLoadTask>(j->first, url, loader));
-}
-
-bool willWebFileLoad(const QString &url) {
-	return _webFilesMap.constFind(url) != _webFilesMap.cend();
-}
-
-int32 hasWebFiles() {
-	return _webFilesMap.size();
-}
-
-qint64 storageWebFilesSize() {
-	return _storageWebFilesSize;
-}
 
 class CountWaveformTask : public Task {
 public:
@@ -5136,8 +4688,6 @@ bool decrypt(const void *src, void *dst, uint32 len, const void *key128) {
 
 struct ClearManagerData {
 	QThread *thread;
-	StorageMap images, stickers, audios;
-	WebFilesMap webFiles;
 	QMutex mutex;
 	QList<int> tasks;
 	bool working;
@@ -5155,21 +4705,6 @@ bool ClearManager::addTask(int task) {
 	if (!data->tasks.isEmpty() && (data->tasks.at(0) == ClearManagerAll)) return true;
 	if (task == ClearManagerAll) {
 		data->tasks.clear();
-		if (!_imagesMap.isEmpty()) {
-			_imagesMap.clear();
-			_storageImagesSize = 0;
-			_mapChanged = true;
-		}
-		if (!_stickerImagesMap.isEmpty()) {
-			_stickerImagesMap.clear();
-			_storageStickersSize = 0;
-			_mapChanged = true;
-		}
-		if (!_audiosMap.isEmpty()) {
-			_audiosMap.clear();
-			_storageAudiosSize = 0;
-			_mapChanged = true;
-		}
 		if (!_draftsMap.isEmpty()) {
 			_draftsMap.clear();
 			_mapChanged = true;
@@ -5208,73 +4743,6 @@ bool ClearManager::addTask(int task) {
 		}
 		_writeMap();
 	} else {
-		if (task & ClearManagerStorage) {
-			if (data->images.isEmpty()) {
-				data->images = _imagesMap;
-			} else {
-				for (StorageMap::const_iterator i = _imagesMap.cbegin(), e = _imagesMap.cend(); i != e; ++i) {
-					StorageKey k = i.key();
-					while (data->images.constFind(k) != data->images.cend()) {
-						++k.second;
-					}
-					data->images.insert(k, i.value());
-				}
-			}
-			if (!_imagesMap.isEmpty()) {
-				_imagesMap.clear();
-				_storageImagesSize = 0;
-				_mapChanged = true;
-			}
-			if (data->stickers.isEmpty()) {
-				data->stickers = _stickerImagesMap;
-			} else {
-				for (StorageMap::const_iterator i = _stickerImagesMap.cbegin(), e = _stickerImagesMap.cend(); i != e; ++i) {
-					StorageKey k = i.key();
-					while (data->stickers.constFind(k) != data->stickers.cend()) {
-						++k.second;
-					}
-					data->stickers.insert(k, i.value());
-				}
-			}
-			if (!_stickerImagesMap.isEmpty()) {
-				_stickerImagesMap.clear();
-				_storageStickersSize = 0;
-				_mapChanged = true;
-			}
-			if (data->webFiles.isEmpty()) {
-				data->webFiles = _webFilesMap;
-			} else {
-				for (WebFilesMap::const_iterator i = _webFilesMap.cbegin(), e = _webFilesMap.cend(); i != e; ++i) {
-					QString k = i.key();
-					while (data->webFiles.constFind(k) != data->webFiles.cend()) {
-						k += '#';
-					}
-					data->webFiles.insert(k, i.value());
-				}
-			}
-			if (!_webFilesMap.isEmpty()) {
-				_webFilesMap.clear();
-				_storageWebFilesSize = 0;
-				_writeLocations();
-			}
-			if (data->audios.isEmpty()) {
-				data->audios = _audiosMap;
-			} else {
-				for (StorageMap::const_iterator i = _audiosMap.cbegin(), e = _audiosMap.cend(); i != e; ++i) {
-					StorageKey k = i.key();
-					while (data->audios.constFind(k) != data->audios.cend()) {
-						++k.second;
-					}
-					data->audios.insert(k, i.value());
-				}
-			}
-			if (!_audiosMap.isEmpty()) {
-				_audiosMap.clear();
-				_storageAudiosSize = 0;
-				_mapChanged = true;
-			}
-			_writeMap();
-		}
 		for (int32 i = 0, l = data->tasks.size(); i < l; ++i) {
 			if (data->tasks.at(i) == task) return true;
 		}
@@ -5319,8 +4787,6 @@ void ClearManager::onStart() {
 	while (true) {
 		int task = 0;
 		bool result = false;
-		StorageMap images, stickers, audios;
-		WebFilesMap webFiles;
 		{
 			QMutexLocker lock(&data->mutex);
 			if (data->tasks.isEmpty()) {
@@ -5328,10 +4794,6 @@ void ClearManager::onStart() {
 				break;
 			}
 			task = data->tasks.at(0);
-			images = data->images;
-			stickers = data->stickers;
-			audios = data->audios;
-			webFiles = data->webFiles;
 		}
 		switch (task) {
 		case ClearManagerAll: {
@@ -5354,18 +4816,6 @@ void ClearManager::onStart() {
 			result = QDir(cTempDir()).removeRecursively();
 		break;
 		case ClearManagerStorage:
-			for (StorageMap::const_iterator i = images.cbegin(), e = images.cend(); i != e; ++i) {
-				clearKey(i.value().first, FileOption::User);
-			}
-			for (StorageMap::const_iterator i = stickers.cbegin(), e = stickers.cend(); i != e; ++i) {
-				clearKey(i.value().first, FileOption::User);
-			}
-			for (StorageMap::const_iterator i = audios.cbegin(), e = audios.cend(); i != e; ++i) {
-				clearKey(i.value().first, FileOption::User);
-			}
-			for (WebFilesMap::const_iterator i = webFiles.cbegin(), e = webFiles.cend(); i != e; ++i) {
-				clearKey(i.value().first, FileOption::User);
-			}
 			result = true;
 		break;
 		}

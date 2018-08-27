@@ -56,6 +56,9 @@ public:
 	void write(QDataStream &to) const {
 		to.writeRawData(reinterpret_cast<const char*>(_key.data()), _key.size());
 	}
+	bytes::const_span data() const {
+		return _key;
+	}
 
 	bool equals(const std::shared_ptr<AuthKey> &other) const {
 		return other ? (_key == other->_key) : false;

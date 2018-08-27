@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_media_types.h"
 #include "window/window_controller.h"
+#include "storage/cache/storage_cache_database.h"
 #include "auth_session.h"
 #include "mainwindow.h"
 #include "messenger.h"
@@ -1087,6 +1088,16 @@ MediaKey DocumentData::mediaKey() const {
 	return ::mediaKey(locationType(), _dc, id);
 }
 
+Storage::Cache::Key DocumentData::cacheKey() const {
+	if (hasWebLocation()) {
+		return Data::WebDocumentCacheKey(_urlLocation);
+	} else if (!_access && !_url.isEmpty()) {
+		return Data::UrlCacheKey(_url);
+	} else {
+		return Data::DocumentCacheKey(_dc, id);
+	}
+}
+
 QString DocumentData::composeNameString() const {
 	if (auto songData = song()) {
 		return ComposeNameString(
@@ -1207,17 +1218,9 @@ void DocumentData::setWebLocation(const WebFileLocation &location) {
 void DocumentData::collectLocalData(DocumentData *local) {
 	if (local == this) return;
 
+	_session->data().cache().copyIfEmpty(local->cacheKey(), cacheKey());
 	if (!local->_data.isEmpty()) {
 		_data = local->_data;
-		if (isVoiceMessage()) {
-			if (!Local::copyAudio(local->mediaKey(), mediaKey())) {
-				Local::writeAudio(mediaKey(), _data);
-			}
-		} else {
-			if (!Local::copyStickerImage(local->mediaKey(), mediaKey())) {
-				Local::writeStickerImage(mediaKey(), _data);
-			}
-		}
 	}
 	if (!local->_location.isEmpty()) {
 		_location = local->_location;

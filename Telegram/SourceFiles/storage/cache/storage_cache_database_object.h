@@ -37,8 +37,18 @@ public:
 	void get(const Key &key, FnMut<void(QByteArray)> done);
 	void remove(const Key &key, FnMut<void(Error)> done);
 
-	void copy(const Key &from, const Key &to, FnMut<void(Error)> done);
-	void move(const Key &from, const Key &to, FnMut<void(Error)> done);
+	void putIfEmpty(
+		const Key &key,
+		QByteArray value,
+		FnMut<void(Error)> done);
+	void copyIfEmpty(
+		const Key &from,
+		const Key &to,
+		FnMut<void(Error)> done);
+	void moveIfEmpty(
+		const Key &from,
+		const Key &to,
+		FnMut<void(Error)> done);
 
 	void clear(FnMut<void(Error)> done);
 

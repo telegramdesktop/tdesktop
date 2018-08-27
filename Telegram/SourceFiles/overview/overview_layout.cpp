@@ -863,7 +863,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 	bool selected = (selection == FullSelection);
 
 	_data->automaticLoad(parent()->fullId(), parent());
-	bool loaded = _data->loaded() || Local::willStickerImageLoad(_data->mediaKey()), displayLoading = _data->displayLoading();
+	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
 
 	if (displayLoading) {
 		ensureRadial();
@@ -1024,8 +1024,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 TextState Document::getState(
 		QPoint point,
 		StateRequest request) const {
-	const auto loaded = _data->loaded()
-		|| Local::willStickerImageLoad(_data->mediaKey());
+	const auto loaded = _data->loaded();
 	const auto wthumb = withThumb();
 
 	if (_data->isAudioFile()) {
