@@ -388,9 +388,9 @@ template <
 inline bytes::vector Sha1(Args &&...args) {
 	return details::Sha<kSha1Size>(
 		SHA_CTX(),
-		SHA_Init,
-		SHA_Update,
-		SHA_Final,
+		SHA1_Init,
+		SHA1_Update,
+		SHA1_Final,
 		args...);
 }
 
