@@ -104,7 +104,10 @@ Open **x86 Native Tools Command Prompt for VS 2017.bat**, go to ***BuildPath*** 
     cd ..\..
     ninja -C out/Debug common crash_generation_client exception_handler
     ninja -C out/Release common crash_generation_client exception_handler
-    cd ..\..
+    cd tools\windows\dump_syms
+    gyp dump_syms.gyp
+    msbuild dump_syms.vcxproj /property:Configuration=Release
+    cd ..\..\..\..\..
 
     git clone https://github.com/telegramdesktop/opus.git
     cd opus

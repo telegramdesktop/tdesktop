@@ -117,6 +117,11 @@ echo.
 echo Version %AppVersionStrFull% build successfull. Preparing..
 echo.
 
+if not exist "%SolutionPath%\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe" (
+  echo Utility dump_syms not found!
+  exit /b 1
+)
+
 echo Dumping debug symbols..
 xcopy "%ReleasePath%\%BinaryName%.exe" "%ReleasePath%\%BinaryName%.exe.exe*"
 call "%SolutionPath%\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe" "%ReleasePath%\%BinaryName%.exe.pdb" > "%ReleasePath%\%BinaryName%.exe.sym"
@@ -164,10 +169,10 @@ if %BuildUWP% equ 0 (
 for /f ^"usebackq^ eol^=^
 
 ^ delims^=^" %%a in (%ReleasePath%\%BinaryName%.exe.sym) do (
-   set "SymbolsHashLine=%%a"
-   goto symbolslinedone
- )
- :symbolslinedone
+  set "SymbolsHashLine=%%a"
+  goto symbolslinedone
+)
+:symbolslinedone
 FOR /F "tokens=1,2,3,4* delims= " %%i in ("%SymbolsHashLine%") do set "SymbolsHash=%%l"
 
 echo Copying %BinaryName%.exe.sym to %DropboxSymbolsPath%\%BinaryName%.exe.pdb\%SymbolsHash%
