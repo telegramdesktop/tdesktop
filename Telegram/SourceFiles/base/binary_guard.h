@@ -57,10 +57,10 @@ inline void binary_guard::kill() {
 }
 
 inline void binary_guard::destroy() {
-	if (_bothAlive) {
+	if (const auto both = base::take(_bothAlive)) {
 		auto old = true;
-		if (!_bothAlive->compare_exchange_strong(old, false)) {
-			delete _bothAlive;
+		if (!both->compare_exchange_strong(old, false)) {
+			delete both;
 		}
 	}
 }
