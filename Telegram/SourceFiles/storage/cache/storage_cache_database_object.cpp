@@ -320,7 +320,7 @@ void DatabaseObject::prune() {
 	collectTimePrune(stale, staleTotalSize);
 	collectSizePrune(stale, staleTotalSize);
 	for (const auto &key : stale) {
-		remove(key);
+		remove(key, nullptr);
 	}
 	optimize();
 }
@@ -622,8 +622,8 @@ void DatabaseObject::put(
 		QByteArray value,
 		FnMut<void(Error)> done) {
 	if (value.isEmpty()) {
-		remove(key, [done = std::move(done)]() mutable {
-			done(Error::NoError());
+		remove(key, [done = std::move(done)](Error error) mutable {
+			done(error);
 		});
 		return;
 	}
@@ -732,6 +732,60 @@ base::optional<QString> DatabaseObject::writeKeyPlace(
 	return writeKeyPlaceGeneric(std::move(record), key, data, checksum);
 }
 
+template <typename StoreRecord>
+Error DatabaseObject::writeExistingPlaceGeneric(
+		StoreRecord &&record,
+		const Key &key,
+		const Entry &entry) {
+	record.key = key;
+	record.size = ReadTo<EntrySize>(entry.size);
+	record.checksum = entry.checksum;
+	if (const auto i = _map.find(key); i != end(_map)) {
+		const auto &already = i->second;
+		if (already.tag == record.tag
+			&& already.size == entry.size
+			&& already.checksum == entry.checksum
+			&& (readValueData(already.place, already.size)
+				== readValueData(entry.place, entry.size))) {
+			return Error::NoError();
+		}
+	}
+	record.place = entry.place;
+	auto writeable = record;
+	const auto success = _binlog.write(bytes::object_as_span(&writeable));
+	if (!success) {
+		_binlog.close();
+		return ioError(binlogPath());
+	}
+	_binlog.flush();
+
+	const auto applied = processRecordStore(
+		&record,
+		std::is_class<StoreRecord>{});
+	Assert(applied);
+	return Error::NoError();
+}
+
+Error DatabaseObject::writeExistingPlace(
+		const Key &key,
+		const Entry &entry) {
+	if (!_settings.trackEstimatedTime) {
+		return writeExistingPlaceGeneric(Store(), key, entry);
+	}
+	auto record = StoreWithTime();
+	record.time = countTimePoint();
+	const auto writing = record.time.getRelative();
+	const auto current = _time.getRelative();
+	Assert(writing >= current);
+	if ((writing - current) * crl::time_type(1000)
+		< _settings.writeBundleDelay) {
+		// We don't want to produce a lot of unique _time.relative values.
+		// So if change in it is not large we stick to the old value.
+		record.time = _time;
+	}
+	return writeExistingPlaceGeneric(std::move(record), key, entry);
+}
+
 void DatabaseObject::get(const Key &key, FnMut<void(QByteArray)> done) {
 	if (_removing.find(key) != end(_removing)) {
 		invokeCallback(done, QByteArray());
@@ -784,7 +838,7 @@ void DatabaseObject::recordEntryAccess(const Key &key) {
 	optimize();
 }
 
-void DatabaseObject::remove(const Key &key, FnMut<void()> done) {
+void DatabaseObject::remove(const Key &key, FnMut<void(Error)> done) {
 	const auto i = _map.find(key);
 	if (i != _map.end()) {
 		_removing.emplace(key);
@@ -792,9 +846,45 @@ void DatabaseObject::remove(const Key &key, FnMut<void()> done) {
 
 		const auto path = placePath(i->second.place);
 		eraseMapEntry(i);
-		QFile(path).remove();
+		if (QFile(path).remove() || !QFile(path).exists()) {
+			invokeCallback(done, Error::NoError());
+		} else {
+			invokeCallback(done, ioError(path));
+		}
+	} else {
+		invokeCallback(done, Error::NoError());
 	}
-	invokeCallback(done);
+}
+
+void DatabaseObject::copy(
+		const Key &from,
+		const Key &to,
+		FnMut<void(Error)> done) {
+	get(from, [&](QByteArray value) {
+		put(to, value, std::move(done));
+	});
+}
+
+void DatabaseObject::move(
+		const Key &from,
+		const Key &to,
+		FnMut<void(Error)> done) {
+	const auto i = _map.find(from);
+	if (i == _map.end()) {
+		put(to, QByteArray(), std::move(done));
+		return;
+	}
+	_removing.emplace(from);
+
+	const auto entry = i->second;
+	eraseMapEntry(i);
+
+	const auto result = writeMultiRemove();
+	if (result.type != Error::Type::None) {
+		invokeCallback(done, result);
+		return;
+	}
+	invokeCallback(done, writeExistingPlace(to, entry));
 }
 
 void DatabaseObject::writeBundlesLazy() {
@@ -811,11 +901,11 @@ void DatabaseObject::writeMultiRemoveLazy() {
 	}
 }
 
-void DatabaseObject::writeMultiRemove() {
+Error DatabaseObject::writeMultiRemove() {
 	Expects(_removing.size() <= _settings.maxBundledRecords);
 
 	if (_removing.empty()) {
-		return;
+		return Error::NoError();
 	}
 	const auto size = _removing.size();
 	auto header = MultiRemove(size);
@@ -824,13 +914,15 @@ void DatabaseObject::writeMultiRemove() {
 	for (const auto &key : base::take(_removing)) {
 		list.push_back(key);
 	}
-	if (_binlog.write(bytes::object_as_span(&header))) {
-		_binlog.write(bytes::make_span(list));
+	if (_binlog.write(bytes::object_as_span(&header))
+		&& _binlog.write(bytes::make_span(list))) {
 		_binlog.flush();
-
 		_binlogExcessLength += bytes::object_as_span(&header).size()
 			+ bytes::make_span(list).size();
+		return Error::NoError();
 	}
+	_binlog.close();
+	return ioError(binlogPath());
 }
 
 void DatabaseObject::writeMultiAccessLazy() {
@@ -841,13 +933,14 @@ void DatabaseObject::writeMultiAccessLazy() {
 	}
 }
 
-void DatabaseObject::writeMultiAccess() {
-	if (!_accessed.empty()) {
-		writeMultiAccessBlock();
+Error DatabaseObject::writeMultiAccess() {
+	if (_accessed.empty()) {
+		return Error::NoError();
 	}
+	return writeMultiAccessBlock();
 }
 
-void DatabaseObject::writeMultiAccessBlock() {
+Error DatabaseObject::writeMultiAccessBlock() {
 	Expects(_settings.trackEstimatedTime);
 	Expects(_accessed.size() <= _settings.maxBundledRecords);
 
@@ -868,15 +961,15 @@ void DatabaseObject::writeMultiAccessBlock() {
 		}
 	}
 
-	if (_binlog.write(bytes::object_as_span(&header))) {
-		if (size > 0) {
-			_binlog.write(bytes::make_span(list));
-		}
+	if (_binlog.write(bytes::object_as_span(&header))
+		&& (!size || _binlog.write(bytes::make_span(list)))) {
 		_binlog.flush();
-
 		_binlogExcessLength += bytes::object_as_span(&header).size()
 			+ bytes::make_span(list).size();
+		return Error::NoError();
 	}
+	_binlog.close();
+	return ioError(binlogPath());
 }
 
 void DatabaseObject::writeBundles() {

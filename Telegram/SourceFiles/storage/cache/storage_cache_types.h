@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Storage {
 namespace Cache {
-namespace details {
 
 struct Key {
 	uint64 high = 0;
@@ -31,6 +30,25 @@ inline bool operator!=(const Key &a, const Key &b) {
 inline bool operator<(const Key &a, const Key &b) {
 	return std::tie(a.high, a.low) < std::tie(b.high, b.low);
 }
+
+struct Error {
+	enum class Type {
+		None,
+		IO,
+		WrongKey,
+		LockFailed,
+	};
+	Type type = Type::None;
+	QString path;
+
+	static Error NoError();
+};
+
+inline Error Error::NoError() {
+	return Error();
+}
+
+namespace details {
 
 struct Settings {
 	size_type maxBundledRecords = 16 * 1024;
@@ -55,23 +73,6 @@ QString ComputeBasePath(const QString &original);
 QString VersionFilePath(const QString &base);
 base::optional<Version> ReadVersionValue(const QString &base);
 bool WriteVersionValue(const QString &base, Version value);
-
-struct Error {
-	enum class Type {
-		None,
-		IO,
-		WrongKey,
-		LockFailed,
-	};
-	Type type = Type::None;
-	QString path;
-
-	static Error NoError();
-};
-
-inline Error Error::NoError() {
-	return Error();
-}
 
 using RecordType = uint8;
 using PlaceId = std::array<uint8, 7>;
@@ -217,8 +218,8 @@ struct MultiAccess {
 namespace std {
 
 template <>
-struct hash<Storage::Cache::details::Key> {
-	size_t operator()(const Storage::Cache::details::Key &key) const {
+struct hash<Storage::Cache::Key> {
+	size_t operator()(const Storage::Cache::Key &key) const {
 		return (hash<uint64>()(key.high) ^ hash<uint64>()(key.low));
 	}
 };

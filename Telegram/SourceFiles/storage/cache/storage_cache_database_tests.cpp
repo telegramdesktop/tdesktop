@@ -106,7 +106,7 @@ Error Put(Database &db, const Key &key, const QByteArray &value) {
 }
 
 void Remove(Database &db, const Key &key) {
-	db.remove(key, [&] { Semaphore.release(); });
+	db.remove(key, [&](Error) { Semaphore.release(); });
 	Semaphore.acquire();
 }
 

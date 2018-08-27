@@ -20,22 +20,31 @@ namespace details {
 class DatabaseObject;
 } // namespace details
 
-using Key = details::Key;
-using Error = details::Error;
-
 class Database {
 public:
 	using Settings = details::Settings;
 	Database(const QString &path, const Settings &settings);
 
-	void open(EncryptionKey key, FnMut<void(Error)> done);
-	void close(FnMut<void()> done);
+	void open(EncryptionKey key, FnMut<void(Error)> done = nullptr);
+	void close(FnMut<void()> done = nullptr);
 
-	void put(const Key &key, QByteArray value, FnMut<void(Error)> done);
+	void put(
+		const Key &key,
+		QByteArray value,
+		FnMut<void(Error)> done = nullptr);
 	void get(const Key &key, FnMut<void(QByteArray)> done);
-	void remove(const Key &key, FnMut<void()> done);
+	void remove(const Key &key, FnMut<void(Error)> done = nullptr);
 
-	void clear(FnMut<void(Error)> done);
+	void copy(
+		const Key &from,
+		const Key &to,
+		FnMut<void(Error)> done = nullptr);
+	void move(
+		const Key &from,
+		const Key &to,
+		FnMut<void(Error)> done = nullptr);
+
+	void clear(FnMut<void(Error)> done = nullptr);
 
 	~Database();
 

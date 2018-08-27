@@ -55,12 +55,38 @@ void Database::get(const Key &key, FnMut<void(QByteArray)> done) {
 	});
 }
 
-void Database::remove(const Key &key, FnMut<void()> done) {
+void Database::remove(const Key &key, FnMut<void(Error)> done) {
 	_wrapped.with([
 		key,
 		done = std::move(done)
 	](Implementation &unwrapped) mutable {
 		unwrapped.remove(key, std::move(done));
+	});
+}
+
+void Database::copy(
+		const Key &from,
+		const Key &to,
+		FnMut<void(Error)> done) {
+	_wrapped.with([
+		from,
+		to,
+		done = std::move(done)
+	](Implementation &unwrapped) mutable {
+		unwrapped.copy(from, to, std::move(done));
+	});
+}
+
+void Database::move(
+		const Key &from,
+		const Key &to,
+		FnMut<void(Error)> done) {
+	_wrapped.with([
+		from,
+		to,
+		done = std::move(done)
+	](Implementation &unwrapped) mutable {
+		unwrapped.move(from, to, std::move(done));
 	});
 }
 

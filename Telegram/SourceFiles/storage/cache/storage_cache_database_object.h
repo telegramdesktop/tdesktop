@@ -35,7 +35,10 @@ public:
 
 	void put(const Key &key, QByteArray value, FnMut<void(Error)> done);
 	void get(const Key &key, FnMut<void(QByteArray)> done);
-	void remove(const Key &key, FnMut<void()> done = nullptr);
+	void remove(const Key &key, FnMut<void(Error)> done);
+
+	void copy(const Key &from, const Key &to, FnMut<void(Error)> done);
+	void move(const Key &from, const Key &to, FnMut<void(Error)> done);
 
 	void clear(FnMut<void(Error)> done);
 
@@ -160,11 +163,19 @@ private:
 		const Key &key,
 		const QByteArray &value,
 		uint32 checksum);
+	template <typename StoreRecord>
+	Error writeExistingPlaceGeneric(
+		StoreRecord &&record,
+		const Key &key,
+		const Entry &entry);
+	Error writeExistingPlace(
+		const Key &key,
+		const Entry &entry);
 	void writeMultiRemoveLazy();
-	void writeMultiRemove();
+	Error writeMultiRemove();
 	void writeMultiAccessLazy();
-	void writeMultiAccess();
-	void writeMultiAccessBlock();
+	Error writeMultiAccess();
+	Error writeMultiAccessBlock();
 	void writeBundlesLazy();
 	void writeBundles();
 
