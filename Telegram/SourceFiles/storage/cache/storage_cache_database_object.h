@@ -30,27 +30,32 @@ public:
 		const QString &path,
 		const Settings &settings);
 
-	void open(EncryptionKey key, FnMut<void(Error)> done);
-	void close(FnMut<void()> done);
+	void open(EncryptionKey &&key, FnMut<void(Error)> &&done);
+	void close(FnMut<void()> &&done);
 
-	void put(const Key &key, QByteArray value, FnMut<void(Error)> done);
-	void get(const Key &key, FnMut<void(QByteArray)> done);
-	void remove(const Key &key, FnMut<void(Error)> done);
+	void put(
+		const Key &key,
+		TaggedValue &&value,
+		FnMut<void(Error)> &&done);
+	void get(const Key &key, FnMut<void(TaggedValue&&)> &&done);
+	void remove(const Key &key, FnMut<void(Error)> &&done);
 
 	void putIfEmpty(
 		const Key &key,
-		QByteArray value,
-		FnMut<void(Error)> done);
+		TaggedValue &&value,
+		FnMut<void(Error)> &&done);
 	void copyIfEmpty(
 		const Key &from,
 		const Key &to,
-		FnMut<void(Error)> done);
+		FnMut<void(Error)> &&done);
 	void moveIfEmpty(
 		const Key &from,
 		const Key &to,
-		FnMut<void(Error)> done);
+		FnMut<void(Error)> &&done);
 
-	void clear(FnMut<void(Error)> done);
+	void stats(FnMut<void(Stats&&)> &&done);
+
+	void clear(FnMut<void(Error)> &&done);
 
 	static QString BinlogFilename();
 	static QString CompactReadyFilename();
@@ -74,7 +79,7 @@ public:
 		uint8 tag = 0;
 	};
 	using Raw = std::pair<Key, Entry>;
-	std::vector<Raw> getManyRaw(const std::vector<Key> keys) const;
+	std::vector<Raw> getManyRaw(const std::vector<Key> &keys) const;
 
 	~DatabaseObject();
 
@@ -101,7 +106,7 @@ private:
 	QString binlogPath() const;
 	QString compactReadyPath(Version version) const;
 	QString compactReadyPath() const;
-	Error openSomeBinlog(EncryptionKey &key);
+	Error openSomeBinlog(EncryptionKey &&key);
 	Error openNewBinlog(EncryptionKey &key);
 	File::Result openBinlog(
 		Version version,
@@ -149,6 +154,7 @@ private:
 	void collectSizePrune(
 		base::flat_set<Key> &stale,
 		int64 &staleTotalSize);
+	void updateStats(const Entry &was, const Entry &now);
 
 	void setMapEntry(const Key &key, Entry &&entry);
 	void eraseMapEntry(const Map::const_iterator &i);
@@ -167,11 +173,11 @@ private:
 	base::optional<QString> writeKeyPlaceGeneric(
 		StoreRecord &&record,
 		const Key &key,
-		const QByteArray &value,
+		const TaggedValue &value,
 		uint32 checksum);
 	base::optional<QString> writeKeyPlace(
 		const Key &key,
-		const QByteArray &value,
+		const TaggedValue &value,
 		uint32 checksum);
 	template <typename StoreRecord>
 	Error writeExistingPlaceGeneric(
@@ -207,6 +213,8 @@ private:
 	int64 _totalSize = 0;
 	uint64 _minimalEntryTime = 0;
 	size_type _entriesWithMinimalTimeCount = 0;
+
+	Stats _taggedStats;
 
 	base::ConcurrentTimer _writeBundlesTimer;
 	base::ConcurrentTimer _pruneTimer;

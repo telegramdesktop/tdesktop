@@ -365,9 +365,9 @@ void FileLoader::loadLocal(const Storage::Cache::Key &key) {
 	auto [first, second] = base::make_binary_guard();
 	_localLoading = std::move(first);
 	auto done = [=, guard = std::move(second)](
-			QByteArray value,
-			QImage image,
-			QByteArray format) mutable {
+			QByteArray &&value,
+			QImage &&image,
+			QByteArray &&format) mutable {
 		crl::on_main([
 			=,
 			value = std::move(value),
@@ -385,7 +385,7 @@ void FileLoader::loadLocal(const Storage::Cache::Key &key) {
 		});
 	};
 	Auth().data().cache().get(key, [=, callback = std::move(done)](
-			QByteArray value) mutable {
+			QByteArray &&value) mutable {
 		if (readImage) {
 			crl::async([
 				value = std::move(value),
@@ -394,13 +394,16 @@ void FileLoader::loadLocal(const Storage::Cache::Key &key) {
 				auto format = QByteArray();
 				auto image = App::readImage(value, &format, false);
 				if (!image.isNull()) {
-					done(value, image, format);
+					done(
+						std::move(value),
+						std::move(image),
+						std::move(format));
 				} else {
-					done(value, {}, {});
+					done(std::move(value), {}, {});
 				}
 			});
 		} else {
-			callback(value, {}, {});
+			callback(std::move(value), {}, {});
 		}
 	});
 }
@@ -954,7 +957,7 @@ bool mtpFileLoader::feedPart(int offset, bytes::const_span buffer) {
 				|| _locationType == UnknownFileLocation
 				|| _toCache == LoadToCacheAsWell) {
 				if (const auto key = cacheKey()) {
-					Auth().data().cache().put(*key, _data);
+					Auth().data().cache().put(*key, base::duplicate(_data));
 				}
 			}
 		}
@@ -1164,7 +1167,7 @@ void webFileLoader::onFinished(const QByteArray &data) {
 
 	if (_localStatus == LocalStatus::NotFound) {
 		if (const auto key = cacheKey()) {
-			Auth().data().cache().put(*key, _data);
+			Auth().data().cache().put(*key, base::duplicate(_data));
 		}
 	}
 	_downloader->taskFinished().notify();

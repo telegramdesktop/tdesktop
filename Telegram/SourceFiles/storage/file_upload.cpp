@@ -127,7 +127,9 @@ void Uploader::uploadMedia(const FullMsgId &msgId, const SendMediaReady &media) 
 		if (!media.data.isEmpty()) {
 			document->setData(media.data);
 			if (document->saveToCache()) {
-				Auth().data().cache().put(document->cacheKey(), media.data);
+				Auth().data().cache().put(
+					document->cacheKey(),
+					base::duplicate(media.data));
 			}
 		}
 		if (!media.file.isEmpty()) {
@@ -154,7 +156,7 @@ void Uploader::upload(
 			if (document->saveToCache()) {
 				Auth().data().cache().put(
 					document->cacheKey(),
-					file->content);
+					base::duplicate(file->content));
 			}
 		}
 		if (!file->filepath.isEmpty()) {

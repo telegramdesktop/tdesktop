@@ -1022,7 +1022,9 @@ void RemoteImage::setImageBytes(
 
 	const auto location = this->location();
 	if (!location.isNull() && !bytes.isEmpty()) {
-		Auth().data().cache().putIfEmpty(Data::StorageCacheKey(location), bytes);
+		Auth().data().cache().putIfEmpty(
+			Data::StorageCacheKey(location),
+			base::duplicate(bytes));
 	}
 }
 

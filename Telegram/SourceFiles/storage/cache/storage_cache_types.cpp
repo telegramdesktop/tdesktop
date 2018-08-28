@@ -13,6 +13,10 @@ namespace Storage {
 namespace Cache {
 namespace details {
 
+TaggedValue::TaggedValue(QByteArray &&bytes, uint8 tag)
+: bytes(std::move(bytes)), tag(tag) {
+}
+
 QString ComputeBasePath(const QString &original) {
 	const auto result = QDir(original).absolutePath();
 	return result.endsWith('/') ? result : (result + '/');

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/basic_types.h"
+#include "base/flat_map.h"
 #include "base/optional.h"
 #include <crl/crl_time.h>
 
@@ -66,6 +67,20 @@ struct Settings {
 	crl::time_type pruneTimeout = 5 * crl::time_type(1000);
 	crl::time_type maxPruneCheckTimeout = 3600 * crl::time_type(1000);
 };
+
+struct TaggedValue {
+	TaggedValue() = default;
+	TaggedValue(QByteArray &&bytes, uint8 tag);
+
+	QByteArray bytes;
+	uint8 tag = 0;
+};
+
+struct TaggedSummary {
+	size_type count = 0;
+	size_type totalSize = 0;
+};
+using Stats = base::flat_map<uint8, TaggedSummary>;
 
 using Version = int32;
 

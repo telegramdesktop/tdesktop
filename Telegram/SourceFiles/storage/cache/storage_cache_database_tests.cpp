@@ -59,8 +59,14 @@ QString GetBinlogPath() {
 	return name + '/' + QString::number(version) + "/binlog";
 }
 
-const auto TestValue1 = QByteArray("testbytetestbyt");
-const auto TestValue2 = QByteArray("bytetestbytetestb");
+const auto TestValue1 = [] {
+	static auto result = QByteArray("testbytetestbyt");
+	return result;
+};
+const auto TestValue2 = [] {
+	static auto result = QByteArray("bytetestbytetestb");
+	return result;
+};
 
 crl::semaphore Semaphore;
 
@@ -77,7 +83,7 @@ const auto GetValue = [](QByteArray value) {
 };
 
 Error Open(Database &db, const Storage::EncryptionKey &key) {
-	db.open(key, GetResult);
+	db.open(base::duplicate(key), GetResult);
 	Semaphore.acquire();
 	return Result;
 }
@@ -99,8 +105,8 @@ QByteArray Get(Database &db, const Key &key) {
 	return Value;
 }
 
-Error Put(Database &db, const Key &key, const QByteArray &value) {
-	db.put(key, value, GetResult);
+Error Put(Database &db, const Key &key, QByteArray &&value) {
+	db.put(key, std::move(value), GetResult);
 	Semaphore.acquire();
 	return Result;
 }
@@ -141,15 +147,15 @@ TEST_CASE("compacting db", "[storage_cache_database]") {
 		for (auto i = from; i != till; ++i) {
 			auto value = base;
 			value[0] = char('A') + i;
-			const auto result = Put(db, Key{ i, i + 1 }, value);
+			const auto result = Put(db, Key{ i, i + 1 }, std::move(value));
 			REQUIRE(result.type == Error::Type::None);
 		}
 	};
 	const auto put = [&](Database &db, uint32 from, uint32 till) {
-		write(db, from, till, TestValue1);
+		write(db, from, till, TestValue1());
 	};
 	const auto reput = [&](Database &db, uint32 from, uint32 till) {
-		write(db, from, till, TestValue2);
+		write(db, from, till, TestValue2());
 	};
 	const auto remove = [](Database &db, uint32 from, uint32 till) {
 		for (auto i = from; i != till; ++i) {
@@ -201,11 +207,11 @@ TEST_CASE("compacting db", "[storage_cache_database]") {
 
 		const auto fullcheck = [&] {
 			check(db, 0, 15, {});
-			check(db, 15, 20, TestValue1);
-			check(db, 20, 30, TestValue2);
+			check(db, 15, 20, TestValue1());
+			check(db, 20, 30, TestValue2());
 			check(db, 30, 35, {});
-			check(db, 35, 37, TestValue2);
-			check(db, 37, 45, TestValue1);
+			check(db, 35, 37, TestValue2());
+			check(db, 37, 45, TestValue1());
 		};
 		fullcheck();
 		Close(db);
@@ -241,11 +247,11 @@ TEST_CASE("compacting db", "[storage_cache_database]") {
 
 		const auto fullcheck = [&] {
 			check(db, 0, 15, {});
-			check(db, 15, 20, TestValue1);
-			check(db, 20, 30, TestValue2);
+			check(db, 15, 20, TestValue1());
+			check(db, 20, 30, TestValue2());
 			check(db, 30, 35, {});
-			check(db, 35, 37, TestValue2);
-			check(db, 37, 45, TestValue1);
+			check(db, 35, 37, TestValue2());
+			check(db, 37, 45, TestValue1());
 		};
 		fullcheck();
 		Close(db);
@@ -285,9 +291,9 @@ TEST_CASE("compacting db", "[storage_cache_database]") {
 		REQUIRE(after < size2);
 		const auto fullcheck = [&] {
 			check(db, 0, 15, {});
-			check(db, 15, 20, TestValue1);
+			check(db, 15, 20, TestValue1());
 			check(db, 20, 35, {});
-			check(db, 35, 45, TestValue2);
+			check(db, 35, 45, TestValue2());
 		};
 		fullcheck();
 		Close(db);
@@ -324,7 +330,7 @@ TEST_CASE("compacting db", "[storage_cache_database]") {
 		AdvanceTime(2);
 		REQUIRE(QFile(path).size() < size);
 		const auto fullcheck = [&] {
-			check(db, 15, 30, TestValue2);
+			check(db, 15, 30, TestValue2());
 		};
 		fullcheck();
 		Close(db);
@@ -344,16 +350,16 @@ TEST_CASE("encrypted cache db", "[storage_cache_database]") {
 
 		REQUIRE(Clear(db).type == Error::Type::None);
 		REQUIRE(Open(db, key).type == Error::Type::None);
-		REQUIRE(Put(db, Key{ 0, 1 }, TestValue1).type == Error::Type::None);
+		REQUIRE(Put(db, Key{ 0, 1 }, TestValue1()).type == Error::Type::None);
 		Close(db);
 	}
 	SECTION("reading and writing db") {
 		Database db(name, Settings);
 
 		REQUIRE(Open(db, key).type == Error::Type::None);
-		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue1));
-		REQUIRE(Put(db, Key{ 1, 0 }, TestValue2).type == Error::Type::None);
-		REQUIRE((Get(db, Key{ 1, 0 }) == TestValue2));
+		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue1()));
+		REQUIRE(Put(db, Key{ 1, 0 }, TestValue2()).type == Error::Type::None);
+		REQUIRE((Get(db, Key{ 1, 0 }) == TestValue2()));
 		REQUIRE(Get(db, Key{ 1, 1 }).isEmpty());
 		Close(db);
 	}
@@ -361,8 +367,8 @@ TEST_CASE("encrypted cache db", "[storage_cache_database]") {
 		Database db(name, Settings);
 
 		REQUIRE(Open(db, key).type == Error::Type::None);
-		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue1));
-		REQUIRE((Get(db, Key{ 1, 0 }) == TestValue2));
+		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue1()));
+		REQUIRE((Get(db, Key{ 1, 0 }) == TestValue2()));
 		Close(db);
 	}
 	SECTION("overwriting values") {
@@ -370,13 +376,13 @@ TEST_CASE("encrypted cache db", "[storage_cache_database]") {
 
 		REQUIRE(Open(db, key).type == Error::Type::None);
 		const auto path = GetBinlogPath();
-		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue1));
+		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue1()));
 		const auto size = QFile(path).size();
-		REQUIRE(Put(db, Key{ 0, 1 }, TestValue2).type == Error::Type::None);
+		REQUIRE(Put(db, Key{ 0, 1 }, TestValue2()).type == Error::Type::None);
 		const auto next = QFile(path).size();
 		REQUIRE(next > size);
-		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue2));
-		REQUIRE(Put(db, Key{ 0, 1 }, TestValue2).type == Error::Type::None);
+		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue2()));
+		REQUIRE(Put(db, Key{ 0, 1 }, TestValue2()).type == Error::Type::None);
 		const auto same = QFile(path).size();
 		REQUIRE(same == next);
 		Close(db);
@@ -393,16 +399,16 @@ TEST_CASE("encrypted cache db", "[storage_cache_database]") {
 		REQUIRE(Clear(db).type == Error::Type::None);
 		REQUIRE(Open(db, key).type == Error::Type::None);
 		for (auto i = 0U; i != count; ++i) {
-			auto value = TestValue1;
+			auto value = TestValue1();
 			value[0] = char('A') + i;
-			const auto result = Put(db, Key{ i, i * 2 }, value);
+			const auto result = Put(db, Key{ i, i * 2 }, std::move(value));
 			REQUIRE(result.type == Error::Type::None);
 		}
 		Close(db);
 
 		REQUIRE(Open(db, key).type == Error::Type::None);
 		for (auto i = 0U; i != count; ++i) {
-			auto value = TestValue1;
+			auto value = TestValue1();
 			value[0] = char('A') + i;
 			REQUIRE((Get(db, Key{ i, i * 2 }) == value));
 		}
@@ -419,11 +425,11 @@ TEST_CASE("cache db remove", "[storage_cache_database]") {
 
 		REQUIRE(Clear(db).type == Error::Type::None);
 		REQUIRE(Open(db, key).type == Error::Type::None);
-		REQUIRE(Put(db, Key{ 0, 1 }, TestValue1).type == Error::Type::None);
-		REQUIRE(Put(db, Key{ 1, 0 }, TestValue2).type == Error::Type::None);
+		REQUIRE(Put(db, Key{ 0, 1 }, TestValue1()).type == Error::Type::None);
+		REQUIRE(Put(db, Key{ 1, 0 }, TestValue2()).type == Error::Type::None);
 		Remove(db, Key{ 0, 1 });
 		REQUIRE(Get(db, Key{ 0, 1 }).isEmpty());
-		REQUIRE((Get(db, Key{ 1, 0 }) == TestValue2));
+		REQUIRE((Get(db, Key{ 1, 0 }) == TestValue2()));
 		Close(db);
 	}
 	SECTION("db remove deletes value permanently") {
@@ -431,7 +437,7 @@ TEST_CASE("cache db remove", "[storage_cache_database]") {
 
 		REQUIRE(Open(db, key).type == Error::Type::None);
 		REQUIRE(Get(db, Key{ 0, 1 }).isEmpty());
-		REQUIRE((Get(db, Key{ 1, 0 }) == TestValue2));
+		REQUIRE((Get(db, Key{ 1, 0 }) == TestValue2()));
 		Close(db);
 	}
 }
@@ -448,9 +454,9 @@ TEST_CASE("cache db bundled actions", "[storage_cache_database]") {
 		REQUIRE(Clear(db).type == Error::Type::None);
 		REQUIRE(Open(db, key).type == Error::Type::None);
 		const auto path = GetBinlogPath();
-		REQUIRE(Put(db, Key{ 0, 1 }, TestValue1).type == Error::Type::None);
+		REQUIRE(Put(db, Key{ 0, 1 }, TestValue1()).type == Error::Type::None);
 		const auto size = QFile(path).size();
-		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue1));
+		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue1()));
 		REQUIRE(QFile(path).size() == size);
 		AdvanceTime(2);
 		Get(db, Key{ 0, 1 });
@@ -465,9 +471,9 @@ TEST_CASE("cache db bundled actions", "[storage_cache_database]") {
 		REQUIRE(Clear(db).type == Error::Type::None);
 		REQUIRE(Open(db, key).type == Error::Type::None);
 		const auto path = GetBinlogPath();
-		REQUIRE(Put(db, Key{ 0, 1 }, TestValue1).type == Error::Type::None);
+		REQUIRE(Put(db, Key{ 0, 1 }, TestValue1()).type == Error::Type::None);
 		const auto size = QFile(path).size();
-		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue1));
+		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue1()));
 		REQUIRE(QFile(path).size() == size);
 		Close(db);
 		REQUIRE(QFile(path).size() > size);
@@ -478,7 +484,7 @@ TEST_CASE("cache db bundled actions", "[storage_cache_database]") {
 		REQUIRE(Clear(db).type == Error::Type::None);
 		REQUIRE(Open(db, key).type == Error::Type::None);
 		const auto path = GetBinlogPath();
-		REQUIRE(Put(db, Key{ 0, 1 }, TestValue1).type == Error::Type::None);
+		REQUIRE(Put(db, Key{ 0, 1 }, TestValue1()).type == Error::Type::None);
 		const auto size = QFile(path).size();
 		Remove(db, Key{ 0, 1 });
 		REQUIRE(QFile(path).size() == size);
@@ -492,7 +498,7 @@ TEST_CASE("cache db bundled actions", "[storage_cache_database]") {
 		REQUIRE(Clear(db).type == Error::Type::None);
 		REQUIRE(Open(db, key).type == Error::Type::None);
 		const auto path = GetBinlogPath();
-		REQUIRE(Put(db, Key{ 0, 1 }, TestValue1).type == Error::Type::None);
+		REQUIRE(Put(db, Key{ 0, 1 }, TestValue1()).type == Error::Type::None);
 		const auto size = QFile(path).size();
 		Remove(db, Key{ 0, 1 });
 		REQUIRE(QFile(path).size() == size);
@@ -513,21 +519,21 @@ TEST_CASE("cache db limits", "[storage_cache_database]") {
 		Database db(name, settings);
 
 		db.clear(nullptr);
-		db.open(key, nullptr);
-		db.put(Key{ 0, 1 }, TestValue1, nullptr);
-		db.put(Key{ 1, 0 }, TestValue2, nullptr);
+		db.open(base::duplicate(key), nullptr);
+		db.put(Key{ 0, 1 }, TestValue1(), nullptr);
+		db.put(Key{ 1, 0 }, TestValue2(), nullptr);
 		AdvanceTime(2);
 		db.get(Key{ 1, 0 }, nullptr);
 		AdvanceTime(3);
-		db.put(Key{ 1, 1 }, TestValue1, nullptr);
-		db.put(Key{ 2, 0 }, TestValue2, nullptr);
-		db.put(Key{ 0, 2 }, TestValue1, nullptr);
+		db.put(Key{ 1, 1 }, TestValue1(), nullptr);
+		db.put(Key{ 2, 0 }, TestValue2(), nullptr);
+		db.put(Key{ 0, 2 }, TestValue1(), nullptr);
 		AdvanceTime(2);
 		REQUIRE(Get(db, Key{ 0, 1 }).isEmpty());
 		REQUIRE(Get(db, Key{ 1, 0 }).isEmpty());
-		REQUIRE((Get(db, Key{ 1, 1 }) == TestValue1));
-		REQUIRE((Get(db, Key{ 2, 0 }) == TestValue2));
-		REQUIRE((Get(db, Key{ 0, 2 }) == TestValue1));
+		REQUIRE((Get(db, Key{ 1, 1 }) == TestValue1()));
+		REQUIRE((Get(db, Key{ 2, 0 }) == TestValue2()));
+		REQUIRE((Get(db, Key{ 0, 2 }) == TestValue1()));
 		Close(db);
 	}
 	SECTION("db size limit") {
@@ -537,27 +543,27 @@ TEST_CASE("cache db limits", "[storage_cache_database]") {
 		Database db(name, settings);
 
 		db.clear(nullptr);
-		db.open(key, nullptr);
-		db.put(Key{ 0, 1 }, TestValue1, nullptr);
+		db.open(base::duplicate(key), nullptr);
+		db.put(Key{ 0, 1 }, TestValue1(), nullptr);
 		AdvanceTime(2);
-		db.put(Key{ 1, 0 }, TestValue2, nullptr);
+		db.put(Key{ 1, 0 }, TestValue2(), nullptr);
 		AdvanceTime(2);
-		db.put(Key{ 1, 1 }, TestValue1, nullptr);
+		db.put(Key{ 1, 1 }, TestValue1(), nullptr);
 		db.get(Key{ 0, 1 }, nullptr);
 		AdvanceTime(2);
-		db.put(Key{ 2, 0 }, TestValue2, nullptr);
+		db.put(Key{ 2, 0 }, TestValue2(), nullptr);
 
 		// Removing { 1, 0 } will be scheduled.
-		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue1));
-		REQUIRE((Get(db, Key{ 1, 1 }) == TestValue1));
-		REQUIRE((Get(db, Key{ 2, 0 }) == TestValue2));
+		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue1()));
+		REQUIRE((Get(db, Key{ 1, 1 }) == TestValue1()));
+		REQUIRE((Get(db, Key{ 2, 0 }) == TestValue2()));
 		AdvanceTime(2);
 
 		// Removing { 1, 0 } performed.
 		REQUIRE(Get(db, Key{ 1, 0 }).isEmpty());
-		REQUIRE((Get(db, Key{ 1, 1 }) == TestValue1));
-		db.put(Key{ 0, 2 }, TestValue1, nullptr);
-		REQUIRE(Put(db, Key{ 2, 2 }, TestValue2).type == Error::Type::None);
+		REQUIRE((Get(db, Key{ 1, 1 }) == TestValue1()));
+		db.put(Key{ 0, 2 }, TestValue1(), nullptr);
+		REQUIRE(Put(db, Key{ 2, 2 }, TestValue2()).type == Error::Type::None);
 
 		// Removing { 0, 1 } and { 2, 0 } will be scheduled.
 		AdvanceTime(2);
@@ -565,9 +571,9 @@ TEST_CASE("cache db limits", "[storage_cache_database]") {
 		// Removing { 0, 1 } and { 2, 0 } performed.
 		REQUIRE(Get(db, Key{ 0, 1 }).isEmpty());
 		REQUIRE(Get(db, Key{ 2, 0 }).isEmpty());
-		REQUIRE((Get(db, Key{ 1, 1 }) == TestValue1));
-		REQUIRE((Get(db, Key{ 0, 2 }) == TestValue1));
-		REQUIRE((Get(db, Key{ 2, 2 }) == TestValue2));
+		REQUIRE((Get(db, Key{ 1, 1 }) == TestValue1()));
+		REQUIRE((Get(db, Key{ 0, 2 }) == TestValue1()));
+		REQUIRE((Get(db, Key{ 2, 2 }) == TestValue2()));
 		Close(db);
 	}
 	SECTION("db time limit") {
@@ -577,11 +583,11 @@ TEST_CASE("cache db limits", "[storage_cache_database]") {
 		Database db(name, settings);
 
 		db.clear(nullptr);
-		db.open(key, nullptr);
-		db.put(Key{ 0, 1 }, TestValue1, nullptr);
-		db.put(Key{ 1, 0 }, TestValue2, nullptr);
-		db.put(Key{ 1, 1 }, TestValue1, nullptr);
-		db.put(Key{ 2, 0 }, TestValue2, nullptr);
+		db.open(base::duplicate(key), nullptr);
+		db.put(Key{ 0, 1 }, TestValue1(), nullptr);
+		db.put(Key{ 1, 0 }, TestValue2(), nullptr);
+		db.put(Key{ 1, 1 }, TestValue1(), nullptr);
+		db.put(Key{ 2, 0 }, TestValue2(), nullptr);
 		AdvanceTime(1);
 		db.get(Key{ 1, 0 }, nullptr);
 		db.get(Key{ 1, 1 }, nullptr);
@@ -594,8 +600,8 @@ TEST_CASE("cache db limits", "[storage_cache_database]") {
 		AdvanceTime(3);
 		REQUIRE(Get(db, Key{ 2, 0 }).isEmpty());
 		REQUIRE(Get(db, Key{ 1, 1 }).isEmpty());
-		REQUIRE((Get(db, Key{ 1, 0 }) == TestValue2));
-		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue1));
+		REQUIRE((Get(db, Key{ 1, 0 }) == TestValue2()));
+		REQUIRE((Get(db, Key{ 0, 1 }) == TestValue1()));
 		Close(db);
 	}
 }
@@ -623,7 +629,7 @@ TEST_CASE("large db", "[storage_cache_database]") {
 		};
 		const auto kWriteRecords = 100 * 1024;
 		for (auto i = 0; i != kWriteRecords; ++i) {
-			db.put(key(i), TestValue1, nullptr);
+			db.put(key(i), TestValue1(), nullptr);
 			const auto j = i ? (rand() % i) : 0;
 			if (i % 1024 == 1023) {
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));

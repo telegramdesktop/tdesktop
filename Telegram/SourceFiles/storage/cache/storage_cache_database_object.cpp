@@ -105,17 +105,17 @@ Error DatabaseObject::ioError(const QString &path) const {
 	return { Error::Type::IO, path };
 }
 
-void DatabaseObject::open(EncryptionKey key, FnMut<void(Error)> done) {
+void DatabaseObject::open(EncryptionKey &&key, FnMut<void(Error)> &&done) {
 	close(nullptr);
 
-	const auto error = openSomeBinlog(key);
+	const auto error = openSomeBinlog(std::move(key));
 	if (error.type != Error::Type::None) {
 		close(nullptr);
 	}
 	invokeCallback(done, error);
 }
 
-Error DatabaseObject::openSomeBinlog(EncryptionKey &key) {
+Error DatabaseObject::openSomeBinlog(EncryptionKey &&key) {
 	const auto version = readVersion();
 	const auto result = openBinlog(version, File::Mode::ReadAppend, key);
 	switch (result) {
@@ -500,7 +500,7 @@ bool DatabaseObject::processRecordMultiAccess(
 
 void DatabaseObject::setMapEntry(const Key &key, Entry &&entry) {
 	auto &already = _map[key];
-	_totalSize += entry.size - already.size;
+	updateStats(already, entry);
 	if (already.size != 0) {
 		_binlogExcessLength += _settings.trackEstimatedTime
 			? sizeof(StoreWithTime)
@@ -522,10 +522,32 @@ void DatabaseObject::setMapEntry(const Key &key, Entry &&entry) {
 	already = std::move(entry);
 }
 
+void DatabaseObject::updateStats(const Entry &was, const Entry &now) {
+	_totalSize += now.size - was.size;
+	if (now.tag == was.tag) {
+		if (now.tag) {
+			auto &summary = _taggedStats[now.tag];
+			summary.count += (now.size ? 1 : 0) - (was.size ? 1 : 0);
+			summary.totalSize += now.size - was.size;
+		}
+	} else {
+		if (now.tag) {
+			auto &summary = _taggedStats[now.tag];
+			summary.count += (now.size ? 1 : 0);
+			summary.totalSize += now.size;
+		}
+		if (was.tag) {
+			auto &summary = _taggedStats[was.tag];
+			summary.count -= (was.size ? 1 : 0);
+			summary.totalSize -= was.size;
+		}
+	}
+}
+
 void DatabaseObject::eraseMapEntry(const Map::const_iterator &i) {
 	if (i != end(_map)) {
 		const auto &entry = i->second;
-		_totalSize -= entry.size;
+		updateStats(entry, Entry());
 		if (_minimalEntryTime != 0 && entry.useTime == _minimalEntryTime) {
 			Assert(_entriesWithMinimalTimeCount > 0);
 			--_entriesWithMinimalTimeCount;
@@ -604,7 +626,7 @@ void DatabaseObject::compactorFail() {
 	QFile(compactReadyPath()).remove();
 }
 
-void DatabaseObject::close(FnMut<void()> done) {
+void DatabaseObject::close(FnMut<void()> &&done) {
 	if (_binlog.isOpen()) {
 		writeBundles();
 	}
@@ -619,15 +641,15 @@ void DatabaseObject::close(FnMut<void()> done) {
 
 void DatabaseObject::put(
 		const Key &key,
-		QByteArray value,
-		FnMut<void(Error)> done) {
-	if (value.isEmpty()) {
+		TaggedValue &&value,
+		FnMut<void(Error)> &&done) {
+	if (value.bytes.isEmpty()) {
 		remove(key, std::move(done));
 		return;
 	}
 	_removing.erase(key);
 
-	const auto checksum = CountChecksum(bytes::make_span(value));
+	const auto checksum = CountChecksum(bytes::make_span(value.bytes));
 	const auto maybepath = writeKeyPlace(key, value, checksum);
 	if (!maybepath) {
 		invokeCallback(done, ioError(binlogPath()));
@@ -653,7 +675,8 @@ void DatabaseObject::put(
 		break;
 
 	case File::Result::Success: {
-		const auto success = data.writeWithPadding(bytes::make_span(value));
+		const auto success = data.writeWithPadding(
+			bytes::make_span(value.bytes));
 		if (!success) {
 			data.close();
 			remove(key, nullptr);
@@ -673,11 +696,12 @@ template <typename StoreRecord>
 base::optional<QString> DatabaseObject::writeKeyPlaceGeneric(
 		StoreRecord &&record,
 		const Key &key,
-		const QByteArray &value,
+		const TaggedValue &value,
 		uint32 checksum) {
-	Expects(value.size() <= _settings.maxDataSize);
+	Expects(value.bytes.size() <= _settings.maxDataSize);
 
-	const auto size = size_type(value.size());
+	const auto size = size_type(value.bytes.size());
+	record.tag = value.tag;
 	record.key = key;
 	record.size = ReadTo<EntrySize>(size);
 	record.checksum = checksum;
@@ -686,7 +710,7 @@ base::optional<QString> DatabaseObject::writeKeyPlaceGeneric(
 		if (already.tag == record.tag
 			&& already.size == size
 			&& already.checksum == checksum
-			&& readValueData(already.place, size) == value) {
+			&& readValueData(already.place, size) == value.bytes) {
 			return QString();
 		}
 		record.place = already.place;
@@ -713,7 +737,7 @@ base::optional<QString> DatabaseObject::writeKeyPlaceGeneric(
 
 base::optional<QString> DatabaseObject::writeKeyPlace(
 		const Key &key,
-		const QByteArray &data,
+		const TaggedValue &data,
 		uint32 checksum) {
 	if (!_settings.trackEstimatedTime) {
 		return writeKeyPlaceGeneric(Store(), key, data, checksum);
@@ -786,27 +810,25 @@ Error DatabaseObject::writeExistingPlace(
 	return writeExistingPlaceGeneric(std::move(record), key, entry);
 }
 
-void DatabaseObject::get(const Key &key, FnMut<void(QByteArray)> done) {
-	if (_removing.find(key) != end(_removing)) {
-		invokeCallback(done, QByteArray());
-		return;
-	}
+void DatabaseObject::get(
+		const Key &key,
+		FnMut<void(TaggedValue&&)> &&done) {
 	const auto i = _map.find(key);
 	if (i == _map.end()) {
-		invokeCallback(done, QByteArray());
+		invokeCallback(done, TaggedValue());
 		return;
 	}
 	const auto &entry = i->second;
 
-	auto result = readValueData(entry.place, entry.size);
-	if (result.isEmpty()) {
+	auto bytes = readValueData(entry.place, entry.size);
+	if (bytes.isEmpty()) {
 		remove(key, nullptr);
-		invokeCallback(done, QByteArray());
-	} else if (CountChecksum(bytes::make_span(result)) != entry.checksum) {
+		invokeCallback(done, TaggedValue());
+	} else if (CountChecksum(bytes::make_span(bytes)) != entry.checksum) {
 		remove(key, nullptr);
-		invokeCallback(done, QByteArray());
+		invokeCallback(done, TaggedValue());
 	} else {
-		invokeCallback(done, std::move(result));
+		invokeCallback(done, TaggedValue(std::move(bytes), entry.tag));
 		recordEntryAccess(key);
 	}
 }
@@ -840,7 +862,7 @@ void DatabaseObject::recordEntryAccess(const Key &key) {
 	optimize();
 }
 
-void DatabaseObject::remove(const Key &key, FnMut<void(Error)> done) {
+void DatabaseObject::remove(const Key &key, FnMut<void(Error)> &&done) {
 	const auto i = _map.find(key);
 	if (i != _map.end()) {
 		_removing.emplace(key);
@@ -860,8 +882,8 @@ void DatabaseObject::remove(const Key &key, FnMut<void(Error)> done) {
 
 void DatabaseObject::putIfEmpty(
 		const Key &key,
-		QByteArray value,
-		FnMut<void(Error)> done) {
+		TaggedValue &&value,
+		FnMut<void(Error)> &&done) {
 	if (_map.find(key) != end(_map)) {
 		invokeCallback(done, Error::NoError());
 		return;
@@ -872,20 +894,20 @@ void DatabaseObject::putIfEmpty(
 void DatabaseObject::copyIfEmpty(
 		const Key &from,
 		const Key &to,
-		FnMut<void(Error)> done) {
+		FnMut<void(Error)> &&done) {
 	if (_map.find(to) != end(_map)) {
 		invokeCallback(done, Error::NoError());
 		return;
 	}
-	get(from, [&](QByteArray value) {
-		put(to, value, std::move(done));
+	get(from, [&](TaggedValue &&value) {
+		put(to, std::move(value), std::move(done));
 	});
 }
 
 void DatabaseObject::moveIfEmpty(
 		const Key &from,
 		const Key &to,
-		FnMut<void(Error)> done) {
+		FnMut<void(Error)> &&done) {
 	if (_map.find(to) != end(_map)) {
 		invokeCallback(done, Error::NoError());
 		return;
@@ -906,6 +928,19 @@ void DatabaseObject::moveIfEmpty(
 		return;
 	}
 	invokeCallback(done, writeExistingPlace(to, entry));
+}
+
+void DatabaseObject::stats(FnMut<void(Stats&&)> &&done) {
+	auto result = _taggedStats;
+	auto zero = TaggedSummary();
+	zero.count = _map.size();
+	zero.totalSize = _totalSize;
+	for (const auto &summary : result) {
+		zero.count -= summary.second.count;
+		zero.totalSize -= summary.second.totalSize;
+	}
+	result[0] = zero;
+	invokeCallback(done, std::move(result));
 }
 
 void DatabaseObject::writeBundlesLazy() {
@@ -1043,7 +1078,7 @@ void DatabaseObject::checkCompactor() {
 	_compactor.excessLength = _binlogExcessLength;
 }
 
-void DatabaseObject::clear(FnMut<void(Error)> done) {
+void DatabaseObject::clear(FnMut<void(Error)> &&done) {
 	Expects(_key.empty());
 
 	const auto version = findAvailableVersion();
@@ -1052,7 +1087,7 @@ void DatabaseObject::clear(FnMut<void(Error)> done) {
 		writeVersion(version) ? Error::NoError() : ioError(versionPath()));
 }
 
-auto DatabaseObject::getManyRaw(const std::vector<Key> keys) const
+auto DatabaseObject::getManyRaw(const std::vector<Key> &keys) const
 -> std::vector<Raw> {
 	auto result = std::vector<Raw>();
 	result.reserve(keys.size());

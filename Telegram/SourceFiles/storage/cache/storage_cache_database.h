@@ -25,30 +25,44 @@ public:
 	using Settings = details::Settings;
 	Database(const QString &path, const Settings &settings);
 
-	void open(EncryptionKey key, FnMut<void(Error)> done = nullptr);
-	void close(FnMut<void()> done = nullptr);
+	void open(EncryptionKey &&key, FnMut<void(Error)> &&done = nullptr);
+	void close(FnMut<void()> &&done = nullptr);
 
 	void put(
 		const Key &key,
-		QByteArray value,
-		FnMut<void(Error)> done = nullptr);
-	void get(const Key &key, FnMut<void(QByteArray)> done);
-	void remove(const Key &key, FnMut<void(Error)> done = nullptr);
+		QByteArray &&value,
+		FnMut<void(Error)> &&done = nullptr);
+	void get(const Key &key, FnMut<void(QByteArray&&)> &&done);
+	void remove(const Key &key, FnMut<void(Error)> &&done = nullptr);
 
 	void putIfEmpty(
 		const Key &key,
-		QByteArray value,
-		FnMut<void(Error)> done = nullptr);
+		QByteArray &&value,
+		FnMut<void(Error)> &&done = nullptr);
 	void copyIfEmpty(
 		const Key &from,
 		const Key &to,
-		FnMut<void(Error)> done = nullptr);
+		FnMut<void(Error)> &&done = nullptr);
 	void moveIfEmpty(
 		const Key &from,
 		const Key &to,
-		FnMut<void(Error)> done = nullptr);
+		FnMut<void(Error)> &&done = nullptr);
 
-	void clear(FnMut<void(Error)> done = nullptr);
+	using TaggedValue = details::TaggedValue;
+	void put(
+		const Key &key,
+		TaggedValue &&value,
+		FnMut<void(Error)> &&done = nullptr);
+	void putIfEmpty(
+		const Key &key,
+		TaggedValue &&value,
+		FnMut<void(Error)> &&done = nullptr);
+	void getWithTag(const Key &key, FnMut<void(TaggedValue&&)> &&done);
+
+	using Stats = details::Stats;
+	void stats(FnMut<void(Stats&&)> &&done);
+
+	void clear(FnMut<void(Error)> &&done = nullptr);
 
 	~Database();
 

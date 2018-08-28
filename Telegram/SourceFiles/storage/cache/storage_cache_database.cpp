@@ -16,16 +16,16 @@ Database::Database(const QString &path, const Settings &settings)
 : _wrapped(path, settings) {
 }
 
-void Database::open(EncryptionKey key, FnMut<void(Error)> done) {
+void Database::open(EncryptionKey &&key, FnMut<void(Error)> &&done) {
 	_wrapped.with([
-		key,
+		key = std::move(key),
 		done = std::move(done)
 	](Implementation &unwrapped) mutable {
-		unwrapped.open(key, std::move(done));
+		unwrapped.open(std::move(key), std::move(done));
 	});
 }
 
-void Database::close(FnMut<void()> done) {
+void Database::close(FnMut<void()> &&done) {
 	_wrapped.with([
 		done = std::move(done)
 	](Implementation &unwrapped) mutable {
@@ -35,27 +35,23 @@ void Database::close(FnMut<void()> done) {
 
 void Database::put(
 		const Key &key,
-		QByteArray value,
-		FnMut<void(Error)> done) {
-	_wrapped.with([
-		key,
-		value = std::move(value),
-		done = std::move(done)
-	](Implementation &unwrapped) mutable {
-		unwrapped.put(key, std::move(value), std::move(done));
-	});
+		QByteArray &&value,
+		FnMut<void(Error)> &&done) {
+	return put(key, TaggedValue(std::move(value), 0), std::move(done));
 }
 
-void Database::get(const Key &key, FnMut<void(QByteArray)> done) {
-	_wrapped.with([
-		key,
-		done = std::move(done)
-	](Implementation &unwrapped) mutable {
-		unwrapped.get(key, std::move(done));
-	});
+void Database::get(const Key &key, FnMut<void(QByteArray&&)> &&done) {
+	if (done) {
+		auto untag = [done = std::move(done)](TaggedValue &&value) mutable {
+			done(std::move(value.bytes));
+		};
+		getWithTag(key, std::move(untag));
+	} else {
+		getWithTag(key, nullptr);
+	}
 }
 
-void Database::remove(const Key &key, FnMut<void(Error)> done) {
+void Database::remove(const Key &key, FnMut<void(Error)> &&done) {
 	_wrapped.with([
 		key,
 		done = std::move(done)
@@ -66,21 +62,18 @@ void Database::remove(const Key &key, FnMut<void(Error)> done) {
 
 void Database::putIfEmpty(
 		const Key &key,
-		QByteArray value,
-		FnMut<void(Error)> done) {
-	_wrapped.with([
+		QByteArray &&value,
+		FnMut<void(Error)> &&done) {
+	return putIfEmpty(
 		key,
-		value = std::move(value),
-		done = std::move(done)
-	](Implementation &unwrapped) mutable {
-		unwrapped.putIfEmpty(key, std::move(value), std::move(done));
-	});
+		TaggedValue(std::move(value), 0),
+		std::move(done));
 }
 
 void Database::copyIfEmpty(
 		const Key &from,
 		const Key &to,
-		FnMut<void(Error)> done) {
+		FnMut<void(Error)> &&done) {
 	_wrapped.with([
 		from,
 		to,
@@ -93,7 +86,7 @@ void Database::copyIfEmpty(
 void Database::moveIfEmpty(
 		const Key &from,
 		const Key &to,
-		FnMut<void(Error)> done) {
+		FnMut<void(Error)> &&done) {
 	_wrapped.with([
 		from,
 		to,
@@ -103,7 +96,52 @@ void Database::moveIfEmpty(
 	});
 }
 
-void Database::clear(FnMut<void(Error)> done) {
+void Database::put(
+		const Key &key,
+		TaggedValue &&value,
+		FnMut<void(Error)> &&done) {
+	_wrapped.with([
+		key,
+		value = std::move(value),
+		done = std::move(done)
+	](Implementation &unwrapped) mutable {
+		unwrapped.put(key, std::move(value), std::move(done));
+	});
+}
+
+void Database::putIfEmpty(
+		const Key &key,
+		TaggedValue &&value,
+		FnMut<void(Error)> &&done) {
+	_wrapped.with([
+		key,
+		value = std::move(value),
+		done = std::move(done)
+	](Implementation &unwrapped) mutable {
+		unwrapped.putIfEmpty(key, std::move(value), std::move(done));
+	});
+}
+
+void Database::getWithTag(
+		const Key &key,
+		FnMut<void(TaggedValue&&)> &&done) {
+		_wrapped.with([
+		key,
+		done = std::move(done)
+	](Implementation &unwrapped) mutable {
+		unwrapped.get(key, std::move(done));
+	});
+}
+
+void Database::stats(FnMut<void(Stats&&)> &&done) {
+	_wrapped.with([
+		done = std::move(done)
+	](Implementation &unwrapped) mutable {
+		unwrapped.stats(std::move(done));
+	});
+}
+
+void Database::clear(FnMut<void(Error)> &&done) {
 	_wrapped.with([
 		done = std::move(done)
 	](Implementation &unwrapped) mutable {
