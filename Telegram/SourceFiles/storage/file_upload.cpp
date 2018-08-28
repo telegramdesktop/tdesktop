@@ -129,7 +129,9 @@ void Uploader::uploadMedia(const FullMsgId &msgId, const SendMediaReady &media) 
 			if (document->saveToCache()) {
 				Auth().data().cache().put(
 					document->cacheKey(),
-					base::duplicate(media.data));
+					Storage::Cache::Database::TaggedValue(
+						base::duplicate(media.data),
+						document->cacheTag()));
 			}
 		}
 		if (!media.file.isEmpty()) {
@@ -156,7 +158,9 @@ void Uploader::upload(
 			if (document->saveToCache()) {
 				Auth().data().cache().put(
 					document->cacheKey(),
-					base::duplicate(file->content));
+					Storage::Cache::Database::TaggedValue(
+						base::duplicate(file->content),
+						document->cacheTag()));
 			}
 		}
 		if (!file->filepath.isEmpty()) {

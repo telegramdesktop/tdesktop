@@ -1024,7 +1024,9 @@ void RemoteImage::setImageBytes(
 	if (!location.isNull() && !bytes.isEmpty()) {
 		Auth().data().cache().putIfEmpty(
 			Data::StorageCacheKey(location),
-			base::duplicate(bytes));
+			Storage::Cache::Database::TaggedValue(
+				base::duplicate(bytes),
+				Data::kImageCacheTag));
 	}
 }
 
@@ -1165,7 +1167,8 @@ FileLoader *StorageImage::createLoader(
 		origin,
 		_size,
 		fromCloud,
-		autoLoading);
+		autoLoading,
+		Data::kImageCacheTag);
 }
 
 WebFileImage::WebFileImage(
@@ -1220,7 +1223,8 @@ FileLoader *WebFileImage::createLoader(
 			&_location,
 			_size,
 			fromCloud,
-			autoLoading);
+			autoLoading,
+			Data::kImageCacheTag);
 }
 
 DelayedStorageImage::DelayedStorageImage() : StorageImage(StorageImageLocation())
@@ -1359,7 +1363,12 @@ FileLoader *WebImage::createLoader(
 		Data::FileOrigin origin,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading) {
-	return new webFileLoader(_url, QString(), fromCloud, autoLoading);
+	return new webFileLoader(
+		_url,
+		QString(),
+		fromCloud,
+		autoLoading,
+		Data::kImageCacheTag);
 }
 
 namespace internal {

@@ -72,7 +72,15 @@ class FileLoader : public QObject {
 	Q_OBJECT
 
 public:
-	FileLoader(const QString &toFile, int32 size, LocationType locationType, LoadToCacheSetting, LoadFromCloudSetting fromCloud, bool autoLoading);
+	FileLoader(
+		const QString &toFile,
+		int32 size,
+		LocationType locationType,
+		LoadToCacheSetting toCache,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading,
+		uint8 cacheTag);
+
 	bool finished() const {
 		return _finished;
 	}
@@ -163,6 +171,7 @@ protected:
 
 	bool _paused = false;
 	bool _autoLoading = false;
+	uint8 _cacheTag = 0;
 	bool _inQueue = false;
 	bool _finished = false;
 	bool _cancelled = false;
@@ -197,7 +206,8 @@ public:
 		Data::FileOrigin origin,
 		int32 size,
 		LoadFromCloudSetting fromCloud,
-		bool autoLoading);
+		bool autoLoading,
+		uint8 cacheTag);
 	mtpFileLoader(
 		int32 dc,
 		uint64 id,
@@ -209,12 +219,14 @@ public:
 		int32 size,
 		LoadToCacheSetting toCache,
 		LoadFromCloudSetting fromCloud,
-		bool autoLoading);
+		bool autoLoading,
+		uint8 cacheTag);
 	mtpFileLoader(
 		const WebFileLocation *location,
 		int32 size,
 		LoadFromCloudSetting fromCloud,
-		bool autoLoading);
+		bool autoLoading,
+		uint8 cacheTag);
 
 	int32 currentOffset(bool includeSkipped = false) const override;
 	Data::FileOrigin fileOrigin() const override;
@@ -317,7 +329,8 @@ public:
 		const QString &url,
 		const QString &to,
 		LoadFromCloudSetting fromCloud,
-		bool autoLoading);
+		bool autoLoading,
+		uint8 cacheTag);
 
 	int32 currentOffset(bool includeSkipped = false) const override;
 

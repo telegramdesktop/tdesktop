@@ -357,7 +357,9 @@ bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
 		}
 		Auth().data().cache().putIfEmpty(
 			Data::StorageCacheKey(key),
-			image->savedData());
+			Storage::Cache::Database::TaggedValue(
+				image->savedData(),
+				Data::kImageCacheTag));
 	};
 	auto &sizes = photo.c_photo().vsizes.v;
 	auto max = 0;

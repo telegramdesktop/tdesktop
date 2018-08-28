@@ -771,13 +771,15 @@ void DocumentData::save(
 				&_urlLocation,
 				size,
 				fromCloud,
-				autoLoading);
+				autoLoading,
+				cacheTag());
 		} else if (!_access && !_url.isEmpty()) {
 			_loader = new webFileLoader(
 				_url,
 				toFile,
 				fromCloud,
-				autoLoading);
+				autoLoading,
+				cacheTag());
 		} else {
 			_loader = new mtpFileLoader(
 				_dc,
@@ -790,7 +792,8 @@ void DocumentData::save(
 				size,
 				(saveToCache() ? LoadToCacheAsWell : LoadToFileOnly),
 				fromCloud,
-				autoLoading);
+				autoLoading,
+				cacheTag());
 		}
 
 		_loader->connect(_loader, SIGNAL(progress(FileLoader*)), App::main(), SLOT(documentLoadProgress(FileLoader*)));
@@ -1096,6 +1099,19 @@ Storage::Cache::Key DocumentData::cacheKey() const {
 	} else {
 		return Data::DocumentCacheKey(_dc, id);
 	}
+}
+
+uint8 DocumentData::cacheTag() const {
+	if (type == StickerDocument) {
+		return Data::kStickerCacheTag;
+	} else if (isVoiceMessage()) {
+		return Data::kVoiceMessageCacheTag;
+	} else if (isVideoMessage()) {
+		return Data::kVideoMessageCacheTag;
+	} else if (isAnimation()) {
+		return Data::kAnimationCacheTag;
+	}
+	return 0;
 }
 
 QString DocumentData::composeNameString() const {

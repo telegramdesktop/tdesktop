@@ -41,6 +41,12 @@ Storage::Cache::Key StorageCacheKey(const StorageImageLocation &location);
 Storage::Cache::Key WebDocumentCacheKey(const WebFileLocation &location);
 Storage::Cache::Key UrlCacheKey(const QString &location);
 
+constexpr auto kImageCacheTag = uint8(0x01);
+constexpr auto kStickerCacheTag = uint8(0x02);
+constexpr auto kVoiceMessageCacheTag = uint8(0x03);
+constexpr auto kVideoMessageCacheTag = uint8(0x04);
+constexpr auto kAnimationCacheTag = uint8(0x05);
+
 } // namespace Data
 
 struct MessageGroupId {

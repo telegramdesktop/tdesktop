@@ -180,6 +180,7 @@ public:
 
 	MediaKey mediaKey() const;
 	Storage::Cache::Key cacheKey() const;
+	uint8 cacheTag() const;
 
 	static QString ComposeNameString(
 		const QString &filename,

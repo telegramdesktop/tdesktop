@@ -107,9 +107,17 @@ WebLoadMainManager *_webLoadMainManager = nullptr;
 
 } // namespace
 
-FileLoader::FileLoader(const QString &toFile, int32 size, LocationType locationType, LoadToCacheSetting toCache, LoadFromCloudSetting fromCloud, bool autoLoading)
+FileLoader::FileLoader(
+	const QString &toFile,
+	int32 size,
+	LocationType locationType,
+	LoadToCacheSetting toCache,
+	LoadFromCloudSetting fromCloud,
+	bool autoLoading,
+	uint8 cacheTag)
 : _downloader(&Auth().downloader())
 , _autoLoading(autoLoading)
+, _cacheTag(cacheTag)
 , _filename(toFile)
 , _file(_filename)
 , _toCache(toCache)
@@ -471,15 +479,17 @@ mtpFileLoader::mtpFileLoader(
 	not_null<StorageImageLocation*> location,
 	Data::FileOrigin origin,
 	int32 size,
-	LoadFromCloudSetting fromCloud
-	, bool autoLoading)
+	LoadFromCloudSetting fromCloud,
+	bool autoLoading,
+	uint8 cacheTag)
 : FileLoader(
 	QString(),
 	size,
 	UnknownFileLocation,
 	LoadToCacheAsWell,
 	fromCloud,
-	autoLoading)
+	autoLoading,
+	cacheTag)
 , _dcId(location->dc())
 , _location(location)
 , _origin(origin) {
@@ -502,14 +512,16 @@ mtpFileLoader::mtpFileLoader(
 	int32 size,
 	LoadToCacheSetting toCache,
 	LoadFromCloudSetting fromCloud,
-	bool autoLoading)
+	bool autoLoading,
+	uint8 cacheTag)
 : FileLoader(
 	to,
 	size,
 	type,
 	toCache,
 	fromCloud,
-	autoLoading)
+	autoLoading,
+	cacheTag)
 , _dcId(dc)
 , _id(id)
 , _accessHash(accessHash)
@@ -527,14 +539,16 @@ mtpFileLoader::mtpFileLoader(
 	const WebFileLocation *location,
 	int32 size,
 	LoadFromCloudSetting fromCloud,
-	bool autoLoading)
+	bool autoLoading,
+	uint8 cacheTag)
 : FileLoader(
 	QString(),
 	size,
 	UnknownFileLocation,
 	LoadToCacheAsWell,
 	fromCloud,
-	autoLoading)
+	autoLoading,
+	cacheTag)
 , _dcId(location->dc())
 , _urlLocation(location) {
 	auto shiftedDcId = MTP::downloadDcId(_dcId, 0);
@@ -957,7 +971,11 @@ bool mtpFileLoader::feedPart(int offset, bytes::const_span buffer) {
 				|| _locationType == UnknownFileLocation
 				|| _toCache == LoadToCacheAsWell) {
 				if (const auto key = cacheKey()) {
-					Auth().data().cache().put(*key, base::duplicate(_data));
+					Auth().data().cache().put(
+						*key,
+						Storage::Cache::Database::TaggedValue(
+							base::duplicate(_data),
+							_cacheTag));
 				}
 			}
 		}
@@ -1105,8 +1123,20 @@ mtpFileLoader::~mtpFileLoader() {
 	cancelRequests();
 }
 
-webFileLoader::webFileLoader(const QString &url, const QString &to, LoadFromCloudSetting fromCloud, bool autoLoading)
-: FileLoader(QString(), 0, UnknownFileLocation, LoadToCacheAsWell, fromCloud, autoLoading)
+webFileLoader::webFileLoader(
+	const QString &url,
+	const QString &to,
+	LoadFromCloudSetting fromCloud,
+	bool autoLoading,
+	uint8 cacheTag)
+: FileLoader(
+	QString(),
+	0,
+	UnknownFileLocation,
+	LoadToCacheAsWell,
+	fromCloud,
+	autoLoading,
+	cacheTag)
 , _url(url)
 , _requestSent(false)
 , _already(0) {
@@ -1167,7 +1197,11 @@ void webFileLoader::onFinished(const QByteArray &data) {
 
 	if (_localStatus == LocalStatus::NotFound) {
 		if (const auto key = cacheKey()) {
-			Auth().data().cache().put(*key, base::duplicate(_data));
+			Auth().data().cache().put(
+				*key,
+				Storage::Cache::Database::TaggedValue(
+					base::duplicate(_data),
+					_cacheTag));
 		}
 	}
 	_downloader->taskFinished().notify();
