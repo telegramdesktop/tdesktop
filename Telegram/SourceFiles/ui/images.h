@@ -153,7 +153,9 @@ public:
 		return _fileReference;
 	}
 	void refreshFileReference(const QByteArray &data) {
-		_fileReference = data;
+		if (!data.isEmpty()) {
+			_fileReference = data;
+		}
 	}
 
 	static StorageImageLocation FromMTP(
@@ -510,6 +512,9 @@ public:
 
 	const StorageImageLocation &location() const override {
 		return _location;
+	}
+	void refreshFileReference(const QByteArray &data) {
+		_location.refreshFileReference(data);
 	}
 
 protected:

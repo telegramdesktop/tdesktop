@@ -1408,6 +1408,8 @@ StorageImage *getImage(const StorageImageLocation &location, int32 size) {
 	StorageImages::const_iterator i = storageImages.constFind(key);
 	if (i == storageImages.cend()) {
 		i = storageImages.insert(key, new StorageImage(location, size));
+	} else {
+		i.value()->refreshFileReference(location.fileReference());
 	}
 	return i.value();
 }
@@ -1418,11 +1420,14 @@ StorageImage *getImage(const StorageImageLocation &location, const QByteArray &b
 	if (i == storageImages.cend()) {
 		QByteArray bytesArr(bytes);
 		i = storageImages.insert(key, new StorageImage(location, bytesArr));
-	} else if (!i.value()->loaded()) {
-		QByteArray bytesArr(bytes);
-		i.value()->setData(bytesArr);
-		if (!location.isNull()) {
-			Local::writeImage(key, StorageImageSaved(bytes));
+	} else {
+		i.value()->refreshFileReference(location.fileReference());
+		if (!i.value()->loaded()) {
+			QByteArray bytesArr(bytes);
+			i.value()->setData(bytesArr);
+			if (!location.isNull()) {
+				Local::writeImage(key, StorageImageSaved(bytes));
+			}
 		}
 	}
 	return i.value();

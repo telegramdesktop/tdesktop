@@ -1000,7 +1000,11 @@ ImagePtr DocumentData::getStickerThumb() {
 
 Data::FileOrigin DocumentData::stickerSetOrigin() const {
 	if (const auto data = sticker()) {
-		return data->setOrigin();
+		if (const auto result = data->setOrigin()) {
+			return result;
+		} else if (Stickers::IsFaved(this)) {
+			return Data::FileOriginStickerSet(Stickers::FavedSetId, 0);
+		}
 	}
 	return Data::FileOrigin();
 }

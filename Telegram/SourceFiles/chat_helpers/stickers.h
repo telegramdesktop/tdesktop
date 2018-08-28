@@ -69,7 +69,7 @@ void ApplyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d);
 bool ApplyArchivedResultFake(); // For testing.
 void InstallLocally(uint64 setId);
 void UndoInstallLocally(uint64 setId);
-bool IsFaved(not_null<DocumentData*> document);
+bool IsFaved(not_null<const DocumentData*> document);
 void SetFaved(not_null<DocumentData*> document, bool faved);
 
 void SetsReceived(const QVector<MTPStickerSet> &data, int32 hash);

@@ -176,9 +176,17 @@ void UndoInstallLocally(uint64 setId) {
 		LayerOption::KeepOther);
 }
 
-bool IsFaved(not_null<DocumentData*> document) {
-	auto it = Auth().data().stickerSets().constFind(FavedSetId);
-	return (it != Auth().data().stickerSets().cend()) && it->stickers.contains(document);
+bool IsFaved(not_null<const DocumentData*> document) {
+	const auto it = Auth().data().stickerSets().constFind(FavedSetId);
+	if (it == Auth().data().stickerSets().cend()) {
+		return false;
+	}
+	for (const auto sticker : it->stickers) {
+		if (sticker == document) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void CheckFavedLimit(Set &set) {
