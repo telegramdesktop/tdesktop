@@ -21,8 +21,15 @@ enum class Format : uint32 {
 struct BasicHeader {
 	BasicHeader();
 
+	void setFormat(Format format) {
+		this->format = static_cast<uint32>(format);
+	}
+	Format getFormat() const {
+		return static_cast<Format>(format);
+	}
+
 	bytes::array<kSaltSize> salt = { { bytes::type() } };
-	Format format : 8;
+	uint32 format : 8;
 	uint32 reserved1 : 24;
 	uint32 reserved2 = 0;
 	uint64 applicationVersion = 0;
@@ -30,7 +37,7 @@ struct BasicHeader {
 };
 
 BasicHeader::BasicHeader()
-: format(Format::Format_0)
+: format(static_cast<uint32>(Format::Format_0))
 , reserved1(0) {
 }
 
@@ -150,7 +157,7 @@ File::Result File::readHeader(const EncryptionKey &key) {
 		headerBytes.subspan(0, checkSize));
 	if (bytes::compare(header.checksum, checksum) != 0) {
 		return Result::WrongKey;
-	} else if (header.format != Format::Format_0) {
+	} else if (header.getFormat() != Format::Format_0) {
 		return Result::Failed;
 	}
 	_dataSize = _data.size()

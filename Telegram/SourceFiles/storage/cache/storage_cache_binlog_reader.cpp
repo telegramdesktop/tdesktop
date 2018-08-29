@@ -38,7 +38,7 @@ base::optional<BasicHeader> BinlogWrapper::ReadHeader(
 		return {};
 	} else if (binlog.read(bytes::object_as_span(&result)) != sizeof(result)) {
 		return {};
-	} else if (result.format != Format::Format_0) {
+	} else if (result.getFormat() != Format::Format_0) {
 		return {};
 	} else if (settings.trackEstimatedTime
 		!= !!(result.flags & result.kTrackEstimatedTime)) {

@@ -118,7 +118,14 @@ struct BasicHeader {
 
 	static constexpr auto kTrackEstimatedTime = 0x01U;
 
-	Format format : 8;
+	Format getFormat() const {
+		return static_cast<Format>(format);
+	}
+	void setFormat(Format format) {
+		this->format = static_cast<uint32>(format);
+	}
+
+	uint32 format : 8;
 	uint32 flags : 24;
 	uint32 systemTime = 0;
 	uint32 reserved1 = 0;

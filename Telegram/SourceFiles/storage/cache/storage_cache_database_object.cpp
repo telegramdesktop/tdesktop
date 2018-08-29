@@ -321,7 +321,7 @@ bool DatabaseObject::startDelayedPruning() {
 		const auto seconds = int64(_minimalEntryTime - before);
 		if (!_pruneTimer.isActive()) {
 			_pruneTimer.callOnce(std::min(
-				seconds * crl::time_type(1000),
+				crl::time_type(seconds * 1000),
 				_settings.maxPruneCheckTimeout));
 		}
 	}
@@ -963,8 +963,8 @@ QByteArray DatabaseObject::readValueData(PlaceId place, size_type size) const {
 		}
 		return result;
 	} break;
-	default: Unexpected("Result in DatabaseObject::get.");
 	}
+	Unexpected("Result in DatabaseObject::get.");
 }
 
 void DatabaseObject::recordEntryAccess(const Key &key) {

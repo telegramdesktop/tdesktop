@@ -88,7 +88,7 @@ bool WriteVersionValue(const QString &base, Version value) {
 }
 
 BasicHeader::BasicHeader()
-: format(Format::Format_0)
+: format(static_cast<uint32>(Format::Format_0))
 , flags(0) {
 }
 
