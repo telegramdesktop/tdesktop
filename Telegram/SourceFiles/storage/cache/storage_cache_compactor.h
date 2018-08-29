@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/cache/storage_cache_types.h"
 #include <crl/crl_object_on_queue.h>
+#include <base/binary_guard.h>
 
 namespace Storage {
 class EncryptionKey;
@@ -28,6 +29,7 @@ public:
 
 	Compactor(
 		crl::weak_on_queue<DatabaseObject> database,
+		base::binary_guard guard,
 		const QString &base,
 		const Settings &settings,
 		EncryptionKey &&key,

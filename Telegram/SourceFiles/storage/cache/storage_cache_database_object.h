@@ -96,6 +96,7 @@ private:
 		int64 excessLength = 0;
 		crl::time_type nextAttempt = 0;
 		crl::time_type delayAfterFailure = 10 * crl::time_type(1000);
+		base::binary_guard guard;
 	};
 	using Map = std::unordered_map<Key, Entry>;
 

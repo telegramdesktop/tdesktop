@@ -22,6 +22,7 @@ public:
 	CompactorObject(
 		crl::weak_on_queue<CompactorObject> weak,
 		crl::weak_on_queue<DatabaseObject> database,
+		base::binary_guard guard,
 		const QString &base,
 		const Settings &settings,
 		EncryptionKey &&key,
@@ -64,6 +65,7 @@ private:
 
 	crl::weak_on_queue<CompactorObject> _weak;
 	crl::weak_on_queue<DatabaseObject> _database;
+	base::binary_guard _guard;
 	QString _base;
 	Settings _settings;
 	EncryptionKey _key;
@@ -83,12 +85,14 @@ private:
 CompactorObject::CompactorObject(
 	crl::weak_on_queue<CompactorObject> weak,
 	crl::weak_on_queue<DatabaseObject> database,
+	base::binary_guard guard,
 	const QString &base,
 	const Settings &settings,
 	EncryptionKey &&key,
 	const Info &info)
 : _weak(std::move(weak))
 , _database(std::move(database))
+, _guard(std::move(guard))
 , _base(base)
 , _settings(settings)
 , _key(std::move(key))
@@ -170,8 +174,10 @@ void CompactorObject::fail() {
 
 void CompactorObject::done(int64 till) {
 	const auto path = compactPath();
-	_database.with([=](DatabaseObject &database) {
-		database.compactorDone(path, till);
+	_database.with([=, good = std::move(_guard)](DatabaseObject &database) {
+		if (good.alive()) {
+			database.compactorDone(path, till);
+		}
 	});
 }
 
@@ -354,7 +360,7 @@ void CompactorObject::addListRecord(
 	}
 	auto record = RecordStore();
 	record.key = raw.first;
-	record.size = ReadTo<EntrySize>(raw.second.size);
+	record.setSize(raw.second.size);
 	record.checksum = raw.second.checksum;
 	record.tag = raw.second.tag;
 	record.place = raw.second.place;
@@ -367,11 +373,18 @@ void CompactorObject::addListRecord(
 
 Compactor::Compactor(
 	crl::weak_on_queue<DatabaseObject> database,
+	base::binary_guard guard,
 	const QString &base,
 	const Settings &settings,
 	EncryptionKey &&key,
 	const Info &info)
-: _wrapped(std::move(database), base, settings, std::move(key), info) {
+: _wrapped(
+	std::move(database),
+	std::move(guard),
+	base,
+	settings,
+	std::move(key),
+	info) {
 }
 
 Compactor::~Compactor() = default;

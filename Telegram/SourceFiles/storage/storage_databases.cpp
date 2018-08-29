@@ -14,8 +14,8 @@ namespace Storage {
 DatabasePointer::DatabasePointer(
 	not_null<Databases*> owner,
 	const std::unique_ptr<Cache::Database> &value)
-: _owner(owner)
-, _value(value.get()) {
+: _value(value.get())
+, _owner(owner) {
 }
 
 DatabasePointer::DatabasePointer(DatabasePointer &&other)
@@ -83,7 +83,9 @@ DatabasePointer Databases::get(
 }
 
 void Databases::destroy(Cache::Database *database) {
-	for (auto &[path, kept] : _map) {
+	for (auto &entry : _map) {
+		const auto &path = entry.first; // Need to capture it in lambda.
+		auto &kept = entry.second;
 		if (kept.database.get() == database) {
 			Assert(!kept.destroying.alive());
 			auto [first, second] = base::make_binary_guard();

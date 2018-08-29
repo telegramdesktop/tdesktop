@@ -69,8 +69,8 @@ DatabaseObject::Entry::Entry(
 : useTime(useTime)
 , size(size)
 , checksum(checksum)
-, tag(tag)
-, place(place) {
+, place(place)
+, tag(tag) {
 }
 
 DatabaseObject::DatabaseObject(
@@ -488,7 +488,7 @@ template <typename Record, typename Postprocess>
 bool DatabaseObject::processRecordStoreGeneric(
 		const Record *record,
 		Postprocess &&postprocess) {
-	const auto size = ReadFrom(record->size);
+	const auto size = record->getSize();
 	if (size <= 0 || size > _settings.maxDataSize) {
 		return false;
 	}
@@ -738,6 +738,7 @@ void DatabaseObject::clearState() {
 	_map = {};
 	_removing = {};
 	_accessed = {};
+	_stale = {};
 	_time = {};
 	_binlogExcessLength = 0;
 	_totalSize = 0;
@@ -747,7 +748,6 @@ void DatabaseObject::clearState() {
 	_pushingStats = false;
 	_writeBundlesTimer.cancel();
 	_pruneTimer.cancel();
-	_cleaner = CleanerWrap();
 	_compactor = CompactorWrap();
 }
 
@@ -816,7 +816,7 @@ base::optional<QString> DatabaseObject::writeKeyPlaceGeneric(
 	const auto size = size_type(value.bytes.size());
 	record.tag = value.tag;
 	record.key = key;
-	record.size = ReadTo<EntrySize>(size);
+	record.setSize(size);
 	record.checksum = checksum;
 	if (const auto i = _map.find(key); i != end(_map)) {
 		const auto &already = i->second;
@@ -876,7 +876,7 @@ Error DatabaseObject::writeExistingPlaceGeneric(
 		const Entry &entry) {
 	record.key = key;
 	record.tag = entry.tag;
-	record.size = ReadTo<EntrySize>(entry.size);
+	record.setSize(entry.size);
 	record.checksum = entry.checksum;
 	if (const auto i = _map.find(key); i != end(_map)) {
 		const auto &already = i->second;
@@ -1187,8 +1187,11 @@ void DatabaseObject::checkCompactor() {
 	info.till = _binlog.size();
 	info.systemTime = _time.system;
 	info.keysCount = _map.size();
+	auto [first, second] = base::make_binary_guard();
+	_compactor.guard = std::move(first);
 	_compactor.object = std::make_unique<Compactor>(
 		_weak,
+		std::move(second),
 		_path,
 		_settings,
 		base::duplicate(_key),

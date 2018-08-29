@@ -101,34 +101,6 @@ using PlaceId = std::array<uint8, 7>;
 using EntrySize = std::array<uint8, 3>;
 using RecordsCount = std::array<uint8, 3>;
 
-template <typename Packed>
-inline Packed ReadTo(size_type count) {
-	Expects(count >= 0 && count < (1 << (Packed().size() * 8)));
-
-	auto result = Packed();
-	for (auto &element : result) {
-		element = uint8(count & 0xFF);
-		count >>= 8;
-	}
-	return result;
-}
-
-template <typename Packed>
-inline size_type ReadFrom(const Packed &count) {
-	auto result = size_type();
-	for (auto &element : (count | ranges::view::reverse)) {
-		result <<= 8;
-		result |= size_type(element);
-	}
-	return result;
-}
-
-template <typename Packed>
-inline size_type ValidateStrictCount(const Packed &count) {
-	const auto result = ReadFrom(count);
-	return (result != 0) ? result : -1;
-}
-
 constexpr auto kRecordSizeUnknown = size_type(-1);
 constexpr auto kRecordSizeInvalid = size_type(-2);
 constexpr auto kBundledRecordsLimit = (1 << (RecordsCount().size() * 8));
@@ -169,6 +141,9 @@ struct EstimatedTimePoint {
 
 struct Store {
 	static constexpr auto kType = RecordType(0x01);
+
+	void setSize(size_type size);
+	size_type getSize() const;
 
 	RecordType type = kType;
 	uint8 tag = 0;

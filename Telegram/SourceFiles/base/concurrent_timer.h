@@ -129,7 +129,6 @@ private:
 	base::binary_guard _running;
 	TimeMs _next = 0;
 	int _timeout = 0;
-	int _timerId = 0;
 
 	Qt::TimerType _type : 2;
 	bool _adjusted : 1;

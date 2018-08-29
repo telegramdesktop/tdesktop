@@ -12,6 +12,37 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Storage {
 namespace Cache {
 namespace details {
+namespace {
+
+template <typename Packed>
+inline Packed ReadTo(size_type count) {
+	Expects(count >= 0 && count < (1 << (Packed().size() * 8)));
+
+	auto result = Packed();
+	for (auto &element : result) {
+		element = uint8(count & 0xFF);
+		count >>= 8;
+	}
+	return result;
+}
+
+template <typename Packed>
+inline size_type ReadFrom(const Packed &count) {
+	auto result = size_type();
+	for (auto &element : (count | ranges::view::reverse)) {
+		result <<= 8;
+		result |= size_type(element);
+	}
+	return result;
+}
+
+template <typename Packed>
+inline size_type ValidateStrictCount(const Packed &count) {
+	const auto result = ReadFrom(count);
+	return (result != 0) ? result : -1;
+}
+
+} // namespace
 
 TaggedValue::TaggedValue(QByteArray &&bytes, uint8 tag)
 : bytes(std::move(bytes)), tag(tag) {
@@ -59,6 +90,14 @@ bool WriteVersionValue(const QString &base, Version value) {
 BasicHeader::BasicHeader()
 : format(Format::Format_0)
 , flags(0) {
+}
+
+void Store::setSize(size_type size) {
+	this->size = ReadTo<EntrySize>(size);
+}
+
+size_type Store::getSize() const {
+	return ReadFrom(size);
 }
 
 MultiStore::MultiStore(size_type count)
