@@ -355,14 +355,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_section_privacy" = "Privacy and Security";
 
 "lng_local_storage_title" = "Local storage";
-"lng_settings_no_data_cached" = "No cached data found!";
-"lng_settings_images_cached#one" = "{count} image, {size}";
-"lng_settings_images_cached#other" = "{count} images, {size}";
-"lng_settings_audios_cached#one" = "{count} voice message, {size}";
-"lng_settings_audios_cached#other" = "{count} voice messages, {size}";
+"lng_local_storage_empty" = "No cached files";
+"lng_local_storage_image#one" = "{count} image";
+"lng_local_storage_image#other" = "{count} images";
+"lng_local_storage_sticker#one" = "{count} sticker";
+"lng_local_storage_sticker#other" = "{count} stickers";
+"lng_local_storage_voice#one" = "{count} voice message";
+"lng_local_storage_voice#other" = "{count} voice messages";
+"lng_local_storage_round#one" = "{count} video message";
+"lng_local_storage_round#other" = "{count} video messages";
+"lng_local_storage_animation#one" = "{count} animation";
+"lng_local_storage_animation#other" = "{count} animations";
+"lng_local_storage_summary" = "Summary";
+"lng_local_storage_clear_some" = "Clear";
 "lng_local_storage_clear" = "Clear all";
 "lng_local_storage_clearing" = "Clearing...";
-"lng_local_storage_cleared" = "Cleared!";
 
 "lng_settings_section_advanced_settings" = "Advanced Settings";
 "lng_settings_enable_night_theme" = "Enable night mode";

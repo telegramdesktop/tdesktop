@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/basic_types.h"
 #include <crl/crl_object_on_queue.h>
 #include <crl/crl_time.h>
+#include <rpl/producer.h>
 #include <QtCore/QString>
 
 namespace Storage {
@@ -24,6 +25,8 @@ class Database {
 public:
 	using Settings = details::Settings;
 	Database(const QString &path, const Settings &settings);
+
+	void reconfigure(const Settings &settings);
 
 	void open(EncryptionKey &&key, FnMut<void(Error)> &&done = nullptr);
 	void close(FnMut<void()> &&done = nullptr);
@@ -60,9 +63,11 @@ public:
 	void getWithTag(const Key &key, FnMut<void(TaggedValue&&)> &&done);
 
 	using Stats = details::Stats;
-	void stats(FnMut<void(Stats&&)> &&done);
+	using TaggedSummary = details::TaggedSummary;
+	rpl::producer<Stats> statsOnMain() const;
 
 	void clear(FnMut<void(Error)> &&done = nullptr);
+	void clearByTag(uint8 tag, FnMut<void(Error)> &&done = nullptr);
 
 	~Database();
 

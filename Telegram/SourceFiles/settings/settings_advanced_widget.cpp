@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/about_box.h"
 #include "boxes/local_storage_box.h"
+#include "data/data_session.h"
 #include "mainwindow.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/slide_wrap.h"
@@ -85,7 +86,7 @@ void AdvancedWidget::checkNonDefaultTheme() {
 }
 
 void AdvancedWidget::onManageLocalStorage() {
-	Ui::show(Box<LocalStorageBox>());
+	LocalStorageBox::Show(&Auth().data().cache());
 }
 
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY

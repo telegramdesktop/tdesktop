@@ -354,7 +354,27 @@ peerListBox: PeerList(defaultPeerList) {
 	}
 }
 
-localStorageBoxSkip: 10px;
+localStorageRowHeight: 50px;
+localStorageRowPadding: margins(23px, 5px, 23px, 5px);
+localStorageRowTitle: FlatLabel(defaultFlatLabel) {
+	textFg: windowBoldFg;
+	maxHeight: 20px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+		linkFont: font(14px semibold);
+		linkFontOver: font(14px semibold);
+	}
+}
+localStorageRowSize: FlatLabel(defaultFlatLabel) {
+	textFg: contactsStatusFg;
+	maxHeight: 20px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px);
+		linkFont: font(14px);
+		linkFontOver: font(14px);
+	}
+}
+localStorageClear: defaultBoxButton;
 
 shareRowsTop: 12px;
 shareRowHeight: 108px;

@@ -16,6 +16,12 @@ Database::Database(const QString &path, const Settings &settings)
 : _wrapped(path, settings) {
 }
 
+void Database::reconfigure(const Settings &settings) {
+	_wrapped.with([settings](Implementation &unwrapped) mutable {
+		unwrapped.reconfigure(settings);
+	});
+}
+
 void Database::open(EncryptionKey &&key, FnMut<void(Error)> &&done) {
 	_wrapped.with([
 		key = std::move(key),
@@ -125,7 +131,7 @@ void Database::putIfEmpty(
 void Database::getWithTag(
 		const Key &key,
 		FnMut<void(TaggedValue&&)> &&done) {
-		_wrapped.with([
+	_wrapped.with([
 		key,
 		done = std::move(done)
 	](Implementation &unwrapped) mutable {
@@ -133,11 +139,9 @@ void Database::getWithTag(
 	});
 }
 
-void Database::stats(FnMut<void(Stats&&)> &&done) {
-	_wrapped.with([
-		done = std::move(done)
-	](Implementation &unwrapped) mutable {
-		unwrapped.stats(std::move(done));
+auto Database::statsOnMain() const -> rpl::producer<Stats> {
+	return _wrapped.producer_on_main([](const Implementation &unwrapped) {
+		return unwrapped.stats();
 	});
 }
 
@@ -146,6 +150,15 @@ void Database::clear(FnMut<void(Error)> &&done) {
 		done = std::move(done)
 	](Implementation &unwrapped) mutable {
 		unwrapped.clear(std::move(done));
+	});
+}
+
+void Database::clearByTag(uint8 tag, FnMut<void(Error)> &&done) {
+	_wrapped.with([
+		tag,
+		done = std::move(done)
+	](Implementation &unwrapped) mutable {
+		unwrapped.clearByTag(tag, std::move(done));
 	});
 }
 

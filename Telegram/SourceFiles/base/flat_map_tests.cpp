@@ -46,6 +46,27 @@ TEST_CASE("flat_maps should keep items sorted by key", "[flat_map]") {
 	}
 }
 
+TEST_CASE("simple flat_maps tests", "[flat_map]") {
+	SECTION("copy constructor") {
+		base::flat_map<int, string> v;
+		v.emplace(0, "a");
+		v.emplace(2, "b");
+		auto u = v;
+		REQUIRE(u.size() == 2);
+		REQUIRE(u.find(0) == u.begin());
+		REQUIRE(u.find(2) == u.end() - 1);
+	}
+	SECTION("assignment") {
+		base::flat_map<int, string> v, u;
+		v.emplace(0, "a");
+		v.emplace(2, "b");
+		u = v;
+		REQUIRE(u.size() == 2);
+		REQUIRE(u.find(0) == u.begin());
+		REQUIRE(u.find(2) == u.end() - 1);
+	}
+}
+
 TEST_CASE("flat_maps custom comparator", "[flat_map]") {
 	base::flat_map<int_wrap, string, int_wrap_comparator> v;
 	v.emplace({ 0 }, "a");

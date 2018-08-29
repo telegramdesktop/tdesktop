@@ -307,6 +307,15 @@ public:
 
 	};
 
+	flat_multi_map() = default;
+	flat_multi_map(const flat_multi_map &other) = default;
+	flat_multi_map(flat_multi_map &&other) = default;
+	flat_multi_map &operator=(const flat_multi_map &other) {
+		auto copy = other;
+		return (*this = std::move(copy));
+	}
+	flat_multi_map &operator=(flat_multi_map &&other) = default;
+
 	size_type size() const {
 		return impl().size();
 	}

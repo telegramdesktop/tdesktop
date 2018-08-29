@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_form_controller.h"
 #include "observer_peer.h"
 #include "storage/file_upload.h"
+#include "storage/storage_databases.h"
 #include "mainwidget.h"
 #include "mediaview.h"
 #include "mtproto/dc_options.h"
@@ -76,6 +77,7 @@ Messenger::Messenger(not_null<Core::Launcher*> launcher)
 : QObject()
 , _launcher(launcher)
 , _private(std::make_unique<Private>())
+, _databases(std::make_unique<Storage::Databases>())
 , _langpack(std::make_unique<Lang::Instance>())
 , _audio(std::make_unique<Media::Audio::Instance>())
 , _logo(Window::LoadLogo())

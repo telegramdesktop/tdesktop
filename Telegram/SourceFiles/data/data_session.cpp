@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "apiwrap.h"
+#include "messenger.h"
 #include "export/export_controller.h"
 #include "export/view/export_view_panel_controller.h"
 #include "window/notifications_manager.h"
@@ -67,17 +68,19 @@ void UpdateImage(ImagePtr &old, ImagePtr now) {
 
 Session::Session(not_null<AuthSession*> session)
 : _session(session)
-, _cache(Local::cachePath(), Local::cacheSettings())
+, _cache(Messenger::Instance().databases().get(
+	Local::cachePath(),
+	Local::cacheSettings()))
 , _groups(this)
 , _unmuteByFinishedTimer([=] { unmuteByFinished(); }) {
-	_cache.open(Local::cacheKey());
+	_cache->open(Local::cacheKey());
 
 	setupContactViewsViewer();
 	setupChannelLeavingViewer();
 }
 
 Storage::Cache::Database &Session::cache() {
-	return _cache;
+	return *_cache;
 }
 
 void Session::startExport(PeerData *peer) {

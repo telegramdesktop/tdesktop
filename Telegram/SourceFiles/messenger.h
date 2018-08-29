@@ -19,6 +19,10 @@ class Translator;
 class MediaView;
 class BoxContent;
 
+namespace Storage {
+class Databases;
+} // namespace Storage
+
 namespace Core {
 class Launcher;
 } // namespace Core
@@ -124,6 +128,11 @@ public:
 	}
 	void suggestMainDcId(MTP::DcId mainDcId);
 	void destroyStaleAuthorizationKeys();
+
+	// Databases
+	Storage::Databases &databases() {
+		return *_databases;
+	}
 
 	// AuthSession component.
 	AuthSession *authSession() {
@@ -249,6 +258,7 @@ private:
 
 	QWidget _globalShortcutParent;
 
+	std::unique_ptr<Storage::Databases> _databases;
 	std::unique_ptr<MainWindow> _window;
 	std::unique_ptr<MediaView> _mediaView;
 	std::unique_ptr<Lang::Instance> _langpack;

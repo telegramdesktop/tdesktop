@@ -50,6 +50,8 @@
       '<(submodules_loc)/xxHash',
     ],
     'sources': [
+      '<(src_loc)/storage/storage_databases.cpp',
+      '<(src_loc)/storage/storage_databases.h',
       '<(src_loc)/storage/storage_encryption.cpp',
       '<(src_loc)/storage/storage_encryption.h',
       '<(src_loc)/storage/storage_encrypted_file.cpp',

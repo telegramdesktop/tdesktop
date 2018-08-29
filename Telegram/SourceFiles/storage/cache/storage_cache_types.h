@@ -56,6 +56,7 @@ struct Settings {
 	size_type readBlockSize = 8 * 1024 * 1024;
 	size_type maxDataSize = 10 * 1024 * 1024;
 	crl::time_type writeBundleDelay = 15 * 60 * crl::time_type(1000);
+	size_type staleRemoveChunk = 256;
 
 	int64 compactAfterExcess = 8 * 1024 * 1024;
 	int64 compactAfterFullSize = 0;
@@ -66,6 +67,8 @@ struct Settings {
 	size_type totalTimeLimit = 30 * 86400; // One month in seconds.
 	crl::time_type pruneTimeout = 5 * crl::time_type(1000);
 	crl::time_type maxPruneCheckTimeout = 3600 * crl::time_type(1000);
+
+	bool clearOnWrongKey = false;
 };
 
 struct TaggedValue {
@@ -80,7 +83,11 @@ struct TaggedSummary {
 	size_type count = 0;
 	size_type totalSize = 0;
 };
-using Stats = base::flat_map<uint8, TaggedSummary>;
+struct Stats {
+	TaggedSummary full;
+	base::flat_map<uint8, TaggedSummary> tagged;
+	bool clearing = false;
+};
 
 using Version = int32;
 

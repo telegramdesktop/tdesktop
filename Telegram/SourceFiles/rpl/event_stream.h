@@ -34,7 +34,7 @@ public:
 	void fire_copy(const Value &value) const {
 		return fire_forward(value);
 	}
-#if defined _MSC_VER && _MSC_VER >= 1914
+#if defined _MSC_VER && _MSC_VER >= 1914 && false
 	producer<Value> events() const {
 #else // _MSC_VER >= 1914
 	auto events() const {
@@ -64,6 +64,9 @@ public:
 	}
 	auto events_starting_with_copy(const Value &value) const {
 		return single(value) | then(events());
+	}
+	bool has_consumers() const {
+		return (_data != nullptr) && !_data->consumers.empty();
 	}
 
 	~event_stream();

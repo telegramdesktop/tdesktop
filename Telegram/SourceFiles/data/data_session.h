@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "storage/cache/storage_cache_database.h"
+#include "storage/storage_databases.h"
 #include "chat_helpers/stickers.h"
 #include "dialogs/dialogs_key.h"
 #include "data/data_groups.h"
@@ -523,7 +523,7 @@ private:
 
 	not_null<AuthSession*> _session;
 
-	Storage::Cache::Database _cache;
+	Storage::DatabasePointer _cache;
 
 	std::unique_ptr<Export::ControllerWrap> _export;
 	std::unique_ptr<Export::View::PanelController> _exportPanel;

@@ -100,7 +100,10 @@ private:
 
 class RoundButton : public RippleButton, private base::Subscriber {
 public:
-	RoundButton(QWidget *parent, Fn<QString()> textFactory, const style::RoundButton &st);
+	RoundButton(
+		QWidget *parent,
+		Fn<QString()> textFactory,
+		const style::RoundButton &st);
 
 	void setText(Fn<QString()> textFactory);
 

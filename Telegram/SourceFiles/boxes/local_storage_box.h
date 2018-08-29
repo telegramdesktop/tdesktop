@@ -8,20 +8,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
+#include "storage/cache/storage_cache_database.h"
+
+namespace Storage {
+namespace Cache {
+class Database;
+} // namespace Cache
+} // namespace Storage
 
 namespace Ui {
-class LinkButton;
+class VerticalLayout;
+template <typename Widget>
+class SlideWrap;
 } // namespace Ui
 
 class LocalStorageBox : public BoxContent {
-	Q_OBJECT
+	struct CreateTag {
+	};
 
 public:
-	LocalStorageBox(QWidget*);
+	using Database = Storage::Cache::Database;
 
-private slots:
-	void onTempDirCleared(int task);
-	void onTempDirClearFailed(int task);
+	LocalStorageBox(QWidget*, not_null<Database*> db, CreateTag);
+
+	static void Show(not_null<Database*> db);
 
 protected:
 	void prepare() override;
@@ -29,18 +39,19 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	void clearStorage();
-	void updateControls();
-	void checkLocalStoredCounts();
+	class Row;
 
-	enum class State {
-		Normal,
-		Clearing,
-		Cleared,
-		ClearFailed,
-	};
-	State _state = State::Normal;
+	void clearByTag(uint8 tag);
+	void update(Database::Stats &&stats);
+	void updateRow(
+		not_null<Ui::SlideWrap<Row>*> row,
+		Database::TaggedSummary *data);
+	void setupControls();
 
-	object_ptr<Ui::LinkButton> _clear;
+	not_null<Storage::Cache::Database*> _db;
+	Database::Stats _stats;
+
+	object_ptr<Ui::VerticalLayout> _content = { nullptr };
+	base::flat_map<uint8, not_null<Ui::SlideWrap<Row>*>> _rows;
 
 };

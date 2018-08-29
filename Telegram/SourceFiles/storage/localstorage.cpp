@@ -2949,6 +2949,7 @@ QString cachePath() {
 
 Storage::Cache::Database::Settings cacheSettings() {
 	auto result = Storage::Cache::Database::Settings();
+	result.clearOnWrongKey = true;
 	return result;
 }
 
@@ -2957,7 +2958,6 @@ Storage::EncryptionKey cacheKey() {
 
 	return Storage::EncryptionKey(bytes::make_vector(LocalKey->data()));
 }
-
 
 class CountWaveformTask : public Task {
 public:

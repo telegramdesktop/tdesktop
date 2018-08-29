@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/bytes.h"
 #include "base/flat_set.h"
 #include <set>
+#include <rpl/event_stream.h>
 
 namespace Storage {
 namespace Cache {
@@ -29,6 +30,7 @@ public:
 		crl::weak_on_queue<DatabaseObject> weak,
 		const QString &path,
 		const Settings &settings);
+	void reconfigure(const Settings &settings);
 
 	void open(EncryptionKey &&key, FnMut<void(Error)> &&done);
 	void close(FnMut<void()> &&done);
@@ -53,9 +55,10 @@ public:
 		const Key &to,
 		FnMut<void(Error)> &&done);
 
-	void stats(FnMut<void(Stats&&)> &&done);
+	rpl::producer<Stats> stats() const;
 
 	void clear(FnMut<void(Error)> &&done);
+	void clearByTag(uint8 tag, FnMut<void(Error)> &&done);
 
 	static QString BinlogFilename();
 	static QString CompactReadyFilename();
@@ -101,6 +104,7 @@ private:
 
 	Error ioError(const QString &path) const;
 
+	void checkSettings();
 	QString computePath(Version version) const;
 	QString binlogPath(Version version) const;
 	QString binlogPath() const;
@@ -146,15 +150,24 @@ private:
 	uint64 countRelativeTime() const;
 	EstimatedTimePoint countTimePoint() const;
 	void applyTimePoint(EstimatedTimePoint time);
+
 	uint64 pruneBeforeTime() const;
 	void prune();
-	void collectTimePrune(
+	void collectTimeStale(
 		base::flat_set<Key> &stale,
 		int64 &staleTotalSize);
-	void collectSizePrune(
+	void collectSizeStale(
 		base::flat_set<Key> &stale,
 		int64 &staleTotalSize);
+	void startStaleClear();
+	void clearStaleNow(const base::flat_set<Key> &stale);
+	void clearStaleChunkDelayed();
+	void clearStaleChunk();
+
 	void updateStats(const Entry &was, const Entry &now);
+	Stats collectStats() const;
+	void pushStatsDelayed();
+	void pushStats();
 
 	void setMapEntry(const Key &key, Entry &&entry);
 	void eraseMapEntry(const Map::const_iterator &i);
@@ -197,15 +210,17 @@ private:
 
 	void createCleaner();
 	void cleanerDone(Error error);
+	void clearState();
 
 	crl::weak_on_queue<DatabaseObject> _weak;
 	QString _base, _path;
-	const Settings _settings;
+	Settings _settings;
 	EncryptionKey _key;
 	File _binlog;
 	Map _map;
 	std::set<Key> _removing;
 	std::set<Key> _accessed;
+	std::vector<Key> _stale;
 
 	EstimatedTimePoint _time;
 
@@ -214,7 +229,10 @@ private:
 	uint64 _minimalEntryTime = 0;
 	size_type _entriesWithMinimalTimeCount = 0;
 
-	Stats _taggedStats;
+	base::flat_map<uint8, TaggedSummary> _taggedStats;
+	rpl::event_stream<Stats> _stats;
+	bool _pushingStats = false;
+	bool _clearingStale = false;
 
 	base::ConcurrentTimer _writeBundlesTimer;
 	base::ConcurrentTimer _pruneTimer;

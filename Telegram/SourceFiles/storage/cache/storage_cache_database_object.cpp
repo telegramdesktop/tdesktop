@@ -82,6 +82,18 @@ DatabaseObject::DatabaseObject(
 , _settings(settings)
 , _writeBundlesTimer(_weak, [=] { writeBundles(); checkCompactor(); })
 , _pruneTimer(_weak, [=] { prune(); }) {
+	checkSettings();
+}
+
+void DatabaseObject::reconfigure(const Settings &settings) {
+	Expects(_key.empty());
+
+	_settings = settings;
+	checkSettings();
+}
+
+void DatabaseObject::checkSettings() {
+	Expects(_settings.staleRemoveChunk > 0);
 	Expects(_settings.maxDataSize > 0
 		&& _settings.maxDataSize < kDataSizeLimit);
 	Expects(_settings.maxBundledRecords > 0
@@ -124,7 +136,9 @@ Error DatabaseObject::openSomeBinlog(EncryptionKey &&key) {
 	case File::Result::LockFailed:
 		return Error{ Error::Type::LockFailed, binlogPath(version) };
 	case File::Result::WrongKey:
-		return Error{ Error::Type::WrongKey, binlogPath(version) };
+		return _settings.clearOnWrongKey
+			? openNewBinlog(key)
+			: Error{ Error::Type::WrongKey, binlogPath(version) };
 	}
 	Unexpected("Result from DatabaseObject::openBinlog.");
 }
@@ -290,8 +304,8 @@ bool DatabaseObject::startDelayedPruning() {
 		if (_settings.totalSizeLimit > 0
 			&& _totalSize > _settings.totalSizeLimit) {
 			return true;
-		} else if (_minimalEntryTime != 0
-			&& _minimalEntryTime <= before) {
+		} else if ((!_minimalEntryTime && !_map.empty())
+			|| _minimalEntryTime <= before) {
 			return true;
 		}
 		return false;
@@ -315,17 +329,77 @@ bool DatabaseObject::startDelayedPruning() {
 }
 
 void DatabaseObject::prune() {
+	if (!_stale.empty()) {
+		return;
+	}
 	auto stale = base::flat_set<Key>();
 	auto staleTotalSize = int64();
-	collectTimePrune(stale, staleTotalSize);
-	collectSizePrune(stale, staleTotalSize);
+	collectTimeStale(stale, staleTotalSize);
+	collectSizeStale(stale, staleTotalSize);
+	if (stale.size() <= _settings.staleRemoveChunk) {
+		clearStaleNow(stale);
+	} else {
+		_stale = ranges::view::all(stale) | ranges::to_vector;
+		startStaleClear();
+	}
+}
+
+void DatabaseObject::startStaleClear() {
+	// Report "Clearing..." status.
+	pushStats();
+	clearStaleChunk();
+}
+
+void DatabaseObject::clearStaleNow(const base::flat_set<Key> &stale) {
+	if (stale.empty()) {
+		return;
+	}
+
+	// Report "Clearing..." status.
+	_stale.push_back(stale.front());
+	pushStats();
+
 	for (const auto &key : stale) {
 		remove(key, nullptr);
 	}
+
+	// Report correct status async.
+	_stale.clear();
 	optimize();
 }
 
-void DatabaseObject::collectTimePrune(
+void DatabaseObject::clearStaleChunkDelayed() {
+	if (_clearingStale) {
+		return;
+	}
+	_clearingStale = true;
+	_weak.with([](DatabaseObject &that) {
+		if (base::take(that._clearingStale)) {
+			that.clearStaleChunk();
+		}
+	});
+}
+
+void DatabaseObject::clearStaleChunk() {
+	if (_stale.empty()) {
+		return;
+	}
+	const auto stale = gsl::make_span(_stale);
+	const auto count = size_type(stale.size());
+	const auto clear = std::min(count, _settings.staleRemoveChunk);
+	for (const auto &key : stale.subspan(count - clear)) {
+		remove(key, nullptr);
+	}
+	_stale.resize(count - clear);
+	if (_stale.empty()) {
+		base::take(_stale);
+		optimize();
+	} else {
+		clearStaleChunkDelayed();
+	}
+}
+
+void DatabaseObject::collectTimeStale(
 		base::flat_set<Key> &stale,
 		int64 &staleTotalSize) {
 	if (!_settings.totalTimeLimit) {
@@ -351,7 +425,7 @@ void DatabaseObject::collectTimePrune(
 	}
 }
 
-void DatabaseObject::collectSizePrune(
+void DatabaseObject::collectSizeStale(
 		base::flat_set<Key> &stale,
 		int64 &staleTotalSize) {
 	const auto removeSize = (_settings.totalSizeLimit > 0)
@@ -516,7 +590,9 @@ void DatabaseObject::setMapEntry(const Key &key, Entry &&entry) {
 			++_entriesWithMinimalTimeCount;
 		} else if (already.useTime == _minimalEntryTime) {
 			Assert(_entriesWithMinimalTimeCount > 0);
-			--_entriesWithMinimalTimeCount;
+			if (!--_entriesWithMinimalTimeCount) {
+				_minimalEntryTime = 0;
+			}
 		}
 	}
 	already = std::move(entry);
@@ -542,6 +618,25 @@ void DatabaseObject::updateStats(const Entry &was, const Entry &now) {
 			summary.totalSize -= was.size;
 		}
 	}
+	pushStatsDelayed();
+}
+
+void DatabaseObject::pushStatsDelayed() {
+	if (_pushingStats) {
+		return;
+	}
+	_pushingStats = true;
+	_weak.with([](DatabaseObject &that) {
+		if (base::take(that._pushingStats)) {
+			that.pushStats();
+		}
+	});
+}
+
+void DatabaseObject::pushStats() {
+	if (_stats.has_consumers()) {
+		_stats.fire(collectStats());
+	}
 }
 
 void DatabaseObject::eraseMapEntry(const Map::const_iterator &i) {
@@ -550,7 +645,9 @@ void DatabaseObject::eraseMapEntry(const Map::const_iterator &i) {
 		updateStats(entry, Entry());
 		if (_minimalEntryTime != 0 && entry.useTime == _minimalEntryTime) {
 			Assert(_entriesWithMinimalTimeCount > 0);
-			--_entriesWithMinimalTimeCount;
+			if (!--_entriesWithMinimalTimeCount) {
+				_minimalEntryTime = 0;
+			}
 		}
 		_map.erase(i);
 	}
@@ -629,14 +726,29 @@ void DatabaseObject::compactorFail() {
 void DatabaseObject::close(FnMut<void()> &&done) {
 	if (_binlog.isOpen()) {
 		writeBundles();
+		_binlog.close();
 	}
+	invokeCallback(done);
+	clearState();
+}
+
+void DatabaseObject::clearState() {
+	_path = QString();
+	_key = {};
+	_map = {};
+	_removing = {};
+	_accessed = {};
+	_time = {};
+	_binlogExcessLength = 0;
+	_totalSize = 0;
+	_minimalEntryTime = 0;
+	_entriesWithMinimalTimeCount = 0;
+	_taggedStats = {};
+	_pushingStats = false;
+	_writeBundlesTimer.cancel();
+	_pruneTimer.cancel();
 	_cleaner = CleanerWrap();
 	_compactor = CompactorWrap();
-	_binlog.close();
-	_key = EncryptionKey();
-	invokeCallback(done);
-	_map.clear();
-	_binlogExcessLength = 0;
 }
 
 void DatabaseObject::put(
@@ -648,6 +760,7 @@ void DatabaseObject::put(
 		return;
 	}
 	_removing.erase(key);
+	_stale.erase(ranges::remove(_stale, key), end(_stale));
 
 	const auto checksum = CountChecksum(bytes::make_span(value.bytes));
 	const auto maybepath = writeKeyPlace(key, value, checksum);
@@ -762,6 +875,7 @@ Error DatabaseObject::writeExistingPlaceGeneric(
 		const Key &key,
 		const Entry &entry) {
 	record.key = key;
+	record.tag = entry.tag;
 	record.size = ReadTo<EntrySize>(entry.size);
 	record.checksum = entry.checksum;
 	if (const auto i = _map.find(key); i != end(_map)) {
@@ -927,20 +1041,22 @@ void DatabaseObject::moveIfEmpty(
 		invokeCallback(done, result);
 		return;
 	}
+	_removing.erase(to);
+	_stale.erase(ranges::remove(_stale, to), end(_stale));
 	invokeCallback(done, writeExistingPlace(to, entry));
 }
 
-void DatabaseObject::stats(FnMut<void(Stats&&)> &&done) {
-	auto result = _taggedStats;
-	auto zero = TaggedSummary();
-	zero.count = _map.size();
-	zero.totalSize = _totalSize;
-	for (const auto &summary : result) {
-		zero.count -= summary.second.count;
-		zero.totalSize -= summary.second.totalSize;
-	}
-	result[0] = zero;
-	invokeCallback(done, std::move(result));
+rpl::producer<Stats> DatabaseObject::stats() const {
+	return _stats.events_starting_with(collectStats());
+}
+
+Stats DatabaseObject::collectStats() const {
+	auto result = Stats();
+	result.tagged = _taggedStats;
+	result.full.count = _map.size();
+	result.full.totalSize = _totalSize;
+	result.clearing = (_cleaner.object != nullptr) || !_stale.empty();
+	return result;
 }
 
 void DatabaseObject::writeBundlesLazy() {
@@ -1047,10 +1163,12 @@ void DatabaseObject::createCleaner() {
 		_base,
 		std::move(right),
 		std::move(done));
+	pushStatsDelayed();
 }
 
 void DatabaseObject::cleanerDone(Error error) {
 	_cleaner = CleanerWrap();
+	pushStatsDelayed();
 }
 
 void DatabaseObject::checkCompactor() {
@@ -1079,12 +1197,33 @@ void DatabaseObject::checkCompactor() {
 }
 
 void DatabaseObject::clear(FnMut<void(Error)> &&done) {
-	Expects(_key.empty());
-
+	auto key = std::move(_key);
+	if (!key.empty()) {
+		close(nullptr);
+	}
 	const auto version = findAvailableVersion();
-	invokeCallback(
-		done,
-		writeVersion(version) ? Error::NoError() : ioError(versionPath()));
+	if (!writeVersion(version)) {
+		invokeCallback(done, ioError(versionPath()));
+		return;
+	}
+	if (key.empty()) {
+		invokeCallback(done, Error::NoError());
+		return;
+	}
+	open(std::move(key), std::move(done));
+}
+
+void DatabaseObject::clearByTag(uint8 tag, FnMut<void(Error)> &&done) {
+	const auto hadStale = !_stale.empty();
+	for (const auto &[key, entry] : _map) {
+		if (entry.tag == tag) {
+			_stale.push_back(key);
+		}
+	}
+	if (!hadStale) {
+		startStaleClear();
+	}
+	invokeCallback(done, Error::NoError());
 }
 
 auto DatabaseObject::getManyRaw(const std::vector<Key> &keys) const
