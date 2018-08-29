@@ -90,7 +90,8 @@ void Databases::destroy(Cache::Database *database) {
 			Assert(!kept.destroying.alive());
 			auto [first, second] = base::make_binary_guard();
 			kept.destroying = std::move(first);
-			database->close([=, guard = std::move(second)]() mutable {
+			database->close();
+			database->waitForCleaner([=, guard = std::move(second)]() mutable {
 				crl::on_main([=, guard = std::move(guard)]{
 					if (!guard.alive()) {
 						return;

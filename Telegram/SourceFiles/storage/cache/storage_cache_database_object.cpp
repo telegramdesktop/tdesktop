@@ -1167,6 +1167,7 @@ void DatabaseObject::createCleaner() {
 }
 
 void DatabaseObject::cleanerDone(Error error) {
+	invokeCallback(_cleaner.done);
 	_cleaner = CleanerWrap();
 	pushStatsDelayed();
 }
@@ -1211,6 +1212,7 @@ void DatabaseObject::clear(FnMut<void(Error)> &&done) {
 	}
 	if (key.empty()) {
 		invokeCallback(done, Error::NoError());
+		createCleaner();
 		return;
 	}
 	open(std::move(key), std::move(done));
@@ -1227,6 +1229,17 @@ void DatabaseObject::clearByTag(uint8 tag, FnMut<void(Error)> &&done) {
 		startStaleClear();
 	}
 	invokeCallback(done, Error::NoError());
+}
+
+void DatabaseObject::waitForCleaner(FnMut<void()> &&done) {
+	while (!_stale.empty()) {
+		clearStaleChunk();
+	}
+	if (_cleaner.object) {
+		_cleaner.done = std::move(done);
+	} else {
+		invokeCallback(done);
+	}
 }
 
 auto DatabaseObject::getManyRaw(const std::vector<Key> &keys) const

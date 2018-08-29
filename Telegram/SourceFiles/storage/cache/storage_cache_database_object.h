@@ -59,6 +59,7 @@ public:
 
 	void clear(FnMut<void(Error)> &&done);
 	void clearByTag(uint8 tag, FnMut<void(Error)> &&done);
+	void waitForCleaner(FnMut<void()> &&done);
 
 	static QString BinlogFilename();
 	static QString CompactReadyFilename();
@@ -90,6 +91,7 @@ private:
 	struct CleanerWrap {
 		std::unique_ptr<Cleaner> object;
 		base::binary_guard guard;
+		FnMut<void()> done;
 	};
 	struct CompactorWrap {
 		std::unique_ptr<Compactor> object;

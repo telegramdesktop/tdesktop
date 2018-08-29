@@ -68,6 +68,7 @@ public:
 
 	void clear(FnMut<void(Error)> &&done = nullptr);
 	void clearByTag(uint8 tag, FnMut<void(Error)> &&done = nullptr);
+	void waitForCleaner(FnMut<void()> &&done = nullptr);
 
 	~Database();
 

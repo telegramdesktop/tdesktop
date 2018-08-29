@@ -39,6 +39,14 @@ void Database::close(FnMut<void()> &&done) {
 	});
 }
 
+void Database::waitForCleaner(FnMut<void()> &&done) {
+	_wrapped.with([
+		done = std::move(done)
+	](Implementation &unwrapped) mutable {
+		unwrapped.waitForCleaner(std::move(done));
+	});
+}
+
 void Database::put(
 		const Key &key,
 		QByteArray &&value,
