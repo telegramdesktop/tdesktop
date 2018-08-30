@@ -2127,28 +2127,8 @@ ReadMapState _readMap(const QByteArray &pass) {
 				draftCursorsMap.insert(p, key);
 			}
 		} break;
-		case lskImages: {
-			quint32 count = 0;
-			map.stream >> count;
-			for (quint32 i = 0; i < count; ++i) {
-				FileKey key;
-				quint64 first, second;
-				qint32 size;
-				map.stream >> key >> first >> second >> size;
-				clearKey(key, FileOption::User);
-			}
-		} break;
-		case lskStickerImages: {
-			quint32 count = 0;
-			map.stream >> count;
-			for (quint32 i = 0; i < count; ++i) {
-				FileKey key;
-				quint64 first, second;
-				qint32 size;
-				map.stream >> key >> first >> second >> size;
-				clearKey(key, FileOption::User);
-			}
-		} break;
+		case lskImages:
+		case lskStickerImages:
 		case lskAudios: {
 			quint32 count = 0;
 			map.stream >> count;
@@ -2157,7 +2137,7 @@ ReadMapState _readMap(const QByteArray &pass) {
 				quint64 first, second;
 				qint32 size;
 				map.stream >> key >> first >> second >> size;
-				clearKey(key, FileOption::User);
+				// Just ignore the key, it will be removed as a leaked one.
 			}
 		} break;
 		case lskLocations: {
@@ -2655,12 +2635,72 @@ void setPasscode(const QByteArray &passcode) {
 	Global::RefLocalPasscodeChanged().notify();
 }
 
+std::vector<QString> collectLeakedKeys() {
+	QDir user(_userBasePath);
+	if (!user.exists()) {
+		return {};
+	}
+	const auto keys = {
+		_locationsKey,
+		_reportSpamStatusesKey,
+		_userSettingsKey,
+		_installedStickersKey,
+		_featuredStickersKey,
+		_recentStickersKey,
+		_favedStickersKey,
+		_archivedStickersKey,
+		_recentStickersKeyOld,
+		_savedGifsKey,
+		_backgroundKeyNight,
+		_backgroundKeyDay,
+		_recentHashtagsAndBotsKey,
+		_exportSettingsKey,
+		_savedPeersKey,
+		_trustedBotsKey
+	};
+	auto good = base::flat_set<QString>();
+	for (const auto &value : _draftsMap) {
+		good.emplace(toFilePart(value));
+	}
+	for (const auto &value : _draftCursorsMap) {
+		good.emplace(toFilePart(value));
+	}
+	for (const auto &value : keys) {
+		good.emplace(toFilePart(value));
+	}
+	const auto list = user.entryList(QDir::Files);
+	auto result = std::vector<QString>();
+	auto check = toFilePart(0);
+	for (const auto &name : list) {
+		if (name.size() != 17) {
+			continue;
+		}
+		memcpy(check.data(), name.data(), check.size() * sizeof(QChar));
+		if (!good.contains(check)) {
+			result.push_back(name);
+		}
+	}
+	return result;
+}
+
+void clearLeakedFiles() {
+	auto leaked = collectLeakedKeys();
+	if (!leaked.empty()) {
+		crl::async([base = _userBasePath, leaked = std::move(leaked)] {
+			for (const auto &name : leaked) {
+				QFile(base + name).remove();
+			}
+		});
+	}
+}
+
 ReadMapState readMap(const QByteArray &pass) {
 	ReadMapState result = _readMap(pass);
 	if (result == ReadMapFailed) {
 		_mapChanged = true;
 		_writeMap(WriteMapWhen::Now);
 	}
+	clearLeakedFiles();
 	return result;
 }
 
