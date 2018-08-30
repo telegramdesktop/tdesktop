@@ -2390,7 +2390,11 @@ void ApiWrap::requestFileReference(
 
 	request(std::move(data)).done([=](const auto &result) {
 		const auto parsed = Data::GetFileReferences(result);
-		for (const auto &[origin, reference] : parsed) {
+		for (const auto &p : parsed) {
+			// Unpack here the parsed pair by hand to workaround a GCC bug.
+			// See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=87122
+			const auto &origin = p.first;
+			const auto &reference = p.second;
 			const auto documentId = base::get_if<DocumentFileLocationId>(
 				&origin);
 			if (documentId) {
