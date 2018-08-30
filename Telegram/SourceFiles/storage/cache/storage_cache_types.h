@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_map.h"
 #include "base/optional.h"
 #include <crl/crl_time.h>
+#include <QtCore/QString>
+#include <QtCore/QByteArray>
 
 namespace Storage {
 namespace Cache {

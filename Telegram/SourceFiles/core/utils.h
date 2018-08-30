@@ -23,24 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #define qsl(s) QStringLiteral(s)
 
-// Define specializations for QByteArray for Qt 5.3.2, because
-// QByteArray in Qt 5.3.2 doesn't declare "pointer" subtype.
-#ifdef OS_MAC_OLD
-namespace gsl {
-
-template <>
-inline span<char> make_span<QByteArray>(QByteArray &cont) {
-	return span<char>(cont.data(), cont.size());
-}
-
-template <>
-inline span<const char> make_span(const QByteArray &cont) {
-	return span<const char>(cont.constData(), cont.size());
-}
-
-} // namespace gsl
-#endif // OS_MAC_OLD
-
 namespace base {
 
 template <typename D, typename T>
