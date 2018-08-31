@@ -1026,7 +1026,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 
 		_cacheTotalSizeLimit = size;
 		_cacheTotalTimeLimit = time;
-	}
+	} break;
 
 	case dbiSoundNotify: {
 		qint32 v;
