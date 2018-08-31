@@ -130,6 +130,43 @@ public:
 	}
 	void disablePaint(bool disabled);
 
+	template <
+		typename Value,
+		typename Convert,
+		typename Callback,
+		typename = std::enable_if_t<
+			rpl::details::is_callable_plain_v<Callback, Value>
+			&& std::is_same_v<Value, decltype(std::declval<Convert>()(1))>>>
+	void setPseudoDiscrete(
+			int valuesCount,
+			Convert &&convert,
+			Value current,
+			Callback &&callback) {
+		Expects(valuesCount > 1);
+
+		setAlwaysDisplayMarker(true);
+		setDirection(Ui::ContinuousSlider::Direction::Horizontal);
+
+		const auto sectionsCount = (valuesCount - 1);
+		for (auto index = index_type(); index != valuesCount; ++index) {
+			if (current <= convert(index)) {
+				setValue(index / float64(sectionsCount));
+				break;
+			}
+		}
+		setAdjustCallback([=](float64 value) {
+			return std::round(value * sectionsCount) / sectionsCount;
+		});
+		setChangeProgressCallback([
+			=,
+			convert = std::forward<Convert>(convert),
+			callback = std::forward<Callback>(callback)
+		](float64 value) {
+			const auto index = int(std::round(value * sectionsCount));
+			callback(convert(index));
+		});
+	}
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 

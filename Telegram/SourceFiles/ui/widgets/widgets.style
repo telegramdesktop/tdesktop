@@ -888,6 +888,18 @@ defaultPanelAnimation: PanelAnimation {
 	shadow: defaultRoundShadow;
 }
 
+defaultContinuousSlider: MediaSlider {
+	width: 3px;
+	activeFg: mediaPlayerActiveFg;
+	inactiveFg: mediaPlayerInactiveFg;
+	activeFgOver: mediaPlayerActiveFg;
+	inactiveFgOver: mediaPlayerInactiveFg;
+	activeFgDisabled: mediaPlayerInactiveFg;
+	inactiveFgDisabled: windowBg;
+	seekSize: size(9px, 9px);
+	duration: 150;
+}
+
 defaultRoundCheckbox: RoundCheckbox {
 	border: windowBg;
 	bgActive: windowBgActive;

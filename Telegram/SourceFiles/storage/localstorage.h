@@ -105,8 +105,9 @@ void writeFileLocation(MediaKey location, const FileLocation &local);
 FileLocation readFileLocation(MediaKey location, bool check = true);
 
 QString cachePath();
-Storage::Cache::Database::Settings cacheSettings();
 Storage::EncryptionKey cacheKey();
+Storage::Cache::Database::Settings cacheSettings();
+void updateCacheSettings(Storage::Cache::Database::SettingsUpdate &update);
 
 void countVoiceWaveform(DocumentData *document);
 

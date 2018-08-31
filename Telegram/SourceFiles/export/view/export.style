@@ -21,16 +21,8 @@ exportHeaderLabel: FlatLabel(boxTitle) {
 	}
 }
 exportHeaderPadding: margins(22px, 20px, 22px, 9px);
-exportFileSizeSlider: MediaSlider {
-	width: 3px;
-	activeFg: mediaPlayerActiveFg;
-	inactiveFg: mediaPlayerInactiveFg;
-	activeFgOver: mediaPlayerActiveFg;
-	inactiveFgOver: mediaPlayerInactiveFg;
-	activeFgDisabled: mediaPlayerInactiveFg;
-	inactiveFgDisabled: windowBg;
+exportFileSizeSlider: MediaSlider(defaultContinuousSlider) {
 	seekSize: size(15px, 15px);
-	duration: 150;
 }
 exportFileSizeLabel: LabelSimple(defaultLabelSimple) {
 	font: boxTextFont;

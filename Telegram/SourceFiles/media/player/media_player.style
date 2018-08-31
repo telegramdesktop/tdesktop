@@ -193,17 +193,7 @@ mediaPlayerPanelPlaySkip: 7px;
 mediaPlayerPanelPlayTop: 58px;
 mediaPlayerPanelPlaybackTop: 32px;
 mediaPlayerPanelPlaybackPadding: 8px;
-mediaPlayerPanelPlayback: MediaSlider {
-	width: 3px;
-	activeFg: mediaPlayerActiveFg;
-	inactiveFg: mediaPlayerInactiveFg;
-	activeFgOver: mediaPlayerActiveFg;
-	inactiveFgOver: mediaPlayerInactiveFg;
-	activeFgDisabled: mediaPlayerInactiveFg;
-	inactiveFgDisabled: windowBg;
-	seekSize: size(9px, 9px);
-	duration: 150;
-}
+mediaPlayerPanelPlayback: defaultContinuousSlider;
 
 mediaPlayerPanelVolumeTop: 65px;
 mediaPlayerPanelVolumeSkip: 3px;

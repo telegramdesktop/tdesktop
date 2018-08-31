@@ -50,6 +50,7 @@ constexpr auto kSinglePeerTypeChannel = qint32(3);
 constexpr auto kSinglePeerTypeSelf = qint32(4);
 constexpr auto kSinglePeerTypeEmpty = qint32(0);
 
+using Database = Storage::Cache::Database;
 using FileKey = quint64;
 
 constexpr char tdfMagic[] = { 'T', 'D', 'F', '$' };
@@ -590,6 +591,7 @@ enum {
 	dbiTxtDomainString = 0x53,
 	dbiThemeKey = 0x54,
 	dbiTileBackground = 0x55,
+	dbiCacheSettings = 0x56,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -647,6 +649,8 @@ bool _readingUserSettings = false;
 FileKey _userSettingsKey = 0;
 FileKey _recentHashtagsAndBotsKey = 0;
 bool _recentHashtagsAndBotsWereRead = false;
+qint64 _cacheTotalSizeLimit = Database::Settings().totalSizeLimit;
+qint32 _cacheTotalTimeLimit = Database::Settings().totalTimeLimit;
 
 FileKey _exportSettingsKey = 0;
 
@@ -1009,6 +1013,20 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 
 		cSetUseExternalVideoPlayer(v == 1);
 	} break;
+
+	case dbiCacheSettings: {
+		qint64 size;
+		qint32 time;
+		stream >> size >> time;
+		if (!_checkStreamStatus(stream)
+			|| size <= Database::Settings().maxDataSize
+			|| time < 0) {
+			return false;
+		}
+
+		_cacheTotalSizeLimit = size;
+		_cacheTotalTimeLimit = time;
+	}
 
 	case dbiSoundNotify: {
 		qint32 v;
@@ -1905,6 +1923,7 @@ void _writeUserSettings() {
 	size += sizeof(quint32) + 3 * sizeof(qint32);
 	size += sizeof(quint32) + 2 * sizeof(qint32);
 	size += sizeof(quint32) + 2 * sizeof(qint32);
+	size += sizeof(quint32) + sizeof(qint64) + sizeof(qint32);
 	if (!Global::HiddenPinnedMessages().isEmpty()) {
 		size += sizeof(quint32) + sizeof(qint32) + Global::HiddenPinnedMessages().size() * (sizeof(PeerId) + sizeof(MsgId));
 	}
@@ -1940,6 +1959,7 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiModerateMode) << qint32(Global::ModerateModeEnabled() ? 1 : 0);
 	data.stream << quint32(dbiAutoPlay) << qint32(cAutoPlayGif() ? 1 : 0);
 	data.stream << quint32(dbiUseExternalVideoPlayer) << qint32(cUseExternalVideoPlayer());
+	data.stream << quint32(dbiCacheSettings) << qint64(_cacheTotalSizeLimit) << qint32(_cacheTotalTimeLimit);
 	if (!userData.isEmpty()) {
 		data.stream << quint32(dbiAuthSessionSettings) << userData;
 	}
@@ -2608,6 +2628,8 @@ void reset() {
 	Window::Theme::Background()->reset();
 	_userSettingsKey = _recentHashtagsAndBotsKey = _savedPeersKey = _exportSettingsKey = 0;
 	_oldMapVersion = _oldSettingsVersion = 0;
+	_cacheTotalSizeLimit = Database::Settings().totalSizeLimit;
+	_cacheTotalTimeLimit = Database::Settings().totalTimeLimit;
 	StoredAuthSessionCache.reset();
 	_mapChanged = true;
 	_writeMap(WriteMapWhen::Now);
@@ -2987,16 +3009,31 @@ QString cachePath() {
 	return _userDbPath + "cache";
 }
 
-Storage::Cache::Database::Settings cacheSettings() {
-	auto result = Storage::Cache::Database::Settings();
-	result.clearOnWrongKey = true;
-	return result;
-}
-
 Storage::EncryptionKey cacheKey() {
 	Expects(LocalKey != nullptr);
 
 	return Storage::EncryptionKey(bytes::make_vector(LocalKey->data()));
+}
+
+Storage::Cache::Database::Settings cacheSettings() {
+	auto result = Storage::Cache::Database::Settings();
+	result.clearOnWrongKey = true;
+	result.totalSizeLimit = _cacheTotalSizeLimit;
+	result.totalTimeLimit = _cacheTotalTimeLimit;
+	return result;
+}
+
+void updateCacheSettings(Storage::Cache::Database::SettingsUpdate &update) {
+	Expects(update.totalSizeLimit > Database::Settings().maxDataSize);
+	Expects(update.totalTimeLimit >= 0);
+
+	if (_cacheTotalSizeLimit == update.totalSizeLimit
+		&& _cacheTotalTimeLimit == update.totalTimeLimit) {
+		return;
+	}
+	_cacheTotalSizeLimit = update.totalSizeLimit;
+	_cacheTotalTimeLimit = update.totalTimeLimit;
+	_writeUserSettings();
 }
 
 class CountWaveformTask : public Task {

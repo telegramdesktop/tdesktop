@@ -20,6 +20,7 @@ namespace Ui {
 class VerticalLayout;
 template <typename Widget>
 class SlideWrap;
+class LabelSimple;
 } // namespace Ui
 
 class LocalStorageBox : public BoxContent {
@@ -47,11 +48,34 @@ private:
 		not_null<Ui::SlideWrap<Row>*> row,
 		Database::TaggedSummary *data);
 	void setupControls();
+	void setupLimits(not_null<Ui::VerticalLayout*> container);
+	void limitsChanged();
+	void save();
+
+	template <
+		typename Value,
+		typename Convert,
+		typename Callback,
+		typename = std::enable_if_t<
+			rpl::details::is_callable_plain_v<
+				Callback,
+				not_null<Ui::LabelSimple*>,
+				Value>
+			&& std::is_same_v<Value, decltype(std::declval<Convert>()(1))>>>
+	void createLimitsSlider(
+		not_null<Ui::VerticalLayout*> container,
+		int valuesCount,
+		Convert &&convert,
+		Value currentValue,
+		Callback &&callback);
 
 	not_null<Storage::Cache::Database*> _db;
 	Database::Stats _stats;
 
-	object_ptr<Ui::VerticalLayout> _content = { nullptr };
 	base::flat_map<uint8, not_null<Ui::SlideWrap<Row>*>> _rows;
+
+	int64 _sizeLimit = 0;
+	size_type _timeLimit = 0;
+	bool _limitsChanged = false;
 
 };

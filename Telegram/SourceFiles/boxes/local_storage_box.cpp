@@ -12,13 +12,96 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
-#include "ui/effects/radial_animation.h"
 #include "ui/widgets/shadow.h"
+#include "ui/widgets/continuous_sliders.h"
+#include "ui/effects/radial_animation.h"
 #include "storage/localstorage.h"
+#include "storage/cache/storage_cache_database.h"
+#include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "auth_session.h"
 #include "layout.h"
+
+namespace {
+
+constexpr auto kSizeLimitsCount = 20;
+constexpr auto kTimeLimitsCount = 16;
+constexpr auto kMaxTimeLimitValue = std::numeric_limits<size_type>::max();
+
+int64 SizeLimitInMB(int index) {
+	if (index < 10) {
+		return int64(index + 1) * 100;
+	}
+	return int64(index - 9) * 1024;
+}
+
+int64 SizeLimit(int index) {
+	return SizeLimitInMB(index) * 1024 * 1024;
+}
+
+QString SizeLimitText(int64 limit) {
+	const auto mb = (limit / (1024 * 1024));
+	const auto gb = (mb / 1024);
+	return (gb > 0)
+		? (QString::number(gb) + " GB")
+		: (QString::number(mb) + " MB");
+}
+
+size_type TimeLimitInDays(int index) {
+	if (index < 3) {
+		const auto weeks = (index + 1);
+		return size_type(weeks) * 7;
+	} else if (index < 15) {
+		const auto month = (index - 2);
+		return (size_type(month) * 30)
+			+ ((month >= 12) ? 5 :
+				(month >= 10) ? 4 :
+				(month >= 8) ? 3 :
+				(month >= 7) ? 2 :
+				(month >= 5) ? 1 :
+				(month >= 3) ? 0 :
+				(month >= 2) ? -1 :
+				(month >= 1) ? 1 : 0);
+			//+ (month >= 1 ? 1 : 0)
+			//- (month >= 2 ? 2 : 0)
+			//+ (month >= 3 ? 1 : 0)
+			//+ (month >= 5 ? 1 : 0)
+			//+ (month >= 7 ? 1 : 0)
+			//+ (month >= 8 ? 1 : 0)
+			//+ (month >= 10 ? 1 : 0)
+			//+ (month >= 12 ? 1 : 0);
+	}
+	return 0;
+}
+
+size_type TimeLimit(int index) {
+	const auto days = TimeLimitInDays(index);
+	return days
+		? (days * 24 * 60 * 60)
+		: kMaxTimeLimitValue;
+}
+
+QString TimeLimitText(size_type limit) {
+	const auto days = (limit / (24 * 60 * 60));
+	const auto weeks = (days / 7);
+	const auto months = (days / 29);
+	return (months > 0)
+		? lng_local_storage_limit_months(lt_count, months)
+		: (limit > 0)
+		? lng_local_storage_limit_weeks(lt_count, weeks)
+		: lang(lng_local_storage_limit_never);
+}
+
+size_type LimitToValue(size_type timeLimit) {
+	return timeLimit ? timeLimit : kMaxTimeLimitValue;
+}
+
+size_type ValueToLimit(size_type timeLimit) {
+	return (timeLimit != kMaxTimeLimitValue) ? timeLimit : 0;
+}
+
+} // namespace
 
 class LocalStorageBox::Row : public Ui::RpWidget {
 public:
@@ -134,7 +217,7 @@ int LocalStorageBox::Row::resizeGetHeight(int newWidth) {
 			newWidth);
 	}
 	_clear->moveToRight(
-		st::boxButtonPadding.right(),
+		st::boxLayerButtonPadding.right(),
 		(height - _clear->height()) / 2,
 		newWidth);
 	return height;
@@ -174,6 +257,9 @@ LocalStorageBox::LocalStorageBox(
 	not_null<Database*> db,
 	CreateTag)
 : _db(db) {
+	const auto &settings = Local::cacheSettings();
+	_sizeLimit = settings.totalSizeLimit;
+	_timeLimit = settings.totalTimeLimit;
 }
 
 void LocalStorageBox::Show(not_null<Database*> db) {
@@ -234,17 +320,17 @@ void LocalStorageBox::clearByTag(uint8 tag) {
 }
 
 void LocalStorageBox::setupControls() {
-	_content.create(this);
-
+	const auto container = setInnerWidget(
+		object_ptr<Ui::VerticalLayout>(this));
 	const auto createRow = [&](
 			uint8 tag,
 			Fn<QString(size_type)> title,
 			Fn<QString()> clear,
 			const Database::TaggedSummary &data) {
-		auto result = _content->add(object_ptr<Ui::SlideWrap<Row>>(
-			_content,
+		auto result = container->add(object_ptr<Ui::SlideWrap<Row>>(
+			container,
 			object_ptr<Row>(
-				_content,
+				container,
 				std::move(title),
 				std::move(clear),
 				data)));
@@ -280,11 +366,11 @@ void LocalStorageBox::setupControls() {
 		std::move(summaryTitle),
 		langFactory(lng_local_storage_clear),
 		_stats.full);
-	const auto shadow = _content->add(object_ptr<Ui::SlideWrap<>>(
-		_content,
-		object_ptr<Ui::PlainShadow>(_content),
-		st::localStorageRowPadding)
-	);
+	setupLimits(container);
+	const auto shadow = container->add(object_ptr<Ui::SlideWrap<>>(
+		container,
+		object_ptr<Ui::PlainShadow>(container),
+		st::localStorageRowPadding));
 	createTagRow(Data::kImageCacheTag, lng_local_storage_image);
 	createTagRow(Data::kStickerCacheTag, lng_local_storage_sticker);
 	createTagRow(Data::kVoiceMessageCacheTag, lng_local_storage_voice);
@@ -293,11 +379,98 @@ void LocalStorageBox::setupControls() {
 	shadow->toggleOn(
 		std::move(tracker).atLeastOneShownValue()
 	);
-	_content->resizeToWidth(st::boxWidth);
-	_content->heightValue(
+	container->resizeToWidth(st::boxWidth);
+	container->heightValue(
 	) | rpl::start_with_next([=](int height) {
 		setDimensions(st::boxWidth, height);
-	}, _content->lifetime());
+	}, container->lifetime());
+}
+
+template <
+	typename Value,
+	typename Convert,
+	typename Callback,
+	typename>
+void LocalStorageBox::createLimitsSlider(
+		not_null<Ui::VerticalLayout*> container,
+		int valuesCount,
+		Convert &&convert,
+		Value currentValue,
+		Callback &&callback) {
+	const auto label = container->add(
+		object_ptr<Ui::LabelSimple>(container, st::localStorageLimitLabel),
+		st::localStorageLimitLabelMargin);
+	callback(label, currentValue);
+	const auto slider = container->add(
+		object_ptr<Ui::MediaSlider>(container, st::localStorageLimitSlider),
+		st::localStorageLimitMargin);
+	slider->resize(st::localStorageLimitSlider.seekSize);
+	slider->setPseudoDiscrete(
+		valuesCount,
+		std::forward<Convert>(convert),
+		currentValue,
+		[=, callback = std::forward<Callback>(callback)](Value value) {
+			callback(label, value);
+		});
+}
+
+void LocalStorageBox::setupLimits(not_null<Ui::VerticalLayout*> container) {
+	const auto shadow = container->add(
+		object_ptr<Ui::PlainShadow>(container),
+		st::localStorageRowPadding);
+
+	createLimitsSlider(
+		container,
+		kSizeLimitsCount,
+		SizeLimit,
+		_sizeLimit,
+		[=](not_null<Ui::LabelSimple*> label, int64 limit) {
+			const auto text = SizeLimitText(limit);
+			label->setText(lng_local_storage_size_limit(lt_size, text));
+			_sizeLimit = limit;
+			limitsChanged();
+		});
+
+	createLimitsSlider(
+		container,
+		kTimeLimitsCount,
+		TimeLimit,
+		LimitToValue(_timeLimit),
+		[=](not_null<Ui::LabelSimple*> label, size_type limit) {
+			const auto text = TimeLimitText(ValueToLimit(limit));
+			label->setText(lng_local_storage_time_limit(lt_limit, text));
+			_timeLimit = limit;
+			limitsChanged();
+		});
+}
+
+void LocalStorageBox::limitsChanged() {
+	const auto &settings = Local::cacheSettings();
+	const auto changed = (settings.totalSizeLimit != _sizeLimit)
+		|| (settings.totalTimeLimit != _timeLimit);
+	if (_limitsChanged != changed) {
+		_limitsChanged = changed;
+		clearButtons();
+		if (_limitsChanged) {
+			addButton(langFactory(lng_settings_save), [=] { save(); });
+			addButton(langFactory(lng_cancel), [=] { closeBox(); });
+		} else {
+			addButton(langFactory(lng_box_ok), [=] { closeBox(); });
+		}
+	}
+}
+
+void LocalStorageBox::save() {
+	if (!_limitsChanged) {
+		closeBox();
+		return;
+	}
+	auto update = Storage::Cache::Database::SettingsUpdate();
+	update.totalSizeLimit = _sizeLimit;
+	update.totalTimeLimit = _timeLimit;
+	Local::updateCacheSettings(update);
+	Auth().data().cache().updateSettings(update);
+	closeBox();
 }
 
 void LocalStorageBox::paintEvent(QPaintEvent *e) {

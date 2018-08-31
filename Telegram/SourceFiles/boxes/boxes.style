@@ -355,7 +355,7 @@ peerListBox: PeerList(defaultPeerList) {
 }
 
 localStorageRowHeight: 50px;
-localStorageRowPadding: margins(23px, 5px, 23px, 5px);
+localStorageRowPadding: margins(23px, 5px, 20px, 5px);
 localStorageRowTitle: FlatLabel(defaultFlatLabel) {
 	textFg: windowBoldFg;
 	maxHeight: 20px;
@@ -375,6 +375,14 @@ localStorageRowSize: FlatLabel(defaultFlatLabel) {
 	}
 }
 localStorageClear: defaultBoxButton;
+localStorageLimitLabel: LabelSimple(defaultLabelSimple) {
+	font: boxTextFont;
+}
+localStorageLimitLabelMargin: margins(23px, 10px, 20px, 5px);
+localStorageLimitSlider: MediaSlider(defaultContinuousSlider) {
+	seekSize: size(15px, 15px);
+}
+localStorageLimitMargin: margins(23px, 5px, 20px, 10px);
 
 shareRowsTop: 12px;
 shareRowHeight: 108px;

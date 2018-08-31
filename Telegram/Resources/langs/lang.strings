@@ -366,6 +366,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_local_storage_round#other" = "{count} video messages";
 "lng_local_storage_animation#one" = "{count} animation";
 "lng_local_storage_animation#other" = "{count} animations";
+"lng_local_storage_size_limit" = "Total size limit: {size}";
+"lng_local_storage_time_limit" = "Clear files older than: {limit}";
+"lng_local_storage_limit_weeks#one" = "{count} week";
+"lng_local_storage_limit_weeks#other" = "{count} weeks";
+"lng_local_storage_limit_months#one" = "{count} month";
+"lng_local_storage_limit_months#other" = "{count} months";
+"lng_local_storage_limit_never" = "Never";
 "lng_local_storage_summary" = "Summary";
 "lng_local_storage_clear_some" = "Clear";
 "lng_local_storage_clear" = "Clear all";

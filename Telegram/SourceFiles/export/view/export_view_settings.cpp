@@ -469,27 +469,19 @@ void SettingsWidget::addSizeSlider(
 		object_ptr<Ui::MediaSlider>(container, st::exportFileSizeSlider),
 		st::exportFileSizePadding);
 	slider->resize(st::exportFileSizeSlider.seekSize);
-	slider->setAlwaysDisplayMarker(true);
-	slider->setDirection(Ui::ContinuousSlider::Direction::Horizontal);
-	for (auto i = 0; i != kSizeValueCount + 1; ++i) {
-		if (readData().media.sizeLimit <= SizeLimitByIndex(i)) {
-			slider->setValue(i / float64(kSizeValueCount));
-			break;
-		}
-	}
+	slider->setPseudoDiscrete(
+		kSizeValueCount + 1,
+		SizeLimitByIndex,
+		readData().media.sizeLimit,
+		[=](int limit) {
+			changeData([&](Settings &data) {
+				data.media.sizeLimit = limit;
+			});
+		});
 
 	const auto label = Ui::CreateChild<Ui::LabelSimple>(
 		container.get(),
 		st::exportFileSizeLabel);
-	slider->setAdjustCallback([=](float64 value) {
-		return std::round(value * kSizeValueCount) / kSizeValueCount;
-	});
-	slider->setChangeProgressCallback([=](float64 value) {
-		const auto index = int(std::round(value * kSizeValueCount));
-		changeData([&](Settings &data) {
-			data.media.sizeLimit = SizeLimitByIndex(index);
-		});
-	});
 	value() | rpl::map([](const Settings &data) {
 		return data.media.sizeLimit;
 	}) | rpl::start_with_next([=](int sizeLimit) {
@@ -511,7 +503,6 @@ void SettingsWidget::addSizeSlider(
 			st::exportFileSizePadding.right(),
 			geometry.y() - label->height() - st::exportFileSizeLabelBottom);
 	}, label->lifetime());
-
 }
 
 void SettingsWidget::refreshButtons(
