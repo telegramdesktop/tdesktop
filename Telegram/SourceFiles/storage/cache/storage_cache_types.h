@@ -66,11 +66,16 @@ struct Settings {
 
 	bool trackEstimatedTime = true;
 	int64 totalSizeLimit = 1024 * 1024 * 1024;
-	size_type totalTimeLimit = 30 * 86400; // One month in seconds.
+	size_type totalTimeLimit = 31 * 24 * 60 * 60; // One month in seconds.
 	crl::time_type pruneTimeout = 5 * crl::time_type(1000);
 	crl::time_type maxPruneCheckTimeout = 3600 * crl::time_type(1000);
 
 	bool clearOnWrongKey = false;
+};
+
+struct SettingsUpdate {
+	int64 totalSizeLimit = Settings().totalSizeLimit;
+	size_type totalTimeLimit = Settings().totalTimeLimit;
 };
 
 struct TaggedValue {

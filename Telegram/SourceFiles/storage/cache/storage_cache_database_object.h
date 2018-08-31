@@ -31,6 +31,7 @@ public:
 		const QString &path,
 		const Settings &settings);
 	void reconfigure(const Settings &settings);
+	void updateSettings(const SettingsUpdate &update);
 
 	void open(EncryptionKey &&key, FnMut<void(Error)> &&done);
 	void close(FnMut<void()> &&done);

@@ -92,6 +92,14 @@ void DatabaseObject::reconfigure(const Settings &settings) {
 	checkSettings();
 }
 
+void DatabaseObject::updateSettings(const SettingsUpdate &update) {
+	_settings.totalSizeLimit = update.totalSizeLimit;
+	_settings.totalTimeLimit = update.totalTimeLimit;
+	checkSettings();
+
+	optimize();
+}
+
 void DatabaseObject::checkSettings() {
 	Expects(_settings.staleRemoveChunk > 0);
 	Expects(_settings.maxDataSize > 0

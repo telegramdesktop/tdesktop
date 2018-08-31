@@ -24,9 +24,11 @@ class DatabaseObject;
 class Database {
 public:
 	using Settings = details::Settings;
+	using SettingsUpdate = details::SettingsUpdate;
 	Database(const QString &path, const Settings &settings);
 
 	void reconfigure(const Settings &settings);
+	void updateSettings(const SettingsUpdate &update);
 
 	void open(EncryptionKey &&key, FnMut<void(Error)> &&done = nullptr);
 	void close(FnMut<void()> &&done = nullptr);

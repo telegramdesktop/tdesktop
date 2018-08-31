@@ -22,6 +22,12 @@ void Database::reconfigure(const Settings &settings) {
 	});
 }
 
+void Database::updateSettings(const SettingsUpdate &update) {
+	_wrapped.with([update](Implementation &unwrapped) mutable {
+		unwrapped.updateSettings(update);
+	});
+}
+
 void Database::open(EncryptionKey &&key, FnMut<void(Error)> &&done) {
 	_wrapped.with([
 		key = std::move(key),
