@@ -40,6 +40,14 @@ std::map<int, const char*> AlphaLogs() {
 
 		"\xE2\x80\x94 You can now assign custom themes "
 		"as night and day themes to quickly switch between them."
+	},
+	{
+		1003015,
+		"\xE2\x80\x94 Improved local caching "
+		"for images and GIF animations.\n"
+
+		"\xE2\x80\x94 Control how much disk space is used by the cache "
+		"and for how long the cached files are stored."
 	}
 	};
 }

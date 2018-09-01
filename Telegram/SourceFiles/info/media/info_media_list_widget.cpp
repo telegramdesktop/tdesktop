@@ -217,6 +217,7 @@ void ListWidget::Section::setHeader(not_null<BaseLayout*> item) {
 bool ListWidget::Section::belongsHere(
 		not_null<BaseLayout*> item) const {
 	Expects(!_items.empty());
+
 	auto date = item->dateTime().date();
 	auto myDate = _items.back().second->dateTime().date();
 
