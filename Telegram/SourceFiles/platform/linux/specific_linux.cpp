@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_notifications_manager.h"
 #include "storage/localstorage.h"
 #include "core/crash_reports.h"
+#include "core/update_checker.h"
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -409,6 +410,8 @@ void RegisterCustomScheme() {
 #ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 	auto home = getHomeDir();
 	if (home.isEmpty() || cBetaVersion() || cExeName().isEmpty()) return; // don't update desktop file for beta version
+	if (Core::UpdaterDisabled())
+		return;
 
 #ifndef TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
 	DEBUG_LOG(("App Info: placing .desktop file"));
