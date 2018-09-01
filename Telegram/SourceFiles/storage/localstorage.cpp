@@ -2722,7 +2722,9 @@ ReadMapState readMap(const QByteArray &pass) {
 		_mapChanged = true;
 		_writeMap(WriteMapWhen::Now);
 	}
-	clearLeakedFiles();
+	if (result != ReadMapPassNeeded) {
+		clearLeakedFiles();
+	}
 	return result;
 }
 
