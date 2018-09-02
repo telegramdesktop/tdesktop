@@ -7,12 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "settings/settings_block_widget.h"
-#include "settings/settings_chat_settings_widget.h"
+#include "old_settings/settings_block_widget.h"
+#include "old_settings/settings_chat_settings_widget.h"
 #include "core/core_cloud_password.h"
 #include "ui/rp_widget.h"
 
-namespace Settings {
+namespace OldSettings {
 
 class LocalPasscodeState : public Ui::RpWidget, private base::Subscriber {
 	Q_OBJECT

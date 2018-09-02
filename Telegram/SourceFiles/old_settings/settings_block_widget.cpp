@@ -5,14 +5,14 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "settings/settings_block_widget.h"
+#include "old_settings/settings_block_widget.h"
 
-#include "styles/style_settings.h"
+#include "styles/style_old_settings.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
 
-namespace Settings {
+namespace OldSettings {
 
 BlockWidget::BlockWidget(QWidget *parent, UserData *self, const QString &title) : RpWidget(parent)
 , _content(this)

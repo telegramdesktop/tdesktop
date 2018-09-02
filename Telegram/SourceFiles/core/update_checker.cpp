@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/session.h"
 #include "mainwindow.h"
 #include "core/click_handler_types.h"
-#include "settings/settings_widget.h"
+#include "old_settings/settings_widget.h"
 
 extern "C" {
 #include <openssl/rsa.h>
@@ -2127,7 +2127,7 @@ void UpdateApplication() {
 		cSetLastUpdateCheck(0);
 		Core::UpdateChecker().start();
 		if (const auto window = App::wnd()) {
-			auto settings = Box<Settings::Widget>();
+			auto settings = Box<OldSettings::Widget>();
 			const auto weak = make_weak(settings.data());
 			window->showSpecialLayer(std::move(settings), anim::type::normal);
 			if (weak) {

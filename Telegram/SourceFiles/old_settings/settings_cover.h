@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/observer.h"
-#include "settings/settings_block_widget.h"
+#include "old_settings/settings_block_widget.h"
 
 namespace Ui {
 class FlatLabel;
@@ -25,7 +25,7 @@ namespace Profile {
 class CoverDropArea;
 } // namespace Profile
 
-namespace Settings {
+namespace OldSettings {
 
 class CoverWidget : public BlockWidget {
 public:

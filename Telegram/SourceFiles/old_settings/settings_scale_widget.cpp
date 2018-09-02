@@ -5,10 +5,10 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "settings/settings_scale_widget.h"
+#include "old_settings/settings_scale_widget.h"
 
 #include "styles/style_boxes.h"
-#include "styles/style_settings.h"
+#include "styles/style_old_settings.h"
 #include "ui/widgets/checkbox.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "application.h"
 #include "ui/widgets/discrete_sliders.h"
 
-namespace Settings {
+namespace OldSettings {
 namespace {
 
 QString scaleLabel(DBIScale scale) {

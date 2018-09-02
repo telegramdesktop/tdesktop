@@ -5,9 +5,9 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "settings/settings_chat_settings_widget.h"
+#include "old_settings/settings_chat_settings_widget.h"
 
-#include "styles/style_settings.h"
+#include "styles/style_old_settings.h"
 #include "lang/lang_keys.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/checkbox.h"
@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/connection_box.h"
 #include "boxes/confirm_box.h"
 
-namespace Settings {
+namespace OldSettings {
 
 LabeledLink::LabeledLink(QWidget *parent, const QString &label, const QString &text, Type type, const char *slot) : RpWidget(parent)
 , _label(this, label, Ui::FlatLabel::InitType::Simple, (type == Type::Primary) ? st::settingsPrimaryLabel : st::defaultFlatLabel)

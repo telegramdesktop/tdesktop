@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "settings/settings_block_widget.h"
+#include "old_settings/settings_block_widget.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/rp_widget.h"
 
-namespace Settings {
+namespace OldSettings {
 
 class BackgroundRow : public Ui::RpWidget, private base::Subscriber {
 	Q_OBJECT

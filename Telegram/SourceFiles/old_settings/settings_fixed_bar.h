@@ -11,7 +11,7 @@ namespace Ui {
 class IconButton;
 } // namespace Ui
 
-namespace Settings {
+namespace OldSettings {
 
 class FixedBar : public TWidget {
 public:

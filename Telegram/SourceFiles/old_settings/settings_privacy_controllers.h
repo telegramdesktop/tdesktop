@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/edit_privacy_box.h"
 #include "mtproto/sender.h"
 
-namespace Settings {
+namespace OldSettings {
 
 class BlockedBoxController : public PeerListController, private base::Subscriber, private MTP::Sender {
 public:

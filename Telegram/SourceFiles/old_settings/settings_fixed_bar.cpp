@@ -5,13 +5,13 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "settings/settings_fixed_bar.h"
+#include "old_settings/settings_fixed_bar.h"
 
-#include "styles/style_settings.h"
+#include "styles/style_old_settings.h"
 #include "styles/style_boxes.h"
 #include "mainwindow.h"
 
-namespace Settings {
+namespace OldSettings {
 
 FixedBar::FixedBar(QWidget *parent) : TWidget(parent) {
 	setAttribute(Qt::WA_OpaquePaintEvent);

@@ -7,14 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "settings/settings_block_widget.h"
+#include "old_settings/settings_block_widget.h"
 
 namespace Ui {
 class Checkbox;
 class SettingsSlider;
 } // namespace Ui
 
-namespace Settings {
+namespace OldSettings {
 
 class ScaleWidget : public BlockWidget {
 	Q_OBJECT

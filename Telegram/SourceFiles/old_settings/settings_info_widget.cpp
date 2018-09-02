@@ -5,9 +5,9 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "settings/settings_info_widget.h"
+#include "old_settings/settings_info_widget.h"
 
-#include "styles/style_settings.h"
+#include "styles/style_old_settings.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "messenger.h"
 #include "auth_session.h"
 
-namespace Settings {
+namespace OldSettings {
 
 using UpdateFlag = Notify::PeerUpdate::Flag;
 

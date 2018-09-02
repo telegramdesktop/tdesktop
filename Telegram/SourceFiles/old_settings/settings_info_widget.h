@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "settings/settings_block_widget.h"
+#include "old_settings/settings_block_widget.h"
 #include "ui/rp_widget.h"
 
 namespace Ui {
@@ -18,7 +18,7 @@ namespace Notify {
 struct PeerUpdate;
 } // namespace Notify
 
-namespace Settings {
+namespace OldSettings {
 
 class InfoWidget : public BlockWidget {
 public:

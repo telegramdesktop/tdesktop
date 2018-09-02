@@ -25,7 +25,7 @@ class SlideWrap;
 class VerticalLayout;
 } // namespace Ui
 
-namespace Settings {
+namespace OldSettings {
 
 class BlockWidget : public Ui::RpWidget, protected base::Subscriber {
 public:

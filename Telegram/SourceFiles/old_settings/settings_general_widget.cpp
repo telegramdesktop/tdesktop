@@ -5,9 +5,9 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "settings/settings_general_widget.h"
+#include "old_settings/settings_general_widget.h"
 
-#include "styles/style_settings.h"
+#include "styles/style_old_settings.h"
 #include "lang/lang_keys.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/checkbox.h"
@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "messenger.h"
 #include "core/update_checker.h"
 
-namespace Settings {
+namespace OldSettings {
 
 UpdateStateRow::UpdateStateRow(QWidget *parent) : RpWidget(parent)
 , _check(this, lang(lng_settings_check_now))

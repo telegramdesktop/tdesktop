@@ -5,12 +5,12 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "settings/settings_layer.h"
+#include "old_settings/settings_layer.h"
 
 #include <rpl/mappers.h>
-#include "settings/settings_inner_widget.h"
-#include "settings/settings_fixed_bar.h"
-#include "styles/style_settings.h"
+#include "old_settings/settings_inner_widget.h"
+#include "old_settings/settings_fixed_bar.h"
+#include "styles/style_old_settings.h"
 #include "styles/style_window.h"
 #include "styles/style_boxes.h"
 #include "ui/widgets/scroll_area.h"
@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "window/themes/window_theme.h"
 
-namespace Settings {
+namespace OldSettings {
 
 Layer::Layer()
 : _scroll(this, st::settingsScroll)

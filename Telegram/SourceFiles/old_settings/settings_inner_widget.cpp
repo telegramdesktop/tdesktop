@@ -5,22 +5,22 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "settings/settings_inner_widget.h"
+#include "old_settings/settings_inner_widget.h"
 
 #include "lang/lang_instance.h"
-#include "styles/style_settings.h"
-#include "settings/settings_cover.h"
-#include "settings/settings_block_widget.h"
-#include "settings/settings_info_widget.h"
-#include "settings/settings_notifications_widget.h"
-#include "settings/settings_general_widget.h"
-#include "settings/settings_chat_settings_widget.h"
-#include "settings/settings_scale_widget.h"
-#include "settings/settings_background_widget.h"
-#include "settings/settings_privacy_widget.h"
-#include "settings/settings_advanced_widget.h"
+#include "styles/style_old_settings.h"
+#include "old_settings/settings_cover.h"
+#include "old_settings/settings_block_widget.h"
+#include "old_settings/settings_info_widget.h"
+#include "old_settings/settings_notifications_widget.h"
+#include "old_settings/settings_general_widget.h"
+#include "old_settings/settings_chat_settings_widget.h"
+#include "old_settings/settings_scale_widget.h"
+#include "old_settings/settings_background_widget.h"
+#include "old_settings/settings_privacy_widget.h"
+#include "old_settings/settings_advanced_widget.h"
 
-namespace Settings {
+namespace OldSettings {
 
 InnerWidget::InnerWidget(QWidget *parent) : LayerInner(parent)
 , _blocks(this)

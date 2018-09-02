@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "settings/settings_block_widget.h"
+#include "old_settings/settings_block_widget.h"
 #include "ui/rp_widget.h"
 
-namespace Settings {
+namespace OldSettings {
 
 class UpdateStateRow : public Ui::RpWidget {
 	Q_OBJECT

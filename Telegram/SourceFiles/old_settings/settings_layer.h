@@ -16,7 +16,7 @@ class IconButton;
 class FadeShadow;
 } // namespace Ui
 
-namespace Settings {
+namespace OldSettings {
 
 class FixedBar;
 class LayerInner : public Ui::RpWidget {

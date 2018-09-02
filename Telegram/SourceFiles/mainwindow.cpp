@@ -33,7 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mediaview.h"
 #include "storage/localstorage.h"
 #include "apiwrap.h"
-#include "settings/settings_widget.h"
+#include "old_settings/settings_widget.h"
 #include "platform/platform_notifications_manager.h"
 #include "window/layer_widget.h"
 #include "window/notifications_manager.h"
@@ -302,7 +302,7 @@ void MainWindow::setupMain(const MTPUser *self) {
 void MainWindow::showSettings() {
 	if (isHidden()) showFromTray();
 
-	controller()->showSpecialLayer(Box<Settings::Widget>());
+	controller()->showSpecialLayer(Box<OldSettings::Widget>());
 }
 
 void MainWindow::showSpecialLayer(

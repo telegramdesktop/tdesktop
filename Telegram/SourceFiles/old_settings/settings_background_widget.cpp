@@ -5,9 +5,9 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "settings/settings_background_widget.h"
+#include "old_settings/settings_background_widget.h"
 
-#include "styles/style_settings.h"
+#include "styles/style_old_settings.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "boxes/background_box.h"
@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme_editor.h"
 #include "core/file_utilities.h"
 
-namespace Settings {
+namespace OldSettings {
 
 BackgroundRow::BackgroundRow(QWidget *parent) : RpWidget(parent)
 , _chooseFromGallery(this, lang(lng_settings_bg_from_gallery), st::boxLinkButton)

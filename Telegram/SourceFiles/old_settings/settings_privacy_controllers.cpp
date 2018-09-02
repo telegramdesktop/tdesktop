@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "settings/settings_privacy_controllers.h"
+#include "old_settings/settings_privacy_controllers.h"
 
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/confirm_box.h"
 
-namespace Settings {
+namespace OldSettings {
 namespace {
 
 constexpr auto kBlockedPerPage = 40;

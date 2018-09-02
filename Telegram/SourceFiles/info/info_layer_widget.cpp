@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/main_window.h"
 #include "auth_session.h"
 #include "styles/style_info.h"
-#include "styles/style_settings.h"
+#include "styles/style_old_settings.h"
 #include "styles/style_window.h"
 #include "styles/style_boxes.h"
 

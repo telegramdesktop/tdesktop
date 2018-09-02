@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "settings/settings_cover.h"
+#include "old_settings/settings_cover.h"
 
 #include "data/data_photo.h"
 #include "data/data_session.h"
@@ -22,11 +22,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/photo_crop_box.h"
 #include "boxes/add_contact_box.h"
-#include "styles/style_settings.h"
+#include "styles/style_old_settings.h"
 #include "styles/style_profile.h" // for divider
 #include "platform/platform_file_utilities.h"
 
-namespace Settings {
+namespace OldSettings {
 
 CoverWidget::CoverWidget(QWidget *parent, UserData *self)
 : BlockWidget(parent, self, QString())

@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "boxes/confirm_box.h"
 #include "styles/style_window.h"
-#include "styles/style_settings.h"
+#include "styles/style_old_settings.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_boxes.h"
 #include "ui/widgets/scroll_area.h"

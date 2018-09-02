@@ -5,11 +5,11 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "settings/settings_privacy_widget.h"
+#include "old_settings/settings_privacy_widget.h"
 
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/buttons.h"
-#include "styles/style_settings.h"
+#include "styles/style_old_settings.h"
 #include "lang/lang_keys.h"
 #include "application.h"
 #include "auth_session.h"
@@ -24,9 +24,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_box.h"
 #include "boxes/edit_privacy_box.h"
 #include "boxes/self_destruction_box.h"
-#include "settings/settings_privacy_controllers.h"
+#include "old_settings/settings_privacy_controllers.h"
 
-namespace Settings {
+namespace OldSettings {
 
 LocalPasscodeState::LocalPasscodeState(QWidget *parent) : RpWidget(parent)
 , _edit(this, GetEditPasscodeText(), st::boxLinkButton)

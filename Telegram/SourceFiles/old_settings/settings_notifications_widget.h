@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "settings/settings_block_widget.h"
+#include "old_settings/settings_block_widget.h"
 
-namespace Settings {
+namespace OldSettings {
 
 class NotificationsWidget : public BlockWidget {
 	Q_OBJECT

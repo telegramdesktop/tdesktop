@@ -36,7 +36,7 @@
         '<(src_loc)/overview/overview.style',
         '<(src_loc)/passport/passport.style',
         '<(src_loc)/profile/profile.style',
-        '<(src_loc)/settings/settings.style',
+        '<(src_loc)/old_settings/old_settings.style',
         '<(src_loc)/chat_helpers/chat_helpers.style',
         '<(src_loc)/ui/widgets/widgets.style',
         '<(src_loc)/window/window.style',

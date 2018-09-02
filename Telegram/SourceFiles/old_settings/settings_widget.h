@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "settings/settings_layer.h"
+#include "old_settings/settings_layer.h"
 
-namespace Settings {
+namespace OldSettings {
 
 class InnerWidget;
 

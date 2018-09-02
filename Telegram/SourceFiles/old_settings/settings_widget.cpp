@@ -5,10 +5,10 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "settings/settings_widget.h"
+#include "old_settings/settings_widget.h"
 
-#include "settings/settings_inner_widget.h"
-#include "settings/settings_fixed_bar.h"
+#include "old_settings/settings_inner_widget.h"
+#include "old_settings/settings_fixed_bar.h"
 #include "platform/platform_specific.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/buttons.h"
@@ -30,11 +30,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/media_audio_track.h"
 #include "mainwindow.h"
 #include "window/window_controller.h"
-#include "styles/style_settings.h"
+#include "styles/style_old_settings.h"
 #include "styles/style_window.h"
 #include "styles/style_boxes.h"
 
-namespace Settings {
+namespace OldSettings {
 namespace {
 
 QString SecretText;

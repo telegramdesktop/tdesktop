@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "settings/settings_layer.h"
+#include "old_settings/settings_layer.h"
 #include "ui/wrap/vertical_layout.h"
 
-namespace Settings {
+namespace OldSettings {
 
 class CoverWidget;
 class BlockWidget;
