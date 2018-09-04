@@ -2340,6 +2340,9 @@ void FormController::fillDownloadedFile(
 		return;
 	}
 	const auto &bytes = i->uploadData->bytes;
+	if (bytes.size() > Storage::kMaxFileInMemory) {
+		return;
+	}
 	Auth().data().cache().put(
 		Data::DocumentCacheKey(destination.dcId, destination.id),
 		Storage::Cache::Database::TaggedValue(

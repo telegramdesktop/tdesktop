@@ -3011,6 +3011,7 @@ Storage::Cache::Database::Settings cacheSettings() {
 	result.clearOnWrongKey = true;
 	result.totalSizeLimit = _cacheTotalSizeLimit;
 	result.totalTimeLimit = _cacheTotalTimeLimit;
+	result.maxDataSize = Storage::kMaxFileInMemory;
 	return result;
 }
 

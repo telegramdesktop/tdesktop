@@ -971,11 +971,13 @@ bool mtpFileLoader::feedPart(int offset, bytes::const_span buffer) {
 				|| _locationType == UnknownFileLocation
 				|| _toCache == LoadToCacheAsWell) {
 				if (const auto key = cacheKey()) {
-					Auth().data().cache().put(
-						*key,
-						Storage::Cache::Database::TaggedValue(
-							base::duplicate(_data),
-							_cacheTag));
+					if (_data.size() <= Storage::kMaxFileInMemory) {
+						Auth().data().cache().put(
+							*key,
+							Storage::Cache::Database::TaggedValue(
+								base::duplicate(_data),
+								_cacheTag));
+					}
 				}
 			}
 		}
@@ -1197,11 +1199,13 @@ void webFileLoader::onFinished(const QByteArray &data) {
 
 	if (_localStatus == LocalStatus::NotFound) {
 		if (const auto key = cacheKey()) {
-			Auth().data().cache().put(
-				*key,
-				Storage::Cache::Database::TaggedValue(
-					base::duplicate(_data),
-					_cacheTag));
+			if (_data.size() <= Storage::kMaxFileInMemory) {
+				Auth().data().cache().put(
+					*key,
+					Storage::Cache::Database::TaggedValue(
+						base::duplicate(_data),
+						_cacheTag));
+			}
 		}
 	}
 	_downloader->taskFinished().notify();

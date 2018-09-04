@@ -354,6 +354,8 @@ bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
 		}
 		if (image->savedData().isEmpty()) {
 			image->forget();
+		} else if (image->savedData().size() > Storage::kMaxFileInMemory) {
+			return;
 		}
 		Auth().data().cache().putIfEmpty(
 			Data::StorageCacheKey(key),

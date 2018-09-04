@@ -1021,7 +1021,9 @@ void RemoteImage::setImageBytes(
 	_forgot = false;
 
 	const auto location = this->location();
-	if (!location.isNull() && !bytes.isEmpty()) {
+	if (!location.isNull()
+		&& !bytes.isEmpty()
+		&& bytes.size() <= Storage::kMaxFileInMemory) {
 		Auth().data().cache().putIfEmpty(
 			Data::StorageCacheKey(location),
 			Storage::Cache::Database::TaggedValue(

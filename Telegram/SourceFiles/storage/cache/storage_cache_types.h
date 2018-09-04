@@ -53,10 +53,21 @@ inline Error Error::NoError() {
 
 namespace details {
 
+using RecordType = uint8;
+using PlaceId = std::array<uint8, 7>;
+using EntrySize = std::array<uint8, 3>;
+using RecordsCount = std::array<uint8, 3>;
+
+constexpr auto kRecordSizeUnknown = size_type(-1);
+constexpr auto kRecordSizeInvalid = size_type(-2);
+constexpr auto kBundledRecordsLimit
+	= size_type(1 << (RecordsCount().size() * 8));
+constexpr auto kDataSizeLimit = size_type(1 << (EntrySize().size() * 8));
+
 struct Settings {
 	size_type maxBundledRecords = 16 * 1024;
 	size_type readBlockSize = 8 * 1024 * 1024;
-	size_type maxDataSize = 10 * 1024 * 1024;
+	size_type maxDataSize = (kDataSizeLimit - 1);
 	crl::time_type writeBundleDelay = 15 * 60 * crl::time_type(1000);
 	size_type staleRemoveChunk = 256;
 
@@ -102,16 +113,6 @@ QString ComputeBasePath(const QString &original);
 QString VersionFilePath(const QString &base);
 base::optional<Version> ReadVersionValue(const QString &base);
 bool WriteVersionValue(const QString &base, Version value);
-
-using RecordType = uint8;
-using PlaceId = std::array<uint8, 7>;
-using EntrySize = std::array<uint8, 3>;
-using RecordsCount = std::array<uint8, 3>;
-
-constexpr auto kRecordSizeUnknown = size_type(-1);
-constexpr auto kRecordSizeInvalid = size_type(-2);
-constexpr auto kBundledRecordsLimit = (1 << (RecordsCount().size() * 8));
-constexpr auto kDataSizeLimit = (1 << (EntrySize().size() * 8));
 
 template <typename Record>
 constexpr auto GoodForEncryption = ((sizeof(Record) & 0x0F) == 0);
