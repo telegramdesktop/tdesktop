@@ -1,3 +1,9 @@
+1.3.16 alpha (04.09.18)
+
+- Update libtgvoip, fix crash in calls.
+- Fix crash in local cache database.
+- Clear old local cache asynchronously.
+
 1.3.15 alpha (01.09.18)
 
 - Improved local caching for images and GIF animations.
