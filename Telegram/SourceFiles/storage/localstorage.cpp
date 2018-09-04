@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/serialize_document.h"
 #include "storage/serialize_common.h"
 #include "storage/storage_encrypted_file.h"
+#include "storage/storage_clear_legacy.h"
 #include "chat_helpers/stickers.h"
 #include "data/data_drafts.h"
 #include "boxes/send_files_box.h"
@@ -2657,11 +2658,7 @@ void setPasscode(const QByteArray &passcode) {
 	Global::RefLocalPasscodeChanged().notify();
 }
 
-std::vector<QString> collectLeakedKeys() {
-	QDir user(_userBasePath);
-	if (!user.exists()) {
-		return {};
-	}
+base::flat_set<QString> CollectGoodNames() {
 	const auto keys = {
 		_locationsKey,
 		_reportSpamStatusesKey,
@@ -2680,40 +2677,32 @@ std::vector<QString> collectLeakedKeys() {
 		_savedPeersKey,
 		_trustedBotsKey
 	};
-	auto good = base::flat_set<QString>();
+	auto result = base::flat_set<QString>{ "map0", "map1" };
+	const auto push = [&](FileKey key) {
+		if (!key) {
+			return;
+		}
+		auto name = toFilePart(key) + '0';
+		result.emplace(name);
+		name[name.size() - 1] = '1';
+		result.emplace(name);
+	};
 	for (const auto &value : _draftsMap) {
-		good.emplace(toFilePart(value));
+		push(value);
 	}
 	for (const auto &value : _draftCursorsMap) {
-		good.emplace(toFilePart(value));
+		push(value);
 	}
 	for (const auto &value : keys) {
-		good.emplace(toFilePart(value));
-	}
-	const auto list = user.entryList(QDir::Files);
-	auto result = std::vector<QString>();
-	auto check = toFilePart(0);
-	for (const auto &name : list) {
-		if (name.size() != 17) {
-			continue;
-		}
-		memcpy(check.data(), name.data(), check.size() * sizeof(QChar));
-		if (!good.contains(check)) {
-			result.push_back(name);
-		}
+		push(value);
 	}
 	return result;
 }
 
-void clearLeakedFiles() {
-	auto leaked = collectLeakedKeys();
-	if (!leaked.empty()) {
-		crl::async([base = _userBasePath, leaked = std::move(leaked)] {
-			for (const auto &name : leaked) {
-				QFile(base + name).remove();
-			}
-		});
-	}
+void FilterLegacyFiles(FnMut<void(base::flat_set<QString>&&)> then) {
+	crl::on_main([then = std::move(then)]() mutable {
+		then(CollectGoodNames());
+	});
 }
 
 ReadMapState readMap(const QByteArray &pass) {
@@ -2723,7 +2712,7 @@ ReadMapState readMap(const QByteArray &pass) {
 		_writeMap(WriteMapWhen::Now);
 	}
 	if (result != ReadMapPassNeeded) {
-		clearLeakedFiles();
+		Storage::ClearLegacyFiles(_userBasePath, FilterLegacyFiles);
 	}
 	return result;
 }

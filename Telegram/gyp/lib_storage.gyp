@@ -13,7 +13,7 @@
     'type': 'static_library',
     'includes': [
       'common.gypi',
-	  'openssl.gypi',
+      'openssl.gypi',
       'qt.gypi',
       'telegram_win.gypi',
       'telegram_mac.gypi',
@@ -50,6 +50,10 @@
       '<(submodules_loc)/xxHash',
     ],
     'sources': [
+      '<(src_loc)/storage/storage_clear_legacy.cpp',
+      '<(src_loc)/storage/storage_clear_legacy_posix.cpp',
+      '<(src_loc)/storage/storage_clear_legacy_win.cpp',
+      '<(src_loc)/storage/storage_clear_legacy.h',
       '<(src_loc)/storage/storage_databases.cpp',
       '<(src_loc)/storage/storage_databases.h',
       '<(src_loc)/storage/storage_encryption.cpp',
@@ -80,13 +84,15 @@
         '/usr/local/macold/include/c++/v1',
       ],
     }], [ 'build_win', {
-	  'sources!': [
+      'sources!': [
+        '<(src_loc)/storage/storage_clear_legacy_posix.cpp',
         '<(src_loc)/storage/storage_file_lock_posix.cpp',
-	  ],
-	}, {
-	  'sources!': [
+      ],
+    }, {
+      'sources!': [
+        '<(src_loc)/storage/storage_clear_legacy_win.cpp',
         '<(src_loc)/storage/storage_file_lock_win.cpp',
-	  ],
-	}]],
+      ],
+    }]],
   }],
 }
