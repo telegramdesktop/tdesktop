@@ -31,6 +31,8 @@ private:
 
 } // namespace details
 
+class RpWidget;
+
 template <typename Widget, typename ...Args>
 inline base::unique_qptr<Widget> CreateObject(Args &&...args) {
 	return base::make_unique_q<Widget>(
@@ -49,6 +51,10 @@ inline Widget *CreateChild(
 inline void DestroyChild(QWidget *child) {
 	delete child;
 }
+
+void ResizeFitChild(
+	not_null<RpWidget*> parent,
+	not_null<RpWidget*> child);
 
 template <typename Value>
 inline void AttachAsChild(not_null<QObject*> parent, Value &&value) {

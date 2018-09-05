@@ -200,6 +200,8 @@ Dialogs::RowDescriptor WrapWidget::activeChat() const {
 		return Dialogs::RowDescriptor(App::history(peer), FullMsgId());
 	} else if (const auto feed = key().feed()) {
 		return Dialogs::RowDescriptor(feed, FullMsgId());
+	} else if (key().settingsSelf()) {
+		return Dialogs::RowDescriptor();
 	}
 	Unexpected("Owner in WrapWidget::activeChat().");
 }
@@ -512,6 +514,10 @@ void WrapWidget::showProfileMenu() {
 			feed,
 			addAction,
 			Window::PeerMenuSource::Profile);
+	} else if (const auto self = key().settingsSelf()) {
+		// #TODO settings top menu
+		_topBarMenu = nullptr;
+		return;
 	} else {
 		_topBarMenu = nullptr;
 		return;

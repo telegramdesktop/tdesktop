@@ -2127,6 +2127,7 @@ void UpdateApplication() {
 		cSetLastUpdateCheck(0);
 		Core::UpdateChecker().start();
 		if (const auto window = App::wnd()) {
+			// #TODO settings
 			auto settings = Box<OldSettings::Widget>();
 			const auto weak = make_weak(settings.data());
 			window->showSpecialLayer(std::move(settings), anim::type::normal);

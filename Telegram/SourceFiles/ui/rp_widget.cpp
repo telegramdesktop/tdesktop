@@ -9,6 +9,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
+void ResizeFitChild(
+		not_null<RpWidget*> parent,
+		not_null<RpWidget*> child) {
+	parent->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		child->resizeToWidth(width);
+	}, child->lifetime());
+
+	child->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		parent->resize(parent->width(), height);
+	}, child->lifetime());
+}
+
 rpl::producer<QRect> RpWidgetMethods::geometryValue() const {
 	auto &stream = eventStreams().geometry;
 	return stream.events_starting_with_copy(callGetGeometry());

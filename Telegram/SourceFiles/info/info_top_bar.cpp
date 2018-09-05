@@ -587,6 +587,22 @@ rpl::producer<QString> TitleValue(
 		case Section::Type::Channels:
 			return lng_info_feed_channels;
 
+		case Section::Type::Settings:
+			switch (section.settingsType()) {
+			case Section::SettingsType::Main:
+				return lng_menu_settings;
+			case Section::SettingsType::Information:
+				return lng_settings_section_info;
+			case Section::SettingsType::Notifications:
+				return lng_settings_section_notify;
+			case Section::SettingsType::PrivacySecurity:
+				return lng_settings_section_privacy;
+			case Section::SettingsType::General:
+				return lng_settings_section_general;
+			case Section::SettingsType::Chat:
+				return lng_settings_section_chat_settings;
+			}
+			Unexpected("Bad settings type in Info::TitleValue()");
 		}
 		Unexpected("Bad section type in Info::TitleValue()");
 	}());

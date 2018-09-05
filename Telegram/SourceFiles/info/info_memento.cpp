@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/channels/info_channels_widget.h"
 #include "info/common_groups/info_common_groups_widget.h"
 #include "info/feed/info_feed_profile_widget.h"
+#include "info/settings/info_settings_widget.h"
 #include "info/info_section_widget.h"
 #include "info/info_layer_widget.h"
 #include "info/info_controller.h"
@@ -32,6 +33,10 @@ Memento::Memento(not_null<Data::Feed*> feed, Section section)
 : Memento(DefaultStack(feed, section)) {
 }
 
+Memento::Memento(Settings::Tag settings, Section section)
+: Memento(DefaultStack(settings, section)) {
+}
+
 Memento::Memento(std::vector<std::unique_ptr<ContentMemento>> stack)
 : _stack(std::move(stack)) {
 }
@@ -49,6 +54,16 @@ std::vector<std::unique_ptr<ContentMemento>> Memento::DefaultStack(
 		Section section) {
 	auto result = std::vector<std::unique_ptr<ContentMemento>>();
 	result.push_back(DefaultContent(feed, section));
+	return result;
+}
+
+std::vector<std::unique_ptr<ContentMemento>> Memento::DefaultStack(
+		Settings::Tag settings,
+		Section section) {
+	auto result = std::vector<std::unique_ptr<ContentMemento>>();
+	result.push_back(std::make_unique<Settings::Memento>(
+		settings.self,
+		section.settingsType()));
 	return result;
 }
 

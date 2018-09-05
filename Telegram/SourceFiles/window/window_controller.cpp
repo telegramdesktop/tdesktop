@@ -8,7 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 
 #include "window/main_window.h"
+#include "old_settings/settings_widget.h"
 #include "info/info_memento.h"
+#include "info/info_controller.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
@@ -471,6 +473,26 @@ void Navigation::showPeerInfo(
 		not_null<History*> history,
 		const SectionShow &params) {
 	showPeerInfo(history->peer->id, params);
+}
+
+void Navigation::showSettings(
+		Settings::Type type,
+		const SectionShow &params) {
+	const auto self = App::self();
+	if (!self) {
+		// #TODO settings
+		App::wnd()->showSpecialLayer(
+			Box<OldSettings::Widget>(),
+			params.animated);
+		return;
+	}
+	showSection(
+		Info::Memento(Info::Settings::Tag{ self }, Info::Section(type)),
+		params);
+}
+
+void Navigation::showSettings(const SectionShow &params) {
+	showSettings(Settings::Type::Main, params);
 }
 
 void Controller::showSection(

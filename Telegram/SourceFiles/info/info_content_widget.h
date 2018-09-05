@@ -28,6 +28,9 @@ class Feed;
 } // namespace Data
 
 namespace Info {
+namespace Settings {
+struct Tag;
+} // namespace Settings
 
 class ContentMemento;
 class Controller;
@@ -42,7 +45,6 @@ public:
 		not_null<ContentMemento*> memento) = 0;
 	std::unique_ptr<ContentMemento> createMemento();
 
-	virtual rpl::producer<Section> sectionRequest() const;
 	virtual void setIsStackBottom(bool isStackBottom) {
 	}
 
@@ -119,9 +121,9 @@ public:
 	: _peerId(peerId)
 	, _migratedPeerId(migratedPeerId) {
 	}
-	explicit ContentMemento(not_null<Data::Feed*> feed)
-	: _feed(feed) {
+	explicit ContentMemento(not_null<Data::Feed*> feed) : _feed(feed) {
 	}
+	explicit ContentMemento(Settings::Tag settings);
 
 	virtual object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
@@ -137,6 +139,10 @@ public:
 	Data::Feed *feed() const {
 		return _feed;
 	}
+	UserData *settingsSelf() const {
+		return _settingsSelf;
+	}
+	Key key() const;
 
 	virtual Section section() const = 0;
 
@@ -171,6 +177,7 @@ private:
 	const PeerId _peerId = 0;
 	const PeerId _migratedPeerId = 0;
 	Data::Feed * const _feed = nullptr;
+	UserData * const _settingsSelf = nullptr;
 	int _scrollTop = 0;
 	QString _searchFieldQuery;
 	bool _searchEnabledByContent = false;

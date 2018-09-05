@@ -97,7 +97,7 @@ bool Widget::showInternal(not_null<ContentMemento*> memento) {
 	if (!controller()->validateMementoPeer(memento)) {
 		return false;
 	}
-	if (auto mediaMemento = dynamic_cast<Memento*>(memento.get())) {
+	if (const auto mediaMemento = dynamic_cast<Memento*>(memento.get())) {
 		if (_inner->showInternal(mediaMemento)) {
 			return true;
 		}

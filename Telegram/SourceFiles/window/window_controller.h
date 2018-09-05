@@ -15,6 +15,10 @@ class MainWidget;
 class HistoryMessage;
 class HistoryService;
 
+namespace Settings {
+enum class Type;
+} // namespace Settings
+
 namespace Media {
 namespace Player {
 class RoundController;
@@ -113,6 +117,11 @@ public:
 	void showPeerInfo(
 		not_null<History*> history,
 		const SectionShow &params = SectionShow());
+
+	void showSettings(
+		Settings::Type type,
+		const SectionShow &params = SectionShow());
+	void showSettings(const SectionShow &params = SectionShow());
 
 	virtual ~Navigation() = default;
 

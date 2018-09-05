@@ -302,7 +302,12 @@ void MainWindow::setupMain(const MTPUser *self) {
 void MainWindow::showSettings() {
 	if (isHidden()) showFromTray();
 
-	controller()->showSpecialLayer(Box<OldSettings::Widget>());
+	if (const auto controller = this->controller()) {
+		controller->showSettings();
+	} else {
+		// #TODO settings
+		showSpecialLayer(Box<OldSettings::Widget>(), anim::type::normal);
+	}
 }
 
 void MainWindow::showSpecialLayer(
