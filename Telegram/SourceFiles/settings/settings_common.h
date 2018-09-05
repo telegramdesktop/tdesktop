@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 namespace Info {
 namespace Profile {
 class Button;
@@ -41,6 +45,7 @@ public:
 object_ptr<Section> CreateSection(
 	Type type,
 	not_null<QWidget*> parent,
+	not_null<Window::Controller*> controller,
 	UserData *self = nullptr);
 
 } // namespace Settings

@@ -11,19 +11,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "info/profile/info_profile_button.h"
+#include "info/profile/info_profile_cover.h"
 #include "lang/lang_keys.h"
 #include "styles/style_settings.h"
 
 namespace Settings {
 
-Main::Main(QWidget *parent, not_null<UserData*> self)
+Main::Main(
+	QWidget *parent,
+	not_null<Window::Controller*> controller,
+	not_null<UserData*> self)
 : Section(parent)
 , _self(self) {
-	setupContent();
+	setupContent(controller);
 }
 
-void Main::setupContent() {
+void Main::setupContent(not_null<Window::Controller*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
+
+	const auto cover = content->add(object_ptr<Info::Profile::Cover>(
+		content,
+		_self,
+		controller));
+	cover->setOnlineCount(rpl::single(0));
 
 	content->add(object_ptr<BoxContentDivider>(content));
 

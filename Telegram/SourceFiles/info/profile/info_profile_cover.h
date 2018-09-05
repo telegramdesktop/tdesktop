@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "base/timer.h"
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 namespace style {
 struct InfoToggle;
 } // namespace style
@@ -24,6 +28,7 @@ class SlideWrap;
 
 namespace Info {
 class Controller;
+class Section;
 } // namespace Info
 
 namespace Info {
@@ -52,13 +57,18 @@ class Cover : public SectionWithToggle {
 public:
 	Cover(
 		QWidget *parent,
-		not_null<Controller*> controller);
+		not_null<PeerData*> peer,
+		not_null<Window::Controller*> controller);
 
 	Cover *setOnlineCount(rpl::producer<int> &&count);
 
 	Cover *setToggleShown(rpl::producer<bool> &&shown) {
 		return static_cast<Cover*>(
 			SectionWithToggle::setToggleShown(std::move(shown)));
+	}
+
+	rpl::producer<Section> showSection() const {
+		return _showSection.events();
 	}
 
 	~Cover();
@@ -73,7 +83,6 @@ private:
 	void refreshUploadPhotoOverlay();
 	void setVerified(bool verified);
 
-	not_null<Controller*> _controller;
 	not_null<PeerData*> _peer;
 	int _onlineCount = 0;
 
@@ -83,6 +92,8 @@ private:
 	object_ptr<Ui::FlatLabel> _status = { nullptr };
 	//object_ptr<CoverDropArea> _dropArea = { nullptr };
 	base::Timer _refreshStatusTimer;
+
+	rpl::event_stream<Section> _showSection;
 
 };
 

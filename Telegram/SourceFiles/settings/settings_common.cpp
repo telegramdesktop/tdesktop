@@ -19,10 +19,11 @@ namespace Settings {
 object_ptr<Section> CreateSection(
 		Type type,
 		not_null<QWidget*> parent,
+		not_null<Window::Controller*> controller,
 		UserData *self) {
 	switch (type) {
 	case Type::Main:
-		return object_ptr<::Settings::Main>(parent, self);
+		return object_ptr<::Settings::Main>(parent, controller, self);
 	case Type::Information:
 		return object_ptr<::Settings::Information>(parent, self);
 	case Type::Notifications:

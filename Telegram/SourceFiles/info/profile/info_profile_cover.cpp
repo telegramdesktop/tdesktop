@@ -212,17 +212,17 @@ int SectionWithToggle::toggleSkip() const {
 
 Cover::Cover(
 	QWidget *parent,
-	not_null<Controller*> controller)
+	not_null<PeerData*> peer,
+	not_null<Window::Controller*> controller)
 : SectionWithToggle(
 	parent,
 	st::infoProfilePhotoTop
 		+ st::infoProfilePhoto.size.height()
 		+ st::infoProfilePhotoBottom)
-, _controller(controller)
-, _peer(_controller->key().peer())
+, _peer(peer)
 , _userpic(
 	this,
-	controller->parentController(),
+	controller,
 	_peer,
 	Ui::UserpicButton::Role::OpenPhoto,
 	st::infoProfilePhoto)
@@ -376,9 +376,7 @@ void Cover::refreshStatusText() {
 	_status->setRichText(statusText);
 	if (hasMembersLink) {
 		_status->setLink(1, std::make_shared<LambdaClickHandler>([=] {
-			_controller->showSection(Info::Memento(
-				_controller->peerId(),
-				Section::Type::Members));
+			_showSection.fire(Section::Type::Members);
 		}));
 	}
 	refreshStatusGeometry(width());

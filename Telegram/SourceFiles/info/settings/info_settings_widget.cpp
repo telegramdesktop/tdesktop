@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/settings/info_settings_widget.h"
 
 #include "info/info_memento.h"
+#include "info/info_controller.h"
 #include "settings/settings_common.h"
 
 namespace Info {
@@ -41,8 +42,11 @@ Widget::Widget(
 : ContentWidget(parent, controller)
 , _self(controller->key().settingsSelf())
 , _type(controller->section().settingsType()) {
-	const auto inner = setInnerWidget(
-		::Settings::CreateSection(_type, this, _self));
+	const auto inner = setInnerWidget(::Settings::CreateSection(
+		_type,
+		this,
+		controller->parentController(),
+		_self));
 	inner->sectionShowOther(
 	) | rpl::start_with_next([=](Type type) {
 		this->controller()->showSettings(type);

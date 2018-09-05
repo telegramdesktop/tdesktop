@@ -9,16 +9,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_common.h"
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 namespace Settings {
 
 class Main : public Section {
 public:
-	Main(QWidget *parent, not_null<UserData*> self);
+	Main(
+		QWidget *parent,
+		not_null<Window::Controller*> controller,
+		not_null<UserData*> self);
 
 	rpl::producer<Type> sectionShowOther() override;
 
 private:
-	void setupContent();
+	void setupContent(not_null<Window::Controller*> controller);
 
 	not_null<UserData*> _self;
 	rpl::event_stream<Type> _showOther;
