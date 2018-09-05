@@ -13,6 +13,10 @@ namespace Window {
 class Controller;
 } // namespace Window
 
+namespace Ui {
+class VerticalLayout;
+} // namespace Ui
+
 namespace Settings {
 
 class Main : public Section {
@@ -26,6 +30,7 @@ public:
 
 private:
 	void setupContent(not_null<Window::Controller*> controller);
+	void setupSections(not_null<Ui::VerticalLayout*> container);
 
 	not_null<UserData*> _self;
 	rpl::event_stream<Type> _showOther;

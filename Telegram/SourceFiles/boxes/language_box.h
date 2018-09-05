@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_cloud_manager.h"
 #include "boxes/abstract_box.h"
 #include "mtproto/sender.h"
+#include "base/binary_guard.h"
 
 namespace Ui {
 class RadiobuttonGroup;
@@ -20,6 +21,8 @@ class LanguageBox : public BoxContent, private MTP::Sender  {
 public:
 	LanguageBox(QWidget*) {
 	}
+
+	static base::binary_guard Show();
 
 protected:
 	void prepare() override;

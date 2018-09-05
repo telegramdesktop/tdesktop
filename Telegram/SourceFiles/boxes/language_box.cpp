@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "messenger.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_cloud_manager.h"
 #include "styles/style_boxes.h"
@@ -149,4 +150,28 @@ void LanguageBox::refreshLanguages() {
 		_languages.push_back({ currentId, lang(lng_language_name), lang(lng_language_name) });
 	}
 	_inner->setSelected(currentIndex);
+}
+
+base::binary_guard LanguageBox::Show() {
+	auto result = base::binary_guard();
+
+	const auto manager = Messenger::Instance().langCloudManager();
+	if (manager->languageList().isEmpty()) {
+		auto guard = std::make_shared<base::binary_guard>();
+		std::tie(result, *guard) = base::make_binary_guard();
+		auto alive = std::make_shared<std::unique_ptr<base::Subscription>>(
+			std::make_unique<base::Subscription>());
+		**alive = manager->languageListChanged().add_subscription([=] {
+			const auto show = guard->alive();
+			*alive = nullptr;
+			if (show) {
+				Ui::show(Box<LanguageBox>());
+			}
+		});
+	} else {
+		Ui::show(Box<LanguageBox>());
+	}
+	manager->requestLanguageList();
+
+	return result;
 }

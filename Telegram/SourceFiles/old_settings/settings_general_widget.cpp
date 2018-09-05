@@ -220,17 +220,8 @@ void GeneralWidget::onChangeLanguage() {
 		Lang::CurrentCloudManager().switchToLanguage(qsl("custom"));
 		return;
 	}
-	auto manager = Messenger::Instance().langCloudManager();
-	if (manager->languageList().isEmpty()) {
-		_languagesLoadedSubscription = subscribe(manager->languageListChanged(), [this] {
-			unsubscribe(base::take(_languagesLoadedSubscription));
-			Ui::show(Box<LanguageBox>());
-		});
-	} else {
-		unsubscribe(base::take(_languagesLoadedSubscription));
-		Ui::show(Box<LanguageBox>());
-	}
-	manager->requestLanguageList();
+
+	_languagesLoadWaiter = LanguageBox::Show();
 }
 
 void GeneralWidget::onRestart() {

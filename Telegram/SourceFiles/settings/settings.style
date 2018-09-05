@@ -10,3 +10,8 @@ using "ui/widgets/widgets.style";
 using "info/info.style";
 
 settingsSectionButton: infoProfileButton;
+settingsSectionSkip: infoProfileSkip;
+settingsButtonRightPosition: point(28px, 10px);
+settingsButtonRight: FlatLabel(defaultFlatLabel) {
+	textFg: windowActiveTextFg;
+}

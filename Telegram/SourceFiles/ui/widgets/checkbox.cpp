@@ -29,10 +29,14 @@ AbstractCheckView::AbstractCheckView(int duration, bool checked, Fn<void()> upda
 }
 
 void AbstractCheckView::setCheckedFast(bool checked) {
+	const auto fire = (_checked != checked);
 	_checked = checked;
 	finishAnimating();
 	if (_updateCallback) {
 		_updateCallback();
+	}
+	if (fire) {
+		_checks.fire_copy(_checked);
 	}
 }
 
@@ -53,6 +57,7 @@ void AbstractCheckView::setCheckedAnimated(bool checked) {
 	if (_checked != checked) {
 		_checked = checked;
 		_toggleAnimation.start(_updateCallback, _checked ? 0. : 1., _checked ? 1. : 0., _duration);
+		_checks.fire_copy(_checked);
 	}
 }
 

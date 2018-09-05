@@ -328,6 +328,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_bg_tile" = "Tile background";
 "lng_settings_adaptive_wide" = "Adaptive layout for wide screens";
 
+"lng_settings_language" = "Language";
+"lng_settings_default_scale" = "Default interface scale";
+
 "lng_backgrounds_header" = "Choose your new chat background";
 "lng_theme_sure_keep" = "Keep this theme?";
 "lng_theme_reverting#one" = "Reverting to the old theme in {count} second.";

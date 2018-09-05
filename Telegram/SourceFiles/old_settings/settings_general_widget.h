@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "old_settings/settings_block_widget.h"
+#include "base/binary_guard.h"
 #include "ui/rp_widget.h"
 
 namespace OldSettings {
@@ -98,7 +99,7 @@ private:
 	Ui::SlideWrap<Ui::Checkbox> *_startMinimized = nullptr;
 	Ui::Checkbox *_addInSendTo = nullptr;
 
-	int _languagesLoadedSubscription = 0;
+	base::binary_guard _languagesLoadWaiter;
 
 };
 
