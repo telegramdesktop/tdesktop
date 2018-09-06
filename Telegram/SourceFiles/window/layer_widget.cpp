@@ -385,7 +385,7 @@ void LayerStackWidget::hideAll(anim::type animated) {
 }
 
 void LayerStackWidget::hideTopLayer(anim::type animated) {
-	if (_specialLayer) {
+	if (_specialLayer || _mainMenu) {
 		hideLayers(animated);
 	} else {
 		hideAll(animated);
@@ -393,7 +393,7 @@ void LayerStackWidget::hideTopLayer(anim::type animated) {
 }
 
 bool LayerStackWidget::layerShown() const {
-	return _specialLayer || currentLayer();
+	return _specialLayer || currentLayer() || _mainMenu;
 }
 
 void LayerStackWidget::setCacheImages() {
