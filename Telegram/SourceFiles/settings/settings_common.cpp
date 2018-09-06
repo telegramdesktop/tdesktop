@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_main.h"
 #include "settings/settings_notifications.h"
 #include "settings/settings_privacy_security.h"
+#include "lang/lang_keys.h"
+#include "mainwindow.h"
 
 namespace Settings {
 
@@ -36,6 +38,15 @@ object_ptr<Section> CreateSection(
 		return object_ptr<::Settings::Chat>(parent, self);
 	}
 	Unexpected("Settings section type in Widget::createInnerWidget.");
+}
+
+void FillMenu(Fn<void(Type)> showOther, MenuCallback addAction) {
+	addAction(
+		lang(lng_settings_edit_info),
+		[=] { showOther(Type::Information); });
+	addAction(
+		lang(lng_settings_logout),
+		[=] { App::wnd()->onLogout(); });
 }
 
 } // namespace Settings

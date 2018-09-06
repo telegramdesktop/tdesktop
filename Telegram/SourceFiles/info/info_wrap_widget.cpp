@@ -378,11 +378,15 @@ void WrapWidget::createTopBar() {
 			_controller->searchEnabledByContent(),
 			_controller->takeSearchStartsFocused());
 	}
-	if (_controller->section().type() == Section::Type::Profile
+	const auto section = _controller->section();
+	if (section.type() == Section::Type::Profile
 		&& (wrapValue != Wrap::Side || hasStackHistory())) {
-		addProfileMenuButton();
+		addTopBarMenuButton();
 		addProfileCallsButton();
 //		addProfileNotificationsButton();
+	} else if (section.type() == Section::Type::Settings
+		&& section.settingsType() == Section::SettingsType::Main) {
+		addTopBarMenuButton();
 	}
 
 	_topBar->lower();
@@ -391,7 +395,7 @@ void WrapWidget::createTopBar() {
 	_topBar->show();
 }
 
-void WrapWidget::addProfileMenuButton() {
+void WrapWidget::addTopBarMenuButton() {
 	Expects(_topBar != nullptr);
 
 	_topBarMenuToggle.reset(_topBar->addButton(
@@ -401,7 +405,7 @@ void WrapWidget::addProfileMenuButton() {
 				? st::infoLayerTopBarMenu
 				: st::infoTopBarMenu))));
 	_topBarMenuToggle->addClickHandler([this] {
-		showProfileMenu();
+		showTopBarMenu();
 	});
 }
 
@@ -471,7 +475,7 @@ void WrapWidget::addProfileNotificationsButton() {
 	}, notifications->lifetime());
 }
 
-void WrapWidget::showProfileMenu() {
+void WrapWidget::showTopBarMenu() {
 	if (_topBarMenu) {
 		_topBarMenu->hideAnimated(
 			Ui::InnerDropdown::HideOption::IgnoreShow);
@@ -515,9 +519,12 @@ void WrapWidget::showProfileMenu() {
 			addAction,
 			Window::PeerMenuSource::Profile);
 	} else if (const auto self = key().settingsSelf()) {
-		// #TODO settings top menu
-		_topBarMenu = nullptr;
-		return;
+		const auto showOther = [=](::Settings::Type type) {
+			const auto controller = _controller.get();
+			_topBarMenu = nullptr;
+			controller->showSettings(type);
+		};
+		::Settings::FillMenu(showOther, addAction);
 	} else {
 		_topBarMenu = nullptr;
 		return;

@@ -191,10 +191,10 @@ private:
 	rpl::producer<SelectedItems> selectedListValue() const;
 	bool requireTopBarSearch() const;
 
-	void addProfileMenuButton();
+	void addTopBarMenuButton();
 	void addProfileCallsButton();
 	void addProfileNotificationsButton();
-	void showProfileMenu();
+	void showTopBarMenu();
 
 	rpl::variable<Wrap> _wrap;
 	std::unique_ptr<Controller> _controller;

@@ -330,6 +330,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_settings_language" = "Language";
 "lng_settings_default_scale" = "Default interface scale";
+"lng_settings_edit_info" = "Edit information";
 
 "lng_backgrounds_header" = "Choose your new chat background";
 "lng_theme_sure_keep" = "Keep this theme?";

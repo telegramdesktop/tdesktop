@@ -48,4 +48,12 @@ object_ptr<Section> CreateSection(
 	not_null<Window::Controller*> controller,
 	UserData *self = nullptr);
 
+using MenuCallback = Fn<QAction*(
+	const QString &text,
+	Fn<void()> handler)>;
+
+void FillMenu(
+	Fn<void(Type)> showOther,
+	MenuCallback addAction);
+
 } // namespace Settings
