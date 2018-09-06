@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/about_box.h"
 #include "boxes/photo_crop_box.h"
 #include "ui/wrap/vertical_layout.h"
-#include "ui/wrap/padding_wrap.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "info/profile/info_profile_button.h"
@@ -29,16 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Settings {
 namespace {
-
-void AddSkip(not_null<Ui::VerticalLayout*> container) {
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		st::settingsSectionSkip));
-}
-
-void AddDivider(not_null<Ui::VerticalLayout*> container) {
-	container->add(object_ptr<BoxContentDivider>(container));
-}
 
 void SetupUploadPhotoButton(
 		not_null<Ui::VerticalLayout*> container,

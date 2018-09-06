@@ -13,10 +13,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_main.h"
 #include "settings/settings_notifications.h"
 #include "settings/settings_privacy_security.h"
+#include "ui/wrap/padding_wrap.h"
+#include "ui/wrap/vertical_layout.h"
+#include "boxes/abstract_box.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
+#include "styles/style_settings.h"
 
 namespace Settings {
+
+void AddSkip(not_null<Ui::VerticalLayout*> container) {
+	container->add(object_ptr<Ui::FixedHeightWidget>(
+		container,
+		st::settingsSectionSkip));
+}
+
+void AddDivider(not_null<Ui::VerticalLayout*> container) {
+	container->add(object_ptr<BoxContentDivider>(container));
+}
 
 object_ptr<Section> CreateSection(
 		Type type,

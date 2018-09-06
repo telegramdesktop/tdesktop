@@ -20,3 +20,8 @@ settingsSlider: SettingsSlider(defaultSettingsSlider) {
 	labelFg: windowSubTextFg;
 	labelFgActive: windowActiveTextFg;
 }
+
+settingsNotificationsCheckbox: defaultBoxCheckbox;
+settingsNotificationsCheckboxPadding: margins(22px, 10px, 10px, 10px);
+settingsLink: boxLinkButton;
+settingsAdvancedNotificationsPadding: margins(22px, 20px, 10px, 10px);

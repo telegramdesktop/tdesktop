@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
+namespace Ui {
+class VerticalLayout;
+} // namespace Ui
+
 namespace Window {
 class Controller;
 } // namespace Window
@@ -47,6 +51,9 @@ object_ptr<Section> CreateSection(
 	not_null<QWidget*> parent,
 	not_null<Window::Controller*> controller,
 	UserData *self = nullptr);
+
+void AddSkip(not_null<Ui::VerticalLayout*> container);
+void AddDivider(not_null<Ui::VerticalLayout*> container);
 
 using MenuCallback = Fn<QAction*(
 	const QString &text,
