@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/language_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/about_box.h"
+#include "boxes/photo_crop_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/widgets/labels.h"
@@ -22,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "auth_session.h"
 #include "apiwrap.h"
+#include "core/file_utilities.h"
 #include "styles/style_settings.h"
 
 namespace Settings {
@@ -35,6 +37,57 @@ void AddSkip(not_null<Ui::VerticalLayout*> container) {
 
 void AddDivider(not_null<Ui::VerticalLayout*> container) {
 	container->add(object_ptr<BoxContentDivider>(container));
+}
+
+void SetupUploadPhotoButton(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<UserData*> self) {
+	AddDivider(container);
+	AddSkip(container);
+
+	const auto upload = [=] {
+		const auto imageExtensions = cImgExtensions();
+		const auto filter = qsl("Image files (*")
+			+ imageExtensions.join(qsl(" *"))
+			+ qsl(");;")
+			+ FileDialog::AllFilesFilter();
+		const auto callback = [=](const FileDialog::OpenResult &result) {
+			if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
+				return;
+			}
+
+			const auto image = result.remoteContent.isEmpty()
+				? App::readImage(result.paths.front())
+				: App::readImage(result.remoteContent);
+			if (image.isNull()
+				|| image.width() > 10 * image.height()
+				|| image.height() > 10 * image.width()) {
+				Ui::show(Box<InformBox>(lang(lng_bad_photo)));
+				return;
+			}
+
+			auto box = Ui::show(Box<PhotoCropBox>(image, self));
+			box->ready(
+			) | rpl::start_with_next([=](QImage &&image) {
+				Auth().api().uploadPeerPhoto(self, std::move(image));
+			}, box->lifetime());
+		};
+		FileDialog::GetOpenPath(
+			container.get(),
+			lang(lng_choose_image),
+			filter,
+			crl::guard(container, callback));
+	};
+	container->add(object_ptr<Button>(
+		container,
+		Lang::Viewer(lng_settings_upload),
+		st::settingsSectionButton)
+	)->addClickHandler(App::LambdaDelayed(
+		st::settingsSectionButton.ripple.hideDuration,
+		container,
+		upload));
+
+	AddSkip(container);
 }
 
 void SetupLanguageButton(not_null<Ui::VerticalLayout*> container) {
@@ -58,6 +111,30 @@ void SetupLanguageButton(not_null<Ui::VerticalLayout*> container) {
 			st::settingsButtonRightPosition.x(),
 			st::settingsButtonRightPosition.y());
 	}, name->lifetime());
+}
+
+void SetupSections(
+		not_null<Ui::VerticalLayout*> container,
+		Fn<void(Type)> showOther) {
+	AddDivider(container);
+	AddSkip(container);
+
+	const auto addSection = [&](LangKey label, Type type) {
+		container->add(object_ptr<Button>(
+			container,
+			Lang::Viewer(label),
+			st::settingsSectionButton)
+		)->addClickHandler([=] { showOther(type); });
+	};
+	addSection(lng_settings_section_info, Type::Information);
+	addSection(lng_settings_section_notify, Type::Notifications);
+	addSection(lng_settings_section_privacy, Type::PrivacySecurity);
+	addSection(lng_settings_section_general, Type::General);
+	addSection(lng_settings_section_chat_settings, Type::Chat);
+
+	SetupLanguageButton(container);
+
+	AddSkip(container);
 }
 
 void SetupInterfaceScale(not_null<Ui::VerticalLayout*> container) {
@@ -223,35 +300,14 @@ void Main::setupContent(not_null<Window::Controller*> controller) {
 		controller));
 	cover->setOnlineCount(rpl::single(0));
 
-	setupSections(content);
+	SetupUploadPhotoButton(content, _self);
+	SetupSections(content, [=](Type type) {
+		_showOther.fire_copy(type);
+	});
 	SetupInterfaceScale(content);
 	SetupHelp(content);
 
 	Ui::ResizeFitChild(this, content);
-}
-
-void Main::setupSections(not_null<Ui::VerticalLayout*> container) {
-	AddDivider(container);
-	AddSkip(container);
-
-	const auto addSection = [&](LangKey label, Type type) {
-		container->add(object_ptr<Button>(
-			container,
-			Lang::Viewer(label),
-			st::settingsSectionButton)
-		)->addClickHandler([=] {
-			_showOther.fire_copy(type);
-		});
-	};
-	addSection(lng_settings_section_info, Type::Information);
-	addSection(lng_settings_section_notify, Type::Notifications);
-	addSection(lng_settings_section_privacy, Type::PrivacySecurity);
-	addSection(lng_settings_section_general, Type::General);
-	addSection(lng_settings_section_chat_settings, Type::Chat);
-
-	SetupLanguageButton(container);
-
-	AddSkip(container);
 }
 
 rpl::producer<Type> Main::sectionShowOther() {
