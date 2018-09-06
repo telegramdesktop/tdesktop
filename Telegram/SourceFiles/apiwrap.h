@@ -322,6 +322,8 @@ public:
 		TextWithEntities caption,
 		const SendOptions &options);
 
+	void requestSupportContact(FnMut<void(const MTPUser&)> callback);
+
 	~ApiWrap();
 
 private:
@@ -647,5 +649,7 @@ private:
 
 	TimeMs _termsUpdateSendAt = 0;
 	mtpRequestId _termsUpdateRequestId = 0;
+
+	std::vector<FnMut<void(const MTPUser &)>> _supportContactCallbacks;
 
 };

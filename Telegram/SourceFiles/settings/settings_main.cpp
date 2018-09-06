@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "boxes/language_box.h"
 #include "boxes/confirm_box.h"
+#include "boxes/about_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/widgets/labels.h"
@@ -19,6 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_cover.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
+#include "auth_session.h"
+#include "apiwrap.h"
 #include "styles/style_settings.h"
 
 namespace Settings {
@@ -68,15 +71,17 @@ void SetupInterfaceScale(not_null<Ui::VerticalLayout*> container) {
 		container,
 		rpl::event_stream<bool>());
 
+	const auto switched = (cConfigScale() == dbisAuto)
+		|| (cConfigScale() == cScreenScale());
 	const auto button = container->add(object_ptr<Button>(
 		container,
 		Lang::Viewer(lng_settings_default_scale),
 		st::settingsSectionButton)
-	)->toggleOn(toggled->events_starting_with(cConfigScale() == dbisAuto));
+	)->toggleOn(toggled->events_starting_with_copy(switched));
 
 	const auto slider = container->add(
-		object_ptr<Ui::SettingsSlider>(container),
-		st::settingsSectionButton.padding);
+		object_ptr<Ui::SettingsSlider>(container, st::settingsSlider),
+		st::settingsScalePadding);
 
 	const auto inSetScale = Ui::AttachAsChild(container, false);
 	const auto setScale = std::make_shared<Fn<void(DBIScale)>>();
@@ -97,7 +102,7 @@ void SetupInterfaceScale(not_null<Ui::VerticalLayout*> container) {
 
 		if (cEvalScale(scale) != cEvalScale(cRealScale())) {
 			const auto confirmed = crl::guard(button, [=] {
-				cSetConfigScale(scale);
+				cSetConfigScale(applying);
 				Local::writeSettings();
 				App::restart();
 			});
@@ -167,6 +172,37 @@ void SetupInterfaceScale(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container);
 }
 
+void SetupHelp(not_null<Ui::VerticalLayout*> container) {
+	AddDivider(container);
+	AddSkip(container);
+
+	container->add(object_ptr<Button>(
+		container,
+		Lang::Viewer(lng_settings_faq),
+		st::settingsSectionButton)
+	)->addClickHandler([] {
+		QDesktopServices::openUrl(telegramFaqLink());
+	});
+
+	if (AuthSession::Exists()) {
+		const auto button = container->add(object_ptr<Button>(
+			container,
+			Lang::Viewer(lng_settings_ask_question),
+			st::settingsSectionButton));
+		button->addClickHandler([=] {
+			const auto ready = crl::guard(button, [](const MTPUser &data) {
+				const auto users = MTP_vector<MTPUser>(1, data);
+				if (const auto user = App::feedUsers(users)) {
+					Ui::showPeerHistory(user, ShowAtUnreadMsgId);
+				}
+			});
+			Auth().api().requestSupportContact(ready);
+		});
+	}
+
+	AddSkip(container);
+}
+
 } // namespace
 
 Main::Main(
@@ -189,6 +225,7 @@ void Main::setupContent(not_null<Window::Controller*> controller) {
 
 	setupSections(content);
 	SetupInterfaceScale(content);
+	SetupHelp(content);
 
 	Ui::ResizeFitChild(this, content);
 }

@@ -15,3 +15,8 @@ settingsButtonRightPosition: point(28px, 10px);
 settingsButtonRight: FlatLabel(defaultFlatLabel) {
 	textFg: windowActiveTextFg;
 }
+settingsScalePadding: margins(79px, 10px, 28px, 8px);
+settingsSlider: SettingsSlider(defaultSettingsSlider) {
+	labelFg: windowSubTextFg;
+	labelFgActive: windowActiveTextFg;
+}
