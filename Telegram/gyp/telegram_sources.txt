@@ -566,6 +566,8 @@
 <(src_loc)/old_settings/settings_widget.h
 <(src_loc)/settings/settings_chat.cpp
 <(src_loc)/settings/settings_chat.h
+<(src_loc)/settings/settings_codes.cpp
+<(src_loc)/settings/settings_codes.h
 <(src_loc)/settings/settings_common.cpp
 <(src_loc)/settings/settings_common.h
 <(src_loc)/settings/settings_general.cpp

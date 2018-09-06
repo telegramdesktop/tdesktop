@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_main.h"
 
 #include "settings/settings_common.h"
+#include "settings/settings_codes.h"
 #include "boxes/abstract_box.h"
 #include "boxes/language_box.h"
 #include "boxes/confirm_box.h"
@@ -289,6 +290,11 @@ Main::Main(
 : Section(parent)
 , _self(self) {
 	setupContent(controller);
+}
+
+void Main::keyPressEvent(QKeyEvent *e) {
+	CodesFeedString(e->text());
+	return Section::keyPressEvent(e);
 }
 
 void Main::setupContent(not_null<Window::Controller*> controller) {

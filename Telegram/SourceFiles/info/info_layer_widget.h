@@ -41,6 +41,7 @@ public:
 
 protected:
 	int resizeGetHeight(int newWidth) override;
+	void doSetInnerFocus() override;
 
 	void paintEvent(QPaintEvent *e) override;
 

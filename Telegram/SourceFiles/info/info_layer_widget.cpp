@@ -190,6 +190,10 @@ int LayerWidget::resizeGetHeight(int newWidth) {
 	return desiredHeight;
 }
 
+void LayerWidget::doSetInnerFocus() {
+	_content->setInnerFocus();
+}
+
 void LayerWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 

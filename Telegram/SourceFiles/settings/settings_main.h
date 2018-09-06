@@ -28,6 +28,9 @@ public:
 
 	rpl::producer<Type> sectionShowOther() override;
 
+protected:
+	void keyPressEvent(QKeyEvent *e) override;
+
 private:
 	void setupContent(not_null<Window::Controller*> controller);
 
