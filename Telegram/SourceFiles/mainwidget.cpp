@@ -960,22 +960,8 @@ void MainWidget::cancelUploadLayer(not_null<HistoryItem*> item) {
 void MainWidget::deletePhotoLayer(PhotoData *photo) {
 	if (!photo) return;
 	Ui::show(Box<ConfirmBox>(lang(lng_delete_photo_sure), lang(lng_box_delete), crl::guard(this, [=] {
+		Auth().api().clearPeerPhoto(photo);
 		Ui::hideLayer();
-
-		auto me = App::self();
-		if (!me) return;
-
-		if (me->userpicPhotoId() == photo->id) {
-			Messenger::Instance().peerClearPhoto(me->id);
-		} else if (photo->peer && !photo->peer->isUser() && photo->peer->userpicPhotoId() == photo->id) {
-			Messenger::Instance().peerClearPhoto(photo->peer->id);
-		} else {
-			MTP::send(MTPphotos_DeletePhotos(
-				MTP_vector<MTPInputPhoto>(1, photo->mtpInput())));
-			Auth().storage().remove(Storage::UserPhotosRemoveOne(
-				me->bareId(),
-				photo->id));
-		}
 	})));
 }
 

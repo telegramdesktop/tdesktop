@@ -324,6 +324,9 @@ public:
 
 	void requestSupportContact(FnMut<void(const MTPUser&)> callback);
 
+	void uploadPeerPhoto(not_null<PeerData*> peer, QImage &&image);
+	void clearPeerPhoto(not_null<PhotoData*> photo);
+
 	~ApiWrap();
 
 private:
@@ -505,6 +508,8 @@ private:
 		FileReferencesHandler &&handler,
 		Request &&data);
 
+	void photoUploadReady(const FullMsgId &msgId, const MTPInputFile &file);
+
 	not_null<AuthSession*> _session;
 
 	MessageDataRequests _messageDataRequests;
@@ -651,5 +656,7 @@ private:
 	mtpRequestId _termsUpdateRequestId = 0;
 
 	std::vector<FnMut<void(const MTPUser &)>> _supportContactCallbacks;
+
+	base::flat_map<FullMsgId, not_null<PeerData*>> _peerPhotoUploads;
 
 };

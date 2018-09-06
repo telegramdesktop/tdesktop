@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "lang/lang_keys.h"
 #include "auth_session.h"
+#include "apiwrap.h"
 #include "mainwidget.h"
 #include "messenger.h"
 #include "observer_peer.h"
@@ -478,14 +479,9 @@ void UserpicButton::changePhotoLazy() {
 }
 
 void UserpicButton::uploadNewPeerPhoto() {
-	auto callback = crl::guard(
-		this,
-		[this](QImage &&image) {
-			Messenger::Instance().uploadProfilePhoto(
-				std::move(image),
-				_peer->id
-			);
-		});
+	auto callback = crl::guard(this, [=](QImage &&image) {
+		Auth().api().uploadPeerPhoto(_peer, std::move(image));
+	});
 	ShowChoosePhotoBox(this, _peerForCrop, std::move(callback));
 }
 

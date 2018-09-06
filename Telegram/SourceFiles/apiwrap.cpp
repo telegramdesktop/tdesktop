@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text_options.h"
 #include "storage/localimageloader.h"
 #include "storage/file_download.h"
+#include "storage/file_upload.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "storage/storage_user_photos.h"
@@ -154,6 +155,12 @@ ApiWrap::ApiWrap(not_null<AuthSession*> session)
 , _feedReadTimer([=] { readFeeds(); })
 , _proxyPromotionTimer([=] { refreshProxyPromotion(); })
 , _updateNotifySettingsTimer([=] { sendNotifySettingsUpdates(); }) {
+	crl::on_main([=] {
+		_session->uploader().photoReady(
+		) | rpl::start_with_next([=](const Storage::UploadedPhoto &data) {
+			photoUploadReady(data.fullId, data.file);
+		}, _session->lifetime());
+	});
 }
 
 void ApiWrap::requestChangelog(
@@ -4345,7 +4352,7 @@ void ApiWrap::sendInlineResult(
 		not_null<UserData*> bot,
 		not_null<InlineBots::Result*> data,
 		const SendOptions &options) {
-	Auth().api().sendAction(options);
+	sendAction(options);
 
 	const auto history = options.history;
 	const auto peer = history->peer;
@@ -4376,9 +4383,9 @@ void ApiWrap::sendInlineResult(
 		flags |= MTPDmessage::Flag::f_via_bot_id;
 	}
 
-	auto messageFromId = channelPost ? 0 : Auth().userId();
+	auto messageFromId = channelPost ? 0 : _session->userId();
 	auto messagePostAuthor = channelPost
-		? App::peerName(Auth().user())
+		? App::peerName(_session->user())
 		: QString();
 	MTPint messageDate = MTP_int(unixtime());
 	UserId messageViaBotId = bot ? peerToUser(bot->id) : 0;
@@ -4425,7 +4432,7 @@ void ApiWrap::sendExistingDocument(
 		Data::FileOrigin origin,
 		TextWithEntities caption,
 		const SendOptions &options) {
-	Auth().api().sendAction(options);
+	sendAction(options);
 
 	const auto history = options.history;
 	const auto peer = history->peer;
@@ -4439,7 +4446,8 @@ void ApiWrap::sendExistingDocument(
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
 	}
 	bool channelPost = peer->isChannel() && !peer->isMegagroup();
-	bool silentPost = channelPost && Auth().data().notifySilentPosts(peer);
+	bool silentPost = channelPost
+		&& _session->data().notifySilentPosts(peer);
 	if (channelPost) {
 		flags |= MTPDmessage::Flag::f_views;
 		flags |= MTPDmessage::Flag::f_post;
@@ -4452,9 +4460,10 @@ void ApiWrap::sendExistingDocument(
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
-	auto messageFromId = channelPost ? 0 : Auth().userId();
+	auto messageFromId = channelPost ? 0 : _session->userId();
 	auto messagePostAuthor = channelPost
-		? App::peerName(Auth().user()) : QString();
+		? App::peerName(_session->user())
+		: QString();
 
 	TextUtilities::Trim(caption);
 	auto sentEntities = TextUtilities::EntitiesToMTP(
@@ -4791,6 +4800,93 @@ void ApiWrap::requestSupportContact(FnMut<void(const MTPUser &)> callback) {
 	}).fail([=](const RPCError &error) {
 		_supportContactCallbacks.clear();
 	}).send();
+}
+
+void ApiWrap::uploadPeerPhoto(not_null<PeerData*> peer, QImage &&image) {
+	const auto ready = PreparePeerPhoto(peer->id, std::move(image));
+
+	const auto fakeId = FullMsgId(peerToChannel(peer->id), clientMsgId());
+	const auto already = ranges::find(
+		_peerPhotoUploads,
+		peer,
+		[](const auto &pair) { return pair.second; });
+	if (already != end(_peerPhotoUploads)) {
+		_session->uploader().cancel(already->first);
+		_peerPhotoUploads.erase(already);
+	}
+	_peerPhotoUploads.emplace(fakeId, peer);
+	_session->uploader().uploadMedia(fakeId, ready);
+}
+
+void ApiWrap::photoUploadReady(
+		const FullMsgId &msgId,
+		const MTPInputFile &file) {
+	if (const auto maybePeer = _peerPhotoUploads.take(msgId)) {
+		const auto peer = *maybePeer;
+		const auto applier = [=](const MTPUpdates &result) {
+			applyUpdates(result);
+		};
+		if (peer->isSelf()) {
+			request(MTPphotos_UploadProfilePhoto(
+				file
+			)).done([=](const MTPphotos_Photo &result) {
+				result.match([&](const MTPDphotos_photo &data) {
+					_session->data().photo(data.vphoto);
+					App::feedUsers(data.vusers);
+				});
+			}).send();
+		} else if (const auto chat = peer->asChat()) {
+			const auto history = App::history(chat);
+			history->sendRequestId = request(MTPmessages_EditChatPhoto(
+				chat->inputChat,
+				MTP_inputChatUploadedPhoto(file)
+			)).done(applier).afterRequest(history->sendRequestId).send();
+		} else if (const auto channel = peer->asChannel()) {
+			const auto history = App::history(channel);
+			history->sendRequestId = request(MTPchannels_EditPhoto(
+				channel->inputChannel,
+				MTP_inputChatUploadedPhoto(file)
+			)).done(applier).afterRequest(history->sendRequestId).send();
+		}
+	}
+
+}
+
+void ApiWrap::clearPeerPhoto(not_null<PhotoData*> photo) {
+	const auto self = App::self();
+	if (!self) {
+		return;
+	}
+
+	if (self->userpicPhotoId() == photo->id) {
+		request(MTPphotos_UpdateProfilePhoto(
+			MTP_inputPhotoEmpty()
+		)).done([=](const MTPUserProfilePhoto &result) {
+			self->setPhoto(result);
+		}).send();
+	} else if (photo->peer && photo->peer->userpicPhotoId() == photo->id) {
+		const auto applier = [=](const MTPUpdates &result) {
+			applyUpdates(result);
+		};
+		if (const auto chat = photo->peer->asChat()) {
+			request(MTPmessages_EditChatPhoto(
+				chat->inputChat,
+				MTP_inputChatPhotoEmpty()
+			)).done(applier).send();
+		} else if (const auto channel = photo->peer->asChannel()) {
+			request(MTPchannels_EditPhoto(
+				channel->inputChannel,
+				MTP_inputChatPhotoEmpty()
+			)).done(applier).send();
+		}
+	} else {
+		request(MTPphotos_DeletePhotos(
+			MTP_vector<MTPInputPhoto>(1, photo->mtpInput())
+		)).send();
+		_session->storage().remove(Storage::UserPhotosRemoveOne(
+			self->bareId(),
+			photo->id));
+	}
 }
 
 void ApiWrap::readServerHistory(not_null<History*> history) {

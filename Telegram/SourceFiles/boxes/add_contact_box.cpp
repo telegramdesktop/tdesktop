@@ -426,9 +426,7 @@ void GroupInfoBox::createGroup(not_null<PeerListBox*> selectUsersBox, const QStr
 			| [this](not_null<ChatData*> chat) {
 				auto image = _photo->takeResultImage();
 				if (!image.isNull()) {
-					Messenger::Instance().uploadProfilePhoto(
-						std::move(image),
-						chat->id);
+					Auth().api().uploadPeerPhoto(chat, std::move(image));
 				}
 				Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
 			};
@@ -531,9 +529,7 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 			| [this](not_null<ChannelData*> channel) {
 				auto image = _photo->takeResultImage();
 				if (!image.isNull()) {
-					Messenger::Instance().uploadProfilePhoto(
-						std::move(image),
-						channel->id);
+					Auth().api().uploadPeerPhoto(channel, std::move(image));
 				}
 				_createdChannel = channel;
 				_creationRequestId = request(

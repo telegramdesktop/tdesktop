@@ -162,20 +162,6 @@ public:
 	void checkStartUrl();
 	bool openLocalUrl(const QString &url, QVariant context);
 
-	void uploadProfilePhoto(QImage &&tosend, const PeerId &peerId);
-	void regPhotoUpdate(const PeerId &peer, const FullMsgId &msgId);
-	bool isPhotoUpdating(const PeerId &peer);
-	void cancelPhotoUpdate(const PeerId &peer);
-
-	void selfPhotoCleared(const MTPUserProfilePhoto &result);
-	void chatPhotoCleared(PeerId peer, const MTPUpdates &updates);
-	void selfPhotoDone(const MTPphotos_Photo &result);
-	void chatPhotoDone(PeerId peerId, const MTPUpdates &updates);
-	bool peerPhotoFailed(PeerId peerId, const RPCError &e);
-	void peerClearPhoto(PeerId peer);
-
-	void writeUserConfigIn(TimeMs ms);
-
 	void killDownloadSessionsStart(MTP::DcId dcId);
 	void killDownloadSessionsStop(MTP::DcId dcId);
 
@@ -217,10 +203,6 @@ public:
 protected:
 	bool eventFilter(QObject *object, QEvent *event) override;
 
-signals:
-	void peerPhotoDone(PeerId peer);
-	void peerPhotoFail(PeerId peer);
-
 public slots:
 	void onAllKeysDestroyed();
 
@@ -239,15 +221,12 @@ private:
 	static void QuitAttempt();
 	void quitDelayed();
 
-	void photoUpdated(const FullMsgId &msgId, const MTPInputFile &file);
 	void resetAuthorizationKeys();
 	void authSessionDestroy();
 	void clearPasscodeLock();
 	void loggedOut();
 
 	not_null<Core::Launcher*> _launcher;
-
-	QMap<FullMsgId, PeerId> photoUpdates;
 
 	QMap<MTP::DcId, TimeMs> killDownloadSessionTimes;
 	SingleTimer killDownloadSessionsTimer;
@@ -271,9 +250,6 @@ private:
 	base::Observable<void> _authSessionChanged;
 	base::Observable<void> _passcodedChanged;
 	QPointer<BoxContent> _badProxyDisableBox;
-
-	// While profile photo uploading is not moved to apiwrap.
-	rpl::lifetime _uploaderSubscription;
 
 	std::unique_ptr<Media::Audio::Instance> _audio;
 	QImage _logo;

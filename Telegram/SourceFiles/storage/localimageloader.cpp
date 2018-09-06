@@ -22,6 +22,66 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 using Storage::ValidateThumbDimensions;
 
+SendMediaReady PreparePeerPhoto(PeerId peerId, QImage &&image) {
+	PreparedPhotoThumbs photoThumbs;
+	QVector<MTPPhotoSize> photoSizes;
+
+	QByteArray jpeg;
+	QBuffer jpegBuffer(&jpeg);
+	image.save(&jpegBuffer, "JPG", 87);
+
+	const auto scaled = [&](int size) {
+		return App::pixmapFromImageInPlace(image.scaled(
+			size,
+			size,
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation));
+	};
+	const auto push = [&](const char *type, QPixmap &&pixmap) {
+		photoSizes.push_back(MTP_photoSize(
+			MTP_string(type),
+			MTP_fileLocationUnavailable(
+				MTP_long(0),
+				MTP_int(0),
+				MTP_long(0)),
+			MTP_int(pixmap.width()),
+			MTP_int(pixmap.height()), MTP_int(0)));
+		photoThumbs.insert(type[0], std::move(pixmap));
+	};
+	push("a", scaled(160));
+	push("b", scaled(320));
+	push("c", App::pixmapFromImageInPlace(std::move(image)));
+
+	const auto id = rand_value<PhotoId>();
+	const auto photo = MTP_photo(
+		MTP_flags(0),
+		MTP_long(id),
+		MTP_long(0),
+		MTP_bytes(QByteArray()),
+		MTP_int(unixtime()),
+		MTP_vector<MTPPhotoSize>(photoSizes));
+
+	QString file, filename;
+	int32 filesize = 0;
+	QByteArray data;
+
+	return SendMediaReady(
+		SendMediaType::Photo,
+		file,
+		filename,
+		filesize,
+		data,
+		id,
+		id,
+		qsl("jpg"),
+		peerId,
+		photo,
+		photoThumbs,
+		MTP_documentEmpty(MTP_long(0)),
+		jpeg,
+		0);
+}
+
 TaskQueue::TaskQueue(TimeMs stopTimeoutMs) {
 	if (stopTimeoutMs > 0) {
 		_stopTimer = new QTimer(this);

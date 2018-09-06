@@ -237,6 +237,10 @@ public:
 	void checkAutoLock();
 	void checkAutoLockIn(TimeMs time);
 
+	rpl::lifetime &lifetime() {
+		return _lifetime;
+	}
+
 	base::Observable<DocumentData*> documentUpdated;
 	base::Observable<std::pair<not_null<HistoryItem*>, MsgId>> messageIdChanging;
 

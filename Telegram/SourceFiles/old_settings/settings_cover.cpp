@@ -61,17 +61,6 @@ CoverWidget::CoverWidget(QWidget *parent, UserData *self)
 		notifyPeerUpdated(update);
 	}));
 
-	connect(
-		&Messenger::Instance(),
-		&Messenger::peerPhotoDone,
-		this,
-		&CoverWidget::onPhotoUploadStatusChanged);
-	connect(
-		&Messenger::Instance(),
-		&Messenger::peerPhotoFail,
-		this,
-		&CoverWidget::onPhotoUploadStatusChanged);
-
 	_userpicButton->addClickHandler([this] { showPhoto(); });
 	validatePhoto();
 
@@ -102,7 +91,6 @@ void CoverWidget::showPhoto() {
 }
 
 void CoverWidget::cancelPhotoUpload() {
-	Messenger::Instance().cancelPhotoUpdate(_self->id);
 	refreshStatusText();
 }
 
@@ -309,7 +297,7 @@ void CoverWidget::refreshNameText() {
 }
 
 void CoverWidget::refreshStatusText() {
-	if (Messenger::Instance().isPhotoUpdating(_self->id)) {
+	if (false) {
 		_statusText = lang(lng_settings_uploading_photo);
 		_statusTextIsOnline = false;
 		if (!_cancelPhotoUpload) {
@@ -378,9 +366,7 @@ void CoverWidget::showSetPhotoBox(const QImage &img) {
 	auto box = Ui::show(Box<PhotoCropBox>(img, peer));
 	box->ready(
 	) | rpl::start_with_next([=](QImage &&image) {
-		Messenger::Instance().uploadProfilePhoto(
-			std::move(image),
-			peer->id);
+		Auth().api().uploadPeerPhoto(peer, std::move(image));
 	}, box->lifetime());
 	box->boxClosing() | rpl::start_with_next([=] {
 		onPhotoUploadStatusChanged();

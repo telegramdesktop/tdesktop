@@ -1391,9 +1391,7 @@ void Controller::savePhoto() {
 		? _controls.photo->takeResultImage()
 		: QImage();
 	if (!image.isNull()) {
-		Messenger::Instance().uploadProfilePhoto(
-			std::move(image),
-			_peer->id);
+		Auth().api().uploadPeerPhoto(_peer, std::move(image));
 	}
 	_box->closeBox();
 }
