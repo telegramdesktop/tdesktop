@@ -2399,6 +2399,9 @@ void MainWidget::showNewSection(
 		auto direction = (back || settingSection->forceAnimateBack())
 			? Window::SlideDirection::FromLeft
 			: Window::SlideDirection::FromRight;
+		if (Adaptive::OneColumn()) {
+			_controller->removeLayerBlackout();
+		}
 		settingSection->showAnimated(direction, animationParams);
 	} else {
 		settingSection->showFast();

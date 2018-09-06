@@ -516,6 +516,10 @@ void Controller::showSpecialLayer(
 	App::wnd()->showSpecialLayer(std::move(layer), animated);
 }
 
+void Controller::removeLayerBlackout() {
+	App::wnd()->ui_removeLayerBlackout();
+}
+
 not_null<MainWidget*> Controller::chats() const {
 	return App::wnd()->chatsWidget();
 }

@@ -372,6 +372,12 @@ void MainWindow::ui_hideSettingsAndLayer(anim::type animated) {
 	}
 }
 
+void MainWindow::ui_removeLayerBlackout() {
+	if (_layer) {
+		_layer->removeBodyCache();
+	}
+}
+
 MainWidget *MainWindow::mainWidget() {
 	return _main;
 }

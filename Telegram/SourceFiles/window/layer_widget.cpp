@@ -43,7 +43,12 @@ public:
 	}
 
 	void setLayerBoxes(const QRect &specialLayerBox, const QRect &layerBox);
-	void setCacheImages(QPixmap &&bodyCache, QPixmap &&mainMenuCache, QPixmap &&specialLayerCache, QPixmap &&layerCache);
+	void setCacheImages(
+		QPixmap &&bodyCache,
+		QPixmap &&mainMenuCache,
+		QPixmap &&specialLayerCache,
+		QPixmap &&layerCache);
+	void removeBodyCache();
 	void startAnimation(Action action);
 	void skipAnimation(Action action);
 	void finishAnimating();
@@ -91,7 +96,11 @@ private:
 
 };
 
-void LayerStackWidget::BackgroundWidget::setCacheImages(QPixmap &&bodyCache, QPixmap &&mainMenuCache, QPixmap &&specialLayerCache, QPixmap &&layerCache) {
+void LayerStackWidget::BackgroundWidget::setCacheImages(
+		QPixmap &&bodyCache,
+		QPixmap &&mainMenuCache,
+		QPixmap &&specialLayerCache,
+		QPixmap &&layerCache) {
 	_bodyCache = std::move(bodyCache);
 	_mainMenuCache = std::move(mainMenuCache);
 	_specialLayerCache = std::move(specialLayerCache);
@@ -99,6 +108,13 @@ void LayerStackWidget::BackgroundWidget::setCacheImages(QPixmap &&bodyCache, QPi
 	_specialLayerCacheBox = _specialLayerBox;
 	_layerCacheBox = _layerBox;
 	setAttribute(Qt::WA_OpaquePaintEvent, !_bodyCache.isNull());
+}
+
+void LayerStackWidget::BackgroundWidget::removeBodyCache() {
+	if (!_bodyCache.isNull()) {
+		_bodyCache = {};
+		setAttribute(Qt::WA_OpaquePaintEvent, false);
+	}
 }
 
 void LayerStackWidget::BackgroundWidget::startAnimation(Action action) {
@@ -135,8 +151,8 @@ void LayerStackWidget::BackgroundWidget::checkIfDone() {
 		return;
 	}
 	_wasAnimating = false;
-	_bodyCache = _mainMenuCache = _specialLayerCache = _layerCache = QPixmap();
-	setAttribute(Qt::WA_OpaquePaintEvent, false);
+	_mainMenuCache = _specialLayerCache = _layerCache = QPixmap();
+	removeBodyCache();
 	if (_doneCallback) {
 		_doneCallback();
 	}
@@ -392,6 +408,11 @@ void LayerStackWidget::hideTopLayer(anim::type animated) {
 	}
 }
 
+void LayerStackWidget::removeBodyCache() {
+	_background->removeBodyCache();
+	setAttribute(Qt::WA_OpaquePaintEvent, false);
+}
+
 bool LayerStackWidget::layerShown() const {
 	return _specialLayer || currentLayer() || _mainMenu;
 }
@@ -418,7 +439,7 @@ void LayerStackWidget::setCacheImages() {
 		setFocus();
 	}
 	if (_mainMenu) {
-		setAttribute(Qt::WA_OpaquePaintEvent, false);
+		removeBodyCache();
 		hideChildren();
 		bodyCache = Ui::GrabWidget(parentWidget());
 		showChildren();

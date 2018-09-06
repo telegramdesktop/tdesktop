@@ -111,6 +111,7 @@ public:
 	void hideAll(anim::type animated);
 	void hideTopLayer(anim::type animated);
 	void setHideByBackgroundClick(bool hide);
+	void removeBodyCache();
 
 	bool showSectionInternal(
 		not_null<SectionMemento*> memento,

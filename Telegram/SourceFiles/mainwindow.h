@@ -111,6 +111,7 @@ public:
 		LayerOptions options,
 		anim::type animated);
 	void ui_hideSettingsAndLayer(anim::type animated);
+	void ui_removeLayerBlackout();
 	bool ui_isLayerShown();
 	void ui_showMediaPreview(
 		Data::FileOrigin origin,

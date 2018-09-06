@@ -209,6 +209,7 @@ public:
 			anim::type animated = anim::type::normal) {
 		showSpecialLayer(nullptr, animated);
 	}
+	void removeLayerBlackout();
 
 	void showJumpToDate(
 		Dialogs::Key chat,
